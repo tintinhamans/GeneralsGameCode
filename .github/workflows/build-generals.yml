@@ -1,0 +1,60 @@
+name: Generals
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Generals/**"
+      - "Dependencies/**"
+      - "cmake/**"
+      - "CMakeLists.txt"
+      - "CMakePresets.json"
+      - ".github/workflows/build-generals.yml"
+      - ".github/workflows/toolchain-common.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "Generals/**"
+      - "Dependencies/**"
+      - "cmake/**"
+      - "CMakeLists.txt"
+      - "CMakePresets.json"
+      - ".github/workflows/build-generals.yml"
+      - ".github/workflows/toolchain-common.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Generals (${{ matrix.preset }})
+    strategy:
+      matrix:
+        include:
+          - preset: "vc6"
+            tools: true
+          - preset: "vc6prof"
+            tools: true
+          - preset: "vc6int"
+            tools: true
+          - preset: "vc6debug"
+            tools: true
+          # - preset: "msvc32"
+          #   tools: true
+          # - preset: "msvc32prof"
+          #   tools: true
+          # - preset: "msvc32int"
+          #   tools: true
+          # - preset: "msvc32debug"
+          #   tools: true
+      fail-fast: false
+    uses: ./.github/workflows/toolchain-common.yml
+    with:
+      game: "Generals"
+      preset: ${{ matrix.preset }}
+      tools: ${{ matrix.tools }}
+    secrets: inherit
