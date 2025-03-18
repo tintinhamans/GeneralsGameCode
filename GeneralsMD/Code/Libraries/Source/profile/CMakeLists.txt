@@ -31,6 +31,10 @@ target_link_libraries(z_profile PRIVATE
     zi_libraries_include
 )
 
-set_target_properties(z_profile PROPERTIES OUTPUT_NAME
-    $<IF:$<CONFIG:Debug>,profiledebug,$<IF:$<BOOL:${GENZH_BUILD_INTERNAL}>,profileinternal,profile>>
-)
+if(GENZH_BUILD_DEBUG)
+    set_target_properties(z_profile PROPERTIES OUTPUT_NAME profiledebug)
+elseif(GENZH_BUILD_INTERNAL)
+    set_target_properties(z_profile PROPERTIES OUTPUT_NAME profileinternal)
+else()
+    set_target_properties(z_profile PROPERTIES OUTPUT_NAME profile)
+endif()
