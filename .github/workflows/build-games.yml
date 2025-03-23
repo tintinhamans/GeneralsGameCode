@@ -18,16 +18,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check-changes:
-    name: Check Changes
+  detect-changes:
+    name: Detect File Changes
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       generals: ${{ steps.filter.outputs.generals }}
       generalsmd: ${{ steps.filter.outputs.generalsmd }}
       shared: ${{ steps.filter.outputs.shared }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: dorny/paths-filter@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50  # Fetch more history for better change detection
+
+      - name: Filter Changed Paths
+        uses: dorny/paths-filter@v3
         id: filter
         with:
           token: ''
@@ -44,10 +50,17 @@ jobs:
               - ".github/workflows/build-games.yml"
               - '.github/workflows/toolchain-common.yml'
 
+      - name: Changes Summary
+        run: |
+          echo "### 🔍 File Changes Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Generals: ${{ steps.filter.outputs.generals == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- GeneralsMD: ${{ steps.filter.outputs.generalsmd == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Shared: ${{ steps.filter.outputs.shared == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+
   build-generals:
     name: Build Generals (${{ matrix.preset }}${{ matrix.tools && '+tools' || '' }})
-    needs: check-changes
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.generals == 'true' || needs.check-changes.outputs.shared == 'true' }}
+    needs: detect-changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.generals == 'true' || needs.detect-changes.outputs.shared == 'true' }}
     strategy:
       matrix:
         include:
@@ -69,8 +82,8 @@ jobs:
 
   build-generalsmd:
     name: Build GeneralsMD (${{ matrix.preset }}${{ matrix.tools && '+tools' || '' }})
-    needs: check-changes
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.generalsmd == 'true' || needs.check-changes.outputs.shared == 'true' }}
+    needs: detect-changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.generalsmd == 'true' || needs.detect-changes.outputs.shared == 'true' }}
     strategy:
       matrix:
         include:
