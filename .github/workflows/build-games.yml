@@ -78,10 +78,11 @@ jobs:
       game: "Generals"
       preset: ${{ matrix.preset }}
       tools: ${{ matrix.tools }}
+      config: ${{ matrix.config }}
     secrets: inherit
 
   build-generalsmd:
-    name: Build GeneralsMD (${{ matrix.preset }}${{ matrix.tools && '+tools' || '' }})
+    name: Build GeneralsMD (${{ matrix.preset }}${{ matrix.config && matrix.config || '' }}${{ matrix.tools && '+tools' || '' }})
     needs: detect-changes
     if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.generalsmd == 'true' || needs.detect-changes.outputs.shared == 'true' }}
     strategy:
@@ -95,10 +96,17 @@ jobs:
             tools: true
           - preset: "vc6debug"
             tools: true
+          - preset: "win32"
+            tools: false
+            config: "Release"
+          - preset: "win32"
+            tools: false
+            config: "Debug"
       fail-fast: false
     uses: ./.github/workflows/toolchain-common.yml
     with:
       game: "GeneralsMD"
       preset: ${{ matrix.preset }}
       tools: ${{ matrix.tools }}
+      config: ${{ matrix.config }}
     secrets: inherit

@@ -15,7 +15,12 @@ on:
         required: true
         type: string
         description: "CMake preset"
+      config:
+        required: false
+        type: string
+        description: "CMake configuration (Debug, Release)"
       tools:
+        required: false
         default: false
         type: boolean
         description: "Build tools"
@@ -89,6 +94,12 @@ jobs:
           "INCLUDE=$MSVCDir\ATL\INCLUDE;$MSVCDir\INCLUDE;$MSVCDir\MFC\INCLUDE;$env:INCLUDE" >> $env:GITHUB_ENV
           "LIB=$MSVCDir\LIB;$MSVCDir\MFC\LIB;$env:LIB" >> $env:GITHUB_ENV
 
+      - name: Set Up VC2022 Environment
+        if: inputs.preset == 'win32'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
       - name: Configure ${{ inputs.game }} with CMake Using ${{ inputs.preset }} Preset
         shell: pwsh
         run: |
@@ -106,23 +117,38 @@ jobs:
 
           cmake --preset ${{ inputs.preset }} $buildFlags
 
-      - name: Build ${{ inputs.game }} with CMake Using ${{ inputs.preset }} Preset
+      - name: Build ${{ inputs.game }} with CMake Using ${{ inputs.preset }}${{ inputs.config && inputs.config || '' }} Preset
         shell: pwsh
         run: |
-          cmake --build "build\${{ inputs.preset }}"
+            $buildCommand = "cmake --build build\${{ inputs.preset }}"
+            if ("${{ inputs.config }}" -ne "") {
+              $buildCommand += " --config ${{ inputs.config }}"
+            }
+            Invoke-Expression $buildCommand -Verbose
 
-      - name: Collect ${{ inputs.game }} ${{ inputs.preset }} Artifacts
+      - name: Collect ${{ inputs.game }} ${{ inputs.preset }}${{ inputs.config && inputs.config || '' }} Artifacts
         shell: pwsh
         run: |
           $buildDir = "build\${{ inputs.preset }}"
           $artifactsDir = New-Item -ItemType Directory -Force -Path "$buildDir\${{ inputs.game }}\artifacts" -Verbose
-          $files = Get-ChildItem -Path "$buildDir\${{ inputs.game }}" -File | Where-Object { $_.Extension -in @(".exe", ".dll", ".pdb") } -Verbose
+
+          if ("${{ inputs.preset }}" -eq "win32") {
+            # For win32 preset, look in config-specific subdirectories
+            $configToUse = "${{ inputs.config }}"
+            if ("$configToUse" -eq "") {
+              # Default to Debug if no config is specified
+              $configToUse = "Debug"
+            }
+            $files = Get-ChildItem -Path "$buildDir\${{ inputs.game }}\$configToUse" -File | Where-Object { $_.Extension -in @(".exe", ".dll", ".pdb") } -Verbose
+          } else {
+            $files = Get-ChildItem -Path "$buildDir\${{ inputs.game }}" -File | Where-Object { $_.Extension -in @(".exe", ".dll", ".pdb") } -Verbose
+          }
           $files | Move-Item -Destination $artifactsDir -Verbose
 
-      - name: Upload ${{ inputs.game }} ${{ inputs.preset }} Artifact
+      - name: Upload ${{ inputs.game }} ${{ inputs.preset }}${{ inputs.config && inputs.config || '' }} Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.game }}-${{ inputs.preset }}${{ inputs.tools == true && '+tools' || '' }}
+          name: ${{ inputs.game }}-${{ inputs.preset }}${{ inputs.config && inputs.config || '' }}${{ inputs.tools == true && '+tools' || '' }}
           path: build\${{ inputs.preset }}\${{ inputs.game }}\artifacts
           retention-days: 30
           if-no-files-found: error
