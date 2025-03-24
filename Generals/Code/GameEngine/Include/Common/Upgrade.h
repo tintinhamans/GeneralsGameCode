@@ -36,6 +36,7 @@
 #include "Common/AudioEventRTS.h"
 #include "Common/INI.h"
 #include "Common/Snapshot.h"
+#include "Common/BitFlags.h"
 
 // FORWARD REFERENCES /////////////////////////////////////////////////////////////////////////////
 class Player;
@@ -103,7 +104,7 @@ enum UpgradeType
 	NUM_UPGRADE_TYPES,		// keep this last
 };
 #ifdef DEFINE_UPGRADE_TYPE_NAMES
-static Char *UpgradeTypeNames[] = 
+static const Char *UpgradeTypeNames[] = 
 {
 	"PLAYER",
 	"OBJECT",

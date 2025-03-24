@@ -164,7 +164,8 @@ inline Real deg2rad(Real rad) { return rad * (PI/180); }
 //-----------------------------------------------------------------------------
 // For twiddling bits
 //-----------------------------------------------------------------------------
-#define BitTest( x, i ) ( ( (x) & (i) ) != 0 )
+// TheSuperHackers @compile xezon 22/03/2025 Renames BitTest to BitIsSet to prevent conflict with BitTest macro from winnt.h
+#define BitIsSet( x, i ) ( ( (x) & (i) ) != 0 )
 #define BitSet( x, i ) ( (x) |= (i) )
 #define BitClear( x, i ) ( (x ) &= ~(i) )
 #define BitToggle( x, i ) ( (x) ^= (i) )
@@ -388,7 +389,7 @@ struct Coord3D
 						z == r.z);
 	}
 
-	Bool operator==( const Coord3D &r )
+	Bool operator==( const Coord3D &r ) const
 	{
 		return (x == r.x &&
 						y == r.y &&

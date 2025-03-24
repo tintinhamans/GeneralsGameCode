@@ -713,7 +713,7 @@ TeamTemplateInfo::TeamTemplateInfo(Dict *d) :
 	m_automaticallyReinforce = d->getBool(TheKey_teamAutoReinforce, &exists);
 
 	Int interact	= d->getInt(TheKey_teamAggressiveness, &exists);
-	m_initialTeamAttitude = AI_NORMAL;
+	m_initialTeamAttitude = ATTITUDE_NORMAL;
 	if (exists) {
 		m_initialTeamAttitude = (AttitudeType) interact;
 	}
@@ -1623,7 +1623,7 @@ void Team::countObjectsByThingTemplate(Int numTmplates, const ThingTemplate* con
 			if (ignoreDead && iter.cur()->isEffectivelyDead())
 				continue;
 
-			if( ignoreUnderConstruction && (BitTest(iter.cur()->getStatusBits(), OBJECT_STATUS_UNDER_CONSTRUCTION) == TRUE) )
+			if( ignoreUnderConstruction && (BitIsSet(iter.cur()->getStatusBits(), OBJECT_STATUS_UNDER_CONSTRUCTION) == TRUE) )
 				continue;
 
 			counts[i] += 1;

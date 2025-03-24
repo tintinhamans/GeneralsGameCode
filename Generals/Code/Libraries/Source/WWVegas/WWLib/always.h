@@ -41,6 +41,7 @@
 #define ALWAYS_H
 
 #include <assert.h>
+#include <new>
 
 // Disable warning about exception handling not being enabled. It's used as part of STL - in a part of STL we don't use.
 #pragma warning(disable : 4530)
@@ -88,11 +89,13 @@
 	extern void* __cdecl operator new[]		(size_t nSize, const char *, int);
 	extern void __cdecl operator delete[]	(void *, const char *, int);
 
+#if defined(_MSC_VER) && _MSC_VER < 1300
 	// additional overloads for 'placement new'
 	//inline void* __cdecl operator new							(size_t s, void *p) { return p; }
 	//inline void __cdecl operator delete						(void *, void *p)		{ }
 	inline void* __cdecl operator new[]						(size_t s, void *p) { return p; }
 	inline void __cdecl operator delete[]					(void *, void *p)		{ }
+#endif
 
 #endif
 
