@@ -56,27 +56,30 @@ jobs:
           echo "- Shared: ${{ steps.filter.outputs.shared == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
 
   cpp-lint:
-    name: C++ Lint
-    needs: detect-changes
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.generals == 'true' || needs.detect-changes.outputs.generalsmd == 'true' || needs.detect-changes.outputs.shared == 'true' }}
+    name: CPP Lint
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: C++ Lint
+      - name: CPP Lint
         uses: cpp-linter/cpp-linter-action@v2
+        id: cpp-lint
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           version: '19'
           style: 'file'
           tidy-checks: '-*'
-          thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
+          step-summary: true
+
+      - name: Fail Fast
+        if: steps.cpp-lint.outputs.checks-failed > 0
+        run: exit 1
 
   build-generals:
-    name: Build Generals (${{ matrix.preset }}${{ matrix.tools && '+tools' || '' }})
+    name: Build Generals${{ matrix.preset && '' }}
     needs: detect-changes
     if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.generals == 'true' || needs.detect-changes.outputs.shared == 'true' }}
     strategy:
@@ -90,6 +93,12 @@ jobs:
             tools: true
           - preset: "vc6debug"
             tools: true
+          - preset: "win32"
+            tools: false
+            config: "Release"
+          - preset: "win32"
+            tools: false
+            config: "Debug"
       fail-fast: false
     uses: ./.github/workflows/toolchain-common.yml
     with:
@@ -100,7 +109,7 @@ jobs:
     secrets: inherit
 
   build-generalsmd:
-    name: Build GeneralsMD (${{ matrix.preset }}${{ matrix.config && matrix.config || '' }}${{ matrix.tools && '+tools' || '' }})
+    name: Build GeneralsMD${{ matrix.preset && '' }}
     needs: detect-changes
     if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.generalsmd == 'true' || needs.detect-changes.outputs.shared == 'true' }}
     strategy:

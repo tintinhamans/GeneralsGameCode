@@ -27,6 +27,7 @@ on:
 
 jobs:
   build:
+    name: Preset ${{ inputs.preset }}${{ inputs.config && inputs.config || '' }}${{ inputs.tools == true && '+tools' || '' }}
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
