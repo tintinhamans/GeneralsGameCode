@@ -59,6 +59,10 @@ will you be ready to leave grasshopper.
 
 #include <Utility/iostream_adapter.h>
 
+#if defined(USING_STLPORT) || (defined(_MSC_VER) && _MSC_VER < 1300)
+#include <strstrea.h>
+#endif
+
 #if !defined(_WINDOWS)
 // Windows headers have a tendency to redefine IN
 #ifdef IN
