@@ -8,7 +8,7 @@
 
 #include <strstrea.h>
 
-#define STRINGSTREAM_CSTR(_stringstream) _stringstream.str()
+#define STRSTREAM_CSTR(_stringstream) _stringstream.str()
 
 #else
 
@@ -16,6 +16,6 @@
 
 using strstream = std::stringstream;
 
-#define STRINGSTREAM_CSTR(_stringstream) _stringstream.str().c_str()
+#define STRSTREAM_CSTR(_stringstream) _stringstream.str().c_str()
 
 #endif
