@@ -3,6 +3,7 @@ name: GenCI
 permissions:
   contents: read
   pull-requests: write
+  security-events: write
 
 on:
   push:
@@ -54,6 +55,40 @@ jobs:
           echo "- Generals: ${{ steps.filter.outputs.generals == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
           echo "- GeneralsMD: ${{ steps.filter.outputs.generalsmd == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
           echo "- Shared: ${{ steps.filter.outputs.shared == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: cpp
+          queries: security-and-quality
+
+      - name: Set Up VC2022 Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          # Configure a build to allow CodeQL to analyze the code
+          cmake --preset win32 -DGENZH_BUILD_ZEROHOUR_EXTRAS=ON -DGENZH_BUILD_GENERALS_EXTRAS=ON
+
+      - name: Build with CMake
+        shell: pwsh
+        run: |
+          cmake --build --preset win32
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:cpp"
 
   build-generals:
     name: Build Generals${{ matrix.preset && '' }}
