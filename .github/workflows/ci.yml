@@ -45,7 +45,7 @@ jobs:
               - 'cmake/**'
               - 'CMakeLists.txt'
               - 'CMakePresets.json'
-              - ".github/workflows/ci.yml"
+              - '.github/workflows/ci.yml'
               - '.github/workflows/build-toolchain.yml'
 
       - name: Changes Summary
