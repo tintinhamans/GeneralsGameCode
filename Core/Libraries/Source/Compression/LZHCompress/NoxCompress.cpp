@@ -67,7 +67,11 @@ Bool DecompressFile		(char *infile, char *outfile)
 		outBlock= (char *) DbgMalloc( rawSize );
 
 		if (( inBlock == nullptr ) || ( outBlock == nullptr ))
+		{
+			if (inBlock) DbgFree(inBlock);
+			if (outBlock) DbgFree(outBlock);
 			return FALSE;
+		}
 
 		// Read in a big chunk o file
 		NoxRead(inBlock, 1, compressedSize, inFilePtr);
@@ -95,22 +99,20 @@ Bool DecompressFile		(char *infile, char *outfile)
 
 		DEBUG_LOG(("Decompressed %s to %s, output size = %d", infile, outfile, rawSize));
 
+		Bool success = FALSE;
 		LZHLDestroyDecompressor(decompress);
 		outFilePtr = fopen(outfile, "wb");
 		if (outFilePtr)
 		{
 			fwrite (outBlock, rawSize, 1, outFilePtr);
 			fclose(outFilePtr);
+			success = TRUE;
 		}
-		else
-			return FALSE;
 
-		// Clean up this mess
 		DbgFree(inBlock);
 		DbgFree(outBlock);
-		return TRUE;
-
-	}
+		return success;
+	} // End of if fileptr
 
 	return FALSE;
 }
@@ -146,7 +148,11 @@ Bool CompressFile			(char *infile, char *outfile)
 		outBlock= (char *) DbgMalloc( LZHLCompressorCalcMaxBuf( rawSize ));
 
 		if (( inBlock == nullptr ) || ( outBlock == nullptr ))
+		{
+			DbgFree(inBlock);
+			DbgFree(outBlock);
 			return FALSE;
+		}
 
 		// Read in a big chunk o file
 		NoxRead(inBlock, 1, rawSize, inFilePtr);
@@ -162,8 +168,8 @@ Bool CompressFile			(char *infile, char *outfile)
 			compressedSize += compressed;
 		}
 
+		Bool success = FALSE;
 		LZHLDestroyCompressor(compressor);
-
 		outFilePtr = fopen(outfile, "wb");
 		if (outFilePtr)
 		{
@@ -171,14 +177,12 @@ Bool CompressFile			(char *infile, char *outfile)
 			fwrite(&rawSize, sizeof(UnsignedInt), 1, outFilePtr);
 			fwrite(outBlock, compressedSize, 1, outFilePtr);
 			fclose(outFilePtr);
+			success = TRUE;
 		}
-		else
-			return FALSE;
 
-		// Clean up
 		DbgFree(inBlock);
 		DbgFree(outBlock);
-		return TRUE;
+		return success;
 	}
 
 	return FALSE;
