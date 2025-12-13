@@ -62,7 +62,7 @@ public:
 	Bool queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedByte *buf, Int len /*,
 		NetMessageFlags flags, Int id */) override;				///< Queue a packet for sending to the specified address and port.  This will be sent on the next update() call.
 
-	inline Bool allowBroadcasts(Bool val) override { if (!m_udpsock) return false; return (m_udpsock->AllowBroadcasts(val))?true:false; }
+    Bool allowBroadcasts(Bool val) { if (!m_udpsock) return false; return (m_udpsock->AllowBroadcasts(val)) ? true : false; }
 
 	UnsignedShort m_port;
 private:

@@ -117,8 +117,8 @@ public:
 #endif
 
 	void setLocalAddress(UnsignedInt ip, UnsignedInt port);
-	inline UnsignedInt getRunAhead(void) { return m_runAhead; }
-	inline UnsignedInt getFrameRate(void) { return m_frameRate; }
+	UnsignedInt getRunAhead(void) { return m_runAhead; }
+	UnsignedInt getFrameRate(void) { return m_frameRate; }
 	UnsignedInt getPacketArrivalCushion(void);								///< Returns the smallest packet arrival cushion since this was last called.
 	Bool isFrameDataReady( void );
 	virtual Bool isStalling();

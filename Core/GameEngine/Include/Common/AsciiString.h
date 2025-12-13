@@ -91,14 +91,14 @@ private:
 		unsigned short	m_numCharsAllocated;  // length of data allocated
 		// char m_stringdata[];
 
-		inline char* peek() { return (char*)(this + 1); }
+		char* peek() { return (char*)(this+1); }
 	};
 
-#ifdef RTS_DEBUG
+	#ifdef RTS_DEBUG
 	void validate() const;
-#else
-	inline void validate() const {}
-#endif
+	#else
+	void validate() const { }
+	#endif
 
 protected:
 	AsciiStringData* m_data;   // pointer to ref counted string data
@@ -244,7 +244,7 @@ public:
 	/**
 	  Remove leading and trailing whitespace from the string.
 	*/
-	void trim(void);
+	void trim( void );
 
 	/**
 	  Remove trailing whitespace from the string.
@@ -259,7 +259,7 @@ public:
 	/**
 	  Make the string lowercase
 	*/
-	void toLower(void);
+	void toLower( void );
 
 	/**
 		Remove the final character in the string. If the string is empty,
@@ -325,13 +325,13 @@ public:
 		return true iff self starts with the given string.
 	*/
 	Bool startsWith(const char* p) const;
-	inline Bool startsWith(const AsciiString& stringSrc) const { return startsWith(stringSrc.str()); }
+	Bool startsWith(const AsciiString& stringSrc) const { return startsWith(stringSrc.str()); }
 
 	/**
 		return true iff self starts with the given string. (case insensitive)
 	*/
 	Bool startsWithNoCase(const char* p) const;
-	inline Bool startsWithNoCase(const AsciiString& stringSrc) const { return startsWithNoCase(stringSrc.str()); }
+	Bool startsWithNoCase(const AsciiString& stringSrc) const { return startsWithNoCase(stringSrc.str()); }
 
 	/**
 		return true iff self ends with the given string.
@@ -364,15 +364,15 @@ public:
 	Bool isNotEmpty() const { return !isEmpty(); }
 	Bool isNotNone() const { return !isNone(); }
 
-	//
-	// You might think it would be a good idea to overload the * operator
-	// to allow for an implicit conversion to an char*. This is
-	// (in theory) a good idea, but in practice, there's lots of code
-	// that assumes it should check text fields for null, which
-	// is meaningless for us, since we never return a null ptr.
-	//
-	//	operator const char*() const { return str(); }
-	//
+//
+// You might think it would be a good idea to overload the * operator
+// to allow for an implicit conversion to an char*. This is
+// (in theory) a good idea, but in practice, there's lots of code
+// that assumes it should check text fields for null, which
+// is meaningless for us, since we never return a null ptr.
+//
+//	operator const char*() const { return str(); }
+//
 
 	AsciiString& operator=(const AsciiString& stringSrc);	///< the same as set()
 	AsciiString& operator=(const char* s);				///< the same as set()

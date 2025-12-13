@@ -50,7 +50,7 @@ public:
 	virtual Bool queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedByte *buf, Int len /*,
 		NetMessageFlags flags, Int id */) = 0;				///< Queue a packet for sending to the specified address and port.  This will be sent on the next update() call.
 
-	virtual inline Bool allowBroadcasts(Bool val) = 0;
+	virtual Bool allowBroadcasts(Bool val) = 0;
 
 	// Latency insertion and packet loss
 	void setLatency( Bool val ) { m_useLatency = val; }

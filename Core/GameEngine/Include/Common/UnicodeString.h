@@ -91,14 +91,14 @@ private:
 		unsigned short	m_numCharsAllocated;  // length of data allocated
 		// WideChar m_stringdata[];
 
-		WideChar* peek() { return (WideChar*)(this + 1); }
+		WideChar* peek() { return (WideChar*)(this+1); }
 	};
 
-#ifdef RTS_DEBUG
+	#ifdef RTS_DEBUG
 	void validate() const;
-#else
-	void validate() const {}
-#endif
+	#else
+	void validate() const { }
+	#endif
 
 protected:
 	UnicodeStringData* m_data;   // pointer to ref counted string data
@@ -244,7 +244,7 @@ public:
 	/**
 	  Remove leading and trailing whitespace from the string.
 	*/
-	void trim(void);
+	void trim( void );
 
 	/**
 	  Remove trailing whitespace from the string.
@@ -340,15 +340,15 @@ public:
 	*/
 	Bool nextToken(UnicodeString* token, UnicodeString delimiters = UnicodeString::TheEmptyString);
 
-	//
-	// You might think it would be a good idea to overload the * operator
-	// to allow for an implicit conversion to an WideChar*. This is
-	// in theory a good idea, but in practice, there's lots of code
-	// that assumes it should check text fields for null, which
-	// is meaningless for us, since we never return a null ptr.
-	//
-	//	operator const WideChar*() const { return str(); }
-	//
+//
+// You might think it would be a good idea to overload the * operator
+// to allow for an implicit conversion to an WideChar*. This is
+// in theory a good idea, but in practice, there's lots of code
+// that assumes it should check text fields for null, which
+// is meaningless for us, since we never return a null ptr.
+//
+//	operator const WideChar*() const { return str(); }
+//
 
 	UnicodeString& operator=(const UnicodeString& stringSrc);	///< the same as set()
 	UnicodeString& operator=(const WideChar* s);				///< the same as set()
