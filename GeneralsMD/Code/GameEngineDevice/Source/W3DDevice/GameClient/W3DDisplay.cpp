@@ -100,7 +100,6 @@ static void drawFramerateBar(void);
 #include "WW3D2/meshmdl.h"
 #include "WW3D2/rddesc.h"
 #include "TARGA.h"
-#include "Lib/BaseType.h"
 
 #include "GameLogic/ScriptEngine.h"		// For TheScriptEngine - jkmcd
 #include "GameLogic/GameLogic.h"
@@ -841,7 +840,7 @@ void W3DDisplay::init( void )
 					TheGlobalLanguageData->m_nativeDebugDisplay.bold);
 			}
 			else
-				font=TheFontLibrary->getFont( AsciiString("FixedSys"), 8, FALSE );
+				font=TheFontLibrary->getFont( "FixedSys", 8, FALSE );
 
 			m_nativeDebugDisplay->setFont( font );
 			m_nativeDebugDisplay->setFontHeight( 13 );
@@ -960,7 +959,7 @@ void W3DDisplay::gatherDebugStats( void )
 				TheGlobalLanguageData->m_nativeDebugDisplay.bold);
 		}
 		else
-			font = TheFontLibrary->getFont( AsciiString("FixedSys"), 8, FALSE );
+			font = TheFontLibrary->getFont( "FixedSys", 8, FALSE );
 
 		for (int i = 0; i < DisplayStringCount; i++)
 		{
@@ -976,7 +975,7 @@ void W3DDisplay::gatherDebugStats( void )
 
 	if (m_benchmarkDisplayString == NULL)
 	{
-		GameFont *thisFont = TheFontLibrary->getFont( AsciiString("FixedSys"), 8, FALSE );
+		GameFont *thisFont = TheFontLibrary->getFont( "FixedSys", 8, FALSE );
 		m_benchmarkDisplayString = TheDisplayStringManager->newDisplayString();
 		DEBUG_ASSERTCRASH( m_benchmarkDisplayString, ("Failed to create DisplayString") );
 		m_benchmarkDisplayString->setFont( thisFont );
@@ -1397,7 +1396,7 @@ void W3DDisplay::gatherDebugStats( void )
 			// Network outgoing bandwidth stats
 //			unibuffer.format(L"OUT: 0.0 bytes/sec, 0.0 packets/sec");
 //			m_displayStrings[NetOutgoing]->setText( unibuffer );
-      unibuffer.format(L"");
+			unibuffer.clear();
 //			unibuffer.format(L"Network not present");
 			m_displayStrings[NetOutgoing]->setText(unibuffer);
 			m_displayStrings[NetIncoming]->setText(unibuffer);
@@ -1718,7 +1717,7 @@ AGAIN:
     if ( TheGameLogic->getFrame() > 0 && (TheGameLogic->getFrame() % interval) == 0 )
     {
   	  TheStatDump.dumpStats( TRUE, TRUE );
-    	TheInGameUI->message( UnicodeString( L"-stats is running, at interval: %d." ), TheGlobalData->m_statsInterval );
+    	TheInGameUI->message( L"-stats is running, at interval: %d.", TheGlobalData->m_statsInterval );
     }
   }
 
@@ -3029,7 +3028,7 @@ void W3DDisplay::takeScreenShot(void)
 #else
 		sprintf( leafname, "%s%.3d.bmp", "sshot", frame_number++);
 #endif
-		strcpy(pathname, TheGlobalData->getPath_UserData().str());
+		strlcpy(pathname, TheGlobalData->getPath_UserData().str(), ARRAY_SIZE(pathname));
 		strlcat(pathname, leafname, ARRAY_SIZE(pathname));
 		if (_access( pathname, 0 ) == -1)
 			done = true;

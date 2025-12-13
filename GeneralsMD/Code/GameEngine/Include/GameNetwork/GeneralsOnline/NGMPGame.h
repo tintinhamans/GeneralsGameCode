@@ -1,5 +1,5 @@
 #pragma once
-#include "../GameInfo.h"
+#include "GameNetwork/GameInfo.h"
 #include <chrono>
 
 class LobbyEntry;

@@ -99,10 +99,7 @@ StealthUpdate::StealthUpdate( Thing *thing, const ModuleData* moduleData ) : Upd
 	//Must be enabled manually if using disguise system (bomb truck uses)
 	m_enabled = !data->m_teamDisguised;
 
-	//Added By Sadullah Nader
-	//Initialization(s) inserted
 	m_detectionExpiresFrame = 0;
-	//
 	m_pulsePhaseRate		= 0.2f;
 	m_pulsePhase				= GameClientRandomValueReal(0, PI);
 
@@ -744,6 +741,7 @@ void StealthUpdate::changeVisualDisguise()
 		FXList::doFXPos( data->m_disguiseFX, self->getPosition() );
 
 		m_disguised = true;
+		self->setStatus( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_DISGUISED ) );
 	}
 	else if( m_disguiseAsPlayerIndex != -1 )
 	{
@@ -809,6 +807,7 @@ void StealthUpdate::changeVisualDisguise()
 
 		FXList::doFXPos( data->m_disguiseRevealFX, self->getPosition() );
 		m_disguised = false;
+		self->clearStatus( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_DISGUISED ) );
 	}
 
 	//Reset the radar (determines color on add)

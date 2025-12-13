@@ -321,8 +321,6 @@ Player::Player( Int playerIndex )
 	m_playerTemplate = NULL;
 	m_battlePlanBonuses = NULL;
 	m_skillPointsModifier = 1.0f;
-	//Added By Sadullah
-	//Initializations inserted
 	m_canBuildUnits = TRUE;
 	m_canBuildBase  = TRUE;
 	m_cashBountyPercent = 0.0f;
@@ -339,7 +337,6 @@ Player::Player( Int playerIndex )
 	{
 		m_squads[i] = NULL;
 	}
-	//
 	for (i = 0; i < MAX_PLAYER_COUNT; ++i)
 	{
 		m_attackedBy[i] = false;
@@ -717,7 +714,7 @@ void Player::update()
 		}
 	}
 
-#if !RETAIL_COMPATIBLE_BUG && !RETAIL_COMPATIBLE_CRC
+#if !PRESERVE_RETAIL_BEHAVIOR && !RETAIL_COMPATIBLE_CRC
 	// TheSuperHackers @bugfix Stubbjax 26/09/2025 The Tunnel System now heals
 	// all units once per frame instead of once per frame per Tunnel Network.
 	TunnelTracker* tunnelSystem = getTunnelSystem();
@@ -1086,12 +1083,12 @@ void Player::becomingLocalPlayer(Bool yes)
 			{
 				// Added support for updating the perceptions of garrisoned buildings containing enemy stealth units.
 				// When changing teams, it is necessary to update this information.
+				Bool requireRadarRefresh = false;
 				ContainModuleInterface *contain = object->getContain();
 				if( contain )
 				{
 					contain->recalcApparentControllingPlayer();
-					TheRadar->removeObject( object );
-					TheRadar->addObject( object );
+					requireRadarRefresh = true;
 				}
 
 				if( object->isKindOf( KINDOF_DISGUISER ) )
@@ -1123,10 +1120,15 @@ void Player::becomingLocalPlayer(Bool yes)
 								else
 									draw->setIndicatorColor( object->getIndicatorColor() );
 							}
-							TheRadar->removeObject( object );
-							TheRadar->addObject( object );
+							requireRadarRefresh = true;
 						}
 					}
+				}
+
+				if (requireRadarRefresh)
+				{
+					TheRadar->removeObject( object );
+					TheRadar->addObject( object );
 				}
 			}
 			deleteInstance(iter);
@@ -4198,7 +4200,7 @@ void Player::xfer( Xfer *xfer )
 	{
 
 		DEBUG_CRASH(( "Player::xfer - m_ai present/missing mismatch" ));
-		throw SC_INVALID_DATA;;
+		throw SC_INVALID_DATA;
 
 	}
 	if( m_ai )

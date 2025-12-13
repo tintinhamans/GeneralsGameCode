@@ -164,14 +164,14 @@ void IMECandidateTextAreaDraw( GameWindow *window, WinInstanceData *instData )
 		return;
 	}
 
-	GameFont *font = window->winGetFont() ;
-	Int height;
+	GameFont *font = window->winGetFont();
 
 	// set the font
 	Dstring->setFont( font );
 
-	// cacl line height
-	height = font->height + IMECandidateWindowLineSpacing;
+	// calculate line height
+	Int fontHeight = font ? font->height : 0;
+	Int height = fontHeight + IMECandidateWindowLineSpacing;
 
 	// set the clip region
 	Dstring->setClipRegion( &textRegion );
@@ -193,7 +193,7 @@ void IMECandidateTextAreaDraw( GameWindow *window, WinInstanceData *instData )
 
 	// calulate the widest number text
 	Int width;
-	Dstring->setText(UnicodeString(L"00:"));
+	Dstring->setText(L"00:");
 	width = Dstring->getWidth();
 
 	// calc y start pos
@@ -202,7 +202,7 @@ void IMECandidateTextAreaDraw( GameWindow *window, WinInstanceData *instData )
 
 	for ( Int i = 0; i < count; i++, y+= height )
 	{
-		UnicodeString *candidate = ime->getCandidate( first + i );
+		const UnicodeString *candidate = ime->getCandidate( first + i );
 		Int tcolor, bcolor;
 
 		if ( i == selected )

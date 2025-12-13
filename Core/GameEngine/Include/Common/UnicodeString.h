@@ -91,14 +91,14 @@ private:
 		unsigned short	m_numCharsAllocated;  // length of data allocated
 		// WideChar m_stringdata[];
 
-		inline WideChar* peek() { return (WideChar*)(this+1); }
+		WideChar* peek() { return (WideChar*)(this + 1); }
 	};
 
-	#ifdef RTS_DEBUG
+#ifdef RTS_DEBUG
 	void validate() const;
-	#else
-	inline void validate() const { }
-	#endif
+#else
+	void validate() const {}
+#endif
 
 protected:
 	UnicodeStringData* m_data;   // pointer to ref counted string data
@@ -108,6 +108,10 @@ protected:
 	void ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveData, const WideChar* strToCpy, const WideChar* strToCat);
 
 public:
+
+	typedef WideChar value_type;
+	typedef value_type* pointer;
+	typedef const value_type* const_pointer;
 
 	enum
 	{
@@ -121,7 +125,7 @@ public:
 		string, so we don't need to construct temporaries
 		for such a common thing.
 	*/
-	static UnicodeString TheEmptyString;
+	static const UnicodeString TheEmptyString;
 
 	/**
 		Default constructor -- construct a new, empty UnicodeString.
@@ -137,11 +141,17 @@ public:
 	/**
 		Constructor -- from a literal string. Constructs an UnicodeString
 		with the given string. Note that a copy of the string is made;
-		the input ptr is not saved. Note also that this is declared
-		'explicit' to avoid implicit conversions from const-WideChar-*
-		(e.g., as input arguments).
+		the input ptr is not saved.
+		Note that this is no longer explicit, as the conversion is almost
+		always wanted, anyhow.
 	*/
-	explicit UnicodeString(const WideChar* s);
+	UnicodeString(const WideChar* s);
+
+	/**
+		Constructs an UnicodeString with the given string and length.
+		The length must not be larger than the actual string length.
+	*/
+	UnicodeString(const WideChar* s, int len);
 
 	/**
 		Destructor. Not too exciting... clean up the works and such.
@@ -195,11 +205,19 @@ public:
 		refcount.)
 	*/
 	void set(const UnicodeString& stringSrc);
+
 	/**
 		Replace the contents of self with the given string.
 		Note that a copy of the string is made; the input ptr is not saved.
 	*/
 	void set(const WideChar* s);
+
+	/**
+		Replace the contents of self with the given string and length.
+		Note that a copy of the string is made; the input ptr is not saved.
+		The length must not be larger than the actual string length.
+	*/
+	void set(const WideChar* s, int len);
 
 	/**
 		replace contents of self with the given string. Note the
@@ -226,7 +244,7 @@ public:
 	/**
 	  Remove leading and trailing whitespace from the string.
 	*/
-	void trim( void );
+	void trim(void);
 
 	/**
 	  Remove trailing whitespace from the string.
@@ -289,6 +307,30 @@ public:
 	int compareNoCase(const WideChar* s) const;
 
 	/**
+		return true iff self starts with the given string.
+	*/
+	Bool startsWith(const WideChar* p) const;
+	Bool startsWith(const UnicodeString& stringSrc) const { return startsWith(stringSrc.str()); }
+
+	/**
+		return true iff self starts with the given string. (case insensitive)
+	*/
+	Bool startsWithNoCase(const WideChar* p) const;
+	Bool startsWithNoCase(const UnicodeString& stringSrc) const { return startsWithNoCase(stringSrc.str()); }
+
+	/**
+		return true iff self ends with the given string.
+	*/
+	Bool endsWith(const WideChar* p) const;
+	Bool endsWith(const UnicodeString& stringSrc) const { return endsWith(stringSrc.str()); }
+
+	/**
+		return true iff self ends with the given string. (case insensitive)
+	*/
+	Bool endsWithNoCase(const WideChar* p) const;
+	Bool endsWithNoCase(const UnicodeString& stringSrc) const { return endsWithNoCase(stringSrc.str()); }
+
+	/**
 		conceptually similar to strtok():
 
 		extract the next whitespace-delimited token from the front
@@ -298,15 +340,15 @@ public:
 	*/
 	Bool nextToken(UnicodeString* token, UnicodeString delimiters = UnicodeString::TheEmptyString);
 
-//
-// You might think it would be a good idea to overload the * operator
-// to allow for an implicit conversion to an WideChar*. This is
-// in theory a good idea, but in practice, there's lots of code
-// that assumes it should check text fields for null, which
-// is meaningless for us, since we never return a null ptr.
-//
-//	operator const WideChar*() const { return str(); }
-//
+	//
+	// You might think it would be a good idea to overload the * operator
+	// to allow for an implicit conversion to an WideChar*. This is
+	// in theory a good idea, but in practice, there's lots of code
+	// that assumes it should check text fields for null, which
+	// is meaningless for us, since we never return a null ptr.
+	//
+	//	operator const WideChar*() const { return str(); }
+	//
 
 	UnicodeString& operator=(const UnicodeString& stringSrc);	///< the same as set()
 	UnicodeString& operator=(const WideChar* s);				///< the same as set()

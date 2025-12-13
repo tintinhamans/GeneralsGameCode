@@ -86,11 +86,8 @@ ParticleUplinkCannonUpdateModuleData::ParticleUplinkCannonUpdateModuleData()
   m_manualDrivingSpeed						= 0.0f;
   m_manualFastDrivingSpeed				= 0.0f;
   m_doubleClickToFastDriveDelay		= 500;
-	//Added by Sadullah Nader
-	//Initializations inserted
 	m_swathOfDeathAmplitude					= 0.0f;
 	m_swathOfDeathDistance					=	0.0f;
-	//
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -873,7 +870,7 @@ void ParticleUplinkCannonUpdate::createConnectorLasers( IntensityTypes intensity
 		case IT_LIGHT:
 			break;
 		case IT_MEDIUM:
-			str = data->m_connectorMediumLaserNameName;;
+			str = data->m_connectorMediumLaserNameName;
 			break;
 		case IT_INTENSE:
 			str = data->m_connectorIntenseLaserNameName;

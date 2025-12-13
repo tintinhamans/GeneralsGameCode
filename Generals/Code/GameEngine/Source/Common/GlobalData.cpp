@@ -32,12 +32,15 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "Common/GlobalData.h"
+
 #define DEFINE_TERRAIN_LOD_NAMES
 #define DEFINE_TIME_OF_DAY_NAMES
 #define DEFINE_WEATHER_NAMES
 #define DEFINE_BODYDAMAGETYPE_NAMES
 #define DEFINE_PANNING_NAMES
 
+#include "Common/AddonCompat.h"
 #include "Common/crc.h"
 #include "Common/file.h"
 #include "Common/FileSystem.h"
@@ -439,6 +442,11 @@ GlobalData* GlobalData::m_theOriginal = NULL;
 
 	{	"CameraAudibleRadius",				INI::parseReal,				NULL,			offsetof( GlobalData, m_cameraAudibleRadius ) },
 	{ "GroupMoveClickToGatherAreaFactor", INI::parseReal,	NULL,			offsetof( GlobalData, m_groupMoveClickToGatherFactor ) },
+
+#if !PRESERVE_RETAIL_BEHAVIOR
+	{ "AllowMoneyPerMinuteForPlayer",	INI::parseBool,			NULL,			offsetof( GlobalData, m_allowMoneyPerMinuteForPlayer ) },
+#endif
+
 	{ "ShakeSubtleIntensity",				INI::parseReal,				NULL,			offsetof( GlobalData, m_shakeSubtleIntensity ) },
 	{ "ShakeNormalIntensity",				INI::parseReal,				NULL,			offsetof( GlobalData, m_shakeNormalIntensity ) },
 	{ "ShakeStrongIntensity",				INI::parseReal,				NULL,			offsetof( GlobalData, m_shakeStrongIntensity ) },
@@ -571,13 +579,13 @@ GlobalData::GlobalData()
 	m_debugVisibilityTileDuration = LOGICFRAMES_PER_SECOND;
 	m_debugProjectilePath = FALSE;
 	m_debugProjectileTileWidth = 10;
-	m_debugProjectileTileDuration = LOGICFRAMES_PER_SECOND;  // Changed By Sadullah Nader
+	m_debugProjectileTileDuration = LOGICFRAMES_PER_SECOND;
 	m_debugThreatMap = FALSE;
 	m_maxDebugThreat = 5000;
-	m_debugThreatMapTileDuration = LOGICFRAMES_PER_SECOND;  // Changed By Sadullah Nader
+	m_debugThreatMapTileDuration = LOGICFRAMES_PER_SECOND;
 	m_debugCashValueMap = FALSE;
 	m_maxDebugValue = 10000;
-	m_debugCashValueMapTileDuration = LOGICFRAMES_PER_SECOND; // Changed By Sadullah Nader
+	m_debugCashValueMapTileDuration = LOGICFRAMES_PER_SECOND;
 	m_vTune = false;
 	m_checkForLeaks = TRUE;
 	m_benchmarkTimer = -1;
@@ -681,8 +689,6 @@ GlobalData::GlobalData()
 		m_vertexWaterAttenuationB[ i ] = 0.0f;
 		m_vertexWaterAttenuationC[ i ] = 0.0f;
 		m_vertexWaterAttenuationRange[ i ] = 0.0f;
-		//Added By Sadullah Nader
-		//Initializations missing and needed
 		m_vertexWaterAvailableMaps[i].clear();
 	}
 
@@ -794,8 +800,6 @@ GlobalData::GlobalData()
 	m_autoSmokeParticleLargeMax = 0;
 	m_autoAflameParticleMax = 0;
 
-	// Added By Sadullah Nader
-	// Initializations missing and needed
 	m_autoFireParticleSmallPrefix.clear();
 	m_autoFireParticleMediumPrefix.clear();
 	m_autoFireParticleLargePrefix.clear();
@@ -818,8 +822,6 @@ GlobalData::GlobalData()
 	m_drawEntireTerrain = FALSE;
 	m_maxParticleCount = 0;
 	m_maxFieldParticleCount = 30;
-
-	// End Add
 
 	m_debugAI = AI_DEBUG_NONE;
 	m_debugSupplyCenterPlacement = FALSE;
@@ -940,6 +942,7 @@ GlobalData::GlobalData()
 	m_gameTimeFontSize = 8;
 
 	m_showMoneyPerMinute = FALSE;
+	m_allowMoneyPerMinuteForPlayer = FALSE;
 
 	m_debugShowGraphicalFramerate = FALSE;
 
@@ -1215,18 +1218,10 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 
 void GlobalData::parseCustomDefinition()
 {
+	if (addon::HasFullviewportDat())
 	{
-		// TheSuperHackers @feature xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
-		File* file = TheFileSystem->openFile("GenTool/fullviewport.dat", File::READ | File::BINARY);
-		if (file != NULL)
-		{
-			Char value = '0';
-			file->read(&value, 1);
-			if (value != '0')
-			{
-				m_viewportHeightScale = 1.0f;
-			}
-		}
+		// TheSuperHackers @tweak xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
+		m_viewportHeightScale = 1.0f;
 	}
 }
 

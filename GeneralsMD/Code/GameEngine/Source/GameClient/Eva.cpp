@@ -27,6 +27,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 #include "GameClient/Eva.h"
 
+#include "Common/GameUtility.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
 #include "GameLogic/GameLogic.h"
@@ -253,7 +254,7 @@ void Eva::init()
 {
 	// parse the INI here, etc.
 	INI ini;
-	ini.loadFileDirectory( AsciiString( "Data\\INI\\Eva" ), INI_LOAD_OVERWRITE, NULL);
+	ini.loadFileDirectory( "Data\\INI\\Eva", INI_LOAD_OVERWRITE, NULL);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -284,7 +285,7 @@ void Eva::update()
 		return;
 	}
 
-	m_localPlayer = ThePlayerList->getLocalPlayer();
+	m_localPlayer = rts::getObservedOrLocalPlayer();
 	UnsignedInt frame = TheGameLogic->getFrame();
 
 	// Don't update for the first few frames. This way, we don't have to deal with our initial power
@@ -503,7 +504,7 @@ void Eva::processPlayingMessages(UnsignedInt currentFrame)
 	}
 
 	// We've got a winner!
-	AsciiString side = ThePlayerList->getLocalPlayer()->getSide();
+	AsciiString side = rts::getObservedOrLocalPlayer()->getSide();
 	Int numSides = storedIt->m_evaInfo->m_evaSideSounds.size();
 
   // clear it. If we can't find the side we want, don't play anything

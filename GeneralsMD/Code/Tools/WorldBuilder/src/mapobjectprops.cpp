@@ -221,7 +221,7 @@ void MapObjectProps::_DictToTeam(void)
 /// Move data from object to dialog controls
 void MapObjectProps::_DictToName(void)
 {
-  AsciiString name = "";
+  AsciiString name;
   Bool exists;
   if (m_dictToEdit)
   {
@@ -266,7 +266,7 @@ void MapObjectProps::_TeamToDict(void)
   static char buf[1024];
   owner->GetWindowText(buf, sizeof(buf)-2);
   if (strcmp(buf, NEUTRAL_TEAM_UI_STR)==0)
-    strcpy(buf, NEUTRAL_TEAM_INTERNAL_STR);
+    strlcpy(buf, NEUTRAL_TEAM_INTERNAL_STR, ARRAY_SIZE(buf));
 
   CWorldBuilderDoc* pDoc = CWorldBuilderDoc::GetActiveDoc();
   if ( pDoc )

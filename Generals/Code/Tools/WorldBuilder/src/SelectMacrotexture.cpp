@@ -86,7 +86,7 @@ BOOL SelectMacrotexture::OnInitDialog()
 				AsciiString filename = *it;
 				int len = filename.getLength();
 				if (len<5) continue;
-				strcpy(fileBuf, filename.str());
+				strlcpy(fileBuf, filename.str(), ARRAY_SIZE(fileBuf));
 					::memset(&ins, 0, sizeof(ins));
 					ins.hParent = TVI_ROOT;
 					ins.hInsertAfter = TVI_SORT;
@@ -131,7 +131,7 @@ BOOL SelectMacrotexture::OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult
 			item.cchTextMax = sizeof(buffer)-2;
 			m_textureTreeView.GetItem(&item);
 			if (0==strcmp(buffer, DEFAULT)) {
-				TheTerrainRenderObject->updateMacroTexture(AsciiString(""));
+				TheTerrainRenderObject->updateMacroTexture("");
 			} else {
 				TheTerrainRenderObject->updateMacroTexture(AsciiString(buffer));
 			}

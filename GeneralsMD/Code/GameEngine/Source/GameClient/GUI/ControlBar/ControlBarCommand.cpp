@@ -48,7 +48,6 @@
 #include "GameLogic/Module/TransportContain.h"
 #include "GameLogic/Module/MobNexusContain.h"
 #include "GameLogic/Module/SpecialAbilityUpdate.h"
-#include "GameLogic/Module/BattlePlanUpdate.h"
 #include "GameLogic/Module/VeterancyGainCreate.h"
 #include "GameLogic/Module/HackInternetAIUpdate.h"
 #include "GameLogic/Weapon.h"
@@ -590,7 +589,7 @@ void ControlBar::populateBuildQueue( Object *producer )
 		m_queueData[ i ].control->winClearStatus( WIN_STATUS_USE_OVERLAY_STATES );
 
 		// set the text of the window to nothing by default
-		GadgetButtonSetText( m_queueData[ i ].control, UnicodeString( L"" ) );
+		GadgetButtonSetText( m_queueData[ i ].control, L"" );
 
 		//Clear any potential veterancy rank, or else we'll see it when it's empty!
 		GadgetButtonDrawOverlayImage( m_queueData[ i ].control, NULL );
@@ -959,7 +958,7 @@ const Image* ControlBar::calculateVeterancyOverlayForThing( const ThingTemplate 
 		case LEVEL_HEROIC:
 			return m_rankHeroicIcon;
 	}
-	return NULL;;
+	return NULL;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -981,7 +980,7 @@ const Image* ControlBar::calculateVeterancyOverlayForObject( const Object *obj )
 		case LEVEL_HEROIC:
 			return m_rankHeroicIcon;
 	}
-	return NULL;;
+	return NULL;
 }
 
 //-------------------------------------------------------------------------------------------------

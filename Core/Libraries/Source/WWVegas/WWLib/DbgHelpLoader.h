@@ -23,10 +23,14 @@
 #include <win.h>
 #include <imagehlp.h> // Must be included after Windows.h
 #include <set>
+#ifdef RTS_ENABLE_CRASHDUMP
+#include <DbgHelpLoader_minidump.h>
+#endif
 
+#include "mutex.h"
 #include "SystemAllocator.h"
 
-// This static class can load and unload dbghelp.dll
+// This static class can load, unload and use dbghelp.dll. Is thread-safe.
 // Internally it must not use new and delete because it can be created during game memory initialization.
 
 class DbgHelpLoader
@@ -34,6 +38,7 @@ class DbgHelpLoader
 private:
 
 	static DbgHelpLoader* Inst; // Is singleton class
+	static CriticalSectionClass CriticalSection; // Required because dbg help is not thread safe for the most part
 
 	DbgHelpLoader();
 	~DbgHelpLoader();
@@ -46,8 +51,11 @@ public:
 	// Returns whether dbghelp.dll is loaded from the system directory
 	static bool isLoadedFromSystem();
 
+	// Returns whether dbghelp.dll was attempted to be loaded but failed
+	static bool isFailed();
+
+	// Every call to load needs a paired call to unload, no matter if the load was successful
 	static bool load();
-	static bool reload();
 	static void unload();
 
 	static BOOL WINAPI symInitialize(
@@ -104,7 +112,20 @@ public:
 		PGET_MODULE_BASE_ROUTINE GetModuleBaseRoutine,
 		PTRANSLATE_ADDRESS_ROUTINE TranslateAddress);
 
+#ifdef RTS_ENABLE_CRASHDUMP
+	static BOOL WINAPI miniDumpWriteDump(
+		HANDLE hProcess,
+		DWORD ProcessId,
+		HANDLE hFile,
+		MINIDUMP_TYPE DumpType,
+		PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
+		PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
+		PMINIDUMP_CALLBACK_INFORMATION CallbackParam);
+#endif
+
 private:
+
+	static void freeResources();
 
 	typedef BOOL (WINAPI *SymInitialize_t) (
 		HANDLE hProcess,
@@ -160,6 +181,17 @@ private:
 		PGET_MODULE_BASE_ROUTINE GetModuleBaseRoutine,
 		PTRANSLATE_ADDRESS_ROUTINE TranslateAddress);
 
+#ifdef RTS_ENABLE_CRASHDUMP
+	typedef BOOL(WINAPI* MiniDumpWriteDump_t)(
+		HANDLE hProcess,
+		DWORD ProcessId,
+		HANDLE hFile,
+		MINIDUMP_TYPE DumpType,
+		PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
+		PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
+		PMINIDUMP_CALLBACK_INFORMATION CallbackParam);
+#endif
+
 	SymInitialize_t m_symInitialize;
 	SymCleanup_t m_symCleanup;
 	SymLoadModule_t m_symLoadModule;
@@ -170,11 +202,15 @@ private:
 	SymSetOptions_t m_symSetOptions;
 	SymFunctionTableAccess_t m_symFunctionTableAccess;
 	StackWalk_t m_stackWalk;
+#ifdef RTS_ENABLE_CRASHDUMP
+	MiniDumpWriteDump_t m_miniDumpWriteDump;
+#endif
 
 	typedef std::set<HANDLE, std::less<HANDLE>, stl::system_allocator<HANDLE> > Processes;
 
 	Processes m_initializedProcesses;
 	HMODULE m_dllModule;
+	int m_referenceCount;
 	bool m_failed;
 	bool m_loadedFromSystem;
 };

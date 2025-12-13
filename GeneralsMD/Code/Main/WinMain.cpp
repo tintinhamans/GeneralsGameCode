@@ -67,6 +67,9 @@
 #include "resource.h"
 
 #include <rts/profile.h>
+#ifdef RTS_ENABLE_CRASHDUMP
+#include "Common/MiniDumper.h"
+#endif
 
 
 // GLOBALS ////////////////////////////////////////////////////////////////////
@@ -388,28 +391,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 				//TheGameEngine->reset();
 				//TheGameEngine->setQuitting(TRUE);
 				//_exit(EXIT_SUCCESS);
-				return 0;
 			}
+			return 0;
 
-			// ------------------------------------------------------------------------
-		case WM_SETFOCUS:
-		{
-
-			//
-			// reset the state of our keyboard cause we haven't been paying
-			// attention to the keys while focus was away
-			//
-			if (TheKeyboard)
-				TheKeyboard->resetKeys();
-
-			if (TheMouse)
-				TheMouse->regainFocus();
-
-			break;
-
-		}
-
-		//-------------------------------------------------------------------------
+			//-------------------------------------------------------------------------
 		case WM_MOVE:
 		{
 			if (TheMouse)
@@ -431,6 +416,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 			break;
 		}
 
+		// ------------------------------------------------------------------------
+		case WM_SETFOCUS:
+		{
+			//
+			// reset the state of our keyboard cause we haven't been paying
+			// attention to the keys while focus was away
+			//
+			if (TheKeyboard)
+				TheKeyboard->resetKeys();
+
+			if (TheMouse)
+				TheMouse->regainFocus();
+
+			break;
+		}
+
 		//-------------------------------------------------------------------------
 		case WM_KILLFOCUS:
 		{
@@ -438,7 +439,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 				TheKeyboard->resetKeys();
 
 			if (TheMouse)
+			{
 				TheMouse->loseFocus();
+
+				if (TheMouse->isCursorInside())
+				{
+					TheMouse->onCursorMovedOutside();
+				}
+			}
 
 			break;
 		}
@@ -461,13 +469,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 					TheGameEngine->setIsActive(isWinMainActive);
 
 				if (isWinMainActive)
-				{	//restore mouse cursor to our custom version.
+				{
+					//restore mouse cursor to our custom version.
 					if (TheWin32Mouse)
 						TheWin32Mouse->setCursor(TheWin32Mouse->getMouseCursor());
 				}
 			}
 			return 0;
 		}
+
 		//-------------------------------------------------------------------------
 		case WM_ACTIVATE:
 		{
@@ -488,7 +498,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 					TheMouse->refreshCursorCapture();
 			}
 			break;
-
 		}
 
 		//-------------------------------------------------------------------------
@@ -498,21 +507,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 
 			switch (key)
 			{
-
-				//---------------------------------------------------------------------
 			case VK_ESCAPE:
 			{
-
 				PostQuitMessage(0);
 				break;
-
 			}
-
-
 			}
-
 			return 0;
-
 		}
 
 		//-------------------------------------------------------------------------
@@ -548,12 +549,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 				TheWin32Mouse->addWin32Event(message, wParam, lParam, TheMessageTime);
 
 			return 0;
-
 		}
 
 		//-------------------------------------------------------------------------
 		case 0x020A: // WM_MOUSEWHEEL
 		{
+			if (TheWin32Mouse == NULL)
+				return 0;
+
 			long x = (long)LOWORD(lParam);
 			long y = (long)HIWORD(lParam);
 			RECT rect;
@@ -563,11 +566,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 			if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom)
 				return 0;
 
-			if (TheWin32Mouse)
-				TheWin32Mouse->addWin32Event(message, wParam, lParam, TheMessageTime);
-
+			TheWin32Mouse->addWin32Event(message, wParam, lParam, TheMessageTime);
 			return 0;
-
 		}
 		case WM_MOVING:
 		{
@@ -592,21 +592,35 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 		//-------------------------------------------------------------------------
 		case WM_MOUSEMOVE:
 		{
+			if (TheWin32Mouse == NULL)
+				return 0;
+
+			// ignore when window is not active
+			if (!isWinMainActive)
+				return 0;
+
 			Int x = (Int)LOWORD(lParam);
 			Int y = (Int)HIWORD(lParam);
 			RECT rect;
-			//				Int keys = wParam;
 
-							// ignore when outside of client area
+			// ignore when outside of client area
 			GetClientRect(ApplicationHWnd, &rect);
 			if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom)
+			{
+				if (TheMouse->isCursorInside())
+				{
+					TheMouse->onCursorMovedOutside();
+				}
 				return 0;
+			}
 
-			if (TheWin32Mouse)
-				TheWin32Mouse->addWin32Event(message, wParam, lParam, TheMessageTime);
+			if (!TheMouse->isCursorInside())
+			{
+				TheMouse->onCursorMovedInside();
+			}
 
+			TheWin32Mouse->addWin32Event(message, wParam, lParam, TheMessageTime);
 			return 0;
-
 		}
 
 		//-------------------------------------------------------------------------
@@ -801,6 +815,16 @@ static CriticalSection critSec1, critSec2, critSec3, critSec4, critSec5;
 static LONG WINAPI UnHandledExceptionFilter(struct _EXCEPTION_POINTERS* e_info)
 {
 	DumpExceptionInfo(e_info->ExceptionRecord->ExceptionCode, e_info);
+#ifdef RTS_ENABLE_CRASHDUMP
+	if (TheMiniDumper && TheMiniDumper->IsInitialized())
+	{
+		// Create both minimal and full memory dumps
+		TheMiniDumper->TriggerMiniDumpForException(e_info, DumpType_Minimal);
+		TheMiniDumper->TriggerMiniDumpForException(e_info, DumpType_Full);
+	}
+
+	MiniDumper::shutdownMiniDumper();
+#endif
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 
@@ -837,9 +861,9 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		initMemoryManager();
 
 		/// @todo remove this force set of working directory later
-		Char buffer[ _MAX_PATH ];
-		GetModuleFileName( NULL, buffer, sizeof( buffer ) );
-		if (Char *pEnd = strrchr(buffer, '\\'))
+		Char buffer[_MAX_PATH];
+		GetModuleFileName(NULL, buffer, sizeof(buffer));
+		if (Char* pEnd = strrchr(buffer, '\\'))
 		{
 			*pEnd = 0;
 		}
@@ -866,15 +890,15 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 			// check both localized directory and root dir
 		char filePath[_MAX_PATH];
-#if defined(GENERALS_ONLINE)
+		#if defined(GENERALS_ONLINE)
 		const char *fileName = "GeneralsOnlineGameData/GOSplash.bmp";
 #else
 		const char* fileName = "Install_Final.bmp";
 #endif
-		static const char *localizedPathFormat = "Data/%s/";
-		sprintf(filePath,localizedPathFormat, GetRegistryLanguage().str());
+		static const char* localizedPathFormat = "Data/%s/";
+		sprintf(filePath, localizedPathFormat, GetRegistryLanguage().str());
 		strlcat(filePath, fileName, ARRAY_SIZE(filePath));
-		FILE *fileImage = fopen(filePath, "r");
+		FILE* fileImage = fopen(filePath, "r");
 		if (fileImage) {
 			fclose(fileImage);
 			gLoadScreenBitmap = (HBITMAP)LoadImage(hInstance, filePath, IMAGE_BITMAP, 0, 0, LR_SHARED | LR_LOADFROMFILE);
@@ -885,7 +909,7 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 #else
 
 		// in release, the file only ever lives in the root dir
-#if defined(GENERALS_ONLINE)
+		#if defined(GENERALS_ONLINE)
 			gLoadScreenBitmap = (HBITMAP)LoadImage(hInstance, "GeneralsOnlineGameData/GOSplash.bmp", IMAGE_BITMAP, 0, 0, LR_SHARED|LR_LOADFROMFILE);
 #else
 			gLoadScreenBitmap = (HBITMAP)LoadImage(hInstance, "Install_Final.bmp", IMAGE_BITMAP, 0, 0, LR_SHARED | LR_LOADFROMFILE);
@@ -893,6 +917,10 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 #endif
 
 		CommandLine::parseCommandLineForStartup();
+#ifdef RTS_ENABLE_CRASHDUMP
+		// Initialize minidump facilities - requires TheGlobalData so performed after parseCommandLineForStartup
+		MiniDumper::initMiniDumper(TheGlobalData->getPath_UserData());
+#endif
 
 		// register windows class and create application window
 		if (!TheGlobalData->m_headless && initializeAppWindows(hInstance, nCmdShow, TheGlobalData->m_windowed) == false)
@@ -974,6 +1002,9 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	}
 
+#ifdef RTS_ENABLE_CRASHDUMP
+	MiniDumper::shutdownMiniDumper();
+#endif
 	TheUnicodeStringCriticalSection = NULL;
 	TheDmaCriticalSection = NULL;
 	TheMemoryPoolCriticalSection = NULL;

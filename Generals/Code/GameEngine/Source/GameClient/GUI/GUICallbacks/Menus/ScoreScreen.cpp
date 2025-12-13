@@ -79,6 +79,7 @@
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GameText.h"
+#include "GameClient/Keyboard.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/Shell.h"
 #include "GameClient/KeyDefs.h"
@@ -94,9 +95,7 @@
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/BuddyThread.h"
-#include "GameNetwork/GameSpy/GameResultsThread.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
-//Added By Saad
 #include "GameClient/InGameUI.h"
 
 
@@ -227,16 +226,16 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 	buttonIsFinishCampaign = FALSE;
 
 	//Store the keys so we have them later
-	parentID = TheNameKeyGenerator->nameToKey( AsciiString( "ScoreScreen.wnd:ParentScoreScreen" ) );
-	buttonOkID = TheNameKeyGenerator->nameToKey( AsciiString( "ScoreScreen.wnd:ButtonOk" ) );
-	textEntryChatID = TheNameKeyGenerator->nameToKey( AsciiString( "ScoreScreen.wnd:TextEntryChat" ) );
-	buttonEmoteID = TheNameKeyGenerator->nameToKey( AsciiString( "ScoreScreen.wnd:ButtonEmote" ) );
-	listboxChatWindowScoreScreenID = TheNameKeyGenerator->nameToKey( AsciiString( "ScoreScreen.wnd:ListboxChatWindowScoreScreen" ) );
-//	buttonRehostID = TheNameKeyGenerator->nameToKey( AsciiString( "ScoreScreen.wnd:ButtonRehost" ) );
-	chatBoxBorderID = TheNameKeyGenerator->nameToKey( AsciiString( "ScoreScreen.wnd:ChatBoxBorder" ) );
-	buttonBuddiesID = TheNameKeyGenerator->nameToKey( AsciiString( "ScoreScreen.wnd:ButtonBuddy" ) );
-	buttonContinueID = TheNameKeyGenerator->nameToKey( AsciiString( "ScoreScreen.wnd:ButtonContinue" ) );
-	buttonSaveReplayID = TheNameKeyGenerator->nameToKey( AsciiString( "ScoreScreen.wnd:ButtonSaveReplay" ) );
+	parentID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:ParentScoreScreen" );
+	buttonOkID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:ButtonOk" );
+	textEntryChatID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:TextEntryChat" );
+	buttonEmoteID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:ButtonEmote" );
+	listboxChatWindowScoreScreenID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:ListboxChatWindowScoreScreen" );
+//	buttonRehostID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:ButtonRehost" );
+	chatBoxBorderID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:ChatBoxBorder" );
+	buttonBuddiesID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:ButtonBuddy" );
+	buttonContinueID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:ButtonContinue" );
+	buttonSaveReplayID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:ButtonSaveReplay" );
 
 	parent = TheWindowManager->winGetWindowFromId( NULL, parentID );
 	buttonOk = TheWindowManager->winGetWindowFromId( parent, buttonOkID );
@@ -635,22 +634,30 @@ void PlayMovieAndBlock(AsciiString movieTitle)
 		return;
 	}
 
+	// TheSuperHackers @bugfix Originally this movie render loop stopped rendering when the game window was inactive.
+	// This either skipped the movie or caused decompression artifacts. Now the video just keeps playing until it done.
+
 	GameWindow *movieWindow = s_blankLayout->getFirstWindow();
 	TheWritableGlobalData->m_loadScreenRender = TRUE;
 	while (videoStream->frameIndex() < videoStream->frameCount() - 1)
 	{
+		// TheSuperHackers @feature User can now skip video by pressing ESC
+		if (TheKeyboard)
+		{
+			TheKeyboard->UPDATE();
+			KeyboardIO *io = TheKeyboard->findKey(KEY_ESC, KeyboardIO::STATUS_UNUSED);
+			if (io && BitIsSet(io->state, KEY_STATE_DOWN))
+			{
+				io->setUsed();
+				break;
+			}
+		}
+
 		TheGameEngine->serviceWindowsOS();
 
 		if(!videoStream->isFrameReady())
 		{
 			Sleep(1);
-			continue;
-		}
-
-		if (!TheGameEngine->isActive())
-		{	//we are alt-tabbed out, so just increment the frame
-			videoStream->frameNext();
-			videoStream->frameDecompress();
 			continue;
 		}
 
@@ -768,12 +775,8 @@ void finishSinglePlayerInit( void )
 
 	}
 
-	//Added By Sadullah Nader
-	//Fix for the black screen text that appears after loading sequence
-
 	TheInGameUI->freeMessageResources();
 
-	//
 	if (s_blankLayout)
 	{
 		s_blankLayout->destroyWindows();

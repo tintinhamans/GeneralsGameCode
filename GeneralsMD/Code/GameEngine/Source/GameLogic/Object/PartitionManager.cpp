@@ -82,7 +82,6 @@
 
 #ifdef RTS_DEBUG
 //#include "GameClient/InGameUI.h"	// for debugHints
-#include "Common/PlayerList.h"
 #endif
 
 #ifdef PM_CACHE_TERRAIN_HEIGHT
@@ -1226,10 +1225,7 @@ void CellAndObjectIntersection::removeAllCoverage()
 //-----------------------------------------------------------------------------
 PartitionCell::PartitionCell()
 {
-	//Added By Sadullah Nader
-	//Initializations inserted
 	m_cellX = m_cellY = 0;
-	//
 	m_firstCoiInCell = NULL;
 	m_coiCount = 0;
 #ifdef PM_CACHE_TERRAIN_HEIGHT

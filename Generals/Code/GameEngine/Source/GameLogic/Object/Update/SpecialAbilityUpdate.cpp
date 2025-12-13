@@ -68,10 +68,7 @@
 //-------------------------------------------------------------------------------------------------
 SpecialAbilityUpdate::SpecialAbilityUpdate( Thing *thing, const ModuleData* moduleData ) : UpdateModule( thing, moduleData )
 {
-	//Added By Sadullah Nader
-	//Initialization(s) inserted
 	m_captureFlashPhase = 0.0f;
-	//
 	m_active = false;
 	m_prepFrames = 0;
 	m_animFrames = 0;
@@ -920,7 +917,7 @@ void SpecialAbilityUpdate::startPreparation()
 				draw->setAnimationCompletionTime(data->m_preparationFrames);
 
 			//Warn the victim so he might have a chance to react!
-			if( target && target->isLocallyControlled() )
+			if( target && target->isLocallyViewed() )
 			{
 				TheEva->setShouldPlay( EVA_BuildingBeingStolen );
 			}
@@ -954,7 +951,7 @@ void SpecialAbilityUpdate::startPreparation()
 				}
 
 				//Warn the victim so he might have a chance to react!
-				if( spTemplate->getSpecialPowerType() == SPECIAL_BLACKLOTUS_CAPTURE_BUILDING && target && target->isLocallyControlled() )
+				if( spTemplate->getSpecialPowerType() == SPECIAL_BLACKLOTUS_CAPTURE_BUILDING && target && target->isLocallyViewed() )
 				{
 					TheEva->setShouldPlay( EVA_BuildingBeingStolen );
 				}
@@ -1308,7 +1305,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
 			}
 
 			//Play the "building stolen" EVA event if the local player is the victim!
-			if( target && target->isLocallyControlled() )
+			if( target && target->isLocallyViewed() )
 			{
 				TheEva->setShouldPlay( EVA_BuildingStolen );
 			}
@@ -1341,7 +1338,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
 			if( targetMoney && objectMoney )
 			{
 				UnsignedInt cash = targetMoney->countMoney();
-#if RETAIL_COMPATIBLE_CRC
+#if RETAIL_COMPATIBLE_CRC || PRESERVE_RETAIL_BEHAVIOR
 				UnsignedInt desiredAmount = 1000;
 #else
 				UnsignedInt desiredAmount = data->m_effectValue;
@@ -1358,7 +1355,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
 						controller->getScoreKeeper()->addMoneyEarned( cash );
 
 					//Play the "cash stolen" EVA event if the local player is the victim!
-					if( target && target->isLocallyControlled() )
+					if( target && target->isLocallyViewed() )
 					{
 						TheEva->setShouldPlay( EVA_CashStolen );
 					}

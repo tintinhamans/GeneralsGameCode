@@ -207,8 +207,6 @@ void setFPMode( void )
 // ------------------------------------------------------------------------------------------------
 GameLogic::GameLogic( void )
 {
-	//Added By Sadullah Nader
-	//Initializations missing and necessary
 	m_background = NULL;
 	m_CRC = 0;
 	m_isInUpdate = FALSE;
@@ -224,7 +222,6 @@ GameLogic::GameLogic( void )
 	m_shouldValidateCRCs = FALSE;
 
 	m_startNewGame = FALSE;
-	//
 
 	m_frame = 0;
 	m_hasUpdated = FALSE;
@@ -1152,7 +1149,6 @@ void GameLogic::startNewGame( Bool saveGame )
 			TheMouse->setVisibility(FALSE);
 			m_loadScreen->init(game);
 
-			//
 			updateLoadProgress( LOAD_PROGRESS_START );
 		}
 	}
@@ -1347,7 +1343,7 @@ void GameLogic::startNewGame( Bool saveGame )
 		Dict d;
 		d.setAsciiString(TheKey_playerName, "ReplayObserver");
 		d.setBool(TheKey_playerIsHuman, TRUE);
-		d.setUnicodeString(TheKey_playerDisplayName, UnicodeString(L"Observer"));
+		d.setUnicodeString(TheKey_playerDisplayName, L"Observer");
 		const PlayerTemplate* pt;
 		pt = ThePlayerTemplateStore->findPlayerTemplate( TheNameKeyGenerator->nameToKey("FactionObserver") );
 		if (pt)
@@ -1416,7 +1412,7 @@ void GameLogic::startNewGame( Bool saveGame )
 			{
 				ChunkInputStream *pStrm = &theInputStream;
 				DataChunkInput file( pStrm );
-				file.registerParser( AsciiString("PlayerScriptsList"), AsciiString::TheEmptyString, ScriptList::ParseScriptsDataChunk );
+				file.registerParser( "PlayerScriptsList", AsciiString::TheEmptyString, ScriptList::ParseScriptsDataChunk );
 				if (!file.parse(NULL)) {
 					DEBUG_LOG(("ERROR - Unable to read in multiplayer scripts."));
 					return;
@@ -1975,7 +1971,7 @@ void GameLogic::startNewGame( Bool saveGame )
 		if (!TheGlobalData->m_headless)
 		{
 			if(TheShell->getScreenCount() == 0)
-				TheShell->push( AsciiString("Menus/MainMenu.wnd") );
+				TheShell->push( "Menus/MainMenu.wnd" );
 			else if (TheShell->top())
 			{
 				TheShell->top()->hide(FALSE);
@@ -2089,8 +2085,6 @@ void GameLogic::startNewGame( Bool saveGame )
 		TheGameSpyBuddyMessageQueue->addRequest(req);
 	}
 
-	//Added By Sadullah Nader
-	//Added to fix the quit menu
 	//ReAllows quit menu to work during loading scene
 	setGameLoading(FALSE);
 
@@ -2134,20 +2128,18 @@ void GameLogic::loadMapINI( AsciiString mapName )
 		return;
 	}
 
-	char filename[_MAX_PATH];
-	char fullFledgeFilename[_MAX_PATH];
-
-	memset(filename, 0, _MAX_PATH);
-	strcpy(filename, mapName.str());
-
 	//
 	// if map name begins with a "SAVE_DIRECTORY\", then the map refers to a map
 	// that has been extracted from a save game file ... in that case we need to get
 	// the pristine map name string in order to manipulate and load the right map.ini
 	// for that map from it's original location
 	//
-	if (TheGameState->isInSaveDirectory(filename))
-		strcpy( filename, TheGameState->getSaveGameInfo()->pristineMapName.str() );
+	const char* pristineMapName = TheGameState->isInSaveDirectory(mapName.str())
+		? TheGameState->getSaveGameInfo()->pristineMapName.str()
+		: mapName.str();
+
+	char filename[_MAX_PATH];
+	strlcpy(filename, pristineMapName, ARRAY_SIZE(filename));
 
 	// sanity
 	int length = strlen(filename);
@@ -2163,6 +2155,7 @@ void GameLogic::loadMapINI( AsciiString mapName )
 	*extension = 0;
 
 
+	char fullFledgeFilename[_MAX_PATH];
 	sprintf(fullFledgeFilename, "%s\\map.ini", filename);
 	if (TheFileSystem->doesFileExist(fullFledgeFilename)) {
 		DEBUG_LOG(("Loading map.ini"));

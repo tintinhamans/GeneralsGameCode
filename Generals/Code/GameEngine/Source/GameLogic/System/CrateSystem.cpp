@@ -122,7 +122,7 @@ CrateTemplate *CrateSystem::newCrateTemplate( AsciiString name )
 	CrateTemplate *ct = newInstance(CrateTemplate);
 
 	// if the default template is present, get it and copy over any data to the new template
-	const CrateTemplate *defaultCT = findCrateTemplate(AsciiString("DefaultCrate"));
+	const CrateTemplate *defaultCT = findCrateTemplate("DefaultCrate");
 	if(defaultCT)
 	{
 		*ct = *defaultCT;
@@ -193,8 +193,6 @@ const FieldParse CrateTemplate::TheCrateTemplateFieldParseTable[] =
 
 CrateTemplate::CrateTemplate()
 {
-	m_name = "";
-
 	m_creationChance = 0;
 	CLEAR_KINDOFMASK(m_killedByTypeKindof);
 	m_veterancyLevel = LEVEL_INVALID;

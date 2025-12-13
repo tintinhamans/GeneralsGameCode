@@ -959,11 +959,8 @@ TerrainLogic::TerrainLogic()
 {
 	Int i;
 
-	//Added By Sadullah Nader
-	//Initialization(s) inserted
 	m_activeBoundary = 0;
 	m_waterGridEnabled = FALSE;
-	//
 	for( i = 0; i < MAX_DYNAMIC_WATER; ++i )
 	{
 
@@ -1272,7 +1269,7 @@ Bool TerrainLogic::loadMap( AsciiString filename, Bool query )
 		DataChunkInput file( pStrm );
 		if (file.isValidFileType()) {	// Backwards compatible files aren't valid data chunk files.
 			// Read the waypoints.
-			file.registerParser( AsciiString("WaypointsList"), AsciiString::TheEmptyString, parseWaypointDataChunk );
+			file.registerParser( "WaypointsList", AsciiString::TheEmptyString, parseWaypointDataChunk );
 			if (!file.parse(this)) {
 				DEBUG_CRASH(("Unable to read waypoint info."));
 				return false;
@@ -2143,7 +2140,12 @@ Bool TerrainLogic::isUnderwater( Real x, Real y, Real *waterZ, Real *terrainZ )
 
 	// if no water here, no height, no nuttin
 	if( waterHandle == NULL )
+  {
+    // but we have to return the terrain Z if requested!
+    if (terrainZ)
+      *terrainZ=getGroundHeight(x,y);
 		return FALSE;
+  }
 
 	//
 	// if this water handle is a grid water use the grid height function, otherwise look into

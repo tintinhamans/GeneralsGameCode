@@ -56,6 +56,7 @@
 #include <assetmgr.h>
 #include <texture.h>
 
+#include "Common/GameUtility.h"
 #include "Common/GlobalData.h"
 #include "Common/RandomValue.h"
 #include "Common/ThingFactory.h"
@@ -222,7 +223,7 @@ void W3DWaypointBuffer::drawWaypoints(RenderInfoClass &rinfo)
 			Int numPoints = 0;
 			if( obj )
 			{
-				if ( ! obj->isLocallyControlled())
+				if ( obj->getControllingPlayer() != rts::getObservedOrLocalPlayer())
 					continue;
 
 				ExitInterface *exitInterface = obj->getObjectExitInterface();

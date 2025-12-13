@@ -71,10 +71,7 @@
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
 
 #include "GameClient/CDCheck.h"
-//Added By Saad
-//for accessing the InGameUI
 #include "GameClient/InGameUI.h"
-
 
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -200,7 +197,6 @@ static Bool justEntered = FALSE;
 
 static Bool dontAllowTransitions = FALSE;
 
-//Added by Saad
 const Int /*TIME_OUT = 15,*/ CORNER = 10;
 void AcceptResolution();
 void DeclineResolution();
@@ -208,7 +204,6 @@ GameWindow *resAcceptMenu = NULL;
 extern DisplaySettings oldDispSettings, newDispSettings;
 extern Bool dispChanged;
 //static time_t timeStarted = 0, currentTime = 0;
-//
 
 void diffReverseSide( void );
 void HandleCanceledDownload( Bool resetDropDown )
@@ -412,7 +407,7 @@ GameWindow *win = NULL;
 // Originally this label does not exist in the Main Menu. It can be copied from the Options Menu.
 static void initLabelVersion()
 {
-	NameKeyType versionID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:LabelVersion") );
+	NameKeyType versionID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:LabelVersion" );
 	GameWindow *labelVersion = TheWindowManager->winGetWindowFromId( NULL, versionID );
 
 	if (labelVersion)
@@ -449,40 +444,40 @@ void MainMenuInit( WindowLayout *layout, void *userData )
 		dropDownWindows[i] = NULL;
 
 	// get ids for our windows
-	mainMenuID = TheNameKeyGenerator->nameToKey( AsciiString( "MainMenu.wnd:MainMenuParent" ) );
-//	campaignID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonCampaign") );
-	skirmishID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonSkirmish") );
-	onlineID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonOnline") );
-	networkID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonNetwork") );
-	optionsID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonOptions") );
-	exitID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonExit") );
-	motdID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonMOTD") );
-	worldBuilderID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonWorldBuilder") );
-	getUpdateID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonGetUpdate") );
-	buttonTRAININGID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonTRAINING") );
-	buttonUSAID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonUSA") );
-	buttonGLAID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonGLA") );
-	buttonChinaID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonChina") );
-	buttonUSARecentSaveID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonUSARecentSave") );
-	buttonUSALoadGameID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonUSALoadGame") );
-	buttonGLARecentSaveID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonGLARecentSave") );
-	buttonGLALoadGameID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonGLALoadGame") );
-	buttonChinaRecentSaveID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonChinaRecentSave") );
-	buttonChinaLoadGameID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonChinaLoadGame") );
-	buttonSinglePlayerID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonSinglePlayer") );
-	buttonMultiPlayerID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonMultiplayer") );
-	buttonMultiBackID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonMultiBack") );
-	buttonSingleBackID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonSingleBack") );
-	buttonLoadReplayBackID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonLoadReplayBack") );
-	buttonReplayID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonReplay") );
-	buttonLoadReplayID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonLoadReplay") );
-	buttonLoadID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonLoadGame") );
-	buttonCreditsID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonCredits") );
+	mainMenuID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:MainMenuParent" );
+//	campaignID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonCampaign" );
+	skirmishID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonSkirmish" );
+	onlineID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonOnline" );
+	networkID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonNetwork" );
+	optionsID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonOptions" );
+	exitID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonExit" );
+	motdID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonMOTD" );
+	worldBuilderID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonWorldBuilder" );
+	getUpdateID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonGetUpdate" );
+	buttonTRAININGID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonTRAINING" );
+	buttonUSAID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonUSA" );
+	buttonGLAID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonGLA" );
+	buttonChinaID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonChina" );
+	buttonUSARecentSaveID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonUSARecentSave" );
+	buttonUSALoadGameID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonUSALoadGame" );
+	buttonGLARecentSaveID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonGLARecentSave" );
+	buttonGLALoadGameID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonGLALoadGame" );
+	buttonChinaRecentSaveID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonChinaRecentSave" );
+	buttonChinaLoadGameID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonChinaLoadGame" );
+	buttonSinglePlayerID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonSinglePlayer" );
+	buttonMultiPlayerID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonMultiplayer" );
+	buttonMultiBackID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonMultiBack" );
+	buttonSingleBackID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonSingleBack" );
+	buttonLoadReplayBackID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonLoadReplayBack" );
+	buttonReplayID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonReplay" );
+	buttonLoadReplayID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonLoadReplay" );
+	buttonLoadID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonLoadGame" );
+	buttonCreditsID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonCredits" );
 
-	buttonEasyID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonEasy") );
-	buttonMediumID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonMedium") );
-	buttonHardID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonHard") );
-	buttonDiffBackID = TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:ButtonDiffBack") );
+	buttonEasyID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonEasy" );
+	buttonMediumID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonMedium" );
+	buttonHardID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonHard" );
+	buttonDiffBackID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:ButtonDiffBack" );
 
 	// get pointers to the window buttons
 	parentMainMenu = TheWindowManager->winGetWindowFromId( NULL, mainMenuID );
@@ -518,11 +513,11 @@ void MainMenuInit( WindowLayout *layout, void *userData )
 	buttonChinaRecentSave = TheWindowManager->winGetWindowFromId( parentMainMenu, buttonChinaRecentSaveID );
 	buttonChinaLoadGame = TheWindowManager->winGetWindowFromId( parentMainMenu, buttonChinaLoadGameID );
 
-	dropDownWindows[DROPDOWN_SINGLE] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:MapBorder") ));
-	dropDownWindows[DROPDOWN_MULTIPLAYER] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:MapBorder1") ) );
-	dropDownWindows[DROPDOWN_MAIN] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:MapBorder2") ) );
-	dropDownWindows[DROPDOWN_LOADREPLAY] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:MapBorder3") ) );
-	dropDownWindows[DROPDOWN_DIFFICULTY] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:MapBorder4") ) );
+	dropDownWindows[DROPDOWN_SINGLE] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( "MainMenu.wnd:MapBorder" ));
+	dropDownWindows[DROPDOWN_MULTIPLAYER] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( "MainMenu.wnd:MapBorder1" ) );
+	dropDownWindows[DROPDOWN_MAIN] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( "MainMenu.wnd:MapBorder2" ) );
+	dropDownWindows[DROPDOWN_LOADREPLAY] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( "MainMenu.wnd:MapBorder3" ) );
+	dropDownWindows[DROPDOWN_DIFFICULTY] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( "MainMenu.wnd:MapBorder4" ) );
 	for(i = 1; i < DROPDOWN_COUNT; ++i)
 		dropDownWindows[i]->winHide(TRUE);
 
@@ -536,7 +531,7 @@ void MainMenuInit( WindowLayout *layout, void *userData )
 	instData.init();
 	BitSet( instData.m_style, GWS_PUSH_BUTTON | GWS_MOUSE_TRACK );
 	instData.m_textLabelString = "Debug: Compress/Decompress Maps";
-	instData.setTooltipText(UnicodeString(L"Only Used in Debug and Internal!"));
+	instData.setTooltipText(L"Only Used in Debug and Internal!");
 	buttonCompressTest = TheWindowManager->gogoGadgetPushButton( parentMainMenu,
 																									 WIN_STATUS_ENABLED | WIN_STATUS_IMAGE,
 																									 25, 175,
@@ -548,7 +543,7 @@ void MainMenuInit( WindowLayout *layout, void *userData )
 	BitSet( instData.m_style, GWS_PUSH_BUTTON | GWS_MOUSE_TRACK );
 	instData.m_textLabelString = "Debug: Load Map";
 
-	instData.setTooltipText(UnicodeString(L"Only Used in Debug and Internal!"));
+	instData.setTooltipText(L"Only Used in Debug and Internal!");
 	buttonCampaign = TheWindowManager->gogoGadgetPushButton( parentMainMenu,
 																									 WIN_STATUS_ENABLED,
 																									 25, 54,
@@ -613,7 +608,7 @@ void MainMenuInit( WindowLayout *layout, void *userData )
 	//pendingDropDown =DROPDOWN_MAIN;
 
 
-	GameWindow *rule = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:MainMenuRuler") ) );
+	GameWindow *rule = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( "MainMenu.wnd:MainMenuRuler" ) );
 	if(rule)
 		rule->winHide(TRUE);
 	campaignSelected = FALSE;
@@ -681,8 +676,6 @@ void MainMenuShutdown( WindowLayout *layout, void *userData )
 extern Bool DontShowMainMenu;
 
 ////////////////////////////////////////////////////////////////////////////
-//Added By Sadullah Nader
-//Added as a fix to the resolution change
 //Allows the user to confirm the change, goes back to the previous mode
 //if the time to change expires.
 ////////////////////////////////////////////////////////////////////////////
@@ -715,8 +708,8 @@ void DeclineResolution()
 		TheWritableGlobalData->m_xResolution = newDispSettings.xRes;
 		TheWritableGlobalData->m_yResolution = newDispSettings.yRes;
 
-		TheHeaderTemplateManager->headerNotifyResolutionChange();
-		TheMouse->mouseNotifyResolutionChange();
+		TheHeaderTemplateManager->onResolutionChanged();
+		TheMouse->onResolutionChanged();
 
 		AsciiString prefString;
 		prefString.format("%d %d", newDispSettings.xRes, newDispSettings.yRes);
@@ -801,8 +794,6 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 		DownloadMenuUpdate(layout, userData);
 	}
 
-	// Added by Saad to the confirmation or decline of the resoluotion change
-	// dialog box.
 	/* This is also commented for the same reason as the top
 	if (dispChanged)
 	{
@@ -1243,7 +1234,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			if( control == buttonCampaign )
 			{
 				buttonPushed = TRUE;
-				TheShell->push(AsciiString( "Menus/MapSelectMenu.wnd" ));
+				TheShell->push("Menus/MapSelectMenu.wnd");
 				// As soon as we have a campaign, add it in here!;
 			}
 #ifdef TEST_COMPRESSION
@@ -1348,7 +1339,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				buttonPushed = TRUE;
 				dropDownWindows[DROPDOWN_LOADREPLAY]->winHide(FALSE);
 				TheTransitionHandler->reverse("MainMenuLoadReplayMenuBackTransition");
-				TheShell->push(AsciiString("Menus/SaveLoad.wnd"));
+				TheShell->push("Menus/SaveLoad.wnd");
 
 			}
 			else if( controlID == buttonReplayID )
@@ -1359,7 +1350,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				buttonPushed = TRUE;
 				dropDownWindows[DROPDOWN_LOADREPLAY]->winHide(FALSE);
 				TheTransitionHandler->reverse("MainMenuLoadReplayMenuBackTransition");
-				TheShell->push(AsciiString("Menus/ReplayMenu.wnd"));
+				TheShell->push("Menus/ReplayMenu.wnd");
 			}
 			else if( controlID == skirmishID )
 			{
@@ -1371,7 +1362,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				TheTransitionHandler->remove("MainMenuFactionSkirmish");
 
 				TheTransitionHandler->reverse("MainMenuSinglePlayerMenuBackSkirmish");
-				TheShell->push( AsciiString("Menus/SkirmishGameOptionsMenu.wnd") );
+				TheShell->push( "Menus/SkirmishGameOptionsMenu.wnd" );
 				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_SKIRMISH_SELECTED]);
 			}
 			else if( controlID == onlineID )
@@ -1396,7 +1387,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				buttonPushed = TRUE;
 				dropDownWindows[DROPDOWN_MULTIPLAYER]->winHide(FALSE);
 				TheTransitionHandler->reverse("MainMenuMultiPlayerMenuTransitionToNext");
-				TheShell->push( AsciiString("Menus/LanLobbyMenu.wnd") );
+				TheShell->push( "Menus/LanLobbyMenu.wnd" );
 
 				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_NETWORK_SELECTED]);
 			}
@@ -1433,9 +1424,6 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			{
 				// If we ever want to add a dialog before we exit out of the game, uncomment this line and kill the quitCallback() line below.
 //#if defined(RTS_DEBUG)
-
-				//Added By Sadullah Nader
-				//Changed the preprocessing code to normal code
 				if (TheGlobalData->m_windowed)
 				{
 					quitCallback();
@@ -1445,7 +1433,6 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				{
 					QuitMessageBoxYesNo(TheGameText->fetch("GUI:QuitPopupTitle"), TheGameText->fetch("GUI:QuitPopupMessage"),quitCallback,NULL);
 				}
-				//
 //#endif
 
 			}
@@ -1484,7 +1471,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				showLogo = FALSE;
 				showSide = SHOW_USA;
 //				WindowLayout *layout = NULL;
-//				layout = TheWindowManager->winCreateLayout( AsciiString( "Menus/DifficultySelect.wnd" ) );
+//				layout = TheWindowManager->winCreateLayout( "Menus/DifficultySelect.wnd" );
 //				layout->runInit();
 //				layout->hide( FALSE );
 //				layout->bringForward();
@@ -1508,7 +1495,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				showLogo = FALSE;
 				showSide = SHOW_GLA;
 //				WindowLayout *layout = NULL;
-//				layout = TheWindowManager->winCreateLayout( AsciiString( "Menus/DifficultySelect.wnd" ) );
+//				layout = TheWindowManager->winCreateLayout( "Menus/DifficultySelect.wnd" );
 //				layout->runInit();
 //				layout->hide( FALSE );
 //				layout->bringForward();
@@ -1533,7 +1520,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				showSide = SHOW_CHINA;
 
 //				WindowLayout *layout = NULL;
-//				layout = TheWindowManager->winCreateLayout( AsciiString( "Menus/DifficultySelect.wnd" ) );
+//				layout = TheWindowManager->winCreateLayout( "Menus/DifficultySelect.wnd" );
 //				layout->runInit();
 //				layout->hide( FALSE );
 //				layout->bringForward();

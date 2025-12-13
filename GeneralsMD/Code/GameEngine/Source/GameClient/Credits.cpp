@@ -155,7 +155,7 @@ void CreditsManager::load(void )
 {
 	INI ini;
 	// Read from INI all the ControlBarSchemes
-	ini.loadFileDirectory( AsciiString( "Data\\INI\\Credits" ), INI_LOAD_OVERWRITE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\Credits", INI_LOAD_OVERWRITE, NULL );
 
 	if(m_scrollRatePerFrames <=0)
 		m_scrollRatePerFrames = 1;
@@ -166,7 +166,7 @@ void CreditsManager::load(void )
 														TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsNormalFont.size),
 														TheGlobalLanguageData->m_creditsNormalFont.bold);
 
-	m_normalFontHeight = font->height;
+	m_normalFontHeight = font ? font->height : 0;
 }
 
 void CreditsManager::reset( void )

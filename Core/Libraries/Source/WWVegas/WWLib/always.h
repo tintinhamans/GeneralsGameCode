@@ -143,7 +143,7 @@ private: \
 		return The##ARGCLASS##Pool; \
 	} \
 protected: \
-	virtual int glueEnforcer() const { return sizeof(this); } \
+	virtual void glueEnforcer() const { } \
 public: \
 	inline void* operator new(size_t s) { return allocateFromW3DMemPool(getClassMemoryPool(), s); } \
 	inline void operator delete(void *p) { freeFromW3DMemPool(getClassMemoryPool(), p); } \
@@ -161,7 +161,7 @@ private:
 	}
 protected:
 	// we never call this; it is present to cause compile errors in descendent classes
-	virtual int glueEnforcer() const = 0;
+	virtual void glueEnforcer() const = 0;
 public:
 	virtual ~W3DMPO() { /* nothing */ }
 };
@@ -173,6 +173,9 @@ public:
 	#define MSGW3DNEWARRAY(MSG)			new
 	#define W3DNEW									new
 	#define W3DNEWARRAY							new
+
+	#define NEW_REF( C, P )					( W3DNEW C P )
+	#define SET_REF_OWNER( P )			P
 
 	#define W3DMPO_GLUE(ARGCLASS)
 

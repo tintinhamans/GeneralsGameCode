@@ -32,7 +32,6 @@
 #include "TARGA.h"
 #include <d3dx8tex.h>
 #include "wwmemlog.h"
-#include "texture.h"
 #include "formconv.h"
 #include "texturethumbnail.h"
 #include "ddsfile.h"
@@ -993,7 +992,7 @@ void TextureLoadTaskClass::Init(TextureBaseClass* tc,bool high_priority)
 {
 	// Make sure texture has a filename.
 	REF_PTR_SET(Texture,tc);
-	//WWASSERT(Texture->Get_Full_Path() != NULL);
+	//WWASSERT(!Texture->Get_Full_Path().Is_Empty());
 
 	Reduction=Texture->Get_Reduction();
 	HighPriorityRequested=high_priority;

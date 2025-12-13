@@ -426,7 +426,7 @@ void WorldHeightMapEdit::loadDirectoryOfImages(const char *pFilePath)
 	}
 
 	FilenameList filenameList;
-	TheFileSystem->getFileListInDirectory(AsciiString(dirBuf), AsciiString("*.*"), filenameList, TRUE);
+	TheFileSystem->getFileListInDirectory(AsciiString(dirBuf), "*.*", filenameList, TRUE);
 
 	if (filenameList.size() == 0) {
 		return;
@@ -979,7 +979,7 @@ Int WorldHeightMapEdit::getTileNdxForClass(Int xIndex, Int yIndex, Int textureCl
 		/* there are actually 4 subcells in a tile.  So be funky. :) */
 		tileNdx = tileNdx << 2;
 		Int ySubIndex = yIndex&0x01;
-		Int xSubIndex = xIndex&0x01;;
+		Int xSubIndex = xIndex&0x01;
 		tileNdx += 2*ySubIndex;
 		tileNdx += xSubIndex;
 	}
@@ -2155,7 +2155,7 @@ Bool WorldHeightMapEdit::selectInvalidTeam(void)
 		}
 	}
 
-	AsciiString report = "";
+	AsciiString report;
 	AsciiString line;
 
 #if 0

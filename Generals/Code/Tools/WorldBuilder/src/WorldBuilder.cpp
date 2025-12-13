@@ -126,7 +126,7 @@ char const * WBGameFileClass::Set_Name( char const *filename )
 	}
 
 	if (TheFileSystem->doesFileExist(filename)) {
-		strcpy( m_filePath, filename );
+		strlcpy(m_filePath, filename, ARRAY_SIZE(m_filePath));
 		m_fileExists = true;
 	}
 	return m_filename;
@@ -325,12 +325,12 @@ BOOL CWorldBuilderApp::InitInstance()
 
 	INI ini;
 
-	initSubsystem(TheWritableGlobalData, new GlobalData(), "Data\\INI\\Default\\GameData.ini", "Data\\INI\\GameData.ini");
+	initSubsystem(TheWritableGlobalData, new GlobalData(), "Data\\INI\\Default\\GameData", "Data\\INI\\GameData");
 
 	TheFramePacer = new FramePacer();
 
 #if defined(RTS_DEBUG)
-	ini.load( AsciiString( "Data\\INI\\GameDataDebug.ini" ), INI_LOAD_MULTIFILE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\GameDataDebug", INI_LOAD_MULTIFILE, NULL );
 #endif
 
 #ifdef DEBUG_CRASHING
@@ -340,7 +340,7 @@ BOOL CWorldBuilderApp::InitInstance()
 #if 1
 	// srj sez: put INI into our user data folder, not the ap dir
 	free((void*)m_pszProfileName);
-	strcpy(buf, TheGlobalData->getPath_UserData().str());
+	strlcpy(buf, TheGlobalData->getPath_UserData().str(), ARRAY_SIZE(buf));
 	strlcat(buf, "WorldBuilder.ini", ARRAY_SIZE(buf));
 #else
 	strlcat(buf, "//", ARRAY_SIZE(buf));
@@ -355,10 +355,14 @@ BOOL CWorldBuilderApp::InitInstance()
 	CreateDirectory(buf, NULL);
 
 	// read the water settings from INI (must do prior to initing GameClient, apparently)
-	ini.load( AsciiString( "Data\\INI\\Default\\Water.ini" ), INI_LOAD_OVERWRITE, NULL );
-	ini.load( AsciiString( "Data\\INI\\Water.ini" ), INI_LOAD_OVERWRITE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\Default\\Water", INI_LOAD_OVERWRITE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\Water", INI_LOAD_OVERWRITE, NULL );
 
 	initSubsystem(TheGameText, CreateGameTextInterface());
+	initSubsystem(TheScienceStore, new ScienceStore(), "Data\\INI\\Default\\Science", "Data\\INI\\Science");
+	initSubsystem(TheMultiplayerSettings, new MultiplayerSettings(), "Data\\INI\\Default\\Multiplayer", "Data\\INI\\Multiplayer");
+	initSubsystem(TheTerrainTypes, new TerrainTypeCollection(), "Data\\INI\\Default\\Terrain", "Data\\INI\\Terrain");
+	initSubsystem(TheTerrainRoads, new TerrainRoadCollection(), "Data\\INI\\Default\\Roads", "Data\\INI\\Roads");
 	initSubsystem(TheScienceStore, new ScienceStore(), "Data\\INI\\Default\\Science.ini", "Data\\INI\\Science.ini");
 	initSubsystem(TheMultiplayerSettings, new MultiplayerSettings(), "Data\\INI\\Default\\Multiplayer.ini", "Data\\INI\\Multiplayer.ini");
 	initSubsystem(TheTerrainTypes, new TerrainTypeCollection(), "Data\\INI\\Default\\Terrain.ini", "Data\\INI\\Terrain.ini");
@@ -674,7 +678,7 @@ void CWorldBuilderApp::OnFileOpen()
 #endif
 
 	CFileStatus status;
-	if (m_currentDirectory != AsciiString("")) try {
+	if (!m_currentDirectory.isEmpty()) try {
 		if (CFile::GetStatus(m_currentDirectory.str(), status)) {
 			if (status.m_attribute & CFile::directory) {
 				::SetCurrentDirectory(m_currentDirectory.str());

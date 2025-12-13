@@ -3,8 +3,8 @@
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 
 #include <ws2ipdef.h>
-#include "../../NetworkDefs.h"
-#include "../../NetworkInterface.h"
+#include "GameNetwork/NetworkDefs.h"
+#include "GameNetwork/NetworkInterface.h"
 #include "GameLogic/GameLogic.h"
 #include "../OnlineServices_RoomsInterface.h"
 #include "../json.hpp"

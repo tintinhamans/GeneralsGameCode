@@ -394,7 +394,7 @@ void GameWindowTransitionsHandler::load(void )
 {
 	INI ini;
 	// Read from INI all the ControlBarSchemes
-	ini.load( AsciiString( "Data\\INI\\WindowTransitions.ini" ), INI_LOAD_OVERWRITE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\WindowTransitions", INI_LOAD_OVERWRITE, NULL );
 
 }
 

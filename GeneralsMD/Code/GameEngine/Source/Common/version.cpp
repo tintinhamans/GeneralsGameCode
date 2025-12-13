@@ -310,9 +310,9 @@ UnicodeString Version::getUnicodeProductTitle() const
 {
 	// @todo Make configurable
 #if defined(GENERALS_ONLINE)
-	return UnicodeString(L"GeneralsOnline");
+	return L"GeneralsOnline";
 #else
-	return UnicodeString(L"Community Patch");
+	return L"Community Patch";
 #endif
 }
 

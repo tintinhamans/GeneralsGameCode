@@ -45,7 +45,7 @@ RadiusDecalTemplate::RadiusDecalTemplate() :
 	m_opacityThrobTime(LOGICFRAMES_PER_SECOND),
 	m_color(0),
 	m_onlyVisibleToOwningPlayer(true),
-	m_name(AsciiString::TheEmptyString)  // Added By Sadullah Nader for Init purposes
+	m_name(AsciiString::TheEmptyString)
 {
 }
 
@@ -73,7 +73,7 @@ void RadiusDecalTemplate::createRadiusDecal(const Coord3D& pos, Real radius, con
 		decalInfo.allowUpdates = FALSE;										// shadow texture will never update
 		decalInfo.allowWorldAlign = TRUE;									// shadow image will wrap around world objects
 		decalInfo.m_type = m_shadowType;
-		strcpy(decalInfo.m_ShadowName, m_name.str());		// name of your texture
+		strlcpy(decalInfo.m_ShadowName, m_name.str(), ARRAY_SIZE(decalInfo.m_ShadowName));		// name of your texture
 		decalInfo.m_sizeX = radius*2;									// world space dimensions
 		decalInfo.m_sizeY = radius*2;									// world space dimensions
 

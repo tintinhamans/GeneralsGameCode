@@ -5,7 +5,7 @@
 #include "GameNetwork/GeneralsOnline/json.hpp"
 #include "../OnlineServices_Init.h"
 #include "../HTTP/HTTPManager.h"
-#include "../../GameSpy/PeerDefs.h"
+#include "GameNetwork/GameSpy/PeerDefs.h"
 
 
 WebSocket::WebSocket()

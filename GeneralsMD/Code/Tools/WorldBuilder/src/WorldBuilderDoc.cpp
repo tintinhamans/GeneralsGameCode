@@ -334,7 +334,7 @@ void CWorldBuilderDoc::Serialize(CArchive& ar)
 				DataChunkInput file( pStrm );
 				if (file.isValidFileType()) {	// Backwards compatible files aren't valid data chunk files.
 					// Read the waypoints.
-					file.registerParser( AsciiString("WaypointsList"), AsciiString::TheEmptyString, ParseWaypointDataChunk );
+					file.registerParser( "WaypointsList", AsciiString::TheEmptyString, ParseWaypointDataChunk );
 					if (!file.parse(this)) {
 						throw(ERROR_CORRUPT_FILE_FORMAT);
 					}
@@ -1291,7 +1291,7 @@ BOOL CWorldBuilderDoc::OnNewDocument()
 	PolygonTrigger *pTrig = newInstance(PolygonTrigger)(4);
 	ICoord3D loc;
 	pTrig->setWaterArea(true);
-	pTrig->setTriggerName(AsciiString("Default Water"));
+	pTrig->setTriggerName("Default Water");
 	loc.x = -hi.borderWidth*MAP_XY_FACTOR;
 	loc.y = -hi.borderWidth*MAP_XY_FACTOR;
 	loc.z = TheGlobalData->m_waterPositionZ;
@@ -2155,16 +2155,13 @@ void CWorldBuilderDoc::OnDumpDocToText(void)
 	static FILE *theLogFile = NULL;
 	Bool open = false;
 	try {
-		char dirbuf[ _MAX_PATH ];
-		::GetModuleFileName( NULL, dirbuf, sizeof( dirbuf ) );
-		if (char *pEnd = strrchr(dirbuf, '\\'))
+		char curbuf[_MAX_PATH];
+		GetModuleFileName(NULL, curbuf, sizeof(curbuf));
+		if (char *pEnd = strrchr(curbuf, '\\'))
 		{
 			*(pEnd + 1) = 0;
 		}
 
-		char curbuf[ _MAX_PATH ];
-
-		strcpy(curbuf, dirbuf);
 		strlcat(curbuf, m_strTitle, ARRAY_SIZE(curbuf));
 		strlcat(curbuf, ".txt", ARRAY_SIZE(curbuf));
 

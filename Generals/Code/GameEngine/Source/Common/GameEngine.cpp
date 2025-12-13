@@ -402,7 +402,7 @@ void GameEngine::init()
 
 	#if defined(RTS_DEBUG)
 		// If we're in Debug, load the Debug settings as well.
-		ini.load( AsciiString( "Data\\INI\\GameDataDebug.ini" ), INI_LOAD_OVERWRITE, NULL );
+		ini.loadFileDirectory( "Data\\INI\\GameDataDebug", INI_LOAD_OVERWRITE, NULL );
 	#endif
 
 		// special-case: parse command-line parameters after loading global data
@@ -429,8 +429,8 @@ void GameEngine::init()
 	#endif
 
 		// read the water settings from INI (must do prior to initing GameClient, apparently)
-		ini.load( AsciiString( "Data\\INI\\Default\\Water.ini" ), INI_LOAD_OVERWRITE, &xferCRC );
-		ini.load( AsciiString( "Data\\INI\\Water.ini" ), INI_LOAD_OVERWRITE, &xferCRC );
+		ini.loadFileDirectory( "Data\\INI\\Default\\Water", INI_LOAD_OVERWRITE, &xferCRC );
+		ini.loadFileDirectory( "Data\\INI\\Water", INI_LOAD_OVERWRITE, &xferCRC );
 
 #ifdef DEBUG_CRC
 		initSubsystem(TheDeepCRCSanityCheck, "TheDeepCRCSanityCheck", MSGNEW("GameEngineSubystem") DeepCRCSanityCheck, NULL, NULL, NULL, NULL);
@@ -442,6 +442,7 @@ void GameEngine::init()
 		initSubsystem(TheTerrainTypes,"TheTerrainTypes", MSGNEW("GameEngineSubsystem") TerrainTypeCollection(), &xferCRC, "Data\\INI\\Default\\Terrain.ini", "Data\\INI\\Terrain.ini");
 		initSubsystem(TheTerrainRoads,"TheTerrainRoads", MSGNEW("GameEngineSubsystem") TerrainRoadCollection(), &xferCRC, "Data\\INI\\Default\\Roads.ini", "Data\\INI\\Roads.ini");
 		initSubsystem(TheGlobalLanguageData,"TheGlobalLanguageData",MSGNEW("GameEngineSubsystem") GlobalLanguage, NULL); // must be before the game text
+		TheGlobalLanguageData->parseCustomDefinition();
 		initSubsystem(TheCDManager,"TheCDManager", CreateCDManager(), NULL);
 		initSubsystem(TheAudio,"TheAudio", TheGlobalData->m_headless ? NEW AudioManagerDummy : createAudioManager(), NULL);
 		if (!TheAudio->isMusicAlreadyLoaded())
@@ -529,7 +530,7 @@ void GameEngine::init()
 		}
 
 		// load the initial shell screen
-		//TheShell->push( AsciiString("Menus/MainMenu.wnd") );
+		//TheShell->push( "Menus/MainMenu.wnd" );
 
 		// This allows us to run a map from the command line
 		if (TheGlobalData->m_initialFile.isEmpty() == FALSE)

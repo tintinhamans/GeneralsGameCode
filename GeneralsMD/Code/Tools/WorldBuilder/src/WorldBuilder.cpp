@@ -126,7 +126,7 @@ char const * WBGameFileClass::Set_Name( char const *filename )
 	}
 
 	if (TheFileSystem->doesFileExist(filename)) {
-		strcpy( m_filePath, filename );
+		strlcpy(m_filePath, filename, ARRAY_SIZE(m_filePath));
 		m_fileExists = true;
 	}
 	return m_filename;
@@ -342,7 +342,7 @@ BOOL CWorldBuilderApp::InitInstance()
 	TheFramePacer = new FramePacer();
 
 #if defined(RTS_DEBUG)
-	ini.load( AsciiString( "Data\\INI\\GameDataDebug.ini" ), INI_LOAD_MULTIFILE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\GameDataDebug", INI_LOAD_MULTIFILE, NULL );
 #endif
 
 #ifdef DEBUG_CRASHING
@@ -353,7 +353,7 @@ BOOL CWorldBuilderApp::InitInstance()
 #if 1
 	// srj sez: put INI into our user data folder, not the ap dir
 	free((void*)m_pszProfileName);
-	strcpy(buf, TheGlobalData->getPath_UserData().str());
+	strlcpy(buf, TheGlobalData->getPath_UserData().str(), ARRAY_SIZE(buf));
 	strlcat(buf, "WorldBuilder.ini", ARRAY_SIZE(buf));
 #else
 	strlcat(buf, "//", ARRAY_SIZE(buf));
@@ -368,14 +368,14 @@ BOOL CWorldBuilderApp::InitInstance()
 	CreateDirectory(buf, NULL);
 
 	// read the water settings from INI (must do prior to initing GameClient, apparently)
-	ini.load( AsciiString( "Data\\INI\\Default\\Water.ini" ), INI_LOAD_OVERWRITE, NULL );
-	ini.load( AsciiString( "Data\\INI\\Water.ini" ), INI_LOAD_OVERWRITE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\Default\\Water", INI_LOAD_OVERWRITE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\Water", INI_LOAD_OVERWRITE, NULL );
 
 	initSubsystem(TheGameText, CreateGameTextInterface());
-	initSubsystem(TheScienceStore, new ScienceStore(), "Data\\INI\\Default\\Science.ini", "Data\\INI\\Science.ini");
-	initSubsystem(TheMultiplayerSettings, new MultiplayerSettings(), "Data\\INI\\Default\\Multiplayer.ini", "Data\\INI\\Multiplayer.ini");
-	initSubsystem(TheTerrainTypes, new TerrainTypeCollection(), "Data\\INI\\Default\\Terrain.ini", "Data\\INI\\Terrain.ini");
-	initSubsystem(TheTerrainRoads, new TerrainRoadCollection(), "Data\\INI\\Default\\Roads.ini", "Data\\INI\\Roads.ini");
+	initSubsystem(TheScienceStore, new ScienceStore(), "Data\\INI\\Default\\Science", "Data\\INI\\Science");
+	initSubsystem(TheMultiplayerSettings, new MultiplayerSettings(), "Data\\INI\\Default\\Multiplayer", "Data\\INI\\Multiplayer");
+	initSubsystem(TheTerrainTypes, new TerrainTypeCollection(), "Data\\INI\\Default\\Terrain", "Data\\INI\\Terrain");
+	initSubsystem(TheTerrainRoads, new TerrainRoadCollection(), "Data\\INI\\Default\\Roads", "Data\\INI\\Roads");
 
 	WorldHeightMapEdit::init();
 
@@ -384,7 +384,7 @@ BOOL CWorldBuilderApp::InitInstance()
 	TheScriptEngine->turnBreezeOff(); // stop the tree sway.
 
 	//  [2/11/2003]
-	ini.load( AsciiString( "Data\\Scripts\\Scripts.ini" ), INI_LOAD_OVERWRITE, NULL );
+	ini.loadFileDirectory( "Data\\Scripts\\Scripts", INI_LOAD_OVERWRITE, NULL );
 
 	// need this before TheAudio in case we're running off of CD - TheAudio can try to open Music.big on the CD...
 	initSubsystem(TheCDManager, CreateCDManager(), NULL);
@@ -396,10 +396,13 @@ BOOL CWorldBuilderApp::InitInstance()
 	initSubsystem(TheModuleFactory, (ModuleFactory*)(new W3DModuleFactory()));
 	initSubsystem(TheSidesList, new SidesList());
 	initSubsystem(TheCaveSystem, new CaveSystem());
-	initSubsystem(TheRankInfoStore, new RankInfoStore(), NULL, "Data\\INI\\Rank.ini");
-	initSubsystem(ThePlayerTemplateStore, new PlayerTemplateStore(), "Data\\INI\\Default\\PlayerTemplate.ini", "Data\\INI\\PlayerTemplate.ini");
-	initSubsystem(TheSpecialPowerStore, new SpecialPowerStore(), "Data\\INI\\Default\\SpecialPower.ini", "Data\\INI\\SpecialPower.ini" );
+	initSubsystem(TheRankInfoStore, new RankInfoStore(), NULL, "Data\\INI\\Rank");
+	initSubsystem(ThePlayerTemplateStore, new PlayerTemplateStore(), "Data\\INI\\Default\\PlayerTemplate", "Data\\INI\\PlayerTemplate");
+	initSubsystem(TheSpecialPowerStore, new SpecialPowerStore(), "Data\\INI\\Default\\SpecialPower", "Data\\INI\\SpecialPower" );
 	initSubsystem(TheParticleSystemManager, (ParticleSystemManager*)(new W3DParticleSystemManager()));
+	initSubsystem(TheFXListStore, new FXListStore(), "Data\\INI\\Default\\FXList", "Data\\INI\\FXList");
+	initSubsystem(TheWeaponStore, new WeaponStore(), NULL, "Data\\INI\\Weapon");
+	initSubsystem(TheObjectCreationListStore, new ObjectCreationListStore(), "Data\\INI\\Default\\ObjectCreationList", "Data\\INI\\ObjectCreationList");
 	initSubsystem(TheFXListStore, new FXListStore(), "Data\\INI\\Default\\FXList.ini", "Data\\INI\\FXList.ini");
 	initSubsystem(TheWeaponStore, new WeaponStore(), NULL, "Data\\INI\\Weapon.ini");
 	initSubsystem(TheObjectCreationListStore, new ObjectCreationListStore(), "Data\\INI\\Default\\ObjectCreationList.ini", "Data\\INI\\ObjectCreationList.ini");
@@ -696,7 +699,7 @@ void CWorldBuilderApp::OnFileOpen()
 #endif
 
 	CFileStatus status;
-	if (m_currentDirectory != AsciiString("")) try {
+	if (!m_currentDirectory.isEmpty()) try {
 		if (CFile::GetStatus(m_currentDirectory.str(), status)) {
 			if (status.m_attribute & CFile::directory) {
 				::SetCurrentDirectory(m_currentDirectory.str());

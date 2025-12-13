@@ -434,8 +434,6 @@ class SideSelectWindowData
 public:
 	SideSelectWindowData(void)
 	{
-		//Added By Sadullah Nader
-		//Initializations
 		generalSpeak = NULL;
 		m_currColor = 0;
 		m_gereralsNameWin = NULL;
@@ -459,7 +457,6 @@ public:
 		m_upgradeLabel3Win = NULL;
 		m_upgradeLabel4Win = NULL;
 		sideWindow = NULL;
-		//
 	}
 	~SideSelectWindowData(void);
 
@@ -734,8 +731,6 @@ public:
 	Player* getCurrentlyViewedPlayer();
 	/// Returns the relationship with the currently viewed player. May return NEUTRAL if no player is selected while observing.
 	Relationship getCurrentlyViewedPlayerRelationship(const Team* team);
-	/// Returns the currently viewed player. Returns "Observer" if no player is selected while observing.
-	AsciiString getCurrentlyViewedPlayerSide();
 
 //	ControlBarResizer *getControlBarResizer( void ) {return m_controlBarResizer;}
 

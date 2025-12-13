@@ -2,8 +2,8 @@
 
 #include "NGMP_include.h"
 #include "NetworkMesh.h"
-#include "../RankPointValue.h"
-#include "../GameSpy/PersistentStorageThread.h"
+#include "GameNetwork/RankPointValue.h"
+#include "GameNetwork/GameSpy/PersistentStorageThread.h"
 
 struct FriendsEntry
 {

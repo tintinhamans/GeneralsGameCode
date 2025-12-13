@@ -2,7 +2,7 @@
 
 #include "NGMP_include.h"
 #include "OnlineServices_RoomsInterface.h"
-#include "../GameInfo.h"
+#include "GameNetwork/GameInfo.h"
 #include <chrono>
 #include "Common/PlayerList.h"
 #include "Common/Player.h"

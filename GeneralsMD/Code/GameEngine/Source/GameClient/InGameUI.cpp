@@ -75,7 +75,6 @@
 #include "GameClient/SelectionXlat.h"
 #include "GameClient/Shadow.h"
 #include "GameClient/GlobalLanguage.h"
-#include "GameClient/Display.h"
 
 #include "GameLogic/AIGuard.h"
 #include "GameLogic/Weapon.h"
@@ -98,8 +97,8 @@
 #include "../NGMP_interfaces.h"
 #include "../OnlineServices_Init.h"
 #include "../NetworkMesh.h"
-#include "../../NetworkDefs.h"
-#include "../../NetworkInterface.h"
+#include "GameNetwork/NetworkDefs.h"
+#include "GameNetwork/NetworkInterface.h"
 extern NetworkInterface* TheNetwork;
 #endif
 
@@ -988,8 +987,6 @@ InGameUI::InGameUI()
 	m_mouseModeCursor = Mouse::ARROW;
 	m_mousedOverDrawableID = INVALID_DRAWABLE_ID;
 
-	//Added By Sadullah Nader
-	//Initializations missing and needed
 	m_currentlyPlayingMovie.clear();
 	m_militarySubtitle = NULL;
 	m_popupMessageData = NULL;
@@ -1232,7 +1229,7 @@ InGameUI::~InGameUI()
 void InGameUI::init( void )
 {
 	INI ini;
-	ini.loadFileDirectory( AsciiString( "Data\\INI\\InGameUI" ), INI_LOAD_OVERWRITE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\InGameUI", INI_LOAD_OVERWRITE, NULL );
 
 	//override INI values with language localized values:
 	if (TheGlobalLanguageData)
@@ -1961,8 +1958,10 @@ void InGameUI::update( void )
 	if( moneyPlayer)
 	{
 		Money *money = moneyPlayer->getMoney();
-		Bool showIncome = TheGlobalData->m_showMoneyPerMinute;
-		if (!showIncome)
+		Bool wantShowIncome = TheGlobalData->m_showMoneyPerMinute;
+		Bool canShowIncome = TheGlobalData->m_allowMoneyPerMinuteForPlayer || TheControlBar->isObserverControlBarOn();
+		Bool doShowIncome = wantShowIncome && canShowIncome;
+		if (!doShowIncome)
 		{
 			UnsignedInt currentMoney = money->countMoney();
 			if( lastMoney != currentMoney )
@@ -3749,8 +3748,10 @@ void InGameUI::postDraw( void )
 				m_uiMessages[ i ].displayString->draw( x, y, m_uiMessages[ i ].color, dropColor );
 
 				// increment text spot to next location
-				GameFont *font = m_uiMessages[ i ].displayString->getFont();
-				y += font->height;
+				if (GameFont *font = m_uiMessages[ i ].displayString->getFont())
+				{
+					y += font->height;
+				}
 
 			}
 
@@ -4140,7 +4141,7 @@ void InGameUI::expireHint( HintType type, UnsignedInt hintIndex )
 void InGameUI::createControlBar( void )
 {
 
-	TheWindowManager->winCreateFromScript( AsciiString("ControlBar.wnd") );
+	TheWindowManager->winCreateFromScript( "ControlBar.wnd" );
 	HideControlBar();
 /*
 	// hide all windows created from this layout
@@ -4157,7 +4158,7 @@ void InGameUI::createControlBar( void )
 void InGameUI::createReplayControl( void )
 {
 
-	m_replayWindow = TheWindowManager->winCreateFromScript( AsciiString("ReplayControl.wnd") );
+	m_replayWindow = TheWindowManager->winCreateFromScript( "ReplayControl.wnd" );
 
 /*
 	// hide all windows created from this layout
@@ -4248,7 +4249,7 @@ void InGameUI::playCameoMovie( const AsciiString& movieName )
 		stopCameoMovie();
 		return;
 	}
-	GameWindow *window = TheWindowManager->winGetWindowFromId(NULL,TheNameKeyGenerator->nameToKey( AsciiString("ControlBar.wnd:RightHUD") ));
+	GameWindow *window = TheWindowManager->winGetWindowFromId(NULL,TheNameKeyGenerator->nameToKey( "ControlBar.wnd:RightHUD" ));
 	WinInstanceData *winData = window->winGetInstanceData();
 	winData->setVideoBuffer(m_cameoVideoBuffer);
 //	window->winHide(FALSE);
@@ -4259,8 +4260,8 @@ void InGameUI::playCameoMovie( const AsciiString& movieName )
 void InGameUI::stopCameoMovie( void )
 {
 //RightHUD
-	//GameWindow *window = TheWindowManager->winGetWindowFromId(NULL,TheNameKeyGenerator->nameToKey( AsciiString("ControlBar.wnd:CameoMovieWindow") ));
-	GameWindow *window = TheWindowManager->winGetWindowFromId(NULL,TheNameKeyGenerator->nameToKey( AsciiString("ControlBar.wnd:RightHUD") ));
+	//GameWindow *window = TheWindowManager->winGetWindowFromId(NULL,TheNameKeyGenerator->nameToKey( "ControlBar.wnd:CameoMovieWindow" ));
+	GameWindow *window = TheWindowManager->winGetWindowFromId(NULL,TheNameKeyGenerator->nameToKey( "ControlBar.wnd:RightHUD" ));
 //	window->winHide(FALSE);
 	WinInstanceData *winData = window->winGetInstanceData();
 	winData->setVideoBuffer(NULL);
@@ -5317,7 +5318,7 @@ try_again:
 	translate.translate(text);
 	newFTD->m_text = translate;
 	newFTD->m_dString->setText(translate);
-	newFTD->m_dString->setFont(TheWindowManager->winFindFont( AsciiString("Arial"), POINTSIZE, FALSE ));
+	newFTD->m_dString->setFont(TheWindowManager->winFindFont( "Arial", POINTSIZE, FALSE ));
 
 	if(m_floatingTextTimeOut <= 0)
 		newFTD->m_frameTimeOut = TheGameLogic->getFrame() +  DEFAULT_FLOATING_TEXT_TIMEOUT;
@@ -5482,7 +5483,7 @@ void InGameUI::popupMessage( const AsciiString& identifier, Int x, Int y, Int wi
 	if( pause )
 		TheGameLogic->setGamePaused(TRUE, pauseMusic);
 
-	m_popupMessageData->layout = TheWindowManager->winCreateLayout(AsciiString("InGamePopupMessage.wnd"));
+	m_popupMessageData->layout = TheWindowManager->winCreateLayout("InGamePopupMessage.wnd");
 	m_popupMessageData->layout->runInit();
 }
 
@@ -5516,14 +5517,11 @@ void InGameUI::clearPopupMessageData( void )
 //-------------------------------------------------------------------------------------------------
 FloatingTextData::FloatingTextData(void)
 {
-	// Added By Sadullah Nader
-	// Initializations missing and needed
 	m_color = 0;
 	m_frameCount = 0;
 	m_frameTimeOut = 0;
 	m_pos3D.zero();
 	m_text.clear();
-	//
 	m_dString = TheDisplayStringManager->newDisplayString();
 }
 
@@ -5780,10 +5778,12 @@ void InGameUI::removeIdleWorker( Object *obj, Int playerNumber )
 
 void InGameUI::selectNextIdleWorker( void )
 {
-	Int index = TheControlBar->getCurrentlyViewedPlayer()->getPlayerIndex();
+	Player* player = rts::getObservedOrLocalPlayer();
+	Int index = player->getPlayerIndex();
+
 	if(m_idleWorkers[index].empty())
 	{
-		DEBUG_ASSERTCRASH(FALSE, ("InGameUI::selectNextIdleWorker We're trying to select a worker when our list is empty for player %ls", ThePlayerList->getLocalPlayer()->getPlayerDisplayName().str()));
+		DEBUG_ASSERTCRASH(FALSE, ("InGameUI::selectNextIdleWorker We're trying to select a worker when our list is empty for player %ls", player->getPlayerDisplayName().str()));
 		return;
 	}
 	Object *selectThisObject = NULL;
@@ -5870,13 +5870,9 @@ ObjectPtrVector InGameUI::getUniqueIdleWorkers(const ObjectList& idleWorkers)
 
 Int InGameUI::getIdleWorkerCount( void )
 {
-	if (Player* player = TheControlBar->getCurrentlyViewedPlayer())
-	{
-		Int index = player->getPlayerIndex();
-		return m_idleWorkers[index].size();
-	}
-
-	return 0;
+	Player* player = rts::getObservedOrLocalPlayer();
+	Int index = player->getPlayerIndex();
+	return m_idleWorkers[index].size();
 }
 
 void InGameUI::showIdleWorkerLayout( void )
@@ -5937,7 +5933,7 @@ void InGameUI::resetIdleWorker( void )
 
 void InGameUI::recreateControlBar( void )
 {
-	GameWindow *win = TheWindowManager->winGetWindowFromId(NULL, TheNameKeyGenerator->nameToKey(AsciiString("ControlBar.wnd")));
+	GameWindow *win = TheWindowManager->winGetWindowFromId(NULL, TheNameKeyGenerator->nameToKey("ControlBar.wnd"));
 	if(win)
 		deleteInstance(win);
 

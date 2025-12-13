@@ -2,7 +2,7 @@
 
 #include "NGMP_include.h"
 #include "NetworkMesh.h"
-#include "../GameSpy/PeerDefs.h"
+#include "GameNetwork/GameSpy/PeerDefs.h"
 #include "OnlineServices_Init.h"
 #include "Common/MultiplayerSettings.h"
 

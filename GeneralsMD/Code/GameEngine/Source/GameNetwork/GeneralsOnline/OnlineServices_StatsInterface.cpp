@@ -1,12 +1,12 @@
 #include "GameNetwork/GeneralsOnline/json.hpp"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
-#include "../../GameSpy/PersistentStorageThread.h"
-#include "../../RankPointValue.h"
+#include "GameNetwork/GameSpy/PersistentStorageThread.h"
+#include "GameNetwork/RankPointValue.h"
 #include "../OnlineServices_Init.h"
 #include "../HTTP/HTTPManager.h"
 
 #include "Common/PlayerTemplate.h"
-#include "../../GameSpy/LadderDefs.h"
+#include "GameNetwork/GameSpy/LadderDefs.h"
 
 NGMP_OnlineServices_StatsInterface::NGMP_OnlineServices_StatsInterface()
 {

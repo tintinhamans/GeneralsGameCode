@@ -223,8 +223,6 @@ void setFPMode(void)
 // ------------------------------------------------------------------------------------------------
 GameLogic::GameLogic(void)
 {
-	//Added By Sadullah Nader
-	//Initializations missing and necessary
 	m_background = NULL;
 	m_CRC = 0;
 	m_isInUpdate = FALSE;
@@ -244,7 +242,6 @@ GameLogic::GameLogic(void)
 	m_shouldValidateCRCs = FALSE;
 
 	m_startNewGame = FALSE;
-	//
 
 	m_frame = 0;
 	m_hasUpdated = FALSE;
@@ -1355,7 +1352,6 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 			TheMouse->setVisibility(FALSE);
 			m_loadScreen->init(game);
 
-			//
 			updateLoadProgress(LOAD_PROGRESS_START);
 		}
 	}
@@ -1555,26 +1551,29 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 	//{
 
 		// Always add in an observer Player
-	Dict d;
-	d.setAsciiString(TheKey_playerName, "ReplayObserver");
-	d.setBool(TheKey_playerIsHuman, TRUE);
-	d.setUnicodeString(TheKey_playerDisplayName, UnicodeString(L"Observer"));
-	const PlayerTemplate* pt;
-	pt = ThePlayerTemplateStore->findPlayerTemplate(TheNameKeyGenerator->nameToKey("FactionObserver"));
-	if (pt)
-	{
-		d.setAsciiString(TheKey_playerFaction, KEYNAME(pt->getNameKey()));
-	}
-	d.setAsciiString(TheKey_playerAllies, AsciiString::TheEmptyString);
-	d.setAsciiString(TheKey_playerEnemies, AsciiString::TheEmptyString);
-	d.setInt(TheKey_playerColor, TheMultiplayerSettings->getColor(0)->getColor());
-	d.setInt(TheKey_playerNightColor, TheMultiplayerSettings->getColor(0)->getNightColor());
-	d.setInt(TheKey_multiplayerStartIndex, 0);
-	d.setBool(TheKey_multiplayerIsLocal, FALSE);
+		Dict d;
+		d.setAsciiString(TheKey_playerName, "ReplayObserver");
+		d.setBool(TheKey_playerIsHuman, TRUE);
+		d.setUnicodeString(TheKey_playerDisplayName, L"Observer");
+		const PlayerTemplate* pt;
+		pt = ThePlayerTemplateStore->findPlayerTemplate( TheNameKeyGenerator->nameToKey("FactionObserver") );
+		if (pt)
+		{
+			d.setAsciiString(TheKey_playerFaction, KEYNAME(pt->getNameKey()));
+		}
+		d.setAsciiString(TheKey_playerAllies, AsciiString::TheEmptyString);
+		d.setAsciiString(TheKey_playerEnemies, AsciiString::TheEmptyString);
+		d.setInt(TheKey_playerColor, TheMultiplayerSettings->getColor(0)->getColor());
+		d.setInt(TheKey_playerNightColor, TheMultiplayerSettings->getColor(0)->getNightColor());
+		d.setInt(TheKey_multiplayerStartIndex, 0);
+		d.setBool(TheKey_multiplayerIsLocal, FALSE);
 
-	TheSidesList->addSide(&d);
-	d.clear();
-	d.setAsciiString(TheKey_teamName, "teamReplayObserver");
+		TheSidesList->addSide(&d);
+		d.clear();
+		d.setAsciiString(TheKey_teamName, "teamReplayObserver");
+		d.setAsciiString(TheKey_teamOwner, "ReplayObserver");
+		d.setBool(TheKey_teamIsSingleton, true);
+		TheSidesList->addTeam(&d);
 	d.setAsciiString(TheKey_teamOwner, "ReplayObserver");
 	d.setBool(TheKey_teamIsSingleton, true);
 	TheSidesList->addTeam(&d);
@@ -1625,14 +1624,14 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 			CachedFileInputStream theInputStream;
 			if (theInputStream.open(path))
 			{
-				ChunkInputStream* pStrm = &theInputStream;
-				DataChunkInput file(pStrm);
-				file.registerParser(AsciiString("PlayerScriptsList"), AsciiString::TheEmptyString, ScriptList::ParseScriptsDataChunk);
+				ChunkInputStream *pStrm = &theInputStream;
+				DataChunkInput file( pStrm );
+				file.registerParser( "PlayerScriptsList", AsciiString::TheEmptyString, ScriptList::ParseScriptsDataChunk );
 				if (!file.parse(NULL)) {
 					DEBUG_LOG(("ERROR - Unable to read in multiplayer scripts."));
 					return;
 				}
-				ScriptList* scripts[MAX_PLAYER_COUNT];
+				ScriptList *scripts[MAX_PLAYER_COUNT];
 				Int count = ScriptList::getReadScripts(scripts);
 				if (count)
 				{
@@ -2313,8 +2312,8 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 	{
 		if (!TheGlobalData->m_headless)
 		{
-			if (TheShell->getScreenCount() == 0)
-				TheShell->push(AsciiString("Menus/MainMenu.wnd"));
+			if(TheShell->getScreenCount() == 0)
+				TheShell->push( "Menus/MainMenu.wnd" );
 			else if (TheShell->top())
 			{
 				TheShell->top()->hide(FALSE);
@@ -2440,8 +2439,6 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 		}
 	}
 
-	//Added By Sadullah Nader
-	//Added to fix the quit menu
 	//ReAllows quit menu to work during loading scene
 	//setGameLoading(FALSE);
 	setLoadingMap(FALSE);
@@ -2507,20 +2504,18 @@ void GameLogic::loadMapINI(AsciiString mapName)
 		return;
 	}
 
-	char filename[_MAX_PATH];
-	char fullFledgeFilename[_MAX_PATH];
-
-	memset(filename, 0, _MAX_PATH);
-	strcpy(filename, mapName.str());
-
 	//
 	// if map name begins with a "SAVE_DIRECTORY\", then the map refers to a map
 	// that has been extracted from a save game file ... in that case we need to get
 	// the pristine map name string in order to manipulate and load the right map.ini
 	// for that map from it's original location
 	//
-	if (TheGameState->isInSaveDirectory(filename))
-		strcpy(filename, TheGameState->getSaveGameInfo()->pristineMapName.str());
+	const char* pristineMapName = TheGameState->isInSaveDirectory(mapName.str())
+		? TheGameState->getSaveGameInfo()->pristineMapName.str()
+		: mapName.str();
+
+	char filename[_MAX_PATH];
+	strlcpy(filename, pristineMapName, ARRAY_SIZE(filename));
 
 	// sanity
 	int length = strlen(filename);
@@ -2536,6 +2531,7 @@ void GameLogic::loadMapINI(AsciiString mapName)
 	*extension = 0;
 
 
+	char fullFledgeFilename[_MAX_PATH];
 	sprintf(fullFledgeFilename, "%s\\map.ini", filename);
 	if (TheFileSystem->doesFileExist(fullFledgeFilename)) {
 		DEBUG_LOG(("Loading map.ini"));
@@ -3586,18 +3582,18 @@ static void unitTimings(void)
 			const ThingTemplate* btt = g_UT_curThing;
 
 #ifndef SINGLE_UNIT
-			Bool unspecified = FALSE;
+      Bool unspecified = FALSE;
 			if (btt->getDefaultOwningSide() != sides[side])
-			{
-				if (sides[side] == "*")
-				{
-					if (btt->getDefaultOwningSide() == (""))// wildcard for unspecified side
-						unspecified = TRUE;
-					else
-						continue;
-				}
-				else
-					continue;
+      {
+        if (sides[side] == "*")
+        {
+          if ( btt->getDefaultOwningSide().isEmpty() )// wildcard for unspecified side
+            unspecified = TRUE;
+          else
+            continue;
+        }
+        else
+    		  continue;
 
 			}
 

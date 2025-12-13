@@ -142,12 +142,9 @@ LookAtTranslator::LookAtTranslator() :
 	m_lastMouseMoveFrame(0),
 	m_scrollType(SCROLL_NONE)
 {
-	//Added By Sadullah Nader
-	//Initializations missing and needed
 	m_anchor.x = m_anchor.y = 0;
 	m_currentPos.x = m_currentPos.y = 0;
 	m_originalAnchor.x = m_originalAnchor.y = 0;
-	//
 
 	OptionPreferences prefs;
 	m_screenEdgeScrollMode = prefs.getScreenEdgeScrollMode();
@@ -290,6 +287,7 @@ GameMessageDisposition LookAtTranslator::translateGameMessage(const GameMessage*
 
 		m_isRotating = true;
 		m_anchor = msg->getArgument(0)->pixel;
+		m_anchorAngle = TheTacticalView->getAngle();
 		m_originalAnchor = msg->getArgument(0)->pixel;
 		m_currentPos = msg->getArgument(0)->pixel;
 		m_timestamp = TheGameClient->getFrame();
@@ -359,10 +357,18 @@ GameMessageDisposition LookAtTranslator::translateGameMessage(const GameMessage*
 		if (m_isRotating)
 		{
 			const Real FACTOR = 0.01f;
+			const Real angle = FACTOR * (m_currentPos.x - m_originalAnchor.x);
+			Real targetAngle = m_anchorAngle + angle;
 
-			Real angle = FACTOR * (m_currentPos.x - m_anchor.x);
+			// TheSuperHackers @tweak Stubbjax 13/11/2025 Snap angle to nearest 45 degrees
+			// while using force attack mode for convenience.
+			if (TheInGameUI->isInForceAttackMode())
+			{
+				const Real snapRadians = DEG_TO_RADF(45);
+				targetAngle = WWMath::Round(targetAngle / snapRadians) * snapRadians;
+			}
 
-			TheTacticalView->setAngle(TheTacticalView->getAngle() + angle);
+			TheTacticalView->setAngle(targetAngle);
 			m_anchor = msg->getArgument(0)->pixel;
 		}
 

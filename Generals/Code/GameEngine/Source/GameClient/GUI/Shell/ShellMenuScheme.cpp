@@ -279,8 +279,8 @@ void ShellMenuSchemeManager::init( void )
 {
 	INI ini;
 	// Read from INI all the ControlBarSchemes
-	ini.load( AsciiString( "Data\\INI\\Default\\ShellMenuScheme.ini" ), INI_LOAD_OVERWRITE, NULL );
-	ini.load( AsciiString( "Data\\INI\\ShellMenuScheme.ini" ), INI_LOAD_OVERWRITE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\Default\\ShellMenuScheme", INI_LOAD_OVERWRITE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\ShellMenuScheme", INI_LOAD_OVERWRITE, NULL );
 
 }
 

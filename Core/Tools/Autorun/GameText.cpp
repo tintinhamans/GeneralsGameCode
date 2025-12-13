@@ -227,7 +227,7 @@ GameTextManager::GameTextManager()
 	m_munkee(FALSE),
 	m_noStringList(NULL),
 	m_useStringFile(TRUE),
-	m_failed(L"***FATAL*** String Manager failed to initilaized properly")
+	m_failed(L"***FATAL*** String Manager failed to initialized properly")
 {
 }
 
@@ -441,7 +441,7 @@ void GameTextManager::removeLeadingAndTrailing ( Char *buffer )
 
 	while ( (*ptr++ = *first++) != 0 );
 
-	ptr -= 2;;
+	ptr -= 2;
 
 	while ( (ptr > buffer) && (ch = *ptr) != 0 && iswspace ( ch ) )
 	{
