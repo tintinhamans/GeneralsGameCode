@@ -152,10 +152,16 @@ void NGMP_OnlineServices_AuthInterface::BeginLogin()
 
 		nlohmann::json j;
 		j["client_id"] = GENERALS_ONLINE_CLIENT_ID;
+		j["reserved_0"] = std::string();
+		j["reserved_1"] = std::string();
+		j["reserved_2"] = std::string();
+		j["exe_crc"] = TheGlobalData->m_exeCRC;
+		j["ini_crc"] = TheGlobalData->m_iniCRC;
 		std::string strPostData = j.dump();
 
 		// attach refresh token
 		mapHeaders["Authorization"] = "Bearer " + strRefreshToken;
+
 
 		NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strLoginURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 			{
@@ -306,6 +312,11 @@ void NGMP_OnlineServices_AuthInterface::Tick()
 			nlohmann::json j;
 			j["code"] = m_strCode.c_str();
 			j["client_id"] = GENERALS_ONLINE_CLIENT_ID;
+			j["reserved_0"] = std::string();
+            j["reserved_1"] = std::string();
+            j["reserved_2"] = std::string();
+			j["exe_crc"] = TheGlobalData->m_exeCRC;
+            j["ini_crc"] = TheGlobalData->m_iniCRC;
 			std::string strPostData = j.dump();
 
 			NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)

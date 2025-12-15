@@ -864,6 +864,13 @@ void WebSocket::Tick()
 										NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] GOT PROBE REQUEST!");
 
 										NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_GAMEPLAY);
+
+										// service needs the response
+                                        nlohmann::json j;
+                                        j["msg_id"] = EWebSocketMessageID::PROBE_RESP;
+										j["timestamp"] = "0";
+                                        std::string strBody = j.dump();
+                                        Send(strBody.c_str());
 									}
 									break;
 
