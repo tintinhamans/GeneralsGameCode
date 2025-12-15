@@ -2336,7 +2336,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					if (selected >= 0)
 					{
 						Int selectedID = (Int)GadgetListBoxGetItemData(GetGameListBox(), selected);
-						if (selectedID > 0)
+						if (selectedID >= 0)
 						{
 							auto Lobby = pLobbyInterface->GetLobbyFromID(selectedID);
 
