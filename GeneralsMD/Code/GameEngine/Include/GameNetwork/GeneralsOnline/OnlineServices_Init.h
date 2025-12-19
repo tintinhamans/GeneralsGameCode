@@ -231,6 +231,14 @@ private:
 	CURL* m_pCurl = nullptr;
 	bool m_bConnected = false;
 
+    const int maxReconnectAttempts = 15;
+    const int timeBetweenReconnectAttempts = 1000;
+	bool m_bReconnecting = false;
+    int m_numReconnectAttempts = 0;
+    int64_t m_lastReconnectAttempt = -1;
+
+	std::string m_strWebsocketAddr;
+
 	int64_t m_lastPong = -1;
 	int64_t m_lastPing = -1;
 	const int64_t m_timeBetweenUserPings = 1000;

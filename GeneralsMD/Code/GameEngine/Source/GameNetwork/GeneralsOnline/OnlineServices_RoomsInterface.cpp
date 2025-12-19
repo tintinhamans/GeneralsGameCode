@@ -45,6 +45,7 @@ void WebSocket::Connect(const char* url)
 
 	if (m_pCurl != nullptr)
 	{
+		m_strWebsocketAddr = std::string(url);
 		curl_easy_setopt(m_pCurl, CURLOPT_URL, url);
 
 		curl_easy_setopt(m_pCurl, CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
@@ -84,18 +85,60 @@ void WebSocket::Connect(const char* url)
 			m_bConnected = false;
 			m_vecWSPartialBuffer.clear();
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Failed to connect (%d - %s)",res, curl_easy_strerror(res));
+
+			// reconnecting? give up eventually
+			if (m_bReconnecting)
+			{
+				if (m_numReconnectAttempts >= maxReconnectAttempts)
+				{
+                    NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 2)");
+                    NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
+                    m_bConnected = false;
+                    m_vecWSPartialBuffer.clear();
+
+                    // clear reconnection flags
+                    m_bReconnecting = false;
+                    m_numReconnectAttempts = 0;
+                    m_lastReconnectAttempt = -1;
+				}
+			}
+			else // give up immediately
+			{
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (initial connect)");
+                NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
+                m_bConnected = false;
+                m_vecWSPartialBuffer.clear();
+
+                // clear reconnection flags
+                m_bReconnecting = false;
+                m_numReconnectAttempts = 0;
+                m_lastReconnectAttempt = -1;
+			}
 		}
 		else
 		{
+			if (m_bReconnecting)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Re-Connected");
+			}
+			else
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connected");
+			}
 			/* connected and ready */
 			m_bConnected = true;
 			m_vecWSPartialBuffer.clear();
+
+			// clear reconnection flags
+            m_bReconnecting = false;
+            m_numReconnectAttempts = 0;
+            m_lastReconnectAttempt = -1;
 
 			// connecting is as good as a pong
 			m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 			
 
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connected");
+			
 		}
 	}
 }
@@ -355,9 +398,42 @@ static bool JSONGetAsObject(nlohmann::json& jsonObject, T* outMsg)
 //static std::string strSignal = "str:1 ";
 void WebSocket::Tick()
 {
-	if (!AcquireLock())
+    if (!AcquireLock())
+    {
+        return;
+    }
+
+	// attempting to reconnect?
+	if (m_bReconnecting)
 	{
-		return;
+		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+
+		if (m_numReconnectAttempts >= maxReconnectAttempts)
+		{
+			// fully disconnect
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 1)");
+            NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
+            m_bConnected = false;
+            m_vecWSPartialBuffer.clear();
+
+            // clear reconnection flags
+            m_bReconnecting = false;
+            m_numReconnectAttempts = 0;
+            m_lastReconnectAttempt = -1;
+		}
+		else
+		{
+            if (currTime - m_lastReconnectAttempt >= timeBetweenReconnectAttempts)
+            {
+                m_lastReconnectAttempt = currTime;
+                ++m_numReconnectAttempts;
+
+				Connect(m_strWebsocketAddr.c_str());
+            }
+		}
+
+        ReleaseLock();
+        return;
 	}
 
 	if (!m_bConnected)
@@ -1030,21 +1106,46 @@ void WebSocket::Tick()
 	}
 	else if (ret == CURLE_RECV_ERROR)
 	{
-		// TODO_NGMP: Dont do this during gameplay, they can play without the WS, just 'queue' it for when they get back to the front end
 
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (ERROR)");
-		NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (ERROR: %s), Attempting reconnect", curl_easy_strerror(ret));
+
 		m_bConnected = false;
+		m_bReconnecting = true;
+        m_numReconnectAttempts = 0;
+        m_lastReconnectAttempt = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 		m_vecWSPartialBuffer.clear();
+
+
+		// send event to sentry
+#if defined(GENERALS_ONLINE_USE_SENTRY)
+        if (TheNGMPGame != nullptr)
+        {
+			AsciiString sentryMsg;
+            sentryMsg.format("Got websocket disconnect (ERROR: %s), Attempting reconnect", curl_easy_strerror(ret));
+            sentry_capture_event(sentry_value_new_message_event(SENTRY_LEVEL_ERROR, "WEBSOCKET_DISCONNECT_ERROR", sentryMsg.str()));
+        }
+#endif
 	}
 
 	// time since last pong?
 	if (m_lastPong != -1 && (currTime - m_lastPong) >= m_timeForWSTimeout)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (Timeout), timeout is %lld, last pong was at %lld, current time is %lld", currTime - m_lastPong, m_lastPong, currTime);
-		NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
-		m_bConnected = false;
-		m_vecWSPartialBuffer.clear();
+        // send event to sentry
+#if defined(GENERALS_ONLINE_USE_SENTRY)
+        if (TheNGMPGame != nullptr)
+        {
+            AsciiString sentryMsg;
+            sentryMsg.format("Got websocket disconnect (Timeout: %s), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", curl_easy_strerror(ret), currTime - m_lastPong, m_lastPong, currTime);
+            sentry_capture_event(sentry_value_new_message_event(SENTRY_LEVEL_ERROR, "WEBSOCKET_DISCONNECT_TIMEOUT", sentryMsg.str()));
+        }
+#endif
+
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (Timeout: %s), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", curl_easy_strerror(ret), currTime - m_lastPong, m_lastPong, currTime);
+        m_bConnected = false;
+        m_bReconnecting = true;
+        m_numReconnectAttempts = 0;
+        m_lastReconnectAttempt = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+        m_vecWSPartialBuffer.clear();
 	};
 
 	ReleaseLock();
