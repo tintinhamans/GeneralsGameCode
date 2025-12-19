@@ -231,8 +231,10 @@ private:
 	CURL* m_pCurl = nullptr;
 	bool m_bConnected = false;
 
-    const int maxReconnectAttempts = 15;
-    const int timeBetweenReconnectAttempts = 1000;
+    const int maxReconnectAttempts_Frontend = 15;
+	const int maxReconnectAttempts_Ingame = 60;
+    const int timeBetweenReconnectAttempts_Frontend = 1000;
+	const int timeBetweenReconnectAttempts_Ingame = 3000;
 	bool m_bReconnecting = false;
     int m_numReconnectAttempts = 0;
     int64_t m_lastReconnectAttempt = -1;

@@ -89,6 +89,8 @@ void WebSocket::Connect(const char* url)
 			// reconnecting? give up eventually
 			if (m_bReconnecting)
 			{
+				int maxReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? maxReconnectAttempts_Ingame : maxReconnectAttempts_Frontend;
+
 				if (m_numReconnectAttempts >= maxReconnectAttempts)
 				{
                     NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 2)");
@@ -408,6 +410,7 @@ void WebSocket::Tick()
 	{
 		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
+		int maxReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? maxReconnectAttempts_Ingame : maxReconnectAttempts_Frontend;
 		if (m_numReconnectAttempts >= maxReconnectAttempts)
 		{
 			// fully disconnect
@@ -423,6 +426,8 @@ void WebSocket::Tick()
 		}
 		else
 		{
+			int timeBetweenReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? timeBetweenReconnectAttempts_Ingame : timeBetweenReconnectAttempts_Frontend;
+
             if (currTime - m_lastReconnectAttempt >= timeBetweenReconnectAttempts)
             {
                 m_lastReconnectAttempt = currTime;
