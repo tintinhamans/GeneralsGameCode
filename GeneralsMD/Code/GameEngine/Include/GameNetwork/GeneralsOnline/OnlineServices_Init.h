@@ -172,7 +172,7 @@ class WebSocket
 public:
 	WebSocket();
 	~WebSocket();
-	void Connect(const char* url);
+	void Connect(const char* url, bool bIsReconnect);
 	void Disconnect();
 
 	bool IsConnected()

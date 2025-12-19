@@ -34,7 +34,7 @@ int WebSocket::Ping()
 }
 
 
-void WebSocket::Connect(const char* url)
+void WebSocket::Connect(const char* url, bool bIsReconnect)
 {
 	if (m_bConnected)
 	{
@@ -45,8 +45,11 @@ void WebSocket::Connect(const char* url)
 
 	if (m_pCurl != nullptr)
 	{
+		int httpResponseCode = -1;
 		m_strWebsocketAddr = std::string(url);
 		curl_easy_setopt(m_pCurl, CURLOPT_URL, url);
+
+		curl_easy_getinfo(m_pCurl, CURLINFO_RESPONSE_CODE, &httpResponseCode);
 
 		curl_easy_setopt(m_pCurl, CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
 
@@ -73,6 +76,9 @@ void WebSocket::Connect(const char* url)
 		sprintf_s(szHeaderBuffer, "Authorization: Bearer %s", pAuthInterface->GetAuthToken().c_str());
 		headers = curl_slist_append(headers, szHeaderBuffer);
 
+        sprintf_s(szHeaderBuffer, "is-reconnect: %s", bIsReconnect ? "true": "false");
+        headers = curl_slist_append(headers, szHeaderBuffer);
+
 		curl_easy_setopt(m_pCurl, CURLOPT_HTTPHEADER, headers);
 
 		//curl_easy_setopt(m_pCurl, CURLOPT_TIMEOUT_MS, 1000);
@@ -91,9 +97,17 @@ void WebSocket::Connect(const char* url)
 			{
 				int maxReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? maxReconnectAttempts_Ingame : maxReconnectAttempts_Frontend;
 
-				if (m_numReconnectAttempts >= maxReconnectAttempts)
+				if (m_numReconnectAttempts >= maxReconnectAttempts || (res == CURLE_HTTP_RETURNED_ERROR && httpResponseCode == 205)) // 205 = need full teardown
 				{
-                    NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 2)");
+					if (httpResponseCode == 205)
+					{
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 205)");
+					}
+					else
+					{
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 2)");
+					}
+
                     NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
                     m_bConnected = false;
                     m_vecWSPartialBuffer.clear();
@@ -127,6 +141,7 @@ void WebSocket::Connect(const char* url)
 			{
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connected");
 			}
+
 			/* connected and ready */
 			m_bConnected = true;
 			m_vecWSPartialBuffer.clear();
@@ -433,7 +448,7 @@ void WebSocket::Tick()
                 m_lastReconnectAttempt = currTime;
                 ++m_numReconnectAttempts;
 
-				Connect(m_strWebsocketAddr.c_str());
+				Connect(m_strWebsocketAddr.c_str(), true);
             }
 		}
 

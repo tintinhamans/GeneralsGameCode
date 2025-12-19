@@ -717,14 +717,18 @@ void NGMP_OnlineServices_LobbyInterface::ApplyLocalUserPropertiesToCurrentNetwor
 	std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();;
 	if (pWS != nullptr)
 	{
-		GameSlot* pLocalSlot = TheNGMPGame->getSlot(TheNGMPGame->getLocalSlotNum());
 		if (IsHost())
 		{
 			pWS->SendData_MarkReady(true);
 		}
 		else
 		{
-			pWS->SendData_MarkReady(pLocalSlot->isAccepted());
+			GameSlot* pLocalSlot = TheNGMPGame->getSlot(TheNGMPGame->getLocalSlotNum());
+
+			if (pLocalSlot != nullptr)
+			{
+				pWS->SendData_MarkReady(pLocalSlot->isAccepted());
+			}
 		}
 	}
 }
