@@ -384,11 +384,12 @@ void NGMP_OnlineServices_AuthInterface::OnLoginComplete(ELoginResult loginResult
 {
 	if (loginResult == ELoginResult::Success)
 	{
-		NGMP_OnlineServicesManager::GetInstance()->OnLogin(loginResult, szWSAddr);
-
-		// move on to network capabilities section
-		ClearGSMessageBoxes();
-		GoToDetermineNetworkCaps();
+		NGMP_OnlineServicesManager::GetInstance()->OnLogin(loginResult, szWSAddr, [=]() // wait for WS to connect
+			{
+                // move on to network capabilities section
+                ClearGSMessageBoxes();
+                GoToDetermineNetworkCaps();
+			});
 	}
 	else
 	{

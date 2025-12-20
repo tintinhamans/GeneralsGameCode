@@ -720,14 +720,14 @@ void NGMP_OnlineServicesManager::StartDownloadUpdate(std::function<void(void)> c
 
 }
 
-void NGMP_OnlineServicesManager::OnLogin(ELoginResult loginResult, const char* szWSAddr)
+void NGMP_OnlineServicesManager::OnLogin(ELoginResult loginResult, const char* szWSAddr, std::function<void(void)> fnWebsocketConnectedCallback)
 {
 	if (loginResult == ELoginResult::Success)
 	{
 		// connect to WS
 		m_pWebSocket = std::make_shared<WebSocket>();
 
-		m_pWebSocket->Connect(szWSAddr, false);
+		m_pWebSocket->Connect(szWSAddr, false, fnWebsocketConnectedCallback);
 
 		// TODO_NGMP: This hangs forever if it fails to connect
 

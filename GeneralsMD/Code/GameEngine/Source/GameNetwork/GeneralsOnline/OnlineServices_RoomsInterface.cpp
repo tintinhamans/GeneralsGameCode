@@ -10,7 +10,7 @@
 
 WebSocket::WebSocket()
 {
-	m_pCurl = curl_easy_init();
+	m_pMulti = curl_multi_init();
 }
 
 WebSocket::~WebSocket()
@@ -21,7 +21,7 @@ WebSocket::~WebSocket()
 int WebSocket::Ping()
 {
 	size_t sent;
-	CURLcode result = curl_ws_send(m_pCurl, "wsping", strlen("wsping"), &sent, 0,
+	CURLcode result = curl_ws_send(m_pCurlWS, "wsping", strlen("wsping"), &sent, 0,
 		CURLWS_PING);
 
 	nlohmann::json j;
@@ -34,7 +34,7 @@ int WebSocket::Ping()
 }
 
 
-void WebSocket::Connect(const char* url, bool bIsReconnect)
+void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback)
 {
 	if (m_bConnected)
 	{
@@ -43,24 +43,35 @@ void WebSocket::Connect(const char* url, bool bIsReconnect)
 
 	m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
-	if (m_pCurl != nullptr)
+	// TODO_CACHE: Cleanup multi too
+	if (m_pCurlWS != nullptr)
 	{
+        // cleanup
+        curl_easy_cleanup(m_pCurlWS);
+        m_pCurlWS = nullptr;
+	}
+	m_pCurlWS = curl_easy_init();
+
+	if (m_pCurlWS != nullptr)
+	{
+		m_fnWebsocketConnectedCallback = fnWebsocketConnectedCallback;
+
 		int httpResponseCode = -1;
 		m_strWebsocketAddr = std::string(url);
-		curl_easy_setopt(m_pCurl, CURLOPT_URL, url);
+		curl_easy_setopt(m_pCurlWS, CURLOPT_URL, url);
 
-		curl_easy_getinfo(m_pCurl, CURLINFO_RESPONSE_CODE, &httpResponseCode);
+		curl_easy_getinfo(m_pCurlWS, CURLINFO_RESPONSE_CODE, &httpResponseCode);
 
-		curl_easy_setopt(m_pCurl, CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
+		curl_easy_setopt(m_pCurlWS, CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
 
 #if _DEBUG
-		curl_easy_setopt(m_pCurl, CURLOPT_SSL_VERIFYPEER, 0);
-		curl_easy_setopt(m_pCurl, CURLOPT_SSL_VERIFYHOST, 0);
+		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
+		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
 
-		curl_easy_setopt(m_pCurl, CURLOPT_VERBOSE, 1L);
+		curl_easy_setopt(m_pCurlWS, CURLOPT_VERBOSE, 1L);
 #else
-		curl_easy_setopt(m_pCurl, CURLOPT_SSL_VERIFYPEER, 0);
-		curl_easy_setopt(m_pCurl, CURLOPT_SSL_VERIFYHOST, 0);
+		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
+		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
 #endif
 
 
@@ -79,84 +90,13 @@ void WebSocket::Connect(const char* url, bool bIsReconnect)
         sprintf_s(szHeaderBuffer, "is-reconnect: %s", bIsReconnect ? "true": "false");
         headers = curl_slist_append(headers, szHeaderBuffer);
 
-		curl_easy_setopt(m_pCurl, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(m_pCurlWS, CURLOPT_HTTPHEADER, headers);
 
 		//curl_easy_setopt(m_pCurl, CURLOPT_TIMEOUT_MS, 1000);
 
 		/* Perform the request, res gets the return code */
-		CURLcode res = curl_easy_perform(m_pCurl);
-		/* Check for errors */
-		if (res != CURLE_OK)
-		{
-			m_bConnected = false;
-			m_vecWSPartialBuffer.clear();
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Failed to connect (%d - %s)",res, curl_easy_strerror(res));
-
-			// reconnecting? give up eventually
-			if (m_bReconnecting)
-			{
-				int maxReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? maxReconnectAttempts_Ingame : maxReconnectAttempts_Frontend;
-
-				if (m_numReconnectAttempts >= maxReconnectAttempts || (res == CURLE_HTTP_RETURNED_ERROR && httpResponseCode == 205)) // 205 = need full teardown
-				{
-					if (httpResponseCode == 205)
-					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 205)");
-					}
-					else
-					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 2)");
-					}
-
-                    NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
-                    m_bConnected = false;
-                    m_vecWSPartialBuffer.clear();
-
-                    // clear reconnection flags
-                    m_bReconnecting = false;
-                    m_numReconnectAttempts = 0;
-                    m_lastReconnectAttempt = -1;
-				}
-			}
-			else // give up immediately
-			{
-                NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (initial connect)");
-                NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
-                m_bConnected = false;
-                m_vecWSPartialBuffer.clear();
-
-                // clear reconnection flags
-                m_bReconnecting = false;
-                m_numReconnectAttempts = 0;
-                m_lastReconnectAttempt = -1;
-			}
-		}
-		else
-		{
-			if (m_bReconnecting)
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Re-Connected");
-			}
-			else
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connected");
-			}
-
-			/* connected and ready */
-			m_bConnected = true;
-			m_vecWSPartialBuffer.clear();
-
-			// clear reconnection flags
-            m_bReconnecting = false;
-            m_numReconnectAttempts = 0;
-            m_lastReconnectAttempt = -1;
-
-			// connecting is as good as a pong
-			m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-			
-
-			
-		}
+		//CURLcode res = curl_easy_perform(m_pCurl);
+		curl_multi_add_handle(m_pMulti, m_pCurlWS);
 	}
 }
 
@@ -199,15 +139,15 @@ void WebSocket::Disconnect()
 		return;
 	}
 
-	if (m_pCurl != nullptr)
+	if (m_pCurlWS != nullptr)
 	{
 		// send close
 		size_t sent;
-		(void)curl_ws_send(m_pCurl, "", 0, &sent, 0, CURLWS_CLOSE);
+		(void)curl_ws_send(m_pCurlWS, "", 0, &sent, 0, CURLWS_CLOSE);
 
 		// cleanup
-		curl_easy_cleanup(m_pCurl);
-		m_pCurl = nullptr;
+		curl_easy_cleanup(m_pCurlWS);
+		m_pCurlWS = nullptr;
 	}
 
 	m_vecWSPartialBuffer.clear();
@@ -227,7 +167,7 @@ void WebSocket::Send(const char* send_payload)
 	}
 
 	size_t sent;
-	CURLcode result = curl_ws_send(m_pCurl, send_payload, strlen(send_payload), &sent, 0,
+	CURLcode result = curl_ws_send(m_pCurlWS, send_payload, strlen(send_payload), &sent, 0,
 		CURLWS_BINARY);
 
 	if (result != CURLE_OK)
@@ -448,19 +388,12 @@ void WebSocket::Tick()
                 m_lastReconnectAttempt = currTime;
                 ++m_numReconnectAttempts;
 
-				Connect(m_strWebsocketAddr.c_str(), true);
+				Connect(m_strWebsocketAddr.c_str(), true, nullptr);
             }
 		}
-
-        ReleaseLock();
-        return;
 	}
 
-	if (!m_bConnected)
-	{
-		ReleaseLock();
-		return;
-	}
+
 
 	/*
 	if (strSignal.length() == 6)
@@ -490,13 +423,116 @@ void WebSocket::Tick()
 		Ping();
 	};
 
+    int numReqs = 0;
+    curl_multi_perform(m_pMulti, &numReqs);
+    curl_multi_poll(m_pMulti, NULL, 0, 0, NULL);
+
+    {
+        // Check for completed requests (initial connection only)
+        int msgq = 0;
+        CURLMsg* m = nullptr;
+        while ((m = curl_multi_info_read(m_pMulti, &msgq)) != nullptr)
+        {
+            if (m->msg == CURLMSG_DONE)
+            {
+                CURL* pCurlHandle = m->easy_handle;
+
+                if (pCurlHandle == m_pCurlWS) // shouldnt hear about anything else
+                {
+					int httpResponseCode = -1;
+					curl_easy_getinfo(pCurlHandle, CURLINFO_RESPONSE_CODE, &httpResponseCode);
+
+					/* Check for errors */
+                    if (m->data.result != CURLE_OK)
+                    {
+                        m_bConnected = false;
+                        m_vecWSPartialBuffer.clear();
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Failed to connect (%d - %s)", m->data.result, curl_easy_strerror(m->data.result));
+
+                        // reconnecting? give up eventually
+                        if (m_bReconnecting)
+                        {
+                            int maxReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? maxReconnectAttempts_Ingame : maxReconnectAttempts_Frontend;
+
+                            if (m_numReconnectAttempts >= maxReconnectAttempts || (m->data.result == CURLE_HTTP_RETURNED_ERROR && httpResponseCode == 205)) // 205 = need full teardown
+                            {
+                                if (httpResponseCode == 205)
+                                {
+                                    NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 205)");
+                                }
+                                else
+                                {
+                                    NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 2)");
+                                }
+
+                                NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
+                                m_bConnected = false;
+                                m_vecWSPartialBuffer.clear();
+
+                                // clear reconnection flags
+                                m_bReconnecting = false;
+                                m_numReconnectAttempts = 0;
+                                m_lastReconnectAttempt = -1;
+                            }
+                        }
+                        else // give up immediately
+                        {
+                            NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (initial connect)");
+                            NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
+                            m_bConnected = false;
+                            m_vecWSPartialBuffer.clear();
+
+                            // clear reconnection flags
+                            m_bReconnecting = false;
+                            m_numReconnectAttempts = 0;
+                            m_lastReconnectAttempt = -1;
+                        }
+                    }
+                    else
+                    {
+                        if (m_bReconnecting)
+                        {
+                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Re-Connected");
+                        }
+                        else
+                        {
+                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connected");
+                        }
+
+                        /* connected and ready */
+                        m_bConnected = true;
+                        m_vecWSPartialBuffer.clear();
+
+                        // clear reconnection flags
+                        m_bReconnecting = false;
+                        m_numReconnectAttempts = 0;
+                        m_lastReconnectAttempt = -1;
+
+                        // connecting is as good as a pong
+                        m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+                    }
+
+                    if (m_fnWebsocketConnectedCallback != nullptr)
+                    {
+                        m_fnWebsocketConnectedCallback();
+                    }
+                }
+            }
+        }
+    }
+
+    if (!m_bConnected)
+    {
+        ReleaseLock();
+        return;
+    }
 	// do recv
 	size_t rlen = 0;
 	const struct curl_ws_frame* meta = nullptr;
 	char bufferThisRecv[8196 * 4] = { 0 };
 
 	CURLcode ret = CURL_LAST;
-	ret = curl_ws_recv(m_pCurl, bufferThisRecv, sizeof(bufferThisRecv), &rlen, &meta);
+	ret = curl_ws_recv(m_pCurlWS, bufferThisRecv, sizeof(bufferThisRecv), &rlen, &meta);
 
 	if (ret != CURLE_RECV_ERROR && ret != CURL_LAST && ret != CURLE_AGAIN && ret != CURLE_GOT_NOTHING)
 	{

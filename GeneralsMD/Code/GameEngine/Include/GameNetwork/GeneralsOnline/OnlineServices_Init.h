@@ -172,7 +172,7 @@ class WebSocket
 public:
 	WebSocket();
 	~WebSocket();
-	void Connect(const char* url, bool bIsReconnect);
+	void Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback);
 	void Disconnect();
 
 	bool IsConnected()
@@ -181,6 +181,8 @@ public:
 	}
 
 	std::vector<char> m_vecWSPartialBuffer;
+
+	std::function<void(void)> m_fnWebsocketConnectedCallback = nullptr;
 
 	void Shutdown();
 
@@ -228,7 +230,9 @@ public:
 	}
 
 private:
-	CURL* m_pCurl = nullptr;
+	CURL* m_pCurlWS = nullptr;
+    CURLM* m_pMulti = nullptr;
+
 	bool m_bConnected = false;
 
     const int maxReconnectAttempts_Frontend = 15;
@@ -498,7 +502,7 @@ public:
 	QoSManager& GetQoSManager() { return m_qosMgr; }
 	QoSManager m_qosMgr;
 
-	void OnLogin(ELoginResult loginResult, const char* szWSAddr);
+	void OnLogin(ELoginResult loginResult, const char* szWSAddr, std::function<void(void)> fnWebsocketConnectedCallback);
 	
 	void Init();
 
