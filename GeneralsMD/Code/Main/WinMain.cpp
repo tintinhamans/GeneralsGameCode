@@ -454,14 +454,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 		//-------------------------------------------------------------------------
 		case WM_ACTIVATEAPP:
 		{
-			if ((bool)wParam != isWinMainActive)
 			{
-				// TheSuperHackers @bugfix xezon 11/05/2025 This event originally called DX8Wrapper::Reset_Device,
-				// intended to clear resources on a lost device in fullscreen, but effectively also in
-				// windowed mode, if the DXMaximizedWindowedMode shim was applied in newer versions of Windows,
-				// which lead to unfortunate application crashing. Resetting the device on WM_ACTIVATEAPP instead
-				// of TestCooperativeLevel() == D3DERR_DEVICENOTRESET is not a requirement. There are other code
-				// paths that take care of that.
+				//
+				// reset the state of our keyboard cause we haven't been paying
+				// attention to the keys while focus was away
+				//
+				if (TheKeyboard)
+					TheKeyboard->resetKeys();
 
 				isWinMainActive = (BOOL)wParam;
 
@@ -485,13 +484,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 
 			if (active == WA_INACTIVE)
 			{
-				if (TheAudio)
-					TheAudio->loseFocus();
-			}
-			else
-			{
-				if (TheAudio)
-					TheAudio->regainFocus();
+				if (TheKeyboard)
+					TheKeyboard->resetKeys();
 
 				// Cursor can only be captured after one of the activation events.
 				if (TheMouse)

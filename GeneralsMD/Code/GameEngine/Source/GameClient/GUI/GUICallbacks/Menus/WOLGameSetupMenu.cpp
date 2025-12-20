@@ -2806,7 +2806,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 							resp.command.c_str(), resp.commandOptions.c_str()));
 					}
 #endif
-					if (!strcmp(resp.command.c_str(), "SL"))
+					if (strcmp(resp.command.c_str(), "SL") == 0)
 					{
 						// slotlist
 						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
@@ -2978,7 +2978,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 							}
 						}
 					}
-					else if (!strcmp(resp.command.c_str(), "HWS"))
+					else if (strcmp(resp.command.c_str(), "HWS") == 0)
 					{
 						// host wants to start
 						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
@@ -2994,15 +2994,15 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 							}
 						}
 					}
-					else if (!stricmp(resp.command.c_str(), "NAT"))
+					else if (stricmp(resp.command.c_str(), "NAT") == 0)
 					{
 						if (TheNAT != NULL) {
 							TheNAT->processGlobalMessage(-1, resp.commandOptions.c_str());
 						}
 					}
-					// TODO_NGMP: Probably don't care about this anymore
+// TODO_NGMP: Probably don't care about this anymore
 					/*
-					else if (!stricmp(resp.command.c_str(), "Pings"))
+					else if (stricmp(resp.command.c_str(), "Pings") == 0)
 					{
 						if (!TheGameSpyInfo->amIHost())
 						{
@@ -3033,7 +3033,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 			case PeerResponse::PEERRESPONSE_PLAYERUTM:
 				{
 					sawImportantMessage = TRUE;
-					if (!strcmp(resp.command.c_str(), "STATS"))
+					if (strcmp(resp.command.c_str(), "STATS") == 0)
 					{
 						PSPlayerStats stats = TheGameSpyPSMessageQueue->parsePlayerKVPairs(resp.commandOptions.c_str());
 						if (stats.id && (TheGameSpyPSMessageQueue->findPlayerStatsByID(stats.id).id == 0))
@@ -3046,7 +3046,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 					if (game)
 					{
 						Int slotNum = game->getSlotNum(resp.nick.c_str());
-						if ((slotNum >= 0) && (slotNum < MAX_SLOTS) && (!stricmp(resp.command.c_str(), "NAT"))) {
+						if ((slotNum >= 0) && (slotNum < MAX_SLOTS) && (stricmp(resp.command.c_str(), "NAT") == 0)) {
 							// this is a command for NAT negotiations, pass if off to TheNAT
 							if (TheNAT != NULL) {
 								TheNAT->processGlobalMessage(slotNum, resp.commandOptions.c_str());
@@ -3054,7 +3054,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 						}
 						if (slotNum == 0 && !TheGameSpyInfo->amIHost())
 						{
-							if (!strcmp(resp.command.c_str(), "KICK"))
+							if (strcmp(resp.command.c_str(), "KICK") == 0)
 							{
 								// oops - we've been kicked.  bail.
 								buttonPushed = true;
@@ -3080,13 +3080,13 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 						}
 						else if (slotNum > 0 && TheGameSpyInfo->amIHost())
 						{
-							if (!strcmp(resp.command.c_str(), "accept"))
+							if (strcmp(resp.command.c_str(), "accept") == 0)
 							{
 								game->getSlot(slotNum)->setAccept();
 								TheGameSpyInfo->setGameOptions();
 								WOLDisplaySlotList();
 							}
-							else if (!strcmp(resp.command.c_str(), "MAP"))
+							else if (strcmp(resp.command.c_str(), "MAP") == 0)
 							{
 								Bool hasMap = atoi(resp.commandOptions.c_str());
 								game->getSlot(slotNum)->setMapAvailability(hasMap);
@@ -3115,7 +3115,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 								}
 								WOLDisplaySlotList();
 							}
-							else if (!strcmp(resp.command.c_str(), "REQ"))
+							else if (strcmp(resp.command.c_str(), "REQ") == 0)
 							{
 								AsciiString options = resp.commandOptions.c_str();
 								options.trim();

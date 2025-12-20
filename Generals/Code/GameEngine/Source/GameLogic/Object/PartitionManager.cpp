@@ -3070,6 +3070,32 @@ CellShroudStatus PartitionManager::getShroudStatusForPlayer(Int playerIndex, con
 }
 
 
+//-----------------------------------------------------------------------------
+ObjectShroudStatus PartitionManager::getPropShroudStatusForPlayer(Int playerIndex, const Coord3D *loc ) const
+{
+	Int x, y;
+
+	ThePartitionManager->worldToCell( loc->x - m_cellSize*0.5f, loc->y - m_cellSize*0.5f, &x, &y );
+
+	CellShroudStatus cellStat = getShroudStatusForPlayer( playerIndex, x, y );
+	if (cellStat != getShroudStatusForPlayer( playerIndex, x+1, y )) {
+		return OBJECTSHROUD_PARTIAL_CLEAR;
+	}
+	if (cellStat != getShroudStatusForPlayer( playerIndex, x+1, y+1 )) {
+		return OBJECTSHROUD_PARTIAL_CLEAR;
+	}
+	if (cellStat != getShroudStatusForPlayer( playerIndex, x, y+1 )) {
+		return OBJECTSHROUD_PARTIAL_CLEAR;
+	}
+	if (cellStat == CELLSHROUD_SHROUDED) {
+		return OBJECTSHROUD_SHROUDED;
+	}
+	if (cellStat == CELLSHROUD_CLEAR) {
+		return OBJECTSHROUD_CLEAR;
+	}
+	return OBJECTSHROUD_FOGGED;
+}
+
 
 
 #ifdef FASTER_GCO
@@ -4643,7 +4669,7 @@ void PartitionManager::xfer( Xfer *xfer )
 			// have to remove this assert, because during load there is a setTeam call for each guy on a sub-team, and that results
 			// in a queued unlook, so we actually have stuff in here at the start.  I am fairly certain that setTeam should wait
 			// until loadPostProcess, but I ain't gonna change it now.
-//			DEBUG_ASSERTCRASH(m_pendingUndoShroudReveals.size() == 0, ("At load, we appear to not be in a reset state.") );
+//			DEBUG_ASSERTCRASH(m_pendingUndoShroudReveals.empty(), ("At load, we appear to not be in a reset state.") );
 
 			// I have to split this up though, since on Load I need to make new instances.
 			for( Int infoIndex = 0; infoIndex < queueSize; infoIndex++ )

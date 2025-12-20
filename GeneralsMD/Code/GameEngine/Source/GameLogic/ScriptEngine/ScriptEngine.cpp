@@ -8938,9 +8938,10 @@ void ScriptEngine::xfer(Xfer* xfer)
 	{
 
 		// this list should be empty on loading
-		if (m_sequentialScripts.size() != 0)
+		if( !m_sequentialScripts.empty() )
 		{
 
+			DEBUG_CRASH(( "ScriptEngine::xfer - m_sequentialScripts should be empty but is not" ));
 			DEBUG_CRASH(("ScriptEngine::xfer - m_sequentialScripts should be empty but is not"));
 			throw SC_INVALID_DATA;
 
