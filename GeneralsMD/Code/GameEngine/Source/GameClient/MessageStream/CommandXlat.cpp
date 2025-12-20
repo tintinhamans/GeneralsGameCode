@@ -4563,55 +4563,49 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 	case GameMessage::MSG_META_DEBUG_GIVE_VETERANCY:
 	case GameMessage::MSG_META_DEBUG_TAKE_VETERANCY:
 	{
-		if (!TheGameLogic->isInMultiplayerGame())
+		if (TheGameLogic->isInMultiplayerGame())
+			break;
+
+		const DrawableList* list = TheInGameUI->getAllSelectedDrawables();
+		for (DrawableListCIt it = list->begin(); it != list->end(); ++it)
 		{
-			if (TheGameLogic->isInMultiplayerGame())
-				break;
+			Drawable* pDraw = *it;
+			if (!pDraw)
+				continue;
 
-			const DrawableList *list = TheInGameUI->getAllSelectedDrawables();
-			for (DrawableListCIt it = list->begin(); it != list->end(); ++it)
+			Object* pObject = pDraw->getObject();
+			if (!pObject)
+				continue;
+
+			ExperienceTracker* et = pObject->getExperienceTracker();
+			if (!et || !et->isTrainable())
+				continue;
+
+			VeterancyLevel oldVet = et->getVeterancyLevel();
+			VeterancyLevel newVet = oldVet;
+
+			if (t == GameMessage::MSG_META_DEBUG_GIVE_VETERANCY)
 			{
-				Drawable *pDraw = *it;
-				if (!pDraw)
-					continue;
-
-				Object *pObject = pDraw->getObject();
-				if (!pObject)
-					continue;
-
-				ExperienceTracker *et = pObject->getExperienceTracker();
-				if (!et || !et->isTrainable())
-					continue;
-
-				VeterancyLevel oldVet = et->getVeterancyLevel();
-				VeterancyLevel newVet = oldVet;
-
-				if (t == GameMessage::MSG_META_DEBUG_GIVE_VETERANCY)
+				if (oldVet < LEVEL_LAST)
 				{
-					if (oldVet < LEVEL_LAST)
-					{
-						newVet = (VeterancyLevel)((Int)oldVet + 1);
-					}
+					newVet = (VeterancyLevel)((Int)oldVet + 1);
 				}
-				else
+			}
+			else
+			{
+				if (oldVet > LEVEL_FIRST)
 				{
-					if (oldVet > LEVEL_FIRST)
-					{
-						newVet = (VeterancyLevel)((Int)oldVet - 1);
-					}
+					newVet = (VeterancyLevel)((Int)oldVet - 1);
 				}
-
-				et->setVeterancyLevel(newVet);
 			}
 
-			disp = DESTROY_MESSAGE;
-			break;
+			et->setVeterancyLevel(newVet);
 		}
 
-		//------------------------------------------------------------------------------- DEMO MESSAGES
-		//-----------------------------------------------------------------------------------------
-		case GameMessage::MSG_META_DEBUG_INCR_ANIM_SKATE_SPEED:
-		{
+		disp = DESTROY_MESSAGE;
+		break;
+	}
+
 	//------------------------------------------------------------------------------- DEMO MESSAGES
 	//-----------------------------------------------------------------------------------------
 	case GameMessage::MSG_META_DEBUG_INCR_ANIM_SKATE_SPEED:
