@@ -3383,22 +3383,19 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				win->hide(!win->isHidden());
 			}
 
-			else
+		}
+		else
+		{
+			Bool hide = false;
+			if (TheWindowManager)
 			{
-				Bool hide = false;
-				if (TheWindowManager)
-				{
-					Int id = (Int)TheNameKeyGenerator->nameToKey("ControlBar.wnd:ControlBarParent");
-					GameWindow *window = TheWindowManager->winGetWindowFromId(NULL, id);
+				Int id = (Int)TheNameKeyGenerator->nameToKey("ControlBar.wnd:ControlBarParent");
+				GameWindow* window = TheWindowManager->winGetWindowFromId(NULL, id);
 
-					if (window)
-						hide = !window->winIsHidden();
-				}
-
-				ToggleControlBar();
+				if (window)
+					hide = !window->winIsHidden();
 			}
-			disp = DESTROY_MESSAGE;
-			break;
+
 			ToggleControlBar();
 		}
 		disp = DESTROY_MESSAGE;
@@ -3432,57 +3429,57 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		TheInGameUI->toggleAttackMoveToMode();
 		break;
 
-		case GameMessage::MSG_META_BEGIN_CAMERA_ROTATE_LEFT:
-			DEBUG_ASSERTCRASH(!TheInGameUI->isCameraRotatingLeft(), ("Setting rotate camera left, but it's already set!"));
-			TheInGameUI->setCameraRotateLeft( true );
-			break;
-		case GameMessage::MSG_META_END_CAMERA_ROTATE_LEFT:
-			DEBUG_ASSERTCRASH(TheInGameUI->isCameraRotatingLeft(), ("Clearing rotate camera left, but it's already clear!"));
-			TheInGameUI->setCameraRotateLeft( false );
-			break;
-		case GameMessage::MSG_META_ALT_CAMERA_ROTATE_LEFT:
-			if (TheTacticalView->isCameraMovementFinished())
-				TheTacticalView->rotateCamera(-1.0f / 8.0f, 500, 100, 400);
-			break;
-		case GameMessage::MSG_META_BEGIN_CAMERA_ROTATE_RIGHT:
-			DEBUG_ASSERTCRASH(!TheInGameUI->isCameraRotatingRight(), ("Setting rotate camera right, but it's already set!"));
-			TheInGameUI->setCameraRotateRight( true );
-			break;
-		case GameMessage::MSG_META_END_CAMERA_ROTATE_RIGHT:
-			DEBUG_ASSERTCRASH(TheInGameUI->isCameraRotatingRight(), ("Clearing rotate camera right, but it's already clear!"));
-			TheInGameUI->setCameraRotateRight( false );
-			break;
-		case GameMessage::MSG_META_ALT_CAMERA_ROTATE_RIGHT:
-			if (TheTacticalView->isCameraMovementFinished())
-				TheTacticalView->rotateCamera(1.0f / 8.0f, 500, 100, 400);
-			break;
-		case GameMessage::MSG_META_BEGIN_CAMERA_ZOOM_IN:
-			DEBUG_ASSERTCRASH(!TheInGameUI->isCameraZoomingIn(), ("Setting zoom camera in, but it's already set!"));
-			TheInGameUI->setCameraZoomIn( true );
-			break;
-		case GameMessage::MSG_META_END_CAMERA_ZOOM_IN:
-			DEBUG_ASSERTCRASH(TheInGameUI->isCameraZoomingIn(), ("Clearing zoom camera in, but it's already clear!"));
-			TheInGameUI->setCameraZoomIn( false );
-			break;
-		case GameMessage::MSG_META_BEGIN_CAMERA_ZOOM_OUT:
-			DEBUG_ASSERTCRASH(!TheInGameUI->isCameraZoomingOut(), ("Setting zoom camera out, but it's already set!"));
-			TheInGameUI->setCameraZoomOut( true );
-			break;
-		case GameMessage::MSG_META_END_CAMERA_ZOOM_OUT:
-			DEBUG_ASSERTCRASH(TheInGameUI->isCameraZoomingOut(), ("Clearing zoom camera out, but it's already clear!"));
-			TheInGameUI->setCameraZoomOut( false );
-			break;
-		case GameMessage::MSG_META_CAMERA_RESET:
-			TheInGameUI->resetCamera();
-			break;
-		case GameMessage::MSG_META_TOGGLE_CAMERA_TRACKING_DRAWABLE:
-			TheInGameUI->setCameraTrackingDrawable( true );
-			break;
-        //--------------------------------------------------------------------------------------
-		case GameMessage::MSG_META_TOGGLE_FAST_FORWARD_REPLAY:
+	case GameMessage::MSG_META_BEGIN_CAMERA_ROTATE_LEFT:
+		DEBUG_ASSERTCRASH(!TheInGameUI->isCameraRotatingLeft(), ("Setting rotate camera left, but it's already set!"));
+		TheInGameUI->setCameraRotateLeft(true);
+		break;
+	case GameMessage::MSG_META_END_CAMERA_ROTATE_LEFT:
+		DEBUG_ASSERTCRASH(TheInGameUI->isCameraRotatingLeft(), ("Clearing rotate camera left, but it's already clear!"));
+		TheInGameUI->setCameraRotateLeft(false);
+		break;
+	case GameMessage::MSG_META_ALT_CAMERA_ROTATE_LEFT:
+		if (TheTacticalView->isCameraMovementFinished())
+			TheTacticalView->rotateCamera(-1.0f / 8.0f, 500, 100, 400);
+		break;
+	case GameMessage::MSG_META_BEGIN_CAMERA_ROTATE_RIGHT:
+		DEBUG_ASSERTCRASH(!TheInGameUI->isCameraRotatingRight(), ("Setting rotate camera right, but it's already set!"));
+		TheInGameUI->setCameraRotateRight(true);
+		break;
+	case GameMessage::MSG_META_END_CAMERA_ROTATE_RIGHT:
+		DEBUG_ASSERTCRASH(TheInGameUI->isCameraRotatingRight(), ("Clearing rotate camera right, but it's already clear!"));
+		TheInGameUI->setCameraRotateRight(false);
+		break;
+	case GameMessage::MSG_META_ALT_CAMERA_ROTATE_RIGHT:
+		if (TheTacticalView->isCameraMovementFinished())
+			TheTacticalView->rotateCamera(1.0f / 8.0f, 500, 100, 400);
+		break;
+	case GameMessage::MSG_META_BEGIN_CAMERA_ZOOM_IN:
+		DEBUG_ASSERTCRASH(!TheInGameUI->isCameraZoomingIn(), ("Setting zoom camera in, but it's already set!"));
+		TheInGameUI->setCameraZoomIn(true);
+		break;
+	case GameMessage::MSG_META_END_CAMERA_ZOOM_IN:
+		DEBUG_ASSERTCRASH(TheInGameUI->isCameraZoomingIn(), ("Clearing zoom camera in, but it's already clear!"));
+		TheInGameUI->setCameraZoomIn(false);
+		break;
+	case GameMessage::MSG_META_BEGIN_CAMERA_ZOOM_OUT:
+		DEBUG_ASSERTCRASH(!TheInGameUI->isCameraZoomingOut(), ("Setting zoom camera out, but it's already set!"));
+		TheInGameUI->setCameraZoomOut(true);
+		break;
+	case GameMessage::MSG_META_END_CAMERA_ZOOM_OUT:
+		DEBUG_ASSERTCRASH(TheInGameUI->isCameraZoomingOut(), ("Clearing zoom camera out, but it's already clear!"));
+		TheInGameUI->setCameraZoomOut(false);
+		break;
+	case GameMessage::MSG_META_CAMERA_RESET:
+		TheInGameUI->resetCamera();
+		break;
+	case GameMessage::MSG_META_TOGGLE_CAMERA_TRACKING_DRAWABLE:
+		TheInGameUI->setCameraTrackingDrawable(true);
+		break;
+		//--------------------------------------------------------------------------------------
+	case GameMessage::MSG_META_TOGGLE_FAST_FORWARD_REPLAY:
+	{
+		if (TheGlobalData)
 		{
-			if( TheGlobalData )
-			{
 #if !defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)//may be defined in GameCommon.h
 			if (TheGameLogic->isInReplayGame())
 #endif
@@ -4323,15 +4320,11 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		else
 		{
 			Bool hide = false;
+			if (TheWindowManager)
 			{
-				Bool hide = false;
-				if (TheWindowManager)
-				{
-					Int id = (Int)TheNameKeyGenerator->nameToKey("ControlBar.wnd:ControlBarParent");
-					GameWindow *window = TheWindowManager->winGetWindowFromId(NULL, id);
+				Int id = (Int)TheNameKeyGenerator->nameToKey("ControlBar.wnd:ControlBarParent");
+				GameWindow* window = TheWindowManager->winGetWindowFromId(NULL, id);
 
-					if (window)
-						hide = !window->winIsHidden();
 				if (window)
 					hide = !window->winIsHidden();
 			}
