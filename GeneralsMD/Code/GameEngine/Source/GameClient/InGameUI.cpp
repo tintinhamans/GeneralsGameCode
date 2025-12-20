@@ -4018,7 +4018,12 @@ void InGameUI::postDraw( void )
 				UnsignedInt readyFrame = TheGameLogic->getFrame();
 				if (framesLeft > 0)
 					readyFrame += framesLeft;
-				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * (readyFrame - TheGameLogic->getFrame()));
+				
+			#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+                Int readySecs = (Int)((Real)(readyFrame - TheGameLogic->getFrame()) / (Real)BaseFps);
+            #else
+                Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * (readyFrame - TheGameLogic->getFrame()));
+            #endif
 				if ( (info->isCountdown && readySecs != info->timestamp) || (!info->isCountdown && framesLeft != info->timestamp) )
 				{
 					if (!readySecs && info->isCountdown)
@@ -6331,3 +6336,4 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+

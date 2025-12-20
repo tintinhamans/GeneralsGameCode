@@ -30,7 +30,7 @@
 #include "GameLogic/GameLogic.h"
 #include "../NGMP_include.h"
 
-enum { MaxQuitFlushTime = 30000 }; // wait this many milliseconds at most to retry things before quitting
+enum { MaxQuitFlushTime = 15000 }; // wait this many milliseconds at most to retry things before quitting
 
 /**
  * The constructor.
