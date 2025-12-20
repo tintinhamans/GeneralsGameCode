@@ -182,6 +182,8 @@ public:
 
 	std::vector<char> m_vecWSPartialBuffer;
 
+	std::vector<std::string> m_vecQueuedOutboungMsgs;
+
 	std::function<void(void)> m_fnWebsocketConnectedCallback = nullptr;
 
 	void Shutdown();

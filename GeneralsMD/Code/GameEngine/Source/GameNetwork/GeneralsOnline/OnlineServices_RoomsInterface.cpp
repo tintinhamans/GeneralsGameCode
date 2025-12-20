@@ -162,13 +162,15 @@ void WebSocket::Send(const char* send_payload)
 
 	if (!m_bConnected)
 	{
+		// just queue it instead
+		m_vecQueuedOutboungMsgs.push_back(std::string(send_payload));
+
 		ReleaseLock();
 		return;
 	}
 
 	size_t sent;
-	CURLcode result = curl_ws_send(m_pCurlWS, send_payload, strlen(send_payload), &sent, 0,
-		CURLWS_BINARY);
+	CURLcode result = curl_ws_send(m_pCurlWS, send_payload, strlen(send_payload), &sent, 0, CURLWS_BINARY);
 
 	if (result != CURLE_OK)
 	{
@@ -526,6 +528,20 @@ void WebSocket::Tick()
         ReleaseLock();
         return;
     }
+
+	// send anything we have buffered (e.g. things that were queued while not connected)
+	for (std::string& strPayload : m_vecQueuedOutboungMsgs)
+	{
+        size_t sent;
+        CURLcode result = curl_ws_send(m_pCurlWS, strPayload.c_str(), strPayload.length(), &sent, 0, CURLWS_BINARY);
+
+        if (result != CURLE_OK)
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "curl_ws_send() failed: %s\n", curl_easy_strerror(result));
+        }
+	}
+	m_vecQueuedOutboungMsgs.clear();
+
 	// do recv
 	size_t rlen = 0;
 	const struct curl_ws_frame* meta = nullptr;
