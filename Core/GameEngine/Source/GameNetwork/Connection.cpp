@@ -31,9 +31,9 @@
 #include "../NGMP_include.h"
 
 #if defined(GENERALS_ONLINE)
-enum { MaxQuitFlushTime = 10000 }; // wait this many milliseconds at most to retry things before quitting
+enum { MaxQuitFlushTime = 5000 }; // wait this many milliseconds at most to retry things before quitting
 #else
-enum { MaxQuitFlushTime = 60000 }; // wait this many milliseconds at most to retry things before quitting
+enum { MaxQuitFlushTime = 30000 }; // wait this many milliseconds at most to retry things before quitting
 #endif
 
 /**
