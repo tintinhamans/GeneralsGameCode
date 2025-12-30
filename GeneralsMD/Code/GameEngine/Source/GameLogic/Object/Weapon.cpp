@@ -1930,6 +1930,20 @@ void Weapon::computeBonus(const Object *source, WeaponBonusConditionFlags extraB
 	const WeaponBonusSet* extra = m_template->getExtraBonus();
 	if (extra)
 		extra->appendBonuses(flags, bonus);
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+     // Fix v1 quad cannon damage this way for now
+     const char* weaponName = m_template->getName().str();
+     if (source->getVeterancyLevel() == 1 &&
+     (strcmp(weaponName, "QuadCannonGun") == 0 ||
+     strcmp(weaponName, "QuadCannonGunAir") == 0 ||
+     strcmp(weaponName, "QuadCannonGunUpgradeOne") == 0 ||
+     strcmp(weaponName, "QuadCannonGunUpgradeOneAir") == 0 ||
+     strcmp(weaponName, "QuadCannonGunUpgradeTwo") == 0 ||
+     strcmp(weaponName, "QuadCannonGunUpgradeTwoAir") == 0))
+     {
+     bonus.setField(WeaponBonus::RATE_OF_FIRE, 1.30f);
+     }
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3623,4 +3637,5 @@ void WeaponBonusSet::appendBonuses(WeaponBonusConditionFlags flags, WeaponBonus&
 		this->m_bonus[i].appendBonuses(bonus);
 	}
 }
+
 
