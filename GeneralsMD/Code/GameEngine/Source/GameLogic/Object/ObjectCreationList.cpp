@@ -1102,6 +1102,13 @@ protected:
 				force.x = GameLogicRandomValueReal(-horizForce, horizForce);
 				force.y = GameLogicRandomValueReal(-horizForce, horizForce);
 				force.z = 0;
+                
+            #if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+                   // Debris OCL launch force is too strong at 60 Hz – damp it.
+                   force.x *= 0.5f; 
+                   force.y *= 0.5f;
+                   force.z *= 0.5f;
+            #endif
 
 				objUp->applyForce(&force);
 				if (m_orientInForceDirection)
