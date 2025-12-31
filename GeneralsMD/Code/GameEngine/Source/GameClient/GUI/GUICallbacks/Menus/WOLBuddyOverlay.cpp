@@ -570,7 +570,12 @@ void updateBuddyInfo( void )
 
             // FRIENDS
             int i = 0;
-            for (auto& kvPair : pSocialInterface->GetCachedFriendsList())
+			auto friendsMap = pSocialInterface->GetCachedFriendsList();
+			std::vector<std::pair<int64_t, FriendsEntry>> sortedFriends(friendsMap.begin(), friendsMap.end());
+			std::stable_sort(sortedFriends.begin(), sortedFriends.end(),
+				[](auto& a, auto& b) { return a.second.online > b.second.online; });
+
+			for (auto& kvPair : sortedFriends)
             {
 				FriendsEntry friendsEntry = kvPair.second;
                 int64_t profileID = friendsEntry.user_id;
