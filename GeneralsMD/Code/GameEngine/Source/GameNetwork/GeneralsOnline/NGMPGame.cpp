@@ -526,7 +526,18 @@ void NGMPGame::launchGame(void)
 	TheGameSpyBuddyMessageQueue->addRequest(req);
 	*/
 
-    showNotificationBox(AsciiString::TheEmptyString, UnicodeString(L"Press F5 or INSERT to bring up the communicator at any time."), false);
+    	// Show map name in the match start communicator hint notification
+	{
+		const char* p = getMap().str();                                      // full map path
+		const char* s = strrchr(p, '\\');                                    // last '\'
+		const char* fileName = s ? s + 1 : p;                                // filename only
+		const char* dot = strrchr(fileName, '.');                            // extension
+		int nameLen = dot ? int(dot - fileName) : int(strlen(fileName));     // strip .map
+
+		UnicodeString msg;
+		msg.format(L"Map: %.*hs\nPress F5 or INSERT to open the communicator.", nameLen, fileName);
+		showNotificationBox(AsciiString::TheEmptyString, msg, false);
+	}
 }
 
 void NGMPGame::reset(void)
@@ -546,3 +557,4 @@ void NGMPGame::StartCountdown()
 		pWS->SendData_CountdownStarted();
 	}
 }
+
