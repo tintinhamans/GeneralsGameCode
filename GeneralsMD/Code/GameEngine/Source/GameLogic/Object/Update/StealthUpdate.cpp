@@ -347,7 +347,11 @@ Bool StealthUpdate::allowedToStealth( Object *stealthOwner ) const
 
 		//Now do weapon specific checks.
 		Weapon *weapon;
-		UnsignedInt lastFrame = TheGameLogic->getFrame() - 1;
+	#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+        UnsignedInt lastFrame = TheGameLogic->getFrame() - GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER;
+    #else
+        UnsignedInt lastFrame = TheGameLogic->getFrame() - 1;
+    #endif
 
 		if( flags & STEALTH_NOT_WHILE_FIRING_PRIMARY )
 		{
