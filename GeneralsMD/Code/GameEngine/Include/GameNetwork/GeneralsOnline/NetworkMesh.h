@@ -151,7 +151,7 @@ public:
 		for (auto& kvPair : m_mapConnections)
 		{
 			PlayerConnection& conn = kvPair.second;
-			if (conn.GetLatency() > highestLatency)
+			if (conn.GetHighestHistoricalLatency() > highestLatency)
 			{
 				highestLatency = conn.GetHighestHistoricalLatency();
 			}
