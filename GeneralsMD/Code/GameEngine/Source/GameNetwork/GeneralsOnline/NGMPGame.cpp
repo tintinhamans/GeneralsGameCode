@@ -528,15 +528,22 @@ void NGMPGame::launchGame(void)
 
     	// Show map name in the match start communicator hint notification
 	{
-		const char* p = getMap().str();                                      // full map path
-		const char* s = strrchr(p, '\\');                                    // last '\'
-		const char* fileName = s ? s + 1 : p;                                // filename only
-		const char* dot = strrchr(fileName, '.');                            // extension
-		int nameLen = dot ? int(dot - fileName) : int(strlen(fileName));     // strip .map
+        NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+		if (pLobbyInterface != nullptr)
+		{
+			LobbyEntry& currentLobby = pLobbyInterface->GetCurrentLobby();
 
-		UnicodeString msg;
-		msg.format(L"Map: %.*hs\nPress F5 or INSERT to open the communicator.", nameLen, fileName);
-		showNotificationBox(AsciiString::TheEmptyString, msg, false);
+			std::string strMapName = currentLobby.map_name; // NOTE: Includes .map (2) etc
+			const std::string strExt = ".map";
+			size_t pos = strMapName.find(strExt);
+			if (pos != std::string::npos) { strMapName.erase(pos, strExt.size()); }
+
+            UnicodeString msg;
+            msg.format(L"Map: %hs\nPress F5 or INSERT to open the communicator.", strMapName.c_str());
+            showNotificationBox(AsciiString::TheEmptyString, msg, false);
+		}
+
+		
 	}
 }
 
