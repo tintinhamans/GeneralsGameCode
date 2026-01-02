@@ -249,10 +249,32 @@ void NGMP_OnlineServices_SocialInterface::OnChatMessage(int64_t source_user_id, 
             {
                 ++m_mapUnreadMessagesForUser[user_id_to_store];
             }
-		}
-
-		m_mapCachedMessages[user_id_to_store].push_back(unicodeStr);
-
+            // show popup for incoming message
+            if (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress())
+            {
+                if (NGMP_OnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Gameplay())
+                {
+#if defined(GENERALS_ONLINE)
+                    showNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
+#else
+                    showNotificationBox(AsciiString::TheEmptyString, unicodeStr);
+#endif
+                }
+            }
+            else
+            {
+                if (NGMP_OnlineServicesManager::Settings.Social_Notifications_FriendComesOnline_Menus())
+                {
+#if defined(GENERALS_ONLINE)
+                    showNotificationBox(AsciiString::TheEmptyString, unicodeStr, true /*bPlaySound*/);
+#else
+                    showNotificationBox(AsciiString::TheEmptyString, unicodeStr);
+#endif
+                }
+            }
+        }
+        m_mapCachedMessages[user_id_to_store].push_back(unicodeStr);
+        
         if (m_cbOnChatMessage != nullptr)
         {
             m_cbOnChatMessage(source_user_id, target_user_id, unicodeStr);
@@ -415,3 +437,4 @@ void NGMP_OnlineServices_SocialInterface::CommitLobbyPlayerListToRecentlyPlayedW
 
 	m_RecentlyPlayedWithTimestamp = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 }
+

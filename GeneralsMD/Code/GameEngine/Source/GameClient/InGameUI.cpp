@@ -1562,6 +1562,14 @@ void InGameUI::handleBuildPlacements( void )
 				v.y = worldEnd.y - worldStart.y;
 				angle = v.toAngle();
 
+                // Use force attack mode to control snapping for convenience
+				if (isInForceAttackMode())
+				{
+					// TheSuperHackers @tweak Stubbjax 04/08/2025 Snap angle to nearest 45 degrees (pi/4 radians)
+					const Real snapRadians = PI / 4.0f;
+					angle = floor((angle / snapRadians) + 0.5f) * snapRadians;
+				}
+
 			}
 
 		}
@@ -6336,4 +6344,5 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
 
