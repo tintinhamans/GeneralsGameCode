@@ -129,6 +129,41 @@ static Int groupRoomToJoin = 0;
 static Int	initialGadgetDelay = 2;
 static Bool justEntered = FALSE;
 
+static int64_t s_lobbyLastChatTimeMs = 0;
+static const int64_t S_LOBBY_CHAT_INTERVAL_MS = 4000; // how long to wait before we allow sending the next message
+
+static bool LobbyChatSlowmodeAllowsSend()
+{
+	using namespace std::chrono;
+
+	int64_t nowMs =
+		duration_cast<milliseconds>(utc_clock::now().time_since_epoch()).count();
+
+	if (nowMs < s_lobbyLastChatTimeMs)
+	{
+		s_lobbyLastChatTimeMs = 0;
+	}
+
+	int64_t delta = nowMs - s_lobbyLastChatTimeMs;
+	if (delta < S_LOBBY_CHAT_INTERVAL_MS)
+	{
+		if (listboxLobbyChat)
+		{
+			GadgetListBoxAddEntryText(
+				listboxLobbyChat,
+				UnicodeString(L"You are sending messages too quickly. Please wait a moment."),
+				GameMakeColor(255, 0, 0, 255),
+				-1,
+				-1
+			);
+		}
+		return false;
+	}
+
+	s_lobbyLastChatTimeMs = nowMs;
+	return true;
+}
+
 #if defined(RTS_DEBUG)
 Bool g_fakeCRC = FALSE;
 Bool g_debugSlots = FALSE;
@@ -2484,6 +2519,10 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					txtInput.trim();
 					if (!txtInput.isEmpty())
 					{
+                        if (!LobbyChatSlowmodeAllowsSend())
+						{
+							break;
+						}
 						// Send the message
 						NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
 						if (pRoomsInterface != nullptr)
@@ -2873,6 +2912,10 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					// Send the message
 					if (!handleLobbySlashCommands(txtInput))
 					{
+                        if (!LobbyChatSlowmodeAllowsSend())
+						{
+							break;
+						}
 						std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
 						if (pWS != nullptr)
 						{
