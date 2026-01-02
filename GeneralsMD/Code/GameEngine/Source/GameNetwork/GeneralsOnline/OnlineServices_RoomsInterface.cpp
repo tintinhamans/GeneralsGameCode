@@ -11,11 +11,18 @@
 WebSocket::WebSocket()
 {
 	m_pMulti = curl_multi_init();
+	m_pHeaders = nullptr;
 }
 
 WebSocket::~WebSocket()
 {
 	Shutdown();
+
+	if (m_pHeaders != nullptr)
+	{
+		curl_slist_free_all(m_pHeaders);
+		m_pHeaders = nullptr;
+	}
 }
 
 int WebSocket::Ping()
@@ -50,6 +57,14 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
         curl_easy_cleanup(m_pCurlWS);
         m_pCurlWS = nullptr;
 	}
+
+    // Free old headers before creating new ones
+	if (m_pHeaders != nullptr)
+	{
+		curl_slist_free_all(m_pHeaders);
+		m_pHeaders = nullptr;
+	}
+
 	m_pCurlWS = curl_easy_init();
 
 	if (m_pCurlWS != nullptr)
@@ -82,15 +97,14 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 			return;
 		}
 
-		struct curl_slist* headers = nullptr;
 		char szHeaderBuffer[8192] = { 0 };
 		sprintf_s(szHeaderBuffer, "Authorization: Bearer %s", pAuthInterface->GetAuthToken().c_str());
-		headers = curl_slist_append(headers, szHeaderBuffer);
+		m_pHeaders = curl_slist_append(m_pHeaders, szHeaderBuffer);
 
         sprintf_s(szHeaderBuffer, "is-reconnect: %s", bIsReconnect ? "true": "false");
-        headers = curl_slist_append(headers, szHeaderBuffer);
+		m_pHeaders = curl_slist_append(m_pHeaders, szHeaderBuffer);
 
-		curl_easy_setopt(m_pCurlWS, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(m_pCurlWS, CURLOPT_HTTPHEADER, m_pHeaders);
 
 		//curl_easy_setopt(m_pCurl, CURLOPT_TIMEOUT_MS, 1000);
 
@@ -144,6 +158,13 @@ void WebSocket::Disconnect()
 		// send close
 		size_t sent;
 		(void)curl_ws_send(m_pCurlWS, "", 0, &sent, 0, CURLWS_CLOSE);
+
+		// release headers
+		if (m_pHeaders != nullptr)
+		{
+			curl_slist_free_all(m_pHeaders);
+			m_pHeaders = nullptr;
+		}
 
 		// cleanup
 		curl_easy_cleanup(m_pCurlWS);

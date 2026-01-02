@@ -679,14 +679,14 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 					buttonBuddies->winSetText(buttonText);
                 }
             });
-    }
 
-    // And also initialize it
-    if (buttonBuddies != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
-    {
-        UnicodeString buttonText;
-        buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), pSocialInterface->GetNumTotalNotifications());
-		buttonBuddies->winSetText(buttonText);
+        // And also initialize it
+        if (buttonBuddies != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
+        {
+            UnicodeString buttonText;
+            buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), pSocialInterface->GetNumTotalNotifications());
+            buttonBuddies->winSetText(buttonText);
+        }
     }
 #endif
 }

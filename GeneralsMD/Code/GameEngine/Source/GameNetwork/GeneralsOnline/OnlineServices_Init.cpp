@@ -916,6 +916,15 @@ void WebSocket::Shutdown()
 	
 	// Disconnect from the websocket
 	Disconnect();
+
+    // Free headers
+
+
+	if (m_pHeaders != nullptr)
+	{
+		curl_slist_free_all(m_pHeaders);
+		m_pHeaders = nullptr;
+	}
 	
 	// Give CURL time to process the disconnect and cease operations
 	// This ensures any background I/O threads have completed before we return
