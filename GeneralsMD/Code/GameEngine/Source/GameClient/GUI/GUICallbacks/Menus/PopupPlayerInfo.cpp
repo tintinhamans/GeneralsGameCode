@@ -268,6 +268,8 @@ RankPoints::RankPoints(void)
 	m_disconnectMultiplier = -1.0f;
 }
 
+RankPoints* TheRankPointValues = NULL;
+
 #if defined(GENERALS_ONLINE)
 void SetLookAtPlayer(int64_t id, UnicodeString nick)
 {
