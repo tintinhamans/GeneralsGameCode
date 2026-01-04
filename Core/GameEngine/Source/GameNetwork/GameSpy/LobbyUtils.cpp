@@ -748,7 +748,19 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	{
 		gameColor = GameSpyColor[GSCOLOR_GAME_CRCMISMATCH];
 	}
+#if defined(GENERALS_ONLINE)
+	// Buddy lobby highlight:
+	if (theBuddyGames && theBuddyGames->count(lobbyInfo.lobbyID))
+	{
+		const bool nonJoinable =
+			(gameColor == GameSpyColor[GSCOLOR_GAME_FULL] ||
+				gameColor == GameSpyColor[GSCOLOR_GAME_CRCMISMATCH]);
 
+		gameColor = nonJoinable
+			? GameMakeColor(0, 98, 130, 255)   // darker cyan
+			: GameMakeColor(20, 177, 255, 255); // lighter cyan
+	}
+#endif
 	std::wstring strOwnerName = L"";
 	for (LobbyMemberEntry& member : lobbyInfo.members)
 	{
