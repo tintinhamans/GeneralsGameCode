@@ -1333,20 +1333,20 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
                         // 4) Map jitter ratio into a slack range based on latency
                         //    Lower latency: tighter slack
                         //    Higher latency: allow more slack to hide jitter
-                        Real minSlack = 0.20f;
-                        Real maxSlack = 0.60f;
+                        Real minSlack = 0.25f;
+                        Real maxSlack = 1.0f;
 
                         if (maxLatMs > 300)
                         {
                             // At high RTT, allow more headroom
                             minSlack = 0.35f;
-                            maxSlack = 0.90f;
+                            maxSlack = 1.0f;
                         }
                         else if (maxLatMs > 200)
                         {
                             // Medium-high latency (200–300 ms)
                             minSlack = 0.30f;
-                            maxSlack = 0.80f;
+                            maxSlack = 1.0f;
                         }
 
                         // Clamp jitterRatio to [0,1] when mapping
@@ -1373,7 +1373,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 #if defined(GENERALS_ONLINE)
 			if (TheNGMPGame != nullptr)
 			{
-				minRunAheadForClamp = 3;
+				minRunAheadForClamp = 4;
 			}
 #endif
 
@@ -1506,6 +1506,17 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 
 Real ConnectionManager::getMaximumLatency()
 {
+    #if defined(GENERALS_ONLINE)
+    if (TheNGMPGame != nullptr)
+    {
+        NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+        if (pMesh != nullptr)
+        {
+            return static_cast<Real>(pMesh->getMaximumLatency()) / 1000.0f;
+        }
+    }
+#endif
+    
 	int latencyLogicModel = 0;
 
 	if (TheNGMPGame != nullptr)
