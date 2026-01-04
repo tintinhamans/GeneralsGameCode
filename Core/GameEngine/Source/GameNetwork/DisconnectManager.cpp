@@ -313,6 +313,14 @@ void DisconnectManager::processDisconnectPlayer(NetCommandMsg *msg, ConnectionMa
 	NetDisconnectPlayerCommandMsg *cmdMsg = (NetDisconnectPlayerCommandMsg *)msg;
 	DEBUG_LOG(("DisconnectManager::processDisconnectPlayer - Got disconnect player command from player %d.  Disconnecting player %d on frame %d", msg->getPlayerID(), cmdMsg->getDisconnectSlot(), cmdMsg->getDisconnectFrame()));
 	DEBUG_ASSERTCRASH(TheGameLogic->getFrame() == cmdMsg->getDisconnectFrame(), ("disconnecting player on the wrong frame!!!"));
+    	Int slot = cmdMsg->getDisconnectSlot();
+
+	// if this is a self initiated quit (Quit button on DC menu),
+	// send a destroy-player command so assets are removed.
+	if (cmdMsg->getPlayerID() == slot) {
+		// sendPlayerDestruct assumes we are (or we will become) the router.
+		sendPlayerDestruct(slot, conMgr);
+	}
 	disconnectPlayer(cmdMsg->getDisconnectSlot(), conMgr);
 }
 
