@@ -625,6 +625,7 @@ void createGame( void )
 #if defined(GENERALS_ONLINE)
 	// TODO_NGMP: Support 'favorite map' again
 	AsciiString defaultMap = getDefaultMap(true);
+    CustomMatchPreferences pref;
 	AsciiString storedMap = pref.getAsciiString("Map", AsciiString::TheEmptyString);
 	if (!storedMap.isEmpty())
 	{
@@ -715,4 +716,5 @@ void createGame( void )
 	TheGameSpyPeerMessageQueue->addRequest(req);
 #endif
 }
+
 
