@@ -704,3 +704,4 @@ void createGame( void )
 	TheGameSpyPeerMessageQueue->addRequest(req);
 #endif
 }
+
