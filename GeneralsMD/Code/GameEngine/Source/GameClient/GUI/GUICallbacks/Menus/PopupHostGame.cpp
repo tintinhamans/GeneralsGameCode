@@ -333,7 +333,18 @@ void PopupHostGameInit( WindowLayout *layout, void *userData )
 	UnicodeString name;
 
 #if defined(GENERALS_ONLINE)
-	name.translate("Generals Online Lobby");
+	{
+		CustomMatchPreferences pref;
+		AsciiString lastLobbyName = pref.getLastLobbyName();
+		if (!lastLobbyName.isEmpty())
+		{
+			name.translate(lastLobbyName.str());
+		}
+		else
+		{
+			name.translate("Generals Online Lobby");
+		}
+	}
 #else
 	name.translate(TheGameSpyInfo->getLocalName());
 #endif
@@ -595,6 +606,25 @@ WindowMsgHandledType PopupHostGameSystem( GameWindow *window, UnsignedInt msg, W
 						name = L"Generals Online Lobby";
 					}
 				}
+#if defined(GENERALS_ONLINE)
+				// save last used lobby name to CustomPref.ini
+				{
+					char buffer[256];
+					const WideChar* w = name.str();
+					int i = 0;
+					for (; w[i] != 0 && i < 255; ++i)
+					{
+						buffer[i] = (char)(w[i] & 0xFF);
+					}
+					buffer[i] = 0;
+
+					AsciiString lobbyNameAscii = buffer;
+
+					CustomMatchPreferences pref;
+					pref.setLastLobbyName(lobbyNameAscii);
+					pref.write();
+				}
+#endif
 				createGame();
 				parentPopup = NULL;
 				GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
@@ -704,4 +734,5 @@ void createGame( void )
 	TheGameSpyPeerMessageQueue->addRequest(req);
 #endif
 }
+
 
