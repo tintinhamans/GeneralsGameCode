@@ -1941,7 +1941,7 @@ void Weapon::computeBonus(const Object *source, WeaponBonusConditionFlags extraB
      strcmp(weaponName, "QuadCannonGunUpgradeTwo") == 0 ||
      strcmp(weaponName, "QuadCannonGunUpgradeTwoAir") == 0))
      {
-     bonus.setField(WeaponBonus::RATE_OF_FIRE, 1.30f);
+     bonus.setField(WeaponBonus::RATE_OF_FIRE, 1.25f);
      }
 #endif
 }
@@ -3637,5 +3637,6 @@ void WeaponBonusSet::appendBonuses(WeaponBonusConditionFlags flags, WeaponBonus&
 		this->m_bonus[i].appendBonuses(bonus);
 	}
 }
+
 
 
