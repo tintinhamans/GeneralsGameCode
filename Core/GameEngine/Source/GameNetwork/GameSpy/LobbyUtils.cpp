@@ -104,7 +104,7 @@ static std::map<int, GameRowAnim> g_gameListAnim;
 // initialize the smoothed index for this lobbyID
 static float UpdateAndGetGameRowIndex(int lobbyID, float logicalIndex)
 {
-    GameRowAnim& anim = g_gameRowAnim[lobbyID];
+    GameRowAnim& anim = g_gameListAnim[lobbyID];
 
     if (!anim.alive)
     {
