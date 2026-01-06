@@ -410,12 +410,12 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 				// setup the Clip Region size
 
 				columnRegion.lo.x = columnX;
-				columnRegion.lo.y = drawY;
+				columnRegion.lo.y = rowDrawY;
 				if(list->columns == 1 && list->slider && list->slider->winIsHidden())
 					columnRegion.hi.x = columnX + width-3;
 				else
 					columnRegion.hi.x = columnX + list->columnWidth[j];
-				columnRegion.hi.y = drawY + list->listData[i].height;
+				columnRegion.hi.y = rowDrawY + list->listData[i].height;
 				if(columnRegion.lo.y < clipRegion.lo.y )
 					columnRegion.lo.y = clipRegion.lo.y;
 				if( columnRegion.hi.y > clipRegion.hi.y )
@@ -451,7 +451,7 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 						// set clip region and draw
 						string->setClipRegion( &columnRegion );
 						string->draw( columnX + TEXT_X_OFFSET,
-													drawY,
+													rowDrawY,
 													textColor,
 													dropColor );
 					}
