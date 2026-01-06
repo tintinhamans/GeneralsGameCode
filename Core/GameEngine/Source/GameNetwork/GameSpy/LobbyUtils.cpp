@@ -96,39 +96,35 @@ enum {
 #endif
 
 // ---------------------------------------------------------------------------
-// Game list row animation
+// row entry animation
 // ---------------------------------------------------------------------------
 
 static std::map<int, GameRowAnim> g_gameListAnim;
 
-// Update or initialize the smoothed index for this lobbyID
+// initialize the smoothed index for this lobbyID
 static float UpdateAndGetGameRowIndex(int lobbyID, float logicalIndex)
 {
-	GameRowAnim& anim = g_gameListAnim[lobbyID];
+    GameRowAnim& anim = g_gameRowAnim[lobbyID];
 
-	// First time we see this ID, snap current to logical
-	if (!anim.alive)
-	{
-		anim.currentIndex = logicalIndex;
-		anim.targetIndex = logicalIndex;
-		anim.alive = true;
-	}
+    if (!anim.alive)
+    {
+        // start slightly below, then glide into place
+        anim.currentIndex = logicalIndex + 1.5f;
+        anim.targetIndex  = logicalIndex;
+        anim.alive        = true;
+    }
+    else
+    {
+        anim.targetIndex = logicalIndex;
+    }
 
-	// Move target to the new logical index
-	anim.targetIndex = logicalIndex;
+    // how fast to snap into place
+    const float t = 0.1f; 
 
-	const float t = 0.25f; // smoothing factor
+    float delta = anim.targetIndex - anim.currentIndex;
+    anim.currentIndex += delta * t;
 
-	float delta = anim.targetIndex - anim.currentIndex;
-	anim.currentIndex += delta * t;
-
-	// If close enough, snap
-	if (std::fabs(anim.currentIndex - anim.targetIndex) < 0.01f)
-	{
-		anim.currentIndex = anim.targetIndex;
-	}
-
-	return anim.currentIndex;
+    return anim.currentIndex;
 }
 
 // Clears animation state for IDs that no longer exist
