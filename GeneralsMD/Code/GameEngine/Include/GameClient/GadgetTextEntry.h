@@ -121,3 +121,17 @@ inline Color GadgetTextEntryGetHiliteColor( GameWindow *g )								{ return g->w
 inline Color GadgetTextEntryGetHiliteBorderColor( GameWindow *g )					{ return g->winGetHiliteBorderColor( 0 ); }
 
 // EXTERNALS //////////////////////////////////////////////////////////////////
+
+struct GameRowAnim
+{
+	float currentIndex;
+	float targetIndex;
+	bool  alive;
+
+	GameRowAnim()
+		: currentIndex(0.0f)
+		, targetIndex(0.0f)
+		, alive(false)
+	{
+	}
+};
