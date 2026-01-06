@@ -95,6 +95,74 @@ enum {
 };
 #endif
 
+// ---------------------------------------------------------------------------
+// Game list row animation
+// ---------------------------------------------------------------------------
+struct GameRowAnim
+{
+	float currentIndex;
+	float targetIndex;
+	bool  alive;
+
+	GameRowAnim()
+		: currentIndex(0.0f)
+		, targetIndex(0.0f)
+		, alive(false)
+	{
+	}
+};
+
+static std::map<int, GameRowAnim> g_gameListAnim;
+
+// Update or initialize the smoothed index for this lobbyID
+static float UpdateAndGetGameRowIndex(int lobbyID, float logicalIndex)
+{
+	GameRowAnim& anim = g_gameListAnim[lobbyID];
+
+	// First time we see this ID, snap current to logical
+	if (!anim.alive)
+	{
+		anim.currentIndex = logicalIndex;
+		anim.targetIndex = logicalIndex;
+		anim.alive = true;
+	}
+
+	// Move target to the new logical index
+	anim.targetIndex = logicalIndex;
+
+	const float t = 0.25f; // smoothing factor
+
+	float delta = anim.targetIndex - anim.currentIndex;
+	anim.currentIndex += delta * t;
+
+	// If close enough, snap
+	if (std::fabs(anim.currentIndex - anim.targetIndex) < 0.01f)
+	{
+		anim.currentIndex = anim.targetIndex;
+	}
+
+	return anim.currentIndex;
+}
+
+// Clears animation state for IDs that no longer exist
+static void CleanupMissingGameRows(const std::vector<LobbyEntry>& lobbies)
+{
+	std::map<int, bool> stillPresent;
+
+	for (const LobbyEntry& lobby : lobbies)
+	{
+		stillPresent[lobby.lobbyID] = true;
+	}
+
+	for (auto it = g_gameListAnim.begin(); it != g_gameListAnim.end(); )
+	{
+		if (stillPresent.find(it->first) == stillPresent.end())
+			it = g_gameListAnim.erase(it);
+		else
+			++it;
+	}
+}
+
 static NameKeyType buttonSortAlphaID = NAMEKEY_INVALID;
 static NameKeyType buttonSortPingID = NAMEKEY_INVALID;
 static NameKeyType buttonSortBuddiesID = NAMEKEY_INVALID;
@@ -1158,6 +1226,12 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 				{
 					LobbyEntry lobby = *sglIt;
 
+                    // Logical index for this entry in the new sorted list
+					float logicalIndex = (float)i;
+
+					// register/update animation index for this lobbyID
+					UpdateAndGetGameRowIndex(lobby.lobbyID, logicalIndex);
+
 					Int index = insertGame(win, lobby, showMap);
 					if (lobby.lobbyID == selectedID)
 					{
@@ -1295,6 +1369,30 @@ void RefreshGameInfoListBox( GameWindow *mainWin, GameWindow *win )
 //	}
 
 }
+
+// ---------------------------------------------------------------------------
+// compute pixel offset for a game list row
+// ---------------------------------------------------------------------------
+int GetGameListRowPixelOffsetForRow(GameWindow* window, int rowIndex, int rowHeight)
+{
+	if (!window)
+		return 0;
+
+	// We rely on listbox item data storing lobbyID, like RefreshGameListBox uses
+	Int lobbyID = (Int)GadgetListBoxGetItemData(window, rowIndex);
+	if (lobbyID == 0)
+		return 0;
+
+	// Get smoothed "visual index" for this lobbyID
+	float visualIndex = UpdateAndGetGameRowIndex(lobbyID, (float)rowIndex);
+
+	// Offset = (visualIndex - logicalIndex) * rowHeight
+	float offsetRows = visualIndex - (float)rowIndex;
+	int pixelOffset = (int)(offsetRows * (float)rowHeight);
+
+	return pixelOffset;
+}
+
 
 void RefreshGameListBoxes( void )
 {
