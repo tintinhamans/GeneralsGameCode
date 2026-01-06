@@ -98,19 +98,6 @@ enum {
 // ---------------------------------------------------------------------------
 // Game list row animation
 // ---------------------------------------------------------------------------
-struct GameRowAnim
-{
-	float currentIndex;
-	float targetIndex;
-	bool  alive;
-
-	GameRowAnim()
-		: currentIndex(0.0f)
-		, targetIndex(0.0f)
-		, alive(false)
-	{
-	}
-};
 
 static std::map<int, GameRowAnim> g_gameListAnim;
 
