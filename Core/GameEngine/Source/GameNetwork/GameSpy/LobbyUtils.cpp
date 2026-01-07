@@ -616,19 +616,43 @@ static void clearBuddyGames(void)
 }
 
 #if defined(GENERALS_ONLINE)
+
+// Can we join this lobby?
+static bool IsLobbyJoinable(const LobbyEntry& g)
+{
+	const Bool isFull =
+		(g.current_players == g.max_players || g.current_players == MAX_SLOTS);
+
+	const Bool hasCrcMismatch =
+		(g.exe_crc != TheGlobalData->m_exeCRC ||
+			g.ini_crc != TheGlobalData->m_iniCRC);
+
+	return !isFull && !hasCrcMismatch;
+}
+
+#endif
+
+#if defined(GENERALS_ONLINE)
 struct GameSortStruct
 {
 	bool operator()(const LobbyEntry& g1, const LobbyEntry& g2) const
 	{
-		// sort CRC mismatches to the bottom
-		Bool g1Good = (g1.exe_crc != TheGlobalData->m_exeCRC || g1.ini_crc != TheGlobalData->m_iniCRC);
-		Bool g2Good = (g1.exe_crc != TheGlobalData->m_exeCRC || g1.ini_crc != TheGlobalData->m_iniCRC);
-		if (g1Good ^ g2Good)
+		const bool g1Join = IsLobbyJoinable(g1);
+		const bool g2Join = IsLobbyJoinable(g2);
+
+		if (g1Join != g2Join)
+			return g1Join && !g2Join;
+
+		if (sortBuddies)
 		{
-			return g1Good;
+			const bool g1Buddy = (theBuddyGames && theBuddyGames->count(g1.lobbyID));
+			const bool g2Buddy = (theBuddyGames && theBuddyGames->count(g2.lobbyID));
+
+			if (g1Buddy != g2Buddy)
+				return g1Buddy && !g2Buddy;
 		}
 
-		// NOTE: GO currently does not have private ladders, so this check is moot
+        // NOTE: GO currently does not have private ladders, so this check is moot
 		/*
 		// sort games with private ladders to the bottom
 		Bool g1UnknownLadder = (g1->getLadderPort() && TheLadderList->findLadder(g1->getLadderIP(), g1->getLadderPort()) == NULL);
@@ -639,39 +663,10 @@ struct GameSortStruct
 		}
 		*/
 
-		// sort full games to the bottom
-		Bool g1Full = (g1.current_players == g1.max_players || g1.current_players == MAX_SLOTS);
-		Bool g2Full = (g2.current_players == g2.max_players || g2.current_players == MAX_SLOTS);
-		if (g1Full ^ g2Full)
-		{
-			return g2Full;
-		}
+		// 3) Newest first
+		if (g1.lobbyID != g2.lobbyID)
+			return g1.lobbyID > g2.lobbyID;
 
-		if (sortBuddies)
-		{
-			Bool g1HasBuddies = (theBuddyGames->find(g1.lobbyID) != theBuddyGames->end());
-			Bool g2HasBuddies = (theBuddyGames->find(g2.lobbyID) != theBuddyGames->end());
-			if (g1HasBuddies ^ g2HasBuddies)
-			{
-				return g1HasBuddies;
-			}
-		}
-
-		switch (theGameSortType)
-		{
-		case GAMESORT_ALPHA_ASCENDING:
-			return wcsicmp(from_utf8(g1.name).c_str(), from_utf8(g2.name).c_str()) < 0;
-			break;
-		case GAMESORT_ALPHA_DESCENDING:
-			return wcsicmp(from_utf8(g1.name).c_str(), from_utf8(g2.name).c_str()) > 0;
-			break;
-		case GAMESORT_PING_ASCENDING:
-			return g1.latency < g2.latency;
-			break;
-		case GAMESORT_PING_DESCENDING:
-			return g1.latency > g2.latency;
-			break;
-		}
 		return false;
 	}
 };
