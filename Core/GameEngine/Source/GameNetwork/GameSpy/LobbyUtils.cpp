@@ -109,7 +109,7 @@ static float UpdateAndGetGameRowIndex(int lobbyID, float logicalIndex)
     if (!anim.alive)
     {
         // start slightly below, then glide into place
-        anim.currentIndex = logicalIndex + 1.5f;
+        anim.currentIndex = logicalIndex + 0.3f;
         anim.targetIndex  = logicalIndex;
         anim.alive        = true;
     }
@@ -1366,8 +1366,10 @@ int GetGameListRowPixelOffsetForRow(GameWindow* window, int rowIndex, int rowHei
 	if (lobbyID == 0)
 		return 0;
 
+    int animKey = lobbyID * 1024 + rowIndex;
+
 	// Get smoothed "visual index" for this lobbyID
-	float visualIndex = UpdateAndGetGameRowIndex(lobbyID, (float)rowIndex);
+	float visualIndex = UpdateAndGetGameRowIndex(animKey, (float)rowIndex);
 
 	// Offset = (visualIndex - logicalIndex) * rowHeight
 	float offsetRows = visualIndex - (float)rowIndex;
