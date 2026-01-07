@@ -567,7 +567,10 @@ void CancelPatchCheckCallbackAndReopenDropdown( void )
 	CancelPatchCheckCallback();
 
 	// Patch was cancelled, tear us down
-	NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+	if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
+	{
+		NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+	}
 }
 
 void CancelPatchCheckCallback( void )
@@ -840,13 +843,27 @@ void StopAsyncDNSCheck( void )
 
 void StartPatchCheck( void )
 {
+
+    checkingForPatchBeforeGameSpy = TRUE;
+    cantConnectBeforeOnline = FALSE;
+    timeThroughOnline++;
+    checksLeftBeforeOnline = 0;
+
+    SYSTEM_INFO SystemInfo;
+    GetSystemInfo(&SystemInfo);
+
+	bool bIsARMArchitecture = SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM || SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM64 || SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM32_ON_WIN64;
+	if (bIsARMArchitecture)
+	{
+        MessageBoxOk(TheGameText->fetchOrSubstitute("GUI:NoARMSupportHeader", L"Unsupported System"),
+            TheGameText->fetchOrSubstitute("GUI:NoARMSupport", L"GeneralsOnline does not support ARM processors"),
+            CancelPatchCheckCallbackAndReopenDropdown);
+
+		return;
+	}
+
 	// GENERALS ONLINE
 	NGMP_OnlineServicesManager::CreateInstance();
-
-	checkingForPatchBeforeGameSpy = TRUE;
-	cantConnectBeforeOnline = FALSE;
-	timeThroughOnline++;
-	checksLeftBeforeOnline = 0;
 
 	onlineCancelWindow = MessageBoxCancel(TheGameText->fetch("GUI:CheckingForPatches"),
 		TheGameText->fetch("GUI:CheckingForPatches"), CancelPatchCheckCallbackAndReopenDropdown);
