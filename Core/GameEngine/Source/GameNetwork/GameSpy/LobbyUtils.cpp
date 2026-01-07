@@ -1366,7 +1366,20 @@ int GetGameListRowPixelOffsetForRow(GameWindow* window, int rowIndex, int rowHei
 	if (lobbyID == 0)
 		return 0;
 
-    int animKey = lobbyID * 1024 + rowIndex;
+    GameWindow* mainGameList = GetGameListBox();
+
+    int animKey;
+    if (window == mainGameList)
+    {
+        // For the main game list: use lobbyID
+        animKey = lobbyID;
+    }
+    else
+    {
+        // For all other lists: keep per row key to avoid overlap
+        animKey = lobbyID * 1024 + rowIndex;
+    }
+
 
 	// Get smoothed "visual index" for this lobbyID
 	float visualIndex = UpdateAndGetGameRowIndex(animKey, (float)rowIndex);
