@@ -201,6 +201,10 @@ static NameKeyType buttonEmoteID = NAMEKEY_INVALID;
 static NameKeyType buttonSelectMapID = NAMEKEY_INVALID;
 static NameKeyType windowMapID = NAMEKEY_INVALID;
 
+#if defined(GENERALS_ONLINE_ENABLE_MATCH_START_COUNTDOWN)
+static bool s_matchStartCountdownWasRunning = false;
+#endif
+
 static NameKeyType windowMapSelectMapID = NAMEKEY_INVALID;
 static NameKeyType checkBoxUseStatsID = NAMEKEY_INVALID;
 static NameKeyType checkBoxLimitSuperweaponsID = NAMEKEY_INVALID;
@@ -1095,6 +1099,8 @@ static void StartPressed(void)
 
 						// reset autostart just incase
 						pLobbyInterface->ClearAutoReadyCountdown();
+						if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+							TheNGMPGame->StopCountdown();
 
 						//PeerRequest req;
 						//req.peerRequestType = PeerRequest::PEERREQUEST_STARTGAME;
@@ -2385,6 +2391,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 	{
 		if (TheNGMPGame->IsCountdownStarted())
 		{
+			s_matchStartCountdownWasRunning = true;
 			const int64_t timeBetweenChecks = 1000;
 			int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
@@ -2421,6 +2428,26 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 					{
 						pWS->SendData_StartGame();
 					}
+				}
+			}
+		}
+		else
+		{
+			// countdown is currently NOT running.
+			// If it was running before, it just got cancelled or finished.
+			if (s_matchStartCountdownWasRunning)
+			{
+				s_matchStartCountdownWasRunning = false;
+
+				// Re-enable Back and Start buttons when countdown stops
+				if (buttonBack != nullptr)
+				{
+					buttonBack->winEnable(TRUE);
+				}
+
+				if (buttonStart != nullptr)
+				{
+					buttonStart->winEnable(TRUE);
 				}
 			}
 
@@ -3789,6 +3816,8 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 
 								// // TODO_NGMP
 								//TheGameSpyInfo->setGameOptions();
+								if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+									TheNGMPGame->StopCountdown();
 								WOLDisplaySlotList();
 								//TheLAN->OnPlayerLeave(name);
 							}
@@ -3798,6 +3827,8 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 								myGame->getSlot(i)->setState(SlotState(pos));
 								Bool isAI = (myGame->getSlot(i)->isAI());
 								myGame->resetAccepted();
+								if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+									TheNGMPGame->StopCountdown();
 								if (wasAI ^ isAI)
 									PopulatePlayerTemplateComboBox(i, comboBoxPlayerTemplate, myGame, wasAI && myGame->getAllowObservers());
 
