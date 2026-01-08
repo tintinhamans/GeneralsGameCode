@@ -955,7 +955,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 								// no host migration in QM since it doesn't even have a lobby
 								if (lobbyEntry.lobby_type != ELobbyType::QuickMatch)
 								{
-									m_bHostMigrated = false;
+									m_bHostMigrated = true;
 								}
 							}
 
