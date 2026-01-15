@@ -298,6 +298,28 @@ void PopulatePlayerTemplateComboBox(Int comboBox, GameWindow *comboArray[], Game
 
 // -----------------------------------------------------------------------------
 
+// team colors for UI (team combo + minimap start positions).
+UnsignedInt GetTeamUiColor(Int teamNumber)
+{
+    switch (teamNumber)
+    {
+        case 0:
+            return GameMakeColor(255, 60, 60, 255);   // Red
+
+        case 1:
+            return GameMakeColor(60, 255, 60, 255);   // Green
+
+        case 2:
+            return GameMakeColor(60, 120, 255, 255);  // Blue
+
+        case 3:
+            return GameMakeColor(255, 220, 60, 255);  // Yellow
+    }
+
+    // Default: white (none) 
+    return GameMakeColor(255, 255, 255, 255);
+}
+
 void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool isObserver)
 {
 	Int numTeams = MAX_SLOTS/2;
@@ -320,10 +342,10 @@ void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGa
 		AsciiString teamStr;
 		teamStr.format("Team:%d", c + 1);
 		teamName = TheGameText->fetch(teamStr.str());
-		newIndex = GadgetComboBoxAddEntry(comboArray[comboBox], teamName, def->getColor());
-		GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
-	}
-	GadgetComboBoxSetSelectedPos(comboArray[comboBox], 0);
+        UnsignedInt teamColor = GetTeamUiColor(c);
+        newIndex = GadgetComboBoxAddEntry(comboArray[comboBox],teamName,teamColor);
+        GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -530,3 +552,4 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 }
 
 // -----------------------------------------------------------------------------
+

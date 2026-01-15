@@ -70,6 +70,7 @@
 #include "GameNetwork/IPEnumeration.h"
 #include "WWDownload/Registry.h"
 
+UnsignedInt GetTeamUiColor(Int teamNumber);
 
 SkirmishGameInfo *TheSkirmishGameInfo = NULL;
 
@@ -869,25 +870,53 @@ void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[
 		GameSlot *gs =myGame->getSlot(i);
 		if(onLoadScreen)
 		{
-			if(gs->getApparentStartPos() >=0 && gs->getApparentStartPos() < mmd.m_numPlayers && gs->getPlayerTemplate() > PLAYERTEMPLATE_MIN )
-			{
-				AsciiString displayNumber;
-				displayNumber.format("NUMBER:%d",i + 1);
-				GadgetButtonSetText(buttonMapStartPositions[gs->getApparentStartPos()], TheGameText->fetch(displayNumber));
-			}
+			Int startPos = gs->getApparentStartPos();
+			GameWindow* btn = buttonMapStartPositions[startPos];
+			if (!btn)
+				continue;
+
+			AsciiString displayNumber;
+			displayNumber.format("NUMBER:%d", i + 1);
+			GadgetButtonSetText(btn, TheGameText->fetch(displayNumber));
+
+			UnsignedInt col = (gs->getTeamNumber() >= 0)
+				? GetTeamUiColor(gs->getTeamNumber())
+				: GameMakeColor(255, 255, 255, 255);
+
+			GadgetTextEntrySetTextColor(btn, col);
 		}
 		else
 		{
-			if(gs->getStartPos() >=0 && gs->getStartPos() < mmd.m_numPlayers && gs->getPlayerTemplate() > PLAYERTEMPLATE_MIN )
+			if (gs->getStartPos() >= 0 &&
+				gs->getStartPos() < mmd.m_numPlayers &&
+				gs->getPlayerTemplate() > PLAYERTEMPLATE_MIN)
 			{
+				Int startPos = gs->getStartPos();
+				GameWindow* btn = buttonMapStartPositions[startPos];
+				if (!btn)
+					continue;
+
 				AsciiString displayNumber;
-				displayNumber.format("NUMBER:%d",i + 1);
-				GadgetButtonSetText(buttonMapStartPositions[gs->getStartPos()], TheGameText->fetch(displayNumber));
-				//added start position tooltip
-				//Fixed again to show the right number , ie "i + 1"
+				displayNumber.format("NUMBER:%d", i + 1);
+				GadgetButtonSetText(btn, TheGameText->fetch(displayNumber));
+
 				UnicodeString temp;
 				temp.format(TheGameText->fetch("TOOLTIP:StartPositionN"), i + 1);
-				buttonMapStartPositions[gs->getStartPos()]->winSetTooltip(temp);
+				btn->winSetTooltip(temp);
+
+				Int team = gs->getTeamNumber();
+				UnsignedInt col;
+				if (team >= 0)
+				{
+					col = GetTeamUiColor(team);
+				}
+				else
+				{
+					// No team: default to white
+					col = GameMakeColor(255, 255, 255, 255);
+				}
+                
+				GadgetTextEntrySetTextColor(btn, col);
 			}
 		}
 	}
