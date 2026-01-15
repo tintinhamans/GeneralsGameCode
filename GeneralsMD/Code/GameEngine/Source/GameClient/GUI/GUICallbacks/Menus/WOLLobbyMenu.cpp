@@ -1409,6 +1409,7 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 						// refresh on join
 						refreshPlayerList(TRUE);
 
+						refreshGameList(TRUE);
 						RefreshGameListBoxes();
 
 						populateGroupRoomListbox(comboLobbyGroupRooms);

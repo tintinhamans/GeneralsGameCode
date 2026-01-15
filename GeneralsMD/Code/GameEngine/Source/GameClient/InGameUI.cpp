@@ -6444,7 +6444,7 @@ void InGameUI::drawNetworkLatency(Int &x, Int &y)
 	const UnsignedInt actualFrames = ConvertMSLatencyToFrames(actualLatencyInMS);
 	const UnsignedInt gentoolFrames = ConvertMSLatencyToGenToolFrames(actualLatencyInMS);
 
-	bool bIsSelfSlugged = TheNetwork->IsSlugging();
+	//bool bIsSelfSlugged = TheNetwork->IsSlugging();
 
 	if (gentoolFrames != m_lastNetworkLatencyFrames)
 	{
@@ -6452,11 +6452,11 @@ void InGameUI::drawNetworkLatency(Int &x, Int &y)
 
 		if (actualFrames != gentoolFrames)
 		{
-			latencyStr.format(L"%u [%ums|%u][L: %u%s]", gentoolFrames, actualLatencyInMS, actualFrames, TheNetwork->getFrameRate(), bIsSelfSlugged ? L" SLOWED" : L"");
+			latencyStr.format(L"%u [%ums|%u][L: %u]", gentoolFrames, actualLatencyInMS, actualFrames, TheNetwork->getFrameRate());
 		}
 		else
 		{
-			latencyStr.format(L"%u [%ums][L: %u%s]", gentoolFrames, actualLatencyInMS, TheNetwork->getFrameRate(), bIsSelfSlugged ? L" SLOWED" : L"");
+			latencyStr.format(L"%u [%ums][L: %u]", gentoolFrames, actualLatencyInMS, TheNetwork->getFrameRate());
 		}
 		m_networkLatencyString->setText(latencyStr);
 		m_lastNetworkLatencyFrames = gentoolFrames;
