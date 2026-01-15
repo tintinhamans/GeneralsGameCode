@@ -1122,6 +1122,14 @@ InGameUI::InGameUI()
 	m_gameTimeColor = GameMakeColor( 255, 255, 255, 255 );
 	m_gameTimeDropColor = GameMakeColor( 0, 0, 0, 255 );
 
+	// Observer Stats Overlay
+	m_observerStatsString = NULL;
+	m_observerStatsFont = "Tahoma";
+	m_observerStatsPointSize = 10;
+	m_observerStatsBold = TRUE;
+	m_observerStatsPosition.x = kHudAnchorX;
+	m_observerStatsPosition.y = kHudAnchorY;
+
 #if defined(GENERALS_ONLINE)
 	m_colorGood = GameMakeColor(0, 255, 0, 150);
 	m_colorBad = GameMakeColor(255, 0, 0, 150);
@@ -2209,6 +2217,8 @@ void InGameUI::freeCustomUiResources( void )
 	m_gameTimeString = NULL;
 	TheDisplayStringManager->freeDisplayString(m_gameTimeFrameString);
 	m_gameTimeFrameString = NULL;
+	TheDisplayStringManager->freeDisplayString(m_observerStatsString);
+	m_observerStatsString = NULL;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3725,6 +3735,12 @@ void InGameUI::postWindowDraw( void )
 	{
 		drawGameTime();
 	}
+	hudOffsetX = 0;
+	hudOffsetY += 250;
+
+	if (m_observerStatsPointSize > 0)
+		drawObserverStats(hudOffsetX, hudOffsetY);
+
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -5959,12 +5975,326 @@ void InGameUI::recreateControlBar( void )
 	TheControlBar->init();
 }
 
+void InGameUI::drawObserverStats(Int& x, Int& y)
+{
+	// game state checks
+	GameWindow* moneyWin = TheWindowManager->winGetWindowFromId(NULL,
+		TheNameKeyGenerator->nameToKey("ControlBar.wnd:MoneyDisplay"));
+	if (moneyWin && !moneyWin->winIsHidden())
+		return;
+
+	if (!TheInGameUI->getInputEnabled() || TheGameLogic->isIntroMoviePlaying() ||
+		TheGameLogic->isLoadingMap() || TheInGameUI->isQuitMenuVisible())
+		return;
+
+	Player* localPlayer = ThePlayerList->getLocalPlayer();
+	if (!localPlayer || (TheGameLogic && TheGameLogic->getFrame() <= 1))
+		return;
+
+	Bool isObserver = localPlayer->isPlayerObserver();
+	Bool isDefeated = TheVictoryConditions && TheVictoryConditions->hasSinglePlayerBeenDefeated(localPlayer);
+	if (!isObserver && !isDefeated)
+		return;
+
+	if (!isAtHudAnchorPos(m_observerStatsPosition) || m_observerStatsHidden)
+		return;
+
+	if (!m_observerStatsString)
+		m_observerStatsString = TheDisplayStringManager->newDisplayString();
+
+	// Screen info
+	Int screenW = TheDisplay->getWidth();
+	Int screenH = TheDisplay->getHeight();
+	Real scale = (Real)screenW / 1920.0f;
+	scale = (scale < 0.7f) ? 0.7f : (scale > 2.0f) ? 2.0f : scale;
+
+	static const Int numCols = 8;
+	static const wchar_t* headers[numCols] = {
+		L"(T) Name", L"Army", L"Cash", L"Cash/m", L"XP", L"K/D", L"SP", L"Power"
+	};
+
+	static UnsignedInt lastUpdateFrame = 0;
+	static Int lastFontSize = -1;
+	static std::vector<PlayerData> players;
+	static std::vector<DisplayString*> headerStrings;
+	static std::vector<DisplayString*> cellStrings;
+	static Int colWidths[numCols] = { 0 };
+	static Int totalWidth = 0;
+	static Int totalHeight = 0;
+
+	UnsignedInt currentFrame = TheGameLogic ? TheGameLogic->getFrame() : 0;
+	Bool needUpdate = (lastUpdateFrame == 0) ||
+		(currentFrame - lastUpdateFrame >= LOGICFRAMES_PER_SECOND) ||
+		(lastFontSize != TheWritableGlobalData->m_observerStatsFontSize);
+
+	// ====================================================================
+	// UPDATE: gather data, format strings, measure layout
+	// ====================================================================
+	if (needUpdate) {
+		lastUpdateFrame = currentFrame;
+		lastFontSize = TheGlobalData->m_observerStatsFontSize;
+		refreshObserverStatsResources();
+
+		// Gather player data
+		players.clear();
+		players.reserve(MAX_PLAYER_COUNT);
+
+		// These are system players we want to skip
+		static const char* EXCLUDED_NAMES[] = {
+			"PlyrCivilian", "PlyrAmerica", "PlyrChina", "PlyrGLA", "Paradrops",
+			"PlyrChinaTankGeneral", "PlyrAmericaLaserGeneral", "PlyrAmericaAirForceGeneral",
+			"UncloakedGLA", "PlyrAmericaAirForce", "PlyrChinaTank", "PlyrNeutral"
+		};
+
+		for (Int i = 0; i < MAX_PLAYER_COUNT; ++i) {
+			Player* p = ThePlayerList->getNthPlayer(i);
+			if (!p || !p->isPlayerActive())
+				continue;
+
+			UnicodeString name = p->getPlayerDisplayName();
+			if (name.isEmpty())
+				continue;
+
+			// Skip system players
+			AsciiString asciiName;
+			asciiName.translate(name);
+			bool skip = false;
+			for (const char* excluded : EXCLUDED_NAMES) {
+				if (asciiName == excluded) {
+					skip = true;
+					break;
+				}
+			}
+			if (skip) continue;
+
+			// Truncate long names
+			if (name.getLength() > 8) {
+				UnicodeString tmp;
+				tmp.format(L"%.*ls.", 8, name.str());
+				name = tmp;
+			}
+
+			// Find team
+			Int team = -1;
+			if (TheGameInfo) {
+				for (Int s = 0; s < MAX_SLOTS; ++s) {
+					const GameSlot* slot = TheGameInfo->getConstSlot(s);
+					if (slot && slot->isOccupied() && slot->isPlayer(name)) {
+						team = slot->getTeamNumber();
+						break;
+					}
+				}
+			}
+
+			// Gather stats
+			Money* money = p->getMoney();
+			ScoreKeeper* sk = p->getScoreKeeper();
+			const Energy* energy = p->getEnergy();
+			Int kills = sk ? sk->getTotalUnitsDestroyed() : 0;
+			Int deaths = sk ? sk->getTotalUnitsLost() : 0;
+			Real kd = deaths > 0 ? (Real)kills / deaths : (Real)kills;
+
+			// Faction abbreviations, we don't want to show full army names like that
+			AsciiString side = p->getSide();
+			UnicodeString faction;
+			if (side == "AmericaAirForceGeneral") faction = L"AFG";
+			else if (side == "ChinaTankGeneral") faction = L"Tank";
+			else if (side == "GLAStealthGeneral") faction = L"Stealth";
+			else if (side == "America") faction = L"USA";
+			else if (side == "GLAToxinGeneral") faction = L"Tox";
+			else if (side == "GLADemolitionGeneral") faction = L"Demo";
+			else if (side == "ChinaInfantryGeneral") faction = L"Inf";
+			else if (side == "ChinaNukeGeneral") faction = L"Nuke";
+			else if (side == "AmericaSuperWeaponGeneral") faction = L"SWG";
+			else if (side == "AmericaLaserGeneral") faction = L"Laser";
+			else faction.translate(side);
+
+			Bool hasPower = energy && (energy->getProduction() > 0 || energy->getConsumption() > 0);
+			Int powerDelta = energy ? (energy->getProduction() - energy->getConsumption()) : 0;
+
+			players.push_back({
+				name, faction, team,
+				money ? money->countMoney() : 0,
+				money ? money->getCashPerMinute() : 0,
+				p->getSkillPoints(), kd,
+				p->getSciencePurchasePoints(),
+				powerDelta, hasPower,
+				energy && !energy->hasSufficientPower(),
+				p->getPlayerColor()
+				});
+		}
+
+		// Format cash and cash/m with commas
+		auto formatNum = [](UnsignedInt v) -> UnicodeString {
+			std::wstring s = std::to_wstring(v);
+			int pos = int(s.length()) - 3;
+			while (pos > 0) {
+				s.insert(pos, L",");
+				pos -= 3;
+			}
+			UnicodeString out;
+			out.format(L"%ls", s.c_str());
+			return out;
+			};
+
+		// Create Display Strings
+		if (headerStrings.size() != numCols) {
+			headerStrings.clear();
+			for (Int i = 0; i < numCols; ++i) {
+				DisplayString* ds = TheDisplayStringManager->newDisplayString();
+				ds->setFont(m_observerStatsString->getFont());
+				headerStrings.push_back(ds);
+			}
+		}
+		for (Int i = 0; i < numCols; ++i) {
+			headerStrings[i]->setFont(m_observerStatsString->getFont());
+			headerStrings[i]->setText(headers[i]);
+		}
+
+		cellStrings.clear();
+		cellStrings.reserve(players.size() * numCols);
+
+		for (const PlayerData& pd : players) {
+			UnicodeString cells[numCols];
+			cells[0].format(L"(%d) %ls", pd.team + 1, pd.name.str());
+			cells[1] = pd.faction;
+			cells[2] = formatNum(pd.money);
+			cells[3].format(L"+%ls", formatNum(pd.cpm).str());
+			cells[4].format(L"%d", pd.xp);
+			cells[5].format(L"%.1f", pd.kd);
+			cells[6].format(L"%d", pd.sp);
+			cells[7] = pd.showPower ? (pd.lowPower ? L"OFF/" : L"ON/") : L"-";
+			if (pd.showPower) {
+				UnicodeString tmp;
+				tmp.format(pd.lowPower ? L"OFF/%d" : L"ON/%d", pd.powerValue);
+				cells[7] = tmp;
+			}
+
+			for (Int i = 0; i < numCols; ++i) {
+				DisplayString* ds = TheDisplayStringManager->newDisplayString();
+				ds->setFont(m_observerStatsString->getFont());
+				ds->setText(cells[i]);
+				cellStrings.push_back(ds);
+			}
+		}
+
+		// Measure column widths
+		Int colSpacing = 16 * scale;
+		for (Int i = 0; i < numCols; ++i)
+			colWidths[i] = headerStrings[i]->getWidth();
+
+		for (size_t row = 0; row < players.size(); ++row) {
+			for (Int col = 0; col < numCols; ++col) {
+				Int w = cellStrings[row * numCols + col]->getWidth();
+				if (w > colWidths[col])
+					colWidths[col] = w;
+			}
+		}
+
+		for (Int i = 0; i < numCols; ++i)
+			colWidths[i] += colSpacing;
+
+		// Calculate dimensions
+		totalWidth = 0;
+		for (Int i = 0; i < numCols; ++i)
+			totalWidth += colWidths[i];
+
+		Int lineHeight = (m_observerStatsLineStep > 0) ? m_observerStatsLineStep : Int(16 * scale);
+		Int rowSpacing = Int(2 * scale);
+		totalHeight = (lineHeight + rowSpacing) * (1 + Int(players.size()));
+	}
+
+	if (players.empty())
+		return;
+
+	// ====================================================================
+	// DRAWINGS
+	// ====================================================================
+	Int lineHeight = m_observerStatsLineStep > 0 ? m_observerStatsLineStep : (16 * scale);
+	Int rowSpacing = Int(2 * scale);
+	Int totalRowHeight = lineHeight + rowSpacing;
+
+	Int padX = Int(10 * scale);
+	Int padY = Int(6 * scale);
+	Int colSpacing = Int(16 * scale);
+
+	Int bgW = totalWidth + padX * 2;
+	Int bgH = totalHeight + padY * 2;
+
+	Int baseX = (screenW - bgW) / 2;    // center overlay horizantally
+	Int baseY = screenH - bgH;          // stick to bottom edge
+
+	if (baseX < 0) baseX = 0;
+	if (baseY < 0) baseY = 0;
+
+	Int contentX = baseX + padX;
+	Int contentY = baseY + padY;
+
+	// Draw background
+	TheWindowManager->winFillRect(TheWindowManager->winMakeColor(0, 0, 0, 140), 1, baseX, baseY, baseX + bgW, baseY + bgH);
+
+	// Draw border
+	Color border = TheWindowManager->winMakeColor(255, 255, 255, 225);
+	TheWindowManager->winFillRect(border, 1, baseX, baseY, baseX + bgW, baseY + 1);
+	TheWindowManager->winFillRect(border, 1, baseX, baseY + bgH - 1, baseX + bgW, baseY + bgH);
+	TheWindowManager->winFillRect(border, 1, baseX, baseY, baseX + 1, baseY + bgH);
+	TheWindowManager->winFillRect(border, 1, baseX + bgW - 1, baseY, baseX + bgW, baseY + bgH);
+
+	// Draw separators
+	Int headerSepY = contentY + totalRowHeight - (rowSpacing / 2);
+	TheWindowManager->winFillRect(border, 1, baseX + 1, headerSepY, baseX + bgW - 1, headerSepY + 1);
+
+	Int colX = contentX;
+	for (Int i = 0; i < numCols - 1; ++i) {
+		colX += colWidths[i];
+		TheWindowManager->winFillRect(border, 1, colX - (colSpacing / 2), baseY + 1,
+			colX - (colSpacing / 2) + 1, baseY + bgH - 1);
+	}
+
+	// Draw text
+	Color headerColor = TheWindowManager->winMakeColor(255, 255, 255, 255);
+	Color dropShadow = TheWindowManager->winMakeColor(0, 0, 0, 220);
+
+	Int drawX = contentX;
+	Int drawY = contentY;
+	for (Int i = 0; i < numCols; ++i) {
+		headerStrings[i]->draw(drawX, drawY, headerColor, dropShadow);
+		drawX += colWidths[i];
+	}
+
+	drawY += totalRowHeight;
+	for (size_t row = 0; row < players.size(); ++row) {
+		drawX = contentX;
+		for (Int col = 0; col < numCols; ++col) {
+			cellStrings[row * numCols + col]->draw(drawX, drawY, players[row].color, dropShadow);
+			drawX += colWidths[col];
+		}
+		drawY += totalRowHeight;
+	}
+}
+
+void InGameUI::refreshObserverStatsResources(void)
+{
+	if (!m_observerStatsString)
+		m_observerStatsString = TheDisplayStringManager->newDisplayString();
+
+	m_observerStatsPointSize = TheGlobalData->m_observerStatsFontSize;
+	if (m_observerStatsPointSize <= 0)
+		return;
+
+	Int adjustedFontSize = TheGlobalLanguageData->adjustFontSize(m_observerStatsPointSize);
+	GameFont* statsFont = TheWindowManager->winFindFont(m_observerStatsFont, adjustedFontSize, m_observerStatsBold);
+	m_observerStatsString->setFont(statsFont);
+	m_observerStatsLineStep = adjustedFontSize + 10; // vertical spacing between lines
+}
+
 void InGameUI::refreshCustomUiResources(void)
 {
 	refreshNetworkLatencyResources();
 	refreshRenderFpsResources();
 	refreshSystemTimeResources();
 	refreshGameTimeResources();
+	refreshObserverStatsResources();
 }
 
 void InGameUI::refreshNetworkLatencyResources(void)
