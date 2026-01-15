@@ -218,7 +218,7 @@ Bool CommandRequiresDirectSend(NetCommandMsg *msg) {
 		return TRUE;
 	}
 #if defined(GENERALS_ONLINE)
-	return TRUE;
+	return FALSE;
 #else
 	return FALSE;
 #endif

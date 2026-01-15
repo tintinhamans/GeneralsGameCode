@@ -1063,7 +1063,7 @@ std::string PlayerConnection::GetConnectionType()
 {
 	char szBuf[2048] = { 0 };
 	int ret = SteamNetworkingSockets()->GetConnectionType(m_hSteamConnection, szBuf, 2048);
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM] PlayerConnection::GetConnectionType returned %d", ret);
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "[STEAM] PlayerConnection::GetConnectionType returned %d", ret);
 	return std::string(szBuf);
 }
 

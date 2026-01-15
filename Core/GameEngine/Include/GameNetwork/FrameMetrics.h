@@ -26,6 +26,12 @@
 
 #pragma once
 
+
+
+#if defined(GENERALS_ONLINE)
+#define USE_NEW_FRAMEMETRIC_LOGIC 1
+#endif
+
 #include "Lib/BaseType.h"
 #include "GameNetwork/NetworkDefs.h"
 
@@ -58,8 +64,21 @@ protected:
 	// round trip time to packet router variables.
 	// The lists are indexed off the frame number of the frame info packet they are associated with.
 	// The index used should be the frame number mod the array length.
+#if !defined(USE_NEW_FRAMEMETRIC_LOGIC)
 	Real *m_latencyList;				///< A record of the round trip latencies of the frame info packets to the packet router.  Values in seconds.
 	time_t *m_pendingLatencies;																///< The latencies of frame info packets that are "in the air."
+#else
+    std::unordered_map<UnsignedInt, time_t> m_mapPendingLatenciesLookup;
+	std::map<UnsignedInt, time_t> m_mapPendingLatenciesSorted;
+
+
+	std::unordered_map<UnsignedInt, Real> m_mapLatenciesLookup;
+	std::map<UnsignedInt, Real> m_mapLatenciesSorted;
+
+	int oldestPendingLatencyInMap = -1;
+	int oldestLatencyInMap = -1;
+#endif
+
 	Real m_averageLatency;																		///< The current average latency, this is used to save calculation time.
 																														///< When a new latency value is received, the old one is subtracted out and the new
 																														///< one is added in.

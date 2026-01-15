@@ -851,7 +851,8 @@ Bool Network::timeForNewFrame() {
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Allowing a new frame, frameDelay = %I64d, curTime - m_nextFrameTime = %I64d", frameDelay, curTime - m_nextFrameTime);
 
 //		if (m_nextFrameTime + frameDelay < curTime) {
-		if ((m_nextFrameTime + ((GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
+		if (m_nextFrameTime + frameDelay < curTime) {
+		//if ((m_nextFrameTime + ((GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
 			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
 			m_nextFrameTime = curTime;
 			NetworkLog(ELogVerbosity::LOG_DEBUG, "Initializing m_nextFrameTime to %I64d", m_nextFrameTime);

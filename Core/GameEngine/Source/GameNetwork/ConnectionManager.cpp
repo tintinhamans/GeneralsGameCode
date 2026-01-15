@@ -1364,6 +1364,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 
 			const Real runAheadSlackScale = 1.0f + effectiveSlack;
 
+			//NetworkLog(ELogVerbosity::LOG_DEBUG, "RA CALC: %f * %f * %f = %d", getMaximumLatency(), runAheadSlackScale, (Real)minFps, (int)ceilf(getMaximumLatency() * runAheadSlackScale * (Real)minFps));
 			Int newRunAhead = ceilf(getMaximumLatency() * runAheadSlackScale * (Real)minFps);
 
 			// TheSuperHackers @info if the runahead goes below 3 logic frames it can start to introduce stutter
