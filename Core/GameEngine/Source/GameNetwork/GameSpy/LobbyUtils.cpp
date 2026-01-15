@@ -95,6 +95,57 @@ enum {
 };
 #endif
 
+// ---------------------------------------------------------------------------
+// row entry animation
+// ---------------------------------------------------------------------------
+
+static std::map<int, GameRowAnim> g_gameListAnim;
+
+// initialize the smoothed index for this lobbyID
+static float UpdateAndGetGameRowIndex(int lobbyID, float logicalIndex)
+{
+    GameRowAnim& anim = g_gameListAnim[lobbyID];
+
+    if (!anim.alive)
+    {
+        // start slightly below, then glide into place
+        anim.currentIndex = logicalIndex + 0.3f;
+        anim.targetIndex  = logicalIndex;
+        anim.alive        = true;
+    }
+    else
+    {
+        anim.targetIndex = logicalIndex;
+    }
+
+    // how fast to snap into place
+    const float t = 0.1f; 
+
+    float delta = anim.targetIndex - anim.currentIndex;
+    anim.currentIndex += delta * t;
+
+    return anim.currentIndex;
+}
+
+// Clears animation state for IDs that no longer exist
+static void CleanupMissingGameRows(const std::vector<LobbyEntry>& lobbies)
+{
+	std::map<int, bool> stillPresent;
+
+	for (const LobbyEntry& lobby : lobbies)
+	{
+		stillPresent[lobby.lobbyID] = true;
+	}
+
+	for (auto it = g_gameListAnim.begin(); it != g_gameListAnim.end(); )
+	{
+		if (stillPresent.find(it->first) == stillPresent.end())
+			it = g_gameListAnim.erase(it);
+		else
+			++it;
+	}
+}
+
 static NameKeyType buttonSortAlphaID = NAMEKEY_INVALID;
 static NameKeyType buttonSortPingID = NAMEKEY_INVALID;
 static NameKeyType buttonSortBuddiesID = NAMEKEY_INVALID;
@@ -1153,6 +1204,12 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 				{
 					LobbyEntry lobby = *sglIt;
 
+                    // Logical index for this entry in the new sorted list
+					float logicalIndex = (float)i;
+
+					// register/update animation index for this lobbyID
+					UpdateAndGetGameRowIndex(lobby.lobbyID, logicalIndex);
+
 					Int index = insertGame(win, lobby, showMap);
 					if (lobby.lobbyID == selectedID)
 					{
@@ -1290,6 +1347,45 @@ void RefreshGameInfoListBox( GameWindow *mainWin, GameWindow *win )
 //	}
 
 }
+
+// ---------------------------------------------------------------------------
+// compute pixel offset for a game list row
+// ---------------------------------------------------------------------------
+int GetGameListRowPixelOffsetForRow(GameWindow* window, int rowIndex, int rowHeight)
+{
+	if (!window)
+		return 0;
+
+	// We rely on listbox item data storing lobbyID, like RefreshGameListBox uses
+	Int lobbyID = (Int)GadgetListBoxGetItemData(window, rowIndex);
+	if (lobbyID == 0)
+		return 0;
+
+    GameWindow* mainGameList = GetGameListBox();
+
+    int animKey;
+    if (window == mainGameList)
+    {
+        // For the main game list: use lobbyID
+        animKey = lobbyID;
+    }
+    else
+    {
+        // For all other lists: keep per row key to avoid overlap
+        animKey = lobbyID * 1024 + rowIndex;
+    }
+
+
+	// Get smoothed "visual index" for this lobbyID
+	float visualIndex = UpdateAndGetGameRowIndex(animKey, (float)rowIndex);
+
+	// Offset = (visualIndex - logicalIndex) * rowHeight
+	float offsetRows = visualIndex - (float)rowIndex;
+	int pixelOffset = (int)(offsetRows * (float)rowHeight);
+
+	return pixelOffset;
+}
+
 
 void RefreshGameListBoxes( void )
 {
