@@ -586,7 +586,8 @@ NetworkMesh::NetworkMesh()
 
 	SteamNetworkingIdentity identityLocal;
 	identityLocal.Clear();
-	identityLocal.SetGenericString(std::to_string(localUserID).c_str());
+	std::string localUserIDStr = std::to_string(localUserID);
+	identityLocal.SetGenericString(localUserIDStr.c_str());
 
 	if (identityLocal.IsInvalid())
 	{
@@ -790,7 +791,8 @@ void NetworkMesh::StartConnectionSignalling(int64_t remoteUserID, uint16_t prefe
 
 	SteamNetworkingIdentity identityRemote;
 	identityRemote.Clear();
-	identityRemote.SetGenericString(std::to_string(remoteUserID).c_str());
+	std::string remoteUserIDStr = std::to_string(remoteUserID);
+	identityRemote.SetGenericString(remoteUserIDStr.c_str());
 
 	if (identityRemote.IsInvalid())
 	{
