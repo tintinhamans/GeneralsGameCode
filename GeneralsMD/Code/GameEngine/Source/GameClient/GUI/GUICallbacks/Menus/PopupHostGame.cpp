@@ -79,6 +79,7 @@
 #include "../OnlineServices_Auth.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/GameWindow.h"
+#include "Common/QuotedPrintable.h"
 
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -654,6 +655,17 @@ void createGame( void )
 #if defined(GENERALS_ONLINE)
 	// TODO_NGMP: Support 'favorite map' again
 	AsciiString defaultMap = getDefaultMap(true);
+    CustomMatchPreferences pref;
+	AsciiString storedMap = pref.getAsciiString("Map", AsciiString::TheEmptyString);
+	if (!storedMap.isEmpty())
+	{
+		AsciiString decoded = QuotedPrintableToAsciiString(storedMap);
+		decoded.trim();
+		if (!decoded.isEmpty() && isValidMap(decoded, TRUE))
+		{
+			defaultMap = decoded;
+		}
+	}
 	const MapMetaData* md = TheMapCache->findMap(defaultMap);
 
 	Bool limitArmies = GadgetCheckBoxIsChecked(checkBoxLimitArmies);
