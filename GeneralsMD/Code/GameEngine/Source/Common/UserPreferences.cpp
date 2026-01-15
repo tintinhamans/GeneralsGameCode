@@ -474,6 +474,24 @@ void CustomMatchPreferences::setLastLadder(const AsciiString& addr, UnsignedShor
 	(*this)["LastLadderPort"] = strVal;
 }
 
+AsciiString CustomMatchPreferences::getLastLobbyName() const
+{
+	CustomMatchPreferences::const_iterator it = find("LastLobbyName");
+	if (it == end())
+	{
+		return AsciiString::TheEmptyString;
+	}
+
+	AsciiString ret = it->second;
+	ret.trim();
+	return ret;
+}
+
+void CustomMatchPreferences::setLastLobbyName(const AsciiString& name)
+{
+	(*this)["LastLobbyName"] = name;
+}
+
 AsciiString CustomMatchPreferences::getLastLadderAddr( void )
 {
 	QuickMatchPreferences::const_iterator it = find("LastLadderAddr");
@@ -1005,3 +1023,4 @@ void LadderPreferences::addRecentLadder( LadderPref ladder )
 
 	m_ladders[ladder.lastPlayDate] = ladder;
 }
+
