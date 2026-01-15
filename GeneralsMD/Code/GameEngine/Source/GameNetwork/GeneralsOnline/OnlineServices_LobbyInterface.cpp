@@ -81,6 +81,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_Map(AsciiString strM
 {
 	// reset autostart if host changes anything (because ready flag will reset too)
 	ClearAutoReadyCountdown();
+	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -113,6 +115,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_LimitSuperweapons(bo
 {
 	// reset autostart if host changes anything (because ready flag will reset too)
 	ClearAutoReadyCountdown();
+	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -133,6 +137,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_StartingCash(Unsigne
 {
 	// reset autostart if host changes anything (because ready flag will reset too)
 	ClearAutoReadyCountdown();
+	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -174,6 +180,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AISide(int slot, int
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
 	ClearAutoReadyCountdown();
+	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -196,6 +204,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AITeam(int slot, int
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
 	ClearAutoReadyCountdown();
+	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -217,6 +227,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AIStartPos(int slot,
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
 	ClearAutoReadyCountdown();
+	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -245,6 +257,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobbyMaxCameraHeight(uint1
 
 		// reset autostart if host changes anything (because ready flag will reset too)
 		ClearAutoReadyCountdown();
+		if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+			TheNGMPGame->StopCountdown();
 
 		std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 		std::map<std::string, std::string> mapHeaders;
@@ -291,6 +305,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AIColor(int slot, in
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
 	ClearAutoReadyCountdown();
+	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -313,6 +329,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MySide(int side, int
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
 	ClearAutoReadyCountdown();
+	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -334,6 +352,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MyColor(int color)
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
 	ClearAutoReadyCountdown();
+	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -354,6 +374,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MyStartPos(int start
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
 	ClearAutoReadyCountdown();
+	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -374,6 +396,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MyTeam(int team)
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
 	ClearAutoReadyCountdown();
+	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
 	std::map<std::string, std::string> mapHeaders;
@@ -680,6 +704,8 @@ void NGMP_OnlineServices_LobbyInterface::Tick()
 					// TODO_NGMP: Don't do this clientside...
 					UpdateCurrentLobby_ForceReady();
 					ClearAutoReadyCountdown();
+					if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+						TheNGMPGame->StopCountdown();
 				}
 			}
 		}
@@ -931,6 +957,15 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 								{
 									m_bHostMigrated = true;
 								}
+							}
+
+							// stop countdown if player count actually decreased and we're the host
+							if (IsHost()
+								&& TheNGMPGame != nullptr
+								&& TheNGMPGame->IsCountdownStarted()
+								&& lobbyEntry.current_players < m_CurrentLobby.current_players)
+							{
+								TheNGMPGame->StopCountdown();
 							}
 
 							// store
