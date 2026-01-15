@@ -88,9 +88,9 @@ static Bool buttonPushed = false;
 static const char *nextScreen = NULL;
 static Bool raiseMessageBoxes = false;
 static time_t gameListRefreshTime = 0;
-static const time_t gameListRefreshInterval = 10000;
+static const time_t gameListRefreshInterval = 4000;
 static time_t playerListRefreshTime = 0;
-static const time_t playerListRefreshInterval = 5000;
+static const time_t playerListRefreshInterval = 4000;
 
 void setUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
 static void doSliderTrack(GameWindow *control, Int val);
@@ -1732,7 +1732,7 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 
 		if (bShouldAutoRefresh)
 		{
-			refreshGameList(true);
+			refreshGameList(false);
 		}
 		else
 		{
