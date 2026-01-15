@@ -1252,6 +1252,13 @@ NGMP_OnlineServices_RoomsInterface::NGMP_OnlineServices_RoomsInterface()
 void NGMP_OnlineServices_RoomsInterface::GetRoomList(std::function<void(void)> cb)
 {
 	m_vecRooms.clear();
+    	// Cache our buddies on lobby list
+	NGMP_OnlineServices_SocialInterface* pSocialInterface =
+		NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+	if (pSocialInterface != nullptr)
+	{
+		pSocialInterface->GetFriendsList(false, nullptr);
+	}
 
 	std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("Rooms");
 	std::map<std::string, std::string> mapHeaders;
@@ -1362,3 +1369,4 @@ void NGMP_OnlineServices_RoomsInterface::OnRosterUpdated(std::vector<std::string
 		m_RosterNeedsRefreshCallback();
 	}
 }
+
