@@ -6010,7 +6010,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 
 	static const Int numCols = 8;
 	static const wchar_t* headers[numCols] = {
-		L"(T) Name", L"Army", L"Cash", L"Cash/m", L"XP (R)", L"K/D", L"SP", L"Power"
+		L"(T) Name", L"Army", L"Cash", L"Cash/m", L"(R) XP", L"SP", L"K/D", L"Power"
 	};
 
 	static UnsignedInt lastUpdateFrame = 0;
@@ -6067,13 +6067,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 			}
 			if (skip) continue;
 
-			// Truncate long names
-			if (name.getLength() > 8) {
-				UnicodeString tmp;
-				tmp.format(L"%.*ls.", 8, name.str());
-				name = tmp;
-			}
-
+            
 			// Find team
 			Int team = -1;
 			if (TheGameInfo) {
@@ -6084,6 +6078,13 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 						break;
 					}
 				}
+			}
+
+			// Truncate long names
+			if (name.getLength() > 8) {
+				UnicodeString tmp;
+				tmp.format(L"%.*ls.", 8, name.str());
+				name = tmp;
 			}
 
 			// Gather stats
@@ -6123,13 +6124,13 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 				energy && !energy->hasSufficientPower(),
 				p->getPlayerColor()
 				});
-            	std::sort(players.begin(), players.end(),
+		}
+
+        std::sort(players.begin(), players.end(),
 				[](const PlayerData& a, const PlayerData& b) {
 					if (a.team != b.team)
 						return a.team < b.team; // sort by team first
-					return a.xp > b.xp; // then sort by XP
-				});
-		}
+		});
 
 		// Format cash and cash/m with commas
 		auto formatNum = [](UnsignedInt v) -> UnicodeString {
@@ -6167,9 +6168,9 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 			cells[1] = pd.faction;
 			cells[2] = formatNum(pd.money);
 			cells[3].format(L"+%ls", formatNum(pd.cpm).str());
-			cells[4].format(L"%d (%d)", pd.xp, pd.rank);
-			cells[5].format(L"%.1f", pd.kd);
-			cells[6].format(L"%d", pd.sp);
+			cells[4].format(L"(%d) %d", pd.rank, pd.xp);
+            cells[5].format(L"%d", pd.sp);
+			cells[6].format(L"%.1f", pd.kd);
 			cells[7] = pd.showPower ? (pd.lowPower ? L"OFF/" : L"ON/") : L"-";
 			if (pd.showPower) {
 				UnicodeString tmp;
@@ -6681,6 +6682,7 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
 
 
 
