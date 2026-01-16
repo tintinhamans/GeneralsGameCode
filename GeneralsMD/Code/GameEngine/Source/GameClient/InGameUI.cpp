@@ -6010,7 +6010,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 
 	static const Int numCols = 8;
 	static const wchar_t* headers[numCols] = {
-		L"(T) Name", L"Army", L"Cash", L"Cash/m", L"XP", L"K/D", L"SP", L"Power"
+		L"(T) Name", L"Army", L"Cash", L"Cash/m", L"XP (R)", L"K/D", L"SP", L"Power"
 	};
 
 	static UnsignedInt lastUpdateFrame = 0;
@@ -6093,6 +6093,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 			Int kills = sk ? sk->getTotalUnitsDestroyed() : 0;
 			Int deaths = sk ? sk->getTotalUnitsLost() : 0;
 			Real kd = deaths > 0 ? (Real)kills / deaths : (Real)kills;
+            Int rank = p->getRankLevel();
 
 			// Faction abbreviations, we don't want to show full army names like that
 			AsciiString side = p->getSide();
@@ -6116,11 +6117,17 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 				name, faction, team,
 				money ? money->countMoney() : 0,
 				money ? money->getCashPerMinute() : 0,
-				p->getSkillPoints(), kd,
+				p->getSkillPoints(), rank, kd,
 				p->getSciencePurchasePoints(),
 				powerDelta, hasPower,
 				energy && !energy->hasSufficientPower(),
 				p->getPlayerColor()
+				});
+            	std::sort(players.begin(), players.end(),
+				[](const PlayerData& a, const PlayerData& b) {
+					if (a.team != b.team)
+						return a.team < b.team; // sort by team first
+					return a.xp > b.xp; // then sort by XP
 				});
 		}
 
@@ -6160,7 +6167,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 			cells[1] = pd.faction;
 			cells[2] = formatNum(pd.money);
 			cells[3].format(L"+%ls", formatNum(pd.cpm).str());
-			cells[4].format(L"%d", pd.xp);
+			cells[4].format(L"%d (%d)", pd.xp, pd.rank);
 			cells[5].format(L"%.1f", pd.kd);
 			cells[6].format(L"%d", pd.sp);
 			cells[7] = pd.showPower ? (pd.lowPower ? L"OFF/" : L"ON/") : L"-";
@@ -6674,5 +6681,6 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
 
 
