@@ -5991,9 +5991,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 	if (!localPlayer || (TheGameLogic && TheGameLogic->getFrame() <= 1))
 		return;
 
-	Bool isObserver = localPlayer->isPlayerObserver();
-	Bool isDefeated = TheVictoryConditions && TheVictoryConditions->hasSinglePlayerBeenDefeated(localPlayer);
-	if (!isObserver && !isDefeated)
+	if (!localPlayer->isPlayerObserver() && !localPlayer->isPlayerDead())
 		return;
 
 	if (!isAtHudAnchorPos(m_observerStatsPosition) || m_observerStatsHidden)
@@ -6039,53 +6037,33 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 		players.clear();
 		players.reserve(MAX_PLAYER_COUNT);
 
-		// These are system players we want to skip
-		static const char* EXCLUDED_NAMES[] = {
-			"PlyrCivilian", "PlyrAmerica", "PlyrChina", "PlyrGLA", "Paradrops",
-			"PlyrChinaTankGeneral", "PlyrAmericaLaserGeneral", "PlyrAmericaAirForceGeneral",
-			"UncloakedGLA", "PlyrAmericaAirForce", "PlyrChinaTank", "PlyrNeutral"
-		};
+		for (Int slotIndex = 0; slotIndex < MAX_SLOTS; ++slotIndex) {
+			const GameSlot* slot = TheGameInfo ? TheGameInfo->getConstSlot(slotIndex) : nullptr;
+			if (!slot || !slot->isOccupied())
+				continue;
 
-		for (Int i = 0; i < MAX_PLAYER_COUNT; ++i) {
-			Player* p = ThePlayerList->getNthPlayer(i);
+		AsciiString nameKeyStr;
+			nameKeyStr.format("player%d", slotIndex);
+			const NameKeyType key = TheNameKeyGenerator->nameToKey(nameKeyStr);
+			Player* p = ThePlayerList->findPlayerWithNameKey(key);
 			if (!p || !p->isPlayerActive())
+				continue;
+
+            if (p->isPlayerObserver())
 				continue;
 
 			UnicodeString name = p->getPlayerDisplayName();
 			if (name.isEmpty())
 				continue;
 
-			// Skip system players
-			AsciiString asciiName;
-			asciiName.translate(name);
-			bool skip = false;
-			for (const char* excluded : EXCLUDED_NAMES) {
-				if (asciiName == excluded) {
-					skip = true;
-					break;
-				}
-			}
-			if (skip) continue;
-
-            
-			// Find team
-			Int team = -1;
-			if (TheGameInfo) {
-				for (Int s = 0; s < MAX_SLOTS; ++s) {
-					const GameSlot* slot = TheGameInfo->getConstSlot(s);
-					if (slot && slot->isOccupied() && slot->isPlayer(name)) {
-						team = slot->getTeamNumber();
-						break;
-					}
-				}
-			}
-
-			// Truncate long names
+            // Truncate long names
 			if (name.getLength() > 8) {
 				UnicodeString tmp;
 				tmp.format(L"%.*ls.", 8, name.str());
 				name = tmp;
 			}
+            
+			Int team = slot->getTeamNumber();
 
 			// Gather stats
 			Money* money = p->getMoney();
@@ -6682,7 +6660,3 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
-
-
-
-
