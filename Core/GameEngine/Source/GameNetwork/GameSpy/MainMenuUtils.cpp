@@ -872,78 +872,80 @@ void StartPatchCheck( void )
 	// TODO_NGMP: Uninit this when leaving MP, waste of resources and cycles
 	NGMP_OnlineServicesManager::GetInstance()->Init();
 
-	NGMP_OnlineServicesManager::GetInstance()->StartVersionCheck([](bool bSuccess, bool bNeedsUpdate)
+	NGMP_OnlineServicesManager::GetInstance()->DetermineEndpoints([]()
 		{
+			NGMP_OnlineServicesManager::GetInstance()->StartVersionCheck([](bool bSuccess, bool bNeedsUpdate)
+				{
 #if defined(USE_TEST_ENV) || defined(USE_DEBUG_ON_LIVE_SERVER)
-			bNeedsUpdate = false;
+					bNeedsUpdate = false;
 #endif
 
+					cantConnectBeforeOnline = !bSuccess;
+					mustDownloadPatch = bNeedsUpdate;
 
-			cantConnectBeforeOnline = !bSuccess;
-			mustDownloadPatch = bNeedsUpdate;
-
-			if (!bSuccess)
-			{
-				if (onlineCancelWindow)
-				{
-					TheWindowManager->winDestroy(onlineCancelWindow);
-					onlineCancelWindow = NULL;
-				}
-
-				// TODO_NGMP: do this everywhere teardowngamespy was called
-				NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
-
-				MessageBoxOk(TheGameText->fetch("GUI:CannotConnectToServservTitle"),
-					TheGameText->fetch("GUI:CannotConnectToServserv"),
-					noPatchBeforeOnlineCallback);
-			}
-			else
-			{
-				if (!bNeedsUpdate)
-				{
-					startOnline();
-				}
-				else
-				{
-					// TODO_NGMP: Later we should allow in-game updates
-					if (onlineCancelWindow)
+					if (!bSuccess)
 					{
-						TheWindowManager->winDestroy(onlineCancelWindow);
-						onlineCancelWindow = NULL;
+						if (onlineCancelWindow)
+						{
+							TheWindowManager->winDestroy(onlineCancelWindow);
+							onlineCancelWindow = NULL;
+						}
+
+						// TODO_NGMP: do this everywhere teardowngamespy was called
+						NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+
+						MessageBoxOk(TheGameText->fetch("GUI:CannotConnectToServservTitle"),
+							TheGameText->fetch("GUI:CannotConnectToServserv"),
+							noPatchBeforeOnlineCallback);
 					}
-
-					// NGMP_NOTE: This checks you can write to the local dir, we actually write to my docs data dir now, because it's safer, so we don't really need this chekc
-					/*
-					if (!hasWriteAccess(true))
+					else
 					{
-						MessageBoxOk(TheGameText->fetch("GUI:Error"),
-							TheGameText->fetch("GUI:MustHaveAdminRights"),
-							CancelPatchCheckCallbackAndReopenDropdown);
-					}
-					else*/ if (mustDownloadPatch)
-					{
-						// NOTE: we treat all patches as mandatory currently
-						onlineCancelWindow = MessageBoxOkCancel(TheGameText->fetch("GUI:PatchAvailable"),
-							UnicodeString(L"Press OK to begin updating.\n\nOtherwise, you can visit www.playgenerals.online to download the latest update manually."), []()
+						if (!bNeedsUpdate)
+						{
+							startOnline();
+						}
+						else
+						{
+							// TODO_NGMP: Later we should allow in-game updates
+							if (onlineCancelWindow)
 							{
-								WindowLayout* layout;
-								layout = TheWindowManager->winCreateLayout(AsciiString("Menus/DownloadMenu.wnd"));
-								layout->runInit();
-								layout->hide(FALSE);
-								layout->bringForward();
+								TheWindowManager->winDestroy(onlineCancelWindow);
+								onlineCancelWindow = NULL;
+							}
 
-								NGMP_OnlineServicesManager::GetInstance()->StartDownloadUpdate([]()
+							// NGMP_NOTE: This checks you can write to the local dir, we actually write to my docs data dir now, because it's safer, so we don't really need this chekc
+							/*
+							if (!hasWriteAccess(true))
+							{
+								MessageBoxOk(TheGameText->fetch("GUI:Error"),
+									TheGameText->fetch("GUI:MustHaveAdminRights"),
+									CancelPatchCheckCallbackAndReopenDropdown);
+							}
+							else*/ if (mustDownloadPatch)
+							{
+								// NOTE: we treat all patches as mandatory currently
+								onlineCancelWindow = MessageBoxOkCancel(TheGameText->fetch("GUI:PatchAvailable"),
+									UnicodeString(L"Press OK to begin updating.\n\nOtherwise, you can visit www.playgenerals.online to download the latest update manually."), []()
 									{
-										MessageBoxOk(UnicodeString(L"Update Ready"), UnicodeString(L"Press OK to begin installing the patch"), []()
-											{
-												NGMP_OnlineServicesManager::GetInstance()->LaunchPatcher();
-											});
-									});
+										WindowLayout* layout;
+										layout = TheWindowManager->winCreateLayout(AsciiString("Menus/DownloadMenu.wnd"));
+										layout->runInit();
+										layout->hide(FALSE);
+										layout->bringForward();
 
-							}, CancelPatchCheckCallbackAndReopenDropdown);
+										NGMP_OnlineServicesManager::GetInstance()->StartDownloadUpdate([]()
+											{
+												MessageBoxOk(UnicodeString(L"Update Ready"), UnicodeString(L"Press OK to begin installing the patch"), []()
+													{
+														NGMP_OnlineServicesManager::GetInstance()->LaunchPatcher();
+													});
+											});
+
+									}, CancelPatchCheckCallbackAndReopenDropdown);
+							}
+						}
 					}
-				}
-			}
+				});
 		});
 	
 

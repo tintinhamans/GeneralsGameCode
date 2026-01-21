@@ -37,6 +37,54 @@ std::vector<std::string> NGMP_OnlineServicesManager::m_vecGuardedSSData;
 
 bool NGMP_OnlineServicesManager::g_bAdvancedNetworkStats;
 
+
+bool NGMP_OnlineServicesManager::m_bRussiaMode = false;
+
+void NGMP_OnlineServicesManager::DetermineEndpoints(std::function<void()> fnCallback)
+{
+    std::string strURI = "https://free.freeipapi.com/api/json";
+    std::map<std::string, std::string> mapHeaders;
+    NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+        {
+            try
+            {
+                if (bSuccess && statusCode == 200)
+                {
+                    nlohmann::json jsonObject = nlohmann::json::parse(strBody);
+					RegionResponse regionInfo = jsonObject.get<RegionResponse>();
+
+					if (regionInfo.countryCode == "RU" || regionInfo.countryCode == "UZ" || regionInfo.countryCode == "KZ" || regionInfo.countryCode == "IR")
+					{
+						m_bRussiaMode = true;
+					}
+					else
+					{
+						m_bRussiaMode = false;
+					}
+                }
+                else
+                {
+                    // It's OK to fail, we'll just use the sensible defaults (non-RU region)
+					m_bRussiaMode = false;
+                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to get region info, using defaults (non-Russia). Status code: %d", statusCode);
+                }
+
+            }
+            catch (...)
+            {
+                // It's OK to fail, we'll just use the sensible defaults
+				m_bRussiaMode = false;
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to get region info, using defaults (non-Russia). Exception.");
+            }
+
+            if (fnCallback != nullptr)
+            {
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Using Russia Mode: %d", m_bRussiaMode);
+				fnCallback();
+            }
+        });
+}
+
 NetworkMesh* NGMP_OnlineServicesManager::GetNetworkMesh()
 {
 	if (m_pOnlineServicesManager != nullptr)
@@ -209,7 +257,14 @@ std::string NGMP_OnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 	}
 	else // PROD
 	{
-		return std::format("https://api.playgenerals.online/env/prod/contract/1/{}", szEndpoint);
+		if (m_bRussiaMode)
+		{
+			return std::format("https://api-ru.playgenerals.online/env/prod/contract/1/{}", szEndpoint);
+		}
+		else
+		{
+			return std::format("https://api.playgenerals.online/env/prod/contract/1/{}", szEndpoint);
+		}
 	}
 }
 
@@ -727,7 +782,15 @@ void NGMP_OnlineServicesManager::OnLogin(ELoginResult loginResult, const char* s
 		// connect to WS
 		m_pWebSocket = std::make_shared<WebSocket>();
 
-		m_pWebSocket->Connect(szWSAddr, false, fnWebsocketConnectedCallback);
+		if (m_bRussiaMode)
+		{
+			// TODO_NGMP: This should come from the service, if the service was russia-aware
+			m_pWebSocket->Connect("wss://api-ru.playgenerals.online/ws", false, fnWebsocketConnectedCallback);
+		}
+		else
+		{
+			m_pWebSocket->Connect(szWSAddr, false, fnWebsocketConnectedCallback);
+		}
 
 		// TODO_NGMP: This hangs forever if it fails to connect
 
@@ -853,7 +916,7 @@ void NGMP_OnlineServicesManager::InitSentry()
 
 	sentry_options_set_dsn(options, "https://61750bebd112d279bcc286d617819269@o4509316925554688.ingest.us.sentry.io/4509316927586304");
 	sentry_options_set_database_path(options, strDumpPath.c_str());
-	sentry_options_set_release(options, "generalsonline-client@011526");
+	sentry_options_set_release(options, "generalsonline-client@012126");
 
 	// local player info
 	int64_t userID = -1;

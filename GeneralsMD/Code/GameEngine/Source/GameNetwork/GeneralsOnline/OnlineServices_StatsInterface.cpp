@@ -86,7 +86,7 @@ void NGMP_OnlineServices_StatsInterface::findPlayerStatsByID(int64_t userID, std
 	// TODO_NGMP: this could take a while...
 	if (requestPolicy == EStatsRequestPolicy::CACHED_ONLY)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsRequest] Getting stats for user %lld (cache only, not making request due to policy)", userID);
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "[StatsRequest] Getting stats for user %lld (cache only, not making request due to policy)", userID);
 		// is it cached?
 		if (m_mapCachedStats.contains(userID))
 		{
@@ -104,14 +104,14 @@ void NGMP_OnlineServices_StatsInterface::findPlayerStatsByID(int64_t userID, std
 		if (requestPolicy == EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST)
 		{
 			bDoRequest = true;
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsRequest] Getting stats for user %lld (bypassing cache, making request due to policy)", userID);
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "[StatsRequest] Getting stats for user %lld (bypassing cache, making request due to policy)", userID);
 		}
 		else if (requestPolicy == EStatsRequestPolicy::RESPECT_CACHE_ALLOW_REQUEST)
 		{
 			// do we have a cache time? if not, we'll need to retrieve regardless
 			if (!m_mapStatsLastRefresh.contains(userID))
 			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsRequest] Getting stats for user %lld (respecting cache, but the user has no cached data)", userID);
+				NetworkLog(ELogVerbosity::LOG_DEBUG, "[StatsRequest] Getting stats for user %lld (respecting cache, but the user has no cached data)", userID);
 				bDoRequest = true;
 			}
 			else
@@ -121,7 +121,7 @@ void NGMP_OnlineServices_StatsInterface::findPlayerStatsByID(int64_t userID, std
 
 				if ((currTime - lastCacheTime) >= m_cacheTTL)
 				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsRequest] Getting stats for user %lld (respecting cache, but the cache is older then the TTL)", userID);
+					NetworkLog(ELogVerbosity::LOG_DEBUG, "[StatsRequest] Getting stats for user %lld (respecting cache, but the cache is older then the TTL)", userID);
 					bDoRequest = true;
 				}
 			}
@@ -207,7 +207,7 @@ void NGMP_OnlineServices_StatsInterface::findPlayerStatsByID(int64_t userID, std
 							PROCESS_JSON_STANDARD_RESULT(lastLadderPort);
 							PROCESS_JSON_STANDARD_RESULT(lastLadderHost);
 
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "Cached stats for user %lld", userID);
+							NetworkLog(ELogVerbosity::LOG_DEBUG, "Cached stats for user %lld", userID);
 							m_mapCachedStats[userID] = stats;
 							m_mapStatsLastRefresh[userID] = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
@@ -339,7 +339,7 @@ void NGMP_OnlineServices_StatsInterface::findPlayerStatsByBatch(std::vector<int6
 							PROCESS_JSON_STANDARD_RESULT(lastLadderPort);
 							PROCESS_JSON_STANDARD_RESULT(lastLadderHost);
 
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "Cached stats for user %lld", stats.id);
+							NetworkLog(ELogVerbosity::LOG_DEBUG, "Cached stats for user %d", stats.id);
 							m_mapCachedStats[stats.id] = stats;
 							m_mapStatsLastRefresh[stats.id] = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 						}
@@ -373,7 +373,7 @@ void NGMP_OnlineServices_StatsInterface::findPlayerStatsByBatch(std::vector<int6
 
 bool NGMP_OnlineServices_StatsInterface::getPlayerStatsFromCache(int64_t userID, PSPlayerStats* outStats)
 {
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsRequest] Getting stats for user %lld (cache only, not making request due to policy)", userID);
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "[StatsRequest] Getting stats for user %lld (cache only, not making request due to policy)", userID);
 	// is it cached?
 	if (m_mapCachedStats.contains(userID))
 	{
