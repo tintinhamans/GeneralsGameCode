@@ -47,6 +47,8 @@ void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySoun
 // annoying game assertions, we'll catch real things in the debugger (or sentry)
 #define DISABLE_DEBUG_CRASHING 1
 
+//#define GO_REVEAL_TEAMS 1
+
 //#define GENERALS_ONLINE_RUN_FAST 1
 
 #define GENERALS_ONLINE_DEFAULT_LOBBY_CAMERA_ZOOM 310

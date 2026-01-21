@@ -524,8 +524,15 @@ void PopulateInGameDiplomacyPopup( void )
 			if (staticTextSide[rowNum])
 			{
 				staticTextSide[rowNum]->winSetEnabledTextColors( playerColor, backColor );
-				const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
+
+#if defined(GO_REVEAL_TEAMS)
+                const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
                 GadgetStaticTextSetText(staticTextSide[rowNum], pt ? pt->getDisplayName() : slot->getApparentPlayerTemplateDisplayName());
+#else
+				GadgetStaticTextSetText(staticTextSide[rowNum], slot->getApparentPlayerTemplateDisplayName());
+#endif
+
+				
 			}
 			if (staticTextTeam[rowNum])
 			{
