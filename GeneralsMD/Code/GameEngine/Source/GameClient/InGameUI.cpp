@@ -6060,9 +6060,9 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 				continue;
 
             // Truncate long names
-			if (name.getLength() > 8) {
+			if (name.getLength() > 12) {
 				UnicodeString tmp;
-				tmp.format(L"%.*ls.", 8, name.str());
+				tmp.format(L"%.*ls.", 12, name.str());
 				name = tmp;
 			}
             
@@ -6663,4 +6663,5 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
 
