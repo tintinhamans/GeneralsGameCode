@@ -2090,6 +2090,9 @@ void InGameUI::reset( void )
 	// reset the command bar
 	TheControlBar->reset();
 
+    // Reset the observer overlay visibility 
+    m_observerStatsHidden = false;
+
 	TheTacticalView->setDefaultView(0.0f, 0.0f, 1.0f);
 
 	ResetInGameChat();
@@ -6660,3 +6663,4 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
