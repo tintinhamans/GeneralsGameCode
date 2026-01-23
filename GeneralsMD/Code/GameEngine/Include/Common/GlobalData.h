@@ -422,6 +422,9 @@ public:
 	// Generals Online @feature 11/01/2026 allow the observer stats font size to be set, a size of zero disables it
 	Int m_observerStatsFontSize;
 
+	// Generals Online @feature 16/1/2025 allow the observer notification font size to be set, a size of zero disables it
+	Int m_observerNotificationFontSize;
+
 	Real m_shakeSubtleIntensity;			///< Intensity for shaking a camera with SHAKE_SUBTLE
 	Real m_shakeNormalIntensity;			///< Intensity for shaking a camera with SHAKE_NORMAL
 	Real m_shakeStrongIntensity;			///< Intensity for shaking a camera with SHAKE_STRONG

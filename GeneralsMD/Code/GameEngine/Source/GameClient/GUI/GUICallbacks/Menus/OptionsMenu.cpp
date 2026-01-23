@@ -940,6 +940,16 @@ Int OptionPreferences::getRenderFpsFontSize(void)
 	return fontSize;
 }
 
+Int OptionPreferences::getObserverNotificationFontSize(void) {
+	OptionPreferences::const_iterator it = find("ObserverNotificationFontSize");
+	if (it == end())
+		return 12;
+	Int fontSize = atoi(it->second.str());
+	if (fontSize < 0)
+		fontSize = 0;
+	return fontSize;
+}
+
 Int OptionPreferences::getObserverStatsFontSize(void)
 {
 	OptionPreferences::const_iterator it = find("ObserverStatsFontSize");
@@ -1543,6 +1553,16 @@ static void saveOptions( void )
 		prefString.format("%d", val);
 		(*pref)["RenderFpsFontSize"] = prefString;
 		TheInGameUI->refreshRenderFpsResources();
+	}
+
+	//-------------------------------------------------------------------------------------------------
+    // Set Observer notification Font Size
+	val = pref->getObserverNotificationFontSize();
+	if (val >= 0) {
+		AsciiString prefString;
+		prefString.format("%d", val);
+		(*pref)["ObserverNotificationFontSize"] = prefString;
+		TheInGameUI->refreshObserverNotificationResources();
 	}
 
 	//-------------------------------------------------------------------------------------------------
