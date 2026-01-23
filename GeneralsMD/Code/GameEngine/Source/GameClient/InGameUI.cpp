@@ -6152,11 +6152,10 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 			cells[4].format(L"(%d) %d", pd.rank, pd.xp);
             cells[5].format(L"%d", pd.sp);
 			cells[6].format(L"%.1f", pd.kd);
-			cells[7] = pd.showPower ? (pd.lowPower ? L"OFF/" : L"ON/") : L"-";
 			if (pd.showPower) {
-				UnicodeString tmp;
-				tmp.format(pd.lowPower ? L"OFF/%d" : L"ON/%d", pd.powerValue);
-				cells[7] = tmp;
+				cells[7].format(pd.lowPower ? L"OFF (%d)" : L"ON (%d)", pd.powerValue);
+			} else {
+				cells[7] = L"-";
 			}
 
 			for (Int i = 0; i < numCols; ++i) {
@@ -6663,4 +6662,5 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
 
