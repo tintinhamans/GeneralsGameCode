@@ -678,7 +678,6 @@ protected:
 	};
 
 	struct ObserverMilestone {
-		//Int playerId;
 		Bool reachedLevel3;
 		Bool reachedLevel5;
 		Bool reached10kCPM;

@@ -943,7 +943,7 @@ Int OptionPreferences::getRenderFpsFontSize(void)
 Int OptionPreferences::getObserverNotificationFontSize(void) {
 	OptionPreferences::const_iterator it = find("ObserverNotificationFontSize");
 	if (it == end())
-		return 12;
+		return 10;
 	Int fontSize = atoi(it->second.str());
 	if (fontSize < 0)
 		fontSize = 0;
