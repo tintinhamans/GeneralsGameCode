@@ -6274,7 +6274,7 @@ void InGameUI::refreshObserverStatsResources(void)
 	Int adjustedFontSize = TheGlobalLanguageData->adjustFontSize(m_observerStatsPointSize);
 	GameFont* statsFont = TheWindowManager->winFindFont(m_observerStatsFont, adjustedFontSize, m_observerStatsBold);
 	m_observerStatsString->setFont(statsFont);
-	m_observerStatsLineStep = adjustedFontSize + 10; // vertical spacing between lines
+	m_observerStatsLineStep = statsFont ? statsFont->height + 2 : adjustedFontSize + 2; // Line spacing based on real font height
 }
 
 void InGameUI::refreshCustomUiResources(void)
@@ -6663,5 +6663,6 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
 
 
