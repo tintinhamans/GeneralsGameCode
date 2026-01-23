@@ -6220,7 +6220,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 	Int contentY = baseY + padY;
 
 	// Draw background
-	TheWindowManager->winFillRect(TheWindowManager->winMakeColor(0, 0, 0, 140), 1, baseX, baseY, baseX + bgW, baseY + bgH);
+	TheWindowManager->winFillRect(TheWindowManager->winMakeColor(0, 0, 0, 180), 1, baseX, baseY, baseX + bgW, baseY + bgH);
 
 	// Draw border
 	Color border = TheWindowManager->winMakeColor(255, 255, 255, 225);
@@ -6663,6 +6663,4 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
-
-
 
