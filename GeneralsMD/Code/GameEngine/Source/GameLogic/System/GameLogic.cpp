@@ -912,10 +912,18 @@ static void populateRandomStartPosition(GameInfo* game)
 			continue;
 
 		Int posIdx = slot->getStartPos();
-		if (posIdx >= 0 || posIdx >= numPlayers)
+		if (posIdx >= 0 && posIdx < numPlayers)
 		{
+            if (taken[posIdx])
+			{
+				// Duplicate explicit start position: mark as random so it gets reassigned
+				slot->setStartPos(-1);
+			}
+			else
+			{
 			hasStartSpotBeenPicked = TRUE;
 			taken[posIdx] = TRUE;
+            }
 		}
 	}
 
