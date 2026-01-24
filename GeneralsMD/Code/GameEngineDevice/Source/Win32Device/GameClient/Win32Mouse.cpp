@@ -75,7 +75,7 @@ UnsignedByte Win32Mouse::getMouseEvent(MouseIO* result, Bool flush)
 	// got event OK and all done with this one
 	return MOUSE_OK;
 
-}  // end getMouseEvent
+}
 
 //-------------------------------------------------------------------------------------------------
 /** Translate a win32 mouse event to our own event info */
@@ -108,7 +108,6 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 	switch (msg)
 	{
 
-		
 		// ------------------------------------------------------------------------
 	case WM_LBUTTONDOWN:
 	{
@@ -119,7 +118,7 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 		result->pos.y = HIWORD(lParam);
 		break;
 
-	}  // end left button down
+	}
 
 	// ------------------------------------------------------------------------
 	case WM_LBUTTONUP:
@@ -131,7 +130,7 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 		result->pos.y = HIWORD(lParam);
 		break;
 
-	}  // end left button up
+	}
 
 	// ------------------------------------------------------------------------
 	case WM_LBUTTONDBLCLK:
@@ -143,7 +142,7 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 		result->pos.y = HIWORD(lParam);
 		break;
 
-	}  // end left button double click
+	}
 
 	// ------------------------------------------------------------------------
 	case WM_MBUTTONDOWN:
@@ -155,7 +154,7 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 		result->pos.y = HIWORD(lParam);
 		break;
 
-	}  // end middle button down
+	}
 
 	// ------------------------------------------------------------------------
 	case WM_MBUTTONUP:
@@ -167,7 +166,7 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 		result->pos.y = HIWORD(lParam);
 		break;
 
-	}  // end middle button up
+	}
 
 	// ------------------------------------------------------------------------
 	case WM_MBUTTONDBLCLK:
@@ -179,7 +178,7 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 		result->pos.y = HIWORD(lParam);
 		break;
 
-	}  // end middle button double click
+	}
 
 	// ------------------------------------------------------------------------
 	case WM_RBUTTONDOWN:
@@ -191,7 +190,7 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 		result->pos.y = HIWORD(lParam);
 		break;
 
-	}  // end right button down
+	}
 
 	// ------------------------------------------------------------------------
 	case WM_RBUTTONUP:
@@ -203,7 +202,7 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 		result->pos.y = HIWORD(lParam);
 		break;
 
-	}  // end right button up
+	}
 
 	// ------------------------------------------------------------------------
 	case WM_RBUTTONDBLCLK:
@@ -215,7 +214,7 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 		result->pos.y = HIWORD(lParam);
 		break;
 
-	}  // end right button double click
+	}
 
 	// ------------------------------------------------------------------------
 	case WM_MOUSEMOVE:
@@ -225,7 +224,7 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 		result->pos.y = HIWORD(lParam);
 		break;
 
-	}  // end mouse move
+	}
 
 	// ------------------------------------------------------------------------
 	case 0x020A:	// WM_MOUSEWHEEL
@@ -243,7 +242,7 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 		result->pos.y = p.y;
 		break;
 
-	}  // end mouse wheel
+	}
 
 	// ------------------------------------------------------------------------
 	default:
@@ -253,11 +252,11 @@ void Win32Mouse::translateEvent(UnsignedInt eventIndex, MouseIO* result)
 			msg, wParam, lParam));
 		return;
 
-	}  // end default
+	}
 
-	}  // end switch on message at event index in buffer
+	}
 
-}  // end translateEvent
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////////////////////////
@@ -279,7 +278,7 @@ Win32Mouse::Win32Mouse(void)
 			cursorResources[i][j] = NULL;
 	m_directionFrame = 0; //points up.
 	m_lostFocus = FALSE;
-}  // end Win32Mouse
+}
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -289,7 +288,7 @@ Win32Mouse::~Win32Mouse(void)
 	// remove our global reference that was for the WndProc() only
 	TheWin32Mouse = NULL;
 
-}  // end ~Win32Mouse
+}
 
 //-------------------------------------------------------------------------------------------------
 /** Initialize our device */
@@ -307,7 +306,7 @@ void Win32Mouse::init(void)
 	//
 	m_inputMovesAbsolute = TRUE;
 
-}  // end int
+}
 
 //-------------------------------------------------------------------------------------------------
 /** Reset */
@@ -318,7 +317,7 @@ void Win32Mouse::reset(void)
 	// extend
 	Mouse::reset();
 
-}  // end reset
+}
 
 //-------------------------------------------------------------------------------------------------
 /** Update, called once per frame */
@@ -329,7 +328,7 @@ void Win32Mouse::update(void)
 	// extend
 	Mouse::update();
 
-}  // end update
+}
 
 //-------------------------------------------------------------------------------------------------
 /** Add a window message event along with its WPARAM and LPARAM parameters
@@ -357,7 +356,7 @@ void Win32Mouse::addWin32Event(UINT msg, WPARAM wParam, LPARAM lParam, DWORD tim
 	if (m_nextFreeIndex >= Mouse::NUM_MOUSE_EVENTS)
 		m_nextFreeIndex = 0;
 
-}  // end addWin32Event
+}
 
 extern HINSTANCE ApplicationHInstance;
 
@@ -442,12 +441,12 @@ void Win32Mouse::setCursor(MouseCursor cursor)
 	else
 	{
 		SetCursor(cursorResources[cursor][m_directionFrame]);
-	}  // end switch
+	}
 
 	// save current cursor
 	m_currentWin32Cursor = m_currentCursor = cursor;
 
-}  // end setCursor
+}
 
 //-------------------------------------------------------------------------------------------------
 /** Capture the mouse to our application */
@@ -478,13 +477,12 @@ void Win32Mouse::capture(void)
 	rect.right = rightBottom.x;
 	rect.bottom = rightBottom.y;
 
-
 	if (::ClipCursor(&rect))
 	{
 		onCursorCaptured(true);
 	}
 
-}  // end capture
+}
 
 //-------------------------------------------------------------------------------------------------
 /** Release the mouse capture for our app window */
@@ -497,4 +495,4 @@ void Win32Mouse::releaseCapture(void)
 		onCursorCaptured(false);
 	}
 
-}  // end releaseCapture
+}

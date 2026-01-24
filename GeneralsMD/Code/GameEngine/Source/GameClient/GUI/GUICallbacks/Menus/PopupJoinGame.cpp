@@ -74,8 +74,8 @@ static NameKeyType parentPopupID = NAMEKEY_INVALID;
 static NameKeyType textEntryGamePasswordID = NAMEKEY_INVALID;
 static NameKeyType buttonCancelID = NAMEKEY_INVALID;
 
-static GameWindow *parentPopup = NULL;
-static GameWindow *textEntryGamePassword = NULL;
+static GameWindow *parentPopup = nullptr;
+static GameWindow *textEntryGamePassword = nullptr;
 
 static void joinGame( AsciiString password );
 
@@ -89,7 +89,7 @@ static void joinGame( AsciiString password );
 void PopupJoinGameInit( WindowLayout *layout, void *userData )
 {
 	parentPopupID = TheNameKeyGenerator->nameToKey("PopupJoinGame.wnd:ParentJoinPopUp");
-	parentPopup = TheWindowManager->winGetWindowFromId(NULL, parentPopupID);
+	parentPopup = TheWindowManager->winGetWindowFromId(nullptr, parentPopupID);
 
 	textEntryGamePasswordID = TheNameKeyGenerator->nameToKey("PopupJoinGame.wnd:TextEntryGamePassword");
 	textEntryGamePassword = TheWindowManager->winGetWindowFromId(parentPopup, textEntryGamePasswordID);
@@ -148,7 +148,7 @@ WindowMsgHandledType PopupJoinGameInput( GameWindow *window, UnsignedInt msg, Wi
 					{
 						GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
 						SetLobbyAttemptHostJoin( FALSE );
-						parentPopup = NULL;
+						parentPopup = nullptr;
 					}
 
 					// don't let key fall through anywhere else
@@ -198,7 +198,7 @@ WindowMsgHandledType PopupJoinGameSystem( GameWindow *window, UnsignedInt msg, W
 			{
 				GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
 				SetLobbyAttemptHostJoin( FALSE );
-				parentPopup = NULL;
+				parentPopup = nullptr;
 			}
 			break;
 		}
@@ -258,7 +258,7 @@ static void joinGame( AsciiString password )
 		DEBUG_LOG(("NGMP_OnlineServices_LobbyInterface is not initialized!"));
 		GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
 		SetLobbyAttemptHostJoin(FALSE);
-		parentPopup = NULL;
+		parentPopup = nullptr;
 		return;
 	}
 
@@ -287,5 +287,5 @@ static void joinGame( AsciiString password )
 #endif
 
 	GameSpyCloseOverlay(GSOVERLAY_GAMEPASSWORD);
-	parentPopup = NULL;
+	parentPopup = nullptr;
 }

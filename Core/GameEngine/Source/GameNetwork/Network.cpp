@@ -91,7 +91,7 @@ static const int CmdMsgLen = 6; //< Minimum size of a command packet (Int + Unsi
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
 
 /// The Network singleton instance
-NetworkInterface *TheNetwork = NULL;
+NetworkInterface* TheNetwork = NULL;
 
 // PRIVATE PROTOTYPES /////////////////////////////////////////////////////////
 
@@ -106,11 +106,11 @@ public:
 	// Setup / Teardown functions
 	Network();
 	~Network();
-	void init( void );																				///< Initialize or re-initialize the instance
-	void reset( void );																				///< Reinitialize the network
-	void update( void );																			///< Process command list
-	void liteupdate( void );																	///< Do a lightweight update to send packets and pass messages.
-	Bool deinit( void );																			///< Shutdown connections, release memory
+	void init(void);																				///< Initialize or re-initialize the instance
+	void reset(void);																				///< Reinitialize the network
+	void update(void);																			///< Process command list
+	void liteupdate(void);																	///< Do a lightweight update to send packets and pass messages.
+	Bool deinit(void);																			///< Shutdown connections, release memory
 
 #if defined(GENERALS_ONLINE)
 	virtual void SeedLatencyData(int latency);
@@ -120,9 +120,9 @@ public:
 	UnsignedInt getRunAhead(void) { return m_runAhead; }
 	UnsignedInt getFrameRate(void) { return m_frameRate; }
 	UnsignedInt getPacketArrivalCushion(void);								///< Returns the smallest packet arrival cushion since this was last called.
-	Bool isFrameDataReady( void );
+	Bool isFrameDataReady(void);
 	virtual Bool isStalling();
-	void parseUserList( const GameInfo *game );
+	void parseUserList(const GameInfo* game);
 	void startGame(void);																			///< Sets the network game frame counter to -1
 
 	void sendChat(UnicodeString text, Int playerMask);
@@ -138,20 +138,20 @@ public:
 
 
 	void voteForPlayerDisconnect(Int slot);
-	virtual Bool isPacketRouter( void );
+	virtual Bool isPacketRouter(void);
 
 	// Bandwidth metrics
-	Real getIncomingBytesPerSecond( void );
-	Real getIncomingPacketsPerSecond( void );
-	Real getOutgoingBytesPerSecond( void );
-	Real getOutgoingPacketsPerSecond( void );
-	Real getUnknownBytesPerSecond( void );
-	Real getUnknownPacketsPerSecond( void );
+	Real getIncomingBytesPerSecond(void);
+	Real getIncomingPacketsPerSecond(void);
+	Real getOutgoingBytesPerSecond(void);
+	Real getOutgoingPacketsPerSecond(void);
+	Real getUnknownBytesPerSecond(void);
+	Real getUnknownPacketsPerSecond(void);
 
 	// Multiplayer Load Progress Functions
-	void updateLoadProgress( Int percent );
-	void loadProgressComplete( void );
-	void sendTimeOutGameStart( void );
+	void updateLoadProgress(Int percent);
+	void loadProgressComplete(void);
+	void sendTimeOutGameStart(void);
 
 #if defined(RTS_DEBUG)
 	// Disconnect screen testing
@@ -159,14 +159,14 @@ public:
 #endif
 
 	// Exposing some info contained in the Connection Manager
-	UnsignedInt getLocalPlayerID( void );
+	UnsignedInt getLocalPlayerID(void);
 	UnicodeString getPlayerName(Int playerNum);
-	Int getNumPlayers(void );
+	Int getNumPlayers(void);
 
 	Int getAverageFPS() { return m_conMgr->getAverageFPS(); }
 	Int getSlotAverageFPS(Int slot);
 
-	void attachTransport(Transport *transport);
+	void attachTransport(Transport* transport);
 	void initTransport();
 
 #if defined(GENERALS_ONLINE)
@@ -199,15 +199,15 @@ protected:
 	void SendCommandsToConnectionManager();												///< Send the new commands to the ConnectionManager
 	Bool AllCommandsReady(UnsignedInt frame);											///< Do we have all the commands for the given frame?
 	void RelayCommandsToCommandList(UnsignedInt frame);						///< Put the commands for the given frame onto TheCommandList.
-	Bool isTransferCommand(GameMessage *msg);											///< Is this a command that needs to be transfered to the other clients?
-	Bool processCommand(GameMessage *msg);												///< Whatever needs to be done as a result of this command, do it now.
-	void processFrameSynchronizedNetCommand(NetCommandRef *msg);	///< If there is a network command that needs to be executed at the same frame number on all clients, it happens here.
-	void processRunAheadCommand(NetRunAheadCommandMsg *msg);			///< Do what needs to be done when we get a new run ahead command.
-	void processDestroyPlayerCommand(NetDestroyPlayerCommandMsg *msg);	///< Do what needs to be done when we need to destroy a player.
+	Bool isTransferCommand(GameMessage* msg);											///< Is this a command that needs to be transfered to the other clients?
+	Bool processCommand(GameMessage* msg);												///< Whatever needs to be done as a result of this command, do it now.
+	void processFrameSynchronizedNetCommand(NetCommandRef* msg);	///< If there is a network command that needs to be executed at the same frame number on all clients, it happens here.
+	void processRunAheadCommand(NetRunAheadCommandMsg* msg);			///< Do what needs to be done when we get a new run ahead command.
+	void processDestroyPlayerCommand(NetDestroyPlayerCommandMsg* msg);	///< Do what needs to be done when we need to destroy a player.
 	void endOfGameCheck();																				///< Checks to see if its ok to leave this game.  If it is, send the apropriate command to the game logic.
 	Bool timeForNewFrame();
 
-	ConnectionManager *m_conMgr;																	///< The connection manager object
+	ConnectionManager* m_conMgr;																	///< The connection manager object
 
 	UnsignedInt m_lastFrame;																			///< The last game logic frame that was processed.
 
@@ -230,7 +230,7 @@ protected:
 	Bool m_sawCRCMismatch;
 	std::vector<UnsignedInt> m_CRC[MAX_SLOTS];
 	std::list<Int> m_playersToDisconnect;
-	GameWindow *m_messageWindow;
+	GameWindow* m_messageWindow;
 
 #if defined(RTS_DEBUG)
 	Bool m_networkOn;
@@ -239,20 +239,20 @@ protected:
 
 UnsignedInt Network::getPingFrame()
 {
-	return (m_conMgr)?m_conMgr->getPingFrame():0;
+	return (m_conMgr) ? m_conMgr->getPingFrame() : 0;
 }
 
 Int Network::getPingsSent()
 {
-	return (m_conMgr)?m_conMgr->getPingsSent():0;
+	return (m_conMgr) ? m_conMgr->getPingsSent() : 0;
 }
 
 Int Network::getPingsRecieved()
 {
-	return (m_conMgr)?m_conMgr->getPingsRecieved():0;
+	return (m_conMgr) ? m_conMgr->getPingsReceived() : 0;
 }
 
-Bool Network::isPlayerConnected( Int playerID ) {
+Bool Network::isPlayerConnected(Int playerID) {
 	if (playerID == getLocalPlayerID()) {
 		return m_localStatus == NETLOCALSTATUS_INGAME || m_localStatus == NETLOCALSTATUS_LEAVING;
 	}
@@ -269,7 +269,7 @@ Bool Network::isPlayerConnected( Int playerID ) {
 /**
  * This creates a network object and returns it.
  */
-NetworkInterface *NetworkInterface::createNetwork()
+NetworkInterface* NetworkInterface::createNetwork()
 {
 	return NEW Network;
 }
@@ -305,7 +305,7 @@ Network::~Network()
 /**
  * This basically releases all the memory.
  */
-Bool Network::deinit( void )
+Bool Network::deinit(void)
 {
 	if (m_conMgr)
 	{
@@ -343,7 +343,7 @@ void Network::init()
 	m_conMgr->init();
 
 	m_lastFrame = 0;
-	m_runAhead = min(max(30, MIN_RUNAHEAD), MAX_FRAMES_AHEAD/2); ///< @todo: don't hard-code the run-ahead.
+	m_runAhead = min(max(30, MIN_RUNAHEAD), MAX_FRAMES_AHEAD / 2); ///< @todo: don't hard-code the run-ahead.
 	m_frameRate = 30;
 	m_lastExecutionFrame = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_lastFrameCompleted = m_runAhead - 1; // subtract 1 since we're starting on frame 0
@@ -353,7 +353,7 @@ void Network::init()
 
 	m_localStatus = NETLOCALSTATUS_PREGAME;
 
-	QueryPerformanceFrequency((LARGE_INTEGER *)&m_perfCountFreq);
+	QueryPerformanceFrequency((LARGE_INTEGER*)&m_perfCountFreq);
 	m_nextFrameTime = 0;
 	m_sawCRCMismatch = FALSE;
 	m_checkCRCsThisFrame = FALSE;
@@ -437,7 +437,7 @@ void Network::setSawCRCMismatch( void )
 /**
  * Take a user list and build the connection queues and player lists and stuff like that.
  */
-void Network::parseUserList( const GameInfo *game )
+void Network::parseUserList(const GameInfo* game)
 {
 	if (!game)
 	{
@@ -449,7 +449,7 @@ void Network::parseUserList( const GameInfo *game )
 
 	// Now that we have the players in this game, we need to reset the FrameData stuff.
 	m_conMgr->destroyGameMessages();
-	m_conMgr->zeroFrames(1, m_runAhead-1); ///< we zero out m_runAhead frames +1 because the game actually starts at frame 1.
+	m_conMgr->zeroFrames(1, m_runAhead - 1); ///< we zero out m_runAhead frames +1 because the game actually starts at frame 1.
 }
 
 /**
@@ -479,7 +479,7 @@ void Network::initTransport() {
 	}
 }
 
-void Network::attachTransport(Transport *transport) {
+void Network::attachTransport(Transport* transport) {
 	DEBUG_ASSERTCRASH(m_conMgr != NULL, ("Connection manager does not exist."));
 	if (m_conMgr != NULL) {
 		m_conMgr->attachTransport(transport);
@@ -489,7 +489,7 @@ void Network::attachTransport(Transport *transport) {
 /**
  * Does this command need to be transfered to the other game clients?
  */
-Bool Network::isTransferCommand(GameMessage *msg) {
+Bool Network::isTransferCommand(GameMessage* msg) {
 	if ((msg != NULL) && ((msg->getType() > GameMessage::MSG_BEGIN_NETWORK_MESSAGES) && (msg->getType() < GameMessage::MSG_END_NETWORK_MESSAGES))) {
 		return TRUE;
 	}
@@ -500,8 +500,8 @@ Bool Network::isTransferCommand(GameMessage *msg) {
  * Take commands from TheCommandList and give them to the connection manager for transport.
  */
 void Network::GetCommandsFromCommandList() {
-	GameMessage *msg = TheCommandList->getFirstMessage();
-	GameMessage *next = NULL;
+	GameMessage* msg = TheCommandList->getFirstMessage();
+	GameMessage* next = NULL;
 	while (msg != NULL) {
 		next = msg->next();
 		if (isTransferCommand(msg)) { // Is this something we should be sending to the other players?
@@ -510,7 +510,8 @@ void Network::GetCommandsFromCommandList() {
 			}
 			TheCommandList->removeMessage(msg); // This does not destroy msg's prev and next pointers, so they should still be valid.
 			deleteInstance(msg);
-		} else {
+		}
+		else {
 			if (processCommand(msg)) {
 				TheCommandList->removeMessage(msg);
 				deleteInstance(msg);
@@ -535,7 +536,7 @@ Int Network::getExecutionFrame() {
  * send our info for the last frame to the other players.
  * Return true if the message should be "eaten" by the network.
  */
-Bool Network::processCommand(GameMessage *msg)
+Bool Network::processCommand(GameMessage* msg)
 {
 	if ((m_lastFrame != TheGameLogic->getFrame()) || (m_localStatus == NETLOCALSTATUS_PREGAME)) {
 		// If this is the start of a new game logic frame, then tell the connection manager that the last
@@ -581,14 +582,14 @@ Bool Network::processCommand(GameMessage *msg)
 	// frame where everyone else is going to see that we left.
 	if ((msg->getType() == GameMessage::MSG_CLEAR_GAME_DATA) && (m_localStatus == NETLOCALSTATUS_INGAME)) {
 		Int executionFrame = getExecutionFrame();
-		DEBUG_LOG(("Network::processCommand - local player leaving, executionFrame = %d, player leaving on frame %d", executionFrame, executionFrame+1));
+		DEBUG_LOG(("Network::processCommand - local player leaving, executionFrame = %d, player leaving on frame %d", executionFrame, executionFrame + 1));
 
-		m_conMgr->handleLocalPlayerLeaving(executionFrame+1);
+		m_conMgr->handleLocalPlayerLeaving(executionFrame + 1);
 		m_conMgr->processFrameTick(executionFrame); // This is the last command we will execute, so send the command count.
-																								// Also, we are guaranteed not to send any more commands for this frame
-																								// since the local status will change to "Leaving" so we don't have to
-																								// worry about messing up the other players.
-		m_conMgr->processFrameTick(executionFrame+1); // since we send it for executionFrame+1, we need to process both ticks
+		// Also, we are guaranteed not to send any more commands for this frame
+		// since the local status will change to "Leaving" so we don't have to
+		// worry about messing up the other players.
+		m_conMgr->processFrameTick(executionFrame + 1); // since we send it for executionFrame+1, we need to process both ticks
 		m_lastFrameCompleted = executionFrame;
 		DEBUG_LOG(("Network::processCommand - player leaving on frame %d", executionFrame));
 		m_localStatus = NETLOCALSTATUS_LEAVING;
@@ -625,14 +626,15 @@ void Network::RelayCommandsToCommandList(UnsignedInt frame) {
 		return;
 	}
 	m_checkCRCsThisFrame = FALSE;
-	NetCommandList *netcmdlist = m_conMgr->getFrameCommandList(frame);
-	NetCommandRef *msg = netcmdlist->getFirstMessage();
+	NetCommandList* netcmdlist = m_conMgr->getFrameCommandList(frame);
+	NetCommandRef* msg = netcmdlist->getFirstMessage();
 	while (msg != NULL) {
 		NetCommandType cmdType = msg->getCommand()->getNetCommandType();
 		if (cmdType == NETCOMMANDTYPE_GAMECOMMAND) {
 			//DEBUG_LOG(("Network::RelayCommandsToCommandList - appending command %d of type %s to command list on frame %d", msg->getCommand()->getID(), ((NetGameCommandMsg *)msg->getCommand())->constructGameMessage()->getCommandAsString(), TheGameLogic->getFrame()));
-			TheCommandList->appendMessage(((NetGameCommandMsg *)msg->getCommand())->constructGameMessage());
-		} else {
+			TheCommandList->appendMessage(((NetGameCommandMsg*)msg->getCommand())->constructGameMessage());
+		}
+		else {
 			processFrameSynchronizedNetCommand(msg);
 		}
 		msg = msg->getNext();
@@ -654,39 +656,39 @@ void Network::RelayCommandsToCommandList(UnsignedInt frame) {
 /**
  * This is where network commands that need to be executed on the same frame should be executed.
  */
-void Network::processFrameSynchronizedNetCommand(NetCommandRef *msg) {
-	NetCommandMsg *cmdMsg = msg->getCommand();
+void Network::processFrameSynchronizedNetCommand(NetCommandRef* msg) {
+	NetCommandMsg* cmdMsg = msg->getCommand();
 	if (cmdMsg->getNetCommandType() == NETCOMMANDTYPE_PLAYERLEAVE) {
-		PlayerLeaveCode retval = m_conMgr->processPlayerLeave((NetPlayerLeaveCommandMsg *)cmdMsg);
+		PlayerLeaveCode retval = m_conMgr->processPlayerLeave((NetPlayerLeaveCommandMsg*)cmdMsg);
 		if (retval == PLAYERLEAVECODE_LOCAL) {
 			DEBUG_LOG(("Network::processFrameSynchronizedNetCommand - Local player left the game on frame %d.", TheGameLogic->getFrame()));
 			m_localStatus = NETLOCALSTATUS_LEFT;
-		} else if (retval == PLAYERLEAVECODE_PACKETROUTER) {
+		}
+		else if (retval == PLAYERLEAVECODE_PACKETROUTER) {
 			DEBUG_LOG(("Network::processFrameSynchronizedNetCommand - Packet router left the game on frame %d", TheGameLogic->getFrame()));
-		} else {
+		}
+		else {
 			DEBUG_LOG(("Network::processFrameSynchronizedNetCommand - Client left the game on frame %d", TheGameLogic->getFrame()));
 		}
 	}
 	else if (cmdMsg->getNetCommandType() == NETCOMMANDTYPE_RUNAHEAD) {
-		NetRunAheadCommandMsg *netmsg = (NetRunAheadCommandMsg *)cmdMsg;
+		NetRunAheadCommandMsg* netmsg = (NetRunAheadCommandMsg*)cmdMsg;
 		processRunAheadCommand(netmsg);
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("command to set run ahead to %d and frame rate to %d on frame %d actually executed on frame %d", netmsg->getRunAhead(), netmsg->getFrameRate(), netmsg->getExecutionFrame(), TheGameLogic->getFrame()));
 	}
 	else if (cmdMsg->getNetCommandType() == NETCOMMANDTYPE_DESTROYPLAYER) {
-		NetDestroyPlayerCommandMsg *netmsg = (NetDestroyPlayerCommandMsg *)cmdMsg;
+		NetDestroyPlayerCommandMsg* netmsg = (NetDestroyPlayerCommandMsg*)cmdMsg;
 		processDestroyPlayerCommand(netmsg);
 		//DEBUG_LOG(("CRC command (%8.8X) on frame %d actually executed on frame %d", netmsg->getCRC(), netmsg->getExecutionFrame(), TheGameLogic->getFrame()));
 	}
 }
 
-void Network::processRunAheadCommand(NetRunAheadCommandMsg *msg) {
+void Network::processRunAheadCommand(NetRunAheadCommandMsg* msg) {
 	m_runAhead = msg->getRunAhead();
 	m_frameRate = msg->getFrameRate();
 	time_t frameGrouping = (1000 * m_runAhead) / m_frameRate; // number of miliseconds between packet sends
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "Frame grouping is %d, formula was (1000 * %d) / %d", (int)frameGrouping, (int)m_runAhead, (int)m_frameRate);
-	
 	frameGrouping = frameGrouping / 2; // since we only want the latency for one way to be a factor.
-//	DEBUG_LOG(("Network::processRunAheadCommand - trying to set frame grouping to %d.  run ahead = %d, m_frameRate = %d", frameGrouping, m_runAhead, m_frameRate));
+	//	DEBUG_LOG(("Network::processRunAheadCommand - trying to set frame grouping to %d.  run ahead = %d, m_frameRate = %d", frameGrouping, m_runAhead, m_frameRate));
 	if (frameGrouping < 1) {
 		frameGrouping = 1; // Having a value less than 1 doesn't make sense.
 	}
@@ -704,7 +706,7 @@ void Network::processRunAheadCommand(NetRunAheadCommandMsg *msg) {
 	m_conMgr->setFrameGrouping(frameGrouping);
 }
 
-void Network::processDestroyPlayerCommand(NetDestroyPlayerCommandMsg *msg)
+void Network::processDestroyPlayerCommand(NetDestroyPlayerCommandMsg* msg)
 {
 	UnsignedInt playerIndex = msg->getPlayerIndex();
 	DEBUG_ASSERTCRASH(playerIndex < MAX_SLOTS, ("Bad player index"));
@@ -713,10 +715,10 @@ void Network::processDestroyPlayerCommand(NetDestroyPlayerCommandMsg *msg)
 
 	AsciiString playerName;
 	playerName.format("player%d", playerIndex);
-	Player *pPlayer = ThePlayerList->findPlayerWithNameKey(NAMEKEY(playerName));
+	Player* pPlayer = ThePlayerList->findPlayerWithNameKey(NAMEKEY(playerName));
 	if (pPlayer)
 	{
-		GameMessage *msg = newInstance(GameMessage)(GameMessage::MSG_SELF_DESTRUCT);
+		GameMessage* msg = newInstance(GameMessage)(GameMessage::MSG_SELF_DESTRUCT);
 #if RETAIL_COMPATIBLE_CRC
 		const Bool transferAssets = FALSE;
 #else
@@ -734,14 +736,14 @@ void Network::processDestroyPlayerCommand(NetDestroyPlayerCommandMsg *msg)
 /**
  * Service queues, process message stream, etc
  */
-void Network::update( void )
+void Network::update(void)
 {
-//
-// 1. Take Commands off TheCommandList, hand them off to the ConnectionManager.
-// 2. Call ConnectionManager->update;
-// 3. Check to see if all the commands for the next frame are there.
-// 4. If all commands are there, put that frame's commands on TheCommandList.
-//
+	//
+	// 1. Take Commands off TheCommandList, hand them off to the ConnectionManager.
+	// 2. Call ConnectionManager->update;
+	// 3. Check to see if all the commands for the next frame are there.
+	// 4. If all commands are there, put that frame's commands on TheCommandList.
+	//
 	m_frameDataReady = FALSE;
 	m_isStalling = FALSE;
 
@@ -776,7 +778,7 @@ void Network::update( void )
 
 	if (AllCommandsReady(TheGameLogic->getFrame())) { // If all the commands are ready for the next frame...
 		m_conMgr->handleAllCommandsReady();
-//		DEBUG_LOG(("Network::update - frame %d is ready", TheGameLogic->getFrame()));
+		//		DEBUG_LOG(("Network::update - frame %d is ready", TheGameLogic->getFrame()));
 		if (timeForNewFrame()) { // This needs to come after any other pre-frame execution checks as this changes the timing variables.
 			RelayCommandsToCommandList(TheGameLogic->getFrame());	// Put the commands for the next frame on TheCommandList.
 			m_frameDataReady = TRUE; // Tell the GameEngine to run the commands for the new frame.
@@ -784,7 +786,7 @@ void Network::update( void )
 	}
 	else {
 		__int64 curTime;
-		QueryPerformanceCounter((LARGE_INTEGER *)&curTime);
+		QueryPerformanceCounter((LARGE_INTEGER*)&curTime);
 		m_isStalling = curTime >= m_nextFrameTime;
 	}
 }
@@ -800,7 +802,8 @@ void Network::liteupdate() {
 	if (m_conMgr != NULL) {
 		if (m_localStatus == NETLOCALSTATUS_PREGAME) {
 			m_conMgr->update(FALSE);
-		} else {
+		}
+		else {
 			m_conMgr->update(TRUE);
 		}
 	}
@@ -810,7 +813,7 @@ void Network::endOfGameCheck() {
 	if (m_conMgr != NULL) {
 		if (m_conMgr->canILeave()) {
 			m_conMgr->disconnectLocalPlayer();
-			TheMessageStream->appendMessage(GameMessage::MSG_CLEAR_GAME_DATA);
+			TheGameLogic->exitGame();
 			m_localStatus = NETLOCALSTATUS_POSTGAME;
 
 			DEBUG_LOG(("Network::endOfGameCheck - about to show the shell"));
@@ -825,7 +828,7 @@ void Network::endOfGameCheck() {
 
 Bool Network::timeForNewFrame() {
 	__int64 curTime;
-	QueryPerformanceCounter((LARGE_INTEGER *)&curTime);
+	QueryPerformanceCounter((LARGE_INTEGER*)&curTime);
 	__int64 frameDelay = m_perfCountFreq / m_frameRate;
 
 	/*
@@ -883,73 +886,73 @@ Bool Network::isStalling()
 /**
  * returns the number of incoming bytes per second averaged over the last 30 sec.
  */
-Real Network::getIncomingBytesPerSecond( void )
+Real Network::getIncomingBytesPerSecond(void)
 {
 	if (m_conMgr)
 		return m_conMgr->getIncomingBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
  * returns the number of incoming packets per second averaged over the last 30 sec.
  */
-Real Network::getIncomingPacketsPerSecond( void )
+Real Network::getIncomingPacketsPerSecond(void)
 {
 	if (m_conMgr)
 		return m_conMgr->getIncomingPacketsPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
  * returns the number of outgoing bytes per second averaged over the last 30 sec.
  */
-Real Network::getOutgoingBytesPerSecond( void )
+Real Network::getOutgoingBytesPerSecond(void)
 {
 	if (m_conMgr)
 		return m_conMgr->getOutgoingBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
  * returns the number of outgoing packets per second averaged over the last 30 sec.
  */
-Real Network::getOutgoingPacketsPerSecond( void )
+Real Network::getOutgoingPacketsPerSecond(void)
 {
 	if (m_conMgr)
 		return m_conMgr->getOutgoingPacketsPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
  * returns the number of bytes received per second that are not from a generals client averaged over 30 sec.
  */
-Real Network::getUnknownBytesPerSecond( void )
+Real Network::getUnknownBytesPerSecond(void)
 {
 	if (m_conMgr)
 		return m_conMgr->getUnknownBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
  * returns the number of packets received per second that are not from a generals client averaged over 30 sec.
  */
-Real Network::getUnknownPacketsPerSecond( void )
+Real Network::getUnknownPacketsPerSecond(void)
 {
 	if (m_conMgr)
 		return m_conMgr->getUnknownPacketsPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
  * returns the smallest packet arrival cushion since this was last called.
  */
-UnsignedInt Network::getPacketArrivalCushion( void )
+UnsignedInt Network::getPacketArrivalCushion(void)
 {
 	if (m_conMgr)
 		return m_conMgr->getPacketArrivalCushion();
@@ -1004,11 +1007,11 @@ void Network::quitGame() {
 
 #if !RTS_GENERALS || !RETAIL_COMPATIBLE_CRC
 	// Blow up / Transfer your units when you quit.  Like a normal quit menu quit.
-	GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_SELF_DESTRUCT);
+	GameMessage* msg = TheMessageStream->appendMessage(GameMessage::MSG_SELF_DESTRUCT);
 	msg->appendBooleanArgument(TRUE);
 #endif
 
-	TheMessageStream->appendMessage(GameMessage::MSG_CLEAR_GAME_DATA);
+	TheGameLogic->exitGame();
 	m_localStatus = NETLOCALSTATUS_POSTGAME;
 	DEBUG_LOG(("Network::quitGame - quitting game..."));
 }
@@ -1019,7 +1022,7 @@ void Network::selfDestructPlayer(Int index)
 }
 
 
-Bool Network::isPacketRouter( void )
+Bool Network::isPacketRouter(void)
 {
 	return m_conMgr && m_conMgr->isPacketRouter();
 }
@@ -1033,21 +1036,21 @@ void Network::voteForPlayerDisconnect(Int slot) {
 	}
 }
 
-void Network::updateLoadProgress( Int percent )
+void Network::updateLoadProgress(Int percent)
 {
 	if (m_conMgr != NULL) {
-		m_conMgr->updateLoadProgress( percent );
+		m_conMgr->updateLoadProgress(percent);
 	}
 }
 
-void Network::loadProgressComplete( void )
+void Network::loadProgressComplete(void)
 {
 	if (m_conMgr != NULL) {
 		m_conMgr->loadProgressComplete();
 	}
 }
 
-void Network::sendTimeOutGameStart( void )
+void Network::sendTimeOutGameStart(void)
 {
 	if (m_conMgr != NULL) {
 		m_conMgr->sendTimeOutGameStart();
@@ -1057,7 +1060,7 @@ void Network::sendTimeOutGameStart( void )
 
 UnsignedInt Network::getLocalPlayerID()
 {
-if (m_conMgr != NULL) {
+	if (m_conMgr != NULL) {
 		return m_conMgr->getLocalPlayerID();
 	}
 	return 49;
@@ -1070,7 +1073,7 @@ UnicodeString Network::getPlayerName(Int playerNum)
 		}
 	}
 	if (m_conMgr != NULL) {
-		return m_conMgr->getPlayerName( playerNum );
+		return m_conMgr->getPlayerName(playerNum);
 	}
 	return UnicodeString::TheEmptyString;
 }
@@ -1093,7 +1096,8 @@ Int Network::getSlotAverageFPS(Int slot) {
 void Network::toggleNetworkOn() {
 	if (m_networkOn == TRUE) {
 		m_networkOn = FALSE;
-	} else {
+	}
+	else {
 		m_networkOn = TRUE;
 	}
 }

@@ -327,7 +327,6 @@ private:
 
 	ObjectID m_nextObjID;																		///< For allocating object id's
 
-	void setDefaults( Bool saveGame );											///< Set default values of class object
 	void processDestroyList( void );												///< Destroy all pending objects on the destroy list
 
 	void destroyAllObjectsImmediate();											///< destroy, and process destroy list immediately
@@ -403,11 +402,11 @@ inline Bool GameLogic::isLoadingGame(){ return m_loadingScene;}
 inline Object* GameLogic::findObjectByID( ObjectID id )
 {
 	if( id == INVALID_ID )
-		return NULL;
+		return nullptr;
 
 	ObjectPtrHash::iterator it = m_objHash.find(id);
 	if (it == m_objHash.end())
-		return NULL;
+		return nullptr;
 
 	return (*it).second;
 }

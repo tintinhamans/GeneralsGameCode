@@ -266,12 +266,12 @@ StateMachine::StateMachine( Object *owner, AsciiString name )
 	m_sleepTill = 0;
 	m_defaultStateID = INVALID_STATE_ID;
 	m_defaultStateInited = false;
-	m_currentState = NULL;
+	m_currentState = nullptr;
 	m_locked = false;
 #ifdef STATE_MACHINE_DEBUG
 	m_name = name;
 	m_debugOutput = false;
-	m_lockedby = NULL;
+	m_lockedby = nullptr;
 #endif
 	internalClear();
 }
@@ -312,7 +312,7 @@ Bool StateMachine::getWantsDebugOutput() const
 	}
 
 #ifdef DEBUG_OBJECT_ID_EXISTS
-	if (TheObjectIDToDebug != 0 && getOwner() != NULL && getOwner()->getID() == TheObjectIDToDebug)
+	if (TheObjectIDToDebug != 0 && getOwner() != nullptr && getOwner()->getID() == TheObjectIDToDebug)
 	{
 		return true;
 	}
@@ -360,7 +360,7 @@ void StateMachine::clear()
 	if (m_currentState)
 		m_currentState->onExit( EXIT_RESET );
 
-	m_currentState = NULL;
+	m_currentState = nullptr;
 
 	internalClear();
 }
@@ -390,7 +390,7 @@ StateReturnType StateMachine::resetToDefaultState()
 	// allow current state to exit with EXIT_RESET if present
 	if (m_currentState)
 		m_currentState->onExit( EXIT_RESET );
-	m_currentState = NULL;
+	m_currentState = nullptr;
 
 	//
 	// the current state has done an onExit, clear the internal guts before we set
@@ -417,7 +417,7 @@ StateReturnType StateMachine::updateStateMachine()
 	UnsignedInt now = TheGameLogic->getFrame();
 	if (m_sleepTill != 0 && now < m_sleepTill)
 	{
-		if( m_currentState == NULL )
+		if( m_currentState == nullptr )
 		{
 			return STATE_FAILURE;
 		}
@@ -442,7 +442,7 @@ StateReturnType StateMachine::updateStateMachine()
 		StateReturnType status = m_currentState->update();
 
 		// it is possible that the state's update() method clears the state machine.
-		if (m_currentState == NULL)
+		if (m_currentState == nullptr)
 		{
 			return STATE_FAILURE;
 		}
@@ -498,7 +498,7 @@ void StateMachine::defineState( StateID id, State *state, StateID successID, Sta
 	state->friend_onSuccess(successID);
 	state->friend_onFailure(failureID);
 
-	while (conditions && conditions->test != NULL)
+	while (conditions && conditions->test != nullptr)
 	{
 		state->friend_onCondition(conditions->test, conditions->toStateID, conditions->userData);
 		++conditions;
@@ -556,7 +556,7 @@ StateReturnType StateMachine::setState( StateID newStateID )
  */
 StateReturnType StateMachine::internalSetState( StateID newStateID )
 {
-	State *newState = NULL;
+	State *newState = nullptr;
 
 	// anytime the state changes, stop sleeping
 	m_sleepTill = 0;
@@ -617,7 +617,7 @@ StateReturnType StateMachine::internalSetState( StateID newStateID )
 		StateReturnType status = m_currentState->onEnter();
 
 		// it is possible that the state's onEnter() method may cause the state to be destroyed
-		if (m_currentState == NULL)
+		if (m_currentState == nullptr)
 		{
 			return STATE_FAILURE;
 		}
@@ -707,7 +707,7 @@ StateReturnType StateMachine::initDefaultState()
 		}
 		REALLY_VERBOSE_LOG(("\n"));
 		delete ids;
-		ids = NULL;
+		ids = nullptr;
 	}
 	REALLY_VERBOSE_LOG(("SM_END\n\n"));
 #endif
@@ -741,14 +741,14 @@ Bool StateMachine::isGoalObjectDestroyed() const
 	{
 		return false; // never had a goal object
 	}
-	return getGoalObject() == NULL;
+	return getGoalObject() == nullptr;
 }
 
 //-----------------------------------------------------------------------------
 void StateMachine::halt()
 {
 	m_locked = true;
-	m_currentState = NULL; // don't exit current state, just clear it.
+	m_currentState = nullptr; // don't exit current state, just clear it.
 #ifdef STATE_MACHINE_DEBUG
 	if (getWantsDebugOutput())
 	{

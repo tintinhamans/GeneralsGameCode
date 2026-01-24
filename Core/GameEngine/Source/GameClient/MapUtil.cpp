@@ -74,10 +74,10 @@ static Int m_height = 0;					///< Height map height (y size of array).
 static Int m_borderSize = 0;			///< Non-playable border area.
 static std::vector<ICoord2D> m_boundaries;	///< All the boundaries we use for the map
 static Int m_dataSize = 0;				///< size of m_data.
-static UnsignedByte *m_data = 0;	///< array of z(height) values in the height map.
+static UnsignedByte *m_data = nullptr;	///< array of z(height) values in the height map.
 static Dict worldDict = 0;
 
-static WaypointMap *m_waypoints = 0;
+static WaypointMap *m_waypoints = nullptr;
 static Coord3DList	m_supplyPositions;
 static Coord3DList	m_techPositions;
 
@@ -104,7 +104,7 @@ static UnsignedInt calcCRC( AsciiString fname )
 	}
 
 	fp->close();
-	fp = NULL;
+	fp = nullptr;
 
 	return theCRC.get();
 }
@@ -160,7 +160,7 @@ static Bool ParseObjectDataChunk(DataChunkInput &file, DataChunkInfo *info, void
 
 static Bool ParseObjectsDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData)
 {
-	file.m_currentObject = NULL;
+	file.m_currentObject = nullptr;
 	file.registerParser( "Object", info->label, ParseObjectDataChunk );
 	return (file.parse(userData));
 }
@@ -236,7 +236,7 @@ static Bool loadMap( AsciiString filename )
 	file.registerParser( "HeightMapData", AsciiString::TheEmptyString, ParseSizeOnlyInChunk );
 	file.registerParser( "WorldInfo", AsciiString::TheEmptyString, ParseWorldDictDataChunk );
 	file.registerParser( "ObjectsList", AsciiString::TheEmptyString, ParseObjectsDataChunk );
-	if (!file.parse(NULL)) {
+	if (!file.parse(nullptr)) {
 		throw(ERROR_CORRUPT_FILE_FORMAT);
 	}
 
@@ -249,10 +249,10 @@ static Bool loadMap( AsciiString filename )
 static void resetMap( void )
 {
 	delete[] m_data;
-	m_data = NULL;
+	m_data = nullptr;
 
 	delete m_waypoints;
-	m_waypoints = NULL;
+	m_waypoints = nullptr;
 
 	m_techPositions.clear();
 	m_supplyPositions.clear();
@@ -343,8 +343,8 @@ void MapCache::writeCacheINI( const AsciiString &mapDir )
 
 	filepath.concat(m_mapCacheName);
 	FILE *fp = fopen(filepath.str(), "w");
-	DEBUG_ASSERTCRASH(fp != NULL, ("Failed to create %s", filepath.str()));
-	if (fp == NULL) {
+	DEBUG_ASSERTCRASH(fp != nullptr, ("Failed to create %s", filepath.str()));
+	if (fp == nullptr) {
 		return;
 	}
 
@@ -509,7 +509,7 @@ void MapCache::loadMapsFromMapCacheINI( const AsciiString &mapDir )
 
 	if (TheFileSystem->doesFileExist(fname.str()))
 	{
-		ini.load( fname, INI_LOAD_OVERWRITE, NULL );
+		ini.load( fname, INI_LOAD_OVERWRITE, nullptr );
 	}
 }
 
@@ -727,7 +727,7 @@ Bool MapCache::addMap(
 	return TRUE;
 }
 
-MapCache *TheMapCache = NULL;
+MapCache *TheMapCache = nullptr;
 
 // PUBLIC FUNCTIONS //////////////////////////////////////////////////////////////////////////////
 
@@ -759,17 +759,17 @@ static void buildMapListForNumPlayers(MapNameList &outMapNames, MapDisplayToFile
 struct MapListBoxData
 {
 	MapListBoxData()
-		: listbox(NULL)
+		: listbox(nullptr)
 		, numLength(0)
 		, numColumns(0)
 		, w(10)
 		, h(10)
 		, color(GameMakeColor(255, 255, 255, 255))
-		, battleHonors(NULL)
-		, easyImage(NULL)
-		, mediumImage(NULL)
-		, brutalImage(NULL)
-		, maxBrutalImage(NULL)
+		, battleHonors(nullptr)
+		, easyImage(nullptr)
+		, mediumImage(nullptr)
+		, brutalImage(nullptr)
+		, maxBrutalImage(nullptr)
 		, mapToSelect()
 		, selectionIndex(0) // always select *something*
 		, isMultiplayer(false)
@@ -817,7 +817,7 @@ static Bool addMapToMapListbox(
 			if (numBrutal)
 			{
 				const Int maxBrutalSlots = mapMetaData.m_numPlayers - 1;
-				if (lbData.maxBrutalImage != NULL && numBrutal == maxBrutalSlots)
+				if (lbData.maxBrutalImage != nullptr && numBrutal == maxBrutalSlots)
 				{
 					index = GadgetListBoxAddEntryImage( lbData.listbox, lbData.maxBrutalImage, index, 0, lbData.w, lbData.h, TRUE);
 					imageItemData = 4;
@@ -841,7 +841,7 @@ static Bool addMapToMapListbox(
 			else
 			{
 				imageItemData = 0;
-				index = GadgetListBoxAddEntryImage( lbData.listbox, NULL, index, 0, lbData.w, lbData.h, TRUE);
+				index = GadgetListBoxAddEntryImage( lbData.listbox, nullptr, index, 0, lbData.w, lbData.h, TRUE);
 			}
 		}
 
@@ -978,7 +978,7 @@ Int populateMapListboxNoReset( GameWindow *listbox, Bool useSystemMaps, Bool isM
 	}
 
 	delete lbData.battleHonors;
-	lbData.battleHonors = NULL;
+	lbData.battleHonors = nullptr;
 
 	GadgetListBoxSetSelected(listbox, &lbData.selectionIndex, 1);
 
@@ -1098,7 +1098,7 @@ const MapMetaData *MapCache::findMap(AsciiString mapName)
 	mapName.toLower();
 	MapCache::iterator it = find(mapName);
 	if (it == end())
-		return NULL;
+		return nullptr;
 	return &(it->second);
 }
 
@@ -1110,7 +1110,7 @@ static void copyFromBigToDir( const AsciiString& infile, const AsciiString& outf
 	// open the map file
 
 	File *file = TheFileSystem->openFile( infile.str(), File::READ | File::BINARY );
-	if( file == NULL )
+	if( file == nullptr )
 	{
 		DEBUG_CRASH(( "copyFromBigToDir - Error opening source file '%s'", infile.str() ));
 		throw SC_INVALID_DATA;
@@ -1125,7 +1125,7 @@ static void copyFromBigToDir( const AsciiString& infile, const AsciiString& outf
 
 	// allocate buffer big enough to hold the entire map file
 	char *buffer = NEW char[ fileSize ];
-	if( buffer == NULL )
+	if( buffer == nullptr )
 	{
 		DEBUG_CRASH(( "copyFromBigToDir - Unable to allocate buffer for file '%s'", infile.str() ));
 		throw SC_INVALID_DATA;
@@ -1157,7 +1157,7 @@ static void copyFromBigToDir( const AsciiString& infile, const AsciiString& outf
 Image *getMapPreviewImage( AsciiString mapName )
 {
 	if(!TheGlobalData)
-		return NULL;
+		return nullptr;
 	DEBUG_LOG(("%s Map Name", mapName.str()));
 	AsciiString tgaName = mapName;
 	AsciiString name;
@@ -1189,7 +1189,7 @@ Image *getMapPreviewImage( AsciiString mapName )
 	{
 
 		if(!TheFileSystem->doesFileExist(tgaName.str()))
-			return NULL;
+			return nullptr;
 		AsciiString mapPreviewDir;
 		mapPreviewDir.format(MAP_PREVIEW_DIR_PATH, TheGlobalData->getPath_UserData().str());
 		TheFileSystem->createDirectory(mapPreviewDir);
@@ -1226,7 +1226,7 @@ Image *getMapPreviewImage( AsciiString mapName )
 		}
 		else
 		{
-			image = NULL;
+			image = nullptr;
 		}
 	}
 
@@ -1237,7 +1237,7 @@ Image *getMapPreviewImage( AsciiString mapName )
 /*
 	// sanity
 	if( mapName.isEmpty() )
-		return NULL;
+		return nullptr;
 	Region2D uv;
 	mapPreviewImage = TheMappedImageCollection->findImageByName("MapPreview");
 	if(mapPreviewImage)
@@ -1270,10 +1270,10 @@ Image *getMapPreviewImage( AsciiString mapName )
 		if (file.isValidFileType()) {	// Backwards compatible files aren't valid data chunk files.
 			// Read the waypoints.
 			file.registerParser( "MapPreview", AsciiString::TheEmptyString, parseMapPreviewChunk );
-			if (!file.parse(NULL)) {
+			if (!file.parse(nullptr)) {
 				DEBUG_ASSERTCRASH(false,("Unable to read MapPreview info."));
 				deleteInstance(mapPreviewImage);
-				return NULL;
+				return nullptr;
 			}
 		}
 		theInputStream.close();
@@ -1281,14 +1281,14 @@ Image *getMapPreviewImage( AsciiString mapName )
 	else
 	{
 		deleteInstance(mapPreviewImage);
-		return NULL;
+		return nullptr;
 	}
 
 
 	return mapPreviewImage;
 
 */
-	return NULL;
+	return nullptr;
 }
 
 Bool parseMapPreviewChunk(DataChunkInput &file, DataChunkInfo *info, void *userData)
@@ -1305,12 +1305,15 @@ Bool parseMapPreviewChunk(DataChunkInput &file, DataChunkInfo *info, void *userD
 	//texture->Get_Surface_Level();
 
 	DEBUG_LOG(("BeginMapPreviewInfo"));
+	int pitch;
+	void *pBits = surface->Lock(&pitch);
+	const unsigned int bytesPerPixel = surface->Get_Bytes_Per_Pixel();
 	UnsignedInt *buffer = new UnsignedInt[size.x * size.y];
 	Int x,y;
 	for (y=0; y<size.y; y++) {
 		for(x = 0; x< size.x; x++)
 		{
-			surface->DrawPixel( x, y, file.readInt() );
+			surface->Draw_Pixel( x, y, file.readInt(), bytesPerPixel, pBits, pitch );
 			buffer[y + x] = file.readInt();
 			DEBUG_LOG(("x:%d, y:%d, %X", x, y, buffer[y + x]));
 		}
@@ -1318,6 +1321,7 @@ Bool parseMapPreviewChunk(DataChunkInput &file, DataChunkInfo *info, void *userD
 	mapPreviewImage->setRawTextureData(buffer);
 	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
 	DEBUG_LOG(("EndMapPreviewInfo"));
+	surface->Unlock();
 	REF_PTR_RELEASE(surface);
 	return true;
 */

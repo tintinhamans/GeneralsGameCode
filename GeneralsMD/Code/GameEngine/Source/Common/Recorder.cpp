@@ -315,7 +315,7 @@ void RecorderClass::cleanUpReplayFile(void)
 			fseek(fp, 0, SEEK_END);
 			fileSize = ftell(fp);
 			fclose(fp);
-			fp = NULL;
+			fp = nullptr;
 			DEBUG_LOG(("Log file size was %d", fileSize));
 		}
 
@@ -341,15 +341,15 @@ void RecorderClass::cleanUpReplayFile(void)
 				}
 				fclose(ofp);
 				fclose(ifp);
-				ifp = NULL;
-				ofp = NULL;
+				ifp = nullptr;
+				ofp = nullptr;
 			}
 			else
 			{
 				if (ifp) fclose(ifp);
 				if (ofp) fclose(ofp);
-				ifp = NULL;
-				ofp = NULL;
+				ifp = nullptr;
+				ofp = nullptr;
 			}
 		}
 #endif // DEBUG_LOGGING
@@ -360,7 +360,7 @@ void RecorderClass::cleanUpReplayFile(void)
 /**
  * The recorder object.
  */
-RecorderClass* TheRecorder = NULL;
+RecorderClass *TheRecorder = nullptr;
 
 /**
  * Constructor
@@ -369,7 +369,7 @@ RecorderClass::RecorderClass()
 {
 	m_originalGameMode = GAME_NONE;
 	m_mode = RECORDERMODETYPE_RECORD;
-	m_file = NULL;
+	m_file = nullptr;
 	m_fileName.clear();
 	m_currentFilePosition = 0;
 	m_doingAnalysis = FALSE;
@@ -395,7 +395,7 @@ RecorderClass::~RecorderClass() {
 void RecorderClass::init() {
 	m_originalGameMode = GAME_NONE;
 	m_mode = RECORDERMODETYPE_NONE;
-	m_file = NULL;
+	m_file = nullptr;
 	m_fileName.clear();
 	m_currentFilePosition = 0;
 	m_gameInfo.clearSlotList();
@@ -417,9 +417,9 @@ void RecorderClass::init() {
  * Reset the recorder to the "initialized state."
  */
 void RecorderClass::reset() {
-	if (m_file != NULL) {
+	if (m_file != nullptr) {
 		m_file->close();
-		m_file = NULL;
+		m_file = nullptr;
 	}
 	m_fileName.clear();
 
@@ -475,9 +475,9 @@ void RecorderClass::updatePlayback() {
  * reaching the end of the playback file.
  */
 void RecorderClass::stopPlayback() {
-	if (m_file != NULL) {
+	if (m_file != nullptr) {
 		m_file->close();
-		m_file = NULL;
+		m_file = nullptr;
 	}
 	m_fileName.clear();
 
@@ -488,7 +488,7 @@ void RecorderClass::stopPlayback() {
 }
 
 /**
- * Update function for recording a game. Basically all the pertinant logic commands for this frame are written out
+ * Update function for recording a game. Basically all the pertinent logic commands for this frame are written out
  * to a file.
  */
 void RecorderClass::updateRecord()
@@ -496,7 +496,7 @@ void RecorderClass::updateRecord()
 	Bool needFlush = FALSE;
 	static Int lastFrame = -1;
 	GameMessage* msg = TheCommandList->getFirstMessage();
-	while (msg != NULL) {
+	while (msg != nullptr) {
 		if (msg->getType() == GameMessage::MSG_NEW_GAME &&
 			msg->getArgument(0)->integer != GAME_SHELL &&
 			msg->getArgument(0)->integer != GAME_SINGLE_PLAYER && // Due to the massive amount of scripts that use <local player> in GC and single player, replays have been cut for them.
@@ -518,7 +518,7 @@ void RecorderClass::updateRecord()
 			startRecording(diff, m_originalGameMode, rankPoints, maxFPS);
 		}
 		else if (msg->getType() == GameMessage::MSG_CLEAR_GAME_DATA) {
-			if (m_file != NULL) {
+			if (m_file != nullptr) {
 				lastFrame = -1;
 				writeToFile(msg);
 				stopRecording();
@@ -527,7 +527,7 @@ void RecorderClass::updateRecord()
 			m_fileName.clear();
 		}
 		else {
-			if (m_file != NULL) {
+			if (m_file != nullptr) {
 				if ((msg->getType() > GameMessage::MSG_BEGIN_NETWORK_MESSAGES) &&
 					(msg->getType() < GameMessage::MSG_END_NETWORK_MESSAGES)) {
 					// Only write the important messages to the file.
@@ -540,7 +540,7 @@ void RecorderClass::updateRecord()
 	}
 
 	if (needFlush) {
-		DEBUG_ASSERTCRASH(m_file != NULL, ("RecorderClass::updateRecord() - unexpected call to fflush(m_file)"));
+		DEBUG_ASSERTCRASH(m_file != nullptr, ("RecorderClass::updateRecord() - unexpected call to fflush(m_file)"));
 		m_file->flush();
 	}
 }
@@ -550,7 +550,7 @@ void RecorderClass::updateRecord()
  * So don't call this unless you really mean it.
  */
 void RecorderClass::startRecording(GameDifficulty diff, Int originalGameMode, Int rankPoints, Int maxFPS) {
-	DEBUG_ASSERTCRASH(m_file == NULL, ("Starting to record game while game is in progress."));
+	DEBUG_ASSERTCRASH(m_file == nullptr, ("Starting to record game while game is in progress."));
 
 	reset();
 
@@ -565,8 +565,8 @@ void RecorderClass::startRecording(GameDifficulty diff, Int originalGameMode, In
 	m_fileName.concat(getReplayExtention());
 	filepath.concat(m_fileName);
 	m_file = TheFileSystem->openFile(filepath.str(), File::WRITE | File::BINARY);
-	if (m_file == NULL) {
-		DEBUG_ASSERTCRASH(m_file != NULL, ("Failed to create replay file"));
+	if (m_file == nullptr) {
+		DEBUG_ASSERTCRASH(m_file != nullptr, ("Failed to create replay file"));
 		return;
 	}
 	// TheSuperHackers @info the null terminator needs to be ignored to maintain retail replay file layout
@@ -682,7 +682,7 @@ void RecorderClass::startRecording(GameDifficulty diff, Int originalGameMode, In
 	/// @todo fix this to use starting spots and player alliances when those are put in the game.
 	for (Int i = 0; i < numPlayers; ++i) {
 		Player *player = ThePlayerList->getNthPlayer(i);
-		if (player == NULL) {
+		if (player == nullptr) {
 			continue;
 		}
 		UnicodeString name = player->getPlayerDisplayName();
@@ -738,9 +738,9 @@ void RecorderClass::stopRecording() {
 			m_wasDesync = FALSE;
 		}
 	}
-	if (m_file != NULL) {
+	if (m_file != nullptr) {
 		m_file->close();
-		m_file = NULL;
+		m_file = nullptr;
 
 		if (m_archiveReplays)
 			archiveReplay(m_fileName);
@@ -829,7 +829,7 @@ void RecorderClass::writeToFile(GameMessage* msg) {
 	m_file->write(&numTypes, sizeof(numTypes));
 
 	GameMessageParserArgumentType* argType = parser->getFirstArgumentType();
-	while (argType != NULL) {
+	while (argType != nullptr) {
 		UnsignedByte type = (UnsignedByte)(argType->getType());
 		m_file->write(&type, sizeof(type));
 
@@ -851,7 +851,7 @@ void RecorderClass::writeToFile(GameMessage* msg) {
 	}
 
 	deleteInstance(parser);
-	parser = NULL;
+	parser = nullptr;
 
 }
 
@@ -911,7 +911,7 @@ Bool RecorderClass::readReplayHeader(ReplayHeader& header)
 	const UnsignedInt buffersize = header.forPlayback ? replayBufferBytes : File::BUFFERSIZE;
 	m_file = TheFileSystem->openFile(filepath.str(), File::READ | File::BINARY, buffersize);
 
-	if (m_file == NULL)
+	if (m_file == nullptr)
 	{
 		DEBUG_LOG(("Can't open %s (%s)", filepath.str(), header.filename.str()));
 		return FALSE;
@@ -923,7 +923,7 @@ Bool RecorderClass::readReplayHeader(ReplayHeader& header)
 	if ( strncmp(genrep, s_genrep, sizeof(s_genrep) - 1 ) != 0 ) {
 		DEBUG_LOG(("RecorderClass::readReplayHeader - replay file did not have GENREP at the start."));
 		m_file->close();
-		m_file = NULL;
+		m_file = nullptr;
 		return FALSE;
 	}
 
@@ -965,7 +965,7 @@ Bool RecorderClass::readReplayHeader(ReplayHeader& header)
 	{
 		DEBUG_LOG(("RecorderClass::readReplayHeader - replay file did not have a valid GameInfo string."));
 		m_file->close();
-		m_file = NULL;
+		m_file = nullptr;
 		return FALSE;
 	}
 	m_gameInfo.startGame(0);
@@ -978,7 +978,7 @@ Bool RecorderClass::readReplayHeader(ReplayHeader& header)
 		m_gameInfo.endGame();
 		m_gameInfo.reset();
 		m_file->close();
-		m_file = NULL;
+		m_file = nullptr;
 		return FALSE;
 	}
 	if (header.localPlayerIndex >= 0)
@@ -992,7 +992,7 @@ Bool RecorderClass::readReplayHeader(ReplayHeader& header)
 		m_gameInfo.endGame();
 		m_gameInfo.reset();
 		m_file->close();
-		m_file = NULL;
+		m_file = nullptr;
 	}
 
 	return TRUE;
@@ -1161,7 +1161,7 @@ void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool f
 
 			// TheSuperHackers @tweak Pause the game on mismatch.
 			// But not when a window with focus is opened, because that can make resuming difficult.
-			if (TheWindowManager->winGetFocus() == NULL)
+			if (TheWindowManager->winGetFocus() == nullptr)
 			{
 				Bool pause = TRUE;
 				Bool pauseMusic = FALSE;
@@ -1467,7 +1467,7 @@ void RecorderClass::appendNextCommand() {
 	GameMessageParserArgumentType* parserArgType = parser->getFirstArgumentType();
 	GameMessageArgumentDataType lasttype = ARGUMENTDATATYPE_UNKNOWN;
 	Int argsLeftForType = 0;
-	if (parserArgType != NULL) {
+	if (parserArgType != nullptr) {
 		lasttype = parserArgType->getType();
 		argsLeftForType = parserArgType->getArgCount();
 	}
@@ -1476,14 +1476,14 @@ void RecorderClass::appendNextCommand() {
 
 		--argsLeftForType;
 		if (argsLeftForType == 0) {
-			DEBUG_ASSERTCRASH(parserArgType != NULL, ("parserArgType was NULL when it shouldn't have been."));
-			if (parserArgType == NULL) {
+			DEBUG_ASSERTCRASH(parserArgType != nullptr, ("parserArgType was null when it shouldn't have been."));
+			if (parserArgType == nullptr) {
 				return;
 			}
 
 			parserArgType = parserArgType->getNext();
-			// parserArgType is allowed to be NULL here, this is the case if there are no more arguments.
-			if (parserArgType != NULL) {
+			// parserArgType is allowed to be null here, this is the case if there are no more arguments.
+			if (parserArgType != nullptr) {
 				argsLeftForType = parserArgType->getArgCount();
 				lasttype = parserArgType->getType();
 			}
@@ -1497,11 +1497,11 @@ void RecorderClass::appendNextCommand() {
 	else
 	{
 		deleteInstance(msg);
-		msg = NULL;
+		msg = nullptr;
 	}
 
 	deleteInstance(parser);
-	parser = NULL;
+	parser = nullptr;
 }
 
 void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *msg) {
@@ -1654,9 +1654,9 @@ RecorderClass::CullBadCommandsResult RecorderClass::cullBadCommands() {
 		return result;
 
 	GameMessage *msg = TheCommandList->getFirstMessage();
-	GameMessage *next = NULL;
+	GameMessage *next = nullptr;
 
-	while (msg != NULL) {
+	while (msg != nullptr) {
 		next = msg->next();
 		if ((msg->getType() > GameMessage::MSG_BEGIN_NETWORK_MESSAGES) &&
 				(msg->getType() < GameMessage::MSG_END_NETWORK_MESSAGES) &&
@@ -1710,7 +1710,7 @@ AsciiString RecorderClass::getLastReplayFileName()
 #if defined(RTS_DEBUG)
 	if (TheNetwork && TheGlobalData->m_saveStats)
 	{
-		GameInfo* game = NULL;
+		GameInfo *game = nullptr;
 		if (TheLAN)
 			game = TheLAN->GetMyGame();
 #if defined(GENERALS_ONLINE)
@@ -1797,7 +1797,7 @@ RecorderModeType RecorderClass::getMode() {
 void RecorderClass::initControls()
 {
 	NameKeyType parentReplayControlID = TheNameKeyGenerator->nameToKey( "ReplayControl.wnd:ParentReplayControl" );
-	GameWindow *parentReplayControl = TheWindowManager->winGetWindowFromId( NULL, parentReplayControlID );
+	GameWindow *parentReplayControl = TheWindowManager->winGetWindowFromId( nullptr, parentReplayControlID );
 
 	Bool show = (getMode() != RECORDERMODETYPE_PLAYBACK);
 	if (parentReplayControl)

@@ -546,6 +546,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/NetCommandRef.h
     Include/GameNetwork/NetCommandWrapperList.h
     Include/GameNetwork/NetPacket.h
+    Include/GameNetwork/NetPacketStructs.h
     Include/GameNetwork/NetworkDefs.h
     Include/GameNetwork/NetworkInterface.h
     Include/GameNetwork/networkutil.h
@@ -1186,11 +1187,14 @@ target_include_directories(corei_gameengine_public INTERFACE
 
 target_link_libraries(corei_gameengine_public INTERFACE
     core_compression
-    core_config
     core_browserdispatch
-    core_utility
     #core_wwvegas
     d3d8lib
     gamespy::gamespy
     stlport
 )
+
+# ReactOS ATL for MinGW-w64 only (MSVC uses native ATL)
+if(MINGW)
+    target_link_libraries(corei_gameengine_public INTERFACE reactos_atl)
+endif()

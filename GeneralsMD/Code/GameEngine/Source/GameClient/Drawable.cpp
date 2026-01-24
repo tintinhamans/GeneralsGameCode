@@ -2719,14 +2719,14 @@ Bool Drawable::drawsAnyUIText(void)
 	if (!isSelected())
 		return FALSE;
 
-	const Object *obj = getObject();
-	if ( !obj || obj->getControllingPlayer() != rts::getObservedOrLocalPlayer())
+	const Object* obj = getObject();
+	if (!obj || obj->getControllingPlayer() != rts::getObservedOrLocalPlayer())
 		return FALSE;
 
-	Player *owner = obj->getControllingPlayer();
+	Player* owner = obj->getControllingPlayer();
 	Int groupNum = owner->getSquadNumberForObject(obj);
 
-	if (groupNum > NO_HOTKEY_SQUAD && groupNum < NUM_HOTKEY_SQUADS )
+	if (groupNum > NO_HOTKEY_SQUAD && groupNum < NUM_HOTKEY_SQUADS)
 		return TRUE;
 	else
 		m_groupNumber = NULL;
@@ -2866,15 +2866,15 @@ void Drawable::drawEmoticon(const IRegion2D* healthBarRegion)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-void Drawable::drawAmmo( const IRegion2D *healthBarRegion )
+void Drawable::drawAmmo(const IRegion2D* healthBarRegion)
 {
-	const Object *obj = getObject();
+	const Object* obj = getObject();
 
 	if (!(
-				TheGlobalData->m_showObjectHealth &&
-				(isSelected() || (TheInGameUI && (TheInGameUI->getMousedOverDrawableID() == getID()))) &&
-				obj->getControllingPlayer() == rts::getObservedOrLocalPlayer()
-			))
+		TheGlobalData->m_showObjectHealth &&
+		(isSelected() || (TheInGameUI && (TheInGameUI->getMousedOverDrawableID() == getID()))) &&
+		obj->getControllingPlayer() == rts::getObservedOrLocalPlayer()
+		))
 		return;
 
 	Int numTotal;
@@ -2929,10 +2929,10 @@ void Drawable::drawContained(const IRegion2D* healthBarRegion)
 		return;
 
 	if (!(
-				TheGlobalData->m_showObjectHealth &&
-				(isSelected() || (TheInGameUI && (TheInGameUI->getMousedOverDrawableID() == getID()))) &&
-				obj->getControllingPlayer() == rts::getObservedOrLocalPlayer()
-			))
+		TheGlobalData->m_showObjectHealth &&
+		(isSelected() || (TheInGameUI && (TheInGameUI->getMousedOverDrawableID() == getID()))) &&
+		obj->getControllingPlayer() == rts::getObservedOrLocalPlayer()
+		))
 		return;
 
 	Int numTotal;
@@ -3452,13 +3452,13 @@ void Drawable::drawBombed(const IRegion2D* healthBarRegion)
 
 	UnsignedInt now = TheGameLogic->getFrame();
 
-	if( obj->testWeaponSetFlag( WEAPONSET_CARBOMB ) &&
-				obj->getControllingPlayer() == rts::getObservedOrLocalPlayer())
+	if (obj->testWeaponSetFlag(WEAPONSET_CARBOMB) &&
+		obj->getControllingPlayer() == rts::getObservedOrLocalPlayer())
 	{
-		if( !getIconInfo()->m_icon[ ICON_CARBOMB ] )
-			getIconInfo()->m_icon[ ICON_CARBOMB ] = newInstance(Anim2D)( s_animationTemplates[ ICON_CARBOMB ], TheAnim2DCollection );
+		if (!getIconInfo()->m_icon[ICON_CARBOMB])
+			getIconInfo()->m_icon[ICON_CARBOMB] = newInstance(Anim2D)(s_animationTemplates[ICON_CARBOMB], TheAnim2DCollection);
 
-		if( getIconInfo()->m_icon[ ICON_CARBOMB ] )
+		if (getIconInfo()->m_icon[ICON_CARBOMB])
 		{
 			//
 			// we are going to draw the healing icon relative to the size of the health bar region

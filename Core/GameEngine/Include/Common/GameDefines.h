@@ -45,6 +45,15 @@
 #define RETAIL_COMPATIBLE_PATHFINDING (0)
 #endif
 
+// This is here to easily toggle between the retail compatible pathfinding memory allocation and the new static allocated data mode
+#ifndef RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION
+#if defined(GENERALS_ONLINE)
+#define RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION (0)
+#else
+#define RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION (1)
+#endif
+#endif
+
 // This is essentially synonymous for RETAIL_COMPATIBLE_CRC. There is a lot wrong with AIGroup, such as use-after-free, double-free, leaks,
 // but we cannot touch it much without breaking retail compatibility. Do not shy away from using massive hacks when fixing issues with AIGroup,
 // but put them behind this macro.

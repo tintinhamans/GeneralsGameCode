@@ -116,9 +116,9 @@ public:
 	PickAndPlayInfo(); //INITIALIZE THE CONSTRUCTOR IN CPP
 
 	Bool						m_air;					//Are we attacking an airborned target?
-	Drawable* m_drawTarget;	//Do we have an override draw target?
-	WeaponSlotType* m_weaponSlot;	//Are we forcing a specific weapon slot? NULL if unspecified.
+	Drawable				*m_drawTarget;	//Do we have an override draw target?
+	WeaponSlotType	*m_weaponSlot;	//Are we forcing a specific weapon slot? nullptr if unspecified.
 	SpecialPowerType m_specialPowerType; //Which special power are use using? SPECIAL_INVALID if unspecified.
 };
 
-extern void pickAndPlayUnitVoiceResponse(const DrawableList* list, GameMessage::Type msgType, PickAndPlayInfo* info = NULL);
+extern void pickAndPlayUnitVoiceResponse( const DrawableList *list, GameMessage::Type msgType, PickAndPlayInfo *info = nullptr );

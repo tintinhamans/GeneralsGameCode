@@ -248,12 +248,12 @@ public:
 	Bool isGameEnding(void) { return m_endGameTimer >= 0; }
 	virtual void startQuickEndGameTimer(void); ///< Starts the quick end game timer after a campaign is won or lost.
 	virtual void startCloseWindowTimer(void); ///< Starts the timer to close windows after a mission is won or lost.
-	virtual void runScript(const AsciiString& scriptName, Team* pThisTeam = NULL); ///<  Runs a script.
-	virtual void runObjectScript(const AsciiString& scriptName, Object* pThisObject = NULL); ///<  Runs a script attached to this object.
-	virtual Team* getTeamNamed(const AsciiString& teamName); ///<  Gets the named team.  May be null.
-	virtual Player* getSkirmishEnemyPlayer(void); ///< Gets the ai's enemy Human player. May be null.
-	virtual Player* getCurrentPlayer(void); ///<  Gets the player that owns the current script.  May be null.
-	virtual Player* getPlayerFromAsciiString(const AsciiString& skirmishPlayerString);
+	virtual void runScript(const AsciiString& scriptName, Team *pThisTeam=nullptr); ///<  Runs a script.
+	virtual void runObjectScript(const AsciiString& scriptName, Object *pThisObject=nullptr); ///<  Runs a script attached to this object.
+	virtual Team *getTeamNamed(const AsciiString& teamName); ///<  Gets the named team.  May be null.
+	virtual Player *getSkirmishEnemyPlayer(void); ///< Gets the ai's enemy Human player. May be null.
+	virtual Player *getCurrentPlayer(void); ///<  Gets the player that owns the current script.  May be null.
+	virtual Player *getPlayerFromAsciiString(const AsciiString& skirmishPlayerString);
 
 	void setObjectsShouldReceiveDifficultyBonus(Bool receive) { m_objectsShouldReceiveDifficultyBonus = receive; }
 	Bool getObjectsShouldReceiveDifficultyBonus() const { return m_objectsShouldReceiveDifficultyBonus; }
@@ -275,10 +275,10 @@ public:
 	// For other systems to evaluate Conditions, execute Actions, etc.
 
 	///< if pThisTeam is specified, then scripts in here can use <This Team> to mean the team this script is attached to.
-	virtual Bool evaluateConditions(Script* pScript, Team* pThisTeam = NULL, Player* pPlayer = NULL);
-	virtual void friend_executeAction(ScriptAction* pActionHead, Team* pThisTeam = NULL);	///< Use this at yer peril.
+	virtual Bool evaluateConditions( Script *pScript, Team *pThisTeam = nullptr, Player *pPlayer=nullptr );
+	virtual void friend_executeAction( ScriptAction *pActionHead, Team *pThisTeam = nullptr);	///< Use this at yer peril.
 
-	virtual Object* getUnitNamed(const AsciiString& unitName); ///< Gets the named unit. May be null.
+	virtual Object *getUnitNamed(const AsciiString& unitName); ///< Gets the named unit. May be null.
 	virtual Bool didUnitExist(const AsciiString& unitName);
 	virtual void addObjectToCache(Object* pNewObject);
 	virtual void removeObjectFromCache(Object* pDeadObject);
@@ -372,31 +372,31 @@ protected:
 	void addActionTemplateInfo(Template* actionTemplate);
 	void addConditionTemplateInfo(Template* conditionTemplate);
 
-	Int allocateCounter(const AsciiString& name);
-	Int allocateFlag(const AsciiString& name);
-	void executeScripts(Script* pScriptHead);
-	void executeScript(Script* pScript);
-	Script* findScript(const AsciiString& name);
-	ScriptGroup* findGroup(const AsciiString& name);
-	void setSway(ScriptAction* pAction);
-	void setCounter(ScriptAction* pAction);
-	void addCounter(ScriptAction* pAction);
-	void subCounter(ScriptAction* pAction);
-	void setFade(ScriptAction* pAction);
-	void setFlag(ScriptAction* pAction);
-	void pauseTimer(ScriptAction* pAction);
-	void restartTimer(ScriptAction* pAction);
-	void setTimer(ScriptAction* pAction, Bool milisecondTimer, Bool random);
-	void adjustTimer(ScriptAction* pAction, Bool milisecondTimer, Bool add);
-	void enableScript(ScriptAction* pAction);
-	void disableScript(ScriptAction* pAction);
-	void callSubroutine(ScriptAction* pAction);
-	void checkConditionsForTeamNames(Script* pScript);
-	Bool evaluateCounter(Condition* pCondition);
-	Bool evaluateFlag(Condition* pCondition);
-	Bool evaluateTimer(Condition* pCondition);
-	Bool evaluateCondition(Condition* pCondition);
-	void executeActions(ScriptAction* pActionHead);
+	Int allocateCounter( const AsciiString& name);
+	Int allocateFlag( const AsciiString& name);
+	void executeScripts( Script *pScriptHead );
+	void executeScript( Script *pScript );
+	Script *findScript(const AsciiString& name);
+	ScriptGroup *findGroup(const AsciiString& name);
+	void setSway( ScriptAction *pAction );
+	void setCounter( ScriptAction *pAction );
+	void addCounter( ScriptAction *pAction );
+	void subCounter( ScriptAction *pAction );
+	void setFade( ScriptAction *pAction );
+	void setFlag( ScriptAction *pAction );
+	void pauseTimer( ScriptAction *pAction );
+	void restartTimer( ScriptAction *pAction );
+	void setTimer( ScriptAction *pAction, Bool millisecondTimer, Bool random);
+	void adjustTimer( ScriptAction *pAction, Bool millisecondTimer, Bool add);
+	void enableScript( ScriptAction *pAction );
+	void disableScript( ScriptAction *pAction );
+	void callSubroutine( ScriptAction *pAction );
+	void checkConditionsForTeamNames(Script *pScript);
+	Bool evaluateCounter( Condition *pCondition );
+	Bool evaluateFlag( Condition *pCondition );
+	Bool evaluateTimer( Condition *pCondition );
+	Bool evaluateCondition( Condition *pCondition );
+	void executeActions( ScriptAction *pActionHead );
 
 	void setPriorityThing(ScriptAction* pAction);
 	void setPriorityKind(ScriptAction* pAction);

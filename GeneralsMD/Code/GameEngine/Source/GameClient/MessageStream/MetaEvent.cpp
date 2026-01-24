@@ -61,7 +61,7 @@
 #include "GameClient/Keyboard.h"
 #endif
 
-MetaMap* TheMetaMap = NULL;
+MetaMap *TheMetaMap = nullptr;
 
 
 
@@ -352,7 +352,7 @@ static const LookupListRec GameMessageMetaTypeNames[] =
 #endif//DUMP_PERF_STATS
 
 
-	{ NULL, 0	}
+	{ nullptr, 0	}
 };
 
 
@@ -362,15 +362,15 @@ static const LookupListRec GameMessageMetaTypeNames[] =
 static const FieldParse TheMetaMapFieldParseTable[] =
 {
 
-	{ "Key",								INI::parseLookupList,						KeyNames, offsetof(MetaMapRec, m_key) },
-	{ "Transition",					INI::parseLookupList,						TransitionNames, offsetof(MetaMapRec, m_transition) },
-	{ "Modifiers",					INI::parseLookupList,						ModifierNames, offsetof(MetaMapRec, m_modState) },
-	{ "UseableIn",					INI::parseBitString32,					TheCommandUsableInNames, offsetof(MetaMapRec, m_usableIn) },
-	{ "Category",						INI::parseLookupList,						CategoryListName, offsetof(MetaMapRec, m_category) },
-	{ "Description",				INI::parseAndTranslateLabel,		0, offsetof(MetaMapRec, m_description) },
-	{ "DisplayName",				INI::parseAndTranslateLabel,		0, offsetof(MetaMapRec, m_displayName) },
+	{ "Key",								INI::parseLookupList,						KeyNames, offsetof( MetaMapRec, m_key ) },
+	{ "Transition",					INI::parseLookupList,						TransitionNames, offsetof( MetaMapRec, m_transition ) },
+	{ "Modifiers",					INI::parseLookupList,						ModifierNames, offsetof( MetaMapRec, m_modState ) },
+	{ "UseableIn",					INI::parseBitString32,					TheCommandUsableInNames, offsetof( MetaMapRec, m_usableIn ) },
+	{ "Category",						INI::parseLookupList,						CategoryListName, offsetof( MetaMapRec, m_category ) },
+	{ "Description",				INI::parseAndTranslateLabel,		nullptr, offsetof( MetaMapRec, m_description ) },
+	{ "DisplayName",				INI::parseAndTranslateLabel,		nullptr, offsetof( MetaMapRec, m_displayName ) },
 
-	{ NULL,									NULL,														0, 0 }
+	{ nullptr,									nullptr,														nullptr, 0 }
 
 };
 
@@ -658,7 +658,7 @@ GameMessageDisposition MetaEventTranslator::translateGameMessage(const GameMessa
 
 //-------------------------------------------------------------------------------------------------
 MetaMap::MetaMap() :
-	m_metaMaps(NULL)
+	m_metaMaps(nullptr)
 {
 }
 
@@ -720,7 +720,7 @@ MetaMapRec* MetaMap::getMetaMapRec(GameMessage::Type t)
 		throw INI_INVALID_DATA;
 
 	MetaMapRec* map = TheMetaMap->getMetaMapRec(t);
-	if (map == NULL)
+	if (map == nullptr)
 		throw INI_INVALID_DATA;
 
 	ini->initFromINI(map, TheMetaMapFieldParseTable);
