@@ -6028,28 +6028,56 @@ static Real applyEasing(Real progress)
 // Map internal support power names
 static UnicodeString formatPowerAction(const AsciiString& powerNameAscii)
 {
-	if (powerNameAscii == "SuperweaponScudStorm") return L"LAUNCHED A SCUD STORM!!!";
-	if (powerNameAscii == "SuperweaponNeutronMissile") return L"LAUNCHED A NUKE MISSILE!!!";
-	if (powerNameAscii == "SuperweaponParticleUplinkCannon") return L"FIRED A PARTICLE CANNON!!!";
-	if (powerNameAscii == "Infa_SuperweaponInfantryParadrop") return L"DEPLOYED A CHINA INFANTRY PARADROP!";
-	if (powerNameAscii == "Tank_SuperweaponTankParadrop") return L"DEPLOYED A TANK PARADROP!";
-	if (powerNameAscii == "SuperweaponParadropAmerica") return L"DEPLOYED A USA INFANTRY PARADROP!";
-	if (powerNameAscii == "SuperweaponLeafletDrop") return L"CALLED IN A LEAFLET DROP!!";
-	if (powerNameAscii == "Early_SuperweaponLeafletDrop") return L"CALLED IN A LEAFLET DROP!!";
-	if (powerNameAscii == "SuperweaponRebelAmbush") return L"CALLED IN THE REBEL AMBUSH!!";
-	if (powerNameAscii == "SuperweaponArtilleryBarrage") return L"CALLED IN THE ARTILLERY BARRAGE!!";
-	if (powerNameAscii == "SuperweaponEMPPulse") return L"CALLED IN AN EMP PULSE!!!";
-	if (powerNameAscii == "SuperweaponDaisyCutter" || powerNameAscii == "AirF_SuperweaponDaisyCutter") return L"CALLED IN THE MOAB!!!";
-	if (powerNameAscii == "SuperweaponClusterMines" || powerNameAscii == "Nuke_SuperweaponClusterMines") return L"CALLED IN A MINE DROP!!";
-	if (powerNameAscii == "AirF_SuperweaponA10ThunderboltMissileStrike" || powerNameAscii == "SuperweaponA10ThunderboltMissileStrike") return L"CALLED IN AN A10 STRIKE!!";
-	if (powerNameAscii == "AirF_SuperweaponSpectreGunship" || powerNameAscii == "SuperweaponSpectreGunship") return L"CALLED IN A SPECTRE GUNSHIP!!";
-	if (powerNameAscii == "AirF_SuperweaponCarpetBomb" || powerNameAscii == "Nuke_SuperweaponChinaCarpetBomb" ||
-		powerNameAscii == "Early_SuperweaponChinaCarpetBomb" || powerNameAscii == "SuperweaponChinaCarpetBomb") return L"CALLED IN A CARPET BOMB!!";
-	if (powerNameAscii == "SuperweaponFrenzy" || powerNameAscii == "Early_SuperweaponFrenzy") return L"ACTIVATED THE FRENZY!";
-	if (powerNameAscii == "SuperweaponCIAIntelligence") return L"JUST ACTIVATED THE CIA INTELLIGENCE!";
-	if (powerNameAscii == "Slth_SuperweaponGPSScrambler" || powerNameAscii == "SuperweaponGPSScrambler") return L"ACTIVATED A GPS SCRAMBLER!";
-	if (powerNameAscii == "SuperweaponSneakAttack") return L"OPENED A SNEAK ATTACK!!!";
-	if (powerNameAscii == "SuperweaponAnthraxBomb") return L"DROPPED AN ANTHRAX BOMB!!!";
+	struct Entry {
+		const char* key;
+		const wchar_t* value;
+	};
+
+	static const Entry table[] = {
+		{"SuperweaponScudStorm",						L"LAUNCHED A SCUD STORM!!!"},
+		{"SuperweaponNeutronMissile",					L"LAUNCHED A NUKE MISSILE!!!"},
+		{"SuperweaponParticleUplinkCannon",				L"FIRED A PARTICLE CANNON!!!"},
+		{"SuperweaponAnthraxBomb",						L"DROPPED AN ANTHRAX BOMB!!!"},
+		{"SuperweaponRebelAmbush",						L"CALLED IN THE REBEL AMBUSH!!"},
+		{"SuperweaponArtilleryBarrage",					L"CALLED IN THE ARTILLERY BARRAGE!!"},
+		{"SuperweaponEMPPulse",							L"CALLED IN AN EMP PULSE!!!"},
+		{"SuperweaponCIAIntelligence",					L"JUST ACTIVATED THE CIA INTELLIGENCE!"},
+		{"SuperweaponSneakAttack",						L"OPENED A SNEAK ATTACK!!!"},
+
+		{"SuperweaponDaisyCutter",						L"CALLED IN THE MOAB!!!"},
+		{"AirF_SuperweaponDaisyCutter",					L"CALLED IN THE MOAB!!!"},
+
+		{"SuperweaponClusterMines",						L"CALLED IN A MINE DROP!!"},
+		{"Nuke_SuperweaponClusterMines",				L"CALLED IN A MINE DROP!!"},
+
+		{"AirF_SuperweaponA10ThunderboltMissileStrike", L"CALLED IN AN A10 STRIKE!!"},
+		{"SuperweaponA10ThunderboltMissileStrike",		L"CALLED IN AN A10 STRIKE!!"},
+
+		{"AirF_SuperweaponSpectreGunship",				L"CALLED IN A SPECTRE GUNSHIP!!"},
+		{"SuperweaponSpectreGunship",					L"CALLED IN A SPECTRE GUNSHIP!!"},
+
+		{"AirF_SuperweaponCarpetBomb",					L"CALLED IN A CARPET BOMB!!"},
+		{"Nuke_SuperweaponChinaCarpetBomb",				L"CALLED IN A CARPET BOMB!!"},
+		{"Early_SuperweaponChinaCarpetBomb",			L"CALLED IN A CARPET BOMB!!"},
+		{"SuperweaponChinaCarpetBomb",					L"CALLED IN A CARPET BOMB!!"},
+
+		{"SuperweaponFrenzy",							L"ACTIVATED THE FRENZY!"},
+		{"Early_SuperweaponFrenzy",						L"ACTIVATED THE FRENZY!"},
+
+		{"Slth_SuperweaponGPSScrambler",				L"ACTIVATED A GPS SCRAMBLER!"},
+		{"SuperweaponGPSScrambler",						L"ACTIVATED A GPS SCRAMBLER!"},
+
+		{"Infa_SuperweaponInfantryParadrop",			L"DEPLOYED A CHINA INFANTRY PARADROP!"},
+		{"Tank_SuperweaponTankParadrop",				L"DEPLOYED A TANK PARADROP!"},
+		{"SuperweaponParadropAmerica",					L"DEPLOYED A USA INFANTRY PARADROP!"},
+
+		{"SuperweaponLeafletDrop",						L"CALLED IN A LEAFLET DROP!!"},
+		{"Early_SuperweaponLeafletDrop",				L"CALLED IN A LEAFLET DROP!!"},
+	};
+
+	for (size_t i = 0; i < sizeof(table) / sizeof(table[0]); ++i)
+		if (powerNameAscii == table[i].key)
+			return table[i].value;
 
 	UnicodeString result = L"USED ";  // Fallback for unmapped support powers
 	UnicodeString temp;
@@ -7017,5 +7045,6 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
 
 
