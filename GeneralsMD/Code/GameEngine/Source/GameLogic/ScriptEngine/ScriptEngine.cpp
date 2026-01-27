@@ -437,32 +437,32 @@ void ScriptEngine::addConditionTemplateInfo(Template* actionTemplate)
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-ScriptEngine::ScriptEngine():
-m_numCounters(0),
-m_numFlags(0),
-m_callingTeam(NULL),
-m_callingObject(NULL),
-m_conditionTeam(NULL),
-m_conditionObject(NULL),
-m_currentPlayer(NULL),
-m_skirmishHumanPlayer(NULL),
-m_fade(FADE_NONE),
-m_freezeByScript(FALSE),
-m_frameObjectCountChanged(0),
-m_closeWindowTimer(0),
-m_curFadeFrame(0),
-m_curFadeValue(0.0f),
-m_endGameTimer(0),
-m_fadeFramesDecrease(0),
-m_fadeFramesHold(0),
-m_fadeFramesIncrease(0),
-m_firstUpdate(TRUE),
-m_maxFade(0.0f),
-m_minFade(0.0f),
-m_numAttackInfo(0),
-m_shownMPLocalDefeatWindow(FALSE),
-m_objectsShouldReceiveDifficultyBonus(TRUE),
-m_ChooseVictimAlwaysUsesNormal(false)
+ScriptEngine::ScriptEngine() :
+	m_numCounters(0),
+	m_numFlags(0),
+	m_callingTeam(NULL),
+	m_callingObject(NULL),
+	m_conditionTeam(NULL),
+	m_conditionObject(NULL),
+	m_currentPlayer(NULL),
+	m_skirmishHumanPlayer(NULL),
+	m_fade(FADE_NONE),
+	m_freezeByScript(FALSE),
+	m_frameObjectCountChanged(0),
+	m_closeWindowTimer(0),
+	m_curFadeFrame(0),
+	m_curFadeValue(0.0f),
+	m_endGameTimer(0),
+	m_fadeFramesDecrease(0),
+	m_fadeFramesHold(0),
+	m_fadeFramesIncrease(0),
+	m_firstUpdate(TRUE),
+	m_maxFade(0.0f),
+	m_minFade(0.0f),
+	m_numAttackInfo(0),
+	m_shownMPLocalDefeatWindow(FALSE),
+	m_objectsShouldReceiveDifficultyBonus(TRUE),
+	m_ChooseVictimAlwaysUsesNormal(false)
 {
 	st_CanAppCont = true;
 	st_LastCurrentFrame = st_CurrentFrame = 0;
@@ -5712,7 +5712,7 @@ AsciiString ScriptEngine::getStats(Real* curTimePtr, Real* script1Time, Real* sc
 //-------------------------------------------------------------------------------------------------
 /** startQuickEndGameTimer */
 //-------------------------------------------------------------------------------------------------
-void ScriptEngine::startQuickEndGameTimer( void )
+void ScriptEngine::startQuickEndGameTimer(void)
 {
 	m_endGameTimer = 1;
 }
@@ -8951,10 +8951,9 @@ void ScriptEngine::xfer(Xfer* xfer)
 	{
 
 		// this list should be empty on loading
-		if( !m_sequentialScripts.empty() )
+		if (!m_sequentialScripts.empty())
 		{
 
-			DEBUG_CRASH(( "ScriptEngine::xfer - m_sequentialScripts should be empty but is not" ));
 			DEBUG_CRASH(("ScriptEngine::xfer - m_sequentialScripts should be empty but is not"));
 			throw SC_INVALID_DATA;
 

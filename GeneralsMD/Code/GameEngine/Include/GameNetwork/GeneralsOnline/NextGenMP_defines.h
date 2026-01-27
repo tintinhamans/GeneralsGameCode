@@ -4,8 +4,6 @@
 #define GENERALS_ONLINE
 #endif
 
-//#define USE_PORT_MAPPER 1
-
 #define GENERALS_ONLINE_LOBBY_MAX_PASSWORD_LENGTH 16
 
 #if defined(_DEBUG)
@@ -22,15 +20,10 @@
 
 #define HTTP_UPLOAD_TIMEOUT 600000
 
-//#define USE_ENCRYPTED_SERVICE_TOKENS 1
-
 //#define GENERALS_ONLINE_GAMETYPE_GENERALS
 #define GENERALS_ONLINE_GAMETYPE_ZEROHOUR
 
 #define VANILLA_INI_CRC 4272612339
-
-//#define GENERALS_ONLINE_BRANCH_JMARSHALL
-#define GENERALS_ONLINE_BRANCH_SUPERHACKERS
 
 #if defined(_DEBUG)
 #define RTS_MULTI_INSTANCE 1
@@ -51,17 +44,12 @@ void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySoun
 #define GENERALS_ONLINE_ENCRYPT_CREDENTIALS 1
 #endif
 
-// annoying game assertions, we'll catch real things in the debugger
+// annoying game assertions, we'll catch real things in the debugger (or sentry)
 #define DISABLE_DEBUG_CRASHING 1
 
-//#define GENERALS_ONLINE_TEST_MAP_TRANSFER 1
-
-//#define NETWORK_CONNECTION_DEBUG 1
+//#define GO_REVEAL_TEAMS 1
 
 //#define GENERALS_ONLINE_RUN_FAST 1
-
-// Set retail bugs on, we don't have the INI changes etc necessary yet
-#define RETAIL_COMPATIBLE_BUG 1
 
 #define GENERALS_ONLINE_DEFAULT_LOBBY_CAMERA_ZOOM 310
 #define GENERALS_ONLINE_MIN_LOBBY_CAMERA_ZOOM 210
@@ -74,8 +62,6 @@ void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySoun
 #else
 #define GENERALS_ONLINE_CLIENT_ID "gen_online_30hz"
 #endif
-
-
 
 #if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
 	#define GENERALS_ONLINE_HIGH_FPS_LIMIT 60
@@ -94,18 +80,7 @@ static int FRAME_GROUPING_CAP = 32;
 static int FRAME_GROUPING_CAP = 64;
 #endif
 
-// useful for testing release builds with multiple logins
-//#define GENERALS_ONLINE_DONT_SAVE_CREDENTIALS 1
-
 #define GENERALS_ONLINE_USE_LARGER_DMAPOOL 1
-
-#if defined(_DEBUG)
-#define GENERALS_ONLINE_INSTABUILD 1
-#define GENERALS_ONLINE_FREEBUILD 1
-#define GENERALS_ONLINE_BUILD_ANY 1
-//#define GENERALS_ONLINE_ALL_SCIENCES 1
-//#define GENERALS_ONLINE_MAX_SCIENCES_POINTS 1
-#endif
 
 #if !_DEBUG
 #define GENERALS_ONLINE_USE_SENTRY 1
@@ -114,11 +89,6 @@ static int FRAME_GROUPING_CAP = 64;
 // NOTE: This is temporary until we work out why this causes mismatch when some players set it and others dont
 #if !_DEBUG
 #define GENERALS_ONLINE_DISABLE_QUICKSTART_FUNCTIONALITY 1
-#endif
-
-#if _DEBUG
-//#define GENERALS_ONLINE_FORCE_RELAY_EVERYONE 1
-//#define GENERALS_ONLINE_FORCE_RELAY_ONE_PLAYER_ONLY 1
 #endif
 
 #define GENERALS_ONLINE_WIDESCREEN 1
@@ -141,5 +111,3 @@ static int FRAME_GROUPING_CAP = 64;
 //#define GENERALS_ONLINE_RNG_USE_FIXED_DEBUG_NUMBER 1
 
 #define GENERALS_ONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES 1
-
-#define GENERALS_ONLINE_PORT_MAP_FIREWALL_OVERRIDE_PORT 1

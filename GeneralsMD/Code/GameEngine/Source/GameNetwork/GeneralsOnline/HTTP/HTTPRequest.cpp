@@ -198,6 +198,12 @@ void HTTPRequest::PlatformStartRequest()
 		curl_easy_setopt(m_pCURL, CURLOPT_CONNECTTIMEOUT_MS, m_timeoutMS);
 		curl_easy_setopt(m_pCURL, CURLOPT_TIMEOUT_MS, m_timeoutMS);
 
+		// HTTP v1 seems to have a higher success rate of bypassing DPI
+		if (NGMP_OnlineServicesManager::m_bRussiaMode)
+		{
+			curl_easy_setopt(m_pCURL, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
+		}
+
 		if (m_protover == EIPProtocolVersion::DONT_CARE)
 		{
 			curl_easy_setopt(m_pCURL, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);

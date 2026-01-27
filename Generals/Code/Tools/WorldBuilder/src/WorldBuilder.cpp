@@ -20,7 +20,6 @@
 //
 
 #include "StdAfx.h"
-#include <eh.h>
 #include "WorldBuilder.h"
 #include "euladialog.h"
 #include "MainFrm.h"
@@ -88,17 +87,17 @@
 static SubsystemInterfaceList TheSubsystemListRecord;
 
 template<class SUBSYSTEM>
-void initSubsystem(SUBSYSTEM*& sysref, SUBSYSTEM* sys, const char* path1 = NULL, const char* path2 = NULL, const char* dirpath = NULL)
+void initSubsystem(SUBSYSTEM*& sysref, SUBSYSTEM* sys, const char* path1 = nullptr, const char* path2 = nullptr)
 {
 	sysref = sys;
-	TheSubsystemListRecord.initSubsystem(sys, path1, path2, dirpath, NULL);
+	TheSubsystemListRecord.initSubsystem(sys, path1, path2, nullptr);
 }
 
 
 #define APP_SECTION "WorldbuilderApp"
 #define OPEN_FILE_DIR "OpenDirectory"
 
-Win32Mouse *TheWin32Mouse = NULL;
+Win32Mouse *TheWin32Mouse = nullptr;
 const char *gAppPrefix = "wb_"; /// So WB can have a different debug log file name.
 const Char *g_strFile = "data\\Generals.str";
 const Char *g_csfFile = "data\\%s\\Generals.csf";
@@ -161,7 +160,7 @@ FileClass * WB_W3DFileSystem::Get_File( char const *filename )
 // The one and only CWorldBuilderApp object
 
 static CWorldBuilderApp theApp;
-HWND ApplicationHWnd = NULL;
+HWND ApplicationHWnd = nullptr;
 
 /**
 	* The ApplicationHInstance is needed for the WOL code,
@@ -169,9 +168,9 @@ HWND ApplicationHWnd = NULL;
 	* Of course, the WOL code is in gameengine, while the
 	* HINSTANCE is only in the various projects' main files.
 	* So, we need to create the HINSTANCE, even if it always
-	* stays NULL.  Just to make COM happy.  Whee.
+	* stays null.  Just to make COM happy.  Whee.
 	*/
-HINSTANCE ApplicationHInstance = NULL;
+HINSTANCE ApplicationHInstance = nullptr;
 
 /////////////////////////////////////////////////////////////////////////////
 // CWorldBuilderApp
@@ -197,15 +196,15 @@ static Int gFirstCP = 0;
 // CWorldBuilderApp construction
 
 CWorldBuilderApp::CWorldBuilderApp() :
-	m_curTool(NULL),
-	m_selTool(NULL),
+	m_curTool(nullptr),
+	m_selTool(nullptr),
 	m_lockCurTool(0),
-	m_3dtemplate(NULL),
-	m_pasteMapObjList(NULL)
+	m_3dtemplate(nullptr),
+	m_pasteMapObjList(nullptr)
 {
 
 	for (Int i=0; i<NUM_VIEW_TOOLS; i++) {
-		m_tools[i] = NULL;
+		m_tools[i] = nullptr;
 
 	}
 	m_tools[0] = &m_brushTool;
@@ -250,16 +249,24 @@ CWorldBuilderApp::CWorldBuilderApp() :
 
 CWorldBuilderApp::~CWorldBuilderApp()
 {
-	m_curTool = NULL;
-	m_selTool = NULL;
+	m_curTool = nullptr;
+	m_selTool = nullptr;
 
 	for (Int i=0; i<NUM_VIEW_TOOLS; i++) {
 		if (m_tools[i]) {
-			m_tools[i] = NULL;
+			m_tools[i] = nullptr;
 		}
 	}
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// Handler for unhandled win32 exceptions.
+
+static LONG WINAPI UnHandledExceptionFilter(struct _EXCEPTION_POINTERS* e_info)
+{
+	DumpExceptionInfo(e_info->ExceptionRecord->ExceptionCode, e_info);
+	return EXCEPTION_EXECUTE_HANDLER;
+}
 
 /////////////////////////////////////////////////////////////////////////////
 // CWorldBuilderApp initialization
@@ -273,7 +280,7 @@ BOOL CWorldBuilderApp::InitInstance()
 	}
 
 	// initialization
-  _set_se_translator( DumpExceptionInfo ); // Hook that allows stack trace.
+	SetUnhandledExceptionFilter(UnHandledExceptionFilter);
 
 	// initialize the memory manager early
 	initMemoryManager();
@@ -308,7 +315,7 @@ BOOL CWorldBuilderApp::InitInstance()
 
 	// Set the current directory to the app directory.
 	char buf[_MAX_PATH];
-	GetModuleFileName(NULL, buf, sizeof(buf));
+	GetModuleFileName(nullptr, buf, sizeof(buf));
 	if (char *pEnd = strrchr(buf, '\\')) {
 		*pEnd = 0;
 	}
@@ -330,7 +337,7 @@ BOOL CWorldBuilderApp::InitInstance()
 	TheFramePacer = new FramePacer();
 
 #if defined(RTS_DEBUG)
-	ini.loadFileDirectory( "Data\\INI\\GameDataDebug", INI_LOAD_MULTIFILE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\GameDataDebug", INI_LOAD_MULTIFILE, nullptr );
 #endif
 
 #ifdef DEBUG_CRASHING
@@ -352,28 +359,24 @@ BOOL CWorldBuilderApp::InitInstance()
 
 	// ensure the user maps dir exists
 	snprintf(buf, ARRAY_SIZE(buf), "%sMaps\\", TheGlobalData->getPath_UserData().str());
-	CreateDirectory(buf, NULL);
+	CreateDirectory(buf, nullptr);
 
 	// read the water settings from INI (must do prior to initing GameClient, apparently)
-	ini.loadFileDirectory( "Data\\INI\\Default\\Water", INI_LOAD_OVERWRITE, NULL );
-	ini.loadFileDirectory( "Data\\INI\\Water", INI_LOAD_OVERWRITE, NULL );
+	ini.loadFileDirectory( "Data\\INI\\Default\\Water", INI_LOAD_OVERWRITE, nullptr );
+	ini.loadFileDirectory( "Data\\INI\\Water", INI_LOAD_OVERWRITE, nullptr );
 
 	initSubsystem(TheGameText, CreateGameTextInterface());
 	initSubsystem(TheScienceStore, new ScienceStore(), "Data\\INI\\Default\\Science", "Data\\INI\\Science");
 	initSubsystem(TheMultiplayerSettings, new MultiplayerSettings(), "Data\\INI\\Default\\Multiplayer", "Data\\INI\\Multiplayer");
 	initSubsystem(TheTerrainTypes, new TerrainTypeCollection(), "Data\\INI\\Default\\Terrain", "Data\\INI\\Terrain");
 	initSubsystem(TheTerrainRoads, new TerrainRoadCollection(), "Data\\INI\\Default\\Roads", "Data\\INI\\Roads");
-	initSubsystem(TheScienceStore, new ScienceStore(), "Data\\INI\\Default\\Science.ini", "Data\\INI\\Science.ini");
-	initSubsystem(TheMultiplayerSettings, new MultiplayerSettings(), "Data\\INI\\Default\\Multiplayer.ini", "Data\\INI\\Multiplayer.ini");
-	initSubsystem(TheTerrainTypes, new TerrainTypeCollection(), "Data\\INI\\Default\\Terrain.ini", "Data\\INI\\Terrain.ini");
-	initSubsystem(TheTerrainRoads, new TerrainRoadCollection(), "Data\\INI\\Default\\Roads.ini", "Data\\INI\\Roads.ini");
 
 	WorldHeightMapEdit::init();
 
 	initSubsystem(TheScriptEngine, (ScriptEngine*)(new ScriptEngine()));
 
 	// need this before TheAudio in case we're running off of CD - TheAudio can try to open Music.big on the CD...
-	initSubsystem(TheCDManager, CreateCDManager(), NULL);
+	initSubsystem(TheCDManager, CreateCDManager(), nullptr);
 	initSubsystem(TheAudio, (AudioManager*)new MilesAudioManager());
 	if (!TheAudio->isMusicAlreadyLoaded())
 		return FALSE;
@@ -382,19 +385,19 @@ BOOL CWorldBuilderApp::InitInstance()
 	initSubsystem(TheModuleFactory, (ModuleFactory*)(new W3DModuleFactory()));
 	initSubsystem(TheSidesList, new SidesList());
 	initSubsystem(TheCaveSystem, new CaveSystem());
-	initSubsystem(TheRankInfoStore, new RankInfoStore(), NULL, "Data\\INI\\Rank.ini");
-	initSubsystem(ThePlayerTemplateStore, new PlayerTemplateStore(), "Data\\INI\\Default\\PlayerTemplate.ini", "Data\\INI\\PlayerTemplate.ini");
-	initSubsystem(TheSpecialPowerStore, new SpecialPowerStore(), "Data\\INI\\Default\\SpecialPower.ini", "Data\\INI\\SpecialPower.ini" );
+	initSubsystem(TheRankInfoStore, new RankInfoStore(), nullptr, "Data\\INI\\Rank");
+	initSubsystem(ThePlayerTemplateStore, new PlayerTemplateStore(), "Data\\INI\\Default\\PlayerTemplate", "Data\\INI\\PlayerTemplate");
+	initSubsystem(TheSpecialPowerStore, new SpecialPowerStore(), "Data\\INI\\Default\\SpecialPower", "Data\\INI\\SpecialPower" );
 	initSubsystem(TheParticleSystemManager, (ParticleSystemManager*)(new W3DParticleSystemManager()));
-	initSubsystem(TheFXListStore, new FXListStore(), "Data\\INI\\Default\\FXList.ini", "Data\\INI\\FXList.ini");
-	initSubsystem(TheWeaponStore, new WeaponStore(), NULL, "Data\\INI\\Weapon.ini");
-	initSubsystem(TheObjectCreationListStore, new ObjectCreationListStore(), "Data\\INI\\Default\\ObjectCreationList.ini", "Data\\INI\\ObjectCreationList.ini");
-	initSubsystem(TheLocomotorStore, new LocomotorStore(), NULL, "Data\\INI\\Locomotor.ini");
-	initSubsystem(TheDamageFXStore, new DamageFXStore(), NULL, "Data\\INI\\DamageFX.ini");
-	initSubsystem(TheArmorStore, new ArmorStore(), NULL, "Data\\INI\\Armor.ini");
-	initSubsystem(TheThingFactory, new ThingFactory(), "Data\\INI\\Default\\Object.ini", NULL, "Data\\INI\\Object");
-	initSubsystem(TheCrateSystem, new CrateSystem(), "Data\\INI\\Default\\Crate.ini", "Data\\INI\\Crate.ini");
-	initSubsystem(TheUpgradeCenter, new UpgradeCenter, "Data\\INI\\Default\\Upgrade.ini", "Data\\INI\\Upgrade.ini");
+	initSubsystem(TheFXListStore, new FXListStore(), "Data\\INI\\Default\\FXList", "Data\\INI\\FXList");
+	initSubsystem(TheWeaponStore, new WeaponStore(), nullptr, "Data\\INI\\Weapon");
+	initSubsystem(TheObjectCreationListStore, new ObjectCreationListStore(), "Data\\INI\\Default\\ObjectCreationList", "Data\\INI\\ObjectCreationList");
+	initSubsystem(TheLocomotorStore, new LocomotorStore(), nullptr, "Data\\INI\\Locomotor");
+	initSubsystem(TheDamageFXStore, new DamageFXStore(), nullptr, "Data\\INI\\DamageFX");
+	initSubsystem(TheArmorStore, new ArmorStore(), nullptr, "Data\\INI\\Armor");
+	initSubsystem(TheThingFactory, new ThingFactory(), "Data\\INI\\Default\\Object", "Data\\INI\\Object");
+	initSubsystem(TheCrateSystem, new CrateSystem(), "Data\\INI\\Default\\Crate", "Data\\INI\\Crate");
+	initSubsystem(TheUpgradeCenter, new UpgradeCenter, "Data\\INI\\Default\\Upgrade", "Data\\INI\\Upgrade");
 	initSubsystem(TheAnim2DCollection, new Anim2DCollection ); //Init's itself.
 
 	TheSubsystemListRecord.postProcessLoadAll();
@@ -471,12 +474,12 @@ BOOL CWorldBuilderApp::InitInstance()
 BOOL CWorldBuilderApp::OnCmdMsg(UINT nID, int nCode, void* pExtra,
 							AFX_CMDHANDLERINFO* pHandlerInfo)
 {
-	// If pHandlerInfo is NULL, then handle the message
-	if (pHandlerInfo == NULL)
+	// If pHandlerInfo is null, then handle the message
+	if (pHandlerInfo == nullptr)
 	{
 		for (Int i=0; i<NUM_VIEW_TOOLS; i++) {
 			Tool *pTool = m_tools[i];
-			if (pTool==NULL) continue;
+			if (pTool==nullptr) continue;
 			if ((Int)nID == pTool->getToolID()) {
 				if (nCode == CN_COMMAND)
 				{
@@ -632,16 +635,16 @@ int CWorldBuilderApp::ExitInstance()
 	WorldHeightMapEdit::shutdown();
 
 	delete TheFramePacer;
-	TheFramePacer = NULL;
+	TheFramePacer = nullptr;
 
 	delete TheFileSystem;
-	TheFileSystem = NULL;
+	TheFileSystem = nullptr;
 
 	delete TheW3DFileSystem;
-	TheW3DFileSystem = NULL;
+	TheW3DFileSystem = nullptr;
 
 	delete TheNameKeyGenerator;
-	TheNameKeyGenerator = NULL;
+	TheNameKeyGenerator = nullptr;
 
 #ifdef MEMORYPOOL_CHECKPOINTING
 	Int lastCP = TheMemoryPoolFactory->debugSetCheckpoint();

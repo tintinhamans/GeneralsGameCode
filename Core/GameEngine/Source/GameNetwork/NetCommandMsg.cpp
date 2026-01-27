@@ -26,6 +26,8 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameNetwork/NetCommandMsg.h"
+#include "GameNetwork/NetPacketStructs.h"
+#include "GameNetwork/GameMessageParser.h"
 #include "Common/GameState.h"
 #include "Common/PlayerList.h"
 #include "Common/Player.h"
@@ -90,8 +92,8 @@ NetGameCommandMsg::NetGameCommandMsg() : NetCommandMsg() {
 	m_numArgs = 0;
 	m_type = (GameMessage::Type)0;
 	m_commandType = NETCOMMANDTYPE_GAMECOMMAND;
-	m_argList = NULL;
-	m_argTail = NULL;
+	m_argList = nullptr;
+	m_argTail = nullptr;
 }
 
 /**
@@ -113,7 +115,7 @@ NetGameCommandMsg::NetGameCommandMsg(GameMessage *msg) : NetCommandMsg() {
  */
 NetGameCommandMsg::~NetGameCommandMsg() {
 	GameMessageArgument *arg = m_argList;
-	while (arg != NULL) {
+	while (arg != nullptr) {
 		m_argList = m_argList->m_next;
 		deleteInstance(arg);
 		arg = m_argList;
@@ -125,19 +127,19 @@ NetGameCommandMsg::~NetGameCommandMsg() {
  */
 void NetGameCommandMsg::addArgument(const GameMessageArgumentDataType type, GameMessageArgumentType arg)
 {
-	if (m_argTail == NULL) {
+	if (m_argTail == nullptr) {
 		m_argList = newInstance(GameMessageArgument);
 		m_argTail = m_argList;
 		m_argList->m_data = arg;
 		m_argList->m_type = type;
-		m_argList->m_next = NULL;
+		m_argList->m_next = nullptr;
 		return;
 	}
 
 	GameMessageArgument *newArg = newInstance(GameMessageArgument);
 	newArg->m_data = arg;
 	newArg->m_type = type;
-	newArg->m_next = NULL;
+	newArg->m_next = nullptr;
 	m_argTail->m_next = newArg;
 	m_argTail = newArg;
 }
@@ -145,7 +147,7 @@ void NetGameCommandMsg::addArgument(const GameMessageArgumentDataType type, Game
 // here's where we figure out which slot corresponds to which player
 static Int indexFromMask(UnsignedInt mask)
 {
-	Player *player = NULL;
+	Player *player = nullptr;
 	Int i;
 
 	for( i = 0; i < MAX_PLAYER_COUNT; i++ )
@@ -161,7 +163,7 @@ static Int indexFromMask(UnsignedInt mask)
 /**
  * Construct a new GameMessage object from the data in this object.
  */
-GameMessage *NetGameCommandMsg::constructGameMessage()
+GameMessage *NetGameCommandMsg::constructGameMessage() const
 {
 	GameMessage *retval = newInstance(GameMessage)(m_type);
 
@@ -171,7 +173,7 @@ GameMessage *NetGameCommandMsg::constructGameMessage()
 //	retval->friend_setPlayerIndex(indexFromMask(ThePlayerList->findPlayerWithNameKey(TheNameKeyGenerator->nameToKey(name))->getPlayerMask()));
 
 	GameMessageArgument *arg = m_argList;
-	while (arg != NULL) {
+	while (arg != nullptr) {
 //		retval->appendGenericArgument(arg->m_data);
 		switch (arg->m_type) {
 
@@ -221,6 +223,72 @@ GameMessage *NetGameCommandMsg::constructGameMessage()
  */
 void NetGameCommandMsg::setGameMessageType(GameMessage::Type type) {
 	m_type = type;
+}
+
+size_t NetGameCommandMsg::getPackedByteCount() const {
+	UnsignedShort msglen = sizeof(NetPacketGameCommand);
+
+	// Variable data portion
+	GameMessage *gmsg = constructGameMessage();
+	GameMessageParser *parser = newInstance(GameMessageParser)(gmsg);
+
+	msglen += sizeof(GameMessage::Type);
+	msglen += sizeof(UnsignedByte);
+
+	GameMessageParserArgumentType *arg = parser->getFirstArgumentType();
+	while (arg != nullptr) {
+		msglen += sizeof(UnsignedByte); // argument type
+		msglen += sizeof(UnsignedByte); // argument count
+		GameMessageArgumentDataType type = arg->getType();
+
+		switch (type) {
+
+		case ARGUMENTDATATYPE_INTEGER:
+			msglen += arg->getArgCount() * sizeof(Int);
+			break;
+		case ARGUMENTDATATYPE_REAL:
+			msglen += arg->getArgCount() * sizeof(Real);
+			break;
+		case ARGUMENTDATATYPE_BOOLEAN:
+			msglen += arg->getArgCount() * sizeof(Bool);
+			break;
+		case ARGUMENTDATATYPE_OBJECTID:
+			msglen += arg->getArgCount() * sizeof(ObjectID);
+			break;
+		case ARGUMENTDATATYPE_DRAWABLEID:
+			msglen += arg->getArgCount() * sizeof(DrawableID);
+			break;
+		case ARGUMENTDATATYPE_TEAMID:
+			msglen += arg->getArgCount() * sizeof(UnsignedInt);
+			break;
+		case ARGUMENTDATATYPE_LOCATION:
+			msglen += arg->getArgCount() * sizeof(Coord3D);
+			break;
+		case ARGUMENTDATATYPE_PIXEL:
+			msglen += arg->getArgCount() * sizeof(ICoord2D);
+			break;
+		case ARGUMENTDATATYPE_PIXELREGION:
+			msglen += arg->getArgCount() * sizeof(IRegion2D);
+			break;
+		case ARGUMENTDATATYPE_TIMESTAMP:
+			msglen += arg->getArgCount() * sizeof(UnsignedInt);
+			break;
+		case ARGUMENTDATATYPE_WIDECHAR:
+			msglen += arg->getArgCount() * sizeof(WideChar);
+			break;
+
+		}
+
+		arg = arg->getNext();
+	}
+
+	deleteInstance(parser);
+	parser = nullptr;
+
+	deleteInstance(gmsg);
+	gmsg = nullptr;
+
+	return msglen;
 }
 
 //-------------------------
@@ -280,6 +348,10 @@ Int NetAckBothCommandMsg::getSortNumber() {
 	return m_commandID;
 }
 
+size_t NetAckBothCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketAckCommand);
+}
+
 //-------------------------
 // NetAckStage1CommandMsg
 //-------------------------
@@ -335,6 +407,10 @@ void NetAckStage1CommandMsg::setOriginalPlayerID(UnsignedByte originalPlayerID) 
 
 Int NetAckStage1CommandMsg::getSortNumber() {
 	return m_commandID;
+}
+
+size_t NetAckStage1CommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketAckCommand);
 }
 
 //-------------------------
@@ -394,6 +470,10 @@ Int NetAckStage2CommandMsg::getSortNumber() {
 	return m_commandID;
 }
 
+size_t NetAckStage2CommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketAckCommand);
+}
+
 //-------------------------
 // NetFrameCommandMsg
 //-------------------------
@@ -425,6 +505,10 @@ UnsignedShort NetFrameCommandMsg::getCommandCount() {
 	return m_commandCount;
 }
 
+size_t NetFrameCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketFrameCommand);
+}
+
 //-------------------------
 // NetPlayerLeaveCommandMsg
 //-------------------------
@@ -454,6 +538,10 @@ UnsignedByte NetPlayerLeaveCommandMsg::getLeavingPlayerID() {
  */
 void NetPlayerLeaveCommandMsg::setLeavingPlayerID(UnsignedByte id) {
 	m_leavingPlayerID = id;
+}
+
+size_t NetPlayerLeaveCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketPlayerLeaveCommand);
 }
 
 //-------------------------
@@ -502,6 +590,10 @@ Int NetRunAheadMetricsCommandMsg::getAverageFps() {
 	return m_averageFps;
 }
 
+size_t NetRunAheadMetricsCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketRunAheadMetricsCommand);
+}
+
 //-------------------------
 // NetRunAheadCommandMsg
 //-------------------------
@@ -528,6 +620,10 @@ UnsignedByte NetRunAheadCommandMsg::getFrameRate() {
 
 void NetRunAheadCommandMsg::setFrameRate(UnsignedByte frameRate) {
 	m_frameRate = frameRate;
+}
+
+size_t NetRunAheadCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketRunAheadCommand);
 }
 
 //-------------------------
@@ -565,6 +661,10 @@ UnsignedInt NetDestroyPlayerCommandMsg::getPlayerIndex( void )
 	return m_playerIndex;
 }
 
+size_t NetDestroyPlayerCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketDestroyPlayerCommand);
+}
+
 //-------------------------
 // NetKeepAliveCommandMsg
 //-------------------------
@@ -578,6 +678,10 @@ NetKeepAliveCommandMsg::NetKeepAliveCommandMsg() : NetCommandMsg() {
 NetKeepAliveCommandMsg::~NetKeepAliveCommandMsg() {
 }
 
+size_t NetKeepAliveCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketKeepAliveCommand);
+}
+
 //-------------------------
 // NetDisconnectKeepAliveCommandMsg
 //-------------------------
@@ -589,6 +693,10 @@ NetDisconnectKeepAliveCommandMsg::NetDisconnectKeepAliveCommandMsg() : NetComman
 }
 
 NetDisconnectKeepAliveCommandMsg::~NetDisconnectKeepAliveCommandMsg() {
+}
+
+size_t NetDisconnectKeepAliveCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketDisconnectKeepAliveCommand);
 }
 
 //-------------------------
@@ -636,6 +744,10 @@ UnsignedInt NetDisconnectPlayerCommandMsg::getDisconnectFrame() {
 	return m_disconnectFrame;
 }
 
+size_t NetDisconnectPlayerCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketDisconnectPlayerCommand);
+}
+
 //-------------------------
 // NetPacketRouterQueryCommandMsg
 //-------------------------
@@ -652,6 +764,10 @@ NetPacketRouterQueryCommandMsg::NetPacketRouterQueryCommandMsg() : NetCommandMsg
 NetPacketRouterQueryCommandMsg::~NetPacketRouterQueryCommandMsg() {
 }
 
+size_t NetPacketRouterQueryCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketRouterQueryCommand);
+}
+
 //-------------------------
 // NetPacketRouterAckCommandMsg
 //-------------------------
@@ -666,6 +782,10 @@ NetPacketRouterAckCommandMsg::NetPacketRouterAckCommandMsg() : NetCommandMsg() {
  * Destructor
  */
 NetPacketRouterAckCommandMsg::~NetPacketRouterAckCommandMsg() {
+}
+
+size_t NetPacketRouterAckCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketRouterAckCommand);
 }
 
 //-------------------------
@@ -749,6 +869,24 @@ void NetChatCommandMsg::setPlayerMask( Int playerMask )
 	m_playerMask = playerMask;
 }
 
+size_t NetChatCommandMsg::getPackedByteCount() const
+{
+	return sizeof(NetPacketChatCommand)
+		+ sizeof(UnsignedByte) // text length byte
+		+ m_text.getByteCount()
+		+ sizeof(m_playerMask);
+}
+
+//-------------------------
+// NetDisconnectChatCommandMsg
+//-------------------------
+size_t NetDisconnectChatCommandMsg::getPackedByteCount() const
+{
+	return sizeof(NetPacketDisconnectChatCommand)
+		+ sizeof(UnsignedByte) // text length byte
+		+ m_text.getByteCount();
+}
+
 //-------------------------
 // NetDisconnectVoteCommandMsg
 //-------------------------
@@ -794,6 +932,10 @@ void NetDisconnectVoteCommandMsg::setVoteFrame(UnsignedInt voteFrame) {
 	m_voteFrame = voteFrame;
 }
 
+size_t NetDisconnectVoteCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketDisconnectVoteCommand);
+}
+
 //-------------------------
 // NetProgressCommandMsg
 //-------------------------
@@ -815,13 +957,17 @@ void NetProgressCommandMsg::setPercentage( UnsignedByte percent )
 	m_percent = percent;
 }
 
+size_t NetProgressCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketProgressMessage);
+}
+
 //-------------------------
 // NetWrapperCommandMsg
 //-------------------------
 NetWrapperCommandMsg::NetWrapperCommandMsg() : NetCommandMsg() {
 	m_commandType = NETCOMMANDTYPE_WRAPPER;
 	m_numChunks = 0;
-	m_data = NULL;
+	m_data = nullptr;
 	m_totalDataLength = 0;
 	m_chunkNumber = 0;
 	m_dataLength = 0;
@@ -831,7 +977,7 @@ NetWrapperCommandMsg::NetWrapperCommandMsg() : NetCommandMsg() {
 
 NetWrapperCommandMsg::~NetWrapperCommandMsg() {
 	delete m_data;
-	m_data = NULL;
+	m_data = nullptr;
 }
 
 UnsignedByte * NetWrapperCommandMsg::getData() {
@@ -890,19 +1036,23 @@ void NetWrapperCommandMsg::setWrappedCommandID(UnsignedShort wrappedCommandID) {
 	m_wrappedCommandID = wrappedCommandID;
 }
 
+size_t NetWrapperCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketWrapperCommand) + m_dataLength;
+}
+
 //-------------------------
 // NetFileCommandMsg
 //-------------------------
 NetFileCommandMsg::NetFileCommandMsg() : NetCommandMsg() {
 	m_commandType = NETCOMMANDTYPE_FILE;
-	m_data = NULL;
+	m_data = nullptr;
 	m_portableFilename.clear();
 	m_dataLength = 0;
 }
 
 NetFileCommandMsg::~NetFileCommandMsg() {
 	delete[] m_data;
-	m_data = NULL;
+	m_data = nullptr;
 }
 
 AsciiString NetFileCommandMsg::getRealFilename()
@@ -928,6 +1078,14 @@ void NetFileCommandMsg::setFileData(UnsignedByte *data, UnsignedInt dataLength)
 	m_dataLength = dataLength;
 	m_data = NEW UnsignedByte[dataLength];	// pool[]ify
 	memcpy(m_data, data, dataLength);
+}
+
+size_t NetFileCommandMsg::getPackedByteCount() const
+{
+	return sizeof(NetPacketFileCommand)
+		+ m_portableFilename.getLength() + 1
+		+ sizeof(m_dataLength)
+		+ m_dataLength;
 }
 
 //-------------------------
@@ -969,6 +1127,13 @@ void NetFileAnnounceCommandMsg::setPlayerMask(UnsignedByte playerMask) {
 	m_playerMask = playerMask;
 }
 
+size_t NetFileAnnounceCommandMsg::getPackedByteCount() const
+{
+	return sizeof(NetPacketFileAnnounceCommand)
+		+ m_portableFilename.getLength() + 1
+		+ sizeof(m_fileID)
+		+ sizeof(m_playerMask);
+}
 
 //-------------------------
 // NetFileProgressCommandMsg
@@ -998,6 +1163,10 @@ void NetFileProgressCommandMsg::setProgress(Int val) {
 	m_progress = val;
 }
 
+size_t NetFileProgressCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketFileProgressCommand);
+}
+
 //-------------------------
 // NetDisconnectFrameCommandMsg
 //-------------------------
@@ -1015,6 +1184,10 @@ UnsignedInt NetDisconnectFrameCommandMsg::getDisconnectFrame() {
 
 void NetDisconnectFrameCommandMsg::setDisconnectFrame(UnsignedInt disconnectFrame) {
 	m_disconnectFrame = disconnectFrame;
+}
+
+size_t NetDisconnectFrameCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketDisconnectFrameCommand);
 }
 
 //-------------------------
@@ -1036,6 +1209,10 @@ void NetDisconnectScreenOffCommandMsg::setNewFrame(UnsignedInt newFrame) {
 	m_newFrame = newFrame;
 }
 
+size_t NetDisconnectScreenOffCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketDisconnectScreenOffCommand);
+}
+
 //-------------------------
 // NetFrameResendRequestCommandMsg
 //-------------------------
@@ -1053,4 +1230,36 @@ UnsignedInt NetFrameResendRequestCommandMsg::getFrameToResend() {
 
 void NetFrameResendRequestCommandMsg::setFrameToResend(UnsignedInt frame) {
 	m_frameToResend = frame;
+}
+
+size_t NetFrameResendRequestCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketFrameResendRequestCommand);
+}
+
+//-------------------------
+// NetLoadCompleteCommandMsg
+//-------------------------
+NetLoadCompleteCommandMsg::NetLoadCompleteCommandMsg() : NetCommandMsg() {
+	m_commandType = NETCOMMANDTYPE_LOADCOMPLETE;
+}
+
+NetLoadCompleteCommandMsg::~NetLoadCompleteCommandMsg() {
+}
+
+size_t NetLoadCompleteCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketLoadCompleteMessage);
+}
+
+//-------------------------
+// NetTimeOutGameStartCommandMsg
+//-------------------------
+NetTimeOutGameStartCommandMsg::NetTimeOutGameStartCommandMsg() : NetCommandMsg() {
+	m_commandType = NETCOMMANDTYPE_TIMEOUTSTART;
+}
+
+NetTimeOutGameStartCommandMsg::~NetTimeOutGameStartCommandMsg() {
+}
+
+size_t NetTimeOutGameStartCommandMsg::getPackedByteCount() const {
+	return sizeof(NetPacketTimeOutGameStartMessage);
 }

@@ -48,8 +48,8 @@
 #include "../NextGenMP_defines.h"
 
 
-GameSpyInfoInterface *TheGameSpyInfo = NULL;
-extern GameSpyStagingRoom *TheGameSpyGame = NULL;
+GameSpyInfoInterface *TheGameSpyInfo = nullptr;
+extern GameSpyStagingRoom *TheGameSpyGame = nullptr;
 void deleteNotificationBox( void );
 
 bool AsciiComparator::operator()(AsciiString s1, AsciiString s2) const
@@ -66,7 +66,7 @@ GameSpyInfo::GameSpyInfo()
 
 GameSpyInfo::~GameSpyInfo()
 {
-	TheGameSpyGame = NULL;
+	TheGameSpyGame = nullptr;
 	reset();
 }
 
@@ -158,7 +158,7 @@ GameSpyStagingRoom* GameSpyInfo::getCurrentStagingRoom( void )
 	if (it != m_stagingRooms.end())
 		return it->second;
 
-	return NULL;
+	return nullptr;
 }
 
 void GameSpyInfo::setGameOptions( void )
@@ -409,12 +409,12 @@ void GameSpyInfo::joinBestGroupRoom( void )
 		}
 		else
 		{
-			GSMessageBoxOk(TheGameText->fetch("GUI:Error"), TheGameText->fetch("GUI:GSGroupRoomJoinFail"), NULL);
+			GSMessageBoxOk(TheGameText->fetch("GUI:Error"), TheGameText->fetch("GUI:GSGroupRoomJoinFail"), nullptr);
 		}
 	}
 	else
 	{
-		GSMessageBoxOk(TheGameText->fetch("GUI:Error"), TheGameText->fetch("GUI:GSGroupRoomJoinFail"), NULL);
+		GSMessageBoxOk(TheGameText->fetch("GUI:Error"), TheGameText->fetch("GUI:GSGroupRoomJoinFail"), nullptr);
 	}
 }
 
@@ -499,7 +499,7 @@ GameSpyStagingRoom* GameSpyInfo::findStagingRoomByID( Int id )
 	if (it != m_stagingRooms.end())
 		return it->second;
 
-	return NULL;
+	return nullptr;
 }
 
 void GameSpyInfo::leaveStagingRoom( void )
@@ -608,11 +608,11 @@ void SetUpGameSpy( const char *motdBuffer, const char *configBuffer )
 	TearDownGameSpy();
 
 	AsciiString dir = TheGlobalData->getPath_UserData();
-	CreateDirectory(dir.str(), NULL);
+	CreateDirectory(dir.str(), nullptr);
 	dir.format("%sGeneralsOnline", TheGlobalData->getPath_UserData().str());
-	CreateDirectory(dir.str(), NULL);
+	CreateDirectory(dir.str(), nullptr);
 	dir.format("%sGeneralsOnline\\Ladders", TheGlobalData->getPath_UserData().str());
-	CreateDirectory(dir.str(), NULL);
+	CreateDirectory(dir.str(), nullptr);
 
 	TheGameSpyBuddyMessageQueue = GameSpyBuddyMessageQueueInterface::createNewMessageQueue();
 	TheGameSpyBuddyMessageQueue->startThread();
@@ -675,16 +675,16 @@ void TearDownGameSpy( void )
 		ThePinger->endThreads();
 
 	delete TheRankPointValues;
-	TheRankPointValues = NULL;
+	TheRankPointValues = nullptr;
 
 	delete TheGameSpyPSMessageQueue;
-	TheGameSpyPSMessageQueue = NULL;
+	TheGameSpyPSMessageQueue = nullptr;
 
 	delete TheGameSpyBuddyMessageQueue;
-	TheGameSpyBuddyMessageQueue = NULL;
+	TheGameSpyBuddyMessageQueue = nullptr;
 
 	delete TheGameSpyPeerMessageQueue;
-	TheGameSpyPeerMessageQueue = NULL;
+	TheGameSpyPeerMessageQueue = nullptr;
 
 	if (TheGameSpyInfo)
 	{
@@ -694,17 +694,17 @@ void TearDownGameSpy( void )
 			SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGOUT);
 		}
 		delete TheGameSpyInfo;
-		TheGameSpyInfo = NULL;
+		TheGameSpyInfo = nullptr;
 	}
 
 	delete ThePinger;
-	ThePinger = NULL;
+	ThePinger = nullptr;
 
 	delete TheLadderList;
-	TheLadderList = NULL;
+	TheLadderList = nullptr;
 
 	delete TheGameSpyConfig;
-	TheGameSpyConfig = NULL;
+	TheGameSpyConfig = nullptr;
 
 	// make sure the notification box doesn't exist
 	deleteNotificationBox();
@@ -762,7 +762,7 @@ static Int grabHexInt(const char *s)
 	char tmp[5] = "0xff";
 	tmp[2] = s[0];
 	tmp[3] = s[1];
-	Int b = strtol(tmp, NULL, 16);
+	Int b = strtol(tmp, nullptr, 16);
 	return b;
 }
 

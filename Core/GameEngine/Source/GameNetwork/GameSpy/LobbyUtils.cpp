@@ -153,12 +153,12 @@ static NameKeyType windowSortAlphaID = NAMEKEY_INVALID;
 static NameKeyType windowSortPingID = NAMEKEY_INVALID;
 static NameKeyType windowSortBuddiesID = NAMEKEY_INVALID;
 
-static GameWindow* buttonSortAlpha = NULL;
-static GameWindow* buttonSortPing = NULL;
-static GameWindow* buttonSortBuddies = NULL;
-static GameWindow* windowSortAlpha = NULL;
-static GameWindow* windowSortPing = NULL;
-static GameWindow* windowSortBuddies = NULL;
+static GameWindow *buttonSortAlpha = nullptr;
+static GameWindow *buttonSortPing = nullptr;
+static GameWindow *buttonSortBuddies = nullptr;
+static GameWindow *windowSortAlpha = nullptr;
+static GameWindow *windowSortPing = nullptr;
+static GameWindow *windowSortBuddies = nullptr;
 
 static GameSortType theGameSortType = GAMESORT_ALPHA_ASCENDING;
 static Bool sortBuddies = TRUE;
@@ -252,14 +252,14 @@ static NameKeyType listboxLobbyGamesLargeID = NAMEKEY_INVALID;
 //static NameKeyType listboxLobbyGameInfoID = NAMEKEY_INVALID;
 
 // Window Pointers ------------------------------------------------------------------------
-static GameWindow* parent = NULL;
-//static GameWindow *parentGameListSmall = NULL;
-static GameWindow* parentGameListLarge = NULL;
-//GameWindow *listboxLobbyGamesSmall = NULL;
-GameWindow* listboxLobbyGamesLarge = NULL;
-//GameWindow *listboxLobbyGameInfo = NULL;
+static GameWindow *parent = nullptr;
+//static GameWindow *parentGameListSmall = nullptr;
+static GameWindow *parentGameListLarge = nullptr;
+       //GameWindow *listboxLobbyGamesSmall = nullptr;
+       GameWindow *listboxLobbyGamesLarge = nullptr;
+       //GameWindow *listboxLobbyGameInfo = nullptr;
 
-static const Image* pingImages[3] = { NULL, NULL, NULL };
+static const Image *pingImages[3] = { nullptr, nullptr, nullptr };
 
 static void gameTooltip(GameWindow* window,
 	WinInstanceData* instData,
@@ -307,15 +307,15 @@ static void gameTooltip(GameWindow* window,
 			room->getPingAsInt(), TheGameSpyConfig->getPingCutoffGood(), TheGameSpyConfig->getPingCutoffBad(),
 			TheGameSpyInfo->getPingString().str(), room->getPingString().str()
 		);
-		TheMouse->setCursorTooltip( s, 10, NULL, 2.0f ); // the text and width are the only params used.  the others are the default values.
+		TheMouse->setCursorTooltip( s, 10, nullptr, 2.0f ); // the text and width are the only params used.  the others are the default values.
 #else
-		TheMouse->setCursorTooltip( TheGameText->fetch("TOOLTIP:PingInfo"), 10, NULL, 2.0f ); // the text and width are the only params used.  the others are the default values.
+		TheMouse->setCursorTooltip( TheGameText->fetch("TOOLTIP:PingInfo"), 10, nullptr, 2.0f ); // the text and width are the only params used.  the others are the default values.
 #endif
 		return;
 	}
 	if (col == COLUMN_NUMPLAYERS)
 	{
-		TheMouse->setCursorTooltip( TheGameText->fetch("TOOLTIP:NumberOfPlayers"), 10, NULL, 2.0f ); // the text and width are the only params used.  the others are the default values.
+		TheMouse->setCursorTooltip( TheGameText->fetch("TOOLTIP:NumberOfPlayers"), 10, nullptr, 2.0f ); // the text and width are the only params used.  the others are the default values.
 		return;
 	}
 	if (col == COLUMN_PASSWORD)
@@ -329,7 +329,7 @@ static void gameTooltip(GameWindow* window,
 			UnicodeString checkTooltip =TheGameText->fetch("TOOTIP:Password");
 			if(!checkTooltip.compare(L"Password required to joing game"))
 				checkTooltip.set(L"Password required to join game");
-			TheMouse->setCursorTooltip( checkTooltip, 10, NULL, 2.0f ); // the text and width are the only params used.  the others are the default values.
+			TheMouse->setCursorTooltip( checkTooltip, 10, nullptr, 2.0f ); // the text and width are the only params used.  the others are the default values.
 		}
 		else
 			TheMouse->setCursorTooltip( UnicodeString::TheEmptyString );
@@ -499,7 +499,7 @@ static void gameTooltip(GameWindow* window,
 	DEBUG_ASSERTCRASH(numPlayers, ("Tooltipping a 0-player game!"));
 #endif
 
-	TheMouse->setCursorTooltip( tooltip, 10, NULL, 2.0f ); // the text and width are the only params used.  the others are the default values.
+	TheMouse->setCursorTooltip( tooltip, 10, nullptr, 2.0f ); // the text and width are the only params used.  the others are the default values.
 }
 
 static Bool isSmall = TRUE;
@@ -511,7 +511,7 @@ GameWindow *GetGameListBox( void )
 
 GameWindow *GetGameInfoListBox( void )
 {
-	return NULL;
+	return nullptr;
 }
 
 NameKeyType GetGameListBoxID( void )
@@ -528,7 +528,7 @@ void GrabWindowInfo( void )
 {
 	isSmall = TRUE;
 	parentID = NAMEKEY( "WOLCustomLobby.wnd:WOLLobbyMenuParent" );
-	parent = TheWindowManager->winGetWindowFromId(NULL, parentID);
+	parent = TheWindowManager->winGetWindowFromId(nullptr, parentID);
 
 	pingImages[0] = TheMappedImageCollection->findImageByName("Ping03");
 	pingImages[1] = TheMappedImageCollection->findImageByName("Ping02");
@@ -538,21 +538,21 @@ void GrabWindowInfo( void )
 	DEBUG_ASSERTCRASH(pingImages[2], ("Can't find ping image!"));
 
 //	parentGameListSmallID = NAMEKEY( "WOLCustomLobby.wnd:ParentGameListSmall" );
-//	parentGameListSmall = TheWindowManager->winGetWindowFromId(NULL, parentGameListSmallID);
+//	parentGameListSmall = TheWindowManager->winGetWindowFromId(nullptr, parentGameListSmallID);
 
 	parentGameListLargeID = NAMEKEY( "WOLCustomLobby.wnd:ParentGameListLarge" );
-	parentGameListLarge = TheWindowManager->winGetWindowFromId(NULL, parentGameListLargeID);
+	parentGameListLarge = TheWindowManager->winGetWindowFromId(nullptr, parentGameListLargeID);
 
 	listboxLobbyGamesSmallID = NAMEKEY( "WOLCustomLobby.wnd:ListboxGames" );
-//	listboxLobbyGamesSmall = TheWindowManager->winGetWindowFromId(NULL, listboxLobbyGamesSmallID);
+//	listboxLobbyGamesSmall = TheWindowManager->winGetWindowFromId(nullptr, listboxLobbyGamesSmallID);
 //	listboxLobbyGamesSmall->winSetTooltipFunc(gameTooltip);
 
 	listboxLobbyGamesLargeID = NAMEKEY( "WOLCustomLobby.wnd:ListboxGamesLarge" );
-	listboxLobbyGamesLarge = TheWindowManager->winGetWindowFromId(NULL, listboxLobbyGamesLargeID);
+	listboxLobbyGamesLarge = TheWindowManager->winGetWindowFromId(nullptr, listboxLobbyGamesLargeID);
 	listboxLobbyGamesLarge->winSetTooltipFunc(gameTooltip);
 //
 //	listboxLobbyGameInfoID = NAMEKEY( "WOLCustomLobby.wnd:ListboxGameInfo" );
-//	listboxLobbyGameInfo = TheWindowManager->winGetWindowFromId(NULL, listboxLobbyGameInfoID);
+//	listboxLobbyGameInfo = TheWindowManager->winGetWindowFromId(nullptr, listboxLobbyGameInfoID);
 
 	buttonSortAlphaID = NAMEKEY("WOLCustomLobby.wnd:ButtonSortAlpha");
 	buttonSortPingID = NAMEKEY("WOLCustomLobby.wnd:ButtonSortPing");
@@ -574,19 +574,19 @@ void GrabWindowInfo( void )
 void ReleaseWindowInfo( void )
 {
 	isSmall = TRUE;
-	parent = NULL;
-//	parentGameListSmall = NULL;
-	parentGameListLarge = NULL;
-//	listboxLobbyGamesSmall = NULL;
-	listboxLobbyGamesLarge = NULL;
-//	listboxLobbyGameInfo = NULL;
+	parent = nullptr;
+//	parentGameListSmall = nullptr;
+	parentGameListLarge = nullptr;
+//	listboxLobbyGamesSmall = nullptr;
+	listboxLobbyGamesLarge = nullptr;
+//	listboxLobbyGameInfo = nullptr;
 
-	buttonSortAlpha = NULL;
-	buttonSortPing = NULL;
-	buttonSortBuddies = NULL;
-	windowSortAlpha = NULL;
-	windowSortPing = NULL;
-	windowSortBuddies = NULL;
+	buttonSortAlpha = nullptr;
+	buttonSortPing = nullptr;
+	buttonSortBuddies = nullptr;
+	windowSortAlpha = nullptr;
+	windowSortPing = nullptr;
+	windowSortBuddies = nullptr;
 }
 
 #if defined(GENERALS_ONLINE)
@@ -595,7 +595,7 @@ typedef std::set<int64_t> BuddyGameSet;
 typedef std::set<GameSpyStagingRoom*> BuddyGameSet;
 #endif
 
-static BuddyGameSet *theBuddyGames = NULL;
+static BuddyGameSet *theBuddyGames = nullptr;
 #if defined(GENERALS_ONLINE)
 static void populateBuddyGames(std::vector<LobbyEntry>& vecLobbies)
 #else
@@ -663,7 +663,7 @@ static void populateBuddyGames(void)
 static void clearBuddyGames(void)
 {
 	delete theBuddyGames;
-	theBuddyGames = NULL;
+	theBuddyGames = nullptr;
 }
 
 #if defined(GENERALS_ONLINE)
@@ -727,16 +727,16 @@ struct GameSortStruct
 	bool operator()(GameSpyStagingRoom *g1, GameSpyStagingRoom *g2) const
 	{
 		// sort CRC mismatches to the bottom
-		Bool g1Good = (g1->getExeCRC() != TheGlobalData->m_exeCRC || g1->getIniCRC() != TheGlobalData->m_iniCRC);
-		Bool g2Good = (g1->getExeCRC() != TheGlobalData->m_exeCRC || g1->getIniCRC() != TheGlobalData->m_iniCRC);
+		Bool g1Good = (g1->getExeCRC() == TheGlobalData->m_exeCRC && g1->getIniCRC() == TheGlobalData->m_iniCRC);
+		Bool g2Good = (g2->getExeCRC() == TheGlobalData->m_exeCRC && g2->getIniCRC() == TheGlobalData->m_iniCRC);
 		if ( g1Good ^ g2Good )
 		{
 			return g1Good;
 		}
 
 		// sort games with private ladders to the bottom
-		Bool g1UnknownLadder = (g1->getLadderPort() && TheLadderList->findLadder(g1->getLadderIP(), g1->getLadderPort()) == NULL);
-		Bool g2UnknownLadder = (g2->getLadderPort() && TheLadderList->findLadder(g2->getLadderIP(), g2->getLadderPort()) == NULL);
+		Bool g1UnknownLadder = (g1->getLadderPort() && TheLadderList->findLadder(g1->getLadderIP(), g1->getLadderPort()) == nullptr);
+		Bool g2UnknownLadder = (g2->getLadderPort() && TheLadderList->findLadder(g2->getLadderIP(), g2->getLadderPort()) == nullptr);
 		if ( g1UnknownLadder ^ g2UnknownLadder )
 		{
 			return g2UnknownLadder;
@@ -1392,7 +1392,7 @@ void RefreshGameListBoxes( void )
 	GameWindow *main = GetGameListBox();
 	GameWindow *info = GetGameInfoListBox();
 
-	RefreshGameListBox( main, (info == NULL) );
+	RefreshGameListBox( main, (info == nullptr) );
 
 	if (info)
 	{

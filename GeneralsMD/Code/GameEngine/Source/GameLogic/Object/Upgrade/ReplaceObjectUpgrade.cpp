@@ -38,59 +38,71 @@
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Module/CreateModule.h"
 #include "GameLogic/Object.h"
+#include "GameClient/InGameUI.h"
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 void ReplaceObjectUpgradeModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  UpgradeModuleData::buildFieldParse(p);
+	UpgradeModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
-		{ "ReplaceObject",	INI::parseAsciiString,	NULL, offsetof( ReplaceObjectUpgradeModuleData, m_replaceObjectName ) },
+		{ "ReplaceObject",	INI::parseAsciiString,	NULL, offsetof(ReplaceObjectUpgradeModuleData, m_replaceObjectName) },
 		{ 0, 0, 0, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-ReplaceObjectUpgrade::ReplaceObjectUpgrade( Thing *thing, const ModuleData* moduleData ) : UpgradeModule( thing, moduleData )
+ReplaceObjectUpgrade::ReplaceObjectUpgrade(Thing* thing, const ModuleData* moduleData) : UpgradeModule(thing, moduleData)
 {
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-ReplaceObjectUpgrade::~ReplaceObjectUpgrade( void )
+ReplaceObjectUpgrade::~ReplaceObjectUpgrade(void)
 {
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void ReplaceObjectUpgrade::upgradeImplementation( )
+void ReplaceObjectUpgrade::upgradeImplementation()
 {
-	const ReplaceObjectUpgradeModuleData *data = getReplaceObjectUpgradeModuleData();
+	const ReplaceObjectUpgradeModuleData* data = getReplaceObjectUpgradeModuleData();
+	const ThingTemplate* replacementTemplate = TheThingFactory->findTemplate(data->m_replaceObjectName);
 
-	Object *me = getObject();
+	Bool oldObjectSelected;
+	Int oldObjectSquadNumber;
+	Matrix3D myMatrix;
+	Team* myTeam;
 
-	Matrix3D myMatrix = *me->getTransformMatrix();
-	Team *myTeam = me->getTeam();// Team implies player.  It is a subset.
-
-	const ThingTemplate *replacementTemplate = TheThingFactory->findTemplate(data->m_replaceObjectName);
-	if( replacementTemplate == NULL )
 	{
-		DEBUG_ASSERTCRASH(replacementTemplate != NULL, ("No such object '%s' in ReplaceObjectUpgrade.", data->m_replaceObjectName.str() ) );
-		return;
+		Object* me = getObject();
+
+		myMatrix = *me->getTransformMatrix();
+		myTeam = me->getTeam();// Team implies player.  It is a subset.
+
+		if (replacementTemplate == NULL)
+		{
+			DEBUG_ASSERTCRASH(replacementTemplate != NULL, ("No such object '%s' in ReplaceObjectUpgrade.", data->m_replaceObjectName.str()));
+			return;
+		}
+
+		Drawable* selectedDrawable = TheInGameUI->getFirstSelectedDrawable();
+		oldObjectSelected = selectedDrawable && selectedDrawable->getID() == me->getDrawable()->getID();
+		oldObjectSquadNumber = me->getControllingPlayer()->getSquadNumberForObject(me);
+
+		// Remove us first since occupation of cells is apparently not a refcount, but a flag.  If I don't remove, then the new
+		// thing will be placed, and then on deletion I will remove "his" marks.
+		TheAI->pathfinder()->removeObjectFromPathfindMap(me);
+		TheGameLogic->destroyObject(me);
 	}
 
-	// Remove us first since occupation of cells is apparently not a refcount, but a flag.  If I don't remove, then the new
-	// thing will be placed, and then on deletion I will remove "his" marks.
-	TheAI->pathfinder()->removeObjectFromPathfindMap( me );
-	TheGameLogic->destroyObject(me);
-
-	Object *replacementObject = TheThingFactory->newObject(replacementTemplate, myTeam);
+	Object* replacementObject = TheThingFactory->newObject(replacementTemplate, myTeam);
 	replacementObject->setTransformMatrix(&myMatrix);
-	TheAI->pathfinder()->addObjectToPathfindMap( replacementObject );
+	TheAI->pathfinder()->addObjectToPathfindMap(replacementObject);
 
 	// Now onCreates were called at the constructor.  This magically created
 	// thing needs to be considered as Built for Game specific stuff.
@@ -102,20 +114,39 @@ void ReplaceObjectUpgrade::upgradeImplementation( )
 		create->onBuildComplete();
 	}
 
-	if( replacementObject->getControllingPlayer() )
+	if (replacementObject->getControllingPlayer())
 	{
-		replacementObject->getControllingPlayer()->onStructureConstructionComplete(me, replacementObject, FALSE);
+		replacementObject->getControllingPlayer()->onStructureConstructionComplete(NULL, replacementObject, FALSE);
+
+		// TheSuperHackers @bugfix Stubbjax 26/05/2025 If the old object was selected, select the new one.
+		if (oldObjectSelected)
+		{
+			GameMessage* msg = TheMessageStream->appendMessage(GameMessage::MSG_CREATE_SELECTED_GROUP_NO_SOUND);
+			msg->appendBooleanArgument(TRUE);
+			msg->appendObjectIDArgument(replacementObject->getID());
+			TheInGameUI->selectDrawable(replacementObject->getDrawable());
+		}
+
+		// TheSuperHackers @bugfix Stubbjax 26/05/2025 If the old object was grouped, group the new one.
+		if (oldObjectSquadNumber != NO_HOTKEY_SQUAD)
+		{
+			if (replacementObject->isLocallyControlled())
+			{
+				GameMessage* msg = TheMessageStream->appendMessage((GameMessage::Type)(GameMessage::MSG_CREATE_TEAM0 + oldObjectSquadNumber));
+				msg->appendObjectIDArgument(replacementObject->getID());
+			}
+		}
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
-void ReplaceObjectUpgrade::crc( Xfer *xfer )
+void ReplaceObjectUpgrade::crc(Xfer* xfer)
 {
 
 	// extend base class
-	UpgradeModule::crc( xfer );
+	UpgradeModule::crc(xfer);
 
 }
 
@@ -123,24 +154,24 @@ void ReplaceObjectUpgrade::crc( Xfer *xfer )
 /** Xfer method
 	* Version Info:
 	* 1: Initial version */
-// ------------------------------------------------------------------------------------------------
-void ReplaceObjectUpgrade::xfer( Xfer *xfer )
+	// ------------------------------------------------------------------------------------------------
+void ReplaceObjectUpgrade::xfer(Xfer* xfer)
 {
 
 	// version
 	XferVersion currentVersion = 1;
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// extend base class
-	UpgradeModule::xfer( xfer );
+	UpgradeModule::xfer(xfer);
 
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void ReplaceObjectUpgrade::loadPostProcess( void )
+void ReplaceObjectUpgrade::loadPostProcess(void)
 {
 
 	// extend base class

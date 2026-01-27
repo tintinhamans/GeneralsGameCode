@@ -1609,4 +1609,5 @@ static void messageBoxYes( void )
 	RefreshGameListBoxes();
 	GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
 	
-}
+}
+

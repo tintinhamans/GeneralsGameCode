@@ -82,26 +82,26 @@ static NameKeyType buttonNotificationID = NAMEKEY_INVALID;
 
 
 // Window Pointers ------------------------------------------------------------------------
-static GameWindow *parent = NULL;
-static GameWindow *buttonHide = NULL;
-static GameWindow *buttonAddBuddy = NULL;
-static GameWindow *buttonDeleteBuddy = NULL;
-static GameWindow *textEntry = NULL;
-static GameWindow *listboxBuddy = NULL;
-static GameWindow *listboxChat = NULL;
-static GameWindow *buttonAcceptBuddy = NULL;
-static GameWindow *buttonDenyBuddy = NULL;
-static GameWindow *radioButtonBuddies = NULL;
-static GameWindow *radioButtonIgnore = NULL;
-static GameWindow *parentBuddies = NULL;
-static GameWindow *parentIgnore = NULL;
-static GameWindow *listboxIgnore = NULL;
+static GameWindow *parent = nullptr;
+static GameWindow *buttonHide = nullptr;
+static GameWindow *buttonAddBuddy = nullptr;
+static GameWindow *buttonDeleteBuddy = nullptr;
+static GameWindow *textEntry = nullptr;
+static GameWindow *listboxBuddy = nullptr;
+static GameWindow *listboxChat = nullptr;
+static GameWindow *buttonAcceptBuddy = nullptr;
+static GameWindow *buttonDenyBuddy = nullptr;
+static GameWindow *radioButtonBuddies = nullptr;
+static GameWindow *radioButtonIgnore = nullptr;
+static GameWindow *parentBuddies = nullptr;
+static GameWindow *parentIgnore = nullptr;
+static GameWindow *listboxIgnore = nullptr;
 
 static Bool isOverlayActive = false;
 void insertChat( BuddyMessage msg );
 // RightClick pointers ---------------------------------------------------------------------
-static GameWindow *rcMenu = NULL;
-static WindowLayout *noticeLayout = NULL;
+static GameWindow *rcMenu = nullptr;
+static WindowLayout *noticeLayout = nullptr;
 static UnsignedInt noticeExpires = 0;
 
 #if defined(GENERALS_ONLINE)
@@ -140,11 +140,11 @@ public:
 static BuddyControls buddyControls;
 BuddyControls::BuddyControls(	void )
 {
-	listboxChat = NULL;
+	listboxChat = nullptr;
 	listboxChatID = NAMEKEY_INVALID;
-	listboxBuddies = NULL;
+	listboxBuddies = nullptr;
 	listboxBuddiesID = NAMEKEY_INVALID;
-	textEntryEdit = NULL;
+	textEntryEdit = nullptr;
 	textEntryEditID = NAMEKEY_INVALID;
 	isInit = FALSE;
 }
@@ -163,11 +163,11 @@ void InitBuddyControls(Int type)
 	if(!TheGameSpyInfo)
 	{
 		buddyControls.textEntryEditID = NAMEKEY_INVALID;
-		buddyControls.textEntryEdit = NULL;
+		buddyControls.textEntryEdit = nullptr;
 		buddyControls.listboxBuddiesID = NAMEKEY_INVALID;
 		buddyControls.listboxChatID = NAMEKEY_INVALID;
-		buddyControls.listboxBuddies = NULL;
-		buddyControls.listboxChat = NULL;
+		buddyControls.listboxBuddies = nullptr;
+		buddyControls.listboxChat = nullptr;
 		buddyControls.isInit = FALSE;
 		return;
 	}
@@ -175,20 +175,20 @@ void InitBuddyControls(Int type)
 	switch (type) {
 	case BUDDY_RESETALL_CRAP:
 		buddyControls.textEntryEditID = NAMEKEY_INVALID;
-		buddyControls.textEntryEdit = NULL;
+		buddyControls.textEntryEdit = nullptr;
 		buddyControls.listboxBuddiesID = NAMEKEY_INVALID;
 		buddyControls.listboxChatID = NAMEKEY_INVALID;
-		buddyControls.listboxBuddies = NULL;
-		buddyControls.listboxChat = NULL;
+		buddyControls.listboxBuddies = nullptr;
+		buddyControls.listboxChat = nullptr;
 		buddyControls.isInit = FALSE;
 	break;
 	case BUDDY_WINDOW_BUDDIES:
 		buddyControls.textEntryEditID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:TextEntryChat" );
-		buddyControls.textEntryEdit = TheWindowManager->winGetWindowFromId(NULL,  buddyControls.textEntryEditID);
+		buddyControls.textEntryEdit = TheWindowManager->winGetWindowFromId(nullptr,  buddyControls.textEntryEditID);
 		buddyControls.listboxBuddiesID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ListboxBuddies" );
 		buddyControls.listboxChatID = TheNameKeyGenerator->nameToKey( "WOLBuddyOverlay.wnd:ListboxBuddyChat" );
-		buddyControls.listboxBuddies = TheWindowManager->winGetWindowFromId( NULL,  buddyControls.listboxBuddiesID );
-		buddyControls.listboxChat = TheWindowManager->winGetWindowFromId( NULL,  buddyControls.listboxChatID);
+		buddyControls.listboxBuddies = TheWindowManager->winGetWindowFromId( nullptr,  buddyControls.listboxBuddiesID );
+		buddyControls.listboxChat = TheWindowManager->winGetWindowFromId( nullptr,  buddyControls.listboxChatID);
 		GadgetTextEntrySetText(buddyControls.textEntryEdit, UnicodeString::TheEmptyString);
 		buddyControls.isInit = TRUE;
 
@@ -204,11 +204,11 @@ void InitBuddyControls(Int type)
 		break;
 	case BUDDY_WINDOW_DIPLOMACY:
 		buddyControls.textEntryEditID = TheNameKeyGenerator->nameToKey( "Diplomacy.wnd:TextEntryChat" );
-		buddyControls.textEntryEdit = TheWindowManager->winGetWindowFromId(NULL,  buddyControls.textEntryEditID);
+		buddyControls.textEntryEdit = TheWindowManager->winGetWindowFromId(nullptr,  buddyControls.textEntryEditID);
 		buddyControls.listboxBuddiesID = TheNameKeyGenerator->nameToKey( "Diplomacy.wnd:ListboxBuddies" );
 		buddyControls.listboxChatID = TheNameKeyGenerator->nameToKey( "Diplomacy.wnd:ListboxBuddyChat" );
-		buddyControls.listboxBuddies = TheWindowManager->winGetWindowFromId( NULL,  buddyControls.listboxBuddiesID );
-		buddyControls.listboxChat = TheWindowManager->winGetWindowFromId( NULL,  buddyControls.listboxChatID);
+		buddyControls.listboxBuddies = TheWindowManager->winGetWindowFromId( nullptr,  buddyControls.listboxBuddiesID );
+		buddyControls.listboxChat = TheWindowManager->winGetWindowFromId( nullptr,  buddyControls.listboxChatID);
 		GadgetTextEntrySetText(buddyControls.textEntryEdit, UnicodeString::TheEmptyString);
 		buddyControls.isInit = TRUE;
 		break;
@@ -365,7 +365,7 @@ WindowMsgHandledType BuddyControlSystem( GameWindow *window, UnsignedInt msg,
 						// save message for future incarnations of the buddy window
 						BuddyMessageList *messages = TheGameSpyInfo->getBuddyMessages();
 						BuddyMessage message;
-						message.m_timestamp = time(NULL);
+						message.m_timestamp = time(nullptr);
 						message.m_senderID = TheGameSpyInfo->getLocalProfileID();
 						message.m_senderNick = TheGameSpyInfo->getLocalBaseName();
 						message.m_recipientID = selectedProfile;
@@ -397,7 +397,7 @@ WindowMsgHandledType BuddyControlSystem( GameWindow *window, UnsignedInt msg,
 
 bool g_bIsProcessingRefresh = false;
 
-static void insertChat( BuddyMessage msg )
+void insertChat( BuddyMessage msg )
 {
 	if (buddyControls.listboxChat)
 	{
@@ -957,7 +957,7 @@ void showNotificationBox(AsciiString nick, UnicodeString message)
 	{
 		buttonNotificationID = TheNameKeyGenerator->nameToKey("PopupBuddyListNotification.wnd:ButtonNotification");
 	}
-	GameWindow *win = TheWindowManager->winGetWindowFromId(NULL,buttonNotificationID);
+	GameWindow *win = TheWindowManager->winGetWindowFromId(nullptr,buttonNotificationID);
 	if(!win)
 	{
 		deleteNotificationBox();
@@ -997,7 +997,7 @@ void deleteNotificationBox( void )
 	{
 		noticeLayout->destroyWindows();
 		deleteInstance(noticeLayout);
-		noticeLayout = NULL;
+		noticeLayout = nullptr;
 	}
 }
 
@@ -1630,7 +1630,7 @@ static NameKeyType buttonPlayID = NAMEKEY_INVALID;
 static NameKeyType buttonIgnoreID = NAMEKEY_INVALID;
 static NameKeyType buttonStatsID = NAMEKEY_INVALID;
 // Window Pointers ------------------------------------------------------------------------
-//static GameWindow *rCparent = NULL;
+//static GameWindow *rCparent = nullptr;
 
 
 //-------------------------------------------------------------------------------------------------
@@ -1660,7 +1660,7 @@ static void closeRightClickMenu(GameWindow *win)
 			return;
 		winLay->destroyWindows();
 		deleteInstance(winLay);
-		winLay = NULL;
+		winLay = nullptr;
 
 	}
 }
@@ -1736,7 +1736,7 @@ void RequestBuddyAdd(Int profileID, AsciiString nick)
 	// save message for future incarnations of the buddy window
 	BuddyMessageList *messages = TheGameSpyInfo->getBuddyMessages();
 	BuddyMessage message;
-	message.m_timestamp = time(NULL);
+	message.m_timestamp = time(nullptr);
 	message.m_senderID = 0;
 	message.m_senderNick = "";
 	message.m_recipientID = TheGameSpyInfo->getLocalProfileID();
@@ -1778,14 +1778,14 @@ WindowMsgHandledType WOLBuddyOverlayRCMenuSystem( GameWindow *window, UnsignedIn
 
 		case GWM_DESTROY:
 			{
-				rcMenu = NULL;
+				rcMenu = nullptr;
 				break;
 			}
 
 		case GGM_CLOSE:
 			{
 				closeRightClickMenu(window);
-				//rcMenu = NULL;
+				//rcMenu = nullptr;
 				break;
 			}
 
@@ -1809,9 +1809,9 @@ WindowMsgHandledType WOLBuddyOverlayRCMenuSystem( GameWindow *window, UnsignedIn
 					isRequest = TRUE;
 
 				delete rcData;
-				rcData = NULL;
+				rcData = nullptr;
 
-				window->winSetUserData(NULL);
+				window->winSetUserData(nullptr);
 				//DEBUG_ASSERTCRASH(profileID > 0, ("Bad profile ID in user data!"));
 
 				if( controlID == buttonAddID )

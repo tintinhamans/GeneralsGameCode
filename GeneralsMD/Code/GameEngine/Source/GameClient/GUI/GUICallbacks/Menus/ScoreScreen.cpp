@@ -121,31 +121,31 @@ static NameKeyType buttonBuddiesID = NAMEKEY_INVALID;
 static NameKeyType buttonSaveReplayID = NAMEKEY_INVALID;
 static NameKeyType backdropID = NAMEKEY_INVALID;
 
-static GameWindow *parent = NULL;
-static GameWindow *buttonOk = NULL;
-//static GameWindow *buttonRehost = NULL;
-static GameWindow *buttonContinue = NULL;
-static GameWindow *textEntryChat = NULL;
-static GameWindow *buttonEmote = NULL;
-static GameWindow *chatBoxBorder = NULL;
-static GameWindow *buttonBuddies = NULL;
-static GameWindow *staticTextGameSaved = NULL;
-static GameWindow *backdrop = NULL;
-static GameWindow *challengePortrait = NULL;
-static GameWindow *challengeRemarks = NULL;
-static GameWindow *challengeWinLossText = NULL;
-static GameWindow *gadgetParent = NULL;
+static GameWindow *parent = nullptr;
+static GameWindow *buttonOk = nullptr;
+//static GameWindow *buttonRehost = nullptr;
+static GameWindow *buttonContinue = nullptr;
+static GameWindow *textEntryChat = nullptr;
+static GameWindow *buttonEmote = nullptr;
+static GameWindow *chatBoxBorder = nullptr;
+static GameWindow *buttonBuddies = nullptr;
+static GameWindow *staticTextGameSaved = nullptr;
+static GameWindow *backdrop = nullptr;
+static GameWindow *challengePortrait = nullptr;
+static GameWindow *challengeRemarks = nullptr;
+static GameWindow *challengeWinLossText = nullptr;
+static GameWindow *gadgetParent = nullptr;
 
 static Bool overidePlayerDisplayName = FALSE;
 
 //External declarations
 NameKeyType listboxChatWindowScoreScreenID = NAMEKEY_INVALID;
-GameWindow *listboxChatWindowScoreScreen = NULL;
+GameWindow *listboxChatWindowScoreScreen = nullptr;
 
 NameKeyType listboxAcademyWindowScoreScreenID = NAMEKEY_INVALID;
-GameWindow *listboxAcademyWindowScoreScreen = NULL;
+GameWindow *listboxAcademyWindowScoreScreen = nullptr;
 NameKeyType staticTextAcademyTitleID = NAMEKEY_INVALID;
-GameWindow *staticTextAcademyTitle = NULL;
+GameWindow *staticTextAcademyTitle = nullptr;
 
 
 std::string LastReplayFileName;
@@ -156,7 +156,7 @@ void initSinglePlayer( void );
 void finishSinglePlayerInit( void );
 static Bool s_needToFinishSinglePlayerInit = FALSE;
 static Bool buttonIsFinishCampaign = FALSE;
-static WindowLayout *s_blankLayout = NULL;
+static WindowLayout *s_blankLayout = nullptr;
 
 void initSkirmish( void );
 void initLANMultiPlayer(void);
@@ -233,20 +233,20 @@ void startNextCampaignGame(void)
 void ScoreScreenEnableControls(Bool enable)
 {
 	// if we are using the button, do the enable thing.
-	if ((buttonOk != NULL) && (buttonOk->winIsHidden() == FALSE)) {
+	if ((buttonOk != nullptr) && (buttonOk->winIsHidden() == FALSE)) {
 		buttonOk->winEnable(enable);
 	}
 
-	if ((buttonContinue != NULL) && (buttonContinue->winIsHidden() == FALSE)) {
+	if ((buttonContinue != nullptr) && (buttonContinue->winIsHidden() == FALSE)) {
 		buttonContinue->winEnable(enable);
 	}
 
-	if ((buttonBuddies != NULL) && (buttonBuddies->winIsHidden() == FALSE)) {
+	if ((buttonBuddies != nullptr) && (buttonBuddies->winIsHidden() == FALSE)) {
 		buttonBuddies->winEnable(enable);
 	}
 
 	GameWindow *buttonSaveReplay = TheWindowManager->winGetWindowFromId( parent, buttonSaveReplayID );
-	if ((buttonSaveReplay != NULL) && (buttonSaveReplay->winIsHidden() == FALSE)) {
+	if ((buttonSaveReplay != nullptr) && (buttonSaveReplay->winIsHidden() == FALSE)) {
 		if (!canSaveReplay)
 			enable = FALSE;
 		buttonSaveReplay->winEnable(enable);
@@ -290,7 +290,7 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 	buttonSaveReplayID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:ButtonSaveReplay" );
 	backdropID = TheNameKeyGenerator->nameToKey( "ScoreScreen.wnd:MainBackdrop" );
 
-	parent = TheWindowManager->winGetWindowFromId( NULL, parentID );
+	parent = TheWindowManager->winGetWindowFromId( nullptr, parentID );
 	buttonOk = TheWindowManager->winGetWindowFromId( parent, buttonOkID );
 	textEntryChat = TheWindowManager->winGetWindowFromId( parent, textEntryChatID );
 	buttonEmote = TheWindowManager->winGetWindowFromId( parent,buttonEmoteID  );
@@ -313,7 +313,7 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 	staticTextGameSaved->winHide(TRUE);
 	overidePlayerDisplayName = FALSE;
 	WindowLayout *replayLayout = TheShell->getPopupReplayLayout();
-	if (replayLayout != NULL) {
+	if (replayLayout != nullptr) {
 		replayLayout->hide(TRUE);
 	}
 	canSaveReplay = FALSE;
@@ -453,9 +453,9 @@ void ScoreScreenShutdown( WindowLayout *layout, void *userData )
 void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 {
 	WindowLayout *popupReplayLayout = TheShell->getPopupReplayLayout();
-	if (popupReplayLayout != NULL) {
+	if (popupReplayLayout != nullptr) {
 		if (popupReplayLayout->isHidden() == FALSE) {
-			PopupReplayUpdate(popupReplayLayout, NULL);
+			PopupReplayUpdate(popupReplayLayout, nullptr);
 		}
 	}
 
@@ -707,7 +707,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 				if( controlID == TheNameKeyGenerator->nameToKey(name))
 				{
 					Bool notBuddy = TRUE;
-					Int playerID = (Int)GadgetButtonGetData(TheWindowManager->winGetWindowFromId(NULL,controlID));
+					Int playerID = (Int)GadgetButtonGetData(TheWindowManager->winGetWindowFromId(nullptr,controlID));
 											// request to add a buddy
 					BuddyInfoMap *buddies = TheGameSpyInfo->getBuddyMap();
 					BuddyInfoMap::iterator bIt;
@@ -797,25 +797,25 @@ void initSkirmish( void )
 void PlayMovieAndBlock(AsciiString movieTitle)
 {
 	VideoStreamInterface *videoStream = TheVideoPlayer->open( movieTitle );
-	if ( videoStream == NULL )
+	if ( videoStream == nullptr )
 	{
 		return;
 	}
 
 	// Create the new buffer
 	VideoBuffer *videoBuffer = TheDisplay->createVideoBuffer();
-	if (	videoBuffer == NULL || 
-				!videoBuffer->allocate(	videoStream->width(), 
+	if (	videoBuffer == nullptr ||
+				!videoBuffer->allocate(	videoStream->width(),
 													videoStream->height())
 		)
 	{
 		delete videoBuffer;
-		videoBuffer = NULL;
+		videoBuffer = nullptr;
 
 		if ( videoStream )
 		{
 			videoStream->close();
-			videoStream = NULL;
+			videoStream = nullptr;
 		}
 
 		return;
@@ -860,15 +860,15 @@ void PlayMovieAndBlock(AsciiString movieTitle)
 		TheDisplay->draw();
 	}
 	TheWritableGlobalData->m_loadScreenRender = FALSE;
-	movieWindow->winGetInstanceData()->setVideoBuffer(NULL);
+	movieWindow->winGetInstanceData()->setVideoBuffer(nullptr);
 
 	delete videoBuffer;
-	videoBuffer = NULL;
+	videoBuffer = nullptr;
 
 	if (videoStream)
 	{
 		videoStream->close();
-		videoStream = NULL;
+		videoStream = nullptr;
 	}
 
 	setFPMode();
@@ -1052,7 +1052,7 @@ void finishSinglePlayerInit( void )
 	{
 		s_blankLayout->destroyWindows();
 		deleteInstance(s_blankLayout);
-		s_blankLayout = NULL;
+		s_blankLayout = nullptr;
 	}
 
 	// set keyboard focus to main parent
@@ -1744,7 +1744,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 //		win->winHide(TRUE);
 //
 	const PlayerTemplate *fact = player->getPlayerTemplate();
-	if(fact != NULL)
+	if(fact != nullptr)
 	{
 		win->winSetEnabledImage(0, fact->getSideIconImage());
 	}
@@ -1906,8 +1906,11 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 
 						if (gameEndedInDisconnect)
 						{
-							if (latestHumanInGame == TheNetwork->getPingFrame())
+							// we pinged on the last frame someone was there - i.e. game ended in a disconnect.
+							// check if we were to blame.
+							if (TheNetwork->getPingsRecieved() < max(1, TheNetwork->getPingsSent()/2)) /// @todo: what's a good percent of pings to have gotten?
 							{
+								DEBUG_LOG(("We were to blame.  Leaving gameEndedInDisconnect = true"));
 								// we pinged on the last frame someone was there - i.e. game ended in a disconnect.
 								// check if we were to blame.
 								if (TheNetwork->getPingsRecieved() < max(1, TheNetwork->getPingsSent() / 2)) /// @todo: what's a good percent of pings to have gotten?
@@ -2357,11 +2360,11 @@ void grabSinglePlayerInfo( void )
 					++playerCount;
 					break;
 				}
-				localPlayer = NULL;
+				localPlayer = nullptr;
 			}
 		}
 		PlayerTemplate const *fact = ThePlayerList->getLocalPlayer()->getPlayerTemplate();
-		if(fact != NULL)
+		if(fact != nullptr)
 		{
 			const Image *image = TheMappedImageCollection->findImageByName(ThePlayerList->getLocalPlayer()->getPlayerTemplate()->getScoreScreen());
 			if(image)
@@ -2410,7 +2413,7 @@ void grabSinglePlayerInfo( void )
 		sg.m_totalUnitsBuilt = 0;
 		sg.m_totalUnitsDestroyed = 0;
 		sg.m_totalUnitsLost = 0;
-		sg.m_sideImage = NULL;
+		sg.m_sideImage = nullptr;
 		Bool populate = FALSE;
 		Color color;
 		for(Int i = 0; i < MAX_PLAYER_COUNT; ++i)
@@ -2628,7 +2631,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", i);
 	DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
 	win->winHide(FALSE);
 	const PlayerTemplate *fact = player->getPlayerTemplate();
-	if(fact != NULL)
+	if(fact != nullptr)
 	{
 		win->winSetEnabledImage(0, fact->getSideIconImage());
 	}

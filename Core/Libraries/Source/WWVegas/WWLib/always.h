@@ -157,7 +157,7 @@ private:
 	static void* getClassMemoryPool()
 	{
 		assert(0);	// must replace this via W3DMPO_GLUE
-		return 0;
+		return nullptr;
 	}
 protected:
 	// we never call this; it is present to cause compile errors in descendent classes
@@ -199,7 +199,9 @@ public:
 ** I'm replacing all occurrences of 'min' and 'max with 'MIN' and 'MAX'.  For code which
 ** is out of our domain (e.g. Max sdk) I'm declaring template functions for 'min' and 'max'
 */
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 
 #ifndef MAX
 #define MAX(a,b)            (((a) > (b)) ? (a) : (b))
@@ -217,6 +219,17 @@ public:
 #undef max
 #endif
 
+// Provide min/max template functions for compatibility with legacy code
+#ifndef _MIN_MAX_TEMPLATES_DEFINED_
+#define _MIN_MAX_TEMPLATES_DEFINED_
+
+#if defined(__MINGW32__) || defined(__MINGW64__)
+// For MinGW, use STL's min/max
+#include <algorithm>
+using std::min;
+using std::max;
+#else
+// For MSVC, provide custom templates
 template <class T> T min(T a,T b)
 {
 	if (a<b) {
@@ -234,6 +247,9 @@ template <class T> T max(T a,T b)
 		return b;
 	}
 }
+#endif
+
+#endif // _MIN_MAX_TEMPLATES_DEFINED_
 
 
 /*
@@ -253,9 +269,8 @@ template <class T> T max(T a,T b)
 #include	"watcom.h"
 #endif
 
-
-#ifndef	NULL
-	#define	NULL		0
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#include	"mingw.h"
 #endif
 
 

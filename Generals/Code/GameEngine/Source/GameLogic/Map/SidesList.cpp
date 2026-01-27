@@ -63,14 +63,14 @@ static const Int K_SIDES_DATA_VERSION_3 = 3;	// includes Team list.
  SidesInfo - Constructor.
 */
 SidesInfo::SidesInfo(void) :
-	m_pBuildList(NULL),
-	m_scripts(NULL)
+	m_pBuildList(nullptr),
+	m_scripts(nullptr)
 {
 }
 
 SidesInfo::SidesInfo(const SidesInfo& thatref) :
-	m_pBuildList(NULL),
-	m_scripts(NULL)
+	m_pBuildList(nullptr),
+	m_scripts(nullptr)
 {
 	*this = thatref;
 }
@@ -86,11 +86,11 @@ SidesInfo::~SidesInfo(void)
 void SidesInfo::init(const Dict* d)
 {
 	deleteInstance(m_pBuildList);
-	m_pBuildList = NULL;
+	m_pBuildList = nullptr;
 	m_dict.clear();
 	if (m_scripts)
 		deleteInstance(m_scripts);
-	m_scripts = NULL;
+	m_scripts = nullptr;
 	if (d)
 		m_dict = *d;
 }
@@ -103,12 +103,12 @@ SidesInfo& SidesInfo::operator=(const SidesInfo& that)
 		this->clear();
 		this->m_dict = that.m_dict;
 
-		BuildListInfo* thisBLTail = NULL;
+		BuildListInfo* thisBLTail = nullptr;
 		for (BuildListInfo* thatBL = that.m_pBuildList; thatBL; thatBL = thatBL->getNext())
 		{
 			BuildListInfo* thisBL = newInstance( BuildListInfo );
 			*thisBL = *thatBL;
-			thisBL->setNextBuildList(NULL);
+			thisBL->setNextBuildList(nullptr);
 
 			if (thisBLTail)
 				thisBLTail->setNextBuildList(thisBL);
@@ -121,7 +121,7 @@ SidesInfo& SidesInfo::operator=(const SidesInfo& that)
 		if (that.m_scripts)
 			this->m_scripts = that.m_scripts->duplicate();
 		else
-			this->m_scripts = NULL;
+			this->m_scripts = nullptr;
 	}
 	return *this;
 }
@@ -132,11 +132,11 @@ SidesInfo& SidesInfo::operator=(const SidesInfo& that)
 */
 void SidesInfo::addToBuildList(BuildListInfo *pBuildList, Int position)
 {
-	DEBUG_ASSERTLOG(pBuildList->getNext()==NULL, ("WARNING***Adding already linked element."));
-	BuildListInfo *pCur = NULL;
+	DEBUG_ASSERTLOG(pBuildList->getNext()==nullptr, ("WARNING***Adding already linked element."));
+	BuildListInfo *pCur = nullptr;
 	while (position) {
 		position--;
-		if (pCur==NULL) {
+		if (pCur==nullptr) {
 			pCur = m_pBuildList;
 		} else {
 			if (pCur->getNext()) {
@@ -146,7 +146,7 @@ void SidesInfo::addToBuildList(BuildListInfo *pBuildList, Int position)
 			}
 		}
 	}
-	if (pCur==NULL) {
+	if (pCur==nullptr) {
 		// add to front of list.
 		pBuildList->setNextBuildList(m_pBuildList);
 		m_pBuildList = pBuildList;
@@ -173,8 +173,8 @@ void SidesInfo::reorderInBuildList(BuildListInfo *pBuildList, Int newPosition)
 */
 Int SidesInfo::removeFromBuildList(BuildListInfo *pBuildList)
 {
-	DEBUG_ASSERTCRASH(pBuildList, ("Removing NULL list."));
-	if (pBuildList==NULL) return 0;
+	DEBUG_ASSERTCRASH(pBuildList, ("Removing null list."));
+	if (pBuildList==nullptr) return 0;
 
 	Int position = 0;
 
@@ -194,12 +194,12 @@ Int SidesInfo::removeFromBuildList(BuildListInfo *pBuildList)
 			pPrev->setNextBuildList(pBuildList->getNext());
 		}
 	}
-	pBuildList->setNextBuildList(NULL);
+	pBuildList->setNextBuildList(nullptr);
 	return position;
 }
 
 /* ********* SidesList class ****************************/
-/*extern*/ SidesList *TheSidesList = NULL;	 ///< singleton instance of SidesList
+/*extern*/ SidesList *TheSidesList = nullptr;	 ///< singleton instance of SidesList
 /**
  SidesList - Constructor.
 */
@@ -244,7 +244,7 @@ Bool SidesList::ParseSidesDataChunk(DataChunkInput &file, DataChunkInfo *info, v
 {
 	DEBUG_ASSERTCRASH(TheSidesList, ("TheSidesList is null"));
 
-	if (TheSidesList==NULL)
+	if (TheSidesList==nullptr)
 		return false;
 
 	TheSidesList->clear();
@@ -295,7 +295,7 @@ Bool SidesList::ParseSidesDataChunk(DataChunkInput &file, DataChunkInfo *info, v
 	}
 
 	file.registerParser( "PlayerScriptsList", info->label, ScriptList::ParseScriptsDataChunk );
-	if (!file.parse(NULL)) {
+	if (!file.parse(nullptr)) {
 		throw(ERROR_CORRUPT_FILE_FORMAT);
 	}
 	ScriptList *scripts[MAX_PLAYER_COUNT];
@@ -305,11 +305,11 @@ Bool SidesList::ParseSidesDataChunk(DataChunkInput &file, DataChunkInfo *info, v
 			ScriptList *pSL = TheSidesList->getSideInfo(i)->getScriptList();
 			deleteInstance(pSL);
 			TheSidesList->getSideInfo(i)->setScriptList(scripts[i]);
-			scripts[i] = NULL;
+			scripts[i] = nullptr;
 		} else {
 			// Read in more players worth than we have.
 			deleteInstance(scripts[i]);
-			scripts[i] = NULL;
+			scripts[i] = nullptr;
 		}
 	}
 	TheSidesList->validateSides();
@@ -329,7 +329,7 @@ Bool SidesList::ParseSidesDataChunk(DataChunkInput &file, DataChunkInfo *info, v
 void SidesList::WriteSidesDataChunk(DataChunkOutput &chunkWriter)
 {
 	DEBUG_ASSERTCRASH(TheSidesList, ("TheSidesList is null"));
-	if (TheSidesList==NULL)
+	if (TheSidesList==nullptr)
 		return;
 	/**********HEIGHT MAP DATA ***********************/
 	chunkWriter.openDataChunk("SidesList", K_SIDES_DATA_VERSION_3);
@@ -387,12 +387,12 @@ void SidesList::WriteSidesDataChunk(DataChunkOutput &chunkWriter)
 
 }
 
-TeamsInfo *SidesList::findTeamInfo(AsciiString name, Int* index /*= NULL*/)
+TeamsInfo *SidesList::findTeamInfo(AsciiString name, Int* index /*= nullptr*/)
 {
 	return m_teamrec.findTeamInfo(name, index);
 }
 
-SidesInfo *SidesList::findSideInfo(AsciiString name, Int* index /*= NULL*/)
+SidesInfo *SidesList::findSideInfo(AsciiString name, Int* index /*= nullptr*/)
 {
 	for (int i = 0; i < m_numSides; i++)
 	{
@@ -403,10 +403,10 @@ SidesInfo *SidesList::findSideInfo(AsciiString name, Int* index /*= NULL*/)
 			return &m_sides[i];
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
-SidesInfo *SidesList::findSkirmishSideInfo(AsciiString name, Int* index /*= NULL*/)
+SidesInfo *SidesList::findSkirmishSideInfo(AsciiString name, Int* index /*= nullptr*/)
 {
 	for (int i = 0; i < m_numSkirmishSides; i++)
 	{
@@ -417,7 +417,7 @@ SidesInfo *SidesList::findSkirmishSideInfo(AsciiString name, Int* index /*= NULL
 			return &m_skirmishSides[i];
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 static AsciiString static_readPlayerNames[MAX_PLAYER_COUNT];
@@ -499,9 +499,9 @@ void SidesList::prepareForMP_or_Skirmish(void)
 			// Don't consider FactionCivilian.
 			continue;
 		}
-		if (m_skirmishSides[i].getScriptList()==NULL) continue;
-		if (m_skirmishSides[i].getScriptList()->getScript() != NULL ||
-			m_skirmishSides[i].getScriptList()->getScriptGroup()!=NULL) {
+		if (m_skirmishSides[i].getScriptList()==nullptr) continue;
+		if (m_skirmishSides[i].getScriptList()->getScript() != nullptr ||
+			m_skirmishSides[i].getScriptList()->getScriptGroup()!=nullptr) {
 			gotScripts = true;
 		}
 	}
@@ -537,7 +537,7 @@ void SidesList::prepareForMP_or_Skirmish(void)
 
 					ScriptList *pSL = getSkirmishSideInfo(curSide)->getScriptList();
 					getSkirmishSideInfo(curSide)->setScriptList(scripts[i]);
-					scripts[i] = NULL;
+					scripts[i] = nullptr;
 					if (pSL)
 						deleteInstance(pSL);
 					scripts[i] = NULL;
@@ -812,7 +812,7 @@ validate_team_names:
 		AsciiString tname = tdict->getAsciiString(TheKey_teamName);
 		AsciiString towner = tdict->getAsciiString(TheKey_teamOwner);
 		SidesInfo* si = findSideInfo(towner);
-		if (si == NULL || towner == tname)
+		if (si == nullptr || towner == tname)
 		{
 			DEBUG_LOG(("bad owner %s; reparenting to neutral...",towner.str()));
 			tdict->setAsciiString(TheKey_teamOwner, AsciiString::TheEmptyString);
@@ -870,8 +870,8 @@ void SidesList::xfer( Xfer *xfer )
 		scriptList = getSideInfo( i )->getScriptList();
 		scriptListPresent = scriptList ? TRUE : FALSE;
 		xfer->xferBool( &scriptListPresent );
-		if( (scriptList == NULL && scriptListPresent == TRUE) ||
-				(scriptList != NULL && scriptListPresent == FALSE) )
+		if( (scriptList == nullptr && scriptListPresent == TRUE) ||
+				(scriptList != nullptr && scriptListPresent == FALSE) )
 		{
 
 			DEBUG_CRASH(( "SidesList::xfer - script list missing/present mismatch" ));
@@ -898,9 +898,9 @@ void SidesList::loadPostProcess( void )
  BuildListInfo - Constructor.
 */
 BuildListInfo::BuildListInfo(void) :
-m_nextBuildList(NULL),
-m_renderObj(NULL),
-m_shadowObj(NULL),
+m_nextBuildList(nullptr),
+m_renderObj(nullptr),
+m_shadowObj(nullptr),
 m_isInitiallyBuilt(false),
 m_numRebuilds(0),
 m_angle(0),
@@ -942,7 +942,7 @@ BuildListInfo::~BuildListInfo(void)
 		BuildListInfo *next;
 		while (cur) {
 			next = cur->getNext();
-			cur->setNextBuildList(NULL); // prevents recursion.
+			cur->setNextBuildList(nullptr); // prevents recursion.
 			deleteInstance(cur);
 			cur = next;
 		}
@@ -956,14 +956,14 @@ void BuildListInfo::parseStructure(INI *ini, void *instance, void* /*store*/, co
 
 	static const FieldParse myFieldParse[] =
 		{
-			{ "Name",				INI::parseAsciiString,		NULL, offsetof( BuildListInfo, m_buildingName	 ) },
-			{ "Location",		INI::parseCoord2D,				NULL, offsetof( BuildListInfo, m_location ) },
-      { "Rebuilds",		INI::parseInt,						NULL, offsetof( BuildListInfo, m_numRebuilds ) },
-      { "Angle",			INI::parseAngleReal,			NULL, offsetof( BuildListInfo, m_angle ) },
-      { "InitiallyBuilt",			INI::parseBool,		NULL, offsetof( BuildListInfo, m_isInitiallyBuilt ) },
-      { "RallyPointOffset",			INI::parseCoord2D,		NULL, offsetof( BuildListInfo, m_rallyPointOffset ) },
-      { "AutomaticallyBuild",			INI::parseBool,	NULL, offsetof( BuildListInfo, m_automaticallyBuild ) },
-			{ NULL,							NULL,											NULL, 0 }
+			{ "Name",				INI::parseAsciiString,		nullptr, offsetof( BuildListInfo, m_buildingName	 ) },
+			{ "Location",		INI::parseCoord2D,				nullptr, offsetof( BuildListInfo, m_location ) },
+      { "Rebuilds",		INI::parseInt,						nullptr, offsetof( BuildListInfo, m_numRebuilds ) },
+      { "Angle",			INI::parseAngleReal,			nullptr, offsetof( BuildListInfo, m_angle ) },
+      { "InitiallyBuilt",			INI::parseBool,		nullptr, offsetof( BuildListInfo, m_isInitiallyBuilt ) },
+      { "RallyPointOffset",			INI::parseCoord2D,		nullptr, offsetof( BuildListInfo, m_rallyPointOffset ) },
+      { "AutomaticallyBuild",			INI::parseBool,	nullptr, offsetof( BuildListInfo, m_automaticallyBuild ) },
+			{ nullptr,							nullptr,											nullptr, 0 }
 		};
 
 	BuildListInfo *buildInfo = newInstance( BuildListInfo );
@@ -980,13 +980,13 @@ BuildListInfo *BuildListInfo::duplicate(void)
 {
 	BuildListInfo *first = newInstance( BuildListInfo );
 	*first = *this;
-	first->m_nextBuildList = NULL;
+	first->m_nextBuildList = nullptr;
 	BuildListInfo *next = this->m_nextBuildList;
 	BuildListInfo *cur = first;
 	while (next) {
 		BuildListInfo *link = newInstance( BuildListInfo );
 		*link = *next;
-		link->m_nextBuildList = NULL;
+		link->m_nextBuildList = nullptr;
 		cur->m_nextBuildList = link;
 		cur = link;
 		next = next->m_nextBuildList;
@@ -1054,12 +1054,12 @@ void BuildListInfo::loadPostProcess( void )
 
 /* ********* TeamsInfoRec class ****************************/
 TeamsInfoRec::TeamsInfoRec() :
-	m_numTeams(0), m_numTeamsAllocated(0), m_teams(NULL)
+	m_numTeams(0), m_numTeamsAllocated(0), m_teams(nullptr)
 {
 }
 
 TeamsInfoRec::TeamsInfoRec(const TeamsInfoRec& thatref) :
-	m_numTeams(0), m_numTeamsAllocated(0), m_teams(NULL)
+	m_numTeams(0), m_numTeamsAllocated(0), m_teams(nullptr)
 {
 	*this = thatref;
 }
@@ -1094,10 +1094,10 @@ void TeamsInfoRec::clear()
 	m_numTeams = 0;
 	m_numTeamsAllocated = 0;
 	delete [] m_teams;
-	m_teams = NULL;
+	m_teams = nullptr;
 }
 
-TeamsInfo *TeamsInfoRec::findTeamInfo(AsciiString name, Int* index /*= NULL*/)
+TeamsInfo *TeamsInfoRec::findTeamInfo(AsciiString name, Int* index /*= nullptr*/)
 {
 	for (int i = 0; i < m_numTeams; ++i)
 	{
@@ -1108,7 +1108,7 @@ TeamsInfo *TeamsInfoRec::findTeamInfo(AsciiString name, Int* index /*= NULL*/)
 			return &m_teams[i];
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 void TeamsInfoRec::addTeam(const Dict* d)

@@ -327,14 +327,14 @@ public:
 
 		this will *never* return null; if there are no more tokens, an exception will be thrown.
 	*/
-	const char* getNextToken(const char* seps = NULL);
+	const char* getNextToken(const char* seps = nullptr);
 
 	/**
 		just like getNextToken(), except that null is returned if no more tokens are present
 		(rather than throwing an exception). usually you should call getNextToken(),
 		but for some cases this is handier (ie, parsing a variable-length number of tokens).
 	*/
-	const char* getNextTokenOrNull(const char* seps = NULL);
+	const char* getNextTokenOrNull(const char* seps = nullptr);
 
 	/**
 		This is called when the next thing you expect is something like:
@@ -395,15 +395,9 @@ protected:
 
 	void readLine( void );
 
-	File *m_file;															///< file pointer of file currently loading
-
-  enum
-  {
-    INI_READ_BUFFER = 8192                  ///< size of internal read buffer
-  };
-  char m_readBuffer[INI_READ_BUFFER];       ///< internal read buffer
-  unsigned m_readBufferNext;                ///< next char in read buffer
-  unsigned m_readBufferUsed;                ///< number of bytes in read buffer
+	char* m_readBuffer;                       ///< internal read buffer
+	unsigned m_readBufferNext;                ///< next char in read buffer
+	unsigned m_readBufferUsed;                ///< number of bytes in read buffer
 
 	AsciiString m_filename;										///< filename of file currently loading
 	INILoadType m_loadType;										///< load time for current file

@@ -1,4 +1,4 @@
-﻿/*
+/*
 **	Command & Conquer Generals Zero Hour(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
@@ -103,7 +103,7 @@ int DX8Wrapper_PreserveFPU = 0;
 **
 ***********************************************************************************/
 
-static HWND						_Hwnd															= NULL;
+static HWND						_Hwnd															= nullptr;
 bool								DX8Wrapper::IsInitted									= false;
 bool								DX8Wrapper::_EnableTriangleDraw						= true;
 
@@ -126,8 +126,8 @@ DWORD								DX8Wrapper::Pixel_Shader								= 0;
 Vector4							DX8Wrapper::Vertex_Shader_Constants[MAX_VERTEX_SHADER_CONSTANTS];
 Vector4							DX8Wrapper::Pixel_Shader_Constants[MAX_PIXEL_SHADER_CONSTANTS];
 
-LightEnvironmentClass*		DX8Wrapper::Light_Environment							= NULL;
-RenderInfoClass*				DX8Wrapper::Render_Info									= NULL;
+LightEnvironmentClass*		DX8Wrapper::Light_Environment							= nullptr;
+RenderInfoClass*				DX8Wrapper::Render_Info									= nullptr;
 
 DWORD								DX8Wrapper::Vertex_Processing_Behavior				= 0;
 ZTextureClass*					DX8Wrapper::Shadow_Map[MAX_SHADOW_MAPS];
@@ -145,12 +145,12 @@ unsigned							DX8Wrapper::render_state_changed;
 bool								DX8Wrapper::FogEnable									= false;
 D3DCOLOR							DX8Wrapper::FogColor										= 0;
 
-IDirect3D8 *					DX8Wrapper::D3DInterface								= NULL;
-IDirect3DDevice8 *			DX8Wrapper::D3DDevice									= NULL;
-IDirect3DSurface8 *			DX8Wrapper::CurrentRenderTarget						= NULL;
-IDirect3DSurface8 *			DX8Wrapper::CurrentDepthBuffer						= NULL;
-IDirect3DSurface8 *			DX8Wrapper::DefaultRenderTarget						= NULL;
-IDirect3DSurface8 *			DX8Wrapper::DefaultDepthBuffer						= NULL;
+IDirect3D8 *					DX8Wrapper::D3DInterface								= nullptr;
+IDirect3DDevice8 *			DX8Wrapper::D3DDevice									= nullptr;
+IDirect3DSurface8 *			DX8Wrapper::CurrentRenderTarget						= nullptr;
+IDirect3DSurface8 *			DX8Wrapper::CurrentDepthBuffer						= nullptr;
+IDirect3DSurface8 *			DX8Wrapper::DefaultRenderTarget						= nullptr;
+IDirect3DSurface8 *			DX8Wrapper::DefaultDepthBuffer						= nullptr;
 bool								DX8Wrapper::IsRenderToTexture							= false;
 
 unsigned							DX8Wrapper::matrix_changes								= 0;
@@ -168,10 +168,10 @@ bool								DX8Wrapper::IsDeviceLost;
 int								DX8Wrapper::ZBias;
 float								DX8Wrapper::ZNear;
 float								DX8Wrapper::ZFar;
-Matrix4x4						DX8Wrapper::ProjectionMatrix;
-Matrix4x4						DX8Wrapper::DX8Transforms[D3DTS_WORLD+1];
+D3DMATRIX						DX8Wrapper::ProjectionMatrix;
+D3DMATRIX						DX8Wrapper::DX8Transforms[D3DTS_WORLD+1];
 
-DX8Caps*							DX8Wrapper::CurrentCaps = 0;
+DX8Caps*							DX8Wrapper::CurrentCaps = nullptr;
 
 // Hack test... this disables rendering of batches of too few polygons.
 unsigned							DX8Wrapper::DrawPolygonLowBoundLimit=0;
@@ -203,10 +203,10 @@ static DynamicVectorClass<RenderDeviceDescClass>	_RenderDeviceDescriptionTable;
 
 
 typedef IDirect3D8* (WINAPI *Direct3DCreate8Type) (UINT SDKVersion);
-Direct3DCreate8Type	Direct3DCreate8Ptr = NULL;
-HINSTANCE D3D8Lib = NULL;
+Direct3DCreate8Type	Direct3DCreate8Ptr = nullptr;
+HINSTANCE D3D8Lib = nullptr;
 
-DX8_CleanupHook	 *DX8Wrapper::m_pCleanupHook=NULL;
+DX8_CleanupHook	 *DX8Wrapper::m_pCleanupHook=nullptr;
 #ifdef EXTENDED_STATS
 DX8_Stats	 DX8Wrapper::stats;
 #endif
@@ -310,8 +310,8 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	//world_identity;
 	//CurrentFogColor;
 
-	D3DInterface = NULL;
-	D3DDevice = NULL;
+	D3DInterface = nullptr;
+	D3DDevice = nullptr;
 
 	WWDEBUG_SAY(("Reset DX8Wrapper statistics"));
 	Reset_Statistics();
@@ -326,10 +326,10 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 		D3D8Lib = LoadLibrary("D3D8.DLL");
 #endif
 
-		if (D3D8Lib == NULL) return false;	// Return false at this point if init failed
+		if (D3D8Lib == nullptr) return false;	// Return false at this point if init failed
 
 		Direct3DCreate8Ptr = (Direct3DCreate8Type) GetProcAddress(D3D8Lib, "Direct3DCreate8");
-		if (Direct3DCreate8Ptr == NULL) return false;
+		if (Direct3DCreate8Ptr == nullptr) return false;
 
 		/*
 		** Create the D3D interface object
@@ -342,7 +342,7 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 
 			D3DInterface = Direct3DCreate8Ptr(D3D_SDK_VERSION);		// TODO: handle failure cases...
 		}
-		if (D3DInterface == NULL) {
+		if (D3DInterface == nullptr) {
 			return(false);
 		}
 		IsInitted = true;
@@ -362,13 +362,13 @@ void DX8Wrapper::Shutdown(void)
 {
 	if (D3DDevice) {
 
-		Set_Render_Target ((IDirect3DSurface8 *)NULL);
+		Set_Render_Target ((IDirect3DSurface8 *)nullptr);
 		Release_Device();
 	}
 
 	if (D3DInterface) {
 		D3DInterface->Release();
-		D3DInterface=NULL;
+		D3DInterface=nullptr;
 
 	}
 
@@ -380,19 +380,19 @@ void DX8Wrapper::Shutdown(void)
 			if (Textures[i])
 			{
 				Textures[i]->Release();
-				Textures[i] = NULL;
+				Textures[i] = nullptr;
 			}
 		}
 	}
 
 	if (D3DInterface) {
 		UINT newRefCount=D3DInterface->Release();
-		D3DInterface=NULL;
+		D3DInterface=nullptr;
 	}
 
 	if (D3D8Lib) {
 		FreeLibrary(D3D8Lib);
-		D3D8Lib = NULL;
+		D3D8Lib = nullptr;
 	}
 
 	_RenderDeviceNameTable.Clear();		 // note - Delete_All() resizes the vector, causing a reallocation.  Clear is better. jba.
@@ -411,7 +411,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits(void)
 	Compute_Caps(D3DFormat_To_WW3DFormat(DisplayFormat));
 
    /*
-	** Initalize any other subsystems inside of WW3D
+	** Initialize any other subsystems inside of WW3D
 	*/
 	MissingTexture::_Init();
 	TextureFilterClass::_Init_Filters((TextureFilterClass::TextureFilterMode)WW3D::Get_Texture_Filter());
@@ -473,29 +473,23 @@ void DX8Wrapper::Invalidate_Cached_Render_States(void)
 		{
 			TextureStageStates[a][b]=0x12345678;
 		}
-		//Need to explicitly set texture to NULL, otherwise app will not be able to
+		//Need to explicitly set texture to null, otherwise app will not be able to
 		//set it to null because of redundant state checker. MW
 		if (_Get_D3D_Device8())
-			_Get_D3D_Device8()->SetTexture(a,NULL);
-		if (Textures[a] != NULL) {
+			_Get_D3D_Device8()->SetTexture(a,nullptr);
+		if (Textures[a] != nullptr) {
 			Textures[a]->Release();
 		}
-		Textures[a]=NULL;
+		Textures[a]=nullptr;
 	}
 
 	ShaderClass::Invalidate();
 
-	//Need to explicitly set render_state texture pointers to NULL. MW
+	//Need to explicitly set render_state texture pointers to null. MW
 	Release_Render_State();
 
 	// (gth) clear the matrix shadows too
-	for (int i=0; i<D3DTS_WORLD+1; i++) {
-		DX8Transforms[i][0].Set(0,0,0,0);
-		DX8Transforms[i][1].Set(0,0,0,0);
-		DX8Transforms[i][2].Set(0,0,0,0);
-		DX8Transforms[i][3].Set(0,0,0,0);
-	}
-
+	memset(&DX8Transforms, 0, sizeof(DX8Transforms));
 }
 
 void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns(void)
@@ -527,14 +521,14 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns(void)
 	MissingTexture::_Deinit();
 
 	delete CurrentCaps;
-	CurrentCaps=NULL;
+	CurrentCaps=nullptr;
 
 }
 
 
 bool DX8Wrapper::Create_Device(void)
 {
-	WWASSERT(D3DDevice==NULL);	// for now, once you've created a device, you're stuck with it!
+	WWASSERT(D3DDevice==nullptr);	// for now, once you've created a device, you're stuck with it!
 
 	D3DCAPS8 caps;
 	if
@@ -661,15 +655,15 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 {
 	WWDEBUG_SAY(("Resetting device."));
 	DX8_THREAD_ASSERT();
-	if ((IsInitted) && (D3DDevice != NULL)) {
+	if ((IsInitted) && (D3DDevice != nullptr)) {
 		// Release all non-MANAGED stuff
 		WW3D::_Invalidate_Textures();
 
 		for (unsigned i=0;i<MAX_VERTEX_STREAMS;++i)
 		{
-			Set_Vertex_Buffer (NULL,i);
+			Set_Vertex_Buffer (nullptr,i);
 		}
-		Set_Index_Buffer (NULL, 0);
+		Set_Index_Buffer (nullptr, 0);
 		if (m_pCleanupHook) {
 			m_pCleanupHook->ReleaseResources();
 		}
@@ -750,12 +744,11 @@ void DX8Wrapper::Release_Device(void)
 
 		for (int a=0;a<MAX_TEXTURE_STAGES;++a)
 		{	//release references to any textures that were used in last rendering call
-			DX8CALL(SetTexture(a,NULL));
+			DX8CALL(SetTexture(a,nullptr));
 		}
 
-		DX8CALL(SetVertexShader(0));	//unbind vertex shader before unbinding vertex buffer
-		DX8CALL(SetStreamSource(0, NULL, 0));	//release reference count on last rendered vertex buffer
-		DX8CALL(SetIndices(NULL,0));	//release reference count on last rendered index buffer
+		DX8CALL(SetStreamSource(0, nullptr, 0));	//release reference count on last rendered vertex buffer
+		DX8CALL(SetIndices(nullptr,0));	//release reference count on last rendered index buffer
 
 
 		/*
@@ -779,7 +772,7 @@ void DX8Wrapper::Release_Device(void)
 		*/
 
 		D3DDevice->Release();
-		D3DDevice=NULL;
+		D3DDevice=nullptr;
 	}
 }
 
@@ -986,7 +979,7 @@ void DX8Wrapper::Resize_And_Position_Window()
 		if (!IsWindowed)
 		{
 #if defined(GENERALS_ONLINE_WINDOWED_FULLSCREEN)
-			// Assume hwnd is your applications window handle
+			// Assume hwnd is your application?s window handle
 			LONG_PTR style = GetWindowLongPtr(_Hwnd, GWL_STYLE);
 
 			// Remove all overlapped-window styles and add WS_POPUP
@@ -996,7 +989,7 @@ void DX8Wrapper::Resize_And_Position_Window()
 			// Apply the new style
 			SetWindowLongPtr(_Hwnd, GWL_STYLE, style);
 
-			// Move window to (0,0) with the monitors resolution:
+			// Move window to (0,0) with the monitor?s resolution:
 			SetWindowPos(
 				_Hwnd,
 				HWND_TOP,
@@ -1031,7 +1024,7 @@ void DX8Wrapper::Resize_And_Position_Window()
 			rectClient.bottom = rectClient.top + ResolutionHeight;
 			MoveRectIntoOtherRect(rectClient, mi.rcMonitor, &left, &top);
 
-			::SetWindowPos (_Hwnd, NULL, left, top, width, height, SWP_NOZORDER);
+			::SetWindowPos (_Hwnd, nullptr, left, top, width, height, SWP_NOZORDER);
 
 			DEBUG_LOG(("Window positioned to x:%d y:%d, resized to w:%d h:%d", left, top, width, height));
 		}
@@ -1083,7 +1076,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	}
 #endif
 	//must be either resetting existing device or creating a new one.
-	WWASSERT(reset_device || D3DDevice == NULL);
+	WWASSERT(reset_device || D3DDevice == nullptr);
 
 	/*
 	** Initialize values for D3DPRESENT_PARAMETERS members.
@@ -1327,7 +1320,7 @@ const char * DX8Wrapper::Get_Render_Device_Name(int device_index)
 
 bool DX8Wrapper::Set_Device_Resolution(int width,int height,int bits,int windowed, bool resize_window)
 {
-	if (D3DDevice != NULL) {
+	if (D3DDevice != nullptr) {
 
 		if (width != -1) {
 			_PresentParameters.BackBufferWidth = ResolutionWidth = width;
@@ -1363,7 +1356,7 @@ void DX8Wrapper::Get_Render_Target_Resolution(int & set_w,int & set_h,int & set_
 {
 	WWASSERT(IsInitted);
 
-	if (CurrentRenderTarget != NULL) {
+	if (CurrentRenderTarget != nullptr) {
 		D3DSURFACE_DESC info;
 		CurrentRenderTarget->GetDesc (&info);
 
@@ -1545,7 +1538,7 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT 
 	/*
 	** Select the table that we're going to use to search for a valid backbuffer format
 	*/
-	D3DFORMAT * format_table = NULL;
+	D3DFORMAT * format_table = nullptr;
 	int format_count = 0;
 
 	if (BitDepth == 16) {
@@ -1809,7 +1802,7 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 		HRESULT hr;
 		{
 			WWPROFILE("DX8Device::Present()");
-			hr=_Get_D3D_Device8()->Present(NULL, NULL, NULL, NULL);
+			hr=_Get_D3D_Device8()->Present(nullptr, nullptr, nullptr, nullptr);
 		}
 
 		number_of_DX8_calls++;
@@ -1845,10 +1838,10 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 	}
 
 	// Each frame, release all of the buffers and textures.
-	Set_Vertex_Buffer(NULL);
-	Set_Index_Buffer(NULL,0);
-	for (int i=0;i<CurrentCaps->Get_Max_Textures_Per_Pass();++i) Set_Texture(i,NULL);
-	Set_Material(NULL);
+	Set_Vertex_Buffer(nullptr);
+	Set_Index_Buffer(nullptr,0);
+	for (int i=0;i<CurrentCaps->Get_Max_Textures_Per_Pass();++i) Set_Texture(i,nullptr);
+	Set_Material(nullptr);
 }
 
 
@@ -1885,7 +1878,7 @@ void DX8Wrapper::Flip_To_Primary(void)
 				}
 			} else {
 				WWDEBUG_SAY(("Flipping: %ld", FrameCount));
-				hr = _Get_D3D_Device8()->Present(NULL, NULL, NULL, NULL);
+				hr = _Get_D3D_Device8()->Present(nullptr, nullptr, nullptr, nullptr);
 
 				if (SUCCEEDED(hr)) {
 					IsDeviceLost=false;
@@ -1944,7 +1937,7 @@ void DX8Wrapper::Clear(bool clear_color, bool clear_z_stencil, const Vector3 &co
 	if (clear_z_stencil && has_stencil) flags |= D3DCLEAR_STENCIL;
 	if (flags)
 	{
-		DX8CALL(Clear(0, NULL, flags, Convert_Color(color,dest_alpha), z, stencil));
+		DX8CALL(Clear(0, nullptr, flags, Convert_Color(color,dest_alpha), z, stencil));
 	}
 }
 
@@ -2016,7 +2009,7 @@ void DX8Wrapper::Set_Vertex_Buffer(const DynamicVBAccessClass& vba_)
 {
 	// Release all streams (only one stream allowed in the legacy pipeline)
 	for (int i=1;i<MAX_VERTEX_STREAMS;++i) {
-		DX8Wrapper::Set_Vertex_Buffer(NULL, i);
+		DX8Wrapper::Set_Vertex_Buffer(nullptr, i);
 	}
 
 	if (render_state.vertex_buffers[0]) render_state.vertex_buffers[0]->Release_Engine_Ref();
@@ -2106,7 +2099,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 	{
 		DynamicIBAccessClass::WriteLockClass lock(&dyn_ib_access);
 		unsigned short* dest=lock.Get_Index_Array();
-		unsigned short* src=NULL;
+		unsigned short* src=nullptr;
 		src=static_cast<SortingIndexBufferClass*>(render_state.index_buffer)->index_buffer;
 		src+=render_state.iba_offset+start_index;
 
@@ -2205,7 +2198,7 @@ void DX8Wrapper::Draw(
 			break;
 		}
 	}
-#endif	// MESH_RENDER_SHAPSHOT_ENABLED
+#endif	// MESH_RENDER_SNAPSHOT_ENABLED
 
 
 	SNAPSHOT_SAY(("DX8 - draw %d polygons (%d vertices)",polygon_count,vertex_count));
@@ -2350,7 +2343,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 	{
 		if (render_state_changed&mask)
 		{
-			SNAPSHOT_SAY(("DX8 - apply texture %d (%s)",i,render_state.Textures[i] ? render_state.Textures[i]->Get_Full_Path().str() : "NULL"));
+			SNAPSHOT_SAY(("DX8 - apply texture %d (%s)",i,render_state.Textures[i] ? render_state.Textures[i]->Get_Full_Path().str() : "null"));
 
 			if (render_state.Textures[i])
 			{
@@ -2401,7 +2394,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 					Set_DX8_Light(index,&render_state.Lights[index]);
 				}
 				else {
-					Set_DX8_Light(index,NULL);
+					Set_DX8_Light(index,nullptr);
 					SNAPSHOT_SAY((" clearing light to NULL"));
 				}
 			}
@@ -2443,7 +2436,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 					WWASSERT(0);
 				}
 			} else {
-				DX8CALL(SetStreamSource(i,NULL,0));
+				DX8CALL(SetStreamSource(i,nullptr,0));
 				DX8_RECORD_VERTEX_BUFFER_CHANGE();
 			}
 		}
@@ -2468,7 +2461,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 		}
 		else {
 			DX8CALL(SetIndices(
-				NULL,
+				nullptr,
 				0));
 			DX8_RECORD_INDEX_BUFFER_CHANGE();
 		}
@@ -2491,7 +2484,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DTexture8 *texture = NULL;
+	IDirect3DTexture8 *texture = nullptr;
 
 	// Paletted textures not supported!
 	WWASSERT(format!=D3DFMT_P8);
@@ -2500,7 +2493,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	// format that is supported and use that instead.
 
 	// Render target may return NOTAVAILABLE, in
-	// which case we return NULL.
+	// which case we return null.
 	if (rendertarget) {
 		unsigned ret=D3DXCreateTexture(
 			DX8Wrapper::_Get_D3D_Device8(),
@@ -2514,7 +2507,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 
 		if (ret==D3DERR_NOTAVAILABLE) {
 			Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
-			return NULL;
+			return nullptr;
 		}
 
 		// If ran out of texture ram, try invalidating some textures and mesh cache.
@@ -2537,14 +2530,14 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 				&texture);
 
 			if (SUCCEEDED(ret)) {
-				WWDEBUG_SAY(("...Render target creation succesful."));
+				WWDEBUG_SAY(("...Render target creation successful."));
 			}
 			else {
 				WWDEBUG_SAY(("...Render target creation failed."));
 			}
 			if (ret==D3DERR_OUTOFVIDEOMEMORY) {
 				Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
-				return NULL;
+				return nullptr;
 			}
 		}
 
@@ -2586,7 +2579,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 			pool,
 			&texture);
 		if (SUCCEEDED(ret)) {
-			WWDEBUG_SAY(("...Texture creation succesful."));
+			WWDEBUG_SAY(("...Texture creation successful."));
 		}
 		else {
 			StringClass format_name(0,true);
@@ -2608,7 +2601,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DTexture8 *texture = NULL;
+	IDirect3DTexture8 *texture = nullptr;
 
 	// NOTE: If the original image format is not supported as a texture format, it will
 	// automatically be converted to an appropriate format.
@@ -2627,8 +2620,8 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 		D3DX_FILTER_BOX,
 		D3DX_FILTER_BOX,
 		0,
-		NULL,
-		NULL,
+		nullptr,
+		nullptr,
 		&texture);
 
 	if (result != D3D_OK) {
@@ -2653,7 +2646,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DTexture8 *texture = NULL;
+	IDirect3DTexture8 *texture = nullptr;
 
 	D3DSURFACE_DESC surface_desc;
 	::ZeroMemory(&surface_desc, sizeof(D3DSURFACE_DESC));
@@ -2665,15 +2658,15 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	texture = _Create_DX8_Texture(surface_desc.Width, surface_desc.Height, format, mip_level_count);
 
 	// Copy the surface to the texture
-	IDirect3DSurface8 *tex_surface = NULL;
+	IDirect3DSurface8 *tex_surface = nullptr;
 	texture->GetSurfaceLevel(0, &tex_surface);
-	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(tex_surface, NULL, NULL, surface, NULL, NULL, D3DX_FILTER_BOX, 0));
+	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(tex_surface, nullptr, nullptr, surface, nullptr, nullptr, D3DX_FILTER_BOX, 0));
 	tex_surface->Release();
 
 	// Create mipmaps if needed
 	if (mip_level_count!=MIP_LEVELS_1)
 	{
-		DX8_ErrorCode(D3DXFilterTexture(texture, NULL, 0, D3DX_FILTER_BOX));
+		DX8_ErrorCode(D3DXFilterTexture(texture, nullptr, 0, D3DX_FILTER_BOX));
 	}
 
 	return texture;
@@ -2694,7 +2687,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_ZTexture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DTexture8* texture = NULL;
+	IDirect3DTexture8* texture = nullptr;
 
 	D3DFORMAT zfmt=WW3DZFormat_To_D3DFormat(zformat);
 
@@ -2712,7 +2705,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_ZTexture
 	if (ret==D3DERR_NOTAVAILABLE)
 	{
 		Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
-		return NULL;
+		return nullptr;
 	}
 
 	// If ran out of texture ram, try invalidating some textures and mesh cache.
@@ -2738,7 +2731,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_ZTexture
 
 		if (SUCCEEDED(ret))
 		{
-			WWDEBUG_SAY(("...Render target creation succesful."));
+			WWDEBUG_SAY(("...Render target creation successful."));
 		}
 		else
 		{
@@ -2747,7 +2740,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_ZTexture
 		if (ret==D3DERR_OUTOFVIDEOMEMORY)
 		{
 			Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
-			return NULL;
+			return nullptr;
 		}
 	}
 
@@ -2777,7 +2770,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 	WWASSERT(width==height);
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DCubeTexture8* texture=NULL;
+	IDirect3DCubeTexture8* texture=nullptr;
 
 	// Paletted textures not supported!
 	WWASSERT(format!=D3DFMT_P8);
@@ -2786,7 +2779,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 	// format that is supported and use that instead.
 
 	// Render target may return NOTAVAILABLE, in
-	// which case we return NULL.
+	// which case we return null.
 	if (rendertarget)
 	{
 		unsigned ret=D3DXCreateCubeTexture
@@ -2803,7 +2796,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 		if (ret==D3DERR_NOTAVAILABLE)
 		{
 			Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
-			return NULL;
+			return nullptr;
 		}
 
 		// If ran out of texture ram, try invalidating some textures and mesh cache.
@@ -2829,7 +2822,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 
 			if (SUCCEEDED(ret))
 			{
-				WWDEBUG_SAY(("...Render target creation succesful."));
+				WWDEBUG_SAY(("...Render target creation successful."));
 			}
 			else
 			{
@@ -2838,7 +2831,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 			if (ret==D3DERR_OUTOFVIDEOMEMORY)
 			{
 				Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
-				return NULL;
+				return nullptr;
 			}
 		}
 
@@ -2884,7 +2877,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 		);
 		if (SUCCEEDED(ret))
 		{
-			WWDEBUG_SAY(("...Texture creation succesful."));
+			WWDEBUG_SAY(("...Texture creation successful."));
 		}
 		else
 		{
@@ -2914,7 +2907,7 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DVolumeTexture8* texture=NULL;
+	IDirect3DVolumeTexture8* texture=nullptr;
 
 	// Paletted textures not supported!
 	WWASSERT(format!=D3DFMT_P8);
@@ -2963,7 +2956,7 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 		);
 		if (SUCCEEDED(ret))
 		{
-			WWDEBUG_SAY(("...Texture creation succesful."));
+			WWDEBUG_SAY(("...Texture creation successful."));
 		}
 		else
 		{
@@ -2984,7 +2977,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(unsigned int width, unsigned
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 
-	IDirect3DSurface8 *surface = NULL;
+	IDirect3DSurface8 *surface = nullptr;
 
 	// Paletted surfaces not supported!
 	WWASSERT(format!=D3DFMT_P8);
@@ -3015,7 +3008,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 	// the file data and use D3DXLoadSurfaceFromFile. This is a horrible hack, but it saves us
 	// having to write file loaders. Will fix this when D3DX provides us with the right functions.
 	// Create a surface the size of the file image data
-	IDirect3DSurface8 *surface = NULL;
+	IDirect3DSurface8 *surface = nullptr;
 
 	{
 
@@ -3242,12 +3235,12 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 		}
 
 		for (;l<4;++l) {
-			Set_Light(l,NULL);
+			Set_Light(l,nullptr);
 		}
 	}
 /*	else {
 		for (int l=0;l<4;++l) {
-			Set_Light(l,NULL);
+			Set_Light(l,nullptr);
 		}
 	}
 */
@@ -3260,7 +3253,7 @@ IDirect3DSurface8 * DX8Wrapper::_Get_DX8_Front_Buffer()
 
 	DX8CALL(GetDisplayMode(&mode));
 
-	IDirect3DSurface8 * fb=NULL;
+	IDirect3DSurface8 * fb=nullptr;
 
 	DX8CALL(CreateImageSurface(mode.Width,mode.Height,D3DFMT_A8R8G8B8,&fb));
 
@@ -3273,7 +3266,7 @@ SurfaceClass * DX8Wrapper::_Get_DX8_Back_Buffer(unsigned int num)
 	DX8_THREAD_ASSERT();
 
 	IDirect3DSurface8 * bb;
-	SurfaceClass *surf=NULL;
+	SurfaceClass *surf=nullptr;
 	DX8CALL(GetBackBuffer(num,D3DBACKBUFFER_TYPE_MONO,&bb));
 	if (bb)
 	{
@@ -3299,10 +3292,10 @@ DX8Wrapper::Create_Render_Target (int width, int height, WW3DFormat format)
 		format=D3DFormat_To_WW3DFormat(mode.Format);
 	}
 
-	// If render target format isn't supported return NULL
+	// If render target format isn't supported return null
 	if (!Get_Current_Caps()->Support_Render_To_Texture_Format(format)) {
 		WWDEBUG_SAY(("DX8Wrapper - Render target format is not supported"));
-		return NULL;
+		return nullptr;
 	}
 
 	//
@@ -3331,7 +3324,7 @@ DX8Wrapper::Create_Render_Target (int width, int height, WW3DFormat format)
 
 	// 3dfx drivers are lying in the CheckDeviceFormat call and claiming
 	// that they support render targets!
-	if (tex->Peek_D3D_Base_Texture() == NULL)
+	if (tex->Peek_D3D_Base_Texture() == nullptr)
 	{
 		WWDEBUG_SAY(("DX8Wrapper - Render target creation failed!"));
 		REF_PTR_RELEASE(tex);
@@ -3361,15 +3354,15 @@ void DX8Wrapper::Create_Render_Target
 	// Use the current display format if format isn't specified
 	if (format==WW3D_FORMAT_UNKNOWN)
 	{
-		*target=NULL;
-		*depth_buffer=NULL;
+		*target=nullptr;
+		*depth_buffer=nullptr;
 		return;
 /*		D3DDISPLAYMODE mode;
 		DX8CALL(GetDisplayMode(&mode));
 		format=D3DFormat_To_WW3DFormat(mode.Format);*/
 	}
 
-	// If render target format isn't supported return NULL
+	// If render target format isn't supported return null
 	if (!Get_Current_Caps()->Support_Render_To_Texture_Format(format) ||
 		 !Get_Current_Caps()->Support_Depth_Stencil_Format(zformat))
 	{
@@ -3403,7 +3396,7 @@ void DX8Wrapper::Create_Render_Target
 
 	// 3dfx drivers are lying in the CheckDeviceFormat call and claiming
 	// that they support render targets!
-	if (tex->Peek_D3D_Base_Texture() == NULL)
+	if (tex->Peek_D3D_Base_Texture() == nullptr)
 	{
 		WWDEBUG_SAY(("DX8Wrapper - Render target creation failed!"));
 		REF_PTR_RELEASE(tex);
@@ -3435,16 +3428,16 @@ void DX8Wrapper::Set_Render_Target_With_Z
 	ZTextureClass* ztexture
 )
 {
-	WWASSERT(texture!=NULL);
+	WWASSERT(texture!=nullptr);
 	IDirect3DSurface8 * d3d_surf = texture->Get_D3D_Surface_Level();
-	WWASSERT(d3d_surf != NULL);
+	WWASSERT(d3d_surf != nullptr);
 
-	IDirect3DSurface8* d3d_zbuf=NULL;
-	if (ztexture!=NULL)
+	IDirect3DSurface8* d3d_zbuf=nullptr;
+	if (ztexture!=nullptr)
 	{
 
 		d3d_zbuf=ztexture->Get_D3D_Surface_Level();
-		WWASSERT(d3d_zbuf!=NULL);
+		WWASSERT(d3d_zbuf!=nullptr);
 		Set_Render_Target(d3d_surf,d3d_zbuf);
 		d3d_zbuf->Release();
 	}
@@ -3461,25 +3454,25 @@ void
 DX8Wrapper::Set_Render_Target(IDirect3DSwapChain8 *swap_chain)
 {
 	DX8_THREAD_ASSERT();
-	WWASSERT (swap_chain != NULL);
+	WWASSERT (swap_chain != nullptr);
 
 	//
 	//	Get the back buffer for the swap chain
 	//
-	LPDIRECT3DSURFACE8 render_target = NULL;
+	LPDIRECT3DSURFACE8 render_target = nullptr;
 	swap_chain->GetBackBuffer (0, D3DBACKBUFFER_TYPE_MONO, &render_target);
 
 	//
-	//	Set this back buffer as the render targer
+	//	Set this back buffer as the render target
 	//
 	Set_Render_Target (render_target, true);
 
 	//
 	//	Release our hold on the back buffer
 	//
-	if (render_target != NULL) {
+	if (render_target != nullptr) {
 		render_target->Release ();
-		render_target = NULL;
+		render_target = nullptr;
 	}
 
 	IsRenderToTexture = false;
@@ -3497,62 +3490,62 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface8 *render_target, bool use_default
 	//
 	//	Should we restore the default render target set a new one?
 	//
-	if (render_target == NULL || render_target == DefaultRenderTarget)
+	if (render_target == nullptr || render_target == DefaultRenderTarget)
 	{
-		// If there is currently a custom render target, default must NOT be NULL.
+		// If there is currently a custom render target, default must NOT be null.
 		if (CurrentRenderTarget)
 		{
-			WWASSERT(DefaultRenderTarget!=NULL);
+			WWASSERT(DefaultRenderTarget!=nullptr);
 		}
 
 		//
 		//	Restore the default render target
 		//
-		if (DefaultRenderTarget != NULL)
+		if (DefaultRenderTarget != nullptr)
 		{
 			DX8CALL(SetRenderTarget (DefaultRenderTarget, DefaultDepthBuffer));
 			DefaultRenderTarget->Release ();
-			DefaultRenderTarget = NULL;
+			DefaultRenderTarget = nullptr;
 			if (DefaultDepthBuffer)
 			{
 				DefaultDepthBuffer->Release ();
-				DefaultDepthBuffer = NULL;
+				DefaultDepthBuffer = nullptr;
 			}
 		}
 
 		//
 		//	Release our hold on the "current" render target
 		//
-		if (CurrentRenderTarget != NULL)
+		if (CurrentRenderTarget != nullptr)
 		{
 			CurrentRenderTarget->Release ();
-			CurrentRenderTarget = NULL;
+			CurrentRenderTarget = nullptr;
 		}
 
-		if (CurrentDepthBuffer!=NULL)
+		if (CurrentDepthBuffer!=nullptr)
 		{
 			CurrentDepthBuffer->Release();
-			CurrentDepthBuffer=NULL;
+			CurrentDepthBuffer=nullptr;
 		}
 
 	}
 	else if (render_target != CurrentRenderTarget)
 	{
-		WWASSERT(DefaultRenderTarget==NULL);
+		WWASSERT(DefaultRenderTarget==nullptr);
 
 		//
 		//	We'll need the depth buffer later...
 		//
-		if (DefaultDepthBuffer == NULL)
+		if (DefaultDepthBuffer == nullptr)
 		{
-//		IDirect3DSurface8 *depth_buffer = NULL;
+//		IDirect3DSurface8 *depth_buffer = nullptr;
 			DX8CALL(GetDepthStencilSurface (&DefaultDepthBuffer));
 		}
 
 		//
 		//	Get a pointer to the default render target (if necessary)
 		//
-		if (DefaultRenderTarget == NULL)
+		if (DefaultRenderTarget == nullptr)
 		{
 			DX8CALL(GetRenderTarget (&DefaultRenderTarget));
 		}
@@ -3560,24 +3553,24 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface8 *render_target, bool use_default
 		//
 		//	Release our hold on the old "current" render target
 		//
-		if (CurrentRenderTarget != NULL)
+		if (CurrentRenderTarget != nullptr)
 		{
 			CurrentRenderTarget->Release ();
-			CurrentRenderTarget = NULL;
+			CurrentRenderTarget = nullptr;
 		}
 
-		if (CurrentDepthBuffer!=NULL)
+		if (CurrentDepthBuffer!=nullptr)
 		{
 			CurrentDepthBuffer->Release();
-			CurrentDepthBuffer=NULL;
+			CurrentDepthBuffer=nullptr;
 		}
 
 		//
 		//	Keep a copy of the current render target (for housekeeping)
 		//
 		CurrentRenderTarget = render_target;
-		WWASSERT (CurrentRenderTarget != NULL);
-		if (CurrentRenderTarget != NULL)
+		WWASSERT (CurrentRenderTarget != nullptr);
+		if (CurrentRenderTarget != nullptr)
 		{
 			CurrentRenderTarget->AddRef ();
 
@@ -3590,7 +3583,7 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface8 *render_target, bool use_default
 			}
 			else
 			{
-				DX8CALL(SetRenderTarget (CurrentRenderTarget, NULL));
+				DX8CALL(SetRenderTarget (CurrentRenderTarget, nullptr));
 			}
 		}
 	}
@@ -3598,9 +3591,9 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface8 *render_target, bool use_default
 	//
 	//	Free our hold on the depth buffer
 	//
-//	if (depth_buffer != NULL) {
+//	if (depth_buffer != nullptr) {
 //		depth_buffer->Release ();
-//		depth_buffer = NULL;
+//		depth_buffer = nullptr;
 //	}
 
 	IsRenderToTexture = false;
@@ -3626,61 +3619,61 @@ void DX8Wrapper::Set_Render_Target
 	//
 	//	Should we restore the default render target set a new one?
 	//
-	if (render_target == NULL || render_target == DefaultRenderTarget)
+	if (render_target == nullptr || render_target == DefaultRenderTarget)
 	{
-		// If there is currently a custom render target, default must NOT be NULL.
+		// If there is currently a custom render target, default must NOT be null.
 		if (CurrentRenderTarget)
 		{
-			WWASSERT(DefaultRenderTarget!=NULL);
+			WWASSERT(DefaultRenderTarget!=nullptr);
 		}
 
 		//
 		//	Restore the default render target
 		//
-		if (DefaultRenderTarget != NULL)
+		if (DefaultRenderTarget != nullptr)
 		{
 			DX8CALL(SetRenderTarget (DefaultRenderTarget, DefaultDepthBuffer));
 			DefaultRenderTarget->Release ();
-			DefaultRenderTarget = NULL;
+			DefaultRenderTarget = nullptr;
 			if (DefaultDepthBuffer)
 			{
 				DefaultDepthBuffer->Release ();
-				DefaultDepthBuffer = NULL;
+				DefaultDepthBuffer = nullptr;
 			}
 		}
 
 		//
 		//	Release our hold on the "current" render target
 		//
-		if (CurrentRenderTarget != NULL)
+		if (CurrentRenderTarget != nullptr)
 		{
 			CurrentRenderTarget->Release ();
-			CurrentRenderTarget = NULL;
+			CurrentRenderTarget = nullptr;
 		}
 
-		if (CurrentDepthBuffer!=NULL)
+		if (CurrentDepthBuffer!=nullptr)
 		{
 			CurrentDepthBuffer->Release();
-			CurrentDepthBuffer=NULL;
+			CurrentDepthBuffer=nullptr;
 		}
 	}
 	else if (render_target != CurrentRenderTarget)
 	{
-		WWASSERT(DefaultRenderTarget==NULL);
+		WWASSERT(DefaultRenderTarget==nullptr);
 
 		//
 		//	We'll need the depth buffer later...
 		//
-		if (DefaultDepthBuffer == NULL)
+		if (DefaultDepthBuffer == nullptr)
 		{
-//		IDirect3DSurface8 *depth_buffer = NULL;
+//		IDirect3DSurface8 *depth_buffer = nullptr;
 			DX8CALL(GetDepthStencilSurface (&DefaultDepthBuffer));
 		}
 
 		//
 		//	Get a pointer to the default render target (if necessary)
 		//
-		if (DefaultRenderTarget == NULL)
+		if (DefaultRenderTarget == nullptr)
 		{
 			DX8CALL(GetRenderTarget (&DefaultRenderTarget));
 		}
@@ -3688,16 +3681,16 @@ void DX8Wrapper::Set_Render_Target
 		//
 		//	Release our hold on the old "current" render target
 		//
-		if (CurrentRenderTarget != NULL)
+		if (CurrentRenderTarget != nullptr)
 		{
 			CurrentRenderTarget->Release ();
-			CurrentRenderTarget = NULL;
+			CurrentRenderTarget = nullptr;
 		}
 
-		if (CurrentDepthBuffer!=NULL)
+		if (CurrentDepthBuffer!=nullptr)
 		{
 			CurrentDepthBuffer->Release();
-			CurrentDepthBuffer=NULL;
+			CurrentDepthBuffer=nullptr;
 		}
 
 		//
@@ -3705,8 +3698,8 @@ void DX8Wrapper::Set_Render_Target
 		//
 		CurrentRenderTarget = render_target;
 		CurrentDepthBuffer = depth_buffer;
-		WWASSERT (CurrentRenderTarget != NULL);
-		if (CurrentRenderTarget != NULL)
+		WWASSERT (CurrentRenderTarget != nullptr);
+		if (CurrentRenderTarget != nullptr)
 		{
 			CurrentRenderTarget->AddRef ();
 			CurrentDepthBuffer->AddRef();
@@ -3747,7 +3740,7 @@ DX8Wrapper::Create_Additional_Swap_Chain (HWND render_window)
 	//
 	//	Create the swap chain
 	//
-	IDirect3DSwapChain8 *swap_chain = NULL;
+	IDirect3DSwapChain8 *swap_chain = nullptr;
 	DX8CALL(CreateAdditionalSwapChain(&params, &swap_chain));
 	return swap_chain;
 }
@@ -3816,6 +3809,34 @@ void DX8Wrapper::Set_Gamma(float gamma,float bright,float contrast,bool calibrat
 			ReleaseDC (hwnd, hdc);
 		}
 	}
+}
+
+namespace wrapper
+{
+void D3DMatrixIdentity(D3DMATRIX* dxm)
+{
+	memset(dxm, 0, sizeof(*dxm));
+	dxm->_11 = 1.0f;
+	dxm->_22 = 1.0f;
+	dxm->_33 = 1.0f;
+	dxm->_44 = 1.0f;
+}
+} // namespace wrapper
+
+void DX8Wrapper::Set_World_Identity()
+{
+	if (render_state_changed&(unsigned)WORLD_IDENTITY)
+		return;
+	wrapper::D3DMatrixIdentity(&render_state.world);
+	render_state_changed|=(unsigned)WORLD_CHANGED|(unsigned)WORLD_IDENTITY;
+}
+
+void DX8Wrapper::Set_View_Identity()
+{
+	if (render_state_changed&(unsigned)VIEW_IDENTITY)
+		return;
+	wrapper::D3DMatrixIdentity(&render_state.view);
+	render_state_changed|=(unsigned)VIEW_CHANGED|(unsigned)VIEW_IDENTITY;
 }
 
 //**********************************************************************************************
@@ -3943,15 +3964,15 @@ void DX8Wrapper::Apply_Default_State()
 		//Set_DX8_Texture_Stage_State(i, D3DTSS_RESULTARG, D3DTA_CURRENT);
 
 		Set_DX8_Texture_Stage_State(i, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-		Set_Texture(i,NULL);
+		Set_Texture(i,nullptr);
 	}
 
-//	DX8Wrapper::Set_Material(NULL);
+//	DX8Wrapper::Set_Material(nullptr);
 	VertexMaterialClass::Apply_Null();
 
 	for (unsigned index=0;index<4;++index) {
 		SNAPSHOT_SAY(("Clearing light %d to NULL",index));
-		Set_DX8_Light(index,NULL);
+		Set_DX8_Light(index,nullptr);
 	}
 
 	// set up simple default TSS

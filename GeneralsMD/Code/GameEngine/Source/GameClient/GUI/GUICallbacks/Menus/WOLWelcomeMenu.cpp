@@ -72,7 +72,7 @@
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static Bool isShuttingDown = FALSE;
 static Bool buttonPushed = FALSE;
-static const char *nextScreen = NULL;
+static const char *nextScreen = nullptr;
 
 // window ids ------------------------------------------------------------------------------
 static NameKeyType parentWOLWelcomeID = NAMEKEY_INVALID;
@@ -86,30 +86,30 @@ static NameKeyType buttonMyInfoID = NAMEKEY_INVALID;
 static NameKeyType listboxInfoID = NAMEKEY_INVALID;
 static NameKeyType buttonOptionsID = NAMEKEY_INVALID;
 // Window Pointers ------------------------------------------------------------------------
-static GameWindow *parentWOLWelcome = NULL;
-static GameWindow *buttonBack = NULL;
-static GameWindow *buttonQuickMatch = NULL;
-static GameWindow *buttonLobby = NULL;
-static GameWindow *buttonBuddies = NULL;
-static GameWindow *buttonLadder = NULL;
-static GameWindow *buttonMyInfo = NULL;
-static GameWindow *buttonbuttonOptions = NULL;
-static WindowLayout *welcomeLayout = NULL;
-static GameWindow *listboxInfo = NULL;
+static GameWindow *parentWOLWelcome = nullptr;
+static GameWindow *buttonBack = nullptr;
+static GameWindow *buttonQuickMatch = nullptr;
+static GameWindow *buttonLobby = nullptr;
+static GameWindow *buttonBuddies = nullptr;
+static GameWindow *buttonLadder = nullptr;
+static GameWindow *buttonMyInfo = nullptr;
+static GameWindow *buttonbuttonOptions = nullptr;
+static WindowLayout *welcomeLayout = nullptr;
+static GameWindow *listboxInfo = nullptr;
 
-static GameWindow *staticTextServerName = NULL;
-static GameWindow *staticTextLastUpdated = NULL;
+static GameWindow *staticTextServerName = nullptr;
+static GameWindow *staticTextLastUpdated = nullptr;
 
-static GameWindow *staticTextLadderWins = NULL;
-static GameWindow *staticTextLadderLosses = NULL;
-static GameWindow *staticTextLadderRank = NULL;
-static GameWindow *staticTextLadderPoints = NULL;
-static GameWindow *staticTextLadderDisconnects = NULL;
+static GameWindow *staticTextLadderWins = nullptr;
+static GameWindow *staticTextLadderLosses = nullptr;
+static GameWindow *staticTextLadderRank = nullptr;
+static GameWindow *staticTextLadderPoints = nullptr;
+static GameWindow *staticTextLadderDisconnects = nullptr;
 
-static GameWindow *staticTextHighscoreWins = NULL;
-static GameWindow *staticTextHighscoreLosses = NULL;
-static GameWindow *staticTextHighscoreRank = NULL;
-static GameWindow *staticTextHighscorePoints = NULL;
+static GameWindow *staticTextHighscoreWins = nullptr;
+static GameWindow *staticTextHighscoreLosses = nullptr;
+static GameWindow *staticTextHighscoreRank = nullptr;
+static GameWindow *staticTextHighscorePoints = nullptr;
 
 static UnicodeString gServerName;
 void updateServerDisplay(UnicodeString serverName)
@@ -194,14 +194,14 @@ static void shutdownComplete( WindowLayout *layout )
 	layout->hide( TRUE );
 
 	// our shutdown is complete
-	TheShell->shutdownComplete( layout, (nextScreen != NULL) );
+	TheShell->shutdownComplete( layout, (nextScreen != nullptr) );
 
-	if (nextScreen != NULL)
+	if (nextScreen != nullptr)
 	{
 		TheShell->push(nextScreen);
 	}
 
-	nextScreen = NULL;
+	nextScreen = nullptr;
 
 }
 
@@ -216,14 +216,14 @@ static UnsignedByte grabUByte(const char *s)
 	char tmp[5] = "0xff";
 	tmp[2] = s[0];
 	tmp[3] = s[1];
-	UnsignedByte b = strtol(tmp, NULL, 16);
+	UnsignedByte b = strtol(tmp, nullptr, 16);
 	return b;
 }
 
 static void updateNumPlayersOnline(void)
 {
 	GameWindow *playersOnlineWindow = TheWindowManager->winGetWindowFromId(
-		NULL, NAMEKEY("WOLWelcomeMenu.wnd:StaticTextNumPlayersOnline") );
+		nullptr, NAMEKEY("WOLWelcomeMenu.wnd:StaticTextNumPlayersOnline") );
 
 	if (playersOnlineWindow)
 	{
@@ -358,7 +358,7 @@ void HandleOverallStats( const char* szHTTPStats, unsigned len )
 
 		//find this side
 		const char* pSide = strstr( pToday, side.str() );
-		if( pSide == NULL )
+		if( pSide == nullptr )
 		{	//error, skip this side
 			DEBUG_LOG(( "Unable to parse win/loss stats for %s in:\n%s", side.str(), szHTTPStats ));
 			continue;
@@ -454,7 +454,7 @@ static void updateOverallStats(void)
 		int percent = REAL_TO_INT(100.0f * (it->second / s_totalWinPercent));
 		percStr.format( TheGameText->fetch("GUI:WinPercent"), percent );
 		wndName.format( "WOLWelcomeMenu.wnd:Percent%s", it->first.str() );
-		pWin = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY(wndName) );
+		pWin = TheWindowManager->winGetWindowFromId( nullptr, NAMEKEY(wndName) );
 		GadgetCheckBoxSetText( pWin, percStr );
 //x		DEBUG_LOG(("Initialized win percent: %s -> %s %f=%s", wndName.str(), it->first.str(), it->second, percStr.str() ));
 	}
@@ -467,7 +467,7 @@ static void updateOverallStats(void)
 
 void UpdateLocalPlayerStats(void)
 {
-	GameWindow *welcomeParent = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("WOLWelcomeMenu.wnd:WOLWelcomeMenuParent") );
+	GameWindow *welcomeParent = TheWindowManager->winGetWindowFromId( nullptr, NAMEKEY("WOLWelcomeMenu.wnd:WOLWelcomeMenuParent") );
 
 	if (welcomeParent)
 	{
@@ -489,7 +489,7 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 {
 	updateNumPlayersOnline();
 
-	nextScreen = NULL;
+	nextScreen = nullptr;
 	buttonPushed = FALSE;
 	isShuttingDown = FALSE;
 
@@ -499,13 +499,13 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 
 	parentWOLWelcomeID = TheNameKeyGenerator->nameToKey( "WOLWelcomeMenu.wnd:WOLWelcomeMenuParent" );
 	buttonBackID = TheNameKeyGenerator->nameToKey( "WOLWelcomeMenu.wnd:ButtonBack" );
-	parentWOLWelcome = TheWindowManager->winGetWindowFromId( NULL, parentWOLWelcomeID );
-	buttonBack = TheWindowManager->winGetWindowFromId( NULL,  buttonBackID);
+	parentWOLWelcome = TheWindowManager->winGetWindowFromId( nullptr, parentWOLWelcomeID );
+	buttonBack = TheWindowManager->winGetWindowFromId( nullptr,  buttonBackID);
 	buttonOptionsID = TheNameKeyGenerator->nameToKey( "WOLWelcomeMenu.wnd:ButtonOptions" );
-	buttonbuttonOptions = TheWindowManager->winGetWindowFromId( NULL,  buttonOptionsID);
+	buttonbuttonOptions = TheWindowManager->winGetWindowFromId( nullptr,  buttonOptionsID);
 	listboxInfoID = TheNameKeyGenerator->nameToKey( "WOLWelcomeMenu.wnd:InfoListbox" );
 
-	listboxInfo = TheWindowManager->winGetWindowFromId( NULL,  listboxInfoID);
+	listboxInfo = TheWindowManager->winGetWindowFromId( nullptr,  listboxInfoID);
 
 	staticTextServerName = TheWindowManager->winGetWindowFromId( parentWOLWelcome,
 		TheNameKeyGenerator->nameToKey( "WOLWelcomeMenu.wnd:StaticTextServerName" ));
@@ -593,13 +593,13 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	buttonLadderID = TheNameKeyGenerator->nameToKey( "WOLWelcomeMenu.wnd:ButtonLadder" );
 	buttonLadder = TheWindowManager->winGetWindowFromId( parentWOLWelcome, buttonLadderID );
 
-	if (TheFirewallHelper == NULL) {
+	if (TheFirewallHelper == nullptr) {
 		TheFirewallHelper = createFirewallHelper();
 	}
 	if (TheFirewallHelper->detectFirewall() == TRUE) {
 		// don't need to detect firewall, already been done.
 		delete TheFirewallHelper;
-		TheFirewallHelper = NULL;
+		TheFirewallHelper = nullptr;
 	}
 	/*
 
@@ -620,9 +620,9 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 //	// animate controls
 //	TheShell->registerWithAnimateManager(buttonQuickMatch, WIN_ANIMATION_SLIDE_LEFT, TRUE, 800);
 //	TheShell->registerWithAnimateManager(buttonLobby, WIN_ANIMATION_SLIDE_LEFT, TRUE, 600);
-//	//TheShell->registerWithAnimateManager(NULL, WIN_ANIMATION_SLIDE_LEFT, TRUE, 400);
+//	//TheShell->registerWithAnimateManager(nullptr, WIN_ANIMATION_SLIDE_LEFT, TRUE, 400);
 //	TheShell->registerWithAnimateManager(buttonBuddies, WIN_ANIMATION_SLIDE_LEFT, TRUE, 200);
-//	//TheShell->registerWithAnimateManager(NULL, WIN_ANIMATION_SLIDE_LEFT, TRUE, 1);
+//	//TheShell->registerWithAnimateManager(nullptr, WIN_ANIMATION_SLIDE_LEFT, TRUE, 1);
 //	TheShell->registerWithAnimateManager(buttonBack, WIN_ANIMATION_SLIDE_BOTTOM, TRUE, 1);
 
 	// Show Menu
@@ -696,10 +696,10 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void WOLWelcomeMenuShutdown( WindowLayout *layout, void *userData )
 {
-	listboxInfo = NULL;
+	listboxInfo = nullptr;
 
 	delete TheFirewallHelper;
-	TheFirewallHelper = NULL;
+	TheFirewallHelper = nullptr;
 
 	isShuttingDown = TRUE;
 
@@ -751,7 +751,7 @@ void WOLWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 
 	// TODO_NGMP: do we still care about FW helper?
 #if !defined(GENERALS_ONLINE)
-	if (TheFirewallHelper != NULL)
+	if (TheFirewallHelper != nullptr)
 	{
 		if (TheFirewallHelper->behaviorDetectionUpdate())
 		{
@@ -763,7 +763,7 @@ void WOLWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 
 			// we are now done with the firewall helper
 			delete TheFirewallHelper;
-			TheFirewallHelper = NULL;
+			TheFirewallHelper = nullptr;
 		}
 	}
 #endif
@@ -969,9 +969,9 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 					closeAllOverlays();
 					TheShell->pop();
 					delete TheWOL;
-					TheWOL = NULL;
+					TheWOL = nullptr;
 					delete TheWOLGame;
-					TheWOLGame = NULL;
+					TheWOLGame = nullptr;
 					**/
 
 				}
@@ -1006,7 +1006,7 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 				else if (controlID == buttonLobbyID)
 				{
 					//TheGameSpyChat->clearGroupRoomList();
-					//peerListGroupRooms(TheGameSpyChat->getPeer(), ListGroupRoomsCallback, NULL, PEERTrue);
+					//peerListGroupRooms(TheGameSpyChat->getPeer(), ListGroupRoomsCallback, nullptr, PEERTrue);
 
 					// TODO_NGMP
 					//TheGameSpyInfo->joinBestGroupRoom();
@@ -1040,7 +1040,7 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 					else
 					{
 						GameSpyCurrentGroupRoomID = 0;
-						GSMessageBoxOk(L"Oops", L"Unable to join title room", NULL);
+						GSMessageBoxOk(L"Oops", L"Unable to join title room", nullptr);
 					}
 					*/
 				}

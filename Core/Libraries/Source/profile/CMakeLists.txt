@@ -25,13 +25,13 @@ target_include_directories(core_profile INTERFACE
 )
 
 target_precompile_headers(core_profile PRIVATE
+    [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
     "profile.h"
     "internal.h"
     <windows.h>
 )
 
 target_link_libraries(core_profile PRIVATE
-    core_config
     core_wwcommon
     corei_always
 )

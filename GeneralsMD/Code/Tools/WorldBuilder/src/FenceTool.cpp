@@ -39,7 +39,7 @@
 /// Constructor
 FenceTool::FenceTool(void) :
 	Tool(ID_FENCE_TOOL, IDC_FENCE),
-		m_mapObjectList(NULL),
+		m_mapObjectList(nullptr),
 		m_objectCount(1)
 {
 		m_curObjectWidth = 27.35f;
@@ -49,10 +49,8 @@ FenceTool::FenceTool(void) :
 /// Destructor
 FenceTool::~FenceTool(void)
 {
-	if (m_mapObjectList) {
-		deleteInstance(m_mapObjectList);
-	}
-	m_mapObjectList = NULL;
+	deleteInstance(m_mapObjectList);
+	m_mapObjectList = nullptr;
 }
 
 void FenceTool::updateMapObjectList(Coord3D downPt, Coord3D curPt, WbView* pView, CWorldBuilderDoc *pDoc, Bool checkPlayers)
@@ -85,22 +83,22 @@ void FenceTool::updateMapObjectList(Coord3D downPt, Coord3D curPt, WbView* pView
 	normalDelta.normalize();
 
 	Int i;
-	if (m_mapObjectList == NULL) return;
+	if (m_mapObjectList == nullptr) return;
 	MapObject *pCurObj = m_mapObjectList;
 	for (i=1; i<m_objectCount; i++) {
-		if (pCurObj->getNext() == NULL) {
+		if (pCurObj->getNext() == nullptr) {
 			pCurObj->setNextMap(ObjectOptions::duplicateCurMapObjectForPlace(&downPt, angle, checkPlayers));
 		}
 		pCurObj=pCurObj->getNext();
-		if (pCurObj == NULL) return;
+		if (pCurObj == nullptr) return;
 	}
 	WbView3d *p3View = pDoc->GetActive3DView();
 	MapObject *pXtraObjects = pCurObj->getNext();
-	pCurObj->setNextMap(NULL);
+	pCurObj->setNextMap(nullptr);
 	if (pXtraObjects) {
 		p3View->removeFenceListObjects(pXtraObjects);
 		deleteInstance(pXtraObjects);
-		pXtraObjects = NULL;
+		pXtraObjects = nullptr;
 	}
 
 	pCurObj = m_mapObjectList;
@@ -128,9 +126,9 @@ void FenceTool::updateMapObjectList(Coord3D downPt, Coord3D curPt, WbView* pView
 void FenceTool::deactivate()
 {
 	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();
-	if (pDoc==NULL) return;
+	if (pDoc==nullptr) return;
 	WbView3d *p3View = pDoc->GetActive3DView();
-	p3View->setObjTracking(NULL, m_downPt3d, 0, false);
+	p3View->setObjTracking(nullptr, m_downPt3d, 0, false);
 }
 /// Shows the object options panel
 void FenceTool::activate()
@@ -138,9 +136,9 @@ void FenceTool::activate()
 	CMainFrame::GetMainFrame()->showOptionsDialog(IDD_FENCE_OPTIONS);
 	DrawObject::setDoBrushFeedback(false);
 	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();
-	if (pDoc==NULL) return;
+	if (pDoc==nullptr) return;
 	WbView3d *p3View = pDoc->GetActive3DView();
-	p3View->setObjTracking(NULL, m_downPt3d, 0, false);
+	p3View->setObjTracking(nullptr, m_downPt3d, 0, false);
 	FenceOptions::update();
 }
 
@@ -154,10 +152,10 @@ void FenceTool::mouseDown(TTrackingMode m, CPoint viewPt, WbView* pView, CWorldB
 	pView->snapPoint(&cpt);
 	m_downPt2d = viewPt;
 	m_downPt3d = cpt;
-	if (m_mapObjectList) {
-		deleteInstance(m_mapObjectList);
-		m_mapObjectList = NULL;
-	}
+
+	deleteInstance(m_mapObjectList);
+	m_mapObjectList = nullptr;
+
 	if (FenceOptions::hasSelectedObject()) {
 		FenceOptions::update();
 		m_curObjectWidth = FenceOptions::getFenceSpacing();
@@ -179,12 +177,12 @@ void FenceTool::mouseMoved(TTrackingMode m, CPoint viewPt, WbView* pView, CWorld
 	pView->snapPoint(&loc);
 	Real angle =  0 ;
 	if (m == TRACK_L) {	// Mouse is down, so fence.
-		p3View->setObjTracking(NULL, loc, angle, false);
+		p3View->setObjTracking(nullptr, loc, angle, false);
 		updateMapObjectList(m_downPt3d,loc, pView, pDoc, false);
 		return;
 	}
 	MapObject *pCur = ObjectOptions::getObjectNamed(AsciiString(ObjectOptions::getCurObjectName()));
-	p3View->setObjTracking(NULL, m_downPt3d, 0, false);
+	p3View->setObjTracking(nullptr, m_downPt3d, 0, false);
 	loc.z = ObjectOptions::getCurObjectHeight();
 	if (pCur && FenceOptions::hasSelectedObject()) {
 		// Display the transparent version of this object.
@@ -193,7 +191,7 @@ void FenceTool::mouseMoved(TTrackingMode m, CPoint viewPt, WbView* pView, CWorld
 		p3View->setObjTracking(pCur, loc, angle, true);
 	} else {
 		// Don't display anything.
-		p3View->setObjTracking(NULL, loc, angle, false);
+		p3View->setObjTracking(nullptr, loc, angle, false);
 	}
 }
 
@@ -212,7 +210,7 @@ void FenceTool::mouseUp(TTrackingMode m, CPoint viewPt, WbView* pView, CWorldBui
 		AddObjectUndoable *pUndo = new AddObjectUndoable(pDoc, m_mapObjectList);
 		pDoc->AddAndDoUndoable(pUndo);
 		REF_PTR_RELEASE(pUndo); // belongs to pDoc now.
-		m_mapObjectList = NULL; // undoable owns it now.
+		m_mapObjectList = nullptr; // undoable owns it now.
 	}
 }
 

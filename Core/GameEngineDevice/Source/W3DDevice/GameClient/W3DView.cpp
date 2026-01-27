@@ -152,8 +152,8 @@ static Real getHeightAroundPos(Real x, Real y)
 W3DView::W3DView()
 {
 
-	m_3DCamera = NULL;
-	m_2DCamera = NULL;
+	m_3DCamera = nullptr;
+	m_2DCamera = nullptr;
 	m_groundLevel = 10.0;
 	m_cameraOffset.z = TheGlobalData->m_cameraHeight;
 	m_cameraOffset.y = -(m_cameraOffset.z / tan(TheGlobalData->m_cameraPitch * (PI / 180.0)));
@@ -432,10 +432,10 @@ void W3DView::buildCameraTransform( Matrix3D *transform )
 		// find object named m_cameraSlaveObjectName
 		Object * obj = TheScriptEngine->getUnitNamed(m_cameraSlaveObjectName);
 
-		if (obj != NULL) {
+		if (obj != nullptr) {
 			// dig out the drawable
 			Drawable * draw = obj->getDrawable();
-			if (draw != NULL) {
+			if (draw != nullptr) {
 
 				// dig out the first draw module with an ObjectDrawInterface
 				for (DrawModule ** dm = draw->getDrawModules(); *dm; ++dm) {
@@ -628,7 +628,7 @@ void W3DView::setCameraTransform( void )
 		if (it)
 		{
 		 W3DDisplay::m_3DScene->destroyLightsIterator(it);
-		 it = NULL;
+		 it = nullptr;
 		}
 	}
 }
@@ -764,7 +764,7 @@ void drawDebugCircle( const Coord3D & center, Real radius, Real width, Color col
   }
 }
 
-void drawDrawableExtents( Drawable *draw, void *userData );  // FORWARD DECLARATION
+static void drawDrawableExtents( Drawable *draw, void *userData );  // FORWARD DECLARATION
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 static void drawContainedDrawable( Object *obj, void *userData )
@@ -874,7 +874,7 @@ static void drawDrawableExtents( Drawable *draw, void *userData )
 }
 
 
-void drawAudioLocations( Drawable *draw, void *userData );
+static void drawAudioLocations( Drawable *draw, void *userData );
 // ------------------------------------------------------------------------------------------------
 // Helper for drawAudioLocations
 // ------------------------------------------------------------------------------------------------
@@ -906,13 +906,13 @@ static void drawAudioLocations( Drawable *draw, void *userData )
 
   const ThingTemplate * thingTemplate = draw->getTemplate();
 
-  if ( thingTemplate == NULL || thingTemplate->getEditorSorting() != ES_AUDIO )
+  if ( thingTemplate == nullptr || thingTemplate->getEditorSorting() != ES_AUDIO )
   {
     return; // All done
   }
 
   // Copied in hideously inappropriate code copying ways from DrawObject.cpp
-  // Should definately be a global, probably read in from an INI file <gasp>
+  // Should definitely be a global, probably read in from an INI file <gasp>
   static const Int poleHeight = 20;
   static const Int flagHeight = 10;
   static const Int flagWidth = 10;
@@ -964,18 +964,18 @@ static void drawAudioRadii( const Drawable * drawable )
   {
     const AudioEventInfo * ambientInfo = ambientSound->getAudioEventInfo();
 
-    if ( ambientInfo == NULL )
+    if ( ambientInfo == nullptr )
     {
       // I don't think that's right...
-      OutputDebugString( ("Playing sound has NULL AudioEventInfo?\n" ) );
+      OutputDebugString( ("Playing sound has null AudioEventInfo?\n" ) );
 
-      if ( TheAudio != NULL )
+      if ( TheAudio != nullptr )
       {
         ambientInfo = TheAudio->findAudioEventInfo( ambientSound->getEventName() );
       }
     }
 
-    if ( ambientInfo != NULL )
+    if ( ambientInfo != nullptr )
     {
       // Colors match those used in WorldBuilder
       drawDebugCircle( *drawable->getPosition(), ambientInfo->m_minDistance, 1.0f, GameMakeColor(0x00, 0x00, 0xFF, 0xFF) );
@@ -1113,7 +1113,7 @@ void W3DView::update(void)
 		if (it)
 		{
 		 W3DDisplay::m_3DScene->destroyLightsIterator(it);
-		 it = NULL;
+		 it = nullptr;
 		}
 	}
 
@@ -1132,7 +1132,7 @@ void W3DView::update(void)
 		Bool loseLock = false;
 
 		// check if object has been destroyed or is dead -> lose lock
-		if (cameraLockObj == NULL)
+		if (cameraLockObj == nullptr)
 		{
 			loseLock = true;
 		}
@@ -1149,7 +1149,7 @@ void W3DView::update(void)
 		if (loseLock)
 		{
 			setCameraLock(INVALID_ID);
-			setCameraLockDrawable(NULL);
+			setCameraLockDrawable(nullptr);
 			followFactor = -1;
 		}
 		else
@@ -1160,13 +1160,13 @@ void W3DView::update(void)
 				followFactor += 0.05f;
 				if (followFactor>1.0f) followFactor = 1.0f;
 			}
-			if (getCameraLockDrawable() != NULL)
+			if (getCameraLockDrawable() != nullptr)
 			{
 				Drawable* cameraLockDrawable = (Drawable *)getCameraLockDrawable();
 
 				if (!cameraLockDrawable)
 				{
-					setCameraLockDrawable(NULL);
+					setCameraLockDrawable(nullptr);
 				}
 				else
 				{
@@ -1402,7 +1402,7 @@ void W3DView::update(void)
 
 	// render all of the visible Drawables
 	/// @todo this needs to use a real region partition or something
-	TheGameClient->iterateDrawablesInRegion(&axisAlignedRegion, drawDrawable, NULL);
+	TheGameClient->iterateDrawablesInRegion( &axisAlignedRegion, drawDrawable, nullptr );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1764,7 +1764,7 @@ void W3DView::draw( void )
     // Draw audio radii for ALL drawables, not just those on screen
     const Drawable * drawable = TheGameClient->getDrawableList();
 
-    while ( drawable != NULL )
+    while ( drawable != nullptr )
     {
       drawAudioRadii( drawable );
       drawable = drawable->getNextDrawable();
@@ -2051,7 +2051,7 @@ void W3DView::setFieldOfView( Real angle )
 View::WorldToScreenReturn W3DView::worldToScreenTriReturn( const Coord3D *w, ICoord2D *s )
 {
 	// sanity
-	if( w == NULL || s == NULL )
+	if( w == nullptr || s == nullptr )
     return WTS_INVALID;
 
 	if( m_3DCamera )
@@ -2102,7 +2102,7 @@ void W3DView::screenToWorld( const ICoord2D *s, Coord3D *w )
 {
 
 	// sanity
-	if( s == NULL || w == NULL )
+	if( s == nullptr || w == nullptr )
 		return;
 
 	if( m_3DCamera )
@@ -2157,12 +2157,12 @@ Int W3DView::iterateDrawablesInRegion( IRegion2D *screenRegion,
 	}
 
 
-	Drawable *onlyDrawableToTest = NULL;
+	Drawable *onlyDrawableToTest = nullptr;
 	if (regionIsPoint)
 	{
 		// Allow all drawables to be picked.
 		onlyDrawableToTest = pickDrawable(&screenRegion->lo, TRUE, (PickType) getPickTypesForContext(TheInGameUI->isInForceAttackMode()));
-		if (onlyDrawableToTest == NULL) {
+		if (onlyDrawableToTest == nullptr) {
 			return 0;
 		}
 	}
@@ -2183,7 +2183,7 @@ Int W3DView::iterateDrawablesInRegion( IRegion2D *screenRegion,
 			inside = FALSE;
 
 			// no screen region, means all drawbles
-			if( screenRegion == NULL )
+			if( screenRegion == nullptr )
 				inside = TRUE;
 			else
 			{
@@ -2220,7 +2220,7 @@ Int W3DView::iterateDrawablesInRegion( IRegion2D *screenRegion,
 		}
 
 		// If onlyDrawableToTest, then we should bail out now.
-		if (onlyDrawableToTest != NULL)
+		if (onlyDrawableToTest != nullptr)
 			break;
 
 	}
@@ -2236,16 +2236,16 @@ Int W3DView::iterateDrawablesInRegion( IRegion2D *screenRegion,
 //-------------------------------------------------------------------------------------------------
 Drawable *W3DView::pickDrawable( const ICoord2D *screen, Bool forceAttack, PickType pickType )
 {
-	RenderObjClass *renderObj = NULL;
-	Drawable *draw = NULL;
-	DrawableInfo *drawInfo = NULL;
+	RenderObjClass *renderObj = nullptr;
+	Drawable *draw = nullptr;
+	DrawableInfo *drawInfo = nullptr;
 
 	// sanity
-	if( screen == NULL )
-		return NULL;
+	if( screen == nullptr )
+		return nullptr;
 
 	// don't pick a drawable if there is a window under the cursor
-	GameWindow *window = NULL;
+	GameWindow *window = nullptr;
 	if (TheWindowManager)
 		window = TheWindowManager->getWindowUnderCursor(screen->x, screen->y);
 
@@ -2253,7 +2253,7 @@ Drawable *W3DView::pickDrawable( const ICoord2D *screen, Bool forceAttack, PickT
 	{
 		// check to see if it or any of its parents are opaque.  If so, we can't select anything.
 		if (!BitIsSet( window->winGetStatus(), WIN_STATUS_SEE_THRU ))
-			return NULL;
+			return nullptr;
 
 		window = window->winGetParent();
 	}
@@ -2277,7 +2277,7 @@ Drawable *W3DView::pickDrawable( const ICoord2D *screen, Bool forceAttack, PickT
 
 	// for right now there is no drawable data in a render object which is			 	// if we've found a render object, return our drawable associated with it,
 
-	// the terrain, therefore the userdata is NULL
+	// the terrain, therefore the userdata is null
 	/// @todo terrain and picking!
 	if( renderObj )
 		drawInfo = (DrawableInfo *)renderObj->Get_User_Data();
@@ -2295,7 +2295,7 @@ Drawable *W3DView::pickDrawable( const ICoord2D *screen, Bool forceAttack, PickT
 void W3DView::screenToTerrain( const ICoord2D *screen, Coord3D *world )
 {
 	// sanity
-	if( screen == NULL || world == NULL || TheTerrainRenderObject == NULL )
+	if( screen == nullptr || world == nullptr || TheTerrainRenderObject == nullptr )
 		return;
 
 	if (m_cameraHasMovedSinceRequest) {
@@ -2898,7 +2898,7 @@ void W3DView::moveCameraAlongWaypointPath(Waypoint *pWay, Int milliseconds, Int 
 		if (pWay->getNumLinks()>0) {
 			pWay = pWay->getLink(0);
 		} else {
-			pWay = NULL;
+			pWay = nullptr;
 		}
 		Vector2 dir(m_mcwpInfo.waypoints[m_mcwpInfo.numWaypoints].x-m_mcwpInfo.waypoints[m_mcwpInfo.numWaypoints-1].x, m_mcwpInfo.waypoints[m_mcwpInfo.numWaypoints].y-m_mcwpInfo.waypoints[m_mcwpInfo.numWaypoints-1].y);
 		if (dir.Length()<MIN_DELTA) {

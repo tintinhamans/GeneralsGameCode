@@ -72,7 +72,7 @@ AnimateWindow::AnimateWindow(void)
 	m_startPos.x = m_startPos.y = 0;
 	m_endPos.x = m_endPos.y = 0;
 	m_curPos.x = m_curPos.y = 0;
-	m_win = NULL;
+	m_win = nullptr;
 	m_animType = WIN_ANIMATION_NONE;
 
 	m_restPos.x = m_restPos.y = 0;
@@ -84,7 +84,7 @@ AnimateWindow::AnimateWindow(void)
 }
 AnimateWindow::~AnimateWindow( void )
 {
-	m_win = NULL;
+	m_win = nullptr;
 }
 
 void AnimateWindow::setAnimData( 	ICoord2D startPos, ICoord2D endPos,
@@ -149,7 +149,7 @@ AnimateWindowManager::~AnimateWindowManager( void )
 	delete m_spiral;
 	delete m_slideFromBottomTimed;
 
-	m_slideFromRight = NULL;
+	m_slideFromRight = nullptr;
 	resetToRestPosition( );
 	clearWinList(m_winList);
 	clearWinList(m_winMustFinishList);
@@ -176,7 +176,7 @@ void AnimateWindowManager::reset( void )
 void AnimateWindowManager::update( void )
 {
 
-	ProcessAnimateWindow *processAnim = NULL;
+	ProcessAnimateWindow *processAnim = nullptr;
 
 	// if we need to update the windows that need to finish, update that list
 	if(m_needsUpdate)
@@ -241,7 +241,7 @@ void AnimateWindowManager::registerGameWindow(GameWindow *win, AnimTypes animTyp
 {
 	if(!win)
 	{
-		DEBUG_CRASH(("Win was NULL as it was passed into registerGameWindow... not good indeed"));
+		DEBUG_CRASH(("Win was null as it was passed into registerGameWindow... not good indeed"));
 		return;
 	}
 	if(animType <= WIN_ANIMATION_NONE || animType >= WIN_ANIMATION_COUNT )
@@ -311,7 +311,7 @@ ProcessAnimateWindow *AnimateWindowManager::getProcessAnimate( AnimTypes animTyp
 		return m_slideFromTopFast;
 	}
 		default:
-		return NULL;
+		return nullptr;
 	}
 }
 
@@ -320,7 +320,7 @@ void AnimateWindowManager::reverseAnimateWindow( void )
 
 	m_reverse = TRUE;
 	m_needsUpdate = TRUE;
-	ProcessAnimateWindow *processAnim = NULL;
+	ProcessAnimateWindow *processAnim = nullptr;
 
 	UnsignedInt maxDelay = 0;
 	AnimateWindowList::iterator it = m_winMustFinishList.begin();

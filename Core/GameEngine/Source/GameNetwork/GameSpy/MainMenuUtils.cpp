@@ -67,14 +67,14 @@ static Bool mustDownloadPatch = FALSE;
 static Bool cantConnectBeforeOnline = FALSE;
 static std::list<QueuedDownload> queuedDownloads;
 
-static char *MOTDBuffer = NULL;
-static char *configBuffer = NULL;
-GameWindow *onlineCancelWindow = NULL;
+static char *MOTDBuffer = nullptr;
+static char *configBuffer = nullptr;
+GameWindow *onlineCancelWindow = nullptr;
 
 static Bool s_asyncDNSThreadDone = TRUE;
 static Bool s_asyncDNSThreadSucceeded = FALSE;
 static Bool s_asyncDNSLookupInProgress = FALSE;
-static HANDLE s_asyncDNSThreadHandle = NULL;
+static HANDLE s_asyncDNSThreadHandle = nullptr;
 enum {
 	LOOKUP_INPROGRESS,
 	LOOKUP_FAILED,
@@ -191,7 +191,7 @@ static void startOnline( void )
 	if (onlineCancelWindow)
 	{
 		TheWindowManager->winDestroy(onlineCancelWindow);
-		onlineCancelWindow = NULL;
+		onlineCancelWindow = nullptr;
 	}
 
 	if (cantConnectBeforeOnline)
@@ -233,10 +233,10 @@ static void startOnline( void )
 	SetUpGameSpy(MOTDBuffer, configBuffer);
 
 	delete[] MOTDBuffer;
-	MOTDBuffer = NULL;
+	MOTDBuffer = nullptr;
 
 	delete[] configBuffer;
-	configBuffer = NULL;
+	configBuffer = nullptr;
 
 
 #ifdef ALLOW_NON_PROFILED_LOGIN
@@ -341,7 +341,7 @@ static GHTTPBool motdCallback( GHTTPRequest request, GHTTPResult result,
 	if (onlineCancelWindow && !checksLeftBeforeOnline)
 	{
 		TheWindowManager->winDestroy(onlineCancelWindow);
-		onlineCancelWindow = NULL;
+		onlineCancelWindow = nullptr;
 	}
 
 	DEBUG_LOG(("------- Got MOTD before going online -------"));
@@ -367,7 +367,7 @@ static GHTTPBool configCallback( GHTTPRequest request, GHTTPResult result,
 	}
 
 	delete[] configBuffer;
-	configBuffer = NULL;
+	configBuffer = nullptr;
 
 	if (result != GHTTPSuccess || bufferLen < 100)
 	{
@@ -377,7 +377,7 @@ static GHTTPBool configCallback( GHTTPRequest request, GHTTPResult result,
 		if (onlineCancelWindow && !checksLeftBeforeOnline)
 		{
 			TheWindowManager->winDestroy(onlineCancelWindow);
-			onlineCancelWindow = NULL;
+			onlineCancelWindow = nullptr;
 		}
 		cantConnectBeforeOnline = TRUE;
 		if (!checksLeftBeforeOnline)
@@ -405,7 +405,7 @@ static GHTTPBool configCallback( GHTTPRequest request, GHTTPResult result,
 	if (onlineCancelWindow && !checksLeftBeforeOnline)
 	{
 		TheWindowManager->winDestroy(onlineCancelWindow);
-		onlineCancelWindow = NULL;
+		onlineCancelWindow = nullptr;
 	}
 
 	DEBUG_LOG(("Got Config before going online"));
@@ -464,11 +464,11 @@ static GHTTPBool configHeadCallback( GHTTPRequest request, GHTTPResult result,
 					if (onlineCancelWindow && !checksLeftBeforeOnline)
 					{
 						TheWindowManager->winDestroy(onlineCancelWindow);
-						onlineCancelWindow = NULL;
+						onlineCancelWindow = nullptr;
 					}
 
 					delete[] configBuffer;
-					configBuffer = NULL;
+					configBuffer = nullptr;
 
 					AsciiString fname;
 					fname.format("%sGeneralsOnline\\Config.txt", TheGlobalData->getPath_UserData().str());
@@ -582,15 +582,15 @@ void CancelPatchCheckCallback( void )
 	if (onlineCancelWindow)
 	{
 		TheWindowManager->winDestroy(onlineCancelWindow);
-		onlineCancelWindow = NULL;
+		onlineCancelWindow = nullptr;
 	}
 	queuedDownloads.clear();
 
 	delete[] MOTDBuffer;
-	MOTDBuffer = NULL;
+	MOTDBuffer = nullptr;
 
 	delete[] configBuffer;
-	configBuffer = NULL;
+	configBuffer = nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -609,7 +609,7 @@ static GHTTPBool overallStatsCallback( GHTTPRequest request, GHTTPResult result,
 
 	Int state = STATS_MAX; // STATS_MAX == none
 	AsciiString line;
-	OverallStats *stats = NULL;
+	OverallStats *stats = nullptr;
 	while (message.nextToken(&line, "\n"))
 	{
 		line.trim();
@@ -667,7 +667,7 @@ static GHTTPBool overallStatsCallback( GHTTPRequest request, GHTTPResult result,
 				stats->losses[state] = atoi(lossesLine.str());
 			}
 
-			stats = NULL;
+			stats = nullptr;
 		}
 	}
 
@@ -715,7 +715,7 @@ void CheckOverallStats( void )
 #elif RTS_ZEROHOUR
 	const char *const url = "http://gamestats.gamespy.com/ccgenzh/display.html";
 #endif
-	ghttpGet(url, GHTTPFalse, overallStatsCallback, NULL);
+	ghttpGet(url, GHTTPFalse, overallStatsCallback, nullptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -727,7 +727,7 @@ void CheckNumPlayersOnline( void )
 #elif RTS_ZEROHOUR
 	const char *const url = "http://launch.gamespyarcade.com/software/launch/arcadecount2.dll?svcname=ccgenzh";
 #endif
-	ghttpGet(url, GHTTPFalse, numPlayersOnlineCallback, NULL);
+	ghttpGet(url, GHTTPFalse, numPlayersOnlineCallback, nullptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -760,9 +760,9 @@ int asyncGethostbyname(char * szName)
 	{
 		/* Kick off gethostname thread */
 		s_asyncDNSThreadDone = FALSE;
-		s_asyncDNSThreadHandle = CreateThread( NULL, 0, asyncGethostbynameThreadFunc, szName, 0, &threadid );
+		s_asyncDNSThreadHandle = CreateThread( nullptr, 0, asyncGethostbynameThreadFunc, szName, 0, &threadid );
 
-		if( s_asyncDNSThreadHandle == NULL )
+		if( s_asyncDNSThreadHandle == nullptr )
 		{
 			return( LOOKUP_FAILED );
 		}
@@ -775,7 +775,7 @@ int asyncGethostbyname(char * szName)
 			/* Thread finished */
 			stat = 0;
 			s_asyncDNSLookupInProgress = FALSE;
-			s_asyncDNSThreadHandle = NULL;
+			s_asyncDNSThreadHandle = nullptr;
 			return( (s_asyncDNSThreadSucceeded)?LOOKUP_SUCCEEDED:LOOKUP_FAILED );
 		}
 	}
@@ -835,7 +835,7 @@ void StopAsyncDNSCheck( void )
 			TerminateThread(s_asyncDNSThreadHandle,0);
 		DEBUG_ASSERTCRASH(res, ("Could not terminate the Async DNS Lookup thread!"));	// Thread still not killed!
 	}
-	s_asyncDNSThreadHandle = NULL;
+	s_asyncDNSThreadHandle = nullptr;
 	s_asyncDNSLookupInProgress = FALSE;
 }
 
@@ -872,78 +872,80 @@ void StartPatchCheck( void )
 	// TODO_NGMP: Uninit this when leaving MP, waste of resources and cycles
 	NGMP_OnlineServicesManager::GetInstance()->Init();
 
-	NGMP_OnlineServicesManager::GetInstance()->StartVersionCheck([](bool bSuccess, bool bNeedsUpdate)
+	NGMP_OnlineServicesManager::GetInstance()->DetermineEndpoints([]()
 		{
+			NGMP_OnlineServicesManager::GetInstance()->StartVersionCheck([](bool bSuccess, bool bNeedsUpdate)
+				{
 #if defined(USE_TEST_ENV) || defined(USE_DEBUG_ON_LIVE_SERVER)
-			bNeedsUpdate = false;
+					bNeedsUpdate = false;
 #endif
 
+					cantConnectBeforeOnline = !bSuccess;
+					mustDownloadPatch = bNeedsUpdate;
 
-			cantConnectBeforeOnline = !bSuccess;
-			mustDownloadPatch = bNeedsUpdate;
-
-			if (!bSuccess)
-			{
-				if (onlineCancelWindow)
-				{
-					TheWindowManager->winDestroy(onlineCancelWindow);
-					onlineCancelWindow = NULL;
-				}
-
-				// TODO_NGMP: do this everywhere teardowngamespy was called
-				NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
-
-				MessageBoxOk(TheGameText->fetch("GUI:CannotConnectToServservTitle"),
-					TheGameText->fetch("GUI:CannotConnectToServserv"),
-					noPatchBeforeOnlineCallback);
-			}
-			else
-			{
-				if (!bNeedsUpdate)
-				{
-					startOnline();
-				}
-				else
-				{
-					// TODO_NGMP: Later we should allow in-game updates
-					if (onlineCancelWindow)
+					if (!bSuccess)
 					{
-						TheWindowManager->winDestroy(onlineCancelWindow);
-						onlineCancelWindow = NULL;
+						if (onlineCancelWindow)
+						{
+							TheWindowManager->winDestroy(onlineCancelWindow);
+							onlineCancelWindow = NULL;
+						}
+
+						// TODO_NGMP: do this everywhere teardowngamespy was called
+						NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+
+						MessageBoxOk(TheGameText->fetch("GUI:CannotConnectToServservTitle"),
+							TheGameText->fetch("GUI:CannotConnectToServserv"),
+							noPatchBeforeOnlineCallback);
 					}
-
-					// NGMP_NOTE: This checks you can write to the local dir, we actually write to my docs data dir now, because it's safer, so we don't really need this chekc
-					/*
-					if (!hasWriteAccess(true))
+					else
 					{
-						MessageBoxOk(TheGameText->fetch("GUI:Error"),
-							TheGameText->fetch("GUI:MustHaveAdminRights"),
-							CancelPatchCheckCallbackAndReopenDropdown);
-					}
-					else*/ if (mustDownloadPatch)
-					{
-						// NOTE: we treat all patches as mandatory currently
-						onlineCancelWindow = MessageBoxOkCancel(TheGameText->fetch("GUI:PatchAvailable"),
-							UnicodeString(L"Press OK to begin updating.\n\nOtherwise, you can visit www.playgenerals.online to download the latest update manually."), []()
+						if (!bNeedsUpdate)
+						{
+							startOnline();
+						}
+						else
+						{
+							// TODO_NGMP: Later we should allow in-game updates
+							if (onlineCancelWindow)
 							{
-								WindowLayout* layout;
-								layout = TheWindowManager->winCreateLayout(AsciiString("Menus/DownloadMenu.wnd"));
-								layout->runInit();
-								layout->hide(FALSE);
-								layout->bringForward();
+								TheWindowManager->winDestroy(onlineCancelWindow);
+								onlineCancelWindow = NULL;
+							}
 
-								NGMP_OnlineServicesManager::GetInstance()->StartDownloadUpdate([]()
+							// NGMP_NOTE: This checks you can write to the local dir, we actually write to my docs data dir now, because it's safer, so we don't really need this chekc
+							/*
+							if (!hasWriteAccess(true))
+							{
+								MessageBoxOk(TheGameText->fetch("GUI:Error"),
+									TheGameText->fetch("GUI:MustHaveAdminRights"),
+									CancelPatchCheckCallbackAndReopenDropdown);
+							}
+							else*/ if (mustDownloadPatch)
+							{
+								// NOTE: we treat all patches as mandatory currently
+								onlineCancelWindow = MessageBoxOkCancel(TheGameText->fetch("GUI:PatchAvailable"),
+									UnicodeString(L"Press OK to begin updating.\n\nOtherwise, you can visit www.playgenerals.online to download the latest update manually."), []()
 									{
-										MessageBoxOk(UnicodeString(L"Update Ready"), UnicodeString(L"Press OK to begin installing the patch"), []()
-											{
-												NGMP_OnlineServicesManager::GetInstance()->LaunchPatcher();
-											});
-									});
+										WindowLayout* layout;
+										layout = TheWindowManager->winCreateLayout(AsciiString("Menus/DownloadMenu.wnd"));
+										layout->runInit();
+										layout->hide(FALSE);
+										layout->bringForward();
 
-							}, CancelPatchCheckCallbackAndReopenDropdown);
+										NGMP_OnlineServicesManager::GetInstance()->StartDownloadUpdate([]()
+											{
+												MessageBoxOk(UnicodeString(L"Update Ready"), UnicodeString(L"Press OK to begin installing the patch"), []()
+													{
+														NGMP_OnlineServicesManager::GetInstance()->LaunchPatcher();
+													});
+											});
+
+									}, CancelPatchCheckCallbackAndReopenDropdown);
+							}
+						}
 					}
-				}
-			}
+				});
 		});
 	
 
