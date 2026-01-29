@@ -6031,7 +6031,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 	// ====================================================================
 	if (needUpdate) {
 		lastUpdateFrame = currentFrame;
-		lastFontSize = TheGlobalData->m_observerStatsFontSize;
+		lastFontSize = TheWritableGlobalData->m_observerStatsFontSize;
 		refreshObserverStatsResources();
 
 		// Gather player data
@@ -6137,7 +6137,11 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 			headerStrings[i]->setFont(m_observerStatsString->getFont());
 			headerStrings[i]->setText(headers[i]);
 		}
-
+        
+		for (DisplayString* ds : cellStrings) {
+			if (ds)
+				TheDisplayStringManager->freeDisplayString(ds);
+		}
 		cellStrings.clear();
 		cellStrings.reserve(players.size() * numCols);
 
@@ -6660,5 +6664,6 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
 
 
