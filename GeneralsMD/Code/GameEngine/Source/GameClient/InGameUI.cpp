@@ -6075,9 +6075,9 @@ static UnicodeString formatPowerAction(const AsciiString& powerNameAscii)
 		{"Early_SuperweaponLeafletDrop",				L"CALLED IN A LEAFLET DROP!!"},
 	};
 
-	for (size_t i = 0; i < sizeof(table) / sizeof(table[0]); ++i)
-		if (powerNameAscii == table[i].key)
-			return table[i].value;
+	for (const Entry& entry : table)
+		if (powerNameAscii == entry.key)
+			return entry.value;
 
 	UnicodeString result = L"USED ";  // Fallback for unmapped support powers
 	UnicodeString temp;
@@ -7045,6 +7045,7 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
 
 
 
