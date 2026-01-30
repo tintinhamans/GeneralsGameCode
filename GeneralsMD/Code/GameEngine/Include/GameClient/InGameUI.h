@@ -665,6 +665,7 @@ protected:
 		UnsignedInt money;
 		UnsignedInt cpm;
 		Int xp;
+        Int rank;
 		Real kd;
 		Int sp;
 		Int powerValue;
@@ -981,3 +982,4 @@ protected:
 
 // the singleton
 extern InGameUI *TheInGameUI;
+

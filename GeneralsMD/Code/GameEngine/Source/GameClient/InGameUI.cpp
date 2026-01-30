@@ -2090,6 +2090,9 @@ void InGameUI::reset( void )
 	// reset the command bar
 	TheControlBar->reset();
 
+    // Reset the observer overlay visibility 
+    m_observerStatsHidden = false;
+
 	TheTacticalView->setDefaultView(0.0f, 0.0f, 1.0f);
 
 	ResetInGameChat();
@@ -3230,123 +3233,121 @@ void InGameUI::destroyPlacementIcons( void )
 	* record what that thing is so that the we can catch the next click in the world
 	* and try to place the object there */
 //-------------------------------------------------------------------------------------------------
-void InGameUI::placeBuildAvailable(const ThingTemplate* build, Drawable* buildDrawable)
+void InGameUI::placeBuildAvailable( const ThingTemplate *build, Drawable *buildDrawable )
 {
 
-    if (build != nullptr)
-    {
-        // if building something, no radius cursor, thankew
-        setRadiusCursorNone();
-    }
+	if (build != nullptr)
+	{
+		// if building something, no radius cursor, thankew
+		setRadiusCursorNone();
+	}
 
-    //
-    // if we're setting another place available, but we're somehow already in the placement
-    // mode, get out of it before we start a new one
-    //
-    if (m_pendingPlaceType != nullptr && build != nullptr)
-        placeBuildAvailable(nullptr, nullptr);
+	//
+	// if we're setting another place available, but we're somehow already in the placement
+	// mode, get out of it before we start a new one
+	//
+	if( m_pendingPlaceType != nullptr && build != nullptr )
+		placeBuildAvailable( nullptr, nullptr );
 
-    //
-    // keep a record of what we are trying to place, if we are already trying to
-    // place something, it is overwritten
-    //
-    m_pendingPlaceType = build;
+	//
+	// keep a record of what we are trying to place, if we are already trying to
+	// place something, it is overwritten
+	//
+	m_pendingPlaceType = build;
 
-    //Keep the prev pending place for left click deselection prevention in alternate mouse mode.
-    //We want to keep our dozer selected after initiating construction.
-    setPreventLeftClickDeselectionInAlternateMouseModeForOneClick(m_pendingPlaceSourceObjectID != INVALID_ID);
-    m_pendingPlaceSourceObjectID = INVALID_ID;
+	//Keep the prev pending place for left click deselection prevention in alternate mouse mode.
+	//We want to keep our dozer selected after initiating construction.
+	setPreventLeftClickDeselectionInAlternateMouseModeForOneClick( m_pendingPlaceSourceObjectID != INVALID_ID );
+	m_pendingPlaceSourceObjectID = INVALID_ID;
 
-    Object* sourceObject = nullptr;
-    if (buildDrawable)
-        sourceObject = buildDrawable->getObject();
-    if (sourceObject)
-        m_pendingPlaceSourceObjectID = sourceObject->getID();
+	Object *sourceObject = nullptr;
+	if( buildDrawable )
+		sourceObject = buildDrawable->getObject();
+	if( sourceObject )
+		m_pendingPlaceSourceObjectID = sourceObject->getID();
 
-    //
-    // hack, change our cursor to at least something different ... also note that it's
-    // possible to not have the mouse yet, as some UI systems as part of initialization
-    // make sure that there isn't anything valid for to "place build"
-    //
-    if (TheMouse)
-    {
+	//
+	// hack, change our cursor to at least something different ... also note that it's
+	// possible to not have the mouse yet, as some UI systems as part of initialization
+	// make sure that there isn't anything valid for to "place build"
+	//
+	if (TheMouse)
+	{
 
-        if (build)
-        {
-            m_mouseMode = MOUSEMODE_BUILD_PLACE;
-            m_mouseModeCursor = Mouse::CROSS;
+		if (build)
+		{
+			m_mouseMode = MOUSEMODE_BUILD_PLACE;
+			m_mouseModeCursor = Mouse::CROSS;
 
-            Drawable* draw;
+			Drawable* draw;
 
-            // hack for changing cursor
-            setMouseCursor(Mouse::CROSS);
+			// hack for changing cursor
+			setMouseCursor(Mouse::CROSS);
 
-            // deselect all drawables, otherwise they move to the place we click
-            ///@ todo when message stream order more formalized eliminate this
+			// deselect all drawables, otherwise they move to the place we click
+			///@ todo when message stream order more formalized eliminate this
 //			TheInGameUI->deselectAllDrawables();
 
-            {
-                // create a drawable of what we are building to be "attached" at the cursor
-                UnsignedInt drawableStatus = DRAWABLE_STATUS_NO_STATE_PARTICLES;
-                drawableStatus |= TheGlobalData->m_objectPlacementShadows ? DRAWABLE_STATUS_SHADOWS : 0;
-                draw = TheThingFactory->newDrawable(build, drawableStatus);
-            }
-            if (sourceObject)
-            {
-                if (TheGlobalData->m_timeOfDay == TIME_OF_DAY_NIGHT)
-                    draw->setIndicatorColor(sourceObject->getControllingPlayer()->getPlayerNightColor());
-                else
-                    draw->setIndicatorColor(sourceObject->getControllingPlayer()->getPlayerColor());
-            }
-            DEBUG_ASSERTCRASH(draw, ("Unable to create icon at cursor for placement '%s'",
-                build->getName().str()));
+			{
+				// create a drawable of what we are building to be "attached" at the cursor
+				UnsignedInt drawableStatus = DRAWABLE_STATUS_NO_STATE_PARTICLES;
+				drawableStatus |= TheGlobalData->m_objectPlacementShadows ? DRAWABLE_STATUS_SHADOWS : 0;
+				draw = TheThingFactory->newDrawable(build, drawableStatus);
+			}
+			if (sourceObject)
+			{
+				if (TheGlobalData->m_timeOfDay == TIME_OF_DAY_NIGHT)
+					draw->setIndicatorColor(sourceObject->getControllingPlayer()->getPlayerNightColor());
+				else
+					draw->setIndicatorColor(sourceObject->getControllingPlayer()->getPlayerColor());
+			}
+			DEBUG_ASSERTCRASH(draw, ("Unable to create icon at cursor for placement '%s'",
+				build->getName().str()));
 
-            //
-            // set the initial angle of the free floating building to the property from INI
-            // we have this so we can have the "cool" face the user until they click and
-            // pick an actual direction for placement
-            //
-            Real angle = build->getPlacementViewAngle();
+			//
+			// set the initial angle of the free floating building to the property from INI
+			// we have this so we can have the "cool" face the user until they click and
+			// pick an actual direction for placement
+			//
+			Real angle = build->getPlacementViewAngle();
 
-            // set the angle in the icon we just created
-            draw->setOrientation(angle);
+			// set the angle in the icon we just created
+			draw->setOrientation(angle);
 
-            // set the build icon attached to the cursor to be "see-thru"
-            draw->setDrawableOpacity(TheGlobalData->m_objectPlacementOpacity);
+			// set the build icon attached to the cursor to be "see-thru"
 
-            // set the "icon" in the icon array at the first index
-            DEBUG_ASSERTCRASH(m_placeIcon[0] == nullptr, ("placeBuildAvailable, build icon array is not empty!"));
-            m_placeIcon[0] = draw;
+			// set the "icon" in the icon array at the first index
+			DEBUG_ASSERTCRASH( m_placeIcon[ 0 ] == nullptr, ("placeBuildAvailable, build icon array is not empty!") );
+			m_placeIcon[ 0 ] = draw;
 
-        }
-        else
-        {
-            if (m_mouseMode == MOUSEMODE_BUILD_PLACE)
-            {
-                m_mouseMode = MOUSEMODE_DEFAULT;
-                m_mouseModeCursor = Mouse::ARROW;
-            }
+		}
+		else
+		{
+			if (m_mouseMode == MOUSEMODE_BUILD_PLACE)
+			{
+				m_mouseMode = MOUSEMODE_DEFAULT;
+				m_mouseModeCursor = Mouse::ARROW;
+			}
 
-            setMouseCursor(Mouse::ARROW);
-            setPlacementStart(nullptr);
+			setMouseCursor( Mouse::ARROW );
+			setPlacementStart( nullptr );
 
-            // if we have a place icons destroy them
-            destroyPlacementIcons();
+			// if we have a place icons destroy them
+			destroyPlacementIcons();
 
-            if (sourceObject)
-            {
-                ProductionUpdateInterface* puInterface = sourceObject->getProductionUpdateInterface();
-                if (puInterface)
-                {
-                    //Clear the special power mode for construction if we set it. Actually call it everytime
-                    //rather than checking if it's set before clearing (cheaper).
-                    puInterface->setSpecialPowerConstructionCommandButton(nullptr);
-                }
-            }
+			if (sourceObject)
+			{
+				ProductionUpdateInterface* puInterface = sourceObject->getProductionUpdateInterface();
+				{
+					//Clear the special power mode for construction if we set it. Actually call it everytime
+					//rather than checking if it's set before clearing (cheaper).
+					puInterface->setSpecialPowerConstructionCommandButton( nullptr );
+				}
+			}
 
-        }
+		}
 
-    }
+	}
 
 }
 
@@ -5991,9 +5992,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 	if (!localPlayer || (TheGameLogic && TheGameLogic->getFrame() <= 1))
 		return;
 
-	Bool isObserver = localPlayer->isPlayerObserver();
-	Bool isDefeated = TheVictoryConditions && TheVictoryConditions->hasSinglePlayerBeenDefeated(localPlayer);
-	if (!isObserver && !isDefeated)
+	if (!localPlayer->isPlayerObserver() && !localPlayer->isPlayerDead())
 		return;
 
 	if (!isAtHudAnchorPos(m_observerStatsPosition) || m_observerStatsHidden)
@@ -6010,7 +6009,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 
 	static const Int numCols = 8;
 	static const wchar_t* headers[numCols] = {
-		L"(T) Name", L"Army", L"Cash", L"Cash/m", L"XP", L"K/D", L"SP", L"Power"
+		L"(T) Name", L"Army", L"Cash", L"Cash/m", L"(R) XP", L"SP", L"K/D", L"Power"
 	};
 
 	static UnsignedInt lastUpdateFrame = 0;
@@ -6032,59 +6031,40 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 	// ====================================================================
 	if (needUpdate) {
 		lastUpdateFrame = currentFrame;
-		lastFontSize = TheGlobalData->m_observerStatsFontSize;
+		lastFontSize = TheWritableGlobalData->m_observerStatsFontSize;
 		refreshObserverStatsResources();
 
 		// Gather player data
 		players.clear();
 		players.reserve(MAX_PLAYER_COUNT);
 
-		// These are system players we want to skip
-		static const char* EXCLUDED_NAMES[] = {
-			"PlyrCivilian", "PlyrAmerica", "PlyrChina", "PlyrGLA", "Paradrops",
-			"PlyrChinaTankGeneral", "PlyrAmericaLaserGeneral", "PlyrAmericaAirForceGeneral",
-			"UncloakedGLA", "PlyrAmericaAirForce", "PlyrChinaTank", "PlyrNeutral"
-		};
+		for (Int slotIndex = 0; slotIndex < MAX_SLOTS; ++slotIndex) {
+			const GameSlot* slot = TheGameInfo ? TheGameInfo->getConstSlot(slotIndex) : nullptr;
+			if (!slot || !slot->isOccupied())
+				continue;
 
-		for (Int i = 0; i < MAX_PLAYER_COUNT; ++i) {
-			Player* p = ThePlayerList->getNthPlayer(i);
+		AsciiString nameKeyStr;
+			nameKeyStr.format("player%d", slotIndex);
+			const NameKeyType key = TheNameKeyGenerator->nameToKey(nameKeyStr);
+			Player* p = ThePlayerList->findPlayerWithNameKey(key);
 			if (!p || !p->isPlayerActive())
+				continue;
+
+            if (p->isPlayerObserver())
 				continue;
 
 			UnicodeString name = p->getPlayerDisplayName();
 			if (name.isEmpty())
 				continue;
 
-			// Skip system players
-			AsciiString asciiName;
-			asciiName.translate(name);
-			bool skip = false;
-			for (const char* excluded : EXCLUDED_NAMES) {
-				if (asciiName == excluded) {
-					skip = true;
-					break;
-				}
-			}
-			if (skip) continue;
-
-			// Truncate long names
-			if (name.getLength() > 8) {
+            // Truncate long names
+			if (name.getLength() > 12) {
 				UnicodeString tmp;
-				tmp.format(L"%.*ls.", 8, name.str());
+				tmp.format(L"%.*ls.", 12, name.str());
 				name = tmp;
 			}
-
-			// Find team
-			Int team = -1;
-			if (TheGameInfo) {
-				for (Int s = 0; s < MAX_SLOTS; ++s) {
-					const GameSlot* slot = TheGameInfo->getConstSlot(s);
-					if (slot && slot->isOccupied() && slot->isPlayer(name)) {
-						team = slot->getTeamNumber();
-						break;
-					}
-				}
-			}
+            
+			Int team = slot->getTeamNumber();
 
 			// Gather stats
 			Money* money = p->getMoney();
@@ -6093,6 +6073,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 			Int kills = sk ? sk->getTotalUnitsDestroyed() : 0;
 			Int deaths = sk ? sk->getTotalUnitsLost() : 0;
 			Real kd = deaths > 0 ? (Real)kills / deaths : (Real)kills;
+            Int rank = p->getRankLevel();
 
 			// Faction abbreviations, we don't want to show full army names like that
 			AsciiString side = p->getSide();
@@ -6116,13 +6097,19 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 				name, faction, team,
 				money ? money->countMoney() : 0,
 				money ? money->getCashPerMinute() : 0,
-				p->getSkillPoints(), kd,
+				p->getSkillPoints(), rank, kd,
 				p->getSciencePurchasePoints(),
 				powerDelta, hasPower,
 				energy && !energy->hasSufficientPower(),
 				p->getPlayerColor()
 				});
 		}
+
+        std::sort(players.begin(), players.end(),
+				[](const PlayerData& a, const PlayerData& b) {
+					if (a.team != b.team)
+						return a.team < b.team; // sort by team first
+		});
 
 		// Format cash and cash/m with commas
 		auto formatNum = [](UnsignedInt v) -> UnicodeString {
@@ -6150,7 +6137,11 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 			headerStrings[i]->setFont(m_observerStatsString->getFont());
 			headerStrings[i]->setText(headers[i]);
 		}
-
+        
+		for (DisplayString* ds : cellStrings) {
+			if (ds)
+				TheDisplayStringManager->freeDisplayString(ds);
+		}
 		cellStrings.clear();
 		cellStrings.reserve(players.size() * numCols);
 
@@ -6160,14 +6151,13 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 			cells[1] = pd.faction;
 			cells[2] = formatNum(pd.money);
 			cells[3].format(L"+%ls", formatNum(pd.cpm).str());
-			cells[4].format(L"%d", pd.xp);
-			cells[5].format(L"%.1f", pd.kd);
-			cells[6].format(L"%d", pd.sp);
-			cells[7] = pd.showPower ? (pd.lowPower ? L"OFF/" : L"ON/") : L"-";
+			cells[4].format(L"(%d) %d", pd.rank, pd.xp);
+            cells[5].format(L"%d", pd.sp);
+			cells[6].format(L"%.1f", pd.kd);
 			if (pd.showPower) {
-				UnicodeString tmp;
-				tmp.format(pd.lowPower ? L"OFF/%d" : L"ON/%d", pd.powerValue);
-				cells[7] = tmp;
+				cells[7].format(pd.lowPower ? L"OFF (%d)" : L"ON (%d)", pd.powerValue);
+			} else {
+				cells[7] = L"-";
 			}
 
 			for (Int i = 0; i < numCols; ++i) {
@@ -6231,7 +6221,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 	Int contentY = baseY + padY;
 
 	// Draw background
-	TheWindowManager->winFillRect(TheWindowManager->winMakeColor(0, 0, 0, 140), 1, baseX, baseY, baseX + bgW, baseY + bgH);
+	TheWindowManager->winFillRect(TheWindowManager->winMakeColor(0, 0, 0, 180), 1, baseX, baseY, baseX + bgW, baseY + bgH);
 
 	// Draw border
 	Color border = TheWindowManager->winMakeColor(255, 255, 255, 225);
@@ -6285,7 +6275,7 @@ void InGameUI::refreshObserverStatsResources(void)
 	Int adjustedFontSize = TheGlobalLanguageData->adjustFontSize(m_observerStatsPointSize);
 	GameFont* statsFont = TheWindowManager->winFindFont(m_observerStatsFont, adjustedFontSize, m_observerStatsBold);
 	m_observerStatsString->setFont(statsFont);
-	m_observerStatsLineStep = adjustedFontSize + 10; // vertical spacing between lines
+	m_observerStatsLineStep = statsFont ? statsFont->height + 2 : adjustedFontSize + 2; // Line spacing based on real font height
 }
 
 void InGameUI::refreshCustomUiResources(void)
@@ -6674,5 +6664,6 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
 
 
