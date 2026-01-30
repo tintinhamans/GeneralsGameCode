@@ -1155,6 +1155,11 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 		pLobbyInterface->RegisterForMatchmakingMatchFoundCallback([]()
 			{
 				buttonStop->winEnable(FALSE);
+                if (TheAudio)
+				{
+					AudioEventRTS evt("GUICommunicatorOpen");
+					TheAudio->addAudioEvent(&evt);
+				}
 			});
 
 		pLobbyInterface->RegisterForMatchmakingStartGameCallback([]()
@@ -2476,3 +2481,4 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 
 	return MSG_HANDLED;
 }
+
