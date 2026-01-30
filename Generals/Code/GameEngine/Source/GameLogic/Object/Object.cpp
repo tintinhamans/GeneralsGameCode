@@ -2187,8 +2187,8 @@ Bool Object::isSalvageCrate() const
  */
 void Object::updateUpgradeModules()
 {
-	UpgradeMaskType playerMask = getControllingPlayer()->getCompletedUpgradeMask();
-	UpgradeMaskType objectMask = getObjectCompletedUpgradeMask();
+	const UpgradeMaskType& playerMask = getControllingPlayer()->getCompletedUpgradeMask();
+	const UpgradeMaskType& objectMask = getObjectCompletedUpgradeMask();
 	UpgradeMaskType maskToCheck = playerMask;
 	maskToCheck.set( objectMask );
 	// We need to add in all of the already owned upgrades to handle "AND" requiring upgrades.
@@ -3469,11 +3469,19 @@ void Object::crc( Xfer *xfer )
 		logString.concat(tmp);
 	}
 #endif // DEBUG_CRC
+#if RETAIL_COMPATIBLE_CRC
 	xfer->xferUser(&m_objectUpgradesCompleted,				sizeof(Int64));
+#else
+	xfer->xferUser(&m_objectUpgradesCompleted, sizeof(m_objectUpgradesCompleted));
+#endif
 #ifdef DEBUG_CRC
 	if (doLogging)
 	{
+#if RETAIL_COMPATIBLE_CRC
 		tmp.format("m_objectUpgradesCompleted: %I64X, ", m_objectUpgradesCompleted);
+#else
+		tmp.format("m_objectUpgradesCompleted: %s, ", m_objectUpgradesCompleted.toHexString().c_str());
+#endif
 		logString.concat(tmp);
 	}
 #endif // DEBUG_CRC
@@ -3975,8 +3983,8 @@ Bool Object::hasUpgrade( const UpgradeTemplate *upgradeT ) const
 //-------------------------------------------------------------------------------------------------
 Bool Object::affectedByUpgrade( const UpgradeTemplate *upgradeT ) const
 {
-	UpgradeMaskType objectMask = getObjectCompletedUpgradeMask();
-	UpgradeMaskType playerMask = getControllingPlayer()->getCompletedUpgradeMask();
+	const UpgradeMaskType& objectMask = getObjectCompletedUpgradeMask();
+	const UpgradeMaskType& playerMask = getControllingPlayer()->getCompletedUpgradeMask();
 	UpgradeMaskType maskToCheck = playerMask;
 	maskToCheck.set( objectMask );
 	maskToCheck.set( upgradeT->getUpgradeMask() );

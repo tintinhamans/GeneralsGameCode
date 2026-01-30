@@ -26,11 +26,19 @@
 #endif
 
 #ifndef RETAIL_COMPATIBLE_CRC
+#if defined(GENERALS_ONLINE)
+#define RETAIL_COMPATIBLE_CRC (0)
+#else
 #define RETAIL_COMPATIBLE_CRC (1) // Game is expected to be CRC compatible with retail Generals 1.08, Zero Hour 1.04
+#endif
 #endif
 
 #ifndef RETAIL_COMPATIBLE_XFER_SAVE
+#if defined(GENERALS_ONLINE)
+#define RETAIL_COMPATIBLE_XFER_SAVE (0)
+#else
 #define RETAIL_COMPATIBLE_XFER_SAVE (1) // Game is expected to be Xfer Save compatible with retail Generals 1.08, Zero Hour 1.04
+#endif
 #endif
 
 // This is here to easily toggle between the retail compatible with fixed pathfinding fallback and pure fixed pathfinding mode
