@@ -2540,7 +2540,7 @@ Upgrade *Player::findUpgrade( const UpgradeTemplate *upgradeTemplate )
 //=================================================================================================
 Bool Player::hasUpgradeComplete( const UpgradeTemplate *upgradeTemplate ) const
 {
-	UpgradeMaskType testMask = upgradeTemplate->getUpgradeMask();
+	const UpgradeMaskType& testMask = upgradeTemplate->getUpgradeMask();
 	return hasUpgradeComplete( testMask );
 }
 
@@ -2549,7 +2549,7 @@ Bool Player::hasUpgradeComplete( const UpgradeTemplate *upgradeTemplate ) const
 	Does the player have this completed upgrade.  This form is exposed so Objects can do quick lookups.
 */
 //=================================================================================================
-Bool Player::hasUpgradeComplete( UpgradeMaskType testMask ) const
+Bool Player::hasUpgradeComplete( const UpgradeMaskType& testMask ) const
 {
 	return m_upgradesCompleted.testForAll( testMask );
 }
@@ -2559,7 +2559,7 @@ Bool Player::hasUpgradeComplete( UpgradeMaskType testMask ) const
 //=================================================================================================
 Bool Player::hasUpgradeInProduction( const UpgradeTemplate *upgradeTemplate )
 {
-	UpgradeMaskType testMask = upgradeTemplate->getUpgradeMask();
+	const UpgradeMaskType& testMask = upgradeTemplate->getUpgradeMask();
 	return m_upgradesInProgress.testForAll( testMask );
 }
 
@@ -2590,7 +2590,7 @@ Upgrade *Player::addUpgrade( const UpgradeTemplate *upgradeTemplate, UpgradeStat
 	u->setStatus( status );
 
 	// Update our Bitmasks
-	UpgradeMaskType newMask = upgradeTemplate->getUpgradeMask();
+	const UpgradeMaskType& newMask = upgradeTemplate->getUpgradeMask();
 	if( status == UPGRADE_STATUS_IN_PRODUCTION )
 	{
 		m_upgradesInProgress.set( newMask );
@@ -2656,7 +2656,7 @@ void Player::removeUpgrade( const UpgradeTemplate *upgradeTemplate )
 			m_upgradeList = upgrade->friend_getNext();
 
 		// Clear this upgrade's bits from our mind
-		UpgradeMaskType oldMask = upgradeTemplate->getUpgradeMask();
+		const UpgradeMaskType& oldMask = upgradeTemplate->getUpgradeMask();
 		m_upgradesInProgress.clear( oldMask );
 		m_upgradesCompleted.clear( oldMask );
 

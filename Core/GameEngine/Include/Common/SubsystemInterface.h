@@ -1,5 +1,5 @@
 /*
-**	Command & Conquer Generals(tm)
+**	Command & Conquer Generals Zero Hour(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
 **	This program is free software: you can redistribute it and/or modify
@@ -35,7 +35,7 @@
 class Xfer;
 
 //-------------------------------------------------------------------------------------------------
-/** This is the abstract base class from which all game engine subsytems should derive from.
+/** This is the abstract base class from which all game engine subsystems should derive from.
 	* In order to provide consistent behaviors across all these systems, any implementation
 	* must obey the rules defined in here
 	*
@@ -76,7 +76,7 @@ public:
 	/** - Called for all subsystems after all other Subsystems are inited.
 		* (allows for initializing inter-system dependencies)
 		*/
-	virtual void postProcessLoad() { }
+	virtual void postProcessLoad() {}
 
 	//-----------------------------------------------------------------------------------------------
 	/** - Any system should be able to reset all data and go back to an empty state
@@ -107,15 +107,17 @@ public:
 	virtual void update() = 0;
 
 
-	virtual void draw( void ){DEBUG_CRASH(("Shouldn't call base class.  jba."));}
+	virtual void draw(void) { DEBUG_CRASH(("Shouldn't call base class.  jba.")); }
 
 #ifdef DUMP_PERF_STATS
 	void UPDATE(void);
 	void DRAW(void);
-	Real getUpdateTime(void) {return m_curUpdateTime;}
-	Real getDrawTime(void) {return m_curDrawTime;}
-	static Real getTotalTime(void) {return s_msConsumed;}
-	static void clearTotalTime(void) {s_msConsumed = 0;}
+	Real getUpdateTime(void) { return m_curUpdateTime; }
+	Real getDrawTime(void) { return m_curDrawTime; }
+	Bool doDumpUpdate(void) { return m_dumpUpdate; }
+	Bool doDumpDraw(void) { return m_dumpDraw; }
+	static Real getTotalTime(void) { return s_msConsumed; }
+	static void clearTotalTime(void) { s_msConsumed = 0; }
 protected:
 	static Real s_msConsumed;
 	Real m_startTimeConsumed;
@@ -123,15 +125,17 @@ protected:
 
 	Real m_startDrawTimeConsumed;
 	Real m_curDrawTime;
+	Bool m_dumpUpdate;
+	Bool m_dumpDraw;
 #else
-	void UPDATE(void) {update();}
-	void DRAW(void) {draw();}
+	void UPDATE(void) { update(); }
+	void DRAW(void) { draw(); }
 #endif
 protected:
 	AsciiString m_name;
 public:
-	AsciiString getName(void) {return m_name;}
-	void setName(AsciiString name) {m_name = name;}
+	AsciiString getName(void) { return m_name; }
+	void setName(AsciiString name) { m_name = name; }
 
 };
 
@@ -143,7 +147,7 @@ public:
 	SubsystemInterfaceList();
 	~SubsystemInterfaceList();
 
-	void initSubsystem(SubsystemInterface* sys, const char* path1, const char* path2, const char* dirpath, Xfer *pXfer, AsciiString name="");
+	void initSubsystem(SubsystemInterface* sys, const char* path1, const char* path2, Xfer* pXfer, AsciiString name = "");
 	void addSubsystem(SubsystemInterface* sys);
 	void removeSubsystem(SubsystemInterface* sys);
 	void postProcessLoadAll();

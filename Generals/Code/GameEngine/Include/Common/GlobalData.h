@@ -110,6 +110,7 @@ public:
 	Bool m_useTrees;
 	Bool m_useTreeSway;
 	Bool m_useDrawModuleLOD;
+	Bool m_useHeatEffects;
 	Bool m_useFpsLimit;
 	Bool m_dumpAssetUsage;
 	Int m_framesPerSecondLimit;
@@ -138,6 +139,8 @@ public:
 	Bool m_enableStaticLOD;
 	Int m_terrainLODTargetTimeMS;
 	Bool m_useAlternateMouse;
+	Bool m_clientRetaliationModeEnabled;
+	Bool m_doubleClickAttackMove;
 	Bool m_rightMouseAlwaysScrolls;
 	Bool m_useWaterPlane;
 	Bool m_useCloudPlane;
@@ -280,6 +283,8 @@ public:
 
 #ifdef DUMP_PERF_STATS
 	Bool m_dumpPerformanceStatistics;
+  Bool  m_dumpStatsAtInterval;///< should I automatically dum stats every in N frames
+  Int   m_statsInterval;       ///< if so, how many is N?
 #endif
 
 	Bool m_forceBenchmark;	///<forces running of CPU detection benchmark, even on known cpu's.

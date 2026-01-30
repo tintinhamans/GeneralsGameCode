@@ -711,7 +711,7 @@ AsciiString CustomMatchPreferences::getPreferredMap(void)
 	AsciiString ret;
 	CustomMatchPreferences::const_iterator it = find("Map");
 	if (it == end())
-	{	//found find map, use default instead
+	{	//map not found, use default instead
 		ret = getDefaultOfficialMap();
 		return ret;
 	}
@@ -869,6 +869,7 @@ Int GameSpyMiscPreferences::getMaxMessagesPerUpdate( void )
 {
 	return getInt("MaxMessagesPerUpdate", 100);
 }
+
 //-----------------------------------------------------------------------------
 // IgnorePreferences base class
 //-----------------------------------------------------------------------------

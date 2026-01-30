@@ -1323,7 +1323,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
                             }
                         }
 
-                        // 3) Convert jitter to a 0â€“1+ ratio relative to latency
+                        // 3) Convert jitter to a 0–1+ ratio relative to latency
                         Real jitterRatio = 0.0f;
                         if (maxLatMs > 0)
                         {
@@ -1344,7 +1344,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
                         }
                         else if (maxLatMs > 200)
                         {
-                            // Medium-high latency (200â€“300 ms)
+                            // Medium-high latency (200–300 ms)
                             minSlack = serviceConf.ibra_minslack_greaterthan200ms;
                             maxSlack = serviceConf.ibra_maxslack_greaterthan200ms;
                         }

@@ -2473,8 +2473,8 @@ void Object::updateUpgradeModules()
 	if( getControllingPlayer() == nullptr )
 		return;  // This can only happen in game teardown.  No upgrades for you without a player.  Weird crashes are bad.
 
-	UpgradeMaskType playerMask = getControllingPlayer()->getCompletedUpgradeMask();
-	UpgradeMaskType objectMask = getObjectCompletedUpgradeMask();
+	const UpgradeMaskType& playerMask = getControllingPlayer()->getCompletedUpgradeMask();
+	const UpgradeMaskType& objectMask = getObjectCompletedUpgradeMask();
 	UpgradeMaskType maskToCheck = playerMask;
 	maskToCheck.set( objectMask );
 	// We need to add in all of the already owned upgrades to handle "AND" requiring upgrades.
@@ -3853,11 +3853,21 @@ void Object::onDisabledEdge(Bool becomingDisabled)
 		(*module)->onDisabledEdge( becomingDisabled );
 
 	DozerAIInterface *dozerAI = getAI() ? getAI()->getDozerAIInterface() : nullptr;
-	if( becomingDisabled  &&  dozerAI )
+	if (dozerAI)
 	{
-		// Have to say goodbye to the thing we might be building or repairing so someone else can do it.
-		if( dozerAI->getCurrentTask() != DOZER_TASK_INVALID )
-			dozerAI->cancelTask( dozerAI->getCurrentTask() );
+		if (becomingDisabled)
+		{
+			// Have to say goodbye to the thing we might be building or repairing so someone else can do it.
+			if (dozerAI->getCurrentTask() != DOZER_TASK_INVALID)
+				dozerAI->cancelTask(dozerAI->getCurrentTask());
+		}
+		else
+		{
+#if !RETAIL_COMPATIBLE_CRC
+			// TheSuperHackers @bugfix Stubbjax 17/11/2025 Resume previous task when re-enabled.
+			dozerAI->resumePreviousTask();
+#endif
+		}
 	}
 
 	Player* controller = getControllingPlayer();
@@ -3971,11 +3981,19 @@ void Object::crc( Xfer *xfer )
 		logString.concat(tmp);
 	}
 #endif // DEBUG_CRC
+#if RETAIL_COMPATIBLE_CRC
 	xfer->xferUser(&m_objectUpgradesCompleted,				sizeof(Int64));
+#else
+	xfer->xferUser(&m_objectUpgradesCompleted, sizeof(m_objectUpgradesCompleted));
+#endif
 #ifdef DEBUG_CRC
 	if (doLogging)
 	{
+#if RETAIL_COMPATIBLE_CRC
 		tmp.format("m_objectUpgradesCompleted: %I64X, ", m_objectUpgradesCompleted);
+#else
+		tmp.format("m_objectUpgradesCompleted: %s, ", m_objectUpgradesCompleted.toHexString().c_str());
+#endif
 		logString.concat(tmp);
 	}
 #endif // DEBUG_CRC
@@ -4487,8 +4505,8 @@ Bool Object::hasUpgrade( const UpgradeTemplate *upgradeT ) const
 //-------------------------------------------------------------------------------------------------
 Bool Object::affectedByUpgrade( const UpgradeTemplate *upgradeT ) const
 {
-	UpgradeMaskType objectMask = getObjectCompletedUpgradeMask();
-	UpgradeMaskType playerMask = getControllingPlayer()->getCompletedUpgradeMask();
+	const UpgradeMaskType& objectMask = getObjectCompletedUpgradeMask();
+	const UpgradeMaskType& playerMask = getControllingPlayer()->getCompletedUpgradeMask();
 	UpgradeMaskType maskToCheck = playerMask;
 	maskToCheck.set( objectMask );
 	maskToCheck.set( upgradeT->getUpgradeMask() );

@@ -349,6 +349,26 @@ void AttackPriorityInfo::loadPostProcess( void )
 // ScriptEngine class
 
 //-------------------------------------------------------------------------------------------------
+/** Parse script action entry.  The InternalName has to match the action's internal name, and then it
+overrides the ui name and help text.  If no entry is present in the ini file, the default code
+initialized value in ScriptEngine::init() is used. jba*/
+//-------------------------------------------------------------------------------------------------
+void ScriptEngine::parseScriptAction( INI* ini )
+{
+}
+
+
+//-------------------------------------------------------------------------------------------------
+/** Parse script condition entry.  The InternalName has to match the condition's internal name, and then it
+overrides the ui name and help text.  If no entry is present in the ini file, the default code
+initialized value in ScriptEngine::init() is used. jba*/
+//-------------------------------------------------------------------------------------------------
+void ScriptEngine::parseScriptCondition( INI* ini )
+{
+}
+
+
+//-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 ScriptEngine::ScriptEngine():
 m_numCounters(0),
@@ -9092,6 +9112,7 @@ void _writeSingleParticleSystem( File *out, ParticleSystemTemplate *templ )
 	thisEntry.append(SEP_HEAD).append(F_TYPE).append(EQ_WITH_SPACES).append(ParticleTypeNames[templ->m_particleType]).append(SEP_EOL);
 	thisEntry.append(SEP_HEAD).append(F_PARTICLENAME).append(EQ_WITH_SPACES).append(templ->m_particleTypeName.str()).append(SEP_EOL);
 
+#if PARTICLE_USE_XY_ROTATION
 	sprintf(buff1, FORMAT_STRING, templ->m_angleX.getMinimumValue());
 	sprintf(buff2, FORMAT_STRING, templ->m_angleX.getMaximumValue());
 	thisEntry.append(SEP_HEAD).append(F_ANGLEX).append(EQ_WITH_SPACES).append(buff1).append(SEP_SPACE).append(buff2).append(SEP_EOL);
@@ -9099,11 +9120,13 @@ void _writeSingleParticleSystem( File *out, ParticleSystemTemplate *templ )
 	sprintf(buff1, FORMAT_STRING, templ->m_angleY.getMinimumValue());
 	sprintf(buff2, FORMAT_STRING, templ->m_angleY.getMaximumValue());
 	thisEntry.append(SEP_HEAD).append(F_ANGLEY).append(EQ_WITH_SPACES).append(buff1).append(SEP_SPACE).append(buff2).append(SEP_EOL);
+#endif
 
 	sprintf(buff1, FORMAT_STRING, templ->m_angleZ.getMinimumValue());
 	sprintf(buff2, FORMAT_STRING, templ->m_angleZ.getMaximumValue());
 	thisEntry.append(SEP_HEAD).append(F_ANGLEZ).append(EQ_WITH_SPACES).append(buff1).append(SEP_SPACE).append(buff2).append(SEP_EOL);
 
+#if PARTICLE_USE_XY_ROTATION
 	sprintf(buff1, FORMAT_STRING, templ->m_angularRateX.getMinimumValue());
 	sprintf(buff2, FORMAT_STRING, templ->m_angularRateX.getMaximumValue());
 	thisEntry.append(SEP_HEAD).append(F_ANGLERATEX).append(EQ_WITH_SPACES).append(buff1).append(SEP_SPACE).append(buff2).append(SEP_EOL);
@@ -9111,6 +9134,7 @@ void _writeSingleParticleSystem( File *out, ParticleSystemTemplate *templ )
 	sprintf(buff1, FORMAT_STRING, templ->m_angularRateY.getMinimumValue());
 	sprintf(buff2, FORMAT_STRING, templ->m_angularRateY.getMaximumValue());
 	thisEntry.append(SEP_HEAD).append(F_ANGLERATEY).append(EQ_WITH_SPACES).append(buff1).append(SEP_SPACE).append(buff2).append(SEP_EOL);
+#endif
 
 	sprintf(buff1, FORMAT_STRING, templ->m_angularRateZ.getMinimumValue());
 	sprintf(buff2, FORMAT_STRING, templ->m_angularRateZ.getMaximumValue());
