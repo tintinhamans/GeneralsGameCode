@@ -60,7 +60,7 @@ enum HordeActionType CPP_11(: Int)
 
 	HORDEACTION_COUNT,
 
-#if RETAIL_COMPATIBLE_CRC
+#if RETAIL_COMPATIBLE_CRC || !defined(GENERALS_ONLINE_ENABLE_CONTROVERSIAL_NON_RETAIL_CHANGES)
 	HORDEACTION_DEFAULT = HORDEACTION_HORDE,
 #else
 	HORDEACTION_DEFAULT = HORDEACTION_HORDE_FIXED, ///< Does not change unmodified retail game behavior, because all its horde update modules explicitly set Action = HORDE.

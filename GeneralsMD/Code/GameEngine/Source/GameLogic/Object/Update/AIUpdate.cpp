@@ -4759,7 +4759,7 @@ void AIUpdateInterface::evaluateMoraleBonus( Bool inHorde, Bool allowNationalism
 		evaluateNationalismBonusClassic(inHorde, allowNationalism);
 		break;
 
-#if !RETAIL_COMPATIBLE_CRC
+#if !RETAIL_COMPATIBLE_CRC && defined(GENERALS_ONLINE_ENABLE_CONTROVERSIAL_NON_RETAIL_CHANGES)
 	case HORDEACTION_HORDE_FIXED:
 		evaluateNationalismBonus(inHorde, allowNationalism);
 		break;
