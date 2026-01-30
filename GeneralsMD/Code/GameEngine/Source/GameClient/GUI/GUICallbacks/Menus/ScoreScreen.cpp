@@ -1168,6 +1168,22 @@ void initInternetMultiPlayer(void)
 	if (listboxChatWindowScoreScreen)
 		listboxChatWindowScoreScreen->winHide(FALSE);
 
+	// attempt to register our outcome
+    NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+    if (pStatsInterface != nullptr)
+    {
+        Player* localPlayer = ThePlayerList->getLocalPlayer();
+
+        if (localPlayer != nullptr)
+        {
+            if (!TheNGMPGame->HasCommittedOutcome())
+            {
+                TheNGMPGame->SetHasCommittedOutcome();
+                pStatsInterface->CommitMyOutcome(localPlayer->getScoreKeeper(), TheVictoryConditions->isLocalAlliedVictory());
+            }
+        }
+    }
+
 	// Leave the lobby
 #if defined(GENERALS_ONLINE)
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();

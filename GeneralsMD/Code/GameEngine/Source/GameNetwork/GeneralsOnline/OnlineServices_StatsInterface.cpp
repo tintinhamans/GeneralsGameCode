@@ -402,9 +402,22 @@ void NGMP_OnlineServices_StatsInterface::UpdateMyStats(PSPlayerStats stats)
 
 void NGMP_OnlineServices_StatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bWon)
 {
-	if (pScoreKeeper == nullptr)
+	int buildingsBuilt = 0;
+	int buildingsDestroyed = 0;
+	int buildingsLost = 0;
+	int unitsBuilt = 0;
+	int unitsDestroyed = 0;
+	int unitsLost = 0;
+	int totalMoney = 0;
+	if (pScoreKeeper != nullptr)
 	{
-		return;
+        buildingsBuilt = pScoreKeeper->getTotalBuildingsBuilt();
+        buildingsDestroyed = pScoreKeeper->getTotalBuildingsDestroyed();
+        buildingsLost = pScoreKeeper->getTotalBuildingsLost();
+        unitsBuilt = pScoreKeeper->getTotalUnitsBuilt();
+        unitsDestroyed = pScoreKeeper->getTotalUnitsDestroyed();
+        unitsLost = pScoreKeeper->getTotalUnitsLost();
+        totalMoney = pScoreKeeper->getTotalMoneyEarned();
 	}
 
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
@@ -414,13 +427,13 @@ void NGMP_OnlineServices_StatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeep
 		uint64_t currentMatchID = pLobbyInterface->GetCurrentMatchID();
 
 		nlohmann::json j;
-		j["buildings_built"] = pScoreKeeper->getTotalBuildingsBuilt();
-		j["buildings_killed"] = pScoreKeeper->getTotalBuildingsDestroyed();
-		j["buildings_lost"] = pScoreKeeper->getTotalBuildingsLost();
-		j["units_built"] = pScoreKeeper->getTotalUnitsBuilt();
-		j["units_killed"] = pScoreKeeper->getTotalUnitsDestroyed();
-		j["units_lost"] = pScoreKeeper->getTotalUnitsLost();
-		j["total_money"] = pScoreKeeper->getTotalMoneyEarned();
+		j["buildings_built"] = buildingsBuilt;
+		j["buildings_killed"] = buildingsDestroyed;
+		j["buildings_lost"] = buildingsLost;
+		j["units_built"] = unitsBuilt;
+		j["units_killed"] = unitsDestroyed;
+		j["units_lost"] = unitsLost;
+		j["total_money"] = totalMoney;
 		j["won"] = bWon;
 		j["match_id"] = currentMatchID;
 

@@ -911,6 +911,7 @@ static void populateRandomStartPosition(GameInfo* game)
 		if (!slot || !slot->isOccupied() || slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
 			continue;
 
+#if defined(GENERALS_ONLINE_IBRA_STARTING_POS_LOGIC)
 		Int posIdx = slot->getStartPos();
 		if (posIdx >= 0 && posIdx < numPlayers)
 		{
@@ -925,6 +926,14 @@ static void populateRandomStartPosition(GameInfo* game)
 			taken[posIdx] = TRUE;
             }
 		}
+#else
+        Int posIdx = slot->getStartPos();
+        if (posIdx >= 0 || posIdx >= numPlayers)
+        {
+            hasStartSpotBeenPicked = TRUE;
+            taken[posIdx] = TRUE;
+        }
+#endif
 	}
 
 #if 0  //GS  The old way puts everyone as far apart as possible.
