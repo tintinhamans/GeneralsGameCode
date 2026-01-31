@@ -4011,6 +4011,31 @@ void GameLogic::update(void)
 	TheLocomotorStore->UPDATE();
 	TheVictoryConditions->UPDATE();
 
+	// When observers are disabled by host on GO, remove the non host player from game 10 seconds after they are defeated
+	static int observerKickCountdown = -1;
+	Player* localPlayer = ThePlayerList->getLocalPlayer();
+
+	if (TheNGMPGame && !TheNGMPGame->getAllowObservers() && !TheNGMPGame->amIHost() &&
+		TheGameLogic->getGameMode() == GAME_INTERNET && TheGameLogic->getFrame() > 1 &&
+		localPlayer && TheVictoryConditions->hasSinglePlayerBeenDefeated(localPlayer))
+	{
+		if (observerKickCountdown < 0)
+			observerKickCountdown = LOGICFRAMES_PER_SECOND * 10;
+
+		if (observerKickCountdown > 0)
+		{
+			observerKickCountdown--;
+		}
+		else {
+			TheGameLogic->exitGame();    // Time's up. kick the player
+			observerKickCountdown = -1;
+			return;
+		}
+	}
+	else {
+		observerKickCountdown = -1;
+	}
+
 	{
 		//Handle disabled statii (and re-enable objects once frame matches)
 		for (Object* obj = m_objList; obj; obj = obj->getNextObject())
