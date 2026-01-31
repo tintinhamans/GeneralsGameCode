@@ -43,6 +43,7 @@
 #include "GameClient/Mouse.h"
 #include "GameClient/RadiusDecal.h"
 #include "GameClient/View.h"
+#include "GameNetwork/NetworkDefs.h"
 
 // FORWARD DECLARATIONS ///////////////////////////////////////////////////////////////////////////
 class Drawable;
@@ -568,6 +569,9 @@ public:  // ********************************************************************
   Bool isCameraTrackingDrawable() const { return m_cameraTrackingDrawable; }
 	void resetCamera();
 
+	void initObserverOverlay();
+	void cleanupObserverOverlay();
+
 	virtual void addIdleWorker( Object *obj );
 	virtual void removeIdleWorker( Object *obj, Int playerNumber );
 	virtual void selectNextIdleWorker( void );
@@ -955,6 +959,31 @@ protected:
 	Bool												m_moveRMBScrollAnchor;
 	Bool												m_clientQuiet;         ///< When the user clicks exit,restart, etc. this is set true
 																												///< to skip some client sounds/fx during shutdown
+
+	// Obs overlay
+    static const Int numCols = 8;
+    const wchar_t* headers[numCols] = {
+        L"(T) Name", L"Army", L"Cash", L"Cash/m", L"(R) XP", L"SP", L"K/D", L"Power"
+    };
+
+	struct ObsOverlayPlayerData
+	{
+		bool isPresent = false;
+		PlayerData playerData;
+		DisplayString* playerCellStrings[numCols];
+	};
+
+	ObsOverlayPlayerData m_mapOverlayPlayerData[MAX_SLOTS];
+
+    UnsignedInt lastUpdateFrame = 0;
+    Int lastFontSize = -1;
+
+    std::vector<DisplayString*> m_headerStrings;
+    
+    Int colWidths[numCols] = { 0 };
+    Int totalWidth = 0;
+    Int totalHeight = 0;
+    bool isUpdating = false;
 
 	// World Animation Data
 	WorldAnimationList					m_worldAnimationList;		///< the list of world animations
