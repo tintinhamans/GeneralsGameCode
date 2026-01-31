@@ -6017,6 +6017,15 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 	Real scale = (Real)screenW / 1920.0f;
 	scale = (scale < 0.7f) ? 0.7f : (scale > 2.0f) ? 2.0f : scale;
 
+    auto freeDisplayStrings = [](std::vector<DisplayString*>& strings) {
+	for (DisplayString* ds : strings) {
+		if (ds) {
+			TheDisplayStringManager->freeDisplayString(ds);
+		}
+	}
+	 strings.clear();
+	};
+
 	static const Int numCols = 8;
 	static const wchar_t* headers[numCols] = {
 		L"(T) Name", L"Army", L"Cash", L"Cash/m", L"(R) XP", L"SP", L"K/D", L"Power"
@@ -6031,6 +6040,10 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 	static Int totalWidth = 0;
 	static Int totalHeight = 0;
 
+    static bool isUpdating = false;
+	if (isUpdating)
+		return;
+
 	UnsignedInt currentFrame = TheGameLogic ? TheGameLogic->getFrame() : 0;
 	Bool needUpdate = (lastUpdateFrame == 0) ||
 		(currentFrame - lastUpdateFrame >= LOGICFRAMES_PER_SECOND) ||
@@ -6040,6 +6053,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 	// UPDATE: gather data, format strings, measure layout
 	// ====================================================================
 	if (needUpdate) {
+        isUpdating = true;
 		lastUpdateFrame = currentFrame;
 		lastFontSize = TheWritableGlobalData->m_observerStatsFontSize;
 		refreshObserverStatsResources();
@@ -6135,6 +6149,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 
 		// Create Display Strings
 		if (headerStrings.size() != numCols) {
+            freeDisplayStrings(headerStrings);
 			headerStrings.clear();
 			for (Int i = 0; i < numCols; ++i) {
 				DisplayString* ds = TheDisplayStringManager->newDisplayString();
@@ -6146,12 +6161,12 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 			headerStrings[i]->setFont(m_observerStatsString->getFont());
 			headerStrings[i]->setText(headers[i]);
 		}
-        
+
 		for (DisplayString* ds : cellStrings) {
 			if (ds)
 				TheDisplayStringManager->freeDisplayString(ds);
 		}
-		cellStrings.clear();
+		freeDisplayStrings(cellStrings);
 		cellStrings.reserve(players.size() * numCols);
 
 		for (const PlayerData& pd : players) {
@@ -6171,6 +6186,13 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 
 			for (Int i = 0; i < numCols; ++i) {
 				DisplayString* ds = TheDisplayStringManager->newDisplayString();
+                	if (!ds) {
+					freeDisplayStrings(headerStrings);
+					freeDisplayStrings(cellStrings);
+					players.clear();
+					isUpdating = false;
+					return;
+				}
 				ds->setFont(m_observerStatsString->getFont());
 				ds->setText(cells[i]);
 				cellStrings.push_back(ds);
@@ -6201,10 +6223,14 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 		Int lineHeight = (m_observerStatsLineStep > 0) ? m_observerStatsLineStep : Int(16 * scale);
 		Int rowSpacing = Int(2 * scale);
 		totalHeight = (lineHeight + rowSpacing) * (1 + Int(players.size()));
+        isUpdating = false;
 	}
 
 	if (players.empty())
 		return;
+
+    if (cellStrings.size() != players.size() * numCols)
+	    return;
 
 	// ====================================================================
 	// DRAWINGS
@@ -6673,6 +6699,7 @@ void InGameUI::drawGameTime()
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
 }
+
 
 
 
