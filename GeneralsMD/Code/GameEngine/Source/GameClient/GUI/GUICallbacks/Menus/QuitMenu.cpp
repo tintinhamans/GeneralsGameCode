@@ -53,7 +53,6 @@
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/DisconnectMenu.h"
 #include "GameLogic/ScriptEngine.h"
-#include "GameNetwork/GeneralsOnline/OnlineServices_LobbyInterface.h"
 
 
 
@@ -193,13 +192,6 @@ static void surrenderQuitMenu()
 	msg->appendBooleanArgument(TRUE);
 
 	TheInGameUI->setClientQuiet( TRUE );
-
-    // If observers are disabled and we are not the host, exit game instead of observing
-    if (TheNGMPGame && !TheNGMPGame->getAllowObservers() && !TheNGMPGame->amIHost())
-    {
-        TheGameLogic->exitGame();
-        return;
-    }
 }
 
 static void restartMissionMenu()
