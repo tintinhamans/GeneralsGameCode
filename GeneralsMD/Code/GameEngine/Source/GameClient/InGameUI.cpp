@@ -6000,8 +6000,16 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 	if (!isAtHudAnchorPos(m_observerStatsPosition) || m_observerStatsHidden)
 		return;
 
-	if (!m_observerStatsString)
+	if (m_observerStatsString == nullptr)
+	{
 		m_observerStatsString = TheDisplayStringManager->newDisplayString();
+	}
+
+	// couldn't allocate memory, early out
+	if (m_observerStatsString == nullptr)
+	{
+		return;
+	}
 
 	// Screen info
 	Int screenW = TheDisplay->getWidth();
