@@ -80,10 +80,7 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 		curl_easy_setopt(m_pCurlWS, CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
 
         // HTTP v1 seems to have a higher success rate of bypassing DPI
-        if (NGMP_OnlineServicesManager::m_bRussiaMode)
-        {
-            curl_easy_setopt(m_pCurlWS, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
-        }
+		curl_easy_setopt(m_pCurlWS, CURLOPT_HTTP_VERSION, NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersionForCurl());
 
 #if _DEBUG
 		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);

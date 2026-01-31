@@ -29,6 +29,10 @@
 #define SETTINGS_KEY_DEBUG "debug"
 #define SETTINGS_KEY_DEBUG_VERBOSE_LOGGING "verbose_logging"
 
+#define SETTINGS_KEY_NETWORK "network"
+#define SETTINGS_KEY_NETWORK_HTTP_VERSION "http_version"
+#define SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT "use_alternative_endpoint"
+
 
 #define SETTINGS_FILENAME_LEGACY "GeneralsOnline_settings.json"
 #define SETTINGS_FILENAME "settings.json"
@@ -153,6 +157,31 @@ void GenOnlineSettings::Load(void)
 				}
 			}
 
+            if (jsonSettings.contains(SETTINGS_KEY_NETWORK))
+            {
+                auto networkSettings = jsonSettings[SETTINGS_KEY_NETWORK];
+
+                if (networkSettings.contains(SETTINGS_KEY_NETWORK_HTTP_VERSION))
+                {
+                   int httpVersion = networkSettings[SETTINGS_KEY_NETWORK_HTTP_VERSION];
+
+				   // clamp
+				   if (httpVersion < 0 || httpVersion > HTTP_VERSION_3_0)
+				   {
+					   m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_AUTO;
+				   }
+				   else
+				   {
+					   m_Network_HTTPVersion = (EHTTPVersion)httpVersion;
+				   }
+                }
+
+                if (networkSettings.contains(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT))
+                {
+                    m_Network_UseAlternativeEndpoint = networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT];
+                }
+            }
+
 			if (jsonSettings.contains(SETTINGS_KEY_DEBUG))
 			{
 				auto debugSettings = jsonSettings[SETTINGS_KEY_DEBUG];
@@ -270,6 +299,14 @@ void GenOnlineSettings::Save()
 					{SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY, m_Render_DrawStatsOverlay},
 				}
 		},
+
+        {
+            SETTINGS_KEY_NETWORK,
+                {
+                    {SETTINGS_KEY_NETWORK_HTTP_VERSION, m_Network_HTTPVersion},
+                    {SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT, m_Network_UseAlternativeEndpoint}
+                }
+        },
 
 		{
 			SETTINGS_KEY_CHAT,

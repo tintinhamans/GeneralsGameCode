@@ -497,7 +497,6 @@ public:
 		m_pWebSocket.reset();
 	}
 
-	void DetermineEndpoints(std::function<void()> fnCallback);
 	void StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback);
 
 	std::shared_ptr<WebSocket> Internal_GetWebSocket() const { return m_pWebSocket; }
@@ -563,8 +562,6 @@ public:
 	NGMP_OnlineServices_SocialInterface* m_pSocialInterface = nullptr;
 
 	ServiceConfig& GetServiceConfig() { return m_ServiceConfig; }
-
-	static bool m_bRussiaMode;
 
 private:
 	// main thread SS Upload
