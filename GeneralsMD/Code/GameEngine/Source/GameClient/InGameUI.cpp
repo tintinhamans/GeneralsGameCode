@@ -6109,8 +6109,7 @@ void InGameUI::drawObserverStats(Int& x, Int& y)
 
         std::sort(players.begin(), players.end(),
 				[](const PlayerData& a, const PlayerData& b) {
-					if (a.team != b.team)
-						return a.team < b.team; // sort by team first
+					return a.team < b.team;
 		});
 
 		// Format cash and cash/m with commas
