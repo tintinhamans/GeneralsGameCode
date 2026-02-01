@@ -365,7 +365,6 @@ public:  // ********************************************************************
 	InGameUI( void );
 	virtual ~InGameUI( void );
 
-	void refreshObserverStatsResources();
 	void toggleObserverStats() { m_observerStatsHidden = !m_observerStatsHidden; }   // Toggle visibility of the observer stats overlay
 
 	// Inherited from subsystem interface -----------------------------------------------------------

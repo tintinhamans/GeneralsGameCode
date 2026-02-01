@@ -221,7 +221,9 @@ static bool changeObserverStatsFontSize(ObserverStatsFontChange change)
 	TheWritableGlobalData->m_observerStatsFontSize = fontSize;
 
 	if (TheInGameUI)
-		TheInGameUI->refreshObserverStatsResources();
+	{
+		TheInGameUI->initObserverOverlay();
+	}
 
 	return true;
 }

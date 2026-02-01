@@ -1553,7 +1553,7 @@ static void saveOptions( void )
 		AsciiString prefString;
 		prefString.format("%d", val);
 		(*pref)["ObserverStatsFontSize"] = prefString;
-		TheInGameUI->refreshObserverStatsResources();
+		TheInGameUI->initObserverOverlay();
 	}
 
 	//-------------------------------------------------------------------------------------------------

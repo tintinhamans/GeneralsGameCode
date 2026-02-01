@@ -4496,12 +4496,26 @@ void InGameUI::resetCamera()
 
 void InGameUI::initObserverOverlay()
 {
-	refreshObserverStatsResources();
+	if (TheWindowManager == nullptr)
+	{
+		return;
+	}
+
+	cleanupObserverOverlay();
 
 	if (m_observerStatsString == nullptr)
 	{
 		m_observerStatsString = TheDisplayStringManager->newDisplayString();
 	}
+
+    m_observerStatsPointSize = TheGlobalData->m_observerStatsFontSize;
+    if (m_observerStatsPointSize <= 0)
+        return;
+
+    Int adjustedFontSize = TheGlobalLanguageData->adjustFontSize(m_observerStatsPointSize);
+    GameFont* statsFont = TheWindowManager->winFindFont(m_observerStatsFont, adjustedFontSize, m_observerStatsBold);
+    m_observerStatsString->setFont(statsFont);
+    m_observerStatsLineStep = statsFont ? statsFont->height + 2 : adjustedFontSize + 2; // Line spacing based on real font height
 
 	// Create Display Strings
 	for (Int i = 0; i < numCols; ++i)
@@ -4530,6 +4544,11 @@ void InGameUI::initObserverOverlay()
 
 void InGameUI::cleanupObserverOverlay()
 {
+	if (TheDisplayStringManager == nullptr)
+	{
+		return;
+	}
+
 	for (DisplayString* ds : m_headerStrings)
 	{
 		if (ds != nullptr)
@@ -4537,6 +4556,7 @@ void InGameUI::cleanupObserverOverlay()
 			TheDisplayStringManager->freeDisplayString(ds);
 		}
 	}
+	m_headerStrings.clear();
 
 	for (int plrIndex = 0; plrIndex < MAX_SLOTS; ++plrIndex)
 	{
@@ -4547,6 +4567,7 @@ void InGameUI::cleanupObserverOverlay()
 			if (ds != nullptr)
 			{
 				TheDisplayStringManager->freeDisplayString(ds);
+				m_mapOverlayPlayerData[plrIndex].playerCellStrings[col] = nullptr;
 			}
 		}
 	}
@@ -4554,6 +4575,7 @@ void InGameUI::cleanupObserverOverlay()
 	if (m_observerStatsString != nullptr)
 	{
 		TheDisplayStringManager->freeDisplayString(m_observerStatsString);
+		m_observerStatsString = nullptr;
 	}
 }
 
@@ -6055,6 +6077,13 @@ void InGameUI::recreateControlBar(void)
 
 void InGameUI::drawObserverStats(Int & x, Int & y)
 {
+	// do we need to re-create our fonts?
+	if (m_observerStatsPointSize != TheGlobalData->m_observerStatsFontSize)
+	{
+		cleanupObserverOverlay();
+		initObserverOverlay();
+	}
+
 	// game state checks
 	GameWindow* moneyWin = TheWindowManager->winGetWindowFromId(NULL,
 		TheNameKeyGenerator->nameToKey("ControlBar.wnd:MoneyDisplay"));
@@ -6114,7 +6143,6 @@ void InGameUI::drawObserverStats(Int & x, Int & y)
 		isUpdating = true;
 		lastUpdateFrame = currentFrame;
 		lastFontSize = TheWritableGlobalData->m_observerStatsFontSize;
-		refreshObserverStatsResources();
 
 		// Gather player data
 		std::set<int> setTeams;
@@ -6376,28 +6404,13 @@ void InGameUI::drawObserverStats(Int & x, Int & y)
 	}
 }
 
-void InGameUI::refreshObserverStatsResources(void)
-{
-	if (!m_observerStatsString)
-		m_observerStatsString = TheDisplayStringManager->newDisplayString();
-
-	m_observerStatsPointSize = TheGlobalData->m_observerStatsFontSize;
-	if (m_observerStatsPointSize <= 0)
-		return;
-
-	Int adjustedFontSize = TheGlobalLanguageData->adjustFontSize(m_observerStatsPointSize);
-	GameFont* statsFont = TheWindowManager->winFindFont(m_observerStatsFont, adjustedFontSize, m_observerStatsBold);
-	m_observerStatsString->setFont(statsFont);
-	m_observerStatsLineStep = statsFont ? statsFont->height + 2 : adjustedFontSize + 2; // Line spacing based on real font height
-}
-
 void InGameUI::refreshCustomUiResources(void)
 {
 	refreshNetworkLatencyResources();
 	refreshRenderFpsResources();
 	refreshSystemTimeResources();
-	refreshGameTimeResources();
-	refreshObserverStatsResources();
+    refreshGameTimeResources();
+    initObserverOverlay();
 }
 
 void InGameUI::refreshNetworkLatencyResources(void)
