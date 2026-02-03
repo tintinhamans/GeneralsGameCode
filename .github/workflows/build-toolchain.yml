@@ -2,7 +2,6 @@ name: Build Toolchain
 
 permissions:
   contents: read
-  pull-requests: write
 
 on:
   workflow_call:
@@ -25,6 +24,11 @@ on:
         default: false
         type: boolean
         description: "Build extras"
+      replay:
+        required: false
+        default: false
+        type: boolean
+        description: "Run replay compatibility check after build"
 
 jobs:
   build:
@@ -54,7 +58,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build\${{ inputs.preset }}\_deps
-          key: cmake-deps-${{ inputs.preset }}-${{ hashFiles('CMakePresets.json','cmake/**/*.cmake','**/CMakeLists.txt') }}
+          key: cmake-deps-${{ inputs.preset }}-${{ hashFiles('CMakePresets.json','cmake/**/*.cmake','Dependencies/**/CMakeLists.txt', 'CMakeLists.txt') }}
 
       - name: Download VC6 Portable from itsmattkc repo
         if: ${{ startsWith(inputs.preset, 'vc6') && steps.cache-vc6.outputs.cache-hit != 'true' }}
@@ -106,7 +110,7 @@ jobs:
           arch: x86
 
       - name: Compute vcpkg cache key parts
-        if: startsWith(inputs.preset, 'win32')
+        if: contains(inputs.preset, 'vcpkg')
         id: vcpkg_key
         shell: pwsh
         run: |
@@ -128,7 +132,7 @@ jobs:
           Write-Host "vcpkg cache key parts: baseline=$baseline, msvc=$msvcMajorMinor, triplet=$triplet"
 
       - name: Restore vcpkg binary cache
-        if: startsWith(inputs.preset, 'win32')
+        if: contains(inputs.preset, 'vcpkg')
         id: vcpkg_cache
         uses: actions/cache/restore@v4
         with:
@@ -139,13 +143,14 @@ jobs:
             vcpkg-bincache-v2-${{ runner.os }}-
 
       - name: Setup vcpkg
+        if: contains(inputs.preset, 'vcpkg')
         uses: lukka/run-vcpkg@v11
         with:
           runVcpkgInstall: false
           doNotCache: true
 
       - name: Configure vcpkg to use cached directory
-        if: startsWith(inputs.preset, 'win32')
+        if: contains(inputs.preset, 'vcpkg')
         shell: pwsh
         run: |
           $cacheDir = "${{ github.workspace }}\vcpkg-bincache"
@@ -182,7 +187,7 @@ jobs:
 
       - name: Save vcpkg binary cache
         # Only one job should save to avoid "Unable to reserve cache" conflicts.
-        if: ${{ startsWith(inputs.preset, 'win32') && steps.vcpkg_cache.outputs.cache-hit != 'true' && inputs.game == 'Generals' && inputs.preset == 'win32-vcpkg-debug' }}
+        if: ${{ contains(inputs.preset, 'vcpkg') && steps.vcpkg_cache.outputs.cache-hit != 'true' && inputs.game == 'Generals' && inputs.preset == 'win32-vcpkg-debug' }}
         uses: actions/cache/save@v4
         with:
           path: ${{ github.workspace }}\vcpkg-bincache
@@ -212,3 +217,132 @@ jobs:
           path: build\${{ inputs.preset }}\${{ inputs.game }}\artifacts
           retention-days: 30
           if-no-files-found: error
+
+      # ─────────────────────────────────────────────────────────────────────────
+      # Replay Compatibility Check (conditional - controlled by matrix.replay)
+      # ─────────────────────────────────────────────────────────────────────────
+
+      - name: Checkout Replays Submodule
+        if: ${{ inputs.replay }}
+        run: git submodule update --init --recursive GeneralsReplays
+
+      - name: Cache Game Data
+        if: ${{ inputs.replay }}
+        id: cache-gamedata
+        uses: actions/cache@v4
+        with:
+          path: C:\GameData
+          key: gamedata-permanent-cache-v4
+
+      - name: Download Game Data from Cloudflare R2
+        if: ${{ inputs.replay && steps.cache-gamedata.outputs.cache-hit != 'true' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          EXPECTED_HASH_GENERALS: "37A351AA430199D1F05DEB9E404857DCE7B461A6AC272C5D4A0B5652CDB06372"
+          EXPECTED_HASH_GENERALSMD: "6837FE1E3009A4C239406C39B1598216C0943EE8ED46BB10626767029AC05E21"
+        shell: pwsh
+        run: |
+          if (-not $env:AWS_ACCESS_KEY_ID -or -not $env:AWS_SECRET_ACCESS_KEY -or -not $env:AWS_ENDPOINT_URL) {
+              Write-Host "One or more required secrets are not set or are empty."
+              exit 1
+          }
+
+          Write-Host "Downloading Game Data for Generals" -ForegroundColor Cyan
+          aws s3 cp s3://github-ci/generals108_gamedata_trimmed.7z generals108_gamedata_trimmed.7z --endpoint-url $env:AWS_ENDPOINT_URL
+          $fileHash = (Get-FileHash -Path generals108_gamedata_trimmed.7z -Algorithm SHA256).Hash
+          if ($fileHash -ne $env:EXPECTED_HASH_GENERALS) {
+              Write-Error "Hash verification failed for Generals!"
+              exit 1
+          }
+          & 7z x generals108_gamedata_trimmed.7z -o"C:\GameData\Generals"
+          Remove-Item generals108_gamedata_trimmed.7z
+
+          Write-Host "Downloading Game Data for GeneralsMD" -ForegroundColor Cyan
+          aws s3 cp s3://github-ci/zerohour104_gamedata_trimmed.7z zerohour104_gamedata_trimmed.7z --endpoint-url $env:AWS_ENDPOINT_URL
+          $fileHash = (Get-FileHash -Path zerohour104_gamedata_trimmed.7z -Algorithm SHA256).Hash
+          if ($fileHash -ne $env:EXPECTED_HASH_GENERALSMD) {
+              Write-Error "Hash verification failed for GeneralsMD!"
+              exit 1
+          }
+          & 7z x zerohour104_gamedata_trimmed.7z -o"C:\GameData\GeneralsMD"
+          Remove-Item zerohour104_gamedata_trimmed.7z
+
+      - name: Set Up Game Data for Replay
+        if: ${{ inputs.replay }}
+        shell: pwsh
+        run: |
+          $buildDir = "build\${{ inputs.preset }}\${{ inputs.game }}\artifacts"
+          Copy-Item -Path "C:\GameData\${{ inputs.game }}\*" -Destination $buildDir -Recurse -Force
+
+      - name: Set Generals InstallPath in Registry
+        if: ${{ inputs.replay }}
+        shell: pwsh
+        run: |
+          $regPath = "HKCU:\SOFTWARE\Electronic Arts\EA Games\Generals"
+          if (-not (Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }
+          Set-ItemProperty -Path $regPath -Name InstallPath -Value "C:\GameData\Generals\" -Type String
+
+      - name: Copy Replays and Maps to User Dir
+        if: ${{ inputs.replay }}
+        shell: pwsh
+        run: |
+          $replaySource = "GeneralsReplays/GeneralsZH/1.04/Replays"
+          $replayDest = "$env:USERPROFILE\Documents\Command and Conquer Generals Zero Hour Data\Replays"
+          New-Item -ItemType Directory -Path $replayDest -Force | Out-Null
+          Copy-Item -Path "$replaySource\*" -Destination $replayDest -Recurse -Force
+
+          $mapSource = "GeneralsReplays/GeneralsZH/1.04/Maps"
+          $mapDest = "$env:USERPROFILE\Documents\Command and Conquer Generals Zero Hour Data\Maps"
+          New-Item -ItemType Directory -Path $mapDest -Force | Out-Null
+          Copy-Item -Path "$mapSource\*" -Destination $mapDest -Recurse -Force
+
+      - name: Run Replay Compatibility Tests
+        if: ${{ inputs.replay }}
+        shell: pwsh
+        run: |
+          $buildDir = "build\${{ inputs.preset }}\${{ inputs.game }}\artifacts"
+          $exePath = "$buildDir/generalszh.exe"
+          $arguments = "-jobs 4 -headless -replay *.rep"
+          $timeoutSeconds = 600
+          $stdoutPath = "stdout.log"
+          $stderrPath = "stderr.log"
+
+          if (-not (Test-Path $exePath)) {
+              Write-Host "ERROR: Executable not found at $exePath"
+              exit 1
+          }
+
+          Remove-Item $stdoutPath, $stderrPath -ErrorAction SilentlyContinue
+          Write-Host "Run $exePath $arguments"
+          $process = Start-Process -FilePath $exePath -ArgumentList $arguments -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -PassThru
+          $exited = $process.WaitForExit($timeoutSeconds * 1000)
+
+          if (-not $exited) {
+              Write-Host "ERROR: Process timed out after $timeoutSeconds seconds"
+              Stop-Process -Id $process.Id -Force
+          }
+
+          Write-Host "=== STDOUT ==="
+          Get-Content $stdoutPath
+          if ((Test-Path $stderrPath) -and (Get-Item $stderrPath).Length -gt 0) {
+              Write-Host "`n=== STDERR ==="
+              Get-Content $stderrPath
+          }
+
+          if (-not $exited) { exit 1 }
+          if ($process.ExitCode -ne 0) {
+              Write-Host "ERROR: Process failed with exit code $($process.ExitCode)"
+              exit $process.ExitCode
+          }
+          Write-Host "Success!"
+
+      - name: Upload Replay Debug Log
+        if: ${{ inputs.replay && always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Replay-Debug-Log-${{ inputs.preset }}
+          path: build\${{ inputs.preset }}\${{ inputs.game }}\artifacts\DebugLogFile*.txt
+          retention-days: 30
+          if-no-files-found: ignore
