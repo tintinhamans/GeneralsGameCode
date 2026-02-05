@@ -4033,7 +4033,7 @@ void GameLogic::update(void)
 
 	static int observerKickCountdown = -1;
 	bool shouldKickObserver = TheNGMPGame && !TheNGMPGame->getAllowObservers() && TheGameLogic->getGameMode() == GAME_INTERNET &&
-							  localPlayer && TheVictoryConditions->hasSinglePlayerBeenDefeated(localPlayer);
+							  localPlayer && !localPlayer->isPlayerObserver() && TheVictoryConditions->hasSinglePlayerBeenDefeated(localPlayer);
 
 	if (!shouldKickObserver)
 		observerKickCountdown = -1;
