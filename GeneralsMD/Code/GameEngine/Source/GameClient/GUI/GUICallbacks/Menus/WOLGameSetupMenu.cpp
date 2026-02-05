@@ -1638,7 +1638,7 @@ void InitWOLGameGadgets( void )
 #if defined(GENERALS_ONLINE)
 	for (Int i = 0; i < MAX_SLOTS; i++)
 	{
-		PopulatePlayerTemplateComboBox(i, comboBoxPlayerTemplate, theGameInfo, theGameInfo->getAllowObservers());
+		PopulatePlayerTemplateComboBox(i, comboBoxPlayerTemplate, theGameInfo, TRUE);
 
 		// Make sure selections are up to date on all machines
 		handlePlayerTemplateSelection(i, true);
