@@ -4011,30 +4011,54 @@ void GameLogic::update(void)
 	TheLocomotorStore->UPDATE();
 	TheVictoryConditions->UPDATE();
 
-	// When observers are disabled by host on GO, remove the non host player from game 10 seconds after they are defeated
-	static int observerKickCountdown = -1;
+#if defined(GENERALS_ONLINE)
+	// When observers are disabled by host on GO, remove the non host player from game after they are defeated
+	bool hasAllyAlive = false;
 	Player* localPlayer = ThePlayerList->getLocalPlayer();
-
-	if (TheNGMPGame && !TheNGMPGame->getAllowObservers() && !TheNGMPGame->amIHost() &&
-		TheGameLogic->getGameMode() == GAME_INTERNET && TheGameLogic->getFrame() > 1 &&
-		localPlayer && TheVictoryConditions->hasSinglePlayerBeenDefeated(localPlayer))
+	if (localPlayer)
 	{
-		if (observerKickCountdown < 0)
-			observerKickCountdown = LOGICFRAMES_PER_SECOND * 10;
-
-		if (observerKickCountdown > 0)
+		Team* myTeam = localPlayer->getDefaultTeam();
+		if (myTeam)
 		{
-			observerKickCountdown--;
-		}
-		else {
-			TheGameLogic->exitGame();    // Time's up. kick the player
-			observerKickCountdown = -1;
-			return;
+			for (int playerIndex = 0; playerIndex < ThePlayerList->getPlayerCount(); ++playerIndex)
+			{
+				Player* other = ThePlayerList->getNthPlayer(playerIndex);
+				if (!other || other == localPlayer) continue;
+
+				if (myTeam->getRelationship(other->getDefaultTeam()) == ALLIES && !TheVictoryConditions->hasSinglePlayerBeenDefeated(other))
+					hasAllyAlive = true;
+			}
 		}
 	}
-	else {
+
+	static int observerKickCountdown = -1;
+	bool shouldKickObserver = TheNGMPGame && !TheNGMPGame->getAllowObservers() && TheGameLogic->getGameMode() == GAME_INTERNET &&
+							  localPlayer && !localPlayer->isPlayerObserver() && TheVictoryConditions->hasSinglePlayerBeenDefeated(localPlayer);
+
+	if (!shouldKickObserver)
 		observerKickCountdown = -1;
+	else
+	{
+		if (hasAllyAlive)
+			TheGameLogic->exitGame();
+
+		if (TheNGMPGame->amIHost())
+			observerKickCountdown = -1;
+		else
+		{
+			if (observerKickCountdown < 0)
+				observerKickCountdown = LOGICFRAMES_PER_SECOND * 10;
+
+			if (observerKickCountdown > 0)
+				observerKickCountdown--;
+			else
+			{
+				TheGameLogic->exitGame();
+				observerKickCountdown = -1;
+			}
+		}
 	}
+#endif
 
 	{
 		//Handle disabled statii (and re-enable objects once frame matches)
