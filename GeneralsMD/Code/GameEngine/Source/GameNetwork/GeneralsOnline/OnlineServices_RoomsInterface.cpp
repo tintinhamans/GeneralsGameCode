@@ -323,15 +323,6 @@ public:
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_Social_NewFriendRequest, msg_id, display_name)
 };
 
-class WebSocketMessage_NetworkRoomMemberListUpdate : public WebSocketMessageBase
-{
-public:
-	std::vector<std::string> names;
-	std::vector<int64_t> ids;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkRoomMemberListUpdate, names, ids)
-};
-
 static bool JSONDeserialize(const char* szBuffer, nlohmann::json* jsonObject)
 {
 	try
@@ -1006,17 +997,22 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::NETWORK_ROOM_MEMBER_LIST_UPDATE:
 									{
-										WebSocketMessage_NetworkRoomMemberListUpdate memberList;
-										bool bParsed = JSONGetAsObject(jsonObject, &memberList);
-
-										if (bParsed)
+										std::unordered_map<uint64_t, NetworkRoomMember> mapMembers;
+										for (const auto& playerEntryIter : jsonObject["members"])
 										{
-											NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-											if (pRoomsInterface != nullptr)
-											{
-												pRoomsInterface->OnRosterUpdated(memberList.names, memberList.ids);
-											}
+											NetworkRoomMember newMember;
+											playerEntryIter["UserID"].get_to(newMember.user_id);
+											playerEntryIter["Name"].get_to(newMember.display_name);
+											playerEntryIter["IsAdmin"].get_to(newMember.m_bIsAdmin);
+
+											mapMembers.emplace(newMember.user_id, newMember);
 										}
+
+                                        NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+                                        if (pRoomsInterface != nullptr)
+                                        {
+                                            pRoomsInterface->OnRosterUpdated(mapMembers);
+                                        }
 									}
 									break;
 
@@ -1335,7 +1331,7 @@ void NGMP_OnlineServices_RoomsInterface::JoinRoom(int roomIndex, std::function<v
 	onCompleteCallback();
 }
 
-std::map<uint64_t, NetworkRoomMember>& NGMP_OnlineServices_RoomsInterface::GetMembersListForCurrentRoom()
+std::unordered_map<uint64_t, NetworkRoomMember>& NGMP_OnlineServices_RoomsInterface::GetMembersListForCurrentRoom()
 {
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Repopulating network room roster using local data");
 	return m_mapMembers;
@@ -1350,22 +1346,9 @@ void NGMP_OnlineServices_RoomsInterface::SendChatMessageToCurrentRoom(UnicodeStr
 	}
 }
 
-void NGMP_OnlineServices_RoomsInterface::OnRosterUpdated(std::vector<std::string> vecNames, std::vector<int64_t> vecIDs)
+void NGMP_OnlineServices_RoomsInterface::OnRosterUpdated(std::unordered_map<uint64_t, NetworkRoomMember> mapMembers)
 {
-	m_mapMembers.clear();
-
-	int index = 0;
-	for (std::string strDisplayName : vecNames)
-	{
-		int64_t id = vecIDs.at(index);
-
-		NetworkRoomMember newMember;
-		newMember.display_name = strDisplayName;
-		newMember.user_id = id;
-		m_mapMembers.emplace(id, newMember);
-
-		++index;
-	}
+	m_mapMembers = mapMembers;
 
 	if (m_RosterNeedsRefreshCallback != nullptr)
 	{

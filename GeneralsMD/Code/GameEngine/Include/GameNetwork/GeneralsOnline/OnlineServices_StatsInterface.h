@@ -482,7 +482,7 @@ private:
 	std::string JSONSerialize(PSPlayerStats stats);
 
 private:
-	std::map<int64_t, int64_t> m_mapStatsLastRefresh;
-	std::map<int64_t, PSPlayerStats> m_mapCachedStats;
+	std::unordered_map<int64_t, int64_t> m_mapStatsLastRefresh;
+	std::unordered_map<int64_t, PSPlayerStats> m_mapCachedStats;
 	const static int64_t m_cacheTTL = 600000; // 10 minutes
 };

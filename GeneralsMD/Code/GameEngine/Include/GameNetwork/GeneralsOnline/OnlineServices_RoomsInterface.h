@@ -157,21 +157,7 @@ public:
 		return nullptr;
 	}
 
-	NetworkRoomMember GetRoomMemberFromName(const char* szTargetName)
-	{
-		// TODO_NGMP: Migrate away from this, it's slow. This game relies on names too much.
-		for (auto kvPair : m_mapMembers)
-		{
-			if (strcmp(kvPair.second.display_name.c_str(), szTargetName) == 0)
-			{
-				return kvPair.second;
-			}
-		}
-
-		return NetworkRoomMember();
-	}
-
-	std::map<uint64_t, NetworkRoomMember>& GetMembersListForCurrentRoom();
+	std::unordered_map<uint64_t, NetworkRoomMember>& GetMembersListForCurrentRoom();
 
 	// Chat
 	void SendChatMessageToCurrentRoom(UnicodeString& strChatMsg, bool bIsAction);
@@ -196,7 +182,7 @@ public:
 		return m_vecRooms;
 	}
 
-	void OnRosterUpdated(std::vector<std::string> vecUsers, std::vector<int64_t> vecIDs);
+	void OnRosterUpdated(std::unordered_map<uint64_t, NetworkRoomMember> mapMembers);
 
 	int GetCurrentRoomID() const { return m_CurrentRoomID; }
 
@@ -206,5 +192,5 @@ private:
 
 	std::vector<NetworkRoom> m_vecRooms;
 
-	std::map<uint64_t, NetworkRoomMember> m_mapMembers = std::map<uint64_t, NetworkRoomMember>();
+	std::unordered_map<uint64_t, NetworkRoomMember> m_mapMembers = std::unordered_map<uint64_t, NetworkRoomMember>();
 };

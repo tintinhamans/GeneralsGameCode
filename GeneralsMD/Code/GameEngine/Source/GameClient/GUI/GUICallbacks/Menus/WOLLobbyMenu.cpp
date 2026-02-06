@@ -810,10 +810,29 @@ void PopulateLobbyPlayerListbox(void)
 				std::set<Int> indicesToSelect;
 
 				// by this point, all stats should be cached - they were either already cached, or we just got them back from the service
-				for (auto kvPair : pRoomsInterface->GetMembersListForCurrentRoom())
+				// sort
+				std::vector<NetworkRoomMember> sorted;
 				{
-					NetworkRoomMember& netRoomMember = kvPair.second;
+					auto membersMAp = pRoomsInterface->GetMembersListForCurrentRoom();
+                    sorted.reserve(membersMAp.size());
 
+                    for (auto& [id, member] : membersMAp)
+                        sorted.emplace_back(member);
+
+                    std::sort(sorted.begin(), sorted.end(),
+                        [](const auto& a, const auto& b) {
+                            return a.display_name < b.display_name;
+                        });
+
+                    std::stable_partition(sorted.begin(), sorted.end(),
+                        [](const auto& x) {
+                            return x.m_bIsAdmin;
+                        });
+
+				}
+
+				for (const NetworkRoomMember& netRoomMember : sorted)
+				{
 					// safety, this is async so we could in theory get delayed callbacks resulting in dupes
 					if (std::find(m_vecUsersProcessed.begin(), m_vecUsersProcessed.end(), netRoomMember.user_id) != m_vecUsersProcessed.end())
 					{
@@ -918,13 +937,12 @@ void PopulateLobbyPlayerListbox(void)
 
 					NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
 
-					bool bIsAdmin = wcsncmp(pi.m_nameUni.str(), L"[\u2605\u2605GO STAFF\u2605\u2605]", 14) == 0; // TODO_NGMP: determine by service flag, not name
 					bool bFriend = pSocialInterface != nullptr ? pSocialInterface->IsUserFriend(netRoomMember.user_id) : false;
 					bool bIgnored = pSocialInterface != nullptr ? pSocialInterface->IsUserIgnored(netRoomMember.user_id) : false;
 					bool bLocal = localUserID == netRoomMember.user_id;
 
 					Color colorToUse = GameSpyColor[GSCOLOR_PLAYER_NORMAL];
-					if (bIsAdmin)
+					if (netRoomMember.m_bIsAdmin)
 					{
 						colorToUse = GameSpyColor[GSCOLOR_PLAYER_OWNER];;// GameMakeColor(0, 162, 232, 255);
 					}

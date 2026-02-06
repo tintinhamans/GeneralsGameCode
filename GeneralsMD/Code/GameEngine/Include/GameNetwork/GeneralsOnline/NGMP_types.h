@@ -17,6 +17,8 @@ public:
 	bool m_bIsHost = false;
 
 	bool m_bIsReady = false;
+
+	bool m_bIsAdmin = false;
 };
 
 enum class ELoginResult
