@@ -60,6 +60,7 @@
 #include "thread.h"
 #include "wwdebug.h"
 #include "wwmemlog.h"
+#include "mutex.h"
 
 #include	<conio.h>
 #include	<imagehlp.h>
@@ -111,6 +112,13 @@ int ExceptionRecursions = -1;
 ** List of threads that the exception handler knows about.
 */
 DynamicVectorClass<ThreadInfoType*> ThreadList;
+
+/*
+** Critical section to protect ThreadList from concurrent access.
+** This prevents race conditions when threads register/unregister while
+** another thread is accessing the list (e.g., during exception handling or shutdown).
+*/
+static CriticalSectionClass ThreadListLock;
 
 /*
 ** Definitions to allow run-time linking to the Imagehlp.dll functions.
@@ -558,13 +566,16 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	/*
 	** Get the thread info from ThreadClass.
 	*/
-	for (int thread = 0 ; thread < ThreadList.Count() ; thread++) {
-		sprintf(scrap, "  ID: %08X - %s", ThreadList[thread]->ThreadID, ThreadList[thread]->ThreadName);
-		Add_Txt(scrap);
-		if (GetCurrentThreadId() == ThreadList[thread]->ThreadID) {
-			Add_Txt("   ***CURRENT THREAD***");
+	{
+		CriticalSectionClass::LockClass lock(ThreadListLock);
+		for (int thread = 0 ; thread < ThreadList.Count() ; thread++) {
+			sprintf(scrap, "  ID: %08X - %s", ThreadList[thread]->ThreadID, ThreadList[thread]->ThreadName);
+			Add_Txt(scrap);
+			if (GetCurrentThreadId() == ThreadList[thread]->ThreadID) {
+				Add_Txt("   ***CURRENT THREAD***");
+			}
+			Add_Txt("\r\n");
 		}
-		Add_Txt("\r\n");
 	}
 
 	/*
@@ -885,6 +896,7 @@ void Register_Thread_ID(unsigned long thread_id, char *thread_name, bool main_th
 {
 	WWMEMLOG(MEM_GAMEDATA);
 	if (thread_name) {
+		CriticalSectionClass::LockClass lock(ThreadListLock);
 
 		/*
 		** See if we already know about this thread. Maybe just the thread_id changed.
@@ -995,6 +1007,8 @@ HANDLE Get_Thread_Handle(int thread_index)
  *=============================================================================================*/
 void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
 {
+	CriticalSectionClass::LockClass lock(ThreadListLock);
+	
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
 		if (strcmp(thread_name, ThreadList[i]->ThreadName) == 0) {
 			assert(ThreadList[i]->ThreadID == thread_id);
@@ -1023,6 +1037,8 @@ void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
  *=============================================================================================*/
 unsigned long Get_Main_Thread_ID(void)
 {
+	CriticalSectionClass::LockClass lock(ThreadListLock);
+	
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
 		if (ThreadList[i]->Main) {
 			return(ThreadList[i]->ThreadID);
