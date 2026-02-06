@@ -16,9 +16,18 @@
 bool g_bForceRelay = false;
 UnsignedInt m_exeCRCOriginal = 0;
 
+// Static flag to track if NetworkMesh is being destroyed to prevent callback re-entry
+static std::atomic<bool> g_bNetworkMeshDestroying = false;
+
 // Called when a connection undergoes a state transition
 void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)
 {
+	// Early exit if NetworkMesh is being destroyed to prevent use-after-free
+	if (g_bNetworkMeshDestroying.load())
+	{
+		return;
+	}
+
 	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
 
 	if (pMesh == nullptr)
@@ -893,18 +902,33 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 
 void NetworkMesh::Disconnect()
 {
+	// Set flag to prevent callbacks from executing during teardown
+	g_bNetworkMeshDestroying.store(true);
+
+	// Unregister the global callback to prevent new callbacks from being queued
+	if (SteamNetworkingUtils())
+	{
+		SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged(nullptr);
+	}
+
 	// close every connection
 	for (auto& connectionData : m_mapConnections)
 	{
 		//NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] FullMesh");
-		SteamNetworkingSockets()->CloseConnection(connectionData.second.m_hSteamConnection, 0, "Client Disconnecting Gracefully", false);
+		if (SteamNetworkingSockets())
+		{
+			SteamNetworkingSockets()->CloseConnection(connectionData.second.m_hSteamConnection, 0, "Client Disconnecting Gracefully", false);
+		}
 		if (TheNetwork != nullptr)
 		{
 			TheNetwork->GetConnectionManager()->disconnectPlayer(connectionData.first);
 		}
 	}
 
-	SteamNetworkingSockets()->CloseListenSocket(m_hListenSock);
+	if (SteamNetworkingSockets())
+	{
+		SteamNetworkingSockets()->CloseListenSocket(m_hListenSock);
+	}
 
 	// invalidate socket
 	m_hListenSock = k_HSteamNetConnection_Invalid;
@@ -914,6 +938,9 @@ void NetworkMesh::Disconnect()
  
 	// tear down steam sockets
 	GameNetworkingSockets_Kill();
+
+	// Reset flag after teardown is complete
+	g_bNetworkMeshDestroying.store(false);
 }
 
 void NetworkMesh::Tick()
