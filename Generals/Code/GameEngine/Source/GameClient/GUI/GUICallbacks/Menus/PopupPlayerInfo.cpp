@@ -756,10 +756,25 @@ static GameWindow* findWindow(GameWindow *parent, AsciiString baseWindow, AsciiS
 void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 {
 	Int lookupID = TheGameSpyInfo->getLocalProfileID();
+	GameWindow *parentWindow = nullptr;
+	
 	if(parentWindowName == "PopupPlayerInfo.wnd")
 	{
 		lookupID = lookAtPlayerID;
 		if (lookAtPlayerID <= 0 || !parent)
+			return;
+		parentWindow = parent;
+	}
+	else if(parentWindowName == "WOLWelcomeMenu.wnd")
+	{
+		parentWindow = TheWindowManager->winGetWindowFromId(nullptr, NAMEKEY("WOLWelcomeMenu.wnd:WOLWelcomeMenuParent"));
+		if (!parentWindow)
+			return;
+	}
+	else if(parentWindowName == "WOLQuickMatchMenu.wnd")
+	{
+		parentWindow = TheWindowManager->winGetWindowFromId(nullptr, NAMEKEY("WOLQuickMatchMenu.wnd:WOLQuickMatchMenuParent"));
+		if (!parentWindow)
 			return;
 	}
 
@@ -810,7 +825,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 
 	GameWindow *win = nullptr;
 	UnicodeString uStr;
-	win = findWindow(nullptr, parentWindowName, "StaticTextPlayerStatisticsLabel");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextPlayerStatisticsLabel");
 	if(win)
 	{
 		AsciiString localeID = "WOL:Locale00";
@@ -819,39 +834,39 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(TheGameText->fetch("GUI:PlayerStatistics"), lookAtPlayerName.c_str(), TheGameText->fetch(localeID).str());
 		GadgetStaticTextSetText(win, uStr);
 	}
-	win = findWindow(nullptr, parentWindowName, "StaticTextGamesPlayedValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextGamesPlayedValue");
 	if(win)
 	{
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
-	win = findWindow(nullptr, parentWindowName, "StaticTextWinsValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextWinsValue");
 	if(win)
 	{
 		uStr.format(L"%d", numWins);
 		GadgetStaticTextSetText(win, uStr);
 	}
-	win = findWindow(nullptr, parentWindowName, "StaticTextLossesValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextLossesValue");
 	if(win)
 	{
 		uStr.format(L"%d", numLosses);
 		GadgetStaticTextSetText(win, uStr);
 	}
-	win = findWindow(nullptr, parentWindowName, "StaticTextDisconnectsValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextDisconnectsValue");
 	if(win)
 	{
 		uStr.format(L"%d", numDiscons);
 		GadgetStaticTextSetText(win, uStr);
 	}
 
-	win = findWindow(nullptr, parentWindowName, "StaticTextBestStreakValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextBestStreakValue");
 	if (win)
 	{
 		uStr.format(L"%d", stats.maxWinsInARow);
 		GadgetStaticTextSetText(win, uStr);
 	}
 
-	win = findWindow(nullptr, parentWindowName, "StaticTextStreak");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextStreak");
 	if (win)
 	{
 		if (stats.lossesInARow > 0)
@@ -863,7 +878,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			GadgetStaticTextSetText(win, TheGameText->fetch("GUI:CurrentWinStreak"));
 		}
 	}
-	win = findWindow(nullptr, parentWindowName, "StaticTextStreakValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextStreakValue");
 	if(win)
 	{
 		Int streak = max(stats.lossesInARow, stats.winsInARow);
@@ -872,7 +887,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 	}
 
 	AsciiString favoriteSide = "Random";
-	win = findWindow(nullptr, parentWindowName, "StaticTextFavoriteSideValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextFavoriteSideValue");
 	{
 		Int numGames = 0;
 		Int favorite = 0;
@@ -903,7 +918,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		}
 	}
 
-	win = findWindow(nullptr, parentWindowName, "StaticTextTotalKillsValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextTotalKillsValue");
 	if(win)
 	{
 		Int numGames = 0;
@@ -914,7 +929,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
-	win = findWindow(nullptr, parentWindowName, "StaticTextTotalDeathsValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextTotalDeathsValue");
 	if(win)
 	{
 		Int numGames = 0;
@@ -925,7 +940,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
-	win = findWindow(nullptr, parentWindowName, "StaticTextTotalBuiltValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextTotalBuiltValue");
 	if(win)
 	{
 		Int numGames = 0;
@@ -936,7 +951,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
-	win = findWindow(nullptr, parentWindowName, "StaticTextBuildingsKilledValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextBuildingsKilledValue");
 	if(win)
 	{
 		Int numGames = 0;
@@ -947,7 +962,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
-	win = findWindow(nullptr, parentWindowName, "StaticTextBuildingsLostValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextBuildingsLostValue");
 	if(win)
 	{
 		Int numGames = 0;
@@ -958,7 +973,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		uStr.format(L"%d", numGames);
 		GadgetStaticTextSetText(win, uStr);
 	}
-	win = findWindow(nullptr, parentWindowName, "StaticTextBuildingsBuiltValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextBuildingsBuiltValue");
 	if(win)
 	{
 		Int numGames = 0;
@@ -970,14 +985,14 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		GadgetStaticTextSetText(win, uStr);
 	}
 
-	win = findWindow(nullptr, parentWindowName, "StaticTextWinPercentValue");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextWinPercentValue");
 	if(win)
 	{
 		uStr.format(TheGameText->fetch("GUI:WinPercent"), REAL_TO_INT(numWins/(Real)numGames*100.0f));
 		GadgetStaticTextSetText(win, uStr);
 	}
 
-	win = findWindow(nullptr, parentWindowName, "ProgressBarRank");
+	win = findWindow(parentWindow, parentWindowName, "ProgressBarRank");
 	if(win && TheRankPointValues)
 	{
 		if( currentRank == MAX_RANKS - 1)
@@ -990,7 +1005,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			GadgetProgressBarSetProgress(win, 100 * INT_TO_REAL(rankPoints - TheRankPointValues->m_ranks[currentRank])/( TheRankPointValues->m_ranks[currentRank + 1] - TheRankPointValues->m_ranks[currentRank]));
 		}
 	}
-	win = findWindow(nullptr, parentWindowName, "WinRank");
+	win = findWindow(parentWindow, parentWindowName, "WinRank");
 	if(win && TheRankPointValues)
 	{
 		if (rankPoints == 0)
@@ -998,7 +1013,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		else
 			win->winSetEnabledImage(0, lookupRankImage(favoriteSide, currentRank));
 	}
-	win = findWindow(nullptr, parentWindowName, "StaticTextRank");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextRank");
 	if(win)
 	{
 		AsciiString rankStr;
@@ -1006,7 +1021,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		GadgetStaticTextSetText(win, TheGameText->fetch(rankStr));
 	}
 
-	win = findWindow(nullptr, parentWindowName, "StaticTextInProgress");
+	win = findWindow(parentWindow, parentWindowName, "StaticTextInProgress");
 	if (win)
 	{
 		if (weHaveStats)
@@ -1020,7 +1035,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		}
 	}
 
-	win = findWindow(nullptr, parentWindowName, "ListboxInfo");
+	win = findWindow(parentWindow, parentWindowName, "ListboxInfo");
 	if(win)
 	{
 		populateBattleHonors(stats, stats.battleHonors,stats.gamesInRowWithLastGeneral,stats.lastGeneral,stats.challengeMedals, win);
