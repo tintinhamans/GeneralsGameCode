@@ -113,6 +113,9 @@ void HTTPManager::Shutdown()
 		// Now safe to cleanup
 		curl_multi_cleanup(m_pCurl);
 		m_pCurl = nullptr;
+
+        // Cleanup libcurl global state
+        curl_global_cleanup();
 	}
 
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTPManager] Shutdown complete");
@@ -168,6 +171,9 @@ HTTPManager::~HTTPManager()
 void HTTPManager::Initialize()
 {
 	CHECK_MAIN_THREAD;
+
+    // Initialize libcurl global state
+    curl_global_init(CURL_GLOBAL_DEFAULT);
 
 	m_pCurl = curl_multi_init();
 	m_bProxyEnabled = DeterminePlatformProxySettings();
