@@ -181,15 +181,20 @@ void GlobalLanguage::init( void )
 		++it;
 	}
 
-	// TheSuperHackers @feature xezon 07/02/2026 Load user fonts from user data directory
-	if (TheWritableGlobalData)
+	// TheSuperHackers @feature xezon 07/02/2026 Load user fonts from Windows user font store
+	char localAppDataPath[_MAX_PATH + 1];
+	if (::SHGetSpecialFolderPath(nullptr, localAppDataPath, CSIDL_LOCAL_APPDATA, false))
 	{
-		AsciiString userDataDir = TheWritableGlobalData->getPath_UserData();
+		AsciiString userFontDir = localAppDataPath;
+		if (userFontDir.getCharAt(userFontDir.getLength() - 1) != '\\')
+			userFontDir.concat('\\');
+		userFontDir.concat("Microsoft\\Windows\\Fonts\\");
+
 		it = m_userFonts.begin();
 		while( it != m_userFonts.end())
 		{
 			AsciiString font = *it;
-			AsciiString fullPath = userDataDir;
+			AsciiString fullPath = userFontDir;
 			fullPath.concat(font);
 			if(AddFontResource(fullPath.str()) == 0)
 			{
