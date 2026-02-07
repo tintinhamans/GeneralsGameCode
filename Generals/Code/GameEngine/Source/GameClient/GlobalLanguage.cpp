@@ -190,10 +190,9 @@ void GlobalLanguage::init( void )
 				
 				// Check for font file extensions
 				const char* filename = findData.cFileName;
-				size_t len = strlen(filename);
-				if (len > 4)
+				const char* ext = strrchr(filename, '.');
+				if (ext != nullptr)
 				{
-					const char* ext = filename + len - 4;
 					if (_stricmp(ext, ".ttf") == 0 || 
 					    _stricmp(ext, ".otf") == 0 || 
 					    _stricmp(ext, ".ttc") == 0 ||
