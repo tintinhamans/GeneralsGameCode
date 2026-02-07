@@ -80,6 +80,7 @@ static const FieldParse TheGlobalLanguageDataFieldParseTable[] =
 	{ "UnicodeFontName",									INI::parseAsciiString,nullptr,									offsetof( GlobalLanguage, m_unicodeFontName ) },
 	//{	"UnicodeFontFileName",							INI::parseAsciiString,nullptr,									offsetof( GlobalLanguage, m_unicodeFontFileName ) },
 	{ "LocalFontFile",										GlobalLanguage::parseFontFileName,					nullptr,			0},
+	{ "UserFontFile",											GlobalLanguage::parseUserFontFileName,			nullptr,			0},
 	{ "MilitaryCaptionSpeed",						INI::parseInt,					nullptr,		offsetof( GlobalLanguage, m_militaryCaptionSpeed ) },
 	{ "UseHardWordWrap",						INI::parseBool,					nullptr,		offsetof( GlobalLanguage, m_useHardWrap) },
 	{ "ResolutionFontAdjustment",						INI::parseReal,					nullptr,		offsetof( GlobalLanguage, m_resolutionFontSizeAdjustment) },
@@ -134,8 +135,18 @@ GlobalLanguage::GlobalLanguage()
 
 GlobalLanguage::~GlobalLanguage()
 {
+	// TheSuperHackers @feature xezon 07/02/2026 Remove local fonts on cleanup
 	StringListIt it = m_localFonts.begin();
 	while( it != m_localFonts.end())
+	{
+		AsciiString font = *it;
+		RemoveFontResource(font.str());
+		//SendMessage( HWND_BROADCAST, WM_FONTCHANGE, 0, 0);
+		++it;
+	}
+	// TheSuperHackers @feature xezon 07/02/2026 Remove user fonts on cleanup
+	it = m_userFonts.begin();
+	while( it != m_userFonts.end())
 	{
 		AsciiString font = *it;
 		RemoveFontResource(font.str());
@@ -154,6 +165,7 @@ void GlobalLanguage::init( void )
 		ini.loadFileDirectory( fname, INI_LOAD_OVERWRITE, nullptr );
  	}
 
+	// TheSuperHackers @feature xezon 07/02/2026 Load local fonts from Data directory
 	StringListIt it = m_localFonts.begin();
 	while( it != m_localFonts.end())
 	{
@@ -167,6 +179,28 @@ void GlobalLanguage::init( void )
 			//SendMessage( HWND_BROADCAST, WM_FONTCHANGE, 0, 0);
 		}
 		++it;
+	}
+
+	// TheSuperHackers @feature xezon 07/02/2026 Load user fonts from user data directory
+	if (TheWritableGlobalData)
+	{
+		AsciiString userDataDir = TheWritableGlobalData->getPath_UserData();
+		it = m_userFonts.begin();
+		while( it != m_userFonts.end())
+		{
+			AsciiString font = *it;
+			AsciiString fullPath = userDataDir;
+			fullPath.concat(font);
+			if(AddFontResource(fullPath.str()) == 0)
+			{
+				DEBUG_ASSERTCRASH(FALSE,("GlobalLanguage::init Failed to add user font %s", fullPath.str()));
+			}
+			else
+			{
+				//SendMessage( HWND_BROADCAST, WM_FONTCHANGE, 0, 0);
+			}
+			++it;
+		}
 	}
 
 	// override values with user preferences
@@ -190,6 +224,14 @@ void GlobalLanguage::parseFontFileName( INI *ini, void * instance, void *store, 
 	GlobalLanguage *monkey = (GlobalLanguage *)instance;
 	AsciiString asciiString = ini->getNextAsciiString();
 	monkey->m_localFonts.push_front(asciiString);
+}
+
+// TheSuperHackers @feature xezon 07/02/2026 Parse user font file names
+void GlobalLanguage::parseUserFontFileName( INI *ini, void * instance, void *store, const void* userData )
+{
+	GlobalLanguage *monkey = (GlobalLanguage *)instance;
+	AsciiString asciiString = ini->getNextAsciiString();
+	monkey->m_userFonts.push_front(asciiString);
 }
 
 float GlobalLanguage::getResolutionFontSizeAdjustment( void ) const
