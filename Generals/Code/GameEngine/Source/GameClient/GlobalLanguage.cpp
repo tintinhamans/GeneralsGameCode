@@ -134,9 +134,18 @@ GlobalLanguage::GlobalLanguage()
 
 GlobalLanguage::~GlobalLanguage()
 {
-	// TheSuperHackers @feature xezon 07/02/2026 Remove loaded fonts on cleanup
+	// TheSuperHackers @feature xezon 07/02/2026 Remove local fonts on cleanup
 	StringListIt it = m_localFonts.begin();
 	while( it != m_localFonts.end())
+	{
+		AsciiString font = *it;
+		RemoveFontResource(font.str());
+		//SendMessage( HWND_BROADCAST, WM_FONTCHANGE, 0, 0);
+		++it;
+	}
+	// TheSuperHackers @feature xezon 07/02/2026 Remove user store fonts on cleanup
+	it = m_userStoreFonts.begin();
+	while( it != m_userStoreFonts.end())
 	{
 		AsciiString font = *it;
 		RemoveFontResource(font.str());
@@ -155,59 +164,72 @@ void GlobalLanguage::init( void )
 		ini.loadFileDirectory( fname, INI_LOAD_OVERWRITE, nullptr );
  	}
 
-	// TheSuperHackers @feature xezon 07/02/2026 Load fonts with user font store fallback
-	// Get Windows user font store path once
+	// TheSuperHackers @feature xezon 07/02/2026 Auto-register Windows user font store
+	// Register all fonts from user font store to make them available to CreateFont()
 	char localAppDataPath[_MAX_PATH + 1];
-	AsciiString userFontDir;
-	bool hasUserFontDir = false;
-	
 	if (::SHGetSpecialFolderPath(nullptr, localAppDataPath, CSIDL_LOCAL_APPDATA, false))
 	{
-		userFontDir = localAppDataPath;
+		AsciiString userFontDir = localAppDataPath;
 		if (userFontDir.getCharAt(userFontDir.getLength() - 1) != '\\')
 			userFontDir.concat('\\');
-		userFontDir.concat("Microsoft\\Windows\\Fonts\\");
-		hasUserFontDir = true;
+		userFontDir.concat("Microsoft\\Windows\\Fonts\\*.*");
+
+		WIN32_FIND_DATA findData;
+		HANDLE hFind = ::FindFirstFile(userFontDir.str(), &findData);
+		
+		if (hFind != INVALID_HANDLE_VALUE)
+		{
+			// Remove the *.* pattern to get the directory path
+			userFontDir.setLength(userFontDir.getLength() - 3);
+			
+			do
+			{
+				// Skip directories
+				if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+					continue;
+				
+				// Check for font file extensions
+				const char* filename = findData.cFileName;
+				size_t len = strlen(filename);
+				if (len > 4)
+				{
+					const char* ext = filename + len - 4;
+					if (_stricmp(ext, ".ttf") == 0 || 
+					    _stricmp(ext, ".otf") == 0 || 
+					    _stricmp(ext, ".ttc") == 0 ||
+					    _stricmp(ext, ".fon") == 0)
+					{
+						AsciiString fontPath = userFontDir;
+						fontPath.concat(filename);
+						
+						// Use AddFontResourceEx with FR_PRIVATE flag
+						if (::AddFontResourceEx(fontPath.str(), FR_PRIVATE, 0) > 0)
+						{
+							m_userStoreFonts.push_back(fontPath);
+						}
+					}
+				}
+			} while (::FindNextFile(hFind, &findData));
+			
+			::FindClose(hFind);
+		}
 	}
 
-	// Process each font: try user font store first, then fall back to original path
-	StringList loadedFonts;
+	// TheSuperHackers @feature xezon 07/02/2026 Load local fonts from Data directory
 	StringListIt it = m_localFonts.begin();
 	while( it != m_localFonts.end())
 	{
-		AsciiString fontFile = *it;
-		bool loaded = false;
-		
-		// Try user font store first if available
-		if (hasUserFontDir)
+		AsciiString font = *it;
+		if(AddFontResource(font.str()) == 0)
 		{
-			AsciiString userFontPath = userFontDir;
-			userFontPath.concat(fontFile);
-			if(AddFontResource(userFontPath.str()) != 0)
-			{
-				loadedFonts.push_back(userFontPath);
-				loaded = true;
-			}
+			DEBUG_ASSERTCRASH(FALSE,("GlobalLanguage::init Failed to add font %s", font.str()));
 		}
-		
-		// Fall back to original path if not loaded from user font store
-		if (!loaded)
+		else
 		{
-			if(AddFontResource(fontFile.str()) != 0)
-			{
-				loadedFonts.push_back(fontFile);
-			}
-			else
-			{
-				DEBUG_ASSERTCRASH(FALSE,("GlobalLanguage::init Failed to add font %s", fontFile.str()));
-			}
+			//SendMessage( HWND_BROADCAST, WM_FONTCHANGE, 0, 0);
 		}
-		
 		++it;
 	}
-	
-	// Replace m_localFonts with successfully loaded font paths for cleanup
-	m_localFonts = loadedFonts;
 
 	// override values with user preferences
 	OptionPreferences optionPref;
