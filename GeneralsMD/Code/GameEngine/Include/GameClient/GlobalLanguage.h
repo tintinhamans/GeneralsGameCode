@@ -121,9 +121,7 @@ public:
 	typedef StringList::iterator StringListIt;
 
 	StringList m_localFonts;														// List of the font filenames that are in our local directory
-	StringList m_userFonts;															// List of the font filenames in the user data directory
 	static void parseFontFileName( INI *ini, void *instance, void *store, const void* userData );
-	static void parseUserFontFileName( INI *ini, void *instance, void *store, const void* userData );
 	static void parseFontDesc(INI *ini, void *instance, void *store, const void* userData);
 };
 //-----------------------------------------------------------------------------
