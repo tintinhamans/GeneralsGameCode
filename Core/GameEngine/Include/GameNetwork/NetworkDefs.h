@@ -32,6 +32,7 @@ static const Int WOL_NAME_LEN = 64;
 /// Max number of commands per frame
 static const Int MAX_COMMANDS = 256;
 
+extern Int MIN_LOGIC_FRAMES;
 extern Int MAX_FRAMES_AHEAD;
 extern Int MIN_RUNAHEAD;
 
@@ -47,22 +48,38 @@ enum ConnectionNumbers CPP_11(: Int)
 	NUM_CONNECTIONS
 };
 
-static const Int MAX_SLOTS = MAX_PLAYER+1;
+static constexpr const Int MAX_SLOTS = MAX_PLAYER+1;
 
+// TheSuperHackers @info As we are not detecting for network fragmentation and adjusting max payload, we set 1200 bytes UDP payload as a safe upper limit for various networks
+// We chose 1200 bytes as when taking mobile networks into account, maximum transmission unit sizes can vary from 1340 - 1500 bytes
+// and when the packet headers for PPPOE, IPV6 and virtual network encapsulation are considered, we need a lower safe UDP payload to prevent fragmentation.
 #if defined(GENERALS_ONLINE)
-// UDP (8 bytes) + IP header (28 bytes) = 36 bytes total.  We want a total packet size of 1392, so 1392 - 36 = 1356
-static const Int MAX_PACKET_SIZE = 476;
+static constexpr const Int MAX_UDP_PAYLOAD = 1194 - 96; // 96 for TURN + Valve overhead
 #else
-// UDP (8 bytes) + IP header (28 bytes) = 36 bytes total.  We want a total packet size of 512, so 512 - 36 = 476
-static const Int MAX_PACKET_SIZE = 476;
+static constexpr const Int MAX_UDP_PAYLOAD = 1194;
 #endif
+// UDP (8 bytes) + IP header (28 bytes) = 36 bytes total.  We want a total packet size of 512, so 512 - 36 = 476
+static constexpr const Int RESTRICTED_UDP_PAYLOAD = 476;
+
+// TheSuperHackers @info The legacy lanapi cannot use a larger packet size without breaking the gameinfo command
+static constexpr const Int MAX_LANAPI_PACKET_SIZE = RESTRICTED_UDP_PAYLOAD;
+
+// TheSuperHackers @bugfix Mauller 08/02/2026 Allow larger ethernet UDP payload to be used for game messages, this fixes connection issues and eliminates disconnection bugs
+#if RETAIL_COMPATIBLE_NETWORKING
+static constexpr const Int MAX_PACKET_SIZE = RESTRICTED_UDP_PAYLOAD;
+static constexpr const Int MAX_MESSAGE_LEN = 1024;
+#else
+static constexpr const Int MAX_PACKET_SIZE = MAX_UDP_PAYLOAD;
+static constexpr const Int MAX_MESSAGE_LEN = MAX_UDP_PAYLOAD;
+#endif
+
+// TheSuperHackers @bugfix Mauller 08/02/2026 Double send and receive buffer sizes to alleviate the occurance of disconnection issues in retail and non retail code.
+static constexpr const Int MAX_MESSAGES = 256;
 
 /**
  * Command packet - contains frame #, total # of commands, and each command.  This is what gets sent
  * to each player every frame
  */
-#define MAX_MESSAGE_LEN 1024
-#define MAX_MESSAGES 1024
 static const Int numCommandsPerCommandPacket = (MAX_MESSAGE_LEN - sizeof(UnsignedInt) - sizeof(UnsignedShort))/sizeof(GameMessage);
 #pragma pack(push, 1)
 struct CommandPacket
