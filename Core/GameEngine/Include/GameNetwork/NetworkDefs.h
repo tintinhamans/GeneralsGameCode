@@ -68,6 +68,9 @@ static constexpr const Int MAX_LANAPI_PACKET_SIZE = RESTRICTED_UDP_PAYLOAD;
 #if RETAIL_COMPATIBLE_NETWORKING
 static constexpr const Int MAX_PACKET_SIZE = RESTRICTED_UDP_PAYLOAD;
 static constexpr const Int MAX_MESSAGE_LEN = 1024;
+#elif defined(GENERALS_ONLINE)
+static constexpr const Int MAX_PACKET_SIZE = MAX_UDP_PAYLOAD;
+static constexpr const Int MAX_MESSAGE_LEN = 1104;
 #else
 static constexpr const Int MAX_PACKET_SIZE = MAX_UDP_PAYLOAD;
 static constexpr const Int MAX_MESSAGE_LEN = MAX_UDP_PAYLOAD;
