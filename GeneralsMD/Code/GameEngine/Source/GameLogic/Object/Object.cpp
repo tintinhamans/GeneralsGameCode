@@ -756,9 +756,16 @@ void Object::onDestroy()
 {
 
 	// This is the old cleanUpContain safeguard.  Say goodbye so they don't try to look us up.
-	if( m_containedBy && m_containedBy->getContain() )
+	// TheSuperHackers @bugfix xezon 05/06/2025 Add safety checks to prevent accessing a container
+	// that is being destroyed or has invalid state. This fixes crashes when contained units die
+	// while their container is simultaneously being destroyed (e.g., Battle Bus with Terrorists).
+	if( m_containedBy && !m_containedBy->isEffectivelyDead() )
 	{
-		m_containedBy->getContain()->removeFromContain( this );
+		ContainModuleInterface* containModule = m_containedBy->getContain();
+		if( containModule )
+		{
+			containModule->removeFromContain( this );
+		}
 	}
 
 	//
