@@ -753,9 +753,10 @@ QueuedGamePacket NetworkMesh::RecvGamePacket()
 
 int NetworkMesh::SendGamePacket(void* pBuffer, uint32_t totalDataSize, int64_t user_id)
 {
-	if (m_mapConnections.contains(user_id))
+	auto it = m_mapConnections.find(user_id);
+	if (it != m_mapConnections.end())
 	{
-		return m_mapConnections[user_id].SendGamePacket(pBuffer, totalDataSize);
+		return it->second.SendGamePacket(pBuffer, totalDataSize);
 	}
 	
 	return -2;
@@ -765,12 +766,13 @@ int NetworkMesh::SendGamePacket(void* pBuffer, uint32_t totalDataSize, int64_t u
 void NetworkMesh::StartConnectionSignalling(int64_t remoteUserID, uint16_t preferredPort)
 {
 	// if we already have a connection to this use, drop it, having a single-direction connection will break signalling
-	if (m_mapConnections.find(remoteUserID) != m_mapConnections.end())
+	auto it = m_mapConnections.find(remoteUserID);
+	if (it != m_mapConnections.end())
 	{
-		if (m_mapConnections[remoteUserID].m_hSteamConnection != k_HSteamNetConnection_Invalid)
+		if (it->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
-			SteamNetworkingSockets()->CloseConnection(m_mapConnections[remoteUserID].m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
+			SteamNetworkingSockets()->CloseConnection(it->second.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
 
 			if (TheNetwork != nullptr)
 			{
@@ -778,8 +780,8 @@ void NetworkMesh::StartConnectionSignalling(int64_t remoteUserID, uint16_t prefe
 			}
 		}
 
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ERASE 3] Removing user %lld", m_mapConnections[remoteUserID].m_userID);
-		m_mapConnections.erase(remoteUserID);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ERASE 3] Removing user %lld", it->second.m_userID);
+		m_mapConnections.erase(it);
 	}
 
 	NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
@@ -887,13 +889,17 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 
 		if (TheNGMPGame && !TheNGMPGame->isGameInProgress())
 		{
-			for (auto& kvPair : m_mapConnections)
+			for (auto it = m_mapConnections.begin(); it != m_mapConnections.end(); )
 			{
-				if (kvPair.second.m_userID == remoteUserID)
+				if (it->second.m_userID == remoteUserID)
 				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[ERASE] Removing user %lld", kvPair.second.m_userID);
-					m_mapConnections.erase(kvPair.first);
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[ERASE] Removing user %lld", it->second.m_userID);
+					it = m_mapConnections.erase(it);
 					break;
+				}
+				else
+				{
+					++it;
 				}
 			}
 		}

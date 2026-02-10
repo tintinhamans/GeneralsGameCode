@@ -150,6 +150,7 @@ std::vector<uint8_t> Base64Decode(const std::string& encodedData) {
 	uint8_t charArray4[4], charArray3[3];
 
 	while (inLen-- && (encodedData[in_] != '=') && isBase64(encodedData[in_])) {
+		if (i >= 4) break;
 		charArray4[i++] = encodedData[in_]; in_++;
 		if (i == 4) {
 			for (i = 0; i < 4; i++)

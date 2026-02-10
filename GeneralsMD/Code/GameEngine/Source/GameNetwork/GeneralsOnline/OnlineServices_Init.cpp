@@ -120,8 +120,10 @@ void NGMP_OnlineServicesManager::CaptureScreenshotToDisk()
 			{
 				// write to disk
 				FILE* pFile = fopen(strFilePath.c_str(), "wb");
-				fwrite(vecBuffer.data(), sizeof(uint8_t), vecBuffer.size(), pFile);
-				fclose(pFile);
+				if (pFile != nullptr) {
+					fwrite(vecBuffer.data(), sizeof(uint8_t), vecBuffer.size(), pFile);
+					fclose(pFile);
+				}
 			}
 		});
 }
@@ -426,8 +428,10 @@ void NGMP_OnlineServicesManager::ContinueUpdate()
 					}
 
 					FILE* pFile = fopen(strOutPath.c_str(), "wb");
-					fwrite(vecBuffer.data(), sizeof(uint8_t), bufSize, pFile);
-					fclose(pFile);
+					if (pFile != nullptr) {
+						fwrite(vecBuffer.data(), sizeof(uint8_t), bufSize, pFile);
+						fclose(pFile);
+					}
 
 					// call continue update again, thisll check if we're done or have more work to do
 					ContinueUpdate();
