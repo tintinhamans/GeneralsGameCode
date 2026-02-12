@@ -1686,6 +1686,9 @@ void W3DDisplay::draw( void )
 		return;
 
 	updateAverageFPS();
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	TheGameLODManager->updateGraphicsQualityState(m_averageFPS);
+#else
 	if (TheGlobalData->m_enableDynamicLOD && TheGameLogic->getShowDynamicLOD())
 	{
 		DynamicGameLODLevel lod=TheGameLODManager->findDynamicLODLevel(m_averageFPS);
@@ -1695,6 +1698,7 @@ void W3DDisplay::draw( void )
 	{	//if dynamic LOD is turned off, force highest LOD
 		TheGameLODManager->setDynamicLODLevel(DYNAMIC_GAME_LOD_VERY_HIGH);
 	}
+#endif
 
 	if (TheGlobalData->m_terrainLOD == TERRAIN_LOD_AUTOMATIC && TheTerrainRenderObject)
 	{
