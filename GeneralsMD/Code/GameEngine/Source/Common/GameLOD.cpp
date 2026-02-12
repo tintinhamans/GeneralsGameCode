@@ -230,6 +230,15 @@ GameLODManager::GameLODManager(void)
 	m_compositeBenchIndex=0;
 	m_numBenchProfiles=0;
 	m_reallyLowMHz = 400;
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	m_userGraphSnapshotTaken = false;
+	m_userShadowVolumesEnabled = true;
+	m_userShadowDecalsEnabled = true;
+	m_userHeatEffectsEnabled = true;
+	m_isQualityReduced = false;
+	m_sustainedGoodFrames = 0;
+	m_userDynamicLOD = DYNAMIC_GAME_LOD_VERY_HIGH;
+#endif
 
 	for (Int i=0; i<STATIC_GAME_LOD_CUSTOM; i++)
 		m_numLevelPresets[i]=0;
@@ -394,6 +403,10 @@ void GameLODManager::init(void)
 	}
 
 	setStaticLODLevel(userSetDetail);
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_LOW].m_minFPS = 56;
+	m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_LOW].m_minDynamicParticlePriority = ALWAYS_RENDER;
+#endif
 }
 
 void GameLODManager::refreshCustomStaticLODLevel(void)
@@ -767,3 +780,70 @@ Bool GameLODManager::didMemPass( void )
 {
 	return m_memPassed;
 }
+
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+void GameLODManager::updateGraphicsQualityState(float averageFPS)
+{
+	if (!m_userGraphSnapshotTaken)
+	{
+		m_userShadowVolumesEnabled = TheGlobalData->m_useShadowVolumes;
+		m_userShadowDecalsEnabled = TheGlobalData->m_useShadowDecals;
+		m_userHeatEffectsEnabled = TheGlobalData->m_useHeatEffects;
+		m_userDynamicLOD = m_currentDynamicLOD;
+		m_userGraphSnapshotTaken = true;
+	}
+
+	if (m_isQualityReduced && TheGameClient && TheGameClient->getFrame() <= 1)
+	{
+		TheWritableGlobalData->m_useShadowVolumes = m_userShadowVolumesEnabled;
+		TheWritableGlobalData->m_useShadowDecals = m_userShadowDecalsEnabled;
+		TheWritableGlobalData->m_useHeatEffects = m_userHeatEffectsEnabled;
+		setDynamicLODLevel(m_userDynamicLOD);
+		if (TheGameClient)
+			TheGameClient->allocateShadows();
+		m_isQualityReduced = false;
+		m_sustainedGoodFrames = 0;
+	}
+
+	if (!m_isQualityReduced)
+	{
+		m_userShadowVolumesEnabled = TheGlobalData->m_useShadowVolumes;
+		m_userShadowDecalsEnabled = TheGlobalData->m_useShadowDecals;
+		m_userHeatEffectsEnabled = TheGlobalData->m_useHeatEffects;
+		m_userDynamicLOD = m_currentDynamicLOD;
+	}
+
+	m_sustainedGoodFrames = (averageFPS >= 58.0f) ? (m_sustainedGoodFrames + 1) : 0; // Track a duration of sustained good performance
+
+	bool shouldReduceQuality = (averageFPS < 56.0f && TheGameClient && TheGameClient->getFrame() > LOGICFRAMES_PER_SECOND * 10);
+	if (shouldReduceQuality && !m_isQualityReduced)
+	{
+		setDynamicLODLevel(DYNAMIC_GAME_LOD_LOW);
+		TheGameClient->releaseShadows();
+		TheWritableGlobalData->m_useShadowVolumes = false;
+		TheWritableGlobalData->m_useShadowDecals = false;
+		TheWritableGlobalData->m_useHeatEffects = false;
+		m_isQualityReduced = true;
+	}
+
+	// Restore to user preferences after sustained good performance
+	else if (!shouldReduceQuality && m_isQualityReduced)
+	{
+		if (m_sustainedGoodFrames > 300)
+		{
+			TheWritableGlobalData->m_useShadowVolumes = m_userShadowVolumesEnabled;
+			TheWritableGlobalData->m_useShadowDecals = m_userShadowDecalsEnabled;
+			TheWritableGlobalData->m_useHeatEffects = m_userHeatEffectsEnabled;
+
+			if (TheGameClient)
+				TheGameClient->allocateShadows();
+
+			DynamicGameLODLevel lod = TheGameLODManager->findDynamicLODLevel(averageFPS);
+			TheGameLODManager->setDynamicLODLevel(lod);
+
+			m_isQualityReduced = false;
+			m_sustainedGoodFrames = 0;
+		}
+	}
+}
+#endif // GENERALS_ONLINE_HIGH_FPS_SERVER

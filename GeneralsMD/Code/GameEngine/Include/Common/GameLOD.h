@@ -188,6 +188,9 @@ public:
 	Bool didMemPass( void );
 	void setReallyLowMHz(Int mhz) { m_reallyLowMHz = mhz; }
 	Bool isReallyLowMHz() const { return m_cpuFreq < m_reallyLowMHz; }
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	void updateGraphicsQualityState(float averageFPS);
+#endif
 
 	StaticGameLODInfo m_staticGameLODInfo[STATIC_GAME_LOD_COUNT];
 	DynamicGameLODInfo m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_COUNT];
@@ -226,6 +229,15 @@ protected:
 	Real m_memBenchIndex;
 	Real m_compositeBenchIndex;
 	Int m_reallyLowMHz;
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	bool m_userGraphSnapshotTaken;
+	bool m_userShadowVolumesEnabled;
+	bool m_userShadowDecalsEnabled;
+	bool m_userHeatEffectsEnabled;
+	bool m_isQualityReduced;
+	int  m_sustainedGoodFrames;
+	DynamicGameLODLevel m_userDynamicLOD;
+#endif
 };
 
 Bool GameLODManager::isParticleSkipped(void)
