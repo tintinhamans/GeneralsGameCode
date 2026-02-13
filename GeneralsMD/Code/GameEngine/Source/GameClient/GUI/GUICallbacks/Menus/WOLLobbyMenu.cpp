@@ -811,25 +811,40 @@ void PopulateLobbyPlayerListbox(void)
 
 				// by this point, all stats should be cached - they were either already cached, or we just got them back from the service
 				// sort
-				std::vector<NetworkRoomMember> sorted;
-				{
-					auto membersMAp = pRoomsInterface->GetMembersListForCurrentRoom();
+                std::vector<NetworkRoomMember> sorted;
+
+                {
+                    auto membersMAp = pRoomsInterface->GetMembersListForCurrentRoom();
                     sorted.reserve(membersMAp.size());
 
-                    for (auto& [id, member] : membersMAp)
-                        sorted.emplace_back(member);
+                    for (auto& [id, member] : membersMAp) {
+                        NetworkRoomMember copy = member;
 
+                        // Precompute lowercase sort key
+                        copy.sort_key.resize(copy.display_name.size());
+                        std::transform(
+                            copy.display_name.begin(),
+                            copy.display_name.end(),
+                            copy.sort_key.begin(),
+                            [](unsigned char c) { return std::tolower(c); }
+                        );
+
+                        sorted.emplace_back(std::move(copy));
+                    }
+
+                    // Case-insensitive alphabetical sort
                     std::sort(sorted.begin(), sorted.end(),
                         [](const auto& a, const auto& b) {
-                            return a.display_name < b.display_name;
+                            return a.sort_key < b.sort_key;
                         });
 
+                    // Admin/staff first
                     std::stable_partition(sorted.begin(), sorted.end(),
                         [](const auto& x) {
                             return x.m_bIsAdmin;
                         });
+                }
 
-				}
 
 				for (const NetworkRoomMember& netRoomMember : sorted)
 				{
