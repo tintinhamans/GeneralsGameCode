@@ -1337,6 +1337,20 @@ void WOLDisplaySlotList( void )
 		NGMPGameSlot *slot = game->getGameSpySlot(i);
 		if (slot && slot->isHuman())
 		{
+            // Determine friends and highlight in cyan
+			Color nameColor = GameSpyColor[GSCOLOR_PLAYER_NORMAL];
+			NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+
+			if (pSocialInterface != nullptr && pSocialInterface->IsUserFriend(slot->m_userID))
+			{
+				nameColor = GameMakeColor(7, 183, 247, 255);
+			}
+
+			if (comboBoxPlayer[i])
+			{
+				GadgetTextEntrySetTextColor(GadgetComboBoxGetEditBox(comboBoxPlayer[i]), nameColor);
+			}
+            
 			bool bIsConnected = false;
 			int latency = -1;
 			std::string strConnectionType = "";
