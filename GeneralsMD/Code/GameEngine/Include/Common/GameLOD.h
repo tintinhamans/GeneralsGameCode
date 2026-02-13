@@ -235,7 +235,7 @@ protected:
 	bool m_userShadowDecalsEnabled;
 	bool m_userHeatEffectsEnabled;
 	bool m_isQualityReduced;
-	int  m_sustainedGoodFrames;
+	int  m_stableFPSDuration;
 	DynamicGameLODLevel m_userDynamicLOD;
 #endif
 };
