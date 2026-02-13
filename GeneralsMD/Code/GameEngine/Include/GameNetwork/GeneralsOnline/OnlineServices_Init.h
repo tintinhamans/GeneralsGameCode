@@ -110,63 +110,6 @@ enum class EGOTearDownReason
 	USER_REQUESTED_SILENT = 2
 };
 
-class QoSManager
-{
-public:
-	void Tick();
-	void StartProbing(std::map<std::pair<std::string, EQoSRegions>, std::string>& endpoints, std::function<void(void)> cbOnComplete);
-
-	std::string& GetPreferredRegionName() { return m_PreferredRegionName; }
-	EQoSRegions GetPreferredRegionID() { return m_PreferredRegionID; }
-	int GetPreferredRegionLatency() { return m_PreferredRegionLatency; }
-	std::map<EQoSRegions, int>& GetQoSData() { return m_mapQoSData; }
-
-private:
-	std::function<void(void)> m_cbCompletion = nullptr;
-	std::string m_PreferredRegionName = "Unknown";
-	EQoSRegions m_PreferredRegionID = EQoSRegions::UNKNOWN;
-	int m_PreferredRegionLatency = -1;
-
-	std::map<std::pair<std::string, EQoSRegions>, std::string> m_mapQoSEndpoints;
-	SOCKET m_Socket_QoSProbing = -1;
-	int64_t m_timeStartQoS = -1;
-
-	std::map<EQoSRegions, int> m_mapQoSData;
-
-	class QoSProbe
-	{
-	public:
-		EQoSRegions regionID;
-		std::string strRegionName;
-		std::string strEndpoint;
-
-		int64_t startTime = -1;
-
-		unsigned short Port = -1;
-		std::string strIPAddr;
-
-		bool bSent = false;
-		bool bDone = false;
-		int Latency = -1;
-
-		bool HasTimedOut()
-		{
-			if (startTime == -1)
-			{
-				return false;
-			}
-
-			const int timeoutMS = 1000;
-			int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-			return (currTime - startTime) >= timeoutMS;
-		}
-	};
-	std::vector<QoSProbe> m_lstQoSProbesInFlight;
-
-	const static int MAX_SIZE_IP_ADDR = 16;
-
-};
-
 class WebSocket
 {
 public:
@@ -514,16 +457,6 @@ public:
 	static bool g_bAdvancedNetworkStats;
 	static void ToggleAdvancedNetworkStats() { g_bAdvancedNetworkStats = !g_bAdvancedNetworkStats; }
 	static bool IsAdvancedNetworkStatsEnabled() { return g_bAdvancedNetworkStats; }
-
-	/*
-	NGMP_OnlineServices_AuthInterface* GetAuthInterface() const { return m_pAuthInterface; }
-	NGMP_OnlineServices_LobbyInterface* GetLobbyInterface() const { return m_pLobbyInterface; }
-	NGMP_OnlineServices_RoomsInterface* GetRoomsInterface() const { return m_pRoomInterface; }
-	NGMP_OnlineServices_StatsInterface* GetStatsInterface() const { return m_pStatsInterface; }
-	NGMP_OnlineServices_MatchmakingInterface* GetMatchmakingInterface() const { return m_pMatchmakingInterface; }
-	*/
-	QoSManager& GetQoSManager() { return m_qosMgr; }
-	QoSManager m_qosMgr;
 
 	void OnLogin(ELoginResult loginResult, const char* szWSAddr, std::function<void(void)> fnWebsocketConnectedCallback);
 	
