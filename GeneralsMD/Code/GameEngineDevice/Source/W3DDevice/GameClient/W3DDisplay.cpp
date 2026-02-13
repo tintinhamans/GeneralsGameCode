@@ -1687,7 +1687,8 @@ void W3DDisplay::draw( void )
 
 	updateAverageFPS();
 #if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-	TheGameLODManager->updateGraphicsQualityState(m_averageFPS);
+	if (TheGameLogic && (TheGameLogic->getFrame() % LOGICFRAMES_PER_SECOND) == 0)
+		TheGameLODManager->updateGraphicsQualityState(m_averageFPS);
 #else
 	if (TheGlobalData->m_enableDynamicLOD && TheGameLogic->getShowDynamicLOD())
 	{

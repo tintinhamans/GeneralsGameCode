@@ -236,7 +236,7 @@ GameLODManager::GameLODManager(void)
 	m_userShadowDecalsEnabled = true;
 	m_userHeatEffectsEnabled = true;
 	m_isQualityReduced = false;
-	m_sustainedGoodFrames = 0;
+	m_stableFPSDuration = 0;
 	m_userDynamicLOD = DYNAMIC_GAME_LOD_VERY_HIGH;
 #endif
 
@@ -802,7 +802,7 @@ void GameLODManager::updateGraphicsQualityState(float averageFPS)
 		if (TheGameClient)
 			TheGameClient->allocateShadows();
 		m_isQualityReduced = false;
-		m_sustainedGoodFrames = 0;
+		m_stableFPSDuration = 0;
 	}
 
 	if (!m_isQualityReduced)
@@ -813,7 +813,7 @@ void GameLODManager::updateGraphicsQualityState(float averageFPS)
 		m_userDynamicLOD = m_currentDynamicLOD;
 	}
 
-	m_sustainedGoodFrames = (averageFPS >= 58.0f) ? (m_sustainedGoodFrames + 1) : 0; // Track a duration of sustained good performance
+	m_stableFPSDuration = (averageFPS >= 58.0f) ? (m_stableFPSDuration + 1) : 0; // Track a duration of sustained good performance
 
 	bool shouldReduceQuality = (averageFPS < 56.0f && TheGameClient && TheGameClient->getFrame() > LOGICFRAMES_PER_SECOND * 10);
 	if (shouldReduceQuality && !m_isQualityReduced)
@@ -829,7 +829,7 @@ void GameLODManager::updateGraphicsQualityState(float averageFPS)
 	// Restore to user preferences after sustained good performance
 	else if (!shouldReduceQuality && m_isQualityReduced)
 	{
-		if (m_sustainedGoodFrames > 300)
+		if (m_stableFPSDuration > 20)
 		{
 			TheWritableGlobalData->m_useShadowVolumes = m_userShadowVolumesEnabled;
 			TheWritableGlobalData->m_useShadowDecals = m_userShadowDecalsEnabled;
@@ -842,7 +842,7 @@ void GameLODManager::updateGraphicsQualityState(float averageFPS)
 			TheGameLODManager->setDynamicLODLevel(lod);
 
 			m_isQualityReduced = false;
-			m_sustainedGoodFrames = 0;
+			m_stableFPSDuration = 0;
 		}
 	}
 }
