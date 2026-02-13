@@ -762,7 +762,8 @@ void PopulateLobbyPlayerListbox(void)
 	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
 	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
 	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-	if (pRoomsInterface != nullptr && pStatsInterface != nullptr && pAuthInterface != nullptr)
+	NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+	if (pRoomsInterface != nullptr && pStatsInterface != nullptr && pAuthInterface != nullptr && pSocialInterface != nullptr)
 	{
 		int64_t localUserID = pAuthInterface->GetUserID();
 
@@ -839,10 +840,17 @@ void PopulateLobbyPlayerListbox(void)
                         });
 
                     // Admin/staff first
-                    std::stable_partition(sorted.begin(), sorted.end(),
+					auto adminSorted = std::stable_partition(sorted.begin(), sorted.end(),
                         [](const auto& x) {
                             return x.m_bIsAdmin;
                         });
+
+					// friends next, after admin and if not admin
+					std::stable_partition(adminSorted, sorted.end(),
+						[=](const auto& x)
+						{
+							return pSocialInterface->IsUserFriend(x.user_id);
+						});
                 }
 
 
