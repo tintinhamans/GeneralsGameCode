@@ -870,7 +870,7 @@ void NGMP_OnlineServicesManager::InitSentry()
 
 	sentry_options_set_dsn(options, "https://61750bebd112d279bcc286d617819269@o4509316925554688.ingest.us.sentry.io/4509316927586304");
 	sentry_options_set_database_path(options, strDumpPath.c_str());
-	sentry_options_set_release(options, "generalsonline-client@020626");
+	sentry_options_set_release(options, "generalsonline-client@021326");
 
 	// local player info
 	int64_t userID = -1;
