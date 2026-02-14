@@ -2605,6 +2605,10 @@ Bool Player::attemptToPurchaseScience(ScienceType science)
 		TheControlBar->markUIDirty();
 	}
 
+	if (TheInGameUI) {
+		TheInGameUI->notifyGeneralPromotion(this, science);
+	}
+
 	return true;
 }
 

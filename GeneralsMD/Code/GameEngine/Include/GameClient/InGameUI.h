@@ -365,7 +365,11 @@ public:  // ********************************************************************
 	InGameUI( void );
 	virtual ~InGameUI( void );
 
-	void toggleObserverStats() { m_observerStatsHidden = !m_observerStatsHidden; }   // Toggle visibility of the observer stats overlay
+	// Toggle visibility of the observer stats overlay and notifications
+	void toggleObserverStats() {
+		m_observerStatsHidden = !m_observerStatsHidden;
+		m_observerNotificationsHidden = !m_observerNotificationsHidden;
+	}
 
 	// Inherited from subsystem interface -----------------------------------------------------------
 	virtual	void init( void );															///< Initialize the in-game user interface
@@ -616,7 +620,15 @@ public:
 
   void triggerDoubleClickAttackMoveGuardHint( void );
 
-
+  void drawObserverNotifications(Int& x, Int& y);
+  void updateObserverNotifications(UnsignedInt currentFrame);
+  void checkObserverMilestones(UnsignedInt currentFrame);
+  void addObserverNotification(const UnicodeString& playerName, const wchar_t* message, Color playerColor);
+  void addObserverNotificationRaw(const UnicodeString& message, Color color);
+  void notifyGeneralPromotion(Player* player, ScienceType science);
+  void notifySpecialPowerUsed(Player* player, const SpecialPowerTemplate* powerTemplate);
+  void refreshObserverNotificationResources(void);
+  Bool m_observerNotificationsHidden;   // hide/show observer notifications
 
 public:
 	// World 2D animation methods
@@ -660,6 +672,23 @@ protected:
 	};
 
 	enum { MAX_MOVE_HINTS = 256 };
+
+	struct ObserverNotification {
+		UnicodeString message;
+		Color color;
+		UnsignedInt createdRenderMs;
+		Bool active;
+	};
+
+	struct ObserverMilestone {
+		Bool reachedLevel3;
+		Bool reachedLevel5;
+		Bool reached10kCPM;
+		Bool reached20kCPM;
+		Bool reached50kCPM;
+		Bool reached100kCPM;
+		Bool warnedFloating100k;
+	};
 
 	struct PlayerData {
 		UnicodeString name;
@@ -844,6 +873,12 @@ protected:
 	Bool m_observerStatsBold;
 	Coord2D m_observerStatsPosition;
 	Int m_observerStatsLineStep;
+
+	// Observer notifications
+	std::vector<ObserverNotification> m_observerNotifications;
+	std::vector<ObserverMilestone> m_observerMilestones;
+	DisplayString* m_observerNotificationString;
+	Int m_observerNotificationPointSize;
 
 #if defined(GENERALS_ONLINE)
 	Color												m_colorGood;

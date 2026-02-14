@@ -644,6 +644,14 @@ void SpecialPowerModule::aboutToDoSpecialPower( const Coord3D *location )
     }
 	}
 
+  // Notify the UI that this special power was activated (for observer notifications)
+  const Object* obj = getObject();
+  const SpecialPowerTemplate* tpl = getSpecialPowerTemplate();
+  if (obj && tpl && TheInGameUI) {
+	  if (Player* p = obj->getControllingPlayer())
+		  TheInGameUI->notifySpecialPowerUsed(p, tpl);
+  }
+
 	// get module data
 	const SpecialPowerModuleData *modData = getSpecialPowerModuleData();
 
