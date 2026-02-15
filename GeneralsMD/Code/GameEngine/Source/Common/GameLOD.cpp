@@ -238,6 +238,7 @@ GameLODManager::GameLODManager(void)
 	m_userHeatEffectsEnabled = true;
 	m_isQualityReduced = false;
 	m_stableFPSDuration = 0;
+	m_lowFPSSecondsCount = 0;
 	m_userDynamicLOD = DYNAMIC_GAME_LOD_VERY_HIGH;
 #endif
 
@@ -810,15 +811,19 @@ void GameLODManager::updateGraphicsQualityState(float averageFPS)
 		m_userDynamicLOD = m_currentDynamicLOD;
 	}
 
-	m_stableFPSDuration = (averageFPS > 56.0f) ? (m_stableFPSDuration + 1) : 0; // Track a duration of sustained good performance
+	if (averageFPS < 56.0f)
+		m_lowFPSSecondsCount++, m_stableFPSDuration = 0;
+	else if (averageFPS > 57.0f)
+		m_stableFPSDuration++, m_lowFPSSecondsCount = 0;
 
-	bool shouldReduceQuality = (averageFPS < 56.0f && TheGameClient && TheGameClient->getFrame() > LOGICFRAMES_PER_SECOND * 10 && !TheShell->isShellActive());
+	bool shouldReduceQuality = (m_lowFPSSecondsCount >= 2 && TheGameClient && TheGameClient->getFrame() > LOGICFRAMES_PER_SECOND * 10 && !TheShell->isShellActive());
 	if (shouldReduceQuality && !m_isQualityReduced)
 	{
-		if (averageFPS < 50.0f)
-			m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_LOW].m_minDynamicParticlePriority = ALWAYS_RENDER;
-		else
+		if (averageFPS < 56.0f)
 			m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_LOW].m_minDynamicParticlePriority = WEAPON_TRAIL;
+		if (averageFPS < 40.0f)
+			m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_LOW].m_minDynamicParticlePriority = ALWAYS_RENDER;
+
         
 		setDynamicLODLevel(DYNAMIC_GAME_LOD_LOW);
 		TheGameClient->releaseShadows();
@@ -826,6 +831,7 @@ void GameLODManager::updateGraphicsQualityState(float averageFPS)
 		TheWritableGlobalData->m_useShadowDecals = false;
 		TheWritableGlobalData->m_useHeatEffects = false;
 		m_isQualityReduced = true;
+		m_lowFPSSecondsCount = 0;
 	}
 
 	// Restore to user preferences after sustained good performance
