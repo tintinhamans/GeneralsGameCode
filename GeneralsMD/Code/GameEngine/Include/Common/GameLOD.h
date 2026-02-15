@@ -236,6 +236,7 @@ protected:
 	bool m_userHeatEffectsEnabled;
 	bool m_isQualityReduced;
 	int  m_stableFPSDuration;
+	int m_lowFPSSecondsCount;
 	DynamicGameLODLevel m_userDynamicLOD;
 #endif
 };
