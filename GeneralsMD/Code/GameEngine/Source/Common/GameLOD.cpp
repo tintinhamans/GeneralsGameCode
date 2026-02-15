@@ -36,6 +36,7 @@
 #include "Common/GameLOD.h"
 #include "GameClient/TerrainVisual.h"
 #include "GameClient/GameClient.h"
+#include "GameClient/Shell.h"
 #include "Common/UserPreferences.h"
 
 #define DEFINE_PARTICLE_SYSTEM_NAMES
@@ -403,10 +404,6 @@ void GameLODManager::init(void)
 	}
 
 	setStaticLODLevel(userSetDetail);
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-	m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_LOW].m_minFPS = 56;
-	m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_LOW].m_minDynamicParticlePriority = ALWAYS_RENDER;
-#endif
 }
 
 void GameLODManager::refreshCustomStaticLODLevel(void)
@@ -813,11 +810,16 @@ void GameLODManager::updateGraphicsQualityState(float averageFPS)
 		m_userDynamicLOD = m_currentDynamicLOD;
 	}
 
-	m_stableFPSDuration = (averageFPS >= 58.0f) ? (m_stableFPSDuration + 1) : 0; // Track a duration of sustained good performance
+	m_stableFPSDuration = (averageFPS > 56.0f) ? (m_stableFPSDuration + 1) : 0; // Track a duration of sustained good performance
 
-	bool shouldReduceQuality = (averageFPS < 56.0f && TheGameClient && TheGameClient->getFrame() > LOGICFRAMES_PER_SECOND * 10);
+	bool shouldReduceQuality = (averageFPS < 56.0f && TheGameClient && TheGameClient->getFrame() > LOGICFRAMES_PER_SECOND * 10 && !TheShell->isShellActive());
 	if (shouldReduceQuality && !m_isQualityReduced)
 	{
+		if (averageFPS < 50.0f)
+			m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_LOW].m_minDynamicParticlePriority = ALWAYS_RENDER;
+		else
+			m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_LOW].m_minDynamicParticlePriority = WEAPON_TRAIL;
+        
 		setDynamicLODLevel(DYNAMIC_GAME_LOD_LOW);
 		TheGameClient->releaseShadows();
 		TheWritableGlobalData->m_useShadowVolumes = false;
@@ -829,7 +831,7 @@ void GameLODManager::updateGraphicsQualityState(float averageFPS)
 	// Restore to user preferences after sustained good performance
 	else if (!shouldReduceQuality && m_isQualityReduced)
 	{
-		if (m_stableFPSDuration > 20)
+		if (m_stableFPSDuration > 15)
 		{
 			TheWritableGlobalData->m_useShadowVolumes = m_userShadowVolumesEnabled;
 			TheWritableGlobalData->m_useShadowDecals = m_userShadowDecalsEnabled;
