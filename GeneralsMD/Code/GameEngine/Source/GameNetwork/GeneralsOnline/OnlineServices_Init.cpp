@@ -294,17 +294,32 @@ void NGMP_OnlineServicesManager::WaitForScreenshotThreads()
 
 void NGMP_OnlineServicesManager::Shutdown()
 {
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] OnlineServicesManager shutdown initiated");
+	
+	// First, wait for all screenshot threads to complete
+	// This prevents race conditions where threads might still be using resources
+	WaitForScreenshotThreads();
+	
+	// Shutdown and completely destroy WebSocket BEFORE cleaning up HTTPManager
+	// This is critical because WebSocket has curl handles that must be freed
+	// before curl_global_cleanup() is called by HTTPManager
 	if (m_pWebSocket)
 	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Shutting down WebSocket...");
 		m_pWebSocket->Shutdown();
-		// Reset shared_ptr, which will delete WebSocket only when all references are released
+		
+		// Reset shared_ptr to fully destroy WebSocket and free all its curl resources
+		// This must happen before HTTPManager shutdown to avoid accessing freed curl state
 		m_pWebSocket.reset();
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] WebSocket shutdown complete");
 	}
 
-	// Then shutdown HTTP manager to complete any pending requests
+	// Now safe to shutdown HTTP manager which calls curl_global_cleanup()
 	if (m_pHTTPManager != nullptr)
 	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Shutting down HTTPManager...");
 		m_pHTTPManager->Shutdown();
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] HTTPManager shutdown complete");
 	}
 
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] OnlineServicesManager shutdown complete");
