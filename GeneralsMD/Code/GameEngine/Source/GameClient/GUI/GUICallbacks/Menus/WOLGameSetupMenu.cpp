@@ -2126,6 +2126,14 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
             GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"This lobby is open to the public. Use /friendsonly to make it only open to friends."), GameMakeColor(255, 194, 15, 255), -1, -1);
         }
     }
+    
+    if (TheNGMPGame != nullptr)
+	{
+		if (!TheNGMPGame->getAllowObservers())
+		{
+			GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"NOTE: The host has disabled observers in this lobby."), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+		}
+	}
 #endif
 
 #if defined(GENERALS_ONLINE)
