@@ -86,6 +86,9 @@ void Win32GameEngine::reset()
 void Win32GameEngine::update()
 {
 
+	// TheSuperHackers @bugfix arcticdolphin 04/03/2026 Drain Win32 messages before game logic
+	// to prevent hotkey WM_CHAR messages from filling the chat box.
+	serviceWindowsOS();
 
 	// call the engine normal update
 	GameEngine::update();
@@ -113,9 +116,6 @@ void Win32GameEngine::update()
 			}
 		}
 	}
-
-	// allow windows to perform regular windows maintenance stuff like msgs
-	serviceWindowsOS();
 
 }
 
