@@ -5,7 +5,7 @@ permissions:
   pull-requests: write
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
     types:
@@ -21,8 +21,14 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Checkout Code
+      - name: Checkout base branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          fetch-depth: 0
+
+      - name: Fetch PR head
+        run: git fetch origin ${{ github.event.pull_request.head.sha }}
 
       - name: Load valid tags
         id: load-tags
@@ -34,14 +40,13 @@ jobs:
 
           echo "**Valid tags**: $(cat ./.github/workflows/valid-tags.txt | tr '\n' ',' | sed 's/,/, /g' | sed 's/, $//')" >> $GITHUB_STEP_SUMMARY
 
-          TAG_REGEX=$(sed 's/[]\/$*.^|[]/\\&/g' ./.github/workflows/valid-tags.txt | paste -sd "|" -)
+          TAG_REGEX=$(cat ./.github/workflows/valid-tags.txt | paste -sd "|" -)
 
           # Matches:
-          #   1) One or more valid tags at the beginning, directly adjacent, followed by at least one space, then text
-          #   2) Text that does not start with '[' (i.e. no tags)
-          echo "regex=^((($TAG_REGEX)){1,}[[:space:]]+.*|[^[]+.*)$" >> $GITHUB_OUTPUT
+          #   Conventional commit: type or type(scope) followed by colon, single space, then text
+          echo "regex=^(($TAG_REGEX)(\\([^)]+\\))?: .+)$" >> $GITHUB_OUTPUT
 
-          echo "Built the regex: ^((($TAG_REGEX)){1,}[[:space:]]+.*|[^[]+.*)$"
+          echo "Built the regex: ^(($TAG_REGEX)(\\([^)]+\\))?: .+)$"
 
       - name: Validate PR title
         id: validate_title
@@ -55,6 +60,7 @@ jobs:
           if [[ ! "$TITLE" =~ $REGEX ]]; then
             echo "- ❌ PR title \"$ESCAPED_TITLE\" is invalid." >> $GITHUB_STEP_SUMMARY
             echo "TITLE_VALID=false" >> $GITHUB_OUTPUT
+            echo "INVALID_TITLE=$ESCAPED_TITLE" >> $GITHUB_ENV
           else
             echo "- ✅ PR title \"$ESCAPED_TITLE\" is valid." >> $GITHUB_STEP_SUMMARY
             echo "TITLE_VALID=true" >> $GITHUB_OUTPUT
@@ -65,10 +71,10 @@ jobs:
         run: |
           echo "### Validate PR Commits" >> $GITHUB_STEP_SUMMARY
           REGEX="${{ steps.load-tags.outputs.regex }}"
-          git fetch --prune --unshallow origin ${{ github.base_ref }}
-          COMMITS=$(git log origin/${{ github.base_ref }}..HEAD --pretty=format:"%s" --no-merges)
+          COMMITS=$(git log ${{ github.base_ref }}..${{ github.event.pull_request.head.sha }} --pretty=format:"%s" --no-merges)
 
           INVALID_COMMITS=0
+          INVALID_LIST=""
 
           while read -r COMMIT_MSG; do
           if [[ -z "$COMMIT_MSG" ]]; then
@@ -78,6 +84,7 @@ jobs:
           if [[ ! "$COMMIT_MSG" =~ $REGEX ]]; then
             echo "- ❌ Commit message \"$ESCAPED_MSG\" is invalid." >> $GITHUB_STEP_SUMMARY
             INVALID_COMMITS=$((INVALID_COMMITS+1))
+            INVALID_LIST="${INVALID_LIST}- \`${ESCAPED_MSG}\`"$'\n'
           else
             echo "- ✅ Commit message \"$ESCAPED_MSG\" is valid." >> $GITHUB_STEP_SUMMARY
           fi
@@ -85,12 +92,52 @@ jobs:
 
           if [[ $INVALID_COMMITS -gt 0 ]]; then
             echo "COMMITS_VALID=false" >> $GITHUB_OUTPUT
+            {
+              echo "INVALID_COMMITS_LIST<<COMMITS_EOF"
+              echo "$INVALID_LIST"
+              echo "COMMITS_EOF"
+            } >> $GITHUB_ENV
           else
             echo "COMMITS_VALID=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Validation return code
+      - name: Comment on PR if validation failed
+        if: steps.validate_title.outputs.TITLE_VALID != 'true' || steps.validate_commits.outputs.COMMITS_VALID != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "${{ steps.validate_title.outputs.TITLE_VALID }}" != "true" || "${{ steps.validate_commits.outputs.COMMITS_VALID }}" != "true" ]]; then
-            exit 1
+          VALID_TAGS=$(cat ./.github/workflows/valid-tags.txt | sed '/^$/d; s/^/`/; s/$/`/' | tr '\n' ',' | sed 's/,/, /g; s/, $//')
+          BODY="### ⚠️ Title/Commit Validation Failed"
+
+          if [[ -n "$INVALID_TITLE" ]]; then
+            BODY="$BODY"$'\n\n'"**Invalid PR title:**"
+            BODY="$BODY"$'\n'"- \`$INVALID_TITLE\`"
           fi
+
+          if [[ -n "$INVALID_COMMITS_LIST" ]]; then
+            BODY="$BODY"$'\n\n'"**Invalid commit messages:**"
+            BODY="$BODY"$'\n'"$INVALID_COMMITS_LIST"
+          fi
+
+          BODY="$BODY"$'\n'"PR titles and commit messages must follow [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format:"
+          BODY="$BODY"$'\n'"\`\`\`"
+          BODY="$BODY"$'\n'"type: Description"
+          BODY="$BODY"$'\n'"type(scope): Description"
+          BODY="$BODY"$'\n'"\`\`\`"
+          BODY="$BODY"$'\n\n'"**Allowed types:** $VALID_TAGS"
+          BODY="$BODY"$'\n\n'"See [CONTRIBUTING.md](../blob/${{ github.base_ref }}/CONTRIBUTING.md#pull-request-documentation) for details."
+
+          # Delete previous bot comments from this workflow to avoid spam
+          gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("### ⚠️ Title/Commit Validation Failed"))) | .id' \
+            | while read -r comment_id; do
+                gh api -X DELETE "repos/${{ github.repository }}/issues/comments/$comment_id"
+              done
+
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body "$BODY"
+
+      - name: Validation return code
+        if: steps.validate_title.outputs.TITLE_VALID != 'true' || steps.validate_commits.outputs.COMMITS_VALID != 'true'
+        run: exit 1
