@@ -60,6 +60,7 @@ jobs:
           if [[ ! "$TITLE" =~ $REGEX ]]; then
             echo "- ❌ PR title \"$ESCAPED_TITLE\" is invalid." >> $GITHUB_STEP_SUMMARY
             echo "TITLE_VALID=false" >> $GITHUB_OUTPUT
+            echo "INVALID_TITLE=$ESCAPED_TITLE" >> $GITHUB_ENV
           else
             echo "- ✅ PR title \"$ESCAPED_TITLE\" is valid." >> $GITHUB_STEP_SUMMARY
             echo "TITLE_VALID=true" >> $GITHUB_OUTPUT
@@ -73,6 +74,7 @@ jobs:
           COMMITS=$(git log ${{ github.base_ref }}..${{ github.event.pull_request.head.sha }} --pretty=format:"%s" --no-merges)
 
           INVALID_COMMITS=0
+          INVALID_LIST=""
 
           while read -r COMMIT_MSG; do
           if [[ -z "$COMMIT_MSG" ]]; then
@@ -82,6 +84,7 @@ jobs:
           if [[ ! "$COMMIT_MSG" =~ $REGEX ]]; then
             echo "- ❌ Commit message \"$ESCAPED_MSG\" is invalid." >> $GITHUB_STEP_SUMMARY
             INVALID_COMMITS=$((INVALID_COMMITS+1))
+            INVALID_LIST="${INVALID_LIST}- \`${ESCAPED_MSG}\`"$'\n'
           else
             echo "- ✅ Commit message \"$ESCAPED_MSG\" is valid." >> $GITHUB_STEP_SUMMARY
           fi
@@ -89,6 +92,11 @@ jobs:
 
           if [[ $INVALID_COMMITS -gt 0 ]]; then
             echo "COMMITS_VALID=false" >> $GITHUB_OUTPUT
+            {
+              echo "INVALID_COMMITS_LIST<<COMMITS_EOF"
+              echo "$INVALID_LIST"
+              echo "COMMITS_EOF"
+            } >> $GITHUB_ENV
           else
             echo "COMMITS_VALID=true" >> $GITHUB_OUTPUT
           fi
@@ -98,14 +106,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VALID_TAGS=$(cat ./.github/workflows/valid-tags.txt | paste -sd ", " -)
+          VALID_TAGS=$(cat ./.github/workflows/valid-tags.txt | sed 's/^/`/; s/$/`/' | paste -sd ", " -)
           BODY="### ⚠️ Title/Commit Validation Failed"
-          BODY="$BODY"$'\n\n'"PR titles and commit messages must follow [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format:"
+
+          if [[ -n "$INVALID_TITLE" ]]; then
+            BODY="$BODY"$'\n\n'"**Invalid PR title:**"
+            BODY="$BODY"$'\n'"- \`$INVALID_TITLE\`"
+          fi
+
+          if [[ -n "$INVALID_COMMITS_LIST" ]]; then
+            BODY="$BODY"$'\n\n'"**Invalid commit messages:**"
+            BODY="$BODY"$'\n'"$INVALID_COMMITS_LIST"
+          fi
+
+          BODY="$BODY"$'\n'"PR titles and commit messages must follow [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format:"
           BODY="$BODY"$'\n'"\`\`\`"
           BODY="$BODY"$'\n'"type: Description"
           BODY="$BODY"$'\n'"type(scope): Description"
           BODY="$BODY"$'\n'"\`\`\`"
-          BODY="$BODY"$'\n\n'"Allowed types: $VALID_TAGS"
+          BODY="$BODY"$'\n\n'"**Allowed types:** $VALID_TAGS"
           BODY="$BODY"$'\n\n'"See [CONTRIBUTING.md](../blob/${{ github.base_ref }}/CONTRIBUTING.md#pull-request-documentation) for details."
 
           # Delete previous bot comments from this workflow to avoid spam
