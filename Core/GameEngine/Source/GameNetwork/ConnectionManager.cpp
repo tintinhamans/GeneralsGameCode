@@ -673,6 +673,42 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 	Bool amIObserver = !ThePlayerList->getLocalPlayer()->isPlayerActive();
 	Bool canSeeChat = (amIObserver || !fromObserver) && !TheGameInfo->getConstSlot(playerID)->isMuted();
 
+	// TheSuperHackers @feature tintinhamans 09/03/2026 Add chat type prefix to indicate message recipients
+	UnicodeString chatPrefixLabel;
+	if (fromObserver)
+	{
+		chatPrefixLabel = TheGameText->FETCH_OR_SUBSTITUTE("GUI:ChatPrefixObservers", L"Observers");
+	}
+	else
+	{
+		Int activePlayers = 0;
+		Int alliesCount = 0;
+		for (Int i = 0; i < MAX_SLOTS; ++i)
+		{
+			if ((1 << i) & msg->getPlayerMask())
+			{
+				AsciiString checkPlayerName;
+				checkPlayerName.format("player%d", i);
+				const Player *checkPlayer = ThePlayerList->findPlayerWithNameKey(TheNameKeyGenerator->nameToKey(checkPlayerName));
+				if (checkPlayer && checkPlayer->isPlayerActive())
+				{
+					++activePlayers;
+					if (player->getRelationship(checkPlayer->getDefaultTeam()) == ALLIES &&
+						checkPlayer->getRelationship(player->getDefaultTeam()) == ALLIES)
+					{
+						++alliesCount;
+					}
+				}
+			}
+		}
+		if (activePlayers > 0 && activePlayers == alliesCount)
+			chatPrefixLabel = TheGameText->FETCH_OR_SUBSTITUTE("GUI:ChatPrefixAllies", L"Allies");
+		else
+			chatPrefixLabel = TheGameText->FETCH_OR_SUBSTITUTE("GUI:ChatPrefixAll", L"All");
+	}
+
+	unitext.format(L"%ls [%ls] %ls", chatPrefixLabel.str(), name.str(), msg->getText().str());
+
 	if ( ((1<<m_localSlot) & msg->getPlayerMask() ) && canSeeChat  )
 	{
 		RGBColor rgb;
