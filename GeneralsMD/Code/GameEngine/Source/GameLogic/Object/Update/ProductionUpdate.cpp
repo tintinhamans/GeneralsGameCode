@@ -160,6 +160,8 @@ ProductionEntry::ProductionEntry()
 	m_prev = nullptr;
 	m_productionQuantityProduced = 0;
 	m_productionQuantityTotal = 0;
+	// TheSuperHackers @bugfix arcticdolphin 09/03/2026 Snapshot cost for refund on cancel.
+	m_moneyWithdrawn = 0;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -297,10 +299,14 @@ Bool ProductionUpdate::queueUpgrade( const UpgradeTemplate *upgrade )
 
 	// take the cost for the build away from the player
 	Money *money = player->getMoney();
-	money->withdraw( upgrade->calcCostToBuild( player ) );
+	// TheSuperHackers @bugfix arcticdolphin 09/03/2026 Snapshot cost for refund on cancel.
+	Int moneyWithdrawn = upgrade->calcCostToBuild( player );
+	money->withdraw( moneyWithdrawn );
 
 	// allocate a new production entry
 	ProductionEntry *production = newInstance(ProductionEntry);
+	// TheSuperHackers @bugfix arcticdolphin 09/03/2026 Snapshot cost for refund on cancel.
+	production->m_moneyWithdrawn = moneyWithdrawn;
 
 	// assign production entry data
 	production->m_type = PRODUCTION_UPGRADE;
@@ -357,7 +363,12 @@ void ProductionUpdate::cancelUpgrade( const UpgradeTemplate *upgrade )
 
 	// refund money back to the player
 	Money *money = player->getMoney();
+#if !RETAIL_COMPATIBLE_CRC
+	// TheSuperHackers @bugfix arcticdolphin 09/03/2026 Refund snapshot cost.
+	money->deposit( production->m_moneyWithdrawn, TRUE, FALSE );
+#else
 	money->deposit( production->m_upgradeToResearch->calcCostToBuild( player ), TRUE, FALSE );
+#endif
 
 	// remove this production from the queue
 	removeFromProductionQueue( production );
@@ -421,10 +432,14 @@ Bool ProductionUpdate::queueCreateUnit( const ThingTemplate *unitType, Productio
 	// take the cost for the build away from the player
 	Player *player = getObject()->getControllingPlayer();
 	Money *money = player->getMoney();
-	money->withdraw( unitType->calcCostToBuild( player ) );
+	// TheSuperHackers @bugfix arcticdolphin 09/03/2026 Snapshot cost for refund on cancel.
+	Int moneyWithdrawn = unitType->calcCostToBuild( player );
+	money->withdraw( moneyWithdrawn );
 
 	// allocate a new production entry
 	ProductionEntry *production = newInstance(ProductionEntry);
+	// TheSuperHackers @bugfix arcticdolphin 09/03/2026 Snapshot cost for refund on cancel.
+	production->m_moneyWithdrawn = moneyWithdrawn;
 
 	// Check to see if there is a quantity modifier entry. What this means is if we are building a particular unit
 	// and it has a modifier, we build that number of objects instead of just one. A good example is the Chinese
@@ -473,7 +488,12 @@ void ProductionUpdate::cancelUnitCreate( ProductionID productionID )
 			// give the player the cost of the object back
 			Player *player = getObject()->getControllingPlayer();
 			Money *money = player->getMoney();
+#if !RETAIL_COMPATIBLE_CRC
+			// TheSuperHackers @bugfix arcticdolphin 09/03/2026 Refund snapshot cost.
+			money->deposit( production->m_moneyWithdrawn, TRUE, FALSE );
+#else
 			money->deposit( production->m_objectToProduce->calcCostToBuild( player ), TRUE, FALSE );
+#endif
 
 			// remove from queue list
 			removeFromProductionQueue( production );

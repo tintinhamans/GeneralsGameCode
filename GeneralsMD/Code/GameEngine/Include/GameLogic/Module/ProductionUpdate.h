@@ -104,6 +104,8 @@ protected:
 	Int m_framesUnderConstruction;										///< counter for how many frames we've been under construction (incremented once per update)
 	Int m_productionQuantityTotal;										///< it is now possible to construct multiple units simultaneously.
 	Int m_productionQuantityProduced;									///< And we need to allow pausing within an entry, so we keep track of number of sub-successes
+	// TheSuperHackers @bugfix arcticdolphin 09/03/2026 Snapshot cost for refund on cancel.
+	Int m_moneyWithdrawn;
 	ExitDoorType m_exitDoor;
 
 	ProductionEntry *m_next;													///< next in list
