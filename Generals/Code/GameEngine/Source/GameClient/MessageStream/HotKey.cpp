@@ -72,7 +72,9 @@ GameMessageDisposition HotKeyTranslator::translateGameMessage(const GameMessage 
 	GameMessageDisposition disp = KEEP_MESSAGE;
 	GameMessage::Type t = msg->getType();
 
-	if ( t == GameMessage::MSG_RAW_KEY_UP)
+	// TheSuperHackers @bugfix tintinhamans 09/03/2026 Fire command button hotkeys on key press instead of key release.
+	// This fixes double-stop when pressing S on units with a Stop command button, because MSG_META_STOP already fires on key press.
+	if ( t == GameMessage::MSG_RAW_KEY_DOWN)
 	{
 
 		//char key = msg->getArgument(0)->integer;
@@ -97,6 +99,9 @@ GameMessageDisposition HotKeyTranslator::translateGameMessage(const GameMessage 
 			newModState |= ALT;
 		}
 		if(newModState != 0)
+			return disp;
+		// TheSuperHackers @bugfix tintinhamans 09/03/2026 Ignore autorepeat events to prevent button from firing repeatedly while key is held.
+		if( keyState & KEY_STATE_AUTOREPEAT )
 			return disp;
 		WideChar key = TheKeyboard->getPrintableKey((KeyDefType)msg->getArgument(0)->integer, 0);
 		UnicodeString uKey;
