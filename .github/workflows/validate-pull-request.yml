@@ -168,7 +168,7 @@ jobs:
             BODY="$BODY"$'\n'"$INVALID_COMMITS_LIST"
           fi
 
-          BODY="$BODY"$'\n'"PR titles and commit messages must follow [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format:"
+          BODY="$BODY"$'\n\n'"PR titles and commit messages must follow [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) format:"
           BODY="$BODY"$'\n'"\`\`\`"
           BODY="$BODY"$'\n'"type: Description"
           BODY="$BODY"$'\n'"type(scope): Description"
