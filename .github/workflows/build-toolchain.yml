@@ -40,6 +40,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Cache VC6 Installation
         if: startsWith(inputs.preset, 'vc6')
@@ -106,7 +108,7 @@ jobs:
           arch: x86
 
       - name: Compute vcpkg cache key parts
-        if: startsWith(inputs.preset, 'win32')
+        if: contains(inputs.preset, 'vcpkg')
         id: vcpkg_key
         shell: pwsh
         run: |
@@ -121,7 +123,7 @@ jobs:
           Write-Host "vcpkg cache key parts: baseline=$baseline, triplet=$triplet"
 
       - name: Restore vcpkg binary cache
-        if: startsWith(inputs.preset, 'win32')
+        if: contains(inputs.preset, 'vcpkg')
         id: vcpkg_cache
         uses: actions/cache/restore@v4
         with:
@@ -132,13 +134,14 @@ jobs:
             vcpkg-bincache-v3-${{ runner.os }}-
 
       - name: Setup vcpkg
+        if: contains(inputs.preset, 'vcpkg')
         uses: lukka/run-vcpkg@v11
         with:
           runVcpkgInstall: false
           doNotCache: true
 
       - name: Configure vcpkg to use cached directory
-        if: startsWith(inputs.preset, 'win32')
+        if: contains(inputs.preset, 'vcpkg')
         shell: pwsh
         run: |
           $cacheDir = "${{ github.workspace }}\vcpkg-bincache"
@@ -177,7 +180,7 @@ jobs:
 
       - name: Save vcpkg binary cache
         # Only one job should save to avoid "Unable to reserve cache" conflicts.
-        if: ${{ startsWith(inputs.preset, 'win32') && steps.vcpkg_cache.outputs.cache-hit != 'true' && inputs.game == 'Generals' && inputs.preset == 'win32-vcpkg-debug' }}
+        if: ${{ contains(inputs.preset, 'vcpkg') && steps.vcpkg_cache.outputs.cache-hit != 'true' && inputs.game == 'Generals' && inputs.preset == 'win32-vcpkg-debug' }}
         uses: actions/cache/save@v4
         with:
           path: ${{ github.workspace }}\vcpkg-bincache
