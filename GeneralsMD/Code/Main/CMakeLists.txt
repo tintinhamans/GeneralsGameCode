@@ -25,12 +25,21 @@ target_link_libraries(z_generals PRIVATE
     zi_always
 )
 
-# TODO Originally referred to build host and user, replace with git info perhaps?
+if(NOT DEFINED VERSION_BUILDUSER)
+    execute_process(
+        COMMAND git config user.name
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE VERSION_BUILDUSER
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+endif()
+
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/GeneratedVersion.h
 "#pragma once
 
 #define VERSION_LOCALBUILDNUM 0
-#define VERSION_BUILDUSER \"\"
+#define VERSION_BUILDUSER \"${VERSION_BUILDUSER}\"
 #define VERSION_BUILDLOC \"\"
 "
 )

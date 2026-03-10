@@ -293,14 +293,17 @@ UnicodeString Version::getUnicodeGitVersion() const
 
 AsciiString Version::getAsciiBuildUserOrGitCommitAuthorName() const
 {
-	AsciiString asciiUser = getAsciiBuildUser();
-
-	if (asciiUser.isEmpty())
+	// TheSuperHackers @tweak arcticdolphin 10/03/2026 Show build user when dirty
+	if (GitUncommittedChanges)
 	{
-		asciiUser = getGitCommitAuthorName();
+		AsciiString asciiUser = getAsciiBuildUser();
+		if (!asciiUser.isEmpty())
+		{
+			return asciiUser;
+		}
 	}
 
-	return asciiUser;
+	return getGitCommitAuthorName();
 }
 
 UnicodeString Version::getUnicodeBuildUserOrGitCommitAuthorName() const
