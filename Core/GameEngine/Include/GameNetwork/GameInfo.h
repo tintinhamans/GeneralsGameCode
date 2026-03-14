@@ -273,8 +273,9 @@ UnsignedShort GameInfo::getSuperweaponRestriction() const { return m_superweapon
 Bool        GameInfo::oldFactionsOnly() const           { return m_oldFactionsOnly; }
 void        GameInfo::setOldFactionsOnly( Bool oldFactionsOnly ) { m_oldFactionsOnly = oldFactionsOnly; }
 
-AsciiString GameInfoToAsciiString( const GameInfo *game );
-Bool ParseAsciiStringToGameInfo( GameInfo *game, AsciiString options );
+// TheSuperHackers @info arcticdolphin 02/03/2026 Added includeSeed and requireSeed parameters, defaulted to retail behavior.
+AsciiString GameInfoToAsciiString( const GameInfo *game, Bool includeSeed = TRUE );
+Bool ParseAsciiStringToGameInfo( GameInfo *game, AsciiString options, Bool requireSeed = TRUE );
 
 
 /**
