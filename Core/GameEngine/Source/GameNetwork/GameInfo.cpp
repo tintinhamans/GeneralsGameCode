@@ -888,7 +888,8 @@ Bool GameInfo::isSandbox()
 
 static const char slotListID		= 'S';
 
-AsciiString GameInfoToAsciiString( const GameInfo *game )
+// TheSuperHackers @info arcticdolphin 02/03/2026 Added includeSeed parameter.
+AsciiString GameInfoToAsciiString( const GameInfo *game, Bool includeSeed )
 {
 	if (!game)
 		return AsciiString::TheEmptyString;
@@ -917,14 +918,26 @@ AsciiString GameInfoToAsciiString( const GameInfo *game )
 		DEBUG_LOG(("Map name is %s", mapName.str()));
 	}
 
+#if RETAIL_COMPATIBLE_NETWORKING
+	// TheSuperHackers @info arcticdolphin 03/03/2026 Added includeSeed parameter to conditionally insert SD=.
+	(void)includeSeed;
+	const Bool emitSeed = TRUE;
+#else
+	const Bool emitSeed = includeSeed;
+#endif
+
+	AsciiString seedField;
+	if (emitSeed)
+		seedField.format("SD=%d;", game->getSeed());
+
 	AsciiString optionsString;
 #if RTS_GENERALS
-	optionsString.format("M=%2.2x%s;MC=%X;MS=%d;SD=%d;C=%d;", game->getMapContentsMask(), newMapName.str(),
-		game->getMapCRC(), game->getMapSize(), game->getSeed(), game->getCRCInterval());
+	optionsString.format("M=%2.2x%s;MC=%X;MS=%d;%sC=%d;", game->getMapContentsMask(), newMapName.str(),
+		game->getMapCRC(), game->getMapSize(), seedField.str(), game->getCRCInterval());
 #else
-	optionsString.format("US=%d;M=%2.2x%s;MC=%X;MS=%d;SD=%d;C=%d;SR=%u;SC=%u;O=%c;", game->getUseStats(), game->getMapContentsMask(), newMapName.str(),
-		game->getMapCRC(), game->getMapSize(), game->getSeed(), game->getCRCInterval(), game->getSuperweaponRestriction(),
-		game->getStartingCash().countMoney(), game->oldFactionsOnly() ? 'Y' : 'N' );
+	optionsString.format("US=%d;M=%2.2x%s;MC=%X;MS=%d;%sC=%d;SR=%u;SC=%u;O=%c;", game->getUseStats(), game->getMapContentsMask(), newMapName.str(),
+		game->getMapCRC(), game->getMapSize(), seedField.str(), game->getCRCInterval(), game->getSuperweaponRestriction(),
+		game->getStartingCash().countMoney(), game->oldFactionsOnly() ? 'Y' : 'N');
 #endif
 
 	//add player info for each slot
@@ -1000,8 +1013,14 @@ static Int grabHexInt(const char *s)
 	Int b = strtol(tmp, nullptr, 16);
 	return b;
 }
-Bool ParseAsciiStringToGameInfo(GameInfo *game, AsciiString options)
+
+// TheSuperHackers @info arcticdolphin 02/03/2026 Added requireSeed parameter.
+Bool ParseAsciiStringToGameInfo(GameInfo *game, AsciiString options, Bool requireSeed)
 {
+#if RETAIL_COMPATIBLE_NETWORKING
+	// TheSuperHackers @info arcticdolphin 02/03/2026 requireSeed is unused in retail builds; seed is always required.
+	(void)requireSeed;
+#endif
 	// Parse game options
 	char *buf = strdup(options.str());
 	char *bufPtr = buf;
@@ -1482,7 +1501,12 @@ Bool ParseAsciiStringToGameInfo(GameInfo *game, AsciiString options)
 	//  * StartingCash
 	//  * OldFactionsOnly
 	// In Generals they never were.
+#if !RETAIL_COMPATIBLE_NETWORKING
+	// TheSuperHackers @info arcticdolphin 02/03/2026 SD= may be absent when requireSeed=false.
+	if (optionsOk && sawMap && sawMapCRC && sawMapSize && (!requireSeed || sawSeed) && sawSlotlist && sawCRC)
+#else
 	if (optionsOk && sawMap && sawMapCRC && sawMapSize && sawSeed && sawSlotlist && sawCRC)
+#endif
 	{
 		// We were setting the Global Data directly here, but Instead, I'm now
 		// first setting the data in game.  We'll set the global data when
@@ -1499,7 +1523,13 @@ Bool ParseAsciiStringToGameInfo(GameInfo *game, AsciiString options)
 		game->setMapCRC(mapCRC);
 		game->setMapSize(mapSize);
 		game->setMapContentsMask(mapContentsMask);
-		game->setSeed(seed);
+		// TheSuperHackers @info arcticdolphin 02/03/2026 Only apply seed when SD= was present.
+		// When SD= is omitted (non-retail commit-reveal path), leave the seed unchanged so that
+		// periodic game-options re-broadcasts do not overwrite the value set by finalizeSeed().
+		if (sawSeed)
+		{
+			game->setSeed(seed);
+		}
 		game->setCRCInterval(crc);
 		game->setUseStats(useStats);
 		game->setSuperweaponRestriction(restriction);
