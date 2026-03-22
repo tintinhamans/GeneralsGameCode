@@ -1331,6 +1331,7 @@ void WOLDisplaySlotList( void )
 		comboBoxPlayerTemplate, comboBoxTeam, buttonAccept, buttonStart, buttonMapStartPosition );
 
 	WOLDisplayGameOptions();
+	TheWindowManager->winSetFocus(textEntryChat);
 
 	for (Int i=0; i<MAX_SLOTS; ++i)
 	{
@@ -2085,9 +2086,9 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	enterTime = timeGetTime();
 
 	// Set Keyboard to chat entry
-	TheWindowManager->winSetFocus( textEntryChat );
 	raiseMessageBoxes = true;
 	TheTransitionHandler->setGroup("GameSpyGameOptionsMenuFade");
+	TheWindowManager->winSetFocus(textEntryChat);
 
 #if defined(GENERALS_ONLINE)
 // NGMP: Did we just enter a lobby with modified camera height?

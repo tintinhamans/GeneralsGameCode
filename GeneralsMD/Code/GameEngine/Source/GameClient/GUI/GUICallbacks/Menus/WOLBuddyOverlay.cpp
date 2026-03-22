@@ -1318,6 +1318,7 @@ WindowMsgHandledType WOLBuddyOverlaySystem( GameWindow *window, UnsignedInt msg,
                                 pSocialInterface->ClearUnreadChatMessagesForUser(profileID);
 								updateBuddyInfo(true, true); // use cache
                             }
+							TheWindowManager->winSetFocus(buddyControls.textEntryEdit);
 						}
 					}
 				}
