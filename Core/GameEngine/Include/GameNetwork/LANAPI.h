@@ -173,6 +173,13 @@ struct LANMessage
 		MSG_INACTIVE,						///< I've alt-tabbed out.  Unaccept me cause I'm a poo-flinging monkey.
 
 		MSG_REQUEST_GAME_INFO,	///< For direct connect, get the game info from a specific IP Address
+
+#if !RETAIL_COMPATIBLE_NETWORKING
+		// TheSuperHackers @feature arcticdolphin 02/03/2026 Commit-reveal protocol message types.
+		MSG_SEED_COMMIT,	///< Seed commitment broadcast
+		MSG_SEED_REVEAL,	///< Seed reveal broadcast
+		MSG_SEED_READY,		///< Seed protocol complete acknowledgment
+#endif
 	} messageType;
 
 	WideChar name[g_lanPlayerNameLength+1]; ///< My name, for convenience
@@ -266,6 +273,29 @@ struct LANMessage
 		{
 			char options[m_lanMaxOptionsLength+1];
 		} GameOptions;
+
+#if !RETAIL_COMPATIBLE_NETWORKING
+		// TheSuperHackers @feature arcticdolphin 02/03/2026 Commit-reveal protocol message payloads.
+		struct
+		{
+			BYTE roundNonce[4];	///< First 4 bytes of host commit: ties this message to the current round
+			BYTE commit[32];	///< SHA-256(secret || senderSlot)
+			BYTE senderSlot;	///< Slot index of the sending player
+		} SeedCommit;
+
+		struct
+		{
+			BYTE roundNonce[4];	///< First 4 bytes of host commit: ties this message to the current round
+			BYTE secret[16];	///< The original 128-bit secret value
+			BYTE senderSlot;	///< Slot index of the sending player
+		} SeedReveal;
+
+		struct
+		{
+			BYTE roundNonce[4];	///< First 4 bytes of host commit: ties this ack to the current round
+			BYTE senderSlot;	///< Slot index of the sending player
+		} SeedReady;
+#endif
 
 	};
 };
@@ -385,6 +415,49 @@ protected:
 	AsciiString					m_lastGameopt; /// @todo: hack for demo - remove this
 
 	Bool								m_isActive;			///< is the game currently active?
+
+#if !RETAIL_COMPATIBLE_NETWORKING
+	// TheSuperHackers @feature arcticdolphin 02/03/2026 Commit-reveal protocol state.
+	enum SeedPhase
+	{
+		SEED_PHASE_NONE = 0,									///< Not in protocol
+		SEED_PHASE_AWAITING_COMMITS,							///< Host: waiting for all commits; Non-host: committed, awaiting reveal trigger
+		SEED_PHASE_AWAITING_REVEALS,							///< Host: waiting for all reveals; Non-host: revealed, awaiting game start
+	};
+	static const UnsignedInt	s_seedPhaseTimeoutMs;			///< Per-phase timeout
+	static const UnsignedInt	s_seedResendIntervalMs;			///< Interval between seed message resends
+	SeedPhase					m_seedPhase;
+	Bool						m_seedReady;					///< TRUE once seed protocol completed successfully
+	BYTE						m_localSeedSecret[16];			///< Local random 128-bit secret
+	BYTE						m_localSeedCommit[32];			///< Commitment hash of local secret
+	BYTE						m_slotSeedCommit[MAX_SLOTS][32];///< Received commits per slot
+	BYTE						m_slotSeedReveal[MAX_SLOTS][16];///< Received 128-bit secrets per slot
+	Bool						m_slotCommitReceived[MAX_SLOTS];
+	Bool						m_slotRevealReceived[MAX_SLOTS];
+	Bool						m_slotSeedReady[MAX_SLOTS];		///< Which slots have acknowledged seed ready
+	BYTE						m_slotPendingRevealSecret[MAX_SLOTS][16]; ///< Buffered early reveal secret (before commit arrived)
+	BYTE						m_slotPendingRevealNonce[MAX_SLOTS][4];  ///< Round nonce from buffered early reveal
+	Bool						m_slotPendingRevealValid[MAX_SLOTS];     ///< Whether a pending reveal is buffered for this slot
+	UnsignedInt					m_seedPhaseDeadline;			///< Phase deadline
+	UnsignedInt					m_seedResendTime;				///< Next seed message resend time
+
+	void resetSeedProtocolState();								///< Clear all per-round seed protocol state
+	void beginSeedCommitPhase();								///< Generate secret, broadcast commit, enter commit phase
+	void beginSeedRevealPhase();								///< Enter reveal phase and broadcast own reveal
+	void finalizeSeed();										///< XOR secrets, set seed, notify readiness
+	void abortSeedProtocol(const wchar_t *reason = nullptr);
+	void processVerifiedReveal(Int slot, const BYTE secret[16], const BYTE roundNonce[4]); ///< Verify nonce+commitment, store reveal, advance protocol
+	void flushPendingReveal(Int slot);							///< Drain buffered early reveal for slot if commit is now available
+	Bool checkSeedSlotFlags(const Bool flags[], Bool skipLocal) const;
+	Bool allSeedCommitsReceived()     { return checkSeedSlotFlags(m_slotCommitReceived,  TRUE); }
+	Bool allSeedRevealsReceived()     { return checkSeedSlotFlags(m_slotRevealReceived,  TRUE); }
+	Bool allSeedReadyReceived()       { return checkSeedSlotFlags(m_slotSeedReady,       FALSE); } ///< Includes local slot
+	static Bool generateLocalSecret(BYTE secret[16]);
+	static Bool computeSeedCommitment(const BYTE secret[16], BYTE senderSlot, BYTE outCommit[32]);
+	void handleSeedCommit(LANMessage *msg, UnsignedInt senderIP);
+	void handleSeedReveal(LANMessage *msg, UnsignedInt senderIP);
+	void handleSeedReady(LANMessage *msg, UnsignedInt senderIP);
+#endif
 
 protected:
 	void sendMessage(LANMessage *msg, UnsignedInt ip = 0); // Convenience function

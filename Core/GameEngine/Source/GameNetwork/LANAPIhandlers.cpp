@@ -192,7 +192,12 @@ void LANAPI::handleRequestGameInfo( LANMessage *msg, UnsignedInt senderIP )
 			fillInLANMessage( &reply );
 			reply.messageType = LANMessage::MSG_GAME_ANNOUNCE;
 
+#if !RETAIL_COMPATIBLE_NETWORKING
+			// TheSuperHackers @info arcticdolphin 02/03/2026 Omit SD= from announces; seed is negotiated via commit-reveal.
+			AsciiString gameOpts = GameInfoToAsciiString(m_currentGame, FALSE);
+#else
 			AsciiString gameOpts = GameInfoToAsciiString(m_currentGame);
+#endif
 			strlcpy(reply.GameInfo.options,gameOpts.str(), ARRAY_SIZE(reply.GameInfo.options));
 			wcslcpy(reply.GameInfo.gameName, m_currentGame->getName().str(), ARRAY_SIZE(reply.GameInfo.gameName));
 			reply.GameInfo.inProgress = m_currentGame->isGameInProgress();
@@ -352,7 +357,7 @@ void LANAPI::handleRequestJoin( LANMessage *msg, UnsignedInt senderIP )
 
 					DEBUG_LOG(("LANAPI::handleRequestJoin - join denied because of illegal characters in the player name."));
 				}
-			}	
+			}
 
 			// Then see if the player has a duplicate name
 			for (player = 0; canJoin && player<MAX_SLOTS; ++player)
@@ -723,3 +728,292 @@ void LANAPI::handleInActive(LANMessage *msg, UnsignedInt senderIP) {
 	RequestGameOptions(options, FALSE);
 	lanUpdateSlotList();
 }
+
+#if !RETAIL_COMPATIBLE_NETWORKING
+
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Handle incoming seed commit message from another player.
+void LANAPI::handleSeedCommit(LANMessage *msg, UnsignedInt senderIP)
+{
+	if (!m_currentGame || m_currentGame->isGameInProgress())
+		return;
+
+	// Identify sender by explicit slot ID; validate IP matches the known slot address.
+	const Int slot = static_cast<Int>(msg->SeedCommit.senderSlot);
+	if (slot < 0 || slot >= MAX_SLOTS || m_currentGame->getIP(slot) != senderIP)
+	{
+		DEBUG_LOG(("LANAPI: ignoring seed commit: slot %d IP mismatch or out of range", slot));
+		return;
+	}
+
+	// If the host sends a fresh commit while per-round state remains, reset for the new round.
+	// A resent commit with identical bytes is treated as a duplicate.
+	if (!m_currentGame->amIHost() && slot == 0 && (m_seedPhase != SEED_PHASE_NONE || m_seedReady))
+	{
+		if (m_slotCommitReceived[slot] && memcmp(m_slotSeedCommit[slot], msg->SeedCommit.commit, 32) == 0)
+		{
+			DEBUG_LOG(("LANAPI: ignoring resent host commit (matches current round)"));
+			return;
+		}
+		DEBUG_LOG(("LANAPI: (client) new host commit (phase=%d seedReady=%d) - resetting stale seed state", m_seedPhase, m_seedReady));
+		resetSeedProtocolState();
+	}
+
+	// Non-host commits carry the round nonce derived from the host commit, so the host commit
+	// must be known before a non-host commit can be validated. Drop early arrivals; the sender
+	// will resend within s_seedResendIntervalMs and the commit will be accepted then.
+	if (slot != 0 && !m_slotCommitReceived[0])
+	{
+		DEBUG_LOG(("LANAPI: dropping seed commit from slot %d: host commit not yet received", slot));
+		return;
+	}
+
+	// Validate round nonce for non-host commits to filter stale packets from prior rounds.
+	if (slot != 0 &&
+		memcmp(msg->SeedCommit.roundNonce, m_slotSeedCommit[0], sizeof(msg->SeedCommit.roundNonce)) != 0)
+	{
+		DEBUG_LOG(("LANAPI: ignoring seed commit from slot %d: round nonce mismatch", slot));
+		return;
+	}
+
+	// Ignore duplicate commits and commits arriving after the commit phase.
+	if (m_slotCommitReceived[slot])
+	{
+		DEBUG_LOG(("LANAPI: ignoring duplicate commit from slot %d", slot));
+		return;
+	}
+	if (m_seedPhase != SEED_PHASE_NONE && m_seedPhase != SEED_PHASE_AWAITING_COMMITS)
+	{
+		DEBUG_LOG(("LANAPI: ignoring commit from slot %d in phase %d", slot, m_seedPhase));
+		return;
+	}
+
+	memcpy(m_slotSeedCommit[slot], msg->SeedCommit.commit, 32);
+	m_slotCommitReceived[slot] = TRUE;
+	UnsignedInt dbgCommit;
+	memcpy(&dbgCommit, msg->SeedCommit.commit, sizeof(dbgCommit));
+	DEBUG_LOG(("LANAPI: stored seed commit from slot %d: commit[0..3]=0x%08X", slot, dbgCommit));
+
+	// Host commit triggers client response; reply exactly once.
+	if (!m_currentGame->amIHost() && slot == 0 && m_seedPhase == SEED_PHASE_NONE)
+	{
+		const Int localSlot = m_currentGame->getLocalSlotNum();
+		if (localSlot < 0 || localSlot >= MAX_SLOTS)
+		{
+			abortSeedProtocol(L"Could not start the game: invalid local slot. Please try again.");
+			return;
+		}
+		if (!generateLocalSecret(m_localSeedSecret))
+		{
+			abortSeedProtocol(L"Could not start the game: failed to generate a secure random secret. Please try again.");
+			return;
+		}
+		if (!computeSeedCommitment(m_localSeedSecret, static_cast<BYTE>(localSlot), m_localSeedCommit))
+		{
+			abortSeedProtocol(L"Could not start the game: failed to compute seed commitment. Please try again.");
+			return;
+		}
+		m_seedPhase = SEED_PHASE_AWAITING_COMMITS;
+		m_seedPhaseDeadline = timeGetTime() + s_seedPhaseTimeoutMs;
+
+		// Pre-fill own slot
+		{
+			memcpy(m_slotSeedCommit[localSlot], m_localSeedCommit, 32);
+			m_slotCommitReceived[localSlot] = TRUE;
+		}
+
+		LANMessage reply = {};
+		fillInLANMessage(&reply);
+		reply.messageType = LANMessage::MSG_SEED_COMMIT;
+		memcpy(reply.SeedCommit.commit, m_localSeedCommit, sizeof(reply.SeedCommit.commit));
+		reply.SeedCommit.senderSlot = static_cast<BYTE>(localSlot);
+		memcpy(reply.SeedCommit.roundNonce, m_slotSeedCommit[0], sizeof(reply.SeedCommit.roundNonce));
+		sendMessage(&reply);
+		m_seedResendTime = timeGetTime() + s_seedResendIntervalMs;
+		UnsignedInt dbgCommit;
+		memcpy(&dbgCommit, m_localSeedCommit, sizeof(dbgCommit));
+		DEBUG_LOG(("LANAPI: sent seed commit commit[0..3]=0x%08X", dbgCommit));
+	}
+
+	// Flush any reveal that arrived before this commit (or before the host commit established the nonce).
+	flushPendingReveal(slot);
+	// If this was the host commit, all other slots' pending reveals can now be flushed too
+	// because the round nonce (first 4 bytes of host commit) is now known.
+	if (slot == 0)
+	{
+		for (Int i = 1; i < MAX_SLOTS; ++i)
+			flushPendingReveal(i);
+	}
+
+	// Host advances to reveals once all commits received.
+	if (m_currentGame->amIHost() && m_seedPhase == SEED_PHASE_AWAITING_COMMITS && allSeedCommitsReceived())
+	{
+		beginSeedRevealPhase();
+	}
+}
+
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Handle incoming seed reveal message and verify commitment.
+void LANAPI::handleSeedReveal(LANMessage *msg, UnsignedInt senderIP)
+{
+	if (!m_currentGame || m_currentGame->isGameInProgress())
+		return;
+
+	// Identify sender by explicit slot ID; validate IP matches the known slot address.
+	const Int slot = static_cast<Int>(msg->SeedReveal.senderSlot);
+	if (slot < 0 || slot >= MAX_SLOTS || m_currentGame->getIP(slot) != senderIP)
+	{
+		DEBUG_LOG(("LANAPI: ignoring seed reveal: slot %d IP mismatch or out of range", slot));
+		return;
+	}
+
+	// If the host commit has already arrived the round nonce is known; drop stale reveals early
+	// so we never buffer garbage from a previous round. Skip this guard when the host commit is
+	// not yet in hand — we cannot know the nonce yet and will validate at flush time instead.
+	if (m_slotCommitReceived[0] &&
+		memcmp(msg->SeedReveal.roundNonce, m_slotSeedCommit[0], sizeof(msg->SeedReveal.roundNonce)) != 0)
+	{
+		DEBUG_LOG(("LANAPI: ignoring seed reveal from slot %d: round nonce mismatch", slot));
+		return;
+	}
+
+	// Ignore duplicate reveals.
+	if (m_slotRevealReceived[slot])
+	{
+		DEBUG_LOG(("LANAPI: ignoring duplicate reveal from slot %d", slot));
+		return;
+	}
+
+	// Buffer the reveal if either the sender's commit or the host commit has not arrived yet.
+	// Both are required before processVerifiedReveal can verify the nonce and commitment.
+	// Nonce and commitment checks are deferred to processVerifiedReveal via flushPendingReveal.
+	if (!m_slotCommitReceived[slot] || !m_slotCommitReceived[0])
+	{
+		if (!m_slotPendingRevealValid[slot])
+		{
+			memcpy(m_slotPendingRevealSecret[slot], msg->SeedReveal.secret, 16);
+			memcpy(m_slotPendingRevealNonce[slot],  msg->SeedReveal.roundNonce, sizeof(msg->SeedReveal.roundNonce));
+			m_slotPendingRevealValid[slot] = TRUE;
+			DEBUG_LOG(("LANAPI: buffered early reveal from slot %d (commit[slot]=%d commit[0]=%d)",
+				slot, m_slotCommitReceived[slot], m_slotCommitReceived[0]));
+		}
+		return;
+	}
+
+	processVerifiedReveal(slot, msg->SeedReveal.secret, msg->SeedReveal.roundNonce);
+}
+
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Verify nonce+commitment for a reveal, store it, and advance the protocol.
+void LANAPI::processVerifiedReveal(Int slot, const BYTE secret[16], const BYTE roundNonce[4])
+{
+	// Validate round nonce to filter stale reveals from prior rounds.
+	if (memcmp(roundNonce, m_slotSeedCommit[0], 4) != 0)
+	{
+		DEBUG_LOG(("LANAPI: ignoring seed reveal from slot %d: round nonce mismatch", slot));
+		return;
+	}
+
+	// Verify commitment before accepting the reveal.
+	BYTE expectedCommit[32];
+	if (!computeSeedCommitment(secret, static_cast<BYTE>(slot), expectedCommit))
+	{
+		DEBUG_LOG(("LANAPI: computeSeedCommitment failed during reveal verification for slot %d", slot));
+		abortSeedProtocol(L"Could not start the game: failed to verify seed commitment. Please try again.");
+		return;
+	}
+	if (memcmp(expectedCommit, m_slotSeedCommit[slot], 32) != 0)
+	{
+		DEBUG_LOG(("LANAPI: seed reveal FAILED for slot %d - commitment mismatch, aborting", slot));
+		UnicodeString abortMsg;
+		abortMsg.format(L"Could not start the game: %ls's random seed did not match the agreed value. Please try again.",
+			m_currentGame->getSlot(slot)->getName().str());
+		abortSeedProtocol(abortMsg.str());
+		return;
+	}
+
+	// Non-host: host's reveal signals commit phase done -- enter reveal phase and send our own reveal.
+	const Bool isHostReveal = !m_currentGame->amIHost() && slot == 0;
+	if (isHostReveal && (m_seedPhase == SEED_PHASE_AWAITING_COMMITS || m_seedPhase == SEED_PHASE_NONE))
+	{
+		const Int localSlot = m_currentGame->getLocalSlotNum();
+		if (localSlot < 0 || localSlot >= MAX_SLOTS)
+		{
+			abortSeedProtocol(L"Could not start the game: invalid local slot. Please try again.");
+			return;
+		}
+		{
+			memcpy(m_slotSeedReveal[localSlot], m_localSeedSecret, 16);
+			m_slotRevealReceived[localSlot] = TRUE;
+		}
+
+		m_seedPhase = SEED_PHASE_AWAITING_REVEALS;
+		m_seedPhaseDeadline = timeGetTime() + s_seedPhaseTimeoutMs;
+
+		LANMessage reply = {};
+		fillInLANMessage(&reply);
+		reply.messageType = LANMessage::MSG_SEED_REVEAL;
+		memcpy(reply.SeedReveal.secret, m_localSeedSecret, 16);
+		reply.SeedReveal.senderSlot = static_cast<BYTE>(localSlot);
+		memcpy(reply.SeedReveal.roundNonce, m_slotSeedCommit[0], sizeof(reply.SeedReveal.roundNonce));
+		sendMessage(&reply);
+		m_seedResendTime = timeGetTime() + s_seedResendIntervalMs;
+		UnsignedInt dbgCommit;
+		memcpy(&dbgCommit, m_localSeedCommit, sizeof(dbgCommit));
+		DEBUG_LOG(("LANAPI: (client) entered reveal phase, sent reveal for commit[0..3]=0x%08X", dbgCommit));
+	}
+	// Store the verified reveal.
+	memcpy(m_slotSeedReveal[slot], secret, 16);
+	m_slotRevealReceived[slot] = TRUE;
+	UnsignedInt dbgCommit;
+	memcpy(&dbgCommit, m_slotSeedCommit[slot], sizeof(dbgCommit));
+	DEBUG_LOG(("LANAPI: verified seed reveal slot %d: commit[0..3]=0x%08X", slot, dbgCommit));
+
+	if (allSeedRevealsReceived())
+		finalizeSeed();
+}
+
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Drain a buffered early reveal for a slot once both its commit and the host commit are available.
+void LANAPI::flushPendingReveal(Int slot)
+{
+	if (!m_slotPendingRevealValid[slot])
+		return;
+	if (!m_slotCommitReceived[slot] || !m_slotCommitReceived[0])
+		return;
+
+	DEBUG_LOG(("LANAPI: flushing buffered early reveal for slot %d", slot));
+	m_slotPendingRevealValid[slot] = FALSE;
+	processVerifiedReveal(slot, m_slotPendingRevealSecret[slot], m_slotPendingRevealNonce[slot]);
+}
+
+// TheSuperHackers @feature arcticdolphin 03/03/2026 Host receives seed-ready acknowledgments from clients.
+void LANAPI::handleSeedReady(LANMessage *msg, UnsignedInt senderIP)
+{
+	if (!m_currentGame || m_currentGame->isGameInProgress())
+		return;
+
+	// Only the host processes seed-ready acknowledgments.
+	if (!m_currentGame->amIHost())
+		return;
+
+	// Identify sender by explicit slot ID; validate IP matches the known slot address.
+	const Int slot = static_cast<Int>(msg->SeedReady.senderSlot);
+	if (slot < 0 || slot >= MAX_SLOTS || m_currentGame->getIP(slot) != senderIP)
+	{
+		DEBUG_LOG(("LANAPI: ignoring seed-ready: slot %d IP mismatch or out of range", slot));
+		return;
+	}
+
+	// Validate the round nonce: must match the first 4 bytes of our own commit.
+	// Drops stale acks from a previous round that arrived late.
+	if (memcmp(msg->SeedReady.roundNonce, m_localSeedCommit, sizeof(msg->SeedReady.roundNonce)) != 0)
+	{
+		DEBUG_LOG(("LANAPI: ignoring seed-ready from slot %d: round nonce mismatch", slot));
+		return;
+	}
+
+	// Safe to accept early (before host finalizeSeed): the round nonce ensures this ack is
+	// for the current round, and RequestGameStart() independently checks m_seedReady before
+	// starting the game.
+	m_slotSeedReady[slot] = TRUE;
+	DEBUG_LOG(("LANAPI: slot %d reported seed ready", slot));
+}
+
+#endif // !RETAIL_COMPATIBLE_NETWORKING
