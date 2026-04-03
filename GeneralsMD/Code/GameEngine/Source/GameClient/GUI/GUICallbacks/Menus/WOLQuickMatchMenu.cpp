@@ -1089,6 +1089,10 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 		comboBoxMaxPing->winEnable(FALSE);
 	if (comboBoxMaxDisconnects)
 		comboBoxMaxDisconnects->winEnable(FALSE);
+	if (comboBoxSide)
+		comboBoxSide->winEnable(FALSE);
+	if (comboBoxColor)
+		comboBoxColor->winEnable(FALSE);
 
 	// welcome msg + instructions
 	GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Welcome to QuickMatch. Choose Setup to select playlists and maps."), GameMakeColor(255, 194, 25, 255), -1, -1);
