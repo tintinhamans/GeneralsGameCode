@@ -529,8 +529,9 @@ void updateBuddyInfo( void )
 						// dont allow self
 						if (profileID != user_id)
 						{
-							// dont show if already friends
-							if (!pSocialInterface->IsUserFriend(profileID))
+							// dont show if already friends or if in QM lobby
+							bool bIsInQMLobby = !TheNGMPGame->isGameInProgress() && TheNGMPGame->isQMGame();
+							if (!pSocialInterface->IsUserFriend(profileID) && !bIsInQMLobby)
 							{
 								setCurrentGameMembers.insert(profileID);
 
