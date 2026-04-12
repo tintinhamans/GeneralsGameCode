@@ -610,7 +610,13 @@ void updateBuddyInfo( void )
 			auto friendsMap = pSocialInterface->GetCachedFriendsList();
 			std::vector<std::pair<int64_t, FriendsEntry>> sortedFriends(friendsMap.begin(), friendsMap.end());
 			std::stable_sort(sortedFriends.begin(), sortedFriends.end(),
-				[](auto& a, auto& b) { return a.second.online > b.second.online; });
+				[&](auto& a, auto& b) {
+					Int unreadA = pSocialInterface->GetNumberUnreadChatMessagesForUser(a.second.user_id);
+					Int unreadB = pSocialInterface->GetNumberUnreadChatMessagesForUser(b.second.user_id);
+					if (unreadA != unreadB)
+						return unreadA > unreadB;
+					return a.second.online > b.second.online;
+				});
 
 			for (auto& kvPair : sortedFriends)
             {
