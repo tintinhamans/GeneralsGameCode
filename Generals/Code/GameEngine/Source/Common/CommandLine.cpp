@@ -414,6 +414,13 @@ Int parseHeadless(char *args[], int num)
 	TheWritableGlobalData->m_playIntro = FALSE;
 	TheWritableGlobalData->m_afterIntro = TRUE;
 	TheWritableGlobalData->m_playSizzle = FALSE;
+
+	// TheSuperHackers @fix bobtista 03/02/2026 Set DX8Wrapper_IsWindowed to false in headless
+	// mode so that ignoringAsserts() works correctly throughout the entire process lifetime,
+	// including during shutdown after TheGlobalData has been destroyed.
+	extern bool DX8Wrapper_IsWindowed;
+	DX8Wrapper_IsWindowed = false;
+
 	return 1;
 }
 
@@ -780,19 +787,10 @@ Int parseNoShaders(char *args[], int)
 	return 1;
 }
 
-#if defined(RTS_DEBUG)
 Int parseNoLogo(char *args[], int)
 {
 	TheWritableGlobalData->m_playIntro = FALSE;
 	TheWritableGlobalData->m_afterIntro = TRUE;
-	TheWritableGlobalData->m_playSizzle = FALSE;
-
-	return 1;
-}
-#endif
-
-Int parseNoSizzle( char *args[], int )
-{
 	TheWritableGlobalData->m_playSizzle = FALSE;
 
 	return 1;
@@ -823,13 +821,7 @@ Int parseWinCursors(char *args[], int num)
 
 Int parseQuickStart( char *args[], int num )
 {
-#if defined(RTS_DEBUG)
-  parseNoLogo( args, num );
-#else
-	//Kris: Patch 1.01 -- Allow release builds to skip the sizzle video, but still force the EA logo to show up.
-	//This is for legal reasons.
-	parseNoSizzle( args, num );
-#endif
+	parseNoLogo( args, num );
 	parseNoShellMap( args, num );
 	parseNoWindowAnimation( args, num );
 	return 1;
@@ -1168,7 +1160,9 @@ static CommandLineParam paramsForStartup[] =
 // These Params are parsed during Engine Init before INI data is loaded
 static CommandLineParam paramsForEngineInit[] =
 {
+	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-noshellmap", parseNoShellMap },
+	{ "-noShellAnim", parseNoWindowAnimation }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-xres", parseXRes },
 	{ "-yres", parseYRes },
 	{ "-fullVersion", parseFullVersion },
@@ -1294,9 +1288,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-noshadowvolumes", parseNoShadows },
 	{ "-nofx", parseNoFX },
 	{ "-ignoresync", parseSync },
-	{ "-nologo", parseNoLogo },
 	{ "-shellmap", parseShellMap },
-	{ "-noShellAnim", parseNoWindowAnimation },
 	{ "-winCursors", parseWinCursors },
 	{ "-constantDebug", parseConstantDebug },
 	{ "-seed", parseSeed },
@@ -1307,7 +1299,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-updateImages", parseUpdateImages },
 	{ "-showTeamDot", parseShowTeamDot },
 	{ "-extraLogging", parseExtraLogging },
-
 #endif
 
 #ifdef DEBUG_LOGGING

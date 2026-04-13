@@ -35,6 +35,7 @@
 #include "Common/QuickmatchPreferences.h"
 #include "Common/LadderPreferences.h"
 #include "Common/MultiplayerSettings.h"
+#include "Common/OptionPreferences.h"
 #include "Common/PlayerTemplate.h"
 #include "GameClient/AnimateWindowManager.h"
 #include "GameClient/WindowLayout.h"
@@ -147,9 +148,9 @@ static Int maxPingEntries = 0;
 static Int maxPoints= 100;
 static Int minPoints = 0;
 
-static const LadderInfo * getLadderInfo( void );
+static const LadderInfo * getLadderInfo();
 
-static Bool isInfoShown(void)
+static Bool isInfoShown()
 {
 	static NameKeyType parentStatsID = NAMEKEY("WOLQuickMatchMenu.wnd:ParentStats");
 	GameWindow *parentStats = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, parentStatsID );
@@ -238,7 +239,7 @@ static Int MAX_DISCONNECTS[MAX_DISCONNECTS_COUNT] = {MAX_DISCONNECTS_ANY, MAX_DI
 																											MAX_DISCONNECTS_50};
 
 
-void UpdateStartButton(void)
+void UpdateStartButton()
 {
 	if (!comboBoxLadder || !buttonStart || !listboxMapSelect)
 		return;
@@ -500,7 +501,7 @@ void PopulateQMLadderListBox( GameWindow *win )
 	isPopulatingLadderBox = false;
 }
 
-static const LadderInfo * getLadderInfo( void )
+static const LadderInfo * getLadderInfo()
 {
 	Int index;
 	Int selected;
@@ -510,7 +511,7 @@ static const LadderInfo * getLadderInfo( void )
 	return li;
 }
 
-void PopulateQMLadderComboBox( void )
+void PopulateQMLadderComboBox()
 {
 	if (!parentWOLQuickMatch || !comboBoxLadder)
 		return;
@@ -705,7 +706,7 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 	}
 }
 
-static void saveQuickMatchOptions( void )
+static void saveQuickMatchOptions()
 {
 	if(isInInit)
 		return;
@@ -970,16 +971,19 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 		tmp.format(TheGameText->fetch("GUI:QuickMatchTitle"), TheGameSpyInfo->getLocalName().str());
 #else
 		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-		tmp.format(TheGameText->fetch("GUI:QuickMatchTitle"), pAuthInterface->GetDisplayName().c_str());
+		if (pAuthInterface != nullptr)
+		{
+			tmp.format(TheGameText->fetch("GUI:QuickMatchTitle"), pAuthInterface->GetDisplayName().c_str());
+		}
 #endif
 		GadgetStaticTextSetText(staticTextTitle, tmp);
 	}
 
 	// QM is not going yet, so disable the Widen Search button
-	buttonWiden->winEnable( FALSE );
-	buttonStop->winHide( TRUE );
-	buttonStart->winHide( FALSE );
-	GadgetListBoxReset(quickmatchTextWindow);
+	if (buttonWiden) buttonWiden->winEnable( FALSE );
+	if (buttonStop)  { buttonStop->winHide( TRUE ); buttonStop->winEnable(TRUE); }
+	if (buttonStart) buttonStart->winHide( FALSE );
+	if (quickmatchTextWindow) GadgetListBoxReset(quickmatchTextWindow);
 	enableOptionsGadgets(TRUE);
 
 	// Show Menu
@@ -1098,9 +1102,12 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
     {
 		pStatsInterface->findPlayerStatsByID(pAuthInterface->GetUserID(), [=](bool bSuccess, PSPlayerStats stats)
 			{
-                UnicodeString eloStr;
-                eloStr.format(L"Your current Elo rating is %d after %d match(es)", stats.elo_rating, stats.elo_num_matches);
-                GadgetListBoxAddEntryText(quickmatchTextWindow, eloStr, GameMakeColor(255, 194, 25, 255), -1, -1);
+				if (bSuccess)
+				{
+					UnicodeString eloStr;
+					eloStr.format(L"Your current Elo rating is %d after %d match(es)", stats.elo_rating, stats.elo_num_matches);
+					GadgetListBoxAddEntryText(quickmatchTextWindow, eloStr, GameMakeColor(255, 194, 25, 255), -1, -1);
+				}
 			}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
     }
 
@@ -1205,6 +1212,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				if (buttonBuddy)
 					buttonBuddy->winEnable(FALSE);
 				GameSpyCloseOverlay(GSOVERLAY_BUDDY);
+				GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
 
 				*TheNGMPGame = *myGame;
 				TheNGMPGame->startGame(0);
@@ -1224,7 +1232,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 					TheNGMPGame = new NGMPGame();
 					TheNGMPGame->markGameAsQM();
 				}
-				pLobbyInterface->UpdateRoomDataCache([]()
+				pLobbyInterface->UpdateRoomDataCache([](bool bSuccess)
 					{
 
 					});
@@ -1508,7 +1516,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 
 	/// @todo: MDC handle disconnects in-game the same way as Custom Match!
 
-	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue)
+	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue && TheGameSpyInfo)
 	{
 		HandleBuddyResponses();
 		HandlePersistentStorageResponses();

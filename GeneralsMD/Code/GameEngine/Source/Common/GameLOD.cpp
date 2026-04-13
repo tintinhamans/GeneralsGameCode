@@ -36,11 +36,11 @@
 #include "Common/GameLOD.h"
 #include "GameClient/TerrainVisual.h"
 #include "GameClient/GameClient.h"
-#include "GameClient/Shell.h"
-#include "Common/UserPreferences.h"
+#include "Common/OptionPreferences.h"
 
 #define DEFINE_PARTICLE_SYSTEM_NAMES
 #include "GameClient/ParticleSys.h"
+#include "GameLogic/GameLogic.h"
 
 
 #define PROFILE_ERROR_LIMIT	0.94f	//fraction of profiled result needed to get a match.  Allows some room for error/fluctuation.
@@ -83,7 +83,7 @@ static const char *const StaticGameLODNames[]=
 };
 static_assert(ARRAY_SIZE(StaticGameLODNames) == STATIC_GAME_LOD_COUNT, "Incorrect array size");
 
-StaticGameLODInfo::StaticGameLODInfo(void)
+StaticGameLODInfo::StaticGameLODInfo()
 {
 	m_minFPS=0;
 	m_minProcessorFPS=0;
@@ -129,7 +129,7 @@ static const char *const DynamicGameLODNames[]=
 };
 static_assert(ARRAY_SIZE(DynamicGameLODNames) == DYNAMIC_GAME_LOD_COUNT, "Incorrect array size");
 
-DynamicGameLODInfo::DynamicGameLODInfo(void)
+DynamicGameLODInfo::DynamicGameLODInfo()
 {
 	m_minFPS=0;
 	m_dynamicParticleSkipMask=0;
@@ -208,7 +208,7 @@ void INI::parseLODPreset( INI* ini )
 	}
 }
 
-GameLODManager::GameLODManager(void)
+GameLODManager::GameLODManager()
 {
 	m_currentStaticLOD = STATIC_GAME_LOD_UNKNOWN;
 	m_currentDynamicLOD = DYNAMIC_GAME_LOD_HIGH;
@@ -232,14 +232,10 @@ GameLODManager::GameLODManager(void)
 	m_numBenchProfiles=0;
 	m_reallyLowMHz = 400;
 #if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-	m_userGraphSnapshotTaken = false;
-	m_userShadowVolumesEnabled = true;
-	m_userShadowDecalsEnabled = true;
-	m_userHeatEffectsEnabled = true;
 	m_isQualityReduced = false;
-	m_stableFPSDuration = 0;
 	m_lowFPSSecondsCount = 0;
-	m_userDynamicLOD = DYNAMIC_GAME_LOD_VERY_HIGH;
+	m_stableFPSSecondsCount = 0;
+	m_userMaxParticleCount = 0;
 #endif
 
 	for (Int i=0; i<STATIC_GAME_LOD_CUSTOM; i++)
@@ -282,7 +278,7 @@ void GameLODManager::initStaticLODLevels()
 	veryhigh.m_useTrees = TRUE;
 }
 
-BenchProfile *GameLODManager::newBenchProfile(void)
+BenchProfile *GameLODManager::newBenchProfile()
 {
 	if (m_numBenchProfiles < MAX_BENCH_PROFILES)
 	{
@@ -310,7 +306,7 @@ LODPresetInfo *GameLODManager::newLODPreset(StaticGameLODLevel index)
 	return nullptr;
 }
 
-void GameLODManager::init(void)
+void GameLODManager::init()
 {
 	INI ini;
 	//Get Presets for each LOD level.
@@ -407,7 +403,7 @@ void GameLODManager::init(void)
 	setStaticLODLevel(userSetDetail);
 }
 
-void GameLODManager::refreshCustomStaticLODLevel(void)
+void GameLODManager::refreshCustomStaticLODLevel()
 {
 	StaticGameLODInfo *lodInfo=&m_staticGameLODInfo[STATIC_GAME_LOD_CUSTOM];
 
@@ -487,7 +483,7 @@ const char *GameLODManager::getStaticGameLODLevelName(StaticGameLODLevel level)
 
 /**Function which calculates the recommended LOD level for current hardware
 configuration.*/
-StaticGameLODLevel GameLODManager::getRecommendedStaticLODLevel(void)
+StaticGameLODLevel GameLODManager::getRecommendedStaticLODLevel()
 {
 	//Check if we have never done the test on current system
 	if (m_idealDetailLevel == STATIC_GAME_LOD_UNKNOWN)
@@ -735,7 +731,7 @@ void GameLODManager::applyDynamicLODLevel(DynamicGameLODLevel level)
 	m_minDynamicParticleSkipPriority=m_dynamicGameLODInfo[level].m_minDynamicParticleSkipPriority;
 }
 
-Int GameLODManager::getRecommendedTextureReduction(void)
+Int GameLODManager::getRecommendedTextureReduction()
 {
 	StaticGameLODLevel level = getRecommendedTextureLODLevel();
 
@@ -774,7 +770,7 @@ Int GameLODManager::getLevelTextureReduction(StaticGameLODLevel level)
 	return m_staticGameLODInfo[level].m_textureReduction;
 }
 
-Bool GameLODManager::didMemPass( void )
+Bool GameLODManager::didMemPass()
 {
 	return m_memPassed;
 }
@@ -782,25 +778,14 @@ Bool GameLODManager::didMemPass( void )
 #if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
 void GameLODManager::updateGraphicsQualityState(float averageFPS)
 {
-	if (!m_userGraphSnapshotTaken)
-	{
-		m_userShadowVolumesEnabled = TheGlobalData->m_useShadowVolumes;
-		m_userShadowDecalsEnabled = TheGlobalData->m_useShadowDecals;
-		m_userHeatEffectsEnabled = TheGlobalData->m_useHeatEffects;
-		m_userDynamicLOD = m_currentDynamicLOD;
-		m_userGraphSnapshotTaken = true;
-	}
+	if (!TheGameLogic || (TheGameLogic->getFrame() % LOGICFRAMES_PER_SECOND) != 0)
+		return;
 
-	if (m_isQualityReduced && TheGameClient && TheGameClient->getFrame() <= 1)
+	if (TheGameLogic->isInShellGame() || TheGameLogic->isInReplayGame() || (TheGameLogic->getFrame() < LOGICFRAMES_PER_SECOND))
 	{
-		TheWritableGlobalData->m_useShadowVolumes = m_userShadowVolumesEnabled;
-		TheWritableGlobalData->m_useShadowDecals = m_userShadowDecalsEnabled;
-		TheWritableGlobalData->m_useHeatEffects = m_userHeatEffectsEnabled;
-		setDynamicLODLevel(m_userDynamicLOD);
-		if (TheGameClient)
-			TheGameClient->allocateShadows();
-		m_isQualityReduced = false;
-		m_stableFPSDuration = 0;
+		if (m_isQualityReduced)
+			restoreQualitySettings();
+		return;
 	}
 
 	if (!m_isQualityReduced)
@@ -808,24 +793,26 @@ void GameLODManager::updateGraphicsQualityState(float averageFPS)
 		m_userShadowVolumesEnabled = TheGlobalData->m_useShadowVolumes;
 		m_userShadowDecalsEnabled = TheGlobalData->m_useShadowDecals;
 		m_userHeatEffectsEnabled = TheGlobalData->m_useHeatEffects;
-		m_userDynamicLOD = m_currentDynamicLOD;
+		m_userMaxParticleCount = TheGlobalData->m_maxParticleCount;
 	}
 
-	if (averageFPS < 56.0f)
-		m_lowFPSSecondsCount++, m_stableFPSDuration = 0;
-	else if (averageFPS > 57.0f)
-		m_stableFPSDuration++, m_lowFPSSecondsCount = 0;
+	// Track how many consecutive seconds FPS is below or above threshold.
+	const float minAcceptedFPS = 58.f;
+	if (averageFPS < minAcceptedFPS)
+	{
+		m_lowFPSSecondsCount++;
+		m_stableFPSSecondsCount = 0;
+	}
+	else
+	{
+		m_stableFPSSecondsCount++;
+		m_lowFPSSecondsCount = 0;
+	}
 
-	bool shouldReduceQuality = (m_lowFPSSecondsCount >= 2 && TheGameClient && TheGameClient->getFrame() > LOGICFRAMES_PER_SECOND * 10 && !TheShell->isShellActive());
+	bool isInGame = TheGameLogic->isInGame();
+	bool shouldReduceQuality = (m_lowFPSSecondsCount >= 2 && isInGame);
 	if (shouldReduceQuality && !m_isQualityReduced)
 	{
-		if (averageFPS < 56.0f)
-			m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_LOW].m_minDynamicParticlePriority = WEAPON_TRAIL;
-		if (averageFPS < 40.0f)
-			m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_LOW].m_minDynamicParticlePriority = ALWAYS_RENDER;
-
-        
-		setDynamicLODLevel(DYNAMIC_GAME_LOD_LOW);
 		TheGameClient->releaseShadows();
 		TheWritableGlobalData->m_useShadowVolumes = false;
 		TheWritableGlobalData->m_useShadowDecals = false;
@@ -834,24 +821,40 @@ void GameLODManager::updateGraphicsQualityState(float averageFPS)
 		m_lowFPSSecondsCount = 0;
 	}
 
-	// Restore to user preferences after sustained good performance
-	else if (!shouldReduceQuality && m_isQualityReduced)
-	{
-		if (m_stableFPSDuration > 15)
-		{
-			TheWritableGlobalData->m_useShadowVolumes = m_userShadowVolumesEnabled;
-			TheWritableGlobalData->m_useShadowDecals = m_userShadowDecalsEnabled;
-			TheWritableGlobalData->m_useHeatEffects = m_userHeatEffectsEnabled;
 
-			if (TheGameClient)
-				TheGameClient->allocateShadows();
+	if (m_isQualityReduced)
+	{
+		float particleReductionFactor = max(0.f, min(1.f, (minAcceptedFPS - averageFPS) / minAcceptedFPS * 5.f));
+		int targetCount = max(100, (int)(m_userMaxParticleCount * (1.f - particleReductionFactor)));
+		int current = TheGlobalData->m_maxParticleCount;
+
+		if (targetCount < current)
+			TheWritableGlobalData->m_maxParticleCount = max(100, current + (int)((targetCount - current) * 0.5f));
+
+		if (!shouldReduceQuality && m_stableFPSSecondsCount > 15)
+		{
+			int newCount = current + (int)((m_userMaxParticleCount - current) * 0.3f);
+			if (newCount >= m_userMaxParticleCount || newCount == current)
+				restoreQualitySettings();
+			else
+				TheWritableGlobalData->m_maxParticleCount = newCount;
 
 			DynamicGameLODLevel lod = TheGameLODManager->findDynamicLODLevel(averageFPS);
 			TheGameLODManager->setDynamicLODLevel(lod);
-
-			m_isQualityReduced = false;
-			m_stableFPSDuration = 0;
 		}
 	}
+}
+
+void GameLODManager::restoreQualitySettings()
+{
+	TheWritableGlobalData->m_useShadowVolumes = m_userShadowVolumesEnabled;
+	TheWritableGlobalData->m_useShadowDecals = m_userShadowDecalsEnabled;
+	TheWritableGlobalData->m_useHeatEffects = m_userHeatEffectsEnabled;
+	TheWritableGlobalData->m_maxParticleCount = m_userMaxParticleCount;
+	m_stableFPSSecondsCount = 0;
+	m_lowFPSSecondsCount = 0;
+	m_isQualityReduced = false;
+	if (TheGameClient)
+		TheGameClient->allocateShadows();
 }
 #endif // GENERALS_ONLINE_HIGH_FPS_SERVER

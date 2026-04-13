@@ -44,7 +44,7 @@
 
 SmudgeManager *TheSmudgeManager=nullptr;
 
-W3DSmudgeManager::W3DSmudgeManager(void)
+W3DSmudgeManager::W3DSmudgeManager()
 {
 }
 
@@ -53,29 +53,30 @@ W3DSmudgeManager::~W3DSmudgeManager()
 	ReleaseResources();
 }
 
-void W3DSmudgeManager::init(void)
+void W3DSmudgeManager::init()
 {
 	SmudgeManager::init();
 	ReAcquireResources();
 }
 
-void W3DSmudgeManager::reset (void)
+void W3DSmudgeManager::reset ()
 {
 	SmudgeManager::reset();	//base
 }
 
-void W3DSmudgeManager::ReleaseResources(void)
+void W3DSmudgeManager::ReleaseResources()
 {
-#ifdef USE_COPY_RECTS
 	REF_PTR_RELEASE(m_backgroundTexture);
-#endif
 	REF_PTR_RELEASE(m_indexBuffer);
 }
 
-//Make sure (SMUDGE_DRAW_SIZE * 12) < 65535 because that's the max index buffer size.
+
 #define SMUDGE_DRAW_SIZE	500	//draw at most 50 smudges per call. Tweak value to improve CPU/GPU parallelism.
 
-void W3DSmudgeManager::ReAcquireResources(void)
+static_assert(SMUDGE_DRAW_SIZE * 5 < 0x10000, "Vertex index exceeds 16-bit limit");
+
+
+void W3DSmudgeManager::ReAcquireResources()
 {
 	ReleaseResources();
 
@@ -85,9 +86,7 @@ void W3DSmudgeManager::ReAcquireResources(void)
 	surface->Get_Description(surface_desc);
 	REF_PTR_RELEASE(surface);
 
-	#ifdef USE_COPY_RECTS
-	m_backgroundTexture = MSGNEW("TextureClass") TextureClass(TheTacticalView->getWidth(),TheTacticalView->getHeight(),surface_desc.Format,MIP_LEVELS_1,TextureClass::POOL_DEFAULT, true);
-	#endif
+	m_backgroundTexture = MSGNEW("TextureClass") TextureClass(surface_desc.Width,surface_desc.Height,surface_desc.Format,MIP_LEVELS_1,TextureClass::POOL_DEFAULT, true);
 
 	m_backBufferWidth = surface_desc.Width;
 	m_backBufferHeight = surface_desc.Height;
@@ -201,20 +200,25 @@ error:
 #define UNIQUE_COLOR	(0x12345678)
 #define BLOCK_SIZE	(8)
 
-Bool W3DSmudgeManager::testHardwareSupport(void)
+Bool W3DSmudgeManager::testHardwareSupport()
 {
 	if (m_hardwareSupportStatus == SMUDGE_SUPPORT_UNKNOWN)
 	{	//we have not done the test yet.
 
 		IDirect3DTexture8 *backTexture=W3DShaderManager::getRenderTexture();
-		if (!backTexture)
-		{	//do trivial test first to see if render target exists.
+		if (!backTexture || !W3DShaderManager::isRenderingToTexture())
+		{
+			// TheSuperHackers @bugfix When Render-To-Texture is disabled globally, we fallback
+			// to copying the backbuffer to a texture.
+			if (m_backgroundTexture)
+			{
+				m_hardwareSupportStatus = SMUDGE_SUPPORT_YES;
+				return TRUE;
+			}
+
 			m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
 			return FALSE;
 		}
-
-		if (!W3DShaderManager::isRenderingToTexture())
-			return FALSE;	//can't do the test unless we're rendering to texture.
 
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 		DX8Wrapper::Set_Material(vmat);
@@ -236,16 +240,20 @@ Bool W3DSmudgeManager::testHardwareSupport(void)
 
 		//bottom right
 		v[0].p = Vector4( BLOCK_SIZE-0.5f, BLOCK_SIZE-0.5f, 0.0f, 1.0f );
-		v[0].u = BLOCK_SIZE/(Real)TheDisplay->getWidth();	v[0].v = BLOCK_SIZE/(Real)TheDisplay->getHeight();
+		v[0].u = BLOCK_SIZE/(Real)TheDisplay->getWidth();
+		v[0].v = BLOCK_SIZE/(Real)TheDisplay->getHeight();
 		//top right
 		v[1].p = Vector4( BLOCK_SIZE-0.5f, 0-0.5f, 0.0f, 1.0f );
-		v[1].u = BLOCK_SIZE/(Real)TheDisplay->getWidth();	v[1].v = 0;
+		v[1].u = BLOCK_SIZE/(Real)TheDisplay->getWidth();
+		v[1].v = 0;
 		//bottom left
 		v[2].p = Vector4(  0-0.5f, BLOCK_SIZE-0.5f, 0.0f, 1.0f );
-		v[2].u = 0;	v[2].v = BLOCK_SIZE/(Real)TheDisplay->getHeight();
+		v[2].u = 0;
+		v[2].v = BLOCK_SIZE/(Real)TheDisplay->getHeight();
 		//top left
 		v[3].p = Vector4(  0-0.5f,  0-0.5f, 0.0f, 1.0f );
-		v[3].u = 0;	v[3].v = 0;
+		v[3].u = 0;
+		v[3].v = 0;
 
 		v[0].color = UNIQUE_COLOR;
 		v[1].color = UNIQUE_COLOR;
@@ -306,6 +314,22 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	if (!testHardwareSupport())
 		return;
 
+	SurfaceClass *backBuffer = DX8Wrapper::_Get_DX8_Back_Buffer();
+
+	if (!backBuffer)
+		return;
+
+	SurfaceClass *background=m_backgroundTexture ? m_backgroundTexture->Get_Surface_Level() : nullptr;
+
+	if (!background)
+	{
+		REF_PTR_RELEASE(backBuffer);
+		return;
+	}
+
+	SurfaceClass::SurfaceDescription surface_desc;
+	backBuffer->Get_Description(surface_desc);
+
 	CameraClass &camera=rinfo.Camera;
 	Vector3 vsVert;
 	Vector4 ssVert;
@@ -326,23 +350,6 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 	camera.Get_View_Matrix(&view);
 	camera.Get_Projection_Matrix(&proj);
-
-	SurfaceClass::SurfaceDescription surface_desc;
-#ifdef USE_COPY_RECTS
-	SurfaceClass *background=m_backgroundTexture->Get_Surface_Level();
-	background->Get_Description(surface_desc);
-#else
-	D3DSURFACE_DESC D3DDesc;
-
-	IDirect3DTexture8 *backTexture=W3DShaderManager::getRenderTexture();
-	if (!backTexture || !W3DShaderManager::isRenderingToTexture())
-		return;	//this card doesn't support render targets.
-
-	backTexture->GetLevelDesc(0,&D3DDesc);
-
-	surface_desc.Width = D3DDesc.Width;
-	surface_desc.Height = D3DDesc.Height;
-#endif
 
 	Real texClampX = (Real)TheTacticalView->getWidth()/(Real)surface_desc.Width;
 	Real texClampY = (Real)TheTacticalView->getHeight()/(Real)surface_desc.Height;
@@ -390,19 +397,12 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 				Vector2 &thisUV=verts[i].uv;
 
-				//Clamp coordinates so we're not referencing texels outside the view.
-				if (thisUV.X > texClampX)
-					smudge->m_offset.X = 0;
-				else
-				if (thisUV.X < 0)
+				// Zero coordinates that fall outside valid texel bounds
+				if (thisUV.X < 0 || thisUV.X > texClampX)
 					smudge->m_offset.X = 0;
 
-				if (thisUV.Y > texClampY)
+				if (thisUV.Y < 0 || thisUV.Y > texClampY)
 					smudge->m_offset.Y = 0;
-				else
-				if (thisUV.Y < 0)
-					smudge->m_offset.Y = 0;
-
 			}
 
 			//Finish center vertex
@@ -410,7 +410,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 			uvSpanX=verts[3].uv.X - verts[0].uv.X;
 			uvSpanY=verts[1].uv.Y - verts[0].uv.Y;
 			verts[4].uv.X=verts[0].uv.X+uvSpanX*(0.5f+smudge->m_offset.X);
-			verts[4].uv.Y=verts[0].uv.Y+uvSpanY*(0.5f+smudge->m_offset.X);
+			verts[4].uv.Y=verts[0].uv.Y+uvSpanY*(0.5f+smudge->m_offset.Y);
 
 			count++;	//increment visible smudge count.
 			smudge=smudge->Succ();
@@ -421,23 +421,16 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 	if (!count)
 	{
-#ifdef USE_COPY_RECTS
 		REF_PTR_RELEASE(background);
-#endif
+		REF_PTR_RELEASE(backBuffer);
 		return;	//nothing to render.
 	}
-
-#ifdef USE_COPY_RECTS
-	SurfaceClass *backBuffer=DX8Wrapper::_Get_DX8_Back_Buffer();
-
-	backBuffer->Get_Description(surface_desc);
 
 	//Copy the area of backbuffer occupied by smudges into an alternate buffer.
 	background->Copy(0,0,0,0,surface_desc.Width,surface_desc.Height,backBuffer);
 
 	REF_PTR_RELEASE(background);
 	REF_PTR_RELEASE(backBuffer);
-#endif
 
 	Matrix4x4 identity(true);
 	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
@@ -447,10 +440,8 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	//DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueSpriteShader);
 
 	DX8Wrapper::Set_Shader(ShaderClass::_PresetAlphaShader);
-#ifdef USE_COPY_RECTS
+
 	DX8Wrapper::Set_Texture(0,m_backgroundTexture);
-#else
-	DX8Wrapper::Set_DX8_Texture(0,backTexture);
 	//Need these states in case texture is non-power-of-2
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
@@ -458,7 +449,6 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
-#endif
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	DX8Wrapper::Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
@@ -497,7 +487,8 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 					//Check if we exceeded maximum number of smudges allowed per draw call.
 					if (smudgesInRenderBatch >= count)
-					{	remainingSmudgeStart = smudge;
+					{
+						remainingSmudgeStart = smudge;
 						goto flushSmudges;
 					}
 
@@ -530,11 +521,12 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 				if (set)	//start next batch at beginning of set.
 					remainingSmudgeStart = set->getUsedSmudgeList().Head();
 			}
-flushSmudges:
-			DX8Wrapper::Set_Vertex_Buffer(vb_access);
 		}
 
-		DX8Wrapper::Draw_Triangles(	0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);
+flushSmudges:
+		DX8Wrapper::Set_Vertex_Buffer(vb_access);
+
+		DX8Wrapper::Draw_Triangles(0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);
 
 //Debug Code which draws outline around smudge
 /*		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);

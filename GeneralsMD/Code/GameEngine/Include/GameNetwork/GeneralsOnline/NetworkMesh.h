@@ -69,6 +69,7 @@ public:
 	}
 
 	std::vector<int> m_vecLatencyHistory;
+	std::vector<float> m_vecQualityHistory;
 	std::string GetStats();
 
 	std::string GetConnectionType();
@@ -85,7 +86,9 @@ public:
 	int m_SignallingAttempts = 0;
 	
 	int GetLatency();
+	int GetJitter();
 	float GetConnectionQuality();
+	int ComputeConnectionScore();
 
 	HSteamNetConnection m_hSteamConnection = k_HSteamNetConnection_Invalid;
 };
@@ -105,6 +108,8 @@ public:
 
 	~NetworkMesh()
 	{
+		Disconnect();
+
 		if (m_pSignaling != nullptr)
 		{
 			delete m_pSignaling;
@@ -197,6 +202,8 @@ private:
 	ISignalingClient* m_pSignaling = nullptr;
 
 	HSteamListenSocket m_hListenSock = k_HSteamListenSocket_Invalid;
+
+	bool m_bDisconnected = false;
 
 	std::string m_strTurnUsername;
 	std::string m_strTurnToken;

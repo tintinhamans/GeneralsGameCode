@@ -908,6 +908,10 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 
 void NetworkMesh::Disconnect()
 {
+	if (m_bDisconnected)
+		return;
+	m_bDisconnected = true;
+
 	// Set flag to prevent callbacks from executing during teardown
 	g_bNetworkMeshDestroying.store(true);
 
@@ -1047,9 +1051,9 @@ void PlayerConnection::UpdateLatencyHistogram()
 	// update latency history
 	int currLatency = GetLatency();
 #if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-	const int connectionHistoryLength = histogram_duration /16; // ~10 sec worth of frames
+	const int connectionHistoryLength = histogram_duration / 16; // ~20 sec worth of frames at 60fps (default)
 #else
-	const int connectionHistoryLength = histogram_duration /33; // ~10 sec worth of frames
+	const int connectionHistoryLength = histogram_duration / 33; // ~20 sec worth of frames at 30fps (default)
 #endif
 
 	if (m_vecLatencyHistory.size() >= connectionHistoryLength)
@@ -1057,10 +1061,45 @@ void PlayerConnection::UpdateLatencyHistogram()
 		m_vecLatencyHistory.erase(m_vecLatencyHistory.begin());
 	}
 	m_vecLatencyHistory.push_back(currLatency);
+
+	// Sample connection quality into rolling history.
+	// Prefer SNS local quality, then remote quality, then fall back to manual in/out packet rate ratio.
+	if (m_hSteamConnection != k_HSteamNetConnection_Invalid)
+	{
+		SteamNetConnectionRealTimeStatus_t status;
+		if (SteamNetworkingSockets()->GetConnectionRealTimeStatus(m_hSteamConnection, &status, 0, nullptr) == k_EResultOK)
+		{
+			float sample = -1.0f;
+			if (status.m_flConnectionQualityLocal >= 0.0f)
+			{
+				sample = status.m_flConnectionQualityLocal;
+			}
+			else if (status.m_flConnectionQualityRemote >= 0.0f)
+			{
+				sample = status.m_flConnectionQualityRemote;
+			}
+			else if (status.m_flOutPacketsPerSec > 0.0f)
+			{
+				sample = status.m_flInPacketsPerSec / status.m_flOutPacketsPerSec;
+			}
+
+			if (sample > 1.0f) sample = 1.0f;
+
+			if (sample >= 0.0f)
+			{
+				if (m_vecQualityHistory.size() >= connectionHistoryLength)
+					m_vecQualityHistory.erase(m_vecQualityHistory.begin());
+				m_vecQualityHistory.push_back(sample);
+			}
+		}
+	}
 }
 
 bool PlayerConnection::IsIPV4()
 {
+	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+		return false;
+
 	SteamNetConnectionInfo_t info;
 	SteamNetworkingSockets()->GetConnectionInfo(m_hSteamConnection, &info);
 
@@ -1086,6 +1125,9 @@ int PlayerConnection::Recv(SteamNetworkingMessage_t** pMsg)
 
 std::string PlayerConnection::GetStats()
 {
+	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+		return "(disconnected)";
+
 	char szBuf[2048] = { 0 };
 	int ret = SteamNetworkingSockets()->GetDetailedConnectionStatus(m_hSteamConnection, szBuf, 2048);
 
@@ -1096,6 +1138,9 @@ std::string PlayerConnection::GetStats()
 
 std::string PlayerConnection::GetConnectionType()
 {
+	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+		return "(disconnected)";
+
 	char szBuf[2048] = { 0 };
 	int ret = SteamNetworkingSockets()->GetConnectionType(m_hSteamConnection, szBuf, 2048);
 	NetworkLog(ELogVerbosity::LOG_DEBUG, "[STEAM] PlayerConnection::GetConnectionType returned %d", ret);
@@ -1148,16 +1193,28 @@ void PlayerConnection::SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh,
 		m_State = EConnectionState::CONNECTION_DISCONNECTED;
 	}
 
+	// Save values we need after the callback: the callback can erase this
+	// PlayerConnection from the mesh's map (UAF), so we must not access
+	// member variables after UpdateState fires the external callback.
+	const HSteamNetConnection savedHandle = m_hSteamConnection;
+	const int64_t savedUserID = m_userID;
+
+	// Invalidate the handle before firing the callback so any re-entrant
+	// query sees the connection as already gone.
+	m_hSteamConnection = k_HSteamNetConnection_Invalid;
+
 	// Dont update backend until we're actually done
 	if (!bIsRetrying)
 	{
-		UpdateState(m_State, pOwningMesh);
+		UpdateState(m_State, pOwningMesh);  // may erase *this from the map
 	}
 
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM CONNECTION] Setting connection %u to disconnected/invalid on user %lld", m_hSteamConnection, m_userID);
-	SteamNetworkingSockets()->SetConnectionName(m_hSteamConnection, std::format("Steam Connection User{}", m_userID).c_str());
-
-	m_hSteamConnection = k_HSteamNetConnection_Invalid; // invalidate connection handle
+	// Use saved stack values — do NOT touch any member after this point.
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM CONNECTION] Setting connection %u to disconnected/invalid on user %lld", savedHandle, savedUserID);
+	if (SteamNetworkingSockets())
+	{
+		SteamNetworkingSockets()->SetConnectionName(savedHandle, std::format("Steam Connection User{}", savedUserID).c_str());
+	}
 }
 
 int PlayerConnection::GetLatency()
@@ -1181,20 +1238,96 @@ int PlayerConnection::GetLatency()
 	return -1;
 }
 
-float PlayerConnection::GetConnectionQuality()
+int PlayerConnection::GetJitter()
 {
-	if (m_hSteamConnection != k_HSteamNetConnection_Invalid)
+	int sumDelta = 0;
+	int count = 0;
+	int prev = -1;
+	for (int sample : m_vecLatencyHistory)
 	{
-		const int k_nLanes = 1;
-		SteamNetConnectionRealTimeStatus_t status;
-		SteamNetConnectionRealTimeLaneStatus_t laneStatus[k_nLanes];
-
-		EResult res = SteamNetworkingSockets()->GetConnectionRealTimeStatus(m_hSteamConnection, &status, k_nLanes, laneStatus);
-		if (res == k_EResultOK)
+		if (sample >= 0)
 		{
-			return std::min<float>(status.m_flConnectionQualityLocal, status.m_flConnectionQualityRemote);
+			if (prev >= 0)
+			{
+				sumDelta += std::abs(sample - prev);
+				++count;
+			}
+			prev = sample;
+		}
+		else
+		{
+			prev = -1; // gap in valid data
 		}
 	}
 
-	return -1;
+	if (count < 10)
+		return -1;
+
+	return sumDelta / count;
+}
+
+float PlayerConnection::GetConnectionQuality()
+{
+	if (!m_vecQualityHistory.empty())
+	{
+		float sum = 0.0f;
+		for (float r : m_vecQualityHistory)
+			sum += r;
+		return sum / static_cast<float>(m_vecQualityHistory.size());
+	}
+
+	return -1.0f;
+}
+
+int PlayerConnection::ComputeConnectionScore()
+{
+	const int latency = GetLatency();
+	const int jitter = GetJitter();
+	const float quality = GetConnectionQuality();   // packet delivery ratio [0..1]
+
+	// Stability-first weighting
+	static constexpr float k_subScoreFloor = 0.01f;
+	static constexpr float k_latencyWeight = 0.22f;
+	static constexpr float k_jitterWeight = 0.38f;
+	static constexpr float k_reliabilityWeight = 0.40f;
+
+	float weightedLogSum = 0.0f;
+	float activeWeightSum = 0.0f;
+
+	if (latency >= 0)
+	{
+		// 10ms and below are treated as full score. Above that, roughly:
+		// 400ms -> composite 75, 800ms -> composite 50 when other metrics are perfect.
+		int effectiveLatency = (std::max)(latency - 10, 0);
+		float latFactor = std::clamp(1.0f - static_cast<float>(effectiveLatency) / 1590.0f, 0.0f, 1.0f);
+		float latencyScore = (std::max)(std::powf(latFactor, 4.545f), k_subScoreFloor);
+		weightedLogSum += k_latencyWeight * std::logf(latencyScore);
+		activeWeightSum += k_latencyWeight;
+	}
+
+	if (jitter >= 0)
+	{
+		// 50ms -> composite 75, 100ms -> composite 50 when other metrics are perfect.
+		float jitFactor = std::clamp(1.0f - static_cast<float>(jitter) / 200.0f, 0.0f, 1.0f);
+		float jitterScore = (std::max)(std::powf(jitFactor, 2.632f), k_subScoreFloor);
+		weightedLogSum += k_jitterWeight * std::logf(jitterScore);
+		activeWeightSum += k_jitterWeight;
+	}
+
+	if (quality >= 0.0f)
+	{
+		// 90% -> composite 75, 80% -> composite 50 when other metrics are perfect.
+		float relFactor = std::clamp(2.5f * quality - 1.5f, 0.0f, 1.0f);
+		float reliabilityScore = (std::max)(std::powf(relFactor, 2.5f), k_subScoreFloor);
+		weightedLogSum += k_reliabilityWeight * std::logf(reliabilityScore);
+		activeWeightSum += k_reliabilityWeight;
+	}
+
+	if (activeWeightSum <= 0.0f)
+	{
+		return -1;
+	}
+
+	float composite = std::expf(weightedLogSum / activeWeightSum);
+	return static_cast<int>(std::round(composite * 100.0f));
 }

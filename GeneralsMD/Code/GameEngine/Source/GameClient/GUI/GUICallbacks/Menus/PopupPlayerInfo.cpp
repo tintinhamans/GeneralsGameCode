@@ -245,7 +245,7 @@ void GetAdditionalDisconnectsFromUserFile(PSPlayerStats *stats)
 }
 
 // default values
-RankPoints::RankPoints(void)
+RankPoints::RankPoints()
 {
 	// In GeneralsMD, rank values are set in NGMP_OnlineServices_StatsInterface constructor
 	// Initialize with default values (these will be overwritten if properly initialized)
@@ -482,7 +482,7 @@ void BattleHonorTooltip(GameWindow *window,
 }
 
 static Int rowsToSkip = 0;
-void ResetBattleHonorInsertion(void)
+void ResetBattleHonorInsertion()
 {
 	rowsToSkip = 0;
 }
@@ -878,10 +878,13 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 				return;
 			}
 
+			if (!TheRankPointValues)
+				return;
+
 			Int currentRank = 0;
 			Int rankPoints = CalculateRank(stats);
 			Int i = 0;
-			while (rankPoints >= TheRankPointValues->m_ranks[i + 1])
+			while (i + 1 < MAX_RANKS && rankPoints >= TheRankPointValues->m_ranks[i + 1])
 				++i;
 			currentRank = i;
 
@@ -1168,7 +1171,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 
 
 
-void HandlePersistentStorageResponses( void )
+void HandlePersistentStorageResponses()
 {
 	if (TheGameSpyPSMessageQueue)
 	{
@@ -1366,7 +1369,6 @@ void GameSpyPlayerInfoOverlayInit( WindowLayout *layout, void *userData )
 
 	//GadgetListBoxAddEntryText(listboxInfo, L"Working", GameSpyColor[GSCOLOR_DEFAULT], -1);
 
-	GameSpyCloseOverlay(GSOVERLAY_BUDDY);
 	raiseMessageBox = true;
 	PopulatePlayerInfoWindows("PopupPlayerInfo.wnd");
 
@@ -1436,7 +1438,10 @@ void GameSpyPlayerInfoOverlayShutdown( WindowLayout *layout, void *userData )
 void GameSpyPlayerInfoOverlayUpdate( WindowLayout * layout, void *userData)
 {
 	if (raiseMessageBox)
+	{
 		RaiseGSMessageBox();
+		layout->bringForward();
+	}
 	raiseMessageBox = false;
 }
 
@@ -1486,7 +1491,7 @@ WindowMsgHandledType GameSpyPlayerInfoOverlayInput( GameWindow *window, Unsigned
 
 	return MSG_IGNORED;
 }
-void messageBoxYes( void );
+static void messageBoxYes();
 //-------------------------------------------------------------------------------------------------
 /** Overlay window system callback */
 //-------------------------------------------------------------------------------------------------
@@ -1604,7 +1609,7 @@ WindowMsgHandledType GameSpyPlayerInfoOverlaySystem( GameWindow *window, Unsigne
 	return MSG_HANDLED;
 }
 
-static void messageBoxYes( void )
+static void messageBoxYes()
 {
 	// log out of account
 	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();

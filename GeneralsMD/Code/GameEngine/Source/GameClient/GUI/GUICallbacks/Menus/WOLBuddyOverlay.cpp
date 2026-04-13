@@ -111,21 +111,21 @@ static UnsignedInt noticeExpires = 0;
 #endif
 
 void setUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
-void refreshIgnoreList( void );
+void refreshIgnoreList();
 
 #if defined(GENERALS_ONLINE)
 void showNotificationBox( AsciiString nick, UnicodeString message, bool bPlaySound);
 #else
 void showNotificationBox(AsciiString nick, UnicodeString message);
 #endif
-void deleteNotificationBox( void );
+void deleteNotificationBox();
 static Bool lastNotificationWasStatus = FALSE;
 static Int numOnlineInNotification = 0;
 
 class BuddyControls
 {
 public:
-	BuddyControls(void );
+	BuddyControls();
 	GameWindow *listboxChat;
 	NameKeyType listboxChatID;
 
@@ -138,7 +138,7 @@ public:
 };
 
 static BuddyControls buddyControls;
-BuddyControls::BuddyControls(	void )
+BuddyControls::BuddyControls(	)
 {
 	listboxChat = nullptr;
 	listboxChatID = NAMEKEY_INVALID;
@@ -215,7 +215,7 @@ void InitBuddyControls(Int type)
 	case BUDDY_WINDOW_WELCOME_SCREEN:
 		break;
 	default:
-		DEBUG_ASSERTCRASH(FALSE, ("Well, you really shouldn't have gotten here, if you really care about GUI Bugs, search for this string, you you don't care, call chris (who probably doesn't care either"));
+		DEBUG_CRASH(("Well, you really shouldn't have gotten here, if you really care about GUI Bugs, search for this string, you you don't care, call chris (who probably doesn't care either"));
 	}
 
 }
@@ -598,7 +598,6 @@ void updateBuddyInfo( void )
                 //AsciiString strName;
 
                 int numUnreadMessages = 0;
-                NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
                 if (pSocialInterface != nullptr)
                 {
                     numUnreadMessages = pSocialInterface->GetNumberUnreadChatMessagesForUser(profileID);
@@ -631,7 +630,8 @@ void updateBuddyInfo( void )
                 // NOTE: Gamespy let you be friends with someone AND have them ignored. We don't.
                 bool isSavedIgnored = false;
                 Color nameColor = (isSavedIgnored) ?
-                    GameSpyColor[GSCOLOR_PLAYER_IGNORED] : GameSpyColor[GSCOLOR_PLAYER_BUDDY];
+                    GameSpyColor[GSCOLOR_PLAYER_IGNORED] :
+					friendsEntry.online ? GameSpyColor[GSCOLOR_PLAYER_BUDDY] : GameMakeColor(100, 130, 150, 255);
                 int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, nameColor, -1, -1);
 
                 if (friendsEntry.online)
@@ -797,7 +797,7 @@ void updateBuddyInfo( void )
 #endif
 }
 
-void HandleBuddyResponses( void )
+void HandleBuddyResponses()
 {
 #if !defined(GENERALS_ONLINE)
 	if (TheGameSpyBuddyMessageQueue)
@@ -1004,7 +1004,7 @@ void showNotificationBox(AsciiString nick, UnicodeString message)
 
 }
 
-void deleteNotificationBox( void )
+void deleteNotificationBox()
 {
 	lastNotificationWasStatus = FALSE;
 	numOnlineInNotification = 0;
@@ -1016,7 +1016,7 @@ void deleteNotificationBox( void )
 	}
 }
 
-void PopulateOldBuddyMessages(void)
+void PopulateOldBuddyMessages()
 {
 	// TODO_SOCIAL
 #if !defined(GENERALS_ONLINE)
@@ -2018,7 +2018,7 @@ void setUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id)
 	}
 }
 
-void refreshIgnoreList( void )
+void refreshIgnoreList()
 {
 #if defined(GENERALS_ONLINE)
 	// Get friends

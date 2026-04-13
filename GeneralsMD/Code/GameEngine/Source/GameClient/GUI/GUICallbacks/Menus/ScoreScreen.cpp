@@ -75,7 +75,6 @@
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/VictoryConditions.h"
-#include "GameClient/CDCheck.h"
 #include "GameClient/Display.h"
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/WindowLayout.h"
@@ -467,7 +466,7 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 		{
 			g_bNeedToTakeDoneEOGScreenshot = false;
 
-			NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN);
+			NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN, std::string()); // pass no URI here, wait until we have one received from server
 		}
 	}
 
@@ -618,6 +617,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 			Int controlID = control->winGetWindowId();
 			if( controlID == buttonOkID )
 			{
+				GameSpyCloseOverlay(GSOVERLAY_BUDDY);
 				TheShell->pop();
 				TheCampaignManager->setCampaign(AsciiString::TheEmptyString);
 
@@ -648,7 +648,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 						}
 						else
 						{
-							CheckForCDAtGameStart( startNextCampaignGame );
+
 						}
 					}
 					else if (screenType == SCORESCREEN_INTERNET)
@@ -1924,12 +1924,12 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						{
 							// we pinged on the last frame someone was there - i.e. game ended in a disconnect.
 							// check if we were to blame.
-							if (TheNetwork->getPingsRecieved() < max(1, TheNetwork->getPingsSent()/2)) /// @todo: what's a good percent of pings to have gotten?
+							if (TheNetwork->getPingsReceived() < max(1, TheNetwork->getPingsSent()/2)) /// @todo: what's a good percent of pings to have gotten?
 							{
 								DEBUG_LOG(("We were to blame.  Leaving gameEndedInDisconnect = true"));
 								// we pinged on the last frame someone was there - i.e. game ended in a disconnect.
 								// check if we were to blame.
-								if (TheNetwork->getPingsRecieved() < max(1, TheNetwork->getPingsSent() / 2)) /// @todo: what's a good percent of pings to have gotten?
+								if (TheNetwork->getPingsReceived() < max(1, TheNetwork->getPingsSent() / 2)) /// @todo: what's a good percent of pings to have gotten?
 								{
 									DEBUG_LOG(("We were to blame.  Leaving gameEndedInDisconnect = true\n"));
 								}

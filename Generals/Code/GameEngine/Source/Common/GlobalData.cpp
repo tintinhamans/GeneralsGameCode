@@ -46,7 +46,7 @@
 #include "Common/FileSystem.h"
 #include "Common/GameAudio.h"
 #include "Common/INI.h"
-#include "Common/UserPreferences.h"
+#include "Common/OptionPreferences.h"
 #include "Common/version.h"
 
 #include "GameLogic/AI.h"
@@ -942,6 +942,7 @@ GlobalData::GlobalData()
 	m_renderFpsFontSize = 8;
 	m_systemTimeFontSize = 8;
 	m_gameTimeFontSize = 8;
+	m_playerInfoListFontSize = 8;
 
 	m_showMoneyPerMinute = FALSE;
 	m_allowMoneyPerMinuteForPlayer = FALSE;
@@ -1038,7 +1039,7 @@ AsciiString GlobalData::getPath_UserData() const
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-GlobalData::~GlobalData( void )
+GlobalData::~GlobalData()
 {
 	DEBUG_ASSERTCRASH( TheWritableGlobalData->m_next == nullptr, ("~GlobalData: theOriginal is not original") );
 
@@ -1077,31 +1078,31 @@ Bool GlobalData::setTimeOfDay( TimeOfDay tod )
 	* initial values of the newly created instance will be a copy of the current
 	* data (or the most recently created override) */
 //-------------------------------------------------------------------------------------------------
-GlobalData *GlobalData::newOverride( void )
+GlobalData *GlobalData::newOverride()
 {
 	// TheSuperHackers @info This copy is not implemented in VS6 builds
-	GlobalData *override = NEW GlobalData;
+	GlobalData *overrideData = NEW GlobalData;
 
 	// copy the data from the latest override (TheWritableGlobalData) to the newly created instance
 	DEBUG_ASSERTCRASH( TheWritableGlobalData, ("GlobalData::newOverride() - no existing data") );
-	*override = *TheWritableGlobalData;
+	*overrideData = *TheWritableGlobalData;
 
 	//
 	// link the override to the previously created one, the link order is important here
 	// for the reset function, if you change the way things are linked
 	// for overrides make sure you update the reset function
 	//
-	override->m_next = TheWritableGlobalData;
+	overrideData->m_next = TheWritableGlobalData;
 
 	// set this new instance as the 'most current override' where we will access all data from
-	TheWritableGlobalData = override;
+	TheWritableGlobalData = overrideData;
 
-	return override;
+	return overrideData;
 
 }
 
 //-------------------------------------------------------------------------------------------------
-void GlobalData::init( void )
+void GlobalData::init()
 {
 	m_exeCRC = generateExeCRC();
 }
@@ -1110,7 +1111,7 @@ void GlobalData::init( void )
 /** Reset, remove any override data instances and return to just the initial one
 	*/
 //-------------------------------------------------------------------------------------------------
-void GlobalData::reset( void )
+void GlobalData::reset()
 {
 	DEBUG_ASSERTCRASH(this == TheWritableGlobalData, ("calling reset on wrong GlobalData"));
 
@@ -1170,17 +1171,8 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	ini->initFromINI( TheWritableGlobalData, s_GlobalDataFieldParseTable );
 
 	TheWritableGlobalData->m_userDataDir.clear();
-
-	char temp[_MAX_PATH];
-	if (::SHGetSpecialFolderPath(nullptr, temp, CSIDL_PERSONAL, true))
-	{
-		if (temp[strlen(temp)-1] != '\\')
-			strcat(temp, "\\");
-		strcat(temp, TheWritableGlobalData->m_userDataLeafName.str());
-		strcat(temp, "\\");
-		CreateDirectory(temp, nullptr);
-		TheWritableGlobalData->m_userDataDir = temp;
-	}
+	TheWritableGlobalData->m_userDataDir = BuildUserDataPathFromIni();
+	CreateDirectory(TheWritableGlobalData->m_userDataDir.str(), nullptr);
 
 	// override INI values with user preferences
 	OptionPreferences optionPref;
@@ -1202,6 +1194,7 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_renderFpsFontSize = optionPref.getRenderFpsFontSize();
 	TheWritableGlobalData->m_systemTimeFontSize = optionPref.getSystemTimeFontSize();
 	TheWritableGlobalData->m_gameTimeFontSize = optionPref.getGameTimeFontSize();
+	TheWritableGlobalData->m_playerInfoListFontSize = optionPref.getPlayerInfoListFontSize();
 	TheWritableGlobalData->m_showMoneyPerMinute = optionPref.getShowMoneyPerMinute();
 
 	Int val=optionPref.getGammaValue();
@@ -1307,4 +1300,55 @@ UnsignedInt GlobalData::generateExeCRC()
 	DEBUG_LOG(("EXE+Version(%d.%d)+SCB CRC is 0x%8.8X", version >> 16, version & 0xffff, exeCRC.get()));
 
 	return exeCRC.get();
+}
+
+AsciiString GlobalData::BuildUserDataPathFromIni()
+{
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+	// VC6 lacks FOLDERID_Documents and KF_FLAG_DEFAULT
+	const GUID FOLDERID_Documents = { 0xFDD39AD0, 0x238F, 0x46AF, 0xAD, 0xB4, 0x6C, 0x85, 0x48, 0x03, 0x69, 0xC7 };
+	const DWORD KF_FLAG_DEFAULT = 0;
+#endif
+
+	typedef HRESULT(WINAPI* PFN_SHGetKnownFolderPath)(const GUID& rfid, DWORD dwFlags, HANDLE hToken, PWSTR* ppszPath);
+
+	AsciiString myDocumentsDirectory;
+	HMODULE shell32module = GetModuleHandleA("shell32.dll");
+	PFN_SHGetKnownFolderPath pSHGetKnownFolderPath = nullptr;
+
+	// TheSuperHackers @bugfix Mauller 20/03/2026 Fix the handling of folder redirection
+	// OneDrive and Group Policy folder redirection is better supported by SHGetKnownFolderPath()
+	// SHGetKnownFolderPath() is only supported in windows Vista onwards so we check for it being available
+	if (shell32module) {
+		pSHGetKnownFolderPath = (PFN_SHGetKnownFolderPath)GetProcAddress(shell32module, "SHGetKnownFolderPath");
+	}
+
+	if (pSHGetKnownFolderPath) {
+		PWSTR pszPath = nullptr;
+		HRESULT hr = pSHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, nullptr, &pszPath);
+
+		if (SUCCEEDED(hr) && pszPath) {
+			myDocumentsDirectory.translate(pszPath);
+			CoTaskMemFree(pszPath);
+		}
+	}
+	else {
+		char temp[_MAX_PATH + 1];
+		if (SHGetSpecialFolderPath(nullptr, temp, CSIDL_PERSONAL, true)) {
+			myDocumentsDirectory = temp;
+		}
+	}
+
+	if (!myDocumentsDirectory.isEmpty()) {
+		// Now build the full path string
+		if (!myDocumentsDirectory.endsWith("\\"))
+			myDocumentsDirectory.concat('\\');
+
+		myDocumentsDirectory.concat(TheWritableGlobalData->m_userDataLeafName.str());
+
+		if (!myDocumentsDirectory.endsWith("\\"))
+			myDocumentsDirectory.concat('\\');
+	}
+
+	return myDocumentsDirectory;
 }

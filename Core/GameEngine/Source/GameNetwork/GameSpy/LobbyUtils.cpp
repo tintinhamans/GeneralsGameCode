@@ -109,7 +109,7 @@ static float UpdateAndGetGameRowIndex(int lobbyID, float logicalIndex)
     if (!anim.alive)
     {
         // start slightly below, then glide into place
-        anim.currentIndex = logicalIndex + 0.3f;
+        anim.currentIndex = logicalIndex + 2.f;
         anim.targetIndex  = logicalIndex;
         anim.alive        = true;
     }
@@ -119,31 +119,12 @@ static float UpdateAndGetGameRowIndex(int lobbyID, float logicalIndex)
     }
 
     // how fast to snap into place
-    const float t = 0.1f; 
+    const float t = 0.2f; 
 
     float delta = anim.targetIndex - anim.currentIndex;
     anim.currentIndex += delta * t;
 
     return anim.currentIndex;
-}
-
-// Clears animation state for IDs that no longer exist
-static void CleanupMissingGameRows(const std::vector<LobbyEntry>& lobbies)
-{
-	std::map<int, bool> stillPresent;
-
-	for (const LobbyEntry& lobby : lobbies)
-	{
-		stillPresent[lobby.lobbyID] = true;
-	}
-
-	for (auto it = g_gameListAnim.begin(); it != g_gameListAnim.end(); )
-	{
-		if (stillPresent.find(it->first) == stillPresent.end())
-			it = g_gameListAnim.erase(it);
-		else
-			++it;
-	}
 }
 
 static NameKeyType buttonSortAlphaID = NAMEKEY_INVALID;
@@ -160,30 +141,30 @@ static GameWindow *windowSortAlpha = nullptr;
 static GameWindow *windowSortPing = nullptr;
 static GameWindow *windowSortBuddies = nullptr;
 
-static GameSortType theGameSortType = GAMESORT_ALPHA_ASCENDING;
+static GameSortType theGameSortType = GAMESORT_MAP_ASCENDING; // was ping
 static Bool sortBuddies = TRUE;
-static void showSortIcons(void)
+static void showSortIcons()
 {
 	if (windowSortAlpha && windowSortPing)
 	{
 		switch (theGameSortType)
 		{
-		case GAMESORT_ALPHA_ASCENDING:
+		case GAMESORT_AGE_ASCENDING: // was alpha
 			windowSortAlpha->winHide(FALSE);
 			windowSortAlpha->winEnable(TRUE);
 			windowSortPing->winHide(TRUE);
 			break;
-		case GAMESORT_ALPHA_DESCENDING:
+		case GAMESORT_AGE_DESCENDING: // was alpha
 			windowSortAlpha->winHide(FALSE);
 			windowSortAlpha->winEnable(FALSE);
 			windowSortPing->winHide(TRUE);
 			break;
-		case GAMESORT_PING_ASCENDING:
+		case GAMESORT_MAP_ASCENDING: // was ping
 			windowSortPing->winHide(FALSE);
 			windowSortPing->winEnable(TRUE);
 			windowSortAlpha->winHide(TRUE);
 			break;
-		case GAMESORT_PING_DESCENDING:
+		case GAMESORT_MAP_DESCENDING: // was ping
 			windowSortPing->winHide(FALSE);
 			windowSortPing->winEnable(FALSE);
 			windowSortAlpha->winHide(TRUE);
@@ -206,6 +187,41 @@ static void showSortIcons(void)
 		}
 	}
 }
+
+LobbyGameModeFilter theLobbyFilter = LOBBY_FILTER_ALL;
+static LobbyGameModeFilter detectGameMode(const std::string& name)
+{
+	std::string modeName = name;
+	std::transform(modeName.begin(), modeName.end(), modeName.begin(), tolower);
+
+	// remove spaces
+	modeName.erase(std::remove(modeName.begin(), modeName.end(), ' '), modeName.end());
+
+	// handle common variations
+	for (size_t i = 0; i < modeName.size(); ++i)
+	{
+		if (modeName.compare(i, 2, "vs") == 0)
+		{
+			modeName.erase(i + 1, 1);
+			continue;
+		}
+
+		if (modeName[i] == 'x')
+			modeName[i] = 'v';
+	}
+
+	if (modeName.find("aod") != -1)
+		return LOBBY_FILTER_AOD;
+	if (modeName.find("ffa") != -1 || modeName.find("1v1v1") != -1)
+		return LOBBY_FILTER_FFA;
+	if (modeName.find("1v1") != -1)
+		return LOBBY_FILTER_1V1;
+	if (modeName.find("2v2") != -1 || modeName.find("3v3") != -1 || modeName.find("4v4") != -1)
+		return LOBBY_FILTER_TEAM;
+
+	return LOBBY_FILTER_ALL;
+}
+
 void setSortMode(GameSortType sortType) { theGameSortType = sortType; showSortIcons(); RefreshGameListBoxes(); }
 void sortByBuddies(Bool doSort) { sortBuddies = doSort; showSortIcons(); RefreshGameListBoxes(); }
 
@@ -218,25 +234,25 @@ Bool HandleSortButton(NameKeyType sortButton)
 	}
 	else if (sortButton == buttonSortAlphaID)
 	{
-		if (theGameSortType == GAMESORT_ALPHA_ASCENDING)
+		if (theGameSortType == GAMESORT_AGE_ASCENDING) // was alpha
 		{
-			setSortMode(GAMESORT_ALPHA_DESCENDING);
+			setSortMode(GAMESORT_AGE_DESCENDING); // was alpha
 		}
 		else
 		{
-			setSortMode(GAMESORT_ALPHA_ASCENDING);
+			setSortMode(GAMESORT_AGE_ASCENDING); // was alpha
 		}
 		return TRUE;
 	}
 	else if (sortButton == buttonSortPingID)
 	{
-		if (theGameSortType == GAMESORT_PING_ASCENDING)
+		if (theGameSortType == GAMESORT_MAP_ASCENDING) // was ping
 		{
-			setSortMode(GAMESORT_PING_DESCENDING);
+			setSortMode(GAMESORT_MAP_DESCENDING); // was ping
 		}
 		else
 		{
-			setSortMode(GAMESORT_PING_ASCENDING);
+			setSortMode(GAMESORT_MAP_ASCENDING); // was ping
 		}
 		return TRUE;
 	}
@@ -504,27 +520,27 @@ static void gameTooltip(GameWindow* window,
 
 static Bool isSmall = TRUE;
 
-GameWindow *GetGameListBox( void )
+GameWindow *GetGameListBox()
 {
 	return listboxLobbyGamesLarge;
 }
 
-GameWindow *GetGameInfoListBox( void )
+GameWindow *GetGameInfoListBox()
 {
 	return nullptr;
 }
 
-NameKeyType GetGameListBoxID( void )
+NameKeyType GetGameListBoxID()
 {
 	return listboxLobbyGamesLargeID;
 }
 
-NameKeyType GetGameInfoListBoxID( void )
+NameKeyType GetGameInfoListBoxID()
 {
 	return NAMEKEY_INVALID;
 }
 
-void GrabWindowInfo( void )
+void GrabWindowInfo()
 {
 	isSmall = TRUE;
 	parentID = NAMEKEY( "WOLCustomLobby.wnd:WOLLobbyMenuParent" );
@@ -562,8 +578,24 @@ void GrabWindowInfo( void )
 	windowSortBuddiesID = NAMEKEY("WOLCustomLobby.wnd:WindowSortBuddies");
 
 	buttonSortAlpha = TheWindowManager->winGetWindowFromId(parent, buttonSortAlphaID);
+	if (buttonSortAlpha)
+	{
+		buttonSortAlpha->winSetText(UnicodeString(L"Sort by Newest"));
+		buttonSortAlpha->winSetTooltip(UnicodeString::TheEmptyString);
+	}
 	buttonSortPing = TheWindowManager->winGetWindowFromId(parent, buttonSortPingID);
+	if (buttonSortPing)
+	{
+		buttonSortPing->winSetText(UnicodeString(L"Sort by Map"));
+		buttonSortPing->winSetTooltip(UnicodeString::TheEmptyString);
+	}
 	buttonSortBuddies = TheWindowManager->winGetWindowFromId(parent, buttonSortBuddiesID);
+	if (buttonSortBuddies)
+	{
+		buttonSortBuddies->winSetText(UnicodeString(L"Sort by Buddies"));
+		buttonSortBuddies->winSetTooltip(UnicodeString::TheEmptyString);
+	}
+
 	windowSortAlpha = TheWindowManager->winGetWindowFromId(parent, windowSortAlphaID);
 	windowSortPing = TheWindowManager->winGetWindowFromId(parent, windowSortPingID);
 	windowSortBuddies = TheWindowManager->winGetWindowFromId(parent, windowSortBuddiesID);
@@ -571,7 +603,7 @@ void GrabWindowInfo( void )
 	showSortIcons();
 }
 
-void ReleaseWindowInfo( void )
+void ReleaseWindowInfo()
 {
 	isSmall = TRUE;
 	parent = nullptr;
@@ -617,7 +649,6 @@ static void populateBuddyGames(void)
 		if (pSocialInterface->IsUserFriend(lobby.owner))
 		{
 			theBuddyGames->insert(lobby.lobbyID);
-			break; // its binary, we don't care how many friends
 		}
 		else // does the lobby contain any of our friends
 		{
@@ -660,36 +691,19 @@ static void populateBuddyGames(void)
 #endif
 }
 
-static void clearBuddyGames(void)
+static void clearBuddyGames()
 {
 	delete theBuddyGames;
 	theBuddyGames = nullptr;
 }
 
 #if defined(GENERALS_ONLINE)
-
-// Can we join this lobby?
-static bool IsLobbyJoinable(const LobbyEntry& g)
-{
-	const Bool isFull =
-		(g.current_players == g.max_players || g.current_players == MAX_SLOTS);
-
-	const Bool hasCrcMismatch =
-		(g.exe_crc != TheGlobalData->m_exeCRC ||
-			g.ini_crc != TheGlobalData->m_iniCRC);
-
-	return !isFull && !hasCrcMismatch;
-}
-
-#endif
-
-#if defined(GENERALS_ONLINE)
 struct GameSortStruct
 {
 	bool operator()(const LobbyEntry& g1, const LobbyEntry& g2) const
 	{
-		const bool g1Join = IsLobbyJoinable(g1);
-		const bool g2Join = IsLobbyJoinable(g2);
+		const bool g1Join = !(g1.exe_crc != TheGlobalData->m_exeCRC || g1.ini_crc != TheGlobalData->m_iniCRC);
+		const bool g2Join = !(g2.exe_crc != TheGlobalData->m_exeCRC || g2.ini_crc != TheGlobalData->m_iniCRC);
 
 		if (g1Join != g2Join)
 			return g1Join && !g2Join;
@@ -703,6 +717,10 @@ struct GameSortStruct
 				return g1Buddy && !g2Buddy;
 		}
 
+		// Push passworded lobbies below open ones
+		if (g1.passworded != g2.passworded)
+			return !g1.passworded && g2.passworded;
+
         // NOTE: GO currently does not have private ladders, so this check is moot
 		/*
 		// sort games with private ladders to the bottom
@@ -714,11 +732,24 @@ struct GameSortStruct
 		}
 		*/
 
-		// 3) Newest first
-		if (g1.lobbyID != g2.lobbyID)
-			return g1.lobbyID > g2.lobbyID;
+		switch (theGameSortType)
+		{
+		case GAMESORT_MAP_ASCENDING: // was ping
+			if (g1.map_name != g2.map_name)
+				return g1.map_name < g2.map_name;
+			break;
 
-		return false;
+		case GAMESORT_MAP_DESCENDING: // was ping
+			if (g1.map_name != g2.map_name)
+				return g1.map_name > g2.map_name;
+			break;
+
+		case GAMESORT_AGE_ASCENDING:  // was alpha
+			return g1.lobbyID > g2.lobbyID;
+		case GAMESORT_AGE_DESCENDING: // was alpha
+			return g1.lobbyID < g2.lobbyID;
+		}
+		return g1.lobbyID > g2.lobbyID;
 	}
 };
 #else
@@ -783,13 +814,6 @@ struct GameSortStruct
 static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 {
 	Color gameColor = GameSpyColor[GSCOLOR_GAME];
-
-
-	if (lobbyInfo.current_players == lobbyInfo.max_players || lobbyInfo.current_players == MAX_SLOTS)
-	{
-		gameColor = GameSpyColor[GSCOLOR_GAME_FULL];
-	}
-
 	if (lobbyInfo.exe_crc != TheGlobalData->m_exeCRC || lobbyInfo.ini_crc != TheGlobalData->m_iniCRC)
 	{
 		gameColor = GameSpyColor[GSCOLOR_GAME_CRCMISMATCH];
@@ -799,8 +823,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	if (theBuddyGames && theBuddyGames->count(lobbyInfo.lobbyID))
 	{
 		const bool nonJoinable =
-			(gameColor == GameSpyColor[GSCOLOR_GAME_FULL] ||
-				gameColor == GameSpyColor[GSCOLOR_GAME_CRCMISMATCH]);
+				(gameColor == GameSpyColor[GSCOLOR_GAME_CRCMISMATCH]);
 
 		gameColor = nonJoinable
 			? GameMakeColor(0, 98, 130, 255)   // darker cyan
@@ -865,6 +888,12 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	*/
 
 
+	Int rowCount = GadgetListBoxGetNumEntries(win);
+	bool bAlternate = (rowCount % 2 == 0);
+	if (bAlternate && gameColor == GameSpyColor[GSCOLOR_GAME])
+	{
+		gameColor = GameMakeColor(191, 198, 201, 255);
+	}
 	Int index = GadgetListBoxAddEntryText(win, gameName, gameColor, -1, COLUMN_NAME);
 	GadgetListBoxSetItemData(win, (void*)gameID, index);
 
@@ -880,16 +909,12 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 		}
 		else
 		{
-			const char* start = lobbyMapName.reverseFind('\\');
-			if (start)
-			{
-				++start;
-			}
-			else
-			{
-				start = lobbyMapName.str();
-			}
-			mapName.translate(start);
+			const char* start = lobbyInfo.map_name.c_str();
+			const char* slashPos = strrchr(start, '\\');
+			if (slashPos)
+				start = slashPos + 1;
+
+			mapName.format(L"%s", from_utf8(start).c_str());
 		}
 		GadgetListBoxAddEntryText(win, mapName, gameColor, index, COLUMN_MAP);
 
@@ -922,7 +947,12 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	}
 
 	s.format(L"%d/%d", numPlayers, maxPlayers);
-	GadgetListBoxAddEntryText(win, s, gameColor, index, COLUMN_NUMPLAYERS);
+	const bool bIsFull = (lobbyInfo.current_players == lobbyInfo.max_players || lobbyInfo.current_players == MAX_SLOTS);
+	const bool bIsAlmostFull = !bIsFull && (maxPlayers > 0) && ((float)numPlayers / (float)maxPlayers >= 0.6f);
+	Color numPlayersColor = bIsFull ? GameMakeColor(255, 80, 80, 255) 
+		: bIsAlmostFull ? GameMakeColor(16, 173, 144, 255) 
+		: gameColor;
+	GadgetListBoxAddEntryText(win, s, numPlayersColor, index, COLUMN_NUMPLAYERS);
 
 	if (bHasPassword)
 	{
@@ -1186,6 +1216,24 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 			{
 				win->winEnable(true);
 
+				// filter lobbies by game mode
+				if (theLobbyFilter != LOBBY_FILTER_ALL)
+				{
+					std::vector<LobbyEntry> filtered;
+					for (Int i = 0; i < (Int)vecLobbies.size(); ++i)
+					{
+						if (detectGameMode(vecLobbies[i].name) == theLobbyFilter)
+							filtered.push_back(vecLobbies[i]);
+					}
+					vecLobbies = filtered;
+					if (vecLobbies.empty())
+					{
+						win->winEnable(false);
+						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies currently match this filter"), GameMakeColor(255, 194, 15, 255), -1, -1);
+						return;
+					}
+				}
+
 				// sort our games
 				typedef std::multiset<LobbyEntry, GameSortStruct> SortedGameList;
 				SortedGameList sgl;
@@ -1400,7 +1448,7 @@ void RefreshGameListBoxes( void )
 	}
 }
 
-void ToggleGameListType( void )
+void ToggleGameListType()
 {
 	isSmall = !isSmall;
 	if(isSmall)

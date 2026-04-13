@@ -41,18 +41,6 @@
 #endif
 #endif
 
-// This is here to easily toggle between the retail compatible with fixed pathfinding fallback and pure fixed pathfinding mode
-#if RETAIL_COMPATIBLE_CRC
-
-#if defined(GENERALS_ONLINE)
-#define RETAIL_COMPATIBLE_PATHFINDING (0)
-#else
-#define RETAIL_COMPATIBLE_PATHFINDING (1)
-#endif
-#else
-#define RETAIL_COMPATIBLE_PATHFINDING (0)
-#endif
-
 // This is here to easily toggle between the retail compatible pathfinding memory allocation and the new static allocated data mode
 #ifndef RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION
 #if defined(GENERALS_ONLINE)
@@ -67,6 +55,10 @@
 #if !defined(GENERALS_ONLINE)
 #define RETAIL_COMPATIBLE_NETWORKING (1)
 #endif
+#endif
+
+#ifndef RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM
+#define RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM (1) // Use the original circle fill algorithm, which is more efficient but less accurate
 #endif
 
 // This is essentially synonymous for RETAIL_COMPATIBLE_CRC. There is a lot wrong with AIGroup, such as use-after-free, double-free, leaks,

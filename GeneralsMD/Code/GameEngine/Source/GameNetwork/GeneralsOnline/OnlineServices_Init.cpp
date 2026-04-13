@@ -20,6 +20,7 @@
 #include "GameNetwork/GeneralsOnline/Vendor/stb_image/stb_image_write.h"
 #include "GameNetwork/GeneralsOnline/Vendor/stb_image/stb_image_resize.h"
 #include "GameClient/GameText.h"
+#include <unordered_set>
 
 extern "C"
 {
@@ -32,7 +33,7 @@ NGMP_OnlineServicesManager* NGMP_OnlineServicesManager::m_pOnlineServicesManager
 
 std::thread::id NGMP_OnlineServicesManager::g_MainThreadID;
 std::mutex NGMP_OnlineServicesManager::m_ScreenshotMutex;
-std::vector<std::string> NGMP_OnlineServicesManager::m_vecGuardedSSData;
+std::vector<S3ScreenshotEntry> NGMP_OnlineServicesManager::m_vecGuardedSSData;
 
 
 bool NGMP_OnlineServicesManager::g_bAdvancedNetworkStats;
@@ -129,7 +130,7 @@ void NGMP_OnlineServicesManager::CaptureScreenshotToDisk()
 }
 
 
-void NGMP_OnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screenshotType)
+void NGMP_OnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screenshotType, std::string strURI)
 {
 	NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
 	if (pOnlineServicesMgr != nullptr)
@@ -143,30 +144,37 @@ void NGMP_OnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType scree
 			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 			if (pLobbyInterface != nullptr)
 			{
-				uint64_t currentMatchID = pLobbyInterface->GetCurrentMatchID();
-
-				NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshot(true, [currentMatchID, screenshotType](std::vector<unsigned char> vecData)
+				NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshot(true, [strURI, screenshotType](std::vector<uint8_t> vecData)
 					{
 						CHECK_WORKER_THREAD;
 
 						if (vecData.empty())
 						{
-							NetworkLog(ELogVerbosity::LOG_DEBUG, "Screenshot capture failed, no data");
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "Screenshot capture failed, no data");
 							return;
 						}
 
-						nlohmann::json j;
-						j["img"] = nullptr;
-						j["imgtype"] = (int)screenshotType;
-						j["match_id"] = currentMatchID;
+                        // certain screenshots require caching for later upload when we have a valid match id, so we store them
+						if (screenshotType == EScreenshotType::SCREENSHOT_TYPE_LOADSCREEN)
+						{
+							NGMP_OnlineServicesManager::GetInstance()->CacheScreenshotBytes_StartMatch(vecData);
+						}
+                        else if (screenshotType == EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN)
+                        {
+                            NGMP_OnlineServicesManager::GetInstance()->CacheScreenshotBytes_EndMatch(vecData);
+                        }
+						else
+						{
+                            // send back to main thread for processing
+							// NOTE: we don't lock in the above cases because the called functions lock
+                            std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
 
-						// encode body
-						j["img"] = Base64Encode(vecData);
-
-						std::string strPostData = j.dump();
-
-						std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
-						m_vecGuardedSSData.push_back(strPostData);
+                            S3ScreenshotEntry newEntry;
+                            newEntry.vecBytes = std::move(vecData);
+                            newEntry.strSignedURI = strURI;
+                            newEntry.screenshotType = screenshotType;
+                            m_vecGuardedSSData.push_back(newEntry);
+						}
 					});
 			}
 		}
@@ -207,7 +215,7 @@ std::string NGMP_OnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 	}
 	else if (g_Environment == EEnvironment::TEST)
 	{
-		return std::format("https://api.playgenerals.online/env/test/contract/1/{}", szEndpoint);
+		return std::format("https://api.playgenerals.online:2087/env/test/contract/1/{}", szEndpoint);
 	}
 	else // PROD
 	{
@@ -222,6 +230,41 @@ std::string NGMP_OnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 	}
 }
 
+void NGMP_OnlineServicesManager::AttemptLoadSteam()
+{
+    // app id for ZH
+    SetEnvironmentVariableA("SteamAppId", "2732960");
+
+    // load steam 32bit dll from local dir if present
+    HMODULE steamDll = LoadLibraryA("steam_api.dll");	
+    if (!steamDll)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "steam_api.dll not found. Running without Steam.");
+        return;
+    }
+
+	// Init func
+    typedef bool (*SteamAPI_Init_t)();
+    SteamAPI_Init_t SteamAPI_Init = (SteamAPI_Init_t)GetProcAddress(steamDll, "SteamAPI_InitSafe");
+
+    if (!SteamAPI_Init)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "SteamAPI_Init not found in DLL.");
+        FreeLibrary(steamDll);
+        return;
+    }
+
+    // steam init
+    if (SteamAPI_Init())
+	{
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "SteamAPI_Init succeeded.");
+    }
+    else
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "SteamAPI_Init failed.");
+    }
+}
+
 void NGMP_OnlineServicesManager::CommitReplay(AsciiString absoluteReplayPath)
 {
 	NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
@@ -231,14 +274,6 @@ void NGMP_OnlineServicesManager::CommitReplay(AsciiString absoluteReplayPath)
 
 		if (serviceConf.do_replay_upload)
 		{
-			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-			if (pLobbyInterface == nullptr)
-			{
-				return;
-			}
-
-			uint64_t currentMatchID = pLobbyInterface->GetCurrentMatchID();
-
 			FILE* pFile = fopen(absoluteReplayPath.str(), "rb");
 
 			std::vector<unsigned char> replayData;
@@ -255,19 +290,8 @@ void NGMP_OnlineServicesManager::CommitReplay(AsciiString absoluteReplayPath)
 				fclose(pFile);
 			}
 
-			std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("MatchReplay");
-			std::map<std::string, std::string> mapHeaders;
-
-			nlohmann::json j;
-			j["replaydata"] = Base64Encode(replayData);
-			j["match_id"] = currentMatchID;
-
-			std::string strPostData = j.dump();
-
-			NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendPUTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-				{
-
-				}, nullptr, HTTP_UPLOAD_TIMEOUT);
+			// cache the data until we get an S3 URL from server
+			NGMP_OnlineServicesManager::GetInstance()->CacheReplayBytes(replayData);
 		}
 	}
 }
@@ -336,6 +360,13 @@ void NGMP_OnlineServicesManager::StartVersionCheck(std::function<void(bool bSucc
 	GetModuleFileName(NULL, filePath, sizeof(filePath));
 	std::ifstream file(filePath, std::ios::binary | std::ios::ate);
 	std::streamsize size = file.tellg();
+
+	if (!file.is_open() || size <= 0)
+	{
+		fnCallback(false, false);
+		return;
+	}
+
 	file.seekg(0, std::ios::beg);
 	std::vector<uint8_t> buffer(size);
 	file.read((char*)buffer.data(), size);
@@ -429,6 +460,8 @@ void NGMP_OnlineServicesManager::ContinueUpdate()
 					m_vecFilesDownloaded.push_back(strDownloadPath);
 
 					std::string strPatchDir = GetPatcherDirectoryPath();
+					if (strPatchDir.empty())
+						return;
 
 					// Extract the filename with extension from strDownloadPath  
 					std::string strFileName = strDownloadPath.substr(strDownloadPath.find_last_of('/') + 1);
@@ -531,8 +564,13 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 								int width = surfaceDesc.Width;
 								int height = surfaceDesc.Height;
 
+								// Copy pixel data into an owned buffer before spawning the thread so
+								// the surface can be safely unlocked on the main thread immediately after.
+								std::vector<uint8_t> pixelData(height * pitch);
+								memcpy(pixelData.data(), pBits, height * pitch);
+
 								// process on thread - track the thread so we can join it during shutdown
-								std::thread* pNewThread = new std::thread([cbOnDataAvailable, width, height, pBits, pDXsurf, pitch, bResizeForTransmit]()
+								std::thread* pNewThread = new std::thread([cbOnDataAvailable, width, height, pixelData = std::move(pixelData), pDXsurf, pitch, bResizeForTransmit]()
 									{
 										CHECK_WORKER_THREAD;
 
@@ -544,7 +582,7 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 										int finalHeight = height;
 
 										for (int y = 0; y < height; ++y) {
-											uint8_t* row = static_cast<uint8_t*>(pBits) + y * pitch;
+											const uint8_t* row = pixelData.data() + y * pitch;
 											int rowOffset = y * width * 3;
 											int srcOffset = 0;
 											for (int x = 0; x < width; ++x, srcOffset += 4)
@@ -560,8 +598,9 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 										unsigned char* pBufferToWrite = rgbData;
 										if (bResizeForTransmit)
 										{
-											int new_width = 557;
-											int new_height = 333;
+											ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+											int new_width = serviceConf.screenshot_width;
+											int new_height = serviceConf.screenshot_height;
 											int channels = 3;
 											unsigned char* resized = new unsigned char[new_width * new_height * channels];
 
@@ -827,20 +866,97 @@ void NGMP_OnlineServicesManager::Tick()
 	// screenshots
 	{
 		// send screenshot
-		std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("MatchUpdate");
-		std::map<std::string, std::string> mapHeaders;
-
 		std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
 
-		for (std::string& b64SSData : m_vecGuardedSSData)
-		{
-			NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendPUTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, b64SSData.c_str(),
-				[=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
-				{
 
-				}, nullptr, HTTP_UPLOAD_TIMEOUT);
+		// screenshot types that already have a presigned URL
+		for (S3ScreenshotEntry screenshotEntry : m_vecGuardedSSData)
+		{
+			// NOTE: Screenshot types start and end of match are captures and cached in memory until the server tells us where to upload them, so we need to wait for the upload URI
+
+			if ((screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_LOADSCREEN || screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN) && screenshotEntry.strSignedURI.empty())
+			{
+				continue;
+			}
+			else // we have the data we need, send away
+			{
+                std::map<std::string, std::string> mapHeaders;
+                mapHeaders["Content-Type"] = "image/jpeg";
+                NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendS3PUTRequest(screenshotEntry.strSignedURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, screenshotEntry.vecBytes, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+                    {
+#if _DEBUG
+                        if (statusCode != 200)
+                        {
+                            __debugbreak();
+                        }
+#endif
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "Screenshot upload, result: %d", statusCode);
+                    }, nullptr, HTTP_UPLOAD_TIMEOUT);
+			}
+            
 		}
+
 		m_vecGuardedSSData.clear();
+
+		// screenshots and replays that are cached and awaiting S3 url, and now have said URL
+		if (!m_vecCachedScreenshotBytes_MatchStart.empty()) // we have data waiting
+		{
+			if (!m_strCachedScreenshot_MatchStart_S3URI.empty()) // and we have a URL
+			{
+				// queue it
+				S3ScreenshotEntry newEntry;
+				newEntry.screenshotType = EScreenshotType::SCREENSHOT_TYPE_LOADSCREEN;
+				newEntry.vecBytes = m_vecCachedScreenshotBytes_MatchStart;
+				newEntry.strSignedURI = m_strCachedScreenshot_MatchStart_S3URI;
+				m_vecGuardedSSData.push_back(newEntry);
+
+				// clear data
+                m_vecCachedScreenshotBytes_MatchStart = std::vector<uint8_t>();
+				m_strCachedScreenshot_MatchStart_S3URI = std::string();
+			}
+		}
+
+        if (!m_vecCachedScreenshotBytes_MatchEnd.empty()) // we have data waiting
+        {
+            if (!m_strCachedScreenshot_MatchEnd_S3URI.empty()) // and we have a URL
+            {
+                // queue it
+                S3ScreenshotEntry newEntry;
+                newEntry.screenshotType = EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN;
+                newEntry.vecBytes = m_vecCachedScreenshotBytes_MatchEnd;
+                newEntry.strSignedURI = m_strCachedScreenshot_MatchEnd_S3URI;
+				m_vecGuardedSSData.push_back(newEntry);
+
+                // clear data
+                m_vecCachedScreenshotBytes_MatchEnd = std::vector<uint8_t>();
+                m_strCachedScreenshot_MatchEnd_S3URI = std::string();
+            }
+        }
+
+        if (!m_vecCachedReplayBytes.empty()) // we have data waiting
+        {
+            if (!m_strCacheReplay_S3URI.empty()) // and we have a URL
+            {
+				// do the upload
+                std::map<std::string, std::string> mapHeaders;
+                mapHeaders["Content-Type"] = "application/octet-stream";
+                NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendS3PUTRequest(m_strCacheReplay_S3URI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, m_vecCachedReplayBytes, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+                    {
+#if _DEBUG
+                        if (statusCode != 200)
+                        {
+                            __debugbreak();
+                        }
+#endif
+
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "Replay upload, result: %d", statusCode);
+                    }, nullptr, HTTP_UPLOAD_TIMEOUT);
+
+                // clear data
+                NGMP_OnlineServicesManager::GetInstance()->m_vecCachedReplayBytes.clear();
+                NGMP_OnlineServicesManager::GetInstance()->m_strCacheReplay_S3URI = std::string();
+            }
+        }
 	}
 
 	if (m_pWebSocket != nullptr)
@@ -853,7 +969,7 @@ void NGMP_OnlineServicesManager::Tick()
 		m_pHTTPManager->Tick();
 	}
 
-	if (m_pRoomInterface != nullptr)
+	if (m_pAuthInterface != nullptr)
 	{
 		m_pAuthInterface->Tick();
 	}
@@ -882,7 +998,13 @@ void NGMP_OnlineServicesManager::InitSentry()
 
 	sentry_options_set_dsn(options, "https://61750bebd112d279bcc286d617819269@o4509316925554688.ingest.us.sentry.io/4509316927586304");
 	sentry_options_set_database_path(options, strDumpPath.c_str());
-	sentry_options_set_release(options, "generalsonline-client@021326_QFE2");
+	sentry_options_set_release(options, "generalsonline-client@032926_QFE5");
+
+#if defined(USE_TEST_ENV)
+	sentry_options_set_environment(options, "test");
+#else
+	sentry_options_set_environment(options, "production");
+#endif
 
 	// local player info
 	int64_t userID = -1;
@@ -897,7 +1019,7 @@ void NGMP_OnlineServicesManager::InitSentry()
 
 
 	sentry_value_t userinfoVal = sentry_value_new_object();
-	sentry_value_set_by_key(userinfoVal, "user_id", sentry_value_new_int32(userID));
+	sentry_value_set_by_key(userinfoVal, "user_id", sentry_value_new_string(strUserID.c_str()));
 	sentry_value_set_by_key(userinfoVal, "user_displayname", sentry_value_new_string(strDisplayname.c_str()));
 	sentry_set_context("user_info", userinfoVal);
 
@@ -932,6 +1054,8 @@ void NGMP_OnlineServicesManager::ShutdownSentry()
 
 std::string NGMP_OnlineServicesManager::GetPatcherDirectoryPath()
 {
+	if (!TheGlobalData)
+		return {};
 	std::string strPatcherDirPath = std::format("{}/GeneralsOnlineData/Update/", TheGlobalData->getPath_UserData().str());
 	return strPatcherDirPath;
 }

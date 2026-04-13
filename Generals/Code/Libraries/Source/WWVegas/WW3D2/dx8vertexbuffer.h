@@ -79,7 +79,7 @@ class VertexBufferClass : public W3DMPO, public RefCountClass
 
 protected:
 	VertexBufferClass(unsigned type, unsigned FVF, unsigned short VertexCount);
-	virtual ~VertexBufferClass();
+	virtual ~VertexBufferClass() override;
 public:
 
 	const FVFInfoClass& FVF_Info() const { return *fvf_info; }
@@ -161,7 +161,7 @@ public:
 	// the recycled dynamic vertex buffer.
 	static void _Deinit();
 	static void _Reset(bool frame_changed);
-	static unsigned short Get_Default_Vertex_Count(void);	///<current size of dynamic vertex buffer
+	static unsigned short Get_Default_Vertex_Count();	///<current size of dynamic vertex buffer
 
 	// To lock the vertex buffer, create instance of this write class locally.
 	// The buffer is automatically unlocked when you exit the scope.
@@ -201,7 +201,7 @@ class DX8VertexBufferClass : public VertexBufferClass
 {
 	W3DMPO_GLUE(DX8VertexBufferClass)
 protected:
-	~DX8VertexBufferClass();
+	virtual ~DX8VertexBufferClass() override;
 public:
 	enum UsageType {
 		USAGE_DEFAULT=0,
@@ -249,7 +249,7 @@ class SortingVertexBufferClass : public VertexBufferClass
 	VertexFormatXYZNDUV2* VertexBuffer;
 
 protected:
-	~SortingVertexBufferClass();
+	virtual ~SortingVertexBufferClass() override;
 public:
 	SortingVertexBufferClass(unsigned short VertexCount);
 };

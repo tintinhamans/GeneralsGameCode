@@ -198,10 +198,10 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 					BitIsSet( window->winGetStatus(), WIN_STATUS_CHECK_LIKE ) == FALSE )
 			{
 
+				BitClear( instData->m_state, WIN_STATE_SELECTED );
+
 				TheWindowManager->winSendSystemMsg( instData->getOwner(), GBM_SELECTED,
 																						(WindowMsgData)window, mData1 );
-
-				BitClear( instData->m_state, WIN_STATE_SELECTED );
 
 			}
 			else
@@ -526,7 +526,7 @@ Bool GadgetCheckLikeButtonIsChecked( GameWindow *g )
 	if( instData == nullptr )
 		return FALSE;
 
-	// we just hold this "check like dual state thingie" using the selected state
+	// we just hold this "check like dual state thingy" using the selected state
 	return BitIsSet( instData->m_state, WIN_STATE_SELECTED );
 
 }
@@ -573,7 +573,7 @@ void GadgetButtonSetText( GameWindow *g, UnicodeString text )
 
 }
 
-PushButtonData * getNewPushButtonData( void )
+PushButtonData * getNewPushButtonData()
 {
 	PushButtonData *p = NEW PushButtonData;
 	if(!p)

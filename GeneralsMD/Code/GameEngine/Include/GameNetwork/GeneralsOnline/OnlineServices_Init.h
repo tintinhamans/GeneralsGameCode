@@ -18,9 +18,21 @@ class NetworkMesh;
 
 enum class EScreenshotType : int
 {
-	SCREENSHOT_TYPE_LOADSCREEN = 0,
-	SCREENSHOT_TYPE_GAMEPLAY = 1,
-	SCREENSHOT_TYPE_SCORESCREEN = 2
+    SCREENSHOT_TYPE_LOADSCREEN = 0,
+    SCREENSHOT_TYPE_GAMEPLAY = 1,
+    SCREENSHOT_TYPE_SCORESCREEN = 2
+};
+
+struct S3ScreenshotEntry
+{
+    std::vector<uint8_t> vecBytes;
+    std::string strSignedURI;
+	EScreenshotType screenshotType;
+
+    bool operator==(const S3ScreenshotEntry& other) const
+	{
+		return (vecBytes == other.vecBytes && strSignedURI == other.strSignedURI && screenshotType == other.screenshotType);
+    }
 };
 
 #include <mutex>
@@ -273,11 +285,15 @@ struct ServiceConfig
     float ibra_minslack_greaterthan200ms = 0.3f;
     float ibra_maxslack_greaterthan200ms = 1.f;
 
+	int screenshot_width = 557;
+	int screenshot_height = 333;
+
 	
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(ServiceConfig, retry_signalling, use_mapped_port, min_run_ahead_frames, ra_update_frequency_frames, relay_all_traffic,
 		ra_slack_percent, frame_grouping_frames, enable_host_migration, network_do_immediate_flush_per_frame, network_send_flags, network_latency_logic_model,
 		use_default_config, ra_slack_override_percent_in_default, do_probes, do_replay_upload, network_mesh_histogram_duration,
-		ibra_ra_tweaks, ibra_minslack_default, ibra_maxslack_default, ibra_minslack_greaterthan300ms, ibra_maxslack_greaterthan300ms, ibra_minslack_greaterthan200ms, ibra_maxslack_greaterthan200ms)
+		ibra_ra_tweaks, ibra_minslack_default, ibra_maxslack_default, ibra_minslack_greaterthan300ms, ibra_maxslack_greaterthan300ms, ibra_minslack_greaterthan200ms, ibra_maxslack_greaterthan200ms,
+		screenshot_width, screenshot_height)
 };
 
 class NGMP_OnlineServicesManager
@@ -335,6 +351,8 @@ public:
 			m_pOnlineServicesManager = nullptr;
 		}
 	}
+
+	static void AttemptLoadSteam();
 
 	void CommitReplay(AsciiString absoluteReplayPath);
 
@@ -452,7 +470,7 @@ public:
 
 	static void CaptureScreenshot(bool bResizeForTransmit, std::function<void(std::vector<unsigned char>)> cbOnDataAvailable);
 	static void CaptureScreenshotToDisk();
-	static void CaptureScreenshotForProbe(EScreenshotType screenshotType);
+	static void CaptureScreenshotForProbe(EScreenshotType screenshotType, std::string strURI);
 
 	static bool g_bAdvancedNetworkStats;
 	static void ToggleAdvancedNetworkStats() { g_bAdvancedNetworkStats = !g_bAdvancedNetworkStats; }
@@ -496,10 +514,59 @@ public:
 
 	ServiceConfig& GetServiceConfig() { return m_ServiceConfig; }
 
+public:
+	void CacheScreenshotBytes_StartMatch(std::vector<uint8_t>& vecData)
+	{
+		std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+        m_vecCachedScreenshotBytes_MatchStart = vecData;
+	}
+
+    void CacheScreenshotBytes_EndMatch(std::vector<uint8_t>& vecData)
+    {
+        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+        m_vecCachedScreenshotBytes_MatchEnd = vecData;
+    }
+
+    void CacheReplayBytes(std::vector<uint8_t>& vecData)
+    {
+        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+		m_vecCachedReplayBytes = vecData;
+    }
+
+    void SetScreenshotS3URI_StartMatch(const char* szURI)
+    {
+        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+		m_strCachedScreenshot_MatchStart_S3URI = std::string(szURI);
+    }
+
+    void SetScreenshotS3URI_EndMatch(const char* szURI)
+    {
+        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+        m_strCachedScreenshot_MatchEnd_S3URI = std::string(szURI);
+    }
+
+    void SetScreenshotS3URI_Replay(const char* szURI)
+    {
+        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+		m_strCacheReplay_S3URI = std::string(szURI);
+    }
+
 private:
+	// NOTE: Accessed from multiple threads, dont access directly, use helpers above to lock
+    std::string m_strCachedScreenshot_MatchStart_S3URI;
+    std::string m_strCachedScreenshot_MatchEnd_S3URI;
+    std::string m_strCacheReplay_S3URI;
+
+    // screenshots / replays that require caching
+    std::vector<uint8_t> m_vecCachedScreenshotBytes_MatchStart;
+    std::vector<uint8_t> m_vecCachedScreenshotBytes_MatchEnd;
+    std::vector<uint8_t> m_vecCachedReplayBytes;
+
 	// main thread SS Upload
 	static std::mutex m_ScreenshotMutex;
-	static std::vector<std::string> m_vecGuardedSSData;
+
+	// normal screenshots
+	static std::vector<S3ScreenshotEntry> m_vecGuardedSSData;
 
 	// Screenshot thread management
 	std::vector<std::thread*> m_vecScreenshotThreads;

@@ -90,7 +90,8 @@ static Bool raiseMessageBoxes = false;
 static time_t gameListRefreshTime = 0;
 static const time_t gameListRefreshInterval = 4000;
 static time_t playerListRefreshTime = 0;
-static const time_t playerListRefreshInterval = 4000;
+static const time_t playerListRefreshInterval = 6000;
+static bool isFirstRosterUpdate = false;
 
 void setUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id);
 static void doSliderTrack(GameWindow *control, Int val);
@@ -130,7 +131,7 @@ static Int	initialGadgetDelay = 2;
 static Bool justEntered = FALSE;
 
 static int64_t s_lobbyLastChatTimeMs = 0;
-static const int64_t S_LOBBY_CHAT_INTERVAL_MS = 8000; // how long to wait before we allow sending the next message
+static const int64_t S_LOBBY_CHAT_INTERVAL_MS = 3000; // how long to wait before we allow sending the next message
 
 static bool LobbyChatSlowmodeAllowsSend()
 {
@@ -173,7 +174,7 @@ std::list<PeerResponse> TheLobbyQueuedUTMs;
 
 // Slash commands -------------------------------------------------------------------------
 extern "C" {
-int getQR2HostingStatus(void);
+int getQR2HostingStatus();
 }
 extern int isThreadHosting;
 
@@ -359,7 +360,8 @@ static void playerTooltip(GameWindow *window,
 							UnicodeString tooltip = UnicodeString::TheEmptyString;
 							if (roomMember->user_id == pAuthInterface->GetUserID())
 							{
-								tooltip.format(TheGameText->fetch("TOOLTIP:LocalPlayer"), uName.str());							}
+								tooltip.format(TheGameText->fetch("TOOLTIP:LocalPlayer"), uName.str());
+							}
 							else
 							{
 								// not us
@@ -385,16 +387,17 @@ static void playerTooltip(GameWindow *window,
 							}
 
 							// ELO data
-                            UnicodeString tmp;
-                            tmp.format(L"\n\nElo Rating: %d (in %d matches)", stats.elo_rating, stats.elo_num_matches);
-                            tooltip.concat(tmp);
-
-
+							UnicodeString tmp;
+							tmp.format(L"\n\nElo Rating: %d (in %d matches)", stats.elo_rating, stats.elo_num_matches);
+							tooltip.concat(tmp);
 							Int rankPoints = CalculateRank(stats);
 							Int rank = 0;
 							Int i = 0;
-							while (rankPoints >= TheRankPointValues->m_ranks[i + 1])
-								++i;
+							if (TheRankPointValues != nullptr)
+							{
+								while (i + 1 < MAX_RANKS && rankPoints >= TheRankPointValues->m_ranks[i + 1])
+									++i;
+							}
 							rank = i;
 
 							// determine favorite side
@@ -461,6 +464,17 @@ static void playerTooltip(GameWindow *window,
 								maxLossesInRow,
 								maxDCInRow);
 							tooltip.concat(tmp);
+
+							if (pRoomsInterface != nullptr && pAuthInterface != nullptr)
+							{
+								NetworkRoomMember* localMember = pRoomsInterface->GetRoomMemberFromID(pAuthInterface->GetUserID());
+								if (localMember != nullptr && localMember->m_bIsAdmin)
+								{
+									UnicodeString idLine;
+									idLine.format(L"\n\nUser ID: %lld", roomMember->user_id);
+									tooltip.concat(idLine);
+								}
+							}
 
 							TheMouse->setCursorTooltip(tooltip, -1, NULL, 1.5f); // the text and width are the only params used.  the others are the default values.
 						}
@@ -544,9 +558,12 @@ static void playerTooltip(GameWindow *window,
 		tooltip.concat(playerInfo);
 	}
 
+	if (!TheRankPointValues)
+		return;
+
 	Int rank = 0;
 	Int i = 0;
-	while( info->m_rankPoints >= TheRankPointValues->m_ranks[i + 1])
+	while (i + 1 < MAX_RANKS && info->m_rankPoints >= TheRankPointValues->m_ranks[i + 1])
 		++i;
 	rank = i;
 	AsciiString sideName = "GUI:RandomSide";
@@ -568,65 +585,27 @@ static void playerTooltip(GameWindow *window,
 	*/
 }
 
-static void populateGroupRoomListbox(GameWindow *lb)
+static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
 {
-	if (!lb)
+	if (comboBox == nullptr)
 		return;
 
-	GadgetComboBoxReset(lb);
-	Int indexToSelect = -1;
-	GroupRoomMap::iterator iter;
+	extern LobbyGameModeFilter theLobbyFilter;
+	GadgetComboBoxReset(comboBox);
 
-	// now populate the combo box
-	// TODO_NGMP
-	/*
-	for (iter = TheGameSpyInfo->getGroupRoomList()->begin(); iter != TheGameSpyInfo->getGroupRoomList()->end(); ++iter)
-	{
-		GameSpyGroupRoom room = iter->second;
-		if (room.m_groupID != TheGameSpyConfig->getQMChannel())
-		{
-			DEBUG_LOG(("populateGroupRoomListbox(): groupID %d", room.m_groupID));
-			if (room.m_groupID == TheGameSpyInfo->getCurrentGroupRoom())
-			{
-				Int selected = GadgetComboBoxAddEntry(lb, room.m_translatedName, GameSpyColor[GSCOLOR_CURRENTROOM]);
-				GadgetComboBoxSetItemData(lb, selected, (void *)(room.m_groupID));
-				indexToSelect = selected;
-			}
-			else
-			{
-				Int selected = GadgetComboBoxAddEntry(lb, room.m_translatedName, GameSpyColor[GSCOLOR_ROOM]);
-				GadgetComboBoxSetItemData(lb, selected, (void *)(room.m_groupID));
-			}
-		}
-		else
-		{
-			DEBUG_LOG(("populateGroupRoomListbox(): skipping QM groupID %d", room.m_groupID));
-		}
-	}
-	*/
+	Int idx;
+	idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(L"Filter: All"),
+		GameSpyColor[GSCOLOR_DEFAULT]); GadgetComboBoxSetItemData(comboBox, idx, (void*)LOBBY_FILTER_ALL);
+	idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(L"Filter: 1v1"),
+		GameSpyColor[GSCOLOR_DEFAULT]); GadgetComboBoxSetItemData(comboBox, idx, (void*)LOBBY_FILTER_1V1);
+	idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(L"Filter: Team Games"),
+		GameSpyColor[GSCOLOR_DEFAULT]); GadgetComboBoxSetItemData(comboBox, idx, (void*)LOBBY_FILTER_TEAM);
+	idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(L"Filter: FFA"),
+		GameSpyColor[GSCOLOR_DEFAULT]); GadgetComboBoxSetItemData(comboBox, idx, (void*)LOBBY_FILTER_FFA);
+	idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(L"Filter: AOD"),
+		GameSpyColor[GSCOLOR_DEFAULT]); GadgetComboBoxSetItemData(comboBox, idx, (void*)LOBBY_FILTER_AOD);
 
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-	if (pRoomsInterface != nullptr)
-	{
-		for (NetworkRoom netRoom : pRoomsInterface->GetGroupRooms())
-		{
-			// TODO_NGMP: Support current group color highlighting again
-			int roomID = netRoom.GetRoomID();
-			if (roomID == pRoomsInterface->GetCurrentRoomID())
-			{
-				Int selected = GadgetComboBoxAddEntry(lb, netRoom.GetRoomDisplayName(), GameSpyColor[GSCOLOR_CURRENTROOM]);
-				GadgetComboBoxSetItemData(lb, selected, (void*)(roomID));
-				indexToSelect = selected;
-			}
-			else
-			{
-				Int selected = GadgetComboBoxAddEntry(lb, netRoom.GetRoomDisplayName(), GameSpyColor[GSCOLOR_ROOM]);
-				GadgetComboBoxSetItemData(lb, selected, (void*)(roomID));
-			}
-		}
-	}
-
-	GadgetComboBoxSetSelectedPos(lb, indexToSelect);
+	GadgetComboBoxSetSelectedPos(comboBox, (Int)theLobbyFilter);
 }
 
 static const char *const rankNames[] = {
@@ -646,12 +625,12 @@ static_assert(ARRAY_SIZE(rankNames) == MAX_RANKS, "Incorrect array size");
 
 const Image* LookupSmallRankImage(Int side, Int rankPoints)
 {
-	if (rankPoints == 0)
+	if (rankPoints == 0 || !TheRankPointValues)
 		return nullptr;
 
 	Int rank = 0;
 	Int i = 0;
-	while( rankPoints >= TheRankPointValues->m_ranks[i + 1])
+	while (i + 1 < MAX_RANKS && rankPoints >= TheRankPointValues->m_ranks[i + 1])
 		++i;
 	rank = i;
 
@@ -757,7 +736,7 @@ static Int insertPlayerInListbox(const PlayerInfo& info, Color color)
 
 std::vector<int64_t> m_vecUsersProcessed;
 
-void PopulateLobbyPlayerListbox(void)
+void PopulateLobbyPlayerListbox()
 {
 	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
 	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
@@ -876,9 +855,12 @@ void PopulateLobbyPlayerListbox(void)
 					//if (bSuccess)
 					{
 						Int currentRank = 0;
+						if (!TheRankPointValues)
+							continue;
+
 						Int rankPoints = CalculateRank(stats);
 						Int i = 0;
-						while (rankPoints >= TheRankPointValues->m_ranks[i + 1])
+						while (i + 1 < MAX_RANKS && rankPoints >= TheRankPointValues->m_ranks[i + 1])
 							++i;
 						currentRank = i;
 
@@ -1247,6 +1229,7 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 	nextScreen = nullptr;
 	buttonPushed = false;
 	isShuttingDown = false;
+	isFirstRosterUpdate = true;
 
 	SetLobbyAttemptHostJoin(FALSE); // not trying to host or join
 
@@ -1292,7 +1275,7 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 
 	GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
 
-	populateGroupRoomListbox(comboLobbyGroupRooms);
+	PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
 
 	// Show Menu
 	layout->hide( FALSE );
@@ -1344,7 +1327,15 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 		// register for roster events
 		pRoomsInterface->RegisterForRosterNeedsRefreshCallback([]()
 			{
-				refreshPlayerList(true);
+				if (isFirstRosterUpdate)
+				{
+					refreshPlayerList(true);
+					isFirstRosterUpdate = false;
+				}
+				else
+				{
+					refreshPlayerList(false);
+				}
 			});
 	}
 
@@ -1451,7 +1442,7 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 						refreshGameList(TRUE);
 						RefreshGameListBoxes();
 
-						populateGroupRoomListbox(comboLobbyGroupRooms);
+						PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
 					});
 			});
 	}
@@ -1831,7 +1822,7 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 					DEBUG_LOG(("WOLLobbyMenuUpdate() - joining best group room"));
 					TheGameSpyInfo->joinBestGroupRoom();
 				}
-				populateGroupRoomListbox(comboLobbyGroupRooms);
+				PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
 				shouldRepopulatePlayers = TRUE;
 				break;
 			case PeerResponse::PEERRESPONSE_PLAYERCHANGEDFLAGS:
@@ -2582,16 +2573,18 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				if (s_tryingToHostOrJoin)
 					break;
 
-				NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-				if (pRoomsInterface == nullptr)
-				{
-					break;
-				}
+				//NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+				//if (pRoomsInterface == nullptr)
+				//{
+				//	break;
+				//}
 
+				extern LobbyGameModeFilter theLobbyFilter;
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
 				if( controlID == comboLobbyGroupRoomsID )
 				{
+					/*
 					int rowSelected = -1;
 					GadgetComboBoxGetSelectedPos(control, &rowSelected);
 
@@ -2641,7 +2634,6 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 						{
 							TheGameSpyInfo->leaveGroupRoom();
 							TheGameSpyInfo->joinGroupRoom(groupID);
-
 							if (TheGameSpyConfig->restrictGamesToLobby())
 							{
 								TheGameSpyInfo->clearStagingRoomList();
@@ -2652,8 +2644,14 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 								TheGameSpyPeerMessageQueue->addRequest(req);
 							}
 						}
-						*/
+
 					}
+				*/
+					Int pos = -1;
+					GadgetComboBoxGetSelectedPos(comboLobbyGroupRooms, &pos);
+					if (pos >= 0)
+						theLobbyFilter = (LobbyGameModeFilter)(Int)GadgetComboBoxGetItemData(comboLobbyGroupRooms, pos);
+					RefreshGameListBoxes();
 				}
 			}
 			break;

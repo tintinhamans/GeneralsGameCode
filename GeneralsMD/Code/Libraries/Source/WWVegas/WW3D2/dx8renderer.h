@@ -88,11 +88,11 @@ class DX8TextureCategoryClass : public MultiListObjectClass
 public:
 
 	DX8TextureCategoryClass(DX8FVFCategoryContainer* container,TextureClass** textures, ShaderClass shd, VertexMaterialClass* mat,int pass);
-	~DX8TextureCategoryClass();
+	virtual ~DX8TextureCategoryClass() override;
 
 	void									Add_Render_Task(DX8PolygonRendererClass * p_renderer,MeshClass * p_mesh);
 
-	void									Render(void);
+	void									Render();
 	bool									Anything_To_Render() { return (render_task_head != nullptr); }
 	void									Clear_Render_List();
 
@@ -114,7 +114,7 @@ public:
 	void Add_Polygon_Renderer(DX8PolygonRendererClass* p_renderer,DX8PolygonRendererClass* add_after_this=nullptr);
 
 
-	DX8FVFCategoryContainer * Get_Container(void) { return container; }
+	DX8FVFCategoryContainer * Get_Container() { return container; }
 
 	// Force multiply blend on all objects inserted from now on. (Doesn't affect the objects that are already in the lists)
 	static void						SetForceMultiply(bool multiply) { m_gForceMultiply=multiply; }
@@ -162,7 +162,7 @@ protected:
 	bool Anything_To_Render()					{ return AnythingToRender; }
 	bool Any_Delayed_Passes_To_Render()	{ return AnyDelayedPassesToRender; }
 
-	void Render_Procedural_Material_Passes(void);
+	void Render_Procedural_Material_Passes();
 
 	DX8TextureCategoryClass* Find_Matching_Texture_Category(
 		TextureClass* texture,
@@ -178,7 +178,7 @@ protected:
 public:
 
 	DX8FVFCategoryContainer(unsigned FVF,bool sorting);
-	virtual ~DX8FVFCategoryContainer();
+	virtual ~DX8FVFCategoryContainer() override;
 
 	static unsigned Define_FVF(MeshModelClass* mmc,bool enable_lighting);
 	bool Is_Sorting() const { return sorting; }
@@ -198,7 +198,7 @@ public:
 
 	void Remove_Texture_Category(DX8TextureCategoryClass* tex_category);
 
-	virtual void Render(void)=0;
+	virtual void Render()=0;
 	virtual void Add_Mesh(MeshModelClass* mmc)=0;
 	virtual void Log(bool only_visible)=0;
 	virtual bool Check_If_Mesh_Fits(MeshModelClass* mmc)=0;
@@ -223,7 +223,7 @@ public:
 	*/
 	void Add_Visible_Material_Pass(MaterialPassClass * pass,MeshClass * mesh);
 	virtual void Add_Delayed_Visible_Material_Pass(MaterialPassClass * pass, MeshClass * mesh) = 0;
-	virtual void Render_Delayed_Procedural_Material_Passes(void) = 0;
+	virtual void Render_Delayed_Procedural_Material_Passes() = 0;
 };
 
 
@@ -235,20 +235,20 @@ class DX8RigidFVFCategoryContainer : public DX8FVFCategoryContainer
 {
 public:
 	DX8RigidFVFCategoryContainer(unsigned FVF,bool sorting);
-	~DX8RigidFVFCategoryContainer();
+	virtual ~DX8RigidFVFCategoryContainer() override;
 
-	void Add_Mesh(MeshModelClass* mmc);
-	void Log(bool only_visible);
-	bool Check_If_Mesh_Fits(MeshModelClass* mmc);
+	virtual void Add_Mesh(MeshModelClass* mmc) override;
+	virtual void Log(bool only_visible) override;
+	virtual bool Check_If_Mesh_Fits(MeshModelClass* mmc) override;
 
-	void Render(void);	// Generic render function
+	virtual void Render() override;	// Generic render function
 
 	/*
 	** This method adds a material pass which must be rendered after all of the other rendering is complete.
 	** This is needed whenever a mesh turns off its base passes and renders a translucent pass on its geometry.
 	*/
-	virtual void Add_Delayed_Visible_Material_Pass(MaterialPassClass * pass, MeshClass * mesh);
-	virtual void Render_Delayed_Procedural_Material_Passes(void);
+	virtual void Add_Delayed_Visible_Material_Pass(MaterialPassClass * pass, MeshClass * mesh) override;
+	virtual void Render_Delayed_Procedural_Material_Passes() override;
 
 protected:
 
@@ -270,12 +270,12 @@ class DX8SkinFVFCategoryContainer: public DX8FVFCategoryContainer
 {
 public:
 	DX8SkinFVFCategoryContainer(bool sorting);
-	~DX8SkinFVFCategoryContainer();
+	virtual ~DX8SkinFVFCategoryContainer() override;
 
-	void Render(void);
-	void Add_Mesh(MeshModelClass* mmc);
-	void Log(bool only_visible);
-	bool Check_If_Mesh_Fits(MeshModelClass* mmc);
+	virtual void Render() override;
+	virtual void Add_Mesh(MeshModelClass* mmc) override;
+	virtual void Log(bool only_visible) override;
+	virtual bool Check_If_Mesh_Fits(MeshModelClass* mmc) override;
 
 	void Add_Visible_Skin(MeshClass * mesh);
 
@@ -283,8 +283,8 @@ public:
 	** Since skins are already rendered after the rigid meshes, the Add_Delayed_Material_Pass function simply
 	** routes into the Add_Visible_Material_Pass method and no extra overhead is added.
 	*/
-	virtual void Add_Delayed_Visible_Material_Pass(MaterialPassClass * pass, MeshClass * mesh) { Add_Visible_Material_Pass(pass,mesh); }
-	virtual void Render_Delayed_Procedural_Material_Passes(void) { }
+	virtual void Add_Delayed_Visible_Material_Pass(MaterialPassClass * pass, MeshClass * mesh) override { Add_Visible_Material_Pass(pass,mesh); }
+	virtual void Render_Delayed_Procedural_Material_Passes() override { }
 
 private:
 
@@ -324,7 +324,7 @@ public:
 	void						Register_Mesh_Type(MeshModelClass* mmc);
 	void						Unregister_Mesh_Type(MeshModelClass* mmc);
 	void						Set_Camera(CameraClass* cam) { camera=cam; }
-	CameraClass *			Peek_Camera(void)	{ return camera; }
+	CameraClass *			Peek_Camera()	{ return camera; }
 	void						Add_To_Render_List(DecalMeshClass * decalmesh);
 
 	// Enable or disable lighting on all objects inserted from now on. (Doesn't affect the objects that are already in the lists)
@@ -335,7 +335,7 @@ public:
 
 protected:
 
-	void Render_Decal_Meshes(void);
+	void Render_Decal_Meshes();
 
 	bool													enable_lighting;
 	CameraClass *										camera;

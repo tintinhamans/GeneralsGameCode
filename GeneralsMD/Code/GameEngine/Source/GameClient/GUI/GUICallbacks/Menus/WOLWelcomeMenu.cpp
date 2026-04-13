@@ -220,7 +220,7 @@ static UnsignedByte grabUByte(const char *s)
 	return b;
 }
 
-static void updateNumPlayersOnline(void)
+static void updateNumPlayersOnline()
 {
 	GameWindow *playersOnlineWindow = TheWindowManager->winGetWindowFromId(
 		nullptr, NAMEKEY("WOLWelcomeMenu.wnd:StaticTextNumPlayersOnline") );
@@ -241,7 +241,7 @@ static void updateNumPlayersOnline(void)
 		UnicodeString line;
 
 #if defined(GENERALS_ONLINE)
-		AsciiString aMotd = AsciiString(NGMP_OnlineServicesManager::GetInstance()->GetMOTD().c_str());
+		AsciiString aMotd = NGMP_OnlineServicesManager::GetInstance() == nullptr ? AsciiString() : AsciiString(NGMP_OnlineServicesManager::GetInstance()->GetMOTD().c_str());
 #else
 		AsciiString aMotd = TheGameSpyInfo->getMOTD();
 #endif
@@ -378,7 +378,7 @@ void HandleOverallStats( const char* szHTTPStats, unsigned len )
 
 
 //called only from WOLWelcomeMenuInit to set %win stats
-static void updateOverallStats(void)
+static void updateOverallStats()
 {
 	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
 	if (pStatsInterface == nullptr)
@@ -465,7 +465,7 @@ static void updateOverallStats(void)
 /** Handle player stats */
 //-------------------------------------------------------------------------------------------------
 
-void UpdateLocalPlayerStats(void)
+void UpdateLocalPlayerStats()
 {
 	GameWindow *welcomeParent = TheWindowManager->winGetWindowFromId( nullptr, NAMEKEY("WOLWelcomeMenu.wnd:WOLWelcomeMenuParent") );
 
@@ -593,6 +593,7 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	buttonLadderID = TheNameKeyGenerator->nameToKey( "WOLWelcomeMenu.wnd:ButtonLadder" );
 	buttonLadder = TheWindowManager->winGetWindowFromId( parentWOLWelcome, buttonLadderID );
 
+#if !defined(GENERALS_ONLINE)
 	if (TheFirewallHelper == nullptr) {
 		TheFirewallHelper = createFirewallHelper();
 	}
@@ -601,6 +602,7 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 		delete TheFirewallHelper;
 		TheFirewallHelper = nullptr;
 	}
+#endif
 	/*
 
 	if (TheGameSpyChat && TheGameSpyChat->isConnected())
@@ -772,7 +774,7 @@ void WOLWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 	HandleBuddyResponses();
 #endif
 
-	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue)
+	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue && TheGameSpyInfo)
 	{
 		HandleBuddyResponses();
 		HandlePersistentStorageResponses();

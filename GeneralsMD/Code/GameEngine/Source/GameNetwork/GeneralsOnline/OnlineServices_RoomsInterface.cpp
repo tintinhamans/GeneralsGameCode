@@ -53,6 +53,11 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 	// TODO_CACHE: Cleanup multi too
 	if (m_pCurlWS != nullptr)
 	{
+        // remove from multi before cleanup (required by libcurl)
+        if (m_pMulti != nullptr)
+        {
+            curl_multi_remove_handle(m_pMulti, m_pCurlWS);
+        }
         // cleanup
         curl_easy_cleanup(m_pCurlWS);
         m_pCurlWS = nullptr;
@@ -88,8 +93,29 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 
 		curl_easy_setopt(m_pCurlWS, CURLOPT_VERBOSE, 1L);
 #else
-		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
-		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
+        if (HTTPManager::IsCACertStoreBad())
+        {
+            curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
+            curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
+        }
+        else
+        {
+            std::ifstream certFile("cacert.pem");
+            if (certFile.good())
+            {
+                certFile.close();
+                curl_easy_setopt(m_pCurlWS, CURLOPT_CAINFO, "cacert.pem");
+
+                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 1L);
+                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 2L);
+            }
+            else
+            {
+				HTTPManager::SetCACertStoreBad();
+                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
+                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
+            }
+        }
 #endif
 
 
@@ -97,6 +123,8 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
 		if (pAuthInterface == nullptr)
 		{
+			curl_easy_cleanup(m_pCurlWS);
+			m_pCurlWS = nullptr;
 			return;
 		}
 
@@ -175,6 +203,7 @@ void WebSocket::Disconnect()
 	}
 
 	m_vecWSPartialBuffer.clear();
+	m_bConnected = false;
 }
 
 void WebSocket::Send(const char* send_payload)
@@ -246,8 +275,9 @@ public:
 	std::string message;
 	bool action;
 	bool admin;
+	bool name_change;
 
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_RoomChatIncoming, msg_id, message, action, admin)
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_RoomChatIncoming, msg_id, message, action, admin, name_change)
 };
 
 class WebSocketMessage_Social_FriendChatMessage_Incoming : public WebSocketMessageBase
@@ -293,6 +323,22 @@ public:
 	std::vector<uint8_t> payload;
 
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkSignal, target_user_id, payload)
+};
+
+class WebSocketMessage_ServerProbe : public WebSocketMessageBase
+{
+public:
+	std::string url;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_ServerProbe, msg_id, url)
+};
+
+class WebSocketMessage_StartGameResponse : public WebSocketMessageBase
+{
+public:
+    std::string screenshot_url;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_StartGameResponse, msg_id, screenshot_url)
 };
 
 class WebSocketMessage_LobbyChatIncoming : public WebSocketMessageBase
@@ -527,11 +573,11 @@ void WebSocket::Tick()
 
                         // connecting is as good as a pong
                         m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-                    }
 
-                    if (m_fnWebsocketConnectedCallback != nullptr)
-                    {
-                        m_fnWebsocketConnectedCallback();
+                        if (m_fnWebsocketConnectedCallback != nullptr)
+                        {
+                            m_fnWebsocketConnectedCallback();
+                        }
                     }
                 }
             }
@@ -569,11 +615,11 @@ void WebSocket::Tick()
 	{
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket msg: %s", bufferThisRecv);
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket len: %d", rlen);
-		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket flags: %d", meta->flags);
 
 		// what type of message?
 		if (meta != nullptr)
 		{
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket flags: %d", meta->flags);
 			if (meta->flags & CURLWS_PONG) // PONG
 			{
 
@@ -582,6 +628,13 @@ void WebSocket::Tick()
 			{
 				bool bMessageComplete = false;
 
+				static constexpr size_t MAX_WS_PARTIAL_SIZE = 2 * 1024 * 1024; // 2 MB
+				if (m_vecWSPartialBuffer.size() + rlen > MAX_WS_PARTIAL_SIZE)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Partial buffer overflow, discarding message");
+					m_vecWSPartialBuffer.clear();
+					return;
+				}
 				m_vecWSPartialBuffer.resize(m_vecWSPartialBuffer.size() + rlen);
 				memcpy_s(m_vecWSPartialBuffer.data() + m_vecWSPartialBuffer.size() - rlen, rlen, bufferThisRecv, rlen);
 
@@ -647,7 +700,7 @@ void WebSocket::Tick()
 										{
 											UnicodeString unicodeStr(from_utf8(chatData.message).c_str());
 
-											Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_NETWORK_ROOM, true, chatData.action, chatData.admin);
+											Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_NETWORK_ROOM, true, chatData.action, chatData.admin, chatData.name_change);
 
 											NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
 											if (pRoomsInterface != nullptr && pRoomsInterface->m_OnChatCallback != nullptr)
@@ -769,11 +822,21 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::START_GAME:
 									{
-										NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-										if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackStartGamePacket != nullptr)
+                                        WebSocketMessage_StartGameResponse startGameData;
+                                        bool bParsed = JSONGetAsObject(jsonObject, &startGameData);
+
+										if (bParsed)
 										{
-											pLobbyInterface->m_callbackStartGamePacket();
+											// store URL
+                                            NGMP_OnlineServicesManager::GetInstance()->SetScreenshotS3URI_StartMatch(startGameData.screenshot_url.c_str());
 										}
+
+										// always start, even if we couldnt parse the url
+                                        NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+                                        if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackStartGamePacket != nullptr)
+                                        {
+                                            pLobbyInterface->m_callbackStartGamePacket();
+                                        }
 									}
 									break;
 
@@ -1029,16 +1092,22 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::PROBE:
 									{
-										NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] GOT PROBE REQUEST!");
+										WebSocketMessage_ServerProbe probe;
+                                        bool bParsed = JSONGetAsObject(jsonObject, &probe);
 
-										NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_GAMEPLAY);
+										if (bParsed)
+										{
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] GOT PROBE REQUEST: %s!", probe.url.c_str());
 
-										// service needs the response
-                                        nlohmann::json j;
-                                        j["msg_id"] = EWebSocketMessageID::PROBE_RESP;
-										j["timestamp"] = "0";
-                                        std::string strBody = j.dump();
-                                        Send(strBody.c_str());
+											NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_GAMEPLAY, probe.url);
+
+											// service needs the response
+											nlohmann::json j;
+											j["msg_id"] = EWebSocketMessageID::PROBE_RESP;
+											j["timestamp"] = "0";
+											std::string strBody = j.dump();
+											Send(strBody.c_str());
+										}
 									}
 									break;
 
