@@ -29,6 +29,10 @@
 #include "Common/crc.h"
 #include "Common/GameState.h"
 #include "Common/Registry.h"
+#if !RETAIL_COMPATIBLE_NETWORKING
+// TheSuperHackers @feature arcticdolphin 02/03/2026 CryptoAPI header used by the seed protocol.
+#include <wincrypt.h>
+#endif
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/networkutil.h"
 #include "Common/GlobalData.h"
@@ -44,6 +48,11 @@ static const UnsignedShort lobbyPort = 8086; ///< This is the UDP port used by a
 AsciiString GetMessageTypeString(UnsignedInt type);
 
 const UnsignedInt LANAPI::s_resendDelta = 10 * 1000;	///< This is how often we announce ourselves to the world
+#if !RETAIL_COMPATIBLE_NETWORKING
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Seed protocol timing constants.
+const UnsignedInt LANAPI::s_seedPhaseTimeoutMs = 2500;	///< Per-phase timeout
+const UnsignedInt LANAPI::s_seedResendIntervalMs = 500;	///< Interval between seed message resends
+#endif
 /*
 LANGame::LANGame()
 {
@@ -87,6 +96,11 @@ LANAPI::LANAPI() : m_transport(nullptr)
 	m_lastUpdate = 0;
 	m_transport = new Transport;
 	m_isActive = TRUE;
+
+#if !RETAIL_COMPATIBLE_NETWORKING
+	// TheSuperHackers @feature arcticdolphin 02/03/2026 Initialize seed protocol state.
+	resetSeedProtocolState();
+#endif
 }
 
 LANAPI::~LANAPI()
@@ -111,6 +125,11 @@ void LANAPI::init()
 	m_directConnectRemoteIP = 0;
 
 	m_lastGameopt = "";
+
+#if !RETAIL_COMPATIBLE_NETWORKING
+	// TheSuperHackers @feature arcticdolphin 02/03/2026 Reset seed protocol state.
+	resetSeedProtocolState();
+#endif
 
 #if TELL_COMPUTER_IDENTITY_IN_LAN_LOBBY
 	char userName[UNLEN + 1];
@@ -256,6 +275,18 @@ AsciiString GetMessageTypeString(UnsignedInt type)
 		case LANMessage::MSG_INACTIVE:
 			returnString.format("Inactive (%d)", type);
 			break;
+#if !RETAIL_COMPATIBLE_NETWORKING
+		// TheSuperHackers @feature arcticdolphin 02/03/2026 Seed protocol message type strings.
+		case LANMessage::MSG_SEED_COMMIT:
+			returnString.format("Seed Commit (%d)", type);
+			break;
+		case LANMessage::MSG_SEED_REVEAL:
+			returnString.format("Seed Reveal (%d)", type);
+			break;
+		case LANMessage::MSG_SEED_READY:
+			returnString.format("Seed Ready (%d)", type);
+			break;
+#endif
 		default:
 			returnString.format("Unknown Message (%d)",type);
 	}
@@ -425,6 +456,19 @@ void LANAPI::update()
 				handleInActive( msg, senderIP );
 				break;
 
+#if !RETAIL_COMPATIBLE_NETWORKING
+			// TheSuperHackers @feature arcticdolphin 02/03/2026 Commit-reveal seed protocol messages.
+			case LANMessage::MSG_SEED_COMMIT:
+				handleSeedCommit(msg, senderIP);
+				break;
+			case LANMessage::MSG_SEED_REVEAL:
+				handleSeedReveal(msg, senderIP);
+				break;
+			case LANMessage::MSG_SEED_READY:
+				handleSeedReady(msg, senderIP);
+				break;
+#endif
+
 			default:
 				DEBUG_LOG(("Unknown LAN message type %d", msg->messageType));
 			}
@@ -435,6 +479,79 @@ void LANAPI::update()
 	}
 	if(LANbuttonPushed)
 		return;
+
+#if !RETAIL_COMPATIBLE_NETWORKING
+	// TheSuperHackers @feature arcticdolphin 02/03/2026 Abort seed protocol on phase timeout.
+	if (m_currentGame && m_seedPhase != SEED_PHASE_NONE && now >= m_seedPhaseDeadline)
+	{
+		DEBUG_LOG(("LANAPI: seed protocol phase %d timed out, aborting", m_seedPhase));
+		abortSeedProtocol();
+	}
+
+	// TheSuperHackers @feature arcticdolphin 03/03/2026 Periodically resend seed messages to recover from UDP packet loss.
+	if (m_currentGame && m_seedResendTime && now >= m_seedResendTime)
+	{
+		const Int localSlot = m_currentGame->getLocalSlotNum();
+		Bool didResend = FALSE;
+
+		if (m_seedPhase == SEED_PHASE_AWAITING_COMMITS
+			&& localSlot >= 0 && localSlot < MAX_SLOTS && m_slotCommitReceived[localSlot])
+		{
+			LANMessage msg = {};
+			fillInLANMessage(&msg);
+			msg.messageType = LANMessage::MSG_SEED_COMMIT;
+			memcpy(msg.SeedCommit.commit, m_localSeedCommit, sizeof(msg.SeedCommit.commit));
+			msg.SeedCommit.senderSlot = static_cast<BYTE>(localSlot);
+			memcpy(msg.SeedCommit.roundNonce, m_slotSeedCommit[0], sizeof(msg.SeedCommit.roundNonce));
+			sendMessage(&msg);
+			didResend = TRUE;
+			DEBUG_LOG(("LANAPI: resending seed commit"));
+		}
+		else
+		{
+			// Keep resending our reveal even after local finalization: peers that missed our
+			// reveal are still in AWAITING_REVEALS and will time out unless we keep sending.
+			// Resends stop when resetSeedProtocolState() clears m_slotRevealReceived.
+			if ((m_seedPhase == SEED_PHASE_AWAITING_REVEALS
+					|| (m_seedPhase == SEED_PHASE_NONE && m_seedReady))
+				&& localSlot >= 0 && localSlot < MAX_SLOTS && m_slotRevealReceived[localSlot])
+			{
+				LANMessage msg = {};
+				fillInLANMessage(&msg);
+				msg.messageType = LANMessage::MSG_SEED_REVEAL;
+				memcpy(msg.SeedReveal.secret, m_localSeedSecret, 16);
+				msg.SeedReveal.senderSlot = static_cast<BYTE>(localSlot);
+				memcpy(msg.SeedReveal.roundNonce, m_slotSeedCommit[0], sizeof(msg.SeedReveal.roundNonce));
+				sendMessage(&msg);
+				didResend = TRUE;
+				DEBUG_LOG(("LANAPI: resending seed reveal"));
+			}
+			// Seed-ready resend is independent of reveal resend: both can fire post-finalize.
+			if (m_seedReady && !m_currentGame->amIHost())
+			{
+				if (localSlot < 0 || localSlot >= MAX_SLOTS)
+				{
+					DEBUG_LOG(("LANAPI: clearing m_seedReady: local slot invalid during seed-ready resend"));
+					m_seedReady = FALSE;
+				}
+				else
+				{
+					LANMessage msg = {};
+					fillInLANMessage(&msg);
+					msg.messageType = LANMessage::MSG_SEED_READY;
+					memcpy(msg.SeedReady.roundNonce, m_slotSeedCommit[0], sizeof(msg.SeedReady.roundNonce));
+					msg.SeedReady.senderSlot = static_cast<BYTE>(localSlot);
+					sendMessage(&msg, m_currentGame->getIP(0));
+					didResend = TRUE;
+					DEBUG_LOG(("LANAPI: resending seed ready"));
+				}
+			}
+		}
+
+		m_seedResendTime = didResend ? now + s_seedResendIntervalMs : 0;
+	}
+#endif
+
 	// Send out periodic I'm Here messages
 	if (now > s_resendDelta + m_lastResendTime)
 	{
@@ -711,7 +828,12 @@ void LANAPI::RequestGameAnnounce()
 			fillInLANMessage( &reply );
 			reply.messageType = LANMessage::MSG_GAME_ANNOUNCE;
 
+#if !RETAIL_COMPATIBLE_NETWORKING
+			// TheSuperHackers @info arcticdolphin 02/03/2026 Omit SD= from announces; seed is negotiated via commit-reveal.
+			AsciiString gameOpts = GameInfoToAsciiString(m_currentGame, FALSE);
+#else
 			AsciiString gameOpts = GameInfoToAsciiString(m_currentGame);
+#endif
 			strlcpy(reply.GameInfo.options,gameOpts.str(), ARRAY_SIZE(reply.GameInfo.options));
 			wcslcpy(reply.GameInfo.gameName, m_currentGame->getName().str(), ARRAY_SIZE(reply.GameInfo.gameName));
 			reply.GameInfo.inProgress = m_currentGame->isGameInProgress();
@@ -795,6 +917,28 @@ void LANAPI::RequestGameStart()
 	if (m_inLobby || !m_currentGame || m_currentGame->getIP(0) != m_localIP)
 		return;
 
+#if !RETAIL_COMPATIBLE_NETWORKING
+	// TheSuperHackers @feature arcticdolphin 03/03/2026 Seed protocol gates game start.
+	if (m_seedReady && m_seedPhase == SEED_PHASE_NONE && allSeedReadyReceived())
+	{
+		// Seed protocol complete: proceed with game start.
+		LANMessage msg = {};
+		fillInLANMessage(&msg);
+		msg.messageType = LANMessage::MSG_GAME_START;
+		sendMessage(&msg);
+		m_transport->update(); // flush before handoff
+		OnGameStart();
+	}
+	else
+	{
+		// Seed protocol not started or still in progress: begin/re-poll.
+		// Phase timeouts are enforced separately in update().
+		if (m_seedPhase == SEED_PHASE_NONE && !m_seedReady)
+			beginSeedCommitPhase();
+		m_gameStartTime = timeGetTime() + 200;
+		m_gameStartSeconds = 0;
+	}
+#else
 	LANMessage msg;
 	msg.messageType = LANMessage::MSG_GAME_START;
 	fillInLANMessage( &msg );
@@ -802,7 +946,254 @@ void LANAPI::RequestGameStart()
 	m_transport->update(); // force a send
 
 	OnGameStart();
+#endif
 }
+
+#if !RETAIL_COMPATIBLE_NETWORKING
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Generate 128-bit secret using CryptoAPI CSPRNG for seed protocol.
+Bool LANAPI::generateLocalSecret(BYTE secret[16])
+{
+	HCRYPTPROV hProv = 0;
+	if (!CryptAcquireContext(&hProv, nullptr, nullptr, PROV_RSA_AES, CRYPT_VERIFYCONTEXT))
+	{
+		DEBUG_LOG(("LANAPI: CryptAcquireContext failed for RNG 0x%08X", GetLastError()));
+		return FALSE;
+	}
+	const Bool ok = CryptGenRandom(hProv, 16, secret) ? TRUE : FALSE;
+	if (!ok)
+		DEBUG_LOG(("LANAPI: CryptGenRandom failed 0x%08X", GetLastError()));
+	CryptReleaseContext(hProv, 0);
+	return ok;
+}
+
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Compute SHA-256 hash of secret concatenated with sender slot index.
+Bool LANAPI::computeSeedCommitment(const BYTE secret[16], BYTE senderSlot, BYTE outCommit[32])
+{
+	memset(outCommit, 0, 32);
+	HCRYPTPROV hProv = 0;
+	if (!CryptAcquireContext(&hProv, nullptr, nullptr, PROV_RSA_AES, CRYPT_VERIFYCONTEXT))
+	{
+		DEBUG_LOG(("LANAPI: CryptAcquireContext failed 0x%08X", GetLastError()));
+		return FALSE;
+	}
+	Bool success = FALSE;
+	HCRYPTHASH hHash = 0;
+	if (CryptCreateHash(hProv, CALG_SHA_256, 0, 0, &hHash))
+	{
+		BYTE input[17]; // 16-byte secret + 1-byte slot
+		memcpy(input, secret, 16);
+		input[16] = senderSlot;
+		if (CryptHashData(hHash, input, sizeof(input), 0))
+		{
+			DWORD digestLen = 32;
+			if (CryptGetHashParam(hHash, HP_HASHVAL, outCommit, &digestLen, 0))
+				success = TRUE;
+			else
+				DEBUG_LOG(("LANAPI: CryptGetHashParam failed 0x%08X", GetLastError()));
+		}
+		else
+			DEBUG_LOG(("LANAPI: CryptHashData failed 0x%08X", GetLastError()));
+		CryptDestroyHash(hHash);
+	}
+	else
+		DEBUG_LOG(("LANAPI: CryptCreateHash failed 0x%08X", GetLastError()));
+	CryptReleaseContext(hProv, 0);
+	return success;
+}
+
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Clear all per-round seed protocol state.
+void LANAPI::resetSeedProtocolState()
+{
+	m_seedPhase = SEED_PHASE_NONE;
+	m_seedReady = FALSE;
+	memset(m_localSeedSecret,    0, sizeof(m_localSeedSecret));
+	memset(m_localSeedCommit,    0, sizeof(m_localSeedCommit));
+	m_seedPhaseDeadline = 0;
+	m_seedResendTime = 0;
+	memset(m_slotSeedCommit,     0, sizeof(m_slotSeedCommit));
+	memset(m_slotSeedReveal,     0, sizeof(m_slotSeedReveal));
+	memset(m_slotCommitReceived,       0, sizeof(m_slotCommitReceived));
+	memset(m_slotRevealReceived,       0, sizeof(m_slotRevealReceived));
+	memset(m_slotSeedReady,            0, sizeof(m_slotSeedReady));
+	memset(m_slotPendingRevealSecret,  0, sizeof(m_slotPendingRevealSecret));
+	memset(m_slotPendingRevealNonce,   0, sizeof(m_slotPendingRevealNonce));
+	memset(m_slotPendingRevealValid,   0, sizeof(m_slotPendingRevealValid));
+}
+
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Initialize seed protocol commit phase.
+void LANAPI::beginSeedCommitPhase()
+{
+	resetSeedProtocolState();
+
+	const Int localSlot = m_currentGame->getLocalSlotNum();
+	if (localSlot < 0 || localSlot >= MAX_SLOTS)
+	{
+		abortSeedProtocol(L"Could not start the game: invalid local slot. Please try again.");
+		return;
+	}
+
+	if (!generateLocalSecret(m_localSeedSecret))
+	{
+		abortSeedProtocol(L"Could not start the game: failed to generate a secure random secret. Please try again.");
+		return;
+	}
+	if (!computeSeedCommitment(m_localSeedSecret, static_cast<BYTE>(localSlot), m_localSeedCommit))
+	{
+		abortSeedProtocol(L"Could not start the game: failed to compute seed commitment. Please try again.");
+		return;
+	}
+
+	// Pre-fill host slot
+	{
+		memcpy(m_slotSeedCommit[localSlot], m_localSeedCommit, 32);
+		m_slotCommitReceived[localSlot] = TRUE;
+	}
+
+	m_seedPhase = SEED_PHASE_AWAITING_COMMITS;
+	m_seedPhaseDeadline = timeGetTime() + s_seedPhaseTimeoutMs;
+
+	LANMessage msg = {};
+	fillInLANMessage(&msg);
+	msg.messageType = LANMessage::MSG_SEED_COMMIT;
+	memcpy(msg.SeedCommit.commit, m_localSeedCommit, sizeof(msg.SeedCommit.commit));
+	msg.SeedCommit.senderSlot = static_cast<BYTE>(localSlot);
+	memcpy(msg.SeedCommit.roundNonce, m_localSeedCommit, sizeof(msg.SeedCommit.roundNonce));
+	sendMessage(&msg);
+	m_seedResendTime = timeGetTime() + s_seedResendIntervalMs;
+	UnsignedInt dbgCommit;
+	memcpy(&dbgCommit, m_localSeedCommit, sizeof(dbgCommit));
+	DEBUG_LOG(("LANAPI: seed commit phase started  slot=%d commit[0..3]=0x%08X", localSlot, dbgCommit));
+
+	// Solo host: no other commits expected, advance immediately
+	if (allSeedCommitsReceived())
+		beginSeedRevealPhase();
+}
+
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Check if all human slots have a given per-slot boolean flag set.
+Bool LANAPI::checkSeedSlotFlags(const Bool flags[], Bool skipLocal) const
+{
+	if (!m_currentGame) return FALSE;
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		if (skipLocal && m_currentGame->getIP(i) == m_localIP)
+			continue;
+		GameSlot *slot = m_currentGame->getSlot(i);
+		if (!slot || !slot->isHuman())
+			continue;
+		if (!flags[i])
+			return FALSE;
+	}
+	return TRUE;
+}
+
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Transition to reveal phase and broadcast local secret.
+void LANAPI::beginSeedRevealPhase()
+{
+	const Int localSlot = m_currentGame->getLocalSlotNum();
+	if (localSlot < 0 || localSlot >= MAX_SLOTS)
+	{
+		abortSeedProtocol(L"Could not start the game: invalid local slot. Please try again.");
+		return;
+	}
+
+	// Pre-fill own reveal slot
+	{
+		memcpy(m_slotSeedReveal[localSlot], m_localSeedSecret, 16);
+		m_slotRevealReceived[localSlot] = TRUE;
+	}
+
+	m_seedPhase = SEED_PHASE_AWAITING_REVEALS;
+	m_seedPhaseDeadline = timeGetTime() + s_seedPhaseTimeoutMs;
+	DEBUG_LOG(("LANAPI: seed reveal phase started"));
+
+	LANMessage msg = {};
+	fillInLANMessage(&msg);
+	msg.messageType = LANMessage::MSG_SEED_REVEAL;
+	memcpy(msg.SeedReveal.secret, m_localSeedSecret, 16);
+	msg.SeedReveal.senderSlot = static_cast<BYTE>(localSlot);
+	memcpy(msg.SeedReveal.roundNonce, m_slotSeedCommit[0], sizeof(msg.SeedReveal.roundNonce));
+	sendMessage(&msg);
+	m_seedResendTime = timeGetTime() + s_seedResendIntervalMs;
+}
+
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Compute final seed from all revealed secrets and signal readiness.
+void LANAPI::finalizeSeed()
+{
+	// XOR all 128-bit secrets, then truncate to 32-bit game seed for replay compatibility.
+	BYTE xorResult[16];
+	memset(xorResult, 0, sizeof(xorResult));
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		if (m_slotRevealReceived[i])
+		{
+			for (int b = 0; b < 16; ++b)
+				xorResult[b] ^= m_slotSeedReveal[i][b];
+			UnsignedInt dbgCommit;
+			memcpy(&dbgCommit, m_slotSeedCommit[i], sizeof(dbgCommit));
+			DEBUG_LOG(("LANAPI: slot %d commit[0..3]=0x%08X", i, dbgCommit));
+		}
+	}
+	UnsignedInt finalSeed;
+	memcpy(&finalSeed, xorResult, sizeof(finalSeed));
+	// Wipe intermediate secret material from the stack immediately; only finalSeed is needed now.
+	memset(xorResult, 0, sizeof(xorResult));
+	DEBUG_LOG(("LANAPI: final game seed 0x%08X", finalSeed));
+	m_currentGame->setSeed(finalSeed);
+	// Wipe the per-slot reveal array early; it is no longer needed here.
+	// m_localSeedSecret is intentionally NOT wiped here: the resend loop still reads it to
+	// retransmit MSG_SEED_REVEAL to peers that haven't finalized yet. It is wiped by
+	// resetSeedProtocolState() once the game start is committed.
+	// m_slotSeedCommit is kept for the same reason (round nonce for MSG_SEED_READY resends).
+	memset(m_slotSeedReveal, 0, sizeof(m_slotSeedReveal));
+	m_seedPhase = SEED_PHASE_NONE;
+	m_seedReady = TRUE;
+
+	if (m_currentGame->amIHost())
+	{
+		// Mark own slot as seed-ready so allSeedReadyReceived includes the host.
+		Int localSlot = m_currentGame->getLocalSlotNum();
+		if (localSlot >= 0 && localSlot < MAX_SLOTS)
+			m_slotSeedReady[localSlot] = TRUE;
+	}
+	else
+	{
+		// Inform host of completion; nonce (first 4 bytes of host commit) filters stale packets.
+		const Int localSlot = m_currentGame->getLocalSlotNum();
+		if (localSlot < 0 || localSlot >= MAX_SLOTS)
+		{
+			abortSeedProtocol(L"Could not start the game: invalid local slot. Please try again.");
+			return;
+		}
+		LANMessage msg = {};
+		fillInLANMessage(&msg);
+		msg.messageType = LANMessage::MSG_SEED_READY;
+		memcpy(msg.SeedReady.roundNonce, m_slotSeedCommit[0], sizeof(msg.SeedReady.roundNonce));
+		msg.SeedReady.senderSlot = static_cast<BYTE>(localSlot);
+		sendMessage(&msg, m_currentGame->getIP(0));
+		m_seedResendTime = timeGetTime() + s_seedResendIntervalMs;
+		DEBUG_LOG(("LANAPI: sent seed ready acknowledgment to host"));
+	}
+}
+
+// TheSuperHackers @feature arcticdolphin 02/03/2026 Abort seed protocol and reset all state so the host can retry.
+void LANAPI::abortSeedProtocol(const wchar_t *reason)
+{
+	resetSeedProtocolState();
+
+	// Cancel countdown and force re-accept so the host can safely retry.
+	ResetGameStartTimer();
+	if (m_currentGame)
+	{
+		m_currentGame->resetAccepted();
+		if (m_currentGame->amIHost())
+			RequestGameOptions(GenerateGameOptionsString(), TRUE);
+	}
+
+	const wchar_t *msg = reason ? reason : L"Could not start the game: not all players finished negotiating the random seed. Please try again.";
+	OnChat(UnicodeString::TheEmptyString, m_localIP, UnicodeString(msg), LANCHAT_SYSTEM);
+}
+
+#endif // !RETAIL_COMPATIBLE_NETWORKING
 
 void LANAPI::ResetGameStartTimer()
 {
@@ -814,6 +1205,12 @@ void LANAPI::RequestGameStartTimer( Int seconds )
 {
 	if (m_inLobby || !m_currentGame || m_currentGame->getIP(0) != m_localIP)
 		return;
+
+#if !RETAIL_COMPATIBLE_NETWORKING
+	// TheSuperHackers @feature arcticdolphin 03/03/2026 Start seed protocol during countdown.
+	if (m_seedPhase == SEED_PHASE_NONE && !m_seedReady)
+		beginSeedCommitPhase();
+#endif
 
 	UnsignedInt now = timeGetTime();
 	m_gameStartTime = now + 1000;

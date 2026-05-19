@@ -245,7 +245,12 @@ AsciiString GenerateGameOptionsString()
 	if(!TheLAN->GetMyGame() || !TheLAN->GetMyGame()->amIHost())
 		return AsciiString::TheEmptyString;
 
+#if !RETAIL_COMPATIBLE_NETWORKING
+	// TheSuperHackers @info arcticdolphin 02/03/2026 Omit seed from lobby broadcasts.
+	return GameInfoToAsciiString(TheLAN->GetMyGame(), FALSE);
+#else
 	return GameInfoToAsciiString(TheLAN->GetMyGame());
+#endif
 }
 
 Bool ParseGameOptionsString(LANGameInfo *game, AsciiString options)
@@ -274,7 +279,12 @@ Bool ParseGameOptionsString(LANGameInfo *game, AsciiString options)
 		}
 	}
 
-	if (ParseAsciiStringToGameInfo(game, options))
+#if !RETAIL_COMPATIBLE_NETWORKING
+	// TheSuperHackers @info arcticdolphin 02/03/2026 Added requireSeed parameter; non-retail options strings omit SD=.
+	if (ParseAsciiStringToGameInfo(game, options, FALSE))
+#else
+	if (ParseAsciiStringToGameInfo(game, options, TRUE))
+#endif
 	{
 		Int newLocalSlotNum = (game->isInGame()) ? game->getLocalSlotNum() : -1;
 		Bool isInGame = newLocalSlotNum >= 0;
