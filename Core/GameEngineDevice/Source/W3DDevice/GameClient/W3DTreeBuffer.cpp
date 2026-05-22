@@ -745,9 +745,9 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator* p
 
 
 
-		for (;curTree < m_numTrees;curTree++) {
+		for ( ;curTree<m_numTrees;curTree++) {
 			Int type = m_trees[curTree].treeType;
-			if (type < 0 || m_treeTypes[type].m_mesh == nullptr) {
+			if (type<0 || m_treeTypes[type].m_mesh == nullptr) {
 				continue; // Deleted tree or missing mesh. [6/9/2003]
 			}
 			if (!m_trees[curTree].visible) continue;
@@ -1000,16 +1000,19 @@ void W3DTreeBuffer::updateVertexBuffer()
 		if (!vb) {
 			continue;
 		}
+		if (!vb) {
+			continue;
+		}
 
 		VertexFormatXYZNDUV1* curVb;
 
 		Int curTree;
-		for (curTree = 0; curTree < m_numTrees; curTree++) {
-			if (m_trees[curTree].bufferNdx != bNdx) {
+		for (curTree=0; curTree<m_numTrees; curTree++) {
+			if (m_trees[curTree].bufferNdx!=bNdx) {
 				continue;
 			}
 			Int type = m_trees[curTree].treeType;
-			if (m_trees[curTree].pushAsideDelta == 0.0f && m_trees[curTree].m_toppleState == TOPPLE_UPRIGHT) {
+			if (m_trees[curTree].pushAsideDelta==0.0f && m_trees[curTree].m_toppleState == TOPPLE_UPRIGHT) {
 				continue; // not toppling or pushed, no need to update. jba [7/11/2003]
 			}
 			m_anyPushChanged = true;
@@ -1018,15 +1021,15 @@ void W3DTreeBuffer::updateVertexBuffer()
 			Vector3 loc = m_trees[curTree].location;
 			Real theSin = m_trees[curTree].sin;
 			Real theCos = m_trees[curTree].cos;
-			DEBUG_ASSERTCRASH(type >= 0 && m_treeTypes[type].m_mesh != nullptr, ("Invalid tree type or mesh."));
+			DEBUG_ASSERTCRASH(type>=0 && m_treeTypes[type].m_mesh!=nullptr, ("Invalid tree type or mesh."));
 
 			Int startVertex = m_trees[curTree].firstIndex;
-			curVb = vb + startVertex;
+			curVb = vb+startVertex;
 			Int i;
 			Int numVertex = m_treeTypes[type].m_mesh->Peek_Model()->Get_Vertex_Count();
-			Vector3* pVert = m_treeTypes[type].m_mesh->Peek_Model()->Get_Vertex_Array();
+			Vector3 *pVert = m_treeTypes[type].m_mesh->Peek_Model()->Get_Vertex_Array();
 
-			for (i = 0; i < numVertex; i++) {
+			for (i=0; i<numVertex; i++) {
 				Real x = pVert[i].X;
 				Real y = pVert[i].Y;
 
