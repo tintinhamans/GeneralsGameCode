@@ -247,8 +247,9 @@ public:
 	int64_t lobby_id;
 	int64_t user_id;
 	uint16_t preferred_port;
+	std::string middleware_id;
 
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkStartSignalling, msg_id, lobby_id, user_id, preferred_port)
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkStartSignalling, msg_id, lobby_id, user_id, preferred_port, middleware_id)
 };
 
 class WebSocketMessage_ACRegisterPlayer : public WebSocketMessageBase
@@ -978,7 +979,8 @@ void WebSocket::Tick()
 
 												if (pMesh != nullptr)
 												{
-													pMesh->StartConnectionSignalling(startSignallingData.user_id, startSignallingData.preferred_port);
+                                                    pMesh->StartConnectionSignalling(startSignallingData.middleware_id.c_str(), startSignallingData.user_id, startSignallingData.preferred_port);
+                                                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Starting signalling with %lld (MWID: %s)", startSignallingData.user_id, startSignallingData.middleware_id.c_str());
 												}
 												else
 												{

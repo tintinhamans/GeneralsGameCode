@@ -1,5 +1,14 @@
 #pragma once
 
+enum class EConnectionState : uint8_t
+{
+    NOT_CONNECTED,
+    CONNECTING_DIRECT,
+    FINDING_ROUTE,
+    CONNECTED_DIRECT,
+    CONNECTION_FAILED,
+    CONNECTION_DISCONNECTED
+};
 
 enum class EAnticheatActionType : int32_t
 {
@@ -22,6 +31,20 @@ enum class EAnticheatActionReason : int32_t
     PermaBanned = 10
 };
 
+enum class ENetworkChannels : uint8_t
+{
+    Game = 0,
+    Anticheat,
+    Signalling
+};
+
+enum class EPacketReliability : int32_t
+{
+    PACKET_RELIABILITY_UNRELIABLE_UNORDERED = 0,
+    PACKET_RELIABILITY_RELIABLE_UNORDERED = 1,
+    PACKET_RELIABILITY_RELIABLE_ORDERED = 2
+};
+
 
 class AnticheatPlugInterface
 {
@@ -41,6 +64,8 @@ public:
 
     static int GetAnticheatIdentifier();
 
+    static int GetConnectionLatencyForUser(std::string mwUserID, uint32_t goUserID);
+
     static void LoadPlugin(const char* szPluginName);
     static void Authenticate();
     static void UnloadPlugin();
@@ -54,6 +79,25 @@ public:
     static void BeginSession();
     static void EndSession();
 
+    // transport related
+    typedef void (*FuncDefStartSignalling)(const char* szMiddlewareUserID, uint64_t goUserID);
+    typedef void (*FuncDefSendPacket)(const char* szMiddlewareUserID, uint64_t targetGoUserID, void* pData, int numBytes, ENetworkChannels channel, EPacketReliability reliability);
+    typedef bool (*FuncDefDoesACPluginProvideSecureGameTransport)(void);
+    typedef int (*FuncDefGetNextRecvPacketSize)(uint8_t channelToReceiveOn);
+    typedef bool (*FuncDefRecvPacket)(uint8_t** pOutData, uint8_t channelToReceiveOn);
+    typedef void (*FuncDefFreePacket)(void* pPacketData);
+    typedef void (*FuncDefDisconnectPlayer)(const char* szMiddlewareUserID, uint64_t goUserID);
+    typedef void (*FuncDefDisconnectAll)();
+
+    static bool DoesACPluginProvideSecureGameTransport();
+    static void SendPacket(const char* szMiddlewareUserID, uint64_t targetGoUserID, void* pData, int numBytes, ENetworkChannels channel, EPacketReliability reliability);
+    static void StartSignalling(const char* szMiddlewareUserID, uint64_t goUserID);
+    static int GetNextRecvPacketSize(uint8_t channelToReceiveOn);
+    static bool RecvPacket(uint8_t** pOutData, uint8_t channelToReceiveOn);
+
+    static void DisconnectPlayer(const char* szMiddlewareUserID, uint64_t goUserID);
+    static void DisconnectAll();
+
     // Callbacks from plugin
     typedef void (*LoginCallback)(bool bSuccess);
     typedef void (*LoggingFunc)(const char*);
@@ -66,10 +110,13 @@ public:
 
     // Func defs
     typedef void (*FuncDefSetLoggingFunction)(LoggingFunc);
-    typedef int (*FuncDefInitialize)(void);
+
+    typedef void (*OnConnectionStateChangedCallbackFunc)(const char*, uint64_t, EConnectionState);
+    typedef int (*FuncDefInitialize)(OnConnectionStateChangedCallbackFunc connectionStateChangedCB);
     typedef bool (*FuncDefIsExternalProcessRunning)(void);
 
     typedef int (*FuncDefGetAnticheatIdentifier)(void);
+    typedef int (*FuncDefGetConnectionLatencyForUser)(const char* szMiddlewareUserID, uint32_t goUserID);
     
     typedef void (*FuncDefSetSendMessageViaTransportCallback)(SendMessageViaTransportCallbackFunc);
     typedef void (*FuncDefACMessageArrivedViaTransport)(uint32_t, void*, uint32_t);
@@ -105,6 +152,18 @@ public:
         FuncDefDeregisterPlayer fnDeregisterPlayer = nullptr;
         FuncDefTick fnTick = nullptr;
         FuncDefShutdown fnShutdown = nullptr;
+
+        // transport related
+        FuncDefDoesACPluginProvideSecureGameTransport fnDoesACPluginProvideSecureGameTransport = nullptr;
+        FuncDefStartSignalling fnStartSignalling = nullptr;
+        FuncDefSendPacket fnSendPacket = nullptr;
+        FuncDefGetNextRecvPacketSize fnGetNextRecvPacketSize = nullptr;
+        FuncDefRecvPacket fnRecvPacket = nullptr;
+
+        FuncDefGetConnectionLatencyForUser fnGetConnectionLatencyForUser = nullptr;
+
+        FuncDefDisconnectPlayer fnDisconnectPlayer = nullptr;
+        FuncDefDisconnectAll fnDisconnectAll = nullptr;
     };
     static AnticheatPluginFunctionPtrs Functions;
 
