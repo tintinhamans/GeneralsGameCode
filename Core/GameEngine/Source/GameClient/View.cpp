@@ -163,7 +163,7 @@ void View::setAngle(Real radians)
 /**
  * Rotate the view around the horizontal (X) axis to the given angle.
  */
-void View::setPitch( Real radians )
+void View::setPitch(Real radians)
 {
 #if CLAMP_VIEW_PITCH
 	m_pitch = clamp(DEG_TO_RADF(0.1f), radians, DEG_TO_RADF(89.9f));
@@ -172,7 +172,7 @@ void View::setPitch( Real radians )
 #endif
 }
 
-void View::setDefaultPitch( Real radians )
+void View::setDefaultPitch(Real radians)
 {
 #if CLAMP_VIEW_PITCH
 	m_defaultPitch = clamp(DEG_TO_RADF(0.1f), radians, DEG_TO_RADF(89.9f));
@@ -215,16 +215,16 @@ void View::setHeightAboveGround(Real z)
  */
 void View::getLocation(ViewLocation* location)
 {
-	location->init( getPosition(), getAngle(), getPitch(), getZoom() );
+	location->init(getPosition(), getAngle(), getPitch(), getZoom());
 }
 
 
 /**
  * set the view's current location from to the view location object
  */
-void View::setLocation( const ViewLocation *location )
+void View::setLocation(const ViewLocation* location)
 {
-	if ( location->isValid() )
+	if (location->isValid())
 	{
 		setPosition(location->getPosition());
 		setAngle(location->getAngle());
@@ -291,14 +291,14 @@ void View::xfer(Xfer* xfer)
 
 	// camera angle
 	Real angle = getAngle();
-	xfer->xferReal( &angle );
-	setAngle( angle );
+	xfer->xferReal(&angle);
+	setAngle(angle);
 
 	// view position
 	Coord3D viewPos = getPosition();
-	xfer->xferReal( &viewPos.x );
-	xfer->xferReal( &viewPos.y );
-	xfer->xferReal( &viewPos.z );
-	lookAt( &viewPos );
+	xfer->xferReal(&viewPos.x);
+	xfer->xferReal(&viewPos.y);
+	xfer->xferReal(&viewPos.z);
+	lookAt(&viewPos);
 
 }

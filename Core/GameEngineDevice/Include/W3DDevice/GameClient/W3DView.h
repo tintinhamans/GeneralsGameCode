@@ -47,7 +47,7 @@
 class Drawable;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-enum { MAX_WAYPOINTS = 25 };
+enum {MAX_WAYPOINTS=25};
 
 constexpr const Real TERRAIN_SAMPLE_SIZE = MAP_XY_FACTOR * 4;
 
@@ -127,16 +127,16 @@ typedef struct
 /** W3DView implementation of the game view class.  This allows us to create
   * a "window" into the game world that can be sized and contains controls
 	* for manipulating the camera */
-	// ------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------
 class W3DView : public View, public SubsystemInterface
 {
 	enum Scripted
 	{
-		Scripted_Rotate = 1 << 0, // Set when rotating the camera
-		Scripted_Pitch = 1 << 1, // Set when pitching the camera
-		Scripted_Zoom = 1 << 2, // Set when zooming the camera
-		Scripted_CameraLock = 1 << 3, // Set when following a unit via script
-		Scripted_MoveOnWaypointPath = 1 << 4, // Set when moving camera along waypoint path
+		Scripted_Rotate = 1<<0, // Set when rotating the camera
+		Scripted_Pitch = 1<<1, // Set when pitching the camera
+		Scripted_Zoom = 1<<2, // Set when zooming the camera
+		Scripted_CameraLock = 1<<3, // Set when following a unit via script
+		Scripted_MoveOnWaypointPath = 1<<4, // Set when moving camera along waypoint path
 	};
 	typedef UnsignedInt ScriptedState;
 
@@ -153,26 +153,26 @@ public:
 	virtual void draw() override;  ///< draw this view
 	virtual void update() override;	///<called once per frame to determine the final camera and object transforms
 
-	virtual Drawable* pickDrawable(const ICoord2D* screen, Bool forceAttack, PickType pickType) override;  ///< pick drawable given the screen pixel coords.  If force attack, picks bridges.
+	virtual Drawable *pickDrawable( const ICoord2D *screen, Bool forceAttack, PickType pickType ) override;  ///< pick drawable given the screen pixel coords.  If force attack, picks bridges.
 
 	/// all drawables in the 2D screen region will call the 'callback'
-	virtual Int iterateDrawablesInRegion(IRegion2D* screenRegion,
-		Bool(*callback)(Drawable* draw, void* userData),
-		void* userData) override;
+	virtual Int iterateDrawablesInRegion( IRegion2D *screenRegion,
+																Bool (*callback)( Drawable *draw, void *userData ),
+																void *userData ) override;
 
-	virtual void setWidth(Int width) override;
-	virtual void setHeight(Int height) override;
-	virtual void setOrigin(Int x, Int y) override;			///< Sets location of top-left view corner on display
+	virtual void setWidth( Int width ) override;
+	virtual void setHeight( Int height ) override;
+	virtual void setOrigin( Int x, Int y) override;			///< Sets location of top-left view corner on display
 
-	virtual void scrollBy(const Coord2D* delta) override;  ///< Shift the view by the given delta
+	virtual void scrollBy( const Coord2D *delta ) override;  ///< Shift the view by the given delta
 
 	virtual void forceRedraw() override;
 
 	virtual Bool isDoingScriptedCamera() override;
 	virtual void stopDoingScriptedCamera() override;
 
-	virtual void setAngle(Real radians) override;									///< Rotate the view around the vertical axis to the given angle (yaw)
-	virtual void setPitch(Real radians) override;									///< Rotate the view around the horizontal axis to the given angle (pitch)
+	virtual void setAngle( Real radians ) override;									///< Rotate the view around the vertical axis to the given angle (yaw)
+	virtual void setPitch( Real radians ) override;									///< Rotate the view around the horizontal axis to the given angle (pitch)
 	virtual void setDefaultPitch( Real radians ) override;						///< Set new default camera pitch. It affects the camera distance to the ground
 	virtual void setAngleToDefault() override;									///< Set the view angle back to default
 	virtual void setPitchToDefault() override;									///< Set the view pitch back to default
@@ -207,55 +207,55 @@ public:
 	virtual	void Add_Camera_Shake(const Coord3D & position,float radius, float duration, float power) override; //WST 10.18.2002
 	virtual Int	 getTimeMultiplier() override {return m_timeMultiplier;};///< Get the time multiplier.
 	virtual void setTimeMultiplier(Int multiple) override {m_timeMultiplier = multiple;}; ///< Set the time multiplier.
-	#if defined(GENERALS_ONLINE)
+		#if defined(GENERALS_ONLINE)
 	virtual void setDefaultView(Real pitch, Real angle, Real maxHeight, bool bForceDefaultCam = true);
 #else
 	virtual void setDefaultView(Real pitch, Real angle, Real maxHeight);
 #endif
-	virtual void zoomCamera(Real finalZoom, Int milliseconds, Real easeIn, Real easeOut) override;
-	virtual void pitchCamera(Real finalPitch, Int milliseconds, Real easeIn, Real easeOut) override;
+	virtual void zoomCamera( Real finalZoom, Int milliseconds, Real easeIn, Real easeOut ) override;
+	virtual void pitchCamera( Real finalPitch, Int milliseconds, Real easeIn, Real easeOut ) override;
 
 	virtual void setHeightAboveGround(Real z) override;
 	virtual void setZoom(Real z) override;
 	virtual void setZoomToDefault() override;									///< Set zoom to default value
 
-	virtual void setFieldOfView(Real angle) override;							///< Set the horizontal field of view angle
+	virtual void setFieldOfView( Real angle ) override;							///< Set the horizontal field of view angle
 
-	virtual WorldToScreenReturn worldToScreenTriReturn(const Coord3D* w, ICoord2D* s) override;	///< Transform world coordinate "w" into screen coordinate "s"
-	virtual void screenToTerrain(const ICoord2D* screen, Coord3D* world) override;  ///< transform screen coord to a point on the 3D terrain
-	virtual void screenToWorldAtZ(const ICoord2D* s, Coord3D* w, Real z) override;  ///< transform screen point to world point at the specified world Z value
+  virtual WorldToScreenReturn worldToScreenTriReturn( const Coord3D *w, ICoord2D *s ) override;	///< Transform world coordinate "w" into screen coordinate "s"
+	virtual void screenToTerrain( const ICoord2D *screen, Coord3D *world ) override;  ///< transform screen coord to a point on the 3D terrain
+	virtual void screenToWorldAtZ( const ICoord2D *s, Coord3D *w, Real z ) override;  ///< transform screen point to world point at the specified world Z value
 
-	CameraClass* get3DCamera() const { return m_3DCamera; }
+	CameraClass *get3DCamera() const { return m_3DCamera; }
 
 	virtual Coord3D get3DCameraPosition() const override; ///< Returns the actual camera position
 	virtual Coord3D get3DCameraDirection() const override; ///< Returns the actual camera view direction
 	virtual void set3DCameraLookAt(const Coord3D &pos, const Coord3D &dir, Real roll) override; ///< Set the actual camera position and view direction
 
 	virtual void setCameraLock(ObjectID id) override;
-	virtual void setSnapMode(CameraLockType lockType, Real lockDist) override;
+	virtual void setSnapMode( CameraLockType lockType, Real lockDist ) override;
 
 	/// Add an impulse force to shake the camera
-	virtual void shake(const Coord3D* epicenter, CameraShakeType shakeType) override;
+	virtual void shake( const Coord3D *epicenter, CameraShakeType shakeType ) override;
 
 	virtual Real getFXPitch() const override { return m_FXPitch; }					///< returns the FX pitch angle
 
 	virtual Bool setViewFilterMode(FilterModes filterMode) override;			///< Turns on viewport special effect (black & white mode)
 	virtual Bool setViewFilter(FilterTypes filter) override;			///< Turns on viewport special effect (black & white mode)
-	virtual void setViewFilterPos(const Coord3D* pos) override;			///<  Passes a position to the special effect filter.
-	virtual FilterModes getViewFilterMode() override { return m_viewFilterMode; }			///< Turns on viewport special effect (black & white mode)
-	virtual FilterTypes getViewFilterType() override { return m_viewFilter; }			///< Turns on viewport special effect (black & white mode)
+	virtual void setViewFilterPos(const Coord3D *pos) override;			///<  Passes a position to the special effect filter.
+	virtual FilterModes getViewFilterMode() override {return m_viewFilterMode;}			///< Turns on viewport special effect (black & white mode)
+	virtual FilterTypes getViewFilterType() override {return m_viewFilter;}			///< Turns on viewport special effect (black & white mode)
 	virtual void setFadeParameters(Int fadeFrames, Int direction) override;
 	virtual void set3DWireFrameMode(Bool enable) override;	///<enables custom wireframe rendering of 3D viewport
 
 	Bool updateCameraMovements();
 	virtual void forceCameraAreaConstraintRecalc() override { m_cameraAreaConstraintsValid = false; }
 
-	virtual void setGuardBandBias(const Coord2D* gb) override { m_guardBandBias.x = gb->x; m_guardBandBias.y = gb->y; }
+	virtual void setGuardBandBias( const Coord2D *gb ) override { m_guardBandBias.x = gb->x; m_guardBandBias.y = gb->y; }
 
 private:
 
-	CameraClass* m_3DCamera;												///< camera representation for 3D scene
-	CameraClass* m_2DCamera;												///< camera for UI overlayed on top of 3D scene
+	CameraClass *m_3DCamera;												///< camera representation for 3D scene
+	CameraClass *m_2DCamera;												///< camera for UI overlayed on top of 3D scene
 	FilterModes m_viewFilterMode;
 	FilterTypes m_viewFilter;
 	Bool m_isWireFrameEnabled;
@@ -308,8 +308,8 @@ private:
 	void updateCameraTransform(); ///< update the transform matrix of m_3DCamera, based on m_pos & m_angle
 	void updateCameraClipPlanes(const Matrix3D &transform);
 	void setCameraTransform(const Matrix3D &transform);
-	void buildCameraPosition(Vector3& sourcePos, Vector3& targetPos);
-	void buildCameraTransform(Matrix3D* transform, const Vector3& sourcePos, const Vector3& targetPos); ///< calculate (but do not set) the transform matrix of m_3DCamera, based on m_pos & m_angle
+	void buildCameraPosition(Vector3 &sourcePos, Vector3 &targetPos);
+	void buildCameraTransform(Matrix3D *transform, const Vector3 &sourcePos, const Vector3 &targetPos); ///< calculate (but do not set) the transform matrix of m_3DCamera, based on m_pos & m_angle
 	Bool zoomCameraToDesiredHeight();
 	Bool movePivotToGround();
 	void updateCameraAreaConstraints();
@@ -323,13 +323,13 @@ private:
 	void addScriptedState(ScriptedState state);
 	void removeScriptedState(ScriptedState state);
 	void moveAlongWaypointPath(Real milliseconds); ///< Move camera along path.
-	void getPickRay(const ICoord2D* screen, Vector3* rayStart, Vector3* rayEnd);	///<returns a line segment (ray) originating at the given screen position
+	void getPickRay(const ICoord2D *screen, Vector3 *rayStart, Vector3 *rayEnd);	///<returns a line segment (ray) originating at the given screen position
 	void setupWaypointPath(Bool orient);					///< Calculates distances & angles for moving along a waypoint path.
 	void rotateCameraOneFrame();							///< Do one frame of a rotate camera movement.
 	void zoomCameraOneFrame();							///< Do one frame of a zoom camera movement.
 	void pitchCameraOneFrame();							///< Do one frame of a pitch camera movement.
-	void getAxisAlignedViewRegion(Region3D& axisAlignedRegion);	///< Find 3D Region enclosing all possible drawables.
-	void calcDeltaScroll(Coord2D& screenDelta);
+	void getAxisAlignedViewRegion(Region3D &axisAlignedRegion);	///< Find 3D Region enclosing all possible drawables.
+	void calcDeltaScroll(Coord2D &screenDelta);
 	void updateTerrain();
 
 	// (gth) C&C3 animation controlled camera feature
