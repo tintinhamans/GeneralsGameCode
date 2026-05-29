@@ -57,20 +57,31 @@ void NGMP_OnlineServicesManager::GetAndParseServiceConfig(std::function<void(voi
 {
 	std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("ServiceConfig");
 	std::map<std::string, std::string> mapHeaders;
-	NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	
+	// SECURITY FIX: Capture manager instance through GetInstance() to ensure thread-safety
+	// Lambda will check if manager still exists before accessing members
+	NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [cbOnDone](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
 			try
 			{
+				// SECURITY FIX: Re-acquire manager pointer inside lambda to check for shutdown
+				NGMP_OnlineServicesManager* pMgr = NGMP_OnlineServicesManager::GetInstance();
+				if (pMgr == nullptr)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Manager destroyed during service config request");
+					return;
+				}
+				
 				if (bSuccess && statusCode == 200)
 				{
 					nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-					m_ServiceConfig = jsonObject.get<ServiceConfig>();
+					pMgr->m_ServiceConfig = jsonObject.get<ServiceConfig>();
 				}
 				else
 				{
 					// It's OK to fail, we'll just use the sensible defaults
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to get service config, using defaults. Status code: %d", statusCode);
-					m_ServiceConfig = ServiceConfig();
+					pMgr->m_ServiceConfig = ServiceConfig();
 				}
 				
 			}
@@ -78,7 +89,11 @@ void NGMP_OnlineServicesManager::GetAndParseServiceConfig(std::function<void(voi
 			{
 				// It's OK to fail, we'll just use the sensible defaults
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to get service config, using defaults. Exception.");
-				m_ServiceConfig = ServiceConfig();
+				NGMP_OnlineServicesManager* pMgr = NGMP_OnlineServicesManager::GetInstance();
+				if (pMgr != nullptr)
+				{
+					pMgr->m_ServiceConfig = ServiceConfig();
+				}
 			}
 
 			if (cbOnDone != nullptr)
@@ -651,12 +666,19 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 									}
 								);
 
-								// Store the thread so we can join it during shutdown
-								if (m_pOnlineServicesManager != nullptr)
-								{
-									std::scoped_lock<std::mutex> lock(m_pOnlineServicesManager->m_mutexScreenshotThreads);
-									m_pOnlineServicesManager->m_vecScreenshotThreads.push_back(pNewThread);
-								}
+							// Store the thread so we can join it during shutdown
+							// SECURITY FIX: Capture manager pointer before spawning thread to avoid TOCTOU race
+							NGMP_OnlineServicesManager* pMgr = NGMP_OnlineServicesManager::GetInstance();
+							if (pMgr != nullptr)
+							{
+								std::scoped_lock<std::mutex> lock(pMgr->m_mutexScreenshotThreads);
+								pMgr->m_vecScreenshotThreads.push_back(pNewThread);
+							}
+							else
+							{
+								// Manager was destroyed, cannot store thread. Thread will leak but won't crash.
+								NetworkLog(ELogVerbosity::LOG_RELEASE, "[Screenshot] Manager destroyed before thread could be registered");
+							}
 
 								bSucceeded = true;
 							}

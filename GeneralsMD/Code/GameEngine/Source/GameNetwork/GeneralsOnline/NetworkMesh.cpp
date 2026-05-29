@@ -22,9 +22,36 @@ UnsignedInt m_exeCRCOriginal = 0;
 // Static flag to track if NetworkMesh is being destroyed to prevent callback re-entry
 static std::atomic<bool> g_bNetworkMeshDestroying = false;
 
+// SECURITY FIX: Thread-safe pool for deferred deletion of ConnectionSignaling objects
+// to prevent "delete this" races during async Steam callbacks
+static std::mutex g_pendingDeletionMutex;
+static std::vector<void*> g_pendingConnSignalingDeletions;
+
+// Clean up pending ConnectionSignaling objects that were deferred during Release()
+// Forward declaration needed since ConnectionSignaling is nested inside CSignalingClient
+struct ISteamNetworkingConnectionSignaling;
+
+static void CleanupPendingConnSignalingDeletions()
+{
+	std::vector<void*> objectsToDelete;
+	{
+		std::scoped_lock<std::mutex> lock(g_pendingDeletionMutex);
+		objectsToDelete.swap(g_pendingConnSignalingDeletions);
+	}
+	
+	for (void* pObj : objectsToDelete)
+	{
+		// SECURITY: Delete through base interface to avoid nested class visibility issues
+		delete static_cast<ISteamNetworkingConnectionSignaling*>(pObj);
+	}
+}
+
 // Called when a connection undergoes a state transition
 void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)
 {
+	// Clean up any pending ConnectionSignaling deletions from previous callbacks
+	CleanupPendingConnSignalingDeletions();
+	
 	// Early exit if NetworkMesh is being destroyed to prevent use-after-free
 	if (g_bNetworkMeshDestroying.load())
 	{
@@ -367,7 +394,12 @@ class CSignalingClient : public ISignalingClient
 		// Self destruct.  This will be called by SteamNetworkingSockets when it's done with us.
 		virtual void Release() override
 		{
-			delete this;
+			// SECURITY FIX: Avoid immediate "delete this" which can cause use-after-free
+			// when called from async Steam callbacks. Instead, defer deletion to prevent
+			// races where CSignalingClient might be destroyed while this object is still
+			// being accessed or its owner pointer is being used.
+			std::scoped_lock<std::mutex> lock(g_pendingDeletionMutex);
+			g_pendingConnSignalingDeletions.push_back(static_cast<void*>(this));
 		}
 	};
 
