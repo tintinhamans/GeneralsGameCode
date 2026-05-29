@@ -29,7 +29,7 @@ extern "C"
 }
 
 NGMP_OnlineServicesManager* NGMP_OnlineServicesManager::m_pOnlineServicesManager = nullptr;
-
+std::mutex NGMP_OnlineServicesManager::m_singletonMutex;
 
 std::thread::id NGMP_OnlineServicesManager::g_MainThreadID;
 std::mutex NGMP_OnlineServicesManager::m_ScreenshotMutex;
@@ -508,7 +508,11 @@ void NGMP_OnlineServicesManager::ContinueUpdate()
 			TheDownloadManager->OnStatusUpdate(DOWNLOADSTATUS_FINISHING);
 		}
 
-		m_updateCompleteCallback();
+		std::scoped_lock<std::mutex> lock(m_updateCallbackMutex);
+		if (m_updateCompleteCallback != nullptr)
+		{
+			m_updateCompleteCallback();
+		}
 	}
 	
 }
@@ -769,7 +773,10 @@ void NGMP_OnlineServicesManager::StartDownloadUpdate(std::function<void(void)> c
 	m_vecFilesToDownload.emplace(m_patcher_path);
 	m_vecFilesSizes.emplace(m_patcher_size);
 	
-	m_updateCompleteCallback = cb;
+	{
+		std::scoped_lock<std::mutex> lock(m_updateCallbackMutex);
+		m_updateCompleteCallback = cb;
+	}
 
 	// cleanup current folder
 	std::string strPatchDir = GetPatcherDirectoryPath();

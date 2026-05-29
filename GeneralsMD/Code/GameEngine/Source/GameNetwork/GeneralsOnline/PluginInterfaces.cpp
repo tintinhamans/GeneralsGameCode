@@ -421,7 +421,7 @@ void AnticheatPlugInterface::DisconnectPlayer(const char* szMiddlewareUserID, ui
 {
     if (IsPluginLoaded() && Functions.fnDisconnectPlayer != nullptr)
     {
-        return Functions.fnDisconnectPlayer(szMiddlewareUserID, goUserID);
+        Functions.fnDisconnectPlayer(szMiddlewareUserID, goUserID);
     }
 }
 
@@ -429,7 +429,7 @@ void AnticheatPlugInterface::DisconnectAll()
 {
     if (IsPluginLoaded() && Functions.fnDisconnectAll != nullptr)
     {
-        return Functions.fnDisconnectAll();
+        Functions.fnDisconnectAll();
     }
 }
 

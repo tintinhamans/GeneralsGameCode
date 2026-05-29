@@ -18,7 +18,7 @@
 #endif
 
 #if !defined(_DEBUG)
-//#define USE_TEST_ENV 1
+#define USE_TEST_ENV 1
 #endif
 
 #define HTTP_UPLOAD_TIMEOUT 600000

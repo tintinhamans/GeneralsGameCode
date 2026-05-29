@@ -142,9 +142,11 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 					if (pLobbyInterface != nullptr)
 					{
 						NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Performing local removal for user %lld from lobby due to failure to connect\n", plrConnection.m_userID);
-						if (pLobbyInterface->m_OnCannotConnectToLobbyCallback != nullptr)
+						// Local copy to avoid TOCTOU race: check-then-use window
+						auto callbackCopy = pLobbyInterface->m_OnCannotConnectToLobbyCallback;
+						if (callbackCopy != nullptr)
 						{
-							pLobbyInterface->m_OnCannotConnectToLobbyCallback();
+							callbackCopy();
 						}
 					}
 				}

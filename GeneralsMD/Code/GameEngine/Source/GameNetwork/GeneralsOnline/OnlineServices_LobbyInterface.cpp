@@ -986,6 +986,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 									UpdateCurrentLobby_HasMap();
 								}
 
+								std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 								if (m_RosterNeedsRefreshCallback != nullptr)
 								{
 									m_RosterNeedsRefreshCallback();

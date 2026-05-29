@@ -313,7 +313,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 #ifdef	DEBUG_WINDOWS_MESSAGES
 		static msgCount = 0;
 		char testString[256];
-		sprintf(testString, "\n%d: %s (%X,%X)", msgCount++, messageToString(message), wParam, lParam);
+		snprintf(testString, sizeof(testString), "\n%d: %s (%X,%X)", msgCount++, messageToString(message), wParam, lParam);
 		OutputDebugString(testString);
 #endif
 
@@ -855,7 +855,7 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		char filePath[_MAX_PATH];
 		const char* fileName = "Install_Final.bmp";
 		static const char* localizedPathFormat = "Data/%s/";
-		sprintf(filePath, localizedPathFormat, GetRegistryLanguage().str());
+			snprintf(filePath, sizeof(filePath), localizedPathFormat, GetRegistryLanguage().str());
 		strlcat(filePath, fileName, ARRAY_SIZE(filePath));
 		FILE* fileImage = fopen(filePath, "r");
 		if (fileImage) {
@@ -906,9 +906,9 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 #if defined(GENERALS_ONLINE)
 		TheVersion->setVersion(VERSION_MAJOR, VERSION_MINOR, GENERALS_ONLINE_VERSION, GENERALS_ONLINE_NET_VERSION,
 	#if !defined(_DEBUG)
-			AsciiString("Generals Online Development Team | GitHub Buildserver"), AsciiString(""),
+			AsciiString("Generals Online Development Team | 1GitHub Buildserver"), AsciiString(""),
 	#else
-			AsciiString("Generals Online Development Team | Development Test Build"), AsciiString(""),
+			AsciiString("Generals Online Development Team |1Development Test Build"), AsciiString(""),
 	#endif
 			AsciiString(__TIME__), AsciiString(__DATE__));
 #else
