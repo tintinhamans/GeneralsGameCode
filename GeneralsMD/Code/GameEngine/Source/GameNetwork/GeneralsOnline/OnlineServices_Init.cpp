@@ -14,6 +14,7 @@
 #include "GameClient/Display.h"
 #include "surfaceclass.h"
 #include "dx8wrapper.h"
+#include <mutex>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION

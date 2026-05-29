@@ -58,6 +58,13 @@ public:
 		return strConnectionType.find("Relayed") == std::string::npos;
 	}
 
+	bool IsValid() const
+	{
+		return m_State != EConnectionState::NOT_CONNECTED && 
+		       m_State != EConnectionState::CONNECTION_FAILED && 
+		       m_State != EConnectionState::CONNECTION_DISCONNECTED;
+	}
+
 	int Recv(SteamNetworkingMessage_t** pMsg);
 
 	int GetHighestHistoricalLatency()
