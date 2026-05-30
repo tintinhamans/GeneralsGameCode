@@ -963,6 +963,9 @@ GlobalData::GlobalData()
 
 	m_observerStatsFontSize = 7;
 	m_observerNotificationFontSize = 10;
+	m_observerNotificationSpecialPowerUsage = TRUE;
+	m_observerNotificationSpecialPowerPurchase = TRUE;
+	m_observerNotificationMilestone = TRUE;
 
 	m_showMoneyPerMinute = FALSE;
 	m_allowMoneyPerMinuteForPlayer = FALSE;
@@ -1258,6 +1261,9 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_showMoneyPerMinute = optionPref.getShowMoneyPerMinute();
 	TheWritableGlobalData->m_observerStatsFontSize = optionPref.getObserverStatsFontSize();
 	TheWritableGlobalData->m_observerNotificationFontSize = optionPref.getObserverNotificationFontSize();
+	TheWritableGlobalData->m_observerNotificationSpecialPowerUsage = optionPref.getObserverNotificationSpecialPowerUsage();
+	TheWritableGlobalData->m_observerNotificationSpecialPowerPurchase = optionPref.getObserverNotificationSpecialPowerPurchase();
+	TheWritableGlobalData->m_observerNotificationMilestone = optionPref.getObserverNotificationMilestone();
 
 	TheWritableGlobalData->m_antiAliasLevel = optionPref.getAntiAliasing();
 	TheWritableGlobalData->m_textureFilteringMode = optionPref.getTextureFilterMode();

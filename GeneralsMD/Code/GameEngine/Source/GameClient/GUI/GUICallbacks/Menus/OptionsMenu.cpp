@@ -838,6 +838,17 @@ static void saveOptions()
 	}
 
 	//-------------------------------------------------------------------------------------------------
+	// Set Observer Stats Font Size
+	val = pref->getObserverStatsFontSize();
+	if (val >= 0)
+	{
+		AsciiString prefString;
+		prefString.format("%d", val);
+		(*pref)["ObserverStatsFontSize"] = prefString;
+		TheInGameUI->initObserverOverlay();
+	}
+
+	//-------------------------------------------------------------------------------------------------
 	// Resolution
 	//
 	// TheSuperHackers @bugfix xezon 12/06/2025 Now performs the resolution change at the very end of
