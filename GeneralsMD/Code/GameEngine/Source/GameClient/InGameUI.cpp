@@ -2291,6 +2291,9 @@ void InGameUI::reset()
 
 	m_windowLayouts.clear();
 
+	m_observerNotifications.clear();
+	m_observerMilestones.clear();
+
 	m_tooltipsDisabledUntil = 0;
 
 	UpdateDiplomacyBriefingText(AsciiString::TheEmptyString, TRUE);
