@@ -272,6 +272,15 @@ void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
 
         AC_PLUGIN_LOAD_FUNCTION(Tick);
         AC_PLUGIN_LOAD_FUNCTION(Shutdown);
+#else
+    // Initialize AC
+    AC_PLUGIN_LOAD_FUNCTION(Initialize);
+
+    int result = Functions.fnInitialize();
+    NetworkLog(ELogVerbosity::LOG_RELEASE, "Initialize result = %d", result);
+
+       AC_PLUGIN_LOAD_FUNCTION(IsExternalProcessRunning);
+        AC_PLUGIN_LOAD_FUNCTION(GetAnticheatIdentifier);
 #endif
     }
 }
@@ -459,9 +468,7 @@ void AnticheatPlugInterface::DisconnectAll()
 #endif
 }
 
-#if defined(AC_ENABLED)
 AnticheatPlugInterface::AnticheatPluginFunctionPtrs AnticheatPlugInterface::Functions;
-#endif
 
 HMODULE AnticheatPlugInterface::g_hACPluginModule = nullptr;
 bool AnticheatPlugInterface::m_bPluginLoadFailed = false;

@@ -172,11 +172,13 @@ public:
 #else
     typedef bool (*FuncDefIsExternalProcessRunning)(void);
     typedef int (*FuncDefGetAnticheatIdentifier)(void);
+    typedef int (*FuncDefInitialize)();
 
     struct AnticheatPluginFunctionPtrs
     {
         FuncDefIsExternalProcessRunning fnIsExternalProcessRunning = nullptr;
         FuncDefGetAnticheatIdentifier fnGetAnticheatIdentifier = nullptr;
+        FuncDefInitialize fnInitialize = nullptr;
     };
     static AnticheatPluginFunctionPtrs Functions;
 #endif
