@@ -1,5 +1,7 @@
 #pragma once
 
+#define AC_ENABLED 1
+
 enum class EConnectionState : uint8_t
 {
     NOT_CONNECTED,
@@ -80,15 +82,6 @@ public:
     static void EndSession();
 
     // transport related
-    typedef void (*FuncDefStartSignalling)(const char* szMiddlewareUserID, uint64_t goUserID);
-    typedef void (*FuncDefSendPacket)(const char* szMiddlewareUserID, uint64_t targetGoUserID, void* pData, int numBytes, ENetworkChannels channel, EPacketReliability reliability);
-    typedef bool (*FuncDefDoesACPluginProvideSecureGameTransport)(void);
-    typedef int (*FuncDefGetNextRecvPacketSize)(uint8_t channelToReceiveOn);
-    typedef bool (*FuncDefRecvPacket)(uint8_t** pOutData, uint8_t channelToReceiveOn);
-    typedef void (*FuncDefFreePacket)(void* pPacketData);
-    typedef void (*FuncDefDisconnectPlayer)(const char* szMiddlewareUserID, uint64_t goUserID);
-    typedef void (*FuncDefDisconnectAll)();
-
     static bool DoesACPluginProvideSecureGameTransport();
     static void SendPacket(const char* szMiddlewareUserID, uint64_t targetGoUserID, void* pData, int numBytes, ENetworkChannels channel, EPacketReliability reliability);
     static void StartSignalling(const char* szMiddlewareUserID, uint64_t goUserID);
@@ -97,6 +90,16 @@ public:
 
     static void DisconnectPlayer(const char* szMiddlewareUserID, uint64_t goUserID);
     static void DisconnectAll();
+
+#if defined(AC_ENABLED)
+    typedef void (*FuncDefStartSignalling)(const char* szMiddlewareUserID, uint64_t goUserID);
+    typedef void (*FuncDefSendPacket)(const char* szMiddlewareUserID, uint64_t targetGoUserID, void* pData, int numBytes, ENetworkChannels channel, EPacketReliability reliability);
+    typedef bool (*FuncDefDoesACPluginProvideSecureGameTransport)(void);
+    typedef int (*FuncDefGetNextRecvPacketSize)(uint8_t channelToReceiveOn);
+    typedef bool (*FuncDefRecvPacket)(uint8_t** pOutData, uint8_t channelToReceiveOn);
+    typedef void (*FuncDefFreePacket)(void* pPacketData);
+    typedef void (*FuncDefDisconnectPlayer)(const char* szMiddlewareUserID, uint64_t goUserID);
+    typedef void (*FuncDefDisconnectAll)();
 
     // Callbacks from plugin
     typedef void (*LoginCallback)(bool bSuccess);
@@ -166,6 +169,17 @@ public:
         FuncDefDisconnectAll fnDisconnectAll = nullptr;
     };
     static AnticheatPluginFunctionPtrs Functions;
+#else
+    typedef bool (*FuncDefIsExternalProcessRunning)(void);
+    typedef int (*FuncDefGetAnticheatIdentifier)(void);
+
+    struct AnticheatPluginFunctionPtrs
+    {
+        FuncDefIsExternalProcessRunning fnIsExternalProcessRunning = nullptr;
+        FuncDefGetAnticheatIdentifier fnGetAnticheatIdentifier = nullptr;
+    };
+    static AnticheatPluginFunctionPtrs Functions;
+#endif
 
     // Module
     static HMODULE g_hACPluginModule;
