@@ -3868,12 +3868,8 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 								NGMPGameSlot* pSlot = (NGMPGameSlot*)myGame->getSlot(i);
 								int64_t userBeingKicked = pSlot->m_userID;
 
-								NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-								if (pLobbyInterface != nullptr)
-								{
-									pLobbyInterface->UpdateCurrentLobby_KickUser(userBeingKicked, name);
-								}
-
+								pLobbyInterface->UpdateCurrentLobby_KickUser(userBeingKicked, name);
+								pLobbyInterface->UpdateCurrentLobby_SetSlotState(i, SlotState(pos));  // use what host selected
 								myGame->getSlot(i)->setState(SlotState(pos));
 								myGame->resetAccepted();
 
