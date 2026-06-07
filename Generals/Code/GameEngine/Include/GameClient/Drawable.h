@@ -411,7 +411,7 @@ public:
 
 	const Matrix3D *getTransformMatrix() const;	///< return the world transform
 
-	void draw( View *view );													///< render the drawable to the given view
+	void draw();													///< render the drawable to the given view
 	void updateDrawable();														///< update the drawable
 
 	void drawIconUI();													///< draw "icon"(s) needed on drawable (health bars, veterency, etc)
@@ -576,7 +576,7 @@ public:
   // Stuff for overriding ambient sound
   const AudioEventInfo * getBaseSoundAmbientInfo() const; //< Possible starting point if only some parameters are customized
   void enableAmbientSoundFromScript( Bool enable );
-  const AudioEventRTS * getAmbientSound() const { return m_ambientSound == nullptr ? nullptr : &m_ambientSound->m_event; }
+  const AudioEventRTS * getAmbientSound() const { return m_ambientSound == nullptr ? nullptr : m_ambientSound.Peek(); }
   void setCustomSoundAmbientOff(); //< Kill the ambient sound
   void setCustomSoundAmbientInfo( DynamicAudioEventInfo * customAmbientInfo ); //< Set ambient sound.
   void clearCustomSoundAmbient() { clearCustomSoundAmbient( true ); } //< Return to using defaults
@@ -647,6 +647,8 @@ protected:
 
 private:
 
+	const Locomotor* getLocomotor() const;
+
 	// note, these are lazily allocated!
 	TintEnvelope*		m_selectionFlashEnvelope;	///< used for selection flash, works WITH m_colorTintEnvelope
 	TintEnvelope*		m_colorTintEnvelope;			///< house color flashing, etc... works WITH m_selectionFlashEnvelope
@@ -692,7 +694,9 @@ private:
 
 	DrawableLocoInfo*	m_locoInfo;	// lazily allocated
 
-	DynamicAudioEventRTS*	m_ambientSound;		///< sound module for ambient sound (lazily allocated)
+	PhysicsXformInfo* m_physicsXform;
+
+	RefCountPtr<DynamicAudioEventRTS> m_ambientSound;		///< sound module for ambient sound (lazily allocated)
 
 	Module** m_modules[NUM_DRAWABLE_MODULE_TYPES];
 
