@@ -30,7 +30,7 @@ extern "C"
 }
 
 NGMP_OnlineServicesManager* NGMP_OnlineServicesManager::m_pOnlineServicesManager = nullptr;
-std::mutex NGMP_OnlineServicesManager::m_singletonMutex;
+std::recursive_mutex NGMP_OnlineServicesManager::m_singletonMutex;
 
 std::thread::id NGMP_OnlineServicesManager::g_MainThreadID;
 std::mutex NGMP_OnlineServicesManager::m_ScreenshotMutex;

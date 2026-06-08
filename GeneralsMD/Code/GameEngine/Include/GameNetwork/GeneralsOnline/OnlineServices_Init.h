@@ -339,7 +339,7 @@ public:
 
 	static void CreateInstance()
 	{
-		std::scoped_lock<std::mutex> lock(m_singletonMutex);
+		std::scoped_lock<std::recursive_mutex> lock(m_singletonMutex);
 		if (m_pOnlineServicesManager == nullptr)
 		{
 			m_pOnlineServicesManager = new NGMP_OnlineServicesManager();
@@ -348,7 +348,7 @@ public:
 
 	static void DestroyInstance()
 	{
-		std::scoped_lock<std::mutex> lock(m_singletonMutex);
+		std::scoped_lock<std::recursive_mutex> lock(m_singletonMutex);
 		if (m_pOnlineServicesManager != nullptr)
 		{
 			m_pOnlineServicesManager->Shutdown();
@@ -362,11 +362,11 @@ public:
 
 	void CommitReplay(AsciiString absoluteReplayPath);
 
-	static std::mutex m_singletonMutex;
+	static std::recursive_mutex m_singletonMutex;
 	
 	static NGMP_OnlineServicesManager* GetInstance()
 	{
-		std::scoped_lock<std::mutex> lock(m_singletonMutex);
+		std::scoped_lock<std::recursive_mutex> lock(m_singletonMutex);
 		return m_pOnlineServicesManager;
 	}
 
