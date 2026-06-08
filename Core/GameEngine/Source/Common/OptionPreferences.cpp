@@ -66,6 +66,41 @@ Bool OptionPreferences::loadFromIniFile()
 	return load("Options.ini");
 }
 
+WW3D::MultiSampleModeEnum OptionPreferences::getAntiAliasing() const
+{
+	OptionPreferences::const_iterator it = find("AntiAliasing");
+	if (it == end())
+		return WW3D::MULTISAMPLE_MODE_NONE;
+
+	WW3D::MultiSampleModeEnum level = (WW3D::MultiSampleModeEnum)atoi(it->second.str());
+	level = clamp(WW3D::MULTISAMPLE_MODE_NONE, level, WW3D::MULTISAMPLE_MODE_8X);
+	level = highestBit(level);
+
+	return level;
+}
+
+TextureFilterClass::TextureFilterMode OptionPreferences::getTextureFilterMode() const
+{
+	OptionPreferences::const_iterator it = find("TextureFilter");
+	if (it == end())
+		return TextureFilterClass::TEXTURE_FILTER_BILINEAR;
+
+	return TextureFilterClass::getTextureFilterMode(it->second.str());
+}
+
+TextureFilterClass::AnisotropicFilterMode OptionPreferences::getTextureAnisotropyLevel() const
+{
+	OptionPreferences::const_iterator it = find("AnisotropyLevel");
+	if (it == end())
+		return TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC_2X;
+
+	TextureFilterClass::AnisotropicFilterMode level = (TextureFilterClass::AnisotropicFilterMode)atoi(it->second.str());
+	level = clamp(TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC_2X, level, TextureFilterClass::TEXTURE_FILTER_ANISOTROPIC_16X);
+	level = highestBit(level);
+
+	return level;
+}
+
 Int OptionPreferences::getCampaignDifficulty()
 {
 	OptionPreferences::const_iterator it = find("CampaignDifficulty");
@@ -81,14 +116,57 @@ Int OptionPreferences::getCampaignDifficulty()
 	return factor;
 }
 
-Int OptionPreferences::getObserverNotificationFontSize(void) {
-    OptionPreferences::const_iterator it = find("ObserverNotificationFontSize");
-    if (it == end())
-        return 10;
-    Int fontSize = atoi(it->second.str());
-    if (fontSize < 0)
-        fontSize = 0;
-    return fontSize;
+Int OptionPreferences::getObserverNotificationFontSize(void)
+{
+	OptionPreferences::const_iterator it = find("ObserverNotificationFontSize");
+	if (it == end())
+		return 10;
+	Int fontSize = atoi(it->second.str());
+	if (fontSize < 0)
+	{
+		fontSize = 0;
+	}
+	if (fontSize > 15)
+	{
+		fontSize = 15;
+	}
+	return fontSize;
+}
+
+Bool OptionPreferences::getObserverNotificationSpecialPowerUsage(void)
+{
+	OptionPreferences::const_iterator it = find("ObserverNotificationSpecialPowerUsage");
+	if (it == end())
+		return TheGlobalData->m_observerNotificationSpecialPowerUsage;
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
+		return TRUE;
+	}
+	return FALSE;
+}
+
+Bool OptionPreferences::getObserverNotificationSpecialPowerPurchase(void)
+{
+	OptionPreferences::const_iterator it = find("ObserverNotificationSpecialPowerPurchase");
+	if (it == end())
+		return TheGlobalData->m_observerNotificationSpecialPowerPurchase;
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
+		return TRUE;
+	}
+	return FALSE;
+}
+
+Bool OptionPreferences::getObserverNotificationMilestone(void)
+{
+	OptionPreferences::const_iterator it = find("ObserverNotificationMilestone");
+	if (it == end())
+		return TheGlobalData->m_observerNotificationMilestone;
+	if (stricmp(it->second.str(), "yes") == 0)
+	{
+		return TRUE;
+	}
+	return FALSE;
 }
 
 Int OptionPreferences::getObserverStatsFontSize(void)
@@ -96,12 +174,15 @@ Int OptionPreferences::getObserverStatsFontSize(void)
     OptionPreferences::const_iterator it = find("ObserverStatsFontSize");
     if (it == end())
         return 7;
-
     Int fontSize = atoi(it->second.str());
     if (fontSize < 0)
     {
         fontSize = 0;
     }
+	if (fontSize > 15)
+	{
+		fontSize = 15;
+	}
     return fontSize;
 }
 

@@ -1530,6 +1530,10 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 #endif
 	);
 
+	if (!D3DTexture) {
+		return false;
+	}
+
 	MipLevelCount = mip_level_count;
 
 	return true;
@@ -1624,6 +1628,10 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 		D3DPOOL_SYSTEMMEM
 #endif
 	);
+
+	if (!D3DTexture) {
+		return false;
+	}
 
 	return true;
 }
@@ -1775,6 +1783,10 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 
 void TextureLoadTaskClass::Lock_Surfaces()
 {
+	if (!D3DTexture) {
+		return;
+	}
+
 	MipLevelCount = D3DTexture->GetLevelCount();
 
 	for (unsigned int i = 0; i < MipLevelCount; ++i)

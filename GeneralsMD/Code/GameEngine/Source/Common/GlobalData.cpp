@@ -32,6 +32,9 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "ww3d.h"
+#include "texturefilter.h"
+
 #include "Common/GlobalData.h"
 
 #define DEFINE_TERRAIN_LOD_NAMES
@@ -182,7 +185,9 @@ GlobalData* GlobalData::m_theOriginal = nullptr;
 	{ "ViewportHeightScale", INI::parseReal, nullptr, offsetof( GlobalData, m_viewportHeightScale ) },
 	{ "CameraPitch",								INI::parseReal,				nullptr,			offsetof( GlobalData, m_cameraPitch ) },
 	{ "CameraYaw",									INI::parseReal,				nullptr,			offsetof( GlobalData, m_cameraYaw ) },
+#if PRESERVE_RETAIL_SCRIPTED_CAMERA
 	{ "CameraHeight",								INI::parseReal,				nullptr,			offsetof( GlobalData, m_cameraHeight ) },
+#endif
 	{ "MaxCameraHeight",						INI::parseReal,				nullptr,			offsetof( GlobalData, m_maxCameraHeight ) },
 	{ "MinCameraHeight",						INI::parseReal,				nullptr,			offsetof( GlobalData, m_minCameraHeight ) },
 	{ "TerrainHeightAtEdgeOfMap",					INI::parseReal,				nullptr,			offsetof( GlobalData, m_terrainHeightAtEdgeOfMap ) },
@@ -443,7 +448,7 @@ GlobalData* GlobalData::m_theOriginal = nullptr;
 	{	"CameraAudibleRadius",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_cameraAudibleRadius ) },
 	{ "GroupMoveClickToGatherAreaFactor", INI::parseReal,	nullptr,			offsetof( GlobalData, m_groupMoveClickToGatherFactor ) },
 
-#if !PRESERVE_RETAIL_BEHAVIOR
+#if ALLOW_MONEY_PER_MINUTE_FOR_PLAYER
 	{ "AllowMoneyPerMinuteForPlayer",	INI::parseBool,			nullptr,			offsetof( GlobalData, m_allowMoneyPerMinuteForPlayer ) },
 #endif
 
@@ -843,7 +848,9 @@ GlobalData::GlobalData()
 
 	m_cameraPitch = 0.0f;
 	m_cameraYaw = 0.0f;
+#if PRESERVE_RETAIL_SCRIPTED_CAMERA
 	m_cameraHeight = 0.0f;
+#endif
 	m_minCameraHeight = 100.0f;
 	m_maxCameraHeight = 300.0f;
 	m_terrainHeightAtEdgeOfMap = 0.0f;
@@ -931,7 +938,9 @@ GlobalData::GlobalData()
 
 	m_standardPublicBones.clear();
 
-	m_antiAliasBoxValue = 0;
+	m_antiAliasLevel = WW3D::MultiSampleModeEnum::MULTISAMPLE_MODE_NONE;
+	m_textureFilteringMode = TextureFilterClass::TextureFilterMode::TEXTURE_FILTER_BILINEAR;
+	m_textureAnisotropyLevel = TextureFilterClass::AnisotropicFilterMode::TEXTURE_FILTER_ANISOTROPIC_2X;
 
 //	m_languageFilterPref = false;
 	m_languageFilterPref = true;
@@ -954,6 +963,9 @@ GlobalData::GlobalData()
 
 	m_observerStatsFontSize = 7;
 	m_observerNotificationFontSize = 10;
+	m_observerNotificationSpecialPowerUsage = TRUE;
+	m_observerNotificationSpecialPowerPurchase = TRUE;
+	m_observerNotificationMilestone = TRUE;
 
 	m_showMoneyPerMinute = FALSE;
 	m_allowMoneyPerMinuteForPlayer = FALSE;
@@ -1249,6 +1261,13 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_showMoneyPerMinute = optionPref.getShowMoneyPerMinute();
 	TheWritableGlobalData->m_observerStatsFontSize = optionPref.getObserverStatsFontSize();
 	TheWritableGlobalData->m_observerNotificationFontSize = optionPref.getObserverNotificationFontSize();
+	TheWritableGlobalData->m_observerNotificationSpecialPowerUsage = optionPref.getObserverNotificationSpecialPowerUsage();
+	TheWritableGlobalData->m_observerNotificationSpecialPowerPurchase = optionPref.getObserverNotificationSpecialPowerPurchase();
+	TheWritableGlobalData->m_observerNotificationMilestone = optionPref.getObserverNotificationMilestone();
+
+	TheWritableGlobalData->m_antiAliasLevel = optionPref.getAntiAliasing();
+	TheWritableGlobalData->m_textureFilteringMode = optionPref.getTextureFilterMode();
+	TheWritableGlobalData->m_textureAnisotropyLevel = optionPref.getTextureAnisotropyLevel();
 
 	Int val=optionPref.getGammaValue();
 	//generate a value between 0.6 and 2.0.

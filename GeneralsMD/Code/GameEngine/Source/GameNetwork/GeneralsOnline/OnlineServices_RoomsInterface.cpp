@@ -17,6 +17,17 @@ WebSocket::WebSocket()
 WebSocket::~WebSocket()
 {
 	Shutdown();
+	// Only call Shutdown if it has not been initiated already.
+	// NGMP_OnlineServicesManager::Shutdown() calls Shutdown() before releasing the shared_ptr,
+	// so calling it again from the destructor would redundantly block for another 100ms sleep
+	// and attempt to free already-released curl resources.
+	if (!m_bShuttingDown)
+	{
+		Shutdown();
+	}
+
+
+
 
 	if (m_pHeaders != nullptr)
 	{
@@ -196,6 +207,14 @@ void WebSocket::Disconnect()
 			curl_slist_free_all(m_pHeaders);
 			m_pHeaders = nullptr;
 		}
+
+
+		// Remove from multi handle before cleanup (required by libcurl)
+		if (m_pMulti != nullptr)
+		{
+			curl_multi_remove_handle(m_pMulti, m_pCurlWS);
+		}
+
 
 		// cleanup
 		curl_easy_cleanup(m_pCurlWS);
@@ -1518,4 +1537,5 @@ void NGMP_OnlineServices_RoomsInterface::OnRosterUpdated(std::unordered_map<uint
 		m_RosterNeedsRefreshCallback();
 	}
 }
+
 

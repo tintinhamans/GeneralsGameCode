@@ -42,6 +42,7 @@
 #include "GameClient/Gadget.h"
 #include "GameClient/GameText.h"
 #include "GameClient/InGameUI.h"
+#include "GameClient/Display.h"
 #include "GameClient/Shell.h"
 #include "GameClient/ShellHooks.h"
 #include "GameClient/KeyDefs.h"
@@ -142,6 +143,8 @@ static Bool raiseMessageBoxes = false;
 static Bool isInInit = FALSE;
 static const Image *selectedImage = nullptr;
 static const Image *unselectedImage = nullptr;
+static const Image *mapHoverPreview = nullptr;
+static GameWinDrawFunc mapListboxPreviewFunc = nullptr;
 
 static bool isPopulatingLadderBox = false;
 static Int maxPingEntries = 0;
@@ -237,7 +240,41 @@ enum{ MAX_DISCONNECTS_COUNT = 5 };
 static Int MAX_DISCONNECTS[MAX_DISCONNECTS_COUNT] = {MAX_DISCONNECTS_ANY, MAX_DISCONNECTS_5,
 																											MAX_DISCONNECTS_10, MAX_DISCONNECTS_25,
 																											MAX_DISCONNECTS_50};
+void updateMapHoverPreview(GameWindow* window, WinInstanceData* instData)
+{
+	if (mapListboxPreviewFunc)
+		mapListboxPreviewFunc(window, instData);
+	if (listboxMapSelect == nullptr)
+		return;
 
+	const MouseIO* mouseStatus = TheMouse->getMouseStatus();
+	Int mouseX = mouseStatus->pos.x;
+	Int mouseY = mouseStatus->pos.y;
+	Int listboxX, listboxY, listboxW, listboxH;
+	listboxMapSelect->winGetScreenPosition(&listboxX, &listboxY);
+	listboxMapSelect->winGetSize(&listboxW, &listboxH);
+
+	// mouse is outside the listbox?
+	if (mouseX < listboxX || mouseX > listboxX + listboxW || mouseY < listboxY || mouseY > listboxY + listboxH)
+		return;
+
+	Int hoveredRow, col;
+	GadgetListBoxGetEntryBasedOnXY(listboxMapSelect, mouseX, mouseY, hoveredRow, col);
+	const MapMetaData* mapData = (const MapMetaData*)GadgetListBoxGetItemData(listboxMapSelect, hoveredRow, 1);
+	mapHoverPreview = mapData ? getMapPreviewImage(mapData->m_fileName) : nullptr;
+
+	if (mapHoverPreview == nullptr)
+		return;
+
+	Real wScale = TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH;
+	Real hScale = TheDisplay->getHeight() / (Real)DEFAULT_DISPLAY_HEIGHT;
+	Real scale = (wScale + hScale) * 0.5f;
+	Int  previewSize = (Int)(50 * scale);
+	Int  offset = (Int)(20 * scale);
+	Int  previewX = mouseX + offset;
+	Int  previewY = mouseY - (previewSize / 2);
+	TheWindowManager->winDrawImage(mapHoverPreview, previewX, previewY, previewX + previewSize, previewY + previewSize);
+}
 
 void UpdateStartButton()
 {
@@ -903,6 +940,11 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	buttonWiden = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch,  buttonWidenID);
 	quickmatchTextWindow = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch,  listboxQuickMatchID);
 	listboxMapSelect = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch,  listboxMapSelectID);
+	if (listboxMapSelect)
+	{
+		mapListboxPreviewFunc = listboxMapSelect->winGetDrawFunc();
+		listboxMapSelect->winSetDrawFunc(updateMapHoverPreview);
+	}
 	//textEntryMaxDisconnects = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMaxDisconnectsID );
 	//textEntryMaxPoints = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMaxPointsID );
 	//textEntryMinPoints = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMinPointsID );
@@ -1117,10 +1159,15 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 
 	// cannot connect to the lobby we joined
+	if (pLobbyInterface != nullptr)
+	{
+
 	pLobbyInterface->RegisterForCannotConnectToLobbyCallback([](void)
 		{
 			// TODO_QUICKMATCH: Show error message + stop matchmaking + enable buttons again
 		});
+	}
+
 
 	// get playlist list
 	NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
@@ -1330,12 +1377,14 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
                         buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
                     }
 					buttonBuddies->winSetText(buttonText);
+
+
                 }
             });
     }
 
     // And also initialize it
-    if (buttonBuddies != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
+    if (buttonBuddies != nullptr && pSocialInterface != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
     {
         UnicodeString buttonText;
         buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), pSocialInterface->GetNumTotalNotifications());
@@ -2488,4 +2537,5 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 
 	return MSG_HANDLED;
 }
+
 

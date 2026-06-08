@@ -717,7 +717,7 @@ void Player::update()
 		}
 	}
 
-#if !PRESERVE_RETAIL_BEHAVIOR && !RETAIL_COMPATIBLE_CRC
+#if !(RETAIL_COMPATIBLE_CRC || PRESERVE_TUNNEL_HEAL_STACKING)
 	// TheSuperHackers @bugfix Stubbjax 26/09/2025 The Tunnel System now heals
 	// all units once per frame instead of once per frame per Tunnel Network.
 	TunnelTracker* tunnelSystem = getTunnelSystem();
@@ -1205,9 +1205,6 @@ struct PlayerObjectFindInfo
 //-------------------------------------------------------------------------------------------------
 static void doFindCommandCenter(Object* obj, void* userData)
 {
-	if (!obj)
-		return;
-
 	PlayerObjectFindInfo* info = (PlayerObjectFindInfo*)userData;
 
 	if (info->obj == nullptr
@@ -2126,6 +2123,18 @@ void Player::setObjectsEnabled(AsciiString templateTypeToAffect, Bool enable)
 }
 
 //=============================================================================
+static void cancelUpgradeInProduction(Object* obj, void* userData)
+{
+	const UpgradeTemplate* upgradeTemplate = static_cast<const UpgradeTemplate*>(userData);
+	ProductionUpdateInterface* pui = ProductionUpdate::getProductionUpdateInterfaceFromObject(obj);
+
+	if (pui && pui->isUpgradeInQueue(upgradeTemplate))
+	{
+		pui->cancelUpgrade(upgradeTemplate);
+	}
+}
+
+//=============================================================================
 void Player::transferAssetsFromThat(Player *that)
 {
 	Team *defaultTeam = getDefaultTeam();
@@ -2133,10 +2142,38 @@ void Player::transferAssetsFromThat(Player *that)
 		return;
 	}
 
+#if !RETAIL_COMPATIBLE_CRC
+	// TheSuperHackers @bugfix Stubbjax 03/02/2026 Cancel any in-progress player upgrades 'that'
+	// player currently has in progress that 'this' player already has in progress or completed.
+	std::vector<const UpgradeTemplate*> upgradesToCancel;
+	for (Upgrade* upgrade = that->m_upgradeList; upgrade; upgrade = upgrade->friend_getNext())
+	{
+		const UpgradeTemplate* upgradeTemplate = upgrade->getTemplate();
+
+		if (upgrade->getStatus() == UPGRADE_STATUS_IN_PRODUCTION
+			&& upgradeTemplate->getUpgradeType() == UPGRADE_TYPE_PLAYER
+			&& (hasUpgradeComplete(upgradeTemplate) || hasUpgradeInProduction(upgradeTemplate)))
+		{
+			upgradesToCancel.push_back(upgradeTemplate);
+		}
+	}
+
+	for (std::vector<const UpgradeTemplate*>::iterator cancelIt = upgradesToCancel.begin(); cancelIt != upgradesToCancel.end(); ++cancelIt)
+	{
+		const UpgradeTemplate* upgradeTemplate = *cancelIt;
+		that->iterateObjects(cancelUpgradeInProduction, const_cast<UpgradeTemplate*>(upgradeTemplate));
+	}
+
+	// TheSuperHackers @bugfix Stubbjax 03/02/2026 Ensure the in-progress upgrade mask is copied from 'that'
+	// player to 'this' player to prevent duplicate player upgrades being purchased.
+	m_upgradesInProgress.set(that->m_upgradesInProgress);
+#endif
+
 	std::list<Object *> objsToTransfer;
 
 	// let's not transfer beacons
-	const ThingTemplate *beaconTemplate = TheThingFactory->findTemplate( that->getPlayerTemplate()->getBeaconTemplate() );
+	const PlayerTemplate *thatPlayerTemplate = that->getPlayerTemplate();
+	const ThingTemplate *beaconTemplate = thatPlayerTemplate ? TheThingFactory->findTemplate( thatPlayerTemplate->getBeaconTemplate() ) : nullptr;
 
 	// transfer all his units.
 	for (PlayerTeamList::iterator it = that->m_playerTeamPrototypes.begin();
@@ -3698,7 +3735,7 @@ void Player::processCreateTeamGameMessage(Int hotkeyNum, const GameMessage *msg)
 //-------------------------------------------------------------------------------------------------
 /** Select a hotkey team based on this GameMessage */
 //-------------------------------------------------------------------------------------------------
-void Player::processSelectTeamGameMessage(Int hotkeyNum, GameMessage *msg) {
+void Player::processSelectTeamGameMessage(Int hotkeyNum) {
 	if ((hotkeyNum < 0) || (hotkeyNum >= NUM_HOTKEY_SQUADS)) {
 		DEBUG_CRASH(("processSelectTeamGameMessage got an invalid hotkey number"));
 		return;
@@ -3728,7 +3765,7 @@ void Player::processSelectTeamGameMessage(Int hotkeyNum, GameMessage *msg) {
 //-------------------------------------------------------------------------------------------------
 /** Select a hotkey team based on this GameMessage */
 //-------------------------------------------------------------------------------------------------
-void Player::processAddTeamGameMessage(Int hotkeyNum, GameMessage *msg) {
+void Player::processAddTeamGameMessage(Int hotkeyNum) {
 	if ((hotkeyNum < 0) || (hotkeyNum >= NUM_HOTKEY_SQUADS)) {
 		DEBUG_CRASH(("processAddTeamGameMessage got an invalid hotkey number"));
 		return;

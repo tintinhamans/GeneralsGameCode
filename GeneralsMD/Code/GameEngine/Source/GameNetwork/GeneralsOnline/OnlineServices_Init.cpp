@@ -1030,6 +1030,11 @@ void NGMP_OnlineServicesManager::Tick()
 
 void NGMP_OnlineServicesManager::InitSentry()
 {
+	// Initialize libcurl global state here, before any plugins (e.g. EasyAntiCheat) are loaded.
+	// This ensures libcurl's internal mutexes are fully initialized before the EAC plugin
+	// attempts to use them, preventing an access violation in mtx_do_lock on null mutex state.
+	curl_global_init(CURL_GLOBAL_DEFAULT);
+
 #if !_DEBUG
 	std::string strDumpPath = std::format("{}/GeneralsOnlineCrashData/", TheGlobalData->getPath_UserData().str());
 	if (!std::filesystem::exists(strDumpPath))
@@ -1085,6 +1090,11 @@ void NGMP_OnlineServicesManager::InitSentry()
 	}, nullptr);
 #endif
 
+	// Disable the crash handler backend to prevent it from attempting to
+	// initialize Windows UI components (SystemNavigationManagerStatics::GetForCurrentView)
+	// on a non-UI thread during sentry_init(), which causes an access violation.
+	sentry_options_set_backend(options, nullptr);
+
 	sentry_init(options);
 #endif
 }
@@ -1105,17 +1115,42 @@ std::string NGMP_OnlineServicesManager::GetPatcherDirectoryPath()
 
 void WebSocket::Shutdown()
 {
+	// Return immediately if already shut down to prevent double-shutdown
+	// (e.g., NGMP_OnlineServicesManager::Shutdown() calls this before releasing the shared_ptr,
+	// and then the shared_ptr destructor also calls Shutdown() via ~WebSocket())
+	if (m_bShuttingDown)
+	{
+		return;
+	}
+
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Shutdown initiated");
 	
 	// Signal that we're shutting down
 	m_bShuttingDown = true;
 	
-	// Disconnect from the websocket
+	// Disconnect from the websocket (handles the connected case)
 	Disconnect();
 
-    // Free headers
+	// Clean up curl easy handle if still active (e.g., mid-connection, not yet fully connected)
+	// Disconnect() returns early when m_bConnected is false, so m_pCurlWS may still be alive here
+	if (m_pCurlWS != nullptr)
+	{
+		if (m_pMulti != nullptr)
+		{
+			curl_multi_remove_handle(m_pMulti, m_pCurlWS);
+		}
+		curl_easy_cleanup(m_pCurlWS);
+		m_pCurlWS = nullptr;
+	}
 
+	// Clean up multi handle
+	if (m_pMulti != nullptr)
+	{
+		curl_multi_cleanup(m_pMulti);
+		m_pMulti = nullptr;
+	}
 
+	// Free headers (may already be freed by Disconnect, but check anyway)
 	if (m_pHeaders != nullptr)
 	{
 		curl_slist_free_all(m_pHeaders);

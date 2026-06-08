@@ -603,6 +603,15 @@ NetworkMesh::NetworkMesh()
 {
 	SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_LogLevel_P2PRendezvous, k_ESteamNetworkingSocketsDebugOutputType_Error);
 
+	// Block the status-changed callback from firing while the library is
+	// torn down and re-initialized.  Without this guard the callback can
+	// be dispatched (e.g. from a previous Tick's RunCallbacks queue) after
+	// GameNetworkingSockets_Kill() has freed its internal mutexes but
+	// before GameNetworkingSockets_Init() has rebuilt them, resulting in
+	// an EXCEPTION_ACCESS_VIOLATION_READ on a null mutex pointer inside
+	// mtx_do_lock.
+	g_bNetworkMeshDestroying.store(true);
+
 	// try a shutdown
 	g_bNetworkMeshDestroying.store(true);
 	GameNetworkingSockets_Kill();
@@ -695,6 +704,10 @@ NetworkMesh::NetworkMesh()
 	}
 
 	SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged(OnSteamNetConnectionStatusChanged);
+	g_bNetworkMeshDestroying.store(false);
+
+	// Library is fully re-initialized and the callback is registered;
+	// it is now safe to allow OnSteamNetConnectionStatusChanged to run.
 	g_bNetworkMeshDestroying.store(false);
 
 	ESteamNetworkingSocketsDebugOutputType logType =
@@ -1079,75 +1092,71 @@ void PlayerConnection::LiteUpdateForAC()
 	}
 	else
 	{
-        SteamNetworkingMessage_t* pMsg[255] = { nullptr };
-        int numPackets = Recv(pMsg);
+		SteamNetworkingMessage_t* pMsg[255] = { nullptr };
+		int numPackets = Recv(pMsg);
 
-        if (numPackets <= 0)
-            return;
+		if (numPackets <= 0)
+			return;
 
-        if (numPackets > static_cast<int>(std::size(pMsg)))
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE,
-                "Game Packet Recv: numPackets (%d) > pMsg capacity (%zu), clamping",
-                numPackets, std::size(pMsg));
-            numPackets = static_cast<int>(std::size(pMsg));
-        }
+		if (numPackets > static_cast<int>(std::size(pMsg)))
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE,
+				"Game Packet Recv: numPackets (%d) > pMsg capacity (%zu), clamping",
+				numPackets, std::size(pMsg));
+			numPackets = static_cast<int>(std::size(pMsg));
+		}
 
-        for (int iPacket = 0; iPacket < numPackets; ++iPacket)
-        {
-            SteamNetworkingMessage_t* msg = pMsg[iPacket];
-            if (!msg)
-            {
-                // CRITICAL BUG FIX: Don't return early - continue loop to release remaining messages
-                // Skipping null entry but continue processing others
-                NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received null message at index %d", iPacket);
-                continue;
-            }
+		for (int iPacket = 0; iPacket < numPackets; ++iPacket)
+		{
+			SteamNetworkingMessage_t* msg = pMsg[iPacket];
+			if (!msg)
+			{
+				// CRITICAL BUG FIX: Don't return early - continue loop to release remaining messages
+				// Skipping null entry but continue processing others
+				NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received null message at index %d", iPacket);
+				continue;
+			}
 
-            const uint32_t numBytes = msg->m_cbSize;
+			const uint32_t numBytes = msg->m_cbSize;
 
-            // is it an AC packet?
-            // TODO_AC: Improve detection, just add a 'msg type' to the start of the packet
-            std::vector<byte> vecData;
-            vecData.resize(numBytes);
-            memcpy(vecData.data(), msg->GetData(), numBytes);
+			// is it an AC packet?
+			// TODO_AC: Improve detection, just add a 'msg type' to the start of the packet
+			std::vector<byte> vecData;
+			vecData.resize(numBytes);
+			memcpy(vecData.data(), msg->GetData(), numBytes);
 
-            // Check minimum packet size for AC header
-            if (numBytes >= 3)
-            {
-                BYTE b1 = (BYTE)vecData[0];
-                BYTE b2 = (BYTE)vecData[1];
-                BYTE b3 = (BYTE)vecData[2];
-                if (b1 == 9
-                    && b2 == 1
-                    && b3 == 2)
-                {
-                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Received AC message of size %u from user %lld", numBytes, static_cast<long long>(m_userID));
+			// Check minimum packet size for AC header
+			if (numBytes >= sizeof(ENetworkChannel))
+			{
+				ENetworkChannel netChannel = (ENetworkChannel)vecData[0];
+				if (netChannel == ENetworkChannel::NETWORK_CHANNEL_AC)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Received AC message of size %u from user %lld", numBytes, static_cast<long long>(m_userID));
 
 
-                    // remove header
-                    // TODO_AC: Optimize this
-                    std::vector<byte> vecDataAC;
-                    vecDataAC.resize(numBytes - 3);
-                    memcpy(vecDataAC.data(), (char*)msg->GetData() + 3, numBytes - 3);
+					// remove header
+					// TODO_AC: Optimize this
+					std::vector<byte> vecDataAC;
+					vecDataAC.resize(numBytes - sizeof(ENetworkChannel));
+					memcpy(vecDataAC.data(), (char*)msg->GetData() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel));
 
-                    AnticheatPlugInterface::AC_NetworkMessageArrived(m_userID, vecDataAC.data(), numBytes - 3);
-                    msg->Release();
-                    continue;
-                }
-            }
-            else if (numBytes > 0 && numBytes < 3)
-            {
-                // Malformed AC packet - too small for header
-                NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Dropping malformed AC packet - size %u is less than header size 3 from user %lld", numBytes, static_cast<long long>(m_userID));
-                msg->Release();
-                continue;
-            }
+					AnticheatPlugInterface::AC_NetworkMessageArrived(m_userID, vecDataAC.data(), numBytes - sizeof(ENetworkChannel));
+					msg->Release();
+					continue;
+				}
+			}
+			else if (numBytes != -1 && numBytes < sizeof(ENetworkChannel))
+			{
+				// Malformed AC packet - too small for header
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Dropping malformed AC packet - size %u is less than header size 3 from user %lld", numBytes, static_cast<long long>(m_userID));
+				msg->Release();
+				continue;
+			}
 
-            // not an AC packet, we dont care
-            NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received NON AC message");
-            msg->Release();
-        }
+			// not an AC packet, we dont care
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received NON AC message");
+			msg->Release();
+		}
 	}
 }
 
@@ -1216,11 +1225,25 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 
 
 
-        int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
+	}
 
-        ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
-        int netSendFlags = serviceConf.network_send_flags;
+    ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_GAME;
+    std::vector<BYTE> vecData;
+    vecData.resize(totalDataSize + sizeof(ENetworkChannel));
+    memcpy(vecData.data() + sizeof(ENetworkChannel), pBuffer, totalDataSize);
+    vecData[0] = (BYTE)netChannel;
 
+    int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
+
+    ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+    int netSendFlags = serviceConf.network_send_flags;
+
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
+	EResult r = SteamNetworkingSockets()->SendMessageToConnection(
+		m_hSteamConnection, vecData.data(), vecData.size(), sendFlags, nullptr);
+
+	if (r != k_EResultOK)
+	{
         if (netSendFlags != -1)
         {
             if (netSendFlags == 0)
@@ -1276,19 +1299,11 @@ void PlayerConnection::SendACPacket(const void* pData, uint32_t dataLen)
             return;
         }
 
-        if (dataLen > 0 && pData == nullptr)
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Cannot send AC packet - data is null for user %ld", m_userID);
-            return;
-        }
-
+        ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_AC;
         std::vector<BYTE> vecData;
-        vecData.resize(dataLen + 3);
-        memcpy(vecData.data() + 3, pData, dataLen);
-
-        vecData[0] = 9;
-        vecData[1] = 1;
-        vecData[2] = 2;
+        vecData.resize(dataLen + sizeof(ENetworkChannel));
+        memcpy(vecData.data() + sizeof(ENetworkChannel), pData, dataLen);
+        vecData[0] = (BYTE)netChannel;
 
         NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Sending AC msg of size %ld to user %ld\n", dataLen, m_userID);
         EResult r = SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, vecData.data(), vecData.size(), k_nSteamNetworkingSend_Reliable, nullptr);

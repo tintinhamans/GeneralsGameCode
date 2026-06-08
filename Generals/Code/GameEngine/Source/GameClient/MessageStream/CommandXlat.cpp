@@ -98,8 +98,6 @@
 void countObjects(Object *obj, void *userData)
 {
 	Int *numObjects = (Int *)userData;
-	if (!numObjects || !obj)
-		return;
 
 	DEBUG_LOG(("Looking at obj %d (%s) - isEffectivelyDead()==%d, isDestroyed==%d, numObjects==%d",
 		obj->getID(), obj->getTemplate()->getName().str(), obj->isEffectivelyDead(), obj->isDestroyed(), *numObjects));
@@ -110,9 +108,6 @@ void countObjects(Object *obj, void *userData)
 
 void printObjects(Object *obj, void *userData)
 {
-	if (!obj)
-		return;
-
 	Bool isDead = obj->isEffectivelyDead() || obj->isDestroyed();
 	Bool isInert = obj->isKindOf(KINDOF_INERT);
 	AsciiString statusStr = (isDead)?"Dead":(isInert)?"Inert":"Living";
@@ -858,10 +853,6 @@ struct CommandCenterLocator
 
 void findCommandCenterOrMostExpensiveBuilding(Object* obj, void* vccl)
 {
-	if (!obj) {
-		return;
-	}
-
 	CommandCenterLocator *ccl = (CommandCenterLocator*) vccl;
 
 	// here's the deal. We want to get the first Command Center in the list.
@@ -911,9 +902,7 @@ struct HeroHolder
 
 void amIAHero(Object* obj, void* heroHolder)
 {
-
-
-	if (!obj || ((HeroHolder*)heroHolder)->hero != nullptr)
+	if (((HeroHolder*)heroHolder)->hero != nullptr)
 	{
 		return;
 	}
@@ -3084,7 +3073,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				(TheGlobalData->m_netMinPlayers==0 || TheGameInfo->isMultiPlayer()))
 			{
 				Int count;
-				const ThingTemplate *thing = TheThingFactory->findTemplate( ThePlayerList->getLocalPlayer()->getPlayerTemplate()->getBeaconTemplate() );
+				const PlayerTemplate *localPlayerTemplate = ThePlayerList->getLocalPlayer()->getPlayerTemplate();
+				const ThingTemplate *thing = localPlayerTemplate ? TheThingFactory->findTemplate( localPlayerTemplate->getBeaconTemplate() ) : nullptr;
 				ThePlayerList->getLocalPlayer()->countObjectsByThingTemplate( 1, &thing, false, &count );
 				DEBUG_LOG(("MSG_META_PLACE_BEACON - Player already has %d beacons active", count));
 				if (count < TheMultiplayerSettings->getMaxBeaconsPerPlayer())
@@ -3627,27 +3617,15 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			break;
 
 		}
-
-
-#if defined(RTS_DEBUG)
-		//------------------------------------------------------------------------- BEGIN DEMO MESSAGES
-		//------------------------------------------------------------------------- BEGIN DEMO MESSAGES
-		//------------------------------------------------------------------------- BEGIN DEMO MESSAGES
-		//------------------------------------------------------------------------------- DEMO MESSAGES
-		//-----------------------------------------------------------------------------------------
+		
 		case GameMessage::MSG_META_DEMO_INSTANT_QUIT:
-			if (TheGameLogic->isInGame())
-			{
-				if (TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
-				{
-					TheRecorder->stopRecording();
-				}
-				TheGameLogic->clearGameData();
-			}
-			TheGameEngine->setQuitting(TRUE);
+		{
+			TheGameLogic->quit(TRUE);
 			disp = DESTROY_MESSAGE;
 			break;
+		}
 
+#if defined(RTS_DEBUG)
 		//------------------------------------------------------------------------------- DEMO MESSAGES
 		//-----------------------------------------------------------------------------------------
 		case GameMessage::MSG_META_DEMO_SWITCH_TEAMS:
@@ -3857,8 +3835,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 					mode = FM_VIEW_MB_PAN_ALPHA;
 				}
 				saturate = !saturate;
-				Coord3D curpos;
-				TheTacticalView->getPosition(&curpos);
+				Coord3D curpos = TheTacticalView->getPosition();
 				curpos.x += 200;
 				curpos.y += 200;
 				TheTacticalView->setViewFilterPos(&curpos);
@@ -4983,6 +4960,7 @@ static Bool isSystemMessage( const GameMessage *msg )
 		case GameMessage::MSG_LOGIC_CRC:
 		case GameMessage::MSG_SET_REPLAY_CAMERA:
 		case GameMessage::MSG_FRAME_TICK:
+		case GameMessage::MSG_META_DEMO_INSTANT_QUIT:
 			return TRUE;
 	}
 	return FALSE;

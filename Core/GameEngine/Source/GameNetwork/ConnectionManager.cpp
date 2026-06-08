@@ -31,6 +31,7 @@
 #include "Common/CRCDebug.h"
 #include "Common/Debug.h"
 #include "Common/file.h"
+#include "Common/FileSystem.h"
 #include "Common/GameAudio.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/Player.h"
@@ -52,11 +53,11 @@
 #include "GameLogic/VictoryConditions.h"
 #include "GameClient/DisconnectMenu.h"
 #include "GameClient/InGameUI.h"
+#include "TARGA.h"
+
 #include "../NextGenTransport.h"
 #include "../NetworkMesh.h"
 #include "../ngmp_interfaces.h"
-
-extern Int MIN_LOGIC_FRAMES;
 
 static Bool hasValidTransferFileExtension(const AsciiString& filePath)
 {
@@ -87,6 +88,118 @@ static Bool hasValidTransferFileExtension(const AsciiString& filePath)
 	}
 
 	return false;
+}
+
+enum TransferFileType
+{
+	TransferFileType_Invalid = -1,
+	TransferFileType_Map,
+	TransferFileType_Ini,
+	TransferFileType_Str,
+	TransferFileType_Txt,
+	TransferFileType_Tga,
+	TransferFileType_Wak,
+	TransferFileType_Count
+};
+
+struct TransferFileRule
+{
+	const char* ext;
+	UnsignedInt maxSize;
+};
+
+static const TransferFileRule transferFileRules[TransferFileType_Count] =
+{
+	{ ".map", 5 * 1024 * 1024 },
+	{ ".ini", 2 * 1024 * 1024 },
+	{ ".str", 512 * 1024 },
+	{ ".txt", 1 * 1024 * 1024 },
+	{ ".tga", 2 * 1024 * 1024 },
+	{ ".wak", 128 * 1024 },
+};
+
+static TransferFileType getTransferFileType(const char* extension)
+{
+	for (Int i = 0; i < TransferFileType_Count; ++i)
+	{
+		if (stricmp(extension, transferFileRules[i].ext) == 0)
+		{
+			return static_cast<TransferFileType>(i);
+		}
+	}
+	return TransferFileType_Invalid;
+}
+
+static Bool hasValidTransferFileContent(const AsciiString& filePath, const UnsignedByte* data, UnsignedInt dataSize)
+{
+	const char* fileExt = strrchr(filePath.str(), '.');
+	if (fileExt == nullptr)
+	{
+		DEBUG_LOG(("File '%s' has no extension for content validation.", filePath.str()));
+		return false;
+	}
+
+	const TransferFileType fileType = getTransferFileType(fileExt);
+	if (fileType == TransferFileType_Invalid)
+	{
+		DEBUG_LOG(("File '%s' has unrecognized extension '%s' for content validation.", filePath.str(), fileExt));
+		return false;
+	}
+
+	// Check size limit
+	const TransferFileRule& rule = transferFileRules[fileType];
+	if (dataSize > rule.maxSize)
+	{
+		DEBUG_LOG(("File '%s' exceeds maximum size (%u bytes, limit %u bytes).", filePath.str(), dataSize, rule.maxSize));
+		return false;
+	}
+
+	// Extension-specific content validation
+	switch (fileType)
+	{
+	case TransferFileType_Map:
+		break;
+
+	case TransferFileType_Ini:
+	{
+		for (UnsignedInt i = 0; i < dataSize; ++i)
+		{
+			if (data[i] == 0)
+			{
+				DEBUG_LOG(("INI file '%s' contains null bytes (likely binary).", filePath.str()));
+				return false;
+			}
+		}
+		break;
+	}
+
+	case TransferFileType_Tga:
+	{
+		if (dataSize < sizeof(TGAHeader) + sizeof(TGA2Footer))
+		{
+			DEBUG_LOG(("TGA file '%s' is too small to be valid.", filePath.str()));
+			return false;
+		}
+		TGA2Footer footer;
+		memcpy(&footer, data + dataSize - sizeof(footer), sizeof(footer));
+		const Bool isTGA2 = memcmp(footer.Signature, TGA2_SIGNATURE, sizeof(footer.Signature)) == 0
+			&& footer.RsvdChar == '.'
+			&& footer.BZST == '\0';
+		if (!isTGA2)
+		{
+			DEBUG_LOG(("TGA file '%s' is missing TRUEVISION-XFILE footer signature.", filePath.str()));
+			return false;
+		}
+		break;
+	}
+
+	default:
+	{
+		break;
+	}
+	}
+
+	return true;
 }
 
 /**
@@ -742,7 +855,7 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 	// uncompress Targas
 #ifdef COMPRESS_TARGAS
 	Bool deleteBuf = FALSE;
-	if (msg->getFilename().endsWith(".tga") && CompressionManager::isDataCompressed(buf, len))
+	if (msg->getPortableFilename().endsWith(".tga") && CompressionManager::isDataCompressed(buf, len))
 	{
 		Int uncompLen = CompressionManager::getUncompressedSize(buf, len);
 		UnsignedByte *uncompBuffer = NEW UnsignedByte[uncompLen];
@@ -761,6 +874,20 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 		}
 	}
 #endif // COMPRESS_TARGAS
+
+	// TheSuperHackers @security bobtista 12/02/2026 Validate file content in memory before writing to disk
+	if (!hasValidTransferFileContent(realFileName, buf, len))
+	{
+		DEBUG_LOG(("File '%s' failed content validation. Transfer aborted.", realFileName.str()));
+#ifdef COMPRESS_TARGAS
+		if (deleteBuf)
+		{
+			delete[] buf;
+			buf = nullptr;
+		}
+#endif // COMPRESS_TARGAS
+		return;
+	}
 
 	File *fp = TheFileSystem->openFile(realFileName.str(), File::CREATE | File::BINARY | File::WRITE);
 	if (fp)
@@ -1344,7 +1471,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
                             }
                         }
 
-                        // 3) Convert jitter to a 0–1+ ratio relative to latency
+                        // 3) Convert jitter to a 0?1+ ratio relative to latency
                         Real jitterRatio = 0.0f;
                         if (maxLatMs > 0)
                         {
@@ -1365,7 +1492,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
                         }
                         else if (maxLatMs > 200)
                         {
-                            // Medium-high latency (200–300 ms)
+                            // Medium-high latency (200?300 ms)
                             minSlack = serviceConf.ibra_minslack_greaterthan200ms;
                             maxSlack = serviceConf.ibra_maxslack_greaterthan200ms;
                         }
@@ -1995,11 +2122,16 @@ PlayerLeaveCode ConnectionManager::disconnectPlayer(Int slot) {
 
 	if (slot == m_packetRouterSlot) {
 		Int index = 0;
-		while ((index < (MAX_SLOTS-1)) && (m_packetRouterFallback[index] != m_packetRouterSlot)) {
+		while ((index < MAX_SLOTS) && (m_packetRouterFallback[index] != m_packetRouterSlot)) {
 			++index;
 		}
 		++index;
-		m_packetRouterSlot = m_packetRouterFallback[index];
+		if (index < MAX_SLOTS) {
+			m_packetRouterSlot = m_packetRouterFallback[index];
+		} else {
+			DEBUG_LOG(("ConnectionManager::disconnectPlayer - packet router had no valid fallback, defaulting to local slot %d", m_localSlot));
+			m_packetRouterSlot = m_localSlot;
+		}
 		DEBUG_LOG(("Packet router left.  New packet router is slot %d", m_packetRouterSlot));
 		retval = PLAYERLEAVECODE_PACKETROUTER;
 	}
@@ -2450,6 +2582,7 @@ void ConnectionManager::sendFile(AsciiString path, UnsignedByte playerMask, Unsi
 
 	Int len = theFile->size();
 	char *buf = theFile->readEntireAndClose();
+	NetCommandDataChunk rawDataChunk(buf, len);
 
 	// compress Targas
 #ifdef COMPRESS_TARGAS
@@ -2465,34 +2598,30 @@ void ConnectionManager::sendFile(AsciiString path, UnsignedByte playerMask, Unsi
 		delete[] compressedBuf;
 		compressedBuf = nullptr;
 	}
+
+	NetCommandDataChunk compressedDataChunk(compressedBuf, compressedSize);
 #endif // COMPRESS_TARGAS
 
 	NetFileCommandMsg *fileMsg = newInstance(NetFileCommandMsg);
 	fileMsg->setPlayerID(m_localSlot);
 	fileMsg->setID(commandID);
 	fileMsg->setRealFilename(path);
+
 #ifdef COMPRESS_TARGAS
 	if (compressedBuf)
 	{
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("Compressed '%s' from %d to %d (%g%%) before transfer", path.str(), len, compressedSize,
 			(Real)compressedSize/(Real)len*100.0f));
-		fileMsg->setFileData((unsigned char *)compressedBuf, compressedSize);
+		fileMsg->setFileData(compressedDataChunk);
 	}
 	else
 #endif // COMPRESS_TARGAS
 	{
-		fileMsg->setFileData((unsigned char *)buf, len);
+		fileMsg->setFileData(rawDataChunk);
 	}
 
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendFile() - creating file message with ID of %d for '%s' going to %X from %d, size of %d",
 		fileMsg->getID(), fileMsg->getRealFilename().str(), playerMask, fileMsg->getPlayerID(), fileMsg->getFileLength()));
-
-	delete[] buf;
-	buf = nullptr;
-#ifdef COMPRESS_TARGAS
-	delete[] compressedBuf;
-	compressedBuf = nullptr;
-#endif // COMPRESS_TARGAS
 
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("Sending file: '%s', len %d, to %X", path.str(), len, playerMask));
 
@@ -2701,11 +2830,14 @@ void ConnectionManager::sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedIn
 
 UnsignedInt ConnectionManager::getNextPacketRouterSlot(UnsignedInt playerID) {
 	Int index = 0;
-	while ((index < (MAX_SLOTS-1)) && (m_packetRouterFallback[index] != playerID)) {
+	while ((index < MAX_SLOTS) && (m_packetRouterFallback[index] != playerID)) {
 		++index;
 	}
 	++index;
-	return m_packetRouterFallback[index];
+	if (index < MAX_SLOTS) {
+		return m_packetRouterFallback[index];
+	}
+	return MAX_SLOTS; // No valid next packet router; caller checks for >= MAX_SLOTS
 }
 
 void ConnectionManager::requestFrameDataResend(Int playerID, UnsignedInt frame) {

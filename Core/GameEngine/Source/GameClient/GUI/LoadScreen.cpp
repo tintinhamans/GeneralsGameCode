@@ -60,6 +60,7 @@
 #include "Common/GameEngine.h"
 #include "Common/GameLOD.h"
 #include "Common/GameState.h"
+#include "Common/MessageStream.h"
 #include "Common/MultiplayerSettings.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
@@ -68,6 +69,7 @@
 #include "GameClient/Display.h"
 #include "GameClient/GadgetProgressBar.h"
 #include "GameClient/GadgetStaticText.h"
+#include "GameClient/GameClient.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GameWindowTransitions.h"
@@ -160,7 +162,7 @@ LoadScreen::~LoadScreen()
 void LoadScreen::update( Int percent )
 {
 	TheGameEngine->serviceWindowsOS();
-	if (TheGameEngine->getQuitting())
+	if (TheGameEngine->getQuitting() || (TheGameLogic && TheGameLogic->isQuitToDesktopRequested()))
 		return;	//don't bother with any of this if the player is exiting game.
 
 	TheWindowManager->update();
@@ -542,19 +544,10 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
 		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
 		{
-			// TheSuperHackers @feature User can now skip video by pressing ESC
-			if (TheKeyboard)
+			if (GameClient::isMovieAbortRequested())
 			{
-				TheKeyboard->UPDATE();
-				KeyboardIO *io = TheKeyboard->findKey(KEY_ESC, KeyboardIO::STATUS_UNUSED);
-				if (io && BitIsSet(io->state, KEY_STATE_DOWN))
-				{
-					io->setUsed();
-					break;
-				}
+				break;
 			}
-
-			TheGameEngine->serviceWindowsOS();
 
 			if(!m_videoStream->isFrameReady())
 			{
@@ -636,6 +629,11 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 		{
 			fudgeFactor = 30 * ((currTime - begin)/ INT_TO_REAL(delay ));
 			GadgetProgressBarSetProgress(m_progressBar, fudgeFactor);
+
+			if (GameClient::isMovieAbortRequested())
+			{
+				break;
+			}
 
 			TheWindowManager->update();
 			TheDisplay->draw();
@@ -1057,19 +1055,10 @@ void ChallengeLoadScreen::init( GameInfo *game )
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
 		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
 		{
-			// TheSuperHackers @feature User can now skip video by pressing ESC
-			if (TheKeyboard)
+			if (GameClient::isMovieAbortRequested())
 			{
-				TheKeyboard->UPDATE();
-				KeyboardIO *io = TheKeyboard->findKey(KEY_ESC, KeyboardIO::STATUS_UNUSED);
-				if (io && BitIsSet(io->state, KEY_STATE_DOWN))
-				{
-					io->setUsed();
-					break;
-				}
+				break;
 			}
-
-			TheGameEngine->serviceWindowsOS();
 
 			if(!m_videoStream->isFrameReady())
 			{
@@ -1112,7 +1101,13 @@ void ChallengeLoadScreen::init( GameInfo *game )
 		// if we're min speced
 		m_videoStream->frameGoto(m_videoStream->frameCount()); // zero based
 		while(!m_videoStream->isFrameReady())
+		{
+			if (GameClient::isMovieAbortRequested())
+			{
+				return;
+			}
 			Sleep(1);
+		}
 		m_videoStream->frameDecompress();
 		m_videoStream->frameRender(m_videoBuffer);
 		if(m_videoBuffer)
@@ -1128,6 +1123,11 @@ void ChallengeLoadScreen::init( GameInfo *game )
 		{
 			fudgeFactor = 30 * ((currTime - begin)/ INT_TO_REAL(delay ));
 			GadgetProgressBarSetProgress(m_progressBar, fudgeFactor);
+
+			if (GameClient::isMovieAbortRequested())
+			{
+				break;
+			}
 
 			TheWindowManager->update();
 			TheDisplay->draw();
@@ -1525,7 +1525,9 @@ GameSpyLoadScreen::~GameSpyLoadScreen()
 	}
 }
 
+#if !defined(GENERALS_ONLINE)
 extern Int GetAdditionalDisconnectsFromUserFile(Int playerID);
+#endif
 
 void GameSpyLoadScreen::init( GameInfo *game )
 {
@@ -1774,7 +1776,9 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		{
 			numGames += it->second;
 		}
+#if !defined(GENERALS_ONLINE)
 		numGames += GetAdditionalDisconnectsFromUserFile(stats.id);
+#endif
 
 		formatString.format(L"%d", numGames);
 		GadgetStaticTextSetText(m_playerTotalDisconnects[netSlot], formatString);
@@ -1986,7 +1990,8 @@ void MapTransferLoadScreen::init( GameInfo *game )
 		GadgetStaticTextSetText(m_progressText[netSlot], UnicodeString::TheEmptyString );
 		m_progressText[netSlot]->winSetEnabledTextColors(houseColor, m_progressText[netSlot]->winGetEnabledTextBorderColor());
 
-		if ((i == 0 || (TheGameInfo->getConstSlot(i)->isHuman() && TheGameInfo->getConstSlot(i)->hasMap())) && m_progressBars[netSlot])
+		const GameSlot *gameInfoSlot = TheGameInfo->getConstSlot(i);
+		if ((i == 0 || (gameInfoSlot && gameInfoSlot->isHuman() && gameInfoSlot->hasMap())) && m_progressBars[netSlot])
 			m_progressBars[netSlot]->winHide(TRUE);
 
 		m_playerLookup[i] = netSlot; // save our mapping so we can update progress correctly

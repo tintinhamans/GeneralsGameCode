@@ -51,6 +51,7 @@
 #include "Common/StatsCollector.h"
 #include "Common/ThingTemplate.h"
 #include "Common/GameLOD.h"
+#include "Common/OptionPreferences.h"
 
 #include "GameClient/InGameUI.h"
 #include "GameClient/CommandXlat.h"
@@ -92,18 +93,12 @@
 #include "ww3d.h"
 #include "../OnlineServices_Init.h"
 
-
-#define dont_ALLOW_ALT_F4
-
-
 #if defined(RTS_DEBUG)
 /*non-static*/ Real TheSkateDistOverride = 0.0f;
 
 void countObjects(Object* obj, void* userData)
 {
 	Int* numObjects = (Int*)userData;
-	if (!numObjects || !obj)
-		return;
 
 	DEBUG_LOG(("Looking at obj %d (%s) - isEffectivelyDead()==%d, isDestroyed==%d, numObjects==%d",
 		obj->getID(), obj->getTemplate()->getName().str(), obj->isEffectivelyDead(), obj->isDestroyed(), *numObjects));
@@ -114,9 +109,6 @@ void countObjects(Object* obj, void* userData)
 
 void printObjects(Object* obj, void* userData)
 {
-	if (!obj)
-		return;
-
 	Bool isDead = obj->isEffectivelyDead() || obj->isDestroyed();
 	Bool isInert = obj->isKindOf(KINDOF_INERT);
 	AsciiString statusStr = (isDead) ? "Dead" : (isInert) ? "Inert" : "Living";
@@ -194,13 +186,52 @@ enum ObserverStatsFontChange
 	ObserverStatsFontChange_Increase,
 	ObserverStatsFontChange_Decrease,
 };
+enum ObserverNotificationFontChange
+{
+	ObserverNotificationFontChange_Increase,
+	ObserverNotificationFontChange_Decrease,
+};
 
-static bool changeObserverStatsFontSize(ObserverStatsFontChange change)
+bool changeObserverNotificationFontSize(ObserverNotificationFontChange change)
+{
+	Int fontSize = TheWritableGlobalData->m_observerNotificationFontSize;
+
+	const Int minSize = 0;
+	const Int maxSize = 15;
+
+	switch (change)
+	{
+	case ObserverNotificationFontChange_Increase:
+		if (fontSize < maxSize) ++fontSize;
+		break;
+	case ObserverNotificationFontChange_Decrease:
+		if (fontSize > minSize) --fontSize;
+		break;
+	}
+
+	if (fontSize == TheWritableGlobalData->m_observerNotificationFontSize)
+		return false;
+
+	TheWritableGlobalData->m_observerNotificationFontSize = fontSize;
+
+	if (TheInGameUI)
+		TheInGameUI->refreshObserverNotificationResources();
+
+	OptionPreferences optPref;
+	AsciiString prefString;
+	prefString.format("%d", fontSize);
+	optPref["ObserverNotificationFontSize"] = prefString;
+	optPref.write();
+
+	return true;
+}
+
+bool changeObserverStatsFontSize(ObserverStatsFontChange change)
 {
 	Int fontSize = TheWritableGlobalData->m_observerStatsFontSize;
 
 	const Int minSize = 0;
-	const Int maxSize = 30;
+	const Int maxSize = 15;
 
 	switch (change)
 	{
@@ -225,19 +256,17 @@ static bool changeObserverStatsFontSize(ObserverStatsFontChange change)
 		TheInGameUI->initObserverOverlay();
 	}
 
+	OptionPreferences optPref;
+	AsciiString prefString;
+	prefString.format("%d", fontSize);
+	optPref["ObserverStatsFontSize"] = prefString;
+	optPref.write();
+
 	return true;
 }
 
 bool changeMaxRenderFps(FpsValueChange change)
 {
-	// GO change: dont let them change FPS in shellmap
-	if (TheShell->isShellActive())
-	{
-		UnicodeString message = UnicodeString(L"Max Render FPS can only be changed in-game");
-		TheInGameUI->messageNoFormat(message);
-		return false;
-	}
-
 	UnsignedInt maxRenderFps = TheFramePacer->getFramesPerSecondLimit();
 	maxRenderFps = RenderFpsPreset::changeFpsValue(maxRenderFps, change);
 
@@ -245,9 +274,9 @@ bool changeMaxRenderFps(FpsValueChange change)
 	TheWritableGlobalData->m_useFpsLimit = (maxRenderFps != RenderFpsPreset::UncappedFpsValue);
 
 #if defined(GENERALS_ONLINE)
-	// Save to GO settings, SH does not save it yet
-
-	NGMP_OnlineServicesManager::Settings.Graphics_SetFPS(maxRenderFps, TheWritableGlobalData->m_useFpsLimit);
+    // Save to GO settings, SH does not save it yet
+	// TODO_NGMP: Remove this, SH saves it now
+    NGMP_OnlineServicesManager::Settings.Graphics_SetFPS(maxRenderFps, TheWritableGlobalData->m_useFpsLimit);
 #endif
 
 	UnicodeString message;
@@ -970,10 +999,6 @@ struct CommandCenterLocator
 
 void findCommandCenterOrMostExpensiveBuilding(Object* obj, void* vccl)
 {
-	if (!obj) {
-		return;
-	}
-
 	CommandCenterLocator* ccl = (CommandCenterLocator*)vccl;
 
 	// here's the deal. We want to get the first Command Center in the list.
@@ -1025,9 +1050,7 @@ struct HeroHolder
 
 void amIAHero(Object* obj, void* heroHolder)
 {
-
-
-	if (!obj || ((HeroHolder*)heroHolder)->hero != nullptr)
+	if (((HeroHolder*)heroHolder)->hero != nullptr)
 	{
 		return;
 	}
@@ -3348,6 +3371,24 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 	//-----------------------------------------------------------------------------------------
 
+	case GameMessage::MSG_META_INCREASE_OBSERVER_NOTIFICATION_FONT:
+	{
+		if (changeObserverNotificationFontSize(ObserverNotificationFontChange_Increase))
+			disp = DESTROY_MESSAGE;
+		break;
+	}
+
+	//-----------------------------------------------------------------------------------------
+
+	case GameMessage::MSG_META_DECREASE_OBSERVER_NOTIFICATION_FONT:
+	{
+		if (changeObserverNotificationFontSize(ObserverNotificationFontChange_Decrease))
+			disp = DESTROY_MESSAGE;
+		break;
+	}
+
+	//-----------------------------------------------------------------------------------------
+
 	case GameMessage::MSG_META_INCREASE_OBSERVER_STATS_FONT:
 	{
 		if (changeObserverStatsFontSize(ObserverStatsFontChange_Increase))
@@ -3459,11 +3500,6 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			}
 
 			ToggleControlBar();
-			if (TheInGameUI)
-			{
-				TheInGameUI->toggleObserverStats();
-			}
-
 		}
 		disp = DESTROY_MESSAGE;
 		break;
@@ -3834,70 +3870,17 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		}
 		break;
 	}
-#if defined(GENERALS_ONLINE)
-	case GameMessage::MSG_RAW_KEY_UP:
-	{
-		int key = msg->getArgument(0)->integer;
 
-		if (key == KEY_F11)
-		{
-			NGMP_OnlineServicesManager::CaptureScreenshotToDisk();
-
-			disp = DESTROY_MESSAGE;
-		}
-		else if (key == KEY_F10)
-		{
-			NGMP_OnlineServicesManager::ToggleAdvancedNetworkStats();
-
-			disp = DESTROY_MESSAGE;
-		}
-		else if (key == KEY_F5 || key == KEY_INS)
-		{
-			if (GameSpyIsOverlayOpen(GSOVERLAY_BUDDY))
-			{
-				GameSpyCloseOverlay(GSOVERLAY_BUDDY);
-			}
-			else
-			{
-				GameSpyOpenOverlay(GSOVERLAY_BUDDY);
-			}
-
-            disp = DESTROY_MESSAGE;
-		}
-
-		break;
-	}
-#endif
 	// --------------------------------------------------------------------------------------------
 	case GameMessage::MSG_META_TAKE_SCREENSHOT:
 	{
 #if defined(GENERALS_ONLINE)
-		NGMP_OnlineServicesManager::CaptureScreenshotToDisk();
+        NGMP_OnlineServicesManager::CaptureScreenshotToDisk();
 #else
-		if (TheDisplay)
-			TheDisplay->takeScreenShot();
+        if (TheDisplay)
+            TheDisplay->takeScreenShot();
 #endif
 		disp = DESTROY_MESSAGE;
-		break;
-	}
-
-	// --------------------------------------------------------------------------------------------
-	case GameMessage::MSG_CREATE_TEAM0:
-	case GameMessage::MSG_CREATE_TEAM1:
-	case GameMessage::MSG_CREATE_TEAM2:
-	case GameMessage::MSG_CREATE_TEAM3:
-	case GameMessage::MSG_CREATE_TEAM4:
-	case GameMessage::MSG_CREATE_TEAM5:
-	case GameMessage::MSG_CREATE_TEAM6:
-	case GameMessage::MSG_CREATE_TEAM7:
-	case GameMessage::MSG_CREATE_TEAM8:
-	case GameMessage::MSG_CREATE_TEAM9:
-	{
-		Int playerIndex = msg->getPlayerIndex();
-		Player* player = ThePlayerList->getNthPlayer(playerIndex);
-		if (player && player->isLocalPlayer())
-			player->processCreateTeamGameMessage(t - GameMessage::MSG_CREATE_TEAM0, msg);
-
 		break;
 	}
 
@@ -3953,6 +3936,40 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		break;
 	}
 
+#if defined(GENERALS_ONLINE)
+    case GameMessage::MSG_RAW_KEY_UP:
+    {
+        int key = msg->getArgument(0)->integer;
+
+        if (key == KEY_F11)
+        {
+            NGMP_OnlineServicesManager::CaptureScreenshotToDisk();
+
+            disp = DESTROY_MESSAGE;
+        }
+        else if (key == KEY_F10)
+        {
+            NGMP_OnlineServicesManager::ToggleAdvancedNetworkStats();
+
+            disp = DESTROY_MESSAGE;
+        }
+        else if (key == KEY_F5 || key == KEY_INS)
+    {
+        if (GameSpyIsOverlayOpen(GSOVERLAY_BUDDY))
+        {
+            GameSpyCloseOverlay(GSOVERLAY_BUDDY);
+        }
+        else
+        {
+            GameSpyOpenOverlay(GSOVERLAY_BUDDY);
+        }
+
+        disp = DESTROY_MESSAGE;
+    }
+
+    break;
+    }
+#endif
 
 	// --------------------------------------------------------------------------------------------
 	case GameMessage::MSG_DESTROY_SELECTED_GROUP:
@@ -4206,26 +4223,12 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 	}
 
-
-
-#ifdef ALLOW_ALT_F4
 	case GameMessage::MSG_META_DEMO_INSTANT_QUIT:
 	{
-		if (TheGameLogic->isInGame())
-		{
-			if (TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
-			{
-				TheRecorder->stopRecording();
-			}
-			TheGameLogic->clearGameData();
-		}
-		TheGameEngine->setQuitting(TRUE);
+		TheGameLogic->quit(TRUE);
 		disp = DESTROY_MESSAGE;
 		break;
 	}
-#endif
-
-
 
 	//------------------------------------------------------------------------------- DEMO MESSAGES
 
@@ -4444,8 +4447,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				mode = FM_VIEW_MB_PAN_ALPHA;
 			}
 			saturate = !saturate;
-			Coord3D curpos;
-			TheTacticalView->getPosition(&curpos);
+			Coord3D curpos = TheTacticalView->getPosition();
 			curpos.x += 200;
 			curpos.y += 200;
 			TheTacticalView->setViewFilterPos(&curpos);
@@ -5719,6 +5721,7 @@ static Bool isSystemMessage(const GameMessage* msg)
 	case GameMessage::MSG_LOGIC_CRC:
 	case GameMessage::MSG_SET_REPLAY_CAMERA:
 	case GameMessage::MSG_FRAME_TICK:
+	case GameMessage::MSG_META_DEMO_INSTANT_QUIT:
 		return TRUE;
 	}
 	return FALSE;
