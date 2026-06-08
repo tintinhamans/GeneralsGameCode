@@ -7166,15 +7166,38 @@ void InGameUI::drawGameTime()
 			{
 				//std::vector<LobbyMemberEntry>& vecMembers = pLobbyInterface->GetMembersListForCurrentRoom();
 
-				int i = 0;
-				for (auto& connection : pMesh->GetAllConnections())
+				ISteamNetworkingSockets* pSteamNetSockets = SteamNetworkingSockets();
+				if (!pSteamNetSockets)
 				{
+					return;
+				}
+
+				int i = 0;
+				auto& allConnections = pMesh->GetAllConnections();
+				if (allConnections.empty())
+				{
+					return;
+				}
+
+				for (auto& connection : allConnections)
+				{
+					if (!connection.second.IsValid())
+					{
+						continue;
+					}
+
 					LobbyMemberEntry lobbyMember = pLobbyInterface->GetRoomMemberFromID(connection.first);
 
 					const int k_nLanes = 1;
 					SteamNetConnectionRealTimeStatus_t status;
 					SteamNetConnectionRealTimeLaneStatus_t laneStatus[k_nLanes];
-					EResult res = SteamNetworkingSockets()->GetConnectionRealTimeStatus(connection.second.m_hSteamConnection, &status, k_nLanes, laneStatus);
+					
+					if (!TheNetwork)
+					{
+						continue;
+					}
+
+					EResult res = pSteamNetSockets->GetConnectionRealTimeStatus(connection.second.m_hSteamConnection, &status, k_nLanes, laneStatus);
 
 					if (res == k_EResultNoConnection || lobbyMember.display_name.empty())
 					{

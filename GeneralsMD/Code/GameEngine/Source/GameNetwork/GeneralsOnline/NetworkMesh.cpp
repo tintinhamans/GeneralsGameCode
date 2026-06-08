@@ -22,9 +22,36 @@ UnsignedInt m_exeCRCOriginal = 0;
 // Static flag to track if NetworkMesh is being destroyed to prevent callback re-entry
 static std::atomic<bool> g_bNetworkMeshDestroying = false;
 
+// SECURITY FIX: Thread-safe pool for deferred deletion of ConnectionSignaling objects
+// to prevent "delete this" races during async Steam callbacks
+static std::mutex g_pendingDeletionMutex;
+static std::vector<void*> g_pendingConnSignalingDeletions;
+
+// Clean up pending ConnectionSignaling objects that were deferred during Release()
+// Forward declaration needed since ConnectionSignaling is nested inside CSignalingClient
+struct ISteamNetworkingConnectionSignaling;
+
+static void CleanupPendingConnSignalingDeletions()
+{
+	std::vector<void*> objectsToDelete;
+	{
+		std::scoped_lock<std::mutex> lock(g_pendingDeletionMutex);
+		objectsToDelete.swap(g_pendingConnSignalingDeletions);
+	}
+	
+	for (void* pObj : objectsToDelete)
+	{
+		// SECURITY: Delete through base interface to avoid nested class visibility issues
+		delete static_cast<ISteamNetworkingConnectionSignaling*>(pObj);
+	}
+}
+
 // Called when a connection undergoes a state transition
 void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)
 {
+	// Clean up any pending ConnectionSignaling deletions from previous callbacks
+	CleanupPendingConnSignalingDeletions();
+	
 	// Early exit if NetworkMesh is being destroyed to prevent use-after-free
 	if (g_bNetworkMeshDestroying.load())
 	{
@@ -142,9 +169,11 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 					if (pLobbyInterface != nullptr)
 					{
 						NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Performing local removal for user %lld from lobby due to failure to connect\n", plrConnection.m_userID);
-						if (pLobbyInterface->m_OnCannotConnectToLobbyCallback != nullptr)
+						// Local copy to avoid TOCTOU race: check-then-use window
+						auto callbackCopy = pLobbyInterface->m_OnCannotConnectToLobbyCallback;
+						if (callbackCopy != nullptr)
 						{
-							pLobbyInterface->m_OnCannotConnectToLobbyCallback();
+							callbackCopy();
 						}
 					}
 				}
@@ -365,7 +394,12 @@ class CSignalingClient : public ISignalingClient
 		// Self destruct.  This will be called by SteamNetworkingSockets when it's done with us.
 		virtual void Release() override
 		{
-			delete this;
+			// SECURITY FIX: Avoid immediate "delete this" which can cause use-after-free
+			// when called from async Steam callbacks. Instead, defer deletion to prevent
+			// races where CSignalingClient might be destroyed while this object is still
+			// being accessed or its owner pointer is being used.
+			std::scoped_lock<std::mutex> lock(g_pendingDeletionMutex);
+			g_pendingConnSignalingDeletions.push_back(static_cast<void*>(this));
 		}
 	};
 
@@ -800,110 +834,128 @@ void NetworkMesh::SendACPacket(uint32_t userID, const void* pData, uint32_t data
 	}
 }
 
-void NetworkMesh::StartConnectionSignalling(int64_t remoteUserID, uint16_t preferredPort)
+void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort)
 {
 	// Thread safety: Lock connection map during access
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
 
-	// if we already have a connection to this use, drop it, having a single-direction connection will break signalling
-	auto it = m_mapConnections.find(remoteUserID);
-	if (it != m_mapConnections.end())
+	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
 	{
-		if (it->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
-			SteamNetworkingSockets()->CloseConnection(it->second.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
+		// TODO_EOS: if we already have a connection to this use, drop it, having a single-direction connection will break signalling
+		AnticheatPlugInterface::StartSignalling(szMiddlewareID, remoteUserID);
 
-			if (TheNetwork != nullptr)
-			{
-				TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
-			}
-		}
+        // create a local user type
+        {
+            std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+            m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, szMiddlewareID);
 
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ERASE 3] Removing user %lld", it->second.m_userID);
-		m_mapConnections.erase(it);
+            // add attempt
+            ++m_mapConnections[remoteUserID].m_SignallingAttempts;
+        }
 	}
-
-	NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-
-	if (pAuthInterface == nullptr || pOnlineServicesMgr == nullptr)
+	else
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::ConnectToSingleUser - Auth or OSM interface is null");
-		return;
+        // if we already have a connection to this use, drop it, having a single-direction connection will break signalling
+        auto it = m_mapConnections.find(remoteUserID);
+        if (it != m_mapConnections.end())
+        {
+            if (it->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
+                SteamNetworkingSockets()->CloseConnection(it->second.m_hSteamConnection, 0, "Client Disconnecting Gracefully (new connection being negotiated)", false);
+
+                if (TheNetwork != nullptr)
+                {
+                    TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
+                }
+            }
+
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[ERASE 3] Removing user %lld", it->second.m_userID);
+            m_mapConnections.erase(it);
+        }
+
+        NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
+        NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+
+        if (pAuthInterface == nullptr || pOnlineServicesMgr == nullptr)
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::ConnectToSingleUser - Auth or OSM interface is null");
+            return;
+        }
+
+        // never connect to ourself
+        if (remoteUserID == pAuthInterface->GetUserID())
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::ConnectToSingleUser - Skipping connection to user %lld - user is local", remoteUserID);
+            return;
+        }
+
+        SteamNetworkingIdentity identityRemote;
+        identityRemote.Clear();
+        std::string remoteUserIDStr = std::to_string(remoteUserID);
+        identityRemote.SetGenericString(remoteUserIDStr.c_str());
+
+        if (identityRemote.IsInvalid())
+        {
+            // TODO_STEAM: Handle this better
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::ConnectToSingleUser - SteamNetworkingIdentity is invalid");
+            return;
+        }
+
+        std::vector<SteamNetworkingConfigValue_t > vecOpts;
+
+        ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
+
+        int g_nLocalPort = 0;
+
+        int g_nVirtualPortRemote = serviceConf.use_mapped_port ? preferredPort : 0;
+
+        // Our remote and local port don't match, so we need to set it explicitly
+        if (g_nVirtualPortRemote != g_nLocalPort)
+        {
+            SteamNetworkingConfigValue_t opt;
+            opt.SetInt32(k_ESteamNetworkingConfig_LocalVirtualPort, g_nLocalPort);
+            vecOpts.push_back(opt);
+        }
+
+        // Set symmetric connect mode
+        SteamNetworkingConfigValue_t opt;
+        opt.SetInt32(k_ESteamNetworkingConfig_SymmetricConnect, 1);
+        vecOpts.push_back(opt);
+        NetworkLog(ELogVerbosity::LOG_DEBUG, "Connecting to '%s' in symmetric mode, virtual port %d, from local virtual port %d.\n",
+            SteamNetworkingIdentityRender(identityRemote).c_str(), g_nVirtualPortRemote, g_nLocalPort);
+
+        // create a signaling object for this connection
+        SteamNetworkingErrMsg errMsg;
+        ISteamNetworkingConnectionSignaling* pConnSignaling = m_pSignaling->CreateSignalingForConnection(identityRemote, errMsg);
+
+        if (pConnSignaling == nullptr)
+        {
+            // TODO_STEAM: Handle this better
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::ConnectToSingleUser - Could not create signalling object, error was %s", errMsg);
+            return;
+        }
+
+        // make a steam connection obj
+        HSteamNetConnection hSteamConnection = SteamNetworkingSockets()->ConnectP2PCustomSignaling(pConnSignaling, &identityRemote, g_nVirtualPortRemote, (int)vecOpts.size(), vecOpts.data());
+
+        if (hSteamConnection == k_HSteamNetConnection_Invalid)
+        {
+            // TODO_STEAM: Handle this better
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::ConnectToSingleUser - Steam network connection obj was k_HSteamNetConnection_Invalid");
+            return;
+        }
+
+        // create a local user type
+        {
+            std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+            m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, hSteamConnection);
+
+            // add attempt
+            ++m_mapConnections[remoteUserID].m_SignallingAttempts;
+        }
 	}
-
-	// never connect to ourself
-	if (remoteUserID == pAuthInterface->GetUserID())
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::ConnectToSingleUser - Skipping connection to user %lld - user is local", remoteUserID);
-		return;
-	}
-
-	SteamNetworkingIdentity identityRemote;
-	identityRemote.Clear();
-	std::string remoteUserIDStr = std::to_string(remoteUserID);
-	identityRemote.SetGenericString(remoteUserIDStr.c_str());
-
-	if (identityRemote.IsInvalid())
-	{
-		// TODO_STEAM: Handle this better
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::ConnectToSingleUser - SteamNetworkingIdentity is invalid");
-		return;
-	}
-
-	std::vector<SteamNetworkingConfigValue_t > vecOpts;
-
-	ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
-
-	int g_nLocalPort = 0;
-
-	int g_nVirtualPortRemote = serviceConf.use_mapped_port ? preferredPort : 0;
-
-	// Our remote and local port don't match, so we need to set it explicitly
-	if (g_nVirtualPortRemote != g_nLocalPort)
-	{
-		SteamNetworkingConfigValue_t opt;
-		opt.SetInt32(k_ESteamNetworkingConfig_LocalVirtualPort, g_nLocalPort);
-		vecOpts.push_back(opt);
-	}
-
-	// Set symmetric connect mode
-	SteamNetworkingConfigValue_t opt;
-	opt.SetInt32(k_ESteamNetworkingConfig_SymmetricConnect, 1);
-	vecOpts.push_back(opt);
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "Connecting to '%s' in symmetric mode, virtual port %d, from local virtual port %d.\n",
-		SteamNetworkingIdentityRender(identityRemote).c_str(), g_nVirtualPortRemote, g_nLocalPort);
-
-	// create a signaling object for this connection
-	SteamNetworkingErrMsg errMsg;
-	ISteamNetworkingConnectionSignaling* pConnSignaling = m_pSignaling->CreateSignalingForConnection(identityRemote, errMsg);
-
-	if (pConnSignaling == nullptr)
-	{
-		// TODO_STEAM: Handle this better
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::ConnectToSingleUser - Could not create signalling object, error was %s", errMsg);
-		return;
-	}
-
-	// make a steam connection obj
-	HSteamNetConnection hSteamConnection = SteamNetworkingSockets()->ConnectP2PCustomSignaling(pConnSignaling, &identityRemote, g_nVirtualPortRemote, (int)vecOpts.size(), vecOpts.data());
-
-	if (hSteamConnection == k_HSteamNetConnection_Invalid)
-	{
-		// TODO_STEAM: Handle this better
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::ConnectToSingleUser - Steam network connection obj was k_HSteamNetConnection_Invalid");
-		return;
-	}
-
-	// create a local user type
-	{
-		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
-		m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, hSteamConnection);
-
-		// add attempt
-		++m_mapConnections[remoteUserID].m_SignallingAttempts;
-	}
+	
 }
 
 
@@ -955,44 +1007,44 @@ void NetworkMesh::Disconnect()
 {
 	if (m_bDisconnected)
 		return;
+
 	m_bDisconnected = true;
 
 	// Set flag to prevent callbacks from executing during teardown
 	g_bNetworkMeshDestroying.store(true);
 
-	// Unregister the global callback to prevent new callbacks from being queued
-	if (SteamNetworkingUtils())
-	{
-		SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged(nullptr);
-	}
+    // close every connection
+    for (auto& connectionData : m_mapConnections)
+    {
+		connectionData.second.Close();
+    }
 
-	// close every connection
-	for (auto& connectionData : m_mapConnections)
+    // clear map
+    m_mapConnections.clear();
+
+	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
 	{
-		//NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] FullMesh");
+		// Nothing to do here, Close above calls AnticheatPlugInterface::DisconnectPlayer
+	}
+	else
+	{
+		// Unregister the global callback to prevent new callbacks from being queued
+		if (SteamNetworkingUtils())
+		{
+			SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged(nullptr);
+		}
+
 		if (SteamNetworkingSockets())
 		{
-			SteamNetworkingSockets()->CloseConnection(connectionData.second.m_hSteamConnection, 0, "Client Disconnecting Gracefully", false);
+			SteamNetworkingSockets()->CloseListenSocket(m_hListenSock);
 		}
-		if (TheNetwork != nullptr)
-		{
-			TheNetwork->GetConnectionManager()->disconnectPlayer(connectionData.first);
-		}
+
+		// invalidate socket
+		m_hListenSock = k_HSteamNetConnection_Invalid;
+
+		// tear down steam sockets
+		GameNetworkingSockets_Kill();
 	}
-
-	if (SteamNetworkingSockets())
-	{
-		SteamNetworkingSockets()->CloseListenSocket(m_hListenSock);
-	}
-
-	// invalidate socket
-	m_hListenSock = k_HSteamNetConnection_Invalid;
-
-	// clear map
-	m_mapConnections.clear();
- 
-	// tear down steam sockets
-	GameNetworkingSockets_Kill();
 
 	// Reset flag after teardown is complete
 	g_bNetworkMeshDestroying.store(false);
@@ -1000,16 +1052,19 @@ void NetworkMesh::Disconnect()
 
 void NetworkMesh::Tick()
 {
-	// Check for incoming signals, and dispatch them
-	if (m_pSignaling != nullptr)
+	if (!AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
 	{
-		m_pSignaling->Poll();
-	}
+		// Check for incoming signals, and dispatch them
+		if (m_pSignaling != nullptr)
+		{
+			m_pSignaling->Poll();
+		}
 
-	// Check callbacks
-	if (SteamNetworkingSockets())
-	{
-		SteamNetworkingSockets()->RunCallbacks();
+		// Check callbacks
+		if (SteamNetworkingSockets())
+		{
+			SteamNetworkingSockets()->RunCallbacks();
+		}
 	}
 
 	// update connection histograms
@@ -1031,76 +1086,84 @@ void NetworkMesh::Tick()
 
 void PlayerConnection::LiteUpdateForAC()
 {
-    SteamNetworkingMessage_t* pMsg[255] = { nullptr };
-    int numPackets = Recv(pMsg);
-
-    if (numPackets <= 0)
-        return;
-
-    if (numPackets > static_cast<int>(std::size(pMsg)))
-    {
-        NetworkLog(ELogVerbosity::LOG_RELEASE,
-            "Game Packet Recv: numPackets (%d) > pMsg capacity (%zu), clamping",
-            numPackets, std::size(pMsg));
-        numPackets = static_cast<int>(std::size(pMsg));
-    }
-
-	for (int iPacket = 0; iPacket < numPackets; ++iPacket)
+	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
 	{
-		SteamNetworkingMessage_t* msg = pMsg[iPacket];
-		if (!msg)
+		// EOS: Nothing to do here, AC packets are handled internally when MW is handling it
+	}
+	else
+	{
+		SteamNetworkingMessage_t* pMsg[255] = { nullptr };
+		int numPackets = Recv(pMsg);
+
+		if (numPackets <= 0)
+			return;
+
+		if (numPackets > static_cast<int>(std::size(pMsg)))
 		{
-			// CRITICAL BUG FIX: Don't return early - continue loop to release remaining messages
-			// Skipping null entry but continue processing others
-			NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received null message at index %d", iPacket);
-			continue;
+			NetworkLog(ELogVerbosity::LOG_RELEASE,
+				"Game Packet Recv: numPackets (%d) > pMsg capacity (%zu), clamping",
+				numPackets, std::size(pMsg));
+			numPackets = static_cast<int>(std::size(pMsg));
 		}
 
-		const uint32_t numBytes = msg->m_cbSize;
-
-		// is it an AC packet?
-		// TODO_AC: Improve detection, just add a 'msg type' to the start of the packet
-		std::vector<byte> vecData;
-		vecData.resize(numBytes);
-		memcpy(vecData.data(), msg->GetData(), numBytes);
-
-		// Check minimum packet size for AC header
-		if (numBytes >= sizeof(ENetworkChannel))
+		for (int iPacket = 0; iPacket < numPackets; ++iPacket)
 		{
-			ENetworkChannel netChannel = (ENetworkChannel)vecData[0];
-			if (netChannel == ENetworkChannel::NETWORK_CHANNEL_AC)
+			SteamNetworkingMessage_t* msg = pMsg[iPacket];
+			if (!msg)
 			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Received AC message of size %u from user %lld", numBytes, static_cast<long long>(m_userID));
+				// CRITICAL BUG FIX: Don't return early - continue loop to release remaining messages
+				// Skipping null entry but continue processing others
+				NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received null message at index %d", iPacket);
+				continue;
+			}
+
+			const uint32_t numBytes = msg->m_cbSize;
+
+			// is it an AC packet?
+			// TODO_AC: Improve detection, just add a 'msg type' to the start of the packet
+			std::vector<byte> vecData;
+			vecData.resize(numBytes);
+			memcpy(vecData.data(), msg->GetData(), numBytes);
+
+			// Check minimum packet size for AC header
+			if (numBytes >= sizeof(ENetworkChannel))
+			{
+				ENetworkChannel netChannel = (ENetworkChannel)vecData[0];
+				if (netChannel == ENetworkChannel::NETWORK_CHANNEL_AC)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Received AC message of size %u from user %lld", numBytes, static_cast<long long>(m_userID));
 
 
-				// remove header
-				// TODO_AC: Optimize this
-				std::vector<byte> vecDataAC;
-				vecDataAC.resize(numBytes - sizeof(ENetworkChannel));
-				memcpy(vecDataAC.data(), (char*)msg->GetData() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel));
+					// remove header
+					// TODO_AC: Optimize this
+					std::vector<byte> vecDataAC;
+					vecDataAC.resize(numBytes - sizeof(ENetworkChannel));
+					memcpy(vecDataAC.data(), (char*)msg->GetData() + sizeof(ENetworkChannel), numBytes - sizeof(ENetworkChannel));
 
-				AnticheatPlugInterface::AC_NetworkMessageArrived(m_userID, vecDataAC.data(), numBytes - sizeof(ENetworkChannel));
+					AnticheatPlugInterface::AC_NetworkMessageArrived(m_userID, vecDataAC.data(), numBytes - sizeof(ENetworkChannel));
+					msg->Release();
+					continue;
+				}
+			}
+			else if (numBytes != -1 && numBytes < sizeof(ENetworkChannel))
+			{
+				// Malformed AC packet - too small for header
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Dropping malformed AC packet - size %u is less than header size 3 from user %lld", numBytes, static_cast<long long>(m_userID));
 				msg->Release();
 				continue;
 			}
-		}
-		else if (numBytes != -1 && numBytes < sizeof(ENetworkChannel))
-		{
-			// Malformed AC packet - too small for header
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Dropping malformed AC packet - size %u is less than header size 3 from user %lld", numBytes, static_cast<long long>(m_userID));
-			msg->Release();
-			continue;
-		}
 
-		// not an AC packet, we dont care
-		NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received NON AC message");
-		msg->Release();
+			// not an AC packet, we dont care
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "[AC PACKET] Received NON AC message");
+			msg->Release();
+		}
 	}
 }
 
 PlayerConnection::PlayerConnection(int64_t userID, HSteamNetConnection hSteamConnection)
 {
 	m_userID = userID;
+	m_ConnectionType = EConnectionType::BuiltIn_ValveSockets;
 	
 	// no connection yet
 	m_hSteamConnection = hSteamConnection;
@@ -1115,53 +1178,53 @@ PlayerConnection::PlayerConnection(int64_t userID, HSteamNetConnection hSteamCon
 	}
 }
 
+PlayerConnection::PlayerConnection(int64_t userID, const char* szMiddlewareID)
+{
+    m_userID = userID;
+    m_ConnectionType = EConnectionType::MiddlewarePluginGeneric;
+
+    // no connection yet
+    m_hSteamConnection = k_HSteamNetConnection_Invalid;
+	m_strMiddlewareID = std::string(szMiddlewareID);
+
+    NetworkLog(ELogVerbosity::LOG_RELEASE, "[MIDDLEWARE CONNECTION] Attaching connection %s to user %lld", szMiddlewareID, userID);
+
+    NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+    if (pMesh != nullptr)
+    {
+        pMesh->RegisterConnectivity(userID);
+    }
+}
+
 int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 {
-	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+    if (totalDataSize == 0)
+    {
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send empty game packet to user %lld", m_userID);
+        return (int)k_EResultFail;
+    }
+
+    if (pBuffer == nullptr)
+    {
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet with null buffer to user %lld", m_userID);
+        return (int)k_EResultFail;
+    }
+
+	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
-		return (int)k_EResultFail;
+		// TODO_EOS: Determine best reliability
+		AnticheatPlugInterface::SendPacket(m_strMiddlewareID.c_str(), m_userID, pBuffer, totalDataSize, ENetworkChannels::Game, EPacketReliability::PACKET_RELIABILITY_RELIABLE_ORDERED);
 	}
-
-	if (totalDataSize == 0)
+	else
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send empty game packet to user %lld", m_userID);
-		return (int)k_EResultFail;
-	}
+        if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
+            return (int)k_EResultFail;
+        }
 
-	if (pBuffer == nullptr)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet with null buffer to user %lld", m_userID);
-		return (int)k_EResultFail;
-	}
 
-	int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
 
-	ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
-	int netSendFlags = serviceConf.network_send_flags;
-
-	if (netSendFlags != -1)
-	{
-		if (netSendFlags == 0)
-		{
-			sendFlags = k_nSteamNetworkingSend_Unreliable;
-		}
-		else if (netSendFlags == 1)
-		{
-			sendFlags = k_nSteamNetworkingSend_UnreliableNoNagle;
-		}
-		else if (netSendFlags == 2)
-		{
-			sendFlags = k_nSteamNetworkingSend_UnreliableNoDelay;
-		}
-		else if (netSendFlags == 3)
-		{
-			sendFlags = k_nSteamNetworkingSend_Reliable;
-		}
-		else if (netSendFlags == 4)
-		{
-			sendFlags = k_nSteamNetworkingSend_ReliableNoNagle;
-		}
 	}
 
     ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_GAME;
@@ -1170,46 +1233,86 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
     memcpy(vecData.data() + sizeof(ENetworkChannel), pBuffer, totalDataSize);
     vecData[0] = (BYTE)netChannel;
 
+    int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
+
+    ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+    int netSendFlags = serviceConf.network_send_flags;
+
 	NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
 	EResult r = SteamNetworkingSockets()->SendMessageToConnection(
 		m_hSteamConnection, vecData.data(), vecData.size(), sendFlags, nullptr);
 
 	if (r != k_EResultOK)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Failed to send, err code was %d", r);
+        if (netSendFlags != -1)
+        {
+            if (netSendFlags == 0)
+            {
+                sendFlags = k_nSteamNetworkingSend_Unreliable;
+            }
+            else if (netSendFlags == 1)
+            {
+                sendFlags = k_nSteamNetworkingSend_UnreliableNoNagle;
+            }
+            else if (netSendFlags == 2)
+            {
+                sendFlags = k_nSteamNetworkingSend_UnreliableNoDelay;
+            }
+            else if (netSendFlags == 3)
+            {
+                sendFlags = k_nSteamNetworkingSend_Reliable;
+            }
+            else if (netSendFlags == 4)
+            {
+                sendFlags = k_nSteamNetworkingSend_ReliableNoNagle;
+            }
+        }
+
+        NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
+        EResult r = SteamNetworkingSockets()->SendMessageToConnection(
+            m_hSteamConnection, pBuffer, (int)totalDataSize, sendFlags, nullptr);
+
+        if (r != k_EResultOK)
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Failed to send, err code was %d", r);
+        }
+
+        return (int)r;
 	}
 
-	return (int)r;
+	return (int)k_EResultFail;
 }
 
 
 void PlayerConnection::SendACPacket(const void* pData, uint32_t dataLen)
 {
-	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Cannot send AC packet - connection is invalid for user %ld", m_userID);
-		return;
-	}
+		// nothing to do, handled internally in plugin
 
-	if (dataLen > 0 && pData == nullptr)
+	}
+	else
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Cannot send AC packet - data is null for user %ld", m_userID);
-		return;
+        if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Cannot send AC packet - connection is invalid for user %ld", m_userID);
+            return;
+        }
+
+        ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_AC;
+        std::vector<BYTE> vecData;
+        vecData.resize(dataLen + sizeof(ENetworkChannel));
+        memcpy(vecData.data() + sizeof(ENetworkChannel), pData, dataLen);
+        vecData[0] = (BYTE)netChannel;
+
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Sending AC msg of size %ld to user %ld\n", dataLen, m_userID);
+        EResult r = SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, vecData.data(), vecData.size(), k_nSteamNetworkingSend_Reliable, nullptr);
+
+        if (r != k_EResultOK)
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Failed to send, err code was %d", r);
+        }
 	}
-
-	ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_AC;
-	std::vector<BYTE> vecData;
-	vecData.resize(dataLen + sizeof(ENetworkChannel));
-	memcpy(vecData.data() + sizeof(ENetworkChannel), pData, dataLen);
-	vecData[0] = (BYTE)netChannel;
-
-    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Sending AC msg of size %ld to user %ld\n", dataLen, m_userID);
-    EResult r = SteamNetworkingSockets()->SendMessageToConnection(m_hSteamConnection, vecData.data(), vecData.size(), k_nSteamNetworkingSend_Reliable, nullptr);
-
-    if (r != k_EResultOK)
-    {
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC PACKET] Failed to send, err code was %d", r);
-    }
 }
 
 void PlayerConnection::UpdateLatencyHistogram()
@@ -1268,6 +1371,29 @@ void PlayerConnection::UpdateLatencyHistogram()
 			}
 		}
 	}
+}
+
+void PlayerConnection::Close()
+{
+	if (m_ConnectionType == EConnectionType::BuiltIn_ValveSockets)
+	{
+        if (SteamNetworkingSockets())
+        {
+            SteamNetworkingSockets()->CloseConnection(m_hSteamConnection, 0, "Client Disconnecting Gracefully", false);
+        }
+	}
+	else
+	{
+		if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+		{
+			AnticheatPlugInterface::DisconnectPlayer(m_strMiddlewareID.c_str(), m_userID);
+        }
+	}
+    
+    if (TheNetwork != nullptr)
+    {
+        TheNetwork->GetConnectionManager()->disconnectPlayer(m_userID);
+    }
 }
 
 bool PlayerConnection::IsIPV4()
@@ -1352,6 +1478,7 @@ void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwni
 
 void PlayerConnection::SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh, bool bIsRetrying)
 {
+	// TODO_EOS
 	if (bWasError)
 	{
 		if (bIsRetrying)
@@ -1394,20 +1521,27 @@ void PlayerConnection::SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh,
 
 int PlayerConnection::GetLatency()
 {
-	// TODO_STEAM: consider using lanes
-	if (m_hSteamConnection != k_HSteamNetConnection_Invalid)
+	if (m_ConnectionType == EConnectionType::MiddlewarePluginGeneric)
 	{
-		const int k_nLanes = 1;
-		SteamNetConnectionRealTimeStatus_t status;
-		SteamNetConnectionRealTimeLaneStatus_t laneStatus[k_nLanes];
+		return AnticheatPlugInterface::GetConnectionLatencyForUser(m_strMiddlewareID.c_str(), m_userID);
+	}
+	else
+	{
+        // TODO_STEAM: consider using lanes
+        if (m_hSteamConnection != k_HSteamNetConnection_Invalid)
+        {
+            const int k_nLanes = 1;
+            SteamNetConnectionRealTimeStatus_t status;
+            SteamNetConnectionRealTimeLaneStatus_t laneStatus[k_nLanes];
 
-		
 
-		EResult res = SteamNetworkingSockets()->GetConnectionRealTimeStatus(m_hSteamConnection, &status, k_nLanes, laneStatus);
-		if (res == k_EResultOK)
-		{
-			return status.m_nPing;
-		}
+
+            EResult res = SteamNetworkingSockets()->GetConnectionRealTimeStatus(m_hSteamConnection, &status, k_nLanes, laneStatus);
+            if (res == k_EResultOK)
+            {
+                return status.m_nPing;
+            }
+        }
 	}
 
 	return -1;
@@ -1456,6 +1590,7 @@ float PlayerConnection::GetConnectionQuality()
 
 int PlayerConnection::ComputeConnectionScore()
 {
+	// TODO_EOS: need to impl jitter etc again
 	const int latency = GetLatency();
 	const int jitter = GetJitter();
 	const float quality = GetConnectionQuality();   // packet delivery ratio [0..1]

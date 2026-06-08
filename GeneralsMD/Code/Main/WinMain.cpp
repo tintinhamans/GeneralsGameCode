@@ -312,7 +312,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 #ifdef	DEBUG_WINDOWS_MESSAGES
 		static msgCount = 0;
 		char testString[256];
-		sprintf(testString, "\n%d: %s (%X,%X)", msgCount++, messageToString(message), wParam, lParam);
+		snprintf(testString, sizeof(testString), "\n%d: %s (%X,%X)", msgCount++, messageToString(message), wParam, lParam);
 		OutputDebugString(testString);
 #endif
 
@@ -861,7 +861,7 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		char filePath[_MAX_PATH];
 		const char* fileName = "Install_Final.bmp";
 		static const char* localizedPathFormat = "Data/%s/";
-		sprintf(filePath, localizedPathFormat, GetRegistryLanguage().str());
+			snprintf(filePath, sizeof(filePath), localizedPathFormat, GetRegistryLanguage().str());
 		strlcat(filePath, fileName, ARRAY_SIZE(filePath));
 		FILE* fileImage = fopen(filePath, "r");
 		if (fileImage) {

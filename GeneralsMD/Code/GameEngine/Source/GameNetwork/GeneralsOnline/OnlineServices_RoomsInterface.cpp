@@ -266,8 +266,9 @@ public:
 	int64_t lobby_id;
 	int64_t user_id;
 	uint16_t preferred_port;
+	std::string middleware_id;
 
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkStartSignalling, msg_id, lobby_id, user_id, preferred_port)
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkStartSignalling, msg_id, lobby_id, user_id, preferred_port, middleware_id)
 };
 
 class WebSocketMessage_ACRegisterPlayer : public WebSocketMessageBase
@@ -657,6 +658,13 @@ void WebSocket::Tick()
 	CURLcode ret = CURL_LAST;
 	ret = curl_ws_recv(m_pCurlWS, bufferThisRecv, sizeof(bufferThisRecv), &rlen, &meta);
 
+	// SECURITY FIX: Validate rlen is within buffer bounds
+	if (rlen > sizeof(bufferThisRecv))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Received data size %zu exceeds buffer size %zu, discarding", rlen, sizeof(bufferThisRecv));
+		return;
+	}
+
 	if (ret != CURLE_RECV_ERROR && ret != CURL_LAST && ret != CURLE_AGAIN && ret != CURLE_GOT_NOTHING)
 	{
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket msg: %s", bufferThisRecv);
@@ -681,8 +689,11 @@ void WebSocket::Tick()
 					m_vecWSPartialBuffer.clear();
 					return;
 				}
-				m_vecWSPartialBuffer.resize(m_vecWSPartialBuffer.size() + rlen);
-				memcpy_s(m_vecWSPartialBuffer.data() + m_vecWSPartialBuffer.size() - rlen, rlen, bufferThisRecv, rlen);
+				
+				// SECURITY FIX: Store old size BEFORE resize to avoid off-by-one error in memcpy
+				size_t oldSize = m_vecWSPartialBuffer.size();
+				m_vecWSPartialBuffer.resize(oldSize + rlen);
+				memcpy_s(m_vecWSPartialBuffer.data() + oldSize, rlen, bufferThisRecv, rlen);
 
 				if (meta->flags & CURLWS_CONT)
 				{
@@ -997,7 +1008,8 @@ void WebSocket::Tick()
 
 												if (pMesh != nullptr)
 												{
-													pMesh->StartConnectionSignalling(startSignallingData.user_id, startSignallingData.preferred_port);
+                                                    pMesh->StartConnectionSignalling(startSignallingData.middleware_id.c_str(), startSignallingData.user_id, startSignallingData.preferred_port);
+                                                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Starting signalling with %lld (MWID: %s)", startSignallingData.user_id, startSignallingData.middleware_id.c_str());
 												}
 												else
 												{
@@ -1462,10 +1474,13 @@ void NGMP_OnlineServices_RoomsInterface::GetRoomList(std::function<void(void)> c
 
 void NGMP_OnlineServices_RoomsInterface::JoinRoom(int roomIndex, std::function<void()> onStartCallback, std::function<void()> onCompleteCallback)
 {
-	// TODO_NGMP: Safety
+	// TODO_NGMP: Safety - NOW FIXED with null checks
 
 	// TODO_NGMP: Remove this, its no longer a call really, or make a call
-	onStartCallback();
+	if (onStartCallback != nullptr)
+	{
+		onStartCallback();
+	}
 	m_CurrentRoomID = roomIndex;
 
 	// TODO_NGMP: What if there are zero rooms? e.g. the service request failed
@@ -1491,7 +1506,10 @@ void NGMP_OnlineServices_RoomsInterface::JoinRoom(int roomIndex, std::function<v
 		}
 	}
 
-	onCompleteCallback();
+	if (onCompleteCallback != nullptr)
+	{
+		onCompleteCallback();
+	}
 }
 
 std::unordered_map<uint64_t, NetworkRoomMember>& NGMP_OnlineServices_RoomsInterface::GetMembersListForCurrentRoom()
@@ -1513,6 +1531,7 @@ void NGMP_OnlineServices_RoomsInterface::OnRosterUpdated(std::unordered_map<uint
 {
 	m_mapMembers = mapMembers;
 
+	std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 	if (m_RosterNeedsRefreshCallback != nullptr)
 	{
 		m_RosterNeedsRefreshCallback();

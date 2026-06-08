@@ -14,6 +14,7 @@
 #include "GameClient/Display.h"
 #include "surfaceclass.h"
 #include "dx8wrapper.h"
+#include <mutex>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
@@ -29,7 +30,7 @@ extern "C"
 }
 
 NGMP_OnlineServicesManager* NGMP_OnlineServicesManager::m_pOnlineServicesManager = nullptr;
-
+std::mutex NGMP_OnlineServicesManager::m_singletonMutex;
 
 std::thread::id NGMP_OnlineServicesManager::g_MainThreadID;
 std::mutex NGMP_OnlineServicesManager::m_ScreenshotMutex;
@@ -57,20 +58,31 @@ void NGMP_OnlineServicesManager::GetAndParseServiceConfig(std::function<void(voi
 {
 	std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("ServiceConfig");
 	std::map<std::string, std::string> mapHeaders;
-	NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+	
+	// SECURITY FIX: Capture manager instance through GetInstance() to ensure thread-safety
+	// Lambda will check if manager still exists before accessing members
+	NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [cbOnDone](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
 			try
 			{
+				// SECURITY FIX: Re-acquire manager pointer inside lambda to check for shutdown
+				NGMP_OnlineServicesManager* pMgr = NGMP_OnlineServicesManager::GetInstance();
+				if (pMgr == nullptr)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Manager destroyed during service config request");
+					return;
+				}
+				
 				if (bSuccess && statusCode == 200)
 				{
 					nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-					m_ServiceConfig = jsonObject.get<ServiceConfig>();
+					pMgr->m_ServiceConfig = jsonObject.get<ServiceConfig>();
 				}
 				else
 				{
 					// It's OK to fail, we'll just use the sensible defaults
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to get service config, using defaults. Status code: %d", statusCode);
-					m_ServiceConfig = ServiceConfig();
+					pMgr->m_ServiceConfig = ServiceConfig();
 				}
 				
 			}
@@ -78,7 +90,11 @@ void NGMP_OnlineServicesManager::GetAndParseServiceConfig(std::function<void(voi
 			{
 				// It's OK to fail, we'll just use the sensible defaults
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to get service config, using defaults. Exception.");
-				m_ServiceConfig = ServiceConfig();
+				NGMP_OnlineServicesManager* pMgr = NGMP_OnlineServicesManager::GetInstance();
+				if (pMgr != nullptr)
+				{
+					pMgr->m_ServiceConfig = ServiceConfig();
+				}
 			}
 
 			if (cbOnDone != nullptr)
@@ -508,7 +524,11 @@ void NGMP_OnlineServicesManager::ContinueUpdate()
 			TheDownloadManager->OnStatusUpdate(DOWNLOADSTATUS_FINISHING);
 		}
 
-		m_updateCompleteCallback();
+		std::scoped_lock<std::mutex> lock(m_updateCallbackMutex);
+		if (m_updateCompleteCallback != nullptr)
+		{
+			m_updateCompleteCallback();
+		}
 	}
 	
 }
@@ -647,12 +667,19 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 									}
 								);
 
-								// Store the thread so we can join it during shutdown
-								if (m_pOnlineServicesManager != nullptr)
-								{
-									std::scoped_lock<std::mutex> lock(m_pOnlineServicesManager->m_mutexScreenshotThreads);
-									m_pOnlineServicesManager->m_vecScreenshotThreads.push_back(pNewThread);
-								}
+							// Store the thread so we can join it during shutdown
+							// SECURITY FIX: Capture manager pointer before spawning thread to avoid TOCTOU race
+							NGMP_OnlineServicesManager* pMgr = NGMP_OnlineServicesManager::GetInstance();
+							if (pMgr != nullptr)
+							{
+								std::scoped_lock<std::mutex> lock(pMgr->m_mutexScreenshotThreads);
+								pMgr->m_vecScreenshotThreads.push_back(pNewThread);
+							}
+							else
+							{
+								// Manager was destroyed, cannot store thread. Thread will leak but won't crash.
+								NetworkLog(ELogVerbosity::LOG_RELEASE, "[Screenshot] Manager destroyed before thread could be registered");
+							}
 
 								bSucceeded = true;
 							}
@@ -769,7 +796,10 @@ void NGMP_OnlineServicesManager::StartDownloadUpdate(std::function<void(void)> c
 	m_vecFilesToDownload.emplace(m_patcher_path);
 	m_vecFilesSizes.emplace(m_patcher_size);
 	
-	m_updateCompleteCallback = cb;
+	{
+		std::scoped_lock<std::mutex> lock(m_updateCallbackMutex);
+		m_updateCompleteCallback = cb;
+	}
 
 	// cleanup current folder
 	std::string strPatchDir = GetPatcherDirectoryPath();
@@ -1016,7 +1046,7 @@ void NGMP_OnlineServicesManager::InitSentry()
 
 	sentry_options_set_dsn(options, "https://61750bebd112d279bcc286d617819269@o4509316925554688.ingest.us.sentry.io/4509316927586304");
 	sentry_options_set_database_path(options, strDumpPath.c_str());
-	sentry_options_set_release(options, "generalsonline-client@042826_QFE5_EAC");
+	sentry_options_set_release(options, "generalsonline-client@060526");
 
 #if defined(USE_TEST_ENV)
 	sentry_options_set_environment(options, "test");
