@@ -567,6 +567,7 @@ static void saveOptions()
 		(*pref)["AntiAliasing"] = prefString;
   }
 
+#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 	//-------------------------------------------------------------------------------------------------
 	// texture filter mode
 	val = pref->getTextureFilterMode();
@@ -592,6 +593,7 @@ static void saveOptions()
 		prefString.format("%d", val);
 		(*pref)["AnisotropyLevel"] = prefString;
 	}
+#endif
 
 	//-------------------------------------------------------------------------------------------------
 	// mouse mode

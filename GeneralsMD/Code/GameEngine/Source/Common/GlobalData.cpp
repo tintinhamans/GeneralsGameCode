@@ -939,8 +939,11 @@ GlobalData::GlobalData()
 	m_standardPublicBones.clear();
 
 	m_antiAliasLevel = WW3D::MultiSampleModeEnum::MULTISAMPLE_MODE_NONE;
+
+#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 	m_textureFilteringMode = TextureFilterClass::TextureFilterMode::TEXTURE_FILTER_BILINEAR;
 	m_textureAnisotropyLevel = TextureFilterClass::AnisotropicFilterMode::TEXTURE_FILTER_ANISOTROPIC_2X;
+#endif
 
 //	m_languageFilterPref = false;
 	m_languageFilterPref = true;
@@ -1266,8 +1269,11 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_observerNotificationMilestone = optionPref.getObserverNotificationMilestone();
 
 	TheWritableGlobalData->m_antiAliasLevel = optionPref.getAntiAliasing();
+
+#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 	TheWritableGlobalData->m_textureFilteringMode = optionPref.getTextureFilterMode();
 	TheWritableGlobalData->m_textureAnisotropyLevel = optionPref.getTextureAnisotropyLevel();
+#endif
 
 	Int val=optionPref.getGammaValue();
 	//generate a value between 0.6 and 2.0.
