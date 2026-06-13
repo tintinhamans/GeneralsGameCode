@@ -2291,6 +2291,7 @@ void InGameUI::reset()
 
 	m_windowLayouts.clear();
 
+	m_observerStatsHidden = false;
 	m_observerNotifications.clear();
 	m_observerMilestones.clear();
 

@@ -809,6 +809,48 @@ void MetaMap::generateMetaMap()
 	// but is not recommended, because it will cause key mapping conflicts with original game languages.
 
 	{
+		MetaMapRec* map = TheMetaMap->getMetaMapRec(GameMessage::MSG_META_INCREASE_OBSERVER_NOTIFICATION_FONT);
+		if (map->m_key == MK_NONE)
+		{
+			map->m_key = MK_RIGHT;
+			map->m_transition = DOWN;
+			map->m_modState = SHIFT;
+			map->m_usableIn = COMMANDUSABLE_GAME;
+		}
+	}
+	{
+		MetaMapRec* map = TheMetaMap->getMetaMapRec(GameMessage::MSG_META_DECREASE_OBSERVER_NOTIFICATION_FONT);
+		if (map->m_key == MK_NONE)
+		{
+			map->m_key = MK_LEFT;
+			map->m_transition = DOWN;
+			map->m_modState = SHIFT;
+			map->m_usableIn = COMMANDUSABLE_GAME;
+		}
+	}
+
+	{
+		MetaMapRec* map = TheMetaMap->getMetaMapRec(GameMessage::MSG_META_INCREASE_OBSERVER_STATS_FONT);
+		if (map->m_key == MK_NONE)
+		{
+			map->m_key = MK_UP;
+			map->m_transition = DOWN;
+			map->m_modState = SHIFT;
+			map->m_usableIn = COMMANDUSABLE_GAME;
+		}
+	}
+	{
+
+		MetaMapRec* map = TheMetaMap->getMetaMapRec(GameMessage::MSG_META_DECREASE_OBSERVER_STATS_FONT);
+		if (map->m_key == MK_NONE)
+		{
+			map->m_key = MK_DOWN;
+			map->m_transition = DOWN;
+			map->m_modState = SHIFT;
+			map->m_usableIn = COMMANDUSABLE_GAME;
+		}
+	}
+	{
 		// Is useful for Generals and Zero Hour.
 		MetaMapRec *map = getMetaMapRec(GameMessage::MSG_META_INCREASE_MAX_RENDER_FPS);
 		if (map->m_key == MK_NONE)
