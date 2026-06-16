@@ -7021,7 +7021,7 @@ void InGameUI::drawNetworkLatency(Int & x, Int & y)
 
 		if (actualFrames != gentoolFrames)
 		{
-			latencyStr.format(L"%u [%ums|%u][L: %u]", gentoolFrames, actualLatencyInMS, actualFrames, TheNetwork->getFrameRate());
+			latencyStr.format(L"[%u] - [%ums - %u]", TheNetwork->getFrameRate(), actualLatencyInMS, actualFrames);
 		}
 		else
 		{
