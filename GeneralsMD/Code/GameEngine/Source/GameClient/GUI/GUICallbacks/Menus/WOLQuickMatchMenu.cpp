@@ -1451,6 +1451,13 @@ void WOLQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 	if (!TheGameEngine->getQuitting())
 		saveQuickMatchOptions();
 
+	if (listboxMapSelect && mapListboxPreviewFunc)
+		listboxMapSelect->winSetDrawFunc(mapListboxPreviewFunc);
+
+	mapListboxPreviewFunc = nullptr;
+	mapHoverPreview = nullptr;
+	listboxMapSelect = nullptr;
+
 	parentWOLQuickMatch = nullptr;
 	buttonBack = nullptr;
 	quickmatchTextWindow = nullptr;
