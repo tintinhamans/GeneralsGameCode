@@ -1137,7 +1137,7 @@ void WebSocket::Tick()
 												}
 
 												// no admin chat in lobby
-												Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, chatData.action, false, lobbySlot);
+												Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, chatData.action, false, false, lobbySlot);
 
 												if (pLobbyInterface->m_OnChatCallback != nullptr)
 												{
