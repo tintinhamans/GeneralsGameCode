@@ -2482,6 +2482,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 				// are we done?
 				if (secondsRemaining <= 0)
 				{
+					s_matchStartCountdownWasRunning = false;
 					// stop countdown
 					TheNGMPGame->StopCountdown();
 
