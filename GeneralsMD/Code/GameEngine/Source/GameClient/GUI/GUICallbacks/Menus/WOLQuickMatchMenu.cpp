@@ -1208,6 +1208,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 		pLobbyInterface->RegisterForMatchmakingMatchFoundCallback([]()
 			{
+				buttonBack->winEnable(FALSE);
 				buttonStop->winEnable(FALSE);
                 if (TheAudio)
 				{
@@ -1252,9 +1253,6 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				// TODO_NGMP
 				//SendStatsToOtherPlayers(TheNGMPGame);
 
-				// we've started, there's no going back
-				// i.e. disable the back button.
-				buttonBack->winEnable(FALSE);
 				GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
 				if (buttonBuddy)
 					buttonBuddy->winEnable(FALSE);
