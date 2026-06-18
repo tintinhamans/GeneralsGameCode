@@ -584,12 +584,40 @@ void updateBuddyInfo( void )
 				}
 			}
 
-            // FRIENDS
-            int i = 0;
+			// REQUESTS
+			for (auto& kvPair : pSocialInterface->GetCachedRequestsList())
+			{
+				FriendsEntry friendsEntry = kvPair.second;
+				int64_t profileID = friendsEntry.user_id;
+				AsciiString strName = AsciiString(friendsEntry.display_name.c_str());
+
+				// insert name into box
+				UnicodeString formatStr;
+				formatStr.translate(strName.str());
+				int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
+
+				// insert status into box
+				formatStr = TheGameText->fetch("GUI:BuddyAddReq");
+				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_REQUEST), index, 1);
+
+				if (profileID == selectedProfile)
+					selected = index;
+			}
+
+			// FRIENDS
+			int i = 0;
 			auto friendsMap = pSocialInterface->GetCachedFriendsList();
 			std::vector<std::pair<int64_t, FriendsEntry>> sortedFriends(friendsMap.begin(), friendsMap.end());
 			std::stable_sort(sortedFriends.begin(), sortedFriends.end(),
-				[](auto& a, auto& b) { return a.second.online > b.second.online; });
+				[&](auto& a, auto& b) {
+					Int unreadA = pSocialInterface->GetNumberUnreadChatMessagesForUser(a.second.user_id);
+					Int unreadB = pSocialInterface->GetNumberUnreadChatMessagesForUser(b.second.user_id);
+					if (unreadA != unreadB)
+						return unreadA > unreadB;
+					return a.second.online > b.second.online;
+				});
 
 			for (auto& kvPair : sortedFriends)
             {
@@ -650,28 +678,6 @@ void updateBuddyInfo( void )
                 GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
                 GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
                 GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_BUDDY), index, 1);
-
-                if (profileID == selectedProfile)
-                    selected = index;
-            }
-
-            // REQUESTS
-            for (auto& kvPair : pSocialInterface->GetCachedRequestsList())
-            {
-                FriendsEntry friendsEntry = kvPair.second;
-                int64_t profileID = friendsEntry.user_id;
-                AsciiString strName = AsciiString(friendsEntry.display_name.c_str());
-
-                // insert name into box
-                UnicodeString formatStr;
-                formatStr.translate(strName.str());
-                int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-                GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
-
-                // insert status into box
-                formatStr = TheGameText->fetch("GUI:BuddyAddReq");
-                GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
-                GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_REQUEST), index, 1);
 
                 if (profileID == selectedProfile)
                     selected = index;
