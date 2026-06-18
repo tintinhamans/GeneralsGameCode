@@ -1204,7 +1204,7 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 
     Bool isMultiplayer = (m_originalGameMode == GAME_INTERNET || m_originalGameMode == GAME_LAN);
     m_crcInfo = CRCInfo(header.localPlayerIndex, isMultiplayer);
-    DEBUG_LOG(("Player index is %d, replay CRC interval is %d, isMultiplayer is %d", m_crcInfo->getLocalPlayer(), REPLAY_CRC_INTERVAL, isMultiplayer));
+    DEBUG_LOG(("Player index is %d, replay CRC interval is %d, isMultiplayer is %d", m_crcInfo.getLocalPlayer(), REPLAY_CRC_INTERVAL, isMultiplayer));
 
     DEBUG_LOG(("RecorderClass::playbackFile() - original game was mode %d", m_originalGameMode));
 
