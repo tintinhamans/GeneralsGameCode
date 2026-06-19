@@ -1,7 +1,5 @@
 #pragma once
 
-#define AC_ENABLED 1
-
 enum class EConnectionState : uint8_t
 {
     NOT_CONNECTED,
@@ -11,6 +9,22 @@ enum class EConnectionState : uint8_t
     CONNECTION_FAILED,
     CONNECTION_DISCONNECTED
 };
+
+enum class ENetworkChannels : uint8_t
+{
+    Game = 0,
+    Anticheat,
+    Signalling
+};
+
+enum class EPacketReliability : int32_t
+{
+    PACKET_RELIABILITY_UNRELIABLE_UNORDERED = 0,
+    PACKET_RELIABILITY_RELIABLE_UNORDERED = 1,
+    PACKET_RELIABILITY_RELIABLE_ORDERED = 2
+};
+
+
 
 enum class EAnticheatActionType : int32_t
 {
@@ -33,20 +47,8 @@ enum class EAnticheatActionReason : int32_t
     PermaBanned = 10
 };
 
-enum class ENetworkChannels : uint8_t
-{
-    Game = 0,
-    Anticheat,
-    Signalling
-};
-
-enum class EPacketReliability : int32_t
-{
-    PACKET_RELIABILITY_UNRELIABLE_UNORDERED = 0,
-    PACKET_RELIABILITY_RELIABLE_UNORDERED = 1,
-    PACKET_RELIABILITY_RELIABLE_ORDERED = 2
-};
-
+#if defined(GENERALS_ONLINE_USE_PLUGINS_INTERFACE)
+#define AC_ENABLED 1
 
 class AnticheatPlugInterface
 {
@@ -191,3 +193,119 @@ public:
 };
 
 extern HWND ApplicationHWnd;
+#else
+class AnticheatPlugInterface
+{
+public:
+    static bool g_bPendingExitLobby;
+
+    static void AC_NetworkMessageArrived(uint32_t goUserID, void* pData, uint32_t dataLen)
+    {
+
+    }
+
+    static bool DidPluginFailToLoad() { return false; }
+
+    static bool IsPluginLoaded()
+    {
+        return true;
+    }
+
+    static bool IsExternalProcessRunning()
+    {
+        return true;
+    }
+
+    static int GetAnticheatIdentifier()
+    {
+        return 0;
+    }
+
+    static int GetConnectionLatencyForUser(std::string mwUserID, uint32_t goUserID)
+    {
+        return 0;
+    }
+
+    static void LoadPlugin(const char* szPluginName)
+    {
+
+    }
+
+    static void Authenticate()
+    {
+
+    }
+
+    static void UnloadPlugin()
+    {
+
+    }
+
+    static void Tick()
+    {
+
+    }
+
+    static void RefreshToken()
+    {
+
+    }
+
+    static bool RegisterPlayer(std::string mwUserID, uint32_t goUserID)
+    {
+        return true;
+    }
+
+    static bool DeregisterPlayer(std::string mwUserID, uint32_t goUserID)
+    {
+        return true;
+    }
+
+    static void BeginSession()
+    {
+
+    }
+
+    static void EndSession()
+    {
+
+    }
+
+    static bool DoesACPluginProvideSecureGameTransport()
+    {
+        return false;
+    }
+
+    static void SendPacket(const char* szMiddlewareUserID, uint64_t targetGoUserID, void* pData, int numBytes, ENetworkChannels channel, EPacketReliability reliability)
+    {
+
+    }
+
+    static void StartSignalling(const char* szMiddlewareUserID, uint64_t goUserID)
+    {
+
+    }
+
+    static int GetNextRecvPacketSize(uint8_t channelToReceiveOn)
+    {
+        return 0;
+    }
+
+    static bool RecvPacket(uint8_t** pOutData, uint8_t channelToReceiveOn)
+    {
+        *pOutData = nullptr;
+        return false;
+    }
+
+    static void DisconnectPlayer(const char* szMiddlewareUserID, uint64_t goUserID)
+    {
+
+    }
+
+    static void DisconnectAll()
+    {
+
+    }
+};
+
+#endif

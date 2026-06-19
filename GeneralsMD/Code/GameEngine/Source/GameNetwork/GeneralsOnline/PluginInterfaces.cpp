@@ -4,6 +4,10 @@
 #include "../OnlineServices_Init.h"
 #include "../OnlineServices_Auth.h"
 
+bool AnticheatPlugInterface::g_bPendingExitLobby = false;
+
+#if defined(GENERALS_ONLINE_USE_PLUGINS_INTERFACE)
+
 #define AC_PLUGIN_LOAD_FUNCTION(funcName) \
     AnticheatPlugInterface::Functions.fn##funcName = (FuncDef##funcName)GetProcAddress(g_hACPluginModule, #funcName); \
     if (!AnticheatPlugInterface::Functions.fn##funcName) \
@@ -284,8 +288,6 @@ void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
 #endif
     }
 }
-
-bool AnticheatPlugInterface::g_bPendingExitLobby = false;
 
 void AnticheatPlugInterface::AC_NetworkMessageArrived(uint32_t goUserID, void* pData, uint32_t dataLen)
 {
@@ -588,3 +590,5 @@ void AnticheatPlugInterface::UnloadPlugin()
     }
 #endif
 }
+
+#endif
