@@ -7231,7 +7231,7 @@ void InGameUI::drawGameTime()
 					m_gameTimeString->getSize(&w, &h);
 
 					bool bIsHighQuality = true;
-					if (avgFPS < GENERALS_ONLINE_HIGH_FPS_LIMIT || status.m_cbSentUnackedReliable >= 1000 || (status.m_flConnectionQualityLocal != -1.f && status.m_flConnectionQualityLocal < 1.f) || (status.m_flConnectionQualityRemote != -1.f && status.m_flConnectionQualityRemote < 1.f))
+					if (avgFPS < (GENERALS_ONLINE_HIGH_FPS_LIMIT - 1) || status.m_cbSentUnackedReliable >= 1000 || (status.m_flConnectionQualityLocal != -1.f && status.m_flConnectionQualityLocal < 1.f) || (status.m_flConnectionQualityRemote != -1.f && status.m_flConnectionQualityRemote < 1.f))
 					{
 						bIsHighQuality = false;
 					}
