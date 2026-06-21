@@ -755,7 +755,11 @@ void WebSocket::Tick()
 
 										if (bParsed)
 										{
-											UnicodeString unicodeStr(from_utf8(chatData.message).c_str());
+											SYSTEMTIME systemTime;
+											GetLocalTime(&systemTime);
+
+											UnicodeString unicodeStr;
+											unicodeStr.format(L"[%2.2d:%2.2d] %s", systemTime.wHour, systemTime.wMinute, from_utf8(chatData.message).c_str());
 
 											Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_NETWORK_ROOM, true, chatData.action, chatData.admin, chatData.name_change);
 
