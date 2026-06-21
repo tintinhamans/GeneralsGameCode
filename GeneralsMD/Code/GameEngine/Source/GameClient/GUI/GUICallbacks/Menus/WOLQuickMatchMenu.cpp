@@ -2218,6 +2218,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 
 					std::vector<int> vecSelectedMapIndexes;
 					uint16_t playlistID = 0;
+					int minSelectedMaps = 0;
 
 					// get maps and playlist ID
 					std::list<AsciiString> maps;
@@ -2233,6 +2234,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 							if (plEntry.PlaylistID != -1)
 							{
 								playlistID = plEntry.PlaylistID;
+								minSelectedMaps = plEntry.MinSelectedMaps;
 
 								// maps
 								Int numMaps = GadgetListBoxGetNumEntries(listboxMapSelect);
@@ -2254,6 +2256,22 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					else
 					{
 						// TODO_QUICKMATCH: Error?
+					}
+					
+					if (static_cast<int>(vecSelectedMapIndexes.size()) < minSelectedMaps)
+					{
+						UnicodeString msg;
+						msg.format(L"You must select at least %d maps.", minSelectedMaps);
+						Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, msg, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+						GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
+						
+						// buttons
+						buttonWiden->winEnable(FALSE);
+						buttonStart->winHide(FALSE);
+						buttonStart->winEnable(TRUE);
+						buttonStop->winHide(TRUE);
+						
+						break;
 					}
 
 					// buttons
