@@ -22,9 +22,13 @@
 #include "STLUtils.h"
 #include "stringex.h"
 #include <Utility/stdio_adapter.h>
+#include <rts/profile.h>
 
 #include "../../GeneralsMD/Code/GameEngine/Include/GameNetwork/GeneralsOnline/NextGenMP_defines.h"
 
+#ifndef SAFE_RELEASE
+#define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=nullptr; } }
+#endif
 
 // This macro serves as a general way to determine the number of elements within an array.
 #ifndef ARRAY_SIZE

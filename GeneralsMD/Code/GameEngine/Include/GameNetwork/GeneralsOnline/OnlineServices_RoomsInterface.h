@@ -13,7 +13,7 @@ enum class EChatMessageType
 	CHAT_MESSAGE_TYPE_NETWORK_ROOM,
 	CHAT_MESSAGE_TYPE_LOBBY
 };
-static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool isPublic, bool bAction, bool bAdmin, int lobbySlot = -1)
+static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool isPublic, bool bAction, bool bAdmin, bool bIsNameChange, int lobbySlot = -1)
 {
 	Color style = GameMakeColor(255, 255, 255, 255);
 
@@ -24,6 +24,10 @@ static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool
 	{
 		style = (isOwner) ? GameSpyColor[GSCOLOR_CHAT_OWNER_EMOTE] : GameSpyColor[GSCOLOR_CHAT_EMOTE];
 	}
+    else if (isPublic && bIsNameChange)
+    {
+        style = GameMakeColor(127, 127, 127, 255);
+    }
 	else if (isPublic)
 	{
 		// use lobby colors
@@ -125,13 +129,16 @@ public:
 	}
 
 	std::function<void()> m_RosterNeedsRefreshCallback = nullptr;
+	mutable std::mutex m_rosterCallbackMutex;
 	void RegisterForRosterNeedsRefreshCallback(std::function<void()> cb)
 	{
+		std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 		m_RosterNeedsRefreshCallback = cb;
 	}
 
 	void DeregisterForRosterNeedsRefreshCallback()
 	{
+		std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 		m_RosterNeedsRefreshCallback = nullptr;
 	}
 
@@ -166,6 +173,7 @@ public:
 	{
 		m_mapMembers.clear();
 	
+		std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 		if (m_RosterNeedsRefreshCallback != nullptr)
 		{
 			m_RosterNeedsRefreshCallback();

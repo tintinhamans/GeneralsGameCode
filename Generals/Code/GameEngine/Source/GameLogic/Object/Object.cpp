@@ -74,6 +74,7 @@
 #include "GameLogic/Module/DeletionUpdate.h"
 #include "GameLogic/Module/DestroyModule.h"
 #include "GameLogic/Module/DieModule.h"
+#include "GameLogic/Module/DozerAIUpdate.h"
 #include "GameLogic/Module/ObjectDefectionHelper.h"
 #include "GameLogic/Module/ObjectRepulsorHelper.h"
 #include "GameLogic/Module/ObjectSMCHelper.h"
@@ -703,7 +704,7 @@ void Object::onDestroy()
 		(*b)->onDelete();
 	}
 
-	//Have to remove ourself from looking as well.  RebuildHoleWorkers definately hit here.
+	//Have to remove ourself from looking as well.  RebuildHoleWorkers definitely hit here.
 	handlePartitionCellMaintenance();
 }
 
@@ -1117,6 +1118,12 @@ Bool Object::hasAnyDamageWeapon() const
 		return FALSE;
 	}
 	return TRUE;
+}
+
+//=============================================================================
+UnsignedInt Object::getMostPercentReadyToFireAnyWeapon() const
+{
+	return m_weaponSet.getMostPercentReadyToFireAnyWeapon();
 }
 
 //=============================================================================
@@ -1718,7 +1725,7 @@ void Object::attemptDamage( DamageInfo *damageInfo )
 			damageInfo->in.m_damageType != DAMAGE_HEALING &&
 			!BitIsSet(damageInfo->in.m_sourcePlayerMask, getControllingPlayer()->getPlayerMask()) &&
 			m_radarData != nullptr &&
-			getControllingPlayer() == ThePlayerList->getLocalPlayer() )
+			isLocallyControlled() )
 		TheRadar->tryUnderAttackEvent( this );
 
 }
@@ -1738,7 +1745,7 @@ void Object::attemptHealing(Real amount, const Object* source)
 	}
 }
 
-ObjectID Object::getSoleHealingBenefactor( void ) const
+ObjectID Object::getSoleHealingBenefactor() const
 {
 	UnsignedInt now = TheGameLogic->getFrame();
 	if( now > m_soleHealingBenefactorExpirationFrame )
@@ -1851,13 +1858,13 @@ void Object::setCaptured(Bool isCaptured)
 
 
 //-------------------------------------------------------------------------------------------------
-Bool Object::isStructure(void) const
+Bool Object::isStructure() const
 {
 	return isKindOf(KINDOF_STRUCTURE);
 }
 
 //-------------------------------------------------------------------------------------------------
-Bool Object::isFactionStructure(void) const
+Bool Object::isFactionStructure() const
 {
 	KindOfMaskType bits;
 	bits.set(KINDOF_FS_POWER);
@@ -1869,7 +1876,7 @@ Bool Object::isFactionStructure(void) const
 }
 
 //-------------------------------------------------------------------------------------------------
-Bool Object::isNonFactionStructure(void) const
+Bool Object::isNonFactionStructure() const
 {
 	return isStructure() && !isFactionStructure();
 }
@@ -1939,7 +1946,7 @@ void Object::setDisabledUntil( DisabledType type, UnsignedInt frame )
 	if( m_disabledTillFrame[ type ] != frame )
 	{
 		// an edge-test for disabledness, for type. This INCREMENTS m_pauseCount
-		// srj sez: HELD nevers disables special powers.
+		// srj sez: HELD never disables special powers.
 		if ( type != DISABLED_HELD && !isDisabledByType( type ) )
 			pauseAllSpecialPowers( TRUE );
 
@@ -2056,7 +2063,7 @@ Bool Object::clearDisabled( DisabledType type )
 
 
 	// an edge-test for disabledness, for type. This DECREMENTS m_pauseCount
-	// srj sez: HELD nevers disables special powers.
+	// srj sez: HELD never disables special powers.
 	if ( type != DISABLED_HELD && isDisabledByType( type ) )
 		pauseAllSpecialPowers( FALSE );
 
@@ -2518,7 +2525,7 @@ void Object::setID( ObjectID id )
 }
 
 // ------------------------------------------------------------------------------------------------
-Real Object::calculateHeightAboveTerrain(void) const
+Real Object::calculateHeightAboveTerrain() const
 {
 	const Coord3D* pos = getPosition();
 	Real terrainZ = TheTerrainLogic->getLayerHeight( pos->x, pos->y, m_layer );
@@ -2544,7 +2551,7 @@ void Object::removeFromList(Object **pListHead)
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void Object::friend_prepareForMapBoundaryAdjust(void)
+void Object::friend_prepareForMapBoundaryAdjust()
 {
 	// NOTE - DO NOT remove from pathfind map. jba.
 	// NO NO. jba. TheAI->pathfinder()->removeObjectFromPathfindMap( this );
@@ -2565,7 +2572,7 @@ void Object::friend_prepareForMapBoundaryAdjust(void)
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void Object::friend_notifyOfNewMapBoundary(void)
+void Object::friend_notifyOfNewMapBoundary()
 {
 	ThePartitionManager->registerObject(this);
 	TheRadar->addObject(this);
@@ -2809,7 +2816,13 @@ Bool Object::hasSpecialPower( SpecialPowerType type ) const
 }
 
 //-------------------------------------------------------------------------------------------------
-void Object::onVeterancyLevelChanged( VeterancyLevel oldLevel, VeterancyLevel newLevel )
+Bool Object::hasAnySpecialPower() const
+{
+  return SPECIALPOWERMASK_ANY_SET( m_specialPowerBits );
+}
+
+//-------------------------------------------------------------------------------------------------
+void Object::onVeterancyLevelChanged( VeterancyLevel oldLevel, VeterancyLevel newLevel, Bool provideFeedback )
 {
 #if !RETAIL_COMPATIBLE_CRC
 	// TheSuperHackers @bugfix Stubbjax 10/12/2025 Do not apply veterancy bonuses and animations for dead units.
@@ -3067,7 +3080,7 @@ void Object::maskObject( Bool mask )
 /*
  * returns true if the current locomotor is an airborne one
  */
-Bool Object::isUsingAirborneLocomotor( void ) const
+Bool Object::isUsingAirborneLocomotor() const
 {
 	return ( m_ai && m_ai->getCurLocomotor() && ((m_ai->getCurLocomotor()->getLegalSurfaces() & LOCOMOTORSURFACE_AIR) != 0) );
 }
@@ -3425,7 +3438,7 @@ void Object::onDisabledEdge(Bool becomingDisabled)
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Object CRC implemtation */
+/** Object CRC implementation */
 //-------------------------------------------------------------------------------------------------
 void Object::crc( Xfer *xfer )
 {
@@ -3487,7 +3500,7 @@ void Object::crc( Xfer *xfer )
 #if RETAIL_COMPATIBLE_CRC
 		tmp.format("m_objectUpgradesCompleted: %I64X, ", m_objectUpgradesCompleted);
 #else
-		tmp.format("m_objectUpgradesCompleted: %s, ", m_objectUpgradesCompleted.toHexString().c_str());
+		tmp.format("m_objectUpgradesCompleted: %s, ", m_objectUpgradesCompleted.toHexString().str());
 #endif
 		logString.concat(tmp);
 	}
@@ -3549,7 +3562,7 @@ void Object::crc( Xfer *xfer )
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Object xfer implemtation
+/** Object xfer implementation
 	* Version Info:
 	* 1: Initial version
 	* 2: Xfers m_singleUseCommandUsed... determines if the single use command button has been used or not.
@@ -3612,12 +3625,10 @@ void Object::xfer( Xfer *xfer )
 	Drawable *draw = getDrawable();
 	DrawableID drawableID = draw ? draw->getID() : INVALID_DRAWABLE_ID;
 	xfer->xferDrawableID( &drawableID );
-	if( xfer->getXferMode() == XFER_LOAD )
+	if (draw && xfer->getXferMode() == XFER_LOAD)
 	{
-
 		// change the ID of the drawable attached to be the same ID as it was when it was saved
-		draw->setID( drawableID );
-
+		draw->setID(drawableID);
 	}
 
 	// internal name
@@ -3653,19 +3664,6 @@ void Object::xfer( Xfer *xfer )
 
 	// private status
 	xfer->xferUnsignedByte( &m_privateStatus );
-
-	// OK, now that we have xferred our status bits, it's safe to set the team...
-	if( xfer->getXferMode() == XFER_LOAD )
-	{
-		Team *team = TheTeamFactory->findTeamByID( teamID );
-		if( team == nullptr )
-		{
-			DEBUG_CRASH(( "Object::xfer - Unable to load team" ));
-			throw SC_INVALID_DATA;
-		}
-		const Bool restoring = true;
-		setOrRestoreTeam( team, restoring );
-	}
 
 	// geometry info
 	xfer->xferSnapshot( &m_geometryInfo );
@@ -3708,6 +3706,20 @@ void Object::xfer( Xfer *xfer )
 
 	// disabled till frame
 	xfer->xferUser( m_disabledTillFrame, sizeof( UnsignedInt ) * DISABLED_COUNT );
+
+	// OK, now that we have xferred our status bits and disabled data, it's safe to set the team...
+	// TheSuperHackers @todo Refactor so that this code can be moved to loadPostProcess.
+	if( xfer->getXferMode() == XFER_LOAD )
+	{
+		Team *team = TheTeamFactory->findTeamByID( teamID );
+		if( team == nullptr )
+		{
+			DEBUG_CRASH(( "Object::xfer - Unable to load team" ));
+			throw SC_INVALID_DATA;
+		}
+		const Bool restoring = true;
+		setOrRestoreTeam( team, restoring );
+	}
 
 	// special model condition until
 	xfer->xferUnsignedInt( &m_smcUntil );
@@ -4069,10 +4081,7 @@ void Object::onCapture( Player *oldOwner, Player *newOwner )
 			DozerAIInterface* dozerAI = getAIUpdateInterface()->getDozerAIInterface();
 			if (dozerAI)
 			{
-				for (UnsignedInt task = DOZER_TASK_FIRST; task < DOZER_NUM_TASKS; ++task)
-				{
-					dozerAI->cancelTask((DozerTask)task);
-				}
+				dozerAI->cancelAllTasks();
 			}
 		}
 #endif
@@ -4133,7 +4142,7 @@ void Object::onDie( DamageInfo *damageInfo )
 	if( m_radarData )
 		TheRadar->removeObject( this );
 
-	// Just in case I have been sporting one of thise fancy Terrain Decals,
+	// Just in case I have been sporting one of these fancy Terrain Decals,
 	//I naturally lose it now, because I'm dead.
 	Drawable *draw = getDrawable();
 	if (draw) draw->setTerrainDecalFadeTarget(0.0f, -0.03f);//fade...
@@ -4293,7 +4302,7 @@ Bool Object::hasGhostObject() const
 }
 
 //-------------------------------------------------------------------------------------------------
-/// We have moved a 'significant' amount, so do maintenence that can be considered 'cell-based'
+/// We have moved a 'significant' amount, so do maintenance that can be considered 'cell-based'
 void Object::onPartitionCellChange()
 {
 	handlePartitionCellMaintenance();
@@ -5085,7 +5094,7 @@ void Object::clearLeechRangeModeForAllWeapons()
 // ------------------------------------------------------------------------------------------------
 /** Search our update modules for a production update interface and return it if one is found */
 // ------------------------------------------------------------------------------------------------
-ProductionUpdateInterface* Object::getProductionUpdateInterface( void )
+ProductionUpdateInterface* Object::getProductionUpdateInterface()
 {
 	ProductionUpdateInterface *pui;
 
@@ -5105,7 +5114,7 @@ ProductionUpdateInterface* Object::getProductionUpdateInterface( void )
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-DockUpdateInterface *Object::getDockUpdateInterface( void )
+DockUpdateInterface *Object::getDockUpdateInterface()
 {
 	DockUpdateInterface *dock = nullptr;
 
@@ -5439,7 +5448,7 @@ void Object::defect( Team* newTeam, UnsignedInt detectionTime )
 		ai->aiIdle( CMD_FROM_AI );
 	}
 
-	// Play our sound indicating we've been defected. (weird verbage, but true.)
+	// Play our sound indicating we've been defected. (weird verbiage, but true.)
 	AudioEventRTS voiceDefect = *getTemplate()->getVoiceDefect();
 	voiceDefect.setObjectID(getID());
 	TheAudio->addAudioEvent(&voiceDefect);
@@ -5473,8 +5482,8 @@ void Object::defect( Team* newTeam, UnsignedInt detectionTime )
 	}
 
 	// defect any mines that are owned by this structure, right now.
-	// unfortunately, structures don't keep list of mines they own, so we must do
-	// this the hard way :-( [fortunately, this doens't happen very often, so this
+	// unfortunately, structures don't keep a list of mines they own, so we must do
+	// this the hard way :-( [fortunately, this doesn't happen very often, so this
 	// is probably an acceptable, if icky, solution.] (srj)
 	for (Object* mine = TheGameLogic->getFirstObject(); mine; mine = mine->getNextObject())
 	{
@@ -5507,7 +5516,7 @@ void Object::goInvulnerable( UnsignedInt time )
 // ------------------------------------------------------------------------------------------------
 /** Return the radar priority for this object type */
 // ------------------------------------------------------------------------------------------------
-RadarPriorityType Object::getRadarPriority( void ) const
+RadarPriorityType Object::getRadarPriority() const
 {
 	// first, get the priority at the thing template level
 	RadarPriorityType priority = getTemplate()->getDefaultRadarPriority();
@@ -5545,7 +5554,7 @@ RadarPriorityType Object::getRadarPriority( void ) const
 }
 
 // ------------------------------------------------------------------------------------------------
-AIGroup *Object::getGroup(void)
+AIGroup *Object::getGroup()
 {
 #if RETAIL_COMPATIBLE_AIGROUP
 	return m_group;
@@ -5569,7 +5578,7 @@ void Object::enterGroup( AIGroup *group )
 }
 
 //-------------------------------------------------------------------------------------------------
-void Object::leaveGroup( void )
+void Object::leaveGroup()
 {
 //	DEBUG_LOG(("***AIGROUP %x involved in leaveGroup on %x", m_group, this));
 	// if we are in a group, remove ourselves from it

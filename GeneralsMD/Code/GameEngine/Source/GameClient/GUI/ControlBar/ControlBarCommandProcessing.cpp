@@ -68,13 +68,9 @@ struct SelectObjectsInfo
 
 //-------------------------------------------------------------------------------------------------
 
-void selectObjectOfType( Object* obj, void* selectObjectsInfo )
+static void selectObjectOfType( Object* obj, void* selectObjectsInfo )
 {
 	SelectObjectsInfo *soInfo = (SelectObjectsInfo*)selectObjectsInfo;
-	if( !obj || !soInfo )
-	{
-		return;
-	}
 
 	//Do the templates match?
 	if( obj->getTemplate()->isEquivalentTo( soInfo->thingTemplate ) )
@@ -277,6 +273,8 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 		{
 			//Determine the object that would construct it.
 			const SpecialPowerTemplate *spTemplate = commandButton->getSpecialPowerTemplate();
+			DEBUG_ASSERTCRASH(spTemplate != nullptr, ("Special Power Button is missing Special Power template"));
+
 			SpecialPowerType spType = spTemplate->getSpecialPowerType();
 			Object* obj = ThePlayerList->getLocalPlayer()->findMostReadyShortcutSpecialPowerOfType( spType );
 			if( !obj )
@@ -363,8 +361,6 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 
 		}
 
-
-
 		//---------------------------------------------------------------------------------------------
 		case GUI_COMMAND_DOZER_CONSTRUCT_CANCEL:
 		{
@@ -375,7 +371,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 				break;
 
 			// sanity check, the building must be under our control to cancel construction
-			if( building->getControllingPlayer() != ThePlayerList->getLocalPlayer() )
+			if( !building->isLocallyControlled() )
 				break;
 
 			// do the message
@@ -388,7 +384,6 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 		//---------------------------------------------------------------------------------------------
 		case GUI_COMMAND_UNIT_BUILD:
 		{
-			//
 			const ThingTemplate *whatToBuild = commandButton->getThingTemplate();
 
 			// get the "factory" object that is going to make the thing
@@ -425,7 +420,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 			}
 			else if (cmt != CANMAKE_OK)
 			{
-				DEBUG_ASSERTCRASH( 0, ("Cannot create '%s' because the factory object '%s' returns false for canMakeUnit",
+				DEBUG_CRASH( ("Cannot create '%s' because the factory object '%s' returns false for canMakeUnit",
 																whatToBuild->getName().str(),
 																factory->getTemplate()->getName().str()) );
 				break;
@@ -438,7 +433,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 			if( pu == nullptr )
 			{
 
-				DEBUG_ASSERTCRASH( 0, ("Cannot create '%s' because the factory object '%s' is not capable of producing units",
+				DEBUG_CRASH( ("Cannot create '%s' because the factory object '%s' is not capable of producing units",
 																whatToBuild->getName().str(),
 																factory->getTemplate()->getName().str()) );
 				break;
@@ -472,7 +467,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 			if( i == MAX_BUILD_QUEUE_BUTTONS )
 			{
 
-				DEBUG_ASSERTCRASH( 0, ("Control not found in build queue data") );
+				DEBUG_CRASH( ("Control not found in build queue data") );
 				break;
 
 			}
@@ -490,7 +485,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 				break;
 
 			// sanity, we must control the producer ... if this isn't true they might be hacking the game
-			if( producer->getControllingPlayer() != ThePlayerList->getLocalPlayer() )
+			if( !producer->isLocallyControlled() )
 				break;
 
 			// send a message to cancel that particular production entry
@@ -596,7 +591,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 			if( i == MAX_BUILD_QUEUE_BUTTONS )
 			{
 
-				DEBUG_ASSERTCRASH( 0, ("Control not found in build queue data") );
+				DEBUG_CRASH( ("Control not found in build queue data") );
 				break;
 
 			}
@@ -901,7 +896,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 		//---------------------------------------------------------------------------------------------
 		default:
 
-			DEBUG_ASSERTCRASH( 0, ("Unknown command '%d'", commandButton->getCommandType()) );
+			DEBUG_CRASH( ("Unknown command '%d'", commandButton->getCommandType()) );
 			return CBC_COMMAND_NOT_USED;
 
 	}

@@ -130,7 +130,7 @@ static void commandButtonTooltip(GameWindow *window,
 }
 
 /// mark the UI as dirty so the context of everything is re-evaluated
-void ControlBar::markUIDirty( void )
+void ControlBar::markUIDirty()
 {
   m_UIDirty = TRUE;
 
@@ -194,12 +194,16 @@ void ControlBar::populatePurchaseScience( Player* player )
 	commandSet8 = findCommandSet(player->getPlayerTemplate()->getPurchaseScienceCommandSetRank8()); // TEMP WILL CHANGE TO PROPER WAY ONCE WORKING
 
 	for( i = 0; i < MAX_PURCHASE_SCIENCE_RANK_1; i++ )
-		m_sciencePurchaseWindowsRank1[i]->winHide(TRUE);
-	for( i = 0; i < MAX_PURCHASE_SCIENCE_RANK_3; i++ )
-		m_sciencePurchaseWindowsRank3[i]->winHide(TRUE);
-	for( i = 0; i < MAX_PURCHASE_SCIENCE_RANK_8; i++ )
-		m_sciencePurchaseWindowsRank8[i]->winHide(TRUE);
+		if (m_sciencePurchaseWindowsRank1[i] != nullptr)
+			m_sciencePurchaseWindowsRank1[i]->winHide(TRUE);
 
+	for( i = 0; i < MAX_PURCHASE_SCIENCE_RANK_3; i++ )
+		if (m_sciencePurchaseWindowsRank3[i] != nullptr)
+			m_sciencePurchaseWindowsRank3[i]->winHide(TRUE);
+
+	for( i = 0; i < MAX_PURCHASE_SCIENCE_RANK_8; i++ )
+		if (m_sciencePurchaseWindowsRank8[i] != nullptr)
+			m_sciencePurchaseWindowsRank8[i]->winHide(TRUE);
 
 	// if no command set match is found hide all the buttons
 	if( commandSet1 == nullptr ||
@@ -211,6 +215,8 @@ void ControlBar::populatePurchaseScience( Player* player )
 	const CommandButton *commandButton;
 	for( i = 0; i < MAX_PURCHASE_SCIENCE_RANK_1; i++ )
 	{
+		if (m_sciencePurchaseWindowsRank1[i] == nullptr)
+			continue;
 
 		// get command button
 		commandButton = commandSet1->getCommandButton(i);
@@ -271,6 +277,8 @@ void ControlBar::populatePurchaseScience( Player* player )
 
 	for( i = 0; i < MAX_PURCHASE_SCIENCE_RANK_3; i++ )
 	{
+		if (m_sciencePurchaseWindowsRank3[i] == nullptr)
+			continue;
 
 		// get command button
 		commandButton = commandSet3->getCommandButton(i);
@@ -334,6 +342,8 @@ void ControlBar::populatePurchaseScience( Player* player )
 
 	for( i = 0; i < MAX_PURCHASE_SCIENCE_RANK_8; i++ )
 	{
+		if (m_sciencePurchaseWindowsRank8[i] == nullptr)
+			continue;
 
 		// get command button
 		commandButton = commandSet8->getCommandButton(i);
@@ -400,15 +410,16 @@ void ControlBar::populatePurchaseScience( Player* player )
 		GadgetStaticTextSetText(win, tempUS);
 	}
 
-// redundant to StaticTextTitle in the Zero Hour context
-/*
+#if RTS_GENERALS
 	win = TheWindowManager->winGetWindowFromId( m_contextParent[ CP_PURCHASE_SCIENCE ], TheNameKeyGenerator->nameToKey( "GeneralsExpPoints.wnd:StaticTextLevel" ) );
 	if(win)
 	{
 		tempUS.format(TheGameText->fetch("SCIENCE:Rank"), player->getRankLevel());
 		GadgetStaticTextSetText(win, tempUS);
 	}
-*/
+#else
+	// redundant to StaticTextTitle in the Zero Hour context
+#endif
 
 	win = TheWindowManager->winGetWindowFromId( m_contextParent[ CP_PURCHASE_SCIENCE ], TheNameKeyGenerator->nameToKey( "GeneralsExpPoints.wnd:ProgressBarExperience" ) );
 	if(win)
@@ -465,7 +476,7 @@ void ControlBar::populatePurchaseScience( Player* player )
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void ControlBar::updateContextPurchaseScience( void )
+void ControlBar::updateContextPurchaseScience()
 {
 	GameWindow *win =nullptr;
 	Player *player = ThePlayerList->getLocalPlayer();
@@ -547,7 +558,7 @@ void CommandButton::parseCommand( INI* ini, void *instance, void *store, const v
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-CommandButton::CommandButton( void )
+CommandButton::CommandButton()
 {
 
 	m_command = GUI_COMMAND_NONE;
@@ -583,7 +594,7 @@ CommandButton::CommandButton( void )
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-CommandButton::~CommandButton( void )
+CommandButton::~CommandButton()
 {
 
 }
@@ -854,7 +865,7 @@ void CommandSet::friend_addToList(CommandSet** listHead)
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-CommandSet::~CommandSet( void )
+CommandSet::~CommandSet()
 {
 
 }
@@ -865,7 +876,7 @@ CommandSet::~CommandSet( void )
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-ControlBar::ControlBar( void )
+ControlBar::ControlBar()
 {
 	Int i;
 	m_commandButtons = nullptr;
@@ -971,7 +982,7 @@ ControlBar::ControlBar( void )
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-ControlBar::~ControlBar( void )
+ControlBar::~ControlBar()
 {
 
 	if(m_scienceLayout)
@@ -1045,9 +1056,9 @@ ControlBar::~ControlBar( void )
 void ControlBarPopupDescriptionUpdateFunc( WindowLayout *layout, void *param );
 
 //-------------------------------------------------------------------------------------------------
-/** Initialize the control bar, this is our interface to the context sinsitive GUI */
+/** Initialize the control bar, this is our interface to the context sensitive GUI */
 //-------------------------------------------------------------------------------------------------
-void ControlBar::init( void )
+void ControlBar::init()
 {
 	INI ini;
 	m_sideSelectAnimateDown = FALSE;
@@ -1145,7 +1156,8 @@ void ControlBar::init( void )
 			id = TheNameKeyGenerator->nameToKey( windowName.str() );
 			m_sciencePurchaseWindowsRank1[ i ] =
 				TheWindowManager->winGetWindowFromId( m_contextParent[ CP_PURCHASE_SCIENCE ], id );
-			m_sciencePurchaseWindowsRank1[ i ]->winSetStatus( WIN_STATUS_USE_OVERLAY_STATES );
+			if (m_sciencePurchaseWindowsRank1[ i ] != nullptr)
+				m_sciencePurchaseWindowsRank1[ i ]->winSetStatus( WIN_STATUS_USE_OVERLAY_STATES );
 		}
 		for( i = 0; i < MAX_PURCHASE_SCIENCE_RANK_3; i++ )
 		{
@@ -1153,7 +1165,8 @@ void ControlBar::init( void )
 			id = TheNameKeyGenerator->nameToKey( windowName.str() );
 			m_sciencePurchaseWindowsRank3[ i ] =
 				TheWindowManager->winGetWindowFromId( m_contextParent[ CP_PURCHASE_SCIENCE ], id );
-			m_sciencePurchaseWindowsRank3[ i ]->winSetStatus( WIN_STATUS_USE_OVERLAY_STATES );
+			if (m_sciencePurchaseWindowsRank3[ i ] != nullptr)
+				m_sciencePurchaseWindowsRank3[ i ]->winSetStatus( WIN_STATUS_USE_OVERLAY_STATES );
 		}
 
 		for( i = 0; i < MAX_PURCHASE_SCIENCE_RANK_8; i++ )
@@ -1162,7 +1175,8 @@ void ControlBar::init( void )
 			id = TheNameKeyGenerator->nameToKey( windowName.str() );
 			m_sciencePurchaseWindowsRank8[ i ] =
 				TheWindowManager->winGetWindowFromId( m_contextParent[ CP_PURCHASE_SCIENCE ], id );
-			m_sciencePurchaseWindowsRank8[ i ]->winSetStatus( WIN_STATUS_USE_OVERLAY_STATES );
+			if (m_sciencePurchaseWindowsRank8[ i ] != nullptr)
+				m_sciencePurchaseWindowsRank8[ i ]->winSetStatus( WIN_STATUS_USE_OVERLAY_STATES );
 		}
 
 		// keep a pointer to the window making up the right HUD display
@@ -1291,7 +1305,7 @@ void ControlBar::init( void )
 //-------------------------------------------------------------------------------------------------
 /** Reset the context sensitive control bar GUI */
 //-------------------------------------------------------------------------------------------------
-void ControlBar::reset( void )
+void ControlBar::reset()
 {
 	hideSpecialPowerShortcut();
 	// do not destroy the rally drawable, it will get destroyed with everything else during a reset
@@ -1381,7 +1395,7 @@ void ControlBar::reset( void )
 /** Update phase, we can track if our selected object is destroyed, update button
 	* percentages, status, enabled status etc */
 //-------------------------------------------------------------------------------------------------
-void ControlBar::update( void )
+void ControlBar::update()
 {
 	if (TheGlobalData->m_headless)
 		return;
@@ -1651,7 +1665,7 @@ void ControlBar::onDrawableDeselected( Drawable *draw )
 
 //-------------------------------------------------------------------------------------------------
 
-const Image *ControlBar::getStarImage(void )
+const Image *ControlBar::getStarImage()
 {
 	if(m_lastFlashedAtPointValue > ThePlayerList->getLocalPlayer()->getSciencePurchasePoints() || ThePlayerList->getLocalPlayer()->getSciencePurchasePoints() <= 0)
 		m_genStarFlash = FALSE;
@@ -1719,7 +1733,7 @@ void ControlBar::onPlayerSciencePurchasePointsChanged(const Player *p)
 	* and perform all UI manipulations to make the GUI show to the user what we want them
 	* to see */
 //-------------------------------------------------------------------------------------------------
-void ControlBar::evaluateContextUI( void )
+void ControlBar::evaluateContextUI()
 {
 
 	//
@@ -1844,7 +1858,7 @@ void ControlBar::evaluateContextUI( void )
 	else if ( drawToEvaluateFor )// either we have exactly one drawable, or we have isolated one to evaluate for...
 	{
 
-		// get the first and only drawble in the selection list
+		// get the first and only drawable in the selection list
 		//Drawable *draw = selectedDrawables->front();
 
 		// sanity
@@ -1908,7 +1922,8 @@ void ControlBar::evaluateContextUI( void )
 				switchToContext( CB_CONTEXT_COMMAND, drawToEvaluateFor );
 
 			}
-			else if (obj->getControllingPlayer()->getPlayerTemplate()->getBeaconTemplate().compare(obj->getTemplate()->getName()) == 0)
+			else if (obj->getControllingPlayer()->getPlayerTemplate()
+				&& obj->getControllingPlayer()->getPlayerTemplate()->getBeaconTemplate().compare(obj->getTemplate()->getName()) == 0)
 			{
 				switchToContext( CB_CONTEXT_BEACON, drawToEvaluateFor );
 			}
@@ -2379,7 +2394,7 @@ void ControlBar::switchToContext( ControlBarContext context, Drawable *draw )
 		default:
 		{
 
-			DEBUG_ASSERTCRASH( 0, ("ControlBar::switchToContext, unknown context '%d'", context) );
+			DEBUG_CRASH( ("ControlBar::switchToContext, unknown context '%d'", context) );
 			break;
 
 		}
@@ -2440,7 +2455,7 @@ void ControlBar::setControlCommand( GameWindow *button, const CommandButton *com
 	if( button->winGetInputFunc() != GadgetPushButtonInput )
 	{
 
-		DEBUG_ASSERTCRASH( 0, ("setControlCommand: Window is not a button") );
+		DEBUG_CRASH( ("setControlCommand: Window is not a button") );
 		return;
 
 	}
@@ -2449,7 +2464,7 @@ void ControlBar::setControlCommand( GameWindow *button, const CommandButton *com
 	if( commandButton == nullptr )
 	{
 
-		DEBUG_ASSERTCRASH( 0, ("setControlCommand: null commandButton passed in") );
+		DEBUG_CRASH( ("setControlCommand: null commandButton passed in") );
 		return;
 
 	}
@@ -2529,7 +2544,7 @@ void CommandButton::cacheButtonImage()
 //-------------------------------------------------------------------------------------------------
 /** post process step, after all commands and command sets are loaded */
 //-------------------------------------------------------------------------------------------------
-void ControlBar::postProcessCommands( void )
+void ControlBar::postProcessCommands()
 {
 	for ( CommandButton *button = m_commandButtons; button; button = button->friend_getNext() )
 	{
@@ -2551,7 +2566,7 @@ void ControlBar::setControlCommand( const AsciiString& buttonWindowName, GameWin
 	if( win == nullptr )
 	{
 
-		DEBUG_ASSERTCRASH( 0, ("setControlCommand: Unable to find window '%s'", buttonWindowName.str()) );
+		DEBUG_CRASH( ("setControlCommand: Unable to find window '%s'", buttonWindowName.str()) );
 		return;
 
 	}
@@ -2623,7 +2638,7 @@ void ControlBar::setPortraitByObject( Object *obj )
 				setPortraitByObject( nullptr );
 				return;
 			}
-      StealthUpdate *stealth = obj->getStealth();
+			StealthUpdate *stealth = obj->getStealth();
 			if( stealth && stealth->isDisguised() )
 			{
 				//Fake player upgrades too!
@@ -2701,7 +2716,7 @@ void ControlBar::setPortraitByObject( Object *obj )
 // ------------------------------------------------------------------------------------------------
 void ControlBar::showRallyPoint(const Coord3D* loc)
 {
-	// if loc is null, destroy any rally point drawble we have shown
+	// if loc is null, destroy any rally point drawable we have shown
 	if (loc == nullptr)
 	{
 		// destroy rally point drawable if present
@@ -2714,7 +2729,7 @@ void ControlBar::showRallyPoint(const Coord3D* loc)
 
 	Drawable* marker = nullptr;
 
-	// create a rally point drawble if necessary
+	// create a rally point drawable if necessary
 	if (m_rallyPointDrawableID == INVALID_DRAWABLE_ID)
 	{
 		const ThingTemplate* ttn = TheThingFactory->findTemplate("RallyPointMarker");
@@ -2732,7 +2747,7 @@ void ControlBar::showRallyPoint(const Coord3D* loc)
 	// sanity
 	DEBUG_ASSERTCRASH(marker, ("showRallyPoint: No rally point marker found"));
 
-	// set the position of the rally point drawble to the position passed in
+	// set the position of the rally point drawable to the position passed in
 	marker->setPosition(loc);
 	marker->setOrientation(TheGlobalData->m_downwindAngle); // To blow down wind -- ML
 
@@ -2932,7 +2947,7 @@ void ControlBar::hideCommunicator( Bool b )
 // ---------------------------------------------------------------------------------------
 // Outside hook so when the genera's head is pushed, we can switch to the purchase science
 // context
-void ControlBar::updatePurchaseScience( void )
+void ControlBar::updatePurchaseScience()
 {
 //	if(m_generalsScreenAnimate && TheGlobalData->m_animateWindows)
 //	{
@@ -2943,7 +2958,7 @@ void ControlBar::updatePurchaseScience( void )
 //	}
 }
 
-void ControlBar::showPurchaseScience( void )
+void ControlBar::showPurchaseScience()
 {
 
 	if(TheScriptEngine->isGameEnding())
@@ -2960,7 +2975,7 @@ void ControlBar::showPurchaseScience( void )
 
 }
 
-void ControlBar::hidePurchaseScience( void )
+void ControlBar::hidePurchaseScience()
 {
 	if(m_contextParent[ CP_PURCHASE_SCIENCE ]->winIsHidden())
 		return;
@@ -2985,7 +3000,7 @@ void ControlBar::hidePurchaseScience( void )
 //		}
 }
 
-void ControlBar::togglePurchaseScience( void )
+void ControlBar::togglePurchaseScience()
 {
 	if(m_contextParent[ CP_PURCHASE_SCIENCE ]->winIsHidden())
 		showPurchaseScience();
@@ -2993,7 +3008,7 @@ void ControlBar::togglePurchaseScience( void )
 		hidePurchaseScience();
 }
 
-void ControlBar::toggleControlBarStage( void )
+void ControlBar::toggleControlBarStage()
 {
 	if(m_currentControlBarStage == CONTROL_BAR_STAGE_DEFAULT )
 		switchControlBarStage(CONTROL_BAR_STAGE_LOW);
@@ -3020,11 +3035,11 @@ void ControlBar::switchControlBarStage( ControlBarStages stage )
 		setHiddenControlBar();
 		break;
 	default:
-		DEBUG_ASSERTCRASH(FALSE,("ControlBar::switchControlBarStage we were passed in a stage that's not supported %d", stage));
+		DEBUG_CRASH(("ControlBar::switchControlBarStage we were passed in a stage that's not supported %d", stage));
 	}
 
 }
-void ControlBar::setDefaultControlBarConfig( void )
+void ControlBar::setDefaultControlBarConfig()
 {
 //	if(m_currentControlBarStage == CONTROL_BAR_STAGE_SQUISHED)
 //	{
@@ -3040,7 +3055,7 @@ void ControlBar::setDefaultControlBarConfig( void )
 
 }
 
-void ControlBar::setSquishedControlBarConfig( void )
+void ControlBar::setSquishedControlBarConfig()
 {
 	if(m_currentControlBarStage == CONTROL_BAR_STAGE_SQUISHED)
 		return;
@@ -3053,7 +3068,7 @@ void ControlBar::setSquishedControlBarConfig( void )
 	m_controlBarSchemeManager->setControlBarSchemeByPlayerTemplate(ThePlayerList->getLocalPlayer()->getPlayerTemplate(), TRUE);
 }
 
-void ControlBar::setLowControlBarConfig( void )
+void ControlBar::setLowControlBarConfig()
 {
 //	if(m_currentControlBarStage == CONTROL_BAR_STAGE_SQUISHED)
 //	{
@@ -3072,13 +3087,13 @@ void ControlBar::setLowControlBarConfig( void )
 
 }
 
-void ControlBar::setHiddenControlBar( void )
+void ControlBar::setHiddenControlBar()
 {
 	m_currentControlBarStage = CONTROL_BAR_STAGE_HIDDEN;
 	m_contextParent[ CP_MASTER ]->winHide(TRUE);
 }
 // removed from multiplayer test
-//void ControlBar::showCommandMarkers( void )
+//void ControlBar::showCommandMarkers()
 //{
 //	for(Int i =0; i < MAX_COMMANDS_PER_SET; ++i)
 //	{
@@ -3151,7 +3166,7 @@ void ControlBar::updateUpDownImages( const Image *toggleButtonUpIn, const Image 
 	setUpDownImages();
 }
 
-void ControlBar::setUpDownImages( void )
+void ControlBar::setUpDownImages()
 {
 	GameWindow *win= TheWindowManager->winGetWindowFromId( nullptr, TheNameKeyGenerator->nameToKey( "ControlBar.wnd:ButtonLarge" ) );
 	if(!win)
@@ -3182,7 +3197,7 @@ void ControlBar::getBackgroundMarkerPos(Int *x, Int *y)
 	*y = m_controlBarBackgroundMarkerPos.y;
 }
 
-void ControlBar::drawTransitionHandler( void )
+void ControlBar::drawTransitionHandler()
 {
 //	if(m_transitionHandler)
 //		m_transitionHandler->draw();
@@ -3192,7 +3207,7 @@ enum{
 	RADAR_ATTACK_GLOW_NUM_TIMES = 15  ///< number of times we'll flash
 };
 
-void ControlBar::triggerRadarAttackGlow( void )
+void ControlBar::triggerRadarAttackGlow()
 {
 	if(!m_radarAttackGlowWindow)
 		return;
@@ -3202,7 +3217,7 @@ void ControlBar::triggerRadarAttackGlow( void )
 		m_radarAttackGlowWindow->winEnable(FALSE);
 }
 
-void ControlBar::updateRadarAttackGlow ( void )
+void ControlBar::updateRadarAttackGlow ()
 {
 	if(!m_radarAttackGlowOn || !m_radarAttackGlowWindow)
 		return;
@@ -3267,14 +3282,18 @@ void ControlBar::initSpecialPowershortcutBar( Player *player)
 		id = TheNameKeyGenerator->nameToKey( windowName.str() );
 		m_specialPowerShortcutButtons[ i ] =
 			TheWindowManager->winGetWindowFromId( m_specialPowerShortcutParent, id );
-		m_specialPowerShortcutButtons[ i ]->winSetStatus( WIN_STATUS_USE_OVERLAY_STATES );
-		// Oh god... this is a total hack for shortcut buttons to handle rendering text top left corner...
-		m_specialPowerShortcutButtons[ i ]->winSetStatus( WIN_STATUS_SHORTCUT_BUTTON );
 
-		windowName.format( parentName, i+1 );
-		id = TheNameKeyGenerator->nameToKey( windowName.str() );
-		m_specialPowerShortcutButtonParents[ i ] =
-			TheWindowManager->winGetWindowFromId( m_specialPowerShortcutParent, id );
+		if (m_specialPowerShortcutButtons[ i ] != nullptr)
+		{
+			m_specialPowerShortcutButtons[ i ]->winSetStatus( WIN_STATUS_USE_OVERLAY_STATES );
+			// Oh god... this is a total hack for shortcut buttons to handle rendering text top left corner...
+			m_specialPowerShortcutButtons[ i ]->winSetStatus( WIN_STATUS_SHORTCUT_BUTTON );
+
+			windowName.format( parentName, i+1 );
+			id = TheNameKeyGenerator->nameToKey( windowName.str() );
+			m_specialPowerShortcutButtonParents[ i ] =
+				TheWindowManager->winGetWindowFromId( m_specialPowerShortcutParent, id );
+		}
 	}
 
 }
@@ -3484,6 +3503,9 @@ void ControlBar::populateSpecialPowerShortcut( Player *player)
 				}
 			}
 
+			DEBUG_ASSERTCRASH(m_specialPowerShortcutButtons[ currentButton ] != nullptr, ("m_specialPowerShortcutButtons[%d] is null", currentButton));
+			DEBUG_ASSERTCRASH(m_specialPowerShortcutButtonParents[ currentButton ] != nullptr, ("m_specialPowerShortcutButtonParents[%d] is null", currentButton));
+
 			// make sure the window is not hidden
 			m_specialPowerShortcutButtons[ currentButton ]->winHide( FALSE );
 			m_specialPowerShortcutButtonParents[ currentButton ]->winHide( FALSE );
@@ -3534,16 +3556,32 @@ Bool ControlBar::hasAnyShortcutSelection() const
 }
 
 //-------------------------------------------------------------------------------------------------
-void ControlBar::updateSpecialPowerShortcut( void )
+Bool ControlBar::canShowSpecialPowerShortcut() const
+{
+#ifdef RTS_GENERALS
+	// Special Powers in Generals do not have the ShortcutPower flag set and therefore this function
+	// is satisfied with the presence of a Command Center, which is supposed to host Special Powers.
+	if (ThePlayerList->getLocalPlayer()->findNaturalCommandCenter() != nullptr)
+		return true;
+#endif
+
+	if (hasAnyShortcutSelection())
+		return true;
+
+	if (ThePlayerList->getLocalPlayer()->hasAnyShortcutSpecialPower())
+		return true;
+
+	return false;
+}
+
+//-------------------------------------------------------------------------------------------------
+void ControlBar::updateSpecialPowerShortcut()
 {
 	if(!m_specialPowerShortcutParent || !m_specialPowerShortcutButtons
 	   || !ThePlayerList || !ThePlayerList->getLocalPlayer())
 		return;
 
-	Bool hasShortcutSelectionButtons = hasAnyShortcutSelection();
-	Bool hasAnyShortcutSpecialPower = ThePlayerList->getLocalPlayer()->hasAnyShortcutSpecialPower();
-
-	Bool hasValidShortcutButton = hasShortcutSelectionButtons || hasAnyShortcutSpecialPower;
+	const Bool hasValidShortcutButton = canShowSpecialPowerShortcut();
 
 	if( hasValidShortcutButton
 		  && m_specialPowerShortcutParent->winIsHidden()
@@ -3657,7 +3695,6 @@ void ControlBar::updateSpecialPowerShortcut( void )
 				win->winEnable( TRUE );
 				break;
 		}
-
 	}
 }
 
@@ -3742,7 +3779,7 @@ void ControlBar::animateSpecialPowerShortcut( Bool isOn )
 	}
 }
 
-void ControlBar::showSpecialPowerShortcut( void )
+void ControlBar::showSpecialPowerShortcut()
 {
 	if(TheScriptEngine->isGameEnding() || !m_specialPowerShortcutParent
 		||!m_specialPowerShortcutButtons || !ThePlayerList || !ThePlayerList->getLocalPlayer())
@@ -3756,14 +3793,14 @@ void ControlBar::showSpecialPowerShortcut( void )
 			break;
 		}
 	}
-	if( dontAnimate || (!ThePlayerList->getLocalPlayer()->hasAnyShortcutSpecialPower() && !hasAnyShortcutSelection()) )
+	if( dontAnimate || !canShowSpecialPowerShortcut() )
 		return;
 	m_specialPowerShortcutParent->winHide(FALSE);
 	populateSpecialPowerShortcut(ThePlayerList->getLocalPlayer());
 
 }
 
-void ControlBar::hideSpecialPowerShortcut( void )
+void ControlBar::hideSpecialPowerShortcut()
 {
 	if(!m_specialPowerShortcutParent)
 		return;

@@ -131,7 +131,7 @@ public:
 		MSG_RAW_MOUSE_RIGHT_DOUBLE_CLICK,						///< (pixel, modifiers, time)
 		MSG_RAW_MOUSE_RIGHT_BUTTON_UP,							///< (pixel, modifiers, time)
 		MSG_RAW_MOUSE_RIGHT_DRAG,										///< drag of the mouse with a button held down
-		MSG_RAW_MOUSE_WHEEL,												///< (Int spin, + is away, - is toward user)
+		MSG_RAW_MOUSE_WHEEL,												///< (Real spin, + is away, - is toward user)
 		MSG_RAW_MOUSE_END,
 
 		MSG_RAW_KEY_DOWN,														///< (KeyDefType) the given key was pressed (uses Microsoft VK_ codes)
@@ -218,7 +218,7 @@ public:
 		MSG_META_SELECT_PREV_UNIT,									///< select 'prev' unit
 		MSG_META_SELECT_NEXT_WORKER,                ///< select 'next' worker
 		MSG_META_SELECT_PREV_WORKER,                ///< select 'prev' worker
-		MSG_META_SELECT_NEXT_IDLE_WORKER,                        ///< TheSuperHackers @feature L3-M 03/08/2025 select next idle worker
+		MSG_META_SELECT_NEXT_IDLE_WORKER,           ///< TheSuperHackers @feature L3-M 03/08/2025 select next idle worker
 		MSG_META_VIEW_COMMAND_CENTER,								///< center view on command center
 		MSG_META_VIEW_LAST_RADAR_EVENT,							///< center view on last radar event
 		MSG_META_SELECT_HERO,                       ///< selects player's hero character, if exists...
@@ -248,6 +248,8 @@ public:
 
 		MSG_META_INCREASE_OBSERVER_STATS_FONT,                ///< Generals Online @feature Increase observer overlay size
 		MSG_META_DECREASE_OBSERVER_STATS_FONT,                ///< Generals Online @feature Decrease observer overlay size
+		MSG_META_INCREASE_OBSERVER_NOTIFICATION_FONT,         ///< Generals Online @feature Increase observer notification size
+		MSG_META_DECREASE_OBSERVER_NOTIFICATION_FONT,         ///< Generals Online @feature Decrease observer notification size
 
 		MSG_META_BEGIN_PATH_BUILD,									///< enter path-building mode
 		MSG_META_END_PATH_BUILD,										///< exit path-building mode
@@ -347,6 +349,8 @@ public:
 		MSG_META_DEMO_PLAY_OBJECTIVE_MOVIE6,				///< play specific "Objective" movie
 		MSG_META_DEMO_BEGIN_ADJUST_PITCH,						///< enter adjust-pitch mode
 		MSG_META_DEMO_END_ADJUST_PITCH,							///< exit adjust-pitch mode
+		MSG_META_DEMO_BEGIN_ADJUST_DEFAULTPITCH,		///< TheSuperHackers @feature Enter adjust-default-pitch mode
+		MSG_META_DEMO_END_ADJUST_DEFAULTPITCH,			///< TheSuperHackers @feature Exit adjust-default-pitch mode
 		MSG_META_DEMO_BEGIN_ADJUST_FOV,							///< enter adjust-FOV mode
 		MSG_META_DEMO_END_ADJUST_FOV,								///< exit adjust-FOV mode
 		MSG_META_DEMO_LOCK_CAMERA_TO_PLANES,				///< lock camera to airborne thingies
@@ -446,7 +450,8 @@ public:
 		MSG_MOUSEOVER_LOCATION_HINT,								///< (location) The cursor is not over a drawable, but is here.
 		MSG_VALID_GUICOMMAND_HINT,									///< posted when the gui command is valid if the user clicked to execute it.
 		MSG_INVALID_GUICOMMAND_HINT,								///< posted when the gui command is not valid if the user were to click to attempt to execute it.
-		MSG_AREA_SELECTION_HINT,										///< (pixelRegion) rectangular selection area under construction, not confirmed
+		MSG_BEGIN_AREA_SELECTION_HINT,							///< (pixelRegion) rectangular selection area under construction, not confirmed
+		MSG_END_AREA_SELECTION_HINT,                ///< (pixelRegion) rectangular selection area finish construction
 
 		//Command hints
 		MSG_DO_ATTACK_OBJECT_HINT,									///< (victim objectID) If clicked, an attack would be ordered, "Current Selection" is assumed
@@ -504,7 +509,7 @@ public:
 																									* The selected team is created/augmented with the given team members.
 																									* Do not play their selection sounds.
 																									*/
-		MSG_DESTROY_SELECTED_GROUP,									///< (teamID) the given team is no longer valid
+		MSG_DESTROY_SELECTED_GROUP,									///< deselect currently selected objects (which can be none)
 		MSG_REMOVE_FROM_SELECTED_GROUP,							/**< (objectID1, objectID2, ... objectIDN)
 																									* Remove these units from the selected group. (N should almost always be 1)
 																									*/
@@ -564,7 +569,7 @@ public:
 		MSG_EXECUTE_RAILED_TRANSPORT,								///< Execute railed transport sequence
 		MSG_COMBATDROP_AT_LOCATION,									///< dump out all rappellers
 		MSG_COMBATDROP_AT_OBJECT,										///< dump out all rappellers
-		MSG_AREA_SELECTION,													///< (pixelRegion) rectangular selection area
+		MSG_AREA_SELECTION_DEPRECATED,              ///< TheSuperHackers @tweak former MSG_AREA_SELECTION is deprecated as network message.
 		MSG_DO_ATTACK_OBJECT,												///< (objectID, victim objectID)
 		MSG_DO_FORCE_ATTACK_OBJECT,									///< force attack the given object if picked
 		MSG_DO_FORCE_ATTACK_GROUND,									///< (locationID) bombard the given location if picked
@@ -603,7 +608,7 @@ public:
 		MSG_CREATE_FORMATION,												///< Creates a formation.
 		MSG_LOGIC_CRC,															///< CRC from the logic passed around in a network game :)
 		MSG_SET_MINE_CLEARING_DETAIL,								///< CRC from the logic passed around in a network game :)
-		MSG_ENABLE_RETALIATION_MODE,								///< Turn retaliation mode on or off for the specified player.
+		MSG_ENABLE_RETALIATION_MODE,								///< Turn retaliation mode on or off.
 
 		MSG_BEGIN_DEBUG_NETWORK_MESSAGES = 1900,		///< network messages that exist only in debug/internal builds. all grouped separately.
 
@@ -635,16 +640,16 @@ public:
 
 	GameMessage( Type type );
 
-	GameMessage *next( void ) { return m_next; }		///< Return next message in the stream
-	GameMessage *prev( void ) { return m_prev; }		///< Return prev message in the stream
+	GameMessage *next() { return m_next; }		///< Return next message in the stream
+	GameMessage *prev() { return m_prev; }		///< Return prev message in the stream
 
-	Type getType( void ) const { return m_type; }					///< Return the message type
-	UnsignedByte getArgumentCount( void ) const { return m_argCount; }	///< Return the number of arguments for this msg
+	Type getType() const { return m_type; }					///< Return the message type
+	UnsignedByte getArgumentCount() const { return m_argCount; }	///< Return the number of arguments for this msg
 
-	const char *getCommandAsString( void ) const; ///< returns a string representation of the command type.
+	const char *getCommandAsString() const; ///< returns a string representation of the command type.
 	static const char *getCommandTypeAsString(GameMessage::Type t);
 
-	Int getPlayerIndex( void ) const { return m_playerIndex; }		///< Return the originating player
+	Int getPlayerIndex() const { return m_playerIndex; }		///< Return the originating player
 
 	// access methods for GameMessageArgumentType enum
 	void appendIntegerArgument( Int arg );
@@ -665,7 +670,7 @@ public:
 	 * @todo This should be a more list-like interface.  Very inefficient.
 	 */
 	const GameMessageArgumentType *getArgument( Int argIndex ) const;
-	GameMessageArgumentDataType getArgumentDataType( Int argIndex );
+	GameMessageArgumentDataType getArgumentDataType( Int argIndex ) const;
 
 	void friend_setNext(GameMessage* m) { m_next = m; }
 	void friend_setPrev(GameMessage* m) { m_prev = m; }
@@ -689,7 +694,7 @@ private:
 	GameMessageArgument *m_argList, *m_argTail;						///< This message's arguments
 
 	/// allocate a new argument, add it to list, return pointer to its data
-	GameMessageArgument *allocArg( void );
+	GameMessageArgument *allocArg();
 
 };
 
@@ -703,14 +708,14 @@ class GameMessageList : public SubsystemInterface
 
 public:
 
-	GameMessageList( void );
-	virtual ~GameMessageList();
+	GameMessageList();
+	virtual ~GameMessageList() override;
 
-	virtual void init( void ) { };			///< Initialize system
-	virtual void reset( void ) { };			///< Reset system
-	virtual void update( void ) { };		///< Update system
+	virtual void init() override { };			///< Initialize system
+	virtual void reset() override { };			///< Reset system
+	virtual void update() override { };		///< Update system
 
-	GameMessage *getFirstMessage( void ) { return m_firstMessage; }	///< Return the first message
+	GameMessage *getFirstMessage() { return m_firstMessage; }	///< Return the first message
 
 	virtual void appendMessage( GameMessage *msg );			///< Add message to end of the list
 	virtual void insertMessage( GameMessage *msg, GameMessage *messageToInsertAfter );	// Insert message after messageToInsertAfter.
@@ -750,19 +755,20 @@ class MessageStream : public GameMessageList
 
 public:
 
-	MessageStream( void );
-	virtual ~MessageStream();
+	MessageStream();
+	virtual ~MessageStream() override;
 
 	// Inherited Methods ----------------------------------------------------------------------------
-	virtual void init( void );
-	virtual void reset( void );
-	virtual void update( void );
+	virtual void init() override;
+	virtual void reset() override;
+	virtual void update() override;
 
 	virtual GameMessage *appendMessage( GameMessage::Type type );		///< Append a message to the end of the stream
 	virtual GameMessage *insertMessage( GameMessage::Type type, GameMessage *messageToInsertAfter );	// Insert message after messageToInsertAfter.
+	virtual Bool isReadyForMessages() const;											///< Return true if a local player is present and ready to accept messages
 
 	// Methods NOT Inherited ------------------------------------------------------------------------
-	void propagateMessages( void );													///< Propagate messages through attached translators
+	void propagateMessages();													///< Propagate messages through attached translators
 
 	/**
 		Attach a translator function to the stream at a priority value. Lower priorities are executed first.
@@ -806,18 +812,18 @@ protected:
 class CommandList : public GameMessageList
 {
 public:
-	CommandList( void );
-	virtual ~CommandList();
+	CommandList();
+	virtual ~CommandList() override;
 
-	virtual void init( void );			///< Init command list
-	virtual void reset( void );			///< Destroy all messages and reset list to empty
-	virtual void update( void );		///< Update hook
+	virtual void init() override;			///< Init command list
+	virtual void reset() override;			///< Destroy all messages and reset list to empty
+	virtual void update() override;		///< Update hook
 
 	void appendMessageList( GameMessage *list );			///< Adds messages to the end of the command list
 
 protected:
 
-	void destroyAllMessages( void );		///< The meat of a reset and a shutdown
+	void destroyAllMessages();		///< The meat of a reset and a shutdown
 
 };
 

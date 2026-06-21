@@ -58,7 +58,9 @@ NGMPGame::NGMPGame()
 NGMPGame::~NGMPGame()
 {
 	// Force camera to update from config
-	TheTacticalView->setDefaultView(0.0f, 0.0f, 1.0f, true);
+    TheTacticalView->setDefaultView(DEG_TO_RADF(TheGlobalData->m_cameraPitch),
+        DEG_TO_RADF(TheGlobalData->m_cameraYaw),
+        1.0f, true);
 }
 
 void NGMPGame::SyncWithLobby(LobbyEntry& lobby)
@@ -166,7 +168,19 @@ void NGMPGame::UpdateSlotsFromCurrentLobby()
 		{
 			bool bIsAI = (pLobbyMember.m_SlotState == SlotState::SLOT_EASY_AI || pLobbyMember.m_SlotState == SlotState::SLOT_MED_AI|| pLobbyMember.m_SlotState == SlotState::SLOT_BRUTAL_AI);
 
+			if (pLobbyMember.m_SlotIndex >= MAX_SLOTS)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] UpdateSlotsFromCurrentLobby: bad slot index %u for user %lld, skipping", pLobbyMember.m_SlotIndex, pLobbyMember.user_id);
+				continue;
+			}
+
 			NGMPGameSlot* slot = (NGMPGameSlot*)getSlot(pLobbyMember.m_SlotIndex);
+
+			if (slot == nullptr)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] UpdateSlotsFromCurrentLobby: getSlot(%u) returned null, skipping", pLobbyMember.m_SlotIndex);
+				continue;
+			}
 
 			// NOTE: Internally generals uses 'local ip' to detect which user is local... we dont have an IP, so just use player index for ip
 			slot->setState((SlotState)pLobbyMember.m_SlotState, UnicodeString(from_utf8(pLobbyMember.display_name).c_str()), pLobbyMember.m_SlotIndex);
@@ -483,7 +497,10 @@ void NGMPGame::launchGame(void)
 	}
 
 	// Force camera to update from config
-	TheTacticalView->setDefaultView(0.0f, 0.0f, 1.0f, false);
+    TheTacticalView->setDefaultView(DEG_TO_RADF(TheGlobalData->m_cameraPitch),
+        DEG_TO_RADF(TheGlobalData->m_cameraYaw),
+        1.0f,
+		false);
 
 
 	// shutdown the top, but do not pop it off the stack
@@ -512,7 +529,7 @@ void NGMPGame::launchGame(void)
 	//TheWritableGlobalData->m_useFpsLimit = false;
 
 	// Set the random seed
-	InitGameLogicRandom(getSeed());
+	InitRandom(getSeed());
 	DEBUG_LOG(("InitGameLogicRandom( %d )\n", getSeed()));
 
 	// mark us as "Loading" in the buddy list

@@ -68,7 +68,7 @@ SlavedUpdate::SlavedUpdate( Thing *thing, const ModuleData* moduleData ) : Updat
 }
 
 //-------------------------------------------------------------------------------------------------
-SlavedUpdate::~SlavedUpdate( void )
+SlavedUpdate::~SlavedUpdate()
 {
 }
 
@@ -107,7 +107,7 @@ void SlavedUpdate::onSlaverDamage( const DamageInfo *info )
 
 
 //-------------------------------------------------------------------------------------------------
-UpdateSleepTime SlavedUpdate::update( void )
+UpdateSleepTime SlavedUpdate::update()
 {
 /// @todo srj use SLEEPY_UPDATE here
 	if( m_framesToWait > 0 )
@@ -616,30 +616,27 @@ void SlavedUpdate::setRepairState( RepairStates repairState )
 				if( !data->m_weldingSysName.isEmpty() )
 				{
 					const ParticleSystemTemplate *tmp = TheParticleSystemManager->findTemplate( data->m_weldingSysName );
-					if( tmp )
+					ParticleSystem *weldingSys = TheParticleSystemManager->createParticleSystem(tmp);
+					if( weldingSys )
 					{
-						ParticleSystem *weldingSys = TheParticleSystemManager->createParticleSystem(tmp);
-						if( weldingSys )
+						Coord3D pos;
+						//Get the bone position
+						if( draw->getPristineBonePositions( data->m_weldingFXBone.str(), 0, &pos, nullptr, 1 ) )
 						{
-							Coord3D pos;
-							//Get the bone position
-							if( draw->getPristineBonePositions( data->m_weldingFXBone.str(), 0, &pos, nullptr, 1 ) )
-							{
-								pos.add( obj->getPosition() );
-							}
-							else
-							{
-								pos.set( obj->getPosition() );
-							}
-
-							weldingSys->setPosition( &pos );
-							Real time = (Real)(m_framesToWait * LOGICFRAMES_PER_SECOND);
-							weldingSys->setLifetimeRange( time, time );
-
-							AudioEventRTS soundToPlay = TheAudio->getMiscAudio()->m_repairSparks;
-							soundToPlay.setPosition( &pos );
-							TheAudio->addAudioEvent( &soundToPlay );
+							pos.add( obj->getPosition() );
 						}
+						else
+						{
+							pos.set( obj->getPosition() );
+						}
+
+						weldingSys->setPosition( &pos );
+						Real time = (Real)(m_framesToWait * LOGICFRAMES_PER_SECOND);
+						weldingSys->setLifetimeRange( time, time );
+
+						AudioEventRTS soundToPlay = TheAudio->getMiscAudio()->m_repairSparks;
+						soundToPlay.setPosition( &pos );
+						TheAudio->addAudioEvent( &soundToPlay );
 					}
 				}
 
@@ -773,7 +770,7 @@ void SlavedUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void SlavedUpdate::loadPostProcess( void )
+void SlavedUpdate::loadPostProcess()
 {
 
 	// extend base class

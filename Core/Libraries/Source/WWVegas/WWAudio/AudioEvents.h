@@ -128,7 +128,7 @@ struct AUDIO_CALLBACK_STRUCT
 	T					callback_ptr;
 	uint32			user_data;
 
-	AUDIO_CALLBACK_STRUCT (void)
+	AUDIO_CALLBACK_STRUCT ()
 		:	callback_ptr (nullptr), user_data (0)	{}
 
 	AUDIO_CALLBACK_STRUCT (T _ptr, uint32 _data)
@@ -153,8 +153,8 @@ public:
 	/////////////////////////////////////////////////////////////////////////////////
 	//	Public constructors/destructors
 	/////////////////////////////////////////////////////////////////////////////////
-	AudioCallbackListClass (void)					{ }
-	virtual ~AudioCallbackListClass (void)		{ }
+	AudioCallbackListClass ()					{ }
+	virtual ~AudioCallbackListClass () override { }
 
 	/////////////////////////////////////////////////////////////////////////////////
 	//	Public methods
@@ -172,7 +172,6 @@ template <class T> void
 AudioCallbackListClass<T>::Add_Callback (T pointer, uint32 user_data)
 {
 	Add ( AUDIO_CALLBACK_STRUCT<T> (pointer, user_data));
-	return ;
 }
 
 
@@ -201,6 +200,4 @@ AudioCallbackListClass<T>::Remove_Callback (T pointer)
 			break;
 		}
 	}
-
-	return ;
 }

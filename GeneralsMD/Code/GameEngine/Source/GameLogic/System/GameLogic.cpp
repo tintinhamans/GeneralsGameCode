@@ -113,6 +113,8 @@
 
 #include <rts/profile.h>
 
+struct QuitGameException {};
+
 #include "../ngmp_include.h"
 #include "../ngmp_interfaces.h"
 
@@ -196,7 +198,7 @@ static Waypoint* findNamedWaypoint(AsciiString name)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-void setFPMode(void)
+void setFPMode()
 {
 	// Set floating point round mode to CHOP, which only comes
 	// into play when precision is exceeded.  This is necessary
@@ -216,12 +218,39 @@ void setFPMode(void)
 	newVal = (newVal & ~_MCW_PC) | (_PC_24 & _MCW_PC);
 
 	_controlfp(newVal, _MCW_PC | _MCW_RC);
+
+	unsigned int cw;
+	_controlfp_s(&cw, _MCW_EM, _MCW_EM);
+}
+
+//-------------------------------------------------------------------------------------------------
+const char* toString(GameMode mode)
+{
+	switch (mode)
+	{
+		case GAME_SINGLE_PLAYER:
+			return "GAME_SINGLE_PLAYER";
+		case GAME_LAN:
+			return "GAME_LAN";
+		case GAME_SKIRMISH:
+			return "GAME_SKIRMISH";
+		case GAME_REPLAY:
+			return "GAME_REPLAY";
+		case GAME_SHELL:
+			return "GAME_SHELL";
+		case GAME_INTERNET:
+			return "GAME_INTERNET";
+		case GAME_NONE:
+			return "GAME_NONE";
+		default:
+			return "GAME_UNKNOWN";
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
 /** GameLogic class constructor */
 // ------------------------------------------------------------------------------------------------
-GameLogic::GameLogic(void)
+GameLogic::GameLogic()
 {
 	m_background = NULL;
 	m_CRC = 0;
@@ -275,6 +304,7 @@ GameLogic::GameLogic(void)
 	m_loadingMap = FALSE;
 	m_loadingSave = FALSE;
 	m_clearingGameData = FALSE;
+	m_quitToDesktopAfterMatch = FALSE;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -313,7 +343,7 @@ void GameLogic::setDefaults(Bool loadingSaveGame)
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-Bool GameLogic::isInSinglePlayerGame(void)
+Bool GameLogic::isInSinglePlayerGame()
 {
 	return (m_gameMode == GAME_SINGLE_PLAYER ||
 		(TheRecorder && TheRecorder->isPlaybackMode() && TheRecorder->getGameMode() == GAME_SINGLE_PLAYER));
@@ -342,6 +372,18 @@ void GameLogic::destroyAllObjectsImmediate()
 		nextObj = obj->getNextObject();
 		destroyObject(obj);
 	}
+
+	// Bulk-clear the sleepy update heap before processing the destroy list.
+	// During mass object destruction, the object destructor chain (e.g. setTeam -> onCapture ->
+	// setWakeFrame) can trigger rebalanceSleepyUpdate for still-live objects while the heap is
+	// in an intermediate state, causing a crash inside rebalanceChildSleepyUpdate.
+	// Clearing up front sets all module indices to -1 so that any setWakeFrame calls from
+	// destructor chains safely no-op, and processDestroyList skips per-element heap removal.
+	for (std::vector<UpdateModulePtr>::iterator it = m_sleepyUpdates.begin(); it != m_sleepyUpdates.end(); ++it)
+	{
+		(*it)->friend_setIndexInLogic(-1);
+	}
+	m_sleepyUpdates.clear();
 
 	// process the destroy list immediately
 	processDestroyList();
@@ -397,7 +439,7 @@ GameLogic::~GameLogic()
 // ------------------------------------------------------------------------------------------------
 /** (re)initialize the instance. */
 // ------------------------------------------------------------------------------------------------
-void GameLogic::init(void)
+void GameLogic::init()
 {
 
 	setFPMode();
@@ -414,7 +456,7 @@ void GameLogic::init(void)
 	// Create system for holding deleted objects that are
 	// still in the partition manager because player has a fogged
 	// view of them.
-	TheGhostObjectManager = createGhostObjectManager();
+	TheGhostObjectManager = createGhostObjectManager(TheGlobalData->m_headless);
 
 	// create the terrain logic
 	TheTerrainLogic = createTerrainLogic();
@@ -463,7 +505,7 @@ void GameLogic::init(void)
 //-------------------------------------------------------------------------------------------------
 /** Reset the game logic systems */
 //-------------------------------------------------------------------------------------------------
-void GameLogic::reset(void)
+void GameLogic::reset()
 {
 	m_thingTemplateBuildableOverrides.clear();
 	m_controlBarOverrides.clear();
@@ -475,13 +517,13 @@ void GameLogic::reset(void)
 	m_objVector.resize(OBJ_HASH_SIZE, NULL);
 
 	m_pauseFrame = 0;
-	m_gamePaused = FALSE;
 	m_pauseSound = FALSE;
 	m_pauseMusic = FALSE;
-	m_pauseInput = FALSE;
 	m_inputEnabledMemory = TRUE;
 	m_mouseVisibleMemory = TRUE;
 	m_logicTimeScaleEnabledMemory = FALSE;
+	pauseGameLogic(FALSE);
+	pauseGameInput(FALSE);
 
 	setFPMode();
 
@@ -991,7 +1033,7 @@ static void populateRandomStartPosition(GameInfo* game)
 			else
 			{
 				// We're the first real spot.  Pick randomly.
-				// This while loop shouldn't be neccessary, since we're first.  Why not, though?
+				// This while loop shouldn't be necessary, since we're first.  Why not, though?
 				while (posIdx == -1)
 				{
 					posIdx = GameLogicRandomValue(0, numPlayers - 1);
@@ -1145,12 +1187,16 @@ void GameLogic::updateLoadProgress(Int progress)
 	if (m_loadScreen)
 		m_loadScreen->update(progress);
 
+	if (TheGameEngine->getQuitting() || m_quitToDesktopAfterMatch)
+	{
+		throw QuitGameException();
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Delete the load screen */
 // ------------------------------------------------------------------------------------------------
-void GameLogic::deleteLoadScreen(void)
+void GameLogic::deleteLoadScreen()
 {
 
 	delete m_loadScreen;
@@ -1186,13 +1232,28 @@ void GameLogic::setGameMode(GameMode mode)
 	// ------------------------------------------------------------------------------------------------
 void GameLogic::startNewGame(Bool loadingSaveGame)
 {
+	try
+	{
+		tryStartNewGame(loadingSaveGame);
+	}
+	catch (QuitGameException&)
+	{
+		if (m_quitToDesktopAfterMatch && TheGameEngine)
+		{
+			TheGameEngine->setQuitting(TRUE);
+		}
+	}
+}
 
-#ifdef DUMP_PERF_STATS
+void GameLogic::tryStartNewGame( Bool loadingSaveGame )
+{
+
+	#ifdef DUMP_PERF_STATS
 	__int64 startTime64;
-	__int64 endTime64, freq64;
+	__int64 endTime64,freq64;
 	GetPrecisionTimerTicksPerSec(&freq64);
 	GetPrecisionTimer(&startTime64);
-#endif
+	#endif
 
 	// reset the frame counter
 	m_frame = 0;
@@ -1259,7 +1320,15 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 	}
 
 	m_rankLevelLimit = 1000;	// this is reset every game.
-	setDefaults(loadingSaveGame);
+
+	//
+	// only reset the next object ID allocator counter when we're not loading a save game.
+	// for save games, we read this value out of the save game file and it is important
+	// that we preserve it as we load and execute the game
+	//
+	if( loadingSaveGame == FALSE )
+		m_nextObjID = (ObjectID)1;
+
 	TheWritableGlobalData->m_loadScreenRender = TRUE;	///< mark it so only a few select things are rendered during load
 	TheWritableGlobalData->m_TiVOFastMode = FALSE;	//always disable the TIVO fast-forward mode at the start of a new game.
 
@@ -1333,7 +1402,20 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 		{
 			GameSlot* slot = game->getSlot(i);
 			if (!loadingSaveGame) {
-				slot->saveOffOriginalInfo();
+				if (slot->hasSavedOriginalSetup())
+				{
+					DEBUG_ASSERTCRASH(m_gameMode == GAME_SKIRMISH, ("Expected GAME_SKIRMISH but got %s", toString(m_gameMode)));
+
+					// TheSuperHackers @fix Caball009 19/03/2026 Random color, position and faction are based on the logical seed. For improved determinism,
+					// restarted games now set the original values so that the games start with the exact same logical seed values as the first time.
+					slot->setColor(slot->getOriginalColor());
+					slot->setStartPos(slot->getOriginalStartPos());
+					slot->setPlayerTemplate(slot->getOriginalPlayerTemplate());
+				}
+				else
+				{
+					slot->saveOriginalSetup();
+				}
 			}
 			if (slot->isAI())
 			{
@@ -2130,7 +2212,8 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 	// update the loadscreen
 	updateLoadProgress(LOAD_PROGRESS_POST_PRELOAD_ASSETS);
 
-	TheTacticalView->setAngleAndPitchToDefault();
+	TheTacticalView->setAngleToDefault();
+	TheTacticalView->setPitchToDefault();
 	TheTacticalView->setZoomToDefault();
 
 	if (TheRecorder)
@@ -2176,7 +2259,8 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 
 	// Set up the camera height based on the map height & globalData.
 	TheTacticalView->initHeightForMap();
-	TheTacticalView->setAngleAndPitchToDefault();
+	TheTacticalView->setAngleToDefault();
+	TheTacticalView->setPitchToDefault();
 	TheTacticalView->setZoomToDefault();
 
 	// update the loadscreen
@@ -2272,7 +2356,15 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 		TheNetwork->liteupdate();
 	}
 
+#if defined(GENERALS_ONLINE)
+	// set a minimum display time for the load screen on GO to allow players to read ELO, army, stats, etc.
+	const UnsignedInt minLoadScreenDisplayTime = 2000;
+	UnsignedInt minLoadScreenEndTime = isInInternetGame() ? (timeGetTime() + minLoadScreenDisplayTime) : 0;
+
+	while (!isProgressComplete() || (minLoadScreenEndTime != 0 && timeGetTime() < minLoadScreenEndTime))
+#else
 	while (!isProgressComplete())
+#endif
 	{
 		updateLoadProgress(101); // keep greater then 100
 		testTimeOut();
@@ -2433,7 +2525,8 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 		req.buddyRequestType = BuddyRequest::BUDDYREQUEST_SETSTATUS;
 		req.arg.status.status = GP_PLAYING;
 		strcpy(req.arg.status.statusString, "Playing");
-		sprintf(req.arg.status.locationString, "%s", WideCharStringToMultiByte(TheGameSpyGame->getGameName().str()).c_str());
+		strlcpy(req.arg.status.locationString, WideCharStringToMultiByte(TheGameSpyGame->getGameName().str()).c_str(),
+			ARRAY_SIZE(req.arg.status.locationString));
 		TheGameSpyBuddyMessageQueue->addRequest(req);
 	}
 
@@ -2470,7 +2563,11 @@ void GameLogic::startNewGame(Bool loadingSaveGame)
 		TheInGameUI->messageNoFormat(TheGameText->FETCH_OR_SUBSTITUTE("GUI:FastForwardInstructions", L"Press F to toggle Fast Forward"));
 	}
 
-
+#ifdef PROFILER_ENABLED
+	AsciiString message;
+	message.format("GameStart: %s", TheGlobalData->m_mapName.str());
+	PROFILER_MSG(message.str(), message.getLength());
+#endif
 }
 
 //-----------------------------------------------------------------------------------------
@@ -2488,9 +2585,9 @@ void GameLogic::createOptimizedTree(const ThingTemplate* thingTemplate, Coord3D*
 }
 
 //-----------------------------------------------------------------------------------------
-static void findAndSelectCommandCenter(Object* obj, void* alreadyFound)
+static void findAndSelectCommandCenter(Object *obj, void* alreadyFound)
 {
-	if (!((*(Bool*)alreadyFound)) && obj && obj->isKindOf(KINDOF_COMMANDCENTER))
+	if (!((*(Bool*)alreadyFound)) && obj->isKindOf(KINDOF_COMMANDCENTER) )
 	{
 		((*(Bool*)alreadyFound)) = TRUE;
 		TheGameLogic->selectObject(obj, TRUE, obj->getControllingPlayer()->getPlayerMask(), obj->isLocallyControlled());
@@ -2542,7 +2639,7 @@ void GameLogic::loadMapINI(AsciiString mapName)
 
 
 	char fullFledgeFilename[_MAX_PATH];
-	sprintf(fullFledgeFilename, "%s\\map.ini", filename);
+	snprintf(fullFledgeFilename, ARRAY_SIZE(fullFledgeFilename), "%s\\map.ini", filename);
 	if (TheFileSystem->doesFileExist(fullFledgeFilename)) {
 		DEBUG_LOG(("Loading map.ini"));
 		INI ini;
@@ -2552,7 +2649,7 @@ void GameLogic::loadMapINI(AsciiString mapName)
 	// TheSuperHackers @todo Implement ini load directory for map folder.
 	// Requires adjustments in map transfer.
 
-	sprintf(fullFledgeFilename, "%s\\solo.ini", filename);
+	snprintf(fullFledgeFilename, ARRAY_SIZE(fullFledgeFilename), "%s\\solo.ini", filename);
 	if (TheFileSystem->doesFileExist(fullFledgeFilename)) {
 		DEBUG_LOG(("Loading solo.ini"));
 		INI ini;
@@ -2562,7 +2659,7 @@ void GameLogic::loadMapINI(AsciiString mapName)
 	// No error here. There could've just *not* been a map.ini file.
 
 	// now look for a string file
-	sprintf(fullFledgeFilename, "%s\\map.str", filename);
+	snprintf(fullFledgeFilename, ARRAY_SIZE(fullFledgeFilename), "%s\\map.str", filename);
 
 	if (TheFileSystem->doesFileExist(fullFledgeFilename)) {
 		TheGameText->initMapStringFile(fullFledgeFilename);
@@ -2572,7 +2669,7 @@ void GameLogic::loadMapINI(AsciiString mapName)
 	if (TheDisplay)
 	{
 		const char* ASSET_USAGE_FILE_NAME = "AssetUsage.txt";
-		sprintf(fullFledgeFilename, "%s\\%s", filename, ASSET_USAGE_FILE_NAME);
+		snprintf(fullFledgeFilename, ARRAY_SIZE(fullFledgeFilename), "%s\\%s", filename, ASSET_USAGE_FILE_NAME);
 		// note: call this EVEN IF THE FILE IN QUESTION DOES NOT EXIST.
 		TheDisplay->doSmartAssetPurgeAndPreload(fullFledgeFilename);
 	}
@@ -2584,13 +2681,19 @@ void GameLogic::loadMapINI(AsciiString mapName)
  * The destroy list exists to ensure that all objects have a chance to
  * see each other at each simulation frame - the object list is the
  * same at the start of the update as it is at the end of the update. */
- // ------------------------------------------------------------------------------------------------
- //DECLARE_PERF_TIMER(processDestroyList)
-void GameLogic::processDestroyList(void)
+// ------------------------------------------------------------------------------------------------
+//DECLARE_PERF_TIMER(processDestroyList)
+void GameLogic::processDestroyList()
 {
 	//USE_PERF_TIMER(processDestroyList)
 
-	for (ObjectPointerListIterator iterator = m_objectsToDestroy.begin(); iterator != m_objectsToDestroy.end(); iterator++)
+#if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
+	// TheSuperHackers @info Set m_classifyFenceZeroInit to true for the first object. It's set to false when this function exits.
+	// Pathfinder::classifyFence may be called indirectly from Object::~Object.
+	TheAI->pathfinder()->m_classifyFenceZeroInit = !m_objectsToDestroy.empty();
+#endif
+
+	for( ObjectPointerListIterator iterator = m_objectsToDestroy.begin(); iterator != m_objectsToDestroy.end(); iterator++ )
 	{
 		Object* currentObject = (*iterator);
 
@@ -2648,6 +2751,10 @@ void GameLogic::processDestroyList(void)
 		removeObjectFromLookupTable(currentObject);
 
 		Object::friend_deleteInstance(currentObject);//actual delete
+
+#if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
+		TheAI->pathfinder()->m_classifyFenceZeroInit = false;
+#endif
 	}
 
 	m_objectsToDestroy.clear();//list full of bad pointers now, clear it.  If anyone's deletion resulted
@@ -2989,10 +3096,10 @@ void GameLogic::eraseSleepyUpdate(Int i)
 	// swap with the final item, toss the final item, then rebalance
 	m_sleepyUpdates[i]->friend_setIndexInLogic(-1);
 
-	Int final = m_sleepyUpdates.size() - 1;
-	if (i < final)
+	Int last = m_sleepyUpdates.size() - 1;
+	if (i < last)
 	{
-		m_sleepyUpdates[i] = m_sleepyUpdates[final];
+		m_sleepyUpdates[i] = m_sleepyUpdates[last];
 		m_sleepyUpdates[i]->friend_setIndexInLogic(i);
 		m_sleepyUpdates.pop_back();
 		rebalanceSleepyUpdate(i);
@@ -3293,7 +3400,7 @@ void drawGraph(const char* style, Real scale, double value)
 
 enum { TIME_FRAMES = 20 };
 enum { SETTLE_FRAMES = 10 };
-static void unitTimings(void)
+static void unitTimings()
 {
 	static Int settleFrames = 0;
 	static Int timeFrames = 0;
@@ -3797,9 +3904,10 @@ extern __int64 Total_Load_3D_Assets;
 // ------------------------------------------------------------------------------------------------
 /** Update all objects in the world by invoking their update() methods. */
 // ------------------------------------------------------------------------------------------------
-void GameLogic::update(void)
+void GameLogic::update()
 {
 	USE_PERF_TIMER(GameLogic_update)
+	PROFILER_SECTION_COLOR(0x4CAF50);
 
 #if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
 		if (m_frame % 2 != 0)
@@ -3825,11 +3933,11 @@ void GameLogic::update(void)
 		Total_Load_3D_Assets = 0;
 #endif
 
-#ifdef RTS_PROFILE
+#ifdef RTS_PROFILE_LEGACY
 		Profile::StartRange("map_load");
 #endif
 		startNewGame(FALSE);
-#ifdef RTS_PROFILE
+#ifdef RTS_PROFILE_LEGACY
 		Profile::StopRange("map_load");
 #endif
 		m_startNewGame = FALSE;
@@ -3853,6 +3961,8 @@ void GameLogic::update(void)
 	UnsignedInt now = TheGameLogic->getFrame();
 	TheGameClient->setFrame(now);
 
+	PROFILER_PLOT("LogicFrame", static_cast<int64_t>(now));
+
 	// update (execute) scripts
 	{
 		TheScriptEngine->UPDATE();
@@ -3868,12 +3978,12 @@ void GameLogic::update(void)
 	// would be getting the CRC anyway, so replays can get the CRCs from the exact instant in time as the original.
 	Bool isMPGameOrReplay = (TheRecorder && TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
 	Bool isSoloGameOrReplay = (TheRecorder && !TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
-	Bool generateForMP = (isMPGameOrReplay && (m_frame % TheGameInfo->getCRCInterval()) == 0);
+	Bool generateForMP = (isMPGameOrReplay && TheGameInfo->getCRCInterval() > 0 && (m_frame % TheGameInfo->getCRCInterval()) == 0);
 #ifdef DEBUG_CRC
 	Bool generateForSolo = isSoloGameOrReplay && ((m_frame && (m_frame % 100 == 0)) ||
-		(getFrame() >= TheCRCFirstFrameToLog && getFrame() < TheCRCLastFrameToLog && ((m_frame % REPLAY_CRC_INTERVAL) == 0)));
+		(getFrame() >= TheCRCFirstFrameToLog && getFrame() < TheCRCLastFrameToLog && (REPLAY_CRC_INTERVAL > 0 && (m_frame % REPLAY_CRC_INTERVAL) == 0)));
 #else
-	Bool generateForSolo = isSoloGameOrReplay && ((m_frame % REPLAY_CRC_INTERVAL) == 0);
+	Bool generateForSolo = isSoloGameOrReplay && (REPLAY_CRC_INTERVAL > 0 && (m_frame % REPLAY_CRC_INTERVAL) == 0);
 #endif // DEBUG_CRC
 
 	if (generateForSolo || generateForMP)
@@ -3918,7 +4028,15 @@ void GameLogic::update(void)
 		{
 			UpdateModulePtr u = *it;
 			DisabledMaskType dis = u->friend_getObject()->getDisabledFlags();
+#if RETAIL_COMPATIBLE_CRC
 			if (!dis.any() || dis.anyIntersectionWith(u->getDisabledTypesToProcess()))
+#else
+			// TheSuperHackers @bugfix Stubbjax 15/03/2026 The disabled-types-to-process mask is now exclusive.
+			// Previously, if the disabled mask had any bits in common with the disabled-types-to-process mask,
+			// the update would be processed. Now, if any *other* bits are set in the disabled mask, the update
+			// is no longer processed.
+			if (u->getDisabledTypesToProcess().testForAll(dis))
+#endif
 			{
 				USE_PERF_TIMER(GameLogic_update_normal)
 
@@ -3958,7 +4076,15 @@ void GameLogic::update(void)
 			UpdateSleepTime sleepLen = UPDATE_SLEEP_NONE;	// default, if it is disabled.
 
 			DisabledMaskType dis = u->friend_getObject()->getDisabledFlags();
+#if RETAIL_COMPATIBLE_CRC
 			if (!dis.any() || dis.anyIntersectionWith(u->getDisabledTypesToProcess()))
+#else
+			// TheSuperHackers @bugfix Stubbjax 15/03/2026 The disabled-types-to-process mask is now exclusive.
+			// Previously, if the disabled mask had any bits in common with the disabled-types-to-process mask,
+			// the update would be processed. Now, if any *other* bits are set in the disabled mask, the update
+			// is no longer processed.
+			if (u->getDisabledTypesToProcess().testForAll(dis))
+#endif
 			{
 				USE_PERF_TIMER(GameLogic_update_sleepy)
 
@@ -4108,7 +4234,7 @@ void GameLogic::preUpdate()
 // ------------------------------------------------------------------------------------------------
 /** Return the first object in the world list */
 // ------------------------------------------------------------------------------------------------
-Object* GameLogic::getFirstObject(void)
+Object *GameLogic::getFirstObject()
 {
 	return m_objList;
 }
@@ -4116,7 +4242,7 @@ Object* GameLogic::getFirstObject(void)
 // ------------------------------------------------------------------------------------------------
 /** Return a new unique object id. */
 // ------------------------------------------------------------------------------------------------
-ObjectID GameLogic::allocateObjectID(void)
+ObjectID GameLogic::allocateObjectID()
 {
 	/// @todo Find unused value in current object set
 	ObjectID ret = m_nextObjID;
@@ -4244,7 +4370,7 @@ void GameLogic::destroyObject(Object* obj)
 	if (!obj || obj->isDestroyed())
 		return;
 
-	// run the object onDestroy event if provied
+	// run the object onDestroy event if provided
 	for (BehaviorModule** m = obj->getBehaviorModules(); *m; ++m)
 	{
 		DestroyModuleInterface* destroy = (*m)->getDestroy();
@@ -4275,9 +4401,9 @@ void GameLogic::destroyObject(Object* obj)
 		TheAI->pathfinder()->removeWallPiece(obj);
 
 	//Clean up special power shortcut bars
-	if (obj->hasAnySpecialPower())
+	if( obj->hasAnySpecialPower() )
 	{
-		if (ThePlayerList->getLocalPlayer() == obj->getControllingPlayer())
+		if( obj->isLocallyControlled() )
 		{
 			TheControlBar->markUIDirty();
 		}
@@ -4425,6 +4551,86 @@ void GameLogic::exitGame()
 	TheScriptEngine->doUnfreezeTime();
 
 	TheMessageStream->appendMessage(GameMessage::MSG_CLEAR_GAME_DATA);
+
+#ifdef PROFILER_ENABLED
+	AsciiString message;
+	message.format("GameEnd: %s", TheGlobalData->m_mapName.str());
+	PROFILER_MSG(message.str(), message.getLength());
+#endif
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void GameLogic::quit(Bool toDesktop)
+{
+	const Bool isNotLoading = (!isLoadingMap() && !isLoadingSave());
+
+	if (isInGame())
+	{
+		if (isInInteractiveGame())
+		{
+			if (canOpenQuitMenu())
+			{
+				ToggleQuitMenu();
+				return;
+			}
+			
+			if (isInMultiplayerGame() && !isInSkirmishGame() && TheGameInfo && !TheGameInfo->isSandbox())
+			{
+				GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_SELF_DESTRUCT);
+				msg->appendBooleanArgument(TRUE);
+			}
+		}
+
+		if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
+		{
+			TheRecorder->stopRecording();
+		}
+
+		setGamePaused(FALSE);
+
+		if (TheScriptEngine && isNotLoading)
+		{
+			TheScriptEngine->forceUnfreezeTime();
+			TheScriptEngine->doUnfreezeTime();
+		}
+
+		if (toDesktop)
+		{
+			if (isInMultiplayerGame())
+			{
+				m_quitToDesktopAfterMatch = TRUE;
+				if (isNotLoading)
+				{
+					exitGame();
+				}
+			}
+			else
+			{
+				if (isNotLoading)
+				{
+					clearGameData();
+				}
+			}
+		}
+		else
+		{
+			exitGame();
+		}
+	}
+
+	if (toDesktop)
+	{
+		if (!isInMultiplayerGame())
+		{
+			TheGameEngine->setQuitting(TRUE);
+		}
+	}
+
+	if (TheInGameUI)
+	{
+		TheInGameUI->setClientQuiet(TRUE);
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -4475,7 +4681,7 @@ void GameLogic::sendObjectDestroyed(Object* obj)
 // ------------------------------------------------------------------------------------------------
 /** Return if the game is paused or not */
 // ------------------------------------------------------------------------------------------------
-Bool GameLogic::isGamePaused(void)
+Bool GameLogic::isGamePaused()
 {
 	return m_gamePaused;
 }
@@ -4651,7 +4857,7 @@ void GameLogic::processProgressComplete(Int playerId)
 {
 	if (playerId < 0 || playerId >= MAX_SLOTS)
 	{
-		DEBUG_ASSERTCRASH(FALSE, ("GameLogic::processProgressComplete, Invalid playerid was passed in %d", playerId));
+		DEBUG_CRASH(("GameLogic::processProgressComplete, Invalid playerid was passed in %d", playerId));
 		return;
 	}
 	if (m_progressComplete[playerId] == TRUE)
@@ -4667,7 +4873,7 @@ void GameLogic::processProgressComplete(Int playerId)
 // ------------------------------------------------------------------------------------------------
 /// @TODO: Add check to account for timeouts
 // ------------------------------------------------------------------------------------------------
-Bool GameLogic::isProgressComplete(void)
+Bool GameLogic::isProgressComplete()
 {
 	//If we're not in a network game, always return true
 	if (!isInMultiplayerGame() || !TheNetwork || m_forceGameStartByTimeOut)
@@ -4693,7 +4899,7 @@ void GameLogic::lastHeardFrom(Int playerId)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-void GameLogic::testTimeOut(void)
+void GameLogic::testTimeOut()
 {
 	// if everyone is loaded, lets just load the game like normal.
 	if (isProgressComplete())
@@ -4722,7 +4928,7 @@ void GameLogic::testTimeOut(void)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-void GameLogic::timeOutGameStart(void)
+void GameLogic::timeOutGameStart()
 {
 	DEBUG_LOG(("We got the Force TimeOut Start Message"));
 	m_forceGameStartByTimeOut = TRUE;
@@ -4730,7 +4936,7 @@ void GameLogic::timeOutGameStart(void)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-void GameLogic::initTimeOutValues(void)
+void GameLogic::initTimeOutValues()
 {
 	if (!TheNetwork)
 		return;
@@ -4743,7 +4949,7 @@ void GameLogic::initTimeOutValues(void)
 // ------------------------------------------------------------------------------------------------
 /** returns the total number of objects in the world */
 // ------------------------------------------------------------------------------------------------
-UnsignedInt GameLogic::getObjectCount(void)
+UnsignedInt GameLogic::getObjectCount()
 {
 	UnsignedInt totalObjects = 0;
 	Object* obj;
@@ -4756,14 +4962,16 @@ UnsignedInt GameLogic::getObjectCount(void)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-GhostObjectManager* GameLogic::createGhostObjectManager(void)
+GhostObjectManager *GameLogic::createGhostObjectManager(bool dummy)
 {
+	if (dummy)
+		return NEW GhostObjectManagerDummy;
 	return NEW GhostObjectManager;
 }
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-TerrainLogic* GameLogic::createTerrainLogic(void)
+TerrainLogic *GameLogic::createTerrainLogic()
 {
 	return NEW TerrainLogic;
 }
@@ -4988,7 +5196,7 @@ void GameLogic::xferObjectTOC(Xfer* xfer)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-void GameLogic::prepareLogicForObjectLoad(void)
+void GameLogic::prepareLogicForObjectLoad()
 {
 
 	//
@@ -5068,13 +5276,18 @@ void GameLogic::prepareLogicForObjectLoad(void)
 	* 5: Added xfering the BuildAssistant's sell list.
 	* 9: Added m_rankPointsToAddAtGameStart, or else on a load game, your RestartGame button will forget your exp
   * 10: xfer m_superweaponRestriction
+  * 11: TheSuperHackers @fix Save objects in reverse order so they load in correct order
 	*/
 	// ------------------------------------------------------------------------------------------------
 void GameLogic::xfer(Xfer* xfer)
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 10;
+#else
+	const XferVersion currentVersion = 11;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion(&version, currentVersion);
 
@@ -5088,7 +5301,7 @@ void GameLogic::xfer(Xfer* xfer)
 	// !!!DON'T DO THIS!!! ----> xfer->xferObjectID( &m_nextObjectID ); <---- !!!DON'T DO THIS!!!
 
 	//
-	// xfer a table of contents that contain thing template and indentifier pairs.  this
+	// xfer a table of contents that contains thing template and identifier pairs.  this
 	// table of contents is good for this save file only as unique numbers are only
 	// generated and stored for the actual things that are on this map
 	//
@@ -5107,8 +5320,17 @@ void GameLogic::xfer(Xfer* xfer)
 	ObjectTOCEntry* tocEntry;
 	if (xfer->getXferMode() == XFER_SAVE)
 	{
+#if !RETAIL_COMPATIBLE_XFER_SAVE
+		// TheSuperHackers @fix bobtista 07/03/2026 Save objects in reverse order (newest first)
+		// so they load in the correct order (oldest objects at head of list).
+		Object *lastObj = nullptr;
+		for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
+			lastObj = obj;
 
-		for (obj = getFirstObject(); obj; obj = obj->getNextObject())
+		for( obj = lastObj; obj; obj = obj->getPrevObject() )
+#else
+		for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
+#endif
 		{
 
 			// get the object TOC entry for this template
@@ -5189,6 +5411,25 @@ void GameLogic::xfer(Xfer* xfer)
 			if (obj->isKindOf(KINDOF_WALK_ON_TOP_OF_WALL))
 				TheAI->pathfinder()->addWallPiece(obj);
 
+		}
+
+		// TheSuperHackers @fix bobtista 07/03/2026 Reverse object list after load.
+		// Objects are prepended during creation, which reverses the saved order.
+		// Version 11+ saves in reverse order so they load in the correct order.
+		if ( version <= 10 )
+		{
+			Object *prev = nullptr;
+			Object *current = m_objList;
+			Object *next = nullptr;
+			while ( current != nullptr )
+			{
+				next = current->getNextObject();
+				current->friend_setNextObject( prev );
+				current->friend_setPrevObject( next );
+				prev = current;
+				current = next;
+			}
+			m_objList = prev;
 		}
 
 	}
@@ -5400,7 +5641,7 @@ void GameLogic::xfer(Xfer* xfer)
 // ------------------------------------------------------------------------------------------------
 /** Load post process entry point */
 // ------------------------------------------------------------------------------------------------
-void GameLogic::loadPostProcess(void)
+void GameLogic::loadPostProcess()
 {
 
 	//

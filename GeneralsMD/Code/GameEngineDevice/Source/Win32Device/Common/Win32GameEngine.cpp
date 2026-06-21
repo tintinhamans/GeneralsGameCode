@@ -61,7 +61,7 @@ Win32GameEngine::~Win32GameEngine()
 //-------------------------------------------------------------------------------------------------
 /** Initialize the game engine */
 //-------------------------------------------------------------------------------------------------
-void Win32GameEngine::init( void )
+void Win32GameEngine::init()
 {
 
 	// extending functionality
@@ -72,7 +72,7 @@ void Win32GameEngine::init( void )
 //-------------------------------------------------------------------------------------------------
 /** Reset the system */
 //-------------------------------------------------------------------------------------------------
-void Win32GameEngine::reset( void )
+void Win32GameEngine::reset()
 {
 
 	// extending functionality
@@ -84,7 +84,7 @@ void Win32GameEngine::reset( void )
 /** Update the game engine by updating the GameClient and
 	* GameLogic singletons. */
 //-------------------------------------------------------------------------------------------------
-void Win32GameEngine::update( void )
+void Win32GameEngine::update()
 {
 
 
@@ -114,7 +114,9 @@ void Win32GameEngine::update( void )
 			// If we are running a multiplayer game, keep running the logic.
 			// There is code in the client to skip client redraw if we are
 			// iconic.  jba.
-			if (TheGameEngine->getQuitting() || TheGameLogic->isInInternetGame() || TheGameLogic->isInLanGame()) {
+			// GO_CHANGE: If we have an active network session, keep running to prevent disconnecting us from
+			// other players during lobby and loading screen where isInMultiplayerGame() returns false
+			if (TheGameEngine->getQuitting() || TheGameLogic->isInMultiplayerGame() || (TheNetwork != nullptr)) {
 				break; // keep running.
 			}
 		}
@@ -137,7 +139,7 @@ void Win32GameEngine::update( void )
 	* we would call this at least once each time around the game loop to keep
 	* Windows services from backing up */
 //-------------------------------------------------------------------------------------------------
-void Win32GameEngine::serviceWindowsOS( void )
+void Win32GameEngine::serviceWindowsOS()
 {
 	MSG msg;
   Int returnValue;

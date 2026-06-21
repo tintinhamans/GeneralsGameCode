@@ -66,7 +66,7 @@ GameMessage::GameMessage( GameMessage::Type type )
 /**
  * Destructor
  */
-GameMessage::~GameMessage( )
+GameMessage::~GameMessage()
 {
 	// free all arguments
 	GameMessageArgument *arg, *nextArg;
@@ -88,21 +88,20 @@ GameMessage::~GameMessage( )
  */
 const GameMessageArgumentType *GameMessage::getArgument( Int argIndex ) const
 {
-	static const GameMessageArgumentType junk = { 0 };
-
 	int i=0;
 	for( GameMessageArgument *a = m_argList; a; a=a->m_next, i++ )
 		if (i == argIndex)
 			return &a->m_data;
 
 	DEBUG_CRASH(("argument not found"));
-	return &junk;
+	static const GameMessageArgumentType zero = { 0 };
+	return &zero;
 }
 
 /**
  * Return the given argument data type
  */
-GameMessageArgumentDataType GameMessage::getArgumentDataType( Int argIndex )
+GameMessageArgumentDataType GameMessage::getArgumentDataType( Int argIndex ) const
 {
 	if (argIndex >= m_argCount) {
 		return ARGUMENTDATATYPE_UNKNOWN;
@@ -121,7 +120,7 @@ GameMessageArgumentDataType GameMessage::getArgumentDataType( Int argIndex )
 /**
  * Allocate a new argument, add it to the argument list, and increment the total arg count
  */
-GameMessageArgument *GameMessage::allocArg( void )
+GameMessageArgument *GameMessage::allocArg()
 {
 	// allocate a new argument
 	GameMessageArgument *arg = newInstance(GameMessageArgument);
@@ -223,7 +222,7 @@ void GameMessage::appendWideCharArgument( const WideChar& arg )
 	a->m_type = ARGUMENTDATATYPE_WIDECHAR;
 }
 
-const char *GameMessage::getCommandAsString( void ) const
+const char *GameMessage::getCommandAsString() const
 {
 	return getCommandTypeAsString(m_type);
 }
@@ -326,6 +325,7 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_META_SELECT_PREV_UNIT)
 	CASE_LABEL(MSG_META_SELECT_NEXT_WORKER)
 	CASE_LABEL(MSG_META_SELECT_PREV_WORKER)
+	CASE_LABEL(MSG_META_SELECT_NEXT_IDLE_WORKER)
 	CASE_LABEL(MSG_META_VIEW_COMMAND_CENTER)
 	CASE_LABEL(MSG_META_VIEW_LAST_RADAR_EVENT)
 	CASE_LABEL(MSG_META_SELECT_HERO)
@@ -348,6 +348,8 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 
 	CASE_LABEL(MSG_META_INCREASE_OBSERVER_STATS_FONT)
 	CASE_LABEL(MSG_META_DECREASE_OBSERVER_STATS_FONT)
+	CASE_LABEL(MSG_META_INCREASE_OBSERVER_NOTIFICATION_FONT)
+	CASE_LABEL(MSG_META_DECREASE_OBSERVER_NOTIFICATION_FONT)
 	CASE_LABEL(MSG_META_INCREASE_MAX_RENDER_FPS)
 	CASE_LABEL(MSG_META_DECREASE_MAX_RENDER_FPS)
 	CASE_LABEL(MSG_META_INCREASE_LOGIC_TIME_SCALE)
@@ -370,17 +372,24 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_META_TOGGLE_ATTACKMOVE)
 	CASE_LABEL(MSG_META_BEGIN_CAMERA_ROTATE_LEFT)
 	CASE_LABEL(MSG_META_END_CAMERA_ROTATE_LEFT)
+	CASE_LABEL(MSG_META_ALT_CAMERA_ROTATE_LEFT)
 	CASE_LABEL(MSG_META_BEGIN_CAMERA_ROTATE_RIGHT)
 	CASE_LABEL(MSG_META_END_CAMERA_ROTATE_RIGHT)
+	CASE_LABEL(MSG_META_ALT_CAMERA_ROTATE_RIGHT)
 	CASE_LABEL(MSG_META_BEGIN_CAMERA_ZOOM_IN)
 	CASE_LABEL(MSG_META_END_CAMERA_ZOOM_IN)
 	CASE_LABEL(MSG_META_BEGIN_CAMERA_ZOOM_OUT)
 	CASE_LABEL(MSG_META_END_CAMERA_ZOOM_OUT)
 	CASE_LABEL(MSG_META_CAMERA_RESET)
 	CASE_LABEL(MSG_META_TOGGLE_CAMERA_TRACKING_DRAWABLE)
+	CASE_LABEL(MSG_META_TOGGLE_FAST_FORWARD_REPLAY)
+	CASE_LABEL(MSG_META_TOGGLE_PAUSE)
+	CASE_LABEL(MSG_META_TOGGLE_PAUSE_ALT)
+	CASE_LABEL(MSG_META_STEP_FRAME)
+	CASE_LABEL(MSG_META_STEP_FRAME_ALT)
 	CASE_LABEL(MSG_META_DEMO_INSTANT_QUIT)
 
-#if defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)//may be defined in GameCommon.h
+#if defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
 	CASE_LABEL(MSG_CHEAT_RUNSCRIPT1)
 	CASE_LABEL(MSG_CHEAT_RUNSCRIPT2)
 	CASE_LABEL(MSG_CHEAT_RUNSCRIPT3)
@@ -402,12 +411,6 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_CHEAT_SHOW_HEALTH)
 	CASE_LABEL(MSG_CHEAT_TOGGLE_MESSAGE_TEXT)
 #endif
-
-	CASE_LABEL(MSG_META_TOGGLE_FAST_FORWARD_REPLAY)
-	CASE_LABEL(MSG_META_TOGGLE_PAUSE)
-	CASE_LABEL(MSG_META_TOGGLE_PAUSE_ALT)
-	CASE_LABEL(MSG_META_STEP_FRAME)
-	CASE_LABEL(MSG_META_STEP_FRAME_ALT)
 
 #if defined(RTS_DEBUG)
 	CASE_LABEL(MSG_META_DEMO_TOGGLE_BEHIND_BUILDINGS)
@@ -446,6 +449,8 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_META_DEMO_PLAY_OBJECTIVE_MOVIE6)
 	CASE_LABEL(MSG_META_DEMO_BEGIN_ADJUST_PITCH)
 	CASE_LABEL(MSG_META_DEMO_END_ADJUST_PITCH)
+	CASE_LABEL(MSG_META_DEMO_BEGIN_ADJUST_DEFAULTPITCH)
+	CASE_LABEL(MSG_META_DEMO_END_ADJUST_DEFAULTPITCH)
 	CASE_LABEL(MSG_META_DEMO_BEGIN_ADJUST_FOV)
 	CASE_LABEL(MSG_META_DEMO_END_ADJUST_FOV)
 	CASE_LABEL(MSG_META_DEMO_LOCK_CAMERA_TO_PLANES)
@@ -528,11 +533,11 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 
 #if defined(RTS_DEBUG)
 	CASE_LABEL(MSG_META_DEMO_TOGGLE_AUDIODEBUG)
-#endif//defined(RTS_DEBUG)
+#endif
 
 #ifdef DUMP_PERF_STATS
 	CASE_LABEL(MSG_META_DEMO_PERFORM_STATISTICAL_DUMP)
-#endif//DUMP_PERF_STATS
+#endif
 
 	CASE_LABEL(MSG_META_PLACE_BEACON)
 	CASE_LABEL(MSG_META_REMOVE_BEACON)
@@ -541,9 +546,10 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_MOUSEOVER_LOCATION_HINT)
 	CASE_LABEL(MSG_VALID_GUICOMMAND_HINT)
 	CASE_LABEL(MSG_INVALID_GUICOMMAND_HINT)
-	CASE_LABEL(MSG_AREA_SELECTION_HINT)
+	CASE_LABEL(MSG_BEGIN_AREA_SELECTION_HINT)
+	CASE_LABEL(MSG_END_AREA_SELECTION_HINT)
 	CASE_LABEL(MSG_DO_ATTACK_OBJECT_HINT)
-	CASE_LABEL(MSG_DO_ATTACK_OBJECT_AFTER_MOVING_HINT)
+	CASE_LABEL(MSG_IMPOSSIBLE_ATTACK_HINT)
 	CASE_LABEL(MSG_DO_FORCE_ATTACK_OBJECT_HINT)
 	CASE_LABEL(MSG_DO_FORCE_ATTACK_GROUND_HINT)
 	CASE_LABEL(MSG_GET_REPAIRED_HINT)
@@ -560,7 +566,6 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_FIREBOMB_HINT)
 	CASE_LABEL(MSG_CONVERT_TO_CARBOMB_HINT)
 	CASE_LABEL(MSG_CAPTUREBUILDING_HINT)
-	CASE_LABEL(MSG_HACK_HINT)
 
 #ifdef ALLOW_SURRENDER
 	CASE_LABEL(MSG_PICK_UP_PRISONER_HINT)
@@ -569,8 +574,11 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_SNIPE_VEHICLE_HINT)
 	CASE_LABEL(MSG_DEFECTOR_HINT)
 	CASE_LABEL(MSG_SET_RALLY_POINT_HINT)
+	CASE_LABEL(MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION_HINT)
 	CASE_LABEL(MSG_DO_SALVAGE_HINT)
 	CASE_LABEL(MSG_DO_INVALID_HINT)
+	CASE_LABEL(MSG_DO_ATTACK_OBJECT_AFTER_MOVING_HINT)
+	CASE_LABEL(MSG_HACK_HINT)
 	CASE_LABEL(MSG_BEGIN_NETWORK_MESSAGES)
 	CASE_LABEL(MSG_CREATE_SELECTED_GROUP)
 	CASE_LABEL(MSG_CREATE_SELECTED_GROUP_NO_SOUND)
@@ -629,7 +637,7 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_EXECUTE_RAILED_TRANSPORT)
 	CASE_LABEL(MSG_COMBATDROP_AT_LOCATION)
 	CASE_LABEL(MSG_COMBATDROP_AT_OBJECT)
-	CASE_LABEL(MSG_AREA_SELECTION)
+	CASE_LABEL(MSG_AREA_SELECTION_DEPRECATED)
 	CASE_LABEL(MSG_DO_ATTACK_OBJECT)
 	CASE_LABEL(MSG_DO_FORCE_ATTACK_OBJECT)
 	CASE_LABEL(MSG_DO_FORCE_ATTACK_GROUND)
@@ -649,17 +657,7 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_DO_SCATTER)
 	CASE_LABEL(MSG_INTERNET_HACK)
 	CASE_LABEL(MSG_DO_CHEER)
-
-#ifdef ALLOW_SURRENDER
-	CASE_LABEL(MSG_DO_SURRENDER)
-#endif
-
 	CASE_LABEL(MSG_TOGGLE_OVERCHARGE)
-
-#ifdef ALLOW_SURRENDER
-	CASE_LABEL(MSG_RETURN_TO_PRISON)
-#endif
-
 	CASE_LABEL(MSG_SWITCH_WEAPONS)
 	CASE_LABEL(MSG_CONVERT_TO_CARBOMB)
 	CASE_LABEL(MSG_CAPTUREBUILDING)
@@ -667,11 +665,7 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_STEALCASH_HACK)
 	CASE_LABEL(MSG_DISABLEBUILDING_HACK)
 	CASE_LABEL(MSG_SNIPE_VEHICLE)
-
-#ifdef ALLOW_SURRENDER
-	CASE_LABEL(MSG_PICK_UP_PRISONER)
-#endif
-
+	CASE_LABEL(MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION)
 	CASE_LABEL(MSG_DO_SALVAGE)
 	CASE_LABEL(MSG_CLEAR_INGAME_POPUP_MESSAGE)
 	CASE_LABEL(MSG_PLACE_BEACON)
@@ -681,8 +675,11 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_SELF_DESTRUCT)
 	CASE_LABEL(MSG_CREATE_FORMATION)
 	CASE_LABEL(MSG_LOGIC_CRC)
+	CASE_LABEL(MSG_SET_MINE_CLEARING_DETAIL)
+	CASE_LABEL(MSG_ENABLE_RETALIATION_MODE)
+	CASE_LABEL(MSG_BEGIN_DEBUG_NETWORK_MESSAGES)
 
-#if defined(RTS_DEBUG)
+#if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
 	CASE_LABEL(MSG_DEBUG_KILL_SELECTION)
 	CASE_LABEL(MSG_DEBUG_HURT_OBJECT)
 	CASE_LABEL(MSG_DEBUG_KILL_OBJECT)
@@ -695,8 +692,12 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 	CASE_LABEL(MSG_OBJECT_POSITION)
 	CASE_LABEL(MSG_OBJECT_ORIENTATION)
 	CASE_LABEL(MSG_OBJECT_JOINED_TEAM)
-	CASE_LABEL(MSG_SET_MINE_CLEARING_DETAIL)
-	CASE_LABEL(MSG_ENABLE_RETALIATION_MODE)
+
+#ifdef ALLOW_SURRENDER
+	CASE_LABEL(MSG_DO_SURRENDER)
+	CASE_LABEL(MSG_RETURN_TO_PRISON)
+	CASE_LABEL(MSG_PICK_UP_PRISONER)
+#endif
 	}
 
 #undef CASE_LABEL
@@ -710,7 +711,7 @@ const char *GameMessage::getCommandTypeAsString(GameMessage::Type t)
 /**
  * Constructor
  */
-GameMessageList::GameMessageList( void )
+GameMessageList::GameMessageList()
 {
 	m_firstMessage = nullptr;
 	m_lastMessage = nullptr;
@@ -823,7 +824,7 @@ Bool GameMessageList::containsMessageOfType( GameMessage::Type type )
 /**
  * Constructor
  */
-MessageStream::MessageStream( void )
+MessageStream::MessageStream()
 {
 	m_firstTranslator = nullptr;
 	m_nextTranslatorID = 1;
@@ -846,7 +847,7 @@ MessageStream::~MessageStream()
 /**
 	* Init
 	*/
-void MessageStream::init( void )
+void MessageStream::init()
 {
 	// extend
 	GameMessageList::init();
@@ -855,7 +856,7 @@ void MessageStream::init( void )
 /**
 	* Reset
 	*/
-void MessageStream::reset( void )
+void MessageStream::reset()
 {
 
 	/// @todo Reset the MessageStream
@@ -868,11 +869,16 @@ void MessageStream::reset( void )
 /**
 	* Update
 	*/
-void MessageStream::update( void )
+void MessageStream::update()
 {
 	// extend
 	GameMessageList::update();
 
+}
+
+Bool MessageStream::isReadyForMessages() const
+{
+	return (ThePlayerList != nullptr);
 }
 
 /**
@@ -930,7 +936,7 @@ TranslatorID MessageStream::attachTranslator( GameMessageTranslator *translator,
 		return newSS->m_id;
 	}
 
-	// seach the Translator list for our priority location
+	// search the Translator list for our priority location
 	for( ss=m_firstTranslator; ss; ss=ss->m_next )
 		if (ss->m_priority > newSS->m_priority)
 			break;
@@ -1096,7 +1102,7 @@ Bool isInvalidDebugCommand( GameMessage::Type t )
  * Once all Translators have evaluated the message stream, all messages
  * in the stream are destroyed.
  */
-void MessageStream::propagateMessages( void )
+void MessageStream::propagateMessages()
 {
 	MessageStream::TranslatorData *ss;
 	GameMessage *msg, *next;
@@ -1144,7 +1150,7 @@ void MessageStream::propagateMessages( void )
 /**
  * Constructor
  */
-CommandList::CommandList( void )
+CommandList::CommandList()
 {
 }
 
@@ -1159,7 +1165,7 @@ CommandList::~CommandList()
 /**
 	* Init
 	*/
-void CommandList::init( void )
+void CommandList::init()
 {
 
 	// extend
@@ -1170,7 +1176,7 @@ void CommandList::init( void )
 /**
 	* Destroy all messages on the list, and reset list to empty
 	*/
-void CommandList::reset( void )
+void CommandList::reset()
 {
 
 	// extend
@@ -1184,7 +1190,7 @@ void CommandList::reset( void )
 /**
 	* Update
 	*/
-void CommandList::update( void )
+void CommandList::update()
 {
 
 	// extend
@@ -1196,7 +1202,7 @@ void CommandList::update( void )
 	* Destroy all messages on the command list, this will get called from the
 	* destructor and reset methods, DO NOT throw exceptions
 	*/
-void CommandList::destroyAllMessages( void )
+void CommandList::destroyAllMessages()
 {
 	GameMessage *msg, *next;
 

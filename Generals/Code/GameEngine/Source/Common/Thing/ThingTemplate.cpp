@@ -548,7 +548,7 @@ static void parsePrerequisiteUnit( INI* ini, void *instance, void * /*store*/, c
 
 	ProductionPrerequisite prereq;
 	Bool orUnitWithPrevious = FALSE;
-	for (const char *token = ini->getNextToken(); token != nullptr; token = ini->getNextTokenOrNull())
+	for (const char *token = ini->getNextToken(); token; token = ini->getNextTokenOrNull())
 	{
 		prereq.addUnitPrereq( AsciiString( token ), orUnitWithPrevious );
 		orUnitWithPrevious = TRUE;
@@ -902,7 +902,7 @@ ThingTemplate::ThingTemplate() :
 }
 
 //-------------------------------------------------------------------------------------------------
-AIUpdateModuleData *ThingTemplate::friend_getAIModuleInfo(void)
+AIUpdateModuleData *ThingTemplate::friend_getAIModuleInfo()
 {
 	Int numModInfos = m_behaviorModuleInfo.getCount();
 	for (int j = 0; j < numModInfos; ++j)
@@ -1360,7 +1360,7 @@ Bool ThingTemplate::isEquivalentTo(const ThingTemplate* tt) const
 }
 
 //-------------------------------------------------------------------------------------------------
-Bool ThingTemplate::isBuildableItem(void) const
+Bool ThingTemplate::isBuildableItem() const
 {
 	return (getBuildCost() != 0);
 }

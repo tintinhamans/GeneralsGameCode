@@ -92,7 +92,7 @@ Real Energy::getEnergySupplyRatio() const
 }
 
 //-------------------------------------------------------------------------------------------------
-Bool Energy::hasSufficientPower(void) const
+Bool Energy::hasSufficientPower() const
 {
 	if( TheGameLogic->getFrame() < m_powerSabotagedTillFrame )
 	{
@@ -187,6 +187,8 @@ void Energy::addPowerBonus( Object *obj )
 	// sanity
 	if( obj == nullptr )
 		return;
+
+	DEBUG_ASSERTCRASH(!obj->isDisabled(), ("power bonus should not be added to disabled power plant"));
 
 	addProduction(obj->getTemplate()->getEnergyBonus());
 
@@ -299,7 +301,7 @@ void Energy::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void Energy::loadPostProcess( void )
+void Energy::loadPostProcess()
 {
 
 }

@@ -75,7 +75,6 @@
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/VictoryConditions.h"
-#include "GameClient/CDCheck.h"
 #include "GameClient/Display.h"
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/WindowLayout.h"
@@ -467,7 +466,7 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 		{
 			g_bNeedToTakeDoneEOGScreenshot = false;
 
-			NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN);
+			NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN, std::string()); // pass no URI here, wait until we have one received from server
 		}
 	}
 
@@ -618,6 +617,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 			Int controlID = control->winGetWindowId();
 			if( controlID == buttonOkID )
 			{
+				GameSpyCloseOverlay(GSOVERLAY_BUDDY);
 				TheShell->pop();
 				TheCampaignManager->setCampaign(AsciiString::TheEmptyString);
 
@@ -648,7 +648,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 						}
 						else
 						{
-							CheckForCDAtGameStart( startNextCampaignGame );
+
 						}
 					}
 					else if (screenType == SCORESCREEN_INTERNET)
@@ -2298,7 +2298,7 @@ void grabMultiPlayerInfo( void )
 	Int adder = 1; // Varible used to add on an offset to the score to make sure we don't add people to the same map
 
 	player = ThePlayerList->getLocalPlayer();
-	if (player)
+	if (player && parent)
 	{
 		const Image *image = TheMappedImageCollection->findImageByName("MutiPlayer_ScoreScreen");
 		if(image)

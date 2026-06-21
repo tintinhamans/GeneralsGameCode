@@ -86,8 +86,8 @@ static char ExceptionText [65536];
 bool SymbolsAvailable = false;
 HINSTANCE ImageHelp = (HINSTANCE) -1;
 
-void (*AppCallback)(void) = nullptr;
-char *(*AppVersionCallback)(void) = nullptr;
+void (*AppCallback)() = nullptr;
+char *(*AppVersionCallback)() = nullptr;
 
 /*
 ** Flag to indicate we should exit when an exception occurs.
@@ -114,11 +114,71 @@ int ExceptionRecursions = -1;
 DynamicVectorClass<ThreadInfoType*> ThreadList;
 
 /*
-** Critical section to protect ThreadList from concurrent access.
-** This prevents race conditions when threads register/unregister while
-** another thread is accessing the list (e.g., during exception handling or shutdown).
+** Returns the CRITICAL_SECTION used to protect ThreadList.
+**
+** Allocated from the Windows process heap (not the CRT heap) and never freed.
+** The CRT heap can be torn down during application shutdown before all threads
+** have exited. If a thread calls Unregister_Thread_ID after the CRT heap is
+** destroyed, any CRITICAL_SECTION allocated via _aligned_malloc (which uses
+** the CRT heap) would already be invalid memory, causing an access violation
+** when EnterCriticalSection dereferences it.
+**
+** The Windows process heap (GetProcessHeap) outlives the CRT heap and is only
+** reclaimed when the process terminates, so this CRITICAL_SECTION remains valid
+** for the entire process lifetime regardless of CRT shutdown order.
+**
+** Thread-safe one-time initialization is achieved via
+** InterlockedCompareExchangePointer, which works on all supported Windows versions.
 */
-static CriticalSectionClass ThreadListLock;
+static CRITICAL_SECTION* GetThreadListCS()
+{
+	static CRITICAL_SECTION* volatile s_cs = nullptr;
+
+	if (s_cs == nullptr) {
+		CRITICAL_SECTION* cs = reinterpret_cast<CRITICAL_SECTION*>(
+			HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(CRITICAL_SECTION)));
+		if (cs != nullptr) {
+			InitializeCriticalSection(cs);
+		}
+		// Race-free handoff: only one thread's allocation wins; the loser is discarded.
+		if (InterlockedCompareExchangePointer(
+				reinterpret_cast<volatile PVOID*>(&s_cs), cs, nullptr) != nullptr) {
+			// Another thread initialized it first; discard our copy.
+			if (cs != nullptr) {
+				DeleteCriticalSection(cs);
+				HeapFree(GetProcessHeap(), 0, cs);
+			}
+		}
+	}
+
+	return s_cs;
+}
+
+/*
+** RAII lock guard for the raw ThreadList CRITICAL_SECTION.
+** Replaces CriticalSectionClass::LockClass for the thread-list lock so that
+** the CriticalSectionClass wrapper (and its _aligned_malloc-based handle) is
+** never used for this particular, shutdown-sensitive critical path.
+*/
+struct ScopedThreadListLock
+{
+	explicit ScopedThreadListLock(CRITICAL_SECTION* cs) : cs_(cs)
+	{
+		if (cs_ != nullptr) {
+			EnterCriticalSection(cs_);
+		}
+	}
+	~ScopedThreadListLock()
+	{
+		if (cs_ != nullptr) {
+			LeaveCriticalSection(cs_);
+		}
+	}
+private:
+	CRITICAL_SECTION* cs_;
+	ScopedThreadListLock(const ScopedThreadListLock&);
+	ScopedThreadListLock& operator=(const ScopedThreadListLock&);
+};
 
 /*
 ** Definitions to allow run-time linking to the Imagehlp.dll functions.
@@ -175,7 +235,7 @@ static char const *const ImagehelpFunctionNames[] =
  * HISTORY:                                                                                    *
  *   8/22/00 11:42AM ST : Created                                                              *
  *=============================================================================================*/
-int __cdecl _purecall(void)
+int __cdecl _purecall()
 {
 	int return_code = 0;
 
@@ -206,7 +266,7 @@ int __cdecl _purecall(void)
  * HISTORY:                                                                                    *
  *   8/14/98 11:11AM ST : Created                                                              *
  *=============================================================================================*/
-char const * Last_Error_Text(void)
+char const * Last_Error_Text()
 {
 	static char message_buffer[256];
 	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &message_buffer[0], 256, nullptr);
@@ -347,7 +407,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	/*
 	** Scrap buffer for constructing dump strings
 	*/
-	char scrap [256];
+	char scrap [256] = {};
 
 	/*
 	** Clear out the dump buffer
@@ -477,7 +537,8 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 
 	if (!IsBadCodePtr((FARPROC)context->Eip)) {
 		if (_SymGetSymFromAddr != nullptr && _SymGetSymFromAddr (GetCurrentProcess(), context->Eip, &displacement, symptr)) {
-			sprintf (scrap, "Exception occurred at %08X - %s + %08X\r\n", context->Eip, symptr->Name, displacement);
+			snprintf(scrap, ARRAY_SIZE(scrap), "Exception occurred at %08X - %s + %08X\r\n",
+				context->Eip, symptr->Name, displacement);
 		} else {
 			DebugString ("Exception Handler: Failed to get symbol for EIP\r\n");
 			if (_SymGetSymFromAddr != nullptr) {
@@ -517,7 +578,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 
 				if (_SymGetSymFromAddr != nullptr && _SymGetSymFromAddr (GetCurrentProcess(), temp_addr, &displacement, symptr)) {
 					char symbuf[256];
-					sprintf(symbuf, "%s + %08X\r\n", symptr->Name, displacement);
+					snprintf(symbuf, ARRAY_SIZE(symbuf), "%s + %08X\r\n", symptr->Name, displacement);
 					Add_Txt(symbuf);
 				}
 			} else {
@@ -554,7 +615,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 #endif	//(0)
 
 	if (AppVersionCallback) {
-		sprintf(scrap, "%s\r\n\r\n", AppVersionCallback());
+		snprintf(scrap, ARRAY_SIZE(scrap), "%s\r\n\r\n", AppVersionCallback());
 		Add_Txt(scrap);
 	}
 
@@ -566,22 +627,22 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	/*
 	** Get the thread info from ThreadClass.
 	*/
-	{
-		CriticalSectionClass::LockClass lock(ThreadListLock);
-		for (int thread = 0 ; thread < ThreadList.Count() ; thread++) {
-			sprintf(scrap, "  ID: %08X - %s", ThreadList[thread]->ThreadID, ThreadList[thread]->ThreadName);
-			Add_Txt(scrap);
-			if (GetCurrentThreadId() == ThreadList[thread]->ThreadID) {
-				Add_Txt("   ***CURRENT THREAD***");
-			}
-			Add_Txt("\r\n");
+	for (int thread = 0 ; thread < ThreadList.Count() ; thread++) {
+		snprintf(scrap, ARRAY_SIZE(scrap), "  ID: %08X - %s",
+			ThreadList[thread]->ThreadID, ThreadList[thread]->ThreadName);
+		Add_Txt(scrap);
+		if (GetCurrentThreadId() == ThreadList[thread]->ThreadID) {
+			Add_Txt("   ***CURRENT THREAD***");
 		}
+		Add_Txt("\r\n");
 	}
 
 	/*
 	** CPU type
 	*/
-	sprintf(scrap, "\r\nCPU %s, %d Mhz, Vendor: %s\r\n", (char*)CPUDetectClass::Get_Processor_String(), Get_RDTSC_CPU_Speed(), (char*)CPUDetectClass::Get_Processor_Manufacturer_Name());
+	snprintf(scrap, ARRAY_SIZE(scrap), "\r\nCPU %s, %d Mhz, Vendor: %s\r\n",
+		(char*)CPUDetectClass::Get_Processor_String(), Get_RDTSC_CPU_Speed(),
+		(char*)CPUDetectClass::Get_Processor_Manufacturer_Name());
 	Add_Txt(scrap);
 
 
@@ -651,7 +712,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	** Dump the bytes at EIP. This will make it easier to match the crash address with later versions of the game.
 	*/
 	DebugString("EIP bytes dump...\n");
-	sprintf(scrap, "\r\nBytes at CS:EIP (%08X)  : ", context->Eip);
+	snprintf(scrap, ARRAY_SIZE(scrap), "\r\nBytes at CS:EIP (%08X)  : ", context->Eip);
 
 	unsigned char *eip_ptr = (unsigned char *) (context->Eip);
 	char bytestr[32];
@@ -701,7 +762,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 
 					if (_SymGetSymFromAddr != nullptr && _SymGetSymFromAddr (GetCurrentProcess(), *stackptr, &displacement, symptr)) {
 						char symbuf[256];
-						sprintf(symbuf, " - %s + %08X", symptr->Name, displacement);
+						snprintf(symbuf, ARRAY_SIZE(symbuf), " - %s + %08X", symptr->Name, displacement);
 						strlcat(scrap, symbuf, ARRAY_SIZE(scrap));
 					}
 				} else {
@@ -896,7 +957,7 @@ void Register_Thread_ID(unsigned long thread_id, char *thread_name, bool main_th
 {
 	WWMEMLOG(MEM_GAMEDATA);
 	if (thread_name) {
-		CriticalSectionClass::LockClass lock(ThreadListLock);
+		ScopedThreadListLock lock(GetThreadListCS());
 
 		/*
 		** See if we already know about this thread. Maybe just the thread_id changed.
@@ -962,7 +1023,7 @@ bool Register_Thread_Handle(unsigned long thread_id, HANDLE thread_handle)
  * HISTORY:                                                                                    *
  *   2/6/2002 9:43PM ST : Created                                                              *
  *=============================================================================================*/
-int Get_Num_Threads(void)
+int Get_Num_Threads()
 {
 	return(ThreadList.Count());
 }
@@ -1007,7 +1068,7 @@ HANDLE Get_Thread_Handle(int thread_index)
  *=============================================================================================*/
 void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
 {
-	CriticalSectionClass::LockClass lock(ThreadListLock);
+	ScopedThreadListLock lock(GetThreadListCS());
 	
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
 		if (strcmp(thread_name, ThreadList[i]->ThreadName) == 0) {
@@ -1035,9 +1096,9 @@ void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
  * HISTORY:                                                                                    *
  *   12/6/2001 12:20PM ST : Created                                                            *
  *=============================================================================================*/
-unsigned long Get_Main_Thread_ID(void)
+unsigned long Get_Main_Thread_ID()
 {
-	CriticalSectionClass::LockClass lock(ThreadListLock);
+	ScopedThreadListLock lock(GetThreadListCS());
 	
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
 		if (ThreadList[i]->Main) {
@@ -1066,7 +1127,7 @@ unsigned long Get_Main_Thread_ID(void)
  * HISTORY:                                                                                    *
  *   6/12/2001 4:27PM ST : Created                                                             *
  *=============================================================================================*/
-void Load_Image_Helper(void)
+void Load_Image_Helper()
 {
 	/*
 	** If this is the first time through then fix up the imagehelp function pointers since imagehlp.dll
@@ -1305,12 +1366,12 @@ here:
 
 
 
-void Register_Application_Exception_Callback(void (*app_callback)(void))
+void Register_Application_Exception_Callback(void (*app_callback)())
 {
 	AppCallback = app_callback;
 }
 
-void Register_Application_Version_Callback(char *(*app_ver_callback)(void))
+void Register_Application_Version_Callback(char *(*app_ver_callback)())
 {
 	AppVersionCallback = app_ver_callback;
 }
@@ -1322,7 +1383,7 @@ void Set_Exit_On_Exception(bool set)
 	ExitOnException = true;
 }
 
-bool Is_Trying_To_Exit(void)
+bool Is_Trying_To_Exit()
 {
 	return(TryingToExit);
 }

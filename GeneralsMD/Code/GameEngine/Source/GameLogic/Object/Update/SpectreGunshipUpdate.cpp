@@ -151,7 +151,7 @@ m_howitzerTrackerDecal.clear();
 }
 
 //-------------------------------------------------------------------------------------------------
-SpectreGunshipUpdate::~SpectreGunshipUpdate( void )
+SpectreGunshipUpdate::~SpectreGunshipUpdate()
 {
 	m_attackAreaDecal.clear();
 	m_targetingReticleDecal.clear();
@@ -322,7 +322,7 @@ private:
 public:
 	PartitionFilterLiveMapEnemies(const Object *obj) : m_obj(obj) { }
 
-	virtual Bool allow(Object *objOther)
+	virtual Bool allow(Object *objOther) override
 	{
 		// this is way fast (bit test) so do it first.
 		if (objOther->isEffectivelyDead())
@@ -340,7 +340,7 @@ public:
 	}
 
 #if defined(RTS_DEBUG)
-	virtual const char* debugGetName() { return "PartitionFilterLiveMapEnemies"; }
+	virtual const char* debugGetName() override { return "PartitionFilterLiveMapEnemies"; }
 #endif
 };
 //-----------------------------------------------------------------------------
@@ -822,8 +822,6 @@ void SpectreGunshipUpdate::disengageAndDepartAO( Object *gunship )
 
   cleanUp();
 
-  return;
-
 }
 
 
@@ -904,7 +902,7 @@ void SpectreGunshipUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void SpectreGunshipUpdate::loadPostProcess( void )
+void SpectreGunshipUpdate::loadPostProcess()
 {
 
 	// extend base class

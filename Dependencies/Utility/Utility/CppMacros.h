@@ -33,14 +33,18 @@
 #define constexpr
 #define noexcept
 #define nullptr 0
+#define override
+#define final
 #endif
 
 #if __cplusplus >= 201703L
 #define REGISTER
 #define FALLTHROUGH [[fallthrough]]
+#define MAYBE_UNUSED [[maybe_unused]]
 #else
 #define REGISTER register
 #define FALLTHROUGH
+#define MAYBE_UNUSED
 #endif
 
 // noexcept for methods of IUNKNOWN interface

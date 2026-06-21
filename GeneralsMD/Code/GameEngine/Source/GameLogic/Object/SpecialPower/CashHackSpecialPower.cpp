@@ -41,7 +41,7 @@
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-CashHackSpecialPowerModuleData::CashHackSpecialPowerModuleData( void )
+CashHackSpecialPowerModuleData::CashHackSpecialPowerModuleData()
 {
 	m_upgrades.clear();
 	m_defaultAmountToSteal = 0;
@@ -90,7 +90,7 @@ CashHackSpecialPower::CashHackSpecialPower( Thing *thing, const ModuleData *modu
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-CashHackSpecialPower::~CashHackSpecialPower( void )
+CashHackSpecialPower::~CashHackSpecialPower()
 {
 
 }
@@ -103,7 +103,6 @@ void CashHackSpecialPower::doSpecialPowerAtLocation( const Coord3D *loc, Real an
 		return;
 
 	// only allowed at objects
-	return;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -210,7 +209,7 @@ void CashHackSpecialPower::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void CashHackSpecialPower::loadPostProcess( void )
+void CashHackSpecialPower::loadPostProcess()
 {
 
 	// extend base class

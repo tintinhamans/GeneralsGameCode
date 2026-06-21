@@ -749,6 +749,9 @@ void NGMP_OnlineServices_LobbyInterface::ApplyLocalUserPropertiesToCurrentNetwor
 		}
 		else
 		{
+			if (TheNGMPGame == nullptr)
+				return;
+
 			GameSlot* pLocalSlot = TheNGMPGame->getSlot(TheNGMPGame->getLocalSlotNum());
 
 			if (pLocalSlot != nullptr)
@@ -759,7 +762,7 @@ void NGMP_OnlineServices_LobbyInterface::ApplyLocalUserPropertiesToCurrentNetwor
 	}
 }
 
-void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(void)> fnCallback)
+void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCallback)
 {
 	// refresh lobby
 	if (m_CurrentLobby.lobbyID != -1 && TheNGMPGame != nullptr)
@@ -783,7 +786,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 							// TODO_NGMP: We still want to do this, but we need to send back that it failed and back out, proceeding to lobby crashes because mesh wasn't created
 							if (fnCallback != nullptr)
 							{
-								//fnCallback();
+								fnCallback(false);
 							}
 
 							LeaveCurrentLobby();
@@ -898,6 +901,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 								memberEntryIter["SlotState"].get_to(memberEntry.m_SlotState);
 								memberEntryIter["SlotIndex"].get_to(memberEntry.m_SlotIndex);
 								memberEntryIter["Region"].get_to(memberEntry.region);
+								memberEntryIter["MiddlewareUserID"].get_to(memberEntry.middlewareUserID);
 
 								lobbyEntry.members.push_back(memberEntry);
 
@@ -982,6 +986,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 									UpdateCurrentLobby_HasMap();
 								}
 
+								std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 								if (m_RosterNeedsRefreshCallback != nullptr)
 								{
 									m_RosterNeedsRefreshCallback();
@@ -991,7 +996,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 
 						if (fnCallback != nullptr)
 						{
-							fnCallback();
+							fnCallback(bSuccess);
 						}
 					}
 					catch (...)
@@ -999,7 +1004,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 						// TODO_NGMP: We still want to do this, but we need to send back that it failed and back out, proceeding to lobby crashes because mesh wasn't created
 						if (fnCallback != nullptr)
 						{
-							//fnCallback();
+							fnCallback(false);
 						}
 					}
 				}
@@ -1008,7 +1013,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 					// TODO_NGMP: We still want to do this, but we need to send back that it failed and back out, proceeding to lobby crashes because mesh wasn't created
 					if (fnCallback != nullptr)
 					{
-						//fnCallback();
+						fnCallback(false);
 					}
 				}
 		});
@@ -1024,6 +1029,8 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "Not attempting to join lobby because a join attempt is already in progress");
 		return;
 	}
+
+    AnticheatPlugInterface::EndSession();
 
 	m_bAttemptingToJoinLobby = true;
 	m_CurrentLobby = LobbyEntry();
@@ -1042,6 +1049,7 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 			// TODO_NGMP: Remove this and just hardcode it or provide from service
 			j["preferred_port"] = 0;
 
+			j["anticheat_id"] = AnticheatPlugInterface::GetAnticheatIdentifier();
 			j["has_map"] = bHasMap;
 
 			if (!strPassword.empty())
@@ -1060,6 +1068,9 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 			// convert
 			NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendPUTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 				{
+					if (NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>() == nullptr)
+						return;
+
 					// reset trying to join
 					ResetLobbyTryingToJoin();
 
@@ -1078,6 +1089,10 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 					{
 						JoinResult = EJoinLobbyResult::JoinLobbyResult_FullRoom;
 					}
+                    else if (statusCode == 417)
+                    {
+                        JoinResult = EJoinLobbyResult::JoinLobbyResult_AnticheatMismatch;
+                    }
 					// TODO_NGMP: Handle room full error (JoinLobbyResult_FullRoom, can we even get that?
 
 					// no response body from this, just http codes
@@ -1140,18 +1155,18 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 							*/
 						}
 
-						OnJoinedOrCreatedLobby(false, [=]()
+						OnJoinedOrCreatedLobby(false, [=](bool bSuccess)
 							{
 								m_bAttemptingToJoinLobby = false;
 								NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 								if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackJoinedLobby != nullptr)
 								{
-									pLobbyInterface->m_callbackJoinedLobby(JoinResult);
+									pLobbyInterface->m_callbackJoinedLobby(bSuccess ? EJoinLobbyResult::JoinLobbyResult_Success : EJoinLobbyResult::JoinLobbyResult_JoinFailed);
 								}
 							});
 
 						// get latest lobby info immediately
-						UpdateRoomDataCache([=]()
+						UpdateRoomDataCache([=](bool bSuccess)
 							{
 
 							});
@@ -1168,6 +1183,10 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 					{
 						NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to join lobby: Lobby is full");
 					}
+                    else if (statusCode == 417)
+                    {
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to join lobby: Anticheat mismatch");
+                    }
 
 
 					if (JoinResult != EJoinLobbyResult::JoinLobbyResult_Success)
@@ -1189,6 +1208,8 @@ void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 {
 	// reset host migration flags
 	ResetHostMigrationFlags();
+
+	AnticheatPlugInterface::EndSession();
 
 	// kill mesh
 	if (m_pLobbyMesh != nullptr)
@@ -1255,6 +1276,8 @@ struct CreateLobbyResponse
 
 void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers)
 {
+	AnticheatPlugInterface::EndSession();
+
 	NGMP_OnlineServicesManager::GetInstance()->GetAndParseServiceConfig([=]()
 		{
 			m_CurrentLobby = LobbyEntry();
@@ -1262,8 +1285,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 			std::map<std::string, std::string> mapHeaders;
 
 			// convert
-			AsciiString strMapName = AsciiString();
-			strMapName.translate(strInitialMapName);
+			std::string strMapName = to_utf8(strInitialMapName.str());
 
 			// sanitize map path
 			// we need to parse out the map name for custom maps... its an absolute path
@@ -1276,7 +1298,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 
 			nlohmann::json j;
 			j["name"] = to_utf8(strLobbyName.str());
-			j["map_name"] = strMapName.str();
+			j["map_name"] = strMapName;
 			j["map_path"] = sanitizedMapPath.str();
 			j["map_official"] = bIsOfficial;
 			j["max_players"] = initialMaxSize;
@@ -1293,6 +1315,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 			j["exe_crc"] = TheGlobalData->m_exeCRC;
 			j["ini_crc"] = TheGlobalData->m_iniCRC;
 			j["max_cam_height"] = NGMP_OnlineServicesManager::Settings.Camera_GetMaxHeight_WhenLobbyHost();
+			j["anticheat_id"] = AnticheatPlugInterface::GetAnticheatIdentifier();
 
 			std::string strPostData = j.dump();
 
@@ -1302,6 +1325,12 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 					{
 						NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
 						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+
+						if (pAuthInterface == nullptr || pLobbyInterface == nullptr)
+						{
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] CreateLobby callback: required interface is null, aborting");
+							return;
+						}
 
 						nlohmann::json jsonObject = nlohmann::json::parse(strBody);
 						CreateLobbyResponse resp = jsonObject.get<CreateLobbyResponse>();
@@ -1342,7 +1371,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 							AsciiString strName = AsciiString();
 
 							m_CurrentLobby.name = to_utf8(strLobbyName.str());
-							m_CurrentLobby.map_name = std::string(strMapName.str());
+							m_CurrentLobby.map_name = std::string(strMapName);
 							m_CurrentLobby.map_path = std::string(sanitizedMapPath.str());
 							m_CurrentLobby.current_players = 1;
 							m_CurrentLobby.max_players = initialMaxSize;
@@ -1367,7 +1396,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 							TheNGMPGame->UpdateSlotsFromCurrentLobby();
 
 							// we always need to get the enc key etc
-							pLobbyInterface->OnJoinedOrCreatedLobby(false, [=]()
+							pLobbyInterface->OnJoinedOrCreatedLobby(false, [=](bool bSuccess)
 								{
 									// TODO_NGMP: Impl
 									pLobbyInterface->InvokeCreateLobbyCallback(resp.result == ECreateLobbyResponseResult::SUCCEEDED);
@@ -1394,8 +1423,14 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 		});
 }
 
-void NGMP_OnlineServices_LobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails, std::function<void(void)> fnCallback)
+void NGMP_OnlineServices_LobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails, std::function<void(bool)> fnCallback)
 {
+	// begin AC
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Begin Session 0");
+
+	AnticheatPlugInterface::BeginSession();
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Begin Session End");
+
 	// join the network mesh too
 	if (m_pLobbyMesh == nullptr)
 	{
@@ -1411,9 +1446,9 @@ void NGMP_OnlineServices_LobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpd
 	// must be done in a callback, this is an async function
 	if (!bAlreadyUpdatedDetails)
 	{
-		UpdateRoomDataCache([=]()
+		UpdateRoomDataCache([=](bool bSuccess)
 			{
-				fnCallback();
+				fnCallback(bSuccess);
 			});
 	}
 

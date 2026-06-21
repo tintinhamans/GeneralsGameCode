@@ -112,7 +112,7 @@ TextureBaseClass::TextureBaseClass
 //! Base texture class destructor
 /*! KJM
 */
-TextureBaseClass::~TextureBaseClass(void)
+TextureBaseClass::~TextureBaseClass()
 {
 	delete TextureLoadTask;
 	TextureLoadTask=nullptr;
@@ -328,7 +328,7 @@ void TextureBaseClass::Set_Texture_Name(const char * name)
 //! Get priority
 /*!
 */
-unsigned int TextureBaseClass::Get_Priority(void)
+unsigned int TextureBaseClass::Get_Priority()
 {
 	if (!D3DTexture)
 	{
@@ -336,11 +336,7 @@ unsigned int TextureBaseClass::Get_Priority(void)
 		return 0;
 	}
 
-#ifndef _XBOX
 	return D3DTexture->GetPriority();
-#else
-	return 0;
-#endif
 }
 
 
@@ -356,11 +352,7 @@ unsigned int TextureBaseClass::Set_Priority(unsigned int priority)
 		return 0;
 	}
 
-#ifndef _XBOX
 	return D3DTexture->SetPriority(priority);
-#else
-	return 0;
-#endif
 }
 
 

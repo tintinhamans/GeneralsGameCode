@@ -34,10 +34,10 @@ class LookAtTranslator : public GameMessageTranslator
 {
 public:
 	LookAtTranslator();
-	~LookAtTranslator();
-	virtual GameMessageDisposition translateGameMessage(const GameMessage *msg);
-	virtual const ICoord2D* getRMBScrollAnchor(void); // get m_anchor ICoord2D if we're RMB scrolling
-	Bool hasMouseMovedRecently( void );
+	virtual ~LookAtTranslator() override;
+	virtual GameMessageDisposition translateGameMessage(const GameMessage *msg) override;
+	virtual const ICoord2D* getRMBScrollAnchor(); // get m_anchor ICoord2D if we're RMB scrolling
+	Bool hasMouseMovedRecently();
 	void setCurrentPos( const ICoord2D& pos );
 
 	void resetModes(); //Used when disabling input, so when we reenable it we aren't stuck in a mode.
@@ -60,7 +60,8 @@ private:
 	Real m_anchorAngle;
 	Bool m_isScrolling;				// set to true if we are in the act of RMB scrolling
 	Bool m_isRotating;					// set to true if we are in the act of MMB rotating
-	Bool m_isPitching;					// set to true if we are in the act of ALT pitch rotation
+	Bool m_isPitching;					// set to true if we are in the act of pitch rotation
+	Bool m_isPitchingToDefault; // set to true if we are in the act of default pitch rotation
 	Bool m_isChangingFOV;			// set to true if we are in the act of changing the field of view
 	UnsignedInt m_middleButtonDownTimeMsec;				// real-time in milliseconds when middle button goes down
 	DrawableID m_lastPlaneID;
@@ -69,6 +70,10 @@ private:
 	void setScrolling( Int );
 	void stopScrolling( void );
 	UnsignedInt m_lastMouseMoveTimeMsec;				// real-time in milliseconds when mouse last moved
+
+	void setScrolling( ScrollType scrollType );
+	void stopScrolling();
+	Bool canScrollAtScreenEdge() const;
 };
 
 extern LookAtTranslator *TheLookAtTranslator;

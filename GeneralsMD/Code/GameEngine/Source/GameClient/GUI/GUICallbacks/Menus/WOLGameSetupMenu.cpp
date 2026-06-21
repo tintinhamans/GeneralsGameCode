@@ -32,8 +32,9 @@
 
 #include "Common/GameEngine.h"
 #include "Common/GameState.h"
-#include "GameClient/GameText.h"
 #include "Common/MultiplayerSettings.h"
+#include "Common/OptionPreferences.h"
+#include "GameClient/GameText.h"
 #include "Common/PlayerTemplate.h"
 #include "Common/CustomMatchPreferences.h"
 #include "GameClient/AnimateWindowManager.h"
@@ -73,6 +74,7 @@
 NGMPGame* TheNGMPGame = NULL;
 
 void WOLDisplaySlotList( void );
+static void WOLRefreshConnectionIndicators( void );
 
 
 extern std::list<PeerResponse> TheLobbyQueuedUTMs;
@@ -254,7 +256,7 @@ static const Image *pingImages[3] = { NULL, NULL, NULL };
 
 WindowLayout *WOLMapSelectLayout = NULL;
 
-void PopBackToLobby( void )
+void PopBackToLobby()
 {
 	// delete TheNAT, its no good for us anymore.
 	if (TheNAT != nullptr)
@@ -289,7 +291,7 @@ void PopBackToLobby( void )
 void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[], Bool onLoadScreen = FALSE );
 void positionStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[], GameWindow *mapWindow);
 void positionStartSpots(AsciiString mapName, GameWindow *buttonMapStartPositions[], GameWindow *mapWindow);
-void WOLPositionStartSpots( void )
+void WOLPositionStartSpots()
 {
 	GameWindow *win = windowMap;
 	if (WOLMapSelectLayout != NULL) {
@@ -334,7 +336,7 @@ void WOLPositionStartSpots( void )
 		positionStartSpots( map, buttonMapStartPosition, win);
 	}
 }
-static void savePlayerInfo( void )
+static void savePlayerInfo()
 {
 	if (TheNGMPGame)
 	{
@@ -468,6 +470,8 @@ static void playerTooltip(GameWindow *window,
 	Int favorite = 0;
 	for(it = stats.games.begin(); it != stats.games.end(); ++it)
 	{
+		if (it->first == PLAYERTEMPLATE_OBSERVER) // not a real faction
+			continue;
 		if(it->second >= numGames)
 		{
 			numGames = it->second;
@@ -499,7 +503,10 @@ static void playerTooltip(GameWindow *window,
 	}
 
 	bool bIsConnected = false;
-	int latency = -1;
+	int connectionScore = -1;
+	int connectionLatency = -1;
+	int connectionJitter = -1;
+	int connectionQualityPct = -1;
 	std::string strConnectionType = "";
 
 	LobbyMemberEntry member = pLobbyInterface->GetRoomMemberFromID(slot->m_userID);
@@ -521,7 +528,11 @@ static void playerTooltip(GameWindow *window,
 				{
 					bIsConnected = false;
 				}
-				latency = pConnection->GetLatency();
+				connectionScore = pConnection->ComputeConnectionScore();
+				connectionLatency = pConnection->GetLatency();
+				connectionJitter = pConnection->GetJitter();
+				float rawQuality = pConnection->GetConnectionQuality();
+				connectionQualityPct = (rawQuality >= 0.0f) ? static_cast<int>(rawQuality * 100.0f) : -1;
 			}
 		}
 	}
@@ -529,18 +540,24 @@ static void playerTooltip(GameWindow *window,
 	if (localPlayerID == slot->m_userID)
 	{
 		// local user wont have a connection
-		playerInfo.format(L"\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
-			totalWins, totalLosses, totalDiscons, favoriteSide.str());
+		playerInfo.format(L"\nElo Rating: %d (in %d matches)\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
+			stats.elo_rating, stats.elo_num_matches, totalWins, totalLosses, totalDiscons, favoriteSide.str());
 	}
 	else if (bIsConnected)
 	{
-		playerInfo.format(L"\nConnection State: Connected (%hs)\nLatency: %d ms\nRegion: %hs\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
-			strConnectionType.c_str(), latency, member.region.c_str(), totalWins, totalLosses, totalDiscons, favoriteSide.str());
+		UnicodeString scoreStr, latencyStr, jitterStr, qualityStr;
+		if (connectionScore >= 0) scoreStr.format(L"%d%%", connectionScore); else scoreStr = L"Unknown";
+		if (connectionLatency >= 0) latencyStr.format(L"%d ms", connectionLatency); else latencyStr = L"Unknown";
+		if (connectionJitter >= 0) jitterStr.format(L"%d ms", connectionJitter); else jitterStr = L"Unknown";
+		if (connectionQualityPct >= 0) qualityStr.format(L"%d%%", connectionQualityPct); else qualityStr = L"Unknown";
+		playerInfo.format(L"\nConnection State: Connected (%hs)\nConnection Score: %s\nLatency: %s\nJitter: %s\nReliability: %s\nRegion: %hs\nElo Rating: %d (in %d matches)\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
+			strConnectionType.c_str(), scoreStr.str(), latencyStr.str(), jitterStr.str(), qualityStr.str(),
+			member.region.c_str(), stats.elo_rating, stats.elo_num_matches, totalWins, totalLosses, totalDiscons, favoriteSide.str());
 	}
 	else
 	{
-		playerInfo.format(L"\nConnection State: Connecting...\nLatency: %d ms\nRegion: %hs\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
-			latency, member.region.c_str(), totalWins, totalLosses, totalDiscons, favoriteSide.str());
+		playerInfo.format(L"\nConnection State: Connecting...\nRegion: %hs\nElo Rating: %d (in %d matches)\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
+			member.region.c_str(), stats.elo_rating, stats.elo_num_matches, totalWins, totalLosses, totalDiscons, favoriteSide.str());
 	}
 #else
 			playerInfo.format(L"\nLatency: %d ms\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
@@ -579,6 +596,18 @@ static void playerTooltip(GameWindow *window,
 			}
 
 			tooltip.concat(playerInfo);
+
+			NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+			if (pAuthInterface != nullptr && pRoomsInterface != nullptr)
+			{
+				NetworkRoomMember* localMember = pRoomsInterface->GetRoomMemberFromID(pAuthInterface->GetUserID());
+				if (localMember != nullptr && localMember->m_bIsAdmin)
+				{
+					UnicodeString idLine;
+					idLine.format(L"\n\nUser ID: %lld", slot->m_userID);
+					tooltip.concat(idLine);
+				}
+			}
 
 			TheMouse->setCursorTooltip(tooltip, -1, NULL, 1.5f); // the text and width are the only params used.  the others are the default values.
 
@@ -903,7 +932,7 @@ static void handleLimitSuperweaponsClick()
 #endif
 }
 
-static void StartPressed(void)
+static void StartPressed()
 {
 	Bool isReady = TRUE;
 	Bool allHaveMap = TRUE;
@@ -1218,7 +1247,7 @@ static void StartPressed(void)
 //-------------------------------------------------------------------------------------------------
 /** Update options on screen */
 //-------------------------------------------------------------------------------------------------
-void WOLDisplayGameOptions( void )
+void WOLDisplayGameOptions()
 {
 	if (!parentWOLGameSetup)
 		return;
@@ -1314,112 +1343,120 @@ void WOLDisplayGameOptions( void )
 //  -----------------------------------------------------------------------------------------
 // The Bad munkee slot list displaying function
 //-------------------------------------------------------------------------------------------------
-void WOLDisplaySlotList( void )
+static void WOLRefreshConnectionIndicators(void)
 {
-	// TODO_NGMP
-	//if (!parentWOLGameSetup || !TheGameSpyInfo->getCurrentStagingRoom())
-	//	return;
+    NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+    NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+    if (pLobbyInterface == nullptr || game == nullptr || !game->isInGame())
+        return;
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
-	if (pLobbyInterface == nullptr || game == nullptr || !game->isInGame())
-		return;
+    NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+    static const Image* heroImage = TheMappedImageCollection->findImageByName("HeroReticle");
 
-	DEBUG_ASSERTCRASH(!game->getConstSlot(0)->isOpen(), ("Open host!"));
+    for (Int i = 0; i < MAX_SLOTS; ++i)
+    {
+        NGMPGameSlot* slot = game->getGameSpySlot(i);
+        if (slot == nullptr || !slot->isHuman())
+        {
+            if (genericPingWindow[i])
+                genericPingWindow[i]->winHide(TRUE);
+            continue;
+        }
 
-	UpdateSlotList( game, comboBoxPlayer, comboBoxColor,
-		comboBoxPlayerTemplate, comboBoxTeam, buttonAccept, buttonStart, buttonMapStartPosition );
+        if (genericPingWindow[i] == nullptr)
+            continue;
 
-	WOLDisplayGameOptions();
+        if (i == game->getLocalSlotNum())
+        {
+            genericPingWindow[i]->winHide(TRUE);
+            continue;
+        }
 
-	for (Int i=0; i<MAX_SLOTS; ++i)
-	{
-		NGMPGameSlot *slot = game->getGameSpySlot(i);
-		if (slot && slot->isHuman())
-		{
-            // Determine friends and highlight in cyan
-			Color nameColor = GameSpyColor[GSCOLOR_PLAYER_NORMAL];
-			NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+        genericPingWindow[i]->winHide(FALSE);
 
-			if (pSocialInterface != nullptr && pSocialInterface->IsUserFriend(slot->m_userID))
-			{
-				nameColor = GameMakeColor(7, 183, 247, 255);
-			}
+        bool bIsConnected = false;
+        int connectionScore = -1;
 
-			if (comboBoxPlayer[i])
-			{
-				GadgetTextEntrySetTextColor(GadgetComboBoxGetEditBox(comboBoxPlayer[i]), nameColor);
-			}
-            
-			bool bIsConnected = false;
-			int latency = -1;
-			std::string strConnectionType = "";
+        if (pMesh != nullptr)
+        {
+            PlayerConnection* pConnection = pMesh->GetConnectionForUser(slot->m_userID);
+            if (pConnection != nullptr)
+            {
+                bIsConnected = pConnection->GetState() == EConnectionState::CONNECTED_DIRECT;
+                connectionScore = pConnection->ComputeConnectionScore();
+            }
+        }
 
-			LobbyMemberEntry member = pLobbyInterface->GetRoomMemberFromID(slot->m_userID);
+        if (!bIsConnected || connectionScore < 0)
+        {
+            genericPingWindow[i]->winSetEnabledImage(0, heroImage);
+        }
+        else if (connectionScore >= 75)
+        {
+            genericPingWindow[i]->winSetEnabledImage(0, pingImages[0]);
+        }
+        else if (connectionScore >= 50)
+        {
+            genericPingWindow[i]->winSetEnabledImage(0, pingImages[1]);
+        }
+        else
+        {
+            genericPingWindow[i]->winSetEnabledImage(0, pingImages[2]);
+        }
+    }
+}
 
-			if (NGMP_OnlineServicesManager::GetNetworkMesh() != nullptr)
-			{
-				PlayerConnection* pConnection = NGMP_OnlineServicesManager::GetNetworkMesh()->GetConnectionForUser(slot->m_userID);
+void WOLDisplaySlotList(void)
+{
+    // TODO_NGMP
+    //if (!parentWOLGameSetup || !TheGameSpyInfo->getCurrentStagingRoom())
+    //	return;
 
-				if (pConnection != nullptr)
-				{
-					strConnectionType = pConnection->GetConnectionType();
-					if (pConnection->GetState() == EConnectionState::CONNECTED_DIRECT)
-					{
-						bIsConnected = true;
-					}
-					else
-					{
-						bIsConnected = false;
-					}
-					latency = pConnection->GetLatency();
-				}
-			}
+    NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+    NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+    if (pLobbyInterface == nullptr || game == nullptr || !game->isInGame())
+        return;
 
-			if (genericPingWindow[i])
-			{
-				genericPingWindow[i]->winHide(FALSE);
+    DEBUG_ASSERTCRASH(!game->getConstSlot(0)->isOpen(), ("Open host!"));
 
-				genericPingWindow[i]->winSetEnabledImage(0, pingImages[0]);
+    UpdateSlotList(game, comboBoxPlayer, comboBoxColor,
+        comboBoxPlayerTemplate, comboBoxTeam, buttonAccept, buttonStart, buttonMapStartPosition);
 
-				// not connected? show another icon
-				if (!bIsConnected && i != game->getLocalSlotNum())
-				{
-					static const Image* image = TheMappedImageCollection->findImageByName("HeroReticle");
-					genericPingWindow[i]->winSetEnabledImage(0, image);
-				}
-				else
-				{
-					if (latency > 0)
-					{
-						if (latency < 250)
-						{
-							genericPingWindow[i]->winSetEnabledImage(0, pingImages[0]);
-						}
-						else if (latency < 500)
-						{
-							genericPingWindow[i]->winSetEnabledImage(0, pingImages[1]);
-						}
-						else
-						{
-							genericPingWindow[i]->winSetEnabledImage(0, pingImages[2]);
-						}
-					}
-				}
-			}
-		}
-		else
-		{
-			if (genericPingWindow[i])
-				genericPingWindow[i]->winHide(TRUE);
-		}
-	}
+    WOLDisplayGameOptions();
+
+    for (Int i = 0; i < MAX_SLOTS; ++i)
+    {
+        NGMPGameSlot* slot = game->getGameSpySlot(i);
+        if (slot && slot->isHuman())
+        {
+            // Determine friends and blocked players in lobby setup and highlight them
+            Color nameColor = GameSpyColor[GSCOLOR_PLAYER_NORMAL];
+            NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+
+            if (pSocialInterface != nullptr && pSocialInterface->IsUserFriend(slot->m_userID))
+            {
+                nameColor = GameSpyColor[GSCOLOR_PLAYER_BUDDY];
+            }
+
+            else if (pSocialInterface != nullptr && pSocialInterface->IsUserIgnored(slot->m_userID))
+            {
+                nameColor = GameSpyColor[GSCOLOR_PLAYER_IGNORED];
+            }
+
+            if (comboBoxPlayer[i])
+            {
+                GadgetTextEntrySetTextColor(GadgetComboBoxGetEditBox(comboBoxPlayer[i]), nameColor);
+            }
+        }
+    }
+
+    WOLRefreshConnectionIndicators();
 }
 
 //-------------------------------------------------------------------------------------------------
 /** Initialize the Gadgets Options Menu */
 //-------------------------------------------------------------------------------------------------
-void InitWOLGameGadgets( void )
+void InitWOLGameGadgets()
 {
 	ClearGSMessageBoxes();
 
@@ -1660,7 +1697,7 @@ void InitWOLGameGadgets( void )
 #endif
 }
 
-void DeinitWOLGameGadgets( void )
+void DeinitWOLGameGadgets()
 {
 	parentWOLGameSetup = NULL;
 	buttonEmote = NULL;
@@ -1736,7 +1773,6 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 				std::string strState = "Unknown";
 
 				EConnectionState connState = connection->GetState();
-				std::string strConnectionType = connection->GetConnectionType();
 
 				switch (connState)
 				{
@@ -1851,6 +1887,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 			if (buttonBuddy)
 				buttonBuddy->winEnable(FALSE);
 			GameSpyCloseOverlay(GSOVERLAY_BUDDY);
+			GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
 
 			*TheNGMPGame = *myGame;
 			TheNGMPGame->startGame(0);
@@ -2110,7 +2147,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 				UnicodeString strInform;
 				UnicodeString strInform2;
 				strInform.format(L"NOTE: This lobby has a customized maximum camera height / zoom level of %lu set as per your preference.", theLobby.max_cam_height);
-				strInform2.format(L"\tDo /maxcameraheight <val> to change this (e.g. /maxcameraheight 450).", theLobby.max_cam_height);
+				strInform2.format(L"\tDo /maxcameraheight <val> to change this (e.g. /maxcameraheight 450). Default is 310.", theLobby.max_cam_height);
 
 				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
 				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform2, GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
@@ -2280,6 +2317,9 @@ static void fillPlayerInfo(const PeerResponse *resp, PlayerInfo *info)
 //-------------------------------------------------------------------------------------------------
 void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 {
+	// Refresh only the fast-changing connection indicators each frame.
+	WOLRefreshConnectionIndicators();
+
 	// need to exit?
 	if (NGMP_OnlineServicesManager::GetInstance() != nullptr && NGMP_OnlineServicesManager::GetInstance()->IsPendingFullTeardown())
 	{
@@ -2300,6 +2340,15 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 	{
 		shutdownComplete(layout);
 		return;
+	}
+
+	if (AnticheatPlugInterface::g_bPendingExitLobby)
+	{
+		AnticheatPlugInterface::g_bPendingExitLobby = false;
+
+        GSMessageBoxOk(TheGameText->fetchOrSubstitute("GUI:ACErrorHeader", L"AntiCheat Error"), TheGameText->fetchOrSubstitute("GUI:ACLobbyIntegrityError", L"Lobby integrity could not be validated. Leaving Lobby."));
+
+        PopBackToLobby();
 	}
 
 	if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
@@ -2372,7 +2421,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 					if (pLobbyInterface != nullptr)
 					{
-						pLobbyInterface->UpdateRoomDataCache([]()
+						pLobbyInterface->UpdateRoomDataCache([](bool bSuccess)
 							{
 
 							});
@@ -2433,6 +2482,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 				// are we done?
 				if (secondsRemaining <= 0)
 				{
+					s_matchStartCountdownWasRunning = false;
 					// stop countdown
 					TheNGMPGame->StopCountdown();
 
@@ -3386,7 +3436,7 @@ WindowMsgHandledType WOLGameSetupMenuInput( GameWindow *window, UnsignedInt msg,
 
 // Slash commands -------------------------------------------------------------------------
 extern "C" {
-int getQR2HostingStatus(void);
+int getQR2HostingStatus();
 }
 extern int isThreadHosting;
 
@@ -3501,7 +3551,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 						for (int i = 0; i < asciiVal.getLength(); ++i)
 						{
 							char thisChar = asciiVal.getCharAt(i);
-							if (!std::isdigit(thisChar))
+							if (!std::isdigit((unsigned char)thisChar))
 							{
 								bIsNumber = false;
 								break;
@@ -3819,12 +3869,8 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 								NGMPGameSlot* pSlot = (NGMPGameSlot*)myGame->getSlot(i);
 								int64_t userBeingKicked = pSlot->m_userID;
 
-								NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-								if (pLobbyInterface != nullptr)
-								{
-									pLobbyInterface->UpdateCurrentLobby_KickUser(userBeingKicked, name);
-								}
-
+								pLobbyInterface->UpdateCurrentLobby_KickUser(userBeingKicked, name);
+								pLobbyInterface->UpdateCurrentLobby_SetSlotState(i, SlotState(pos));  // use what host selected
 								myGame->getSlot(i)->setState(SlotState(pos));
 								myGame->resetAccepted();
 

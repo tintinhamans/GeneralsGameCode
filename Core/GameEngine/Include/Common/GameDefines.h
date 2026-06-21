@@ -21,8 +21,64 @@
 // Note: Retail compatibility must not be broken before this project officially does.
 // Use RETAIL_COMPATIBLE_CRC and RETAIL_COMPATIBLE_XFER_SAVE to guard breaking changes.
 
-#ifndef PRESERVE_RETAIL_BEHAVIOR
-#define PRESERVE_RETAIL_BEHAVIOR (1) // Retain behavior present in retail Generals 1.08 and Zero Hour 1.04
+#ifndef PRESERVE_BUILDING_RESUMPTION_DELAY
+#define PRESERVE_BUILDING_RESUMPTION_DELAY (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
+#endif
+
+#ifndef PRESERVE_CHINOOK_PASSENGER_DUMPING
+#define PRESERVE_CHINOOK_PASSENGER_DUMPING (1)
+#endif
+
+#ifndef PRESERVE_HARDCODED_BLACK_LOTUS_CASH_HACK
+#define PRESERVE_HARDCODED_BLACK_LOTUS_CASH_HACK (1)
+#endif
+
+#ifndef PRESERVE_MULTI_CRATE_PICKUP
+#define PRESERVE_MULTI_CRATE_PICKUP (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
+#endif
+
+#ifndef PRESERVE_NO_XP_FROM_FLAME_KILLS
+#define PRESERVE_NO_XP_FROM_FLAME_KILLS (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
+#endif
+
+#ifndef PRESERVE_NO_XP_FROM_OCL_KILLS
+#define PRESERVE_NO_XP_FROM_OCL_KILLS (1)
+#endif
+
+#ifndef PRESERVE_NO_XP_FROM_POISON_KILLS
+#define PRESERVE_NO_XP_FROM_POISON_KILLS (1)
+#endif
+
+#ifndef PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION
+#define PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION (1)
+#endif
+
+#ifndef PRESERVE_PERPETUAL_HORDE_BONUS
+#define PRESERVE_PERPETUAL_HORDE_BONUS (1)
+#endif
+
+#ifndef PRESERVE_PREMATURE_BATTLE_BUS_DEATH
+#define PRESERVE_PREMATURE_BATTLE_BUS_DEATH (1)
+#endif
+
+#ifndef PRESERVE_RADAR_WARNING_SUPPRESSION
+#define PRESERVE_RADAR_WARNING_SUPPRESSION (1)
+#endif
+
+#ifndef PRESERVE_STRUCTURE_STEALTH_DURING_REPAIR
+#define PRESERVE_STRUCTURE_STEALTH_DURING_REPAIR (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
+#endif
+
+#ifndef PRESERVE_TUNNEL_HEAL_STACKING
+#define PRESERVE_TUNNEL_HEAL_STACKING (1)
+#endif
+
+#ifndef PRESERVE_UNRELIABLE_FIRESTORMS
+#define PRESERVE_UNRELIABLE_FIRESTORMS (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
+#endif
+
+#ifndef PRESERVE_RETAIL_SCRIPTED_CAMERA
+#define PRESERVE_RETAIL_SCRIPTED_CAMERA (1) // Retain scripted camera behavior present in retail Generals 1.08 and Zero Hour 1.04
 #endif
 
 #ifndef RETAIL_COMPATIBLE_CRC
@@ -41,18 +97,6 @@
 #endif
 #endif
 
-// This is here to easily toggle between the retail compatible with fixed pathfinding fallback and pure fixed pathfinding mode
-#if RETAIL_COMPATIBLE_CRC
-
-#if defined(GENERALS_ONLINE)
-#define RETAIL_COMPATIBLE_PATHFINDING (0)
-#else
-#define RETAIL_COMPATIBLE_PATHFINDING (1)
-#endif
-#else
-#define RETAIL_COMPATIBLE_PATHFINDING (0)
-#endif
-
 // This is here to easily toggle between the retail compatible pathfinding memory allocation and the new static allocated data mode
 #ifndef RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION
 #if defined(GENERALS_ONLINE)
@@ -69,6 +113,10 @@
 #endif
 #endif
 
+#ifndef RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM
+#define RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM (1) // Use the original circle fill algorithm, which is more efficient but less accurate
+#endif
+
 // This is essentially synonymous for RETAIL_COMPATIBLE_CRC. There is a lot wrong with AIGroup, such as use-after-free, double-free, leaks,
 // but we cannot touch it much without breaking retail compatibility. Do not shy away from using massive hacks when fixing issues with AIGroup,
 // but put them behind this macro.
@@ -83,6 +131,10 @@
 
 #ifndef ENABLE_GAMETEXT_SUBSTITUTES
 #define ENABLE_GAMETEXT_SUBSTITUTES (1) // The code can provide substitute texts when labels and strings are missing in the STR or CSF translation file
+#endif
+
+#ifndef ALLOW_MONEY_PER_MINUTE_FOR_PLAYER
+#define ALLOW_MONEY_PER_MINUTE_FOR_PLAYER (0) // When enabled, a money-per-minute stat is calculated and displayed in-game
 #endif
 
 // Previously the configurable shroud sat behind #if defined(RTS_DEBUG)

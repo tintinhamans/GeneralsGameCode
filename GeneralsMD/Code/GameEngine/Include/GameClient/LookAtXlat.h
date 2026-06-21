@@ -46,45 +46,46 @@ class LookAtTranslator : public GameMessageTranslator
 {
 public:
     LookAtTranslator();
-    ~LookAtTranslator();
+    virtual ~LookAtTranslator() override;
 
-    virtual GameMessageDisposition translateGameMessage(const GameMessage* msg);
-    virtual const ICoord2D* getRMBScrollAnchor(void); // get m_anchor ICoord2D if we're RMB scrolling
-    Bool hasMouseMovedRecently(void);
+    virtual GameMessageDisposition translateGameMessage(const GameMessage* msg) override;
+    virtual const ICoord2D* getRMBScrollAnchor(); // get m_anchor ICoord2D if we're RMB scrolling
+    Bool hasMouseMovedRecently();
     void setCurrentPos(const ICoord2D& pos);
     void setScreenEdgeScrollMode(ScreenEdgeScrollMode mode);
 
     void resetModes(); //Used when disabling input, so when we reenable it we aren't stuck in a mode.
 
 private:
-    enum
-    {
-        MAX_VIEW_LOCS = 8
-    };
-    enum ScrollType
-    {
-        SCROLL_NONE = 0,
-        SCROLL_RMB,
-        SCROLL_KEY,
-        SCROLL_SCREENEDGE
-    };
-    ICoord2D m_anchor;
-    ICoord2D m_originalAnchor;
-    ICoord2D m_currentPos;
-    Real m_anchorAngle;
-    Bool m_isScrolling;				// set to true if we are in the act of RMB scrolling
-    Bool m_isRotating;					// set to true if we are in the act of MMB rotating
-    Bool m_isPitching;					// set to true if we are in the act of ALT pitch rotation
-    Bool m_isChangingFOV;			// set to true if we are in the act of changing the field of view
-    UnsignedInt m_timestamp;				// set when button goes down
-    DrawableID m_lastPlaneID;
-    ViewLocation m_viewLocation[MAX_VIEW_LOCS];
-    ScrollType m_scrollType;
-    ScreenEdgeScrollMode m_screenEdgeScrollMode;
-    UnsignedInt m_lastMouseMoveFrame;
+	enum
+	{
+		MAX_VIEW_LOCS = 8
+	};
+	enum ScrollType
+	{
+		SCROLL_NONE = 0,
+		SCROLL_RMB,
+		SCROLL_KEY,
+		SCROLL_SCREENEDGE
+	};
+	ICoord2D m_anchor;
+	ICoord2D m_originalAnchor;
+	ICoord2D m_currentPos;
+	Real m_anchorAngle;
+	Bool m_isScrolling;				// set to true if we are in the act of RMB scrolling
+	Bool m_isRotating;					// set to true if we are in the act of MMB rotating
+	Bool m_isPitching;					// set to true if we are in the act of pitch rotation
+	Bool m_isPitchingToDefault; // set to true if we are in the act of default pitch rotation
+	Bool m_isChangingFOV;			// set to true if we are in the act of changing the field of view
+	UnsignedInt m_middleButtonDownTimeMsec;				// real-time in milliseconds when middle button goes down
+	DrawableID m_lastPlaneID;
+	ViewLocation m_viewLocation[ MAX_VIEW_LOCS ];
+	ScrollType m_scrollType;
+	ScreenEdgeScrollMode m_screenEdgeScrollMode;
+	UnsignedInt m_lastMouseMoveTimeMsec;				// real-time in milliseconds when mouse last moved
 
     void setScrolling(ScrollType scrollType);
-    void stopScrolling(void);
+    void stopScrolling();
     Bool canScrollAtScreenEdge() const;
 };
 

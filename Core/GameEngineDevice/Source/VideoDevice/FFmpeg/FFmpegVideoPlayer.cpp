@@ -125,7 +125,7 @@ FFmpegVideoPlayer::~FFmpegVideoPlayer()
 // FFmpegVideoPlayer::init
 //============================================================================
 
-void	FFmpegVideoPlayer::init( void )
+void	FFmpegVideoPlayer::init()
 {
 	// Need to load the stuff from the ini file.
 	VideoPlayer::init();
@@ -137,7 +137,7 @@ void	FFmpegVideoPlayer::init( void )
 // FFmpegVideoPlayer::deinit
 //============================================================================
 
-void FFmpegVideoPlayer::deinit( void )
+void FFmpegVideoPlayer::deinit()
 {
 	TheAudio->releaseHandleForBink();
 	VideoPlayer::deinit();
@@ -147,7 +147,7 @@ void FFmpegVideoPlayer::deinit( void )
 // FFmpegVideoPlayer::reset
 //============================================================================
 
-void	FFmpegVideoPlayer::reset( void )
+void	FFmpegVideoPlayer::reset()
 {
 	VideoPlayer::reset();
 }
@@ -156,7 +156,7 @@ void	FFmpegVideoPlayer::reset( void )
 // FFmpegVideoPlayer::update
 //============================================================================
 
-void	FFmpegVideoPlayer::update( void )
+void	FFmpegVideoPlayer::update()
 {
 	VideoPlayer::update();
 
@@ -166,7 +166,7 @@ void	FFmpegVideoPlayer::update( void )
 // FFmpegVideoPlayer::loseFocus
 //============================================================================
 
-void	FFmpegVideoPlayer::loseFocus( void )
+void	FFmpegVideoPlayer::loseFocus()
 {
 	VideoPlayer::loseFocus();
 }
@@ -175,7 +175,7 @@ void	FFmpegVideoPlayer::loseFocus( void )
 // FFmpegVideoPlayer::regainFocus
 //============================================================================
 
-void	FFmpegVideoPlayer::regainFocus( void )
+void	FFmpegVideoPlayer::regainFocus()
 {
 	VideoPlayer::regainFocus();
 }
@@ -235,7 +235,7 @@ VideoStreamInterface*	FFmpegVideoPlayer::open( AsciiString movieTitle )
 		if (TheGlobalData->m_modDir.isNotEmpty())
 		{
 			char filePath[ _MAX_PATH ];
-			sprintf( filePath, "%s%s\\%s.%s", TheGlobalData->m_modDir.str(), VIDEO_PATH, pVideo->m_filename.str(), VIDEO_EXT );
+			snprintf( filePath, ARRAY_SIZE(filePath), "%s%s\\%s.%s", TheGlobalData->m_modDir.str(), VIDEO_PATH, pVideo->m_filename.str(), VIDEO_EXT );
 			File* file =  TheFileSystem->openFile(filePath);
 			DEBUG_ASSERTLOG(!file, ("opened bink file %s", filePath));
 			if (file)
@@ -245,13 +245,13 @@ VideoStreamInterface*	FFmpegVideoPlayer::open( AsciiString movieTitle )
 		}
 
 		char localizedFilePath[ _MAX_PATH ];
-		sprintf( localizedFilePath, VIDEO_LANG_PATH_FORMAT, GetRegistryLanguage().str(), pVideo->m_filename.str(), VIDEO_EXT );
+		snprintf( localizedFilePath, ARRAY_SIZE(localizedFilePath), VIDEO_LANG_PATH_FORMAT, GetRegistryLanguage().str(), pVideo->m_filename.str(), VIDEO_EXT );
 		File* file =  TheFileSystem->openFile(localizedFilePath);
 		DEBUG_ASSERTLOG(!file, ("opened localized bink file %s", localizedFilePath));
 		if (!file)
 		{
 			char filePath[ _MAX_PATH ];
-			sprintf( filePath, "%s\\%s.%s", VIDEO_PATH, pVideo->m_filename.str(), VIDEO_EXT );
+			snprintf( filePath, ARRAY_SIZE(filePath), "%s\\%s.%s", VIDEO_PATH, pVideo->m_filename.str(), VIDEO_EXT );
 			file = TheFileSystem->openFile(filePath);
 			DEBUG_ASSERTLOG(!file, ("opened bink file %s", filePath));
 		}
@@ -345,8 +345,22 @@ void FFmpegVideoStream::onFrame(AVFrame *frame, int stream_idx, int stream_type,
 {
 	FFmpegVideoStream *videoStream = static_cast<FFmpegVideoStream *>(user_data);
 	if (stream_type == AVMEDIA_TYPE_VIDEO) {
+		if (frame == nullptr || frame->data == nullptr || frame->data[0] == nullptr) {
+			DEBUG_LOG(("Invalid video frame received in onFrame callback"));
+			return;
+		}
+
+		if (frame->width <= 0 || frame->height <= 0) {
+			DEBUG_LOG(("Invalid video frame dimensions: %dx%d", frame->width, frame->height));
+			return;
+		}
+
 		av_frame_free(&videoStream->m_frame);
 		videoStream->m_frame = av_frame_clone(frame);
+		if (videoStream->m_frame == nullptr) {
+			DEBUG_LOG(("Failed to clone video frame"));
+			return;
+		}
 		videoStream->m_gotFrame = true;
 	}
 #ifdef RTS_USE_OPENAL
@@ -392,7 +406,7 @@ void FFmpegVideoStream::onFrame(AVFrame *frame, int stream_idx, int stream_type,
 // FFmpegVideoStream::update
 //============================================================================
 
-void FFmpegVideoStream::update( void )
+void FFmpegVideoStream::update()
 {
 #ifdef RTS_USE_OPENAL
 	// Start audio playback
@@ -406,7 +420,7 @@ void FFmpegVideoStream::update( void )
 // FFmpegVideoStream::isFrameReady
 //============================================================================
 
-Bool FFmpegVideoStream::isFrameReady( void )
+Bool FFmpegVideoStream::isFrameReady()
 {
 	uint64_t time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	bool ready = (time - m_startTime) >= m_ffmpegFile->getFrameTime() * frameIndex();
@@ -419,7 +433,7 @@ Bool FFmpegVideoStream::isFrameReady( void )
 // FFmpegVideoStream::frameDecompress
 //============================================================================
 
-void FFmpegVideoStream::frameDecompress( void )
+void FFmpegVideoStream::frameDecompress()
 {
 	//BinkDoFrame( m_handle );
 }
@@ -438,7 +452,21 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 		return;
 	}
 
-	if (m_frame->data == nullptr) {
+	if (m_frame->data == nullptr || m_frame->data[0] == nullptr) {
+		return;
+	}
+
+	int frame_width = width();
+	int frame_height = height();
+
+	if (frame_width <= 0 || frame_height <= 0) {
+		DEBUG_LOG(("Invalid frame dimensions: %dx%d", frame_width, frame_height));
+		return;
+	}
+
+	AVPixelFormat src_pix_fmt = static_cast<AVPixelFormat>(m_frame->format);
+	if (src_pix_fmt == AV_PIX_FMT_NONE) {
+		DEBUG_LOG(("Invalid source pixel format"));
 		return;
 	}
 
@@ -462,9 +490,9 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 	}
 
 	m_swsContext = sws_getCachedContext(m_swsContext,
-		width(),
-		height(),
-		static_cast<AVPixelFormat>(m_frame->format),
+		frame_width,
+		frame_height,
+		src_pix_fmt,
 		buffer->width(),
 		buffer->height(),
 		dst_pix_fmt,
@@ -472,6 +500,12 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 		nullptr,
 		nullptr,
 		nullptr);
+
+	if (m_swsContext == nullptr) {
+		DEBUG_LOG(("Failed to create SwsContext for frame conversion (%dx%d %s -> %s)",
+			frame_width, frame_height, av_get_pix_fmt_name(src_pix_fmt), av_get_pix_fmt_name(dst_pix_fmt)));
+		return;
+	}
 
 	uint8_t *buffer_data = static_cast<uint8_t *>(buffer->lock());
 	if (buffer_data == nullptr) {
@@ -481,9 +515,10 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 
 	int dst_strides[] = { (int)buffer->pitch() };
 	uint8_t *dst_data[] = { buffer_data };
-	[[maybe_unused]] int result =
-		sws_scale(m_swsContext, m_frame->data, m_frame->linesize, 0, height(), dst_data, dst_strides);
-	DEBUG_ASSERTLOG(result >= 0, ("Failed to scale frame"));
+	int result = sws_scale(m_swsContext, m_frame->data, m_frame->linesize, 0, frame_height, dst_data, dst_strides);
+	if (result < 0) {
+		DEBUG_LOG(("Failed to scale frame: sws_scale returned %d", result));
+	}
 	buffer->unlock();
 }
 
@@ -491,7 +526,7 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 // FFmpegVideoStream::frameNext
 //============================================================================
 
-void FFmpegVideoStream::frameNext( void )
+void FFmpegVideoStream::frameNext()
 {
 	m_gotFrame = false;
 	// Decode until we have our next video frame
@@ -503,7 +538,7 @@ void FFmpegVideoStream::frameNext( void )
 // FFmpegVideoStream::frameIndex
 //============================================================================
 
-Int FFmpegVideoStream::frameIndex( void )
+Int FFmpegVideoStream::frameIndex()
 {
 	return m_ffmpegFile->getCurrentFrame();
 }
@@ -512,7 +547,7 @@ Int FFmpegVideoStream::frameIndex( void )
 // FFmpegVideoStream::totalFrames
 //============================================================================
 
-Int	FFmpegVideoStream::frameCount( void )
+Int	FFmpegVideoStream::frameCount()
 {
 	return m_ffmpegFile->getNumFrames();
 }
@@ -530,7 +565,7 @@ void FFmpegVideoStream::frameGoto( Int index )
 // VideoStream::height
 //============================================================================
 
-Int		FFmpegVideoStream::height( void )
+Int		FFmpegVideoStream::height()
 {
 	return m_ffmpegFile->getHeight();
 }
@@ -539,7 +574,7 @@ Int		FFmpegVideoStream::height( void )
 // VideoStream::width
 //============================================================================
 
-Int		FFmpegVideoStream::width( void )
+Int		FFmpegVideoStream::width()
 {
 	return m_ffmpegFile->getWidth();
 }

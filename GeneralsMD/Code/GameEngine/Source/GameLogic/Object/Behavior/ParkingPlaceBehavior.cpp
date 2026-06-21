@@ -59,7 +59,7 @@ ParkingPlaceBehavior::ParkingPlaceBehavior( Thing *thing, const ModuleData* modu
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-ParkingPlaceBehavior::~ParkingPlaceBehavior( void )
+ParkingPlaceBehavior::~ParkingPlaceBehavior()
 {
 }
 
@@ -790,10 +790,8 @@ void ParkingPlaceBehavior::exitObjectViaDoor( Object *newObj, ExitDoorType exitD
 		CRCDEBUG_LOG(("Produced at helipad (door = %d)", exitDoor));
 		DEBUG_ASSERTCRASH(exitDoor == DOOR_NONE_NEEDED, ("Hmm, unlikely"));
 		Matrix3D mtx;
-#ifdef DEBUG_CRASHING
-		Bool boneOk =
-#endif
-			getObject()->getSingleLogicalBonePosition("HeliPark01", &ppinfo.hangarInternal, &mtx);
+		MAYBE_UNUSED Bool boneOk = getObject()->getSingleLogicalBonePosition("HeliPark01", &ppinfo.hangarInternal, &mtx);
+		(void)boneOk;
 
 		DEBUG_ASSERTCRASH(boneOk, ("Could not get bone!"));
 		ppinfo.hangarInternalOrient = mtx.Get_Z_Rotation();
@@ -880,7 +878,7 @@ void ParkingPlaceBehavior::setRallyPoint( const Coord3D *pos )
 }
 
 //-------------------------------------------------------------------------------------------------
-const Coord3D* ParkingPlaceBehavior::getRallyPoint( void ) const
+const Coord3D* ParkingPlaceBehavior::getRallyPoint() const
 {
 	if( m_heliRallyPointExists )
 	{
@@ -1100,7 +1098,7 @@ void ParkingPlaceBehavior::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void ParkingPlaceBehavior::loadPostProcess( void )
+void ParkingPlaceBehavior::loadPostProcess()
 {
 
 	// extend base class

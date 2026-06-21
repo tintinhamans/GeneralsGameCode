@@ -36,6 +36,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/ActionManager.h"
+#include "Common/BuildAssistant.h"
 #include "Common/GlobalData.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
@@ -124,14 +125,14 @@ static Bool isObjectShroudedForAction ( const Object *source, const Object *targ
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-ActionManager::ActionManager( void )
+ActionManager::ActionManager()
 {
 
 }
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-ActionManager::~ActionManager( void )
+ActionManager::~ActionManager()
 {
 
 }
@@ -224,7 +225,7 @@ Bool ActionManager::canTransferSuppliesAt( const Object *obj, const Object *tran
 	if( transferDest->testStatus(OBJECT_STATUS_SOLD) )
 		return FALSE;
 
-	// I must be something with a Supply Transfering AI interface
+	// I must be something with a Supply Transferring AI interface
 	const AIUpdateInterface *ai= obj->getAI();
 	if( ai == nullptr )
 		return FALSE;
@@ -458,7 +459,7 @@ Bool ActionManager::canResumeConstructionOf( const Object *obj,
 	if( obj->isKindOf( KINDOF_DOZER ) == FALSE )
 		return FALSE;
 
-	// TheSuperHackers @bugfix Stubbjax 06/01/2025 Ensure only the owner of the construction can resume it.
+	// TheSuperHackers @bugfix Stubbjax 06/01/2026 Ensure only the owner of the construction can resume it.
 #if RETAIL_COMPATIBLE_CRC
 	Relationship r = obj->getRelationship(objectBeingConstructed);
 
@@ -486,7 +487,7 @@ Bool ActionManager::canResumeConstructionOf( const Object *obj,
 	// in the future)
 	//
 	Object *builder = TheGameLogic->findObjectByID( objectBeingConstructed->getBuilderID() );
-#if RETAIL_COMPATIBLE_CRC || !defined(GENERALS_ONLINE_ENABLE_CONTROVERSIAL_NON_RETAIL_CHANGES)
+#if RETAIL_COMPATIBLE_CRC || PRESERVE_BUILDING_RESUMPTION_DELAY
 	if( builder )
 #else
 	// TheSuperHackers @bugfix Stubbjax 18/11/2025 Allow scaffold to be immediately resumed after builder death.
@@ -1506,7 +1507,7 @@ Bool ActionManager::canDoSpecialPowerAtLocation( const Object *obj, const Coord3
 			}
 		}
 
-		// Last check is shroudedness, if it is cared about
+		// Second check is shroudedness, if it is cared about
 		switch( spTemplate->getSpecialPowerType() )
 		{
 			case SPECIAL_DAISY_CUTTER:
@@ -1552,7 +1553,6 @@ Bool ActionManager::canDoSpecialPowerAtLocation( const Object *obj, const Coord3
 			case SUPW_SPECIAL_PARTICLE_UPLINK_CANNON:
 			case LAZR_SPECIAL_PARTICLE_UPLINK_CANNON:
 			case SPECIAL_CLEANUP_AREA:
-			case SPECIAL_SNEAK_ATTACK:
 			case SPECIAL_BATTLESHIP_BOMBARDMENT:
 				//Don't allow "damaging" special powers in shrouded areas, but Fogged are okay.
 				return ThePartitionManager->getShroudStatusForPlayer( obj->getControllingPlayer()->getPlayerIndex(), loc ) != CELLSHROUD_SHROUDED;
@@ -1585,6 +1585,34 @@ Bool ActionManager::canDoSpecialPowerAtLocation( const Object *obj, const Coord3
 			case SPECIAL_CASH_BOUNTY:
 			case SPECIAL_CHANGE_BATTLE_PLANS:
 				return false;
+		}
+
+		// TheSuperHackers @fix stephanmeesters 04/04/2026 Some special powers can spawn a building.
+		// To avoid cheating, verify that it is legal to place this building.
+		switch( spTemplate->getSpecialPowerType() )
+		{
+			case SPECIAL_SNEAK_ATTACK:
+			{
+#if RETAIL_COMPATIBLE_CRC
+				return ThePartitionManager->getShroudStatusForPlayer( obj->getControllingPlayer()->getPlayerIndex(), loc ) != CELLSHROUD_SHROUDED;
+#else
+				const ThingTemplate* referenceThing = mod->getReferenceThingTemplate();
+				if (!referenceThing)
+					return FALSE;
+
+				const Real angle = referenceThing->getPlacementViewAngle();
+
+				return TheBuildAssistant->isLocationLegalToBuild(
+					loc, referenceThing, angle,
+					BuildAssistant::USE_QUICK_PATHFIND |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::NO_OBJECT_OVERLAP |
+					BuildAssistant::SHROUD_REVEALED |
+					BuildAssistant::IGNORE_STEALTHED,
+					obj, nullptr) == LBC_OK;
+#endif
+			}
 		}
 	}
 	return false;

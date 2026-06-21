@@ -139,6 +139,36 @@ void NGMP_OnlineServices_AuthInterface::GoToDetermineNetworkCaps()
 		});
 }
 
+void NGMP_OnlineServices_AuthInterface::SendMiddlewareToken(std::string strMWToken)
+{
+    std::string strLoginURI = NGMP_OnlineServicesManager::GetAPIEndpoint("ProvideMWToken");
+
+    // login
+    std::map<std::string, std::string> mapHeaders;
+
+    nlohmann::json j;
+	j["mw_token"] = strMWToken;
+    std::string strPostData = j.dump();
+
+    NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strLoginURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
+        {
+            if (statusCode >= 400 && statusCode < 500)
+            {
+                ClearGSMessageBoxes();
+                GSMessageBoxOk(UnicodeString(L"Middleware Login Failed"), UnicodeString(L"Middleware Login Failed"), []()
+                    {
+                        TheShell->pop();
+                    });
+                return;
+            }
+            else
+            {
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] MW LOGIN: Logged in");
+            }
+
+        }, nullptr);
+}
+
 void NGMP_OnlineServices_AuthInterface::BeginLogin()
 {
 	std::string strLoginURI = NGMP_OnlineServicesManager::GetAPIEndpoint("LoginWithToken");
@@ -151,7 +181,6 @@ void NGMP_OnlineServices_AuthInterface::BeginLogin()
 		std::map<std::string, std::string> mapHeaders;
 
 		nlohmann::json j;
-		j["client_id"] = GENERALS_ONLINE_CLIENT_ID;
 		j["reserved_0"] = std::string();
 		j["reserved_1"] = std::string();
 		j["reserved_2"] = std::string();
@@ -384,6 +413,10 @@ void NGMP_OnlineServices_AuthInterface::OnLoginComplete(ELoginResult loginResult
 {
 	if (loginResult == ELoginResult::Success)
 	{
+		// TODO_AC: Consider chaining this
+		// login to AC
+		AnticheatPlugInterface::Authenticate();
+
 		NGMP_OnlineServicesManager::GetInstance()->OnLogin(loginResult, szWSAddr, [=]() // wait for WS to connect
 			{
                 // move on to network capabilities section
@@ -442,6 +475,7 @@ void NGMP_OnlineServices_AuthInterface::SaveCredentials(const char* szRefreshTok
 		if (CryptProtectData(&inputBlob, L"GO Credentials", nullptr, nullptr, nullptr, 0, &outputBlob))
 		{
 			fwrite(outputBlob.pbData, 1, outputBlob.cbData, file);
+			LocalFree(outputBlob.pbData);
 		}
 		else
 		{

@@ -159,7 +159,7 @@ void TurretStateMachine::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void TurretStateMachine::loadPostProcess( void )
+void TurretStateMachine::loadPostProcess()
 {
 }
 
@@ -202,12 +202,10 @@ TurretAIData::TurretAIData()
 static void parseTWS(INI* ini, void * /*instance*/, void * store, const void* /*userData*/)
 {
 	UnsignedInt* tws = (UnsignedInt*)store;
-	const char* token = ini->getNextToken();
-	while (token != nullptr)
+	for (const char* token = ini->getNextToken(); token; token = ini->getNextTokenOrNull())
 	{
 		WeaponSlotType wslot = (WeaponSlotType)INI::scanIndexList(token, TheWeaponSlotTypeNames);
 		*tws |= (1 << wslot);
-		token = ini->getNextTokenOrNull();
 	}
 }
 
@@ -369,7 +367,7 @@ void TurretAI::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void TurretAI::loadPostProcess( void )
+void TurretAI::loadPostProcess()
 {
 	Object *victim = m_turretStateMachine->getGoalObject();
 	if (victim) {
@@ -1279,7 +1277,7 @@ void TurretAIIdleState::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void TurretAIIdleState::loadPostProcess( void )
+void TurretAIIdleState::loadPostProcess()
 {
 }
 
@@ -1356,7 +1354,7 @@ void TurretAIIdleScanState::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void TurretAIIdleScanState::loadPostProcess( void )
+void TurretAIIdleScanState::loadPostProcess()
 {
 }
 
@@ -1435,7 +1433,7 @@ void TurretAIHoldTurretState::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void TurretAIHoldTurretState::loadPostProcess( void )
+void TurretAIHoldTurretState::loadPostProcess()
 {
 }
 

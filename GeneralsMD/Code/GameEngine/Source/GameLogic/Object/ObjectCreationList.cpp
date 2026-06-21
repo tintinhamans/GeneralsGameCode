@@ -132,7 +132,7 @@ public:
 	{
 	}
 
-	virtual Object* create( const Object* primaryObj, const Coord3D *primary, const Coord3D* secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const
+	virtual Object* create( const Object* primaryObj, const Coord3D *primary, const Coord3D* secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const override
 	{
 		if (!primaryObj || !primary || !secondary)
 		{
@@ -179,7 +179,7 @@ public:
 	{
 	}
 
-	virtual Object* create( const Object* primaryObj, const Coord3D *primary, const Coord3D* secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const
+	virtual Object* create( const Object* primaryObj, const Coord3D *primary, const Coord3D* secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const override
 	{
 		if (!primaryObj || !primary || !secondary)
 		{
@@ -261,12 +261,12 @@ public:
 		m_transportName.clear();
 	}
 
-	virtual Object* create(const Object *primaryObj, const Coord3D *primary, const Coord3D *secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const
+	virtual Object* create(const Object *primaryObj, const Coord3D *primary, const Coord3D *secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const override
 	{
 		return create( primaryObj, primary, secondary, true, lifetimeFrames );
 	}
 
-	virtual Object* create(const Object* primaryObj, const Coord3D *primary, const Coord3D* secondary, Bool createOwner, UnsignedInt lifetimeFrames = 0 ) const
+	virtual Object* create(const Object* primaryObj, const Coord3D *primary, const Coord3D* secondary, Bool createOwner, UnsignedInt lifetimeFrames = 0 ) const override
 	{
 		if (!primaryObj || !primary || !secondary)
 		{
@@ -590,6 +590,9 @@ static void calcRandomForce(Real minMag, Real maxMag, Real minPitch, Real maxPit
 	Real angle = GameLogicRandomValueReal(0, 2*PI);
 	Real pitch = GameLogicRandomValueReal(minPitch, maxPitch);
 	Real mag = GameLogicRandomValueReal(minMag, maxMag);
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	mag /= 2.f;
+#endif
 
 	Matrix3D mtx(1);
 	mtx.Scale(mag);
@@ -619,7 +622,7 @@ public:
 	{
 	}
 
-	virtual Object* create( const Object* primary, const Object* secondary, UnsignedInt lifetimeFrames = 0 ) const
+	virtual Object* create( const Object* primary, const Object* secondary, UnsignedInt lifetimeFrames = 0 ) const override
 	{
 		if (primary)
 		{
@@ -650,7 +653,7 @@ public:
 		return nullptr;
 	}
 
-	virtual Object* create(const Object* primaryObj, const Coord3D *primary, const Coord3D* secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const
+	virtual Object* create(const Object* primaryObj, const Coord3D *primary, const Coord3D* secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const override
 	{
 		DEBUG_CRASH(("You must call this effect with an object, not a location"));
 		return nullptr;
@@ -775,7 +778,7 @@ public:
 		m_offset.zero();
 	}
 
-	virtual Object* create(const Object* primary, const Object* secondary, UnsignedInt lifetimeFrames = 0 ) const
+	virtual Object* create(const Object* primary, const Object* secondary, UnsignedInt lifetimeFrames = 0 ) const override
 	{
 		if (primary)
 		{
@@ -791,7 +794,7 @@ public:
 		return nullptr;
 	}
 
-	virtual Object* create(const Object* primaryObj, const Coord3D *primary, const Coord3D* secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const
+	virtual Object* create(const Object* primaryObj, const Coord3D *primary, const Coord3D* secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const override
 	{
 		if (primary)
 		{
@@ -974,9 +977,9 @@ protected:
 		if (!m_particleSysName.isEmpty())
 		{
 			const ParticleSystemTemplate *tmp = TheParticleSystemManager->findTemplate(m_particleSysName);
-			if (tmp)
+			ParticleSystem *sys = TheParticleSystemManager->createParticleSystem(tmp);
+			if (sys)
 			{
-				ParticleSystem *sys = TheParticleSystemManager->createParticleSystem(tmp);
 				sys->attachToObject(obj);
 			}
 		}
@@ -1010,7 +1013,10 @@ protected:
 			DEBUG_LOG(("Object %s inherits veterancy level %d from %s",
 				obj->getTemplate()->getName().str(), sourceObj->getVeterancyLevel(), sourceObj->getTemplate()->getName().str()));
 			VeterancyLevel v = sourceObj->getVeterancyLevel();
-			obj->getExperienceTracker()->setVeterancyLevel(v);
+
+			// TheSuperHackers @bugfix Caball009 22/04/2026 Disable audiovisual cues for a veterancy level change because this object was just created.
+			// Otherwise the cues would be at an incorrect position, because the object's matrix is not set yet.
+			obj->getExperienceTracker()->setVeterancyLevel(v, FALSE);
 
 			//In order to make things easier for the designers, we are going to transfer the unit name
 			//to the ejected thing... so the designer can control the pilot with the scripts.
@@ -1153,6 +1159,9 @@ protected:
 				Real yaw = GameLogicRandomValueReal( -yawRate, yawRate );
 				Real roll = GameLogicRandomValueReal( -rollRate, rollRate );
 				Real pitch = GameLogicRandomValueReal( -pitchRate, pitchRate );
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+				yaw /= 2.f; roll /= 2.f; pitch /= 2.f;
+#endif
 				DUMPREAL(yaw);
 				DUMPREAL(roll);
 				DUMPREAL(pitch);
@@ -1162,6 +1171,9 @@ protected:
 				{
 					Real horizForce = 4.0f * m_dispositionIntensity;		// 2
 					Real vertForce = 3.0f * m_dispositionIntensity;		// 3
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+					horizForce /= 2.f; vertForce /= 2.f;
+#endif
 					force.x = GameLogicRandomValueReal( -horizForce, horizForce );
 					force.y = GameLogicRandomValueReal( -horizForce, horizForce );
 					force.z = GameLogicRandomValueReal( vertForce * 0.33f, vertForce );
@@ -1173,6 +1185,9 @@ protected:
 				{
 					Real horizForce = 2.0f * m_dispositionIntensity;
 					Real vertForce = 4.0f * m_dispositionIntensity;
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+					horizForce /= 2.f; vertForce /= 2.f;
+#endif
 
 					force.x = GameLogicRandomValueReal( -horizForce, horizForce );
 					force.y = GameLogicRandomValueReal( -horizForce, horizForce );
@@ -1244,7 +1259,7 @@ protected:
 			}
 			else
 			{
-				DEBUG_ASSERTCRASH(FALSE,("A OCL with ContainInsideSourceObject failed the contain and is killing the new object."));
+				DEBUG_CRASH(("A OCL with ContainInsideSourceObject failed the contain and is killing the new object."));
 				// If we fail to contain it, we can't just leave it.  Stillborn it.
 				TheGameLogic->destroyObject(obj);
 			}
@@ -1425,7 +1440,7 @@ protected:
 			}
 		}
 
-#if !RETAIL_COMPATIBLE_CRC && !PRESERVE_RETAIL_BEHAVIOR
+#if !(RETAIL_COMPATIBLE_CRC || PRESERVE_NO_XP_FROM_OCL_KILLS)
 		ObjectID sinkID = sourceObj->getExperienceTracker()->getExperienceSink();
 		firstObject->getExperienceTracker()->setExperienceSink(sinkID != INVALID_ID ? sinkID : sourceObj->getID());
 #endif
@@ -1439,12 +1454,12 @@ protected:
 	static void parseDebrisObjectNames( INI* ini, void *instance, void *store, const void* /*userData*/ )
 	{
 		GenericObjectCreationNugget* debrisNugget = (GenericObjectCreationNugget*)instance;
-		for (const char* debrisName = ini->getNextToken(); debrisName; debrisName = ini->getNextTokenOrNull())
+		for (const char* token = ini->getNextToken(); token; token = ini->getNextTokenOrNull())
 		{
 			if (TheGlobalData->m_preloadAssets)
-				debrisModelNamesGlobalHack.push_back(debrisName);
-			debrisNugget->m_names.push_back(AsciiString(debrisName));
-			debrisName = ini->getNextTokenOrNull();
+				debrisModelNamesGlobalHack.push_back(token);
+			debrisNugget->m_names.push_back(AsciiString(token));
+			token = ini->getNextTokenOrNull();
 		}
 	}
 

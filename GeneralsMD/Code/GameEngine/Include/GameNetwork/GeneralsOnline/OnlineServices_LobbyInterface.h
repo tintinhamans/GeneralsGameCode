@@ -27,6 +27,7 @@ struct LobbyMemberEntry : public NetworkMemberBase
 	uint16_t m_SlotState = SlotState::SLOT_OPEN;
 
 	std::string region;
+	std::string middlewareUserID;
 	int latency = 0;
 
 	bool IsHuman() const
@@ -46,22 +47,22 @@ struct LobbyEntry
 {
 	int64_t lobbyID = -1;
 
-	int64_t owner;
+	int64_t owner = -1;
 	std::string name;
 	std::string map_name;
 	std::string map_path;
-	bool map_official;
-	int current_players;
-	int max_players;
-	bool vanilla_teams;
-	uint32_t starting_cash;
-	bool limit_superweapons;
-	bool track_stats;
-	bool allow_observers;
-	uint16_t max_cam_height;
+	bool map_official = false;
+	int current_players = 0;
+	int max_players = 0;
+	bool vanilla_teams = false;
+	uint32_t starting_cash = 0;
+	bool limit_superweapons = false;
+	bool track_stats = false;
+	bool allow_observers = false;
+	uint16_t max_cam_height = 0;
 
-	uint32_t exe_crc;
-	uint32_t ini_crc;
+	uint32_t exe_crc = 0;
+	uint32_t ini_crc = 0;
 
 	uint64_t match_id = 0;
 
@@ -69,13 +70,13 @@ struct LobbyEntry
 
 	int rng_seed = -1;
 
-	bool passworded;
+	bool passworded = false;
 	std::string password;
 
 	std::vector<LobbyMemberEntry> members;
 
 	std::string region;
-	int latency;
+	int latency = 0;
 };
 
 enum class EJoinLobbyResult
@@ -83,7 +84,8 @@ enum class EJoinLobbyResult
 	JoinLobbyResult_Success, // The room was joined.
 	JoinLobbyResult_FullRoom,       // The room is full.
 	JoinLobbyResult_BadPassword,    // An incorrect password (or none) was given for a passworded room.
-	JoinLobbyResult_JoinFailed // Generic failure.
+	JoinLobbyResult_JoinFailed, // Generic failure.
+	JoinLobbyResult_AnticheatMismatch // Anticheat mismatch
 };
 
 enum class ELobbyJoinability
@@ -212,7 +214,7 @@ public:
 	AsciiString m_PendingCreation_InitialMapPath;
 	void CreateLobby(UnicodeString strLobbyName, UnicodeString strInitialMapName, AsciiString strInitialMapPath, bool bIsOfficial, int initialMaxSize, bool bVanillaTeamsOnly, bool bTrackStats, uint32_t startingCash, bool bPassworded, std::string strPassword, bool bAllowObservers);
 
-	void OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails, std::function<void(void)> fnCallback);
+	void OnJoinedOrCreatedLobby(bool bAlreadyUpdatedDetails, std::function<void(bool)> fnCallback);
 
 	UnicodeString GetCurrentLobbyDisplayName();
 	UnicodeString GetCurrentLobbyMapDisplayName();
@@ -242,13 +244,16 @@ public:
 
 	// lobby roster
 	std::function<void()> m_RosterNeedsRefreshCallback = nullptr;
+	mutable std::mutex m_rosterCallbackMutex;
 	void RegisterForRosterNeedsRefreshCallback(std::function<void()> cb)
 	{
+		std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 		m_RosterNeedsRefreshCallback = cb;
 	}
 
 	void DeregisterForRosterNeedsRefreshCallback()
 	{
+		std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 		m_RosterNeedsRefreshCallback = nullptr;
 	}
 
@@ -323,7 +328,7 @@ public:
 
 	bool IsHost();
 
-	void UpdateRoomDataCache(std::function<void(void)> fnCallback = nullptr);
+	void UpdateRoomDataCache(std::function<void(bool)> fnCallback = nullptr);
 
 	std::function<void(LobbyMemberEntry)> m_cbPlayerDoesntHaveMap = nullptr;
 	void RegisterForPlayerDoesntHaveMapCallback(std::function<void(LobbyMemberEntry)> cb)
@@ -372,6 +377,7 @@ public:
 	{
 		m_CurrentLobby = LobbyEntry();
 
+		std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 		if (m_RosterNeedsRefreshCallback != nullptr)
 		{
 			m_RosterNeedsRefreshCallback();

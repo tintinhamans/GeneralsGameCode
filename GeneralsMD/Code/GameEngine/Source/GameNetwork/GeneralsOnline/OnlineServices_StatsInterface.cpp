@@ -67,10 +67,6 @@ void NGMP_OnlineServices_StatsInterface::GetGlobalStats(std::function<void(Globa
 					PROCESS_JSON_PER_GENERAL_RESULT(wins);
 					PROCESS_JSON_PER_GENERAL_RESULT(matches);
 				}
-				else
-				{
-					cb(stats);
-				}
 			}
 			catch (...)
 			{
@@ -234,7 +230,14 @@ void NGMP_OnlineServices_StatsInterface::findPlayerStatsByID(int64_t userID, std
 		}
 		else // cached data instead
 		{
-			cb(true, m_mapCachedStats[userID]);
+			if (m_mapCachedStats.contains(userID))
+			{
+				cb(true, m_mapCachedStats[userID]);
+			}
+			else
+			{
+				cb(false, PSPlayerStats());
+			}
 		}
 		
 	}
@@ -400,6 +403,14 @@ void NGMP_OnlineServices_StatsInterface::UpdateMyStats(PSPlayerStats stats)
 		});
 }
 
+struct MatchOutcomeResponse
+{
+    std::string screenshot_url;
+	std::string replay_url;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(MatchOutcomeResponse, screenshot_url, replay_url)
+};
+
 void NGMP_OnlineServices_StatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeeper, bool bWon)
 {
 	int buildingsBuilt = 0;
@@ -426,6 +437,18 @@ void NGMP_OnlineServices_StatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeep
 
 		uint64_t currentMatchID = pLobbyInterface->GetCurrentMatchID();
 
+		int resolvedSide = -1;
+		NGMPGame* myGame = pLobbyInterface->GetCurrentGame();
+
+		    if (myGame != nullptr)
+			{
+				GameSlot* pLocalSlot = myGame->getSlot(myGame->getLocalSlotNum());
+				if (pLocalSlot != nullptr)
+				{
+					resolvedSide = pLocalSlot->getPlayerTemplate();
+				}
+            }
+
 		nlohmann::json j;
 		j["buildings_built"] = buildingsBuilt;
 		j["buildings_killed"] = buildingsDestroyed;
@@ -436,6 +459,7 @@ void NGMP_OnlineServices_StatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeep
 		j["total_money"] = totalMoney;
 		j["won"] = bWon;
 		j["match_id"] = currentMatchID;
+		j["side"] = resolvedSide;
 
 		std::string strPostData = j.dump();
 	
@@ -444,7 +468,25 @@ void NGMP_OnlineServices_StatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeep
 
 		NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 			{
+				if (bSuccess && !strBody.empty())
+				{
+					try
+					{
+                        nlohmann::json jsonObject = nlohmann::json::parse(strBody);
+                        MatchOutcomeResponse matchOutcomeResp = jsonObject.get<MatchOutcomeResponse>();
 
+                        NGMP_OnlineServicesManager::GetInstance()->SetScreenshotS3URI_EndMatch(matchOutcomeResp.screenshot_url.c_str());
+                        NGMP_OnlineServicesManager::GetInstance()->SetScreenshotS3URI_Replay(matchOutcomeResp.replay_url.c_str());
+					}
+                    catch (nlohmann::json::exception&)
+                    {
+                       
+                    }
+                    catch (...)
+                    {
+
+                    }
+				}
 			});
 	}
 }

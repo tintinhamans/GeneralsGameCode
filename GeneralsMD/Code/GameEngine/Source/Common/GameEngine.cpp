@@ -47,7 +47,6 @@
 #include "Common/FileSystem.h"
 #include "Common/ArchiveFileSystem.h"
 #include "Common/LocalFileSystem.h"
-#include "Common/CDManager.h"
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
 #include "Common/RandomValue.h"
@@ -65,7 +64,7 @@
 #include "Common/SpecialPower.h"
 #include "Common/TerrainTypes.h"
 #include "Common/Upgrade.h"
-#include "Common/UserPreferences.h"
+#include "Common/OptionPreferences.h"
 #include "Common/Xfer.h"
 #include "Common/XferCRC.h"
 #include "Common/GameLOD.h"
@@ -122,6 +121,9 @@ void TearDownGeneralsOnline()
 {
 	g_bTearDownGeneralsOnlineRequested = true;
 
+	if (NGMP_OnlineServicesManager::GetInstance() == nullptr)
+		return;
+
 	EGOTearDownReason teardownReason = NGMP_OnlineServicesManager::GetInstance()->GetTeardownReason();
 
 	if (teardownReason != EGOTearDownReason::USER_REQUESTED_SILENT)
@@ -161,16 +163,16 @@ public:
 	DeepCRCSanityCheck() {}
 	virtual ~DeepCRCSanityCheck() {}
 
-	virtual void init(void) {}
-	virtual void reset(void);
-	virtual void update(void) {}
+	virtual void init() {}
+	virtual void reset();
+	virtual void update() {}
 
 protected:
 };
 
 DeepCRCSanityCheck* TheDeepCRCSanityCheck = nullptr;
 
-void DeepCRCSanityCheck::reset(void)
+void DeepCRCSanityCheck::reset()
 {
 	static Int timesThrough = 0;
 	static UnsignedInt lastCRC = 0;
@@ -287,7 +289,7 @@ static void updateWindowTitle()
 }
 
 //-------------------------------------------------------------------------------------------------
-GameEngine::GameEngine(void)
+GameEngine::GameEngine()
 {
 	// initialize to non garbage values
 	m_logicTimeAccumulator = 0.0f;
@@ -556,39 +558,45 @@ void GameEngine::init()
 #endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
-		initSubsystem(TheScienceStore, "TheScienceStore", MSGNEW("GameEngineSubsystem") ScienceStore(), &xferCRC, "Data\\INI\\Default\\Science", "Data\\INI\\Science");
-		initSubsystem(TheMultiplayerSettings, "TheMultiplayerSettings", MSGNEW("GameEngineSubsystem") MultiplayerSettings(), &xferCRC, "Data\\INI\\Default\\Multiplayer", "Data\\INI\\Multiplayer");
-		initSubsystem(TheTerrainTypes, "TheTerrainTypes", MSGNEW("GameEngineSubsystem") TerrainTypeCollection(), &xferCRC, "Data\\INI\\Default\\Terrain", "Data\\INI\\Terrain");
-		initSubsystem(TheTerrainRoads, "TheTerrainRoads", MSGNEW("GameEngineSubsystem") TerrainRoadCollection(), &xferCRC, "Data\\INI\\Default\\Roads", "Data\\INI\\Roads");
-		initSubsystem(TheGlobalLanguageData, "TheGlobalLanguageData", MSGNEW("GameEngineSubsystem") GlobalLanguage, nullptr); // must be before the game text
+#if RETAIL_COMPATIBLE_CRC
+		if (xferCRC.getCRC() == 0xA1E7F8E6)
+			TheNameKeyGenerator->verifyNameKeyID(1);
+#endif
+
+		initSubsystem(TheScienceStore,"TheScienceStore", MSGNEW("GameEngineSubsystem") ScienceStore(), &xferCRC, "Data\\INI\\Default\\Science", "Data\\INI\\Science");
+		initSubsystem(TheMultiplayerSettings,"TheMultiplayerSettings", MSGNEW("GameEngineSubsystem") MultiplayerSettings(), &xferCRC, "Data\\INI\\Default\\Multiplayer", "Data\\INI\\Multiplayer");
+		initSubsystem(TheTerrainTypes,"TheTerrainTypes", MSGNEW("GameEngineSubsystem") TerrainTypeCollection(), &xferCRC, "Data\\INI\\Default\\Terrain", "Data\\INI\\Terrain");
+		initSubsystem(TheTerrainRoads,"TheTerrainRoads", MSGNEW("GameEngineSubsystem") TerrainRoadCollection(), &xferCRC, "Data\\INI\\Default\\Roads", "Data\\INI\\Roads");
+		initSubsystem(TheGlobalLanguageData,"TheGlobalLanguageData",MSGNEW("GameEngineSubsystem") GlobalLanguage, nullptr); // must be before the game text
 		TheGlobalLanguageData->parseCustomDefinition();
-		initSubsystem(TheCDManager, "TheCDManager", CreateCDManager(), nullptr);
-#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
-		GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
-		sprintf(Buf, "----------------------------------------------------------------------------After TheCDManager = %f seconds", ((double)(endTime64 - startTime64) / (double)(freq64)));
-		startTime64 = endTime64;//Reset the clock ////////////////////////////////////////////////////////
-		DEBUG_LOG(("%s", Buf));////////////////////////////////////////////////////////////////////////////
-#endif/////////////////////////////////////////////////////////////////////////////////////////////
-		initSubsystem(TheAudio, "TheAudio", TheGlobalData->m_headless ? NEW AudioManagerDummy : createAudioManager(), nullptr);
-		if (!TheAudio->isMusicAlreadyLoaded())
-			setQuitting(TRUE);
+	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
+	GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
+	sprintf(Buf,"----------------------------------------------------------------------------After TheGlobalLanguageData = %f seconds",((double)(endTime64-startTime64)/(double)(freq64)));
+  startTime64 = endTime64;//Reset the clock ////////////////////////////////////////////////////////
+	DEBUG_LOG(("%s", Buf));////////////////////////////////////////////////////////////////////////////
+	#endif/////////////////////////////////////////////////////////////////////////////////////////////
+		initSubsystem(TheAudio,"TheAudio", createAudioManager(TheGlobalData->m_headless), nullptr);
 
-#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
-		GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
-		sprintf(Buf, "----------------------------------------------------------------------------After TheAudio = %f seconds", ((double)(endTime64 - startTime64) / (double)(freq64)));
-		startTime64 = endTime64;//Reset the clock ////////////////////////////////////////////////////////
-		DEBUG_LOG(("%s", Buf));////////////////////////////////////////////////////////////////////////////
-#endif/////////////////////////////////////////////////////////////////////////////////////////////
+#if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
+		TheNameKeyGenerator->syncNameKeyID();
+#endif
+
+	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
+	GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
+	sprintf(Buf,"----------------------------------------------------------------------------After TheAudio = %f seconds",((double)(endTime64-startTime64)/(double)(freq64)));
+  startTime64 = endTime64;//Reset the clock ////////////////////////////////////////////////////////
+	DEBUG_LOG(("%s", Buf));////////////////////////////////////////////////////////////////////////////
+	#endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
-		initSubsystem(TheFunctionLexicon, "TheFunctionLexicon", createFunctionLexicon(), nullptr);
-		initSubsystem(TheModuleFactory, "TheModuleFactory", createModuleFactory(), nullptr);
-		initSubsystem(TheMessageStream, "TheMessageStream", createMessageStream(), nullptr);
-		initSubsystem(TheSidesList, "TheSidesList", MSGNEW("GameEngineSubsystem") SidesList(), nullptr);
-		initSubsystem(TheCaveSystem, "TheCaveSystem", MSGNEW("GameEngineSubsystem") CaveSystem(), nullptr);
-		initSubsystem(TheRankInfoStore, "TheRankInfoStore", MSGNEW("GameEngineSubsystem") RankInfoStore(), &xferCRC, nullptr, "Data\\INI\\Rank");
-		initSubsystem(ThePlayerTemplateStore, "ThePlayerTemplateStore", MSGNEW("GameEngineSubsystem") PlayerTemplateStore(), &xferCRC, "Data\\INI\\Default\\PlayerTemplate", "Data\\INI\\PlayerTemplate");
-		initSubsystem(TheParticleSystemManager, "TheParticleSystemManager", createParticleSystemManager(), nullptr);
+		initSubsystem(TheFunctionLexicon,"TheFunctionLexicon", createFunctionLexicon(), nullptr);
+		initSubsystem(TheModuleFactory,"TheModuleFactory", createModuleFactory(), nullptr);
+		initSubsystem(TheMessageStream,"TheMessageStream", createMessageStream(), nullptr);
+		initSubsystem(TheSidesList,"TheSidesList", MSGNEW("GameEngineSubsystem") SidesList(), nullptr);
+		initSubsystem(TheCaveSystem,"TheCaveSystem", MSGNEW("GameEngineSubsystem") CaveSystem(), nullptr);
+		initSubsystem(TheRankInfoStore,"TheRankInfoStore", MSGNEW("GameEngineSubsystem") RankInfoStore(), &xferCRC, nullptr, "Data\\INI\\Rank");
+		initSubsystem(ThePlayerTemplateStore,"ThePlayerTemplateStore", MSGNEW("GameEngineSubsystem") PlayerTemplateStore(), &xferCRC, "Data\\INI\\Default\\PlayerTemplate", "Data\\INI\\PlayerTemplate");
+		initSubsystem(TheParticleSystemManager,"TheParticleSystemManager", createParticleSystemManager(TheGlobalData->m_headless), nullptr);
 
 #ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
 		GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
@@ -627,8 +635,13 @@ void GameEngine::init()
 #endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
-		initSubsystem(TheUpgradeCenter, "TheUpgradeCenter", MSGNEW("GameEngineSubsystem") UpgradeCenter, &xferCRC, "Data\\INI\\Default\\Upgrade", "Data\\INI\\Upgrade");
-		initSubsystem(TheGameClient, "TheGameClient", createGameClient(), nullptr);
+#if RETAIL_COMPATIBLE_CRC
+		if (xferCRC.getCRC() == 0x6209AF6E)
+			TheNameKeyGenerator->verifyNameKeyID(2265);
+#endif
+
+		initSubsystem(TheUpgradeCenter,"TheUpgradeCenter", MSGNEW("GameEngineSubsystem") UpgradeCenter, &xferCRC, "Data\\INI\\Default\\Upgrade", "Data\\INI\\Upgrade");
+		initSubsystem(TheGameClient,"TheGameClient", createGameClient(), nullptr);
 
 
 #ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
@@ -639,14 +652,14 @@ void GameEngine::init()
 #endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
-		initSubsystem(TheAI, "TheAI", MSGNEW("GameEngineSubsystem") AI(), &xferCRC, "Data\\INI\\Default\\AIData", "Data\\INI\\AIData");
-		initSubsystem(TheGameLogic, "TheGameLogic", createGameLogic(), nullptr);
-		initSubsystem(TheTeamFactory, "TheTeamFactory", MSGNEW("GameEngineSubsystem") TeamFactory(), nullptr);
-		initSubsystem(TheCrateSystem, "TheCrateSystem", MSGNEW("GameEngineSubsystem") CrateSystem(), &xferCRC, "Data\\INI\\Default\\Crate", "Data\\INI\\Crate");
-		initSubsystem(ThePlayerList, "ThePlayerList", MSGNEW("GameEngineSubsystem") PlayerList(), nullptr);
-		initSubsystem(TheRecorder, "TheRecorder", createRecorder(), nullptr);
-		initSubsystem(TheRadar, "TheRadar", TheGlobalData->m_headless ? NEW RadarDummy : createRadar(), nullptr);
-		initSubsystem(TheVictoryConditions, "TheVictoryConditions", createVictoryConditions(), nullptr);
+		initSubsystem(TheAI,"TheAI", MSGNEW("GameEngineSubsystem") AI(), &xferCRC,  "Data\\INI\\Default\\AIData", "Data\\INI\\AIData");
+		initSubsystem(TheGameLogic,"TheGameLogic", createGameLogic(), nullptr);
+		initSubsystem(TheTeamFactory,"TheTeamFactory", MSGNEW("GameEngineSubsystem") TeamFactory(), nullptr);
+		initSubsystem(TheCrateSystem,"TheCrateSystem", MSGNEW("GameEngineSubsystem") CrateSystem(), &xferCRC, "Data\\INI\\Default\\Crate", "Data\\INI\\Crate");
+		initSubsystem(ThePlayerList,"ThePlayerList", MSGNEW("GameEngineSubsystem") PlayerList(), nullptr);
+		initSubsystem(TheRecorder,"TheRecorder", createRecorder(), nullptr);
+		initSubsystem(TheRadar,"TheRadar", createRadar(TheGlobalData->m_headless), nullptr);
+		initSubsystem(TheVictoryConditions,"TheVictoryConditions", createVictoryConditions(), nullptr);
 
 
 
@@ -662,8 +675,6 @@ void GameEngine::init()
 		fname.format("Data\\%s\\CommandMap", GetRegistryLanguage().str());
 		initSubsystem(TheMetaMap, "TheMetaMap", MSGNEW("GameEngineSubsystem") MetaMap(), nullptr, fname.str(), "Data\\INI\\CommandMap");
 
-		TheMetaMap->generateMetaMap();
-
 #if defined(RTS_DEBUG)
 		ini.loadFileDirectory("Data\\INI\\CommandMapDebug", INI_LOAD_MULTIFILE, nullptr);
 #endif
@@ -672,22 +683,25 @@ void GameEngine::init()
 		ini.loadFileDirectory("Data\\INI\\CommandMapDemo", INI_LOAD_MULTIFILE, nullptr);
 #endif
 
+		TheMetaMap->generateMetaMap();
+		TheMetaMap->verifyMetaMap();
 
-		initSubsystem(TheActionManager, "TheActionManager", MSGNEW("GameEngineSubsystem") ActionManager(), nullptr);
+
+		initSubsystem(TheActionManager,"TheActionManager", MSGNEW("GameEngineSubsystem") ActionManager(), nullptr);
 		//initSubsystem((CComObject<WebBrowser> *)TheWebBrowser,"(CComObject<WebBrowser> *)TheWebBrowser", (CComObject<WebBrowser> *)createWebBrowser(), nullptr);
-		initSubsystem(TheGameStateMap, "TheGameStateMap", MSGNEW("GameEngineSubsystem") GameStateMap, nullptr);
-		initSubsystem(TheGameState, "TheGameState", MSGNEW("GameEngineSubsystem") GameState, nullptr);
+		initSubsystem(TheGameStateMap,"TheGameStateMap", MSGNEW("GameEngineSubsystem") GameStateMap, nullptr );
+		initSubsystem(TheGameState,"TheGameState", MSGNEW("GameEngineSubsystem") GameState, nullptr );
 
 		// Create the interface for sending game results
-		initSubsystem(TheGameResultsQueue, "TheGameResultsQueue", GameResultsInterface::createNewGameResultsInterface(), nullptr);
+		initSubsystem(TheGameResultsQueue,"TheGameResultsQueue", GameResultsInterface::createNewGameResultsInterface(), nullptr);
 
 
-#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
-		GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
-		sprintf(Buf, "----------------------------------------------------------------------------After TheGameResultsQueue = %f seconds", ((double)(endTime64 - startTime64) / (double)(freq64)));
-		startTime64 = endTime64;//Reset the clock ////////////////////////////////////////////////////////
-		DEBUG_LOG(("%s", Buf));////////////////////////////////////////////////////////////////////////////
-#endif/////////////////////////////////////////////////////////////////////////////////////////////
+	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
+	GetPrecisionTimer(&endTime64);//////////////////////////////////////////////////////////////////
+	sprintf(Buf,"----------------------------------------------------------------------------After TheGameResultsQueue = %f seconds",((double)(endTime64-startTime64)/(double)(freq64)));
+  startTime64 = endTime64;//Reset the clock ////////////////////////////////////////////////////////
+	DEBUG_LOG(("%s", Buf));////////////////////////////////////////////////////////////////////////////
+	#endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
 		xferCRC.close();
@@ -813,7 +827,7 @@ void GameEngine::init()
 /** -----------------------------------------------------------------------------------------------
 	* Reset all necessary parts of the game engine to be ready to accept new game data
 	*/
-void GameEngine::reset(void)
+void GameEngine::reset()
 {
 
 	WindowLayout* background = TheWindowManager->winCreateLayout("Menus/BlankWindow.wnd");
@@ -842,7 +856,7 @@ void GameEngine::reset(void)
 }
 
 /// -----------------------------------------------------------------------------------------------
-void GameEngine::resetSubsystems(void)
+void GameEngine::resetSubsystems()
 {
 	// TheSuperHackers @fix xezon 09/06/2025 Reset GameLogic first to purge all world objects early.
 	// This avoids potentially catastrophic issues when objects and subsystems have cross dependencies.
@@ -852,7 +866,7 @@ void GameEngine::resetSubsystems(void)
 }
 
 /// -----------------------------------------------------------------------------------------------
-Bool GameEngine::canUpdateGameLogic()
+Bool GameEngine::canUpdateGameLogic(UnsignedInt logicTimeQueryFlags)
 {
 	// Must be first.
 	TheGameLogic->preUpdate();
@@ -866,7 +880,7 @@ Bool GameEngine::canUpdateGameLogic()
 	}
 	else
 	{
-		return canUpdateRegularGameLogic();
+		return canUpdateRegularGameLogic(logicTimeQueryFlags);
 	}
 }
 
@@ -887,11 +901,10 @@ Bool GameEngine::canUpdateNetworkGameLogic()
 }
 
 /// -----------------------------------------------------------------------------------------------
-Bool GameEngine::canUpdateRegularGameLogic()
+Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 {
-	const Bool enabled = TheFramePacer->isLogicTimeScaleEnabled();
-	const Int logicTimeScaleFps = TheFramePacer->getLogicTimeScaleFps();
-	const Int maxRenderFps = TheFramePacer->getFramesPerSecondLimit();
+	const Int logicTimeScaleFps = TheFramePacer->getActualLogicTimeScaleFps(logicTimeQueryFlags);
+	const Int maxRenderFps = TheFramePacer->getActualFramesPerSecondLimit();
 
 #if defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
 	const Bool useFastMode = TheGlobalData->m_TiVOFastMode;
@@ -899,7 +912,7 @@ Bool GameEngine::canUpdateRegularGameLogic()
 	const Bool useFastMode = TheGlobalData->m_TiVOFastMode && TheGameLogic->isInReplayGame();
 #endif
 
-	if (useFastMode || !enabled || logicTimeScaleFps >= maxRenderFps)
+	if (useFastMode || logicTimeScaleFps >= maxRenderFps)
 	{
 		// Logic time scale is uncapped or larger equal Render FPS. Update straight away.
 		return true;
@@ -921,17 +934,17 @@ Bool GameEngine::canUpdateRegularGameLogic()
 	return false;
 }
 
+#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+extern NGMPGame* TheNGMPGame;
+#endif
+
 /// -----------------------------------------------------------------------------------------------
 DECLARE_PERF_TIMER(GameEngine_update)
 
 /** -----------------------------------------------------------------------------------------------
  * Update the game engine by updating the GameClient and GameLogic singletons.
  */
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
-extern NGMPGame* TheNGMPGame;
-#endif
-
-void GameEngine::update(void)
+void GameEngine::update()
 {
 	USE_PERF_TIMER(GameEngine_update)
 	{
@@ -960,6 +973,11 @@ void GameEngine::update(void)
 			TheGameClient->UPDATE();
 			TheMessageStream->propagateMessages();
 
+            if (TheNetwork != nullptr)
+            {
+                TheNetwork->UPDATE();
+            }
+
 			if (g_bTearDownGeneralsOnlineRequested) // delayed tear down
 			{
 				g_bTearDownGeneralsOnlineRequested = false;
@@ -968,21 +986,13 @@ void GameEngine::update(void)
 
 			}
 			
-
-			if (TheNetwork != nullptr)
-			{
-				TheNetwork->UPDATE();
-			}
-
 			if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
 			{
 				NGMP_OnlineServicesManager::GetInstance()->Tick();
 			}
-
-			TheCDManager->UPDATE();
 		}
 
-		const Bool canUpdate = canUpdateGameLogic();
+		const Bool canUpdate = canUpdateGameLogic(FramePacer::IgnoreFrozenTime | FramePacer::IgnoreHaltedGame);
 		const Bool canUpdateLogic = canUpdate && !TheFramePacer->isGameHalted() && !TheFramePacer->isTimeFrozen();
 		const Bool canUpdateScript = canUpdate && !TheFramePacer->isGameHalted();
 
@@ -1007,7 +1017,7 @@ extern HWND ApplicationHWnd;
 /** -----------------------------------------------------------------------------------------------
  * The "main loop" of the game engine. It will not return until the game exits.
  */
-void GameEngine::execute(void)
+void GameEngine::execute()
 {
 #if defined(RTS_DEBUG)
 	DWORD startTime = timeGetTime() / 1000;
@@ -1049,34 +1059,35 @@ void GameEngine::execute(void)
 #endif
 
 			{
-				try
-				{
-					// compute a frame
-					update();
-				}
-				catch (INIException e)
-				{
-					// Release CRASH doesn't return, so don't worry about executing additional code.
-					if (e.mFailureMessage)
-						RELEASE_CRASH((e.mFailureMessage));
-					else
-						RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
-				}
-#if !defined(GENERALS_ONLINE_USE_SENTRY)
-				catch (...)
-				{
-					// try to save info off
-					try
-					{
-						if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD && TheRecorder->isMultiplayer())
-							TheRecorder->cleanUpReplayFile();
-					}
-					catch (...)
-					{
-					}
-					RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
-				}
-#endif
+				update();
+// 				try
+// 				{
+// 					// compute a frame
+// 					update();
+// 				}
+// 				catch (INIException e)
+// 				{
+// 					// Release CRASH doesn't return, so don't worry about executing additional code.
+// 					if (e.mFailureMessage)
+// 						RELEASE_CRASH((e.mFailureMessage));
+// 					else
+// 						RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
+// 				}
+// #if !defined(GENERALS_ONLINE_USE_SENTRY)
+// 				catch (...)
+// 				{
+// 					// try to save info off
+// 					try
+// 					{
+// 						if (TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD && TheRecorder->isMultiplayer())
+// 							TheRecorder->cleanUpReplayFile();
+// 					}
+// 					catch (...)
+// 					{
+// 					}
+// 					RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
+// 				}
+// #endif
 			}
 
 			TheFramePacer->update();
@@ -1097,7 +1108,7 @@ void GameEngine::execute(void)
 /** -----------------------------------------------------------------------------------------------
 	* Factory for the message stream
 	*/
-MessageStream* GameEngine::createMessageStream(void)
+MessageStream *GameEngine::createMessageStream()
 {
 	// if you change this update the tools that use the engine systems
 	// like GUIEdit, it creates a message stream to run in "test" mode
@@ -1105,13 +1116,13 @@ MessageStream* GameEngine::createMessageStream(void)
 }
 
 //-------------------------------------------------------------------------------------------------
-FileSystem* GameEngine::createFileSystem(void)
+FileSystem *GameEngine::createFileSystem()
 {
 	return MSGNEW("GameEngineSubsystem") FileSystem;
 }
 
 //-------------------------------------------------------------------------------------------------
-Bool GameEngine::isMultiplayerSession(void)
+Bool GameEngine::isMultiplayerSession()
 {
 	return TheRecorder->isMultiplayer();
 }
@@ -1183,11 +1194,3 @@ void updateTGAtoDDS()
 
 	system(CONVERT_EXEC1);
 }
-
-//-------------------------------------------------------------------------------------------------
-// System things
-
-// If we're using the Wide character version of MessageBox, then there's no additional
-// processing necessary. Please note that this is a sleazy way to get this information,
-// but pending a better one, this'll have to do.
-extern const Bool TheSystemIsUnicode = (((void*)(::MessageBox)) == ((void*)(::MessageBoxW)));

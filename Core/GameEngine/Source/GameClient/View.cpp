@@ -30,21 +30,23 @@
 
 #include "Common/GameEngine.h"
 #include "Common/Xfer.h"
-#include "GameClient/View.h"
 #include "GameClient/Drawable.h"
+#include "GameClient/GameClient.h"
+#include "GameClient/View.h"
 
 UnsignedInt View::m_idNext = 1;
 
 // the tactical view singleton
-View *TheTacticalView = nullptr;
+View* TheTacticalView = nullptr;
 
 
-View::View( void )
+View::View()
 {
-	m_viewLockedUntilFrame = 0u;
+	m_userControlLockedUntilFrame = 0u;
+	m_isUserControlled = true;
 	m_currentHeightAboveGround = 0.0f;
 	m_defaultAngle = 0.0f;
-	m_defaultPitchAngle = 0.0f;
+	m_defaultPitch = 0.0f;
 	m_heightAboveGround = 0.0f;
 	m_lockDist = 0.0f;
 	m_maxHeightAboveGround = 0.0f;
@@ -54,14 +56,13 @@ View::View( void )
 	m_originX = 0;
 	m_originY = 0;
 	m_snapImmediate = FALSE;
-	m_terrainHeightUnderCamera = 0.0f;
+	m_terrainHeightAtPivot = 0.0f;
 	m_zoom = 0.0f;
-	m_pos.x = 0;
-	m_pos.y = 0;
+	m_pos.zero();
 	m_width = 0;
 	m_height = 0;
 	m_angle = 0.0f;
-	m_pitchAngle = 0.0f;
+	m_pitch = 0.0f;
 	m_cameraLock = INVALID_ID;
 	m_cameraLockDrawable = nullptr;
 	m_zoomLimited = TRUE;
@@ -70,7 +71,7 @@ View::View( void )
 	m_id = m_idNext++;
 
 	// default field of view
-	m_FOV = 50.0f * PI/180.0f;
+	m_FOV = DEG_TO_RADF(50.0f);
 
 	m_mouseLocked = FALSE;
 
@@ -82,14 +83,13 @@ View::~View()
 {
 }
 
-void View::init( void )
+void View::init()
 {
 	m_width = DEFAULT_VIEW_WIDTH;
 	m_height = DEFAULT_VIEW_HEIGHT;
 	m_originX = DEFAULT_VIEW_ORIGIN_X;
 	m_originY = DEFAULT_VIEW_ORIGIN_Y;
-	m_pos.x = 0;
-	m_pos.y = 0;
+	m_pos.zero();
 	m_angle = 0.0f;
 	m_cameraLock = INVALID_ID;
 	m_cameraLockDrawable = nullptr;
@@ -100,22 +100,25 @@ void View::init( void )
 	m_minHeightAboveGround = TheGlobalData->m_minCameraHeight;
 	m_okToAdjustHeight = FALSE;
 
-	m_defaultAngle = 0.0f;
-	m_defaultPitchAngle = 0.0f;
+	m_defaultAngle = DEG_TO_RADF(TheGlobalData->m_cameraYaw);
+	m_defaultPitch = DEG_TO_RADF(TheGlobalData->m_cameraPitch);
+	m_angle = m_defaultAngle;
+	m_pitch = m_defaultPitch;
 }
 
-void View::reset( void )
+void View::reset()
 {
 	// Only fixing the reported bug.  Who knows what side effects resetting the rest could have.
 	m_zoomLimited = TRUE;
 
-	m_viewLockedUntilFrame = 0u;
+	m_userControlLockedUntilFrame = 0u;
+	m_isUserControlled = true;
 }
 
 /**
  * Prepend this view to the given list, return the new list.
  */
-View *View::prependViewToList( View *list )
+View* View::prependViewToList(View* list)
 {
 	m_next = list;
 	return this;
@@ -126,28 +129,22 @@ void View::zoom(Real height)
 	setHeightAboveGround(getHeightAboveGround() + height);
 }
 
-void View::lockViewUntilFrame(UnsignedInt frame)
-{
-	m_viewLockedUntilFrame = frame;
-}
-
 /**
  * Center the view on the given coordinate.
  */
-void View::lookAt( const Coord3D *o )
+void View::lookAt(const Coord3D* o)
 {
-
 	/// @todo this needs to be changed to be 3D, this is still old 2D stuff
-	Coord3D pos = *getPosition();
+	Coord2D pos = getPosition2D();
 	pos.x = o->x - m_width * 0.5f;
 	pos.y = o->y - m_height * 0.5f;
-	setPosition(&pos);
+	setPosition2D(pos);
 }
 
 /**
  * Shift the view by the given delta.
  */
-void View::scrollBy( Coord2D *delta )
+void View::scrollBy(const Coord2D* delta)
 {
 	// update view's world position
 	m_pos.x += delta->x;
@@ -155,35 +152,55 @@ void View::scrollBy( Coord2D *delta )
 }
 
 /**
- * Rotate the view around the up axis by the given angle.
+ * Rotate the view around the vertical axis to the given angle.
  */
-void View::setAngle( Real angle )
+void View::setAngle(Real radians)
 {
-	m_angle = angle;
+	m_angle = WWMath::Normalize_Angle(radians);
 }
 
+#define CLAMP_VIEW_PITCH 1
 /**
  * Rotate the view around the horizontal (X) axis to the given angle.
  */
-void View::setPitch( Real angle )
+void View::setPitch(Real radians)
 {
-	constexpr Real limit = PI/5.0f;
-	m_pitchAngle = clamp(-limit, angle, limit);
+#if CLAMP_VIEW_PITCH
+	m_pitch = clamp(DEG_TO_RADF(0.1f), radians, DEG_TO_RADF(89.9f));
+#else
+	m_pitch = WWMath::Normalize_Angle(radians);
+#endif
+}
+
+void View::setDefaultPitch(Real radians)
+{
+#if CLAMP_VIEW_PITCH
+	m_defaultPitch = clamp(DEG_TO_RADF(0.1f), radians, DEG_TO_RADF(89.9f));
+#else
+	m_defaultPitch = WWMath::Normalize_Angle(radians);
+#endif
 }
 
 /**
  * Set the view angle back to default
  */
-void View::setAngleAndPitchToDefault( void )
+void View::setAngleToDefault()
 {
 	m_angle = m_defaultAngle;
-	m_pitchAngle = m_defaultPitchAngle;
+}
+
+/**
+ * Set the view pitch back to default
+ */
+void View::setPitchToDefault()
+{
+	m_pitch = m_defaultPitch;
 }
 
 void View::setHeightAboveGround(Real z)
 {
 	// if our zoom is limited, we will stay within a predefined distance from the terrain
-	if( m_zoomLimited )
+	if (m_zoomLimited)
 	{
 		m_heightAboveGround = clamp(m_minHeightAboveGround, z, m_maxHeightAboveGround);
 	}
@@ -196,41 +213,42 @@ void View::setHeightAboveGround(Real z)
 /**
  * write the view's current location in to the view location object
  */
-void View::getLocation( ViewLocation *location )
+void View::getLocation(ViewLocation* location)
 {
-
-	const Coord3D *pos = getPosition();
-	location->init( pos->x, pos->y, pos->z, getAngle(), getPitch(), getZoom() );
-
+	location->init(getPosition(), getAngle(), getPitch(), getZoom());
 }
 
 
 /**
  * set the view's current location from to the view location object
  */
-void View::setLocation( const ViewLocation *location )
+void View::setLocation(const ViewLocation* location)
 {
-	if ( location->m_valid )
+	if (location->isValid())
 	{
-		setPosition(&location->m_pos);
-		setAngle(location->m_angle);
-		setPitch(location->m_pitch);
-		setZoom(location->m_zoom);
-		forceRedraw();
+		setPosition(location->getPosition());
+		setAngle(location->getAngle());
+		setPitch(location->getPitch());
+		setZoom(location->getZoom());
 	}
 
+}
+
+Bool View::isUserControlLocked() const
+{
+	return m_userControlLockedUntilFrame > TheGameClient->getFrame();
 }
 
 //-------------------------------------------------------------------------------------------------
 /** project the 4 corners of this view into the world and return each point as a parameter,
 		the world points are at the requested Z */
-//-------------------------------------------------------------------------------------------------
-void View::getScreenCornerWorldPointsAtZ( Coord3D *topLeft, Coord3D *topRight,
-																					Coord3D *bottomRight, Coord3D *bottomLeft,
-																					Real z )
+		//-------------------------------------------------------------------------------------------------
+void View::getScreenCornerWorldPointsAtZ(Coord3D* topLeft, Coord3D* topRight,
+	Coord3D* bottomRight, Coord3D* bottomLeft,
+	Real z)
 {
 	// sanity
-	if( topLeft == nullptr || topRight == nullptr || bottomRight == nullptr || bottomLeft == nullptr)
+	if (topLeft == nullptr || topRight == nullptr || bottomRight == nullptr || bottomLeft == nullptr)
 		return;
 
 	ICoord2D screenTopLeft;
@@ -242,7 +260,7 @@ void View::getScreenCornerWorldPointsAtZ( Coord3D *topLeft, Coord3D *topRight,
 	const Int viewHeight = getHeight();
 
 	// setup the screen coords for the 4 corners of the viewable display
-	getOrigin( &origin.x, &origin.y );
+	getOrigin(&origin.x, &origin.y);
 
 	screenTopLeft.x = origin.x;
 	screenTopLeft.y = origin.y;
@@ -254,34 +272,33 @@ void View::getScreenCornerWorldPointsAtZ( Coord3D *topLeft, Coord3D *topRight,
 	screenBottomLeft.y = origin.y + viewHeight;
 
 	// project
-	screenToWorldAtZ( &screenTopLeft, topLeft, z );
-	screenToWorldAtZ( &screenTopRight, topRight, z );
-	screenToWorldAtZ( &screenBottomRight, bottomRight, z );
-	screenToWorldAtZ( &screenBottomLeft, bottomLeft, z );
+	screenToWorldAtZ(&screenTopLeft, topLeft, z);
+	screenToWorldAtZ(&screenTopRight, topRight, z);
+	screenToWorldAtZ(&screenBottomRight, bottomRight, z);
+	screenToWorldAtZ(&screenBottomLeft, bottomLeft, z);
 }
 
 // ------------------------------------------------------------------------------------------------
 /** Xfer method for a view */
 // ------------------------------------------------------------------------------------------------
-void View::xfer( Xfer *xfer )
+void View::xfer(Xfer* xfer)
 {
 
 	// version
 	XferVersion currentVersion = 1;
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// camera angle
 	Real angle = getAngle();
-	xfer->xferReal( &angle );
-	setAngle( angle );
+	xfer->xferReal(&angle);
+	setAngle(angle);
 
 	// view position
-	Coord3D viewPos;
-	getPosition( &viewPos );
-	xfer->xferReal( &viewPos.x );
-	xfer->xferReal( &viewPos.y );
-	xfer->xferReal( &viewPos.z );
-	lookAt( &viewPos );
+	Coord3D viewPos = getPosition();
+	xfer->xferReal(&viewPos.x);
+	xfer->xferReal(&viewPos.y);
+	xfer->xferReal(&viewPos.z);
+	lookAt(&viewPos);
 
 }

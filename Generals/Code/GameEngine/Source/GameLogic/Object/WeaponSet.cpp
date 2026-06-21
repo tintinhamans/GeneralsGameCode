@@ -300,7 +300,7 @@ void WeaponSet::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void WeaponSet::loadPostProcess( void )
+void WeaponSet::loadPostProcess()
 {
 
 }
@@ -582,7 +582,7 @@ CanAttackResult WeaponSet::getAbleToAttackSpecificObject( AbleToAttackType attac
 				//care about relationships (and fixes broken scripts).
 				if( commandSource == CMD_FROM_PLAYER && (!victim->testScriptStatusBit( OBJECT_STATUS_SCRIPT_TARGETABLE ) || r == ALLIES) )
 				{
-					//Unless the object has a map propertly that sets it to be targetable (and not allied), then give up.
+					//Unless the object has a map property that sets it to be targetable (and not allied), then give up.
 					return ATTACKRESULT_NOT_POSSIBLE;
 				}
 			}
@@ -1004,6 +1004,28 @@ Weapon* WeaponSet::findWaypointFollowingCapableWeapon()
 }
 
 //-------------------------------------------------------------------------------------------------
+UnsignedInt WeaponSet::getMostPercentReadyToFireAnyWeapon() const
+{
+	UnsignedInt mostReady = 0;
+	for( Int i = 0; i < WEAPONSLOT_COUNT;	i++ )
+	{
+		if( m_weapons[ i ] )
+		{
+			UnsignedInt percentage = (UnsignedInt)(m_weapons[ i ]->getPercentReadyToFire() * 100.0f);
+			if( percentage > mostReady )
+			{
+				mostReady = percentage;
+			}
+			if( mostReady >= 100 )
+			{
+				return mostReady;
+			}
+		}
+	}
+	return mostReady;
+}
+
+//-------------------------------------------------------------------------------------------------
 // A special type of command demands that you use this (normally unchooseable) weapon
 // until told otherwise.
 Bool WeaponSet::setWeaponLock( WeaponSlotType weaponSlot, WeaponLockType lockType )
@@ -1014,7 +1036,7 @@ Bool WeaponSet::setWeaponLock( WeaponSlotType weaponSlot, WeaponLockType lockTyp
 		return false;
 	}
 
-	// Verify the asked for weapon exists , choose it, and then lock it as choosen until unlocked
+	// Verify the asked for weapon exists , choose it, and then lock it as chosen until unlocked
 	// the old code was just plain wrong. (look at it in perforce and you'll see...)
 	if (m_weapons[weaponSlot] != nullptr)
 	{

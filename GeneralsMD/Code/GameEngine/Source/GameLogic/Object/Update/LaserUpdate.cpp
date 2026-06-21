@@ -97,7 +97,7 @@ LaserUpdate::LaserUpdate( Thing *thing, const ModuleData* moduleData ) : ClientU
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-LaserUpdate::~LaserUpdate( void )
+LaserUpdate::~LaserUpdate()
 {
 
 	if( m_particleSystemID )
@@ -197,7 +197,7 @@ void LaserUpdate::updateEndPos()
 //-------------------------------------------------------------------------------------------------
 /** The update callback. */
 //-------------------------------------------------------------------------------------------------
-void LaserUpdate::clientUpdate( void )
+void LaserUpdate::clientUpdate()
 {
 	updateStartPos();
 	updateEndPos();
@@ -357,13 +357,10 @@ void LaserUpdate::initLaser( const Object *parent, const Object *target, const C
 			if( data->m_particleSystemName.isNotEmpty() )
 			{
 				const ParticleSystemTemplate *tmp = TheParticleSystemManager->findTemplate( data->m_particleSystemName );
-				if( tmp )
+				system = TheParticleSystemManager->createParticleSystem( tmp );
+				if( system )
 				{
-					system = TheParticleSystemManager->createParticleSystem( tmp );
-					if( system )
-					{
-						m_particleSystemID = system->getSystemID();
-					}
+					m_particleSystemID = system->getSystemID();
 				}
 			}
 
@@ -371,13 +368,10 @@ void LaserUpdate::initLaser( const Object *parent, const Object *target, const C
 			if( data->m_targetParticleSystemName.isNotEmpty() )
 			{
 				const ParticleSystemTemplate *tmp = TheParticleSystemManager->findTemplate( data->m_targetParticleSystemName );
-				if( tmp )
+				system = TheParticleSystemManager->createParticleSystem( tmp );
+				if( system )
 				{
-					system = TheParticleSystemManager->createParticleSystem( tmp );
-					if( system )
-					{
-						m_targetParticleSystemID = system->getSystemID();
-					}
+					m_targetParticleSystemID = system->getSystemID();
 				}
 			}
 		}
@@ -508,7 +502,7 @@ void LaserUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void LaserUpdate::loadPostProcess( void )
+void LaserUpdate::loadPostProcess()
 {
 
 	// extend base class

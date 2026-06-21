@@ -21,7 +21,6 @@
 
 #include "StdAfx.h"
 #include "WorldBuilder.h"
-#include "euladialog.h"
 #include "MainFrm.h"
 #include "OpenMap.h"
 #include "SplashScreen.h"
@@ -40,7 +39,6 @@
 #include "Common/FileSystem.h"
 #include "Common/ArchiveFileSystem.h"
 #include "Common/LocalFileSystem.h"
-#include "Common/CDManager.h"
 #include "Common/Debug.h"
 #include "Common/StackDump.h"
 #include "Common/GameMemory.h"
@@ -111,7 +109,7 @@ class WBGameFileClass : public GameFileClass
 
 public:
 	WBGameFileClass(char const *filename):GameFileClass(filename){};
-	virtual char const * Set_Name(char const *filename);
+	virtual char const * Set_Name(char const *filename) override;
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -138,7 +136,7 @@ char const * WBGameFileClass::Set_Name( char const *filename )
 // wb only data.  jba.
 
 class	WB_W3DFileSystem : public W3DFileSystem {
-	virtual FileClass * Get_File( char const *filename );
+	virtual FileClass * Get_File( char const *filename ) override;
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -273,12 +271,6 @@ static LONG WINAPI UnHandledExceptionFilter(struct _EXCEPTION_POINTERS* e_info)
 
 BOOL CWorldBuilderApp::InitInstance()
 {
-	EulaDialog eulaDialog;
-	if( eulaDialog.DoModal() == IDCANCEL )
-	{
-		return FALSE;
-	}
-
 	// initialization
 	SetUnhandledExceptionFilter(UnHandledExceptionFilter);
 
@@ -374,13 +366,7 @@ BOOL CWorldBuilderApp::InitInstance()
 	WorldHeightMapEdit::init();
 
 	initSubsystem(TheScriptEngine, (ScriptEngine*)(new ScriptEngine()));
-
-	// need this before TheAudio in case we're running off of CD - TheAudio can try to open Music.big on the CD...
-	initSubsystem(TheCDManager, CreateCDManager(), nullptr);
 	initSubsystem(TheAudio, (AudioManager*)new MilesAudioManager());
-	if (!TheAudio->isMusicAlreadyLoaded())
-		return FALSE;
-
 	initSubsystem(TheVideoPlayer, (VideoPlayerInterface*)(new VideoPlayer()));
 	initSubsystem(TheModuleFactory, (ModuleFactory*)(new W3DModuleFactory()));
 	initSubsystem(TheSidesList, new SidesList());
@@ -508,7 +494,7 @@ BOOL CWorldBuilderApp::OnCmdMsg(UINT nID, int nCode, void* pExtra,
 //=============================================================================
 /** Sets the active tool to the pointer, and clears the selection. */
 //=============================================================================
-void CWorldBuilderApp::selectPointerTool(void)
+void CWorldBuilderApp::selectPointerTool()
 {
 	setActiveTool(&m_pointerTool);
 	// Clear selection.
@@ -582,7 +568,7 @@ public:
 	// ClassWizard generated virtual function overrides
 	//{{AFX_VIRTUAL(CAboutDlg)
 	protected:
-	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	virtual void DoDataExchange(CDataExchange* pDX) override;    // DDX/DDV support
 	//}}AFX_VIRTUAL
 
 // Implementation

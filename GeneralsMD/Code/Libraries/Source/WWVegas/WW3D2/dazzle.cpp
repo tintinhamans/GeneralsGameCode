@@ -555,8 +555,6 @@ void DazzleTypeClass::Calculate_Intensities(
 			halo_intensity*=1.0f-distance;	// Scale down intensity
 		}
 	}
-
-	return;
 }
 
 // ----------------------------------------------------------------------------
@@ -901,7 +899,7 @@ void DazzleRenderObjClass::Set_Current_Dazzle_Layer(DazzleLayerClass *layer)
 // Render Object Interface
 /////////////////////////////////////////////////////////////////////////////
 
-RenderObjClass* DazzleRenderObjClass::Clone(void) const
+RenderObjClass* DazzleRenderObjClass::Clone() const
 {
 	return NEW_REF(DazzleRenderObjClass, (*this));
 }
@@ -1430,9 +1428,9 @@ void DazzleRenderObjClass::Special_Render(SpecialRenderInfoClass & rinfo)
 
 class DazzlePersistFactoryClass : public PersistFactoryClass
 {
-	virtual uint32				Chunk_ID(void) const;
-	virtual PersistClass *	Load(ChunkLoadClass & cload) const;
-	virtual void				Save(ChunkSaveClass & csave,PersistClass * obj)	const;
+	virtual uint32				Chunk_ID() const override;
+	virtual PersistClass *	Load(ChunkLoadClass & cload) const override;
+	virtual void				Save(ChunkSaveClass & csave,PersistClass * obj)	const override;
 
 	enum
 	{
@@ -1446,7 +1444,7 @@ class DazzlePersistFactoryClass : public PersistFactoryClass
 
 static DazzlePersistFactoryClass _DazzleFactory;
 
-uint32 DazzlePersistFactoryClass::Chunk_ID(void) const
+uint32 DazzlePersistFactoryClass::Chunk_ID() const
 {
 	return WW3D_PERSIST_CHUNKID_DAZZLE;
 }
@@ -1535,7 +1533,7 @@ void DazzlePersistFactoryClass::Save(ChunkSaveClass & csave,PersistClass * obj)	
 /*
 ** DazzleRenderObj save-load.
 */
-const PersistFactoryClass & DazzleRenderObjClass::Get_Factory (void) const
+const PersistFactoryClass & DazzleRenderObjClass::Get_Factory () const
 {
 	return _DazzleFactory;
 }
@@ -1547,7 +1545,7 @@ const PersistFactoryClass & DazzleRenderObjClass::Get_Factory (void) const
 ** DazzleLayerClass Implementation
 **
 **********************************************************************************************/
-DazzleLayerClass::DazzleLayerClass(void) :
+DazzleLayerClass::DazzleLayerClass() :
 	visible_lists(nullptr)
 {
 	if (type_count != 0) {
@@ -1564,7 +1562,7 @@ DazzleLayerClass::DazzleLayerClass(void) :
 	}
 }
 
-DazzleLayerClass::~DazzleLayerClass(void)
+DazzleLayerClass::~DazzleLayerClass()
 {
 	// NOTE - this destructor must be called BEFORE DeInit().
 //	WWASSERT(type_count);
@@ -1684,7 +1682,7 @@ float DazzleVisibilityClass::Compute_Dazzle_Visibility
 **
 **********************************************************************************************/
 
-RenderObjClass * DazzlePrototypeClass::Create(void)
+RenderObjClass * DazzlePrototypeClass::Create()
 {
 	return NEW_REF(DazzleRenderObjClass,(DazzleType));
 }

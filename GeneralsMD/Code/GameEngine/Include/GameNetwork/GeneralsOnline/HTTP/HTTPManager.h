@@ -36,12 +36,34 @@ public:
 
 	void Tick();
 
+
+	static void SetCACertStoreBad()
+	{
+		m_bCACertBad.store(true);
+	}
+
+	static bool IsCACertStoreBad()
+	{
+		return m_bCACertBad.load();
+	}
+
+    void SetProtocolInUse(EIPProtocolVersion proto)
+    {
+		m_sProtocolInUse.store(proto);
+    }
+
+	EIPProtocolVersion GetProtocolInUse()
+    {
+        return m_sProtocolInUse.load();
+    }
+
 	void AddHandleToMulti(CURL* pNewHandle);
 	void RemoveHandleFromMulti(CURL* pHandleToRemove);
 
 	void SendGETRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback = nullptr, int timeoutMS = -1);
 	void SendPOSTRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, const char* szPostData, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback = nullptr, int timeoutMS = -1);
 	void SendPUTRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, const char* szData, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback = nullptr, int timeoutMS = -1);
+	void SendS3PUTRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, std::vector<uint8_t> vecBuffer, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback = nullptr, int timeoutMS = -1);
 	void SendDELETERequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, const char* szData, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback = nullptr, int timeoutMS = -1);
 
 	void Shutdown();
@@ -58,6 +80,10 @@ private:
 
 private:
 	CURLM* m_pCurl = nullptr;
+
+	std::atomic<EIPProtocolVersion> m_sProtocolInUse = EIPProtocolVersion::DONT_CARE;
+
+	static std::atomic<bool> m_bCACertBad;
 
 	bool m_bProxyEnabled = false;
 	std::string m_strProxyAddr;

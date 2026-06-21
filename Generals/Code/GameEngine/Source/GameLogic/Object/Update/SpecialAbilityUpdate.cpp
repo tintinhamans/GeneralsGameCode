@@ -88,13 +88,13 @@ SpecialAbilityUpdate::SpecialAbilityUpdate( Thing *thing, const ModuleData* modu
 }
 
 //-------------------------------------------------------------------------------------------------
-SpecialAbilityUpdate::~SpecialAbilityUpdate( void )
+SpecialAbilityUpdate::~SpecialAbilityUpdate()
 {
 	onExit( true );
 }
 
 /*------------------------------------------------------------------------------------------------
-void SpecialAbilityUpdate::update( void )
+void SpecialAbilityUpdate::update()
 
 This is the brains of the entire special ability update. There are several optional steps and
 variations that can be processed for any particular type of special ability. A special ability
@@ -180,7 +180,7 @@ Options:
 	7 -- FINISH: Stop the special ability
 
 -------------------------------------------------------------------------------------------------*/
-UpdateSleepTime SpecialAbilityUpdate::update( void )
+UpdateSleepTime SpecialAbilityUpdate::update()
 {
 
 /// @todo srj -- this could probably sleep more between stages. maybe someday.
@@ -711,7 +711,7 @@ Bool SpecialAbilityUpdate::isWithinStartAbilityRange() const
 	const SpecialAbilityUpdateModuleData* data = getSpecialAbilityUpdateModuleData();
 	const Object *self = getObject();
 
-	//Quickly convert very short range approachs to "contact" class requiring collision before
+	//Quickly convert very short range approaches to "contact" class requiring collision before
 	//stopping.
 	Real range = data->m_startAbilityRange;
 	const Real UNDERSIZE = PATHFIND_CELL_SIZE_F * 0.25f;
@@ -792,7 +792,7 @@ Bool SpecialAbilityUpdate::isWithinAbilityAbortRange() const
 	const SpecialAbilityUpdateModuleData* data = getSpecialAbilityUpdateModuleData();
 	const Object *self = getObject();
 
-	//Quickly convert very short range approachs to "contact" class requiring collision before
+	//Quickly convert very short range approaches to "contact" class requiring collision before
 	//stopping.
 	Real range = data->m_startAbilityRange;
 	const Real UNDERSIZE = PATHFIND_CELL_SIZE_F * 0.25f;
@@ -1213,7 +1213,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
 				StickyBombUpdate *update = (StickyBombUpdate*)charge->findUpdateModule( key_StickyBombUpdate );
 				if( !update )
 				{
-					DEBUG_ASSERTCRASH( 0,
+					DEBUG_CRASH( 
 						("Unit '%s' attempted to place %s on %s but the bomb requires a StickyBombUpdate module.",
 						object->getTemplate()->getName().str(),
 						charge->getTemplate()->getName().str(),
@@ -1338,7 +1338,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
 			if( targetMoney && objectMoney )
 			{
 				UnsignedInt cash = targetMoney->countMoney();
-#if RETAIL_COMPATIBLE_CRC || PRESERVE_RETAIL_BEHAVIOR
+#if RETAIL_COMPATIBLE_CRC || PRESERVE_HARDCODED_BLACK_LOTUS_CASH_HACK
 				UnsignedInt desiredAmount = 1000;
 #else
 				UnsignedInt desiredAmount = data->m_effectValue;
@@ -1419,7 +1419,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
 					StickyBombUpdate *update = (StickyBombUpdate*)charge->findUpdateModule( key_StickyBombUpdate );
 					if( !update )
 					{
-						DEBUG_ASSERTCRASH( 0,
+						DEBUG_CRASH( 
 							("Unit '%s' attempted to place remote charge but the charge '%s' requires a StickyBombUpdate module.",
 							object->getTemplate()->getName().str(),
 							charge->getTemplate()->getName().str() ) );
@@ -1889,7 +1889,7 @@ void SpecialAbilityUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void SpecialAbilityUpdate::loadPostProcess( void )
+void SpecialAbilityUpdate::loadPostProcess()
 {
 
 	// extend base class

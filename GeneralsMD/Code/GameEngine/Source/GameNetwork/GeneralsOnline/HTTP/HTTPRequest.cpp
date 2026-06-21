@@ -35,7 +35,11 @@ HTTPRequest::HTTPRequest(EHTTPVerb httpVerb, EIPProtocolVersion protover, const 
 
 HTTPRequest::~HTTPRequest()
 {
-	HTTPManager* pHTTPManager = NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager();
+	NGMP_OnlineServicesManager* pMgr = NGMP_OnlineServicesManager::GetInstance();
+	if (pMgr == nullptr)
+		return;
+
+	HTTPManager* pHTTPManager = pMgr->GetHTTPManager();
 	pHTTPManager->RemoveHandleFromMulti(m_pCURL);
 
 	curl_easy_cleanup(m_pCURL);
@@ -56,6 +60,11 @@ void HTTPRequest::SetPostData(const char* szPostData)
 	m_strPostData = std::string(szPostData);
 
 	NetworkLog(ELogVerbosity::LOG_DEBUG, "[%p|%s|Verb %d] Transfer is created: Body is %s", this, m_strURI.c_str(), m_httpVerb, szPostData);
+}
+
+void HTTPRequest::SetPostDataBuffer(std::vector<uint8_t> vecBuffer)
+{
+	m_vecPostDataBuffer = std::move(vecBuffer);
 }
 
 void HTTPRequest::StartRequest()
@@ -141,8 +150,40 @@ bool HTTPRequest::InvokeDelayAction()
 
 void HTTPRequest::Threaded_SetComplete(CURLcode result)
 {
+	if (result == CURLE_SSL_CACERT_BADFILE || result == CURLE_PEER_FAILED_VERIFICATION)
+	{
+		HTTPManager::SetCACertStoreBad();
+	}
 	// store response code
 	curl_easy_getinfo(m_pCURL, CURLINFO_RESPONSE_CODE, &m_responseCode);
+
+	if (result == CURLE_OK)
+	{
+		HTTPManager* pHTTPManager = static_cast<HTTPManager*>(NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager());
+		if (pHTTPManager != nullptr)
+		{
+            if (pHTTPManager->GetProtocolInUse() == EIPProtocolVersion::DONT_CARE)
+			{
+                char* ip = nullptr;
+                curl_easy_getinfo(m_pCURL, CURLINFO_PRIMARY_IP, &ip);
+
+                if (ip)
+                {
+                    std::string addr(ip);
+                    if (addr.find(':') != std::string::npos)
+                    {
+						pHTTPManager->SetProtocolInUse(EIPProtocolVersion::FORCE_IPV6);
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] We are connected to GO services using IPv6");
+                    }
+                    else
+                    {
+						pHTTPManager->SetProtocolInUse(EIPProtocolVersion::FORCE_IPV4);
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] We are connected to GO services using IPv4");
+                    }
+                }
+			}
+		}
+	}
 
 	m_bIsComplete = true;
 
@@ -186,7 +227,6 @@ void HTTPRequest::PlatformStartRequest()
 	if (m_pCURL)
 	{
 		HTTPManager* pHTTPManager = static_cast<HTTPManager*>(NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager());
-		pHTTPManager->AddHandleToMulti(m_pCURL);
 
 		curl_easy_setopt(m_pCURL, CURLOPT_URL, m_strURI.c_str());
 		curl_easy_setopt(m_pCURL, CURLOPT_FOLLOWLOCATION, 1L);
@@ -218,14 +258,16 @@ void HTTPRequest::PlatformStartRequest()
 		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
 		if (pAuthInterface != nullptr && pAuthInterface->IsLoggedIn())
 		{
-			m_mapHeaders["Authorization"] = "Bearer " + pAuthInterface->GetAuthToken();
+			if (m_bAppendAuthIfPresent)
+			{
+				m_mapHeaders["Authorization"] = "Bearer " + pAuthInterface->GetAuthToken();
+			}
 		}
 
 		for (auto& kvPair : m_mapHeaders)
 		{
-			char szHeaderBuffer[8192] = { 0 };
-			sprintf_s(szHeaderBuffer, "%s: %s", kvPair.first.c_str(), kvPair.second.c_str());
-			headers = curl_slist_append(headers, szHeaderBuffer);
+			std::string strHeader = kvPair.first + ": " + kvPair.second;
+			headers = curl_slist_append(headers, strHeader.c_str());
 		}
 		curl_easy_setopt(m_pCURL, CURLOPT_HTTPHEADER, headers);
 
@@ -234,7 +276,16 @@ void HTTPRequest::PlatformStartRequest()
 			//if (m_strPostData.length() > 0)
 			{
 				//char* pEscaped = curl_easy_escape(m_pCURL, m_strPostData.c_str(), m_strPostData.length());
-				curl_easy_setopt(m_pCURL, CURLOPT_POSTFIELDS, m_strPostData.c_str());
+
+				if (!m_vecPostDataBuffer.empty())
+				{
+                    curl_easy_setopt(m_pCURL, CURLOPT_POSTFIELDS, m_vecPostDataBuffer.data());
+					curl_easy_setopt(m_pCURL, CURLOPT_POSTFIELDSIZE, m_vecPostDataBuffer.size());
+				}
+				else
+				{
+                    curl_easy_setopt(m_pCURL, CURLOPT_POSTFIELDS, m_strPostData.c_str());
+				}
 			}
 		}
 
@@ -259,10 +310,37 @@ void HTTPRequest::PlatformStartRequest()
 		curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 0);
 		curl_easy_setopt(m_pCURL, CURLOPT_VERBOSE, 1);
 #else
-		curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYPEER, 0);
-		curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 0);
+
+		// TODO_NGMP: We should move to libcurl backed by SChannel so we don't need to do this
+		// Check if cacert.pem exists
+
+		if (HTTPManager::IsCACertStoreBad())
+		{
+            curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYPEER, 0);
+            curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 0);
+		}
+		else
+		{
+            std::ifstream certFile("cacert.pem");
+            if (certFile.good())
+            {
+                certFile.close();
+                curl_easy_setopt(m_pCURL, CURLOPT_CAINFO, "cacert.pem");
+
+                curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYPEER, 1L);
+                curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 2L);
+            }
+            else
+            {
+				HTTPManager::SetCACertStoreBad();
+                curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYPEER, 0);
+                curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 0);
+            }
+		}
+
+       
 #endif
 
-		
+		pHTTPManager->AddHandleToMulti(m_pCURL);
 	}
 }

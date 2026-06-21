@@ -35,12 +35,14 @@
 #include "Common/QuickmatchPreferences.h"
 #include "Common/LadderPreferences.h"
 #include "Common/MultiplayerSettings.h"
+#include "Common/OptionPreferences.h"
 #include "Common/PlayerTemplate.h"
 #include "GameClient/AnimateWindowManager.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GameText.h"
 #include "GameClient/InGameUI.h"
+#include "GameClient/Display.h"
 #include "GameClient/Shell.h"
 #include "GameClient/ShellHooks.h"
 #include "GameClient/KeyDefs.h"
@@ -141,15 +143,17 @@ static Bool raiseMessageBoxes = false;
 static Bool isInInit = FALSE;
 static const Image *selectedImage = nullptr;
 static const Image *unselectedImage = nullptr;
+static const Image *mapHoverPreview = nullptr;
+static GameWinDrawFunc mapListboxPreviewFunc = nullptr;
 
 static bool isPopulatingLadderBox = false;
 static Int maxPingEntries = 0;
 static Int maxPoints= 100;
 static Int minPoints = 0;
 
-static const LadderInfo * getLadderInfo( void );
+static const LadderInfo * getLadderInfo();
 
-static Bool isInfoShown(void)
+static Bool isInfoShown()
 {
 	static NameKeyType parentStatsID = NAMEKEY("WOLQuickMatchMenu.wnd:ParentStats");
 	GameWindow *parentStats = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, parentStatsID );
@@ -236,9 +240,43 @@ enum{ MAX_DISCONNECTS_COUNT = 5 };
 static Int MAX_DISCONNECTS[MAX_DISCONNECTS_COUNT] = {MAX_DISCONNECTS_ANY, MAX_DISCONNECTS_5,
 																											MAX_DISCONNECTS_10, MAX_DISCONNECTS_25,
 																											MAX_DISCONNECTS_50};
+void updateMapHoverPreview(GameWindow* window, WinInstanceData* instData)
+{
+	if (mapListboxPreviewFunc)
+		mapListboxPreviewFunc(window, instData);
+	if (listboxMapSelect == nullptr)
+		return;
 
+	const MouseIO* mouseStatus = TheMouse->getMouseStatus();
+	Int mouseX = mouseStatus->pos.x;
+	Int mouseY = mouseStatus->pos.y;
+	Int listboxX, listboxY, listboxW, listboxH;
+	listboxMapSelect->winGetScreenPosition(&listboxX, &listboxY);
+	listboxMapSelect->winGetSize(&listboxW, &listboxH);
 
-void UpdateStartButton(void)
+	// mouse is outside the listbox?
+	if (mouseX < listboxX || mouseX > listboxX + listboxW || mouseY < listboxY || mouseY > listboxY + listboxH)
+		return;
+
+	Int hoveredRow, col;
+	GadgetListBoxGetEntryBasedOnXY(listboxMapSelect, mouseX, mouseY, hoveredRow, col);
+	const MapMetaData* mapData = (const MapMetaData*)GadgetListBoxGetItemData(listboxMapSelect, hoveredRow, 1);
+	mapHoverPreview = mapData ? getMapPreviewImage(mapData->m_fileName) : nullptr;
+
+	if (mapHoverPreview == nullptr)
+		return;
+
+	Real wScale = TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH;
+	Real hScale = TheDisplay->getHeight() / (Real)DEFAULT_DISPLAY_HEIGHT;
+	Real scale = (wScale + hScale) * 0.5f;
+	Int  previewSize = (Int)(50 * scale);
+	Int  offset = (Int)(20 * scale);
+	Int  previewX = mouseX + offset;
+	Int  previewY = mouseY - (previewSize / 2);
+	TheWindowManager->winDrawImage(mapHoverPreview, previewX, previewY, previewX + previewSize, previewY + previewSize);
+}
+
+void UpdateStartButton()
 {
 	if (!comboBoxLadder || !buttonStart || !listboxMapSelect)
 		return;
@@ -500,7 +538,7 @@ void PopulateQMLadderListBox( GameWindow *win )
 	isPopulatingLadderBox = false;
 }
 
-static const LadderInfo * getLadderInfo( void )
+static const LadderInfo * getLadderInfo()
 {
 	Int index;
 	Int selected;
@@ -510,7 +548,7 @@ static const LadderInfo * getLadderInfo( void )
 	return li;
 }
 
-void PopulateQMLadderComboBox( void )
+void PopulateQMLadderComboBox()
 {
 	if (!parentWOLQuickMatch || !comboBoxLadder)
 		return;
@@ -705,7 +743,7 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 	}
 }
 
-static void saveQuickMatchOptions( void )
+static void saveQuickMatchOptions()
 {
 	if(isInInit)
 		return;
@@ -902,6 +940,11 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	buttonWiden = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch,  buttonWidenID);
 	quickmatchTextWindow = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch,  listboxQuickMatchID);
 	listboxMapSelect = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch,  listboxMapSelectID);
+	if (listboxMapSelect)
+	{
+		mapListboxPreviewFunc = listboxMapSelect->winGetDrawFunc();
+		listboxMapSelect->winSetDrawFunc(updateMapHoverPreview);
+	}
 	//textEntryMaxDisconnects = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMaxDisconnectsID );
 	//textEntryMaxPoints = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMaxPointsID );
 	//textEntryMinPoints = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMinPointsID );
@@ -970,16 +1013,19 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 		tmp.format(TheGameText->fetch("GUI:QuickMatchTitle"), TheGameSpyInfo->getLocalName().str());
 #else
 		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-		tmp.format(TheGameText->fetch("GUI:QuickMatchTitle"), pAuthInterface->GetDisplayName().c_str());
+		if (pAuthInterface != nullptr)
+		{
+			tmp.format(TheGameText->fetch("GUI:QuickMatchTitle"), pAuthInterface->GetDisplayName().c_str());
+		}
 #endif
 		GadgetStaticTextSetText(staticTextTitle, tmp);
 	}
 
 	// QM is not going yet, so disable the Widen Search button
-	buttonWiden->winEnable( FALSE );
-	buttonStop->winHide( TRUE );
-	buttonStart->winHide( FALSE );
-	GadgetListBoxReset(quickmatchTextWindow);
+	if (buttonWiden) buttonWiden->winEnable( FALSE );
+	if (buttonStop)  { buttonStop->winHide( TRUE ); buttonStop->winEnable(TRUE); }
+	if (buttonStart) buttonStart->winHide( FALSE );
+	if (quickmatchTextWindow) GadgetListBoxReset(quickmatchTextWindow);
 	enableOptionsGadgets(TRUE);
 
 	// Show Menu
@@ -1098,9 +1144,12 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
     {
 		pStatsInterface->findPlayerStatsByID(pAuthInterface->GetUserID(), [=](bool bSuccess, PSPlayerStats stats)
 			{
-                UnicodeString eloStr;
-                eloStr.format(L"Your current Elo rating is %d after %d match(es)", stats.elo_rating, stats.elo_num_matches);
-                GadgetListBoxAddEntryText(quickmatchTextWindow, eloStr, GameMakeColor(255, 194, 25, 255), -1, -1);
+				if (bSuccess)
+				{
+					UnicodeString eloStr;
+					eloStr.format(L"Your current Elo rating is %d after %d match(es)", stats.elo_rating, stats.elo_num_matches);
+					GadgetListBoxAddEntryText(quickmatchTextWindow, eloStr, GameMakeColor(255, 194, 25, 255), -1, -1);
+				}
 			}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
     }
 
@@ -1110,10 +1159,15 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 
 	// cannot connect to the lobby we joined
+	if (pLobbyInterface != nullptr)
+	{
+
 	pLobbyInterface->RegisterForCannotConnectToLobbyCallback([](void)
 		{
 			// TODO_QUICKMATCH: Show error message + stop matchmaking + enable buttons again
 		});
+	}
+
 
 	// get playlist list
 	NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
@@ -1154,6 +1208,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 		pLobbyInterface->RegisterForMatchmakingMatchFoundCallback([]()
 			{
+				buttonBack->winEnable(FALSE);
 				buttonStop->winEnable(FALSE);
                 if (TheAudio)
 				{
@@ -1198,13 +1253,11 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				// TODO_NGMP
 				//SendStatsToOtherPlayers(TheNGMPGame);
 
-				// we've started, there's no going back
-				// i.e. disable the back button.
-				buttonBack->winEnable(FALSE);
 				GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
 				if (buttonBuddy)
 					buttonBuddy->winEnable(FALSE);
 				GameSpyCloseOverlay(GSOVERLAY_BUDDY);
+				GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
 
 				*TheNGMPGame = *myGame;
 				TheNGMPGame->startGame(0);
@@ -1224,7 +1277,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 					TheNGMPGame = new NGMPGame();
 					TheNGMPGame->markGameAsQM();
 				}
-				pLobbyInterface->UpdateRoomDataCache([]()
+				pLobbyInterface->UpdateRoomDataCache([](bool bSuccess)
 					{
 
 					});
@@ -1239,7 +1292,6 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 							std::string strState = "Unknown";
 
 							EConnectionState connState = connection->GetState();
-							std::string strConnectionType = connection->GetConnectionType();
 
 							switch (connState)
 							{
@@ -1323,12 +1375,14 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
                         buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
                     }
 					buttonBuddies->winSetText(buttonText);
+
+
                 }
             });
     }
 
     // And also initialize it
-    if (buttonBuddies != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
+    if (buttonBuddies != nullptr && pSocialInterface != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
     {
         UnicodeString buttonText;
         buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), pSocialInterface->GetNumTotalNotifications());
@@ -1394,6 +1448,13 @@ void WOLQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 
 	if (!TheGameEngine->getQuitting())
 		saveQuickMatchOptions();
+
+	if (listboxMapSelect && mapListboxPreviewFunc)
+		listboxMapSelect->winSetDrawFunc(mapListboxPreviewFunc);
+
+	mapListboxPreviewFunc = nullptr;
+	mapHoverPreview = nullptr;
+	listboxMapSelect = nullptr;
 
 	parentWOLQuickMatch = nullptr;
 	buttonBack = nullptr;
@@ -1508,7 +1569,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 
 	/// @todo: MDC handle disconnects in-game the same way as Custom Match!
 
-	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue)
+	if (TheShell->isAnimFinished() && !buttonPushed && TheGameSpyPeerMessageQueue && TheGameSpyInfo)
 	{
 		HandleBuddyResponses();
 		HandlePersistentStorageResponses();
@@ -2157,6 +2218,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 
 					std::vector<int> vecSelectedMapIndexes;
 					uint16_t playlistID = 0;
+					int minSelectedMaps = 0;
 
 					// get maps and playlist ID
 					std::list<AsciiString> maps;
@@ -2172,6 +2234,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 							if (plEntry.PlaylistID != -1)
 							{
 								playlistID = plEntry.PlaylistID;
+								minSelectedMaps = plEntry.MinSelectedMaps;
 
 								// maps
 								Int numMaps = GadgetListBoxGetNumEntries(listboxMapSelect);
@@ -2193,6 +2256,22 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					else
 					{
 						// TODO_QUICKMATCH: Error?
+					}
+					
+					if (static_cast<int>(vecSelectedMapIndexes.size()) < minSelectedMaps)
+					{
+						UnicodeString msg;
+						msg.format(L"You must select at least %d maps.", minSelectedMaps);
+						Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, msg, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+						GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
+						
+						// buttons
+						buttonWiden->winEnable(FALSE);
+						buttonStart->winHide(FALSE);
+						buttonStart->winEnable(TRUE);
+						buttonStop->winHide(TRUE);
+						
+						break;
 					}
 
 					// buttons
@@ -2481,4 +2560,5 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 
 	return MSG_HANDLED;
 }
+
 

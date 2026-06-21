@@ -17,6 +17,17 @@ WebSocket::WebSocket()
 WebSocket::~WebSocket()
 {
 	Shutdown();
+	// Only call Shutdown if it has not been initiated already.
+	// NGMP_OnlineServicesManager::Shutdown() calls Shutdown() before releasing the shared_ptr,
+	// so calling it again from the destructor would redundantly block for another 100ms sleep
+	// and attempt to free already-released curl resources.
+	if (!m_bShuttingDown)
+	{
+		Shutdown();
+	}
+
+
+
 
 	if (m_pHeaders != nullptr)
 	{
@@ -53,6 +64,11 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 	// TODO_CACHE: Cleanup multi too
 	if (m_pCurlWS != nullptr)
 	{
+        // remove from multi before cleanup (required by libcurl)
+        if (m_pMulti != nullptr)
+        {
+            curl_multi_remove_handle(m_pMulti, m_pCurlWS);
+        }
         // cleanup
         curl_easy_cleanup(m_pCurlWS);
         m_pCurlWS = nullptr;
@@ -88,8 +104,29 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 
 		curl_easy_setopt(m_pCurlWS, CURLOPT_VERBOSE, 1L);
 #else
-		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
-		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
+        if (HTTPManager::IsCACertStoreBad())
+        {
+            curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
+            curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
+        }
+        else
+        {
+            std::ifstream certFile("cacert.pem");
+            if (certFile.good())
+            {
+                certFile.close();
+                curl_easy_setopt(m_pCurlWS, CURLOPT_CAINFO, "cacert.pem");
+
+                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 1L);
+                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 2L);
+            }
+            else
+            {
+				HTTPManager::SetCACertStoreBad();
+                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
+                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
+            }
+        }
 #endif
 
 
@@ -97,6 +134,8 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
 		if (pAuthInterface == nullptr)
 		{
+			curl_easy_cleanup(m_pCurlWS);
+			m_pCurlWS = nullptr;
 			return;
 		}
 
@@ -169,12 +208,21 @@ void WebSocket::Disconnect()
 			m_pHeaders = nullptr;
 		}
 
+
+		// Remove from multi handle before cleanup (required by libcurl)
+		if (m_pMulti != nullptr)
+		{
+			curl_multi_remove_handle(m_pMulti, m_pCurlWS);
+		}
+
+
 		// cleanup
 		curl_easy_cleanup(m_pCurlWS);
 		m_pCurlWS = nullptr;
 	}
 
 	m_vecWSPartialBuffer.clear();
+	m_bConnected = false;
 }
 
 void WebSocket::Send(const char* send_payload)
@@ -218,8 +266,27 @@ public:
 	int64_t lobby_id;
 	int64_t user_id;
 	uint16_t preferred_port;
+	std::string middleware_id;
 
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkStartSignalling, msg_id, lobby_id, user_id, preferred_port)
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkStartSignalling, msg_id, lobby_id, user_id, preferred_port, middleware_id)
+};
+
+class WebSocketMessage_ACRegisterPlayer : public WebSocketMessageBase
+{
+public:
+    int64_t user_id;
+    std::string mwid;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_ACRegisterPlayer, msg_id, user_id, mwid)
+};
+
+class WebSocketMessage_ACDeregisterPlayer : public WebSocketMessageBase
+{
+public:
+    int64_t user_id;
+    std::string mwid;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_ACDeregisterPlayer, msg_id, user_id, mwid)
 };
 
 class WebSocketMessage_NetworkDisconnectPlayer : public WebSocketMessageBase
@@ -246,8 +313,9 @@ public:
 	std::string message;
 	bool action;
 	bool admin;
+	bool name_change;
 
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_RoomChatIncoming, msg_id, message, action, admin)
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_RoomChatIncoming, msg_id, message, action, admin, name_change)
 };
 
 class WebSocketMessage_Social_FriendChatMessage_Incoming : public WebSocketMessageBase
@@ -293,6 +361,31 @@ public:
 	std::vector<uint8_t> payload;
 
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_NetworkSignal, target_user_id, payload)
+};
+
+class WebSocketMessage_AnticheatMessage : public WebSocketMessageBase
+{
+public:
+    int64_t target_user_id = -1;
+    std::vector<uint8_t> payload;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_AnticheatMessage, target_user_id, payload)
+};
+
+class WebSocketMessage_ServerProbe : public WebSocketMessageBase
+{
+public:
+	std::string url;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_ServerProbe, msg_id, url)
+};
+
+class WebSocketMessage_StartGameResponse : public WebSocketMessageBase
+{
+public:
+    std::string screenshot_url;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_StartGameResponse, msg_id, screenshot_url)
 };
 
 class WebSocketMessage_LobbyChatIncoming : public WebSocketMessageBase
@@ -527,11 +620,11 @@ void WebSocket::Tick()
 
                         // connecting is as good as a pong
                         m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-                    }
 
-                    if (m_fnWebsocketConnectedCallback != nullptr)
-                    {
-                        m_fnWebsocketConnectedCallback();
+                        if (m_fnWebsocketConnectedCallback != nullptr)
+                        {
+                            m_fnWebsocketConnectedCallback();
+                        }
                     }
                 }
             }
@@ -565,15 +658,22 @@ void WebSocket::Tick()
 	CURLcode ret = CURL_LAST;
 	ret = curl_ws_recv(m_pCurlWS, bufferThisRecv, sizeof(bufferThisRecv), &rlen, &meta);
 
+	// SECURITY FIX: Validate rlen is within buffer bounds
+	if (rlen > sizeof(bufferThisRecv))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Received data size %zu exceeds buffer size %zu, discarding", rlen, sizeof(bufferThisRecv));
+		return;
+	}
+
 	if (ret != CURLE_RECV_ERROR && ret != CURL_LAST && ret != CURLE_AGAIN && ret != CURLE_GOT_NOTHING)
 	{
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket msg: %s", bufferThisRecv);
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket len: %d", rlen);
-		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket flags: %d", meta->flags);
 
 		// what type of message?
 		if (meta != nullptr)
 		{
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket flags: %d", meta->flags);
 			if (meta->flags & CURLWS_PONG) // PONG
 			{
 
@@ -582,8 +682,18 @@ void WebSocket::Tick()
 			{
 				bool bMessageComplete = false;
 
-				m_vecWSPartialBuffer.resize(m_vecWSPartialBuffer.size() + rlen);
-				memcpy_s(m_vecWSPartialBuffer.data() + m_vecWSPartialBuffer.size() - rlen, rlen, bufferThisRecv, rlen);
+				static constexpr size_t MAX_WS_PARTIAL_SIZE = 2 * 1024 * 1024; // 2 MB
+				if (m_vecWSPartialBuffer.size() + rlen > MAX_WS_PARTIAL_SIZE)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Partial buffer overflow, discarding message");
+					m_vecWSPartialBuffer.clear();
+					return;
+				}
+				
+				// SECURITY FIX: Store old size BEFORE resize to avoid off-by-one error in memcpy
+				size_t oldSize = m_vecWSPartialBuffer.size();
+				m_vecWSPartialBuffer.resize(oldSize + rlen);
+				memcpy_s(m_vecWSPartialBuffer.data() + oldSize, rlen, bufferThisRecv, rlen);
 
 				if (meta->flags & CURLWS_CONT)
 				{
@@ -647,7 +757,7 @@ void WebSocket::Tick()
 										{
 											UnicodeString unicodeStr(from_utf8(chatData.message).c_str());
 
-											Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_NETWORK_ROOM, true, chatData.action, chatData.admin);
+											Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_NETWORK_ROOM, true, chatData.action, chatData.admin, chatData.name_change);
 
 											NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
 											if (pRoomsInterface != nullptr && pRoomsInterface->m_OnChatCallback != nullptr)
@@ -769,11 +879,21 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::START_GAME:
 									{
-										NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-										if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackStartGamePacket != nullptr)
+                                        WebSocketMessage_StartGameResponse startGameData;
+                                        bool bParsed = JSONGetAsObject(jsonObject, &startGameData);
+
+										if (bParsed)
 										{
-											pLobbyInterface->m_callbackStartGamePacket();
+											// store URL
+                                            NGMP_OnlineServicesManager::GetInstance()->SetScreenshotS3URI_StartMatch(startGameData.screenshot_url.c_str());
 										}
+
+										// always start, even if we couldnt parse the url
+                                        NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+                                        if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackStartGamePacket != nullptr)
+                                        {
+                                            pLobbyInterface->m_callbackStartGamePacket();
+                                        }
 									}
 									break;
 
@@ -888,7 +1008,8 @@ void WebSocket::Tick()
 
 												if (pMesh != nullptr)
 												{
-													pMesh->StartConnectionSignalling(startSignallingData.user_id, startSignallingData.preferred_port);
+                                                    pMesh->StartConnectionSignalling(startSignallingData.middleware_id.c_str(), startSignallingData.user_id, startSignallingData.preferred_port);
+                                                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Starting signalling with %lld (MWID: %s)", startSignallingData.user_id, startSignallingData.middleware_id.c_str());
 												}
 												else
 												{
@@ -904,6 +1025,38 @@ void WebSocket::Tick()
 										}
 									}
 									break;
+
+									case EWebSocketMessageID::AC_REGISTER_PLAYER:
+                                    {
+                                        WebSocketMessage_ACRegisterPlayer acData;
+                                        bool bParsed = JSONGetAsObject(jsonObject, &acData);
+
+										if (bParsed)
+										{
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_REGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid);
+											if (!AnticheatPlugInterface::RegisterPlayer(acData.mwid, acData.user_id))
+											{
+												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AnticheatPlugInterface::RegisterPlayer failed");
+											}
+										}
+                                    }
+                                    break;
+
+                                    case EWebSocketMessageID::AC_DEREGISTER_PLAYER:
+                                    {
+                                        WebSocketMessage_ACDeregisterPlayer acData;
+                                        bool bParsed = JSONGetAsObject(jsonObject, &acData);
+
+										if (bParsed)
+										{
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_DEREGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid);
+											if (!AnticheatPlugInterface::DeregisterPlayer(acData.mwid, acData.user_id))
+											{
+												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AnticheatPlugInterface::DeregisterPlayer failed");
+											}
+										}
+                                    }
+                                    break;
 
 									case EWebSocketMessageID::NETWORK_CONNECTION_DISCONNECT_PLAYER:
 									{
@@ -984,7 +1137,7 @@ void WebSocket::Tick()
 												}
 
 												// no admin chat in lobby
-												Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, chatData.action, false, lobbySlot);
+												Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, chatData.action, false, false, lobbySlot);
 
 												if (pLobbyInterface->m_OnChatCallback != nullptr)
 												{
@@ -1016,6 +1169,22 @@ void WebSocket::Tick()
 									}
 									break;
 
+                                    case EWebSocketMessageID::ANTICHEAT_MESSAGE:
+                                    {
+                                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GOT AC MSG FROM WEBSOCKET!");
+
+										WebSocketMessage_AnticheatMessage acMsg;
+                                        bool bParsed = JSONGetAsObject(jsonObject, &acMsg);
+
+                                        if (bParsed)
+                                        {
+                                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AC Msg Signal User: %lld!", acMsg.target_user_id);
+                                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AC Msg Signal Payload Size: %d!", (int)acMsg.payload.size());
+                                            AnticheatPlugInterface::AC_NetworkMessageArrived(acMsg.target_user_id, acMsg.payload.data(), acMsg.payload.size());
+                                        }
+                                    }
+                                    break;
+
 									case EWebSocketMessageID::LOBBY_CURRENT_LOBBY_UPDATE:
 									{
 										// re-get the room info as it is stale
@@ -1029,16 +1198,22 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::PROBE:
 									{
-										NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] GOT PROBE REQUEST!");
+										WebSocketMessage_ServerProbe probe;
+                                        bool bParsed = JSONGetAsObject(jsonObject, &probe);
 
-										NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_GAMEPLAY);
+										if (bParsed)
+										{
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] GOT PROBE REQUEST: %s!", probe.url.c_str());
 
-										// service needs the response
-                                        nlohmann::json j;
-                                        j["msg_id"] = EWebSocketMessageID::PROBE_RESP;
-										j["timestamp"] = "0";
-                                        std::string strBody = j.dump();
-                                        Send(strBody.c_str());
+											NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_GAMEPLAY, probe.url);
+
+											// service needs the response
+											nlohmann::json j;
+											j["msg_id"] = EWebSocketMessageID::PROBE_RESP;
+											j["timestamp"] = "0";
+											std::string strBody = j.dump();
+											Send(strBody.c_str());
+										}
 									}
 									break;
 
@@ -1299,10 +1474,13 @@ void NGMP_OnlineServices_RoomsInterface::GetRoomList(std::function<void(void)> c
 
 void NGMP_OnlineServices_RoomsInterface::JoinRoom(int roomIndex, std::function<void()> onStartCallback, std::function<void()> onCompleteCallback)
 {
-	// TODO_NGMP: Safety
+	// TODO_NGMP: Safety - NOW FIXED with null checks
 
 	// TODO_NGMP: Remove this, its no longer a call really, or make a call
-	onStartCallback();
+	if (onStartCallback != nullptr)
+	{
+		onStartCallback();
+	}
 	m_CurrentRoomID = roomIndex;
 
 	// TODO_NGMP: What if there are zero rooms? e.g. the service request failed
@@ -1328,7 +1506,10 @@ void NGMP_OnlineServices_RoomsInterface::JoinRoom(int roomIndex, std::function<v
 		}
 	}
 
-	onCompleteCallback();
+	if (onCompleteCallback != nullptr)
+	{
+		onCompleteCallback();
+	}
 }
 
 std::unordered_map<uint64_t, NetworkRoomMember>& NGMP_OnlineServices_RoomsInterface::GetMembersListForCurrentRoom()
@@ -1350,9 +1531,11 @@ void NGMP_OnlineServices_RoomsInterface::OnRosterUpdated(std::unordered_map<uint
 {
 	m_mapMembers = mapMembers;
 
+	std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 	if (m_RosterNeedsRefreshCallback != nullptr)
 	{
 		m_RosterNeedsRefreshCallback();
 	}
 }
+
 

@@ -56,6 +56,7 @@
 #include "Common/Xfer.h"
 #include "Common/GameLOD.h"
 
+#include "GameClient/Color.h"
 #include "GameClient/Water.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/PolygonTrigger.h"
@@ -165,7 +166,21 @@ static ShaderClass blendStagesShader(SC_DETAIL_BLEND);
 
 WaterRenderObjClass *TheWaterRenderObj=nullptr; ///<global water rendering object
 
-#define SAFE_RELEASE(p)      { if(p) { (p)->Release(); (p)=nullptr; } }
+static Int getRiverVertexDiffuse(W3DShroud *shroud, Real x, Real y, Real shadeR, Real shadeG, Real shadeB, Int diffuse)
+{
+	if (!shroud)
+		return diffuse;
+
+	Int cellX = (Int)(x / shroud->getCellWidth());
+	Int cellY = (Int)(y / shroud->getCellHeight());
+	W3DShroudLevel level = shroud->getShroudLevel(cellX, cellY);
+	Real shroudScale = (Real)level / 255.0f;
+	return GameMakeColor(
+		(Int)(shadeR * shroudScale),
+		(Int)(shadeG * shroudScale),
+		(Int)(shadeB * shroudScale),
+		(diffuse >> 24) & 0xff);
+}
 
 void doSkyBoxSet(Bool startDraw)
 {
@@ -190,7 +205,7 @@ void doSkyBoxSet(Bool startDraw)
 
 static Bool wireframeForDebug = 0;
 
-void WaterRenderObjClass::setupJbaWaterShader(void)
+void WaterRenderObjClass::setupJbaWaterShader()
 {
 	if (!TheWaterTransparency->m_additiveBlend)
 		DX8Wrapper::Set_Shader(ShaderClass::_PresetAlphaShader);
@@ -272,7 +287,7 @@ void WaterRenderObjClass::setupJbaWaterShader(void)
 //-------------------------------------------------------------------------------------------------
 /** Destructor. Releases w3d assets. */
 //-------------------------------------------------------------------------------------------------
-WaterRenderObjClass::~WaterRenderObjClass(void)
+WaterRenderObjClass::~WaterRenderObjClass()
 {
 	REF_PTR_RELEASE(m_meshVertexMaterialClass);
 	REF_PTR_RELEASE(m_vertexMaterialClass);
@@ -318,7 +333,7 @@ WaterRenderObjClass::~WaterRenderObjClass(void)
 //-------------------------------------------------------------------------------------------------
 /** Constructor. Just nulls out some variables. */
 //-------------------------------------------------------------------------------------------------
-WaterRenderObjClass::WaterRenderObjClass(void)
+WaterRenderObjClass::WaterRenderObjClass()
 {
 	memset( &m_settings, 0, sizeof( m_settings ) );
 	m_dx=0;
@@ -402,7 +417,7 @@ void WaterRenderObjClass::Get_Obj_Space_Bounding_Box(AABoxClass & box) const
 //-------------------------------------------------------------------------------------------------
 /** returns the class id, so the scene can tell what kind of render object it has. */
 //-------------------------------------------------------------------------------------------------
-Int WaterRenderObjClass::Class_ID(void) const
+Int WaterRenderObjClass::Class_ID() const
 {
 	return RenderObjClass::CLASSID_UNKNOWN;
 }
@@ -410,7 +425,7 @@ Int WaterRenderObjClass::Class_ID(void) const
 //-------------------------------------------------------------------------------------------------
 /** Not used, but required virtual method. */
 //-------------------------------------------------------------------------------------------------
-RenderObjClass *	 WaterRenderObjClass::Clone(void) const
+RenderObjClass *	 WaterRenderObjClass::Clone() const
 {
 	assert(false);
 	return nullptr;
@@ -796,7 +811,7 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 //-------------------------------------------------------------------------------------------------
 /** Releases all w3d assets, to prepare for Reset device call. */
 //-------------------------------------------------------------------------------------------------
-void WaterRenderObjClass::ReleaseResources(void)
+void WaterRenderObjClass::ReleaseResources()
 {
 
 	REF_PTR_RELEASE(m_indexBuffer);
@@ -833,7 +848,7 @@ void WaterRenderObjClass::ReleaseResources(void)
 //-------------------------------------------------------------------------------------------------
 /** (Re)allocates all W3D assets after a reset.. */
 //-------------------------------------------------------------------------------------------------
-void WaterRenderObjClass::ReAcquireResources(void)
+void WaterRenderObjClass::ReAcquireResources()
 {
 	HRESULT hr;
 
@@ -973,7 +988,7 @@ void WaterRenderObjClass::ReAcquireResources(void)
 	}
 }
 
-void WaterRenderObjClass::load(void)
+void WaterRenderObjClass::load()
 {
 	if (m_waterTrackSystem)
 		m_waterTrackSystem->loadTracks();
@@ -1132,7 +1147,7 @@ Int WaterRenderObjClass::init(Real waterLevel, Real dx, Real dy, SceneClass *par
 	return 0;
 }
 
-void WaterRenderObjClass::updateMapOverrides(void)
+void WaterRenderObjClass::updateMapOverrides()
 {
 	if (m_riverTexture && TheWaterTransparency->m_standingWaterTexture.compareNoCase(m_riverTexture->Get_Texture_Name()) != 0)
 	{
@@ -1143,7 +1158,7 @@ void WaterRenderObjClass::updateMapOverrides(void)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-void WaterRenderObjClass::reset( void )
+void WaterRenderObjClass::reset()
 {
 
 	// for vertex animated water mesh reset the values
@@ -1214,7 +1229,7 @@ void WaterRenderObjClass::enableWaterGrid(Bool state)
 // ------------------------------------------------------------------------------------------------
 /** Update phase for water if we need it. */
 // ------------------------------------------------------------------------------------------------
-void WaterRenderObjClass::update( void )
+void WaterRenderObjClass::update()
 {
 	// TheSuperHackers @tweak The water movement time step is now decoupled from the render update.
 	const Real timeScale = TheFramePacer->getActualLogicTimeScaleOverFpsRatio();
@@ -1988,7 +2003,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 //-------------------------------------------------------------------------------------------------
 /** Renders (draws) the water surface.*/
 //-------------------------------------------------------------------------------------------------
-void WaterRenderObjClass::renderWater(void)
+void WaterRenderObjClass::renderWater()
 {
 	for (PolygonTrigger *pTrig=PolygonTrigger::getFirstPolygonTrigger(); pTrig; pTrig = pTrig->getNext()) {
 		if (pTrig->isWaterArea()) {
@@ -2036,7 +2051,7 @@ void WaterRenderObjClass::renderWater(void)
 /** Renders (draws) the sky plane.  Will apply current time-of-day settings including
 	* some simple UV scrolling animation. */
 //-------------------------------------------------------------------------------------------------
-void WaterRenderObjClass::renderSky(void)
+void WaterRenderObjClass::renderSky()
 {
 	Int timeNow,timeDiff;
 	Real fu,fv;
@@ -2228,7 +2243,7 @@ void WaterRenderObjClass::renderSkyBody(Matrix3D *mat)
 /** Renders (draws) the water surface mesh geometry.
 	*	This is a work-in-progress!  Do not use this code! */
 //-------------------------------------------------------------------------------------------------
-void WaterRenderObjClass::renderWaterMesh(void)
+void WaterRenderObjClass::renderWaterMesh()
 {
 
 	if (!m_doWaterGrid)
@@ -2816,6 +2831,10 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 
 		Real constA=3*m_riverVOrigin;
 
+		// TheSuperHackers @bugfix afc-afc0 14/04/2026 Apply shroud per-vertex to avoid double-darkening
+		// at river borders.
+		W3DShroud *shroud = TheTerrainRenderObject ? TheTerrainRenderObject->getShroud() : nullptr;
+
 		for (i=0; i<(pTrig->getNumPoints()/2); i++)
 		{
 			Real x,y;
@@ -2836,7 +2855,8 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 			vb->y=y;
 
 			vb->z=innerPt.z;
-			vb->diffuse= diffuse;
+
+			vb->diffuse = getRiverVertexDiffuse(shroud, x, y, shadeR, shadeG, shadeB, diffuse);
 
 			Real wobbleConst=-m_riverVOrigin+vScale*(Real)i + WWMath::Fast_Sin(2*PI*(vScale*(Real)i) - constA)/22.0f;
  			//old slower version
@@ -2858,7 +2878,8 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 			vb->x=x;
 			vb->y=y;
 			vb->z=outerPt.z;
-			vb->diffuse= diffuse;
+
+			vb->diffuse = getRiverVertexDiffuse(shroud, x, y, shadeR, shadeG, shadeB, diffuse);
  			//old slower version
 			//vb->v1=-m_riverVOrigin+vScale*(Real)i + wobble(vScale*i, m_riverVOrigin, doWobble);
 			vb->v1=wobbleConst;
@@ -2910,25 +2931,12 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 	if (TheWaterTransparency->m_additiveBlend)
 		DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND, D3DBLEND_ONE );
 
-	//do second pass to apply the shroud on water plane
-	if (TheTerrainRenderObject->getShroud())
-	{
-		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
-		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-		//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
-		//write to the zbuffer.  Change to LESSEQUAL.
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-		DX8Wrapper::Draw_Triangles(	0,rectangleCount*2, 0,	(rectangleCount+1)*2);
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_EQUAL);
-		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
-	}
 	DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_CULLMODE, cull);
 
 
 }
 
-void WaterRenderObjClass::setupFlatWaterShader(void)
+void WaterRenderObjClass::setupFlatWaterShader()
 {
 
 	DX8Wrapper::Set_Texture(0,m_riverTexture);
@@ -3487,7 +3495,7 @@ void WaterRenderObjClass::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void WaterRenderObjClass::loadPostProcess( void )
+void WaterRenderObjClass::loadPostProcess()
 {
 
 }

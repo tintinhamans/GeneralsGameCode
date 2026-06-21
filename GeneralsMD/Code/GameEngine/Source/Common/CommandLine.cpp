@@ -414,6 +414,29 @@ Int parseHeadless(char *args[], int num)
 	TheWritableGlobalData->m_playIntro = FALSE;
 	TheWritableGlobalData->m_afterIntro = TRUE;
 	TheWritableGlobalData->m_playSizzle = FALSE;
+
+	// TheSuperHackers @fix bobtista 03/02/2026 Set DX8Wrapper_IsWindowed to false in headless
+	// mode so that ignoringAsserts() works correctly throughout the entire process lifetime,
+	// including during shutdown after TheGlobalData has been destroyed.
+	extern bool DX8Wrapper_IsWindowed;
+	DX8Wrapper_IsWindowed = false;
+
+	return 1;
+}
+
+Int parseExportStats(char *args[], int num)
+{
+	TheWritableGlobalData->m_exportStats = TRUE;
+	return 1;
+}
+
+Int parseStatsUrl(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_statsUrl = args[1];
+		return 2;
+	}
 	return 1;
 }
 
@@ -888,17 +911,6 @@ Int parseSelectAll( char *args[], int num )
 
 	return 1;
 }
-
-Int parseRunAhead( char *args[], Int num )
-{
-	if (num > 2)
-	{
-		MIN_RUNAHEAD = atoi(args[1]);
-		MAX_FRAMES_AHEAD = atoi(args[2]);
-		FRAME_DATA_LENGTH = (MAX_FRAMES_AHEAD + 1)*2;
-	}
-	return 3;
-}
 #endif
 
 
@@ -1175,12 +1187,22 @@ static CommandLineParam paramsForStartup[] =
 	// (If you have 4 cores, call it with -jobs 4)
 	// If you do not call this, all replays will be simulated in sequence in the same process.
 	{ "-jobs", parseJobs },
+
+	// Export game stats as JSON alongside replay file.
+	{ "-exportStats", parseExportStats },
+
+	// URL to POST compressed stats JSON after export.
+	{ "-statsUrl", parseStatsUrl },
 };
 
 // These Params are parsed during Engine Init before INI data is loaded
 static CommandLineParam paramsForEngineInit[] =
 {
+#if defined(RTS_DEBUG) || !defined(GENERALS_ONLINE_DISABLE_QUICKSTART_FUNCTIONALITY)
+	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
+#endif
 	{ "-noshellmap", parseNoShellMap },
+	{ "-noShellAnim", parseNoWindowAnimation }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-xres", parseXRes },
 	{ "-yres", parseYRes },
 	{ "-fullVersion", parseFullVersion },
@@ -1297,7 +1319,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-logToCon", parseLogToConsole },
 	{ "-vTune", parseVTune },
 	{ "-selectTheUnselectable", parseSelectAll },
-	{ "-RunAhead", parseRunAhead },
 #if ENABLE_CONFIGURABLE_SHROUD
 	{ "-noshroud", parseNoShroud },
 #endif
@@ -1306,9 +1327,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-noshadowvolumes", parseNoShadows },
 	{ "-nofx", parseNoFX },
 	{ "-ignoresync", parseSync },
-	{ "-nologo", parseNoLogo },
 	{ "-shellmap", parseShellMap },
-	{ "-noShellAnim", parseNoWindowAnimation },
 	{ "-winCursors", parseWinCursors },
 	{ "-constantDebug", parseConstantDebug },
 	{ "-seed", parseSeed },
@@ -1319,7 +1338,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-updateImages", parseUpdateImages },
 	{ "-showTeamDot", parseShowTeamDot },
 	{ "-extraLogging", parseExtraLogging },
-
 #endif
 
 #ifdef DEBUG_LOGGING

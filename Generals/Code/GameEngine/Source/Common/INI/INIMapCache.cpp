@@ -59,7 +59,7 @@ public:
 	Coord3DList m_supplyPositions;
 	Coord3DList m_techPositions;
 	static const FieldParse m_mapFieldParseTable[];		///< the parse table for INI definition
-	const FieldParse *getFieldParse( void ) const { return m_mapFieldParseTable; }
+	const FieldParse *getFieldParse() const { return m_mapFieldParseTable; }
 };
 
 
@@ -149,7 +149,8 @@ void INI::parseMapCacheDefinition( INI* ini )
 	{
 		// maps without localized name tags
 		AsciiString tempdisplayname;
-		tempdisplayname = name.reverseFind('\\') + 1;
+		const char *lastBackslash = name.reverseFind('\\');
+		tempdisplayname = lastBackslash ? lastBackslash + 1 : name.str();
 		md.m_displayName.translate(tempdisplayname);
 		if (md.m_numPlayers >= 2)
 		{

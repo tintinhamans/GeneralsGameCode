@@ -81,7 +81,7 @@ static void parseFX( INI* ini, void *instance, void * /*store*/, const void* /*u
 {
 	SlowDeathBehaviorModuleData* self = (SlowDeathBehaviorModuleData*)instance;
 	SlowDeathPhaseType sdphase = (SlowDeathPhaseType)INI::scanIndexList(ini->getNextToken(), TheSlowDeathPhaseNames);
-	for (const char* token = ini->getNextToken(); token != nullptr; token = ini->getNextTokenOrNull())
+	for (const char* token = ini->getNextToken(); token; token = ini->getNextTokenOrNull())
 	{
 		const FXList *fxl = TheFXListStore->findFXList((token));	// could be null! this is OK!
 		self->m_fx[sdphase].push_back(fxl);
@@ -95,7 +95,7 @@ static void parseOCL( INI* ini, void *instance, void * /*store*/, const void* /*
 {
 	SlowDeathBehaviorModuleData* self = (SlowDeathBehaviorModuleData*)instance;
 	SlowDeathPhaseType sdphase = (SlowDeathPhaseType)INI::scanIndexList(ini->getNextToken(), TheSlowDeathPhaseNames);
-	for (const char* token = ini->getNextToken(); token != nullptr; token = ini->getNextTokenOrNull())
+	for (const char* token = ini->getNextToken(); token; token = ini->getNextTokenOrNull())
 	{
 		const ObjectCreationList *ocl = TheObjectCreationListStore->findObjectCreationList(token);	// could be null! this is OK!
 		self->m_ocls[sdphase].push_back(ocl);
@@ -109,7 +109,7 @@ static void parseWeapon( INI* ini, void *instance, void * /*store*/, const void*
 {
 	SlowDeathBehaviorModuleData* self = (SlowDeathBehaviorModuleData*)instance;
 	SlowDeathPhaseType sdphase = (SlowDeathPhaseType)INI::scanIndexList(ini->getNextToken(), TheSlowDeathPhaseNames);
-	for (const char* token = ini->getNextToken(); token != nullptr; token = ini->getNextTokenOrNull())
+	for (const char* token = ini->getNextToken(); token; token = ini->getNextTokenOrNull())
 	{
 		const WeaponTemplate *wt = TheWeaponStore->findWeaponTemplate(token);	// could be null! this is OK!
 		self->m_weapons[sdphase].push_back(wt);
@@ -167,7 +167,7 @@ SlowDeathBehavior::SlowDeathBehavior( Thing *thing, const ModuleData* moduleData
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-SlowDeathBehavior::~SlowDeathBehavior( void )
+SlowDeathBehavior::~SlowDeathBehavior()
 {
 }
 
@@ -391,7 +391,7 @@ UpdateSleepTime SlowDeathBehavior::update()
 
 	Real timeScale = TheGameLODManager->getSlowDeathScale();
 
-	// Check if we have normal time scale but LODManager is requeseting acceleration
+	// Check if we have normal time scale but LODManager is requesting acceleration
 	if (timeScale != 1.0f && m_acceleratedTimeScale == 1.0f && !d->hasNonLodEffects())
 	{
 		// speed of deaths has been increased since beginning of death
@@ -577,7 +577,7 @@ void SlowDeathBehavior::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void SlowDeathBehavior::loadPostProcess( void )
+void SlowDeathBehavior::loadPostProcess()
 {
 
 	// extend base class

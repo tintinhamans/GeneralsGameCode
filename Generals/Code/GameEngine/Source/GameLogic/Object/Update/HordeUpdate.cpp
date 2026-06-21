@@ -75,10 +75,10 @@ public:
 	PartitionFilterHordeMember(Object* obj, const HordeUpdateModuleData* data) : m_obj(obj), m_data(data) { }
 
 #if defined(RTS_DEBUG)
-	virtual const char* debugGetName() { return "PartitionFilterHordeMember"; }
+	virtual const char* debugGetName() override { return "PartitionFilterHordeMember"; }
 #endif
 
-	virtual Bool allow(Object *objOther)
+	virtual Bool allow(Object *objOther) override
 	{
 		// must be exact same type as us (well, maybe)
 		if (m_data->m_exactMatch && m_obj->getTemplate() != objOther->getTemplate())
@@ -234,7 +234,7 @@ void HordeUpdate::onDrawableBoundToObject()
 }
 
 //-------------------------------------------------------------------------------------------------
-UpdateSleepTime HordeUpdate::update( void )
+UpdateSleepTime HordeUpdate::update()
 {
 
 
@@ -397,7 +397,7 @@ void HordeUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Load post process */
 // ------------------------------------------------------------------------------------------------
-void HordeUpdate::loadPostProcess( void )
+void HordeUpdate::loadPostProcess()
 {
 
 	// extend base class

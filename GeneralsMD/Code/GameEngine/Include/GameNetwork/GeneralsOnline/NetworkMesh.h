@@ -2,19 +2,11 @@
 
 #include "NGMP_include.h"
 #include <ws2ipdef.h>
-#include "ValveNetworkingSockets/steam/steamnetworkingsockets.h"
+#include <mutex>
+#include "ValveNetworkingSockets/steam/steamnetworkingcustomsignaling.h"
+#include "PluginInterfaces.h"
 
 class NetRoom_ChatMessagePacket;
-
-enum class EConnectionState
-{
-	NOT_CONNECTED,
-	CONNECTING_DIRECT,
-	FINDING_ROUTE,
-	CONNECTED_DIRECT,
-	CONNECTION_FAILED,
-	CONNECTION_DISCONNECTED
-};
 
 // trivial signalling client interface
 class ISignalingClient
@@ -28,28 +20,49 @@ public:
 	virtual void Release() = 0;
 };
 
+enum class EConnectionType
+{
+	Unknown = -1,
+	BuiltIn_ValveSockets = 0,
+	MiddlewarePluginGeneric = 1
+};
+
 class NetworkMesh;
 class PlayerConnection
 {
 public:
-	PlayerConnection()
-	{
-		
-	}
+ 	PlayerConnection()
+ 	{
+		m_ConnectionType = EConnectionType::Unknown;
+        m_hSteamConnection = k_HSteamNetConnection_Invalid;
+        m_strMiddlewareID = std::string("NOT SET");
+ 	}
 
 	PlayerConnection(int64_t userID, HSteamNetConnection hSteamConnection);
+	PlayerConnection(int64_t userID, const char* szMiddlewareID);
 
 	EConnectionState GetState() const { return m_State; }
 
 	int SendGamePacket(void* pBuffer, uint32_t totalDataSize);
 
+	void SendACPacket(const void* pData, uint32_t dataLen);
+
 	void UpdateLatencyHistogram();
+
+	void Close();
 
 	bool IsIPV4();
 	bool IsDirect()
 	{
 		std::string strConnectionType = GetConnectionType();
 		return strConnectionType.find("Relayed") == std::string::npos;
+	}
+
+	bool IsValid() const
+	{
+		return m_State != EConnectionState::NOT_CONNECTED && 
+		       m_State != EConnectionState::CONNECTION_FAILED && 
+		       m_State != EConnectionState::CONNECTION_DISCONNECTED;
 	}
 
 	int Recv(SteamNetworkingMessage_t** pMsg);
@@ -69,6 +82,7 @@ public:
 	}
 
 	std::vector<int> m_vecLatencyHistory;
+	std::vector<float> m_vecQualityHistory;
 	std::string GetStats();
 
 	std::string GetConnectionType();
@@ -77,6 +91,7 @@ public:
 	void SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh, bool bIsRetrying);
 	
 	int64_t m_userID = -1;
+	EConnectionType m_ConnectionType = EConnectionType::Unknown;
 
 	EConnectionState m_State = EConnectionState::NOT_CONNECTED;
 	
@@ -85,9 +100,17 @@ public:
 	int m_SignallingAttempts = 0;
 	
 	int GetLatency();
+	int GetJitter();
 	float GetConnectionQuality();
+	int ComputeConnectionScore();
 
+	// Only set for Steam connections
 	HSteamNetConnection m_hSteamConnection = k_HSteamNetConnection_Invalid;
+
+	// Only set for MW connections
+	std::string m_strMiddlewareID = std::string("NOT SET");
+
+	void LiteUpdateForAC();
 };
 
 struct LobbyMemberEntry;
@@ -105,6 +128,8 @@ public:
 
 	~NetworkMesh()
 	{
+		Disconnect();
+
 		if (m_pSignaling != nullptr)
 		{
 			delete m_pSignaling;
@@ -161,13 +186,11 @@ public:
 	}
 
 
-	std::queue<QueuedGamePacket> m_queueQueuedGamePackets;
-
-	bool HasGamePacket();
-	QueuedGamePacket RecvGamePacket();
 	int SendGamePacket(void* pBuffer, uint32_t totalDataSize, int64_t userID);
 
-	void StartConnectionSignalling(int64_t remoteUserID, uint16_t preferredPort);
+	void SendACPacket(uint32_t userID, const void* pData, uint32_t dataLen);
+
+	void StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort);
 	void DisconnectUser(int64_t remoteUserID);
 	void Disconnect();
 
@@ -193,10 +216,13 @@ public:
 
 private:
 	std::map<int64_t, PlayerConnection> m_mapConnections;
+	mutable std::recursive_mutex m_mapConnectionsMutex;  // Synchronizes access to m_mapConnections
 
 	ISignalingClient* m_pSignaling = nullptr;
 
 	HSteamListenSocket m_hListenSock = k_HSteamListenSocket_Invalid;
+
+	bool m_bDisconnected = false;
 
 	std::string m_strTurnUsername;
 	std::string m_strTurnToken;

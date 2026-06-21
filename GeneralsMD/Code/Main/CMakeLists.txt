@@ -11,7 +11,7 @@ target_link_libraries(z_generals PRIVATE
     binkstub
     comctl32
     core_debug
-    core_profile
+    core_profile_legacy
     d3d8
     d3dx8
     dinput8
@@ -76,7 +76,7 @@ if(MSVC)
 endif()
 
 # Strip debug symbols to separate file for MinGW Release builds
-# This creates generalszh.exe.debug (similar to MSVC .pdb files)
+# This creates generalszh${RTS_BUILD_OUTPUT_SUFFIX}.exe.debug (similar to MSVC .pdb files)
 if(MINGW AND COMMAND add_debug_strip_target)
     add_debug_strip_target(z_generals)
 endif()

@@ -18,9 +18,21 @@ class NetworkMesh;
 
 enum class EScreenshotType : int
 {
-	SCREENSHOT_TYPE_LOADSCREEN = 0,
-	SCREENSHOT_TYPE_GAMEPLAY = 1,
-	SCREENSHOT_TYPE_SCORESCREEN = 2
+    SCREENSHOT_TYPE_LOADSCREEN = 0,
+    SCREENSHOT_TYPE_GAMEPLAY = 1,
+    SCREENSHOT_TYPE_SCORESCREEN = 2
+};
+
+struct S3ScreenshotEntry
+{
+    std::vector<uint8_t> vecBytes;
+    std::string strSignedURI;
+	EScreenshotType screenshotType;
+
+    bool operator==(const S3ScreenshotEntry& other) const
+	{
+		return (vecBytes == other.vecBytes && strSignedURI == other.strSignedURI && screenshotType == other.screenshotType);
+    }
 };
 
 #include <mutex>
@@ -47,7 +59,7 @@ enum EWebSocketMessageID
 	NETWORK_ROOM_MARK_READY = 5,
 	LOBBY_CURRENT_LOBBY_UPDATE = 6,
 	NETWORK_ROOM_LOBBY_LIST_UPDATE = 7,
-	UNUSED_PLACEHOLDER = 8, // this was relay upgrade, was removed. We can re-use it later, but service needs this placeholder
+	ANTICHEAT_MESSAGE = 8,
 	PLAYER_NAME_CHANGE = 9,
 	LOBBY_ROOM_CHAT_FROM_CLIENT = 10,
 	LOBBY_CHAT_FROM_SERVER = 11,
@@ -78,7 +90,9 @@ enum EWebSocketMessageID
 	SOCIAL_FRIEND_FRIEND_REQUEST_ACCEPTED_BY_TARGET = 36,
 	SOCIAL_FRIENDS_LIST_DIRTY = 37,
 	SOCIAL_CANT_ADD_FRIEND_LIST_FULL = 38,
-	PROBE_RESP = 39
+	PROBE_RESP = 39,
+    AC_REGISTER_PLAYER = 40,
+    AC_DEREGISTER_PLAYER = 41
 };
 
 enum class EQoSRegions
@@ -142,6 +156,8 @@ public:
 	void SendData_RequestSignalling(int64_t targetUserID);
 	void SendData_Signalling(int64_t targetUserID, std::vector<uint8_t> vecPayload);
 	void SendData_StartGame();
+
+	void SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload);
 
 	void SendData_ChangeLobbyPassword(UnicodeString& strNewPassword);
 	void SendData_RemoveLobbyPassword();
@@ -273,11 +289,15 @@ struct ServiceConfig
     float ibra_minslack_greaterthan200ms = 0.3f;
     float ibra_maxslack_greaterthan200ms = 1.f;
 
+	int screenshot_width = 557;
+	int screenshot_height = 333;
+
 	
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(ServiceConfig, retry_signalling, use_mapped_port, min_run_ahead_frames, ra_update_frequency_frames, relay_all_traffic,
 		ra_slack_percent, frame_grouping_frames, enable_host_migration, network_do_immediate_flush_per_frame, network_send_flags, network_latency_logic_model,
 		use_default_config, ra_slack_override_percent_in_default, do_probes, do_replay_upload, network_mesh_histogram_duration,
-		ibra_ra_tweaks, ibra_minslack_default, ibra_maxslack_default, ibra_minslack_greaterthan300ms, ibra_maxslack_greaterthan300ms, ibra_minslack_greaterthan200ms, ibra_maxslack_greaterthan200ms)
+		ibra_ra_tweaks, ibra_minslack_default, ibra_maxslack_default, ibra_minslack_greaterthan300ms, ibra_maxslack_greaterthan300ms, ibra_minslack_greaterthan200ms, ibra_maxslack_greaterthan200ms,
+		screenshot_width, screenshot_height)
 };
 
 class NGMP_OnlineServicesManager
@@ -319,6 +339,7 @@ public:
 
 	static void CreateInstance()
 	{
+		std::scoped_lock<std::recursive_mutex> lock(m_singletonMutex);
 		if (m_pOnlineServicesManager == nullptr)
 		{
 			m_pOnlineServicesManager = new NGMP_OnlineServicesManager();
@@ -327,6 +348,7 @@ public:
 
 	static void DestroyInstance()
 	{
+		std::scoped_lock<std::recursive_mutex> lock(m_singletonMutex);
 		if (m_pOnlineServicesManager != nullptr)
 		{
 			m_pOnlineServicesManager->Shutdown();
@@ -336,10 +358,15 @@ public:
 		}
 	}
 
+	static void AttemptLoadSteam();
+
 	void CommitReplay(AsciiString absoluteReplayPath);
 
+	static std::recursive_mutex m_singletonMutex;
+	
 	static NGMP_OnlineServicesManager* GetInstance()
 	{
+		std::scoped_lock<std::recursive_mutex> lock(m_singletonMutex);
 		return m_pOnlineServicesManager;
 	}
 
@@ -452,7 +479,7 @@ public:
 
 	static void CaptureScreenshot(bool bResizeForTransmit, std::function<void(std::vector<unsigned char>)> cbOnDataAvailable);
 	static void CaptureScreenshotToDisk();
-	static void CaptureScreenshotForProbe(EScreenshotType screenshotType);
+	static void CaptureScreenshotForProbe(EScreenshotType screenshotType, std::string strURI);
 
 	static bool g_bAdvancedNetworkStats;
 	static void ToggleAdvancedNetworkStats() { g_bAdvancedNetworkStats = !g_bAdvancedNetworkStats; }
@@ -496,10 +523,59 @@ public:
 
 	ServiceConfig& GetServiceConfig() { return m_ServiceConfig; }
 
+public:
+	void CacheScreenshotBytes_StartMatch(std::vector<uint8_t>& vecData)
+	{
+		std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+        m_vecCachedScreenshotBytes_MatchStart = vecData;
+	}
+
+    void CacheScreenshotBytes_EndMatch(std::vector<uint8_t>& vecData)
+    {
+        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+        m_vecCachedScreenshotBytes_MatchEnd = vecData;
+    }
+
+    void CacheReplayBytes(std::vector<uint8_t>& vecData)
+    {
+        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+		m_vecCachedReplayBytes = vecData;
+    }
+
+    void SetScreenshotS3URI_StartMatch(const char* szURI)
+    {
+        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+		m_strCachedScreenshot_MatchStart_S3URI = std::string(szURI);
+    }
+
+    void SetScreenshotS3URI_EndMatch(const char* szURI)
+    {
+        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+        m_strCachedScreenshot_MatchEnd_S3URI = std::string(szURI);
+    }
+
+    void SetScreenshotS3URI_Replay(const char* szURI)
+    {
+        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
+		m_strCacheReplay_S3URI = std::string(szURI);
+    }
+
 private:
+	// NOTE: Accessed from multiple threads, dont access directly, use helpers above to lock
+    std::string m_strCachedScreenshot_MatchStart_S3URI;
+    std::string m_strCachedScreenshot_MatchEnd_S3URI;
+    std::string m_strCacheReplay_S3URI;
+
+    // screenshots / replays that require caching
+    std::vector<uint8_t> m_vecCachedScreenshotBytes_MatchStart;
+    std::vector<uint8_t> m_vecCachedScreenshotBytes_MatchEnd;
+    std::vector<uint8_t> m_vecCachedReplayBytes;
+
 	// main thread SS Upload
 	static std::mutex m_ScreenshotMutex;
-	static std::vector<std::string> m_vecGuardedSSData;
+
+	// normal screenshots
+	static std::vector<S3ScreenshotEntry> m_vecGuardedSSData;
 
 	// Screenshot thread management
 	std::vector<std::thread*> m_vecScreenshotThreads;
@@ -520,6 +596,7 @@ private:
 	std::queue<int64_t> m_vecFilesSizes;
 	std::vector<std::string> m_vecFilesDownloaded;
 	std::function<void(void)> m_updateCompleteCallback = nullptr;
+	mutable std::mutex m_updateCallbackMutex;
 
 	std::string m_patcher_name;
 	std::string m_patcher_path;

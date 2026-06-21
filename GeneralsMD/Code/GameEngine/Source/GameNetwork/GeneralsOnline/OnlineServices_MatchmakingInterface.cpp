@@ -28,6 +28,7 @@ void NGMP_OnlineServices_MatchmakingInterface::RetrievePlaylists(std::function<v
 					playlistEntryIter["Name"].get_to(playlistEntry.Name);
 					playlistEntryIter["MinPlayers"].get_to(playlistEntry.MinPlayers);
 					playlistEntryIter["DesiredPlayers"].get_to(playlistEntry.DesiredPlayers);
+					playlistEntryIter["MinSelectedMaps"].get_to(playlistEntry.MinSelectedMaps);
 					playlistEntryIter["AllowTeams"].get_to(playlistEntry.AllowTeams);
 					playlistEntryIter["TeamSize"].get_to(playlistEntry.TeamSize);
 					playlistEntryIter["AllowArmySelection"].get_to(playlistEntry.AllowArmySelection);
@@ -82,6 +83,7 @@ void NGMP_OnlineServices_MatchmakingInterface::StartMatchmaking(uint16_t playlis
 	j["maps"] = vecSelectedMapIndexes;
 	j["exe_crc"] = TheGlobalData->m_exeCRC;
 	j["ini_crc"] = TheGlobalData->m_iniCRC;
+	j["anticheat_id"] = AnticheatPlugInterface::GetAnticheatIdentifier();
 
 	std::map<std::string, std::string> mapHeaders;
 	std::string strPostData = j.dump();

@@ -55,7 +55,7 @@ class DebugDisplayInterface;
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 
-#define NO_USE_QPF	// non-QPF is much faster.
+#define USE_QPF	// QPF is safer on multi-core systems with CPU frequency scaling.
 
 #if defined(PERF_TIMERS) || defined(DUMP_PERF_STATS)
 //-------------------------------------------------------------------------------------------------
@@ -243,15 +243,15 @@ class PerfTimer
 public:
 	PerfTimer( const char *identifier, Bool crashWithInfo = true, Int startFrame = 0, Int endFrame = -1);
 	virtual ~PerfTimer( );
-	__forceinline void startTimer( void );
-	__forceinline void stopTimer( void );
+	__forceinline void startTimer();
+	__forceinline void stopTimer();
 
 protected:
 	Int64 m_startTime;
 
 protected:
-	void outputInfo( void );
-	void showMetrics( void );
+	void outputInfo();
+	void showMetrics();
 
 protected:
 	const char *m_identifier;
@@ -270,7 +270,7 @@ protected:
 };
 
 //-------------------------------------------------------------------------------------------------
-void PerfTimer::startTimer( void )
+void PerfTimer::startTimer()
 {
 	UnsignedInt frm = (TheGameLogic ? TheGameLogic->getFrame() : m_startFrame);
 	if (frm >= m_startFrame && (m_endFrame == -1 || frm <= m_endFrame))
@@ -280,7 +280,7 @@ void PerfTimer::startTimer( void )
 }
 
 //-------------------------------------------------------------------------------------------------
-void PerfTimer::stopTimer( void )
+void PerfTimer::stopTimer()
 {
 	UnsignedInt frm = (TheGameLogic ? TheGameLogic->getFrame() : m_startFrame);
 	if (frm >= m_startFrame && (m_endFrame == -1 || frm <= m_endFrame))
