@@ -2281,7 +2281,8 @@ void W3DView::setHeightAboveGround(Real z)
 #if defined(GENERALS_ONLINE)
 	if (ThePlayerList && ThePlayerList->getLocalPlayer() && ThePlayerList->getLocalPlayer()->isPlayerObserver())
 	{
-		m_maxHeightAboveGround = (float)GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM;
+		const Real cameraHeightForReset = 500.0f;
+		m_maxHeightAboveGround = z > cameraHeightForReset ? (float)GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM : cameraHeightForReset;
 	}
 #endif
 
