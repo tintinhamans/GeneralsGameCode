@@ -592,7 +592,7 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 								memcpy(pixelData.data(), pBits, height * pitch);
 
 								// process on thread - track the thread so we can join it during shutdown
-								std::thread* pNewThread = new std::thread([cbOnDataAvailable, width, height, pixelData = std::move(pixelData), pDXsurf, pitch, bResizeForTransmit]()
+								std::thread* pNewThread = new std::thread([cbOnDataAvailable, width, height, pixelData = std::move(pixelData), pitch, bResizeForTransmit]()
 									{
 										CHECK_WORKER_THREAD;
 
@@ -654,11 +654,6 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 										delete[] rgbData;
 										rgbData = nullptr;
 
-										if (pDXsurf != nullptr)
-										{
-											pDXsurf->Release();
-										}
-
 										// invoke cb
 										if (cbOnDataAvailable != nullptr)
 										{
@@ -715,12 +710,10 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
  		surfaceCopy = nullptr;
 	}
 
-	if (!bSucceeded) // if success, thread uses this and then destroys it
+	if (pDXsurf != nullptr)
 	{
-		if (pDXsurf != nullptr)
-		{
-			pDXsurf->Release();
-		}
+		pDXsurf->Release();
+		pDXsurf = nullptr;
 	}
 
 	// callback if failed
