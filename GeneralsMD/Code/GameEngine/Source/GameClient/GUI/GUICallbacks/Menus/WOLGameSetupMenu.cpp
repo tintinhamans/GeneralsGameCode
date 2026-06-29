@@ -1504,6 +1504,7 @@ void InitWOLGameGadgets()
 	textEntryChat = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, textEntryChatID );
 	textEntryMapDisplay = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, textEntryMapDisplayID );
 	windowMap = TheWindowManager->winGetWindowFromId( parentWOLGameSetup,windowMapID  );
+	SetListBoxRowAnimMode(listboxGameSetupChat, LIST_ROW_ANIM_SLOT);
   DEBUG_ASSERTCRASH(windowMap, ("Could not find the parentWOLGameSetup.wnd:MapWindow" ));
 
   checkBoxLimitSuperweapons = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, checkBoxLimitSuperweaponsID );

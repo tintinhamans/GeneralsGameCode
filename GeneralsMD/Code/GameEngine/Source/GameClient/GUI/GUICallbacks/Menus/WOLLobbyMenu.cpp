@@ -1268,9 +1268,11 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 	listboxLobbyPlayersID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:ListboxPlayers");
 	listboxLobbyPlayers = TheWindowManager->winGetWindowFromId(parent, listboxLobbyPlayersID);
 	listboxLobbyPlayers->winSetTooltipFunc(playerTooltip);
+	SetListBoxRowAnimMode(listboxLobbyPlayers, LIST_ROW_ANIM_ID);
 
 	listboxLobbyChatID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:ListboxChat");
 	listboxLobbyChat = TheWindowManager->winGetWindowFromId(parent, listboxLobbyChatID);
+	SetListBoxRowAnimMode(listboxLobbyChat, LIST_ROW_ANIM_SLOT);
 
 	comboLobbyGroupRoomsID = TheNameKeyGenerator->nameToKey("WOLCustomLobby.wnd:ComboBoxGroupRooms");
 	comboLobbyGroupRooms = TheWindowManager->winGetWindowFromId(parent, comboLobbyGroupRoomsID);
