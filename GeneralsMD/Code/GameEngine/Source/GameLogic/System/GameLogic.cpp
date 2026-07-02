@@ -4137,55 +4137,6 @@ void GameLogic::update()
 	TheLocomotorStore->UPDATE();
 	TheVictoryConditions->UPDATE();
 
-#if defined(GENERALS_ONLINE)
-	// When observers are disabled by host on GO, remove the non host player from game after they are defeated
-	bool hasAllyAlive = false;
-	Player* localPlayer = ThePlayerList->getLocalPlayer();
-	if (localPlayer)
-	{
-		Team* myTeam = localPlayer->getDefaultTeam();
-		if (myTeam)
-		{
-			for (int playerIndex = 0; playerIndex < ThePlayerList->getPlayerCount(); ++playerIndex)
-			{
-				Player* other = ThePlayerList->getNthPlayer(playerIndex);
-				if (!other || other == localPlayer) continue;
-
-				if (myTeam->getRelationship(other->getDefaultTeam()) == ALLIES && !TheVictoryConditions->hasSinglePlayerBeenDefeated(other))
-					hasAllyAlive = true;
-			}
-		}
-	}
-
-	static int observerKickCountdown = -1;
-	bool shouldKickObserver = TheNGMPGame && !TheNGMPGame->getAllowObservers() && TheGameLogic->getGameMode() == GAME_INTERNET &&
-							  localPlayer && !localPlayer->isPlayerObserver() && TheVictoryConditions->hasSinglePlayerBeenDefeated(localPlayer);
-
-	if (!shouldKickObserver)
-		observerKickCountdown = -1;
-	else
-	{
-		if (hasAllyAlive)
-			TheGameLogic->exitGame();
-
-		if (TheNGMPGame->amIHost())
-			observerKickCountdown = -1;
-		else
-		{
-			if (observerKickCountdown < 0)
-				observerKickCountdown = LOGICFRAMES_PER_SECOND * 10;
-
-			if (observerKickCountdown > 0)
-				observerKickCountdown--;
-			else
-			{
-				TheGameLogic->exitGame();
-				observerKickCountdown = -1;
-			}
-		}
-	}
-#endif
-
 	{
 		//Handle disabled statii (and re-enable objects once frame matches)
 		for (Object* obj = m_objList; obj; obj = obj->getNextObject())
@@ -4197,9 +4148,12 @@ void GameLogic::update()
 		}
 	}
 
-
-
-
+#if defined(GENERALS_ONLINE)
+	if (TheNGMPGame != nullptr && TheNGMPGame->canKickOnObserversDisabled())
+	{
+		TheGameLogic->exitGame();
+	}
+#endif
 
 	// increment world time
 	if (!m_startNewGame)
