@@ -1212,7 +1212,7 @@ void initInternetMultiPlayer(void)
 #if defined(USE_TEST_ENV)
 				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://www.playgenerals.online/viewmatch?match=%" PRIu64 "&env=test", lobby.match_id);
 #else
-				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://www.playgenerals.online/viewmatch?match=%" PRIu64, lobby.match_id);
+				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://www.strata.gamereplays.org/zh/match/%" PRIu64, lobby.match_id);
 #endif
 
 				buttonContinue->winSetText(UnicodeString(L"VIEW MATCH ONLINE"));
