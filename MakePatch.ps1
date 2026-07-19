@@ -24,9 +24,11 @@ New-Item -ItemType Directory -Path "$crcFilesDir"
 New-Item -ItemType Directory -Path "$updaterDir"
 New-Item -ItemType Directory -Path "$workingDir"
 
-# Copy libcurl, zlib and release exe to working dir
+# Copy runtime libraries and release exe to working dir
 Copy-Item -Path "$buildDir\libcurl.dll" -Destination $workingDir
 Copy-Item -Path "$buildDir\zlib1.dll" -Destination $workingDir
+Copy-Item -Path "$buildDir\discord-rpc.dll" -Destination $workingDir
+Copy-Item -Path "$buildDir\discord-rpc-LICENSE.txt" -Destination $workingDir
 Copy-Item -Path "$buildDir\GeneralsOnlineZH.exe" -Destination $workingDir
 
 # package up our patch and installer

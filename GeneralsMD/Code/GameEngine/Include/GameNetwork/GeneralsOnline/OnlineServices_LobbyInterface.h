@@ -237,6 +237,11 @@ public:
 		return m_CurrentLobby;
 	}
 
+	const LobbyEntry& GetCurrentLobby() const
+	{
+		return m_CurrentLobby;
+	}
+
 	NGMPGame* GetCurrentGame()
 	{
 		return TheNGMPGame;
