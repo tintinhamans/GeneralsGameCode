@@ -596,7 +596,7 @@ private:
 	std::queue<int64_t> m_vecFilesSizes;
 	std::vector<std::string> m_vecFilesDownloaded;
 	std::function<void(void)> m_updateCompleteCallback = nullptr;
-	mutable std::mutex m_updateCallbackMutex;
+	mutable std::recursive_mutex m_updateCallbackMutex;
 
 	std::string m_patcher_name;
 	std::string m_patcher_path;

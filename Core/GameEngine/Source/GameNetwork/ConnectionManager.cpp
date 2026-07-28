@@ -1519,13 +1519,6 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			// We also limit the upper range of the runahead to prevent it getting out of hand
 			Int minRunAheadForClamp = MIN_RUNAHEAD;
 
-#if defined(GENERALS_ONLINE)
-			if (TheNGMPGame != nullptr)
-			{
-				minRunAheadForClamp = 4;
-			}
-#endif
-
 			newRunAhead = clamp<Int>(minRunAheadForClamp, newRunAhead, MAX_FRAMES_AHEAD / 2);
 
 			NetRunAheadCommandMsg* msg = newInstance(NetRunAheadCommandMsg);

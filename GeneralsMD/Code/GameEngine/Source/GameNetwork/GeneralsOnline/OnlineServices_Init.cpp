@@ -524,7 +524,7 @@ void NGMP_OnlineServicesManager::ContinueUpdate()
 			TheDownloadManager->OnStatusUpdate(DOWNLOADSTATUS_FINISHING);
 		}
 
-		std::scoped_lock<std::mutex> lock(m_updateCallbackMutex);
+		std::scoped_lock<std::recursive_mutex> lock(m_updateCallbackMutex);
 		if (m_updateCompleteCallback != nullptr)
 		{
 			m_updateCompleteCallback();
@@ -797,7 +797,7 @@ void NGMP_OnlineServicesManager::StartDownloadUpdate(std::function<void(void)> c
 	m_vecFilesSizes.emplace(m_patcher_size);
 	
 	{
-		std::scoped_lock<std::mutex> lock(m_updateCallbackMutex);
+		std::scoped_lock<std::recursive_mutex> lock(m_updateCallbackMutex);
 		m_updateCompleteCallback = cb;
 	}
 
