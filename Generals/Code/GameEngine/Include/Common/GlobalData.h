@@ -131,17 +131,19 @@ public:
 	Bool m_trilinearTerrainTex;
 	Bool m_multiPassTerrain;
 	Bool m_adjustCliffTextures;
-	Bool m_stretchTerrain;
-	Bool m_useHalfHeightMap;
+	Bool m_stretchTerrain; // TheSuperHackers @info Legacy, unused
+	Bool m_useHalfHeightMap; // TheSuperHackers @info Legacy, unused
 	Bool m_drawEntireTerrain;
 	_TerrainLOD m_terrainLOD;
 	Bool m_enableDynamicLOD;
 	Bool m_enableStaticLOD;
 	Int m_terrainLODTargetTimeMS;
 	Bool m_useAlternateMouse;
+	Bool m_useRightMouseScrollWithAlternateMouse; // TheSuperHackers @feature User option for RMB scroll in Alternate Mouse mode.
 	Bool m_clientRetaliationModeEnabled;
 	Bool m_doubleClickAttackMove;
 	Bool m_rightMouseAlwaysScrolls;
+	Int m_jpegQuality; // TheSuperHackers @feature Quality for JPEG screenshots.
 	Bool m_useWaterPlane;
 	Bool m_useCloudPlane;
 	Bool m_useShadowVolumes;
@@ -363,8 +365,6 @@ public:
 	Bool m_shellMapOn;								///< User can set the shell map not to load
 	Bool m_playIntro;									///< Flag to say if we're to play the intro or not
 	Bool m_playSizzle;								///< Flag to say whether we play the sizzle movie after the logo movie.
-	Bool m_afterIntro;								///< we need to tell the game our intro is done
-	Bool m_allowExitOutOfMovies;			///< flag to allow exit out of movies only after the Intro has played
 
 	Bool m_loadScreenRender;						///< flag to disallow rendering of almost everything during a loadscreen
 
@@ -422,6 +422,9 @@ public:
 	// TheSuperHackers @feature L3-M 21/08/2025 toggle the money per minute display, false shows only the original current money
 	Bool m_showMoneyPerMinute;
 	Bool m_allowMoneyPerMinuteForPlayer;
+
+	// TheSuperHackers @feature bobtista 28/06/2026 user-configurable speed multiplier for game window transitions
+	Real m_gameWindowTransitionSpeedMultiplier;
 
 	Real m_shakeSubtleIntensity;			///< Intensity for shaking a camera with SHAKE_SUBTLE
 	Real m_shakeNormalIntensity;			///< Intensity for shaking a camera with SHAKE_NORMAL

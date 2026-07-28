@@ -4,7 +4,7 @@
 #include "GameClient/MessageBox.h"
 #include "Common/FileSystem.h"
 #include "Common/file.h"
-#include "realcrc.h"
+#include "WWLib/realcrc.h"
 #include "GameNetwork/DownloadManager.h"
 #include <ws2tcpip.h>
 #include "GameClient/DisplayStringManager.h"
@@ -12,8 +12,8 @@
 #include "Common/MultiplayerSettings.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameClient/Display.h"
-#include "surfaceclass.h"
-#include "dx8wrapper.h"
+#include "WW3D2/surfaceclass.h"
+#include "WW3D2/dx8wrapper.h"
 #include <mutex>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION

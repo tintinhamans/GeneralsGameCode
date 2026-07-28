@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include "WWLib/WWDefines.h"
+
 // Note: Retail compatibility must not be broken before this project officially does.
 // Use RETAIL_COMPATIBLE_CRC and RETAIL_COMPATIBLE_XFER_SAVE to guard breaking changes.
 
@@ -75,6 +77,10 @@
 
 #ifndef PRESERVE_UNRELIABLE_FIRESTORMS
 #define PRESERVE_UNRELIABLE_FIRESTORMS (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
+#endif
+
+#ifndef PRESERVE_SNIPING_EMPTY_STINGER_SITES
+#define PRESERVE_SNIPING_EMPTY_STINGER_SITES (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
 #endif
 
 #ifndef PRESERVE_RETAIL_SCRIPTED_CAMERA

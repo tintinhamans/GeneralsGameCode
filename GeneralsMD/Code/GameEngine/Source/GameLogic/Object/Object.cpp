@@ -183,7 +183,7 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 	m_physics(nullptr),
 	m_geometryInfo(tt->getTemplateGeometryInfo()),
 	m_containedBy(nullptr),
-	m_xferContainedByID(INVALID_ID),
+	m_containedByID(INVALID_ID),
 	m_containedByFrame(0),
 	m_behaviors(nullptr),
 	m_body(nullptr),
@@ -692,6 +692,22 @@ void Object::onContainedBy( Object *containedBy )
 	m_containedBy = containedBy;
 	m_containedByFrame = TheGameLogic->getFrame();
 
+#if RETAIL_COMPATIBLE_CRC
+	// TheSuperHackers @info Set INVALID_ID if the container object was destroyed
+	// to indicate that the pointer will become a dangling pointer in the next frame.
+	if (containedBy && !containedBy->isDestroyed())
+	{
+		m_containedByID = containedBy->getID();
+	}
+	else
+	{
+		m_containedByID = INVALID_ID;
+	}
+#else
+	DEBUG_ASSERTCRASH(containedBy == nullptr || !containedBy->isDestroyed(),
+		("Object::onContainedBy - Adding into a destroyed container"));
+#endif
+
   handlePartitionCellMaintenance(); // which should unlook me now that I am contained
 
 }
@@ -704,6 +720,10 @@ void Object::onRemovedFrom( Object *removedFrom )
 	clearStatus( MAKE_OBJECT_STATUS_MASK2( OBJECT_STATUS_MASKED, OBJECT_STATUS_UNSELECTABLE ) );
 	m_containedBy = nullptr;
 	m_containedByFrame = 0;
+
+#if RETAIL_COMPATIBLE_CRC
+	m_containedByID = INVALID_ID;
+#endif
 
   handlePartitionCellMaintenance(); // get a clean look, now that I am outdoors, again
 
@@ -728,6 +748,15 @@ Int Object::getTransportSlotCount() const
 		}
 	}
 	return count;
+}
+
+void Object::friend_setContainedBy(Object* containedBy)
+{
+	m_containedBy = containedBy;
+
+#if !RETAIL_COMPATIBLE_CRC
+	m_containedByFrame = containedBy ? TheGameLogic->getFrame() : 0;
+#endif
 }
 
 const Object* Object::getEnclosingContainedBy() const
@@ -757,16 +786,33 @@ void Object::onDestroy()
 {
 
 	// This is the old cleanUpContain safeguard.  Say goodbye so they don't try to look us up.
-	// TheSuperHackers @bugfix xezon 05/06/2025 Add safety checks to prevent accessing a container
-	// that is being destroyed or has invalid state. This fixes crashes when contained units die
-	// while their container is simultaneously being destroyed (e.g., Battle Bus with Terrorists).
-	if( m_containedBy && !m_containedBy->isEffectivelyDead() )
+	if (m_containedBy)
 	{
-		ContainModuleInterface* containModule = m_containedBy->getContain();
-		if( containModule )
+#if RETAIL_COMPATIBLE_CRC
+		if (m_containedByID == INVALID_ID)
 		{
-			containModule->removeFromContain( this );
+			// TheSuperHackers @bugfix Caball009 25/05/2026 Due to a potential use-after-free bug that cannot be fixed
+			// with retail compatibility, the 'contained by' pointer of this object may point to an already destroyed object.
+			// Avoid removing this object from the contain list, because it could crash the game,
+			// as the begin / end iterator for STLPort and MSVC std::list implementations depends on dynamically allocated memory.
+			DEBUG_CRASH(("container object must be valid; this looks like use-after-free"));
 		}
+		else
+		{
+			DEBUG_ASSERTCRASH(TheGameLogic->findObjectByID(m_containedByID) == m_containedBy,
+				("contained by pointer is out of sync with contained by ID"));
+
+			if (ContainModuleInterface* contain = m_containedBy->getContain())
+			{
+				contain->removeFromContain(this);
+			}
+		}
+#else
+		if (ContainModuleInterface* contain = m_containedBy->getContain())
+		{
+			contain->removeFromContain(this);
+		}
+#endif
 	}
 
 	//
@@ -1841,7 +1887,7 @@ void Object::reactToTransformChange(const Matrix3D* oldMtx, const Coord3D* oldPo
 
 		Region3D mapExtent;
 		TheTerrainLogic->getExtent(&mapExtent);
-		if (mapExtent.isInRegionNoZ(getPosition()))
+		if (mapExtent.isInRegionNoZ(*getPosition()))
 			m_privateStatus &= ~OFF_MAP;
 		else
 			m_privateStatus |= OFF_MAP;
@@ -1890,7 +1936,7 @@ void Object::attemptDamage( DamageInfo *damageInfo )
 
 			// Set up the shockwave force to use apply on object
 			Coord3D shockWaveForce;
-			shockWaveForce.set( &damageInfo->in.m_shockWaveVector );
+			shockWaveForce.set( damageInfo->in.m_shockWaveVector );
 			shockWaveForce.normalize();
 			shockWaveForce.scale( damageInfo->in.m_shockWaveAmount * shockTaperMult );
 			shockWaveForce.z = shockWaveForce.length(); // Apply up force equal to the lateral force for dramatic effect
@@ -2873,7 +2919,7 @@ void Object::friend_notifyOfNewMapBoundary()
 
 	Region3D mapExtent;
 	TheTerrainLogic->getExtent(&mapExtent);
-	if (mapExtent.isInRegionNoZ(getPosition()))
+	if (mapExtent.isInRegionNoZ(*getPosition()))
 		m_privateStatus &= ~OFF_MAP;
 	else
 		m_privateStatus |= OFF_MAP;
@@ -3210,7 +3256,7 @@ void Object::createVeterancyLevelFX(VeterancyLevel oldLevel, VeterancyLevel newL
 			Anim2DTemplate *animTemplate = TheAnim2DCollection->findTemplate( TheGlobalData->m_levelGainAnimationName );
 
 			Coord3D pos = *getPosition();
-			pos.add(&m_healthBoxOffset);
+			pos.add(m_healthBoxOffset);
 
 			TheInGameUI->addWorldAnimation( animTemplate,
 																			&pos,
@@ -3426,7 +3472,7 @@ void Object::getHealthBoxPosition(Coord3D& pos) const
 {
 	pos = *getPosition();
 	pos.z += getGeometryInfo().getMaxHeightAbovePosition() + 10;
-	pos.add(&m_healthBoxOffset);
+	pos.add(m_healthBoxOffset);
 
 	// this needs to get moved to the mobspawnerupdate
 	if (isKindOf(KINDOF_MOB_NEXUS)) // quicker idiot test
@@ -4263,16 +4309,19 @@ void Object::xfer( Xfer *xfer )
 		// No, the contain module is just going to friend_ reach in and set this for us.
 		// Containers more complicated than Open (like Tunnel) can't do that.  Our variable,
 		// our responsibility.
+#if RETAIL_COMPATIBLE_CRC
+		// TheSuperHackers @tweak Contained by ID is already set with retail compatibility; don't overwrite it.
+#else
 		if( xfer->getXferMode() == XFER_SAVE )
 		{
 			if( m_containedBy != nullptr )
-				m_xferContainedByID = m_containedBy->getID();
+				m_containedByID = m_containedBy->getID();
 			else
-				m_xferContainedByID = INVALID_ID;
+				m_containedByID = INVALID_ID;
 		}
+#endif
 
-
-		xfer->xferObjectID( &m_xferContainedByID );
+		xfer->xferObjectID( &m_containedByID );
 	}
 
 	// contained by frame
@@ -4497,8 +4546,8 @@ void Object::xfer( Xfer *xfer )
 //-------------------------------------------------------------------------------------------------
 void Object::loadPostProcess()
 {
-	if( m_xferContainedByID != INVALID_ID )
-		m_containedBy = TheGameLogic->findObjectByID(m_xferContainedByID);
+	if( m_containedByID != INVALID_ID )
+		m_containedBy = TheGameLogic->findObjectByID(m_containedByID);
 	else
 		m_containedBy = nullptr;
 
