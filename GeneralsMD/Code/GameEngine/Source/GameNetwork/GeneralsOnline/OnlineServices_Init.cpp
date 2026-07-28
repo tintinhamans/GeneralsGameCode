@@ -104,48 +104,6 @@ void NGMP_OnlineServicesManager::GetAndParseServiceConfig(std::function<void(voi
 		});
 }
 
-
-void NGMP_OnlineServicesManager::CaptureScreenshotToDisk()
-{
-	// create dirs
-	std::string strScreenshotsDir = std::format("{}\\GeneralsOnlineScreenshots\\", TheGlobalData->getPath_UserData().str());
-
-	if (!std::filesystem::exists(strScreenshotsDir))
-	{
-		std::filesystem::create_directory(strScreenshotsDir);
-	}
-
-	// calculate path
-	auto now = std::chrono::system_clock::now();
-	auto in_time_t = std::chrono::system_clock::to_time_t(now);
-	std::stringstream ss;
-	ss << std::put_time(std::localtime(&in_time_t), "GeneralsOnline_Screenshot_%Y-%m-%d-%H-%M-%S.jpg");
-
-	std::string strFilePath = std::format("{}\\{}", strScreenshotsDir.c_str(), ss.str().c_str());
-
-	// do UI output immediately on mainthread (if ingame)
-	if (TheInGameUI != nullptr)
-	{
-		UnicodeString ufileName;
-		ufileName.translate(AsciiString(strFilePath.c_str()));
-		TheInGameUI->message(TheGameText->fetch("GUI:ScreenCapture"), ufileName.str());
-	}
-
-	NGMP_OnlineServicesManager::CaptureScreenshot(false, [strFilePath](std::vector<unsigned char> vecBuffer)
-		{
-			if (!vecBuffer.empty())
-			{
-				// write to disk
-				FILE* pFile = fopen(strFilePath.c_str(), "wb");
-				if (pFile != nullptr) {
-					fwrite(vecBuffer.data(), sizeof(uint8_t), vecBuffer.size(), pFile);
-					fclose(pFile);
-				}
-			}
-		});
-}
-
-
 void NGMP_OnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screenshotType, std::string strURI)
 {
 	NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();

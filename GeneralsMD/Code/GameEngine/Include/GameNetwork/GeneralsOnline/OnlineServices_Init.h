@@ -478,7 +478,6 @@ public:
 	void ContinueUpdate();
 
 	static void CaptureScreenshot(bool bResizeForTransmit, std::function<void(std::vector<unsigned char>)> cbOnDataAvailable);
-	static void CaptureScreenshotToDisk();
 	static void CaptureScreenshotForProbe(EScreenshotType screenshotType, std::string strURI);
 
 	static bool g_bAdvancedNetworkStats;
