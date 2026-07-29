@@ -6423,26 +6423,22 @@ void InGameUI::checkObserverMilestones(UnsignedInt currentFrame)
 		Bool hasPower = energy && energy->getProduction() > 0;
 		if (isGLA && hasPower && !milestone.stolenPower) {
 			milestone.stolenPower = true;
-			if (!earlyGame) addObserverNotification(name, L" now has power", playerColor);
+			addObserverNotification(name, L" now has power", playerColor);
 		}
 
-		if (!milestone.gotHunted) {
+		if (!milestone.gotHunted && !isGLA)
+		{
 			Bool hasBuilder = false;
-			Bool hasBuilderSource = false;
-			for (Object* obj = TheGameLogic->getFirstObject(); obj && !(hasBuilder && hasBuilderSource);
-				obj = obj->getNextObject()) {
-
+			for (Object* obj = TheGameLogic->getFirstObject(); obj && !(hasBuilder); obj = obj->getNextObject()) {
 				if (obj->getControllingPlayer() != p || obj->isEffectivelyDead())
 					continue;
 
-				if (obj->isKindOf(KINDOF_DOZER))
-					hasBuilder = true;
-				if (isGLA ? obj->isKindOf(KINDOF_FS_SUPPLY_CENTER) || obj->isKindOf(KINDOF_COMMANDCENTER) : obj->isKindOf(KINDOF_COMMANDCENTER))
-					hasBuilderSource = true;
+				hasBuilder = obj->isKindOf(KINDOF_DOZER) || (!obj->testStatus(OBJECT_STATUS_UNDER_CONSTRUCTION) && obj->isKindOf(KINDOF_COMMANDCENTER));
 			}
-			if (!hasBuilder && !hasBuilderSource) {
+
+			if (!hasBuilder) {
 				milestone.gotHunted = true;
-				if (!earlyGame) addObserverNotification(name, isGLA ? L" got worker hunted" : L" got dozer hunted", playerColor);
+				addObserverNotification(name, L" got dozer hunted", playerColor);
 			}
 		}
 	}
