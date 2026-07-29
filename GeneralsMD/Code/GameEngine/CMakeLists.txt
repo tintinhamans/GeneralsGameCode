@@ -1137,6 +1137,8 @@ set(GAMEENGINE_SRC
     Source/Precompiled/PreRTS.cpp
 
     Include/GameNetwork/GeneralsOnline/json.hpp
+    Include/GameNetwork/GeneralsOnline/DiscordRichPresence.h
+    Include/GameNetwork/GeneralsOnline/Vendor/DiscordRPC/discord_rpc.h
     Include/GameNetwork/GeneralsOnline/NetworkBitstream.h
     Include/GameNetwork/GeneralsOnline/NetworkMesh.h
     Include/GameNetwork/GeneralsOnline/NetworkPacket.h
@@ -1181,6 +1183,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GeneralsOnline/Vendor/libcurl/typecheck-gcc.h
     Include/GameNetwork/GeneralsOnline/Vendor/libcurl/urlapi.h
     Include/GameNetwork/GeneralsOnline/Vendor/libcurl/websockets.h
+    Source/GameNetwork/GeneralsOnline/DiscordRichPresence.cpp
     Source/GameNetwork/GeneralsOnline/NGMP_Helpers.cpp
     Source/GameNetwork/GeneralsOnline/NGMPGame.cpp
     Source/GameNetwork/GeneralsOnline/GeneralsOnline_Settings.cpp

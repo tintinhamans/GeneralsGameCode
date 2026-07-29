@@ -112,6 +112,8 @@
 
 // GENERALS ONLINE
 #include "../OnlineServices_Init.h"
+#include "GameNetwork/GeneralsOnline/DiscordRichPresence.h"
+#include "GameNetwork/GeneralsOnline/OnlineServices_LobbyInterface.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include <chrono>
 #include "WW3D2/ww3d.h"
@@ -295,6 +297,7 @@ GameEngine::GameEngine()
 	m_logicTimeAccumulator = 0.0f;
 	m_quitting = FALSE;
 	m_isActive = FALSE;
+	m_discordRichPresence = nullptr;
 
 	_Module.Init(nullptr, ApplicationHInstance, nullptr);
 }
@@ -302,6 +305,9 @@ GameEngine::GameEngine()
 //-------------------------------------------------------------------------------------------------
 GameEngine::~GameEngine()
 {
+	delete m_discordRichPresence;
+	m_discordRichPresence = nullptr;
+
 	//extern std::vector<std::string>	preloadTextureNamesGlobalHack;
 	//preloadTextureNamesGlobalHack.clear();
 
@@ -822,6 +828,9 @@ void GameEngine::init()
 
 	// NGMP_CHANGE: Init our settings
 	NGMP_OnlineServicesManager::Settings.Initialize();
+
+	m_discordRichPresence = new GeneralsOnlineDiscordRPC();
+	m_discordRichPresence->Initialize();
 }
 
 /** -----------------------------------------------------------------------------------------------
@@ -995,6 +1004,12 @@ void GameEngine::update()
 			if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
 			{
 				NGMP_OnlineServicesManager::GetInstance()->Tick();
+			}
+
+			if (m_discordRichPresence != nullptr)
+			{
+				m_discordRichPresence->Tick(
+					NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>());
 			}
 		}
 
