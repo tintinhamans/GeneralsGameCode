@@ -1127,7 +1127,10 @@ static void StartPressed()
 						GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(0, 255, 0, 255), -1, -1);
 
 						// reset autostart just incase
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
 						pLobbyInterface->ClearAutoReadyCountdown();
+#endif
+
 						if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 							TheNGMPGame->StopCountdown();
 
@@ -1216,7 +1219,15 @@ static void StartPressed()
 	else if (allHaveMap)
 	{
 		// send HWS chat message
-		
+
+#if defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+		// local msg
+		GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetch("GUI:NotifiedStartIntent"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+
+		// remote msg
+		UnicodeString strInform = TheGameText->fetch("GUI:HostWantsToStart");
+		pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, false);
+#else
 		if (!pLobbyInterface->HasAutoReadyCountdown())
 		{
 			// local msg
@@ -1239,8 +1250,8 @@ static void StartPressed()
 			UnicodeString strInform = UnicodeString(L"You have already informed players you want to start. A countdown has begun after which they will be marked as ready.");
 			GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 		}
+#endif
 	}
-
 }
 
 

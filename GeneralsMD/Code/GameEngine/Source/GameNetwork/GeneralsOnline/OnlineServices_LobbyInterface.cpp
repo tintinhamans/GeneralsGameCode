@@ -80,7 +80,10 @@ enum class ELobbyUpdateField
 void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_Map(AsciiString strMap, AsciiString strMapPath, bool bIsOfficial, int newMaxPlayers)
 {
 	// reset autostart if host changes anything (because ready flag will reset too)
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
 	ClearAutoReadyCountdown();
+#endif
+
 	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 		TheNGMPGame->StopCountdown();
 
@@ -114,7 +117,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_Map(AsciiString strM
 void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_LimitSuperweapons(bool bLimitSuperweapons)
 {
 	// reset autostart if host changes anything (because ready flag will reset too)
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
 	ClearAutoReadyCountdown();
+#endif
 	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 		TheNGMPGame->StopCountdown();
 
@@ -136,7 +141,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_LimitSuperweapons(bo
 void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_StartingCash(UnsignedInt startingCashValue)
 {
 	// reset autostart if host changes anything (because ready flag will reset too)
-	ClearAutoReadyCountdown();
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+    ClearAutoReadyCountdown();
+#endif
 	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 		TheNGMPGame->StopCountdown();
 
@@ -179,7 +186,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_HasMap()
 void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AISide(int slot, int side, int updatedStartPos)
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-	ClearAutoReadyCountdown();
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+    ClearAutoReadyCountdown();
+#endif
 	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 		TheNGMPGame->StopCountdown();
 
@@ -203,7 +212,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AISide(int slot, int
 void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AITeam(int slot, int team)
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-	ClearAutoReadyCountdown();
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+    ClearAutoReadyCountdown();
+#endif
 	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 		TheNGMPGame->StopCountdown();
 
@@ -226,7 +237,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AITeam(int slot, int
 void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AIStartPos(int slot, int startpos)
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-	ClearAutoReadyCountdown();
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+    ClearAutoReadyCountdown();
+#endif
 	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 		TheNGMPGame->StopCountdown();
 
@@ -256,7 +269,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobbyMaxCameraHeight(uint1
 		SendAnnouncementMessageToCurrentLobby(strInform, true);
 
 		// reset autostart if host changes anything (because ready flag will reset too)
-		ClearAutoReadyCountdown();
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+        ClearAutoReadyCountdown();
+#endif
 		if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 			TheNGMPGame->StopCountdown();
 
@@ -304,7 +319,9 @@ void NGMP_OnlineServices_LobbyInterface::SetJoinability(ELobbyJoinability joinab
 void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AIColor(int slot, int color)
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-	ClearAutoReadyCountdown();
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+    ClearAutoReadyCountdown();
+#endif
 	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 		TheNGMPGame->StopCountdown();
 
@@ -328,7 +345,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AIColor(int slot, in
 void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MySide(int side, int updatedStartPos)
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-	ClearAutoReadyCountdown();
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+    ClearAutoReadyCountdown();
+#endif
 	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 		TheNGMPGame->StopCountdown();
 
@@ -351,7 +370,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MySide(int side, int
 void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MyColor(int color)
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-	ClearAutoReadyCountdown();
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+    ClearAutoReadyCountdown();
+#endif
 	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 		TheNGMPGame->StopCountdown();
 
@@ -373,7 +394,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MyColor(int color)
 void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MyStartPos(int startpos)
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-	ClearAutoReadyCountdown();
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+    ClearAutoReadyCountdown();
+#endif
 	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 		TheNGMPGame->StopCountdown();
 
@@ -395,7 +418,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MyStartPos(int start
 void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MyTeam(int team)
 {
 	// reset autostart if host changes anything (because ready flag will reset too). This occurs on client too, but nothing happens for them
-	ClearAutoReadyCountdown();
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+    ClearAutoReadyCountdown();
+#endif
 	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
 		TheNGMPGame->StopCountdown();
 
@@ -695,6 +720,7 @@ void NGMP_OnlineServices_LobbyInterface::Tick()
 		}
 
 		// do we have a pending start?
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
 		if (IsHost())
 		{
 			if (m_timeStartAutoReadyCountdown > 0)
@@ -709,6 +735,7 @@ void NGMP_OnlineServices_LobbyInterface::Tick()
 				}
 			}
 		}
+#endif
 	}
 
 	// real time outcome upload
@@ -1225,7 +1252,9 @@ void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 		TheNGMPGame = nullptr;
 	}
 
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
 	m_timeStartAutoReadyCountdown = -1;
+#endif
 	
 	if (!IsInLobby())
 	{
@@ -1440,7 +1469,9 @@ void NGMP_OnlineServices_LobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpd
 	m_bMarkedGameAsFinished = false;
 
 	// reset timer
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
 	m_timeStartAutoReadyCountdown = -1;
+#endif
 
 	// TODO_NGMP: We need this on create, but this is a double call on join because we already got this info
 	// must be done in a callback, this is an async function
