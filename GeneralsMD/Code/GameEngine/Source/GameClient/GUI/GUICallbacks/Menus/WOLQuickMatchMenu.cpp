@@ -151,6 +151,9 @@ static Int maxPingEntries = 0;
 static Int maxPoints= 100;
 static Int minPoints = 0;
 
+static Int matchFoundTimeoutStart = 0;
+static const Int lobbyTimeoutMs = 10000;
+
 static const LadderInfo * getLadderInfo();
 
 static Bool isInfoShown()
@@ -1216,6 +1219,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 			{
 				buttonBack->winEnable(FALSE);
 				buttonStop->winEnable(FALSE);
+				matchFoundTimeoutStart = timeGetTime();
                 if (TheAudio)
 				{
 					AudioEventRTS evt("GUICommunicatorOpen");
@@ -1225,6 +1229,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 		pLobbyInterface->RegisterForMatchmakingStartGameCallback([]()
 			{
+				matchFoundTimeoutStart = 0;
 				NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] GOT START GAME EVENT");
 
 				// Check if TheNGMPGame is initialized before dereferencing it
@@ -1572,6 +1577,15 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 #if defined(GENERALS_ONLINE) // GO needs to tick this, so notifications disappear etc
 	HandleBuddyResponses();
 #endif
+
+	if (matchFoundTimeoutStart != 0 && timeGetTime() - matchFoundTimeoutStart >= lobbyTimeoutMs)
+	{
+		matchFoundTimeoutStart = 0;
+		buttonBack->winEnable(TRUE);
+		buttonStop->winEnable(TRUE);
+		Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Match setup timed out. You may cancel or continue waiting."), GameMakeColor(255, 194, 25, 255), -1, -1);
+		GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
+	}
 
 	/// @todo: MDC handle disconnects in-game the same way as Custom Match!
 
