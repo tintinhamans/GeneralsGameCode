@@ -945,6 +945,8 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 		mapListboxPreviewFunc = listboxMapSelect->winGetDrawFunc();
 		listboxMapSelect->winSetDrawFunc(updateMapHoverPreview);
 	}
+	SetListBoxRowAnimMode(quickmatchTextWindow, LIST_ROW_ANIM_SLOT);
+	SetListBoxRowAnimMode(listboxMapSelect, LIST_ROW_ANIM_SLOT);
 	//textEntryMaxDisconnects = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMaxDisconnectsID );
 	//textEntryMaxPoints = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMaxPointsID );
 	//textEntryMinPoints = TheWindowManager->winGetWindowFromId( parentWOLQuickMatch, textEntryMinPointsID );
