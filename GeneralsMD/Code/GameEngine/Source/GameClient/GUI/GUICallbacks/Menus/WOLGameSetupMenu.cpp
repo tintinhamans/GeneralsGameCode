@@ -932,6 +932,22 @@ static void handleLimitSuperweaponsClick()
 #endif
 }
 
+static void WOLLockSettings()
+{
+	buttonBack->winEnable(false);
+	checkBoxLimitSuperweapons->winEnable(false);
+	comboBoxStartingCash->winEnable(false);
+
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		comboBoxPlayer[i]->winEnable(false);
+		comboBoxColor[i]->winEnable(false);
+		comboBoxPlayerTemplate[i]->winEnable(false);
+		comboBoxTeam[i]->winEnable(false);
+		buttonMapStartPosition[i]->winEnable(false);
+	}
+}
+
 static void StartPressed()
 {
 	Bool isReady = TRUE;
@@ -1107,13 +1123,6 @@ static void StartPressed()
 		std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
 		if (pWS != nullptr)
 		{
-			// we've started, there's no going back
-						// i.e. disable the back button.
-			if (buttonBack != nullptr)
-			{
-				buttonBack->winEnable(FALSE);
-			}
-
 			if (buttonStart != nullptr)
 			{
 				buttonStart->winEnable(FALSE);
@@ -1160,6 +1169,7 @@ static void StartPressed()
 								pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, true);
 
 								TheNGMPGame->StartCountdown();
+								buttonSelectMap->winEnable(FALSE);		
 							}
 						}
 #endif
@@ -1892,9 +1902,6 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 			// TODO_NGMP
 			//SendStatsToOtherPlayers(TheNGMPGame);
 
-			// we've started, there's no going back
-			// i.e. disable the back button.
-			buttonBack->winEnable(FALSE);
 			GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
 			if (buttonBuddy)
 				buttonBuddy->winEnable(FALSE);
@@ -2480,16 +2487,23 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 				// remote msg
 				UnicodeString strInform;
 				if (secondsRemaining == 1)
+				{
+					// Lock all host controlled lobby settings last second of the match start countdown
+					// to prevent late local changes not propagating to remote clients in time
+					WOLLockSettings();
+
 					strInform.format(TheGameText->fetch("LAN:GameStartTimerSingular"), secondsRemaining);
+				}
 				else
+				{
 					strInform.format(TheGameText->fetch("LAN:GameStartTimerPlural"), secondsRemaining);
+				}
 
 				NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 				if (pLobbyInterface != nullptr)
 				{
 					pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, true);
 				}
-				
 
 				// are we done?
 				if (secondsRemaining <= 0)
@@ -2691,9 +2705,6 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 
 					SendStatsToOtherPlayers(TheNGMPGame);
 
-					// we've started, there's no going back
-					// i.e. disable the back button.
-					buttonBack->winEnable(FALSE);
 					GameWindow *buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
 					if (buttonBuddy)
 						buttonBuddy->winEnable(FALSE);
