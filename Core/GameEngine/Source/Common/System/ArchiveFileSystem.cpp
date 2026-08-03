@@ -50,6 +50,7 @@
 #include "Common/ArchiveFileSystem.h"
 #include "Common/AsciiString.h"
 #include "Common/PerfTimer.h"
+#include "../NGMP_include.h"
 
 
 //----------------------------------------------------------------------------
@@ -212,6 +213,13 @@ void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool ove
 
 void ArchiveFileSystem::loadMods()
 {
+#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES)
+    // load community data patch BIG
+    std::string strSettingsFileDir = std::format("{}/GeneralsOnlineGameData/", TheGlobalData->getPath_UserData().str());
+    bool bLoaded = TheArchiveFileSystem->loadBigFilesFromDirectory(strSettingsFileDir.c_str(), "500_900_CommunityPatch_CoreINI_v6.big", TRUE);
+    NetworkLog(ELogVerbosity::LOG_RELEASE, "Loaded community patch: %d", bLoaded);
+#endif
+
 	if (TheGlobalData->m_modBIG.isNotEmpty())
 	{
 		ArchiveFile *archiveFile = openArchiveFile(TheGlobalData->m_modBIG.str());
