@@ -528,6 +528,9 @@ void GameEngine::init()
 		// special-case: parse command-line parameters after loading global data
 		CommandLine::parseCommandLineForEngineInit();
 
+		// NGMP_CHANGE: Init our settings before loadMods, which reads DataPacks_UseCommunityPatch. Needs TheGlobalData for the user data path.
+		NGMP_OnlineServicesManager::Settings.Initialize();
+
 		TheArchiveFileSystem->loadMods();
 
 		// doesn't require resets so just create a single instance here.
@@ -825,9 +828,6 @@ void GameEngine::init()
 	resetSubsystems();
 
 	HideControlBar();
-
-	// NGMP_CHANGE: Init our settings
-	NGMP_OnlineServicesManager::Settings.Initialize();
 
 	m_discordRichPresence = new GeneralsOnlineDiscordRPC();
 	m_discordRichPresence->Initialize();

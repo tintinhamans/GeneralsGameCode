@@ -49,6 +49,7 @@
 #include "Common/ArchiveFile.h"
 #include "Common/ArchiveFileSystem.h"
 #include "Common/AsciiString.h"
+#include "Common/LocalFileSystem.h"
 #include "Common/PerfTimer.h"
 #include "../NGMP_include.h"
 #include "../OnlineServices_Init.h"
@@ -94,6 +95,15 @@ ArchiveFileSystem *TheArchiveFileSystem = nullptr;
 //         Private Functions
 //----------------------------------------------------------------------------
 
+static AsciiString getBaseFilename(const AsciiString& path)
+{
+	const char* str = path.str();
+	const char* p1 = strrchr(str, '\\');
+	const char* p2 = strrchr(str, '/');
+	const char* sep = (p1 == nullptr) ? p2 : ((p2 == nullptr) ? p1 : ((p1 > p2) ? p1 : p2));
+	return sep ? AsciiString(sep + 1) : path;
+}
+
 
 
 //----------------------------------------------------------------------------
@@ -117,7 +127,7 @@ ArchiveFileSystem::~ArchiveFileSystem()
 	}
 }
 
-void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool overwrite)
+void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool overwrite, Bool sortedByName)
 {
 
 	FilenameList filenameList;
@@ -157,7 +167,16 @@ void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool ove
 		}
 
 		ArchivedFileLocationMap::iterator fileIt;
-		if (overwrite)
+		if (sortedByName)
+		{
+			// Insert by case-insensitive archive filename, matching game folder load order where the alphabetically first archive wins.
+			const AsciiString baseName = getBaseFilename(archiveFile->getName());
+			std::pair<ArchivedFileLocationMap::iterator, ArchivedFileLocationMap::iterator> range = dirInfo->m_files.equal_range(token);
+			fileIt = range.first;
+			while (fileIt != range.second && getBaseFilename(fileIt->second->getName()).compareNoCase(baseName) <= 0)
+				++fileIt;
+		}
+		else if (overwrite)
 		{
 			// When overwriting, try place the new value at the beginning of the key list.
 			fileIt = dirInfo->m_files.find(token);
@@ -218,9 +237,20 @@ void ArchiveFileSystem::loadMods()
     // load community data patch BIG
 	if (NGMP_OnlineServicesManager::Settings.DataPacks_UseCommunityPatch())
     {
-        std::string strSettingsFileDir = std::format("{}/GeneralsOnlineGameData/", TheGlobalData->getPath_UserData().str());
-        bool bLoaded = TheArchiveFileSystem->loadBigFilesFromDirectory(strSettingsFileDir.c_str(), "500_900_CommunityPatch_CoreINI.big", TRUE);
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "Loaded community patch: %d", bLoaded);
+        std::string strBigPath = std::format("{}GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big", TheGlobalData->getPath_UserData().str());
+        bool bLoaded = false;
+        if (TheLocalFileSystem->doesFileExist(strBigPath.c_str()))
+        {
+            ArchiveFile* archiveFile = openArchiveFile(strBigPath.c_str());
+            if (archiveFile != nullptr)
+            {
+                // Sorted by filename so the patch respects the addon number order of BIGs in the game folder.
+                loadIntoDirectoryTree(archiveFile, FALSE, TRUE);
+                m_archiveFileMap[AsciiString(strBigPath.c_str())] = archiveFile;
+                bLoaded = true;
+            }
+        }
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "Loaded community patch (%s): %d", strBigPath.c_str(), bLoaded);
     }
 #endif
 
