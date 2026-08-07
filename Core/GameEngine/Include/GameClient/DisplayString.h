@@ -47,6 +47,7 @@
 #pragma once
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
+#include <vector>
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "Lib/BaseType.h"
@@ -60,6 +61,18 @@
 class DisplayStringManager;
 
 // TYPE DEFINES ///////////////////////////////////////////////////////////////
+
+// TextColorRun ---------------------------------------------------------------
+/** Colors a range of characters within a DisplayString. Only the RGB portion is
+	* used, the alpha always comes from the color passed to draw() so that fading
+	* and drop shadows keep working. */
+//-----------------------------------------------------------------------------
+struct TextColorRun
+{
+	Int start;		///< index of the first character in the run
+	Int length;		///< number of characters in the run
+	Color color;	///< color to render this run in
+};
 
 // DisplayString --------------------------------------------------------------
 /** String representation that can also has additional information and
@@ -94,6 +107,12 @@ public:
 
 	virtual void setUseHotkey( Bool useHotkey, Color hotKeyColor ) = 0;
 
+	/// color ranges of characters independently of the draw() color
+	virtual void setColorRuns( const TextColorRun *runs, Int count );
+	virtual void clearColorRuns();		///< render the whole string in the draw() color again
+	Int getColorRunCount() const;
+	const TextColorRun *getColorRuns() const;
+
 	virtual void setClipRegion( IRegion2D *region );  ///< clip text in this region
 
 	virtual void removeLastChar();			///< remove the last character
@@ -108,6 +127,7 @@ protected:
 
 	UnicodeString m_textString;
 	GameFont *m_font;			 ///< font to display this string with
+	std::vector<TextColorRun> m_colorRuns;  ///< empty means the whole string uses the draw() color
 
 	DisplayString *m_next;  ///< for the display string factory list ONLY
 	DisplayString *m_prev;	///< for the display string factory list ONLY
@@ -122,7 +142,8 @@ inline Int DisplayString::getTextLength() { return m_textString.getLength(); }
 inline void DisplayString::setFont( GameFont *font ) { m_font = font; }
 inline GameFont *DisplayString::getFont() { return m_font; }
 inline void DisplayString::setClipRegion( IRegion2D *region ) {}
-inline void DisplayString::notifyTextChanged() {}
 inline DisplayString *DisplayString::next() { return m_next; }
+inline Int DisplayString::getColorRunCount() const { return (Int)m_colorRuns.size(); }
+inline const TextColorRun *DisplayString::getColorRuns() const { return m_colorRuns.empty() ? nullptr : &m_colorRuns[0]; }
 
 // EXTERNALS //////////////////////////////////////////////////////////////////

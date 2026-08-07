@@ -86,6 +86,7 @@ W3DDisplayString::W3DDisplayString()
 	m_size.x = 0;
 	m_size.y = 0;
 	m_fontChanged = FALSE;
+	m_colorRunsChanged = FALSE;
 	m_clipRegion.lo.x = 0;
 	m_clipRegion.lo.y = 0;
 	m_clipRegion.hi.x = 0;
@@ -143,6 +144,61 @@ void W3DDisplayString::notifyTextChanged()
 	m_textRenderer.Reset();
 	m_textRendererHotKey.Reset();
 
+	// the base class dropped our color runs since their indices are now stale
+	m_colorRunsChanged = TRUE;
+
+}
+
+// W3DDisplayString::setColorRuns =============================================
+/** */
+//=============================================================================
+void W3DDisplayString::setColorRuns( const TextColorRun *runs, Int count )
+{
+
+	const Bool hadRuns = getColorRunCount() > 0;
+	DisplayString::setColorRuns( runs, count );
+	if( hadRuns || getColorRunCount() > 0 )
+		m_colorRunsChanged = TRUE;
+
+}
+
+// W3DDisplayString::clearColorRuns ===========================================
+/** */
+//=============================================================================
+void W3DDisplayString::clearColorRuns()
+{
+
+	DisplayString::clearColorRuns();
+	m_colorRunsChanged = TRUE;
+
+}
+
+// W3DDisplayString::applyColorRuns ===========================================
+/** Translate our device independent color runs into what the sentence
+	* renderer needs.  Must happen before Build_Sentence since the runs
+	* affect how the sentence is split into chunks */
+//=============================================================================
+void W3DDisplayString::applyColorRuns()
+{
+	const Int count = getColorRunCount();
+
+	if( count == 0 )
+	{
+		m_textRenderer.Reset_Char_Color_Runs();
+		return;
+	}
+
+	const TextColorRun *src = getColorRuns();
+	std::vector<Render2DSentenceClass::CharColorRunStruct> runs( count );
+	for( Int i = 0; i < count; ++i )
+	{
+		runs[ i ].Start = src[ i ].start;
+		runs[ i ].Length = src[ i ].length;
+		runs[ i ].Color = src[ i ].color;
+	}
+
+	m_textRenderer.Set_Char_Color_Runs( &runs[ 0 ], count );
+
 }
 
 // W3DDisplayString::Draw =====================================================
@@ -165,9 +221,11 @@ void W3DDisplayString::draw( Int x, Int y, Color color, Color dropColor, Int xDr
 	if( getTextLength() == 0 )
 		return;  // nothing to draw
 
-	// if our font or text has changed we need to build a new sentence
-	if( m_fontChanged || m_textChanged )
+	// if our font, text or color runs have changed we need to build a new sentence
+	if( m_fontChanged || m_textChanged || m_colorRunsChanged )
 	{
+		applyColorRuns();
+
 		if(m_useHotKey)
 		{
 			m_textRenderer.Set_Hot_Key_Parse(TRUE);
@@ -185,6 +243,7 @@ void W3DDisplayString::draw( Int x, Int y, Color color, Color dropColor, Int xDr
 			m_textRenderer.Build_Sentence( getText().str(), nullptr, nullptr );
 		m_fontChanged = FALSE;
 		m_textChanged = FALSE;
+		m_colorRunsChanged = FALSE;
 		needNewPolys = TRUE;
 
 	}
@@ -215,7 +274,7 @@ void W3DDisplayString::draw( Int x, Int y, Color color, Color dropColor, Int xDr
 
 		// draw the text
 		m_textRenderer.Set_Location( Vector2( m_textPos.x, m_textPos.y ) );
-		m_textRenderer.Draw_Sentence( m_currTextColor );
+		m_textRenderer.Draw_Sentence( m_currTextColor, TRUE );
 
 		if (m_useHotKey)
 		{

@@ -84,19 +84,23 @@ public:
 	virtual void setFont( GameFont *font ) override;							///< set a font for display
 	virtual void setUseHotkey( Bool useHotkey, Color hotKeyColor = 0xffffffff ) override;
 	virtual void setClipRegion( IRegion2D *region ) override;		///< clip text in this region
+	virtual void setColorRuns( const TextColorRun *runs, Int count ) override;
+	virtual void clearColorRuns() override;
 
 protected:
 
 	void checkForChangedTextData();  /**< called when we need to update our
-																				 render sentence and update extents */
+																		 render sentence and update extents */
 	void usingResources( UnsignedInt frame );  /**< call this whenever display
 																						 resources are in use */
 	void computeExtents();  ///< compupte text width and height
+	void applyColorRuns();  ///< push our color runs into the text renderer
 
 	Render2DSentenceClass m_textRenderer;  ///< for drawing text
 	Render2DSentenceClass m_textRendererHotKey;  ///< for drawing text
 	Bool m_textChanged;  ///< when contents of string change this is TRUE
 	Bool m_fontChanged;  ///< when font has chagned this is TRUE
+	Bool m_colorRunsChanged;  ///< when color runs change this is TRUE
 	UnicodeString m_hotkey;		///< holds the current hotkey marker.
 	Bool m_useHotKey;
 	ICoord2D m_hotKeyPos;

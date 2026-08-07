@@ -55,7 +55,7 @@ extern Bool LANbuttonPushed;
 const Color playerColor =  GameMakeColor(255,255,255,255);
 const Color gameColor =  GameMakeColor(255,255,255,255);
 const Color gameInProgressColor =  GameMakeColor(128,128,128,255);
-const Color chatNormalColor =  GameMakeColor(50,215,230,255);
+const Color chatNormalColor =  GameMakeColor(255,255,255,255);
 const Color chatActionColor =  GameMakeColor(255,0,255,255);
 const Color chatLocalNormalColor =  GameMakeColor(255,128,0,255);
 const Color chatLocalActionColor =  GameMakeColor(128,255,255,255);
@@ -720,14 +720,17 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 				}
 			}
 
-			unicodeChat = L"[";
-			unicodeChat.concat(player);
-			unicodeChat.concat(L"] ");
+			unicodeChat = player;
+			unicodeChat.concat(L": ");
 			unicodeChat.concat(message);
-			if (ip == m_localIP)
-				index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatColor, -1, -1);
-			else
-				index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatColor, -1, -1);
+
+			// the name keeps the player color, the body renders in the standard chat color
+			TextColorRun nameRun;
+			nameRun.start = 0;
+			nameRun.length = player.getLength();
+			nameRun.color = chatColor;
+
+			index = GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatNormalColor, -1, -1, TRUE, &nameRun, 1);
 			break;
 		}
 	}

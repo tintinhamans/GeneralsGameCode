@@ -72,7 +72,8 @@ Render2DSentenceClass::Render2DSentenceClass () :
 	Centered (false),
 	DrawExtents (0, 0, 0, 0),
 	ParseHotKey( false ),
-	useHardWordWrap( false)
+	useHardWordWrap( false),
+	CurrentChunkColor (0)
 {
 	Shader = Render2DClass::Get_Default_Shader ();
 }
@@ -403,7 +404,7 @@ Render2DSentenceClass::Build_Textures ()
 //
 ////////////////////////////////////////////////////////////////////////////////////
 void
-Render2DSentenceClass::Draw_Sentence (uint32 color)
+Render2DSentenceClass::Draw_Sentence (uint32 color, bool use_char_colors)
 {
 	Render2DClass *curr_renderer	= nullptr;
 	SurfaceClass *curr_surface		= nullptr;
@@ -543,7 +544,17 @@ Render2DSentenceClass::Draw_Sentence (uint32 color)
 			screen_rect.Right += offset*3;
 #endif
 			offset++;
-			curr_renderer->Add_Quad (screen_rect, uv_rect, color);
+
+			//
+			//	A chunk color only supplies RGB, the alpha always comes from the
+			// caller so that fading and drop shadows keep working.
+			//
+			uint32 quad_color = color;
+			if (use_char_colors && data.Color != 0) {
+				quad_color = (data.Color & 0x00FFFFFF) | (color & 0xFF000000);
+			}
+
+			curr_renderer->Add_Quad (screen_rect, uv_rect, quad_color);
 
 			//
 			//	Add this rectangle to the total draw extents
@@ -555,6 +566,63 @@ Render2DSentenceClass::Draw_Sentence (uint32 color)
 			}
 		}
 	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////
+//
+//	Set_Char_Color_Runs
+//
+////////////////////////////////////////////////////////////////////////////////////
+void
+Render2DSentenceClass::Set_Char_Color_Runs (const CharColorRunStruct *runs, int count)
+{
+	Reset_Char_Color_Runs ();
+
+	if (runs == nullptr || count <= 0) {
+		return ;
+	}
+
+	for (int index = 0; index < count; index ++) {
+		if (runs[index].Length > 0) {
+			CharColorRuns.Add (runs[index]);
+		}
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////
+//
+//	Reset_Char_Color_Runs
+//
+////////////////////////////////////////////////////////////////////////////////////
+void
+Render2DSentenceClass::Reset_Char_Color_Runs ()
+{
+	if (CharColorRuns.Count () > 0) {
+		CharColorRuns.Delete_All ();
+	}
+
+	CurrentChunkColor = 0;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////
+//
+//	Lookup_Char_Color
+//
+////////////////////////////////////////////////////////////////////////////////////
+uint32
+Render2DSentenceClass::Lookup_Char_Color (int char_index) const
+{
+	for (int index = 0; index < CharColorRuns.Count (); index ++) {
+		const CharColorRunStruct &run = CharColorRuns[index];
+		if (char_index >= run.Start && char_index < (run.Start + run.Length)) {
+			return run.Color;
+		}
+	}
+
+	return 0;
 }
 
 
@@ -580,6 +648,7 @@ Render2DSentenceClass::Record_Sentence_Chunk ()
 		SentenceDataStruct sentence_data;
 		sentence_data.Surface = CurSurface;
 		sentence_data.Surface->Add_Ref ();
+		sentence_data.Color					= CurrentChunkColor;
 		sentence_data.ScreenRect.Left		= Cursor.X;
 		sentence_data.ScreenRect.Right	= Cursor.X + width;
 		sentence_data.ScreenRect.Top		= Cursor.Y;
@@ -723,6 +792,9 @@ void	Render2DSentenceClass::Build_Sentence_Centered (const WCHAR *text, int *hkX
 	int notCenteredHotkeyY = 0;
 	Vector2 extent = Build_Sentence_Not_Centered(text,&notCenteredHotkeyX, &notCenteredHotkeyY, TRUE); //Get_Formatted_Text_Extents(text);
 
+	const WCHAR *text_start = text;
+	CurrentChunkColor = 0;
+
 	//
 	//	Start fresh
 	//
@@ -865,15 +937,17 @@ void	Render2DSentenceClass::Build_Sentence_Centered (const WCHAR *text, int *hkX
 				ch = *text++;
 				dontBlit = true;
 			}
+			uint32 char_color = Lookup_Char_Color ((int)(text - text_start) - 1);
 			float char_spacing = Font->Get_Char_Spacing (ch);
 
 			bool exceeded_texture_width	= ((TextureOffset.I + char_spacing) >= CurrTextureSize);
 			bool encountered_break_char	= (ch == L' ' || ch == L'\n' || ch == 0);
+			bool color_changed = (char_color != CurrentChunkColor);
 
 			//
 			//	Do we need to record this portion of the sentence to its own chunk?
 			//
-			if (exceeded_texture_width || encountered_break_char) {
+			if (exceeded_texture_width || encountered_break_char || color_changed) {
 				Record_Sentence_Chunk ();
 
 				//
@@ -907,6 +981,9 @@ void	Render2DSentenceClass::Build_Sentence_Centered (const WCHAR *text, int *hkX
 					}
 				}
 			}
+
+			CurrentChunkColor = char_color;
+
 			//
 			//	Adjust the output coordinates
 			//
@@ -967,6 +1044,9 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 	int textureStartX = TextureStartX;
 	float maxX = 0;
 
+	const WCHAR *text_start = text;
+	CurrentChunkColor = 0;
+
 	int hotKeyPosX = 0;
 	int hotKeyPosY = 0;
 	bool calcHotKeyX = false;
@@ -1015,15 +1095,17 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 			ch = *text++;
 			dontBlit = true;
 		}
+		uint32 char_color = Lookup_Char_Color ((int)(text - text_start) - 1);
 		float char_spacing = Font->Get_Char_Spacing (ch);
 
 		bool exceeded_texture_width	= ((TextureOffset.I + char_spacing) >= CurrTextureSize);
 		bool encountered_break_char	= (ch == L' ' || ch == L'\n' || ch == 0);
 		bool wordBiggerThenLine = ((useHardWordWrap) && ( WrapWidth != 0 ) &&((Cursor.X + TextureOffset.I -TextureStartX + char_spacing) >= WrapWidth));
+		bool color_changed = (!justCalcExtents && char_color != CurrentChunkColor);
 		//
 		//	Do we need to record this portion of the sentence to its own chunk?
 		//
-		if (exceeded_texture_width || encountered_break_char|| wordBiggerThenLine) {
+		if (exceeded_texture_width || encountered_break_char|| wordBiggerThenLine || color_changed) {
 			if (!justCalcExtents)
 			{
 				Record_Sentence_Chunk ();
@@ -1096,6 +1178,8 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 				}
 			}
 		}
+
+		CurrentChunkColor = char_color;
 
 		if (ch != L'\n' ) {
 

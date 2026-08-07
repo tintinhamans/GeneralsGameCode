@@ -367,6 +367,7 @@ public:  // ********************************************************************
 	virtual void messageColor( const RGBColor *rgbColor, UnicodeString format, ... );	///< display a colored message to the user
 	virtual void messageNoFormat( const UnicodeString& message ); ///< display a message to the user
 	virtual void messageNoFormat( const RGBColor *rgbColor, const UnicodeString& message ); ///< display a colored message to the user
+	virtual void messageChat( const RGBColor *nameColor, const UnicodeString& name, const UnicodeString& message );  ///< display a chat line with the sender name in its own color
 	virtual void message( UnicodeString format, ... );				  ///< display a message to the user
 	virtual void message( AsciiString stringManagerLabel, ... );///< display a message to the user
 	virtual void toggleMessages() { m_messagesOn = 1 - m_messagesOn; }	///< toggle messages on/off

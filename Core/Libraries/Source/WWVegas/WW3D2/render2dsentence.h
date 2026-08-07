@@ -188,7 +188,7 @@ public:
 	//	Sentence control
 	//
 	void	Build_Sentence (const WCHAR *text, int *hkX, int *hkY);
-	void	Draw_Sentence (uint32 color = 0xFFFFFFFF);
+	void	Draw_Sentence (uint32 color = 0xFFFFFFFF, bool use_char_colors = false);
 
 	//
 	//	Texture hint
@@ -197,6 +197,27 @@ public:
 	int	Get_Texture_Size_Hint() const				{ return TextureSizeHint; }
 
 	void	Set_Mono_Spaced( bool onoff )						{ MonoSpaced = onoff; }
+
+	//
+	//	Per-character color support
+	//
+	//	A run assigns a color to a range of characters of the string passed to
+	//	Build_Sentence. Only the RGB portion of a run color is used; the alpha comes
+	//	from the color passed to Draw_Sentence so that fading still works. A run
+	//	color of zero means "inherit the Draw_Sentence color".
+	//
+	struct CharColorRunStruct {
+		int				Start;
+		int				Length;
+		uint32			Color;
+
+		bool operator== (const CharColorRunStruct &src)	{ return false; }
+		bool operator!= (const CharColorRunStruct &src)	{ return true; }
+	};
+
+	void	Set_Char_Color_Runs( const CharColorRunStruct *runs, int count );
+	void	Reset_Char_Color_Runs();
+	bool	Has_Char_Color_Runs() const				{ return CharColorRuns.Count () > 0; }
 
 private:
 
@@ -207,6 +228,7 @@ private:
 		SurfaceClass *		Surface;
 		RectClass			ScreenRect;
 		RectClass			UVRect;
+		uint32				Color;
 
 		bool operator== (const SentenceDataStruct &src)	{ return false; }
 		bool operator!= (const SentenceDataStruct &src)	{ return true; }
@@ -231,6 +253,7 @@ private:
 	//
 	//	Private methods
 	//
+	uint32	Lookup_Char_Color (int char_index) const;
 	void	Reset_Sentence_Data ();
 	void	Build_Textures ();
 	void	Record_Sentence_Chunk ();
@@ -244,6 +267,8 @@ private:
 	DynamicVectorClass<SentenceDataStruct>		SentenceData;
 	DynamicVectorClass<PendingSurfaceStruct>	PendingSurfaces;
 	DynamicVectorClass<RendererDataStruct>		Renderers;
+	DynamicVectorClass<CharColorRunStruct>		CharColorRuns;
+	uint32										CurrentChunkColor;
 	FontCharsClass	*						Font;
 	Vector2											BaseLocation;
 	Vector2											Location;

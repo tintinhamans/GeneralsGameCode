@@ -752,7 +752,7 @@ void ConnectionManager::processDisconnectChat(NetDisconnectChatCommandMsg *msg)
 	} else if (isPlayerConnected(playerID)) {
 		name = m_connections[playerID]->getUser()->GetName();
 	}
-	unitext.format(L"[%ls] %ls", name.str(), msg->getText().str());
+	unitext.format(L"%ls: %ls", name.str(), msg->getText().str());
 //	DEBUG_LOG(("ConnectionManager::processDisconnectChat - got message from player %d, message is %ls", playerID, unitext.str()));
 	TheDisconnectMenu->showChat(unitext); // <-- need to implement this
 }
@@ -773,7 +773,7 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 		name = m_connections[playerID]->getUser()->GetName();
 		//DEBUG_LOG(("connection is non-null, using %ls", name.str()));
 	}
-	unitext.format(L"[%ls] %ls", name.str(), msg->getText().str());
+	unitext.format(L"%ls: %ls", name.str(), msg->getText().str());
 //	DEBUG_LOG(("ConnectionManager::processChat - got message from player %d (mask %8.8X), message is %ls", playerID, msg->getPlayerMask(), unitext.str()));
 
 	AsciiString playerName;
@@ -793,11 +793,7 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 	{
 		RGBColor rgb;
 		rgb.setFromInt(player->getPlayerColor());
-#if defined(GENERALS_ONLINE)
-		TheInGameUI->messageColor(true, &rgb, UnicodeString(L"%ls"), unitext.str());
-#else
-		TheInGameUI->messageColor(&rgb, L"%ls", unitext.str());
-#endif
+		TheInGameUI->messageChat(&rgb, name, msg->getText());
 
 		// feedback for received chat messages in-game
 		AudioEventRTS audioEvent("GUICommunicatorIncoming");

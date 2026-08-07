@@ -2405,6 +2405,29 @@ void InGameUI::messageNoFormat(const RGBColor* rgbColor, const UnicodeString& me
 }
 
 //-------------------------------------------------------------------------------------------------
+/** Show a chat line as "[name] message", with the name in the sender's color and the
+	* body in the regular message color */
+//-------------------------------------------------------------------------------------------------
+void InGameUI::messageChat(const RGBColor* nameColor, const UnicodeString& name, const UnicodeString& message)
+{
+	UnicodeString formattedMessage;
+	formattedMessage.format(L"%ls: %ls", name.str(), message.str());
+
+#if defined(GENERALS_ONLINE)
+	addMessageText(formattedMessage, nullptr, true);
+#else
+	addMessageText(formattedMessage, nullptr);
+#endif
+
+	if (nameColor == nullptr || m_uiMessages[0].displayString == nullptr)
+		return;
+
+	// the run must be set after addMessageText, setting the text drops any existing runs
+	TextColorRun run;
+	run.start = 0;
+	run.length = name.getLength();
+
+//-------------------------------------------------------------------------------------------------
 /** Interface for display text messages to the user */
 //-------------------------------------------------------------------------------------------------
 // srj sez: passing as const-ref screws up varargs for some reason. dunno why. just pass by value.

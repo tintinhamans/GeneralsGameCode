@@ -79,6 +79,8 @@ typedef struct _AddMessageStruct
 	Bool overwrite;	// Do we overwrite existing data?
 	Int width;			// set to -1 if we want the defaults
 	Int height;			// set to -1 if we want the defaults
+	const TextColorRun *colorRuns;	// optional per character colors, not owned
+	Int colorRunCount;
 } AddMessageStruct;
 
 
@@ -456,7 +458,8 @@ static Int moveRowsDown(ListboxData *list, Int startingRow)
 // addEntry ===================================================================
 /** Add and process one string at insertPos */
 //=============================================================================
-static Int addEntry( UnicodeString *string, Int color, Int row, Int column, GameWindow *window, Bool overwrite )
+static Int addEntry( UnicodeString *string, Int color, Int row, Int column, GameWindow *window, Bool overwrite,
+										 const TextColorRun *colorRuns = nullptr, Int colorRunCount = 0 )
 {
 //	WinInstanceData *instData = window->winGetInstanceData();
 	ListboxData *list = (ListboxData *)window->winGetUserData();
@@ -515,6 +518,9 @@ static Int addEntry( UnicodeString *string, Int color, Int row, Int column, Game
 	if ( BitIsSet( window->winGetStatus(), WIN_STATUS_ONE_LINE ) == FALSE )
 		displayString->setWordWrap( width );
 	displayString->setText( *string );
+
+	// must follow setText, which drops any runs the string was already carrying
+	displayString->setColorRuns( colorRuns, colorRunCount );
 
 	/** @todo we need for formalize this, but for now just set the font
 	of this listbox entry to the font of the window */
@@ -1502,7 +1508,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			{
 				if( addInfo->type == LISTBOX_TEXT )
 				{
-					addedIndex = addEntry( (UnicodeString *)addInfo->data, mData2, addInfo->row, addInfo->column, window, addInfo->overwrite );
+					addedIndex = addEntry( (UnicodeString *)addInfo->data, mData2, addInfo->row, addInfo->column, window, addInfo->overwrite, addInfo->colorRuns, addInfo->colorRunCount );
 				}
 				else if ( addInfo->type == LISTBOX_IMAGE )
 				{
@@ -2224,7 +2230,8 @@ UnicodeString GadgetListBoxGetTextAndColor( GameWindow *listbox, Color *color, I
 //=============================================================================
 Int GadgetListBoxAddEntryText( GameWindow *listbox,
 														UnicodeString text,
-														Color color, Int row, Int column, Bool overwrite )
+																Color color, Int row, Int column, Bool overwrite,
+																const TextColorRun *colorRuns, Int colorRunCount )
 {
 	if (!listbox)
 		return -1;
@@ -2239,6 +2246,8 @@ Int GadgetListBoxAddEntryText( GameWindow *listbox,
 	addInfo.overwrite = overwrite;
 	addInfo.height = -1;
 	addInfo.width = -1;
+	addInfo.colorRuns = colorRuns;
+	addInfo.colorRunCount = colorRunCount;
 
 	ListboxData *listData = (ListboxData *)listbox->winGetUserData();
 	if (listData == nullptr)
@@ -2277,6 +2286,8 @@ Int GadgetListBoxAddEntryImage( GameWindow *listbox, const Image *image,
 	addInfo.overwrite = overwrite;
 	addInfo.height = hight;
 	addInfo.width = width;
+	addInfo.colorRuns = nullptr;
+	addInfo.colorRunCount = 0;
 	/// @TODO: Don't do this type cast!
 	index = (Int) TheWindowManager->winSendSystemMsg( listbox, GLM_ADD_ENTRY, (WindowMsgData)&addInfo, color );
 	return (index);

@@ -428,11 +428,11 @@ static handleUnicodeMessage( const char *nick, UnicodeString msg, Bool isPublic,
 	UnicodeString fullMsg;
 	if (isAction)
 	{
-		fullMsg.format( L"%ls %ls", name.str(), msg.str() );
+		fullMsg.format( L"* %ls %ls", name.str(), msg.str() );
 	}
 	else
 	{
-		fullMsg.format( L"[%ls] %ls", name.str(), msg.str() );
+		fullMsg.format( L"%ls: %ls", name.str(), msg.str() );
 	}
 	GameSpyAddText(fullMsg, style);
 }

@@ -115,9 +115,67 @@ void DisplayString::reset()
 {
 
 	m_textString.clear();
+	m_colorRuns.clear();
 
 	// no font
 	m_font = nullptr;
+
+}
+
+// DisplayString::notifyTextChanged ===========================================
+/** The character indices the color runs refer to are no longer valid once the
+	* text changes, so callers must re-apply them after every setText */
+//=============================================================================
+void DisplayString::notifyTextChanged()
+{
+
+	m_colorRuns.clear();
+
+}
+
+// DisplayString::setColorRuns ================================================
+/** Assign explicit colors to ranges of characters. Runs are indexed by
+	* character position in the current text, and must be set after setText() */
+//=============================================================================
+void DisplayString::setColorRuns( const TextColorRun *runs, Int count )
+{
+
+	m_colorRuns.clear();
+
+	if( runs == nullptr || count <= 0 )
+		return;
+
+	const Int textLength = getTextLength();
+	for( Int i = 0; i < count; ++i )
+	{
+		TextColorRun run = runs[ i ];
+
+		if( run.length <= 0 || run.start >= textLength )
+			continue;
+
+		if( run.start < 0 )
+		{
+			run.length += run.start;
+			run.start = 0;
+			if( run.length <= 0 )
+				continue;
+		}
+
+		if( run.start + run.length > textLength )
+			run.length = textLength - run.start;
+
+		m_colorRuns.push_back( run );
+	}
+
+}
+
+// DisplayString::clearColorRuns ==============================================
+/** */
+//=============================================================================
+void DisplayString::clearColorRuns()
+{
+
+	m_colorRuns.clear();
 
 }
 
