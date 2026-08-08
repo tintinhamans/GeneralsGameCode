@@ -664,7 +664,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 #if defined(USE_TEST_ENV)
 								strMatchURL.format("https://www.playgenerals.online/viewmatch?match=%" PRIu64 "&env=test", currentMatchID);
 #else
-								strMatchURL.format("https://www.playgenerals.online/viewmatch?match=%" PRIu64, currentMatchID);
+								strMatchURL.format("https://www.strata.gamereplays.org/zh/match/%" PRIu64, currentMatchID);
 #endif
 								ShellExecuteA(NULL, "open", strMatchURL.str(), NULL, NULL, SW_SHOWNORMAL);
 							}
