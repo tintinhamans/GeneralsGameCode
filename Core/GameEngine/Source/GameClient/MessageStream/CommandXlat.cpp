@@ -51,6 +51,7 @@
 #include "Common/StatsCollector.h"
 #include "Common/ThingTemplate.h"
 #include "Common/GameLOD.h"
+#include "Common/OptionPreferences.h"
 
 #include "GameClient/InGameUI.h"
 #include "GameClient/CommandXlat.h"
@@ -180,6 +181,75 @@ Bool hasThingsInProduction(PlayerType playerType)
 
 #endif // defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
 
+enum ObserverFontSizeChange
+{
+	ObserverFontSizeChange_Increase,
+	ObserverFontSizeChange_Decrease,
+};
+
+static const Int ObserverFontSizeMin = 0;
+static const Int ObserverFontSizeMax = 15;
+
+static Int applyObserverFontSizeChange(Int fontSize, ObserverFontSizeChange change)
+{
+	switch (change)
+	{
+		case ObserverFontSizeChange_Increase:
+			if (fontSize < ObserverFontSizeMax)
+				++fontSize;
+			break;
+
+		case ObserverFontSizeChange_Decrease:
+			if (fontSize > ObserverFontSizeMin)
+				--fontSize;
+			break;
+	}
+
+	return fontSize;
+}
+
+static void writeObserverFontSizePref(const char* prefKey, Int fontSize)
+{
+	OptionPreferences optPref;
+	AsciiString prefString;
+	prefString.format("%d", fontSize);
+	optPref[prefKey] = prefString;
+	optPref.write();
+}
+
+static bool changeObserverNotificationFontSize(ObserverFontSizeChange change)
+{
+	const Int fontSize = applyObserverFontSizeChange(TheWritableGlobalData->m_observerNotificationFontSize, change);
+
+	if (fontSize == TheWritableGlobalData->m_observerNotificationFontSize)
+		return false;
+
+	TheWritableGlobalData->m_observerNotificationFontSize = fontSize;
+
+	if (TheInGameUI)
+		TheInGameUI->refreshObserverNotificationResources();
+
+	writeObserverFontSizePref("ObserverNotificationFontSize", fontSize);
+
+	return true;
+}
+
+static bool changeObserverStatsFontSize(ObserverFontSizeChange change)
+{
+	const Int fontSize = applyObserverFontSizeChange(TheWritableGlobalData->m_observerStatsFontSize, change);
+
+	if (fontSize == TheWritableGlobalData->m_observerStatsFontSize)
+		return false;
+
+	TheWritableGlobalData->m_observerStatsFontSize = fontSize;
+
+	if (TheInGameUI)
+		TheInGameUI->initObserverOverlay();
+
+	writeObserverFontSizePref("ObserverStatsFontSize", fontSize);
+
+	return true;
+}
 
 bool changeMaxRenderFps(FpsValueChange change)
 {
@@ -3279,6 +3349,46 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		}
 
 		//-----------------------------------------------------------------------------------------
+		case GameMessage::MSG_META_INCREASE_OBSERVER_NOTIFICATION_FONT:
+		{
+			if (changeObserverNotificationFontSize(ObserverFontSizeChange_Increase))
+			{
+				disp = DESTROY_MESSAGE;
+			}
+			break;
+		}
+
+		//-----------------------------------------------------------------------------------------
+		case GameMessage::MSG_META_DECREASE_OBSERVER_NOTIFICATION_FONT:
+		{
+			if (changeObserverNotificationFontSize(ObserverFontSizeChange_Decrease))
+			{
+				disp = DESTROY_MESSAGE;
+			}
+			break;
+		}
+
+		//-----------------------------------------------------------------------------------------
+		case GameMessage::MSG_META_INCREASE_OBSERVER_STATS_FONT:
+		{
+			if (changeObserverStatsFontSize(ObserverFontSizeChange_Increase))
+			{
+				disp = DESTROY_MESSAGE;
+			}
+			break;
+		}
+
+		//-----------------------------------------------------------------------------------------
+		case GameMessage::MSG_META_DECREASE_OBSERVER_STATS_FONT:
+		{
+			if (changeObserverStatsFontSize(ObserverFontSizeChange_Decrease))
+			{
+				disp = DESTROY_MESSAGE;
+			}
+			break;
+		}
+
+		//-----------------------------------------------------------------------------------------
 		case GameMessage::MSG_META_INCREASE_LOGIC_TIME_SCALE:
 		{
 			if (changeLogicTimeScale(FpsValueChange_Increase))
@@ -3369,6 +3479,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				}
 
 				ToggleControlBar();
+				TheInGameUI->toggleObserverStats();
 			}
 			disp = DESTROY_MESSAGE;
 			break;
