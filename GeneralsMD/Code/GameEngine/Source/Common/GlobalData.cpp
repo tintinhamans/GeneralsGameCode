@@ -976,7 +976,7 @@ GlobalData::GlobalData()
 	m_showMoneyPerMinute = FALSE;
 	m_allowMoneyPerMinuteForPlayer = FALSE;
 
-	m_gameWindowTransitionSpeedMultiplier = 1.0f;
+	m_gameWindowTransitionSpeedMultiplier = 2.5f;
 
 	m_debugShowGraphicalFramerate = FALSE;
 
