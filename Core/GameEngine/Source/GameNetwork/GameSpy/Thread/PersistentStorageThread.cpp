@@ -340,6 +340,7 @@ PSPlayerStats::PSPlayerStats( const PSPlayerStats& other )
 #if defined(GENERALS_ONLINE)
 	elo_rating = other.elo_rating;
 	elo_num_matches = other.elo_num_matches;
+	monthly_elo_rating = other.monthly_elo_rating;
 #endif
 	locale = other.locale;
 	gamesAsRandom = other.gamesAsRandom;
