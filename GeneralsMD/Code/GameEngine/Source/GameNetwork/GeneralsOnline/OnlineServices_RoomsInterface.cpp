@@ -178,11 +178,15 @@ void WebSocket::SendData_MarkReady(bool bReady)
 }
 
 
-void WebSocket::SendData_JoinNetworkRoom(int roomID)
+void WebSocket::SendData_JoinNetworkRoom(int roomID, uint64_t requestID)
 {
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::NETWORK_ROOM_CHANGE_ROOM;
 	j["room"] = roomID;
+	if (requestID != 0)
+	{
+		j["request_id"] = requestID;
+	}
 	std::string strBody = j.dump();
 
 	Send(strBody.c_str());
@@ -1165,10 +1169,28 @@ void WebSocket::Tick()
 											mapMembers.emplace(newMember.user_id, newMember);
 										}
 
+										RoomSelectionResult selectionResult;
+										if (jsonObject.contains("selected_room_id") && jsonObject["selected_room_id"].is_number_integer())
+										{
+											selectionResult.selectedRoomID = jsonObject["selected_room_id"].get<int>();
+										}
+										if (jsonObject.contains("rejected_room_id") && jsonObject["rejected_room_id"].is_number_integer())
+										{
+											selectionResult.rejectedRoomID = jsonObject["rejected_room_id"].get<int>();
+										}
+										if (jsonObject.contains("room_selection_error") && jsonObject["room_selection_error"].is_string())
+										{
+											jsonObject["room_selection_error"].get_to(selectionResult.error);
+										}
+										if (jsonObject.contains("request_id") && jsonObject["request_id"].is_number_unsigned())
+										{
+											selectionResult.requestID = jsonObject["request_id"].get<uint64_t>();
+										}
+
                                         NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
                                         if (pRoomsInterface != nullptr)
                                         {
-                                            pRoomsInterface->OnRosterUpdated(mapMembers);
+											pRoomsInterface->OnRosterUpdated(mapMembers, selectionResult);
                                         }
 									}
 									break;
@@ -1429,8 +1451,7 @@ NGMP_OnlineServices_RoomsInterface::NGMP_OnlineServices_RoomsInterface()
 
 void NGMP_OnlineServices_RoomsInterface::GetRoomList(std::function<void(void)> cb)
 {
-	m_vecRooms.clear();
-    	// Cache our buddies on lobby list
+	// Cache our buddies on lobby list
 	NGMP_OnlineServices_SocialInterface* pSocialInterface =
 		NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
 	if (pSocialInterface != nullptr)
@@ -1443,23 +1464,48 @@ void NGMP_OnlineServices_RoomsInterface::GetRoomList(std::function<void(void)> c
 
 	NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
+			if (!bSuccess || statusCode != 200)
+			{
+				cb();
+				return;
+			}
+
 			try
 			{
+				std::vector<NetworkRoom> rooms;
 				nlohmann::json jsonObject = nlohmann::json::parse(strBody);
+				const bool roomSelectionResultsSupported = jsonObject.value("supports_room_selection_results", false);
 
 				for (const auto& roomEntryIter : jsonObject["rooms"])
 				{
 					int id = 0;
 					std::string strName;
-					ERoomFlags flags;
-
+					ERoomFlags flags = ERoomFlags::ROOM_FLAGS_DEFAULT;
+					int parentRoomID = -1;
+					int targetRoomID = -1;
 
 					roomEntryIter["id"].get_to(id);
 					roomEntryIter["name"].get_to(strName);
-					roomEntryIter["flags"].get_to(flags);
-					NetworkRoom roomEntry(id, strName, flags);
+					if (roomEntryIter.contains("flags") && !roomEntryIter["flags"].is_null())
+					{
+						roomEntryIter["flags"].get_to(flags);
+					}
+					if (roomEntryIter.contains("parent_id") && !roomEntryIter["parent_id"].is_null())
+					{
+						roomEntryIter["parent_id"].get_to(parentRoomID);
+					}
+					if (roomEntryIter.contains("target_room_id") && !roomEntryIter["target_room_id"].is_null())
+					{
+						roomEntryIter["target_room_id"].get_to(targetRoomID);
+					}
+					NetworkRoom roomEntry(id, strName, flags, parentRoomID, targetRoomID);
+					rooms.push_back(roomEntry);
+				}
 
-					m_vecRooms.push_back(roomEntry);
+				{
+					std::scoped_lock<std::mutex> lock(m_roomsMutex);
+					m_vecRooms = std::move(rooms);
+					m_bRoomSelectionResultsSupported = roomSelectionResultsSupported;
 				}
 
 				cb();
@@ -1476,44 +1522,52 @@ void NGMP_OnlineServices_RoomsInterface::GetRoomList(std::function<void(void)> c
 		});
 }
 
-void NGMP_OnlineServices_RoomsInterface::JoinRoom(int roomIndex, std::function<void()> onStartCallback, std::function<void()> onCompleteCallback)
+void NGMP_OnlineServices_RoomsInterface::JoinRoom(int roomIndex)
 {
-	// TODO_NGMP: Safety - NOW FIXED with null checks
-
-	// TODO_NGMP: Remove this, its no longer a call really, or make a call
-	if (onStartCallback != nullptr)
+	const std::vector<NetworkRoom> rooms = GetGroupRooms();
+	if (roomIndex < 0 || roomIndex >= (int)rooms.size())
 	{
-		onStartCallback();
+		ReportRoomJoinFailure(std::format("Invalid room index {}.", roomIndex));
+		return;
 	}
-	m_CurrentRoomID = roomIndex;
 
-	// TODO_NGMP: What if there are zero rooms? e.g. the service request failed
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-	if (pRoomsInterface != nullptr)
+	std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
+	if (pWS == nullptr)
 	{
-		if (!pRoomsInterface->GetGroupRooms().empty())
+		ReportRoomJoinFailure("The room service is not connected.");
+		return;
+	}
+
+	bool roomChangeAlreadyPending = false;
+	uint64_t requestID = 0;
+	{
+		std::scoped_lock<std::mutex> lock(m_roomsMutex);
+		if (m_PendingRoomChange.has_value())
 		{
-			// if the room doesnt exist, try the first room
-			if (roomIndex < 0 || roomIndex >= pRoomsInterface->GetGroupRooms().size())
+			roomChangeAlreadyPending = true;
+		}
+		else
+		{
+			requestID = m_NextRoomChangeRequestID++;
+			if (m_NextRoomChangeRequestID == 0)
 			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Invalid room index %d, using first room", roomIndex);
-				roomIndex = 0;
+				m_NextRoomChangeRequestID = 1;
 			}
-
-			NetworkRoom targetNetworkRoom = pRoomsInterface->GetGroupRooms().at(roomIndex);
-
-			std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();;
-			if (pWS != nullptr)
-			{
-				pWS->SendData_JoinNetworkRoom(targetNetworkRoom.GetRoomID());
-			}
+			m_PendingRoomChange = PendingRoomChange{
+				roomIndex,
+				rooms[roomIndex].GetRoomID(),
+				requestID,
+				std::chrono::steady_clock::now() + std::chrono::seconds(10)
+			};
 		}
 	}
-
-	if (onCompleteCallback != nullptr)
+	if (roomChangeAlreadyPending)
 	{
-		onCompleteCallback();
+		ReportRoomJoinFailure("Another room change is already in progress.");
+		return;
 	}
+
+	pWS->SendData_JoinNetworkRoom(rooms[roomIndex].GetRoomID(), requestID);
 }
 
 std::unordered_map<uint64_t, NetworkRoomMember>& NGMP_OnlineServices_RoomsInterface::GetMembersListForCurrentRoom()
@@ -1531,14 +1585,89 @@ void NGMP_OnlineServices_RoomsInterface::SendChatMessageToCurrentRoom(UnicodeStr
 	}
 }
 
-void NGMP_OnlineServices_RoomsInterface::OnRosterUpdated(std::unordered_map<uint64_t, NetworkRoomMember> mapMembers)
+void NGMP_OnlineServices_RoomsInterface::OnRosterUpdated(std::unordered_map<uint64_t, NetworkRoomMember> mapMembers,
+	const RoomSelectionResult& selectionResult)
 {
 	m_mapMembers = mapMembers;
+
+	std::function<void(int)> roomChangedCallback;
+	int changedRoomIndex = -1;
+	std::string roomJoinFailure;
+	{
+		std::scoped_lock<std::mutex> lock(m_roomsMutex);
+		if (m_PendingRoomChange.has_value())
+		{
+			const PendingRoomChange& pendingRoomChange = *m_PendingRoomChange;
+			const bool requestMatches = !selectionResult.requestID.has_value()
+				|| pendingRoomChange.requestID == *selectionResult.requestID;
+			if (requestMatches && selectionResult.rejectedRoomID == pendingRoomChange.roomID)
+			{
+				roomJoinFailure = selectionResult.error.empty() ? "The room selection was rejected." : selectionResult.error;
+				m_PendingRoomChange.reset();
+			}
+			else
+			{
+				const bool pendingRoomIsValid = pendingRoomChange.roomIndex >= 0
+					&& pendingRoomChange.roomIndex < (int)m_vecRooms.size()
+					&& m_vecRooms[pendingRoomChange.roomIndex].GetRoomID() == pendingRoomChange.roomID;
+				const bool selectionMatches = requestMatches && pendingRoomIsValid
+					&& (selectionResult.selectedRoomID.has_value()
+						? pendingRoomChange.roomID == *selectionResult.selectedRoomID
+						: !m_bRoomSelectionResultsSupported);
+				if (selectionMatches)
+				{
+					m_CurrentRoomIndex = pendingRoomChange.roomIndex;
+					changedRoomIndex = m_CurrentRoomIndex;
+					roomChangedCallback = m_RoomChangedCallback;
+					m_PendingRoomChange.reset();
+				}
+			}
+		}
+	}
+
+	if (roomChangedCallback != nullptr)
+	{
+		roomChangedCallback(changedRoomIndex);
+	}
+	if (!roomJoinFailure.empty())
+	{
+		ReportRoomJoinFailure(roomJoinFailure);
+	}
 
 	std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 	if (m_RosterNeedsRefreshCallback != nullptr)
 	{
 		m_RosterNeedsRefreshCallback();
+	}
+}
+
+void NGMP_OnlineServices_RoomsInterface::Tick()
+{
+	bool roomJoinTimedOut = false;
+	{
+		std::scoped_lock<std::mutex> lock(m_roomsMutex);
+		if (m_PendingRoomChange.has_value()
+			&& std::chrono::steady_clock::now() >= m_PendingRoomChange->deadline)
+		{
+			m_PendingRoomChange.reset();
+			roomJoinTimedOut = true;
+		}
+	}
+
+	if (roomJoinTimedOut)
+	{
+		ReportRoomJoinFailure("The room change timed out. Please try again.");
+	}
+}
+
+void NGMP_OnlineServices_RoomsInterface::ReportRoomJoinFailure(const std::string& error)
+{
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Room change failed: %s", error.c_str());
+	if (m_OnChatCallback != nullptr)
+	{
+		UnicodeString message;
+		message = L"Couldn't join that room. Please try again.";
+		m_OnChatCallback(message, GameMakeColor(255, 0, 0, 255));
 	}
 }
 

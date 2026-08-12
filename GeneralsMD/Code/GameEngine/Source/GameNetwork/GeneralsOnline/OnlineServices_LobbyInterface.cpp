@@ -519,24 +519,35 @@ NGMP_OnlineServices_LobbyInterface::NGMP_OnlineServices_LobbyInterface()
 
 void NGMP_OnlineServices_LobbyInterface::SearchForLobbies(std::function<void()> onStartCallback, std::function<void(std::vector<LobbyEntry>)> onCompleteCallback)
 {
-	if (m_bSearchInProgress)
+	const bool lobbyListWasDirty = m_bLobbyListDirty.exchange(false);
+	if (m_bSearchInProgress.exchange(true))
 	{
+		if (lobbyListWasDirty)
+		{
+			m_bLobbyListDirty.store(true);
+		}
 		return;
 	}
 
+	// A notification received after the exchange above stays set and triggers a later refresh.
 	m_fnCallbackSearchForLobbiesComplete = onCompleteCallback;
-
-	m_bSearchInProgress = true;
-	m_vecLobbies.clear();
+	if (onStartCallback != nullptr)
+	{
+		onStartCallback();
+	}
 
 	std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("Lobbies");
 	std::map<std::string, std::string> mapHeaders;
 
 	NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
-			try
+			bool bSearchSucceeded = false;
+			if (bSuccess && statusCode == 200)
 			{
+				try
+				{
 				nlohmann::json jsonObject = nlohmann::json::parse(strBody);
+				std::vector<LobbyEntry> parsedLobbies;
 
 				std::vector<int> vecLatencies;
 				std::map<int64_t, int> mapPlayerLatencies;
@@ -632,19 +643,29 @@ void NGMP_OnlineServices_LobbyInterface::SearchForLobbies(std::function<void()> 
 					lobbyEntry.members.push_back(memberEntry);
 				}
 
-				m_vecLobbies.push_back(lobbyEntry);
+				parsedLobbies.push_back(std::move(lobbyEntry));
 			}
-		}
-		catch (...)
-		{
+					m_vecLobbies = std::move(parsedLobbies);
+					bSearchSucceeded = true;
+				}
+				catch (...)
+				{
 
-		}
+				}
+			}
 
-		if (m_fnCallbackSearchForLobbiesComplete != nullptr)
-		{
-			m_fnCallbackSearchForLobbiesComplete(m_vecLobbies);
-		}
-		m_bSearchInProgress = false;
+			if (!bSearchSucceeded)
+			{
+				m_bLobbyListDirty.store(true);
+			}
+
+			const std::function<void(std::vector<LobbyEntry>)> completionCallback = m_fnCallbackSearchForLobbiesComplete;
+			const std::vector<LobbyEntry> lobbies = m_vecLobbies;
+			m_bSearchInProgress.store(false);
+			if (completionCallback != nullptr)
+			{
+				completionCallback(lobbies);
+			}
 	});
 }
 

@@ -150,7 +150,7 @@ public:
 	void SendData_RoomChatMessage(UnicodeString& msg, bool bIsAction);
 	void SendData_FriendMessage(UnicodeString& msg, int64_t target_user_id);
 	void SendData_LobbyChatMessage(UnicodeString& msg, bool bIsAction, bool bIsAnnouncement, bool bShowAnnouncementToHost);
-	void SendData_JoinNetworkRoom(int roomID);
+	void SendData_JoinNetworkRoom(int roomID, uint64_t requestID = 0);
 	void SendData_LeaveNetworkRoom();
 	void SendData_MarkReady(bool bReady);
 
@@ -228,11 +228,14 @@ enum class ERoomFlags : int
 class NetworkRoom
 {
 public:
-	NetworkRoom(int roomID, std::string strRoomName, ERoomFlags roomFlags)
+	NetworkRoom(int roomID, std::string strRoomName, ERoomFlags roomFlags,
+		int parentRoomID = -1, int targetRoomID = -1)
 	{
 		m_RoomID = roomID;
 		m_strRoomDisplayName.translate(AsciiString(strRoomName.c_str()));
 		m_RoomFlags = roomFlags;
+		m_ParentRoomID = parentRoomID;
+		m_TargetRoomID = targetRoomID;
 	}
 
 	~NetworkRoom()
@@ -241,13 +244,19 @@ public:
 	}
 
 	int GetRoomID() const { return m_RoomID; }
-	UnicodeString GetRoomDisplayName() const { return m_strRoomDisplayName; }
+	const UnicodeString& GetRoomDisplayName() const { return m_strRoomDisplayName; }
 	ERoomFlags GetRoomFlags() const { return m_RoomFlags; }
+	int GetParentRoomID() const { return m_ParentRoomID; }
+	int GetTargetRoomID() const { return m_TargetRoomID; }
+	bool HasParentRoom() const { return m_ParentRoomID >= 0; }
+	bool HasTargetRoom() const { return m_TargetRoomID >= 0; }
 
 private:
 	int m_RoomID;
 	UnicodeString m_strRoomDisplayName;
 	ERoomFlags m_RoomFlags = ERoomFlags::ROOM_FLAGS_DEFAULT;
+	int m_ParentRoomID = -1;
+	int m_TargetRoomID = -1;
 };
 
 struct RegionResponse

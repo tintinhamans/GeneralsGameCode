@@ -110,6 +110,17 @@ static GameWindow *windowSortBuddies = nullptr;
 
 static GameSortType theGameSortType = GAMESORT_MAP_ASCENDING; // was ping
 static Bool sortBuddies = TRUE;
+
+// The .wnd supplies the ascending arrow as the enabled image and the descending arrow as the disabled image.
+static void showSortArrow(GameWindow *window, Bool ascending)
+{
+	if (window == nullptr)
+		return;
+
+	window->winHide(FALSE);
+	window->winEnable(ascending);
+}
+
 static void showSortIcons()
 {
 	if (windowSortAlpha && windowSortPing)
@@ -117,38 +128,32 @@ static void showSortIcons()
 		switch (theGameSortType)
 		{
 		case GAMESORT_AGE_ASCENDING: // was alpha
-			windowSortAlpha->winHide(FALSE);
-			windowSortAlpha->winEnable(TRUE);
+			showSortArrow(windowSortAlpha, TRUE);
 			windowSortPing->winHide(TRUE);
 			break;
 		case GAMESORT_AGE_DESCENDING: // was alpha
-			windowSortAlpha->winHide(FALSE);
-			windowSortAlpha->winEnable(FALSE);
+			showSortArrow(windowSortAlpha, FALSE);
 			windowSortPing->winHide(TRUE);
 			break;
 		case GAMESORT_MAP_ASCENDING: // was ping
-			windowSortPing->winHide(FALSE);
-			windowSortPing->winEnable(TRUE);
+			showSortArrow(windowSortPing, TRUE);
 			windowSortAlpha->winHide(TRUE);
 			break;
 		case GAMESORT_MAP_DESCENDING: // was ping
-			windowSortPing->winHide(FALSE);
-			windowSortPing->winEnable(FALSE);
+			showSortArrow(windowSortPing, FALSE);
 			windowSortAlpha->winHide(TRUE);
 			break;
 		}
 	}
 
-	if (sortBuddies)
-	{
 		if (windowSortBuddies)
 		{
-			windowSortBuddies->winHide(FALSE);
-		}
+		if (sortBuddies)
+		{
+			// Buddy games sort first, equivalent to a descending boolean sort (true before false).
+			showSortArrow(windowSortBuddies, FALSE);
 	}
 	else
-	{
-		if (windowSortBuddies)
 		{
 			windowSortBuddies->winHide(TRUE);
 		}
@@ -596,6 +601,19 @@ typedef std::set<GameSpyStagingRoom*> BuddyGameSet;
 #endif
 
 static BuddyGameSet *theBuddyGames = nullptr;
+
+#if defined(GENERALS_ONLINE)
+static Bool lobbyHasBuddy(int64_t lobbyID)
+{
+	return theBuddyGames != nullptr && theBuddyGames->count(lobbyID) != 0;
+}
+#else
+static Bool lobbyHasBuddy(GameSpyStagingRoom *room)
+{
+	return theBuddyGames->find(room) != theBuddyGames->end();
+}
+#endif
+
 #if defined(GENERALS_ONLINE)
 static void populateBuddyGames(std::vector<LobbyEntry>& vecLobbies)
 #else
@@ -611,18 +629,25 @@ static void populateBuddyGames(void)
 		return;
 	}
 
-	for (LobbyEntry& lobby : vecLobbies)
+	// Snapshot once, the map is rebuilt on the HTTP thread and every lobby must be tested against the same list.
+	const auto mapFriends = pSocialInterface->GetCachedFriendsList();
+	if (mapFriends.empty())
+	{
+		return;
+	}
+
+	for (const LobbyEntry& lobby : vecLobbies)
 	{
 		// is host our friend?
-		if (pSocialInterface->IsUserFriend(lobby.owner))
+		if (mapFriends.contains(lobby.owner))
 		{
 			theBuddyGames->insert(lobby.lobbyID);
 		}
 		else // does the lobby contain any of our friends
 		{
-			for (auto member : lobby.members)
+			for (const LobbyMemberEntry& member : lobby.members)
 			{
-				if (pSocialInterface->IsUserFriend(member.user_id))
+				if (mapFriends.contains(member.user_id))
 				{
 					theBuddyGames->insert(lobby.lobbyID);
 					break; // its binary, we don't care how many friends
@@ -678,8 +703,8 @@ struct GameSortStruct
 
 		if (sortBuddies)
 		{
-			const bool g1Buddy = (theBuddyGames && theBuddyGames->count(g1.lobbyID));
-			const bool g2Buddy = (theBuddyGames && theBuddyGames->count(g2.lobbyID));
+			const Bool g1Buddy = lobbyHasBuddy(g1.lobbyID);
+			const Bool g2Buddy = lobbyHasBuddy(g2.lobbyID);
 
 			if (g1Buddy != g2Buddy)
 				return g1Buddy && !g2Buddy;
@@ -751,8 +776,8 @@ struct GameSortStruct
 
 		if (sortBuddies)
 		{
-			Bool g1HasBuddies = (theBuddyGames->find(g1) != theBuddyGames->end());
-			Bool g2HasBuddies = (theBuddyGames->find(g2) != theBuddyGames->end());
+			Bool g1HasBuddies = lobbyHasBuddy(g1);
+			Bool g2HasBuddies = lobbyHasBuddy(g2);
 			if ( g1HasBuddies ^ g2HasBuddies )
 			{
 				return g1HasBuddies;
@@ -788,7 +813,7 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	}
 #if defined(GENERALS_ONLINE)
 	// Buddy lobby highlight:
-	if (theBuddyGames && theBuddyGames->count(lobbyInfo.lobbyID))
+	if (lobbyHasBuddy(lobbyInfo.lobbyID))
 	{
 		const bool nonJoinable =
 				(gameColor == GameSpyColor[GSCOLOR_GAME_CRCMISMATCH]);
@@ -1184,13 +1209,20 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 			{
 				win->winEnable(true);
 
+				populateBuddyGames(vecLobbies);
+
 				// filter lobbies by game mode
 				if (theLobbyFilter != LOBBY_FILTER_ALL)
 				{
 					std::vector<LobbyEntry> filtered;
+					filtered.reserve(vecLobbies.size());
 					for (Int i = 0; i < (Int)vecLobbies.size(); ++i)
 					{
-						if (detectGameMode(vecLobbies[i].name) == theLobbyFilter)
+						const Bool matchesFilter = (theLobbyFilter == LOBBY_FILTER_BUDDIES)
+							? lobbyHasBuddy(vecLobbies[i].lobbyID)
+							: (detectGameMode(vecLobbies[i].name) == theLobbyFilter);
+
+						if (matchesFilter)
 							filtered.push_back(vecLobbies[i]);
 					}
 					vecLobbies = filtered;
@@ -1198,6 +1230,7 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 					{
 						win->winEnable(false);
 						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies currently match this filter"), GameMakeColor(255, 194, 15, 255), -1, -1);
+						clearBuddyGames();
 						return;
 					}
 				}
@@ -1205,7 +1238,6 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 				// sort our games
 				typedef std::multiset<LobbyEntry, GameSortStruct> SortedGameList;
 				SortedGameList sgl;
-				populateBuddyGames(vecLobbies);
 				for (LobbyEntry& lobby : vecLobbies)
 				{
 					sgl.insert(lobby);
@@ -1227,6 +1259,8 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 
 					++i;
 				}
+
+				clearBuddyGames();
 
 				// restore selection
 				GadgetListBoxSetSelected(win, indexToSelect); // even for -1, so we can disable the 'Join Game' button
