@@ -835,6 +835,233 @@ static GameWindow* findWindow(GameWindow *parent, AsciiString baseWindow, AsciiS
 	return res;
 }
 
+static GameWindow* findOptionalWindow(GameWindow *parent, AsciiString baseWindow, AsciiString gadgetName)
+{
+	AsciiString fullPath;
+	fullPath.format("%s:%s", baseWindow.str(), gadgetName.str());
+	return TheWindowManager->winGetWindowFromId(parent, NAMEKEY(fullPath));
+}
+
+#if defined(GENERALS_ONLINE)
+static GameWindow* cloneStaticText(GameWindow *source, GameWindow *newParent,
+	AsciiString decoratedName, Int x, Int y, UnicodeString text)
+{
+	if (!source || !newParent)
+		return NULL;
+
+	Int width = 0;
+	Int height = 0;
+	source->winGetSize(&width, &height);
+
+	// Copy the visual setup without sharing the source window's display strings.
+	WinInstanceData instanceData;
+	instanceData = *source->winGetInstanceData();
+	instanceData.m_text = NULL;
+	instanceData.m_tooltip = NULL;
+	instanceData.m_videoBuffer = NULL;
+	instanceData.m_decoratedNameString = decoratedName;
+	instanceData.m_id = TheNameKeyGenerator->nameToKey(decoratedName);
+
+	TextData textData = *static_cast<TextData*>(source->winGetUserData());
+	textData.text = NULL;
+
+	GameWindow *injected = TheWindowManager->gogoGadgetStaticText(
+		newParent, source->winGetStatus(), x, y, width, height,
+		&instanceData, &textData, source->winGetFont(), FALSE);
+	if (injected)
+	{
+		GadgetStaticTextSetText(injected, text);
+		injected->winHide(FALSE);
+	}
+	return injected;
+}
+
+static void setWindowScreenY(GameWindow *window, Int screenY)
+{
+	if (!window)
+		return;
+
+	Int x = 0;
+	Int y = 0;
+	window->winGetPosition(&x, &y);
+
+	Int parentScreenX = 0;
+	Int parentScreenY = 0;
+	if (window->winGetParent())
+		window->winGetParent()->winGetScreenPosition(&parentScreenX, &parentScreenY);
+
+	window->winSetPosition(x, screenY - parentScreenY);
+}
+
+static void findSmallestBorderContaining(GameWindow *window,
+	Int contentLeft, Int contentTop, Int contentRight, Int contentBottom,
+	GameWindow **bestWindow, unsigned long long *bestArea)
+{
+	if (!window)
+		return;
+
+	if (BitIsSet(window->winGetStatus(), WIN_STATUS_BORDER))
+	{
+		Int x = 0;
+		Int y = 0;
+		Int width = 0;
+		Int height = 0;
+		window->winGetScreenPosition(&x, &y);
+		window->winGetSize(&width, &height);
+		if (contentLeft >= x && contentTop >= y &&
+			contentRight <= x + width && contentBottom <= y + height)
+		{
+			const unsigned long long area =
+				static_cast<unsigned long long>(width) * static_cast<unsigned long long>(height);
+			if (!*bestWindow || area < *bestArea)
+			{
+				*bestWindow = window;
+				*bestArea = area;
+			}
+		}
+	}
+
+	for (GameWindow *child = window->winGetChild(); child; child = child->winGetNext())
+		findSmallestBorderContaining(child, contentLeft, contentTop, contentRight, contentBottom,
+			bestWindow, bestArea);
+}
+
+static void injectEloPlayerInfoRows()
+{
+	const AsciiString windowName("PopupPlayerInfo.wnd");
+	if (!parent || findOptionalWindow(parent, windowName, "StaticTextEloValue"))
+		return;
+
+	// The win-percentage row is the last row visible in the Persona panel.
+	// Clone it in place so labels and values retain their respective coordinate systems.
+	GameWindow *lastLabel = findOptionalWindow(parent, windowName, "StaticTextWinPercent");
+	GameWindow *lastValue = findOptionalWindow(parent, windowName, "StaticTextWinPercentValue");
+	if (!lastLabel || !lastValue || !lastLabel->winGetParent() || !lastValue->winGetParent())
+		return;
+
+	Int labelX = 0;
+	Int lastY = 0;
+	Int valueX = 0;
+	Int valueY = 0;
+	Int rowHeight = 0;
+	lastLabel->winGetPosition(&labelX, &lastY);
+	Int ignoredWidth = 0;
+	lastLabel->winGetSize(&ignoredWidth, &rowHeight);
+	lastValue->winGetPosition(&valueX, &valueY);
+
+	Int fontHeight = TheWindowManager->winFontHeight(lastLabel->winGetFont());
+	if (fontHeight <= 0)
+		fontHeight = rowHeight / 2;
+	Int rowPadding = fontHeight / 5;
+	if (rowPadding < 2)
+		rowPadding = 2;
+	const Int rowSpacing = fontHeight + rowPadding;
+
+	GameWindow *labelParent = lastLabel->winGetParent();
+	GameWindow *valueParent = lastValue->winGetParent();
+	cloneStaticText(lastLabel, labelParent, "PopupPlayerInfo.wnd:StaticTextElo",
+		labelX, lastY + rowSpacing, L"Elo");
+	cloneStaticText(lastValue, valueParent, "PopupPlayerInfo.wnd:StaticTextEloValue",
+		valueX, valueY + rowSpacing, L"-");
+	cloneStaticText(lastLabel, labelParent, "PopupPlayerInfo.wnd:StaticTextMonthlyElo",
+		labelX, lastY + rowSpacing * 2, L"Monthly Elo");
+	cloneStaticText(lastValue, valueParent, "PopupPlayerInfo.wnd:StaticTextMonthlyEloValue",
+		valueX, valueY + rowSpacing * 2, L"-");
+
+	const char *labelNames[] =
+	{
+		"StaticTextGamesPlayed",
+		"StaticTextWins",
+		"StaticTextLosses",
+		"StaticTextDisconnects",
+		"StaticTextBestStreak",
+		"StaticTextStreak",
+		"StaticTextWinPercent",
+		"StaticTextElo",
+		"StaticTextMonthlyElo"
+	};
+	const char *valueNames[] =
+	{
+		"StaticTextGamesPlayedValue",
+		"StaticTextWinsValue",
+		"StaticTextLossesValue",
+		"StaticTextDisconnectsValue",
+		"StaticTextBestStreakValue",
+		"StaticTextStreakValue",
+		"StaticTextWinPercentValue",
+		"StaticTextEloValue",
+		"StaticTextMonthlyEloValue"
+	};
+
+	GameWindow *firstLabel = findOptionalWindow(parent, windowName, labelNames[0]);
+	GameWindow *firstValue = findOptionalWindow(parent, windowName, valueNames[0]);
+	if (!firstLabel || !firstValue)
+		return;
+
+	Int firstLabelX = 0;
+	Int firstLabelScreenY = 0;
+	Int firstValueX = 0;
+	Int firstValueScreenY = 0;
+	firstLabel->winGetScreenPosition(&firstLabelX, &firstLabelScreenY);
+	firstValue->winGetScreenPosition(&firstValueX, &firstValueScreenY);
+	const Int valueYOffset = firstValueScreenY - firstLabelScreenY;
+
+	for (Int i = 0; i < ARRAY_SIZE(labelNames); ++i)
+	{
+		const Int targetLabelY = firstLabelScreenY + i * rowSpacing;
+		setWindowScreenY(findOptionalWindow(parent, windowName, labelNames[i]), targetLabelY);
+		setWindowScreenY(findOptionalWindow(parent, windowName, valueNames[i]), targetLabelY + valueYOffset);
+	}
+
+	// Find the smallest bordered window containing the original Persona table.
+	// This avoids RankBorder, which is the portrait/rank box on the left.
+	GameWindow *monthlyLabel = findOptionalWindow(parent, windowName, "StaticTextMonthlyElo");
+	GameWindow *winPercentValue = findOptionalWindow(parent, windowName, "StaticTextWinPercentValue");
+	GameWindow *playerInfoParent = findOptionalWindow(parent, windowName, "PlayerInfoParent");
+	if (monthlyLabel && winPercentValue)
+	{
+		Int contentLeft = 0;
+		Int contentTop = 0;
+		Int contentRight = 0;
+		Int contentBottom = 0;
+		Int firstLabelWidth = 0;
+		Int firstLabelHeight = 0;
+		Int winPercentValueWidth = 0;
+		Int winPercentValueHeight = 0;
+		firstLabel->winGetScreenPosition(&contentLeft, &contentTop);
+		firstLabel->winGetSize(&firstLabelWidth, &firstLabelHeight);
+		winPercentValue->winGetScreenPosition(&contentRight, &contentBottom);
+		winPercentValue->winGetSize(&winPercentValueWidth, &winPercentValueHeight);
+		contentRight += winPercentValueWidth;
+		contentBottom += winPercentValueHeight;
+
+		GameWindow *personaBorder = NULL;
+		unsigned long long bestArea = ~0ULL;
+		findSmallestBorderContaining(playerInfoParent ? playerInfoParent : parent,
+			contentLeft, contentTop, contentRight, contentBottom, &personaBorder, &bestArea);
+		if (!personaBorder)
+			return;
+
+		Int borderX = 0;
+		Int borderY = 0;
+		Int borderWidth = 0;
+		Int borderHeight = 0;
+		Int monthlyX = 0;
+		Int monthlyY = 0;
+		Int monthlyWidth = 0;
+		Int monthlyHeight = 0;
+		personaBorder->winGetScreenPosition(&borderX, &borderY);
+		personaBorder->winGetSize(&borderWidth, &borderHeight);
+		monthlyLabel->winGetScreenPosition(&monthlyX, &monthlyY);
+		monthlyLabel->winGetSize(&monthlyWidth, &monthlyHeight);
+
+		const Int fittedHeight = monthlyY + monthlyHeight + rowPadding - borderY;
+		if (fittedHeight > 0)
+			personaBorder->winSetSize(borderWidth, fittedHeight);
+	}
+}
+#endif
+
 void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 {
 	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
@@ -935,7 +1162,10 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			if (win)
 			{
 #if defined(GENERALS_ONLINE)
-				uStr.format(L"%d (%d QM)", numGames, stats.elo_num_matches);
+				if (findOptionalWindow(parentWindow, parentWindowName, "StaticTextEloValue"))
+					uStr.format(L"%d", numGames);
+				else
+					uStr.format(L"%d (%d QM)", numGames, stats.elo_num_matches);
 #else
 				uStr.format(L"%d", numGames);
 #endif
@@ -945,12 +1175,33 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			if (win)
 			{
 #if defined(GENERALS_ONLINE)
-				uStr.format(L"%d (Elo: %d)", numWins, stats.elo_rating);
+				// Keep Elo visible with older .wnd files that do not have a dedicated row.
+				if (findOptionalWindow(parentWindow, parentWindowName, "StaticTextEloValue"))
+					uStr.format(L"%d", numWins);
+				else
+					uStr.format(L"%d (Elo: %d)", numWins, stats.elo_rating);
 #else
 				uStr.format(L"%d", numWins);
 #endif
 				GadgetStaticTextSetText(win, uStr);
 			}
+#if defined(GENERALS_ONLINE)
+			win = findOptionalWindow(parentWindow, parentWindowName, "StaticTextEloValue");
+			if (win)
+			{
+				uStr.format(L"%d", stats.elo_rating);
+				GadgetStaticTextSetText(win, uStr);
+			}
+			win = findOptionalWindow(parentWindow, parentWindowName, "StaticTextMonthlyEloValue");
+			if (win)
+			{
+				if (stats.monthly_elo_rating >= 0)
+					uStr.format(L"%d", stats.monthly_elo_rating);
+				else
+					uStr = L"N/A";
+				GadgetStaticTextSetText(win, uStr);
+			}
+#endif
 			win = findWindow(parentWindow, parentWindowName, "StaticTextLossesValue");
 			if (win)
 			{
@@ -1358,6 +1609,10 @@ void GameSpyPlayerInfoOverlayInit( WindowLayout *layout, void *userData )
 	buttonDeleteAccount = TheWindowManager->winGetWindowFromId( parent,  buttonDeleteAccountID);
 	checkBoxAsianFont = TheWindowManager->winGetWindowFromId( parent,  checkBoxAsianFontID);
 	checkBoxNonAsianFont = TheWindowManager->winGetWindowFromId( parent,  checkBoxNonAsianFontID);
+
+#if defined(GENERALS_ONLINE)
+	injectEloPlayerInfoRows();
+#endif
 
 	// Show Menu
 	layout->hide( FALSE );

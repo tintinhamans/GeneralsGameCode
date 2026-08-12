@@ -340,6 +340,8 @@ PSPlayerStats::PSPlayerStats( const PSPlayerStats& other )
 #if defined(GENERALS_ONLINE)
 	elo_rating = other.elo_rating;
 	elo_num_matches = other.elo_num_matches;
+	monthly_elo_rating = other.monthly_elo_rating;
+	monthly_elo_num_matches = other.monthly_elo_num_matches;
 #endif
 	locale = other.locale;
 	gamesAsRandom = other.gamesAsRandom;
@@ -1093,6 +1095,12 @@ PSPlayerStats::PSPlayerStats()
 void PSPlayerStats::reset()
 {
 	id = 0;
+#if defined(GENERALS_ONLINE)
+	elo_rating = 0;
+	elo_num_matches = 0;
+	monthly_elo_rating = -1;
+	monthly_elo_num_matches = 0;
+#endif
 	locale = 0;
 	gamesAsRandom = 0;
 	lastFPS = 0;
