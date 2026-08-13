@@ -121,7 +121,8 @@ enum class EGOTearDownReason
 	UNKNOWN = -1,
 	LOST_CONNECTION = 0,
 	USER_LOGOUT = 1,
-	USER_REQUESTED_SILENT = 2
+	USER_REQUESTED_SILENT = 2,
+	AUTH_FAILED = 3
 };
 
 class WebSocket

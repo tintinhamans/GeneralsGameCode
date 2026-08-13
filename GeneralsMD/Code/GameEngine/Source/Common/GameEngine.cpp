@@ -142,6 +142,11 @@ void TearDownGeneralsOnline()
 			title = TheGameText->fetch("GUI:GSErrorTitle");
 			body = L"Your connection to the Generals Online servers was lost.";
 		}
+        else if (teardownReason == EGOTearDownReason::AUTH_FAILED)
+        {
+            title = TheGameText->fetch("GUI:GSErrorTitle");
+            body = L"Authentication with the Generals Online servers failed.";
+        }
 		else
 		{
 			title = TheGameText->fetch("GUI:GSErrorTitle");
