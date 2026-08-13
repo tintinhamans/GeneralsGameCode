@@ -33,14 +33,15 @@ enum class EAuthResponseResult : int
 
 struct AuthResponse
 {
-	EAuthResponseResult result;
-	std::string session_token;
-	std::string refresh_token;
+	EAuthResponseResult result = EAuthResponseResult::FAILED;
+	std::string session_token = "";
+	std::string refresh_token = "";
 	int64_t user_id = -1;
 	std::string display_name = "";
 	std::string ws_uri = "";
 
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(AuthResponse, result, session_token, refresh_token, user_id, display_name, ws_uri)
+	// NOTE: _WITH_DEFAULT so endpoints that only return a subset of these fields (e.g. refresh, which doesn't resend profile data) don't throw during parsing
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(AuthResponse, result, session_token, refresh_token, user_id, display_name, ws_uri)
 };
 
 struct MOTDResponse
@@ -169,8 +170,12 @@ void NGMP_OnlineServices_AuthInterface::SendMiddlewareToken(std::string strMWTok
         }, nullptr);
 }
 
-void NGMP_OnlineServices_AuthInterface::OnRefreshTokenFailed(const char* szReason)
+void NGMP_OnlineServices_AuthInterface::OnRefreshTokenFailed(const char* szReason, const std::string& strBody)
 {
+	// log the raw response so refresh failures are actually diagnosable
+	std::string strBodySnippet = strBody.substr(0, 512);
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Refresh response body: %s", strBodySnippet.c_str());
+
 	if (m_currentRefreshAttempt < m_maxRefreshAttempts)
 	{
 		// the token itself is still valid for a few more minutes, so try again shortly instead of waiting for the next scheduled refresh
@@ -207,14 +212,14 @@ void NGMP_OnlineServices_AuthInterface::RefreshToken()
     {
         std::map<std::string, std::string> mapHeaders;
 
-        // attach refresh token
+        // attach refresh token. NOTE: service auth is disabled for this request, otherwise the session token would overwrite this header
         mapHeaders["Authorization"] = "Bearer " + m_strRefreshToken;
 
         NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strRefreshURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
             {
                 if (statusCode >= 400 && statusCode < 500)
                 {
-					OnRefreshTokenFailed("4XX code");
+					OnRefreshTokenFailed(std::format("HTTP {}", statusCode).c_str(), strBody);
                 }
                 else
                 {
@@ -223,32 +228,57 @@ void NGMP_OnlineServices_AuthInterface::RefreshToken()
                         nlohmann::json jsonObject = nlohmann::json::parse(strBody, nullptr, false, true);
                         AuthResponse authResp = jsonObject.get<AuthResponse>();
 
-                        if (authResp.result == EAuthResponseResult::SUCCEEDED)
+                        if (authResp.result == EAuthResponseResult::SUCCEEDED && !authResp.session_token.empty())
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Token refreshed successfully!");
 
                             m_currentRefreshAttempt = 0;
                             m_nextRefreshRetryTime = -1;
 
-                            SaveCredentials(authResp.refresh_token.c_str());
+                            // the refresh endpoint may not rotate the refresh token, only save it if we actually got a new one, otherwise we'd wipe the stored credentials
+                            if (!authResp.refresh_token.empty())
+                            {
+                                SaveCredentials(authResp.refresh_token.c_str());
+                            }
+                            else
+                            {
+                                m_tokenCreationTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+                            }
 
                             // store data locally
                             m_strToken = authResp.session_token;
-                            m_userID = authResp.user_id;
-                            m_strDisplayName = authResp.display_name;
+
+                            // refresh responses don't necessarily resend profile data, don't clobber what we already have
+                            if (authResp.user_id != -1)
+                            {
+                                m_userID = authResp.user_id;
+                            }
+
+                            if (!authResp.display_name.empty())
+                            {
+                                m_strDisplayName = authResp.display_name;
+                            }
                         }
-                        else if (authResp.result == EAuthResponseResult::FAILED)
+                        else if (authResp.result == EAuthResponseResult::SUCCEEDED)
                         {
-                            OnRefreshTokenFailed("auth response FAILED");
+                            OnRefreshTokenFailed("succeeded but no session_token", strBody);
                         }
+                        else
+                        {
+                            OnRefreshTokenFailed(std::format("auth result {}", (int)authResp.result).c_str(), strBody);
+                        }
+                    }
+                    catch (const std::exception& e)
+                    {
+                        OnRefreshTokenFailed(std::format("malformed response ({})", e.what()).c_str(), strBody);
                     }
                     catch (...)
                     {
-                        OnRefreshTokenFailed("malformed response");
+                        OnRefreshTokenFailed("malformed response", strBody);
                     }
                 }
 
-            }, nullptr);
+            }, nullptr, -1, true /* bDisableServiceAuth, we're authenticating with the refresh token here, not the session token */);
     }
     else
     {
@@ -311,7 +341,7 @@ void NGMP_OnlineServices_AuthInterface::BeginLogin()
 		j["ini_crc"] = TheGlobalData->m_iniCRC;
 		std::string strPostData = j.dump();
 
-		// attach refresh token
+		// attach refresh token. NOTE: service auth is disabled for this request, otherwise a stale session token would overwrite this header
 		mapHeaders["Authorization"] = "Bearer " + m_strRefreshToken;
 
 
@@ -373,7 +403,7 @@ void NGMP_OnlineServices_AuthInterface::BeginLogin()
 					}
 				}
 
-			}, nullptr);
+			}, nullptr, -1, true /* bDisableServiceAuth, we're authenticating with the refresh token here, not the session token */);
 	}
 	else
 	{

@@ -54,7 +54,7 @@ private:
 	void SaveCredentials(const char* szRefreshToken);
 	bool GetCredentials();
 
-	void OnRefreshTokenFailed(const char* szReason);
+	void OnRefreshTokenFailed(const char* szReason, const std::string& strBody = std::string());
 
 	std::string GetCredentialsFilePath();
 
