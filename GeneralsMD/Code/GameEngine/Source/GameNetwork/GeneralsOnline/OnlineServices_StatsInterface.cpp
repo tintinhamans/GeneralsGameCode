@@ -1,6 +1,7 @@
 #include "GameNetwork/GeneralsOnline/json.hpp"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
+#include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/RankPointValue.h"
 #include "../OnlineServices_Init.h"
 #include "../HTTP/HTTPManager.h"
@@ -450,6 +451,8 @@ void NGMP_OnlineServices_StatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeep
 					resolvedSide = pLocalSlot->getPlayerTemplate();
 				}
             }
+		
+	    const bool desynced = TheNetwork->sawCRCMismatch();
 
 		nlohmann::json j;
 		j["buildings_built"] = buildingsBuilt;
@@ -462,6 +465,7 @@ void NGMP_OnlineServices_StatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeep
 		j["won"] = bWon;
 		j["match_id"] = currentMatchID;
 		j["side"] = resolvedSide;
+		j["desynced"] = desynced;
 
 		std::string strPostData = j.dump();
 	
