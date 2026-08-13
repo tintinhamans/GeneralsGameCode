@@ -262,6 +262,7 @@ public:
 
 	void onCollide( Object *other, const Coord3D *loc, const Coord3D *normal );
 
+	Real getCarrierDeckHeight() const;
 	// access to modules
 	//-----------------------------------------------------------------------------
 
