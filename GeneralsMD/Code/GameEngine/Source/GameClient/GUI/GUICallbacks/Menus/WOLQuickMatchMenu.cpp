@@ -1156,7 +1156,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				if (bSuccess)
 				{
 					UnicodeString eloStr;
-					eloStr.format(L"Your current Elo rating is %d after %d match(es)", stats.elo_rating, stats.elo_num_matches);
+					eloStr.format(L"Your current Elo rating is %d (monthly: %d) after %d match(es)", stats.elo_rating, stats.monthly_elo_rating, stats.elo_num_matches);
 					GadgetListBoxAddEntryText(quickmatchTextWindow, eloStr, GameMakeColor(255, 194, 25, 255), -1, -1);
 				}
 			}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
