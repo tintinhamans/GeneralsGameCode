@@ -969,7 +969,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			if (win)
 			{
 #if defined(GENERALS_ONLINE)
-				uStr.format(L"%d", stats.elo_rating, stats.monthly_elo_rating);
+				uStr.format(L"%d", stats.monthly_elo_rating);
 #else
 				uStr.format(L"%d", numDiscons);
 #endif
