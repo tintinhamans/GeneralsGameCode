@@ -150,6 +150,7 @@ inline Int IABS(Int x) {	if (x>=0) return x; return -x;};
 Int BaseHeightMapRenderObjClass::freeMapResources()
 {
 	m_scorches->freeBuffers();
+	m_staticScorches->freeBuffers();
 
 	REF_PTR_RELEASE(m_vertexMaterialClass);
 	REF_PTR_RELEASE(m_stageZeroTexture);
@@ -171,6 +172,7 @@ void BaseHeightMapRenderObjClass::drawScorches()
 {
 	ShaderClass::Invalidate();
 	if (m_map && Is_Hidden() == 0 && !ShaderClass::Is_Backface_Culling_Inverted()) {
+		m_staticScorches->drawScorches(*m_map);
 		m_scorches->drawScorches(*m_map);
 	}
 }
@@ -213,6 +215,9 @@ BaseHeightMapRenderObjClass::~BaseHeightMapRenderObjClass()
 
 	delete m_scorches;
 	m_scorches = nullptr;
+
+	delete m_staticScorches;
+	m_staticScorches = nullptr;
 
 	delete [] m_shoreLineTilePositions;
 	m_shoreLineTilePositions = nullptr;
@@ -271,9 +276,11 @@ BaseHeightMapRenderObjClass::BaseHeightMapRenderObjClass()
 	m_roadBuffer = nullptr;
 #endif
 #if DO_SCORCH
-	m_scorches = NEW W3DScorch;
+	m_scorches = NEW W3DScorch(true);
+	m_staticScorches = NEW W3DScorch(false);
 #else
 	m_scorches = NEW W3DScorchDummy;
+	m_staticScorches = NEW W3DScorchDummy;
 #endif
 	m_bridgeBuffer = NEW W3DBridgeBuffer;
 
@@ -317,6 +324,7 @@ void BaseHeightMapRenderObjClass::setTextureLOD(Int lod)
 	if (m_map)
 		m_map->setTextureLOD(lod);
 	m_scorches->invalidateTexture();
+	m_staticScorches->invalidateTexture();
 }
 
 //=============================================================================
@@ -1822,6 +1830,7 @@ Int BaseHeightMapRenderObjClass::initHeightData(Int x, Int y, WorldHeightMap *pM
 	scheduleFullUpdate();
 
 	m_scorches->invalidateBuffers();
+	m_staticScorches->invalidateBuffers();
 
 	// If the textures aren't allocated (usually because of a hardware reset) need to allocate.
 	Bool needToAllocate = false;
@@ -1838,6 +1847,7 @@ Int BaseHeightMapRenderObjClass::initHeightData(Int x, Int y, WorldHeightMap *pM
 		m_destAlphaTexture=MSGNEW("TextureClass") TextureClass(256,1,WW3D_FORMAT_A8R8G8B8,MIP_LEVELS_1);
 		initDestAlphaLUT();
 		m_scorches->allocateBuffers();
+		m_staticScorches->allocateBuffers();
 
 		m_vertexMaterialClass=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 
@@ -1855,6 +1865,7 @@ Int BaseHeightMapRenderObjClass::initHeightData(Int x, Int y, WorldHeightMap *pM
 void BaseHeightMapRenderObjClass::clearAllScorches()
 {
 	m_scorches->clearAllScorches();
+	m_staticScorches->clearAllScorches();
 }
 
 //=============================================================================
@@ -1865,6 +1876,17 @@ void BaseHeightMapRenderObjClass::clearAllScorches()
 void BaseHeightMapRenderObjClass::addScorch(Vector3 location, Real radius, Scorches type)
 {
 	m_scorches->addScorch(location, radius, type);
+}
+
+//=============================================================================
+// BaseHeightMapRenderObjClass::addStaticScorch
+//=============================================================================
+/** TheSuperHackers @feature stephanmeesters 13/08/2026 Adds a permanent scorch mark loaded from the map. Static
+ * scorch marks are managed separately so adding gameplay scorch marks cannot evict them. */
+//=============================================================================
+void BaseHeightMapRenderObjClass::addStaticScorch(Vector3 location, Real radius, Scorches type)
+{
+	m_staticScorches->addScorch(location, radius, type);
 }
 
 //=============================================================================
@@ -2158,6 +2180,7 @@ void BaseHeightMapRenderObjClass::staticLightingChanged()
 
 	// Cause the scorches to get updated with new lighting.
 	m_scorches->invalidateBuffers();
+	m_staticScorches->invalidateBuffers();
 
 	if (m_roadBuffer)
 		m_roadBuffer->updateLighting();
