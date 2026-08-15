@@ -103,11 +103,6 @@ static int FRAME_GROUPING_CAP = 64;
 #define GENERALS_ONLINE_USE_SENTRY 1
 #endif
 
-// NOTE: This is temporary until we work out why this causes mismatch when some players set it and others dont
-#if !_DEBUG
-#define GENERALS_ONLINE_DISABLE_QUICKSTART_FUNCTIONALITY 1
-#endif
-
 #define GENERALS_ONLINE_WIDESCREEN 1
 
 #if defined(GENERALS_ONLINE_WIDESCREEN)
