@@ -313,7 +313,7 @@ void WaypointMap::update()
 	m_numStartSpots = max(1, m_numStartSpots);
 }
 
-const char *const MapCache::m_mapCacheName = "MapCacheGO.ini";
+const char *const MapCache::m_mapCacheName = "MapCache.ini";
 
 AsciiString MapCache::getMapDir(bool bCustomMapDebug) const
 {
@@ -519,16 +519,6 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 
 	FilenameList filepathList;
 	FilenameListIter filepathIt;
-
-INI ini;
-		AsciiString fname;
-		fname.format("GeneralsOnlineGameData\\%s", m_mapCacheName);
-		File *fp = TheFileSystem->openFile(fname.str(), File::READ);
-		if (fp)
-		{
-			fp->close();
-			ini.load( fname, INI_LOAD_OVERWRITE, NULL );
-		}
 	AsciiString toplevelPattern;
 	toplevelPattern.format("%s\\", mapDir.str());
 	Bool mapListChanged = FALSE;
