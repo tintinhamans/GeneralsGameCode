@@ -1099,6 +1099,13 @@ Int parseMod(char *args[], Int num)
 	return 1;
 }
 
+Int parseDisableCommunityDataPatch(char *args[], Int num)
+{
+	TheWritableGlobalData->m_commandLineData.disableCommunityDataPatch();
+
+	return 1;
+}
+
 #ifdef DEBUG_LOGGING
 Int parseSetDebugLevel(char *args[], int num)
 {
@@ -1178,6 +1185,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-scriptDebug", parseScriptDebug },
 	{ "-playStats", parsePlayStats },
 	{ "-mod", parseMod },
+	{ "-disableCommunityDataPatch", parseDisableCommunityDataPatch },
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },
