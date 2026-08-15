@@ -235,7 +235,8 @@ void ArchiveFileSystem::loadMods()
 {
 #if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES)
     // load community data patch BIG
-	if (NGMP_OnlineServicesManager::Settings.DataPacks_UseCommunityPatch())
+	if (NGMP_OnlineServicesManager::Settings.DataPacks_UseCommunityPatch()
+		&& !TheGlobalData->m_commandLineData.isCommunityDataPatchDisabled())
     {
         std::string strBigPath = std::format("{}GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big", TheGlobalData->getPath_UserData().str());
         bool bLoaded = false;

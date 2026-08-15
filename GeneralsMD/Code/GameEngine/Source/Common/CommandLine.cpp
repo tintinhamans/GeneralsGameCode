@@ -789,10 +789,6 @@ Int parseSync(char *args[], int)
 
 Int parseNoShellMap(char *args[], int)
 {
-#if defined(GENERALS_ONLINE_DISABLE_QUICKSTART_FUNCTIONALITY)
-	return 1;
-#endif
-
 	TheWritableGlobalData->m_shellMapOn = FALSE;
 
 	return 1;
@@ -805,22 +801,9 @@ Int parseNoShaders(char *args[], int)
 	return 1;
 }
 
-#if defined(RTS_DEBUG) || !defined(GENERALS_ONLINE_DISABLE_QUICKSTART_FUNCTIONALITY)
 Int parseNoLogo(char *args[], int)
 {
 	TheWritableGlobalData->m_playIntro = FALSE;
-	TheWritableGlobalData->m_playSizzle = FALSE;
-
-	return 1;
-}
-#endif
-
-Int parseNoSizzle( char *args[], int )
-{
-#if defined(GENERALS_ONLINE_DISABLE_QUICKSTART_FUNCTIONALITY)
-	return 1;
-#endif
-
 	TheWritableGlobalData->m_playSizzle = FALSE;
 
 	return 1;
@@ -851,17 +834,7 @@ Int parseWinCursors(char *args[], int num)
 
 Int parseQuickStart( char *args[], int num )
 {
-#if defined(GENERALS_ONLINE_DISABLE_QUICKSTART_FUNCTIONALITY)
-	return 1;
-#endif
-
-#if defined(RTS_DEBUG) || !defined(GENERALS_ONLINE_DISABLE_QUICKSTART_FUNCTIONALITY)
-  parseNoLogo( args, num );
-#else
-	//Kris: Patch 1.01 -- Allow release builds to skip the sizzle video, but still force the EA logo to show up.
-	//This is for legal reasons.
-	parseNoSizzle( args, num );
-#endif
+	parseNoLogo( args, num );
 	parseNoShellMap( args, num );
 	parseNoWindowAnimation( args, num );
 	return 1;
@@ -1126,6 +1099,13 @@ Int parseMod(char *args[], Int num)
 	return 1;
 }
 
+Int parseDisableCommunityDataPatch(char *args[], Int num)
+{
+	TheWritableGlobalData->m_commandLineData.disableCommunityDataPatch();
+
+	return 1;
+}
+
 #ifdef DEBUG_LOGGING
 Int parseSetDebugLevel(char *args[], int num)
 {
@@ -1195,9 +1175,7 @@ static CommandLineParam paramsForStartup[] =
 // These Params are parsed during Engine Init before INI data is loaded
 static CommandLineParam paramsForEngineInit[] =
 {
-#if defined(RTS_DEBUG) || !defined(GENERALS_ONLINE_DISABLE_QUICKSTART_FUNCTIONALITY)
 	{ "-nologo", parseNoLogo }, // TheSuperHackers @tweak Is now available in Release builds.
-#endif
 	{ "-noshellmap", parseNoShellMap },
 	{ "-noShellAnim", parseNoWindowAnimation }, // TheSuperHackers @tweak Is now available in Release builds.
 	{ "-xres", parseXRes },
@@ -1207,6 +1185,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-scriptDebug", parseScriptDebug },
 	{ "-playStats", parsePlayStats },
 	{ "-mod", parseMod },
+	{ "-disableCommunityDataPatch", parseDisableCommunityDataPatch },
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },

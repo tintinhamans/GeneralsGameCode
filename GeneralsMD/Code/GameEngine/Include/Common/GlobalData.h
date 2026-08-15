@@ -59,13 +59,20 @@ class CommandLineData
 	friend class CommandLine;
 	friend class GlobalData;
 
+public:
+	Bool isCommunityDataPatchDisabled() const { return m_disableCommunityDataPatch; }
+	void disableCommunityDataPatch() { m_disableCommunityDataPatch = true; }
+
+private:
 	CommandLineData()
 		: m_hasParsedCommandLineForStartup(false)
 		, m_hasParsedCommandLineForEngineInit(false)
+		, m_disableCommunityDataPatch(false)
 	{}
 
 	Bool m_hasParsedCommandLineForStartup;
 	Bool m_hasParsedCommandLineForEngineInit;
+	Bool m_disableCommunityDataPatch;
 };
 
 //-------------------------------------------------------------------------------------------------
