@@ -96,3 +96,8 @@ static std::unordered_map<int, std::string> g_mapServiceIndexToPlayerTemplateStr
 
 std::string Base64Encode(const std::vector<uint8_t>& data);
 std::vector<uint8_t> Base64Decode(const std::string& encodedData);
+
+std::string GetMachineGuid();
+std::string GetPrimaryMacAddress();
+std::string GetVolumeSerial();
+std::string getGameExeCRC();

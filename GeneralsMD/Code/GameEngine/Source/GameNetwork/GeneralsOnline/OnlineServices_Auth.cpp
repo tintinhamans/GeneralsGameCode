@@ -334,10 +334,10 @@ void NGMP_OnlineServices_AuthInterface::BeginLogin()
 		std::map<std::string, std::string> mapHeaders;
 
 		nlohmann::json j;
-		j["reserved_0"] = std::string();
-		j["reserved_1"] = std::string();
-		j["reserved_2"] = std::string();
-		j["exe_crc"] = TheGlobalData->m_exeCRC;
+		j["machine_guid"] = GetMachineGuid();
+		j["mac_addr"] = GetPrimaryMacAddress();
+		j["vol_serial"] = GetVolumeSerial();
+		j["exe_crc"] = getGameExeCRC();
 		j["ini_crc"] = TheGlobalData->m_iniCRC;
 		std::string strPostData = j.dump();
 
@@ -516,10 +516,10 @@ void NGMP_OnlineServices_AuthInterface::Tick()
 			nlohmann::json j;
 			j["code"] = m_strCode.c_str();
 			j["client_id"] = GENERALS_ONLINE_CLIENT_ID;
-			j["reserved_0"] = std::string();
-            j["reserved_1"] = std::string();
-            j["reserved_2"] = std::string();
-			j["exe_crc"] = TheGlobalData->m_exeCRC;
+            j["machine_guid"] = GetMachineGuid();
+            j["mac_addr"] = GetPrimaryMacAddress();
+            j["vol_serial"] = GetVolumeSerial();
+            j["exe_crc"] = getGameExeCRC();
             j["ini_crc"] = TheGlobalData->m_iniCRC;
 			std::string strPostData = j.dump();
 
