@@ -15,7 +15,7 @@
 
 namespace {
 constexpr auto PRESENCE_UPDATE_INTERVAL = std::chrono::seconds(2);
-constexpr const char *DISCORD_APPLICATION_ID = "1528233173237104660";
+constexpr const char *DISCORD_APPLICATION_ID = "1354979004507226294";
 constexpr const char *LOBBY_DETAILS = "In Lobby / In Room";
 constexpr const char *LOBBY_STATE = "Waiting match";
 constexpr const char *DEFAULT_IMAGE_KEY = "generals_online";

@@ -883,7 +883,11 @@ void W3DDisplay::init()
 			}
 
 			// TheSuperHackers @feature Mauller 13/03/2026 Add native MSAA support, must be set before creating render device
+#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 			WW3D::Set_MSAA_Mode((WW3D::MultiSampleModeEnum)TheWritableGlobalData->m_antiAliasLevel);
+#else
+			WW3D::Set_MSAA_Mode(WW3D::MultiSampleModeEnum::MULTISAMPLE_MODE_NONE);
+#endif
 
 			renderDeviceError = WW3D::Set_Render_Device(
 				0,
