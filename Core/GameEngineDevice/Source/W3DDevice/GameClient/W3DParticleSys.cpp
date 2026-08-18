@@ -156,31 +156,31 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 		if (sys->isUsingDrawables())
 			continue;
 
-		//temporary hack that checks if texture name starts with "SMUD" - if so, we can assume it's a smudge type
-		if (/*sys->isUsingSmudge()*/ *((DWORD *)sys->getParticleTypeName().str()) == 0x44554D53)
+		// Handle smudge type particles
+		if (sys->isUsingSmudge())
 		{
-			if (drawSmudge)
+			if (!drawSmudge)
+				continue;
+
+			for (Particle *p = sys->getFirstParticle(); p; p = p->m_systemNext)
 			{
-				for (Particle *p = sys->getFirstParticle(); p; p = p->m_systemNext)
+				const Coord3D *pos = p->getPosition();
+				Real psize = p->getSize();
+
+				//Cull particle to edges of screen and terrain.
+				if (WWMath::Fabs( pos->x - bcX ) > ( beX + psize ) )
+					continue;
+
+				if (WWMath::Fabs( pos->y - bcY ) > ( beY + psize ) )
+					continue;
+
+				if (WWMath::Fabs( pos->z - bcZ ) > ( beZ + psize ) )
+					continue;
+
+				if (Smudge *smudge = TheSmudgeManager->findSmudge(p))
 				{
-					const Coord3D *pos = p->getPosition();
-					Real psize = p->getSize();
-
-					//Cull particle to edges of screen and terrain.
-					if (WWMath::Fabs( pos->x - bcX ) > ( beX + psize ) )
-						continue;
-
-					if (WWMath::Fabs( pos->y - bcY ) > ( beY + psize ) )
-						continue;
-
-					if (WWMath::Fabs( pos->z - bcZ ) > ( beZ + psize ) )
-						continue;
-
-					if (Smudge *smudge = TheSmudgeManager->findSmudge(p))
-					{
-						// The particle is in view. Draw the smudge!
-						smudge->m_draw = true;
-					}
+					// The particle is in view. Draw the smudge!
+					smudge->m_draw = true;
 				}
 			}
 			continue;
