@@ -153,6 +153,7 @@ static Int minPoints = 0;
 
 static Int matchFoundTimeoutStart = 0;
 static const Int lobbyTimeoutMs = 10000;
+static Int matchFoundTimeoutDurationMs = lobbyTimeoutMs;
 
 static const LadderInfo * getLadderInfo();
 
@@ -1219,12 +1220,28 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 			{
 				buttonBack->winEnable(FALSE);
 				buttonStop->winEnable(FALSE);
+				matchFoundTimeoutDurationMs = lobbyTimeoutMs;
 				matchFoundTimeoutStart = timeGetTime();
                 if (TheAudio)
 				{
 					AudioEventRTS evt("GUICommunicatorOpen");
 					TheAudio->addAudioEvent(&evt);
 				}
+			});
+
+		pLobbyInterface->RegisterForMatchmakingRequeueCallback([]()
+			{
+				matchFoundTimeoutStart = 0;
+				matchFoundTimeoutDurationMs = lobbyTimeoutMs;
+				buttonBack->winEnable(TRUE);
+				buttonStop->winEnable(TRUE);
+				buttonWiden->winEnable(TRUE);
+			});
+
+		pLobbyInterface->RegisterForMatchmakingSetupProgressCallback([](int timeoutMs)
+			{
+				matchFoundTimeoutDurationMs = timeoutMs;
+				matchFoundTimeoutStart = timeGetTime();
 			});
 
 		pLobbyInterface->RegisterForMatchmakingStartGameCallback([]()
@@ -1450,6 +1467,8 @@ void WOLQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 	{
 		pLobbyInterface->DeregisterForMatchmakingMessageCallback();
 		pLobbyInterface->DeRegisterForMatchmakingMatchFoundCallback();
+		pLobbyInterface->DeregisterForMatchmakingRequeueCallback();
+		pLobbyInterface->DeregisterForMatchmakingSetupProgressCallback();
 		pLobbyInterface->DeregisterForMatchmakingStartGameCallback();
 
 		pLobbyInterface->DeregisterForJoinLobbyCallback();
@@ -1578,7 +1597,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 	HandleBuddyResponses();
 #endif
 
-	if (matchFoundTimeoutStart != 0 && timeGetTime() - matchFoundTimeoutStart >= lobbyTimeoutMs)
+	if (matchFoundTimeoutStart != 0 && timeGetTime() - matchFoundTimeoutStart >= matchFoundTimeoutDurationMs)
 	{
 		matchFoundTimeoutStart = 0;
 		buttonBack->winEnable(TRUE);

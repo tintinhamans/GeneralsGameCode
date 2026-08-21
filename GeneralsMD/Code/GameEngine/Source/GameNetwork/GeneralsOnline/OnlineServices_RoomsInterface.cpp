@@ -995,6 +995,17 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::FULL_MESH_CONNECTIVITY_CHECK_RESPONSE:
 									{
+										int64_t meshCheckID = 0;
+										int meshCheckAttempt = 0;
+										if (jsonObject.contains("mesh_check_id") && jsonObject["mesh_check_id"].is_number_integer())
+										{
+											meshCheckID = jsonObject["mesh_check_id"].get<int64_t>();
+										}
+										if (jsonObject.contains("attempt") && jsonObject["attempt"].is_number_integer())
+										{
+											meshCheckAttempt = jsonObject["attempt"].get<int>();
+										}
+
 										// respond with our state
 										std::vector<int64_t> connectivityMap;
 										NetworkMesh* pMesh = nullptr;
@@ -1025,6 +1036,8 @@ void WebSocket::Tick()
 										// send response
 										nlohmann::json j;
 										j["msg_id"] = EWebSocketMessageID::FULL_MESH_CONNECTIVITY_CHECK_RESPONSE;
+										j["mesh_check_id"] = meshCheckID;
+										j["attempt"] = meshCheckAttempt;
 										j["connectivity_map"] = connectivityMap;
 										std::string strBody = j.dump();
 
@@ -1363,6 +1376,33 @@ void WebSocket::Tick()
 										if (pLobbyInterface != nullptr)
 										{
 											pLobbyInterface->InvokeMatchmakingStartGameCallback();
+										}
+									}
+									break;
+
+									case EWebSocketMessageID::MATCHMAKING_ACTION_REQUEUE:
+									{
+										NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+										if (pLobbyInterface != nullptr)
+										{
+											pLobbyInterface->ResetForMatchmakingRequeue();
+											pLobbyInterface->InvokeMatchmakingRequeueCallback();
+										}
+									}
+									break;
+
+									case EWebSocketMessageID::MATCHMAKING_ACTION_SETUP_PROGRESS:
+									{
+										int timeoutMs = 0;
+										if (jsonObject.contains("timeout_ms") && jsonObject["timeout_ms"].is_number_integer())
+										{
+											timeoutMs = jsonObject["timeout_ms"].get<int>();
+										}
+
+										NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+										if (pLobbyInterface != nullptr && timeoutMs > 0)
+										{
+											pLobbyInterface->InvokeMatchmakingSetupProgressCallback(timeoutMs);
 										}
 									}
 									break;

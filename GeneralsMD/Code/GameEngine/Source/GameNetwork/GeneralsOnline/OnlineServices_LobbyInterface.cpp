@@ -836,13 +836,14 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 	// refresh lobby
 	if (m_CurrentLobby.lobbyID != -1 && TheNGMPGame != nullptr)
 	{
-		std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
+		const int64_t requestedLobbyID = m_CurrentLobby.lobbyID;
+		std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), requestedLobbyID);
 		std::map<std::string, std::string> mapHeaders;
 
 		NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
 			// safety, lobby could've been torn down by the time we get our response
-				if (m_CurrentLobby.lobbyID != -1 && TheNGMPGame != nullptr)
+				if (m_CurrentLobby.lobbyID == requestedLobbyID && TheNGMPGame != nullptr)
 				{
 					// TODO_NGMP: Error handling
 					try
@@ -1087,6 +1088,8 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 		return;
 	}
 
+	const uint64_t lobbyJoinGeneration = ++m_LobbyJoinGeneration;
+
     AnticheatPlugInterface::EndSession();
 
 	m_bAttemptingToJoinLobby = true;
@@ -1094,6 +1097,12 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 
 	NGMP_OnlineServicesManager::GetInstance()->GetAndParseServiceConfig([=]()
 		{
+			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+			if (pLobbyInterface == nullptr || pLobbyInterface != this || pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyJoinGeneration)
+			{
+				return;
+			}
+
 			std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), lobbyInfo.lobbyID);
 			std::map<std::string, std::string> mapHeaders;
 
@@ -1125,8 +1134,11 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 			// convert
 			NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendPUTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 				{
-					if (NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>() == nullptr)
+					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+					if (pLobbyInterface == nullptr || pLobbyInterface != this || pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyJoinGeneration)
+					{
 						return;
+					}
 
 					// reset trying to join
 					ResetLobbyTryingToJoin();
@@ -1214,9 +1226,14 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 
 						OnJoinedOrCreatedLobby(false, [=](bool bSuccess)
 							{
-								m_bAttemptingToJoinLobby = false;
 								NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-								if (pLobbyInterface != nullptr && pLobbyInterface->m_callbackJoinedLobby != nullptr)
+								if (pLobbyInterface == nullptr || pLobbyInterface != this || pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyJoinGeneration)
+								{
+									return;
+								}
+
+								pLobbyInterface->m_bAttemptingToJoinLobby = false;
+								if (pLobbyInterface->m_callbackJoinedLobby != nullptr)
 								{
 									pLobbyInterface->m_callbackJoinedLobby(bSuccess ? EJoinLobbyResult::JoinLobbyResult_Success : EJoinLobbyResult::JoinLobbyResult_JoinFailed);
 								}
@@ -1297,6 +1314,36 @@ void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 	NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", nullptr);
 
 	// reset local data
+	ResetCachedRoomData();
+}
+
+void NGMP_OnlineServices_LobbyInterface::ResetForMatchmakingRequeue()
+{
+	// The service has already removed us from the failed temporary lobby. Tear down only
+	// local state here; sending the normal DELETE would cancel the server-side requeue.
+	++m_LobbyJoinGeneration;
+	ResetHostMigrationFlags();
+	AnticheatPlugInterface::EndSession();
+
+	if (m_pLobbyMesh != nullptr)
+	{
+		m_pLobbyMesh->Disconnect();
+		delete m_pLobbyMesh;
+		m_pLobbyMesh = nullptr;
+	}
+
+	if (TheNGMPGame != nullptr)
+	{
+		delete TheNGMPGame;
+		TheNGMPGame = nullptr;
+	}
+
+#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
+	m_timeStartAutoReadyCountdown = -1;
+#endif
+
+	m_bAttemptingToJoinLobby = false;
+	ResetLobbyTryingToJoin();
 	ResetCachedRoomData();
 }
 
