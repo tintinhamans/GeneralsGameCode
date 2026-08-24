@@ -532,46 +532,39 @@ public:
         m_vecCachedScreenshotBytes_MatchStart = vecData;
 	}
 
-    void CacheScreenshotBytes_EndMatch(std::vector<uint8_t>& vecData)
-    {
-        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
-        m_vecCachedScreenshotBytes_MatchEnd = vecData;
-    }
-
-    void CacheReplayBytes(std::vector<uint8_t>& vecData)
-    {
-        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
-		m_vecCachedReplayBytes = vecData;
-    }
-
+	void CacheScreenshotBytes_EndMatch(uint64_t matchID, std::vector<uint8_t> data);
+	void CacheReplayBytes(uint64_t matchID, std::vector<uint8_t> data);
     void SetScreenshotS3URI_StartMatch(const char* szURI)
     {
         std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
 		m_strCachedScreenshot_MatchStart_S3URI = std::string(szURI);
     }
 
-    void SetScreenshotS3URI_EndMatch(const char* szURI)
-    {
-        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
-        m_strCachedScreenshot_MatchEnd_S3URI = std::string(szURI);
-    }
-
-    void SetScreenshotS3URI_Replay(const char* szURI)
-    {
-        std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
-		m_strCacheReplay_S3URI = std::string(szURI);
-    }
+	void SetScreenshotS3URI_EndMatch(uint64_t matchID, std::string uri);
+	void SetScreenshotS3URI_Replay(uint64_t matchID, std::string uri);
 
 private:
 	// NOTE: Accessed from multiple threads, dont access directly, use helpers above to lock
     std::string m_strCachedScreenshot_MatchStart_S3URI;
-    std::string m_strCachedScreenshot_MatchEnd_S3URI;
-    std::string m_strCacheReplay_S3URI;
 
     // screenshots / replays that require caching
     std::vector<uint8_t> m_vecCachedScreenshotBytes_MatchStart;
-    std::vector<uint8_t> m_vecCachedScreenshotBytes_MatchEnd;
-    std::vector<uint8_t> m_vecCachedReplayBytes;
+
+	struct CachedMatchUpload
+	{
+		uint64_t dataMatchID = 0;
+		uint64_t uriMatchID = 0;
+		std::vector<uint8_t> bytes;
+		std::string signedURI;
+	};
+
+	void CacheMatchUploadBytes(CachedMatchUpload& upload, uint64_t matchID, std::vector<uint8_t> data);
+	void CacheMatchUploadURI(CachedMatchUpload& upload, uint64_t matchID, std::string uri);
+
+	// Data and URLs may arrive independently. Keeping their shared match ID here
+	// prevents a late response from being paired with media from another match.
+	CachedMatchUpload m_cachedMatchEndUpload;
+	CachedMatchUpload m_cachedReplayUpload;
 
 	// main thread SS Upload
 	static std::mutex m_ScreenshotMutex;

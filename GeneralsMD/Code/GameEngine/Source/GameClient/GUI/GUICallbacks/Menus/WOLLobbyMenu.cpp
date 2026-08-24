@@ -754,7 +754,7 @@ void PopulateLobbyPlayerListbox()
         {
             NetworkRoomMember& netRoomMember = kvPair.second;
 
-			if (!pStatsInterface->ArePlayerStatsCached(netRoomMember.user_id))
+			if (!pStatsInterface->HasFreshPlayerStats(netRoomMember.user_id))
 			{
 				vecUserStatsToRequest.push_back(netRoomMember.user_id);
 			}
