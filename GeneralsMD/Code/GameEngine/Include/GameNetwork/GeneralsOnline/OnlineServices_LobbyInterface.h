@@ -8,6 +8,7 @@
 #include "Common/Player.h"
 #include "GameClient/InGameUI.h"
 #include "GameLogic/VictoryConditions.h"
+#include <atomic>
 
 extern NGMPGame* TheNGMPGame;
 
@@ -196,17 +197,17 @@ public:
 
 	void SetLobbyListDirty()
 	{
-		m_bLobbyListDirty = true;
+		m_bLobbyListDirty.store(true);
 	}
 
 	void ConsumeLobbyListDirtyFlag()
 	{
-		m_bLobbyListDirty = false;
+		m_bLobbyListDirty.store(false);
 	}
 
-	bool IsLobbyListDirty()
+	bool IsLobbyListDirty() const
 	{
-		return m_bLobbyListDirty;
+		return m_bLobbyListDirty.load();
 	}
 
 	UnicodeString m_PendingCreation_LobbyName;
@@ -463,7 +464,7 @@ private:
 	// TODO_NGMP: cleanup
 	NetworkMesh* m_pLobbyMesh = nullptr;
 
-	bool m_bLobbyListDirty = false;
+	std::atomic_bool m_bLobbyListDirty = false;
 
 
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
@@ -473,7 +474,7 @@ private:
 	bool m_bAttemptingToJoinLobby = false;
 	LobbyEntry m_LobbyTryingToJoin;
 
-	bool m_bSearchInProgress = false;
+	std::atomic_bool m_bSearchInProgress = false;
 
 	bool m_bMarkedGameAsFinished = false;
 
