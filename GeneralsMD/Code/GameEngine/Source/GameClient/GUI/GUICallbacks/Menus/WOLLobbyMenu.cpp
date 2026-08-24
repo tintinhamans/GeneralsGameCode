@@ -390,7 +390,7 @@ static void playerTooltip(GameWindow *window,
 							UnicodeString tmp;
 							tmp.format(L"\n\nOverall Elo Rating: %d (in %d matches)", stats.elo_rating, stats.elo_num_matches);
 							tooltip.concat(tmp);
-							tmp.format(L"\nMonthly Elo Rating: %d", stats.monthly_elo_rating);
+							tmp.format(L"\nWS Elo Rating: %d", stats.monthly_elo_rating);
 							tooltip.concat(tmp);
 							Int rankPoints = CalculateRank(stats);
 							Int rank = 0;
