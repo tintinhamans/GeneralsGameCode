@@ -901,23 +901,12 @@ void PopulateLobbyPlayerListbox()
 		pStatsInterface->findPlayerStatsByBatch(vecUserStatsToRequest, [=](bool bSuccess)
 			{
 				// NOTE: We dont clear until we get a response, so there's no period where the box is empty
-                // save off old selection
-                Int maxSelectedItems = GadgetListBoxGetNumEntries(listboxLobbyPlayers);
-                Int* selectedIndices;
-                GadgetListBoxGetSelected(listboxLobbyPlayers, (Int*)(&selectedIndices));
-                std::set<int> selectedUserIDs;
-                Int numSelected = 0;
-                for (Int i = 0; i < maxSelectedItems; ++i)
-                {
-                    if (selectedIndices[i] < 0)
-                    {
-                        break;
-                    }
-                    ++numSelected;
-
-                    int profileID = (int)GadgetListBoxGetItemData(listboxLobbyPlayers, selectedIndices[i], 0);
-                    selectedUserIDs.insert(profileID);
-                }
+				Int selectedIndex = -1;
+				GadgetListBoxGetSelected(listboxLobbyPlayers, &selectedIndex);
+				const Bool hadSelection = selectedIndex >= 0;
+				const Int selectedUserID = hadSelection
+					? (Int)GadgetListBoxGetItemData(listboxLobbyPlayers, selectedIndex, 0)
+					: 0;
 
                 // save off old top entry
                 Int previousTopIndex = GadgetListBoxGetTopVisibleEntry(listboxLobbyPlayers);
@@ -926,7 +915,7 @@ void PopulateLobbyPlayerListbox()
                 m_vecUsersProcessed.clear();
                 GadgetListBoxReset(listboxLobbyPlayers);
 
-				std::set<Int> indicesToSelect;
+				Int indexToSelect = -1;
 
 				// by this point, all stats should be cached - they were either already cached, or we just got them back from the service
 				// sort
@@ -1106,35 +1095,20 @@ void PopulateLobbyPlayerListbox()
 					Int index = insertPlayerInListbox(pi, colorToUse);
 
 					// TODO_NGMP: Use int for user ID like gamespy did, or move everything to uint64
-					std::set<int>::const_iterator selIt = selectedUserIDs.find(netRoomMember.user_id);
-					if (selIt != selectedUserIDs.end())
+					if (hadSelection && netRoomMember.user_id == selectedUserID)
 					{
-						indicesToSelect.insert(index);
+						indexToSelect = index;
 					}
 				}
 
-                // restore selection
-                if (indicesToSelect.size())
-                {
-                    std::set<Int>::const_iterator indexIt = indicesToSelect.begin();
-                    const size_t count = indicesToSelect.size();
-                    size_t index = 0;
-                    Int* newIndices = NEW Int[count];
-                    while (index < count)
-                    {
-                        newIndices[index] = *indexIt;
-                        DEBUG_LOG(("Queueing up index %d to re-select", *indexIt));
-                        ++index;
-                        ++indexIt;
-                    }
-                    GadgetListBoxSetSelected(listboxLobbyPlayers, newIndices, count);
-                    delete[] newIndices;
-                }
-
-                if (indicesToSelect.size() != numSelected)
-                {
-                    TheWindowManager->winSetLoneWindow(NULL);
-                }
+				if (indexToSelect >= 0)
+				{
+					GadgetListBoxSetSelected(listboxLobbyPlayers, indexToSelect);
+				}
+				else if (hadSelection)
+				{
+					TheWindowManager->winSetLoneWindow(NULL);
+				}
 			});
 
 		/*
