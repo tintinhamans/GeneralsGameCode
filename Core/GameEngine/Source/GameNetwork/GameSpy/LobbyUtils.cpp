@@ -1163,8 +1163,12 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 	pLobbyInterface->SearchForLobbies(
 		[=]()
 		{
-			win->winEnable(false);
-			GadgetListBoxAddEntryText(win, UnicodeString(L"Searching for public lobbies..."), GameMakeColor(255, 194, 15, 255), -1, -1);
+			win->winEnable(true);
+			if (GadgetListBoxGetNumEntries(win) == 0)
+			{
+				GadgetListBoxAddEntryText(win, UnicodeString(L"Searching for public lobbies..."), GameMakeColor(255, 194, 15, 255), -1, -1);
+				GadgetListBoxSetSelected(win, -1);
+			}
 		},
 		[=](std::vector<LobbyEntry> vecLobbies)
 		{
@@ -1173,11 +1177,10 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 
 			size_t numResults = vecLobbies.size();
 
-			GadgetListBoxReset(win);
 			if (numResults == 0)
 			{
-				win->winEnable(false);
 				GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies were found"), GameMakeColor(255, 194, 15, 255), -1, -1);
+				GadgetListBoxSetSelected(win, -1);
 
 			}
 			else
@@ -1196,8 +1199,8 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 					vecLobbies = filtered;
 					if (vecLobbies.empty())
 					{
-						win->winEnable(false);
 						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies currently match this filter"), GameMakeColor(255, 194, 15, 255), -1, -1);
+						GadgetListBoxSetSelected(win, -1);
 						return;
 					}
 				}

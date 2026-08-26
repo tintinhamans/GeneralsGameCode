@@ -2327,7 +2327,8 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				if ( controlID == GetGameListBoxID() )
 				{
 					int rowSelected = mData2;
-					if( rowSelected >= 0 )
+					Int lobbyID = rowSelected >= 0 ? (Int)GadgetListBoxGetItemData(control, rowSelected, 0) : 0;
+					if( lobbyID > 0 )
 					{
 						buttonJoin->winEnable(TRUE);
 						static UnsignedInt lastFrame = 0;
@@ -2336,7 +2337,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 
 						PeerRequest req;
 						req.peerRequestType = PeerRequest::PEERREQUEST_GETEXTENDEDSTAGINGROOMINFO;
-						req.stagingRoom.id = (Int)GadgetListBoxGetItemData(control, rowSelected, 0);
+						req.stagingRoom.id = lobbyID;
 
 						if (lastID != req.stagingRoom.id || now > lastFrame + 60)
 						{
@@ -2411,7 +2412,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					if (selected >= 0)
 					{
 						Int selectedID = (Int)GadgetListBoxGetItemData(GetGameListBox(), selected);
-						if (selectedID >= 0)
+						if (selectedID > 0)
 						{
 							auto Lobby = pLobbyInterface->GetLobbyFromID(selectedID);
 
