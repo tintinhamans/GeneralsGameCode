@@ -974,8 +974,8 @@ static void StartPressed()
 
 	if (pMesh->GetAllConnections().size() < numHumanPlayers - 1)
 	{
-		UnicodeString text(L"The following players are still connecting, please try again soon:");
-		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameMakeColor(255, 0, 0, 255), -1, -1);
+		UnicodeString text(L"Connections: Some players are still connecting. Try again shortly:");
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameMakeColor(255, 194, 15, 255), -1, -1);
 
 		
 		int64_t myUserID = pAuthInterface->GetUserID();
@@ -997,7 +997,7 @@ static void StartPressed()
 				if (!bFoundLobbyMemberForConnection)
 				{
 					UnicodeString strDisplayName(from_utf8(lobbyMember.display_name).c_str());
-					GadgetListBoxAddEntryText(listboxGameSetupChat, strDisplayName, GameMakeColor(255, 0, 0, 255), -1, -1);
+					GadgetListBoxAddEntryText(listboxGameSetupChat, strDisplayName, GameMakeColor(255, 194, 15, 255), -1, -1);
 				}
 			}
 		}
@@ -1117,7 +1117,7 @@ static void StartPressed()
 	if(isReady)
 	{
 		// start full mesh connection check
-		UnicodeString strInform = UnicodeString(L"Starting full mesh connectivity checks...");
+		UnicodeString strInform = UnicodeString(L"Connections: Checking all players...");
 		GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(255, 194, 15, 255), -1, -1);
 
 		std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
@@ -1132,7 +1132,7 @@ static void StartPressed()
 				{
 					if (bMeshFullyConnected)
 					{
-						UnicodeString strInform = UnicodeString(L"Mesh is fully connected!");
+						UnicodeString strInform = UnicodeString(L"Connections: All players are connected.");
 						GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(0, 255, 0, 255), -1, -1);
 
 						// reset autostart just incase
@@ -1178,14 +1178,14 @@ static void StartPressed()
 					}
 					else
 					{
-						UnicodeString strInform = UnicodeString(L"Mesh is not fully connected yet! Please try again soon");
-						GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(255, 0, 0, 255), -1, -1);
+						UnicodeString strInform = UnicodeString(L"Connections: The player network is not ready. Try again shortly.");
+						GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(255, 194, 15, 255), -1, -1);
 
 						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 
 						// who is missing who?
 						//std::list<std::pair<int64_t, int64_t>> missingConnections
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"The following players are not yet connected: "), GameMakeColor(255, 0, 0, 255), -1, -1);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Connections: Missing links:"), GameMakeColor(255, 194, 15, 255), -1, -1);
 						for (auto& missingPair : missingConnections)
 						{
 							bool bFoundPlayer = false;
@@ -1198,16 +1198,16 @@ static void StartPressed()
 									bFoundPlayer = true;
 
 									UnicodeString strMissingConnection;
-									strMissingConnection.format(L"Player %s is not connected to Player %s", from_utf8(lobbyMemberSource.display_name).c_str(), from_utf8(lobbyMemberTarget.display_name).c_str());
-									GadgetListBoxAddEntryText(listboxGameSetupChat, strMissingConnection, GameMakeColor(255, 0, 0, 255), -1, -1);
+									strMissingConnection.format(L"%s is not connected to %s.", from_utf8(lobbyMemberSource.display_name).c_str(), from_utf8(lobbyMemberTarget.display_name).c_str());
+									GadgetListBoxAddEntryText(listboxGameSetupChat, strMissingConnection, GameMakeColor(255, 194, 15, 255), -1, -1);
 								}
 							}
 
 							if (!bFoundPlayer) // if we couldnt find a display name... show a user ID instead, better than nothing
 							{
 								UnicodeString strMissingConnection;
-								strMissingConnection.format(L"Player %lld is not connected to Player %lld", missingPair.first, missingPair.second);
-								GadgetListBoxAddEntryText(listboxGameSetupChat, strMissingConnection, GameMakeColor(255, 0, 0, 255), -1, -1);
+								strMissingConnection.format(L"Player %lld is not connected to player %lld.", missingPair.first, missingPair.second);
+								GadgetListBoxAddEntryText(listboxGameSetupChat, strMissingConnection, GameMakeColor(255, 194, 15, 255), -1, -1);
 							}
 						}
 
@@ -1245,7 +1245,7 @@ static void StartPressed()
 
 			// remote msg
 			UnicodeString strInform = TheGameText->fetch("GUI:HostWantsToStart");
-			UnicodeString strInform2 = UnicodeString(L"All players will be forced to ready up in 30 seconds");
+			UnicodeString strInform2 = UnicodeString(L"Ready check: All players will be marked ready in 30 seconds.");
 			pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, false);
 			pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform2, true);
 
@@ -1257,8 +1257,8 @@ static void StartPressed()
 		}
 		else
 		{
-			UnicodeString strInform = UnicodeString(L"You have already informed players you want to start. A countdown has begun after which they will be marked as ready.");
-			GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+			UnicodeString strInform = UnicodeString(L"Ready check: A countdown is already running. Players will be marked ready when it ends.");
+			GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(192, 192, 192, 255), -1, -1);
 		}
 #endif
 	}
@@ -1838,8 +1838,11 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 					if (connState == EConnectionState::CONNECTION_FAILED)
 					{
 #endif
-						strConnectionMessage.format(L"Connection state to %s changed to: %hs", strDisplayName.c_str(), strState.c_str());
-						GadgetListBoxAddEntryText(listboxGameSetupChat, strConnectionMessage, GameMakeColor(255, 194, 15, 255), -1, -1);
+						strConnectionMessage.format(L"Connection: %s is now %hs.", strDisplayName.c_str(), strState.c_str());
+						const Color connectionColor = connState == EConnectionState::CONNECTION_FAILED
+							? GameMakeColor(255, 0, 0, 255)
+							: GameMakeColor(192, 192, 192, 255);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, strConnectionMessage, connectionColor, -1, -1);
 
 #if !defined(_DEBUG)
 					}
@@ -2158,18 +2161,14 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 			if (!pLobbyInterface->IsHost())
 			{
 				UnicodeString strInform;
-				strInform.format(L"NOTE: This lobby has a customized maximum camera height / zoom level of %lu set by the host.", theLobby.max_cam_height);
-				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+				strInform.format(L"Camera height: The host set the limit to %lu.", theLobby.max_cam_height);
+				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(192, 192, 192, 255), -1, -1);
 			}
 			else
 			{
 				UnicodeString strInform;
-				UnicodeString strInform2;
-				strInform.format(L"NOTE: This lobby has a customized maximum camera height / zoom level of %lu set as per your preference.", theLobby.max_cam_height);
-				strInform2.format(L"\tDo /maxcameraheight <val> to change this (e.g. /maxcameraheight 450). Default is 310.", theLobby.max_cam_height);
-
-				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
-				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform2, GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+				strInform.format(L"Camera height: Your limit is %lu. Use /maxcameraheight <value> to change it. Default: 310.", theLobby.max_cam_height);
+				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(192, 192, 192, 255), -1, -1);
 			}
 
 		}
@@ -2179,7 +2178,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
     {
         if (pLobbyInterface->IsHost())
         {
-            GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"This lobby is open to the public. Use /friendsonly to make it only open to friends."), GameMakeColor(255, 194, 15, 255), -1, -1);
+			GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Anyone can join. Use /friendsonly to limit the lobby to friends."), GameMakeColor(192, 192, 192, 255), -1, -1);
         }
     }
     
@@ -2187,7 +2186,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	{
 		if (!TheNGMPGame->getAllowObservers())
 		{
-			GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"NOTE: The host has disabled observers in this lobby."), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+			GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Observers: Disabled by the host."), GameMakeColor(192, 192, 192, 255), -1, -1);
 		}
 	}
 #endif
@@ -2413,13 +2412,13 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 
 							NetworkLog(ELogVerbosity::LOG_RELEASE, "Host left and server migrated the host to us...");
 
-							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"The previous host has left the lobby. You are now the host."), GameMakeColor(255, 255, 255, 255), -1, -1);
+							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Host: The previous host left. You are now the host."), GameMakeColor(192, 192, 192, 255), -1, -1);
 
 							// NOTE: don't need to mark ourselves ready, the service did it for us upon migration
 						}
 						else
 						{
-							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"The previous host has left the lobby. a new host has been selected."), GameMakeColor(255, 255, 255, 255), -1, -1);
+							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Host: The previous host left. A new host was selected."), GameMakeColor(192, 192, 192, 255), -1, -1);
 						}
 
 						// re-enable critical buttons for everyone
@@ -3511,11 +3510,23 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 #if defined(GENERALS_ONLINE)
 	else if (token == "help" || token == "commands")
 	{
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"The following commands are available:"), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/maxcameraheight <value> - Sets the maximum camera zoom out level - Example: /maxcameraheight 650"), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/friendsonly - Sets the lobby to only be joinable by friends"), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/public - Sets the lobby to be joinable by anyone"), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+		const Color helpColor = GameMakeColor(127, 127, 127, 255);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/me <message> - Send an emote."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/friendsonly - Let only friends join (host only)."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/public - Let anyone join (host only)."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/setpassword <password> - Set a lobby password (host only)."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/removepassword - Remove the lobby password (host only)."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/maxcameraheight <value> - Set the camera height limit (host only)."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/leave - Return to the main lobby."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/quit - Exit the game."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
 		return TRUE; // was a slash command
+	}
+	else if (token == "support")
+	{
+		ShellExecuteA(NULL, "open", "https://discord.playgenerals.online", NULL, NULL, SW_SHOWNORMAL);
+		return TRUE;
 	}
 	else if (token == "friendsonly")
     {
@@ -3530,7 +3541,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 				{
 					if (pLobbyInterface->IsHost()) // NOTE: this is checked service side too, but we might as well not make the call to reduce resource usage
 					{
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"This lobby is now only open to friends. Use /public to make it open to the public."), GameMakeColor(255, 194, 15, 255), -1, -1);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Friends only. Use /public to let anyone join."), GameMakeColor(0, 255, 0, 255), -1, -1);
 						pLobbyInterface->SetJoinability(ELobbyJoinability::LobbyJoinability_FriendsOnly);
 					}
 				}
@@ -3551,7 +3562,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
                 {
 					if (pLobbyInterface->IsHost()) // NOTE: this is checked service side too, but we might as well not make the call to reduce resource usage
                     {
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"This lobby is now only open to the public. Use /friendsonly to make it open to friends only."), GameMakeColor(255, 194, 15, 255), -1, -1);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Anyone can join. Use /friendsonly to limit the lobby to friends."), GameMakeColor(0, 255, 0, 255), -1, -1);
 						pLobbyInterface->SetJoinability(ELobbyJoinability::LobbyJoinability_Public);
                     }
                 }
@@ -3596,8 +3607,8 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 							if (newCameraHeight < GENERALS_ONLINE_MIN_LOBBY_CAMERA_ZOOM || newCameraHeight > GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM)
 							{
 								UnicodeString msg;
-								msg.format(L"The camera height must be between %d and %d.", GENERALS_ONLINE_MIN_LOBBY_CAMERA_ZOOM, GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM);
-								GadgetListBoxAddEntryText(listboxGameSetupChat, msg, GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+								msg.format(L"Camera height: Enter a value from %d to %d.", GENERALS_ONLINE_MIN_LOBBY_CAMERA_ZOOM, GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM);
+								GadgetListBoxAddEntryText(listboxGameSetupChat, msg, GameMakeColor(255, 0, 0, 255), -1, -1);
 								return TRUE; // was a slash command
 							}
 							else
@@ -3611,14 +3622,14 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 						}
 						else
 						{
-							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"The camera height must be a number."), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Camera height: Enter a number."), GameMakeColor(255, 0, 0, 255), -1, -1);
 							return TRUE; // was a slash command
 						}
 						
 					}
 					else
 					{
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"You must be the lobby host to modify the maximum camera height."), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Camera height: Only the host can change it."), GameMakeColor(255, 0, 0, 255), -1, -1);
 						return TRUE; // was a slash command
 					}
 				}
@@ -3631,10 +3642,12 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 	else if (token == "leave")
 	{
 		PopBackToLobby();
+		return TRUE;
 	}
 	else if (token == "quit")
 	{
 		TheGameEngine->setQuitting(TRUE);
+		return TRUE;
 	}
 	else if (token == "steam" || token == "advnet")
 	{
@@ -3648,7 +3661,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADV NET STATS] Connection to user %lld: %s", kvPair.first, conn.GetStats().c_str());
 		}
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADV NET STATS] Advanced networking stats dumped");
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Advanced networking debug stats have been written to log file."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Network debug: Statistics were written to the log file."), GameMakeColor(192, 192, 192, 255), -1, -1);
 
 		return TRUE;
 	}
@@ -3668,7 +3681,7 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 				if (newPassword.getLength() == 0 || newPassword.getLength() > GENERALS_ONLINE_LOBBY_MAX_PASSWORD_LENGTH)
 				{
 					UnicodeString errorMsg;
-					errorMsg.format(L"The new password must be between 1 and %d characters.", GENERALS_ONLINE_LOBBY_MAX_PASSWORD_LENGTH);
+					errorMsg.format(L"Lobby password: Use 1 to %d characters.", GENERALS_ONLINE_LOBBY_MAX_PASSWORD_LENGTH);
 					GadgetListBoxAddEntryText(listboxGameSetupChat, errorMsg, GameMakeColor(255, 0, 0, 255), -1, -1);
 				}
 				else
@@ -3678,13 +3691,13 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 					{
 						pWS->SendData_ChangeLobbyPassword(newPassword);
 
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"The lobby password has been updated. You can remove the password by using /removepassword"), GameMakeColor(0, 255, 0, 255), -1, -1);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Updated. Use /removepassword to remove it."), GameMakeColor(0, 255, 0, 255), -1, -1);
 					}
 				}
 			}
 			else
 			{
-				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"You are not the lobby owner."), GameMakeColor(255, 0, 0, 255), -1, -1);
+				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Only the host can change it."), GameMakeColor(255, 0, 0, 255), -1, -1);
 			}
 		}
 
@@ -3708,17 +3721,17 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 					{
 						pWS->SendData_RemoveLobbyPassword();
 
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"The lobby password has been removed. You can set a password using /setpassword <password>"), GameMakeColor(0, 255, 0, 255), -1, -1);
+						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Removed. Use /setpassword <password> to add one."), GameMakeColor(0, 255, 0, 255), -1, -1);
 					}
 				}
 				else
 				{
-					GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"The lobby is not passworded. You can set a password using /setpassword <password>"), GameMakeColor(255, 0, 0, 255), -1, -1);
+					GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: No password is set. Use /setpassword <password> to add one."), GameMakeColor(192, 192, 192, 255), -1, -1);
 				}
 			}
 			else
 			{
-				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"You are not the lobby owner."), GameMakeColor(255, 0, 0, 255), -1, -1);
+				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Only the host can change it."), GameMakeColor(255, 0, 0, 255), -1, -1);
 			}
 		}
 
@@ -3742,7 +3755,12 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 	}
 #endif // defined(RTS_DEBUG)
 
-	return FALSE; // not a slash command
+#if defined(GENERALS_ONLINE)
+	GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Unknown command: Use /help to see all commands."), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+	return TRUE;
+#else
+	return FALSE;
+#endif
 }
 
 static Int getNextSelectablePlayer(Int start)

@@ -1292,7 +1292,9 @@ void WebSocket::Tick()
 												}
 
 												// no admin chat in lobby
-												Color color = DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, chatData.action, false, false, lobbySlot);
+												Color color = chatData.announcement
+													? GameMakeColor(192, 192, 192, 255)
+													: DetermineColorForChatMessage(EChatMessageType::CHAT_MESSAGE_TYPE_LOBBY, true, chatData.action, false, false, lobbySlot);
 
 												if (pLobbyInterface->m_OnChatCallback != nullptr)
 												{
@@ -1814,7 +1816,7 @@ void NGMP_OnlineServices_RoomsInterface::ReportRoomJoinFailure(const std::string
 	if (m_OnChatCallback != nullptr)
 	{
 		UnicodeString message;
-		message = L"Couldn't join that room. Please try again.";
+		message = L"Room: Couldn't join. Please try again.";
 		m_OnChatCallback(message, GameMakeColor(255, 0, 0, 255));
 	}
 }

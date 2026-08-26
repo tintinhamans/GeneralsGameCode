@@ -215,9 +215,21 @@ Bool handleLobbySlashCommands(UnicodeString uText)
 	}
 	else if (token == "help" || token == "commands")
 	{
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"The following commands are available:"), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/name <value> - Changes your display name - Example: /name General Granger"), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+		const Color helpColor = GameMakeColor(127, 127, 127, 255);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/me <message> - Send an emote."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/name <name> - Change your name. You can also use /nick."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/refresh - Refresh the game and player lists."), helpColor, -1, -1);
+		// Relay overrides are intentionally hidden from help.
+		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/forcerelay - Use relay connections only."), helpColor, -1, -1);
+		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/allowrelay - Allow direct connections again."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
 		return TRUE; // was a slash command
+	}
+	else if (token == "support")
+	{
+		ShellExecuteA(NULL, "open", "https://discord.playgenerals.online", NULL, NULL, SW_SHOWNORMAL);
+		return TRUE;
 	}
 	else if ((token == "name" && uText.getLength() > 6) || (token == "nick" && uText.getLength() > 6))
 	{
@@ -225,7 +237,7 @@ Bool handleLobbySlashCommands(UnicodeString uText)
 
 		if (newName.getLength() < 3 || newName.getLength() > 16)
 		{
-			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your new name must be between 3 and 16 characters."), GameMakeColor(255, 0, 0, 255), -1, -1);
+			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Name: Use 3 to 16 characters."), GameMakeColor(255, 0, 0, 255), -1, -1);
 		}
 		else
 		{
@@ -245,7 +257,7 @@ Bool handleLobbySlashCommands(UnicodeString uText)
 		g_bForceRelay = true;
 		m_exeCRCOriginal = TheWritableGlobalData->m_exeCRC;
 		TheWritableGlobalData->m_exeCRC = 123456;
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Relays are now forced on. You will only be able to join lobbies where the same option has been set. Use /allowrelay to reset this"), GameMakeColor(255, 0, 0, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Relay mode: Required. You can only join lobbies with the same setting. Use /allowrelay to allow direct connections."), GameMakeColor(255, 194, 15, 255), -1, -1);
 		return TRUE; // was a slash command
 	}
 	else if (token == "allowrelay")
@@ -255,7 +267,7 @@ Bool handleLobbySlashCommands(UnicodeString uText)
 		g_bForceRelay = false;
 		TheWritableGlobalData->m_exeCRC = m_exeCRCOriginal;
 		m_exeCRCOriginal = 0;
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Relays are now optional again. You will only be able to join lobbies where the same option has been set. Use /forcerelay to reset this"), GameMakeColor(255, 0, 0, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Relay mode: Optional. You can only join lobbies with the same setting. Use /forcerelay to require relays."), GameMakeColor(0, 255, 0, 255), -1, -1);
 		return TRUE; // was a slash command
 	}
 	else if (token == "refresh")
@@ -302,7 +314,8 @@ Bool handleLobbySlashCommands(UnicodeString uText)
 	}
 #endif
 
-	return FALSE; // not a slash command
+	GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Unknown command: Use /help to see all commands."), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+	return TRUE;
 }
 
 static Bool s_tryingToHostOrJoin = FALSE;
@@ -1525,7 +1538,7 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 				const std::vector<NetworkRoom>& rooms = pRoomsInterfaceOuter->GetGroupRooms();
 				if (!success || rooms.empty())
 				{
-					GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"\t ERROR: No rooms are available. Try logging in again."), GameMakeColor(255, 0, 0, 255), -1, -1);
+					GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Rooms: None are available. Log in again."), GameMakeColor(255, 0, 0, 255), -1, -1);
 					return;
 				}
 
@@ -1865,7 +1878,7 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 		}
 		else
 		{
-			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your lobby list is outdated. Hit refresh to see the latest servers."), GameMakeColor(255, 194, 15, 255), -1, -1);
+			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Lobby list: Outdated. Use Refresh to update it."), GameMakeColor(255, 194, 15, 255), -1, -1);
 		}
 
 	}
