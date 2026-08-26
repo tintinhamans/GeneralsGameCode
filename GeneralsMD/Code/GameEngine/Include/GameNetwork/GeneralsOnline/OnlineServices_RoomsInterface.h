@@ -212,6 +212,7 @@ public:
 	const std::vector<NetworkRoom>& GetGroupRooms() const { return m_vecRooms; }
 
 	void OnRosterUpdated(std::unordered_map<uint64_t, NetworkRoomMember> mapMembers, const RoomSelectionResult& selectionResult);
+	bool SupportsModerationCommands() const { return m_bSupportsModerationCommands; }
 
 	int GetCurrentRoomIndex() const { return m_CurrentRoomIndex; }
 
@@ -229,6 +230,7 @@ private:
 	std::optional<PendingRoomChange> m_PendingRoomChange;
 	uint64_t m_NextRoomChangeRequestID = 1;
 	bool m_bRoomSelectionResultsSupported = false;
+	bool m_bSupportsModerationCommands = false;
 	std::function<void(int, bool)> m_RoomChangedCallback = nullptr;
 	void ReportRoomJoinFailure(const std::string& error);
 
