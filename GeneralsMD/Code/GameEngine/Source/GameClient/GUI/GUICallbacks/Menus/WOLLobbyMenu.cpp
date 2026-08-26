@@ -71,6 +71,8 @@
 #include "GameNetwork/RankPointValue.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 
+#include <deque>
+
 void refreshGameList( Bool forceRefresh = FALSE );
 void refreshPlayerList( Bool forceRefresh = FALSE );
 
@@ -130,38 +132,39 @@ static Int groupRoomToJoin = 0;
 static Int	initialGadgetDelay = 2;
 static Bool justEntered = FALSE;
 
-static int64_t s_lobbyLastChatTimeMs = 0;
-static const int64_t S_LOBBY_CHAT_INTERVAL_MS = 3000; // how long to wait before we allow sending the next message
+// TODO: Remove this client-side limit after server-side rate limiting is deployed.
+static std::deque<std::chrono::steady_clock::time_point> s_lobbyChatMessageTimes;
+static std::chrono::steady_clock::time_point s_lastLobbyChatRateLimitNotice;
+static Bool s_hasShownLobbyChatRateLimitNotice = FALSE;
 
-static bool LobbyChatSlowmodeAllowsSend()
+static bool LobbyChatRateLimitAllowsSend()
 {
 	using namespace std::chrono;
 
-	int64_t nowMs =
-		duration_cast<milliseconds>(utc_clock::now().time_since_epoch()).count();
-
-	if (nowMs < s_lobbyLastChatTimeMs)
+	const auto now = steady_clock::now();
+	const auto window = seconds(9);
+	while (!s_lobbyChatMessageTimes.empty() && now - s_lobbyChatMessageTimes.front() >= window)
 	{
-		s_lobbyLastChatTimeMs = 0;
+		s_lobbyChatMessageTimes.pop_front();
 	}
 
-	int64_t delta = nowMs - s_lobbyLastChatTimeMs;
-	if (delta < S_LOBBY_CHAT_INTERVAL_MS)
+	if (s_lobbyChatMessageTimes.size() >= 3)
 	{
-		if (listboxLobbyChat)
+		if (!s_hasShownLobbyChatRateLimitNotice || now - s_lastLobbyChatRateLimitNotice >= window)
 		{
 			GadgetListBoxAddEntryText(
 				listboxLobbyChat,
-				UnicodeString(L"You are sending messages too quickly. Please wait a moment."),
-				GameMakeColor(255, 0, 0, 255),
+				UnicodeString(L"Rate limit: Please wait before sending another message."),
+				GameMakeColor(255, 194, 15, 255),
 				-1,
-				-1
-			);
+				-1);
+			s_lastLobbyChatRateLimitNotice = now;
+			s_hasShownLobbyChatRateLimitNotice = TRUE;
 		}
 		return false;
 	}
 
-	s_lobbyLastChatTimeMs = nowMs;
+	s_lobbyChatMessageTimes.push_back(now);
 	return true;
 }
 
@@ -178,8 +181,11 @@ int getQR2HostingStatus();
 }
 extern int isThreadHosting;
 
-Bool handleLobbySlashCommands(UnicodeString uText)
+Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 {
+	if (wasRateLimited != nullptr)
+		*wasRateLimited = FALSE;
+
 	AsciiString message;
 	message.translate(uText);
 
@@ -205,6 +211,13 @@ Bool handleLobbySlashCommands(UnicodeString uText)
 	}
 	else if (token == "me" && uText.getLength()>4)
 	{
+		if (!LobbyChatRateLimitAllowsSend())
+		{
+			if (wasRateLimited != nullptr)
+				*wasRateLimited = TRUE;
+			return TRUE;
+		}
+
 		UnicodeString msg = UnicodeString(uText.str() + 4); // skip the /me
 		NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
 		if (pRoomsInterface != nullptr)
@@ -2642,23 +2655,26 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				else if ( controlID == buttonEmoteID )
 				{
-				// read the user's input and clear the entry box
+					// read the user's input
 					UnicodeString txtInput;
 					txtInput.set(GadgetTextEntryGetText( textEntryChat ));
-					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
 					txtInput.trim();
-					if (!txtInput.isEmpty())
+					if (txtInput.isEmpty())
 					{
-						if (!LobbyChatSlowmodeAllowsSend())
-						{
-							break;
-						}
-						// Send the message
-						NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-						if (pRoomsInterface != nullptr)
-						{
-							pRoomsInterface->SendChatMessageToCurrentRoom(txtInput, false);
-						}
+						GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+						break;
+					}
+
+					if (!LobbyChatRateLimitAllowsSend())
+					{
+						break;
+					}
+
+					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+					NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+					if (pRoomsInterface != nullptr)
+					{
+						pRoomsInterface->SendChatMessageToCurrentRoom(txtInput, false);
 					}
 				}
 
@@ -2998,28 +3014,37 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				if (buttonPushed)
 					break;
 
-				// read the user's input and clear the entry box
+				// read the user's input
 				UnicodeString txtInput;
 				txtInput.set(GadgetTextEntryGetText( textEntryChat ));
-				GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
 				txtInput.trim();
-				if (!txtInput.isEmpty())
+				if (txtInput.isEmpty())
 				{
-					// Send the message
-					if (!handleLobbySlashCommands(txtInput))
+					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+					break;
+				}
+
+				Bool wasRateLimited = FALSE;
+				if (handleLobbySlashCommands(txtInput, &wasRateLimited))
+				{
+					if (!wasRateLimited)
+						GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+				}
+				else
+				{
+					if (!LobbyChatRateLimitAllowsSend())
 					{
-						if (!LobbyChatSlowmodeAllowsSend())
-						{
-							break;
-						}
-						std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
-						if (pWS != nullptr)
-						{
-							pWS->SendData_RoomChatMessage(txtInput, false);
-						}
-						// TODO_NGMP: Support private message again
-						//TheGameSpyInfo->sendChat( txtInput, false, listboxLobbyPlayers );
+						break;
 					}
+
+					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+					std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
+					if (pWS != nullptr)
+					{
+						pWS->SendData_RoomChatMessage(txtInput, false);
+					}
+					// TODO_NGMP: Support private message again
+					//TheGameSpyInfo->sendChat( txtInput, false, listboxLobbyPlayers );
 				}
 				break;
 			}
