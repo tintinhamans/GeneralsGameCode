@@ -2,6 +2,7 @@
 #include "GameNetwork/GeneralsOnline/NGMP_include.h"
 #include "GameNetwork/GeneralsOnline/NetworkPacket.h"
 #include "GameNetwork/GeneralsOnline/NetworkBitstream.h"
+#include "GameNetwork/GeneralsOnline/OnlineServices_Moderation.h"
 #include "GameNetwork/GeneralsOnline/json.hpp"
 #include "../OnlineServices_Init.h"
 #include "../HTTP/HTTPManager.h"
@@ -350,6 +351,33 @@ public:
 	EWebSocketMessageID msg_id;
 
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessageBase, msg_id)
+};
+
+class WebSocketMessage_ModerationNotice : public WebSocketMessageBase
+{
+public:
+	std::string action_type;
+	std::string reason;
+	std::string scope_type;
+
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(WebSocketMessage_ModerationNotice, msg_id, action_type, reason, scope_type)
+};
+
+class WebSocketMessage_ModerationCommandResult : public WebSocketMessageBase
+{
+public:
+	uint64_t request_id = 0;
+	bool success = false;
+	std::string error_code;
+	std::string message;
+
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(
+		WebSocketMessage_ModerationCommandResult,
+		msg_id,
+		request_id,
+		success,
+		error_code,
+		message)
 };
 
 class WebSocketMessage_NetworkStartSignalling : public WebSocketMessageBase
@@ -832,6 +860,33 @@ void WebSocket::Tick()
 
 									switch (msgID)
 									{
+									case EWebSocketMessageID::MODERATION_NOTICE:
+									{
+										WebSocketMessage_ModerationNotice moderationNotice;
+										if (JSONGetAsObject(jsonObject, &moderationNotice))
+										{
+											HandleModerationNotice(
+												moderationNotice.action_type,
+												moderationNotice.reason,
+												moderationNotice.scope_type);
+										}
+									}
+									break;
+
+									case EWebSocketMessageID::MODERATION_COMMAND_RESULT:
+									{
+										WebSocketMessage_ModerationCommandResult commandResult;
+										if (JSONGetAsObject(jsonObject, &commandResult))
+										{
+											NetworkLog(
+												ELogVerbosity::LOG_RELEASE,
+												"Moderation command %llu %s: %s",
+												static_cast<unsigned long long>(commandResult.request_id),
+												commandResult.success ? "succeeded" : "failed",
+												commandResult.message.c_str());
+										}
+									}
+									break;
 
 									case EWebSocketMessageID::PONG:
 									{
@@ -1545,6 +1600,7 @@ NGMP_OnlineServices_RoomsInterface::NGMP_OnlineServices_RoomsInterface()
 void NGMP_OnlineServices_RoomsInterface::GetRoomList(std::function<void(void)> cb)
 {
 	m_vecRooms.clear();
+	m_bSupportsModerationCommands = false;
     	// Cache our buddies on lobby list
 	NGMP_OnlineServices_SocialInterface* pSocialInterface =
 		NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
@@ -1561,6 +1617,7 @@ void NGMP_OnlineServices_RoomsInterface::GetRoomList(std::function<void(void)> c
 			try
 			{
 				nlohmann::json jsonObject = nlohmann::json::parse(strBody);
+				m_bSupportsModerationCommands = jsonObject.value("supports_moderation_commands", false);
 
 				for (const auto& roomEntryIter : jsonObject["rooms"])
 				{

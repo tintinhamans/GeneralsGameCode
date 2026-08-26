@@ -193,10 +193,12 @@ public:
 	void OnRosterUpdated(std::unordered_map<uint64_t, NetworkRoomMember> mapMembers);
 
 	int GetCurrentRoomID() const { return m_CurrentRoomID; }
+	bool SupportsModerationCommands() const { return m_bSupportsModerationCommands; }
 
 
 private:
 	int m_CurrentRoomID = -1;
+	bool m_bSupportsModerationCommands = false;
 
 	std::vector<NetworkRoom> m_vecRooms;
 
