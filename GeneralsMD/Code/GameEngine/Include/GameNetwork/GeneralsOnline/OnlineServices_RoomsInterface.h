@@ -6,6 +6,9 @@
 #include "OnlineServices_Init.h"
 #include "Common/MultiplayerSettings.h"
 
+#include <chrono>
+#include <optional>
+
 extern NGMPGame* TheNGMPGame;
 
 enum class EChatMessageType
@@ -98,18 +101,32 @@ public:
 	bool IsValid() const { return user_id != -1; }
 };
 
+struct RoomSelectionResult
+{
+	std::optional<uint64_t> requestID;
+	std::optional<int> selectedRoomID;
+	std::optional<int> effectiveRoomID;
+	std::optional<int> rejectedRoomID;
+	std::string error;
+};
+
 class NGMP_OnlineServices_RoomsInterface
 {
 public:
 	NGMP_OnlineServices_RoomsInterface();
 
-	void GetRoomList(std::function<void(void)> cb);
+	void GetRoomList(std::function<void(bool)> cb);
 
-	std::function<void()> m_PendingRoomJoinCompleteCallback = nullptr;
-	void JoinRoom(int roomIndex, std::function<void()> onStartCallback, std::function<void()> onCompleteCallback);
+	void JoinRoom(int roomIndex);
 
 	void LeaveRoom()
 	{
+		m_CurrentRoomIndex = -1;
+		m_EffectiveRoomID.reset();
+		m_PendingRoomChange.reset();
+		m_bRoomSelectionResultsSupported = false;
+		m_vecRooms.clear();
+
 		std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
 		if (pWS != nullptr)
 		{
@@ -140,6 +157,16 @@ public:
 	{
 		std::scoped_lock<std::mutex> lock(m_rosterCallbackMutex);
 		m_RosterNeedsRefreshCallback = nullptr;
+	}
+
+	void RegisterForRoomChangedCallback(std::function<void(int, bool)> cb)
+	{
+		m_RoomChangedCallback = std::move(cb);
+	}
+
+	void DeregisterForRoomChangedCallback()
+	{
+		m_RoomChangedCallback = nullptr;
 	}
 
 	NetworkRoomMember* GetRoomMemberFromIndex(int index)
@@ -180,23 +207,30 @@ public:
 		}
 	}
 
-	void Tick()
-	{
+	void Tick();
 
-	}
+	const std::vector<NetworkRoom>& GetGroupRooms() const { return m_vecRooms; }
 
-	std::vector<NetworkRoom> GetGroupRooms()
-	{
-		return m_vecRooms;
-	}
+	void OnRosterUpdated(std::unordered_map<uint64_t, NetworkRoomMember> mapMembers, const RoomSelectionResult& selectionResult);
 
-	void OnRosterUpdated(std::unordered_map<uint64_t, NetworkRoomMember> mapMembers);
-
-	int GetCurrentRoomID() const { return m_CurrentRoomID; }
-
+	int GetCurrentRoomIndex() const { return m_CurrentRoomIndex; }
 
 private:
-	int m_CurrentRoomID = -1;
+	struct PendingRoomChange
+	{
+		int roomIndex;
+		int roomID;
+		uint64_t requestID;
+		std::chrono::steady_clock::time_point deadline;
+	};
+
+	int m_CurrentRoomIndex = -1;
+	std::optional<int> m_EffectiveRoomID;
+	std::optional<PendingRoomChange> m_PendingRoomChange;
+	uint64_t m_NextRoomChangeRequestID = 1;
+	bool m_bRoomSelectionResultsSupported = false;
+	std::function<void(int, bool)> m_RoomChangedCallback = nullptr;
+	void ReportRoomJoinFailure(const std::string& error);
 
 	std::vector<NetworkRoom> m_vecRooms;
 
