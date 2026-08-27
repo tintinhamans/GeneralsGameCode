@@ -1140,9 +1140,6 @@ static void StartPressed()
 						pLobbyInterface->ClearAutoReadyCountdown();
 #endif
 
-						if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
-							TheNGMPGame->StopCountdown();
-
 						//PeerRequest req;
 						//req.peerRequestType = PeerRequest::PEERREQUEST_STARTGAME;
 						//TheGameSpyPeerMessageQueue->addRequest(req);
