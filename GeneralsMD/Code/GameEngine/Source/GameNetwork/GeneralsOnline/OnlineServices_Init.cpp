@@ -646,8 +646,11 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 										if (bResizeForTransmit)
 										{
 											ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
-											int new_width = serviceConf.screenshot_width;
-											int new_height = serviceConf.screenshot_height;
+											float scale = (std::min)(1.0f, (std::min)(
+												static_cast<float>(serviceConf.screenshot_width) / width,
+												static_cast<float>(serviceConf.screenshot_height) / height));
+											int new_width = (std::max)(1, static_cast<int>(width * scale));
+											int new_height = (std::max)(1, static_cast<int>(height * scale));
 											int channels = 3;
 											unsigned char* resized = new unsigned char[new_width * new_height * channels];
 

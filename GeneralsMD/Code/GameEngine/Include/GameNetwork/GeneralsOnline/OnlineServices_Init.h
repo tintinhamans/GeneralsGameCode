@@ -276,42 +276,41 @@ struct RegionResponse
 
 struct ServiceConfig
 {
-	bool retry_signalling = false;
+	bool retry_signalling = true;
 	bool use_mapped_port = true;
-	int min_run_ahead_frames = 4;
+	int min_run_ahead_frames = 6;
 	int ra_update_frequency_frames = 10;
 	bool relay_all_traffic = false;
-	int ra_slack_percent = 20;
+	int ra_slack_percent = 30;
 	int frame_grouping_frames = 2;
-	bool enable_host_migration = true;
+	bool enable_host_migration = false;
 
 	bool network_do_immediate_flush_per_frame = true;
 	int network_send_flags = -1;
 
-	int network_latency_logic_model = 0;
+	int network_latency_logic_model = 2;
 
-	bool use_default_config = false;
-	int ra_slack_override_percent_in_default = 10;
+	bool use_default_config = true;
+	int ra_slack_override_percent_in_default = 30;
 	bool do_probes = true;
 	bool do_replay_upload = true;
 
 	int network_mesh_histogram_duration = 20000;
 
 	bool ibra_ra_tweaks = false;
-	float ibra_minslack_default = 0.25f;
+	float ibra_minslack_default = 0.35f;
 	float ibra_maxslack_default = 1.f;
 
-    float ibra_minslack_greaterthan300ms = 0.35f;
-    float ibra_maxslack_greaterthan300ms = 1.f;
+	float ibra_minslack_greaterthan300ms = 0.4f;
+	float ibra_maxslack_greaterthan300ms = 1.f;
 
-    float ibra_minslack_greaterthan200ms = 0.3f;
-    float ibra_maxslack_greaterthan200ms = 1.f;
+	float ibra_minslack_greaterthan200ms = 0.4f;
+	float ibra_maxslack_greaterthan200ms = 1.f;
 
-	int screenshot_width = 557;
-	int screenshot_height = 333;
+	int screenshot_width = 960;
+	int screenshot_height = 600;
 
-	
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(ServiceConfig, retry_signalling, use_mapped_port, min_run_ahead_frames, ra_update_frequency_frames, relay_all_traffic,
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ServiceConfig, retry_signalling, use_mapped_port, min_run_ahead_frames, ra_update_frequency_frames, relay_all_traffic,
 		ra_slack_percent, frame_grouping_frames, enable_host_migration, network_do_immediate_flush_per_frame, network_send_flags, network_latency_logic_model,
 		use_default_config, ra_slack_override_percent_in_default, do_probes, do_replay_upload, network_mesh_histogram_duration,
 		ibra_ra_tweaks, ibra_minslack_default, ibra_maxslack_default, ibra_minslack_greaterthan300ms, ibra_maxslack_greaterthan300ms, ibra_minslack_greaterthan200ms, ibra_maxslack_greaterthan200ms,
