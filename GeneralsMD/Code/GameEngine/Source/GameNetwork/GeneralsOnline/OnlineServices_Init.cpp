@@ -30,6 +30,33 @@ extern "C"
 	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 }
 
+namespace
+{
+	struct ServiceEndpointConfig
+	{
+		const char* apiOrigin;
+		const char* environment;
+		const char* webSocketOverride;
+	};
+
+	ServiceEndpointConfig GetServiceEndpointConfig()
+	{
+#if defined(GENERALS_ONLINE_ALTERNATIVE_API_ORIGIN)
+		if (NGMP_OnlineServicesManager::Settings.Network_UseAlternativeEndpoint())
+		{
+			// TODO: Remove the override when the alternative service returns its own WebSocket URL.
+			return {
+				GENERALS_ONLINE_ALTERNATIVE_API_ORIGIN,
+				GENERALS_ONLINE_ENVIRONMENT,
+				GENERALS_ONLINE_ALTERNATIVE_WEBSOCKET_URL
+			};
+		}
+#endif
+
+		return { GENERALS_ONLINE_API_ORIGIN, GENERALS_ONLINE_ENVIRONMENT, nullptr };
+	}
+}
+
 NGMP_OnlineServicesManager* NGMP_OnlineServicesManager::m_pOnlineServicesManager = nullptr;
 std::recursive_mutex NGMP_OnlineServicesManager::m_singletonMutex;
 
@@ -185,25 +212,12 @@ NGMP_OnlineServicesManager::NGMP_OnlineServicesManager()
 
 std::string NGMP_OnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 {
-	if (g_Environment == EEnvironment::DEV)
-	{
-		return std::format("https://localhost:9000/env/dev/contract/1/{}", szEndpoint);
-	}
-	else if (g_Environment == EEnvironment::TEST)
-	{
-		return std::format("https://api.playgenerals.online:2087/env/test/contract/1/{}", szEndpoint);
-	}
-	else // PROD
-	{
-		if (NGMP_OnlineServicesManager::Settings.Network_UseAlternativeEndpoint())
-		{
-			return std::format("https://api-ru.playgenerals.online/env/prod/contract/1/{}", szEndpoint);
-		}
-		else
-		{
-			return std::format("https://api.playgenerals.online/env/prod/contract/1/{}", szEndpoint);
-		}
-	}
+	const ServiceEndpointConfig config = GetServiceEndpointConfig();
+	return std::format(
+		"{}/env/{}/contract/1/{}",
+		config.apiOrigin,
+		config.environment,
+		szEndpoint);
 }
 
 void NGMP_OnlineServicesManager::AttemptLoadSteam()
@@ -828,8 +842,8 @@ void NGMP_OnlineServicesManager::OnLogin(ELoginResult loginResult, const char* s
 		// connect to WS
 		m_pWebSocket = std::make_shared<WebSocket>();
 
-		// TODO_NGMP: This should come from the service, if the service was russia-aware
-		std::string strWebsocketAddr = NGMP_OnlineServicesManager::Settings.Network_UseAlternativeEndpoint() ? "wss://api-ru.playgenerals.online/ws" : std::string(szWSAddr);
+		const ServiceEndpointConfig config = GetServiceEndpointConfig();
+		std::string strWebsocketAddr = config.webSocketOverride != nullptr ? config.webSocketOverride : szWSAddr;
 
         m_pWebSocket->Connect(strWebsocketAddr.c_str(), false, [=]()
             {
@@ -1046,13 +1060,19 @@ void NGMP_OnlineServicesManager::InitSentry()
 
 	sentry_options_t* options = sentry_options_new();
 
+#if defined(GENERALS_ONLINE_SENTRY_DSN)
+	sentry_options_set_dsn(options, GENERALS_ONLINE_SENTRY_DSN);
+#else
 	sentry_options_set_dsn(options, "https://61750bebd112d279bcc286d617819269@o4509316925554688.ingest.us.sentry.io/4509316927586304");
+#endif
 	sentry_options_set_database_path(options, strDumpPath.c_str());
 
 	std::string strVersionStr = std::format("generalsonline-client@{}", GENERALS_ONLINE_VERSION_STRING);
 	sentry_options_set_release(options, strVersionStr.c_str());
 
-#if defined(USE_TEST_ENV)
+#if defined(GENERALS_ONLINE_SENTRY_ENVIRONMENT)
+	sentry_options_set_environment(options, GENERALS_ONLINE_SENTRY_ENVIRONMENT);
+#elif defined(USE_TEST_ENV)
 	sentry_options_set_environment(options, "test");
 #else
 	sentry_options_set_environment(options, "production");

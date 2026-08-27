@@ -29,6 +29,41 @@
 
 #if !defined(_DEBUG)
 //#define USE_TEST_ENV 1
+//#define USE_CO_ENV 1
+#endif
+
+#if defined(USE_CO_ENV)
+#define GENERALS_ONLINE_ENVIRONMENT "communityoutpost_" GENERALS_ONLINE_VERSION_STRING
+#define GENERALS_ONLINE_API_ORIGIN "https://api.go.dev.community-outpost.com"
+#define GENERALS_ONLINE_LOGIN_URL_FORMAT "https://gatehouse.go.dev.community-outpost.com/login?gamecode={}&env=" GENERALS_ONLINE_ENVIRONMENT
+#define GENERALS_ONLINE_CREDENTIALS_FILENAME "credentials_env_co.json"
+#define GENERALS_ONLINE_SENTRY_DSN "https://7fb606e2cf4544e8b3b9525b8525624f@bugsink.go.dev.community-outpost.com/1"
+#define GENERALS_ONLINE_SENTRY_ENVIRONMENT GENERALS_ONLINE_ENVIRONMENT
+#pragma message("Building for Community Outpost environment")
+#elif defined(USE_TEST_ENV)
+#define GENERALS_ONLINE_ENVIRONMENT "test"
+#define GENERALS_ONLINE_API_ORIGIN "https://api.playgenerals.online:2087"
+#define GENERALS_ONLINE_LOGIN_URL_FORMAT "http://www.playgenerals.online/login/?gamecode={}&env=test"
+#define GENERALS_ONLINE_CREDENTIALS_FILENAME "credentials_env_test.json"
+#define GENERALS_ONLINE_MATCH_URL_FORMAT "https://www.playgenerals.online/viewmatch?match=%" PRIu64 "&env=" GENERALS_ONLINE_ENVIRONMENT
+#pragma message("Building for TEST environment")
+#elif defined(_DEBUG) && !defined(USE_DEBUG_ON_LIVE_SERVER)
+#define GENERALS_ONLINE_ENVIRONMENT "dev"
+#define GENERALS_ONLINE_API_ORIGIN "https://localhost:9000"
+#pragma message("Building for DEV environment")
+#else
+#define GENERALS_ONLINE_ENVIRONMENT "prod"
+#define GENERALS_ONLINE_API_ORIGIN "https://api.playgenerals.online"
+#define GENERALS_ONLINE_LOGIN_URL_FORMAT "http://www.playgenerals.online/login/?gamecode={}"
+#define GENERALS_ONLINE_CREDENTIALS_FILENAME "credentials.json"
+#define GENERALS_ONLINE_MATCH_URL_FORMAT "https://strata.gamereplays.org/zh/match/%" PRIu64
+#define GENERALS_ONLINE_ALTERNATIVE_API_ORIGIN "https://api-ru.playgenerals.online"
+#define GENERALS_ONLINE_ALTERNATIVE_WEBSOCKET_URL "wss://api-ru.playgenerals.online/ws"
+#if defined(_DEBUG)
+#pragma message("Building for PROD environment (Debug Client)")
+#else
+#pragma message("Building for PROD environment")
+#endif
 #endif
 
 #define HTTP_UPLOAD_TIMEOUT 600000

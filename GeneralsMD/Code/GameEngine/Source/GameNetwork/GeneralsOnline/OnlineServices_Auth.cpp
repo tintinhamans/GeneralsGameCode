@@ -15,12 +15,6 @@
 
 #pragma comment(lib, "Crypt32.lib")
 
-#if defined(USE_TEST_ENV)
-#define CREDENTIALS_FILENAME "credentials_env_test.json"
-#elif !defined(DEBUG) || defined(USE_DEBUG_ON_LIVE_SERVER)
-#define CREDENTIALS_FILENAME "credentials.json"
-#endif
-
 #include "GameNetwork/GeneralsOnline/vendor/libcurl/curl.h"
 #include "GameClient/ClientInstance.h"
 
@@ -435,12 +429,6 @@ void NGMP_OnlineServices_AuthInterface::DoFullLoginFlow()
 						m_strCode = authResp.login_code;
 						NetworkLog(ELogVerbosity::LOG_DEBUG, "Login Code is %s", m_strCode.c_str());
 
-#if defined(USE_TEST_ENV)
-                        std::string strURI = std::format("http://www.playgenerals.online/login/?gamecode={}&env=test", m_strCode.c_str());
-#else
-                        std::string strURI = std::format("http://www.playgenerals.online/login/?gamecode={}", m_strCode.c_str());
-#endif
-
                         ClearGSMessageBoxes();
                         GSMessageBoxCancel(UnicodeString(L"Logging In"), UnicodeString(L"Please continue in your web browser"), []()
                             {
@@ -456,7 +444,8 @@ void NGMP_OnlineServices_AuthInterface::DoFullLoginFlow()
                                 }
                             });
 
-#if !defined(_DEBUG) || defined(USE_TEST_ENV) || defined(USE_DEBUG_ON_LIVE_SERVER)
+#if defined(GENERALS_ONLINE_LOGIN_URL_FORMAT)
+                        std::string strURI = std::format(GENERALS_ONLINE_LOGIN_URL_FORMAT, m_strCode.c_str());
                         ShellExecuteA(NULL, "open", strURI.c_str(), NULL, NULL, SW_SHOWNORMAL);
 #endif
                     }
@@ -666,7 +655,7 @@ void NGMP_OnlineServices_AuthInterface::SaveCredentials(const char* szRefreshTok
 
 bool NGMP_OnlineServices_AuthInterface::GetCredentials()
 {
-#if defined(_DEBUG) && !defined(USE_TEST_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
+#if !defined(GENERALS_ONLINE_CREDENTIALS_FILENAME)
 	return false;
 #endif
 	std::vector<uint8_t> vecBytes;
@@ -743,10 +732,10 @@ bool NGMP_OnlineServices_AuthInterface::GetCredentials()
 std::string NGMP_OnlineServices_AuthInterface::GetCredentialsFilePath()
 {
 	// debug supports multi inst, so needs seperate tokens
-#if defined(_DEBUG) && !defined(USE_TEST_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
+#if !defined(GENERALS_ONLINE_CREDENTIALS_FILENAME)
 	std::string strCredsPath = std::format("{}/GeneralsOnlineData/credentials_dev_env_{}.json", TheGlobalData->getPath_UserData().str(), rts::ClientInstance::getInstanceIndex());
 #else
-	std::string strCredsPath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), CREDENTIALS_FILENAME);
+	std::string strCredsPath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), GENERALS_ONLINE_CREDENTIALS_FILENAME);
 #endif
 	return strCredsPath;
 }

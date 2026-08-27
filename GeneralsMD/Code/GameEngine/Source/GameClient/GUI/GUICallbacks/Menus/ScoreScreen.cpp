@@ -653,6 +653,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 					}
 					else if (screenType == SCORESCREEN_INTERNET)
 					{
+#if defined(GENERALS_ONLINE_MATCH_URL_FORMAT)
 						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 						if (pLobbyInterface != nullptr)
 						{
@@ -661,14 +662,11 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 							if (currentMatchID != 0)
 							{
 								AsciiString strMatchURL;
-#if defined(USE_TEST_ENV)
-								strMatchURL.format("https://www.playgenerals.online/viewmatch?match=%" PRIu64 "&env=test", currentMatchID);
-#else
-								strMatchURL.format("https://strata.gamereplays.org/zh/match/%" PRIu64, currentMatchID);
-#endif
+								strMatchURL.format(GENERALS_ONLINE_MATCH_URL_FORMAT, currentMatchID);
 								ShellExecuteA(NULL, "open", strMatchURL.str(), NULL, NULL, SW_SHOWNORMAL);
 							}
 						}
+#endif
 					}
 				}
 			}
@@ -1194,31 +1192,31 @@ void initInternetMultiPlayer(void)
 		{
 			LobbyEntry& lobby = pLobbyInterface->GetCurrentLobby();
 
- 			UnicodeString strMatchID;
- 			strMatchID.format(L"\nMatch ID: %" PRIu64, lobby.match_id);
- 
- 			UnicodeString strMatchURL;
+			UnicodeString strMatchID;
+			strMatchID.format(L"\nMatch ID: %" PRIu64, lobby.match_id);
 
+			buttonContinue->winHide(TRUE);
 			if (lobby.match_id == 0) // probably AI or < 2 humans
 			{
-				buttonContinue->winHide(TRUE);
-
 				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, UnicodeString(L"\nMatch data is not available online because the match had AI present OR less than 2 human players."), GameSpyColor[GSCOLOR_DEFAULT], -1);
 			}
 			else
 			{
+				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, strMatchID, GameSpyColor[GSCOLOR_DEFAULT], -1);
+
+#if defined(GENERALS_ONLINE_MATCH_URL_FORMAT)
 				buttonContinue->winHide(FALSE);
 
-#if defined(USE_TEST_ENV)
-				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://www.playgenerals.online/viewmatch?match=%" PRIu64 "&env=test", lobby.match_id);
-#else
-				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://strata.gamereplays.org/zh/match/%" PRIu64, lobby.match_id);
-#endif
+				AsciiString strMatchURL;
+				strMatchURL.format(GENERALS_ONLINE_MATCH_URL_FORMAT, lobby.match_id);
+
+				UnicodeString strMatchDetails;
+				strMatchDetails.format(L"\nView match data, participants, replays, anti-cheat data: %hs", strMatchURL.str());
 
 				buttonContinue->winSetText(UnicodeString(L"VIEW MATCH ONLINE"));
 
-				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, strMatchID, GameSpyColor[GSCOLOR_DEFAULT], -1);
-				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, strMatchURL, GameSpyColor[GSCOLOR_DEFAULT], -1);
+				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, strMatchDetails, GameSpyColor[GSCOLOR_DEFAULT], -1);
+#endif
 			}
 
 

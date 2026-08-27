@@ -331,28 +331,6 @@ public:
 
 	NGMP_OnlineServicesManager();
 	
-	enum EEnvironment
-	{
-		DEV,
-		TEST,
-		PROD
-	};
-
-#if defined(USE_TEST_ENV)
-	const static EEnvironment g_Environment = EEnvironment::TEST;
-	#pragma message ("Building for TEST environment")
-#elif defined(USE_DEBUG_ON_LIVE_SERVER)
-	const static EEnvironment g_Environment = EEnvironment::PROD;
-#pragma message ("Building for PROD environment (Debug Client)")
-#else
-	#if defined(_DEBUG)
-		const static EEnvironment g_Environment = EEnvironment::DEV;
-		#pragma message ("Building for DEV environment")
-	#else
-		const static EEnvironment g_Environment = EEnvironment::PROD;
-		#pragma message ("Building for PROD environment")
-	#endif
-#endif
 	static std::string GetAPIEndpoint(const char* szEndpoint);
 
 	static void CreateInstance()
