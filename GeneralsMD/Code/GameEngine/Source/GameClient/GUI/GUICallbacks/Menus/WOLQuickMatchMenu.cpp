@@ -154,6 +154,8 @@ static Int minPoints = 0;
 static Int matchFoundTimeoutStart = 0;
 static const Int lobbyTimeoutMs = 10000;
 static Int matchFoundTimeoutDurationMs = lobbyTimeoutMs;
+static const Int matchStartCountdownDurationMs = 5000;
+static Int matchStartCountdownLastSecond = 0;
 
 static const LadderInfo * getLadderInfo();
 
@@ -911,6 +913,9 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	buttonPushed = false;
 	isShuttingDown = false;
 	raiseMessageBoxes = true;
+	matchFoundTimeoutStart = 0;
+	matchFoundTimeoutDurationMs = lobbyTimeoutMs;
+	matchStartCountdownLastSecond = 0;
 
 	delete TheNAT;
 	TheNAT = nullptr;
@@ -1222,6 +1227,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				buttonStop->winEnable(FALSE);
 				matchFoundTimeoutDurationMs = lobbyTimeoutMs;
 				matchFoundTimeoutStart = timeGetTime();
+				matchStartCountdownLastSecond = 0;
                 if (TheAudio)
 				{
 					AudioEventRTS evt("GUICommunicatorOpen");
@@ -1233,6 +1239,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 			{
 				matchFoundTimeoutStart = 0;
 				matchFoundTimeoutDurationMs = lobbyTimeoutMs;
+				matchStartCountdownLastSecond = 0;
 				buttonBack->winEnable(TRUE);
 				buttonStop->winEnable(TRUE);
 				buttonWiden->winEnable(TRUE);
@@ -1242,11 +1249,17 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 			{
 				matchFoundTimeoutDurationMs = timeoutMs;
 				matchFoundTimeoutStart = timeGetTime();
+
+				// Mirror the service-owned countdown for UI feedback.
+				matchStartCountdownLastSecond = timeoutMs < lobbyTimeoutMs
+					? (matchStartCountdownDurationMs + 999) / 1000
+					: 0;
 			});
 
 		pLobbyInterface->RegisterForMatchmakingStartGameCallback([]()
 			{
 				matchFoundTimeoutStart = 0;
+				matchStartCountdownLastSecond = 0;
 				NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] GOT START GAME EVENT");
 
 				// Check if TheNGMPGame is initialized before dereferencing it
@@ -1490,6 +1503,8 @@ void WOLQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 	buttonBack = nullptr;
 	quickmatchTextWindow = nullptr;
 	selectedImage = unselectedImage = nullptr;
+	matchFoundTimeoutStart = 0;
+	matchStartCountdownLastSecond = 0;
 
 	isShuttingDown = true;
 
@@ -1597,7 +1612,33 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 	HandleBuddyResponses();
 #endif
 
-	if (matchFoundTimeoutStart != 0 && timeGetTime() - matchFoundTimeoutStart >= matchFoundTimeoutDurationMs)
+	if (matchStartCountdownLastSecond > 0)
+	{
+		Int elapsedMs = timeGetTime() - matchFoundTimeoutStart;
+		Int remainingMs = matchStartCountdownDurationMs - elapsedMs;
+		Int secondsRemaining = remainingMs > 0 ? (remainingMs + 999) / 1000 : 0;
+
+		if (secondsRemaining > 0 && secondsRemaining < matchStartCountdownLastSecond)
+		{
+			UnicodeString countdownMessage;
+			if (secondsRemaining == 1)
+			{
+				countdownMessage.format(TheGameText->fetch("LAN:GameStartTimerSingular"), secondsRemaining);
+			}
+			else
+			{
+				countdownMessage.format(TheGameText->fetch("LAN:GameStartTimerPlural"), secondsRemaining);
+			}
+
+			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, countdownMessage, GameMakeColor(192, 192, 192, 255), -1, -1);
+			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
+			matchStartCountdownLastSecond = secondsRemaining;
+		}
+	}
+
+	// Leave time for the server's START_GAME event to arrive.
+	Int effectiveTimeoutMs = matchFoundTimeoutDurationMs < lobbyTimeoutMs ? lobbyTimeoutMs : matchFoundTimeoutDurationMs;
+	if (matchFoundTimeoutStart != 0 && timeGetTime() - matchFoundTimeoutStart >= effectiveTimeoutMs)
 	{
 		matchFoundTimeoutStart = 0;
 		buttonBack->winEnable(TRUE);
