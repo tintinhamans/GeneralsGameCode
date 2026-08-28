@@ -70,6 +70,7 @@
 #include "GameNetwork/GameSpy/LobbyUtils.h"
 #include "GameNetwork/RankPointValue.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "GameNetwork/GeneralsOnline/OnlineServices_Moderation.h"
 
 #include <deque>
 
@@ -132,10 +133,8 @@ static Int groupRoomToJoin = 0;
 static Int	initialGadgetDelay = 2;
 static Bool justEntered = FALSE;
 
-// TODO: Remove this client-side limit after server-side rate limiting is deployed.
+// Preserve rejected messages while the server enforces the limit.
 static std::deque<std::chrono::steady_clock::time_point> s_lobbyChatMessageTimes;
-static std::chrono::steady_clock::time_point s_lastLobbyChatRateLimitNotice;
-static Bool s_hasShownLobbyChatRateLimitNotice = FALSE;
 
 static bool LobbyChatRateLimitAllowsSend()
 {
@@ -150,17 +149,9 @@ static bool LobbyChatRateLimitAllowsSend()
 
 	if (s_lobbyChatMessageTimes.size() >= 3)
 	{
-		if (!s_hasShownLobbyChatRateLimitNotice || now - s_lastLobbyChatRateLimitNotice >= window)
-		{
-			GadgetListBoxAddEntryText(
-				listboxLobbyChat,
-				UnicodeString(L"Rate limit: Please wait before sending another message."),
-				GameMakeColor(255, 194, 15, 255),
-				-1,
-				-1);
-			s_lastLobbyChatRateLimitNotice = now;
-			s_hasShownLobbyChatRateLimitNotice = TRUE;
-		}
+		ShowChatRateLimitNotice(
+			"Rate limit: Please wait before sending another message.",
+			"room");
 		return false;
 	}
 

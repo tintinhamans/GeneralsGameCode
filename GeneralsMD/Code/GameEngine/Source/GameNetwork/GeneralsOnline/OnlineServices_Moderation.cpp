@@ -6,6 +6,8 @@
 #include "GameNetwork/GeneralsOnline/OnlineServices_RoomsInterface.h"
 #include "GameNetwork/GameSpyOverlay.h"
 
+#include <chrono>
+#include <map>
 #include <stdexcept>
 #include <windows.h>
 #include <shellapi.h>
@@ -100,40 +102,66 @@ namespace
 			reason,
 			EModerationDialogContext::ACTIVE_SESSION);
 	}
-
-	void ShowChatNotice(const std::string& reason, const std::string& scopeType)
-	{
-		const std::wstring normalizedReason = GetNormalizedReason(reason);
-		if (normalizedReason.empty())
-		{
-			return;
-		}
-
-		UnicodeString message(normalizedReason.c_str());
-		const Color color = GameMakeColor(255, 194, 15, 255);
-		if (scopeType == "lobby")
-		{
-			NGMP_OnlineServices_LobbyInterface* lobbyInterface =
-				NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-			if (lobbyInterface != nullptr && lobbyInterface->m_OnChatCallback != nullptr)
-			{
-				lobbyInterface->m_OnChatCallback(message, color);
-			}
-			return;
-		}
-
-		NGMP_OnlineServices_RoomsInterface* roomsInterface =
-			NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-		if (roomsInterface != nullptr && roomsInterface->m_OnChatCallback != nullptr)
-		{
-			roomsInterface->m_OnChatCallback(message, color);
-		}
-	}
 }
 
 void ShowLoginBanDialog(const std::string& reason)
 {
 	ShowBanDialog(reason, EModerationDialogContext::LOGIN);
+}
+
+void ShowChatRateLimitNotice(const std::string& reason, const std::string& scopeType)
+{
+	using namespace std::chrono;
+
+	const std::wstring normalizedReason = GetNormalizedReason(reason);
+	if (normalizedReason.empty())
+	{
+		return;
+	}
+
+	using NoticeKey = std::pair<std::string, std::wstring>;
+	static std::map<NoticeKey, steady_clock::time_point> lastNotices;
+
+	const auto now = steady_clock::now();
+	const auto window = seconds(9);
+	for (auto it = lastNotices.begin(); it != lastNotices.end();)
+	{
+		if (now - it->second >= window)
+		{
+			it = lastNotices.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+
+	const NoticeKey key(scopeType, normalizedReason);
+	if (lastNotices.find(key) != lastNotices.end())
+	{
+		return;
+	}
+	lastNotices[key] = now;
+
+	UnicodeString message(normalizedReason.c_str());
+	const Color color = DetermineSystemNoticeColor(true, false);
+	if (scopeType == "lobby")
+	{
+		NGMP_OnlineServices_LobbyInterface* lobbyInterface =
+			NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+		if (lobbyInterface != nullptr && lobbyInterface->m_OnChatCallback != nullptr)
+		{
+			lobbyInterface->m_OnChatCallback(message, color);
+		}
+		return;
+	}
+
+	NGMP_OnlineServices_RoomsInterface* roomsInterface =
+		NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+	if (roomsInterface != nullptr && roomsInterface->m_OnChatCallback != nullptr)
+	{
+		roomsInterface->m_OnChatCallback(message, color);
+	}
 }
 
 void HandleModerationDisconnect(EOnlineModerationAction action, const std::string& reason)
@@ -170,7 +198,7 @@ void HandleModerationNotice(const std::string& actionType, const std::string& re
 	}
 	else if (actionType == "rate_limit")
 	{
-		ShowChatNotice(reason, scopeType);
+		ShowChatRateLimitNotice(reason, scopeType);
 	}
 	else
 	{

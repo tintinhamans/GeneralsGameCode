@@ -16,6 +16,19 @@ enum class EChatMessageType
 	CHAT_MESSAGE_TYPE_NETWORK_ROOM,
 	CHAT_MESSAGE_TYPE_LOBBY
 };
+static Color DetermineSystemNoticeColor(bool bWarning = false, bool bError = false)
+{
+	if (bError)
+	{
+		return GameMakeColor(255, 94, 94, 255);
+	}
+	if (bWarning)
+	{
+		return GameMakeColor(255, 194, 15, 255);
+	}
+	return GameMakeColor(192, 192, 192, 255);
+}
+
 static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool isPublic, bool bAction, bool bAdmin, bool bIsNameChange, int lobbySlot = -1)
 {
 	Color style = GameMakeColor(255, 255, 255, 255);
