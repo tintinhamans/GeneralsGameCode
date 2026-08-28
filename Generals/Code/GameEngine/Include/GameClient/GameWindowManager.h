@@ -331,6 +331,7 @@ public:
 protected:
 
 	void processDestroyList();  ///< process windows waiting to be killed
+	void removeWindowFromModalStack( GameWindow *window );
 
 	Int drawWindow( GameWindow *window );  ///< draw this window
 
