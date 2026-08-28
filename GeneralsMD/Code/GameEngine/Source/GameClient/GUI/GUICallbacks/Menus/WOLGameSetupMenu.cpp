@@ -3514,8 +3514,8 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/setpassword <password> - Set a lobby password (host only)."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/removepassword - Remove the lobby password (host only)."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/maxcameraheight <value> - Set the camera height limit (host only)."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/leave - Return to the main lobby."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/quit - Exit the game."), helpColor, -1, -1);
+		// GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/leave - Return to the main lobby."), helpColor, -1, -1);
+		// GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/quit - Exit the game."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
 		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
 		return TRUE; // was a slash command
@@ -3636,16 +3636,16 @@ Bool handleGameSetupSlashCommands(UnicodeString uText)
 		return TRUE; // was a slash command
 	}
 #endif
-	else if (token == "leave")
-	{
-		PopBackToLobby();
-		return TRUE;
-	}
-	else if (token == "quit")
-	{
-		TheGameEngine->setQuitting(TRUE);
-		return TRUE;
-	}
+	// else if (token == "leave")
+	// {
+	// 	PopBackToLobby();
+	// 	return TRUE;
+	// }
+	// else if (token == "quit")
+	// {
+	// 	TheGameEngine->setQuitting(TRUE);
+	// 	return TRUE;
+	// }
 	else if (token == "steam" || token == "advnet")
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADV NET STATS] Writing advanced networking stats:");
