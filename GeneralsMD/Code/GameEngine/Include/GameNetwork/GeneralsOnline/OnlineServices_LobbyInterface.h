@@ -166,6 +166,44 @@ public:
 			m_fnCallbackMatchmakingMatchFound();
 		}
 	}
+
+	std::function<void()> m_fnCallbackMatchmakingRequeue = nullptr;
+	void RegisterForMatchmakingRequeueCallback(std::function<void()> cb)
+	{
+		m_fnCallbackMatchmakingRequeue = cb;
+	}
+
+	void DeregisterForMatchmakingRequeueCallback()
+	{
+		m_fnCallbackMatchmakingRequeue = nullptr;
+	}
+
+	void InvokeMatchmakingRequeueCallback()
+	{
+		if (m_fnCallbackMatchmakingRequeue != nullptr)
+		{
+			m_fnCallbackMatchmakingRequeue();
+		}
+	}
+
+	std::function<void(int)> m_fnCallbackMatchmakingSetupProgress = nullptr;
+	void RegisterForMatchmakingSetupProgressCallback(std::function<void(int)> cb)
+	{
+		m_fnCallbackMatchmakingSetupProgress = cb;
+	}
+
+	void DeregisterForMatchmakingSetupProgressCallback()
+	{
+		m_fnCallbackMatchmakingSetupProgress = nullptr;
+	}
+
+	void InvokeMatchmakingSetupProgressCallback(int timeoutMs)
+	{
+		if (m_fnCallbackMatchmakingSetupProgress != nullptr)
+		{
+			m_fnCallbackMatchmakingSetupProgress(timeoutMs);
+		}
+	}
 	
 
 	// updates
@@ -397,6 +435,7 @@ public:
 	void JoinLobby(LobbyEntry lobby, std::string strPassword);
 
 	void LeaveCurrentLobby();
+	void ResetForMatchmakingRequeue();
 
 	void ResetHostMigrationFlags()
 	{
@@ -472,6 +511,8 @@ private:
 #endif
 
 	bool m_bAttemptingToJoinLobby = false;
+	// Invalidates asynchronous callbacks left behind by an abandoned lobby join.
+	std::atomic<uint64_t> m_LobbyJoinGeneration = 0;
 	LobbyEntry m_LobbyTryingToJoin;
 
 	std::atomic_bool m_bSearchInProgress = false;
