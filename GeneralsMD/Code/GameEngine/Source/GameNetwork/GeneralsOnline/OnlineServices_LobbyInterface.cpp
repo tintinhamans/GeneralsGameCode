@@ -9,35 +9,6 @@ extern void OnKickedFromLobby();
 
 extern NGMPGame* TheNGMPGame;
 
-namespace
-{
-	std::string ResolveLobbyMapPath(const std::string& relativeMapPath, bool isOfficial)
-	{
-		const std::string systemMapPath = std::format("maps\\{}", relativeMapPath);
-		if (isOfficial)
-		{
-			return systemMapPath;
-		}
-
-		// Match retail map-list precedence: an unofficial map packaged under Maps wins an
-		// ambiguous collision with a map of the same name in the user map directory.
-		const MapMetaData* systemMapData = TheMapCache->findMap(AsciiString(systemMapPath.c_str()));
-		if (systemMapData != nullptr && !systemMapData->m_isOfficial)
-		{
-			return systemMapPath;
-		}
-
-		const std::string userMapPath = std::format("{}\\{}", TheMapCache->getUserMapDir(true).str(), relativeMapPath);
-		if (TheMapCache->findMap(AsciiString(userMapPath.c_str())) != nullptr)
-		{
-			return userMapPath;
-		}
-
-		// Preserve the existing missing-map path so normal custom-map transfer behavior is unchanged.
-		return userMapPath;
-	}
-}
-
 struct JoinLobbyResponse
 {
 	bool success = false;
@@ -635,7 +606,15 @@ void NGMP_OnlineServices_LobbyInterface::SearchForLobbies(std::function<void()> 
 				}
 				++latencyIndex;
 
-				lobbyEntry.map_path = ResolveLobbyMapPath(lobbyEntry.map_path, lobbyEntry.map_official);
+				// correct map path
+				if (lobbyEntry.map_official)
+				{
+					lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
+				}
+				else
+				{
+					lobbyEntry.map_path = std::format("{}\\{}", TheMapCache->getUserMapDir(true).str(), lobbyEntry.map_path.c_str());
+				}
 
 				// NOTE: These fields won't be present becauase they're private properties
 				//memberEntryIter["enc_key"].get_to(strEncKey);
@@ -901,7 +880,19 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 						// store, we'll need it later and lobby obj gets destroyed on leave
 						m_CurrentMatchID = lobbyEntry.match_id;
 
-						lobbyEntry.map_path = ResolveLobbyMapPath(lobbyEntry.map_path, lobbyEntry.map_official);
+						// correct map path
+						if (lobbyEntry.map_official)
+						{
+							lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
+						}
+						else
+						{
+							// TODO_NGMP: This needs to match identically, but why did it change from the base game?
+							AsciiString strUserMapDIr = TheMapCache->getUserMapDir(true);
+							strUserMapDIr.toLower();
+
+							lobbyEntry.map_path = std::format("{}\\{}", strUserMapDIr.str(), lobbyEntry.map_path.c_str());
+						}
 
 						// did the map change? cache that we need to reset and transmit our ready state
 						bool bNeedsHasMapUpdate = false;
