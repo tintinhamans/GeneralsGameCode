@@ -68,6 +68,7 @@
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/RankPointValue.h"
 #include "GameNetwork/GameSpy/LadderDefs.h"
+#include "GameNetwork/GeneralsOnline/GeneralsOnline_Colors.h"
 
 #ifdef DEBUG_LOGGING
 #include "Common/MiniLog.h"
@@ -462,7 +463,7 @@ void PopulateQMLadderListBox( GameWindow *win )
 	Int localProfile = TheGameSpyInfo->getLocalProfileID();
 #endif
 	
-	Color normalColor = GameSpyColor[GSCOLOR_MAP_UNSELECTED];
+	Color normalColor = GeneralsOnlineColor[GOCOLOR_MAP_UNSELECTED];
 #if !defined(GENERALS_ONLINE)
 	Color specialColor = GameSpyColor[GSCOLOR_MAP_SELECTED];
 	Color favoriteColor = GameSpyColor[GSCOLOR_MAP_UNSELECTED];
@@ -571,8 +572,8 @@ void PopulateQMLadderComboBox()
 	Int localProfile = TheGameSpyInfo->getLocalProfileID();
 #endif
 
-	Color specialColor = GameSpyColor[GSCOLOR_MAP_SELECTED];
-	Color normalColor = GameSpyColor[GSCOLOR_MAP_UNSELECTED];
+	Color specialColor = GeneralsOnlineColor[GOCOLOR_MAP_SELECTED];
+	Color normalColor = GeneralsOnlineColor[GOCOLOR_MAP_UNSELECTED];
 	Int index;
 	GadgetComboBoxReset( comboBoxLadder );
 	index = GadgetComboBoxAddEntry( comboBoxLadder, TheGameText->fetch("GUI:NoLadder"), normalColor );
@@ -742,7 +743,7 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 				height = width;
 			}
 			Int index = GadgetListBoxAddEntryImage(listboxMapSelect, img, -1, 0, height, width);
-			GadgetListBoxAddEntryText(listboxMapSelect, displayName, GameSpyColor[(isSelected)?GSCOLOR_MAP_SELECTED:GSCOLOR_MAP_UNSELECTED], index, 1);
+			GadgetListBoxAddEntryText(listboxMapSelect, displayName, GeneralsOnlineColor[(isSelected)?GOCOLOR_MAP_SELECTED:GOCOLOR_MAP_UNSELECTED], index, 1);
 			GadgetListBoxSetItemData(listboxMapSelect, (void *)isSelected, index);
 			GadgetListBoxSetItemData(listboxMapSelect, (void *)md, index, 1);
 		}
@@ -982,7 +983,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 		isPopulatingLadderBox = TRUE;
 
-		Color normalColor = GameSpyColor[GSCOLOR_MAP_UNSELECTED];
+		Color normalColor = GeneralsOnlineColor[GOCOLOR_MAP_UNSELECTED];
 		Int index;
 		GadgetComboBoxReset( comboBoxDisabledLadder );
 
@@ -1148,8 +1149,8 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 		comboBoxColor->winEnable(FALSE);
 
 	// welcome msg + instructions
-	GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Welcome to QuickMatch. Choose Setup to select playlists and maps."), GameMakeColor(255, 194, 25, 255), -1, -1);
-	GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible."), GameMakeColor(255, 194, 25, 255), -1, -1);
+	GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Welcome to QuickMatch. Choose Setup to select playlists and maps."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+	GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy, and Bamovich for making QuickMatch possible."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
 
 
 	// refresh out stats, needed for ELO data
@@ -1163,7 +1164,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				{
 					UnicodeString eloStr;
 					eloStr.format(L"Your current Elo rating is %d (World Series: %d) after %d match(es)", stats.elo_rating, stats.monthly_elo_rating, stats.elo_num_matches);
-					GadgetListBoxAddEntryText(quickmatchTextWindow, eloStr, GameMakeColor(255, 194, 25, 255), -1, -1);
+					GadgetListBoxAddEntryText(quickmatchTextWindow, eloStr, GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
 				}
 			}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
     }
@@ -1200,7 +1201,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				for (PlaylistEntry& playlist : vecPlaylists)
 				{
 					s.format(L"%hs", playlist.Name.c_str());
-					GadgetComboBoxAddEntry(comboBoxNumPlayers, s, GameSpyColor[GSCOLOR_DEFAULT]);
+					GadgetComboBoxAddEntry(comboBoxNumPlayers, s, GeneralsOnlineColor[GOCOLOR_DEFAULT]);
 				}
 
 				GadgetComboBoxSetSelectedPos(comboBoxNumPlayers, 0);
@@ -1217,7 +1218,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				UnicodeString uMsg;
 				uMsg.format(L"%hs", strMsg.c_str());
 
-				Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, uMsg, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+				Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, uMsg, GeneralsOnlineColor[GOCOLOR_DEFAULT], -1, -1);
 				GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 			});
 
@@ -1369,14 +1370,14 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 							{
 								strConnectionMessage.format(L"Connecting to %s", strDisplayName.c_str());
 
-								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GameMakeColor(255, 194, 15, 255), -1, -1);
+								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GeneralsOnlineColor[GOCOLOR_WARNING], -1, -1);
 								GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 							}
 							else if (connState == EConnectionState::CONNECTED_DIRECT)
 							{
 								strConnectionMessage.format(L"Connected to %s", strDisplayName.c_str());
 
-								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GameMakeColor(255, 194, 15, 255), -1, -1);
+								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GeneralsOnlineColor[GOCOLOR_WARNING], -1, -1);
 								GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 							}
 							else
@@ -1384,7 +1385,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 								if (connState == EConnectionState::CONNECTION_FAILED || connState == EConnectionState::CONNECTION_DISCONNECTED)
 								{
 									strConnectionMessage.format(L"Connection failed to %s", strDisplayName.c_str());
-									Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GameMakeColor(255, 194, 15, 255), -1, -1);
+									Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GeneralsOnlineColor[GOCOLOR_ERROR], -1, -1);
 									GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 								}
 							}
@@ -1630,7 +1631,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 				countdownMessage.format(TheGameText->fetch("LAN:GameStartTimerPlural"), secondsRemaining);
 			}
 
-			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, countdownMessage, GameMakeColor(192, 192, 192, 255), -1, -1);
+			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, countdownMessage, GeneralsOnlineColor[GOCOLOR_WARNING], -1, -1);
 			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 			matchStartCountdownLastSecond = secondsRemaining;
 		}
@@ -1643,7 +1644,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 		matchFoundTimeoutStart = 0;
 		buttonBack->winEnable(TRUE);
 		buttonStop->winEnable(TRUE);
-		Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Match setup timed out. You may cancel or continue waiting."), GameMakeColor(255, 194, 25, 255), -1, -1);
+		Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Match setup timed out. You may cancel or continue waiting."), GeneralsOnlineColor[GOCOLOR_WARNING], -1, -1);
 		GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 	}
 
@@ -2237,7 +2238,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					buttonStop->winHide(TRUE);
 					enableOptionsGadgets(TRUE);
 
-					Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, TheGameText->fetch("GUI:QMAborted"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+					Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, TheGameText->fetch("GUI:QMAborted"), GeneralsOnlineColor[GOCOLOR_DEFAULT], -1, -1);
 					GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 
 					NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
@@ -2275,7 +2276,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 				else if ( controlID == buttonWidenID )
 				{
 #if defined(GENERALS_ONLINE)
-					GadgetListBoxAddEntryText(quickmatchTextWindow, TheGameText->fetch("QM:WIDENINGSEARCH"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+					GadgetListBoxAddEntryText(quickmatchTextWindow, TheGameText->fetch("QM:WIDENINGSEARCH"), GeneralsOnlineColor[GOCOLOR_DEFAULT], -1, -1);
 
 					NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
 					if (pMatchmakingInterface != nullptr)
@@ -2342,7 +2343,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					{
 						UnicodeString msg;
 						msg.format(L"You must select at least %d maps.", minSelectedMaps);
-						Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, msg, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+						Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, msg, GeneralsOnlineColor[GOCOLOR_DEFAULT], -1, -1);
 						GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 						
 						// buttons
@@ -2375,7 +2376,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 								}
 								else
 								{
-									Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Failed to start matchmaking."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+									Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Failed to start matchmaking."), GeneralsOnlineColor[GOCOLOR_ERROR], -1, -1);
 									GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 
 									// buttons
@@ -2582,7 +2583,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					{
 						GadgetListBoxAddEntryImage(listboxMapSelect, selectedImage, i, 0);
 						GadgetListBoxSetItemData(listboxMapSelect, (void *)1, i);
-						GadgetListBoxAddEntryText(listboxMapSelect, GadgetListBoxGetText(listboxMapSelect, i, 1), GameSpyColor[GSCOLOR_MAP_SELECTED], i, 1);
+						GadgetListBoxAddEntryText(listboxMapSelect, GadgetListBoxGetText(listboxMapSelect, i, 1), GeneralsOnlineColor[GOCOLOR_MAP_SELECTED], i, 1);
 					}
 				}
 				else if ( controlID == buttonSelectNoMapsID )
@@ -2592,7 +2593,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					{
 						GadgetListBoxAddEntryImage(listboxMapSelect, unselectedImage, i, 0);
 						GadgetListBoxSetItemData(listboxMapSelect, (void *)nullptr, i);
-						GadgetListBoxAddEntryText(listboxMapSelect, GadgetListBoxGetText(listboxMapSelect, i, 1), GameSpyColor[GSCOLOR_MAP_UNSELECTED], i, 1);
+						GadgetListBoxAddEntryText(listboxMapSelect, GadgetListBoxGetText(listboxMapSelect, i, 1), GeneralsOnlineColor[GOCOLOR_MAP_UNSELECTED], i, 1);
 					}
 				}
 				break;
@@ -2620,7 +2621,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 							height = width;
 						}
 						GadgetListBoxAddEntryImage(control, img, selected, 0, height, width);
-						GadgetListBoxAddEntryText(control, GadgetListBoxGetText(control, selected, 1), GameSpyColor[(wasSelected)?GSCOLOR_MAP_UNSELECTED:GSCOLOR_MAP_SELECTED], selected, 1);
+						GadgetListBoxAddEntryText(control, GadgetListBoxGetText(control, selected, 1), GeneralsOnlineColor[(wasSelected)?GOCOLOR_MAP_UNSELECTED:GOCOLOR_MAP_SELECTED], selected, 1);
 					}
 					if (selected >= 0)
 						GadgetListBoxSetSelected(control, -1);
@@ -2640,5 +2641,6 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 
 	return MSG_HANDLED;
 }
-
+
+
 

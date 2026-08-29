@@ -70,6 +70,7 @@
 #include "GameNetwork/GameSpy/LobbyUtils.h"
 #include "GameNetwork/RankPointValue.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "GameNetwork/GeneralsOnline/GeneralsOnline_Colors.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_Moderation.h"
 
 #include <deque>
@@ -219,9 +220,21 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 	}
 	else if (token == "help" || token == "commands")
 	{
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"The following commands are available:"), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/name <value> - Changes your display name - Example: /name General Granger"), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"The following commands are available:"), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/me <message> - Send an emote."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/name <name> - Change your name. You can also use /nick."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/refresh - Refresh the game and player lists."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+		// Relay overrides are intentionally hidden from help.
+		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/forcerelay - Use relay connections only."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/allowrelay - Allow direct connections again."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
 		return TRUE; // was a slash command
+	}
+	else if (token == "support")
+	{
+		ShellExecuteA(NULL, "open", "https://discord.playgenerals.online", NULL, NULL, SW_SHOWNORMAL);
+		return TRUE;
 	}
 	else if ((token == "name" && uText.getLength() > 6) || (token == "nick" && uText.getLength() > 6))
 	{
@@ -229,7 +242,7 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 
 		if (newName.getLength() < 3 || newName.getLength() > 16)
 		{
-			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your new name must be between 3 and 16 characters."), GameMakeColor(255, 0, 0, 255), -1, -1);
+			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your new name must be between 3 and 16 characters."), GeneralsOnlineColor[GOCOLOR_ERROR], -1, -1);
 		}
 		else
 		{
@@ -249,7 +262,7 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 		g_bForceRelay = true;
 		m_exeCRCOriginal = TheWritableGlobalData->m_exeCRC;
 		TheWritableGlobalData->m_exeCRC = 123456;
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Relays are now forced on. You will only be able to join lobbies where the same option has been set. Use /allowrelay to reset this"), GameMakeColor(255, 0, 0, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Relay-only connections are enabled. You can join only lobbies using the same setting. Use /allowrelay to reset it."), GeneralsOnlineColor[GOCOLOR_WARNING], -1, -1);
 		return TRUE; // was a slash command
 	}
 	else if (token == "allowrelay")
@@ -259,7 +272,7 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 		g_bForceRelay = false;
 		TheWritableGlobalData->m_exeCRC = m_exeCRCOriginal;
 		m_exeCRCOriginal = 0;
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Relays are now optional again. You will only be able to join lobbies where the same option has been set. Use /forcerelay to reset this"), GameMakeColor(255, 0, 0, 255), -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Direct connections are enabled. You can join only lobbies using the same setting. Use /forcerelay to enable relay-only connections."), GeneralsOnlineColor[GOCOLOR_WARNING], -1, -1);
 		return TRUE; // was a slash command
 	}
 	else if (token == "refresh")
@@ -692,7 +705,7 @@ static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
 		{
 			const UnicodeString roomLabel = FormatRoomLabel(rooms, i);
 			idx = GadgetComboBoxAddEntry(comboBox, roomLabel,
-				GameSpyColor[i == currentRoomIndex ? GSCOLOR_CURRENTROOM : GSCOLOR_ROOM]);
+				GeneralsOnlineColor[i == currentRoomIndex ? GOCOLOR_CURRENTROOM : GOCOLOR_ROOM]);
 			// Room entries use values below the negative separator value.
 			GadgetComboBoxSetItemData(comboBox, idx, (void*)(intptr_t)(-(i + 2)));
 
@@ -705,7 +718,7 @@ static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
 
 		if (numRooms > 0)
 		{
-			idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(L" "), GameSpyColor[GSCOLOR_ROOM]);
+			idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(L" "), GeneralsOnlineColor[GOCOLOR_ROOM]);
 			GadgetComboBoxSetItemData(comboBox, idx, (void*)(intptr_t)LOBBY_COMBO_SEPARATOR_ITEM_DATA);
 		}
 	}
@@ -714,7 +727,7 @@ static void PopulateLobbyFilterComboBox(GameWindow* comboBox)
 	{
 		const Bool isActiveFilter = (filterEntry.filter == theLobbyFilter);
 		idx = GadgetComboBoxAddEntry(comboBox, UnicodeString(filterEntry.label),
-			GameSpyColor[isActiveFilter ? GSCOLOR_CURRENTROOM : GSCOLOR_DEFAULT]);
+			GeneralsOnlineColor[isActiveFilter ? GOCOLOR_CURRENTROOM : GOCOLOR_DEFAULT]);
 		GadgetComboBoxSetItemData(comboBox, idx, (void*)filterEntry.filter);
 	}
 
@@ -745,7 +758,7 @@ static void HandleNetworkRoomChanged(int roomIndex, bool effectiveRoomChanged)
 
 	UnicodeString msg;
 	msg.format(TheGameText->fetch("GUI:LobbyJoined"), rooms[roomIndex].GetRoomDisplayName().str());
-	GadgetListBoxAddEntryText(listboxLobbyChat, msg, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+	GadgetListBoxAddEntryText(listboxLobbyChat, msg, GeneralsOnlineColor[GOCOLOR_DEFAULT], -1, -1);
 
 	refreshGameList(TRUE);
 	PopulateLobbyFilterComboBox(comboLobbyGroupRooms);
@@ -1078,22 +1091,22 @@ void PopulateLobbyPlayerListbox()
 					bool bIgnored = pSocialInterface != nullptr ? pSocialInterface->IsUserIgnored(netRoomMember.user_id) : false;
 					bool bLocal = localUserID == netRoomMember.user_id;
 
-					Color colorToUse = GameSpyColor[GSCOLOR_PLAYER_NORMAL];
+					Color colorToUse = GeneralsOnlineColor[GOCOLOR_PLAYER_NORMAL];
 					if (netRoomMember.m_bIsAdmin)
 					{
-						colorToUse = GameSpyColor[GSCOLOR_PLAYER_OWNER];;// GameMakeColor(0, 162, 232, 255);
+						colorToUse = GeneralsOnlineColor[GOCOLOR_PLAYER_OWNER];;// GameMakeColor(0, 162, 232, 255);
 					}
 					else if (bFriend)
 					{
-						colorToUse = GameSpyColor[GSCOLOR_PLAYER_BUDDY];
+						colorToUse = GeneralsOnlineColor[GOCOLOR_PLAYER_BUDDY];
 					}
 					else if (bIgnored)
 					{
-						colorToUse = GameSpyColor[GSCOLOR_PLAYER_IGNORED];
+						colorToUse = GeneralsOnlineColor[GOCOLOR_PLAYER_IGNORED];
 					}
 					else if (bLocal)
 					{
-						colorToUse = GameSpyColor[GSCOLOR_PLAYER_SELF];
+						colorToUse = GeneralsOnlineColor[GOCOLOR_PLAYER_SELF];
 					}
 
 					Int index = insertPlayerInListbox(pi, colorToUse);
@@ -1529,7 +1542,7 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 				const std::vector<NetworkRoom>& rooms = pRoomsInterfaceOuter->GetGroupRooms();
 				if (!success || rooms.empty())
 				{
-					GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"\t ERROR: No rooms are available. Try logging in again."), GameMakeColor(255, 0, 0, 255), -1, -1);
+					GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"No rooms are available. Please sign in again."), GeneralsOnlineColor[GOCOLOR_ERROR], -1, -1);
 					return;
 				}
 
@@ -1869,7 +1882,7 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 		}
 		else
 		{
-			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your lobby list is outdated. Hit refresh to see the latest servers."), GameMakeColor(255, 194, 15, 255), -1, -1);
+			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your lobby list is out of date. Refresh to see the latest lobbies."), GeneralsOnlineColor[GOCOLOR_WARNING], -1, -1);
 		}
 
 	}

@@ -1860,7 +1860,7 @@ void NGMP_OnlineServices_RoomsInterface::ReportRoomJoinFailure(const std::string
 	{
 		UnicodeString message;
 		message = L"Couldn't join that room. Please try again.";
-		m_OnChatCallback(message, GameMakeColor(255, 0, 0, 255));
+		m_OnChatCallback(message, GeneralsOnlineColor[GOCOLOR_ERROR]);
 	}
 }
 

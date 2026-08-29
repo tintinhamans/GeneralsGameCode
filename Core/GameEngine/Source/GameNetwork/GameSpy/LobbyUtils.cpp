@@ -62,6 +62,7 @@
 #include "Common/STLTypedefs.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_LobbyInterface.h"
+#include "GameNetwork/GeneralsOnline/GeneralsOnline_Colors.h"
 
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -806,21 +807,21 @@ struct GameSortStruct
 
 static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 {
-	Color gameColor = GameSpyColor[GSCOLOR_GAME];
+	Color gameColor = GeneralsOnlineColor[GOCOLOR_LOBBY_NORMAL];
 	if (lobbyInfo.exe_crc != TheGlobalData->m_exeCRC || lobbyInfo.ini_crc != TheGlobalData->m_iniCRC)
 	{
-		gameColor = GameSpyColor[GSCOLOR_GAME_CRCMISMATCH];
+		gameColor = GeneralsOnlineColor[GOCOLOR_LOBBY_CRC_MISMATCH];
 	}
 #if defined(GENERALS_ONLINE)
 	// Buddy lobby highlight:
 	if (lobbyHasBuddy(lobbyInfo.lobbyID))
 	{
 		const bool nonJoinable =
-				(gameColor == GameSpyColor[GSCOLOR_GAME_CRCMISMATCH]);
+				(gameColor == GeneralsOnlineColor[GOCOLOR_LOBBY_CRC_MISMATCH]);
 
 		gameColor = nonJoinable
-			? GameMakeColor(0, 98, 130, 255)   // darker cyan
-			: GameMakeColor(20, 177, 255, 255); // lighter cyan
+			? GeneralsOnlineColor[GOCOLOR_LOBBY_BUDDY_LOCKED]
+			: GeneralsOnlineColor[GOCOLOR_PLAYER_BUDDY];
 	}
 #endif
 	std::wstring strOwnerName = L"";
@@ -883,9 +884,9 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 
 	Int rowCount = GadgetListBoxGetNumEntries(win);
 	bool bAlternate = (rowCount % 2 == 0);
-	if (bAlternate && gameColor == GameSpyColor[GSCOLOR_GAME])
+	if (bAlternate && gameColor == GeneralsOnlineColor[GOCOLOR_LOBBY_NORMAL])
 	{
-		gameColor = GameMakeColor(191, 198, 201, 255);
+		gameColor = GeneralsOnlineColor[GOCOLOR_LOBBY_ALTERNATE];
 	}
 	Int index = GadgetListBoxAddEntryText(win, gameName, gameColor, -1, COLUMN_NAME);
 	GadgetListBoxSetItemData(win, (void*)gameID, index);
@@ -942,8 +943,8 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 	s.format(L"%d/%d", numPlayers, maxPlayers);
 	const bool bIsFull = (lobbyInfo.current_players == lobbyInfo.max_players || lobbyInfo.current_players == MAX_SLOTS);
 	const bool bIsAlmostFull = !bIsFull && (maxPlayers > 0) && ((float)numPlayers / (float)maxPlayers >= 0.6f);
-	Color numPlayersColor = bIsFull ? GameMakeColor(255, 80, 80, 255) 
-		: bIsAlmostFull ? GameMakeColor(16, 173, 144, 255) 
+	Color numPlayersColor = bIsFull ? GeneralsOnlineColor[GOCOLOR_ERROR]
+		: bIsAlmostFull ? GeneralsOnlineColor[GOCOLOR_WARNING]
 		: gameColor;
 	GadgetListBoxAddEntryText(win, s, numPlayersColor, index, COLUMN_NUMPLAYERS);
 
@@ -1191,7 +1192,7 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 			win->winEnable(true);
 			if (GadgetListBoxGetNumEntries(win) == 0)
 			{
-				GadgetListBoxAddEntryText(win, UnicodeString(L"Searching for public lobbies..."), GameMakeColor(255, 194, 15, 255), -1, -1);
+				GadgetListBoxAddEntryText(win, UnicodeString(L"Searching for public lobbies..."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
 				GadgetListBoxSetSelected(win, -1);
 			}
 		},
@@ -1204,7 +1205,7 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 
 			if (numResults == 0)
 			{
-				GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies were found"), GameMakeColor(255, 194, 15, 255), -1, -1);
+				GadgetListBoxAddEntryText(win, UnicodeString(L"No public lobbies found."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
 				GadgetListBoxSetSelected(win, -1);
 
 			}
@@ -1231,7 +1232,7 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 					vecLobbies = filtered;
 					if (vecLobbies.empty())
 					{
-						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies currently match this filter"), GameMakeColor(255, 194, 15, 255), -1, -1);
+						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies match this filter."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
 						GadgetListBoxSetSelected(win, -1);
 						clearBuddyGames();
 						return;

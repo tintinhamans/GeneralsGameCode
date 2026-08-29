@@ -68,6 +68,7 @@
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "GameNetwork/GeneralsOnline/GeneralsOnline_Colors.h"
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static Bool isShuttingDown = FALSE;
@@ -264,9 +265,9 @@ static void updateNumPlayersOnline()
 				line = L" ";
 			}
 
-			GadgetListBoxAddEntryText(listboxInfo, line, GameSpyColor[GSCOLOR_MOTD_HEADING], -1, -1);
+			GadgetListBoxAddEntryText(listboxInfo, line, GeneralsOnlineColor[GOCOLOR_MOTD_HEADING], -1, -1);
 		}
-		GadgetListBoxAddEntryText(listboxInfo, L" ", GameSpyColor[GSCOLOR_MOTD_HEADING], -1, -1);
+		GadgetListBoxAddEntryText(listboxInfo, L" ", GeneralsOnlineColor[GOCOLOR_MOTD_HEADING], -1, -1);
 
 		// END NETWORK CAPS
 		while (aMotd.nextToken(&aLine, "\n"))
@@ -281,7 +282,7 @@ static void updateNumPlayersOnline()
 				aLine = " ";
 			}
 
-			Color c = GameSpyColor[GSCOLOR_MOTD];
+			Color c = GeneralsOnlineColor[GOCOLOR_MOTD];
 			if (aLine.startsWith("\\\\"))
 			{
 				aLine = aLine.str()+1;

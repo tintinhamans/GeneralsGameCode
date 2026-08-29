@@ -104,6 +104,7 @@
 #include "../NGMP_interfaces.h"
 #include "../OnlineServices_Init.h"
 #include "../OnlineServices_StatsInterface.h"
+#include "../GeneralsOnline_Colors.h"
 
 
 //-----------------------------------------------------------------------------
@@ -1203,7 +1204,7 @@ void initInternetMultiPlayer(void)
 			{
 				buttonContinue->winHide(TRUE);
 
-				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, UnicodeString(L"\nMatch data is not available online because the match had AI present OR less than 2 human players."), GameSpyColor[GSCOLOR_DEFAULT], -1);
+				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, UnicodeString(L"\nMatch data is unavailable because the match included AI or fewer than two human players."), GeneralsOnlineColor[GOCOLOR_WARNING], -1);
 			}
 			else
 			{
@@ -1217,8 +1218,8 @@ void initInternetMultiPlayer(void)
 
 				buttonContinue->winSetText(UnicodeString(L"VIEW MATCH ONLINE"));
 
-				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, strMatchID, GameSpyColor[GSCOLOR_DEFAULT], -1);
-				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, strMatchURL, GameSpyColor[GSCOLOR_DEFAULT], -1);
+				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, strMatchID, GeneralsOnlineColor[GOCOLOR_DEFAULT], -1);
+				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, strMatchURL, GeneralsOnlineColor[GOCOLOR_DEFAULT], -1);
 			}
 
 
@@ -1692,7 +1693,7 @@ void populatePlayerInfo( Player *player, Int pos)
 				{
 					for( UnsignedInt i = 0; i < info.numTips; i++ )
 					{
-						GadgetListBoxAddEntryText( listboxAcademyWindowScoreScreen, info.advice[ i ],	GameSpyColor[GSCOLOR_DEFAULT], -1 );
+						GadgetListBoxAddEntryText( listboxAcademyWindowScoreScreen, info.advice[ i ],	GeneralsOnlineColor[GOCOLOR_DEFAULT], -1 );
 					}
 				}
 			}

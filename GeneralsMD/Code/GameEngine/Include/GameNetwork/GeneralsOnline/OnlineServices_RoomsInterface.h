@@ -2,7 +2,7 @@
 
 #include "NGMP_include.h"
 #include "NetworkMesh.h"
-#include "GameNetwork/GameSpy/PeerDefs.h"
+#include "GeneralsOnline_Colors.h"
 #include "OnlineServices_Init.h"
 #include "Common/MultiplayerSettings.h"
 
@@ -20,29 +20,29 @@ static Color DetermineSystemNoticeColor(bool bWarning = false, bool bError = fal
 {
 	if (bError)
 	{
-		return GameMakeColor(255, 94, 94, 255);
+		return GeneralsOnlineColor[GOCOLOR_ERROR];
 	}
 	if (bWarning)
 	{
-		return GameMakeColor(255, 194, 15, 255);
+		return GeneralsOnlineColor[GOCOLOR_WARNING];
 	}
-	return GameMakeColor(192, 192, 192, 255);
+	return GeneralsOnlineColor[GOCOLOR_SYSTEM];
 }
 
 static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool isPublic, bool bAction, bool bAdmin, bool bIsNameChange, int lobbySlot = -1)
 {
-	Color style = GameMakeColor(255, 255, 255, 255);
+	Color style = GeneralsOnlineColor[GOCOLOR_DEFAULT];
 
 	// TODO_NGMP: Support owner chat again
 	Bool isOwner = false;
 
 	if (isPublic && bAction)
 	{
-		style = (isOwner) ? GameSpyColor[GSCOLOR_CHAT_OWNER_EMOTE] : GameSpyColor[GSCOLOR_CHAT_EMOTE];
+		style = (isOwner) ? GeneralsOnlineColor[GOCOLOR_CHAT_OWNER_EMOTE] : GeneralsOnlineColor[GOCOLOR_CHAT_EMOTE];
 	}
     else if (isPublic && bIsNameChange)
     {
-        style = GameMakeColor(127, 127, 127, 255);
+        style = GeneralsOnlineColor[GOCOLOR_NAME_CHANGE];
     }
 	else if (isPublic)
 	{
@@ -51,7 +51,7 @@ static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool
 		{
 			if (lobbySlot == -1)
 			{
-				return GameMakeColor(255, 255, 255, 255);
+				return GeneralsOnlineColor[GOCOLOR_DEFAULT];
 			}
 			else
 			{
@@ -76,21 +76,21 @@ static Color DetermineColorForChatMessage(EChatMessageType chatMessageType, Bool
 		{
 			if (bAdmin)
 			{
-				style = GameMakeColor(0, 162, 232, 255);
+				style = GeneralsOnlineColor[GOCOLOR_ADMIN];
 			}
 			else
 			{
-				style = (isOwner) ? GameSpyColor[GSCOLOR_CHAT_OWNER] : GameSpyColor[GSCOLOR_CHAT_NORMAL];
+				style = (isOwner) ? GeneralsOnlineColor[GOCOLOR_CHAT_OWNER] : GeneralsOnlineColor[GOCOLOR_CHAT_NORMAL];
 			}
 		}
 	}
 	else if (bAction)
 	{
-		style = (isOwner) ? GameSpyColor[GSCOLOR_CHAT_PRIVATE_OWNER_EMOTE] : GameSpyColor[GSCOLOR_CHAT_PRIVATE_EMOTE];
+		style = (isOwner) ? GeneralsOnlineColor[GOCOLOR_CHAT_PRIVATE_OWNER_EMOTE] : GeneralsOnlineColor[GOCOLOR_CHAT_PRIVATE_EMOTE];
 	}
 	else
 	{
-		style = (isOwner) ? GameSpyColor[GSCOLOR_CHAT_PRIVATE_OWNER] : GameSpyColor[GSCOLOR_CHAT_PRIVATE];
+		style = (isOwner) ? GeneralsOnlineColor[GOCOLOR_CHAT_PRIVATE_OWNER] : GeneralsOnlineColor[GOCOLOR_CHAT_PRIVATE];
 	}
 
 	// filters language

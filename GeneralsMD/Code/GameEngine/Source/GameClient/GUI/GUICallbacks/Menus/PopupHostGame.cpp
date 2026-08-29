@@ -71,6 +71,7 @@
 #include "GameNetwork/GameSpy/LadderDefs.h"
 #include "Common/CustomMatchPreferences.h"
 #include "Common/LadderPreferences.h"
+#include "GameNetwork/GeneralsOnline/GeneralsOnline_Colors.h"
 
 // GENERALS ONLINE:
 #include "../NextGenMP_defines.h"
@@ -275,8 +276,8 @@ void PopulateCustomLadderComboBox()
 
 	std::set<const LadderInfo *> usedLadders;
 
-	Color specialColor = GameSpyColor[GSCOLOR_MAP_SELECTED];
-	Color normalColor = GameSpyColor[GSCOLOR_MAP_UNSELECTED];
+	Color specialColor = GeneralsOnlineColor[GOCOLOR_MAP_SELECTED];
+	Color normalColor = GeneralsOnlineColor[GOCOLOR_MAP_UNSELECTED];
 	Int index;
 	GadgetComboBoxReset( comboBoxLadderName );
 	index = GadgetComboBoxAddEntry( comboBoxLadderName, TheGameText->fetch("GUI:NoLadder"), normalColor );

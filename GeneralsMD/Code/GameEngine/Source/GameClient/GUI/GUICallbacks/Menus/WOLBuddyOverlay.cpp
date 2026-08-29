@@ -54,6 +54,7 @@
 #include "GameNetwork/GameSpy/PersistentStorageDefs.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/GameSpy/ThreadUtils.h"
+#include "GameNetwork/GeneralsOnline/GeneralsOnline_Colors.h"
 #include "../OnlineServices_SocialInterface.h"
 #include "../OnlineServices_Init.h"
 #include "../OnlineServices_LobbyInterface.h"
@@ -199,8 +200,8 @@ void InitBuddyControls(Int type)
 			// clear current box contents
 			GadgetListBoxReset(buddyControls.listboxChat);
 
-			Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"Select a friend to start chatting"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-			GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+			Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"Select a friend to start chatting."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+			GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GeneralsOnlineColor[GOCOLOR_DEFAULT], index, 1);
 		}
 #endif
 		break;
@@ -317,7 +318,7 @@ WindowMsgHandledType BuddyControlSystem( GameWindow *window, UnsignedInt msg,
 								if (buddyControls.listboxChat)
 								{
 									GadgetListBoxAddEntryText( buddyControls.listboxChat, UnicodeString(L"You cannot send messages to a buddy who is currently in your game."),
-									GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+									GeneralsOnlineColor[GOCOLOR_DEFAULT], -1, -1);
 								}
 								return MSG_HANDLED;
 							}
@@ -481,7 +482,7 @@ void updateBuddyInfo( void )
 	if (!bIsAutoRefresh)
 	{
 		GadgetListBoxReset(buddyControls.listboxBuddies);
-		GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Loading..."), GameMakeColor(255, 194, 15, 255), -1);
+		GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Loading..."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1);
 	}
 
 	// refresh block list too (but no UI to process here)
@@ -540,11 +541,11 @@ void updateBuddyInfo( void )
                                 UnicodeString strName = slot->getName();
 
                                 // insert name into box
-                                int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, strName, GameSpyColor[GSCOLOR_CHAT_EMOTE], -1, -1);
+                                int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, strName, GeneralsOnlineColor[GOCOLOR_CHAT_EMOTE], -1, -1);
                                 GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
 
                                 // insert status into box
-                                GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"In Current Lobby"), GameSpyColor[GSCOLOR_CHAT_EMOTE], index, 1);
+                                GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"In current lobby"), GeneralsOnlineColor[GOCOLOR_SYSTEM], index, 1);
                                 GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_NONBUDDY), index, 1);
 
                                 if (profileID == selectedProfile)
@@ -573,11 +574,11 @@ void updateBuddyInfo( void )
                         strName.format(L"%hs", friendsEntry.display_name.c_str());
 
                         // insert name into box
-                        int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, strName, GameSpyColor[GSCOLOR_CHAT_EMOTE], -1, -1);
+                        int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, strName, GeneralsOnlineColor[GOCOLOR_CHAT_EMOTE], -1, -1);
                         GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
 
                         // insert status into box
-                        GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Recently Played With"), GameSpyColor[GSCOLOR_CHAT_OWNER_EMOTE], index, 1);
+                        GadgetListBoxAddEntryText(buddyControls.listboxBuddies, UnicodeString(L"Recently played with"), GeneralsOnlineColor[GOCOLOR_SYSTEM], index, 1);
                         GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_NONBUDDY), index, 1);
 
                         if (profileID == selectedProfile)
@@ -596,12 +597,12 @@ void updateBuddyInfo( void )
 				// insert name into box
 				UnicodeString formatStr;
 				formatStr.translate(strName.str());
-				int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+				int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GeneralsOnlineColor[GOCOLOR_DEFAULT], -1, -1);
 				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
 
 				// insert status into box
 				formatStr = TheGameText->fetch("GUI:BuddyAddReq");
-				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+				GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GeneralsOnlineColor[GOCOLOR_DEFAULT], index, 1);
 				GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_REQUEST), index, 1);
 
 				if (profileID == selectedProfile)
@@ -661,8 +662,8 @@ void updateBuddyInfo( void )
                 // NOTE: Gamespy let you be friends with someone AND have them ignored. We don't.
                 bool isSavedIgnored = false;
                 Color nameColor = (isSavedIgnored) ?
-                    GameSpyColor[GSCOLOR_PLAYER_IGNORED] :
-					friendsEntry.online ? GameSpyColor[GSCOLOR_PLAYER_BUDDY] : GameMakeColor(100, 130, 150, 255);
+                    GeneralsOnlineColor[GOCOLOR_PLAYER_IGNORED] :
+					friendsEntry.online ? GeneralsOnlineColor[GOCOLOR_PLAYER_BUDDY] : GeneralsOnlineColor[GOCOLOR_PLAYER_OFFLINE];
                 int index = GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, nameColor, -1, -1);
 
                 if (friendsEntry.online)
@@ -677,7 +678,7 @@ void updateBuddyInfo( void )
                     formatStr.format(L"%s", strGameState.str());
                 }
 
-                GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+                GadgetListBoxAddEntryText(buddyControls.listboxBuddies, formatStr, GeneralsOnlineColor[GOCOLOR_DEFAULT], index, 1);
                 GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(profileID), index, 0);
                 GadgetListBoxSetItemData(buddyControls.listboxBuddies, (void*)(ITEM_BUDDY), index, 1);
 
@@ -1092,8 +1093,8 @@ void WOLBuddyOverlayInit( WindowLayout *layout, void *userData )
 					{
 						UnicodeString s;
 						s.format(L"%s", unicodeStr.str());
-						Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, s, GameSpyColor[GSCOLOR_PLAYER_BUDDY], -1, -1);
-						GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_PLAYER_BUDDY], index, 1);
+						Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, s, GeneralsOnlineColor[GOCOLOR_PLAYER_BUDDY], -1, -1);
+						GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GeneralsOnlineColor[GOCOLOR_PLAYER_BUDDY], index, 1);
 
 						// we read the message, so clear it
                         NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
@@ -1296,13 +1297,13 @@ WindowMsgHandledType WOLBuddyOverlaySystem( GameWindow *window, UnsignedInt msg,
 						// If it's the "current lobby" list, the user wont be a friend, so we cant chat to them
 						if (!pSocialInterface->IsUserFriend(profileID) && !pSocialInterface->IsUserPendingRequest(profileID))
 						{
-                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or ignore them."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-                            GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This player is in your lobby or recently played with you, but is not a friend yet. Right-click the player to add or ignore them."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+                            GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GeneralsOnlineColor[GOCOLOR_DEFAULT], index, 1);
 						}
                         else if (pSocialInterface->IsUserPendingRequest(profileID))
 						{
-                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This is a pending friend request. You cannot chat with the player until you accept it."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-                            GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This friend request is pending. Accept it to start chatting."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+                            GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GeneralsOnlineColor[GOCOLOR_DEFAULT], index, 1);
 						}
 						else
 						{
@@ -1310,14 +1311,14 @@ WindowMsgHandledType WOLBuddyOverlaySystem( GameWindow *window, UnsignedInt msg,
 
                             for (const UnicodeString& unicodeStr : vecMessages)
                             {
-                                Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, unicodeStr, GameSpyColor[GSCOLOR_PLAYER_BUDDY], -1, -1);
-                                GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_PLAYER_BUDDY], index, 1);
+                                Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, unicodeStr, GeneralsOnlineColor[GOCOLOR_PLAYER_BUDDY], -1, -1);
+                                GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GeneralsOnlineColor[GOCOLOR_PLAYER_BUDDY], index, 1);
                             }
 
                             if (vecMessages.empty())
                             {
-                                Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This chat is empty. Send a message to start a conversation"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-                                GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+                                Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This chat is empty. Send a message to start the conversation."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+                                GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GeneralsOnlineColor[GOCOLOR_DEFAULT], index, 1);
                             }
 
                             // we read the message, so clear it
@@ -1336,8 +1337,8 @@ WindowMsgHandledType WOLBuddyOverlaySystem( GameWindow *window, UnsignedInt msg,
 					// clear current box contents
 					GadgetListBoxReset(buddyControls.listboxChat);
 
-					Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"Select a friend to start chatting"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-					GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
+					Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"Select a friend to start chatting."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1, -1);
+					GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GeneralsOnlineColor[GOCOLOR_DEFAULT], index, 1);
 				}
 			}
 			break;
@@ -2038,7 +2039,7 @@ void refreshIgnoreList()
 	}
 
 	GadgetListBoxReset(listboxIgnore);
-	GadgetListBoxAddEntryText(listboxIgnore, UnicodeString(L"Loading..."), GameMakeColor(255, 194, 15, 255), -1);
+	GadgetListBoxAddEntryText(listboxIgnore, UnicodeString(L"Loading..."), GeneralsOnlineColor[GOCOLOR_SYSTEM], -1);
 
 	pSocialInterface->GetBlockList([](BlockedResult blockResult)
 		{
@@ -2052,7 +2053,7 @@ void refreshIgnoreList()
 
 				UnicodeString name;
 				name.translate(strName);
-				Int index = GadgetListBoxAddEntryText(listboxIgnore, name, GameMakeColor(255, 100, 100, 255), -1);
+				Int index = GadgetListBoxAddEntryText(listboxIgnore, name, GeneralsOnlineColor[GOCOLOR_BLOCKED], -1);
 				GadgetListBoxSetItemData(listboxIgnore, (void*)(blockedEntry.user_id), index, 0);
 			}
 		});
