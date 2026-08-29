@@ -131,17 +131,9 @@ WebSocket::~WebSocket()
 
 int WebSocket::Ping()
 {
+	// raw ping only; reply read in Tick() via CURLWS_PONG
 	size_t sent;
-	CURLcode result = curl_ws_send(m_pCurlWS, "wsping", strlen("wsping"), &sent, 0,
-		CURLWS_PING);
-
-	nlohmann::json j;
-	j["msg_id"] = EWebSocketMessageID::PING;
-	std::string strBody = j.dump();
-
-	Send(strBody.c_str());
-
-	return (int)result;
+	return (int)curl_ws_send(m_pCurlWS, "wsping", strlen("wsping"), &sent, 0, CURLWS_PING);
 }
 
 
@@ -599,8 +591,10 @@ void WebSocket::Tick()
 	{
 		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
-		int maxReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? maxReconnectAttempts_Ingame : maxReconnectAttempts_Frontend;
-		if (m_numReconnectAttempts >= maxReconnectAttempts)
+		bool bGameInProgress = TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress();
+
+		// gameplay doesn't need the websocket, so don't cap attempts mid-match
+		if (!bGameInProgress && m_numReconnectAttempts >= maxReconnectAttempts_Frontend)
 		{
 			// fully disconnect
             NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 1)");
@@ -615,7 +609,7 @@ void WebSocket::Tick()
 		}
 		else
 		{
-			int timeBetweenReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? timeBetweenReconnectAttempts_Ingame : timeBetweenReconnectAttempts_Frontend;
+			int timeBetweenReconnectAttempts = bGameInProgress ? timeBetweenReconnectAttempts_Ingame : timeBetweenReconnectAttempts_Frontend;
 
             if (currTime - m_lastReconnectAttempt >= timeBetweenReconnectAttempts)
             {
@@ -686,11 +680,13 @@ void WebSocket::Tick()
                         // reconnecting? give up eventually
                         if (m_bReconnecting)
                         {
-                            int maxReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? maxReconnectAttempts_Ingame : maxReconnectAttempts_Frontend;
+                            bool bGameInProgress = TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress();
+                            bool bServerRefusedReconnect = (m->data.result == CURLE_HTTP_RETURNED_ERROR && httpResponseCode == 205); // session invalidated, retrying is pointless
 
-                            if (m_numReconnectAttempts >= maxReconnectAttempts || (m->data.result == CURLE_HTTP_RETURNED_ERROR && httpResponseCode == 205)) // 205 = need full teardown
+                            // no cap mid-match unless the server refused outright
+                            if (bServerRefusedReconnect || (!bGameInProgress && m_numReconnectAttempts >= maxReconnectAttempts_Frontend))
                             {
-                                if (httpResponseCode == 205)
+                                if (bServerRefusedReconnect)
                                 {
                                     NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 205)");
                                 }
@@ -786,6 +782,7 @@ void WebSocket::Tick()
 	if (rlen > sizeof(bufferThisRecv))
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Received data size %zu exceeds buffer size %zu, discarding", rlen, sizeof(bufferThisRecv));
+		ReleaseLock();
 		return;
 	}
 
@@ -800,7 +797,7 @@ void WebSocket::Tick()
 			NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket flags: %d", meta->flags);
 			if (meta->flags & CURLWS_PONG) // PONG
 			{
-
+				m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 			}
 			else if (meta->flags & CURLWS_TEXT)
 			{
@@ -811,6 +808,7 @@ void WebSocket::Tick()
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Partial buffer overflow, discarding message");
 					m_vecWSPartialBuffer.clear();
+					ReleaseLock();
 					return;
 				}
 				
@@ -889,13 +887,6 @@ void WebSocket::Tick()
 												commandResult.success ? "succeeded" : "failed",
 												commandResult.message.c_str());
 										}
-									}
-									break;
-
-									case EWebSocketMessageID::PONG:
-									{
-										int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-										m_lastPong = currTime;
 									}
 									break;
 
@@ -1592,17 +1583,19 @@ void WebSocket::Tick()
 			}
 			else if (meta->flags & CURLWS_CLOSE)
 			{
-				// TODO_NGMP: Dont do this during gameplay, they can play without the WS, just 'queue' it for when they get back to the front end
-
-				NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket close");
-				NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
+				// Server closes can be transient, so reconnect first.
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket close, attempting reconnect");
 				m_bConnected = false;
+				m_bReconnecting = true;
+				m_numReconnectAttempts = 0;
+				m_lastReconnectAttempt = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 				m_vecWSPartialBuffer.clear();
-				// TODO_NGMP: Handle this
 			}
 			else if (meta->flags & CURLWS_PING)
 			{
-				// TODO_NGMP: Handle this
+				// protocol requires echoing ping payload back as pong
+				size_t sent;
+				curl_ws_send(m_pCurlWS, bufferThisRecv, rlen, &sent, 0, CURLWS_PONG);
 			}
 			else if (meta->flags & CURLWS_OFFSET)
 			{

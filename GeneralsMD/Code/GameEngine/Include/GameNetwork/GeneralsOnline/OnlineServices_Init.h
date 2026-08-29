@@ -215,7 +215,6 @@ private:
     const int maxReconnectAttempts_Frontend = 15;
 	const int timeBetweenReconnectAttempts_Frontend = 1000;
 
-	const int maxReconnectAttempts_Ingame = 240;
 	const int timeBetweenReconnectAttempts_Ingame = 2500;
 	bool m_bReconnecting = false;
     int m_numReconnectAttempts = 0;
@@ -225,8 +224,8 @@ private:
 
 	int64_t m_lastPong = -1;
 	int64_t m_lastPing = -1;
-	const int64_t m_timeBetweenUserPings = 1000;
-	const int64_t m_timeForWSTimeout = 20000;
+	const int64_t m_timeBetweenUserPings = 15000; // sole heartbeat now; no JSON ping/pong
+	const int64_t m_timeForWSTimeout = 35000; // allow one missed round trip
 
 	std::atomic<bool> m_bShuttingDown = false;
 
