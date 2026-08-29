@@ -197,29 +197,10 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 
 		curl_easy_setopt(m_pCurlWS, CURLOPT_VERBOSE, 1L);
 #else
-        if (HTTPManager::IsCACertStoreBad())
-        {
-            curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
-            curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
-        }
-        else
-        {
-            std::ifstream certFile("cacert.pem");
-            if (certFile.good())
-            {
-                certFile.close();
-                curl_easy_setopt(m_pCurlWS, CURLOPT_CAINFO, "cacert.pem");
-
-                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 1L);
-                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 2L);
-            }
-            else
-            {
-				HTTPManager::SetCACertStoreBad();
-                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
-                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
-            }
-        }
+		// Schannel validates against the Windows certificate store; never fall back
+		// to disabling certificate validation when a bundled CA file is unavailable.
+		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 1L);
+		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 2L);
 #endif
 
 

@@ -1035,7 +1035,17 @@ void NGMP_OnlineServicesManager::InitSentry()
 	// Initialize libcurl global state here, before any plugins (e.g. EasyAntiCheat) are loaded.
 	// This ensures libcurl's internal mutexes are fully initialized before the EAC plugin
 	// attempts to use them, preventing an access violation in mtx_do_lock on null mutex state.
-	curl_global_init(CURL_GLOBAL_DEFAULT);
+	if (curl_global_sslset(CURLSSLBACKEND_SCHANNEL, nullptr, nullptr) != CURLSSLSET_OK)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[curl] Schannel SSL backend is unavailable");
+		return;
+	}
+
+	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[curl] Global initialization failed");
+		return;
+	}
 
 #if !_DEBUG
 	std::string strDumpPath = std::format("{}/GeneralsOnlineCrashData/", TheGlobalData->getPath_UserData().str());

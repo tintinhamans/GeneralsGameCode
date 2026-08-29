@@ -38,7 +38,6 @@ struct S3ScreenshotEntry
 #include <mutex>
 #include <atomic>
 
-#pragma comment(lib, "libcurl/libcurl.lib")
 #pragma comment(lib, "sentry/sentry.lib")
 
 

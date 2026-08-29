@@ -1219,14 +1219,14 @@ else()
 endif()
 
 
+include(curl-schannel)
+
 add_library(z_gameengine STATIC)
 
 target_sources(z_gameengine PRIVATE ${GAMEENGINE_SRC})
 
 target_include_directories(z_gameengine PUBLIC
     Include
-
-    Include/GameNetwork/GeneralsOnline/Vendor/
 )
 
 target_link_directories(z_gameengine PUBLIC
@@ -1245,6 +1245,7 @@ target_link_libraries(z_gameengine PRIVATE
 target_link_libraries(z_gameengine PUBLIC
     corei_gameengine_public
     z_wwvegas
+    libcurl
 )
 
 target_precompile_headers(z_gameengine PRIVATE
