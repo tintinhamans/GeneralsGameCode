@@ -771,7 +771,6 @@ void AudioManager::set3DVolumeAdjustment( Real volumeAdjustment )
 	if (m_sound3DVolume > 1.0f)
 		m_sound3DVolume = 1.0f;
 
-  if ( ! has3DSensitiveStreamsPlaying() )
   	m_volumeHasChanged = TRUE;
 }
 
