@@ -2285,17 +2285,14 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 //-------------------------------------------------------------------------------------------------
 void grabMultiPlayerInfo( void )
 {
-	typedef std::map<Int, Player *> ScoreMap;
-	typedef ScoreMap::iterator ScoreMapIt;
+	typedef std::multimap<Int, Player *> ScoreMap;
 	typedef ScoreMap::reverse_iterator RevScoreMapIt;
 
 	Int playerCount = 0;
 	AsciiString playerName;
 	Player *player;
 	ScoreMap scores;
-	ScoreMapIt it;
 	scores.clear();
-	Int adder = 1; // Varible used to add on an offset to the score to make sure we don't add people to the same map
 
 	player = ThePlayerList->getLocalPlayer();
 	if (player && parent)
@@ -2316,10 +2313,7 @@ void grabMultiPlayerInfo( void )
 		if(player)
 		{
 			Int score = player->getScoreKeeper()->calculateScore();
-			it = scores.find( score );
-			if (it != scores.end())
-			score += adder++;			
-			scores[score] = player;
+			scores.emplace(score, player);
 			++playerCount;
 		}
 	}
