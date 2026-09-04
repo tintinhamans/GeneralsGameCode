@@ -395,7 +395,8 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
         pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
             {
                 // update communicator button
-                if (buttonBuddies != nullptr)
+                GameWindow *currentButtonBuddies = TheWindowManager->winGetWindowFromId(nullptr, buttonBuddiesID);
+                if (currentButtonBuddies != nullptr)
                 {
                     UnicodeString buttonText;
 
@@ -407,7 +408,7 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 					{
 						buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
 					}
-					buttonBuddies->winSetText(buttonText);
+					currentButtonBuddies->winSetText(buttonText);
                 }
             });
 
@@ -436,6 +437,13 @@ void FixupScoreScreenMovieWindow( void )
 void ScoreScreenShutdown( WindowLayout *layout, void *userData )
 {
 	DontShowMainMenu = FALSE; //KRIS
+
+#if defined(GENERALS_ONLINE)
+	NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+	if (pSocialInterface != nullptr)
+		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged(nullptr);
+#endif
+	buttonBuddies = nullptr;
 
 	// hide the layout
 	layout->hide( TRUE );
