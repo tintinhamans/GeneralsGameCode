@@ -1170,7 +1170,7 @@ void initInternetMultiPlayer(void)
 
 	// attempt to register our outcome
     NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
-    if (pStatsInterface != nullptr)
+    if (pStatsInterface != nullptr && TheNGMPGame != nullptr)
     {
         Player* localPlayer = ThePlayerList->getLocalPlayer();
 
@@ -1816,7 +1816,10 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 		DEBUG_LOG(("populatePlayerInfo() - SCORESCREEN_INTERNET\n"));
 
 #if defined(GENERALS_ONLINE)
-		if (TheNGMPGame && !TheNGMPGame->getUseStats()
+		if (TheNGMPGame == nullptr)
+			return;
+
+		if (!TheNGMPGame->getUseStats()
 			&& !TheNGMPGame->isQMGame())  //QuickMatch games always record stats
 			return;	//the host has requested not to record stats for this game.
 #else
