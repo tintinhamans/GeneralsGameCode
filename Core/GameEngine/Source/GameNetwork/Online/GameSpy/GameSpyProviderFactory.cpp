@@ -43,13 +43,20 @@
 #include "GameNetwork/GameSpy/PeerThread.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
-#include "GameNetwork/GameSpy/GSConfig.h"
 #include "GameNetwork/GameSpy/LadderDefs.h"
+#include "GameNetwork/Online/IOnlineConfig.h"
 #include "GameNetwork/GameSpy/PingThread.h"
 #include "GameNetwork/RankPointValue.h"
 
 // Defined in GameSpyOverlay.cpp; forward-declared here exactly as PeerDefs.cpp does.
 void deleteNotificationBox();
+
+// --------------------------------------------------------------
+IOnlineConfig *GameSpyProviderFactory::createConfig( const char *configBuffer )
+{
+	// Same construction the legacy SetUpGameSpy body performed inline.
+	return IOnlineConfig::create( configBuffer ? configBuffer : "" );
+}
 
 // --------------------------------------------------------------
 void GameSpyProviderFactory::createServices( const char *motdBuffer, const char *configBuffer )
@@ -91,7 +98,7 @@ void GameSpyProviderFactory::createServices( const char *motdBuffer, const char 
 	TheGameSpyInfo->setDisallowNonAsianText( pref.getDisallowNonAsianText());
 
 
-	TheGameSpyConfig = GameSpyConfigInterface::create(configBuffer);
+	TheGameSpyConfig = createConfig(configBuffer);
 
 	TheLadderList = NEW LadderList;
 
