@@ -33,7 +33,7 @@
 
 #include "Common/GameState.h"
 #include "GameClient/MapUtil.h"
-#include "GameNetwork/GameSpy/GSConfig.h"
+#include "GameNetwork/Online/IOnlineConfig.h"
 #include "GameNetwork/RankPointValue.h"
 
 
