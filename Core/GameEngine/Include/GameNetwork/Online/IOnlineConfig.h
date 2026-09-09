@@ -22,9 +22,14 @@
 //																																						//
 ////////////////////////////////////////////////////////////////////////////////
 
-// FILE: GSConfig.h ///////////////////////////////////////////////////////////
+// FILE: IOnlineConfig.h //////////////////////////////////////////////////////
 // Author: Matthew D. Campbell, Sept 2002
-// Description: GameSpy online config
+// Description: Provider-neutral online config interface.
+//
+// TheSuperHackers @refactor GenMP Phase 1 - Renamed from GameSpyConfigInterface
+// and relocated from GameNetwork/GameSpy/GSConfig.h. The old type name stays
+// valid through a forwarding typedef in that header; every method signature and
+// semantic is unchanged (rename, not redesign).
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -32,10 +37,10 @@
 #include "Common/AsciiString.h"
 #include "Common/STLTypedefs.h"
 
-class GameSpyConfigInterface
+class IOnlineConfig
 {
 public:
-	virtual ~GameSpyConfigInterface() {}
+	virtual ~IOnlineConfig() {}
 
 	// Pings
 	virtual std::list<AsciiString> getPingServers() = 0;
@@ -71,7 +76,9 @@ public:
 	// Custom match
 	virtual Bool restrictGamesToLobby() = 0;
 
-	static GameSpyConfigInterface* create(AsciiString config);
+	// Static factory member name is frozen in Phase 1 (per-game code resolves it
+	// through the forwarding typedef).
+	static IOnlineConfig* create(AsciiString config);
 };
 
-extern GameSpyConfigInterface *TheGameSpyConfig;
+extern IOnlineConfig *TheGameSpyConfig;
