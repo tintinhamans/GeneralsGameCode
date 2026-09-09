@@ -122,6 +122,53 @@ const char *GetCommandLineOnlineProvider()
 	return s_commandLineProvider;
 }
 
+//-----------------------------------------------------------------------------
+// Provider resolution
+//-----------------------------------------------------------------------------
+
+// Case-insensitive lookup of a registered provider by name. Returns true and
+// fills 'outType' on a match.
+static Bool matchProviderName( const char *name, OnlineProviderType& outType )
+{
+	if (name == nullptr || name[0] == 0)
+		return FALSE;
+
+	OnlineProviderRegistry& reg = getRegistry();
+	for (Int i = 0; i < reg.m_count; ++i)
+	{
+		OnlineProviderFactory *f = reg.m_factories[i];
+		if (f != nullptr && f->getName() != nullptr && stricmp(f->getName(), name) == 0)
+		{
+			outType = f->getType();
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+OnlineProviderType ResolveConfiguredProvider()
+{
+	// Safe to call before the online subsystem is set up: make sure the built-in
+	// providers are registered so name matching has something to match against.
+	RegisterBuiltInProviders();
+
+	OnlineProviderType resolved = ONLINE_PROVIDER_GAMESPY;
+
+	// 1) CLI: -onlineProvider <name>
+	const char *cli = GetCommandLineOnlineProvider();
+	if (cli != nullptr && cli[0] != 0)
+	{
+		if (matchProviderName( cli, resolved ))
+			return resolved;
+
+		DEBUG_LOG(("ResolveConfiguredProvider: unrecognised -onlineProvider value '%s'; using GameSpy", cli));
+		return ONLINE_PROVIDER_GAMESPY;
+	}
+
+	// 2) Built-in default
+	return ONLINE_PROVIDER_GAMESPY;
+}
+
 void SetUpOnline( OnlineProviderType type, const char *motdBuffer, const char *configBuffer )
 {
 	// Slice 1 stub. Implemented in slice 3 (SetUpOnline / TearDownOnline
