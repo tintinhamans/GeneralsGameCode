@@ -35,6 +35,7 @@
 #include "GameClient/TerrainVisual.h" // for TERRAIN_LOD_MIN definition
 #include "GameClient/GameText.h"
 #include "GameNetwork/NetworkDefs.h"
+#include "GameNetwork/Online/OnlineProviderFactory.h"
 
 
 
@@ -168,6 +169,18 @@ Int parseFullViewport(char *args[], int num)
 {
 	TheWritableGlobalData->m_viewportHeightScale = 1.0f;
 
+	return 1;
+}
+
+//=============================================================================
+//=============================================================================
+Int parseOnlineProvider(char *args[], int num)
+{
+	if (num > 1)
+	{
+		SetCommandLineOnlineProvider(args[1]);
+		return 2;
+	}
 	return 1;
 }
 
@@ -1255,6 +1268,9 @@ static CommandLineParam paramsForEngineInit[] =
 
 	// TheSuperHackers @feature xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
 	{ "-forcefullviewport", parseFullViewport },
+
+	// TheSuperHackers @feature tintinhamans 11/11/2026 Select the online service provider by name. The default is GameSpy.
+	{ "-onlineProvider", parseOnlineProvider },
 
 #if defined(RTS_DEBUG)
 	{ "-noaudio", parseNoAudio },
