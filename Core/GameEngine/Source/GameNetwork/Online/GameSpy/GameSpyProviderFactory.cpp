@@ -29,6 +29,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameNetwork/Online/GameSpy/GameSpyProviderFactory.h"
+#include "GameNetwork/Online/GameSpy/GameSpySession.h"
 
 #include "Common/GlobalData.h"
 #include "Common/CustomMatchPreferences.h"
@@ -50,6 +51,11 @@ void deleteNotificationBox();
 IOnlineConfig *GameSpyProviderFactory::createConfig( const char *configBuffer )
 {
 	return IOnlineConfig::create( configBuffer ? configBuffer : "" );
+}
+
+IOnlineSession *GameSpyProviderFactory::createSession()
+{
+	return GameSpySession::createNewSession();
 }
 
 // --------------------------------------------------------------
@@ -98,11 +104,16 @@ void GameSpyProviderFactory::createServices( const char *motdBuffer, const char 
 	ThePinger->startThreads();
 
 	TheRankPointValues = NEW RankPoints;
+
+	TheOnlineSession = createSession();
 }
 
 // --------------------------------------------------------------
 void GameSpyProviderFactory::destroyServices()
 {
+	delete TheOnlineSession;
+	TheOnlineSession = nullptr;
+
 	// save off cached stats
 	if (TheGameSpyInfo && TheGameSpyInfo->getLocalProfileID())
 	{

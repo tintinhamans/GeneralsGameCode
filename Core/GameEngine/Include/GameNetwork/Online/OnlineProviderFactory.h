@@ -29,6 +29,7 @@
 #include "GameNetwork/Online/OnlineProviderType.h"
 
 class IOnlineConfig;
+class IOnlineSession;
 
 //-----------------------------------------------------------------------------
 // OnlineProviderFactory
@@ -46,6 +47,7 @@ public:
 	virtual Bool isAvailable() const = 0;
 
 	virtual IOnlineConfig *createConfig( const char *configBuffer ) = 0;
+	virtual IOnlineSession *createSession() = 0;
 
 	// Ordered lifecycle.
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
