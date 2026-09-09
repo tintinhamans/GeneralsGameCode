@@ -37,7 +37,7 @@
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/GameSpy/BuddyThread.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
-#include "GameNetwork/GameSpy/PeerThread.h"
+#include "GameNetwork/Online/IOnlineChat.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/GameSpy/ThreadUtils.h"
 
