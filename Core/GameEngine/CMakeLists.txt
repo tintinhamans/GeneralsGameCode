@@ -563,6 +563,12 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/NetworkDefs.h
     Include/GameNetwork/NetworkInterface.h
     Include/GameNetwork/networkutil.h
+    Include/GameNetwork/Online/GameSpy/GameSpyProviderFactory.h
+    Include/GameNetwork/Online/GameSpy/GameSpySession.h
+    Include/GameNetwork/Online/IOnlineConfig.h
+    Include/GameNetwork/Online/IOnlineSession.h
+    Include/GameNetwork/Online/OnlineProviderFactory.h
+    Include/GameNetwork/Online/OnlineProviderType.h
     Include/GameNetwork/RankPointValue.h
     Include/GameNetwork/Transport.h
     Include/GameNetwork/TransportFactory.h
@@ -1143,7 +1149,6 @@ set(GAMEENGINE_SRC
     #Source/GameNetwork/GameSpyGameInfo.cpp # unused
     #Source/GameNetwork/GameSpyGP.cpp # unused
     Source/GameNetwork/GameSpy/Chat.cpp
-    Source/GameNetwork/GameSpy/GSConfig.cpp
     Source/GameNetwork/GameSpy/LadderDefs.cpp
     Source/GameNetwork/GameSpy/LobbyUtils.cpp
     Source/GameNetwork/GameSpy/MainMenuUtils.cpp
@@ -1172,6 +1177,10 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/NetPacketStructs.cpp
     Source/GameNetwork/Network.cpp
     Source/GameNetwork/NetworkUtil.cpp
+    Source/GameNetwork/Online/GameSpy/GameSpyProviderFactory.cpp
+    Source/GameNetwork/Online/GameSpy/GameSpySession.cpp
+    Source/GameNetwork/Online/GameSpy/GSConfig.cpp
+    Source/GameNetwork/Online/OnlineProviderFactory.cpp
     Source/GameNetwork/Transport.cpp
     Source/GameNetwork/TransportFactory.cpp
     Source/GameNetwork/UDPTransport.cpp

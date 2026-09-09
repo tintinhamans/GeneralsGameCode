@@ -37,6 +37,7 @@
 #include "GameClient/GameText.h"
 #include "GameNetwork/GameSpy/LadderDefs.h"
 #include "GameNetwork/GameSpy/PeerDefsImplementation.h"
+#include "GameNetwork/Online/OnlineProviderFactory.h"
 #include "GameNetwork/GameSpy/BuddyThread.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
 #include "GameNetwork/GameSpy/PingThread.h"
@@ -599,115 +600,14 @@ void SetUpGameSpy( const char *motdBuffer, const char *configBuffer )
 {
 	// TODO_NGMP: dont call this, remove gamespy fully
 #if !defined(GENERALS_ONLINE)
-	if (!motdBuffer)
-		motdBuffer = "";
-	if (!configBuffer)
-		configBuffer = "";
-	TearDownGameSpy();
-
-	AsciiString dir = TheGlobalData->getPath_UserData();
-	CreateDirectory(dir.str(), nullptr);
-	dir.format("%sGeneralsOnline", TheGlobalData->getPath_UserData().str());
-	CreateDirectory(dir.str(), nullptr);
-	dir.format("%sGeneralsOnline\\Ladders", TheGlobalData->getPath_UserData().str());
-	CreateDirectory(dir.str(), nullptr);
-
-	TheGameSpyBuddyMessageQueue = GameSpyBuddyMessageQueueInterface::createNewMessageQueue();
-	TheGameSpyBuddyMessageQueue->startThread();
-
-	TheGameSpyPeerMessageQueue = GameSpyPeerMessageQueueInterface::createNewMessageQueue();
-	TheGameSpyPeerMessageQueue->startThread();
-
-	TheGameSpyPSMessageQueue = GameSpyPSMessageQueueInterface::createNewMessageQueue();
-	TheGameSpyPSMessageQueue->startThread();
-
-	/*
-	TheGameSpyGame = NEW GameSpyStagingRoom;
-	*/
-
-	TheGameSpyInfo = GameSpyInfoInterface::createNewGameSpyInfoInterface();
-	TheGameSpyInfo->setMOTD(motdBuffer);
-	TheGameSpyInfo->setConfig(configBuffer);
-
-	CustomMatchPreferences pref;
-	TheGameSpyInfo->setDisallowAsianText(pref.getDisallowAsianText());
-	TheGameSpyInfo->setDisallowNonAsianText( pref.getDisallowNonAsianText());
-
-
-	TheGameSpyConfig = GameSpyConfigInterface::create(configBuffer);
-
-	TheLadderList = NEW LadderList;
-
-	ThePinger = PingerInterface::createNewPingerInterface();
-	ThePinger->startThreads();
-
-	TheRankPointValues = NEW RankPoints;
+	SetUpOnline(ResolveConfiguredProvider(), motdBuffer, configBuffer);
 #endif
 }
 
 void TearDownGameSpy()
 {
-	// save off cached stats
-	if (TheGameSpyInfo && TheGameSpyInfo->getLocalProfileID())
-	{
-//		/* This was done on the score screen, so there is no need to do it now.
-//		 *
-		PSPlayerStats localPSStats = TheGameSpyPSMessageQueue->findPlayerStatsByID(TheGameSpyInfo->getLocalProfileID());
-		if (localPSStats.id != 0)
-		{
-			GameSpyMiscPreferences mPref;
-			mPref.setCachedStats(GameSpyPSMessageQueueInterface::formatPlayerKVPairs(localPSStats).c_str());
-			mPref.write();
-		}
-//		*/
-	}
-
-	// End our threads before we kill off the singletons they reference.  No crashy-crash for you!
-	if (TheGameSpyPSMessageQueue)
-		TheGameSpyPSMessageQueue->endThread();
-	if (TheGameSpyBuddyMessageQueue)
-		TheGameSpyBuddyMessageQueue->endThread();
-	if (TheGameSpyPeerMessageQueue)
-		TheGameSpyPeerMessageQueue->endThread();
-	if (ThePinger)
-		ThePinger->endThreads();
-
-	delete TheRankPointValues;
-	TheRankPointValues = nullptr;
-
-	delete TheGameSpyPSMessageQueue;
-	TheGameSpyPSMessageQueue = nullptr;
-
-	delete TheGameSpyBuddyMessageQueue;
-	TheGameSpyBuddyMessageQueue = nullptr;
-
-	delete TheGameSpyPeerMessageQueue;
-	TheGameSpyPeerMessageQueue = nullptr;
-
-	if (TheGameSpyInfo)
-	{
-		if (TheGameSpyInfo->getInternalIP())
-		{
-			// we've logged in before.  mark us as logging out.
-			SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGOUT);
-		}
-		delete TheGameSpyInfo;
-		TheGameSpyInfo = nullptr;
-	}
-
-	delete ThePinger;
-	ThePinger = nullptr;
-
-	delete TheLadderList;
-	TheLadderList = nullptr;
-
-	delete TheGameSpyConfig;
-	TheGameSpyConfig = nullptr;
-
-	// make sure the notification box doesn't exist
-	deleteNotificationBox();
+	TearDownOnline();
 }
-
 
 void GameSpyInfo::addToIgnoreList( AsciiString nick )
 {
