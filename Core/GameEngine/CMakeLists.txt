@@ -569,6 +569,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/Online/IOnlineSession.h
     Include/GameNetwork/Online/OnlineProviderFactory.h
     Include/GameNetwork/Online/OnlineProviderType.h
+    Include/GameNetwork/Online/OnlineRpcTypes.h
     Include/GameNetwork/RankPointValue.h
     Include/GameNetwork/Transport.h
     Include/GameNetwork/TransportFactory.h
