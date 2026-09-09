@@ -174,15 +174,26 @@ OnlineProviderType ResolveConfiguredProvider()
 
 void SetUpOnline( OnlineProviderType type, const char *motdBuffer, const char *configBuffer )
 {
-	// Slice 1 stub. Implemented in slice 3 (SetUpOnline / TearDownOnline
-	// wrappers). Defined here now so the lifecycle symbol exists without
-	// touching any live call site.
-	(void)type;
-	(void)motdBuffer;
-	(void)configBuffer;
+	RegisterBuiltInProviders();
+	TearDownOnline();
+
+	OnlineProviderFactory *factory = GetOnlineProvider(type);
+	if (factory == nullptr || !factory->isAvailable())
+	{
+		DEBUG_LOG(("SetUpOnline: provider %d is unavailable", type));
+		return;
+	}
+
+	factory->createServices(motdBuffer, configBuffer);
+	TheOnline.m_provider = type;
+	TheOnline.m_factory = factory;
 }
 
 void TearDownOnline()
 {
-	// Slice 1 stub. Implemented in slice 3.
+	if (TheOnline.m_factory != nullptr)
+		TheOnline.m_factory->destroyServices();
+
+	TheOnline.m_provider = ONLINE_PROVIDER_GAMESPY;
+	TheOnline.m_factory = nullptr;
 }
