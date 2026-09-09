@@ -30,6 +30,7 @@
 
 class IOnlineConfig;
 class IOnlineSession;
+class IOnlineChat;
 
 //-----------------------------------------------------------------------------
 // OnlineProviderFactory
@@ -51,6 +52,7 @@ public:
 	// Per-service create*() virtuals are introduced by later Phase 1 slices.
 	virtual IOnlineConfig *createConfig( const char *configBuffer ) = 0;
 	virtual IOnlineSession *createSession() = 0;
+	virtual IOnlineChat *createChat() = 0;
 
 	// Ordered lifecycle. GameSpy body == verbatim legacy SetUpGameSpy sequence.
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;

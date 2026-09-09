@@ -41,7 +41,7 @@
 #include "Common/GameSpyMiscPreferences.h"
 #include "GameClient/ShellHooks.h"
 #include "GameNetwork/GameSpy/BuddyThread.h"
-#include "GameNetwork/GameSpy/PeerThread.h"
+#include "GameNetwork/Online/IOnlineChat.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/LadderDefs.h"
@@ -62,6 +62,11 @@ IOnlineConfig *GameSpyProviderFactory::createConfig( const char *configBuffer )
 IOnlineSession *GameSpyProviderFactory::createSession()
 {
 	return GameSpySession::createNewSession();
+}
+
+IOnlineChat *GameSpyProviderFactory::createChat()
+{
+	return IOnlineChat::createNewMessageQueue();
 }
 
 // --------------------------------------------------------------
@@ -85,7 +90,7 @@ void GameSpyProviderFactory::createServices( const char *motdBuffer, const char 
 	TheGameSpyBuddyMessageQueue = GameSpyBuddyMessageQueueInterface::createNewMessageQueue();
 	TheGameSpyBuddyMessageQueue->startThread();
 
-	TheGameSpyPeerMessageQueue = GameSpyPeerMessageQueueInterface::createNewMessageQueue();
+	TheGameSpyPeerMessageQueue = createChat();
 	TheGameSpyPeerMessageQueue->startThread();
 
 	TheGameSpyPSMessageQueue = GameSpyPSMessageQueueInterface::createNewMessageQueue();
