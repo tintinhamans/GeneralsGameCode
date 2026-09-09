@@ -1,0 +1,166 @@
+/*
+**	Command & Conquer Generals Zero Hour(tm)
+**	Copyright 2025 TheSuperHackers
+**
+**	This program is free software: you can redistribute it and/or modify
+**	it under the terms of the GNU General Public License as published by
+**	the Free Software Foundation, either version 3 of the License, or
+**	(at your option) any later version.
+**
+**	This program is distributed in the hope that it will be useful,
+**	but WITHOUT ANY WARRANTY; without even the implied warranty of
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	GNU General Public License for more details.
+**
+**	You should have received a copy of the GNU General Public License
+**	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+// FILE: GameSpyProviderFactory.cpp ///////////////////////////////////////////
+// GenMP online provider abstraction (Phase 1).
+// Description: GameSpy implementation of OnlineProviderFactory.
+//
+// createServices() / destroyServices() are a verbatim copy of the legacy
+// SetUpGameSpy (PeerDefs.cpp) / TearDownGameSpy (PeerDefs.cpp) bodies. The one
+// intentional difference: the leading TearDownGameSpy() call from SetUpGameSpy
+// is NOT copied here - that teardown is hoisted into SetUpOnline() (slice 3),
+// which calls TearDownOnline() before creating anything. The creation sequence
+// itself is byte-for-byte identical (ordering audit V-e).
+//
+// The create*() overrides that return the existing TheGameSpy* globals are
+// added in the later per-interface slices; slice 1 introduces no relocation.
+///////////////////////////////////////////////////////////////////////////////
+
+#include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
+
+#include "GameNetwork/Online/GameSpy/GameSpyProviderFactory.h"
+
+#include "Common/GlobalData.h"
+#include "Common/CustomMatchPreferences.h"
+#include "Common/GameSpyMiscPreferences.h"
+#include "GameClient/ShellHooks.h"
+#include "GameNetwork/GameSpy/BuddyThread.h"
+#include "GameNetwork/GameSpy/PeerThread.h"
+#include "GameNetwork/GameSpy/PersistentStorageThread.h"
+#include "GameNetwork/GameSpy/PeerDefs.h"
+#include "GameNetwork/GameSpy/GSConfig.h"
+#include "GameNetwork/GameSpy/LadderDefs.h"
+#include "GameNetwork/GameSpy/PingThread.h"
+#include "GameNetwork/RankPointValue.h"
+
+// Defined in GameSpyOverlay.cpp; forward-declared here exactly as PeerDefs.cpp does.
+void deleteNotificationBox();
+
+// --------------------------------------------------------------
+void GameSpyProviderFactory::createServices( const char *motdBuffer, const char *configBuffer )
+{
+	if (!motdBuffer)
+		motdBuffer = "";
+	if (!configBuffer)
+		configBuffer = "";
+	// NOTE: legacy SetUpGameSpy called TearDownGameSpy() here. That teardown is
+	// hoisted into SetUpOnline() (slice 3). The creation sequence below is the
+	// verbatim legacy SetUpGameSpy body.
+
+	AsciiString dir = TheGlobalData->getPath_UserData();
+	CreateDirectory(dir.str(), nullptr);
+	dir.format("%sGeneralsOnline", TheGlobalData->getPath_UserData().str());
+	CreateDirectory(dir.str(), nullptr);
+	dir.format("%sGeneralsOnline\\Ladders", TheGlobalData->getPath_UserData().str());
+	CreateDirectory(dir.str(), nullptr);
+
+	TheGameSpyBuddyMessageQueue = GameSpyBuddyMessageQueueInterface::createNewMessageQueue();
+	TheGameSpyBuddyMessageQueue->startThread();
+
+	TheGameSpyPeerMessageQueue = GameSpyPeerMessageQueueInterface::createNewMessageQueue();
+	TheGameSpyPeerMessageQueue->startThread();
+
+	TheGameSpyPSMessageQueue = GameSpyPSMessageQueueInterface::createNewMessageQueue();
+	TheGameSpyPSMessageQueue->startThread();
+
+	/*
+	TheGameSpyGame = NEW GameSpyStagingRoom;
+	*/
+
+	TheGameSpyInfo = GameSpyInfoInterface::createNewGameSpyInfoInterface();
+	TheGameSpyInfo->setMOTD(motdBuffer);
+	TheGameSpyInfo->setConfig(configBuffer);
+
+	CustomMatchPreferences pref;
+	TheGameSpyInfo->setDisallowAsianText(pref.getDisallowAsianText());
+	TheGameSpyInfo->setDisallowNonAsianText( pref.getDisallowNonAsianText());
+
+
+	TheGameSpyConfig = GameSpyConfigInterface::create(configBuffer);
+
+	TheLadderList = NEW LadderList;
+
+	ThePinger = PingerInterface::createNewPingerInterface();
+	ThePinger->startThreads();
+
+	TheRankPointValues = NEW RankPoints;
+}
+
+// --------------------------------------------------------------
+void GameSpyProviderFactory::destroyServices()
+{
+	// save off cached stats
+	if (TheGameSpyInfo && TheGameSpyInfo->getLocalProfileID())
+	{
+//		/* This was done on the score screen, so there is no need to do it now.
+//		 *
+		PSPlayerStats localPSStats = TheGameSpyPSMessageQueue->findPlayerStatsByID(TheGameSpyInfo->getLocalProfileID());
+		if (localPSStats.id != 0)
+		{
+			GameSpyMiscPreferences mPref;
+			mPref.setCachedStats(GameSpyPSMessageQueueInterface::formatPlayerKVPairs(localPSStats).c_str());
+			mPref.write();
+		}
+//		*/
+	}
+
+	// End our threads before we kill off the singletons they reference.  No crashy-crash for you!
+	if (TheGameSpyPSMessageQueue)
+		TheGameSpyPSMessageQueue->endThread();
+	if (TheGameSpyBuddyMessageQueue)
+		TheGameSpyBuddyMessageQueue->endThread();
+	if (TheGameSpyPeerMessageQueue)
+		TheGameSpyPeerMessageQueue->endThread();
+	if (ThePinger)
+		ThePinger->endThreads();
+
+	delete TheRankPointValues;
+	TheRankPointValues = nullptr;
+
+	delete TheGameSpyPSMessageQueue;
+	TheGameSpyPSMessageQueue = nullptr;
+
+	delete TheGameSpyBuddyMessageQueue;
+	TheGameSpyBuddyMessageQueue = nullptr;
+
+	delete TheGameSpyPeerMessageQueue;
+	TheGameSpyPeerMessageQueue = nullptr;
+
+	if (TheGameSpyInfo)
+	{
+		if (TheGameSpyInfo->getInternalIP())
+		{
+			// we've logged in before.  mark us as logging out.
+			SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGOUT);
+		}
+		delete TheGameSpyInfo;
+		TheGameSpyInfo = nullptr;
+	}
+
+	delete ThePinger;
+	ThePinger = nullptr;
+
+	delete TheLadderList;
+	TheLadderList = nullptr;
+
+	delete TheGameSpyConfig;
+	TheGameSpyConfig = nullptr;
+
+	// make sure the notification box doesn't exist
+	deleteNotificationBox();
+}
