@@ -132,7 +132,7 @@ typedef std::queue<PeerRequest> RequestQueue;
 typedef std::queue<PeerResponse> ResponseQueue;
 class PeerThreadClass;
 
-class GameSpyPeerMessageQueue : public GameSpyPeerMessageQueueInterface
+class GameSpyPeerMessageQueue : public IOnlineChat
 {
 public:
 	virtual ~GameSpyPeerMessageQueue() override;
@@ -164,12 +164,12 @@ private:
 	SerialAuthResult m_serialAuth;
 };
 
-GameSpyPeerMessageQueueInterface* GameSpyPeerMessageQueueInterface::createNewMessageQueue()
+IOnlineChat* IOnlineChat::createNewMessageQueue()
 {
 	return NEW GameSpyPeerMessageQueue;
 }
 
-GameSpyPeerMessageQueueInterface *TheGameSpyPeerMessageQueue;
+IOnlineChat *TheGameSpyPeerMessageQueue;
 #define MESSAGE_QUEUE ((GameSpyPeerMessageQueue *)TheGameSpyPeerMessageQueue)
 
 //-------------------------------------------------------------------------

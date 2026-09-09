@@ -32,10 +32,10 @@
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/Online/OnlineRpcTypes.h"
 
-class GameSpyPeerMessageQueueInterface
+class IOnlineChat
 {
 public:
-	virtual ~GameSpyPeerMessageQueueInterface() {}
+	virtual ~IOnlineChat() {}
 	virtual void startThread() = 0;
 	virtual void endThread() = 0;
 	virtual Bool isThreadRunning() = 0;
@@ -50,7 +50,7 @@ public:
 
 	virtual SerialAuthResult getSerialAuthResult() = 0;
 
-	static GameSpyPeerMessageQueueInterface* createNewMessageQueue();
+	static IOnlineChat* createNewMessageQueue();
 };
 
-extern GameSpyPeerMessageQueueInterface *TheGameSpyPeerMessageQueue;
+extern IOnlineChat *TheGameSpyPeerMessageQueue;
