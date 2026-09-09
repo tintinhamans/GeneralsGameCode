@@ -25,3 +25,8 @@
 #pragma once
 
 #include "GameNetwork/Online/IOnlineConfig.h"
+
+// TheSuperHackers @refactor GenMP Phase 1 - Compatibility alias. Existing code
+// that names GameSpyConfigInterface (including qualified static calls such as
+// GameSpyConfigInterface::create) keeps compiling unchanged.
+typedef IOnlineConfig GameSpyConfigInterface;

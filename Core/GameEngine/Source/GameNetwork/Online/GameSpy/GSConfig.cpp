@@ -39,9 +39,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-GameSpyConfigInterface *TheGameSpyConfig = nullptr;
+IOnlineConfig *TheGameSpyConfig = nullptr;
 
-class GameSpyConfig : public GameSpyConfigInterface
+class GameSpyConfig : public IOnlineConfig
 {
 public:
 	GameSpyConfig( AsciiString config );
@@ -112,7 +112,7 @@ protected:
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-GameSpyConfigInterface* GameSpyConfigInterface::create(AsciiString config)
+IOnlineConfig* IOnlineConfig::create(AsciiString config)
 {
 	return NEW GameSpyConfig(config);
 }
