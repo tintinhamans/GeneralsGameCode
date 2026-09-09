@@ -38,6 +38,7 @@ public:
 
 	virtual IOnlineConfig *createConfig( const char *configBuffer ) override;
 	virtual IOnlineSession *createSession() override;
+	virtual IOnlineChat *createChat() override;
 
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) override;
 	virtual void destroyServices() override;

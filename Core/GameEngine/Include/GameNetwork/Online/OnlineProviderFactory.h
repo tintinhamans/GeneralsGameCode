@@ -30,6 +30,7 @@
 
 class IOnlineConfig;
 class IOnlineSession;
+class IOnlineChat;
 
 //-----------------------------------------------------------------------------
 // OnlineProviderFactory
@@ -48,6 +49,7 @@ public:
 
 	virtual IOnlineConfig *createConfig( const char *configBuffer ) = 0;
 	virtual IOnlineSession *createSession() = 0;
+	virtual IOnlineChat *createChat() = 0;
 
 	// Ordered lifecycle.
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
