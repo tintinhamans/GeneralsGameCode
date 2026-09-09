@@ -25,6 +25,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameNetwork/Online/OnlineProviderFactory.h"
+#include "GameNetwork/Online/GameSpy/GameSpyProviderFactory.h"
 
 //-----------------------------------------------------------------------------
 // PUBLIC DATA
@@ -104,9 +105,11 @@ OnlineProviderFactory *GetOnlineProvider( OnlineProviderType type )
 
 void RegisterBuiltInProviders()
 {
-	// Slice 1 stub. The GameSpy factory is registered here in the GameSpy
-	// provider commit (task 1.6). Kept as an explicit call site so registration
-	// never depends on static-init order.
+	// Function-local static: constructed on first call, never destroyed, so there
+	// is no destruction-ordering hazard and no reliance on static-init order.
+	// RegisterOnlineProvider() is idempotent, so repeat calls are harmless.
+	static GameSpyProviderFactory theGameSpyFactory;
+	RegisterOnlineProvider( &theGameSpyFactory );
 }
 
 void SetCommandLineOnlineProvider( const char *name )

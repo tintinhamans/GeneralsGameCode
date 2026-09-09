@@ -563,6 +563,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/NetworkDefs.h
     Include/GameNetwork/NetworkInterface.h
     Include/GameNetwork/networkutil.h
+    Include/GameNetwork/Online/GameSpy/GameSpyProviderFactory.h
     Include/GameNetwork/Online/OnlineProviderFactory.h
     Include/GameNetwork/Online/OnlineProviderType.h
     Include/GameNetwork/RankPointValue.h
@@ -1174,6 +1175,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/NetPacketStructs.cpp
     Source/GameNetwork/Network.cpp
     Source/GameNetwork/NetworkUtil.cpp
+    Source/GameNetwork/Online/GameSpy/GameSpyProviderFactory.cpp
     Source/GameNetwork/Online/OnlineProviderFactory.cpp
     Source/GameNetwork/Transport.cpp
     Source/GameNetwork/TransportFactory.cpp
