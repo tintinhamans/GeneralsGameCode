@@ -36,6 +36,8 @@ public:
 	virtual const char *getName() const override { return "GameSpy"; }
 	virtual Bool isAvailable() const override { return TRUE; }
 
+	virtual IOnlineConfig *createConfig( const char *configBuffer ) override;
+
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) override;
 	virtual void destroyServices() override;
 };

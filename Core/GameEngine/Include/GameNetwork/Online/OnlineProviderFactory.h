@@ -28,6 +28,8 @@
 #include "Lib/BaseType.h"
 #include "GameNetwork/Online/OnlineProviderType.h"
 
+class IOnlineConfig;
+
 //-----------------------------------------------------------------------------
 // OnlineProviderFactory
 //
@@ -43,6 +45,7 @@ public:
 	virtual const char *getName() const = 0;			// e.g. "GameSpy"
 	virtual Bool isAvailable() const = 0;
 
+	virtual IOnlineConfig *createConfig( const char *configBuffer ) = 0;
 
 	// Ordered lifecycle.
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
