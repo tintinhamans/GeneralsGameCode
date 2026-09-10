@@ -33,6 +33,7 @@ class IOnlineSession;
 class IOnlineChat;
 class IOnlineLobbyState;
 class IOnlinePresence;
+class IOnlineStats;
 
 //-----------------------------------------------------------------------------
 // OnlineProviderFactory
@@ -54,6 +55,7 @@ public:
 	virtual IOnlineChat *createChat() = 0;
 	virtual IOnlineLobbyState *createLobbyState() = 0;
 	virtual IOnlinePresence *createPresence() = 0;
+	virtual IOnlineStats *createStats() = 0;
 
 	// Ordered lifecycle.
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
