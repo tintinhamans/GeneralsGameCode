@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include "GameNetwork/GameSpy/PingThread.h"
+
 #include "Common/SubsystemInterface.h"
 
 // this class encapsulates a request for the thread
@@ -53,10 +55,10 @@ public:
 //-------------------------------------------------------------------------
 
 // this is the actual message queue used to pass messages between threads
-class GameResultsInterface : public SubsystemInterface
+class IOnlineResults : public SubsystemInterface
 {
 public:
-	virtual ~GameResultsInterface() override {}
+	virtual ~IOnlineResults() override {}
 	virtual void startThreads() = 0;
 	virtual void endThreads() = 0;
 	virtual Bool areThreadsRunning() = 0;
@@ -67,9 +69,9 @@ public:
 	virtual void addResponse( const GameResultsResponse& resp ) = 0;
 	virtual Bool getResponse( GameResultsResponse& resp ) = 0;
 
-	static GameResultsInterface* createNewGameResultsInterface();
+	static IOnlineResults* createNewGameResultsInterface();
 
 	virtual Bool areGameResultsBeingSent() = 0;
 };
 
-extern GameResultsInterface *TheGameResultsQueue;
+extern IOnlineResults *TheGameResultsQueue;

@@ -536,7 +536,6 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GameSpy/MainMenuUtils.h
     Include/GameNetwork/GameSpy/PeerDefs.h
     Include/GameNetwork/GameSpy/PeerDefsImplementation.h
-    Include/GameNetwork/Online/IOnlineChat.h
     Include/GameNetwork/GameSpy/PersistentStorageDefs.h
     Include/GameNetwork/GameSpy/PersistentStorageThread.h
     Include/GameNetwork/GameSpy/PingThread.h
@@ -565,9 +564,12 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/networkutil.h
     Include/GameNetwork/Online/GameSpy/GameSpyProviderFactory.h
     Include/GameNetwork/Online/GameSpy/GameSpySession.h
+    Include/GameNetwork/Online/IOnlineChat.h
     Include/GameNetwork/Online/IOnlineConfig.h
+    Include/GameNetwork/Online/IOnlineLadder.h
     Include/GameNetwork/Online/IOnlineLobbyState.h
     Include/GameNetwork/Online/IOnlinePresence.h
+    Include/GameNetwork/Online/IOnlineResults.h
     Include/GameNetwork/Online/IOnlineSession.h
     Include/GameNetwork/Online/IOnlineStats.h
     Include/GameNetwork/Online/OnlineProviderFactory.h
@@ -1153,12 +1155,10 @@ set(GAMEENGINE_SRC
     #Source/GameNetwork/GameSpyGameInfo.cpp # unused
     #Source/GameNetwork/GameSpyGP.cpp # unused
     Source/GameNetwork/GameSpy/Chat.cpp
-    Source/GameNetwork/GameSpy/LadderDefs.cpp
     Source/GameNetwork/GameSpy/LobbyUtils.cpp
     Source/GameNetwork/GameSpy/MainMenuUtils.cpp
     Source/GameNetwork/GameSpy/StagingRoomGameInfo.cpp
-    Source/GameNetwork/GameSpy/Thread/GameResultsThread.cpp
-    Source/GameNetwork/Online/GameSpy/PeerThread.cpp
+    Source/GameNetwork/Online/GameSpy/BuddyThread.cpp
     Source/GameNetwork/GameSpy/Thread/PingThread.cpp
     Source/GameNetwork/GameSpy/Thread/ThreadUtils.cpp
     Source/GameNetwork/GameSpyOverlay.cpp
@@ -1178,11 +1178,13 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/NetPacketStructs.cpp
     Source/GameNetwork/Network.cpp
     Source/GameNetwork/NetworkUtil.cpp
-    Source/GameNetwork/Online/GameSpy/BuddyThread.cpp
+    Source/GameNetwork/Online/GameSpy/GSConfig.cpp
+    Source/GameNetwork/Online/GameSpy/GameResultsThread.cpp
     Source/GameNetwork/Online/GameSpy/GameSpyProviderFactory.cpp
     Source/GameNetwork/Online/GameSpy/GameSpySession.cpp
-    Source/GameNetwork/Online/GameSpy/GSConfig.cpp
+    Source/GameNetwork/Online/GameSpy/LadderDefs.cpp
     Source/GameNetwork/Online/GameSpy/PeerDefs.cpp
+    Source/GameNetwork/Online/GameSpy/PeerThread.cpp
     Source/GameNetwork/Online/GameSpy/PersistentStorageThread.cpp
     Source/GameNetwork/Online/OnlineProviderFactory.cpp
     Source/GameNetwork/Transport.cpp

@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include "GameNetwork/RankPointValue.h"
+
 #include "Common/UnicodeString.h"
 #include "Common/AsciiString.h"
 #include "Common/STLTypedefs.h"
@@ -60,11 +62,11 @@ public:
 
 typedef std::list<LadderInfo *> LadderInfoList;
 
-class LadderList
+class IOnlineLadder
 {
 public:
-	LadderList();
-	~LadderList();
+	IOnlineLadder();
+	~IOnlineLadder();
 
 	const LadderInfo* findLadder( const AsciiString& addr, UnsignedShort port );
 	const LadderInfo* findLadderByIndex( Int index );	// doesn't look in local ladders
@@ -80,4 +82,4 @@ private:
 	LadderInfoList m_standardLadders;
 };
 
-extern LadderList *TheLadderList;
+extern IOnlineLadder *TheLadderList;
