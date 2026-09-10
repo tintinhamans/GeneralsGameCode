@@ -37,7 +37,7 @@
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/GameSpy/BuddyThread.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
-#include "GameNetwork/GameSpy/PeerThread.h"
+#include "GameNetwork/Online/IOnlineChat.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/GameSpy/ThreadUtils.h"
 
@@ -132,7 +132,7 @@ typedef std::queue<PeerRequest> RequestQueue;
 typedef std::queue<PeerResponse> ResponseQueue;
 class PeerThreadClass;
 
-class GameSpyPeerMessageQueue : public GameSpyPeerMessageQueueInterface
+class GameSpyPeerMessageQueue : public IOnlineChat
 {
 public:
 	virtual ~GameSpyPeerMessageQueue() override;
@@ -164,12 +164,12 @@ private:
 	SerialAuthResult m_serialAuth;
 };
 
-GameSpyPeerMessageQueueInterface* GameSpyPeerMessageQueueInterface::createNewMessageQueue()
+IOnlineChat* IOnlineChat::createNewMessageQueue()
 {
 	return NEW GameSpyPeerMessageQueue;
 }
 
-GameSpyPeerMessageQueueInterface *TheGameSpyPeerMessageQueue;
+IOnlineChat *TheGameSpyPeerMessageQueue;
 #define MESSAGE_QUEUE ((GameSpyPeerMessageQueue *)TheGameSpyPeerMessageQueue)
 
 //-------------------------------------------------------------------------
