@@ -38,7 +38,7 @@
 #include "GameNetwork/GameSpy/BuddyThread.h"
 #include "GameNetwork/Online/IOnlineChat.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
-#include "GameNetwork/GameSpy/PeerDefs.h"
+#include "GameNetwork/Online/IOnlineLobbyState.h"
 #include "GameNetwork/GameSpy/LadderDefs.h"
 #include "GameNetwork/Online/IOnlineConfig.h"
 #include "GameNetwork/GameSpy/PingThread.h"
@@ -61,6 +61,11 @@ IOnlineSession *GameSpyProviderFactory::createSession()
 IOnlineChat *GameSpyProviderFactory::createChat()
 {
 	return IOnlineChat::createNewMessageQueue();
+}
+
+IOnlineLobbyState *GameSpyProviderFactory::createLobbyState()
+{
+	return IOnlineLobbyState::createNewGameSpyInfoInterface();
 }
 
 // --------------------------------------------------------------
@@ -92,7 +97,7 @@ void GameSpyProviderFactory::createServices( const char *motdBuffer, const char 
 	TheGameSpyGame = NEW GameSpyStagingRoom;
 	*/
 
-	TheGameSpyInfo = GameSpyInfoInterface::createNewGameSpyInfoInterface();
+	TheGameSpyInfo = createLobbyState();
 	TheGameSpyInfo->setMOTD(motdBuffer);
 	TheGameSpyInfo->setConfig(configBuffer);
 

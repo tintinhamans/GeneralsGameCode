@@ -1154,7 +1154,6 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GameSpy/LadderDefs.cpp
     Source/GameNetwork/GameSpy/LobbyUtils.cpp
     Source/GameNetwork/GameSpy/MainMenuUtils.cpp
-    Source/GameNetwork/GameSpy/PeerDefs.cpp
     Source/GameNetwork/GameSpy/StagingRoomGameInfo.cpp
     Source/GameNetwork/GameSpy/Thread/BuddyThread.cpp
     Source/GameNetwork/GameSpy/Thread/GameResultsThread.cpp
@@ -1182,6 +1181,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/Online/GameSpy/GameSpyProviderFactory.cpp
     Source/GameNetwork/Online/GameSpy/GameSpySession.cpp
     Source/GameNetwork/Online/GameSpy/GSConfig.cpp
+    Source/GameNetwork/Online/GameSpy/PeerDefs.cpp
     Source/GameNetwork/Online/OnlineProviderFactory.cpp
     Source/GameNetwork/Transport.cpp
     Source/GameNetwork/TransportFactory.cpp
