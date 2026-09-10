@@ -34,10 +34,10 @@
 #include "Common/CustomMatchPreferences.h"
 #include "Common/GameSpyMiscPreferences.h"
 #include "GameClient/ShellHooks.h"
-#include "GameNetwork/GameSpy/BuddyThread.h"
-#include "GameNetwork/GameSpy/PeerThread.h"
-#include "GameNetwork/GameSpy/PersistentStorageThread.h"
-#include "GameNetwork/GameSpy/PeerDefs.h"
+#include "GameNetwork/Online/IOnlinePresence.h"
+#include "GameNetwork/Online/IOnlineChat.h"
+#include "GameNetwork/Online/IOnlineStats.h"
+#include "GameNetwork/Online/IOnlineLobbyState.h"
 #include "GameNetwork/GameSpy/LadderDefs.h"
 #include "GameNetwork/Online/IOnlineConfig.h"
 #include "GameNetwork/GameSpy/PingThread.h"
@@ -56,6 +56,26 @@ IOnlineSession *GameSpyProviderFactory::createSession()
 	return GameSpySession::createNewSession();
 }
 
+IOnlineChat *GameSpyProviderFactory::createChat()
+{
+	return IOnlineChat::createNewMessageQueue();
+}
+
+IOnlineLobbyState *GameSpyProviderFactory::createLobbyState()
+{
+	return IOnlineLobbyState::createNewGameSpyInfoInterface();
+}
+
+IOnlinePresence *GameSpyProviderFactory::createPresence()
+{
+	return IOnlinePresence::createNewMessageQueue();
+}
+
+IOnlineStats *GameSpyProviderFactory::createStats()
+{
+	return IOnlineStats::createNewMessageQueue();
+}
+
 // --------------------------------------------------------------
 void GameSpyProviderFactory::createServices( const char *motdBuffer, const char *configBuffer )
 {
@@ -72,20 +92,20 @@ void GameSpyProviderFactory::createServices( const char *motdBuffer, const char 
 	dir.format("%sGeneralsOnline\\Ladders", TheGlobalData->getPath_UserData().str());
 	CreateDirectory(dir.str(), nullptr);
 
-	TheGameSpyBuddyMessageQueue = GameSpyBuddyMessageQueueInterface::createNewMessageQueue();
+	TheGameSpyBuddyMessageQueue = createPresence();
 	TheGameSpyBuddyMessageQueue->startThread();
 
-	TheGameSpyPeerMessageQueue = GameSpyPeerMessageQueueInterface::createNewMessageQueue();
+	TheGameSpyPeerMessageQueue = createChat();
 	TheGameSpyPeerMessageQueue->startThread();
 
-	TheGameSpyPSMessageQueue = GameSpyPSMessageQueueInterface::createNewMessageQueue();
+	TheGameSpyPSMessageQueue = createStats();
 	TheGameSpyPSMessageQueue->startThread();
 
 	/*
 	TheGameSpyGame = NEW GameSpyStagingRoom;
 	*/
 
-	TheGameSpyInfo = GameSpyInfoInterface::createNewGameSpyInfoInterface();
+	TheGameSpyInfo = createLobbyState();
 	TheGameSpyInfo->setMOTD(motdBuffer);
 	TheGameSpyInfo->setConfig(configBuffer);
 
@@ -121,7 +141,7 @@ void GameSpyProviderFactory::destroyServices()
 		if (localPSStats.id != 0)
 		{
 			GameSpyMiscPreferences mPref;
-			mPref.setCachedStats(GameSpyPSMessageQueueInterface::formatPlayerKVPairs(localPSStats).c_str());
+			mPref.setCachedStats(IOnlineStats::formatPlayerKVPairs(localPSStats).c_str());
 			mPref.write();
 		}
 //		*/

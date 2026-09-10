@@ -30,6 +30,10 @@
 
 class IOnlineConfig;
 class IOnlineSession;
+class IOnlineChat;
+class IOnlineLobbyState;
+class IOnlinePresence;
+class IOnlineStats;
 
 class OnlineProviderFactory
 {
@@ -42,6 +46,10 @@ public:
 
 	virtual IOnlineConfig *createConfig( const char *configBuffer ) = 0;
 	virtual IOnlineSession *createSession() = 0;
+	virtual IOnlineChat *createChat() = 0;
+	virtual IOnlineLobbyState *createLobbyState() = 0;
+	virtual IOnlinePresence *createPresence() = 0;
+	virtual IOnlineStats *createStats() = 0;
 
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
 	virtual void destroyServices() = 0;

@@ -31,7 +31,7 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
-#include "GameNetwork/GameSpy/BuddyThread.h"
+#include "GameNetwork/Online/IOnlinePresence.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/GameSpy/ThreadUtils.h"
@@ -47,7 +47,7 @@ typedef std::queue<BuddyRequest> RequestQueue;
 typedef std::queue<BuddyResponse> ResponseQueue;
 class BuddyThreadClass;
 
-class GameSpyBuddyMessageQueue : public GameSpyBuddyMessageQueueInterface
+class GameSpyBuddyMessageQueue : public IOnlinePresence
 {
 public:
 	virtual ~GameSpyBuddyMessageQueue() override;
@@ -76,12 +76,12 @@ private:
 	BuddyThreadClass *m_thread;
 };
 
-GameSpyBuddyMessageQueueInterface* GameSpyBuddyMessageQueueInterface::createNewMessageQueue()
+IOnlinePresence* IOnlinePresence::createNewMessageQueue()
 {
 	return NEW GameSpyBuddyMessageQueue;
 }
 
-GameSpyBuddyMessageQueueInterface *TheGameSpyBuddyMessageQueue;
+IOnlinePresence *TheGameSpyBuddyMessageQueue;
 #define MESSAGE_QUEUE ((GameSpyBuddyMessageQueue *)TheGameSpyBuddyMessageQueue)
 
 //-------------------------------------------------------------------------
