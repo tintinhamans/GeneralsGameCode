@@ -161,10 +161,10 @@ public:
 //-------------------------------------------------------------------------
 
 // this is the actual message queue used to pass messages between threads
-class GameSpyPSMessageQueueInterface
+class IOnlineStats
 {
 public:
-	virtual ~GameSpyPSMessageQueueInterface() {}
+	virtual ~IOnlineStats() {}
 	virtual void startThread() = 0;
 	virtual void endThread() = 0;
 	virtual Bool isThreadRunning() = 0;
@@ -179,10 +179,10 @@ public:
 	virtual void trackPlayerStats( PSPlayerStats stats ) = 0;
 	virtual PSPlayerStats findPlayerStatsByID( Int id ) = 0;
 
-	static GameSpyPSMessageQueueInterface* createNewMessageQueue();
+	static IOnlineStats* createNewMessageQueue();
 
 	static std::string formatPlayerKVPairs( PSPlayerStats stats );
 	static PSPlayerStats parsePlayerKVPairs( std::string kvPairs );
 };
 
-extern GameSpyPSMessageQueueInterface *TheGameSpyPSMessageQueue;
+extern IOnlineStats *TheGameSpyPSMessageQueue;
