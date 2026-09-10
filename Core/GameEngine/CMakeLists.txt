@@ -566,6 +566,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/Online/GameSpy/GameSpyProviderFactory.h
     Include/GameNetwork/Online/GameSpy/GameSpySession.h
     Include/GameNetwork/Online/IOnlineConfig.h
+    Include/GameNetwork/Online/IOnlineLobbyState.h
     Include/GameNetwork/Online/IOnlineSession.h
     Include/GameNetwork/Online/OnlineProviderFactory.h
     Include/GameNetwork/Online/OnlineProviderType.h

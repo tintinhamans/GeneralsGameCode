@@ -170,10 +170,10 @@ enum GameSpyBuddyStatus CPP_11(: Int) {
 
 // ---------------------------------------------------
 // this class holds info used in the main thread
-class GameSpyInfoInterface
+class IOnlineLobbyState
 {
 public:
-	virtual ~GameSpyInfoInterface() {};
+	virtual ~IOnlineLobbyState() {};
 	virtual void reset() {};
 	virtual void clearGroupRoomList() = 0;
 	virtual GroupRoomMap* getGroupRoomList() = 0;
@@ -247,7 +247,7 @@ public:
 	virtual const AsciiString& getPingString() = 0;
 	virtual Int getPingValue( const AsciiString& otherPing ) = 0;
 
-	static GameSpyInfoInterface* createNewGameSpyInfoInterface();
+	static IOnlineLobbyState* createNewGameSpyInfoInterface();
 
 	virtual void addToSavedIgnoreList( Int profileID, AsciiString nick ) = 0;
 	virtual void removeFromSavedIgnoreList( Int profileID ) = 0;
@@ -279,7 +279,8 @@ public:
 	virtual void updateAdditionalGameSpyDisconnections(Int count) = 0;
 };
 
-extern GameSpyInfoInterface *TheGameSpyInfo;
+extern IOnlineLobbyState *TheGameSpyInfo;
+extern GameSpyStagingRoom *TheGameSpyGame;
 
 void WOLDisplayGameOptions();
 void WOLDisplaySlotList();
