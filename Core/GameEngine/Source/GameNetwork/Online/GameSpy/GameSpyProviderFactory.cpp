@@ -42,7 +42,7 @@
 #include "GameClient/ShellHooks.h"
 #include "GameNetwork/Online/IOnlinePresence.h"
 #include "GameNetwork/Online/IOnlineChat.h"
-#include "GameNetwork/GameSpy/PersistentStorageThread.h"
+#include "GameNetwork/Online/IOnlineStats.h"
 #include "GameNetwork/Online/IOnlineLobbyState.h"
 #include "GameNetwork/GameSpy/LadderDefs.h"
 #include "GameNetwork/Online/IOnlineConfig.h"
@@ -79,6 +79,11 @@ IOnlinePresence *GameSpyProviderFactory::createPresence()
 	return IOnlinePresence::createNewMessageQueue();
 }
 
+IOnlineStats *GameSpyProviderFactory::createStats()
+{
+	return IOnlineStats::createNewMessageQueue();
+}
+
 // --------------------------------------------------------------
 void GameSpyProviderFactory::createServices( const char *motdBuffer, const char *configBuffer )
 {
@@ -103,7 +108,7 @@ void GameSpyProviderFactory::createServices( const char *motdBuffer, const char 
 	TheGameSpyPeerMessageQueue = createChat();
 	TheGameSpyPeerMessageQueue->startThread();
 
-	TheGameSpyPSMessageQueue = GameSpyPSMessageQueueInterface::createNewMessageQueue();
+	TheGameSpyPSMessageQueue = createStats();
 	TheGameSpyPSMessageQueue->startThread();
 
 	/*
@@ -146,7 +151,7 @@ void GameSpyProviderFactory::destroyServices()
 		if (localPSStats.id != 0)
 		{
 			GameSpyMiscPreferences mPref;
-			mPref.setCachedStats(GameSpyPSMessageQueueInterface::formatPlayerKVPairs(localPSStats).c_str());
+			mPref.setCachedStats(IOnlineStats::formatPlayerKVPairs(localPSStats).c_str());
 			mPref.write();
 		}
 //		*/

@@ -568,8 +568,8 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/Online/IOnlineConfig.h
     Include/GameNetwork/Online/IOnlineLobbyState.h
     Include/GameNetwork/Online/IOnlinePresence.h
-    Include/GameNetwork/Online/IOnlineStats.h
     Include/GameNetwork/Online/IOnlineSession.h
+    Include/GameNetwork/Online/IOnlineStats.h
     Include/GameNetwork/Online/OnlineProviderFactory.h
     Include/GameNetwork/Online/OnlineProviderType.h
     Include/GameNetwork/Online/OnlineRpcTypes.h

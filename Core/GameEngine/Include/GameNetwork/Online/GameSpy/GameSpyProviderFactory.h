@@ -41,6 +41,7 @@ public:
 	virtual IOnlineChat *createChat() override;
 	virtual IOnlineLobbyState *createLobbyState() override;
 	virtual IOnlinePresence *createPresence() override;
+	virtual IOnlineStats *createStats() override;
 
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) override;
 	virtual void destroyServices() override;
