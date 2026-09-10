@@ -567,6 +567,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/Online/GameSpy/GameSpySession.h
     Include/GameNetwork/Online/IOnlineConfig.h
     Include/GameNetwork/Online/IOnlineLobbyState.h
+    Include/GameNetwork/Online/IOnlinePresence.h
     Include/GameNetwork/Online/IOnlineSession.h
     Include/GameNetwork/Online/OnlineProviderFactory.h
     Include/GameNetwork/Online/OnlineProviderType.h
@@ -1155,7 +1156,6 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GameSpy/LobbyUtils.cpp
     Source/GameNetwork/GameSpy/MainMenuUtils.cpp
     Source/GameNetwork/GameSpy/StagingRoomGameInfo.cpp
-    Source/GameNetwork/GameSpy/Thread/BuddyThread.cpp
     Source/GameNetwork/GameSpy/Thread/GameResultsThread.cpp
     Source/GameNetwork/Online/GameSpy/PeerThread.cpp
     Source/GameNetwork/GameSpy/Thread/PersistentStorageThread.cpp
@@ -1178,6 +1178,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/NetPacketStructs.cpp
     Source/GameNetwork/Network.cpp
     Source/GameNetwork/NetworkUtil.cpp
+    Source/GameNetwork/Online/GameSpy/BuddyThread.cpp
     Source/GameNetwork/Online/GameSpy/GameSpyProviderFactory.cpp
     Source/GameNetwork/Online/GameSpy/GameSpySession.cpp
     Source/GameNetwork/Online/GameSpy/GSConfig.cpp

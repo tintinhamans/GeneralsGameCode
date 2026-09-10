@@ -147,10 +147,10 @@ public:
 //-------------------------------------------------------------------------
 
 // this is the actual message queue used to pass messages between threads
-class GameSpyBuddyMessageQueueInterface
+class IOnlinePresence
 {
 public:
-	virtual ~GameSpyBuddyMessageQueueInterface() {}
+	virtual ~IOnlinePresence() {}
 	virtual void startThread() = 0;
 	virtual void endThread() = 0;
 	virtual Bool isThreadRunning() = 0;
@@ -165,7 +165,7 @@ public:
 
 	virtual GPProfile getLocalProfileID() = 0;
 
-	static GameSpyBuddyMessageQueueInterface* createNewMessageQueue();
+	static IOnlinePresence* createNewMessageQueue();
 };
 
-extern GameSpyBuddyMessageQueueInterface *TheGameSpyBuddyMessageQueue;
+extern IOnlinePresence *TheGameSpyBuddyMessageQueue;
