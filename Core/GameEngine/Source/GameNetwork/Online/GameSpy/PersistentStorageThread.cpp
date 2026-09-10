@@ -33,7 +33,7 @@
 
 #include "Common/UserPreferences.h"
 #include "Common/PlayerTemplate.h"
-#include "GameNetwork/GameSpy/PersistentStorageThread.h"
+#include "GameNetwork/Online/IOnlineStats.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 
 #include "WWLib/mutex.h"
@@ -372,7 +372,7 @@ typedef std::queue<PSRequest> RequestQueue;
 typedef std::queue<PSResponse> ResponseQueue;
 class PSThreadClass;
 
-class GameSpyPSMessageQueue : public GameSpyPSMessageQueueInterface
+class GameSpyPSMessageQueue : public IOnlineStats
 {
 public:
 	virtual ~GameSpyPSMessageQueue() override;
@@ -418,12 +418,12 @@ private:
 	std::map<Int, PSPlayerStats> m_playerStats;
 };
 
-GameSpyPSMessageQueueInterface* GameSpyPSMessageQueueInterface::createNewMessageQueue()
+IOnlineStats* IOnlineStats::createNewMessageQueue()
 {
 	return NEW GameSpyPSMessageQueue;
 }
 
-GameSpyPSMessageQueueInterface *TheGameSpyPSMessageQueue = nullptr;
+IOnlineStats *TheGameSpyPSMessageQueue = nullptr;
 #define MESSAGE_QUEUE ((GameSpyPSMessageQueue *)TheGameSpyPSMessageQueue)
 
 //-------------------------------------------------------------------------
@@ -722,7 +722,7 @@ static void getPersistentDataCallback(int localid, int profileid, persisttype_t 
 			req.email = MESSAGE_QUEUE->getEmail();
 			req.nick = MESSAGE_QUEUE->getNick();
 			req.password = MESSAGE_QUEUE->getPassword();
-			req.player = GameSpyPSMessageQueueInterface::parsePlayerKVPairs((len)?data:"");
+			req.player = IOnlineStats::parsePlayerKVPairs((len)?data:"");
 			req.player.id = profileid;
 			req.addDesync = FALSE;
 			req.addDiscon = FALSE;
@@ -732,7 +732,7 @@ static void getPersistentDataCallback(int localid, int profileid, persisttype_t 
 	}
 
 	resp.responseType = PSResponse::PSRESPONSE_PLAYERSTATS;
-	resp.player = GameSpyPSMessageQueueInterface::parsePlayerKVPairs((len)?data:"");
+	resp.player = IOnlineStats::parsePlayerKVPairs((len)?data:"");
 	resp.player.id = profileid;
 
 	TheGameSpyPSMessageQueue->addResponse(resp);
@@ -1008,7 +1008,7 @@ void PSThreadClass::Thread_Function()
 						if (TheGameSpyPSMessageQueue)
 							TheGameSpyPSMessageQueue->trackPlayerStats(req.player);
 
-						char *munkeeHack = strdup(GameSpyPSMessageQueueInterface::formatPlayerKVPairs(req.player).c_str()); // GS takes a char* for some reason
+						char *munkeeHack = strdup(IOnlineStats::formatPlayerKVPairs(req.player).c_str()); // GS takes a char* for some reason
 						incrOpCount();
 						DEBUG_LOG(("Setting values %s", munkeeHack));
 						SetPersistDataValues(0, req.player.id, pd_public_rw, 0, munkeeHack, setPersistentDataCallback, this);
@@ -1125,7 +1125,7 @@ void PSPlayerStats::reset()
 //-------------------------------------------------------------------------
 #define CHECK(x) if (k == #x && generalMarker >= 0) { s.x[generalMarker] = atoi(v.c_str()); continue; }
 
-PSPlayerStats GameSpyPSMessageQueueInterface::parsePlayerKVPairs( std::string kvPairs )
+PSPlayerStats IOnlineStats::parsePlayerKVPairs( std::string kvPairs )
 {
 	PSPlayerStats s;
 	kvPairs.append("\\");
@@ -1323,7 +1323,7 @@ PSPlayerStats GameSpyPSMessageQueueInterface::parsePlayerKVPairs( std::string kv
 
 #include "Common/PlayerTemplate.h"
 
-std::string GameSpyPSMessageQueueInterface::formatPlayerKVPairs( PSPlayerStats stats )
+std::string IOnlineStats::formatPlayerKVPairs( PSPlayerStats stats )
 {
 	char kvbuf[256];
 	std::string s;
