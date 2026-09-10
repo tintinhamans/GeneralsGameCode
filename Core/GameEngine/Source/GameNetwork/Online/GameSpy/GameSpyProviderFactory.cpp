@@ -40,7 +40,7 @@
 #include "Common/CustomMatchPreferences.h"
 #include "Common/GameSpyMiscPreferences.h"
 #include "GameClient/ShellHooks.h"
-#include "GameNetwork/GameSpy/BuddyThread.h"
+#include "GameNetwork/Online/IOnlinePresence.h"
 #include "GameNetwork/Online/IOnlineChat.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameNetwork/Online/IOnlineLobbyState.h"
@@ -74,6 +74,11 @@ IOnlineLobbyState *GameSpyProviderFactory::createLobbyState()
 	return IOnlineLobbyState::createNewGameSpyInfoInterface();
 }
 
+IOnlinePresence *GameSpyProviderFactory::createPresence()
+{
+	return IOnlinePresence::createNewMessageQueue();
+}
+
 // --------------------------------------------------------------
 void GameSpyProviderFactory::createServices( const char *motdBuffer, const char *configBuffer )
 {
@@ -92,7 +97,7 @@ void GameSpyProviderFactory::createServices( const char *motdBuffer, const char 
 	dir.format("%sGeneralsOnline\\Ladders", TheGlobalData->getPath_UserData().str());
 	CreateDirectory(dir.str(), nullptr);
 
-	TheGameSpyBuddyMessageQueue = GameSpyBuddyMessageQueueInterface::createNewMessageQueue();
+	TheGameSpyBuddyMessageQueue = createPresence();
 	TheGameSpyBuddyMessageQueue->startThread();
 
 	TheGameSpyPeerMessageQueue = createChat();

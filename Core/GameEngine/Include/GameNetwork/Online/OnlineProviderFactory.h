@@ -32,6 +32,7 @@ class IOnlineConfig;
 class IOnlineSession;
 class IOnlineChat;
 class IOnlineLobbyState;
+class IOnlinePresence;
 
 //-----------------------------------------------------------------------------
 // OnlineProviderFactory
@@ -55,6 +56,7 @@ public:
 	virtual IOnlineSession *createSession() = 0;
 	virtual IOnlineChat *createChat() = 0;
 	virtual IOnlineLobbyState *createLobbyState() = 0;
+	virtual IOnlinePresence *createPresence() = 0;
 
 	// Ordered lifecycle. GameSpy body == verbatim legacy SetUpGameSpy sequence.
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
