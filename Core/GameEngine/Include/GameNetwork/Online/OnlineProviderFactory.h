@@ -34,6 +34,9 @@ class IOnlineChat;
 class IOnlineLobbyState;
 class IOnlinePresence;
 class IOnlineStats;
+class IOnlineLadder;
+class IOnlineResults;
+class IOnlineMatchmaking;
 
 //-----------------------------------------------------------------------------
 // OnlineProviderFactory
@@ -59,6 +62,10 @@ public:
 	virtual IOnlineLobbyState *createLobbyState() = 0;
 	virtual IOnlinePresence *createPresence() = 0;
 	virtual IOnlineStats *createStats() = 0;
+	virtual IOnlineLadder *createLadder() = 0;
+	// Future seam; the engine retains ownership and its existing creation path.
+	virtual IOnlineResults *createResults() = 0;
+	virtual IOnlineMatchmaking *createMatchmaking() = 0;
 
 	// Ordered lifecycle. GameSpy body == verbatim legacy SetUpGameSpy sequence.
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
