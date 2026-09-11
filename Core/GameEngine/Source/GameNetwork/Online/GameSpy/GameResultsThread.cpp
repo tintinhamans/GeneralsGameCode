@@ -30,7 +30,7 @@
 
 #include <winsock.h>	// This one has to be here. Prevents collisions with winsock2.h
 
-#include "GameNetwork/GameSpy/GameResultsThread.h"
+#include "GameNetwork/Online/IOnlineResults.h"
 #include "WWLib/mutex.h"
 #include "WWLib/thread.h"
 
@@ -45,7 +45,7 @@ typedef std::queue<GameResultsRequest> RequestQueue;
 typedef std::queue<GameResultsResponse> ResponseQueue;
 class GameResultsThreadClass;
 
-class GameResultsQueue : public GameResultsInterface
+class GameResultsQueue : public IOnlineResults
 {
 public:
 	virtual ~GameResultsQueue() override;
@@ -78,12 +78,12 @@ private:
 	GameResultsThreadClass *m_workerThreads[NumWorkerThreads];
 };
 
-GameResultsInterface* GameResultsInterface::createNewGameResultsInterface()
+IOnlineResults* IOnlineResults::createNewGameResultsInterface()
 {
 	return NEW GameResultsQueue;
 }
 
-GameResultsInterface *TheGameResultsQueue;
+IOnlineResults *TheGameResultsQueue;
 
 //-------------------------------------------------------------------------
 

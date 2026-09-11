@@ -41,6 +41,9 @@ public:
 	virtual IOnlineLobbyState *createLobbyState() override;
 	virtual IOnlinePresence *createPresence() override;
 	virtual IOnlineStats *createStats() override;
+	virtual IOnlineLadder *createLadder() override;
+	virtual IOnlineResults *createResults() override;
+	virtual IOnlineMatchmaking *createMatchmaking() override;
 
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) override;
 	virtual void destroyServices() override;
