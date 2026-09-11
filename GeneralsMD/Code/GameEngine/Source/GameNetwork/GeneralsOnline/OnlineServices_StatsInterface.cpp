@@ -9,6 +9,7 @@
 #include "Common/PlayerTemplate.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GameSpy/LadderDefs.h"
+#include "GameNetwork/Online/GameSpy/GameSpyLadder.h"
 
 #include <algorithm>
 #include <unordered_set>
@@ -31,7 +32,7 @@ NGMP_OnlineServices_StatsInterface::NGMP_OnlineServices_StatsInterface()
 	TheRankPointValues->m_ranks[RANK_COMMANDER_IN_CHIEF] = getPointsForRank(RANK_COMMANDER_IN_CHIEF); // 2000
 
 	// TODO_NGMP: Better location
-	TheLadderList = NEW LadderList;
+	TheLadderList = NEW GameSpyLadder;
 }
 
 NGMP_OnlineServices_StatsInterface::~NGMP_OnlineServices_StatsInterface()

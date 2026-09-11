@@ -65,21 +65,15 @@ typedef std::list<LadderInfo *> LadderInfoList;
 class IOnlineLadder
 {
 public:
-	IOnlineLadder();
-	~IOnlineLadder();
+	virtual ~IOnlineLadder() {}
 
-	const LadderInfo* findLadder( const AsciiString& addr, UnsignedShort port );
-	const LadderInfo* findLadderByIndex( Int index );	// doesn't look in local ladders
-	const LadderInfoList* getLocalLadders();
-	const LadderInfoList* getSpecialLadders();
-	const LadderInfoList* getStandardLadders();
-
-private:
-	void loadLocalLadders();
-	void checkLadder( AsciiString fname, Int index );
-	LadderInfoList m_localLadders;
-	LadderInfoList m_specialLadders;
-	LadderInfoList m_standardLadders;
+	// Returned entries and lists are provider-owned borrows.  They remain valid
+	// only until the owning online service is destroyed.
+	virtual const LadderInfo* findLadder( const AsciiString& addr, UnsignedShort port ) = 0;
+	virtual const LadderInfo* findLadderByIndex( Int index ) = 0;	// index zero returns no entry
+	virtual const LadderInfoList* getLocalLadders() = 0;
+	virtual const LadderInfoList* getSpecialLadders() = 0;
+	virtual const LadderInfoList* getStandardLadders() = 0;
 };
 
 extern IOnlineLadder *TheLadderList;
