@@ -41,6 +41,7 @@
 #include "GameNetwork/Online/IOnlineStats.h"
 #include "GameNetwork/Online/IOnlineLobbyState.h"
 #include "GameNetwork/Online/IOnlineLadder.h"
+#include "GameNetwork/Online/GameSpy/GameSpyLadder.h"
 #include "GameNetwork/Online/IOnlineResults.h"
 #include "GameNetwork/Online/IOnlineConfig.h"
 #include "GameNetwork/GameSpy/PingThread.h"
@@ -82,7 +83,7 @@ IOnlineStats *GameSpyProviderFactory::createStats()
 
 IOnlineLadder *GameSpyProviderFactory::createLadder()
 {
-	return NEW IOnlineLadder;
+	return NEW GameSpyLadder;
 }
 
 IOnlineResults *GameSpyProviderFactory::createResults()
