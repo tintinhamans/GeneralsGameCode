@@ -63,7 +63,8 @@ public:
 	// returned entries/lists remain borrowed by existing consumers until
 	// online-service teardown; consumers never delete them.
 	virtual IOnlineLadder *createLadder() = 0;
-	// Future seam; the engine retains ownership and its existing creation path.
+	// Transfers one results subsystem to the engine. The engine registers,
+	// updates, resets, Xfers, and deletes exactly this instance for its lifetime.
 	virtual IOnlineResults *createResults() = 0;
 	virtual IOnlineMatchmaking *createMatchmaking() = 0;
 
@@ -104,6 +105,16 @@ const char *GetCommandLineOnlineProvider();
 // Unrecognised names degrade to GameSpy with one log line. Safe to call before
 // the online subsystem is set up.
 OnlineProviderType ResolveConfiguredProvider();
+
+// Resolve and construct the engine-owned results subsystem before Online entry.
+// A known but unavailable provider or a failed construction returns null, so the
+// engine follows its existing fatal startup path rather than registering null.
+IOnlineResults *CreateOnlineResults( OnlineProviderFactory **outFactory );
+
+// Latch the provider after successful engine subsystem admission. Later Online
+// setup may reuse this factory, but may not select a different one until restart.
+Bool BindOnlineResultsProvider( OnlineProviderFactory *factory );
+OnlineProviderFactory *GetBoundOnlineResultsProvider();
 
 //-----------------------------------------------------------------------------
 // Lifecycle seam of the online provider services.

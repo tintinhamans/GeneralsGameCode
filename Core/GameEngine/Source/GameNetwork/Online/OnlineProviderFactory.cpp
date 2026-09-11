@@ -41,6 +41,14 @@ OnlineRuntime TheOnline = { ONLINE_PROVIDER_GAMESPY, nullptr };
 // Stash for the CLI '-onlineProvider <name>' override. POD, zero-initialized.
 static char s_commandLineProvider[64] = { 0 };
 
+// Results are owned by the engine subsystem list rather than by the Online
+// session. The binding is intentionally process-lifetime state: changing the
+// provider after registration would mix an old results implementation with new
+// online services.
+
+static OnlineProviderFactory *s_resultsProvider = nullptr;
+static Bool s_resultsProviderBound = FALSE;
+
 //-----------------------------------------------------------------------------
 // Registry
 //
@@ -172,10 +180,59 @@ OnlineProviderType ResolveConfiguredProvider()
 	return ONLINE_PROVIDER_GAMESPY;
 }
 
+IOnlineResults *CreateOnlineResults( OnlineProviderFactory **outFactory )
+{
+	if (outFactory != nullptr)
+		*outFactory = nullptr;
+
+	RegisterBuiltInProviders();
+	OnlineProviderFactory *factory = GetOnlineProvider(ResolveConfiguredProvider());
+	if (factory == nullptr || !factory->isAvailable())
+	{
+		DEBUG_LOG(("CreateOnlineResults: selected provider is unavailable"));
+		return nullptr;
+	}
+
+	IOnlineResults *results = factory->createResults();
+	if (results == nullptr)
+	{
+		DEBUG_LOG(("CreateOnlineResults: provider '%s' failed to create results", factory->getName()));
+		return nullptr;
+	}
+
+	if (outFactory != nullptr)
+		*outFactory = factory;
+	return results;
+}
+
+Bool BindOnlineResultsProvider( OnlineProviderFactory *factory )
+{
+	if (factory == nullptr)
+		return FALSE;
+
+	if (s_resultsProviderBound)
+	{
+		if (s_resultsProvider != factory)
+		{
+			DEBUG_LOG(("BindOnlineResultsProvider: provider change requires engine restart"));
+			return FALSE;
+		}
+		return TRUE;
+	}
+
+	s_resultsProvider = factory;
+	s_resultsProviderBound = TRUE;
+	return TRUE;
+}
+
+OnlineProviderFactory *GetBoundOnlineResultsProvider()
+{
+	return s_resultsProviderBound ? s_resultsProvider : nullptr;
+}
+
 void SetUpOnline( OnlineProviderType type, const char *motdBuffer, const char *configBuffer )
 {
 	RegisterBuiltInProviders();
-	TearDownOnline();
 
 	OnlineProviderFactory *factory = GetOnlineProvider(type);
 	if (factory == nullptr || !factory->isAvailable())
@@ -184,6 +241,14 @@ void SetUpOnline( OnlineProviderType type, const char *motdBuffer, const char *c
 		return;
 	}
 
+	OnlineProviderFactory *resultsFactory = GetBoundOnlineResultsProvider();
+	if (resultsFactory != nullptr && resultsFactory != factory)
+	{
+		DEBUG_LOG(("SetUpOnline: provider change requires engine restart"));
+		return;
+	}
+
+	TearDownOnline();
 	factory->createServices(motdBuffer, configBuffer);
 	TheOnline.m_provider = type;
 	TheOnline.m_factory = factory;
