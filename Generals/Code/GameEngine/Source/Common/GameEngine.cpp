@@ -104,6 +104,7 @@
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
+#include "GameNetwork/Online/OnlineProviderFactory.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "Common/Player.h"
@@ -512,8 +513,14 @@ void GameEngine::init()
 		initSubsystem(TheGameStateMap,"TheGameStateMap", MSGNEW("GameEngineSubsystem") GameStateMap, nullptr );
 		initSubsystem(TheGameState,"TheGameState", MSGNEW("GameEngineSubsystem") GameState, nullptr );
 
-		// Create the interface for sending game results
-		initSubsystem(TheGameResultsQueue,"TheGameResultsQueue", GameResultsInterface::createNewGameResultsInterface(), nullptr);
+		// The subsystem list owns this instance for the engine lifetime and Online never replaces it.
+		OnlineProviderFactory *resultsFactory = nullptr;
+		IOnlineResults *results = CreateOnlineResults(&resultsFactory);
+		if (results == nullptr)
+			RELEASE_CRASH(("Unable to create the selected online results provider."));
+		initSubsystem(TheGameResultsQueue,"TheGameResultsQueue", results, nullptr);
+		if (!BindOnlineResultsProvider(resultsFactory))
+			RELEASE_CRASH(("Unable to bind the selected online results provider."));
 
 		xferCRC.close();
 		TheWritableGlobalData->m_iniCRC = xferCRC.getCRC();

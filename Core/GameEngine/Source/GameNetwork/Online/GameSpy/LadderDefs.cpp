@@ -29,7 +29,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameNetwork/GameSpy/ThreadUtils.h"
-#include "GameNetwork/GameSpy/LadderDefs.h"
+#include "GameNetwork/Online/GameSpy/GameSpyLadder.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
 #include "Common/GameState.h"
@@ -40,7 +40,7 @@
 #include "GameClient/MapUtil.h"
 
 
-LadderList *TheLadderList = nullptr;
+IOnlineLadder *TheLadderList = nullptr;
 
 LadderInfo::LadderInfo()
 {
@@ -248,7 +248,7 @@ static LadderInfo *parseLadder(AsciiString raw)
 	return nullptr;
 }
 
-LadderList::LadderList()
+GameSpyLadder::GameSpyLadder()
 {
 	// TODO_NGMP: Implement ladders again
 #if !defined(GENERALS_ONLINE)
@@ -336,7 +336,7 @@ LadderList::LadderList()
 #endif
 }
 
-LadderList::~LadderList()
+GameSpyLadder::~GameSpyLadder()
 {
 	LadderInfoList::iterator it;
 	for (it = m_specialLadders.begin(); it != m_specialLadders.end(); it = m_specialLadders.begin())
@@ -356,7 +356,7 @@ LadderList::~LadderList()
 	}
 }
 
-const LadderInfo* LadderList::findLadder( const AsciiString& addr, UnsignedShort port )
+const LadderInfo* GameSpyLadder::findLadder( const AsciiString& addr, UnsignedShort port )
 {
 	LadderInfoList::const_iterator cit;
 
@@ -390,7 +390,7 @@ const LadderInfo* LadderList::findLadder( const AsciiString& addr, UnsignedShort
 	return nullptr;
 }
 
-const LadderInfo* LadderList::findLadderByIndex( Int index )
+const LadderInfo* GameSpyLadder::findLadderByIndex( Int index )
 {
 	if (index == 0)
 		return nullptr;
@@ -427,22 +427,22 @@ const LadderInfo* LadderList::findLadderByIndex( Int index )
 	return nullptr;
 }
 
-const LadderInfoList* LadderList::getSpecialLadders()
+const LadderInfoList* GameSpyLadder::getSpecialLadders()
 {
 	return &m_specialLadders;
 }
 
-const LadderInfoList* LadderList::getStandardLadders()
+const LadderInfoList* GameSpyLadder::getStandardLadders()
 {
 	return &m_standardLadders;
 }
 
-const LadderInfoList* LadderList::getLocalLadders()
+const LadderInfoList* GameSpyLadder::getLocalLadders()
 {
 	return &m_localLadders;
 }
 
-void LadderList::loadLocalLadders()
+void GameSpyLadder::loadLocalLadders()
 {
 	AsciiString dirname;
 	dirname.format("%sGeneralsOnline\\Ladders\\", TheGlobalData->getPath_UserData().str());
@@ -462,7 +462,7 @@ void LadderList::loadLocalLadders()
 	}
 }
 
-void LadderList::checkLadder( AsciiString fname, Int index )
+void GameSpyLadder::checkLadder( AsciiString fname, Int index )
 {
 	File *fp = TheFileSystem->openFile(fname.str(), File::READ | File::TEXT);
 	char buf[1024];

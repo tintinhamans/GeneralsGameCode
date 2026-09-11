@@ -34,6 +34,9 @@ class IOnlineChat;
 class IOnlineLobbyState;
 class IOnlinePresence;
 class IOnlineStats;
+class IOnlineLadder;
+class IOnlineResults;
+class IOnlineMatchmaking;
 
 class OnlineProviderFactory
 {
@@ -50,6 +53,11 @@ public:
 	virtual IOnlineLobbyState *createLobbyState() = 0;
 	virtual IOnlinePresence *createPresence() = 0;
 	virtual IOnlineStats *createStats() = 0;
+	// Returned ladder entries stay borrowed until online service teardown.
+	virtual IOnlineLadder *createLadder() = 0;
+	// The engine owns the returned results for its lifetime.
+	virtual IOnlineResults *createResults() = 0;
+	virtual IOnlineMatchmaking *createMatchmaking() = 0;
 
 	virtual void createServices( const char *motdBuffer, const char *configBuffer ) = 0;
 	virtual void destroyServices() = 0;
@@ -79,6 +87,13 @@ const char *GetCommandLineOnlineProvider();
 // Unrecognised names degrade to GameSpy with one log line. Safe to call before
 // the online subsystem is set up.
 OnlineProviderType ResolveConfiguredProvider();
+
+// Returns null when the provider is unavailable or construction fails.
+IOnlineResults *CreateOnlineResults( OnlineProviderFactory **outFactory );
+
+// The bound provider cannot change until restart.
+Bool BindOnlineResultsProvider( OnlineProviderFactory *factory );
+OnlineProviderFactory *GetBoundOnlineResultsProvider();
 
 void SetUpOnline( OnlineProviderType type, const char *motdBuffer, const char *configBuffer );
 void TearDownOnline();

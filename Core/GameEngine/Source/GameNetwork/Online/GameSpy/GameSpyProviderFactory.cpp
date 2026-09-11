@@ -29,6 +29,7 @@
 
 #include "GameNetwork/Online/GameSpy/GameSpyProviderFactory.h"
 #include "GameNetwork/Online/GameSpy/GameSpySession.h"
+#include "GameNetwork/Online/GameSpy/GameSpyMatchmaking.h"
 
 #include "Common/GlobalData.h"
 #include "Common/CustomMatchPreferences.h"
@@ -38,7 +39,9 @@
 #include "GameNetwork/Online/IOnlineChat.h"
 #include "GameNetwork/Online/IOnlineStats.h"
 #include "GameNetwork/Online/IOnlineLobbyState.h"
-#include "GameNetwork/GameSpy/LadderDefs.h"
+#include "GameNetwork/Online/IOnlineLadder.h"
+#include "GameNetwork/Online/GameSpy/GameSpyLadder.h"
+#include "GameNetwork/Online/IOnlineResults.h"
 #include "GameNetwork/Online/IOnlineConfig.h"
 #include "GameNetwork/GameSpy/PingThread.h"
 #include "GameNetwork/RankPointValue.h"
@@ -74,6 +77,21 @@ IOnlinePresence *GameSpyProviderFactory::createPresence()
 IOnlineStats *GameSpyProviderFactory::createStats()
 {
 	return IOnlineStats::createNewMessageQueue();
+}
+
+IOnlineLadder *GameSpyProviderFactory::createLadder()
+{
+	return NEW GameSpyLadder;
+}
+
+IOnlineResults *GameSpyProviderFactory::createResults()
+{
+	return IOnlineResults::createNewGameResultsInterface();
+}
+
+IOnlineMatchmaking *GameSpyProviderFactory::createMatchmaking()
+{
+	return GameSpyMatchmaking::createNewMatchmaking();
 }
 
 // --------------------------------------------------------------
@@ -116,7 +134,7 @@ void GameSpyProviderFactory::createServices( const char *motdBuffer, const char 
 
 	TheGameSpyConfig = createConfig(configBuffer);
 
-	TheLadderList = NEW LadderList;
+	TheLadderList = createLadder();
 
 	ThePinger = PingerInterface::createNewPingerInterface();
 	ThePinger->startThreads();
@@ -124,11 +142,15 @@ void GameSpyProviderFactory::createServices( const char *motdBuffer, const char 
 	TheRankPointValues = NEW RankPoints;
 
 	TheOnlineSession = createSession();
+	TheOnlineMatchmaking = createMatchmaking();
 }
 
 // --------------------------------------------------------------
 void GameSpyProviderFactory::destroyServices()
 {
+	delete TheOnlineMatchmaking;
+	TheOnlineMatchmaking = nullptr;
+
 	delete TheOnlineSession;
 	TheOnlineSession = nullptr;
 
