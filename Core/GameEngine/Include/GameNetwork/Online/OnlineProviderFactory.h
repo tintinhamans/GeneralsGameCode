@@ -59,6 +59,9 @@ public:
 	virtual IOnlineLobbyState *createLobbyState() = 0;
 	virtual IOnlinePresence *createPresence() = 0;
 	virtual IOnlineStats *createStats() = 0;
+	// Transfers one provider-owned ladder service to TheLadderList.  Its
+	// returned entries/lists remain borrowed by existing consumers until
+	// online-service teardown; consumers never delete them.
 	virtual IOnlineLadder *createLadder() = 0;
 	// Future seam; the engine retains ownership and its existing creation path.
 	virtual IOnlineResults *createResults() = 0;
