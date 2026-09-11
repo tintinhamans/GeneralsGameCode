@@ -15,10 +15,10 @@ option(RTS_DEBUG_INCLUDE_DEBUG_LOG_IN_CRC_LOG "Includes normal debug log in crc 
 option(RTS_DEBUG_MULTI_INSTANCE "Enables multi client instance support" OFF)
 
 
-define_option(RTS_DEBUG_LOGGING    DebugLogging    "Build with Debug Logging"     "DEBUG_LOGGING=1"    "DISABLE_DEBUG_LOGGING=1"    FALSE)
-define_option(RTS_DEBUG_CRASHING   DebugCrashing   "Build with Debug Crashing"     "DEBUG_CRASHING=1"   "DISABLE_DEBUG_CRASHING=1"   FALSE)
-define_option(RTS_DEBUG_STACKTRACE DebugStacktrace "Build with Debug Stacktracing" "DEBUG_STACKTRACE=1" "DISABLE_DEBUG_STACKTRACE=1" FALSE)
-define_option(RTS_DEBUG_PROFILE    DebugProfile    "Build with Debug Profiling"    "DEBUG_PROFILE=1"    "DISABLE_DEBUG_PROFILE=1"    FALSE)
+define_tristate_option(RTS_DEBUG_LOGGING    DebugLogging    "Build with Debug Logging"      DEBUG_LOGGING    DISABLE_DEBUG_LOGGING)
+define_tristate_option(RTS_DEBUG_CRASHING   DebugCrashing   "Build with Debug Crashing"     DEBUG_CRASHING   DISABLE_DEBUG_CRASHING)
+define_tristate_option(RTS_DEBUG_STACKTRACE DebugStacktrace "Build with Debug Stacktracing" DEBUG_STACKTRACE DISABLE_DEBUG_STACKTRACE)
+define_tristate_option(RTS_DEBUG_PROFILE    DebugProfile    "Build with Debug Profiling"    DEBUG_PROFILE    DISABLE_DEBUG_PROFILE)
 
 add_feature_info(DebugCheats RTS_DEBUG_CHEATS "Build with Debug Cheats in release builds")
 add_feature_info(DebugIncludeDebugLogInCrcLog RTS_DEBUG_INCLUDE_DEBUG_LOG_IN_CRC_LOG "Build with Debug Logging in CRC log")
