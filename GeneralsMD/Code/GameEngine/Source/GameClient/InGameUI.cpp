@@ -100,7 +100,7 @@
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/NetworkInterface.h"
 extern NetworkInterface * TheNetwork;
-#include "ValveNetworkingSockets/steam/isteamnetworkingsockets.h"
+#include <steam/isteamnetworkingsockets.h>
 #endif
 
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "HTTPRequest.h"
-#include "GameNetwork/GeneralsOnline/Vendor/libcurl/multi.h"
+#include <curl/multi.h>
 #include <vector>
 #include <mutex>
 #include <thread>
@@ -95,5 +95,4 @@ private:
 	std::vector<HTTPRequest*> m_vecRequestsPendingStart = std::vector<HTTPRequest*>();
 	std::vector<HTTPRequest*> m_vecRequestsInFlight = std::vector<HTTPRequest*>();
 };
-
 

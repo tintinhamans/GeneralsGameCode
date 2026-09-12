@@ -67,7 +67,11 @@ if(WIN32)
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
 			"${CMAKE_CURRENT_SOURCE_DIR}/../GameEngine/Source/GameNetwork/GeneralsOnline/Vendor/DiscordRPC/LICENSE.txt"
 			"$<TARGET_FILE_DIR:z_generals>/discord-rpc-LICENSE.txt"
+		COMMAND ${CMAKE_COMMAND} -E copy -t "$<TARGET_FILE_DIR:z_generals>"
+			$<TARGET_RUNTIME_DLLS:z_generals>
+			COMMAND_EXPAND_LISTS
 	)
+
 endif()
 
 # RC files optional for MinGW builds

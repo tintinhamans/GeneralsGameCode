@@ -6,7 +6,7 @@
 
 #include "GameNetwork/GeneralsOnline/ngmp_include.h"
 #include "GameNetwork/GeneralsOnline/ngmp_interfaces.h"
-#include "ValveNetworkingSockets/steam/steamnetworkingtypes.h"
+#include <steam/steamnetworkingtypes.h>
 #include "GameNetwork/GeneralsOnline/PluginInterfaces.h"
 
 #ifdef _INTERNAL

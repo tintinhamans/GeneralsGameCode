@@ -21,7 +21,7 @@
 #define CREDENTIALS_FILENAME "credentials.json"
 #endif
 
-#include "GameNetwork/GeneralsOnline/vendor/libcurl/curl.h"
+#include <curl/curl.h>
 #include "GameClient/ClientInstance.h"
 
 enum class EAuthResponseResult : int

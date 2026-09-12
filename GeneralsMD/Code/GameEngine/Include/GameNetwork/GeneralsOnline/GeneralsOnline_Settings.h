@@ -1,5 +1,5 @@
 #pragma once
-#include "libcurl/curl.h"
+#include <curl/curl.h>
 
 enum EHTTPVersion
 {

@@ -1094,11 +1094,6 @@ void NGMP_OnlineServicesManager::InitSentry()
 	}, nullptr);
 #endif
 
-	// Disable the crash handler backend to prevent it from attempting to
-	// initialize Windows UI components (SystemNavigationManagerStatics::GetForCurrentView)
-	// on a non-UI thread during sentry_init(), which causes an access violation.
-	sentry_options_set_backend(options, nullptr);
-
 	sentry_init(options);
 #endif
 }

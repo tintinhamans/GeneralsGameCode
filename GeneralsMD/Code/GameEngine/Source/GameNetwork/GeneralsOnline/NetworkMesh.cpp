@@ -10,11 +10,11 @@
 #include "../json.hpp"
 #include "../HTTP/HTTPManager.h"
 #include "../OnlineServices_Init.h"
-#include "ValveNetworkingSockets/steam/isteamnetworkingutils.h"
-#include "ValveNetworkingSockets/steam/steamnetworkingcustomsignaling.h"
+#include <steam/isteamnetworkingutils.h>
+#include <steam/steamnetworkingcustomsignaling.h>
 #include "../PluginInterfaces.h"
-#include "ValveNetworkingSockets/steam/isteamnetworkingsockets.h"
-#include "ValveNetworkingSockets/steam/steamnetworkingsockets.h"
+#include <steam/isteamnetworkingsockets.h>
+#include <steam/steamnetworkingsockets.h>
 
 bool g_bForceRelay = false;
 UnsignedInt m_exeCRCOriginal = 0;
@@ -1443,7 +1443,7 @@ std::string PlayerConnection::GetConnectionType()
 		return "(disconnected)";
 
 	char szBuf[2048] = { 0 };
-	int ret = SteamNetworkingSockets()->GetConnectionType(m_hSteamConnection, szBuf, 2048);
+	int ret = SteamNetworkingSockets()->GetDetailedConnectionStatus(m_hSteamConnection, szBuf, 2048);
 	NetworkLog(ELogVerbosity::LOG_DEBUG, "[STEAM] PlayerConnection::GetConnectionType returned %d", ret);
 	return std::string(szBuf);
 }

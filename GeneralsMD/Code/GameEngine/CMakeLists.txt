@@ -1171,7 +1171,6 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamnetworkingtypes.h
     Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamtypes.h
     Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamuniverse.h
-    Include/GameNetwork/GeneralsOnline/Vendor/sentry/sentry.h
     Include/GameNetwork/GeneralsOnline/Vendor/libcurl/curl.h
     Include/GameNetwork/GeneralsOnline/Vendor/libcurl/curlver.h
     Include/GameNetwork/GeneralsOnline/Vendor/libcurl/easy.h
@@ -1223,14 +1222,12 @@ add_library(z_gameengine STATIC)
 
 target_sources(z_gameengine PRIVATE ${GAMEENGINE_SRC})
 
+target_compile_definitions(z_gameengine PRIVATE GAMESPY_IMPORT_DATA)
+
 target_include_directories(z_gameengine PUBLIC
     Include
 
     Include/GameNetwork/GeneralsOnline/Vendor/
-)
-
-target_link_directories(z_gameengine PUBLIC
-   Source/GameNetwork/GeneralsOnline/Vendor
 )
 
 target_include_directories(z_gameengine PRIVATE
@@ -1246,6 +1243,16 @@ target_link_libraries(z_gameengine PUBLIC
     corei_gameengine_public
     z_wwvegas
 )
+
+if(NOT IS_VS6_BUILD)
+    target_link_libraries(z_gameengine PUBLIC
+        CURL::libcurl
+        GameNetworkingSockets::shared
+        sentry::sentry
+    )
+else()
+    target_compile_definitions(z_gameengine PRIVATE RTS_USE_LEGACY_NETWORK_VENDOR)
+endif()
 
 target_precompile_headers(z_gameengine PRIVATE
     [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6

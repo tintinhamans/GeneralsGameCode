@@ -38,12 +38,13 @@ struct S3ScreenshotEntry
 #include <mutex>
 #include <atomic>
 
+#ifdef RTS_USE_LEGACY_NETWORK_VENDOR
 #pragma comment(lib, "libcurl/libcurl.lib")
-#pragma comment(lib, "sentry/sentry.lib")
-
-
 #include "GameNetwork/GeneralsOnline/Vendor/libcurl/curl.h"
-#include "GameNetwork/GeneralsOnline/Vendor/sentry/sentry.h"
+#else
+#include <curl/curl.h>
+#endif
+#include <sentry.h>
 #include <chrono>
 #include "GeneralsOnline_Settings.h"
 #include "GameClient/DisplayStringManager.h"

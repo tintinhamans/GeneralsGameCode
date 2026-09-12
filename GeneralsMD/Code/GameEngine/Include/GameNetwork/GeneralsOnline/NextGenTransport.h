@@ -7,8 +7,9 @@
 #include "GameNetwork/Transport.h"
 #include "../NGMP_include.h"
 
-#include "GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/isteamnetworkingmessages.h"
+#include <steam/isteamnetworkingmessages.h>
 
+#ifdef RTS_USE_LEGACY_NETWORK_VENDOR
 #pragma comment(lib, "ValveNetworkingSockets/GameNetworkingSockets.lib")
 #pragma comment(lib, "ValveNetworkingSockets/abseil_dll.lib")
 #pragma comment(lib, "ValveNetworkingSockets/libcrypto.lib")
@@ -16,6 +17,7 @@
 #pragma comment(lib, "ValveNetworkingSockets/libssl.lib")
 #pragma comment(lib, "ValveNetworkingSockets/steamwebrtc.lib")
 #pragma comment(lib, "ValveNetworkingSockets/webrtc-lite.lib")
+#endif
 #pragma comment(lib, "Secur32.lib")
 
 // Struct to track retry state for outgoing packets
