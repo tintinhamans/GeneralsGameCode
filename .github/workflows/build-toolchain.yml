@@ -1,9 +1,6 @@
 name: Build Toolchain
 
-permissions:
-  contents: read
-  pull-requests: write
-  packages: write
+# No permissions here - callers grant contents: read, and packages: write if using vcpkg.
 
 on:
   workflow_call:

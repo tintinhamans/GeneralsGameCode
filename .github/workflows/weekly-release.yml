@@ -87,6 +87,8 @@ jobs:
     needs: [detect-scm-changes, get-date]
     if: needs.detect-scm-changes.outputs.changed == 'true'
     name: Build Generals${{ matrix.preset && '' }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -101,12 +103,13 @@ jobs:
       preset: ${{ matrix.preset }}
       tools: ${{ matrix.tools }}
       extras: ${{ matrix.extras }}
-    secrets: inherit
 
   build-generalsmd:
     needs: [detect-scm-changes, get-date]
     if: needs.detect-scm-changes.outputs.changed == 'true'
     name: Build GeneralsMD${{ matrix.preset && '' }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -121,7 +124,6 @@ jobs:
       preset: ${{ matrix.preset }}
       tools: ${{ matrix.tools }}
       extras: ${{ matrix.extras }}
-    secrets: inherit
 
   create-release:
     name: Create Release
