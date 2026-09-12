@@ -4,6 +4,8 @@
     "dependencies": [
       "zlib",
       "ffmpeg",
-      "stb"
+      "stb",
+      "openssl",
+      "protobuf"
     ]
   }

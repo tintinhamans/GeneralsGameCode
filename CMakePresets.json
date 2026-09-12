@@ -173,6 +173,33 @@
             }
         },
         {
+            "name": "win32-vcpkg-optimized",
+            "inherits": "win32-vcpkg",
+            "displayName": "Windows 32bit VCPKG Optimized",
+            "cacheVariables": {
+                "RTS_BUILD_OPTION_OPTIMIZED": "ON",
+                "RTS_MEMORYPOOL_DEBUG": "OFF",
+                "RTS_MEMORYPOOL_DEBUG_CUSTOM_NEW": "OFF",
+                "RTS_MEMORYPOOL_DEBUG_BOUNDINGWALL": "OFF"
+            }
+        },
+        {
+            "name": "win32-vcpkg-pgo-generate",
+            "inherits": "win32-vcpkg-optimized",
+            "displayName": "Windows 32bit VCPKG PGO Generate",
+            "cacheVariables": {
+                "RTS_BUILD_OPTION_PGO": "GENERATE"
+            }
+        },
+        {
+            "name": "win32-vcpkg-pgo-use",
+            "inherits": "win32-vcpkg-optimized",
+            "displayName": "Windows 32bit VCPKG PGO Use",
+            "cacheVariables": {
+                "RTS_BUILD_OPTION_PGO": "USE"
+            }
+        },
+        {
             "name": "unix",
             "inherits": "default-vcpkg",
             "hidden": false,
@@ -282,6 +309,27 @@
             "displayName": "Build Windows 32bit VCPKG Debug",
             "description": "Build Windows 32bit VCPKG Debug",
             "configuration": "Debug"
+        },
+        {
+            "name": "win32-vcpkg-optimized",
+            "configurePreset": "win32-vcpkg-optimized",
+            "displayName": "Build Windows 32bit VCPKG Optimized",
+            "description": "Build Windows 32bit VCPKG Optimized",
+            "configuration": "Release"
+        },
+        {
+            "name": "win32-vcpkg-pgo-generate",
+            "configurePreset": "win32-vcpkg-pgo-generate",
+            "displayName": "Build Windows 32bit VCPKG PGO Generate",
+            "description": "Build Windows 32bit VCPKG PGO Generate",
+            "configuration": "Release"
+        },
+        {
+            "name": "win32-vcpkg-pgo-use",
+            "configurePreset": "win32-vcpkg-pgo-use",
+            "displayName": "Build Windows 32bit VCPKG PGO Use",
+            "description": "Build Windows 32bit VCPKG PGO Use",
+            "configuration": "Release"
         },
         {
             "name": "unix",
