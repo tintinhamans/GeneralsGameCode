@@ -1,6 +1,9 @@
 name: Build Toolchain
 
-# No permissions here - callers grant contents: read, and packages: write if using vcpkg.
+# WARNING: Do not declare permissions in this reusable workflow.
+# Declare the required permissions in each calling job:
+#   contents: read - required for all builds.
+#   packages: write - required for vcpkg binary-cache uploads only.
 
 on:
   workflow_call:
