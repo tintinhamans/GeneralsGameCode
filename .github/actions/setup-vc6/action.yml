@@ -1,0 +1,26 @@
+name: Set Up VC6
+description: Restore or install the verified VC6 toolchain and export its environment.
+runs:
+  using: composite
+  steps:
+    - name: Cache VC6 Installation
+      id: cache-vc6
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+      with:
+        path: ${{ runner.tool_cache }}/MSVC600/001c4bafdcf2ef4b474d693acccd35a91e848f40
+        key: msvc600-permanent-cache-v2
+
+    - name: Install Verified VC6 Toolchain
+      if: ${{ steps.cache-vc6.outputs.cache-hit != 'true' }}
+      env:
+        VC6_SCRIPT: ${{ github.action_path }}/setup.py
+        VC6_ROOT: ${{ runner.tool_cache }}/MSVC600/001c4bafdcf2ef4b474d693acccd35a91e848f40
+      shell: bash
+      run: python "$VC6_SCRIPT" --install --root "$VC6_ROOT"
+
+    - name: Set Up VC6 Environment
+      env:
+        VC6_SCRIPT: ${{ github.action_path }}/setup.py
+        VC6_ROOT: ${{ runner.tool_cache }}/MSVC600/001c4bafdcf2ef4b474d693acccd35a91e848f40
+      shell: bash
+      run: python "$VC6_SCRIPT" --export-environment --root "$VC6_ROOT"

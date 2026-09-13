@@ -1,0 +1,36 @@
+name: Configure Build
+description: Configure one game with the selected CMake preset.
+inputs:
+  game: {required: true}
+  preset: {required: true}
+  tools: {required: true}
+  extras: {required: true}
+  ffmpeg: {required: true}
+  retail-compatible: {required: true}
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        onoff() { [[ "$1" == true ]] && echo ON || echo OFF; }
+        game='${{ inputs.game }}'; preset='${{ inputs.preset }}'
+        case "$game" in
+          Generals) zero_hour=false; generals=true ;;
+          GeneralsMD) zero_hour=true; generals=false ;;
+          *) echo "Unknown game: $game" >&2; exit 1 ;;
+        esac
+        flags=("-DRTS_BUILD_ZEROHOUR=$(onoff "$zero_hour")"
+               "-DRTS_BUILD_GENERALS=$(onoff "$generals")"
+               "-DRTS_BUILD_CORE_TOOLS=$(onoff '${{ inputs.tools }}')"
+               "-DRTS_BUILD_CORE_EXTRAS=$(onoff '${{ inputs.extras }}')"
+               "-DRTS_BUILD_OPTION_FFMPEG=$(onoff '${{ inputs.ffmpeg }}')")
+        [[ $game == Generals ]] && flags+=("-DRTS_BUILD_GENERALS_TOOLS=$(onoff '${{ inputs.tools }}')" "-DRTS_BUILD_GENERALS_EXTRAS=$(onoff '${{ inputs.extras }}')")
+        [[ $game == GeneralsMD ]] && flags+=("-DRTS_BUILD_ZEROHOUR_TOOLS=$(onoff '${{ inputs.tools }}')" "-DRTS_BUILD_ZEROHOUR_EXTRAS=$(onoff '${{ inputs.extras }}')")
+        case '${{ inputs.retail-compatible }}' in
+          retail) compatibility=ON ;;
+          noretail) compatibility=OFF ;;
+          *) echo 'Unknown compatibility mode' >&2; exit 1 ;;
+        esac
+        flags+=("-DRTS_BUILD_OPTION_RETAIL_COMPATIBLE_GAME=$compatibility")
+        [[ -n ${SCCACHE_PATH:-} ]] && flags+=("-DCMAKE_C_COMPILER_LAUNCHER=$SCCACHE_PATH" "-DCMAKE_CXX_COMPILER_LAUNCHER=$SCCACHE_PATH")
+        cmake --preset "$preset" "${flags[@]}"

@@ -1,0 +1,58 @@
+name: Test Replays
+description: Run GeneralsMD replay compatibility tests against isolated trimmed game data
+inputs:
+  userdata:
+    description: Repository path containing Replays and Maps directories
+    required: true
+  build-artifacts-directory:
+    description: Directory containing the collected GeneralsMD build artifacts
+    required: true
+  runtime-directory:
+    description: Isolated directory in which to assemble and run the game
+    required: true
+  r2-access-key-id:
+    description: R2 access key used only on a game data cache miss
+    required: false
+    default: ''
+  r2-secret-access-key:
+    description: R2 secret key used only on a game data cache miss
+    required: false
+    default: ''
+  r2-endpoint-url:
+    description: R2 endpoint used only on a game data cache miss
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Cache Trimmed Game Data
+      id: cache-game-data
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+      with:
+        path: ${{ runner.temp }}/generals-replay-data
+        key: gamedata-permanent-cache-v4
+
+    - name: Download Trimmed Game Data
+      if: steps.cache-game-data.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        REPLAY_DATA_SCRIPT: ${{ github.action_path }}/prepare.py
+        GAME_DATA_DIRECTORY: ${{ runner.temp }}/generals-replay-data
+        AWS_ACCESS_KEY_ID: ${{ inputs.r2-access-key-id }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.r2-secret-access-key }}
+        AWS_ENDPOINT_URL: ${{ inputs.r2-endpoint-url }}
+      run: python "$REPLAY_DATA_SCRIPT" --game-data-directory "$GAME_DATA_DIRECTORY"
+
+    - name: Stage and Run Replay Compatibility Tests
+      shell: bash
+      env:
+        REPLAY_SCRIPT: ${{ github.action_path }}/run.py
+        USERDATA: ${{ inputs.userdata }}
+        BUILD_ARTIFACTS_DIRECTORY: ${{ inputs.build-artifacts-directory }}
+        RUNTIME_DIRECTORY: ${{ inputs.runtime-directory }}
+        GAME_DATA_DIRECTORY: ${{ runner.temp }}/generals-replay-data
+      run: |
+        python "$REPLAY_SCRIPT" --userdata "$USERDATA" \
+          --build-artifacts-directory "$BUILD_ARTIFACTS_DIRECTORY" \
+          --runtime-directory "$RUNTIME_DIRECTORY" \
+          --game-data-directory "$GAME_DATA_DIRECTORY"

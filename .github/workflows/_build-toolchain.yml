@@ -1,0 +1,179 @@
+name: Build Toolchain
+
+# WARNING: Do not declare permissions in this reusable workflow.
+# Declare the required permissions in each calling job:
+#   contents: read - required for all builds.
+#   packages: write - required for vcpkg binary-cache uploads only.
+
+on:
+  workflow_call:
+    inputs:
+      game:
+        required: true
+        type: string
+        description: "Game to build (Generals or GeneralsMD)"
+      preset:
+        required: true
+        type: string
+        description: "CMake preset"
+      tools:
+        required: false
+        default: true
+        type: boolean
+        description: "Build tools"
+      extras:
+        required: false
+        default: false
+        type: boolean
+        description: "Build extras"
+      ffmpeg:
+        required: false
+        default: false
+        type: boolean
+        description: "Build with FFmpeg support"
+      retail-compatible:
+        required: false
+        default: DEFAULT
+        type: string
+        description: "Compatibility mode (retail or noretail)"
+      run-replay-tests:
+        required: false
+        default: false
+        type: boolean
+        description: "Run Zero Hour replay compatibility checks after publishing build artifacts"
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-2022
+    timeout-minutes: ${{ inputs.run-replay-tests && 45 || 30 }}
+
+    env:
+      BUILD_GAME: ${{ inputs.game }}
+      BUILD_PRESET: ${{ inputs.preset }}
+      BUILD_TOOLS: ${{ inputs.tools }}
+      BUILD_EXTRAS: ${{ inputs.extras }}
+      BUILD_FFMPEG: ${{ inputs.ffmpeg }}
+      BUILD_RETAIL_COMPATIBLE: ${{ inputs.retail-compatible }}
+      # Fork pull requests get a read-only GITHUB_TOKEN, so they restore from the
+      # feed but must not attempt to upload to it.
+      VCPKG_BINARY_SOURCES: "clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,${{ github.event.pull_request.head.repo.fork && 'read' || 'readwrite' }}"
+      VCPKG_NUGET_REPOSITORY: "https://github.com/${{ github.repository }}.git"
+      VCPKG_FEATURE_FLAGS: manifests,versions,binarycaching
+      # Metrics make every vcpkg run open its own exe exclusively to copy itself into
+      # TEMP for the telemetry upload, which randomly blocks the next vcpkg launch.
+      VCPKG_DISABLE_METRICS: "1"
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: ${{ inputs.run-replay-tests }}
+
+      - name: Set Up VC6
+        if: startsWith(inputs.preset, 'vc6')
+        uses: ./.github/actions/setup-vc6
+
+      - name: Cache CMake Dependencies
+        id: cache-cmake-deps
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: build\${{ inputs.preset }}\_deps
+          key: cmake-deps-${{ inputs.preset }}-${{ hashFiles('CMakePresets.json','cmake/**/*.cmake','**/CMakeLists.txt') }}
+
+      - name: Set Up VC2022 Environment
+        if: startsWith(inputs.preset, 'win32')
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x86
+
+      - name: Set Up Shared sccache
+        if: startsWith(inputs.preset, 'win32')
+        uses: ./.github/actions/setup-sccache
+
+      - name: Setup vcpkg
+        if: contains(inputs.preset, 'vcpkg')
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11.6
+        with:
+          runVcpkgInstall: false
+          doNotCache: true
+
+      - name: Configure NuGet Source for vcpkg Binary Cache
+        if: contains(inputs.preset, 'vcpkg')
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          nuget="$("$VCPKG_ROOT/vcpkg.exe" fetch nuget | tail -n 1 | tr -d '\"')"
+          source="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          "$nuget" sources add -Source "$source" -StorePasswordInClearText -Name GitHubPackages -UserName "${{ github.repository_owner }}" -Password "$GITHUB_TOKEN"
+          "$nuget" setapikey "$GITHUB_TOKEN" -Source "$source"
+          echo 'VCPKG_INSTALL_OPTIONS=--x-abi-tools-use-exact-versions' >> "$GITHUB_ENV"
+
+      - name: Configure ${{ inputs.game }} with CMake Using ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }}${{ inputs.ffmpeg && '+ffmpeg' || '' }} Preset
+        uses: ./.github/actions/configure-build
+        with:
+          game: ${{ inputs.game }}
+          preset: ${{ inputs.preset }}
+          tools: ${{ inputs.tools }}
+          extras: ${{ inputs.extras }}
+          ffmpeg: ${{ inputs.ffmpeg }}
+          retail-compatible: ${{ inputs.retail-compatible }}
+
+      - name: Build ${{ inputs.game }} with CMake Using ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }} Preset
+        shell: bash
+        run: |
+          cmake --build --preset "$BUILD_PRESET"
+
+      - name: Report sccache Statistics
+        if: always() && startsWith(inputs.preset, 'win32')
+        shell: bash
+        run: '"$SCCACHE_PATH" --show-stats'
+
+      - name: Collect ${{ inputs.game }} ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }} Artifact
+        uses: ./.github/actions/collect-artifacts
+        with:
+          game: ${{ inputs.game }}
+          preset: ${{ inputs.preset }}
+
+      # Publish compiler output before introducing private replay data.
+      - name: Upload Generals Artifact
+        if: inputs.game == 'Generals'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: Generals-${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }}${{ inputs.retail-compatible == 'noretail' && '-noretail' || '' }}
+          path: build\${{ inputs.preset }}\Generals\artifacts
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload GeneralsMD Artifact
+        if: inputs.game == 'GeneralsMD'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: GeneralsMD-${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }}${{ inputs.retail-compatible == 'noretail' && '-noretail' || '' }}
+          path: build\${{ inputs.preset }}\GeneralsMD\artifacts
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Test Replays
+        if: inputs.run-replay-tests
+        uses: ./.github/actions/test-replays
+        with:
+          userdata: GeneralsReplays/GeneralsZH/1.04
+          build-artifacts-directory: build/${{ inputs.preset }}/GeneralsMD/artifacts
+          runtime-directory: ${{ runner.temp }}/replay-runtime
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-endpoint-url: ${{ secrets.R2_ENDPOINT_URL }}
+
+      - name: Upload Replay Debug Log
+        if: always() && inputs.run-replay-tests
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: Replay-Debug-Log-${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }}${{ inputs.retail-compatible == 'noretail' && '-noretail' || '' }}
+          path: |
+            ${{ runner.temp }}/replay-runtime/DebugLogFile*.txt
+            ${{ runner.temp }}/replay-runtime/stdout.log
+            ${{ runner.temp }}/replay-runtime/stderr.log
+          retention-days: 30
+          if-no-files-found: ignore
