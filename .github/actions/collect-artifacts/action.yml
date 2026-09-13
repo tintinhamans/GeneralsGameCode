@@ -1,0 +1,21 @@
+name: Collect Artifacts
+description: Stage compiler outputs for one game.
+inputs:
+  game: {required: true}
+  preset: {required: true}
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        base="build/${{ inputs.preset }}"
+        [[ '${{ inputs.preset }}' == win32* ]] && config=$([[ '${{ inputs.preset }}' == *debug* ]] && echo Debug || echo Release) || config=''
+        game='${{ inputs.game }}'
+        [[ $game == Generals || $game == GeneralsMD ]] || { echo "Unknown game: $game" >&2; exit 1; }
+        destination="$base/$game/artifacts"; mkdir -p "$destination"
+        sources=("$base/Core" "$base/$game"); [[ -n $config ]] && sources=("$base/Core/$config" "$base/$game/$config")
+        found=false
+        for source in "${sources[@]}"; do
+          for file in "$source"/*.{exe,dll,pdb}; do [[ -f $file ]] && cp -f "$file" "$destination/" && found=true; done
+        done
+        $found || { echo "No artifacts found for $game" >&2; exit 1; }

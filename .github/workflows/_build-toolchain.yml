@@ -11,7 +11,7 @@ on:
       game:
         required: true
         type: string
-        description: "Game to build (Generals, GeneralsMD)"
+        description: "Game to build (Generals or GeneralsMD)"
       preset:
         required: true
         type: string
@@ -31,14 +31,30 @@ on:
         default: false
         type: boolean
         description: "Build with FFmpeg support"
+      retail-compatible:
+        required: false
+        default: DEFAULT
+        type: string
+        description: "Compatibility mode (retail or noretail)"
+      run-replay-tests:
+        required: false
+        default: false
+        type: boolean
+        description: "Run Zero Hour replay compatibility checks after publishing build artifacts"
 
 jobs:
   build:
-    name: ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }}
+    name: ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }} retail=${{ inputs.retail-compatible }}
     runs-on: windows-2022
-    timeout-minutes: 30
+    timeout-minutes: ${{ inputs.run-replay-tests && 45 || 30 }}
 
     env:
+      BUILD_GAME: ${{ inputs.game }}
+      BUILD_PRESET: ${{ inputs.preset }}
+      BUILD_TOOLS: ${{ inputs.tools }}
+      BUILD_EXTRAS: ${{ inputs.extras }}
+      BUILD_FFMPEG: ${{ inputs.ffmpeg }}
+      BUILD_RETAIL_COMPATIBLE: ${{ inputs.retail-compatible }}
       # Fork pull requests get a read-only GITHUB_TOKEN, so they restore from the
       # feed but must not attempt to upload to it.
       VCPKG_BINARY_SOURCES: "clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,${{ github.event.pull_request.head.repo.fork && 'read' || 'readwrite' }}"
@@ -51,14 +67,12 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Cache VC6 Installation
-        if: startsWith(inputs.preset, 'vc6')
-        id: cache-vc6
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
-          path: C:\VC6
-          key: vc6-permanent-cache-v2
+          submodules: ${{ inputs.run-replay-tests }}
+
+      - name: Set Up VC6
+        if: startsWith(inputs.preset, 'vc6')
+        uses: ./.github/actions/setup-vc6
 
       - name: Cache CMake Dependencies
         id: cache-cmake-deps
@@ -67,54 +81,15 @@ jobs:
           path: build\${{ inputs.preset }}\_deps
           key: cmake-deps-${{ inputs.preset }}-${{ hashFiles('CMakePresets.json','cmake/**/*.cmake','**/CMakeLists.txt') }}
 
-      - name: Download VC6 Portable from itsmattkc repo
-        if: ${{ startsWith(inputs.preset, 'vc6') && steps.cache-vc6.outputs.cache-hit != 'true' }}
-        env:
-          EXPECTED_HASH: "D0EE1F6DCEF7DB3AD703120D9FB4FAD49EBCA28F44372E40550348B1C00CA583"
-          COMMIT: "001c4bafdcf2ef4b474d693acccd35a91e848f40"
-        shell: pwsh
-        run: |
-          Write-Host "Downloading VC6 Portable Installation" -ForegroundColor Cyan
-          Invoke-WebRequest -Uri https://github.com/itsmattkc/MSVC600/archive/$env:COMMIT.zip -OutFile VS6_VisualStudio6.zip
-
-          Write-Host "Verifying File Integrity" -ForegroundColor Cyan
-          $fileHash = (Get-FileHash -Path VS6_VisualStudio6.zip -Algorithm SHA256).Hash
-          Write-Host "Downloaded file SHA256: $fileHash"
-          Write-Host "Expected file SHA256: $env:EXPECTED_HASH"
-          if ($fileHash -ne $env:EXPECTED_HASH) {
-              Write-Error "Hash verification failed! File may be corrupted or tampered with."
-              exit 1
-          }
-
-          Write-Host "Extracting Archive" -ForegroundColor Cyan
-          & Expand-Archive -Path VS6_VisualStudio6.zip -DestinationPath C:\VC6
-          Move-Item -Path C:\VC6\MSVC600-$env:COMMIT -Destination C:\VC6\VC6SP6
-          Remove-Item VS6_VisualStudio6.zip -Verbose
-
-      - name: Set Up VC6 Environment
-        if: startsWith(inputs.preset, 'vc6')
-        shell: pwsh
-        run: |
-          # Define the base directories as local variables first
-          $VSCommonDir = "C:\VC6\VC6SP6\Common"
-          $MSDevDir = "C:\VC6\VC6SP6\Common\msdev98"
-          $MSVCDir = "C:\VC6\VC6SP6\VC98"
-          $VcOsDir = "WINNT"
-
-          # Set the variables in GitHub environment
-          "VSCommonDir=$VSCommonDir" >> $env:GITHUB_ENV
-          "MSDevDir=$MSDevDir" >> $env:GITHUB_ENV
-          "MSVCDir=$MSVCDir" >> $env:GITHUB_ENV
-          "VcOsDir=$VcOsDir" >> $env:GITHUB_ENV
-          "PATH=$MSDevDir\BIN;$MSVCDir\BIN;$VSCommonDir\TOOLS\$VcOsDir;$VSCommonDir\TOOLS;$env:PATH" >> $env:GITHUB_ENV
-          "INCLUDE=$MSVCDir\ATL\INCLUDE;$MSVCDir\INCLUDE;$MSVCDir\MFC\INCLUDE;$env:INCLUDE" >> $env:GITHUB_ENV
-          "LIB=$MSVCDir\LIB;$MSVCDir\MFC\LIB;$env:LIB" >> $env:GITHUB_ENV
-
       - name: Set Up VC2022 Environment
         if: startsWith(inputs.preset, 'win32')
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x86
+
+      - name: Set Up Shared sccache
+        if: startsWith(inputs.preset, 'win32') || startsWith(inputs.preset, 'vc6')
+        uses: ./.github/actions/setup-sccache
 
       - name: Setup vcpkg
         if: contains(inputs.preset, 'vcpkg')
@@ -125,63 +100,80 @@ jobs:
 
       - name: Configure NuGet Source for vcpkg Binary Cache
         if: contains(inputs.preset, 'vcpkg')
-        shell: pwsh
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $nuget = & "$env:VCPKG_ROOT\vcpkg.exe" fetch nuget | Select-Object -Last 1
-          & $nuget sources add `
-            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" `
-            -StorePasswordInClearText `
-            -Name GitHubPackages `
-            -UserName "${{ github.repository_owner }}" `
-            -Password "${{ secrets.GITHUB_TOKEN }}"
-          & $nuget setapikey "${{ secrets.GITHUB_TOKEN }}" `
-            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
-          "VCPKG_INSTALL_OPTIONS=--x-abi-tools-use-exact-versions" >> $env:GITHUB_ENV
+          nuget="$("$VCPKG_ROOT/vcpkg.exe" fetch nuget | tail -n 1 | tr -d '\"')"
+          source="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          "$nuget" sources add -Source "$source" -StorePasswordInClearText -Name GitHubPackages -UserName "${{ github.repository_owner }}" -Password "$GITHUB_TOKEN"
+          "$nuget" setapikey "$GITHUB_TOKEN" -Source "$source"
+          echo 'VCPKG_INSTALL_OPTIONS=--x-abi-tools-use-exact-versions' >> "$GITHUB_ENV"
 
       - name: Configure ${{ inputs.game }} with CMake Using ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }}${{ inputs.ffmpeg && '+ffmpeg' || '' }} Preset
-        shell: pwsh
-        run: |
-          $buildFlags = @(
-            "-DRTS_BUILD_ZEROHOUR=${{ inputs.game == 'GeneralsMD' && 'ON' || 'OFF' }}",
-            "-DRTS_BUILD_GENERALS=${{ inputs.game == 'Generals' && 'ON' || 'OFF' }}"
-          )
-
-          $gamePrefix = "${{ inputs.game == 'Generals' && 'GENERALS' || 'ZEROHOUR' }}"
-          $buildFlags += "-DRTS_BUILD_CORE_TOOLS=${{ inputs.tools && 'ON' || 'OFF' }}"
-          $buildFlags += "-DRTS_BUILD_${gamePrefix}_TOOLS=${{ inputs.tools && 'ON' || 'OFF' }}"
-          $buildFlags += "-DRTS_BUILD_CORE_EXTRAS=${{ inputs.extras && 'ON' || 'OFF' }}"
-          $buildFlags += "-DRTS_BUILD_${gamePrefix}_EXTRAS=${{ inputs.extras && 'ON' || 'OFF' }}"
-          $buildFlags += "-DRTS_BUILD_OPTION_FFMPEG=${{ inputs.ffmpeg && 'ON' || 'OFF' }}"
-
-          Write-Host "Build flags: $($buildFlags -join ' | ')"
-          cmake --preset ${{ inputs.preset }} $buildFlags
+        uses: ./.github/actions/configure-build
+        with:
+          game: ${{ inputs.game }}
+          preset: ${{ inputs.preset }}
+          tools: ${{ inputs.tools }}
+          extras: ${{ inputs.extras }}
+          ffmpeg: ${{ inputs.ffmpeg }}
+          retail-compatible: ${{ inputs.retail-compatible }}
 
       - name: Build ${{ inputs.game }} with CMake Using ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }} Preset
-        shell: pwsh
+        shell: bash
         run: |
-          cmake --build --preset ${{ inputs.preset }}
+          cmake --build --preset "$BUILD_PRESET"
+
+      - name: Report sccache Statistics
+        if: always() && (startsWith(inputs.preset, 'win32') || startsWith(inputs.preset, 'vc6'))
+        shell: bash
+        run: '"$SCCACHE_PATH" --show-stats'
 
       - name: Collect ${{ inputs.game }} ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }} Artifact
-        shell: pwsh
-        run: |
-          $buildDir = "build\${{ inputs.preset }}"
-          $artifactsDir = New-Item -ItemType Directory -Force -Path "$buildDir\${{ inputs.game }}\artifacts" -Verbose
+        uses: ./.github/actions/collect-artifacts
+        with:
+          game: ${{ inputs.game }}
+          preset: ${{ inputs.preset }}
 
-          if ("${{ inputs.preset }}" -like "win32*") {
-            $configToUse = if ("${{ inputs.preset }}" -match "debug") { "Debug" } else { "Release" }
-            $files = Get-ChildItem -Path "$buildDir\Core\$configToUse","$buildDir\${{ inputs.game }}\$configToUse" -File |
-              Where-Object { $_.Extension -in @(".exe", ".dll", ".pdb") } -Verbose
-          } else {
-            $files = Get-ChildItem -Path "$buildDir\Core","$buildDir\${{ inputs.game }}" -File |
-              Where-Object { $_.Extension -in @(".exe", ".dll", ".pdb") } -Verbose
-          }
-
-          $files | Move-Item -Destination $artifactsDir -Verbose -Force
-
-      - name: Upload ${{ inputs.game }} ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }} Artifact
+      # Publish compiler output before introducing private replay data.
+      - name: Upload Generals Artifact
+        if: inputs.game == 'Generals'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: ${{ inputs.game }}-${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }}
-          path: build\${{ inputs.preset }}\${{ inputs.game }}\artifacts
+          name: Generals-${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }}${{ inputs.retail-compatible == 'noretail' && '-noretail' || '' }}
+          path: build\${{ inputs.preset }}\Generals\artifacts
           retention-days: 30
           if-no-files-found: error
+
+      - name: Upload GeneralsMD Artifact
+        if: inputs.game == 'GeneralsMD'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: GeneralsMD-${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }}${{ inputs.retail-compatible == 'noretail' && '-noretail' || '' }}
+          path: build\${{ inputs.preset }}\GeneralsMD\artifacts
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Test Replays
+        if: inputs.run-replay-tests
+        uses: ./.github/actions/test-replays
+        with:
+          userdata: GeneralsReplays/GeneralsZH/1.04
+          build-artifacts-directory: build/${{ inputs.preset }}/GeneralsMD/artifacts
+          runtime-directory: ${{ runner.temp }}/replay-runtime
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-endpoint-url: ${{ secrets.R2_ENDPOINT_URL }}
+
+      - name: Upload Replay Debug Log
+        if: always() && inputs.run-replay-tests
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: Replay-Debug-Log-${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }}${{ inputs.retail-compatible == 'noretail' && '-noretail' || '' }}
+          path: |
+            ${{ runner.temp }}/replay-runtime/DebugLogFile*.txt
+            ${{ runner.temp }}/replay-runtime/stdout.log
+            ${{ runner.temp }}/replay-runtime/stderr.log
+          retention-days: 30
+          if-no-files-found: ignore
