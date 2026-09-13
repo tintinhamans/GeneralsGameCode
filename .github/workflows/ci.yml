@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build:
-    name: ${{ matrix.preset }} ${{ matrix.game }} mode=${{ matrix.mode }}
+    name: ${{ matrix.game }} ${{ matrix.preset }} ${{ matrix.mode }}${{ matrix.tools && ' tools' || ' no-tools' }}${{ matrix.extras && ' extras' || ' no-extras' }}${{ matrix.ffmpeg && ' ffmpeg' || '' }}
     permissions:
       contents: read
     strategy:
@@ -50,7 +50,7 @@ jobs:
     secrets: inherit
 
   build-vcpkg:
-    name: ${{ matrix.preset }} ${{ matrix.game }} mode=${{ matrix.mode }}
+    name: ${{ matrix.game }} ${{ matrix.preset }} ${{ matrix.mode }}${{ matrix.tools && ' tools' || ' no-tools' }}${{ matrix.extras && ' extras' || ' no-extras' }}${{ matrix.ffmpeg && ' ffmpeg' || '' }}
     permissions:
       contents: read
       packages: write

@@ -44,7 +44,7 @@ on:
 
 jobs:
   build:
-    name: ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }} retail=${{ inputs.retail-compatible }}
+    name: Build
     runs-on: windows-2022
     timeout-minutes: ${{ inputs.run-replay-tests && 45 || 30 }}
 
