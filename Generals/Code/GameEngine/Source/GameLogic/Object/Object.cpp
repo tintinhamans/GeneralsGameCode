@@ -2834,15 +2834,25 @@ void Object::onVeterancyLevelChanged( VeterancyLevel oldLevel, VeterancyLevel ne
 		return;
 #endif
 
+	BodyModuleInterface* body = getBodyModule();
+#if !RETAIL_COMPATIBLE_CRC
+	if (body)
+		body->beginVeterancyUpgradeWindow(TheGlobalData->m_healthBonus[oldLevel]);
+#endif
+
 	updateUpgradeModules();
 
 	const UpgradeTemplate* up = TheUpgradeCenter->findVeterancyUpgrade(newLevel);
 	if (up)
 		giveUpgrade(up);
 
-	BodyModuleInterface* body = getBodyModule();
 	if (body)
 		body->onVeterancyLevelChanged(oldLevel, newLevel, provideFeedback);
+
+#if !RETAIL_COMPATIBLE_CRC
+	if (body)
+		body->endVeterancyUpgradeWindow();
+#endif
 
 	switch (newLevel)
 	{

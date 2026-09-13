@@ -168,7 +168,8 @@ ActiveBody::ActiveBody( Thing *thing, const ModuleData* moduleData ) :
 	m_lastDamageCleared(false),
 	m_particleSystems(nullptr),
 	m_currentSubdualDamage(0),
-	m_indestructible(false)
+	m_indestructible(false),
+	m_veterancyUpgradeHealthScale(-1.0f)
 {
 	m_currentHealth = getActiveBodyModuleData()->m_initialHealth;
 	m_prevHealth = getActiveBodyModuleData()->m_initialHealth;
@@ -951,6 +952,31 @@ void ActiveBody::setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeT
 
 }
 
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+void ActiveBody::addMaxHealthUpgrade( Real healthDelta, MaxHealthChangeType healthChangeType )
+{
+	Real healthScale = TheGlobalData->m_healthBonus[getObject()->getVeterancyLevel()];
+	if( m_veterancyUpgradeHealthScale >= 0.0f )
+		healthScale = m_veterancyUpgradeHealthScale;
+
+	setMaxHealth( m_maxHealth + healthDelta * healthScale, healthChangeType );
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+void ActiveBody::beginVeterancyUpgradeWindow( Real healthScale )
+{
+	m_veterancyUpgradeHealthScale = healthScale;
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+void ActiveBody::endVeterancyUpgradeWindow()
+{
+	m_veterancyUpgradeHealthScale = -1.0f;
+}
+
 // ------------------------------------------------------------------------------------------------
 /** Given the current damage state of the object, evaluate the visual model conditions
 	* that have a visual impact on the object */
@@ -1574,6 +1600,7 @@ void ActiveBody::xfer( Xfer *xfer )
 
 	// initial health
 	xfer->xferReal( &m_initialHealth );
+
 
 	// current damage state
 	xfer->xferUser( &m_curDamageState, sizeof( BodyDamageType ) );

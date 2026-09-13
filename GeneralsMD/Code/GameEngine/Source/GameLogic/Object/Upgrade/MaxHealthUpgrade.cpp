@@ -87,7 +87,11 @@ void MaxHealthUpgrade::upgradeImplementation()
 	BodyModuleInterface *body = obj->getBodyModule();
 	if( body )
 	{
+#if RETAIL_COMPATIBLE_CRC
 		body->setMaxHealth( body->getMaxHealth() + data->m_addMaxHealth, data->m_maxHealthChangeType );
+#else
+		body->addMaxHealthUpgrade( data->m_addMaxHealth, data->m_maxHealthChangeType );
+#endif
 	}
 }
 

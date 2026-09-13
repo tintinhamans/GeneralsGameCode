@@ -100,6 +100,9 @@ public:
 
 	virtual void setInitialHealth(Int initialPercent) override; ///< Sets the initial load health %.
 	virtual void setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override; ///< Sets the initial max health
+	virtual void addMaxHealthUpgrade( Real healthDelta, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override;
+	virtual void beginVeterancyUpgradeWindow( Real healthScale ) override;
+	virtual void endVeterancyUpgradeWindow() override;
 
 	virtual Bool getFrontCrushed() const override { return m_frontCrushed; }
 	virtual Bool getBackCrushed() const override { return m_backCrushed; }
@@ -147,6 +150,7 @@ private:
 	Real									m_prevHealth;						///< previous health value before current health change op
   Real									m_maxHealth;						///< max health this object can have
   Real									m_initialHealth;				///< starting health for this object
+	Real									m_veterancyUpgradeHealthScale;	///< Transient health scale for upgrades applied during a promotion.
 	Real									m_currentSubdualDamage;	///< Starts at zero and goes up.  Inherited modules will do something when "subdued".
 
 	BodyDamageType				m_curDamageState;				///< last known damage state

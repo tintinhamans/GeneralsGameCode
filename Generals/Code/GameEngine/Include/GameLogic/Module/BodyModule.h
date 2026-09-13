@@ -167,6 +167,9 @@ public:
 
 	virtual void setInitialHealth(Int initialPercent)  = 0;
 	virtual void setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH )  = 0;
+	virtual void addMaxHealthUpgrade( Real healthDelta, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) = 0;
+	virtual void beginVeterancyUpgradeWindow( Real healthScale ) = 0;
+	virtual void endVeterancyUpgradeWindow() = 0;
 
 	virtual void setFrontCrushed(Bool v) = 0;
 	virtual void setBackCrushed(Bool v) = 0;
@@ -221,6 +224,9 @@ public:
 
 	virtual void setInitialHealth(Int initialPercent) override  {  } ///< Sets the initial load health %.
 	virtual void setMaxHealth(Real maxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override  {  } ///< Sets the max health.
+	virtual void addMaxHealthUpgrade(Real healthDelta, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override { } ///< Applies a fixed max-health upgrade.
+	virtual void beginVeterancyUpgradeWindow(Real healthScale) override { }
+	virtual void endVeterancyUpgradeWindow() override { }
 
 	virtual void setFrontCrushed(Bool v) override { DEBUG_CRASH(("you should never call this for generic Bodys")); }
 	virtual void setBackCrushed(Bool v) override { DEBUG_CRASH(("you should never call this for generic Bodys")); }
