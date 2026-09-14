@@ -1,3 +1,27 @@
+# CMake's own FindOpenSSL module references openssl/applink.c as a required
+# interface source for static OpenSSL on Windows/MSVC, but vcpkg's openssl
+# port does not install that file into the package -- only into its own
+# scratch build tree. Copy it into place ourselves before find_package(OpenSSL)
+# looks for it.
+#
+# OpenSSL itself is only still needed here for GameNetworkingSockets' bundled
+# WebRTC/ICE code (src/external/steamwebrtc), which links OpenSSL::Crypto and
+# OpenSSL::SSL directly and unconditionally in its own CMakeLists.txt -- that
+# is real WebRTC DTLS-SRTP transport code with OpenSSL's API baked in, not a
+# pluggable backend, so it can't be swapped for BCrypt/SChannel like curl and
+# GNS's own core crypto (USE_CRYPTO below) could be.
+set(_openssl_applink_dst "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/openssl/applink.c")
+if(NOT EXISTS "${_openssl_applink_dst}")
+    file(GLOB_RECURSE _openssl_applink_src "${CMAKE_BINARY_DIR}/vcpkg_installed/vcpkg/blds/openssl/*/ms/applink.c")
+    list(LENGTH _openssl_applink_src _openssl_applink_src_count)
+    if(_openssl_applink_src_count GREATER 0)
+        list(GET _openssl_applink_src 0 _openssl_applink_src)
+        file(COPY "${_openssl_applink_src}" DESTINATION "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/openssl")
+    endif()
+    unset(_openssl_applink_src_count)
+endif()
+unset(_openssl_applink_dst)
+
 find_package(OpenSSL REQUIRED)
 find_package(Protobuf CONFIG REQUIRED)
 
@@ -15,29 +39,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sentry_native)
 
-set(CURL_USE_OPENSSL ON CACHE BOOL "Build libcurl with OpenSSL" FORCE)
-set(CURL_DISABLE_WEBSOCKETS OFF CACHE BOOL "Enable libcurl WebSocket support" FORCE)
-set(BUILD_CURL_EXE OFF CACHE BOOL "Do not build the curl command-line tool" FORCE)
 set(BUILD_TESTING OFF CACHE BOOL "Do not build third-party tests" FORCE)
-set(BUILD_SHARED_LIBS ON CACHE BOOL "Build libcurl as a shared library" FORCE)
-set(BUILD_STATIC_LIBS OFF CACHE BOOL "Do not build a static libcurl" FORCE)
-
-FetchContent_Declare(
-    curl
-    GIT_REPOSITORY https://github.com/curl/curl.git
-    GIT_TAG        curl-8_11_0
-)
-FetchContent_MakeAvailable(curl)
-
-set(BUILD_STATIC_LIB OFF CACHE BOOL "Do not build the static GameNetworkingSockets library" FORCE)
-set(BUILD_SHARED_LIB ON CACHE BOOL "Build the shared GameNetworkingSockets library" FORCE)
+set(BUILD_STATIC_LIB ON CACHE BOOL "Build the static GameNetworkingSockets library" FORCE)
+set(BUILD_SHARED_LIB OFF CACHE BOOL "Do not build the shared GameNetworkingSockets library" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "Do not build GameNetworkingSockets examples" FORCE)
 set(BUILD_TESTS OFF CACHE BOOL "Do not build GameNetworkingSockets tests" FORCE)
 set(BUILD_TOOLS OFF CACHE BOOL "Do not build GameNetworkingSockets tools" FORCE)
 set(ENABLE_ICE ON CACHE BOOL "Enable GameNetworkingSockets NAT traversal" FORCE)
 set(USE_STEAMWEBRTC ON CACHE BOOL "Enable GameNetworkingSockets WebRTC ICE support" FORCE)
-set(USE_CRYPTO OpenSSL CACHE STRING "Use OpenSSL for GameNetworkingSockets crypto" FORCE)
-set(Protobuf_USE_STATIC_LIBS OFF CACHE BOOL "Use shared protobuf when available" FORCE)
+set(USE_CRYPTO BCrypt CACHE STRING "Use Windows native BCrypt for GameNetworkingSockets crypto" FORCE)
+set(Protobuf_USE_STATIC_LIBS ON CACHE BOOL "Use static protobuf (matches the static vcpkg triplet)" FORCE)
 
 FetchContent_Declare(
     gamenetworkingsockets
@@ -57,7 +68,16 @@ string(REPLACE
     "find_package(absl CONFIG REQUIRED)"
     _gns_steamwebrtc_contents
     "${_gns_steamwebrtc_contents}")
+string(REGEX REPLACE "install\\([^)]*\\)" "" _gns_steamwebrtc_contents "${_gns_steamwebrtc_contents}")
 file(WRITE "${_gns_steamwebrtc_cmake}" "${_gns_steamwebrtc_contents}")
+
+# GameNetworkingSockets has no option to skip its own install() rules, and
+# they try to write into CMAKE_INSTALL_PREFIX, which normally requires admin
+# privileges. Strip them the same way as steamwebrtc's above.
+set(_gns_src_cmake "${gamenetworkingsockets_SOURCE_DIR}/src/CMakeLists.txt")
+file(READ "${_gns_src_cmake}" _gns_src_contents)
+string(REGEX REPLACE "install\\([^)]*\\)" "" _gns_src_contents "${_gns_src_contents}")
+file(WRITE "${_gns_src_cmake}" "${_gns_src_contents}")
 
 add_subdirectory(
     "${gamenetworkingsockets_SOURCE_DIR}"
