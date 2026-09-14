@@ -101,10 +101,22 @@ std::vector<GOModuleInfo> GetLoadedModules() {
 }
 
 
+namespace
+{
+	std::wstring WSUtf8ToWide(const std::string& str)
+	{
+		if (str.empty())
+			return std::wstring();
+
+		int wideLen = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.size(), nullptr, 0);
+		std::wstring wide(wideLen, L'\0');
+		MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.size(), wide.data(), wideLen);
+		return wide;
+	}
+}
+
 WebSocket::WebSocket()
 {
-	m_pMulti = curl_multi_init();
-	m_pHeaders = nullptr;
 }
 
 WebSocket::~WebSocket()
@@ -113,37 +125,155 @@ WebSocket::~WebSocket()
 	// Only call Shutdown if it has not been initiated already.
 	// NGMP_OnlineServicesManager::Shutdown() calls Shutdown() before releasing the shared_ptr,
 	// so calling it again from the destructor would redundantly block for another 100ms sleep
-	// and attempt to free already-released curl resources.
+	// and attempt to free already-released WinHTTP resources.
 	if (!m_bShuttingDown)
 	{
 		Shutdown();
-	}
-
-
-
-
-	if (m_pHeaders != nullptr)
-	{
-		curl_slist_free_all(m_pHeaders);
-		m_pHeaders = nullptr;
 	}
 }
 
 int WebSocket::Ping()
 {
-	size_t sent;
-	CURLcode result = curl_ws_send(m_pCurlWS, "wsping", strlen("wsping"), &sent, 0,
-		CURLWS_PING);
-
+	// WinHTTP has no application-facing way to send a raw WS ping frame
+	// (WinHttpWebSocketSend's buffer-type enum only covers UTF8/binary
+	// message/fragment and close); it manages ping/pong internally at the
+	// protocol level. Liveness is tracked purely via the JSON-level PING
+	// below, same as the pong side already only looks at the JSON PONG.
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::PING;
 	std::string strBody = j.dump();
 
 	Send(strBody.c_str());
 
-	return (int)result;
+	return 0;
 }
 
+void WebSocket::ConnectThreadMain(std::string strURL, bool bIsReconnect)
+{
+	if (m_hWebSocket != nullptr) { WinHttpCloseHandle(m_hWebSocket); m_hWebSocket = nullptr; }
+	if (m_hConnect != nullptr) { WinHttpCloseHandle(m_hConnect); m_hConnect = nullptr; }
+
+	// WinHTTP doesn't parse ws(s):// as a URL scheme -- the WebSocket upgrade
+	// is performed as a normal http(s) request that's then upgraded in place.
+	std::string strHttpURL = strURL;
+	if (strHttpURL.rfind("wss://", 0) == 0)
+		strHttpURL = "https://" + strHttpURL.substr(6);
+	else if (strHttpURL.rfind("ws://", 0) == 0)
+		strHttpURL = "http://" + strHttpURL.substr(5);
+
+	HINTERNET hSession = NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->GetSessionHandle();
+
+	URL_COMPONENTSW urlComponents = {};
+	urlComponents.dwStructSize = sizeof(urlComponents);
+	wchar_t szHost[256] = {};
+	wchar_t szPath[2048] = {};
+	urlComponents.lpszHostName = szHost;
+	urlComponents.dwHostNameLength = ARRAYSIZE(szHost);
+	urlComponents.lpszUrlPath = szPath;
+	urlComponents.dwUrlPathLength = ARRAYSIZE(szPath);
+	urlComponents.dwSchemeLength = (DWORD)-1;
+
+	std::wstring wideURL = WSUtf8ToWide(strHttpURL);
+	// See the comment at HTTPRequest.cpp's WinHttpCrackUrl call -- LPURL_COMPONENTS
+	// is aliased to the ANSI struct in this non-UNICODE TU, but the real ABI is wide.
+	if (!WinHttpCrackUrl(wideURL.c_str(), (DWORD)wideURL.length(), 0, reinterpret_cast<LPURL_COMPONENTS>(&urlComponents)))
+	{
+		m_dwConnectWinHttpError = GetLastError();
+		m_bConnectSucceeded = false;
+		m_connectHttpStatus = -1;
+		m_bConnectAttemptDone.store(true);
+		return;
+	}
+
+	bool bIsSecure = (urlComponents.nScheme == INTERNET_SCHEME_HTTPS);
+
+	m_hConnect = WinHttpConnect(hSession, urlComponents.lpszHostName, urlComponents.nPort, 0);
+	if (m_hConnect == nullptr)
+	{
+		m_dwConnectWinHttpError = GetLastError();
+		m_bConnectSucceeded = false;
+		m_connectHttpStatus = -1;
+		m_bConnectAttemptDone.store(true);
+		return;
+	}
+
+	HINTERNET hRequest = WinHttpOpenRequest(m_hConnect, L"GET", urlComponents.lpszUrlPath, nullptr,
+		WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, bIsSecure ? WINHTTP_FLAG_SECURE : 0);
+	if (hRequest == nullptr)
+	{
+		m_dwConnectWinHttpError = GetLastError();
+		m_bConnectSucceeded = false;
+		m_connectHttpStatus = -1;
+		m_bConnectAttemptDone.store(true);
+		return;
+	}
+
+#if _DEBUG
+	DWORD dwSecurityFlags = SECURITY_FLAG_IGNORE_UNKNOWN_CA | SECURITY_FLAG_IGNORE_CERT_DATE_INVALID
+		| SECURITY_FLAG_IGNORE_CERT_CN_INVALID | SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE;
+	WinHttpSetOption(hRequest, WINHTTP_OPTION_SECURITY_FLAGS, &dwSecurityFlags, sizeof(dwSecurityFlags));
+#endif
+	// NOTE_NGMP: WinHTTP always validates certificates via the OS certificate
+	// store (SChannel underneath) in release, so there is no cacert.pem file
+	// or "CA store is bad" bypass to maintain here anymore.
+
+	EHTTPVersion httpVersionSetting = NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersion();
+	DWORD dwProtocolFlags = (httpVersionSetting == EHTTPVersion::HTTP_VERSION_1_1) ? 0 : WINHTTP_PROTOCOL_FLAG_HTTP2;
+	WinHttpSetOption(hRequest, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &dwProtocolFlags, sizeof(dwProtocolFlags));
+
+	// Must be set before WinHttpSendRequest() to signal the upgrade.
+	WinHttpSetOption(hRequest, WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, nullptr, 0);
+
+	// ws needs auth
+	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	if (pAuthInterface == nullptr)
+	{
+		WinHttpCloseHandle(hRequest);
+		m_bConnectSucceeded = false;
+		m_connectHttpStatus = -1;
+		m_bConnectAttemptDone.store(true);
+		return;
+	}
+
+	std::string strHeaders;
+	strHeaders += "Authorization: Bearer " + pAuthInterface->GetAuthToken() + "\r\n";
+	strHeaders += std::string("is-reconnect: ") + (bIsReconnect ? "true" : "false") + "\r\n";
+	std::wstring wideHeaders = WSUtf8ToWide(strHeaders);
+
+	BOOL bSendResult = WinHttpSendRequest(hRequest, wideHeaders.c_str(), (DWORD)wideHeaders.length(),
+		WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+
+	bool bSucceeded = false;
+	int httpStatus = -1;
+
+	if (bSendResult && WinHttpReceiveResponse(hRequest, nullptr))
+	{
+		DWORD dwStatusCode = 0;
+		DWORD dwStatusCodeSize = sizeof(dwStatusCode);
+		WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+			WINHTTP_HEADER_NAME_BY_INDEX, &dwStatusCode, &dwStatusCodeSize, WINHTTP_NO_HEADER_INDEX);
+		httpStatus = (int)dwStatusCode;
+
+		m_hWebSocket = WinHttpWebSocketCompleteUpgrade(hRequest, 0);
+		bSucceeded = (m_hWebSocket != nullptr);
+		if (!bSucceeded)
+		{
+			m_dwConnectWinHttpError = GetLastError();
+		}
+	}
+	else
+	{
+		m_dwConnectWinHttpError = GetLastError();
+	}
+
+	// No longer needed once the websocket handle is obtained (or the upgrade
+	// failed) -- WinHttpWebSocketCompleteUpgrade doesn't consume this handle.
+	WinHttpCloseHandle(hRequest);
+
+	m_bConnectSucceeded = bSucceeded;
+	m_connectHttpStatus = httpStatus;
+	m_bConnectAttemptDone.store(true);
+}
 
 void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback)
 {
@@ -154,99 +284,16 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 
 	m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
-	// TODO_CACHE: Cleanup multi too
-	if (m_pCurlWS != nullptr)
+	if (m_connectThread.joinable())
 	{
-        // remove from multi before cleanup (required by libcurl)
-        if (m_pMulti != nullptr)
-        {
-            curl_multi_remove_handle(m_pMulti, m_pCurlWS);
-        }
-        // cleanup
-        curl_easy_cleanup(m_pCurlWS);
-        m_pCurlWS = nullptr;
+		m_connectThread.join();
 	}
 
-    // Free old headers before creating new ones
-	if (m_pHeaders != nullptr)
-	{
-		curl_slist_free_all(m_pHeaders);
-		m_pHeaders = nullptr;
-	}
+	m_fnWebsocketConnectedCallback = fnWebsocketConnectedCallback;
+	m_strWebsocketAddr = std::string(url);
+	m_bConnectAttemptDone.store(false);
 
-	m_pCurlWS = curl_easy_init();
-
-	if (m_pCurlWS != nullptr)
-	{
-		m_fnWebsocketConnectedCallback = fnWebsocketConnectedCallback;
-
-		int httpResponseCode = -1;
-		m_strWebsocketAddr = std::string(url);
-		curl_easy_setopt(m_pCurlWS, CURLOPT_URL, url);
-
-		curl_easy_getinfo(m_pCurlWS, CURLINFO_RESPONSE_CODE, &httpResponseCode);
-
-		curl_easy_setopt(m_pCurlWS, CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
-
-        // HTTP v1 seems to have a higher success rate of bypassing DPI
-		curl_easy_setopt(m_pCurlWS, CURLOPT_HTTP_VERSION, NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersionForCurl());
-
-#if _DEBUG
-		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
-		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
-
-		curl_easy_setopt(m_pCurlWS, CURLOPT_VERBOSE, 1L);
-#else
-        if (HTTPManager::IsCACertStoreBad())
-        {
-            curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
-            curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
-        }
-        else
-        {
-            std::ifstream certFile("cacert.pem");
-            if (certFile.good())
-            {
-                certFile.close();
-                curl_easy_setopt(m_pCurlWS, CURLOPT_CAINFO, "cacert.pem");
-
-                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 1L);
-                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 2L);
-            }
-            else
-            {
-				HTTPManager::SetCACertStoreBad();
-                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
-                curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
-            }
-        }
-#endif
-
-
-		// ws needs auth
-		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-		if (pAuthInterface == nullptr)
-		{
-			curl_easy_cleanup(m_pCurlWS);
-			m_pCurlWS = nullptr;
-			return;
-		}
-
-		char szHeaderBuffer[8192] = { 0 };
-		sprintf_s(szHeaderBuffer, "Authorization: Bearer %s", pAuthInterface->GetAuthToken().c_str());
-		m_pHeaders = curl_slist_append(m_pHeaders, szHeaderBuffer);
-
-        sprintf_s(szHeaderBuffer, "is-reconnect: %s", bIsReconnect ? "true": "false");
-		m_pHeaders = curl_slist_append(m_pHeaders, szHeaderBuffer);
-
-		curl_easy_setopt(m_pCurlWS, CURLOPT_HTTPHEADER, m_pHeaders);
-
-		//curl_easy_setopt(m_pCurl, CURLOPT_TIMEOUT_MS, 1000);
-
-		/* Perform the request, res gets the return code */
-		//CURLcode res = curl_easy_perform(m_pCurl);
-		curl_multi_add_handle(m_pMulti, m_pCurlWS);
-	}
+	m_connectThread = std::thread(&WebSocket::ConnectThreadMain, this, std::string(url), bIsReconnect);
 }
 
 void WebSocket::SendData_RoomChatMessage(UnicodeString& msg, bool bIsAction)
@@ -292,30 +339,24 @@ void WebSocket::Disconnect()
 		return;
 	}
 
-	if (m_pCurlWS != nullptr)
+	if (m_hWebSocket != nullptr)
 	{
 		// send close
-		size_t sent;
-		(void)curl_ws_send(m_pCurlWS, "", 0, &sent, 0, CURLWS_CLOSE);
+		WinHttpWebSocketClose(m_hWebSocket, WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, nullptr, 0);
+	}
 
-		// release headers
-		if (m_pHeaders != nullptr)
-		{
-			curl_slist_free_all(m_pHeaders);
-			m_pHeaders = nullptr;
-		}
+	// Signal the receive thread to stop and wait for it -- WinHttpWebSocketClose()
+	// unblocks any pending WinHttpWebSocketReceive() on the handle.
+	m_bReceiveThreadShouldStop.store(true);
+	if (m_receiveThread.joinable())
+	{
+		m_receiveThread.join();
+	}
 
-
-		// Remove from multi handle before cleanup (required by libcurl)
-		if (m_pMulti != nullptr)
-		{
-			curl_multi_remove_handle(m_pMulti, m_pCurlWS);
-		}
-
-
-		// cleanup
-		curl_easy_cleanup(m_pCurlWS);
-		m_pCurlWS = nullptr;
+	if (m_hWebSocket != nullptr)
+	{
+		WinHttpCloseHandle(m_hWebSocket);
+		m_hWebSocket = nullptr;
 	}
 
 	m_vecWSPartialBuffer.clear();
@@ -338,12 +379,14 @@ void WebSocket::Send(const char* send_payload)
 		return;
 	}
 
-	size_t sent;
-	CURLcode result = curl_ws_send(m_pCurlWS, send_payload, strlen(send_payload), &sent, 0, CURLWS_BINARY);
+	// WinHTTP doesn't guarantee thread-safety for concurrent sends on one
+	// handle, so this stays serialized through the same lock as before.
+	DWORD result = WinHttpWebSocketSend(m_hWebSocket, WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE,
+		(PVOID)send_payload, (DWORD)strlen(send_payload));
 
-	if (result != CURLE_OK)
+	if (result != NO_ERROR)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "curl_ws_send() failed: %s\n", curl_easy_strerror(result));
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "WinHttpWebSocketSend() failed: %lu\n", result);
 	}
 
 	ReleaseLock();
@@ -586,6 +629,69 @@ static bool JSONGetAsObject(nlohmann::json& jsonObject, T* outMsg)
 	return false;
 }
 
+void WebSocket::ReceiveThreadMain()
+{
+	// Reused across calls; WinHttpWebSocketReceive() tells us via dwBytesRead
+	// how much of it was actually filled this call.
+	std::vector<uint8_t> buffer(8196 * 4);
+
+	while (!m_bReceiveThreadShouldStop.load())
+	{
+		DWORD dwBytesRead = 0;
+		WINHTTP_WEB_SOCKET_BUFFER_TYPE bufferType;
+
+		DWORD result = WinHttpWebSocketReceive(m_hWebSocket, buffer.data(), (DWORD)buffer.size(), &dwBytesRead, &bufferType);
+
+		if (m_bReceiveThreadShouldStop.load())
+		{
+			// Disconnect() is tearing this down deliberately -- don't report
+			// the resulting failure/close as a connection error.
+			break;
+		}
+
+		if (result != NO_ERROR)
+		{
+			WSIncomingChunk chunk;
+			chunk.bIsConnectionError = true;
+			chunk.dwWinHttpError = result;
+
+			if (AcquireLock())
+			{
+				m_vecIncomingMessages.push(std::move(chunk));
+				ReleaseLock();
+			}
+			break;
+		}
+
+		if (bufferType == WINHTTP_WEB_SOCKET_CLOSE_BUFFER_TYPE)
+		{
+			WSIncomingChunk chunk;
+			chunk.bIsExplicitClose = true;
+
+			if (AcquireLock())
+			{
+				m_vecIncomingMessages.push(std::move(chunk));
+				ReleaseLock();
+			}
+			break;
+		}
+
+		// UTF8_MESSAGE/BINARY_MESSAGE mean this call completed the logical
+		// message; the _FRAGMENT_ variants mean more calls are needed for the
+		// same message (mirrors curl's CURLWS_CONT/bytesleft distinction).
+		WSIncomingChunk chunk;
+		chunk.data.assign(buffer.begin(), buffer.begin() + dwBytesRead);
+		chunk.bIsText = (bufferType == WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE || bufferType == WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE);
+		chunk.bIsMessageComplete = (bufferType == WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE || bufferType == WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE);
+
+		if (AcquireLock())
+		{
+			m_vecIncomingMessages.push(std::move(chunk));
+			ReleaseLock();
+		}
+	}
+}
+
 //static std::string strSignal = "str:1 ";
 void WebSocket::Tick()
 {
@@ -657,100 +763,94 @@ void WebSocket::Tick()
 		Ping();
 	};
 
-    int numReqs = 0;
-    curl_multi_perform(m_pMulti, &numReqs);
-    curl_multi_poll(m_pMulti, NULL, 0, 0, NULL);
-
+    // Poll the connect worker thread for completion, in place of curl's
+    // curl_multi_perform()/curl_multi_info_read().
+    if (m_bConnectAttemptDone.load())
     {
-        // Check for completed requests (initial connection only)
-        int msgq = 0;
-        CURLMsg* m = nullptr;
-        while ((m = curl_multi_info_read(m_pMulti, &msgq)) != nullptr)
+        m_bConnectAttemptDone.store(false);
+
+        int httpResponseCode = m_connectHttpStatus;
+
+        /* Check for errors */
+        if (!m_bConnectSucceeded)
         {
-            if (m->msg == CURLMSG_DONE)
+            m_bConnected = false;
+            m_vecWSPartialBuffer.clear();
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Failed to connect (WinHTTP error %lu, HTTP status %d)", m_dwConnectWinHttpError, httpResponseCode);
+
+            // reconnecting? give up eventually
+            if (m_bReconnecting)
             {
-                CURL* pCurlHandle = m->easy_handle;
+                int maxReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? maxReconnectAttempts_Ingame : maxReconnectAttempts_Frontend;
 
-                if (pCurlHandle == m_pCurlWS) // shouldnt hear about anything else
+                if (m_numReconnectAttempts >= maxReconnectAttempts || httpResponseCode == 205) // 205 = need full teardown
                 {
-					int httpResponseCode = -1;
-					curl_easy_getinfo(pCurlHandle, CURLINFO_RESPONSE_CODE, &httpResponseCode);
-
-					/* Check for errors */
-                    if (m->data.result != CURLE_OK)
+                    if (httpResponseCode == 205)
                     {
-                        m_bConnected = false;
-                        m_vecWSPartialBuffer.clear();
-                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Failed to connect (%d - %s)", m->data.result, curl_easy_strerror(m->data.result));
-
-                        // reconnecting? give up eventually
-                        if (m_bReconnecting)
-                        {
-                            int maxReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? maxReconnectAttempts_Ingame : maxReconnectAttempts_Frontend;
-
-                            if (m_numReconnectAttempts >= maxReconnectAttempts || (m->data.result == CURLE_HTTP_RETURNED_ERROR && httpResponseCode == 205)) // 205 = need full teardown
-                            {
-                                if (httpResponseCode == 205)
-                                {
-                                    NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 205)");
-                                }
-                                else
-                                {
-                                    NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 2)");
-                                }
-
-                                NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
-                                m_bConnected = false;
-                                m_vecWSPartialBuffer.clear();
-
-                                // clear reconnection flags
-                                m_bReconnecting = false;
-                                m_numReconnectAttempts = 0;
-                                m_lastReconnectAttempt = -1;
-                            }
-                        }
-                        else // give up immediately
-                        {
-                            NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (initial connect)");
-                            NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
-                            m_bConnected = false;
-                            m_vecWSPartialBuffer.clear();
-
-                            // clear reconnection flags
-                            m_bReconnecting = false;
-                            m_numReconnectAttempts = 0;
-                            m_lastReconnectAttempt = -1;
-                        }
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 205)");
                     }
                     else
                     {
-                        if (m_bReconnecting)
-                        {
-                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Re-Connected");
-                        }
-                        else
-                        {
-                            NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connected");
-                        }
-
-                        /* connected and ready */
-                        m_bConnected = true;
-                        m_vecWSPartialBuffer.clear();
-
-                        // clear reconnection flags
-                        m_bReconnecting = false;
-                        m_numReconnectAttempts = 0;
-                        m_lastReconnectAttempt = -1;
-
-                        // connecting is as good as a pong
-                        m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-
-                        if (m_fnWebsocketConnectedCallback != nullptr)
-                        {
-                            m_fnWebsocketConnectedCallback();
-                        }
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 2)");
                     }
+
+                    NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
+                    m_bConnected = false;
+                    m_vecWSPartialBuffer.clear();
+
+                    // clear reconnection flags
+                    m_bReconnecting = false;
+                    m_numReconnectAttempts = 0;
+                    m_lastReconnectAttempt = -1;
                 }
+            }
+            else // give up immediately
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (initial connect)");
+                NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
+                m_bConnected = false;
+                m_vecWSPartialBuffer.clear();
+
+                // clear reconnection flags
+                m_bReconnecting = false;
+                m_numReconnectAttempts = 0;
+                m_lastReconnectAttempt = -1;
+            }
+        }
+        else
+        {
+            if (m_bReconnecting)
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Re-Connected");
+            }
+            else
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connected");
+            }
+
+            /* connected and ready */
+            m_bConnected = true;
+            m_vecWSPartialBuffer.clear();
+
+            // clear reconnection flags
+            m_bReconnecting = false;
+            m_numReconnectAttempts = 0;
+            m_lastReconnectAttempt = -1;
+
+            // connecting is as good as a pong
+            m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+
+            // start the long-lived receive thread now that we have a valid websocket handle
+            if (m_receiveThread.joinable())
+            {
+                m_receiveThread.join();
+            }
+            m_bReceiveThreadShouldStop.store(false);
+            m_receiveThread = std::thread(&WebSocket::ReceiveThreadMain, this);
+
+            if (m_fnWebsocketConnectedCallback != nullptr)
+            {
+                m_fnWebsocketConnectedCallback();
             }
         }
     }
@@ -764,52 +864,84 @@ void WebSocket::Tick()
 	// send anything we have buffered (e.g. things that were queued while not connected)
 	for (std::string& strPayload : m_vecQueuedOutboungMsgs)
 	{
-        size_t sent;
-        CURLcode result = curl_ws_send(m_pCurlWS, strPayload.c_str(), strPayload.length(), &sent, 0, CURLWS_BINARY);
+        DWORD result = WinHttpWebSocketSend(m_hWebSocket, WINHTTP_WEB_SOCKET_BINARY_MESSAGE_BUFFER_TYPE,
+            (PVOID)strPayload.data(), (DWORD)strPayload.length());
 
-        if (result != CURLE_OK)
+        if (result != NO_ERROR)
         {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "curl_ws_send() failed: %s\n", curl_easy_strerror(result));
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "WinHttpWebSocketSend() failed: %lu\n", result);
         }
 	}
 	m_vecQueuedOutboungMsgs.clear();
 
-	// do recv
-	size_t rlen = 0;
-	const struct curl_ws_frame* meta = nullptr;
-	char bufferThisRecv[8196 * 4] = { 0 };
-
-	CURLcode ret = CURL_LAST;
-	ret = curl_ws_recv(m_pCurlWS, bufferThisRecv, sizeof(bufferThisRecv), &rlen, &meta);
-
-	// SECURITY FIX: Validate rlen is within buffer bounds
-	if (rlen > sizeof(bufferThisRecv))
+	// do recv -- pop one chunk pushed by ReceiveThreadMain(), in place of a
+	// direct curl_ws_recv() call. bIsMessageComplete plays the same role
+	// curl's (!CURLWS_CONT && bytesleft == 0) check used to.
+	if (!AcquireLock())
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Received data size %zu exceeds buffer size %zu, discarding", rlen, sizeof(bufferThisRecv));
 		return;
 	}
-
-	if (ret != CURLE_RECV_ERROR && ret != CURL_LAST && ret != CURLE_AGAIN && ret != CURLE_GOT_NOTHING)
+	if (m_vecIncomingMessages.empty())
 	{
-		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket msg: %s", bufferThisRecv);
+		ReleaseLock();
+		return;
+	}
+	WSIncomingChunk chunk = std::move(m_vecIncomingMessages.front());
+	m_vecIncomingMessages.pop();
+	ReleaseLock();
+
+	size_t rlen = chunk.data.size();
+	const uint8_t* bufferThisRecv = chunk.data.data();
+
+	if (chunk.bIsExplicitClose)
+	{
+		// Server sent an explicit WS CLOSE frame -- full teardown, no
+		// auto-reconnect (matches the old CURLWS_CLOSE handling).
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket close");
+		NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
+		m_bConnected = false;
+		m_vecWSPartialBuffer.clear();
+	}
+	else if (chunk.bIsConnectionError)
+	{
+		// WinHttpWebSocketReceive() itself failed (connection dropped
+		// unexpectedly) -- enter the reconnect state machine, matching the
+		// old CURLE_RECV_ERROR handling.
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (WinHTTP error %lu), Attempting reconnect", chunk.dwWinHttpError);
+
+		m_bConnected = false;
+		m_bReconnecting = true;
+		m_numReconnectAttempts = 0;
+		m_lastReconnectAttempt = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+		m_vecWSPartialBuffer.clear();
+
+#if defined(GENERALS_ONLINE_USE_SENTRY)
+		if (TheNGMPGame != nullptr)
+		{
+			AsciiString sentryMsg;
+			sentryMsg.format("Got websocket disconnect (WinHTTP error %lu), Attempting reconnect", chunk.dwWinHttpError);
+			sentry_capture_event(sentry_value_new_message_event(SENTRY_LEVEL_ERROR, "WEBSOCKET_DISCONNECT_ERROR", sentryMsg.str()));
+		}
+#endif
+	}
+	else
+	{
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket len: %d", rlen);
 
-		// what type of message?
-		if (meta != nullptr)
+		// WinHTTP handles raw WS-protocol PING/PONG control frames
+		// internally and never surfaces them here (unlike curl's
+		// CURLWS_PING/CURLWS_PONG) -- harmless, since the old handlers for
+		// those were empty/TODO no-ops anyway. The real liveness signal is
+		// the JSON-level PONG message below, which still arrives as a
+		// normal text message.
+		if (chunk.bIsText)
 		{
-			NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket flags: %d", meta->flags);
-			if (meta->flags & CURLWS_PONG) // PONG
-			{
+			bool bMessageComplete = false;
 
-			}
-			else if (meta->flags & CURLWS_TEXT)
+			static constexpr size_t MAX_WS_PARTIAL_SIZE = 2 * 1024 * 1024; // 2 MB
+			if (m_vecWSPartialBuffer.size() + rlen > MAX_WS_PARTIAL_SIZE)
 			{
-				bool bMessageComplete = false;
-
-				static constexpr size_t MAX_WS_PARTIAL_SIZE = 2 * 1024 * 1024; // 2 MB
-				if (m_vecWSPartialBuffer.size() + rlen > MAX_WS_PARTIAL_SIZE)
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Partial buffer overflow, discarding message");
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Partial buffer overflow, discarding message");
 					m_vecWSPartialBuffer.clear();
 					return;
 				}
@@ -819,22 +951,12 @@ void WebSocket::Tick()
 				m_vecWSPartialBuffer.resize(oldSize + rlen);
 				memcpy_s(m_vecWSPartialBuffer.data() + oldSize, rlen, bufferThisRecv, rlen);
 
-				if (meta->flags & CURLWS_CONT)
-				{
-					bMessageComplete = false;
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "WEBSOCKET PARTIAL (CONT) OF SIZE %d, offset %d, bytes left %d! [MESSAGE COMPLETE: %d]", rlen, meta->offset, meta->bytesleft, bMessageComplete);
-				}
-				else if (meta->bytesleft > 0)
-				{
-					bMessageComplete = false;
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "WEBSOCKET PARTIAL (BYTESLEFT) OF SIZE %d, offset %d! [MESSAGE COMPLETE: %d]", rlen, meta->offset, bMessageComplete);
-				}
-				else
-				{
-					// if we got in here, it's a whole message, or the last part of a fragmented message
-					bMessageComplete = true;
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "WEBSOCKET LAST FRAME OF SIZE %d!", rlen);
-				}
+				// WinHttpWebSocketReceive() tells us directly (via the buffer
+				// type it returns) whether this was a fragment or the final
+				// piece of the message -- no offset/bytesleft bookkeeping
+				// needed the way curl's meta struct required.
+				bMessageComplete = chunk.bIsMessageComplete;
+				NetworkLog(ELogVerbosity::LOG_DEBUG, "WEBSOCKET CHUNK OF SIZE %d! [MESSAGE COMPLETE: %d]", rlen, bMessageComplete);
 
 				if (bMessageComplete)
 				{
@@ -1585,58 +1707,12 @@ void WebSocket::Tick()
 					}
 				}
 			}
-			else if (meta->flags & CURLWS_BINARY)
+			else
 			{
 				NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket binary");
-				// noop
-			}
-			else if (meta->flags & CURLWS_CLOSE)
-			{
-				// TODO_NGMP: Dont do this during gameplay, they can play without the WS, just 'queue' it for when they get back to the front end
-
-				NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket close");
-				NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
-				m_bConnected = false;
-				m_vecWSPartialBuffer.clear();
-				// TODO_NGMP: Handle this
-			}
-			else if (meta->flags & CURLWS_PING)
-			{
-				// TODO_NGMP: Handle this
-			}
-			else if (meta->flags & CURLWS_OFFSET)
-			{
-				NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket offset");
-				// noop
+				// noop -- matches the old CURLWS_BINARY handling
 			}
 		}
-		else
-		{
-			NetworkLog(ELogVerbosity::LOG_DEBUG, "websocket meta was null");
-		}
-	}
-	else if (ret == CURLE_RECV_ERROR)
-	{
-
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (ERROR: %s), Attempting reconnect", curl_easy_strerror(ret));
-
-		m_bConnected = false;
-		m_bReconnecting = true;
-        m_numReconnectAttempts = 0;
-        m_lastReconnectAttempt = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-		m_vecWSPartialBuffer.clear();
-
-
-		// send event to sentry
-#if defined(GENERALS_ONLINE_USE_SENTRY)
-        if (TheNGMPGame != nullptr)
-        {
-			AsciiString sentryMsg;
-            sentryMsg.format("Got websocket disconnect (ERROR: %s), Attempting reconnect", curl_easy_strerror(ret));
-            sentry_capture_event(sentry_value_new_message_event(SENTRY_LEVEL_ERROR, "WEBSOCKET_DISCONNECT_ERROR", sentryMsg.str()));
-        }
-#endif
-	}
 
 	// time since last pong?
 	if (m_lastPong != -1 && (currTime - m_lastPong) >= m_timeForWSTimeout)
@@ -1646,12 +1722,12 @@ void WebSocket::Tick()
         if (TheNGMPGame != nullptr)
         {
             AsciiString sentryMsg;
-            sentryMsg.format("Got websocket disconnect (Timeout: %s), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", curl_easy_strerror(ret), currTime - m_lastPong, m_lastPong, currTime);
+            sentryMsg.format("Got websocket disconnect (Timeout), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", currTime - m_lastPong, m_lastPong, currTime);
             sentry_capture_event(sentry_value_new_message_event(SENTRY_LEVEL_ERROR, "WEBSOCKET_DISCONNECT_TIMEOUT", sentryMsg.str()));
         }
 #endif
 
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (Timeout: %s), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", curl_easy_strerror(ret), currTime - m_lastPong, m_lastPong, currTime);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (Timeout), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", currTime - m_lastPong, m_lastPong, currTime);
         m_bConnected = false;
         m_bReconnecting = true;
         m_numReconnectAttempts = 0;

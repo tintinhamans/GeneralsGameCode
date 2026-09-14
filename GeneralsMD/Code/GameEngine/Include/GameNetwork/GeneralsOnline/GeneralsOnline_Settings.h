@@ -1,13 +1,25 @@
 #pragma once
-#include <curl/curl.h>
 
+// Kept to 3 values deliberately: validated against the live backend
+// (api.playgenerals.online) that 1.0 isn't honored as distinct from 1.1
+// (the server always answers HTTP/1.1 regardless of what's requested) and
+// 3.0 isn't offered at all (no Alt-Svc h3 upgrade). Auto/1.1/2.0 are the
+// only combinations that are both meaningful and controllable via WinHTTP.
 enum EHTTPVersion
 {
     HTTP_VERSION_AUTO,
-    HTTP_VERSION_1_0,
     HTTP_VERSION_1_1,
-    HTTP_VERSION_2_0,
-    HTTP_VERSION_3_0
+    HTTP_VERSION_2_0
+};
+
+// Auto tries the default endpoint first and falls back automatically on a
+// connection-level failure (see Network_UseAlternativeEndpoint()); Default
+// and Alternative force that endpoint always, no fallback.
+enum ENetworkEndpoint
+{
+    NETWORK_ENDPOINT_AUTO,
+    NETWORK_ENDPOINT_DEFAULT,
+    NETWORK_ENDPOINT_ALTERNATIVE
 };
 
 class GenOnlineSettings
@@ -73,40 +85,8 @@ public:
 
 	bool DataPacks_UseCommunityPatch() const { return m_DataPacks_UseCommunityPatch; }
 
-	bool Network_UseAlternativeEndpoint() const { return m_Network_UseAlternativeEndpoint; }
+	ENetworkEndpoint Network_UseAlternativeEndpoint() const { return m_Network_UseAlternativeEndpoint; }
 	EHTTPVersion Network_GetHTTPVersion() const { return m_Network_HTTPVersion; }
-	int Network_GetHTTPVersionForCurl() const
-	{
-		switch (m_Network_HTTPVersion)
-		{
-			case HTTP_VERSION_AUTO:
-			{
-				return CURL_HTTP_VERSION_NONE;
-			}
-
-			case HTTP_VERSION_1_0:
-			{
-				return CURL_HTTP_VERSION_1_0;
-            }
-
-			case HTTP_VERSION_1_1:
-			{
-				return CURL_HTTP_VERSION_1_1;
-			}
-
-			case HTTP_VERSION_2_0:
-			{
-				return CURL_HTTP_VERSION_2_0;
-			}
-
-			case HTTP_VERSION_3_0:
-			{
-				return CURL_HTTP_VERSION_3;
-			}
-		}
-
-		return CURL_HTTP_VERSION_NONE;
-	}
 
 private:
 	void Load(void);
@@ -145,5 +125,5 @@ private:
 	std::string m_Plugins_Anticheat = std::string();
 
 	EHTTPVersion m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_AUTO;
-	bool m_Network_UseAlternativeEndpoint = false;
+	ENetworkEndpoint m_Network_UseAlternativeEndpoint = ENetworkEndpoint::NETWORK_ENDPOINT_AUTO;
 };

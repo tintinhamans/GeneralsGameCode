@@ -169,20 +169,43 @@ void GenOnlineSettings::Load(void)
                 {
                    int httpVersion = networkSettings[SETTINGS_KEY_NETWORK_HTTP_VERSION];
 
-				   // clamp
-				   if (httpVersion < 0 || httpVersion > HTTP_VERSION_3_0)
+				   // EHTTPVersion was simplified from 5 values (AUTO/1.0/1.1/2.0/3.0) down to 3
+				   // (AUTO/1.1/2.0) -- remap old persisted indices explicitly rather than
+				   // reinterpreting the raw int, since the enum values shifted.
+				   switch (httpVersion)
 				   {
-					   m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_AUTO;
-				   }
-				   else
-				   {
-					   m_Network_HTTPVersion = (EHTTPVersion)httpVersion;
+					   case 0: /* old AUTO */    m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_AUTO; break;
+					   case 1: /* old 1.0 */     m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_1_1; break;
+					   case 2: /* old 1.1 */     m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_1_1; break;
+					   case 3: /* old 2.0 */     m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_2_0; break;
+					   default: /* old 3.0 or out-of-range */ m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_AUTO; break;
 				   }
                 }
 
                 if (networkSettings.contains(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT))
                 {
-                    m_Network_UseAlternativeEndpoint = networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT];
+                    auto& endpointValue = networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT];
+
+					// Was a plain bool before this setting became a 3-way enum; preserve the
+					// user's prior explicit choice instead of silently resetting it to Auto.
+					if (endpointValue.is_boolean())
+					{
+						m_Network_UseAlternativeEndpoint = (bool)endpointValue
+							? ENetworkEndpoint::NETWORK_ENDPOINT_ALTERNATIVE
+							: ENetworkEndpoint::NETWORK_ENDPOINT_DEFAULT;
+					}
+					else
+					{
+						int endpoint = endpointValue;
+						if (endpoint < 0 || endpoint > ENetworkEndpoint::NETWORK_ENDPOINT_ALTERNATIVE)
+						{
+							m_Network_UseAlternativeEndpoint = ENetworkEndpoint::NETWORK_ENDPOINT_AUTO;
+						}
+						else
+						{
+							m_Network_UseAlternativeEndpoint = (ENetworkEndpoint)endpoint;
+						}
+					}
                 }
             }
 

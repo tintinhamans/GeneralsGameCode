@@ -393,21 +393,20 @@ void NGMP_OnlineServicesManager::Shutdown()
 	// This prevents race conditions where threads might still be using resources
 	WaitForScreenshotThreads();
 	
-	// Shutdown and completely destroy WebSocket BEFORE cleaning up HTTPManager
-	// This is critical because WebSocket has curl handles that must be freed
-	// before curl_global_cleanup() is called by HTTPManager
+	// Shutdown and completely destroy WebSocket BEFORE cleaning up HTTPManager,
+	// since the WebSocket's worker threads use HTTPManager's shared session handle.
 	if (m_pWebSocket)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Shutting down WebSocket...");
 		m_pWebSocket->Shutdown();
 		
-		// Reset shared_ptr to fully destroy WebSocket and free all its curl resources
-		// This must happen before HTTPManager shutdown to avoid accessing freed curl state
+		// Reset shared_ptr to fully destroy WebSocket and free its WinHTTP handles/threads.
+		// This must happen before HTTPManager shutdown to avoid accessing the freed session handle.
 		m_pWebSocket.reset();
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] WebSocket shutdown complete");
 	}
 
-	// Now safe to shutdown HTTP manager which calls curl_global_cleanup()
+	// Now safe to shutdown the HTTP manager (closes its shared session handle)
 	if (m_pHTTPManager != nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Shutting down HTTPManager...");
@@ -870,8 +869,9 @@ void NGMP_OnlineServicesManager::OnLogin(ELoginResult loginResult, const char* s
 		// connect to WS
 		m_pWebSocket = std::make_shared<WebSocket>();
 
-		// TODO_NGMP: This should come from the service, if the service was russia-aware
-		std::string strWebsocketAddr = NGMP_OnlineServicesManager::Settings.Network_UseAlternativeEndpoint() ? "wss://api-ru.playgenerals.online/ws" : std::string(szWSAddr);
+		// The server now returns the correct (region-aware) WS address directly,
+		// so no client-side override is needed here anymore.
+		std::string strWebsocketAddr = std::string(szWSAddr);
 
         m_pWebSocket->Connect(strWebsocketAddr.c_str(), false, [=]()
             {
@@ -1074,11 +1074,6 @@ void NGMP_OnlineServicesManager::Tick()
 
 void NGMP_OnlineServicesManager::InitSentry()
 {
-	// Initialize libcurl global state here, before any plugins (e.g. EasyAntiCheat) are loaded.
-	// This ensures libcurl's internal mutexes are fully initialized before the EAC plugin
-	// attempts to use them, preventing an access violation in mtx_do_lock on null mutex state.
-	curl_global_init(CURL_GLOBAL_DEFAULT);
-
 #if !_DEBUG
 	std::string strDumpPath = std::format("{}/GeneralsOnlineCrashData/", TheGlobalData->getPath_UserData().str());
 	if (!std::filesystem::exists(strDumpPath))
@@ -1169,39 +1164,31 @@ void WebSocket::Shutdown()
 	// Signal that we're shutting down
 	m_bShuttingDown = true;
 	
-	// Disconnect from the websocket (handles the connected case)
+	// Disconnect from the websocket (handles the connected case; also stops
+	// and joins the receive thread if one is running).
 	Disconnect();
 
-	// Clean up curl easy handle if still active (e.g., mid-connection, not yet fully connected)
-	// Disconnect() returns early when m_bConnected is false, so m_pCurlWS may still be alive here
-	if (m_pCurlWS != nullptr)
+	// Join the connect thread in case shutdown happens mid-handshake --
+	// Disconnect() only tears down a *connected* websocket, so this can
+	// still be in flight (e.g. shutdown during initial connect/reconnect).
+	if (m_connectThread.joinable())
 	{
-		if (m_pMulti != nullptr)
-		{
-			curl_multi_remove_handle(m_pMulti, m_pCurlWS);
-		}
-		curl_easy_cleanup(m_pCurlWS);
-		m_pCurlWS = nullptr;
+		m_connectThread.join();
 	}
 
-	// Clean up multi handle
-	if (m_pMulti != nullptr)
+	// Clean up handshake handles if still active (e.g. mid-connection, never
+	// reached m_bConnected). Disconnect() only closes m_hWebSocket.
+	if (m_hWebSocket != nullptr)
 	{
-		curl_multi_cleanup(m_pMulti);
-		m_pMulti = nullptr;
+		WinHttpCloseHandle(m_hWebSocket);
+		m_hWebSocket = nullptr;
+	}
+	if (m_hConnect != nullptr)
+	{
+		WinHttpCloseHandle(m_hConnect);
+		m_hConnect = nullptr;
 	}
 
-	// Free headers (may already be freed by Disconnect, but check anyway)
-	if (m_pHeaders != nullptr)
-	{
-		curl_slist_free_all(m_pHeaders);
-		m_pHeaders = nullptr;
-	}
-	
-	// Give CURL time to process the disconnect and cease operations
-	// This ensures any background I/O threads have completed before we return
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
-	
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Shutdown complete");
 }
 

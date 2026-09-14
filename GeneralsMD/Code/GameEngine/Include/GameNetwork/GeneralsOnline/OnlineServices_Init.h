@@ -4,6 +4,9 @@
 
 #include <thread>
 #include <memory>
+#include <atomic>
+#include <queue>
+#include <winhttp.h>
 
 class HTTPManager;
 
@@ -38,12 +41,6 @@ struct S3ScreenshotEntry
 #include <mutex>
 #include <atomic>
 
-#ifdef RTS_USE_LEGACY_NETWORK_VENDOR
-#pragma comment(lib, "libcurl/libcurl.lib")
-#include "GameNetwork/GeneralsOnline/Vendor/libcurl/curl.h"
-#else
-#include <curl/curl.h>
-#endif
 #include <sentry.h>
 #include <chrono>
 #include "GeneralsOnline_Settings.h"
@@ -207,9 +204,44 @@ public:
 	}
 
 private:
-	CURL* m_pCurlWS = nullptr;
-    CURLM* m_pMulti = nullptr;
-	struct curl_slist* m_pHeaders = nullptr;
+	// Runs the upgrade handshake on a short-lived worker thread; Tick()
+	// polls m_bConnectAttemptDone the same way it used to poll
+	// curl_multi_info_read() for the initial connection result.
+	void ConnectThreadMain(std::string strURL, bool bIsReconnect);
+
+	// Runs on a long-lived worker thread once upgraded; loops on blocking
+	// WinHttpWebSocketReceive(), pushing complete messages into
+	// m_vecIncomingMessages (guarded by m_mutex) for Tick() to drain.
+	void ReceiveThreadMain();
+
+	HINTERNET m_hConnect = nullptr;
+	HINTERNET m_hWebSocket = nullptr;
+
+	std::thread m_connectThread;
+	std::thread m_receiveThread;
+	std::atomic<bool> m_bReceiveThreadShouldStop = false;
+
+	std::atomic<bool> m_bConnectAttemptDone = false;
+	bool m_bConnectSucceeded = false;
+	int m_connectHttpStatus = -1;
+	DWORD m_dwConnectWinHttpError = 0;
+
+	// One raw WinHttpWebSocketReceive() result. bIsMessageComplete mirrors
+	// what curl's CURLWS_CONT/bytesleft used to tell Tick()'s existing
+	// reassembly logic -- false means more fragments are coming for the
+	// same logical message.
+	struct WSIncomingChunk
+	{
+		std::vector<uint8_t> data;
+		bool bIsText = false;
+		bool bIsMessageComplete = false;
+		bool bIsExplicitClose = false;   // server sent a WS CLOSE frame -> full teardown, no auto-reconnect
+		bool bIsConnectionError = false; // WinHttpWebSocketReceive() itself failed -> enter the reconnect state machine
+		DWORD dwWinHttpError = 0;
+	};
+
+	// Populated by ReceiveThreadMain(), drained by Tick() on the main thread.
+	std::queue<WSIncomingChunk> m_vecIncomingMessages;
 
 	bool m_bConnected = false;
 

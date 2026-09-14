@@ -21,7 +21,6 @@
 #define CREDENTIALS_FILENAME "credentials.json"
 #endif
 
-#include <curl/curl.h>
 #include "GameClient/ClientInstance.h"
 
 enum class EAuthResponseResult : int

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "HTTPRequest.h"
-#include <curl/multi.h>
 #include <vector>
 #include <mutex>
 #include <thread>
@@ -19,6 +18,10 @@ enum class EHTTPVerb
 	HTTP_VERB_DELETE
 };
 
+// NOTE: WinHTTP's high-level WinHttpConnect API doesn't offer a clean way to
+// force a specific IP family without breaking TLS SNI, so FORCE_IPV4/FORCE_IPV6
+// are accepted for API compatibility but not acted upon -- WinHTTP's normal
+// DNS resolution decides. DONT_CARE remains the effective behavior always.
 enum class EIPProtocolVersion
 {
 	DONT_CARE = 0,
@@ -36,29 +39,7 @@ public:
 
 	void Tick();
 
-
-	static void SetCACertStoreBad()
-	{
-		m_bCACertBad.store(true);
-	}
-
-	static bool IsCACertStoreBad()
-	{
-		return m_bCACertBad.load();
-	}
-
-    void SetProtocolInUse(EIPProtocolVersion proto)
-    {
-		m_sProtocolInUse.store(proto);
-    }
-
-	EIPProtocolVersion GetProtocolInUse()
-    {
-        return m_sProtocolInUse.load();
-    }
-
-	void AddHandleToMulti(CURL* pNewHandle);
-	void RemoveHandleFromMulti(CURL* pHandleToRemove);
+	HINTERNET GetSessionHandle() const { return m_hSession; }
 
 	void SendGETRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback = nullptr, int timeoutMS = -1);
 	// NOTE: set bDisableServiceAuth for endpoints that must be called with something other than the session token (e.g. the refresh endpoint, which needs the refresh token), otherwise the session token overwrites any Authorization header passed in inHeaders
@@ -80,11 +61,9 @@ private:
 		std::function<void(size_t bytesReceived)> progressCallback = nullptr, int timeoutMS = -1) noexcept;
 
 private:
-	CURLM* m_pCurl = nullptr;
-
-	std::atomic<EIPProtocolVersion> m_sProtocolInUse = EIPProtocolVersion::DONT_CARE;
-
-	static std::atomic<bool> m_bCACertBad;
+	// Shared WinHTTP session handle; documented thread-safe for concurrent
+	// use by the per-request worker threads spawned from HTTPRequest.
+	HINTERNET m_hSession = nullptr;
 
 	bool m_bProxyEnabled = false;
 	std::string m_strProxyAddr;
@@ -95,4 +74,3 @@ private:
 	std::vector<HTTPRequest*> m_vecRequestsPendingStart = std::vector<HTTPRequest*>();
 	std::vector<HTTPRequest*> m_vecRequestsInFlight = std::vector<HTTPRequest*>();
 };
-

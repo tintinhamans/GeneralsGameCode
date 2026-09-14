@@ -33,6 +33,7 @@
 #include "GameLogic/Module/BattlePlanUpdate.h"
 
 #include <stdio.h>
+#define __MACTYPES__
 #include <zlib.h>
 
 #include "GameNetwork/GeneralsOnline/json.hpp"
