@@ -1247,7 +1247,7 @@ target_link_libraries(z_gameengine PUBLIC
 if(NOT IS_VS6_BUILD)
     target_link_libraries(z_gameengine PUBLIC
         CURL::libcurl
-        GameNetworkingSockets::shared
+        GameNetworkingSockets::static
         sentry::sentry
     )
 else()
