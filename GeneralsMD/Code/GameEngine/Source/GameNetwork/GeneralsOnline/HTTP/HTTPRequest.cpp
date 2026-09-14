@@ -3,20 +3,70 @@
 #include "GameNetwork/GeneralsOnline/HTTP/HTTPManager.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 
-size_t WriteMemoryCallback(void* contents, size_t sizePerByte, size_t numBytes, void* userp)
-{
-	size_t trueNumBytes = sizePerByte * numBytes;
+#include <winhttp.h>
+#include <algorithm>
 
-	HTTPRequest* pRequest = (HTTPRequest*)userp;
-	pRequest->OnResponsePartialWrite((uint8_t*)contents, trueNumBytes);
-	return trueNumBytes;
+namespace
+{
+	std::wstring Utf8ToWide(const std::string& str)
+	{
+		if (str.empty())
+			return std::wstring();
+
+		int wideLen = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.size(), nullptr, 0);
+		std::wstring wide(wideLen, L'\0');
+		MultiByteToWideChar(CP_UTF8, 0, str.c_str(), (int)str.size(), wide.data(), wideLen);
+		return wide;
+	}
+
+	const wchar_t* VerbToWide(EHTTPVerb verb)
+	{
+		switch (verb)
+		{
+			case EHTTPVerb::HTTP_VERB_GET:    return L"GET";
+			case EHTTPVerb::HTTP_VERB_POST:   return L"POST";
+			case EHTTPVerb::HTTP_VERB_PUT:    return L"PUT";
+			case EHTTPVerb::HTTP_VERB_DELETE: return L"DELETE";
+		}
+		return L"GET";
+	}
+
+	// Maps the abstract, platform-agnostic EHTTPVersion setting to WinHTTP's
+	// WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL flags. Lives here (not in
+	// GeneralsOnline_Settings) since it's a WinHTTP-specific translation, not
+	// something the settings class should know about.
+	DWORD HTTPVersionToWinHttpFlags(EHTTPVersion version)
+	{
+		switch (version)
+		{
+			case EHTTPVersion::HTTP_VERSION_1_1: return 0; // HTTP/2 disabled -> falls back to 1.1
+			case EHTTPVersion::HTTP_VERSION_2_0: return WINHTTP_PROTOCOL_FLAG_HTTP2;
+			case EHTTPVersion::HTTP_VERSION_AUTO:
+			default:                             return WINHTTP_PROTOCOL_FLAG_HTTP2; // WinHTTP's normal default (auto-negotiated)
+		}
+	}
+
+	// Fork-specific: swaps the default GeneralsOnline API host for the
+	// regional alternative (see GetAPIEndpoint() in OnlineServices_Init.cpp).
+	// Only meaningful for requests actually targeting that host - a no-op for
+	// anything else (e.g. third-party S3 upload URLs).
+	const char* const g_szDefaultAPIHost = "api.playgenerals.online";
+	const char* const g_szAlternativeAPIHost = "api-ru.playgenerals.online";
+
+	bool TrySubstituteAlternativeHost(std::string& uri)
+	{
+		size_t pos = uri.find(g_szDefaultAPIHost);
+		if (pos == std::string::npos)
+			return false;
+
+		uri.replace(pos, strlen(g_szDefaultAPIHost), g_szAlternativeAPIHost);
+		return true;
+	}
 }
 
 HTTPRequest::HTTPRequest(EHTTPVerb httpVerb, EIPProtocolVersion protover, const char* szURI, std::map<std::string, std::string>& inHeaders, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback,
 	std::function<void(size_t bytesReceived)> progressCallback /*= nullptr*/, int timeoutMS/*= -1*/) noexcept
-{	
-	m_pCURL = curl_easy_init();
-
+{
 	// -1 means use default
 	if (timeoutMS > 0)
 	{
@@ -35,22 +85,24 @@ HTTPRequest::HTTPRequest(EHTTPVerb httpVerb, EIPProtocolVersion protover, const 
 
 HTTPRequest::~HTTPRequest()
 {
-	NGMP_OnlineServicesManager* pMgr = NGMP_OnlineServicesManager::GetInstance();
-	if (pMgr == nullptr)
-		return;
+	if (m_workerThread.joinable())
+	{
+		m_workerThread.join();
+	}
 
-	HTTPManager* pHTTPManager = pMgr->GetHTTPManager();
-	pHTTPManager->RemoveHandleFromMulti(m_pCURL);
+	if (m_hRequest != nullptr)
+	{
+		WinHttpCloseHandle(m_hRequest);
+		m_hRequest = nullptr;
+	}
 
-	curl_easy_cleanup(m_pCURL);
+	if (m_hConnect != nullptr)
+	{
+		WinHttpCloseHandle(m_hConnect);
+		m_hConnect = nullptr;
+	}
 
 	m_vecBuffer.clear();
-
-    if (headers)
-	{
-        curl_slist_free_all(headers);
-		headers = nullptr;
-    }
 }
 
 
@@ -77,22 +129,16 @@ void HTTPRequest::StartRequest()
 	m_currentBufSize_Used = 0;
 
 	NetworkLog(ELogVerbosity::LOG_DEBUG, "[%p|%s|Verb %d] Transfer is starting: Body is %s", this, m_strURI.c_str(), m_httpVerb, m_strPostData.c_str());
-	PlatformStartRequest();
+
+	m_workerThread = std::thread(&HTTPRequest::WorkerThreadMain, this);
 }
 
-void HTTPRequest::OnResponsePartialWrite(std::uint8_t* pBuffer, size_t numBytes)
+void HTTPRequest::OnResponsePartialWrite(const std::uint8_t* pBuffer, size_t numBytes)
 {
 	if (m_currentBufSize_Used + numBytes > m_vecBuffer.size())
 	{
 		size_t newSize = std::max<size_t>(m_vecBuffer.size() * 2, m_currentBufSize_Used + numBytes);
 		m_vecBuffer.resize(newSize);
-	}
-
-	// do we need a buffer resize?
-	if (m_currentBufSize_Used + numBytes >= m_vecBuffer.size())
-	{
-		NetworkLog(ELogVerbosity::LOG_DEBUG, "[%p] Doing buffer resize", this);
-		m_vecBuffer.resize(m_currentBufSize_Used + numBytes);
 	}
 
 	std::copy(pBuffer, pBuffer + numBytes, m_vecBuffer.begin() + m_currentBufSize_Used);
@@ -119,70 +165,16 @@ void HTTPRequest::InvokeCallbackIfComplete()
 			{
 				strResponse.clear();
 			}
-			m_completionCallback(true, m_responseCode, strResponse, this);
+			m_completionCallback(m_bWorkerSucceeded, m_responseCode, strResponse, this);
 		}
 	}
 }
 
-#if defined(ARTIFICIAL_DELAY_HTTP_REQUESTS)
-void HTTPRequest::SetWaitingDelay(CURLcode result)
+void HTTPRequest::Threaded_SetComplete()
 {
-	m_timeRequestComplete = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-	m_pendingCURLCode = result;
-}
-
-bool HTTPRequest::InvokeDelayAction()
-{
-	if (m_timeRequestComplete != -1)
+	if (m_workerThread.joinable())
 	{
-		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-		if (currTime - m_timeRequestComplete > 2000)
-		{
-			Threaded_SetComplete(m_pendingCURLCode);
-			return true;
-		}
-	}
-
-	return false;
-}
-
-#endif
-
-void HTTPRequest::Threaded_SetComplete(CURLcode result)
-{
-	if (result == CURLE_SSL_CACERT_BADFILE || result == CURLE_PEER_FAILED_VERIFICATION)
-	{
-		HTTPManager::SetCACertStoreBad();
-	}
-	// store response code
-	curl_easy_getinfo(m_pCURL, CURLINFO_RESPONSE_CODE, &m_responseCode);
-
-	if (result == CURLE_OK)
-	{
-		HTTPManager* pHTTPManager = static_cast<HTTPManager*>(NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager());
-		if (pHTTPManager != nullptr)
-		{
-            if (pHTTPManager->GetProtocolInUse() == EIPProtocolVersion::DONT_CARE)
-			{
-                char* ip = nullptr;
-                curl_easy_getinfo(m_pCURL, CURLINFO_PRIMARY_IP, &ip);
-
-                if (ip)
-                {
-                    std::string addr(ip);
-                    if (addr.find(':') != std::string::npos)
-                    {
-						pHTTPManager->SetProtocolInUse(EIPProtocolVersion::FORCE_IPV6);
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] We are connected to GO services using IPv6");
-                    }
-                    else
-                    {
-						pHTTPManager->SetProtocolInUse(EIPProtocolVersion::FORCE_IPV4);
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] We are connected to GO services using IPv4");
-                    }
-                }
-			}
-		}
+		m_workerThread.join();
 	}
 
 	m_bIsComplete = true;
@@ -203,9 +195,7 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 #endif
 
 	std::string strResponse = std::string(reinterpret_cast<const char*>(m_vecBuffer.data()), m_currentBufSize_Used);
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[%p|%s|Verb %d] Transfer is complete: %d bytes total! Curl result is %d", this, strURIRedacted.c_str(), m_httpVerb, m_currentBufSize_Used, result);
-
-	// if we got an error, set the response code to 0
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[%p|%s|Verb %d] Transfer is complete: %d bytes total! Success is %d (WinHTTP error %lu)", this, strURIRedacted.c_str(), m_httpVerb, m_currentBufSize_Used, m_bWorkerSucceeded ? 1 : 0, m_dwWinHttpError);
 
 #if !_DEBUG
 	static const std::string strSeedKey = "\"RNGSeed\":";
@@ -234,125 +224,200 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 	InvokeCallbackIfComplete();
 }
 
-void HTTPRequest::PlatformStartRequest()
+// Performs one full blocking WinHTTP connect/send/receive/read attempt
+// against `uri`, with `httpProtocolFlags` controlling HTTP/1.1 vs HTTP/2.
+// Returns true on success (2xx-or-not, just "we got a response"); false on
+// a connection-level failure (DNS/TCP/TLS failure, no response at all).
+bool HTTPRequest::WorkerThreadMain_AttemptRequest(const std::string& uri, DWORD httpProtocolFlags)
 {
-	if (m_pCURL)
+	HINTERNET hSession = NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->GetSessionHandle();
+
+	URL_COMPONENTSW urlComponents = {};
+	urlComponents.dwStructSize = sizeof(urlComponents);
+
+	wchar_t szHost[256] = {};
+	wchar_t szPath[2048] = {};
+	urlComponents.lpszHostName = szHost;
+	urlComponents.dwHostNameLength = ARRAYSIZE(szHost);
+	urlComponents.lpszUrlPath = szPath;
+	urlComponents.dwUrlPathLength = ARRAYSIZE(szPath);
+	urlComponents.dwSchemeLength = (DWORD)-1;
+
+	std::wstring wideURI = Utf8ToWide(uri);
+	// LPURL_COMPONENTS resolves to the ANSI URL_COMPONENTSA alias in this TU
+	// (wininet.h's UNICODE-gated typedef wins the "URL_COMPONENTS" name over
+	// winhttp.h's own, since this project isn't built with UNICODE defined).
+	// WinHttpCrackUrl's real ABI is always wide, so the cast is safe -- the
+	// struct we're passing (URL_COMPONENTSW) is the one it actually expects.
+	if (!WinHttpCrackUrl(wideURI.c_str(), (DWORD)wideURI.length(), 0, reinterpret_cast<LPURL_COMPONENTS>(&urlComponents)))
 	{
-		HTTPManager* pHTTPManager = static_cast<HTTPManager*>(NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager());
+		m_dwWinHttpError = GetLastError();
+		return false;
+	}
 
-		curl_easy_setopt(m_pCURL, CURLOPT_URL, m_strURI.c_str());
-		curl_easy_setopt(m_pCURL, CURLOPT_FOLLOWLOCATION, 1L);
-		curl_easy_setopt(m_pCURL, CURLOPT_WRITEDATA, (void*)this);
-		curl_easy_setopt(m_pCURL, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-		curl_easy_setopt(m_pCURL, CURLOPT_USERAGENT, "GeneralsOnline Client");
+	bool bIsHttps = (urlComponents.nScheme == INTERNET_SCHEME_HTTPS);
 
-		
-		curl_easy_setopt(m_pCURL, CURLOPT_CONNECTTIMEOUT_MS, m_timeoutMS);
-		curl_easy_setopt(m_pCURL, CURLOPT_TIMEOUT_MS, m_timeoutMS);
+	if (m_hRequest != nullptr) { WinHttpCloseHandle(m_hRequest); m_hRequest = nullptr; }
+	if (m_hConnect != nullptr) { WinHttpCloseHandle(m_hConnect); m_hConnect = nullptr; }
 
-		curl_easy_setopt(m_pCURL, CURLOPT_HTTP_VERSION, NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersionForCurl());
+	m_hConnect = WinHttpConnect(hSession, urlComponents.lpszHostName, urlComponents.nPort, 0);
+	if (m_hConnect == nullptr)
+	{
+		m_dwWinHttpError = GetLastError();
+		return false;
+	}
 
-		if (m_protover == EIPProtocolVersion::DONT_CARE)
-		{
-			curl_easy_setopt(m_pCURL, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
-		}
-		else if (m_protover == EIPProtocolVersion::FORCE_IPV4)
-		{
-			curl_easy_setopt(m_pCURL, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
-		}
-		else if (m_protover == EIPProtocolVersion::FORCE_IPV6)
-		{
-			curl_easy_setopt(m_pCURL, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V6);
-		}
-		
+	DWORD dwRequestFlags = bIsHttps ? WINHTTP_FLAG_SECURE : 0;
+	m_hRequest = WinHttpOpenRequest(m_hConnect, VerbToWide(m_httpVerb), urlComponents.lpszUrlPath, nullptr,
+		WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, dwRequestFlags);
+	if (m_hRequest == nullptr)
+	{
+		m_dwWinHttpError = GetLastError();
+		return false;
+	}
 
-		// Are we authenticated? attach our auth header
-		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-		if (pAuthInterface != nullptr && pAuthInterface->IsLoggedIn())
-		{
-			if (m_bAppendAuthIfPresent)
-			{
-				m_mapHeaders["Authorization"] = "Bearer " + pAuthInterface->GetAuthToken();
-			}
-		}
+	WinHttpSetOption(m_hRequest, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &httpProtocolFlags, sizeof(httpProtocolFlags));
 
-		for (auto& kvPair : m_mapHeaders)
-		{
-			std::string strHeader = kvPair.first + ": " + kvPair.second;
-			headers = curl_slist_append(headers, strHeader.c_str());
-		}
-		curl_easy_setopt(m_pCURL, CURLOPT_HTTPHEADER, headers);
-
-		if (m_httpVerb == EHTTPVerb::HTTP_VERB_POST || m_httpVerb == EHTTPVerb::HTTP_VERB_PUT || m_httpVerb == EHTTPVerb::HTTP_VERB_DELETE)
-		{
-			//if (m_strPostData.length() > 0)
-			{
-				//char* pEscaped = curl_easy_escape(m_pCURL, m_strPostData.c_str(), m_strPostData.length());
-
-				if (!m_vecPostDataBuffer.empty())
-				{
-                    curl_easy_setopt(m_pCURL, CURLOPT_POSTFIELDS, m_vecPostDataBuffer.data());
-					curl_easy_setopt(m_pCURL, CURLOPT_POSTFIELDSIZE, m_vecPostDataBuffer.size());
-				}
-				else
-				{
-                    curl_easy_setopt(m_pCURL, CURLOPT_POSTFIELDS, m_strPostData.c_str());
-				}
-			}
-		}
-
-		// needed for PUT etc
-		if (m_httpVerb == EHTTPVerb::HTTP_VERB_PUT)
-		{
-			curl_easy_setopt(m_pCURL, CURLOPT_CUSTOMREQUEST, "PUT");
-		}
-		else if (m_httpVerb == EHTTPVerb::HTTP_VERB_DELETE)
-		{
-			curl_easy_setopt(m_pCURL, CURLOPT_CUSTOMREQUEST, "DELETE");
-		}
+	WinHttpSetTimeouts(m_hRequest, m_timeoutMS, m_timeoutMS, m_timeoutMS, m_timeoutMS);
 
 #if _DEBUG
-		if (pHTTPManager->IsProxyEnabled())
-		{
-			curl_easy_setopt(m_pCURL, CURLOPT_PROXY, pHTTPManager->GetProxyAddress().c_str());
-			curl_easy_setopt(m_pCURL, CURLOPT_PROXYPORT, pHTTPManager->GetProxyPort());
-		}
-
-		curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYPEER, 0);
-		curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 0);
-		curl_easy_setopt(m_pCURL, CURLOPT_VERBOSE, 1);
-#else
-
-		// TODO_NGMP: We should move to libcurl backed by SChannel so we don't need to do this
-		// Check if cacert.pem exists
-
-		if (HTTPManager::IsCACertStoreBad())
-		{
-            curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYPEER, 0);
-            curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 0);
-		}
-		else
-		{
-            std::ifstream certFile("cacert.pem");
-            if (certFile.good())
-            {
-                certFile.close();
-                curl_easy_setopt(m_pCURL, CURLOPT_CAINFO, "cacert.pem");
-
-                curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYPEER, 1L);
-                curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 2L);
-            }
-            else
-            {
-				HTTPManager::SetCACertStoreBad();
-                curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYPEER, 0);
-                curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 0);
-            }
-		}
-
-       
-#endif
-
-		pHTTPManager->AddHandleToMulti(m_pCURL);
+	HTTPManager* pHTTPManager = NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager();
+	if (pHTTPManager->IsProxyEnabled())
+	{
+		WINHTTP_PROXY_INFO proxyInfo = {};
+		std::wstring wideProxy = Utf8ToWide(pHTTPManager->GetProxyAddress() + ":" + std::to_string(pHTTPManager->GetProxyPort()));
+		proxyInfo.dwAccessType = WINHTTP_ACCESS_TYPE_NAMED_PROXY;
+		proxyInfo.lpszProxy = wideProxy.data();
+		WinHttpSetOption(m_hRequest, WINHTTP_OPTION_PROXY, &proxyInfo, sizeof(proxyInfo));
 	}
+
+	DWORD dwSecurityFlags = SECURITY_FLAG_IGNORE_UNKNOWN_CA | SECURITY_FLAG_IGNORE_CERT_DATE_INVALID
+		| SECURITY_FLAG_IGNORE_CERT_CN_INVALID | SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE;
+	WinHttpSetOption(m_hRequest, WINHTTP_OPTION_SECURITY_FLAGS, &dwSecurityFlags, sizeof(dwSecurityFlags));
+#endif
+	// NOTE_NGMP: WinHTTP always validates certificates via the OS certificate
+	// store (SChannel underneath) in release, so there is no cacert.pem file
+	// or "CA store is bad" bypass to maintain here anymore.
+
+	// Are we authenticated? attach our auth header
+	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	if (pAuthInterface != nullptr && pAuthInterface->IsLoggedIn())
+	{
+		if (m_bAppendAuthIfPresent)
+		{
+			m_mapHeaders["Authorization"] = "Bearer " + pAuthInterface->GetAuthToken();
+		}
+	}
+
+	std::string strHeaders;
+	for (auto& kvPair : m_mapHeaders)
+	{
+		strHeaders += kvPair.first + ": " + kvPair.second + "\r\n";
+	}
+	std::wstring wideHeaders = Utf8ToWide(strHeaders);
+
+	const void* pPostData = nullptr;
+	DWORD dwPostDataLen = 0;
+	if (m_httpVerb == EHTTPVerb::HTTP_VERB_POST || m_httpVerb == EHTTPVerb::HTTP_VERB_PUT || m_httpVerb == EHTTPVerb::HTTP_VERB_DELETE)
+	{
+		if (!m_vecPostDataBuffer.empty())
+		{
+			pPostData = m_vecPostDataBuffer.data();
+			dwPostDataLen = (DWORD)m_vecPostDataBuffer.size();
+		}
+		else if (!m_strPostData.empty())
+		{
+			pPostData = m_strPostData.data();
+			dwPostDataLen = (DWORD)m_strPostData.size();
+		}
+	}
+
+	BOOL bSendResult = WinHttpSendRequest(m_hRequest,
+		wideHeaders.empty() ? WINHTTP_NO_ADDITIONAL_HEADERS : wideHeaders.c_str(),
+		wideHeaders.empty() ? 0 : (DWORD)wideHeaders.length(),
+		const_cast<void*>(pPostData), dwPostDataLen, dwPostDataLen, 0);
+	if (!bSendResult)
+	{
+		m_dwWinHttpError = GetLastError();
+		return false;
+	}
+
+	if (!WinHttpReceiveResponse(m_hRequest, nullptr))
+	{
+		m_dwWinHttpError = GetLastError();
+		return false;
+	}
+
+	DWORD dwStatusCode = 0;
+	DWORD dwStatusCodeSize = sizeof(dwStatusCode);
+	WinHttpQueryHeaders(m_hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+		WINHTTP_HEADER_NAME_BY_INDEX, &dwStatusCode, &dwStatusCodeSize, WINHTTP_NO_HEADER_INDEX);
+	m_responseCode = (int)dwStatusCode;
+
+	// read the body
+	for (;;)
+	{
+		DWORD dwAvailable = 0;
+		if (!WinHttpQueryDataAvailable(m_hRequest, &dwAvailable))
+		{
+			m_dwWinHttpError = GetLastError();
+			return false;
+		}
+
+		if (dwAvailable == 0)
+			break;
+
+		std::vector<uint8_t> readBuf(dwAvailable);
+		DWORD dwRead = 0;
+		if (!WinHttpReadData(m_hRequest, readBuf.data(), dwAvailable, &dwRead))
+		{
+			m_dwWinHttpError = GetLastError();
+			return false;
+		}
+
+		if (dwRead == 0)
+			break;
+
+		OnResponsePartialWrite(readBuf.data(), dwRead);
+	}
+
+	return true;
+}
+
+void HTTPRequest::WorkerThreadMain()
+{
+	EHTTPVersion httpVersionSetting = NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersion();
+	ENetworkEndpoint endpointSetting = NGMP_OnlineServicesManager::Settings.Network_UseAlternativeEndpoint();
+
+	std::string strFirstAttemptURI = m_strURI;
+	if (endpointSetting == ENetworkEndpoint::NETWORK_ENDPOINT_ALTERNATIVE)
+	{
+		TrySubstituteAlternativeHost(strFirstAttemptURI);
+	}
+	// NETWORK_ENDPOINT_DEFAULT and NETWORK_ENDPOINT_AUTO both start on whatever
+	// host GetAPIEndpoint() already built m_strURI against (the default host).
+
+	DWORD dwFirstProtocolFlags = HTTPVersionToWinHttpFlags(httpVersionSetting);
+
+	bool bSuccess = WorkerThreadMain_AttemptRequest(strFirstAttemptURI, dwFirstProtocolFlags);
+
+	// Combined DPI/censorship fallback: only when BOTH settings are Auto, and
+	// only on a connection-level failure (m_responseCode still unset means we
+	// never even got a response to be a non-2xx status for).
+	bool bBothAuto = (httpVersionSetting == EHTTPVersion::HTTP_VERSION_AUTO) && (endpointSetting == ENetworkEndpoint::NETWORK_ENDPOINT_AUTO);
+	if (!bSuccess && bBothAuto)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[%p|%s] Initial request failed (WinHTTP error %lu); retrying with alternative host + HTTP/1.1", this, m_strURI.c_str());
+
+		std::string strFallbackURI = m_strURI;
+		TrySubstituteAlternativeHost(strFallbackURI);
+
+		m_strURI = strFallbackURI;
+		m_currentBufSize_Used = 0;
+
+		bSuccess = WorkerThreadMain_AttemptRequest(strFallbackURI, HTTPVersionToWinHttpFlags(EHTTPVersion::HTTP_VERSION_1_1));
+	}
+
+	m_bWorkerSucceeded = bSuccess;
+	m_bWorkerDone.store(true);
 }

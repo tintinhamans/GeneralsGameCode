@@ -1171,18 +1171,6 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamnetworkingtypes.h
     Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamtypes.h
     Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamuniverse.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/curl.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/curlver.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/easy.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/header.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/mprintf.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/multi.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/options.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/stdcheaders.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/system.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/typecheck-gcc.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/urlapi.h
-    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/websockets.h
     Source/GameNetwork/GeneralsOnline/DiscordRichPresence.cpp
     Source/GameNetwork/GeneralsOnline/NGMP_Helpers.cpp
     Source/GameNetwork/GeneralsOnline/NGMPGame.cpp
@@ -1246,7 +1234,6 @@ target_link_libraries(z_gameengine PUBLIC
 
 if(NOT IS_VS6_BUILD)
     target_link_libraries(z_gameengine PUBLIC
-        CURL::libcurl
         GameNetworkingSockets::static
         sentry::sentry
     )
