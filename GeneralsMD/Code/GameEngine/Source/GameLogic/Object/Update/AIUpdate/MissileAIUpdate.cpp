@@ -551,7 +551,7 @@ void MissileAIUpdate::doAttackState(Bool turnOK)
 	if(curLoco && curLoco->getPreferredHeight() > 0)
 	{
 		// Am I close enough to the target to ignore my preferred height setting?
-#if RETAIL_COMPATIBLE_CRC
+#if RETAIL_COMPATIBLE_CRC || GENERALS_ONLINE_QFE_HOLD
 		Real distanceToTargetSquared = ThePartitionManager->getDistanceSquared(getObject(), getGoalPosition(), FROM_CENTER_2D);
 #else
 		// TheSuperHackers @bugfix Stubbjax 23/08/2026 Diving missiles now use their target's position to determine distance

@@ -114,6 +114,11 @@
 #define PRESERVE_RETAIL_NUKE_MISSILE_OUTER_RADIUS_DAMAGE (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
 #endif
 
+// Disabled for QFE
+#ifndef GENERALS_ONLINE_QFE_HOLD
+#define GENERALS_ONLINE_QFE_HOLD (0)
+#endif
+
 // Note: Retail compatibility must not be broken before this project officially does.
 // Use RETAIL_COMPATIBLE_CRC and RETAIL_COMPATIBLE_XFER_SAVE to guard breaking changes.
 

@@ -9499,7 +9499,7 @@ Bool Pathfinder::isAttackViewBlockedByObstacle(const Object* attacker, const Coo
 	}
 	if (w)
 	{
-#if !RETAIL_COMPATIBLE_CRC
+#if !RETAIL_COMPATIBLE_CRC && !GENERALS_ONLINE_QFE_HOLD
 		// TheSuperHackers @bugfix Stubbjax 23/08/2026 Don't consider the attack blocked if it is a contact weapon.
 		// This allows weapons such as suicide bombs to be triggered if the unit is blocked by building geometry.
 		if (w->isContactWeapon())
