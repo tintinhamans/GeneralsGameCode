@@ -58,15 +58,15 @@
 
 #include "light.h"
 #include "ww3d.h"
-#include "WW3D2/ww3dids.h"
+#include "ww3dids.h"
 #include "w3d_file.h"
-#include "WW3D2/w3d_util.h"
-#include "WW3D2/w3derr.h"
+#include "w3d_util.h"
+#include "w3derr.h"
 #include "WWLib/chunkio.h"
 #include "rinfo.h"
 #include "scene.h"
 #include "WWSaveLoad/persistfactory.h"
-#include "WW3D2/statistics.h"
+#include "statistics.h"
 
 
 
@@ -525,7 +525,7 @@ bool LightClass::Save (ChunkSaveClass &csave)
 	Save_W3D(csave);
 	csave.End_Chunk();
 
-	Matrix3D tm = Get_Transform();
+	const Matrix3D& tm = Get_Transform();
 	csave.Begin_Chunk(LIGHT_CHUNK_VARIABLES);
 	WRITE_MICRO_CHUNK(csave,LIGHT_VARIABLE_TRANSFORM,tm);
 	csave.End_Chunk();

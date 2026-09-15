@@ -57,9 +57,11 @@ enum ParticleSystemID CPP_11(: Int)
 	INVALID_PARTICLE_SYSTEM_ID = 0
 };
 
-#define MAX_VOLUME_PARTICLE_DEPTH ( 16 )
-#define DEFAULT_VOLUME_PARTICLE_DEPTH ( 0 )//The Default is not to do the volume thing!
-#define OPTIMUM_VOLUME_PARTICLE_DEPTH ( 6 )
+constexpr const UnsignedInt INVALID_VOLUME_PARTICLE_DEPTH = 0; //The volume depth is not initialized
+constexpr const UnsignedInt DEFAULT_VOLUME_PARTICLE_DEPTH = 1; //The Default is not to do the volume thing!
+constexpr const UnsignedInt MIN_VOLUME_PARTICLE_DEPTH = 2;
+constexpr const UnsignedInt OPTIMUM_VOLUME_PARTICLE_DEPTH = 6;
+constexpr const UnsignedInt MAX_VOLUME_PARTICLE_DEPTH = 16;
 
 // TheSuperHackers @info The X and Y angles are not necessary for particles because there are only 2 placement modes:
 // Billboard (always facing camera) and Ground Aligned, which overwrite any rotations on the X and Y axis by design.
@@ -429,7 +431,14 @@ public:
 	m_emissionVolume;														///< the dimensions of the emission volume
 
 	Bool m_isEmissionVolumeHollow;							///< if true, only create particles at boundary of volume
-	Bool m_isGroundAligned;											///< if true, align with the ground. if false, then do the normal billboarding.
+
+	enum ParticleAlignmentType CPP_11(: Int)
+	{
+		PARTICLE_ALIGNMENT_BILLBOARD = 0,
+		PARTICLE_ALIGNMENT_XYPLANAR,
+		PARTICLE_ALIGNMENT_TYPE_COUNT
+	};
+	ParticleAlignmentType m_particleAlignment;		///< align particles toward the camera or with the XY plane.
 	Bool m_isEmitAboveGroundOnly;								///< if true, only emit particles when the system is above ground.
 	Bool m_isParticleUpTowardsEmitter;					///< if true, align the up direction to be towards the emitter.
 
@@ -493,6 +502,12 @@ static const char *const ParticlePriorityNames[] =
 };
 static_assert(ARRAY_SIZE(ParticlePriorityNames) == NUM_PARTICLE_PRIORITIES + 1, "Incorrect array size");
 
+static const char *const GroundAlignmentTypeNames[] =
+{
+	"No", "Yes", nullptr
+};
+static_assert(ARRAY_SIZE(GroundAlignmentTypeNames) == ParticleSystemInfo::PARTICLE_ALIGNMENT_TYPE_COUNT + 1, "Incorrect array size");
+
 static const char *const WindMotionNames[] =
 {
 	"NONE", "Unused", "PingPong", "Circular", nullptr
@@ -511,7 +526,9 @@ class ParticleSystemTemplate : public MemoryPoolObject, protected ParticleSystem
 public:
 	ParticleSystemTemplate( const AsciiString &name );
 
-	AsciiString getName() const { return m_name; }
+	void validate();
+
+	const AsciiString& getName() const { return m_name; }
 
 	// This function was made const because of update modules' module data being all const.
 	ParticleSystem *createSlaveSystem( Bool createSlaves = TRUE ) const ;					///< if returns non-null, it is a slave system for use
@@ -602,15 +619,17 @@ public:
 
 	void setInitialDelay( UnsignedInt delay ) { m_delayLeft = delay; }
 
-	AsciiString getParticleTypeName() { return m_particleTypeName; }	///< return the name of the particles
-	Bool isUsingDrawables() { return (m_particleType == DRAWABLE) ? true : false; }
-	Bool isUsingStreak() { return (m_particleType == STREAK) ? true : false; }
-	Bool isUsingSmudge() { return (m_particleType == SMUDGE) ? true : false; }
-	UnsignedInt getVolumeParticleDepth() { return ( m_particleType == VOLUME_PARTICLE ) ? OPTIMUM_VOLUME_PARTICLE_DEPTH : 0; }
+	const AsciiString& getParticleTypeName() const { return m_particleTypeName; }	///< return the name of the particles
+	Bool isUsingParticles() const { return m_particleType == PARTICLE; }
+	Bool isUsingDrawables() const { return m_particleType == DRAWABLE; }
+	Bool isUsingStreak() const { return m_particleType == STREAK; }
+	Bool isUsingSmudge() const { return m_particleType == SMUDGE; }
+	Bool isUsingVolumeParticles() const { return m_particleType == VOLUME_PARTICLE; }
+	UnsignedInt getVolumeParticleDepth() const { return m_volumeParticleDepth; }
 
-	Bool shouldBillboard() { return !m_isGroundAligned; }
+	Bool shouldBillboard() const { return m_particleAlignment == PARTICLE_ALIGNMENT_BILLBOARD; }
 
-	ParticleShaderType getShaderType() { return m_shaderType; }
+	ParticleShaderType getShaderType() const { return m_shaderType; }
 
 	void setSlave( ParticleSystem *slave );			///< set a slave system for us
 	ParticleSystem *getSlave() { return m_slaveSystem; }
@@ -861,6 +880,8 @@ public:
 	virtual void update() override {}
 
 	virtual Bool isDummy() const override { return true; }
+
+	virtual Bool isXferEnabled() const override { return FALSE; }
 
 	virtual Int getOnScreenParticleCount() override { return 0; }
 	virtual void doParticles(RenderInfoClass &rinfo) override {}

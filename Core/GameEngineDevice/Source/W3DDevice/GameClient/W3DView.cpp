@@ -802,7 +802,7 @@ void W3DView::updateCameraClipPlanes(const Matrix3D &transform)
 		const Real projectedRadiusToEdge = fabs(dx * camDir.X) + fabs(dy * camDir.Y);
 
 		// Final far plane
-		farZ = projectedDistanceToCenter + projectedRadiusToEdge;
+		farZ = std::max(projectedDistanceToCenter + projectedRadiusToEdge, 0.0f);
 	}
 	else
 	{
@@ -2669,8 +2669,7 @@ void W3DView::lookAt( const Coord3D *o )
 		}
 	}
 
-	Coord2D pos2D = { pos.x, pos.y };
-	setPosition2D(pos2D);
+	setPosition2D(pos.asCoord2D());
 
 	resetPivotToGround();
 

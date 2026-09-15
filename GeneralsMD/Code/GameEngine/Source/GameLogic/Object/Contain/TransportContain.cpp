@@ -578,13 +578,13 @@ Bool TransportContain::isSpecificRiderFreeToExit(Object* specificObject)
 	if (ai && ai->getAiFreeToExit(specificObject) != FREE_TO_EXIT)
 		return FALSE;
 
-#if !RETAIL_COMPATIBLE_CRC && defined(USE_STUBBJAX_TRANSPORT_CONTAIN_FIX)
-	// TheSuperHackers @bugfix Stubbjax 02/03/2026 If our parent container is held, then we
-	// are not free to exit.
-	const Object* containedBy = specificObject->getContainedBy();
-	DEBUG_ASSERTCRASH(containedBy, ("rider must be contained"));
-	if (containedBy->isDisabledByType(DISABLED_HELD))
+#if !RETAIL_COMPATIBLE_CRC
+	// TheSuperHackers @bugfix Stubbjax/bobtista 01/08/2026 If our container is itself contained,
+	// then we are not free to exit.
+	if (me->isContained())
+	{
 		return FALSE;
+	}
 #endif
 
   // I can always kick people out if I am in the air, I know what I'm doing
@@ -669,7 +669,13 @@ void TransportContain::onCapture( Player *oldOwner, Player *newOwner )
 		else
 		{
 			//Use standard
+#if RETAIL_COMPATIBLE_CRC
 			orderAllPassengersToExit( CMD_FROM_AI, FALSE );
+#else
+      // TheSuperHackers @bugfix Stubbjax 20/11/2025 Only eject passengers if the new owner is not allied with the old owner.
+			if (oldOwner->getRelationship(newOwner->getDefaultTeam()) != ALLIES)
+				orderAllPassengersToExit(CMD_FROM_AI, FALSE);
+#endif
 		}
 	}
 }

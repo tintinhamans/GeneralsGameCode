@@ -661,7 +661,7 @@ Bool W3DTerrainVisual::load( AsciiString filename )
 			Vector3 loc(pos->x, pos->y, pos->z);
 			Real radius = d->getReal(TheKey_objectRadius);
 			Scorches type = (Scorches)d->getInt(TheKey_scorchType);
-			m_terrainRenderObject->addScorch(loc, radius, type);
+			m_terrainRenderObject->addStaticScorch(loc, radius, type);
 		}
 		pMapObj = pMapObj->getNext();
 	}
@@ -991,7 +991,7 @@ void W3DTerrainVisual::addFactionBib(Object *factionBuilding, Bool highlight, Re
 		pos.set(0,0,0);
 		Real exitWidth = factionBuilding->getTemplate()->getFactoryExitWidth();
 		Real extraWidth = factionBuilding->getTemplate()->getFactoryExtraBibWidth() + extra;
-		const GeometryInfo info = factionBuilding->getGeometryInfo();
+		const GeometryInfo &info = factionBuilding->getGeometryInfo();
 		Real sizeX = info.getMajorRadius();
 		Real sizeY = info.getMinorRadius();
 		if (info.getGeomType() != GEOMETRY_BOX) {
@@ -1132,6 +1132,14 @@ void W3DTerrainVisual::replaceSkyboxTextures(const AsciiString *oldTexName[5], c
 			}
 		}
 	}
+}
+
+// ------------------------------------------------------------------------------------------------
+/** Terrain visual state is only partially initialized in headless mode, so it is excluded from save game data */
+// ------------------------------------------------------------------------------------------------
+Bool W3DTerrainVisual::isXferEnabled() const
+{
+	return TheGlobalData->m_headless == FALSE;
 }
 
 // ------------------------------------------------------------------------------------------------

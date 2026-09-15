@@ -7426,7 +7426,7 @@ Bool ScriptEngine::isSpecialPowerTriggered(Int playerIndex, const AsciiString& c
 
 	for (ListAsciiStringObjectIDIt findIt = specialList->begin(); findIt != specialList->end(); ++findIt)
 	{
-		AsciiStringObjectIDPair pair = *findIt;
+		const AsciiStringObjectIDPair &pair = *findIt;
 		if (pair.first == completedPower && (sourceObj == INVALID_ID || sourceObj == pair.second))
 		{
 			if (removeFromList) {
@@ -7451,7 +7451,7 @@ Bool ScriptEngine::isSpecialPowerMidway(Int playerIndex, const AsciiString& comp
 
 	for (ListAsciiStringObjectIDIt findIt = specialList->begin(); findIt != specialList->end(); ++findIt)
 	{
-		AsciiStringObjectIDPair pair = *findIt;
+		const AsciiStringObjectIDPair &pair = *findIt;
 		if (pair.first == completedPower && (sourceObj == INVALID_ID || sourceObj == pair.second))
 		{
 			if (removeFromList) {
@@ -7476,7 +7476,7 @@ Bool ScriptEngine::isSpecialPowerComplete(Int playerIndex, const AsciiString& co
 
 	for (ListAsciiStringObjectIDIt findIt = specialList->begin(); findIt != specialList->end(); ++findIt)
 	{
-		AsciiStringObjectIDPair pair = *findIt;
+		const AsciiStringObjectIDPair &pair = *findIt;
 		if (pair.first == completedPower && (sourceObj == INVALID_ID || sourceObj == pair.second))
 		{
 			if (removeFromList) {
@@ -7501,7 +7501,7 @@ Bool ScriptEngine::isUpgradeComplete(Int playerIndex, const AsciiString& upgrade
 
 	for (ListAsciiStringObjectIDIt findIt = specialList->begin(); findIt != specialList->end(); ++findIt)
 	{
-		AsciiStringObjectIDPair pair = *findIt;
+		const AsciiStringObjectIDPair &pair = *findIt;
 		if (pair.first == upgrade && (sourceObj == INVALID_ID || sourceObj == pair.second))
 		{
 			if (removeFromList) {
@@ -7619,7 +7619,7 @@ void ScriptEngine::adjustToppleDirection(Object* object, Coord2D* direction)
 //-------------------------------------------------------------------------------------------------
 void ScriptEngine::adjustToppleDirection(Object* object, Coord3D* direction)
 {
-	AsciiString objName = object->getName();
+	const AsciiString &objName = object->getName();
 	if (objName.isEmpty() || !direction) {
 		return;
 	}
@@ -9787,28 +9787,29 @@ static const std::string STR_END = "End";
 
 static const std::string F_PRIORITY = "Priority";
 
-static const std::string F_ISONESHOT = "IsOneShot";
-static const std::string F_SHADER = "Shader";
-static const std::string F_TYPE = "Type";
-static const std::string F_PARTICLENAME = "ParticleName";
-static const std::string F_ANGLEX = "AngleX";
-static const std::string F_ANGLEY = "AngleY";
-static const std::string F_ANGLEZ = "AngleZ";
-static const std::string F_ANGLERATEX = "AngularRateX";
-static const std::string F_ANGLERATEY = "AngularRateY";
-static const std::string F_ANGLERATEZ = "AngularRateZ";
-static const std::string F_ANGLEDAMP = "AngularDamping";
-static const std::string F_VELOCITYDAMP = "VelocityDamping";
-static const std::string F_GRAVITY = "Gravity";
-static const std::string F_SLAVESYSTEM = "SlaveSystem";
-static const std::string F_SLAVEPOS = "SlavePosOffset";
-static const std::string F_ATTACHED = "PerParticleAttachedSystem";
-static const std::string F_LIFETIME = "Lifetime";
-static const std::string F_SYSLIFETIME = "SystemLifetime";
-static const std::string F_SIZE = "Size";
-static const std::string F_STARTSIZERATE = "StartSizeRate";
-static const std::string F_SIZERATE = "SizeRate";
-static const std::string F_SIZERATEDAMP = "SizeRateDamping";
+static const std::string F_ISONESHOT =		"IsOneShot";
+static const std::string F_SHADER =				"Shader";
+static const std::string F_TYPE =					"Type";
+static const std::string F_PARTICLENAME =	"ParticleName";
+static const std::string F_ANGLEX =				"AngleX";
+static const std::string F_ANGLEY =				"AngleY";
+static const std::string F_ANGLEZ	=				"AngleZ";
+static const std::string F_ANGLERATEX	=		"AngularRateX";
+static const std::string F_ANGLERATEY	=		"AngularRateY";
+static const std::string F_ANGLERATEZ	=		"AngularRateZ";
+static const std::string F_ANGLEDAMP =		"AngularDamping";
+static const std::string F_VELOCITYDAMP	=	"VelocityDamping";
+static const std::string F_GRAVITY =			"Gravity";
+static const std::string F_SLAVESYSTEM =	"SlaveSystem";
+static const std::string F_SLAVEPOS =			"SlavePosOffset";
+static const std::string F_ATTACHED =			"PerParticleAttachedSystem";
+static const std::string F_LIFETIME =			"Lifetime";
+static const std::string F_SYSLIFETIME =	"SystemLifetime";
+static const std::string F_SIZE =					"Size";
+static const std::string F_STARTSIZERATE ="StartSizeRate";
+static const std::string F_SIZERATE =			"SizeRate";
+static const std::string F_SIZERATEDAMP =	"SizeRateDamping";
+static const std::string F_VOLPARTICLEDEPTH = "VolParticleDepth";
 
 static const std::string F_ALPHA1 = "Alpha1";
 static const std::string F_ALPHA2 = "Alpha2";
@@ -9854,12 +9855,12 @@ static const std::string F_VOLUMETYPE = "VolumeType";
 static const std::string F_VOLLINESTART = "VolLineStart";
 static const std::string F_VOLLINEEND = "VolLineEnd";
 
-static const std::string F_VOLBOXHALF = "VolBoxHalfSize";
-static const std::string F_VOLSPHERERAD = "VolSphereRadius";
-static const std::string F_VOLCYLRAD = "VolCylinderRadius";
-static const std::string F_VOLCYLLEN = "VolCylinderLength";
-static const std::string F_ISHOLLOW = "IsHollow";
-static const std::string F_ISXYPLANAR = "IsGroundAligned";
+static const std::string F_VOLBOXHALF	=		"VolBoxHalfSize";
+static const std::string F_VOLSPHERERAD	=	"VolSphereRadius";
+static const std::string F_VOLCYLRAD =		"VolCylinderRadius";
+static const std::string F_VOLCYLLEN =		"VolCylinderLength";
+static const std::string F_ISHOLLOW =			"IsHollow";
+static const std::string F_PARTICLEALIGNMENT =		"IsGroundAligned";
 static const std::string F_ISEMITABOVEGROUNDONLY
 = "IsEmitAboveGroundOnly";
 static const std::string F_ISPARTICLEUPTOWARDSEMITTER
@@ -9970,6 +9971,9 @@ void _writeSingleParticleSystem(File* out, ParticleSystemTemplate* templ)
 	sprintf(buff1, FORMAT_STRING, templ->m_sizeRateDamping.getMinimumValue());
 	sprintf(buff2, FORMAT_STRING, templ->m_sizeRateDamping.getMaximumValue());
 	thisEntry.append(SEP_HEAD).append(F_SIZERATEDAMP).append(EQ_WITH_SPACES).append(buff1).append(SEP_SPACE).append(buff2).append(SEP_EOL);
+
+	sprintf(buff1, "%d", templ->m_volumeParticleDepth);
+	thisEntry.append(SEP_HEAD).append(F_VOLPARTICLEDEPTH).append(EQ_WITH_SPACES).append(buff1).append(SEP_EOL);
 
 	sprintf(buff1, FORMAT_STRING, templ->m_alphaKey[0].var.getMinimumValue());
 	sprintf(buff2, FORMAT_STRING, templ->m_alphaKey[0].var.getMaximumValue());
@@ -10166,7 +10170,7 @@ void _writeSingleParticleSystem(File* out, ParticleSystemTemplate* templ)
 	}
 
 	thisEntry.append(SEP_HEAD).append(F_ISHOLLOW).append(EQ_WITH_SPACES).append((templ->m_isEmissionVolumeHollow ? STR_TRUE : STR_FALSE)).append(SEP_EOL);
-	thisEntry.append(SEP_HEAD).append(F_ISXYPLANAR).append(EQ_WITH_SPACES).append((templ->m_isGroundAligned ? STR_TRUE : STR_FALSE)).append(SEP_EOL);
+	thisEntry.append(SEP_HEAD).append(F_PARTICLEALIGNMENT).append(EQ_WITH_SPACES).append(GroundAlignmentTypeNames[templ->m_particleAlignment]).append(SEP_EOL);
 	thisEntry.append(SEP_HEAD).append(F_ISEMITABOVEGROUNDONLY).append(EQ_WITH_SPACES).append((templ->m_isEmitAboveGroundOnly ? STR_TRUE : STR_FALSE)).append(SEP_EOL);
 	thisEntry.append(SEP_HEAD).append(F_ISPARTICLEUPTOWARDSEMITTER).append(EQ_WITH_SPACES).append((templ->m_isParticleUpTowardsEmitter ? STR_TRUE : STR_FALSE)).append(SEP_EOL);
 

@@ -199,7 +199,7 @@ static NameKeyType textEntryChatID = NAMEKEY_INVALID;
 static NameKeyType textEntryMapDisplayID = NAMEKEY_INVALID;
 static NameKeyType buttonBackID = NAMEKEY_INVALID;
 static NameKeyType buttonStartID = NAMEKEY_INVALID;
-static NameKeyType buttonEmoteID = NAMEKEY_INVALID;
+static NameKeyType buttonChatID = NAMEKEY_INVALID;
 static NameKeyType buttonSelectMapID = NAMEKEY_INVALID;
 static NameKeyType windowMapID = NAMEKEY_INVALID;
 
@@ -214,18 +214,18 @@ static NameKeyType comboBoxStartingCashID = NAMEKEY_INVALID;
 static NameKeyType checkBoxLimitArmiesID = NAMEKEY_INVALID;
 
 // Window Pointers ------------------------------------------------------------------------
-static GameWindow *parentWOLGameSetup = NULL;
-static GameWindow *buttonBack = NULL;
-static GameWindow *buttonStart = NULL;
-static GameWindow *buttonSelectMap = NULL;
-static GameWindow *buttonEmote = NULL;
-static GameWindow *textEntryChat = NULL;
-static GameWindow *textEntryMapDisplay = NULL;
-static GameWindow *windowMap = NULL;
-static GameWindow *checkBoxUseStats = NULL;
-static GameWindow *checkBoxLimitSuperweapons = NULL;
-static GameWindow *comboBoxStartingCash = NULL;
-static GameWindow *checkBoxLimitArmies = NULL;
+static GameWindow *parentWOLGameSetup = nullptr;
+static GameWindow *buttonBack = nullptr;
+static GameWindow *buttonStart = nullptr;
+static GameWindow *buttonSelectMap = nullptr;
+static GameWindow *buttonChat = nullptr;
+static GameWindow *textEntryChat = nullptr;
+static GameWindow *textEntryMapDisplay = nullptr;
+static GameWindow *windowMap = nullptr;
+static GameWindow *checkBoxUseStats = nullptr;
+static GameWindow *checkBoxLimitSuperweapons = nullptr;
+static GameWindow *comboBoxStartingCash = nullptr;
+static GameWindow *checkBoxLimitArmies = nullptr;
 
 static GameWindow *comboBoxPlayer[MAX_SLOTS] = {NULL,NULL,NULL,NULL,
 																									 NULL,NULL,NULL,NULL };
@@ -1500,7 +1500,7 @@ void InitWOLGameGadgets()
 	textEntryChatID = TheNameKeyGenerator->nameToKey( "GameSpyGameOptionsMenu.wnd:TextEntryChat" );
 	textEntryMapDisplayID = TheNameKeyGenerator->nameToKey( "GameSpyGameOptionsMenu.wnd:TextEntryMapDisplay" );
 	listboxGameSetupChatID = TheNameKeyGenerator->nameToKey( "GameSpyGameOptionsMenu.wnd:ListboxChatWindowGameSpyGameSetup" );
-	buttonEmoteID = TheNameKeyGenerator->nameToKey( "GameSpyGameOptionsMenu.wnd:ButtonEmote" );
+	buttonChatID = TheNameKeyGenerator->nameToKey( "GameSpyGameOptionsMenu.wnd:ButtonEmote" ); // TODO Rename ButtonEmote to ButtonChat in .wnd file
 	buttonSelectMapID = TheNameKeyGenerator->nameToKey( "GameSpyGameOptionsMenu.wnd:ButtonSelectMap" );
 	checkBoxUseStatsID = TheNameKeyGenerator->nameToKey( "GameSpyGameOptionsMenu.wnd:CheckBoxUseStats" );
 	windowMapID = TheNameKeyGenerator->nameToKey( "GameSpyGameOptionsMenu.wnd:MapWindow" );
@@ -1512,8 +1512,8 @@ void InitWOLGameGadgets()
 	NameKeyType staticTextTitleID = NAMEKEY("GameSpyGameOptionsMenu.wnd:StaticTextGameName");
 
 	// Initialize the pointers to our gadgets
-	parentWOLGameSetup = TheWindowManager->winGetWindowFromId( NULL, parentWOLGameSetupID );
-	buttonEmote = TheWindowManager->winGetWindowFromId( parentWOLGameSetup,buttonEmoteID  );
+	parentWOLGameSetup = TheWindowManager->winGetWindowFromId( nullptr, parentWOLGameSetupID );
+	buttonChat = TheWindowManager->winGetWindowFromId( parentWOLGameSetup,buttonChatID  );
 	buttonSelectMap = TheWindowManager->winGetWindowFromId( parentWOLGameSetup,buttonSelectMapID  );
 	checkBoxUseStats = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, checkBoxUseStatsID );
 	buttonStart = TheWindowManager->winGetWindowFromId( parentWOLGameSetup,buttonStartID  );
@@ -1718,14 +1718,14 @@ void InitWOLGameGadgets()
 
 void DeinitWOLGameGadgets()
 {
-	parentWOLGameSetup = NULL;
-	buttonEmote = NULL;
-	buttonSelectMap = NULL;
-	buttonStart = NULL;
-	buttonBack = NULL;
-	listboxGameSetupChat = NULL;
-	textEntryChat = NULL;
-	textEntryMapDisplay = NULL;
+	parentWOLGameSetup = nullptr;
+	buttonChat = nullptr;
+	buttonSelectMap = nullptr;
+	buttonStart = nullptr;
+	buttonBack = nullptr;
+	listboxGameSetupChat = nullptr;
+	textEntryChat = nullptr;
+	textEntryMapDisplay = nullptr;
 	if (windowMap)
 	{
 		windowMap->winSetUserData(NULL);
@@ -3982,7 +3982,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					GameSpyToggleOverlay( GSOVERLAY_BUDDY );
 
 				}
-				else if ( controlID == buttonEmoteID )
+				else if ( controlID == buttonChatID )
 				{
 					// read the user's input
 					txtInput.set(GadgetTextEntryGetText( textEntryChat ));

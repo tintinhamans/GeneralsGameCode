@@ -30,6 +30,10 @@ if (CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
     message(FATAL_ERROR "Building in-source is not supported! Create a build dir and remove ${CMAKE_SOURCE_DIR}/CMakeCache.txt")
 endif()
 
+# Define VCPKG feature before the project block
+# since they need to be initialized before the toolchain is
+include(cmake/config-vcpkg.cmake)
+
 # Top level project, doesn't really affect anything.
 project(genzh LANGUAGES C CXX)
 
@@ -50,8 +54,6 @@ endif()
 
 # Find/Add build dependencies and stubs shared by all projects
 if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
-    include(cmake/miles.cmake)
-    include(cmake/bink.cmake)
     include(cmake/dx8.cmake)
 endif()
 
@@ -89,6 +91,9 @@ if (IS_VS6_BUILD)
     include_directories(Dependencies/Utility)
     add_compile_options(/FIUtility/CppMacros.h)
 endif()
+
+add_subdirectory(Dependencies/Bink)
+add_subdirectory(Dependencies/Miles)
 
 add_subdirectory(resources)
 

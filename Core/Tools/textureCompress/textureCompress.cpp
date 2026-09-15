@@ -144,8 +144,8 @@ public:
 	Directory(const std::string& dirPath);
 	~Directory() {}
 
-	FileInfoSet* getFiles( void );
-	FileInfoSet* getSubdirs( void );
+	FileInfoSet* getFiles();
+	FileInfoSet* getSubdirs();
 
 protected:
 	std::string m_dirPath;
@@ -256,12 +256,12 @@ Directory::Directory( const std::string& dirPath ) : m_dirPath(dirPath)
 	SetCurrentDirectory( currDir );
 }
 
-FileInfoSet* Directory::getFiles( void )
+FileInfoSet* Directory::getFiles()
 {
 	return &m_files;
 }
 
-FileInfoSet* Directory::getSubdirs( void )
+FileInfoSet* Directory::getSubdirs()
 {
 	return &m_subdirs;
 }
@@ -472,7 +472,7 @@ static void scanDir( const std::string& sourceDirName, const std::string& target
 		FileInfoSet::iterator fit = sourceFiles->find(f);
 		if (fit != sourceFiles->end())
 		{
-			FileInfo sf = *fit;
+			const FileInfo &sf = *fit;
 			if (f.modTime < sf.modTime)
 			{
 				/**
@@ -563,7 +563,7 @@ static void scanDir( const std::string& sourceDirName, const std::string& target
 			FileInfoSet::iterator fit = cacheFiles->find(f);
 			if (fit != cacheFiles->end())
 			{
-				FileInfo cf = *fit;
+				const FileInfo &cf = *fit;
 				if (cf.modTime < f.modTime)
 				{
 					origFilesToCompress.insert(fname);

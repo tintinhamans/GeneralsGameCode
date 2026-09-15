@@ -29,7 +29,6 @@
 #pragma once
 
 #include "Lib/BaseType.h"
-#include "WWLib/ref_ptr.h"
 
 #include "Common/Geometry.h"
 #include "Common/Snapshot.h"
@@ -262,6 +261,7 @@ public:
 
 	void onCollide( Object *other, const Coord3D *loc, const Coord3D *normal );
 
+	Real getCarrierDeckHeight() const;
 	// access to modules
 	//-----------------------------------------------------------------------------
 
@@ -427,10 +427,6 @@ public:
 	void friend_setContainedBy( Object *containedBy );
 	const Object* getEnclosingContainedBy() const; ///< Find the first enclosing container in the containment chain.
 	const Object* getOuterObject() const; ///< Get the top-level object
-
-#if RTS_ZEROHOUR && RETAIL_COMPATIBLE_CRC
-	void friend_setContainedByID(ObjectID id) { m_containedByID = id; }
-#endif
 
 	// Special Powers -------------------------------------------------------------------------------
 	SpecialPowerModuleInterface *getSpecialPowerModule( const SpecialPowerTemplate *specialPowerTemplate ) const;
@@ -721,7 +717,7 @@ private:
 
 	Object*												m_containedBy;					/**< an object can only be contained by at most one
 																	other object, this is that object (if present) */
-	ObjectID											m_containedByID;	///< ID of the object we're contained by; only to be used when m_containedBy cannot be used
+	ObjectID											m_xferContainedByID;	///< xfer uses IDs to store pointers and looks them up after
 	UnsignedInt										m_containedByFrame;	///< frame we were contained by m_containedBy
 
 	Real													m_constructionPercent;			///< for objects being built ... this is the amount completed (0.0 to 100.0)

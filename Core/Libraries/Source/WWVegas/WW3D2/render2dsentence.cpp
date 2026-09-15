@@ -1199,7 +1199,7 @@ FontCharsClass::FontCharsClass () :
 FontCharsClass::~FontCharsClass ()
 {
 	while ( BufferList.Count() ) {
-		delete BufferList[0];
+		delete [] BufferList[0].Buffer;
 		BufferList.Delete(0);
 	}
 
@@ -1347,7 +1347,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	//	Get a pointer to the surface that this character should use
 	//
 	Update_Current_Buffer( char_size.cx );
-	uint16* curr_buffer_p = BufferList[BufferList.Count () - 1]->Buffer;
+	uint16* curr_buffer_p = BufferList[BufferList.Count () - 1].Buffer;
 	curr_buffer_p += CurrPixelOffset;
 
 	//
@@ -1421,7 +1421,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	FontCharsClassCharDataStruct *char_data	= W3DNEW FontCharsClassCharDataStruct;
 	char_data->Value				= ch;
 	char_data->Width				= char_size.cx;
-	char_data->Buffer				= BufferList[BufferList.Count () - 1]->Buffer + CurrPixelOffset;
+	char_data->Buffer				= BufferList[BufferList.Count () - 1].Buffer + CurrPixelOffset;
 
 	//
 	//	Insert this character into our array
@@ -1452,6 +1452,8 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 void
 FontCharsClass::Update_Current_Buffer (int char_width)
 {
+	const int char_len = char_width * CharHeight;
+
 	//
 	//	Check to see if we need to allocate a new buffer
 	//
@@ -1461,7 +1463,7 @@ FontCharsClass::Update_Current_Buffer (int char_width)
 		//
 		//	Would we extend past this buffer?
 		//
-		if ( (CurrPixelOffset + (char_width * CharHeight)) > CHAR_BUFFER_LEN ) {
+		if ( (CurrPixelOffset + char_len) > BufferList[BufferList.Count () - 1].Length ) {
 			needs_new_buffer = true;
 		}
 	}
@@ -1471,8 +1473,9 @@ FontCharsClass::Update_Current_Buffer (int char_width)
 	//
 	if (needs_new_buffer)
 	{
-		FontCharsBuffer* new_buffer = W3DNEW FontCharsBuffer;
-		BufferList.Add( new_buffer );
+		// TheSuperHackers @fix arcticdolphin 07/09/2026 Length may exceed CHAR_BUFFER_LEN to fit this glyph.
+		const int length = max( (int)CHAR_BUFFER_LEN, char_len );
+		BufferList.Add( FontCharsBuffer( length, W3DNEWARRAY uint16[length] ) );
 		CurrPixelOffset = 0;
 	}
 }

@@ -1024,6 +1024,13 @@ void AIStateMachine::clear()
 	m_goalWaypoint = nullptr;
 	m_goalSquad = nullptr;
 
+#if !RETAIL_COMPATIBLE_CRC
+	if (m_temporaryState)
+		m_temporaryState->onExit(EXIT_RESET);
+
+	m_temporaryState = nullptr;
+#endif
+
 	AIUpdateInterface* ai = getOwner()->getAI();
 	if (ai)
 		ai->friend_notifyStateMachineChanged();
@@ -5989,7 +5996,7 @@ Object *AIAttackSquadState::chooseVictim()
 		case DIFFICULTY_EASY:
 		{
 			// pick a random unit
-			VecObjectPtr objects = victimSquad->getLiveObjects();
+			const VecObjectPtr& objects = victimSquad->getLiveObjects();
 			Int numUnits = objects.size();
 			if (numUnits == 0)
 			{
@@ -6017,7 +6024,7 @@ Object *AIAttackSquadState::chooseVictim()
 		case DIFFICULTY_HARD:
 		{
 			// everyone picks the same unit
-			VecObjectPtr objects = victimSquad->getLiveObjects();
+			const VecObjectPtr& objects = victimSquad->getLiveObjects();
 			if (!objects.empty())
 			{
 				return objects[0];

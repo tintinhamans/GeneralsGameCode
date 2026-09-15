@@ -413,10 +413,6 @@ void Path::prependNode( const Coord3D *pos, PathfindLayerEnum layer )
 		m_pathTail = node;
 
 	m_isOptimized = false;
-
-#ifdef CPOP_STARTS_FROM_PREV_SEG
-	m_cpopRecentStart = nullptr;
-#endif
 }
 
 /**
@@ -445,10 +441,6 @@ void Path::appendNode( const Coord3D *pos, PathfindLayerEnum layer )
 	}
 
 	m_pathTail = node;
-
-#ifdef CPOP_STARTS_FROM_PREV_SEG
-	m_cpopRecentStart = nullptr;
-#endif
 }
 /**
  * Create a new node at the tail of the path
@@ -798,13 +790,7 @@ void Path::computePointOnPath(
 	//
 	// Find the closest segment of the path
 	//
-#ifdef CPOP_STARTS_FROM_PREV_SEG
-	const PathNode* prevNode = m_cpopRecentStart;
-	if (prevNode == nullptr)
-		prevNode = m_path;
-#else
 	const PathNode* prevNode = m_path;
-#endif
 	Coord2D segmentDirNorm;
 	Real segmentLength;
 
@@ -877,10 +863,6 @@ void Path::computePointOnPath(
 		prevNode = node;
 		DUMPCOORD3D(&pointOnPath);
 	}
-
-#ifdef CPOP_STARTS_FROM_PREV_SEG
-	m_cpopRecentStart = closeNode;
-#endif
 
 	//
 	// Compute the goal movement position for this agent
@@ -1125,8 +1107,10 @@ void PathfindCellInfo::forceCleanPathFindCellInfos()
 
 void Pathfinder::forceCleanCells()
 {
-	UnicodeString pathfinderFailoverMessage = TheGameText->FETCH_OR_SUBSTITUTE("GUI:PathfindingCrashPrevented", L"A pathfinding crash was prevented, now switching to the crash fixed pathfinding.");
+	UnicodeString pathfinderFailoverMessage = TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:PathfindingCrashPrevented", L"A pathfinding crash was prevented at frame %u, now switching to the crash fixed pathfinding.", TheGameLogic->getFrame());
 	TheInGameUI->message(pathfinderFailoverMessage);
+
+	printf("%ls\n", pathfinderFailoverMessage.str());
 
 	TheAudio->addAudioEvent(&TheAudio->getMiscAudio()->m_allCheerSound);
 
@@ -1727,6 +1711,13 @@ void PathfindCell::forwardInsertionSortRetailCompatible(PathfindCellList& list)
 	UnsignedInt cellCount = 0;
 	while (currentCell && cellCount < PATHFIND_CELLS_PER_FRAME && currentCell->m_info->m_totalCost <= m_info->m_totalCost)
 	{
+		// Prevent a retail crash where a pathfindCell has an m_info with a dangling nextOpen pointer
+		if (currentCell->m_info->m_nextOpen && !currentCell->m_info->m_nextOpen->m_cell->m_info)
+		{
+			currentCell->m_info->m_nextOpen->m_cell = nullptr;
+			currentCell->m_info->m_nextOpen = nullptr;
+		}
+
 		cellCount++;
 		previousCell = currentCell;
 		currentCell = currentCell->getNextOpen();
@@ -1976,7 +1967,19 @@ void PathfindCell::putOnClosedList( PathfindCellList &list )
 		m_info->m_prevOpen = nullptr;
 		m_info->m_nextOpen = list.m_head ? list.m_head->m_info : nullptr;
 		if (list.m_head)
+#if RETAIL_COMPATIBLE_PATHFINDING
+		// TheSuperHackers @info This is only here to catch a crash point in the retail compatible pathfinding
+		// This crash mode occurs due to the closed list head not having an m_info associated with it
+		// A node cannot be put onto the closed list without an m_info under normal conditions
+		{
+			if (list.m_head->m_info)
+			{
+				list.m_head->m_info->m_prevOpen = this->m_info;
+			}
+		}
+#else
 			list.m_head->m_info->m_prevOpen = this->m_info;
+#endif
 
 		list.m_head = this;
 	}
@@ -2705,12 +2708,7 @@ void PathfindZoneManager::calculateZones( PathfindCell **map, PathfindLayer laye
 			bounds.lo.y = globalBounds.lo.y + yBlock*ZONE_BLOCK_SIZE;
 			bounds.hi.x = bounds.lo.x + ZONE_BLOCK_SIZE - 1; // bounds are inclusive.
 			bounds.hi.y = bounds.lo.y + ZONE_BLOCK_SIZE - 1; // bounds are inclusive.
-			if (bounds.hi.x > globalBounds.hi.x) {
-				bounds.hi.x = globalBounds.hi.x;
-			}
-			if (bounds.hi.y > globalBounds.hi.y) {
-				bounds.hi.y = globalBounds.hi.y;
-			}
+			bounds.hi.updateMin(globalBounds.hi);
 #if RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING
 			if (bounds.lo.x>bounds.hi.x || bounds.lo.y>bounds.hi.y) {
 				DEBUG_CRASH(("Incorrect bounds calculation. Logic error, fix me. jba."));
@@ -2807,11 +2805,7 @@ void PathfindZoneManager::calculateZones( PathfindCell **map, PathfindLayer laye
 			bounds.hi.x = bounds.lo.x + ZONE_BLOCK_SIZE - 1; // bounds are inclusive.
 			bounds.hi.y = bounds.lo.y + ZONE_BLOCK_SIZE - 1; // bounds are inclusive.
 
-			if (bounds.hi.x > globalBounds.hi.x)
-				bounds.hi.x = globalBounds.hi.x;
-
-			if (bounds.hi.y > globalBounds.hi.y)
-				bounds.hi.y = globalBounds.hi.y;
+			bounds.hi.updateMin(globalBounds.hi);
 #if RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING
 			if (bounds.lo.x>bounds.hi.x || bounds.lo.y>bounds.hi.y) {
 				DEBUG_CRASH(("Incorrect bounds calculation. Logic error, fix me. jba."));
@@ -3030,12 +3024,7 @@ void PathfindZoneManager::updateZonesForModify(PathfindCell **map, PathfindLayer
 	IRegion2D bounds = structureBounds;
 	bounds.hi.x++;
 	bounds.hi.y++;
-	if (bounds.hi.x > globalBounds.hi.x) {
-		bounds.hi.x = globalBounds.hi.x;
-	}
-	if (bounds.hi.y > globalBounds.hi.y) {
-		bounds.hi.y = globalBounds.hi.y;
-	}
+	bounds.hi.updateMin(globalBounds.hi);
 
 	Int xBlock, yBlock;
 	for (xBlock = 0; xBlock<m_zoneBlockExtent.x; xBlock++) {
@@ -3045,18 +3034,7 @@ void PathfindZoneManager::updateZonesForModify(PathfindCell **map, PathfindLayer
 			blockBounds.lo.y = globalBounds.lo.y + yBlock*ZONE_BLOCK_SIZE;
 			blockBounds.hi.x = blockBounds.lo.x + ZONE_BLOCK_SIZE - 1; // blockBounds are inclusive.
 			blockBounds.hi.y = blockBounds.lo.y + ZONE_BLOCK_SIZE - 1; // blockBounds are inclusive.
-			if (blockBounds.hi.x > bounds.hi.x) {
-				blockBounds.hi.x = bounds.hi.x;
-			}
-			if (blockBounds.hi.y > bounds.hi.y) {
-				blockBounds.hi.y = bounds.hi.y;
-			}
-			if (blockBounds.lo.x < bounds.lo.x) {
-				blockBounds.lo.x = bounds.lo.x;
-			}
-			if (blockBounds.lo.y < bounds.lo.y) {
-				blockBounds.lo.y = bounds.lo.y;
-			}
+			blockBounds.intersectWith(bounds);
 			if (blockBounds.lo.x>blockBounds.hi.x || blockBounds.lo.y>blockBounds.hi.y) {
 				continue;
 			}
@@ -3595,10 +3573,7 @@ void PathfindLayer::allocateCellsForWallLayer(const IRegion2D *extent, ObjectID 
 			bridgeBounds = objBounds;
 			first = false;
 		} else {
-			if (bridgeBounds.lo.x>objBounds.lo.x) bridgeBounds.lo.x = objBounds.lo.x;
-			if (bridgeBounds.lo.y>objBounds.lo.y) bridgeBounds.lo.y = objBounds.lo.y;
-			if (bridgeBounds.hi.x<objBounds.hi.x) bridgeBounds.hi.x = objBounds.hi.x;
-			if (bridgeBounds.hi.y<objBounds.hi.y) bridgeBounds.hi.y = objBounds.hi.y;
+			bridgeBounds.uniteWith(objBounds);
 		}
 	}
 
@@ -3888,10 +3863,8 @@ void PathfindLayer::classifyLayerMapCell( Int i, Int j , PathfindCell *cell, Bri
 		// check against the end lines.
 
 		Region2D cellBounds;
-		cellBounds.lo.x = topLeftCorner.x;
-		cellBounds.lo.y = topLeftCorner.y;
-		cellBounds.hi.x = bottomRightCorner.x;
-		cellBounds.hi.y = bottomRightCorner.y;
+		cellBounds.lo = topLeftCorner.asCoord2D();
+		cellBounds.hi = bottomRightCorner.asCoord2D();
 
 #if RTS_GENERALS && RETAIL_COMPATIBLE_PATHFINDING
 		if (m_bridge->isCellOnEnd(&cellBounds)) {
@@ -4587,21 +4560,7 @@ void Pathfinder::internal_classifyObjectFootprint( Object *obj, Bool insert )
 
 	Int i, j;
 
-	if (cellBounds.lo.x < m_extent.lo.x) {
-		cellBounds.lo.x = m_extent.lo.x;
-	}
-	if (cellBounds.lo.y < m_extent.lo.y) {
-		cellBounds.lo.y = m_extent.lo.y;
-	}
-	if (cellBounds.lo.y < m_extent.lo.y) {
-		cellBounds.lo.y = m_extent.lo.y;
-	}
-	if (cellBounds.hi.x > m_extent.hi.x) {
-		cellBounds.hi.x = m_extent.hi.x;
-	}
-	if (cellBounds.hi.y > m_extent.hi.y) {
-		cellBounds.hi.y = m_extent.hi.y;
-	}
+	cellBounds.intersectWith(m_extent);
 
 	if (!insert) {
 		for( j=cellBounds.lo.y; j<=cellBounds.hi.y; j++ )
@@ -9558,6 +9517,13 @@ Bool Pathfinder::isAttackViewBlockedByObstacle(const Object* attacker, const Coo
 	}
 	if (w)
 	{
+#if !RETAIL_COMPATIBLE_CRC
+		// TheSuperHackers @bugfix Stubbjax 23/08/2026 Don't consider the attack blocked if it is a contact weapon.
+		// This allows weapons such as suicide bombs to be triggered if the unit is blocked by building geometry.
+		if (w->isContactWeapon())
+			return false;
+#endif
+
 		Bool viewBlocked;
 		if (victim)
 			viewBlocked = !w->isClearGoalFiringLineOfSightTerrain(attacker, attackerPos, victim);
@@ -10459,10 +10425,8 @@ Path *Pathfinder::getMoveAwayFromPath(Object* obj, Object *otherObj,
 
 		for( node = pathToAvoid->getFirstNode(); node && node->getNextOptimized(); node = node->getNextOptimized() )	{
 			Coord2D start, end;
-			start.x = node->getPosition()->x;
-			start.y = node->getPosition()->y;
-			end.x = node->getNextOptimized()->getPosition()->x;
-			end.y = node->getNextOptimized()->getPosition()->y;
+			start = node->getPosition()->asCoord2D();
+			end = node->getNextOptimized()->getPosition()->asCoord2D();
 			if (LineInRegion(&start, &end, &bounds)) {
 				overlap = true;
 				break;
@@ -10472,10 +10436,8 @@ Path *Pathfinder::getMoveAwayFromPath(Object* obj, Object *otherObj,
 		if (!overlap && pathToAvoid2) {
 			for( node = pathToAvoid2->getFirstNode(); node && node->getNextOptimized(); node = node->getNextOptimized() )	{
 				Coord2D start, end;
-				start.x = node->getPosition()->x;
-				start.y = node->getPosition()->y;
-				end.x = node->getNextOptimized()->getPosition()->x;
-				end.y = node->getNextOptimized()->getPosition()->y;
+				start = node->getPosition()->asCoord2D();
+				end = node->getNextOptimized()->getPosition()->asCoord2D();
 				if (LineInRegion(&start, &end, &bounds)) {
 					overlap = true;
 					break;
@@ -11044,6 +11006,10 @@ Path *Pathfinder::findAttackPath( const Object *obj, const LocomotorSet& locomot
 				Path *path = buildActualPath( obj, locomotorSet.getValidSurfaces(), obj->getPosition(), parentCell, centerInCell, false);
 #if RETAIL_COMPATIBLE_PATHFINDING
 				if (!s_useFixedPathfinding) {
+#if RTS_GENERALS
+					parentCell->releaseInfo();
+#endif
+
 					if (goalCell->hasInfo() && !goalCell->getClosed() && !goalCell->getOpen()) {
 						goalCell->releaseInfo();
 					}

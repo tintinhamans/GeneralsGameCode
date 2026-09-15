@@ -173,7 +173,7 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 	m_physics(nullptr),
 	m_geometryInfo(tt->getTemplateGeometryInfo()),
 	m_containedBy(nullptr),
-	m_containedByID(INVALID_ID),
+	m_xferContainedByID(INVALID_ID),
 	m_containedByFrame(0),
 	m_behaviors(nullptr),
 	m_body(nullptr),
@@ -624,21 +624,8 @@ void Object::onContainedBy( Object *containedBy )
 	m_containedBy = containedBy;
 	m_containedByFrame = TheGameLogic->getFrame();
 
-#if RETAIL_COMPATIBLE_CRC
-	// TheSuperHackers @info Set INVALID_ID if the container object was destroyed
-	// to indicate that the pointer will become a dangling pointer in the next frame.
-	if (containedBy && !containedBy->isDestroyed())
-	{
-		m_containedByID = containedBy->getID();
-	}
-	else
-	{
-		m_containedByID = INVALID_ID;
-	}
-#else
 	DEBUG_ASSERTCRASH(containedBy == nullptr || !containedBy->isDestroyed(),
-		("Object::onContainedBy - Adding into a destroyed container"));
-#endif
+		("Object::onContainedBy - Adding to a destroyed container"));
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -649,10 +636,6 @@ void Object::onRemovedFrom( Object *removedFrom )
 	clearStatus( MAKE_OBJECT_STATUS_MASK2( OBJECT_STATUS_MASKED, OBJECT_STATUS_UNSELECTABLE ) );
 	m_containedBy = nullptr;
 	m_containedByFrame = 0;
-
-#if RETAIL_COMPATIBLE_CRC
-	m_containedByID = INVALID_ID;
-#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -712,33 +695,9 @@ void Object::onDestroy()
 {
 
 	// This is the old cleanUpContain safeguard.  Say goodbye so they don't try to look us up.
-	if (m_containedBy)
+	if( m_containedBy && m_containedBy->getContain() )
 	{
-#if RETAIL_COMPATIBLE_CRC
-		if (m_containedByID == INVALID_ID)
-		{
-			// TheSuperHackers @bugfix Caball009 25/05/2026 Due to a potential use-after-free bug that cannot be fixed
-			// with retail compatibility, the 'contained by' pointer of this object may point to an already destroyed object.
-			// Avoid removing this object from the contain list, because it could crash the game,
-			// as the begin / end iterator for STLPort and MSVC std::list implementations depends on dynamically allocated memory.
-			DEBUG_CRASH(("container object must be valid; this looks like use-after-free"));
-		}
-		else
-		{
-			DEBUG_ASSERTCRASH(TheGameLogic->findObjectByID(m_containedByID) == m_containedBy,
-				("contained by pointer is out of sync with contained by ID"));
-
-			if (ContainModuleInterface* contain = m_containedBy->getContain())
-			{
-				contain->removeFromContain(this);
-			}
-		}
-#else
-		if (ContainModuleInterface* contain = m_containedBy->getContain())
-		{
-			contain->removeFromContain(this);
-		}
-#endif
+		m_containedBy->getContain()->removeFromContain( this );
 	}
 
 	//
@@ -1771,7 +1730,8 @@ void Object::attemptDamage( DamageInfo *damageInfo )
 			damageInfo->in.m_damageType != DAMAGE_HEALING &&
 			!BitIsSet(damageInfo->in.m_sourcePlayerMask, getControllingPlayer()->getPlayerMask()) &&
 			m_radarData != nullptr &&
-			isLocallyControlled() )
+			isLocallyControlled() &&
+			!isKindOf( KINDOF_NO_ATTACK_WARNING ) )
 		TheRadar->tryUnderAttackEvent( this );
 
 }
@@ -2823,7 +2783,7 @@ Bool Object::isSelectable() const
 				|| (m_isSelectable
 						&& !testStatus(OBJECT_STATUS_UNSELECTABLE)
 						&& !isEffectivelyDead()
-						&& !getTemplate()->isKindOf(KINDOF_DRONE)//Most drones are unselectable from being slaved, but the SpyDrone needs help
+						&& !getTemplate()->isKindOf(KINDOF_NO_SELECT)
 						);
 }
 
@@ -3424,6 +3384,10 @@ void Object::friend_adjustPowerForPlayer( Bool incoming )
 //-------------------------------------------------------------------------------------------------
 void Object::onDisabledEdge(Bool becomingDisabled)
 {
+	// rip through the behavior modules and call the onDisabledEdge for any modules that care
+	for( BehaviorModule **module = m_behaviors; *module; ++module )
+		(*module)->onDisabledEdge( becomingDisabled );
+
 	Player* controller = getControllingPlayer();
 	// can be called during game teardown, thus controller can be null
 	if (controller)
@@ -3790,19 +3754,16 @@ void Object::xfer( Xfer *xfer )
 		// No, the contain module is just going to friend_ reach in and set this for us.
 		// Containers more complicated than Open (like Tunnel) can't do that.  Our variable,
 		// our responsibility.
-#if RETAIL_COMPATIBLE_CRC
-		// TheSuperHackers @tweak Contained by ID is already set with retail compatibility; don't overwrite it.
-#else
 		if( xfer->getXferMode() == XFER_SAVE )
 		{
 			if( m_containedBy != nullptr )
-				m_containedByID = m_containedBy->getID();
+				m_xferContainedByID = m_containedBy->getID();
 			else
-				m_containedByID = INVALID_ID;
+				m_xferContainedByID = INVALID_ID;
 		}
-#endif
 
-		xfer->xferObjectID( &m_containedByID );
+
+		xfer->xferObjectID( &m_xferContainedByID );
 	}
 
 	// contained by frame
@@ -4027,8 +3988,8 @@ void Object::xfer( Xfer *xfer )
 //-------------------------------------------------------------------------------------------------
 void Object::loadPostProcess()
 {
-	if( m_containedByID != INVALID_ID )
-		m_containedBy = TheGameLogic->findObjectByID(m_containedByID);
+	if( m_xferContainedByID != INVALID_ID )
+		m_containedBy = TheGameLogic->findObjectByID(m_xferContainedByID);
 	else
 		m_containedBy = nullptr;
 
@@ -5622,7 +5583,7 @@ void Object::enterGroup( AIGroup *group )
 #if RETAIL_COMPATIBLE_AIGROUP
 	m_group = group;
 #else
-	m_group = AIGroupPtr::Create_AddRef(group);
+	m_group.Assign_Add_Ref(group);
 #endif
 }
 
@@ -5640,3 +5601,8 @@ void Object::leaveGroup()
 	}
 }
 
+//-------------------------------------------------------------------------------------------------
+Real Object::getCarrierDeckHeight() const
+{
+	return 0.0f;
+}

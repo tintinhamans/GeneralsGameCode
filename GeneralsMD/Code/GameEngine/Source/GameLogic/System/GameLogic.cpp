@@ -1935,14 +1935,12 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			if (!slot || !slot->isOccupied())
 				continue;
 
-			AsciiString playerName;
-			playerName.format("player%d", i);
-			Player* player = ThePlayerList->findPlayerWithNameKey(TheNameKeyGenerator->nameToKey(playerName));
+			Player *player = ThePlayerList->getPlayerFromSlotIndex(i);
 
 			if (slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
 			{
-				DEBUG_LOG(("Clearing shroud for observer %s in playerList slot %d", playerName.str(), player->getPlayerIndex()));
-				ThePartitionManager->revealMapForPlayerPermanently(player->getPlayerIndex());
+				DEBUG_LOG(("Clearing shroud for observer in slot %d with player index %d", i, player->getPlayerIndex()));
+				ThePartitionManager->revealMapForPlayerPermanently( player->getPlayerIndex() );
 			}
 			else
 			{
@@ -2125,9 +2123,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			if (!slot || !slot->isOccupied())
 				continue;
 
-			AsciiString playerName;
-			playerName.format("player%d", i);
-			Player* player = ThePlayerList->findPlayerWithNameKey(TheNameKeyGenerator->nameToKey(playerName));
+			Player *player = ThePlayerList->getPlayerFromSlotIndex(i);
 
 			if (slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
 			{

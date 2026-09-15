@@ -37,16 +37,16 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "shattersystem.h"
-#include "WW3D2/assetmgr.h"
-#include "WW3D2/mesh.h"
-#include "WW3D2/meshmdl.h"
+#include "assetmgr.h"
+#include "mesh.h"
+#include "meshmdl.h"
 #include "dynamesh.h"
 #include "htree.h"
 #include "WWMath/plane.h"
 #include "WWLib/simplevec.h"
 #include "WWLib/wwstring.h"
 #include "WWMath/vp.h"
-#include "WW3D2/meshmatdesc.h"
+#include "meshmatdesc.h"
 #include <stdlib.h>
 
 /*
@@ -920,7 +920,7 @@ void ShatterSystem::Shatter_Mesh(MeshClass * mesh,const Vector3 & point,const Ve
 	/*
 	** Object-space to world-space transform
 	*/
-	Matrix3D Mobj_to_world = mesh->Get_Transform();
+	const Matrix3D& Mobj_to_world = mesh->Get_Transform();
 
 	/*
 	** World-space to shatter-space transform

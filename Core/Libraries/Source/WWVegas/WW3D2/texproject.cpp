@@ -75,15 +75,15 @@
 
 
 #include "texproject.h"
-#include "WW3D2/vertmaterial.h"
-#include "WW3D2/shader.h"
+#include "vertmaterial.h"
+#include "shader.h"
 #include "texture.h"
 #include "rendobj.h"
-#include "WW3D2/rinfo.h"
-#include "WW3D2/camera.h"
+#include "rinfo.h"
+#include "camera.h"
 #include "matpass.h"
 #include "bwrender.h"
-#include "WW3D2/assetmgr.h"
+#include "assetmgr.h"
 #include "dx8wrapper.h"
 
 
@@ -931,9 +931,8 @@ bool TexProjectClass::Compute_Perspective_Projection
 	** Calculate the axis-aligned bounding box of the model in the camera's coordinate system.
 	*/
 	AABoxClass box = obj_box;
-	Matrix3D obj_to_world = tm;
 	Matrix3D obj_to_texture;
-	Matrix3D::Multiply(texture_tm_inv,obj_to_world,&obj_to_texture);
+	Matrix3D::Multiply(texture_tm_inv,tm,&obj_to_texture);
 	box.Transform(obj_to_texture);
 
 	/*
@@ -1060,9 +1059,8 @@ bool TexProjectClass::Compute_Ortho_Projection
 	** Calculate the axis-aligned bounding box of the model in the camera's coordinate system.
 	*/
 	AABoxClass box = obj_box;
-	Matrix3D obj_to_world = tm;
 	Matrix3D obj_to_texture;
-	Matrix3D::Multiply(texture_tm_inv,obj_to_world,&obj_to_texture);
+	Matrix3D::Multiply(texture_tm_inv,tm,&obj_to_texture);
 	box.Transform(obj_to_texture);
 
 	/*

@@ -57,11 +57,11 @@
 #include <assert.h>
 #include "WWMath/wwmath.h"
 #include "WWLib/chunkio.h"
-#include "WW3D2/w3d_file.h"
+#include "w3d_file.h"
 #include "WWDebug/wwmemlog.h"
-#include "WW3D2/hrawanim.h"
-#include "WW3D2/motchan.h"
-#include "WW3D2/ww3d.h"
+#include "hrawanim.h"
+#include "motchan.h"
+#include "ww3d.h"
 
 /***********************************************************************************************
  * HTreeClass::HTreeClass -- constructor                                                       *
@@ -209,9 +209,10 @@ int HTreeClass::Load_W3D(ChunkLoadClass & cload)
 	*/
 	memcpy(Name,header.Name,W3D_NAME_LEN);
 	NumPivots = header.NumPivots;
-	if (NumPivots > 0) {
-		Pivot = MSGW3DNEWARRAY("HTreeClass::Pivot") PivotClass[NumPivots];
+	if (NumPivots < 1) {
+		return LOAD_ERROR;
 	}
+	Pivot = MSGW3DNEWARRAY("HTreeClass::Pivot") PivotClass[NumPivots];
 
 	/*
 	** Now, read in all of the other chunks for this hierarchy.

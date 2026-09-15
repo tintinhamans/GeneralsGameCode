@@ -71,8 +71,8 @@
  *   PointGroupClass::Peek_Texture -- Peeks texture                        *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 #include "pointgr.h"
-#include "WW3D2/vertmaterial.h"
-#include "WW3D2/ww3d.h"
+#include "vertmaterial.h"
+#include "ww3d.h"
 #include "WWMath/aabox.h"
 #include "statistics.h"
 #include "WWLib/simplevec.h"
@@ -83,8 +83,8 @@
 #include "dx8wrapper.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
-#include "WW3D2/rinfo.h"
-#include "WW3D2/camera.h"
+#include "rinfo.h"
+#include "camera.h"
 #include "dx8fvf.h"
 #include "d3dx8math.h"
 #include "sortingrenderer.h"
@@ -1644,11 +1644,12 @@ void PointGroupClass::_Shutdown()
  *   12/03/2002	Mark Lorenzen		Created.                                  *
  *																		                                    *
  *========================================================================*/
+#define DEFAULT_VOLUME_PARTICLE_DEPTH ( 1 )
 #define MAX_VOLUME_PARTICLE_DEPTH ( 16 )
 void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int depth )
 {
 
-	if ( depth <= 1 ) //oops,wrong number
+	if ( depth <= DEFAULT_VOLUME_PARTICLE_DEPTH) //oops,wrong number
 	{
 		Render( rinfo );
 		return;

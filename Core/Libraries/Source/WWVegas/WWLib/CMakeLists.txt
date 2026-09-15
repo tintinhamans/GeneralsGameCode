@@ -133,6 +133,8 @@ set(WWLIB_SRC
     trim.cpp
     trim.h
     uarray.h
+    utf8.cpp
+    utf8.h
     vector.cpp
     Vector.h
     visualc.h
@@ -158,6 +160,8 @@ if(WIN32)
         rcfile.h
         registry.cpp
         registry.h
+        Usp10Loader.cpp
+        Usp10Loader.h
         verchk.cpp
         verchk.h
         WWCOMUtil.cpp

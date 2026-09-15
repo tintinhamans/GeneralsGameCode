@@ -659,7 +659,7 @@ GameMessageDisposition SelectionTranslator::onMouseLeftDoubleClick(MAYBE_UNUSED 
 		selectMore->appendBooleanArgument(FALSE);
 		for (DrawableListIt it = listOfSelectedDrawables.begin(); it != listOfSelectedDrawables.end(); ++it) {
 			Drawable *draw = *it;
-			if (draw && draw->isSelectable()) {
+			if (draw && draw->isMassSelectable()) {
 				TheInGameUI->selectDrawable(draw);
 				selectMore->appendObjectIDArgument(draw->getObject()->getID());
 			}
@@ -1176,7 +1176,7 @@ GameMessageDisposition SelectionTranslator::onMetaSelectTeam(MAYBE_UNUSED const 
 				Squad *selectedSquad = player->getHotkeySquad(group);
 				if (selectedSquad != nullptr)
 				{
-					VecObjectPtr objlist = selectedSquad->getLiveObjects();
+					const VecObjectPtr& objlist = selectedSquad->getLiveObjects();
 					Int numObjs = objlist.size();
 					if (numObjs > 0)
 					{
@@ -1201,7 +1201,7 @@ GameMessageDisposition SelectionTranslator::onMetaSelectTeam(MAYBE_UNUSED const 
 				Squad *selectedSquad = player->getHotkeySquad(group);
 				if (selectedSquad != nullptr)
 				{
-					VecObjectPtr objlist = selectedSquad->getLiveObjects();
+					const VecObjectPtr& objlist = selectedSquad->getLiveObjects();
 					Int numObjs = objlist.size();
 					for (Int i = 0; i < numObjs; ++i)
 					{
@@ -1244,7 +1244,7 @@ GameMessageDisposition SelectionTranslator::onMetaAddTeam(MAYBE_UNUSED const Gam
 				Squad *selectedSquad = player->getHotkeySquad(group);
 				if (selectedSquad != nullptr)
 				{
-					VecObjectPtr objlist = selectedSquad->getLiveObjects();
+					const VecObjectPtr& objlist = selectedSquad->getLiveObjects();
 					Int numObjs = objlist.size();
 					if (numObjs > 0)
 					{
@@ -1275,7 +1275,7 @@ GameMessageDisposition SelectionTranslator::onMetaAddTeam(MAYBE_UNUSED const Gam
 				Squad *selectedSquad = player->getHotkeySquad(group);
 				if (selectedSquad != nullptr)
 				{
-					VecObjectPtr objlist = selectedSquad->getLiveObjects();
+					const VecObjectPtr& objlist = selectedSquad->getLiveObjects();
 					Int numObjs = objlist.size();
 
 					// TheSuperHackers @bugfix skyaero 22/07/2025 Can't select other units if you have a structure selected. So deselect the structure to prevent group force attack exploit.
@@ -1301,7 +1301,8 @@ GameMessageDisposition SelectionTranslator::onMetaAddTeam(MAYBE_UNUSED const Gam
 GameMessageDisposition SelectionTranslator::onMetaViewTeam(MAYBE_UNUSED const GameMessage *msg)
 {
 	Int group = msg->getType() - GameMessage::MSG_META_VIEW_TEAM0;
-	if ( group >= 1 && group <= 10 )
+	// TheSuperHackers @bugfix Fix the group index range so control group 0 can be viewed.
+	if ( group >= 0 && group < 10 )
 	{
 		DEBUG_LOG(("META: view team %d",group));
 		Player *player = ThePlayerList->getLocalPlayer();
@@ -1310,7 +1311,7 @@ GameMessageDisposition SelectionTranslator::onMetaViewTeam(MAYBE_UNUSED const Ga
 			Squad *selectedSquad = player->getHotkeySquad(group);
 			if (selectedSquad != nullptr)
 			{
-				VecObjectPtr objlist = selectedSquad->getLiveObjects();
+				const VecObjectPtr& objlist = selectedSquad->getLiveObjects();
 				Int numObjs = objlist.size();
 				if (numObjs > 0)
 				{

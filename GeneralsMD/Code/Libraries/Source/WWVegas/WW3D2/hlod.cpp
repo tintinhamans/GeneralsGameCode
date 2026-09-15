@@ -128,10 +128,10 @@
 
 #include "hlod.h"
 #include "assetmgr.h"
-#include "WW3D2/hmdldef.h"
-#include "WW3D2/w3derr.h"
+#include "hmdldef.h"
+#include "w3derr.h"
 #include "WWLib/chunkio.h"
-#include "WW3D2/predlod.h"
+#include "predlod.h"
 #include "rinfo.h"
 #include <WWLib/win.h>
 #include "WWMath/sphere.h"
@@ -2057,7 +2057,7 @@ bool HLodClass::Get_Proxy (int index, ProxyClass &proxy) const
 		//	Lookup the proxy's transform
 		//
 		HTree->Base_Update(Get_Transform());
-		Matrix3D transform = HTree->Get_Transform((*ProxyArray)[index].Get_Bone_Index());
+		const Matrix3D& transform = HTree->Get_Transform((*ProxyArray)[index].Get_Bone_Index());
 		Set_Hierarchy_Valid(false);
 
 		//

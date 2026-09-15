@@ -35,15 +35,15 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "meshmdl.h"
-#include "WW3D2/matinfo.h"
-#include "WW3D2/aabtree.h"
-#include "WW3D2/htree.h"
+#include "matinfo.h"
+#include "aabtree.h"
+#include "htree.h"
 #include "WWMath/vp.h"
-#include "WW3D2/visrasterizer.h"
-#include "WW3D2/dx8polygonrenderer.h"
-#include "WW3D2/bwrender.h"
+#include "visrasterizer.h"
+#include "dx8polygonrenderer.h"
+#include "bwrender.h"
 #include "camera.h"
-#include "WW3D2/dx8renderer.h"
+#include "dx8renderer.h"
 #include "WWLib/hashtemplate.h"
 
 
@@ -336,9 +336,6 @@ void MeshModelClass::compose_deformed_vertex_buffer(
 	for (vi = 0; vi < vertex_count;) {
 		const Matrix3D & tm = htree->Get_Transform(bonelink[vi]);
 
-		// Make a copy so we can set the translation to zero
-		Matrix3D mytm=tm;
-
 		int idx=bonelink[vi];
 		int cnt;
 		for (cnt = vi; cnt < vertex_count; cnt++) {
@@ -348,7 +345,7 @@ void MeshModelClass::compose_deformed_vertex_buffer(
 		}
 
 		for (int pidx=0;pidx<cnt-vi;++pidx) {
-			const Matrix3D& A=mytm;
+			const Matrix3D& A=tm;
 			VertexFormatXYZNDUV2* out=verts+vi+pidx;
 			const Vector3& v=*(src_vert+vi+pidx);
 			out->x = (A[0][0] * v.X + A[0][1] * v.Y + A[0][2] * v.Z + A[0][3]);

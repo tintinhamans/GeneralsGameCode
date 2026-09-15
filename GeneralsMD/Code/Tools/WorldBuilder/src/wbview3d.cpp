@@ -998,7 +998,7 @@ void WbView3d::updateScorches()
 			Scorches type = (Scorches) pMapObj->getProperties()->getInt(TheKey_scorchType);
 
 			Vector3 loc(pos->x, pos->y, pos->z);
-			TheTerrainRenderObject->addScorch(loc, radius, type);
+			TheTerrainRenderObject->addStaticScorch(loc, radius, type);
 		}
 	}
 }
@@ -1709,7 +1709,7 @@ Bool WbView3d::viewToDocCoords(CPoint curPt, Coord3D *newPt, Bool constrain)
 	float logY = (Real)curPt.y / (Real)client.Height();
 	Vector3 intersection(0,0,0);
 	// determine the ray corresponding to the camera and distance to projection plane
-	Matrix3D camera_matrix = m_camera->Get_Transform();
+	const Matrix3D& camera_matrix = m_camera->Get_Transform();
 
 	Vector3 camera_location  = m_camera->Get_Position();
 
@@ -1837,7 +1837,7 @@ Bool WbView3d::viewToDocCoordZ(CPoint curPt, Coord3D *newPt, Real theZ)
 	float logY = (Real)curPt.y / (Real)client.Height();
 	Vector3 intersection(0,0,0);
 	// determine the ray corresponding to the camera and distance to projection plane
-	Matrix3D camera_matrix = m_camera->Get_Transform();
+	const Matrix3D& camera_matrix = m_camera->Get_Transform();
 
 	Vector3 camera_location  = m_camera->Get_Position();
 
@@ -1892,7 +1892,7 @@ void WbView3d::updateHysteresis()
 	float logY = (Real)curPt.y / (Real)client.Height();
 	Vector3 intersection(0,0,0);
 	// determine the ray corresponding to the camera and distance to projection plane
-	Matrix3D camera_matrix = m_camera->Get_Transform();
+	const Matrix3D& camera_matrix = m_camera->Get_Transform();
 
 	Vector3 camera_location  = m_camera->Get_Position();
 

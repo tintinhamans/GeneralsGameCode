@@ -208,6 +208,18 @@ void TunnelContain::onSelling()
 }
 
 //-------------------------------------------------------------------------------------------------
+// TheSuperHackers @info A whole network shares one passenger list, so a passenger is contained by
+// the endpoint it entered and not by the one that was ordered to unload.
+Bool TunnelContain::isContained( const Object *obj ) const
+{
+	if (OpenContain::isContained(obj))
+		return TRUE;
+
+	const ContainedItemsList *items = getContainedItemsList();
+	return items != nullptr && std::find(items->begin(), items->end(), obj) != items->end();
+}
+
+//-------------------------------------------------------------------------------------------------
 Bool TunnelContain::isValidContainerFor(const Object* obj, Bool checkCapacity) const
 {
 	Player *owningPlayer = getObject()->getControllingPlayer();
@@ -388,6 +400,7 @@ void TunnelContain::onBuildComplete()
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
+#if !(RTS_GENERALS && RETAIL_COMPATIBLE_CRC)
 void TunnelContain::onCapture( Player *oldOwner, Player *newOwner )
 {
 	if( m_isCurrentlyRegistered )
@@ -409,6 +422,7 @@ void TunnelContain::onCapture( Player *oldOwner, Player *newOwner )
 	// extend base class
 	OpenContain::onCapture( oldOwner, newOwner );
 }
+#endif
 
 //-------------------------------------------------------------------------------------------------
 void TunnelContain::orderAllPassengersToExit( CommandSourceType commandSource )

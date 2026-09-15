@@ -56,12 +56,12 @@
 #include "WWLib/WWFILE.h"
 #include "WWLib/inisup.h"
 #include "WWSaveLoad/persistfactory.h"
-#include "WW3D2/ww3dids.h"
-#include "WW3D2/dx8wrapper.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/sortingrenderer.h"
-#include "WW3D2/texture.h"
+#include "ww3dids.h"
+#include "dx8wrapper.h"
+#include "dx8vertexbuffer.h"
+#include "dx8indexbuffer.h"
+#include "sortingrenderer.h"
+#include "texture.h"
 #include "scene.h"
 #include "WWDebug/wwprofile.h"
 #include <limits.h>
@@ -1412,7 +1412,7 @@ void DazzlePersistFactoryClass::Save(ChunkSaveClass & csave,PersistClass * obj)	
 	DazzleRenderObjClass * robj = (DazzleRenderObjClass *)obj;
 	unsigned int dazzle_type = robj->Get_Dazzle_Type();
 	const char * dazzle_type_name = DazzleRenderObjClass::Get_Type_Name(dazzle_type);
-	Matrix3D tm = robj->Get_Transform();
+	const Matrix3D& tm = robj->Get_Transform();
 
 	csave.Begin_Chunk(DAZZLEFACTORY_CHUNKID_VARIABLES);
 	WRITE_MICRO_CHUNK(csave,DAZZLEFACTORY_VARIABLE_OBJPOINTER,robj);
