@@ -79,7 +79,7 @@ public:
 	// virtual destructor prototype provided by memory pool declaration
 
 	virtual void onObjectCreated() override;
-#if !RETAIL_COMPATIBLE_CRC
+#if !RETAIL_COMPATIBLE_CRC && !GENERALS_ONLINE_PATCH_HOLD
 	virtual void onDelete() override;
 #endif
 

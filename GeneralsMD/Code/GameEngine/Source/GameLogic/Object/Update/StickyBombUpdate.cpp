@@ -273,7 +273,7 @@ void StickyBombUpdate::detonate()
 		}
 	}
 
-#if RETAIL_COMPATIBLE_CRC
+#if RETAIL_COMPATIBLE_CRC || GENERALS_ONLINE_PATCH_HOLD
 	if( getObject()->isKindOf(KINDOF_BOOBY_TRAP) && boobyTrappedObject )
 	{
 		// This kind of sticky bomb needs to set a status, so the poor victim can trigger us from assorted places
@@ -284,7 +284,7 @@ void StickyBombUpdate::detonate()
 	getObject()->kill();// Most things just fire weapons in their death modules
 }
 
-#if !RETAIL_COMPATIBLE_CRC
+#if !RETAIL_COMPATIBLE_CRC && !GENERALS_ONLINE_PATCH_HOLD
 void StickyBombUpdate::onDelete()
 {
 	// TheSuperHackers @bugfix Stubbjax 05/08/2026 Clear booby trap status when destroyed, not just when detonated.
