@@ -237,7 +237,7 @@ std::string NGMP_OnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 	}
 	else // PROD
 	{
-		if (NGMP_OnlineServicesManager::Settings.Network_UseAlternativeEndpoint())
+		if (NGMP_OnlineServicesManager::Settings.Network_UseAlternativeEndpoint() == ENetworkEndpoint::NETWORK_ENDPOINT_ALTERNATIVE)
 		{
 			return std::format("https://api-ru.playgenerals.online/env/prod/contract/1/{}", szEndpoint);
 		}
