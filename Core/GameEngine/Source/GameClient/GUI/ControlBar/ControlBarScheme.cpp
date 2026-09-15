@@ -1018,7 +1018,7 @@ void ControlBarSchemeManager::init()
 //	AsciiString userDataPath;
 //	if(TheGlobalData)
 //	{
-//		userDataPath.format("%sINI\\ControlBarScheme",TheGlobalData->getPath_UserData().str());
+//		userDataPath.format("%sINI\\ControlBarScheme.ini",TheGlobalData->getPath_UserData().str());
 //		if	(FindFirstFile(userDataPath.str(), &findData) !=INVALID_HANDLE_VALUE)
 //			ini.loadFileDirectory(userDataPath,  INI_LOAD_OVERWRITE, nullptr );
 //	}

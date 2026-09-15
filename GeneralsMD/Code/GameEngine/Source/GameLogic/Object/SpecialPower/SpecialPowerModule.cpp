@@ -102,7 +102,7 @@ SpecialPowerModule::SpecialPowerModule( Thing *thing, const ModuleData *moduleDa
 #if RETAIL_COMPATIBLE_CRC
 	m_availableOnFrame = 0;
 #else
-	m_availableOnFrame = 0xFFFFFFFF;
+	m_availableOnFrame = 0;
 #endif
 	m_pausedCount = 0;
 	m_pausedOnFrame = 0;
@@ -660,6 +660,15 @@ void SpecialPowerModule::aboutToDoSpecialPower( const Coord3D *location )
       }
     }
 	}
+
+  // Notify the UI that this special power was activated (for observer notifications)
+  const Object* obj = getObject();
+  const SpecialPowerTemplate* tpl = getSpecialPowerTemplate();
+  if (obj && tpl && TheInGameUI) {
+	  Player* p = obj->getControllingPlayer();
+	  if (p && !obj->isKindOf(KINDOF_AIRCRAFT)) // exclude aircraft as they are spawned by the command center which already fires its notification
+		  TheInGameUI->notifySpecialPowerUsed(p, tpl);
+  }
 
 	// get module data
 	const SpecialPowerModuleData *modData = getSpecialPowerModuleData();

@@ -267,7 +267,6 @@ GameLogic::GameLogic()
 	m_pauseInput = FALSE;
 	m_inputEnabledMemory = TRUE;
 	m_mouseVisibleMemory = TRUE;
-	m_logicTimeScaleEnabledMemory = FALSE;
 	m_loadScreen = nullptr;
 	m_forceGameStartByTimeOut = FALSE;
 	m_quitToDesktopAfterMatch = FALSE;
@@ -2205,9 +2204,6 @@ void GameLogic::loadMapINI( AsciiString mapName )
 		ini.load( AsciiString(fullFledgeFilename), INI_LOAD_CREATE_OVERRIDES, nullptr );
 	}
 
-	// TheSuperHackers @todo Implement ini load directory for map folder.
-	// Requires adjustments in map transfer.
-
 	snprintf(fullFledgeFilename, ARRAY_SIZE(fullFledgeFilename), "%s\\solo.ini", filename);
 	if (TheFileSystem->doesFileExist(fullFledgeFilename)) {
 		DEBUG_LOG(("Loading solo.ini"));
@@ -3230,12 +3226,12 @@ void GameLogic::update()
 	// would be getting the CRC anyway, so replays can get the CRCs from the exact instant in time as the original.
 	Bool isMPGameOrReplay = (TheRecorder && TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
 	Bool isSoloGameOrReplay = (TheRecorder && !TheRecorder->isMultiplayer() && getGameMode() != GAME_SHELL && getGameMode() != GAME_NONE);
-	Bool generateForMP = (isMPGameOrReplay && (m_frame % TheGameInfo->getCRCInterval()) == 0);
+	Bool generateForMP = (isMPGameOrReplay && TheGameInfo->getCRCInterval() > 0 && (m_frame % TheGameInfo->getCRCInterval()) == 0);
 #ifdef DEBUG_CRC
 	Bool generateForSolo = isSoloGameOrReplay && ((m_frame && (m_frame%100 == 0)) ||
-		(getFrame() >= TheCRCFirstFrameToLog && getFrame() < TheCRCLastFrameToLog && ((m_frame % REPLAY_CRC_INTERVAL) == 0)));
+		(getFrame() >= TheCRCFirstFrameToLog && getFrame() < TheCRCLastFrameToLog && (REPLAY_CRC_INTERVAL > 0 && (m_frame % REPLAY_CRC_INTERVAL) == 0)));
 #else
-	Bool generateForSolo = isSoloGameOrReplay && ((m_frame % REPLAY_CRC_INTERVAL) == 0);
+	Bool generateForSolo = isSoloGameOrReplay && (REPLAY_CRC_INTERVAL > 0 && (m_frame % REPLAY_CRC_INTERVAL) == 0);
 #endif // DEBUG_CRC
 
 	if (generateForSolo || generateForMP)
@@ -3864,7 +3860,7 @@ Bool GameLogic::isGamePaused()
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-void GameLogic::setGamePausedInFrame( UnsignedInt frame, Bool disableLogicTimeScale )
+void GameLogic::setGamePausedInFrame( UnsignedInt frame )
 {
 	if (frame >= m_frame)
 	{
@@ -3978,8 +3974,6 @@ void GameLogic::pauseGameInput(Bool paused)
 		return;
 
 	m_pauseInput = paused;
-
-	TheMouse->onGamePaused(paused);
 
 	if(paused)
 	{

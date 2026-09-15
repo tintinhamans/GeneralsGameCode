@@ -41,7 +41,6 @@
 #include "GameLogic/Object.h"
 
 #include "GameClient/Color.h"
-#include "GameClient/ControlBar.h"
 #include "GameClient/Display.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/GameWindow.h"
@@ -55,6 +54,7 @@
 #include "WW3D2/texture.h"
 #include "WW3D2/dx8caps.h"
 #include "WWMath/vector2i.h"
+#include "GameClient/ControlBar.h"
 
 
 
@@ -144,8 +144,8 @@ void W3DRadar::deleteResources()
 	if( m_terrainTexture )
 		m_terrainTexture->Release_Ref();
 	m_terrainTexture = nullptr;
-
-	deleteInstance(m_terrainImage);
+	if( m_terrainImage )
+		deleteInstance(m_terrainImage);
 	m_terrainImage = nullptr;
 
 	//
@@ -154,8 +154,8 @@ void W3DRadar::deleteResources()
 	if( m_overlayTexture )
 		m_overlayTexture->Release_Ref();
 	m_overlayTexture = nullptr;
-
-	deleteInstance(m_overlayImage);
+	if( m_overlayImage )
+		deleteInstance(m_overlayImage);
 	m_overlayImage = nullptr;
 
 	//
@@ -164,8 +164,8 @@ void W3DRadar::deleteResources()
 	if( m_shroudTexture )
 		m_shroudTexture->Release_Ref();
 	m_shroudTexture = nullptr;
-
-	deleteInstance(m_shroudImage);
+	if( m_shroudImage )
+		deleteInstance(m_shroudImage);
 	m_shroudImage = nullptr;
 
 	DEBUG_ASSERTCRASH(m_shroudSurface == nullptr, ("W3DRadar::deleteResources: m_shroudSurface is expected null"));

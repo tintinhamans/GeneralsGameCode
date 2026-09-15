@@ -95,7 +95,6 @@ GlobalData* GlobalData::m_theOriginal = nullptr;
 	{ "StretchTerrain",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_stretchTerrain ) },
 	{ "UseHalfHeightMap",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_useHalfHeightMap ) },
 
-
 	{ "DrawEntireTerrain",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_drawEntireTerrain ) },
 	{ "TerrainLOD",									INI::parseIndexList,	TerrainLODNames,	offsetof( GlobalData, m_terrainLOD ) },
 	{ "TerrainLODTargetTimeMS",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_terrainLODTargetTimeMS ) },
@@ -637,9 +636,10 @@ GlobalData::GlobalData()
 	m_framesPerSecondLimit = 0;
 	m_chipSetType = 0;
 	m_headless = FALSE;
+	m_exportStats = FALSE;
 	m_windowed = 0;
-	m_xResolution = DEFAULT_DISPLAY_WIDTH;
-	m_yResolution = DEFAULT_DISPLAY_HEIGHT;
+	m_xResolution = 800;
+	m_yResolution = 600;
 	m_maxShellScreens = 0;
 	m_useCloudMap = FALSE;
 	m_use3WayTerrainBlends = 1;
@@ -940,8 +940,11 @@ GlobalData::GlobalData()
 	m_standardPublicBones.clear();
 
 	m_antiAliasLevel = WW3D::MultiSampleModeEnum::MULTISAMPLE_MODE_NONE;
+
+#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 	m_textureFilteringMode = TextureFilterClass::TextureFilterMode::TEXTURE_FILTER_BILINEAR;
 	m_textureAnisotropyLevel = TextureFilterClass::AnisotropicFilterMode::TEXTURE_FILTER_ANISOTROPIC_2X;
+#endif
 
 //	m_languageFilterPref = false;
 	m_languageFilterPref = true;
@@ -961,10 +964,16 @@ GlobalData::GlobalData()
 	m_gameTimeFontSize = 8;
 	m_playerInfoListFontSize = 8;
 
+	m_observerStatsFontSize = 7;
+	m_observerNotificationFontSize = 10;
+	m_observerNotificationSpecialPowerUsage = TRUE;
+	m_observerNotificationSpecialPowerPurchase = TRUE;
+	m_observerNotificationMilestone = TRUE;
+
 	m_showMoneyPerMinute = FALSE;
 	m_allowMoneyPerMinuteForPlayer = FALSE;
 
-	m_gameWindowTransitionSpeedMultiplier = 1.0f;
+	m_gameWindowTransitionSpeedMultiplier = 2.5f;
 
 	m_debugShowGraphicalFramerate = FALSE;
 
@@ -1013,13 +1022,22 @@ GlobalData::GlobalData()
 
 	m_shellMapName.set("Maps\\ShellMap1\\ShellMap1.map");
 	m_shellMapOn =TRUE;
+
+
+#if defined(GENERALS_ONLINE) && defined(_DEBUG)
+	m_playIntro = FALSE;
+#else
 	m_playIntro = TRUE;
+#endif
+
+#if defined(GENERALS_ONLINE)
+	m_playSizzle = FALSE;
+#else
 	m_playSizzle = TRUE;
+#endif
 	m_loadScreenRender = FALSE;
 
 	m_keyboardDefaultScrollFactor = m_keyboardScrollFactor = 0.5f;
-	m_drawScrollAnchor = FALSE;
-	m_moveScrollAnchor = FALSE;
 	m_scrollAmountCutoff = 10.0f;
 	m_cameraAdjustSpeed = 0.1f;
 	m_enforceMaxCameraHeight = TRUE;
@@ -1046,10 +1064,39 @@ GlobalData::GlobalData()
 
 	m_keyboardCameraRotateSpeed = 0.1f;
 
+#if defined(USE_MAULLER_ONEDRIVE_FIX)
 	// Set user data directory based on registry settings instead of INI parameters.
 	// This allows us to localize the leaf name.
 	m_userDataDir = BuildUserDataPathFromRegistry();
 	CreateDirectory(m_userDataDir.str(), nullptr);
+#else
+    // Set user data directory based on registry settings instead of INI parameters. This allows us to
+// localize the leaf name.
+    char temp[_MAX_PATH + 1];
+    if (::SHGetSpecialFolderPath(nullptr, temp, CSIDL_PERSONAL, true))
+    {
+        AsciiString myDocumentsDirectory = temp;
+
+        if (myDocumentsDirectory.getCharAt(myDocumentsDirectory.getLength() - 1) != '\\')
+            myDocumentsDirectory.concat('\\');
+
+        AsciiString leafName;
+
+        if (!GetStringFromRegistry("", "UserDataLeafName", leafName))
+        {
+            // Use something, anything
+            // [MH] had to remove this, otherwise mapcache build step won't run... DEBUG_CRASH( ( "Could not find registry key UserDataLeafName; defaulting to \"Command and Conquer Generals Zero Hour Data\" " ) );
+            leafName = "Command and Conquer Generals Zero Hour Data";
+        }
+
+        myDocumentsDirectory.concat(leafName);
+        if (myDocumentsDirectory.getCharAt(myDocumentsDirectory.getLength() - 1) != '\\')
+            myDocumentsDirectory.concat('\\');
+
+        CreateDirectory(myDocumentsDirectory.str(), nullptr);
+        m_userDataDir = myDocumentsDirectory;
+    }
+#endif
 
 	//-allAdvice feature
 	//m_allAdvice = FALSE;
@@ -1073,7 +1120,8 @@ GlobalData::~GlobalData()
 {
 	DEBUG_ASSERTCRASH( TheWritableGlobalData->m_next == nullptr, ("~GlobalData: theOriginal is not original") );
 
-	deleteInstance(m_weaponBonusSet);
+	if (m_weaponBonusSet)
+		deleteInstance(m_weaponBonusSet);
 
 	if( m_theOriginal == this )	{
 		m_theOriginal = nullptr;
@@ -1208,8 +1256,6 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_doubleClickAttackMove = optionPref.getDoubleClickAttackMoveEnabled();
 	TheWritableGlobalData->m_jpegQuality = optionPref.getJpegQuality();
 	TheWritableGlobalData->m_keyboardScrollFactor = optionPref.getScrollFactor();
-	TheWritableGlobalData->m_drawScrollAnchor = optionPref.getDrawScrollAnchor();
-	TheWritableGlobalData->m_moveScrollAnchor = optionPref.getMoveScrollAnchor();
 	TheWritableGlobalData->m_defaultIP = optionPref.getLANIPAddress();
 	TheWritableGlobalData->m_firewallBehavior = optionPref.getFirewallBehavior();
 	TheWritableGlobalData->m_firewallPortAllocationDelta = optionPref.getFirewallPortAllocationDelta();
@@ -1226,10 +1272,17 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_playerInfoListFontSize = optionPref.getPlayerInfoListFontSize();
 	TheWritableGlobalData->m_showMoneyPerMinute = optionPref.getShowMoneyPerMinute();
 	TheWritableGlobalData->m_gameWindowTransitionSpeedMultiplier = optionPref.getGameWindowTransitionSpeedMultiplier();
-
+	TheWritableGlobalData->m_observerStatsFontSize = optionPref.getObserverStatsFontSize();
+	TheWritableGlobalData->m_observerNotificationFontSize = optionPref.getObserverNotificationFontSize();
+	TheWritableGlobalData->m_observerNotificationSpecialPowerUsage = optionPref.getObserverNotificationSpecialPowerUsage();
+	TheWritableGlobalData->m_observerNotificationSpecialPowerPurchase = optionPref.getObserverNotificationSpecialPowerPurchase();
+	TheWritableGlobalData->m_observerNotificationMilestone = optionPref.getObserverNotificationMilestone();
 	TheWritableGlobalData->m_antiAliasLevel = optionPref.getAntiAliasing();
+
+#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 	TheWritableGlobalData->m_textureFilteringMode = optionPref.getTextureFilterMode();
 	TheWritableGlobalData->m_textureAnisotropyLevel = optionPref.getTextureAnisotropyLevel();
+#endif
 
 	Int val=optionPref.getGammaValue();
 	//generate a value between 0.6 and 2.0.

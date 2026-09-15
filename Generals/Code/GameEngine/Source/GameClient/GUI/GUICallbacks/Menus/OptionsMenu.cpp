@@ -45,7 +45,6 @@
 #include "GameClient/ClientInstance.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/InGameUI.h"
-#include "GameClient/LookAtXlat.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GadgetCheckBox.h"
@@ -240,7 +239,7 @@ static void setDefaults()
 		for( Int i = 0; i < numResolutions; ++i )
 		{	Int xres,yres,bitDepth;
 			TheDisplay->getDisplayModeDescription(i,&xres,&yres,&bitDepth);
-			if (xres == DEFAULT_DISPLAY_WIDTH && yres == DEFAULT_DISPLAY_HEIGHT)	//keep track of default mode in case we need it.
+			if (xres == 800 && yres == 600)	//keep track of default mode in case we need it.
 			{	defaultResIndex=i;
 				break;
 			}
@@ -597,24 +596,6 @@ static void saveOptions()
 		AsciiString prefString;
 		prefString.format("%d", val);
 		(*pref)["ScrollFactor"] = prefString;
-	}
-
-	//-------------------------------------------------------------------------------------------------
-	// draw scroll anchor
-	{
-		if( TheInGameUI->getDrawRMBScrollAnchor() )
-				(*pref)["DrawScrollAnchor"] = "yes";
-		else
-				(*pref)["DrawScrollAnchor"] = "no";
-	}
-
-	//-------------------------------------------------------------------------------------------------
-	// move scroll anchor
-	{
-		if( TheInGameUI->getMoveRMBScrollAnchor() )
-				(*pref)["MoveScrollAnchor"] = "yes";
-		else
-				(*pref)["MoveScrollAnchor"] = "no";
 	}
 
 	//-------------------------------------------------------------------------------------------------
@@ -1162,15 +1143,12 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 
 	// get resolution from saved preferences file
 	AsciiString selectedResolution = (*pref) ["Resolution"];
-	Int selectedXRes=DEFAULT_DISPLAY_WIDTH;
-	Int selectedYRes=DEFAULT_DISPLAY_HEIGHT;
+	Int selectedXRes=800,selectedYRes=600;
 	Int selectedResIndex=-1;
 	if (!selectedResolution.isEmpty())
 	{	//try to parse 2 integers out of string
 		if (sscanf(selectedResolution.str(),"%d%d", &selectedXRes, &selectedYRes) != 2)
-		{
-			selectedXRes=DEFAULT_DISPLAY_WIDTH;
-			selectedYRes=DEFAULT_DISPLAY_HEIGHT;
+		{	selectedXRes=800; selectedYRes=600;
 		}
 	}
 
@@ -1291,7 +1269,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	//set scroll options
 	AsciiString test = (*pref)["DrawScrollAnchor"];
 	DEBUG_LOG(("DrawScrollAnchor == [%s]", test.str()));
-	if (test == "yes" || (test.isEmpty() && TheInGameUI->getDrawRMBScrollAnchor()))
+	if (test == "Yes" || (test.isEmpty() && TheInGameUI->getDrawRMBScrollAnchor()))
 	{
 		GadgetCheckBoxSetChecked( checkDrawAnchor, true);
 		TheInGameUI->setDrawRMBScrollAnchor(true);
@@ -1303,7 +1281,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	}
 	test = (*pref)["MoveScrollAnchor"];
 	DEBUG_LOG(("MoveScrollAnchor == [%s]", test.str()));
-	if (test == "yes" || (test.isEmpty() && TheInGameUI->getMoveRMBScrollAnchor()))
+	if (test == "Yes" || (test.isEmpty() && TheInGameUI->getMoveRMBScrollAnchor()))
 	{
 		GadgetCheckBoxSetChecked( checkMoveAnchor, true);
 		TheInGameUI->setMoveRMBScrollAnchor(true);
@@ -1620,12 +1598,12 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
         if( GadgetCheckBoxIsChecked( control ) )
         {
           	TheInGameUI->setDrawRMBScrollAnchor(true);
-          	(*pref)["DrawScrollAnchor"] = "yes";
+          	(*pref)["DrawScrollAnchor"] = "Yes";
         }
 				else
         {
           	TheInGameUI->setDrawRMBScrollAnchor(false);
-          	(*pref)["DrawScrollAnchor"] = "no";
+          	(*pref)["DrawScrollAnchor"] = "No";
         }
       }
 			else if(controlID == checkMoveAnchorID )
@@ -1633,12 +1611,12 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
         if( GadgetCheckBoxIsChecked( control ) )
         {
           	TheInGameUI->setMoveRMBScrollAnchor(true);
-          	(*pref)["MoveScrollAnchor"] = "yes";
+          	(*pref)["MoveScrollAnchor"] = "Yes";
         }
 				else
         {
           	TheInGameUI->setMoveRMBScrollAnchor(false);
-          	(*pref)["MoveScrollAnchor"] = "no";
+          	(*pref)["MoveScrollAnchor"] = "No";
         }
       }
 			else if(controlID == checkSaveCameraID )

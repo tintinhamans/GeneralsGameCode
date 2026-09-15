@@ -91,8 +91,14 @@ static GameWindow *theWindow = nullptr;
 static AnimateWindowManager *theAnimateWindowManager = nullptr;
 WindowMsgHandledType BuddyControlSystem( GameWindow *window, UnsignedInt msg,
 														 WindowMsgData mData1, WindowMsgData mData2);
+
+#if defined(GENERALS_ONLINE)
+void updateBuddyInfo(bool bIsAutoRefresh = false, bool bUseCache = false);
+#else
+void updateBuddyInfo( void );
+#endif
+
 void InitBuddyControls(Int type);
-void updateBuddyInfo();
 static void grabWindowPointers()
 {
 	for (Int i=0; i<MAX_SLOTS; ++i)
@@ -516,7 +522,15 @@ void PopulateInGameDiplomacyPopup()
 			if (staticTextSide[rowNum])
 			{
 				staticTextSide[rowNum]->winSetEnabledTextColors( playerColor, backColor );
-				GadgetStaticTextSetText(staticTextSide[rowNum], slot->getApparentPlayerTemplateDisplayName() );
+
+#if defined(GO_REVEAL_TEAMS)
+                const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
+                GadgetStaticTextSetText(staticTextSide[rowNum], pt ? pt->getDisplayName() : slot->getApparentPlayerTemplateDisplayName());
+#else
+				GadgetStaticTextSetText(staticTextSide[rowNum], slot->getApparentPlayerTemplateDisplayName());
+#endif
+
+				
 			}
 			if (staticTextTeam[rowNum])
 			{

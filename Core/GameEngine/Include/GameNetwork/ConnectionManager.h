@@ -32,6 +32,7 @@
 #include "GameNetwork/Connection.h"
 #include "GameNetwork/NetCommandList.h"
 #include "GameNetwork/Transport.h"
+#include "GameNetwork/UDPTransport.h"
 #include "GameNetwork/FrameDataManager.h"
 #include "GameNetwork/FrameMetrics.h"
 #include "GameNetwork/NetworkDefs.h"
@@ -53,6 +54,20 @@ public:
 	virtual void init();				///< Initialize this instance.
 	virtual void reset();				///< Take this instance back to the initial state.
 	virtual void update(Bool isInGame);			///< Service the Connections being managed by this instance.
+
+#if defined(GENERALS_ONLINE)
+	void SeedLatencyData(int highestLatency)
+	{
+		for (int i = 0; i < MAX_SLOTS; ++i) {
+			m_fpsAverages[i] = GENERALS_ONLINE_HIGH_FPS_LIMIT;
+		}
+		for (int i = 0; i < MAX_SLOTS; ++i) {
+			m_latencyAverages[i] = highestLatency / 1000.f;
+		}
+
+		m_frameMetrics.SeedLatencyData(highestLatency);
+	}
+#endif
 
 	// End SubsystemInterface functions
 
@@ -92,6 +107,9 @@ public:
 	UnsignedInt getPacketRouterFallbackSlot(Int packetRouterNumber);	///< Returns the slot of the given packet router number in the fallback plan.
 	UnsignedInt getPacketRouterSlot();																///< Returns the current packet router's slot.
 	PlayerLeaveCode disconnectPlayer(Int slot);												///< Disconnect this player immediately.  This should only be called by the disconnect manager.
+#if defined(GENERALS_ONLINE)
+	PlayerLeaveCode disconnectPlayer(int64_t userID);												///< Disconnect this player immediately.  This should only be called by the disconnect manager.
+#endif
 	void disconnectLocalPlayer();																			///< Does whatever is necessary to get TheNetwork to realize that it should be leaving the game now.
 	void quitGame();																									///< Disconnect from the game RIGHT NOW!!  Tell everyone else we are disconnecting.
 

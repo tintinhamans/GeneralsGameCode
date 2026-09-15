@@ -49,7 +49,13 @@ class FunctionLexicon;
 class Radar;
 class WebBrowser;
 class ParticleSystemManager;
+class GeneralsOnlineDiscordRPC;
 
+void TearDownGeneralsOnline();
+
+/**
+ * The implementation of the game engine
+ */
 class GameEngine : public SubsystemInterface
 {
 public:
@@ -101,6 +107,7 @@ protected:
 
 	Bool m_quitting; ///< true when we need to quit the game
 	Bool m_isActive; ///< app has OS focus.
+	GeneralsOnlineDiscordRPC* m_discordRichPresence;
 };
 
 inline void GameEngine::setQuitting( Bool quitting ) { m_quitting = quitting; }

@@ -1841,8 +1841,6 @@ void PartitionData::hLineCircle(Int x1, Int x2, Int y)
 }
 
 // -----------------------------------------------------------------------------
-// Marks all partition cells that intersect a circle of the given center and radius
-// as covered by this object using a variation of the midpoint circle algorithm.
 void PartitionData::doCircleFill(
 	Real centerX,
 	Real centerY,
@@ -1860,15 +1858,7 @@ void PartitionData::doCircleFill(
 
 	Int y = cellRadius - 1;
 	Int dec = 3 - 2*cellRadius;
-
-#if RETAIL_COMPATIBLE_CRC
-	// Cell coverage diverges at radii >= 240 between algorithms.
-	Int end = cellRadius - 1;
-	Int& endRef = (cellRadius < 240) ? y : end;
-	for (Int x = 0; x <= endRef; ++x)
-#else
-	for (Int x = 0; x <= y; ++x)
-#endif
+	for (Int x = 0; x < cellRadius; x++)
 	{
 		hLineCircle(cellCenterX - x, cellCenterX + x, cellCenterY + y);
 		hLineCircle(cellCenterX - x, cellCenterX + x, cellCenterY - y);
@@ -1901,13 +1891,19 @@ void PartitionData::doCircleFillPrecise(Real centerX, Real centerY, Real radius)
 	ThePartitionManager->worldToCell(centerX + radius, centerY + radius, &maxCellX, &maxCellY);
 
 	Real cellSize = ThePartitionManager->getCellSize();
+	Real halfCellSize = cellSize * 0.5f;
 
 	for (Int x = minCellX; x <= maxCellX; ++x)
 	{
 		for (Int y = minCellY; y <= maxCellY; ++y)
 		{
-			Real cellWorldX = x * cellSize;
-			Real cellWorldY = y * cellSize;
+			// getCellCenterPos returns the world-space center of the cell, accounting for
+			// m_worldExtents.lo offset. Subtracting halfCellSize gives the lower-left corner,
+			// which is what doesCircleOverlapCell expects.
+			Real cellWorldX, cellWorldY;
+			ThePartitionManager->getCellCenterPos(x, y, cellWorldX, cellWorldY);
+			cellWorldX -= halfCellSize;
+			cellWorldY -= halfCellSize;
 
 			if (doesCircleOverlapCell(centerX, centerY, radius, cellWorldX, cellWorldY, cellSize))
 			{

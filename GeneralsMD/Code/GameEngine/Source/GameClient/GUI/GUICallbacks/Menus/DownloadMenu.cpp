@@ -109,7 +109,7 @@ static void successQuitCallback()
 
 	// Clean up game data.  No crashy-crash for you!
 	if (TheGameLogic->isInGame())
-		TheGameLogic->exitGame();
+		TheMessageStream->appendMessage( GameMessage::MSG_CLEAR_GAME_DATA );
 }
 
 static void successNoQuitCallback()
@@ -127,6 +127,8 @@ public:
 	virtual HRESULT OnProgressUpdate( Int bytesread, Int totalsize, Int timetaken, Int timeleft ) override;
 	virtual HRESULT OnStatusUpdate( Int status ) override;
 	virtual HRESULT downloadFile( AsciiString server, AsciiString username, AsciiString password, AsciiString file, AsciiString localfile, AsciiString regkey, Bool tryResume ) override;
+
+	virtual HRESULT SetFileName(AsciiString file);
 
 private:
 	Bool m_shouldQuitOnSuccess;
@@ -160,6 +162,29 @@ HRESULT DownloadManagerMunkee::downloadFile( AsciiString server, AsciiString use
 	password.format("-%s", password.str());
 	return DownloadManager::downloadFile( server, username, password, file, localfile, regkey, tryResume );
 }
+
+HRESULT DownloadManagerMunkee::SetFileName(AsciiString file)
+{
+	if (staticTextFile)
+	{
+		AsciiString bob = file;
+
+		// just get the filename, not the pathname
+		const char* tmp = bob.reverseFind('/');
+		if (tmp)
+			bob = tmp + 1;
+		tmp = bob.reverseFind('\\');
+		if (tmp)
+			bob = tmp + 1;
+
+		UnicodeString fileString;
+		fileString.translate(bob);
+		GadgetStaticTextSetText(staticTextFile, fileString);
+	}
+
+	return S_OK;
+}
+
 HRESULT DownloadManagerMunkee::OnError( Int error )
 {
 	HRESULT ret = DownloadManager::OnError( error );
@@ -190,7 +215,11 @@ HRESULT DownloadManagerMunkee::OnProgressUpdate( Int bytesread, Int totalsize, I
 
 	if (progressBarMunkee)
 	{
+#if !defined(GENERALS_ONLINE)
 		Int percent = bytesread * 100 / totalsize;
+#else
+		Int percent = 100.f*((float)bytesread/(float)totalsize);
+#endif
 		GadgetProgressBarSetProgress( progressBarMunkee, percent );
 	}
 
@@ -200,7 +229,9 @@ HRESULT DownloadManagerMunkee::OnProgressUpdate( Int bytesread, Int totalsize, I
 		sizeString.format(TheGameText->fetch("GUI:DownloadBytesRatio"), bytesread, totalsize);
 		GadgetStaticTextSetText(staticTextSize, sizeString);
 	}
+
 	timeLeft = timeleft;
+#if !defined(GENERALS_ONLINE)
 	if (staticTextTime && GadgetStaticTextGetText(staticTextTime).isEmpty()) // only update immediately the first time
 	{
 		lastUpdate = time(nullptr);
@@ -221,6 +252,7 @@ HRESULT DownloadManagerMunkee::OnProgressUpdate( Int bytesread, Int totalsize, I
 		}
 		GadgetStaticTextSetText(staticTextTime, timeString);
 	}
+#endif
 	return ret;
 }
 
@@ -300,6 +332,7 @@ void DownloadMenuUpdate( WindowLayout *layout, void *userData )
 
 		lastUpdate = now;
 
+#if !defined(GENERALS_ONLINE)
 		UnicodeString timeString;
 		if (timeLeft)
 		{
@@ -316,6 +349,7 @@ void DownloadMenuUpdate( WindowLayout *layout, void *userData )
 			timeString = TheGameText->fetch("GUI:DownloadUnknownTime");
 		}
 		GadgetStaticTextSetText(staticTextTime, timeString);
+#endif
 	}
 
 }

@@ -924,10 +924,16 @@ Script::~Script()
 			cur = next;
 		}
 	}
+	if (m_condition) {
+		deleteInstance(m_condition);
+	}
+	if (m_action) {
+		deleteInstance(m_action);
+	}
 
-	deleteInstance(m_condition);
-	deleteInstance(m_action);
-	deleteInstance(m_actionFalse);
+	if (m_actionFalse) {
+		deleteInstance(m_actionFalse);
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -974,7 +980,12 @@ void Script::loadPostProcess()
 Script *Script::duplicate() const
 {
 	Script *pNew = newInstance(Script);
-
+	if (pNew->m_condition) {
+		deleteInstance(pNew->m_condition);
+	}
+	if (pNew->m_action) {
+		deleteInstance(pNew->m_action);
+	}
 	pNew->m_scriptName = m_scriptName;
 	pNew->m_comment = m_comment;
 	pNew->m_conditionComment = m_conditionComment;
@@ -986,7 +997,6 @@ Script *Script::duplicate() const
 	pNew->m_normal = m_normal;
 	pNew->m_hard = m_hard;
 	pNew->m_delayEvaluationSeconds = m_delayEvaluationSeconds;
-
 	if (m_condition) {
 		pNew->m_condition = m_condition->duplicate();
 	}
@@ -1009,7 +1019,12 @@ Script *Script::duplicateAndQualify(const AsciiString& qualifier,
 			const AsciiString& playerTemplateName, const AsciiString& newPlayerName) const
 {
 	Script *pNew = newInstance(Script);
-
+	if (pNew->m_condition) {
+		deleteInstance(pNew->m_condition);
+	}
+	if (pNew->m_action) {
+		deleteInstance(pNew->m_action);
+	}
 	pNew->m_scriptName = m_scriptName;
 	pNew->m_scriptName.concat(qualifier);
 	pNew->m_comment = m_comment;
@@ -1022,7 +1037,6 @@ Script *Script::duplicateAndQualify(const AsciiString& qualifier,
 	pNew->m_normal = m_normal;
 	pNew->m_hard = m_hard;
 	pNew->m_delayEvaluationSeconds = m_delayEvaluationSeconds;
-
 	if (m_condition) {
 		pNew->m_condition = m_condition->duplicateAndQualify(qualifier, playerTemplateName, newPlayerName);
 	}
@@ -1054,16 +1068,19 @@ void Script::updateFrom(Script *pSrc)
 	this->m_easy = pSrc->m_easy;
 	this->m_normal = pSrc->m_normal;
 	this->m_hard = pSrc->m_hard;
-
-	deleteInstance(this->m_condition);
+	if (this->m_condition) {
+		deleteInstance(this->m_condition);
+	}
 	this->m_condition = pSrc->m_condition;
 	pSrc->m_condition = nullptr;
-
-	deleteInstance(this->m_action);
+	if (this->m_action) {
+		deleteInstance(this->m_action);
+	}
 	this->m_action = pSrc->m_action;
 	pSrc->m_action = nullptr;
-
-	deleteInstance(this->m_actionFalse);
+	if (this->m_actionFalse) {
+		deleteInstance(this->m_actionFalse);
+	}
 	this->m_actionFalse = pSrc->m_actionFalse;
 	pSrc->m_actionFalse = nullptr;
 }
@@ -1498,7 +1515,8 @@ void Condition::setConditionType(enum ConditionType type)
 {
 	Int i;
 	for (i=0; i<m_numParms; i++) {
-		deleteInstance(m_parms[i]);
+		if (m_parms[i])
+			deleteInstance(m_parms[i]);
 		m_parms[i] = nullptr;
 	}
 	m_conditionType = type;
@@ -2185,7 +2203,8 @@ void ScriptAction::setActionType(enum ScriptActionType type)
 {
 	Int i;
 	for (i=0; i<m_numParms; i++) {
-		deleteInstance(m_parms[i]);
+		if (m_parms[i])
+			deleteInstance(m_parms[i]);
 		m_parms[i] = nullptr;
 	}
 	m_actionType = type;

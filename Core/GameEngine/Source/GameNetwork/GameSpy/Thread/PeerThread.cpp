@@ -46,6 +46,7 @@
 #include "WWLib/thread.h"
 
 #include "Common/MiniLog.h"
+#include "Common/StackDump.h"
 
 
 // enable this for trying to track down why SBServers are losing their keyvals  -MDC 2/20/2003
@@ -1153,6 +1154,7 @@ static UnsignedInt localIP = 0;
 void PeerThreadClass::Thread_Function()
 {
 	try {
+	_set_se_translator( DumpExceptionInfo ); // Hook that allows stack trace.
 
 	PEER peer;
 

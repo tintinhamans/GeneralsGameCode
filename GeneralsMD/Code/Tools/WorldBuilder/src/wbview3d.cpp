@@ -1312,18 +1312,15 @@ AsciiString WbView3d::getModelNameAndScale(MapObject *pMapObj, Real *scale, Body
 			break;
 	}
 
-	AsciiString modelName;
+	AsciiString modelName("No Model Name");
 	*scale = 1.0f;
-
-#ifdef LOAD_TEST_ASSETS
+	Int i;
 	char buffer[ _MAX_PATH ];
-
 	if (strncmp(TEST_STRING, pMapObj->getName().str(), strlen(TEST_STRING)) == 0)
 	{
 		/* Handle test art models here */
 		strlcpy(buffer, pMapObj->getName().str(), ARRAY_SIZE(buffer));
 
-		Int i;
 		for (i=0; buffer[i]; i++) {
 			if (buffer[i] == '/') {
 				i++;
@@ -1332,9 +1329,7 @@ AsciiString WbView3d::getModelNameAndScale(MapObject *pMapObj, Real *scale, Body
 		}
 		modelName = buffer+i;
 	}
-#endif
-
-	if (modelName.isEmpty())
+	else
 	{
 		modelName = "No Model Name"; // must be this while GDF exists (it's the default)
 		const ThingTemplate *tTemplate;
@@ -1347,8 +1342,8 @@ AsciiString WbView3d::getModelNameAndScale(MapObject *pMapObj, Real *scale, Body
 			modelName = getBestModelName(tTemplate, state);
 			*scale = tTemplate->getAssetScale();
 
-		}
-	}
+		}  // end if
+	}  // end else
 	return modelName;
 }
 

@@ -65,7 +65,6 @@
 #include "GameLogic/Weapon.h"
 
 #include "GameClient/Anim2D.h"
-#include "GameClient/ControlBar.h"
 #include "GameClient/Display.h"
 #include "GameClient/DisplayStringManager.h"
 #include "GameClient/Drawable.h"
@@ -151,7 +150,8 @@ void DrawableIconInfo::clear()
 {
 	for (int i = 0; i < MAX_ICONS; ++i)
 	{
-		deleteInstance(m_icon[i]);
+		if (m_icon[i])
+			deleteInstance(m_icon[i]);
 		m_icon[i] = nullptr;
 		m_keepTillFrame[i] = 0;
 	}
@@ -544,7 +544,6 @@ Drawable::~Drawable()
 	}
 
 	stopAmbientSound();
-
 	m_ambientSound.Clear();
 
   clearCustomSoundAmbient( false );
@@ -1367,33 +1366,38 @@ void Drawable::applyPhysicsXform(Matrix3D* mtx)
 //-------------------------------------------------------------------------------------------------
 Bool Drawable::calcPhysicsXform(PhysicsXformInfo& info)
 {
+	const Object* obj = getObject();
+	const AIUpdateInterface *ai = obj ? obj->getAIUpdateInterface() : NULL;
 	Bool hasPhysicsXform = false;
-
-	if (const Locomotor *locomotor = getLocomotor())
+	if (ai)
 	{
-		switch (locomotor->getAppearance())
+		const Locomotor *locomotor = ai->getCurLocomotor();
+		if (locomotor)
 		{
-			case LOCO_WHEELS_FOUR:
-				calcPhysicsXformWheels(locomotor, info);
-				hasPhysicsXform = true;
-				break;
-			case LOCO_MOTORCYCLE:
-				calcPhysicsXformMotorcycle( locomotor, info );
-				hasPhysicsXform = true;
-				break;
-			case LOCO_TREADS:
-				calcPhysicsXformTreads(locomotor, info);
-				hasPhysicsXform = true;
-				break;
-			case LOCO_HOVER:
-			case LOCO_WINGS:
-				calcPhysicsXformHoverOrWings(locomotor, info);
-				hasPhysicsXform = true;
-				break;
-			case LOCO_THRUST:
-				calcPhysicsXformThrust(locomotor, info);
-				hasPhysicsXform = true;
-				break;
+			switch (locomotor->getAppearance())
+			{
+				case LOCO_WHEELS_FOUR:
+					calcPhysicsXformWheels(locomotor, info);
+					hasPhysicsXform = true;
+					break;
+				case LOCO_MOTORCYCLE:
+					calcPhysicsXformMotorcycle( locomotor, info );
+					hasPhysicsXform = true;
+					break;
+				case LOCO_TREADS:
+					calcPhysicsXformTreads(locomotor, info);
+					hasPhysicsXform = true;
+					break;
+				case LOCO_HOVER:
+				case LOCO_WINGS:
+					calcPhysicsXformHoverOrWings(locomotor, info);
+					hasPhysicsXform = true;
+					break;
+				case LOCO_THRUST:
+					calcPhysicsXformThrust(locomotor, info);
+					hasPhysicsXform = true;
+					break;
+			}
 		}
 	}
 
@@ -2581,7 +2585,7 @@ void Drawable::setStealthLook(StealthLookType look)
 //-------------------------------------------------------------------------------------------------
 /** default draw is to just call the database defined draw */
 //-------------------------------------------------------------------------------------------------
-void Drawable::draw()
+void Drawable::draw( View *view )
 {
 	if ( getObject() && getObject()->isEffectivelyDead() )
 	{
@@ -2626,10 +2630,7 @@ void Drawable::draw()
 #endif
 	}
 
-	if (TheGlobalData->m_showClientPhysics && getObject() && !getObject()->isDisabledByType( DISABLED_HELD ))
-	{
-		applyPhysicsXform(&transformMtx);
-	}
+	applyPhysicsXform(&transformMtx);
 
 	for (DrawModule** dm = getDrawModules(); *dm; ++dm)
 	{

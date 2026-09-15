@@ -429,9 +429,7 @@ void W3DTruckDraw::doDrawModule(const Matrix3D* transformMtx)
 
 	if (m_frontLeftTireBone || m_rearLeftTireBone)
 	{
-		const Real rotationFactor = moduleData->m_rotationSpeedMultiplier;
-		Real powerslideRotationAddition = moduleData->m_powerslideRotationAddition * m_isPowersliding;
-
+		Real powerslideRotationAddition = moduleData->m_powerslideRotationAddition;
 		if (ai) {
 			Locomotor *loco = ai->getCurLocomotor();
 			if (loco) {
@@ -441,11 +439,16 @@ void W3DTruckDraw::doDrawModule(const Matrix3D* transformMtx)
 				}
 			}
 		}
-
+		const Real rotationFactor = moduleData->m_rotationSpeedMultiplier;
 		m_frontWheelRotation += rotationFactor*speed;
-		m_rearWheelRotation += rotationFactor*(speed + powerslideRotationAddition);
-		m_frontWheelRotation = WWMath::Normalize_Angle(m_frontWheelRotation);
-		m_rearWheelRotation = WWMath::Normalize_Angle(m_rearWheelRotation);
+		if (m_isPowersliding)
+		{
+			m_rearWheelRotation += rotationFactor*(speed + powerslideRotationAddition);
+		}
+		else
+		{
+			m_rearWheelRotation += rotationFactor*speed;
+		}
 
 		// For now, just use the same values for mid wheels -- may want to do independent calcs later...
 		m_midFrontWheelRotation = m_frontWheelRotation;

@@ -115,7 +115,6 @@ set(WWLIB_SRC
     STLUtils.h
     straw.cpp
     STRAW.h
-    stringex.h
     strtok_r.cpp
     strtok_r.h
     #swap.h
@@ -143,7 +142,6 @@ set(WWLIB_SRC
     widestring.h
     win.h
     WWCommon.h
-    WWDefines.h
     wwfile.cpp
     WWFILE.h
     wwstring.cpp

@@ -124,7 +124,8 @@ DeliverPayloadAIUpdate::DeliverPayloadAIUpdate( Thing *thing, const ModuleData* 
 DeliverPayloadAIUpdate::~DeliverPayloadAIUpdate()
 {
 	m_deliveryDecal.clear();
-	deleteInstance(m_deliverPayloadStateMachine);
+	if (m_deliverPayloadStateMachine)
+		deleteInstance(m_deliverPayloadStateMachine);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -246,7 +247,8 @@ void DeliverPayloadAIUpdate::deliverPayload(
 	//THIS GETS CALLED VIA OBJECT CREATION LISTS ONLY!!!
 	//****************************************************
 
-	deleteInstance(m_deliverPayloadStateMachine);
+	if (m_deliverPayloadStateMachine)
+		deleteInstance(m_deliverPayloadStateMachine);
 	m_deliverPayloadStateMachine = nullptr;
 
 	m_moveToPos = *moveToPos;

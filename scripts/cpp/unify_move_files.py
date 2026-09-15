@@ -211,16 +211,6 @@ def main():
     #unify_move_file(Game.ZEROHOUR, "GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegFile.cpp", Game.CORE, "GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegFile.cpp")
     #unify_move_file(Game.ZEROHOUR, "GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegVideoPlayer.cpp", Game.CORE, "GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegVideoPlayer.cpp")
 
-    #unify_file(Game.ZEROHOUR, "GameEngine/Include/Common/GameMemory.h", Game.CORE, "GameEngine/Include/Common/GameMemory.h")
-    #unify_file(Game.ZEROHOUR, "GameEngine/Include/Common/GameMemoryNull.h", Game.CORE, "GameEngine/Include/Common/GameMemoryNull.h")
-    #unify_file(Game.ZEROHOUR, "GameEngine/Source/Common/System/GameMemory.cpp", Game.CORE, "GameEngine/Source/Common/System/GameMemory.cpp")
-    #unify_file(Game.ZEROHOUR, "GameEngine/Source/Common/System/GameMemoryNull.cpp", Game.CORE, "GameEngine/Source/Common/System/GameMemoryNull.cpp")
-    #unify_file(Game.ZEROHOUR, "GameEngine/Source/Common/System/MemoryInit.cpp", Game.CORE, "GameEngine/Source/Common/System/GameMemoryInit.cpp")
-    #unify_move_file(Game.GENERALS, "GameEngine/Source/Common/System/GameMemoryInitDMA_Generals.inl", Game.CORE, "GameEngine/Source/Common/System/GameMemoryInitDMA_Generals.inl")
-    #unify_move_file(Game.ZEROHOUR, "GameEngine/Source/Common/System/GameMemoryInitDMA_GeneralsMD.inl", Game.CORE, "GameEngine/Source/Common/System/GameMemoryInitDMA_GeneralsMD.inl")
-    #unify_move_file(Game.GENERALS, "GameEngine/Source/Common/System/GameMemoryInitPools_Generals.inl", Game.CORE, "GameEngine/Source/Common/System/GameMemoryInitPools_Generals.inl")
-    #unify_move_file(Game.ZEROHOUR, "GameEngine/Source/Common/System/GameMemoryInitPools_GeneralsMD.inl", Game.CORE, "GameEngine/Source/Common/System/GameMemoryInitPools_GeneralsMD.inl")
-
     #unify_file(Game.ZEROHOUR, "GameEngine/Include/Common/ObjectStatusTypes.h", Game.CORE, "GameEngine/Include/Common/ObjectStatusTypes.h")
     #unify_file(Game.ZEROHOUR, "GameEngine/Include/Common/Radar.h", Game.CORE, "GameEngine/Include/Common/Radar.h")
     #unify_file(Game.ZEROHOUR, "GameEngine/Source/Common/System/ObjectStatusTypes.cpp", Game.CORE, "GameEngine/Source/Common/System/ObjectStatusTypes.cpp")

@@ -197,6 +197,14 @@ static Int getListboxBottomEntry( ListboxData *list )
 {
 	Int entry;
 
+	// Safety checks to prevent access violations during screen transitions
+	if( list == NULL )
+		return 0;
+	if( list->listData == NULL )
+		return 0;
+	if( list->endPos <= 0 )
+		return 0;
+
 	// determine which entry is at the top of the display area
 	for( entry=list->endPos - 1; ; entry-- )
 	{
@@ -258,6 +266,11 @@ static void adjustDisplay( GameWindow *window, Int adjustment,
 		GameWindow *child;
 
 		sData = (SliderData *)list->slider->winGetUserData();
+		
+		// Safety check: ensure slider data is valid before accessing it
+		if( sData == NULL )
+			return;
+		
 		list->slider->winGetSize( &sliderSize.x, &sliderSize.y );
 		// Take into account that there is a line-drawn outline surrounding listbox
 		sData->maxVal = list->totalHeight - ( list->displayHeight - TOTAL_OUTLINE_HEIGHT ) + 1;
@@ -268,6 +281,12 @@ static void adjustDisplay( GameWindow *window, Int adjustment,
 		}
 
 		child = list->slider->winGetChild();
+		if( child == NULL )
+		{
+			// Slider thumb button is missing - cannot adjust display properly
+			DEBUG_LOG(( "adjustDisplay: slider child is NULL, skipping slider adjustment" ));
+			return;
+		}
 		child->winGetSize( &sliderChildSize.x, &sliderChildSize.y );
 		sData->numTicks = (float)((sliderSize.y - sliderChildSize.y) / (float)sData->maxVal);
 
@@ -1973,6 +1992,11 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			if( list->multiSelect )
 				delete[]( list->selections );
 
+			// Clear child window pointers to prevent dangling pointer access
+			list->slider = NULL;
+			list->upButton = NULL;
+			list->downButton = NULL;
+
 			delete (ListboxData *)window->winGetUserData();
 			window->winSetUserData( nullptr );
 			list = nullptr;
@@ -2823,3 +2847,89 @@ Int GadgetListBoxGetColumnWidth( GameWindow *listbox, Int column )
 	return listboxData->columnWidth[column];
 }
 
+//=============================================================================
+// ListBox row entry animation
+// each listbox must opt in by calling SetListBoxRowAnimMode.
+//=============================================================================
+struct RowAnimState
+{
+	Real        currentIndex;   // where the row is drawn right now, catches up to targetIndex over time
+	Real        targetIndex;    // where the row actually belongs in the list
+	UnsignedInt lastUpdateTime; // last time this row was drawn
+	Bool        initialized;    // false until this row is seen for the first time
+
+	RowAnimState()
+	{
+		currentIndex = 0.f;
+		targetIndex = 0.f;
+		lastUpdateTime = 0;
+		initialized = FALSE;
+	}
+};
+
+static std::map<GameWindow*, ListRowAnimMode> theListAnimMode;
+static std::map<Int, RowAnimState> theRowAnimState;
+
+void SetListBoxRowAnimMode(GameWindow *window, ListRowAnimMode mode)
+{
+	if (!window)
+		return;
+	theListAnimMode[window] = mode;
+}
+
+void ApplyListBoxRowAnimation(GameWindow *window, Int rowIndex, Int rowHeight, Int &drawY)
+{
+	if (!window)
+		return;
+
+	// only animate listboxes that have explicitly opted in
+	std::map<GameWindow*, ListRowAnimMode>::iterator it = theListAnimMode.find(window);
+	if (it == theListAnimMode.end())
+		return;
+
+	Int animKey;
+	if (it->second == LIST_ROW_ANIM_ID)
+	{
+		Int itemID = (Int)GadgetListBoxGetItemData(window, rowIndex);
+		if (itemID <= 0)
+			return;
+
+		animKey = (window->winGetWindowId() << 16) + itemID;
+	}
+	else // LIST_ROW_ANIM_SLOT
+	{
+		animKey = (window->winGetWindowId() << 16) + rowIndex;
+	}
+
+	RowAnimState	&anim = theRowAnimState[animKey];
+	Real		   rowPos = (Real)rowIndex;
+	UnsignedInt		  now = timeGetTime();
+	Real		deltaTime = 0.f;
+
+	if (anim.lastUpdateTime != 0)
+	{
+		UnsignedInt elapsedMs = now - anim.lastUpdateTime;
+		if (elapsedMs < 100)
+			deltaTime = elapsedMs / (Real)MSEC_PER_SECOND;
+		else
+			anim.initialized = FALSE; // listbox was closed, re-animate on next open
+	}
+	anim.lastUpdateTime = now;
+
+	if (!anim.initialized)
+	{
+		// first time this row is drawn, start one row below and slides up into place
+		anim.currentIndex = rowPos + 1.f;
+		anim.targetIndex = rowPos;
+		anim.initialized = TRUE;
+	}
+	else
+	{
+		anim.targetIndex = rowPos;
+	}
+
+	const Real animSpeed = 15.f;
+	anim.currentIndex += (anim.targetIndex - anim.currentIndex) * animSpeed * deltaTime;
+
+	drawY += (Int)((anim.currentIndex - rowPos) * (Real)rowHeight);
+}

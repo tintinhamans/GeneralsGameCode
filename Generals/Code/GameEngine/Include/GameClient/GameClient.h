@@ -94,8 +94,6 @@ public:
 	virtual void setFrame( UnsignedInt frame ) { m_frame = frame; }			///< Set the GameClient's internal frame number
 	virtual void registerDrawable( Drawable *draw );										///< Given a drawable, register it with the GameClient and give it a unique ID
 
-	void step(); ///< Do one fixed time step
-
 	void addDrawableToLookupTable( Drawable *draw );			///< add drawable ID to hash lookup table
 	void removeDrawableFromLookupTable( Drawable *draw );	///< remove drawable ID from hash lookup table
 

@@ -55,6 +55,10 @@
 #include "GameClient/InGameUI.h"
 #include "WWLib/TARGA.h"
 
+#include "../NextGenTransport.h"
+#include "../NetworkMesh.h"
+#include "../ngmp_interfaces.h"
+
 static Bool hasValidTransferFileExtension(const AsciiString& filePath)
 {
 	static const char* const validExtensions[] = {
@@ -708,12 +712,20 @@ void ConnectionManager::processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg
 		m_latencyAverages[playerID] = msg->getAverageLatency();
 		m_fpsAverages[playerID] = msg->getAverageFps();
 		//DEBUG_LOG(("ConnectionManager::processRunAheadMetrics - player %d, fps = %d, latency = %f", player, msg->getAverageFps(), msg->getAverageLatency()));
-		if (m_fpsAverages[playerID] > 100) {
+
+		// NGMP_CHANGE: Modern machines render games at much higher framerates, 100 is no longer only achievable when a game is in the background...
+#if defined(GENERALS_ONLINE)
+		if (m_fpsAverages[playerID] > 1000) {
+			m_fpsAverages[playerID] = 1000;
+		}
+#else
+		if (m_fpsAverages[player] > 100) {
 			// limit the reported frame rate average to 100.  This is done because if a
 			// user alt-tab's out of the game their frame rate climbs to in the neighborhood of
 			// 300, that was deemed "ugly" by the powers that be.
 			m_fpsAverages[playerID] = 100;
 		}
+#endif
 	}
 }
 
@@ -769,7 +781,11 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 	{
 		RGBColor rgb;
 		rgb.setFromInt(player->getPlayerColor());
+#if defined(GENERALS_ONLINE)
+		TheInGameUI->messageColor(true, &rgb, UnicodeString(L"%ls"), unitext.str());
+#else
 		TheInGameUI->messageColor(&rgb, L"%ls", unitext.str());
+#endif
 
 		// feedback for received chat messages in-game
 		AudioEventRTS audioEvent("GUICommunicatorIncoming");
@@ -1361,11 +1377,12 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 //			if (didSelfSlug) {
 //				m_fpsAverages[m_localSlot] = frameRate;
 //			} else {
-				m_fpsAverages[m_localSlot] = m_frameMetrics.getAverageFPS();
-//			}
+			m_fpsAverages[m_localSlot] = m_frameMetrics.getAverageFPS();
+			//			}
 			if (didSelfSlug) {
 				//DEBUG_LOG(("ConnectionManager::updateRunAhead - local player run ahead metrics, fps = %d, actual fps = %d, latency = %f, didSelfSlug = true", m_fpsAverages[m_localSlot], m_frameMetrics.getAverageFPS(), m_latencyAverages[m_localSlot]));
-			} else {
+			}
+			else {
 				//DEBUG_LOG(("ConnectionManager::updateRunAhead - local player run ahead metrics, fps = %d, latency = %f, didSelfSlug = false", m_fpsAverages[m_localSlot], m_latencyAverages[m_localSlot]));
 			}
 			Int minFps;
@@ -1378,20 +1395,108 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			}
 
 			// TheSuperHackers @info this clamps the logic time scale fps in network games
-			minFps = clamp<Int>(MIN_LOGIC_FRAMES, minFps, TheGlobalData->m_framesPerSecondLimit);
+			minFps = clamp<Int>(MIN_LOGIC_FRAMES, minFps, TheNetwork->getFrameRate());
 			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::updateRunAhead - minFps after adjustment is %d", minFps));
 
 			// TheSuperHackers @bugfix Mauller 21/08/2025 calculate the runahead so it always follows the latency
 			// The runahead should always be rounded up to the next integer value to prevent variations in latency from causing stutter
 			// The network slack pushes the runahead up to the next value when the latency is within the slack percentage of the current runahead
-			const Real runAheadSlackScale = 1.0f + ( (Real)TheGlobalData->m_networkRunAheadSlack / 100.0f );
-			Int newRunAhead = ceilf( getMaximumLatency() * runAheadSlackScale * (Real)minFps );
+
+			Real configuredSlack = (Real)TheGlobalData->m_networkRunAheadSlack / 100.0f;
+
+			Real effectiveSlack = configuredSlack;
+
+#if defined(GENERALS_ONLINE)
+			if (TheNGMPGame != nullptr)
+			{
+				ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+				if (serviceConf.ibra_ra_tweaks)
+				{
+                    // dynamic slack based on jitter
+                    NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+                    if (pMesh != nullptr)
+                    {
+                        // 1) Current max latency (RTT)
+                        int maxLatMs = pMesh->getMaximumLatency();
+
+                        // 2) Compute worst-case jitter (max - min) across recent history
+                        int jitterMs = 0;
+
+                        auto& connections = pMesh->GetAllConnections();
+                        for (auto& kvPair : connections)
+                        {
+                            PlayerConnection& conn = kvPair.second;
+
+                            if (conn.m_vecLatencyHistory.size() > 1)
+                            {
+                                int minL = INT_MAX;
+                                int maxL = 0;
+
+                                for (int l : conn.m_vecLatencyHistory)
+                                {
+                                    if (l < minL) minL = l;
+                                    if (l > maxL) maxL = l;
+                                }
+
+                                int span = maxL - minL;
+                                if (span > jitterMs)
+                                {
+                                    jitterMs = span;
+                                }
+                            }
+                        }
+
+                        // 3) Convert jitter to a 0?1+ ratio relative to latency
+                        Real jitterRatio = 0.0f;
+                        if (maxLatMs > 0)
+                        {
+                            jitterRatio = (Real)jitterMs / (Real)maxLatMs;
+                        }
+
+                        // 4) Map jitter ratio into a slack range based on latency
+                        //    Lower latency: tighter slack
+                        //    Higher latency: allow more slack to hide jitter
+                        Real minSlack = serviceConf.ibra_minslack_default;
+                        Real maxSlack = serviceConf.ibra_maxslack_default;
+
+                        if (maxLatMs > 300)
+                        {
+                            // At high RTT, allow more headroom
+                            minSlack = serviceConf.ibra_minslack_greaterthan300ms;
+                            maxSlack = serviceConf.ibra_maxslack_greaterthan300ms;
+                        }
+                        else if (maxLatMs > 200)
+                        {
+                            // Medium-high latency (200?300 ms)
+                            minSlack = serviceConf.ibra_minslack_greaterthan200ms;
+                            maxSlack = serviceConf.ibra_maxslack_greaterthan200ms;
+                        }
+
+                        // Clamp jitterRatio to [0,1] when mapping
+                        if (jitterRatio < 0.0f) jitterRatio = 0.0f;
+                        if (jitterRatio > 1.0f) jitterRatio = 1.0f;
+
+                        Real dynamicSlack = minSlack + (maxSlack - minSlack) * jitterRatio;
+
+                        // ignore service slack and use our own dynamic slack
+                        effectiveSlack = dynamicSlack;
+                    }
+				}
+			}
+#endif
+
+			const Real runAheadSlackScale = 1.0f + effectiveSlack;
+
+			//NetworkLog(ELogVerbosity::LOG_DEBUG, "RA CALC: %f * %f * %f = %d", getMaximumLatency(), runAheadSlackScale, (Real)minFps, (int)ceilf(getMaximumLatency() * runAheadSlackScale * (Real)minFps));
+			Int newRunAhead = ceilf(getMaximumLatency() * runAheadSlackScale * (Real)minFps);
 
 			// TheSuperHackers @info if the runahead goes below 3 logic frames it can start to introduce stutter
 			// We also limit the upper range of the runahead to prevent it getting out of hand
-			newRunAhead = clamp<Int>(MIN_RUNAHEAD, newRunAhead, MAX_FRAMES_AHEAD / 2);
+			Int minRunAheadForClamp = MIN_RUNAHEAD;
 
-			NetRunAheadCommandMsg *msg = newInstance(NetRunAheadCommandMsg);
+			newRunAhead = clamp<Int>(minRunAheadForClamp, newRunAhead, MAX_FRAMES_AHEAD / 2);
+
+			NetRunAheadCommandMsg* msg = newInstance(NetRunAheadCommandMsg);
 			msg->setPlayerID(m_localSlot);
 			if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
 				msg->setID(GenerateNextCommandID());
@@ -1409,16 +1514,31 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			// out in the NetFrameCommandMsg.  sheesh.
 			if (nextExecutionFrame > (TheGameLogic->getFrame() + oldRunAhead)) {
 				msg->setExecutionFrame(nextExecutionFrame);
-			} else {
+			}
+			else {
 				msg->setExecutionFrame(TheGameLogic->getFrame() + oldRunAhead);
 			}
+
+#if defined(GENERALS_ONLINE) // provide instant responsiveness if there are no remote human players
+			if (TheNGMPGame != nullptr)
+			{
+				NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+				if (pMesh != nullptr)
+				{
+					if (pMesh->GetAllConnections().size() == 0)
+					{
+						newRunAhead = 0;
+					}
+				}
+			}
+#endif
 
 			msg->setRunAhead(newRunAhead);
 			msg->setFrameRate(minFps);
 			//DEBUG_LOG(("ConnectionManager::updateRunAhead - new run ahead = %d, new frame rate = %d, execution frame %d", newRunAhead, minFps, msg->getExecutionFrame()));
 			sendLocalCommand(msg, 0xff ^ (1 << minFpsPlayer)); // Send the packet to everyone but the lowest FPS player.
 
-			NetRunAheadCommandMsg *msg2 = newInstance(NetRunAheadCommandMsg);
+			NetRunAheadCommandMsg* msg2 = newInstance(NetRunAheadCommandMsg);
 			msg2->setPlayerID(m_localSlot);
 			if (DoesCommandRequireACommandID(msg2->getNetCommandType())) {
 				/*
@@ -1436,12 +1556,13 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 				 * when the commands are copied places for the disconnect screen they will be seen as the
 				 * same command, and all will be good.
 				 */
-//				msg2->setID(GenerateNextCommandID());
+				 //				msg2->setID(GenerateNextCommandID());
 				msg2->setID(msg->getID());
 			}
 			if (nextExecutionFrame > (TheGameLogic->getFrame() + oldRunAhead)) {
 				msg2->setExecutionFrame(nextExecutionFrame);
-			} else {
+			}
+			else {
 				msg2->setExecutionFrame(TheGameLogic->getFrame() + oldRunAhead);
 			}
 
@@ -1451,8 +1572,10 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			if (newMinFps == minFps) {
 				newMinFps = minFps + 1;
 			}
-			if (newMinFps > 30) {
-				newMinFps = 30; // Cap FPS to 30.
+
+
+			if (newMinFps > TheNetwork->getFrameRate()) {
+				newMinFps = TheNetwork->getFrameRate(); // Cap FPS to network frame rate.
 			}
 			msg2->setRunAhead(newRunAhead);
 			msg2->setFrameRate(newMinFps);
@@ -1461,9 +1584,10 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 
 			msg->detach();
 			msg2->detach();
-		} else {
+		}
+		else if (m_packetRouterSlot != -1) {
 			// We are not the packet router, send our metrics info to the packet router.
-			NetRunAheadMetricsCommandMsg *msg = newInstance(NetRunAheadMetricsCommandMsg);
+			NetRunAheadMetricsCommandMsg* msg = newInstance(NetRunAheadMetricsCommandMsg);
 			msg->setPlayerID(m_localSlot);
 			if (DoesCommandRequireACommandID(msg->getNetCommandType())) {
 				msg->setID(GenerateNextCommandID());
@@ -1474,40 +1598,113 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 //			if (didSelfSlug) {
 //				msg->setAverageFps(frameRate);
 //			} else {
-				msg->setAverageFps(m_frameMetrics.getAverageFPS());
-//			}
+			msg->setAverageFps(m_frameMetrics.getAverageFPS());
+			//			}
 			if (didSelfSlug) {
 				//DEBUG_LOG(("ConnectionManager::updateRunAhead - average latency = %f, average fps = %d, actual fps = %d, didSelfSlug = true", m_frameMetrics.getAverageLatency(), m_frameMetrics.getAverageFPS(), m_frameMetrics.getAverageFPS()));
-			} else {
+			}
+			else {
 				//DEBUG_LOG(("ConnectionManager::updateRunAhead - average latency = %f, average fps = %d, didSelfSlug = false", m_frameMetrics.getAverageLatency(), m_frameMetrics.getAverageFPS()));
 			}
-			m_connections[m_packetRouterSlot]->sendNetCommandMsg(msg, 1 << m_packetRouterSlot);
+
+			if (m_packetRouterSlot != -1)
+			{
+				Connection* connection = m_connections[m_packetRouterSlot];
+				if (connection != nullptr)
+				{
+					connection->sendNetCommandMsg(msg, 1 << m_packetRouterSlot);
+				}
+			}
 			msg->detach();
 		}
 		lasttimesent = curTime;
 	}
 }
 
-Real ConnectionManager::getMaximumLatency() {
+Real ConnectionManager::getMaximumLatency()
+{
+	int latencyLogicModel = 0;
 
-	Real lat1 = 0.0f;
-	Real lat2 = 0.0f;
+	if (TheNGMPGame != nullptr)
+	{
+		ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+		latencyLogicModel = serviceConf.network_latency_logic_model;
+		// 0 = original
+		// 1 = pick highest between original and Valve latency (current)
+		// 2 = pick highest between original and Valve latency (historic)
+		// 3 = use Valve latency (current)
+		// 4 = use Valve latency (historic)
+	}
+
+	Real maxLatency = 0.0f;
 
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
-		if (isPlayerConnected(i)) {
-			if (m_latencyAverages[i] != 0.0f) {
-				if (m_latencyAverages[i] > lat1) {
-					lat2 = lat1;
-					lat1 = m_latencyAverages[i];
-				}
-				else if (m_latencyAverages[i] > lat2) {
-					lat2 = m_latencyAverages[i];
-				}
-			}
+		if (isPlayerConnected(i) && m_latencyAverages[i] > maxLatency) {
+			maxLatency = m_latencyAverages[i];
 		}
 	}
 
-	return (lat1 + lat2) / 2.0f;
+
+	if (latencyLogicModel == 0)
+	{
+		return maxLatency;
+	}
+	else if (latencyLogicModel == 1)
+	{
+		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+
+		if (pMesh != nullptr)
+		{
+			Real maxGOLatency = (pMesh->getMaximumLatency() / 1000.f);
+			return maxLatency > maxGOLatency ? maxLatency : maxGOLatency;
+		}
+		else
+		{
+			return maxLatency;
+		}
+	}
+	else if (latencyLogicModel == 2)
+	{
+		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+		if (pMesh != nullptr)
+		{
+			Real maxGOLatency = (pMesh->getMaximumHistoricalLatency() / 1000.f);
+			return maxLatency > maxGOLatency ? maxLatency : maxGOLatency;
+		}
+		else
+		{
+			return maxLatency;
+		}
+	}
+	else if (latencyLogicModel == 3)
+	{
+		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+
+		if (pMesh != nullptr)
+		{
+			Real maxGOLatency = (pMesh->getMaximumLatency() / 1000.f);
+			return maxGOLatency;
+		}
+		else
+		{
+			return maxLatency;
+		}
+	}
+	else if (latencyLogicModel == 4)
+	{
+		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+		if (pMesh != nullptr)
+		{
+			Real maxGOLatency = (pMesh->getMaximumHistoricalLatency() / 1000.f);
+			return maxGOLatency;
+		}
+		else
+		{
+			return maxLatency;
+		}
+	}
+
+	return maxLatency;
 }
 
 void ConnectionManager::getMinimumFps(Int &minFps, Int &minFpsPlayer) {
@@ -1575,7 +1772,20 @@ void ConnectionManager::initTransport() {
 	DEBUG_LOG(("ConnectionManager::initTransport - Initializing Transport"));
 
 	delete m_transport;
-	m_transport = new Transport;
+
+#if defined(GENERALS_ONLINE)
+	// support lan + our new transport
+	if (TheLAN == nullptr)
+	{
+		m_transport = new NextGenTransport;
+	}
+	else
+	{
+		m_transport = new UDPTransport;
+	}
+#else
+	m_transport = new UDPTransport;
+#endif
 	m_transport->reset();
 	m_transport->init(m_localAddr, m_localPort);
 }
@@ -1770,6 +1980,9 @@ void ConnectionManager::setFrameGrouping(time_t frameGrouping) {
 	// may become the latency bottleneck for sending packets from one player to the next.
 	// This is probably ok since the packet router should have the fastest connection of all
 	// the players in the game.
+
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "ConnectionManager::setFrameGrouping Frame grouping is %d, is packet router %d", frameGrouping, m_localSlot == m_packetRouterSlot);
+
 	if (m_localSlot == m_packetRouterSlot) {
 		frameGrouping = frameGrouping / 2;
 	}
@@ -1877,11 +2090,16 @@ PlayerLeaveCode ConnectionManager::disconnectPlayer(Int slot) {
 
 	if (slot == m_packetRouterSlot) {
 		Int index = 0;
-		while ((index < (MAX_SLOTS-1)) && (m_packetRouterFallback[index] != m_packetRouterSlot)) {
+		while ((index < MAX_SLOTS) && (m_packetRouterFallback[index] != m_packetRouterSlot)) {
 			++index;
 		}
 		++index;
-		m_packetRouterSlot = m_packetRouterFallback[index];
+		if (index < MAX_SLOTS) {
+			m_packetRouterSlot = m_packetRouterFallback[index];
+		} else {
+			DEBUG_LOG(("ConnectionManager::disconnectPlayer - packet router had no valid fallback, defaulting to local slot %d", m_localSlot));
+			m_packetRouterSlot = m_localSlot;
+		}
 		DEBUG_LOG(("Packet router left.  New packet router is slot %d", m_packetRouterSlot));
 		retval = PLAYERLEAVECODE_PACKETROUTER;
 	}
@@ -1903,6 +2121,29 @@ PlayerLeaveCode ConnectionManager::disconnectPlayer(Int slot) {
 
 	return retval;
 }
+
+#if defined(GENERALS_ONLINE)
+PlayerLeaveCode ConnectionManager::disconnectPlayer(int64_t userID)
+{
+	return PLAYERLEAVECODE_UNKNOWN;
+// 	if (TheNGMPGame != nullptr)
+// 	{
+// 		for (int slot = 0; slot < MAX_SLOTS; ++slot)
+// 		{
+// 			NGMPGameSlot* pSlot = (NGMPGameSlot*)TheNGMPGame->getSlot(slot);
+// 			if (pSlot)
+// 			{
+// 				if (pSlot->m_userID == userID)
+// 				{
+// 					return disconnectPlayer(slot);
+// 				}
+// 			}
+// 		}
+// 	}
+// 
+// 	return PLAYERLEAVECODE_UNKNOWN;
+}
+#endif
 
 void ConnectionManager::quitGame() {
 	// Need to do the NetDisconnectPlayerCommandMsg creation and sending here.
@@ -2052,6 +2293,13 @@ void ConnectionManager::parseUserList(const GameInfo *game)
 #ifdef MEMORYPOOL_DEBUG
 	TheMemoryPoolFactory->debugSetInitFillerIndex(m_localSlot);
 #endif
+
+	// Set the packet router slot to the first player (packet router fallback[0])
+	// This fixes the issue where m_packetRouterSlot was hardcoded to 0 and never updated
+	if (numUsers > 0) {
+		m_packetRouterSlot = m_packetRouterFallback[0];
+		DEBUG_LOG(("Packet router slot set to %d", m_packetRouterSlot));
+	}
 
 	/*
 	if ( numUsers < 2 || m_localSlot == -1 )
@@ -2550,11 +2798,14 @@ void ConnectionManager::sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedIn
 
 UnsignedInt ConnectionManager::getNextPacketRouterSlot(UnsignedInt playerID) {
 	Int index = 0;
-	while ((index < (MAX_SLOTS-1)) && (m_packetRouterFallback[index] != playerID)) {
+	while ((index < MAX_SLOTS) && (m_packetRouterFallback[index] != playerID)) {
 		++index;
 	}
 	++index;
-	return m_packetRouterFallback[index];
+	if (index < MAX_SLOTS) {
+		return m_packetRouterFallback[index];
+	}
+	return MAX_SLOTS; // No valid next packet router; caller checks for >= MAX_SLOTS
 }
 
 void ConnectionManager::requestFrameDataResend(Int playerID, UnsignedInt frame) {

@@ -564,7 +564,9 @@ void NAT::establishConnectionPaths() {
 void NAT::attachSlotList(GameSlot *slotList[], Int localSlot, UnsignedInt localIP) {
 	m_slotList = slotList;
 	m_localIP = localIP;
-	m_transport = new Transport;
+
+	// Generals Online
+	m_transport = new UDPTransport;
 	DEBUG_LOG(("NAT::attachSlotList - initializing the transport socket with address %d.%d.%d.%d:%d",
 							PRINTF_IP_AS_4_INTS(m_localIP), getSlotPort(localSlot)));
 
@@ -1082,7 +1084,7 @@ void NAT::sendMangledPortNumberToTarget(UnsignedShort mangledPort, GameSlot *tar
 void NAT::processGlobalMessage(Int slotNum, const char *options) {
 	const char *ptr = options;
 	// skip preceding whitespace.
-	while (isspace(*ptr)) {
+	while (isspace((unsigned char)*ptr)) {
 		++ptr;
 	}
 	DEBUG_LOG(("NAT::processGlobalMessage - got message from slot %d, message is \"%s\"", slotNum, ptr));

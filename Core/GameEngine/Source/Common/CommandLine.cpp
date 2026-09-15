@@ -422,6 +422,22 @@ Int parseHeadless(char *args[], int num)
 	return 1;
 }
 
+Int parseExportStats(char *args[], int num)
+{
+	TheWritableGlobalData->m_exportStats = TRUE;
+	return 1;
+}
+
+Int parseStatsUrl(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_statsUrl = args[1];
+		return 2;
+	}
+	return 1;
+}
+
 Int parseReplay(char *args[], int num)
 {
 	if (num > 1)
@@ -1122,6 +1138,13 @@ Int parseMod(char *args[], Int num)
 	return 1;
 }
 
+Int parseDisableCommunityDataPatch(char *args[], Int num)
+{
+	TheWritableGlobalData->m_commandLineData.disableCommunityDataPatch();
+
+	return 1;
+}
+
 #ifdef DEBUG_LOGGING
 Int parseSetDebugLevel(char *args[], int num)
 {
@@ -1181,6 +1204,12 @@ static CommandLineParam paramsForStartup[] =
 	// If you do not call this, all replays will be simulated in sequence in the same process.
 	{ "-jobs", parseJobs },
 
+	// Export game stats as JSON alongside replay file.
+	{ "-exportStats", parseExportStats },
+
+	// URL to POST compressed stats JSON after export.
+	{ "-statsUrl", parseStatsUrl },
+
 	// TheSuperHackers @feature CryoTheRenegade 14/08/2026
 	// Use the current working directory as provided by the OS, or an explicit path.
 	// The last successful selection wins; otherwise use the executable directory.
@@ -1201,6 +1230,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-scriptDebug", parseScriptDebug },
 	{ "-playStats", parsePlayStats },
 	{ "-mod", parseMod },
+	{ "-disableCommunityDataPatch", parseDisableCommunityDataPatch },
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },

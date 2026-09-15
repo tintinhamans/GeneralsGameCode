@@ -112,11 +112,14 @@ void AnimateWindow::setAnimData( 	ICoord2D startPos, ICoord2D endPos,
 
 static void clearWinList(AnimateWindowList &winList)
 {
+	wnd::AnimateWindow *win = NULL;
 	while (!winList.empty())
 	{
-		wnd::AnimateWindow *win = *(winList.begin());
+		win = *(winList.begin());
 		winList.pop_front();
-		deleteInstance(win);
+		if (win)
+			deleteInstance(win);
+		win = NULL;
 	}
 }
 

@@ -484,7 +484,8 @@ void Player::init(const PlayerTemplate* pt)
 	{
 		KindOfPercentProductionChange *tof = *it;
 		it = m_kindOfPercentProductionChangeList.erase( it );
-		deleteInstance(tof);
+		if(tof)
+			deleteInstance(tof);
 	}
 
 	//Always off at the beginning of a game! Only GameLogic::update has
@@ -628,7 +629,10 @@ Bool Player::removeTeamRelationship(const Team *that)
 void Player::setBuildList(BuildListInfo *pBuildList)
 {
 
-	deleteInstance(m_pBuildList);
+	if (m_pBuildList != NULL)
+	{
+		deleteInstance(m_pBuildList);
+	}
 	m_pBuildList = pBuildList;
 
 }
@@ -701,7 +705,10 @@ void Player::setPlayerType(PlayerType t, Bool skirmish)
 {
 	m_playerType = t;
 
-	deleteInstance(m_ai);
+	if (m_ai)
+	{
+		deleteInstance(m_ai);
+	}
 	m_ai = nullptr;
 
 	if (t == PLAYER_COMPUTER)
@@ -809,10 +816,10 @@ void Player::initFromDict(const Dict* d)
 
 				ScriptList *scripts = TheSidesList->getSkirmishSideInfo(i)->getScriptList()->duplicateAndQualify(
 							qualifier, qualTemplatePlayerName, pname);
-
-				deleteInstance(TheSidesList->getSideInfo(getPlayerIndex())->getScriptList());
+				if (TheSidesList->getSideInfo(getPlayerIndex())->getScriptList()) {
+					deleteInstance(TheSidesList->getSideInfo(getPlayerIndex())->getScriptList());
+				}
 				TheSidesList->getSideInfo(getPlayerIndex())->setScriptList(scripts);
-
 				deleteInstance(TheSidesList->getSkirmishSideInfo(i)->getScriptList());
 				TheSidesList->getSkirmishSideInfo(i)->setScriptList(nullptr);
 			}
@@ -858,10 +865,12 @@ void Player::initFromDict(const Dict* d)
 			qualifier.format("%d", m_mpStartIndex);
 			ScriptList *scripts = TheSidesList->getSkirmishSideInfo(skirmishNdx)->getScriptList()->duplicateAndQualify(
 						qualifier, qualTemplatePlayerName, pname);
-
-			deleteInstance(TheSidesList->getSideInfo(getPlayerIndex())->getScriptList());
+			ScriptList* slist = TheSidesList->getSideInfo(getPlayerIndex())->getScriptList();
+			if (slist)
+			{
+				deleteInstance(slist);
+			}
 			TheSidesList->getSideInfo(getPlayerIndex())->setScriptList(scripts);
-
 			for (i=0; i<TheSidesList->getNumTeams(); i++) {
 				if (TheSidesList->getTeamInfo(i)->getDict()->getAsciiString(TheKey_teamOwner) == pname)
 				{
@@ -913,7 +922,9 @@ void Player::initFromDict(const Dict* d)
 					// Now do the TheKey_teamGenericScriptHookN (where N can be from 0 to 15.)
 					for (j = 0; j < MAX_GENERIC_SCRIPTS; ++j) {
 						AsciiString keyName;
-						keyName.format("%s%d", TheNameKeyGenerator->keyToName(TheKey_teamGenericScriptHook).str(), j);
+						// Store the result of keyToName in a local variable to avoid dangling pointer
+						AsciiString hookName = TheNameKeyGenerator->keyToName(TheKey_teamGenericScriptHook);
+						keyName.format("%s%d", hookName.str(), j);
 						tmpStr = teamDict.getAsciiString(NAMEKEY(keyName), &exists);
 						if (exists && !tmpStr.isEmpty())
 						{
@@ -928,11 +939,18 @@ void Player::initFromDict(const Dict* d)
 			}
 		}
 	}
-
-	deleteInstance(m_resourceGatheringManager);
+	if( m_resourceGatheringManager )
+	{
+		deleteInstance(m_resourceGatheringManager);
+		m_resourceGatheringManager = NULL;
+	}
 	m_resourceGatheringManager = newInstance(ResourceGatheringManager);
 
-	deleteInstance(m_tunnelSystem);
+	if( m_tunnelSystem )
+	{
+		deleteInstance(m_tunnelSystem);
+		m_tunnelSystem = NULL;
+	}
 	m_tunnelSystem = newInstance(TunnelTracker);
 
 	m_handicap.readFromDict(d);
@@ -967,11 +985,18 @@ void Player::initFromDict(const Dict* d)
 		m_money.deposit(m);
 
 	for ( i = 0; i < NUM_HOTKEY_SQUADS; ++i ) {
-		deleteInstance(m_squads[i]);
+		if (m_squads[i] != NULL)
+		{
+			deleteInstance(m_squads[i]);
+			m_squads[i] = NULL;
+		}
 		m_squads[i] = newInstance( Squad );
 	}
 
-	deleteInstance(m_currentSelection);
+	if (m_currentSelection != NULL) {
+		deleteInstance(m_currentSelection);
+		m_currentSelection = NULL;
+	}
 	m_currentSelection = newInstance( Squad );
 }
 
@@ -2077,7 +2102,8 @@ void Player::transferAssetsFromThat(Player *that)
 	std::list<Object *> objsToTransfer;
 
 	// let's not transfer beacons
-	const ThingTemplate *beaconTemplate = TheThingFactory->findTemplate( that->getPlayerTemplate()->getBeaconTemplate() );
+	const PlayerTemplate *thatPlayerTemplate = that->getPlayerTemplate();
+	const ThingTemplate *beaconTemplate = thatPlayerTemplate ? TheThingFactory->findTemplate( thatPlayerTemplate->getBeaconTemplate() ) : nullptr;
 
 	// transfer all his units.
 	for (PlayerTeamList::iterator it = that->m_playerTeamPrototypes.begin();
@@ -3504,7 +3530,7 @@ void Player::applyBattlePlanBonusesForPlayerObjects( const BattlePlanBonusesData
 //-------------------------------------------------------------------------------------------------
 /** Create a hotkey team based on this GameMessage */
 //-------------------------------------------------------------------------------------------------
-void Player::processCreateTeamGameMessage(Int hotkeyNum, const GameMessage *msg) {
+void Player::processCreateTeamGameMessage(Int hotkeyNum, GameMessage *msg) {
 	// GameMessage arguments are the object ID's of the objects that are to be in this team.
 
 	if ((hotkeyNum < 0) || (hotkeyNum >= NUM_HOTKEY_SQUADS)) {
@@ -3699,7 +3725,8 @@ void Player::removeKindOfProductionCostChange(	KindOfMaskType kindOf, Real perce
 			if(tof->m_ref == 0)
 			{
 				m_kindOfPercentProductionChangeList.erase( it );
-				deleteInstance(tof);
+				if(tof)
+					deleteInstance(tof);
 			}
 			return;
 		}
@@ -4036,7 +4063,8 @@ void Player::xfer( Xfer *xfer )
 		// destroy any build list that we got from loading the bare bones map, note that deleting
 		// the head of these structures automatically deletes any links attached
 		//
-		deleteInstance(m_pBuildList);
+		if( m_pBuildList)
+			deleteInstance(m_pBuildList);
 		m_pBuildList = nullptr;
 
 		// read each build list info

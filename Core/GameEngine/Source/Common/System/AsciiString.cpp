@@ -74,7 +74,7 @@ inline char* skipNonSeps(char* p, const char* seps)
 //-----------------------------------------------------------------------------
 inline char* skipWhitespace(char* p)
 {
-	while (*p && isspace(*p))
+	while (*p && isspace((unsigned char)*p))
 		++p;
 	return p;
 }
@@ -82,7 +82,7 @@ inline char* skipWhitespace(char* p)
 //-----------------------------------------------------------------------------
 inline char* skipNonWhitespace(char* p)
 {
-	while (*p && !isspace(*p))
+	while (*p && !isspace((unsigned char)*p))
 		++p;
 	return p;
 }
@@ -136,8 +136,8 @@ void AsciiString::validate() const
 	DEBUG_ASSERTCRASH(m_data->m_refCount > 0, ("m_refCount is zero"));
 	DEBUG_ASSERTCRASH(m_data->m_refCount < 32000, ("m_refCount is suspiciously large"));
 	DEBUG_ASSERTCRASH(m_data->m_numCharsAllocated > 0, ("m_numCharsAllocated is zero"));
-//	DEBUG_ASSERTCRASH(m_data->m_numCharsAllocated < 1024, ("m_numCharsAllocated suspiciously large"));
-	DEBUG_ASSERTCRASH(strlen(m_data->peek())+1 <= m_data->m_numCharsAllocated,("str is too long (%d) for storage",strlen(m_data->peek())+1));
+	//	DEBUG_ASSERTCRASH(m_data->m_numCharsAllocated < 1024, ("m_numCharsAllocated suspiciously large"));
+	DEBUG_ASSERTCRASH(strlen(m_data->peek()) + 1 <= m_data->m_numCharsAllocated, ("str is too long (%d) for storage", strlen(m_data->peek()) + 1));
 }
 #endif
 
@@ -164,8 +164,8 @@ void AsciiString::ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveData
 	const int usableNumChars = numCharsNeeded - 1;
 
 	if (m_data &&
-			m_data->m_refCount == 1 &&
-			m_data->m_numCharsAllocated >= numCharsNeeded)
+		m_data->m_refCount == 1 &&
+		m_data->m_numCharsAllocated >= numCharsNeeded)
 	{
 		// no buffer manhandling is needed (it's already large enough, and unique to us)
 		if (strToCopy)
@@ -182,11 +182,11 @@ void AsciiString::ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveData
 
 	DEBUG_ASSERTCRASH(TheDynamicMemoryAllocator != nullptr, ("Cannot use dynamic memory allocator before its initialization. Check static initialization order."));
 	DEBUG_ASSERTCRASH(numCharsNeeded <= MAX_LEN, ("AsciiString::ensureUniqueBufferOfSize exceeds max string length %d with requested length %d", MAX_LEN, numCharsNeeded));
-	int minBytes = sizeof(AsciiStringData) + numCharsNeeded*sizeof(char);
+	int minBytes = sizeof(AsciiStringData) + numCharsNeeded * sizeof(char);
 	int actualBytes = TheDynamicMemoryAllocator->getActualAllocationSize(minBytes);
 	AsciiStringData* newData = (AsciiStringData*)TheDynamicMemoryAllocator->allocateBytesDoNotZero(actualBytes, "STR_AsciiString::ensureUniqueBufferOfSize");
 	newData->m_refCount = 1;
-	newData->m_numCharsAllocated = (actualBytes - sizeof(AsciiStringData))/sizeof(char);
+	newData->m_numCharsAllocated = (actualBytes - sizeof(AsciiStringData)) / sizeof(char);
 #if defined(RTS_DEBUG)
 	newData->m_debugptr = newData->peek();	// just makes it easier to read in the debugger
 #endif
@@ -295,10 +295,10 @@ void AsciiString::set(const char* s, int len)
 }
 
 // -----------------------------------------------------
-char*  AsciiString::getBufferForRead(Int len)
+char* AsciiString::getBufferForRead(Int len)
 {
 	validate();
-	DEBUG_ASSERTCRASH(len>0, ("No need to allocate 0 len strings."));
+	DEBUG_ASSERTCRASH(len > 0, ("No need to allocate 0 len strings."));
 	ensureUniqueBufferOfSize(len + 1, false, nullptr, nullptr);
 	validate();
 	return peek();
@@ -350,7 +350,7 @@ void AsciiString::trim()
 
 	if (m_data)
 	{
-		char *c = peek();
+		char* c = peek();
 
 		//	Strip leading white space from the string.
 		c = skipWhitespace(c);
@@ -374,7 +374,7 @@ void AsciiString::trimEnd()
 		// Clip trailing white space from the string.
 		const int len = strlen(peek());
 		int index = len;
-		while (index > 0 && isspace(getCharAt(index - 1)))
+		while (index > 0 && isspace((unsigned char)getCharAt(index - 1)))
 		{
 			--index;
 		}
@@ -508,9 +508,9 @@ void AsciiString::format(AsciiString format, ...)
 {
 	validate();
 	va_list args;
-  va_start(args, format);
+	va_start(args, format);
 	format_va(format, args);
-  va_end(args);
+	va_end(args);
 	validate();
 }
 
@@ -519,9 +519,9 @@ void AsciiString::format(const char* format, ...)
 {
 	validate();
 	va_list args;
-  va_start(args, format);
+	va_start(args, format);
 	format_va(format, args);
-  va_end(args);
+	va_end(args);
 	validate();
 }
 
@@ -536,7 +536,7 @@ void AsciiString::format_va(const char* format, va_list args)
 {
 	validate();
 	char buf[MAX_FORMAT_BUF_LEN];
-	const int result = vsnprintf(buf, sizeof(buf)/sizeof(char), format, args);
+	const int result = vsnprintf(buf, sizeof(buf) / sizeof(char), format, args);
 	if (result >= 0)
 	{
 		set(buf);

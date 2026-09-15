@@ -184,6 +184,7 @@ void ShowUnderlyingGUIElements( Bool show, const char *layoutFilename, const cha
 void PopulateColorComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool isObserver)
 {
 	Int numColors = TheMultiplayerSettings->getNumColors();
+
 	UnicodeString colorName;
 	std::vector<bool> availableColors;
 
@@ -221,7 +222,13 @@ void PopulateColorComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myG
 		if (!def || availableColors[c] == false)
 			continue;
 
-		colorName = TheGameText->fetch(def->getTooltipName().str());
+		bool bFoundColorName = false;
+		colorName = TheGameText->fetch(def->getTooltipName().str(), &bFoundColorName);
+
+		if (!bFoundColorName) // use raw instead
+		{
+			colorName.format(L"%hs", def->getTooltipName().str());
+		}
 		newIndex = GadgetComboBoxAddEntry(comboArray[comboBox], colorName, def->getColor());
 		GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
 	}
@@ -291,6 +298,28 @@ void PopulatePlayerTemplateComboBox(Int comboBox, GameWindow *comboArray[], Game
 
 // -----------------------------------------------------------------------------
 
+// team colors for UI (team combo + minimap start positions).
+UnsignedInt GetTeamUiColor(Int teamNumber)
+{
+    switch (teamNumber)
+    {
+        case 0:
+            return GameMakeColor(255, 60, 60, 255);   // Red
+
+        case 1:
+            return GameMakeColor(60, 255, 60, 255);   // Green
+
+        case 2:
+            return GameMakeColor(60, 120, 255, 255);  // Blue
+
+        case 3:
+            return GameMakeColor(255, 220, 60, 255);  // Yellow
+    }
+
+    // Default: white (none) 
+    return GameMakeColor(255, 255, 255, 255);
+}
+
 void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool isObserver)
 {
 	Int numTeams = MAX_SLOTS/2;
@@ -313,10 +342,10 @@ void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGa
 		AsciiString teamStr;
 		teamStr.format("Team:%d", c + 1);
 		teamName = TheGameText->fetch(teamStr.str());
-		newIndex = GadgetComboBoxAddEntry(comboArray[comboBox], teamName, def->getColor());
-		GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
-	}
-	GadgetComboBoxSetSelectedPos(comboArray[comboBox], 0);
+        UnsignedInt teamColor = GetTeamUiColor(c);
+        newIndex = GadgetComboBoxAddEntry(comboArray[comboBox],teamName,teamColor);
+        GadgetComboBoxSetItemData(comboArray[comboBox], newIndex, (void *)c);
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -344,6 +373,13 @@ void PopulateStartingCashComboBox(GameWindow *comboBox, GameInfo *myGame)
     {
       currentSelectionIndex = newIndex;
     }
+  }
+
+  // NGMP: safety
+  // TODO_NGMP: Why can we get in here with no data during lobby creation? async?
+  if (myGame->getStartingCash().countMoney() == 0)
+  {
+	  currentSelectionIndex = 0;
   }
 
   if ( currentSelectionIndex == -1 )
@@ -451,8 +487,11 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 			else
 			{
 				GadgetComboBoxSetSelectedPos(comboPlayer[i], slot->getState(), TRUE);
-        if( buttonAccept &&  buttonAccept[i] )
-				  buttonAccept[i]->winHide(TRUE);
+				if (buttonAccept && buttonAccept[i])
+					buttonAccept[i]->winHide(TRUE);
+
+				// NGMP: Support host migration, names can change for non-human occupied slots during migration
+				GadgetComboBoxSetText(comboPlayer[i], slot->getName());
 			}
 /*
 			if (myGame->getLocalSlotNum() == i && i!=0)
@@ -512,3 +551,4 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 }
 
 // -----------------------------------------------------------------------------
+

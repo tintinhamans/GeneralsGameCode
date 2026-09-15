@@ -120,6 +120,8 @@
 #include "static_sort_list.h"
 #include "shdlib.h"
 #include "framgrab.h"
+
+#include "../../../GameEngine/Include/GameNetwork/GeneralsOnline/NextGenMP_defines.h"
 #include "Lib/BaseType.h"
 
 

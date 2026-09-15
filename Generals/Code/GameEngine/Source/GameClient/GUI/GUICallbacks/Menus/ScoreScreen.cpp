@@ -1782,7 +1782,7 @@ void grabMultiPlayerInfo()
 	Int adder = 1; // Varible used to add on an offset to the score to make sure we don't add people to the same map
 
 	Player *localPlayer = ThePlayerList->getLocalPlayer();
-	if (localPlayer)
+	if (localPlayer && parent)
 	{
 		const Image *image = TheMappedImageCollection->findImageByName("MutiPlayer_ScoreScreen");
 		if(image)

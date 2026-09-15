@@ -60,6 +60,7 @@
 #include "thread.h"
 #include "WWDebug/wwdebug.h"
 #include "WWDebug/wwmemlog.h"
+#include "mutex.h"
 
 #include	<conio.h>
 #include	<imagehlp.h>
@@ -111,6 +112,73 @@ int ExceptionRecursions = -1;
 ** List of threads that the exception handler knows about.
 */
 DynamicVectorClass<ThreadInfoType*> ThreadList;
+
+/*
+** Returns the CRITICAL_SECTION used to protect ThreadList.
+**
+** Allocated from the Windows process heap (not the CRT heap) and never freed.
+** The CRT heap can be torn down during application shutdown before all threads
+** have exited. If a thread calls Unregister_Thread_ID after the CRT heap is
+** destroyed, any CRITICAL_SECTION allocated via _aligned_malloc (which uses
+** the CRT heap) would already be invalid memory, causing an access violation
+** when EnterCriticalSection dereferences it.
+**
+** The Windows process heap (GetProcessHeap) outlives the CRT heap and is only
+** reclaimed when the process terminates, so this CRITICAL_SECTION remains valid
+** for the entire process lifetime regardless of CRT shutdown order.
+**
+** Thread-safe one-time initialization is achieved via
+** InterlockedCompareExchangePointer, which works on all supported Windows versions.
+*/
+static CRITICAL_SECTION* GetThreadListCS()
+{
+	static CRITICAL_SECTION* volatile s_cs = nullptr;
+
+	if (s_cs == nullptr) {
+		CRITICAL_SECTION* cs = reinterpret_cast<CRITICAL_SECTION*>(
+			HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(CRITICAL_SECTION)));
+		if (cs != nullptr) {
+			InitializeCriticalSection(cs);
+		}
+		// Race-free handoff: only one thread's allocation wins; the loser is discarded.
+		if (InterlockedCompareExchangePointer(
+				reinterpret_cast<volatile PVOID*>(&s_cs), cs, nullptr) != nullptr) {
+			// Another thread initialized it first; discard our copy.
+			if (cs != nullptr) {
+				DeleteCriticalSection(cs);
+				HeapFree(GetProcessHeap(), 0, cs);
+			}
+		}
+	}
+
+	return s_cs;
+}
+
+/*
+** RAII lock guard for the raw ThreadList CRITICAL_SECTION.
+** Replaces CriticalSectionClass::LockClass for the thread-list lock so that
+** the CriticalSectionClass wrapper (and its _aligned_malloc-based handle) is
+** never used for this particular, shutdown-sensitive critical path.
+*/
+struct ScopedThreadListLock
+{
+	explicit ScopedThreadListLock(CRITICAL_SECTION* cs) : cs_(cs)
+	{
+		if (cs_ != nullptr) {
+			EnterCriticalSection(cs_);
+		}
+	}
+	~ScopedThreadListLock()
+	{
+		if (cs_ != nullptr) {
+			LeaveCriticalSection(cs_);
+		}
+	}
+private:
+	CRITICAL_SECTION* cs_;
+	ScopedThreadListLock(const ScopedThreadListLock&);
+	ScopedThreadListLock& operator=(const ScopedThreadListLock&);
+};
 
 /*
 ** Definitions to allow run-time linking to the Imagehlp.dll functions.
@@ -339,7 +407,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	/*
 	** Scrap buffer for constructing dump strings
 	*/
-	char scrap [256];
+	char scrap [256] = {};
 
 	/*
 	** Clear out the dump buffer
@@ -644,7 +712,7 @@ void Dump_Exception_Info(EXCEPTION_POINTERS *e_info)
 	** Dump the bytes at EIP. This will make it easier to match the crash address with later versions of the game.
 	*/
 	DebugString("EIP bytes dump...\n");
-	sprintf(scrap, "\r\nBytes at CS:EIP (%08X)  : ", context->Eip);
+	snprintf(scrap, ARRAY_SIZE(scrap), "\r\nBytes at CS:EIP (%08X)  : ", context->Eip);
 
 	unsigned char *eip_ptr = (unsigned char *) (context->Eip);
 	char bytestr[32];
@@ -889,6 +957,7 @@ void Register_Thread_ID(unsigned long thread_id, char *thread_name, bool main_th
 {
 	WWMEMLOG(MEM_GAMEDATA);
 	if (thread_name) {
+		ScopedThreadListLock lock(GetThreadListCS());
 
 		/*
 		** See if we already know about this thread. Maybe just the thread_id changed.
@@ -999,6 +1068,8 @@ HANDLE Get_Thread_Handle(int thread_index)
  *=============================================================================================*/
 void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
 {
+	ScopedThreadListLock lock(GetThreadListCS());
+	
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
 		if (strcmp(thread_name, ThreadList[i]->ThreadName) == 0) {
 			assert(ThreadList[i]->ThreadID == thread_id);
@@ -1027,6 +1098,8 @@ void Unregister_Thread_ID(unsigned long thread_id, char *thread_name)
  *=============================================================================================*/
 unsigned long Get_Main_Thread_ID()
 {
+	ScopedThreadListLock lock(GetThreadListCS());
+	
 	for (int i=0 ; i<ThreadList.Count() ; i++) {
 		if (ThreadList[i]->Main) {
 			return(ThreadList[i]->ThreadID);

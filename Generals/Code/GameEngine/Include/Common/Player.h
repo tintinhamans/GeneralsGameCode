@@ -618,7 +618,7 @@ public:
 	ScoreKeeper* getScoreKeeper() { return &m_scoreKeeper; }
 
 	/// time to create a hotkey team based on this GameMessage
-	void processCreateTeamGameMessage(Int hotkeyNum, const GameMessage *msg);
+	void processCreateTeamGameMessage(Int hotkeyNum, GameMessage *msg);
 
 	/// time to select a hotkey team based on this GameMessage
 	void processSelectTeamGameMessage(Int hotkeyNum);

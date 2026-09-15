@@ -61,7 +61,7 @@ public:
 	virtual void setLocalAddress(UnsignedInt ip, UnsignedInt port) = 0;	///< Tell the network what local ip and port to bind to.
 	virtual Bool isFrameDataReady() = 0;												///< Are the commands for the next frame available?
 	virtual Bool isStalling() = 0;
-	virtual void parseUserList( const GameInfo *game ) = 0;						///< Parse a userlist, creating connections
+	virtual void parseUserList(const GameInfo* game) = 0;						///< Parse a userlist, creating connections
 	virtual void startGame() = 0;																	///< Sets the network game frame counter to -1
 	virtual UnsignedInt getRunAhead() = 0;												///< Get the current RunAhead value
 	virtual UnsignedInt getFrameRate() = 0;												///< Get the current allowed frame rate.
@@ -101,12 +101,24 @@ public:
 	virtual Int getAverageFPS() = 0;
 	virtual Int getSlotAverageFPS(Int slot) = 0;
 
-	virtual void attachTransport(Transport *transport) = 0;
+#if defined(GENERALS_ONLINE)
+	virtual void SeedLatencyData(int highestLatency) = 0;
+	virtual bool IsSlugging() = 0;
+#endif
+
+	virtual void attachTransport(Transport* transport) = 0;
 	virtual void initTransport() = 0;
 	virtual Bool sawCRCMismatch() = 0;
-	virtual void setSawCRCMismatch() = 0;
 
-	virtual Bool isPlayerConnected(Int playerID) = 0;
+#if defined(GENERALS_ONLINE)
+	virtual void setSawCRCMismatch(UnicodeString& strMismatchDetails) = 0;
+#else
+	virtual void setSawCRCMismatch() = 0;
+#endif
+
+#if defined(GENERALS_ONLINE)
+	virtual ConnectionManager* GetConnectionManager() = 0;
+#endif	virtual Bool isPlayerConnected(Int playerID) = 0;
 
 	virtual void notifyOthersOfCurrentFrame() = 0;					///< Tells all the other players what frame we are on.
 	virtual void notifyOthersOfNewFrame(UnsignedInt frame) = 0;							///< Tells all the other players that we are on a new frame.
@@ -121,6 +133,8 @@ public:
 	virtual UnsignedInt getPingFrame() = 0;
 	virtual Int getPingsSent() = 0;
 	virtual Int getPingsReceived() = 0;
+
+	virtual Bool isPlayerConnected(Int playerID) = 0;
 };
 
 

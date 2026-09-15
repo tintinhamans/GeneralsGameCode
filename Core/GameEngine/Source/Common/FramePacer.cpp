@@ -67,6 +67,12 @@ void FramePacer::reset()
 void FramePacer::setFramesPerSecondLimit( Int fps )
 {
 	DEBUG_LOG(("FramePacer::setFramesPerSecondLimit() - setting max fps to %d (TheGlobalData->m_useFpsLimit == %d)", fps, TheGlobalData->m_useFpsLimit));
+
+	// clamp FPS to at least render at same as logic
+#if defined(GENERALS_ONLINE)
+	fps = std::max<int>(fps, GENERALS_ONLINE_HIGH_FPS_LIMIT);
+#endif
+
 	m_maxFPS = fps;
 }
 

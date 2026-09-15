@@ -44,7 +44,7 @@ set(GAMEENGINE_SRC
 #    Include/Common/GameDefines.h
     Include/Common/GameEngine.h
     Include/Common/GameLOD.h
-#    Include/Common/GameMemory.h
+    Include/Common/GameMemory.h
 #    Include/Common/GameMusic.h
 #    Include/Common/GameSounds.h
     Include/Common/GameSpyMiscPreferences.h
@@ -110,6 +110,8 @@ set(GAMEENGINE_SRC
     Include/Common/StackDump.h
     Include/Common/StateMachine.h
     Include/Common/StatsCollector.h
+    Include/Common/StatsExporter.h
+    Include/Common/StatsUploader.h
 #    Include/Common/STLTypedefs.h
 #    Include/Common/StreamingArchiveFile.h
 #    Include/Common/SubsystemInterface.h
@@ -547,6 +549,7 @@ set(GAMEENGINE_SRC
 #    Include/GameNetwork/User.h
 #    Include/GameNetwork/WOLBrowser/FEBDispatch.h
 #    Include/GameNetwork/WOLBrowser/WebBrowser.h
+    Include/GameNetwork/UDPTransport.h
 #    Include/Precompiled/PreRTS.h
 #    Source/Common/Audio/AudioEventRTS.cpp
 #    Source/Common/Audio/AudioRequest.cpp
@@ -626,6 +629,8 @@ set(GAMEENGINE_SRC
     Source/Common/SkirmishBattleHonors.cpp
     Source/Common/StateMachine.cpp
     Source/Common/StatsCollector.cpp
+    Source/Common/StatsExporter.cpp
+    Source/Common/StatsUploader.cpp
 #    Source/Common/System/ArchiveFile.cpp
 #    Source/Common/System/ArchiveFileSystem.cpp
 #    Source/Common/System/AsciiString.cpp
@@ -1128,22 +1133,87 @@ set(GAMEENGINE_SRC
 #    Source/GameNetwork/udp.cpp
 #    Source/GameNetwork/User.cpp
 #    Source/GameNetwork/WOLBrowser/WebBrowser.cpp
+    Source/GameNetwork/UDPTransport.cpp
 #    Source/Precompiled/PreRTS.cpp
+
+    Include/GameNetwork/GeneralsOnline/json.hpp
+    Include/GameNetwork/GeneralsOnline/DiscordRichPresence.h
+    Include/GameNetwork/GeneralsOnline/Vendor/DiscordRPC/discord_rpc.h
+    Include/GameNetwork/GeneralsOnline/NetworkBitstream.h
+    Include/GameNetwork/GeneralsOnline/NetworkMesh.h
+    Include/GameNetwork/GeneralsOnline/NetworkPacket.h
+    Include/GameNetwork/GeneralsOnline/NextGenMP_defines.h
+    Include/GameNetwork/GeneralsOnline/NGMPGame.h
+    Include/GameNetwork/GeneralsOnline/NGMP_include.h
+    Include/GameNetwork/GeneralsOnline/NGMP_interfaces.h
+    Include/GameNetwork/GeneralsOnline/NGMP_types.h
+    Include/GameNetwork/GeneralsOnline/OnlineServices_Auth.h
+    Include/GameNetwork/GeneralsOnline/OnlineServices_Init.h
+    Include/GameNetwork/GeneralsOnline/OnlineServices_LobbyInterface.h
+    Include/GameNetwork/GeneralsOnline/OnlineServices_Moderation.h
+    Include/GameNetwork/GeneralsOnline/OnlineServices_RoomsInterface.h
+    Include/GameNetwork/GeneralsOnline/OnlineServices_StatsInterface.h
+    Include/GameNetwork/GeneralsOnline/OnlineServices_SocialInterface.h
+    Include/GameNetwork/GeneralsOnline/OnlineServices_MatchmakingInterface.h
+    Include/GameNetwork/GeneralsOnline/GeneralsOnline_Settings.h
+    Include/GameNetwork/GeneralsOnline/HTTP/HTTPManager.h
+    Include/GameNetwork/GeneralsOnline/HTTP/HTTPRequest.h
+    Include/GameNetwork/GeneralsOnline/NextGenTransport.h
+    Include/GameNetwork/GeneralsOnline/PluginInterfaces.h
+    Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/isteamnetworkingmessages.h
+    Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/isteamnetworkingsockets.h
+    Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/isteamnetworkingutils.h
+    Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steam_api_common.h
+    Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamclientpublic.h
+    Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamnetworkingcustomsignaling.h
+    Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamnetworkingsockets.h
+    Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamnetworkingsockets_flat.h
+    Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamnetworkingtypes.h
+    Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamtypes.h
+    Include/GameNetwork/GeneralsOnline/Vendor/ValveNetworkingSockets/steam/steamuniverse.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/curl.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/curlver.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/easy.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/header.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/mprintf.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/multi.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/options.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/stdcheaders.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/system.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/typecheck-gcc.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/urlapi.h
+    Include/GameNetwork/GeneralsOnline/Vendor/libcurl/websockets.h
+    Source/GameNetwork/GeneralsOnline/DiscordRichPresence.cpp
+    Source/GameNetwork/GeneralsOnline/NGMP_Helpers.cpp
+    Source/GameNetwork/GeneralsOnline/NGMPGame.cpp
+    Source/GameNetwork/GeneralsOnline/GeneralsOnline_Settings.cpp
+    Source/GameNetwork/GeneralsOnline/HTTP/HTTPManager.cpp
+    Source/GameNetwork/GeneralsOnline/HTTP/HTTPRequest.cpp
+    Source/GameNetwork/GeneralsOnline/NetworkMesh.cpp
+    Source/GameNetwork/GeneralsOnline/OnlineServices_Init.cpp
+    Source/GameNetwork/GeneralsOnline/OnlineServices_Auth.cpp
+    Source/GameNetwork/GeneralsOnline/OnlineServices_LobbyInterface.cpp
+    Source/GameNetwork/GeneralsOnline/OnlineServices_Moderation.cpp
+    Source/GameNetwork/GeneralsOnline/OnlineServices_RoomsInterface.cpp
+    Source/GameNetwork/GeneralsOnline/OnlineServices_StatsInterface.cpp
+    Source/GameNetwork/GeneralsOnline/OnlineServices_SocialInterface.cpp
+    Source/GameNetwork/GeneralsOnline/OnlineServices_MatchmakingInterface.cpp
+    Source/GameNetwork/GeneralsOnline/NextGenTransport.cpp
+    Source/GameNetwork/GeneralsOnline/NetworkBitstream.cpp
+    Source/GameNetwork/GeneralsOnline/PluginInterfaces.cpp
 )
 
 if(RTS_GAMEMEMORY_ENABLE)
     # Uses the original Game Memory implementation.
     list(APPEND GAMEENGINE_SRC
-#        Source/Common/System/GameMemory.cpp
-#        Source/Common/System/GameMemoryInitDMA_GeneralsMD.inl
-#        Source/Common/System/GameMemoryInitPools_GeneralsMD.inl
-#        Source/Common/System/MemoryInit.cpp
+        Source/Common/System/GameMemory.cpp
+        Source/Common/System/MemoryInit.cpp
     )
 else()
     # Uses the null implementation when disabled.
     list(APPEND GAMEENGINE_SRC
-#        Source/Common/System/GameMemoryNull.cpp
-#        Include/Common/GameMemoryNull.h
+        Source/Common/System/GameMemoryNull.cpp
+        Include/Common/GameMemoryNull.h
     )
 endif()
 
@@ -1152,8 +1222,12 @@ add_library(z_gameengine STATIC)
 
 target_sources(z_gameengine PRIVATE ${GAMEENGINE_SRC})
 
+target_compile_definitions(z_gameengine PRIVATE GAMESPY_IMPORT_DATA)
+
 target_include_directories(z_gameengine PUBLIC
     Include
+
+    Include/GameNetwork/GeneralsOnline/Vendor/
 )
 
 target_include_directories(z_gameengine PRIVATE
@@ -1170,7 +1244,21 @@ target_link_libraries(z_gameengine PUBLIC
     z_wwvegas
 )
 
+if(NOT IS_VS6_BUILD)
+    target_link_libraries(z_gameengine PUBLIC
+        CURL::libcurl
+        GameNetworkingSockets::shared
+        sentry::sentry
+    )
+else()
+    target_compile_definitions(z_gameengine PRIVATE RTS_USE_LEGACY_NETWORK_VENDOR)
+endif()
+
 target_precompile_headers(z_gameengine PRIVATE
     [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
 #    Include/Precompiled/PreRTS.h
 )
+
+
+add_compile_definitions(_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
+add_compile_definitions(GENERALS_ONLINE)

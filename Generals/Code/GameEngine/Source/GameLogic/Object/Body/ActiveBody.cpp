@@ -1072,32 +1072,29 @@ void ActiveBody::setIndestructible( Bool indestructible )
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void ActiveBody::onVeterancyLevelChanged( VeterancyLevel oldLevel, VeterancyLevel newLevel, Bool provideFeedback )
+void ActiveBody::onVeterancyLevelChanged( VeterancyLevel oldLevel, VeterancyLevel newLevel )
 {
 	if (oldLevel == newLevel)
 		return;
 
 	if (oldLevel < newLevel)
 	{
-		if (provideFeedback)
+		AudioEventRTS veterancyChanged;
+		switch (newLevel)
 		{
-			AudioEventRTS veterancyChanged;
-			switch (newLevel)
-			{
-				case LEVEL_VETERAN:
-					veterancyChanged = *getObject()->getTemplate()->getSoundPromotedVeteran();
-					break;
-				case LEVEL_ELITE:
-					veterancyChanged = *getObject()->getTemplate()->getSoundPromotedElite();
-					break;
-				case LEVEL_HEROIC:
-					veterancyChanged = *getObject()->getTemplate()->getSoundPromotedHero();
-					break;
-			}
-
-			veterancyChanged.setObjectID(getObject()->getID());
-			TheAudio->addAudioEvent(&veterancyChanged);
+			case LEVEL_VETERAN:
+				veterancyChanged = *getObject()->getTemplate()->getSoundPromotedVeteran();
+				break;
+			case LEVEL_ELITE:
+				veterancyChanged = *getObject()->getTemplate()->getSoundPromotedElite();
+				break;
+			case LEVEL_HEROIC:
+				veterancyChanged = *getObject()->getTemplate()->getSoundPromotedHero();
+				break;
 		}
+
+		veterancyChanged.setObjectID(getObject()->getID());
+		TheAudio->addAudioEvent(&veterancyChanged);
 
 		//Also mark the UI dirty -- incase the object is selected or contained.
 		Object *obj = getObject();

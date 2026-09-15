@@ -677,6 +677,17 @@ Render2DSentenceClass::Allocate_New_Surface (const WCHAR *text, bool justCalcExt
 		//
 		CurSurface = NEW_REF (SurfaceClass, (CurrTextureSize, CurrTextureSize, WW3D_FORMAT_A4R4G4B4));
 		WWASSERT (CurSurface != nullptr);
+		
+		//
+		//	Validate that the underlying D3D surface was successfully created
+		//
+		if (CurSurface != NULL && !CurSurface->Is_Valid()) {
+			// Surface creation failed - clean up and return
+			REF_PTR_RELEASE(CurSurface);
+			CurSurface = NULL;
+			return;
+		}
+		
 		CurSurface->Add_Ref ();
 
 		//

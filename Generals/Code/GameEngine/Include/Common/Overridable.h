@@ -105,6 +105,15 @@ class Overridable : public MemoryPoolObject
 		{
 			if ( m_isOverride )
 			{
+				// TheSuperHackers @bugfix Clean up the override chain before deleting this node.
+				// Without this, deleteInstance(this) triggers ~Overridable() which deletes m_nextOverride
+				// via the destructor, but the caller may still hold a pointer to the now-freed chain,
+				// creating a dangling pointer that causes an access violation in getFinalOverride().
+				if ( m_nextOverride )
+				{
+					m_nextOverride->deleteOverrides();
+					m_nextOverride = nullptr;
+				}
 				deleteInstance(this);
 				return nullptr;
 			}
@@ -119,5 +128,6 @@ class Overridable : public MemoryPoolObject
 // cleans up and dangling overrides.
 __inline Overridable::~Overridable()
 {
-	deleteInstance(m_nextOverride);
+	if (m_nextOverride)
+		deleteInstance(m_nextOverride);
 }

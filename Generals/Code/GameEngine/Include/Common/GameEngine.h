@@ -31,6 +31,8 @@
 #include "Common/SubsystemInterface.h"
 #include "Common/GameType.h"
 
+#define DEFAULT_MAX_FPS		45
+
 // forward declarations
 class AudioManager;
 class GameLogic;
@@ -50,9 +52,11 @@ class Radar;
 class WebBrowser;
 class ParticleSystemManager;
 
+/**
+ * The implementation of the game engine
+ */
 class GameEngine : public SubsystemInterface
 {
-public:
 
 	GameEngine();
 	virtual ~GameEngine() override;
@@ -103,7 +107,6 @@ protected:
 	Bool m_quitting; ///< true when we need to quit the game
 	Bool m_isActive; ///< app has OS focus.
 };
-
 inline void GameEngine::setQuitting( Bool quitting ) { m_quitting = quitting; }
 inline Bool GameEngine::getQuitting() { return m_quitting; }
 

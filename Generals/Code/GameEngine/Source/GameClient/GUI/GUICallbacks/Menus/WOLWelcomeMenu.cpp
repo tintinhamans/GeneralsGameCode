@@ -730,6 +730,12 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 {
 	UnicodeString txtInput;
 
+	// During shutdown the window hierarchy is being torn down; ignore all
+	// messages to prevent use-after-free crashes caused by mouse-enter/leave
+	// events that are still in-flight while the parent window is being destroyed.
+	if( isShuttingDown )
+		return MSG_IGNORED;
+
 	switch( msg )
 	{
 
@@ -807,7 +813,7 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 				else if (controlID == buttonQuickMatchID)
 				{
 					GameSpyMiscPreferences mPref;
-					if ((TheDisplay->getWidth() != DEFAULT_DISPLAY_WIDTH || TheDisplay->getHeight() != DEFAULT_DISPLAY_HEIGHT) && mPref.getQuickMatchResLocked())
+					if ((TheDisplay->getWidth() != 800 || TheDisplay->getHeight() != 600) && mPref.getQuickMatchResLocked())
 					{
 						GSMessageBoxOk(TheGameText->fetch("GUI:GSErrorTitle"), TheGameText->fetch("GUI:QuickMatch800x600"));
 					}

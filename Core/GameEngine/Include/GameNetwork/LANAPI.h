@@ -172,9 +172,9 @@ struct LANMessage
 		MSG_REQUEST_GAME_INFO,	///< For direct connect, get the game info from a specific IP Address
 	} messageType;
 
-	WideChar name[g_lanPlayerNameLength+1]; ///< My name, for convenience
-	char userName[g_lanLoginNameLength+1];	///< login name, for convenience
-	char hostName[g_lanHostNameLength+1];		///< machine name, for convenience
+	WideChar name[g_lanPlayerNameLength + 1]; ///< My name, for convenience
+	char userName[g_lanLoginNameLength + 1];	///< login name, for convenience
+	char hostName[g_lanHostNameLength + 1];		///< machine name, for convenience
 
 	// No additional data is required for REQUEST_LOCATIONS, LOBBY_ANNOUNCE,
 	// REQUEST_LOBBY_LEAVE, GAME_START.
@@ -189,15 +189,15 @@ struct LANMessage
 		// GameJoined is sent with REQUEST_GAME_LEAVE
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			WideChar gameName[g_lanGameNameLength + 1];
 		} GameToLeave;
 
 		// GameInfo if sent with GAME_ANNOUNCE
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			WideChar gameName[g_lanGameNameLength + 1];
 			Bool inProgress;
-			char options[m_lanMaxOptionsLength+1];
+			char options[m_lanMaxOptionsLength + 1];
 			Bool isDirectConnect;
 		} GameInfo;
 
@@ -205,7 +205,7 @@ struct LANMessage
 		struct
 		{
 			UnsignedInt ip;
-			WideChar playerName[g_lanPlayerNameLength+1];
+			WideChar playerName[g_lanPlayerNameLength + 1];
 		} PlayerInfo;
 
 		// GameToJoin is sent with REQUEST_JOIN
@@ -220,7 +220,7 @@ struct LANMessage
 		// GameJoined is sent with JOIN_ACCEPT
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			WideChar gameName[g_lanGameNameLength + 1];
 			UnsignedInt gameIP;
 			UnsignedInt playerIP;
 			Int slotPosition;
@@ -229,7 +229,7 @@ struct LANMessage
 		// GameNotJoined is sent with JOIN_DENY
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			WideChar gameName[g_lanGameNameLength + 1];
 			UnsignedInt gameIP;
 			UnsignedInt playerIP;
 			LANAPIInterface::ReturnType reason;
@@ -238,25 +238,25 @@ struct LANMessage
 		// Accept is sent with SET_ACCEPT
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			WideChar gameName[g_lanGameNameLength + 1];
 			Bool isAccepted;
 		} Accept;
 
 		// Accept is sent with MAP_AVAILABILITY
 		struct
 		{
-			WideChar gameName[g_lanGameNameLength+1];
+			WideChar gameName[g_lanGameNameLength + 1];
 			UnsignedInt mapCRC;	// to make sure we're talking about the same map
 			Bool hasMap;
 		} MapStatus;
 
 		// Chat is sent with CHAT
-		struct
-		{
-			WideChar gameName[g_lanGameNameLength+1];
-			LANAPIInterface::ChatType chatType;
-			WideChar message[g_lanMaxChatLength+1];
-		} Chat;
+        struct
+        {
+            WideChar gameName[g_lanGameNameLength + 1];
+            LANAPIInterface::ChatType chatType;
+            WideChar message[g_lanMaxChatLength + 1];
+        } Chat;
 
 		// GameOptions is sent with GAME_OPTIONS
 		struct

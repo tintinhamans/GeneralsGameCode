@@ -68,7 +68,7 @@ enum BuildableStatus CPP_11(: Int);
 typedef const CommandButton* ConstCommandButtonPtr;
 
 // What kind of game we're in.
-enum GameMode CPP_11(: Int)
+enum
 {
 	GAME_SINGLE_PLAYER,
 	GAME_LAN,
@@ -118,7 +118,7 @@ public:
 #endif
 	void processCommandList( CommandList *list );		///< process the command list
 
-	void prepareNewGame( GameMode gameMode, GameDifficulty diff, Int rankPoints );						///< prepare for new game
+	void prepareNewGame( Int gameMode, GameDifficulty diff, Int rankPoints );						///< prepare for new game
 
 	void logicMessageDispatcher( GameMessage *msg,
 																			 void *userData );	///< Logic command list processing
@@ -211,7 +211,6 @@ public:
 	void updateObjectsChangedTriggerAreas() {m_frameObjectsChangedTriggerAreas = m_frame;}
 	UnsignedInt getFrameObjectsChangedTriggerAreas() {return m_frameObjectsChangedTriggerAreas;}
 
-	void exitGame();
 	void quit(Bool toDesktop);
 	void clearGameData(Bool showScoreScreen = TRUE);														///< Clear the game data
 	void closeWindows();
@@ -221,7 +220,7 @@ public:
 
 	void bindObjectAndDrawable(Object* obj, Drawable* draw);
 
-	void setGamePausedInFrame( UnsignedInt frame, Bool disableLogicTimeScale );
+	void setGamePausedInFrame( UnsignedInt frame );
 	UnsignedInt getGamePauseFrame() const { return m_pauseFrame; }
 	void setGamePaused( Bool paused, Bool pauseMusic = TRUE, Bool pauseInput = TRUE );
 	Bool isGamePaused();
@@ -436,7 +435,7 @@ private:
 	virtual TerrainLogic *createTerrainLogic();
 	virtual GhostObjectManager *createGhostObjectManager(bool dummy = false);
 
-	GameMode m_gameMode;
+	Int m_gameMode;
 	Int m_rankLevelLimit;
 
 	LoadScreen *getLoadScreen( Bool saveGame );
@@ -449,7 +448,6 @@ private:
 	Bool m_pauseInput;
 	Bool m_inputEnabledMemory;// Latches used to remember what to restore to after we unpause
 	Bool m_mouseVisibleMemory;
-	Bool m_logicTimeScaleEnabledMemory;
 
 	Bool m_progressComplete[MAX_SLOTS];
 	enum { PROGRESS_COMPLETE_TIMEOUT = 60000 };							///< Timeout we wait for when we've completed our Load

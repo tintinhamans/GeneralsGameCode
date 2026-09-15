@@ -1,6 +1,5 @@
-# Ignore everything starting with dot, except specific files.
+# Ignore everything starting with dot, except git files.
 .*
-!.editorconfig
 !.gitignore
 !.gitattributes
 !.github

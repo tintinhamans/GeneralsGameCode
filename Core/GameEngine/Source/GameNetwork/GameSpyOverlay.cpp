@@ -30,6 +30,7 @@
 #include "Common/AudioEventRTS.h"
 
 #include "GameClient/GadgetListBox.h"
+#include "GameClient/GadgetPushButton.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/ShellHooks.h"
@@ -125,6 +126,33 @@ void GSMessageBoxOkCancel(UnicodeString title, UnicodeString message, GameWinMsg
 	cancelFunc = newCancelFunc;
 }
 
+void GSMessageBoxOkCancelWithLabels(
+	UnicodeString title,
+	UnicodeString message,
+	UnicodeString okLabel,
+	UnicodeString cancelLabel,
+	GameWinMsgBoxFunc newOkFunc,
+	GameWinMsgBoxFunc newCancelFunc)
+{
+	GSMessageBoxOkCancel(title, message, newOkFunc, newCancelFunc);
+	if (messageBoxWindow == nullptr)
+	{
+		return;
+	}
+
+	GameWindow* buttonOk = TheWindowManager->winGetWindowFromId(messageBoxWindow, TheNameKeyGenerator->nameToKey("MessageBox.wnd:ButtonOk"));
+	GameWindow* buttonCancel = TheWindowManager->winGetWindowFromId(messageBoxWindow, TheNameKeyGenerator->nameToKey("MessageBox.wnd:ButtonCancel"));
+	if (buttonOk != nullptr)
+	{
+		GadgetButtonSetText(buttonOk, okLabel);
+	}
+
+	if (buttonCancel != nullptr)
+	{
+		GadgetButtonSetText(buttonCancel, cancelLabel);
+	}
+}
+
 /**
 	* GSMessageBoxYesNo puts up a Yes/No dialog box and saves the
 	* pointers to it and its callbacks.
@@ -149,6 +177,18 @@ void RaiseGSMessageBox()
 		return;
 
 	messageBoxWindow->winBringToTop();
+}
+
+void GSMessageBoxCancel(UnicodeString title, UnicodeString message, GameWinMsgBoxFunc cancelFunc)
+{
+	ClearGSMessageBoxes();
+	messageBoxWindow = MessageBoxCancel(title, message, cancelFunc);
+}
+
+void GSMessageBoxNoButtons(UnicodeString title, UnicodeString message, bool bShowLogo)
+{
+	ClearGSMessageBoxes();
+	messageBoxWindow = MessageBoxNoButtons(title, message, bShowLogo);
 }
 
 // Overlay screens -------------------------------------
@@ -194,6 +234,7 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 {
 	if (overlay == GSOVERLAY_BUDDY)
 	{
+#if !defined(GENERALS_ONLINE)
 		if (!TheGameSpyBuddyMessageQueue->isConnected())
 		{
 			// not connected - is it because we were disconnected?
@@ -209,6 +250,7 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 			}
 			return;
 		}
+#endif
 		AudioEventRTS buttonClick("GUICommunicatorOpen");
 
 		if( TheAudio )

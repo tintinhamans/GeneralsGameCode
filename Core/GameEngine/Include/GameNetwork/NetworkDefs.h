@@ -36,7 +36,12 @@ static constexpr const Int MAX_COMMANDS = 256;
 // This lets network games run at latencies down to 133ms when the network conditions allow
 static constexpr const Int MIN_LOGIC_FRAMES = 5;
 static constexpr const Int MAX_FRAMES_AHEAD = 128;
+
+#if defined(GENERALS_ONLINE)
+static Int MIN_RUNAHEAD = 6;
+#else
 static constexpr const Int MIN_RUNAHEAD = 4;
+#endif
 
 // FRAME_DATA_LENGTH needs to be MAX_FRAMES_AHEAD+1 because a player on a different
 // computer can send commands for a frame that is one beyond twice the max runahead.
@@ -49,6 +54,8 @@ enum ConnectionNumbers CPP_11(: Int)
 	MAX_PLAYER = 7,			// The index of the highest possible player number.  This is 0 based, so the most players allowed in a game is MAX_PLAYER+1.
 };
 
+static constexpr const Int MAX_SLOTS = MAX_PLAYER + 1;
+
 #pragma pack(push, 1)
 struct TransportMessageHeader
 {
@@ -59,25 +66,30 @@ struct TransportMessageHeader
 };
 #pragma pack(pop)
 
-static constexpr const Int MAX_SLOTS = MAX_PLAYER+1;
-
-// TheSuperHackers @info As we are not detecting for network fragmentation and dynamically adjusting payload sizes, we set an 1100 bytes UDP payload as a safe upper limit for various networks
-// We chose 1100 bytes as when taking mobile networks into account, maximum transmission unit sizes can vary from 1340 - 1500 bytes
-// and when the packet headers for PPPOE, IPV6 and other virtual network encapsulation are considered, we need a lower safe UDP payload to prevent fragmentation.
-static constexpr const Int MAX_UDP_PAYLOAD_SIZE = 1100;
+// TheSuperHackers @info As we are not detecting for network fragmentation and adjusting max payload, we set 1200 bytes UDP payload as a safe upper limit for various networks
+// We chose 1200 bytes as when taking mobile networks into account, maximum transmission unit sizes can vary from 1340 - 1500 bytes
+// and when the packet headers for PPPOE, IPV6 and virtual network encapsulation are considered, we need a lower safe UDP payload to prevent fragmentation.
+#if defined(GENERALS_ONLINE)
+static constexpr const Int MAX_UDP_PAYLOAD = 1194 - 96; // 96 for TURN + Valve overhead
+#else
+static constexpr const Int MAX_UDP_PAYLOAD = 1194;
+#endif
 // UDP (8 bytes) + IP header (28 bytes) = 36 bytes total.  We want a total packet size of 512, so 512 - 36 = 476
-static constexpr const Int RETAIL_GAME_PACKET_SIZE = 476;
+static constexpr const Int RESTRICTED_UDP_PAYLOAD = 476;
 
 // TheSuperHackers @info The legacy lanapi cannot use a larger packet size without breaking the gameinfo command
-static constexpr const Int MAX_LANAPI_PACKET_SIZE = RETAIL_GAME_PACKET_SIZE;
+static constexpr const Int MAX_LANAPI_PACKET_SIZE = RESTRICTED_UDP_PAYLOAD;
 
 // TheSuperHackers @bugfix Mauller 08/02/2026 Allow larger ethernet UDP payload to be used for game messages, this fixes connection issues and eliminates disconnection bugs
 #if RETAIL_COMPATIBLE_NETWORKING
-static constexpr const Int MAX_PACKET_SIZE = RETAIL_GAME_PACKET_SIZE;
-static constexpr const Int MAX_NETWORK_MESSAGE_LEN = 1024;
+static constexpr const Int MAX_PACKET_SIZE = RESTRICTED_UDP_PAYLOAD;
+static constexpr const Int MAX_MESSAGE_LEN = 1024;
+#elif defined(GENERALS_ONLINE)
+static constexpr const Int MAX_PACKET_SIZE = MAX_UDP_PAYLOAD;
+static constexpr const Int MAX_MESSAGE_LEN = 1104;
 #else
-static constexpr const Int MAX_PACKET_SIZE = MAX_UDP_PAYLOAD_SIZE - sizeof(TransportMessageHeader);
-static constexpr const Int MAX_NETWORK_MESSAGE_LEN = MAX_UDP_PAYLOAD_SIZE;
+static constexpr const Int MAX_PACKET_SIZE = MAX_UDP_PAYLOAD;
+static constexpr const Int MAX_MESSAGE_LEN = MAX_UDP_PAYLOAD;
 #endif
 
 // TheSuperHackers @bugfix Mauller 08/02/2026 Double send and receive buffer sizes to alleviate the occurance of disconnection issues in retail and non retail code.
@@ -87,7 +99,7 @@ static constexpr const Int MAX_MESSAGES = 256;
  * Command packet - contains frame #, total # of commands, and each command.  This is what gets sent
  * to each player every frame
  */
-static constexpr const Int numCommandsPerCommandPacket = (MAX_NETWORK_MESSAGE_LEN - sizeof(UnsignedInt) - sizeof(UnsignedShort))/sizeof(GameMessage);
+static constexpr const Int numCommandsPerCommandPacket = (MAX_MESSAGE_LEN - sizeof(UnsignedInt) - sizeof(UnsignedShort))/sizeof(GameMessage);
 #pragma pack(push, 1)
 struct CommandPacket
 {
@@ -111,7 +123,7 @@ struct TransportMessage
 	// TheSuperHackers @info This value is not the correct one that should be used here, it should have been max packet size
 	// The non retail max network message len takes the extra bytes of the network message header into account when handling UDP payload data
 	// In retail this only works since no data larger than the retail game packet size is put into a network message
-	UnsignedByte data[MAX_NETWORK_MESSAGE_LEN];
+	UnsignedByte data[MAX_MESSAGE_LEN];
 #else
 	UnsignedByte data[MAX_PACKET_SIZE];
 #endif

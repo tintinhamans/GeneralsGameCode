@@ -109,7 +109,7 @@ static void successQuitCallback()
 
 	// Clean up game data.  No crashy-crash for you!
 	if (TheGameLogic->isInGame())
-		TheGameLogic->exitGame();
+		TheMessageStream->appendMessage( GameMessage::MSG_CLEAR_GAME_DATA );
 }
 
 static void successNoQuitCallback()

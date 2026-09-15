@@ -184,7 +184,6 @@ GameClient::~GameClient()
 	delete TheFontLibrary;
 	TheFontLibrary = nullptr;
 
-	TheMouse->reset();
 	delete TheMouse;
 	TheMouse = nullptr;
 
@@ -568,7 +567,10 @@ void GameClient::update()
 		TheVideoPlayer->UPDATE();
 	}
 
-	const Bool freezeTime = TheGameEngine->isTimeFrozen() || TheGameEngine->isGameHalted();
+	Bool freezeTime = TheTacticalView->isTimeFrozen() && !TheTacticalView->isCameraMovementFinished();
+	freezeTime = freezeTime || TheScriptEngine->isTimeFrozenDebug();
+	freezeTime = freezeTime || TheScriptEngine->isTimeFrozenScript();
+	freezeTime = freezeTime || TheGameLogic->isGamePaused();
 
 	const Int localPlayerIndex = rts::getObservedOrLocalPlayer()->getPlayerIndex();
 

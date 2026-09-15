@@ -318,7 +318,7 @@ void GameStateMap::xfer( Xfer *xfer )
 		if (currentVersion >= 2)
 		{
 			// save the game mode.
-			Int gameMode = (Int)TheGameLogic->getGameMode();
+			Int gameMode = TheGameLogic->getGameMode();
 			xfer->xferInt( &gameMode);
 		}
 

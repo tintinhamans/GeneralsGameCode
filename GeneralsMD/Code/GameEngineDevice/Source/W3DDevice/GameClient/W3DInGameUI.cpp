@@ -50,6 +50,9 @@
 #include "WW3D2/ww3d.h"
 #include "WW3D2/hanim.h"
 
+#include "../OnlineServices_Init.h"
+
+
 #include "Common/UnitTimings.h" //Contains the DO_UNIT_TIMINGS define jba.
 
 

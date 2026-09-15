@@ -47,6 +47,7 @@
 #include "Common/ThingTemplate.h"
 #include "Common/BuildAssistant.h"
 #include "Common/Recorder.h"
+#include "Common/BuildAssistant.h"
 #include "Common/SpecialPower.h"
 
 #include "GameClient/Anim2D.h"
@@ -67,6 +68,7 @@
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/View.h"
 #include "GameClient/TerrainVisual.h"
+#include "GameClient/ControlBar.h"
 #include "GameClient/Display.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/LookAtXlat.h"
@@ -1371,8 +1373,6 @@ void InGameUI::init()
 
 	m_soloNexusSelectedDrawableID = INVALID_DRAWABLE_ID;
 
-	setDrawRMBScrollAnchor(TheGlobalData->m_drawScrollAnchor);
-	setMoveRMBScrollAnchor(TheGlobalData->m_moveScrollAnchor);
 
 }
 
@@ -2007,7 +2007,11 @@ void InGameUI::update()
 //		moneyWin = TheWindowManager->winGetWindowFromId( nullptr, moneyWindowKey );
 //
 //	}  // end if
-	Player* moneyPlayer = TheControlBar->getCurrentlyViewedPlayer();
+	Player *moneyPlayer = NULL;
+	if( TheControlBar->isObserverControlBarOn())
+		moneyPlayer = TheControlBar->getObserverLookAtPlayer();
+	else
+		moneyPlayer = ThePlayerList->getLocalPlayer();
 	if( moneyPlayer)
 	{
 		Money *money = moneyPlayer->getMoney();
@@ -2068,7 +2072,8 @@ void InGameUI::update()
 		layout->runUpdate();
 	}
 
-	if (m_cameraRotatingLeft || m_cameraRotatingRight || m_cameraZoomingIn || m_cameraZoomingOut)
+	//Handle keyboard camera rotations
+	if( m_cameraRotatingLeft && !m_cameraRotatingRight )
 	{
 		// TheSuperHackers @tweak The camera rotation and zoom are now decoupled from the render update.
 		const Real fpsRatio = TheFramePacer->getBaseOverUpdateFpsRatio();
@@ -2092,6 +2097,21 @@ void InGameUI::update()
 		{
 			TheTacticalView->userZoom( +zoomHeight );
 		}
+	}
+	if( m_cameraRotatingRight && !m_cameraRotatingLeft )
+	{
+		//Keyboard rotate right
+		TheTacticalView->setAngle( TheTacticalView->getAngle() + TheGlobalData->m_keyboardCameraRotateSpeed );
+	}
+	if( m_cameraZoomingIn && !m_cameraZoomingOut )
+	{
+		//Keyboard zoom in
+		TheTacticalView->zoomIn();
+	}
+	if( m_cameraZoomingOut && !m_cameraZoomingIn )
+	{
+		//Keyboard zoom out
+		TheTacticalView->zoomOut();
 	}
 
 
@@ -3089,6 +3109,7 @@ void InGameUI::setScrolling( Bool isScrolling )
 
 	if (isScrolling)
 	{
+		TheMouse->capture();
 		setMouseCursor( Mouse::SCROLL );
 
 		// break any camera locks
@@ -3098,6 +3119,7 @@ void InGameUI::setScrolling( Bool isScrolling )
 	else
 	{
 		setMouseCursor( Mouse::ARROW );
+		TheMouse->releaseCapture();
 	}
 
 	m_isScrolling = isScrolling;
@@ -3296,6 +3318,9 @@ void InGameUI::placeBuildAvailable( const ThingTemplate *build, Drawable *buildD
 
 			Drawable *draw;
 
+			// capture the mouse for our window, windows is lame and changes it if we don't
+			TheMouse->capture();
+
 			// hack for changing cursor
 			setMouseCursor( Mouse::CROSS );
 
@@ -3345,6 +3370,7 @@ void InGameUI::placeBuildAvailable( const ThingTemplate *build, Drawable *buildD
 				m_mouseModeCursor = Mouse::ARROW;
 			}
 
+			TheMouse->releaseCapture();
 			setMouseCursor( Mouse::ARROW );
 			setPlacementStart( nullptr );
 
@@ -5873,7 +5899,8 @@ void InGameUI::resetIdleWorker()
 void InGameUI::recreateControlBar()
 {
 	GameWindow *win = TheWindowManager->winGetWindowFromId(nullptr, TheNameKeyGenerator->nameToKey("ControlBar.wnd"));
-	deleteInstance(win);
+	if(win)
+		deleteInstance(win);
 
 	m_idleWorkerWin = nullptr;
 

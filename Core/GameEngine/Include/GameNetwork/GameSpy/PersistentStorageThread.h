@@ -42,6 +42,13 @@ public:
 	void reset();
 
 	Int id;
+
+#if defined(GENERALS_ONLINE) // Extra data added in GO
+	int elo_rating;
+	int monthly_elo_rating;
+	int elo_num_matches;
+#endif
+
 	PerGeneralMap wins;
 	PerGeneralMap losses;
 	PerGeneralMap games;              //first: playerTemplate #,  second: #games played (see also gamesAsRandom)

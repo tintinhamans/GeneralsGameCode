@@ -38,6 +38,8 @@
 #include "GameLogic/AI.h"
 #include "GameLogic/Module/UpdateModule.h"	// needed for DIRECT_UPDATEMODULE_ACCESS
 
+#include "../NextGenMP_defines.h"
+
 /*
 	At one time, we distinguished between sleepy and nonsleepy
 	update modules, and kept a separate list for each. however,
@@ -72,12 +74,12 @@ typedef const CommandButton* ConstCommandButtonPtr;
 enum GameMode CPP_11(: Int)
 {
 	GAME_SINGLE_PLAYER,
-	GAME_LAN,
-	GAME_SKIRMISH,
-	GAME_REPLAY,
-	GAME_SHELL,
-	GAME_INTERNET,
-	GAME_NONE
+		GAME_LAN,
+		GAME_SKIRMISH,
+		GAME_REPLAY,
+		GAME_SHELL,
+		GAME_INTERNET,
+		GAME_NONE
 };
 
 const char* toString(GameMode mode);
@@ -90,7 +92,7 @@ enum
 
 
 /// Function pointers for use by GameLogic callback functions.
-typedef void (*GameLogicFuncPtr)( Object *obj, void *userData );
+typedef void (*GameLogicFuncPtr)(Object* obj, void* userData);
 //typedef std::hash_map<ObjectID, Object *, rts::hash<ObjectID>, rts::equal_to<ObjectID> > ObjectPtrHash;
 //typedef ObjectPtrHash::const_iterator ObjectPtrIter;
 
@@ -116,19 +118,19 @@ public:
 	void preUpdate();
 
 #if defined(RTS_DEBUG)
-	Int getNumberSleepyUpdates() const {return m_sleepyUpdates.size();} //For profiling, so not in Release.
+	Int getNumberSleepyUpdates() const { return m_sleepyUpdates.size(); } //For profiling, so not in Release.
 #endif
-	void processCommandList( CommandList *list );		///< process the command list
+	void processCommandList(CommandList* list);		///< process the command list
 
-	void prepareNewGame( GameMode gameMode, GameDifficulty diff, Int rankPoints );						///< prepare for new game
+	void prepareNewGame(GameMode gameMode, GameDifficulty diff, Int rankPoints);						///< prepare for new game
 
-	void logicMessageDispatcher( GameMessage *msg,
-																			 void *userData );	///< Logic command list processing
+	void logicMessageDispatcher(GameMessage* msg,
+		void* userData);	///< Logic command list processing
 
-	void registerObject( Object *obj );							///< Given an object, register it with the GameLogic and give it a unique ID
+	void registerObject(Object* obj);							///< Given an object, register it with the GameLogic and give it a unique ID
 
-	void addObjectToLookupTable( Object *obj );			///< add object ID to hash lookup table
-	void removeObjectFromLookupTable( Object *obj );///< remove object ID from hash lookup table
+	void addObjectToLookupTable(Object* obj);			///< add object ID to hash lookup table
+	void removeObjectFromLookupTable(Object* obj);///< remove object ID from hash lookup table
 
 	/// @todo Change this to refer to a Region3D as an extent of the world
 	void setWidth( Real width );										///< Sets the width of the world
@@ -143,6 +145,13 @@ public:
 
 	void setObjectIDCounter( ObjectID nextObjID ) { m_nextObjID = nextObjID; }
 	ObjectID getObjectIDCounter() { return m_nextObjID; }
+
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	UnsignedInt getFrameLegacy(void);
+	UnsignedInt getFrameLegacyLast(void);
+	bool HasLegacyFrameAdvanced(void);
+#endif
+
 
 	//-----------------------------------------------------------------------------------------------
 	void setBuildableStatusOverride(const ThingTemplate* tt, BuildableStatus bs);
@@ -160,17 +169,17 @@ public:
 	ObjectID allocateObjectID();							///< Returns a new unique object id
 
 	// super hack
-	void startNewGame( Bool loadSaveGame );
-	void loadMapINI( AsciiString mapName );
+	void startNewGame(Bool loadSaveGame);
+	void loadMapINI(AsciiString mapName);
 
 	void updateLoadProgress( Int progress );
 	void deleteLoadScreen();
 
 	//Kris: Cut setGameLoading() and replaced with setLoadingMap() and setLoadingSave() -- reason: nomenclature
 	//void setGameLoading( Bool loading ) { m_loadingScene = loading; }
-	void setLoadingMap( Bool loading ) { m_loadingMap = loading; }
-	void setLoadingSave( Bool loading ) { m_loadingSave = loading; }
-	void setClearingGameData( Bool clearing ) { m_clearingGameData = clearing; }
+	void setLoadingMap(Bool loading) { m_loadingMap = loading; }
+	void setLoadingSave(Bool loading) { m_loadingSave = loading; }
+	void setClearingGameData(Bool clearing) { m_clearingGameData = clearing; }
 
 	void setGameMode( GameMode mode );
 	GameMode getGameMode();
@@ -218,12 +227,12 @@ public:
 	void clearGameData(Bool showScoreScreen = TRUE);														///< Clear the game data
 	void closeWindows();
 
-	void sendObjectCreated( Object *obj );
-	void sendObjectDestroyed( Object *obj );
+	void sendObjectCreated(Object* obj);
+	void sendObjectDestroyed(Object* obj);
 
 	void bindObjectAndDrawable(Object* obj, Drawable* draw);
 
-	void setGamePausedInFrame( UnsignedInt frame, Bool disableLogicTimeScale );
+	void setGamePausedInFrame(UnsignedInt frame, Bool disableLogicTimeScale);
 	UnsignedInt getGamePauseFrame() const { return m_pauseFrame; }
 	void setGamePaused( Bool paused, Bool pauseMusic = TRUE, Bool pauseInput = TRUE );
 	Bool isGamePaused();
@@ -236,6 +245,9 @@ public:
 	void initTimeOutValues();
 	UnsignedInt getObjectCount();
 
+#if defined(GENERALS_ONLINE)
+	bool IsLoadScreenActive() const { return m_loadScreen != nullptr; }
+#endif
 	Int getRankLevelLimit() const { return m_rankLevelLimit; }
 	void setRankLevelLimit(Int limit)
 	{
@@ -250,7 +262,7 @@ public:
   void setSuperweaponRestriction();
 
 #ifdef DUMP_PERF_STATS
-	void getAIMetricsStatistics( UnsignedInt *numAI, UnsignedInt *numMoving, UnsignedInt *numAttacking, UnsignedInt *numWaitingForPath, UnsignedInt *overallFailedPathfinds );
+	void getAIMetricsStatistics(UnsignedInt* numAI, UnsignedInt* numMoving, UnsignedInt* numAttacking, UnsignedInt* numWaitingForPath, UnsignedInt* overallFailedPathfinds);
 	void resetOverallFailedPathfinds() { m_overallFailedPathfinds = 0; }
 	void incrementOverallFailedPathfinds() { m_overallFailedPathfinds++; }
 	UnsignedInt getOverallFailedPathfinds() const { return m_overallFailedPathfinds; }
@@ -259,8 +271,8 @@ public:
 	// NOTE: selectObject and deselectObject should be called *only* by logical things, NEVER by the
 	// client. These will cause the client to select or deselect the object, if affectClient is true.
 	// If createToSelection is TRUE, this object causes a new group to be selected.
-	void selectObject(Object *obj, Bool createNewSelection, PlayerMaskType playerMask, Bool affectClient = FALSE);
-	void deselectObject(Object *obj, PlayerMaskType playerMask, Bool affectClient = FALSE);
+	void selectObject(Object* obj, Bool createNewSelection, PlayerMaskType playerMask, Bool affectClient = FALSE);
+	void deselectObject(Object* obj, PlayerMaskType playerMask, Bool affectClient = FALSE);
 
 	// this should be called only by UpdateModule, thanks.
 	void friend_awakenUpdateModule(Object* obj, UpdateModulePtr update, UnsignedInt whenToWakeUp);
@@ -387,6 +399,10 @@ private:
 
 	Real m_width, m_height;																	///< Dimensions of the world
 	UnsignedInt m_frame;																		///< Simulation frame number
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	UnsignedInt m_frameLegacy;
+	UnsignedInt m_frameLegacyLast;
+#endif
 
 	// CRC cache system -----------------------------------------------------------------------------
 	UnsignedInt	m_CRC;																			///< Cache of previous CRC value
@@ -413,10 +429,10 @@ private:
 
 	/// @todo remove this hack
 	Bool m_startNewGame;
-	WindowLayout *m_background;
+	WindowLayout* m_background;
 
 	Object* m_objList;																			///< All of the objects in the world.
-//	ObjectPtrHash m_objHash;																///< Used for ObjectID lookups
+	//	ObjectPtrHash m_objHash;																///< Used for ObjectID lookups
 	ObjectPtrVector m_objVector;
 
 	// this is a vector, but is maintained as a priority queue.
@@ -436,7 +452,8 @@ private:
 
 	ObjectID m_nextObjID;																		///< For allocating object id's
 
-	void processDestroyList();												///< Destroy all pending objects on the destroy list
+	void setDefaults(Bool loadSaveGame);									///< Set default values of class object
+	void processDestroyList(void);												///< Destroy all pending objects on the destroy list
 
 	void destroyAllObjectsImmediate();											///< destroy, and process destroy list immediately
 
@@ -446,10 +463,10 @@ private:
 
 	GameMode m_gameMode;
 	Int m_rankLevelLimit;
-  UnsignedShort m_superweaponRestriction;
+	UnsignedShort m_superweaponRestriction;
 
-	LoadScreen *getLoadScreen( Bool loadSaveGame );
-	LoadScreen *m_loadScreen;
+	LoadScreen* getLoadScreen(Bool loadSaveGame);
+	LoadScreen* m_loadScreen;
 
 	UnsignedInt m_pauseFrame;
 	Bool m_gamePaused;
@@ -461,7 +478,16 @@ private:
 	Bool m_logicTimeScaleEnabledMemory;
 
 	Bool m_progressComplete[MAX_SLOTS];
+#if defined(GENERALS_ONLINE)
+	Int m_progressMade[MAX_SLOTS];
+#endif
+
+#if defined(GENERALS_ONLINE)
+	enum { PROGRESS_COMPLETE_TIMEOUT_PROGRESS_MADE = 30000 };							///< Timeout we wait for when we've completed our Load, if they made SOME progress
+	enum { PROGRESS_COMPLETE_TIMEOUT_ZERO_PROGRESS_MADE = 5000 };							///< Timeout we wait for when we've completed our Load, when they made zero progress
+#else
 	enum { PROGRESS_COMPLETE_TIMEOUT = 60000 };							///< Timeout we wait for when we've completed our Load
+#endif
 	Int m_progressCompleteTimeout[MAX_SLOTS];
 	void testTimeOut();
 	void lastHeardFrom( Int playerId );
@@ -502,6 +528,12 @@ inline GameMode GameLogic::getGameMode() { return m_gameMode; }
 inline Bool GameLogic::isInLanGame() { return (m_gameMode == GAME_LAN); }
 inline Bool GameLogic::isInSkirmishGame() { return (m_gameMode == GAME_SKIRMISH); }
 inline Bool GameLogic::isInMultiplayerGame() { return (m_gameMode == GAME_LAN) || (m_gameMode == GAME_INTERNET) ; }
+
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+inline UnsignedInt GameLogic::getFrameLegacy(void) { return m_frameLegacy; }
+inline UnsignedInt GameLogic::getFrameLegacyLast(void) { return m_frameLegacyLast; }
+inline bool GameLogic::HasLegacyFrameAdvanced(void) { return m_frameLegacy != m_frameLegacyLast; }
+#endif
 inline Bool GameLogic::isInInteractiveGame() const { return isInInteractiveGame(m_gameMode); }
 inline Bool GameLogic::isInReplayGame() { return (m_gameMode == GAME_REPLAY); }
 inline Bool GameLogic::isInInternetGame() { return (m_gameMode == GAME_INTERNET); }
@@ -519,12 +551,18 @@ inline Object* GameLogic::findObjectByID( ObjectID id )
 //
 //	return (*it).second;
 	if( (size_t)id < m_objVector.size() )
+	//	ObjectPtrHash::iterator it = m_objHash.find(id);
+	//	if (it == m_objHash.end())
+	//		return NULL;
+	//
+	//	return (*it).second;
+	if ((size_t)id < m_objVector.size())
 		return m_objVector[(size_t)id];
 
-	return nullptr;
+	return NULL;
 }
 
 
 
 // the singleton
-extern GameLogic *TheGameLogic;
+extern GameLogic* TheGameLogic;

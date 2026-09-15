@@ -44,20 +44,38 @@
 #define PRESERVE_NO_XP_FROM_OCL_KILLS (1)
 #endif
 
-#ifndef PRESERVE_NO_XP_FROM_POISON_KILLS
-#define PRESERVE_NO_XP_FROM_POISON_KILLS (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
+#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES) // COMMUNITY PATCH CHANGE
+	#ifndef PRESERVE_NO_XP_FROM_POISON_KILLS
+	#define PRESERVE_NO_XP_FROM_POISON_KILLS (0)
+	#endif
+#else
+	#ifndef PRESERVE_NO_XP_FROM_POISON_KILLS
+	#define PRESERVE_NO_XP_FROM_POISON_KILLS (1)
+	#endif
 #endif
 
-#ifndef PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION
-#define PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
+#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES) // COMMUNITY PATCH CHANGE
+	#ifndef PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION
+	#define PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION (0)
+	#endif
+#else
+	#ifndef PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION
+	#define PRESERVE_OCCUPANT_DETECTION_VIA_DRAG_SELECTION (1)
+	#endif
 #endif
 
 #ifndef PRESERVE_PERPETUAL_HORDE_BONUS
 #define PRESERVE_PERPETUAL_HORDE_BONUS (1)
 #endif
 
-#ifndef PRESERVE_PREMATURE_BATTLE_BUS_DEATH
-#define PRESERVE_PREMATURE_BATTLE_BUS_DEATH (0) // The fix for this unfavorable behavior was approved by the Game Design Committee.
+#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES) // COMMUNITY PATCH CHANGE
+	#ifndef PRESERVE_PREMATURE_BATTLE_BUS_DEATH
+	#define PRESERVE_PREMATURE_BATTLE_BUS_DEATH (0)
+	#endif
+#else
+	#ifndef PRESERVE_PREMATURE_BATTLE_BUS_DEATH
+	#define PRESERVE_PREMATURE_BATTLE_BUS_DEATH (1)
+	#endif
 #endif
 
 #ifndef PRESERVE_RADAR_WARNING_SUPPRESSION
@@ -100,30 +118,39 @@
 // Use RETAIL_COMPATIBLE_CRC and RETAIL_COMPATIBLE_XFER_SAVE to guard breaking changes.
 
 #ifndef RETAIL_COMPATIBLE_CRC
+#if defined(GENERALS_ONLINE)
+#define RETAIL_COMPATIBLE_CRC (0)
+#else
 #define RETAIL_COMPATIBLE_CRC (1) // Game is expected to be CRC compatible with retail Generals 1.08, Zero Hour 1.04
+#endif
 #endif
 
 #ifndef RETAIL_COMPATIBLE_XFER_SAVE
+#if defined(GENERALS_ONLINE)
+#define RETAIL_COMPATIBLE_XFER_SAVE (0)
+#else
 #define RETAIL_COMPATIBLE_XFER_SAVE (1) // Game is expected to be Xfer Save compatible with retail Generals 1.08, Zero Hour 1.04
 #endif
-
-// This is here to easily toggle between the retail compatible with fixed pathfinding fallback and pure fixed pathfinding mode
-#ifndef RETAIL_COMPATIBLE_PATHFINDING
-#define RETAIL_COMPATIBLE_PATHFINDING (1)
 #endif
 
 // This is here to easily toggle between the retail compatible pathfinding memory allocation and the new static allocated data mode
 #ifndef RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION
+#if defined(GENERALS_ONLINE)
+#define RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION (0)
+#else
 #define RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION (1)
 #endif
-
-#ifndef RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM
-#define RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM (1) // Use the original circle fill algorithm, which is more efficient but less accurate
 #endif
 
 // Disable non retail fixes in the networking, such as putting more data per UDP packet
 #ifndef RETAIL_COMPATIBLE_NETWORKING
+#if !defined(GENERALS_ONLINE)
 #define RETAIL_COMPATIBLE_NETWORKING (1)
+#endif
+#endif
+
+#ifndef RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM
+#define RETAIL_COMPATIBLE_CIRCLE_FILL_ALGORITHM (1) // Use the original circle fill algorithm, which is more efficient but less accurate
 #endif
 
 // This is essentially synonymous for RETAIL_COMPATIBLE_CRC. There is a lot wrong with AIGroup, such as use-after-free, double-free, leaks,
@@ -131,7 +158,11 @@
 // but put them behind this macro.
 
 #ifndef RETAIL_COMPATIBLE_AIGROUP
+#if defined(GENERALS_ONLINE)
+#define RETAIL_COMPATIBLE_AIGROUP (0)
+#else
 #define RETAIL_COMPATIBLE_AIGROUP (1) // AIGroup logic is expected to be CRC compatible with retail Generals 1.08, Zero Hour 1.04
+#endif
 #endif
 
 #ifndef ENABLE_GAMETEXT_SUBSTITUTES

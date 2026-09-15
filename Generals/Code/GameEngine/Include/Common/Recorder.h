@@ -27,8 +27,6 @@
 #include "Common/MessageStream.h"
 #include "GameNetwork/GameInfo.h"
 
-class File;
-
 /**
   * The ReplayGameInfo class holds information about the replay game and
 	* the contents of its slot list for reconstructing multiplayer games.

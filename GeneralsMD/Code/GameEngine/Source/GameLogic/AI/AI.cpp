@@ -63,7 +63,8 @@ void TAiData::addFactionBuildList(AISideBuildList *buildList)
 	AISideBuildList *info = m_sideBuildLists;
 	while (info) {
 		if (buildList->m_side == info->m_side) {
-			deleteInstance(info->m_buildList);
+			if (info->m_buildList)
+				deleteInstance(info->m_buildList);
 			info->m_buildList = buildList->m_buildList;
 			buildList->m_buildList = nullptr;
 			buildList->m_next = nullptr;
@@ -108,7 +109,9 @@ AISideBuildList::AISideBuildList( AsciiString side ) :
 
 AISideBuildList::~AISideBuildList()
 {
-	deleteInstance(m_buildList); // note - deletes all in the list.
+	if (m_buildList) {
+		deleteInstance(m_buildList); // note - deletes all in the list.
+	}
 	m_buildList = nullptr;
 }
 
@@ -356,7 +359,14 @@ void AI::reset()
 void AI::update()
 {
 	// Do pathfinding.
-	m_pathfinder->processPathfindQueue();
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	if (TheGameLogic->HasLegacyFrameAdvanced())
+	{
+#endif
+		m_pathfinder->processPathfindQueue();
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	}
+#endif
 
 	// run player updates
 	{

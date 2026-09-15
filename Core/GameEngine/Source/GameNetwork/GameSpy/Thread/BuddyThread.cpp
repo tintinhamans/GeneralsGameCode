@@ -38,6 +38,7 @@
 
 #include "WWLib/mutex.h"
 #include "WWLib/thread.h"
+#include "Common/StackDump.h"
 
 
 //-------------------------------------------------------------------------
@@ -258,6 +259,7 @@ GPProfile GameSpyBuddyMessageQueue::getLocalProfileID()
 void BuddyThreadClass::Thread_Function()
 {
 	try {
+	_set_se_translator( DumpExceptionInfo ); // Hook that allows stack trace.
 	GPConnection gpCon;
 	GPConnection *con = &gpCon;
 #if RTS_GENERALS

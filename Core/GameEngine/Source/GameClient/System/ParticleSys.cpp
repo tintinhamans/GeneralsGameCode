@@ -298,7 +298,16 @@ Particle::Particle( ParticleSystem *system, const ParticleInfo *info )
 
 	m_lifetime = info->m_lifetime;
 	m_lifetimeLeft = info->m_lifetime;
+	
+#if defined(GENERALS_ONLINE_RUN_FAST)
+	m_createTimestamp = TheGameLogic->getFrame();
+#else
+#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+	m_createTimestamp = TheGameClient->getFrameLegacy();
+#else
 	m_createTimestamp = TheGameClient->getFrame();
+#endif
+#endif
 	m_personality = 0;
 
 	m_size = info->m_size;
@@ -430,7 +439,16 @@ Bool Particle::update()
 
 		if (m_alphaTargetKey < MAX_KEYFRAMES && m_alphaKey[ m_alphaTargetKey ].frame)
 		{
-			if (TheGameClient->getFrame() - m_createTimestamp >= m_alphaKey[ m_alphaTargetKey ].frame)
+
+#if defined(GENERALS_ONLINE_RUN_FAST)
+			if (TheGameLogic->getFrame() - m_createTimestamp >= m_alphaKey[ m_alphaTargetKey ].frame)
+#else
+#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+			if (TheGameClient->getFrameLegacy() - m_createTimestamp >= m_alphaKey[m_alphaTargetKey].frame)
+#else
+			if (TheGameClient->getFrame() - m_createTimestamp >= m_alphaKey[m_alphaTargetKey].frame)
+#endif
+#endif
 			{
 				m_alpha = m_alphaKey[ m_alphaTargetKey ].value;
 				m_alphaTargetKey++;
@@ -456,7 +474,16 @@ Bool Particle::update()
 
 	if (m_colorTargetKey < MAX_KEYFRAMES && m_colorKey[ m_colorTargetKey ].frame)
 	{
-		if (TheGameClient->getFrame() - m_createTimestamp >= m_colorKey[ m_colorTargetKey ].frame)
+
+#if defined(GENERALS_ONLINE_RUN_FAST)
+		if (TheGameLogic->getFrame() - m_createTimestamp >= m_colorKey[ m_colorTargetKey ].frame)
+#else
+#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+		if (TheGameClient->getFrameLegacy() - m_createTimestamp >= m_colorKey[m_colorTargetKey].frame)
+#else
+		if (TheGameClient->getFrame() - m_createTimestamp >= m_colorKey[m_colorTargetKey].frame)
+#endif
+#endif
 		{
 			// can't set, because of colorscale
 			// m_color = m_colorKey[ m_colorTargetKey ].color;
@@ -744,6 +771,11 @@ void Particle::loadPostProcess()
 
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// ------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1153,7 +1185,15 @@ ParticleSystem::ParticleSystem( const ParticleSystemTemplate *sysTemplate,
 
 	m_delayLeft = (UnsignedInt)sysTemplate->m_initialDelay.getValue();
 
+#if defined(GENERALS_ONLINE_RUN_FAST)
+	m_startTimestamp = TheGameLogic->getFrame();
+#else
+#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+	m_startTimestamp = TheGameClient->getFrameLegacy();
+#else
 	m_startTimestamp = TheGameClient->getFrame();
+#endif
+#endif
 	m_systemLifetimeLeft = sysTemplate->m_systemLifetime;
 	if (sysTemplate->m_systemLifetime)
 		m_isForever = false;
@@ -1412,7 +1452,16 @@ void ParticleSystem::rotateLocalTransformZ( Real z )
 void ParticleSystem::attachToDrawable( const Drawable *draw )
 {
 	if (draw)
+	{
 		m_attachedToDrawableID = draw->getID();
+
+#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+		// Info: One-frame attached systems can otherwise lose their only burst when the drawable is created and destroyed
+		// between legacy particle updates at 60Hz.
+		if (m_systemLifetimeLeft == 1 && m_delayLeft == 0 && getParticleCount() == 0)
+			update(0);
+#endif
+	}
 	else
 		m_attachedToDrawableID = INVALID_DRAWABLE_ID;
 }
@@ -1927,7 +1976,15 @@ Bool ParticleSystem::update( Int localPlayerIndex  )
 		// system actually "starts" once initial delay is over
 		/// @todo reset start time when system is stopped/started
 		if (m_delayLeft == 0)
+#if defined(GENERALS_ONLINE_RUN_FAST)
+			m_startTimestamp = TheGameLogic->getFrame();
+#else
+#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+			m_startTimestamp = TheGameClient->getFrameLegacy();
+#else
 			m_startTimestamp = TheGameClient->getFrame();
+#endif
+#endif
 
 		return true;
 	}
@@ -3038,12 +3095,19 @@ void ParticleSystemManager::reset()
 //DECLARE_PERF_TIMER(ParticleSystemManager)
 void ParticleSystemManager::update()
 {
-	if (m_lastLogicFrameUpdate == TheGameLogic->getFrame()) {
+#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+	if (!TheGameClient->HasLegacyFrameAdvanced()) {
 		return;
 	}
+#endif
 
 	// update the last logic frame.
-	m_lastLogicFrameUpdate = TheGameLogic->getFrame();
+#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+	m_lastLogicFrameUpdate = TheGameClient->getFrameLegacy();
+#else
+	m_lastLogicFrameUpdate = TheGameClient->getFrame();
+#endif
+
 
 	//USE_PERF_TIMER(ParticleSystemManager)
 	ParticleSystemListIt it = m_allParticleSystemList.begin();

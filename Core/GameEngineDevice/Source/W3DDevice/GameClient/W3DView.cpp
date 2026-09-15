@@ -103,6 +103,11 @@ static const Real DRAWABLE_OVERSCAN = 75.0f;  ///< 3D world coords of how much t
 
 constexpr const Real NearZ = MAP_XY_FACTOR; ///< Set the near to MAP_XY_FACTOR. Improves z buffer resolution.
 
+#if defined(GENERALS_ONLINE)
+#include "GameNetwork/GeneralsOnline/OnlineServices_Init.h"
+class NGMP_OnlineServices_LobbyInterface;
+#endif
+
 //=================================================================================================
 inline Real minf(Real a, Real b) { if (a < b) return a; else return b; }
 inline Real maxf(Real a, Real b) { if (a > b) return a; else return b; }
@@ -2231,12 +2236,43 @@ void W3DView::setPitchToDefault()
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
+#if defined(GENERALS_ONLINE)
+void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight, bool bForceDefaultCam)
+#else
 void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
+#endif
 {
 	// MDC - we no longer want to rotate maps (design made all of them right to begin with)
 	//	m_defaultAngle = angle * M_PI/180.0f;
 	setDefaultPitch(pitch);
-	m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight*maxHeight;
+
+    // TODO_NGMP: Better way of doing this
+#if defined(GENERALS_ONLINE)
+    if (bForceDefaultCam)
+    {
+        // safety for shellmap, etc
+        TheWritableGlobalData->m_minCameraHeight = 120.f;
+        TheWritableGlobalData->m_maxCameraHeight = 310.f;
+    }
+    else
+    {
+        TheWritableGlobalData->m_minCameraHeight = NGMP_OnlineServicesManager::Settings.Camera_GetMinHeight();
+        TheWritableGlobalData->m_maxCameraHeight = NGMP_OnlineServicesManager::Settings.DetermineCameraMaxHeight();
+    }
+
+#endif
+
+#if defined(GENERALS_ONLINE)
+    Real baseAspectRatio = 800.0f / 600.0f;
+    Real currentAspectRatio = (float)TheDisplay->getWidth() / (float)TheDisplay->getHeight();
+    Real aspectWidthScale = fabs((1 + (currentAspectRatio - baseAspectRatio)));
+
+    m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight * maxHeight * aspectWidthScale;
+#else
+    m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight * maxHeight;
+#endif
+
+	//m_maxHeightAboveGround = TheGlobalData->m_maxCameraHeight*maxHeight;
 	if (m_minHeightAboveGround > m_maxHeightAboveGround)
 		m_maxHeightAboveGround = m_minHeightAboveGround;
 }
@@ -2245,6 +2281,14 @@ void W3DView::setDefaultView(Real pitch, Real angle, Real maxHeight)
 //-------------------------------------------------------------------------------------------------
 void W3DView::setHeightAboveGround(Real z)
 {
+#if defined(GENERALS_ONLINE)
+	if (ThePlayerList && ThePlayerList->getLocalPlayer() && ThePlayerList->getLocalPlayer()->isPlayerObserver())
+	{
+		const Real cameraHeightForReset = 500.0f;
+		m_maxHeightAboveGround = z > cameraHeightForReset ? (float)GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM : cameraHeightForReset;
+	}
+#endif
+
 	View::setHeightAboveGround(z);
 
 	stopDoingScriptedCamera();

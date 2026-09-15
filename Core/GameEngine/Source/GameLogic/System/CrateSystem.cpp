@@ -47,7 +47,10 @@ CrateSystem::~CrateSystem()
 	for( Int templateIndex = 0; templateIndex < count; templateIndex ++ )
 	{
 		CrateTemplate *currentTemplate = m_crateTemplateVector[templateIndex];
-		deleteInstance(currentTemplate);
+		if( currentTemplate )
+		{
+			deleteInstance(currentTemplate);
+		}
 	}
 	m_crateTemplateVector.clear();
 }

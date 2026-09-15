@@ -51,6 +51,7 @@
 #include "Common/StatsCollector.h"
 #include "Common/ThingTemplate.h"
 #include "Common/GameLOD.h"
+#include "Common/OptionPreferences.h"
 
 #include "GameClient/InGameUI.h"
 #include "GameClient/CommandXlat.h"
@@ -90,6 +91,7 @@
 #include "GameNetwork/GameSpy/BuddyThread.h"
 
 #include "WW3D2/ww3d.h"
+#include "../OnlineServices_Init.h"
 
 #if defined(RTS_DEBUG)
 /*non-static*/ Real TheSkateDistOverride = 0.0f;
@@ -179,6 +181,75 @@ Bool hasThingsInProduction(PlayerType playerType)
 
 #endif // defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
 
+enum ObserverFontSizeChange
+{
+	ObserverFontSizeChange_Increase,
+	ObserverFontSizeChange_Decrease,
+};
+
+static const Int ObserverFontSizeMin = 0;
+static const Int ObserverFontSizeMax = 15;
+
+static Int applyObserverFontSizeChange(Int fontSize, ObserverFontSizeChange change)
+{
+	switch (change)
+	{
+		case ObserverFontSizeChange_Increase:
+			if (fontSize < ObserverFontSizeMax)
+				++fontSize;
+			break;
+
+		case ObserverFontSizeChange_Decrease:
+			if (fontSize > ObserverFontSizeMin)
+				--fontSize;
+			break;
+	}
+
+	return fontSize;
+}
+
+static void writeObserverFontSizePref(const char* prefKey, Int fontSize)
+{
+	OptionPreferences optPref;
+	AsciiString prefString;
+	prefString.format("%d", fontSize);
+	optPref[prefKey] = prefString;
+	optPref.write();
+}
+
+static bool changeObserverNotificationFontSize(ObserverFontSizeChange change)
+{
+	const Int fontSize = applyObserverFontSizeChange(TheWritableGlobalData->m_observerNotificationFontSize, change);
+
+	if (fontSize == TheWritableGlobalData->m_observerNotificationFontSize)
+		return false;
+
+	TheWritableGlobalData->m_observerNotificationFontSize = fontSize;
+
+	if (TheInGameUI)
+		TheInGameUI->refreshObserverNotificationResources();
+
+	writeObserverFontSizePref("ObserverNotificationFontSize", fontSize);
+
+	return true;
+}
+
+static bool changeObserverStatsFontSize(ObserverFontSizeChange change)
+{
+	const Int fontSize = applyObserverFontSizeChange(TheWritableGlobalData->m_observerStatsFontSize, change);
+
+	if (fontSize == TheWritableGlobalData->m_observerStatsFontSize)
+		return false;
+
+	TheWritableGlobalData->m_observerStatsFontSize = fontSize;
+
+	if (TheInGameUI)
+		TheInGameUI->initObserverOverlay();
+
+	writeObserverFontSizePref("ObserverStatsFontSize", fontSize);
+
+	return true;
+}
 
 bool changeMaxRenderFps(FpsValueChange change)
 {
@@ -187,6 +258,12 @@ bool changeMaxRenderFps(FpsValueChange change)
 
 	TheFramePacer->setFramesPerSecondLimit(maxRenderFps);
 	TheWritableGlobalData->m_useFpsLimit = (maxRenderFps != RenderFpsPreset::UncappedFpsValue);
+
+#if defined(GENERALS_ONLINE)
+    // Save to GO settings, SH does not save it yet
+    // TODO_NGMP: Remove this, SH saves it now
+    NGMP_OnlineServicesManager::Settings.Graphics_SetFPS(maxRenderFps, TheWritableGlobalData->m_useFpsLimit);
+#endif
 
 	UnicodeString message;
 
@@ -3338,6 +3415,46 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		}
 
 		//-----------------------------------------------------------------------------------------
+		case GameMessage::MSG_META_INCREASE_OBSERVER_NOTIFICATION_FONT:
+		{
+			if (changeObserverNotificationFontSize(ObserverFontSizeChange_Increase))
+			{
+				disp = DESTROY_MESSAGE;
+			}
+			break;
+		}
+
+		//-----------------------------------------------------------------------------------------
+		case GameMessage::MSG_META_DECREASE_OBSERVER_NOTIFICATION_FONT:
+		{
+			if (changeObserverNotificationFontSize(ObserverFontSizeChange_Decrease))
+			{
+				disp = DESTROY_MESSAGE;
+			}
+			break;
+		}
+
+		//-----------------------------------------------------------------------------------------
+		case GameMessage::MSG_META_INCREASE_OBSERVER_STATS_FONT:
+		{
+			if (changeObserverStatsFontSize(ObserverFontSizeChange_Increase))
+			{
+				disp = DESTROY_MESSAGE;
+			}
+			break;
+		}
+
+		//-----------------------------------------------------------------------------------------
+		case GameMessage::MSG_META_DECREASE_OBSERVER_STATS_FONT:
+		{
+			if (changeObserverStatsFontSize(ObserverFontSizeChange_Decrease))
+			{
+				disp = DESTROY_MESSAGE;
+			}
+			break;
+		}
+
+		//-----------------------------------------------------------------------------------------
 		case GameMessage::MSG_META_INCREASE_LOGIC_TIME_SCALE:
 		{
 			if (changeLogicTimeScale(FpsValueChange_Increase))
@@ -3428,6 +3545,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				}
 
 				ToggleControlBar();
+				TheInGameUI->toggleObserverStats();
 			}
 			disp = DESTROY_MESSAGE;
 			break;
@@ -3849,6 +3967,42 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			m_teamExists = true;
 			break;
 		}
+
+#if defined(GENERALS_ONLINE)
+        case GameMessage::MSG_RAW_KEY_UP:
+        {
+            int key = msg->getArgument(0)->integer;
+
+            if (key == KEY_F11)
+            {
+                if (TheDisplay)
+                    TheDisplay->takeScreenShot(SCREENSHOT_JPEG, TheGlobalData->m_jpegQuality);
+
+                disp = DESTROY_MESSAGE;
+            }
+            else if (key == KEY_F10)
+            {
+                NGMP_OnlineServicesManager::ToggleAdvancedNetworkStats();
+
+                disp = DESTROY_MESSAGE;
+            }
+            else if (key == KEY_F5 || key == KEY_INS)
+            {
+                if (GameSpyIsOverlayOpen(GSOVERLAY_BUDDY))
+                {
+                    GameSpyCloseOverlay(GSOVERLAY_BUDDY);
+                }
+                else
+                {
+                    GameSpyOpenOverlay(GSOVERLAY_BUDDY);
+                }
+
+                disp = DESTROY_MESSAGE;
+            }
+
+            break;
+        }
+#endif
 
 		// --------------------------------------------------------------------------------------------
 		case GameMessage::MSG_CREATE_SELECTED_GROUP_NO_SOUND:

@@ -328,7 +328,8 @@ TurretAI::~TurretAI()
 {
 	stopRotOrPitchSound();
 
-	deleteInstance(m_turretStateMachine);
+	if (m_turretStateMachine)
+		deleteInstance(m_turretStateMachine);
 }
 
 // ------------------------------------------------------------------------------------------------

@@ -6,7 +6,7 @@ trim_trailing_whitespace = true
 
 [{*.h,*.cpp,*.inl}]
 indent_style = unset
-indent_size = 2
+indent_size = 4
 
 [{CMakeLists.txt,*.cmake,*.py}]
 indent_style = spaces

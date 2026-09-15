@@ -61,13 +61,20 @@ class CommandLineData
 	friend class CommandLine;
 	friend class GlobalData;
 
+public:
+	Bool isCommunityDataPatchDisabled() const { return m_disableCommunityDataPatch; }
+	void disableCommunityDataPatch() { m_disableCommunityDataPatch = true; }
+
+private:
 	CommandLineData()
 		: m_hasParsedCommandLineForStartup(false)
 		, m_hasParsedCommandLineForEngineInit(false)
+		, m_disableCommunityDataPatch(false)
 	{}
 
 	Bool m_hasParsedCommandLineForStartup;
 	Bool m_hasParsedCommandLineForEngineInit;
+	Bool m_disableCommunityDataPatch;
 	BoolVector m_parsedArguments;
 };
 
@@ -123,6 +130,12 @@ public:
 	// TheSuperHackers @feature helmutbuhler 11/04/2025
 	// Run game without graphics, input or audio.
 	Bool m_headless;
+
+	// Export game stats as JSON alongside replay file.
+	Bool m_exportStats;
+
+	// URL to POST compressed stats JSON after export.
+	AsciiString m_statsUrl;
 
 	Bool m_windowed;
 	Int m_xResolution;
@@ -403,8 +416,11 @@ public:
 																			 smaller area within the rectangle to order the gather. */
 
 	UnsignedInt m_antiAliasLevel;          ///< value of selected antialias level in the game options
+
+#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 	UnsignedInt m_textureFilteringMode;       ///< value related to TextureFilterClass::TextureFilterModeEnum
 	UnsignedInt m_textureAnisotropyLevel;     ///< value related to TextureFilterClass::AnisotropicFilterMode
+#endif
 
 	Bool m_languageFilterPref;        ///< Bool if user wants to filter language
 	Bool m_loadScreenDemo;						///< Bool if true, run the loadscreen demo movie
@@ -433,6 +449,14 @@ public:
 	// TheSuperHackers @feature bobtista 28/06/2026 user-configurable speed multiplier for game window transitions
 	Real m_gameWindowTransitionSpeedMultiplier;
 
+	// Generals Online @feature 11/01/2026 allow the observer stats font size to be set, a size of zero disables it
+	Int m_observerStatsFontSize;
+
+	// Generals Online @feature 16/1/2025 allow the observer notification font size to be set, a size of zero disables it
+	Int m_observerNotificationFontSize;
+	Bool m_observerNotificationSpecialPowerUsage;
+	Bool m_observerNotificationSpecialPowerPurchase;
+	Bool m_observerNotificationMilestone;
 	Real m_shakeSubtleIntensity;			///< Intensity for shaking a camera with SHAKE_SUBTLE
 	Real m_shakeNormalIntensity;			///< Intensity for shaking a camera with SHAKE_NORMAL
 	Real m_shakeStrongIntensity;			///< Intensity for shaking a camera with SHAKE_STRONG

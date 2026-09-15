@@ -122,3 +122,4 @@ inline Color GadgetTextEntryGetHiliteColor( GameWindow *g )								{ return g->w
 inline Color GadgetTextEntryGetHiliteBorderColor( GameWindow *g )					{ return g->winGetHiliteBorderColor( 0 ); }
 
 // EXTERNALS //////////////////////////////////////////////////////////////////
+

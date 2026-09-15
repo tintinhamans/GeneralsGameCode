@@ -94,12 +94,12 @@ typedef UnsignedByte FileInstance;
 #endif
 
 #ifdef LOAD_TEST_ASSETS
-	#define ROAD_DIRECTORY		"../TestArt/TestRoad/"
-	#define TEST_STRING				"***TESTING"
-	// the following directories will be used to look for test art
-	#define LOOK_FOR_TEST_ART
-	#define TEST_W3D_DIR_PATH "../TestArt/"					///< .w3d files live here
-	#define TEST_TGA_DIR_PATH "../TestArt/"		///< .tga texture files live here
+#define ROAD_DIRECTORY		"../TestArt/TestRoad/"
+#define TEST_STRING				"***TESTING"
+// the following directories will be used to look for test art
+#define LOOK_FOR_TEST_ART
+#define TEST_W3D_DIR_PATH "../TestArt/"					///< .w3d files live here
+#define TEST_TGA_DIR_PATH "../TestArt/"		///< .tga texture files live here
 #endif
 
 #ifndef ENABLE_FILESYSTEM_LOGGING
@@ -139,8 +139,8 @@ struct FileInfo {
 //===============================
 class FileSystem : public SubsystemInterface
 {
-  FileSystem(const FileSystem&);
-  FileSystem& operator=(const FileSystem&);
+	FileSystem(const FileSystem&);
+	FileSystem& operator=(const FileSystem&);
 
 public:
 	FileSystem();
@@ -181,7 +181,7 @@ protected:
 #endif
 };
 
-extern FileSystem*	TheFileSystem;
+extern FileSystem* TheFileSystem;
 
 
 

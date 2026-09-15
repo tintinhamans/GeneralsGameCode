@@ -74,6 +74,7 @@
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
 
 #include "GameClient/InGameUI.h"
+#include "../OnlineServices_Init.h"
 
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -215,6 +216,8 @@ extern Bool dispChanged;
 void diffReverseSide();
 void HandleCanceledDownload( Bool resetDropDown )
 {
+	NGMP_OnlineServicesManager::GetInstance()->CancelUpdate();
+
 	buttonPushed = FALSE;
 	if (resetDropDown)
 	{
@@ -259,7 +262,7 @@ static void quitCallback()
 
 	}
 	if (TheGameLogic->isInGame())
-		TheGameLogic->exitGame();
+		TheMessageStream->appendMessage( GameMessage::MSG_CLEAR_GAME_DATA );
 }
 
 

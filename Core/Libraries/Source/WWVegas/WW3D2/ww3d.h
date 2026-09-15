@@ -41,6 +41,7 @@
 #include "WW3D2/layer.h"
 #include "WW3D2/w3derr.h"
 #include "WW3D2/robjlist.h"
+#include "../../../GameEngine/Include/GameNetwork/GeneralsOnline/NextGenMP_defines.h"
 
 class		SceneClass;
 class		CameraClass;

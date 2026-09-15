@@ -511,6 +511,9 @@ const char* DebugGetLogFileNamePrev()
 */
 void DebugCrash(const char *format, ...)
 {
+#if defined(GENERALS_ONLINE)
+	return;
+#endif
 	// Note: You might want to make this thread safe, but we cannot. The reason is that
 	// there is an implicit requirement on other threads that the message loop be running.
 

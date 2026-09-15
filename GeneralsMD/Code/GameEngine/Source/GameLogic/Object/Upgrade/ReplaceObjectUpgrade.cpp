@@ -44,19 +44,19 @@
 // ------------------------------------------------------------------------------------------------
 void ReplaceObjectUpgradeModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  UpgradeModuleData::buildFieldParse(p);
+	UpgradeModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
-		{ "ReplaceObject",	INI::parseAsciiString,	nullptr, offsetof( ReplaceObjectUpgradeModuleData, m_replaceObjectName ) },
-		{ nullptr, nullptr, nullptr, 0 }
+		{ "ReplaceObject",	INI::parseAsciiString,	NULL, offsetof(ReplaceObjectUpgradeModuleData, m_replaceObjectName) },
+		{ 0, 0, 0, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-ReplaceObjectUpgrade::ReplaceObjectUpgrade( Thing *thing, const ModuleData* moduleData ) : UpgradeModule( thing, moduleData )
+ReplaceObjectUpgrade::ReplaceObjectUpgrade(Thing* thing, const ModuleData* moduleData) : UpgradeModule(thing, moduleData)
 {
 }
 
@@ -70,7 +70,7 @@ ReplaceObjectUpgrade::~ReplaceObjectUpgrade()
 //-------------------------------------------------------------------------------------------------
 void ReplaceObjectUpgrade::upgradeImplementation()
 {
-	const ReplaceObjectUpgradeModuleData *data = getReplaceObjectUpgradeModuleData();
+	const ReplaceObjectUpgradeModuleData* data = getReplaceObjectUpgradeModuleData();
 	const ThingTemplate* replacementTemplate = TheThingFactory->findTemplate(data->m_replaceObjectName);
 
 	Bool oldObjectSelected;
@@ -84,9 +84,9 @@ void ReplaceObjectUpgrade::upgradeImplementation()
 		myMatrix = *me->getTransformMatrix();
 		myTeam = me->getTeam();// Team implies player.  It is a subset.
 
-		if (replacementTemplate == nullptr)
+		if (replacementTemplate == NULL)
 		{
-			DEBUG_ASSERTCRASH(replacementTemplate != nullptr, ("No such object '%s' in ReplaceObjectUpgrade.", data->m_replaceObjectName.str()));
+			DEBUG_ASSERTCRASH(replacementTemplate != NULL, ("No such object '%s' in ReplaceObjectUpgrade.", data->m_replaceObjectName.str()));
 			return;
 		}
 
@@ -100,9 +100,9 @@ void ReplaceObjectUpgrade::upgradeImplementation()
 		TheGameLogic->destroyObject(me);
 	}
 
-	Object *replacementObject = TheThingFactory->newObject(replacementTemplate, myTeam);
+	Object* replacementObject = TheThingFactory->newObject(replacementTemplate, myTeam);
 	replacementObject->setTransformMatrix(&myMatrix);
-	TheAI->pathfinder()->addObjectToPathfindMap( replacementObject );
+	TheAI->pathfinder()->addObjectToPathfindMap(replacementObject);
 
 	// Now onCreates were called at the constructor.  This magically created
 	// thing needs to be considered as Built for Game specific stuff.
@@ -114,9 +114,9 @@ void ReplaceObjectUpgrade::upgradeImplementation()
 		create->onBuildComplete();
 	}
 
-	if( replacementObject->getControllingPlayer() )
+	if (replacementObject->getControllingPlayer())
 	{
-		replacementObject->getControllingPlayer()->onStructureConstructionComplete(nullptr, replacementObject, FALSE);
+		replacementObject->getControllingPlayer()->onStructureConstructionComplete(NULL, replacementObject, FALSE);
 
 		// TheSuperHackers @bugfix Stubbjax 26/05/2025 If the old object was selected, select the new one.
 		if (oldObjectSelected)
@@ -142,11 +142,11 @@ void ReplaceObjectUpgrade::upgradeImplementation()
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
-void ReplaceObjectUpgrade::crc( Xfer *xfer )
+void ReplaceObjectUpgrade::crc(Xfer* xfer)
 {
 
 	// extend base class
-	UpgradeModule::crc( xfer );
+	UpgradeModule::crc(xfer);
 
 }
 
@@ -154,17 +154,17 @@ void ReplaceObjectUpgrade::crc( Xfer *xfer )
 /** Xfer method
 	* Version Info:
 	* 1: Initial version */
-// ------------------------------------------------------------------------------------------------
-void ReplaceObjectUpgrade::xfer( Xfer *xfer )
+	// ------------------------------------------------------------------------------------------------
+void ReplaceObjectUpgrade::xfer(Xfer* xfer)
 {
 
 	// version
 	XferVersion currentVersion = 1;
 	XferVersion version = currentVersion;
-	xfer->xferVersion( &version, currentVersion );
+	xfer->xferVersion(&version, currentVersion);
 
 	// extend base class
-	UpgradeModule::xfer( xfer );
+	UpgradeModule::xfer(xfer);
 
 }
 

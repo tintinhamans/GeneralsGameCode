@@ -4818,7 +4818,8 @@ void ScriptEngine::update()
 	if (m_endGameTimer>0) {
 		m_endGameTimer--;
 		if (m_endGameTimer < 1) {
-			TheGameLogic->exitGame();
+			// clear out all the game data
+			/*GameMessage *msg =*/ TheMessageStream->appendMessage( GameMessage::MSG_CLEAR_GAME_DATA );
 			//TheScriptActions->closeWindows(FALSE); // Close victory or defeat windows.
 		}
 	}

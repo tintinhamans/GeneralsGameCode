@@ -53,6 +53,7 @@
 #include "Lib/BaseType.h"
 #include "WWLib/WWCommon.h"
 #include "Common/GameDefines.h"
+#include "GameNetwork/GeneralsOnline/NextGenMP_defines.h"
 
 // ----------------------------------------------------------------------------------------------
 #if defined(RTS_DEBUG)

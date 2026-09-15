@@ -83,19 +83,19 @@ MultiplayerSettings::MultiplayerSettings()
 	m_observerColor;
 	m_randomColor;
 
-  m_gotDefaultStartingMoney = false;
+	m_gotDefaultStartingMoney = false;
 }
 
 MultiplayerColorDefinition::MultiplayerColorDefinition()
 {
 	m_tooltipName.clear();
 	m_rgbValue.setFromInt(0xFFFFFFFF);
-	m_rgbValueNight=m_rgbValue;
+	m_rgbValueNight = m_rgbValue;
 	m_color = 0xFFFFFFFF;
 	m_colorNight = m_color;
 }
 
-MultiplayerColorDefinition * MultiplayerSettings::getColor(Int which)
+MultiplayerColorDefinition* MultiplayerSettings::getColor(Int which)
 {
 	if (which == PLAYERTEMPLATE_RANDOM)
 	{
@@ -113,7 +113,7 @@ MultiplayerColorDefinition * MultiplayerSettings::getColor(Int which)
 	return &m_colorList[which];
 }
 
-MultiplayerColorDefinition * MultiplayerSettings::findMultiplayerColorDefinitionByName(AsciiString name)
+MultiplayerColorDefinition* MultiplayerSettings::findMultiplayerColorDefinitionByName(AsciiString name)
 {
 	MultiplayerColorIter iter = m_colorList.begin();
 
@@ -128,9 +128,9 @@ MultiplayerColorDefinition * MultiplayerSettings::findMultiplayerColorDefinition
 	return nullptr;
 }
 
-MultiplayerColorDefinition * MultiplayerSettings::newMultiplayerColorDefinition(AsciiString name)
+MultiplayerColorDefinition* MultiplayerSettings::newMultiplayerColorDefinition(AsciiString name)
 {
- 	MultiplayerColorDefinition tmp;
+	MultiplayerColorDefinition tmp;
 	Int numColors = getNumColors();
 
 	m_colorList[numColors] = tmp;
@@ -139,18 +139,18 @@ MultiplayerColorDefinition * MultiplayerSettings::newMultiplayerColorDefinition(
 	return &m_colorList[numColors];
 }
 
-void MultiplayerSettings::addStartingMoneyChoice( const Money & money, Bool isDefault )
+void MultiplayerSettings::addStartingMoneyChoice(const Money& money, Bool isDefault)
 {
-  m_startingMoneyList.push_back( money );
-  if ( isDefault )
-  {
-    DEBUG_ASSERTCRASH( !m_gotDefaultStartingMoney, ("Cannot have more than one default MultiplayerStartingMoneyChoice") );
-    m_defaultStartingMoney = money;
-    m_gotDefaultStartingMoney = true;
-  }
+	m_startingMoneyList.push_back(money);
+	if (isDefault)
+	{
+		DEBUG_ASSERTCRASH(!m_gotDefaultStartingMoney, ("Cannot have more than one default MultiplayerStartingMoneyChoice"));
+		m_defaultStartingMoney = money;
+		m_gotDefaultStartingMoney = true;
+	}
 }
 
-MultiplayerColorDefinition * MultiplayerColorDefinition::operator =(const MultiplayerColorDefinition& other)
+MultiplayerColorDefinition* MultiplayerColorDefinition::operator =(const MultiplayerColorDefinition& other)
 {
 	m_tooltipName = other.getTooltipName();
 	m_rgbValue = other.getRGBValue();
@@ -161,12 +161,12 @@ MultiplayerColorDefinition * MultiplayerColorDefinition::operator =(const Multip
 	return this;
 }
 
-void MultiplayerColorDefinition::setColor( RGBColor rgb )
+void MultiplayerColorDefinition::setColor(RGBColor rgb)
 {
 	m_color = rgb.getAsInt() | 0xFF << 24;
 }
 
-void MultiplayerColorDefinition::setNightColor( RGBColor rgb )
+void MultiplayerColorDefinition::setNightColor(RGBColor rgb)
 {
 	m_colorNight = rgb.getAsInt() | 0xFF << 24;
 }

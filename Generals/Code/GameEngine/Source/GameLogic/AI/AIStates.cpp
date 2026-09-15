@@ -726,7 +726,10 @@ AIStateMachine::AIStateMachine( Object *obj, AsciiString name ) : StateMachine( 
 //----------------------------------------------------------------------------------------------------------
 AIStateMachine::~AIStateMachine()
 {
-	deleteInstance(m_goalSquad);
+	if (m_goalSquad)
+	{
+		deleteInstance(m_goalSquad);
+	}
 }
 
 

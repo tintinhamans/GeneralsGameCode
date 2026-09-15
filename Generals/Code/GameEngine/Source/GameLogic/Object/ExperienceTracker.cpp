@@ -101,7 +101,7 @@ ObjectID ExperienceTracker::getExperienceSink() const
 
 //-------------------------------------------------------------------------------------------------
 // Set Level to AT LEAST this... if we are already >= this level, do nothing.
-void ExperienceTracker::setMinVeterancyLevel( VeterancyLevel newLevel, Bool provideFeedback )
+void ExperienceTracker::setMinVeterancyLevel( VeterancyLevel newLevel )
 {
 	// This does not check for IsTrainable, because this function is for explicit setting,
 	// so the setter is assumed to know what they are doing.  The game function
@@ -112,12 +112,12 @@ void ExperienceTracker::setMinVeterancyLevel( VeterancyLevel newLevel, Bool prov
 		m_currentLevel = newLevel;
 		m_currentExperience = m_parent->getTemplate()->getExperienceRequired(m_currentLevel); //Minimum for this level
 		if (m_parent)
-			m_parent->onVeterancyLevelChanged( oldLevel, newLevel, provideFeedback );
+			m_parent->onVeterancyLevelChanged( oldLevel, newLevel );
 	}
 }
 
 //-------------------------------------------------------------------------------------------------
-void ExperienceTracker::setVeterancyLevel( VeterancyLevel newLevel, Bool provideFeedback )
+void ExperienceTracker::setVeterancyLevel( VeterancyLevel newLevel )
 {
 	// This does not check for IsTrainable, because this function is for explicit setting,
 	// so the setter is assumed to know what they are doing.  The game function
@@ -128,7 +128,7 @@ void ExperienceTracker::setVeterancyLevel( VeterancyLevel newLevel, Bool provide
 		m_currentLevel = newLevel;
 		m_currentExperience = m_parent->getTemplate()->getExperienceRequired(m_currentLevel); //Minimum for this level
 		if (m_parent)
-			m_parent->onVeterancyLevelChanged( oldLevel, newLevel, provideFeedback );
+			m_parent->onVeterancyLevelChanged( oldLevel, newLevel );
 	}
 }
 
@@ -204,7 +204,7 @@ void ExperienceTracker::addExperiencePoints( Int experienceGain, Bool canScaleFo
 
 }
 //-------------------------------------------------------------------------------------------------
-void ExperienceTracker::setExperienceAndLevel( Int experienceIn, Bool provideFeedback )
+void ExperienceTracker::setExperienceAndLevel( Int experienceIn )
 {
 	if( m_experienceSink != INVALID_ID )
 	{
@@ -213,7 +213,7 @@ void ExperienceTracker::setExperienceAndLevel( Int experienceIn, Bool provideFee
 		if( sinkPointer )
 		{
 			// Not a fatal failure if not valid, he died when I was in the air.
-			sinkPointer->getExperienceTracker()->setExperienceAndLevel( experienceIn, provideFeedback );
+			sinkPointer->getExperienceTracker()->setExperienceAndLevel( experienceIn );
 			return;
 		}
 	}
@@ -239,7 +239,7 @@ void ExperienceTracker::setExperienceAndLevel( Int experienceIn, Bool provideFee
 	if( oldLevel != m_currentLevel )
 	{
 		// Edge trigger special level gain effects.
-		m_parent->onVeterancyLevelChanged( oldLevel, m_currentLevel, provideFeedback ); //<<== paradox! this may be a level lost!
+		m_parent->onVeterancyLevelChanged( oldLevel, m_currentLevel ); //<<== paradox! this may be a level lost!
 	}
 
 }

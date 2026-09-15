@@ -177,7 +177,10 @@ void PopupReplayUpdate( WindowLayout *layout, void *userData )
 			ShowReplaySavedPopup(FALSE);
 
 			// close the save/load menu
-			closeSaveMenu( parent );
+			if (parent != NULL)
+			{
+				closeSaveMenu( parent );
+			}
 			ScoreScreenEnableControls(TRUE);
 
 			// reset the timer to 0 cause we have to.

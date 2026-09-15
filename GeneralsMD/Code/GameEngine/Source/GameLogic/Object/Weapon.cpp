@@ -322,7 +322,6 @@ WeaponTemplate::WeaponTemplate() : m_nextTemplate(nullptr)
 	m_infantryInaccuracyDist				= 0.0f;
 	m_damageStatusType							= OBJECT_STATUS_NONE;
 	m_suspendFXDelay								= 0;
-	m_dieOnDetonate						= FALSE;
 
 	m_historicDamageTriggerId = 0;
 }
@@ -330,10 +329,13 @@ WeaponTemplate::WeaponTemplate() : m_nextTemplate(nullptr)
 //-------------------------------------------------------------------------------------------------
 WeaponTemplate::~WeaponTemplate()
 {
-	deleteInstance(m_nextTemplate);
+	if (m_nextTemplate) {
+		deleteInstance(m_nextTemplate);
+	}
 
 	// delete any extra-bonus that's present
-	deleteInstance(m_extraBonus);
+	if (m_extraBonus)
+		deleteInstance(m_extraBonus);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -500,6 +502,23 @@ Int WeaponTemplate::getDelayBetweenShots(const WeaponBonus& bonus) const
 	else
 		delayToUse = GameLogicRandomValue( m_minDelayBetweenShots, m_maxDelayBetweenShots );
 
+// TODO_NGMP: Better solution, less hackyness
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+	if (delayToUse != 0 && delayToUse < (2*GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER))
+	{
+		delayToUse = 2*GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER;
+	}
+
+	// HACK
+	// TODO_NGMP: Better solution for this, seems like an ini data bug
+	if (getName().compareNoCase("GattlingBuilding") == 0
+		|| getName().compareNoCase("GattlingBuildingGun") == 0
+		|| getName().compareNoCase("GattlingBuildingGunAir") == 0
+		|| getName().compareNoCase("GattlingBuildingGunAirDummy") == 0)
+	{
+		delayToUse /= 1.5;
+	}
+#endif
 	Real bonusROF = bonus.getField(WeaponBonus::RATE_OF_FIRE);
 	//CRCDEBUG_LOG(("WeaponTemplate::getDelayBetweenShots() - min:%d max:%d val:%d, bonusROF=%g/%8.8X",
 		//m_minDelayBetweenShots, m_maxDelayBetweenShots, delayToUse, bonusROF, AS_INT(bonusROF)));
@@ -1590,7 +1609,8 @@ WeaponStore::~WeaponStore()
 	for (size_t i = 0; i < m_weaponTemplateVector.size(); i++)
 	{
 		WeaponTemplate* wt = m_weaponTemplateVector[i];
-		deleteInstance(wt);
+		if (wt)
+			deleteInstance(wt);
 	}
 	m_weaponTemplateVector.clear();
 	m_weaponTemplateHashMap.clear();
@@ -1672,6 +1692,17 @@ WeaponTemplate *WeaponStore::newWeaponTemplate(AsciiString name)
 	WeaponTemplate *wt = newInstance(WeaponTemplate);
 	wt->m_name = name;
 	wt->m_nameKey = TheNameKeyGenerator->nameToKey( name );
+
+	if (strcmp(name.str(), "SupW_AuroraFuelBombWeapon") == 0)
+	{
+        // Note: m_dieOnDetonate is set to true to fix the Alpha Aurora second explosion inconsistency when targeting structures.
+		// SupW_AuroraFuelBombWeapon does not specify MissileCallsOnDie in INI, so getDieOnDetonate()
+		// returned false, causing detonate() to skip attemptDamage() which is what triggers die modules.
+		// When INI is editable, we should add MissileCallsOnDie = yes for SupW_AuroraFuelBombWeapon
+		// and change m_dieOnDetonate back to false.
+        wt->m_dieOnDetonate = TRUE;
+	}
+
 	m_weaponTemplateVector.push_back(wt);
 	m_weaponTemplateHashMap[wt->m_nameKey] = wt;
 
@@ -1921,6 +1952,20 @@ void Weapon::computeBonus(const Object *source, WeaponBonusConditionFlags extraB
 	const WeaponBonusSet* extra = m_template->getExtraBonus();
 	if (extra)
 		extra->appendBonuses(flags, bonus);
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+     // Fix v1 quad cannon damage this way for now
+     const char* weaponName = m_template->getName().str();
+     if (source->getVeterancyLevel() == 1 &&
+     (strcmp(weaponName, "QuadCannonGun") == 0 ||
+     strcmp(weaponName, "QuadCannonGunAir") == 0 ||
+     strcmp(weaponName, "QuadCannonGunUpgradeOne") == 0 ||
+     strcmp(weaponName, "QuadCannonGunUpgradeOneAir") == 0 ||
+     strcmp(weaponName, "QuadCannonGunUpgradeTwo") == 0 ||
+     strcmp(weaponName, "QuadCannonGunUpgradeTwoAir") == 0))
+     {
+     bonus.setField(WeaponBonus::RATE_OF_FIRE, 1.25f);
+     }
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2752,6 +2797,7 @@ Bool Weapon::privateFireWeapon(
 			m_status = BETWEEN_FIRING_SHOTS;
 			//CRCDEBUG_LOG(("Weapon::privateFireWeapon() just set m_status to BETWEEN_FIRING_SHOTS"));
 			Int delay = m_template->getDelayBetweenShots(bonus);
+
 			m_whenLastReloadStarted = now;
 			m_whenWeCanFireAgain = now + delay;
 			//CRCDEBUG_LOG(("Just set m_whenWeCanFireAgain to %d (delay is %d) in Weapon::privateFireWeapon", m_whenWeCanFireAgain, delay));
@@ -3613,4 +3659,6 @@ void WeaponBonusSet::appendBonuses(WeaponBonusConditionFlags flags, WeaponBonus&
 		this->m_bonus[i].appendBonuses(bonus);
 	}
 }
+
+
 
