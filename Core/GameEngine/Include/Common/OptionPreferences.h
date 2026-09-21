@@ -131,4 +131,11 @@ public:
 	Bool getShowMoneyPerMinute() const;
 
 	Real getGameWindowTransitionSpeedMultiplier() const;
+
+	// LAN caster preferences.
+	Bool getLiveCastingEnabled() const;
+	Bool getCasterPrivacyFilter() const;
+	Bool getCasterReadOnlyLobby() const;
+	UnsignedShort getCasterTCPPort() const;
+	AsciiString getCasterUid() const;
 };

@@ -1149,6 +1149,21 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/Transport.cpp
     Source/GameNetwork/udp.cpp
     Source/GameNetwork/User.cpp
+    Source/GameNetwork/Caster/CasterReplayFile.cpp
+    Source/GameNetwork/Caster/CasterCommandFrame.cpp
+    Source/GameNetwork/Caster/CasterFrameHistory.cpp
+    Source/GameNetwork/Caster/Caster.cpp
+    Source/GameNetwork/Caster/CasterBeacon.cpp
+    Source/GameNetwork/Caster/CasterBootstrap.cpp
+    Source/GameNetwork/Caster/CasterChat.cpp
+    Source/GameNetwork/Caster/CasterChatMessage.cpp
+    Source/GameNetwork/Caster/CasterCore.cpp
+    Source/GameNetwork/Caster/CasterLobby.cpp
+    Source/GameNetwork/Caster/CasterProtocol.cpp
+    Source/GameNetwork/Caster/CasterSubscribeTable.cpp
+    Source/GameNetwork/Caster/CasterTransportCore.cpp
+    Source/GameNetwork/Caster/CasterSourceSet.cpp
+    Source/GameNetwork/Caster/CasterTransport.cpp
     Source/GameNetwork/WOLBrowser/WebBrowser.cpp
     Source/Precompiled/PreRTS.cpp
 )
@@ -1170,7 +1185,6 @@ else()
         Include/Common/GameMemoryNull.h
     )
 endif()
-
 
 add_library(corei_gameengine_private INTERFACE)
 add_library(corei_gameengine_public INTERFACE)
