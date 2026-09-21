@@ -53,6 +53,8 @@
 #include "GameLogic/VictoryConditions.h"
 #include "GameClient/DisconnectMenu.h"
 #include "GameClient/InGameUI.h"
+#include "GameNetwork/Caster/Caster.h"
+#include "GameNetwork/Caster/CasterProtocol.h"
 #include "WWLib/TARGA.h"
 
 static Bool hasValidTransferFileExtension(const AsciiString& filePath)
@@ -2217,6 +2219,24 @@ UnsignedInt ConnectionManager::getPacketArrivalCushion() {
 	return retval;
 }
 
+// Active, non-muted slots distinguish public chat from team chat.
+static UnsignedInt getActiveChatMask()
+{
+	UnsignedInt mask = 0;
+	Int i;
+
+	for (i = 0; i < MAX_SLOTS; ++i)
+	{
+		const Player* player = ThePlayerList->getPlayerFromSlotIndex(i);
+		if (player != nullptr && player->isPlayerActive()
+			&& (TheGameInfo == nullptr || !TheGameInfo->getConstSlot(i)->isMuted()))
+		{
+			mask |= (1 << i);
+		}
+	}
+	return mask;
+}
+
 void ConnectionManager::sendChat(UnicodeString text, Int playerMask, UnsignedInt executionFrame)
 {
 	NetChatCommandMsg *msg = newInstance(NetChatCommandMsg);
@@ -2230,6 +2250,26 @@ void ConnectionManager::sendChat(UnicodeString text, Int playerMask, UnsignedInt
 		msg->setID(GenerateNextCommandID());
 	}
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("Chat message has ID of %d, mask of %8.8X, text of %ls", msg->getID(), msg->getPlayerMask(), msg->getText().str()));
+
+	// Forward chat separately from replay commands; never record it in the simulation.
+	if (TheCaster != nullptr && TheCaster->isPlayer())
+	{
+		const WideChar* chatText = msg->getText().str();
+		Int chatLen = msg->getText().getLength();
+		char utf8[CasterProtocol::MAX_FRAME_BYTES];
+		UnsignedInt utf8Len = 0;
+		AsciiString senderName;
+
+		if (chatText != nullptr && chatLen > 0)
+		{
+			utf8Len = CasterProtocol::wideToUtf8(chatText, (UnsignedInt)chatLen, utf8, sizeof(utf8) - 1);
+		}
+		utf8[utf8Len] = '\0';
+		senderName.translate(m_localUser->GetName());
+		TheCaster->sendPlayerChat((UnsignedInt)msg->getPlayerID(), (UnsignedInt)msg->getID(),
+			(UnsignedInt)playerMask, getActiveChatMask(), 0, senderName.str(), senderName.getLength(),
+			utf8, utf8Len);
+	}
 
 	sendLocalCommand(msg, 0xff ^ (1 << m_localSlot));
 	processChat(msg);

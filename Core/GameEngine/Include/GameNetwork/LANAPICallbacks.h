@@ -35,6 +35,7 @@
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetTextEntry.h"
 #include "GameNetwork/LANAPI.h"
+#include "GameNetwork/Caster/LiveCasterSession.h"
 
 
 // LAN API Singleton ----------------------------------------------------------------------
@@ -54,6 +55,18 @@ extern WindowLayout *mapSelectLayout;
 // ScoreScreen
 extern NameKeyType listboxChatWindowScoreScreenID;
 extern GameWindow *listboxChatWindowScoreScreen;
+
+
+// Caster chat surfaces. Every screen that can host an incoming caster chat line
+// registers its chat listbox on init and clears the registration on shutdown, so
+// the router never has to guess which screen is up from its layout filename.
+void SetLanLobbyCasterChatWindow( GameWindow *chatWindow );
+void SetLanGameOptionsCasterChatWindow( GameWindow *chatWindow );
+void SetScoreScreenCasterChatWindow( GameWindow *chatWindow );
+void SetReadOnlyCasterChatWindow( GameWindow *chatWindow );
+void OnReadOnlyCasterGameRemoved( const LiveCasterGameKey& key, Bool gameInProgress );
+void LatchReadOnlyOpenFailure( UnsignedInt gameUid );
+void ClearReadOnlyOpenFailure();
 
 
 //Colors used for the chat dialogs

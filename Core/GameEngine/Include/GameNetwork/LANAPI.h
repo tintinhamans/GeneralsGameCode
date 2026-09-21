@@ -34,6 +34,9 @@
 #include "GameNetwork/LANPlayer.h"
 #include "GameNetwork/LANGameInfo.h"
 
+#include "GameNetwork/Caster/LiveCasterSession.h"
+#include "GameNetwork/Caster/CasterLobby.h"
+
 //static const Int g_lanPlayerNameLength = 20;
 static const Int g_lanPlayerNameLength = 12; // reduced length because of game option length
 //static const Int g_lanLoginNameLength = 16;
@@ -74,6 +77,7 @@ public:
 	virtual void RequestLocations() = 0;																				///< Request everybody to respond with where they are
 	virtual void RequestGameJoin( LANGameInfo *game, UnsignedInt ip = 0 ) = 0;				///< Request to join a game
 	virtual void RequestGameJoinDirectConnect( UnsignedInt ipaddress ) = 0;						///< Request to join a game at an IP address
+	virtual void RequestCastGame( LANGameInfo *game ) = 0;	///< Request to open a game as a read-only caster
 	virtual void RequestGameLeave() = 0;																				///< Tell everyone we're leaving
 	virtual void RequestAccept() = 0;																						///< Indicate we're OK with the game options
 	virtual void RequestHasMap() = 0;																						///< Send our map status
@@ -88,6 +92,8 @@ public:
 	virtual void RequestSetName( UnicodeString newName ) = 0;													///< Pick a new name
 	virtual void RequestLobbyLeave( Bool forced ) = 0;																///< Announce that we're leaving the lobby
 	virtual void ResetGameStartTimer() = 0;
+	virtual Int GetGameStartSeconds() const = 0;
+	virtual UnsignedInt GetGameStartRevision() const = 0;
 
 	// Possible result codes passed to On functions
 	enum ReturnType
@@ -110,6 +116,7 @@ public:
 	virtual void OnGameList( LANGameInfo *gameList ) = 0;																							///< List of games
 	virtual void OnPlayerList( LANPlayer *playerList ) = 0;																				///< List of players in the Lobby
 	virtual void OnGameJoin( ReturnType ret, LANGameInfo *theGame ) = 0;															///< Did we get in the game?
+	virtual void OnCastGame( ReturnType ret, const LiveCasterGameKey& key ) = 0;	///< Did the cast game room open?
 	virtual void OnPlayerJoin( Int slot, UnicodeString playerName ) = 0;													///< Someone else joined our game (host only; joiners get a slotlist)
 	virtual void OnHostLeave() = 0;																													///< Host left the game
 	virtual void OnPlayerLeave( UnicodeString player ) = 0;																				///< Someone left the game
@@ -170,6 +177,9 @@ struct LANMessage
 		MSG_INACTIVE,						///< I've alt-tabbed out.  Unaccept me cause I'm a poo-flinging monkey.
 
 		MSG_REQUEST_GAME_INFO,	///< For direct connect, get the game info from a specific IP Address
+
+		// Keep type 16 reserved; unmodified clients ignore caster discovery packets.
+		MSG_CASTER_BEACON = 17,
 	} messageType;
 
 	WideChar name[g_lanPlayerNameLength+1]; ///< My name, for convenience
@@ -265,6 +275,17 @@ struct LANMessage
 		} GameOptions;
 		static_assert(ARRAY_SIZE(GameOptions.options) > m_lanMaxOptionsLength, "GameOptions.options buffer must be larger than m_lanMaxOptionsLength");
 
+		// Caster is sent with CASTER_BEACON: one player's answer to a caster
+		// capability probe. uid is CasterBeacon::MAX_UID_CHARS + 1 bytes; LANAPI.cpp
+		// pins that against this array.
+		struct
+		{
+			UnsignedInt gameUid;
+			UnsignedShort tcpPort;
+			UnsignedByte protocolVersion;
+			char uid[7];
+		} Caster;
+
 	};
 };
 #pragma pack(pop)
@@ -293,6 +314,7 @@ public:
 	virtual void RequestLocations() override;																				///< Request everybody to respond with where they are
 	virtual void RequestGameJoin( LANGameInfo *game, UnsignedInt ip = 0 ) override;				///< Request to join a game
 	virtual void RequestGameJoinDirectConnect( UnsignedInt ipaddress ) override;						///< Request to join a game at an IP address
+	virtual void RequestCastGame( LANGameInfo *game ) override;	///< Request to open a game as a read-only caster
 	virtual void RequestGameLeave() override;																				///< Tell everyone we're leaving
 	virtual void RequestAccept() override;																						///< Indicate we're OK with the game options
 	virtual void RequestHasMap() override;																						///< Send our map status
@@ -307,11 +329,14 @@ public:
 //	virtual void RequestSlotList();																					///< Pump out the Slot info.
 	virtual void RequestLobbyLeave( Bool forced ) override;																///< Announce that we're leaving the lobby
 	virtual void ResetGameStartTimer() override;
+	virtual Int GetGameStartSeconds() const override { return m_gameStartTime ? m_gameStartSeconds + 1 : 0; }
+	virtual UnsignedInt GetGameStartRevision() const override { return m_gameStartRevision; }
 
 	// On functions are (generally) the result of network traffic
 	virtual void OnGameList( LANGameInfo *gameList ) override;																							///< List of games
 	virtual void OnPlayerList( LANPlayer *playerList ) override;																				///< List of players in the Lobby
 	virtual void OnGameJoin( ReturnType ret, LANGameInfo *theGame ) override;															///< Did we get in the game?
+	virtual void OnCastGame( ReturnType ret, const LiveCasterGameKey& key ) override;	///< Did the cast game room open?
 	virtual void OnPlayerJoin( Int slot, UnicodeString playerName ) override;													///< Someone else joined our game (host only; joiners get a slotlist)
 	virtual void OnHostLeave() override;																													///< Host left the game
 	virtual void OnPlayerLeave( UnicodeString player ) override;																				///< Someone left the game
@@ -328,10 +353,16 @@ public:
 	virtual void OnInActive( UnsignedInt IP );																								///< Someone has alt-tabbed out.
 
 
+	void postLocalCasterLine(const char* ascii, const char* senderName, UnsignedByte senderSlot,
+		Bool senderIsCaster, Bool isEmote);
+
+
 	// Misc utility functions
 	virtual LANGameInfo * LookupGame( UnicodeString gameName ) override;														///< return a pointer to a game we know about
 	virtual LANGameInfo * LookupGameByListOffset( Int offset ) override;														///< return a pointer to a game we know about
 	virtual LANGameInfo * LookupGameByHost( UnsignedInt hostIP ) override;													///< return a pointer to the most recent game associated to the host IP address
+
+	LANGameInfo * LookupGameBySenderIP( UnsignedInt senderIP );
 	virtual LANPlayer * LookupPlayer( UnsignedInt playerIP );													///< return a pointer to a player we know about
 	virtual Bool SetLocalIP( UnsignedInt localIP ) override;																		///< For multiple NIC machines
 	virtual void SetLocalIP( AsciiString localIP ) override;																		///< For multiple NIC machines
@@ -339,6 +370,9 @@ public:
 	virtual UnicodeString GetMyName() override { return m_name; }                 ///< What's my name?
 	virtual LANGameInfo* GetMyGame() override { return m_currentGame; }					      ///< What's my Game?
 	virtual UnsignedInt GetLocalIP() { return m_localIP; }								///< What's my IP?
+
+	Bool RequestCasterDetails(const char* hostIp);
+	void ReplyCasterDetails(UnsignedInt targetIP);
 	virtual void fillInLANMessage( LANMessage *msg ) override;																	///< Fill in default params
 	virtual void checkMOTD() override;
 protected:
@@ -349,6 +383,7 @@ protected:
 		ACT_JOIN,
 		ACT_JOINDIRECTCONNECT,
 		ACT_LEAVE,
+		ACT_CAST,
 	};
 
 	static const UnsignedInt s_resendDelta; // in ms
@@ -360,12 +395,14 @@ protected:
 	AsciiString					m_userName;						///< login name
 	AsciiString					m_hostName;						///< machine name
 	UnsignedInt					m_gameStartTime;
+	UnsignedInt m_gameStartRevision;
 	Int									m_gameStartSeconds;
 
 	PendingActionType		m_pendingAction;	///< What action are we performing?
 	UnsignedInt					m_expiration;						///< When should we give up on our action?
 	UnsignedInt					m_actionTimeout;
 	UnsignedInt					m_directConnectRemoteIP;///< The IP address of the game we are direct connecting to.
+	LiveCasterGameKey	m_pendingCastKey;	///< Game whose room ACT_CAST is waiting to open
 
 	// Resend timer ---------------------------------------------------------------------------
 	UnsignedInt					m_lastResendTime; // in ms
@@ -379,6 +416,7 @@ protected:
 	Transport*					m_transport;
 
 	UnsignedInt					m_broadcastAddr;
+
 
 	UnsignedInt					m_lastUpdate;
 	AsciiString					m_lastGameopt; /// @todo: hack for demo - remove this
@@ -410,5 +448,9 @@ protected:
 	void handleGameStartTimer( LANMessage *msg, UnsignedInt senderIP );
 	void handleGameOptions( LANMessage *msg, UnsignedInt senderIP );
 	void handleInActive( LANMessage *msg, UnsignedInt senderIP );
+
+
+	void handleCasterBeacon( LANMessage *msg, UnsignedInt senderIP, UnsignedInt received );
+
 
 };

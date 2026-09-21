@@ -41,11 +41,14 @@
 #include "GameClient/GameText.h"
 #include "GameClient/LanguageFilter.h"
 #include "GameClient/MapUtil.h"
+#include "GameClient/GUICallbacks.h"
 #include "GameClient/MessageBox.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/FileTransfer.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/networkutil.h"
+#include "GameNetwork/Caster/Caster.h"
+#include "GameNetwork/Caster/CasterChatMessage.h"
 
 LANAPI *TheLAN = nullptr;
 extern Bool LANbuttonPushed;
@@ -544,6 +547,51 @@ void LANAPI::OnGameJoin( ReturnType ret, LANGameInfo *theGame )
 	}
 }
 
+void LANAPI::OnCastGame( ReturnType ret, const LiveCasterGameKey& key )
+{
+	if (TheCaster == nullptr)
+		return;
+
+	if (ret == RET_OK)
+	{
+		char failure[256];
+		failure[0] = '\0';
+		if (!OpenReadOnlyLanGameOptions(failure, sizeof(failure)))
+		{
+			TheCaster->unsubscribe();
+			CasterEnable(CASTER_ROLE_PLAYER);
+			LatchReadOnlyOpenFailure(key.uid);
+			if (failure[0] != '\0' && listboxChatWindow != nullptr)
+			{
+				UnicodeString wide;
+				wide.translate(failure);
+				GadgetListBoxAddEntryText(listboxChatWindow, wide, chatSystemColor, -1, 0);
+			}
+			return;
+		}
+		ClearReadOnlyOpenFailure();
+	}
+	else if (ret == RET_BUSY)
+	{
+		// Another join or cast request is still pending. Abandon the watch that was
+		// just prepared for this game and tell the user, as a busy game creation does.
+		if (TheCaster->isSelectedGame(key))
+		{
+			TheCaster->unsubscribe();
+			CasterEnable(CASTER_ROLE_PLAYER);
+		}
+		if (listboxChatWindow != nullptr)
+			GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorBusy"), chatSystemColor, -1, -1);
+	}
+	else
+	{
+		TheCaster->unsubscribe();
+		CasterEnable(CASTER_ROLE_PLAYER);
+		LatchReadOnlyOpenFailure(key.uid);
+		MessageBoxOk(TheGameText->fetch("LAN:JoinFailed"), getErrorStringFromReturnType(ret), nullptr);
+	}
+}
+
 void LANAPI::OnHostLeave()
 {
 	DEBUG_ASSERTCRASH(!m_inLobby && m_currentGame, ("Game info is gone!"));
@@ -713,10 +761,10 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 		case LANAPIInterface::LANCHAT_NORMAL:
 		default:
 		{
-			// Do the language filtering.
-			TheLanguageFilter->filterLine(message);
-
+			ChatMessage chat;
 			Color chatColor = GameMakeColor(255, 255, 255, 255);
+
+			MakeLanChatMessage(chat, player, ip, message);
 			if (m_currentGame)
 			{
 				Int slotNum = m_currentGame->getSlotNum(player);
@@ -724,22 +772,13 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 				if (slotNum >= 0) {
 					GameSlot *gs = m_currentGame->getSlot(slotNum);
 					if (gs) {
-						Int colorIndex = gs->getColor();
-						MultiplayerColorDefinition *def = TheMultiplayerSettings->getColor(colorIndex);
-						if (def)
-							chatColor = def->getColor();
+						chat.hasColor = ChatColorFromIndex(gs->getColor(), chat.color);
 					}
 				}
 			}
 
-			unicodeChat = L"[";
-			unicodeChat.concat(player);
-			unicodeChat.concat(L"] ");
-			unicodeChat.concat(message);
-			if (ip == m_localIP)
-				index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatColor, -1, -1);
-			else
-				index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatColor, -1, -1);
+			RenderChatMessage(chat, chatColor, unicodeChat, chatColor);
+			index =GadgetListBoxAddEntryText(chatWindow, unicodeChat, chatColor, -1, -1);
 			break;
 		}
 	}
