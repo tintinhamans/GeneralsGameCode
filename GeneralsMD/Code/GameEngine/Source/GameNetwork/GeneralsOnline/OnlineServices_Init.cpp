@@ -866,13 +866,13 @@ void NGMP_OnlineServicesManager::Init()
 	m_pHTTPManager->Initialize();
 
     std::string strPlugin = NGMP_OnlineServicesManager::Settings.GetAnticheatPlugin();
-	std::string pluginPath = std::format("plugins/{}/{}.dll", strPlugin.c_str(), strPlugin.c_str());
 
-#if _DEBUG
-	AnticheatPlugInterface::LoadPlugin(pluginPath.c_str());
-#else
-	AnticheatPlugInterface::LoadPlugin(pluginPath.c_str());
-#endif
+	// Empty name means no anticheat plugin configured; skip loading.
+	if (!strPlugin.empty())
+	{
+		std::string pluginPath = std::format("plugins/{}/{}.dll", strPlugin.c_str(), strPlugin.c_str());
+		AnticheatPlugInterface::LoadPlugin(pluginPath.c_str());
+	}
 
 	// TODO_NGMP: Better location
 	// TODO_NGMP: Get all of this from the service
