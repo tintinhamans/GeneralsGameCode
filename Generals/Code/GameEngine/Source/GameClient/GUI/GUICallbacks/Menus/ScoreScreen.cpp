@@ -92,7 +92,11 @@
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 #include "GameNetwork/NetworkDefs.h"
+#include "GameNetwork/LANAPI.h"
 #include "GameNetwork/LANAPICallbacks.h"
+#include "GameNetwork/Caster/Caster.h"
+#include "GameNetwork/Caster/CasterLobby.h"
+#include "GameNetwork/Caster/CasterProtocol.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/BuddyThread.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
@@ -155,6 +159,7 @@ enum {
 	SCORESCREEN_REPLAY
 	};
 static Int screenType;
+static void updateCasterScoreScreenChat();
 
 struct ScoreGather
 {
@@ -263,7 +268,16 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 		buttonSaveReplay->winEnable(FALSE);
 
 	s_needToFinishSinglePlayerInit = FALSE;
-	if (TheGameLogic->isInReplayGame())
+	if (TheGameLogic->isInCasterGame() && !TheGameLogic->isInReplayGame()
+		&& TheCaster != nullptr && TheCaster->isCaster() && TheRecorder->isMultiplayer())
+	{
+		// Live-cast LAN match: same score screen and chat as a LAN player.
+		if (buttonSaveReplay)
+			buttonSaveReplay->winHide(TRUE);
+		initLANMultiPlayer();
+		TheTransitionHandler->setGroup("ScoreScreenShow");
+	}
+	else if (TheGameLogic->isInPassivePlaybackGame())
 	{
 		if (buttonSaveReplay)
 			buttonSaveReplay->winHide(TRUE);
@@ -332,6 +346,12 @@ void ScoreScreenShutdown( WindowLayout *layout, void *userData )
 {
 	DontShowMainMenu = FALSE; //KRIS
 
+	SetScoreScreenCasterChatWindow( nullptr );
+
+	// the caster's chat-only postgame transport ends with the score screen
+	if (TheCaster != nullptr)
+		TheCaster->endPostgameChat();
+
 	// hide the layout
 	layout->hide( TRUE );
 
@@ -355,6 +375,8 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 		finishSinglePlayerInit();
 		s_needToFinishSinglePlayerInit = FALSE;
 	}
+
+	updateCasterScoreScreenChat();
 }
 
 /** Input function for the ScoreScreen */
@@ -412,6 +434,31 @@ static Bool showReplayButtonContinue()
 	bool isLastSimulationReplay = ReplaySimulation::getCurrentReplayIndex() == ReplaySimulation::getReplayCount()-1;
 
 	return hasSimulationReplay && !isLastSimulationReplay;
+}
+
+/** Caster chat on the LAN score screen: routed through the caster transport. */
+static void sendCasterScoreScreenChat(UnicodeString input)
+{
+	if (TheCaster == nullptr || TheLAN == nullptr)
+		return;
+
+	// The score screen has no caster feed of its own while the watch is over, so
+	// it asks for the local echo.
+	SendCasterLobbyChatLine(input, TheLAN->GetMyName(), TRUE);
+}
+
+/** Show caster chat lines received while the LAN score screen is up. */
+static void updateCasterScoreScreenChat()
+{
+	CasterLobby::LineQueue::Line line;
+
+	if (screenType != SCORESCREEN_LAN || TheCaster == nullptr || !TheCaster->isCaster())
+		return;
+	while (TheCaster->popLobbyLine(line))
+	{
+		PostCasterLocalLine(line.text, line.senderName, line.senderSlot, line.senderIsCaster,
+			line.isEmote);
+	}
 }
 
 /** System Function for the ScoreScreen */
@@ -509,9 +556,11 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 				txtInput.trim();
 				// Echo the user's input to the chat window
 				if (!txtInput.isEmpty())
-					if(TheLAN)
 					{
-						TheLAN->RequestPlayerChat(txtInput);
+						if (TheCaster != nullptr && TheCaster->isCaster())
+							sendCasterScoreScreenChat(txtInput);
+						else if (TheLAN)
+							TheLAN->RequestPlayerChat(txtInput);
 					}
 					//add the gamespy chat request here
 			}
@@ -568,9 +617,11 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 				txtInput.trim();
 				// Echo the user's input to the chat window
 				if (!txtInput.isEmpty())
-					if(TheLAN)
 					{
-						TheLAN->RequestPlayerChat(txtInput);
+						if (TheCaster != nullptr && TheCaster->isCaster())
+							sendCasterScoreScreenChat(txtInput);
+						else if (TheLAN)
+							TheLAN->RequestPlayerChat(txtInput);
 					}
 					//add the gamespy chat request here
 
@@ -854,6 +905,8 @@ void initLANMultiPlayer()
 		buttonContinue->winHide(TRUE);
 	if (listboxChatWindowScoreScreen)
 		listboxChatWindowScoreScreen->winHide(FALSE);
+	// Only the LAN/caster score screen hosts caster chat.
+	SetScoreScreenCasterChatWindow( listboxChatWindowScoreScreen );
 	if (chatBoxBorder)
 		chatBoxBorder->winHide(FALSE);
 	if (buttonBuddies)

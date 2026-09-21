@@ -32,6 +32,7 @@
 
 #include "Common/PlayerTemplate.h"
 #include "Common/GameEngine.h"
+#include "Common/GameState.h"
 #include "Common/UserPreferences.h"
 #include "Common/QuotedPrintable.h"
 #include "GameClient/AnimateWindowManager.h"
@@ -45,6 +46,11 @@
 #include "GameClient/GadgetTextEntry.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GadgetPushButton.h"
+#include "GameClient/GadgetCheckBox.h"
+#include "GameClient/DisplayString.h"
+#include "GameClient/DisplayStringManager.h"
+#include "GameClient/GameInfoWindow.h"
+#include "GameClient/GUICallbacks.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/GameWindowTransitions.h"
@@ -53,8 +59,13 @@
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/LANAPICallbacks.h"
+#include "GameNetwork/Caster/Caster.h"
+#include "GameNetwork/Caster/CasterChatMessage.h"
+#include "GameNetwork/Caster/CasterLobby.h"
+#include "GameNetwork/Caster/CasterProtocol.h"
 #include "Common/MultiplayerSettings.h"
 #include "GameClient/GameText.h"
+#include "GameClient/LanguageFilter.h"
 #include "GameNetwork/GUIUtil.h"
 
 
@@ -118,6 +129,8 @@ static GameWindow *buttonSelectMap = nullptr;
 static GameWindow *buttonChat = nullptr;
 static GameWindow *textEntryChat = nullptr;
 static GameWindow *textEntryMapDisplay = nullptr;
+static GameWindow *checkboxLimitSuperweapons = nullptr;
+static GameWindow *comboBoxStartingCash = nullptr;
 static GameWindow *windowMap = nullptr;
 
 static GameWindow *comboBoxPlayer[MAX_SLOTS] = {0};
@@ -174,6 +187,7 @@ static Int getFirstSelectablePlayer(const GameInfo *game)
 
 void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[], Bool onLoadScreen = FALSE );
 void positionStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[], GameWindow *mapWindow);
+void positionStartSpots( AsciiString mapName, GameWindow *buttonMapStartPositions[], GameWindow *mapWindow );
 void LanPositionStartSpots()
 {
 
@@ -605,113 +619,122 @@ void lanUpdateSlotList()
 //-------------------------------------------------------------------------------------------------
 /** Initialize the Gadgets Options Menu */
 //-------------------------------------------------------------------------------------------------
-void InitLanGameGadgets()
+static GameWindow *findLayoutWindow(WindowLayout *layout, NameKeyType key)
 {
-	//Initialize the gadget IDs
+	GameWindow *window;
+	GameWindow *found;
+
+	for (window = layout != nullptr ? layout->getFirstWindow() : nullptr; window != nullptr;
+		window = window->winGetNextInLayout())
+	{
+		if (window->winGetWindowId() == key)
+			return window;
+		found = TheWindowManager->winGetWindowFromId(window, key);
+		if (found != nullptr)
+			return found;
+	}
+	return TheWindowManager->winGetWindowFromId(nullptr, key);
+}
+
+static void BindLanGameGadgets(WindowLayout *layout)
+{
 	parentLanGameOptionsID = TheNameKeyGenerator->nameToKey( "LanGameOptionsMenu.wnd:LanGameOptionsMenuParent" );
 	buttonBackID = TheNameKeyGenerator->nameToKey( "LanGameOptionsMenu.wnd:ButtonBack" );
 	buttonStartID = TheNameKeyGenerator->nameToKey( "LanGameOptionsMenu.wnd:ButtonStart" );
 	textEntryChatID = TheNameKeyGenerator->nameToKey( "LanGameOptionsMenu.wnd:TextEntryChat" );
 	textEntryMapDisplayID = TheNameKeyGenerator->nameToKey( "LanGameOptionsMenu.wnd:TextEntryMapDisplay" );
 	listboxChatWindowLanGameID = TheNameKeyGenerator->nameToKey( "LanGameOptionsMenu.wnd:ListboxChatWindowLanGame" );
-	buttonChatID = TheNameKeyGenerator->nameToKey( "LanGameOptionsMenu.wnd:ButtonEmote" ); // TODO Rename ButtonEmote to ButtonChat in .wnd file
+	buttonChatID = TheNameKeyGenerator->nameToKey( "LanGameOptionsMenu.wnd:ButtonEmote" );
 	buttonSelectMapID = TheNameKeyGenerator->nameToKey( "LanGameOptionsMenu.wnd:ButtonSelectMap" );
 	windowMapID = TheNameKeyGenerator->nameToKey( "LanGameOptionsMenu.wnd:MapWindow" );
 
-	// Initialize the pointers to our gadgets
-	parentLanGameOptions = TheWindowManager->winGetWindowFromId( nullptr, parentLanGameOptionsID );
-	DEBUG_ASSERTCRASH(parentLanGameOptions, ("Could not find the parentLanGameOptions"));
-	buttonChat = TheWindowManager->winGetWindowFromId( parentLanGameOptions,buttonChatID  );
-	DEBUG_ASSERTCRASH(buttonChat, ("Could not find the buttonChat"));
-	buttonSelectMap = TheWindowManager->winGetWindowFromId( parentLanGameOptions,buttonSelectMapID  );
-	DEBUG_ASSERTCRASH(buttonSelectMap, ("Could not find the buttonSelectMap"));
-	buttonStart = TheWindowManager->winGetWindowFromId( parentLanGameOptions,buttonStartID  );
-	DEBUG_ASSERTCRASH(buttonStart, ("Could not find the buttonStart"));
-	buttonBack = TheWindowManager->winGetWindowFromId( parentLanGameOptions,  buttonBackID);
-	DEBUG_ASSERTCRASH(buttonBack, ("Could not find the buttonBack"));
+	parentLanGameOptions = findLayoutWindow(layout, parentLanGameOptionsID);
+	buttonChat = TheWindowManager->winGetWindowFromId( parentLanGameOptions, buttonChatID );
+	buttonSelectMap = TheWindowManager->winGetWindowFromId( parentLanGameOptions, buttonSelectMapID );
+	buttonStart = TheWindowManager->winGetWindowFromId( parentLanGameOptions, buttonStartID );
+	buttonBack = TheWindowManager->winGetWindowFromId( parentLanGameOptions, buttonBackID );
 	listboxChatWindowLanGame = TheWindowManager->winGetWindowFromId( parentLanGameOptions, listboxChatWindowLanGameID );
-	DEBUG_ASSERTCRASH(listboxChatWindowLanGame, ("Could not find the listboxChatWindowLanGame"));
 	textEntryChat = TheWindowManager->winGetWindowFromId( parentLanGameOptions, textEntryChatID );
-	DEBUG_ASSERTCRASH(textEntryChat, ("Could not find the textEntryChat"));
 	textEntryMapDisplay = TheWindowManager->winGetWindowFromId( parentLanGameOptions, textEntryMapDisplayID );
-	DEBUG_ASSERTCRASH(textEntryMapDisplay, ("Could not find the textEntryMapDisplay"));
+	checkboxLimitSuperweapons = TheWindowManager->winGetWindowFromId( parentLanGameOptions,
+		TheNameKeyGenerator->nameToKey("LanGameOptionsMenu.wnd:CheckboxLimitSuperweapons") );
+	comboBoxStartingCash = TheWindowManager->winGetWindowFromId( parentLanGameOptions,
+		TheNameKeyGenerator->nameToKey("LanGameOptionsMenu.wnd:ComboBoxStartingCash") );
+	windowMap = TheWindowManager->winGetWindowFromId( parentLanGameOptions, windowMapID );
 
-	windowMap = TheWindowManager->winGetWindowFromId( parentLanGameOptions,windowMapID  );
-	DEBUG_ASSERTCRASH(windowMap, ("Could not find the LanGameOptionsMenu.wnd:MapWindow" ));
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		AsciiString id;
+		id.format("LanGameOptionsMenu.wnd:ComboBoxPlayer%d", i);
+		comboBoxPlayerID[i] = TheNameKeyGenerator->nameToKey(id);
+		comboBoxPlayer[i] = TheWindowManager->winGetWindowFromId(parentLanGameOptions, comboBoxPlayerID[i]);
+		id.format("LanGameOptionsMenu.wnd:ComboBoxColor%d", i);
+		comboBoxColorID[i] = TheNameKeyGenerator->nameToKey(id);
+		comboBoxColor[i] = TheWindowManager->winGetWindowFromId(parentLanGameOptions, comboBoxColorID[i]);
+		id.format("LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate%d", i);
+		comboBoxPlayerTemplateID[i] = TheNameKeyGenerator->nameToKey(id);
+		comboBoxPlayerTemplate[i] = TheWindowManager->winGetWindowFromId(parentLanGameOptions, comboBoxPlayerTemplateID[i]);
+		id.format("LanGameOptionsMenu.wnd:ComboBoxTeam%d", i);
+		comboBoxTeamID[i] = TheNameKeyGenerator->nameToKey(id);
+		comboBoxTeam[i] = TheWindowManager->winGetWindowFromId(parentLanGameOptions, comboBoxTeamID[i]);
+		id.format("LanGameOptionsMenu.wnd:ButtonAccept%d", i);
+		buttonAcceptID[i] = TheNameKeyGenerator->nameToKey(id);
+		buttonAccept[i] = TheWindowManager->winGetWindowFromId(parentLanGameOptions, buttonAcceptID[i]);
+		id.format("LanGameOptionsMenu.wnd:ButtonMapStartPosition%d", i);
+		buttonMapStartPositionID[i] = TheNameKeyGenerator->nameToKey(id);
+		buttonMapStartPosition[i] = TheWindowManager->winGetWindowFromId(parentLanGameOptions, buttonMapStartPositionID[i]);
+	}
+}
+
+void InitLanGameGadgets(WindowLayout *layout)
+{
+	BindLanGameGadgets(layout);
+	// This screen hosts caster chat while the live LAN room is up.
+	SetLanGameOptionsCasterChatWindow(listboxChatWindowLanGame);
+	DEBUG_ASSERTCRASH(parentLanGameOptions, ("Could not find the parentLanGameOptions"));
+	DEBUG_ASSERTCRASH(buttonChat, ("Could not find the buttonChat"));
+	DEBUG_ASSERTCRASH(buttonSelectMap, ("Could not find the buttonSelectMap"));
+	DEBUG_ASSERTCRASH(buttonStart, ("Could not find the buttonStart"));
+	DEBUG_ASSERTCRASH(buttonBack, ("Could not find the buttonBack"));
+	DEBUG_ASSERTCRASH(listboxChatWindowLanGame, ("Could not find the listboxChatWindowLanGame"));
+	DEBUG_ASSERTCRASH(textEntryChat, ("Could not find the textEntryChat"));
+	DEBUG_ASSERTCRASH(textEntryMapDisplay, ("Could not find the textEntryMapDisplay"));
+	DEBUG_ASSERTCRASH(windowMap, ("Could not find the LanGameOptionsMenu.wnd:MapWindow"));
 
 	Int localSlotNum = TheLAN->GetMyGame()->getLocalSlotNum();
 	DEBUG_ASSERTCRASH(localSlotNum >= 0, ("Bad slot number!"));
-
-	//Tooltip function is being set for techBuildings, and supplyDocks
 	windowMap->winSetTooltipFunc(MapSelectorTooltip);
 
-	for (Int i = 0; i < MAX_SLOTS; i++)
+	for (Int i = 0; i < MAX_SLOTS; ++i)
 	{
-		AsciiString tmpString;
-		tmpString.format("LanGameOptionsMenu.wnd:ComboBoxPlayer%d", i);
-		comboBoxPlayerID[i] = TheNameKeyGenerator->nameToKey( tmpString );
-		comboBoxPlayer[i] = TheWindowManager->winGetWindowFromId( parentLanGameOptions, comboBoxPlayerID[i] );
+		DEBUG_ASSERTCRASH(comboBoxPlayer[i], ("Could not find the comboBoxPlayer[%d]", i));
 		GadgetComboBoxReset(comboBoxPlayer[i]);
 		GadgetComboBoxGetEditBox(comboBoxPlayer[i])->winSetTooltipFunc(playerTooltip);
-
-		if(localSlotNum != i)
+		if (localSlotNum != i)
 		{
-			GadgetComboBoxAddEntry(comboBoxPlayer[i],TheGameText->fetch("GUI:Open"),white);
-			GadgetComboBoxAddEntry(comboBoxPlayer[i],TheGameText->fetch("GUI:Closed"),white);
-			GadgetComboBoxAddEntry(comboBoxPlayer[i],TheGameText->fetch("GUI:EasyAI"),white);
-			GadgetComboBoxAddEntry(comboBoxPlayer[i],TheGameText->fetch("GUI:MediumAI"),white);
-			GadgetComboBoxAddEntry(comboBoxPlayer[i],TheGameText->fetch("GUI:HardAI"),white);
-			GadgetComboBoxSetSelectedPos(comboBoxPlayer[i],0);
+			GadgetComboBoxAddEntry(comboBoxPlayer[i], TheGameText->fetch("GUI:Open"), white);
+			GadgetComboBoxAddEntry(comboBoxPlayer[i], TheGameText->fetch("GUI:Closed"), white);
+			GadgetComboBoxAddEntry(comboBoxPlayer[i], TheGameText->fetch("GUI:EasyAI"), white);
+			GadgetComboBoxAddEntry(comboBoxPlayer[i], TheGameText->fetch("GUI:MediumAI"), white);
+			GadgetComboBoxAddEntry(comboBoxPlayer[i], TheGameText->fetch("GUI:HardAI"), white);
+			GadgetComboBoxSetSelectedPos(comboBoxPlayer[i], 0);
 		}
-		/*
-		if(i != 0)
-		{
-			TheLAN->GetMyGame()->getLANSlot(i)->setState(SLOT_OPEN);
-		}
-		*/
 
-		tmpString.format("LanGameOptionsMenu.wnd:ComboBoxColor%d", i);
-		comboBoxColorID[i] = TheNameKeyGenerator->nameToKey( tmpString );
-		comboBoxColor[i] = TheWindowManager->winGetWindowFromId( parentLanGameOptions, comboBoxColorID[i] );
-		DEBUG_ASSERTCRASH(comboBoxColor[i], ("Could not find the comboBoxColor[%d]",i ));
+		DEBUG_ASSERTCRASH(comboBoxColor[i], ("Could not find the comboBoxColor[%d]", i));
 		PopulateColorComboBox(i, comboBoxColor, TheLAN->GetMyGame());
 		GadgetComboBoxSetSelectedPos(comboBoxColor[i], 0);
-
-		tmpString.format("LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate%d", i);
-		comboBoxPlayerTemplateID[i] = TheNameKeyGenerator->nameToKey( tmpString );
-		comboBoxPlayerTemplate[i] = TheWindowManager->winGetWindowFromId( parentLanGameOptions, comboBoxPlayerTemplateID[i] );
-		DEBUG_ASSERTCRASH(comboBoxPlayerTemplate[i], ("Could not find the comboBoxPlayerTemplate[%d]",i ));
+		DEBUG_ASSERTCRASH(comboBoxPlayerTemplate[i], ("Could not find the comboBoxPlayerTemplate[%d]", i));
 		PopulatePlayerTemplateComboBox(i, comboBoxPlayerTemplate, TheLAN->GetMyGame(), TRUE);
-
-		tmpString.format("LanGameOptionsMenu.wnd:ComboBoxTeam%d", i);
-		comboBoxTeamID[i] = TheNameKeyGenerator->nameToKey( tmpString );
-		comboBoxTeam[i] = TheWindowManager->winGetWindowFromId( parentLanGameOptions, comboBoxTeamID[i] );
-		DEBUG_ASSERTCRASH(comboBoxTeam[i], ("Could not find the comboBoxTeam[%d]",i ));
+		DEBUG_ASSERTCRASH(comboBoxTeam[i], ("Could not find the comboBoxTeam[%d]", i));
 		PopulateTeamComboBox(i, comboBoxTeam, TheLAN->GetMyGame());
-
-		tmpString.clear();
-		tmpString.format("LanGameOptionsMenu.wnd:ButtonAccept%d", i);
-		buttonAcceptID[i] = TheNameKeyGenerator->nameToKey( tmpString );
-		buttonAccept[i] = TheWindowManager->winGetWindowFromId( parentLanGameOptions, buttonAcceptID[i] );
-		DEBUG_ASSERTCRASH(buttonAccept[i], ("Could not find the buttonAccept[%d]",i ));
+		DEBUG_ASSERTCRASH(buttonAccept[i], ("Could not find the buttonAccept[%d]", i));
 		buttonAccept[i]->winSetTooltipFunc(gameAcceptTooltip);
-//
-//		tmpString.format("LanGameOptionsMenu.wnd:ButtonStartPosition%d", i);
-//		buttonStartPositionID[i] = TheNameKeyGenerator->nameToKey( tmpString );
-//		buttonStartPosition[i] = TheWindowManager->winGetWindowFromId( parentLanGameOptions, buttonStartPositionID[i] );
-//		DEBUG_ASSERTCRASH(buttonStartPosition[i], ("Could not find the ButtonStartPosition[%d]",i ));
-
-		tmpString.format("LanGameOptionsMenu.wnd:ButtonMapStartPosition%d", i);
-		buttonMapStartPositionID[i] = TheNameKeyGenerator->nameToKey( tmpString );
-		buttonMapStartPosition[i] = TheWindowManager->winGetWindowFromId( parentLanGameOptions, buttonMapStartPositionID[i] );
-		DEBUG_ASSERTCRASH(buttonMapStartPosition[i], ("Could not find the ButtonMapStartPosition[%d]",i ));
-
-		if(i !=0 && buttonAccept[i])
+		DEBUG_ASSERTCRASH(buttonMapStartPosition[i], ("Could not find the ButtonMapStartPosition[%d]", i));
+		if (i != 0)
 			buttonAccept[i]->winHide(TRUE);
 	}
-	if( buttonAccept[0] )
-		GadgetButtonSetEnabledColor(buttonAccept[0], acceptTrueColor );
-
+	if (buttonAccept[0])
+		GadgetButtonSetEnabledColor(buttonAccept[0], acceptTrueColor);
 }
 
 void DeinitLanGameGadgets()
@@ -721,9 +744,12 @@ void DeinitLanGameGadgets()
 	buttonSelectMap = nullptr;
 	buttonStart = nullptr;
 	buttonBack = nullptr;
+	SetLanGameOptionsCasterChatWindow(nullptr);
 	listboxChatWindowLanGame = nullptr;
 	textEntryChat = nullptr;
 	textEntryMapDisplay = nullptr;
+	checkboxLimitSuperweapons = nullptr;
+	comboBoxStartingCash = nullptr;
 	if (windowMap)
 	{
 		windowMap->winSetUserData(nullptr);
@@ -742,9 +768,709 @@ void DeinitLanGameGadgets()
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Initialize the Lan Game Options Menu */
+// Shared room presentation helpers.
+//
+// This screen hosts two rooms that drive the exact same gadgets: the normal LAN player room,
+// which mutates the game through TheLAN, and the read-only caster room, which only renders a
+// received snapshot.  Anything below is pure gadget manipulation with no room specific policy,
+// so both room controllers may call it with their own already computed values.
 //-------------------------------------------------------------------------------------------------
-void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
+
+// Reads and clears the chat entry box.  Returns TRUE when the trimmed input is worth sending.
+static Bool takeChatEntryInput(UnicodeString& input)
+{
+	if (textEntryChat == nullptr)
+		return FALSE;
+	// read the user's input
+	input.set(GadgetTextEntryGetText( textEntryChat ));
+	// Clear the text entry line
+	GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+	// Clean up the text (remove leading/trailing chars, etc)
+	input.trim();
+	return !input.isEmpty();
+}
+
+//-------------------------------------------------------------------------------------------------
+// Normal LAN player room controller.
+//-------------------------------------------------------------------------------------------------
+
+// Echo the user's input to the chat window
+static void playerRoomSendChat()
+{
+	UnicodeString txtInput;
+	if (takeChatEntryInput(txtInput))
+		TheLAN->RequestPlayerChat(txtInput);
+}
+
+//-------------------------------------------------------------------------------------------------
+// Read-only caster room controller.
+//-------------------------------------------------------------------------------------------------
+
+static Bool s_readOnlyCasterMode = FALSE;
+static WindowLayout *s_readOnlyLayout = nullptr;
+static Bool s_readOnlyShellOwned = FALSE;
+static Bool s_readOnlyShuttingDown = FALSE;
+static CasterLobby::LobbyViewModel s_readOnlyLastView;
+static Bool s_readOnlyHaveLastView = FALSE;
+static UnsignedInt s_readOnlyCountdownRevision = 0;
+static AsciiString s_readOnlyWarnedMap;
+
+static AsciiString resolveReadOnlyMapPath(const char *mapName)
+{
+	AsciiString remaining(mapName);
+	AsciiString token;
+	AsciiString path;
+	if (remaining.isEmpty())
+		return AsciiString::TheEmptyString;
+
+	remaining.nextToken(&token, "\\/");
+	while (!remaining.isEmpty())
+	{
+		path.concat(token);
+		path.concat('\\');
+		remaining.nextToken(&token, "\\/");
+	}
+	path.concat(token);
+	path.concat('\\');
+	path.concat(token);
+	path.concat('.');
+	path.concat(TheMapCache->getMapExtension());
+	path = TheGameState->portableMapPathToRealMapPath(path);
+	path.toLower();
+	return path;
+}
+
+// The read-only room renders its slot rows through the very same UpdateSlotList() that drives the
+// player room, so the received snapshot is mirrored into this synthetic GameInfo.  The object is
+// deliberately inert: it never enters a game, so GameInfo::amIHost() and GameInfo::getLocalSlotNum()
+// bail out on m_inGame and answer FALSE and -1 for good.  Every branch in UpdateSlotList() and
+// EnableAcceptControls() that can enable a control sits behind one of those two answers, so no
+// enabling branch can ever fire here and the room cannot stop being read-only.  As a second and
+// independent barrier the local IP is parked on a value no slot can carry, because slot IPs are
+// never set and stay at zero.
+static const UnsignedInt READ_ONLY_UNREACHABLE_IP = 0xFFFFFFFF;
+
+class ReadOnlyGameInfo : public GameInfo
+{
+public:
+	ReadOnlyGameInfo()
+	{
+		for (Int i = 0; i < MAX_SLOTS; ++i)
+			setSlotPointer(i, &m_readOnlySlot[i]);
+		setLocalIP(READ_ONLY_UNREACHABLE_IP);
+	}
+
+private:
+	GameSlot m_readOnlySlot[MAX_SLOTS];
+};
+
+static ReadOnlyGameInfo *s_readOnlyGame = nullptr;
+
+// Built on demand, because GameInfo::reset() reads TheGlobalData, and released with the room so
+// that it never outlives the engine's allocators.
+static ReadOnlyGameInfo *readOnlyGameInfo()
+{
+	if (s_readOnlyGame == nullptr)
+		s_readOnlyGame = NEW ReadOnlyGameInfo;
+	return s_readOnlyGame;
+}
+
+// Mirrors one snapshot row onto the matching synthetic slot.  The slot IP is never touched.
+static void fillReadOnlySlot(const CasterLobby::LobbyViewRow& row, GameSlot& slot)
+{
+	UnicodeString name;
+
+	switch (row.kind)
+	{
+	case CasterLobby::LOBBY_SLOT_HUMAN:
+		name.translate(row.name);
+		slot.setState(SLOT_PLAYER, name);
+		break;
+	case CasterLobby::LOBBY_SLOT_AI:
+		if (row.aiDifficulty == 'E')
+			slot.setState(SLOT_EASY_AI);
+		else if (row.aiDifficulty == 'H')
+			slot.setState(SLOT_BRUTAL_AI);
+		else
+			slot.setState(SLOT_MED_AI);
+		break;
+	case CasterLobby::LOBBY_SLOT_CLOSED:
+		slot.setState(SLOT_CLOSED);
+		break;
+	default:
+		slot.setState(SLOT_OPEN);
+		break;
+	}
+	slot.setColor(row.color);
+	slot.setPlayerTemplate(row.playerTemplate);
+	slot.setTeamNumber(row.team);
+	slot.setStartPos(row.startPos);
+	slot.setMapAvailability(row.hasMap ? true : false);
+	if (row.accepted)
+		slot.setAccept();
+}
+
+// Draws the slot rows of one snapshot with the player room's own renderer.  Only called with at
+// least one row present.
+static void renderReadOnlySlots(const CasterLobby::LobbyViewModel& view)
+{
+	ReadOnlyGameInfo *game = readOnlyGameInfo();
+	Int i;
+
+	// Rebuild the lists UpdateSlotList() picks its selections from, the way InitLanGameGadgets()
+	// does for the player room.  They are filled from the still empty game so that every color
+	// remains on offer: these combo boxes stay disabled for good, so UpdateSlotList() never
+	// repopulates them itself and a selection has to resolve against this list.
+	game->reset();
+	game->setLocalIP(READ_ONLY_UNREACHABLE_IP);
+	for (i = 0; i < MAX_SLOTS; ++i)
+	{
+		GadgetComboBoxReset(comboBoxPlayer[i]);
+		GadgetComboBoxAddEntry(comboBoxPlayer[i], TheGameText->fetch("GUI:Open"), white);
+		GadgetComboBoxAddEntry(comboBoxPlayer[i], TheGameText->fetch("GUI:Closed"), white);
+		GadgetComboBoxAddEntry(comboBoxPlayer[i], TheGameText->fetch("GUI:EasyAI"), white);
+		GadgetComboBoxAddEntry(comboBoxPlayer[i], TheGameText->fetch("GUI:MediumAI"), white);
+		GadgetComboBoxAddEntry(comboBoxPlayer[i], TheGameText->fetch("GUI:HardAI"), white);
+		GadgetComboBoxSetSelectedPos(comboBoxPlayer[i], 0);
+		PopulateColorComboBox(i, comboBoxColor, game);
+		GadgetComboBoxSetSelectedPos(comboBoxColor[i], 0);
+		PopulatePlayerTemplateComboBox(i, comboBoxPlayerTemplate, game, TRUE);
+		PopulateTeamComboBox(i, comboBoxTeam, game);
+	}
+
+	game->setMap(resolveReadOnlyMapPath(view.mapName));
+	for (i = 0; i < MAX_SLOTS; ++i)
+	{
+		GameSlot slot;
+		if ((UnsignedInt)i < view.rowCount)
+			fillReadOnlySlot(view.rows[i], slot);
+		game->setSlot(i, slot);
+	}
+
+	UpdateSlotList(game, comboBoxPlayer, comboBoxColor, comboBoxPlayerTemplate, comboBoxTeam,
+		buttonAccept, buttonStart, buttonMapStartPosition);
+
+	// UpdateSlotList() leaves slot 0's accept light alone, because the host is always accepted.
+	// Unhide it here, as clearReadOnlyRow() may have hidden it while we had no snapshot yet.
+	if (view.rows[0].kind == CasterLobby::LOBBY_SLOT_HUMAN && buttonAccept[0] != nullptr)
+		buttonAccept[0]->winHide(FALSE);
+}
+
+static void positionReadOnlyMap(const char *mapName)
+{
+	GameWindow *hiddenStartPositions[CasterLobby::LOBBY_MAX_SLOTS] = {0};
+	if (windowMap != nullptr)
+		positionStartSpots(resolveReadOnlyMapPath(mapName), hiddenStartPositions, windowMap);
+}
+
+static void setReadOnlyCombo(GameWindow *combo, const UnicodeString& text, Color color)
+{
+	if (combo == nullptr)
+		return;
+	GadgetComboBoxReset(combo);
+	GadgetComboBoxAddEntry(combo, text, color);
+	GadgetComboBoxSetSelectedPos(combo, 0, TRUE);
+}
+
+static void clearReadOnlyRow(Int index)
+{
+	if (comboBoxPlayer[index] != nullptr)
+		GadgetComboBoxReset(comboBoxPlayer[index]);
+	if (comboBoxColor[index] != nullptr)
+		GadgetComboBoxReset(comboBoxColor[index]);
+	if (comboBoxPlayerTemplate[index] != nullptr)
+		GadgetComboBoxReset(comboBoxPlayerTemplate[index]);
+	if (comboBoxTeam[index] != nullptr)
+		GadgetComboBoxReset(comboBoxTeam[index]);
+	if (buttonAccept[index] != nullptr)
+		buttonAccept[index]->winHide(TRUE);
+}
+
+static UnicodeString readOnlyMapLabel(const char *mapName)
+{
+	AsciiString path(mapName);
+	AsciiString lookup = resolveReadOnlyMapPath(mapName);
+	const MapMetaData *mapData;
+	UnicodeString label;
+
+	lookup.toLower();
+	mapData = TheMapCache->findMap(lookup);
+	if (mapData != nullptr && !mapData->m_displayName.isEmpty())
+		return mapData->m_displayName;
+	if (path.reverseFind('/') != nullptr)
+		path.set(path.reverseFind('/') + 1);
+	if (path.reverseFind('\\') != nullptr)
+		path.set(path.reverseFind('\\') + 1);
+	label.translate(path.str());
+	return label;
+}
+
+// Warns once per map when the watched game's map is not in the local map cache.
+static void warnReadOnlyMissingMap(const char *mapName)
+{
+	AsciiString lookup = resolveReadOnlyMapPath(mapName);
+	if (lookup.isEmpty() || listboxChatWindowLanGame == nullptr)
+		return;
+	if (TheMapCache->findMap(lookup) != nullptr)
+	{
+		s_readOnlyWarnedMap.clear();
+		return;
+	}
+	if (lookup.compareNoCase(s_readOnlyWarnedMap) == 0)
+		return;
+	s_readOnlyWarnedMap = lookup;
+
+	UnicodeString mapLabel = readOnlyMapLabel(mapName);
+	UnicodeString text;
+	text.format(TheGameText->fetch("GUI:LocalPlayerNoMap"), mapLabel.str());
+	GadgetListBoxAddEntryText(listboxChatWindowLanGame, text, chatSystemColor, -1, 0);
+}
+
+static void setReadOnlyMapLabel(UnicodeString text)
+{
+	Int width, height;
+	textEntryMapDisplay->winGetSize(&width, &height);
+	DisplayString *measure = TheDisplayStringManager->newDisplayString();
+	measure->setFont(textEntryMapDisplay->winGetFont());
+	measure->setText(text);
+	if (measure->getWidth() > width - 4)
+	{
+		UnicodeString shortened;
+		do
+		{
+			text.removeLastChar();
+			shortened = text;
+			shortened.concat(L"...");
+			measure->setText(shortened);
+		} while (!text.isEmpty() && measure->getWidth() > width - 4);
+		text = shortened;
+	}
+	TheDisplayStringManager->freeDisplayString(measure);
+	GadgetStaticTextSetText(textEntryMapDisplay, text);
+}
+
+static Bool readOnlyRosterHasName(const CasterLobby::LobbyViewModel& view, const char *name)
+{
+	for (UnsignedInt i = 0; i < view.rowCount && i < CasterLobby::LOBBY_MAX_SLOTS; ++i)
+	{
+		if (view.rows[i].kind == CasterLobby::LOBBY_SLOT_HUMAN
+			&& strcmp(view.rows[i].name, name) == 0)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+// Posts the leave line a player in the room would see, by diffing the human names of
+// two consecutive snapshots. Joins are silent, as in the normal room.
+static void announceReadOnlyRoster(const CasterLobby::LobbyViewModel& previous,
+	const CasterLobby::LobbyViewModel& current)
+{
+	UnicodeString name;
+	UnicodeString text;
+	UnsignedInt i;
+
+	if (listboxChatWindowLanGame == nullptr)
+		return;
+
+	for (i = 0; i < previous.rowCount && i < CasterLobby::LOBBY_MAX_SLOTS; ++i)
+	{
+		const CasterLobby::LobbyViewRow& row = previous.rows[i];
+		if (row.kind != CasterLobby::LOBBY_SLOT_HUMAN || row.name[0] == '\0'
+			|| readOnlyRosterHasName(current, row.name))
+			continue;
+		name.translate(row.name);
+		text.format(TheGameText->fetch("Network:PlayerLeftGame"), name.str());
+		GadgetListBoxAddEntryText(listboxChatWindowLanGame, text, chatSystemColor, -1, 0);
+	}
+}
+
+static UnicodeString readOnlyStatusText(CasterLobby::LobbyStatus status)
+{
+	switch (status)
+	{
+	case CasterLobby::LOBBY_STATUS_OK:
+		return UnicodeString::TheEmptyString;
+	case CasterLobby::LOBBY_STATUS_NO_WATCH:
+		return TheGameText->fetch("LAN:ErrorNoGameSelected");
+	case CasterLobby::LOBBY_STATUS_NO_SOURCE:
+		return TheGameText->fetch("LAN:HostNotResponding");
+	case CasterLobby::LOBBY_STATUS_NO_SUBSCRIPTION:
+	case CasterLobby::LOBBY_STATUS_SUBSCRIBE_PENDING:
+		return TheGameText->fetch("LAN:HostNotResponding");
+	case CasterLobby::LOBBY_STATUS_STALE:
+		return TheGameText->fetch("LAN:HostNotResponding");
+	case CasterLobby::LOBBY_STATUS_UNPARSED:
+		return TheGameText->fetch("LAN:ErrorCRCMismatch");
+	case CasterLobby::LOBBY_STATUS_LOCAL_IP_UNKNOWN:
+		return TheGameText->fetch("LAN:ErrorUnknown");
+	case CasterLobby::LOBBY_STATUS_NOT_PLAYER:
+		return TheGameText->fetch("LAN:ErrorUnknown");
+	case CasterLobby::LOBBY_STATUS_NO_GAME_ANNOUNCED:
+		return TheGameText->fetch("LAN:ErrorUnknown");
+	case CasterLobby::LOBBY_STATUS_NO_UID:
+		return TheGameText->fetch("LAN:ErrorUnknown");
+	default:
+		return TheGameText->fetch("LAN:HostNotResponding");
+	}
+}
+
+static void populateReadOnlyLobby()
+{
+	CasterLobby::LobbyViewModel view;
+	UnicodeString text;
+	UnsignedInt i;
+
+	if (!s_readOnlyCasterMode || TheCaster == nullptr)
+		return;
+
+	const CasterLobby::LobbyState& state = TheCaster->lobbyState();
+	CasterLobby::buildLobbyView(state, TheCaster->lobbyStatus(), view);
+	if (listboxChatWindowLanGame != nullptr && view.status == CasterLobby::LOBBY_STATUS_OK
+		&& CasterLobby::takeCountdown(state, s_readOnlyCountdownRevision))
+	{
+		text.format(TheGameText->fetch(state.countdownSeconds == 1
+			? "LAN:GameStartTimerSingular" : "LAN:GameStartTimerPlural"), state.countdownSeconds);
+		GadgetListBoxAddEntryText(listboxChatWindowLanGame, text, chatSystemColor, -1, 0);
+	}
+
+	if (s_readOnlyHaveLastView && CasterLobby::lobbyViewEquals(s_readOnlyLastView, view))
+		return;
+	if (listboxChatWindowLanGame != nullptr && view.status != CasterLobby::LOBBY_STATUS_NO_WATCH
+		&& (!s_readOnlyHaveLastView || s_readOnlyLastView.status != view.status))
+	{
+		UnicodeString message = readOnlyStatusText(view.status);
+		UnicodeString previousMessage = readOnlyStatusText(s_readOnlyLastView.status);
+		if (!message.isEmpty()
+			&& (!s_readOnlyHaveLastView || message.compare(previousMessage) != 0))
+		{
+			GadgetListBoxAddEntryText(listboxChatWindowLanGame, message,
+				GameMakeColor(128, 128, 128, 255), -1, 0);
+		}
+	}
+	if (s_readOnlyHaveLastView && s_readOnlyLastView.status == CasterLobby::LOBBY_STATUS_OK
+		&& view.status == CasterLobby::LOBBY_STATUS_OK)
+		announceReadOnlyRoster(s_readOnlyLastView, view);
+	s_readOnlyLastView = view;
+	s_readOnlyHaveLastView = TRUE;
+
+	text.clear();
+	if (view.hasSnapshot)
+	{
+		text = readOnlyMapLabel(view.mapName);
+		positionReadOnlyMap(view.mapName);
+		warnReadOnlyMissingMap(view.mapName);
+	}
+	else
+		positionReadOnlyMap("");
+	if (textEntryMapDisplay != nullptr)
+		setReadOnlyMapLabel(text);
+
+	if (checkboxLimitSuperweapons != nullptr)
+		GadgetCheckBoxSetChecked(checkboxLimitSuperweapons, view.superweaponRestriction != 0);
+	if (comboBoxStartingCash != nullptr)
+	{
+		if (view.hasSnapshot)
+		{
+			text.format(TheGameText->fetch("GUI:StartingMoneyFormat"), (Int)view.startingCash);
+			setReadOnlyCombo(comboBoxStartingCash, text,
+				comboBoxStartingCash->winGetEnabledTextColor());
+		}
+		else
+			GadgetComboBoxReset(comboBoxStartingCash);
+	}
+
+	if (view.rowCount > 0)
+		renderReadOnlySlots(view);
+	for (i = view.rowCount; i < CasterLobby::LOBBY_MAX_SLOTS; ++i)
+		clearReadOnlyRow((Int)i);
+}
+
+static void readOnlySendChat()
+{
+	UnicodeString input;
+	if (TheCaster == nullptr || !TheCaster->isCaster() || TheLAN == nullptr)
+		return;
+
+	if (takeChatEntryInput(input))
+	{
+		// The read-only room renders its own feed, so it takes no local echo.
+		SendCasterLobbyChatLine(input, TheLAN->GetMyName(), FALSE);
+	}
+}
+
+static void updateReadOnlyLobby()
+{
+	CasterLobby::LineQueue::Line line;
+	const CasterLobby::LobbyState *state;
+
+	if (!s_readOnlyCasterMode || TheCaster == nullptr)
+		return;
+
+	while (TheCaster->popLobbyLine(line))
+	{
+		ChatMessage chat;
+		UnicodeString rendered;
+		Color chatColor = chatSystemColor;
+		if (!MakeCasterChatMessage(chat, line))
+			continue;
+		if (!line.senderIsCaster)
+		{
+			state = &TheCaster->lobbyState();
+			if (line.senderSlot < state->slotCount)
+				chat.hasColor = ChatColorFromIndex(state->slots[line.senderSlot].color, chat.color);
+		}
+		RenderChatMessage(chat, chatSystemColor, rendered, chatColor);
+		GadgetListBoxAddEntryText(listboxChatWindowLanGame, rendered, chatColor, -1, 0);
+	}
+	populateReadOnlyLobby();
+}
+
+static void resetReadOnlyState()
+{
+	SetReadOnlyCasterChatWindow(nullptr);
+	s_readOnlyLayout = nullptr;
+	s_readOnlyShellOwned = FALSE;
+	s_readOnlyShuttingDown = FALSE;
+	s_readOnlyHaveLastView = FALSE;
+	s_readOnlyCasterMode = FALSE;
+	EnableSlotListUpdates(FALSE);
+	if (s_readOnlyGame != nullptr)
+	{
+		delete s_readOnlyGame;
+		s_readOnlyGame = nullptr;
+	}
+	DeinitLanGameGadgets();
+}
+
+Bool IsReadOnlyLanGameOptionsOpen()
+{
+	return s_readOnlyCasterMode && s_readOnlyLayout != nullptr && !s_readOnlyShuttingDown;
+}
+
+void PostReadOnlyLanGameOptionsLine(const WideChar *text)
+{
+	if (!IsReadOnlyLanGameOptionsOpen() || listboxChatWindowLanGame == nullptr || text == nullptr)
+		return;
+	GadgetListBoxAddEntryText(listboxChatWindowLanGame, UnicodeString(text), chatSystemColor, -1, 0);
+}
+
+void CloseReadOnlyLanGameOptions()
+{
+	if (!IsReadOnlyLanGameOptionsOpen())
+		return;
+	TheShell->popReplacement();
+	GameWindow *lobbyChat = TheWindowManager->winGetWindowFromId(nullptr,
+		TheNameKeyGenerator->nameToKey("LanLobbyMenu.wnd:TextEntryChat"));
+	if (lobbyChat != nullptr)
+		TheWindowManager->winSetFocus(lobbyChat);
+}
+
+Bool OpenReadOnlyLanGameOptions(char *failure, UnsignedInt failureCapacity)
+{
+	static const char *layoutPaths[] =
+	{
+		"Menus/LanGameOptionsMenu.wnd",
+		"LanGameOptionsMenu.wnd",
+	};
+	CasterLobby::ReadOnlyOpenStage failureStage = CasterLobby::READONLY_OPEN_LAYOUT_FAILED;
+	const char *failedGadget = nullptr;
+	Int row;	// hoisted: goto below must not skip a for-scoped initializer
+
+	if (IsReadOnlyLanGameOptionsOpen())
+		return TRUE;
+	for (Int i = 0; i < 2 && s_readOnlyLayout == nullptr; ++i)
+		s_readOnlyLayout = TheWindowManager->winCreateLayout(layoutPaths[i]);
+	if (s_readOnlyLayout == nullptr)
+		goto failure;
+
+	s_readOnlyCasterMode = TRUE;
+	BindLanGameGadgets(s_readOnlyLayout);
+	if (parentLanGameOptions == nullptr)
+	{
+		failureStage = CasterLobby::READONLY_OPEN_PARENT_MISSING;
+		goto failure;
+	}
+	if (textEntryMapDisplay == nullptr)
+		failedGadget = "LanGameOptionsMenu.wnd:TextEntryMapDisplay";
+	else if (windowMap == nullptr)
+		failedGadget = "LanGameOptionsMenu.wnd:MapWindow";
+	else if (listboxChatWindowLanGame == nullptr)
+		failedGadget = "LanGameOptionsMenu.wnd:ListboxChatWindowLanGame";
+	else if (textEntryChat == nullptr)
+		failedGadget = "LanGameOptionsMenu.wnd:TextEntryChat";
+	else if (buttonBack == nullptr)
+		failedGadget = "LanGameOptionsMenu.wnd:ButtonBack";
+	else if (buttonStart == nullptr)
+		failedGadget = "LanGameOptionsMenu.wnd:ButtonStart";
+	else if (buttonSelectMap == nullptr)
+		failedGadget = "LanGameOptionsMenu.wnd:ButtonSelectMap";
+	// initReadOnlyLanGameOptions touches every slot row unconditionally.
+	for (row = 0; row < CasterLobby::LOBBY_MAX_SLOTS && failedGadget == nullptr; ++row)
+	{
+		if (comboBoxPlayer[row] == nullptr)
+			failedGadget = "LanGameOptionsMenu.wnd:ComboBoxPlayer";
+		else if (comboBoxColor[row] == nullptr)
+			failedGadget = "LanGameOptionsMenu.wnd:ComboBoxColor";
+		else if (comboBoxPlayerTemplate[row] == nullptr)
+			failedGadget = "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate";
+		else if (comboBoxTeam[row] == nullptr)
+			failedGadget = "LanGameOptionsMenu.wnd:ComboBoxTeam";
+		else if (buttonAccept[row] == nullptr)
+			failedGadget = "LanGameOptionsMenu.wnd:ButtonAccept";
+		else if (buttonMapStartPosition[row] == nullptr)
+			failedGadget = "LanGameOptionsMenu.wnd:ButtonMapStartPosition";
+	}
+	if (failedGadget != nullptr)
+	{
+		failureStage = CasterLobby::READONLY_OPEN_GADGET_MISSING;
+		goto failure;
+	}
+
+	TheMapCache->updateCache();
+	if (!TheShell->pushReplacement(s_readOnlyLayout, LanGameOptionsMenuInit,
+		LanGameOptionsMenuUpdate, LanGameOptionsMenuShutdown))
+		goto failure;
+	s_readOnlyShellOwned = TRUE;
+	return TRUE;
+
+failure:
+	if (failure != nullptr && failureCapacity != 0)
+		CasterLobby::formatReadOnlyOpenFailure(failureStage, failedGadget,
+			failure, failureCapacity);
+	WindowLayout *failedLayout = s_readOnlyLayout;
+	Bool destroyFailedLayout = failedLayout != nullptr && !s_readOnlyShellOwned;
+	resetReadOnlyState();
+	if (destroyFailedLayout)
+	{
+		failedLayout->destroyWindows();
+		deleteInstance(failedLayout);
+	}
+	return FALSE;
+}
+
+static void initReadOnlyLanGameOptions(WindowLayout *layout)
+{
+	if (TheCaster == nullptr || !TheCaster->isCaster()
+		|| !TheCaster->hasSelectedGame() || TheCaster->playbackEntered())
+	{
+		// The watch is over (for example the match ended and we are returning from
+		// the score screen), so there is no room left to show. Go back to the lobby.
+		DEBUG_LOG(("Popping to lobby after a cast game!"));
+		TheShell->popImmediate();
+		return;
+	}
+
+	BindLanGameGadgets(layout);
+	SetReadOnlyCasterChatWindow(listboxChatWindowLanGame);
+	GadgetListBoxReset(listboxChatWindowLanGame);
+	GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
+	s_readOnlyCountdownRevision = 0;
+	s_readOnlyHaveLastView = FALSE;
+	s_readOnlyWarnedMap.clear();
+
+	buttonStart->winEnable(FALSE);
+	buttonSelectMap->winEnable(FALSE);
+	if (checkboxLimitSuperweapons != nullptr)
+		checkboxLimitSuperweapons->winEnable(FALSE);
+	if (comboBoxStartingCash != nullptr)
+		comboBoxStartingCash->winEnable(FALSE);
+	for (Int i = 0; i < CasterLobby::LOBBY_MAX_SLOTS; ++i)
+	{
+		comboBoxPlayer[i]->winEnable(FALSE);
+		comboBoxColor[i]->winEnable(FALSE);
+		comboBoxPlayerTemplate[i]->winEnable(FALSE);
+		comboBoxTeam[i]->winEnable(FALSE);
+		// The accept lights are indicators, not controls: both rooms render them by toggling the
+		// enabled state, so UpdateSlotList() owns it here too.  Blocking their input is what keeps
+		// them inert, and that holds whatever the enabled state says.
+		buttonAccept[i]->winSetInputFunc(GameWinBlockInput);
+		buttonMapStartPosition[i]->winHide(TRUE);
+	}
+	GadgetButtonSetEnabledColor(buttonAccept[0], acceptTrueColor);
+
+	HideGameInfoWindow(TRUE);
+	layout->hide(FALSE);
+	layout->bringForward();
+	TheWindowManager->winSetFocus(parentLanGameOptions);
+	EnableSlotListUpdates(TRUE);
+	populateReadOnlyLobby();
+	TheTransitionHandler->setGroup("LanGameOptionsFade");
+}
+
+static void completeReadOnlyShutdown(WindowLayout *layout)
+{
+	resetReadOnlyState();
+	layout->hide(TRUE);
+	TheShell->shutdownComplete(layout);
+}
+
+static void shutdownReadOnlyLanGameOptions(WindowLayout *layout, Bool popImmediate)
+{
+	Bool matchEntered = TheCaster != nullptr && TheCaster->playbackEntered();
+	if (TheCaster != nullptr && TheCaster->isCaster() && !matchEntered)
+	{
+		TheCaster->finishWatch(WATCH_EXIT_USER_BACKED_OUT);
+		CasterEnable(CASTER_ROLE_PLAYER);
+	}
+	// Skip the animation for an immediate pop and when the match itself is starting.
+	if (popImmediate || matchEntered)
+	{
+		completeReadOnlyShutdown(layout);
+		return;
+	}
+	s_readOnlyShuttingDown = TRUE;
+	TheShell->reverseAnimatewindow();
+	TheTransitionHandler->reverse("LanGameOptionsFade");
+}
+
+static void updateReadOnlyLanGameOptions(WindowLayout *layout)
+{
+	if (s_readOnlyShuttingDown)
+	{
+		if (TheShell->isAnimFinished() && TheTransitionHandler->isFinished())
+			completeReadOnlyShutdown(layout);
+		return;
+	}
+	if (TheCaster != nullptr && TheCaster->hasSelectedGame())
+		updateReadOnlyLobby();
+}
+
+static WindowMsgHandledType readOnlyLanGameOptionsSystem(UnsignedInt msg,
+	WindowMsgData mData1, WindowMsgData mData2)
+{
+	switch (msg)
+	{
+	case GWM_INPUT_FOCUS:
+		if (mData1 == TRUE)
+			*(Bool *)mData2 = TRUE;
+		return MSG_HANDLED;
+	case GBM_SELECTED:
+		if ((GameWindow *)mData1 == buttonBack)
+		{
+			CloseReadOnlyLanGameOptions();
+			return MSG_HANDLED;
+		}
+		if ((GameWindow *)mData1 == buttonChat)
+		{
+			readOnlySendChat();
+			return MSG_HANDLED;
+		}
+		return MSG_HANDLED;
+	case GEM_EDIT_DONE:
+		if ((GameWindow *)mData1 == textEntryChat)
+		{
+			readOnlySendChat();
+			return MSG_HANDLED;
+		}
+		return MSG_HANDLED;
+	}
+	return MSG_IGNORED;
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Initialize the normal LAN player room */
+//-------------------------------------------------------------------------------------------------
+static void playerRoomInit( WindowLayout *layout )
 {
 	if (TheLAN->GetMyGame() && TheLAN->GetMyGame()->isGameInProgress())
 	{
@@ -761,7 +1487,7 @@ void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
 
 	//initialize the gadgets
 	EnableSlotListUpdates(FALSE);
-	InitLanGameGadgets();
+	InitLanGameGadgets(layout);
 	EnableSlotListUpdates(TRUE);
 	Int start = 0;
 
@@ -854,6 +1580,17 @@ void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
 }
 
 //-------------------------------------------------------------------------------------------------
+/** Initialize the Lan Game Options Menu */
+//-------------------------------------------------------------------------------------------------
+void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
+{
+	if (s_readOnlyCasterMode)
+		initReadOnlyLanGameOptions(layout);
+	else
+		playerRoomInit(layout);
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Update options on screen */
 //-------------------------------------------------------------------------------------------------
 void updateGameOptions()
@@ -934,9 +1671,9 @@ static void shutdownComplete( WindowLayout *layout )
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Lan Game Options menu shutdown method */
+/** Normal LAN player room shutdown */
 //-------------------------------------------------------------------------------------------------
-void LanGameOptionsMenuShutdown( WindowLayout *layout, void *userData )
+static void playerRoomShutdown( WindowLayout *layout, Bool popImmediate )
 {
 	TheMouse->setCursor(Mouse::ARROW);
 	TheMouse->setMouseText(UnicodeString::TheEmptyString,nullptr,nullptr);
@@ -944,7 +1681,6 @@ void LanGameOptionsMenuShutdown( WindowLayout *layout, void *userData )
 	LANisShuttingDown = true;
 
 	// if we are shutting down for an immediate pop, skip the animations
-	Bool popImmediate = *(Bool *)userData;
 	if( popImmediate )
 	{
 
@@ -971,13 +1707,35 @@ void LanGameOptionsMenuShutdown( WindowLayout *layout, void *userData )
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Lan Game Options menu update method */
+/** Lan Game Options menu shutdown method */
 //-------------------------------------------------------------------------------------------------
-void LanGameOptionsMenuUpdate( WindowLayout * layout, void *userData)
+void LanGameOptionsMenuShutdown( WindowLayout *layout, void *userData )
+{
+	if (s_readOnlyCasterMode)
+		shutdownReadOnlyLanGameOptions(layout, *(Bool *)userData);
+	else
+		playerRoomShutdown(layout, *(Bool *)userData);
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Normal LAN player room update */
+//-------------------------------------------------------------------------------------------------
+static void playerRoomUpdate( WindowLayout *layout )
 {
 	if(LANisShuttingDown && TheShell->isAnimFinished() && TheTransitionHandler->isFinished())
 		shutdownComplete(layout);
 	//TheLAN->update(); // this is handled in the lobby
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Lan Game Options menu update method */
+//-------------------------------------------------------------------------------------------------
+void LanGameOptionsMenuUpdate( WindowLayout * layout, void *userData)
+{
+	if (s_readOnlyCasterMode)
+		updateReadOnlyLanGameOptions(layout);
+	else
+		playerRoomUpdate(layout);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1022,12 +1780,11 @@ WindowMsgHandledType LanGameOptionsMenuInput( GameWindow *window, UnsignedInt ms
 
 
 //-------------------------------------------------------------------------------------------------
-/** Lan Game Options menu window system callback */
+/** Normal LAN player room window system callback */
 //-------------------------------------------------------------------------------------------------
-WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt msg,
+static WindowMsgHandledType playerRoomSystem( GameWindow *window, UnsignedInt msg,
 														 WindowMsgData mData1, WindowMsgData mData2 )
 {
-	UnicodeString txtInput;
 	switch( msg )
 	{
 		//-------------------------------------------------------------------------------------------------
@@ -1134,17 +1891,7 @@ WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt m
 				}
 				else if ( controlID == buttonChatID )
 				{
-					// read the user's input
-					txtInput.set(GadgetTextEntryGetText( textEntryChat ));
-					// Clear the text entry line
-					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
-					// Clean up the text (remove leading/trailing chars, etc)
-					txtInput.trim();
-					// Echo the user's input to the chat window
-					if (!txtInput.isEmpty())
-					{
-						TheLAN->RequestPlayerChat(txtInput);
-					}
+					playerRoomSendChat();
 				}
 				else if ( controlID == buttonSelectMapID )
 				{
@@ -1267,19 +2014,7 @@ WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt m
 				// send it to the other clients on the lan
 				if ( controlID == textEntryChatID )
 				{
-
-					// read the user's input
-					txtInput.set(GadgetTextEntryGetText( textEntryChat ));
-					// Clear the text entry line
-					GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
-					// Clean up the text (remove leading/trailing chars, etc)
-					txtInput.trim();
-					// Echo the user's input to the chat window
-					if (!txtInput.isEmpty())
-					{
-						TheLAN->RequestPlayerChat(txtInput);
-					}
-
+					playerRoomSendChat();
 				}
 				break;
 			}
@@ -1288,6 +2023,17 @@ WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt m
 			return MSG_IGNORED;
 	}
 	return MSG_HANDLED;
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Lan Game Options menu window system callback */
+//-------------------------------------------------------------------------------------------------
+WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt msg,
+														 WindowMsgData mData1, WindowMsgData mData2 )
+{
+	if (s_readOnlyCasterMode)
+		return readOnlyLanGameOptionsSystem(msg, mData1, mData2);
+	return playerRoomSystem(window, msg, mData1, mData2);
 }
 
 //-------------------------------------------------------------------------------------------------

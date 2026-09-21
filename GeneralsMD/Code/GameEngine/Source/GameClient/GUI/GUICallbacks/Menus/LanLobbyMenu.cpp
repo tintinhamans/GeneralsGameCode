@@ -34,6 +34,7 @@
 #include "Lib/BaseType.h"
 #include "Common/crc.h"
 #include "Common/GameEngine.h"
+#include "Common/GameState.h"
 #include "Common/GlobalData.h"
 #include "Common/MultiplayerSettings.h"
 #include "Common/NameKeyGenerator.h"
@@ -44,6 +45,9 @@
 #include "GameClient/AnimateWindowManager.h"
 #include "GameClient/ClientInstance.h"
 #include "GameClient/GameText.h"
+#include "GameClient/InGameUI.h"
+#include "GameClient/DisplayString.h"
+#include "GameClient/DisplayStringManager.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/WindowLayout.h"
@@ -52,15 +56,23 @@
 #include "GameClient/ShellHooks.h"
 #include "GameClient/KeyDefs.h"
 #include "GameClient/GameInfoWindow.h"
+#include "GameClient/GUICallbacks.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetTextEntry.h"
+#include "GameClient/GadgetComboBox.h"
+#include "GameClient/GadgetStaticText.h"
+#include "GameClient/GadgetPushButton.h"
+#include "GameClient/GadgetCheckBox.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/LANGameInfo.h"
+#include "GameNetwork/Caster/Caster.h"
+#include "GameNetwork/Caster/CasterLobby.h"
+#include "GameNetwork/Caster/CasterProtocol.h"
 
 Bool LANisShuttingDown = false;
 Bool LANbuttonPushed = false;
@@ -319,6 +331,7 @@ static GameWindow *staticTextGameInfo = nullptr;
 //external declarations of the Gadgets the callbacks can use
 NameKeyType listboxChatWindowID = NAMEKEY_INVALID;
 GameWindow *listboxChatWindow = nullptr;
+
 GameWindow *listboxPlayers = nullptr;
 NameKeyType listboxGamesID = NAMEKEY_INVALID;
 GameWindow *listboxGames = nullptr;
@@ -327,6 +340,166 @@ GameWindow *listboxGames = nullptr;
 //static Bool shellmapOn;
 static Bool useFpsLimit;
 static UnicodeString defaultName;
+
+
+static CasterLobby::OpenFailureLatch readOnlyOpenFailure;
+
+void LatchReadOnlyOpenFailure(UnsignedInt gameUid)
+{
+	readOnlyOpenFailure.latch(gameUid);
+}
+
+void ClearReadOnlyOpenFailure()
+{
+	readOnlyOpenFailure.clear();
+}
+
+static void reportCastUnavailable(const UnicodeString& reason)
+{
+	if (listboxChatWindow == nullptr)
+		return;
+	GadgetListBoxAddEntryText(listboxChatWindow, reason, chatSystemColor, -1, 0);
+}
+
+void OnReadOnlyCasterGameRemoved(const LiveCasterGameKey& key, Bool gameInProgress)
+{
+	if (TheCaster == nullptr || !TheCaster->isSelectedGame(key))
+		return;
+	if (!IsReadOnlyLanGameOptionsOpen())
+		return;
+	TheCaster->finishWatch(gameInProgress ? WATCH_EXIT_MATCH_STARTED_WITHOUT_BOOTSTRAP
+		: WATCH_EXIT_HOST_CLOSED_ROOM);
+}
+
+static UnicodeString watchExitText(WatchExitReason reason)
+{
+	switch (reason)
+	{
+	case WATCH_EXIT_HOST_CLOSED_ROOM:
+		return TheGameText->fetch("LAN:ErrorGameGone");
+	case WATCH_EXIT_MATCH_STARTED_WITHOUT_BOOTSTRAP:
+		return TheGameText->fetch("LAN:ErrorGameStarted");
+	case WATCH_EXIT_MAP_UNAVAILABLE:
+		return TheGameText->fetch("GUI:CouldNotTransferMap");
+	case WATCH_EXIT_ALL_SOURCES_LOST:
+		return TheGameText->fetch("LAN:HostNotResponding");
+	case WATCH_EXIT_PROTOCOL_INCOMPATIBLE:
+		return TheGameText->fetch("LAN:ErrorCRCMismatch");
+	case WATCH_EXIT_TRANSPORT_DISAGREEMENT:
+		return TheGameText->fetch("LAN:ErrorUnknown");
+	default:
+		return UnicodeString::TheEmptyString;
+	}
+}
+
+void OnLiveCasterWatchExit(WatchExitReason reason, WatchExitAction action)
+{
+	UnicodeString text = watchExitText(reason);
+	Bool roomOpen = IsReadOnlyLanGameOptionsOpen();
+
+	if (action == WATCH_ACTION_LOBBY || action == WATCH_ACTION_POPUP_LOBBY)
+	{
+		if (action == WATCH_ACTION_POPUP_LOBBY && !text.isEmpty())
+			MessageBoxOk(TheGameText->fetch("LAN:JoinFailed"), text, nullptr);
+		if (roomOpen)
+			CloseReadOnlyLanGameOptions();
+		if (action == WATCH_ACTION_LOBBY && !text.isEmpty())
+			reportCastUnavailable(text);
+		return;
+	}
+	if (text.isEmpty())
+		return;
+	if (roomOpen)
+		PostReadOnlyLanGameOptionsLine(text.str());
+	else if (TheInGameUI != nullptr && TheGameLogic != nullptr && TheGameLogic->isInGame())
+		TheInGameUI->messageNoFormat(text);
+}
+
+static Bool beginCasting(LANGameInfo *theGame)
+{
+	AsciiString hostIp;
+	UnsignedInt gameUid;
+	LiveCasterGameKey gameKey;
+
+	if (theGame == nullptr)
+	{
+		reportCastUnavailable(TheGameText->fetch("LAN:ErrorNoGameSelected"));
+		return FALSE;
+	}
+
+	gameUid = CasterProtocol::computeGameUid(theGame->getHostIP(),
+		(UnsignedInt)theGame->getSeed());
+	gameKey = LiveCasterGameKey(gameUid, theGame->getHostIP(),
+		(UnsignedInt)theGame->getSeed());
+	if (TheCaster != nullptr && TheCaster->isSelectedGame(gameKey))
+		return TRUE;
+	if (theGame->isGameInProgress())
+	{
+		TheLAN->OnGameJoin(LANAPIInterface::RET_GAME_STARTED, theGame);
+		return FALSE;
+	}
+	if (readOnlyOpenFailure.shouldSkip(gameUid))
+		return FALSE;
+	if (!CasterEnable(CASTER_ROLE_CASTER) || TheCaster == nullptr
+		|| !TheCaster->isCaster())
+	{
+		reportCastUnavailable(TheGameText->fetch("LAN:ErrorUnknown"));
+		return FALSE;
+	}
+
+	hostIp.format("%d.%d.%d.%d", PRINTF_IP_AS_4_INTS(theGame->getHostIP()));
+	if (!TheCaster->watchHost(hostIp.str()))
+	{
+		CasterEnable(CASTER_ROLE_PLAYER);
+		readOnlyOpenFailure.latch(gameUid);
+		reportCastUnavailable(TheGameText->fetch("LAN:ErrorUnknown"));
+		return FALSE;
+	}
+	if (!TheCaster->selectGame(gameKey))
+	{
+		TheCaster->unsubscribe();
+		CasterEnable(CASTER_ROLE_PLAYER);
+		return FALSE;
+	}
+
+	for (Int slot = 1; slot < MAX_SLOTS; ++slot)
+	{
+		UnsignedInt peerIP = theGame->getIP(slot);
+		if (peerIP == 0 || peerIP == theGame->getHostIP())
+			continue;
+		AsciiString peerAddress;
+		peerAddress.format("%d.%d.%d.%d", PRINTF_IP_AS_4_INTS(peerIP));
+		TheLAN->RequestCasterDetails(peerAddress.str());
+	}
+
+	// The room opens only once the host's game details have arrived.
+	TheLAN->RequestCastGame(theGame);
+	return TRUE;
+}
+
+static void handleJoinGesture(LANGameInfo *theGame)
+{
+	OptionPreferences prefs;
+	Bool featureEnabled = prefs.getLiveCastingEnabled();
+	Bool readOnly = prefs.getCasterReadOnlyLobby();
+	Bool shiftHeld = ((::GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0);
+
+	switch (CasterLobby::classifyGesture(theGame != nullptr, shiftHeld, featureEnabled,
+		readOnly))
+	{
+	case CasterLobby::GESTURE_NONE:
+		return;
+	case CasterLobby::GESTURE_JOIN:
+		TheLAN->RequestGameJoin(theGame);
+		return;
+	case CasterLobby::GESTURE_CAST:
+		beginCasting(theGame);
+		return;
+	case CasterLobby::GESTURE_CAST_UNAVAILABLE:
+		break;
+	}
+	reportCastUnavailable(TheGameText->fetch("LAN:ErrorUnknown"));
+}
 
 static void playerTooltip(GameWindow *window,
 													WinInstanceData *instData,
@@ -366,6 +539,7 @@ void LanLobbyMenuInit( WindowLayout *layout, void *userData )
 	LANbuttonPushed = false;
 	LANisShuttingDown = false;
 
+	readOnlyOpenFailure.clear();
 	// get the ids for our controls
 	parentLanLobbyID = TheNameKeyGenerator->nameToKey( "LanLobbyMenu.wnd:LanLobbyMenuParent" );
 	buttonBackID = TheNameKeyGenerator->nameToKey( "LanLobbyMenu.wnd:ButtonBack" );
@@ -398,6 +572,8 @@ void LanLobbyMenuInit( WindowLayout *layout, void *userData )
 	listboxChatWindow = TheWindowManager->winGetWindowFromId( nullptr, listboxChatWindowID );
 	listboxGames = TheWindowManager->winGetWindowFromId( nullptr, listboxGamesID );
 	staticTextGameInfo = TheWindowManager->winGetWindowFromId( nullptr, staticTextGameInfoID );
+	// This screen hosts caster chat while the LAN lobby is up.
+	SetLanLobbyCasterChatWindow( listboxChatWindow );
 	listboxPlayers->winSetTooltipFunc(playerTooltip);
 
 	// Show Menu
@@ -551,6 +727,19 @@ void LanLobbyMenuShutdown( WindowLayout *layout, void *userData )
 	prefs.write();
 
 	DestroyGameInfoWindow();
+
+	// Preserve the caster facade once the recorder owns its live replay source.
+
+	SetLanLobbyCasterChatWindow( nullptr );
+	listboxChatWindow = nullptr;
+	readOnlyOpenFailure.clear();
+	if (TheCaster != nullptr && TheCaster->hasSelectedGame())
+	{
+		if (TheCaster->isCaster() && !TheCaster->playbackEntered())
+		{
+			CasterDisable();
+		}
+	}
 	// hide menu
 	//layout->hide( TRUE );
 
@@ -612,6 +801,7 @@ void LanLobbyMenuUpdate( WindowLayout * layout, void *userData)
 
 	if (TheShell->isAnimFinished() && !LANbuttonPushed && TheLAN)
 		TheLAN->update();
+
 
 	if (LANSocketErrorDetected == TRUE) {
 		LANSocketErrorDetected = FALSE;
@@ -709,7 +899,7 @@ WindowMsgHandledType LanLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 		case GLM_DOUBLE_CLICKED:
 			{
-				if (LANbuttonPushed)
+				if (LANbuttonPushed || IsReadOnlyLanGameOptionsOpen())
 					break;
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
@@ -722,7 +912,7 @@ WindowMsgHandledType LanLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 						LANGameInfo * theGame = TheLAN->LookupGameByListOffset(rowSelected);
 						if (theGame)
 						{
-							TheLAN->RequestGameJoin(theGame);
+							handleJoinGesture(theGame);
 						}
 					}
 				}
@@ -730,7 +920,7 @@ WindowMsgHandledType LanLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 		case GLM_SELECTED:
 			{
-				if (LANbuttonPushed)
+				if (LANbuttonPushed || IsReadOnlyLanGameOptionsOpen())
 					break;
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
@@ -796,7 +986,7 @@ WindowMsgHandledType LanLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 						LANGameInfo * theGame = TheLAN->LookupGameByListOffset(rowSelected);
 						if (theGame)
 						{
-							TheLAN->RequestGameJoin(theGame);
+							handleJoinGesture(theGame);
 						}
 					}
 					else
