@@ -137,6 +137,10 @@ extern void LanGameOptionsMenuUpdate( WindowLayout *layout, void *userData );
 extern void LanGameOptionsMenuShutdown( WindowLayout *layout, void *userData );
 extern WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType LanGameOptionsMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
+extern Bool OpenReadOnlyLanGameOptions( char *failure, UnsignedInt failureCapacity );
+extern void CloseReadOnlyLanGameOptions();
+extern Bool IsReadOnlyLanGameOptionsOpen();
+extern void PostReadOnlyLanGameOptionsLine( const WideChar *text );
 
 // Lan Map Select Menu -----------------------------------------------------------------------------
 extern void LanMapSelectMenuInit( WindowLayout *layout, void *userData );
