@@ -219,6 +219,7 @@ private:
 	int64_t m_reconnectStartTime = -1;
 	int64_t m_nextReconnectAttempt = -1;
 	int64_t m_reconnectAttemptStarted = -1; // -1 = none in flight
+	bool m_bFreshSession = false; // 205: reconnect as a new session
 
 	void BeginReconnect();
 	void EndReconnect();

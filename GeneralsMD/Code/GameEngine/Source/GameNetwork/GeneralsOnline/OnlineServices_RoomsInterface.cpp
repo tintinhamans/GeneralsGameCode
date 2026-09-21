@@ -586,6 +586,7 @@ void WebSocket::BeginReconnect()
 
 	m_bReconnecting = true;
 	m_numReconnectAttempts = 0;
+	m_bFreshSession = false;
 	m_reconnectAttemptStarted = -1;
 	m_reconnectStartTime = NowMs();
 	m_nextReconnectAttempt = m_reconnectStartTime + ComputeReconnectDelay();
@@ -619,6 +620,30 @@ int64_t WebSocket::ComputeReconnectDelay() const
 	return std::uniform_int_distribution<int64_t>(lo, hi)(rng);
 }
 
+// Restores what the old session had once a fresh one is connected.
+static void RestoreSessionState()
+{
+	NGMP_OnlineServices_SocialInterface* pSocial = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+	if (pSocial == nullptr)
+	{
+		return;
+	}
+
+	pSocial->GetFriendsList(false, nullptr);
+	pSocial->GetBlockList(nullptr);
+	if (pSocial->IsOverlayActive())
+	{
+		pSocial->RegisterForRealtimeServiceUpdates();
+	}
+
+	// the new session starts outside any network room, so rejoin the one the lobby menu still shows
+	NGMP_OnlineServices_RoomsInterface* pRooms = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+	if (pRooms != nullptr && pRooms->GetCurrentRoomIndex() >= 0)
+	{
+		pRooms->JoinRoom(pRooms->GetCurrentRoomIndex());
+	}
+}
+
 void WebSocket::UpdateReconnect()
 {
 	if (!m_bReconnecting)
@@ -636,6 +661,16 @@ void WebSocket::UpdateReconnect()
 	const int64_t currTime = NowMs();
 	const bool bGameInProgress = TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress();
 
+	// Session gone server-side: nothing to retry during a match, the window starts after it.
+	if (m_bFreshSession && bGameInProgress)
+	{
+		m_reconnectStartTime = currTime;
+		m_numReconnectAttempts = 0;
+		m_reconnectAttemptStarted = -1;
+		m_nextReconnectAttempt = currTime + ComputeReconnectDelay();
+		return;
+	}
+
 	// Connect() kills the previous handle: leave a pending attempt alone unless stuck.
 	if (m_reconnectAttemptStarted != -1 && (currTime - m_reconnectAttemptStarted) < m_reconnectAttemptTimeout)
 	{
@@ -652,14 +687,15 @@ void WebSocket::UpdateReconnect()
 		return;
 	}
 
-	if (currTime < m_nextReconnectAttempt)
+	// New session only once out of the lobby the server dropped us from.
+	if (currTime < m_nextReconnectAttempt || (m_bFreshSession && TheNGMPGame != nullptr))
 	{
 		return;
 	}
 
 	++m_numReconnectAttempts;
 	m_reconnectAttemptStarted = currTime;
-	Connect(m_strWebsocketAddr.c_str(), true, nullptr);
+	Connect(m_strWebsocketAddr.c_str(), !m_bFreshSession, m_bFreshSession ? std::function<void()>(RestoreSessionState) : nullptr);
 }
 
 void WebSocket::Tick()
@@ -729,13 +765,14 @@ void WebSocket::Tick()
 
                         if (m_bReconnecting)
                         {
-                            if (m->data.result == CURLE_HTTP_RETURNED_ERROR && httpResponseCode == 205) // session gone, retrying is pointless
+                            if (!m_bFreshSession && m->data.result == CURLE_HTTP_RETURNED_ERROR && httpResponseCode == 205) // 205: session gone, can't resume
                             {
-                                NetworkLog(ELogVerbosity::LOG_RELEASE, "Going to teardown (reconnect 205)");
-                                NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
-                                m_bConnected = false;
-                                m_vecWSPartialBuffer.clear();
-                                EndReconnect();
+                                NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Server dropped our session (205), will reconnect as a new one");
+                                m_bFreshSession = true;
+                                m_reconnectAttemptStarted = -1;
+                                m_reconnectStartTime = NowMs();
+                                m_numReconnectAttempts = 0;
+                                m_nextReconnectAttempt = m_reconnectStartTime + ComputeReconnectDelay();
                             }
                             else
                             {
