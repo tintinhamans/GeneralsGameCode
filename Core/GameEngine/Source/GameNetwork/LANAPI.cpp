@@ -26,18 +26,39 @@
 
 #define WIN32_LEAN_AND_MEAN  // only bare bones windows stuff wanted
 
+#include <stddef.h>
+
 #include "Common/crc.h"
 #include "Common/GameState.h"
 #include "Common/Registry.h"
 #include "GameNetwork/LANAPI.h"
+#include "GameNetwork/LANAPICallbacks.h"
+#include "GameClient/GUICallbacks.h"
 #include "GameNetwork/networkutil.h"
+#include "GameNetwork/Caster/Caster.h"
+#include "GameNetwork/Caster/CasterBeacon.h"
+#include "GameNetwork/Caster/CasterChatMessage.h"
 #include "Common/GlobalData.h"
+#include "Common/MultiplayerSettings.h"
 #include "Common/RandomValue.h"
 #include "GameClient/GameText.h"
+#include "GameClient/LanguageFilter.h"
 #include "GameClient/MapUtil.h"
+
+#include "GameClient/GameWindow.h"
+#include "GameClient/Shell.h"
+#include "GameClient/WindowLayout.h"
 #include "Common/UserPreferences.h"
 #include "GameLogic/GameLogic.h"
 
+
+namespace
+{
+// VC6 disables static_assert; negative array sizes enforce the wire contract.
+typedef char CasterBeaconType[(LANMessage::MSG_CASTER_BEACON == 17 && CasterBeacon::MESSAGE_TYPE == 17) ? 1 : -1];
+typedef char CasterBeaconUid[(sizeof(((LANMessage*)0)->Caster.uid) == CasterBeacon::MAX_UID_CHARS + 1) ? 1 : -1];
+typedef char CasterPacketBound[(sizeof(LANMessage) <= MAX_LANAPI_PACKET_SIZE) ? 1 : -1];
+}
 
 static const UnsignedShort lobbyPort = 8086; ///< This is the UDP port used by all LANAPI communication
 
@@ -99,6 +120,7 @@ void LANAPI::init()
 {
 	m_gameStartTime = 0;
 	m_gameStartSeconds = 0;
+	m_gameStartRevision = 0;
 	m_transport->reset();
 	m_transport->init(m_localIP, lobbyPort);
 	m_transport->allowBroadcasts(true);
@@ -135,6 +157,9 @@ void LANAPI::init()
 		m_hostName = "unknown";
 	}
 #endif
+
+
+	CasterEnable(CASTER_ROLE_PLAYER);
 }
 
 void LANAPI::reset()
@@ -349,6 +374,7 @@ void LANAPI::update()
 			UnsignedInt senderIP = m_transport->m_inBuffer[i].addr;
 			if (senderIP == m_localIP)
 			{
+
 				m_transport->m_inBuffer[i].length = 0;
 				continue;
 			}
@@ -374,6 +400,7 @@ void LANAPI::update()
 			case LANMessage::MSG_REQUEST_GAME_INFO:
 				DEBUG_LOG(("LANAPI::update - got a MSG_REQUEST_GAME_INFO from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
 				handleRequestGameInfo( msg, senderIP );
+				ReplyCasterDetails(senderIP);
 				break;
 
 				// Joining games
@@ -423,6 +450,9 @@ void LANAPI::update()
 			case LANMessage::MSG_INACTIVE:		// someone is telling us that we're inactive.
 				handleInActive( msg, senderIP );
 				break;
+			case LANMessage::MSG_CASTER_BEACON:	// a live game is available to cast.
+				handleCasterBeacon( msg, senderIP, (UnsignedInt)m_transport->m_inBuffer[i].length );
+				break;
 
 			default:
 				DEBUG_LOG(("Unknown LAN message type %d", msg->messageType));
@@ -438,6 +468,9 @@ void LANAPI::update()
 	}
 	if(LANbuttonPushed)
 		return;
+
+
+
 	// Send out periodic I'm Here messages
 	if (now > s_resendDelta + m_lastResendTime)
 	{
@@ -558,6 +591,25 @@ void LANAPI::update()
 		OnGameList(m_games);
 	}
 
+	// Resolve a pending cast once the host's game details have arrived
+	if (m_pendingAction == ACT_CAST)
+	{
+		if (TheCaster == nullptr || !TheCaster->isCaster()
+			|| !TheCaster->isSelectedGame(m_pendingCastKey)
+			|| IsReadOnlyLanGameOptionsOpen())
+		{
+			m_pendingAction = ACT_NONE;
+			m_pendingCastKey = LiveCasterGameKey();
+		}
+		else if (TheCaster->lobbyStatus() == CasterLobby::LOBBY_STATUS_OK)
+		{
+			LiveCasterGameKey key = m_pendingCastKey;
+			m_pendingAction = ACT_NONE;
+			m_pendingCastKey = LiveCasterGameKey();
+			OnCastGame(RET_OK, key);
+		}
+	}
+
 	// Time out old actions
 	if (m_pendingAction != ACT_NONE && now > m_expiration)
 	{
@@ -580,6 +632,14 @@ void LANAPI::update()
 			m_pendingAction = ACT_NONE;
 			m_currentGame = nullptr;
 			m_inLobby = true;
+			break;
+		case ACT_CAST:
+			{
+				LiveCasterGameKey key = m_pendingCastKey;
+				m_pendingAction = ACT_NONE;
+				m_pendingCastKey = LiveCasterGameKey();
+				OnCastGame(RET_TIMEOUT, key);
+			}
 			break;
 		default:
 			m_pendingAction = ACT_NONE;
@@ -622,6 +682,12 @@ void LANAPI::RequestLocations()
 
 void LANAPI::RequestGameJoin( LANGameInfo *game, UnsignedInt ip /* = 0 */ )
 {
+	if (m_pendingAction == ACT_CAST)
+	{
+		m_pendingAction = ACT_NONE;
+		m_pendingCastKey = LiveCasterGameKey();
+	}
+
 	if ((m_pendingAction != ACT_NONE) && (m_pendingAction != ACT_JOINDIRECTCONNECT))
 	{
 		OnGameJoin( RET_BUSY, nullptr );
@@ -648,6 +714,25 @@ void LANAPI::RequestGameJoin( LANGameInfo *game, UnsignedInt ip /* = 0 */ )
 	sendMessage(&msg, ip);
 
 	m_pendingAction = ACT_JOIN;
+	m_expiration = timeGetTime() + m_actionTimeout;
+}
+
+void LANAPI::RequestCastGame( LANGameInfo *game )
+{
+	if (game == nullptr)
+		return;
+
+	LiveCasterGameKey key(
+		CasterProtocol::computeGameUid(game->getHostIP(), (UnsignedInt)game->getSeed()),
+		game->getHostIP(), (UnsignedInt)game->getSeed());
+	if (m_pendingAction != ACT_NONE)
+	{
+		OnCastGame( RET_BUSY, key );
+		return;
+	}
+
+	m_pendingCastKey = key;
+	m_pendingAction = ACT_CAST;
 	m_expiration = timeGetTime() + m_actionTimeout;
 }
 
@@ -790,7 +875,211 @@ void LANAPI::RequestChat( UnicodeString message, ChatType format )
 	wcslcpy(msg.Chat.message, message.str(), ARRAY_SIZE(msg.Chat.message));
 	sendMessage(&msg);
 
+
+	if (TheCaster != nullptr && TheCaster->isPlayer())
+	{
+		char utf8[CasterProtocol::MAX_FRAME_BYTES];
+		char senderUtf8[65];
+		UnsignedInt senderUtf8Len;
+		Int localSlot = -1;
+		UnsignedByte senderSlot = 0xFF;
+		UnsignedByte senderTeam = 0;
+		UnsignedInt senderIdentity;
+		UnsignedInt utf8Len = CasterProtocol::wideToUtf8(message.str(),
+			(UnsignedInt)message.getLength(), utf8, sizeof(utf8));
+		senderUtf8Len = CasterProtocol::wideToUtf8(m_name.str(),
+			(UnsignedInt)m_name.getLength(), senderUtf8, sizeof(senderUtf8));
+		if (m_currentGame != nullptr)
+		{
+			GameSlot *slot;
+			localSlot = m_currentGame->getLocalSlotNum();
+			if (localSlot >= 0 && localSlot < MAX_SLOTS)
+			{
+				slot = m_currentGame->getSlot(localSlot);
+				senderSlot = (UnsignedByte)localSlot;
+				if (slot != nullptr)
+					senderTeam = (UnsignedByte)slot->getTeamNumber();
+			}
+		}
+		// The LAN address keeps concurrent player command IDs distinct. If the
+		// lobby has no address yet, preserve a non-host slot identity instead.
+		senderIdentity = (m_localIP != 0) ? m_localIP : (UnsignedInt)(senderSlot + 1);
+		if (utf8Len != 0)
+		{
+			// TheSuperHackers @feature arcticdolphin 08/08/2026 Carries the stock
+			// "/me " emote flag through to caster observers of this LAN lobby chat.
+			TheCaster->sendLobbyChat(utf8, utf8Len, senderUtf8, senderUtf8Len,
+				senderSlot, senderTeam, senderIdentity, (format == LANCHAT_EMOTE));
+		}
+	}
+
 	OnChat(m_name, m_localIP, message, format);
+}
+extern LANAPI *TheLAN;
+
+// Main-thread UI registrations; clear each one before destroying its window.
+// Every screen that can host caster chat registers its own listbox, so the
+// router picks a surface from the registry instead of sniffing layout names.
+static GameWindow* s_readOnlyCasterChatWindow = nullptr;
+static GameWindow* s_lanLobbyCasterChatWindow = nullptr;
+static GameWindow* s_lanGameOptionsCasterChatWindow = nullptr;
+static GameWindow* s_scoreScreenCasterChatWindow = nullptr;
+
+void SetReadOnlyCasterChatWindow(GameWindow* chatWindow)
+{
+	s_readOnlyCasterChatWindow = chatWindow;
+}
+
+void SetLanLobbyCasterChatWindow(GameWindow* chatWindow)
+{
+	s_lanLobbyCasterChatWindow = chatWindow;
+}
+
+void SetLanGameOptionsCasterChatWindow(GameWindow* chatWindow)
+{
+	s_lanGameOptionsCasterChatWindow = chatWindow;
+}
+
+void SetScoreScreenCasterChatWindow(GameWindow* chatWindow)
+{
+	s_scoreScreenCasterChatWindow = chatWindow;
+}
+
+
+// A shell screen only hosts chat while its listbox is still shown. This is a
+// window property check, not a screen-name match.
+static Bool casterChatWindowShown(GameWindow* chatWindow)
+{
+	if (chatWindow == nullptr)
+	{
+		return FALSE;
+	}
+	return chatWindow->winIsHidden() ? FALSE : TRUE;
+}
+
+
+static CasterLobby::ChatSurface findCasterChatSurface(GameWindow** out)
+{
+	CasterLobby::ChatSurface surface = CasterLobby::CHAT_SURFACE_NONE;
+	GameWindow *chatWindow = nullptr;
+	GameWindow *readOnlyBox = s_readOnlyCasterChatWindow;
+	GameWindow *lobbyBox = s_lanLobbyCasterChatWindow;
+	GameWindow *gameBox = s_lanGameOptionsCasterChatWindow;
+	GameWindow *scoreBox = s_scoreScreenCasterChatWindow;
+	Bool readOnlyBoxPresent = FALSE;
+	Bool lobbyBoxPresent = FALSE;
+	Bool gameBoxPresent = FALSE;
+	Bool scoreBoxPresent = FALSE;
+
+	if (out != nullptr)
+	{
+		*out = nullptr;
+	}
+
+	// The read-only room owns the layout it registers, so registration alone
+	// makes it active. The score screen listbox is the post-match LAN chat
+	// (casters and players); a player's stock LAN chat never posts caster
+	// lines, so caster lines routed there are not duplicated.
+	readOnlyBoxPresent = (readOnlyBox != nullptr) ? TRUE : FALSE;
+	lobbyBoxPresent = casterChatWindowShown(lobbyBox);
+	gameBoxPresent = casterChatWindowShown(gameBox);
+	scoreBoxPresent = casterChatWindowShown(scoreBox);
+
+	surface = CasterLobby::selectActiveChatSurface(readOnlyBoxPresent, lobbyBoxPresent,
+		gameBoxPresent, scoreBoxPresent);
+	if (surface == CasterLobby::CHAT_SURFACE_READ_ONLY)
+	{
+		chatWindow = readOnlyBox;
+	}
+	else if (surface == CasterLobby::CHAT_SURFACE_LAN_LOBBY)
+	{
+		chatWindow = lobbyBox;
+	}
+	else if (surface == CasterLobby::CHAT_SURFACE_LAN_GAME_OPTIONS)
+	{
+		chatWindow = gameBox;
+	}
+	else if (surface == CasterLobby::CHAT_SURFACE_SCORE_SCREEN)
+	{
+		chatWindow = scoreBox;
+	}
+
+
+	if (out != nullptr)
+	{
+		*out = chatWindow;
+	}
+	return surface;
+}
+
+void LANAPI::postLocalCasterLine(const char* ascii, const char* senderName,
+	UnsignedByte senderSlot, Bool senderIsCaster, Bool isEmote)
+{
+	GameWindow *chatWindow = nullptr;
+	ChatMessage chat;
+	UnicodeString rendered;
+	Color chatColor = chatSystemColor;
+	GameSlot *slot;
+
+	if (ascii == NULL || ascii[0] == '\0')
+	{
+		return;
+	}
+
+
+	if (findCasterChatSurface(&chatWindow) == CasterLobby::CHAT_SURFACE_NONE
+		|| chatWindow == nullptr)
+	{
+
+		DEBUG_LOG(("Caster: %s", ascii));
+		return;
+	}
+
+	if (!MakeCasterChatMessage(chat, (UnsignedByte)CasterProtocol::CHAT_LOBBY, senderSlot,
+			senderIsCaster, 0, 0, 0, senderName,
+			(senderName != NULL) ? (UnsignedInt)strlen(senderName) : 0,
+			ascii, (UnsignedInt)strlen(ascii), isEmote))
+	{
+		return;
+	}
+	if (!senderIsCaster && m_currentGame != nullptr && senderSlot < MAX_SLOTS)
+	{
+		slot = m_currentGame->getSlot(senderSlot);
+		if (slot != nullptr)
+		{
+			chat.hasColor = ChatColorFromIndex(slot->getColor(), chat.color);
+		}
+	}
+	else if (!senderIsCaster && TheCaster != nullptr)
+	{
+		// Casters have no current game: use the watched room's slot colours.
+		TheCaster->applyCasterChatColor(chat);
+	}
+	RenderChatMessage(chat, chatSystemColor, rendered, chatColor);
+
+	GadgetListBoxAddEntryText(chatWindow, rendered, chatColor, -1, -1);
+
+
+	DEBUG_LOG(("Caster: %s", ascii));
+}
+
+CasterLobby::ChatSurface PostCasterLocalLine(const char* ascii, const char* senderName,
+	UnsignedByte senderSlot, Bool senderIsCaster, Bool isEmote)
+{
+	CasterLobby::ChatSurface surface;
+
+
+	if (TheLAN == nullptr)
+	{
+		return CasterLobby::CHAT_SURFACE_NONE;
+	}
+	if (ascii != NULL && ascii[0] != '\0')
+	{
+		TheLAN->postLocalCasterLine(ascii, senderName, senderSlot, senderIsCaster, isEmote);
+	}
+
+	surface = findCasterChatSurface(nullptr);
+	return surface;
 }
 
 void LANAPI::RequestGameStart()
@@ -809,6 +1098,8 @@ void LANAPI::RequestGameStart()
 
 void LANAPI::ResetGameStartTimer()
 {
+	if (m_gameStartTime)
+		++m_gameStartRevision;
 	m_gameStartTime = 0;
 	m_gameStartSeconds = 0;
 }
@@ -819,6 +1110,7 @@ void LANAPI::RequestGameStartTimer( Int seconds )
 		return;
 
 	UnsignedInt now = timeGetTime();
+	++m_gameStartRevision;
 	m_gameStartTime = now + 1000;
 	m_gameStartSeconds = (seconds) ? seconds - 1 : 0;
 
@@ -830,6 +1122,8 @@ void LANAPI::RequestGameStartTimer( Int seconds )
 	m_transport->update(); // force a send
 
 	OnGameStartTimer(seconds);
+	if (TheCaster != nullptr)
+		TheCaster->forwardLobbyState();
 }
 
 void LANAPI::RequestGameOptions( AsciiString gameOptions, Bool isPublic, UnsignedInt ip /* = 0 */ )
@@ -1132,14 +1426,244 @@ LANGameInfo* LANAPI::LookupGameByHost(UnsignedInt hostIP)
 	return lastGame;
 }
 
+LANGameInfo* LANAPI::LookupGameBySenderIP(UnsignedInt senderIP)
+{
+	LANGameInfo* lastGame = nullptr;
+	UnsignedInt lastHeard = 0;
+
+	for (LANGameInfo* game = m_games; game; game = game->getNext())
+	{
+		Bool match = (game->getHostIP() == senderIP);
+		Int slot;
+
+
+		if (!match)
+		{
+			for (slot = 0; slot < MAX_SLOTS; ++slot)
+			{
+				if (game->getIP(slot) == senderIP)
+				{
+					match = TRUE;
+					break;
+				}
+			}
+		}
+
+		if (match && game->getLastHeard() >= lastHeard)
+		{
+			lastGame = game;
+			lastHeard = game->getLastHeard();
+		}
+	}
+
+	return lastGame;
+}
+
+
+
+Bool GetCasterGameName(char* out, UnsignedInt cap)
+{
+	LANGameInfo* game;
+	UnicodeString name;
+	UnsignedInt nameLen;
+
+	if (out == NULL || cap == 0)
+	{
+		return FALSE;
+	}
+	out[0] = '\0';
+
+
+	if (TheLAN == NULL)
+	{
+		return FALSE;
+	}
+	game = TheLAN->GetMyGame();
+	if (game == NULL)
+	{
+		return FALSE;
+	}
+
+	name = game->getName();
+	nameLen = CasterProtocol::wideToUtf8(name.str(), (UnsignedInt)name.getLength(), out,
+		cap - 1);
+	if (nameLen == 0)
+	{
+		out[0] = '\0';
+		return FALSE;
+	}
+	out[nameLen] = '\0';
+	return TRUE;
+}
+
+Bool GetCasterGameSeed(UnsignedInt& hostIP, UnsignedInt& seed)
+{
+	LANGameInfo* game;
+
+	hostIP = 0;
+	seed = 0;
+
+	if (TheLAN == NULL)
+	{
+		return FALSE;
+	}
+	game = TheLAN->GetMyGame();
+	if (game == NULL)
+	{
+		return FALSE;
+	}
+
+	// The room name retains its creation identity while the simulation seed changes.
+	UnicodeString name = game->getName();
+	return CasterBeacon::decodeRoomIdentity(name.str(), (UnsignedInt)name.getLength(), hostIP, seed);
+}
+
+Bool GetCasterLobbyState(char* out, UnsignedInt cap, UnsignedInt& lenOut)
+{
+	LANGameInfo* game;
+	AsciiString options;
+
+	lenOut = 0;
+	if (out == NULL || cap == 0)
+	{
+		return FALSE;
+	}
+	out[0] = '\0';
+
+	if (TheLAN == NULL)
+	{
+		return FALSE;
+	}
+	game = TheLAN->GetMyGame();
+	if (game == NULL || !game->amIHost())
+	{
+		return FALSE;
+	}
+
+	AsciiString gameOptions = GameInfoToAsciiString(game);
+	if (gameOptions.isEmpty())
+		return FALSE;
+	options.format("DS=%d;DR=%08X;", TheLAN->GetGameStartSeconds(), TheLAN->GetGameStartRevision());
+	options.concat(gameOptions);
+	if ((UnsignedInt)options.getLength() >= cap)
+	{
+
+		return FALSE;
+	}
+	strcpy(out, options.str());
+	lenOut = (UnsignedInt)options.getLength();
+	return TRUE;
+}
+
+Bool GetCasterMatchOptions(char* out, UnsignedInt cap, UnsignedInt& lenOut)
+{
+	LANGameInfo* game;
+	AsciiString options;
+
+	lenOut = 0;
+	if (out == NULL || cap == 0)
+	{
+		return FALSE;
+	}
+	out[0] = '\0';
+
+	if (TheLAN == NULL)
+	{
+		return FALSE;
+	}
+	// Every player in the game mirrors the same slot list, so any of them can
+	// publish the match start; the host gate belongs to the lobby mirror only.
+	game = TheLAN->GetMyGame();
+	if (game == NULL)
+	{
+		return FALSE;
+	}
+
+	options = GameInfoToAsciiString(game);
+	if (options.isEmpty())
+	{
+		return FALSE;
+	}
+	if ((UnsignedInt)options.getLength() >= cap)
+	{
+		return FALSE;
+	}
+	strcpy(out, options.str());
+	lenOut = (UnsignedInt)options.getLength();
+	return TRUE;
+}
+
+void LANAPI::handleCasterBeacon( LANMessage *msg, UnsignedInt senderIP, UnsignedInt received )
+{
+	LANGameInfo* game;
+	CasterBeacon::Payload payload;
+	AsciiString ipText;
+	char gameName[CASTER_GAME_NAME_BYTES + 1];
+	UnicodeString name;
+	UnsignedInt nameLen;
+
+	if (TheCaster == nullptr || !TheCaster->isCaster())
+	{
+		return;
+	}
+	if (msg == nullptr)
+	{
+		return;
+	}
+
+	ipText.format("%d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP));
+	// A short datagram is an older build's packed reply: incompatible, not malformed.
+	if (received < sizeof(LANMessage)
+		|| !CasterBeacon::isProtocolCompatible(msg->Caster.protocolVersion))
+	{
+		DEBUG_LOG(("LANAPI::handleCasterBeacon - incompatible caster protocol from %s", ipText.str()));
+		TheCaster->onIncompatibleSource(ipText.str());
+		return;
+	}
+	if (!CasterBeacon::parsePayload(msg->Caster.uid, ARRAY_SIZE(msg->Caster.uid),
+			msg->Caster.tcpPort, msg->Caster.gameUid, payload))
+	{
+
+		return;
+	}
+	game = LookupGameBySenderIP(senderIP);
+	if (game == nullptr)
+	{
+		DEBUG_LOG(("LANAPI::handleCasterBeacon - no game for sender %d.%d.%d.%d",
+			PRINTF_IP_AS_4_INTS(senderIP)));
+		return;
+	}
+
+	gameName[0] = '\0';
+	name = game->getName();
+	nameLen = CasterProtocol::wideToUtf8(name.str(), (UnsignedInt)name.getLength(),
+		gameName, sizeof(gameName) - 1);
+	if (nameLen == 0)
+	{
+
+		return;
+	}
+	gameName[nameLen] = '\0';
+
+	DEBUG_LOG(("LANAPI::handleCasterBeacon - uid %s from %s (%s) game %8.8X", payload.uid,
+		ipText.str(), gameName, payload.gameUid));
+
+	TheCaster->onBeacon(payload.gameUid, payload.uid, ipText.str(), payload.tcpPort, gameName,
+		(senderIP == game->getHostIP()) ? TRUE : FALSE);
+}
+
 void LANAPI::removeGame( LANGameInfo *game )
 {
-	LANGameInfo *g = m_games;
 	if (!game)
 	{
 		return;
 	}
-	else if (m_games == game)
+	LiveCasterGameKey key(
+		CasterProtocol::computeGameUid(game->getHostIP(), (UnsignedInt)game->getSeed()),
+		game->getHostIP(), (UnsignedInt)game->getSeed());
+	OnReadOnlyCasterGameRemoved(key, game->isGameInProgress());
+	LANGameInfo *g = m_games;
+	if (m_games == game)
 	{
 		m_games = m_games->getNext();
 	}
@@ -1278,6 +1802,103 @@ void LANAPI::SetLocalIP( AsciiString localIP )
 {
 	UnsignedInt resolvedIP = ResolveIP(localIP);
 	SetLocalIP(resolvedIP);
+}
+
+Bool RequestCasterHostDetails(const char* hostIp)
+{
+	return TheLAN != NULL && TheLAN->RequestCasterDetails(hostIp);
+}
+
+Bool GetCasterGamePlayerIPs(const char* hostIp, UnsignedInt* out, UnsignedInt cap, UnsignedInt& count)
+{
+	LANGameInfo* game;
+
+	count = 0;
+	if (TheLAN == NULL || hostIp == NULL || out == NULL)
+	{
+		return FALSE;
+	}
+	game = TheLAN->LookupGameByHost(ResolveIP(AsciiString(hostIp)));
+	if (game == NULL)
+	{
+		return FALSE;
+	}
+	for (Int i = 0; i < MAX_SLOTS && count < cap; ++i)
+	{
+		LANGameSlot* slot = game->getLANSlot(i);
+		if (slot != NULL && slot->isHuman() && slot->getIP() != 0 && slot->getIP() != TheLAN->GetLocalIP())
+		{
+			out[count++] = slot->getIP();
+		}
+	}
+	return count > 0;
+}
+
+Bool GetCasterGameSlotColors(UnsignedInt hostIP, UnsignedInt seed, Int* out, UnsignedInt cap,
+	UnsignedInt& count)
+{
+	LANGameInfo* game;
+	Int i;
+
+	count = 0;
+	if (TheLAN == NULL || out == NULL || cap == 0 || hostIP == 0)
+	{
+		return FALSE;
+	}
+	game = TheLAN->LookupGameByHost(hostIP);
+	if (game == NULL || (UnsignedInt)game->getSeed() != seed)
+	{
+		// A different game now lives on that host: its colours are not ours.
+		return FALSE;
+	}
+	for (i = 0; i < MAX_SLOTS && count < cap; ++i)
+	{
+		const GameSlot* slot = game->getConstSlot(i);
+		out[count++] = (slot != NULL && slot->isOccupied()) ? slot->getColor() : -1;
+	}
+	return (count != 0) ? TRUE : FALSE;
+}
+
+Bool LANAPI::RequestCasterDetails(const char* hostIp)
+{
+	if (m_transport == NULL || hostIp == NULL || hostIp[0] == '\0')
+	{
+		return FALSE;
+	}
+	UnsignedInt ip = ResolveIP(AsciiString(hostIp));
+	if (ip == 0 || ip == 0xFFFFFFFFu || ip == m_localIP)
+	{
+		return FALSE;
+	}
+	LANMessage request;
+	fillInLANMessage(&request);
+	request.messageType = LANMessage::MSG_REQUEST_GAME_INFO;
+
+	return m_transport->queueSend(ip, lobbyPort, (const UnsignedByte*)&request, sizeof(request));
+}
+
+void LANAPI::ReplyCasterDetails(UnsignedInt targetIP)
+{
+	// Any authenticated player in the active game may answer a details probe.
+	// Casters still isolate sources by the announced game UID, so this does
+	// not turn a generic lobby peer into a source for the selected game.
+	if (m_transport == NULL || TheCaster == NULL || !TheCaster->isPlayer()
+		|| TheCaster->announcedGameUid() == 0 || targetIP == 0 || targetIP == m_localIP)
+	{
+		return;
+	}
+	LANMessage reply;
+	// The reply travels as a full-size LAN message: zero the unused union bytes
+	// so no stack contents reach the wire.
+	memset(&reply, 0, sizeof(reply));
+	fillInLANMessage(&reply);
+	reply.messageType = LANMessage::MSG_CASTER_BEACON;
+	if (CasterBeacon::buildMessage(TheCaster->casterUid(), TheCaster->serverPort(),
+			TheCaster->announcedGameUid(), reply.Caster.uid, ARRAY_SIZE(reply.Caster.uid),
+			reply.Caster.tcpPort, reply.Caster.protocolVersion, reply.Caster.gameUid))
+	{
+		m_transport->queueSend(targetIP, lobbyPort, (const UnsignedByte*)&reply, sizeof(reply));
+	}
 }
 
 Bool LANAPI::AmIHost()

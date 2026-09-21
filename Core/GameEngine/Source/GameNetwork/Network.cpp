@@ -51,6 +51,7 @@
 #include "GameLogic/ScriptEngine.h"
 #include "Common/Recorder.h"
 #include "GameClient/MessageBox.h"
+#include "GameNetwork/Caster/Caster.h"
 
 
 #if defined(DEBUG_CRC) && !RETAIL_COMPATIBLE_NETWORKING
@@ -608,6 +609,15 @@ void Network::RelayCommandsToCommandList(UnsignedInt frame) {
 		//TheCommandList->appendMessage(msg);
 	}
 	m_playersToDisconnect.clear();
+
+	// Capture the exact GameMessages accepted for this simulation frame after
+	// RelayCommandsToCommandList has applied ordering and synchronized network
+	// transformations (including generated self-destruct commands). An empty
+	// command list is still a real completed frame for passive casters.
+	if (TheCaster != nullptr)
+	{
+		TheCaster->publishCommandFrame(frame, TheCommandList->getFirstMessage());
+	}
 
 	deleteInstance(netcmdlist);
 }
