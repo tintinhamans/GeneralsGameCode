@@ -895,3 +895,41 @@ Real OptionPreferences::getGameWindowTransitionSpeedMultiplier() const
 	Real speed = (Real) atof(it->second.str());
 	return clamp(1.0f, speed, 1000.0f);
 }
+
+Bool OptionPreferences::getLiveCastingEnabled() const
+{
+	return getBool("EnableLiveCasting", TRUE);
+}
+
+Bool OptionPreferences::getCasterPrivacyFilter() const
+{
+	return getBool("CasterPrivacyFilter", TRUE);
+}
+
+Bool OptionPreferences::getCasterReadOnlyLobby() const
+{
+	return getBool("CasterReadOnlyLobby", FALSE);
+}
+
+UnsignedShort OptionPreferences::getCasterTCPPort() const
+{
+	OptionPreferences::const_iterator it = find("CasterTCPPort");
+	if (it == end())
+		return 0;	// 0 lets the OS pick a free port
+
+	Int port = atoi(it->second.str());
+	if (port < 0)
+		return 0;
+	if (port > 65535)
+		return 65535;
+	return (UnsignedShort)port;
+}
+
+AsciiString OptionPreferences::getCasterUid() const
+{
+	OptionPreferences::const_iterator it = find("CasterUid");
+	if (it == end())
+		return AsciiString::TheEmptyString;	// the caller falls back to the short hostname
+
+	return AsciiString(it->second.str());
+}

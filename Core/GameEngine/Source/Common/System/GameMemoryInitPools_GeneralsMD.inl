@@ -491,6 +491,7 @@ static PoolSizeRec PoolSizes[] =
 	{ "SequentialScript", 32, 32 },
 	{ "Win32LocalFile", 1024, 256 },
 	{ "StdLocalFile", 1024, 256 },
+	{ "CasterReplayFile", 8, 8 },
 	{ "RAMFile", 32, 32 },
 	{ "BattlePlanBonuses", 32, 32 },
 	{ "KindOfPercentProductionChange", 32, 32 },
