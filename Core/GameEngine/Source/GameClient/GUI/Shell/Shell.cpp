@@ -74,6 +74,8 @@ void Shell::construct()
 
 	m_pendingPush = FALSE;
 	m_pendingPop = FALSE;
+	m_pendingReplacementPop = FALSE;
+	m_replacedScreen = nullptr;
 	m_pendingPushName.set( "" );
 	m_isShellActive = TRUE;
 	m_shellMapOn = FALSE;
@@ -139,6 +141,9 @@ void Shell::deconstruct()
 //-------------------------------------------------------------------------------------------------
 void Shell::destroyScreenStack()
 {
+	m_pendingReplacementPop = FALSE;
+	m_replacedScreen = nullptr;
+
 	while( top() )
 	{
 		WindowLayout *screen = top();
@@ -398,6 +403,50 @@ void Shell::push( AsciiString filename, Bool shutdownImmediate )
 }
 
 //-------------------------------------------------------------------------------------------------
+/** Adopt a pre-built screen without shutting down the screen underneath it. */
+//-------------------------------------------------------------------------------------------------
+Bool Shell::pushReplacement( WindowLayout *layout, WindowLayoutInitFunc init,
+	WindowLayoutUpdateFunc update, WindowLayoutShutdownFunc shutdown )
+{
+	if (layout == nullptr || m_screenCount >= MAX_SHELL_STACK
+		|| m_pendingPush || m_pendingPop || m_replacedScreen != nullptr)
+	{
+		return FALSE;
+	}
+
+	m_replacedScreen = top();
+	if (m_replacedScreen != nullptr)
+	{
+		m_replacedScreen->hide(TRUE);
+	}
+
+	// Override stock callbacks before initialization; they require a connected player.
+	layout->setInit(init);
+	layout->setUpdate(update);
+	layout->setShutdown(shutdown);
+	linkScreen(layout);
+	layout->runInit(nullptr);
+	layout->bringForward();
+	return TRUE;
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Pop a replacement screen without re-initializing the uncovered screen. */
+//-------------------------------------------------------------------------------------------------
+void Shell::popReplacement()
+{
+	WindowLayout *screen = top();
+	if (screen == nullptr || m_pendingPush || m_pendingPop)
+	{
+		return;
+	}
+
+	m_pendingPop = TRUE;
+	m_pendingReplacementPop = TRUE;
+	Bool immediatePop = FALSE;
+	screen->runShutdown(&immediatePop);
+}
+//-------------------------------------------------------------------------------------------------
 /** Pop top layout of the stack.  Note that we don't actually do the pop right here,
 	* we instead run the layout shutdown.  That shutdown() in turn notifies the
 	* shell when the shutdown is complete and at that point we do the actual pop */
@@ -599,6 +648,18 @@ void Shell::hideShell()
 
 	DEBUG_LOG(("Shell:hideShell() - %s", (top())?top()->getFilename().str():"no top screen"));
 
+	// Remove transient presenters before gameplay; shutdown clears their state.
+	// Do not initialize the retained screen until the shell returns.
+	if (m_replacedScreen != nullptr && top() != nullptr)
+	{
+		m_pendingPop = FALSE;
+		m_pendingReplacementPop = FALSE;
+		Bool immediatePop = TRUE;
+		top()->runShutdown(&immediatePop);
+		doPop(TRUE);
+		m_replacedScreen = nullptr;
+	}
+
 	WindowLayout *layout = top();
 
 	if( layout )
@@ -724,8 +785,14 @@ void Shell::doPop( Bool impendingPush )
 		deleteInstance(currentTop);
 	}
 
-	// run the init for the new top of the stack if present
+	// Forced pops must also clear replacement ownership.
 	WindowLayout *newTop = top();
+	if (m_replacedScreen != nullptr && newTop == m_replacedScreen)
+	{
+		m_replacedScreen = nullptr;
+	}
+
+	// run the init for the new top of the stack if present
 	if( newTop && !impendingPush )
 	{
 		newTop->runInit( nullptr );
@@ -772,11 +839,18 @@ void Shell::shutdownComplete( WindowLayout *screen, Bool impendingPush )
 	else if( m_pendingPop )
 	{
 
-		// do the pop
-		doPop( impendingPush );
+		Bool restoreReplacement = m_pendingReplacementPop;
+		WindowLayout *replaced = m_replacedScreen;
+		doPop( impendingPush || restoreReplacement );
 
-		// no more pending pop for you!
 		m_pendingPop = FALSE;
+		m_pendingReplacementPop = FALSE;
+		m_replacedScreen = nullptr;
+		if (restoreReplacement && replaced != nullptr && top() == replaced)
+		{
+			replaced->hide(FALSE);
+			replaced->bringForward();
+		}
 
 	}
 

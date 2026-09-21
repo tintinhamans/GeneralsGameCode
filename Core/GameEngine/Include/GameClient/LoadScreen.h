@@ -227,7 +227,7 @@ private:
 class MultiPlayerLoadScreen : public LoadScreen
 {
 public:
-	MultiPlayerLoadScreen();
+	MultiPlayerLoadScreen(Bool passiveCaster = FALSE);
 	virtual ~MultiPlayerLoadScreen() override;
 
 	virtual void init( GameInfo *game ) override;		///< Init the loadscreen
@@ -240,6 +240,7 @@ public:
 	virtual void processProgress(Int playerId, Int percentage) override;
 	virtual void setProgressRange( Int min, Int max ) override { }
 private:
+	Bool m_passiveCaster;
 	GameWindow *m_progressBars[MAX_SLOTS];	///< pointer array to all the progress bars on the window
 	GameWindow *m_playerNames[MAX_SLOTS];		///< pointer array to all the static text player names on the window
 	GameWindow *m_playerSide[MAX_SLOTS];		///< pointer array to all the static text player sides

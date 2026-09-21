@@ -52,6 +52,7 @@
 #include "GameClient/Anim2D.h"
 #include "GameClient/ControlBar.h"
 #include "GameClient/DisplayStringManager.h"
+#include "GameNetwork/Caster/Caster.h"
 #include "GameClient/Diplomacy.h"
 #include "GameClient/Eva.h"
 #include "GameClient/GameText.h"
@@ -1164,6 +1165,10 @@ InGameUI::InGameUI()
 	m_lastNetworkLatencyFrames = ~0u;
 
 	m_renderFpsString = nullptr;
+	m_casterSources = nullptr;
+	m_casterReportAge = nullptr;
+	m_casterDelay = nullptr;
+	m_casterStatsVisible = FALSE;
 	m_renderFpsLimitString = nullptr;
 	m_renderFpsFont = "Tahoma";
 	m_renderFpsPointSize = TheGlobalData->m_renderFpsFontSize;
@@ -2279,6 +2284,13 @@ void InGameUI::freeMessageResources()
 
 void InGameUI::freeCustomUiResources()
 {
+	TheDisplayStringManager->freeDisplayString(m_casterSources);
+	m_casterSources = nullptr;
+	TheDisplayStringManager->freeDisplayString(m_casterReportAge);
+	m_casterReportAge = nullptr;
+	TheDisplayStringManager->freeDisplayString(m_casterDelay);
+	m_casterDelay = nullptr;
+	m_casterStatsVisible = FALSE;
 	TheDisplayStringManager->freeDisplayString(m_networkLatencyString);
 	m_networkLatencyString = nullptr;
 	TheDisplayStringManager->freeDisplayString(m_renderFpsString);
@@ -3777,6 +3789,8 @@ void InGameUI::postWindowDraw()
 	{
 		drawRenderFps(hudOffsetX, hudOffsetY);
 	}
+
+	if (m_renderFpsPointSize > 0) drawCasterStats(hudOffsetX, hudOffsetY);
 
 	if (m_systemTimePointSize > 0)
 	{
@@ -6060,6 +6074,10 @@ void InGameUI::refreshRenderFpsResources()
 	GameFont *fpsFont = TheWindowManager->winFindFont(m_renderFpsFont, adjustedRenderFpsFontSize, m_renderFpsBold);
 	m_renderFpsString->setFont(fpsFont);
 	m_renderFpsLimitString->setFont(fpsFont);
+	if (!m_casterSources) m_casterSources = TheDisplayStringManager->newDisplayString();
+	m_casterSources->setFont(fpsFont);
+	if (!m_casterReportAge) m_casterReportAge = TheDisplayStringManager->newDisplayString();
+	m_casterReportAge->setFont(fpsFont);
 
 	if (m_renderFpsPointSize > 0)
 	{
@@ -6097,6 +6115,9 @@ void InGameUI::refreshGameTimeResources()
 	GameFont* gameTimeFont = TheWindowManager->winFindFont(m_gameTimeFont, adjustedGameTimeFontSize, m_gameTimeBold);
 	m_gameTimeString->setFont(gameTimeFont);
 	m_gameTimeFrameString->setFont(gameTimeFont);
+	if (!m_casterDelay) m_casterDelay = TheDisplayStringManager->newDisplayString();
+	m_casterDelay->setFont(gameTimeFont);
+	if (m_casterSources) updateCasterStats();
 }
 
 void InGameUI::refreshPlayerInfoListResources()
@@ -6163,6 +6184,7 @@ WindowMsgHandledType IdleWorkerSystem( GameWindow *window, UnsignedInt msg,
 
 void InGameUI::updateRenderFpsString()
 {
+	updateCasterStats();
 	const UnsignedInt renderFps = (UnsignedInt)(TheDisplay->getAverageFPS() + 0.5f);
 	if (renderFps != m_lastRenderFps)
 	{
@@ -6223,6 +6245,11 @@ void InGameUI::drawRenderFps(Int &x, Int &y)
 			renderFpsLimit = 0u;
 		}
 	}
+	if (TheGameLogic != nullptr && TheGameLogic->getCommandFrameSource() != nullptr)
+	{
+		renderFpsLimit = (UnsignedInt)TheFramePacer->getActualFramesPerSecondLimit();
+		if (renderFpsLimit == RenderFpsPreset::UncappedFpsValue) renderFpsLimit = 0u;
+	}
 	if (renderFpsLimit != m_lastRenderFpsLimit)
 	{
 		UnicodeString fpsLimitStr;
@@ -6246,6 +6273,33 @@ void InGameUI::drawRenderFps(Int &x, Int &y)
 		m_renderFpsString->draw(m_renderFpsPosition.x, m_renderFpsPosition.y, m_renderFpsColor, m_renderFpsDropColor);
 		m_renderFpsLimitString->draw(m_renderFpsPosition.x + m_renderFpsString->getWidth(), m_renderFpsPosition.y, m_renderFpsLimitColor, m_renderFpsDropColor);
 	}
+}
+
+void InGameUI::updateCasterStats()
+{
+	Caster::Telemetry telemetry;
+	m_casterStatsVisible = TheCaster != nullptr && TheCaster->getTelemetry(telemetry);
+	if (!m_casterStatsVisible) return;
+	UnicodeString text;
+	text.format(L"%u", telemetry.sources);
+	m_casterSources->setText(text);
+	if (telemetry.reported) text.format(L"[%u]", telemetry.reportAgeMs);
+	else text = L"[--]";
+	m_casterReportAge->setText(text);
+	if (!m_casterDelay) return;
+	if (telemetry.available && !telemetry.stale)
+		text.format(L"+%05.2f", telemetry.delayFrames * SECONDS_PER_LOGICFRAME_REAL);
+	else text = L"+--.--";
+	m_casterDelay->setText(text);
+}
+
+void InGameUI::drawCasterStats(Int &x, Int &y)
+{
+	if (!m_casterStatsVisible || TheCaster == nullptr || !TheCaster->playbackEntered()) return;
+	m_casterSources->draw(kHudAnchorX + x, kHudAnchorY + y, GameMakeColor(0,255,0,255), m_renderFpsDropColor);
+	x += m_casterSources->getWidth();
+	m_casterReportAge->draw(kHudAnchorX + x, kHudAnchorY + y, GameMakeColor(180,180,180,255), m_renderFpsDropColor);
+	x += m_casterReportAge->getWidth() + kHudGapPx;
 }
 
 void InGameUI::drawSystemTime(Int &x, Int &y)
@@ -6293,6 +6347,11 @@ void InGameUI::drawGameTime()
 
 	m_gameTimeString->draw(horizontalTimerOffset, m_gameTimePosition.y, m_gameTimeColor, m_gameTimeDropColor);
 	m_gameTimeFrameString->draw(horizontalFrameOffset, m_gameTimePosition.y, GameMakeColor(180,180,180,255), m_gameTimeDropColor);
+	if (m_casterStatsVisible && TheCaster != nullptr && TheCaster->playbackEntered())
+	{
+		Int x = horizontalTimerOffset - m_casterDelay->getWidth() - kHudGapPx;
+		m_casterDelay->draw(x, m_gameTimePosition.y, GameMakeColor(0,255,255,255), m_gameTimeDropColor);
+	}
 }
 
 void InGameUI::drawPlayerInfoList()

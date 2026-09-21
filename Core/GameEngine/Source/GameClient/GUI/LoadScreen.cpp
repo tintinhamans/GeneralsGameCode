@@ -1227,8 +1227,9 @@ void ShellGameLoadScreen::update( Int percent )
 
 // MultiPlayerLoadScreen Class //////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
-MultiPlayerLoadScreen::MultiPlayerLoadScreen()
+MultiPlayerLoadScreen::MultiPlayerLoadScreen(Bool passiveCaster)
 {
+	m_passiveCaster = passiveCaster;
 	m_mapPreview = nullptr;
 	m_portraitLocalGeneral = nullptr;
 	m_featuresLocalGeneral = nullptr;
@@ -1265,7 +1266,7 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 	m_mapPreview = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "MultiplayerLoadScreen.wnd:WinMapPreview"));
 	GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 	const PlayerTemplate* pt;
-	if (lSlot->getPlayerTemplate() >= 0)
+	if (!m_passiveCaster && lSlot->getPlayerTemplate() >= 0)
 		pt = ThePlayerTemplateStore->getNthPlayerTemplate(lSlot->getPlayerTemplate());
 	else
 		pt = ThePlayerTemplateStore->findPlayerTemplate( TheNameKeyGenerator->nameToKey("FactionObserver") );
@@ -1279,7 +1280,11 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 	const GeneralPersona *localGeneral = TheChallengeGenerals->getGeneralByTemplateName( pt->getName() );
 	const Image *portrait = nullptr;
 	UnicodeString localName;
-	if (localGeneral)
+	if (m_passiveCaster)
+	{
+		localName = TheGameText->fetch("GUI:PlayerObserver");
+	}
+	else if (localGeneral)
 	{
 		portrait = localGeneral->getBioPortraitLarge();
 		localName = TheGameText->fetch( localGeneral->getBioName() );
@@ -1386,7 +1391,7 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 		GadgetStaticTextSetText(m_playerSide[netSlot], slot->getApparentPlayerTemplateDisplayName() );
 		m_playerSide[netSlot]->winSetEnabledTextColors(houseColor, m_playerSide[netSlot]->winGetEnabledTextBorderColor());
 
-		if (slot->isAI() && m_progressBars[netSlot])
+		if ((m_passiveCaster || slot->isAI()) && m_progressBars[netSlot])
 			m_progressBars[netSlot]->winHide(TRUE);
 
 		if (teamWin[netSlot])
@@ -1431,7 +1436,8 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 	}
 
 
-	TheGameLogic->initTimeOutValues();
+	if (!m_passiveCaster)
+		TheGameLogic->initTimeOutValues();
 }
 
 void MultiPlayerLoadScreen::reset()
@@ -1447,7 +1453,16 @@ void MultiPlayerLoadScreen::reset()
 
 void MultiPlayerLoadScreen::update( Int percent )
 {
-	if (TheNetwork)
+	if (m_passiveCaster)
+	{
+		if (percent >= 0 && percent <= 100 && m_featuresLocalGeneral)
+		{
+			UnicodeString progress;
+			progress.format(L"%d%%", percent);
+			GadgetStaticTextSetText(m_featuresLocalGeneral, progress);
+		}
+	}
+	else if (TheNetwork)
 	{
 		if(percent <= 100)
 			TheNetwork->updateLoadProgress( percent );
@@ -1469,6 +1484,8 @@ void MultiPlayerLoadScreen::update( Int percent )
 
 void MultiPlayerLoadScreen::processProgress(Int playerId, Int percentage)
 {
+	if (m_passiveCaster)
+		return;
 
 	if( percentage < 0 || percentage > 100 || playerId >= MAX_SLOTS || playerId < 0 || m_playerLookup[playerId] == -1)
 	{

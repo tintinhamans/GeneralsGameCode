@@ -86,6 +86,7 @@
 
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/GameInfo.h"
+#include "GameNetwork/Caster/Caster.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/BuddyThread.h"
 
@@ -3244,10 +3245,12 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 		//-----------------------------------------------------------------------------------------
 		case GameMessage::MSG_META_CHAT_ALLIES:
-			if (TheGameLogic->isInMultiplayerGame() && !TheGameLogic->isInReplayGame())
+			if ((TheGameLogic->isInMultiplayerGame() && !TheGameLogic->isInReplayGame())
+				|| (TheCaster != nullptr && TheCaster->isCaster()))
 			{
 				Player *localPlayer = ThePlayerList->getLocalPlayer();
-				if ((localPlayer && localPlayer->isPlayerActive()) || !TheGlobalData->m_netMinPlayers)
+				if ((localPlayer && localPlayer->isPlayerActive()) || !TheGlobalData->m_netMinPlayers
+					|| (TheCaster != nullptr && TheCaster->isCaster()))
 				{
 					ToggleInGameChat();
 					SetInGameChatType( INGAME_CHAT_ALLIES );
@@ -3258,11 +3261,13 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 		//-----------------------------------------------------------------------------------------
 		case GameMessage::MSG_META_CHAT_EVERYONE:
-			if (TheGameLogic->isInMultiplayerGame() && !TheGameLogic->isInReplayGame())
+			if ((TheGameLogic->isInMultiplayerGame() && !TheGameLogic->isInReplayGame())
+				|| (TheCaster != nullptr && TheCaster->isCaster()))
 			{
 				Player *localPlayer = ThePlayerList->getLocalPlayer();
 				// TheSuperHackers @tweak skyaero 19/07/2025 Observers can now chat
-				if (localPlayer || !TheGlobalData->m_netMinPlayers)
+				if (localPlayer || !TheGlobalData->m_netMinPlayers
+					|| (TheCaster != nullptr && TheCaster->isCaster()))
 				{
 					ToggleInGameChat();
 					SetInGameChatType( INGAME_CHAT_EVERYONE );

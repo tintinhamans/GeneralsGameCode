@@ -18,6 +18,9 @@
 #include "PreRTS.h"
 
 #include "Common/FramePacer.h"
+#include "Common/Recorder.h"
+#include "Common/MessageStream.h"
+#include "GameNetwork/Caster/Caster.h"
 
 #include "GameClient/View.h"
 
@@ -27,6 +30,12 @@
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/NetworkInterface.h"
 
+
+static CommandFrameSource* passiveFrameSource()
+{
+	return (TheGameLogic != nullptr && TheGameLogic->isInCasterGame())
+		? TheGameLogic->getCommandFrameSource() : nullptr;
+}
 
 FramePacer* TheFramePacer = nullptr;
 
@@ -42,6 +51,7 @@ FramePacer::FramePacer()
 	m_enableLogicTimeScale = FALSE;
 	m_isTimeFrozen = FALSE;
 	m_isGameHalted = FALSE;
+	m_liveReplayCatchUp = FALSE;
 }
 
 FramePacer::~FramePacer()
@@ -52,6 +62,13 @@ FramePacer::~FramePacer()
 
 void FramePacer::update()
 {
+	// Sample once, so render and logic pacing use the same backlog decision.
+	// Reuse ordinary engine ticks (including message/CRC propagation), rather
+	// than running GameLogic twice within a render update.
+	CommandFrameSource* const passiveSource = passiveFrameSource();
+	m_liveReplayCatchUp = !m_isTimeFrozen && !m_isGameHalted
+		&& passiveSource != nullptr && passiveSource->needsCatchUp(TheGameLogic->getFrame());
+
 	// TheSuperHackers @bugfix xezon 05/08/2025 Re-implements the frame rate limiter
 	// with higher resolution counters to cap the frame rate more accurately to the desired limit.
 	const UnsignedInt maxFps = getActualFramesPerSecondLimit();// allowFpsLimit ? getFramesPerSecondLimit() : RenderFpsPreset::UncappedFpsValue;
@@ -60,6 +77,7 @@ void FramePacer::update()
 
 void FramePacer::reset()
 {
+	m_liveReplayCatchUp = FALSE;
 	m_frameRateLimit.reset();
 	m_updateTime = 1.0f / (Real)getActualFramesPerSecondLimit();
 }
@@ -87,6 +105,8 @@ Bool FramePacer::isFramesPerSecondLimitEnabled() const
 
 Bool FramePacer::isActualFramesPerSecondLimitEnabled() const
 {
+	// Live casters use LAN rendering policy without changing saved limits.
+	if (passiveFrameSource() != nullptr) return FALSE;
 	Bool allowFpsLimit = true;
 
 	if (TheTacticalView != nullptr)
@@ -186,6 +206,38 @@ Int FramePacer::getActualLogicTimeScaleFps(LogicTimeQueryFlags flags) const
 	if (TheNetwork != nullptr)
 	{
 		return TheNetwork->getFrameRate();
+	}
+
+	CommandFrameSource* const passiveSource = passiveFrameSource();
+	if (passiveSource != nullptr)
+	{
+		// Loading must finish before native command availability can stall simulation.
+		if (TheGameLogic->isLoadingMap())
+			return LOGICFRAMES_PER_SECOND;
+		if (!passiveSource->isFrameReady(TheGameLogic->getFrame())
+			&& !passiveSource->hasEnded())
+		{
+			// Waiting on a passive caster never touches player lockstep. Let a
+			// locally queued exit proceed even while the stream is incomplete.
+			Bool exiting = FALSE;
+			for (GameMessage* message = TheCommandList->getFirstMessage(); message != nullptr;
+				message = message->next())
+			{
+				if (message->getType() == GameMessage::MSG_CLEAR_GAME_DATA)
+				{
+					exiting = TRUE;
+					break;
+				}
+			}
+			if (!exiting)
+			{
+				return 0;
+			}
+		}
+		// Keep LAN simulation at 30 Hz while rendering remains uncapped; consume
+		// an already reconciled backlog with ordinary tick catch-up only.
+		return LOGICFRAMES_PER_SECOND * ((m_liveReplayCatchUp && !m_isTimeFrozen
+			&& !m_isGameHalted) ? 2 : 1);
 	}
 
 	if (isLogicTimeScaleEnabled())

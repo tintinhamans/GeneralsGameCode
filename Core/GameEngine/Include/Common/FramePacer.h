@@ -80,6 +80,7 @@ protected:
 	Bool m_enableLogicTimeScale;
 	Bool m_isTimeFrozen;
 	Bool m_isGameHalted;
+	Bool m_liveReplayCatchUp; ///< Cached once per paced frame; never changes user limits.
 };
 
 extern FramePacer* TheFramePacer;

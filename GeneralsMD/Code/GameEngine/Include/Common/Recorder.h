@@ -28,6 +28,9 @@
 #include "GameNetwork/GameInfo.h"
 
 class File;
+class CasterReplayFile;
+class CommandFrameSink;
+struct ReplayStartData;
 
 /**
   * The ReplayGameInfo class holds information about the replay game and
@@ -98,7 +101,11 @@ public:
 
 	// Methods dealing with playback.
 	void updatePlayback();														///< The update function for playing back a file.
+	void updateCasterPassivePlayback();
+	/// Opens the optional local replay copy of a watched match and writes its replay header.
+	Bool openCasterPassiveReplayOutput(const ReplayStartData& data);
 	Bool playbackFile(AsciiString filename);					///< Starts playback of the specified file.
+	Bool startCasterPlayback(const ReplayStartData& data);		///< Starts passive caster playback from typed start data, without any file.
 	void loadQueuedReplay();													///< Play the replay file requested on startup.
 	Bool replayMatchesGameVersion(AsciiString filename); ///< Returns true if the playback is a valid playback file for this version.
 	static Bool replayMatchesGameVersion(const ReplayHeader& header); ///< Returns true if the playback is a valid playback file for this version.
@@ -110,6 +117,9 @@ public:
 	Bool analyzeReplay( AsciiString filename );
 #endif
 	Bool isPlaybackInProgress() const;
+
+
+	CasterReplayFile* getCasterFile() const { return m_casterFile; }
 
 public:
 	void handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool fromPlayback);
@@ -135,6 +145,10 @@ public:
 		Int localPlayerIndex;
 	};
 	Bool readReplayHeader( ReplayHeader& header, const AsciiString& filename, Bool forPlayback );
+	/// Parses a replay file into typed start data. m_file stays open on the frame data, as for readReplayHeader.
+	Bool readReplayStartData(ReplayStartData& data, const AsciiString& filename);
+	/// Starts the game described by the typed start data. Reads no further header bytes.
+	Bool startPlayback(const ReplayStartData& data);
 
 	RecorderModeType getMode();												///< Returns the current operating mode.
 	Bool isPlaybackMode() const { return m_mode == RECORDERMODETYPE_PLAYBACK || m_mode == RECORDERMODETYPE_SIMULATION_PLAYBACK; }
@@ -161,11 +175,21 @@ public:
 	void stopRecording();															///< Stop recording and close m_file.
 protected:
 	void startRecording(GameDifficulty diff, Int originalGameMode, Int rankPoints, Int maxFPS);					///< Start recording to m_file.
+	/// Writes the replay header to the given file. The one place replay header bytes are written.
+	/// versionString/versionTimeString/versionNumber/exeCRC/iniCRC identify whose build made the
+	/// recording: the local machine's for a normal recording, but the host's (carried in the typed
+	/// match-start data) for a caster's local copy, since the copy describes the match, not the caster.
+	void writeReplayHeaderTo(File* file, AsciiString gameOptions, Int localSlotIndex, GameDifficulty diff,
+		Int originalGameMode, Int rankPoints, Int maxFPS, UnicodeString versionString,
+		UnicodeString versionTimeString, UnsignedInt versionNumber, UnsignedInt exeCRC, UnsignedInt iniCRC);
 	void writeToFile(GameMessage *msg);								///< Write this GameMessage to m_file.
 	void archiveReplay(AsciiString fileName);					///< Move the specified replay file to the archive directory.
 
 	void logGameStart(AsciiString options);
 	void logGameEnd();
+
+	Bool applyReplayGameOptions(const AsciiString& gameOptions);		///< Rebuild m_gameInfo from a replay options string.
+	Bool applyReplayLocalPlayerIndex(Int localPlayerIndex);				///< Validate the replay's local slot and adopt its IP.
 
 	AsciiString readAsciiString();										///< Read the next string from m_file using ascii characters.
 	UnicodeString readUnicodeString();								///< Read the next string from m_file using unicode characters.
@@ -184,6 +208,14 @@ protected:
 
 	CRCInfo m_crcInfo;
 	File* m_file;
+	CasterReplayFile* m_casterFile;
+	File* m_casterPassiveOutputFile;				///< local copy of the watched match, or null
+	CommandFrameSink* m_casterReplaySink;		///< optional writer for that copy (owned)
+	class PassiveReplayFileSink;
+	class ReplayCommandFrameSource;
+	friend class PassiveReplayFileSink;	// VC6 nested classes get no implicit access
+	friend class ReplayCommandFrameSource;
+	void closeCasterReplaySink();
 	AsciiString m_fileName;
 	Int m_currentFilePosition;
 	RecorderModeType m_mode;
@@ -199,6 +231,24 @@ protected:
 	Int m_originalGameMode; // valid in replays
 
 	UnsignedInt m_nextFrame;												///< The Frame that the next message is to be executed on.  This can be -1.
+};
+
+/**
+  * Everything needed to start a playback: the parsed replay header plus the
+	* start settings that follow it. A replay fills this by parsing its file; a
+	* live cast fills it from its typed match start, with no file at all.
+	*/
+struct ReplayStartData
+{
+	ReplayStartData();
+
+	RecorderClass::ReplayHeader header;
+	AsciiString playbackFilename;			///< reported as the current replay filename
+	Int difficulty;
+	Int originalGameMode;
+	Int rankPoints;
+	Int maxFPS;
+	Bool liveCast;							///< TRUE when this starts a live cast rather than a replay
 };
 
 extern RecorderClass *TheRecorder;

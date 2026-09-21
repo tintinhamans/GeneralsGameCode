@@ -1833,7 +1833,7 @@ AGAIN:
 		TheWritableGlobalData->m_dumpPerformanceStatistics = FALSE;
 	}
   //The <= GAME_REPLAY essentially means, GAME_SINGLE_PLAYER || GAME_LAN || GAME_SKIRMISH || GAME_REPLAY
-  else if ( TheGlobalData->m_dumpStatsAtInterval && TheGameLogic->getGameMode() <= GAME_REPLAY )
+  else if ( TheGlobalData->m_dumpStatsAtInterval && (TheGameLogic->getGameMode() <= GAME_REPLAY || TheGameLogic->isInCasterGame()) )
   {
     Int interval = TheGlobalData->m_statsInterval;
     if ( TheGameLogic->getFrame() > 0 && (TheGameLogic->getFrame() % interval) == 0 )
