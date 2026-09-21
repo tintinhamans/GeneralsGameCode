@@ -689,7 +689,12 @@ void GameClient::update()
 	// redraw all views, update the GUI
 	//if(TheGameLogic->getFrame() >= 2)
 
-		TheDisplay->DRAW();
+		// Keep the last lobby frame until the passive replay loading screen is ready.
+		const Bool waitingForCasterLoadScreen = TheGameLogic->getCommandFrameSource() != nullptr
+			&& (!TheGameLogic->isInGame() || TheGameLogic->isLoadingMap())
+			&& !TheGlobalData->m_loadScreenRender;
+		if (!waitingForCasterLoadScreen)
+			TheDisplay->DRAW();
 	}
 
 	{

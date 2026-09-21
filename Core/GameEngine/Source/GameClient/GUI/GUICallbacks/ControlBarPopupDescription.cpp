@@ -189,7 +189,7 @@ void ControlBar::showBuildTooltipLayout( GameWindow *cmdButton )
 		// note that, in this branch, ENABLE_SOLO_PLAY is ***NEVER*** defined...
 		// this is so that we have a multiplayer build that cannot possibly be hacked
 		// to work as a solo game!
-		if (TheGameLogic->isInReplayGame())
+		if (TheGameLogic->isInPassivePlaybackGame())
 			return;
 
 		if (TheInGameUI->isQuitMenuVisible())

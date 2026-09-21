@@ -595,6 +595,8 @@ private:
 	void updateRenderFpsString();
 	void drawNetworkLatency(Int &x, Int &y);
 	void drawRenderFps(Int &x, Int &y);
+	void drawCasterStats(Int &x, Int &y);
+	void updateCasterStats();
 	void drawSystemTime(Int &x, Int &y);
 	void drawGameTime();
 	void drawPlayerInfoList();
@@ -770,6 +772,10 @@ protected:
 	// Render FPS Counter
 	DisplayString *							m_renderFpsString;
 	DisplayString *							m_renderFpsLimitString;
+	DisplayString* m_casterSources;
+	DisplayString* m_casterReportAge;
+	DisplayString* m_casterDelay;
+	Bool m_casterStatsVisible;
 	AsciiString									m_renderFpsFont;
 	Int													m_renderFpsPointSize;
 	Bool												m_renderFpsBold;

@@ -104,6 +104,7 @@
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/LANAPI.h"
+#include "GameNetwork/Caster/Caster.h"
 #include "GameNetwork/GameSpy/GameResultsThread.h"
 
 #include "Common/version.h"
@@ -913,6 +914,12 @@ void GameEngine::update()
 			{
 				TheNetwork->UPDATE();
 			}
+		}
+
+		// Drain before GameLogic can read the live replay stream.
+		if (TheCaster != nullptr)
+		{
+			TheCaster->update();
 		}
 
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.

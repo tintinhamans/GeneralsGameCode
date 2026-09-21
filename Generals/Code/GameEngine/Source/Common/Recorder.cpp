@@ -44,6 +44,8 @@
 #include "GameNetwork/GameMessageParser.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/networkutil.h"
+#include "GameNetwork/Caster/CasterReplayFile.h"
+#include "GameNetwork/Caster/Caster.h"
 #include "GameLogic/GameLogic.h"
 #include "Common/RandomValue.h"
 #include "Common/CRCDebug.h"
@@ -336,6 +338,33 @@ void RecorderClass::cleanUpReplayFile()
 RecorderClass *TheRecorder = nullptr;
 
 /**
+ * Constructor. Every field is initialized, because a live cast fills this struct
+ * without a replay file ever having written the fields it does not carry.
+ */
+ReplayStartData::ReplayStartData()
+{
+	memset(&header.timeVal, 0, sizeof(header.timeVal));
+	header.versionNumber = 0;
+	header.exeCRC = 0;
+	header.iniCRC = 0;
+	header.startTime = 0;
+	header.endTime = 0;
+	header.frameCount = 0;
+	header.quitEarly = FALSE;
+	header.desyncGame = FALSE;
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		header.playerDiscons[i] = FALSE;
+	}
+	header.localPlayerIndex = -1;
+	difficulty = 0;
+	originalGameMode = 0;
+	rankPoints = 0;
+	maxFPS = 0;
+	liveCast = FALSE;
+}
+
+/**
  * Constructor
  */
 RecorderClass::RecorderClass()
@@ -343,6 +372,9 @@ RecorderClass::RecorderClass()
 	m_originalGameMode = GAME_NONE;
 	m_mode = RECORDERMODETYPE_RECORD;
 	m_file = nullptr;
+	m_casterFile = nullptr;
+	m_casterPassiveOutputFile = nullptr;
+	m_casterReplaySink = nullptr;
 	m_fileName.clear();
 	m_currentFilePosition = 0;
 	m_doingAnalysis = FALSE;
@@ -369,6 +401,9 @@ void RecorderClass::init() {
 	m_originalGameMode = GAME_NONE;
 	m_mode = RECORDERMODETYPE_NONE;
 	m_file = nullptr;
+	m_casterFile = nullptr;
+	m_casterPassiveOutputFile = nullptr;
+	m_casterReplaySink = nullptr;
 	m_fileName.clear();
 	m_currentFilePosition = 0;
 	m_gameInfo.clearSlotList();
@@ -394,6 +429,12 @@ void RecorderClass::reset() {
 		m_file->close();
 		m_file = nullptr;
 	}
+	closeCasterReplaySink();
+	if (m_casterPassiveOutputFile != nullptr) {
+		m_casterPassiveOutputFile->close();
+		m_casterPassiveOutputFile = nullptr;
+	}
+	m_casterFile = nullptr;
 	m_fileName.clear();
 
 	init();
@@ -409,6 +450,104 @@ void RecorderClass::update() {
 	} else if (isPlaybackMode()) {
 		updatePlayback();
 	}
+}
+
+/// The passive command frame source of the current match, if any. GameLogic owns
+/// that pointer; the recorder only reads frames through it.
+static CommandFrameSource* passiveCommandFrameSource()
+{
+	return TheGameLogic != nullptr ? TheGameLogic->getCommandFrameSource() : nullptr;
+}
+
+/// Replays the commands of a local replay file frame by frame.
+class RecorderClass::ReplayCommandFrameSource : public CommandFrameSource
+{
+public:
+	explicit ReplayCommandFrameSource(RecorderClass* recorder) : m_recorder(recorder) {}
+
+	virtual Bool isFrameReady(UnsignedInt frame) { return m_recorder->m_nextFrame == frame; }
+
+	virtual Bool appendFrame(UnsignedInt frame, CommandList*)
+	{
+		// The recorder appends to TheCommandList itself, one command at a time.
+		while (m_recorder->m_nextFrame == frame) {
+			m_recorder->appendNextCommand();	// append the next command to TheCommandQueue
+			m_recorder->readNextFrame();	// Read the next command's frame number for playback.
+		}
+		return TRUE;
+	}
+
+	virtual Bool hasEnded() { return m_recorder->m_nextFrame == (UnsignedInt)-1; }
+
+private:
+	RecorderClass* m_recorder;
+};
+
+/// Keeps a local replay copy of a watched match: the same header, then only the
+/// canonical network commands, and a closing clear-game-data record.
+class RecorderClass::PassiveReplayFileSink : public CommandFrameSink
+{
+public:
+	explicit PassiveReplayFileSink(RecorderClass* recorder) : m_recorder(recorder) {}
+
+	virtual void onFrameCommands(UnsignedInt, GameMessage* message)
+	{
+		File*& output = m_recorder->m_casterPassiveOutputFile;
+
+		// Keep an ordinary local replay separately from native caster transport.
+		// Its normal header metadata remains authoritative; only accepted canonical
+		// network commands are appended, never a synthetic caster player slot.
+		while (message != nullptr)
+		{
+			if (output != nullptr && message->getType() > GameMessage::MSG_BEGIN_NETWORK_MESSAGES
+				&& message->getType() < GameMessage::MSG_END_NETWORK_MESSAGES)
+			{
+				File* replayMetadataFile = m_recorder->m_file;
+				m_recorder->m_file = output;
+				m_recorder->writeToFile(message);
+				m_recorder->m_file = replayMetadataFile;
+			}
+			message = message->next();
+		}
+		if (output != nullptr)
+		{
+			output->flush();
+		}
+	}
+
+	virtual void onEnd()
+	{
+		File*& output = m_recorder->m_casterPassiveOutputFile;
+
+		if (output == nullptr)
+		{
+			return;
+		}
+		// A replay ends with an explicit clear record.  Write it only to the
+		// local output; the passive caster must not inject it into the live
+		// command list before the normal terminal cleanup tick.
+		GameMessage* clearGameData = newInstance(GameMessage)(GameMessage::MSG_CLEAR_GAME_DATA);
+		File* replayMetadataFile = m_recorder->m_file;
+		m_recorder->m_file = output;
+		m_recorder->writeToFile(clearGameData);
+		deleteInstance(clearGameData);
+
+		// Finalize the copied replay header against the separately written body.
+		m_recorder->logGameEnd();
+		m_recorder->m_file->flush();
+		m_recorder->m_file->close();
+		m_recorder->m_file = replayMetadataFile;
+		output = nullptr;
+	}
+
+private:
+	RecorderClass* m_recorder;
+};
+
+void RecorderClass::closeCasterReplaySink()
+{
+	delete m_casterReplaySink;
+	m_casterReplaySink = nullptr;
 }
 
 /**
@@ -427,7 +566,14 @@ void RecorderClass::updatePlayback() {
 		return;
 	}
 
-	if (m_nextFrame == -1) {
+	if (passiveCommandFrameSource() != nullptr)
+	{
+		updateCasterPassivePlayback();
+		return;
+	}
+
+	ReplayCommandFrameSource replaySource(this);
+	if (replaySource.hasEnded()) {
 		// This is reached if there are no more commands to be executed.
 		return;
 	}
@@ -436,22 +582,138 @@ void RecorderClass::updatePlayback() {
 		curFrame = m_nextFrame;
 
 	// While there are commands to be queued up for this frame, do it.
-	while (m_nextFrame == curFrame) {
-		appendNextCommand();	// append the next command to TheCommandQueue
-		readNextFrame();	// Read the next command's frame number for playback.
+	if (replaySource.isFrameReady(curFrame))
+		replaySource.appendFrame(curFrame, TheCommandList);
+}
+
+void RecorderClass::updateCasterPassivePlayback()
+{
+	GameMessage* previousLast = nullptr;
+	GameMessage* message;
+	CommandFrameSource* commandFrameSource = passiveCommandFrameSource();
+
+	if (commandFrameSource == nullptr || TheGameLogic == nullptr || TheCommandList == nullptr)
+	{
+		return;
+	}
+	// The startup command and map loading do not consume simulation frames.
+	if (!TheGameLogic->isInPassivePlaybackGame() || TheGameLogic->isLoadingMap())
+	{
+		return;
+	}
+	if (commandFrameSource->hasEnded())
+	{
+		stopPlayback();
+		return;
+	}
+	for (message = TheCommandList->getFirstMessage(); message != nullptr; message = message->next())
+	{
+		previousLast = message;
+	}
+
+	// The client only exposes a frame after source reconciliation. The codec
+	// validates the complete batch before it publishes any GameMessages.
+	if (!commandFrameSource->appendFrame(TheGameLogic->getFrame(), TheCommandList))
+	{
+		return;
+	}
+
+	// The local replay copy is an optional sink of the accepted frame.
+	if (m_casterReplaySink != nullptr)
+	{
+		message = previousLast != nullptr ? previousLast->next() : TheCommandList->getFirstMessage();
+		m_casterReplaySink->onFrameCommands(TheGameLogic->getFrame(), message);
 	}
 }
 
+Bool RecorderClass::openCasterPassiveReplayOutput(const ReplayStartData& data)
+{
+	AsciiString outputPath;
+	AsciiString outputName;
+	FILETIME now;
+	static UnsignedInt serial = 0;
+
+	if (passiveCommandFrameSource() == nullptr || TheFileSystem == nullptr)
+	{
+		return FALSE;
+	}
+	if (data.header.gameOptions.isEmpty() || data.header.localPlayerIndex < 0)
+	{
+		return FALSE;
+	}
+
+	outputPath = getReplayDir();
+	TheFileSystem->createDirectory(outputPath);
+	GetSystemTimeAsFileTime(&now);
+	for (UnsignedInt attempt = 0; attempt < 32; ++attempt)
+	{
+		AsciiString candidate = outputPath;
+		outputName.format("LiveCaster-%08X-%08X-%08X.rep", GetCurrentProcessId(),
+			now.dwLowDateTime, ++serial);
+		candidate.concat(outputName);
+		m_casterPassiveOutputFile = TheFileSystem->openFile(candidate.str(),
+			File::WRITE | File::BINARY | File::ONLYNEW);
+		if (m_casterPassiveOutputFile != nullptr)
+		{
+			outputPath = candidate;
+			break;
+		}
+	}
+	if (m_casterPassiveOutputFile == nullptr)
+	{
+		return FALSE;
+	}
+
+	// The copy is an ordinary replay file, so it gets the very header a recorded
+	// game gets, written by the same code.  logGameStart patches the start time
+	// through m_file, so the copy stands in for it across that one call, exactly
+	// as the sink does when logGameEnd closes the copy.
+	// Describe the match, not the watcher: the copy's header carries the host's identity, not
+	// the local machine's, so it reads exactly like a recording the host itself made.
+	writeReplayHeaderTo(m_casterPassiveOutputFile, data.header.gameOptions, data.header.localPlayerIndex,
+		(GameDifficulty)data.difficulty, data.originalGameMode, data.rankPoints, data.maxFPS,
+		data.header.versionString, data.header.versionTimeString, data.header.versionNumber,
+		data.header.exeCRC, data.header.iniCRC);
+	{
+		File* replayMetadataFile = m_file;
+		m_file = m_casterPassiveOutputFile;
+		logGameStart(data.header.gameOptions);
+		m_file = replayMetadataFile;
+	}
+	if (!m_casterPassiveOutputFile->flush())
+	{
+		m_casterPassiveOutputFile->close();
+		m_casterPassiveOutputFile = nullptr;
+		return FALSE;
+	}
+	return TRUE;
+}
 /**
  * Stop the currently running playback. This is probably due either to the user exiting out of the playback or
  * reaching the end of the playback file.
  */
 void RecorderClass::stopPlayback() {
+	const Bool passivePlayback = passiveCommandFrameSource() != nullptr;
+
+	if (m_casterReplaySink != nullptr) {
+		m_casterReplaySink->onEnd();
+		closeCasterReplaySink();
+	}
 	if (m_file != nullptr) {
 		m_file->close();
 		m_file = nullptr;
 	}
+	m_casterFile = nullptr;
 	m_fileName.clear();
+	if (TheGameLogic != nullptr)
+	{
+		TheGameLogic->setCommandFrameSource(nullptr);
+	}
+	if (passivePlayback && TheCaster != nullptr)
+	{
+		// Queue facade cleanup; it runs after this recorder callback unwinds.
+		TheCaster->onPassivePlaybackEnded();
+	}
 
 	if (!m_doingAnalysis)
 	{
@@ -514,6 +776,83 @@ void RecorderClass::updateRecord()
 }
 
 /**
+ * Write the replay header to the given file: the GENREP magic, the stats that are patched
+ * in later, the build info, the game options string and the four start settings that follow
+ * the header proper. Both a recorded game and the optional local copy of a watched match go
+ * through here, so replay header bytes are written in exactly one place.
+ */
+void RecorderClass::writeReplayHeaderTo(File* file, AsciiString gameOptions, Int localSlotIndex,
+	GameDifficulty diff, Int originalGameMode, Int rankPoints, Int maxFPS, UnicodeString versionString,
+	UnicodeString versionTimeString, UnsignedInt versionNumber, UnsignedInt exeCRC, UnsignedInt iniCRC)
+{
+	if (file == nullptr) {
+		return;
+	}
+
+	// TheSuperHackers @info the null terminator needs to be ignored to maintain retail replay file layout
+	file->writeFormat("%s", s_genrep);
+
+	//
+	// save space for stats to be filled in.
+	//
+	// **** if this changes, change the LAN code above ****
+	//
+	replay_time_t time = 0;
+	file->write(&time, sizeof(time));	// reserve space for start time
+	file->write(&time, sizeof(time));	// reserve space for end time
+
+	UnsignedInt frames = 0;
+	file->write(&frames, sizeof(frames));	// reserve space for duration in frames
+
+	Bool flag = FALSE;
+	file->write(&flag, sizeof(flag));	// reserve space for flag (true if we desync)
+	file->write(&flag, sizeof(flag));	// reserve space for flag (true if we quit early)
+	for (Int i=0; i<MAX_SLOTS; ++i)
+	{
+		file->write(&flag, sizeof(flag));	// reserve space for flag (true if player i disconnects)
+	}
+
+	// Print out the name of the replay.
+	UnicodeString replayName;
+	replayName = TheGameText->fetch("GUI:LastReplay");
+	file->writeFormat(L"%s", replayName.str());
+	file->writeChar(L"\0");
+
+	// Date and Time
+	SYSTEMTIME systemTime;
+	GetLocalTime( &systemTime );
+	file->write(&systemTime, sizeof(systemTime));
+
+	// write out version info
+	file->writeFormat(L"%s", versionString.str());
+	file->writeChar(L"\0");
+	file->writeFormat(L"%s", versionTimeString.str());
+	file->writeChar(L"\0");
+	file->write(&versionNumber, sizeof(versionNumber));
+	file->write(&exeCRC, sizeof(exeCRC));
+	file->write(&iniCRC, sizeof(iniCRC));
+
+	// write slot list (starting spots, color, alliances, etc
+	file->writeFormat("%s", gameOptions.str());
+	file->writeChar("\0");
+
+	file->writeFormat("%d", localSlotIndex);
+	file->writeChar("\0");
+
+	// Write the game difficulty.
+	file->write(&diff, sizeof(diff));
+
+	// Write original game mode
+	file->write(&originalGameMode, sizeof(originalGameMode));
+
+	// Write rank points to add at game start
+	file->write(&rankPoints, sizeof(rankPoints));
+
+	// Write maxFPS chosen
+	file->write(&maxFPS, sizeof(maxFPS));
+}
+
+/**
  * Start a new file for recording. This will always overwrite the "LastReplay.rep" file with the new one.
  * So don't call this unless you really mean it.
  */
@@ -537,51 +876,24 @@ void RecorderClass::startRecording(GameDifficulty diff, Int originalGameMode, In
 		DEBUG_ASSERTCRASH(m_file != nullptr, ("Failed to create replay file"));
 		return;
 	}
-	// TheSuperHackers @info the null terminator needs to be ignored to maintain retail replay file layout
-	m_file->writeFormat("%s", s_genrep);
 
-	//
-	// save space for stats to be filled in.
-	//
-	// **** if this changes, change the LAN code above ****
-	//
-	replay_time_t time = 0;
-	m_file->write(&time, sizeof(time));	// reserve space for start time
-	m_file->write(&time, sizeof(time));	// reserve space for end time
 
-	UnsignedInt frames = 0;
-	m_file->write(&frames, sizeof(frames));	// reserve space for duration in frames
-
-	Bool flag = FALSE;
-	m_file->write(&flag, sizeof(flag));	// reserve space for flag (true if we desync)
-	m_file->write(&flag, sizeof(flag));	// reserve space for flag (true if we quit early)
-	for (Int i=0; i<MAX_SLOTS; ++i)
 	{
-		m_file->write(&flag, sizeof(flag));	// reserve space for flag (true if player i disconnects)
+		CasterReplayFile* casterFile = newInstance(CasterReplayFile)();
+		if (casterFile->wrap(m_file)) {
+			casterFile->deleteOnClose();
+			m_casterFile = casterFile;
+			m_file = casterFile;
+		} else {
+			deleteInstance(casterFile);
+		}
 	}
 
-	// Print out the name of the replay.
-	UnicodeString replayName;
-	replayName = TheGameText->fetch("GUI:LastReplay");
-	m_file->writeFormat(L"%s", replayName.str());
-	m_file->writeChar(L"\0");
 
-	// Date and Time
-	SYSTEMTIME systemTime;
-	GetLocalTime( &systemTime );
-	m_file->write(&systemTime, sizeof(systemTime));
-
-	// write out version info
-	UnicodeString versionString = TheVersion->getUnicodeVersion();
-	UnicodeString versionTimeString = TheVersion->getUnicodeBuildTime();
-	UnsignedInt versionNumber = TheVersion->getVersionNumber();
-	m_file->writeFormat(L"%s", versionString.str());
-	m_file->writeChar(L"\0");
-	m_file->writeFormat(L"%s", versionTimeString.str());
-	m_file->writeChar(L"\0");
-	m_file->write(&versionNumber, sizeof(versionNumber));
-	m_file->write(&(TheGlobalData->m_exeCRC), sizeof(TheGlobalData->m_exeCRC));
-	m_file->write(&(TheGlobalData->m_iniCRC), sizeof(TheGlobalData->m_iniCRC));
+	if (TheCaster != nullptr)
+	{
+		TheCaster->onRecordingStarted(m_casterFile);
+	}
 
 	// Number of players
 	/*
@@ -631,15 +943,14 @@ void RecorderClass::startRecording(GameDifficulty diff, Int originalGameMode, In
 		  theSlotList = GameInfoToAsciiString(&m_gameInfo);
     }
 	}
-	logGameStart(theSlotList);
 	DEBUG_LOG(("RecorderClass::startRecording - theSlotList = %s", theSlotList.str()));
 
-	// write slot list (starting spots, color, alliances, etc
-	m_file->writeFormat("%s", theSlotList.str());
-	m_file->writeChar("\0");
+	writeReplayHeaderTo(m_file, theSlotList, localIndex, diff, originalGameMode, rankPoints, maxFPS,
+		TheVersion->getUnicodeVersion(), TheVersion->getUnicodeBuildTime(), TheVersion->getVersionNumber(),
+		TheGlobalData->m_exeCRC, TheGlobalData->m_iniCRC);
 
-	m_file->writeFormat("%d", localIndex);
-	m_file->writeChar("\0");
+	// The header bytes have to exist before the start time can be patched into them.
+	logGameStart(theSlotList);
 
 	/*
 	/// @todo fix this to use starting spots and player alliances when those are put in the game.
@@ -663,17 +974,12 @@ void RecorderClass::startRecording(GameDifficulty diff, Int originalGameMode, In
 	}
 	*/
 
-	// Write the game difficulty.
-	m_file->write(&diff, sizeof(diff));
-
-	// Write original game mode
-	m_file->write(&originalGameMode, sizeof(originalGameMode));
-
-	// Write rank points to add at game start
-	m_file->write(&rankPoints, sizeof(rankPoints));
-
-	// Write maxFPS chosen
-	m_file->write(&maxFPS, sizeof(maxFPS));
+	if (TheCaster != nullptr)
+	{
+		TheCaster->announceCurrentGame();
+		// The slots are final here, so the typed match start can be published.
+		TheCaster->publishMatchBootstrap((Int)diff, originalGameMode, rankPoints, maxFPS);
+	}
 
 	DEBUG_LOG(("RecorderClass::startRecording() - diff=%d, mode=%d, FPS=%d", diff, originalGameMode, maxFPS));
 
@@ -702,8 +1008,17 @@ void RecorderClass::stopRecording() {
 		}
 	}
 	if (m_file != nullptr) {
+		// Closing the recording decorator emits the byte-stream END.  The
+		// command-stream END must follow it even for a one-player LAN sandbox:
+		// that session has no remote player-leave event to terminate casters.
+		const Bool closedCasterRecording = m_casterFile != nullptr;
 		m_file->close();
 		m_file = nullptr;
+		m_casterFile = nullptr;
+		if (closedCasterRecording && TheCaster != nullptr)
+		{
+			TheCaster->onRecorderClosed();
+		}
 
 		if (m_archiveReplays)
 			archiveReplay(m_fileName);
@@ -845,6 +1160,43 @@ void RecorderClass::writeArgument(GameMessageArgumentDataType type, const GameMe
 }
 
 /**
+ * Rebuild the playback GameInfo from a replay options string.  Returns FALSE when the
+ * string is not a valid GameInfo.
+ */
+Bool RecorderClass::applyReplayGameOptions(const AsciiString& gameOptions)
+{
+	m_gameInfo.reset();
+	m_gameInfo.enterGame();
+	DEBUG_LOG(("RecorderClass::readReplayHeader - GameInfo = %s", gameOptions.str()));
+	if (!ParseAsciiStringToGameInfo(&m_gameInfo, gameOptions))
+	{
+		return FALSE;
+	}
+	m_gameInfo.startGame(0);
+	return TRUE;
+}
+
+/**
+ * Validate the replay's local slot number against the GameInfo built above and adopt
+ * its IP.  Returns FALSE (and clears the GameInfo) when the slot number is out of range.
+ */
+Bool RecorderClass::applyReplayLocalPlayerIndex(Int localPlayerIndex)
+{
+	if (localPlayerIndex < -1 || localPlayerIndex >= MAX_SLOTS)
+	{
+		m_gameInfo.endGame();
+		m_gameInfo.reset();
+		return FALSE;
+	}
+	if (localPlayerIndex >= 0)
+	{
+		Int localIP = m_gameInfo.getSlot(localPlayerIndex)->getIP();
+		m_gameInfo.setLocalIP(localIP);
+	}
+	return TRUE;
+}
+
+/**
  * Read in a replay header, for (1) populating a replay listbox or (2) starting playback.  In
  * case (2), set FILE *m_file.
  */
@@ -903,33 +1255,22 @@ Bool RecorderClass::readReplayHeader(ReplayHeader& header, const AsciiString& fi
 
 	// Read in the GameInfo
 	header.gameOptions = readAsciiString();
-	m_gameInfo.reset();
-	m_gameInfo.enterGame();
-	DEBUG_LOG(("RecorderClass::readReplayHeader - GameInfo = %s", header.gameOptions.str()));
-	if (!ParseAsciiStringToGameInfo(&m_gameInfo, header.gameOptions))
+	if (!applyReplayGameOptions(header.gameOptions))
 	{
 		DEBUG_LOG(("RecorderClass::readReplayHeader - replay file did not have a valid GameInfo string."));
 		m_file->close();
 		m_file = nullptr;
 		return FALSE;
 	}
-	m_gameInfo.startGame(0);
 
 	AsciiString playerIndex = readAsciiString();
 	header.localPlayerIndex = atoi(playerIndex.str());
-	if (header.localPlayerIndex < -1 || header.localPlayerIndex >= MAX_SLOTS)
+	if (!applyReplayLocalPlayerIndex(header.localPlayerIndex))
 	{
 		DEBUG_LOG(("RecorderClass::readReplayHeader - invalid local slot number."));
-		m_gameInfo.endGame();
-		m_gameInfo.reset();
 		m_file->close();
 		m_file = nullptr;
 		return FALSE;
-	}
-	if (header.localPlayerIndex >= 0)
-	{
-		Int localIP = m_gameInfo.getSlot(header.localPlayerIndex)->getIP();
-		m_gameInfo.setLocalIP(localIP);
 	}
 
 	if (!forPlayback)
@@ -1131,6 +1472,8 @@ void RecorderClass::loadQueuedReplay()
  */
 Bool RecorderClass::playbackFile(AsciiString filename)
 {
+	ReplayStartData data;
+
 	if (!m_doingAnalysis)
 	{
 		if (TheGameLogic->isInGame())
@@ -1139,14 +1482,59 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 		}
 	}
 
-	ReplayHeader header;
-	Bool success = readReplayHeader( header, filename, TRUE );
-	if (!success)
+	if (!readReplayStartData(data, filename))
+	{
+		return FALSE;
+	}
+	return startPlayback(data);
+}
+
+/**
+ * Start a passive caster playback from typed start data. There is no replay file
+ * behind it, so the GameInfo the header parse would have rebuilt is rebuilt here.
+ */
+Bool RecorderClass::startCasterPlayback(const ReplayStartData& data)
+{
+	// clearGameData resets every subsystem, including TheGameLogic. Keep the
+	// caller's passive frame source on the stack and restore it after that reset.
+	CommandFrameSource* const commandFrameSource = passiveCommandFrameSource();
+	if (!m_doingAnalysis)
+	{
+		if (TheGameLogic->isInGame())
+		{
+			TheGameLogic->clearGameData();
+		}
+	}
+	// GameLogic::reset() invoked by clearGameData clears this field. Ordinary
+	// replay callers never set it; passive callers recover their source.
+	if (TheGameLogic != nullptr)
+	{
+		TheGameLogic->setCommandFrameSource(commandFrameSource);
+	}
+
+	if (!applyReplayGameOptions(data.header.gameOptions)
+		|| !applyReplayLocalPlayerIndex(data.header.localPlayerIndex))
+	{
+		return FALSE;
+	}
+	return startPlayback(data);
+}
+
+/**
+ * Parse a replay file into the typed start data. As with readReplayHeader, m_file is
+ * left open and positioned on the frame data.
+ */
+Bool RecorderClass::readReplayStartData(ReplayStartData& data, const AsciiString& filename)
+{
+	data.playbackFilename = filename;
+
+	if (!readReplayHeader(data.header, filename, TRUE))
 	{
 		return FALSE;
 	}
 
 #ifdef DEBUG_CRASHING
+	const ReplayHeader& header = data.header;
 	Bool versionStringDiff = header.versionString != TheVersion->getUnicodeVersion();
 	Bool versionTimeStringDiff = header.versionTimeString != TheVersion->getUnicodeBuildTime();
 	Bool versionNumberDiff = header.versionNumber != TheVersion->getVersionNumber();
@@ -1195,28 +1583,44 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 #endif
 
 #ifdef DEBUG_LOGGING
-	if (header.localPlayerIndex >= 0)
+	if (data.header.localPlayerIndex >= 0)
 	{
 		DEBUG_LOG(("Local player is %ls (slot %d, IP %8.8X)",
-			m_gameInfo.getSlot(header.localPlayerIndex)->getName().str(), header.localPlayerIndex, m_gameInfo.getSlot(header.localPlayerIndex)->getIP()));
+			m_gameInfo.getSlot(data.header.localPlayerIndex)->getName().str(), data.header.localPlayerIndex, m_gameInfo.getSlot(data.header.localPlayerIndex)->getIP()));
 	}
 #endif
 
-	Bool isMultiplayer = m_gameInfo.getSlot(header.localPlayerIndex)->getIP() != 0;
-	m_crcInfo = CRCInfo(header.localPlayerIndex, isMultiplayer);
+	// The four start settings that follow the header proper.
+	m_file->read(&data.difficulty, sizeof(data.difficulty));
+	m_file->read(&data.originalGameMode, sizeof(data.originalGameMode));
+	m_file->read(&data.rankPoints, sizeof(data.rankPoints));
+	m_file->read(&data.maxFPS, sizeof(data.maxFPS));
+
+	return TRUE;
+}
+
+/**
+ * Start the game the given start data describes. Reads no header bytes: a replay has
+ * already parsed them and a live cast never had any.
+ */
+Bool RecorderClass::startPlayback(const ReplayStartData& data)
+{
+	Bool isMultiplayer = m_gameInfo.getSlot(data.header.localPlayerIndex)->getIP() != 0;
+	m_crcInfo = CRCInfo(data.header.localPlayerIndex, isMultiplayer);
 	REPLAY_CRC_INTERVAL = m_gameInfo.getCRCInterval();
 	DEBUG_LOG(("Player index is %d, replay CRC interval is %d", m_crcInfo.getLocalPlayer(), REPLAY_CRC_INTERVAL));
 
-	Int difficulty = 0;
-	m_file->read(&difficulty, sizeof(difficulty));
+	const Int difficulty = data.difficulty;
+	const Int rankPoints = data.rankPoints;
+	const Int maxFPS = data.maxFPS;
+	m_originalGameMode = data.originalGameMode;
 
-	m_file->read(&m_originalGameMode, sizeof(m_originalGameMode));
-
-	Int rankPoints = 0;
-	m_file->read(&rankPoints, sizeof(rankPoints));
-
-	Int maxFPS = 0;
-	m_file->read(&maxFPS, sizeof(maxFPS));
+	// The local replay copy is optional: watching continues without it.
+	if (passiveCommandFrameSource() != nullptr
+		&& openCasterPassiveReplayOutput(data))
+	{
+		m_casterReplaySink = new PassiveReplayFileSink(this);
+	}
 
 	DEBUG_LOG(("RecorderClass::playbackFile() - original game was mode %d", m_originalGameMode));
 
@@ -1225,11 +1629,14 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 	// Otherwise a crc message remains and messes up the crc calculation on the restarted replay.
 	TheCommandList->reset();
 
-	readNextFrame();
-	// readNextFrame() closes m_file via stopPlayback() if the first frame cannot be read.
-	if(m_file == nullptr)
+	if (passiveCommandFrameSource() == nullptr)
 	{
-		return FALSE;
+		readNextFrame();
+		// readNextFrame() closes m_file via stopPlayback() if the first frame cannot be read.
+		if (m_file == nullptr)
+		{
+			return FALSE;
+		}
 	}
 
 	TheWritableGlobalData->m_pendingFile = m_gameInfo.getMap();
@@ -1242,10 +1649,13 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 		// That's ok because Multiplayer is disabled during replay playback and is actually required
 		// during replay simulation because we don't update TheMessageStream during simulation.
 		GameMessage *msg = newInstance(GameMessage)(GameMessage::MSG_NEW_GAME);
-		msg->appendIntegerArgument(GAME_REPLAY);
+		// A live caster match is a passive playback of its own game mode; only
+		// offline replay playback runs as GAME_REPLAY.
+		msg->appendIntegerArgument(data.liveCast ? GAME_CASTER : GAME_REPLAY);
 		msg->appendIntegerArgument(difficulty);
 		msg->appendIntegerArgument(rankPoints);
-		if( maxFPS != 0 )
+		// Live playback keeps the LAN render policy; offline replay retains its recorded cap.
+		if (maxFPS != 0 && passiveCommandFrameSource() == nullptr)
 			msg->appendIntegerArgument(maxFPS);
 		TheCommandList->appendMessage( msg );
 		InitRandom( m_gameInfo.getSeed() );
@@ -1256,8 +1666,8 @@ Bool RecorderClass::playbackFile(AsciiString filename)
 	// update dereferenced it, for example when the replay is deleted during the version mismatch prompt.
 	m_mode = RECORDERMODETYPE_PLAYBACK;
 
-	m_currentReplayFilename = filename;
-	m_playbackFrameCount = header.frameCount;
+	m_currentReplayFilename = data.playbackFilename;
+	m_playbackFrameCount = data.header.frameCount;
 	return TRUE;
 }
 

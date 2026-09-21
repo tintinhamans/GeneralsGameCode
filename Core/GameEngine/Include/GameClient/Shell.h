@@ -95,6 +95,7 @@
 #pragma once
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
+#include "GameClient/WindowLayout.h"
 
 // FORWARD REFERENCES /////////////////////////////////////////////////////////////////////////////
 class WindowLayout;
@@ -130,6 +131,12 @@ public:
 
 	// pseudo-stack operations for manipulating layouts
 	void push( AsciiString filename, Bool shutdownImmediate = FALSE );	///< load new screen on top, optionally doing an immediate shutdown
+	// Adopt a fully prepared layout as a replacement screen. Unlike push(),
+	// this does not shut down the screen below it, and popReplacement() will not
+	// re-initialize that screen. Ownership transfers to the shell on TRUE.
+	Bool pushReplacement( WindowLayout *layout, WindowLayoutInitFunc init,
+		WindowLayoutUpdateFunc update, WindowLayoutShutdownFunc shutdown );
+	void popReplacement();
 	void pop();																				///< pop top layout
 	void popImmediate();															///< pop now
 	void showShell( Bool runInit = TRUE );									///< init the top of stack
@@ -178,6 +185,8 @@ protected:
 
 	Bool m_pendingPush;																			///< TRUE when a push is pending
 	Bool m_pendingPop;																			///< TRUE when a pop is pending
+	Bool m_pendingReplacementPop;					///< TRUE when a pop restores the replaced screen
+	WindowLayout *m_replacedScreen;				///< temporarily hidden screen restored after replacement pop
 	AsciiString m_pendingPushName;													///< layout name to be pushed
 	Bool m_isShellActive;																		///< TRUE when the shell is active
 	Bool m_shellMapOn;																			///< TRUE when the shell map is on

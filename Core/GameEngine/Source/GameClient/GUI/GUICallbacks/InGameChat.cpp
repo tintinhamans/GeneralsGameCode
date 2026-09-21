@@ -44,7 +44,16 @@
 #include "GameClient/LanguageFilter.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GameInfo.h"
+#include "GameNetwork/LANAPI.h"
+#include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/Caster/Caster.h"
+#include "GameNetwork/Caster/CasterProtocol.h"
+
+static Bool isLocalCaster()
+{
+	return (TheCaster != nullptr && TheCaster->isCaster()) ? TRUE : FALSE;
+}
 
 static GameWindow *chatWindow = nullptr;
 static GameWindow *chatTextEntry = nullptr;
@@ -56,7 +65,7 @@ static InGameChatType inGameChatType;
 // ------------------------------------------------------------------------------------------------
 void ShowInGameChat( Bool immediate )
 {
-	if (TheGameLogic->isInReplayGame())
+	if (TheGameLogic->isInReplayGame() && !isLocalCaster())
 		return;
 
 	if (TheInGameUI->isQuitMenuVisible())
@@ -124,13 +133,27 @@ void SetInGameChatType( InGameChatType chatType )
 	inGameChatType = chatType;
 	if (chatTypeStaticText)
 	{
+		// A caster uses the legacy chat hotkeys as audience selectors: the
+		// "allies" key reaches casters only, while "everyone" reaches both
+		// players and casters over the caster link.  Do not expose the
+		// player-team labels for those two caster routes.
+		if (isLocalCaster())
+		{
+			if (inGameChatType == INGAME_CHAT_ALLIES)
+			{
+				GadgetStaticTextSetText( chatTypeStaticText, TheGameText->fetch("Chat:Observers") );
+			}
+			else if (inGameChatType == INGAME_CHAT_EVERYONE)
+			{
+				GadgetStaticTextSetText( chatTypeStaticText, TheGameText->fetch("Chat:Everyone") );
+			}
+			return;
+		}
+
 		switch (inGameChatType)
 		{
 		case INGAME_CHAT_EVERYONE:
-			if (ThePlayerList->getLocalPlayer()->isPlayerActive())
-				GadgetStaticTextSetText( chatTypeStaticText, TheGameText->fetch("Chat:Everyone") );
-			else
-				GadgetStaticTextSetText( chatTypeStaticText, TheGameText->fetch("Chat:Observers") );
+			GadgetStaticTextSetText( chatTypeStaticText, TheGameText->fetch("Chat:Everyone") );
 			break;
 		case INGAME_CHAT_ALLIES:
 			GadgetStaticTextSetText( chatTypeStaticText, TheGameText->fetch("Chat:Allies") );
@@ -196,7 +219,7 @@ void ToggleInGameChat( Bool immediate )
 		return;
 	}
 
-	if (TheGameLogic->isInReplayGame())
+	if (TheGameLogic->isInReplayGame() && !isLocalCaster())
 		return;
 
 	if (!TheGameInfo->isMultiPlayer() && TheGlobalData->m_netMinPlayers)
@@ -243,7 +266,48 @@ void ToggleInGameChat( Bool immediate )
 						}
 					}
 					TheLanguageFilter->filterLine(msg);
-					TheNetwork->sendChat(msg, playerMask);
+					if (isLocalCaster())
+					{
+						// Caster chat rides the caster link. TheNetwork is null
+						// during replay, so it is never dereferenced here.
+						const WideChar *chatText = msg.str();
+						Int chatLen = msg.getLength();
+						char utf8[CasterProtocol::MAX_FRAME_BYTES];
+						UnsignedInt utf8Len = 0;
+						UnsignedByte direction;
+						Int localSlot = 0;
+						char senderName[65];
+						UnsignedInt senderNameLen = 0;
+						UnicodeString profileName;
+
+						utf8[0] = '\0';
+						senderName[0] = '\0';
+						if (chatText != nullptr && chatLen > 0)
+						{
+							utf8Len = CasterProtocol::wideToUtf8(chatText, (UnsignedInt)chatLen, utf8, sizeof(utf8) - 1);
+						}
+						utf8[utf8Len] = '\0';
+						direction = (inGameChatType == INGAME_CHAT_ALLIES)
+							? (UnsignedByte)CasterProtocol::CHAT_ALLIES
+							: (UnsignedByte)CasterProtocol::CHAT_EVERYONE;
+						if (TheLAN != nullptr)
+						{
+							// wideToUtf8 does not terminate, and setCasterChatName reads
+							// a C string: keep one byte for the terminator and write it.
+							profileName = TheLAN->GetMyName();
+							senderNameLen = CasterProtocol::wideToUtf8(profileName.str(),
+								(UnsignedInt)profileName.getLength(), senderName, sizeof(senderName) - 1);
+							senderName[senderNameLen] = '\0';
+							TheCaster->setCasterChatName(senderName);
+						}
+						// No stock in-game chat surface has an emote convention.
+						TheCaster->sendCasterChat(direction, (UnsignedByte)localSlot, 0,
+							senderName, senderNameLen, utf8, utf8Len, FALSE);
+					}
+					else
+					{
+						TheNetwork->sendChat(msg, playerMask);
+					}
 				}
 				GadgetTextEntrySetText( chatTextEntry, UnicodeString::TheEmptyString );
 				HideInGameChat( immediate );

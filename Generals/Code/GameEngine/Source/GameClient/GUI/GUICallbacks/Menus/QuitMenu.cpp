@@ -336,7 +336,7 @@ void ToggleQuitMenu()
 		TheMouse->setCursor( Mouse::ARROW );
 
 		TheControlBar->hidePurchaseScience();
-		if ( TheGameLogic->isInMultiplayerGame()  || TheGameLogic->isInReplayGame() )
+		if ( TheGameLogic->isInMultiplayerGame()  || TheGameLogic->isInPassivePlaybackGame() )
 		{
 			// we don't want to show the save load button.
 			if(!noSaveLoadQuitMenuLayout)
@@ -402,7 +402,12 @@ void ToggleQuitMenu()
 		else
 		{
 			buttonRestartWin->winEnable(TRUE);
-			if(!TheGameLogic->isInReplayGame())
+			if (TheGameLogic->isInCasterGame())
+			{
+				// A live match cannot be restarted.
+				buttonRestartWin->winEnable(FALSE);
+			}
+			if(!TheGameLogic->isInPassivePlaybackGame())
 			{
 				GadgetButtonSetText(buttonRestartWin, TheGameText->fetch("GUI:RestartMission"));
 				GadgetButtonSetText(buttonExitWin, TheGameText->fetch("GUI:ExitMission"));

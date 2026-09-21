@@ -234,6 +234,8 @@ const char* toString(GameMode mode)
 			return "GAME_INTERNET";
 		case GAME_NONE:
 			return "GAME_NONE";
+		case GAME_CASTER:
+			return "GAME_CASTER";
 		default:
 			return "GAME_UNKNOWN";
 	}
@@ -270,6 +272,7 @@ GameLogic::GameLogic()
 	m_nextObjID = INVALID_ID;
 	m_startNewGame = FALSE;
 	m_gameMode = GAME_NONE;
+	m_commandFrameSource = nullptr;
 	m_rankLevelLimit = 1000;
 	m_pauseFrame = 0;
 	m_gamePaused = FALSE;
@@ -479,6 +482,9 @@ void GameLogic::reset()
 	m_sleepyUpdates.clear();
 	m_curUpdateModule = nullptr;
 
+	// Each match sources its own command frames; the previous match's source is gone.
+	m_commandFrameSource = nullptr;
+
 	m_isScoringEnabled = TRUE;
 	m_showBehindBuildingMarkers = TRUE;
 	m_drawIconUI = TRUE;
@@ -647,7 +653,12 @@ LoadScreen *GameLogic::getLoadScreen( Bool loadingSaveGame )
 		return NEW MultiPlayerLoadScreen;
 		break;
 	case GAME_REPLAY:
+		if (getCommandFrameSource() != nullptr)
+			return NEW MultiPlayerLoadScreen(TRUE);
 		return NEW ShellGameLoadScreen;
+		break;
+	case GAME_CASTER:
+		return NEW MultiPlayerLoadScreen(TRUE);
 		break;
 	case GAME_INTERNET:
 		return NEW GameSpyLoadScreen;
@@ -2303,7 +2314,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 ///		ShowControlBar(FALSE);
 
 		// explicitly set the Control bar to Observer Mode
-		if(m_gameMode == GAME_REPLAY )
+		if(isInPassivePlaybackGame())
 		{
 			rts::changeLocalPlayer(observerPlayer);
 
@@ -3728,6 +3739,9 @@ void GameLogic::update()
 
 	DEBUG_LOG(("%s", Buf));
 	#endif
+		// Re-enter through frame pacing before the first passive simulation tick.
+		if (getCommandFrameSource() != nullptr)
+			return;
 	}
 
 	// send the current time to the GameClient

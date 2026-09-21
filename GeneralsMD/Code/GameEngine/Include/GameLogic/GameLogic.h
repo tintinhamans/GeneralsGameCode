@@ -63,6 +63,7 @@ class WindowLayout;
 class TerrainLogic;
 class GhostObjectManager;
 class CommandButton;
+class CommandFrameSource;
 enum BuildableStatus CPP_11(: Int);
 
 
@@ -77,7 +78,8 @@ enum GameMode CPP_11(: Int)
 	GAME_REPLAY,
 	GAME_SHELL,
 	GAME_INTERNET,
-	GAME_NONE
+	GAME_NONE,
+	GAME_CASTER
 };
 
 const char* toString(GameMode mode);
@@ -180,12 +182,19 @@ public:
 	Bool isInSinglePlayerGame();
 	Bool isInSkirmishGame();
 	Bool isInReplayGame();
+	Bool isInCasterGame();
+	Bool isInPassivePlaybackGame();
 	Bool isInInternetGame();
 	Bool isInShellGame();
 	Bool isInMultiplayerGame();
 	Bool isInInteractiveGame() const;
 
 	static Bool isInInteractiveGame(GameMode mode) { return mode != GAME_NONE && mode != GAME_SHELL; }
+
+	/// A passive match (replay playback or live cast) receives its command frames
+	/// from this source instead of local input. The source is not owned.
+	void setCommandFrameSource(CommandFrameSource* source) { m_commandFrameSource = source; }
+	CommandFrameSource* getCommandFrameSource() const { return m_commandFrameSource; }
 
 	//Kris: Cut isLoadingGame() and replaced with isLoadingMap() and isLoadingSave() -- reason: nomenclature
 	//Bool isLoadingGame() const { return m_loadingScene; }		// This is the old function that isn't very clear on it's definition.
@@ -445,6 +454,7 @@ private:
 	virtual GhostObjectManager *createGhostObjectManager(bool dummy = false);
 
 	GameMode m_gameMode;
+	CommandFrameSource* m_commandFrameSource;			///< passive command frame source for this match (not owned)
 	Int m_rankLevelLimit;
   UnsignedShort m_superweaponRestriction;
 
@@ -504,6 +514,10 @@ inline Bool GameLogic::isInSkirmishGame() { return (m_gameMode == GAME_SKIRMISH)
 inline Bool GameLogic::isInMultiplayerGame() { return (m_gameMode == GAME_LAN) || (m_gameMode == GAME_INTERNET) ; }
 inline Bool GameLogic::isInInteractiveGame() const { return isInInteractiveGame(m_gameMode); }
 inline Bool GameLogic::isInReplayGame() { return (m_gameMode == GAME_REPLAY); }
+inline Bool GameLogic::isInCasterGame() { return (m_gameMode == GAME_CASTER); }
+// Replay playback and live casts are both passive: the local player issues no
+// commands and the frames are fed by a CommandFrameSource instead.
+inline Bool GameLogic::isInPassivePlaybackGame() { return (m_gameMode == GAME_REPLAY) || (m_gameMode == GAME_CASTER); }
 inline Bool GameLogic::isInInternetGame() { return (m_gameMode == GAME_INTERNET); }
 inline Bool GameLogic::isInShellGame() { return (m_gameMode == GAME_SHELL); }
 inline UnsignedShort GameLogic::getSuperweaponRestriction() const { return m_superweaponRestriction; }
