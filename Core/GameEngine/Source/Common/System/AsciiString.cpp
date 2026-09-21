@@ -121,9 +121,9 @@ static StringCaseInfo getStringCaseInfo(const char *str)
 // -----------------------------------------------------
 AsciiString::AsciiString(const AsciiString& stringSrc) : m_data(stringSrc.m_data)
 {
-	ScopedCriticalSection scopedCriticalSection(TheAsciiStringCriticalSection);
+	//ScopedCriticalSection scopedCriticalSection(TheAsciiStringCriticalSection);
 	if (m_data)
-		++m_data->m_refCount;
+		InterlockedIncrement(&m_data->m_refCount);
 	validate();
 }
 
@@ -217,12 +217,13 @@ void AsciiString::ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveData
 // -----------------------------------------------------
 void AsciiString::releaseBuffer()
 {
-	ScopedCriticalSection scopedCriticalSection(TheAsciiStringCriticalSection);
+	//ScopedCriticalSection scopedCriticalSection(TheAsciiStringCriticalSection);
 
 	validate();
 	if (m_data)
 	{
-		if (--m_data->m_refCount == 0)
+		InterlockedDecrement(&m_data->m_refCount);
+		if (m_data->m_refCount == 0)
 		{
 			TheDynamicMemoryAllocator->freeBytes(m_data);
 		}
@@ -256,7 +257,7 @@ AsciiString::AsciiString(const char* s, int len) : m_data(nullptr)
 // -----------------------------------------------------
 void AsciiString::set(const AsciiString& stringSrc)
 {
-	ScopedCriticalSection scopedCriticalSection(TheAsciiStringCriticalSection);
+	//ScopedCriticalSection scopedCriticalSection(TheAsciiStringCriticalSection);
 
 	validate();
 	if (&stringSrc != this)
@@ -264,7 +265,7 @@ void AsciiString::set(const AsciiString& stringSrc)
 		releaseBuffer();
 		m_data = stringSrc.m_data;
 		if (m_data)
-			++m_data->m_refCount;
+			InterlockedIncrement(&m_data->m_refCount);
 	}
 	validate();
 }

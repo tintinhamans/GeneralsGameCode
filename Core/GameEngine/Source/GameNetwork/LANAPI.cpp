@@ -112,29 +112,10 @@ void LANAPI::init()
 
 	m_lastGameopt = "";
 
-#if TELL_COMPUTER_IDENTITY_IN_LAN_LOBBY
-	char userName[UNLEN + 1];
-	DWORD bufSize = ARRAY_SIZE(userName);
-	if (GetUserNameA(userName, &bufSize))
-	{
-		m_userName.set(userName, bufSize - 1);
-	}
-	else
-	{
-		m_userName = "unknown";
-	}
+// Set SH Build Date
+	m_userName.format(" Exe Hash: %08x ", TheGlobalData->m_exeCRC);
+	m_hostName = " TSH_11-09-2026_NonRet ";
 
-	char computerName[MAX_COMPUTERNAME_LENGTH + 1];
-	bufSize = ARRAY_SIZE(computerName);
-	if (GetComputerNameA(computerName, &bufSize))
-	{
-		m_hostName.set(computerName, bufSize - 1);
-	}
-	else
-	{
-		m_hostName = "unknown";
-	}
-#endif
 }
 
 void LANAPI::reset()

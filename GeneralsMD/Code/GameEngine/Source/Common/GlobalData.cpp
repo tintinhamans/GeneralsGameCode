@@ -962,7 +962,7 @@ GlobalData::GlobalData()
 	m_playerInfoListFontSize = 8;
 
 	m_showMoneyPerMinute = FALSE;
-	m_allowMoneyPerMinuteForPlayer = FALSE;
+	m_allowMoneyPerMinuteForPlayer = TRUE;
 
 	m_gameWindowTransitionSpeedMultiplier = 1.0f;
 
@@ -1249,6 +1249,11 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 
 	TheWritableGlobalData->m_xResolution = xres;
 	TheWritableGlobalData->m_yResolution = yres;
+
+	TheWritableGlobalData->m_networkFPSHistoryLength = 40;	
+	TheWritableGlobalData->m_networkLatencyHistoryLength = 40;     
+	TheWritableGlobalData->m_networkCushionHistoryLength = 40;      
+	TheWritableGlobalData->m_networkRunAheadMetricsTime = 1000;
 }
 
 void GlobalData::parseCustomDefinition()

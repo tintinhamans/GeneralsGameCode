@@ -87,8 +87,8 @@ private:
 #if defined(RTS_DEBUG)
 		const char* m_debugptr;	// just makes it easier to read in the debugger
 #endif
-		unsigned short	m_refCount;						// reference count
-		unsigned short	m_numCharsAllocated;  // length of data allocated
+		long m_refCount;						// reference count
+		unsigned long	m_numCharsAllocated;  // length of data allocated
 		// char m_stringdata[];
 
 		char* peek() { return (char*)(this+1); }
