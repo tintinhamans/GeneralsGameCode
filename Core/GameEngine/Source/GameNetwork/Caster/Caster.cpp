@@ -689,6 +689,9 @@ void Caster::onRecorderClosed()
 			m_lastCommandFrame);
 	}
 	m_recordingFile = nullptr;
+	// The match is over: stop claiming it's running so late queries and
+	// reconnects don't get served the frozen last frame as if live.
+	m_core.clearAnnouncedGame();
 }
 
 Bool Caster::announceCurrentGame()
