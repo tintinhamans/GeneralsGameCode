@@ -1,9 +1,6 @@
 {
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
     "builtin-baseline": "b61d33065508ba0d5e393206abb3cb2366299699",
-    "vcpkg-configuration": {
-      "overlay-ports": [ "./ports" ]
-    },
     "dependencies": [
       "zlib",
       "ffmpeg",
@@ -15,7 +12,9 @@
       },
       {
         "name": "gamenetworkingsockets",
-        "version>=": "1.6.0"
+        "version>=": "1.6.0",
+        "default-features": false,
+        "features": [ "ice" ]
       },
       {
         "name": "sentry-native",
