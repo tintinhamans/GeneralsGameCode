@@ -1,11 +1,27 @@
 {
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-    "builtin-baseline": "b02e341c927f16d991edbd915d8ea43eac52096c",
+    "builtin-baseline": "b61d33065508ba0d5e393206abb3cb2366299699",
+    "vcpkg-configuration": {
+      "overlay-ports": [ "./ports" ]
+    },
     "dependencies": [
       "zlib",
       "ffmpeg",
       "stb",
-      "openssl",
-      "protobuf"
+      {
+        "name": "curl",
+        "default-features": false,
+        "features": [ "openssl", "websockets" ]
+      },
+      {
+        "name": "gamenetworkingsockets",
+        "version>=": "1.6.0"
+      },
+      {
+        "name": "sentry-native",
+        "version>=": "0.17.0",
+        "default-features": false,
+        "features": [ "backend", "transport" ]
+      }
     ]
   }

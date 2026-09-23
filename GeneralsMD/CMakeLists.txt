@@ -42,6 +42,11 @@ endif()
 if(RTS_INSTALL_PREFIX_ZEROHOUR)
     install(TARGETS z_generals RUNTIME DESTINATION "${RTS_INSTALL_PREFIX_ZEROHOUR}")
     install(FILES $<TARGET_PDB_FILE:z_generals> DESTINATION "${RTS_INSTALL_PREFIX_ZEROHOUR}" OPTIONAL)
+    if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe")
+        # sentry's crashpad backend needs this watcher executable next to the game (see Main/CMakeLists.txt).
+        install(PROGRAMS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/sentry-native/crashpad_handler.exe"
+            DESTINATION "${RTS_INSTALL_PREFIX_ZEROHOUR}")
+    endif()
 
     if(TARGET z_worldbuilder)
         install(TARGETS z_worldbuilder RUNTIME DESTINATION "${RTS_INSTALL_PREFIX_ZEROHOUR}")
