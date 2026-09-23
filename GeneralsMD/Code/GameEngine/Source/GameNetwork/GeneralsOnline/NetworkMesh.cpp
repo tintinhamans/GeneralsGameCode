@@ -28,8 +28,6 @@ static std::mutex g_pendingDeletionMutex;
 static std::vector<void*> g_pendingConnSignalingDeletions;
 
 // Clean up pending ConnectionSignaling objects that were deferred during Release()
-// Forward declaration needed since ConnectionSignaling is nested inside CSignalingClient
-struct ISteamNetworkingConnectionSignaling;
 
 static void CleanupPendingConnSignalingDeletions()
 {
@@ -1442,10 +1440,15 @@ std::string PlayerConnection::GetConnectionType()
 	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
 		return "(disconnected)";
 
-	char szBuf[2048] = { 0 };
-	int ret = SteamNetworkingSockets()->GetDetailedConnectionStatus(m_hSteamConnection, szBuf, 2048);
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "[STEAM] PlayerConnection::GetConnectionType returned %d", ret);
-	return std::string(szBuf);
+	SteamNetConnectionInfo_t info;
+	if (!SteamNetworkingSockets()->GetConnectionInfo(m_hSteamConnection, &info))
+	{
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "[STEAM] PlayerConnection::GetConnectionType failed to get connection info");
+		return "(unknown)";
+	}
+
+	// IsDirect() relies on relayed connections reporting "Relayed".
+	return (info.m_nFlags & k_nSteamNetworkConnectionInfoFlags_Relayed) != 0 ? "Relayed" : "Direct";
 }
 
 void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh)
