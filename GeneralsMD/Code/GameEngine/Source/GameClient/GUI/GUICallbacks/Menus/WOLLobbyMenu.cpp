@@ -887,9 +887,6 @@ static const Image* ResolveRankIconForUser(int64_t userID, NGMP_OnlineServices_S
 		}
 	}
 
-	if (favoriteSide < 2) // no real faction
-		return nullptr;
-
 	return LookupSmallRankImage(favoriteSide, rankPoints);
 }
 
