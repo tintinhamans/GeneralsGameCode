@@ -95,7 +95,8 @@ enum EWebSocketMessageID
 	MATCHMAKING_ACTION_SETUP_PROGRESS = 45,
 	MODERATION_NOTICE = 46,
 	MODERATION_COMMAND = 47,
-	MODERATION_COMMAND_RESULT = 48
+	MODERATION_COMMAND_RESULT = 48,
+	ANTICHEAT_PEER_ACTION_REPORT = 49
 };
 
 enum class EQoSRegions
@@ -169,6 +170,8 @@ public:
 	void SendData_StartGame();
 
 	void SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> vecPayload);
+
+	void SendData_ACActionReport(int64_t targetUserID, int actionReason, int actionType, int64_t lobbyID);
 
 	void SendData_ChangeLobbyPassword(UnicodeString& strNewPassword);
 	void SendData_RemoveLobbyPassword();

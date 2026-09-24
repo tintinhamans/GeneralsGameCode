@@ -3,6 +3,7 @@
 #include "../NetworkMesh.h"
 #include "../OnlineServices_Init.h"
 #include "../OnlineServices_Auth.h"
+#include "../OnlineServices_LobbyInterface.h"
 #include <vector>
 
 bool AnticheatPlugInterface::g_bPendingExitLobby = false;
@@ -208,6 +209,17 @@ void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
                     NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Leaving lobby, lobby isn't secure, no auth interface.");
                     g_bPendingExitLobby = true;
                     return;
+                }
+
+                // Report the verdict to the backend for corroboration and escalation (telemetry, fire-and-forget)
+                {
+                    std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
+                    if (pWS != nullptr && pWS->IsConnected())
+                    {
+                        NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+                        int64_t lobbyID = (pLobbyInterface != nullptr) ? pLobbyInterface->GetCurrentLobby().lobbyID : -1;
+                        pWS->SendData_ACActionReport(userID, (int)actionReason, (int)actionType, lobbyID);
+                    }
                 }
 
                 // If it's us, leave, if its someone else, d/c them

@@ -1268,6 +1268,18 @@ void WebSocket::SendData_ACMessage(int64_t targetUserID, std::vector<uint8_t> ve
     Send(strBody.c_str());
 }
 
+void WebSocket::SendData_ACActionReport(int64_t targetUserID, int actionReason, int actionType, int64_t lobbyID)
+{
+	nlohmann::json j;
+	j["msg_id"] = EWebSocketMessageID::ANTICHEAT_PEER_ACTION_REPORT;
+	j["user_id"] = targetUserID;
+	j["action_reason"] = actionReason;
+	j["action_type"] = actionType;
+	j["lobby_id"] = lobbyID;
+	std::string strBody = j.dump();
+	Send(strBody.c_str());
+}
+
 void WebSocket::SendData_SubscribeRealtimeUpdates()
 {
 	nlohmann::json j;
