@@ -120,7 +120,7 @@ static Real computeRelativeCost( Object *queryObject, Object *destObject, Real *
 		return FLT_MAX;// Handles emptiness and alliances
 
 	DockUpdateInterface *dockInterface = destObject->getDockUpdateInterface();
-	if( !dockInterface->isClearToApproach( queryObject ) )
+	if( dockInterface == nullptr || !dockInterface->isClearToApproach( queryObject ) )
 		return FLT_MAX;
 
 	// since we don't care about the distance as a distance per se, but rather as
