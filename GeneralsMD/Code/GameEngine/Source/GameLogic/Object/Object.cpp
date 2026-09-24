@@ -6268,6 +6268,8 @@ Bool Object::canProduceUpgrade( const UpgradeTemplate *upgrade )
 
 	// We need to have the button to make the upgrade.  CommandSets are a weird Logic/Client hybrid.
 	const CommandSet *set = TheControlBar->findCommandSet(getCommandSetString());
+	if( set == nullptr )
+		return FALSE;
 
 	for( Int buttonIndex = 0; buttonIndex < MAX_COMMANDS_PER_SET; buttonIndex++ )
 	{
