@@ -502,7 +502,7 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 				pt = ThePlayerTemplateStore->getNthPlayerTemplate(lSlot->getPlayerTemplate());
 			else
 				pt = ThePlayerTemplateStore->findPlayerTemplate(TheNameKeyGenerator->nameToKey("FactionObserver"));
-			AsciiString musicName = pt->getScoreScreenMusic();
+			AsciiString musicName = pt ? pt->getScoreScreenMusic() : AsciiString::TheEmptyString;
 			if (!musicName.isEmpty())
 			{
 				TheAudio->removeAudioEvent(AHSV_StopTheMusicFade);
@@ -2377,7 +2377,7 @@ void grabSinglePlayerInfo( void )
 			for(Int k = 0; k < MAX_PLAYER_COUNT; ++k)
 			{
 				localPlayer = ThePlayerList->getNthPlayer(k);
-				if(localPlayer->getPlayerType() == PLAYER_HUMAN)
+				if(localPlayer && localPlayer->getPlayerType() == PLAYER_HUMAN)
 				{
 					populatePlayerInfo(localPlayer, playerCount);
 					++playerCount;
@@ -2498,76 +2498,88 @@ void hideWindows( Int pos )
 		winName.format("ScoreScreen.wnd:StaticTextPlayer%d", i);
 		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-		win->winHide(TRUE);
+		if (win)
+			win->winHide(TRUE);
 
 		// set the player name
 		winName.format("ScoreScreen.wnd:StaticTextObserver%d", i);
 		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-		win->winHide(TRUE);
+		if (win)
+			win->winHide(TRUE);
 
 		// set the total units built
 		winName.format("ScoreScreen.wnd:StaticTextUnitsBuilt%d", i);
 		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-		win->winHide(TRUE);
+		if (win)
+			win->winHide(TRUE);
 
 		// set the total units Lost
 		winName.format("ScoreScreen.wnd:StaticTextUnitsLost%d", i);
 		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-		win->winHide(TRUE);
+		if (win)
+			win->winHide(TRUE);
 
 		// set the total units Destroyed
 		winName.format("ScoreScreen.wnd:StaticTextUnitsDestroyed%d", i);
 		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-		win->winHide(TRUE);
+		if (win)
+			win->winHide(TRUE);
 
 		// set the total BuildingsBuilt
 		winName.format("ScoreScreen.wnd:StaticTextBuildingsBuilt%d", i);
 		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-		win->winHide(TRUE);
+		if (win)
+			win->winHide(TRUE);
 
 		// set the total BuildingsLost
 		winName.format("ScoreScreen.wnd:StaticTextBuildingsLost%d", i);
 		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-		win->winHide(TRUE);
+		if (win)
+			win->winHide(TRUE);
 
 		// set the total BuildingsDestroyed
 		winName.format("ScoreScreen.wnd:StaticTextBuildingsDestroyed%d", i);
 		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-		win->winHide(TRUE);
+		if (win)
+			win->winHide(TRUE);
 
 		// set the total Resources
 		winName.format("ScoreScreen.wnd:StaticTextResources%d", i);
 		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-		win->winHide(TRUE);
+		if (win)
+			win->winHide(TRUE);
 		
 		// set the total score
 		/*
 winName.format("ScoreScreen.wnd:StaticTextScore%d", i);
 		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-		win->winHide(TRUE);
+		if (win)
+			win->winHide(TRUE);
 */
 
 		// Set the Game Winner marker
 		winName.format("ScoreScreen.wnd:GameWindowWinner%d", i);
 		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-		win->winHide(TRUE);
+		if (win)
+			win->winHide(TRUE);
 		
 
 //		// Set the Game Add Buttons
 //		winName.format("ScoreScreen.wnd:ButtonAdd%d", i);
 //		win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
 //		DEBUG_ASSERTCRASH(win,("Could not find window %s on the score screen", winName.str()));
-//		win->winHide(TRUE);
+//		if (win)
+			win->winHide(TRUE);
 	}
 }
 
