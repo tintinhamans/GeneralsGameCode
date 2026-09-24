@@ -886,7 +886,14 @@ void StartPatchCheck()
         std::string pluginPath = std::format("plugins/{}/{}.dll", strPlugin.c_str(), strPlugin.c_str());
 
 		UnicodeString strErrorMssage;
-        strErrorMssage.format(L"Failed to load the AntiCheat plugin from path: %hs. Please make sure the plugin is installed correctly.", pluginPath.c_str());
+		if (AnticheatPlugInterface::DidPluginFailDueToOutdatedRuntime())
+		{
+			strErrorMssage = L"Your Microsoft Visual C++ Redistributable is out of date. Please install the latest x86 version from Microsoft and restart the game.";
+		}
+		else
+		{
+			strErrorMssage.format(L"Failed to load the AntiCheat plugin from path: %hs. Please make sure the plugin is installed correctly.", pluginPath.c_str());
+		}
 
         MessageBoxOk(TheGameText->fetchOrSubstitute("GUI:ACErrorHeader", L"AntiCheat Error"),
 			strErrorMssage,

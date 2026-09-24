@@ -58,6 +58,7 @@ public:
     static void AC_NetworkMessageArrived(uint32_t goUserID, void* pData, uint32_t dataLen);
 
     static bool DidPluginFailToLoad() { return m_bPluginLoadFailed; }
+    static bool DidPluginFailDueToOutdatedRuntime() { return m_bRuntimeOutdated; }
 
     static bool IsPluginLoaded()
     {
@@ -188,6 +189,7 @@ public:
     // Module
     static HMODULE g_hACPluginModule;
     static bool m_bPluginLoadFailed;
+    static bool m_bRuntimeOutdated;
 
     static int64_t m_tokenCreationTime;
 };
@@ -205,6 +207,7 @@ public:
     }
 
     static bool DidPluginFailToLoad() { return false; }
+    static bool DidPluginFailDueToOutdatedRuntime() { return false; }
 
     static bool IsPluginLoaded()
     {

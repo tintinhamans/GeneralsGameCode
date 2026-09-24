@@ -3,20 +3,61 @@
 #include "../NetworkMesh.h"
 #include "../OnlineServices_Init.h"
 #include "../OnlineServices_Auth.h"
+#include <vector>
 
 bool AnticheatPlugInterface::g_bPendingExitLobby = false;
 
 #if defined(GENERALS_ONLINE_USE_PLUGINS_INTERFACE)
 
+// On a missing export the module stays mapped: it may already be initialized and running threads.
 #define AC_PLUGIN_LOAD_FUNCTION(funcName) \
     AnticheatPlugInterface::Functions.fn##funcName = (FuncDef##funcName)GetProcAddress(g_hACPluginModule, #funcName); \
     if (!AnticheatPlugInterface::Functions.fn##funcName) \
     { \
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "Failed to find " #funcName " function"); \
-        FreeLibrary(g_hACPluginModule); \
-        g_hACPluginModule = nullptr; \
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Failed to find " #funcName " function"); \
+        m_bPluginLoadFailed = true; \
         return; \
     }
+
+#pragma comment(lib, "version.lib")
+
+// Plugins built with VS 2022 17.10+ crash in mtx_do_lock on a msvcp140.dll older than 14.40.
+static bool IsVCRuntimeOutdated()
+{
+    HMODULE hRuntime = GetModuleHandleA("msvcp140.dll");
+    if (hRuntime == nullptr)
+    {
+        return false;
+    }
+
+    char szPath[MAX_PATH];
+    if (GetModuleFileNameA(hRuntime, szPath, MAX_PATH) == 0)
+    {
+        return false;
+    }
+
+    DWORD handle = 0;
+    const DWORD size = GetFileVersionInfoSizeA(szPath, &handle);
+    if (size == 0)
+    {
+        return false;
+    }
+
+    std::vector<uint8_t> versionData(size);
+    VS_FIXEDFILEINFO* pInfo = nullptr;
+    UINT infoLen = 0;
+    if (!GetFileVersionInfoA(szPath, 0, size, versionData.data())
+        || !VerQueryValueA(versionData.data(), "\\", reinterpret_cast<LPVOID*>(&pInfo), &infoLen)
+        || pInfo == nullptr)
+    {
+        return false;
+    }
+
+    const DWORD major = HIWORD(pInfo->dwFileVersionMS);
+    const DWORD minor = LOWORD(pInfo->dwFileVersionMS);
+    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] msvcp140.dll version %u.%u", major, minor);
+    return major < 14 || (major == 14 && minor < 40);
+}
 
 bool AnticheatPlugInterface::IsExternalProcessRunning()
 {
@@ -65,6 +106,14 @@ void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
     }
 
     NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Attempting to load plugin from %s", szPluginName);
+
+    if (IsVCRuntimeOutdated())
+    {
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Not loading %s: the Visual C++ runtime is older than 14.40", szPluginName);
+        m_bPluginLoadFailed = true;
+        m_bRuntimeOutdated = true;
+        return;
+    }
 
 #if defined(_DEBUG)
     szPluginName = "F:\\gen\\ACPlugin_EAC\\build\\Debug\\easyanticheat.dll";
@@ -474,6 +523,7 @@ AnticheatPlugInterface::AnticheatPluginFunctionPtrs AnticheatPlugInterface::Func
 
 HMODULE AnticheatPlugInterface::g_hACPluginModule = nullptr;
 bool AnticheatPlugInterface::m_bPluginLoadFailed = false;
+bool AnticheatPlugInterface::m_bRuntimeOutdated = false;
 
 int64_t AnticheatPlugInterface::m_tokenCreationTime = -1;
 
