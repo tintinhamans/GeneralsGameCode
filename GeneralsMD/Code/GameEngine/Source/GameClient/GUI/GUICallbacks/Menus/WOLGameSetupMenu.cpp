@@ -1371,6 +1371,16 @@ static void WOLRefreshConnectionIndicators(void)
     NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
     static const Image* heroImage = TheMappedImageCollection->findImageByName("HeroReticle");
 
+    // 0=green, 1=yellow, 2=red, -1=unknown/connecting
+    static int s_connectionBucket[MAX_SLOTS];
+    static bool s_connectionBucketInit = false;
+    if (!s_connectionBucketInit)
+    {
+        for (Int j = 0; j < MAX_SLOTS; ++j)
+            s_connectionBucket[j] = -1;
+        s_connectionBucketInit = true;
+    }
+
     for (Int i = 0; i < MAX_SLOTS; ++i)
     {
         NGMPGameSlot* slot = game->getGameSpySlot(i);
@@ -1378,6 +1388,7 @@ static void WOLRefreshConnectionIndicators(void)
         {
             if (genericPingWindow[i])
                 genericPingWindow[i]->winHide(TRUE);
+            s_connectionBucket[i] = -1;
             continue;
         }
 
@@ -1408,18 +1419,25 @@ static void WOLRefreshConnectionIndicators(void)
         if (!bIsConnected || connectionScore < 0)
         {
             genericPingWindow[i]->winSetEnabledImage(0, heroImage);
-        }
-        else if (connectionScore >= 75)
-        {
-            genericPingWindow[i]->winSetEnabledImage(0, pingImages[0]);
-        }
-        else if (connectionScore >= 50)
-        {
-            genericPingWindow[i]->winSetEnabledImage(0, pingImages[1]);
+            s_connectionBucket[i] = -1;
         }
         else
         {
-            genericPingWindow[i]->winSetEnabledImage(0, pingImages[2]);
+            int& bucket = s_connectionBucket[i];
+            if (bucket == 0)
+            {
+                bucket = (connectionScore < 72) ? ((connectionScore < 47) ? 2 : 1) : 0;
+            }
+            else if (bucket == 1)
+            {
+                bucket = (connectionScore >= 78) ? 0 : (connectionScore < 47) ? 2 : 1;
+            }
+            else
+            {
+                bucket = (connectionScore >= 78) ? 0 : (connectionScore >= 53) ? 1 : 2;
+            }
+
+            genericPingWindow[i]->winSetEnabledImage(0, pingImages[bucket]);
         }
     }
 }

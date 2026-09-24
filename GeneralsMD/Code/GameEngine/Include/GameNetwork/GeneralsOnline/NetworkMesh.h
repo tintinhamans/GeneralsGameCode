@@ -2,6 +2,7 @@
 
 #include "NGMP_include.h"
 #include <ws2ipdef.h>
+#include <chrono>
 #include <mutex>
 #include <steam/steamnetworkingcustomsignaling.h>
 #include "PluginInterfaces.h"
@@ -103,6 +104,9 @@ public:
 	int GetJitter();
 	float GetConnectionQuality();
 	int ComputeConnectionScore();
+
+	std::chrono::steady_clock::time_point m_connectedSinceTime = (std::chrono::steady_clock::time_point::min)();
+	float m_smoothedScore = -1.0f;
 
 	// Only set for Steam connections
 	HSteamNetConnection m_hSteamConnection = k_HSteamNetConnection_Invalid;
