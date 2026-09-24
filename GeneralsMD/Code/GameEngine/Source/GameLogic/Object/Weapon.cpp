@@ -3077,7 +3077,8 @@ void Weapon::processRequestAssistance( const Object *requestingObject, Object *v
 	{
 		// If we are in an enclosing container, our launch position is our actual position.  Yes, I am putting
 		// a minor case and an oft used function, but the major case is huge and full of math.
-		if(launcher->getContainedBy()->getContain()->isEnclosingContainerFor(launcher))
+		const ContainModuleInterface *contain = launcher->getContainedBy()->getContain();
+		if(contain && contain->isEnclosingContainerFor(launcher))
 		{
 			worldTransform = *launcher->getTransformMatrix();
 			Vector3 tmp = worldTransform.Get_Translation();
