@@ -633,6 +633,15 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 		memset(Vertex_Shader_Constants, 0, sizeof(Vector4) * MAX_VERTEX_SHADER_CONSTANTS);
 		memset(Pixel_Shader_Constants, 0, sizeof(Vector4) * MAX_PIXEL_SHADER_CONSTANTS);
 
+		// Set_Vertex_Buffer/Set_Index_Buffer are deferred, so unbind on the device itself.
+		// Resources still bound during Reset() crash the runtime in DestroyResource.
+		for (unsigned i = 0; i < MAX_VERTEX_STREAMS; ++i)
+		{
+			DX8CALL(SetStreamSource(i, nullptr, 0));
+		}
+		DX8CALL(SetIndices(nullptr, 0));
+		Invalidate_Cached_Render_States();
+
 		// TheSuperHackers @bugfix Tin Tin Hamans - Release all surface references before Reset().
 		// D3D8 requires that no non-managed surfaces (render targets, depth buffers) have outstanding
 		// references when Reset() is called. Failing to do so causes a crash inside the Intel integrated
