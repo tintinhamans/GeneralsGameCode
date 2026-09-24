@@ -1459,6 +1459,12 @@ std::string PlayerConnection::GetConnectionType()
 
 void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh)
 {
+	if (newState == EConnectionState::CONNECTED_DIRECT && m_State != EConnectionState::CONNECTED_DIRECT)
+	{
+		m_connectedSinceTime = std::chrono::steady_clock::now();
+		m_smoothedScore = -1.0f;
+	}
+
 	m_State = newState;
 	pOwningMesh->UpdateConnectivity(this);
 
@@ -1503,6 +1509,8 @@ void PlayerConnection::SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh,
 	{
 		m_State = EConnectionState::CONNECTION_DISCONNECTED;
 	}
+
+	m_connectedSinceTime = (std::chrono::steady_clock::time_point::min)();
 
 	// Save values we need after the callback: the callback can erase this
 	// PlayerConnection from the mesh's map (UAF), so we must not access
@@ -1599,16 +1607,22 @@ float PlayerConnection::GetConnectionQuality()
 
 int PlayerConnection::ComputeConnectionScore()
 {
+	static constexpr std::chrono::milliseconds k_warmupDuration{ 1000 };
+	if (m_connectedSinceTime == (std::chrono::steady_clock::time_point::min)() ||
+		std::chrono::steady_clock::now() - m_connectedSinceTime < k_warmupDuration)
+	{
+		return -1;
+	}
+
 	// TODO_EOS: need to impl jitter etc again
 	const int latency = GetLatency();
 	const int jitter = GetJitter();
 	const float quality = GetConnectionQuality();   // packet delivery ratio [0..1]
 
-	// Stability-first weighting
-	static constexpr float k_subScoreFloor = 0.01f;
-	static constexpr float k_latencyWeight = 0.22f;
-	static constexpr float k_jitterWeight = 0.38f;
-	static constexpr float k_reliabilityWeight = 0.40f;
+	static constexpr float k_subScoreFloor = 0.3f;
+	static constexpr float k_latencyWeight = 0.30f;
+	static constexpr float k_jitterWeight = 0.25f;
+	static constexpr float k_reliabilityWeight = 0.45f;
 
 	float weightedLogSum = 0.0f;
 	float activeWeightSum = 0.0f;
@@ -1648,5 +1662,17 @@ int PlayerConnection::ComputeConnectionScore()
 	}
 
 	float composite = std::expf(weightedLogSum / activeWeightSum);
-	return static_cast<int>(std::round(composite * 100.0f));
+	float rawScore = composite * 100.0f;
+
+	static constexpr float k_scoreSmoothingAlpha = 0.15f;
+	if (m_smoothedScore < 0.0f)
+	{
+		m_smoothedScore = rawScore;
+	}
+	else
+	{
+		m_smoothedScore += k_scoreSmoothingAlpha * (rawScore - m_smoothedScore);
+	}
+
+	return static_cast<int>(std::round(m_smoothedScore));
 }
