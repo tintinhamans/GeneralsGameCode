@@ -34,6 +34,7 @@
 #include "Common/GameState.h"
 #include "Common/MultiplayerSettings.h"
 #include "Common/OptionPreferences.h"
+#include "GameClient/Display.h"
 #include "GameClient/GameText.h"
 #include "Common/PlayerTemplate.h"
 #include "Common/CustomMatchPreferences.h"
@@ -69,6 +70,7 @@
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include <ws2ipdef.h>
 #include <format>
+#include <cmath>
 #include "../OnlineServices_Init.h"
 #include "GameLogic/GameLogic.h"
 NGMPGame* TheNGMPGame = NULL;
@@ -252,7 +254,17 @@ static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {NULL,NULL,NULL,NULL,
 static GameWindow *genericPingWindow[MAX_SLOTS] = {NULL,NULL,NULL,NULL,
 																								NULL,NULL,NULL,NULL };
 
-static const Image *pingImages[3] = { NULL, NULL, NULL };
+// Connection indicator per slot: 0..4 is the signal level (1..5 bars), negative values are special states.
+enum
+{
+	CONNECTION_INDICATOR_CONNECTING = -1,
+	CONNECTION_INDICATOR_WARNING = -2,
+};
+static Int connectionIndicatorState[MAX_SLOTS];
+
+static const Int CONNECTION_LEVEL_COUNT = 5;
+static const Int connectionLevelThresholds[CONNECTION_LEVEL_COUNT - 1] = { 40, 60, 75, 90 }; ///< score needed for 2..5 bars
+static const Int CONNECTION_LEVEL_HYSTERESIS = 3;
 
 WindowLayout *WOLMapSelectLayout = NULL;
 
@@ -1361,6 +1373,23 @@ void WOLDisplayGameOptions()
 //  -----------------------------------------------------------------------------------------
 // The Bad munkee slot list displaying function
 //-------------------------------------------------------------------------------------------------
+static Int WOLUpdateConnectionLevel(Int level, Int score)
+{
+    if (level < 0)
+    {
+        level = 0;
+        while (level < CONNECTION_LEVEL_COUNT - 1 && score >= connectionLevelThresholds[level])
+            ++level;
+        return level;
+    }
+
+    while (level < CONNECTION_LEVEL_COUNT - 1 && score >= connectionLevelThresholds[level] + CONNECTION_LEVEL_HYSTERESIS)
+        ++level;
+    while (level > 0 && score < connectionLevelThresholds[level - 1] - CONNECTION_LEVEL_HYSTERESIS)
+        --level;
+    return level;
+}
+
 static void WOLRefreshConnectionIndicators(void)
 {
     NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
@@ -1369,41 +1398,24 @@ static void WOLRefreshConnectionIndicators(void)
         return;
 
     NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-    static const Image* heroImage = TheMappedImageCollection->findImageByName("HeroReticle");
-
-    // 0=green, 1=yellow, 2=red, -1=unknown/connecting
-    static int s_connectionBucket[MAX_SLOTS];
-    static bool s_connectionBucketInit = false;
-    if (!s_connectionBucketInit)
-    {
-        for (Int j = 0; j < MAX_SLOTS; ++j)
-            s_connectionBucket[j] = -1;
-        s_connectionBucketInit = true;
-    }
 
     for (Int i = 0; i < MAX_SLOTS; ++i)
     {
         NGMPGameSlot* slot = game->getGameSpySlot(i);
-        if (slot == nullptr || !slot->isHuman())
+        if (slot == nullptr || !slot->isHuman() || i == game->getLocalSlotNum())
         {
             if (genericPingWindow[i])
                 genericPingWindow[i]->winHide(TRUE);
-            s_connectionBucket[i] = -1;
+            connectionIndicatorState[i] = CONNECTION_INDICATOR_CONNECTING;
             continue;
         }
 
         if (genericPingWindow[i] == nullptr)
             continue;
 
-        if (i == game->getLocalSlotNum())
-        {
-            genericPingWindow[i]->winHide(TRUE);
-            continue;
-        }
-
         genericPingWindow[i]->winHide(FALSE);
 
-        bool bIsConnected = false;
+        EConnectionState connectionState = EConnectionState::NOT_CONNECTED;
         int connectionScore = -1;
 
         if (pMesh != nullptr)
@@ -1411,33 +1423,96 @@ static void WOLRefreshConnectionIndicators(void)
             PlayerConnection* pConnection = pMesh->GetConnectionForUser(slot->m_userID);
             if (pConnection != nullptr)
             {
-                bIsConnected = pConnection->GetState() == EConnectionState::CONNECTED_DIRECT;
+                connectionState = pConnection->GetState();
                 connectionScore = pConnection->ComputeConnectionScore();
             }
         }
 
-        if (!bIsConnected || connectionScore < 0)
-        {
-            genericPingWindow[i]->winSetEnabledImage(0, heroImage);
-            s_connectionBucket[i] = -1;
-        }
+        Int& state = connectionIndicatorState[i];
+        if (connectionState == EConnectionState::CONNECTION_FAILED || connectionState == EConnectionState::CONNECTION_DISCONNECTED)
+            state = CONNECTION_INDICATOR_WARNING;
+        else if (connectionState != EConnectionState::CONNECTED_DIRECT || connectionScore < 0)
+            state = CONNECTION_INDICATOR_CONNECTING;
         else
-        {
-            int& bucket = s_connectionBucket[i];
-            if (bucket == 0)
-            {
-                bucket = (connectionScore < 72) ? ((connectionScore < 47) ? 2 : 1) : 0;
-            }
-            else if (bucket == 1)
-            {
-                bucket = (connectionScore >= 78) ? 0 : (connectionScore < 47) ? 2 : 1;
-            }
-            else
-            {
-                bucket = (connectionScore >= 78) ? 0 : (connectionScore >= 53) ? 1 : 2;
-            }
+            state = WOLUpdateConnectionLevel(state, connectionScore);
+    }
+}
 
-            genericPingWindow[i]->winSetEnabledImage(0, pingImages[bucket]);
+//-------------------------------------------------------------------------------------------------
+/** Draws the connection indicator: a spinner while connecting, a warning triangle on failure, else signal bars. */
+//-------------------------------------------------------------------------------------------------
+static void WOLConnectionIndicatorDraw(GameWindow *window, WinInstanceData *instData)
+{
+    Int slot = -1;
+    for (Int i = 0; i < MAX_SLOTS; ++i)
+    {
+        if (genericPingWindow[i] == window)
+        {
+            slot = i;
+            break;
+        }
+    }
+    if (slot < 0)
+        return;
+
+    Int x, y, width, height;
+    window->winGetScreenPosition(&x, &y);
+    window->winGetSize(&width, &height);
+
+    const Int size = (Int)(min(width, height) * 0.7f);
+    const Int left = x + (width - size) / 2;
+    const Int top = y + (height - size) / 2;
+    const Real centerX = left + size * 0.5f;
+    const Real centerY = top + size * 0.5f;
+    const Int state = connectionIndicatorState[slot];
+
+    if (state == CONNECTION_INDICATOR_CONNECTING)
+    {
+        // Faint full ring with a solid arc rotating around it, drawn as short segments.
+        const Int segmentCount = 24;
+        const Int arcSegments = 7;
+        const Real radius = size * 0.4f;
+        const Real rotation = (timeGetTime() % 900) * 2.0f * PI / 900.0f;
+        const Color ringColor = GameMakeColor(47, 55, 168, 70); // Zero Hour UI blue
+        const Color arcColor = GameMakeColor(47, 55, 168, 255);
+        for (Int segment = 0; segment < segmentCount; ++segment)
+        {
+            const Real startAngle = rotation + segment * 2.0f * PI / segmentCount;
+            const Real endAngle = startAngle + 2.0f * PI / segmentCount;
+            TheDisplay->drawLine((Int)(centerX + std::cos(startAngle) * radius), (Int)(centerY + std::sin(startAngle) * radius),
+                (Int)(centerX + std::cos(endAngle) * radius), (Int)(centerY + std::sin(endAngle) * radius),
+                2.0f, segment < arcSegments ? arcColor : ringColor);
+        }
+    }
+    else if (state == CONNECTION_INDICATOR_WARNING)
+    {
+        const Color amber = GameMakeColor(255, 190, 0, 255);
+        const Int apexY = top + (Int)(size * 0.1f);
+        const Int baseY = top + (Int)(size * 0.9f);
+        const Int baseLeft = left + (Int)(size * 0.05f);
+        const Int baseRight = left + (Int)(size * 0.95f);
+        TheDisplay->drawLine((Int)centerX, apexY, baseLeft, baseY, 1.5f, amber);
+        TheDisplay->drawLine((Int)centerX, apexY, baseRight, baseY, 1.5f, amber);
+        TheDisplay->drawLine(baseLeft, baseY, baseRight, baseY, 1.5f, amber);
+        TheDisplay->drawLine((Int)centerX, top + (Int)(size * 0.38f), (Int)centerX, top + (Int)(size * 0.66f), 2.0f, amber);
+        TheDisplay->drawFillRect((Int)centerX - 1, top + (Int)(size * 0.73f), 2, 2, amber);
+    }
+    else
+    {
+        Color levelColor = GameMakeColor(220, 40, 40, 255);
+        if (state >= 3)
+            levelColor = GameMakeColor(0, 200, 0, 255);
+        else if (state == 2)
+            levelColor = GameMakeColor(255, 190, 0, 255);
+        const Color emptyColor = GameMakeColor(90, 90, 90, 200);
+
+        const Int gap = 1;
+        const Int barWidth = max(1, (size - gap * (CONNECTION_LEVEL_COUNT - 1)) / CONNECTION_LEVEL_COUNT);
+        for (Int bar = 0; bar < CONNECTION_LEVEL_COUNT; ++bar)
+        {
+            const Int barHeight = max(1, size * (bar + 1) / CONNECTION_LEVEL_COUNT);
+            TheDisplay->drawFillRect(left + bar * (barWidth + gap), top + size - barHeight, barWidth, barHeight,
+                bar <= state ? levelColor : emptyColor);
         }
     }
 }
@@ -1504,12 +1579,8 @@ void InitWOLGameGadgets()
 		return;
 	}
 
-	pingImages[0] = TheMappedImageCollection->findImageByName("Ping03");
-	pingImages[1] = TheMappedImageCollection->findImageByName("Ping02");
-	pingImages[2] = TheMappedImageCollection->findImageByName("Ping01");
-	DEBUG_ASSERTCRASH(pingImages[0], ("Can't find ping image!"));
-	DEBUG_ASSERTCRASH(pingImages[1], ("Can't find ping image!"));
-	DEBUG_ASSERTCRASH(pingImages[2], ("Can't find ping image!"));
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+		connectionIndicatorState[i] = CONNECTION_INDICATOR_CONNECTING;
 
 	//Initialize the gadget IDs
 	parentWOLGameSetupID = TheNameKeyGenerator->nameToKey( "GameSpyGameOptionsMenu.wnd:GameSpyGameOptionsMenuParent" );
@@ -1695,6 +1766,7 @@ void InitWOLGameGadgets()
 		genericPingWindow[i] = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, genericPingWindowID[i] );
 		DEBUG_ASSERTCRASH(genericPingWindow[i], ("Could not find the genericPingWindow[%d]",i ));
 		genericPingWindow[i]->winSetTooltipFunc(pingTooltip);
+		genericPingWindow[i]->winSetDrawFunc(WOLConnectionIndicatorDraw);
 
 //		tmpString.format("GameSpyGameOptionsMenu.wnd:ButtonStartPosition%d", i);
 //		buttonStartPositionID[i] = TheNameKeyGenerator->nameToKey( tmpString );
