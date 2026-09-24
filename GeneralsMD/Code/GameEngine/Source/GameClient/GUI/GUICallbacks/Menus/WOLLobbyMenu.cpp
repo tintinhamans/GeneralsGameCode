@@ -221,12 +221,25 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 		}
 		return TRUE; // was a slash command
 	}
+#if defined(GENERALS_ONLINE)
 	else if (token == "help" || token == "commands")
 	{
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"The following commands are available:"), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
-		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/name <value> - Changes your display name - Example: /name General Granger"), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+		const Color helpColor = GameMakeColor(127, 127, 127, 255);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/me <message> - Send an emote."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/name <value> - Changes your display name - Example: /name General Granger. You can also use /nick."), helpColor, -1, -1);
+		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/refresh - Refresh the game and player lists."), helpColor, -1, -1);
+		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/forcerelay - Use relay connections only."), helpColor, -1, -1);
+		// GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/allowrelay - Allow direct connections again."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
+		GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
 		return TRUE; // was a slash command
 	}
+	else if (token == "support")
+	{
+		ShellExecuteA(NULL, "open", "https://discord.playgenerals.online", NULL, NULL, SW_SHOWNORMAL);
+		return TRUE; // was a slash command
+	}
+#endif
 	else if ((token == "name" && uText.getLength() > 6) || (token == "nick" && uText.getLength() > 6))
 	{
 		UnicodeString newName(uText.str() + 6); // skip the /name or nick
@@ -310,7 +323,12 @@ Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
 	}
 #endif
 
+#if defined(GENERALS_ONLINE)
+	GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Unknown command: Use /help to see all commands."), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
+	return TRUE; // was a slash command
+#else
 	return FALSE; // not a slash command
+#endif
 }
 
 static Bool s_tryingToHostOrJoin = FALSE;
