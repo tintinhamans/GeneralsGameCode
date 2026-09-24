@@ -71,7 +71,11 @@ void EnableAcceptControls(Bool Enabled, GameInfo *myGame, GameWindow *comboPlaye
 	if(slotNum == -1 || slotNum >= MAX_SLOTS )
 		slotNum = myGame->getLocalSlotNum();
 
-	Bool isObserver = myGame->getConstSlot(slotNum)->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER;
+	const GameSlot *localSlot = myGame->getConstSlot(slotNum);
+	if (!localSlot)
+		return;
+
+	Bool isObserver = localSlot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER;
 
 	if( !myGame->amIHost() && (buttonStart != nullptr) )
 		buttonStart->winEnable(Enabled);
@@ -403,7 +407,7 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 										GameWindow *comboTeam[], GameWindow *buttonAccept[],
 										GameWindow *buttonStart, GameWindow *buttonMapStartPosition[] )
 {
-	if(!AreSlotListUpdatesEnabled())
+	if(!AreSlotListUpdatesEnabled() || !myGame)
 		return;
 	//LANGameInfo *myGame = TheLAN->GetMyGame();
 
@@ -423,6 +427,8 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 		for( int i =0; i < MAX_SLOTS; i++ )
 		{
 			GameSlot * slot = myGame->getSlot(i);
+			if (!slot)
+				continue;
 
 			// if i'm host, enable the controls for AI
 			if(myGame->amIHost() && slot->isAI())
