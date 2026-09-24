@@ -1196,7 +1196,8 @@ void ControlBar::init()
 			id = TheNameKeyGenerator->nameToKey( windowName.str() );
 			m_rightHUDUpgradeCameos[ i ] =
 				TheWindowManager->winGetWindowFromId( m_rightHUDWindow, id );
-			m_rightHUDUpgradeCameos[ i ]->winSetStatus( WIN_STATUS_USE_OVERLAY_STATES );
+			if( m_rightHUDUpgradeCameos[ i ] )
+				m_rightHUDUpgradeCameos[ i ]->winSetStatus( WIN_STATUS_USE_OVERLAY_STATES );
 		}
 
 //		m_transitionHandler = NEW GameWindowTransitionsHandler;
