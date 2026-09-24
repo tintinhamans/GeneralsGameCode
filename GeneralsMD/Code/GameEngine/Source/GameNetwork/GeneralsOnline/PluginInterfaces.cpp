@@ -10,14 +10,12 @@ bool AnticheatPlugInterface::g_bPendingExitLobby = false;
 
 #if defined(GENERALS_ONLINE_USE_PLUGINS_INTERFACE)
 
-// On a missing export the module stays mapped: it may already be initialized and running threads.
-#define AC_PLUGIN_LOAD_FUNCTION(funcName) \
+#define AC_PLUGIN_RESOLVE_FUNCTION(funcName) \
     AnticheatPlugInterface::Functions.fn##funcName = (FuncDef##funcName)GetProcAddress(g_hACPluginModule, #funcName); \
     if (!AnticheatPlugInterface::Functions.fn##funcName) \
     { \
         NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Failed to find " #funcName " function"); \
-        m_bPluginLoadFailed = true; \
-        return; \
+        bAllFunctionsFound = false; \
     }
 
 #pragma comment(lib, "version.lib")
@@ -130,156 +128,176 @@ void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
 
         DWORD err = GetLastError();
         NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Failed to load %s (%u)", szPluginName, err);
+        return;
     }
-    else
-    {
+
+    // Resolve every export before calling into the plugin, so a missing one can still unload it safely.
+    bool bAllFunctionsFound = true;
 #if defined(AC_ENABLED)
-        // set logger 
-        AC_PLUGIN_LOAD_FUNCTION(SetLoggingFunction);
+    AC_PLUGIN_RESOLVE_FUNCTION(SetLoggingFunction);
+    AC_PLUGIN_RESOLVE_FUNCTION(Initialize);
+    AC_PLUGIN_RESOLVE_FUNCTION(IsExternalProcessRunning);
+    AC_PLUGIN_RESOLVE_FUNCTION(GetAnticheatIdentifier);
+    AC_PLUGIN_RESOLVE_FUNCTION(SetACIntegrityViolationOccurredCallback);
+    AC_PLUGIN_RESOLVE_FUNCTION(SetACActionRequiredCallback);
+    AC_PLUGIN_RESOLVE_FUNCTION(SetSendMessageViaTransportCallback);
+    AC_PLUGIN_RESOLVE_FUNCTION(ACMessageArrivedViaTransport);
+    AC_PLUGIN_RESOLVE_FUNCTION(DoesACPluginProvideSecureGameTransport);
+    AC_PLUGIN_RESOLVE_FUNCTION(StartSignalling);
+    AC_PLUGIN_RESOLVE_FUNCTION(SendPacket);
+    AC_PLUGIN_RESOLVE_FUNCTION(GetNextRecvPacketSize);
+    AC_PLUGIN_RESOLVE_FUNCTION(RecvPacket);
+    AC_PLUGIN_RESOLVE_FUNCTION(GetConnectionLatencyForUser);
+    AC_PLUGIN_RESOLVE_FUNCTION(DisconnectPlayer);
+    AC_PLUGIN_RESOLVE_FUNCTION(DisconnectAll);
+    AC_PLUGIN_RESOLVE_FUNCTION(Login);
+    AC_PLUGIN_RESOLVE_FUNCTION(RefreshToken);
+    AC_PLUGIN_RESOLVE_FUNCTION(IsLoggedIn);
+    AC_PLUGIN_RESOLVE_FUNCTION(GetMiddlewareAuthToken);
+    AC_PLUGIN_RESOLVE_FUNCTION(BeginSession);
+    AC_PLUGIN_RESOLVE_FUNCTION(EndSession);
+    AC_PLUGIN_RESOLVE_FUNCTION(RegisterPlayer);
+    AC_PLUGIN_RESOLVE_FUNCTION(DeregisterPlayer);
+    AC_PLUGIN_RESOLVE_FUNCTION(Tick);
+    AC_PLUGIN_RESOLVE_FUNCTION(Shutdown);
+#else
+    AC_PLUGIN_RESOLVE_FUNCTION(Initialize);
+    AC_PLUGIN_RESOLVE_FUNCTION(IsExternalProcessRunning);
+    AC_PLUGIN_RESOLVE_FUNCTION(GetAnticheatIdentifier);
+#endif
 
-        Functions.fnSetLoggingFunction([](const char* szMsg)
+    if (!bAllFunctionsFound)
+    {
+        FreeLibrary(g_hACPluginModule);
+        g_hACPluginModule = nullptr;
+        Functions = AnticheatPluginFunctionPtrs();
+        m_bPluginLoadFailed = true;
+        return;
+    }
+
+#if defined(AC_ENABLED)
+    Functions.fnSetLoggingFunction([](const char* szMsg)
+        {
+            //MessageBoxA(nullptr, szMsg, szMsg, MB_OK);
+            NetworkLog(ELogVerbosity::LOG_RELEASE, szMsg);
+        });
+
+    int result = Functions.fnInitialize([](const char* szMiddlewareID, uint64_t goUserID, EConnectionState newState) // on connection state changed callback
+        {
+            NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+            if (pMesh != nullptr)
             {
-                //MessageBoxA(nullptr, szMsg, szMsg, MB_OK);
-                NetworkLog(ELogVerbosity::LOG_RELEASE, szMsg);
-            });
+                std::map<int64_t, PlayerConnection>& connections = pMesh->GetAllConnections();
+                for (auto& kvPair : connections)
+                {
+                    if (kvPair.first == goUserID)
+                    {
+                        kvPair.second.UpdateState(newState, pMesh);
+                    }
+                }
+            }
+        });
+    NetworkLog(ELogVerbosity::LOG_RELEASE, "Initialize result = %d", result);
 
-        // Initialize AC
-        AC_PLUGIN_LOAD_FUNCTION(Initialize);
+#if _DEBUG
+    if (ApplicationHWnd != nullptr)
+    {
+        SetWindowText(ApplicationHWnd, Functions.fnIsExternalProcessRunning() ? "SECURED" : "INSECURE");
+    }
+#endif
 
-        int result = Functions.fnInitialize([](const char* szMiddlewareID, uint64_t goUserID, EConnectionState newState) // on connection state changed callback
+    Functions.fnSetACIntegrityViolationOccurredCallback([](const char* szReason, int violationType)
+        {
+            if (szReason == nullptr)
             {
+                szReason = "(null reason)";
+            }
+
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Leaving lobby, local AC integrity violation occured (%d): %s.", violationType, szReason);
+            g_bPendingExitLobby = true;
+        });
+
+    Functions.fnSetACActionRequiredCallback([](uint32_t userID, const char* szReason, EAnticheatActionType actionType, EAnticheatActionReason actionReason)
+        {
+            if (szReason == nullptr)
+            {
+                szReason = "(null reason)";
+            }
+
+            NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Action required: %s", szReason);
+
+            if (pAuthInterface == nullptr)
+            {
+                // no auth interface? bail out
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Leaving lobby, lobby isn't secure, no auth interface.");
+                g_bPendingExitLobby = true;
+                return;
+            }
+
+            // Report the verdict to the backend for corroboration and escalation (telemetry, fire-and-forget)
+            {
+                std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
+                if (pWS != nullptr && pWS->IsConnected())
+                {
+                    NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+                    int64_t lobbyID = (pLobbyInterface != nullptr) ? pLobbyInterface->GetCurrentLobby().lobbyID : -1;
+                    pWS->SendData_ACActionReport(userID, (int)actionReason, (int)actionType, lobbyID);
+                }
+            }
+
+            // If it's us, leave, if its someone else, d/c them
+            uint32_t localUserID = pAuthInterface->GetUserID();
+            if (localUserID == userID)
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Leaving lobby, lobby isn't secure, action was requested against local user.");
+                g_bPendingExitLobby = true;
+            }
+            else
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Disconnecting remote user, lobby isn't secure, action was requested against remote user %u.", userID);
+
                 NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
                 if (pMesh != nullptr)
                 {
-                    std::map<int64_t, PlayerConnection>& connections = pMesh->GetAllConnections();
-                    for (auto& kvPair : connections)
-                    {
-                        if (kvPair.first == goUserID)
-                        {
-                            kvPair.second.UpdateState(newState, pMesh);
-                        }
-                    }
+                    pMesh->DisconnectUser(userID);
+                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Disconnected: %u.", userID);
                 }
-            });
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "Initialize result = %d", result);
+                else // no mesh, just back out
+                {
+                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Leaving lobby, lobby isn't secure, actionable player was remote, but no mesh exists to take action.");
+                    g_bPendingExitLobby = true;
+                }
+            }
+        });
 
-        // check loaded
-        AC_PLUGIN_LOAD_FUNCTION(IsExternalProcessRunning);
-
-        AC_PLUGIN_LOAD_FUNCTION(GetAnticheatIdentifier);
-
-#if _DEBUG
-        if (ApplicationHWnd != nullptr)
+    Functions.fnSetSendMessageViaTransportCallback([](uint32_t goUserID, const void* pData, uint32_t dataLen)
         {
-            SetWindowText(ApplicationHWnd, Functions.fnIsExternalProcessRunning() ? "SECURED" : "INSECURE");
-        }
-#endif
-
-        // integrity callback
-        AC_PLUGIN_LOAD_FUNCTION(SetACIntegrityViolationOccurredCallback);
-
-        Functions.fnSetACIntegrityViolationOccurredCallback([](const char* szReason, int violationType)
+            if (pData == nullptr || dataLen == 0)
             {
-                if (szReason == nullptr)
-                {
-                    szReason = "(null reason)";
-                }
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] ERROR: SendMessageViaTransport received null/empty data");
+                return;
+            }
 
-                NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Leaving lobby, local AC integrity violation occured (%d): %s.", violationType, szReason);
-                g_bPendingExitLobby = true;
-            });
+            // prefer websocket if we have it, otherwise fall back to p2p mesh
+            bool bFallbackToP2P = false;
 
-        // set action required callback
-        AC_PLUGIN_LOAD_FUNCTION(SetACActionRequiredCallback);
-
-        Functions.fnSetACActionRequiredCallback([](uint32_t userID, const char* szReason, EAnticheatActionType actionType, EAnticheatActionReason actionReason)
+            if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
             {
-                if (szReason == nullptr)
-                {
-                    szReason = "(null reason)";
-                }
-
-                NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-
-                NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Action required: %s", szReason);
-
-                if (pAuthInterface == nullptr)
-                {
-                    // no auth interface? bail out
-                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Leaving lobby, lobby isn't secure, no auth interface.");
-                    g_bPendingExitLobby = true;
-                    return;
-                }
-
-                // Report the verdict to the backend for corroboration and escalation (telemetry, fire-and-forget)
-                {
-                    std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
-                    if (pWS != nullptr && pWS->IsConnected())
-                    {
-                        NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-                        int64_t lobbyID = (pLobbyInterface != nullptr) ? pLobbyInterface->GetCurrentLobby().lobbyID : -1;
-                        pWS->SendData_ACActionReport(userID, (int)actionReason, (int)actionType, lobbyID);
-                    }
-                }
-
-                // If it's us, leave, if its someone else, d/c them
-                uint32_t localUserID = pAuthInterface->GetUserID();
-                if (localUserID == userID)
-                {
-                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Leaving lobby, lobby isn't secure, action was requested against local user.");
-                    g_bPendingExitLobby = true;
-                }
-                else
-                {
-                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Disconnecting remote user, lobby isn't secure, action was requested against remote user %u.", userID);
-
-                    NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-                    if (pMesh != nullptr)
-                    {
-                        pMesh->DisconnectUser(userID);
-                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Disconnected: %u.", userID);
-                    }
-                    else // no mesh, just back out
-                    {
-                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Leaving lobby, lobby isn't secure, actionable player was remote, but no mesh exists to take action.");
-                        g_bPendingExitLobby = true;
-                    }
-                }
-            });
-
-        // set transport callback
-        AC_PLUGIN_LOAD_FUNCTION(SetSendMessageViaTransportCallback);
-        Functions.fnSetSendMessageViaTransportCallback([](uint32_t goUserID, const void* pData, uint32_t dataLen)
+                bFallbackToP2P = true;
+            }
+            else
             {
-                if (pData == nullptr || dataLen == 0)
+                std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
+                if (pWS != nullptr)
                 {
-                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] ERROR: SendMessageViaTransport received null/empty data");
-                    return;
-                }
-
-                // prefer websocket if we have it, otherwise fall back to p2p mesh
-                bool bFallbackToP2P = false;
-
-                if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
-                {
-                    bFallbackToP2P = true;
-                }
-                else
-                {
-                    std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
-                    if (pWS != nullptr)
+                    if (pWS->IsConnected())
                     {
-                        if (pWS->IsConnected())
+                        if (dataLen > 0)
                         {
-                            if (dataLen > 0)
-                            {
-                                std::vector<uint8_t> vecPayload((uint8_t*)pData, (uint8_t*)pData + dataLen);
-                                pWS->SendData_ACMessage(goUserID, vecPayload);
-                            }
-                            else
-                            {
-                                bFallbackToP2P = true;
-                            }
+                            std::vector<uint8_t> vecPayload((uint8_t*)pData, (uint8_t*)pData + dataLen);
+                            pWS->SendData_ACMessage(goUserID, vecPayload);
                         }
                         else
                         {
@@ -291,63 +309,30 @@ void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
                         bFallbackToP2P = true;
                     }
                 }
-
-                if (bFallbackToP2P)
+                else
                 {
-                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AC Packets - WebSocket unavailable, falling back to P2P");
-                    NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-                    if (pMesh != nullptr)
-                    {
-                        pMesh->SendACPacket(goUserID, pData, dataLen);
-                    }
-                    else
-                    {
-                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] ERROR: Cannot send AC packet - NetworkMesh is null");
-                    }
+                    bFallbackToP2P = true;
                 }
-            });
+            }
 
-        // AC network message arrived callback
-        AC_PLUGIN_LOAD_FUNCTION(ACMessageArrivedViaTransport);
-
-        // transport funcs
-        AC_PLUGIN_LOAD_FUNCTION(DoesACPluginProvideSecureGameTransport);
-        AC_PLUGIN_LOAD_FUNCTION(StartSignalling);
-        AC_PLUGIN_LOAD_FUNCTION(SendPacket);
-        AC_PLUGIN_LOAD_FUNCTION(GetNextRecvPacketSize);
-        AC_PLUGIN_LOAD_FUNCTION(RecvPacket);
-        AC_PLUGIN_LOAD_FUNCTION(GetConnectionLatencyForUser);
-
-        AC_PLUGIN_LOAD_FUNCTION(DisconnectPlayer);
-        AC_PLUGIN_LOAD_FUNCTION(DisconnectAll);
-
-        // Login funcs
-        AC_PLUGIN_LOAD_FUNCTION(Login);
-        AC_PLUGIN_LOAD_FUNCTION(RefreshToken);
-        AC_PLUGIN_LOAD_FUNCTION(IsLoggedIn);
-        AC_PLUGIN_LOAD_FUNCTION(GetMiddlewareAuthToken);
-
-        // Begin and end session funcs
-        AC_PLUGIN_LOAD_FUNCTION(BeginSession);
-        AC_PLUGIN_LOAD_FUNCTION(EndSession);
-
-        // register player funcs
-        AC_PLUGIN_LOAD_FUNCTION(RegisterPlayer);
-        AC_PLUGIN_LOAD_FUNCTION(DeregisterPlayer);
-
-        AC_PLUGIN_LOAD_FUNCTION(Tick);
-        AC_PLUGIN_LOAD_FUNCTION(Shutdown);
+            if (bFallbackToP2P)
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AC Packets - WebSocket unavailable, falling back to P2P");
+                NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+                if (pMesh != nullptr)
+                {
+                    pMesh->SendACPacket(goUserID, pData, dataLen);
+                }
+                else
+                {
+                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] ERROR: Cannot send AC packet - NetworkMesh is null");
+                }
+            }
+        });
 #else
-    // Initialize AC
-    AC_PLUGIN_LOAD_FUNCTION(Initialize);
-
     int result = Functions.fnInitialize();
     NetworkLog(ELogVerbosity::LOG_RELEASE, "Initialize result = %d", result);
-
-       AC_PLUGIN_LOAD_FUNCTION(IsExternalProcessRunning);
-        AC_PLUGIN_LOAD_FUNCTION(GetAnticheatIdentifier);
 #endif
-    }
 }
 
 void AnticheatPlugInterface::AC_NetworkMessageArrived(uint32_t goUserID, void* pData, uint32_t dataLen)
@@ -648,6 +633,7 @@ void AnticheatPlugInterface::UnloadPlugin()
         NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Unloading plugin");
         FreeLibrary(g_hACPluginModule);
         g_hACPluginModule = nullptr;
+        Functions = AnticheatPluginFunctionPtrs();
         NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Unloaded plugin");
     }
 #endif
