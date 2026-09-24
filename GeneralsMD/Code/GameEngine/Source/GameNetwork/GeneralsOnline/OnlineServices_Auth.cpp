@@ -585,6 +585,8 @@ void NGMP_OnlineServices_AuthInterface::OnLoginComplete(ELoginResult loginResult
 {
 	if (loginResult == ELoginResult::Success)
 	{
+		NGMP_OnlineServicesManager::UpdateSentryUser();
+
 		// TODO_AC: Consider chaining this
 		// login to AC
 		AnticheatPlugInterface::Authenticate();

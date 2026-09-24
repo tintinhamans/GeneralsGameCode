@@ -528,6 +528,7 @@ public:
 	void ResetPendingFullTeardownReason() { m_teardownReason = EGOTearDownReason::UNKNOWN; }
 
 	static void InitSentry();
+	static void UpdateSentryUser();
 	static void ShutdownSentry();
 private:
 		
