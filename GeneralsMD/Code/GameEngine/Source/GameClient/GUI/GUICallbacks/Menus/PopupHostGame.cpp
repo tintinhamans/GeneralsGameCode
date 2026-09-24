@@ -666,6 +666,14 @@ void createGame()
 	Bool useStats = GadgetCheckBoxIsChecked(checkBoxUseStats);
 	Bool bAllowObservers = GadgetCheckBoxIsChecked(checkBoxAllowObservers);
 
+	{
+		CustomMatchPreferences pref;
+		pref.setAllowsObserver(bAllowObservers);
+		pref.setFactionsLimited(limitArmies);
+		pref.setUseStats(useStats);
+		pref.write();
+	}
+
 	UnicodeString gameName = GadgetTextEntryGetText(textEntryGameName);
 
 	AsciiString passwd;
