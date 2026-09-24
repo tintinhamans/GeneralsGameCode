@@ -5627,7 +5627,7 @@ Bool PartitionFilterStealthedAndUndetected::allow( Object *objOther )
 				if( member && !(*it)->getStatusBits().test( OBJECT_STATUS_DETECTED ) )
 				{
 					//Finally check the relationship!
-					if( victimApparentController && m_obj->getTeam()->getRelationship( victimApparentController->getDefaultTeam() ) == ENEMIES )
+					if( victimApparentController && m_obj->getTeam() && m_obj->getTeam()->getRelationship( victimApparentController->getDefaultTeam() ) == ENEMIES )
 					{
 						//Our object is a neutral building garrisoned by enemy units we can't see, therefore it is stealthed.
 						return m_allow;
