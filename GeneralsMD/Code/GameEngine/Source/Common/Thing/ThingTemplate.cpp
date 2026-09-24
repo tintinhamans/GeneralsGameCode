@@ -615,6 +615,8 @@ void ThingTemplate::parseModuleName(INI* ini, void *instance, void* store, const
 	}
 
 	ModuleData* data = TheModuleFactory->newModuleDataFromINI(ini, tokenStr, type, moduleTagStr);
+	if (data == nullptr)
+		throw INI_INVALID_DATA;
 
 	if (data->isAiModuleData())
 	{
