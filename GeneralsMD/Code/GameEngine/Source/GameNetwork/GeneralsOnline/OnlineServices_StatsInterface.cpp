@@ -584,7 +584,7 @@ void NGMP_OnlineServices_StatsInterface::CommitMyOutcome(ScoreKeeper* pScoreKeep
 				}
             }
 		
-	    const bool desynced = TheNetwork->sawCRCMismatch();
+	    const bool desynced = TheNetwork != nullptr && TheNetwork->sawCRCMismatch();
 		const uint32_t duration = TheGameLogic->getFrame() / LOGICFRAMES_PER_SECOND;
 
 		nlohmann::json j;
