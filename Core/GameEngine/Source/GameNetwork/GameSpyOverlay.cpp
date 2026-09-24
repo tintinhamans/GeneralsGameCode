@@ -31,6 +31,7 @@
 
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetPushButton.h"
+#include "GameClient/GadgetStaticText.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/ShellHooks.h"
@@ -150,6 +151,42 @@ void GSMessageBoxOkCancelWithLabels(
 	if (buttonCancel != nullptr)
 	{
 		GadgetButtonSetText(buttonCancel, cancelLabel);
+	}
+
+	// Grow the box to fit a long reason instead of clipping it.
+	GameWindow* parentPanel = TheWindowManager->winGetWindowFromId(messageBoxWindow, TheNameKeyGenerator->nameToKey("MessageBox.wnd:MessageBoxParent"));
+	GameWindow* staticTextMessage = TheWindowManager->winGetWindowFromId(messageBoxWindow, TheNameKeyGenerator->nameToKey("MessageBox.wnd:StaticTextMessage"));
+	if (parentPanel != nullptr && staticTextMessage != nullptr)
+	{
+		ICoord2D messageSize;
+		staticTextMessage->winGetSize(&messageSize.x, &messageSize.y);
+
+		const Int wrapWidth = messageSize.x - 10; // padding used by the static text draw code
+		const Int neededHeight = GadgetStaticTextGetTextHeight(staticTextMessage, wrapWidth);
+		const Int deltaY = neededHeight - messageSize.y;
+
+		if (deltaY > 0)
+		{
+			staticTextMessage->winSetSize(messageSize.x, neededHeight);
+
+			ICoord2D parentSize;
+			parentPanel->winGetSize(&parentSize.x, &parentSize.y);
+			parentPanel->winSetSize(parentSize.x, parentSize.y + deltaY);
+
+			if (buttonOk != nullptr)
+			{
+				ICoord2D pos;
+				buttonOk->winGetPosition(&pos.x, &pos.y);
+				buttonOk->winSetPosition(pos.x, pos.y + deltaY);
+			}
+
+			if (buttonCancel != nullptr)
+			{
+				ICoord2D pos;
+				buttonCancel->winGetPosition(&pos.x, &pos.y);
+				buttonCancel->winSetPosition(pos.x, pos.y + deltaY);
+			}
+		}
 	}
 }
 
