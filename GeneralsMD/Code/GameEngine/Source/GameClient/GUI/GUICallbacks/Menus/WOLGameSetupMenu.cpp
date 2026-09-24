@@ -2569,7 +2569,7 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 		{
 			s_matchStartCountdownWasRunning = true;
 			const int64_t timeBetweenChecks = 1000;
-			int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+			int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 			if (currTime - TheNGMPGame->GetCountdownLastCheckTime() >= timeBetweenChecks)
 			{

@@ -469,7 +469,7 @@ void ScoreScreenUpdate( WindowLayout * layout, void *userData)
 	// TODO_NGMP: Find a better way of doing this... before the user exists
 	if (NGMP_OnlineServicesManager::GetInstance() != nullptr && g_bNeedToTakeDoneEOGScreenshot)
 	{
-		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		if (currTime - g_TimeEnterState >= 1000)
 		{
 			g_bNeedToTakeDoneEOGScreenshot = false;
@@ -1256,7 +1256,7 @@ void initInternetMultiPlayer(void)
 #endif
 
 	g_bNeedToTakeDoneEOGScreenshot = true;
-	g_TimeEnterState = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+	g_TimeEnterState = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 	if (!TheGameSpyBuddyMessageQueue)
 		return;

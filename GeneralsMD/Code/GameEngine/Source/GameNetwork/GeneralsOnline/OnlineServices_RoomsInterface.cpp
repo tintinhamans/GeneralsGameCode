@@ -152,7 +152,7 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 		return;
 	}
 
-	m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+	m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 	// TODO_CACHE: Cleanup multi too
 	if (m_pCurlWS != nullptr)
@@ -578,7 +578,7 @@ void WebSocket::Tick()
 	// attempting to reconnect?
 	if (m_bReconnecting)
 	{
-		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 		int maxReconnectAttempts = (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress()) ? maxReconnectAttempts_Ingame : maxReconnectAttempts_Frontend;
 		if (m_numReconnectAttempts >= maxReconnectAttempts)
@@ -631,7 +631,7 @@ void WebSocket::Tick()
 	*/
 
 	// ping?
-	int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+	int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 	if ((currTime - m_lastPing) > m_timeBetweenUserPings)
 	{
 		m_lastPing = currTime;
@@ -724,7 +724,7 @@ void WebSocket::Tick()
                         m_lastReconnectAttempt = -1;
 
                         // connecting is as good as a pong
-                        m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+                        m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
                         if (m_fnWebsocketConnectedCallback != nullptr)
                         {
@@ -875,7 +875,7 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::PONG:
 									{
-										int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+										int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 										m_lastPong = currTime;
 									}
 									break;
@@ -1604,7 +1604,7 @@ void WebSocket::Tick()
 		m_bConnected = false;
 		m_bReconnecting = true;
         m_numReconnectAttempts = 0;
-        m_lastReconnectAttempt = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+        m_lastReconnectAttempt = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		m_vecWSPartialBuffer.clear();
 
 
@@ -1636,7 +1636,7 @@ void WebSocket::Tick()
         m_bConnected = false;
         m_bReconnecting = true;
         m_numReconnectAttempts = 0;
-        m_lastReconnectAttempt = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+        m_lastReconnectAttempt = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         m_vecWSPartialBuffer.clear();
 	};
 
