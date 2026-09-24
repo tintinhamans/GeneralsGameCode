@@ -767,6 +767,7 @@ void WebSocket::Tick()
 	if (rlen > sizeof(bufferThisRecv))
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Received data size %zu exceeds buffer size %zu, discarding", rlen, sizeof(bufferThisRecv));
+		ReleaseLock();
 		return;
 	}
 
@@ -792,6 +793,7 @@ void WebSocket::Tick()
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Partial buffer overflow, discarding message");
 					m_vecWSPartialBuffer.clear();
+					ReleaseLock();
 					return;
 				}
 				
