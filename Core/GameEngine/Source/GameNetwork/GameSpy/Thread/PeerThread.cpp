@@ -827,7 +827,7 @@ static void QRServerKeyCallback
 		break;
 	}
 
-	DEBUG_LOG(("QR_SERVER_KEY | %d (%s) = [%s]", key, qr2_registered_key_list[key], val.str()));
+	//DEBUG_LOG(("QR_SERVER_KEY | %d (%s) = [%s]", key, qr2_registered_key_list[key], val.str()));
 }
 
 static void QRPlayerKeyCallback
@@ -887,7 +887,7 @@ static void QRPlayerKeyCallback
 		break;
 	}
 
-	DEBUG_LOG(("QR_PLAYER_KEY | %d | %d (%s) = [%s]", key, index, qr2_registered_key_list[key], val.str()));
+	//DEBUG_LOG(("QR_PLAYER_KEY | %d | %d (%s) = [%s]", key, index, qr2_registered_key_list[key], val.str()));
 }
 
 static void QRTeamKeyCallback
