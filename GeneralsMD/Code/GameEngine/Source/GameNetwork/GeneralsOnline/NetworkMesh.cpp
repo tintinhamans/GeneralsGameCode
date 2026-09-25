@@ -658,10 +658,13 @@ NetworkMesh::NetworkMesh()
 	}
 
 	// TODO_STEAM: Dont hardcode, get everything from service
-	SteamNetworkingUtils()->SetGlobalConfigValueString(k_ESteamNetworkingConfig_P2P_STUN_ServerList, "stun:stun.playgenerals.online:53,stun:stun.playgenerals.online:3478,stun.l.google.com:19302,stun1.l.google.com:19302,stun2.l.google.com:19302,stun3.l.google.com:19302,stun4.l.google.com:19302");
+	// Every entry must resolve to distinct addresses. stun1-4.l.google.com resolve to the same IPs as
+	// stun.l.google.com, and duplicate addresses make the native ICE client retry STUN servers forever.
+	SteamNetworkingUtils()->SetGlobalConfigValueString(k_ESteamNetworkingConfig_P2P_STUN_ServerList, "stun:stun.playgenerals.online:53,stun:stun.playgenerals.online:3478,stun:stun.l.google.com:19302");
 
 	// comma seperated setting lists
-	const char* turnList = "turn:turn.playgenerals.online:53?transport=udp,turn:turn.playgenerals.online:3478?transport=udp";
+	// No "?transport=udp" suffix: the native ICE client passes everything after the host as the port.
+	const char* turnList = "turn:turn.playgenerals.online:53,turn:turn.playgenerals.online:3478";
 
 	m_strTurnUsername = pLobbyInterface->GetLobbyTurnUsername();
 	m_strTurnToken = pLobbyInterface->GetLobbyTurnToken();
@@ -690,6 +693,9 @@ NetworkMesh::NetworkMesh()
 	{
 		SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_All);
 	}
+
+	// The vcpkg GNS build only has the native ICE client (no WebRTC), so select it explicitly.
+	SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Implementation, 1);
 
 	m_hListenSock = k_HSteamListenSocket_Invalid;
 	
