@@ -132,6 +132,7 @@ public:
 	Bool getShowMoneyPerMinute() const;
 
 	Real getGameWindowTransitionSpeedMultiplier() const;
+	Real getCameraPitchSpeedMultiplier() const;
 
     Int getObserverStatsFontSize(void);
     Int getObserverNotificationFontSize(void);
