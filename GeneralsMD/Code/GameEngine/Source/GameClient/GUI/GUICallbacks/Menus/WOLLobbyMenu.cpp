@@ -839,6 +839,8 @@ static std::unordered_map<int64_t, std::pair<Int, Int>> s_lastKnownRankByUser;
 static Bool s_statsBatchInFlight = FALSE;
 static UnsignedInt s_statsBatchStartTime = 0;
 static UnsignedInt s_statsBatchGeneration = 0; // bumped on lobby init
+// Users requested this lobby visit.
+static std::unordered_set<int64_t> s_statsRequestedUserIDs;
 static const UnsignedInt STATS_BATCH_WATCHDOG_MS = 30000; // recover from a lost response
 
 static Int s_lastVisibleTop = -1;
@@ -887,9 +889,6 @@ static const Image* ResolveRankIconForUser(int64_t userID, NGMP_OnlineServices_S
 		}
 	}
 
-	if (favoriteSide < 2) // no real faction
-		return nullptr;
-
 	return LookupSmallRankImage(favoriteSide, rankPoints);
 }
 
@@ -929,8 +928,8 @@ static void RefreshVisibleLobbyRowIcons()
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Request stats for visible rows; no-op if the window hasn't moved unless bForce. */
-static void EnsureVisibleLobbyStats(Bool bForce)
+/** Request stats for stale visible rows; bOnlyUnrequested skips users already requested. */
+static void RequestVisibleLobbyStats(Bool bOnlyUnrequested)
 {
 	if (listboxLobbyPlayers == nullptr || s_lobbyPlayerRows.empty())
 		return;
@@ -945,13 +944,6 @@ static void EnsureVisibleLobbyStats(Bool bForce)
 	if (top < 0) top = 0;
 	if (bottom < 0 || bottom >= rowCount) bottom = rowCount - 1;
 
-	if (!bForce && top == s_lastVisibleTop && bottom == s_lastVisibleBottom)
-		return;
-	s_lastVisibleTop = top;
-	s_lastVisibleBottom = bottom;
-
-	RefreshVisibleLobbyRowIcons();
-
 	const Int firstRow = max(0, top - VISIBLE_STATS_BUFFER);
 	const Int lastRow = min(rowCount - 1, bottom + VISIBLE_STATS_BUFFER);
 
@@ -959,8 +951,11 @@ static void EnsureVisibleLobbyStats(Bool bForce)
 	for (Int row = firstRow; row <= lastRow; ++row)
 	{
 		const int64_t userID = s_lobbyPlayerRows[row].userID;
-		if (!pStatsInterface->HasFreshPlayerStats(userID))
-			vecUserStatsToRequest.push_back(userID);
+		if (pStatsInterface->HasFreshPlayerStats(userID))
+			continue;
+		if (bOnlyUnrequested && s_statsRequestedUserIDs.count(userID) != 0)
+			continue;
+		vecUserStatsToRequest.push_back(userID);
 	}
 
 	if (vecUserStatsToRequest.empty())
@@ -969,6 +964,8 @@ static void EnsureVisibleLobbyStats(Bool bForce)
 	const UnsignedInt now = timeGetTime();
 	if (s_statsBatchInFlight && (now - s_statsBatchStartTime) < STATS_BATCH_WATCHDOG_MS)
 		return;
+
+	s_statsRequestedUserIDs.insert(vecUserStatsToRequest.begin(), vecUserStatsToRequest.end());
 
 	s_statsBatchInFlight = TRUE;
 	s_statsBatchStartTime = now;
@@ -986,7 +983,30 @@ static void EnsureVisibleLobbyStats(Bool bForce)
 				return;
 
 			RefreshVisibleLobbyRowIcons();
+			RequestVisibleLobbyStats(TRUE);
 		});
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Request stats for visible rows; no-op if the window hasn't moved unless bForce. */
+static void EnsureVisibleLobbyStats(Bool bForce)
+{
+	if (listboxLobbyPlayers == nullptr || s_lobbyPlayerRows.empty())
+		return;
+
+	const Int rowCount = (Int)s_lobbyPlayerRows.size();
+	Int top = GadgetListBoxGetTopVisibleEntry(listboxLobbyPlayers);
+	Int bottom = GadgetListBoxGetBottomVisibleEntry(listboxLobbyPlayers);
+	if (top < 0) top = 0;
+	if (bottom < 0 || bottom >= rowCount) bottom = rowCount - 1;
+
+	if (!bForce && top == s_lastVisibleTop && bottom == s_lastVisibleBottom)
+		return;
+	s_lastVisibleTop = top;
+	s_lastVisibleBottom = bottom;
+
+	RefreshVisibleLobbyRowIcons();
+	RequestVisibleLobbyStats(FALSE);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1258,6 +1278,7 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 	playerListRefreshTime = 0;
 	s_statsBatchInFlight = FALSE;
 	++s_statsBatchGeneration;
+	s_statsRequestedUserIDs.clear();
 	s_lastKnownRankByUser.clear();
 	s_lobbyPlayerRows.clear();
 	s_lobbyRosterSignature.clear();
