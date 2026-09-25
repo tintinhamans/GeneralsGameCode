@@ -1,0 +1,21 @@
+{
+  "name": "gamenetworkingsockets",
+  "version": "1.6.0",
+  "description": "GameNetworkingSockets built with the WebRTC ICE backend (overlay of the upstream vcpkg port).",
+  "homepage": "https://github.com/ValveSoftware/GameNetworkingSockets",
+  "license": "BSD-3-Clause",
+  "supports": "!uwp & !(arm64 & windows)",
+  "dependencies": [
+    "abseil",
+    "openssl",
+    "protobuf",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}
