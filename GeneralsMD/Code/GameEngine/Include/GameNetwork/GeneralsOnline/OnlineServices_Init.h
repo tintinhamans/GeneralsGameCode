@@ -38,12 +38,7 @@ struct S3ScreenshotEntry
 #include <mutex>
 #include <atomic>
 
-#ifdef RTS_USE_LEGACY_NETWORK_VENDOR
-#pragma comment(lib, "libcurl/libcurl.lib")
-#include "GameNetwork/GeneralsOnline/Vendor/libcurl/curl.h"
-#else
 #include <curl/curl.h>
-#endif
 #include <sentry.h>
 #include <chrono>
 #include "GeneralsOnline_Settings.h"
@@ -213,14 +208,23 @@ private:
 
 	bool m_bConnected = false;
 
-    const int maxReconnectAttempts_Frontend = 15;
-	const int timeBetweenReconnectAttempts_Frontend = 1000;
+	// Menu window should not exceed the service's abandoned-session hold, else reconnects get 205.
+	const int64_t m_reconnectMenuWindow = 30000;
+	const int64_t m_reconnectBackoffBase = 2000;
+	const int64_t m_reconnectBackoffCap = 10000;
+	const int64_t m_reconnectAttemptTimeout = 15000;
 
-	const int maxReconnectAttempts_Ingame = 240;
-	const int timeBetweenReconnectAttempts_Ingame = 2500;
 	bool m_bReconnecting = false;
-    int m_numReconnectAttempts = 0;
-    int64_t m_lastReconnectAttempt = -1;
+	int m_numReconnectAttempts = 0;
+	int64_t m_reconnectStartTime = -1;
+	int64_t m_nextReconnectAttempt = -1;
+	int64_t m_reconnectAttemptStarted = -1; // -1 = none in flight
+	bool m_bFreshSession = false; // 205: reconnect as a new session
+
+	void BeginReconnect();
+	void EndReconnect();
+	void UpdateReconnect();
+	int64_t ComputeReconnectDelay() const;
 
 	std::string m_strWebsocketAddr;
 

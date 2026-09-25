@@ -186,8 +186,9 @@ public:
 		}
 	}
 
-	std::function<void(int)> m_fnCallbackMatchmakingSetupProgress = nullptr;
-	void RegisterForMatchmakingSetupProgressCallback(std::function<void(int)> cb)
+	// timeoutMs: how long to wait for the next step; countdownMs: start countdown length, 0 while setting up, -1 if not sent
+	std::function<void(int, int)> m_fnCallbackMatchmakingSetupProgress = nullptr;
+	void RegisterForMatchmakingSetupProgressCallback(std::function<void(int, int)> cb)
 	{
 		m_fnCallbackMatchmakingSetupProgress = cb;
 	}
@@ -197,11 +198,11 @@ public:
 		m_fnCallbackMatchmakingSetupProgress = nullptr;
 	}
 
-	void InvokeMatchmakingSetupProgressCallback(int timeoutMs)
+	void InvokeMatchmakingSetupProgressCallback(int timeoutMs, int countdownMs)
 	{
 		if (m_fnCallbackMatchmakingSetupProgress != nullptr)
 		{
-			m_fnCallbackMatchmakingSetupProgress(timeoutMs);
+			m_fnCallbackMatchmakingSetupProgress(timeoutMs, countdownMs);
 		}
 	}
 	

@@ -2,6 +2,7 @@
 
 #include "NGMP_include.h"
 #include <ws2ipdef.h>
+#include <chrono>
 #include <mutex>
 #include <steam/steamnetworkingcustomsignaling.h>
 #include "PluginInterfaces.h"
@@ -98,11 +99,17 @@ public:
 	int64_t pingSent = -1;
 
 	int m_SignallingAttempts = 0;
+
+	// when signalling for this connection started, for connect-time logging
+	int64_t m_connectStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 	
 	int GetLatency();
 	int GetJitter();
 	float GetConnectionQuality();
 	int ComputeConnectionScore();
+
+	std::chrono::steady_clock::time_point m_connectedSinceTime = (std::chrono::steady_clock::time_point::min)();
+	float m_smoothedScore = -1.0f;
 
 	// Only set for Steam connections
 	HSteamNetConnection m_hSteamConnection = k_HSteamNetConnection_Invalid;

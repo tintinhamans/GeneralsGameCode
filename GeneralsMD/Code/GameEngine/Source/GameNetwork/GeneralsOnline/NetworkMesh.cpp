@@ -28,8 +28,6 @@ static std::mutex g_pendingDeletionMutex;
 static std::vector<void*> g_pendingConnSignalingDeletions;
 
 // Clean up pending ConnectionSignaling objects that were deferred during Release()
-// Forward declaration needed since ConnectionSignaling is nested inside CSignalingClient
-struct ISteamNetworkingConnectionSignaling;
 
 static void CleanupPendingConnSignalingDeletions()
 {
@@ -660,10 +658,13 @@ NetworkMesh::NetworkMesh()
 	}
 
 	// TODO_STEAM: Dont hardcode, get everything from service
-	SteamNetworkingUtils()->SetGlobalConfigValueString(k_ESteamNetworkingConfig_P2P_STUN_ServerList, "stun:stun.playgenerals.online:53,stun:stun.playgenerals.online:3478,stun.l.google.com:19302,stun1.l.google.com:19302,stun2.l.google.com:19302,stun3.l.google.com:19302,stun4.l.google.com:19302");
+	// Every entry must resolve to distinct addresses. stun1-4.l.google.com resolve to the same IPs as
+	// stun.l.google.com, and duplicate addresses make the native ICE client retry STUN servers forever.
+	SteamNetworkingUtils()->SetGlobalConfigValueString(k_ESteamNetworkingConfig_P2P_STUN_ServerList, "stun:stun.playgenerals.online:53,stun:stun.playgenerals.online:3478,stun:stun.l.google.com:19302");
 
 	// comma seperated setting lists
-	const char* turnList = "turn:turn.playgenerals.online:53?transport=udp,turn:turn.playgenerals.online:3478?transport=udp";
+	// No "?transport=udp" suffix: the native ICE client passes everything after the host as the port.
+	const char* turnList = "turn:turn.playgenerals.online:53,turn:turn.playgenerals.online:3478";
 
 	m_strTurnUsername = pLobbyInterface->GetLobbyTurnUsername();
 	m_strTurnToken = pLobbyInterface->GetLobbyTurnToken();
@@ -692,6 +693,9 @@ NetworkMesh::NetworkMesh()
 	{
 		SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_All);
 	}
+
+	// The vcpkg GNS build only has the native ICE client (no WebRTC), so select it explicitly.
+	SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Implementation, 1);
 
 	m_hListenSock = k_HSteamListenSocket_Invalid;
 	
@@ -847,18 +851,23 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
         // create a local user type
         {
             std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+            auto it = m_mapConnections.find(remoteUserID);
+            int previousAttempts = it != m_mapConnections.end() ? it->second.m_SignallingAttempts : 0;
             m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, szMiddlewareID);
 
-            // add attempt
-            ++m_mapConnections[remoteUserID].m_SignallingAttempts;
+            // add attempt; carried over so the retry cap holds across re-signals
+            m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + 1;
         }
 	}
 	else
 	{
         // if we already have a connection to this use, drop it, having a single-direction connection will break signalling
+        int previousAttempts = 0;
         auto it = m_mapConnections.find(remoteUserID);
         if (it != m_mapConnections.end())
         {
+            previousAttempts = it->second.m_SignallingAttempts;
+
             if (it->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
             {
                 NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
@@ -951,8 +960,8 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
             m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, hSteamConnection);
 
-            // add attempt
-            ++m_mapConnections[remoteUserID].m_SignallingAttempts;
+            // add attempt; carried over so the retry cap holds across re-signals
+            m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + 1;
         }
 	}
 	
@@ -1442,15 +1451,35 @@ std::string PlayerConnection::GetConnectionType()
 	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
 		return "(disconnected)";
 
-	char szBuf[2048] = { 0 };
-	int ret = SteamNetworkingSockets()->GetDetailedConnectionStatus(m_hSteamConnection, szBuf, 2048);
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "[STEAM] PlayerConnection::GetConnectionType returned %d", ret);
-	return std::string(szBuf);
+	SteamNetConnectionInfo_t info;
+	if (!SteamNetworkingSockets()->GetConnectionInfo(m_hSteamConnection, &info))
+	{
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "[STEAM] PlayerConnection::GetConnectionType failed to get connection info");
+		return "(unknown)";
+	}
+
+	// IsDirect() relies on relayed connections reporting "Relayed".
+	return (info.m_nFlags & k_nSteamNetworkConnectionInfoFlags_Relayed) != 0 ? "Relayed" : "Direct";
 }
 
 void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh)
 {
+	if (newState == EConnectionState::CONNECTED_DIRECT && m_State != EConnectionState::CONNECTED_DIRECT)
+	{
+		m_connectedSinceTime = std::chrono::steady_clock::now();
+		m_smoothedScore = -1.0f;
+	}
+
 	m_State = newState;
+
+	if (newState == EConnectionState::CONNECTED_DIRECT)
+	{
+		int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[MESH] Connected to user %lld in %lld ms (%s, signalling attempt %d)",
+			m_userID, nowMs - m_connectStartedMs, GetConnectionType().c_str(), m_SignallingAttempts);
+
+		m_SignallingAttempts = 0;
+	}
 	pOwningMesh->UpdateConnectivity(this);
 
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
@@ -1494,6 +1523,8 @@ void PlayerConnection::SetDisconnected(bool bWasError, NetworkMesh* pOwningMesh,
 	{
 		m_State = EConnectionState::CONNECTION_DISCONNECTED;
 	}
+
+	m_connectedSinceTime = (std::chrono::steady_clock::time_point::min)();
 
 	// Save values we need after the callback: the callback can erase this
 	// PlayerConnection from the mesh's map (UAF), so we must not access
@@ -1590,16 +1621,22 @@ float PlayerConnection::GetConnectionQuality()
 
 int PlayerConnection::ComputeConnectionScore()
 {
+	static constexpr std::chrono::milliseconds k_warmupDuration{ 1000 };
+	if (m_connectedSinceTime == (std::chrono::steady_clock::time_point::min)() ||
+		std::chrono::steady_clock::now() - m_connectedSinceTime < k_warmupDuration)
+	{
+		return -1;
+	}
+
 	// TODO_EOS: need to impl jitter etc again
 	const int latency = GetLatency();
 	const int jitter = GetJitter();
 	const float quality = GetConnectionQuality();   // packet delivery ratio [0..1]
 
-	// Stability-first weighting
-	static constexpr float k_subScoreFloor = 0.01f;
-	static constexpr float k_latencyWeight = 0.22f;
-	static constexpr float k_jitterWeight = 0.38f;
-	static constexpr float k_reliabilityWeight = 0.40f;
+	static constexpr float k_subScoreFloor = 0.3f;
+	static constexpr float k_latencyWeight = 0.30f;
+	static constexpr float k_jitterWeight = 0.25f;
+	static constexpr float k_reliabilityWeight = 0.45f;
 
 	float weightedLogSum = 0.0f;
 	float activeWeightSum = 0.0f;
@@ -1639,5 +1676,17 @@ int PlayerConnection::ComputeConnectionScore()
 	}
 
 	float composite = std::expf(weightedLogSum / activeWeightSum);
-	return static_cast<int>(std::round(composite * 100.0f));
+	float rawScore = composite * 100.0f;
+
+	static constexpr float k_scoreSmoothingAlpha = 0.15f;
+	if (m_smoothedScore < 0.0f)
+	{
+		m_smoothedScore = rawScore;
+	}
+	else
+	{
+		m_smoothedScore += k_scoreSmoothingAlpha * (rawScore - m_smoothedScore);
+	}
+
+	return static_cast<int>(std::round(m_smoothedScore));
 }
