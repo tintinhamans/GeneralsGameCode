@@ -851,18 +851,23 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
         // create a local user type
         {
             std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+            auto it = m_mapConnections.find(remoteUserID);
+            int previousAttempts = it != m_mapConnections.end() ? it->second.m_SignallingAttempts : 0;
             m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, szMiddlewareID);
 
-            // add attempt
-            ++m_mapConnections[remoteUserID].m_SignallingAttempts;
+            // add attempt; carried over so the retry cap holds across re-signals
+            m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + 1;
         }
 	}
 	else
 	{
         // if we already have a connection to this use, drop it, having a single-direction connection will break signalling
+        int previousAttempts = 0;
         auto it = m_mapConnections.find(remoteUserID);
         if (it != m_mapConnections.end())
         {
+            previousAttempts = it->second.m_SignallingAttempts;
+
             if (it->second.m_hSteamConnection != k_HSteamNetConnection_Invalid)
             {
                 NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld, new connection is being negotiated", remoteUserID);
@@ -955,8 +960,8 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
             m_mapConnections[remoteUserID] = PlayerConnection(remoteUserID, hSteamConnection);
 
-            // add attempt
-            ++m_mapConnections[remoteUserID].m_SignallingAttempts;
+            // add attempt; carried over so the retry cap holds across re-signals
+            m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + 1;
         }
 	}
 	
@@ -1460,6 +1465,11 @@ std::string PlayerConnection::GetConnectionType()
 void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh)
 {
 	m_State = newState;
+
+	if (newState == EConnectionState::CONNECTED_DIRECT)
+	{
+		m_SignallingAttempts = 0;
+	}
 	pOwningMesh->UpdateConnectivity(this);
 
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
