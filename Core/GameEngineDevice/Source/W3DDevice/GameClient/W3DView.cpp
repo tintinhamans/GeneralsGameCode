@@ -203,6 +203,9 @@ W3DView::~W3DView()
 	REF_PTR_RELEASE( m_2DCamera );
 	REF_PTR_RELEASE( m_3DCamera );
 
+	// Empty the global shaker list while its pools are alive; its static destructor runs too late at exit.
+	CameraShakerSystem.Reset();
+
 }
 
 //-------------------------------------------------------------------------------------------------
