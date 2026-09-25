@@ -2122,7 +2122,8 @@ WindowMsgHandledType WOLQuickMatchMenuInput( GameWindow *window, UnsignedInt msg
 					//
 					if( BitIsSet( state, KEY_STATE_UP ) )
 					{
-						if(!buttonBack->winIsHidden())
+						// ESC must not do what the disabled back button can't, e.g. leave during match setup
+						if(!buttonBack->winIsHidden() && buttonBack->winGetEnabled())
 							TheWindowManager->winSendSystemMsg( window, GBM_SELECTED,
 																							(WindowMsgData)buttonBack, buttonBackID );
 
