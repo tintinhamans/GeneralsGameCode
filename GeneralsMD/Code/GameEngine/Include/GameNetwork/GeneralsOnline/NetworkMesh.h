@@ -98,6 +98,9 @@ public:
 	int64_t pingSent = -1;
 
 	int m_SignallingAttempts = 0;
+
+	// when signalling for this connection started, for connect-time logging
+	int64_t m_connectStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 	
 	int GetLatency();
 	int GetJitter();

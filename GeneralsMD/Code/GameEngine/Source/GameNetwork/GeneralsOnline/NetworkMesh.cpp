@@ -1468,6 +1468,10 @@ void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwni
 
 	if (newState == EConnectionState::CONNECTED_DIRECT)
 	{
+		int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[MESH] Connected to user %lld in %lld ms (%s, signalling attempt %d)",
+			m_userID, nowMs - m_connectStartedMs, GetConnectionType().c_str(), m_SignallingAttempts);
+
 		m_SignallingAttempts = 0;
 	}
 	pOwningMesh->UpdateConnectivity(this);
