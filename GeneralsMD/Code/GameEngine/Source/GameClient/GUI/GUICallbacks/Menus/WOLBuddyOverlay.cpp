@@ -1125,6 +1125,9 @@ void WOLBuddyOverlayInit( WindowLayout *layout, void *userData )
 	parentIgnore = TheWindowManager->winGetWindowFromId( parent,  parentIgnoreID);
 	listboxIgnore = TheWindowManager->winGetWindowFromId( parent,  listboxIgnoreID);
 
+	if (radioButtonIgnore)
+		GadgetRadioSetText(radioButtonIgnore, UnicodeString(L"Block"));
+
 	InitBuddyControls(BUDDY_WINDOW_BUDDIES);
 
 	GadgetRadioSetSelection(radioButtonBuddies,FALSE);
@@ -1296,7 +1299,7 @@ WindowMsgHandledType WOLBuddyOverlaySystem( GameWindow *window, UnsignedInt msg,
 						// If it's the "current lobby" list, the user wont be a friend, so we cant chat to them
 						if (!pSocialInterface->IsUserFriend(profileID) && !pSocialInterface->IsUserPendingRequest(profileID))
 						{
-                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or ignore them."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+                            Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString(L"This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or block them."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
                             GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_DEFAULT], index, 1);
 						}
                         else if (pSocialInterface->IsUserPendingRequest(profileID))
@@ -2017,9 +2020,7 @@ void setUnignoreText( WindowLayout *layout, AsciiString nick, GPProfile id)
 			return;
 		}
 
-		bool bIgnored = pSocialInterface->IsUserIgnored(id);
-		if (bIgnored)
-			GadgetButtonSetText(win, TheGameText->fetch("GUI:Unignore"));
+		GadgetButtonSetText(win, UnicodeString(pSocialInterface->IsUserIgnored(id) ? L"Unblock" : L"Block"));
 #else
 		if(TheGameSpyInfo->isSavedIgnored(id) || TheGameSpyInfo->isIgnored(nick))
 			GadgetButtonSetText(win, TheGameText->fetch("GUI:Unignore"));
