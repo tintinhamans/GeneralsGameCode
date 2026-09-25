@@ -857,6 +857,9 @@ void WebSocket::Tick()
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket msg: %s", bufferThisRecv);
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket len: %d", rlen);
 
+		// any server frame proves liveness, not just a JSON PONG
+		m_lastPong = NowMs();
+
 		// what type of message?
 		if (meta != nullptr)
 		{
