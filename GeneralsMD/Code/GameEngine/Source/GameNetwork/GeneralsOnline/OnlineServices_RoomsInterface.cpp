@@ -1472,10 +1472,17 @@ void WebSocket::Tick()
 											timeoutMs = jsonObject["timeout_ms"].get<int>();
 										}
 
+										// -1 = older service that doesn't say, the menu infers it
+										int countdownMs = -1;
+										if (jsonObject.contains("countdown_ms") && jsonObject["countdown_ms"].is_number_integer())
+										{
+											countdownMs = jsonObject["countdown_ms"].get<int>();
+										}
+
 										NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 										if (pLobbyInterface != nullptr && timeoutMs > 0)
 										{
-											pLobbyInterface->InvokeMatchmakingSetupProgressCallback(timeoutMs);
+											pLobbyInterface->InvokeMatchmakingSetupProgressCallback(timeoutMs, countdownMs);
 										}
 									}
 									break;

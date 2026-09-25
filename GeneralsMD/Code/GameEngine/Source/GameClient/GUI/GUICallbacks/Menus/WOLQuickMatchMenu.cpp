@@ -154,7 +154,8 @@ static Int minPoints = 0;
 static Int matchFoundTimeoutStart = 0;
 static const Int lobbyTimeoutMs = 10000;
 static Int matchFoundTimeoutDurationMs = lobbyTimeoutMs;
-static const Int matchStartCountdownDurationMs = 5000;
+static const Int defaultMatchStartCountdownMs = 5000;
+static Int matchStartCountdownDurationMs = defaultMatchStartCountdownMs;
 static Int matchStartCountdownLastSecond = 0;
 
 static const LadderInfo * getLadderInfo();
@@ -1245,15 +1246,20 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				buttonWiden->winEnable(TRUE);
 			});
 
-		pLobbyInterface->RegisterForMatchmakingSetupProgressCallback([](int timeoutMs)
+		pLobbyInterface->RegisterForMatchmakingSetupProgressCallback([](int timeoutMs, int countdownMs)
 			{
 				matchFoundTimeoutDurationMs = timeoutMs;
 				matchFoundTimeoutStart = timeGetTime();
 
-				// Mirror the service-owned countdown for UI feedback.
-				matchStartCountdownLastSecond = timeoutMs < lobbyTimeoutMs
-					? (matchStartCountdownDurationMs + 999) / 1000
-					: 0;
+				// Mirror the service-owned countdown for UI feedback. Older services don't send its length, so a short
+				// timeout is taken to mean the countdown.
+				if (countdownMs < 0)
+				{
+					countdownMs = timeoutMs < lobbyTimeoutMs ? defaultMatchStartCountdownMs : 0;
+				}
+
+				matchStartCountdownDurationMs = countdownMs;
+				matchStartCountdownLastSecond = countdownMs > 0 ? (countdownMs + 999) / 1000 : 0;
 			});
 
 		pLobbyInterface->RegisterForMatchmakingStartGameCallback([]()
