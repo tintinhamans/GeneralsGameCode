@@ -9,6 +9,12 @@
 #include "../HTTP/HTTPManager.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 
+// one clock for every websocket timestamp; utc_clock also loads the time zone database on MSVC
+static int64_t NowMs()
+{
+	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
 // -----------------------------
 // Module info structure
 // -----------------------------
@@ -153,7 +159,7 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 		return;
 	}
 
-	m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+	m_lastPong = NowMs();
 
 	// TODO_CACHE: Cleanup multi too
 	if (m_pCurlWS != nullptr)
@@ -570,11 +576,6 @@ static bool JSONGetAsObject(nlohmann::json& jsonObject, T* outMsg)
 
 //static std::string strSignal = "str:1 ";
 
-static int64_t NowMs()
-{
-	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-}
-
 // Idempotent: repeated drop signals must not reset the backoff.
 void WebSocket::BeginReconnect()
 {
@@ -693,7 +694,7 @@ void WebSocket::Tick()
 	*/
 
 	// ping?
-	int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+	int64_t currTime = NowMs();
 	if ((currTime - m_lastPing) > m_timeBetweenUserPings)
 	{
 		m_lastPing = currTime;
@@ -768,7 +769,7 @@ void WebSocket::Tick()
                         EndReconnect();
 
                         // connecting is as good as a pong
-                        m_lastPong = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+                        m_lastPong = NowMs();
 
                         if (m_fnWebsocketConnectedCallback != nullptr)
                         {
@@ -919,7 +920,7 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::PONG:
 									{
-										int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
+										int64_t currTime = NowMs();
 										m_lastPong = currTime;
 									}
 									break;
