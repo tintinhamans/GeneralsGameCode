@@ -1048,6 +1048,7 @@ void WebSocket::Tick()
 
 										// respond with our state
 										std::vector<int64_t> connectivityMap;
+										std::vector<int64_t> connectingMap;
 										NetworkMesh* pMesh = nullptr;
 										NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 										if (pLobbyInterface != nullptr)
@@ -1070,6 +1071,11 @@ void WebSocket::Tick()
 														connectivityMap.push_back(userID);
 													}
 												}
+												else if (playerConn.GetState() == EConnectionState::CONNECTING_DIRECT || playerConn.GetState() == EConnectionState::FINDING_ROUTE)
+												{
+													// still negotiating: lets the service hold off restarting it
+													connectingMap.push_back(userID);
+												}
 											}
 										}
 
@@ -1079,6 +1085,7 @@ void WebSocket::Tick()
 										j["mesh_check_id"] = meshCheckID;
 										j["attempt"] = meshCheckAttempt;
 										j["connectivity_map"] = connectivityMap;
+										j["connecting_map"] = connectingMap;
 										std::string strBody = j.dump();
 
 										Send(strBody.c_str());
