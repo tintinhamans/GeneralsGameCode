@@ -566,8 +566,8 @@ void updateBuddyInfo( void )
 				{
                     // dont need to check self here as this is checked when populating the recently played list, but do need to check friend status as it could have changed since population
 
-                // dont show if already friends
-                    if (!pSocialInterface->IsUserFriend(profileID))
+                // dont show if already friends, or if they sent a request: the request row below covers them
+                    if (!pSocialInterface->IsUserFriend(profileID) && !pSocialInterface->IsUserPendingRequest(profileID))
                     {
                         UnicodeString strName;
                         strName.format(L"%hs", friendsEntry.display_name.c_str());
