@@ -628,6 +628,7 @@ NetworkMesh::NetworkMesh()
 	if (pOnlineServicesMgr == nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "pOnlineServicesMgr is invalid");
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -635,6 +636,7 @@ NetworkMesh::NetworkMesh()
 	if (pAuthInterface == nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "pAuthInterface is invalid");
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -642,6 +644,7 @@ NetworkMesh::NetworkMesh()
 	if (pLobbyInterface == nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "pLobbyInterface is invalid");
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -656,6 +659,7 @@ NetworkMesh::NetworkMesh()
 	if (identityLocal.IsInvalid())
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "SteamNetworkingIdentity is invalid");
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -664,6 +668,7 @@ NetworkMesh::NetworkMesh()
 	if (!GameNetworkingSockets_Init(&identityLocal, errMsg))
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "GameNetworkingSockets_Init failed.  %s", errMsg);
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -714,6 +719,7 @@ NetworkMesh::NetworkMesh()
 	if (m_pSignaling == nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "CreateTrivialSignalingClient failed.  %s", errMsg);
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -723,6 +729,9 @@ NetworkMesh::NetworkMesh()
 	// Library is fully re-initialized and the callback is registered;
 	// it is now safe to allow OnSteamNetConnectionStatusChanged to run.
 	g_bNetworkMeshDestroying.store(false);
+
+	// past this point every prerequisite succeeded; callers may safely use this mesh
+	m_bInitialized = true;
 
 	ESteamNetworkingSocketsDebugOutputType logType =
 #if defined(_DEBUG)
@@ -943,6 +952,12 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
         vecOpts.push_back(opt);
         NetworkLog(ELogVerbosity::LOG_DEBUG, "Connecting to '%s' in symmetric mode, virtual port %d, from local virtual port %d.\n",
             SteamNetworkingIdentityRender(identityRemote).c_str(), g_nVirtualPortRemote, g_nLocalPort);
+
+        if (m_pSignaling == nullptr)
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::StartConnectionSignalling - Signalling client is null (mesh failed to initialize)");
+            return;
+        }
 
         // create a signaling object for this connection
         SteamNetworkingErrMsg errMsg;

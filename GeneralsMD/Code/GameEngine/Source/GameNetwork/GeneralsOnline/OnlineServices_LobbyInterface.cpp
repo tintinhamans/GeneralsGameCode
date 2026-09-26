@@ -1172,7 +1172,20 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 			// create our mesh
 			if (m_pLobbyMesh == nullptr)
 			{
-				m_pLobbyMesh = new NetworkMesh();
+				NetworkMesh* pNewMesh = new NetworkMesh();
+				if (!pNewMesh->IsInitialized())
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to initialize network mesh, aborting lobby join");
+					delete pNewMesh;
+					ResetLobbyTryingToJoin();
+					m_bAttemptingToJoinLobby = false;
+					if (m_callbackJoinedLobby != nullptr)
+					{
+						m_callbackJoinedLobby(EJoinLobbyResult::JoinLobbyResult_JoinFailed);
+					}
+					return;
+				}
+				m_pLobbyMesh = pNewMesh;
 			}
 
 			// convert
@@ -1588,7 +1601,25 @@ void NGMP_OnlineServices_LobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpd
 	// join the network mesh too
 	if (m_pLobbyMesh == nullptr)
 	{
-		m_pLobbyMesh = new NetworkMesh();
+		NetworkMesh* pNewMesh = new NetworkMesh();
+		if (!pNewMesh->IsInitialized())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to initialize network mesh for lobby");
+			delete pNewMesh;
+			m_bAttemptingToJoinLobby = false;
+
+			// treat exactly like a mesh that failed to connect to everyone: shows an error and backs
+			// out of the lobby. Reachable in practice only from CreateLobby, since JoinLobby already
+			// validates mesh creation before this point.
+			QueueCannotConnectToLobby();
+
+			if (fnCallback != nullptr)
+			{
+				fnCallback(false);
+			}
+			return;
+		}
+		m_pLobbyMesh = pNewMesh;
 	}
 
 	m_bMarkedGameAsFinished = false;
