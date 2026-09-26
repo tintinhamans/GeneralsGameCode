@@ -1194,28 +1194,22 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 	pLobbyInterface->RegisterForCannotConnectToLobbyCallback([](void)
 		{
-			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Could not connect to all players in the lobby. Returning to matchmaking."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Could not connect to a player, waiting for the matchmaker..."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 
+			// The service's own mesh check is authoritative for quick match: it will either send
+			// MATCHMAKING_ACTION_REQUEUE (RegisterForMatchmakingRequeueCallback already resets these
+			// same timers/buttons when that arrives) or eventually give up on its own. Don't call
+			// CancelMatchmaking() here - that DELETEs /matchmaking and the lobby, and racing it
+			// against a requeue the server just issued for us could unregister us from the bucket
+			// it just placed us in. Just clear our local match-found countdown and leave Back/Stop
+			// enabled so the user can still cancel manually; matchmaking is still active server-side
+			// so Start/Stop/Widen visibility is left alone.
 			matchFoundTimeoutStart = 0;
-			matchFoundTimeoutDurationMs = lobbyTimeoutMs;
 			matchStartCountdownLastSecond = 0;
 
 			buttonBack->winEnable(TRUE);
-			buttonWiden->winEnable(FALSE);
-			buttonStart->winEnable(TRUE);
-			buttonStart->winHide(FALSE);
 			buttonStop->winEnable(TRUE);
-			buttonStop->winHide(TRUE);
-			enableOptionsGadgets(TRUE);
-
-			// mirrors how Stop cancels: tells the service to drop the matchmaking attempt,
-			// which also leaves the temporary lobby we could not connect to everyone in
-			NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
-			if (pMatchmakingInterface != nullptr)
-			{
-				pMatchmakingInterface->CancelMatchmaking();
-			}
 		});
 	}
 
