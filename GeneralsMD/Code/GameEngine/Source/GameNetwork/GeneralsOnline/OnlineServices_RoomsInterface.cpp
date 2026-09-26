@@ -1175,16 +1175,31 @@ void WebSocket::Tick()
 									{
 										// all checks are done, process start for host
 
+										// a reply for a lobby we've since left/changed is stale; drop it without touching the callback
+										NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+										int64_t currentLobbyID = pLobbyInterface != nullptr ? pLobbyInterface->GetCurrentLobby().lobbyID : -1;
+										if (currentLobbyID != m_connectivityCheckLobbyID)
+										{
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Ignoring stale reply for a previous lobby");
+											break;
+										}
+
 										bool bMeshComplete = false;
+										std::string strReason;
+										std::list<std::pair<int64_t, int64_t>> missingConnections;
 
 										try
 										{
 											jsonObject["mesh_complete"].get_to(bMeshComplete);
 
-											std::list<std::pair<int64_t, int64_t>> missingConnections;
+											if (jsonObject.contains("reason"))
+											{
+												jsonObject["reason"].get_to(strReason);
+											}
+
 											if (!bMeshComplete)
 											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Mesh is not complete for someone");
+												NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Mesh is not complete for someone, reason: %s", strReason.c_str());
 												for (const auto& missingConnectionEntryIter : jsonObject["missing_connections"])
 												{
 													int64_t source_user_id = -1;
@@ -1200,20 +1215,24 @@ void WebSocket::Tick()
 											{
 												NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Mesh is fully complete");
 											}
-
-											// invoke callback
-											if (m_cbOnConnectivityCheckComplete != nullptr)
-											{
-												m_cbOnConnectivityCheckComplete(bMeshComplete, missingConnections);
-											}
-
-											m_cbOnConnectivityCheckComplete = NULL;
 										}
 										catch (...)
 										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Error processing response");
-											break;
+											// still resolve the check as a failure instead of leaving the host's UI (e.g. the Start
+											// button) disabled forever waiting for a callback that will now never come.
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Error processing response, resolving as failure");
+											bMeshComplete = false;
+											missingConnections.clear();
+											strReason = "parse_error";
 										}
+
+										// invoke callback
+										if (m_cbOnConnectivityCheckComplete != nullptr)
+										{
+											m_cbOnConnectivityCheckComplete(bMeshComplete, missingConnections, strReason);
+										}
+
+										ClearConnectivityCheckCallback();
 
 										break;
 									}

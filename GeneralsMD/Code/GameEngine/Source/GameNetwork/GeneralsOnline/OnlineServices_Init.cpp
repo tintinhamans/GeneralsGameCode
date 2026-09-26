@@ -1290,9 +1290,12 @@ void WebSocket::SendData_CountdownStarted()
 }
 
 
-void WebSocket::SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>)> cbOnConnectivityCheckComplete)
+void WebSocket::SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> cbOnConnectivityCheckComplete)
 {
 	m_cbOnConnectivityCheckComplete = cbOnConnectivityCheckComplete;
+
+	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	m_connectivityCheckLobbyID = pLobbyInterface != nullptr ? pLobbyInterface->GetCurrentLobby().lobbyID : -1;
 
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::FULL_MESH_CONNECTIVITY_CHECK_HOST_REQUESTS_BEGIN;

@@ -177,8 +177,22 @@ public:
 
 	void SendData_CountdownStarted();
 
-	std::function<void(bool, std::list<std::pair<int64_t, int64_t>>)> m_cbOnConnectivityCheckComplete = nullptr;
-	void SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>)> cbOnConnectivityCheckComplete);
+	// bool: mesh fully connected; missing links; reason ("" on success, else e.g. "missing_connections",
+	// "timeout", "member_left", "check_superseded")
+	std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> m_cbOnConnectivityCheckComplete = nullptr;
+
+	// the lobby this check was started for; a reply that arrives after we've left/changed lobbies is stale and ignored
+	int64_t m_connectivityCheckLobbyID = -1;
+
+	void SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> cbOnConnectivityCheckComplete);
+
+	// clears any in-flight connectivity check callback; call on menu shutdown or lobby leave so a late
+	// reply never fires into torn-down UI state
+	void ClearConnectivityCheckCallback()
+	{
+		m_cbOnConnectivityCheckComplete = nullptr;
+		m_connectivityCheckLobbyID = -1;
+	}
 
 	void Tick();
 
