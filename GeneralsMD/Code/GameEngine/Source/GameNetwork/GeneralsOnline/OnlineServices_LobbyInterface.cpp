@@ -704,12 +704,12 @@ EJoinOrderResult NGMP_OnlineServices_LobbyInterface::GetJoinOrderRelativeTo(int6
 		return EJoinOrderResult::Unknown;
 	}
 
-	// our own sequence is known but the peer's isn't (not in our current roster, or their sequence
-	// is unknown): they joined after our last refresh, so we are not the later joiner and should
-	// keep retrying
+	// our own sequence is known but the peer isn't in our current roster (or their sequence is
+	// unknown): could be they haven't shown up in a refresh yet, or they already left - can't tell
+	// which from this alone, so don't assume unbounded retry
 	if (!bFoundPeer || theirJoinSequence <= 0)
 	{
-		return EJoinOrderResult::TheyJoinedLater;
+		return EJoinOrderResult::PeerNotInLobby;
 	}
 
 	return myJoinSequence > theirJoinSequence ? EJoinOrderResult::WeJoinedLater : EJoinOrderResult::TheyJoinedLater;

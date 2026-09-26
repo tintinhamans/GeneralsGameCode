@@ -103,8 +103,13 @@ enum class ELobbyJoinability
 enum class EJoinOrderResult
 {
 	WeJoinedLater,   // both sequences known; ours is greater
-	TheyJoinedLater, // both sequences known and theirs is greater, OR the peer/their sequence is
-	                 // unknown (not in our current roster / joined after our last refresh)
+	TheyJoinedLater, // both sequences known and theirs is greater: they joined after our last
+	                 // refresh, so they are the later joiner and will cap/give up on their own side
+	PeerNotInLobby,  // our sequence is known but the peer isn't in our current roster at all (or
+	                 // their sequence is unknown) - could mean they haven't shown up in a refresh
+	                 // yet, or that they already left; can't tell which, so callers should cap
+	                 // retries and drop just this connection rather than assuming either "they'll
+	                 // give up" (they might already be gone) or "we're the later joiner"
 	Unknown,         // OUR OWN sequence is unknown: the server isn't providing join order at all
 };
 

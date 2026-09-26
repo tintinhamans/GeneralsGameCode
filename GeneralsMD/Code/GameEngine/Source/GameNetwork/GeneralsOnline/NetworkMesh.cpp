@@ -182,6 +182,12 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld joined after us and will leave", userID);
 				}
+				else if (!bShouldRetry && joinOrder == EJoinOrderResult::PeerNotInLobby)
+				{
+					// they're not in our current roster at all - they may have already left, so don't
+					// escalate to leaving the whole lobby over them; just drop this one connection
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld is not in our current lobby roster; dropping just this connection", userID);
+				}
 				else if (!bShouldRetry)
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, handling disconnect as failure...");
