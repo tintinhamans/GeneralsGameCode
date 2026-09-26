@@ -30,6 +30,8 @@ NGMPGameSlot::NGMPGameSlot()
 
 NGMPGame::NGMPGame()
 {
+	m_isQM = FALSE;
+
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
@@ -580,6 +582,7 @@ void NGMPGame::launchGame(void)
 void NGMPGame::reset(void)
 {
 	GameInfo::reset();
+	m_isQM = FALSE;
 }
 
 void NGMPGame::StartCountdown()
