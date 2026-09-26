@@ -320,7 +320,8 @@ void NGMP_OnlineServices_AuthInterface::BeginLogin()
 		j["machine_guid"] = GetMachineGuid();
 		j["mac_addr"] = GetPrimaryMacAddress();
 		j["vol_serial"] = GetVolumeSerial();
-		j["exe_crc"] = getGameExeCRC();
+		j["exe_crc"] = TheGlobalData->m_exeCRC;
+		j["ac_exe_crc"] = getGameExeCRC();
 		j["ini_crc"] = TheGlobalData->m_iniCRC;
 		std::string strPostData = j.dump();
 
@@ -520,7 +521,8 @@ void NGMP_OnlineServices_AuthInterface::Tick()
             j["machine_guid"] = GetMachineGuid();
             j["mac_addr"] = GetPrimaryMacAddress();
             j["vol_serial"] = GetVolumeSerial();
-            j["exe_crc"] = getGameExeCRC();
+            j["exe_crc"] = TheGlobalData->m_exeCRC;
+            j["ac_exe_crc"] = getGameExeCRC();
             j["ini_crc"] = TheGlobalData->m_iniCRC;
 			std::string strPostData = j.dump();
 
