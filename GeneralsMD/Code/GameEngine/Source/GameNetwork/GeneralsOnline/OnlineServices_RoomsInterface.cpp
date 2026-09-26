@@ -1587,18 +1587,33 @@ void WebSocket::Tick()
 												// TODO_QUICKMATCH: Only if really in quickmatch
 
 												LobbyEntry lobbyEntry;
+												bool bParsedLobbySnapshot = false;
 												if (jsonObject.contains("lobby"))
 												{
 													// full lobby details (same shape GET lobby returns), parsed with the
-													// same field parsing UpdateRoomDataCache uses
-													lobbyEntry = pLobbyInterface->ParseLobbyEntryFromJson(jsonObject["lobby"]);
+													// same field parsing UpdateRoomDataCache uses. ParseLobbyEntryFromJson
+													// throws on any missing/malformed field; isolate that so a bad
+													// snapshot falls back below instead of aborting the whole join (the
+													// outer handler's catch would otherwise swallow this and JoinLobby
+													// would never be called, stranding the player).
+													try
+													{
+														lobbyEntry = pLobbyInterface->ParseLobbyEntryFromJson(jsonObject["lobby"]);
+														bParsedLobbySnapshot = true;
+													}
+													catch (...)
+													{
+														NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] MATCHMAKING_ACTION_JOIN_PREARRANGED_LOBBY: failed to parse 'lobby' snapshot, falling back");
+													}
 												}
-												else
+
+												if (!bParsedLobbySnapshot)
 												{
-													// server didn't send full details for some reason; fall back to what
-													// little we know. JoinLobby's own follow-up UpdateRoomDataCache will
-													// fill in the rest.
-													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] MATCHMAKING_ACTION_JOIN_PREARRANGED_LOBBY: no 'lobby' field in message, using fallback map");
+													// server didn't send full details (or they didn't parse); fall back to
+													// what little we know. JoinLobby's own follow-up UpdateRoomDataCache
+													// will fill in the rest.
+													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] MATCHMAKING_ACTION_JOIN_PREARRANGED_LOBBY: no usable 'lobby' field in message, using fallback map");
+													lobbyEntry = LobbyEntry();
 													lobbyEntry.lobbyID = mmEvent.lobby_id;
 													lobbyEntry.map_path = "Maps\\Alpine Assault\\Alpine Assault.map";
 												}
