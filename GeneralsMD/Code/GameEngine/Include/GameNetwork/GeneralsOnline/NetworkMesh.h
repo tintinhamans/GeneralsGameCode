@@ -128,6 +128,27 @@ struct QueuedGamePacket
 	int64_t m_userID = -1;
 };
 
+// Owns the process-wide GameNetworkingSockets library lifetime.
+class NetworkMeshLibrary
+{
+public:
+	// Inits for userID if not already initialized for it; reinitializes if userID differs.
+	// Returns false on failure; caller must not create a listen socket/connection in that case.
+	static bool EnsureInitialized(int64_t userID);
+
+	// Tears the library down. Safe to call when not initialized.
+	static void Shutdown();
+
+	static bool IsInitialized() { return s_bInitialized; }
+
+	// Drives SteamNetworkingSockets()->RunCallbacks(), independent of NetworkMesh lifetime.
+	static void Tick();
+
+private:
+	static bool s_bInitialized;
+	static int64_t s_currentUserID;
+};
+
 class NetworkMesh
 {
 public:
@@ -203,8 +224,8 @@ public:
 
 	void Tick();
 
-	// false if construction bailed out early (missing interfaces, invalid identity, GameNetworkingSockets_Init
-	// failure, signalling alloc failure); callers must not use a mesh that failed to initialize.
+	// false if construction failed (missing interfaces, library init, signalling alloc, or listen
+	// socket creation); callers must not use a mesh that failed to initialize.
 	bool IsInitialized() const { return m_bInitialized; }
 
 	HSteamListenSocket GetListenSocketHandle() const { return m_hListenSock; }
@@ -241,4 +262,8 @@ private:
 	std::string m_strTurnToken;
 	std::string m_strTurnUsernameString;
 	std::string m_strTurnTokenString;
+	std::string m_strTurnServerList;
+
+	// k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_* for this lobby's connections.
+	int m_iceEnable = 0;
 };
