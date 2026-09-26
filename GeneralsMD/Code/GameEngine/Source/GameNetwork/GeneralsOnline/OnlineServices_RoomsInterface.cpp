@@ -312,29 +312,19 @@ void WebSocket::Disconnect()
 
 void WebSocket::Send(const char* send_payload)
 {
-	if (!AcquireLock())
+	// Always queue; Tick() flushes on the main thread. This may be called from any thread (e.g. a
+	// GameNetworkingSockets callback thread relaying a P2P signal), so it blocks briefly on the
+	// dedicated queue mutex instead of racing a short try-lock and silently dropping the message.
+	std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
+
+	static constexpr size_t kMaxQueuedOutboundMsgs = 256;
+	if (m_vecQueuedOutboungMsgs.size() >= kMaxQueuedOutboundMsgs)
 	{
-		return;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Outbound queue full (%zu), discarding oldest message", m_vecQueuedOutboungMsgs.size());
+		m_vecQueuedOutboungMsgs.erase(m_vecQueuedOutboungMsgs.begin());
 	}
 
-	if (!m_bConnected)
-	{
-		// just queue it instead
-		m_vecQueuedOutboungMsgs.push_back(std::string(send_payload));
-
-		ReleaseLock();
-		return;
-	}
-
-	size_t sent;
-	CURLcode result = curl_ws_send(m_pCurlWS, send_payload, strlen(send_payload), &sent, 0, CURLWS_BINARY);
-
-	if (result != CURLE_OK)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "curl_ws_send() failed: %s\n", curl_easy_strerror(result));
-	}
-
-	ReleaseLock();
+	m_vecQueuedOutboungMsgs.push_back(std::string(send_payload));
 }
 
 class WebSocketMessageBase
@@ -700,11 +690,11 @@ void WebSocket::UpdateReconnect()
 
 void WebSocket::Tick()
 {
-    if (!AcquireLock())
-    {
-        return;
-    }
-
+	// Tick() only ever runs on the main thread, and m_pCurlWS / m_vecWSPartialBuffer / m_bConnected
+	// and the reconnect state below are only ever touched from here - Send() no longer touches curl
+	// directly (see WebSocket::Send()), so no lock is needed for any of that. The two queues that are
+	// genuinely shared with other threads (outbound messages, inbound signals) have their own small
+	// dedicated mutexes, held only long enough to drain into a local batch before it's used below.
 	UpdateReconnect();
 
 
@@ -820,12 +810,17 @@ void WebSocket::Tick()
 
     if (!m_bConnected)
     {
-        ReleaseLock();
         return;
     }
 
-	// send anything we have buffered (e.g. things that were queued while not connected)
-	for (std::string& strPayload : m_vecQueuedOutboungMsgs)
+	// send anything we have queued (things sent while not connected, or from any other thread)
+	std::vector<std::string> outboundBatch;
+	{
+		std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
+		outboundBatch.swap(m_vecQueuedOutboungMsgs);
+	}
+
+	for (std::string& strPayload : outboundBatch)
 	{
         size_t sent;
         CURLcode result = curl_ws_send(m_pCurlWS, strPayload.c_str(), strPayload.length(), &sent, 0, CURLWS_BINARY);
@@ -835,7 +830,6 @@ void WebSocket::Tick()
             NetworkLog(ELogVerbosity::LOG_RELEASE, "curl_ws_send() failed: %s\n", curl_easy_strerror(result));
         }
 	}
-	m_vecQueuedOutboungMsgs.clear();
 
 	// do recv
 	size_t rlen = 0;
@@ -1349,7 +1343,7 @@ void WebSocket::Tick()
 										{
 											NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Signal User: %lld!", signalData.target_user_id);
 											NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Signal Payload Size: %d!", (int)signalData.payload.size());
-											m_pendingSignals.push(signalData.payload);
+											PushPendingSignal(std::move(signalData.payload));
 										}
 									}
 									break;
@@ -1734,8 +1728,6 @@ void WebSocket::Tick()
 		BeginReconnect();
         m_vecWSPartialBuffer.clear();
 	};
-
-	ReleaseLock();
 }
 
 NGMP_OnlineServices_RoomsInterface::NGMP_OnlineServices_RoomsInterface()

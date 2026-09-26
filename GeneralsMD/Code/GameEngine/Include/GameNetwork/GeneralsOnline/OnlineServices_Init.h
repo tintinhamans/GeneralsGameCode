@@ -150,8 +150,6 @@ public:
 
 	std::vector<char> m_vecWSPartialBuffer;
 
-	std::vector<std::string> m_vecQueuedOutboungMsgs;
-
 	std::function<void(void)> m_fnWebsocketConnectedCallback = nullptr;
 
 	void Shutdown();
@@ -186,19 +184,34 @@ public:
 
 	int Ping();
 
+	// Queues the message for delivery on the main thread's next Tick(); never sends synchronously
+	// and never drops on contention. Safe to call from any thread (e.g. a GameNetworkingSockets
+	// callback thread signalling out through the websocket).
 	void Send(const char* message);
 
-	// TODO_STEAM: clear this on connect
-	std::queue<std::vector<uint8_t>> m_pendingSignals;
-
-	bool AcquireLock()
+	// Inbound P2P signal payloads received over the websocket, drained by CSignalingClient::Poll()
+	// on the main thread. Pushed to from Tick() (also main thread); kept behind its own small mutex
+	// rather than relying on both sides always being on the main thread.
+	void PushPendingSignal(std::vector<uint8_t> payload)
 	{
-		return m_mutex.try_lock_for(std::chrono::milliseconds(1));
+		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
+
+		static constexpr size_t kMaxPendingSignals = 256;
+		if (m_pendingSignals.size() >= kMaxPendingSignals)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Pending signal queue full (%zu), discarding oldest signal", m_pendingSignals.size());
+			m_pendingSignals.pop();
+		}
+
+		m_pendingSignals.push(std::move(payload));
 	}
 
-	void ReleaseLock()
+	std::queue<std::vector<uint8_t>> DrainPendingSignals()
 	{
-		m_mutex.unlock();
+		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
+		std::queue<std::vector<uint8_t>> drained;
+		drained.swap(m_pendingSignals);
+		return drained;
 	}
 
 private:
@@ -235,7 +248,15 @@ private:
 
 	std::atomic<bool> m_bShuttingDown = false;
 
-	std::recursive_timed_mutex m_mutex;
+	// Outbound messages queued for Tick() to flush on the main thread. Guarded by its own mutex,
+	// held only for push/swap (never across curl I/O), so Send() blocks briefly instead of racing
+	// a short try-lock and silently dropping the message on contention.
+	std::mutex m_outboundQueueMutex;
+	std::vector<std::string> m_vecQueuedOutboungMsgs;
+
+	// Inbound P2P signals; see PushPendingSignal()/DrainPendingSignals() above.
+	std::mutex m_pendingSignalsMutex;
+	std::queue<std::vector<uint8_t>> m_pendingSignals;
 };
 
 enum class ERoomFlags : int
