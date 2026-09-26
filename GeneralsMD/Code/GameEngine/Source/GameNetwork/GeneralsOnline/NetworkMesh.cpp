@@ -112,7 +112,12 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 
 			ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
 			const int numSignallingAttempts = 3;
-			bool bShouldRetry = plrConnection.m_SignallingAttempts < numSignallingAttempts && serviceConf.retry_signalling;
+
+			// only the later joiner of a pair is capped and gives up, so one unreachable joiner can't pull the host or
+			// anyone already in the lobby out of it; the earlier side keeps retrying until the joiner leaves
+			NGMP_OnlineServices_LobbyInterface* pJoinOrderLobby = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+			const bool bWeJoinedLater = pJoinOrderLobby != nullptr && pJoinOrderLobby->JoinedAfter(plrConnection.m_userID);
+			bool bShouldRetry = serviceConf.retry_signalling && (!bWeJoinedLater || plrConnection.m_SignallingAttempts < numSignallingAttempts);
 
 			bool bWasError = pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally || pInfo->m_info.m_eEndReason != k_ESteamNetConnectionEnd_App_Generic;
 			plrConnection.SetDisconnected(bWasError, pMesh, bShouldRetry && bWasError);
@@ -159,7 +164,11 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 					}
 				}
 
-				if (!bShouldRetry)
+				if (!bShouldRetry && !bWeJoinedLater)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld joined after us and will leave", plrConnection.m_userID);
+				}
+				else if (!bShouldRetry)
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, handling disconnect as failure...");
 

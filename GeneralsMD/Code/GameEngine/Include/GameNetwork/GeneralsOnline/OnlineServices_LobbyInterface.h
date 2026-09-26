@@ -9,6 +9,7 @@
 #include "GameClient/InGameUI.h"
 #include "GameLogic/VictoryConditions.h"
 #include <atomic>
+#include <set>
 
 extern NGMPGame* TheNGMPGame;
 
@@ -373,6 +374,14 @@ public:
 
 	bool IsHost();
 
+private:
+	std::set<int64_t> m_setMembersBeforeUs;
+	bool m_bJoinOrderKnown = false;
+	void ResetJoinOrder();
+	void RecordJoinOrder(const std::vector<LobbyMemberEntry>& members);
+
+public:
+
 	void UpdateRoomDataCache(std::function<void(bool)> fnCallback = nullptr);
 
 	std::function<void(LobbyMemberEntry)> m_cbPlayerDoesntHaveMap = nullptr;
@@ -395,6 +404,12 @@ public:
 	void DeregisterForCannotConnectToLobbyCallback()
 	{
 		m_OnCannotConnectToLobbyCallback = nullptr;
+	}
+
+	// true if userID was already in the lobby when we joined, i.e. we are the later joiner of that pair
+	bool JoinedAfter(int64_t userID) const
+	{
+		return m_bJoinOrderKnown && m_setMembersBeforeUs.contains(userID);
 	}
 
 	// raised from inside the mesh's GNS callbacks, dispatched by Tick once the mesh is done with them
