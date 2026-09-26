@@ -1631,10 +1631,26 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::MATCHMAKING_ACTION_SETUP_PROGRESS:
 									{
+										// Gates how long Back/ESC stay disabled in the quickmatch menu while waiting for the
+										// match to set up, so clamp what the service can ask for to a sane range.
+										static constexpr int kMinMatchSetupTimeoutMs = 1000;
+										static constexpr int kMaxMatchSetupTimeoutMs = 120000;
+
 										int timeoutMs = 0;
 										if (jsonObject.contains("timeout_ms") && jsonObject["timeout_ms"].is_number_integer())
 										{
 											timeoutMs = jsonObject["timeout_ms"].get<int>();
+											if (timeoutMs > 0)
+											{
+												if (timeoutMs < kMinMatchSetupTimeoutMs)
+												{
+													timeoutMs = kMinMatchSetupTimeoutMs;
+												}
+												else if (timeoutMs > kMaxMatchSetupTimeoutMs)
+												{
+													timeoutMs = kMaxMatchSetupTimeoutMs;
+												}
+											}
 										}
 
 										// -1 = older service that doesn't say, the menu infers it
