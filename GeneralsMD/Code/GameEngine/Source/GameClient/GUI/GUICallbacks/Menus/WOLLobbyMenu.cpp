@@ -2371,7 +2371,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				if ( controlID == GetGameListBoxID() )
 				{
 					int rowSelected = mData2;
-					Int lobbyID = rowSelected >= 0 ? (Int)GadgetListBoxGetItemData(control, rowSelected, 0) : 0;
+					int64_t lobbyID = rowSelected >= 0 ? ResolveGameListLobbyID((Int)GadgetListBoxGetItemData(control, rowSelected, 0)) : 0;
 					if( lobbyID >= 0 )
 					{
 						buttonJoin->winEnable(TRUE);
@@ -2455,7 +2455,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 					GadgetListBoxGetSelected(GetGameListBox(), &selected);
 					if (selected >= 0)
 					{
-						Int selectedID = (Int)GadgetListBoxGetItemData(GetGameListBox(), selected);
+						int64_t selectedID = ResolveGameListLobbyID((Int)GadgetListBoxGetItemData(GetGameListBox(), selected));
 						if (selectedID >= 0)
 						{
 							auto Lobby = pLobbyInterface->GetLobbyFromID(selectedID);
