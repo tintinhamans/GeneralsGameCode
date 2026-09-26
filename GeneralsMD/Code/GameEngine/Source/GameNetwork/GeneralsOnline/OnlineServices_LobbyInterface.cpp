@@ -674,7 +674,7 @@ void NGMP_OnlineServices_LobbyInterface::SearchForLobbies(std::function<void()> 
 	});
 }
 
-bool NGMP_OnlineServices_LobbyInterface::JoinedAfter(int64_t userID) const
+EJoinOrderResult NGMP_OnlineServices_LobbyInterface::GetJoinOrderRelativeTo(int64_t userID) const
 {
 	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
 	int64_t myUserID = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
@@ -696,14 +696,23 @@ bool NGMP_OnlineServices_LobbyInterface::JoinedAfter(int64_t userID) const
 		}
 	}
 
-	// peer not in our current roster, or sequence unknown on either side: assume the peer joined
-	// after our last refresh, so we are not the later joiner and should keep retrying
-	if (!bFoundPeer || myJoinSequence <= 0 || theirJoinSequence <= 0)
+	// our own sequence is unknown: the server isn't providing join order for this session at all,
+	// so callers should fall back to capping retries symmetrically for both sides (pre-812ecd14e
+	// behavior) rather than assuming the peer is the later joiner
+	if (myJoinSequence <= 0)
 	{
-		return false;
+		return EJoinOrderResult::Unknown;
 	}
 
-	return myJoinSequence > theirJoinSequence;
+	// our own sequence is known but the peer's isn't (not in our current roster, or their sequence
+	// is unknown): they joined after our last refresh, so we are not the later joiner and should
+	// keep retrying
+	if (!bFoundPeer || theirJoinSequence <= 0)
+	{
+		return EJoinOrderResult::TheyJoinedLater;
+	}
+
+	return myJoinSequence > theirJoinSequence ? EJoinOrderResult::WeJoinedLater : EJoinOrderResult::TheyJoinedLater;
 }
 
 bool NGMP_OnlineServices_LobbyInterface::IsHost()

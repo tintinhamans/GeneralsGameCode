@@ -99,6 +99,15 @@ enum class ELobbyJoinability
 	LobbyJoinability_FriendsOnly,
 };
 
+// Result of comparing our JoinSequence against a peer's on the current member list.
+enum class EJoinOrderResult
+{
+	WeJoinedLater,   // both sequences known; ours is greater
+	TheyJoinedLater, // both sequences known and theirs is greater, OR the peer/their sequence is
+	                 // unknown (not in our current roster / joined after our last refresh)
+	Unknown,         // OUR OWN sequence is unknown: the server isn't providing join order at all
+};
+
 struct LobbyMemberEntry;
 struct LobbyEntry;
 
@@ -408,10 +417,11 @@ public:
 		m_OnCannotConnectToLobbyCallback = nullptr;
 	}
 
-	// true if we are the later joiner of the (userID, us) pair, per the server's JoinSequence on the
-	// current member list. If userID isn't in our current roster, or either sequence is unknown, we
-	// treat userID as having joined after our last refresh, so we are NOT the later joiner (we keep retrying).
-	bool JoinedAfter(int64_t userID) const;
+	// Compares our JoinSequence against userID's on the current member list. See EJoinOrderResult:
+	// EJoinOrderResult::Unknown specifically means OUR OWN sequence is unknown (the server isn't
+	// providing join order at all), which callers should treat as "fall back to capping retries for
+	// both sides", not as "the peer joined later".
+	EJoinOrderResult GetJoinOrderRelativeTo(int64_t userID) const;
 
 	// raised from inside the mesh's GNS callbacks, dispatched by Tick once the mesh is done with them
 	bool m_bCannotConnectToLobbyPending = false;
