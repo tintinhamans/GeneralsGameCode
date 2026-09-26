@@ -282,6 +282,25 @@ void WebSocket::Disconnect()
 
 	if (m_pCurlWS != nullptr)
 	{
+		// best-effort: flush anything queued since the last Tick() before closing, so a message
+		// queued right before a leave/logout/shutdown isn't silently dropped (Send() always queues
+		// now, it never sends synchronously; only Tick() used to flush this).
+		std::vector<std::string> outboundBatch;
+		{
+			std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
+			outboundBatch.swap(m_vecQueuedOutboungMsgs);
+		}
+
+		for (std::string& strPayload : outboundBatch)
+		{
+			size_t sentPayload;
+			CURLcode sendResult = curl_ws_send(m_pCurlWS, strPayload.c_str(), strPayload.length(), &sentPayload, 0, CURLWS_BINARY);
+			if (sendResult != CURLE_OK)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Disconnect: failed to flush queued message: %s", curl_easy_strerror(sendResult));
+			}
+		}
+
 		// send close
 		size_t sent;
 		(void)curl_ws_send(m_pCurlWS, "", 0, &sent, 0, CURLWS_CLOSE);
