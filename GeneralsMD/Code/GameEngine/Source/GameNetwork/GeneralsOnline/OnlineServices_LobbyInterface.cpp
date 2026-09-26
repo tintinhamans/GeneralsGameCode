@@ -696,17 +696,11 @@ EJoinOrderResult NGMP_OnlineServices_LobbyInterface::GetJoinOrderRelativeTo(int6
 		}
 	}
 
-	// our own sequence is unknown: the server isn't providing join order for this session at all,
-	// so callers should fall back to capping retries symmetrically for both sides (pre-812ecd14e
-	// behavior) rather than assuming the peer is the later joiner
 	if (myJoinSequence <= 0)
 	{
 		return EJoinOrderResult::Unknown;
 	}
 
-	// our own sequence is known but the peer isn't in our current roster (or their sequence is
-	// unknown): could be they haven't shown up in a refresh yet, or they already left - can't tell
-	// which from this alone, so don't assume unbounded retry
 	if (!bFoundPeer || theirJoinSequence <= 0)
 	{
 		return EJoinOrderResult::PeerNotInLobby;
@@ -1222,7 +1216,7 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 					if (pLobbyInterface == nullptr || pLobbyInterface != this || pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyJoinGeneration)
 					{
-						// we left or moved on while this join was in flight; if the service still let us in, leave again so we don't linger as a ghost member
+						// stale join response landed after we already left/moved on; leave again if it succeeded
 						if (pLobbyInterface == this && statusCode == 200 && bSuccess && m_CurrentLobby.lobbyID != lobbyInfo.lobbyID)
 						{
 							std::map<std::string, std::string> mapLeaveHeaders;
@@ -1381,13 +1375,11 @@ void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 {
 	m_bCannotConnectToLobbyPending = false;
 
-	// invalidate any join/create still in flight so its late response can't pull us back into a lobby
+	// invalidate any join/create still in flight
 	++m_LobbyJoinGeneration;
 	m_bAttemptingToJoinLobby = false;
 	ResetLobbyTryingToJoin();
 
-	// a mesh connectivity check started for this lobby is meaningless once we've left it; drop it so a
-	// late reply never fires into whatever lobby/menu we end up in next
 	std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
 	if (pWS != nullptr)
 	{
@@ -1500,8 +1492,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 {
 	AnticheatPlugInterface::EndSession();
 
-	// shares the join generation counter: creating a lobby and joining one are mutually exclusive
-	// attempts to become a lobby member, so a later attempt of either kind must invalidate this one
+	// shares the join generation counter with JoinLobby
 	const uint64_t lobbyCreateGeneration = ++m_LobbyJoinGeneration;
 
 	NGMP_OnlineServicesManager::GetInstance()->GetAndParseServiceConfig([=]()
@@ -1563,9 +1554,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 
 						if (pLobbyInterface != this || pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyCreateGeneration)
 						{
-							// the user backed out or joined/created elsewhere while this request was in flight.
-							// Don't touch any current state, but if the server actually created a lobby for us,
-							// leave/delete it so it doesn't sit around orphaned.
+							// stale response; delete the orphaned lobby if the server created one
 							NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Ignoring stale CreateLobby response (generation changed)");
 							if (resp.result == ECreateLobbyResponseResult::SUCCEEDED)
 							{
@@ -1641,7 +1630,6 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 								{
 									if (pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyCreateGeneration)
 									{
-										// went stale while OnJoinedOrCreatedLobby's async work (mesh/UpdateRoomDataCache) was in flight
 										return;
 									}
 
@@ -1649,7 +1637,6 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 
 									if (bSuccess)
 									{
-										// Set our properties
 										pLobbyInterface->ApplyLocalUserPropertiesToCurrentNetworkRoom();
 									}
 								});
@@ -1690,9 +1677,6 @@ void NGMP_OnlineServices_LobbyInterface::OnJoinedOrCreatedLobby(bool bAlreadyUpd
 			delete pNewMesh;
 			m_bAttemptingToJoinLobby = false;
 
-			// treat exactly like a mesh that failed to connect to everyone: shows an error and backs
-			// out of the lobby. Reachable in practice only from CreateLobby, since JoinLobby already
-			// validates mesh creation before this point.
 			QueueCannotConnectToLobby();
 
 			if (fnCallback != nullptr)

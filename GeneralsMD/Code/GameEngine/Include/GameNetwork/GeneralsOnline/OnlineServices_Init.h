@@ -177,17 +177,15 @@ public:
 
 	void SendData_CountdownStarted();
 
-	// bool: mesh fully connected; missing links; reason ("" on success, else e.g. "missing_connections",
+	// params: fully connected, missing links, reason ("" on success, else e.g. "missing_connections",
 	// "timeout", "member_left", "check_superseded")
 	std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> m_cbOnConnectivityCheckComplete = nullptr;
 
-	// the lobby this check was started for; a reply that arrives after we've left/changed lobbies is stale and ignored
+	// lobby ID the check was started for; a stale reply (different lobby) is ignored
 	int64_t m_connectivityCheckLobbyID = -1;
 
 	void SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> cbOnConnectivityCheckComplete);
 
-	// clears any in-flight connectivity check callback; call on menu shutdown or lobby leave so a late
-	// reply never fires into torn-down UI state
 	void ClearConnectivityCheckCallback()
 	{
 		m_cbOnConnectivityCheckComplete = nullptr;
@@ -198,14 +196,10 @@ public:
 
 	int Ping();
 
-	// Queues the message for delivery on the main thread's next Tick(); never sends synchronously
-	// and never drops on contention. Safe to call from any thread (e.g. a GameNetworkingSockets
-	// callback thread signalling out through the websocket).
+	// Queues the message; Tick() flushes it on the main thread. Thread-safe.
 	void Send(const char* message);
 
-	// Inbound P2P signal payloads received over the websocket, drained by CSignalingClient::Poll()
-	// on the main thread. Pushed to from Tick() (also main thread); kept behind its own small mutex
-	// rather than relying on both sides always being on the main thread.
+	// Thread-safe queue of inbound P2P signal payloads; drained by CSignalingClient::Poll().
 	void PushPendingSignal(std::vector<uint8_t> payload)
 	{
 		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
@@ -262,13 +256,10 @@ private:
 
 	std::atomic<bool> m_bShuttingDown = false;
 
-	// Outbound messages queued for Tick() to flush on the main thread. Guarded by its own mutex,
-	// held only for push/swap (never across curl I/O), so Send() blocks briefly instead of racing
-	// a short try-lock and silently dropping the message on contention.
+	// Outbound messages queued for Tick() to flush.
 	std::mutex m_outboundQueueMutex;
 	std::vector<std::string> m_vecQueuedOutboungMsgs;
 
-	// Inbound P2P signals; see PushPendingSignal()/DrainPendingSignals() above.
 	std::mutex m_pendingSignalsMutex;
 	std::queue<std::vector<uint8_t>> m_pendingSignals;
 };

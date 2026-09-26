@@ -19,8 +19,7 @@
 bool g_bForceRelay = false;
 UnsignedInt m_exeCRCOriginal = 0;
 
-// Pool for deferred deletion of ConnectionSignaling objects; avoids "delete this" races during
-// async Steam callbacks.
+// Deferred-deletion pool for ConnectionSignaling objects (avoids "delete this" races).
 static std::mutex g_pendingDeletionMutex;
 static std::vector<void*> g_pendingConnSignalingDeletions;
 
@@ -41,12 +40,8 @@ static void CleanupPendingConnSignalingDeletions()
 	}
 }
 
-// Called when a connection undergoes a state transition.
-// NOTE ON LOCKING: this does not take m_mapConnectionsMutex while iterating/mutating m_mapConnections,
-// unlike NetworkMesh's other methods. This is safe because GameNetworkingSockets only ever delivers
-// this status-changed callback synchronously from within RunCallbacks() (see NetworkMesh::Tick(), which
-// calls SteamNetworkingSockets()->RunCallbacks() on the main thread) - it is never invoked directly from
-// an internal GNS thread. So this function always runs on the same thread as every other NetworkMesh call.
+// Called on connection state transitions. Always runs on the main thread via RunCallbacks(), so
+// m_mapConnections is accessed here without m_mapConnectionsMutex.
 void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)
 {
 	CleanupPendingConnSignalingDeletions();
@@ -98,9 +93,7 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 		{
 			PlayerConnection& plrConnection = connections[connectionID];
 
-			// Capture what we need before SetDisconnected(): it may run UpdateState(), whose external
-			// callback (e.g. disconnectPlayer -> lobby leave) can erase this entry from m_mapConnections.
-			// plrConnection would then be a dangling reference, so nothing below may touch it again.
+			// Capture before SetDisconnected(), which can erase this entry via UpdateState().
 			const int64_t userID = plrConnection.m_userID;
 			const int signallingAttemptsBeforeDisconnect = plrConnection.m_SignallingAttempts;
 
@@ -114,17 +107,14 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 			ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
 			const int numSignallingAttempts = 3;
 
-			// only the later joiner of a pair is capped and gives up, so one unreachable joiner can't pull the host or
-			// anyone already in the lobby out of it; the earlier side keeps retrying until the joiner leaves.
-			// If the server isn't providing join order at all (our own JoinSequence unknown), fall back to
-			// capping both sides the same way (pre-812ecd14e behavior) instead of retrying unbounded.
+			// Only the later joiner of a pair is capped and gives up.
 			NGMP_OnlineServices_LobbyInterface* pJoinOrderLobby = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 			const EJoinOrderResult joinOrder = pJoinOrderLobby != nullptr ? pJoinOrderLobby->GetJoinOrderRelativeTo(userID) : EJoinOrderResult::Unknown;
 			bool bShouldRetry = serviceConf.retry_signalling && (joinOrder == EJoinOrderResult::TheyJoinedLater || signallingAttemptsBeforeDisconnect < numSignallingAttempts);
 
 			bool bWasError = pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally || pInfo->m_info.m_eEndReason != k_ESteamNetConnectionEnd_App_Generic;
 			plrConnection.SetDisconnected(bWasError, pMesh, bShouldRetry && bWasError);
-			// plrConnection may be dangling from this point on - use the captured locals above instead.
+			// plrConnection may be dangling past this point; use the captured locals.
 
 			// the highest slot player, should leave. In most cases, this is the most recently joined player, but this may not be 100% accurate due to backfills.
 			// TODO_NGMP: In the future, we should pick the most recently joined by timestamp
@@ -174,8 +164,6 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 				}
 				else if (!bShouldRetry && joinOrder == EJoinOrderResult::PeerNotInLobby)
 				{
-					// they're not in our current roster at all - they may have already left, so don't
-					// escalate to leaving the whole lobby over them; just drop this one connection
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld is not in our current lobby roster; dropping just this connection", userID);
 				}
 				else if (!bShouldRetry)
@@ -424,10 +412,7 @@ class CSignalingClient : public ISignalingClient
 	};
 	ISteamNetworkingSockets* const m_pSteamNetworkingSockets;
 
-	// Guards m_queueSend, held only for push/swap. SendSignal() (and so Send() below) may be called
-	// from any thread - GameNetworkingSockets can invoke it from an internal thread - while Poll()
-	// drains it on the main thread. A blocking lock here means a signal is never silently dropped
-	// on contention; only the explicit backlog cap below discards anything, and that's logged.
+	// Guards m_queueSend; SendSignal() may run on any thread, Poll() drains on the main thread.
 	std::mutex m_sendQueueMutex;
 	std::deque<QueuedSend> m_queueSend;
 
@@ -457,16 +442,12 @@ public:
 
 	}
 
-	// Send the signal. May be called from any thread (see SendSignal() above); always queues and
-	// never drops on lock contention - Poll() flushes the queue on the main thread.
+	// May be called from any thread; always queues, Poll() flushes on the main thread.
 	void Send(int64_t target_user_id, std::vector<uint8_t>& vecPayload)
 	{
 		std::scoped_lock<std::mutex> lock(m_sendQueueMutex);
 
-		// If we're getting backed up, delete the oldest entries.  Remember,
-		// we are only required to do best-effort delivery.  And old signals are the
-		// most likely to be out of date (either old data, or the client has already
-		// timed them out and queued a retry).
+		// Best-effort delivery; drop oldest on backlog.
 		while (m_queueSend.size() > 128)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Signaling send queue is backed up.  Discarding oldest signals\n");
@@ -511,9 +492,6 @@ public:
 		std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
 		if (pWS)
 		{
-			// Drain our own outbound queue into a local batch under the lock, then hand each entry to
-			// the websocket outside of it - SendData_Signalling() only queues (see WebSocket::Send()),
-			// but this keeps I/O and message handling out from under m_sendQueueMutex regardless.
 			std::deque<QueuedSend> sendBatch;
 			{
 				std::scoped_lock<std::mutex> lock(m_sendQueueMutex);
@@ -528,7 +506,6 @@ public:
 				sendBatch.pop_front();
 			}
 
-			// Likewise, drain inbound signals into a local batch, then dispatch outside the lock.
 			std::queue<std::vector<uint8_t>> pendingSignals = pWS->DrainPendingSignals();
 
 			// Now dispatch any buffered signals

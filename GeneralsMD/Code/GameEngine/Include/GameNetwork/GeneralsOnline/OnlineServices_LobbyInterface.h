@@ -102,15 +102,10 @@ enum class ELobbyJoinability
 // Result of comparing our JoinSequence against a peer's on the current member list.
 enum class EJoinOrderResult
 {
-	WeJoinedLater,   // both sequences known; ours is greater
-	TheyJoinedLater, // both sequences known and theirs is greater: they joined after our last
-	                 // refresh, so they are the later joiner and will cap/give up on their own side
-	PeerNotInLobby,  // our sequence is known but the peer isn't in our current roster at all (or
-	                 // their sequence is unknown) - could mean they haven't shown up in a refresh
-	                 // yet, or that they already left; can't tell which, so callers should cap
-	                 // retries and drop just this connection rather than assuming either "they'll
-	                 // give up" (they might already be gone) or "we're the later joiner"
-	Unknown,         // OUR OWN sequence is unknown: the server isn't providing join order at all
+	WeJoinedLater,  // both sequences known; ours is greater
+	TheyJoinedLater, // both sequences known; theirs is greater
+	PeerNotInLobby, // our sequence known; peer absent/unknown in current roster
+	Unknown,        // our own sequence unknown
 };
 
 struct LobbyMemberEntry;
@@ -393,9 +388,8 @@ public:
 
 	void UpdateRoomDataCache(std::function<void(bool)> fnCallback = nullptr);
 
-	// Parses a lobby JSON object (the "lobby" field from GET lobby, or the same object embedded
-	// in a matchmaking websocket event) into a LobbyEntry, including its members. Shared so
-	// callers other than UpdateRoomDataCache don't duplicate this field-by-field parsing.
+	// Parses a lobby JSON object (GET lobby's "lobby" field, or the same shape embedded in a
+	// matchmaking websocket event) into a LobbyEntry, including members.
 	LobbyEntry ParseLobbyEntryFromJson(const nlohmann::json& lobbyJson);
 
 	bool IsAttemptingToJoinLobby() const { return m_bAttemptingToJoinLobby; }
@@ -422,10 +416,7 @@ public:
 		m_OnCannotConnectToLobbyCallback = nullptr;
 	}
 
-	// Compares our JoinSequence against userID's on the current member list. See EJoinOrderResult:
-	// EJoinOrderResult::Unknown specifically means OUR OWN sequence is unknown (the server isn't
-	// providing join order at all), which callers should treat as "fall back to capping retries for
-	// both sides", not as "the peer joined later".
+	// Compares our JoinSequence against userID's on the current member list.
 	EJoinOrderResult GetJoinOrderRelativeTo(int64_t userID) const;
 
 	// raised from inside the mesh's GNS callbacks, dispatched by Tick once the mesh is done with them

@@ -834,11 +834,7 @@ void NGMP_OnlineServicesManager::OnLogin(ELoginResult loginResult, const char* s
 			NetworkMeshLibrary::EnsureInitialized(pAuthInterface->GetUserID());
 		}
 
-		// Tear down any previous session's websocket before replacing it. Without this, the old
-		// connection is simply abandoned: nothing calls its Tick() once m_pWebSocket points elsewhere,
-		// so it never closes its curl connection on its own, and its callbacks (which may capture UI
-		// or lobby state from the old session) would still be able to fire if anything else is still
-		// holding a shared_ptr to it.
+		// Tear down any previous session's websocket before replacing it.
 		if (m_pWebSocket != nullptr)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] OnLogin: shutting down previous websocket before re-login");

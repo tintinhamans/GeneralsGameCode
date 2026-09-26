@@ -282,9 +282,7 @@ void WebSocket::Disconnect()
 
 	if (m_pCurlWS != nullptr)
 	{
-		// best-effort: flush anything queued since the last Tick() before closing, so a message
-		// queued right before a leave/logout/shutdown isn't silently dropped (Send() always queues
-		// now, it never sends synchronously; only Tick() used to flush this).
+		// best-effort flush of anything queued since the last Tick() before closing
 		std::vector<std::string> outboundBatch;
 		{
 			std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
@@ -331,9 +329,7 @@ void WebSocket::Disconnect()
 
 void WebSocket::Send(const char* send_payload)
 {
-	// Always queue; Tick() flushes on the main thread. This may be called from any thread (e.g. a
-	// GameNetworkingSockets callback thread relaying a P2P signal), so it blocks briefly on the
-	// dedicated queue mutex instead of racing a short try-lock and silently dropping the message.
+	// Thread-safe; always queues. Tick() flushes on the main thread.
 	std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
 
 	static constexpr size_t kMaxQueuedOutboundMsgs = 256;
@@ -645,9 +641,7 @@ static void RestoreSessionState()
 		pSocial->RegisterForRealtimeServiceUpdates();
 	}
 
-	// the new session starts outside any network room. The room list may have changed while we were
-	// disconnected, so the old index could now be out of range or simply point at a different room -
-	// remember the room's stable ID/name instead, and resolve that against a freshly fetched room list.
+	// resolve the previous room by stable ID against a freshly fetched room list, not by index
 	NGMP_OnlineServices_RoomsInterface* pRooms = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
 	if (pRooms == nullptr)
 	{
@@ -754,11 +748,7 @@ void WebSocket::UpdateReconnect()
 
 void WebSocket::Tick()
 {
-	// Tick() only ever runs on the main thread, and m_pCurlWS / m_vecWSPartialBuffer / m_bConnected
-	// and the reconnect state below are only ever touched from here - Send() no longer touches curl
-	// directly (see WebSocket::Send()), so no lock is needed for any of that. The two queues that are
-	// genuinely shared with other threads (outbound messages, inbound signals) have their own small
-	// dedicated mutexes, held only long enough to drain into a local batch before it's used below.
+	// Main thread only; m_pCurlWS/m_vecWSPartialBuffer/m_bConnected are unlocked here.
 	UpdateReconnect();
 
 
@@ -1282,8 +1272,6 @@ void WebSocket::Tick()
 										}
 										catch (...)
 										{
-											// still resolve the check as a failure instead of leaving the host's UI (e.g. the Start
-											// button) disabled forever waiting for a callback that will now never come.
 											NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Error processing response, resolving as failure");
 											bMeshComplete = false;
 											missingConnections.clear();
@@ -1590,12 +1578,8 @@ void WebSocket::Tick()
 												bool bParsedLobbySnapshot = false;
 												if (jsonObject.contains("lobby"))
 												{
-													// full lobby details (same shape GET lobby returns), parsed with the
-													// same field parsing UpdateRoomDataCache uses. ParseLobbyEntryFromJson
-													// throws on any missing/malformed field; isolate that so a bad
-													// snapshot falls back below instead of aborting the whole join (the
-													// outer handler's catch would otherwise swallow this and JoinLobby
-													// would never be called, stranding the player).
+													// ParseLobbyEntryFromJson throws on malformed fields; isolate so a bad
+													// snapshot falls back below instead of aborting the whole join
 													try
 													{
 														lobbyEntry = pLobbyInterface->ParseLobbyEntryFromJson(jsonObject["lobby"]);
@@ -1609,9 +1593,6 @@ void WebSocket::Tick()
 
 												if (!bParsedLobbySnapshot)
 												{
-													// server didn't send full details (or they didn't parse); fall back to
-													// what little we know. JoinLobby's own follow-up UpdateRoomDataCache
-													// will fill in the rest.
 													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] MATCHMAKING_ACTION_JOIN_PREARRANGED_LOBBY: no usable 'lobby' field in message, using fallback map");
 													lobbyEntry = LobbyEntry();
 													lobbyEntry.lobbyID = mmEvent.lobby_id;
@@ -1620,9 +1601,6 @@ void WebSocket::Tick()
 
 												if (pLobbyInterface->IsAttemptingToJoinLobby())
 												{
-													// JoinLobby silently no-ops while a join is already in progress; for
-													// matchmaking specifically, surface that instead of joining nothing
-													// and leaving the user staring at "Joining QuickMatch Lobby" forever
 													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] MATCHMAKING_ACTION_JOIN_PREARRANGED_LOBBY: a join is already in progress, ignoring match");
 													pLobbyInterface->InvokeMatchmakingMessageCallback("Could not join the matched lobby: already joining another lobby.");
 												}
@@ -1665,8 +1643,6 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::MATCHMAKING_ACTION_SETUP_PROGRESS:
 									{
-										// Gates how long Back/ESC stay disabled in the quickmatch menu while waiting for the
-										// match to set up, so clamp what the service can ask for to a sane range.
 										static constexpr int kMinMatchSetupTimeoutMs = 1000;
 										static constexpr int kMaxMatchSetupTimeoutMs = 120000;
 

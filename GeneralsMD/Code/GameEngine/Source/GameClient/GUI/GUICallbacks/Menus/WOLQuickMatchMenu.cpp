@@ -115,10 +115,7 @@ static NameKeyType comboBoxSideID = NAMEKEY_INVALID;
 static NameKeyType comboBoxColorID = NAMEKEY_INVALID;
 
 
-// Bumped on Init and Shutdown. Async HTTP callbacks (findPlayerStatsByID, RetrievePlaylists,
-// StartMatchmaking) that aren't torn down via an explicit Deregister call in Shutdown capture
-// this and bail if it has changed by the time they fire, so they never touch a closed menu's
-// (possibly stale) static window pointers.
+// Bumped on Init/Shutdown; async callbacks bail if this changed before they fire.
 static uint64_t s_quickMatchMenuGeneration = 0;
 
 // Window Pointers ------------------------------------------------------------------------
@@ -1197,14 +1194,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Could not connect to a player, waiting for the matchmaker..."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 
-			// The service's own mesh check is authoritative for quick match: it will either send
-			// MATCHMAKING_ACTION_REQUEUE (RegisterForMatchmakingRequeueCallback already resets these
-			// same timers/buttons when that arrives) or eventually give up on its own. Don't call
-			// CancelMatchmaking() here - that DELETEs /matchmaking and the lobby, and racing it
-			// against a requeue the server just issued for us could unregister us from the bucket
-			// it just placed us in. Just clear our local match-found countdown and leave Back/Stop
-			// enabled so the user can still cancel manually; matchmaking is still active server-side
-			// so Start/Stop/Widen visibility is left alone.
+			// Requeue/give-up is server-driven; don't cancel here (would race a requeue).
 			matchFoundTimeoutStart = 0;
 			matchStartCountdownLastSecond = 0;
 
@@ -2415,8 +2405,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 							{
 								if (generationForStart != s_quickMatchMenuGeneration)
 								{
-									// the menu was closed while this request was in flight; the static window
-									// pointers below may already be null/stale
+					// menu closed; static window pointers may be stale
 									return;
 								}
 

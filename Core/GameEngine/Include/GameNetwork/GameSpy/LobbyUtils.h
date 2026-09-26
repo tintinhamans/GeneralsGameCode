@@ -40,8 +40,7 @@ void RefreshGameInfoListBox( GameWindow *mainWin, GameWindow *win );
 void RefreshGameListBoxes();
 void ToggleGameListType();
 
-// The game listbox's item data is a row index (32-bit safe), not the 64-bit lobby ID itself.
-// Resolve the real ID with this before calling anything that needs it (e.g. GetLobbyFromID).
+// Resolves a game listbox row (item data) to its 64-bit lobby ID.
 int64_t ResolveGameListLobbyID(Int rowItemData);
 
 void playerTemplateComboBoxTooltip(GameWindow *wndComboBox, WinInstanceData *instData, UnsignedInt mouse);

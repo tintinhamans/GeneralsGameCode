@@ -614,9 +614,7 @@ static Bool lobbyHasBuddy(GameSpyStagingRoom *room)
 }
 #endif
 
-// Lobby IDs are 64-bit, but GadgetListBox item data is a 32-bit void* on this platform, so we
-// can't stash the ID itself there. Instead we store the row index and keep the real ID here,
-// rebuilt every time the game listbox is repopulated (see RefreshGameListBox/insertGame).
+// Row index -> 64-bit lobby ID; rebuilt on each RefreshGameListBox/insertGame.
 static std::vector<int64_t> s_lobbyRowIDs;
 
 int64_t ResolveGameListLobbyID(Int rowItemData)
