@@ -975,6 +975,11 @@ static void StartPressed()
 		return;
 
 	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+	if (pMesh == nullptr)
+	{
+		return;
+	}
+
 	int numHumanPlayers = 0;
 	for(LobbyMemberEntry & member : pLobbyInterface->GetCurrentLobby().members)
 	{
@@ -2079,6 +2084,10 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 	// TODO_NGMP
 	NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+	if (game == nullptr)
+	{
+		return;
+	}
 
 	NGMPGameSlot* hostSlot = game->getGameSpySlot(0);
 	hostSlot->setAccept();
@@ -4130,6 +4139,11 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					{
 						//I'm the Client... send an accept message to the host.
 						auto game = pLobbyInterface->GetCurrentGame();
+						if (game == nullptr)
+						{
+							break;
+						}
+
 						GameSlot *localSlot = game->getSlot(game->getLocalSlotNum());
 						if (localSlot)
 						{
@@ -4167,11 +4181,16 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 						break;
 					}
 
+					NGMPGame* game = pLobbyInterface->GetCurrentGame();
+					if (game == nullptr)
+					{
+						break;
+					}
+
 					for (Int i = 0; i < MAX_SLOTS; i++)
 					{
 						if (controlID == buttonMapStartPositionID[i])
 						{
-							NGMPGame* game = pLobbyInterface->GetCurrentGame();
 							Int playerIdxInPos = -1;
 							for (Int j=0; j<MAX_SLOTS; ++j)
 							{
@@ -4226,11 +4245,16 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					break;
 				}
 
+				NGMPGame* game = pLobbyInterface->GetCurrentGame();
+				if (game == nullptr)
+				{
+					break;
+				}
+
 				for (Int i = 0; i < MAX_SLOTS; i++)
 				{
 					if (controlID == buttonMapStartPositionID[i])
 					{
-						NGMPGame* game = pLobbyInterface->GetCurrentGame();
 						Int playerIdxInPos = -1;
 						for (Int j=0; j<MAX_SLOTS; ++j)
 						{
