@@ -1213,6 +1213,12 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 					if (pLobbyInterface == nullptr || pLobbyInterface != this || pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyJoinGeneration)
 					{
+						// we left or moved on while this join was in flight; if the service still let us in, leave again so we don't linger as a ghost member
+						if (pLobbyInterface == this && statusCode == 200 && bSuccess && m_CurrentLobby.lobbyID != lobbyInfo.lobbyID)
+						{
+							std::map<std::string, std::string> mapLeaveHeaders;
+							NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapLeaveHeaders, "", nullptr);
+						}
 						return;
 					}
 
@@ -1365,6 +1371,11 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 {
 	m_bCannotConnectToLobbyPending = false;
+
+	// invalidate any join/create still in flight so its late response can't pull us back into a lobby
+	++m_LobbyJoinGeneration;
+	m_bAttemptingToJoinLobby = false;
+	ResetLobbyTryingToJoin();
 
 	// a mesh connectivity check started for this lobby is meaningless once we've left it; drop it so a
 	// late reply never fires into whatever lobby/menu we end up in next
