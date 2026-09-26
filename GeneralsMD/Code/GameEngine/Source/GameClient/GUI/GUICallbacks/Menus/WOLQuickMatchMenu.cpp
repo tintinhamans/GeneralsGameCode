@@ -1032,7 +1032,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
 		if (pAuthInterface != nullptr)
 		{
-			tmp.format(TheGameText->fetch("GUI:QuickMatchTitle"), pAuthInterface->GetDisplayName().c_str());
+			tmp.format(WidenFormatSpecifiers(TheGameText->fetch("GUI:QuickMatchTitle").str()).c_str(), pAuthInterface->GetDisplayNameW().c_str());
 		}
 #endif
 		GadgetStaticTextSetText(staticTextTitle, tmp);
