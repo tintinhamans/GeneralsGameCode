@@ -9,7 +9,6 @@
 #include "GameClient/InGameUI.h"
 #include "GameLogic/VictoryConditions.h"
 #include <atomic>
-#include <set>
 
 extern NGMPGame* TheNGMPGame;
 
@@ -31,6 +30,9 @@ struct LobbyMemberEntry : public NetworkMemberBase
 	std::string region;
 	std::string middlewareUserID;
 	int latency = 0;
+
+	// per-lobby monotonic join order from the server; creator = 1, never reassigned, 0 = unknown/AI/open/closed slot
+	int64_t joinSequence = 0;
 
 	bool IsHuman() const
 	{
@@ -374,14 +376,6 @@ public:
 
 	bool IsHost();
 
-private:
-	std::set<int64_t> m_setMembersBeforeUs;
-	bool m_bJoinOrderKnown = false;
-	void ResetJoinOrder();
-	void RecordJoinOrder(const std::vector<LobbyMemberEntry>& members);
-
-public:
-
 	void UpdateRoomDataCache(std::function<void(bool)> fnCallback = nullptr);
 
 	std::function<void(LobbyMemberEntry)> m_cbPlayerDoesntHaveMap = nullptr;
@@ -406,28 +400,10 @@ public:
 		m_OnCannotConnectToLobbyCallback = nullptr;
 	}
 
-	// true if userID was already in the lobby when we joined, i.e. we are the later joiner of that pair
-	bool JoinedAfter(int64_t userID) const
-	{
-		return m_bJoinOrderKnown && m_setMembersBeforeUs.contains(userID);
-	}
-
-	bool IsJoinOrderKnown() const
-	{
-		return m_bJoinOrderKnown;
-	}
-
-	bool IsLobbyMember(int64_t userID) const
-	{
-		for (const LobbyMemberEntry& member : m_CurrentLobby.members)
-		{
-			if (member.user_id == userID)
-			{
-				return true;
-			}
-		}
-		return false;
-	}
+	// true if we are the later joiner of the (userID, us) pair, per the server's JoinSequence on the
+	// current member list. If userID isn't in our current roster, or either sequence is unknown, we
+	// treat userID as having joined after our last refresh, so we are NOT the later joiner (we keep retrying).
+	bool JoinedAfter(int64_t userID) const;
 
 	// raised from inside the mesh's GNS callbacks, dispatched by Tick once the mesh is done with them
 	bool m_bCannotConnectToLobbyPending = false;
