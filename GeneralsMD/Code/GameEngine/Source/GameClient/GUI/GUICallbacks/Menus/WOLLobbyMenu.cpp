@@ -1228,6 +1228,11 @@ void NGMP_WOLLobbyMenu_JoinLobbyCallback(EJoinLobbyResult result)
             s = TheGameText->fetchOrSubstitute("GUI:JoinFailedAnticheatMismatch", L"You are running a different anticheat from this lobby host.");
             break;
 
+		case EJoinLobbyResult::JoinLobbyResult_CRCMismatch:
+			// same message shown for the client-side exe/ini CRC check on this same join path
+			s = TheGameText->fetch("GUI:JoinFailedCRCMismatch");
+			break;
+
 		// NOTE: Commented out ones are no longer supported. Seems like these we GS concepts but not part of the game
 		/*
 		case PEERInviteOnlyRoom:  // The room is invite only.

@@ -89,7 +89,8 @@ enum class EJoinLobbyResult
 	JoinLobbyResult_FullRoom,       // The room is full.
 	JoinLobbyResult_BadPassword,    // An incorrect password (or none) was given for a passworded room.
 	JoinLobbyResult_JoinFailed, // Generic failure.
-	JoinLobbyResult_AnticheatMismatch // Anticheat mismatch
+	JoinLobbyResult_AnticheatMismatch, // Anticheat mismatch
+	JoinLobbyResult_CRCMismatch // exe/ini CRC mismatch with the lobby (HTTP 409)
 };
 
 enum class ELobbyJoinability
