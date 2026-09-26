@@ -626,12 +626,57 @@ static void RestoreSessionState()
 		pSocial->RegisterForRealtimeServiceUpdates();
 	}
 
-	// the new session starts outside any network room, so rejoin the one the lobby menu still shows
+	// the new session starts outside any network room. The room list may have changed while we were
+	// disconnected, so the old index could now be out of range or simply point at a different room -
+	// remember the room's stable ID/name instead, and resolve that against a freshly fetched room list.
 	NGMP_OnlineServices_RoomsInterface* pRooms = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-	if (pRooms != nullptr && pRooms->GetCurrentRoomIndex() >= 0)
+	if (pRooms == nullptr)
 	{
-		pRooms->JoinRoom(pRooms->GetCurrentRoomIndex());
+		return;
 	}
+
+	const std::vector<NetworkRoom>& roomsBeforeRefresh = pRooms->GetGroupRooms();
+	const int previousRoomIndex = pRooms->GetCurrentRoomIndex();
+	std::optional<int> previousRoomID;
+	UnicodeString strPreviousRoomName;
+	if (previousRoomIndex >= 0 && previousRoomIndex < (int)roomsBeforeRefresh.size())
+	{
+		previousRoomID = roomsBeforeRefresh[previousRoomIndex].GetRoomID();
+		strPreviousRoomName = roomsBeforeRefresh[previousRoomIndex].GetRoomDisplayName();
+	}
+
+	pRooms->GetRoomList([pRooms, previousRoomID, strPreviousRoomName](bool bSuccess)
+		{
+			const std::vector<NetworkRoom>& rooms = pRooms->GetGroupRooms();
+			if (!bSuccess || rooms.empty())
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] RestoreSessionState: failed to fetch room list, cannot rejoin a room");
+				return;
+			}
+
+			// fall back to the default room (index 0) if the room we were in no longer exists
+			int roomIndexToJoin = 0;
+			bool bFoundPreviousRoom = false;
+			if (previousRoomID.has_value())
+			{
+				for (size_t i = 0; i < rooms.size(); ++i)
+				{
+					if (rooms[i].GetRoomID() == *previousRoomID)
+					{
+						roomIndexToJoin = (int)i;
+						bFoundPreviousRoom = true;
+						break;
+					}
+				}
+			}
+
+			if (previousRoomID.has_value() && !bFoundPreviousRoom)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] RestoreSessionState: room '%s' (id %d) no longer exists, joining the default room instead", to_utf8(strPreviousRoomName.str()).c_str(), *previousRoomID);
+			}
+
+			pRooms->JoinRoom(roomIndexToJoin);
+		});
 }
 
 void WebSocket::UpdateReconnect()
