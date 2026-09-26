@@ -1567,15 +1567,37 @@ void WebSocket::Tick()
 
 												// TODO_QUICKMATCH: Only if really in quickmatch
 
-												// TODO_QUICKMATCH: We need to retrieve this info instead
-												// basic info needed to join
 												LobbyEntry lobbyEntry;
-												lobbyEntry.lobbyID = mmEvent.lobby_id;
-												lobbyEntry.map_path = "Maps\\Alpine Assault\\Alpine Assault.map";
+												if (jsonObject.contains("lobby"))
+												{
+													// full lobby details (same shape GET lobby returns), parsed with the
+													// same field parsing UpdateRoomDataCache uses
+													lobbyEntry = pLobbyInterface->ParseLobbyEntryFromJson(jsonObject["lobby"]);
+												}
+												else
+												{
+													// server didn't send full details for some reason; fall back to what
+													// little we know. JoinLobby's own follow-up UpdateRoomDataCache will
+													// fill in the rest.
+													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] MATCHMAKING_ACTION_JOIN_PREARRANGED_LOBBY: no 'lobby' field in message, using fallback map");
+													lobbyEntry.lobbyID = mmEvent.lobby_id;
+													lobbyEntry.map_path = "Maps\\Alpine Assault\\Alpine Assault.map";
+												}
 
-												pLobbyInterface->JoinLobby(lobbyEntry, std::string());
+												if (pLobbyInterface->IsAttemptingToJoinLobby())
+												{
+													// JoinLobby silently no-ops while a join is already in progress; for
+													// matchmaking specifically, surface that instead of joining nothing
+													// and leaving the user staring at "Joining QuickMatch Lobby" forever
+													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] MATCHMAKING_ACTION_JOIN_PREARRANGED_LOBBY: a join is already in progress, ignoring match");
+													pLobbyInterface->InvokeMatchmakingMessageCallback("Could not join the matched lobby: already joining another lobby.");
+												}
+												else
+												{
+													pLobbyInterface->JoinLobby(lobbyEntry, std::string());
 
-												pLobbyInterface->InvokeMatchmakingMessageCallback("Joining QuickMatch Lobby");
+													pLobbyInterface->InvokeMatchmakingMessageCallback("Joining QuickMatch Lobby");
+												}
 											}
 											else
 											{

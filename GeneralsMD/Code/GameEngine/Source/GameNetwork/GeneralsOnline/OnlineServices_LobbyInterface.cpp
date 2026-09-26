@@ -858,6 +858,77 @@ void NGMP_OnlineServices_LobbyInterface::ApplyLocalUserPropertiesToCurrentNetwor
 	}
 }
 
+LobbyEntry NGMP_OnlineServices_LobbyInterface::ParseLobbyEntryFromJson(const nlohmann::json& lobbyEntryIter)
+{
+	LobbyEntry lobbyEntry;
+	lobbyEntryIter["LobbyID"].get_to(lobbyEntry.lobbyID);
+	lobbyEntryIter["Owner"].get_to(lobbyEntry.owner);
+	lobbyEntryIter["Name"].get_to(lobbyEntry.name);
+	lobbyEntryIter["MapName"].get_to(lobbyEntry.map_name);
+	lobbyEntryIter["MapPath"].get_to(lobbyEntry.map_path);
+	lobbyEntryIter["IsMapOfficial"].get_to(lobbyEntry.map_official);
+	lobbyEntryIter["NumCurrentPlayers"].get_to(lobbyEntry.current_players);
+	lobbyEntryIter["MaxPlayers"].get_to(lobbyEntry.max_players);
+	lobbyEntryIter["IsVanillaTeamsOnly"].get_to(lobbyEntry.vanilla_teams);
+	lobbyEntryIter["RNGSeed"].get_to(lobbyEntry.rng_seed);
+	lobbyEntryIter["StartingCash"].get_to(lobbyEntry.starting_cash);
+	lobbyEntryIter["IsLimitSuperweapons"].get_to(lobbyEntry.limit_superweapons);
+	lobbyEntryIter["IsTrackingStats"].get_to(lobbyEntry.track_stats);
+	lobbyEntryIter["IsPassworded"].get_to(lobbyEntry.passworded);
+	lobbyEntryIter["AllowObservers"].get_to(lobbyEntry.allow_observers);
+	lobbyEntryIter["MaximumCameraHeight"].get_to(lobbyEntry.max_cam_height);
+	lobbyEntryIter["ExeCRC"].get_to(lobbyEntry.exe_crc);
+	lobbyEntryIter["IniCRC"].get_to(lobbyEntry.ini_crc);
+	lobbyEntryIter["MatchID"].get_to(lobbyEntry.match_id);
+	lobbyEntryIter["LobbyType"].get_to(lobbyEntry.lobby_type);
+	lobbyEntryIter["Region"].get_to(lobbyEntry.region);
+
+	// correct map path
+	if (lobbyEntry.map_official)
+	{
+		lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
+	}
+	else
+	{
+		// TODO_NGMP: This needs to match identically, but why did it change from the base game?
+		AsciiString strUserMapDIr = TheMapCache->getUserMapDir(true);
+		strUserMapDIr.toLower();
+
+		lobbyEntry.map_path = std::format("{}\\{}", strUserMapDIr.str(), lobbyEntry.map_path.c_str());
+	}
+
+	if (lobbyEntryIter.contains("Members"))
+	{
+		for (const auto& memberEntryIter : lobbyEntryIter["Members"])
+		{
+			LobbyMemberEntry memberEntry;
+
+			memberEntryIter["UserID"].get_to(memberEntry.user_id);
+			memberEntryIter["DisplayName"].get_to(memberEntry.display_name);
+			memberEntryIter["IsReady"].get_to(memberEntry.m_bIsReady);
+			memberEntryIter["Port"].get_to(memberEntry.preferredPort);
+			memberEntryIter["Side"].get_to(memberEntry.side);
+			memberEntryIter["Color"].get_to(memberEntry.color);
+			memberEntryIter["Team"].get_to(memberEntry.team);
+			memberEntryIter["StartingPosition"].get_to(memberEntry.startpos);
+			memberEntryIter["HasMap"].get_to(memberEntry.has_map);
+			memberEntryIter["SlotState"].get_to(memberEntry.m_SlotState);
+			memberEntryIter["SlotIndex"].get_to(memberEntry.m_SlotIndex);
+			memberEntryIter["Region"].get_to(memberEntry.region);
+			memberEntryIter["MiddlewareUserID"].get_to(memberEntry.middlewareUserID);
+
+			if (memberEntryIter.contains("JoinSequence"))
+			{
+				memberEntryIter["JoinSequence"].get_to(memberEntry.joinSequence);
+			}
+
+			lobbyEntry.members.push_back(memberEntry);
+		}
+	}
+
+	return lobbyEntry;
+}
+
 void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCallback)
 {
 	// refresh lobby
@@ -897,28 +968,11 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 
 						auto lobbyEntryIter = jsonObjectRoot["lobby"];
 
-						LobbyEntry lobbyEntry;
-						lobbyEntryIter["LobbyID"].get_to(lobbyEntry.lobbyID);
-						lobbyEntryIter["Owner"].get_to(lobbyEntry.owner);
-						lobbyEntryIter["Name"].get_to(lobbyEntry.name);
-						lobbyEntryIter["MapName"].get_to(lobbyEntry.map_name);
-						lobbyEntryIter["MapPath"].get_to(lobbyEntry.map_path);
-						lobbyEntryIter["IsMapOfficial"].get_to(lobbyEntry.map_official);
-						lobbyEntryIter["NumCurrentPlayers"].get_to(lobbyEntry.current_players);
-						lobbyEntryIter["MaxPlayers"].get_to(lobbyEntry.max_players);
-						lobbyEntryIter["IsVanillaTeamsOnly"].get_to(lobbyEntry.vanilla_teams);
-						lobbyEntryIter["RNGSeed"].get_to(lobbyEntry.rng_seed);
-						lobbyEntryIter["StartingCash"].get_to(lobbyEntry.starting_cash);
-						lobbyEntryIter["IsLimitSuperweapons"].get_to(lobbyEntry.limit_superweapons);
-						lobbyEntryIter["IsTrackingStats"].get_to(lobbyEntry.track_stats);
-						lobbyEntryIter["IsPassworded"].get_to(lobbyEntry.passworded);
-						lobbyEntryIter["AllowObservers"].get_to(lobbyEntry.allow_observers);
-						lobbyEntryIter["MaximumCameraHeight"].get_to(lobbyEntry.max_cam_height);
-						lobbyEntryIter["ExeCRC"].get_to(lobbyEntry.exe_crc);
-						lobbyEntryIter["IniCRC"].get_to(lobbyEntry.ini_crc);
-						lobbyEntryIter["MatchID"].get_to(lobbyEntry.match_id);
-						lobbyEntryIter["LobbyType"].get_to(lobbyEntry.lobby_type);
-						lobbyEntryIter["Region"].get_to(lobbyEntry.region);
+						LobbyEntry lobbyEntry = ParseLobbyEntryFromJson(lobbyEntryIter);
+
+						// the diff logic below needs the new members separately from the parsed entry
+						std::vector<LobbyMemberEntry> parsedMembers = std::move(lobbyEntry.members);
+						lobbyEntry.members.clear();
 
 						if (lobbyEntry.lobby_type == ELobbyType::QuickMatch)
 						{
@@ -927,20 +981,6 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 
 						// store, we'll need it later and lobby obj gets destroyed on leave
 						m_CurrentMatchID = lobbyEntry.match_id;
-
-						// correct map path
-						if (lobbyEntry.map_official)
-						{
-							lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
-						}
-						else
-						{
-							// TODO_NGMP: This needs to match identically, but why did it change from the base game?
-							AsciiString strUserMapDIr = TheMapCache->getUserMapDir(true);
-							strUserMapDIr.toLower();
-
-							lobbyEntry.map_path = std::format("{}\\{}", strUserMapDIr.str(), lobbyEntry.map_path.c_str());
-						}
 
 						// did the map change? cache that we need to reset and transmit our ready state
 						bool bNeedsHasMapUpdate = false;
@@ -982,29 +1022,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 								}
 							}
 
-							for (const auto& memberEntryIter : lobbyEntryIter["Members"])
+							for (LobbyMemberEntry& memberEntry : parsedMembers)
 							{
-								LobbyMemberEntry memberEntry;
-
-								memberEntryIter["UserID"].get_to(memberEntry.user_id);
-								memberEntryIter["DisplayName"].get_to(memberEntry.display_name);
-								memberEntryIter["IsReady"].get_to(memberEntry.m_bIsReady);
-								memberEntryIter["Port"].get_to(memberEntry.preferredPort);
-								memberEntryIter["Side"].get_to(memberEntry.side);
-								memberEntryIter["Color"].get_to(memberEntry.color);
-								memberEntryIter["Team"].get_to(memberEntry.team);
-								memberEntryIter["StartingPosition"].get_to(memberEntry.startpos);
-								memberEntryIter["HasMap"].get_to(memberEntry.has_map);
-								memberEntryIter["SlotState"].get_to(memberEntry.m_SlotState);
-								memberEntryIter["SlotIndex"].get_to(memberEntry.m_SlotIndex);
-								memberEntryIter["Region"].get_to(memberEntry.region);
-								memberEntryIter["MiddlewareUserID"].get_to(memberEntry.middlewareUserID);
-
-								if (memberEntryIter.contains("JoinSequence"))
-								{
-									memberEntryIter["JoinSequence"].get_to(memberEntry.joinSequence);
-								}
-
 								lobbyEntry.members.push_back(memberEntry);
 
 								// TODO_NGMP: Much more robust system here

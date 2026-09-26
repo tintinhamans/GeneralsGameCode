@@ -379,6 +379,13 @@ public:
 
 	void UpdateRoomDataCache(std::function<void(bool)> fnCallback = nullptr);
 
+	// Parses a lobby JSON object (the "lobby" field from GET lobby, or the same object embedded
+	// in a matchmaking websocket event) into a LobbyEntry, including its members. Shared so
+	// callers other than UpdateRoomDataCache don't duplicate this field-by-field parsing.
+	LobbyEntry ParseLobbyEntryFromJson(const nlohmann::json& lobbyJson);
+
+	bool IsAttemptingToJoinLobby() const { return m_bAttemptingToJoinLobby; }
+
 	std::function<void(LobbyMemberEntry)> m_cbPlayerDoesntHaveMap = nullptr;
 	void RegisterForPlayerDoesntHaveMapCallback(std::function<void(LobbyMemberEntry)> cb)
 	{
