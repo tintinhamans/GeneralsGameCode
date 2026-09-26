@@ -115,6 +115,12 @@ static NameKeyType comboBoxSideID = NAMEKEY_INVALID;
 static NameKeyType comboBoxColorID = NAMEKEY_INVALID;
 
 
+// Bumped on Init and Shutdown. Async HTTP callbacks (findPlayerStatsByID, RetrievePlaylists,
+// StartMatchmaking) that aren't torn down via an explicit Deregister call in Shutdown capture
+// this and bail if it has changed by the time they fire, so they never touch a closed menu's
+// (possibly stale) static window pointers.
+static uint64_t s_quickMatchMenuGeneration = 0;
+
 // Window Pointers ------------------------------------------------------------------------
 static GameWindow *parentWOLQuickMatch = nullptr;
 static GameWindow *buttonBack = nullptr;
@@ -887,6 +893,8 @@ static void saveQuickMatchOptions()
 //-------------------------------------------------------------------------------------------------
 void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 {
+	++s_quickMatchMenuGeneration;
+
 	isInInit = TRUE;
 	if (TheGameSpyGame && TheGameSpyGame->isGameInProgress())
 	{
@@ -1158,8 +1166,14 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
     NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
     if (pAuthInterface != nullptr && pStatsInterface != nullptr)
     {
+		const uint64_t generationForStats = s_quickMatchMenuGeneration;
 		pStatsInterface->findPlayerStatsByID(pAuthInterface->GetUserID(), [=](bool bSuccess, PSPlayerStats stats)
 			{
+				if (generationForStats != s_quickMatchMenuGeneration)
+				{
+					return;
+				}
+
 				if (bSuccess)
 				{
 					UnicodeString eloStr;
@@ -1189,8 +1203,14 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
 	if (pMatchmakingInterface != nullptr)
 	{
-		pMatchmakingInterface->RetrievePlaylists([](std::vector<PlaylistEntry> vecPlaylists)
+		const uint64_t generationForPlaylists = s_quickMatchMenuGeneration;
+		pMatchmakingInterface->RetrievePlaylists([generationForPlaylists](std::vector<PlaylistEntry> vecPlaylists)
 			{
+				if (generationForPlaylists != s_quickMatchMenuGeneration)
+				{
+					return;
+				}
+
 				// add playlists
 				UnicodeString s;
 
@@ -1466,6 +1486,8 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void WOLQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 {
+	++s_quickMatchMenuGeneration;
+
 #if !defined(GENERALS_ONLINE)
 	TheGameSpyInfo->unregisterTextWindow(quickmatchTextWindow);
 #endif
@@ -1507,6 +1529,10 @@ void WOLQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 
 	parentWOLQuickMatch = nullptr;
 	buttonBack = nullptr;
+	buttonStart = nullptr;
+	buttonStop = nullptr;
+	buttonWiden = nullptr;
+	comboBoxNumPlayers = nullptr;
 	quickmatchTextWindow = nullptr;
 	selectedImage = unselectedImage = nullptr;
 	matchFoundTimeoutStart = 0;
@@ -2369,8 +2395,16 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
 					if (pMatchmakingInterface != nullptr)
 					{
-						pMatchmakingInterface->StartMatchmaking(playlistID, vecSelectedMapIndexes, [](bool bSuccess)
+						const uint64_t generationForStart = s_quickMatchMenuGeneration;
+						pMatchmakingInterface->StartMatchmaking(playlistID, vecSelectedMapIndexes, [generationForStart](bool bSuccess)
 							{
+								if (generationForStart != s_quickMatchMenuGeneration)
+								{
+									// the menu was closed while this request was in flight; the static window
+									// pointers below may already be null/stale
+									return;
+								}
+
 								// TODO_QUICKMATCH: Chat has a sound effect in TheGameSpyInfo, re-eanble it
 								if (bSuccess)
 								{
