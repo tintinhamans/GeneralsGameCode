@@ -1194,7 +1194,28 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 	pLobbyInterface->RegisterForCannotConnectToLobbyCallback([](void)
 		{
-			// TODO_QUICKMATCH: Show error message + stop matchmaking + enable buttons again
+			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Could not connect to all players in the lobby. Returning to matchmaking."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
+
+			matchFoundTimeoutStart = 0;
+			matchFoundTimeoutDurationMs = lobbyTimeoutMs;
+			matchStartCountdownLastSecond = 0;
+
+			buttonBack->winEnable(TRUE);
+			buttonWiden->winEnable(FALSE);
+			buttonStart->winEnable(TRUE);
+			buttonStart->winHide(FALSE);
+			buttonStop->winEnable(TRUE);
+			buttonStop->winHide(TRUE);
+			enableOptionsGadgets(TRUE);
+
+			// mirrors how Stop cancels: tells the service to drop the matchmaking attempt,
+			// which also leaves the temporary lobby we could not connect to everyone in
+			NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
+			if (pMatchmakingInterface != nullptr)
+			{
+				pMatchmakingInterface->CancelMatchmaking();
+			}
 		});
 	}
 
