@@ -669,6 +669,47 @@ void NGMP_OnlineServices_LobbyInterface::SearchForLobbies(std::function<void()> 
 	});
 }
 
+void NGMP_OnlineServices_LobbyInterface::ResetJoinOrder()
+{
+	m_setMembersBeforeUs.clear();
+	m_bJoinOrderKnown = false;
+}
+
+// the first member list after joining holds everyone who was there before us
+void NGMP_OnlineServices_LobbyInterface::RecordJoinOrder(const std::vector<LobbyMemberEntry>& members)
+{
+	if (m_bJoinOrderKnown)
+	{
+		return;
+	}
+
+	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	int64_t myUserID = pAuthInterface == nullptr ? -1 : pAuthInterface->GetUserID();
+
+	// only a list from after our join counts
+	std::set<int64_t> setOthers;
+	bool bContainsUs = false;
+	for (const LobbyMemberEntry& member : members)
+	{
+		if (member.user_id == myUserID)
+		{
+			bContainsUs = true;
+		}
+		else
+		{
+			setOthers.insert(member.user_id);
+		}
+	}
+
+	if (!bContainsUs)
+	{
+		return;
+	}
+
+	m_setMembersBeforeUs = std::move(setOthers);
+	m_bJoinOrderKnown = true;
+}
+
 bool NGMP_OnlineServices_LobbyInterface::IsHost()
 {
 	if (IsInLobby())
@@ -1034,6 +1075,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 
 							// store
 							m_CurrentLobby = lobbyEntry;
+							RecordJoinOrder(lobbyEntry.members);
 
 							// inform game instance too
 							if (TheNGMPGame != nullptr)
@@ -1096,6 +1138,7 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 
 	m_bAttemptingToJoinLobby = true;
 	m_CurrentLobby = LobbyEntry();
+	ResetJoinOrder();
 
 	NGMP_OnlineServicesManager::GetInstance()->GetAndParseServiceConfig([=]()
 		{
@@ -1283,6 +1326,7 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 {
 	m_bCannotConnectToLobbyPending = false;
+	ResetJoinOrder();
 
 	// reset host migration flags
 	ResetHostMigrationFlags();
@@ -1324,6 +1368,7 @@ void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 void NGMP_OnlineServices_LobbyInterface::ResetForMatchmakingRequeue()
 {
 	m_bCannotConnectToLobbyPending = false;
+	ResetJoinOrder();
 
 	// The service has already removed us from the failed temporary lobby. Tear down only
 	// local state here; sending the normal DELETE would cancel the server-side requeue.
@@ -1393,6 +1438,8 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 	NGMP_OnlineServicesManager::GetInstance()->GetAndParseServiceConfig([=]()
 		{
 			m_CurrentLobby = LobbyEntry();
+			ResetJoinOrder();
+			m_bJoinOrderKnown = true;
 			std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("Lobbies");
 			std::map<std::string, std::string> mapHeaders;
 
