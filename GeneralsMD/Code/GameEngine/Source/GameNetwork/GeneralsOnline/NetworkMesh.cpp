@@ -167,12 +167,9 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 					if (pLobbyInterface != nullptr)
 					{
 						NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Performing local removal for user %lld from lobby due to failure to connect\n", plrConnection.m_userID);
-						// Local copy to avoid TOCTOU race: check-then-use window
-						auto callbackCopy = pLobbyInterface->m_OnCannotConnectToLobbyCallback;
-						if (callbackCopy != nullptr)
-						{
-							callbackCopy();
-						}
+
+						// deferred: the handler leaves the lobby, which deletes this mesh while we're still inside its RunCallbacks
+						pLobbyInterface->QueueCannotConnectToLobby();
 					}
 				}
 			}

@@ -397,6 +397,13 @@ public:
 		m_OnCannotConnectToLobbyCallback = nullptr;
 	}
 
+	// raised from inside the mesh's GNS callbacks, dispatched by Tick once the mesh is done with them
+	bool m_bCannotConnectToLobbyPending = false;
+	void QueueCannotConnectToLobby()
+	{
+		m_bCannotConnectToLobbyPending = true;
+	}
+
 	std::function<void(UnicodeString strMessage, Color color)> m_OnChatCallback = nullptr;
 	void RegisterForChatCallback(std::function<void(UnicodeString strMessage, Color color)> cb)
 	{
