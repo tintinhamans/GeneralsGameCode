@@ -633,6 +633,9 @@ void LANAPI::OnGameCreate( ReturnType ret )
 }
 
 void (*g_lanLobbyPlayerListHook)(LANPlayer *playerList) = nullptr;
+void (*g_lanGameSetupSlotUpdateHook)(LANGameInfo *game) = nullptr;
+void (*g_lanGameSetupOptionsUpdateHook)(LANGameInfo *game) = nullptr;
+void (*g_lanGameSetupStartButtonHook)(Bool enabled) = nullptr;
 
 void LANAPI::OnPlayerList( LANPlayer *playerList )
 {
@@ -679,12 +682,14 @@ void LANAPI::OnInActive(UnsignedInt IP) {
 
 void (*g_scoreScreenChatDeliveryHook)(const UnicodeString &line, Color color) = nullptr;
 void (*g_lanLobbyChatHook)(const UnicodeString &line, Color color) = nullptr;
+void (*g_lanGameSetupChatHook)(const UnicodeString &line, Color color) = nullptr;
 
 void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message, ChatType format )
 {
 	GameWindow *chatWindow = nullptr;
 	Bool isScoreScreenChat = FALSE;
 	Bool isLobbyChat = FALSE;
+	Bool isGameSetupChat = FALSE;
 
 	if (m_inLobby)
 	{
@@ -699,9 +704,11 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 	else if( m_currentGame && !m_currentGame->isGameInProgress())
 	{
 		chatWindow = listboxChatWindowLanGame;
+		isGameSetupChat = TRUE;
 	}
-	// A non-.wnd score screen/lobby has no chatWindow of its own; let it through via the hook instead.
-	if (chatWindow == nullptr && !((isScoreScreenChat && g_scoreScreenChatDeliveryHook) || (isLobbyChat && g_lanLobbyChatHook)))
+	// A non-.wnd score screen/lobby/setup screen has no chatWindow of its own; let it through via
+	// the hook instead.
+	if (chatWindow == nullptr && !((isScoreScreenChat && g_scoreScreenChatDeliveryHook) || (isLobbyChat && g_lanLobbyChatHook) || (isGameSetupChat && g_lanGameSetupChatHook)))
 		return;
 	Int index = -1;
 	UnicodeString unicodeChat;
@@ -762,4 +769,7 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 
 	if (isLobbyChat && g_lanLobbyChatHook)
 		g_lanLobbyChatHook(unicodeChat, chatColorOut);
+
+	if (isGameSetupChat && g_lanGameSetupChatHook)
+		g_lanGameSetupChatHook(unicodeChat, chatColorOut);
 }

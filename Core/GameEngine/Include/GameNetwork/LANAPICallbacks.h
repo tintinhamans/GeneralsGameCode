@@ -70,6 +70,18 @@ extern void (*g_lanLobbyChatHook)(const UnicodeString &line, Color color);
 extern void (*g_lanLobbyPlayerListHook)(LANPlayer *playerList);
 extern void (*g_lanLobbyGameListHook)(LANGameInfo *gameList);
 
+// Same idea, for the LAN game setup screen (LanGameOptionsMenu.wnd) instead of the lobby.
+// g_lanGameSetupChatHook fires wherever OnChat() would otherwise only write into
+// listboxChatWindowLanGame. g_lanGameSetupSlotUpdateHook/g_lanGameSetupOptionsUpdateHook fire
+// at the end of lanUpdateSlotList()/updateGameOptions() (LanGameOptionsMenu.cpp), in addition to
+// the existing GameWindow updates, never in place of them. g_lanGameSetupStartButtonHook fires
+// from LANEnableStartButton(). Null when no alternative setup front end (e.g.
+// RmlLanGameSetupScreen) is active.
+extern void (*g_lanGameSetupChatHook)(const UnicodeString &line, Color color);
+extern void (*g_lanGameSetupSlotUpdateHook)(LANGameInfo *game);
+extern void (*g_lanGameSetupOptionsUpdateHook)(LANGameInfo *game);
+extern void (*g_lanGameSetupStartButtonHook)(Bool enabled);
+
 
 //Colors used for the chat dialogs
 extern const Color playerColor;
