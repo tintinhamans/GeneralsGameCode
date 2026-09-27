@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include "GameClient/GUI/GUICallbacks/Menus/OptionsValues.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -55,6 +56,10 @@ private:
 	void loadDefaultValues();      // pulls OptionsValues::GetDefault*() into the model (Defaults button)
 	void applyAndSave();           // pushes model fields through OptionsValues::Apply*() (Accept button)
 
+	void populateSelectOptions();  // fills the resolution/detail/IP <select> children (dynamic lists)
+	void loadDetailPresetValues(const OptionsValues::DetailPresetValues &values); // maps into m_model, no logic
+	void updateDetailControlsDisabled();
+
 	void onSelectTab(const Rml::String &tab);
 	void onAccept(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onCancel(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -65,10 +70,16 @@ private:
 	void onSelectControls(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { onSelectTab("controls"); }
 	void onSelectNetwork(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { onSelectTab("network"); }
 
+	// Detail preset <-> Custom, mirrors showDetailPreset()/switchDetailToCustom() exactly.
+	void onDetailLevelChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onDetailControlChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onFirewallRefresh(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
 	OptionPreferences *m_pref = nullptr;
+	bool m_applyingDetailPreset = false; // suppresses onDetailControlChanged while previewing a preset
 
 	// Data model fields, bound by pointer in load(). Kept as plain members (like the .wnd
 	// version's GameWindow state) so Bind() has stable addresses for the document's lifetime.
@@ -91,6 +102,32 @@ private:
 		int antiAliasing = 0;
 		int textureFilter = 0;
 		int anisotropy = 0;
+
+		// Graphics: resolution + detail preset/Custom
+		int resolutionIndex = 0;
+		int detailLevel = 0;
+		int textureResolutionSliderPos = 2;
+		int particleCap = 0;
+		bool shadow3D = false;
+		bool shadow2D = false;
+		bool cloudShadows = false;
+		bool groundLighting = false;
+		bool smoothWater = false;
+		bool extraAnimations = false;
+		bool noDynamicLod = false;
+		bool heatEffects = false;
+		bool buildingOcclusion = false;
+		bool props = false;
+
+		// Network
+		int lanIPIndex = 0;
+		int onlineIPIndex = 0;
+		Rml::String httpProxy;
+		Rml::String firewallPortOverride;
+
+		// In-game/online restriction (see OptionsValues::IsOptionsRestrictedContext).
+		bool restricted = false;
+		bool detailControlsDisabled = false; // restricted AND level isn't already Custom
 	} m_model;
 };
 

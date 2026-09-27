@@ -20,12 +20,16 @@
 
 #include "Common/OptionPreferences.h"
 #include "GameClient/GUICallbacks.h"
-#include "GameClient/GUI/GUICallbacks/Menus/OptionsValues.h"
 #include "GameClient/Shell.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
+
+#include <functional>
+
+extern void DoResolutionDialog(); // MainMenu.cpp; same resolution-change confirm dialog as the .wnd Accept handler
 
 //-------------------------------------------------------------------------------------------------
 RmlOptionsScreen::RmlOptionsScreen()
@@ -67,6 +71,29 @@ void RmlOptionsScreen::load(Rml::Context *context)
 		constructor.Bind("texture_filter", &m_model.textureFilter);
 		constructor.Bind("anisotropy", &m_model.anisotropy);
 
+		constructor.Bind("resolution_index", &m_model.resolutionIndex);
+		constructor.Bind("detail_level", &m_model.detailLevel);
+		constructor.Bind("texture_resolution", &m_model.textureResolutionSliderPos);
+		constructor.Bind("particle_cap", &m_model.particleCap);
+		constructor.Bind("shadow_3d", &m_model.shadow3D);
+		constructor.Bind("shadow_2d", &m_model.shadow2D);
+		constructor.Bind("cloud_shadows", &m_model.cloudShadows);
+		constructor.Bind("ground_lighting", &m_model.groundLighting);
+		constructor.Bind("smooth_water", &m_model.smoothWater);
+		constructor.Bind("extra_animations", &m_model.extraAnimations);
+		constructor.Bind("no_dynamic_lod", &m_model.noDynamicLod);
+		constructor.Bind("heat_effects", &m_model.heatEffects);
+		constructor.Bind("building_occlusion", &m_model.buildingOcclusion);
+		constructor.Bind("props", &m_model.props);
+
+		constructor.Bind("lan_ip_index", &m_model.lanIPIndex);
+		constructor.Bind("online_ip_index", &m_model.onlineIPIndex);
+		constructor.Bind("http_proxy", &m_model.httpProxy);
+		constructor.Bind("firewall_port_override", &m_model.firewallPortOverride);
+
+		constructor.Bind("restricted", &m_model.restricted);
+		constructor.Bind("detail_controls_disabled", &m_model.detailControlsDisabled);
+
 		constructor.BindEventCallback("select_video", &RmlOptionsScreen::onSelectVideo, this);
 		constructor.BindEventCallback("select_graphics", &RmlOptionsScreen::onSelectGraphics, this);
 		constructor.BindEventCallback("select_audio", &RmlOptionsScreen::onSelectAudio, this);
@@ -75,6 +102,9 @@ void RmlOptionsScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("accept", &RmlOptionsScreen::onAccept, this);
 		constructor.BindEventCallback("cancel", &RmlOptionsScreen::onCancel, this);
 		constructor.BindEventCallback("defaults", &RmlOptionsScreen::onDefaults, this);
+		constructor.BindEventCallback("detail_level_changed", &RmlOptionsScreen::onDetailLevelChanged, this);
+		constructor.BindEventCallback("detail_control_changed", &RmlOptionsScreen::onDetailControlChanged, this);
+		constructor.BindEventCallback("firewall_refresh", &RmlOptionsScreen::onFirewallRefresh, this);
 
 		m_modelHandle = constructor.GetModelHandle();
 	}
@@ -88,6 +118,7 @@ void RmlOptionsScreen::show()
 		return;
 
 	loadCurrentValues();
+	populateSelectOptions();
 	HideMainMenuForOptions(); // no-op if MainMenu.wnd isn't the current shell screen
 
 	// Modal: blocks the shell behind it, matching the .wnd version hiding the main menu and
@@ -109,13 +140,39 @@ bool RmlOptionsScreen::isVisible() const
 
 void RmlOptionsScreen::onBack()
 {
-	// Escape behaves like Cancel: discard the model's in-progress edits, nothing applied/saved.
+	// Escape behaves like Cancel: OptionsMenu.cpp's buttonBack handler (GBM_SELECTED) never
+	// calls saveOptions() -- it only deletes its OptionPreferences and destroys the layout.
+	// Nothing in this menu applies live before Accept either (GSM_SLIDER_TRACK/GCM_SELECTED
+	// only flip the detail combo to Custom, a UI-only state), so discarding here is exact,
+	// not an approximation.
 	hide();
 	if (TheShell)
 		TheShell->destroyOptionsLayout();
 }
 
 //-------------------------------------------------------------------------------------------------
+void RmlOptionsScreen::loadDetailPresetValues(const OptionsValues::DetailPresetValues &values)
+{
+	m_model.textureResolutionSliderPos = values.textureResolutionSliderPos;
+	m_model.particleCap = values.particleCap;
+	m_model.shadow3D = values.shadow3D;
+	m_model.shadow2D = values.shadow2D;
+	m_model.cloudShadows = values.cloudShadows;
+	m_model.groundLighting = values.groundLighting;
+	m_model.smoothWater = values.smoothWater;
+	m_model.extraAnimations = values.extraAnimations;
+	m_model.noDynamicLod = values.noDynamicLod;
+	m_model.heatEffects = values.heatEffects;
+	m_model.buildingOcclusion = values.buildingOcclusion;
+	m_model.props = values.props;
+}
+
+void RmlOptionsScreen::updateDetailControlsDisabled()
+{
+	// "Without a changeable preset, only an existing Custom detail can be edited" (OptionsMenuInit).
+	m_model.detailControlsDisabled = m_model.restricted && m_model.detailLevel != OptionsValues::GetDetailCustomLevel();
+}
+
 void RmlOptionsScreen::loadCurrentValues()
 {
 	m_model.languageFilter = OptionsValues::GetCurrentLanguageFilter();
@@ -130,6 +187,24 @@ void RmlOptionsScreen::loadCurrentValues()
 	m_model.antiAliasing = OptionsValues::GetCurrentAntiAliasingIndex();
 	m_model.textureFilter = OptionsValues::GetCurrentTextureFilterIndex();
 	m_model.anisotropy = OptionsValues::GetCurrentAnisotropyIndex();
+
+	m_model.resolutionIndex = OptionsValues::GetCurrentDisplayModeIndex();
+	m_model.detailLevel = OptionsValues::GetCurrentDetailLevel();
+	m_applyingDetailPreset = true; // loading straight from TheGlobalData is not "editing"
+	loadDetailPresetValues(OptionsValues::GetCurrentGraphicsValues());
+	m_applyingDetailPreset = false;
+
+	m_model.lanIPIndex = OptionsValues::GetCurrentLANIPIndex(*m_pref);
+	m_model.onlineIPIndex = OptionsValues::GetCurrentOnlineIPIndex(*m_pref);
+	m_model.httpProxy = OptionsValues::GetCurrentHTTPProxy().str();
+	Int port = OptionsValues::GetCurrentFirewallPortOverride();
+	AsciiString portStr;
+	if (port != 0)
+		portStr.format("%d", port);
+	m_model.firewallPortOverride = portStr.str();
+
+	m_model.restricted = OptionsValues::IsOptionsRestrictedContext();
+	updateDetailControlsDisabled();
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
@@ -146,9 +221,9 @@ void RmlOptionsScreen::loadDefaultValues()
 	m_model.alternateMouse = OptionsValues::GetDefaultAlternateMouse();
 	m_model.retaliation = OptionsValues::GetDefaultRetaliation();
 	m_model.doubleClickAttackMove = OptionsValues::GetDefaultDoubleClickAttackMove();
-	// Anti-aliasing/texture filter/anisotropy have no shared "default" defined yet (the .wnd
-	// version doesn't reset these on Defaults either -- see setDefaults()'s ModifyDisplaySettings
-	// gate), so leave them as currently applied.
+	// Anti-aliasing/texture filter/anisotropy/resolution/detail have no shared "default" (the
+	// .wnd version's setDefaults() never resets these either -- see its ModifyDisplaySettings
+	// compile-time gate), so they are left exactly as currently applied.
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
@@ -157,7 +232,12 @@ void RmlOptionsScreen::loadDefaultValues()
 void RmlOptionsScreen::applyAndSave()
 {
 	OptionsValues::ApplyLanguageFilter(*m_pref, m_model.languageFilter);
-	OptionsValues::ApplySendDelay(*m_pref, m_model.sendDelay);
+
+	// Every gate below mirrors a winGetEnabled() check the .wnd Accept handler makes; restricted
+	// (in-game/online) disables the same set of controls there (see OptionsMenuInit).
+	if (!m_model.restricted)
+		OptionsValues::ApplySendDelay(*m_pref, m_model.sendDelay);
+
 	OptionsValues::ApplyScrollSpeedPercent(*m_pref, m_model.scrollSpeed);
 	OptionsValues::ApplyMusicVolumePercent(*m_pref, m_model.musicVolume);
 	OptionsValues::ApplySFXVolumePercent(*m_pref, m_model.sfxVolume);
@@ -167,7 +247,83 @@ void RmlOptionsScreen::applyAndSave()
 	OptionsValues::ApplyTextureFilter(*m_pref, m_model.textureFilter);
 	OptionsValues::ApplyAnisotropy(*m_pref, m_model.anisotropy);
 
+	// Custom detail values apply whenever the level is Custom, regardless of restriction --
+	// matches saveOptions()'s "if (index == STATIC_GAME_LOD_CUSTOM)" block, which is not gated
+	// on comboBoxDetail's enabled state.
+	if (m_model.detailLevel == OptionsValues::GetDetailCustomLevel())
+	{
+		OptionsValues::DetailPresetValues values;
+		values.textureResolutionSliderPos = m_model.textureResolutionSliderPos;
+		values.particleCap = m_model.particleCap;
+		values.shadow3D = m_model.shadow3D;
+		values.shadow2D = m_model.shadow2D;
+		values.cloudShadows = m_model.cloudShadows;
+		values.groundLighting = m_model.groundLighting;
+		values.smoothWater = m_model.smoothWater;
+		values.extraAnimations = m_model.extraAnimations;
+		values.noDynamicLod = m_model.noDynamicLod;
+		values.heatEffects = m_model.heatEffects;
+		values.buildingOcclusion = m_model.buildingOcclusion;
+		values.props = m_model.props;
+		OptionsValues::ApplyCustomGraphicsSettings(*m_pref, values);
+	}
+
+	if (!m_model.restricted)
+		OptionsValues::ApplyDetailLevel(*m_pref, m_model.detailLevel);
+
+	if (!m_model.restricted)
+	{
+		OptionsValues::ApplyLANIPChoice(*m_pref, OptionsValues::GetIPChoiceIP(m_model.lanIPIndex));
+		OptionsValues::ApplyOnlineIPChoice(*m_pref, OptionsValues::GetIPChoiceIP(m_model.onlineIPIndex));
+		OptionsValues::ApplyHTTPProxy(AsciiString(m_model.httpProxy.c_str()));
+		OptionsValues::ApplyFirewallPortOverride(*m_pref, atoi(m_model.firewallPortOverride.c_str()));
+	}
+
 	m_pref->write();
+
+	// Resolution must be applied dead last: it can recreate the shell (see ApplyDisplayMode()'s
+	// comment), which would otherwise pull this document/screen out from under the rest of Accept.
+	if (!m_model.restricted && OptionsValues::ApplyDisplayMode(*m_pref, m_model.resolutionIndex))
+	{
+		DoResolutionDialog();
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlOptionsScreen::populateSelectOptions()
+{
+	auto fillSelect = [this](const char *id, int count, int selected, const std::function<Rml::String(int)> &label)
+	{
+		Rml::Element *element = m_document->GetElementById(id);
+		if (!element)
+			return;
+		Rml::String html;
+		for (int i = 0; i < count; ++i)
+		{
+			html += "<option value=\"" + std::to_string(i) + "\">" + label(i) + "</option>";
+		}
+		element->SetInnerRML(html);
+	};
+
+	fillSelect("select_resolution", OptionsValues::GetDisplayModeCount(), m_model.resolutionIndex,
+		[](int i)
+		{
+			OptionsValues::DisplayModeValues mode = OptionsValues::GetDisplayMode(i);
+			return std::to_string(mode.width) + " x " + std::to_string(mode.height);
+		});
+
+	const int customLevel = OptionsValues::GetDetailCustomLevel();
+	fillSelect("select_detail", customLevel + 1, m_model.detailLevel,
+		[customLevel](int i)
+		{
+			return i == customLevel ? Rml::String("Custom") : Rml::String(OptionsValues::GetDetailLevelName(i).str());
+		});
+
+	fillSelect("select_lan_ip", OptionsValues::GetIPChoiceCount(), m_model.lanIPIndex,
+		[](int i) { return Rml::String(OptionsValues::GetIPChoiceLabel(i).str()); });
+
+	fillSelect("select_online_ip", OptionsValues::GetIPChoiceCount(), m_model.onlineIPIndex,
+		[](int i) { return Rml::String(OptionsValues::GetIPChoiceLabel(i).str()); });
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -196,6 +352,43 @@ void RmlOptionsScreen::onCancel(Rml::DataModelHandle, Rml::Event &, const Rml::V
 void RmlOptionsScreen::onDefaults(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
 	loadDefaultValues();
+}
+
+void RmlOptionsScreen::onDetailLevelChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+{
+	// Mirrors GCM_SELECTED's showDetailPreset(): choosing a named preset previews its values
+	// without itself counting as an edit; choosing Custom directly leaves values untouched.
+	const int customLevel = OptionsValues::GetDetailCustomLevel();
+	if (m_model.detailLevel >= 0 && m_model.detailLevel < customLevel)
+	{
+		m_applyingDetailPreset = true;
+		loadDetailPresetValues(OptionsValues::GetDetailPresetPreview(m_model.detailLevel));
+		m_applyingDetailPreset = false;
+	}
+
+	updateDetailControlsDisabled();
+	if (m_modelHandle)
+		m_modelHandle.DirtyAllVariables();
+}
+
+void RmlOptionsScreen::onDetailControlChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+{
+	// Mirrors switchDetailToCustom(): editing any detail-preset control switches the combo to
+	// Custom, unless this edit is itself the result of applying a preset preview above, or the
+	// controls are disabled (restricted, non-Custom -- can't be edited at all in that state).
+	if (m_applyingDetailPreset || m_model.detailControlsDisabled)
+		return;
+	if (m_model.detailLevel == OptionsValues::GetDetailCustomLevel())
+		return;
+
+	m_model.detailLevel = OptionsValues::GetDetailCustomLevel();
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("detail_level");
+}
+
+void RmlOptionsScreen::onFirewallRefresh(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+{
+	OptionsValues::RefreshFirewallBehavior(*m_pref);
 }
 
 //-------------------------------------------------------------------------------------------------
