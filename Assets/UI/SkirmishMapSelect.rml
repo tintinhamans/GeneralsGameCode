@@ -28,6 +28,12 @@
 				<div class="map-preview">
 					<mappreview class="map-preview-image" data-attr-map="selected_map_name" data-if="has_selection"/>
 					<div class="map-not-found" data-if="!has_selection"><gametext key="GUI:CantFindMap"/></div>
+					<div data-for="marker : start_markers">
+						<div class="start-marker" data-if="marker.used"
+							data-style-left="marker.x_style" data-style-top="marker.y_style">
+							<div class="start-marker-dot"></div>
+						</div>
+					</div>
 				</div>
 				<div class="map-display-name" data-if="has_selection"><gametext key="GUI:MapPreview"/>: {{selected_display_name}} ({{selected_num_players}} <gametext key="GUI:Players"/>)</div>
 			</div>

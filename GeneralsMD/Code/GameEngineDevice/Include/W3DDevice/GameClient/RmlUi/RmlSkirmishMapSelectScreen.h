@@ -51,6 +51,7 @@ private:
 
 	void load(Rml::Context *context);
 	void refreshMapList(); // rebuilds m_model.maps (buildFilteredMapList()) for the current filter
+	void refreshStartMarkers(); // rebuilds m_model.startMarkers for m_model.selectedMapName
 	void selectMap(const Rml::String &mapName); // OK/double-click: write back + return to setup
 
 	void onFilterChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -74,6 +75,17 @@ private:
 		bool isSelected = false;
 	};
 
+	// One start-position marker on the preview (see GameSetupStartPositionMarker); no occupant/color
+	// fields here -- positionStartSpotControls() draws the same generic marker image for every start
+	// spot on the browse preview, unlike the setup screen's per-slot-colored markers.
+	struct StartMarkerModel
+	{
+		int position = 0;
+		Rml::String xStyle; // e.g. "12.500%", bound via data-style-left
+		Rml::String yStyle; // e.g. "34.200%", bound via data-style-top
+		bool used = false; // MAX_SLOTS entries always; see GameSetupStartPositionMarker::m_used
+	};
+
 	struct Model
 	{
 		Rml::Vector<MapEntryModel> maps;
@@ -83,6 +95,8 @@ private:
 		Rml::String selectedDisplayName;
 		bool hasSelection = false;
 		int selectedNumPlayers = 0;
+
+		Rml::Vector<StartMarkerModel> startMarkers;
 	} m_model;
 };
 

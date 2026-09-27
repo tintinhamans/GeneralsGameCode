@@ -63,10 +63,7 @@ GameSetupData GameSetupData::build( GameInfo *game )
 	options.m_startingCash = game->getStartingCash();
 	options.m_superweaponsRestricted = game->getSuperweaponRestriction() != 0;
 
-	// Fixed-size regardless of map: see the m_used comment on GameSetupStartPositionMarker.
-	options.m_startPositionMarkers.resize( MAX_SLOTS );
-	for( Int i = 0; i < MAX_SLOTS; ++i )
-		options.m_startPositionMarkers[i].m_position = i;
+	options.m_startPositionMarkers = computeStartPositionMarkers( game->getMap() );
 
 	const MapMetaData *md = TheMapCache ? TheMapCache->findMap( game->getMap() ) : nullptr;
 	if( md )
@@ -75,26 +72,6 @@ GameSetupData GameSetupData::build( GameInfo *game )
 		options.m_mapDisplayName = md->m_displayName;
 		options.m_mapIsMultiplayer = md->m_isMultiplayer;
 		options.m_mapNumPlayers = md->m_numPlayers;
-
-		// Same fractional math as positionStartSpotControls(), minus its overlap nudge (see header).
-		if( md->m_isMultiplayer )
-		{
-			Real extentW = md->m_extent.hi.x - md->m_extent.lo.x;
-			Real extentH = md->m_extent.hi.y - md->m_extent.lo.y;
-			for( Int i = 0; i < md->m_numPlayers && i < MAX_SLOTS; ++i )
-			{
-				AsciiString waypointName;
-				waypointName.format( "Player_%d_Start", i + 1 ); // 1-based, matches positionStartSpots()
-				WaypointMap::const_iterator wmIt = md->m_waypoints.find( waypointName );
-				if( wmIt == md->m_waypoints.end() )
-					continue;
-
-				GameSetupStartPositionMarker &marker = options.m_startPositionMarkers[i];
-				marker.m_xFraction = extentW != 0.0f ? ( wmIt->second.x - md->m_extent.lo.x ) / extentW : 0.0f;
-				marker.m_yFraction = extentH != 0.0f ? 1.0f - ( wmIt->second.y - md->m_extent.lo.y ) / extentH : 0.0f;
-				marker.m_used = TRUE;
-			}
-		}
 	}
 	else
 	{
@@ -147,4 +124,35 @@ GameSetupData GameSetupData::build( GameInfo *game )
 	}
 
 	return data;
+}
+
+//-------------------------------------------------------------------------------------------------
+std::vector<GameSetupStartPositionMarker> GameSetupData::computeStartPositionMarkers( AsciiString mapName )
+{
+	std::vector<GameSetupStartPositionMarker> markers( MAX_SLOTS );
+	for( Int i = 0; i < MAX_SLOTS; ++i )
+		markers[i].m_position = i;
+
+	const MapMetaData *md = TheMapCache ? TheMapCache->findMap( mapName ) : nullptr;
+	if( !md || !md->m_isMultiplayer )
+		return markers;
+
+	// Same fractional math as positionStartSpotControls(), minus its overlap nudge (see header).
+	Real extentW = md->m_extent.hi.x - md->m_extent.lo.x;
+	Real extentH = md->m_extent.hi.y - md->m_extent.lo.y;
+	for( Int i = 0; i < md->m_numPlayers && i < MAX_SLOTS; ++i )
+	{
+		AsciiString waypointName;
+		waypointName.format( "Player_%d_Start", i + 1 ); // 1-based, matches positionStartSpots()
+		WaypointMap::const_iterator wmIt = md->m_waypoints.find( waypointName );
+		if( wmIt == md->m_waypoints.end() )
+			continue;
+
+		GameSetupStartPositionMarker &marker = markers[i];
+		marker.m_xFraction = extentW != 0.0f ? ( wmIt->second.x - md->m_extent.lo.x ) / extentW : 0.0f;
+		marker.m_yFraction = extentH != 0.0f ? 1.0f - ( wmIt->second.y - md->m_extent.lo.y ) / extentH : 0.0f;
+		marker.m_used = TRUE;
+	}
+
+	return markers;
 }

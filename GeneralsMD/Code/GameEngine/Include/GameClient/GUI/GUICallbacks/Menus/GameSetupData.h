@@ -136,4 +136,11 @@ struct GameSetupData
 	// Snapshot the current slots and map/options state out of game. Read-only: no side
 	// effects, safe to call every frame a renderer needs to refresh.
 	static GameSetupData build( GameInfo *game );
+
+	// Same fractional math as positionStartSpots( AsciiString, ... )/positionStartSpotControls(),
+	// keyed only by map name so a map-browse preview (no GameInfo/slots yet, e.g. the map select
+	// screen) can show the same markers as the setup screen's. Always MAX_SLOTS entries (see
+	// GameSetupStartPositionMarker::m_used); every entry unused if the map isn't found or isn't
+	// multiplayer. Shared by GameSetupData::build() so the two call sites can't drift apart.
+	static std::vector<GameSetupStartPositionMarker> computeStartPositionMarkers( AsciiString mapName );
 };

@@ -20,6 +20,7 @@
 
 #include "Common/SkirmishBattleHonors.h"
 #include "Common/UnicodeString.h"
+#include "GameClient/GUI/GUICallbacks/Menus/GameSetupData.h"
 #include "GameClient/GUI/GUICallbacks/Menus/MapSelectActions.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/RmlUiScreenRegistry.h"
@@ -77,8 +78,17 @@ void RmlSkirmishMapSelectScreen::load(Rml::Context *context)
 			entryHandle.RegisterMember("star_image", &MapEntryModel::starImage);
 			entryHandle.RegisterMember("is_selected", &MapEntryModel::isSelected);
 		}
+		Rml::StructHandle<StartMarkerModel> markerHandle = constructor.RegisterStruct<StartMarkerModel>();
+		if (markerHandle)
+		{
+			markerHandle.RegisterMember("position", &StartMarkerModel::position);
+			markerHandle.RegisterMember("x_style", &StartMarkerModel::xStyle);
+			markerHandle.RegisterMember("y_style", &StartMarkerModel::yStyle);
+			markerHandle.RegisterMember("used", &StartMarkerModel::used);
+		}
 
 		constructor.RegisterArray<Rml::Vector<MapEntryModel>>();
+		constructor.RegisterArray<Rml::Vector<StartMarkerModel>>();
 
 		constructor.Bind("maps", &m_model.maps);
 		constructor.Bind("use_system_maps", &m_model.useSystemMaps);
@@ -86,6 +96,7 @@ void RmlSkirmishMapSelectScreen::load(Rml::Context *context)
 		constructor.Bind("selected_display_name", &m_model.selectedDisplayName);
 		constructor.Bind("has_selection", &m_model.hasSelection);
 		constructor.Bind("selected_num_players", &m_model.selectedNumPlayers);
+		constructor.Bind("start_markers", &m_model.startMarkers);
 
 		constructor.BindEventCallback("filter_changed", &RmlSkirmishMapSelectScreen::onFilterChanged, this);
 		constructor.BindEventCallback("map_selected", &RmlSkirmishMapSelectScreen::onMapSelected, this);
@@ -181,6 +192,33 @@ void RmlSkirmishMapSelectScreen::refreshMapList()
 }
 
 //-------------------------------------------------------------------------------------------------
+// Rebuilds m_model.startMarkers for m_model.selectedMapName, matching positionStartSpots(AsciiString,
+// ...)'s browse-preview markers (SkirmishMapSelectMenu.cpp's ButtonMapStartPosition0..7 -- plain,
+// unhighlighted position markers, not colored by occupant like the setup screen's).
+void RmlSkirmishMapSelectScreen::refreshStartMarkers()
+{
+	AsciiString mapName( m_model.hasSelection ? m_model.selectedMapName.c_str() : "" );
+	std::vector<GameSetupStartPositionMarker> markers = GameSetupData::computeStartPositionMarkers( mapName );
+
+	m_model.startMarkers.clear();
+	for (const GameSetupStartPositionMarker &marker : markers)
+	{
+		StartMarkerModel markerModel;
+		markerModel.position = marker.m_position;
+		char xBuf[16], yBuf[16];
+		_snprintf_s(xBuf, sizeof(xBuf), _TRUNCATE, "%.3f%%", marker.m_xFraction * 100.0f);
+		_snprintf_s(yBuf, sizeof(yBuf), _TRUNCATE, "%.3f%%", marker.m_yFraction * 100.0f);
+		markerModel.xStyle = xBuf;
+		markerModel.yStyle = yBuf;
+		markerModel.used = marker.m_used == TRUE;
+		m_model.startMarkers.push_back(markerModel);
+	}
+
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("start_markers");
+}
+
+//-------------------------------------------------------------------------------------------------
 void RmlSkirmishMapSelectScreen::open()
 {
 	if (!TheRmlUiManager)
@@ -198,6 +236,7 @@ void RmlSkirmishMapSelectScreen::open()
 		TheMapCache->updateCache();
 
 	refreshMapList();
+	refreshStartMarkers();
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("use_system_maps");
@@ -230,6 +269,7 @@ void RmlSkirmishMapSelectScreen::onFilterChanged(Rml::DataModelHandle, Rml::Even
 	if (TheMapCache)
 		TheMapCache->updateCache();
 	refreshMapList();
+	refreshStartMarkers();
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("use_system_maps");
@@ -257,6 +297,8 @@ void RmlSkirmishMapSelectScreen::onMapSelected(Rml::DataModelHandle, Rml::Event 
 			m_model.selectedNumPlayers = entry.numPlayers;
 		}
 	}
+
+	refreshStartMarkers();
 
 	if (m_modelHandle)
 	{
