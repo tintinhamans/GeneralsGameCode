@@ -1,0 +1,135 @@
+/*
+	ScoreScreen.rcss -- score table/chat/academy layout specific to ScoreScreen.rml.
+	Palette/frame/button/scroll-container rules come from common.rcss.
+*/
+
+body
+{
+	width: 960dp;
+	height: 640dp;
+	left: 50%;
+	top: 50%;
+	margin-left: -480dp;
+	margin-top: -320dp;
+}
+
+.background
+{
+	position: absolute;
+	width: 100%;
+	height: 100%;
+}
+
+.panel
+{
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+}
+
+/* ---- Player table -------------------------------------------------------------------- */
+.table-header,
+.table-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 4dp 2dp;
+	min-height: 24dp;
+}
+
+.table-header
+{
+	font-weight: bold;
+	border-bottom: 1dp #2F37A8;
+	margin-bottom: 4dp;
+}
+
+.table-row.observer
+{
+	color: #C0C0C0;
+}
+
+.col-icon
+{
+	flex: 0 0 auto;
+	width: 24dp;
+	height: 24dp;
+	margin-right: 6dp;
+}
+
+.col-name
+{
+	flex: 1 1 auto;
+}
+
+.col-stat
+{
+	flex: 0 0 auto;
+	width: 76dp;
+	text-align: right;
+}
+
+.table-body
+{
+	max-height: 220dp;
+}
+
+/* ---- Academy advice -------------------------------------------------------------------- */
+.academy
+{
+	margin-top: 8dp;
+	border-top: 1dp #2F37A8;
+	padding-top: 8dp;
+}
+
+.academy-body
+{
+	max-height: 90dp;
+}
+
+/* ---- Chat -------------------------------------------------------------------------------- */
+.chat
+{
+	margin-top: 8dp;
+	border-top: 1dp #2F37A8;
+	padding-top: 8dp;
+	flex: 1 1 auto;
+}
+
+.chat-border
+{
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.chat-border.bordered
+{
+	border: 1dp #2F37A8;
+	padding: 4dp;
+}
+
+.chat-body
+{
+	flex: 1 1 auto;
+}
+
+.chat-entry-row
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 4dp;
+}
+
+.chat-input
+{
+	flex: 1 1 auto;
+	margin-right: 4dp;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	color: #FFFFFF;
+	padding: 4dp 6dp;
+}

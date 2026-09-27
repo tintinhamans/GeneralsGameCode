@@ -27,6 +27,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlScoreScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
 
@@ -141,6 +142,9 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/CreditsMenu.wnd", &OpenRmlCreditsScreen, &CloseRmlCreditsScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitMenu.wnd", &OpenRmlQuitMenuScreen, &CloseRmlQuitMenuScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitNoSave.wnd", &OpenRmlQuitNoSaveScreen, &CloseRmlQuitNoSaveScreen);
+
+	// GameLogicDispatch pushes this after a match/campaign mission ends; see RmlScoreScreen.h.
+	RmlUiScreenRegistry::registerScreen("Menus/ScoreScreen.wnd", &OpenRmlScoreScreen, &CloseRmlScoreScreen);
 
 	// ScriptActions::doVictory()/doDefeat()/doLocalDefeat() create these via winCreateFromScript();
 	// see GameWindowManagerScript.cpp's winCreateFromScript() and RmlEndGameOverlayScreen.h.
