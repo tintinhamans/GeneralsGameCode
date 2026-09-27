@@ -1,4 +1,5 @@
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "GameNetwork/GeneralsOnline/NetworkMesh.h"
 #include "GameNetwork/GeneralsOnline/HTTP/HTTPManager.h"
 #include "../json.hpp"
 #include "GameClient/MessageBox.h"
@@ -346,11 +347,13 @@ void NGMP_OnlineServicesManager::WaitForScreenshotThreads()
 void NGMP_OnlineServicesManager::Shutdown()
 {
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] OnlineServicesManager shutdown initiated");
-	
+
 	// First, wait for all screenshot threads to complete
 	// This prevents race conditions where threads might still be using resources
 	WaitForScreenshotThreads();
-	
+
+	NetworkMeshLibrary::Shutdown();
+
 	// Shutdown and completely destroy WebSocket BEFORE cleaning up HTTPManager
 	// This is critical because WebSocket has curl handles that must be freed
 	// before curl_global_cleanup() is called by HTTPManager
@@ -825,6 +828,12 @@ void NGMP_OnlineServicesManager::OnLogin(ELoginResult loginResult, const char* s
 {
 	if (loginResult == ELoginResult::Success)
 	{
+		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+		if (pAuthInterface != nullptr)
+		{
+			NetworkMeshLibrary::EnsureInitialized(pAuthInterface->GetUserID());
+		}
+
 		// Tear down any previous session's websocket before replacing it.
 		if (m_pWebSocket != nullptr)
 		{
@@ -1038,6 +1047,8 @@ void NGMP_OnlineServicesManager::Tick()
 	{
 		m_pLobbyInterface->Tick();
 	}
+
+	NetworkMeshLibrary::Tick();
 }
 
 void NGMP_OnlineServicesManager::InitSentry()
