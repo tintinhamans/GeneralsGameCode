@@ -1,0 +1,4 @@
+// 450_450_GeneralsOnline.str
+// Generals Online English string table. Add "LABEL" / "text" pairs below;
+// str2csf compiles this into Data/English/450_450_GeneralsOnline.csf, which
+// is embedded into the game exe as part of the 450_450_GeneralsOnline archive.

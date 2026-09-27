@@ -109,32 +109,54 @@ if(MSVC AND NOT IS_VS6_BUILD)
     )
     target_link_libraries(z_generals PRIVATE delayimp)
 endif()
-# Embed the repository's Data/ folder into the executable so game data placed there
-# (window layouts, INI overrides, string files, ...) ships inside the exe and is
-# served through a virtual "450_450_..." archive (see EmbeddedArchiveFile and
-# ArchiveFileSystem::loadMods()). CONFIGURE_DEPENDS reruns this glob whenever CMake
-# reconfigures, which happens automatically when a file is added or removed.
-set(RTS_EMBEDDED_DATA_DIR "${CMAKE_SOURCE_DIR}/Data")
-file(GLOB_RECURSE RTS_EMBEDDED_DATA_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES FALSE
-    "${RTS_EMBEDDED_DATA_DIR}/*")
+
+# Embed the repository's Assets/ folder into the executable so game data (window
+# layouts, INI overrides, string tables, ...) ships inside the exe and is served
+# through a virtual "450_450_..." archive (see EmbeddedArchiveFile and
+# ArchiveFileSystem::loadMods()). Assets/ holds human-authored sources organized
+# by type; StageEmbeddedAssets.cmake first lays them out as the game-relative tree
+# the archive actually needs (compiling Localization/*.str to Data/<Lang>/*.csf via
+# the str2csf host tool, copying everything else) into a generated EmbeddedRoot/
+# under the build dir, which GenerateEmbeddedData.cmake then embeds exactly as it
+# used to embed a literal Data/ folder. CONFIGURE_DEPENDS reruns the glob whenever
+# CMake reconfigures, which happens automatically when a file is added or removed.
+set(RTS_ASSETS_DIR "${CMAKE_SOURCE_DIR}/Assets")
+file(GLOB_RECURSE RTS_ASSET_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES FALSE
+    "${RTS_ASSETS_DIR}/*")
+
+set(RTS_EMBEDDED_ROOT "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedRoot")
+set(RTS_STAGE_ASSETS_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/StageEmbeddedAssets.cmake")
+set(RTS_STAGE_ASSETS_STAMP "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedRoot.stamp")
+
+# Same manifest trick as below: a *removed* Assets/ file doesn't make anything
+# newer, so the file list's own content (rewritten only when it actually changes)
+# is what forces the staging step to rerun on removal too, not just on add/edit.
+set(RTS_ASSETS_MANIFEST "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedAssetsManifest.txt")
+file(GENERATE OUTPUT "${RTS_ASSETS_MANIFEST}" CONTENT "${RTS_ASSET_FILES}")
+
+add_custom_command(
+    OUTPUT "${RTS_STAGE_ASSETS_STAMP}"
+    COMMAND ${CMAKE_COMMAND}
+        "-DASSETS_DIR=${RTS_ASSETS_DIR}"
+        "-DOUTPUT_DIR=${RTS_EMBEDDED_ROOT}"
+        "-DSTR2CSF_EXE=$<TARGET_FILE:str2csf>"
+        -P "${RTS_STAGE_ASSETS_SCRIPT}"
+    COMMAND ${CMAKE_COMMAND} -E touch "${RTS_STAGE_ASSETS_STAMP}"
+    DEPENDS ${RTS_ASSET_FILES} str2csf "${RTS_STAGE_ASSETS_SCRIPT}" "${RTS_ASSETS_MANIFEST}"
+    COMMENT "Staging Assets/ into the embedded game-relative tree"
+    VERBATIM
+)
 
 set(RTS_EMBEDDED_DATA_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedDataTable.cpp")
 set(RTS_EMBEDDED_DATA_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/GenerateEmbeddedData.cmake")
 
-# A file's mtime alone can't tell the custom command below that a file was *removed*
-# from Data/ (nothing became newer). file(GENERATE) only rewrites this manifest -- and
-# so only bumps its mtime -- when the file list actually changed, which is exactly the
-# signal the DEPENDS on it needs to force a rebuild on removal too, not just on add/edit.
-set(RTS_EMBEDDED_DATA_MANIFEST "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedDataManifest.txt")
-file(GENERATE OUTPUT "${RTS_EMBEDDED_DATA_MANIFEST}" CONTENT "${RTS_EMBEDDED_DATA_FILES}")
-
 add_custom_command(
     OUTPUT "${RTS_EMBEDDED_DATA_SOURCE}"
     COMMAND ${CMAKE_COMMAND}
-        "-DDATA_DIR=${RTS_EMBEDDED_DATA_DIR}"
+        "-DDATA_DIR=${RTS_EMBEDDED_ROOT}"
         "-DOUTPUT_FILE=${RTS_EMBEDDED_DATA_SOURCE}"
         -P "${RTS_EMBEDDED_DATA_SCRIPT}"
-    DEPENDS ${RTS_EMBEDDED_DATA_FILES} "${RTS_EMBEDDED_DATA_SCRIPT}" "${RTS_EMBEDDED_DATA_MANIFEST}"
+    DEPENDS "${RTS_STAGE_ASSETS_STAMP}" "${RTS_EMBEDDED_DATA_SCRIPT}"
     COMMENT "Generating embedded Data/ table"
     VERBATIM
 )
