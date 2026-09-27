@@ -115,6 +115,11 @@ private:
 		bool isOccupied = false;
 		Rml::String occupantLabel;
 		Rml::String colorHex;
+
+		// Mirrors GameSetupStartPositionMarker::m_used: the array is always MAX_SLOTS long (see
+		// GameSetupData.h), and the .rml hides an unused entry with data-if instead of the array
+		// shrinking, which RmlUi data binding doesn't tolerate mid-document.
+		bool used = false;
 	};
 
 	struct OptionModel

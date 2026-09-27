@@ -35,12 +35,14 @@
 
 		<div class="map-preview">
 			<mappreview class="map-preview-image" data-attr-map="map_name"/>
-			<div class="start-marker" data-for="marker : start_markers"
-				data-style-left="marker.x_style" data-style-top="marker.y_style"
-				data-event-click="start_marker_clicked(marker.position)">
-				<div class="start-marker-dot" data-class-occupied="marker.is_occupied"
-					data-style-background-color="marker.color_hex"></div>
-				<div class="start-marker-label" data-if="marker.is_occupied">{{marker.occupant_label}}</div>
+			<div data-for="marker : start_markers">
+				<div class="start-marker" data-if="marker.used"
+					data-style-left="marker.x_style" data-style-top="marker.y_style"
+					data-event-click="start_marker_clicked(marker.position)">
+					<div class="start-marker-dot" data-class-occupied="marker.is_occupied"
+						data-style-background-color="marker.color_hex"></div>
+					<div class="start-marker-label" data-if="marker.is_occupied">{{marker.occupant_label}}</div>
+				</div>
 			</div>
 		</div>
 
@@ -48,6 +50,11 @@
 	interpolate "{{expr}}" inside a style="..." attribute (that's parsed as a literal RCSS property
 	value), and data-style-<prop> bindings take one expression value, not string concatenation --
 	see RmlSkirmishSetupScreen::StartMarkerModel.
+
+	start_markers is always MAX_SLOTS entries (see GameSetupData::m_startPositionMarkers): a bound
+	RmlUi array must never change size in place, so unused positions are hidden with data-if
+	("marker.used") on a child instead of shrinking the array. data-for and data-if are both
+	structural views and can't share one element, hence the plain wrapper div.
 
 	Reusable map-list row (copy per screen, one <div class="map-row" data-for="entry : maps"> per
 	map-select-style document -- see RmlSkirmishMapSelectScreen::MapEntryModel):

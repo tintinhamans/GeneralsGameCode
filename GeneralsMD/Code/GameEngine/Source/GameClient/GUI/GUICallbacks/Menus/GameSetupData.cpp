@@ -63,6 +63,11 @@ GameSetupData GameSetupData::build( GameInfo *game )
 	options.m_startingCash = game->getStartingCash();
 	options.m_superweaponsRestricted = game->getSuperweaponRestriction() != 0;
 
+	// Fixed-size regardless of map: see the m_used comment on GameSetupStartPositionMarker.
+	options.m_startPositionMarkers.resize( MAX_SLOTS );
+	for( Int i = 0; i < MAX_SLOTS; ++i )
+		options.m_startPositionMarkers[i].m_position = i;
+
 	const MapMetaData *md = TheMapCache ? TheMapCache->findMap( game->getMap() ) : nullptr;
 	if( md )
 	{
@@ -76,7 +81,7 @@ GameSetupData GameSetupData::build( GameInfo *game )
 		{
 			Real extentW = md->m_extent.hi.x - md->m_extent.lo.x;
 			Real extentH = md->m_extent.hi.y - md->m_extent.lo.y;
-			for( Int i = 0; i < md->m_numPlayers; ++i )
+			for( Int i = 0; i < md->m_numPlayers && i < MAX_SLOTS; ++i )
 			{
 				AsciiString waypointName;
 				waypointName.format( "Player_%d_Start", i + 1 ); // 1-based, matches positionStartSpots()
@@ -84,11 +89,10 @@ GameSetupData GameSetupData::build( GameInfo *game )
 				if( wmIt == md->m_waypoints.end() )
 					continue;
 
-				GameSetupStartPositionMarker marker;
-				marker.m_position = i;
+				GameSetupStartPositionMarker &marker = options.m_startPositionMarkers[i];
 				marker.m_xFraction = extentW != 0.0f ? ( wmIt->second.x - md->m_extent.lo.x ) / extentW : 0.0f;
 				marker.m_yFraction = extentH != 0.0f ? 1.0f - ( wmIt->second.y - md->m_extent.lo.y ) / extentH : 0.0f;
-				options.m_startPositionMarkers.push_back( marker );
+				marker.m_used = TRUE;
 			}
 		}
 	}

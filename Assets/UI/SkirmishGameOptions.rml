@@ -51,11 +51,13 @@
 				<div class="map-preview">
 					<mappreview class="map-preview-image" data-attr-map="map_name" data-if="map_found"/>
 					<div class="map-not-found" data-if="!map_found"><gametext key="GUI:CantFindMap"/></div>
-					<div class="start-marker" data-for="marker : start_markers"
-						data-style-left="marker.x_style" data-style-top="marker.y_style"
-						data-event-click="start_marker_clicked(marker.position)">
-						<div class="start-marker-dot" data-class-occupied="marker.is_occupied" data-style-background-color="marker.color_hex"></div>
-						<div class="start-marker-label" data-if="marker.is_occupied">{{marker.occupant_label}}</div>
+					<div data-for="marker : start_markers">
+						<div class="start-marker" data-if="marker.used"
+							data-style-left="marker.x_style" data-style-top="marker.y_style"
+							data-event-click="start_marker_clicked(marker.position)">
+							<div class="start-marker-dot" data-class-occupied="marker.is_occupied" data-style-background-color="marker.color_hex"></div>
+							<div class="start-marker-label" data-if="marker.is_occupied">{{marker.occupant_label}}</div>
+						</div>
 					</div>
 				</div>
 				<div class="map-display-name"><gametext key="GUI:MapPreview"/>: {{map_display_name}}</div>

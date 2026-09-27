@@ -65,6 +65,11 @@ struct GameSetupStartPositionMarker
 	Int m_position = -1; // 0-based, matches GameSetupSlotRow::m_startPosition / Player_N_Start (N = position+1)
 	Real m_xFraction = 0.0f;
 	Real m_yFraction = 0.0f;
+
+	// FALSE for a position the current map doesn't have (index >= map's start-position count).
+	// The entry still exists -- see GameSetupOptionsData::m_startPositionMarkers -- so a renderer
+	// hides it (data-if) instead of the array changing size when the map changes.
+	Bool m_used = FALSE;
 };
 
 // One selectable faction entry (ThePlayerTemplateStore order), for the faction dropdown every
@@ -108,8 +113,10 @@ struct GameSetupOptionsData
 	Money m_startingCash;
 	Bool m_superweaponsRestricted = FALSE;
 
-	// Start-position markers for the currently selected map (see positionStartSpots()), empty
-	// if the map wasn't found in TheMapCache.
+	// Start-position markers, always MAX_SLOTS entries (see positionStartSpots()): a bound RmlUi
+	// array must never shrink in place (it logs "Data array index out of bounds" and can hit a
+	// stale nested data-style/data-class binding) so every map exposes the same fixed-size array,
+	// with m_used marking which positions the current map actually has.
 	std::vector<GameSetupStartPositionMarker> m_startPositionMarkers;
 
 	// Faction/color option lists, shared by every slot's dropdowns (see InitSkirmishGameGadgets()'s

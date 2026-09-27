@@ -215,6 +215,7 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 	{
 		StartMarkerModel markerModel;
 		markerModel.position = marker.m_position;
+		markerModel.used = marker.m_used == TRUE;
 		char xBuf[16], yBuf[16];
 		_snprintf_s(xBuf, sizeof(xBuf), _TRUNCATE, "%.3f%%", marker.m_xFraction * 100.0f);
 		_snprintf_s(yBuf, sizeof(yBuf), _TRUNCATE, "%.3f%%", marker.m_yFraction * 100.0f);
@@ -224,7 +225,7 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 
 		for (const GameSetupSlotRow &src : data.m_slots)
 		{
-			if (src.m_startPosition == marker.m_position)
+			if (markerModel.used && src.m_startPosition == marker.m_position)
 			{
 				markerModel.isOccupied = true;
 				markerModel.occupantLabel = unicodeToUtf8(src.m_name);
