@@ -32,6 +32,8 @@
 
 #include "Common/FramePacer.h"
 #include "Common/GameEngine.h"
+#include "Common/GlobalData.h"
+#include "GameClient/RmlUiScreenHooks.h"
 #include "Common/GameState.h"
 #include "Common/MessageStream.h"
 #include "Common/Player.h"
@@ -498,11 +500,19 @@ WindowMsgHandledType QuitMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if( buttonOptions == controlID )
 			{
-				WindowLayout *optLayout = TheShell->getOptionsLayout(TRUE);
-				DEBUG_ASSERTCRASH(optLayout != nullptr, ("options menu layout is null"));
-				optLayout->runInit();
-				optLayout->hide(FALSE);
-				optLayout->bringForward();
+				// TheSuperHackers @feature RmlUi phase 2: same router as MainMenu.cpp's options button.
+				if (!TheGlobalData->m_useLegacyMenus && TheRmlUiOpenOptionsScreen)
+				{
+					TheRmlUiOpenOptionsScreen();
+				}
+				else
+				{
+					WindowLayout *optLayout = TheShell->getOptionsLayout(TRUE);
+					DEBUG_ASSERTCRASH(optLayout != nullptr, ("options menu layout is null"));
+					optLayout->runInit();
+					optLayout->hide(FALSE);
+					optLayout->bringForward();
+				}
 			}
 //			else if( controlID == buttonQuitToDesktop )
 //			{

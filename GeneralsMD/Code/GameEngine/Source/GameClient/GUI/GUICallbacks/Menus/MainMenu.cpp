@@ -36,6 +36,7 @@
 #include "Common/GameEngine.h"
 #include "Common/GameState.h"
 #include "Common/GlobalData.h"
+#include "GameClient/RmlUiScreenHooks.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/RandomValue.h"
 #include "Common/OptionPreferences.h"
@@ -1449,12 +1450,21 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				//buttonPushed = TRUE;
 				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_OPTIONS_SELECTED]);
 
-				// load the options menu
-				WindowLayout *optLayout = TheShell->getOptionsLayout(TRUE);
-				DEBUG_ASSERTCRASH(optLayout != nullptr, ("unable to get options menu layout"));
-				optLayout->runInit();
-				optLayout->hide(FALSE);
-				optLayout->bringForward();
+				// TheSuperHackers @feature RmlUi phase 2: route to the RmlUi options screen unless
+				// -wnd was given or RmlUi isn't linked/initialized (see RmlUiScreenHooks.h).
+				if (!TheGlobalData->m_useLegacyMenus && TheRmlUiOpenOptionsScreen)
+				{
+					TheRmlUiOpenOptionsScreen();
+				}
+				else
+				{
+					// load the options menu
+					WindowLayout *optLayout = TheShell->getOptionsLayout(TRUE);
+					DEBUG_ASSERTCRASH(optLayout != nullptr, ("unable to get options menu layout"));
+					optLayout->runInit();
+					optLayout->hide(FALSE);
+					optLayout->bringForward();
+				}
 			}
 			else if( controlID == worldBuilderID )
 			{

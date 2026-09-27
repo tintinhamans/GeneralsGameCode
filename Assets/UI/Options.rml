@@ -1,0 +1,119 @@
+<rml>
+<head>
+	<title>Options</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<style>
+		body { width: 720dp; height: 560dp; left: 50%; top: 50%; margin-left: -360dp; margin-top: -280dp; }
+		.frame { width: 100%; height: 100%; display: flex; flex-direction: column; }
+		.panels { flex: 1 1 auto; display: flex; overflow: hidden; }
+		.panel { width: 100%; height: 100%; }
+	</style>
+</head>
+<body data-model="options">
+	<div class="frame">
+		<div class="title-bar"><gametext key="GUI:Options"/></div>
+
+		<div class="tabs">
+			<div class="tab" data-class-selected="tab == 'video'" data-event-click="select_video">Video</div>
+			<div class="tab" data-class-selected="tab == 'graphics'" data-event-click="select_graphics">Graphics</div>
+			<div class="tab" data-class-selected="tab == 'audio'" data-event-click="select_audio">Audio</div>
+			<div class="tab" data-class-selected="tab == 'controls'" data-event-click="select_controls">Controls</div>
+			<div class="tab" data-class-selected="tab == 'network'" data-event-click="select_network">Network</div>
+		</div>
+
+		<div class="panels">
+			<!-- Video: anti-aliasing / texture filtering / anisotropy -->
+			<div class="panel scroll-container" data-if="tab == 'video'">
+				<div class="row">
+					<div class="label"><gametext key="GUI:AntiAliasing"/></div>
+					<select class="control" data-value="anti_aliasing">
+						<option value="0">Off</option>
+						<option value="1">2x MSAA</option>
+						<option value="2">4x MSAA</option>
+						<option value="3">8x MSAA</option>
+					</select>
+				</div>
+				<div class="row">
+					<div class="label">Texture Filtering</div>
+					<select class="control" data-value="texture_filter">
+						<option value="0">Bilinear</option>
+						<option value="1">Trilinear</option>
+						<option value="2">Anisotropic</option>
+					</select>
+				</div>
+				<div class="row">
+					<div class="label">Anisotropy</div>
+					<select class="control" data-value="anisotropy">
+						<option value="0">2x</option>
+						<option value="1">4x</option>
+						<option value="2">8x</option>
+						<option value="3">16x</option>
+					</select>
+				</div>
+			</div>
+
+			<!-- Graphics: placeholder, advanced display options are not ported to RmlUi yet (see report) -->
+			<div class="panel scroll-container" data-if="tab == 'graphics'">
+				<div class="row"><div class="label">Advanced display options are available with -wnd for now.</div></div>
+			</div>
+
+			<!-- Audio -->
+			<div class="panel scroll-container" data-if="tab == 'audio'">
+				<div class="row">
+					<div class="label"><gametext key="GUI:MusicVolume"/></div>
+					<input class="control range" type="range" min="0" max="100" step="1" data-value="music_volume"/>
+				</div>
+				<div class="row">
+					<div class="label"><gametext key="GUI:SFXVolume"/></div>
+					<input class="control range" type="range" min="0" max="100" step="1" data-value="sfx_volume"/>
+				</div>
+				<div class="row">
+					<div class="label"><gametext key="GUI:VoiceVolume"/></div>
+					<input class="control range" type="range" min="0" max="100" step="1" data-value="voice_volume"/>
+				</div>
+			</div>
+
+			<!-- Controls -->
+			<div class="panel scroll-container" data-if="tab == 'controls'">
+				<div class="row">
+					<div class="label"><gametext key="GUI:ScrollSpeed"/></div>
+					<input class="control range" type="range" min="0" max="100" step="1" data-value="scroll_speed"/>
+				</div>
+				<div class="row">
+					<div class="label"><gametext key="GUI:AlternateMouse"/></div>
+					<input class="control checkbox" type="checkbox" data-checked="alternate_mouse"/>
+				</div>
+				<div class="row">
+					<div class="label"><gametext key="GUI:RetaliationTitle"/></div>
+					<input class="control checkbox" type="checkbox" data-checked="retaliation"/>
+				</div>
+				<div class="row">
+					<div class="label"><gametext key="GUI:DoubleClickAttackMove"/></div>
+					<input class="control checkbox" type="checkbox" data-checked="double_click_attack_move"/>
+				</div>
+				<div class="row">
+					<div class="label"><gametext key="GUI:LanguageFilter"/></div>
+					<input class="control checkbox" type="checkbox" data-checked="language_filter"/>
+				</div>
+			</div>
+
+			<!-- Network -->
+			<div class="panel scroll-container" data-if="tab == 'network'">
+				<div class="row">
+					<div class="label"><gametext key="GUI:SendDelay"/></div>
+					<input class="control checkbox" type="checkbox" data-checked="send_delay"/>
+				</div>
+				<div class="row">
+					<div class="label">IP address / firewall settings are available with -wnd for now.</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="footer">
+			<button data-event-click="defaults"><gametext key="GUI:Defaults"/></button>
+			<button data-event-click="cancel"><gametext key="GUI:Cancel"/></button>
+			<button data-event-click="accept"><gametext key="GUI:Accept"/></button>
+		</div>
+	</div>
+</body>
+</rml>
