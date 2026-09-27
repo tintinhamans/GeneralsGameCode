@@ -52,6 +52,7 @@
 #include "Common/MessageStream.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/RmlUiInputHook.h"
 #include "GameClient/WindowXlat.h"
 #include "GameClient/Shell.h"
 #include "GameClient/Display.h"
@@ -171,6 +172,85 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 	GameMessageDisposition disp = KEEP_MESSAGE;
 	Bool forceKeepMessage = FALSE;
 	WinInputReturnCode returnCode = WIN_INPUT_NOT_USED;
+
+	// TheSuperHackers @feature RmlUi phase 1: while an RmlUi document is visible and the mouse
+	// is over it (or it is modal), steal raw mouse/keyboard input before the game window
+	// manager ever sees it. TheRmlUiInputHook is null on targets that don't link RmlUi.
+	if (TheRmlUiInputHook)
+	{
+		switch (msg->getType())
+		{
+			case GameMessage::MSG_RAW_MOUSE_POSITION:
+			case GameMessage::MSG_RAW_MOUSE_LEFT_BUTTON_DOWN:
+			case GameMessage::MSG_RAW_MOUSE_LEFT_BUTTON_UP:
+			case GameMessage::MSG_RAW_MOUSE_LEFT_DOUBLE_CLICK:
+			case GameMessage::MSG_RAW_MOUSE_LEFT_DRAG:
+			case GameMessage::MSG_RAW_MOUSE_MIDDLE_BUTTON_DOWN:
+			case GameMessage::MSG_RAW_MOUSE_MIDDLE_BUTTON_UP:
+			case GameMessage::MSG_RAW_MOUSE_MIDDLE_DOUBLE_CLICK:
+			case GameMessage::MSG_RAW_MOUSE_MIDDLE_DRAG:
+			case GameMessage::MSG_RAW_MOUSE_RIGHT_BUTTON_DOWN:
+			case GameMessage::MSG_RAW_MOUSE_RIGHT_BUTTON_UP:
+			case GameMessage::MSG_RAW_MOUSE_RIGHT_DOUBLE_CLICK:
+			case GameMessage::MSG_RAW_MOUSE_RIGHT_DRAG:
+			case GameMessage::MSG_RAW_MOUSE_WHEEL:
+			{
+				ICoord2D mousePos = msg->getArgument( 0 )->pixel;
+				if( TheRmlUiInputHook->wantsMouseInput( mousePos.x, mousePos.y ) )
+				{
+					switch( msg->getType() )
+					{
+						case GameMessage::MSG_RAW_MOUSE_POSITION:
+						case GameMessage::MSG_RAW_MOUSE_LEFT_DRAG:
+						case GameMessage::MSG_RAW_MOUSE_MIDDLE_DRAG:
+						case GameMessage::MSG_RAW_MOUSE_RIGHT_DRAG:
+							TheRmlUiInputHook->processMouseMove( mousePos.x, mousePos.y );
+							break;
+						case GameMessage::MSG_RAW_MOUSE_LEFT_BUTTON_DOWN:
+						case GameMessage::MSG_RAW_MOUSE_LEFT_DOUBLE_CLICK:
+							TheRmlUiInputHook->processMouseButton( 0, true );
+							break;
+						case GameMessage::MSG_RAW_MOUSE_LEFT_BUTTON_UP:
+							TheRmlUiInputHook->processMouseButton( 0, false );
+							break;
+						case GameMessage::MSG_RAW_MOUSE_RIGHT_BUTTON_DOWN:
+						case GameMessage::MSG_RAW_MOUSE_RIGHT_DOUBLE_CLICK:
+							TheRmlUiInputHook->processMouseButton( 1, true );
+							break;
+						case GameMessage::MSG_RAW_MOUSE_RIGHT_BUTTON_UP:
+							TheRmlUiInputHook->processMouseButton( 1, false );
+							break;
+						case GameMessage::MSG_RAW_MOUSE_MIDDLE_BUTTON_DOWN:
+						case GameMessage::MSG_RAW_MOUSE_MIDDLE_DOUBLE_CLICK:
+							TheRmlUiInputHook->processMouseButton( 2, true );
+							break;
+						case GameMessage::MSG_RAW_MOUSE_MIDDLE_BUTTON_UP:
+							TheRmlUiInputHook->processMouseButton( 2, false );
+							break;
+						case GameMessage::MSG_RAW_MOUSE_WHEEL:
+							TheRmlUiInputHook->processMouseWheel( msg->getArgument( 1 )->real );
+							break;
+					}
+					return DESTROY_MESSAGE; // consumed by RmlUi, never reaches TheWindowManager
+				}
+				break;
+			}
+
+			case GameMessage::MSG_RAW_KEY_DOWN:
+			case GameMessage::MSG_RAW_KEY_UP:
+				if( TheRmlUiInputHook->wantsKeyboardInput() )
+				{
+					UnsignedByte key = msg->getArgument( 0 )->integer;
+					UnsignedByte state = msg->getArgument( 1 )->integer;
+					TheRmlUiInputHook->processKey( key, state );
+					return DESTROY_MESSAGE;
+				}
+				break;
+
+			default:
+				break;
+		}
+	}
 
 	if (TheTacticalView && TheTacticalView->isMouseLocked())
 	{
