@@ -45,6 +45,10 @@ public:
 	virtual void processMouseButton(int button, bool down) = 0; // 0=left,1=right,2=middle
 	virtual void processMouseWheel(float delta) = 0;
 	virtual void processKey(unsigned char engineKey, unsigned char engineKeyState) = 0;
+
+	// One UTF-16 code unit from WM_CHAR. DirectInput (processKey above) gives scan codes only,
+	// not text, so the window proc forwards WM_CHAR here directly for text entry fields.
+	virtual void processTextInput(unsigned short utf16Char) = 0;
 };
 
 extern RmlUiInputHook *TheRmlUiInputHook; ///< null unless an RmlUi-enabled target has set it

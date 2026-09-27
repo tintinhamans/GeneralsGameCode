@@ -18,5 +18,8 @@
 
 #include "PreRTS.h"
 #include "GameClient/RmlUiInputHook.h"
+#include "GameClient/RmlUiScreenHooks.h"
 
 RmlUiInputHook *TheRmlUiInputHook = nullptr;
+RmlUiScreenFunc TheRmlUiOpenOptionsScreen = nullptr;
+RmlUiScreenFunc TheRmlUiCloseOptionsScreen = nullptr;

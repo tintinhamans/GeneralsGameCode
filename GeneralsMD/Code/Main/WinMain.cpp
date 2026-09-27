@@ -62,6 +62,7 @@
 #include "GameLogic/GameLogic.h"  ///< @todo for demo, remove
 #include "GameClient/Mouse.h"
 #include "GameClient/IMEManager.h"
+#include "GameClient/RmlUiInputHook.h"
 #include "Win32Device/GameClient/Win32Mouse.h"
 #include "Win32Device/Common/Win32GameEngine.h"
 #include "Common/version.h"
@@ -532,6 +533,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 				break;
 			}
 			}
+			return 0;
+		}
+
+		//-------------------------------------------------------------------------
+		// TheSuperHackers @feature RmlUi phase 2: DirectInput (the engine's normal key path)
+		// gives scan codes, not text, so RmlUi text fields need WM_CHAR forwarded directly.
+		case WM_CHAR:
+		{
+			if (TheRmlUiInputHook && TheRmlUiInputHook->wantsKeyboardInput())
+				TheRmlUiInputHook->processTextInput((unsigned short)wParam);
 			return 0;
 		}
 

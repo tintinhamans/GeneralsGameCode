@@ -20,13 +20,21 @@
 
 #include "Common/GlobalData.h"
 #include "GameClient/KeyDefs.h"
+#include "GameClient/RmlUiScreenHooks.h"
+#include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
 
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/Core.h>
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
+#include <RmlUi/Core/ElementInstancer.h>
+#include <RmlUi/Core/Factory.h>
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Core/Log.h>
+#include <RmlUi/Core/StyleTypes.h>
+#include <RmlUi/Debugger.h>
 
 RmlUiManager *RmlUiManager::s_instance = nullptr;
 RmlUiManager *TheRmlUiManager = nullptr;
@@ -82,7 +90,33 @@ void RmlUiManager::init(int width, int height)
 	Rml::LoadFontFace("UI/Fonts/Barlow-Regular.ttf", true);
 	Rml::LoadFontFace("UI/Fonts/Barlow-Bold.ttf");
 
+	// The game's own look uses Arial; load it from the Windows fonts folder at runtime (not
+	// redistributed with the game). If it is missing, alias Barlow under the "Arial" family so
+	// common.rcss can say font-family: Arial unconditionally either way.
+	bool arialLoaded = false;
+	char winDir[MAX_PATH] = {};
+	if (::GetEnvironmentVariableA("WINDIR", winDir, MAX_PATH) > 0)
+	{
+		Rml::String regularPath = Rml::String(winDir) + "\\Fonts\\arial.ttf";
+		Rml::String boldPath = Rml::String(winDir) + "\\Fonts\\arialbd.ttf";
+		bool regularOk = Rml::LoadFontFace(regularPath, true);
+		bool boldOk = Rml::LoadFontFace(boldPath);
+		arialLoaded = regularOk || boldOk;
+	}
+	if (!arialLoaded)
+	{
+		Rml::LoadFontFace("UI/Fonts/Barlow-Regular.ttf", "Arial", Rml::Style::FontStyle::Normal, Rml::Style::FontWeight::Normal, true);
+		Rml::LoadFontFace("UI/Fonts/Barlow-Bold.ttf", "Arial", Rml::Style::FontStyle::Normal, Rml::Style::FontWeight::Bold);
+	}
+
 	m_context = Rml::CreateContext("main", Rml::Vector2i(width, height));
+
+	// dp units scale off a 1080p baseline so common.rcss's spacing/sizes stay consistent
+	// across resolutions and aspect ratios (see report for the palette this backs).
+	if (m_context)
+		m_context->SetDensityIndependentPixelRatio(height / 1080.0f);
+
+	registerCustomElements();
 
 	TheRmlUiInputHook = this;
 
@@ -93,8 +127,26 @@ void RmlUiManager::init(int width, int height)
 		Rml::Log::Message(Rml::Log::LT_INFO, "-wnd given: legacy .wnd menus are active, RmlUi will show no documents.");
 	}
 
-	// TheSuperHackers @todo RmlUi phase 2: no document is loaded here yet. Shell screens will
-	// call m_context->LoadDocument(...) per screen, gated on !TheGlobalData->m_useLegacyMenus.
+	if (TheGlobalData && TheGlobalData->m_rmlDebugger && m_context)
+	{
+		m_debuggerInitialized = Rml::Debugger::Initialise(m_context);
+		if (m_debuggerInitialized)
+			Rml::Debugger::SetVisible(true);
+	}
+
+	// Shell screens call showScreen() with their own RmlScreen, gated on !m_useLegacyMenus;
+	// see MainMenu.cpp/QuitMenu.cpp/Shell::getOptionsLayout for the Options example.
+	TheRmlUiOpenOptionsScreen = &OpenRmlOptionsScreen;
+	TheRmlUiCloseOptionsScreen = &CloseRmlOptionsScreen;
+}
+
+void RmlUiManager::registerCustomElements()
+{
+	m_gameTextInstancer = new Rml::ElementInstancerGeneric<RmlGameTextElement>();
+	Rml::Factory::RegisterElementInstancer("gametext", m_gameTextInstancer);
+
+	m_mappedImageInstancer = new Rml::ElementInstancerGeneric<RmlMappedImageElement>();
+	Rml::Factory::RegisterElementInstancer("mappedimage", m_mappedImageInstancer);
 }
 
 void RmlUiManager::shutdown()
@@ -105,6 +157,9 @@ void RmlUiManager::shutdown()
 	if (TheRmlUiInputHook == this)
 		TheRmlUiInputHook = nullptr;
 
+	TheRmlUiOpenOptionsScreen = nullptr;
+	TheRmlUiCloseOptionsScreen = nullptr;
+
 	if (m_context)
 	{
 		Rml::RemoveContext(m_context->GetName());
@@ -112,6 +167,13 @@ void RmlUiManager::shutdown()
 	}
 
 	Rml::Shutdown();
+
+	// Rml::Shutdown() does not take ownership of instancers registered via Factory; free them now.
+	delete m_gameTextInstancer; m_gameTextInstancer = nullptr;
+	delete m_mappedImageInstancer; m_mappedImageInstancer = nullptr;
+	m_currentScreen = nullptr;
+	m_debuggerInitialized = false;
+
 	m_renderInterface.onDeviceLost();
 
 	m_initialized = false;
@@ -122,7 +184,10 @@ void RmlUiManager::onResize(int width, int height)
 	m_width = width;
 	m_height = height;
 	if (m_context)
+	{
 		m_context->SetDimensions(Rml::Vector2i(width, height));
+		m_context->SetDensityIndependentPixelRatio(height / 1080.0f);
+	}
 }
 
 void RmlUiManager::onDeviceLost()
@@ -277,8 +342,13 @@ void RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeySt
 	const bool isDown = BitIsSet(engineKeyState, KEY_STATE_DOWN);
 	Rml::Input::KeyIdentifier rmlKey = engineKeyToRmlKey(engineKey);
 
-	// TheSuperHackers @todo RmlUi phase 2: shell screens should close on Escape via their own
-	// document logic (e.g. an event listener); no document is loaded to do that yet.
+	// Escape closes the active screen the same way the .wnd Cancel/Back button would,
+	// instead of reaching the context (which has no document-level close behavior of its own).
+	if (rmlKey == Rml::Input::KI_ESCAPE && isDown && m_currentScreen && m_currentScreen->isVisible())
+	{
+		m_currentScreen->onBack();
+		return;
+	}
 
 	if (rmlKey == Rml::Input::KI_UNKNOWN)
 		return;
@@ -288,4 +358,32 @@ void RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeySt
 		m_context->ProcessKeyDown(rmlKey, mods);
 	else
 		m_context->ProcessKeyUp(rmlKey, mods);
+}
+
+void RmlUiManager::processTextInput(unsigned short utf16Char)
+{
+	if (m_context)
+		m_context->ProcessTextInput(Rml::Character(utf16Char));
+}
+
+void RmlUiManager::showScreen(RmlScreen *screen)
+{
+	if (!screen || !m_context)
+		return;
+
+	if (m_currentScreen && m_currentScreen != screen)
+		m_currentScreen->hide();
+
+	screen->load(m_context); // no-op if already loaded
+	screen->show();
+	m_currentScreen = screen;
+}
+
+void RmlUiManager::hideCurrentScreen()
+{
+	if (m_currentScreen)
+	{
+		m_currentScreen->hide();
+		m_currentScreen = nullptr;
+	}
 }

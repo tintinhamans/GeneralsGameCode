@@ -30,7 +30,9 @@
 #include "W3DDevice/GameClient/RmlUi/RmlUiRenderInterface.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiSystemInterface.h"
 
-namespace Rml { class Context; }
+class RmlScreen;
+
+namespace Rml { class Context; class ElementInstancer; }
 
 //-------------------------------------------------------------------------------------------------
 class RmlUiManager : public RmlUiInputHook
@@ -52,6 +54,15 @@ public:
 	void update();                        ///< advance the context (layout, events, animations)
 	void render();                        ///< draw the context on top of everything else this frame
 
+	Rml::Context *getContext() const { return m_context; }
+
+	// Screen router: at most one RmlScreen is active. showScreen() hides whatever was showing,
+	// lazily loads the new screen's document on first use, then shows it. Later Shell::push/pop
+	// call sites route through here the same way Options does (see report).
+	void showScreen(RmlScreen *screen);
+	void hideCurrentScreen();
+	RmlScreen *getCurrentScreen() const { return m_currentScreen; }
+
 	// RmlUiInputHook ---------------------------------------------------------------------------
 	virtual bool wantsMouseInput(int mouseX, int mouseY) const override;
 	virtual bool wantsKeyboardInput() const override;
@@ -59,18 +70,24 @@ public:
 	virtual void processMouseButton(int button, bool down) override;
 	virtual void processMouseWheel(float delta) override;
 	virtual void processKey(unsigned char engineKey, unsigned char engineKeyState) override;
+	virtual void processTextInput(unsigned short utf16Char) override;
 
 private:
 	static RmlUiManager *s_instance;
 
 	bool anyVisibleDocumentAt(int x, int y, bool *outModal) const;
+	void registerCustomElements();
 
 	RmlUiSystemInterface m_systemInterface;
 	RmlUiFileInterface m_fileInterface;
 	RmlUiRenderInterface m_renderInterface;
 	Rml::Context *m_context = nullptr;
+	Rml::ElementInstancer *m_gameTextInstancer = nullptr;
+	Rml::ElementInstancer *m_mappedImageInstancer = nullptr;
+	RmlScreen *m_currentScreen = nullptr;
 	int m_width = 0, m_height = 0;
 	bool m_initialized = false;
+	bool m_debuggerInitialized = false;
 };
 
 extern RmlUiManager *TheRmlUiManager;
