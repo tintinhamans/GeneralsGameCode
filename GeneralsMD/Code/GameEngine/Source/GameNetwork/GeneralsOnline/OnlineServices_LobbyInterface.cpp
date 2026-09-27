@@ -730,6 +730,17 @@ void NGMP_OnlineServices_LobbyInterface::Tick()
 		m_pLobbyMesh->Tick();
 	}
 
+	if (m_bCannotConnectToLobbyPending)
+	{
+		m_bCannotConnectToLobbyPending = false;
+
+		auto callbackCopy = m_OnCannotConnectToLobbyCallback;
+		if (callbackCopy != nullptr)
+		{
+			callbackCopy();
+		}
+	}
+
 	// TODO_NGMP: Do we still need this safety measure?
 	if (IsInLobby())
 	{
@@ -1271,6 +1282,8 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 
 void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 {
+	m_bCannotConnectToLobbyPending = false;
+
 	// reset host migration flags
 	ResetHostMigrationFlags();
 
@@ -1310,6 +1323,8 @@ void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 
 void NGMP_OnlineServices_LobbyInterface::ResetForMatchmakingRequeue()
 {
+	m_bCannotConnectToLobbyPending = false;
+
 	// The service has already removed us from the failed temporary lobby. Tear down only
 	// local state here; sending the normal DELETE would cancel the server-side requeue.
 	++m_LobbyJoinGeneration;
