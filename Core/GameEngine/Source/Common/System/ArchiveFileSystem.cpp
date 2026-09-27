@@ -144,9 +144,9 @@ void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool ove
 		AsciiString token;
 		AsciiString tokenizer = *it;
 		tokenizer.toLower();
-		Bool infoInPath = tokenizer.nextToken(&token, "\\/");
+		tokenizer.nextToken(&token, "\\/");
 
-		while (infoInPath && (!token.find('.') || tokenizer.find('.')))
+		while (!tokenizer.isEmpty())
 		{
 			path.concat(token);
 			path.concat('\\');
@@ -163,7 +163,7 @@ void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool ove
 				dirInfo = &tempiter->second;
 			}
 
-			infoInPath = tokenizer.nextToken(&token, "\\/");
+			tokenizer.nextToken(&token, "\\/");
 		}
 
 		ArchivedFileLocationMap::iterator fileIt;
@@ -306,15 +306,15 @@ ArchiveFileSystem::ArchivedDirectoryInfoResult ArchiveFileSystem::getArchivedDir
 	AsciiString token;
 	AsciiString tokenizer = directory;
 	tokenizer.toLower();
-	Bool infoInPath = tokenizer.nextToken(&token, "\\/");
+	tokenizer.nextToken(&token, "\\/");
 
-	while (infoInPath && (!token.find('.') || tokenizer.find('.')))
+	while (!tokenizer.isEmpty())
 	{
 		ArchivedDirectoryInfoMap::iterator tempiter = dirInfo->m_directories.find(token);
 		if (tempiter != dirInfo->m_directories.end())
 		{
 			dirInfo = &tempiter->second;
-			infoInPath = tokenizer.nextToken(&token, "\\/");
+			tokenizer.nextToken(&token, "\\/");
 		}
 		else
 		{
