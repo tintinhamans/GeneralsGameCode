@@ -203,6 +203,7 @@ void RmlLanGameSetupScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("slot_color_changed", &RmlLanGameSetupScreen::onSlotColorChanged, this);
 		constructor.BindEventCallback("slot_team_changed", &RmlLanGameSetupScreen::onSlotTeamChanged, this);
 		constructor.BindEventCallback("start_marker_clicked", &RmlLanGameSetupScreen::onStartPositionMarkerClick, this);
+		constructor.BindEventCallback("start_marker_mousedown", &RmlLanGameSetupScreen::onStartPositionMarkerMouseDown, this);
 		constructor.BindEventCallback("starting_cash_changed", &RmlLanGameSetupScreen::onStartingCashChanged, this);
 		constructor.BindEventCallback("superweapons_changed", &RmlLanGameSetupScreen::onSuperweaponsChanged, this);
 		constructor.BindEventCallback("select_map", &RmlLanGameSetupScreen::onSelectMap, this);
@@ -516,6 +517,17 @@ void RmlLanGameSetupScreen::onStartPositionMarkerClick(Rml::DataModelHandle, Rml
 		return;
 	Int position = args[0].Get<int>();
 	LanGameSetupActions::handleStartPositionMarkerClick(TheLAN->GetMyGame(), position);
+	refreshFromGameState();
+}
+
+void RmlLanGameSetupScreen::onStartPositionMarkerMouseDown(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &args)
+{
+	// GBM_SELECTED_RIGHT equivalent: RmlUi only synthesizes "click" for the left button,
+	// so the right-click marker clear has to be caught on the raw mousedown (button 1).
+	if (args.empty() || !TheLAN || ev.GetParameter<int>("button", 0) != 1)
+		return;
+	Int position = args[0].Get<int>();
+	LanGameSetupActions::handleStartPositionMarkerRightClick(TheLAN->GetMyGame(), position);
 	refreshFromGameState();
 }
 

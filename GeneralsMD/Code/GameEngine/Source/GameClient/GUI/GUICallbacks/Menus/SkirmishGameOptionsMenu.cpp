@@ -1539,27 +1539,9 @@ WindowMsgHandledType SkirmishGameOptionsMenuSystem( GameWindow *window, Unsigned
 			{
 				if (controlID == buttonMapStartPositionID[i])
 				{
-					Int playerIdxInPos = -1;
-					for (Int j=0; j<MAX_SLOTS; ++j)
-					{
-						GameSlot *slot = TheSkirmishGameInfo->getSlot(j);
-						if (slot && slot->getStartPos() == i)
-						{
-							playerIdxInPos = j;
-							break;
-						}
-					}
-					if (playerIdxInPos >= 0)
-					{
-						GameSlot *slot = TheSkirmishGameInfo->getSlot(playerIdxInPos);
-						if (playerIdxInPos == TheSkirmishGameInfo->getLocalSlotNum() || (TheSkirmishGameInfo->amIHost() && slot && slot->isAI()))
-						{
-							// it's one of my type.  Remove it.
-							handleStartPositionSelection(playerIdxInPos, -1);
-						}
-						skirmishUpdateSlotList();
-						sandboxOk = FALSE;
-					}
+					SkirmishSetupActions::handleStartPositionMarkerRightClick(TheSkirmishGameInfo, i);
+					skirmishUpdateSlotList();
+					sandboxOk = FALSE;
 				}
 			}
 			break;

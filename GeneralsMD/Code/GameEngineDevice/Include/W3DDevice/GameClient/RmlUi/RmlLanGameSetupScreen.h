@@ -77,6 +77,7 @@ private:
 	void onSlotColorChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotTeamChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onStartPositionMarkerClick(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onStartPositionMarkerMouseDown(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onStartingCashChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSuperweaponsChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSelectMap(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);

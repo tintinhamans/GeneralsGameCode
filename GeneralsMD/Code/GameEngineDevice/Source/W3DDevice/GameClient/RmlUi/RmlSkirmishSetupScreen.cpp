@@ -151,6 +151,7 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("slot_color_changed", &RmlSkirmishSetupScreen::onSlotColorChanged, this);
 		constructor.BindEventCallback("slot_team_changed", &RmlSkirmishSetupScreen::onSlotTeamChanged, this);
 		constructor.BindEventCallback("start_marker_clicked", &RmlSkirmishSetupScreen::onStartPositionMarkerClick, this);
+		constructor.BindEventCallback("start_marker_mousedown", &RmlSkirmishSetupScreen::onStartPositionMarkerMouseDown, this);
 		constructor.BindEventCallback("starting_cash_changed", &RmlSkirmishSetupScreen::onStartingCashChanged, this);
 		constructor.BindEventCallback("superweapons_changed", &RmlSkirmishSetupScreen::onSuperweaponsChanged, this);
 		constructor.BindEventCallback("game_speed_changed", &RmlSkirmishSetupScreen::onGameSpeedChanged, this);
@@ -382,6 +383,17 @@ void RmlSkirmishSetupScreen::onStartPositionMarkerClick(Rml::DataModelHandle, Rm
 		return;
 	Int position = args[0].Get<int>();
 	SkirmishSetupActions::handleStartPositionMarkerClick(TheSkirmishGameInfo, position);
+	refreshFromGameState();
+}
+
+void RmlSkirmishSetupScreen::onStartPositionMarkerMouseDown(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &args)
+{
+	// GBM_SELECTED_RIGHT equivalent: RmlUi only synthesizes "click" for the left button,
+	// so the right-click marker clear has to be caught on the raw mousedown (button 1).
+	if (args.empty() || ev.GetParameter<int>("button", 0) != 1)
+		return;
+	Int position = args[0].Get<int>();
+	SkirmishSetupActions::handleStartPositionMarkerRightClick(TheSkirmishGameInfo, position);
 	refreshFromGameState();
 }
 

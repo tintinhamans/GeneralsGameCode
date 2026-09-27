@@ -106,6 +106,11 @@ namespace SkirmishSetupActions
 	// exact same rules as SkirmishGameOptionsMenu.cpp's ButtonMapStartPosition handler.
 	void handleStartPositionMarkerClick( GameInfo *game, Int position );
 
+	// Map preview start-position marker right click: clear whichever slot the local
+	// host can move out of position, following the exact same rules as
+	// SkirmishGameOptionsMenu.cpp's ButtonMapStartPosition GBM_SELECTED_RIGHT handler.
+	void handleStartPositionMarkerRightClick( GameInfo *game, Int position );
+
 	// ComboBoxStartingCash: set the game's starting cash.
 	void setStartingCash( GameInfo *game, const Money &startingCash );
 

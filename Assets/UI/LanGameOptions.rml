@@ -57,7 +57,8 @@
 					<div data-for="marker : start_markers">
 						<div class="start-marker" data-if="marker.used"
 							data-style-left="marker.x_style" data-style-top="marker.y_style"
-							data-event-click="start_marker_clicked(marker.position)">
+							data-event-click="start_marker_clicked(marker.position)"
+							data-event-mousedown="start_marker_mousedown(marker.position)">
 							<div class="start-marker-dot" data-class-occupied="marker.is_occupied" data-style-background-color="marker.color_hex"></div>
 							<div class="start-marker-label" data-if="marker.is_occupied">{{marker.occupant_label}}</div>
 						</div>

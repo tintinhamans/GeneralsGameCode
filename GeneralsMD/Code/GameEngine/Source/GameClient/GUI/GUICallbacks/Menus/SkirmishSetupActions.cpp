@@ -186,6 +186,33 @@ void SkirmishSetupActions::handleStartPositionMarkerClick( GameInfo *game, Int p
 	}
 }
 
+void SkirmishSetupActions::handleStartPositionMarkerRightClick( GameInfo *game, Int position )
+{
+	if( !game )
+		return;
+
+	Int playerIdxInPos = -1;
+	for( Int j = 0; j < MAX_SLOTS; ++j )
+	{
+		GameSlot *slot = game->getSlot( j );
+		if( slot && slot->getStartPos() == position )
+		{
+			playerIdxInPos = j;
+			break;
+		}
+	}
+
+	if( playerIdxInPos >= 0 )
+	{
+		GameSlot *slot = game->getSlot( playerIdxInPos );
+		if( playerIdxInPos == game->getLocalSlotNum() || ( game->amIHost() && slot && slot->isAI() ) )
+		{
+			// it's one of my type. Remove it.
+			selectStartPosition( game, playerIdxInPos, -1 );
+		}
+	}
+}
+
 void SkirmishSetupActions::setStartingCash( GameInfo *game, const Money &startingCash )
 {
 	if( game )
