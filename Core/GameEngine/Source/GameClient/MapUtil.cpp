@@ -830,89 +830,28 @@ struct MapListBoxData
 };
 
 //-------------------------------------------------------------------------------------------------
-static Bool addMapToMapListbox(
-	MapListBoxData& lbData,
-	const AsciiString& mapDir,
-	const AsciiString& mapName,
-	const MapMetaData& mapMetaData)
+static AsciiString computeMapListDir(Bool useSystemMaps)
 {
-	const Bool mapOk = mapName.startsWithNoCase(mapDir.str()) && lbData.isMultiplayer == mapMetaData.m_isMultiplayer && !mapMetaData.m_displayName.isEmpty();
-
-	if (mapOk)
+	AsciiString mapDir;
+	if (useSystemMaps)
 	{
-		UnicodeString mapDisplayName;
-		/// @todo: mapDisplayName = TheGameText->fetch(mapMetaData.m_displayName.str());
-		mapDisplayName = mapMetaData.m_displayName;
-
-		Int index = -1;
-		Int imageItemData = -1;
-		if (lbData.numColumns > 1 && mapMetaData.m_isMultiplayer)
-		{
-			const Int numEasy = lbData.battleHonors->getEnduranceMedal(mapName.str(), SLOT_EASY_AI);
-			const Int numMedium = lbData.battleHonors->getEnduranceMedal(mapName.str(), SLOT_MED_AI);
-			const Int numBrutal = lbData.battleHonors->getEnduranceMedal(mapName.str(), SLOT_BRUTAL_AI);
-			if (numBrutal)
-			{
-				const Int maxBrutalSlots = mapMetaData.m_numPlayers - 1;
-				if (lbData.maxBrutalImage != nullptr && numBrutal == maxBrutalSlots)
-				{
-					index = GadgetListBoxAddEntryImage( lbData.listbox, lbData.maxBrutalImage, index, 0, lbData.w, lbData.h, TRUE);
-					imageItemData = 4;
-				}
-				else
-				{
-					index = GadgetListBoxAddEntryImage( lbData.listbox, lbData.brutalImage, index, 0, lbData.w, lbData.h, TRUE);
-					imageItemData = 3;
-				}
-			}
-			else if (numMedium)
-			{
-				imageItemData = 2;
-				index = GadgetListBoxAddEntryImage( lbData.listbox, lbData.mediumImage, index, 0, lbData.w, lbData.h, TRUE);
-			}
-			else if (numEasy)
-			{
-				imageItemData = 1;
-				index = GadgetListBoxAddEntryImage( lbData.listbox, lbData.easyImage, index, 0, lbData.w, lbData.h, TRUE);
-			}
-			else
-			{
-				imageItemData = 0;
-				index = GadgetListBoxAddEntryImage( lbData.listbox, nullptr, index, 0, lbData.w, lbData.h, TRUE);
-			}
-		}
-
-		index = GadgetListBoxAddEntryText( lbData.listbox, mapDisplayName, lbData.color, index, lbData.numColumns-1 );
-		DEBUG_ASSERTCRASH(index >= 0, ("Expects valid index"));
-
-		if (mapName == lbData.mapToSelect)
-		{
-			lbData.selectionIndex = index;
-		}
-
-		// now set the char* as the item data.  this works because the map cache isn't being
-		// modified while a map listbox is up.
-		GadgetListBoxSetItemData( lbData.listbox, (void *)(mapName.str()), index );
-
-		if (lbData.numColumns > 1)
-		{
-			GadgetListBoxSetItemData( lbData.listbox, (void *)imageItemData, index, 1 );
-		}
-
-		// TheSuperHackers @performance Now stops processing when the list is full.
-		if (index == lbData.numLength - 1)
-		{
-			return false;
-		}
+		mapDir = TheMapCache->getMapDir();
 	}
-
-	return true;
+	else
+	{
+		mapDir = TheGlobalData->getPath_UserData();
+		mapDir.concat(TheMapCache->getMapDir());
+	}
+	mapDir.toLower();
+	return mapDir;
 }
 
 //-------------------------------------------------------------------------------------------------
-static Bool addMapCollectionToMapListbox(
-	MapListBoxData& lbData,
+static void collectMapEntriesForCollection(
+	MapEntryList& outEntries,
 	const AsciiString& mapDir,
+	Bool isMultiplayer,
+	const AsciiString& mapToSelect,
 	const MapNameList& mapNames,
 	const MapDisplayToFileNameList& fileNames)
 {
@@ -945,10 +884,116 @@ static Bool addMapCollectionToMapListbox(
 		}
 		*/
 
-		const Bool ok = addMapToMapListbox(lbData, mapDir, mapCacheIt->first, mapCacheIt->second);
+		const AsciiString& mapName = mapCacheIt->first;
+		const MapMetaData& mapMetaData = mapCacheIt->second;
 
-		if (!ok)
-			return false;
+		const Bool mapOk = mapName.startsWithNoCase(mapDir.str()) && isMultiplayer == mapMetaData.m_isMultiplayer && !mapMetaData.m_displayName.isEmpty();
+
+		if (!mapOk)
+			continue;
+
+		MapListEntry entry;
+		entry.mapName = mapName; // shares the ref-counted buffer with the map cache key
+		entry.displayName = mapMetaData.m_displayName;
+		entry.isOfficial = mapMetaData.m_isOfficial;
+		entry.numPlayers = mapMetaData.m_numPlayers;
+		entry.filesize = mapMetaData.m_filesize;
+		entry.isSelected = (mapName == mapToSelect);
+		outEntries.push_back(entry);
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Build the widget-agnostic, filtered list of maps to display. Shared by gadget listboxes
+ * and alternative (e.g. RmlUi) front ends. */
+//-------------------------------------------------------------------------------------------------
+MapEntryList buildFilteredMapList( Bool useSystemMaps, Bool isMultiplayer, AsciiString mapToSelect )
+{
+	MapEntryList entries;
+
+	if (!TheMapCache)
+		return entries;
+
+	const AsciiString mapDir = computeMapListDir(useSystemMaps);
+
+	MapNameList mapNames;
+	MapDisplayToFileNameList fileNames;
+
+	for (Int curNumPlayersInMap = 1; curNumPlayersInMap <= MAX_SLOTS; ++curNumPlayersInMap)
+	{
+		buildMapListForNumPlayers(mapNames, fileNames, curNumPlayersInMap);
+
+		collectMapEntriesForCollection(entries, mapDir, isMultiplayer, mapToSelect, mapNames, fileNames);
+
+		mapNames.clear();
+		fileNames.clear();
+	}
+
+	return entries;
+}
+
+//-------------------------------------------------------------------------------------------------
+static Bool addMapEntryToMapListbox(MapListBoxData& lbData, const MapListEntry& entry)
+{
+	Int index = -1;
+	Int imageItemData = -1;
+	if (lbData.numColumns > 1 && lbData.isMultiplayer)
+	{
+		const Int numEasy = lbData.battleHonors->getEnduranceMedal(entry.mapName.str(), SLOT_EASY_AI);
+		const Int numMedium = lbData.battleHonors->getEnduranceMedal(entry.mapName.str(), SLOT_MED_AI);
+		const Int numBrutal = lbData.battleHonors->getEnduranceMedal(entry.mapName.str(), SLOT_BRUTAL_AI);
+		if (numBrutal)
+		{
+			const Int maxBrutalSlots = entry.numPlayers - 1;
+			if (lbData.maxBrutalImage != nullptr && numBrutal == maxBrutalSlots)
+			{
+				index = GadgetListBoxAddEntryImage( lbData.listbox, lbData.maxBrutalImage, index, 0, lbData.w, lbData.h, TRUE);
+				imageItemData = 4;
+			}
+			else
+			{
+				index = GadgetListBoxAddEntryImage( lbData.listbox, lbData.brutalImage, index, 0, lbData.w, lbData.h, TRUE);
+				imageItemData = 3;
+			}
+		}
+		else if (numMedium)
+		{
+			imageItemData = 2;
+			index = GadgetListBoxAddEntryImage( lbData.listbox, lbData.mediumImage, index, 0, lbData.w, lbData.h, TRUE);
+		}
+		else if (numEasy)
+		{
+			imageItemData = 1;
+			index = GadgetListBoxAddEntryImage( lbData.listbox, lbData.easyImage, index, 0, lbData.w, lbData.h, TRUE);
+		}
+		else
+		{
+			imageItemData = 0;
+			index = GadgetListBoxAddEntryImage( lbData.listbox, nullptr, index, 0, lbData.w, lbData.h, TRUE);
+		}
+	}
+
+	index = GadgetListBoxAddEntryText( lbData.listbox, entry.displayName, lbData.color, index, lbData.numColumns-1 );
+	DEBUG_ASSERTCRASH(index >= 0, ("Expects valid index"));
+
+	if (entry.isSelected)
+	{
+		lbData.selectionIndex = index;
+	}
+
+	// now set the char* as the item data.  this works because the map cache isn't being
+	// modified while a map listbox is up.
+	GadgetListBoxSetItemData( lbData.listbox, (void *)(entry.mapName.str()), index );
+
+	if (lbData.numColumns > 1)
+	{
+		GadgetListBoxSetItemData( lbData.listbox, (void *)imageItemData, index, 1 );
+	}
+
+	// TheSuperHackers @performance Now stops processing when the list is full.
+	if (index == lbData.numLength - 1)
+	{
+		return false;
 	}
 
 	return true;
@@ -985,32 +1030,12 @@ Int populateMapListboxNoReset( GameWindow *listbox, Bool useSystemMaps, Bool isM
 		lbData.h = lbData.w;
 	}
 
-	AsciiString mapDir;
-	if (useSystemMaps)
+	const MapEntryList entries = buildFilteredMapList(useSystemMaps, isMultiplayer, mapToSelect);
+
+	MapEntryList::const_iterator entryIt = entries.begin();
+	for (; entryIt != entries.end(); ++entryIt)
 	{
-		mapDir = TheMapCache->getMapDir();
-	}
-	else
-	{
-		mapDir = TheGlobalData->getPath_UserData();
-		mapDir.concat(TheMapCache->getMapDir());
-	}
-	mapDir.toLower();
-
-	MapNameList mapNames;
-	MapDisplayToFileNameList fileNames;
-	Int curNumPlayersInMap = 1;
-
-	for (; curNumPlayersInMap <= MAX_SLOTS; ++curNumPlayersInMap)
-	{
-		buildMapListForNumPlayers(mapNames, fileNames, curNumPlayersInMap);
-
-		const Bool ok = addMapCollectionToMapListbox(lbData, mapDir, mapNames, fileNames);
-
-		mapNames.clear();
-		fileNames.clear();
-
-		if (!ok)
+		if (!addMapEntryToMapListbox(lbData, *entryIt))
 			break;
 	}
 

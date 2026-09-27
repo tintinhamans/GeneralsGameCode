@@ -137,6 +137,20 @@ extern TechAndSupplyImages TheSupplyAndTechImageLocations;
 // TheSuperHackers @refactor xezon 28/11/2025 Refactors the map list population implementation
 // by breaking it into smaller pieces to make it more maintainable.
 
+// Widget-agnostic map list entry, shared by gadget listboxes and alternative (e.g. RmlUi) front ends.
+struct MapListEntry
+{
+	AsciiString mapName;			///< map cache key (also the file path)
+	UnicodeString displayName;
+	Bool isOfficial;
+	Int numPlayers;
+	UnsignedInt filesize;
+	Bool isSelected;				///< true if this entry matches the requested mapToSelect
+};
+typedef std::vector<MapListEntry> MapEntryList;
+
+MapEntryList buildFilteredMapList( Bool useSystemMaps, Bool isMultiplayer, AsciiString mapToSelect = AsciiString::TheEmptyString );		/// Read and filter the map list from TheMapCache, widget-agnostic
+
 Int populateMapListbox( GameWindow *listbox, Bool useSystemMaps, Bool isMultiplayer, AsciiString mapToSelect = AsciiString::TheEmptyString );		/// Read a list of maps from the run directory and fill in the listbox.  Return the selected index
 Int populateMapListboxNoReset( GameWindow *listbox, Bool useSystemMaps, Bool isMultiplayer, AsciiString mapToSelect = AsciiString::TheEmptyString );		/// Read a list of maps from the run directory and fill in the listbox.  Return the selected index
 Bool isValidMap( AsciiString mapName, Bool isMultiplayer );						/// Validate a map
