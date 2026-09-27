@@ -44,12 +44,13 @@ static void CleanupPendingConnSignalingDeletions()
 	}
 }
 
-// Called when a connection undergoes a state transition
+// Called on connection state transitions. Always runs on the main thread via RunCallbacks(), so
+// m_mapConnections is accessed here without m_mapConnectionsMutex.
 void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)
 {
 	// Clean up any pending ConnectionSignaling deletions from previous callbacks
 	CleanupPendingConnSignalingDeletions();
-	
+
 	// Early exit if NetworkMesh is being destroyed to prevent use-after-free
 	if (g_bNetworkMeshDestroying.load())
 	{
@@ -103,31 +104,36 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 		{
 			PlayerConnection& plrConnection = connections[connectionID];
 
+			// Capture before SetDisconnected(), which can erase this entry via UpdateState().
+			const int64_t userID = plrConnection.m_userID;
+			const int signallingAttemptsBeforeDisconnect = plrConnection.m_SignallingAttempts;
+
 			if (TheNetwork != nullptr)
 			{
-				TheNetwork->GetConnectionManager()->disconnectPlayer(plrConnection.m_userID);
+				TheNetwork->GetConnectionManager()->disconnectPlayer(userID);
 			}
 
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", plrConnection.m_userID);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", userID);
 
 			ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
 			const int numSignallingAttempts = 2;
 
 			// only the later joiner of a pair gives up; unknown join order caps both sides, a departed peer is capped without leaving
 			NGMP_OnlineServices_LobbyInterface* pJoinOrderLobby = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-			const bool bWeJoinedLater = pJoinOrderLobby == nullptr || !pJoinOrderLobby->IsJoinOrderKnown() || pJoinOrderLobby->JoinedAfter(plrConnection.m_userID);
-			const bool bPeerLeft = pJoinOrderLobby != nullptr && pJoinOrderLobby->IsJoinOrderKnown() && !pJoinOrderLobby->IsLobbyMember(plrConnection.m_userID);
-			bool bShouldRetry = serviceConf.retry_signalling && ((!bWeJoinedLater && !bPeerLeft) || plrConnection.m_SignallingAttempts < numSignallingAttempts);
+			const bool bWeJoinedLater = pJoinOrderLobby == nullptr || !pJoinOrderLobby->IsJoinOrderKnown() || pJoinOrderLobby->JoinedAfter(userID);
+			const bool bPeerLeft = pJoinOrderLobby != nullptr && pJoinOrderLobby->IsJoinOrderKnown() && !pJoinOrderLobby->IsLobbyMember(userID);
+			bool bShouldRetry = serviceConf.retry_signalling && ((!bWeJoinedLater && !bPeerLeft) || signallingAttemptsBeforeDisconnect < numSignallingAttempts);
 
 			bool bWasError = pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally || pInfo->m_info.m_eEndReason != k_ESteamNetConnectionEnd_App_Generic;
 			plrConnection.SetDisconnected(bWasError, pMesh, bShouldRetry && bWasError);
-			
+			// plrConnection may be dangling past this point; use the captured locals.
+
 			// the highest slot player, should leave. In most cases, this is the most recently joined player, but this may not be 100% accurate due to backfills.
 			// TODO_NGMP: In the future, we should pick the most recently joined by timestamp
 			if (bWasError) // only if it wasn't a clean disconnect (e.g. lobby leave)
 			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Determined we didn't connect due to an error, Retrying: %d (currently at %d/%d attempts)", bShouldRetry, plrConnection.m_SignallingAttempts, numSignallingAttempts);
-				
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Determined we didn't connect due to an error, Retrying: %d (currently at %d/%d attempts)", bShouldRetry, signallingAttemptsBeforeDisconnect, numSignallingAttempts);
+
 				// should we retry signaling?
 				if (bShouldRetry)
 				{
@@ -144,11 +150,11 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 							// Behavior:
 							// disconnected slot userID is higher than ours, do nothing, they will signal
 							// disconnected slot userID is lower than ours, we signal
-							if ((myUserID > plrConnection.m_userID))
+							if ((myUserID > userID))
 							{
 								NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Send signal start request...");
 
-								pWS->SendData_RequestSignalling(plrConnection.m_userID);
+								pWS->SendData_RequestSignalling(userID);
 							}
 							else
 							{
@@ -166,11 +172,11 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 
 				if (!bShouldRetry && bPeerLeft)
 				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld is no longer in the lobby", plrConnection.m_userID);
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld is no longer in the lobby", userID);
 				}
 				else if (!bShouldRetry && !bWeJoinedLater)
 				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld joined after us and will leave", plrConnection.m_userID);
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld joined after us and will leave", userID);
 				}
 				else if (!bShouldRetry)
 				{
@@ -179,7 +185,7 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 					if (pLobbyInterface != nullptr)
 					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Performing local removal for user %lld from lobby due to failure to connect\n", plrConnection.m_userID);
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Performing local removal for user %lld from lobby due to failure to connect\n", userID);
 
 						// deferred: the handler leaves the lobby, which deletes this mesh while we're still inside its RunCallbacks
 						pLobbyInterface->QueueCannotConnectToLobby();
@@ -628,6 +634,7 @@ NetworkMesh::NetworkMesh()
 	if (pOnlineServicesMgr == nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "pOnlineServicesMgr is invalid");
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -635,6 +642,7 @@ NetworkMesh::NetworkMesh()
 	if (pAuthInterface == nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "pAuthInterface is invalid");
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -642,6 +650,7 @@ NetworkMesh::NetworkMesh()
 	if (pLobbyInterface == nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "pLobbyInterface is invalid");
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -656,6 +665,7 @@ NetworkMesh::NetworkMesh()
 	if (identityLocal.IsInvalid())
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "SteamNetworkingIdentity is invalid");
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -664,6 +674,7 @@ NetworkMesh::NetworkMesh()
 	if (!GameNetworkingSockets_Init(&identityLocal, errMsg))
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "GameNetworkingSockets_Init failed.  %s", errMsg);
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -720,6 +731,7 @@ NetworkMesh::NetworkMesh()
 	if (m_pSignaling == nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "CreateTrivialSignalingClient failed.  %s", errMsg);
+		g_bNetworkMeshDestroying.store(false);
 		return;
 	}
 
@@ -729,6 +741,8 @@ NetworkMesh::NetworkMesh()
 	// Library is fully re-initialized and the callback is registered;
 	// it is now safe to allow OnSteamNetConnectionStatusChanged to run.
 	g_bNetworkMeshDestroying.store(false);
+
+	m_bInitialized = true;
 
 	ESteamNetworkingSocketsDebugOutputType logType =
 #if defined(_DEBUG)
@@ -949,6 +963,12 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
         vecOpts.push_back(opt);
         NetworkLog(ELogVerbosity::LOG_DEBUG, "Connecting to '%s' in symmetric mode, virtual port %d, from local virtual port %d.\n",
             SteamNetworkingIdentityRender(identityRemote).c_str(), g_nVirtualPortRemote, g_nLocalPort);
+
+        if (m_pSignaling == nullptr)
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::StartConnectionSignalling - Signalling client is null (mesh failed to initialize)");
+            return;
+        }
 
         // create a signaling object for this connection
         SteamNetworkingErrMsg errMsg;

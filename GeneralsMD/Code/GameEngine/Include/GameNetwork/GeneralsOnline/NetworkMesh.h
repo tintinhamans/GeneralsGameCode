@@ -203,6 +203,9 @@ public:
 
 	void Tick();
 
+	// false if construction failed; callers must not use a mesh that failed to initialize.
+	bool IsInitialized() const { return m_bInitialized; }
+
 	HSteamListenSocket GetListenSocketHandle() const { return m_hListenSock; }
 
 	std::map<int64_t, PlayerConnection>& GetAllConnections()
@@ -234,6 +237,8 @@ public:
 
 
 private:
+	bool m_bInitialized = false;
+
 	std::map<int64_t, PlayerConnection> m_mapConnections;
 	mutable std::recursive_mutex m_mapConnectionsMutex;  // Synchronizes access to m_mapConnections
 
