@@ -44,6 +44,7 @@
 #include "GameClient/GadgetStaticText.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameClient/MapUtil.h"
+#include "GameClient/GUI/GUICallbacks/Menus/MapSelectActions.h"
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static NameKeyType buttonBack = NAMEKEY_INVALID;
@@ -255,14 +256,7 @@ void SkirmishMapSelectMenuInit( WindowLayout *layout, void *userData )
 
 	TheWindowManager->winSetFocus( parent );
 
-	LANPreferences pref;
-	Bool usesSystemMapDir = pref.usesSystemMapDir();
-
-	const MapMetaData *mmd = TheMapCache->findMap(TheSkirmishGameInfo->getMap());
-	if (mmd)
-	{
-		usesSystemMapDir = mmd->m_isOfficial;
-	}
+	Bool usesSystemMapDir = MapSelectActions::initialUsesSystemMaps(TheSkirmishGameInfo->getMap());
 
 	winMapPreviewID = TheNameKeyGenerator->nameToKey( "SkirmishMapSelectMenu.wnd:WinMapPreview" );
 	winMapPreview = TheWindowManager->winGetWindowFromId(parent, winMapPreviewID);
@@ -556,23 +550,9 @@ WindowMsgHandledType SkirmishMapSelectMenuSystem( GameWindow *window, UnsignedIn
 						asciiMap = mapFname;
 					else
 						asciiMap.translate( map );
-					TheSkirmishGameInfo->setMap( asciiMap );
+					MapSelectActions::applySelectedMap( TheSkirmishGameInfo, asciiMap );
 
 					const MapMetaData *md = TheMapCache->findMap(asciiMap);
-					if (!md)
-					{
-						TheSkirmishGameInfo->setMapCRC(0);
-						TheSkirmishGameInfo->setMapSize(0);
-					}
-					else
-					{
-						TheSkirmishGameInfo->setMapCRC(md->m_CRC);
-						TheSkirmishGameInfo->setMapSize(md->m_filesize);
-					}
-
-					// reset the start positions
-					for(Int i = 0; i < MAX_SLOTS; ++i)
-						TheSkirmishGameInfo->getSlot(i)->setStartPos(-1);
 					GameWindow *win;
 					win	= TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey("SkirmishGameOptionsMenu.wnd:TextEntryMapDisplay") );
 					if(win)

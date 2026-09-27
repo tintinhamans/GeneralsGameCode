@@ -754,6 +754,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/LanMapSelectMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/MainMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/MainMenuActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/MapSelectActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/MapSelectMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/NetworkDirectConnect.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OptionsMenu.cpp
