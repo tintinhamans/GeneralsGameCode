@@ -69,6 +69,9 @@
 #include "GameNetwork/IPEnumeration.h"
 #include "WWDownload/Registry.h"
 
+#include "GameClient/GUI/GUICallbacks/Menus/GameSetupData.h"
+#include "GameClient/GUI/GUICallbacks/Menus/SkirmishSetupActions.h"
+
 UnsignedInt GetTeamUiColor(Int teamNumber);
 
 SkirmishGameInfo *TheSkirmishGameInfo = nullptr;
@@ -155,17 +158,7 @@ Bool doUpdateSlotList = TRUE;
 
 static Int getNextSelectablePlayer(Int start)
 {
-	if (!TheSkirmishGameInfo->amIHost())
-		return -1;
-	for (Int j=start; j<MAX_SLOTS; ++j)
-	{
-		GameSlot *slot = TheSkirmishGameInfo->getSlot(j);
-		if (slot && slot->getStartPos() == -1 && (j==TheSkirmishGameInfo->getLocalSlotNum() || slot->isAI()))
-		{
-			return j;
-		}
-	}
-	return -1;
+	return SkirmishSetupActions::getNextSelectablePlayer(TheSkirmishGameInfo, start);
 }
 
 SkirmishPreferences::SkirmishPreferences()
@@ -418,10 +411,6 @@ void setFPSTextBox( Int sliderPos )
 
 void reallyDoStart()
 {
-	if (TheGameLogic->isInGame())
-		TheGameLogic->clearGameData(FALSE);
-
-	//NameKeyType sliderGameSpeedID = TheNameKeyGenerator->nameToKey( "SkirmishGameOptionsMenu.wnd:SliderGameSpeed" );
 	GameWindow *sliderGameSpeed = TheWindowManager->winGetWindowFromId( parentSkirmishGameOptions, sliderGameSpeedID );
 	Int maxFPS = GadgetSliderGetPosition( sliderGameSpeed );
 	DEBUG_LOG(("GameSpeedSlider was at %d", maxFPS));
@@ -430,77 +419,34 @@ void reallyDoStart()
 	if (maxFPS < 15)
 		maxFPS = 15;
 
-  TheWritableGlobalData->m_mapName = TheSkirmishGameInfo->getMap();
-  TheSkirmishGameInfo->startGame(0);
-
-		Bool isSkirmish = TRUE;
-	const MapMetaData *md = TheMapCache->findMap(TheSkirmishGameInfo->getMap());
-	if (md)
-	{
-		isSkirmish = md->m_isMultiplayer; // we can now select solo campaign maps in Skirmish.
-	}
-
-	if (isSkirmish)
-	{
-		InitRandom(TheSkirmishGameInfo->getSeed());
-
-		GameMessage *msg = TheMessageStream->appendMessage( GameMessage::MSG_NEW_GAME );
-		msg->appendIntegerArgument(GAME_SKIRMISH);
-		msg->appendIntegerArgument(DIFFICULTY_NORMAL);	// not really used; just specified so we can add the game speed last
-		msg->appendIntegerArgument(0);									// not really used; just specified so we can add the game speed last
-		msg->appendIntegerArgument(maxFPS);							// FPS limit
-	}
-	else
-	{
-		InitRandom(0);
-
-		GameMessage *msg = TheMessageStream->appendMessage( GameMessage::MSG_NEW_GAME );
-		msg->appendIntegerArgument(GAME_SINGLE_PLAYER);
-		msg->appendIntegerArgument(DIFFICULTY_NORMAL);	// not really used; just specified so we can add the game speed last
-		msg->appendIntegerArgument(0);									// not really used; just specified so we can add the game speed last
-		msg->appendIntegerArgument(maxFPS);							// FPS limit
-	}
+	SkirmishSetupActions::startGame(TheSkirmishGameInfo, maxFPS);
 }
 
 Bool sandboxOk = FALSE;
 static void startPressed()
 {
+	SkirmishSetupActions::StartValidationResult result = SkirmishSetupActions::validateStart(TheSkirmishGameInfo);
+	switch (result)
+	{
+		case SkirmishSetupActions::STARTVALIDATION_MAP_NOT_FOUND:
+			buttonPushed = FALSE;
+			MessageBoxOk(TheGameText->fetch("GUI:ErrorStartingGame"), TheGameText->fetch("GUI:CantFindMap"), nullptr);
+			break;
 
-	BOOL isReady = FALSE;
-	Int playerCount = TheSkirmishGameInfo->getNumPlayers();
-	AsciiString lowerMap = TheSkirmishGameInfo->getMap();
-	lowerMap.toLower();
-	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
-	if (it == TheMapCache->end())
-	{
-		buttonPushed = FALSE;
-		MessageBoxOk(TheGameText->fetch("GUI:ErrorStartingGame"), TheGameText->fetch("GUI:CantFindMap"), nullptr);
-	}
-	MapMetaData mmd = it->second;
-	if(playerCount > mmd.m_numPlayers)
-	{
-		buttonPushed = FALSE;
-		UnicodeString msg;
-		msg.format(TheGameText->fetch("GUI:TooManyPlayers"), mmd.m_numPlayers);
-		MessageBoxOk(TheGameText->fetch("GUI:ErrorStartingGame"), msg, nullptr);
-	}
-	/*
-  else if (playerCount < 2 && !sandboxOk)
-  {
-		sandboxOk = TRUE;
-		MessageBoxOk(TheGameText->fetch("GUI:ErrorStartingGame"), TheGameText->fetch("GUI:SandboxWarning"), nullptr);
-  }
-	*/
-	else
-	{
-		isReady = TRUE;
-	}
+		case SkirmishSetupActions::STARTVALIDATION_TOO_MANY_PLAYERS:
+		{
+			buttonPushed = FALSE;
+			const MapMetaData *mmd = TheMapCache->findMap(TheSkirmishGameInfo->getMap());
+			UnicodeString msg;
+			msg.format(TheGameText->fetch("GUI:TooManyPlayers"), mmd ? mmd->m_numPlayers : 0);
+			MessageBoxOk(TheGameText->fetch("GUI:ErrorStartingGame"), msg, nullptr);
+			break;
+		}
 
-	if(isReady)
-	{
-		reallyDoStart();
+		case SkirmishSetupActions::STARTVALIDATION_READY:
+			reallyDoStart();
+			break;
 	}
-
 }
 
 /////////////////////////////////////////////////////
@@ -884,16 +830,8 @@ static void handlePlayerSelection(int index)
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
   UnicodeString title = GadgetComboBoxGetText(combo);
 	playerType = (Int)GadgetComboBoxGetItemData(combo, selIndex);
-	GameInfo *myGame = TheSkirmishGameInfo;
 
-	if (myGame)
-	{
-		GameSlot * slot = myGame->getSlot(index);
-    if(!slot)
-      return;
-    slot->setState(SlotState(playerType), title);
-
-	}
+	SkirmishSetupActions::selectPlayerState(TheSkirmishGameInfo, index, SlotState(playerType), title);
   //skirmishUpdateSlotList();
 }
 
@@ -904,36 +842,7 @@ static void handleColorSelection(int index)
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
 	color = (Int)GadgetComboBoxGetItemData(combo, selIndex);
 
-	GameInfo *myGame = TheSkirmishGameInfo;
-
-	if (myGame)
-	{
-		GameSlot * slot = myGame->getSlot(index);
-    if(!slot)
-      return;
-		if (color == slot->getColor())
-			return;
-
-		if (color >= -1 && color < TheMultiplayerSettings->getNumColors())
-		{
-			Bool colorAvailable = TRUE;
-			if(color != -1 )
-			{
-				for(Int i=0; i <MAX_SLOTS; i++)
-				{
-					GameSlot *checkSlot = myGame->getSlot(i);
-					if(checkSlot && color == checkSlot->getColor() && slot != checkSlot)
-					{
-						colorAvailable = FALSE;
-						break;
-					}
-				}
-			}
-			if(!colorAvailable)
-				return;
-		  }
-    slot->setColor(color);
-  }
+	SkirmishSetupActions::selectColor(TheSkirmishGameInfo, index, color);
   //skirmishUpdateSlotList();
 }
 
@@ -943,51 +852,14 @@ static void handlePlayerTemplateSelection(int index)
 	Int playerTemplate, selIndex;
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
 	playerTemplate = (Int)GadgetComboBoxGetItemData(combo, selIndex);
-	GameInfo *myGame = TheSkirmishGameInfo;
 
-	if (myGame)
-	{
-		GameSlot * slot = myGame->getSlot(index);
-    if(!slot)
-      return;
-		if (playerTemplate == slot->getPlayerTemplate())
-			return;
-
-		slot->setPlayerTemplate(playerTemplate);
-	}
+	SkirmishSetupActions::selectPlayerTemplate(TheSkirmishGameInfo, index, playerTemplate);
   //skirmishUpdateSlotList();
 }
 
 static void handleStartPositionSelection(int index, Int position)
 {
-
-	GameInfo *myGame = TheSkirmishGameInfo;
-
-	if (myGame)
-	{
-		GameSlot * slot = myGame->getSlot(index);
-		if (position == slot->getStartPos())
-			return;
-		if( position < 0)
-		{
-			slot->setStartPos(position);
-			return;
-		}
-
-		Bool isAvailable = TRUE;
-		for(Int i = 0; i < MAX_SLOTS; ++i)
-		{
-			if(i != index && myGame->getSlot(i)->getStartPos() == position)
-			{
-				isAvailable = FALSE;
-				break;
-			}
-		}
-		if(isAvailable)
-		{
-			slot->setStartPos(position);
-		}
-	}
+	SkirmishSetupActions::selectStartPosition(TheSkirmishGameInfo, index, position);
 }
 
 static void handleTeamSelection(int index)
@@ -996,53 +868,26 @@ static void handleTeamSelection(int index)
 	Int team, selIndex;
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
 	team = (Int)GadgetComboBoxGetItemData(combo, selIndex);
-	GameInfo *myGame = TheSkirmishGameInfo;
 
-	if (myGame)
-	{
-		GameSlot * slot = myGame->getSlot(index);
-    if(!slot)
-      return;
-		if (team == slot->getTeamNumber())
-			return;
-
-		slot->setTeamNumber(team);
-	}
+	SkirmishSetupActions::selectTeam(TheSkirmishGameInfo, index, team);
   //skirmishUpdateSlotList();
 }
 
 static void handleStartingCashSelection()
 {
-  GameInfo *myGame = TheSkirmishGameInfo;
+  Int selIndex;
+  GadgetComboBoxGetSelectedPos(comboBoxStartingCash, &selIndex);
 
-  if (myGame)
-  {
-    Int selIndex;
-    GadgetComboBoxGetSelectedPos(comboBoxStartingCash, &selIndex);
-
-    Money startingCash;
-    startingCash.deposit( (UnsignedInt)GadgetComboBoxGetItemData( comboBoxStartingCash, selIndex ), FALSE, FALSE );
-    myGame->setStartingCash( startingCash );
-  }
+  Money startingCash;
+  startingCash.deposit( (UnsignedInt)GadgetComboBoxGetItemData( comboBoxStartingCash, selIndex ), FALSE, FALSE );
+  SkirmishSetupActions::setStartingCash(TheSkirmishGameInfo, startingCash);
 }
 
 static void handleLimitSuperweaponsClick()
 {
-  GameInfo *myGame = TheSkirmishGameInfo;
-
-  if (myGame)
-  {
-    // At the moment, 1 and 0 are the only choices supported in the GUI, though the system could
-    // support more.
-    if ( GadgetCheckBoxIsChecked( checkBoxLimitSuperweapons ) )
-    {
-      myGame->setSuperweaponRestriction( 1 );
-    }
-    else
-    {
-      myGame->setSuperweaponRestriction( 0 );
-    }
-  }
+  // At the moment, 1 and 0 are the only choices supported in the GUI, though the system could
+  // support more.
+  SkirmishSetupActions::setSuperweaponRestriction(TheSkirmishGameInfo, GadgetCheckBoxIsChecked( checkBoxLimitSuperweapons ));
 }
 
 
@@ -1235,20 +1080,13 @@ static const char *perPlayerGadgetsToHide[] =
 //-------------------------------------------------------------------------------------------------
 void updateSkirmishGameOptions()
 {
-	Bool isSkirmish = TRUE;
-	const MapMetaData *md = TheMapCache->findMap(TheSkirmishGameInfo->getMap());
-	if (md)
-	{
-		isSkirmish = md->m_isMultiplayer; // we can now select solo campaign maps in Skirmish.
-    GadgetStaticTextSetText(textEntryMapDisplay, md->m_displayName);
-	}
-	else
+	GameSetupData setup = GameSetupData::build(TheSkirmishGameInfo);
+	if (!setup.m_options.m_mapFound)
 	{
 		DEBUG_CRASH(("map not found, should not happen"));
-		UnicodeString mapDisplay;
-		mapDisplay.translate(AsciiString(TheSkirmishGameInfo->getMap().str()));
-		GadgetStaticTextSetText(textEntryMapDisplay, mapDisplay);
 	}
+	GadgetStaticTextSetText(textEntryMapDisplay, setup.m_options.m_mapDisplayName);
+	Bool isSkirmish = setup.m_options.m_mapIsMultiplayer; // we can now select solo campaign maps in Skirmish.
 	if (isSkirmish)
 	{
 		ShowUnderlyingGUIElements(TRUE, layoutFilename, parentName, gadgetsToHide, perPlayerGadgetsToHide );
@@ -1668,9 +1506,7 @@ WindowMsgHandledType SkirmishGameOptionsMenuSystem( GameWindow *window, Unsigned
 				}
 				else if ( controlID == buttonResetID )
 				{
-					SkirmishBattleHonors stats;
-					stats.clear();
-					stats.write();
+					SkirmishSetupActions::resetBattleHonors();
 					populateSkirmishBattleHonors();
 				}
         else if ( controlID == checkBoxLimitSuperweaponsID )
@@ -1683,38 +1519,7 @@ WindowMsgHandledType SkirmishGameOptionsMenuSystem( GameWindow *window, Unsigned
 					{
 						if (controlID == buttonMapStartPositionID[i])
 						{
-							Int playerIdxInPos = -1;
-							for (Int j=0; j<MAX_SLOTS; ++j)
-							{
-								GameSlot *slot = TheSkirmishGameInfo->getSlot(j);
-								if (slot && slot->getStartPos() == i)
-								{
-									playerIdxInPos = j;
-									break;
-								}
-							}
-							if (playerIdxInPos >= 0)
-							{
-								GameSlot *slot = TheSkirmishGameInfo->getSlot(playerIdxInPos);
-								if (playerIdxInPos == TheSkirmishGameInfo->getLocalSlotNum() || (TheSkirmishGameInfo->amIHost() && slot && slot->isAI()))
-								{
-									// it's one of my type.  Try to change it.
-									Int nextPlayer = getNextSelectablePlayer(playerIdxInPos+1);
-									handleStartPositionSelection(playerIdxInPos, -1);
-									if (nextPlayer >= 0)
-									{
-										handleStartPositionSelection(nextPlayer, i);
-									}
-								}
-							}
-							else
-							{
-								// nobody in the slot - put us in
-								Int nextPlayer = getNextSelectablePlayer(0);
-								if (nextPlayer < 0)
-									nextPlayer = TheSkirmishGameInfo->getLocalSlotNum();
-								handleStartPositionSelection(nextPlayer, i);
-							}
+							SkirmishSetupActions::handleStartPositionMarkerClick(TheSkirmishGameInfo, i);
 							skirmishUpdateSlotList();
 							sandboxOk = FALSE;
 						}

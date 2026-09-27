@@ -758,6 +758,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/NetworkDirectConnect.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OptionsMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OptionsValues.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/GameSetupData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupCommunicator.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupHostGame.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupJoinGame.cpp
@@ -774,6 +775,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/SinglePlayerMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/SkirmishGameOptionsMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/SkirmishMapSelectMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/SkirmishSetupActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/WOLBuddyOverlay.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/WOLCustomScoreScreen.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/WOLGameSetupMenu.cpp
