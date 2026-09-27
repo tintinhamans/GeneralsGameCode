@@ -20,7 +20,7 @@
 
 #include "Common/GlobalData.h"
 #include "GameClient/KeyDefs.h"
-#include "GameClient/RmlUiScreenHooks.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
@@ -129,10 +129,9 @@ void RmlUiManager::init(int width, int height)
 			Rml::Debugger::SetVisible(true);
 	}
 
-	// Shell screens call showScreen() with their own RmlScreen, gated on !m_useLegacyMenus;
-	// see MainMenu.cpp/QuitMenu.cpp/Shell::getOptionsLayout for the Options example.
-	TheRmlUiOpenOptionsScreen = &OpenRmlOptionsScreen;
-	TheRmlUiCloseOptionsScreen = &CloseRmlOptionsScreen;
+	// Shell::push/pop and the ad-hoc call sites (MainMenu.cpp/QuitMenu.cpp options button) look
+	// screens up in the registry by .wnd path, gated on !m_useLegacyMenus; see RmlUiScreenRegistry.h.
+	RmlUiScreenRegistry::registerScreen("Menus/OptionsMenu.wnd", &OpenRmlOptionsScreen, &CloseRmlOptionsScreen);
 }
 
 void RmlUiManager::registerCustomElements()
@@ -152,8 +151,7 @@ void RmlUiManager::shutdown()
 	if (TheRmlUiInputHook == this)
 		TheRmlUiInputHook = nullptr;
 
-	TheRmlUiOpenOptionsScreen = nullptr;
-	TheRmlUiCloseOptionsScreen = nullptr;
+	RmlUiScreenRegistry::unregisterAll();
 
 	if (m_context)
 	{

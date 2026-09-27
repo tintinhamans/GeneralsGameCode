@@ -252,6 +252,20 @@ Bool WindowLayout::load( AsciiString filename )
 }
 
 //-------------------------------------------------------------------------------------------------
+/** Stand in for a screen whose windows are rendered elsewhere (RmlUi). No .wnd is parsed and no
+	* windows are created; the caller sets init/update/shutdown itself to route into that screen. */
+//-------------------------------------------------------------------------------------------------
+Bool WindowLayout::loadEmpty( AsciiString filename )
+{
+	if( filename.isEmpty() )
+		return FALSE;
+
+	m_filenameString = filename;
+
+	return TRUE;
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Bring all windows in this layout forward */
 //-------------------------------------------------------------------------------------------------
 void WindowLayout::bringForward()

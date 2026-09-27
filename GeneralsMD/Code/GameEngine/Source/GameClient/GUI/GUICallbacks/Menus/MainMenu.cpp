@@ -36,7 +36,7 @@
 #include "Common/GameEngine.h"
 #include "Common/GameState.h"
 #include "Common/GlobalData.h"
-#include "GameClient/RmlUiScreenHooks.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/RandomValue.h"
 #include "Common/OptionPreferences.h"
@@ -1450,11 +1450,11 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				//buttonPushed = TRUE;
 				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_OPTIONS_SELECTED]);
 
-				// TheSuperHackers @feature RmlUi phase 2: route to the RmlUi options screen unless
-				// -wnd was given or RmlUi isn't linked/initialized (see RmlUiScreenHooks.h).
-				if (!TheGlobalData->m_useLegacyMenus && TheRmlUiOpenOptionsScreen)
+				// TheSuperHackers @feature RmlUi screen registry: route to the RmlUi options screen
+				// unless -wnd was given or RmlUi isn't linked/initialized (see RmlUiScreenRegistry.h).
+				if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered("Menus/OptionsMenu.wnd"))
 				{
-					TheRmlUiOpenOptionsScreen();
+					RmlUiScreenRegistry::open("Menus/OptionsMenu.wnd");
 				}
 				else
 				{

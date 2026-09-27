@@ -33,7 +33,7 @@
 #include "Common/FramePacer.h"
 #include "Common/GameEngine.h"
 #include "Common/GlobalData.h"
-#include "GameClient/RmlUiScreenHooks.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 #include "Common/GameState.h"
 #include "Common/MessageStream.h"
 #include "Common/Player.h"
@@ -500,10 +500,10 @@ WindowMsgHandledType QuitMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if( buttonOptions == controlID )
 			{
-				// TheSuperHackers @feature RmlUi phase 2: same router as MainMenu.cpp's options button.
-				if (!TheGlobalData->m_useLegacyMenus && TheRmlUiOpenOptionsScreen)
+				// TheSuperHackers @feature RmlUi screen registry: same router as MainMenu.cpp's options button.
+				if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered("Menus/OptionsMenu.wnd"))
 				{
-					TheRmlUiOpenOptionsScreen();
+					RmlUiScreenRegistry::open("Menus/OptionsMenu.wnd");
 				}
 				else
 				{
