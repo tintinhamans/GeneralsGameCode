@@ -1162,6 +1162,14 @@ ScoreScreenLayout ScoreScreenLayout::forMode(ScoreScreenModeType mode)
 
 	switch (mode)
 	{
+		case SCORESCREENMODE_SINGLEPLAYER:
+			// ScoreScreen.cpp's initSinglePlayer() never calls applyScoreScreenLayout() (the .wnd
+			// continue button keeps its .wnd default, then finishSinglePlayerInit() unconditionally
+			// un-hides it regardless of victorious/defeat/campaign-complete); a non-.wnd front end
+			// has no such default, so show it unconditionally here instead.
+			layout.m_showContinueButton = TRUE;
+			break;
+
 		case SCORESCREENMODE_SKIRMISH:
 			// Academy panel left at its .wnd default; skirmish never touches it.
 			break;

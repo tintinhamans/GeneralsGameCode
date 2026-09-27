@@ -7,51 +7,61 @@
 <body data-model="scorescreen">
 	<mappedimage class="background" data-attr-name="background_image" data-if="has_background_image"/>
 	<div class="frame panel">
-		<div class="table-header">
-			<div class="col-icon"></div>
-			<div class="col-name"></div>
-			<div class="col-stat"><gametext key="GUI:MoneyEarned"/></div>
-			<div class="col-stat"><gametext key="GUI:UnitsBuilt"/></div>
-			<div class="col-stat"><gametext key="GUI:UnitsLost"/></div>
-			<div class="col-stat"><gametext key="GUI:UnitsDestroyed"/></div>
-			<div class="col-stat"><gametext key="GUI:BuildingsBuilt"/></div>
-			<div class="col-stat"><gametext key="GUI:BuildingsLost"/></div>
-			<div class="col-stat"><gametext key="GUI:BuildingsDestroyed"/></div>
+		<div class="challenge-splash" data-if="show_challenge_splash">
+			<mappedimage class="challenge-portrait" data-attr-name="challenge_portrait_image"/>
+			<div class="challenge-header">{{challenge_header_text}}</div>
+			<div class="challenge-remarks">{{challenge_remarks_text}}</div>
 		</div>
-		<div class="scroll-container table-body">
-			<div class="table-row" data-for="row : rows" data-class-observer="row.is_observer">
-				<mappedimage class="col-icon" data-attr-name="row.side_icon_image" data-if="row.show_side_icon"/>
-				<div class="col-icon" data-if="!row.show_side_icon"></div>
-				<div class="col-name">{{row.display_name}}</div>
-				<div class="col-stat">{{row.money_earned}}</div>
-				<div class="col-stat">{{row.units_built}}</div>
-				<div class="col-stat">{{row.units_lost}}</div>
-				<div class="col-stat">{{row.units_destroyed}}</div>
-				<div class="col-stat">{{row.buildings_built}}</div>
-				<div class="col-stat">{{row.buildings_lost}}</div>
-				<div class="col-stat">{{row.buildings_destroyed}}</div>
+
+		<div data-if="!show_challenge_splash">
+			<div class="table-header">
+				<div class="col-icon"></div>
+				<div class="col-name"></div>
+				<div class="col-stat"><gametext key="GUI:MoneyEarned"/></div>
+				<div class="col-stat"><gametext key="GUI:UnitsBuilt"/></div>
+				<div class="col-stat"><gametext key="GUI:UnitsLost"/></div>
+				<div class="col-stat"><gametext key="GUI:UnitsDestroyed"/></div>
+				<div class="col-stat"><gametext key="GUI:BuildingsBuilt"/></div>
+				<div class="col-stat"><gametext key="GUI:BuildingsLost"/></div>
+				<div class="col-stat"><gametext key="GUI:BuildingsDestroyed"/></div>
+			</div>
+			<div class="scroll-container table-body">
+				<div class="table-row" data-for="row : rows" data-class-observer="row.is_observer">
+					<mappedimage class="col-icon" data-attr-name="row.side_icon_image" data-if="row.show_side_icon"/>
+					<div class="col-icon" data-if="!row.show_side_icon"></div>
+					<div class="col-name">{{row.display_name}}</div>
+					<div class="col-stat">{{row.money_earned}}</div>
+					<div class="col-stat">{{row.units_built}}</div>
+					<div class="col-stat">{{row.units_lost}}</div>
+					<div class="col-stat">{{row.units_destroyed}}</div>
+					<div class="col-stat">{{row.buildings_built}}</div>
+					<div class="col-stat">{{row.buildings_lost}}</div>
+					<div class="col-stat">{{row.buildings_destroyed}}</div>
+				</div>
+			</div>
+
+			<div class="academy" data-if="show_academy_panel">
+				<div class="section-title"><gametext key="GUI:AcademyAdvice"/></div>
+				<div class="scroll-container academy-body">
+					<div data-for="tip : academy_advice">{{tip}}</div>
+				</div>
+			</div>
+
+			<div class="chat" data-if="show_chat_log">
+				<div class="chat-border" data-class-bordered="show_chat_box_border">
+					<div class="scroll-container chat-body">
+						<div data-for="line : chat_lines">{{line}}</div>
+					</div>
+					<div class="chat-entry-row" data-if="show_chat_entry">
+						<input type="text" class="chat-input" data-value="chat_entry_text"/>
+						<button data-event-click="send_chat"><gametext key="GUI:Send"/></button>
+						<button data-if="show_emote_button" data-event-click="send_emote"><gametext key="GUI:Emote"/></button>
+					</div>
+				</div>
 			</div>
 		</div>
 
-		<div class="academy" data-if="show_academy_panel">
-			<div class="section-title"><gametext key="GUI:AcademyAdvice"/></div>
-			<div class="scroll-container academy-body">
-				<div data-for="tip : academy_advice">{{tip}}</div>
-			</div>
-		</div>
-
-		<div class="chat" data-if="show_chat_log">
-			<div class="chat-border" data-class-bordered="show_chat_box_border">
-				<div class="scroll-container chat-body">
-					<div data-for="line : chat_lines">{{line}}</div>
-				</div>
-				<div class="chat-entry-row" data-if="show_chat_entry">
-					<input type="text" class="chat-input" data-value="chat_entry_text"/>
-					<button data-event-click="send_chat"><gametext key="GUI:Send"/></button>
-					<button data-if="show_emote_button" data-event-click="send_emote"><gametext key="GUI:Emote"/></button>
-				</div>
-			</div>
-		</div>
+		<div class="save-game-text" data-if="show_save_game_text"><gametext key="GUI:GameSaveComplete"/></div>
 
 		<div class="footer">
 			<button data-if="show_buddies_button" data-event-click="buddies"><gametext key="GUI:Buddies"/></button>

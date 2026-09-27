@@ -24,14 +24,11 @@
 // dispatch itself, then builds ScoreScreenData + ScoreScreenLayout exactly the
 // way ScoreScreen.cpp's initX() functions do and binds them into the model.
 //
-// Scope: fully covers skirmish/LAN/internet/replay (the modes Generals Online
-// actually exercises after a match). Single player renders the same score
-// table/background but does not replicate ScoreScreen.cpp's
-// finishSinglePlayerInit() (challenge win/loss splash, campaign-completion
-// movie playback, auto-save, "Retry"/"End Campaign" caption switch) --
-// that is a separate, much larger port left for a future pass; the continue
-// button here just calls ScoreScreenActions::pressContinue() with
-// buttonIsFinishCampaign always FALSE.
+// Scope: covers skirmish/LAN/internet/replay (the modes Generals Online actually
+// exercises after a match) and single player, including ScoreScreen.cpp's
+// finishSinglePlayerInit() (challenge win/loss splash, campaign-completion movie
+// playback, auto-save, Retry/EndCampaign/SaveAndContinue caption switch) --
+// see finishSinglePlayerIfNeeded() and ScoreScreenActions::finishSinglePlayer().
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -56,6 +53,7 @@ public:
 	virtual void hide() override;
 	virtual bool isVisible() const override;
 	virtual void onBack() override; // Escape: same as ButtonOk (see ScoreScreen.cpp's GWM_CHAR/KEY_ESC)
+	virtual void update() override; // one-shot single player campaign finish, see finishSinglePlayerIfNeeded()
 
 	// Appends a locally-sent chat/emote line to the chat log. Called by the same onChatSend/
 	// onEmote handlers that call ScoreScreenActions::sendChat() -- there is no general "chat
@@ -68,6 +66,7 @@ private:
 	RmlScoreScreen() {}
 
 	void refreshFromGameState(); // mode dispatch + ScoreScreenData/ScoreScreenLayout -> m_model
+	void finishSinglePlayerIfNeeded(); // single player campaign finish, called once from update()
 
 	void onOk(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onContinue(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -80,6 +79,13 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
 	ScoreScreenModeType m_mode = SCORESCREENMODE_SINGLEPLAYER;
+
+	// Single player campaign finish (ScoreScreen.cpp's finishSinglePlayerInit()), deferred to the
+	// first update() after show() so the screen has a chance to render once first -- same timing
+	// as the .wnd path's s_needToFinishSinglePlayerInit/ScoreScreenUpdate().
+	bool m_needsFinishSinglePlayer = false;
+	// ScoreScreenActions::pressContinue()'s buttonIsFinishCampaign, set by finishSinglePlayerIfNeeded().
+	bool m_buttonIsFinishCampaign = false;
 
 	// One row's worth of fields for the data-for-bound player table (data-for/RegisterStruct/
 	// RegisterArray -- see load()). Field names/types mirror ScoreScreenPlayerRow.
@@ -115,6 +121,15 @@ private:
 		Rml::String continueButtonCaption;
 		bool showAcademyPanel = false;
 		Rml::Vector<Rml::String> academyAdvice;
+
+		// Single player campaign finish (see finishSinglePlayerIfNeeded()). showChallengeSplash
+		// mirrors ScoreScreen.cpp's displayChallengeWinLoss(): when true, the table/academy/chat
+		// are replaced by the challenge win/loss portrait and text.
+		bool showChallengeSplash = false;
+		Rml::String challengePortraitImage;
+		Rml::String challengeHeaderText;
+		Rml::String challengeRemarksText;
+		bool showSaveGameText = false;
 
 		Rml::String chatEntryText;
 		Rml::Vector<Rml::String> chatLines;

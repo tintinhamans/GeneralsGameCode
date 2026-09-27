@@ -847,147 +847,47 @@ void displayChallengeWinLoss( const Image *imageGeneral, const UnicodeString str
 
 void finishSinglePlayerInit( void )
 {
-	if(TheCampaignManager->isVictorious())
+	// Decisions (challenge splash content, continue caption, autosave, battle honors, movie name)
+	// come from the shared ScoreScreenActions::finishSinglePlayer(); this function only applies
+	// them to gadgets, same as before.
+	ScoreScreenCampaignFinish result = ScoreScreenActions::finishSinglePlayer();
+	buttonIsFinishCampaign = result.m_campaignComplete == TRUE;
+
+	if (result.m_showChallengeSplash)
+		displayChallengeWinLoss(result.m_challengePortrait, result.m_challengeHeaderText, result.m_challengeRemarksText);
+
+	if (!result.m_continueButtonCaption.isEmpty())
+		GadgetButtonSetText(buttonContinue, result.m_continueButtonCaption);
+
+	if (result.m_campaignComplete)
 	{
-		if (TheCampaignManager->getCurrentCampaign()
-		 && TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
-		{
-			// display challenge style win/loss
-			AsciiString name = TheCampaignManager->getCurrentMission()->m_generalName;
-			const GeneralPersona *general = TheChallengeGenerals->getGeneralByGeneralName(name);
-			const Image *imageGeneralDefeated = general->getImageDefeated();
-			const UnicodeString strGeneralDefeated = TheGameText->fetch(general->getStringDefeated());
-			UnicodeString strHeader;
-			strHeader.format( TheGameText->fetch("GUI:ChallengeWinText"), TheGameText->fetch(name).str() ) ;
-			displayChallengeWinLoss(imageGeneralDefeated, strHeader, strGeneralDefeated);
+		if (buttonOk)
+			buttonOk->winHide(TRUE);
+		if (buttonContinue)
+			buttonContinue->winHide(TRUE);
+		if (textEntryChat)
+			textEntryChat->winHide(TRUE);
+		if (buttonEmote)
+			buttonEmote->winHide(TRUE);
+		if (listboxChatWindowScoreScreen)
+			listboxChatWindowScoreScreen->winHide(TRUE);
+		if( listboxAcademyWindowScoreScreen )
+			listboxAcademyWindowScoreScreen->winHide( TRUE );
+		if( staticTextAcademyTitle )
+			staticTextAcademyTitle->winHide( TRUE );
+		if (chatBoxBorder)
+			chatBoxBorder->winHide(TRUE);
+		if (buttonBuddies)
+			buttonBuddies->winHide(TRUE);
 
-			AudioEventRTS event( general->getWinSound() );
-			TheAudio->addAudioEvent( &event );
-			TheAudio->update();
-		}
-
-		TheCampaignManager->gotoNextMission();
-
-		if(TheCampaignManager->getCurrentMap().isEmpty())
-		{
-			GadgetButtonSetText(buttonContinue, TheGameText->fetch("GUI:EndCampaign"));
-			buttonIsFinishCampaign = TRUE;
-			// mark us as having completed the campaign
-			Campaign* campaign = TheCampaignManager->getCurrentCampaign();
-			if (campaign)
-			{
-				GameDifficulty difficulty = TheCampaignManager->getGameDifficulty();
-				SkirmishBattleHonors stats;
-				if (campaign->m_name.compareNoCase("USA") == 0)
-				{
-					stats.setUSACampaignComplete(difficulty);
-					stats.setHonors(BATTLE_HONOR_CAMPAIGN_USA);
-				}
-
-				if (campaign->m_name.compareNoCase("China") == 0)
-				{
-					stats.setCHINACampaignComplete(difficulty);
-					stats.setHonors(BATTLE_HONOR_CAMPAIGN_CHINA);
-				}
-
-				if (campaign->m_name.compareNoCase("GLA") == 0)
-				{
-					stats.setGLACampaignComplete(difficulty);
-					stats.setHonors(BATTLE_HONOR_CAMPAIGN_GLA);
-				}
-
-				if (campaign->m_name.compareNoCase("GLA") == 0)
-				{
-					stats.setGLACampaignComplete(difficulty);
-					stats.setHonors(BATTLE_HONOR_CAMPAIGN_GLA);
-				}
-
-				for (int i = 0; i < MAX_GLOBAL_GENERAL_TYPES; ++i)
-				{
-					char campaignName[128];
-					sprintf(campaignName, "CHALLENGE_%d", i);
-					if (campaign->m_name.compareNoCase(campaignName) == 0)
-					{
-						stats.setChallengeCampaignComplete(i, difficulty);
-						stats.setHonors(BATTLE_HONOR_CHALLENGE_MODE);
-					}
-				}
-
-				stats.write();
-
-				if (buttonOk)
-					buttonOk->winHide(TRUE);
-				if (buttonContinue)
-					buttonContinue->winHide(TRUE);
-				if (textEntryChat)
-					textEntryChat->winHide(TRUE);
-				if (buttonEmote)
-					buttonEmote->winHide(TRUE);
-				if (listboxChatWindowScoreScreen)
-					listboxChatWindowScoreScreen->winHide(TRUE);
-				if( listboxAcademyWindowScoreScreen )
-					listboxAcademyWindowScoreScreen->winHide( TRUE );
-				if( staticTextAcademyTitle )
-					staticTextAcademyTitle->winHide( TRUE );
-				if (chatBoxBorder)
-					chatBoxBorder->winHide(TRUE);
-				if (buttonBuddies)
-					buttonBuddies->winHide(TRUE);
-				if (campaign->getFinalVictoryMovie().isNotEmpty())
-				{
-					AsciiString vidName;
-					vidName = campaign->getFinalVictoryMovie();
-					Bool useLowRes = FALSE;
-					if (TheGameLODManager) {
-						if (!TheGameLODManager->didMemPass()) {
-							useLowRes = TRUE;
-						}
-						if (TheGameLODManager->getRecommendedStaticLODLevel()==STATIC_GAME_LOD_LOW) {
-							useLowRes = TRUE;
-						}
-						if (TheGameLODManager->getStaticLODLevel()==STATIC_GAME_LOD_LOW) {
-							useLowRes = TRUE;
-						}
-					}
-					if(!useLowRes)
-						PlayMovieAndBlock(vidName);
-				}
-			}
-		}
-		else 
-		{
-			GadgetButtonSetText(buttonContinue, TheGameText->fetch("GUI:SaveAndContinue"));
-			
-			// auto save game
-			TheGameState->missionSave();
-			if(staticTextGameSaved)
-				staticTextGameSaved->winHide(FALSE);
-		}
+		if (result.m_campaignCompletionMovie.isNotEmpty())
+			PlayMovieAndBlock(result.m_campaignCompletionMovie);
 	}
-	else
+	else if (result.m_showSaveGameText)
 	{
-		if (TheCampaignManager->getCurrentCampaign()
-		 && TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
-		{
-			// display challenge style win/loss
-			AsciiString name = TheCampaignManager->getCurrentMission()->m_generalName;
-			const GeneralPersona *general = TheChallengeGenerals->getGeneralByGeneralName(name);
-			const Image *imageGeneralVictorious = general->getImageVictorious();
-			const UnicodeString strGeneralVictorious = TheGameText->fetch(general->getStringVictorious());
-			UnicodeString strHeader;
-			strHeader.format( TheGameText->fetch("GUI:ChallengeLossText"), TheGameText->fetch(name).str() ) ;
-			displayChallengeWinLoss(imageGeneralVictorious, strHeader, strGeneralVictorious);
-
-			AudioEventRTS event( general->getLossSound() );
-			TheAudio->addAudioEvent( &event );
-			TheAudio->update();
-		}
-
-		GadgetButtonSetText(buttonContinue, TheGameText->fetch("GUI:Retry"));
-
+		if(staticTextGameSaved)
+			staticTextGameSaved->winHide(FALSE);
 	}
-
-	TheInGameUI->freeMessageResources();
 
 	if (s_blankLayout)
 	{

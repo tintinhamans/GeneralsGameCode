@@ -133,3 +133,34 @@ body
 	color: #FFFFFF;
 	padding: 4dp 6dp;
 }
+
+/* ---- Challenge win/loss splash (single player), replaces the table/academy/chat -------- */
+.challenge-splash
+{
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	flex: 1 1 auto;
+	padding-top: 24dp;
+	text-align: center;
+}
+
+.challenge-portrait
+{
+	width: 128dp;
+	height: 128dp;
+	margin-bottom: 12dp;
+}
+
+.challenge-header
+{
+	font-weight: bold;
+	margin-bottom: 8dp;
+}
+
+/* ---- Save indicator (single player, campaign not yet complete) ------------------------- */
+.save-game-text
+{
+	text-align: center;
+	margin-top: 4dp;
+}

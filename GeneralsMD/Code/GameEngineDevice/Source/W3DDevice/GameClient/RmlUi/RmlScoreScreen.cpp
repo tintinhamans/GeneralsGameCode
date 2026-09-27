@@ -98,6 +98,11 @@ void RmlScoreScreen::load(Rml::Context *context)
 		constructor.Bind("continue_button_caption", &m_model.continueButtonCaption);
 		constructor.Bind("show_academy_panel", &m_model.showAcademyPanel);
 		constructor.Bind("academy_advice", &m_model.academyAdvice);
+		constructor.Bind("show_challenge_splash", &m_model.showChallengeSplash);
+		constructor.Bind("challenge_portrait_image", &m_model.challengePortraitImage);
+		constructor.Bind("challenge_header_text", &m_model.challengeHeaderText);
+		constructor.Bind("challenge_remarks_text", &m_model.challengeRemarksText);
+		constructor.Bind("show_save_game_text", &m_model.showSaveGameText);
 		constructor.Bind("chat_entry_text", &m_model.chatEntryText);
 		constructor.Bind("chat_lines", &m_model.chatLines);
 
@@ -191,11 +196,23 @@ void RmlScoreScreen::refreshFromGameState()
 	m_model.showDefaultContinueLabel = layout.m_continueButtonCaption.isEmpty();
 	m_model.continueButtonCaption = m_model.showDefaultContinueLabel ? Rml::String() : unicodeToUtf8(layout.m_continueButtonCaption);
 	m_model.showAcademyPanel = layout.m_touchAcademyPanel == TRUE && layout.m_showAcademyPanel == TRUE;
+
+	m_model.showChallengeSplash = false;
+	m_model.challengePortraitImage.clear();
+	m_model.challengeHeaderText.clear();
+	m_model.challengeRemarksText.clear();
+	m_model.showSaveGameText = false;
+	m_buttonIsFinishCampaign = false;
+
 	m_model.chatEntryText.clear();
 	m_model.chatLines.clear();
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
+
+	// See finishSinglePlayerIfNeeded(): same one-tick-later timing as the .wnd path's
+	// s_needToFinishSinglePlayerInit/ScoreScreenUpdate().
+	m_needsFinishSinglePlayer = (m_mode == SCORESCREENMODE_SINGLEPLAYER);
 }
 
 void RmlScoreScreen::show()
@@ -241,7 +258,41 @@ void RmlScoreScreen::onOk(Rml::DataModelHandle, Rml::Event &, const Rml::Variant
 
 void RmlScoreScreen::onContinue(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
-	ScoreScreenActions::pressContinue(m_mode, FALSE); // see RmlScoreScreen.h: single player campaign finish is out of scope
+	ScoreScreenActions::pressContinue(m_mode, m_buttonIsFinishCampaign ? TRUE : FALSE);
+}
+
+void RmlScoreScreen::update()
+{
+	finishSinglePlayerIfNeeded();
+}
+
+// Moved from ScoreScreen.cpp's finishSinglePlayerInit(), see ScoreScreenActions::finishSinglePlayer().
+// Runs once, one update() tick after show() (matching the .wnd path's
+// s_needToFinishSinglePlayerInit/ScoreScreenUpdate() timing).
+void RmlScoreScreen::finishSinglePlayerIfNeeded()
+{
+	if (!m_needsFinishSinglePlayer)
+		return;
+	m_needsFinishSinglePlayer = false;
+
+	ScoreScreenCampaignFinish result = ScoreScreenActions::finishSinglePlayer();
+	m_buttonIsFinishCampaign = result.m_campaignComplete == TRUE;
+
+	m_model.showChallengeSplash = result.m_showChallengeSplash == TRUE;
+	m_model.challengePortraitImage = result.m_challengePortrait ? result.m_challengePortrait->getName().str() : Rml::String();
+	m_model.challengeHeaderText = unicodeToUtf8(result.m_challengeHeaderText);
+	m_model.challengeRemarksText = unicodeToUtf8(result.m_challengeRemarksText);
+
+	m_model.showDefaultContinueLabel = result.m_continueButtonCaption.isEmpty();
+	m_model.continueButtonCaption = m_model.showDefaultContinueLabel ? Rml::String() : unicodeToUtf8(result.m_continueButtonCaption);
+
+	m_model.showSaveGameText = result.m_showSaveGameText == TRUE;
+
+	if (m_modelHandle)
+		m_modelHandle.DirtyAllVariables();
+
+	if (result.m_campaignCompletionMovie.isNotEmpty())
+		ScoreScreenActions::playCampaignCompletionMovie(result.m_campaignCompletionMovie);
 }
 
 void RmlScoreScreen::onBuddies(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)

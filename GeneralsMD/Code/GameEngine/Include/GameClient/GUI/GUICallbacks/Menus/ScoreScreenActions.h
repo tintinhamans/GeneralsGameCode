@@ -51,4 +51,13 @@ namespace ScoreScreenActions
 	// ButtonEmote / TextEntryChat (GEM_EDIT_DONE): sends the trimmed chat text over LAN,
 	// as an emote or a normal chat line. No-op if text is empty or there's no LAN session.
 	void sendChat(const UnicodeString &text, Bool isEmote);
+
+	// Single player campaign finish, moved out of ScoreScreen.cpp's finishSinglePlayerInit() --
+	// see ScoreScreenCampaignFinish. Call once per single player screen entry.
+	ScoreScreenCampaignFinish finishSinglePlayer();
+
+	// Blocking campaign-completion movie playback (ScoreScreen.cpp's PlayMovieAndBlock()), with
+	// its own transient full-screen canvas window instead of ScoreScreen.cpp's own s_blankLayout,
+	// so a non-.wnd front end can call it too. No-op if movieName is empty.
+	void playCampaignCompletionMovie(const AsciiString &movieName);
 }

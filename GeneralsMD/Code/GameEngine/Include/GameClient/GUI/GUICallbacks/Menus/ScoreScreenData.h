@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include "Common/AsciiString.h"
 #include "Common/UnicodeString.h"
 #include "GameClient/Color.h"
 
@@ -145,4 +146,35 @@ struct ScoreScreenLayout
 	// initReplayMultiPlayer/initReplaySinglePlayer (single and multiplayer replay share
 	// SCORESCREENMODE_REPLAY's layout).
 	static ScoreScreenLayout forMode(ScoreScreenModeType mode);
+};
+
+// Result of ScoreScreen.cpp's finishSinglePlayerInit(): the challenge win/loss splash, continue
+// caption and save-indicator decisions made after single player campaign scoring, with no
+// GameWindow coupling, so a non-.wnd front end can render the same thing. Building this (via
+// ScoreScreenActions::finishSinglePlayer()) runs the same side effects finishSinglePlayerInit()
+// always has (gotoNextMission(), battle honor writes, autosave, win/loss sound) -- call it exactly
+// once per single player screen entry. Movie playback isn't included here: if
+// m_campaignCompletionMovie is non-empty, also call ScoreScreenActions::playCampaignCompletionMovie()
+// with it (same useLowRes gate finishSinglePlayerInit() always applied).
+struct ScoreScreenCampaignFinish
+{
+	Bool m_victorious = FALSE;
+
+	// Challenge win/loss splash (ScoreScreen.cpp's displayChallengeWinLoss()); other
+	// m_challenge* fields are default/unused when this is false.
+	Bool m_showChallengeSplash = FALSE;
+	const Image *m_challengePortrait = nullptr;
+	UnicodeString m_challengeHeaderText;
+	UnicodeString m_challengeRemarksText;
+
+	// True once the whole (non-challenge) campaign is complete. Passed to
+	// ScoreScreenActions::pressContinue() as buttonIsFinishCampaign.
+	Bool m_campaignComplete = FALSE;
+
+	UnicodeString m_continueButtonCaption; // empty: keep the .wnd default "Continue" caption
+	Bool m_showSaveGameText = FALSE;
+
+	// Non-empty only when the campaign just completed and has a final victory movie that isn't
+	// LOD-gated away.
+	AsciiString m_campaignCompletionMovie;
 };
