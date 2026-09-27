@@ -229,7 +229,7 @@ void RmlOptionsScreen::loadDefaultValues()
 		m_modelHandle.DirtyAllVariables();
 }
 
-void RmlOptionsScreen::applyAndSave()
+bool RmlOptionsScreen::applyAndSave()
 {
 	OptionsValues::ApplyLanguageFilter(*m_pref, m_model.languageFilter);
 
@@ -279,14 +279,17 @@ void RmlOptionsScreen::applyAndSave()
 		OptionsValues::ApplyFirewallPortOverride(*m_pref, atoi(m_model.firewallPortOverride.c_str()));
 	}
 
+	// Resolution must be applied dead last, before the write: it can recreate the shell (see
+	// ApplyDisplayMode()'s comment), and its pref entry still needs to make it into this write().
+	// The caller (onAccept) shows the resolution confirm dialog only after hiding this screen and
+	// destroying the options layout, exactly matching the .wnd Accept handler's own order.
+	bool resolutionChanged = false;
+	if (!m_model.restricted)
+		resolutionChanged = OptionsValues::ApplyDisplayMode(*m_pref, m_model.resolutionIndex);
+
 	m_pref->write();
 
-	// Resolution must be applied dead last: it can recreate the shell (see ApplyDisplayMode()'s
-	// comment), which would otherwise pull this document/screen out from under the rest of Accept.
-	if (!m_model.restricted && OptionsValues::ApplyDisplayMode(*m_pref, m_model.resolutionIndex))
-	{
-		DoResolutionDialog();
-	}
+	return resolutionChanged;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -336,10 +339,14 @@ void RmlOptionsScreen::onSelectTab(const Rml::String &tab)
 
 void RmlOptionsScreen::onAccept(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
-	applyAndSave();
+	const bool resolutionChanged = applyAndSave();
 	hide();
 	if (TheShell)
 		TheShell->destroyOptionsLayout(); // symmetric with the .wnd Accept button (see MainMenu.cpp)
+
+	// Same order as the .wnd Accept handler: destroy the layout, then show the confirm dialog.
+	if (resolutionChanged)
+		DoResolutionDialog();
 }
 
 void RmlOptionsScreen::onCancel(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)

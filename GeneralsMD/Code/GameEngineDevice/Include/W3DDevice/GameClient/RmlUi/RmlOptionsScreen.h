@@ -54,7 +54,7 @@ public:
 private:
 	void loadCurrentValues();      // pulls OptionsValues::GetCurrent*() into the model
 	void loadDefaultValues();      // pulls OptionsValues::GetDefault*() into the model (Defaults button)
-	void applyAndSave();           // pushes model fields through OptionsValues::Apply*() (Accept button)
+	bool applyAndSave();            // pushes model fields through OptionsValues::Apply*() (Accept button); returns TRUE if resolution changed
 
 	void populateSelectOptions();  // fills the resolution/detail/IP <select> children (dynamic lists)
 	void loadDetailPresetValues(const OptionsValues::DetailPresetValues &values); // maps into m_model, no logic
