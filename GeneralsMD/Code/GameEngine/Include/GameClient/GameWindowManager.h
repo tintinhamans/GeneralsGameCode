@@ -36,6 +36,7 @@
 #include "GameClient/WindowLayout.h"
 #include "GameClient/KeyDefs.h"
 #include "GameClient/Gadget.h"
+#include <utility>
 
 class GameWindow;
 
@@ -337,6 +338,12 @@ protected:
 	void processDestroyList();  ///< process windows waiting to be killed
 	void removeWindowFromModalStack( GameWindow *window );
 
+	// TheSuperHackers @feature RmlUi screen registry: winCreateFromScript() placeholders for
+	// registered script overlays (Victorious, Defeat, ...) are real windows, so winDestroy() needs
+	// their .wnd path to close the RmlUi screen too. See RmlUiScreenRegistry.h.
+	void trackRmlUiScriptWindow( GameWindow *window, AsciiString wndPath );
+	Bool untrackRmlUiScriptWindow( GameWindow *window, AsciiString &wndPathOut );
+
 	Int drawWindow(GameWindow* window);  ///< draw this window
 
 	void dumpWindow(GameWindow* window);  ///< for debugging
@@ -355,6 +362,8 @@ protected:
 	GameWindowList m_tabList;			// we have to register a tab list to make a tab list.
 	const Image* m_cursorBitmap;
 	UnsignedInt m_captureFlags;
+
+	std::vector< std::pair<GameWindow*, AsciiString> > m_rmlUiScriptWindows; ///< see trackRmlUiScriptWindow()
 
 };
 

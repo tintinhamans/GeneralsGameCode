@@ -55,7 +55,9 @@
 #include "Common/GameMemory.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/FunctionLexicon.h"
+#include "Common/GlobalData.h"
 #include "GameClient/Display.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GameWindowManager.h"
@@ -2637,6 +2639,19 @@ Bool parseLayoutBlock( File *inFile, char *buffer, UnsignedInt version, WindowLa
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
+// TheSuperHackers @feature RmlUi screen registry: init/shutdown callbacks for a winCreateLayout()
+// placeholder, same pair as Shell::doPush's local statics (Shell.cpp), generalized to any caller.
+//=============================================================================
+static void rmlUiLayoutInit(WindowLayout *layout, void *userData)
+{
+	RmlUiScreenRegistry::open(layout->getFilename());
+}
+
+static void rmlUiLayoutShutdown(WindowLayout *layout, void *userData)
+{
+	RmlUiScreenRegistry::close(layout->getFilename());
+}
+
 // GameWindowManager::winCreateLayout =========================================
 /** Load window(s) from a .wnd definition file and wrap within a
 	* new window layout */
@@ -2644,6 +2659,20 @@ Bool parseLayoutBlock( File *inFile, char *buffer, UnsignedInt version, WindowLa
 WindowLayout *GameWindowManager::winCreateLayout( AsciiString filename )
 {
 	WindowLayout *layout;
+
+	// TheSuperHackers @feature RmlUi screen registry: when a screen is registered and legacy menus
+	// weren't forced with -wnd, hand back a windowless placeholder routed to the registry instead of
+	// loading the .wnd, so callers that create/show/hide/destroy a cached layout (QuitMenu, ...) keep
+	// working unchanged. See RmlUiScreenRegistry.h and Shell::doPush, which predates this.
+	if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered(filename))
+	{
+		layout = newInstance(WindowLayout);
+		layout->loadEmpty(filename);
+		layout->setInit(rmlUiLayoutInit);
+		layout->setShutdown(rmlUiLayoutShutdown);
+		layout->routeToRmlUi(TRUE);
+		return layout;
+	}
 
 	// allocate a new window layout
 	layout = newInstance(WindowLayout);
@@ -2698,6 +2727,21 @@ WindowLayoutInfo::WindowLayoutInfo() :
 GameWindow *GameWindowManager::winCreateFromScript( AsciiString filenameString,
 																										WindowLayoutInfo *info )
 {
+	// TheSuperHackers @feature RmlUi screen registry: script-created overlays (Victorious, Defeat,
+	// LocalDefeat, ObserverQuit, ...) get an invisible real window instead of parsing the .wnd, so
+	// callers can winDestroy() it like any other window; winDestroy() closes the RmlUi screen for it.
+	// See trackRmlUiScriptWindow() and RmlUiScreenRegistry.h.
+	if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered(filenameString))
+	{
+		GameWindow *placeholder = winCreate(NULL, WIN_STATUS_HIDDEN, 0, 0, 0, 0, GameWinDefaultSystem, nullptr);
+		if (placeholder)
+		{
+			RmlUiScreenRegistry::open(filenameString);
+			trackRmlUiScriptWindow(placeholder, filenameString);
+		}
+		return placeholder;
+	}
+
 	const char* filename = filenameString.str();
 	static char buffer[ WIN_BUFFER_LENGTH ]; 		// input buffer for reading
 	GameWindow *firstWindow = nullptr;

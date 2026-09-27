@@ -33,6 +33,7 @@
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Shell.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////////////////////////
 //-------------------------------------------------------------------------------------------------
@@ -46,6 +47,7 @@ WindowLayout::WindowLayout()
 	m_windowCount = 0;
 
 	m_hidden = FALSE;
+	m_rmlUiRouted = FALSE;
 
 	m_init = nullptr;
 	m_update = nullptr;
@@ -75,6 +77,16 @@ void WindowLayout::hide( Bool hide )
 {
 	GameWindow *window;
 
+	// TheSuperHackers @feature RmlUi screen registry: routed placeholders have no windows to hide;
+	// close/open the RmlUi screen instead. See routeToRmlUi()/RmlUiScreenRegistry.h.
+	if( m_rmlUiRouted )
+	{
+		if( hide )
+			RmlUiScreenRegistry::close( m_filenameString );
+		else
+			RmlUiScreenRegistry::open( m_filenameString );
+	}
+
 	// hide or unhide all windows in this layout
 	for( window = m_windowList; window; window = window->winGetNextInLayout() )
 	{
@@ -86,6 +98,13 @@ void WindowLayout::hide( Bool hide )
 	// save the new visible state of the system
 	m_hidden = hide;
 
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+void WindowLayout::routeToRmlUi( Bool routed )
+{
+	m_rmlUiRouted = routed;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -168,6 +187,11 @@ void WindowLayout::removeWindow( GameWindow *window )
 void WindowLayout::destroyWindows()
 {
 	GameWindow *window;
+
+	// TheSuperHackers @feature RmlUi screen registry: close the routed screen too; callers such as
+	// QuitMenu.cpp call this directly without going through runShutdown(). Idempotent if already closed.
+	if( m_rmlUiRouted )
+		RmlUiScreenRegistry::close( m_filenameString );
 
 	while( (window = getFirstWindow()) != nullptr )
 	{
@@ -270,6 +294,12 @@ Bool WindowLayout::loadEmpty( AsciiString filename )
 //-------------------------------------------------------------------------------------------------
 void WindowLayout::bringForward()
 {
+
+	// TheSuperHackers @feature RmlUi screen registry: routed placeholders have no windows to bring
+	// forward; (re)open the RmlUi screen instead, mirroring the runInit()/hide(FALSE)/bringForward()
+	// idiom callers already use to show a cached layout (e.g. QuitMenu.cpp's options button).
+	if( m_rmlUiRouted )
+		RmlUiScreenRegistry::open( m_filenameString );
 
 	//
 	// loop through all our windows and bring each of them to the top of

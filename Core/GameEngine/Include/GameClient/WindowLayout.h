@@ -62,6 +62,7 @@ public:
 	AsciiString getFilename() const;					///< return source window filename
 	Bool load( AsciiString filename );							///< create windows and load from .wnd file
 	Bool loadEmpty( AsciiString filename );				///< no .wnd parse, no windows; for screens rendered elsewhere (RmlUi)
+	void routeToRmlUi( Bool routed );							///< hide/bringForward/destroyWindows also open/close the registered RmlUi screen for getFilename(); see GameWindowManager::winCreateLayout
 	void hide( Bool hide );													///< hide/show all windows on this screen
 	Bool isHidden() const;										///< return visible state of screen
 	void bringForward();											///< bring all windows in this screen forward
@@ -94,6 +95,7 @@ protected:
 	GameWindow *m_windowTail;												///< end of m_windowList
 	Int m_windowCount;															///< how man windows are in the list
 	Bool m_hidden;																	///< visible state of this screen
+	Bool m_rmlUiRouted;															///< see routeToRmlUi()
 
 	//
 	// These are callbacks you can attach to a "layout file" ... they are not

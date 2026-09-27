@@ -38,6 +38,7 @@
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/RmlUiMessageBoxHook.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/DisplayStringManager.h"
 #include "GameClient/WindowLayout.h"
@@ -1398,12 +1399,42 @@ GameWindow* GameWindowManager::winCreate(GameWindow* parent,
 /** Take a window and its children off the top level list and free
 	* their allocation class data. */
 	//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @feature RmlUi screen registry: winCreateFromScript() tags its placeholder
+// windows here so winDestroy() can close the RmlUi screen when the (real, otherwise-ordinary)
+// window goes away. See RmlUiScreenRegistry.h.
+//-------------------------------------------------------------------------------------------------
+void GameWindowManager::trackRmlUiScriptWindow(GameWindow *window, AsciiString wndPath)
+{
+	m_rmlUiScriptWindows.push_back(std::make_pair(window, wndPath));
+}
+
+Bool GameWindowManager::untrackRmlUiScriptWindow(GameWindow *window, AsciiString &wndPathOut)
+{
+	for (size_t i = 0; i < m_rmlUiScriptWindows.size(); ++i)
+	{
+		if (m_rmlUiScriptWindows[i].first == window)
+		{
+			wndPathOut = m_rmlUiScriptWindows[i].second;
+			m_rmlUiScriptWindows.erase(m_rmlUiScriptWindows.begin() + i);
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+//-------------------------------------------------------------------------------------------------
 Int GameWindowManager::winDestroy(GameWindow* window)
 {
 	GameWindow* child, * next;
 
 	if (window == NULL)
 		return WIN_ERR_INVALID_WINDOW;
+
+	{
+		AsciiString wndPath;
+		if (untrackRmlUiScriptWindow(window, wndPath))
+			RmlUiScreenRegistry::close(wndPath);
+	}
 
 	//
 	// we should never have edit data allocated in the window code, it's
