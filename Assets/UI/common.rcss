@@ -17,7 +17,7 @@
 
 body
 {
-	font-family: Arial;
+	font-family: Barlow;
 	font-size: 16dp;
 	color: #FFFFFF;
 }
@@ -58,6 +58,7 @@ body
 	background-color: rgba(2, 2, 2, 140);
 	border: 1dp #2F37A8;
 	margin-right: 2dp;
+	font-weight: bold;
 }
 
 .tab:hover
@@ -108,6 +109,7 @@ button, .button
 	color: #FFFFFF;
 	padding: 6dp 16dp;
 	text-align: center;
+	font-weight: bold;
 }
 
 button:hover, .button:hover

@@ -33,7 +33,6 @@
 #include <RmlUi/Core/Factory.h>
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Core/Log.h>
-#include <RmlUi/Core/StyleTypes.h>
 #include <RmlUi/Debugger.h>
 
 RmlUiManager *RmlUiManager::s_instance = nullptr;
@@ -85,28 +84,24 @@ void RmlUiManager::init(int width, int height)
 
 	m_renderInterface.onDeviceCreated();
 
-	// SIL OFL-licensed Barlow (see Data/UI/Fonts/OFL.txt). LoadFontFace reads family/style/
-	// weight straight from the font, so both weights register under the "Barlow" family.
+	// SIL OFL-licensed Barlow (see Data/UI/Fonts/OFL.txt), the bundled default UI font.
+	// LoadFontFace reads family/style/weight straight from the font, so both weights
+	// register under the "Barlow" family; common.rcss picks weight via font-weight.
 	Rml::LoadFontFace("UI/Fonts/Barlow-Regular.ttf", true);
 	Rml::LoadFontFace("UI/Fonts/Barlow-Bold.ttf");
 
-	// The game's own look uses Arial; load it from the Windows fonts folder at runtime (not
-	// redistributed with the game). If it is missing, alias Barlow under the "Arial" family so
-	// common.rcss can say font-family: Arial unconditionally either way.
-	bool arialLoaded = false;
+	// Arial, if present in the Windows fonts folder, is loaded only as a fallback face (not
+	// bundled) so glyphs Barlow lacks -- other scripts in player names/translations -- still
+	// render. Missing files are not an error: Barlow alone remains fully usable.
 	char winDir[MAX_PATH] = {};
 	if (::GetEnvironmentVariableA("WINDIR", winDir, MAX_PATH) > 0)
 	{
 		Rml::String regularPath = Rml::String(winDir) + "\\Fonts\\arial.ttf";
 		Rml::String boldPath = Rml::String(winDir) + "\\Fonts\\arialbd.ttf";
 		bool regularOk = Rml::LoadFontFace(regularPath, true);
-		bool boldOk = Rml::LoadFontFace(boldPath);
-		arialLoaded = regularOk || boldOk;
-	}
-	if (!arialLoaded)
-	{
-		Rml::LoadFontFace("UI/Fonts/Barlow-Regular.ttf", "Arial", Rml::Style::FontStyle::Normal, Rml::Style::FontWeight::Normal, true);
-		Rml::LoadFontFace("UI/Fonts/Barlow-Bold.ttf", "Arial", Rml::Style::FontStyle::Normal, Rml::Style::FontWeight::Bold);
+		bool boldOk = Rml::LoadFontFace(boldPath, true);
+		if (!regularOk && !boldOk)
+			Rml::Log::Message(Rml::Log::LT_INFO, "Arial not found under %%WINDIR%%\\Fonts; falling back to Barlow only.");
 	}
 
 	m_context = Rml::CreateContext("main", Rml::Vector2i(width, height));
