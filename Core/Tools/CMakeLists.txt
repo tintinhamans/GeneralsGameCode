@@ -1,5 +1,9 @@
 # Build tools
 
+# Always built: a host-side build dependency (compiles Assets/Localization
+# .str sources into embedded .csf files), not an end-user tool.
+add_subdirectory(str2csf)
+
 # Build useful tool binaries.
 if(RTS_BUILD_CORE_TOOLS)
     add_subdirectory(DebugWindow)
