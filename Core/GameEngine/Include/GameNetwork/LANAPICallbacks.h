@@ -62,6 +62,14 @@ extern GameWindow *listboxChatWindowScoreScreen;
 // listboxChatWindowScoreScreen itself. Left null (no-op) by the original Generals target.
 extern void (*g_scoreScreenChatDeliveryHook)(const UnicodeString &line, Color color);
 
+// Same idea as g_scoreScreenChatDeliveryHook, but for the LAN lobby (m_inLobby) instead of the
+// score screen. Called in addition to the existing listboxChatWindow/listboxPlayers/listboxGames
+// updates below, never in place of them, so the .wnd path is untouched. Null when no alternative
+// lobby front end (e.g. RmlLanLobbyScreen) is active.
+extern void (*g_lanLobbyChatHook)(const UnicodeString &line, Color color);
+extern void (*g_lanLobbyPlayerListHook)(LANPlayer *playerList);
+extern void (*g_lanLobbyGameListHook)(LANGameInfo *gameList);
+
 
 //Colors used for the chat dialogs
 extern const Color playerColor;

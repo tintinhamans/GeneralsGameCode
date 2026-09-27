@@ -582,12 +582,16 @@ void LANAPI::OnPlayerLeave( UnicodeString player )
 	}
 }
 
+void (*g_lanLobbyGameListHook)(LANGameInfo *gameList) = nullptr;
+
 void LANAPI::OnGameList( LANGameInfo *gameList )
 {
 
 	if (m_inLobby)
 	{
 		LANDisplayGameList(listboxGames, gameList);
+		if (g_lanLobbyGameListHook)
+			g_lanLobbyGameListHook(gameList);
 	}
 }
 
@@ -622,10 +626,14 @@ void LANAPI::OnGameCreate( ReturnType ret )
 
 }
 
+void (*g_lanLobbyPlayerListHook)(LANPlayer *playerList) = nullptr;
+
 void LANAPI::OnPlayerList( LANPlayer *playerList )
 {
 	if (m_inLobby)
 	{
+		if (g_lanLobbyPlayerListHook)
+			g_lanLobbyPlayerListHook(playerList);
 
 		UnsignedInt selectedIP = 0;
 		Int selectedIndex = -1;
@@ -664,15 +672,18 @@ void LANAPI::OnInActive(UnsignedInt IP) {
 }
 
 void (*g_scoreScreenChatDeliveryHook)(const UnicodeString &line, Color color) = nullptr;
+void (*g_lanLobbyChatHook)(const UnicodeString &line, Color color) = nullptr;
 
 void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message, ChatType format )
 {
 	GameWindow *chatWindow = nullptr;
 	Bool isScoreScreenChat = FALSE;
+	Bool isLobbyChat = FALSE;
 
 	if (m_inLobby)
 	{
 		chatWindow = listboxChatWindow;
+		isLobbyChat = TRUE;
 	}
 	else if( m_currentGame && m_currentGame->isGameInProgress() && TheShell->isShellActive())
 	{
@@ -683,8 +694,8 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 	{
 		chatWindow = listboxChatWindowLanGame;
 	}
-	// A non-.wnd score screen has no chatWindow of its own; let it through via the hook instead.
-	if (chatWindow == nullptr && !(isScoreScreenChat && g_scoreScreenChatDeliveryHook))
+	// A non-.wnd score screen/lobby has no chatWindow of its own; let it through via the hook instead.
+	if (chatWindow == nullptr && !((isScoreScreenChat && g_scoreScreenChatDeliveryHook) || (isLobbyChat && g_lanLobbyChatHook)))
 		return;
 	Int index = -1;
 	UnicodeString unicodeChat;
@@ -742,4 +753,7 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 
 	if (isScoreScreenChat && g_scoreScreenChatDeliveryHook)
 		g_scoreScreenChatDeliveryHook(unicodeChat, chatColorOut);
+
+	if (isLobbyChat && g_lanLobbyChatHook)
+		g_lanLobbyChatHook(unicodeChat, chatColorOut);
 }
