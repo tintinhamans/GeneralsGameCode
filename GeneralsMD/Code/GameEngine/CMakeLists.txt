@@ -769,6 +769,8 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/QuitMenuActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/ReplayMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/ScoreScreen.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/ScoreScreenActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/ScoreScreenData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/SinglePlayerMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/SkirmishGameOptionsMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/SkirmishMapSelectMenu.cpp
