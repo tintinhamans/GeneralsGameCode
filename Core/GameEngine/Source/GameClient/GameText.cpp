@@ -79,8 +79,6 @@ Bool g_useStringFile = TRUE;
 #define CSF_STRINGWITHWAVE ( ('S'<<24) | ('T'<<16) | ('R'<<8) | ('W') )
 #define CSF_VERSION 3
 
-#define STRING_FILE 0
-#define CSF_FILE 1
 #define MAX_UITEXT_LENGTH (10*1024)
 //----------------------------------------------------------------------------
 //         Private Types
@@ -102,6 +100,9 @@ struct StringLookUp
 	AsciiString		*label;
 	StringInfo		*info;
 };
+
+// Maps a label to its index in the merged StringInfo vector while layering overlay files.
+typedef std::map<AsciiString, Int, rts::less_than_nocase<AsciiString> > LabelIndexMap;
 
 //===============================
 // CSFHeader
@@ -192,14 +193,20 @@ class GameTextManager : public GameTextInterface
 		void						translateCopy( WideChar *outbuf, Char *inbuf );
 		Bool						getStringCount( const Char *filename, Int& textCount );
 		Bool						getCSFInfo ( const Char *filename );
-		Bool						parseCSF(  const Char *filename );
-		Bool						parseStringFile( const char *filename );
+		Bool						parseCSF(  const Char *filename, StringInfo *dest, Int& outCount );
+		Bool						parseStringFile( const char *filename, StringInfo *dest, Int& outCount );
 		Bool						parseMapStringFile( const char *filename );
 		Bool						readLine( char *buffer, Int max, File *file );
 		Char						readChar( File *file );
+
+		Bool						determineBaseFile( const AsciiString& csfFile, AsciiString& baseFile, Bool& baseIsStr );
+		void						collectStringFiles( FilenameList& files );
+		void						mergeStringFile( const AsciiString& filename, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex );
 };
 
 static int __cdecl			compareLUT ( const void *,  const void*);
+static const char*			getFileBaseName( const AsciiString& path );
+static bool						basenameLess( const AsciiString& a, const AsciiString& b );
 //----------------------------------------------------------------------------
 //         Private Data
 //----------------------------------------------------------------------------
@@ -288,7 +295,6 @@ void GameTextManager::init()
 {
 	AsciiString csfFile;
 	csfFile.format(g_csfFile, GetRegistryLanguage().str());
-	Int format;
 
 	if ( m_initialized )
 	{
@@ -306,18 +312,38 @@ void GameTextManager::init()
 	}
 #endif
 
-	if ( m_useStringFile && getStringCount( g_strFile, m_textCount ) )
-	{
-		format = STRING_FILE;
-	}
-	else if ( getCSFInfo ( csfFile.str() ) )
-	{
-		format = CSF_FILE;
-	}
-	else
+	AsciiString baseFile;
+	Bool baseIsStr;
+
+	if ( !determineBaseFile( csfFile, baseFile, baseIsStr ) )
 	{
 		return;
 	}
+
+	// Gather every *.str/*.csf sitting next to the base file (loose, .big, embedded archive).
+	FilenameList files;
+	collectStringFiles( files );
+
+	// The chosen base format replaces its sibling entirely; drop it so it can't compete for priority.
+	if ( baseIsStr )
+	{
+		files.erase( csfFile );
+	}
+
+	std::vector<AsciiString> sortedFiles( files.begin(), files.end() );
+	std::stable_sort( sortedFiles.begin(), sortedFiles.end(), basenameLess );
+
+	// .big-style layering: files sorted case-insensitively by name, alphabetically FIRST wins.
+	// Apply lowest priority (last alphabetically) first, so higher priority files overwrite it last.
+	std::vector<StringInfo> merged;
+	LabelIndexMap labelIndex;
+
+	for ( Int i = (Int)sortedFiles.size() - 1; i >= 0; i-- )
+	{
+		mergeStringFile( sortedFiles[i], merged, labelIndex );
+	}
+
+	m_textCount = (Int)merged.size();
 
 	if( m_textCount == 0 )
 	{
@@ -334,21 +360,9 @@ void GameTextManager::init()
 		return;
 	}
 
-	if ( format == STRING_FILE )
+	for ( Int i = 0; i < m_textCount; i++ )
 	{
-		if( parseStringFile( g_strFile ) == FALSE )
-		{
-			deinit();
-			return;
-		}
-	}
-	else
-	{
-		if ( !parseCSF ( csfFile.str() ) )
-		{
-			deinit();
-			return;
-		}
+		m_stringInfo[i] = merged[i];
 	}
 
 	m_stringLUT = NEW StringLookUp[m_textCount];
@@ -366,6 +380,109 @@ void GameTextManager::init()
 
 	qsort( m_stringLUT, m_textCount, sizeof(StringLookUp), compareLUT  );
 
+}
+
+//============================================================================
+// GameTextManager::determineBaseFile
+//============================================================================
+// Decides which file provides the base table, mirroring the original
+// m_useStringFile-then-CSF precedence: Generals.str, if enabled and present,
+// replaces Generals.csf entirely.
+
+Bool GameTextManager::determineBaseFile( const AsciiString& csfFile, AsciiString& baseFile, Bool& baseIsStr )
+{
+	Int count;
+
+	if ( m_useStringFile && getStringCount( g_strFile, count ) )
+	{
+		baseFile = g_strFile;
+		baseIsStr = TRUE;
+		return TRUE;
+	}
+
+	if ( getCSFInfo( csfFile.str() ) )
+	{
+		baseFile = csfFile;
+		baseIsStr = FALSE;
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+//============================================================================
+// GameTextManager::collectStringFiles
+//============================================================================
+// Scans data\ and data\<Language>\ (non-recursive, loose + every .big + embedded
+// archive) for *.str and *.csf files that may layer over the base table.
+
+void GameTextManager::collectStringFiles( FilenameList& files )
+{
+	AsciiString neutralDir( "data\\" );
+	AsciiString languageDir;
+	languageDir.format( "data\\%s\\", GetRegistryLanguage().str() );
+
+	TheFileSystem->getFileListInDirectory( neutralDir, "*.str", files, FALSE );
+	TheFileSystem->getFileListInDirectory( neutralDir, "*.csf", files, FALSE );
+	TheFileSystem->getFileListInDirectory( languageDir, "*.str", files, FALSE );
+	TheFileSystem->getFileListInDirectory( languageDir, "*.csf", files, FALSE );
+}
+
+//============================================================================
+// GameTextManager::mergeStringFile
+//============================================================================
+// Parses one overlay (or the base) file and layers it into the merged table:
+// new labels are added, labels that already exist are overwritten.
+
+void GameTextManager::mergeStringFile( const AsciiString& filename, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex )
+{
+	const char *ext = filename.reverseFind('.');
+	Bool isStr = ext && stricmp( ext, ".str" ) == 0;
+
+	Int capacity = 0;
+	if ( isStr )
+	{
+		if ( !getStringCount( filename.str(), capacity ) || capacity == 0 )
+			return;
+	}
+	else
+	{
+		if ( !getCSFInfo( filename.str() ) || m_textCount == 0 )
+			return;
+		capacity = m_textCount;
+	}
+
+	StringInfo *tempInfo = NEW StringInfo[capacity];
+	Int actualCount = 0;
+	Bool ok = isStr ? parseStringFile( filename.str(), tempInfo, actualCount )
+					: parseCSF( filename.str(), tempInfo, actualCount );
+
+	if ( !ok )
+	{
+		DEBUG_LOG(("GameText: Failed to parse string file '%s', skipping", filename.str()));
+		delete [] tempInfo;
+		return;
+	}
+
+	Int overrideCount = 0;
+	for ( Int i = 0; i < actualCount; i++ )
+	{
+		LabelIndexMap::iterator it = labelIndex.find( tempInfo[i].label );
+		if ( it != labelIndex.end() )
+		{
+			merged[it->second] = tempInfo[i];
+			overrideCount++;
+		}
+		else
+		{
+			labelIndex[tempInfo[i].label] = (Int)merged.size();
+			merged.push_back( tempInfo[i] );
+		}
+	}
+
+	DEBUG_LOG(("GameText: Loaded string file '%s' (%d entries, %d overridden)", filename.str(), actualCount, overrideCount));
+
+	delete [] tempInfo;
 }
 
 //============================================================================
@@ -879,7 +996,7 @@ Bool GameTextManager::getCSFInfo ( const Char *filename )
 // GameTextManager::parseCSF
 //============================================================================
 
-Bool GameTextManager::parseCSF( const Char *filename )
+Bool GameTextManager::parseCSF( const Char *filename, StringInfo *dest, Int& outCount )
 {
 	File *file;
 	Int id;
@@ -921,7 +1038,7 @@ Bool GameTextManager::parseCSF( const Char *filename )
 
 		m_buffer[len] = 0;
 
-		m_stringInfo[listCount].label = m_buffer;
+		dest[listCount].label = m_buffer;
 
 
 		if ( len > m_maxLabelLen )
@@ -965,7 +1082,7 @@ Bool GameTextManager::parseCSF( const Char *filename )
 				}
 
 				stripSpaces ( m_tbuffer );
-				m_stringInfo[listCount].text = m_tbuffer;
+				dest[listCount].text = m_tbuffer;
 			}
 
 			if ( id == CSF_STRINGWITHWAVE )
@@ -980,7 +1097,7 @@ Bool GameTextManager::parseCSF( const Char *filename )
 				if ( num == 0 && len )
 				{
 					// only use the first string found
-					m_stringInfo[listCount].speech = m_buffer;
+					dest[listCount].speech = m_buffer;
 				}
 
 			}
@@ -998,6 +1115,7 @@ quit:
 	file->close();
 	file = nullptr;
 
+	outCount = listCount;
 	return ok;
 }
 
@@ -1006,7 +1124,7 @@ quit:
 // GameTextManager::parseStringFile
 //============================================================================
 
-Bool GameTextManager::parseStringFile( const char *filename )
+Bool GameTextManager::parseStringFile( const char *filename, StringInfo *dest, Int& outCount )
 {
 	Int listCount = 0;
 	Int ok = TRUE;
@@ -1035,13 +1153,13 @@ Bool GameTextManager::parseStringFile( const char *filename )
 
 		for ( Int i = 0; i < listCount; i++ )
 		{
-			if ( stricmp ( m_stringInfo[i].label.str(), m_buffer ) == 0)
+			if ( stricmp ( dest[i].label.str(), m_buffer ) == 0)
 			{
 				DEBUG_CRASH ( ("String label '%s' multiply defined!", m_buffer ));
 			}
 		}
 
-		m_stringInfo[listCount].label = m_buffer;
+		dest[listCount].label = m_buffer;
 		len = strlen ( m_buffer );
 
 
@@ -1073,7 +1191,7 @@ Bool GameTextManager::parseStringFile( const char *filename )
 				if ( readString )
 				{
 					// only one string per label allows
-						DEBUG_CRASH ( ("String label '%s' has more than one string defined!", m_stringInfo[listCount].label.str()));
+						DEBUG_CRASH ( ("String label '%s' has more than one string defined!", dest[listCount].label.str()));
 				}
 				else
 				{
@@ -1081,8 +1199,8 @@ Bool GameTextManager::parseStringFile( const char *filename )
 					translateCopy( m_tbuffer, m_buffer2 );
 					stripSpaces ( m_tbuffer );
 
-					m_stringInfo[listCount].text = m_tbuffer ;
-					m_stringInfo[listCount].speech = m_buffer3;
+					dest[listCount].text = m_tbuffer ;
+					dest[listCount].speech = m_buffer3;
 					readString = TRUE;
 				}
 			}
@@ -1100,6 +1218,7 @@ quit:
 	file->close();
 	file = nullptr;
 
+	outCount = listCount;
 	return ok;
 }
 
@@ -1457,4 +1576,26 @@ static int __cdecl compareLUT ( const void *i1,  const void*i2)
 	StringLookUp *lut2 = (StringLookUp*) i2;
 
 	return stricmp( lut1->label->str(), lut2->label->str());
+}
+
+//============================================================================
+// getFileBaseName
+//============================================================================
+
+static const char* getFileBaseName( const AsciiString& path )
+{
+	const char *slash = path.reverseFind('\\');
+	const char *fslash = path.reverseFind('/');
+	if ( fslash && (!slash || fslash > slash) )
+		slash = fslash;
+	return slash ? slash + 1 : path.str();
+}
+
+//============================================================================
+// basenameLess
+//============================================================================
+
+static bool basenameLess( const AsciiString& a, const AsciiString& b )
+{
+	return stricmp( getFileBaseName(a), getFileBaseName(b) ) < 0;
 }
