@@ -46,6 +46,19 @@ namespace SkirmishSetupActions
 		STARTVALIDATION_TOO_MANY_PLAYERS
 	};
 
+	// Creates (or resets) TheSkirmishGameInfo the same way SkirmishGameOptionsMenu.cpp's
+	// SkirmishGameOptionsMenuInit() does, minus the .wnd gadget setup: local player slot from
+	// SkirmishPreferences, a default AI in slot 1, saved slot list/map/cash/superweapon prefs, and a
+	// fresh RNG seed. Called once by a setup screen's show() (widget-agnostic, so RmlUi and any
+	// future front end share it instead of only the .wnd path constructing TheSkirmishGameInfo).
+	// Safe to call with TheSkirmishGameInfo already set (e.g. re-entering setup after a match).
+	void enterSkirmishSetup();
+
+	// Saves SkirmishPreferences and frees TheSkirmishGameInfo, same as the .wnd ButtonExit/Back
+	// handler (SkirmishGameOptionsMenu.cpp's GBM_SELECTED case). Does not pop the shell screen --
+	// callers do that themselves (TheShell->pop() for the .wnd path, onBack() for RmlUi).
+	void leaveSkirmishSetup();
+
 	// getNextSelectablePlayer: the next slot at or after start that the local host can
 	// still move into a start position (the local slot, or any AI slot), or -1 if none.
 	// Non-hosts can never move anyone, so this always returns -1 for them.

@@ -27,7 +27,9 @@
 #include "Common/MultiplayerSettings.h"
 #include "Common/RandomValue.h"
 #include "Common/SkirmishBattleHonors.h"
+#include "Common/SkirmishPreferences.h"
 #include "GameClient/MapUtil.h"
+#include "GameClient/ShellHooks.h"
 #include "GameLogic/GameLogic.h"
 
 Int SkirmishSetupActions::getNextSelectablePlayer( GameInfo *game, Int start )
@@ -256,4 +258,76 @@ void SkirmishSetupActions::resetBattleHonors()
 	SkirmishBattleHonors stats;
 	stats.clear();
 	stats.write();
+}
+
+// See header. Mirrors SkirmishGameOptionsMenuInit()'s non-gadget lines exactly, except: no
+// preorder-registry flag (a cosmetic reward marker, not setup-correctness-relevant) and slot 1's
+// AI difficulty is always SLOT_EASY_AI instead of tiering off SkirmishBattleHonors' win count --
+// both are UI conveniences the widget-agnostic setup can pick up later without behavior currently
+// depending on either.
+void SkirmishSetupActions::enterSkirmishSetup()
+{
+	if( !TheSkirmishGameInfo )
+	{
+		TheSkirmishGameInfo = NEW SkirmishGameInfo;
+		SignalUIInteraction( SHELL_SCRIPT_HOOK_SKIRMISH_OPENED );
+	}
+	else if( TheSkirmishGameInfo->isInGame() )
+	{
+		TheSkirmishGameInfo->endGame();
+	}
+	else
+	{
+		SignalUIInteraction( SHELL_SCRIPT_HOOK_SKIRMISH_OPENED );
+	}
+
+	TheSkirmishGameInfo->init();
+	TheSkirmishGameInfo->clearSlotList();
+	TheSkirmishGameInfo->reset();
+	TheSkirmishGameInfo->setLocalIP( TheSkirmishGameInfo->getSlot( 0 )->getIP() );
+	TheSkirmishGameInfo->enterGame();
+
+	SkirmishPreferences prefs;
+
+	GameSlot localSlot;
+	localSlot.setName( prefs.getUserName() );
+	localSlot.setState( SLOT_PLAYER, prefs.getUserName() );
+	localSlot.setColor( prefs.getPreferredColor() );
+	localSlot.setPlayerTemplate( prefs.getPreferredFaction() );
+	TheSkirmishGameInfo->setSlot( 0, localSlot );
+
+	GameSlot aiSlot;
+	aiSlot.setState( SLOT_EASY_AI );
+	TheSkirmishGameInfo->setSlot( 1, aiSlot );
+
+	ParseAsciiStringToGameInfo( TheSkirmishGameInfo, prefs.getSlotList() );
+	TheSkirmishGameInfo->setSeed( GetTickCount() );
+
+	TheSkirmishGameInfo->setStartingCash( prefs.getStartingCash() );
+	TheSkirmishGameInfo->setSuperweaponRestriction( prefs.getSuperweaponRestricted() ? 1 : 0 );
+
+	TheSkirmishGameInfo->setMap( prefs.getPreferredMap() );
+	const MapMetaData *md = TheMapCache ? TheMapCache->findMap( TheSkirmishGameInfo->getMap() ) : nullptr;
+	if( md )
+	{
+		TheSkirmishGameInfo->setMapCRC( md->m_CRC );
+		TheSkirmishGameInfo->setMapSize( md->m_filesize );
+	}
+	else
+	{
+		TheSkirmishGameInfo->setMapCRC( 0 );
+		TheSkirmishGameInfo->setMapSize( 0 );
+	}
+}
+
+void SkirmishSetupActions::leaveSkirmishSetup()
+{
+	if( !TheSkirmishGameInfo )
+		return;
+
+	SkirmishPreferences prefs;
+	prefs.write();
+
+	delete TheSkirmishGameInfo;
+	TheSkirmishGameInfo = nullptr;
 }

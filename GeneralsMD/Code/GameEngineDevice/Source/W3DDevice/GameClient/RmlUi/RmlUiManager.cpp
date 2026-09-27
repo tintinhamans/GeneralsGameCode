@@ -28,6 +28,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScoreScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
 
@@ -139,6 +140,9 @@ void RmlUiManager::init(int width, int height)
 	// screens up in the registry by .wnd path, gated on !m_useLegacyMenus; see RmlUiScreenRegistry.h.
 	RmlUiScreenRegistry::registerScreen("Menus/OptionsMenu.wnd", &OpenRmlOptionsScreen, &CloseRmlOptionsScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/MainMenu.wnd", &OpenRmlMainMenuScreen, &CloseRmlMainMenuScreen);
+
+	// MainMenuActions::startSkirmishOptions() pushes this same path; see RmlSkirmishSetupScreen.h.
+	RmlUiScreenRegistry::registerScreen("Menus/SkirmishGameOptionsMenu.wnd", &OpenRmlSkirmishSetupScreen, &CloseRmlSkirmishSetupScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/CreditsMenu.wnd", &OpenRmlCreditsScreen, &CloseRmlCreditsScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitMenu.wnd", &OpenRmlQuitMenuScreen, &CloseRmlQuitMenuScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitNoSave.wnd", &OpenRmlQuitNoSaveScreen, &CloseRmlQuitNoSaveScreen);

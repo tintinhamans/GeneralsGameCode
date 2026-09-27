@@ -1,0 +1,78 @@
+/*
+	SkirmishGameOptions.rcss -- screen-specific layout for the skirmish setup screen. Slot-row/
+	map-preview/start-marker element styles live in GameSetup.rcss (shared with any future LAN/
+	online lobby screen); this file only positions this screen's own panels.
+*/
+
+.skirmish-panel
+{
+	width: 900dp;
+	height: 620dp;
+	margin: 40dp auto;
+	display: flex;
+	flex-direction: column;
+}
+
+.skirmish-body
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+}
+
+.slot-list
+{
+	flex: 1 1 auto;
+	margin-right: 12dp;
+}
+
+.slot-header
+{
+	font-weight: bold;
+	color: #8080FF;
+	border-bottom: 1dp #2F37A8;
+}
+
+.side-panel
+{
+	flex: 0 0 auto;
+	width: 280dp;
+	display: flex;
+	flex-direction: column;
+}
+
+.map-not-found
+{
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	color: #C0C0C0;
+}
+
+.map-display-name
+{
+	margin-top: 4dp;
+	margin-bottom: 8dp;
+	color: #C0C0C0;
+}
+
+.honors-panel
+{
+	margin-top: 12dp;
+	padding-top: 8dp;
+	border-top: 1dp #2F37A8;
+}
+
+.honors-row
+{
+	color: #C0C0C0;
+	padding: 2dp 0;
+}
+
+.honors-panel button
+{
+	margin-top: 6dp;
+}
