@@ -104,7 +104,8 @@
 RAMFile::RAMFile()
 : m_size(0),
 	m_data(nullptr),
-	m_pos(0)
+	m_pos(0),
+	m_ownsData(TRUE)
 {
 
 }
@@ -177,6 +178,7 @@ Bool RAMFile::open( File *file )
 	// read whole file in to memory
 	m_size = file->size();
 	m_data = MSGNEW("RAMFILE") char [ m_size ];	// pool[]ify
+	m_ownsData = TRUE;
 
 	if ( m_data == nullptr )
 	{
@@ -211,9 +213,12 @@ Bool RAMFile::openFromArchive(File *archiveFile, const AsciiString& filename, In
 		return FALSE;
 	}
 
-	delete[] m_data;
+	if (m_ownsData) {
+		delete[] m_data;
+	}
 	m_data = MSGNEW("RAMFILE") Char [size];	// pool[]ify
 	m_size = size;
+	m_ownsData = TRUE;
 
 	if (archiveFile->seek(offset, File::START) != offset) {
 		return FALSE;
@@ -221,6 +226,35 @@ Bool RAMFile::openFromArchive(File *archiveFile, const AsciiString& filename, In
 	if (archiveFile->read(m_data, size) != size) {
 		return FALSE;
 	}
+	m_nameStr = filename;
+
+	return TRUE;
+}
+
+//============================================================================
+// RAMFile::openFromMemory
+//============================================================================
+// References a caller-owned, read-only memory buffer directly instead of copying
+// it. Used to serve data compiled into the executable (see EmbeddedFileSystem)
+// without a per-open allocation and copy. The buffer must outlive this RAMFile;
+// close() never frees it.
+Bool RAMFile::openFromMemory(const AsciiString& filename, const void* data, Int size)
+{
+	if (data == nullptr || size < 0) {
+		return FALSE;
+	}
+
+	if (File::open(filename.str(), File::READ | File::BINARY) == FALSE) {
+		return FALSE;
+	}
+
+	if (m_ownsData) {
+		delete[] m_data;
+	}
+	m_data = const_cast<Char*>(static_cast<const Char*>(data));
+	m_size = size;
+	m_pos = 0;
+	m_ownsData = FALSE;
 	m_nameStr = filename;
 
 	return TRUE;
@@ -245,8 +279,11 @@ void RAMFile::close()
 
 void RAMFile::closeFile()
 {
-	delete [] m_data;
+	if (m_ownsData) {
+		delete [] m_data;
+	}
 	m_data = nullptr;
+	m_ownsData = TRUE;
 }
 
 //=================================================================
@@ -555,8 +592,19 @@ char* RAMFile::readEntireAndClose()
 		return NEW char[1];	// just to avoid crashing...
 	}
 
-	char* tmp = m_data;
-	m_data = nullptr;	// will belong to our caller!
+	char* tmp;
+	if (m_ownsData)
+	{
+		tmp = m_data;
+		m_data = nullptr;	// will belong to our caller!
+	}
+	else
+	{
+		// m_data references memory we don't own (e.g. embedded static data) and must not
+		// hand it to a caller who will delete[] it; give them an owned copy instead.
+		tmp = MSGNEW("RAMFILE") char [ m_size ];
+		memcpy(tmp, m_data, m_size);
+	}
 
 	close();
 
