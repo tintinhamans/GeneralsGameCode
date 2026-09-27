@@ -129,8 +129,11 @@ public:
 	Bool m_headless;
 
 	// TheSuperHackers @feature RmlUi phase 1: -wnd forces the original .wnd menus instead of
-	// RmlUi. Not consumed by shell screens yet; later phases will route by this flag.
+	// RmlUi. Shell screens route on this flag starting phase 2 (see RmlUiManager/Shell).
 	Bool m_useLegacyMenus;
+
+	// TheSuperHackers @feature RmlUi phase 2: -rmldebug shows Rml::Debugger over RmlUi screens.
+	Bool m_rmlDebugger;
 
 	// Export game stats as JSON alongside replay file.
 	Bool m_exportStats;

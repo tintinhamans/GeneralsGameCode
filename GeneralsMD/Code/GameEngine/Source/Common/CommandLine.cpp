@@ -181,6 +181,16 @@ Int parseUseLegacyMenus(char *args[], int num)
 	return 1;
 }
 
+//=============================================================================
+//=============================================================================
+// TheSuperHackers @feature RmlUi phase 2: -rmldebug shows Rml::Debugger over RmlUi screens.
+Int parseRmlDebugger(char *args[], int num)
+{
+	TheWritableGlobalData->m_rmlDebugger = TRUE;
+
+	return 1;
+}
+
 #if defined(RTS_DEBUG)
 
 //=============================================================================
@@ -1206,6 +1216,9 @@ static CommandLineParam paramsForEngineInit[] =
 
 	// TheSuperHackers @feature RmlUi phase 1: use the original .wnd menus, not RmlUi.
 	{ "-wnd", parseUseLegacyMenus },
+
+	// TheSuperHackers @feature RmlUi phase 2: show Rml::Debugger over RmlUi screens.
+	{ "-rmldebug", parseRmlDebugger },
 
 #if defined(RTS_DEBUG)
 	{ "-noaudio", parseNoAudio },
