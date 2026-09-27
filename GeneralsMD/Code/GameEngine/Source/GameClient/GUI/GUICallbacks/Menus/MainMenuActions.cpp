@@ -28,7 +28,10 @@
 #include "Common/GameEngine.h"
 #include "Common/GameState.h"
 #include "Common/GlobalData.h"
+#include "Common/OptionPreferences.h"
+#include "Common/RandomValue.h"
 #include "GameClient/CampaignManager.h"
+#include "GameClient/ChallengeGenerals.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/RmlUiScreenRegistry.h"
@@ -134,6 +137,39 @@ void openCreditsMenu()
 void selectCampaign(const AsciiString &campaignName)
 {
 	TheCampaignManager->setCampaign(campaignName);
+}
+
+//-------------------------------------------------------------------------------------------------
+void startCampaignAtDifficulty(GameDifficulty diff, bool challenge)
+{
+	// prepareCampaignGame() game-state lines (transition/dontAllowTransitions lines dropped).
+	OptionPreferences pref;
+	pref.setCampaignDifficulty(diff);
+	pref.write();
+	TheScriptEngine->setGlobalDifficulty(diff);
+
+	// setupGameStart() game-state lines (transition/reverseAnimatewindow lines dropped).
+	TheCampaignManager->setGameDifficulty(diff);
+
+	if (challenge)
+	{
+		if (TheChallengeGenerals)
+			TheChallengeGenerals->setCurrentDifficulty(diff);
+		TheShell->push("Menus/ChallengeMenu.wnd");
+		return;
+	}
+
+	// doGameStart() game-state lines (isShuttingDown is .wnd shell-animation bookkeeping, dropped;
+	// the RmlUi screen pops itself immediately instead of waiting for an animation to finish).
+	TheWritableGlobalData->m_pendingFile = TheCampaignManager->getCurrentMap();
+	if (TheGameLogic->isInGame())
+		TheGameLogic->clearGameData();
+
+	GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_NEW_GAME);
+	msg->appendIntegerArgument(GAME_SINGLE_PLAYER);
+	msg->appendIntegerArgument(TheCampaignManager->getGameDifficulty());
+	msg->appendIntegerArgument(TheCampaignManager->getRankPoints());
+	InitRandom(0);
 }
 
 } // namespace MainMenuActions

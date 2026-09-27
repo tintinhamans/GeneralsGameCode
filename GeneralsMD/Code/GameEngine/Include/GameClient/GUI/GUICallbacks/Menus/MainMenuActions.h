@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include "Common/GameCommon.h" // GameDifficulty
+
 class AsciiString;
 
 namespace MainMenuActions
@@ -65,4 +67,11 @@ namespace MainMenuActions
 
 	// ButtonUSA/GLA/China/Challenge: selects the campaign (or clears it via ButtonDiffBack).
 	void selectCampaign(const AsciiString &campaignName);
+
+	// ButtonEasy/Medium/Hard on the difficulty panel: the game-state lines of
+	// prepareCampaignGame()+setupGameStart() (MainMenu.cpp), without TheTransitionHandler/
+	// TheShell animation calls. When challenge is true (Generals Challenge was picked), pushes
+	// ChallengeMenu.wnd same as the .wnd version; otherwise starts the current campaign map
+	// immediately (no animation to wait for, so no need to defer like doGameStart() does).
+	void startCampaignAtDifficulty(GameDifficulty diff, bool challenge);
 }
