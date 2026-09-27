@@ -183,6 +183,7 @@ public:
 	inline ParticlePriorityType	getMinDynamicParticleSkipPriority();	///<priority at which particles will never be skipped at any FPS.
 	Int getRecommendedTextureReduction();	///<return the optimal texture reduction for the system.
 	Int getLevelTextureReduction(StaticGameLODLevel level);	///<return texture reduction specified in INI for this game detail.
+	StaticGameLODInfo getStaticLODPreview(StaticGameLODLevel level);	///<values setStaticLODLevel would apply for this level.
 	LODPresetInfo *newLODPreset(StaticGameLODLevel index);
 	BenchProfile *newBenchProfile();
 	Bool didMemPass();

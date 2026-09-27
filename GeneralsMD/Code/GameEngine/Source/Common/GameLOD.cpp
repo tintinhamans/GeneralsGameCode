@@ -770,6 +770,21 @@ Int GameLODManager::getLevelTextureReduction(StaticGameLODLevel level)
 	return m_staticGameLODInfo[level].m_textureReduction;
 }
 
+// Mirrors applyStaticLODLevel for preset levels without applying anything
+StaticGameLODInfo GameLODManager::getStaticLODPreview(StaticGameLODLevel level)
+{
+	StaticGameLODInfo info = m_staticGameLODInfo[level];
+	if (level != STATIC_GAME_LOD_CUSTOM)
+	{
+		StaticGameLODLevel textureLevel = getRecommendedTextureLODLevel();
+		if (textureLevel == STATIC_GAME_LOD_UNKNOWN)
+			textureLevel = level;
+		info.m_textureReduction = getLevelTextureReduction(textureLevel);
+		info.m_useTrees = m_memPassed;
+	}
+	return info;
+}
+
 Bool GameLODManager::didMemPass()
 {
 	return m_memPassed;
