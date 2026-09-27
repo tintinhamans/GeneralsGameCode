@@ -1,0 +1,16 @@
+<rml>
+<head>
+	<title>EndGameOverlay</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<style>
+		body { width: 606dp; height: 225dp; left: 50%; top: 50%; margin-left: -303dp; margin-top: -112dp; }
+		.frame { width: 100%; height: 100%; padding: 3dp; }
+		.frame mappedimage { display: block; width: 100%; height: 100%; }
+	</style>
+</head>
+<body data-model="endgameoverlay">
+	<div class="frame">
+		<mappedimage data-attr-name="image_name"/>
+	</div>
+</body>
+</rml>

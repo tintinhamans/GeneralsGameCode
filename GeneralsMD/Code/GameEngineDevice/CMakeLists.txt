@@ -61,6 +61,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlCreditsScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlMessageBox.h
+    Include/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlScreen.h
@@ -187,6 +188,7 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/RmlUi/RmlCreditsScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlMessageBox.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlOptionsScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiElements.cpp

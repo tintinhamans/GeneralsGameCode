@@ -24,6 +24,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlCreditsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
+#include "W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
@@ -140,6 +141,13 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/CreditsMenu.wnd", &OpenRmlCreditsScreen, &CloseRmlCreditsScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitMenu.wnd", &OpenRmlQuitMenuScreen, &CloseRmlQuitMenuScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitNoSave.wnd", &OpenRmlQuitNoSaveScreen, &CloseRmlQuitNoSaveScreen);
+
+	// ScriptActions::doVictory()/doDefeat()/doLocalDefeat() create these via winCreateFromScript();
+	// see GameWindowManagerScript.cpp's winCreateFromScript() and RmlEndGameOverlayScreen.h.
+	RmlUiScreenRegistry::registerScreen("Menus/Victorious.wnd", &OpenRmlVictoriousScreen, &CloseRmlVictoriousScreen);
+	RmlUiScreenRegistry::registerScreen("Menus/Defeat.wnd", &OpenRmlDefeatScreen, &CloseRmlDefeatScreen);
+	RmlUiScreenRegistry::registerScreen("Menus/LocalDefeat.wnd", &OpenRmlLocalDefeatScreen, &CloseRmlLocalDefeatScreen);
+	RmlUiScreenRegistry::registerScreen("Menus/ObserverQuit.wnd", &OpenRmlObserverQuitScreen, &CloseRmlObserverQuitScreen);
 
 	// GameWindowManager::gogoMessageBox() looks this hook up the same way, gated on
 	// !m_useLegacyMenus; see RmlUiMessageBoxHook.h.
