@@ -32,7 +32,7 @@
 
 class RmlScreen;
 
-namespace Rml { class Context; class ElementInstancer; }
+namespace Rml { class Context; class Element; class ElementInstancer; }
 
 //-------------------------------------------------------------------------------------------------
 class RmlUiManager : public RmlUiInputHook
@@ -84,6 +84,11 @@ private:
 	bool anyVisibleDocumentAt(int x, int y, bool *outModal) const;
 	void registerCustomElements();
 
+	// Drives TheMouse's engine tooltip from whichever RmlUi element is hovered, so tooltips reuse
+	// the .wnd rendering/delay exactly (see report). Walks up from GetHoverElement() for a
+	// data-tooltip (GUI:/CSF key) or data-tooltip-text (literal/bound text) attribute.
+	void updateTooltip();
+
 	RmlUiSystemInterface m_systemInterface;
 	RmlUiFileInterface m_fileInterface;
 	RmlUiRenderInterface m_renderInterface;
@@ -93,6 +98,7 @@ private:
 	Rml::ElementInstancer *m_mapPreviewInstancer = nullptr;
 	RmlScreen *m_currentScreen = nullptr;
 	RmlScreen *m_previousScreen = nullptr;
+	Rml::Element *m_tooltipElement = nullptr; // element updateTooltip() last drove TheMouse's tooltip from
 	int m_width = 0, m_height = 0;
 	bool m_initialized = false;
 	bool m_debuggerInitialized = false;

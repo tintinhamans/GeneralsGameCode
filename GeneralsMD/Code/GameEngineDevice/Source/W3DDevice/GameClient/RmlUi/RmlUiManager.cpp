@@ -18,8 +18,12 @@
 
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
+#include "Common/AsciiString.h"
 #include "Common/GlobalData.h"
+#include "Common/UnicodeString.h"
+#include "GameClient/GameText.h"
 #include "GameClient/KeyDefs.h"
+#include "GameClient/Mouse.h"
 #include "GameClient/RmlUiScreenRegistry.h"
 #include "W3DDevice/GameClient/RmlUi/RmlCreditsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlLanLobbyScreen.h"
@@ -43,6 +47,19 @@
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Core/Log.h>
 #include <RmlUi/Debugger.h>
+
+#include <windows.h>
+
+// Same private per-file helper every RmlScreen keeps (see e.g. RmlLanLobbyScreen.cpp) -- converts a
+// data-bound data-tooltip-text value (RmlUi strings are UTF-8) back to the UnicodeString TheMouse's
+// tooltip API wants. ASCII-only limitation noted there applies here too.
+static UnicodeString utf8ToUnicode(const Rml::String &utf8)
+{
+	AsciiString ascii(utf8.c_str());
+	UnicodeString text;
+	text.translate(ascii);
+	return text;
+}
 
 RmlUiManager *RmlUiManager::s_instance = nullptr;
 RmlUiManager *TheRmlUiManager = nullptr;
@@ -241,6 +258,64 @@ void RmlUiManager::update()
 		m_currentScreen->update();
 	if (m_context)
 		m_context->Update();
+	updateTooltip();
+}
+
+//-------------------------------------------------------------------------------------------------
+// Reuses the engine's own tooltip rendering (TheMouse->setCursorTooltip(), same call
+// GameWindowManager.cpp makes for a .wnd control's TOOLTIPTEXT) so RmlUi tooltips match the .wnd
+// look/delay exactly instead of RmlUi drawing its own. Called once per frame from update(), which
+// runs from W3DDisplay::draw() -- after GameWindowManager's own per-frame tooltip clear/set (driven
+// off TheMouse->createStreamMessages(), which runs earlier in the frame during message processing),
+// so this always gets the last word for whatever is under the RmlUi hover this frame.
+void RmlUiManager::updateTooltip()
+{
+	Rml::Element *hover = m_context ? m_context->GetHoverElement() : nullptr;
+
+	// RmlUi's hover target is usually the innermost element (e.g. text inside a button), so walk up
+	// to the nearest ancestor carrying either attribute -- same idea as GameWindowManager's
+	// toolTipWindow search up the .wnd tree.
+	Rml::Element *tooltipElement = nullptr;
+	Rml::String tooltipKey, tooltipText;
+	for (Rml::Element *e = hover; e; e = e->GetParentNode())
+	{
+		if (e->HasAttribute("data-tooltip"))
+		{
+			tooltipElement = e;
+			tooltipKey = e->GetAttribute<Rml::String>("data-tooltip", "");
+			break;
+		}
+		if (e->HasAttribute("data-tooltip-text"))
+		{
+			tooltipElement = e;
+			tooltipText = e->GetAttribute<Rml::String>("data-tooltip-text", "");
+			break;
+		}
+	}
+
+	if (!tooltipElement)
+	{
+		// Only clear if we were the one showing it -- a bare setCursorTooltip(empty) every frame
+		// would fight GameWindowManager's own clear/set for whatever legacy window is under the
+		// cursor once RmlUi's context reports no hover at all (e.g. -wnd legacy menus active).
+		if (m_tooltipElement)
+		{
+			TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
+			m_tooltipElement = nullptr;
+		}
+		return;
+	}
+
+	m_tooltipElement = tooltipElement;
+
+	UnicodeString text;
+	if (!tooltipKey.empty() && TheGameText)
+		text = TheGameText->fetch(AsciiString(tooltipKey.c_str()));
+	else if (!tooltipText.empty())
+		text = utf8ToUnicode(tooltipText);
+
+	if (TheMouse)
+		TheMouse->setCursorTooltip(text); // delay defaults to -1: same per-window default the .wnd path uses
 }
 
 void RmlUiManager::render()
