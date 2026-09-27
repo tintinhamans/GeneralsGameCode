@@ -18,8 +18,10 @@
 
 #include "W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.h"
 
+#include "Common/GlobalData.h"
 #include "Common/Money.h"
 #include "Common/SkirmishBattleHonors.h"
+#include "Common/SkirmishPreferences.h"
 #include "Common/UnicodeString.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GUI/GUICallbacks/Menus/GameSetupData.h"
@@ -132,6 +134,7 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 		constructor.Bind("start_markers", &m_model.startMarkers);
 		constructor.Bind("faction_options", &m_model.factionOptions);
 		constructor.Bind("color_options", &m_model.colorOptions);
+		constructor.Bind("starting_cash_options", &m_model.startingCashOptions);
 		constructor.Bind("map_name", &m_model.mapName);
 		constructor.Bind("map_display_name", &m_model.mapDisplayName);
 		constructor.Bind("map_found", &m_model.mapFound);
@@ -247,6 +250,10 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 	for (const GameSetupColorOption &color : data.m_options.m_colorOptions)
 		m_model.colorOptions.push_back(OptionModel{ color.m_color, rgbToHex(color.m_rgb) });
 
+	m_model.startingCashOptions.clear();
+	for (const GameSetupStartingCashOption &cash : data.m_options.m_startingCashOptions)
+		m_model.startingCashOptions.push_back(OptionModel{ cash.m_amount, unicodeToUtf8(cash.m_label) });
+
 	m_model.mapName = data.m_options.m_mapName.str();
 	m_model.mapDisplayName = unicodeToUtf8(data.m_options.m_mapDisplayName);
 	m_model.mapFound = data.m_options.m_mapFound == TRUE;
@@ -272,6 +279,7 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 		m_modelHandle.DirtyVariable("start_markers");
 		m_modelHandle.DirtyVariable("faction_options");
 		m_modelHandle.DirtyVariable("color_options");
+		m_modelHandle.DirtyVariable("starting_cash_options");
 		m_modelHandle.DirtyVariable("map_name");
 		m_modelHandle.DirtyVariable("map_display_name");
 		m_modelHandle.DirtyVariable("map_found");
@@ -291,6 +299,14 @@ void RmlSkirmishSetupScreen::show()
 		return;
 
 	SkirmishSetupActions::enterSkirmishSetup();
+
+	// Same read/clamp as SkirmishGameOptionsMenuInit()'s slider setup; game speed isn't part of
+	// GameInfo, so it isn't covered by refreshFromGameState()/GameSetupData.
+	SkirmishPreferences prefs;
+	m_model.gameSpeedSliderPos = max(15, min(61, prefs.getInt("FPS", TheGlobalData->m_framesPerSecondLimit)));
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("game_speed_slider_pos");
+
 	refreshFromGameState();
 	m_document->Show();
 }
@@ -311,7 +327,7 @@ void RmlSkirmishSetupScreen::onBack()
 	// Same as the "back"/ButtonExit event (see onBackPressed()), duplicated instead of routed
 	// through it since that takes an Rml::Event& this call site doesn't have (see
 	// RmlOptionsScreen::onBack() for the same pattern).
-	SkirmishSetupActions::leaveSkirmishSetup();
+	SkirmishSetupActions::leaveSkirmishSetup(m_model.gameSpeedSliderPos);
 	hide();
 	if (TheShell)
 		TheShell->pop();
@@ -386,6 +402,9 @@ void RmlSkirmishSetupScreen::onGameSpeedChanged(Rml::DataModelHandle, Rml::Event
 
 void RmlSkirmishSetupScreen::onStart(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
+	// SkirmishGameOptionsMenu.cpp's ButtonStart persists prefs before validating; match that order.
+	SkirmishSetupActions::persistPreferences(m_model.gameSpeedSliderPos);
+
 	SkirmishSetupActions::StartValidationResult result = SkirmishSetupActions::validateStart(TheSkirmishGameInfo);
 	switch (result)
 	{
@@ -417,7 +436,7 @@ void RmlSkirmishSetupScreen::onStart(Rml::DataModelHandle, Rml::Event &, const R
 
 void RmlSkirmishSetupScreen::onBackPressed(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
-	SkirmishSetupActions::leaveSkirmishSetup();
+	SkirmishSetupActions::leaveSkirmishSetup(m_model.gameSpeedSliderPos);
 	hide();
 	if (TheShell)
 		TheShell->pop();

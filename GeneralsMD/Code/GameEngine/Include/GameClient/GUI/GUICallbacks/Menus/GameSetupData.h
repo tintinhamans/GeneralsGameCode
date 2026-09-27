@@ -83,6 +83,15 @@ struct GameSetupColorOption
 	UnsignedInt m_rgb = 0; // 0x00RRGGBB, from MultiplayerColorDefinition::getColor()
 };
 
+// One selectable starting-cash preset (TheMultiplayerSettings::getStartingMoneyList() order),
+// for the starting-cash dropdown. Mirrors PopulateStartingCashComboBox()'s combo entries exactly
+// (same list, same FormatStartingCashLabel() text) instead of a free-form amount.
+struct GameSetupStartingCashOption
+{
+	Int m_amount = 0; // Money::countMoney()
+	UnicodeString m_label;
+};
+
 // Map/options half of the setup screen: what updateSkirmishGameOptions() /
 // InitSkirmishGameGadgets() derive from the current map and GameInfo.
 struct GameSetupOptionsData
@@ -109,6 +118,7 @@ struct GameSetupOptionsData
 	// snapshot point widget code needs.
 	std::vector<GameSetupFactionOption> m_factionOptions;
 	std::vector<GameSetupColorOption> m_colorOptions;
+	std::vector<GameSetupStartingCashOption> m_startingCashOptions;
 };
 
 struct GameSetupData

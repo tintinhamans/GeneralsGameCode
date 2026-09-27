@@ -27,6 +27,9 @@
 
 #pragma once
 
+#include "Common/Money.h"
+#include "Common/UnicodeString.h"
+
 class GameWindow;
 class GameInfo;
 
@@ -37,6 +40,11 @@ void PopulateColorComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myG
 void PopulatePlayerTemplateComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool allowObservers );
 void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool isObserver = FALSE);
 void PopulateStartingCashComboBox(GameWindow *comboBox, GameInfo *myGame);
+
+// GUI:StartingMoneyFormat applied to a starting-cash amount. Shared so a widget-agnostic
+// renderer (e.g. RmlUi's GameSetupData) can build the same preset label list
+// PopulateStartingCashComboBox() puts in the .wnd combo box, without duplicating the format.
+UnicodeString FormatStartingCashLabel( const Money &moneyAmount );
 
 void EnableSlotListUpdates( Bool val );
 Bool AreSlotListUpdatesEnabled();

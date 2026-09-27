@@ -26,6 +26,7 @@
 #include "Common/Money.h"
 #include "Common/MultiplayerSettings.h"
 #include "Common/RandomValue.h"
+#include "Common/Registry.h"
 #include "Common/SkirmishBattleHonors.h"
 #include "Common/SkirmishPreferences.h"
 #include "GameClient/MapUtil.h"
@@ -260,11 +261,28 @@ void SkirmishSetupActions::resetBattleHonors()
 	stats.write();
 }
 
-// See header. Mirrors SkirmishGameOptionsMenuInit()'s non-gadget lines exactly, except: no
-// preorder-registry flag (a cosmetic reward marker, not setup-correctness-relevant) and slot 1's
-// AI difficulty is always SLOT_EASY_AI instead of tiering off SkirmishBattleHonors' win count --
-// both are UI conveniences the widget-agnostic setup can pick up later without behavior currently
-// depending on either.
+SlotState SkirmishSetupActions::defaultSlot1AIDifficulty()
+{
+	SkirmishBattleHonors honors;
+	if( honors.getWins() > 10 )
+		return SLOT_BRUTAL_AI;
+	if( honors.getWins() > 5 )
+		return SLOT_MED_AI;
+	return SLOT_EASY_AI;
+}
+
+void SkirmishSetupActions::applyPreorderFlag( GameInfo *game, Int slotIndex )
+{
+	if( !game )
+		return;
+
+	UnsignedInt isPreorder = 0;
+	GetUnsignedIntFromRegistry( "", "Preorder", isPreorder );
+	if( isPreorder != 0 )
+		game->markPlayerAsPreorder( slotIndex );
+}
+
+// See header. Mirrors SkirmishGameOptionsMenuInit()'s non-gadget lines exactly.
 void SkirmishSetupActions::enterSkirmishSetup()
 {
 	if( !TheSkirmishGameInfo )
@@ -297,11 +315,13 @@ void SkirmishSetupActions::enterSkirmishSetup()
 	TheSkirmishGameInfo->setSlot( 0, localSlot );
 
 	GameSlot aiSlot;
-	aiSlot.setState( SLOT_EASY_AI );
+	aiSlot.setState( defaultSlot1AIDifficulty() );
 	TheSkirmishGameInfo->setSlot( 1, aiSlot );
 
 	ParseAsciiStringToGameInfo( TheSkirmishGameInfo, prefs.getSlotList() );
 	TheSkirmishGameInfo->setSeed( GetTickCount() );
+
+	applyPreorderFlag( TheSkirmishGameInfo, 0 );
 
 	TheSkirmishGameInfo->setStartingCash( prefs.getStartingCash() );
 	TheSkirmishGameInfo->setSuperweaponRestriction( prefs.getSuperweaponRestricted() ? 1 : 0 );
@@ -320,13 +340,19 @@ void SkirmishSetupActions::enterSkirmishSetup()
 	}
 }
 
-void SkirmishSetupActions::leaveSkirmishSetup()
+void SkirmishSetupActions::persistPreferences( Int gameSpeedFPS )
+{
+	SkirmishPreferences prefs;
+	prefs.setGameSpeedFPS( gameSpeedFPS );
+	prefs.write();
+}
+
+void SkirmishSetupActions::leaveSkirmishSetup( Int gameSpeedFPS )
 {
 	if( !TheSkirmishGameInfo )
 		return;
 
-	SkirmishPreferences prefs;
-	prefs.write();
+	persistPreferences( gameSpeedFPS );
 
 	delete TheSkirmishGameInfo;
 	TheSkirmishGameInfo = nullptr;

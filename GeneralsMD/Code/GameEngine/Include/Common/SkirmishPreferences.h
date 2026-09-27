@@ -60,4 +60,13 @@ public:
 
   Money getStartingCash() const;
   void setStartingCash( const Money &startingCash );
+
+  // Overrides write()'s game-speed value instead of it querying SkirmishGameOptionsMenu.cpp's
+  // slider gadget directly -- needed by any caller without that gadget (e.g. RmlUi's
+  // SkirmishSetupActions::persistPreferences()). -1 (the default) keeps write()'s old gadget-query
+  // behavior, so the .wnd path is unaffected.
+  void setGameSpeedFPS( Int fps );
+
+private:
+  Int m_pendingGameSpeedFPS;
 };

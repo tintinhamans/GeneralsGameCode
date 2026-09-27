@@ -349,7 +349,7 @@ void PopulateTeamComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGa
 }
 
 // -----------------------------------------------------------------------------
-static UnicodeString formatMoneyForStartingCashComboBox( const Money & moneyAmount )
+UnicodeString FormatStartingCashLabel( const Money & moneyAmount )
 {
   UnicodeString rtn;
   rtn.format( TheGameText->fetch( "GUI:StartingMoneyFormat" ), moneyAmount.countMoney() );
@@ -365,7 +365,7 @@ void PopulateStartingCashComboBox(GameWindow *comboBox, GameInfo *myGame)
 
   for (MultiplayerStartingMoneyList::const_iterator it = startingCashMap.begin(); it != startingCashMap.end(); it++ )
   {
-    Int newIndex = GadgetComboBoxAddEntry(comboBox, formatMoneyForStartingCashComboBox( *it ),
+    Int newIndex = GadgetComboBoxAddEntry(comboBox, FormatStartingCashLabel( *it ),
                                           comboBox->winGetEnabled() ? comboBox->winGetEnabledTextColor() : comboBox->winGetDisabledTextColor());
     GadgetComboBoxSetItemData(comboBox, newIndex, (void *)it->countMoney());
 
@@ -385,7 +385,7 @@ void PopulateStartingCashComboBox(GameWindow *comboBox, GameInfo *myGame)
   if ( currentSelectionIndex == -1 )
   {
     DEBUG_CRASH( ("Current selection for starting cash not found in list") );
-    currentSelectionIndex = GadgetComboBoxAddEntry(comboBox, formatMoneyForStartingCashComboBox( myGame->getStartingCash() ),
+    currentSelectionIndex = GadgetComboBoxAddEntry(comboBox, FormatStartingCashLabel( myGame->getStartingCash() ),
                                           comboBox->winGetEnabled() ? comboBox->winGetEnabledTextColor() : comboBox->winGetDisabledTextColor());
     GadgetComboBoxSetItemData(comboBox, currentSelectionIndex, (void *)myGame->getStartingCash().countMoney() );
   }

@@ -62,7 +62,9 @@
 
 				<div class="row">
 					<div class="label"><gametext key="GUI:StartingMoney"/></div>
-					<input class="control" type="number" data-value="starting_cash" data-event-change="starting_cash_changed"/>
+					<select class="control" data-value="starting_cash" data-event-change="starting_cash_changed">
+						<option data-for="opt : starting_cash_options" data-attr-value="opt.value">{{opt.label}}</option>
+					</select>
 				</div>
 				<div class="row">
 					<div class="label"><gametext key="GUI:LimitSuperweapons"/></div>

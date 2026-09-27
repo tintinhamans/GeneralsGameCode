@@ -161,13 +161,18 @@ static Int getNextSelectablePlayer(Int start)
 	return SkirmishSetupActions::getNextSelectablePlayer(TheSkirmishGameInfo, start);
 }
 
-SkirmishPreferences::SkirmishPreferences()
+SkirmishPreferences::SkirmishPreferences() : m_pendingGameSpeedFPS(-1)
 {
 	loadFromIniFile();
 }
 
 SkirmishPreferences::~SkirmishPreferences()
 {
+}
+
+void SkirmishPreferences::setGameSpeedFPS( Int fps )
+{
+	m_pendingGameSpeedFPS = fps;
 }
 
 Bool SkirmishPreferences::loadFromIniFile()
@@ -355,9 +360,18 @@ Bool SkirmishPreferences::write()
 
 	setSlotList();
 
-//	NameKeyType sliderGameSpeedID = TheNameKeyGenerator->nameToKey( "SkirmishGameOptionsMenu.wnd:SliderGameSpeed" );
-	GameWindow *sliderGameSpeed = TheWindowManager->winGetWindowFromId( parentSkirmishGameOptions, sliderGameSpeedID );
-	Int maxFPS = GadgetSliderGetPosition( sliderGameSpeed );
+	Int maxFPS;
+	if( m_pendingGameSpeedFPS >= 0 )
+	{
+		// Caller without the .wnd slider gadget (e.g. RmlUi) supplied it explicitly.
+		maxFPS = m_pendingGameSpeedFPS;
+	}
+	else
+	{
+//		NameKeyType sliderGameSpeedID = TheNameKeyGenerator->nameToKey( "SkirmishGameOptionsMenu.wnd:SliderGameSpeed" );
+		GameWindow *sliderGameSpeed = TheWindowManager->winGetWindowFromId( parentSkirmishGameOptions, sliderGameSpeedID );
+		maxFPS = sliderGameSpeed ? GadgetSliderGetPosition( sliderGameSpeed ) : TheGlobalData->m_framesPerSecondLimit;
+	}
 	setInt("FPS", maxFPS);
 
 	return UserPreferences::write();
@@ -1164,24 +1178,13 @@ void SkirmishGameOptionsMenuInit( WindowLayout *layout, void *userData )
   gSlot.setPlayerTemplate(prefs.getPreferredFaction());
   TheSkirmishGameInfo->setSlot(0,gSlot);
 
-	SkirmishBattleHonors honors;
-	if (honors.getWins() > 10)
-		gSlot.setState(SLOT_BRUTAL_AI);
-	else if (honors.getWins() > 5)
-		gSlot.setState(SLOT_MED_AI);
-	else
-		gSlot.setState(SLOT_EASY_AI);
+	gSlot.setState( SkirmishSetupActions::defaultSlot1AIDifficulty() );
 	TheSkirmishGameInfo->setSlot(1, gSlot);
 
 	ParseAsciiStringToGameInfo(TheSkirmishGameInfo, prefs.getSlotList());
 	TheSkirmishGameInfo->setSeed(GetTickCount());
 
-	UnsignedInt isPreorder = 0;
-	GetUnsignedIntFromRegistry("", "Preorder", isPreorder);
-	if (isPreorder != 0)
-	{
-		TheSkirmishGameInfo->markPlayerAsPreorder(0);
-	}
+	SkirmishSetupActions::applyPreorderFlag( TheSkirmishGameInfo, 0 );
 
   TheSkirmishGameInfo->setStartingCash( prefs.getStartingCash() );
   TheSkirmishGameInfo->setSuperweaponRestriction( prefs.getSuperweaponRestricted() ? 1 : 0 );

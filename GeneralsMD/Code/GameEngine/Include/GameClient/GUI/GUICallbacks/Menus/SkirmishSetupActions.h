@@ -48,16 +48,35 @@ namespace SkirmishSetupActions
 
 	// Creates (or resets) TheSkirmishGameInfo the same way SkirmishGameOptionsMenu.cpp's
 	// SkirmishGameOptionsMenuInit() does, minus the .wnd gadget setup: local player slot from
-	// SkirmishPreferences, a default AI in slot 1, saved slot list/map/cash/superweapon prefs, and a
+	// SkirmishPreferences, a default AI in slot 1 (see defaultSlot1AIDifficulty()), the preorder
+	// registry flag (see applyPreorderFlag()), saved slot list/map/cash/superweapon prefs, and a
 	// fresh RNG seed. Called once by a setup screen's show() (widget-agnostic, so RmlUi and any
 	// future front end share it instead of only the .wnd path constructing TheSkirmishGameInfo).
 	// Safe to call with TheSkirmishGameInfo already set (e.g. re-entering setup after a match).
 	void enterSkirmishSetup();
 
-	// Saves SkirmishPreferences and frees TheSkirmishGameInfo, same as the .wnd ButtonExit/Back
-	// handler (SkirmishGameOptionsMenu.cpp's GBM_SELECTED case). Does not pop the shell screen --
-	// callers do that themselves (TheShell->pop() for the .wnd path, onBack() for RmlUi).
-	void leaveSkirmishSetup();
+	// Slot 1's default AI difficulty, tiered off the local player's SkirmishBattleHonors win
+	// count exactly like SkirmishGameOptionsMenuInit() (<=5 wins: Easy, <=10: Medium, >10: Brutal).
+	// Shared so the .wnd Init and enterSkirmishSetup() apply the same tiering instead of duplicating it.
+	SlotState defaultSlot1AIDifficulty();
+
+	// Marks slotIndex as a preorder player if the registry's "Preorder" DWORD is non-zero, same as
+	// SkirmishGameOptionsMenuInit(). No-op if game is null.
+	void applyPreorderFlag( GameInfo *game, Int slotIndex );
+
+	// Saves SkirmishPreferences (see persistPreferences()) and frees TheSkirmishGameInfo, same as
+	// the .wnd ButtonExit/Back handler (SkirmishGameOptionsMenu.cpp's GBM_SELECTED case). Does not
+	// pop the shell screen -- callers do that themselves (TheShell->pop() for the .wnd path,
+	// onBack() for RmlUi). gameSpeedFPS is the current game-speed control's raw 15..61 value (the
+	// .wnd's slider position), persisted the same way ButtonExit's prefs.write() does.
+	void leaveSkirmishSetup( Int gameSpeedFPS );
+
+	// Writes SkirmishPreferences, same fields as SkirmishPreferences::write() but without that
+	// function's direct SkirmishGameOptionsMenu.cpp slider-gadget lookup: gameSpeedFPS (raw 15..61)
+	// is passed in and stored via SkirmishPreferences::setGameSpeedFPS() instead. Used by both
+	// leaveSkirmishSetup() and ButtonStart's equivalent (RmlSkirmishSetupScreen::onStart()), since
+	// the .wnd persists prefs on Start too, not only on Exit.
+	void persistPreferences( Int gameSpeedFPS );
 
 	// getNextSelectablePlayer: the next slot at or after start that the local host can
 	// still move into a start position (the local slot, or any AI slot), or -1 if none.

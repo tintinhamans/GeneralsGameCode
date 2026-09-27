@@ -25,6 +25,7 @@
 #include "Common/MultiplayerSettings.h"
 #include "Common/PlayerTemplate.h"
 #include "GameClient/MapUtil.h"
+#include "GameNetwork/GUIUtil.h"
 
 GameSetupData GameSetupData::build( GameInfo *game )
 {
@@ -126,6 +127,18 @@ GameSetupData GameSetupData::build( GameInfo *game )
 			option.m_color = i;
 			option.m_rgb = colorDef->getColor() & 0x00FFFFFF;
 			options.m_colorOptions.push_back( option );
+		}
+	}
+
+	if( TheMultiplayerSettings )
+	{
+		const MultiplayerStartingMoneyList &moneyList = TheMultiplayerSettings->getStartingMoneyList();
+		for( MultiplayerStartingMoneyList::const_iterator it = moneyList.begin(); it != moneyList.end(); ++it )
+		{
+			GameSetupStartingCashOption option;
+			option.m_amount = it->countMoney();
+			option.m_label = FormatStartingCashLabel( *it );
+			options.m_startingCashOptions.push_back( option );
 		}
 	}
 

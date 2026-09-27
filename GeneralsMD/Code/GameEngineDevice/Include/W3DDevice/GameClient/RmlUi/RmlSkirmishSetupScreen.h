@@ -120,6 +120,7 @@ private:
 		Rml::Vector<StartMarkerModel> startMarkers;
 		Rml::Vector<OptionModel> factionOptions;
 		Rml::Vector<OptionModel> colorOptions;
+		Rml::Vector<OptionModel> startingCashOptions; // GameSetupStartingCashOption, same preset list as the .wnd combo box
 
 		Rml::String mapName;
 		Rml::String mapDisplayName;
@@ -128,9 +129,10 @@ private:
 		int startingCash = 0;
 		bool superweaponsRestricted = false;
 
-		// Not part of GameInfo -- read directly at Start (see reallyDoStart()), same as the .wnd
-		// slider; 15..60, or 61 for "no limit" (GREATER_NO_FPS_LIMIT), matching setFPSTextBox()/
-		// SkirmishGameOptionsMenuInit()'s slider range exactly.
+		// Not part of GameInfo -- read from SkirmishPreferences("FPS") in show(), same as the .wnd
+		// slider at SkirmishGameOptionsMenuInit(); 15..60, or 61 for "no limit" (GREATER_NO_FPS_LIMIT),
+		// matching setFPSTextBox()'s slider range exactly. Persisted back on Start/Back, same as the
+		// .wnd ButtonStart/ButtonExit handlers (see SkirmishSetupActions::persistPreferences()).
 		int gameSpeedSliderPos = 61;
 
 		// SkirmishBattleHonors snapshot (see refreshFromGameState()); not part of GameSetupData,
