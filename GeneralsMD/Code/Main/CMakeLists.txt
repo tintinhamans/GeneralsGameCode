@@ -109,6 +109,40 @@ if(MSVC AND NOT IS_VS6_BUILD)
     )
     target_link_libraries(z_generals PRIVATE delayimp)
 endif()
+# Embed the repository's Data/ folder into the executable so game data placed there
+# (window layouts, INI overrides, string files, ...) ships inside the exe and is
+# served through a virtual "450_450_..." archive (see EmbeddedArchiveFile and
+# ArchiveFileSystem::loadMods()). CONFIGURE_DEPENDS reruns this glob whenever CMake
+# reconfigures, which happens automatically when a file is added or removed.
+set(RTS_EMBEDDED_DATA_DIR "${CMAKE_SOURCE_DIR}/Data")
+file(GLOB_RECURSE RTS_EMBEDDED_DATA_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES FALSE
+    "${RTS_EMBEDDED_DATA_DIR}/*")
+
+set(RTS_EMBEDDED_DATA_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedDataTable.cpp")
+set(RTS_EMBEDDED_DATA_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/GenerateEmbeddedData.cmake")
+
+# A file's mtime alone can't tell the custom command below that a file was *removed*
+# from Data/ (nothing became newer). file(GENERATE) only rewrites this manifest -- and
+# so only bumps its mtime -- when the file list actually changed, which is exactly the
+# signal the DEPENDS on it needs to force a rebuild on removal too, not just on add/edit.
+set(RTS_EMBEDDED_DATA_MANIFEST "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedDataManifest.txt")
+file(GENERATE OUTPUT "${RTS_EMBEDDED_DATA_MANIFEST}" CONTENT "${RTS_EMBEDDED_DATA_FILES}")
+
+add_custom_command(
+    OUTPUT "${RTS_EMBEDDED_DATA_SOURCE}"
+    COMMAND ${CMAKE_COMMAND}
+        "-DDATA_DIR=${RTS_EMBEDDED_DATA_DIR}"
+        "-DOUTPUT_FILE=${RTS_EMBEDDED_DATA_SOURCE}"
+        -P "${RTS_EMBEDDED_DATA_SCRIPT}"
+    DEPENDS ${RTS_EMBEDDED_DATA_FILES} "${RTS_EMBEDDED_DATA_SCRIPT}" "${RTS_EMBEDDED_DATA_MANIFEST}"
+    COMMENT "Generating embedded Data/ table"
+    VERBATIM
+)
+
+target_sources(z_generals PRIVATE
+    "${RTS_EMBEDDED_DATA_SOURCE}"
+    EmbeddedDataTable.h
+)
 
 if(WIN32)
 	add_custom_command(TARGET z_generals POST_BUILD

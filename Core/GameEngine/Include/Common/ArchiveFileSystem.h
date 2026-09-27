@@ -60,6 +60,7 @@
 
 class File;
 class ArchiveFile;
+struct EmbeddedFileRecord;
 
 //----------------------------------------------------------------------------
 //           Type Defines
@@ -150,6 +151,12 @@ public:
 
 	ArchivedDirectoryInfo* friend_getArchivedDirectoryInfo(const Char* directory);
 
+	// Records a generated Data/ table (see cmake/GenerateEmbeddedData.cmake); loadMods()
+	// exposes it as a virtual "450_450_GeneralsOnline_Embedded.big" archive. Only the
+	// executable that links the generated table calls this; everything else sees zero
+	// embedded files and loadMods() skips creating the virtual archive entirely.
+	static void registerEmbeddedFiles(const EmbeddedFileRecord* records, unsigned int count);
+
 protected:
 	struct ArchivedDirectoryInfoResult
 	{
@@ -166,6 +173,9 @@ protected:
 
 	ArchiveFileMap m_archiveFileMap;
 	ArchivedDirectoryInfo m_rootDirectory;
+
+	static const EmbeddedFileRecord* s_embeddedFileRecords;
+	static unsigned int s_embeddedFileRecordCount;
 };
 
 

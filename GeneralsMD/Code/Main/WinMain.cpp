@@ -47,7 +47,9 @@
 #include "Common/GlobalData.h"
 #include "Common/GameEngine.h"
 #include "Common/GameSounds.h"
+#include "Common/ArchiveFileSystem.h"
 #include "Common/Debug.h"
+#include "EmbeddedDataTable.h"
 #include "Common/GameMemory.h"
 #include "Common/StackDump.h"
 #include "Common/MessageStream.h"
@@ -923,6 +925,10 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 		// initialize the memory manager early
 		initMemoryManager();
+
+		// register the Data/ folder that was compiled into this executable; loadMods()
+		// exposes it as a virtual "450_450_GeneralsOnline_Embedded.big" archive.
+		ArchiveFileSystem::registerEmbeddedFiles(g_embeddedDataTable, g_embeddedDataCount);
 
 		/// @todo remove this force set of working directory later
 		Char buffer[_MAX_PATH];

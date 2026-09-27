@@ -49,6 +49,7 @@
 #include "Common/ArchiveFile.h"
 #include "Common/ArchiveFileSystem.h"
 #include "Common/AsciiString.h"
+#include "Common/EmbeddedArchiveFile.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/PerfTimer.h"
 #include "../NGMP_include.h"
@@ -84,6 +85,8 @@
 
 ArchiveFileSystem *TheArchiveFileSystem = nullptr;
 
+const EmbeddedFileRecord* ArchiveFileSystem::s_embeddedFileRecords = nullptr;
+unsigned int ArchiveFileSystem::s_embeddedFileRecordCount = 0;
 
 //----------------------------------------------------------------------------
 //         Private Prototypes
@@ -231,8 +234,25 @@ void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool ove
 	}
 }
 
+void ArchiveFileSystem::registerEmbeddedFiles(const EmbeddedFileRecord* records, unsigned int count)
+{
+	s_embeddedFileRecords = records;
+	s_embeddedFileRecordCount = count;
+}
+
 void ArchiveFileSystem::loadMods()
 {
+	// Expose the Data/ folder that was compiled into this executable (if any) as a
+	// virtual archive, unconditionally and regardless of mod/community-patch settings.
+	// Its "450_450_..." name sorts below the "500_900_..." community patch and above
+	// every base-game BIG, via the same sortedByName priority rule.
+	if (s_embeddedFileRecordCount > 0)
+	{
+		ArchiveFile* embeddedArchive = new EmbeddedArchiveFile(s_embeddedFileRecords, s_embeddedFileRecordCount);
+		loadIntoDirectoryTree(embeddedArchive, FALSE, TRUE);
+		m_archiveFileMap[embeddedArchive->getName()] = embeddedArchive;
+	}
+
 #if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES)
     // load community data patch BIG
 	if (NGMP_OnlineServicesManager::Settings.DataPacks_UseCommunityPatch()

@@ -35,6 +35,7 @@ set(GAMEENGINE_SRC
 #    Include/Common/DiscreteCircle.h
 #    Include/Common/DrawModule.h
     Include/Common/DynamicAudioEventInfo.h
+    Include/Common/EmbeddedArchiveFile.h
 #    Include/Common/encrypt.h
 #    Include/Common/Energy.h
     Include/Common/Errors.h
@@ -650,6 +651,7 @@ set(GAMEENGINE_SRC
     Source/Common/System/Debug.cpp
 #    Source/Common/System/Directory.cpp
 #    Source/Common/System/DisabledTypes.cpp
+    Source/Common/System/EmbeddedArchiveFile.cpp
 #    Source/Common/System/encrypt.cpp
     Source/Common/System/File.cpp
     Source/Common/System/FileSystem.cpp
