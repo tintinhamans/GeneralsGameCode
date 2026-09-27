@@ -3,6 +3,7 @@
 #include "../NetworkMesh.h"
 #include "../OnlineServices_Init.h"
 #include "../OnlineServices_Auth.h"
+#include "../OnlineServices_LobbyInterface.h"
 
 bool AnticheatPlugInterface::g_bPendingExitLobby = false;
 
@@ -77,6 +78,18 @@ int AnticheatPlugInterface::GetConnectionLatencyForUser(std::string mwUserID, ui
     return 0;
 }
 
+bool AnticheatPlugInterface::IsConnectionRelayed(std::string mwUserID, uint32_t goUserID)
+{
+#if defined(AC_ENABLED)
+    if (IsPluginLoaded() && Functions.fnIsConnectionRelayed != nullptr)
+    {
+        return Functions.fnIsConnectionRelayed(mwUserID.c_str(), goUserID);
+    }
+#endif
+
+    return false;
+}
+
 void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
 {
     if (g_hACPluginModule != nullptr || IsPluginLoaded())
@@ -120,6 +133,23 @@ void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
                 NetworkLog(ELogVerbosity::LOG_RELEASE, "%s", szMsg != nullptr ? szMsg : "(null message)");
             });
 
+        AC_PLUGIN_LOAD_FUNCTION(SetLobbyChatOutputFunction);
+
+        Functions.fnSetLobbyChatOutputFunction([](const char* szMsg)
+            {
+                UnicodeString unicodeStr;
+                unicodeStr.translate(AsciiString(szMsg));
+
+                NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+                if (pLobbyInterface != nullptr)
+                {
+                    if (pLobbyInterface->m_OnChatCallback != nullptr)
+                    {
+                        pLobbyInterface->m_OnChatCallback(unicodeStr, DetermineSystemNoticeColor(false, false));
+                    }
+                }
+            });
+
         // Initialize AC
         AC_PLUGIN_LOAD_FUNCTION(Initialize);
 
@@ -153,6 +183,11 @@ void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
             if (Functions.fnSetLoggingFunction != nullptr)
             {
                 Functions.fnSetLoggingFunction(nullptr);
+            }
+
+            if (Functions.fnSetLobbyChatOutputFunction != nullptr)
+            {
+                Functions.fnSetLobbyChatOutputFunction(nullptr);
             }
 
             FreeLibrary(g_hACPluginModule);
@@ -301,6 +336,7 @@ void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
         AC_PLUGIN_LOAD_FUNCTION(RecvPacket);
         AC_PLUGIN_LOAD_FUNCTION_OPTIONAL(FreePacket);
         AC_PLUGIN_LOAD_FUNCTION(GetConnectionLatencyForUser);
+        AC_PLUGIN_LOAD_FUNCTION(IsConnectionRelayed);
 
         AC_PLUGIN_LOAD_FUNCTION(DisconnectPlayer);
         AC_PLUGIN_LOAD_FUNCTION(DisconnectAll);
@@ -681,6 +717,10 @@ void AnticheatPlugInterface::UnloadPlugin()
         if (Functions.fnSetSendMessageViaTransportCallback != nullptr)
         {
             Functions.fnSetSendMessageViaTransportCallback(nullptr);
+        }
+        if (Functions.fnSetLobbyChatOutputFunction != nullptr)
+        {
+            Functions.fnSetLobbyChatOutputFunction(nullptr);
         }
         if (Functions.fnSetLoggingFunction != nullptr)
         {

@@ -980,16 +980,30 @@ void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 
 	if (m_mapConnections.find(remoteUserID) != m_mapConnections.end())
 	{
-		if (m_mapConnections[remoteUserID].m_hSteamConnection != k_HSteamNetConnection_Invalid)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", remoteUserID);
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Steam connection handle is %u", m_mapConnections[remoteUserID].m_hSteamConnection);
 
-			SteamNetworkingSockets()->CloseConnection(m_mapConnections[remoteUserID].m_hSteamConnection, 0, "Client Disconnecting Gracefully (Got EWebSocketMessageID::NETWORK_CONNECTION_DISCONNECT_PLAYER from service)", false);
-			if (TheNetwork != nullptr)
-			{
-				TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
-			}
+        if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", remoteUserID);
+
+			AnticheatPlugInterface::DisconnectPlayer(m_mapConnections[remoteUserID].m_strMiddlewareID.c_str(), m_mapConnections[remoteUserID].m_userID);
+            if (TheNetwork != nullptr)
+            {
+                TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
+            }
+        }
+		else
+		{
+            if (m_mapConnections[remoteUserID].m_hSteamConnection != k_HSteamNetConnection_Invalid)
+            {
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", remoteUserID);
+                NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Steam connection handle is %u", m_mapConnections[remoteUserID].m_hSteamConnection);
+
+                SteamNetworkingSockets()->CloseConnection(m_mapConnections[remoteUserID].m_hSteamConnection, 0, "Client Disconnecting Gracefully (Got EWebSocketMessageID::NETWORK_CONNECTION_DISCONNECT_PLAYER from service)", false);
+                if (TheNetwork != nullptr)
+                {
+                    TheNetwork->GetConnectionManager()->disconnectPlayer(remoteUserID);
+                }
+            }
 		}
 
 
@@ -1033,7 +1047,7 @@ void NetworkMesh::Disconnect()
 
 	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
 	{
-		// Nothing to do here, Close above calls AnticheatPlugInterface::DisconnectPlayer
+		AnticheatPlugInterface::DisconnectAll();
 	}
 	else
 	{
@@ -1226,70 +1240,68 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 	}
 	else
 	{
-        if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
-            return (int)k_EResultFail;
-        }
+		if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
+			return (int)k_EResultFail;
+		}
 
+		ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_GAME;
+		std::vector<BYTE> vecData;
+		vecData.resize(totalDataSize + sizeof(ENetworkChannel));
+		memcpy(vecData.data() + sizeof(ENetworkChannel), pBuffer, totalDataSize);
+		vecData[0] = (BYTE)netChannel;
 
+		int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
 
-	}
+		ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+		int netSendFlags = serviceConf.network_send_flags;
 
-    ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_GAME;
-    std::vector<BYTE> vecData;
-    vecData.resize(totalDataSize + sizeof(ENetworkChannel));
-    memcpy(vecData.data() + sizeof(ENetworkChannel), pBuffer, totalDataSize);
-    vecData[0] = (BYTE)netChannel;
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
+		EResult r = SteamNetworkingSockets()->SendMessageToConnection(
+			m_hSteamConnection, vecData.data(), vecData.size(), sendFlags, nullptr);
 
-    int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
+		if (r != k_EResultOK)
+		{
+			if (netSendFlags != -1)
+			{
+				if (netSendFlags == 0)
+				{
+					sendFlags = k_nSteamNetworkingSend_Unreliable;
+				}
+				else if (netSendFlags == 1)
+				{
+					sendFlags = k_nSteamNetworkingSend_UnreliableNoNagle;
+				}
+				else if (netSendFlags == 2)
+				{
+					sendFlags = k_nSteamNetworkingSend_UnreliableNoDelay;
+				}
+				else if (netSendFlags == 3)
+				{
+					sendFlags = k_nSteamNetworkingSend_Reliable;
+				}
+				else if (netSendFlags == 4)
+				{
+					sendFlags = k_nSteamNetworkingSend_ReliableNoNagle;
+				}
+			}
 
-    ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
-    int netSendFlags = serviceConf.network_send_flags;
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
+			EResult r = SteamNetworkingSockets()->SendMessageToConnection(
+				m_hSteamConnection, pBuffer, (int)totalDataSize, sendFlags, nullptr);
 
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
-	EResult r = SteamNetworkingSockets()->SendMessageToConnection(
-		m_hSteamConnection, vecData.data(), vecData.size(), sendFlags, nullptr);
+			if (r != k_EResultOK)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Failed to send, err code was %d", r);
+			}
 
-	if (r != k_EResultOK)
-	{
-        if (netSendFlags != -1)
-        {
-            if (netSendFlags == 0)
-            {
-                sendFlags = k_nSteamNetworkingSend_Unreliable;
-            }
-            else if (netSendFlags == 1)
-            {
-                sendFlags = k_nSteamNetworkingSend_UnreliableNoNagle;
-            }
-            else if (netSendFlags == 2)
-            {
-                sendFlags = k_nSteamNetworkingSend_UnreliableNoDelay;
-            }
-            else if (netSendFlags == 3)
-            {
-                sendFlags = k_nSteamNetworkingSend_Reliable;
-            }
-            else if (netSendFlags == 4)
-            {
-                sendFlags = k_nSteamNetworkingSend_ReliableNoNagle;
-            }
-        }
-
-        NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
-        EResult r = SteamNetworkingSockets()->SendMessageToConnection(
-            m_hSteamConnection, pBuffer, (int)totalDataSize, sendFlags, nullptr);
-
-        if (r != k_EResultOK)
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Failed to send, err code was %d", r);
-        }
-
-        return (int)r;
+			return (int)r;
+		}
 	}
 
 	return (int)k_EResultFail;
+
 }
 
 
@@ -1448,18 +1460,35 @@ std::string PlayerConnection::GetStats()
 
 std::string PlayerConnection::GetConnectionType()
 {
-	if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
-		return "(disconnected)";
-
-	SteamNetConnectionInfo_t info;
-	if (!SteamNetworkingSockets()->GetConnectionInfo(m_hSteamConnection, &info))
+	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
 	{
-		NetworkLog(ELogVerbosity::LOG_DEBUG, "[STEAM] PlayerConnection::GetConnectionType failed to get connection info");
-		return "(unknown)";
+		if (m_State == EConnectionState::CONNECTED_DIRECT)
+		{
+			bool bIsConnectionRelayed = AnticheatPlugInterface::IsConnectionRelayed(m_strMiddlewareID.c_str(), m_userID);
+			return bIsConnectionRelayed ? "Relayed" : "Direct";
+		}
+		else
+		{
+			return "(disconnected)";
+		}
+	}
+	else
+	{
+        if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
+            return "(disconnected)";
+
+        SteamNetConnectionInfo_t info;
+        if (!SteamNetworkingSockets()->GetConnectionInfo(m_hSteamConnection, &info))
+        {
+            NetworkLog(ELogVerbosity::LOG_DEBUG, "[STEAM] PlayerConnection::GetConnectionType failed to get connection info");
+            return "(unknown)";
+        }
+
+        // IsDirect() relies on relayed connections reporting "Relayed".
+        return (info.m_nFlags & k_nSteamNetworkConnectionInfoFlags_Relayed) != 0 ? "Relayed" : "Direct";
 	}
 
-	// IsDirect() relies on relayed connections reporting "Relayed".
-	return (info.m_nFlags & k_nSteamNetworkConnectionInfoFlags_Relayed) != 0 ? "Relayed" : "Direct";
+	return "(unknown)";
 }
 
 void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwningMesh)
