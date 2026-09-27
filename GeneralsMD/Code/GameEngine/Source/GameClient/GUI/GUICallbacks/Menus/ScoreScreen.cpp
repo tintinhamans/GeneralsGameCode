@@ -164,6 +164,7 @@ void initLANMultiPlayer(void);
 void initInternetMultiPlayer(void);
 void initReplayMultiPlayer(void);
 void initReplaySinglePlayer(void);
+void applyScoreScreenLayout( const ScoreScreenLayout &layout );
 void grabMultiPlayerInfo( void );
 void grabSinglePlayerInfo( void );
 void hideWindows( Int pos );
@@ -691,26 +692,45 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
 
+/** Apply a ScoreScreenLayout to the score screen gadgets. Moved from the init*() functions' */
+/** inline winHide()/winSetText() calls; the gadget names and per-field rules are unchanged. */
+//-------------------------------------------------------------------------------------------------
+void applyScoreScreenLayout( const ScoreScreenLayout &layout )
+{
+	if (textEntryChat)
+		textEntryChat->winHide(!layout.m_showChatEntry);
+	if (buttonEmote)
+		buttonEmote->winHide(!layout.m_showEmoteButton);
+	if (chatBoxBorder)
+		chatBoxBorder->winHide(!layout.m_showChatBoxBorder);
+	if (buttonBuddies)
+		buttonBuddies->winHide(!layout.m_showBuddiesButton);
+	if (buttonContinue)
+	{
+		buttonContinue->winHide(!layout.m_showContinueButton);
+		if (!layout.m_continueButtonCaption.isEmpty())
+			buttonContinue->winSetText(layout.m_continueButtonCaption);
+	}
+	if (listboxChatWindowScoreScreen)
+		listboxChatWindowScoreScreen->winHide(!layout.m_showChatLog);
+	if (layout.m_touchAcademyPanel)
+	{
+		if( listboxAcademyWindowScoreScreen )
+			listboxAcademyWindowScoreScreen->winHide( !layout.m_showAcademyPanel );
+		if( staticTextAcademyTitle )
+			staticTextAcademyTitle->winHide( !layout.m_showAcademyPanel );
+	}
+	if(staticTextGameSaved)
+		staticTextGameSaved->winHide(!layout.m_showSaveGameText);
+}
+
 /** Special Init path for making this a single player Score Screen */
 //-------------------------------------------------------------------------------------------------
 void initSkirmish( void )
 {
 	screenType = SCORESCREENMODE_SKIRMISH;
 	grabMultiPlayerInfo();
-	if (textEntryChat)
-		textEntryChat->winHide(TRUE);
-	if (buttonEmote)
-		buttonEmote->winHide(TRUE);
-	if (chatBoxBorder)
-		chatBoxBorder->winHide(TRUE);
-	if (buttonBuddies)
-		buttonBuddies->winHide(TRUE);
-	if (buttonContinue)
-		buttonContinue->winHide(TRUE);
-	if (listboxChatWindowScoreScreen)
-		listboxChatWindowScoreScreen->winHide(TRUE);
-	if(staticTextGameSaved)
-		staticTextGameSaved->winHide(TRUE);
+	applyScoreScreenLayout(ScoreScreenLayout::forMode(screenType));
 //	if (buttonRehost)
 //		buttonRehost->winHide(TRUE);
 }
@@ -1014,24 +1034,7 @@ void initReplaySinglePlayer( void )
 {
 	screenType = SCORESCREENMODE_REPLAY;
 	grabSinglePlayerInfo();
-	if(staticTextGameSaved)
-		staticTextGameSaved->winHide(TRUE);
-	if (textEntryChat)
-		textEntryChat->winHide(TRUE);
-	if (buttonEmote)
-		buttonEmote->winHide(TRUE);
-	if (chatBoxBorder)
-		chatBoxBorder->winHide(TRUE);
-	if (buttonContinue)
-		buttonContinue->winHide(!ScoreScreenData::replayHasMoreEntries());
-	if (buttonBuddies)
-		buttonBuddies->winHide(TRUE);
-	if (listboxChatWindowScoreScreen)
-		listboxChatWindowScoreScreen->winHide(TRUE);
-	if( listboxAcademyWindowScoreScreen )
-		listboxAcademyWindowScoreScreen->winHide( TRUE );
-	if( staticTextAcademyTitle )
-		staticTextAcademyTitle->winHide( TRUE );
+	applyScoreScreenLayout(ScoreScreenLayout::forMode(screenType));
 
 //	if (buttonRehost)
 //		buttonRehost->winHide(TRUE);
@@ -1045,25 +1048,7 @@ void initLANMultiPlayer(void)
 	grabMultiPlayerInfo();
 	GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
 	TheWindowManager->winSetFocus( textEntryChat );
-	if(staticTextGameSaved)
-		staticTextGameSaved->winHide(TRUE);
-	if (textEntryChat)
-		textEntryChat->winHide(FALSE);
-	if (buttonEmote)
-		buttonEmote->winHide(FALSE);
-	if (buttonContinue)
-		buttonContinue->winHide(TRUE);
-	if (listboxChatWindowScoreScreen)
-		listboxChatWindowScoreScreen->winHide(FALSE);
-	//No academy in LAN
-	if( listboxAcademyWindowScoreScreen )
-		listboxAcademyWindowScoreScreen->winHide( TRUE );
-	if( staticTextAcademyTitle )
-		staticTextAcademyTitle->winHide( TRUE );
-	if (chatBoxBorder)
-		chatBoxBorder->winHide(FALSE);
-	if (buttonBuddies)
-		buttonBuddies->winHide(TRUE);
+	applyScoreScreenLayout(ScoreScreenLayout::forMode(screenType));
 }
 
 /** Special Init path for making this a Multiplayer Score Screen(Internet) */
@@ -1074,20 +1059,8 @@ void initInternetMultiPlayer(void)
 	grabMultiPlayerInfo();
 	GadgetTextEntrySetText(textEntryChat, UnicodeString::TheEmptyString);
 	TheWindowManager->winSetFocus( textEntryChat );
-	if(staticTextGameSaved)
-		staticTextGameSaved->winHide(TRUE);
-	if (buttonContinue)
-#if defined(GENERALS_ONLINE)
-		buttonContinue->winHide(FALSE);
-#else
-		buttonContinue->winHide(TRUE);
-#endif
-	if (textEntryChat)
-		textEntryChat->winHide(TRUE);
-	if (buttonEmote)
-		buttonEmote->winHide(TRUE);
-	if (listboxChatWindowScoreScreen)
-		listboxChatWindowScoreScreen->winHide(FALSE);
+
+	ScoreScreenLayout layout = ScoreScreenLayout::forMode(screenType);
 
 	// attempt to register our outcome
     NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
@@ -1122,13 +1095,13 @@ void initInternetMultiPlayer(void)
 
 			if (lobby.match_id == 0) // probably AI or < 2 humans
 			{
-				buttonContinue->winHide(TRUE);
+				layout.m_showContinueButton = FALSE;
 
 				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, UnicodeString(L"\nMatch data is not available online because the match had AI present OR less than 2 human players."), GameSpyColor[GSCOLOR_DEFAULT], -1);
 			}
 			else
 			{
-				buttonContinue->winHide(FALSE);
+				layout.m_showContinueButton = TRUE;
 
 #if defined(USE_TEST_ENV)
 				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://www.playgenerals.online/viewmatch?match=%" PRIu64 "&env=test", lobby.match_id);
@@ -1136,37 +1109,23 @@ void initInternetMultiPlayer(void)
 				strMatchURL.format(L"\nView match data, participants, replays, anti-cheat data: https://strata.gamereplays.org/zh/match/%" PRIu64, lobby.match_id);
 #endif
 
-				buttonContinue->winSetText(UnicodeString(L"VIEW MATCH ONLINE"));
+				layout.m_continueButtonCaption = UnicodeString(L"VIEW MATCH ONLINE");
 
 				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, strMatchID, GameSpyColor[GSCOLOR_DEFAULT], -1);
 				GadgetListBoxAddEntryText(listboxAcademyWindowScoreScreen, strMatchURL, GameSpyColor[GSCOLOR_DEFAULT], -1);
 			}
-
-
- 			
-
 		}
 	}
 #endif
 
-	//Provide academy advice in internet games.
-	if( listboxAcademyWindowScoreScreen )
-		listboxAcademyWindowScoreScreen->winHide( FALSE );
-	if( staticTextAcademyTitle )
-		staticTextAcademyTitle->winHide( FALSE );
-
-	if (chatBoxBorder)
-		chatBoxBorder->winHide(FALSE);
-
 	// TODO_NGMP: Enable this once friends works
 #if !defined(GENERALS_ONLINE)
-	if(TheGameSpyInfo && TheGameSpyInfo->getLocalProfileID() ==0)
-		buttonBuddies->winHide(TRUE);
-	else
-		buttonBuddies->winHide(FALSE);
+	layout.m_showBuddiesButton = !(TheGameSpyInfo && TheGameSpyInfo->getLocalProfileID() == 0);
 #else
-	buttonBuddies->winHide(FALSE);
+	layout.m_showBuddiesButton = TRUE;
 #endif
+
+	applyScoreScreenLayout(layout);
 
 	g_bNeedToTakeDoneEOGScreenshot = true;
 	g_TimeEnterState = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
@@ -1187,24 +1146,7 @@ void initReplayMultiPlayer(void)
 {
 	screenType = SCORESCREENMODE_REPLAY;
 	grabMultiPlayerInfo();
-	if(staticTextGameSaved)
-		staticTextGameSaved->winHide(TRUE);
-	if (textEntryChat)
-		textEntryChat->winHide(TRUE);
-	if (buttonEmote)
-		buttonEmote->winHide(TRUE);
-	if (listboxChatWindowScoreScreen)
-		listboxChatWindowScoreScreen->winHide(TRUE);
-	if( listboxAcademyWindowScoreScreen )
-		listboxAcademyWindowScoreScreen->winHide( TRUE );
-	if( staticTextAcademyTitle )
-		staticTextAcademyTitle->winHide( TRUE );
-	if (chatBoxBorder)
-		chatBoxBorder->winHide(TRUE);
-	if (buttonContinue)
-		buttonContinue->winHide(!ScoreScreenData::replayHasMoreEntries());
-	if (buttonBuddies)
-		buttonBuddies->winHide(TRUE);
+	applyScoreScreenLayout(ScoreScreenLayout::forMode(screenType));
 //	if (buttonRehost)
 //		buttonRehost->winHide(TRUE);
 }

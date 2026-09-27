@@ -1152,3 +1152,50 @@ Bool ScoreScreenData::replayHasMoreEntries()
 
 	return hasSimulationReplay && !isLastSimulationReplay;
 }
+
+//-------------------------------------------------------------------------------------------------
+// Static per-mode defaults, moved from ScoreScreen.cpp's init*() functions. Callers patch in
+// runtime-discovered overrides (internet match info, buddies-button gating) afterward.
+ScoreScreenLayout ScoreScreenLayout::forMode(ScoreScreenModeType mode)
+{
+	ScoreScreenLayout layout;
+
+	switch (mode)
+	{
+		case SCORESCREENMODE_SKIRMISH:
+			// Academy panel left at its .wnd default; skirmish never touches it.
+			break;
+
+		case SCORESCREENMODE_LAN:
+			layout.m_showChatEntry = TRUE;
+			layout.m_showEmoteButton = TRUE;
+			layout.m_showChatBoxBorder = TRUE;
+			layout.m_showChatLog = TRUE;
+			// No academy in LAN.
+			layout.m_touchAcademyPanel = TRUE;
+			layout.m_showAcademyPanel = FALSE;
+			break;
+
+		case SCORESCREENMODE_INTERNET:
+			layout.m_showChatBoxBorder = TRUE;
+			layout.m_showChatLog = TRUE;
+			// Provide academy advice in internet games.
+			layout.m_touchAcademyPanel = TRUE;
+			layout.m_showAcademyPanel = TRUE;
+#if defined(GENERALS_ONLINE)
+			layout.m_showContinueButton = TRUE;
+#endif
+			break;
+
+		case SCORESCREENMODE_REPLAY:
+			layout.m_showContinueButton = ScoreScreenData::replayHasMoreEntries();
+			layout.m_touchAcademyPanel = TRUE;
+			layout.m_showAcademyPanel = FALSE;
+			break;
+
+		default:
+			break;
+	}
+
+	return layout;
+}

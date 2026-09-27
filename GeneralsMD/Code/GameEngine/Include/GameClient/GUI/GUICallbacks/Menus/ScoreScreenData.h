@@ -114,3 +114,35 @@ struct ScoreScreenData
 	// ScoreScreen.cpp's showReplayButtonContinue().
 	static Bool replayHasMoreEntries();
 };
+
+// Per-mode score screen chrome: which optional gadgets (chat, emote, buddies, academy
+// panel, continue button) are visible and what the continue button says. Computed once
+// per entry alongside ScoreScreenData so a non-.wnd front end doesn't have to replicate
+// the mode switch. Doesn't cover single player's post-campaign-completion caption
+// changes (ScoreScreen.cpp's finishSinglePlayerInit), which depend on campaign
+// progression, not just mode. Runtime-discovered overrides (internet match info from the
+// lobby, buddies-button gated on the local GameSpy profile) are applied by mutating the
+// fields after forMode() returns; the queries/side effects that produce them stay in
+// ScoreScreen.cpp.
+struct ScoreScreenLayout
+{
+	Bool m_showChatEntry = FALSE;
+	Bool m_showEmoteButton = FALSE;
+	Bool m_showChatBoxBorder = FALSE;
+	Bool m_showChatLog = FALSE;
+	Bool m_showBuddiesButton = FALSE;
+	Bool m_showContinueButton = FALSE;
+	UnicodeString m_continueButtonCaption; // empty: keep the .wnd default caption
+	Bool m_showSaveGameText = FALSE;
+
+	// Tri-state like ScoreScreenPlayerRow::m_touchSideIcon: skirmish and single player
+	// never touch the academy panel gadgets, leaving them at their .wnd default instead
+	// of forcing hidden or shown.
+	Bool m_touchAcademyPanel = FALSE;
+	Bool m_showAcademyPanel = FALSE;
+
+	// Layout for initSkirmish/initLANMultiPlayer/initInternetMultiPlayer/
+	// initReplayMultiPlayer/initReplaySinglePlayer (single and multiplayer replay share
+	// SCORESCREENMODE_REPLAY's layout).
+	static ScoreScreenLayout forMode(ScoreScreenModeType mode);
+};
