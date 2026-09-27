@@ -21,6 +21,7 @@
 #include "Common/GlobalData.h"
 #include "GameClient/KeyDefs.h"
 #include "GameClient/RmlUiScreenRegistry.h"
+#include "W3DDevice/GameClient/RmlUi/RmlCreditsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
@@ -135,6 +136,7 @@ void RmlUiManager::init(int width, int height)
 	// screens up in the registry by .wnd path, gated on !m_useLegacyMenus; see RmlUiScreenRegistry.h.
 	RmlUiScreenRegistry::registerScreen("Menus/OptionsMenu.wnd", &OpenRmlOptionsScreen, &CloseRmlOptionsScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/MainMenu.wnd", &OpenRmlMainMenuScreen, &CloseRmlMainMenuScreen);
+	RmlUiScreenRegistry::registerScreen("Menus/CreditsMenu.wnd", &OpenRmlCreditsScreen, &CloseRmlCreditsScreen);
 
 	// GameWindowManager::gogoMessageBox() looks this hook up the same way, gated on
 	// !m_useLegacyMenus; see RmlUiMessageBoxHook.h.

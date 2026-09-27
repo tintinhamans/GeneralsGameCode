@@ -1,0 +1,66 @@
+/*
+	CreditsMenu.rcss -- CreditsScreen background plus the scrolling lines RmlCreditsScreen injects
+	into #credits_lines every frame. Positions are raw "px" (not "dp"): CreditsManager computes
+	them against TheDisplay's actual pixel size, which is what the RmlUi context is created at
+	(see RmlUiManager::init()), so px lines up 1:1 with no extra scaling.
+*/
+
+body { width: 100%; height: 100%; }
+
+.credits-bg
+{
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.credits-lines
+{
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+}
+
+.credit-line
+{
+	position: absolute;
+	left: 0;
+	width: 100%;
+	text-align: center;
+	white-space: nowrap;
+}
+
+.credit-line.title
+{
+	font-weight: bold;
+	font-size: 20dp;
+}
+
+.credit-line.position
+{
+	font-size: 14dp;
+}
+
+.credit-line.normal
+{
+	font-size: 12dp;
+}
+
+/* CREDIT_STYLE_COLUMN's two DisplayStrings are centered at width/3 and 2*width/3 in the .wnd
+   version (see CreditsManager::draw()'s "chunk" math); these bands reproduce that. */
+.credit-line.column-left
+{
+	left: 16.667%;
+	width: 33.333%;
+}
+
+.credit-line.column-right
+{
+	left: 50%;
+	width: 33.333%;
+}

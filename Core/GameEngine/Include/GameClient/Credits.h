@@ -127,6 +127,21 @@ public:
 	Bool isFinished() { return m_isFinished;	}
 	void addBlank();
 	void addText( AsciiString text );
+
+	// Read-only snapshot of a currently on-screen line, for callers (RmlCreditsScreen) that render
+	// credits through their own UI layer instead of CreditsManager::draw()'s direct TheDisplay calls.
+	struct DisplayedLine
+	{
+		Int m_style;
+		UnicodeString m_text;
+		UnicodeString m_secondText;
+		Bool m_useSecond;
+		Int m_y; // cLine->m_pos.y, in TheDisplay pixels
+		Color m_color;
+	};
+	Int getDisplayedLineCount() const { return (Int)m_displayedCreditLineList.size(); }
+	void getDisplayedLine( Int index, DisplayedLine *outLine ) const;
+
 private:
 
 	UnicodeString getUnicodeString(AsciiString str);

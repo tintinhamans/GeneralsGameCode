@@ -1,0 +1,12 @@
+<rml>
+<head>
+	<title>Credits</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="CreditsMenu.rcss"/>
+</head>
+<body>
+	<mappedimage name="CreditsScreen" class="credits-bg"/>
+	<!-- Populated/repositioned every frame from TheCredits (RmlCreditsScreen::syncDisplayedLines). -->
+	<div id="credits_lines" class="credits-lines"></div>
+</body>
+</rml>

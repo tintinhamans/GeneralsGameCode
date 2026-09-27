@@ -466,6 +466,34 @@ void CreditsManager::addText( AsciiString text )
 
 }
 
+void CreditsManager::getDisplayedLine( Int index, DisplayedLine *outLine ) const
+{
+	if( !outLine )
+		return;
+
+	outLine->m_style = CREDIT_STYLE_BLANK;
+	outLine->m_useSecond = FALSE;
+	outLine->m_y = 0;
+	outLine->m_color = 0;
+
+	if( index < 0 )
+		return;
+
+	CreditsLineList::const_iterator it = m_displayedCreditLineList.begin();
+	for( Int i = 0; i < index && it != m_displayedCreditLineList.end(); ++i )
+		++it;
+	if( it == m_displayedCreditLineList.end() )
+		return;
+
+	const CreditsLine *cLine = *it;
+	outLine->m_style = cLine->m_style;
+	outLine->m_text = cLine->m_text;
+	outLine->m_secondText = cLine->m_secondText;
+	outLine->m_useSecond = cLine->m_useSecond;
+	outLine->m_y = cLine->m_pos.y;
+	outLine->m_color = cLine->m_color;
+}
+
 //-----------------------------------------------------------------------------
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
