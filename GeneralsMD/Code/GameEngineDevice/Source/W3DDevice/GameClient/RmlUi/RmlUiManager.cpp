@@ -397,6 +397,7 @@ void RmlUiManager::showScreen(RmlScreen *screen)
 	// already installed as current, that reentrant call sees previous == screen and skips hiding
 	// it again instead of recursing forever.
 	RmlScreen *previous = m_currentScreen;
+	m_previousScreen = previous;
 	m_currentScreen = screen;
 
 	if (previous && previous != screen)

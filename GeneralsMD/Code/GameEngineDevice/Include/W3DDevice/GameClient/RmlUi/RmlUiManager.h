@@ -63,6 +63,12 @@ public:
 	void hideCurrentScreen();
 	RmlScreen *getCurrentScreen() const { return m_currentScreen; }
 
+	// The screen showScreen() last swapped out (nullptr if none was current, e.g. an in-game
+	// overlay like the quit menu that never goes through showScreen). Lets an overlay screen
+	// (Options) restore exactly what it covered instead of hardcoding a specific screen; see
+	// RmlOptionsScreen::hide().
+	RmlScreen *getPreviousScreen() const { return m_previousScreen; }
+
 	// RmlUiInputHook ---------------------------------------------------------------------------
 	virtual bool wantsMouseInput(int mouseX, int mouseY) const override;
 	virtual bool wantsKeyboardInput() const override;
@@ -85,6 +91,7 @@ private:
 	Rml::ElementInstancer *m_gameTextInstancer = nullptr;
 	Rml::ElementInstancer *m_mappedImageInstancer = nullptr;
 	RmlScreen *m_currentScreen = nullptr;
+	RmlScreen *m_previousScreen = nullptr;
 	int m_width = 0, m_height = 0;
 	bool m_initialized = false;
 	bool m_debuggerInitialized = false;

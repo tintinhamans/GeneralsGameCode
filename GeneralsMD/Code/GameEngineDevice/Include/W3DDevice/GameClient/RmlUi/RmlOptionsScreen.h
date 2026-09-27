@@ -79,6 +79,7 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
 	OptionPreferences *m_pref = nullptr;
+	RmlScreen *m_screenToRestore = nullptr; // screen showScreen() swapped out to show Options, if any; see show()/hide()
 	bool m_applyingDetailPreset = false; // suppresses onDetailControlChanged while previewing a preset
 
 	// Data model fields, bound by pointer in load(). Kept as plain members (like the .wnd

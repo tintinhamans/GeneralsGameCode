@@ -117,6 +117,15 @@ void RmlOptionsScreen::show()
 	if (!m_document)
 		return;
 
+	// Remember what showScreen() swapped out to show us (the shell main menu, Credits, or nullptr
+	// if nothing was current -- e.g. opened from the in-game quit menu overlay, which never goes
+	// through showScreen). hide() restores exactly this instead of hardcoding the main menu.
+	if (TheRmlUiManager)
+	{
+		RmlScreen *previous = TheRmlUiManager->getPreviousScreen();
+		m_screenToRestore = (previous != this) ? previous : nullptr;
+	}
+
 	loadCurrentValues();
 	populateSelectOptions();
 	HideMainMenuForOptions(); // no-op if MainMenu.wnd isn't the current shell screen
@@ -130,7 +139,13 @@ void RmlOptionsScreen::hide()
 {
 	if (m_document)
 		m_document->Hide();
-	ShowMainMenuForOptions();
+
+	// Restore exactly what Options covered: the shell screen it swapped out (main menu, Credits),
+	// or nothing if it was opened as an overlay over live gameplay (the in-game quit menu, which
+	// stays up on its own and must never be replaced by the main menu here).
+	if (m_screenToRestore && TheRmlUiManager)
+		TheRmlUiManager->showScreen(m_screenToRestore);
+	m_screenToRestore = nullptr;
 }
 
 bool RmlOptionsScreen::isVisible() const
