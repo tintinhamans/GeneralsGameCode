@@ -610,17 +610,23 @@ void LANAPI::OnGameCreate( ReturnType ret )
 	{
 		if(m_inLobby)
 		{
+			UnicodeString errorText;
 			switch( ret )
 			{
 			case RET_GAME_EXISTS:
-				GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorGameExists"), chatSystemColor, -1, -1);
+				errorText = TheGameText->fetch("LAN:ErrorGameExists");
 				break;
 			case RET_BUSY:
-				GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorBusy"), chatSystemColor, -1, -1);
+				errorText = TheGameText->fetch("LAN:ErrorBusy");
 				break;
 			default:
-				GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorUnknown"), chatSystemColor, -1, -1);
+				errorText = TheGameText->fetch("LAN:ErrorUnknown");
 			}
+			GadgetListBoxAddEntryText(listboxChatWindow, errorText, chatSystemColor, -1, -1);
+			// A non-.wnd lobby (e.g. RmlLanLobbyScreen) has no listboxChatWindow; let it through via
+			// the hook instead, same pattern as OnChat().
+			if (g_lanLobbyChatHook)
+				g_lanLobbyChatHook(errorText, chatSystemColor);
 		}
 	}
 

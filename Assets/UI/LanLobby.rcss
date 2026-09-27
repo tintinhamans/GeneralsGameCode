@@ -1,0 +1,195 @@
+/*
+	LanLobby.rcss -- layout specific to LanLobby.rml. Palette/frame/button/scroll-container rules
+	come from common.rcss; game-list rows reuse GameSetup.rcss's .map-row/.map-name.
+*/
+
+body
+{
+	width: 1000dp;
+	height: 700dp;
+	left: 50%;
+	top: 50%;
+	margin-left: -500dp;
+	margin-top: -350dp;
+}
+
+.panel
+{
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+}
+
+.section-title
+{
+	font-weight: bold;
+	color: #FFFFFF;
+	padding-bottom: 4dp;
+	border-bottom: 1dp #2F37A8;
+	margin-bottom: 4dp;
+}
+
+/* ---- Three-column body: players / games / details --------------------------------------- */
+.lobby-row
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.players-column
+{
+	display: flex;
+	flex-direction: column;
+	width: 180dp;
+	margin-right: 8dp;
+}
+
+.games-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	margin-right: 8dp;
+}
+
+.details-column
+{
+	display: flex;
+	flex-direction: column;
+	width: 260dp;
+}
+
+.player-list,
+.game-list
+{
+	border: 1dp #2F37A8;
+	background-color: rgba(2, 2, 2, 140);
+}
+
+.player-row
+{
+	padding: 3dp 6dp;
+	color: #FFFFFF;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
+}
+
+.map-name.in-progress
+{
+	color: #808080;
+}
+
+/* ---- Game details panel (mirrors GameInfoWindow.cpp's RefreshGameInfoWindow) ------------- */
+.game-details
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	border: 1dp #2F37A8;
+	background-color: rgba(2, 2, 2, 140);
+	padding: 6dp;
+}
+
+.details-map
+{
+	font-weight: bold;
+	color: #FFFFFF;
+	margin-bottom: 6dp;
+	padding-bottom: 4dp;
+	border-bottom: 1dp #2F37A8;
+}
+
+.details-slot-list
+{
+	flex: 1 1 auto;
+}
+
+.details-slot
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 2dp 0;
+}
+
+.details-slot.observer
+{
+	color: #C0C0C0;
+}
+
+.details-slot-icon
+{
+	flex: 0 0 auto;
+	width: 20dp;
+	height: 20dp;
+	margin-right: 6dp;
+}
+
+.details-slot-label
+{
+	flex: 1 1 auto;
+}
+
+/* ---- Chat ---------------------------------------------------------------------------------- */
+.chat
+{
+	display: flex;
+	flex-direction: column;
+	margin-top: 8dp;
+	border-top: 1dp #2F37A8;
+	padding-top: 8dp;
+	height: 140dp;
+}
+
+.chat-body
+{
+	flex: 1 1 auto;
+}
+
+.chat-entry-row
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 4dp;
+}
+
+.chat-input
+{
+	flex: 1 1 auto;
+	margin-right: 4dp;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	color: #FFFFFF;
+	padding: 4dp 6dp;
+}
+
+/* ---- Player name / footer row -------------------------------------------------------------- */
+.name-row
+{
+	align-items: center;
+}
+
+.name-row > .label
+{
+	flex: 0 0 auto;
+	margin-right: 6dp;
+}
+
+.name-input
+{
+	flex: 0 0 auto;
+	width: 140dp;
+	margin-right: 8dp;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	color: #FFFFFF;
+	padding: 4dp 6dp;
+}
+
+.name-row .spacer
+{
+	flex: 1 1 auto;
+}

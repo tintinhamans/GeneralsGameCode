@@ -53,4 +53,18 @@ namespace LanLobbyActions
 	// Real emote support for a front end that wants it (the .wnd's "emote" button is actually a
 	// second Send button -- see sendChatButton()). Trims both ends like sendChatButton().
 	UnicodeString sendEmote( const UnicodeString &rawInput );
+
+	// Mirrors LanLobbyMenuInit()'s engine-state setup (TheLAN create/reset, IP selection, default
+	// player name, MOTD check) minus anything GameWindow/gadget-specific (listbox reset, tooltip,
+	// GameInfoWindow) -- same duplication precedent as SkirmishSetupActions::enterSkirmishSetup()
+	// vs SkirmishGameOptionsMenuInit(). Returns the sanitized default player name (already sent via
+	// RequestSetName()); callers show it in their own player-name field. socketError is set TRUE if
+	// SetLocalIP() failed (mirrors LanLobbyMenu.cpp's LANSocketErrorDetected), so a non-.wnd caller
+	// can raise the same "GUI:SocketError" message box itself.
+	UnicodeString enterLobby( Bool &socketError );
+
+	// Mirrors LanLobbyMenuShutdown()'s engine-state teardown (user name pref write, RequestLobbyLeave,
+	// fps-limit restore) minus DestroyGameInfoWindow() (a GameWindow-only gadget window). playerName
+	// is whatever the caller's player-name field currently holds (saved into UserPreferences).
+	void leaveLobby( const UnicodeString &playerName );
 }

@@ -23,9 +23,19 @@
 
 #include "GameClient/GUI/GUICallbacks/Menus/LanLobbyActions.h"
 
+#include "Common/GlobalData.h"
+#include "Common/QuotedPrintable.h"
 #include "Common/UnicodeString.h"
+#include "Common/UserPreferences.h"
+#include "GameClient/Shell.h"
+#include "GameClient/ShellHooks.h"
+#include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/LANAPICallbacks.h"
+
+// Independent of LanLobbyMenu.cpp's own static (see enterLobby()/leaveLobby()): same duplication
+// precedent as SkirmishSetupActions vs the .wnd SkirmishGameOptionsMenuInit()/its own statics.
+static Bool s_useFpsLimit = FALSE;
 
 void LanLobbyActions::hostGame()
 {
@@ -114,4 +124,61 @@ UnicodeString LanLobbyActions::sendEmote( const UnicodeString &rawInput )
 		TheLAN->RequestChat( txtInput, LANAPIInterface::LANCHAT_EMOTE );
 
 	return txtInput;
+}
+
+UnicodeString LanLobbyActions::enterLobby( Bool &socketError )
+{
+	socketError = FALSE;
+
+	if ( !TheLAN )
+	{
+		TheLAN = NEW LANAPI();
+		s_useFpsLimit = TheGlobalData->m_useFpsLimit;
+	}
+	else
+	{
+		TheWritableGlobalData->m_useFpsLimit = s_useFpsLimit;
+		TheLAN->reset();
+	}
+
+	UnsignedInt IP = TheGlobalData->m_defaultIP;
+	if ( !IP )
+	{
+		IPEnumeration IPs;
+		EnumeratedIP *IPlist = IPs.getAddresses();
+		if ( IPlist )
+			IP = IPlist->getIP();
+	}
+
+	TheLAN->init();
+	if ( TheLAN->SetLocalIP( IP ) == FALSE )
+		socketError = TRUE;
+
+	LANPreferences prefs;
+	UnicodeString defaultName = prefs.getUserName();
+	defaultName.truncateTo( g_lanPlayerNameLength );
+
+	TheLAN->RequestSetName( defaultName );
+	TheLAN->RequestLocations();
+
+	TheShell->showShellMap( TRUE );
+	TheLAN->checkMOTD();
+
+	SignalUIInteraction( SHELL_SCRIPT_HOOK_LAN_OPENED );
+
+	return defaultName;
+}
+
+void LanLobbyActions::leaveLobby( const UnicodeString &playerName )
+{
+	LANPreferences prefs;
+	prefs["UserName"] = UnicodeStringToQuotedPrintable( playerName );
+	prefs.write();
+
+	if ( TheLAN )
+		TheLAN->RequestLobbyLeave( true );
+
+	TheWritableGlobalData->m_useFpsLimit = s_useFpsLimit;
+
+	SignalUIInteraction( SHELL_SCRIPT_HOOK_LAN_CLOSED );
 }

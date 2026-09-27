@@ -59,6 +59,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/W3DProjectedShadow.h
 #    Include/W3DDevice/GameClient/W3DPropBuffer.h
     Include/W3DDevice/GameClient/RmlUi/RmlCreditsScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlLanLobbyScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlMessageBox.h
     Include/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h
@@ -189,6 +190,7 @@ set(GAMEENGINEDEVICE_SRC
 #    Source/W3DDevice/GameClient/W3DVideoBuffer.cpp
 #    Source/W3DDevice/GameClient/W3DView.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlCreditsScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlLanLobbyScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlMessageBox.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.cpp

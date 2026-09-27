@@ -1,0 +1,69 @@
+<rml>
+<head>
+	<title>LanLobby</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="GameSetup.rcss"/>
+	<link type="text/rcss" href="LanLobby.rcss"/>
+</head>
+<body data-model="lanlobby">
+	<div class="frame panel">
+		<div class="title-bar"><gametext key="GUI:LANLobby"/></div>
+
+		<div class="lobby-row">
+			<div class="players-column">
+				<div class="section-title"><gametext key="GUI:Players"/></div>
+				<div class="scroll-container player-list">
+					<div class="player-row" data-for="player : players">{{player.name}}</div>
+				</div>
+			</div>
+
+			<div class="games-column">
+				<div class="section-title"><gametext key="GUI:Games"/></div>
+				<div class="scroll-container game-list">
+					<div class="map-row" data-for="game : games" data-class-selected="game.is_selected"
+						data-event-click="game_row_clicked(game.index)" data-event-dblclick="game_row_activated(game.index)">
+						<div class="map-name" data-class-in-progress="game.in_progress">{{game.display_name}}</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="details-column">
+				<div class="section-title"><gametext key="GUI:GameInfo"/></div>
+				<div class="game-details" data-if="details_valid">
+					<div class="details-map">{{details_map_display_name}}</div>
+					<div class="scroll-container details-slot-list">
+						<div data-for="slot : detail_slots">
+							<div class="details-slot" data-if="slot.occupied" data-class-observer="slot.is_observer">
+								<mappedimage class="details-slot-icon" data-attr-name="slot.side_icon_image" data-if="slot.show_side_icon"/>
+								<div class="details-slot-icon" data-if="!slot.show_side_icon"></div>
+								<div class="details-slot-label">{{slot.label}}</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="chat">
+			<div class="scroll-container chat-body">
+				<div data-for="line : chat_lines">{{line}}</div>
+			</div>
+			<div class="chat-entry-row">
+				<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
+				<button data-event-click="send_chat"><gametext key="GUI:Send"/></button>
+			</div>
+		</div>
+
+		<div class="footer name-row">
+			<div class="label"><gametext key="GUI:PlayerName"/></div>
+			<input type="text" class="name-input" data-value="player_name" data-event-change="name_changed"/>
+			<button data-event-click="clear_name"><gametext key="GUI:CLEAR"/></button>
+			<div class="spacer"></div>
+			<button data-event-click="host_game"><gametext key="GUI:Host"/></button>
+			<button data-event-click="join_selected"><gametext key="GUI:Join"/></button>
+			<button data-event-click="direct_connect"><gametext key="GUI:DirectConnect"/></button>
+			<button data-event-click="back"><gametext key="GUI:GotoMainMenu"/></button>
+		</div>
+	</div>
+</body>
+</rml>
