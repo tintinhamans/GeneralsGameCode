@@ -149,7 +149,6 @@ void NGMPGame::UpdateSlotsFromCurrentLobby()
 
 	for (Int i = 0; i < MAX_SLOTS; ++i)
 	{
-		// this list is provided by the service, ordered by slot index, so we dont need to look up / use the slot index from the member
 		LobbyMemberEntry pLobbyMember = pLobbyInterface->GetRoomMemberFromIndex(i);
 
 		// TODO_NGMP: Support spectators
@@ -218,7 +217,20 @@ void NGMPGame::UpdateSlotsFromCurrentLobby()
 		else
 		{
 			// handle open/closed
-			NGMPGameSlot* slot = (NGMPGameSlot*)getSlot(i);
+			if (pLobbyMember.m_SlotIndex >= MAX_SLOTS)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] UpdateSlotsFromCurrentLobby: bad slot index %u for user %lld, skipping", pLobbyMember.m_SlotIndex, pLobbyMember.user_id);
+				continue;
+			}
+
+			NGMPGameSlot* slot = (NGMPGameSlot*)getSlot(pLobbyMember.m_SlotIndex);
+
+			if (slot == nullptr)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] UpdateSlotsFromCurrentLobby: getSlot(%u) returned null, skipping", pLobbyMember.m_SlotIndex);
+				continue;
+			}
+
 			slot->setState((SlotState)pLobbyMember.m_SlotState);
 		}
 

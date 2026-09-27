@@ -1195,6 +1195,12 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 					if (pLobbyInterface == nullptr || pLobbyInterface != this || pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyJoinGeneration)
 					{
+						// stale join response landed after we already left/moved on; leave again if it succeeded
+						if (pLobbyInterface == this && statusCode == 200 && bSuccess && m_CurrentLobby.lobbyID != lobbyInfo.lobbyID)
+						{
+							std::map<std::string, std::string> mapLeaveHeaders;
+							NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapLeaveHeaders, "", nullptr);
+						}
 						return;
 					}
 
@@ -1341,6 +1347,11 @@ void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 	m_bCannotConnectToLobbyPending = false;
 	ResetJoinOrder();
 
+	// invalidate any join/create still in flight
+	++m_LobbyJoinGeneration;
+	m_bAttemptingToJoinLobby = false;
+	ResetLobbyTryingToJoin();
+
 	// a mesh connectivity check started for this lobby is meaningless once we've left it; drop it so a
 	// late reply never fires into whatever lobby/menu we end up in next
 	std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
@@ -1456,6 +1467,9 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 {
 	AnticheatPlugInterface::EndSession();
 
+	// shares the join generation counter with JoinLobby
+	const uint64_t lobbyCreateGeneration = ++m_LobbyJoinGeneration;
+
 	NGMP_OnlineServicesManager::GetInstance()->GetAndParseServiceConfig([=]()
 		{
 			m_CurrentLobby = LobbyEntry();
@@ -1514,6 +1528,19 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 
 						nlohmann::json jsonObject = nlohmann::json::parse(strBody);
 						CreateLobbyResponse resp = jsonObject.get<CreateLobbyResponse>();
+
+						if (pLobbyInterface != this || pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyCreateGeneration)
+						{
+							// stale response; delete the orphaned lobby if the server created one
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Ignoring stale CreateLobby response (generation changed)");
+							if (resp.result == ECreateLobbyResponseResult::SUCCEEDED)
+							{
+								std::string strLeaveURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), resp.lobby_id);
+								std::map<std::string, std::string> mapLeaveHeaders;
+								NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strLeaveURI.c_str(), EIPProtocolVersion::DONT_CARE, mapLeaveHeaders, "", nullptr);
+							}
+							return;
+						}
 
 						m_strTURNUsername = resp.turn_username;
 						m_strTURNToken = resp.turn_token;
@@ -1578,11 +1605,17 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 							// we always need to get the enc key etc
 							pLobbyInterface->OnJoinedOrCreatedLobby(false, [=](bool bSuccess)
 								{
-									// TODO_NGMP: Impl
-									pLobbyInterface->InvokeCreateLobbyCallback(resp.result == ECreateLobbyResponseResult::SUCCEEDED);
+									if (pLobbyInterface->m_LobbyJoinGeneration.load() != lobbyCreateGeneration)
+									{
+										return;
+									}
 
-									// Set our properties
-									pLobbyInterface->ApplyLocalUserPropertiesToCurrentNetworkRoom();
+									pLobbyInterface->InvokeCreateLobbyCallback(bSuccess);
+
+									if (bSuccess)
+									{
+										pLobbyInterface->ApplyLocalUserPropertiesToCurrentNetworkRoom();
+									}
 								});
 						}
 						else
