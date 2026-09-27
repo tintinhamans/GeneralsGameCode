@@ -17,7 +17,7 @@
 */
 
 // FILE: RmlUiElements.h //////////////////////////////////////////////////////
-// Two custom elements registered once by RmlUiManager::init():
+// Custom elements registered once by RmlUiManager::init():
 //  - <gametext key="GUI:Label"/>  resolves through TheGameText->fetch() so RML
 //    markup uses the same localized CSF strings as the .wnd version.
 //  - <mappedimage name="Foo"/>    resolves an INI MappedImage to its atlas
@@ -25,6 +25,15 @@
 //    it shows only that image's sub-region. RmlUi's built-in <img> already
 //    supports the "rect" attribute for atlas cropping, so this only needs a
 //    plain Element (not the internal image element type) to compute it.
+//  - <mappreview map="Name"/>     same idea, driving getMapPreviewImage()
+//    instead of a static MappedImage lookup: that function both generates
+//    (on first use) and registers the map's preview .tga into
+//    TheMappedImageCollection under its own derived name, then returns the
+//    Image* -- see GameClient/MapUtil.h and SkirmishGameOptionsMenu.cpp's
+//    positionStartSpots(). Start-position markers are NOT drawn by this
+//    element; they come from GameSetupData::m_options.m_startPositionMarkers,
+//    laid out by the screen's own data-for markup over this element (see
+//    Assets/UI/GameSetup.rcss).
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -54,6 +63,20 @@ class RmlMappedImageElement : public Rml::Element
 public:
 	explicit RmlMappedImageElement(const Rml::String &tag);
 	virtual ~RmlMappedImageElement() override;
+
+protected:
+	virtual void OnAttributeChange(const Rml::ElementAttributes &changed_attributes) override;
+
+private:
+	void refresh();
+};
+
+//-------------------------------------------------------------------------------------------------
+class RmlMapPreviewElement : public Rml::Element
+{
+public:
+	explicit RmlMapPreviewElement(const Rml::String &tag);
+	virtual ~RmlMapPreviewElement() override;
 
 protected:
 	virtual void OnAttributeChange(const Rml::ElementAttributes &changed_attributes) override;

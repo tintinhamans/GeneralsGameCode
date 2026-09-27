@@ -56,6 +56,33 @@ struct GameSetupSlotRow
 	Bool m_canEdit = FALSE;
 };
 
+// One start-position marker for the map preview: waypoint position expressed as a fraction
+// of the map preview's drawn area (0..1, top-left origin), matching SkirmishGameOptionsMenu.cpp's
+// positionStartSpotControls() fractional math exactly (only its per-marker overlap nudge, a pure
+// .wnd absolute-pixel layout nicety, isn't reproduced -- RmlUi lays these out as CSS percentages).
+struct GameSetupStartPositionMarker
+{
+	Int m_position = -1; // 0-based, matches GameSetupSlotRow::m_startPosition / Player_N_Start (N = position+1)
+	Real m_xFraction = 0.0f;
+	Real m_yFraction = 0.0f;
+};
+
+// One selectable faction entry (ThePlayerTemplateStore order), for the faction dropdown every
+// slot row shares.
+struct GameSetupFactionOption
+{
+	Int m_playerTemplate = PLAYERTEMPLATE_RANDOM;
+	UnicodeString m_displayName;
+};
+
+// One selectable color entry (TheMultiplayerSettings order), for the color dropdown every slot
+// row shares.
+struct GameSetupColorOption
+{
+	Int m_color = -1;
+	UnsignedInt m_rgb = 0; // 0x00RRGGBB, from MultiplayerColorDefinition::getColor()
+};
+
 // Map/options half of the setup screen: what updateSkirmishGameOptions() /
 // InitSkirmishGameGadgets() derive from the current map and GameInfo.
 struct GameSetupOptionsData
@@ -71,6 +98,17 @@ struct GameSetupOptionsData
 
 	Money m_startingCash;
 	Bool m_superweaponsRestricted = FALSE;
+
+	// Start-position markers for the currently selected map (see positionStartSpots()), empty
+	// if the map wasn't found in TheMapCache.
+	std::vector<GameSetupStartPositionMarker> m_startPositionMarkers;
+
+	// Faction/color option lists, shared by every slot's dropdowns (see InitSkirmishGameGadgets()'s
+	// per-slot ComboBoxPlayerTemplate/ComboBoxColor population). Not map-dependent; still carried
+	// here (rather than queried live by each renderer) so build() stays the single read-only
+	// snapshot point widget code needs.
+	std::vector<GameSetupFactionOption> m_factionOptions;
+	std::vector<GameSetupColorOption> m_colorOptions;
 };
 
 struct GameSetupData

@@ -22,6 +22,8 @@
 
 #include "GameClient/GUI/GUICallbacks/Menus/GameSetupData.h"
 
+#include "Common/MultiplayerSettings.h"
+#include "Common/PlayerTemplate.h"
 #include "GameClient/MapUtil.h"
 
 GameSetupData GameSetupData::build( GameInfo *game )
@@ -67,6 +69,27 @@ GameSetupData GameSetupData::build( GameInfo *game )
 		options.m_mapDisplayName = md->m_displayName;
 		options.m_mapIsMultiplayer = md->m_isMultiplayer;
 		options.m_mapNumPlayers = md->m_numPlayers;
+
+		// Same fractional math as positionStartSpotControls(), minus its overlap nudge (see header).
+		if( md->m_isMultiplayer )
+		{
+			Real extentW = md->m_extent.hi.x - md->m_extent.lo.x;
+			Real extentH = md->m_extent.hi.y - md->m_extent.lo.y;
+			for( Int i = 0; i < md->m_numPlayers; ++i )
+			{
+				AsciiString waypointName;
+				waypointName.format( "Player_%d_Start", i + 1 ); // 1-based, matches positionStartSpots()
+				WaypointMap::const_iterator wmIt = md->m_waypoints.find( waypointName );
+				if( wmIt == md->m_waypoints.end() )
+					continue;
+
+				GameSetupStartPositionMarker marker;
+				marker.m_position = i;
+				marker.m_xFraction = extentW != 0.0f ? ( wmIt->second.x - md->m_extent.lo.x ) / extentW : 0.0f;
+				marker.m_yFraction = extentH != 0.0f ? 1.0f - ( wmIt->second.y - md->m_extent.lo.y ) / extentH : 0.0f;
+				options.m_startPositionMarkers.push_back( marker );
+			}
+		}
 	}
 	else
 	{
@@ -74,6 +97,36 @@ GameSetupData GameSetupData::build( GameInfo *game )
 		options.m_mapDisplayName.translate( AsciiString( game->getMap().str() ) );
 		options.m_mapIsMultiplayer = TRUE;
 		options.m_mapNumPlayers = 0;
+	}
+
+	if( ThePlayerTemplateStore )
+	{
+		for( Int i = 0; i < ThePlayerTemplateStore->getPlayerTemplateCount(); ++i )
+		{
+			const PlayerTemplate *tmpl = ThePlayerTemplateStore->getNthPlayerTemplate( i );
+			if( !tmpl || !tmpl->isPlayableSide() )
+				continue;
+
+			GameSetupFactionOption option;
+			option.m_playerTemplate = i;
+			option.m_displayName = tmpl->getDisplayName();
+			options.m_factionOptions.push_back( option );
+		}
+	}
+
+	if( TheMultiplayerSettings )
+	{
+		for( Int i = 0; i < TheMultiplayerSettings->getNumColors(); ++i )
+		{
+			MultiplayerColorDefinition *colorDef = TheMultiplayerSettings->getColor( i );
+			if( !colorDef )
+				continue;
+
+			GameSetupColorOption option;
+			option.m_color = i;
+			option.m_rgb = colorDef->getColor() & 0x00FFFFFF;
+			options.m_colorOptions.push_back( option );
+		}
 	}
 
 	return data;

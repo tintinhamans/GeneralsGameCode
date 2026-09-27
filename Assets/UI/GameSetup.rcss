@@ -1,0 +1,120 @@
+/*
+	GameSetup.rcss -- shared markup/styles for skirmish-style game setup screens (slot rows, map
+	preview + start-position markers). Built for SkirmishGameOptions.rml; LAN/online lobby screens
+	can reuse the same classes over the same GameSetupData/SkirmishSetupActions-shaped data (see
+	GameSetupData.h) by copying the "slot-row"/"map-preview"/"start-marker" markup blocks below.
+
+	Reusable markup block (copy per screen, one <div class="slot-row" data-for="row : slots"> per
+	setup document):
+
+		<div class="slot-row" data-for="row : slots">
+			<select class="slot-occupant" data-value="row.occupant_state" data-attr-disabled="!row.can_edit_occupant"
+				data-event-change="slot_occupant_changed(row.slot_index)">
+				<option value="0"><gametext key="GUI:Open"/></option>
+				<option value="1"><gametext key="GUI:Closed"/></option>
+				<option value="2"><gametext key="GUI:EasyAI"/></option>
+				<option value="3"><gametext key="GUI:MediumAI"/></option>
+				<option value="4"><gametext key="GUI:HardAI"/></option>
+			</select>
+			<div class="slot-name" data-if="row.is_human_occupant">{{row.player_name}}</div>
+			<select class="slot-faction" data-value="row.player_template" data-attr-disabled="!row.can_edit || !row.is_occupied"
+				data-event-change="slot_faction_changed(row.slot_index)">
+				<option data-for="opt : faction_options" data-attr-value="opt.value">{{opt.label}}</option>
+			</select>
+			<select class="slot-color" data-value="row.color" data-attr-disabled="!row.can_edit || !row.is_occupied"
+				data-event-change="slot_color_changed(row.slot_index)">
+				<option data-for="opt : color_options" data-attr-value="opt.value" data-style-background-color="opt.label">&#160;</option>
+			</select>
+			<select class="slot-team" data-value="row.team_number" data-attr-disabled="!row.can_edit || !row.is_occupied"
+				data-event-change="slot_team_changed(row.slot_index)">
+				<option value="-1"><gametext key="GUI:NoTeam"/></option>
+				<option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option>
+			</select>
+		</div>
+
+		<div class="map-preview">
+			<mappreview class="map-preview-image" data-attr-map="map_name"/>
+			<div class="start-marker" data-for="marker : start_markers"
+				data-style-left="marker.x_style" data-style-top="marker.y_style"
+				data-event-click="start_marker_clicked(marker.position)">
+				<div class="start-marker-dot" data-class-occupied="marker.is_occupied"
+					data-style-background-color="marker.color_hex"></div>
+				<div class="start-marker-label" data-if="marker.is_occupied">{{marker.occupant_label}}</div>
+			</div>
+		</div>
+
+	x_style/y_style are pre-formatted CSS length strings ("12.500%"), not raw numbers: RmlUi can't
+	interpolate "{{expr}}" inside a style="..." attribute (that's parsed as a literal RCSS property
+	value), and data-style-<prop> bindings take one expression value, not string concatenation --
+	see RmlSkirmishSetupScreen::StartMarkerModel.
+*/
+
+/* ---- Slot rows ------------------------------------------------------------------------- */
+.slot-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 3dp 0;
+	min-height: 26dp;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
+}
+
+.slot-row > select,
+.slot-row > .slot-name
+{
+	margin-right: 6dp;
+}
+
+.slot-occupant { width: 130dp; }
+.slot-name { width: 130dp; color: #FFFFFF; font-weight: bold; }
+.slot-faction { width: 140dp; }
+.slot-color { width: 60dp; }
+.slot-team { width: 70dp; }
+
+/* ---- Map preview + start-position markers ---------------------------------------------- */
+.map-preview
+{
+	position: relative;
+	width: 256dp;
+	height: 256dp;
+	border: 1dp #2F37A8;
+	background-color: rgba(2, 2, 2, 191);
+}
+
+.map-preview-image
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.start-marker
+{
+	position: absolute;
+	width: 20dp;
+	height: 20dp;
+	margin-left: -10dp;
+	margin-top: -10dp;
+	text-align: center;
+}
+
+.start-marker-dot
+{
+	width: 16dp;
+	height: 16dp;
+	border: 1dp #FFFFFF;
+	background-color: rgba(255, 255, 255, 60);
+}
+
+.start-marker-dot.occupied
+{
+	border-color: #8080FF;
+}
+
+.start-marker-label
+{
+	font-size: 11dp;
+	color: #FFFFFF;
+	white-space: nowrap;
+}

@@ -90,6 +90,7 @@ private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementInstancer *m_gameTextInstancer = nullptr;
 	Rml::ElementInstancer *m_mappedImageInstancer = nullptr;
+	Rml::ElementInstancer *m_mapPreviewInstancer = nullptr;
 	RmlScreen *m_currentScreen = nullptr;
 	RmlScreen *m_previousScreen = nullptr;
 	int m_width = 0, m_height = 0;

@@ -21,6 +21,7 @@
 #include "Common/AsciiString.h"
 #include "GameClient/GameText.h"
 #include "GameClient/Image.h"
+#include "GameClient/MapUtil.h"
 
 #include <RmlUi/Core/ElementUtilities.h>
 #include <RmlUi/Core/Variant.h>
@@ -99,6 +100,56 @@ void RmlMappedImageElement::refresh()
 
 	// UV coords are normalized [0,1] over the atlas page; <img rect="..."> wants pixel
 	// coordinates (left top right bottom), so scale by the page's own dimensions.
+	const Region2D *uv = image->getUV();
+	const ICoord2D *texSize = image->getTextureSize();
+	int left = (int)(uv->lo.x * texSize->x);
+	int top = (int)(uv->lo.y * texSize->y);
+	int right = (int)(uv->hi.x * texSize->x);
+	int bottom = (int)(uv->hi.y * texSize->y);
+
+	char rml[512];
+	_snprintf_s(rml, sizeof(rml), _TRUNCATE,
+		"<img style=\"width:100%%;height:100%%;\" src=\"mapped:%s\" rect=\"%d %d %d %d\"/>",
+		image->getFilename().str(), left, top, right, bottom);
+
+	SetInnerRML(rml);
+}
+
+//-------------------------------------------------------------------------------------------------
+RmlMapPreviewElement::RmlMapPreviewElement(const Rml::String &tag) : Rml::Element(tag)
+{
+}
+
+RmlMapPreviewElement::~RmlMapPreviewElement()
+{
+}
+
+void RmlMapPreviewElement::OnAttributeChange(const Rml::ElementAttributes &changed_attributes)
+{
+	Rml::Element::OnAttributeChange(changed_attributes);
+	if (changed_attributes.find("map") != changed_attributes.end())
+		refresh();
+}
+
+void RmlMapPreviewElement::refresh()
+{
+	Rml::String mapName = GetAttribute<Rml::String>("map", "");
+	if (mapName.empty())
+	{
+		SetInnerRML("");
+		return;
+	}
+
+	// getMapPreviewImage() both generates (first use) and registers the map's preview .tga into
+	// TheMappedImageCollection, then returns it -- same call SkirmishGameOptionsMenu.cpp's
+	// positionStartSpots() makes for the .wnd map preview window.
+	Image *image = getMapPreviewImage(AsciiString(mapName.c_str()));
+	if (!image)
+	{
+		SetInnerRML("");
+		return;
+	}
+
 	const Region2D *uv = image->getUV();
 	const ICoord2D *texSize = image->getTextureSize();
 	int left = (int)(uv->lo.x * texSize->x);

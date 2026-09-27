@@ -165,6 +165,9 @@ void RmlUiManager::registerCustomElements()
 
 	m_mappedImageInstancer = new Rml::ElementInstancerGeneric<RmlMappedImageElement>();
 	Rml::Factory::RegisterElementInstancer("mappedimage", m_mappedImageInstancer);
+
+	m_mapPreviewInstancer = new Rml::ElementInstancerGeneric<RmlMapPreviewElement>();
+	Rml::Factory::RegisterElementInstancer("mappreview", m_mapPreviewInstancer);
 }
 
 void RmlUiManager::shutdown()
@@ -189,6 +192,7 @@ void RmlUiManager::shutdown()
 	// Rml::Shutdown() does not take ownership of instancers registered via Factory; free them now.
 	delete m_gameTextInstancer; m_gameTextInstancer = nullptr;
 	delete m_mappedImageInstancer; m_mappedImageInstancer = nullptr;
+	delete m_mapPreviewInstancer; m_mapPreviewInstancer = nullptr;
 	m_currentScreen = nullptr;
 	m_debuggerInitialized = false;
 
