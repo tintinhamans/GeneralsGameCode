@@ -115,6 +115,9 @@ static NameKeyType comboBoxSideID = NAMEKEY_INVALID;
 static NameKeyType comboBoxColorID = NAMEKEY_INVALID;
 
 
+// Bumped on Init/Shutdown; async callbacks bail if this changed before they fire.
+static uint64_t s_quickMatchMenuGeneration = 0;
+
 // Window Pointers ------------------------------------------------------------------------
 static GameWindow *parentWOLQuickMatch = nullptr;
 static GameWindow *buttonBack = nullptr;
@@ -887,6 +890,8 @@ static void saveQuickMatchOptions()
 //-------------------------------------------------------------------------------------------------
 void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 {
+	++s_quickMatchMenuGeneration;
+
 	isInInit = TRUE;
 	if (TheGameSpyGame && TheGameSpyGame->isGameInProgress())
 	{
@@ -1158,8 +1163,14 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
     NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
     if (pAuthInterface != nullptr && pStatsInterface != nullptr)
     {
+		const uint64_t generationForStats = s_quickMatchMenuGeneration;
 		pStatsInterface->findPlayerStatsByID(pAuthInterface->GetUserID(), [=](bool bSuccess, PSPlayerStats stats)
 			{
+				if (generationForStats != s_quickMatchMenuGeneration)
+				{
+					return;
+				}
+
 				if (bSuccess)
 				{
 					UnicodeString eloStr;
@@ -1180,7 +1191,15 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 	pLobbyInterface->RegisterForCannotConnectToLobbyCallback([](void)
 		{
-			// TODO_QUICKMATCH: Show error message + stop matchmaking + enable buttons again
+			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Could not connect to a player, waiting for the matchmaker..."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
+
+			// don't cancel: racing a server-issued requeue could unregister us from its bucket
+			matchFoundTimeoutStart = 0;
+			matchStartCountdownLastSecond = 0;
+
+			buttonBack->winEnable(TRUE);
+			buttonStop->winEnable(TRUE);
 		});
 	}
 
@@ -1189,8 +1208,14 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
 	if (pMatchmakingInterface != nullptr)
 	{
-		pMatchmakingInterface->RetrievePlaylists([](std::vector<PlaylistEntry> vecPlaylists)
+		const uint64_t generationForPlaylists = s_quickMatchMenuGeneration;
+		pMatchmakingInterface->RetrievePlaylists([generationForPlaylists](std::vector<PlaylistEntry> vecPlaylists)
 			{
+				if (generationForPlaylists != s_quickMatchMenuGeneration)
+				{
+					return;
+				}
+
 				// add playlists
 				UnicodeString s;
 
@@ -1466,6 +1491,8 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void WOLQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 {
+	++s_quickMatchMenuGeneration;
+
 #if !defined(GENERALS_ONLINE)
 	TheGameSpyInfo->unregisterTextWindow(quickmatchTextWindow);
 #endif
@@ -1507,6 +1534,10 @@ void WOLQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 
 	parentWOLQuickMatch = nullptr;
 	buttonBack = nullptr;
+	buttonStart = nullptr;
+	buttonStop = nullptr;
+	buttonWiden = nullptr;
+	comboBoxNumPlayers = nullptr;
 	quickmatchTextWindow = nullptr;
 	selectedImage = unselectedImage = nullptr;
 	matchFoundTimeoutStart = 0;
@@ -2369,8 +2400,15 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
 					if (pMatchmakingInterface != nullptr)
 					{
-						pMatchmakingInterface->StartMatchmaking(playlistID, vecSelectedMapIndexes, [](bool bSuccess)
+						const uint64_t generationForStart = s_quickMatchMenuGeneration;
+						pMatchmakingInterface->StartMatchmaking(playlistID, vecSelectedMapIndexes, [generationForStart](bool bSuccess)
 							{
+								if (generationForStart != s_quickMatchMenuGeneration)
+								{
+					// menu closed; static window pointers may be stale
+									return;
+								}
+
 								// TODO_QUICKMATCH: Chat has a sound effect in TheGameSpyInfo, re-eanble it
 								if (bSuccess)
 								{
