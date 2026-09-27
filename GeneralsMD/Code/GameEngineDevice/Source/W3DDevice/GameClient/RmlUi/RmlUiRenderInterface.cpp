@@ -190,7 +190,7 @@ void RmlUiRenderInterface::beginFrame(int contextWidth, int contextHeight)
 	dev->GetTransform(D3DTS_PROJECTION, &m_saved.projection);
 
 	dev->GetStreamSource(0, &m_saved.streamVb, &m_saved.streamStride); // AddRef'd
-	dev->GetIndices(&m_saved.indexBuffer, nullptr); // AddRef'd
+	dev->GetIndices(&m_saved.indexBuffer, &m_saved.baseVertexIndex); // AddRef'd; D3D8 writes both outputs
 	dev->GetVertexShader(&m_saved.fvf);
 
 	// Set up the fixed-function pipeline for premultiplied-alpha 2D UI rendering.
@@ -258,7 +258,7 @@ void RmlUiRenderInterface::endFrame()
 
 	dev->SetStreamSource(0, m_saved.streamVb, m_saved.streamStride);
 	if (m_saved.streamVb) m_saved.streamVb->Release();
-	dev->SetIndices(m_saved.indexBuffer, 0);
+	dev->SetIndices(m_saved.indexBuffer, m_saved.baseVertexIndex);
 	if (m_saved.indexBuffer) m_saved.indexBuffer->Release();
 	dev->SetVertexShader(m_saved.fvf);
 }

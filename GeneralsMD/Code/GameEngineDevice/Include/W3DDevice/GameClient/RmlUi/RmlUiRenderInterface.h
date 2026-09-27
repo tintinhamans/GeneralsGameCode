@@ -112,6 +112,7 @@ private:
 		IDirect3DVertexBuffer8 *streamVb = nullptr;
 		UINT streamStride = 0;
 		IDirect3DIndexBuffer8 *indexBuffer = nullptr;
+		UINT baseVertexIndex = 0;
 		DWORD fvf = 0;
 	} m_saved;
 };
