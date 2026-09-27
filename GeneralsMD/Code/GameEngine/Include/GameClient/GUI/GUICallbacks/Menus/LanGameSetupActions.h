@@ -34,6 +34,7 @@
 #include "Common/GameMemory.h"
 #include "GameNetwork/LANGameInfo.h"
 
+class AsciiString;
 class Money;
 class UnicodeString;
 
@@ -113,4 +114,11 @@ namespace LanGameSetupActions
 	// ButtonBack: leave the game, same as the buttonBack GBM_SELECTED case (minus destroying
 	// the .wnd's own mapSelectLayout, which stays at the .wnd call site).
 	void leaveGame();
+
+	// LanMapSelectMenu.wnd's ButtonOK, folded together with the SEND_GAME_OPTS branch of
+	// PostToLanGameOptions() it always triggers on a successful pick (map/CRC/size, slot 0's
+	// map availability, resetStartSpots()/adjustSlotsForMap(), every slot's start position
+	// cleared, resetAccepted(), then the widget-safe updateGameOptions()/lanUpdateSlotList()
+	// refresh hooks and the host's RequestGameOptions() broadcast). No-op if game is null.
+	void applySelectedMap( LANGameInfo *game, const AsciiString &mapName );
 }

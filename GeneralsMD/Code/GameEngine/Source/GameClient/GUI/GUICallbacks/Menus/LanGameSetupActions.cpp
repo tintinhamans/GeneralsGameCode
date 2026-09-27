@@ -514,3 +514,33 @@ void LanGameSetupActions::leaveGame()
 {
 	TheLAN->RequestGameLeave();
 }
+
+void LanGameSetupActions::applySelectedMap( LANGameInfo *game, const AsciiString &mapName )
+{
+	if( !game )
+		return;
+
+	game->setMap( mapName );
+
+	AsciiString lowerMap = mapName;
+	lowerMap.toLower();
+	const MapMetaData *md = TheMapCache ? TheMapCache->findMap( lowerMap ) : nullptr;
+	if( md )
+	{
+		game->getSlot( 0 )->setMapAvailability( true );
+		game->setMapCRC( md->m_CRC );
+		game->setMapSize( md->m_filesize );
+	}
+
+	game->resetStartSpots();
+	game->adjustSlotsForMap();
+
+	game->resetAccepted();
+	for( Int i = 0; i < MAX_SLOTS; ++i )
+		game->getSlot( i )->setStartPos( -1 );
+
+	updateGameOptions();
+	lanUpdateSlotList();
+
+	TheLAN->RequestGameOptions( GenerateGameOptionsString(), true );
+}
