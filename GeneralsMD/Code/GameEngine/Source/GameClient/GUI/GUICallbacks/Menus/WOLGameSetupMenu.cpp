@@ -1871,7 +1871,16 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	// register for chat events
 	pLobbyInterface->RegisterForChatCallback([](UnicodeString strMessage, Color color)
 		{
-			GadgetListBoxAddEntryText(listboxGameSetupChat, strMessage, color, -1, -1);
+			if (listboxGameSetupChat)
+			{
+				GadgetListBoxAddEntryText(listboxGameSetupChat, strMessage, color, -1, -1);
+			}
+			else if (TheNGMPGame && TheNGMPGame->isGameInProgress() && g_scoreScreenChatDeliveryHook)
+			{
+				// Setup .wnd is torn down once the match starts; forward score-screen chat
+				// (internet games) the same way WOLGameSetupMenu's disconnect notice does.
+				g_scoreScreenChatDeliveryHook(strMessage, color);
+			}
 		});
 
 	// cannot connect to the lobby we joined
