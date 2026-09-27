@@ -111,8 +111,13 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", plrConnection.m_userID);
 
 			ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
-			const int numSignallingAttempts = 3;
-			bool bShouldRetry = plrConnection.m_SignallingAttempts < numSignallingAttempts && serviceConf.retry_signalling;
+			const int numSignallingAttempts = 2;
+
+			// only the later joiner of a pair gives up; unknown join order caps both sides, a departed peer is capped without leaving
+			NGMP_OnlineServices_LobbyInterface* pJoinOrderLobby = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+			const bool bWeJoinedLater = pJoinOrderLobby == nullptr || !pJoinOrderLobby->IsJoinOrderKnown() || pJoinOrderLobby->JoinedAfter(plrConnection.m_userID);
+			const bool bPeerLeft = pJoinOrderLobby != nullptr && pJoinOrderLobby->IsJoinOrderKnown() && !pJoinOrderLobby->IsLobbyMember(plrConnection.m_userID);
+			bool bShouldRetry = serviceConf.retry_signalling && ((!bWeJoinedLater && !bPeerLeft) || plrConnection.m_SignallingAttempts < numSignallingAttempts);
 
 			bool bWasError = pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally || pInfo->m_info.m_eEndReason != k_ESteamNetConnectionEnd_App_Generic;
 			plrConnection.SetDisconnected(bWasError, pMesh, bShouldRetry && bWasError);
@@ -159,7 +164,15 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 					}
 				}
 
-				if (!bShouldRetry)
+				if (!bShouldRetry && bPeerLeft)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld is no longer in the lobby", plrConnection.m_userID);
+				}
+				else if (!bShouldRetry && !bWeJoinedLater)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld joined after us and will leave", plrConnection.m_userID);
+				}
+				else if (!bShouldRetry)
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, handling disconnect as failure...");
 
