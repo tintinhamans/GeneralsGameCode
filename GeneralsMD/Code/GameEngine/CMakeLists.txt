@@ -744,6 +744,8 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/ChallengeMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/CreditsMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/DifficultySelect.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/DirectConnectActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/DirectConnectData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/DisconnectWindow.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/DownloadMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/EstablishConnectionsWindow.cpp
