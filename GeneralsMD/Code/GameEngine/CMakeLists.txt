@@ -756,6 +756,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/MapSelectMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/NetworkDirectConnect.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OptionsMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/OptionsValues.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupCommunicator.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupHostGame.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupJoinGame.cpp
