@@ -65,20 +65,20 @@
 
 				<div class="row">
 					<div class="label"><gametext key="GUI:StartingMoney"/></div>
-					<select class="control" data-value="starting_cash" data-event-change="starting_cash_changed">
+					<select class="control" data-value="starting_cash" data-event-change="starting_cash_changed" data-tooltip="TOOLTIP:StartingMoney">
 						<option data-for="opt : starting_cash_options" data-attr-value="opt.value">{{opt.label}}</option>
 					</select>
 				</div>
 				<div class="row">
 					<div class="label"><gametext key="GUI:LimitSuperweapons"/></div>
-					<input class="control checkbox" type="checkbox" data-checked="superweapons_restricted" data-event-change="superweapons_changed"/>
+					<input class="control checkbox" type="checkbox" data-checked="superweapons_restricted" data-event-change="superweapons_changed" data-tooltip="TOOLTIP:LimitSuperweapons"/>
 				</div>
 				<div class="row">
 					<div class="label"><gametext key="GUI:GameSpeed"/></div>
-					<input class="control range" type="range" min="15" max="61" step="1" data-value="game_speed_slider_pos" data-event-change="game_speed_changed"/>
+					<input class="control range" type="range" min="15" max="61" step="1" data-value="game_speed_slider_pos" data-event-change="game_speed_changed" data-tooltip="GUI:AdjustGameSpeed"/>
 				</div>
 
-				<div class="honors-panel">
+				<div class="honors-panel" data-tooltip="TOOLTIP:BattleHonors">
 					<div class="honors-row"><gametext key="GUI:CareerWins"/>: {{honor_wins}}</div>
 					<div class="honors-row"><gametext key="GUI:CareerLosses"/>: {{honor_losses}}</div>
 					<div class="honors-row"><gametext key="GUI:CurrentWinStreak"/>: {{honor_win_streak}}</div>

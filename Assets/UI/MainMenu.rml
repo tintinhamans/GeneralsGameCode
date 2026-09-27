@@ -31,11 +31,11 @@
 				<mappedimage name="Training144" data-class-visible="hover_faction == 'Training'"/>
 			</div>
 			<div class="menu-list">
-				<button data-event-click="go_skirmish"><gametext key="GUI:Skirmish"/></button>
-				<button data-event-click="select_usa" data-event-mouseover="preview_usa" data-event-mouseout="preview_clear"><gametext key="GUI:USA"/></button>
-				<button data-event-click="select_gla" data-event-mouseover="preview_gla" data-event-mouseout="preview_clear"><gametext key="GUI:GLA"/></button>
-				<button data-event-click="select_china" data-event-mouseover="preview_china" data-event-mouseout="preview_clear"><gametext key="GUI:CHINA_Caps"/></button>
-				<button data-event-click="select_challenge" data-event-mouseover="preview_challenge" data-event-mouseout="preview_clear"><gametext key="GUI:Generals_Challenge"/></button>
+				<button data-event-click="go_skirmish" data-tooltip="GUI:SkirmishLower"><gametext key="GUI:Skirmish"/></button>
+				<button data-event-click="select_usa" data-event-mouseover="preview_usa" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign3"><gametext key="GUI:USA"/></button>
+				<button data-event-click="select_gla" data-event-mouseover="preview_gla" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign2"><gametext key="GUI:GLA"/></button>
+				<button data-event-click="select_china" data-event-mouseover="preview_china" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign1"><gametext key="GUI:CHINA_Caps"/></button>
+				<button data-event-click="select_challenge" data-event-mouseover="preview_challenge" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:ChallengeButton"><gametext key="GUI:Generals_Challenge"/></button>
 				<button class="back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
 			</div>
 		</div>

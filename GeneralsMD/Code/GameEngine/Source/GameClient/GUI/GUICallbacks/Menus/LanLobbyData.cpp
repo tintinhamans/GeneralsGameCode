@@ -32,6 +32,25 @@
 #include "GameClient/GameText.h"
 #include "GameClient/Image.h"
 #include "GameClient/MapUtil.h"
+#include "GameNetwork/NetworkDefs.h"
+
+// Same text/format as setLANPlayerTooltip() (LanGameOptionsMenu.cpp) -- kept as a separate helper
+// here rather than sharing that function directly since it also calls TheMouse->setCursorTooltip(),
+// which a data row build must not do.
+static UnicodeString buildPlayerTooltip( LANPlayer *player )
+{
+	UnicodeString tooltip;
+	if ( !player->getLogin().isEmpty() || !player->getHost().isEmpty() )
+		tooltip.format(TheGameText->fetch("TOOLTIP:LANPlayer"), player->getLogin().str(), player->getHost().str());
+
+#if defined(RTS_DEBUG)
+	UnicodeString ip;
+	ip.format(L" - %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(player->getIP()));
+	tooltip.concat(ip);
+#endif
+
+	return tooltip;
+}
 
 std::vector<LanLobbyPlayerRow> LanLobbyData::buildPlayerRows( LANPlayer *playerList )
 {
@@ -41,6 +60,7 @@ std::vector<LanLobbyPlayerRow> LanLobbyData::buildPlayerRows( LANPlayer *playerL
 		LanLobbyPlayerRow row;
 		row.m_name = player->getName();
 		row.m_ip = player->getIP();
+		row.m_tooltip = buildPlayerTooltip(player);
 		rows.push_back(row);
 	}
 	return rows;

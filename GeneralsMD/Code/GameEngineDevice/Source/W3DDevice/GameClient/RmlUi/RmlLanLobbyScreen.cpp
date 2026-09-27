@@ -87,7 +87,10 @@ void RmlLanLobbyScreen::load(Rml::Context *context)
 	{
 		Rml::StructHandle<PlayerRowModel> playerHandle = constructor.RegisterStruct<PlayerRowModel>();
 		if (playerHandle)
+		{
 			playerHandle.RegisterMember("name", &PlayerRowModel::name);
+			playerHandle.RegisterMember("tooltip", &PlayerRowModel::tooltip);
+		}
 		constructor.RegisterArray<Rml::Vector<PlayerRowModel>>();
 
 		Rml::StructHandle<GameRowModel> gameHandle = constructor.RegisterStruct<GameRowModel>();
@@ -314,6 +317,7 @@ void RmlLanLobbyScreen::onPlayerListChanged(LANPlayer *playerList)
 	{
 		PlayerRowModel player;
 		player.name = unicodeToUtf8(row.m_name);
+		player.tooltip = unicodeToUtf8(row.m_tooltip);
 		m_model.players.push_back(player);
 	}
 

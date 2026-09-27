@@ -14,11 +14,11 @@
 		<div class="title-bar"><gametext key="GUI:Options"/></div>
 
 		<div class="tabs">
-			<div class="tab" data-class-selected="tab == 'video'" data-event-click="select_video">Video</div>
-			<div class="tab" data-class-selected="tab == 'graphics'" data-event-click="select_graphics">Graphics</div>
-			<div class="tab" data-class-selected="tab == 'audio'" data-event-click="select_audio">Audio</div>
-			<div class="tab" data-class-selected="tab == 'controls'" data-event-click="select_controls">Controls</div>
-			<div class="tab" data-class-selected="tab == 'network'" data-event-click="select_network">Network</div>
+			<div class="tab" data-class-selected="tab == 'video'" data-event-click="select_video" data-tooltip-text="Video">Video</div>
+			<div class="tab" data-class-selected="tab == 'graphics'" data-event-click="select_graphics" data-tooltip-text="Video">Graphics</div>
+			<div class="tab" data-class-selected="tab == 'audio'" data-event-click="select_audio" data-tooltip-text="Audio">Audio</div>
+			<div class="tab" data-class-selected="tab == 'controls'" data-event-click="select_controls" data-tooltip-text="Controls">Controls</div>
+			<div class="tab" data-class-selected="tab == 'network'" data-event-click="select_network" data-tooltip-text="Network">Network</div>
 		</div>
 
 		<div class="panels">
@@ -68,62 +68,62 @@
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label">Texture Resolution</div>
 					<input class="control range" type="range" min="0" max="2" step="1" data-value="texture_resolution"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:LowResSlider"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:ParticleCap"/></div>
 					<input class="control range" type="range" min="0" max="2500" step="50" data-value="particle_cap"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:ParticleCapSlider"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:Shadows3D"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="shadow_3d"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:Shadows3D"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:Shadows2D"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="shadow_2d"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:Shadows2D"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:CloudShadows"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="cloud_shadows"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:CloudShadows"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:GroundLighting"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="ground_lighting"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:GroundLighting"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:SmoothWater"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="smooth_water"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:SmoothWater"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:ExtraAnimations"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="extra_animations"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:ExtraAnimations"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:NoDynamicLOD"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="no_dynamic_lod"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:NoDynamicLOD"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:HeatEffects"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="heat_effects"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:HeatEffects"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:BehindBuilding"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="building_occlusion"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:BehindBuilding"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:ShowProps"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="props"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed"/>
+						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:ShowProps"/>
 				</div>
 			</div>
 
@@ -131,15 +131,15 @@
 			<div class="panel scroll-container" data-if="tab == 'audio'">
 				<div class="row">
 					<div class="label"><gametext key="GUI:MusicVolume"/></div>
-					<input class="control range" type="range" min="0" max="100" step="1" data-value="music_volume"/>
+					<input class="control range" type="range" min="0" max="100" step="1" data-value="music_volume" data-tooltip="GUI:MusicVolume"/>
 				</div>
 				<div class="row">
 					<div class="label"><gametext key="GUI:SFXVolume"/></div>
-					<input class="control range" type="range" min="0" max="100" step="1" data-value="sfx_volume"/>
+					<input class="control range" type="range" min="0" max="100" step="1" data-value="sfx_volume" data-tooltip="GUI:SFXVolume"/>
 				</div>
 				<div class="row">
 					<div class="label"><gametext key="GUI:VoiceVolume"/></div>
-					<input class="control range" type="range" min="0" max="100" step="1" data-value="voice_volume"/>
+					<input class="control range" type="range" min="0" max="100" step="1" data-value="voice_volume" data-tooltip="GUI:VoiceVolume"/>
 				</div>
 			</div>
 
@@ -147,23 +147,23 @@
 			<div class="panel scroll-container" data-if="tab == 'controls'">
 				<div class="row">
 					<div class="label"><gametext key="GUI:ScrollSpeed"/></div>
-					<input class="control range" type="range" min="0" max="100" step="1" data-value="scroll_speed"/>
+					<input class="control range" type="range" min="0" max="100" step="1" data-value="scroll_speed" data-tooltip="ToolTip:ScrollSpeed"/>
 				</div>
 				<div class="row">
 					<div class="label"><gametext key="GUI:AlternateMouse"/></div>
-					<input class="control checkbox" type="checkbox" data-checked="alternate_mouse"/>
+					<input class="control checkbox" type="checkbox" data-checked="alternate_mouse" data-tooltip="TOOLTIP:AlternateMouse"/>
 				</div>
 				<div class="row">
 					<div class="label"><gametext key="GUI:RetaliationTitle"/></div>
-					<input class="control checkbox" type="checkbox" data-checked="retaliation"/>
+					<input class="control checkbox" type="checkbox" data-checked="retaliation" data-tooltip="GUI:Retaliation"/>
 				</div>
 				<div class="row">
 					<div class="label"><gametext key="GUI:DoubleClickAttackMove"/></div>
-					<input class="control checkbox" type="checkbox" data-checked="double_click_attack_move"/>
+					<input class="control checkbox" type="checkbox" data-checked="double_click_attack_move" data-tooltip="TOOLTIP:DoubleClickAttackMove"/>
 				</div>
 				<div class="row">
 					<div class="label"><gametext key="GUI:LanguageFilter"/></div>
-					<input class="control checkbox" type="checkbox" data-checked="language_filter"/>
+					<input class="control checkbox" type="checkbox" data-checked="language_filter" data-tooltip="GUI:LanguageFilter"/>
 				</div>
 			</div>
 
@@ -171,35 +171,35 @@
 			<div class="panel scroll-container" data-if="tab == 'network'">
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:IPAddresses"/></div>
-					<select id="select_lan_ip" class="control" data-value="lan_ip_index" data-attr-disabled="restricted"></select>
+					<select id="select_lan_ip" class="control" data-value="lan_ip_index" data-attr-disabled="restricted" data-tooltip="TOOLTIP:LanIP"></select>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:OnlineIPAddresses"/></div>
-					<select id="select_online_ip" class="control" data-value="online_ip_index" data-attr-disabled="restricted"></select>
+					<select id="select_online_ip" class="control" data-value="online_ip_index" data-attr-disabled="restricted" data-tooltip="TOOLTIP:OnlineIP"></select>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:FireWallPort"/></div>
-					<input class="control" type="text" maxlength="5" data-value="firewall_port_override" data-attr-disabled="restricted"/>
+					<input class="control" type="text" maxlength="5" data-value="firewall_port_override" data-attr-disabled="restricted" data-tooltip="TOOLTIP:FireWallPort"/>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:HTTPProxy"/></div>
-					<input class="control" type="text" data-value="http_proxy" data-attr-disabled="restricted"/>
+					<input class="control" type="text" data-value="http_proxy" data-attr-disabled="restricted" data-tooltip="TOOLTIP:HTTPProxy"/>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:SendDelay"/></div>
-					<input class="control checkbox" type="checkbox" data-checked="send_delay" data-attr-disabled="restricted"/>
+					<input class="control checkbox" type="checkbox" data-checked="send_delay" data-attr-disabled="restricted" data-tooltip="TOOLTIP:SendDelay"/>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:FirewallRefresh"/></div>
-					<button class="control" data-event-click="firewall_refresh" data-attr-disabled="restricted"><gametext key="GUI:FirewallRefresh"/></button>
+					<button class="control" data-event-click="firewall_refresh" data-attr-disabled="restricted" data-tooltip="TOOLTIP:RefreshNat"><gametext key="GUI:FirewallRefresh"/></button>
 				</div>
 			</div>
 		</div>
 
 		<div class="footer">
-			<button data-event-click="defaults"><gametext key="GUI:Defaults"/></button>
-			<button data-event-click="cancel"><gametext key="GUI:Cancel"/></button>
-			<button data-event-click="accept"><gametext key="GUI:Accept"/></button>
+			<button data-event-click="defaults" data-tooltip="TOOLTIP:OptionsDefaults"><gametext key="GUI:Defaults"/></button>
+			<button data-event-click="cancel" data-tooltip="TOOLTIP:OptionsCancel"><gametext key="GUI:Cancel"/></button>
+			<button data-event-click="accept" data-tooltip="TOOLTIP:OptionsAccept"><gametext key="GUI:Accept"/></button>
 		</div>
 	</div>
 </body>

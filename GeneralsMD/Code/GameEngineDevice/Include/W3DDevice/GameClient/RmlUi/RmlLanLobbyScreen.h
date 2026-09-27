@@ -92,6 +92,7 @@ private:
 	struct PlayerRowModel
 	{
 		Rml::String name;
+		Rml::String tooltip; // same text as setLANPlayerTooltip(), see LanLobbyData::buildPlayerRows()
 	};
 
 	// One row of the game list (see LanLobbyData::buildGameRows()). index is this row's offset into

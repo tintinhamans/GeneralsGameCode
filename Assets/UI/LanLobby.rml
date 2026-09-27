@@ -13,7 +13,7 @@
 			<div class="players-column">
 				<div class="section-title"><gametext key="GUI:Players"/></div>
 				<div class="scroll-container player-list">
-					<div class="player-row" data-for="player : players">{{player.name}}</div>
+					<div class="player-row" data-for="player : players" data-attr-data-tooltip-text="player.tooltip">{{player.name}}</div>
 				</div>
 			</div>
 
@@ -57,7 +57,7 @@
 		<div class="footer name-row">
 			<div class="label"><gametext key="GUI:PlayerName"/></div>
 			<input type="text" class="name-input" data-value="player_name" data-event-change="name_changed"/>
-			<button data-event-click="clear_name"><gametext key="GUI:CLEAR"/></button>
+			<button data-event-click="clear_name" data-tooltip="TOOLTIP:ButtonClear"><gametext key="GUI:CLEAR"/></button>
 			<div class="spacer"></div>
 			<button data-event-click="host_game"><gametext key="GUI:Host"/></button>
 			<button data-event-click="join_selected"><gametext key="GUI:Join"/></button>

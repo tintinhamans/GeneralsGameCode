@@ -39,6 +39,7 @@ struct LanLobbyPlayerRow
 {
 	UnicodeString m_name;
 	UnsignedInt m_ip = 0;
+	UnicodeString m_tooltip; // same text as setLANPlayerTooltip() (login/host, +IP in RTS_DEBUG)
 };
 
 // One row of the lobby game list. m_game is only valid for the lifetime of the LANGameInfo list
