@@ -530,10 +530,10 @@ void LanGameSetupActions::applySelectedMap( LANGameInfo *game, const AsciiString
 		game->getSlot( 0 )->setMapAvailability( true );
 		game->setMapCRC( md->m_CRC );
 		game->setMapSize( md->m_filesize );
-	}
 
-	game->resetStartSpots();
-	game->adjustSlotsForMap();
+		game->resetStartSpots();
+		game->adjustSlotsForMap();
+	}
 
 	game->resetAccepted();
 	for( Int i = 0; i < MAX_SLOTS; ++i )
