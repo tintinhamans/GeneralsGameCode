@@ -32,10 +32,12 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Debug.h"
+#include "Common/GlobalData.h"
 #include "Common/Language.h"
 #include "GameClient/Display.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GameWindow.h"
+#include "GameClient/RmlUiMessageBoxHook.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/DisplayStringManager.h"
 #include "GameClient/WindowLayout.h"
@@ -1634,6 +1636,18 @@ GameWindow* GameWindowManager::gogoMessageBox(Int x, Int y, Int width, Int heigh
 	{
 		return NULL;
 	}
+
+	// TheSuperHackers @feature RmlUi message box: same routing as RmlUiScreenRegistry (see
+	// RmlUiMessageBoxHook.h) -- no GameWindow backs the RmlUi document, so callers that only ever
+	// dismiss the box via its own callbacks (the intended usage) see no difference; callers that
+	// try to force-close it early via the returned handle (a handful of unconverted .wnd screens)
+	// are outside this batch's scope and keep their legacy behavior only under -wnd.
+	if (!TheGlobalData->m_useLegacyMenus && RmlUiMessageBoxHook::isAvailable())
+	{
+		RmlUiMessageBoxHook::show(buttonFlags, titleString, bodyString, yesCallback, noCallback, okCallback, cancelCallback, useLogo);
+		return NULL;
+	}
+
 	GameWindow* trueParent = NULL;
 	//Changed by Chris
 	if (useLogo)

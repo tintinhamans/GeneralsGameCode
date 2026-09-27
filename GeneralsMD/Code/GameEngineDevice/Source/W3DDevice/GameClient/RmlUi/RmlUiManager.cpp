@@ -21,6 +21,7 @@
 #include "Common/GlobalData.h"
 #include "GameClient/KeyDefs.h"
 #include "GameClient/RmlUiScreenRegistry.h"
+#include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
@@ -132,6 +133,10 @@ void RmlUiManager::init(int width, int height)
 	// Shell::push/pop and the ad-hoc call sites (MainMenu.cpp/QuitMenu.cpp options button) look
 	// screens up in the registry by .wnd path, gated on !m_useLegacyMenus; see RmlUiScreenRegistry.h.
 	RmlUiScreenRegistry::registerScreen("Menus/OptionsMenu.wnd", &OpenRmlOptionsScreen, &CloseRmlOptionsScreen);
+
+	// GameWindowManager::gogoMessageBox() looks this hook up the same way, gated on
+	// !m_useLegacyMenus; see RmlUiMessageBoxHook.h.
+	RegisterRmlMessageBoxHook(m_context);
 }
 
 void RmlUiManager::registerCustomElements()
@@ -151,6 +156,7 @@ void RmlUiManager::shutdown()
 	if (TheRmlUiInputHook == this)
 		TheRmlUiInputHook = nullptr;
 
+	UnregisterRmlMessageBoxHook();
 	RmlUiScreenRegistry::unregisterAll();
 
 	if (m_context)
@@ -337,7 +343,10 @@ void RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeySt
 
 	// Escape closes the active screen the same way the .wnd Cancel/Back button would,
 	// instead of reaching the context (which has no document-level close behavior of its own).
-	if (rmlKey == Rml::Input::KI_ESCAPE && isDown && m_currentScreen && m_currentScreen->isVisible())
+	// A message box stacked on top must swallow this instead: the .wnd MessageBoxSystem/
+	// QuitMessageBoxSystem never handle Escape (no button, no dismissal), so it must not fall
+	// through to cancel whatever the box is stacked over either.
+	if (rmlKey == Rml::Input::KI_ESCAPE && isDown && !AnyRmlMessageBoxOpen() && m_currentScreen && m_currentScreen->isVisible())
 	{
 		m_currentScreen->onBack();
 		return;

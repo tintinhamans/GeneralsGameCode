@@ -1,0 +1,25 @@
+<rml>
+<head>
+	<title>MessageBox</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<style>
+		body { width: 400dp; min-height: 140dp; left: 50%; top: 50%; margin-left: -200dp; }
+		.frame { display: flex; flex-direction: column; }
+		.logo { width: 100%; height: 48dp; margin-bottom: 8dp; }
+		.body { flex: 1 1 auto; margin-bottom: 8dp; }
+	</style>
+</head>
+<body data-model="messagebox">
+	<div class="frame">
+		<div class="logo" data-if="use_logo"><mappedimage name="GeneralsLogo"/></div>
+		<div class="title-bar">{{title}}</div>
+		<div class="body">{{body}}</div>
+		<div class="footer">
+			<button data-if="show_yes" data-event-click="yes"><gametext key="GUI:Yes"/></button>
+			<button data-if="show_ok" data-event-click="ok"><gametext key="GUI:Ok"/></button>
+			<button data-if="show_no" data-event-click="no"><gametext key="GUI:No"/></button>
+			<button data-if="show_cancel" data-event-click="cancel_click"><gametext key="GUI:Cancel"/></button>
+		</div>
+	</div>
+</body>
+</rml>

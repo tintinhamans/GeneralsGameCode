@@ -231,6 +231,7 @@ set(GAMEENGINE_SRC
     Include/GameClient/TerrainVisual.h
     Include/GameClient/VideoPlayer.h
     Include/GameClient/RmlUiInputHook.h
+    Include/GameClient/RmlUiMessageBoxHook.h
     Include/GameClient/RmlUiScreenRegistry.h
     Include/GameClient/View.h
     Include/GameClient/Water.h
@@ -822,6 +823,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/MessageStream/MetaEvent.cpp
     Source/GameClient/MessageStream/PlaceEventTranslator.cpp
     Source/GameClient/MessageStream/RmlUiInputHook.cpp
+    Source/GameClient/MessageStream/RmlUiMessageBoxHook.cpp
     Source/GameClient/MessageStream/RmlUiScreenRegistry.cpp
     Source/GameClient/MessageStream/SelectionXlat.cpp
     Source/GameClient/MessageStream/WindowXlat.cpp
