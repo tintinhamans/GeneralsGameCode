@@ -36,6 +36,7 @@
 #include "Common/GameEngine.h"
 #include "Common/GameState.h"
 #include "Common/GlobalData.h"
+#include "GameClient/GUI/GUICallbacks/Menus/MainMenuActions.h"
 #include "GameClient/RmlUiScreenRegistry.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/RandomValue.h"
@@ -241,29 +242,13 @@ static void showSelectiveButtons( Int show )
 	buttonChinaLoadGame->winHide(!(show == SHOW_CHINA ));
 }
 
+// TheSuperHackers @refactor Quit sequence and the exit-confirmation flow now live in
+// MainMenuActions (shared with future non-.wnd front ends); this wraps it to also flip the
+// wnd-local buttonPushed guard, which stays here since it belongs to this menu's animation state.
 static void quitCallback()
 {
 	buttonPushed = TRUE;
-	TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_EXIT_SELECTED]);
-	TheShell->pop();
-	TheGameEngine->setQuitting( TRUE );
-
-
-
-	//if (!TheGameLODManager->didMemPass())
-	{	//GIANT CRAPTACULAR HACK ALERT!!!!  On sytems with little memory, we skip all normal exit code
-//		//and let Windows clean up the mess.  This reduces exit times from minutes to seconds.
-//		//8-19-03. MW
-//		delete TheGameClient;
-//		_exit(EXIT_SUCCESS);
-
-//  THE CRAP IS NOW EVEN MORE TACULAR
-//  NOW WE PERSUADE THE MEMORYPOOLMANAGER TO RETURN STUPID FROM ITS FREE()
-//    if (TheMemoryPoolFactory) TheMemoryPoolFactory->prepareForMinSpecShutDown();
-
-	}
-	if (TheGameLogic->isInGame())
-		TheMessageStream->appendMessage( GameMessage::MSG_CLEAR_GAME_DATA );
+	MainMenuActions::quit();
 }
 
 
@@ -1337,7 +1322,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 					break;
 				dontAllowTransitions = TRUE;
 				buttonPushed = TRUE;
-				TheShell->push("Menus/CreditsMenu.wnd" );
+				MainMenuActions::openCreditsMenu();
 				dropDownWindows[DROPDOWN_MAIN]->winHide(FALSE);
 				TheTransitionHandler->reverse("MainMenuDefaultMenu");
 			}
@@ -1379,7 +1364,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				buttonPushed = TRUE;
 				dropDownWindows[DROPDOWN_LOADREPLAY]->winHide(FALSE);
 				TheTransitionHandler->reverse("MainMenuLoadReplayMenuBackTransition");
-				TheShell->push("Menus/SaveLoad.wnd");
+				MainMenuActions::openLoadGame();
 
 			}
 			else if( controlID == buttonReplayID )
@@ -1390,7 +1375,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				buttonPushed = TRUE;
 				dropDownWindows[DROPDOWN_LOADREPLAY]->winHide(FALSE);
 				TheTransitionHandler->reverse("MainMenuLoadReplayMenuBackTransition");
-				TheShell->push("Menus/ReplayMenu.wnd");
+				MainMenuActions::openReplayMenu();
 			}
 			else if( controlID == skirmishID )
 			{
@@ -1413,8 +1398,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				prepareCampaignGame(DIFFICULTY_NORMAL);
 				break;
 #endif
-				TheShell->push( "Menus/SkirmishGameOptionsMenu.wnd" );
-				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_SKIRMISH_SELECTED]);
+				MainMenuActions::startSkirmishOptions();
 			}
 			else if( controlID == onlineID )
 			{
@@ -1425,7 +1409,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				dropDownWindows[DROPDOWN_MULTIPLAYER]->winHide(FALSE);
 				TheTransitionHandler->reverse("MainMenuMultiPlayerMenuTransitionToNext");
 
-				StartPatchCheck();
+				MainMenuActions::startOnlinePatchCheck();
 //				localAnimateWindowManager->reverseAnimateWindow();
 				dropDown = DROPDOWN_NONE;
 
@@ -1438,9 +1422,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				buttonPushed = TRUE;
 				dropDownWindows[DROPDOWN_MULTIPLAYER]->winHide(FALSE);
 				TheTransitionHandler->reverse("MainMenuMultiPlayerMenuTransitionToNext");
-				TheShell->push( "Menus/LanLobbyMenu.wnd" );
-
-				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_NETWORK_SELECTED]);
+				MainMenuActions::openNetworkLobby();
 			}
 			else if( controlID == optionsID )
 			{
@@ -1449,36 +1431,15 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				dontAllowTransitions = TRUE;
 				//buttonPushed = TRUE;
 				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_OPTIONS_SELECTED]);
-
-				// TheSuperHackers @feature RmlUi screen registry: route to the RmlUi options screen
-				// unless -wnd was given or RmlUi isn't linked/initialized (see RmlUiScreenRegistry.h).
-				if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered("Menus/OptionsMenu.wnd"))
-				{
-					RmlUiScreenRegistry::open("Menus/OptionsMenu.wnd");
-				}
-				else
-				{
-					// load the options menu
-					WindowLayout *optLayout = TheShell->getOptionsLayout(TRUE);
-					DEBUG_ASSERTCRASH(optLayout != nullptr, ("unable to get options menu layout"));
-					optLayout->runInit();
-					optLayout->hide(FALSE);
-					optLayout->bringForward();
-				}
+				MainMenuActions::openOptions();
 			}
 			else if( controlID == worldBuilderID )
 			{
-#if defined RTS_DEBUG
-				if(_spawnl(_P_NOWAIT,"WorldBuilderD.exe","WorldBuilderD.exe", nullptr) < 0)
-					MessageBoxOk(TheGameText->fetch("GUI:WorldBuilder"), TheGameText->fetch("GUI:WorldBuilderLoadFailed"),nullptr);
-#else
-				if(_spawnl(_P_NOWAIT,"WorldBuilder.exe","WorldBuilder.exe", nullptr) < 0)
-					MessageBoxOk(TheGameText->fetch("GUI:WorldBuilder"), TheGameText->fetch("GUI:WorldBuilderLoadFailed"),nullptr);
-#endif
+				MainMenuActions::launchWorldBuilder();
 			}
 			else if( controlID == getUpdateID )
 			{
-				StartDownloadingPatches();
+				MainMenuActions::startPatchDownload();
 			}
 			else if( controlID == exitID )
 			{
@@ -1538,7 +1499,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			{
 				if(campaignSelected || dontAllowTransitions)
 					break;
-				TheCampaignManager->setCampaign( "USA" );
+				MainMenuActions::selectCampaign( "USA" );
 #ifdef _CAMPEA_DEMO
 				TheCampaignManager->setCampaign( "MD_USA_1_DEMO" );
 #endif
@@ -1566,7 +1527,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			{
 				if(campaignSelected || dontAllowTransitions)
 					break;
-				TheCampaignManager->setCampaign( "GLA" );
+				MainMenuActions::selectCampaign( "GLA" );
 #ifdef _CAMPEA_DEMO
 				TheCampaignManager->setCampaign( "MD_USA_2_DEMO" );
 #endif
@@ -1594,7 +1555,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			{
 				if(campaignSelected || dontAllowTransitions)
 					break;
-				TheCampaignManager->setCampaign( "China" );
+				MainMenuActions::selectCampaign( "China" );
 #ifdef _CAMPEA_DEMO
 				TheCampaignManager->setCampaign( "MD_GLA_3_DEMO" );
 #endif
@@ -1644,7 +1605,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				if(dontAllowTransitions)
 					break;
 				dontAllowTransitions = TRUE;
-				TheCampaignManager->setCampaign( AsciiString::TheEmptyString );
+				MainMenuActions::selectCampaign( AsciiString::TheEmptyString );
 				diffReverseSide();
 				campaignSelected = FALSE;
 			}
