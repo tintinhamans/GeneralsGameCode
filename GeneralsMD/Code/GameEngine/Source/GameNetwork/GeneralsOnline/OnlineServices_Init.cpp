@@ -825,6 +825,16 @@ void NGMP_OnlineServicesManager::OnLogin(ELoginResult loginResult, const char* s
 {
 	if (loginResult == ELoginResult::Success)
 	{
+		// Tear down any previous session's websocket before replacing it.
+		if (m_pWebSocket != nullptr)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] OnLogin: shutting down previous websocket before re-login");
+			m_pWebSocket->Shutdown();
+			m_pWebSocket->m_fnWebsocketConnectedCallback = nullptr;
+			m_pWebSocket->ClearConnectivityCheckCallback();
+			m_pWebSocket.reset();
+		}
+
 		// connect to WS
 		m_pWebSocket = std::make_shared<WebSocket>();
 
@@ -1290,9 +1300,12 @@ void WebSocket::SendData_CountdownStarted()
 }
 
 
-void WebSocket::SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>)> cbOnConnectivityCheckComplete)
+void WebSocket::SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> cbOnConnectivityCheckComplete)
 {
 	m_cbOnConnectivityCheckComplete = cbOnConnectivityCheckComplete;
+
+	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	m_connectivityCheckLobbyID = pLobbyInterface != nullptr ? pLobbyInterface->GetCurrentLobby().lobbyID : -1;
 
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::FULL_MESH_CONNECTIVITY_CHECK_HOST_REQUESTS_BEGIN;

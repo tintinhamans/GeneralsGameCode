@@ -1341,6 +1341,14 @@ void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 	m_bCannotConnectToLobbyPending = false;
 	ResetJoinOrder();
 
+	// a mesh connectivity check started for this lobby is meaningless once we've left it; drop it so a
+	// late reply never fires into whatever lobby/menu we end up in next
+	std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
+	if (pWS != nullptr)
+	{
+		pWS->ClearConnectivityCheckCallback();
+	}
+
 	// reset host migration flags
 	ResetHostMigrationFlags();
 

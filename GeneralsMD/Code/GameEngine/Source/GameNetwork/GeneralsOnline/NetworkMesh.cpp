@@ -423,10 +423,14 @@ class CSignalingClient : public ISignalingClient
 		std::vector<uint8_t> vecPayload;
 	};
 	ISteamNetworkingSockets* const m_pSteamNetworkingSockets;
+
+	// Guards m_queueSend; SendSignal() may run on any thread, Poll() drains on the main thread.
+	std::mutex m_sendQueueMutex;
 	std::deque<QueuedSend> m_queueSend;
 
 	void CloseSocket()
 	{
+		std::scoped_lock<std::mutex> lock(m_sendQueueMutex);
 		m_queueSend.clear();
 	}
 
@@ -450,34 +454,22 @@ public:
 
 	}
 
-	// Send the signal.
+	// May be called from any thread; always queues, Poll() flushes on the main thread.
 	void Send(int64_t target_user_id, std::vector<uint8_t>& vecPayload)
 	{
-		std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
-		if (pWS)
+		std::scoped_lock<std::mutex> lock(m_sendQueueMutex);
+
+		// Best-effort delivery; drop oldest on backlog.
+		while (m_queueSend.size() > 128)
 		{
-			if (!pWS->AcquireLock())
-			{
-				return;
-			}
-
-			// If we're getting backed up, delete the oldest entries.  Remember,
-			// we are only required to do best-effort delivery.  And old signals are the
-			// most likely to be out of date (either old data, or the client has already
-			// timed them out and queued a retry).
-			while (m_queueSend.size() > 128)
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "Signaling send queue is backed up.  Discarding oldest signals\n");
-				m_queueSend.pop_front();
-			}
-
-			QueuedSend newEntry = QueuedSend();
-			newEntry.target_user_id = target_user_id;
-			newEntry.vecPayload = vecPayload;
-			m_queueSend.push_back(newEntry);
-
-			pWS->ReleaseLock();
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "Signaling send queue is backed up.  Discarding oldest signals\n");
+			m_queueSend.pop_front();
 		}
+
+		QueuedSend newEntry = QueuedSend();
+		newEntry.target_user_id = target_user_id;
+		newEntry.vecPayload = vecPayload;
+		m_queueSend.push_back(newEntry);
 	}
 
 	ISteamNetworkingConnectionSignaling* CreateSignalingForConnection(
@@ -512,25 +504,21 @@ public:
 		std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
 		if (pWS)
 		{
-			if (!pWS->AcquireLock())
+			std::deque<QueuedSend> sendBatch;
 			{
-				return;
+				std::scoped_lock<std::mutex> lock(m_sendQueueMutex);
+				sendBatch.swap(m_queueSend);
 			}
 
-			// Drain the socket
-			// Flush send queue
-			while (!m_queueSend.empty())
+			while (!sendBatch.empty())
 			{
-				QueuedSend sendData = m_queueSend.front();
+				QueuedSend sendData = sendBatch.front();
 
 				pWS->SendData_Signalling(sendData.target_user_id, sendData.vecPayload);
-				m_queueSend.pop_front();
+				sendBatch.pop_front();
 			}
 
-			// TODO_NGMP: Avoid copy
-			std::queue<std::vector<uint8_t>> pendingSignals = pWS->m_pendingSignals;
-			pWS->m_pendingSignals = std::queue<std::vector<uint8_t>>();
-			pWS->ReleaseLock();
+			std::queue<std::vector<uint8_t>> pendingSignals = pWS->DrainPendingSignals();
 
 			// Now dispatch any buffered signals
 			if (!pendingSignals.empty())
