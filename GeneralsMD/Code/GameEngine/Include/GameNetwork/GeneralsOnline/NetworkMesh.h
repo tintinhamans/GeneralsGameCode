@@ -233,16 +233,11 @@ public:
 		return m_mapConnections;
 	}
 
-	// Thread-safe: may be invoked from anticheat plugin threads
+	// Thread-safe: may be invoked from anticheat plugin threads; applied on the main thread in Tick
 	void UpdateConnectionStateForUser(int64_t userID, EConnectionState newState)
 	{
-		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
-
-		auto it = m_mapConnections.find(userID);
-		if (it != m_mapConnections.end())
-		{
-			it->second.UpdateState(newState, this);
-		}
+		std::lock_guard<std::mutex> lock(m_pendingStateUpdatesMutex);
+		m_vecPendingStateUpdates.emplace_back(userID, newState);
 	}
 
 	PlayerConnection* GetConnectionForUser(int64_t user_id)
@@ -261,6 +256,9 @@ private:
 
 	std::map<int64_t, PlayerConnection> m_mapConnections;
 	mutable std::recursive_mutex m_mapConnectionsMutex;  // Synchronizes access to m_mapConnections
+
+	std::mutex m_pendingStateUpdatesMutex;
+	std::vector<std::pair<int64_t, EConnectionState>> m_vecPendingStateUpdates;
 
 	ISignalingClient* m_pSignaling = nullptr;
 

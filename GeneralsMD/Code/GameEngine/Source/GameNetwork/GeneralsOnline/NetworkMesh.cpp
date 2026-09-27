@@ -1085,6 +1085,22 @@ void NetworkMesh::Disconnect()
 
 void NetworkMesh::Tick()
 {
+	// state reported from anticheat plugin threads; UpdateState reaches UI callbacks, so apply it here
+	std::vector<std::pair<int64_t, EConnectionState>> vecStateUpdates;
+	{
+		std::lock_guard<std::mutex> lock(m_pendingStateUpdatesMutex);
+		vecStateUpdates.swap(m_vecPendingStateUpdates);
+	}
+	for (const auto& update : vecStateUpdates)
+	{
+		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+		auto it = m_mapConnections.find(update.first);
+		if (it != m_mapConnections.end())
+		{
+			it->second.UpdateState(update.second, this);
+		}
+	}
+
 	if (!AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport() && m_pSignaling != nullptr)
 	{
 		m_pSignaling->Poll();
