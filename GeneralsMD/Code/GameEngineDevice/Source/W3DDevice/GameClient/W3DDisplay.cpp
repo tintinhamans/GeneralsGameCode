@@ -83,6 +83,7 @@ static void drawFramerateBar();
 #include "W3DDevice/GameClient/W3DProjectedShadow.h"
 #include "W3DDevice/GameClient/W3DScreenshot.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
+#include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 #include "WWMath/wwmath.h"
 #include "WWLib/registry.h"
 #include "WW3D2/ww3d.h"
@@ -460,6 +461,9 @@ W3DDisplay::W3DDisplay()
 //=============================================================================
 W3DDisplay::~W3DDisplay()
 {
+	// TheSuperHackers @feature RmlUi phase 1: shut down before the device goes away.
+	RmlUiManager::destroyInstance();
+
 #ifdef PROFILER_ENABLED
 	delete m_profilerFrameCapture;
 	m_profilerFrameCapture = nullptr;
@@ -625,6 +629,9 @@ void W3DDisplay::setWidth( UnsignedInt width )
 	// of the screen with (width,height) at the lower right
 	m_2DRender->Set_Coordinate_Range( RectClass( 0, 0, getWidth(), getHeight() ) );
 
+	if( TheRmlUiManager )
+		TheRmlUiManager->onResize( getWidth(), getHeight() );
+
 }
 
 // W3DDisplay::setHeight ======================================================
@@ -639,6 +646,9 @@ void W3DDisplay::setHeight( UnsignedInt height )
 	// our 2D renderer will use mapping coords to make (0,0) the upper left
 	// of the screen with (width,height) at the lower right
 	m_2DRender->Set_Coordinate_Range( RectClass( 0, 0, getWidth(), getHeight() ) );
+
+	if( TheRmlUiManager )
+		TheRmlUiManager->onResize( getWidth(), getHeight() );
 
 }
 
@@ -1015,6 +1025,11 @@ void W3DDisplay::init()
 		}
 
 		DX8WebBrowser::Initialize();
+
+		// TheSuperHackers @feature RmlUi phase 1: init after the device/display exist so the
+		// render interface can query DX8Wrapper's device immediately.
+		RmlUiManager::createInstance();
+		TheRmlUiManager->init(getWidth(), getHeight());
 	}
 
 	// we're now online
@@ -2055,6 +2070,14 @@ AGAIN:
 				TheInGameUI->DRAW();
 
 				TheGameClient->DRAW();
+
+				// TheSuperHackers @feature RmlUi phase 1: renders on top of the shell/window
+				// manager, before the mouse cursor so the cursor stays topmost.
+				if( TheRmlUiManager )
+				{
+					TheRmlUiManager->update();
+					TheRmlUiManager->render();
+				}
 
 				// draw the mouse
 				if( TheMouse )

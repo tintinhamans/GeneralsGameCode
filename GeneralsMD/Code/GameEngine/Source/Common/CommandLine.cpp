@@ -170,6 +170,17 @@ Int parseFullViewport(char *args[], int num)
 	return 1;
 }
 
+//=============================================================================
+//=============================================================================
+// TheSuperHackers @feature RmlUi phase 1: -wnd forces the original .wnd menus; RmlUi will
+// not show any document while it is set. Later phases route shell screens by this flag.
+Int parseUseLegacyMenus(char *args[], int num)
+{
+	TheWritableGlobalData->m_useLegacyMenus = TRUE;
+
+	return 1;
+}
+
 #if defined(RTS_DEBUG)
 
 //=============================================================================
@@ -1192,6 +1203,9 @@ static CommandLineParam paramsForEngineInit[] =
 
 	// TheSuperHackers @feature xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
 	{ "-forcefullviewport", parseFullViewport },
+
+	// TheSuperHackers @feature RmlUi phase 1: use the original .wnd menus, not RmlUi.
+	{ "-wnd", parseUseLegacyMenus },
 
 #if defined(RTS_DEBUG)
 	{ "-noaudio", parseNoAudio },

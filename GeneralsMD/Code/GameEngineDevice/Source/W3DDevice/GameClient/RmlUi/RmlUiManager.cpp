@@ -1,0 +1,291 @@
+/*
+**	Command & Conquer Generals Zero Hour(tm)
+**	Copyright 2025 Electronic Arts Inc.
+**
+**	This program is free software: you can redistribute it and/or modify
+**	it under the terms of the GNU General Public License as published by
+**	the Free Software Foundation, either version 3 of the License, or
+**	(at your option) any later version.
+**
+**	This program is distributed in the hope that it will be useful,
+**	but WITHOUT ANY WARRANTY; without even the implied warranty of
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	GNU General Public License for more details.
+**
+**	You should have received a copy of the GNU General Public License
+**	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
+
+#include "Common/GlobalData.h"
+#include "GameClient/KeyDefs.h"
+
+#include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/Core.h>
+#include <RmlUi/Core/Element.h>
+#include <RmlUi/Core/ElementDocument.h>
+#include <RmlUi/Core/Input.h>
+#include <RmlUi/Core/Log.h>
+
+RmlUiManager *RmlUiManager::s_instance = nullptr;
+RmlUiManager *TheRmlUiManager = nullptr;
+
+void RmlUiManager::createInstance()
+{
+	if (!s_instance)
+	{
+		s_instance = new RmlUiManager();
+		TheRmlUiManager = s_instance;
+	}
+}
+
+void RmlUiManager::destroyInstance()
+{
+	if (s_instance)
+	{
+		s_instance->shutdown();
+		delete s_instance;
+		s_instance = nullptr;
+		TheRmlUiManager = nullptr;
+	}
+}
+
+RmlUiManager::RmlUiManager()
+{
+}
+
+RmlUiManager::~RmlUiManager()
+{
+	shutdown();
+}
+
+void RmlUiManager::init(int width, int height)
+{
+	if (m_initialized)
+		return;
+
+	m_width = width;
+	m_height = height;
+
+	Rml::SetSystemInterface(&m_systemInterface);
+	Rml::SetFileInterface(&m_fileInterface);
+	Rml::SetRenderInterface(&m_renderInterface);
+
+	if (!Rml::Initialise())
+		return;
+
+	m_renderInterface.onDeviceCreated();
+
+	// SIL OFL-licensed Barlow (see Data/UI/Fonts/OFL.txt). LoadFontFace reads family/style/
+	// weight straight from the font, so both weights register under the "Barlow" family.
+	Rml::LoadFontFace("UI/Fonts/Barlow-Regular.ttf", true);
+	Rml::LoadFontFace("UI/Fonts/Barlow-Bold.ttf");
+
+	m_context = Rml::CreateContext("main", Rml::Vector2i(width, height));
+
+	TheRmlUiInputHook = this;
+
+	m_initialized = true;
+
+	if (TheGlobalData && TheGlobalData->m_useLegacyMenus)
+	{
+		Rml::Log::Message(Rml::Log::LT_INFO, "-wnd given: legacy .wnd menus are active, RmlUi will show no documents.");
+	}
+
+	// TheSuperHackers @todo RmlUi phase 2: no document is loaded here yet. Shell screens will
+	// call m_context->LoadDocument(...) per screen, gated on !TheGlobalData->m_useLegacyMenus.
+}
+
+void RmlUiManager::shutdown()
+{
+	if (!m_initialized)
+		return;
+
+	if (TheRmlUiInputHook == this)
+		TheRmlUiInputHook = nullptr;
+
+	if (m_context)
+	{
+		Rml::RemoveContext(m_context->GetName());
+		m_context = nullptr;
+	}
+
+	Rml::Shutdown();
+	m_renderInterface.onDeviceLost();
+
+	m_initialized = false;
+}
+
+void RmlUiManager::onResize(int width, int height)
+{
+	m_width = width;
+	m_height = height;
+	if (m_context)
+		m_context->SetDimensions(Rml::Vector2i(width, height));
+}
+
+void RmlUiManager::onDeviceLost()
+{
+	// All RmlUi-owned D3D resources use D3DPOOL_MANAGED (see RmlUiRenderInterface), which the
+	// driver evicts/restores around Reset() automatically, so there is nothing to release here
+	// for the common resize/mode-change reset path. Kept for symmetry and for full shutdown.
+	m_renderInterface.onDeviceLost();
+}
+
+void RmlUiManager::onDeviceReset()
+{
+	m_renderInterface.onDeviceCreated();
+}
+
+void RmlUiManager::update()
+{
+	if (m_context)
+		m_context->Update();
+}
+
+void RmlUiManager::render()
+{
+	if (!m_context)
+		return;
+	m_renderInterface.beginFrame(m_width, m_height);
+	m_context->Render();
+	m_renderInterface.endFrame();
+}
+
+//-------------------------------------------------------------------------------------------------
+// No document is loaded in phase 1 (see init()), so these scan whatever the context happens
+// to have open -- always nothing for now -- and stay ready for phase 2's shell screens.
+bool RmlUiManager::anyVisibleDocumentAt(int x, int y, bool *outModal) const
+{
+	if (outModal) *outModal = false;
+	if (!m_context)
+		return false;
+
+	for (int i = 0; i < m_context->GetNumDocuments(); ++i)
+	{
+		Rml::ElementDocument *doc = m_context->GetDocument(i);
+		if (!doc || !doc->IsVisible())
+			continue;
+
+		if (doc->IsModal())
+		{
+			if (outModal) *outModal = true;
+			return true;
+		}
+
+		float left = doc->GetAbsoluteLeft();
+		float top = doc->GetAbsoluteTop();
+		if (x >= left && y >= top && x <= left + doc->GetOffsetWidth() && y <= top + doc->GetOffsetHeight())
+			return true;
+	}
+	return false;
+}
+
+bool RmlUiManager::wantsMouseInput(int mouseX, int mouseY) const
+{
+	return anyVisibleDocumentAt(mouseX, mouseY, nullptr);
+}
+
+bool RmlUiManager::wantsKeyboardInput() const
+{
+	bool modal = false;
+	anyVisibleDocumentAt(0, 0, &modal);
+	return modal;
+}
+
+static int computeKeyModifiers()
+{
+	int mods = 0;
+	if (::GetKeyState(VK_SHIFT) & 0x8000) mods |= Rml::Input::KM_SHIFT;
+	if (::GetKeyState(VK_CONTROL) & 0x8000) mods |= Rml::Input::KM_CTRL;
+	if (::GetKeyState(VK_MENU) & 0x8000) mods |= Rml::Input::KM_ALT;
+	if (::GetKeyState(VK_CAPITAL) & 1) mods |= Rml::Input::KM_CAPSLOCK;
+	return mods;
+}
+
+void RmlUiManager::processMouseMove(int x, int y)
+{
+	if (m_context)
+		m_context->ProcessMouseMove(x, y, computeKeyModifiers());
+}
+
+void RmlUiManager::processMouseButton(int button, bool down)
+{
+	if (!m_context)
+		return;
+	if (down)
+		m_context->ProcessMouseButtonDown(button, computeKeyModifiers());
+	else
+		m_context->ProcessMouseButtonUp(button, computeKeyModifiers());
+}
+
+void RmlUiManager::processMouseWheel(float delta)
+{
+	if (m_context)
+		m_context->ProcessMouseWheel(-delta, computeKeyModifiers()); // engine reports +up; RmlUi expects +down
+}
+
+// Engine key codes are DirectInput DIK_* scan codes (see KeyDefs.h). Map the ones needed for
+// UI navigation/close to RmlUi's own KeyIdentifier enum. Unmapped keys are dropped (KI_UNKNOWN);
+// full text entry (WM_CHAR-based Unicode) is a phase 2 item, see report.
+static Rml::Input::KeyIdentifier engineKeyToRmlKey(unsigned char key)
+{
+	using namespace Rml::Input;
+	switch (key)
+	{
+		case KEY_ESC: return KI_ESCAPE;
+		case KEY_TAB: return KI_TAB;
+		case KEY_ENTER: return KI_RETURN;
+		case KEY_SPACE: return KI_SPACE;
+		case KEY_BACKSPACE: return KI_BACK;
+		case KEY_UP: return KI_UP;
+		case KEY_DOWN: return KI_DOWN;
+		case KEY_LEFT: return KI_LEFT;
+		case KEY_RIGHT: return KI_RIGHT;
+		case KEY_HOME: return KI_HOME;
+		case KEY_END: return KI_END;
+		case KEY_PGUP: return KI_PRIOR;
+		case KEY_PGDN: return KI_NEXT;
+		case KEY_INS: return KI_INSERT;
+		case KEY_DEL: return KI_DELETE;
+		case KEY_A: return KI_A; case KEY_B: return KI_B; case KEY_C: return KI_C;
+		case KEY_D: return KI_D; case KEY_E: return KI_E; case KEY_F: return KI_F;
+		case KEY_G: return KI_G; case KEY_H: return KI_H; case KEY_I: return KI_I;
+		case KEY_J: return KI_J; case KEY_K: return KI_K; case KEY_L: return KI_L;
+		case KEY_M: return KI_M; case KEY_N: return KI_N; case KEY_O: return KI_O;
+		case KEY_P: return KI_P; case KEY_Q: return KI_Q; case KEY_R: return KI_R;
+		case KEY_S: return KI_S; case KEY_T: return KI_T; case KEY_U: return KI_U;
+		case KEY_V: return KI_V; case KEY_W: return KI_W; case KEY_X: return KI_X;
+		case KEY_Y: return KI_Y; case KEY_Z: return KI_Z;
+		case KEY_0: return KI_0; case KEY_1: return KI_1; case KEY_2: return KI_2;
+		case KEY_3: return KI_3; case KEY_4: return KI_4; case KEY_5: return KI_5;
+		case KEY_6: return KI_6; case KEY_7: return KI_7; case KEY_8: return KI_8;
+		case KEY_9: return KI_9;
+		case KEY_LSHIFT: case KEY_RSHIFT: return KI_LSHIFT;
+		case KEY_LCTRL: case KEY_RCTRL: return KI_LCONTROL;
+		case KEY_LALT: case KEY_RALT: return KI_LMENU;
+		default: return KI_UNKNOWN;
+	}
+}
+
+void RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeyState)
+{
+	if (!m_context)
+		return;
+
+	const bool isDown = BitIsSet(engineKeyState, KEY_STATE_DOWN);
+	Rml::Input::KeyIdentifier rmlKey = engineKeyToRmlKey(engineKey);
+
+	// TheSuperHackers @todo RmlUi phase 2: shell screens should close on Escape via their own
+	// document logic (e.g. an event listener); no document is loaded to do that yet.
+
+	if (rmlKey == Rml::Input::KI_UNKNOWN)
+		return;
+
+	int mods = computeKeyModifiers();
+	if (isDown)
+		m_context->ProcessKeyDown(rmlKey, mods);
+	else
+		m_context->ProcessKeyUp(rmlKey, mods);
+}

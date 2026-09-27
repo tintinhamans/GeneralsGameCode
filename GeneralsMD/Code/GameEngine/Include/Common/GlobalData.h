@@ -128,6 +128,10 @@ public:
 	// Run game without graphics, input or audio.
 	Bool m_headless;
 
+	// TheSuperHackers @feature RmlUi phase 1: -wnd forces the original .wnd menus instead of
+	// RmlUi. Not consumed by shell screens yet; later phases will route by this flag.
+	Bool m_useLegacyMenus;
+
 	// Export game stats as JSON alongside replay file.
 	Bool m_exportStats;
 

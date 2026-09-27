@@ -58,6 +58,10 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/W3DPoly.h
     Include/W3DDevice/GameClient/W3DProjectedShadow.h
 #    Include/W3DDevice/GameClient/W3DPropBuffer.h
+    Include/W3DDevice/GameClient/RmlUi/RmlUiFileInterface.h
+    Include/W3DDevice/GameClient/RmlUi/RmlUiManager.h
+    Include/W3DDevice/GameClient/RmlUi/RmlUiRenderInterface.h
+    Include/W3DDevice/GameClient/RmlUi/RmlUiSystemInterface.h
     Include/W3DDevice/GameClient/W3DRoadBuffer.h
     Include/W3DDevice/GameClient/W3DScene.h
 #    Include/W3DDevice/GameClient/W3DShaderManager.h
@@ -173,6 +177,10 @@ set(GAMEENGINEDEVICE_SRC
 #    Source/W3DDevice/GameClient/W3DTreeBuffer.cpp
 #    Source/W3DDevice/GameClient/W3DVideoBuffer.cpp
 #    Source/W3DDevice/GameClient/W3DView.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlUiFileInterface.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlUiManager.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlUiRenderInterface.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlUiSystemInterface.cpp
     Source/W3DDevice/GameClient/W3dWaypointBuffer.cpp
     Source/W3DDevice/GameClient/W3DWebBrowser.cpp
 #    Source/W3DDevice/GameClient/Water/W3DWater.cpp
@@ -200,6 +208,8 @@ target_include_directories(z_gameenginedevice PUBLIC
     Include
 )
 
+find_package(RmlUi CONFIG REQUIRED)
+
 target_precompile_headers(z_gameenginedevice PRIVATE
     [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
     [["Common/STLTypedefs.h"]]
@@ -214,6 +224,7 @@ target_link_libraries(z_gameenginedevice PRIVATE
     zi_always
     zi_main
     stb
+    RmlUi::RmlUi
 )
 
 target_link_libraries(z_gameenginedevice PUBLIC

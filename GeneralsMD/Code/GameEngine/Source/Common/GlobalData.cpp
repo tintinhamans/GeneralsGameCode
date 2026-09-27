@@ -679,6 +679,7 @@ GlobalData::GlobalData()
 	m_framesPerSecondLimit = 0;
 	m_chipSetType = 0;
 	m_headless = FALSE;
+	m_useLegacyMenus = FALSE;
 	m_exportStats = FALSE;
 	m_windowed = 0;
 	m_xResolution = 800;
