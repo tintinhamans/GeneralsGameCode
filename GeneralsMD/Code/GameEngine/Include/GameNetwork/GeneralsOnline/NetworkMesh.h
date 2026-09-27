@@ -210,6 +210,18 @@ public:
 		return m_mapConnections;
 	}
 
+	// Thread-safe: may be invoked from anticheat plugin threads
+	void UpdateConnectionStateForUser(int64_t userID, EConnectionState newState)
+	{
+		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+
+		auto it = m_mapConnections.find(userID);
+		if (it != m_mapConnections.end())
+		{
+			it->second.UpdateState(newState, this);
+		}
+	}
+
 	PlayerConnection* GetConnectionForUser(int64_t user_id)
 	{
 		if (m_mapConnections.contains(user_id))

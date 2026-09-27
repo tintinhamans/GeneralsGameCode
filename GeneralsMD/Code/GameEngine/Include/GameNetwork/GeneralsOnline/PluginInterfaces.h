@@ -14,7 +14,9 @@ enum class ENetworkChannels : uint8_t
 {
     Game = 0,
     Anticheat,
-    Signalling
+    Signalling,
+    Ping,
+    Pong
 };
 
 enum class EPacketReliability : int32_t
@@ -89,6 +91,7 @@ public:
     static void StartSignalling(const char* szMiddlewareUserID, uint64_t goUserID);
     static int GetNextRecvPacketSize(uint8_t channelToReceiveOn);
     static bool RecvPacket(uint8_t** pOutData, uint8_t channelToReceiveOn);
+    static void FreePacket(void* pPacketData);
 
     static void DisconnectPlayer(const char* szMiddlewareUserID, uint64_t goUserID);
     static void DisconnectAll();
@@ -164,6 +167,7 @@ public:
         FuncDefSendPacket fnSendPacket = nullptr;
         FuncDefGetNextRecvPacketSize fnGetNextRecvPacketSize = nullptr;
         FuncDefRecvPacket fnRecvPacket = nullptr;
+        FuncDefFreePacket fnFreePacket = nullptr;
 
         FuncDefGetConnectionLatencyForUser fnGetConnectionLatencyForUser = nullptr;
 
@@ -293,8 +297,16 @@ public:
 
     static bool RecvPacket(uint8_t** pOutData, uint8_t channelToReceiveOn)
     {
-        *pOutData = nullptr;
+        if (pOutData != nullptr)
+        {
+            *pOutData = nullptr;
+        }
         return false;
+    }
+
+    static void FreePacket(void* pPacketData)
+    {
+
     }
 
     static void DisconnectPlayer(const char* szMiddlewareUserID, uint64_t goUserID)
