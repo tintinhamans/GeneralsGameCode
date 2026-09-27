@@ -211,8 +211,14 @@ void StartPressed()
 
 void LANEnableStartButton(Bool enabled)
 {
-	buttonStart->winEnable(enabled);
-	buttonSelectMap->winEnable(enabled);
+	// Reachable from LANGameInfo::resetAccepted() (network-driven, e.g. another player's option
+	// change) even when this .wnd never ran InitLanGameGadgets() -- an RmlUi front end (see
+	// RmlLanGameSetupScreen) leaves these null for its whole lifetime, so both must be null-checked
+	// the way the hook below already is.
+	if (buttonStart)
+		buttonStart->winEnable(enabled);
+	if (buttonSelectMap)
+		buttonSelectMap->winEnable(enabled);
 	if (g_lanGameSetupStartButtonHook)
 		g_lanGameSetupStartButtonHook(enabled);
 }
@@ -269,12 +275,18 @@ static void handleLimitSuperweaponsClick()
 
 void lanUpdateSlotList()
 {
-	if(!AreSlotListUpdatesEnabled() || s_isIniting)
-		return;
-	UpdateSlotList( TheLAN->GetMyGame(), comboBoxPlayer, comboBoxColor,
-		comboBoxPlayerTemplate, comboBoxTeam, buttonAccept, buttonStart, buttonMapStartPosition);
+	// Widget refresh stays gated on the .wnd's own state exactly as before; the hook fires
+	// unconditionally below (same shape as updateGameOptions()'s g_lanGameSetupOptionsUpdateHook)
+	// so an RmlUi front end (see RmlLanGameSetupScreen) still hears every slot change -- including
+	// ones driven by network callbacks (OnPlayerJoin(), OnGameOptions(), etc.) -- even though it
+	// never runs InitLanGameGadgets() and so never sets AreSlotListUpdatesEnabled().
+	if (AreSlotListUpdatesEnabled() && !s_isIniting)
+	{
+		UpdateSlotList( TheLAN->GetMyGame(), comboBoxPlayer, comboBoxColor,
+			comboBoxPlayerTemplate, comboBoxTeam, buttonAccept, buttonStart, buttonMapStartPosition);
 
-	updateMapStartSpots(TheLAN->GetMyGame(), buttonMapStartPosition);
+		updateMapStartSpots(TheLAN->GetMyGame(), buttonMapStartPosition);
+	}
 
 	if (g_lanGameSetupSlotUpdateHook)
 		g_lanGameSetupSlotUpdateHook(TheLAN->GetMyGame());
