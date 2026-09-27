@@ -55,6 +55,13 @@ extern WindowLayout *mapSelectLayout;
 extern NameKeyType listboxChatWindowScoreScreenID;
 extern GameWindow *listboxChatWindowScoreScreen;
 
+// Optional hook so a non-.wnd score screen (e.g. RmlUi) can also receive whatever
+// LANAPI::OnChat() would otherwise only write into listboxChatWindowScoreScreen -- that window
+// stays null for such a screen since it never runs the .wnd ScoreScreenInit(). Null when no such
+// screen is active; the owning front end sets/clears it on show()/hide(), same lifetime as
+// listboxChatWindowScoreScreen itself. Left null (no-op) by the original Generals target.
+extern void (*g_scoreScreenChatDeliveryHook)(const UnicodeString &line, Color color);
+
 
 //Colors used for the chat dialogs
 extern const Color playerColor;

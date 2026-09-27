@@ -29,6 +29,8 @@
 // finishSinglePlayerInit() (challenge win/loss splash, campaign-completion movie
 // playback, auto-save, Retry/EndCampaign/SaveAndContinue caption switch) --
 // see finishSinglePlayerIfNeeded() and ScoreScreenActions::finishSinglePlayer().
+// Incoming LAN chat/emotes and disconnect notices reach this screen the same way
+// via g_scoreScreenChatDeliveryHook (see LANAPICallbacks.h/.cpp).
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -55,11 +57,12 @@ public:
 	virtual void onBack() override; // Escape: same as ButtonOk (see ScoreScreen.cpp's GWM_CHAR/KEY_ESC)
 	virtual void update() override; // one-shot single player campaign finish, see finishSinglePlayerIfNeeded()
 
-	// Appends a locally-sent chat/emote line to the chat log. Called by the same onChatSend/
-	// onEmote handlers that call ScoreScreenActions::sendChat() -- there is no general "chat
-	// received" hook in ScoreScreen.cpp to share (its listbox is instead populated by name
-	// lookups from WOLGameSetupMenu.cpp/WOLQuickMatchMenu.cpp for disconnect notices only), so
-	// this only guarantees the sender sees their own line, same as before this screen existed.
+	// Appends a chat/emote/system line to the chat log. Called by the local onSendChat/onSendEmote
+	// handlers (so the sender always sees their own line) and by g_scoreScreenChatDeliveryHook
+	// (see LANAPICallbacks.h/.cpp) while this screen is showing, which forwards everything
+	// LANAPI::OnChat() would otherwise only write into the .wnd path's listboxChatWindowScoreScreen
+	// -- other players' LAN chat/emotes and the WOLGameSetupMenu.cpp/WOLQuickMatchMenu.cpp
+	// disconnect notices.
 	void appendChatLine(const Rml::String &line);
 
 private:

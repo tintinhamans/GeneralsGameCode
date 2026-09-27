@@ -56,6 +56,7 @@
 #include "GameClient/EstablishConnectionsMenu.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameNetwork/GameSpy/LobbyUtils.h"
+#include "GameNetwork/LANAPICallbacks.h"
 
 #include "GameNetwork/GameSpy/BuddyDefs.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
@@ -2705,6 +2706,11 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 						{
 							GadgetListBoxAddEntryText(listboxChatWindowScoreScreen, TheGameText->fetch(disconMunkee),
 								GameSpyColor[GSCOLOR_DEFAULT], -1);
+						}
+						else if (g_scoreScreenChatDeliveryHook)
+						{
+							// non-.wnd score screen (e.g. RmlUi): no listbox to check for
+							g_scoreScreenChatDeliveryHook(TheGameText->fetch(disconMunkee), GameSpyColor[GSCOLOR_DEFAULT]);
 						}
 						else
 						{

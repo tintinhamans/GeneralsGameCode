@@ -59,6 +59,7 @@
 #include "GameLogic/GameLogic.h"
 
 #include "GameNetwork/NAT.h"
+#include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/BuddyDefs.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
@@ -1718,6 +1719,11 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 						{
 							GadgetListBoxAddEntryText(listboxChatWindowScoreScreen, TheGameText->fetch(disconMunkee),
 								GameSpyColor[GSCOLOR_DEFAULT], -1);
+						}
+						else if (g_scoreScreenChatDeliveryHook)
+						{
+							// non-.wnd score screen (e.g. RmlUi): no listbox to check for
+							g_scoreScreenChatDeliveryHook(TheGameText->fetch(disconMunkee), GameSpyColor[GSCOLOR_DEFAULT]);
 						}
 						else
 						{
