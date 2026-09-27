@@ -77,6 +77,7 @@ void RmlSkirmishMapSelectScreen::load(Rml::Context *context)
 			entryHandle.RegisterMember("has_star_image", &MapEntryModel::hasStarImage);
 			entryHandle.RegisterMember("star_image", &MapEntryModel::starImage);
 			entryHandle.RegisterMember("is_selected", &MapEntryModel::isSelected);
+			entryHandle.RegisterMember("used", &MapEntryModel::used);
 		}
 		Rml::StructHandle<StartMarkerModel> markerHandle = constructor.RegisterStruct<StartMarkerModel>();
 		if (markerHandle)
@@ -117,7 +118,7 @@ void RmlSkirmishMapSelectScreen::load(Rml::Context *context)
 // addMapEntryToMapListbox() (stars only apply to the multiplayer pass).
 void RmlSkirmishMapSelectScreen::refreshMapList()
 {
-	m_model.maps.clear();
+	m_mapRows.beginUpdate();
 	m_model.hasSelection = false;
 	m_model.selectedDisplayName.clear();
 	m_model.selectedNumPlayers = 0;
@@ -129,7 +130,7 @@ void RmlSkirmishMapSelectScreen::refreshMapList()
 	{
 		for (const MapListEntry &src : entries)
 		{
-			MapEntryModel entry;
+			MapEntryModel &entry = m_mapRows.next();
 			entry.mapName = src.mapName.str();
 			entry.displayName = unicodeToUtf8(src.displayName);
 			entry.numPlayers = src.numPlayers;
@@ -163,8 +164,6 @@ void RmlSkirmishMapSelectScreen::refreshMapList()
 				m_model.selectedDisplayName = entry.displayName;
 				m_model.selectedNumPlayers = entry.numPlayers;
 			}
-
-			m_model.maps.push_back(entry);
 		}
 	};
 
@@ -177,6 +176,8 @@ void RmlSkirmishMapSelectScreen::refreshMapList()
 		appendEntries(buildFilteredMapList(FALSE, FALSE, mapToSelect), FALSE);
 		appendEntries(buildFilteredMapList(FALSE, TRUE, mapToSelect), TRUE);
 	}
+
+	m_mapRows.endUpdate();
 
 	if (!m_model.hasSelection)
 		m_model.selectedMapName.clear();

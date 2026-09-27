@@ -90,6 +90,7 @@ void RmlLanLobbyScreen::load(Rml::Context *context)
 		{
 			playerHandle.RegisterMember("name", &PlayerRowModel::name);
 			playerHandle.RegisterMember("tooltip", &PlayerRowModel::tooltip);
+			playerHandle.RegisterMember("used", &PlayerRowModel::used);
 		}
 		constructor.RegisterArray<Rml::Vector<PlayerRowModel>>();
 
@@ -100,6 +101,7 @@ void RmlLanLobbyScreen::load(Rml::Context *context)
 			gameHandle.RegisterMember("display_name", &GameRowModel::displayName);
 			gameHandle.RegisterMember("in_progress", &GameRowModel::inProgress);
 			gameHandle.RegisterMember("is_selected", &GameRowModel::isSelected);
+			gameHandle.RegisterMember("used", &GameRowModel::used);
 		}
 		constructor.RegisterArray<Rml::Vector<GameRowModel>>();
 
@@ -170,8 +172,12 @@ void RmlLanLobbyScreen::show()
 	if (!m_document)
 		return;
 
-	m_model.players.clear();
-	m_model.games.clear();
+	// Mark every row unused rather than clear() -- storage stays grow-only for this screen's whole
+	// open lifetime (see RmlGrowOnlyList.h), including across a hide()/show() reopen.
+	m_playerRows.beginUpdate();
+	m_playerRows.endUpdate();
+	m_gameRows.beginUpdate();
+	m_gameRows.endUpdate();
 	m_model.selectedGameIndex = -1;
 	clearSelection();
 	m_model.chatLines.clear();
@@ -312,14 +318,14 @@ void RmlLanLobbyScreen::onPlayerListChanged(LANPlayer *playerList)
 {
 	std::vector<LanLobbyPlayerRow> rows = LanLobbyData::buildPlayerRows(playerList);
 
-	m_model.players.clear();
+	m_playerRows.beginUpdate();
 	for (const LanLobbyPlayerRow &row : rows)
 	{
-		PlayerRowModel player;
+		PlayerRowModel &player = m_playerRows.next();
 		player.name = unicodeToUtf8(row.m_name);
 		player.tooltip = unicodeToUtf8(row.m_tooltip);
-		m_model.players.push_back(player);
 	}
+	m_playerRows.endUpdate();
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("players");
@@ -332,18 +338,18 @@ void RmlLanLobbyScreen::onGameListChanged(LANGameInfo *gameList)
 {
 	std::vector<LanLobbyGameRow> rows = LanLobbyData::buildGameRows(gameList);
 
-	m_model.games.clear();
+	m_gameRows.beginUpdate();
 	Int i = 0;
 	for (const LanLobbyGameRow &row : rows)
 	{
-		GameRowModel game;
+		GameRowModel &game = m_gameRows.next();
 		game.index = i;
 		game.displayName = unicodeToUtf8(row.m_displayName);
 		game.inProgress = row.m_inProgress == TRUE;
 		game.isSelected = (i == m_model.selectedGameIndex);
-		m_model.games.push_back(game);
 		++i;
 	}
+	m_gameRows.endUpdate();
 
 	if (m_model.selectedGameIndex >= (Int)rows.size())
 	{
@@ -401,9 +407,9 @@ void RmlLanLobbyScreen::onGameRowClicked(Rml::DataModelHandle, Rml::Event &, con
 	int index = args[0].Get<int>();
 
 	for (GameRowModel &game : m_model.games)
-		game.isSelected = (game.index == index);
+		game.isSelected = game.used && (game.index == index);
 
-	m_model.selectedGameIndex = (index >= 0 && index < (int)m_model.games.size()) ? index : -1;
+	m_model.selectedGameIndex = (index >= 0 && index < m_gameRows.liveCount()) ? index : -1;
 	refreshSelectedGameDetails();
 
 	if (m_modelHandle)

@@ -16,11 +16,13 @@
 
 		<div class="map-select-body">
 			<div class="map-list scroll-container">
-				<div class="map-row" data-for="entry : maps" data-class-selected="entry.is_selected"
-					data-event-click="map_selected(entry.map_name)" data-event-dblclick="map_activated(entry.map_name)">
-					<mappedimage class="map-star" data-attr-name="entry.star_image" data-if="entry.has_star_image"/>
-					<div class="map-name">{{entry.display_name}}</div>
-					<div class="map-players">{{entry.num_players}}</div>
+				<div data-for="entry : maps">
+					<div class="map-row" data-if="entry.used" data-class-selected="entry.is_selected"
+						data-event-click="map_selected(entry.map_name)" data-event-dblclick="map_activated(entry.map_name)">
+						<mappedimage class="map-star" data-attr-name="entry.star_image" data-if="entry.has_star_image"/>
+						<div class="map-name">{{entry.display_name}}</div>
+						<div class="map-players">{{entry.num_players}}</div>
+					</div>
 				</div>
 			</div>
 

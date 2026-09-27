@@ -31,6 +31,8 @@
 
 #pragma once
 
+#include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
+
 #include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/Types.h>
 
@@ -47,7 +49,7 @@ public:
 	bool isVisible() const;
 
 private:
-	RmlSkirmishMapSelectScreen() {}
+	RmlSkirmishMapSelectScreen() : m_mapRows(m_model.maps) {}
 
 	void load(Rml::Context *context);
 	void refreshMapList(); // rebuilds m_model.maps (buildFilteredMapList()) for the current filter
@@ -73,6 +75,7 @@ private:
 		bool hasStarImage = false;
 		Rml::String starImage; // TheMappedImageCollection name, valid only if hasStarImage
 		bool isSelected = false;
+		bool used = true; // grow-only storage, see RmlGrowOnlyList.h; hidden via data-if when false
 	};
 
 	// One start-position marker on the preview (see GameSetupStartPositionMarker); no occupant/color
@@ -98,6 +101,10 @@ private:
 
 		Rml::Vector<StartMarkerModel> startMarkers;
 	} m_model;
+
+	// Grow-only wrapper around m_model.maps (see RmlGrowOnlyList.h): the filter toggle can rebuild
+	// this list with a different count while the document stays open, so its storage never shrinks.
+	RmlGrowOnlyList<MapEntryModel> m_mapRows;
 };
 
 // Registry entry point (see RmlUiManager::init()).

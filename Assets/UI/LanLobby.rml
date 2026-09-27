@@ -13,16 +13,20 @@
 			<div class="players-column">
 				<div class="section-title"><gametext key="GUI:Players"/></div>
 				<div class="scroll-container player-list">
-					<div class="player-row" data-for="player : players" data-attr-data-tooltip-text="player.tooltip">{{player.name}}</div>
+					<div data-for="player : players">
+						<div class="player-row" data-if="player.used" data-attr-data-tooltip-text="player.tooltip">{{player.name}}</div>
+					</div>
 				</div>
 			</div>
 
 			<div class="games-column">
 				<div class="section-title"><gametext key="GUI:Games"/></div>
 				<div class="scroll-container game-list">
-					<div class="map-row" data-for="game : games" data-class-selected="game.is_selected"
-						data-event-click="game_row_clicked(game.index)" data-event-dblclick="game_row_activated(game.index)">
-						<div class="map-name" data-class-in-progress="game.in_progress">{{game.display_name}}</div>
+					<div data-for="game : games">
+						<div class="map-row" data-if="game.used" data-class-selected="game.is_selected"
+							data-event-click="game_row_clicked(game.index)" data-event-dblclick="game_row_activated(game.index)">
+							<div class="map-name" data-class-in-progress="game.in_progress">{{game.display_name}}</div>
+						</div>
 					</div>
 				</div>
 			</div>

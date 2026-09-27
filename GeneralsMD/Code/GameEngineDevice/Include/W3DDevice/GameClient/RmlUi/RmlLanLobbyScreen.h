@@ -36,6 +36,7 @@
 #pragma once
 
 #include "GameClient/GUI/GUICallbacks/Menus/LanLobbyData.h"
+#include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -67,7 +68,7 @@ public:
 	void onChatLine(const Rml::String &line);
 
 private:
-	RmlLanLobbyScreen() {}
+	RmlLanLobbyScreen() : m_playerRows(m_model.players), m_gameRows(m_model.games) {}
 
 	void refreshSelectedGameDetails(); // rebuilds m_model.gameDetailSlots from the selected game
 	void clearSelection();
@@ -93,6 +94,7 @@ private:
 	{
 		Rml::String name;
 		Rml::String tooltip; // same text as setLANPlayerTooltip(), see LanLobbyData::buildPlayerRows()
+		bool used = true; // grow-only storage, see RmlGrowOnlyList.h; hidden via data-if when false
 	};
 
 	// One row of the game list (see LanLobbyData::buildGameRows()). index is this row's offset into
@@ -105,6 +107,7 @@ private:
 		Rml::String displayName;
 		bool inProgress = false;
 		bool isSelected = false;
+		bool used = true; // grow-only storage, see RmlGrowOnlyList.h; hidden via data-if when false
 	};
 
 	// One slot of the selected game's details panel (see LanLobbyData::buildGameDetails()). Always
@@ -136,6 +139,12 @@ private:
 		Rml::String chatEntryText;
 		Rml::Vector<Rml::String> chatLines;
 	} m_model;
+
+	// Grow-only wrappers around m_model.players/games (see RmlGrowOnlyList.h); bound directly to the
+	// rml players/games arrays, so the underlying storage they wrap never shrinks while this screen
+	// is open.
+	RmlGrowOnlyList<PlayerRowModel> m_playerRows;
+	RmlGrowOnlyList<GameRowModel> m_gameRows;
 };
 
 // Registry entry point (see RmlUiManager::init()).
