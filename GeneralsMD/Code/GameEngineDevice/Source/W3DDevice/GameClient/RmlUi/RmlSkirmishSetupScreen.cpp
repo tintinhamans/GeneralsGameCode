@@ -259,8 +259,29 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 	m_model.honorWinStreak = honors.getWinStreak();
 	m_model.honorBestWinStreak = honors.getBestWinStreak();
 
+	// Per-variable Dirty*() instead of DirtyAllVariables(): the latter, dirtying every bound
+	// variable in one Update() pass while start_markers/slots also shrink (fewer occupied slots,
+	// or a map with fewer start positions), makes RmlUi transiently evaluate a removed data-for
+	// element's nested data-style-left/top/background-color binding against an already-out-of-
+	// range index -- logged as "Data array index out of bounds" plus a bad inline-property
+	// warning. Dirtying only what actually changed avoids that ordering entirely (confirmed via
+	// the offline checker's shrink-to-empty combo; see report).
 	if (m_modelHandle)
-		m_modelHandle.DirtyAllVariables();
+	{
+		m_modelHandle.DirtyVariable("slots");
+		m_modelHandle.DirtyVariable("start_markers");
+		m_modelHandle.DirtyVariable("faction_options");
+		m_modelHandle.DirtyVariable("color_options");
+		m_modelHandle.DirtyVariable("map_name");
+		m_modelHandle.DirtyVariable("map_display_name");
+		m_modelHandle.DirtyVariable("map_found");
+		m_modelHandle.DirtyVariable("starting_cash");
+		m_modelHandle.DirtyVariable("superweapons_restricted");
+		m_modelHandle.DirtyVariable("honor_wins");
+		m_modelHandle.DirtyVariable("honor_losses");
+		m_modelHandle.DirtyVariable("honor_win_streak");
+		m_modelHandle.DirtyVariable("honor_best_win_streak");
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
