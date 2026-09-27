@@ -30,17 +30,15 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
-#include "Common/FramePacer.h"
 #include "Common/GameEngine.h"
 #include "Common/GlobalData.h"
 #include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/RmlUiMessageBoxHook.h"
-#include "Common/GameState.h"
 #include "Common/MessageStream.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
-#include "Common/RandomValue.h"
-#include "Common/Recorder.h"
+#include "GameClient/GUI/GUICallbacks/Menus/MainMenuActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/QuitMenuActions.h"
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/GameWindowManager.h"
@@ -51,11 +49,11 @@
 #include "GameClient/Shell.h"
 #include "GameClient/InGameUI.h"
 #include "GameLogic/GameLogic.h"
+#include "GameLogic/ScriptEngine.h"
 #include "GameLogic/VictoryConditions.h"
 #include "GameClient/ControlBar.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/DisconnectMenu.h"
-#include "GameLogic/ScriptEngine.h"
 
 
 
@@ -65,6 +63,10 @@ static WindowLayout *fullQuitMenuLayout = nullptr;
 static WindowLayout *noSaveLoadQuitMenuLayout = nullptr;
 
 static Bool isVisible = FALSE;
+
+// TheSuperHackers @feature RmlUi quit menu: non-empty while RmlQuitMenuScreen is the active
+// screen (no WindowLayout is created for that path; see ToggleQuitMenu()).
+static AsciiString rmlQuitWndPath;
 
 static GameWindow *quitConfirmationWindow = nullptr;
 
@@ -117,6 +119,11 @@ void destroyQuitMenu()
 {
   // destroy the quit menu
 	quitConfirmationWindow = nullptr;
+	if (!rmlQuitWndPath.isEmpty())
+	{
+		RmlUiScreenRegistry::close(rmlQuitWndPath);
+		rmlQuitWndPath.clear();
+	}
 	if(fullQuitMenuLayout)
 	{
 		fullQuitMenuLayout->destroyWindows();
@@ -140,7 +147,8 @@ void destroyQuitMenu()
  */
 static void exitQuitMenu()
 {
-	TheGameLogic->quit(FALSE);
+	// TheSuperHackers @feature RmlUi quit menu: terminal action shared with RmlQuitMenuScreen.
+	QuitMenuActions::exit();
   // destroy the quit menu
 	destroyQuitMenu();
 }
@@ -156,79 +164,12 @@ static void quitToDesktopQuitMenu()
 	destroyQuitMenu();
 }
 
-static void surrenderQuitMenu()
+// buttonRestart's confirmation Yes callback: surrenders in multiplayer, else restarts the
+// mission/skirmish match. Shared with RmlQuitMenuScreen (see QuitMenuActions.h).
+static void restartOrSurrenderQuitMenu()
 {
-  // destroy the quit menu
 	destroyQuitMenu();
-
-	if (TheVictoryConditions->isLocalAlliedVictory())
-		return;
-
-	GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_SELF_DESTRUCT);
-	msg->appendBooleanArgument(TRUE);
-
-	TheInGameUI->setClientQuiet( TRUE );
-}
-
-static void restartMissionMenu()
-{
-	// destroy the quit menu
-	destroyQuitMenu();
-
-	Int gameMode = TheGameLogic->getGameMode();
-	AsciiString mapName = TheGlobalData->m_mapName;
-
-	// TheSuperHackers @bugfix Caball009 07/02/2026 Reuse the previous seed value for the new skirmish match to prevent mismatches.
-	// Campaign, challenge, and skirmish single-player scenarios all use GAME_SINGLE_PLAYER and are expected to use 0 as seed value.
-	DEBUG_ASSERTCRASH((TheSkirmishGameInfo != nullptr) == (gameMode == GAME_SKIRMISH), ("Unexpected game mode on map / mission restart"));
-	const Int seed = TheSkirmishGameInfo ? TheSkirmishGameInfo->getSeed() : 0;
-
-	//
-	// if the map name was from a save game it will have "Save/" at the front of it,
-	// we want to go back to the original pristine map string for the map name when restarting
-	//
-	if (TheGameState->isInSaveDirectory(mapName))
-		mapName = TheGameState->getPristineMapName();
-
-	// End the current game
-	AsciiString replayFile = TheRecorder->getCurrentReplayFilename();
-	if (TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
-	{
-		TheRecorder->stopRecording();
-	}
-
-	Int rankPointsStartedWith = TheGameLogic->getRankPointsToAddAtGameStart();// must write down before reset
-	GameDifficulty diff = TheScriptEngine->getGlobalDifficulty();
-	Int fps = TheFramePacer->getFramesPerSecondLimit();
-
-	TheGameLogic->clearGameData(FALSE);
-	TheGameEngine->setQuitting(FALSE);
-
-	if (replayFile.isNotEmpty())
-	{
-		TheRecorder->playbackFile(replayFile);
-	}
-	else
-	{
-		// send a message to the logic for a new game
-		TheWritableGlobalData->m_pendingFile = mapName;
-		GameMessage *msg = TheMessageStream->appendMessage( GameMessage::MSG_NEW_GAME );
-		msg->appendIntegerArgument(gameMode);
-		msg->appendIntegerArgument(diff);
-		msg->appendIntegerArgument(rankPointsStartedWith);
-		msg->appendIntegerArgument(fps);
-		DEBUG_LOG(("Restarting game mode %d, Diff=%d, RankPoints=%d", gameMode,
-																																		TheScriptEngine->getGlobalDifficulty(),
-																																		rankPointsStartedWith)
-							);
-
-		InitRandom(seed);
-	}
-	//TheTransitionHandler->remove("QuitFull"); //KRISMORNESS ADD
-	//quitMenuLayout = nullptr; //KRISMORNESS ADD
-	//isVisible = TRUE; //KRISMORNESS ADD
-	//HideQuitMenu();	//KRISMORNESS ADD
-	TheInGameUI->setClientQuiet( TRUE );
+	QuitMenuActions::confirmRestartOrSurrender();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -239,7 +180,12 @@ void HideQuitMenu()
 	// So don't do anything that counts on that menu actually being here.
 	if(!isVisible)
 		return;
-	if(quitMenuLayout && quitMenuLayout == noSaveLoadQuitMenuLayout)
+	if (!rmlQuitWndPath.isEmpty())
+	{
+		RmlUiScreenRegistry::close(rmlQuitWndPath);
+		rmlQuitWndPath.clear();
+	}
+	else if(quitMenuLayout && quitMenuLayout == noSaveLoadQuitMenuLayout)
 		TheTransitionHandler->reverse("QuitNoSaveBack");
 	else if( quitMenuLayout && quitMenuLayout == fullQuitMenuLayout)
 		TheTransitionHandler->reverse("QuitFullBack");
@@ -253,6 +199,16 @@ void HideQuitMenu()
 	if ( !TheGameLogic->isInMultiplayerGame() )
 			TheGameLogic->setGamePaused(FALSE);
 
+}
+
+// Shared with RmlQuitMenuScreen's SaveLoad button: PopupSaveLoad.wnd hasn't been converted to
+// RmlUi yet, so both paths open the same legacy WindowLayout.
+void openQuitMenuSaveLoad()
+{
+	saveLoadMenuLayout = TheShell->getSaveLoadMenuLayout();
+	saveLoadMenuLayout->runInit();
+	saveLoadMenuLayout->hide( FALSE );
+	saveLoadMenuLayout->bringForward();
 }
 
 Bool canOpenQuitMenu()
@@ -305,7 +261,20 @@ void ToggleQuitMenu()
 	}
 
 	// if we're visible hide our quit menu
-	if(isVisible && quitMenuLayout)
+	if (isVisible && !rmlQuitWndPath.isEmpty())
+	{
+		// TheSuperHackers @feature RmlUi quit menu: no WindowLayout/gadgets for this path.
+		isVisible = FALSE;
+		if (quitConfirmationWindow)
+			TheWindowManager->winDestroy(quitConfirmationWindow);
+		RmlUiMessageBoxHook::closeCurrent();
+		quitConfirmationWindow = nullptr;
+		if ( !TheGameLogic->isInMultiplayerGame() )
+			TheGameLogic->setGamePaused(FALSE);
+		RmlUiScreenRegistry::close(rmlQuitWndPath);
+		rmlQuitWndPath.clear();
+	}
+	else if(isVisible && quitMenuLayout)
 	{
 
 		isVisible = FALSE;
@@ -341,6 +310,30 @@ void ToggleQuitMenu()
 		TheMouse->setCursor( Mouse::ARROW );
 
 		TheControlBar->hidePurchaseScience();
+
+		// TheSuperHackers @feature RmlUi screen registry: RmlQuitMenuScreen computes its own button
+		// captions/enabled state from QuitMenuActions (see RmlQuitMenuScreen.cpp); no gadgets to
+		// look up or manipulate here, unlike the .wnd path below.
+		const AsciiString rmlWndPath = QuitMenuActions::useNoSaveVariant() ? AsciiString("Menus/QuitNoSave.wnd") : AsciiString("Menus/QuitMenu.wnd");
+		if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered(rmlWndPath))
+		{
+			QuitMenuActions::pauseForOpen();
+
+			if (quitConfirmationWindow)
+				TheWindowManager->winDestroy(quitConfirmationWindow);
+			RmlUiMessageBoxHook::closeCurrent();
+			quitConfirmationWindow = nullptr;
+			HideDiplomacy();
+			HideInGameChat();
+			TheControlBar->hidePurchaseScience();
+
+			rmlQuitWndPath = rmlWndPath;
+			RmlUiScreenRegistry::open(rmlQuitWndPath);
+			isVisible = TRUE;
+			TheInGameUI->setQuitMenuVisible(isVisible);
+			return;
+		}
+
 		if ( TheGameLogic->isInMultiplayerGame()  || TheGameLogic->isInReplayGame() )
 		{
 			// we don't want to show the save load button.
@@ -485,11 +478,7 @@ WindowMsgHandledType QuitMenuSystem( GameWindow *window, UnsignedInt msg,
 //				if( TheGameLogic->getInputEnabledMemory() == FALSE )
 //					layoutType = SLLT_LOAD_ONLY;
 
-        saveLoadMenuLayout = TheShell->getSaveLoadMenuLayout();
-//				saveLoadMenuLayout->runInit( &layoutType );
-				saveLoadMenuLayout->runInit();
-				saveLoadMenuLayout->hide( FALSE );
-				saveLoadMenuLayout->bringForward();
+        openQuitMenuSaveLoad();
       }
 			else if( controlID == buttonExit )
 			{
@@ -504,19 +493,8 @@ WindowMsgHandledType QuitMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if( buttonOptions == controlID )
 			{
-				// TheSuperHackers @feature RmlUi screen registry: same router as MainMenu.cpp's options button.
-				if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered("Menus/OptionsMenu.wnd"))
-				{
-					RmlUiScreenRegistry::open("Menus/OptionsMenu.wnd");
-				}
-				else
-				{
-					WindowLayout *optLayout = TheShell->getOptionsLayout(TRUE);
-					DEBUG_ASSERTCRASH(optLayout != nullptr, ("options menu layout is null"));
-					optLayout->runInit();
-					optLayout->hide(FALSE);
-					optLayout->bringForward();
-				}
+				// TheSuperHackers @feature RmlUi screen registry: shared with MainMenu.cpp's Options button.
+				MainMenuActions::openOptions();
 			}
 //			else if( controlID == buttonQuitToDesktop )
 //			{
@@ -530,14 +508,14 @@ WindowMsgHandledType QuitMenuSystem( GameWindow *window, UnsignedInt msg,
 					// we really want to surrender
 					quitConfirmationWindow = MessageBoxYesNo(TheGameText->fetch("GUI:SurrenderConfirmationTitle"),
 																			TheGameText->fetch("GUI:SurrenderConfirmation"),
-																			/*quitCallback*/surrenderQuitMenu,noExitQuitMenu);
+																			/*quitCallback*/restartOrSurrenderQuitMenu,noExitQuitMenu);
 				}
 				else
 				{
 					//we really want to restart
 					quitConfirmationWindow = MessageBoxYesNo(TheGameText->fetch("GUI:RestartConfirmationTitle"),
 																			TheGameText->fetch("GUI:RestartConfirmation"),
-																			/*quitCallback*/restartMissionMenu,noExitQuitMenu);
+																			/*quitCallback*/restartOrSurrenderQuitMenu,noExitQuitMenu);
 				}
 			}
 

@@ -378,6 +378,7 @@ extern void destroyQuitMenu();
 extern Bool canOpenQuitMenu();
 extern void ToggleQuitMenu();
 extern void HideQuitMenu();
+extern void openQuitMenuSaveLoad(); ///< shared with RmlQuitMenuScreen; see QuitMenu.cpp
 extern WindowMsgHandledType QuitMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 
 // Message of the Day -----------------------------------------------------------------------------

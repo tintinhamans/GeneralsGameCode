@@ -1,0 +1,21 @@
+<rml>
+<head>
+	<title>QuitMenu</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<style>
+		body { width: 260dp; left: 50%; top: 50%; margin-left: -130dp; }
+		.frame { display: flex; flex-direction: column; }
+		.frame button { margin-bottom: 8dp; }
+		.frame button:last-child { margin-bottom: 0; }
+	</style>
+</head>
+<body data-model="quitmenu">
+	<div class="frame">
+		<button data-event-click="restart" data-attr-disabled="restart_disabled">{{restart_label}}</button>
+		<button data-event-click="options" data-attr-disabled="options_disabled"><gametext key="GUI:Options"/></button>
+		<button data-if="show_saveload" data-event-click="save_load" data-attr-disabled="saveload_disabled"><gametext key="GUI:SaveAndLoad"/></button>
+		<button data-event-click="return_to_game"><gametext key="GUI:ReturnToGame"/></button>
+		<button data-event-click="exit">{{exit_label}}</button>
+	</div>
+</body>
+</rml>
