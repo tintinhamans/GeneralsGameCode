@@ -90,6 +90,7 @@ void RmlMainMenuScreen::load(Rml::Context *context)
 	{
 		constructor.Bind("panel", &m_model.panel);
 		constructor.Bind("selected_faction", &m_model.selectedFaction);
+		constructor.Bind("hover_faction", &m_model.hoverFaction);
 		constructor.Bind("version", &m_model.version);
 
 		constructor.BindEventCallback("go_single", &RmlMainMenuScreen::onGoSingle, this);
@@ -106,6 +107,11 @@ void RmlMainMenuScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("select_china", &RmlMainMenuScreen::onSelectChina, this);
 		constructor.BindEventCallback("select_challenge", &RmlMainMenuScreen::onSelectChallenge, this);
 		constructor.BindEventCallback("diff_back", &RmlMainMenuScreen::onDiffBack, this);
+		constructor.BindEventCallback("preview_usa", &RmlMainMenuScreen::onPreviewUSA, this);
+		constructor.BindEventCallback("preview_gla", &RmlMainMenuScreen::onPreviewGLA, this);
+		constructor.BindEventCallback("preview_china", &RmlMainMenuScreen::onPreviewChina, this);
+		constructor.BindEventCallback("preview_challenge", &RmlMainMenuScreen::onPreviewChallenge, this);
+		constructor.BindEventCallback("preview_clear", &RmlMainMenuScreen::onPreviewClear, this);
 		constructor.BindEventCallback("select_easy", &RmlMainMenuScreen::onSelectEasy, this);
 		constructor.BindEventCallback("select_medium", &RmlMainMenuScreen::onSelectMedium, this);
 		constructor.BindEventCallback("select_hard", &RmlMainMenuScreen::onSelectHard, this);
@@ -136,6 +142,7 @@ void RmlMainMenuScreen::show()
 	// Always land back on the root panel, same as returning to a freshly-(re)init'd .wnd MainMenu.
 	m_model.panel = "main";
 	m_model.selectedFaction = "";
+	m_model.hoverFaction = "";
 	m_challengePending = false;
 	m_model.version = TheVersion ? unicodeToUtf8(TheVersion->getUnicodeProductVersionHashString()) : Rml::String();
 
@@ -183,6 +190,19 @@ void RmlMainMenuScreen::setPanel(const Rml::String &panel)
 	m_model.panel = panel;
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("panel");
+
+	// Preview art only exists on the "single" panel; drop it on every panel change so it can't
+	// linger, matching the .wnd's "campaignSelected || dontAllowTransitions" hover guard.
+	setHoverFaction("");
+}
+
+void RmlMainMenuScreen::setHoverFaction(const Rml::String &faction)
+{
+	if (m_model.hoverFaction == faction)
+		return;
+	m_model.hoverFaction = faction;
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("hover_faction");
 }
 
 void RmlMainMenuScreen::onBackToMain(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)

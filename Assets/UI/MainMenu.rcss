@@ -89,4 +89,30 @@ body { width: 100%; height: 100%; }
 	margin: 0 auto 16dp auto;
 }
 
+/* Single panel's faction hover previews: stacked, crossfaded via opacity (see .faction-preview
+   mappedimage.visible) instead of the .wnd's TheTransitionHandler animation groups. */
+.faction-preview
+{
+	position: relative;
+	width: 144dp;
+	height: 144dp;
+	margin: 0 auto 16dp auto;
+}
+
+.faction-preview mappedimage
+{
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.faction-preview mappedimage.visible
+{
+	opacity: 1;
+}
+
 .hidden { display: none; }

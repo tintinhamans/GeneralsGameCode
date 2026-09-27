@@ -66,6 +66,18 @@ private:
 	void onSelectChina(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSelectChallenge(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onDiffBack(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+
+	// Faction hover previews on the "single" panel: mirrors MainMenu.cpp's GBM_MOUSE_ENTERING/
+	// LEAVING on ButtonUSA/GLA/China/Challenge (TheTransitionHandler->setGroup("MainMenuFaction*")),
+	// simplified to a CSS opacity fade instead of porting the .wnd transition-group animation.
+	// Challenge previews the Training art, matching the .wnd's "MainMenuFactionTraining" group name.
+	void onPreviewUSA(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { setHoverFaction("USA"); }
+	void onPreviewGLA(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { setHoverFaction("GLA"); }
+	void onPreviewChina(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { setHoverFaction("China"); }
+	void onPreviewChallenge(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { setHoverFaction("Training"); }
+	void onPreviewClear(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { setHoverFaction(""); }
+	void setHoverFaction(const Rml::String &faction);
+
 	void onSelectEasy(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSelectMedium(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSelectHard(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -88,6 +100,7 @@ private:
 	{
 		Rml::String panel = "main";
 		Rml::String selectedFaction; // "", "USA", "GLA", "China", "Training"
+		Rml::String hoverFaction; // "", "USA", "GLA", "China", "Training" -- single panel preview only
 		Rml::String version;
 	} m_model;
 };
