@@ -694,8 +694,14 @@ NetworkMesh::NetworkMesh()
 		SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_All);
 	}
 
-	// The vcpkg GNS build only has the native ICE client (no WebRTC), so select it explicitly.
-	SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Implementation, 1);
+	// Let the service config pick the ICE client: 0 = library default, 1 = native, 2 = WebRTC.
+	int iceImplementation = serviceConf.ice_implementation;
+	if (iceImplementation < 0 || iceImplementation > 2)
+	{
+		iceImplementation = 2;
+	}
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh: using ICE implementation %d (0=default, 1=native, 2=WebRTC)", iceImplementation);
+	SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Implementation, iceImplementation);
 
 	m_hListenSock = k_HSteamListenSocket_Invalid;
 	
