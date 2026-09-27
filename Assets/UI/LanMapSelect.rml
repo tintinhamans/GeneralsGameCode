@@ -1,0 +1,50 @@
+<rml>
+<head>
+	<title>LanMapSelect</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="GameSetup.rcss"/>
+	<link type="text/rcss" href="LanMapSelect.rcss"/>
+</head>
+<body data-model="lanmapselect">
+	<div class="frame panel map-select-panel">
+		<div class="title-bar"><gametext key="GUI:SelectAMapLowerCase"/></div>
+
+		<div class="tabs">
+			<div class="tab" data-class-selected="use_system_maps" data-event-click="filter_changed(1)"><gametext key="GUI:SystemMaps"/></div>
+			<div class="tab" data-class-selected="!use_system_maps" data-event-click="filter_changed(0)"><gametext key="GUI:UserMaps"/></div>
+		</div>
+
+		<div class="map-select-body">
+			<div class="map-list scroll-container">
+				<div data-for="entry : maps">
+					<div class="map-row" data-if="entry.used" data-class-selected="entry.is_selected"
+						data-event-click="map_selected(entry.map_name)" data-event-dblclick="map_activated(entry.map_name)">
+						<mappedimage class="map-star" data-attr-name="entry.star_image" data-if="entry.has_star_image"/>
+						<div class="map-name">{{entry.display_name}}</div>
+						<div class="map-players">{{entry.num_players}}</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="side-panel">
+				<div class="map-preview">
+					<mappreview class="map-preview-image" data-attr-map="selected_map_name" data-if="has_selection"/>
+					<div class="map-not-found" data-if="!has_selection"><gametext key="GUI:CantFindMap"/></div>
+					<div data-for="marker : start_markers">
+						<div class="start-marker" data-if="marker.used"
+							data-style-left="marker.x_style" data-style-top="marker.y_style">
+							<div class="start-marker-dot"></div>
+						</div>
+					</div>
+				</div>
+				<div class="map-display-name" data-if="has_selection"><gametext key="GUI:MapPreview"/>: {{selected_display_name}} ({{selected_num_players}} <gametext key="GUI:Players"/>)</div>
+			</div>
+		</div>
+
+		<div class="footer">
+			<button data-event-click="back"><gametext key="GUI:CancelMapSelect"/></button>
+			<button data-attr-disabled="!has_selection" data-event-click="ok"><gametext key="GUI:Accept"/></button>
+		</div>
+	</div>
+</body>
+</rml>

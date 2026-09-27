@@ -28,6 +28,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlCreditsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlLanGameSetupScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlLanLobbyScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlLanMapSelectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
 #include "W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h"
@@ -171,6 +172,7 @@ void RmlUiManager::init(int width, int height)
 	// LANAPI::OnGameJoin() pushes this same path once LanLobbyActions::hostGame()/joinGame()'s
 	// RequestGameCreate()/RequestGameJoin() succeeds; see RmlLanGameSetupScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/LanGameOptionsMenu.wnd", &OpenRmlLanGameSetupScreen, &CloseRmlLanGameSetupScreen);
+	RmlUiScreenRegistry::registerScreen("Menus/LanMapSelectMenu.wnd", &OpenRmlLanMapSelectScreen, &CloseRmlLanMapSelectScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/CreditsMenu.wnd", &OpenRmlCreditsScreen, &CloseRmlCreditsScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitMenu.wnd", &OpenRmlQuitMenuScreen, &CloseRmlQuitMenuScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitNoSave.wnd", &OpenRmlQuitNoSaveScreen, &CloseRmlQuitNoSaveScreen);

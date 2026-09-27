@@ -551,12 +551,10 @@ void RmlLanGameSetupScreen::onSuperweaponsChanged(Rml::DataModelHandle, Rml::Eve
 
 void RmlLanGameSetupScreen::onSelectMap(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
-	// LanMapSelectMenu.wnd is not converted yet (see report) -- same not-yet-converted fallback as
-	// RmlLanLobbyScreen::onDirectConnect(): TheShell->push() falls back to the legacy window loader
-	// for any .wnd not in RmlUiScreenRegistry.
+	// Same as LanGameOptionsMenu.cpp's ButtonSelectMap: hide this screen while the map-select
+	// overlay is up, same shape as the .wnd's showLANGameOptionsUnderlyingGUIElements(FALSE).
 	hide();
-	if (TheShell)
-		TheShell->push("Menus/LanMapSelectMenu.wnd");
+	RmlUiScreenRegistry::open("Menus/LanMapSelectMenu.wnd");
 }
 
 void RmlLanGameSetupScreen::onStart(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
