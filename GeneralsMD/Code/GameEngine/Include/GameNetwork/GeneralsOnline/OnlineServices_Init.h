@@ -127,7 +127,8 @@ enum class EGOTearDownReason
 	USER_REQUESTED_SILENT = 2,
 	AUTH_FAILED = 3,
 	MODERATION_BAN = 4,
-	MODERATION_KICK = 5
+	MODERATION_KICK = 5,
+	MIDDLEWARE_LOGIN_FAILED = 6
 };
 
 constexpr bool IsModerationTeardownReason(EGOTearDownReason reason) noexcept
