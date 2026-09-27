@@ -177,11 +177,13 @@ void RegisterRmlMessageBoxHook(Rml::Context *context)
 {
 	s_context = context;
 	RmlUiMessageBoxHook::setHandler(&ShowRmlMessageBox);
+	RmlUiMessageBoxHook::setCloseHandler(&closeCurrent);
 }
 
 void UnregisterRmlMessageBoxHook()
 {
 	RmlUiMessageBoxHook::setHandler(nullptr);
+	RmlUiMessageBoxHook::setCloseHandler(nullptr);
 	closeCurrent();
 	s_context = nullptr;
 }

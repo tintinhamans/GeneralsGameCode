@@ -34,6 +34,7 @@
 #include "Common/GameEngine.h"
 #include "Common/GlobalData.h"
 #include "GameClient/RmlUiScreenRegistry.h"
+#include "GameClient/RmlUiMessageBoxHook.h"
 #include "Common/GameState.h"
 #include "Common/MessageStream.h"
 #include "Common/Player.h"
@@ -247,6 +248,7 @@ void HideQuitMenu()
 	isVisible = FALSE;
 	if (quitConfirmationWindow)
 		TheWindowManager->winDestroy(quitConfirmationWindow);
+	RmlUiMessageBoxHook::closeCurrent(); // RmlUi box has no GameWindow handle; close it directly
 	quitConfirmationWindow = nullptr;
 	if ( !TheGameLogic->isInMultiplayerGame() )
 			TheGameLogic->setGamePaused(FALSE);
@@ -310,6 +312,7 @@ void ToggleQuitMenu()
 
 		if (quitConfirmationWindow)
 			TheWindowManager->winDestroy(quitConfirmationWindow);
+		RmlUiMessageBoxHook::closeCurrent(); // RmlUi box has no GameWindow handle; close it directly
 		quitConfirmationWindow = nullptr;
 
 		if ( !TheGameLogic->isInMultiplayerGame() )
@@ -417,6 +420,7 @@ void ToggleQuitMenu()
 
 		if (quitConfirmationWindow)
 			TheWindowManager->winDestroy(quitConfirmationWindow);
+		RmlUiMessageBoxHook::closeCurrent(); // RmlUi box has no GameWindow handle; close it directly
 		quitConfirmationWindow = nullptr;
 		HideDiplomacy();
 		HideInGameChat();

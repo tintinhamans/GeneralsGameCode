@@ -37,15 +37,21 @@ typedef void (*RmlUiMessageBoxFunc)(UnsignedShort buttonFlags,
 	GameWinMsgBoxFunc yesCallback, GameWinMsgBoxFunc noCallback,
 	GameWinMsgBoxFunc okCallback, GameWinMsgBoxFunc cancelCallback,
 	Bool useLogo);
+typedef void (*RmlUiMessageBoxCloseFunc)();
 
 //-------------------------------------------------------------------------------------------------
 class RmlUiMessageBoxHook
 {
 public:
 	static void setHandler(RmlUiMessageBoxFunc handler);
+	static void setCloseHandler(RmlUiMessageBoxCloseFunc closeHandler);
 	static bool isAvailable();
 	static void show(UnsignedShort buttonFlags, const UnicodeString &titleString, const UnicodeString &bodyString,
 		GameWinMsgBoxFunc yesCallback, GameWinMsgBoxFunc noCallback,
 		GameWinMsgBoxFunc okCallback, GameWinMsgBoxFunc cancelCallback,
 		Bool useLogo); ///< no-op if !isAvailable()
+	static void closeCurrent(); ///< dismiss the open box without running its callback; no-op if none open.
+	///< gogoMessageBox() returns NULL for RmlUi boxes (no GameWindow backs them), so callers that
+	///< used the legacy handle to force-close a box they opened (e.g. on menu teardown) call this
+	///< instead, guarded the same way (harmless no-op if !isAvailable() or nothing is showing).
 };

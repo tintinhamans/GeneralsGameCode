@@ -22,11 +22,17 @@
 namespace
 {
 	RmlUiMessageBoxFunc s_handler = nullptr;
+	RmlUiMessageBoxCloseFunc s_closeHandler = nullptr;
 }
 
 void RmlUiMessageBoxHook::setHandler(RmlUiMessageBoxFunc handler)
 {
 	s_handler = handler;
+}
+
+void RmlUiMessageBoxHook::setCloseHandler(RmlUiMessageBoxCloseFunc closeHandler)
+{
+	s_closeHandler = closeHandler;
 }
 
 bool RmlUiMessageBoxHook::isAvailable()
@@ -41,4 +47,10 @@ void RmlUiMessageBoxHook::show(UnsignedShort buttonFlags, const UnicodeString &t
 {
 	if (s_handler)
 		s_handler(buttonFlags, titleString, bodyString, yesCallback, noCallback, okCallback, cancelCallback, useLogo);
+}
+
+void RmlUiMessageBoxHook::closeCurrent()
+{
+	if (s_closeHandler)
+		s_closeHandler();
 }
