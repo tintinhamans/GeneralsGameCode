@@ -66,6 +66,7 @@
 #include "GameClient/ShellHooks.h"
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/GlobalLanguage.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OptionsValues.h"
 #include "GameNetwork/FirewallHelper.h"
 #include "GameNetwork/IPEnumeration.h"
@@ -812,8 +813,19 @@ static void showMainMenu()
 
 // Exported so RmlOptionsScreen can hide/restore the same MainMenu.wnd children while the RmlUi
 // options screen is up, instead of duplicating this window-walking logic (see OptionsValues.h).
-void HideMainMenuForOptions() { hideMainMenu(); }
-void ShowMainMenuForOptions() { showMainMenu(); }
+// hideMainMenu()/showMainMenu() no-op when MainMenu.wnd itself is RmlUi-routed (no GameWindow to
+// find), so the registry calls below cover that case: MainMenu.wnd registers its own open/close
+// (show/hide) the same way OptionsMenu.wnd does (see RmlUiManager::init()).
+void HideMainMenuForOptions()
+{
+	hideMainMenu();
+	RmlUiScreenRegistry::close("Menus/MainMenu.wnd");
+}
+void ShowMainMenuForOptions()
+{
+	showMainMenu();
+	RmlUiScreenRegistry::open("Menus/MainMenu.wnd");
+}
 
 static void DestroyOptionsLayout() {
 

@@ -21,6 +21,7 @@
 #include "Common/GlobalData.h"
 #include "GameClient/KeyDefs.h"
 #include "GameClient/RmlUiScreenRegistry.h"
+#include "W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
@@ -133,6 +134,7 @@ void RmlUiManager::init(int width, int height)
 	// Shell::push/pop and the ad-hoc call sites (MainMenu.cpp/QuitMenu.cpp options button) look
 	// screens up in the registry by .wnd path, gated on !m_useLegacyMenus; see RmlUiScreenRegistry.h.
 	RmlUiScreenRegistry::registerScreen("Menus/OptionsMenu.wnd", &OpenRmlOptionsScreen, &CloseRmlOptionsScreen);
+	RmlUiScreenRegistry::registerScreen("Menus/MainMenu.wnd", &OpenRmlMainMenuScreen, &CloseRmlMainMenuScreen);
 
 	// GameWindowManager::gogoMessageBox() looks this hook up the same way, gated on
 	// !m_useLegacyMenus; see RmlUiMessageBoxHook.h.
@@ -204,6 +206,8 @@ void RmlUiManager::onDeviceReset()
 
 void RmlUiManager::update()
 {
+	if (m_currentScreen)
+		m_currentScreen->update();
 	if (m_context)
 		m_context->Update();
 }
@@ -373,12 +377,20 @@ void RmlUiManager::showScreen(RmlScreen *screen)
 	if (!screen || !m_context)
 		return;
 
-	if (m_currentScreen && m_currentScreen != screen)
-		m_currentScreen->hide();
+	// TheSuperHackers @fix Set m_currentScreen before hiding the previous one, not after: a
+	// screen's hide() can itself call back into showScreen() for the same screen (e.g. Options
+	// hiding restores the main menu via RmlUiScreenRegistry, which is exactly this call re-entered
+	// while the main menu's own showScreen() call is still hiding Options). With the old screen
+	// already installed as current, that reentrant call sees previous == screen and skips hiding
+	// it again instead of recursing forever.
+	RmlScreen *previous = m_currentScreen;
+	m_currentScreen = screen;
+
+	if (previous && previous != screen)
+		previous->hide();
 
 	screen->load(m_context); // no-op if already loaded
 	screen->show();
-	m_currentScreen = screen;
 }
 
 void RmlUiManager::hideCurrentScreen()

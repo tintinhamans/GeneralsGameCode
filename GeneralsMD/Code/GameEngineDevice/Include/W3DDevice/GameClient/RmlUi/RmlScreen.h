@@ -46,4 +46,9 @@ public:
 	// Called when Escape is pressed, or a document element fires the equivalent "back" event.
 	// Typical implementation: behave like the .wnd Cancel/Back button.
 	virtual void onBack() = 0;
+
+	// Per-frame pump for whatever a visible screen needs while it's up but isn't driven by RmlUi's
+	// own context->Update() (e.g. the main menu's download/patch check, GameSpy/HTTP think). Called
+	// by RmlUiManager::update() before the context updates. Default no-op: most screens need nothing.
+	virtual void update() {}
 };
