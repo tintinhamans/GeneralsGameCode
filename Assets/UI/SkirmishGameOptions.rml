@@ -59,6 +59,7 @@
 					</div>
 				</div>
 				<div class="map-display-name"><gametext key="GUI:MapPreview"/>: {{map_display_name}}</div>
+				<button data-event-click="select_map"><gametext key="GUI:SelectMap"/></button>
 
 				<div class="row">
 					<div class="label"><gametext key="GUI:StartingMoney"/></div>

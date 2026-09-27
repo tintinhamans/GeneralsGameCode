@@ -67,7 +67,16 @@ private:
 	void onStart(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onBackPressed(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onResetHonors(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onSelectMap(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 
+public:
+	// Called by RmlSkirmishMapSelectScreen when it closes (OK or Back): re-shows this screen and
+	// refreshes it from TheSkirmishGameInfo, without show()'s SkirmishSetupActions::
+	// enterSkirmishSetup() reset (which would wipe the map/slots the map-select screen just wrote).
+	// See ReturnToRmlSkirmishSetupScreen() below.
+	void returnFromMapSelect();
+
+private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
@@ -147,3 +156,7 @@ private:
 // Registry entry point (see RmlUiManager::init()).
 void OpenRmlSkirmishSetupScreen();
 void CloseRmlSkirmishSetupScreen();
+
+// Called by RmlSkirmishMapSelectScreen on OK/Back instead of OpenRmlSkirmishSetupScreen(), which
+// would re-run SkirmishSetupActions::enterSkirmishSetup() and wipe the map/slot state just chosen.
+void ReturnToRmlSkirmishSetupScreen();

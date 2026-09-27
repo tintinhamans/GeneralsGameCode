@@ -157,6 +157,7 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("start", &RmlSkirmishSetupScreen::onStart, this);
 		constructor.BindEventCallback("back", &RmlSkirmishSetupScreen::onBackPressed, this);
 		constructor.BindEventCallback("reset_honors", &RmlSkirmishSetupScreen::onResetHonors, this);
+		constructor.BindEventCallback("select_map", &RmlSkirmishSetupScreen::onSelectMap, this);
 
 		m_modelHandle = constructor.GetModelHandle();
 	}
@@ -448,6 +449,22 @@ void RmlSkirmishSetupScreen::onResetHonors(Rml::DataModelHandle, Rml::Event &, c
 	refreshFromGameState();
 }
 
+void RmlSkirmishSetupScreen::onSelectMap(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+{
+	// Same as SkirmishGameOptionsMenu.cpp's ButtonSelectMap: hide this screen while the map-select
+	// overlay is up, same shape as the .wnd's showSkirmishGameOptionsUnderlyingGUIElements(FALSE).
+	hide();
+	RmlUiScreenRegistry::open("Menus/SkirmishMapSelectMenu.wnd");
+}
+
+void RmlSkirmishSetupScreen::returnFromMapSelect()
+{
+	if (!m_document)
+		return;
+	refreshFromGameState();
+	m_document->Show();
+}
+
 //-------------------------------------------------------------------------------------------------
 void OpenRmlSkirmishSetupScreen()
 {
@@ -460,4 +477,9 @@ void CloseRmlSkirmishSetupScreen()
 {
 	if (TheRmlUiManager && TheRmlUiManager->getCurrentScreen() == &RmlSkirmishSetupScreen::instance())
 		TheRmlUiManager->hideCurrentScreen();
+}
+
+void ReturnToRmlSkirmishSetupScreen()
+{
+	RmlSkirmishSetupScreen::instance().returnFromMapSelect();
 }

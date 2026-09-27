@@ -1,8 +1,9 @@
 /*
-	GameSetup.rcss -- shared markup/styles for skirmish-style game setup screens (slot rows, map
-	preview + start-position markers). Built for SkirmishGameOptions.rml; LAN/online lobby screens
-	can reuse the same classes over the same GameSetupData/SkirmishSetupActions-shaped data (see
-	GameSetupData.h) by copying the "slot-row"/"map-preview"/"start-marker" markup blocks below.
+	GameSetup.rcss -- shared markup/styles for skirmish-style game setup and map-select screens
+	(slot rows, map preview + start-position markers, map-list rows). Built for
+	SkirmishGameOptions.rml/SkirmishMapSelect.rml; LAN/online lobby and map-select screens can
+	reuse the same classes over the same GameSetupData/SkirmishSetupActions/MapUtil-shaped data by
+	copying the "slot-row"/"map-preview"/"start-marker"/"map-row" markup blocks below.
 
 	Reusable markup block (copy per screen, one <div class="slot-row" data-for="row : slots"> per
 	setup document):
@@ -47,6 +48,20 @@
 	interpolate "{{expr}}" inside a style="..." attribute (that's parsed as a literal RCSS property
 	value), and data-style-<prop> bindings take one expression value, not string concatenation --
 	see RmlSkirmishSetupScreen::StartMarkerModel.
+
+	Reusable map-list row (copy per screen, one <div class="map-row" data-for="entry : maps"> per
+	map-select-style document -- see RmlSkirmishMapSelectScreen::MapEntryModel):
+
+		<div class="map-row" data-for="entry : maps" data-class-selected="entry.is_selected"
+			data-event-click="map_selected(entry.map_name)" data-event-dblclick="map_activated(entry.map_name)">
+			<mappedimage class="map-star" data-attr-name="entry.star_image" data-if="entry.has_star_image"/>
+			<div class="map-name">{{entry.display_name}}</div>
+			<div class="map-players">{{entry.num_players}}</div>
+		</div>
+
+	star_image is a TheMappedImageCollection name ("Star-Bronze"/"Star-Silver"/"Star-Gold"/
+	"RedYell_Star"), only set for multiplayer maps with an endurance medal -- same tiering as
+	MapUtil.cpp's addMapEntryToMapListbox().
 */
 
 /* ---- Slot rows ------------------------------------------------------------------------- */
@@ -117,4 +132,46 @@
 	font-size: 11dp;
 	color: #FFFFFF;
 	white-space: nowrap;
+}
+
+/* ---- Map-list rows ----------------------------------------------------------------------- */
+.map-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 4dp 6dp;
+	min-height: 24dp;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
+}
+
+.map-row:hover
+{
+	background-color: rgba(47, 55, 168, 60);
+}
+
+.map-row.selected
+{
+	background-color: rgba(47, 55, 168, 120);
+	border: 1dp #8080FF;
+}
+
+.map-star
+{
+	width: 16dp;
+	height: 16dp;
+	margin-right: 6dp;
+}
+
+.map-name
+{
+	flex: 1 1 auto;
+	color: #FFFFFF;
+}
+
+.map-players
+{
+	width: 30dp;
+	text-align: center;
+	color: #C0C0C0;
 }
