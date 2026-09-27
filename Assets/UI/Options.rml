@@ -14,16 +14,20 @@
 		<div class="title-bar"><gametext key="GUI:Options"/></div>
 
 		<div class="tabs">
-			<div class="tab" data-class-selected="tab == 'video'" data-event-click="select_video" data-tooltip-text="Video">Video</div>
-			<div class="tab" data-class-selected="tab == 'graphics'" data-event-click="select_graphics" data-tooltip-text="Video">Graphics</div>
-			<div class="tab" data-class-selected="tab == 'audio'" data-event-click="select_audio" data-tooltip-text="Audio">Audio</div>
-			<div class="tab" data-class-selected="tab == 'controls'" data-event-click="select_controls" data-tooltip-text="Controls">Controls</div>
-			<div class="tab" data-class-selected="tab == 'network'" data-event-click="select_network" data-tooltip-text="Network">Network</div>
+			<div class="tab" data-class-selected="tab == 'video'" data-event-click="select_video">Video</div>
+			<div class="tab" data-class-selected="tab == 'graphics'" data-event-click="select_graphics">Graphics</div>
+			<div class="tab" data-class-selected="tab == 'audio'" data-event-click="select_audio">Audio</div>
+			<div class="tab" data-class-selected="tab == 'controls'" data-event-click="select_controls">Controls</div>
+			<div class="tab" data-class-selected="tab == 'network'" data-event-click="select_network">Network</div>
 		</div>
 
 		<div class="panels">
-			<!-- Video: anti-aliasing / texture filtering / anisotropy -->
+			<!-- Video: brightness / anti-aliasing / texture filtering / anisotropy -->
 			<div class="panel scroll-container" data-if="tab == 'video'">
+				<div class="row">
+					<div class="label"><gametext key="GUI:GammaAdjustment"/></div>
+					<input class="control range" type="range" min="0" max="100" step="1" data-value="brightness" data-tooltip="TOOLTIP:Brightness"/>
+				</div>
 				<div class="row">
 					<div class="label"><gametext key="GUI:AntiAliasing"/></div>
 					<select class="control" data-value="anti_aliasing">

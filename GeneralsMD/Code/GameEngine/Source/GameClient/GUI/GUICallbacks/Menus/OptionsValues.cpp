@@ -174,6 +174,33 @@ void ApplyVoiceVolumePercent(OptionPreferences &pref, Int percent)
 	TheAudio->setVolume(percent / 100.0f, (AudioAffect)(AudioAffect_Speech | AudioAffect_SystemSetting));
 }
 
+void ApplyBrightnessPercent(OptionPreferences &pref, Int percent)
+{
+	// Exact copy of the .wnd SliderGamma math in saveOptions(): generates a value between 0.6 and 2.0.
+	Real gammaval = 1.0f;
+	if (percent < 50)
+	{
+		if (percent <= 0)
+			gammaval = 0.6f;
+		else
+			gammaval = 1.0f - (0.4f) * (Real)(50 - percent) / 50.0f;
+	}
+	else if (percent > 50)
+	{
+		gammaval = 1.0f + (1.0f) * (Real)(percent - 50) / 50.0f;
+	}
+
+	AsciiString prefString;
+	prefString.format("%d", percent);
+	pref["Gamma"] = prefString;
+
+	if (TheGlobalData->m_displayGamma != gammaval)
+	{
+		TheWritableGlobalData->m_displayGamma = gammaval;
+		TheDisplay->setGamma(TheGlobalData->m_displayGamma, 0.0f, 1.0f, FALSE);
+	}
+}
+
 //-------------------------------------------------------------------------------------------------
 Bool GetCurrentLanguageFilter() { return TheGlobalData->m_languageFilterPref; }
 Bool GetCurrentSendDelay() { return TheGlobalData->m_firewallSendDelay; }
@@ -212,6 +239,7 @@ Int GetCurrentScrollSpeedPercent() { return (Int)(TheGlobalData->m_keyboardScrol
 Int GetCurrentMusicVolumePercent() { return REAL_TO_INT(TheAudio->getVolume(AudioAffect_Music) * 100.0f); }
 Int GetCurrentSFXVolumePercent() { return REAL_TO_INT(TheAudio->getVolume(AudioAffect_Sound) * 100.0f); }
 Int GetCurrentVoiceVolumePercent() { return REAL_TO_INT(TheAudio->getVolume(AudioAffect_Speech) * 100.0f); }
+Int GetCurrentBrightnessPercent(OptionPreferences &pref) { return REAL_TO_INT(pref.getGammaValue()); }
 
 //-------------------------------------------------------------------------------------------------
 Bool GetDefaultLanguageFilter() { return TRUE; }
@@ -227,6 +255,7 @@ Int GetDefaultSFXVolumePercent()
 	return REAL_TO_INT(maxVolume * 100.0f);
 }
 Int GetDefaultVoiceVolumePercent() { return REAL_TO_INT(TheAudio->getAudioSettings()->m_defaultSpeechVolume * 100.0f); }
+Int GetDefaultBrightnessPercent() { return 50; }
 
 //-------------------------------------------------------------------------------------------------
 // Graphics: detail preset

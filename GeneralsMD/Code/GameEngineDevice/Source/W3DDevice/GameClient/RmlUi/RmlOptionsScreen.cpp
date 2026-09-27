@@ -70,6 +70,7 @@ void RmlOptionsScreen::load(Rml::Context *context)
 		constructor.Bind("anti_aliasing", &m_model.antiAliasing);
 		constructor.Bind("texture_filter", &m_model.textureFilter);
 		constructor.Bind("anisotropy", &m_model.anisotropy);
+		constructor.Bind("brightness", &m_model.brightness);
 
 		constructor.Bind("resolution_index", &m_model.resolutionIndex);
 		constructor.Bind("detail_level", &m_model.detailLevel);
@@ -202,6 +203,7 @@ void RmlOptionsScreen::loadCurrentValues()
 	m_model.antiAliasing = OptionsValues::GetCurrentAntiAliasingIndex();
 	m_model.textureFilter = OptionsValues::GetCurrentTextureFilterIndex();
 	m_model.anisotropy = OptionsValues::GetCurrentAnisotropyIndex();
+	m_model.brightness = OptionsValues::GetCurrentBrightnessPercent(*m_pref);
 
 	m_model.resolutionIndex = OptionsValues::GetCurrentDisplayModeIndex();
 	m_model.detailLevel = OptionsValues::GetCurrentDetailLevel();
@@ -236,6 +238,7 @@ void RmlOptionsScreen::loadDefaultValues()
 	m_model.alternateMouse = OptionsValues::GetDefaultAlternateMouse();
 	m_model.retaliation = OptionsValues::GetDefaultRetaliation();
 	m_model.doubleClickAttackMove = OptionsValues::GetDefaultDoubleClickAttackMove();
+	m_model.brightness = OptionsValues::GetDefaultBrightnessPercent();
 	// Anti-aliasing/texture filter/anisotropy/resolution/detail have no shared "default" (the
 	// .wnd version's setDefaults() never resets these either -- see its ModifyDisplaySettings
 	// compile-time gate), so they are left exactly as currently applied.
@@ -261,6 +264,7 @@ bool RmlOptionsScreen::applyAndSave()
 	OptionsValues::ApplyAntiAliasing(*m_pref, m_model.antiAliasing);
 	OptionsValues::ApplyTextureFilter(*m_pref, m_model.textureFilter);
 	OptionsValues::ApplyAnisotropy(*m_pref, m_model.anisotropy);
+	OptionsValues::ApplyBrightnessPercent(*m_pref, m_model.brightness);
 
 	// Custom detail values apply whenever the level is Custom, regardless of restriction --
 	// matches saveOptions()'s "if (index == STATIC_GAME_LOD_CUSTOM)" block, which is not gated

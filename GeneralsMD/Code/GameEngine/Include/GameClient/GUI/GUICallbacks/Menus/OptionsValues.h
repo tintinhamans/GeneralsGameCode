@@ -116,6 +116,10 @@ namespace OptionsValues
 	void ApplySFXVolumePercent(OptionPreferences &pref, Int percent);
 	void ApplyVoiceVolumePercent(OptionPreferences &pref, Int percent);
 
+	// Slider position 0..100, same scale/mapping as the .wnd's SliderGamma (see saveOptions()):
+	// below 50 darkens toward 0.6, above 50 brightens up to 2.0, no live preview while dragging.
+	void ApplyBrightnessPercent(OptionPreferences &pref, Int percent);
+
 	// -- Current / default values, for populating a fresh screen ------------------------
 	Bool GetCurrentLanguageFilter();
 	Bool GetCurrentSendDelay();
@@ -129,6 +133,7 @@ namespace OptionsValues
 	Int GetCurrentMusicVolumePercent();
 	Int GetCurrentSFXVolumePercent();
 	Int GetCurrentVoiceVolumePercent();
+	Int GetCurrentBrightnessPercent(OptionPreferences &pref); ///< from the saved pref, same as the .wnd's OptionsMenuInit
 
 	Bool GetDefaultLanguageFilter();
 	Bool GetDefaultSendDelay();
@@ -139,4 +144,5 @@ namespace OptionsValues
 	Int GetDefaultMusicVolumePercent();
 	Int GetDefaultSFXVolumePercent();
 	Int GetDefaultVoiceVolumePercent();
+	Int GetDefaultBrightnessPercent(); ///< midpoint (50), same as setDefaults()
 }

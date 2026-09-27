@@ -103,6 +103,7 @@ private:
 		int antiAliasing = 0;
 		int textureFilter = 0;
 		int anisotropy = 0;
+		int brightness = 50;
 
 		// Graphics: resolution + detail preset/Custom
 		int resolutionIndex = 0;
