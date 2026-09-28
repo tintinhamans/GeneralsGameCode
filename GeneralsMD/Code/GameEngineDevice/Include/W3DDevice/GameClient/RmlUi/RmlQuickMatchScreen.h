@@ -99,12 +99,21 @@ private:
 
 	void onPlaylistChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onMapRowClicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onMapRowHover(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onMapRowHoverClear(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onToggleOptions(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onStart(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onStop(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onWiden(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onBuddies(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onBackPressed(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+
+	// Called each update() while the preview is visible -- mirrors RmlOnlineLobbyScreen::clampPlayerMenu():
+	// RmlUi doesn't know the preview's laid-out size until after a layout pass, so the first frame positions
+	// it at the raw cursor point (onMapRowHover()) and this re-derives a clamped, cursor-centered position
+	// from m_mapPreviewRawX/Y once the real size is available, same on-screen clamp updateMapHoverPreview()
+	// does against TheDisplay's width/height (WOLQuickMatchMenu.cpp:248-282), just deferred a frame.
+	void clampMapPreview();
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
@@ -199,9 +208,21 @@ private:
 		int sideSelected = 0;
 		Rml::Vector<ComboOptionModel> colorOptions;
 		int colorSelected = 0;
+
+		// Map hover preview (<mappreview>), ports updateMapHoverPreview() (WOLQuickMatchMenu.cpp:248-282).
+		bool mapPreviewVisible = false;
+		Rml::String mapPreviewXStyle = "0px";
+		Rml::String mapPreviewYStyle = "0px";
+		Rml::String mapPreviewMapPath; // QuickMatchData::MapOption::mapPath of the hovered row
 	} m_model;
 
 	RmlGrowOnlyList<MapRowModel> m_mapRows;
+
+	// Unclamped cursor position from the triggering mouseover/mousemove event; clampMapPreview()
+	// re-derives the clamped style strings from these once the preview's real size is known, same
+	// idiom as RmlOnlineLobbyScreen's m_playerMenuRawX/Y.
+	float m_mapPreviewRawX = 0.0f;
+	float m_mapPreviewRawY = 0.0f;
 };
 
 // Registry entry point (see RmlUiManager::init()).

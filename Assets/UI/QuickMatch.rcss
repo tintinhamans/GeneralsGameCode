@@ -223,3 +223,30 @@ body
 	width: 1000dp;
 	padding: 1dp 0;
 }
+
+/* ---- Map hover preview: ports updateMapHoverPreview() (WOLQuickMatchMenu.cpp:248-282), the preview
+   image that follows the mouse near ListBoxMapSelect. Sibling of .shell-frame (not nested inside it,
+   same reasoning as OnlineLobby.rcss's .context-menu: data-style-left/top's mouse_x/mouse_y are
+   viewport-relative) and position:fixed so RmlQuickMatchScreen.cpp's clampMapPreview() can place it
+   in viewport pixels. pointer-events:none so it never steals the map-row hover/click it's floating
+   over. --------------------------------------------------------------------------------------- */
+.map-hover-preview
+{
+	display: block;
+	position: fixed;
+	z-index: 100;
+	width: 128dp;
+	height: 128dp;
+	pointer-events: none;
+	border: 1dp #2F37A8;
+	background-color: rgba(2, 2, 2, 200);
+}
+
+/* <mappreview> is a custom element (RmlUiElements.cpp) with no default display -- same reasoning as
+   PlayerInfo.rcss's .rank-image/.faction-image classes on <mappedimage>. */
+.map-hover-preview-image
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}

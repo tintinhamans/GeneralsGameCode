@@ -34,6 +34,7 @@
 #include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
+#include <RmlUi/Core/Types.h>
 
 #include <windows.h>
 
@@ -163,8 +164,15 @@ void RmlQuickMatchScreen::load(Rml::Context *context)
 		constructor.Bind("color_options", &m_model.colorOptions);
 		constructor.Bind("color_selected", &m_model.colorSelected);
 
+		constructor.Bind("map_preview_visible", &m_model.mapPreviewVisible);
+		constructor.Bind("map_preview_x_style", &m_model.mapPreviewXStyle);
+		constructor.Bind("map_preview_y_style", &m_model.mapPreviewYStyle);
+		constructor.Bind("map_preview_map_path", &m_model.mapPreviewMapPath);
+
 		constructor.BindEventCallback("playlist_changed", &RmlQuickMatchScreen::onPlaylistChanged, this);
 		constructor.BindEventCallback("map_row_clicked", &RmlQuickMatchScreen::onMapRowClicked, this);
+		constructor.BindEventCallback("map_row_hover", &RmlQuickMatchScreen::onMapRowHover, this);
+		constructor.BindEventCallback("map_row_hover_clear", &RmlQuickMatchScreen::onMapRowHoverClear, this);
 		constructor.BindEventCallback("toggle_options", &RmlQuickMatchScreen::onToggleOptions, this);
 		constructor.BindEventCallback("start", &RmlQuickMatchScreen::onStart, this);
 		constructor.BindEventCallback("stop", &RmlQuickMatchScreen::onStop, this);
@@ -229,6 +237,7 @@ void RmlQuickMatchScreen::show()
 	onStatusLine("Welcome to QuickMatch. Choose Setup to select playlists and maps.", colorToCss(GameMakeColor(255, 194, 25, 255)));
 	onStatusLine("Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible.", colorToCss(GameMakeColor(255, 194, 25, 255)));
 
+	m_model.mapPreviewVisible = false;
 	populateDisabledOptionCombos();
 
 	if (m_modelHandle)
@@ -294,6 +303,9 @@ void RmlQuickMatchScreen::update()
 		m_lastStatusLineCount = m_model.statusLines.size();
 		scrollStatusFeedToBottom();
 	}
+
+	if (m_model.mapPreviewVisible)
+		clampMapPreview();
 }
 
 void RmlQuickMatchScreen::scrollStatusFeedToBottom()
@@ -303,6 +315,54 @@ void RmlQuickMatchScreen::scrollStatusFeedToBottom()
 	Rml::Element *feed = m_document->GetElementById("status-feed");
 	if (feed)
 		feed->SetScrollTop(feed->GetScrollHeight());
+}
+
+// Called each update() while the preview is visible; see the declaration's comment.
+void RmlQuickMatchScreen::clampMapPreview()
+{
+	if (!m_document || !m_context)
+		return;
+
+	Rml::Element *preview = m_document->GetElementById("map-hover-preview");
+	if (!preview)
+		return;
+
+	const Rml::Vector2f size = preview->GetBox().GetSize();
+	if (size.x <= 0.0f || size.y <= 0.0f)
+		return;
+
+	// updateMapHoverPreview() offsets the preview right of the cursor and vertically centers it
+	// (WOLQuickMatchMenu.cpp:277-281): previewX = mouseX + offset, previewY = mouseY - previewSize/2.
+	const float offset = 20.0f;
+	float left = m_mapPreviewRawX + offset;
+	float top = m_mapPreviewRawY - (size.y * 0.5f);
+
+	const Rml::Vector2i contextSize = m_context->GetDimensions();
+	if (left + size.x > (float)contextSize.x)
+		left = m_mapPreviewRawX - offset - size.x; // flip to the left of the cursor if it doesn't fit
+	if (left < 0.0f)
+		left = 0.0f;
+	if (top + size.y > (float)contextSize.y)
+		top = (float)contextSize.y - size.y;
+	if (top < 0.0f)
+		top = 0.0f;
+
+	char buf[32];
+	_snprintf_s(buf, sizeof(buf), _TRUNCATE, "%dpx", (int)left);
+	const Rml::String newX = buf;
+	_snprintf_s(buf, sizeof(buf), _TRUNCATE, "%dpx", (int)top);
+	const Rml::String newY = buf;
+
+	if (newX != m_model.mapPreviewXStyle || newY != m_model.mapPreviewYStyle)
+	{
+		m_model.mapPreviewXStyle = newX;
+		m_model.mapPreviewYStyle = newY;
+		if (m_modelHandle)
+		{
+			m_modelHandle.DirtyVariable("map_preview_x_style");
+			m_modelHandle.DirtyVariable("map_preview_y_style");
+		}
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -427,6 +487,45 @@ void RmlQuickMatchScreen::onMapRowClicked(Rml::DataModelHandle, Rml::Event &, co
 	m_model.maps[index].selected = !m_model.maps[index].selected;
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("maps");
+}
+
+// Ports updateMapHoverPreview()'s hover-tracking (WOLQuickMatchMenu.cpp:248-282): bound to the map
+// row's mouseover (first entry) and mousemove (repositioning while the cursor moves within the row).
+void RmlQuickMatchScreen::onMapRowHover(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &args)
+{
+	if (args.empty())
+		return;
+	int index = args[0].Get<int>();
+	if (index < 0 || index >= (int)m_model.maps.size() || !m_model.maps[index].used)
+		return;
+
+	m_mapPreviewRawX = (float)ev.GetParameter<int>("mouse_x", 0);
+	m_mapPreviewRawY = (float)ev.GetParameter<int>("mouse_y", 0);
+
+	char buf[32];
+	_snprintf_s(buf, sizeof(buf), _TRUNCATE, "%dpx", (int)m_mapPreviewRawX);
+	m_model.mapPreviewXStyle = buf;
+	_snprintf_s(buf, sizeof(buf), _TRUNCATE, "%dpx", (int)m_mapPreviewRawY);
+	m_model.mapPreviewYStyle = buf;
+	m_model.mapPreviewMapPath = m_model.maps[index].path;
+	m_model.mapPreviewVisible = true;
+
+	if (m_modelHandle)
+	{
+		m_modelHandle.DirtyVariable("map_preview_x_style");
+		m_modelHandle.DirtyVariable("map_preview_y_style");
+		m_modelHandle.DirtyVariable("map_preview_map_path");
+		m_modelHandle.DirtyVariable("map_preview_visible");
+	}
+}
+
+void RmlQuickMatchScreen::onMapRowHoverClear(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+{
+	if (!m_model.mapPreviewVisible)
+		return;
+	m_model.mapPreviewVisible = false;
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("map_preview_visible");
 }
 
 void RmlQuickMatchScreen::onToggleOptions(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)

@@ -22,7 +22,8 @@
 				<div class="section-title"><gametext key="GUI:AllowableMaps"/></div>
 				<div class="scroll-container map-list">
 					<div data-for="row : maps">
-						<div class="map-row" data-if="row.used" data-class-selected="row.selected" data-event-click="map_row_clicked(row.index)">
+						<div class="map-row" data-if="row.used" data-class-selected="row.selected" data-event-click="map_row_clicked(row.index)"
+							data-event-mouseover="map_row_hover(row.index)" data-event-mousemove="map_row_hover(row.index)" data-event-mouseout="map_row_hover_clear">
 							<div class="map-check" data-class-checked="row.selected"></div>
 							<div class="map-name">{{row.label}}</div>
 						</div>
@@ -107,6 +108,14 @@
 			<button class="button-lg" data-attr-disabled="!communicator_enabled" data-class-disabled="!communicator_enabled" data-event-click="buddies">{{communicator_label}}</button>
 			<button class="button-lg" data-attr-disabled="!back_enabled" data-class-disabled="!back_enabled" data-event-click="back"><gametext key="GUI:Back"/></button>
 		</div>
+	</div>
+
+	<!-- Sibling of .shell-frame (not nested inside it), same reasoning as OnlineLobby.rml's
+	     .context-menu: .shell-frame is itself position:absolute, so a nested .map-hover-preview
+	     would resolve data-style-left/top's viewport-relative mouse_x/mouse_y against .shell-frame's
+	     box instead of the viewport. Ports updateMapHoverPreview() (WOLQuickMatchMenu.cpp:248-282). -->
+	<div id="map-hover-preview" class="map-hover-preview" data-if="map_preview_visible" data-style-left="map_preview_x_style" data-style-top="map_preview_y_style">
+		<mappreview class="map-hover-preview-image" data-attr-map="map_preview_map_path"/>
 	</div>
 </body>
 </rml>
