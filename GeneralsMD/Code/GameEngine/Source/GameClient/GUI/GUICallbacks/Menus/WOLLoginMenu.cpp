@@ -34,7 +34,7 @@
 #include "Common/STLTypedefs.h"
 #include "../NGMP_types.h"
 
-void NGMP_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineLoginActions.h"
 
 #include "Common/file.h"
 #include "Common/FileSystem.h"
@@ -87,6 +87,26 @@ static const char *nextScreen = NULL;
 
 static const UnsignedInt loginTimeoutInMS = 10000;
 static UnsignedInt loginAttemptTime = 0;
+
+// OnlineLoginActions hooks (see OnlineLoginActions.h): this screen's own state/navigation for the
+// shared login flow, set in WOLLoginMenuInit() and cleared in WOLLoginMenuShutdown().
+static Bool WOLLoginMenuIsAlreadyLeaving() { return buttonPushed; }
+
+static void WOLLoginMenuOnLoginSucceeded()
+{
+	// Mirrors the live checkLogin() body exactly (formerly reached via a same-frame loggedInOK flag
+	// that added no real waiting, since it was always set and checked synchronously).
+	buttonPushed = true;
+	loginAttemptTime = 0;
+	SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGIN);
+	nextScreen = "Menus/WOLWelcomeMenu.wnd";
+	TheShell->pop();
+}
+
+static void WOLLoginMenuOnLoginFailed()
+{
+	TheShell->pop();
+}
 
 class GameSpyLoginPreferences : public UserPreferences
 {
@@ -453,20 +473,15 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 	isShuttingDown = false;
 	loginAttemptTime = 0;
 
-	// NGMP
-	ClearGSMessageBoxes();
-	GSMessageBoxNoButtons(UnicodeString(L"Logging In"), UnicodeString(L"Please wait..."), true);
-
-	// NGMP: Register for login callback
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-	if (pAuthInterface == nullptr)
+	// NGMP: shared login flow (see OnlineLoginActions.h)
+	g_onlineLoginIsAlreadyLeavingHook = &WOLLoginMenuIsAlreadyLeaving;
+	g_onlineLoginSucceededHook = &WOLLoginMenuOnLoginSucceeded;
+	g_onlineLoginFailedHook = &WOLLoginMenuOnLoginFailed;
+	g_onlineLoginCancelledHook = nullptr;
+	if (!OnlineLoginActions::beginLogin())
 	{
 		return;
 	}
-
-	// Now we can begin login
-	pAuthInterface->RegisterForLoginCallback(NGMP_WOLLoginMenu_LoginCallback);
-	pAuthInterface->BeginLogin();
 
 
 	/*
@@ -548,18 +563,11 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 /** WOL Login Menu shutdown method */
 //-------------------------------------------------------------------------------------------------
-static Bool loggedInOK = false;
 void WOLLoginMenuShutdown( WindowLayout *layout, void *userData )
 {
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-	if (pAuthInterface != nullptr)
-	{
-		pAuthInterface->DeregisterForLoginCallback();
-	}
-
+	OnlineLoginActions::endLogin();
 
 	isShuttingDown = true;
-	loggedInOK = false;
 	TheWindowManager->clearTabList();
 	if (webBrowserActive)
 	{
@@ -586,90 +594,10 @@ void WOLLoginMenuShutdown( WindowLayout *layout, void *userData )
 }
 
 
-// this is used to check if we've got all the pings
-static void checkLogin()
-{
-	if (loggedInOK)
-	{
-		buttonPushed = true;
-		loggedInOK = false; // don't try this again
-
-		loginAttemptTime = 0;
-
-		SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGIN);
-		nextScreen = "Menus/WOLWelcomeMenu.wnd";
-		TheShell->pop();
-	}
-
-	/*
-	if (loggedInOK && ThePinger && !ThePinger->arePingsInProgress())
-	{
-		// save off our ping string, and end those threads
-		AsciiString pingStr = ThePinger->getPingString( 1000 );
-		DEBUG_LOG(("Ping string is %s", pingStr.str()));
-		TheGameSpyInfo->setPingString(pingStr);
-		//delete ThePinger;
-		//ThePinger = NULL;
-
-		buttonPushed = true;
-		loggedInOK = false; // don't try this again
-
-		loginAttemptTime = 0;
-
-		// start looking for group rooms
-		TheGameSpyInfo->clearGroupRoomList();
-
-		SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGIN);
-		nextScreen = "Menus/WOLWelcomeMenu.wnd";
-		TheShell->pop();
-
-		// read in some cached data
-		GameSpyMiscPreferences mPref;
-		PSPlayerStats localPSStats = GameSpyPSMessageQueueInterface::parsePlayerKVPairs(mPref.getCachedStats().str());
-		localPSStats.id = TheGameSpyInfo->getLocalProfileID();
-		TheGameSpyInfo->setCachedLocalPlayerStats(localPSStats);
-//		TheGameSpyPSMessageQueue->trackPlayerStats(localPSStats);
-
-		// and push the info around to other players
-//		PSResponse newResp;
-//		newResp.responseType = PSResponse::PSRESPONSE_PLAYERSTATS;
-//		newResp.player = localPSStats;
-//		TheGameSpyPSMessageQueue->addResponse(newResp);
-	}
-	*/
-}
-
-void NGMP_WOLLoginMenu_LoginCallback(ELoginResult loginResult)
-{
-	if (!buttonPushed)
-	{
-		// TODO_NGMP: Handle failure properly
-		if (loginResult == ELoginResult::Success)
-		{
-			ClearGSMessageBoxes();
-			loggedInOK = true;
-
-			checkLogin();
-		}
-		else
-		{
-			if (loginResult == ELoginResult::Failed)
-			{
-                GSMessageBoxOk(UnicodeString(L"Logging In"), UnicodeString(L"Login failed."), []()
-                    {
-                        TheShell->pop();
-                    });
-			}
-            else if (loginResult == ELoginResult::UserCancelled)
-            {
-                // User requested, nothing to do here
-            }
-
-			
-		}
-
-	}
-}
+// NGMP login start/stop/result-decision logic now lives in OnlineLoginActions (see
+// OnlineLoginActions.h/.cpp and the g_onlineLogin*Hook assignments in WOLLoginMenuInit()); this
+// screen's own succeeded/failed/isAlreadyLeaving hook bodies above are the exact former contents of
+// checkLogin() and NGMP_WOLLoginMenu_LoginCallback().
 
 
 //-------------------------------------------------------------------------------------------------
