@@ -124,6 +124,13 @@ namespace OnlineGameSetupActions
 	// this only reproduces the guard the .wnd's disabled ButtonSelectMap already enforces.
 	Bool canOpenMapSelect( const NGMPGame *game );
 
+	// WOLMapSelectMenu.cpp's ButtonOK handler (~463-495): sets the map, marks the host's own slot as
+	// having it, looks up CRC/size from TheMapCache (zeroed if the map isn't cached), then
+	// adjustSlotsForMap()/resetAccepted()/resetStartSpots() and UpdateCurrentLobby_Map() so every
+	// client picks up the change over the network. No-op if game is null. Both the .wnd's map-select
+	// overlay and RmlOnlineMapSelectScreen call this instead of duplicating the write-back.
+	void applySelectedMap( NGMPGame *game, const AsciiString &mapName );
+
 	// ButtonCommunicator: toggle the buddy overlay, same as the GBM_SELECTED buttonCommunicatorID case.
 	void toggleCommunicatorOverlay();
 

@@ -658,6 +658,49 @@ Bool canOpenMapSelect( const NGMPGame *game )
 }
 
 //-------------------------------------------------------------------------------------------------
+void applySelectedMap( NGMPGame *game, const AsciiString &mapName )
+{
+	if( game == nullptr )
+		return;
+
+	game->setMap( mapName );
+
+	AsciiString lowerMap = mapName;
+	lowerMap.toLower();
+
+	int newMaxPlayers = -1;
+	UnicodeString strMapName;
+	bool bOfficialMap = false;
+
+	const MapMetaData *md = TheMapCache ? TheMapCache->findMap( lowerMap ) : nullptr;
+	if( md != nullptr )
+	{
+		game->getGameSpySlot( 0 )->setMapAvailability( TRUE ); // the host always has its own selected map
+		game->setMapCRC( md->m_CRC );
+		game->setMapSize( md->m_filesize );
+
+		newMaxPlayers = md->m_numPlayers;
+		strMapName = md->m_displayName;
+		bOfficialMap = md->m_isOfficial;
+	}
+	else
+	{
+		game->setMapCRC( 0 );
+		game->setMapSize( 0 );
+	}
+
+	game->adjustSlotsForMap();
+	game->resetAccepted();
+	game->resetStartSpots();
+
+	NGMP_OnlineServices_LobbyInterface *pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	if( pLobbyInterface != nullptr )
+	{
+		pLobbyInterface->UpdateCurrentLobby_Map( strMapName, game->getMap(), bOfficialMap, newMaxPlayers );
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
 void toggleCommunicatorOverlay()
 {
 	GameSpyToggleOverlay( GSOVERLAY_BUDDY );

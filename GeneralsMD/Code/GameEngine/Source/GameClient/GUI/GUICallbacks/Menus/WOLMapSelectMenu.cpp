@@ -36,6 +36,7 @@
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GadgetRadioButton.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupActions.h"
 #include "GameClient/Shell.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GadgetListBox.h"
@@ -456,43 +457,16 @@ WindowMsgHandledType WOLMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 					else
 						asciiMap.translate( map );
 
-					int newMaxPlayers = -1;
-					UnicodeString strMapName;
-					bool bOfficialMap = false;
-
-					TheNGMPGame->setMap(asciiMap);
-					asciiMap.toLower();
-					std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
-					if (it != TheMapCache->end())
-					{
-						TheNGMPGame->getGameSpySlot(0)->setMapAvailability(TRUE);
-						TheNGMPGame->setMapCRC( it->second.m_CRC );
-						TheNGMPGame->setMapSize( it->second.m_filesize );
-
-						newMaxPlayers = it->second.m_numPlayers;
-						strMapName = it->second.m_displayName;
-
-						bOfficialMap = it->second.m_isOfficial;
-					}
-
-					TheNGMPGame->adjustSlotsForMap(); // BGC- adjust the slots for the new map.
-					TheNGMPGame->resetAccepted();
-					TheNGMPGame->resetStartSpots();
+					// setMap/CRC/size, host hasMap, adjustSlotsForMap/resetAccepted/resetStartSpots,
+					// UpdateCurrentLobby_Map -- shared with RmlOnlineMapSelectScreen, see
+					// OnlineGameSetupActions::applySelectedMap().
+					OnlineGameSetupActions::applySelectedMap(TheNGMPGame, asciiMap);
 
 					// TODO_NGMP:
 					//TheGameSpyInfo->setGameOptions();
 
 					WOLDisplaySlotList();
 					WOLDisplayGameOptions();
-
-					// NGMP: Update lobby
-					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-
-					if (pLobbyInterface != nullptr)
-					{
-						pLobbyInterface->UpdateCurrentLobby_Map(strMapName, TheNGMPGame->getMap(), bOfficialMap, newMaxPlayers);
-					}
-					
 
 					if (WOLMapSelectLayout)
 					{
