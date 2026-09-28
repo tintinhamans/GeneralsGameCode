@@ -1,0 +1,225 @@
+/*
+	QuickMatch.rcss -- WOLQuickMatchMenu.wnd. Shell screen, same .shell-frame/.shell-title-bar
+	backdrop as OnlineGameSetup.rcss/OnlineWelcome.rcss. ParentOptions (setup-panel) and ParentStats
+	(stats-panel) are mutually exclusive, toggled by show_stats -- see QuickMatch.rml.
+*/
+
+/* body needs an explicit 100% size for .shell-frame's percent left/top/width/height to resolve
+   against (RmlUi, like CSS, treats an auto-sized body as shrink-to-fit) -- see OnlineGameSetup.rcss. */
+body
+{
+	width: 100%;
+	height: 100%;
+}
+
+.quickmatch-panel
+{
+	display: flex;
+	flex-direction: column;
+}
+
+.quickmatch-body
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	margin-bottom: 8dp;
+}
+
+.section-title
+{
+	font-weight: bold;
+	padding-bottom: 4dp;
+	border-bottom: 1dp #2F37A8;
+	margin-bottom: 4dp;
+	flex: 0 0 auto;
+}
+
+/* ---- Setup panel: playlist combo, map list, disabled cosmetic ladder/ping/disconnects/side/color
+   rows (see QuickMatch.rml's comment -- real controls the .wnd force-disables under GO). --------- */
+.setup-panel
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.map-list
+{
+	flex: 1 1 auto;
+	min-height: 80dp;
+	margin-bottom: 6dp;
+	border: 1dp #2F37A8;
+	background-color: rgba(2, 2, 2, 140);
+}
+
+.map-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 3dp 6dp;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
+}
+
+.map-row:hover
+{
+	background-color: rgba(47, 55, 168, 100);
+}
+
+.map-row.selected
+{
+	background-color: rgba(47, 55, 168, 160);
+}
+
+.map-check
+{
+	box-sizing: border-box;
+	width: 14dp;
+	height: 14dp;
+	margin-right: 8dp;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+}
+
+.map-check.checked
+{
+	background-color: #FFFF00;
+	border-color: #FFFF00;
+}
+
+.map-name
+{
+	flex: 1 1 auto;
+}
+
+/* row.disabled already dims .label/.control via common.rcss; select[disabled] isn't styled by
+   common.rcss's select rule (only button is), so dim it here too. */
+.row.disabled select
+{
+	color: #C0C0C0;
+	border-color: #6A6A6A;
+}
+
+/* ---- Stats panel: rank cluster (copied from PlayerInfo.rcss, same look/no shared model) + a
+   tighter stats column, same subset of fields WOLQuickMatchMenu.wnd's ParentStats shows. -------- */
+.stats-panel
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.rank-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 auto;
+	width: 128dp;
+	margin-right: 12dp;
+}
+
+.rank-border
+{
+	position: relative;
+	box-sizing: border-box;
+	width: 128dp;
+	height: 156dp;
+	background-color: #020280;
+	border: 1dp #2F37A8;
+}
+
+.rank-image-wrap
+{
+	display: block;
+	position: relative;
+	box-sizing: border-box;
+	width: 100%;
+	height: 128dp;
+	border-bottom: 1dp #2E37A8;
+}
+
+.rank-image
+{
+	display: block;
+	width: 100%;
+	height: 128dp;
+}
+
+.faction-image
+{
+	display: block;
+	position: absolute;
+	right: 0dp;
+	bottom: 0dp;
+	width: 48dp;
+	height: 48dp;
+}
+
+.rank-progress
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 0;
+	bottom: 0;
+	width: 100%;
+	height: 24dp;
+	background-color: rgba(2, 2, 2, 164);
+	border: 1dp #FFBB00;
+}
+
+.rank-progress-fill
+{
+	height: 100%;
+	background-color: rgba(59, 255, 0, 200);
+}
+
+.rank-label
+{
+	margin-top: 4dp;
+	text-align: center;
+	flex: 0 0 auto;
+}
+
+.stats-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.stats-column .row > .control
+{
+	width: auto;
+	flex: 0 0 auto;
+	margin-left: auto;
+	color: #FFFFFF;
+	font-weight: bold;
+}
+
+/* ---- Status feed: ListboxQuickMatch, append-only colored lines (see QuickMatchSession::EventSink::
+   statusLine) -- same idiom as OnlineGameSetup.rcss's .chat-line/.chat-body. ---------------------- */
+.status-feed
+{
+	flex: 0 0 96dp;
+	margin-bottom: 8dp;
+	padding: 4dp 6dp;
+	background-color: rgba(2, 2, 2, 140);
+	border: 1dp #2F37A8;
+}
+
+.status-line
+{
+	/* Fixed dp width, not auto/percentage -- overflow-y:auto containers corrupt an auto/percentage
+	   block child's line-wrapping width once scrolling is actually needed, and RmlUi's own line-box
+	   height calc goes with it (rows slightly overlap instead of stacking); see OnlineGameSetup.rcss's
+	   .chat-line comment for the full explanation, same fix here. */
+	display: block;
+	width: 1000dp;
+	padding: 1dp 0;
+}

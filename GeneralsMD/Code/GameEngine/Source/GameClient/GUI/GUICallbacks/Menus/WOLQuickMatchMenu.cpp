@@ -1164,34 +1164,28 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 #endif
 
 #if defined(GENERALS_ONLINE)
-	// get playlist list
-	NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
-	if (pMatchmakingInterface != nullptr)
-	{
-		const uint64_t generationForPlaylists = s_quickMatchMenuGeneration;
-		pMatchmakingInterface->RetrievePlaylists([generationForPlaylists](std::vector<PlaylistEntry> vecPlaylists)
+	// get playlist list -- shared with RmlQuickMatchScreen via QuickMatchActions::retrievePlaylists()
+	const uint64_t generationForPlaylists = s_quickMatchMenuGeneration;
+	QuickMatchActions::retrievePlaylists([generationForPlaylists](std::vector<QuickMatchData::PlaylistOption> options)
+		{
+			if (generationForPlaylists != s_quickMatchMenuGeneration)
 			{
-				if (generationForPlaylists != s_quickMatchMenuGeneration)
-				{
-					return;
-				}
+				return;
+			}
 
-				// add playlists
-				UnicodeString s;
+			UnicodeString s;
 
-				// clear ui element
-				GadgetComboBoxReset(comboBoxNumPlayers);
+			// clear ui element
+			GadgetComboBoxReset(comboBoxNumPlayers);
 
+			for (const QuickMatchData::PlaylistOption& option : options)
+			{
+				s = UnicodeString(from_utf8(option.name.str()).c_str());
+				GadgetComboBoxAddEntry(comboBoxNumPlayers, s, GameSpyColor[GSCOLOR_DEFAULT]);
+			}
 
-				for (PlaylistEntry& playlist : vecPlaylists)
-				{
-					s = UnicodeString(from_utf8(playlist.Name).c_str());
-					GadgetComboBoxAddEntry(comboBoxNumPlayers, s, GameSpyColor[GSCOLOR_DEFAULT]);
-				}
-
-				GadgetComboBoxSetSelectedPos(comboBoxNumPlayers, 0);
-			});
-	}
+			GadgetComboBoxSetSelectedPos(comboBoxNumPlayers, 0);
+		});
 
 	// NGMP lobby callback registration (cannot-connect stub, matchmaking message/match-found/requeue/
 	// setup-progress/start-game, join-lobby, Buddies notification badge) now lives in QuickMatchSession,

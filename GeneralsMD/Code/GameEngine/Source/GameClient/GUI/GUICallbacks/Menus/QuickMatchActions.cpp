@@ -26,14 +26,30 @@
 #include "GameClient/GUI/GUICallbacks/Menus/QuickMatchActions.h"
 
 #include "Common/GlobalData.h"
+#include "Common/QuickmatchPreferences.h"
+#include "GameClient/GameText.h"
+#include "GameClient/MapUtil.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "GameNetwork/GeneralsOnline/OnlineServices_Auth.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_MatchmakingInterface.h"
 
 #include <format>
 
 namespace QuickMatchActions
 {
+
+//-------------------------------------------------------------------------------------------------
+UnicodeString buildTitle()
+{
+	UnicodeString title;
+
+	NGMP_OnlineServices_AuthInterface *pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	if( pAuthInterface != nullptr )
+		title.format( TheGameText->fetch( "GUI:QuickMatchTitle" ), pAuthInterface->GetDisplayName().c_str() );
+
+	return title;
+}
 
 //-------------------------------------------------------------------------------------------------
 QuickMatchData::PlaylistMapInfo getPlaylistMapInfo( Int playlistIndex )
@@ -117,6 +133,73 @@ void widenSearch()
 void toggleBuddiesOverlay()
 {
 	GameSpyToggleOverlay( GSOVERLAY_BUDDY );
+}
+
+//-------------------------------------------------------------------------------------------------
+void retrievePlaylists( std::function<void( std::vector<QuickMatchData::PlaylistOption> )> onComplete )
+{
+	if( !onComplete )
+		return;
+
+	NGMP_OnlineServices_MatchmakingInterface *pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
+	if( pMatchmakingInterface == nullptr )
+		return;
+
+	pMatchmakingInterface->RetrievePlaylists( [onComplete]( std::vector<PlaylistEntry> vecPlaylists )
+		{
+			std::vector<QuickMatchData::PlaylistOption> options;
+			options.reserve( vecPlaylists.size() );
+			Int index = 0;
+			for( PlaylistEntry &playlist : vecPlaylists )
+			{
+				QuickMatchData::PlaylistOption option;
+				option.index = index++;
+				option.name.format( "%s", playlist.Name.c_str() );
+				options.push_back( option );
+			}
+			onComplete( options );
+		} );
+}
+
+//-------------------------------------------------------------------------------------------------
+std::vector<QuickMatchData::MapOption> getMapSelectOptions( Int playlistIndex )
+{
+	std::vector<QuickMatchData::MapOption> maps;
+
+	QuickMatchData::PlaylistMapInfo plMapInfo = getPlaylistMapInfo( playlistIndex );
+	if( !plMapInfo.m_valid )
+		return maps;
+
+	QuickMatchPreferences pref;
+	for( const AsciiString &mapPath : plMapInfo.m_mapPaths )
+	{
+		const MapMetaData *md = TheMapCache->findMap( mapPath );
+		if( md == nullptr || md->m_numPlayers < plMapInfo.m_numPlayers )
+			continue;
+
+		QuickMatchData::MapOption option;
+		option.mapPath = mapPath;
+		option.displayName = md->m_displayName;
+		option.initiallySelected = pref.isMapSelected( mapPath );
+		maps.push_back( option );
+	}
+
+	return maps;
+}
+
+//-------------------------------------------------------------------------------------------------
+void saveMapSelections( const std::vector<QuickMatchData::MapOption> &maps )
+{
+	QuickMatchPreferences pref;
+
+	// Quick Match under GO never resolves a ladder (see getLadderInfo()/§1 of the quick match
+	// triage note) -- clearing this matches saveQuickMatchOptions()'s GENERALS_ONLINE branch exactly.
+	pref.setLastLadder( AsciiString::TheEmptyString, 0 );
+
+	for( const QuickMatchData::MapOption &map : maps )
+		pref.setMapSelected( map.mapPath, map.initiallySelected );
+
+	pref.write();
 }
 
 } // namespace QuickMatchActions

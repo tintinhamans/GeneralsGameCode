@@ -42,6 +42,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineWelcomeScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlPlayerInfoScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlQuickMatchScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScoreScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.h"
@@ -189,6 +190,9 @@ void RmlUiManager::init(int width, int height)
 
 	// RmlOnlineLoginScreen::onLoginSucceeded() pushes this path; see RmlOnlineWelcomeScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/WOLWelcomeMenu.wnd", &OpenRmlOnlineWelcomeScreen, &CloseRmlOnlineWelcomeScreen);
+
+	// RmlOnlineWelcomeScreen's Quick Match button pushes this same path; see RmlQuickMatchScreen.h.
+	RmlUiScreenRegistry::registerScreen("Menus/WOLQuickMatchMenu.wnd", &OpenRmlQuickMatchScreen, &CloseRmlQuickMatchScreen);
 
 	// OnlineWelcomeActions's Custom Match button pushes this same path; see RmlOnlineLobbyScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/WOLCustomLobby.wnd", &OpenRmlOnlineLobbyScreen, &CloseRmlOnlineLobbyScreen);

@@ -39,8 +39,10 @@
 #pragma once
 
 #include "Common/AsciiString.h"
+#include "Common/UnicodeString.h"
 
 #include <list>
+#include <vector>
 
 class MapMetaData;
 
@@ -58,5 +60,23 @@ namespace QuickMatchData
 		UnsignedShort m_playlistID = 0;
 		Int m_minSelectedMaps = 0;   // PlaylistEntry::MinSelectedMaps
 		Bool m_valid = FALSE;        // FALSE if playlistIndex didn't resolve to a cached playlist
+	};
+
+	// One ComboBoxNumPlayers entry once RetrievePlaylists() replies (WOLQuickMatchMenu.cpp:1160-1176 /
+	// QuickMatchActions::retrievePlaylists()). index is the position getPlaylistMapInfo()/
+	// startMatchmaking() expect back (same index space as GadgetComboBoxGetSelectedPos on that combo).
+	struct PlaylistOption
+	{
+		Int index = 0;
+		AsciiString name;
+	};
+
+	// One ListBoxMapSelect row: same fields populateQuickMatchMapSelectListbox() derives per map
+	// (display name + preference-driven initial selection), via QuickMatchActions::getMapSelectOptions().
+	struct MapOption
+	{
+		AsciiString mapPath;       // QuickmatchPreferences::setMapSelected()/isMapSelected() key
+		UnicodeString displayName; // MapMetaData::m_displayName
+		Bool initiallySelected = FALSE;
 	};
 }

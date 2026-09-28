@@ -33,6 +33,7 @@
 
 #pragma once
 
+#include "Common/UnicodeString.h"
 #include "GameClient/GUI/GUICallbacks/Menus/QuickMatchData.h"
 
 #include <functional>
@@ -40,6 +41,12 @@
 
 namespace QuickMatchActions
 {
+	// Mirrors StaticTextTitle's GENERALS_ONLINE body exactly (WOLQuickMatchMenu.cpp:1008-1011): GUI:
+	// QuickMatchTitle formatted with the NGMP display name. Empty if the auth interface isn't available
+	// yet. Kept here (not the caller) so GameEngineDevice callers don't need their own NGMP_interfaces.h
+	// include -- see RmlQuickMatchScreen.cpp's header comment on why that combination is avoided.
+	UnicodeString buildTitle();
+
 	// Resolves a ComboBoxNumPlayers (repurposed as the playlist selector, see
 	// WOLQuickMatchMenu.cpp:1193-1210) selection index into its playlist's maps + player-count
 	// floor. Shared by populateQuickMatchMapSelectListbox() and saveQuickMatchOptions(), which
@@ -68,4 +75,22 @@ namespace QuickMatchActions
 
 	// Mirrors ButtonBuddies' handler (WOLQuickMatchMenu.cpp:2578-2580): GameSpyToggleOverlay(GSOVERLAY_BUDDY).
 	void toggleBuddiesOverlay();
+
+	// Mirrors ComboBoxNumPlayers' playlist repopulation (WOLQuickMatchMenu.cpp:1160-1176): calls
+	// NGMP_OnlineServices_MatchmakingInterface::RetrievePlaylists() and hands back one PlaylistOption
+	// per entry, in the same order (so its index lines up with getPlaylistMapInfo()/startMatchmaking()'s
+	// playlistIndex). No-op (onComplete never invoked) if the matchmaking interface isn't available.
+	void retrievePlaylists( std::function<void( std::vector<QuickMatchData::PlaylistOption> )> onComplete );
+
+	// Mirrors populateQuickMatchMapSelectListbox()'s GENERALS_ONLINE branch exactly (WOLQuickMatchMenu.cpp:
+	// 642-711): resolves playlistIndex's maps via getPlaylistMapInfo(), filters to TheMapCache entries with
+	// enough player slots, and reads each map's initial selected state from QuickMatchPreferences. Empty if
+	// playlistIndex doesn't resolve to a cached playlist.
+	std::vector<QuickMatchData::MapOption> getMapSelectOptions( Int playlistIndex );
+
+	// Mirrors saveQuickMatchOptions()'s GENERALS_ONLINE branch exactly (WOLQuickMatchMenu.cpp:720-745):
+	// writes each map's selected state into QuickMatchPreferences and clears the last-ladder preference
+	// (Quick Match under GO never uses a ladder). Called once when the screen closes, same lifetime as the
+	// .wnd's WOLQuickMatchMenuShutdown() -> saveQuickMatchOptions() call.
+	void saveMapSelections( const std::vector<QuickMatchData::MapOption> &maps );
 }
