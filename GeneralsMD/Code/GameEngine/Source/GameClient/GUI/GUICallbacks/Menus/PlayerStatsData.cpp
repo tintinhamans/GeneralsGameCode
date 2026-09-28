@@ -83,6 +83,19 @@ void PerformPlayerLogout()
 }
 
 //-------------------------------------------------------------------------------------------------
+Bool IsLookingAtLocalPlayer()
+{
+	NGMP_OnlineServices_AuthInterface *pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	if (pAuthInterface == nullptr)
+		return FALSE;
+	return g_lookAtPlayerID == pAuthInterface->GetUserID();
+}
+
+// ClosePlayerInfoOverlay() is defined in PopupPlayerInfo.cpp, not here: it needs
+// GameNetwork/GameSpy/LobbyUtils.h (RefreshGameListBoxes()), which needs WinInstanceData
+// (GameClient/GameWindow.h) -- this .cpp is intentionally GameWindow-free (see file header comment).
+
+//-------------------------------------------------------------------------------------------------
 PlayerStatsData::PlayerStatsData()
 	: rankAtMax(FALSE)
 	, rankProgressPercent(0.0f)

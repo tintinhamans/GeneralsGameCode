@@ -180,3 +180,13 @@ extern void (*g_lookAtPlayerStatsUpdatedHook)(const PlayerStatsData &data);
 // account and flags the pending full teardown. Callers still own closing their own popup afterwards
 // (GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO) is already shared between both front ends).
 void PerformPlayerLogout();
+
+// True when GetLookAtPlayerID() is the local player's own id -- same NGMP auth GetUserID() check
+// GameSpyPlayerInfoOverlayInit() uses to decide whether to show LOGOUT. Kept here (not
+// GameEngineDevice) so RmlPlayerInfoScreen doesn't need its own NGMP_interfaces.h include.
+Bool IsLookingAtLocalPlayer();
+
+// RefreshGameListBoxes() + GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO), exactly ButtonClose's
+// GBM_SELECTED body (PopupPlayerInfo.cpp). Kept here (not GameEngineDevice) so RmlPlayerInfoScreen
+// doesn't need its own GameNetwork/GameSpyOverlay.h / GameNetwork/GameSpy/LobbyUtils.h includes.
+void ClosePlayerInfoOverlay();

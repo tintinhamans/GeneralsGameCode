@@ -36,6 +36,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineLoginScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineWelcomeScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlPlayerInfoScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScoreScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.h"
@@ -191,6 +192,8 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/CreditsMenu.wnd", &OpenRmlCreditsScreen, &CloseRmlCreditsScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitMenu.wnd", &OpenRmlQuitMenuScreen, &CloseRmlQuitMenuScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitNoSave.wnd", &OpenRmlQuitNoSaveScreen, &CloseRmlQuitNoSaveScreen);
+	// GSOVERLAY_PLAYERINFO's .wnd path (see GameSpyOverlay.cpp's gsOverlays[] / GameSpyOpenOverlay()).
+	RmlUiScreenRegistry::registerScreen("Menus/PopupPlayerInfo.wnd", &OpenRmlPlayerInfoScreen, &CloseRmlPlayerInfoScreen);
 
 	// GameLogicDispatch pushes this after a match/campaign mission ends; see RmlScoreScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/ScoreScreen.wnd", &OpenRmlScoreScreen, &CloseRmlScoreScreen);

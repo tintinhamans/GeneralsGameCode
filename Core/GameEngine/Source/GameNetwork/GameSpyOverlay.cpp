@@ -29,12 +29,14 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 #include "Common/AudioEventRTS.h"
 
+#include "Common/GlobalData.h"
 #include "GameClient/Display.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MessageBox.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/ShellHooks.h"
 //#include "GameNetwork/GameSpy.h"
 //#include "GameNetwork/GameSpyGP.h"
@@ -272,8 +274,24 @@ static void buddyTryReconnect()
 	TheGameSpyBuddyMessageQueue->addRequest( req );
 }
 
+// TheSuperHackers @feature RmlUi player info popup: true while RmlPlayerInfoScreen (not the .wnd)
+// owns GSOVERLAY_PLAYERINFO -- overlayLayouts[GSOVERLAY_PLAYERINFO] stays NULL in that case, same
+// "no WindowLayout for this path" precedent as QuitMenu.cpp's rmlQuitWndPath.
+static Bool isRmlPlayerInfoOpen = FALSE;
+
 void GameSpyOpenOverlay( GSOverlayType overlay )
 {
+	if (overlay == GSOVERLAY_PLAYERINFO)
+	{
+		const AsciiString rmlWndPath( gsOverlays[overlay] );
+		if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered(rmlWndPath))
+		{
+			RmlUiScreenRegistry::open(rmlWndPath);
+			isRmlPlayerInfoOpen = TRUE;
+			return;
+		}
+	}
+
 	if (overlay == GSOVERLAY_BUDDY)
 	{
 #if !defined(GENERALS_ONLINE)
@@ -316,6 +334,14 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 
 void GameSpyCloseOverlay( GSOverlayType overlay )
 {
+	if (overlay == GSOVERLAY_PLAYERINFO && isRmlPlayerInfoOpen)
+	{
+		DEBUG_LOG(("Closing overlay GSOVERLAY_PLAYERINFO (RmlUi)"));
+		RmlUiScreenRegistry::close( AsciiString( gsOverlays[overlay] ) );
+		isRmlPlayerInfoOpen = FALSE;
+		return;
+	}
+
 	switch(overlay)
 	{
 		case GSOVERLAY_PLAYERINFO:
@@ -358,6 +384,8 @@ void GameSpyCloseOverlay( GSOverlayType overlay )
 
 Bool GameSpyIsOverlayOpen( GSOverlayType overlay )
 {
+	if (overlay == GSOVERLAY_PLAYERINFO && isRmlPlayerInfoOpen)
+		return TRUE;
 	return (overlayLayouts[overlay] != nullptr);
 }
 

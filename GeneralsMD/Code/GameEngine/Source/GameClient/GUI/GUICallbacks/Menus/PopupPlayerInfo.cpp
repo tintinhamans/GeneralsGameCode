@@ -1305,6 +1305,15 @@ WindowMsgHandledType GameSpyPlayerInfoOverlaySystem( GameWindow *window, Unsigne
 	return MSG_HANDLED;
 }
 
+// Shared with RmlPlayerInfoScreen's Close/Logout buttons (see PlayerStatsData.h). Defined here (not
+// PlayerStatsData.cpp) since RefreshGameListBoxes() needs WinInstanceData (GameClient/GameWindow.h),
+// which PlayerStatsData.cpp intentionally never includes.
+void ClosePlayerInfoOverlay()
+{
+	RefreshGameListBoxes();
+	GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
+}
+
 static void messageBoxYes()
 {
 	// log out of account -- shared with RmlPlayerInfoScreen's Logout button (see PlayerStatsData.h)
