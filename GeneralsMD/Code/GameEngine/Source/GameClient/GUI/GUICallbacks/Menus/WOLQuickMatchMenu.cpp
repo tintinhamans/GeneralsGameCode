@@ -38,6 +38,7 @@
 #include "Common/OptionPreferences.h"
 #include "Common/PlayerTemplate.h"
 #include "GameClient/AnimateWindowManager.h"
+#include "GameClient/GUI/GUICallbacks/Menus/QuickMatchActions.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GameText.h"
@@ -651,50 +652,13 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 	Int playlistIndex = -1;
 	GadgetComboBoxGetSelectedPos(comboBoxNumPlayers, &playlistIndex);
 
-	if (playlistIndex != -1)
+	QuickMatchData::PlaylistMapInfo plMapInfo = QuickMatchActions::getPlaylistMapInfo(playlistIndex);
+	if (plMapInfo.m_valid)
 	{
-		NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
-		if (pMatchmakingInterface != nullptr)
-		{
-			PlaylistEntry plEntry = pMatchmakingInterface->GetCachedPlaylistFromIndex(playlistIndex);
-			if (plEntry.PlaylistID != -1)
-			{
-				// take the min player count, we'll offer maps in that range, up to desired player count
-				numPlayers = plEntry.MinPlayers;
-
-				// maps
-				for (PlaylistMapEntry& mapEntry : plEntry.Maps)
-				{
-					// format into game format (Maps\\name\\name.map) for official EA maps or full path for custom maps
-					std::string correctedMapPath;
-					
-					// custom maps need the full path
-					if (mapEntry.Custom)
-					{
-						// TODO_QUICKMATCH: How did the original gamespy service handle this?
-						correctedMapPath = std::format("{}maps\\{}\\{}.map", TheGlobalData->getPath_UserData().str(), mapEntry.Path, mapEntry.Path);
-					}
-					else
-					{
-						correctedMapPath = std::format("maps\\{}\\{}.map", mapEntry.Path, mapEntry.Path);
-					}
-
-					AsciiString mapPath = correctedMapPath.c_str();
-					mapPath.toLower();
-					maps.push_back(mapPath);
-				}
-			}
-			else
-			{
-				// TODO_QUICKMATCH: Error?
-			}
-		}
+		maps = plMapInfo.m_mapPaths;
+		numPlayers = plMapInfo.m_numPlayers;
 	}
-	else
-	{
-		// TODO_QUICKMATCH: Error?
-	}
-	
+	// else TODO_QUICKMATCH: Error?
 #else
 	std::list<AsciiString> maps = TheGameSpyConfig->getQMMaps();
 #endif
@@ -766,49 +730,27 @@ static void saveQuickMatchOptions()
 	Int selected = -1;
 	GadgetComboBoxGetSelectedPos(comboBoxNumPlayers, &selected);
 
-	if (selected != -1)
+	QuickMatchData::PlaylistMapInfo plMapInfo = QuickMatchActions::getPlaylistMapInfo(selected);
+	if (plMapInfo.m_valid)
 	{
-		NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
-		if (pMatchmakingInterface != nullptr)
+		numPlayers = plMapInfo.m_numPlayers;
+		maps = plMapInfo.m_mapPaths;
+
+		// ladder
+		pref.setLastLadder(AsciiString::TheEmptyString, 0);
+
+		// map
+		Int row = 0;
+		Int entries = GadgetListBoxGetNumEntries(listboxMapSelect);
+		while (row < entries)
 		{
-			PlaylistEntry plEntry = pMatchmakingInterface->GetCachedPlaylistFromIndex(selected);
-			if (plEntry.PlaylistID != -1)
-			{
-				// take the min player count, we'll offer maps in that range, up to desired player count
-				numPlayers = plEntry.MinPlayers;
-
-				// maps
-				for (PlaylistMapEntry& mapEntry : plEntry.Maps)
-				{
-					// format into game format (Maps\\name\\name.map)
-					std::string correctedMapPath = std::format("maps\\{}\\{}.map", mapEntry.Path, mapEntry.Path);
-					maps.push_back(AsciiString(correctedMapPath.c_str()));
-				}
-
-				// ladder
-				pref.setLastLadder(AsciiString::TheEmptyString, 0);
-
-				// map
-				Int row = 0;
-				Int entries = GadgetListBoxGetNumEntries(listboxMapSelect);
-				while (row < entries)
-				{
-					const MapMetaData* md = (const MapMetaData*)GadgetListBoxGetItemData(listboxMapSelect, row, 1);
-					if (md)
-						pref.setMapSelected(md->m_fileName, (Bool)GadgetListBoxGetItemData(listboxMapSelect, row));
-					row++;
-				}
-			}
-			else
-			{
-				// TODO_QUICKMATCH: Error?
-			}
+			const MapMetaData* md = (const MapMetaData*)GadgetListBoxGetItemData(listboxMapSelect, row, 1);
+			if (md)
+				pref.setMapSelected(md->m_fileName, (Bool)GadgetListBoxGetItemData(listboxMapSelect, row));
+			row++;
 		}
 	}
-	else
-	{
-		// TODO_QUICKMATCH: Error?
-	}
+	// else TODO_QUICKMATCH: Error?
 #else
 	std::list<AsciiString> maps = TheGameSpyConfig->getQMMaps();
 
@@ -2284,11 +2226,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, TheGameText->fetch("GUI:QMAborted"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 					GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 
-					NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
-					if (pMatchmakingInterface != nullptr)
-					{
-						pMatchmakingInterface->CancelMatchmaking();
-					}
+					QuickMatchActions::cancelMatchmaking();
 #else
 					PeerRequest req;
 					req.peerRequestType = PeerRequest::PEERREQUEST_STOPQUICKMATCH;
@@ -2321,14 +2259,10 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 #if defined(GENERALS_ONLINE)
 					GadgetListBoxAddEntryText(quickmatchTextWindow, TheGameText->fetch("QM:WIDENINGSEARCH"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 
-					NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
-					if (pMatchmakingInterface != nullptr)
-					{
-						pMatchmakingInterface->WidenSearch();
+					QuickMatchActions::widenSearch();
 
-						// disable widen button
-						buttonWiden->winEnable(FALSE);
-					}
+					// disable widen button
+					buttonWiden->winEnable(FALSE);
 #else
 					PeerRequest req;
 					req.peerRequestType = PeerRequest::PEERREQUEST_WIDENQUICKMATCHSEARCH;
@@ -2340,61 +2274,39 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 				{
 #if defined(GENERALS_ONLINE)
 
-					std::vector<int> vecSelectedMapIndexes;
-					uint16_t playlistID = 0;
-					int minSelectedMaps = 0;
-
-					// get maps and playlist ID
-					std::list<AsciiString> maps;
+					std::vector<Int> vecSelectedMapIndexes;
 					Int playlistIndex = -1;
 					GadgetComboBoxGetSelectedPos(comboBoxNumPlayers, &playlistIndex);
 
-					if (playlistIndex != -1)
+					QuickMatchData::PlaylistMapInfo plMapInfo = QuickMatchActions::getPlaylistMapInfo(playlistIndex);
+					if (plMapInfo.m_valid)
 					{
-						NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
-						if (pMatchmakingInterface != nullptr)
+						// maps
+						Int numMaps = GadgetListBoxGetNumEntries(listboxMapSelect);
+						for (Int i = 0; i < numMaps; ++i)
 						{
-							PlaylistEntry plEntry = pMatchmakingInterface->GetCachedPlaylistFromIndex(playlistIndex);
-							if (plEntry.PlaylistID != -1)
+							bool bMapSelected = GadgetListBoxGetItemData(listboxMapSelect, i, 0);
+							if (bMapSelected)
 							{
-								playlistID = plEntry.PlaylistID;
-								minSelectedMaps = plEntry.MinSelectedMaps;
-
-								// maps
-								Int numMaps = GadgetListBoxGetNumEntries(listboxMapSelect);
-								for (Int i = 0; i < numMaps; ++i)
-								{
-									bool bMapSelected = GadgetListBoxGetItemData(listboxMapSelect, i, 0);
-									if (bMapSelected)
-									{
-										vecSelectedMapIndexes.push_back(i);
-									}
-								}
-							}
-							else
-							{
-								// TODO_QUICKMATCH: Error?
+								vecSelectedMapIndexes.push_back(i);
 							}
 						}
 					}
-					else
-					{
-						// TODO_QUICKMATCH: Error?
-					}
-					
-					if (static_cast<int>(vecSelectedMapIndexes.size()) < minSelectedMaps)
+					// else TODO_QUICKMATCH: Error?
+
+					if (static_cast<Int>(vecSelectedMapIndexes.size()) < plMapInfo.m_minSelectedMaps)
 					{
 						UnicodeString msg;
-						msg.format(L"You must select at least %d maps.", minSelectedMaps);
+						msg.format(L"You must select at least %d maps.", plMapInfo.m_minSelectedMaps);
 						Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, msg, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
 						GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-						
+
 						// buttons
 						buttonWiden->winEnable(FALSE);
 						buttonStart->winHide(FALSE);
 						buttonStart->winEnable(TRUE);
 						buttonStop->winHide(TRUE);
-						
+
 						break;
 					}
 
@@ -2403,40 +2315,35 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					buttonStart->winEnable(FALSE);
 					buttonStop->winHide(TRUE);
 
-					NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
-					if (pMatchmakingInterface != nullptr)
-					{
-						const uint64_t generationForStart = s_quickMatchMenuGeneration;
-						pMatchmakingInterface->StartMatchmaking(playlistID, vecSelectedMapIndexes, [generationForStart](bool bSuccess)
+					const uint64_t generationForStart = s_quickMatchMenuGeneration;
+					QuickMatchActions::startMatchmaking(plMapInfo.m_playlistID, vecSelectedMapIndexes, plMapInfo.m_minSelectedMaps, [generationForStart](Bool bSuccess)
+						{
+							if (generationForStart != s_quickMatchMenuGeneration)
 							{
-								if (generationForStart != s_quickMatchMenuGeneration)
-								{
-					// menu closed; static window pointers may be stale
-									return;
-								}
+								// menu closed; static window pointers may be stale
+								return;
+							}
 
-								// TODO_QUICKMATCH: Chat has a sound effect in TheGameSpyInfo, re-eanble it
-								if (bSuccess)
-								{
+							// TODO_QUICKMATCH: Chat has a sound effect in TheGameSpyInfo, re-eanble it
+							if (bSuccess)
+							{
+								// buttons
+								buttonWiden->winEnable(TRUE);
+								buttonStart->winHide(TRUE);
+								buttonStop->winHide(FALSE);
+							}
+							else
+							{
+								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Failed to start matchmaking."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
+								GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
 
-									// buttons
-									buttonWiden->winEnable(TRUE);
-									buttonStart->winHide(TRUE);
-									buttonStop->winHide(FALSE);
-								}
-								else
-								{
-									Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Failed to start matchmaking."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-									GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-
-									// buttons
-									buttonWiden->winEnable(FALSE);
-									buttonStart->winHide(FALSE);
-									buttonStart->winEnable(TRUE);
-									buttonStop->winHide(TRUE);
-								}
-							});
-					}
+								// buttons
+								buttonWiden->winEnable(FALSE);
+								buttonStart->winHide(FALSE);
+								buttonStart->winEnable(TRUE);
+								buttonStop->winHide(TRUE);
+							}
+						});
 #else
 					PeerRequest req;
 					req.peerRequestType = PeerRequest::PEERREQUEST_STARTQUICKMATCH;
@@ -2615,7 +2522,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 				}
 				else if ( controlID == buttonBuddiesID )
 				{
-					GameSpyToggleOverlay( GSOVERLAY_BUDDY );
+					QuickMatchActions::toggleBuddiesOverlay();
 				}
 				else if ( controlID == buttonBackID )
 				{
