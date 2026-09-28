@@ -6,8 +6,10 @@
 	<link type="text/rcss" href="LanLobby.rcss"/>
 </head>
 <body data-model="lanlobby">
-	<div class="frame panel">
-		<div class="title-bar"><gametext key="GUI:LANLobby"/></div>
+	<mappedimage class="shell-background" name="MainMenuRuler"/>
+
+	<div class="shell-frame lobby-panel">
+		<div class="shell-title-bar"><gametext key="GUI:LANLobby"/></div>
 
 		<div class="lobby-row">
 			<div class="players-column">
@@ -50,11 +52,11 @@
 
 		<div class="chat">
 			<div class="scroll-container chat-body">
-				<div data-for="line : chat_lines">{{line}}</div>
+				<div class="chat-line" data-for="line : chat_lines">{{line}}</div>
 			</div>
 			<div class="chat-entry-row">
 				<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-				<button class="btn-send" data-event-click="send_chat"></button>
+				<button class="btn-send" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
 			</div>
 		</div>
 

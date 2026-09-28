@@ -3,22 +3,19 @@
 	come from common.rcss; game-list rows reuse GameSetup.rcss's .map-row/.map-name.
 */
 
+/* .lobby-panel is the .shell-frame (full blueprint panel, see common.rcss) -- fills the screen
+   like the original LanLobbyMenu.wnd instead of a fixed centered dialog. body needs an explicit
+   100% size for .shell-frame's percent left/top/width/height to resolve against. */
 body
 {
-	width: 1000dp;
-	height: 700dp;
-	left: 50%;
-	top: 50%;
-	margin-left: -500dp;
-	margin-top: -350dp;
+	width: 100%;
+	height: 100%;
 }
 
-.panel
+.lobby-panel
 {
 	display: flex;
 	flex-direction: column;
-	width: 100%;
-	height: 100%;
 }
 
 .section-title
@@ -71,6 +68,7 @@ body
 
 .player-row
 {
+	display: block;
 	padding: 3dp 6dp;
 	color: #FFFFFF;
 	border-bottom: 1dp rgba(47, 55, 168, 80);
@@ -147,6 +145,14 @@ body
 .chat-body
 {
 	flex: 1 1 auto;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	padding: 4dp 6dp;
+}
+
+.chat-line
+{
+	display: block;
 }
 
 .chat-entry-row
@@ -194,10 +200,18 @@ body
 	flex: 1 1 auto;
 }
 
-/* ---- Chat entry icon button (original is icon-only, Enter sends chat) ------------------ */
+/* ---- Chat entry icon button (original ButtonSendChat draws ReturnButton) ---------------- */
 .btn-send
 {
 	width: 24dp;
 	height: 24dp;
+	padding: 0;
 	text-align: center;
+}
+
+.btn-send mappedimage
+{
+	display: block;
+	width: 100%;
+	height: 100%;
 }
