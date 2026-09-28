@@ -6,11 +6,13 @@
 	<link type="text/rcss" href="LanGameOptions.rcss"/>
 </head>
 <body data-model="langamesetup">
-	<div class="frame panel lan-setup-panel">
-		<div class="title-bar"><gametext key="GUI:GameOptions"/></div>
+	<mappedimage class="shell-background" name="MainMenuRuler"/>
+
+	<div class="shell-frame lan-setup-panel">
+		<div class="shell-title-bar"><gametext key="GUI:GameOptions"/></div>
 
 		<div class="lan-setup-body">
-			<div class="slot-list">
+			<div class="scroll-container slot-list">
 				<div class="slot-row slot-header">
 					<div class="slot-occupant"><gametext key="GUI:Players"/></div>
 					<div class="slot-color"><gametext key="GUI:Color"/></div>
@@ -92,12 +94,12 @@
 			</div>
 		</div>
 
-		<div class="footer">
-			<button data-event-click="back"><gametext key="GUI:Back"/></button>
-			<button data-attr-disabled="!start_enabled" data-event-click="start">
+		<div class="footer footer-split">
+			<button class="button-lg" data-attr-disabled="!start_enabled" data-event-click="start">
 				<gametext key="GUI:Start" data-if="is_host"/>
 				<gametext key="GUI:Accept" data-if="!is_host"/>
 			</button>
+			<button class="button-lg" data-event-click="back"><gametext key="GUI:Back"/></button>
 		</div>
 	</div>
 </body>

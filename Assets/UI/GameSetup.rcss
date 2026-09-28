@@ -112,12 +112,15 @@
 	min-width: 0;
 }
 
-/* ---- Map preview + start-position markers ---------------------------------------------- */
+/* ---- Map preview + start-position markers ----------------------------------------------
+   Fixed square, larger than before (was 256dp) now that side panels have more room on a
+   full shell screen; RmlUi's flex layout doesn't reliably support percentage-of-width
+   padding tricks for a responsive aspect box, so this stays a fixed dp size. */
 .map-preview
 {
 	position: relative;
-	width: 256dp;
-	height: 256dp;
+	width: 320dp;
+	height: 320dp;
 	border: 1dp #2F37A8;
 	background-color: rgba(2, 2, 2, 191);
 }

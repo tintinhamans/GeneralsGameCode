@@ -6,11 +6,13 @@
 	<link type="text/rcss" href="SkirmishGameOptions.rcss"/>
 </head>
 <body data-model="skirmishsetup">
-	<div class="frame panel skirmish-panel">
-		<div class="title-bar"><gametext key="GUI:Skirmish"/></div>
+	<mappedimage class="shell-background" name="MainMenuRuler"/>
+
+	<div class="shell-frame skirmish-panel">
+		<div class="shell-title-bar"><gametext key="GUI:Skirmish"/></div>
 
 		<div class="skirmish-body">
-			<div class="slot-list">
+			<div class="scroll-container slot-list">
 				<div class="slot-row slot-header">
 					<div class="slot-occupant"><gametext key="GUI:Players"/></div>
 					<div class="slot-color"><gametext key="GUI:Color"/></div>
@@ -89,9 +91,9 @@
 			</div>
 		</div>
 
-		<div class="footer">
-			<button data-event-click="back"><gametext key="GUI:GotoMainMenu"/></button>
-			<button data-event-click="start"><gametext key="GUI:Start"/></button>
+		<div class="footer footer-split">
+			<button class="button-lg" data-event-click="start"><gametext key="GUI:Start"/></button>
+			<button class="button-lg" data-event-click="back"><gametext key="GUI:GotoMainMenu"/></button>
 		</div>
 	</div>
 </body>

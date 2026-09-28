@@ -4,13 +4,14 @@
 	online lobby screen); this file only positions this screen's own panels.
 */
 
-.skirmish-panel
+/* .skirmish-panel is the .shell-frame (full blueprint panel, see common.rcss) -- no fixed
+   size/centering here, it fills the screen like the original SkirmishGameOptionsMenu.wnd.
+   body needs an explicit 100% size for .shell-frame's percent left/top/width/height to
+   resolve against (RmlUi, like CSS, treats an auto-sized body as shrink-to-fit). */
+body
 {
-	width: 900dp;
-	height: 620dp;
-	margin: 40dp auto;
-	display: flex;
-	flex-direction: column;
+	width: 100%;
+	height: 100%;
 }
 
 .skirmish-body
@@ -18,12 +19,14 @@
 	display: flex;
 	flex-direction: row;
 	flex: 1 1 auto;
+	min-height: 0; /* let slot-list scroll instead of overflowing the frame */
 }
 
 .slot-list
 {
 	flex: 1 1 auto;
-	margin-right: 12dp;
+	margin-right: 16dp;
+	min-height: 0;
 }
 
 .slot-header
@@ -36,7 +39,9 @@
 .side-panel
 {
 	flex: 0 0 auto;
-	width: 280dp;
+	width: 30%;
+	min-width: 340dp;
+	max-width: 420dp;
 	display: flex;
 	flex-direction: column;
 }
