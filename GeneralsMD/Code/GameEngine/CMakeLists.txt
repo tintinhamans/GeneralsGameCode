@@ -767,6 +767,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/MapSelectActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/MapSelectMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/NetworkDirectConnect.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OnlineLobbyActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OnlineLobbyData.cpp

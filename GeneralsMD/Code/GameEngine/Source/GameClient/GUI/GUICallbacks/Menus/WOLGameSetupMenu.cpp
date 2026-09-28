@@ -69,6 +69,7 @@
 #include "GameNetwork/GameSpy/GSConfig.h"
 
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupData.h"
 #include <ws2ipdef.h>
 #include <format>
@@ -630,6 +631,15 @@ void pingTooltip(GameWindow *window, WinInstanceData *instData, UnsignedInt mous
 GameWindow *listboxGameSetupChat = NULL;
 NameKeyType listboxGameSetupChatID = NAMEKEY_INVALID;
 
+// Same GadgetListBoxAddEntryText(listboxGameSetupChat, ...) call every chat/system-notice line in
+// this file used to make directly -- now also handed to OnlineGameSetupActions as a ChatLineFn, so
+// StartPressed()/slash commands produce lines through this one call site whether they're
+// widget-driven (this .wnd) or not (a future RmlOnlineGameSetupScreen would pass its own).
+static void addGameSetupChatLine( const UnicodeString &text, Color color )
+{
+	GadgetListBoxAddEntryText(listboxGameSetupChat, text, color, -1, -1);
+}
+
 static void handleColorSelection(int index)
 {
 	GameWindow *combo = comboBoxColor[index];
@@ -638,57 +648,9 @@ static void handleColorSelection(int index)
 	color = (Int)GadgetComboBoxGetItemData(combo, selIndex);
 
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-
 	NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
-	if (myGame)
-	{
-		GameSlot * slot = myGame->getSlot(index);
-		if (color == slot->getColor())
-			return;
-
-		if (color >= -1 && color < TheMultiplayerSettings->getNumColors())
-		{
-			Bool colorAvailable = TRUE;
-			if(color != -1 )
-			{
-				for(Int i=0; i <MAX_SLOTS; i++)
-				{
-					GameSlot *checkSlot = myGame->getSlot(i);
-					if(color == checkSlot->getColor() && slot != checkSlot)
-					{
-						colorAvailable = FALSE;
-						break;
-					}
-				}
-			}
-
-			// TODO_NGMP: Enforce this on the service too
-			if(!colorAvailable)
-				return;
-		}
-
-		// NGMP: Dont set it locally / directly anymore, rely on the lobby service instead
-		//slot->setColor(color);
-
-		// NGMP: Update lobby (if local, for remote players we'll get it from the service)
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-
-		if (index == myGame->getLocalSlotNum())
-		{
-			if (pLobbyInterface != nullptr)
-			{
-				pLobbyInterface->UpdateCurrentLobby_MyColor(color);
-			}
-		}
-		else if (slot->getState() == SLOT_EASY_AI || slot->getState() == SLOT_MED_AI || slot->getState() == SLOT_BRUTAL_AI)
-		{
-			if (pLobbyInterface != nullptr)
-			{
-				pLobbyInterface->UpdateCurrentLobby_AIColor(index, color);
-			}
-		}
-	}
+	OnlineGameSetupActions::selectColor(myGame, index, color);
 }
 
 static void handlePlayerTemplateSelection(int index, bool bInitialSetup = false)
@@ -703,98 +665,15 @@ static void handlePlayerTemplateSelection(int index, bool bInitialSetup = false)
 		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 		NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
-		if (myGame)
+		if (myGame && OnlineGameSetupActions::selectPlayerTemplate(myGame, index, playerTemplate))
 		{
-			GameSlot* slot = myGame->getSlot(index);
-			if (playerTemplate == slot->getPlayerTemplate())
-				return;
-
-			Int oldTemplate = slot->getPlayerTemplate();
-			slot->setPlayerTemplate(playerTemplate);
-
-			int updatedStartPos = slot->getStartPos();
-
-			if (oldTemplate == PLAYERTEMPLATE_OBSERVER)
-			{
-				// was observer, so populate color & team with all, and enable
-				GadgetComboBoxSetSelectedPos(comboBoxColor[index], 0);
-				GadgetComboBoxSetSelectedPos(comboBoxTeam[index], 0);
-				slot->setStartPos(-1);
-				updatedStartPos = -1;
-			}
-			else if (playerTemplate == PLAYERTEMPLATE_OBSERVER)
-			{
-				// is becoming observer, so populate color & team with random only, and disable
-				GadgetComboBoxSetSelectedPos(comboBoxColor[index], 0);
-				GadgetComboBoxSetSelectedPos(comboBoxTeam[index], 0);
-				slot->setStartPos(-1);
-				updatedStartPos = -1;
-			}
-
-			// NGMP: Update lobby (if local, for remote players we'll get it from the service)
-			if (index == myGame->getLocalSlotNum())
-			{
-				pLobbyInterface->UpdateCurrentLobby_MySide(playerTemplate, updatedStartPos);
-			}
-			else if (slot->getState() == SLOT_EASY_AI || slot->getState() == SLOT_MED_AI || slot->getState() == SLOT_BRUTAL_AI)
-			{
-				pLobbyInterface->UpdateCurrentLobby_AISide(index, playerTemplate, updatedStartPos);
-			}
+			// became, or stopped being, an observer -- reset color/team to "random"/"all", same as
+			// GadgetComboBoxSetSelectedPos(comboBoxColor[index]/comboBoxTeam[index], 0) always did.
+			GadgetComboBoxSetSelectedPos(comboBoxColor[index], 0);
+			GadgetComboBoxSetSelectedPos(comboBoxTeam[index], 0);
 		}
 	}
 }
-
-
-static void handleStartPositionSelection(Int player, int startPos)
-{
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
-
-	if (myGame)
-	{
-		NGMPGameSlot * slot = myGame->getGameSpySlot(player);
-		if (!slot)
-			return;
-
-		if (startPos == slot->getStartPos())
-			return;
-		Bool skip = FALSE;
-		if (startPos < 0)
-		{
-			skip = TRUE;
-		}
-
-		if(!skip)
-		{
-			Bool isAvailable = TRUE;
-			for(Int i = 0; i < MAX_SLOTS; ++i)
-			{
-				if(i != player && myGame->getSlot(i)->getStartPos() == startPos)
-				{
-					isAvailable = FALSE;
-					break;
-				}
-			}
-			if( !isAvailable )
-				return;
-		}
-
-		// NGMP: Dont set it locally / directly anymore, rely on the lobby service instead
-		//slot->setStartPos(startPos);
-
-		// NGMP: Update lobby (if local, for remote players we'll get it from the service)
-		//		 We also allow host to set AI here
-		if (player == myGame->getLocalSlotNum())
-		{
-			pLobbyInterface->UpdateCurrentLobby_MyStartPos(startPos);
-		}
-		else if (myGame->amIHost() && slot->isAI()) // AI + Host
-		{
-			pLobbyInterface->UpdateCurrentLobby_AIStartPos(player, startPos);
-		}
-	}
-}
-
 
 
 static void handleTeamSelection(int index)
@@ -807,25 +686,7 @@ static void handleTeamSelection(int index)
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 	NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
 
-	if (myGame)
-	{
-		GameSlot * slot = myGame->getSlot(index);
-		if (team == slot->getTeamNumber())
-			return;
-
-		// NGMP: Dont set it locally / directly anymore, rely on the lobby service instead
-		//slot->setTeamNumber(team);
-
-		// NGMP: Update lobby (if local, for remote players we'll get it from the service)
-		if (index == myGame->getLocalSlotNum())
-		{
-			pLobbyInterface->UpdateCurrentLobby_MyTeam(team);
-		}
-		else if (slot->getState() == SLOT_EASY_AI || slot->getState() == SLOT_MED_AI || slot->getState() == SLOT_BRUTAL_AI)
-		{
-			pLobbyInterface->UpdateCurrentLobby_AITeam(index, team);
-		}
-	}
+	OnlineGameSetupActions::selectTeam(myGame, index, team);
 }
 
 static void handleStartingCashSelection()
@@ -840,11 +701,7 @@ static void handleStartingCashSelection()
 	Money startingCash;
 	startingCash.deposit(startingCashValue, FALSE);
 
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	if (pLobbyInterface != nullptr)
-	{
-		pLobbyInterface->UpdateCurrentLobby_StartingCash(startingCashValue);
-	}
+	OnlineGameSetupActions::setStartingCash(startingCash);
 #else
   GameInfo *myGame = TheGameSpyInfo->getCurrentStagingRoom();
 
@@ -874,12 +731,7 @@ static void handleLimitSuperweaponsClick()
 #if defined(GENERALS_ONLINE)
 	// update it on the service
 	bool bLimitSuperweapons = GadgetCheckBoxIsChecked(checkBoxLimitSuperweapons);
-
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	if (pLobbyInterface != nullptr)
-	{
-		pLobbyInterface->UpdateCurrentLobby_LimitSuperweapons(bLimitSuperweapons);
-	}
+	OnlineGameSetupActions::setSuperweaponRestriction(bLimitSuperweapons);
 #else
   GameInfo *myGame = TheGameSpyInfo->getCurrentStagingRoom();
 
@@ -925,327 +777,18 @@ static void WOLLockSettings()
 
 static void StartPressed()
 {
-	Bool isReady = TRUE;
-	Bool allHaveMap = TRUE;
-	Int playerCount = 0;
-	Int humanCount = 0;
-
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
 	NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
-
-	if (pLobbyInterface == nullptr || !myGame || pAuthInterface == nullptr)
+	if (!myGame)
 		return;
 
-	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-	if (pMesh == nullptr)
-	{
-		return;
-	}
+	OnlineGameSetupActions::StartPressCallbacks callbacks;
+	callbacks.chatLine = addGameSetupChatLine;
+	callbacks.setStartButtonEnabled = []( Bool enabled ) { if( buttonStart != nullptr ) buttonStart->winEnable( enabled ); };
+	callbacks.setBackButtonEnabled = []( Bool enabled ) { if( buttonBack != nullptr ) buttonBack->winEnable( enabled ); };
+	callbacks.setSelectMapButtonEnabled = []( Bool enabled ) { if( buttonSelectMap != nullptr ) buttonSelectMap->winEnable( enabled ); };
 
-	int numHumanPlayers = 0;
-	for(LobbyMemberEntry & member : pLobbyInterface->GetCurrentLobby().members)
-	{
-		if (member.IsHuman())
-		{
-			++numHumanPlayers;
-		}
-	}
-
-	if (pMesh->GetAllConnections().size() < numHumanPlayers - 1)
-	{
-		UnicodeString text(L"Connections: Some players are still connecting. Try again shortly:");
-		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameMakeColor(255, 194, 15, 255), -1, -1);
-
-		
-		int64_t myUserID = pAuthInterface->GetUserID();
-		auto vecLobbyMembers = pLobbyInterface->GetCurrentLobby().members;
-		auto allConnections = pMesh->GetAllConnections();
-
-		for (LobbyMemberEntry& lobbyMember : vecLobbyMembers)
-		{
-			if (lobbyMember.IsHuman() && lobbyMember.user_id != myUserID) // dont show AI or self
-			{
-				bool bFoundLobbyMemberForConnection = false;
-
-				if (allConnections.find(lobbyMember.user_id) != allConnections.end())
-				{
-					// we have a connection for this lobby member
-					bFoundLobbyMemberForConnection = true;
-				}
-				
-				if (!bFoundLobbyMemberForConnection)
-				{
-					UnicodeString strDisplayName(from_utf8(lobbyMember.display_name).c_str());
-					GadgetListBoxAddEntryText(listboxGameSetupChat, strDisplayName, GameMakeColor(255, 194, 15, 255), -1, -1);
-				}
-			}
-		}
-		
-		return;
-	}
-
-	// see if everyone's accepted and count the number of players in the game
-	UnicodeString mapDisplayName;
-	const MapMetaData *mapData = TheMapCache->findMap( myGame->getMap() );
-	Bool willTransfer = TRUE;
-	if (mapData)
-	{
-		mapDisplayName.format(L"%ls", mapData->m_displayName.str());
-		willTransfer = !mapData->m_isOfficial;
-	}
-	else
-	{
-		mapDisplayName.translate(myGame->getMap().str());
-		willTransfer = WouldMapTransfer(myGame->getMap());
-	}
-	for( int i = 0; i < MAX_SLOTS; i++ )
-	{
-		bool bIsAccepted = myGame->getSlot(i)->isAccepted();
-		bool bIsHuman = myGame->getSlot(i)->isHuman();
-		if ((bIsAccepted == FALSE) && (bIsHuman == TRUE))
-		{
-			isReady = FALSE;
-			if (!myGame->getSlot(i)->hasMap() && !willTransfer)
-			{
-				UnicodeString msg;
-				msg.format(TheGameText->fetch("GUI:PlayerNoMap"), myGame->getSlot(i)->getName().str(), mapDisplayName.str());
-				GadgetListBoxAddEntryText(listboxGameSetupChat, msg, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-				allHaveMap = FALSE;
-			}
-		}
-		if(myGame->getSlot(i)->isOccupied() && myGame->getSlot(i)->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
-		{
-			if (myGame->getSlot(i)->isHuman())
-				humanCount++;
-			playerCount++;
-		}
-	}
-
-	// Check for too many players
-	const MapMetaData *md = TheMapCache->findMap( myGame->getMap() );
-	if (!md || md->m_numPlayers < playerCount)
-	{
-		if (myGame->amIHost())
-		{
-			UnicodeString text;
-			text.format(TheGameText->fetch("LAN:TooManyPlayers"), (md)?md->m_numPlayers:0);
-			GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-		}
-		return;
-	}
-
-	// Check for observer + AI players
-	if (TheGlobalData->m_netMinPlayers && !humanCount)
-	{
-		if (myGame->amIHost())
-		{
-			UnicodeString text = TheGameText->fetch("GUI:NeedHumanPlayers");
-			GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-		}
-		return;
-	}
-
-	// Check for too few players
-	if (playerCount < TheGlobalData->m_netMinPlayers)
-	{
-		if (myGame->amIHost())
-		{
-			UnicodeString text;
-			text.format(TheGameText->fetch("LAN:NeedMorePlayers"),playerCount);
-			GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-		}
-		return;
-	}
-
-	// Check for too few teams
-	int numRandom = 0;
-	std::set<Int> teams;
-	for (Int i=0; i<MAX_SLOTS; ++i)
-	{
-		GameSlot *slot = myGame->getSlot(i);
-		if (slot && slot->isOccupied() && slot->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
-		{
-			if (slot->getTeamNumber() >= 0)
-			{
-				teams.insert(slot->getTeamNumber());
-			}
-			else
-			{
-				++numRandom;
-			}
-		}
-	}
-	if (numRandom + teams.size() < TheGlobalData->m_netMinPlayers)
-	{
-		if (myGame->amIHost())
-		{
-			UnicodeString text;
-			text.format(TheGameText->fetch("LAN:NeedMoreTeams"));
-			GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-		}
-		return;
-	}
-
-	if (numRandom + teams.size() < 2)
-	{
-		UnicodeString text;
-		text.format(TheGameText->fetch("GUI:SandboxMode"));
-		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-	}
-
-	if(isReady)
-	{
-		// start full mesh connection check
-		UnicodeString strInform = UnicodeString(L"Connections: Checking all players...");
-		GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(255, 194, 15, 255), -1, -1);
-
-		std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
-		if (pWS != nullptr)
-		{
-			if (buttonStart != nullptr)
-			{
-				buttonStart->winEnable(FALSE);
-			}
-
-			pWS->SendData_StartFullMeshConnectivityCheck([=](bool bMeshFullyConnected, std::list<std::pair<int64_t, int64_t>> missingConnections, std::string strFailureReason)
-				{
-					if (bMeshFullyConnected)
-					{
-						UnicodeString strInform = UnicodeString(L"Connections: All players are connected.");
-						GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(0, 255, 0, 255), -1, -1);
-
-						// reset autostart just incase
-#if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
-						pLobbyInterface->ClearAutoReadyCountdown();
-#endif
-
-						//PeerRequest req;
-						//req.peerRequestType = PeerRequest::PEERREQUEST_STARTGAME;
-						//TheGameSpyPeerMessageQueue->addRequest(req);
-
-#if !defined(GENERALS_ONLINE_ENABLE_MATCH_START_COUNTDOWN)
-						Lobby_StartGamePacket startGamePacket;
-						pLobbyInterface->SendToMesh(startGamePacket);
-
-						// process locally too
-						NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-						if (pMesh != nullptr)
-						{
-							Lobby_StartGamePacket startGamePacket2;
-							pMesh->ProcessGameStart(startGamePacket2);
-						}
-#else
-						if (TheNGMPGame != nullptr)
-						{
-							if (!TheNGMPGame->IsCountdownStarted())
-							{
-								// remote msg
-								UnicodeString strInform;
-								strInform.format(TheGameText->fetch("LAN:GameStartTimerPlural"), TheNGMPGame->GetTotalCountdownDuration());
-								pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, true);
-
-								TheNGMPGame->StartCountdown();
-								buttonSelectMap->winEnable(FALSE);		
-							}
-						}
-#endif
-
-						GameSpyCloseOverlay(GSOVERLAY_BUDDY);
-					}
-					else
-					{
-						UnicodeString strInform = UnicodeString(L"Connections: The player network is not ready. Try again shortly.");
-						GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(255, 194, 15, 255), -1, -1);
-
-						if (!strFailureReason.empty())
-						{
-							UnicodeString strReasonLine;
-							strReasonLine.format(L"Connections: Reason: %s", from_utf8(strFailureReason).c_str());
-							GadgetListBoxAddEntryText(listboxGameSetupChat, strReasonLine, GameMakeColor(255, 194, 15, 255), -1, -1);
-						}
-
-						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-
-						// who is missing who?
-						//std::list<std::pair<int64_t, int64_t>> missingConnections
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Connections: Missing links:"), GameMakeColor(255, 194, 15, 255), -1, -1);
-						for (auto& missingPair : missingConnections)
-						{
-							bool bFoundPlayer = false;
-							if (pLobbyInterface != nullptr)
-							{
-								LobbyMemberEntry lobbyMemberSource = pLobbyInterface->GetRoomMemberFromID(missingPair.first);
-								LobbyMemberEntry lobbyMemberTarget = pLobbyInterface->GetRoomMemberFromID(missingPair.second);
-								if (lobbyMemberSource.user_id != -1 && lobbyMemberTarget.user_id != -1)
-								{
-									bFoundPlayer = true;
-
-									UnicodeString strMissingConnection;
-									strMissingConnection.format(L"%s is not connected to %s.", from_utf8(lobbyMemberSource.display_name).c_str(), from_utf8(lobbyMemberTarget.display_name).c_str());
-									GadgetListBoxAddEntryText(listboxGameSetupChat, strMissingConnection, GameMakeColor(255, 194, 15, 255), -1, -1);
-								}
-							}
-
-							if (!bFoundPlayer) // if we couldnt find a display name... show a user ID instead, better than nothing
-							{
-								UnicodeString strMissingConnection;
-								strMissingConnection.format(L"Player %lld is not connected to player %lld.", missingPair.first, missingPair.second);
-								GadgetListBoxAddEntryText(listboxGameSetupChat, strMissingConnection, GameMakeColor(255, 194, 15, 255), -1, -1);
-							}
-						}
-
-						// restore state
-						if (buttonBack != nullptr)
-						{
-							buttonBack->winEnable(TRUE);
-						}
-
-						if (buttonStart != nullptr)
-						{
-							buttonStart->winEnable(TRUE);
-						}
-					}
-					
-				});
-		}
-	}
-	else if (allHaveMap)
-	{
-		// send HWS chat message
-
-#if defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
-		// local msg
-		GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetch("GUI:NotifiedStartIntent"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-
-		// remote msg
-		UnicodeString strInform = TheGameText->fetch("GUI:HostWantsToStart");
-		pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, false);
-#else
-		if (!pLobbyInterface->HasAutoReadyCountdown())
-		{
-			// local msg
-			GadgetListBoxAddEntryText(listboxGameSetupChat, TheGameText->fetch("GUI:NotifiedStartIntent"), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-
-			// remote msg
-			UnicodeString strInform = TheGameText->fetch("GUI:HostWantsToStart");
-			UnicodeString strInform2 = UnicodeString(L"Ready check: All players will be marked ready in 30 seconds.");
-			pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, false);
-			pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform2, true);
-
-			// TODO_NGMP: Add the reverse too, if everyone is ready but the host wont start... just start it in X seconds
-
-			// start a countdown to auto start
-			// TODO_NGMP: Don't have this client driven...
-			pLobbyInterface->StartAutoReadyCountdown();
-		}
-		else
-		{
-			UnicodeString strInform = UnicodeString(L"Ready check: A countdown is already running. Players will be marked ready when it ends.");
-			GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(192, 192, 192, 255), -1, -1);
-		}
-#endif
-	}
+	OnlineGameSetupActions::pressStart( myGame, callbacks );
 }
 
 
@@ -3565,351 +3108,8 @@ WindowMsgHandledType WOLGameSetupMenuInput( GameWindow *window, UnsignedInt msg,
 }
 
 
-// Slash commands -------------------------------------------------------------------------
-extern "C" {
-int getQR2HostingStatus();
-}
-extern int isThreadHosting;
-
-Bool handleGameSetupSlashCommands(UnicodeString uText)
-{
-	AsciiString message;
-	message.translate(uText);
-
-	if (message.getCharAt(0) != '/')
-	{
-		return FALSE; // not a slash command
-	}
-
-	AsciiString remainder = message.str() + 1;
-	AsciiString token;
-	remainder.nextToken(&token);
-	token.toLower();
-
-	if (token == "host")
-	{
-		UnicodeString s;
-		s.format(L"Hosting qr2:%d thread:%d", getQR2HostingStatus(), isThreadHosting);
-#if !defined(GENERALS_ONLINE)
-#else
-		GadgetListBoxAddEntryText(listboxGameSetupChat, s, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-#endif
-		return TRUE; // was a slash command
-	}
-	else if (token == "me" && uText.getLength()>4)
-	{
-		UnicodeString msg = UnicodeString(uText.str() + 4); // skip the /me
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-
-		if (pLobbyInterface != nullptr)
-		{
-			pLobbyInterface->SendChatMessageToCurrentLobby(msg, true);
-		}
-		return TRUE; // was a slash command
-	}
-
-#if defined(GENERALS_ONLINE)
-	else if (token == "help" || token == "commands")
-	{
-		const Color helpColor = GameMakeColor(127, 127, 127, 255);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/me <message> - Send an emote."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/friendsonly - Let only friends join (host only)."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/public - Let anyone join (host only)."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/setpassword <password> - Set a lobby password (host only)."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/removepassword - Remove the lobby password (host only)."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/maxcameraheight <value> - Set the camera height limit (host only)."), helpColor, -1, -1);
-		// GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/leave - Return to the main lobby."), helpColor, -1, -1);
-		// GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/quit - Exit the game."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/support - Open the GeneralsOnline Discord."), helpColor, -1, -1);
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"/help - Show these commands. You can also use /commands."), helpColor, -1, -1);
-		return TRUE; // was a slash command
-	}
-	else if (token == "support")
-	{
-		ShellExecuteA(NULL, "open", "https://discord.playgenerals.online", NULL, NULL, SW_SHOWNORMAL);
-		return TRUE;
-	}
-	else if (token == "friendsonly")
-    {
-        NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
-		if (pOnlineServicesMgr != nullptr)
-		{
-			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-
-			if (pLobbyInterface != nullptr)
-			{
-				if (pLobbyInterface->IsInLobby())
-				{
-					if (pLobbyInterface->IsHost()) // NOTE: this is checked service side too, but we might as well not make the call to reduce resource usage
-					{
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Friends only. Use /public to let anyone join."), GameMakeColor(0, 255, 0, 255), -1, -1);
-						pLobbyInterface->SetJoinability(ELobbyJoinability::LobbyJoinability_FriendsOnly);
-					}
-				}
-			}
-		}
-		return TRUE; // was a slash command
-	}
-    else if (token == "public")
-    {
-        NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
-        if (pOnlineServicesMgr != nullptr)
-        {
-            NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-
-            if (pLobbyInterface != nullptr)
-            {
-                if (pLobbyInterface->IsInLobby())
-                {
-					if (pLobbyInterface->IsHost()) // NOTE: this is checked service side too, but we might as well not make the call to reduce resource usage
-                    {
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Anyone can join. Use /friendsonly to limit the lobby to friends."), GameMakeColor(0, 255, 0, 255), -1, -1);
-						pLobbyInterface->SetJoinability(ELobbyJoinability::LobbyJoinability_Public);
-                    }
-                }
-            }
-        }
-		return TRUE; // was a slash command
-    }
-	else if (token == "maxcameraheight" && uText.getLength() > 17)
-	{
-		NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
-		if (pOnlineServicesMgr != nullptr)
-		{
-			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-
-			if (pLobbyInterface != nullptr)
-			{
-				if (pLobbyInterface->IsInLobby())
-				{
-					if (pLobbyInterface->IsHost())
-					{
-						UnicodeString val = UnicodeString(uText.str() + 17); // skip the command
-						
-						AsciiString asciiVal;
-						asciiVal.translate(val);
-
-						bool bIsNumber = true;
-
-						for (int i = 0; i < asciiVal.getLength(); ++i)
-						{
-							char thisChar = asciiVal.getCharAt(i);
-							if (!std::isdigit((unsigned char)thisChar))
-							{
-								bIsNumber = false;
-								break;
-							}
-						}
-
-						if (bIsNumber)
-						{
-							int newCameraHeight = atoi(asciiVal.str());
-
-							if (newCameraHeight < GENERALS_ONLINE_MIN_LOBBY_CAMERA_ZOOM || newCameraHeight > GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM)
-							{
-								UnicodeString msg;
-								msg.format(L"Camera height: Enter a value from %d to %d.", GENERALS_ONLINE_MIN_LOBBY_CAMERA_ZOOM, GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM);
-								GadgetListBoxAddEntryText(listboxGameSetupChat, msg, GameMakeColor(255, 0, 0, 255), -1, -1);
-								return TRUE; // was a slash command
-							}
-							else
-							{
-								// save locally
-								NGMP_OnlineServicesManager::Settings.Save_Camera_MaxHeight_WhenLobbyHost((float)newCameraHeight);
-
-								// update lobby
-								pLobbyInterface->UpdateCurrentLobbyMaxCameraHeight((uint16_t)newCameraHeight);
-							}
-						}
-						else
-						{
-							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Camera height: Enter a number."), GameMakeColor(255, 0, 0, 255), -1, -1);
-							return TRUE; // was a slash command
-						}
-						
-					}
-					else
-					{
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Camera height: Only the host can change it."), GameMakeColor(255, 0, 0, 255), -1, -1);
-						return TRUE; // was a slash command
-					}
-				}
-			}
-		}
-
-		return TRUE; // was a slash command
-	}
-#endif
-	// else if (token == "leave")
-	// {
-	// 	PopBackToLobby();
-	// 	return TRUE;
-	// }
-	// else if (token == "quit")
-	// {
-	// 	TheGameEngine->setQuitting(TRUE);
-	// 	return TRUE;
-	// }
-	else if (token == "steam" || token == "advnet")
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADV NET STATS] Writing advanced networking stats:");
-
-		std::map<int64_t, PlayerConnection>& connections = NGMP_OnlineServicesManager::GetNetworkMesh()->GetAllConnections();
-		for (auto& kvPair : connections)
-		{
-			PlayerConnection& conn = kvPair.second;
-
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADV NET STATS] Connection to user %lld: %s", kvPair.first, conn.GetStats().c_str());
-		}
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ADV NET STATS] Advanced networking stats dumped");
-		GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Network debug: Statistics were written to the log file."), GameMakeColor(192, 192, 192, 255), -1, -1);
-
-		return TRUE;
-	}
-	else if (token == "setpassword" && uText.getLength() > 13)
-	{
-		UnicodeString newPassword(uText.str() + 13); // skip the /setpassword and space
-
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-		if (pLobbyInterface != nullptr && pAuthInterface != nullptr)
-		{
-			LobbyEntry& theLobby = pLobbyInterface->GetCurrentLobby();
-
-			// This is just done clientside to show an error message, server validates it also
-			if (theLobby.owner == pAuthInterface->GetUserID())
-			{
-				if (newPassword.getLength() == 0 || newPassword.getLength() > GENERALS_ONLINE_LOBBY_MAX_PASSWORD_LENGTH)
-				{
-					UnicodeString errorMsg;
-					errorMsg.format(L"Lobby password: Use 1 to %d characters.", GENERALS_ONLINE_LOBBY_MAX_PASSWORD_LENGTH);
-					GadgetListBoxAddEntryText(listboxGameSetupChat, errorMsg, GameMakeColor(255, 0, 0, 255), -1, -1);
-				}
-				else
-				{
-					std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
-					if (pWS != nullptr)
-					{
-						pWS->SendData_ChangeLobbyPassword(newPassword);
-
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Updated. Use /removepassword to remove it."), GameMakeColor(0, 255, 0, 255), -1, -1);
-					}
-				}
-			}
-			else
-			{
-				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Only the host can change it."), GameMakeColor(255, 0, 0, 255), -1, -1);
-			}
-		}
-
-		return TRUE; // was a slash command
-	}
-	else if (token == "removepassword" || token == "clearpassword" || token == "resetpassword")
-	{
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-		if (pLobbyInterface != nullptr && pAuthInterface != nullptr)
-		{
-			LobbyEntry& theLobby = pLobbyInterface->GetCurrentLobby();
-
-			// This is just done clientside to show an error message, server validates it also
-			if (theLobby.owner == pAuthInterface->GetUserID())
-			{
-				if (theLobby.passworded)
-				{
-					std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
-					if (pWS != nullptr)
-					{
-						pWS->SendData_RemoveLobbyPassword();
-
-						GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Removed. Use /setpassword <password> to add one."), GameMakeColor(0, 255, 0, 255), -1, -1);
-					}
-				}
-				else
-				{
-					GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: No password is set. Use /setpassword <password> to add one."), GameMakeColor(192, 192, 192, 255), -1, -1);
-				}
-			}
-			else
-			{
-				GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby password: Only the host can change it."), GameMakeColor(255, 0, 0, 255), -1, -1);
-			}
-		}
-
-		return TRUE; // was a slash command
-	}
-#if defined(RTS_DEBUG)
-	else if (token == "slots")
-	{
-		g_debugSlots = !g_debugSlots;
-#if !defined(GENERALS_ONLINE)		
-		TheGameSpyInfo->addText(L"Toggled SlotList debug", GameSpyColor[GSCOLOR_DEFAULT], NULL);
-#endif
-		return TRUE; // was a slash command
-	}
-	else if (token == "discon")
-	{
-		PeerRequest req;
-		req.peerRequestType = PeerRequest::PEERREQUEST_LOGOUT;
-		TheGameSpyPeerMessageQueue->addRequest( req );
-		return TRUE;
-	}
-#endif // defined(RTS_DEBUG)
-
-#if defined(GENERALS_ONLINE)
-	GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Unknown command: Use /help to see all commands."), GameSpyColor[GSCOLOR_CHAT_NORMAL], -1, -1);
-	return TRUE;
-#else
-	return FALSE;
-#endif
-}
-
-static Int getNextSelectablePlayer(Int start)
-{
-#if !defined(GENERALS_ONLINE)
-#else
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	if (pLobbyInterface == nullptr)
-	{
-		return -1;
-	}
-
-	NGMPGame* game = pLobbyInterface->GetCurrentGame();
-#endif
-	if (game == nullptr || !game->amIHost())
-		return -1;
-	for (Int j=start; j<MAX_SLOTS; ++j)
-	{
-#if !defined(GENERALS_ONLINE)
-#else
-		NGMPGameSlot *slot = game->getGameSpySlot(j);
-#endif
-
-		if (slot && slot->getStartPos() == -1 &&
-			( (j==game->getLocalSlotNum() && game->getConstSlot(j)->getPlayerTemplate()!=PLAYERTEMPLATE_OBSERVER)
-			|| slot->isAI()))
-		{
-			return j;
-		}
-	}
-	return -1;
-}
-
-static Int getFirstSelectablePlayer(const GameInfo *game)
-{
-	const GameSlot *slot = game->getConstSlot(game->getLocalSlotNum());
-	if (!game->amIHost() || slot && slot->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
-		return game->getLocalSlotNum();
-
-	for (Int i=0; i<MAX_SLOTS; ++i)
-	{
-		slot = game->getConstSlot(i);
-		if (slot && slot->isAI())
-			return i;
-	}
-
-	return game->getLocalSlotNum();
-}
+// Slash commands and getNextSelectablePlayer()/getFirstSelectablePlayer() moved to
+// OnlineGameSetupActions::handleSlashCommand()/getNextSelectablePlayer()/getFirstSelectablePlayer().
 
 //-------------------------------------------------------------------------------------------------
 /** WOL Game Options menu window system callback */
@@ -3993,62 +3193,15 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 						// We don't have anything that'll happen if we click on ourselves
 						if (i == myGame->getLocalSlotNum())
 							break;
-						// Get
 						Int pos = -1;
 						GadgetComboBoxGetSelectedPos(comboBoxPlayer[i], &pos);
 						if (pos != SLOT_PLAYER && pos >= 0)
 						{
-							if (myGame->getSlot(i)->getState() == SLOT_PLAYER)
+							Bool isAIChanged = FALSE, wasAI = FALSE;
+							if (OnlineGameSetupActions::selectSlotState(myGame, i, SlotState(pos), &isAIChanged, &wasAI))
 							{
-								// TODO_NGMP: Support kick again
-								/*
-								PeerRequest req;
-								req.peerRequestType = PeerRequest::PEERREQUEST_UTMPLAYER;
-								req.UTM.isStagingRoom = TRUE;
-								AsciiString aName;
-								aName.translate(myGame->getSlot(i)->getName());
-								req.nick = aName.str();
-								req.id = "KICK/";
-								req.options = "true";
-								TheGameSpyPeerMessageQueue->addRequest(req);
-								*/
-
-								UnicodeString name = myGame->getSlot(i)->getName();
-
-								// NOTE: No host check here, service enforces it
-								NGMPGameSlot* pSlot = (NGMPGameSlot*)myGame->getSlot(i);
-								int64_t userBeingKicked = pSlot->m_userID;
-
-								pLobbyInterface->UpdateCurrentLobby_KickUser(userBeingKicked, name);
-								pLobbyInterface->UpdateCurrentLobby_SetSlotState(i, SlotState(pos));  // use what host selected
-								myGame->getSlot(i)->setState(SlotState(pos));
-								myGame->resetAccepted();
-
-								// // TODO_NGMP
-								//TheGameSpyInfo->setGameOptions();
-								if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
-									TheNGMPGame->StopCountdown();
-								WOLDisplaySlotList();
-								//TheLAN->OnPlayerLeave(name);
-							}
-							else if (myGame->getSlot(i)->getState() != pos)
-							{
-								Bool wasAI = (myGame->getSlot(i)->isAI());
-								myGame->getSlot(i)->setState(SlotState(pos));
-								Bool isAI = (myGame->getSlot(i)->isAI());
-								myGame->resetAccepted();
-								if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
-									TheNGMPGame->StopCountdown();
-								if (wasAI ^ isAI)
+								if (isAIChanged)
 									PopulatePlayerTemplateComboBox(i, comboBoxPlayerTemplate, myGame, wasAI && myGame->getAllowObservers());
-
-								// inform service
-								NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-								if (pLobbyInterface != nullptr)
-								{
-									pLobbyInterface->UpdateCurrentLobby_SetSlotState(i, pos);
-								}
-
 								WOLDisplaySlotList();
 							}
 						}
@@ -4083,7 +3236,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 				}
 				else if ( controlID == buttonCommunicatorID )
 				{
-					GameSpyToggleOverlay( GSOVERLAY_BUDDY );
+					OnlineGameSetupActions::toggleCommunicatorOverlay();
 
 				}
 				else if ( controlID == buttonEmoteID )
@@ -4097,24 +3250,24 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					// Echo the user's input to the chat window
 					if (!txtInput.isEmpty())
 					{
-						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-						if (pLobbyInterface != nullptr)
-						{
-							pLobbyInterface->SendChatMessageToCurrentLobby(txtInput, false);
-						}
+						OnlineGameSetupActions::sendChat(txtInput);
 					}
 				}
 				else if ( controlID == buttonSelectMapID )
 				{
-					WOLMapSelectLayout = TheWindowManager->winCreateLayout( "Menus/WOLMapSelectMenu.wnd" );
-					WOLMapSelectLayout->runInit();
-					WOLMapSelectLayout->hide( FALSE );
-					WOLMapSelectLayout->bringForward();
+					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+					if ( pLobbyInterface != nullptr && OnlineGameSetupActions::canOpenMapSelect( pLobbyInterface->GetCurrentGame() ) )
+					{
+						WOLMapSelectLayout = TheWindowManager->winCreateLayout( "Menus/WOLMapSelectMenu.wnd" );
+						WOLMapSelectLayout->runInit();
+						WOLMapSelectLayout->hide( FALSE );
+						WOLMapSelectLayout->bringForward();
+					}
 				}
 				else if ( controlID == buttonStartID )
 				{
 					savePlayerInfo();
-					
+
 					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 					if (pLobbyInterface == nullptr)
 					{
@@ -4129,35 +3282,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					else
 					{
 						//I'm the Client... send an accept message to the host.
-						auto game = pLobbyInterface->GetCurrentGame();
-						if (game == nullptr)
-						{
-							break;
-						}
-
-						GameSlot *localSlot = game->getSlot(game->getLocalSlotNum());
-						if (localSlot)
-						{
-							localSlot->setAccept();
-						}
-
-						// force a refresh of our local lobby properties to sync to remote players
-						pLobbyInterface->ApplyLocalUserPropertiesToCurrentNetworkRoom();
-
-						/*
-						UnicodeString hostName = game->getSlot(0)->getName();
-						AsciiString asciiName;
-						asciiName.translate(hostName);
-						PeerRequest req;
-						req.peerRequestType = PeerRequest::PEERREQUEST_UTMPLAYER;
-						req.UTM.isStagingRoom = TRUE;
-						req.id = "accept";
-						req.nick = asciiName.str();
-						req.options = "true";
-						TheGameSpyPeerMessageQueue->addRequest(req);
-						//peerSetReady( PEER, PEERTrue );
-						WOLDisplaySlotList();
-						*/
+						OnlineGameSetupActions::requestAccept(pLobbyInterface->GetCurrentGame());
 					}
 				}
         else if ( controlID == checkBoxLimitSuperweaponsID )
@@ -4182,38 +3307,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					{
 						if (controlID == buttonMapStartPositionID[i])
 						{
-							Int playerIdxInPos = -1;
-							for (Int j=0; j<MAX_SLOTS; ++j)
-							{
-								NGMPGameSlot *slot = game->getGameSpySlot(j);
-								if (slot && slot->getStartPos() == i)
-								{
-									playerIdxInPos = j;
-									break;
-								}
-							}
-							if (playerIdxInPos >= 0)
-							{
-								NGMPGameSlot *slot = game->getGameSpySlot(playerIdxInPos);
-								if (playerIdxInPos == game->getLocalSlotNum() || (game->amIHost() && slot && slot->isAI()))
-								{
-									// it's one of my type.  Try to change it.
-									Int nextPlayer = getNextSelectablePlayer(playerIdxInPos+1);
-									handleStartPositionSelection(playerIdxInPos, -1);
-									if (nextPlayer >= 0)
-									{
-										handleStartPositionSelection(nextPlayer, i);
-									}
-								}
-							}
-							else
-							{
-								// nobody in the slot - put us in
-								Int nextPlayer = getNextSelectablePlayer(0);
-								if (nextPlayer < 0)
-									nextPlayer = getFirstSelectablePlayer(game);
-								handleStartPositionSelection(nextPlayer, i);
-							}
+							OnlineGameSetupActions::handleStartPositionMarkerClick(game, i);
 						}
 					}
 				}
@@ -4246,25 +3340,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 				{
 					if (controlID == buttonMapStartPositionID[i])
 					{
-						Int playerIdxInPos = -1;
-						for (Int j=0; j<MAX_SLOTS; ++j)
-						{
-							NGMPGameSlot *slot = game->getGameSpySlot(j);
-							if (slot && slot->getStartPos() == i)
-							{
-								playerIdxInPos = j;
-								break;
-							}
-						}
-						if (playerIdxInPos >= 0)
-						{
-							NGMPGameSlot *slot = game->getGameSpySlot(playerIdxInPos);
-							if (playerIdxInPos == game->getLocalSlotNum() || (game->amIHost() && slot && slot->isAI()))
-							{
-								// it's one of my type.  Remove it.
-								handleStartPositionSelection(playerIdxInPos, -1);
-							}
-						}
+						OnlineGameSetupActions::handleStartPositionMarkerRightClick(game, i);
 					}
 				}
 				break;
@@ -4289,13 +3365,9 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					// Echo the user's input to the chat window
 					if (!txtInput.isEmpty())
 					{
-						if (!handleGameSetupSlashCommands(txtInput))
+						if (!OnlineGameSetupActions::handleSlashCommand(txtInput, addGameSetupChatLine))
 						{
-							NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-							if (pLobbyInterface != nullptr)
-							{
-								pLobbyInterface->SendChatMessageToCurrentLobby(txtInput, false);
-							}
+							OnlineGameSetupActions::sendChat(txtInput);
 						}
 					}
 
