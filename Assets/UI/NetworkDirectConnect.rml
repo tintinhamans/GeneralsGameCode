@@ -1,0 +1,44 @@
+<rml>
+<head>
+	<title>NetworkDirectConnect</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="GameSetup.rcss"/>
+	<link type="text/rcss" href="NetworkDirectConnect.rcss"/>
+</head>
+<body data-model="networkdirectconnect">
+	<div class="frame panel">
+		<div class="title-bar"><gametext key="GUI:DirectConnect"/></div>
+
+		<div class="dc-row">
+			<div class="dc-label"><gametext key="GUI:PlayerName"/></div>
+			<input type="text" class="dc-input" data-value="player_name"/>
+		</div>
+
+		<div class="dc-row">
+			<div class="dc-label"><gametext key="GUI:LocalIPDesc"/></div>
+			<div class="dc-local-ip">{{local_ip}}</div>
+		</div>
+
+		<div class="dc-row dc-remote-row">
+			<div class="dc-label"><gametext key="GUI:RemoteIPDesc"/></div>
+			<input type="text" class="dc-input" data-value="remote_ip_text" data-event-change="remote_ip_text_changed"/>
+		</div>
+
+		<div class="dc-history-column">
+			<div class="scroll-container dc-history-list">
+				<div data-for="entry : remote_ip_history">
+					<div class="map-row" data-if="entry.used" data-class-selected="entry.is_selected"
+						data-event-click="select_remote_ip(entry.index)">{{entry.text}}</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="footer dc-footer">
+			<div class="spacer"></div>
+			<button data-event-click="host_game"><gametext key="GUI:Host"/></button>
+			<button data-event-click="join_game"><gametext key="GUI:Join"/></button>
+			<button data-event-click="back"><gametext key="GUI:Back"/></button>
+		</div>
+	</div>
+</body>
+</rml>

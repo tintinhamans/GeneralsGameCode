@@ -65,6 +65,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlMessageBox.h
     Include/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlScoreScreen.h
@@ -198,6 +199,7 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlMessageBox.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlOptionsScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlScoreScreen.cpp

@@ -32,6 +32,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
 #include "W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScoreScreen.h"
@@ -168,6 +169,9 @@ void RmlUiManager::init(int width, int height)
 
 	// MainMenuActions pushes this same path; see RmlLanLobbyScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/LanLobbyMenu.wnd", &OpenRmlLanLobbyScreen, &CloseRmlLanLobbyScreen);
+
+	// RmlLanLobbyScreen::onDirectConnect() pushes this same path; see RmlNetworkDirectConnectScreen.h.
+	RmlUiScreenRegistry::registerScreen("Menus/NetworkDirectConnect.wnd", &OpenRmlNetworkDirectConnectScreen, &CloseRmlNetworkDirectConnectScreen);
 
 	// LANAPI::OnGameJoin() pushes this same path once LanLobbyActions::hostGame()/joinGame()'s
 	// RequestGameCreate()/RequestGameJoin() succeeds; see RmlLanGameSetupScreen.h.

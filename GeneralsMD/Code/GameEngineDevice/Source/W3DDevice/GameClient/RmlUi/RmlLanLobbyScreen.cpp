@@ -432,10 +432,9 @@ void RmlLanLobbyScreen::onGameRowActivated(Rml::DataModelHandle constructorHandl
 
 void RmlLanLobbyScreen::onDirectConnect(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
-	// Mirrors buttonDirectConnectID's handler. NetworkDirectConnect.wnd isn't converted yet (see
-	// report), so this still pushes the .wnd path -- TheShell->push() falls back to the legacy
-	// window loader for any .wnd not in RmlUiScreenRegistry, same as every other not-yet-converted
-	// screen this stack pushes into today.
+	// Mirrors buttonDirectConnectID's handler. TheShell->push() routes to RmlNetworkDirectConnectScreen
+	// automatically since NetworkDirectConnect.wnd is registered in RmlUiScreenRegistry (see
+	// RmlUiManager::init()); no different call needed here than the .wnd path always made.
 	LanLobbyActions::directConnect();
 	TheShell->push("Menus/NetworkDirectConnect.wnd");
 }

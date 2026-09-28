@@ -1,0 +1,84 @@
+/*
+	NetworkDirectConnect.rcss -- layout specific to NetworkDirectConnect.rml. Palette/frame/button/
+	scroll-container rules come from common.rcss; the remote-IP history rows reuse GameSetup.rcss's
+	.map-row/.selected (same look as LanLobby.rml's game-list rows).
+*/
+
+body
+{
+	width: 520dp;
+	height: 460dp;
+	left: 50%;
+	top: 50%;
+	margin-left: -260dp;
+	margin-top: -230dp;
+}
+
+.panel
+{
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+}
+
+.dc-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 8dp;
+}
+
+.dc-label
+{
+	flex: 0 0 auto;
+	width: 160dp;
+	color: #FFFFFF;
+}
+
+.dc-local-ip
+{
+	flex: 1 1 auto;
+	color: #FFFFFF;
+}
+
+.dc-input
+{
+	flex: 1 1 auto;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	color: #FFFFFF;
+	padding: 4dp 6dp;
+}
+
+.dc-remote-row
+{
+	margin-bottom: 4dp;
+}
+
+.dc-history-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	margin-bottom: 8dp;
+}
+
+.dc-history-list
+{
+	flex: 1 1 auto;
+	border: 1dp #2F37A8;
+	background-color: rgba(2, 2, 2, 140);
+}
+
+.dc-footer
+{
+	align-items: center;
+}
+
+.dc-footer .spacer
+{
+	flex: 1 1 auto;
+}
