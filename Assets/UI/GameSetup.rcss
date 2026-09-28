@@ -85,14 +85,20 @@
 .slot-row > select,
 .slot-row > .slot-name
 {
+	box-sizing: border-box;
 	margin-right: 6dp;
 }
 
-.slot-occupant { width: 130dp; }
-.slot-name { width: 130dp; color: #FFFFFF; font-weight: bold; }
-.slot-faction { width: 140dp; }
-.slot-color { width: 60dp; }
-.slot-team { width: 70dp; }
+/* Proportional columns so the table fills the whole slot-list width instead of leaving a dead gap
+   after a handful of fixed-dp columns (task: "the slot table must use the whole left region").
+   .slot-name substitutes for .slot-occupant on the host's own row (a name, not a select), so it
+   matches its width exactly to keep every row's cells aligned under the header. */
+/* percentages sum to under 100% to leave room for the 6dp margin-right between columns above */
+.slot-occupant, .slot-name { width: 34%; }
+.slot-faction { width: 32%; }
+.slot-color { width: 11%; }
+.slot-team { width: 19%; }
+.slot-name { color: #FFFFFF; font-weight: bold; }
 
 /* common.rcss's .row/.label/.control assume a wide options panel (.label flex-grows, .control is a
    fixed 220dp); the 280dp side-panel here is too narrow for that, so the label wraps/overlaps the
