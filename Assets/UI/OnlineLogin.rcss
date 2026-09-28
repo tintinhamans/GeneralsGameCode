@@ -1,0 +1,14 @@
+/*
+	OnlineLogin.rcss -- this screen never renders anything of its own under GENERALS_ONLINE (see
+	RmlOnlineLoginScreen.h / OnlineLogin.rml), so there is no look to define beyond common.rcss's
+	transparent default body. Kept as its own file (rather than skipping the link in
+	OnlineLogin.rml) to match every other RmlUi screen's <screen>.rml + <screen>.rcss pairing, and
+	as the obvious place to add styling if this screen ever gains real content. body is restated
+	explicitly (not just a comment) because RmlUi's style sheet loader rejects an empty sheet.
+*/
+
+body
+{
+	width: 100%;
+	height: 100%;
+}

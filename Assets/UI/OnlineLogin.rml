@@ -1,0 +1,16 @@
+<rml>
+<head>
+	<title>OnlineLogin</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="OnlineLogin.rcss"/>
+</head>
+<!--
+	Deliberately empty: see RmlOnlineLoginScreen.h for why. Under GENERALS_ONLINE this screen never
+	shows any control of its own (the .wnd it replaces hides its whole layout immediately); every
+	visible thing the player sees during login -- "Please wait...", the "continue in your web
+	browser" Cancel box, "Logged in!", "Login failed." -- is the separate RmlUi message-box system
+	(gogoMessageBox()/RmlUiMessageBoxHook), already implemented and already routed regardless of
+	which front end owns this placeholder document.
+-->
+<body></body>
+</rml>
