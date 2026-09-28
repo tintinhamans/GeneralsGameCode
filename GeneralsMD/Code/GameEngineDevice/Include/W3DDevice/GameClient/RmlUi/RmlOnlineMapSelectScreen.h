@@ -1,0 +1,103 @@
+/*
+**	Command & Conquer Generals Zero Hour(tm)
+**	Copyright 2025 Electronic Arts Inc.
+**
+**	This program is free software: you can redistribute it and/or modify
+**	it under the terms of the GNU General Public License as published by
+**	the Free Software Foundation, either version 3 of the License, or
+**	(at your option) any later version.
+**
+**	This program is distributed in the hope that it will be useful,
+**	but WITHOUT ANY WARRANTY; without even the implied warranty of
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	GNU General Public License for more details.
+**
+**	You should have received a copy of the GNU General Public License
+**	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+// FILE: RmlOnlineMapSelectScreen.h /////////////////////////////////////////////
+// RmlScreen for Data/UI/OnlineMapSelect.rml. Registered for Menus/WOLMapSelectMenu.wnd,
+// opened by RmlOnlineGameSetupScreen's "Select Map" button (RmlUiScreenRegistry::open()),
+// same shape as RmlLanGameSetupScreen <-> RmlLanMapSelectScreen. Modeled directly on
+// RmlLanMapSelectScreen, with two differences that mirror WOLMapSelectMenu.cpp exactly:
+//   - No start-position markers: per this change's report, WOLMapSelectMenu.wnd's own
+//     ButtonMapStartPosition0..7 stay hidden in the live .wnd (WOLMapSelectMenuInit() hides+
+//     disables them, and nothing observed in this menu's flow un-hides them again), so the
+//     RmlUi port doesn't draw them either -- unlike RmlLanMapSelectScreen, which does.
+//   - Single-pass map list only (buildFilteredMapList(useSystemMaps, TRUE, ...)): every
+//     WOLMapSelectMenu.cpp populateMapListbox() call passes isMultiplayer=TRUE, unlike
+//     LanMapSelectMenu.cpp's user-maps filter, which concatenates a non-multiplayer pass
+//     first. Generals Online only ever lists multiplayer maps.
+// The map list itself is still widget-agnostic (MapUtil.h's buildFilteredMapList()); the
+// OK write-back into TheNGMPGame lives in OnlineGameSetupActions::applySelectedMap(),
+// shared with WOLMapSelectMenu.cpp's .wnd ButtonOK handler (see OnlineGameSetupActions.h).
+///////////////////////////////////////////////////////////////////////////////
+
+#pragma once
+
+#include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
+
+#include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Types.h>
+
+namespace Rml { class Context; class ElementDocument; class Event; }
+
+//-------------------------------------------------------------------------------------------------
+class RmlOnlineMapSelectScreen
+{
+public:
+	static RmlOnlineMapSelectScreen &instance();
+
+	void open();
+	void close();
+	bool isVisible() const;
+
+private:
+	RmlOnlineMapSelectScreen() : m_mapRows(m_model.maps) {}
+
+	void load(Rml::Context *context);
+	void refreshMapList(); // rebuilds m_model.maps (buildFilteredMapList()) for the current filter
+	void selectMap(const Rml::String &mapName); // OK/double-click: write back + return to setup
+
+	void onFilterChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onMapSelected(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onMapActivated(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // double-click: select + OK
+	void onOk(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onBack(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+
+	Rml::Context *m_context = nullptr;
+	Rml::ElementDocument *m_document = nullptr;
+	Rml::DataModelHandle m_modelHandle;
+
+	// One row in the map-list (see GameSetup.rcss's reusable "map-row" markup block).
+	struct MapEntryModel
+	{
+		Rml::String mapName; // map cache key, also the click/select/OK value
+		Rml::String displayName;
+		int numPlayers = 0;
+		bool hasStarImage = false;
+		Rml::String starImage; // TheMappedImageCollection name, valid only if hasStarImage
+		bool isSelected = false;
+		bool used = true; // grow-only storage, see RmlGrowOnlyList.h; hidden via data-if when false
+	};
+
+	struct Model
+	{
+		Rml::Vector<MapEntryModel> maps;
+		bool useSystemMaps = true;
+
+		Rml::String selectedMapName;
+		Rml::String selectedDisplayName;
+		bool hasSelection = false;
+		int selectedNumPlayers = 0;
+	} m_model;
+
+	// Grow-only wrapper around m_model.maps (see RmlGrowOnlyList.h): the filter toggle can rebuild
+	// this list with a different count while the document stays open, so its storage never shrinks.
+	RmlGrowOnlyList<MapEntryModel> m_mapRows;
+};
+
+// Registry entry point (see RmlUiManager::init()).
+void OpenRmlOnlineMapSelectScreen();
+void CloseRmlOnlineMapSelectScreen();

@@ -38,6 +38,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineGameSetupScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineLobbyScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineLoginScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlOnlineMapSelectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineWelcomeScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlPlayerInfoScreen.h"
@@ -198,9 +199,10 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/LanMapSelectMenu.wnd", &OpenRmlLanMapSelectScreen, &CloseRmlLanMapSelectScreen);
 
 	// RmlOnlineLobbyScreen pushes this path once a Generals Online lobby is created/joined; see
-	// RmlOnlineGameSetupScreen.h. WOLMapSelectMenu.wnd isn't converted yet -- Select Map still opens
-	// it directly as a legacy window layout (see RmlOnlineGameSetupScreen.cpp's onSelectMap()).
+	// RmlOnlineGameSetupScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/GameSpyGameOptionsMenu.wnd", &OpenRmlOnlineGameSetupScreen, &CloseRmlOnlineGameSetupScreen);
+	// RmlOnlineGameSetupScreen's Select Map button pushes this same path; see RmlOnlineMapSelectScreen.h.
+	RmlUiScreenRegistry::registerScreen("Menus/WOLMapSelectMenu.wnd", &OpenRmlOnlineMapSelectScreen, &CloseRmlOnlineMapSelectScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/CreditsMenu.wnd", &OpenRmlCreditsScreen, &CloseRmlCreditsScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitMenu.wnd", &OpenRmlQuitMenuScreen, &CloseRmlQuitMenuScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitNoSave.wnd", &OpenRmlQuitNoSaveScreen, &CloseRmlQuitNoSaveScreen);

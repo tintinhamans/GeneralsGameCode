@@ -209,8 +209,6 @@ private:
 void OpenRmlOnlineGameSetupScreen();
 void CloseRmlOnlineGameSetupScreen();
 
-// Called by the online map-select screen (once converted) on OK/Back instead of
-// OpenRmlOnlineGameSetupScreen(), which would re-run prepareGameState()-style setup and disturb
-// host/client state already in progress. Not wired up yet -- Select Map still opens the existing
-// .wnd map-select overlay (see RmlOnlineGameSetupScreen.cpp's onSelectMap()).
+// Called by RmlOnlineMapSelectScreen on OK/Back instead of OpenRmlOnlineGameSetupScreen(), which
+// would re-run prepareGameState()-style setup and disturb host/client state already in progress.
 void ReturnToRmlOnlineGameSetupScreen();

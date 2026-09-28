@@ -27,8 +27,8 @@
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupData.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupSession.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/Shell.h"
-#include "GameClient/WindowLayout.h"
 #include "GameNetwork/GeneralsOnline/NGMPGame.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
@@ -589,19 +589,11 @@ void RmlOnlineGameSetupScreen::onSelectMap(Rml::DataModelHandle, Rml::Event &, c
 	if (!OnlineGameSetupActions::canOpenMapSelect(game))
 		return;
 
-	// Same as WOLGameSetupMenu.cpp's ButtonSelectMap handler: WOLMapSelectMenu.wnd isn't converted
-	// to RmlUi yet, so open it directly through the legacy window layout system instead of hiding
-	// this document and going through RmlUiScreenRegistry (which only knows registered RmlUi
-	// screens). Hide this document first, same as LanGameOptionsMenu.cpp's
+	// Same as RmlLanGameSetupScreen::onSelectMap(): hide this screen and open the map-select screen
+	// through the registry instead of a legacy window layout, same shape as LanGameOptionsMenu.cpp's
 	// showLANGameOptionsUnderlyingGUIElements(FALSE) precedent.
 	hide();
-	WindowLayout *mapSelectLayout = TheWindowManager->winCreateLayout("Menus/WOLMapSelectMenu.wnd");
-	if (mapSelectLayout)
-	{
-		mapSelectLayout->runInit();
-		mapSelectLayout->hide(FALSE);
-		mapSelectLayout->bringForward();
-	}
+	RmlUiScreenRegistry::open("Menus/WOLMapSelectMenu.wnd");
 }
 
 void RmlOnlineGameSetupScreen::onStart(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)

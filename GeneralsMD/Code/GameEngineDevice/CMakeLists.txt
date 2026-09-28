@@ -71,6 +71,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlOnlineGameSetupScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlOnlineLobbyScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlOnlineLoginScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlOnlineMapSelectScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlOnlineWelcomeScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlPlayerInfoScreen.h
@@ -212,6 +213,7 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/RmlUi/RmlOnlineGameSetupScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlOnlineLobbyScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlOnlineLoginScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlOnlineMapSelectScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlOnlineWelcomeScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlOptionsScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlPlayerInfoScreen.cpp
