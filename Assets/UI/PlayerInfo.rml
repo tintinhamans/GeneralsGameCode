@@ -56,7 +56,7 @@
 		<div class="playerinfo-footer">
 			<!-- LOGOUT is a hardcoded literal in the .wnd too (buttonDeleteAccount->winSetText(L"LOGOUT")), not a GameText key. -->
 			<button data-event-click="logout" data-if="show_logout">LOGOUT</button>
-			<button data-event-click="close"><gametext key="GUI:Close"/></button>
+			<button data-event-click="close"><gametext key="GUI:Hide"/></button>
 		</div>
 	</div>
 </body>
