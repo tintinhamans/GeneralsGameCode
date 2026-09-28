@@ -39,6 +39,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 // Mirrors PopulatePlayerInfoWindows()'s per-widget computation exactly (see PopupPlayerInfo.cpp),
 // one field per GameWindow that function used to populate directly. The `stats` copy is kept
@@ -133,3 +134,49 @@ void RequestLocalPlayerStatsData(std::function<void(const PlayerStatsData &)> ca
 // WOLWelcomeMenu.wnd's community panel does via UpdateLocalPlayerStats(). Null (the default) drops
 // the update -- same lifetime pattern as g_onlineWelcomeNotificationsChangedHook in OnlineWelcomeData.h.
 extern void (*g_playerStatsUpdatedHook)(const PlayerStatsData &data);
+
+// FILE: PlayerStatsData.h (popup-info sharing) /////////////////////////////////
+// Widget-agnostic split of PopupPlayerInfo.cpp/PopupPlayerInfo.wnd's own popup logic (look-at
+// player, battle honors, logout), so RmlPlayerInfoScreen (RmlUi popup) can reuse it exactly instead
+// of re-deriving it from the .wnd path. PopupPlayerInfo.cpp still owns the GameWindow-facing pieces
+// (findWindow(), populateBattleHonors()'s listbox insertion, the mouse-hover BattleHonorTooltip()).
+///////////////////////////////////////////////////////////////////////////////
+
+// One battle-honor badge, in the exact order populateBattleHonors() inserts them (spacer rows
+// aside). honorBit/extraValue are threaded straight into InsertBattleHonor()'s itemData/extra params
+// by the .wnd path (BattleHonorTooltip()'s mouse-hover lookup still needs them); tooltipKey is the
+// same key BattleHonorTooltip() would resolve for this exact badge/enabled/extraValue combination,
+// precomputed here so a data-row front end can bind a static "TOOLTIP:..." key per row.
+struct BattleHonorRow
+{
+	AsciiString imageName;
+	AsciiString tooltipKey;
+	UnicodeString countText; // empty unless the badge shows a number (streak/domination)
+	Bool enabled;
+	Int honorBit;
+	Int extraValue; // 0 unless the badge's tooltip varies by count (streak/domination)
+};
+
+// Mirrors populateBattleHonors()'s per-badge selection exactly (see PopupPlayerInfo.cpp): same 9
+// badges, same thresholds, same order. Doesn't touch a GameWindow -- the .wnd path still owns
+// inserting these into the listbox (InsertBattleHonor()) and its own mouse-hover tooltip callback.
+std::vector<BattleHonorRow> BuildBattleHonorRows(const PSPlayerStats &stats);
+
+// Look-at player id/name, set by SetLookAtPlayer() (PopupPlayerInfo.cpp module statics -- unchanged,
+// still the ONE source of truth PopulatePlayerInfoWindows()'s "PopupPlayerInfo.wnd" branch reads).
+// Exposed here so a registry-routed front end can read the same target the .wnd popup would show
+// without reaching into PopupPlayerInfo.cpp's private statics.
+int64_t GetLookAtPlayerID();
+#if defined(GENERALS_ONLINE)
+std::string GetLookAtPlayerNameUtf8();
+#endif
+
+// Fired unconditionally from PopulatePlayerInfoWindows()'s "PopupPlayerInfo.wnd" branch (both the
+// local player and another player's info), unlike g_playerStatsUpdatedHook above which only fires
+// for the local player. Lets RmlPlayerInfoScreen live-update regardless of whose stats it's showing.
+extern void (*g_lookAtPlayerStatsUpdatedHook)(const PlayerStatsData &data);
+
+// Shared body of PopupPlayerInfo.cpp's messageBoxYes() Logout confirmation: logs out of the NGMP
+// account and flags the pending full teardown. Callers still own closing their own popup afterwards
+// (GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO) is already shared between both front ends).
+void PerformPlayerLogout();

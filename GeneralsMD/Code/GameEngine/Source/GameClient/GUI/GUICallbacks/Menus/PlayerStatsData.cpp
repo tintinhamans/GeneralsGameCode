@@ -40,9 +40,47 @@
 
 #if defined(GENERALS_ONLINE)
 #include "GameNetwork/GeneralsOnline/NGMP_include.h" // from_utf8()
+#include "GameNetwork/GeneralsOnline/OnlineServices_Init.h" // EGOTearDownReason
 #endif
 
 void (*g_playerStatsUpdatedHook)(const PlayerStatsData &data) = nullptr;
+void (*g_lookAtPlayerStatsUpdatedHook)(const PlayerStatsData &data) = nullptr;
+
+// SetLookAtPlayer()'s own module statics (PopupPlayerInfo.cpp), no longer file-static there so the
+// accessors below can read the same ONE source of truth instead of duplicating it.
+extern int64_t g_lookAtPlayerID;
+extern std::string g_lookAtPlayerName;
+
+int64_t GetLookAtPlayerID()
+{
+	return g_lookAtPlayerID;
+}
+
+#if defined(GENERALS_ONLINE)
+std::string GetLookAtPlayerNameUtf8()
+{
+	return g_lookAtPlayerName;
+}
+#endif
+
+//-------------------------------------------------------------------------------------------------
+void PerformPlayerLogout()
+{
+#if defined(GENERALS_ONLINE)
+	// Same body as PopupPlayerInfo.cpp's messageBoxYes(), minus the popup-closing bits (callers
+	// already share GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO) for that).
+	NGMP_OnlineServices_AuthInterface *pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	if (pAuthInterface != nullptr)
+	{
+		pAuthInterface->LogoutOfMyAccount();
+
+		if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
+		{
+			NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_LOGOUT);
+		}
+	}
+#endif
+}
 
 //-------------------------------------------------------------------------------------------------
 PlayerStatsData::PlayerStatsData()
@@ -358,6 +396,164 @@ PlayerStatsData BuildPlayerStatsData(const PSPlayerStats &stats, int64_t lookupI
 	data.stats = stats;
 
 	return data;
+}
+
+//-------------------------------------------------------------------------------------------------
+// Mirrors BattleHonorTooltip()'s (PopupPlayerInfo.cpp) key selection for exactly the 9 badges
+// populateBattleHonors() inserts -- the badges the original's commented-out branches (Loyalty,
+// Endurance, Campaign, Challenge) never reach aren't needed here.
+static AsciiString getBattleHonorTooltipKey(Int honorBit, Bool enabled, Int extraValue)
+{
+	if (!enabled)
+	{
+		if (BitIsSet(honorBit, BATTLE_HONOR_FAIR_PLAY))
+			return "TOOLTIP:BattleHonorFairPlayDisabled";
+		if (BitIsSet(honorBit, BATTLE_HONOR_AIR_WING))
+			return "TOOLTIP:BattleHonorAirWingDisabled";
+		if (BitIsSet(honorBit, BATTLE_HONOR_BATTLE_TANK))
+			return "TOOLTIP:BattleHonorBattleTankDisabled";
+		if (BitIsSet(honorBit, BATTLE_HONOR_APOCALYPSE))
+			return "TOOLTIP:BattleHonorApocalypseDisabled";
+		if (BitIsSet(honorBit, BATTLE_HONOR_BLITZ10))
+			return "TOOLTIP:BattleHonorBlitzDisabled";
+		if (BitIsSet(honorBit, BATTLE_HONOR_STREAK_ONLINE))
+			return "TOOLTIP:BattleHonorStreakOnlineDisabled";
+		if (BitIsSet(honorBit, BATTLE_HONOR_DOMINATION_ONLINE))
+			return "TOOLTIP:BattleHonorDominationOnlineDisabled";
+		if (BitIsSet(honorBit, BATTLE_HONOR_GLOBAL_GENERAL))
+			return "TOOLTIP:BattleHonorGlobalGeneralDisabled";
+	}
+	else
+	{
+		if (BitIsSet(honorBit, BATTLE_HONOR_FAIR_PLAY))
+			return "TOOLTIP:BattleHonorFairPlay";
+		if (BitIsSet(honorBit, BATTLE_HONOR_AIR_WING))
+			return "TOOLTIP:BattleHonorAirWing";
+		if (BitIsSet(honorBit, BATTLE_HONOR_BATTLE_TANK))
+			return "TOOLTIP:BattleHonorBattleTank";
+		if (BitIsSet(honorBit, BATTLE_HONOR_APOCALYPSE))
+			return "TOOLTIP:BattleHonorApocalypse";
+		if (BitIsSet(honorBit, BATTLE_HONOR_BLITZ5))
+			return "TOOLTIP:BattleHonorBlitz5";
+		if (BitIsSet(honorBit, BATTLE_HONOR_BLITZ10))
+			return "TOOLTIP:BattleHonorBlitz10";
+		if (BitIsSet(honorBit, BATTLE_HONOR_OFFICERSCLUB))
+			return "TOOLTIP:BattleHonorOfficersClub";
+		if (BitIsSet(honorBit, BATTLE_HONOR_GLOBAL_GENERAL))
+			return "TOOLTIP:BattleHonorGlobalGeneral";
+		if (BitIsSet(honorBit, BATTLE_HONOR_STREAK_ONLINE))
+		{
+			if (extraValue >= 1000) return "TOOLTIP:BattleHonorStreak1000Online";
+			if (extraValue >= 500) return "TOOLTIP:BattleHonorStreak500Online";
+			if (extraValue >= 100) return "TOOLTIP:BattleHonorStreak100Online";
+			if (extraValue >= 25) return "TOOLTIP:BattleHonorStreak25Online";
+			if (extraValue >= 10) return "TOOLTIP:BattleHonorStreak10Online";
+			if (extraValue >= 3) return "TOOLTIP:BattleHonorStreak3Online";
+			return "TOOLTIP:BattleHonorStreakOnlineDisabled";
+		}
+		if (BitIsSet(honorBit, BATTLE_HONOR_DOMINATION_ONLINE))
+		{
+			if (extraValue >= 10000) return "TOOLTIP:BattleHonorDomination10000Online";
+			if (extraValue >= 1000) return "TOOLTIP:BattleHonorDomination1000Online";
+			if (extraValue >= 500) return "TOOLTIP:BattleHonorDomination500Online";
+			if (extraValue >= 100) return "TOOLTIP:BattleHonorDomination100Online";
+			return "TOOLTIP:BattleHonorDominationOnlineDisabled";
+		}
+	}
+	return "TOOLTIP:BattleHonors";
+}
+
+//-------------------------------------------------------------------------------------------------
+// Mirrors populateBattleHonors() (PopupPlayerInfo.cpp) exactly: same 9 badges, same order, same
+// thresholds. See PlayerStatsData.h.
+std::vector<BattleHonorRow> BuildBattleHonorRows(const PSPlayerStats &stats)
+{
+	std::vector<BattleHonorRow> rows;
+	rows.reserve(9);
+
+	PerGeneralMap::const_iterator it;
+
+	Bool isFairPlayer = FALSE;
+	{
+		Int numGames = 0, numDiscons = 0;
+		for (it = stats.games.begin(); it != stats.games.end(); ++it)
+			numGames += it->second;
+		for (it = stats.discons.begin(); it != stats.discons.end(); ++it)
+			numDiscons += it->second;
+		for (it = stats.desyncs.begin(); it != stats.desyncs.end(); ++it)
+			numDiscons += it->second;
+		if (numGames >= 10 && numDiscons * 10 < numGames)
+			isFairPlayer = TRUE;
+	}
+
+	auto addRow = [&rows](const char *image, Bool enabled, Int honorBit, UnicodeString countText, Int extraValue)
+	{
+		BattleHonorRow row;
+		row.imageName = image;
+		row.enabled = enabled;
+		row.honorBit = honorBit;
+		row.countText = countText;
+		row.extraValue = extraValue;
+		row.tooltipKey = getBattleHonorTooltipKey(honorBit, enabled, extraValue);
+		rows.push_back(row);
+	};
+
+	addRow("FairPlay", isFairPlayer, BATTLE_HONOR_FAIR_PLAY, UnicodeString::TheEmptyString, 0);
+	addRow("HonorAirWing", BitIsSet(stats.battleHonors, BATTLE_HONOR_AIR_WING), BATTLE_HONOR_AIR_WING, UnicodeString::TheEmptyString, 0);
+	addRow("HonorBattleTank", BitIsSet(stats.battleHonors, BATTLE_HONOR_BATTLE_TANK), BATTLE_HONOR_BATTLE_TANK, UnicodeString::TheEmptyString, 0);
+	addRow("Apocalypse", BitIsSet(stats.battleHonors, BATTLE_HONOR_APOCALYPSE), BATTLE_HONOR_APOCALYPSE, UnicodeString::TheEmptyString, 0);
+
+	if (BitIsSet(stats.battleHonors, BATTLE_HONOR_BLITZ5))
+		addRow("HonorBlitz5", TRUE, BATTLE_HONOR_BLITZ5, UnicodeString::TheEmptyString, 0);
+	else if (BitIsSet(stats.battleHonors, BATTLE_HONOR_BLITZ10))
+		addRow("HonorBlitz10", TRUE, BATTLE_HONOR_BLITZ10, UnicodeString::TheEmptyString, 0);
+	else
+		addRow("HonorBlitz10", FALSE, BATTLE_HONOR_BLITZ10, UnicodeString::TheEmptyString, 0);
+
+	{
+		Int streak = stats.winsInARow;
+		UnicodeString uStr;
+		uStr.format(L"%10d", streak);
+		if (streak >= 1000)
+			addRow("HonorStreak_1000", TRUE, BATTLE_HONOR_STREAK_ONLINE, uStr, streak);
+		else if (streak >= 500)
+			addRow("HonorStreak_500", TRUE, BATTLE_HONOR_STREAK_ONLINE, uStr, streak);
+		else if (streak >= 100)
+			addRow("HonorStreak_100", TRUE, BATTLE_HONOR_STREAK_ONLINE, uStr, streak);
+		else if (streak >= 25)
+			addRow("HonorStreak_G", TRUE, BATTLE_HONOR_STREAK_ONLINE, uStr, streak);
+		else if (streak >= 10)
+			addRow("HonorStreak_S", TRUE, BATTLE_HONOR_STREAK_ONLINE, uStr, streak);
+		else if (streak >= 3)
+			addRow("HonorStreak_B", TRUE, BATTLE_HONOR_STREAK_ONLINE, uStr, streak);
+		else
+			addRow("HonorStreak_B", FALSE, BATTLE_HONOR_STREAK_ONLINE, uStr, streak);
+	}
+
+	{
+		Int totalWins = 0;
+		for (it = stats.wins.begin(); it != stats.wins.end(); ++it)
+			totalWins += it->second;
+		UnicodeString uStr;
+		uStr.format(L"%10d", totalWins);
+		if (totalWins >= 10000)
+			addRow("Domination_10000", TRUE, BATTLE_HONOR_DOMINATION_ONLINE, uStr, totalWins);
+		else if (totalWins >= 1000)
+			addRow("Domination_1000", TRUE, BATTLE_HONOR_DOMINATION_ONLINE, uStr, totalWins);
+		else if (totalWins >= 500)
+			addRow("Domination_500", TRUE, BATTLE_HONOR_DOMINATION_ONLINE, uStr, totalWins);
+		else if (totalWins >= 100)
+			addRow("Domination_100", TRUE, BATTLE_HONOR_DOMINATION_ONLINE, uStr, totalWins);
+		else
+			addRow("Domination_100", FALSE, BATTLE_HONOR_DOMINATION_ONLINE, uStr, totalWins);
+	}
+
+	addRow("GlobalGen", BitIsSet(stats.battleHonors, BATTLE_HONOR_GLOBAL_GENERAL), BATTLE_HONOR_GLOBAL_GENERAL, UnicodeString::TheEmptyString, 0);
+
+	// TODO_NGMP_STATS: always TRUE today, same as populateBattleHonors()'s bPreordered local.
+	addRow("OfficersClub", TRUE, BATTLE_HONOR_OFFICERSCLUB, UnicodeString::TheEmptyString, 0);
+
+	return rows;
 }
 
 //-------------------------------------------------------------------------------------------------

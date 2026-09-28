@@ -91,9 +91,9 @@ static GameWindow *checkBoxNonAsianFont = NULL;
 
 static Bool isOverlayActive = false;
 static Bool raiseMessageBox = false;
-static int64_t lookAtPlayerID = 0;
+int64_t g_lookAtPlayerID = 0; // shared with PlayerStatsData.cpp's GetLookAtPlayerID()
 
-static std::string lookAtPlayerName;
+std::string g_lookAtPlayerName; // shared with PlayerStatsData.cpp's GetLookAtPlayerNameUtf8()
 
 
 static Int getTotalDisconnectsFromFile(Int playerID)
@@ -231,14 +231,14 @@ RankPoints* TheRankPointValues = NULL;
 #if defined(GENERALS_ONLINE)
 void SetLookAtPlayer(int64_t id, UnicodeString nick)
 {
-	lookAtPlayerID = id;
-	lookAtPlayerName = to_utf8(nick.str());
+	g_lookAtPlayerID = id;
+	g_lookAtPlayerName = to_utf8(nick.str());
 }
 #else
 void SetLookAtPlayer(int64_t id, AsciiString nick)
 {
-	lookAtPlayerID = id;
-	lookAtPlayerName = nick.str();
+	g_lookAtPlayerID = id;
+	g_lookAtPlayerName = nick.str();
 }
 #endif
 
@@ -499,138 +499,42 @@ static void populateBattleHonors(const PSPlayerStats& stats, Int battleHonors, I
 	Int column = 0;
 	Int row = 0;
 
-	Bool isFairPlayer = FALSE;
-	Int numGames = 0;
-	Int numDiscons = 0;
-	PerGeneralMap::const_iterator it;
-	for(it = stats.games.begin(); it != stats.games.end(); ++it)
-	{
-		numGames += it->second;
-	}
-	for(it = stats.discons.begin(); it != stats.discons.end(); ++it)
-	{
-		numDiscons += it->second;
-	}
-	for(it = stats.desyncs.begin(); it != stats.desyncs.end(); ++it)
-	{
-		numDiscons += it->second;
-	}
-	if (numGames >= 10 && numDiscons * 10 < numGames)
-	{
-		isFairPlayer = TRUE;
-	}
+	// Shared with RmlPlayerInfoScreen (see PlayerStatsData.h): same 9 badges, same order, same
+	// thresholds as this function used to compute inline.
+	std::vector<BattleHonorRow> honorRows = BuildBattleHonorRows(stats);
 
 	ResetBattleHonorInsertion();
 	GadgetListBoxAddEntryImage(list, NULL, 0, 0, 10, 10, TRUE, GameMakeColor(255,255,255,255));
 	row = 1;
 
-	InsertBattleHonor(list, TheMappedImageCollection->findImageByName("FairPlay"), isFairPlayer,
-		BATTLE_HONOR_FAIR_PLAY, row, column);
-
-	InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorAirWing"), BitIsSet(battleHonors, BATTLE_HONOR_AIR_WING),
-		BATTLE_HONOR_AIR_WING, row, column);
-	InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorBattleTank"), BitIsSet(battleHonors, BATTLE_HONOR_BATTLE_TANK),
-		BATTLE_HONOR_BATTLE_TANK, row, column);
-	InsertBattleHonor(list, TheMappedImageCollection->findImageByName("Apocalypse"), BitIsSet(battleHonors, BATTLE_HONOR_APOCALYPSE),
-		BATTLE_HONOR_APOCALYPSE, row, column);
+	InsertBattleHonor(list, TheMappedImageCollection->findImageByName(honorRows[0].imageName), honorRows[0].enabled,
+		honorRows[0].honorBit, row, column);
+	InsertBattleHonor(list, TheMappedImageCollection->findImageByName(honorRows[1].imageName), honorRows[1].enabled,
+		honorRows[1].honorBit, row, column);
+	InsertBattleHonor(list, TheMappedImageCollection->findImageByName(honorRows[2].imageName), honorRows[2].enabled,
+		honorRows[2].honorBit, row, column);
+	InsertBattleHonor(list, TheMappedImageCollection->findImageByName(honorRows[3].imageName), honorRows[3].enabled,
+		honorRows[3].honorBit, row, column);
 
 	// create a spacer for row 2 and start the images on row 3
 	GadgetListBoxAddEntryImage(list, NULL, 2, 0, 10, 10, TRUE, GameMakeColor(255,255,255,255));
 	row = 3;
 
-	if (BitIsSet(battleHonors, BATTLE_HONOR_BLITZ5))
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorBlitz5"), TRUE,
-			BATTLE_HONOR_BLITZ5, row, column);
-	}
-	else if (BitIsSet(battleHonors, BATTLE_HONOR_BLITZ10))
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorBlitz10"), TRUE,
-			BATTLE_HONOR_BLITZ10, row, column);
-	}
-	else
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorBlitz10"), FALSE,
-			BATTLE_HONOR_BLITZ10, row, column);
-	}
+	// Blitz
+	InsertBattleHonor(list, TheMappedImageCollection->findImageByName(honorRows[4].imageName), honorRows[4].enabled,
+		honorRows[4].honorBit, row, column);
 
 	// TEST FOR STREAK HONOR
-	UnicodeString uStr;
-	Int streak = stats.winsInARow;
-	uStr.format(L"%10d", streak);
-	if (streak >= 1000)
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorStreak_1000"), TRUE,
-			BATTLE_HONOR_STREAK_ONLINE, row, column, uStr);
-	}
-	else if (streak >= 500)
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorStreak_500"), TRUE,
-			BATTLE_HONOR_STREAK_ONLINE, row, column, uStr);
-	}
-	else if (streak >= 100)
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorStreak_100"), TRUE,
-			BATTLE_HONOR_STREAK_ONLINE, row, column, uStr);
-	}
-	else if (streak >= 25)
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorStreak_G"), TRUE,
-			BATTLE_HONOR_STREAK_ONLINE, row, column, uStr);
-	}
-	else if (streak >= 10)
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorStreak_S"), TRUE,
-			BATTLE_HONOR_STREAK_ONLINE, row, column, uStr);
-	}
-	else if (streak >= 3)
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorStreak_B"), TRUE,
-			BATTLE_HONOR_STREAK_ONLINE, row, column, uStr);
-	}
-	else
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("HonorStreak_B"), FALSE,
-			BATTLE_HONOR_STREAK_ONLINE, row, column, uStr);
-	}
+	InsertBattleHonor(list, TheMappedImageCollection->findImageByName(honorRows[5].imageName), honorRows[5].enabled,
+		honorRows[5].honorBit, row, column, honorRows[5].countText);
 
 	// TEST FOR DOMINATION HONOR
-	Int totalWins = 0;
-	PerGeneralMap::const_iterator pit;
-	for(pit = stats.wins.begin(); pit != stats.wins.end(); ++pit)
-	{
-		totalWins += pit->second;
-	}
-	uStr.format(L"%10d", totalWins);
-	if (totalWins >= 10000)
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("Domination_10000"), TRUE,
-			BATTLE_HONOR_DOMINATION_ONLINE, row, column, uStr, totalWins);
-	}
-	else if (totalWins >= 1000)
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("Domination_1000"), TRUE,
-			BATTLE_HONOR_DOMINATION_ONLINE, row, column, uStr, totalWins);
-	}
-	else if (totalWins >= 500)
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("Domination_500"), TRUE,
-			BATTLE_HONOR_DOMINATION_ONLINE, row, column, uStr, totalWins);
-	}
-	else if (totalWins >= 100)
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("Domination_100"), TRUE,
-			BATTLE_HONOR_DOMINATION_ONLINE, row, column, uStr, totalWins);
-	}
-	else
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("Domination_100"), FALSE,
-			BATTLE_HONOR_DOMINATION_ONLINE, row, column, uStr, totalWins);
-	}
+	InsertBattleHonor(list, TheMappedImageCollection->findImageByName(honorRows[6].imageName), honorRows[6].enabled,
+		honorRows[6].honorBit, row, column, honorRows[6].countText, honorRows[6].extraValue);
 
 	// TEST FOR GLOBAL GENERAL HONOR
-	InsertBattleHonor(list, TheMappedImageCollection->findImageByName("GlobalGen"), BitIsSet(battleHonors, BATTLE_HONOR_GLOBAL_GENERAL),
-		BATTLE_HONOR_GLOBAL_GENERAL, row, column);
+	InsertBattleHonor(list, TheMappedImageCollection->findImageByName(honorRows[7].imageName), honorRows[7].enabled,
+		honorRows[7].honorBit, row, column);
 
 	/*
 	Bool isLoyal;
@@ -701,14 +605,9 @@ static void populateBattleHonors(const PSPlayerStats& stats, Int battleHonors, I
 	}
 	*/
 
-	// TODO_NGMP_STATS
-	bool bPreordered = true;
-	//if (TheGameSpyInfo->didPlayerPreorder(stats.id))
-	if (bPreordered)
-	{
-		InsertBattleHonor(list, TheMappedImageCollection->findImageByName("OfficersClub"), TRUE,
-			BATTLE_HONOR_OFFICERSCLUB, row, column);
-	}
+	// OfficersClub -- always TRUE today (see BuildBattleHonorRows()'s TODO_NGMP_STATS comment).
+	InsertBattleHonor(list, TheMappedImageCollection->findImageByName(honorRows[8].imageName), honorRows[8].enabled,
+		honorRows[8].honorBit, row, column);
 }
 
 Int GetFavoriteSide( const PSPlayerStats& stats )
@@ -910,9 +809,12 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 
 	if(parentWindowName == "PopupPlayerInfo.wnd")
 	{
-		lookupID = lookAtPlayerID;
-		if (lookAtPlayerID == -1 || !parent)
+		lookupID = g_lookAtPlayerID;
+		if (g_lookAtPlayerID == -1)
 			return;
+		// parentWindow stays NULL when RmlPlayerInfoScreen (not the .wnd) owns this popup; the reply
+		// lambda below skips ApplyPlayerStatsData() in that case and fires g_lookAtPlayerStatsUpdatedHook
+		// instead (see PlayerStatsData.h).
 		parentWindow = parent;
 	}
 	else if(parentWindowName == "WOLWelcomeMenu.wnd")
@@ -941,8 +843,9 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			if (!TheRankPointValues)
 				return;
 
-			PlayerStatsData data = BuildPlayerStatsData(stats, lookupID, lookAtPlayerName);
-			ApplyPlayerStatsData(parentWindow, parentWindowName, data);
+			PlayerStatsData data = BuildPlayerStatsData(stats, lookupID, g_lookAtPlayerName);
+			if (parentWindow)
+				ApplyPlayerStatsData(parentWindow, parentWindowName, data);
 
 			// Let a registry-routed front end (RmlOnlineWelcomeScreen) live-update its own rank panel
 			// the same way WOLWelcomeMenu.wnd's community panel does via UpdateLocalPlayerStats().
@@ -950,6 +853,14 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			{
 				if (g_playerStatsUpdatedHook)
 					g_playerStatsUpdatedHook(data);
+			}
+
+			// Let RmlPlayerInfoScreen live-update regardless of whose stats these are (unlike
+			// g_playerStatsUpdatedHook above, which only fires for the local player).
+			if (parentWindowName == "PopupPlayerInfo.wnd")
+			{
+				if (g_lookAtPlayerStatsUpdatedHook)
+					g_lookAtPlayerStatsUpdatedHook(data);
 			}
 		}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
 }
@@ -1047,7 +958,7 @@ void HandlePersistentStorageResponses()
 					{
 						UpdateLocalPlayerStats();
 					}
-					DEBUG_LOG(("PopulatePlayerInfoWindows() - lookAtPlayerID is %d, got %d", lookAtPlayerID, resp.player.id));
+					DEBUG_LOG(("PopulatePlayerInfoWindows() - g_lookAtPlayerID is %d, got %d", g_lookAtPlayerID, resp.player.id));
 					PopulatePlayerInfoWindows("PopupPlayerInfo.wnd");
 					//GadgetListBoxAddEntryText(listboxInfo, L"Got info!", GameSpyColor[GSCOLOR_DEFAULT], -1);
 					
@@ -1158,7 +1069,7 @@ void GameSpyPlayerInfoOverlayInit( WindowLayout *layout, void *userData )
 	PopulatePlayerInfoWindows("PopupPlayerInfo.wnd");
 
 	// we're on the myinfo screen
-	if(lookAtPlayerID == pAuthInterface->GetUserID())
+	if(g_lookAtPlayerID == pAuthInterface->GetUserID())
 	{
 		//buttonbuttonOptions->winHide(FALSE);
 		buttonSetLocale->winHide(TRUE);
@@ -1396,19 +1307,10 @@ WindowMsgHandledType GameSpyPlayerInfoOverlaySystem( GameWindow *window, Unsigne
 
 static void messageBoxYes()
 {
-	// log out of account
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-	if (pAuthInterface != nullptr)
-	{
-		pAuthInterface->LogoutOfMyAccount();
+	// log out of account -- shared with RmlPlayerInfoScreen's Logout button (see PlayerStatsData.h)
+	PerformPlayerLogout();
 
-		if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
-		{
-			NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_LOGOUT);
-		}
-	}
 
-	
 
 	// and go back
 	RefreshGameListBoxes();
