@@ -646,7 +646,7 @@ static Bool RoomHasLaterSibling(const std::vector<NetworkRoom>& rooms, Int roomI
 	return FALSE;
 }
 
-static UnicodeString FormatRoomLabel(const std::vector<NetworkRoom>& rooms, Int roomIndex)
+UnicodeString FormatRoomLabel(const std::vector<NetworkRoom>& rooms, Int roomIndex)
 {
 	UnicodeString label;
 	const NetworkRoom& room = rooms[roomIndex];

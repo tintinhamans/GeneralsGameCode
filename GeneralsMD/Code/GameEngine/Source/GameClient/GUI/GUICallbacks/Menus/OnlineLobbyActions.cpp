@@ -35,10 +35,28 @@ extern Bool handleLobbySlashCommands( UnicodeString uText, Bool *wasRateLimited 
 extern bool LobbyChatRateLimitAllowsSend();
 extern void LobbyMenu_HostGamePressed();
 extern void LobbyMenu_JoinLobbyByID( int64_t selectedID );
+extern UnicodeString FormatRoomLabel( const std::vector<NetworkRoom> &rooms, Int roomIndex ); // same tree-indent label the .wnd's PopulateLobbyFilterComboBox() uses
 
 // LobbyUtils.cpp global (see its theLobbyFilter definition; WOLLobbyMenu.cpp forward-declares it
 // the same way inside GCM_SELECTED).
 extern LobbyGameModeFilter theLobbyFilter;
+
+// UnicodeString (UTF-16) -> UTF-8 std::string, same conversion RmlOnlineLobbyScreen.cpp's
+// unicodeToUtf8() does; duplicated here rather than shared because that one lives in
+// GameEngineDevice, which this GameEngine-layer file can't depend on.
+static std::string unicodeToUtf8( const UnicodeString &str )
+{
+	const wchar_t *wide = (const wchar_t *)str.str();
+	if ( wide == nullptr || wide[0] == 0 )
+		return std::string();
+	int len = ::WideCharToMultiByte( CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr );
+	if ( len <= 0 )
+		return std::string();
+	std::string utf8;
+	utf8.resize( (size_t)len - 1 );
+	::WideCharToMultiByte( CP_UTF8, 0, wide, -1, &utf8[0], len, nullptr, nullptr );
+	return utf8;
+}
 
 namespace OnlineLobbyActions
 {
@@ -167,9 +185,7 @@ std::vector<OnlineLobbyData::RoomInfo> getGroupRooms()
 	{
 		OnlineLobbyData::RoomInfo info;
 		info.index = i;
-		AsciiString ascii;
-		ascii.translate( rooms[i].GetRoomDisplayName() );
-		info.label = ascii.str();
+		info.label = unicodeToUtf8( FormatRoomLabel( rooms, i ) );
 		info.isCurrent = (i == currentIndex);
 		result.push_back( info );
 	}
