@@ -1511,91 +1511,20 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	//The dialog needs to react differently depending on whether it's the host or not.
 	TheMapCache->updateCache();
 
-	// TODO_NGMP
-	NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
-	if (game == nullptr)
+	// Host/client game-state setup (accept flag, color/template/ping, starting cash, superweapon
+	// restriction, old-factions-only, map CRC/size, slot states) moved to
+	// OnlineGameSetupSession::prepareGameState() so a widget-free screen gets the same initial state.
+	if (pLobbyInterface == nullptr || pLobbyInterface->GetCurrentGame() == nullptr)
 	{
 		return;
 	}
 
-	NGMPGameSlot* hostSlot = game->getGameSpySlot(0);
-	hostSlot->setAccept();
+	OnlineGameSetupSession::prepareGameState();
 
 	bool bIsHost = pLobbyInterface->IsHost();
 
 	if (bIsHost)
 	{
-		// TODO_NGMP
-		/*
-		OptionPreferences natPref;
-		CustomMatchPreferences customPref;
-		game->setMap(customPref.getPreferredMap());
-		*/
-
-		// TODO_NGMP: Preferred color & factionsupport
-		hostSlot->setColor(0);
-		hostSlot->setPlayerTemplate(PLAYERTEMPLATE_RANDOM);
-		//hostSlot->setNATBehavior((FirewallHelperClass::FirewallBehaviorType)natPref.getFirewallBehavior());
-		hostSlot->setPingString(UnicodeString(L"TODO_NGMP"));
-
-		CustomMatchPreferences customPref;
-
-
-	// Recorded stats games can never limit superweapons, limit armies, or have inflated starting cash.
-		// This should probably be enforced at the gamespy level as well, to prevent expoits.
-#if !defined(GENERALS_ONLINE)
-		Int isUsingStats = TheGameSpyGame->getUseStats();
-#else
-#if !defined(GENERALS_ONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
-		Int isUsingStats = game->getUseStats();
-#endif
-#endif
-
-#if !defined(GENERALS_ONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
-		game->setStartingCash( isUsingStats? TheMultiplayerSettings->getDefaultStartingMoney() : customPref.getStartingCash() );
-		game->setSuperweaponRestriction( isUsingStats? 0 : customPref.getSuperweaponRestricted() ? 1 : 0 );
-		if (isUsingStats)
-			game->setOldFactionsOnly( 0 );
-#else
-		game->setStartingCash(customPref.getStartingCash());
-		game->setSuperweaponRestriction(customPref.getSuperweaponRestricted() ? 1 : 0);
-#endif
-
-		//game->setOldFactionsOnly( customPref.getFactionsLimited() );
-    if ( game->oldFactionsOnly() )
-    {
-      // Make sure host follows the old factions only restrictions!
-      const PlayerTemplate *fac = ThePlayerTemplateStore->getNthPlayerTemplate(hostSlot->getPlayerTemplate());
-
-      if ( fac != NULL && !fac->isOldFaction() )
-      {
-        hostSlot->setPlayerTemplate( PLAYERTEMPLATE_RANDOM );
-      }
-    }
-
-
-		for (Int i=1; i<MAX_SLOTS; ++i)
-		{
-			NGMPGameSlot *slot = game->getGameSpySlot(i);
-			slot->setState( SLOT_OPEN );
-		}
-
-		// TODO_NGMP: preferred map support
-		//AsciiString lowerMap = getDefaultOfficialMap();
-		AsciiString lowerMap = game->getMap();
-		//AsciiString lowerMap = customPref.getPreferredMap();
-		lowerMap.toLower();
-		std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(lowerMap);
-		if (it != TheMapCache->end())
-		{
-			hostSlot->setMapAvailability(TRUE);
-			game->setMapCRC( it->second.m_CRC );
-			game->setMapSize( it->second.m_filesize );
-
-			game->adjustSlotsForMap(); // BGC- adjust the slots for the new map.
-		}
-
-
 		WOLDisplaySlotList();
 		WOLDisplayGameOptions();
 
@@ -1604,39 +1533,6 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	}
 	else
 	{
-		OptionPreferences natPref;
-		CustomMatchPreferences customPref;
-		AsciiString options;
-		//PeerRequest req;
-		UnicodeString uName = hostSlot->getName();
-		AsciiString aName;
-		aName.translate(uName);
-
-		// TODO_NGMP: Do this on join? and map change
-		AsciiString asciiMap = game->getMap();
-		asciiMap.toLower();
-
-		/*
-		req.peerRequestType = PeerRequest::PEERREQUEST_UTMPLAYER;
-		req.UTM.isStagingRoom = TRUE;
-		req.id = "REQ/";
-		req.nick = aName.str();
-		options.format("PlayerTemplate=%d", customPref.getPreferredFaction());
-		req.options = options.str();
-		TheGameSpyPeerMessageQueue->addRequest(req);
-		options.format("Color=%d", customPref.getPreferredColor());
-		req.options = options.str();
-		TheGameSpyPeerMessageQueue->addRequest(req);
-		options.format("NAT=%d", natPref.getFirewallBehavior());
-		req.options = options.str();
-		TheGameSpyPeerMessageQueue->addRequest(req);
-		options.format("Ping=%s", TheGameSpyInfo->getPingString().str());
-		req.options = options.str();
-		TheGameSpyPeerMessageQueue->addRequest(req);
-		*/
-		game->setMapCRC( game->getMapCRC() );		// force a recheck
-		game->setMapSize( game->getMapSize() ); // of if we have the map
-
 		for (Int i = 0; i < MAX_SLOTS; ++i)
 		{
 			//I'm a client, disable the controls I can't touch.

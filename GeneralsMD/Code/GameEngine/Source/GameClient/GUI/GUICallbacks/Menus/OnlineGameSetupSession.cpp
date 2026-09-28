@@ -24,6 +24,9 @@
 
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupSession.h"
 
+#include "Common/CustomMatchPreferences.h"
+#include "Common/MultiplayerSettings.h"
+#include "Common/PlayerTemplate.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/Shell.h"
@@ -49,6 +52,87 @@ namespace
 	{
 		if( s_sink.chatLine )
 			s_sink.chatLine( text, color );
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+void prepareGameState()
+{
+	NGMP_OnlineServices_LobbyInterface *pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	if( pLobbyInterface == nullptr )
+		return;
+
+	NGMPGame *game = pLobbyInterface->GetCurrentGame();
+	if( game == nullptr )
+		return;
+
+	NGMPGameSlot *hostSlot = game->getGameSpySlot( 0 );
+	hostSlot->setAccept();
+
+	if( pLobbyInterface->IsHost() )
+	{
+		// TODO_NGMP: Preferred color & factionsupport
+		hostSlot->setColor( 0 );
+		hostSlot->setPlayerTemplate( PLAYERTEMPLATE_RANDOM );
+		hostSlot->setPingString( UnicodeString( L"TODO_NGMP" ) );
+
+		CustomMatchPreferences customPref;
+
+		// Recorded stats games can never limit superweapons, limit armies, or have inflated starting cash.
+		// This should probably be enforced at the gamespy level as well, to prevent expoits.
+#if !defined(GENERALS_ONLINE)
+		Int isUsingStats = TheGameSpyGame->getUseStats();
+#else
+#if !defined(GENERALS_ONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
+		Int isUsingStats = game->getUseStats();
+#endif
+#endif
+
+#if !defined(GENERALS_ONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
+		game->setStartingCash( isUsingStats ? TheMultiplayerSettings->getDefaultStartingMoney() : customPref.getStartingCash() );
+		game->setSuperweaponRestriction( isUsingStats ? 0 : customPref.getSuperweaponRestricted() ? 1 : 0 );
+		if( isUsingStats )
+			game->setOldFactionsOnly( 0 );
+#else
+		game->setStartingCash( customPref.getStartingCash() );
+		game->setSuperweaponRestriction( customPref.getSuperweaponRestricted() ? 1 : 0 );
+#endif
+
+		if( game->oldFactionsOnly() )
+		{
+			// Make sure host follows the old factions only restrictions!
+			const PlayerTemplate *fac = ThePlayerTemplateStore->getNthPlayerTemplate( hostSlot->getPlayerTemplate() );
+
+			if( fac != NULL && !fac->isOldFaction() )
+			{
+				hostSlot->setPlayerTemplate( PLAYERTEMPLATE_RANDOM );
+			}
+		}
+
+		for( Int i = 1; i < MAX_SLOTS; ++i )
+		{
+			NGMPGameSlot *slot = game->getGameSpySlot( i );
+			slot->setState( SLOT_OPEN );
+		}
+
+		// TODO_NGMP: preferred map support
+		AsciiString lowerMap = game->getMap();
+		lowerMap.toLower();
+		std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find( lowerMap );
+		if( it != TheMapCache->end() )
+		{
+			hostSlot->setMapAvailability( TRUE );
+			game->setMapCRC( it->second.m_CRC );
+			game->setMapSize( it->second.m_filesize );
+
+			game->adjustSlotsForMap(); // BGC- adjust the slots for the new map.
+		}
+	}
+	else
+	{
+		// TODO_NGMP: Do this on join? and map change
+		game->setMapCRC( game->getMapCRC() );		// force a recheck
+		game->setMapSize( game->getMapSize() ); // of if we have the map
 	}
 }
 

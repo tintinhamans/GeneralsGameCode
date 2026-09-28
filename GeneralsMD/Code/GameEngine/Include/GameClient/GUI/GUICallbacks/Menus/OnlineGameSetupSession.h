@@ -83,6 +83,14 @@ namespace OnlineGameSetupSession
 		std::function<void( int numNotifications )> communicatorCountChanged;
 	};
 
+	// WOLGameSetupMenuInit's host/client game-state setup: the host slot's accept flag, color,
+	// player template, ping string, starting cash / superweapon restriction / old-factions-only
+	// (recorded-stats rules), forcing the other slots open, the map CRC/size + adjustSlotsForMap()
+	// for the host, and the map CRC/size re-check for a client. Widget-touching lines (gadget
+	// enable/disable, WOLDisplaySlotList/WOLDisplayGameOptions, button text) stay at the call site.
+	// Call before enter() so a widget-free screen gets the same initial state as the .wnd.
+	void prepareGameState();
+
 	// WOLGameSetupMenuInit's NGMP async-callback registration: chat, cannot-connect-to-lobby, mesh
 	// connection events, player-doesn't-have-map, roster-needs-refresh, game-start-packet, and the
 	// Communicator/social notification-count callback. Callback bodies are ported verbatim, routed
