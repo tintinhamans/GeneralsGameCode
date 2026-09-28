@@ -104,6 +104,7 @@ body
 /* ---- Buttons ------------------------------------------------------------------------ */
 button, .button
 {
+	box-sizing: border-box;
 	background-color: rgba(2, 2, 2, 191);
 	border: 1dp #2F37A8;
 	color: #FFFFFF;
