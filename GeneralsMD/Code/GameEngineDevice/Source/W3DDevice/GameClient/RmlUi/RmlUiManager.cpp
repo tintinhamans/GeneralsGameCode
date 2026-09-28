@@ -34,6 +34,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineLoginScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlOnlineWelcomeScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScoreScreen.h"
@@ -179,6 +180,9 @@ void RmlUiManager::init(int width, int height)
 	// (see RmlOnlineLoginScreen.h), so one screen serves both paths.
 	RmlUiScreenRegistry::registerScreen("Menus/GameSpyLoginProfile.wnd", &OpenRmlOnlineLoginScreen, &CloseRmlOnlineLoginScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/GameSpyLoginQuick.wnd", &OpenRmlOnlineLoginScreen, &CloseRmlOnlineLoginScreen);
+
+	// RmlOnlineLoginScreen::onLoginSucceeded() pushes this path; see RmlOnlineWelcomeScreen.h.
+	RmlUiScreenRegistry::registerScreen("Menus/WOLWelcomeMenu.wnd", &OpenRmlOnlineWelcomeScreen, &CloseRmlOnlineWelcomeScreen);
 
 	// LANAPI::OnGameJoin() pushes this same path once LanLobbyActions::hostGame()/joinGame()'s
 	// RequestGameCreate()/RequestGameJoin() succeeds; see RmlLanGameSetupScreen.h.

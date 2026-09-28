@@ -1,0 +1,73 @@
+/*
+	OnlineWelcome.rcss -- WOLWelcomeMenu.wnd (the Generals Online hub screen).
+	Layout only; palette/buttons/scroll-container come from common.rcss.
+*/
+
+.welcome-row
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.motd-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 2 1 auto;
+	margin-right: 12dp;
+	min-height: 0;
+}
+
+.stats-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.section-title
+{
+	font-weight: bold;
+	padding-bottom: 4dp;
+	border-bottom: 1dp #2F37A8;
+	margin-bottom: 4dp;
+}
+
+.motd-line
+{
+	padding: 2dp 0;
+	color: #C0C0C0;
+}
+
+.motd-line.heading
+{
+	color: #FFFFFF;
+	font-weight: bold;
+}
+
+.stat-row
+{
+	display: flex;
+	flex-direction: row;
+	padding: 2dp 0;
+}
+
+.stat-side
+{
+	flex: 1 1 auto;
+	color: #FFFFFF;
+}
+
+.stat-value
+{
+	flex: 0 0 auto;
+	color: #C0C0C0;
+}
+
+.welcome-footer
+{
+	flex-wrap: wrap;
+}
