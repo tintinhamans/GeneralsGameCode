@@ -58,6 +58,14 @@ enum GameSortType CPP_11(: Int)
 Bool HandleSortButton( NameKeyType sortButton );
 void PopulateLobbyPlayerListbox();
 
+// Widget-agnostic accessors for the current sort state (see OnlineLobbyActions.cpp), so a non-.wnd
+// lobby screen -- whose GrabWindowInfo() never runs, leaving the sort *button* NameKeyTypes
+// NAMEKEY_INVALID -- can still read/drive the same sort applied to RefreshGameListBoxes().
+GameSortType GetGameSortType();
+Bool GetSortByBuddies();
+void SetGameSortType( GameSortType sortType ); // same as setSortMode(), exposed non-static
+void SetSortByBuddies( Bool doSort ); // same as sortByBuddies(), exposed non-static
+
 enum LobbyGameModeFilter CPP_11(: Int)
 {
     LOBBY_FILTER_ALL = 0,

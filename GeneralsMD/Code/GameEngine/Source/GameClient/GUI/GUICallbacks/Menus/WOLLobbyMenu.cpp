@@ -71,6 +71,7 @@
 #include "GameNetwork/RankPointValue.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_Moderation.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbyData.h"
 
 #include <deque>
 #include <string>
@@ -140,7 +141,8 @@ static Bool justEntered = FALSE;
 // Preserve rejected messages while the server enforces the limit.
 static std::deque<std::chrono::steady_clock::time_point> s_lobbyChatMessageTimes;
 
-static bool LobbyChatRateLimitAllowsSend()
+// Not static: reused by OnlineLobbyActions (RmlOnlineLobbyScreen's chat entry/send paths).
+bool LobbyChatRateLimitAllowsSend()
 {
 	using namespace std::chrono;
 
@@ -1028,61 +1030,44 @@ static void EnsureVisibleLobbyStats(Bool bForce)
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Room roster in display order: name, then admins, then friends. */
+/** Room roster in display order: name, then admins, then friends. Thin adapter over
+	OnlineLobbyData::collectPlayerRows() (shared with RmlOnlineLobbyScreen), adding back the
+	listbox-icon-cache-only iconResolved field that widget-agnostic row doesn't carry. */
 static void CollectLobbyPlayerRows(std::vector<LobbyPlayerRow>& outRows)
 {
 	outRows.clear();
 
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-	NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
-	if (pRoomsInterface == nullptr)
-		return;
-
-	auto membersMap = pRoomsInterface->GetMembersListForCurrentRoom();
-	outRows.reserve(membersMap.size());
-
-	for (auto& [id, member] : membersMap)
+	std::vector<OnlineLobbyData::PlayerRow> sharedRows = OnlineLobbyData::collectPlayerRows();
+	outRows.reserve(sharedRows.size());
+	for (const OnlineLobbyData::PlayerRow& shared : sharedRows)
 	{
 		LobbyPlayerRow row;
-		row.userID = member.user_id;
-		row.displayName = member.display_name;
-		row.isAdmin = member.m_bIsAdmin ? TRUE : FALSE;
-		row.isFriend = (pSocialInterface != nullptr && pSocialInterface->IsUserFriend(member.user_id)) ? TRUE : FALSE;
-		row.isIgnored = (pSocialInterface != nullptr && pSocialInterface->IsUserIgnored(member.user_id)) ? TRUE : FALSE;
-
-		row.sortKey.resize(row.displayName.size());
-		std::transform(row.displayName.begin(), row.displayName.end(), row.sortKey.begin(),
-			[](unsigned char c) { return std::tolower(c); });
-
-		outRows.emplace_back(std::move(row));
+		row.userID = shared.userID;
+		row.isAdmin = shared.isAdmin ? TRUE : FALSE;
+		row.isFriend = shared.isFriend ? TRUE : FALSE;
+		row.isIgnored = shared.isIgnored ? TRUE : FALSE;
+		row.displayName = shared.displayName;
+		row.sortKey = shared.sortKey;
+		outRows.push_back(row);
 	}
-
-	std::sort(outRows.begin(), outRows.end(),
-		[](const LobbyPlayerRow& a, const LobbyPlayerRow& b) { return a.sortKey < b.sortKey; });
-
-	auto afterAdmins = std::stable_partition(outRows.begin(), outRows.end(),
-		[](const LobbyPlayerRow& x) { return x.isAdmin != FALSE; });
-
-	std::stable_partition(afterAdmins, outRows.end(),
-		[](const LobbyPlayerRow& x) { return x.isFriend != FALSE; });
 }
 
 //-------------------------------------------------------------------------------------------------
 static std::string BuildLobbyRosterSignature(const std::vector<LobbyPlayerRow>& rows)
 {
-	std::string sig;
-	sig.reserve(rows.size() * 24);
+	std::vector<OnlineLobbyData::PlayerRow> sharedRows;
+	sharedRows.reserve(rows.size());
 	for (const LobbyPlayerRow& row : rows)
 	{
-		const int flags = (row.isAdmin ? 1 : 0) | (row.isFriend ? 2 : 0) | (row.isIgnored ? 4 : 0);
-		sig += std::to_string(row.userID);
-		sig += '/';
-		sig += std::to_string(flags);
-		sig += '/';
-		sig += row.displayName;
-		sig += ';';
+		OnlineLobbyData::PlayerRow shared;
+		shared.userID = row.userID;
+		shared.isAdmin = row.isAdmin != FALSE;
+		shared.isFriend = row.isFriend != FALSE;
+		shared.isIgnored = row.isIgnored != FALSE;
+		shared.displayName = row.displayName;
+		sharedRows.push_back(shared);
 	}
-	return sig;
+	return OnlineLobbyData::buildRosterSignature(sharedRows);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2326,6 +2311,71 @@ WindowMsgHandledType WOLLobbyMenuInput( GameWindow *window, UnsignedInt msg,
 
 
 //-------------------------------------------------------------------------------------------------
+// Widget-agnostic Host/Join actions, extracted from GBM_SELECTED's buttonHostID/buttonJoinID cases
+// below so OnlineLobbyActions (RmlOnlineLobbyScreen) can trigger the exact same behavior, including
+// the GSOVERLAY_GAMEOPTIONS/GSOVERLAY_GAMEPASSWORD popups, which stay .wnd overlays either way. Not
+// static: called from OnlineLobbyActions.cpp.
+//-------------------------------------------------------------------------------------------------
+void LobbyMenu_HostGamePressed()
+{
+	if (s_tryingToHostOrJoin)
+		return;
+
+	SetLobbyAttemptHostJoin( TRUE );
+	TheLobbyQueuedUTMs.clear();
+	GameSpyOpenOverlay(GSOVERLAY_GAMEOPTIONS);
+}
+
+// selectedID must be a valid (>= 0) lobby ID; callers handle the "nothing selected" case themselves
+// (see the .wnd buttonJoinID case's "GUI:NoGameSelected" message, and OnlineLobbyActions::joinSelected()).
+void LobbyMenu_JoinLobbyByID(int64_t selectedID)
+{
+	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	if (pLobbyInterface == nullptr)
+		return;
+
+	auto Lobby = pLobbyInterface->GetLobbyFromID(selectedID);
+
+	if (Lobby.lobbyID == -1) // -1 is invalid
+	{
+		return;
+	}
+
+	// CRC Check
+	if (Lobby.exe_crc != TheGlobalData->m_exeCRC || Lobby.ini_crc != TheGlobalData->m_iniCRC)
+	{
+		if (TheGlobalData->m_iniCRC != VANILLA_INI_CRC)
+		{
+			GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"You have modified INI files or a modification."));
+		}
+		else if (Lobby.ini_crc != VANILLA_INI_CRC)
+		{
+			GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"The host has modified INI files or a modification."));
+		}
+		else
+		{
+			GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->fetch("GUI:JoinFailedCRCMismatch"));
+		}
+		return;
+	}
+
+	// TODO_NGMP: Enforce this on the host too, vanilla game did not...
+
+	pLobbyInterface->SetLobbyTryingToJoin(Lobby);
+
+	if (Lobby.passworded)
+	{
+		GameSpyOpenOverlay(GSOVERLAY_GAMEPASSWORD);
+	}
+	else
+	{
+		pLobbyInterface->JoinLobby(Lobby, std::string());
+
+		SetLobbyAttemptHostJoin(TRUE);
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
 /** WOL Lobby Menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
@@ -2433,14 +2483,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				else if ( controlID == buttonHostID )
 				{
-					if (s_tryingToHostOrJoin)
-						break;
-
-					SetLobbyAttemptHostJoin( TRUE );
-					TheLobbyQueuedUTMs.clear();
-					// TODO_NGMP
-					//groupRoomToJoin = TheGameSpyInfo->getCurrentGroupRoom();
-					GameSpyOpenOverlay(GSOVERLAY_GAMEOPTIONS);
+					LobbyMenu_HostGamePressed();
 				}
 				else if ( controlID == buttonJoinID )
 				{
@@ -2458,46 +2501,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 						int64_t selectedID = ResolveGameListLobbyID((Int)GadgetListBoxGetItemData(GetGameListBox(), selected));
 						if (selectedID >= 0)
 						{
-							auto Lobby = pLobbyInterface->GetLobbyFromID(selectedID);
-
-							if (Lobby.lobbyID == -1) // -1 is invalid
-							{
-								break;
-							}
-
-							// CRC Check
-							if (Lobby.exe_crc != TheGlobalData->m_exeCRC || Lobby.ini_crc != TheGlobalData->m_iniCRC)
-							{
-								if (TheGlobalData->m_iniCRC != VANILLA_INI_CRC)
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"You have modified INI files or a modification."));
-								}
-								else if (Lobby.ini_crc != VANILLA_INI_CRC)
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), UnicodeString(L"The host has modified INI files or a modification."));
-								}
-								else
-								{
-									GSMessageBoxOk(TheGameText->fetch("GUI:JoinFailedDefault"), TheGameText->fetch("GUI:JoinFailedCRCMismatch"));
-								}
-								break;
-							}
-
-							// TODO_NGMP: Enforce this on the host too, vanilla game did not...
-
-							
-							pLobbyInterface->SetLobbyTryingToJoin(Lobby);
-
-							if (Lobby.passworded)
-							{
-								GameSpyOpenOverlay(GSOVERLAY_GAMEPASSWORD);
-							}
-							else
-							{
-								pLobbyInterface->JoinLobby(Lobby, std::string());
-
-								SetLobbyAttemptHostJoin(TRUE);
-							}
+							LobbyMenu_JoinLobbyByID(selectedID);
 						}
 					}
 					else

@@ -197,6 +197,11 @@ static LobbyGameModeFilter detectGameMode(const std::string& name)
 void setSortMode(GameSortType sortType) { theGameSortType = sortType; showSortIcons(); RefreshGameListBoxes(); }
 void sortByBuddies(Bool doSort) { sortBuddies = doSort; showSortIcons(); RefreshGameListBoxes(); }
 
+GameSortType GetGameSortType() { return theGameSortType; }
+Bool GetSortByBuddies() { return sortBuddies; }
+void SetGameSortType( GameSortType sortType ) { setSortMode(sortType); }
+void SetSortByBuddies( Bool doSort ) { sortByBuddies(doSort); }
+
 Bool HandleSortButton(NameKeyType sortButton)
 {
 	if (sortButton == buttonSortBuddiesID)
