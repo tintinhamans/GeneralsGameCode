@@ -975,6 +975,11 @@ static void StartPressed()
 		return;
 
 	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+	if (pMesh == nullptr)
+	{
+		return;
+	}
+
 	int numHumanPlayers = 0;
 	for(LobbyMemberEntry & member : pLobbyInterface->GetCurrentLobby().members)
 	{
@@ -1140,7 +1145,7 @@ static void StartPressed()
 				buttonStart->winEnable(FALSE);
 			}
 
-			pWS->SendData_StartFullMeshConnectivityCheck([=](bool bMeshFullyConnected, std::list<std::pair<int64_t, int64_t>> missingConnections)
+			pWS->SendData_StartFullMeshConnectivityCheck([=](bool bMeshFullyConnected, std::list<std::pair<int64_t, int64_t>> missingConnections, std::string strFailureReason)
 				{
 					if (bMeshFullyConnected)
 					{
@@ -1189,6 +1194,13 @@ static void StartPressed()
 					{
 						UnicodeString strInform = UnicodeString(L"Connections: The player network is not ready. Try again shortly.");
 						GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(255, 194, 15, 255), -1, -1);
+
+						if (!strFailureReason.empty())
+						{
+							UnicodeString strReasonLine;
+							strReasonLine.format(L"Connections: Reason: %s", from_utf8(strFailureReason).c_str());
+							GadgetListBoxAddEntryText(listboxGameSetupChat, strReasonLine, GameMakeColor(255, 194, 15, 255), -1, -1);
+						}
 
 						NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 
@@ -2072,6 +2084,10 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 	// TODO_NGMP
 	NGMPGame* game = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+	if (game == nullptr)
+	{
+		return;
+	}
 
 	NGMPGameSlot* hostSlot = game->getGameSpySlot(0);
 	hostSlot->setAccept();
@@ -2375,6 +2391,13 @@ void WOLGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 	if (pMesh != nullptr)
 	{
 		pMesh->DeregisterForConnectionEvents();
+	}
+
+	// drop any in-flight mesh connectivity check so a late reply never fires into this now-dead menu
+	std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
+	if (pWS != nullptr)
+	{
+		pWS->ClearConnectivityCheckCallback();
 	}
 
 	//TheGameSpyInfo->unregisterTextWindow(listboxGameSetupChat);
@@ -4116,6 +4139,11 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					{
 						//I'm the Client... send an accept message to the host.
 						auto game = pLobbyInterface->GetCurrentGame();
+						if (game == nullptr)
+						{
+							break;
+						}
+
 						GameSlot *localSlot = game->getSlot(game->getLocalSlotNum());
 						if (localSlot)
 						{
@@ -4153,11 +4181,16 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 						break;
 					}
 
+					NGMPGame* game = pLobbyInterface->GetCurrentGame();
+					if (game == nullptr)
+					{
+						break;
+					}
+
 					for (Int i = 0; i < MAX_SLOTS; i++)
 					{
 						if (controlID == buttonMapStartPositionID[i])
 						{
-							NGMPGame* game = pLobbyInterface->GetCurrentGame();
 							Int playerIdxInPos = -1;
 							for (Int j=0; j<MAX_SLOTS; ++j)
 							{
@@ -4212,11 +4245,16 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					break;
 				}
 
+				NGMPGame* game = pLobbyInterface->GetCurrentGame();
+				if (game == nullptr)
+				{
+					break;
+				}
+
 				for (Int i = 0; i < MAX_SLOTS; i++)
 				{
 					if (controlID == buttonMapStartPositionID[i])
 					{
-						NGMPGame* game = pLobbyInterface->GetCurrentGame();
 						Int playerIdxInPos = -1;
 						for (Int j=0; j<MAX_SLOTS; ++j)
 						{

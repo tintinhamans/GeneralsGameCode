@@ -128,6 +128,26 @@ struct QueuedGamePacket
 	int64_t m_userID = -1;
 };
 
+// Owns the process-wide GameNetworkingSockets library lifetime.
+class NetworkMeshLibrary
+{
+public:
+	// Inits once with userID's identity; stays up until Shutdown (a new login always follows a full teardown).
+	// Returns false on failure; caller must not create a listen socket/connection in that case.
+	static bool EnsureInitialized(int64_t userID);
+
+	// Tears the library down. Safe to call when not initialized.
+	static void Shutdown();
+
+	static bool IsInitialized() { return s_bInitialized; }
+
+	// Drives SteamNetworkingSockets()->RunCallbacks(), independent of NetworkMesh lifetime.
+	static void Tick();
+
+private:
+	static bool s_bInitialized;
+};
+
 class NetworkMesh
 {
 public:
@@ -203,6 +223,9 @@ public:
 
 	void Tick();
 
+	// false if construction failed; callers must not use a mesh that failed to initialize.
+	bool IsInitialized() const { return m_bInitialized; }
+
 	HSteamListenSocket GetListenSocketHandle() const { return m_hListenSock; }
 
 	std::map<int64_t, PlayerConnection>& GetAllConnections()
@@ -210,16 +233,11 @@ public:
 		return m_mapConnections;
 	}
 
-	// Thread-safe: may be invoked from anticheat plugin threads
+	// Thread-safe: may be invoked from anticheat plugin threads; applied on the main thread in Tick
 	void UpdateConnectionStateForUser(int64_t userID, EConnectionState newState)
 	{
-		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
-
-		auto it = m_mapConnections.find(userID);
-		if (it != m_mapConnections.end())
-		{
-			it->second.UpdateState(newState, this);
-		}
+		std::lock_guard<std::mutex> lock(m_pendingStateUpdatesMutex);
+		m_vecPendingStateUpdates.emplace_back(userID, newState);
 	}
 
 	PlayerConnection* GetConnectionForUser(int64_t user_id)
@@ -234,8 +252,13 @@ public:
 
 
 private:
+	bool m_bInitialized = false;
+
 	std::map<int64_t, PlayerConnection> m_mapConnections;
 	mutable std::recursive_mutex m_mapConnectionsMutex;  // Synchronizes access to m_mapConnections
+
+	std::mutex m_pendingStateUpdatesMutex;
+	std::vector<std::pair<int64_t, EConnectionState>> m_vecPendingStateUpdates;
 
 	ISignalingClient* m_pSignaling = nullptr;
 
@@ -247,4 +270,9 @@ private:
 	std::string m_strTurnToken;
 	std::string m_strTurnUsernameString;
 	std::string m_strTurnTokenString;
+	std::string m_strTurnServerList;
+
+	// k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_* for this lobby's connections.
+	int m_iceEnable = 0;
+	int m_iceImplementation = 2;
 };

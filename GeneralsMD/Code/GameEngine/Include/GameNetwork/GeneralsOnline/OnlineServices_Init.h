@@ -151,8 +151,6 @@ public:
 
 	std::vector<char> m_vecWSPartialBuffer;
 
-	std::vector<std::string> m_vecQueuedOutboungMsgs;
-
 	std::function<void(void)> m_fnWebsocketConnectedCallback = nullptr;
 
 	void Shutdown();
@@ -180,26 +178,49 @@ public:
 
 	void SendData_CountdownStarted();
 
-	std::function<void(bool, std::list<std::pair<int64_t, int64_t>>)> m_cbOnConnectivityCheckComplete = nullptr;
-	void SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>)> cbOnConnectivityCheckComplete);
+	// params: fully connected, missing links, reason ("" on success, else e.g. "missing_connections",
+	// "timeout", "member_left", "check_superseded")
+	std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> m_cbOnConnectivityCheckComplete = nullptr;
+
+	// lobby ID the check was started for; a stale reply (different lobby) is ignored
+	int64_t m_connectivityCheckLobbyID = -1;
+
+	void SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> cbOnConnectivityCheckComplete);
+
+	void ClearConnectivityCheckCallback()
+	{
+		m_cbOnConnectivityCheckComplete = nullptr;
+		m_connectivityCheckLobbyID = -1;
+	}
 
 	void Tick();
 
 	int Ping();
 
+	// Queues the message; Tick() flushes it on the main thread. Thread-safe.
 	void Send(const char* message);
 
-	// TODO_STEAM: clear this on connect
-	std::queue<std::vector<uint8_t>> m_pendingSignals;
-
-	bool AcquireLock()
+	// Thread-safe queue of inbound P2P signal payloads; drained by CSignalingClient::Poll().
+	void PushPendingSignal(std::vector<uint8_t> payload)
 	{
-		return m_mutex.try_lock_for(std::chrono::milliseconds(1));
+		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
+
+		static constexpr size_t kMaxPendingSignals = 256;
+		if (m_pendingSignals.size() >= kMaxPendingSignals)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Pending signal queue full (%zu), discarding oldest signal", m_pendingSignals.size());
+			m_pendingSignals.pop();
+		}
+
+		m_pendingSignals.push(std::move(payload));
 	}
 
-	void ReleaseLock()
+	std::queue<std::vector<uint8_t>> DrainPendingSignals()
 	{
-		m_mutex.unlock();
+		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
+		std::queue<std::vector<uint8_t>> drained;
+		drained.swap(m_pendingSignals);
+		return drained;
 	}
 
 private:
@@ -236,7 +257,12 @@ private:
 
 	std::atomic<bool> m_bShuttingDown = false;
 
-	std::recursive_timed_mutex m_mutex;
+	// Outbound messages queued for Tick() to flush.
+	std::mutex m_outboundQueueMutex;
+	std::vector<std::string> m_vecQueuedOutboungMsgs;
+
+	std::mutex m_pendingSignalsMutex;
+	std::queue<std::vector<uint8_t>> m_pendingSignals;
 };
 
 enum class ERoomFlags : int
@@ -316,12 +342,14 @@ struct ServiceConfig
 	int screenshot_width = 557;
 	int screenshot_height = 333;
 
-	
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(ServiceConfig, retry_signalling, use_mapped_port, min_run_ahead_frames, ra_update_frequency_frames, relay_all_traffic,
+	// ICE client used for P2P NAT traversal: 0 = library default, 1 = native, 2 = WebRTC.
+	int ice_implementation = 2;
+
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ServiceConfig, retry_signalling, use_mapped_port, min_run_ahead_frames, ra_update_frequency_frames, relay_all_traffic,
 		ra_slack_percent, frame_grouping_frames, enable_host_migration, network_do_immediate_flush_per_frame, network_send_flags, network_latency_logic_model,
 		use_default_config, ra_slack_override_percent_in_default, do_probes, do_replay_upload, network_mesh_histogram_duration,
 		ibra_ra_tweaks, ibra_minslack_default, ibra_maxslack_default, ibra_minslack_greaterthan300ms, ibra_maxslack_greaterthan300ms, ibra_minslack_greaterthan200ms, ibra_maxslack_greaterthan200ms,
-		screenshot_width, screenshot_height)
+		screenshot_width, screenshot_height, ice_implementation)
 };
 
 class NGMP_OnlineServicesManager

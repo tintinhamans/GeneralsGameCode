@@ -282,6 +282,23 @@ void WebSocket::Disconnect()
 
 	if (m_pCurlWS != nullptr)
 	{
+		// best-effort flush of anything queued since the last Tick() before closing
+		std::vector<std::string> outboundBatch;
+		{
+			std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
+			outboundBatch.swap(m_vecQueuedOutboungMsgs);
+		}
+
+		for (std::string& strPayload : outboundBatch)
+		{
+			size_t sentPayload;
+			CURLcode sendResult = curl_ws_send(m_pCurlWS, strPayload.c_str(), strPayload.length(), &sentPayload, 0, CURLWS_BINARY);
+			if (sendResult != CURLE_OK)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Disconnect: failed to flush queued message: %s", curl_easy_strerror(sendResult));
+			}
+		}
+
 		// send close
 		size_t sent;
 		(void)curl_ws_send(m_pCurlWS, "", 0, &sent, 0, CURLWS_CLOSE);
@@ -312,29 +329,17 @@ void WebSocket::Disconnect()
 
 void WebSocket::Send(const char* send_payload)
 {
-	if (!AcquireLock())
+	// Thread-safe; always queues. Tick() flushes on the main thread.
+	std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
+
+	static constexpr size_t kMaxQueuedOutboundMsgs = 256;
+	if (m_vecQueuedOutboungMsgs.size() >= kMaxQueuedOutboundMsgs)
 	{
-		return;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Outbound queue full (%zu), discarding oldest message", m_vecQueuedOutboungMsgs.size());
+		m_vecQueuedOutboungMsgs.erase(m_vecQueuedOutboungMsgs.begin());
 	}
 
-	if (!m_bConnected)
-	{
-		// just queue it instead
-		m_vecQueuedOutboungMsgs.push_back(std::string(send_payload));
-
-		ReleaseLock();
-		return;
-	}
-
-	size_t sent;
-	CURLcode result = curl_ws_send(m_pCurlWS, send_payload, strlen(send_payload), &sent, 0, CURLWS_BINARY);
-
-	if (result != CURLE_OK)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "curl_ws_send() failed: %s\n", curl_easy_strerror(result));
-	}
-
-	ReleaseLock();
+	m_vecQueuedOutboungMsgs.push_back(std::string(send_payload));
 }
 
 class WebSocketMessageBase
@@ -636,12 +641,55 @@ static void RestoreSessionState()
 		pSocial->RegisterForRealtimeServiceUpdates();
 	}
 
-	// the new session starts outside any network room, so rejoin the one the lobby menu still shows
+	// resolve the previous room by stable ID against a freshly fetched room list, not by index
 	NGMP_OnlineServices_RoomsInterface* pRooms = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-	if (pRooms != nullptr && pRooms->GetCurrentRoomIndex() >= 0)
+	if (pRooms == nullptr)
 	{
-		pRooms->JoinRoom(pRooms->GetCurrentRoomIndex());
+		return;
 	}
+
+	const std::vector<NetworkRoom>& roomsBeforeRefresh = pRooms->GetGroupRooms();
+	const int previousRoomIndex = pRooms->GetCurrentRoomIndex();
+	std::optional<int> previousRoomID;
+	UnicodeString strPreviousRoomName;
+	if (previousRoomIndex >= 0 && previousRoomIndex < (int)roomsBeforeRefresh.size())
+	{
+		previousRoomID = roomsBeforeRefresh[previousRoomIndex].GetRoomID();
+		strPreviousRoomName = roomsBeforeRefresh[previousRoomIndex].GetRoomDisplayName();
+	}
+
+	pRooms->GetRoomList([pRooms, previousRoomID, strPreviousRoomName](bool bSuccess)
+		{
+			const std::vector<NetworkRoom>& rooms = pRooms->GetGroupRooms();
+			if (!bSuccess || rooms.empty())
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] RestoreSessionState: failed to fetch room list, cannot rejoin a room");
+				return;
+			}
+
+			// fall back to the default room (index 0) if the room we were in no longer exists
+			int roomIndexToJoin = 0;
+			bool bFoundPreviousRoom = false;
+			if (previousRoomID.has_value())
+			{
+				for (size_t i = 0; i < rooms.size(); ++i)
+				{
+					if (rooms[i].GetRoomID() == *previousRoomID)
+					{
+						roomIndexToJoin = (int)i;
+						bFoundPreviousRoom = true;
+						break;
+					}
+				}
+			}
+
+			if (previousRoomID.has_value() && !bFoundPreviousRoom)
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] RestoreSessionState: room '%s' (id %d) no longer exists, joining the default room instead", to_utf8(strPreviousRoomName.str()).c_str(), *previousRoomID);
+			}
+
+			pRooms->JoinRoom(roomIndexToJoin);
+		});
 }
 
 void WebSocket::UpdateReconnect()
@@ -700,11 +748,7 @@ void WebSocket::UpdateReconnect()
 
 void WebSocket::Tick()
 {
-    if (!AcquireLock())
-    {
-        return;
-    }
-
+	// Main thread only; m_pCurlWS/m_vecWSPartialBuffer/m_bConnected are unlocked here.
 	UpdateReconnect();
 
 
@@ -820,12 +864,17 @@ void WebSocket::Tick()
 
     if (!m_bConnected)
     {
-        ReleaseLock();
         return;
     }
 
-	// send anything we have buffered (e.g. things that were queued while not connected)
-	for (std::string& strPayload : m_vecQueuedOutboungMsgs)
+	// send anything we have queued (things sent while not connected, or from any other thread)
+	std::vector<std::string> outboundBatch;
+	{
+		std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
+		outboundBatch.swap(m_vecQueuedOutboungMsgs);
+	}
+
+	for (std::string& strPayload : outboundBatch)
 	{
         size_t sent;
         CURLcode result = curl_ws_send(m_pCurlWS, strPayload.c_str(), strPayload.length(), &sent, 0, CURLWS_BINARY);
@@ -835,7 +884,6 @@ void WebSocket::Tick()
             NetworkLog(ELogVerbosity::LOG_RELEASE, "curl_ws_send() failed: %s\n", curl_easy_strerror(result));
         }
 	}
-	m_vecQueuedOutboungMsgs.clear();
 
 	// do recv
 	size_t rlen = 0;
@@ -1181,16 +1229,31 @@ void WebSocket::Tick()
 									{
 										// all checks are done, process start for host
 
+										// stale reply for a lobby we've since left/changed
+										NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+										int64_t currentLobbyID = pLobbyInterface != nullptr ? pLobbyInterface->GetCurrentLobby().lobbyID : -1;
+										if (currentLobbyID != m_connectivityCheckLobbyID)
+										{
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Ignoring stale reply for a previous lobby");
+											break;
+										}
+
 										bool bMeshComplete = false;
+										std::string strReason;
+										std::list<std::pair<int64_t, int64_t>> missingConnections;
 
 										try
 										{
 											jsonObject["mesh_complete"].get_to(bMeshComplete);
 
-											std::list<std::pair<int64_t, int64_t>> missingConnections;
+											if (jsonObject.contains("reason"))
+											{
+												jsonObject["reason"].get_to(strReason);
+											}
+
 											if (!bMeshComplete)
 											{
-												NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Mesh is not complete for someone");
+												NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Mesh is not complete for someone, reason: %s", strReason.c_str());
 												for (const auto& missingConnectionEntryIter : jsonObject["missing_connections"])
 												{
 													int64_t source_user_id = -1;
@@ -1206,20 +1269,22 @@ void WebSocket::Tick()
 											{
 												NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Mesh is fully complete");
 											}
-
-											// invoke callback
-											if (m_cbOnConnectivityCheckComplete != nullptr)
-											{
-												m_cbOnConnectivityCheckComplete(bMeshComplete, missingConnections);
-											}
-
-											m_cbOnConnectivityCheckComplete = NULL;
 										}
 										catch (...)
 										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Error processing response");
-											break;
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK_RESPONSE_COMPLETE_TO_HOST] Error processing response, resolving as failure");
+											bMeshComplete = false;
+											missingConnections.clear();
+											strReason = "parse_error";
 										}
+
+										// invoke callback
+										if (m_cbOnConnectivityCheckComplete != nullptr)
+										{
+											m_cbOnConnectivityCheckComplete(bMeshComplete, missingConnections, strReason);
+										}
+
+										ClearConnectivityCheckCallback();
 
 										break;
 									}
@@ -1349,7 +1414,7 @@ void WebSocket::Tick()
 										{
 											NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Signal User: %lld!", signalData.target_user_id);
 											NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Signal Payload Size: %d!", (int)signalData.payload.size());
-											m_pendingSignals.push(signalData.payload);
+											PushPendingSignal(std::move(signalData.payload));
 										}
 									}
 									break;
@@ -1551,10 +1616,24 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::MATCHMAKING_ACTION_SETUP_PROGRESS:
 									{
+										static constexpr int kMinMatchSetupTimeoutMs = 1000;
+										static constexpr int kMaxMatchSetupTimeoutMs = 120000;
+
 										int timeoutMs = 0;
 										if (jsonObject.contains("timeout_ms") && jsonObject["timeout_ms"].is_number_integer())
 										{
 											timeoutMs = jsonObject["timeout_ms"].get<int>();
+											if (timeoutMs > 0)
+											{
+												if (timeoutMs < kMinMatchSetupTimeoutMs)
+												{
+													timeoutMs = kMinMatchSetupTimeoutMs;
+												}
+												else if (timeoutMs > kMaxMatchSetupTimeoutMs)
+												{
+													timeoutMs = kMaxMatchSetupTimeoutMs;
+												}
+											}
 										}
 
 										// -1 = older service that doesn't say, the menu infers it
@@ -1734,8 +1813,6 @@ void WebSocket::Tick()
 		BeginReconnect();
         m_vecWSPartialBuffer.clear();
 	};
-
-	ReleaseLock();
 }
 
 NGMP_OnlineServices_RoomsInterface::NGMP_OnlineServices_RoomsInterface()

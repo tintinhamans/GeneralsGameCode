@@ -19,11 +19,8 @@
 bool g_bForceRelay = false;
 UnsignedInt m_exeCRCOriginal = 0;
 
-// Static flag to track if NetworkMesh is being destroyed to prevent callback re-entry
-static std::atomic<bool> g_bNetworkMeshDestroying = false;
-
-// SECURITY FIX: Thread-safe pool for deferred deletion of ConnectionSignaling objects
-// to prevent "delete this" races during async Steam callbacks
+// Pool for deferred deletion of ConnectionSignaling objects; avoids "delete this" races during
+// async Steam callbacks.
 static std::mutex g_pendingDeletionMutex;
 static std::vector<void*> g_pendingConnSignalingDeletions;
 
@@ -44,17 +41,11 @@ static void CleanupPendingConnSignalingDeletions()
 	}
 }
 
-// Called when a connection undergoes a state transition
+// Called on connection state transitions. Always runs on the main thread via RunCallbacks(), so
+// m_mapConnections is accessed here without m_mapConnectionsMutex.
 void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t* pInfo)
 {
-	// Clean up any pending ConnectionSignaling deletions from previous callbacks
 	CleanupPendingConnSignalingDeletions();
-	
-	// Early exit if NetworkMesh is being destroyed to prevent use-after-free
-	if (g_bNetworkMeshDestroying.load())
-	{
-		return;
-	}
 
 	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
 
@@ -103,26 +94,36 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 		{
 			PlayerConnection& plrConnection = connections[connectionID];
 
+			// Capture before SetDisconnected(), which can erase this entry via UpdateState().
+			const int64_t userID = plrConnection.m_userID;
+			const int signallingAttemptsBeforeDisconnect = plrConnection.m_SignallingAttempts;
+
 			if (TheNetwork != nullptr)
 			{
-				TheNetwork->GetConnectionManager()->disconnectPlayer(plrConnection.m_userID);
+				TheNetwork->GetConnectionManager()->disconnectPlayer(userID);
 			}
 
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", plrConnection.m_userID);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", userID);
 
 			ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
-			const int numSignallingAttempts = 3;
-			bool bShouldRetry = plrConnection.m_SignallingAttempts < numSignallingAttempts && serviceConf.retry_signalling;
+			const int numSignallingAttempts = 2;
+
+			// only the later joiner of a pair gives up; unknown join order caps both sides, a departed peer is capped without leaving
+			NGMP_OnlineServices_LobbyInterface* pJoinOrderLobby = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+			const bool bWeJoinedLater = pJoinOrderLobby == nullptr || !pJoinOrderLobby->IsJoinOrderKnown() || pJoinOrderLobby->JoinedAfter(userID);
+			const bool bPeerLeft = pJoinOrderLobby != nullptr && pJoinOrderLobby->IsJoinOrderKnown() && !pJoinOrderLobby->IsLobbyMember(userID);
+			bool bShouldRetry = serviceConf.retry_signalling && ((!bWeJoinedLater && !bPeerLeft) || signallingAttemptsBeforeDisconnect < numSignallingAttempts);
 
 			bool bWasError = pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally || pInfo->m_info.m_eEndReason != k_ESteamNetConnectionEnd_App_Generic;
 			plrConnection.SetDisconnected(bWasError, pMesh, bShouldRetry && bWasError);
-			
+			// plrConnection may be dangling past this point; use the captured locals.
+
 			// the highest slot player, should leave. In most cases, this is the most recently joined player, but this may not be 100% accurate due to backfills.
 			// TODO_NGMP: In the future, we should pick the most recently joined by timestamp
 			if (bWasError) // only if it wasn't a clean disconnect (e.g. lobby leave)
 			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Determined we didn't connect due to an error, Retrying: %d (currently at %d/%d attempts)", bShouldRetry, plrConnection.m_SignallingAttempts, numSignallingAttempts);
-				
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Determined we didn't connect due to an error, Retrying: %d (currently at %d/%d attempts)", bShouldRetry, signallingAttemptsBeforeDisconnect, numSignallingAttempts);
+
 				// should we retry signaling?
 				if (bShouldRetry)
 				{
@@ -139,11 +140,11 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 							// Behavior:
 							// disconnected slot userID is higher than ours, do nothing, they will signal
 							// disconnected slot userID is lower than ours, we signal
-							if ((myUserID > plrConnection.m_userID))
+							if ((myUserID > userID))
 							{
 								NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Send signal start request...");
 
-								pWS->SendData_RequestSignalling(plrConnection.m_userID);
+								pWS->SendData_RequestSignalling(userID);
 							}
 							else
 							{
@@ -159,20 +160,25 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 					}
 				}
 
-				if (!bShouldRetry)
+				if (!bShouldRetry && bPeerLeft)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld is no longer in the lobby", userID);
+				}
+				else if (!bShouldRetry && !bWeJoinedLater)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, user %lld joined after us and will leave", userID);
+				}
+				else if (!bShouldRetry)
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, handling disconnect as failure...");
 
 					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 					if (pLobbyInterface != nullptr)
 					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Performing local removal for user %lld from lobby due to failure to connect\n", plrConnection.m_userID);
-						// Local copy to avoid TOCTOU race: check-then-use window
-						auto callbackCopy = pLobbyInterface->m_OnCannotConnectToLobbyCallback;
-						if (callbackCopy != nullptr)
-						{
-							callbackCopy();
-						}
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Performing local removal for user %lld from lobby due to failure to connect\n", userID);
+
+						// deferred: the handler leaves the lobby, which deletes this mesh while we're still inside its RunCallbacks
+						pLobbyInterface->QueueCannotConnectToLobby();
 					}
 				}
 			}
@@ -407,10 +413,14 @@ class CSignalingClient : public ISignalingClient
 		std::vector<uint8_t> vecPayload;
 	};
 	ISteamNetworkingSockets* const m_pSteamNetworkingSockets;
+
+	// Guards m_queueSend; SendSignal() may run on any thread, Poll() drains on the main thread.
+	std::mutex m_sendQueueMutex;
 	std::deque<QueuedSend> m_queueSend;
 
 	void CloseSocket()
 	{
+		std::scoped_lock<std::mutex> lock(m_sendQueueMutex);
 		m_queueSend.clear();
 	}
 
@@ -434,34 +444,22 @@ public:
 
 	}
 
-	// Send the signal.
+	// May be called from any thread; always queues, Poll() flushes on the main thread.
 	void Send(int64_t target_user_id, std::vector<uint8_t>& vecPayload)
 	{
-		std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
-		if (pWS)
+		std::scoped_lock<std::mutex> lock(m_sendQueueMutex);
+
+		// Best-effort delivery; drop oldest on backlog.
+		while (m_queueSend.size() > 128)
 		{
-			if (!pWS->AcquireLock())
-			{
-				return;
-			}
-
-			// If we're getting backed up, delete the oldest entries.  Remember,
-			// we are only required to do best-effort delivery.  And old signals are the
-			// most likely to be out of date (either old data, or the client has already
-			// timed them out and queued a retry).
-			while (m_queueSend.size() > 128)
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "Signaling send queue is backed up.  Discarding oldest signals\n");
-				m_queueSend.pop_front();
-			}
-
-			QueuedSend newEntry = QueuedSend();
-			newEntry.target_user_id = target_user_id;
-			newEntry.vecPayload = vecPayload;
-			m_queueSend.push_back(newEntry);
-
-			pWS->ReleaseLock();
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "Signaling send queue is backed up.  Discarding oldest signals\n");
+			m_queueSend.pop_front();
 		}
+
+		QueuedSend newEntry = QueuedSend();
+		newEntry.target_user_id = target_user_id;
+		newEntry.vecPayload = vecPayload;
+		m_queueSend.push_back(newEntry);
 	}
 
 	ISteamNetworkingConnectionSignaling* CreateSignalingForConnection(
@@ -496,25 +494,21 @@ public:
 		std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
 		if (pWS)
 		{
-			if (!pWS->AcquireLock())
+			std::deque<QueuedSend> sendBatch;
 			{
-				return;
+				std::scoped_lock<std::mutex> lock(m_sendQueueMutex);
+				sendBatch.swap(m_queueSend);
 			}
 
-			// Drain the socket
-			// Flush send queue
-			while (!m_queueSend.empty())
+			while (!sendBatch.empty())
 			{
-				QueuedSend sendData = m_queueSend.front();
+				QueuedSend sendData = sendBatch.front();
 
 				pWS->SendData_Signalling(sendData.target_user_id, sendData.vecPayload);
-				m_queueSend.pop_front();
+				sendBatch.pop_front();
 			}
 
-			// TODO_NGMP: Avoid copy
-			std::queue<std::vector<uint8_t>> pendingSignals = pWS->m_pendingSignals;
-			pWS->m_pendingSignals = std::queue<std::vector<uint8_t>>();
-			pWS->ReleaseLock();
+			std::queue<std::vector<uint8_t>> pendingSignals = pWS->DrainPendingSignals();
 
 			// Now dispatch any buffered signals
 			if (!pendingSignals.empty())
@@ -597,23 +591,87 @@ public:
 };
 
 
-NetworkMesh::NetworkMesh()
+bool NetworkMeshLibrary::s_bInitialized = false;
+
+bool NetworkMeshLibrary::EnsureInitialized(int64_t userID)
 {
-	SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_LogLevel_P2PRendezvous, k_ESteamNetworkingSocketsDebugOutputType_Error);
+	// lives until the online services shut down; a new login always follows a full teardown
+	if (s_bInitialized)
+	{
+		return true;
+	}
 
-	// Block the status-changed callback from firing while the library is
-	// torn down and re-initialized.  Without this guard the callback can
-	// be dispatched (e.g. from a previous Tick's RunCallbacks queue) after
-	// GameNetworkingSockets_Kill() has freed its internal mutexes but
-	// before GameNetworkingSockets_Init() has rebuilt them, resulting in
-	// an EXCEPTION_ACCESS_VIOLATION_READ on a null mutex pointer inside
-	// mtx_do_lock.
-	g_bNetworkMeshDestroying.store(true);
+	SteamNetworkingIdentity identityLocal;
+	identityLocal.Clear();
+	std::string userIDStr = std::to_string(userID);
+	identityLocal.SetGenericString(userIDStr.c_str());
 
-	// try a shutdown
-	g_bNetworkMeshDestroying.store(true);
+	if (identityLocal.IsInvalid())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMeshLibrary::EnsureInitialized: SteamNetworkingIdentity is invalid");
+		return false;
+	}
+
+	SteamDatagramErrMsg errMsg;
+	if (!GameNetworkingSockets_Init(&identityLocal, errMsg))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMeshLibrary::EnsureInitialized: GameNetworkingSockets_Init failed. %s", errMsg);
+		return false;
+	}
+
+	s_bInitialized = true;
+
+	// Every STUN entry must resolve to a distinct address, or the native ICE client retries
+	// duplicates forever.
+	SteamNetworkingUtils()->SetGlobalConfigValueString(k_ESteamNetworkingConfig_P2P_STUN_ServerList, "stun:stun.playgenerals.online:53,stun:stun.playgenerals.online:3478,stun:stun.l.google.com:19302");
+
+
+	ESteamNetworkingSocketsDebugOutputType logType =
+#if defined(_DEBUG)
+		ESteamNetworkingSocketsDebugOutputType::k_ESteamNetworkingSocketsDebugOutputType_Debug;
+#else
+		NGMP_OnlineServicesManager::Settings.Debug_VerboseLogging() ? ESteamNetworkingSocketsDebugOutputType::k_ESteamNetworkingSocketsDebugOutputType_Debug : ESteamNetworkingSocketsDebugOutputType::k_ESteamNetworkingSocketsDebugOutputType_Msg;
+#endif
+
+	SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_LogLevel_P2PRendezvous, logType);
+	SteamNetworkingUtils()->SetDebugOutputFunction(logType, [](ESteamNetworkingSocketsDebugOutputType nType, const char* pszMsg)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING LOGFUNC] %s", pszMsg);
+		});
+
+	SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged(OnSteamNetConnectionStatusChanged);
+
+	return true;
+}
+
+void NetworkMeshLibrary::Shutdown()
+{
+	if (!s_bInitialized)
+	{
+		return;
+	}
+
+	SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged(nullptr);
 	GameNetworkingSockets_Kill();
 
+	s_bInitialized = false;
+}
+
+void NetworkMeshLibrary::Tick()
+{
+	if (!s_bInitialized || AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+	{
+		return;
+	}
+
+	if (SteamNetworkingSockets())
+	{
+		SteamNetworkingSockets()->RunCallbacks();
+	}
+}
+
+NetworkMesh::NetworkMesh()
+{
 	NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
 	if (pOnlineServicesMgr == nullptr)
 	{
@@ -635,110 +693,62 @@ NetworkMesh::NetworkMesh()
 		return;
 	}
 
-
-	int64_t localUserID = pAuthInterface->GetUserID();
-
-	SteamNetworkingIdentity identityLocal;
-	identityLocal.Clear();
-	std::string localUserIDStr = std::to_string(localUserID);
-	identityLocal.SetGenericString(localUserIDStr.c_str());
-
-	if (identityLocal.IsInvalid())
+	if (!NetworkMeshLibrary::EnsureInitialized(pAuthInterface->GetUserID()))
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "SteamNetworkingIdentity is invalid");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMeshLibrary::EnsureInitialized failed");
 		return;
 	}
 
-	// initialize Steam Sockets
-	SteamDatagramErrMsg errMsg;
-	if (!GameNetworkingSockets_Init(&identityLocal, errMsg))
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "GameNetworkingSockets_Init failed.  %s", errMsg);
-		return;
-	}
-
-	// TODO_STEAM: Dont hardcode, get everything from service
-	// Every entry must resolve to distinct addresses. stun1-4.l.google.com resolve to the same IPs as
-	// stun.l.google.com, and duplicate addresses make the native ICE client retry STUN servers forever.
-	SteamNetworkingUtils()->SetGlobalConfigValueString(k_ESteamNetworkingConfig_P2P_STUN_ServerList, "stun:stun.playgenerals.online:53,stun:stun.playgenerals.online:3478,stun:stun.l.google.com:19302");
-
-	// comma seperated setting lists
-	// No "?transport=udp" suffix: the native ICE client passes everything after the host as the port.
-	const char* turnList = "turn:turn.playgenerals.online:53,turn:turn.playgenerals.online:3478";
+	// comma-separated; no "?transport=udp" suffix, the native ICE client takes everything after
+	// the host as the port
+	m_strTurnServerList = "turn:turn.playgenerals.online:53,turn:turn.playgenerals.online:3478";
 
 	m_strTurnUsername = pLobbyInterface->GetLobbyTurnUsername();
 	m_strTurnToken = pLobbyInterface->GetLobbyTurnToken();
-
-	//const char* szUsername = "g04024f26713bae6e055295b6887b7007533f6c236534b725734b37e26ec15cd,g04024f26713bae6e055295b6887b7007533f6c236534b725734b37e26ec15cd";
-	//const char* szToken = "9ea6a5e60216c09a1fa7512987b2ce0514e3204f863f04f70fa870a100db740f,9ea6a5e60216c09a1fa7512987b2ce0514e3204f863f04f70fa870a100db740f";
-
-	//strUsername = "g04024f26713bae6e055295b6887b7007533f6c236534b725734b37e26ec15cd";
-	//strToken = "9ea6a5e60216c09a1fa7512987b2ce0514e3204f863f04f70fa870a100db740f";
-
 	m_strTurnUsernameString = std::format("{},{}", m_strTurnUsername.c_str(), m_strTurnUsername.c_str());
 	m_strTurnTokenString = std::format("{},{}", m_strTurnToken.c_str(), m_strTurnToken.c_str());
 
-	SteamNetworkingUtils()->SetGlobalConfigValueString(k_ESteamNetworkingConfig_P2P_TURN_ServerList, turnList);
-	SteamNetworkingUtils()->SetGlobalConfigValueString(k_ESteamNetworkingConfig_P2P_TURN_UserList, m_strTurnUsernameString.c_str());
-	SteamNetworkingUtils()->SetGlobalConfigValueString(k_ESteamNetworkingConfig_P2P_TURN_PassList, m_strTurnTokenString.c_str());
-
 	ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
+	m_iceEnable = (g_bForceRelay || serviceConf.relay_all_traffic)
+		? k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_Relay
+		: k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_All;
 
-	// Allow sharing of any kind of ICE address.
-	if (g_bForceRelay || serviceConf.relay_all_traffic)
-	{
-		SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_Relay);
-	}
-	else
-	{
-		SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_All);
-	}
+	// 0 = library default, 1 = native, 2 = WebRTC
+	m_iceImplementation = (serviceConf.ice_implementation >= 0 && serviceConf.ice_implementation <= 2) ? serviceConf.ice_implementation : 2;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh: using ICE implementation %d (0=default, 1=native, 2=WebRTC)", m_iceImplementation);
 
-	// The vcpkg GNS build only has the native ICE client (no WebRTC), so select it explicitly.
-	SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Implementation, 1);
-
-	m_hListenSock = k_HSteamListenSocket_Invalid;
-	
-	// create signalling service
 	m_pSignaling = new CSignalingClient(SteamNetworkingSockets());
 	if (m_pSignaling == nullptr)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "CreateTrivialSignalingClient failed.  %s", errMsg);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "CreateTrivialSignalingClient failed");
 		return;
 	}
 
-	SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged(OnSteamNetConnectionStatusChanged);
-	g_bNetworkMeshDestroying.store(false);
-
-	// Library is fully re-initialized and the callback is registered;
-	// it is now safe to allow OnSteamNetConnectionStatusChanged to run.
-	g_bNetworkMeshDestroying.store(false);
-
-	ESteamNetworkingSocketsDebugOutputType logType =
-#if defined(_DEBUG)
-		ESteamNetworkingSocketsDebugOutputType::k_ESteamNetworkingSocketsDebugOutputType_Debug
-#else
-		NGMP_OnlineServicesManager::Settings.Debug_VerboseLogging() ? ESteamNetworkingSocketsDebugOutputType::k_ESteamNetworkingSocketsDebugOutputType_Debug : ESteamNetworkingSocketsDebugOutputType::k_ESteamNetworkingSocketsDebugOutputType_Msg
-#endif;
-		;
-
-	SteamNetworkingUtils()->SetGlobalConfigValueInt32(k_ESteamNetworkingConfig_LogLevel_P2PRendezvous, logType);
-	SteamNetworkingUtils()->SetDebugOutputFunction(logType, [](ESteamNetworkingSocketsDebugOutputType nType, const char* pszMsg)
-		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING LOGFUNC] %s", pszMsg);
-		});
+	std::vector<SteamNetworkingConfigValue_t> vecListenOpts;
+	SteamNetworkingConfigValue_t opt;
+	opt.SetInt32(k_ESteamNetworkingConfig_SymmetricConnect, 1);
+	vecListenOpts.push_back(opt);
+	opt.SetInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, m_iceEnable);
+	vecListenOpts.push_back(opt);
+	opt.SetInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Implementation, m_iceImplementation);
+	vecListenOpts.push_back(opt);
+	opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_ServerList, m_strTurnServerList.c_str());
+	vecListenOpts.push_back(opt);
+	opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_UserList, m_strTurnUsernameString.c_str());
+	vecListenOpts.push_back(opt);
+	opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_PassList, m_strTurnTokenString.c_str());
+	vecListenOpts.push_back(opt);
 
 	int localPort = 0;
-
-	// create sockets
-	SteamNetworkingConfigValue_t opt;
-	opt.SetInt32(k_ESteamNetworkingConfig_SymmetricConnect, 1); // << Note we set symmetric mode on the listen socket
-	m_hListenSock = SteamNetworkingSockets()->CreateListenSocketP2P(localPort, 1, &opt);
+	m_hListenSock = SteamNetworkingSockets()->CreateListenSocketP2P(localPort, (int)vecListenOpts.size(), vecListenOpts.data());
 
 	if (m_hListenSock == k_HSteamListenSocket_Invalid)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "CreateListenSocketP2P failed. Sock was invalid");
+		return;
 	}
+
+	m_bInitialized = true;
 }
 
 
@@ -931,8 +941,26 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
         SteamNetworkingConfigValue_t opt;
         opt.SetInt32(k_ESteamNetworkingConfig_SymmetricConnect, 1);
         vecOpts.push_back(opt);
+
+        opt.SetInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Enable, m_iceEnable);
+        vecOpts.push_back(opt);
+        opt.SetInt32(k_ESteamNetworkingConfig_P2P_Transport_ICE_Implementation, m_iceImplementation);
+        vecOpts.push_back(opt);
+        opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_ServerList, m_strTurnServerList.c_str());
+        vecOpts.push_back(opt);
+        opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_UserList, m_strTurnUsernameString.c_str());
+        vecOpts.push_back(opt);
+        opt.SetString(k_ESteamNetworkingConfig_P2P_TURN_PassList, m_strTurnTokenString.c_str());
+        vecOpts.push_back(opt);
+
         NetworkLog(ELogVerbosity::LOG_DEBUG, "Connecting to '%s' in symmetric mode, virtual port %d, from local virtual port %d.\n",
             SteamNetworkingIdentityRender(identityRemote).c_str(), g_nVirtualPortRemote, g_nLocalPort);
+
+        if (m_pSignaling == nullptr)
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "NetworkMesh::StartConnectionSignalling - Signalling client is null (mesh failed to initialize)");
+            return;
+        }
 
         // create a signaling object for this connection
         SteamNetworkingErrMsg errMsg;
@@ -1033,16 +1061,11 @@ void NetworkMesh::Disconnect()
 
 	m_bDisconnected = true;
 
-	// Set flag to prevent callbacks from executing during teardown
-	g_bNetworkMeshDestroying.store(true);
-
-    // close every connection
     for (auto& connectionData : m_mapConnections)
     {
 		connectionData.second.Close();
     }
 
-    // clear map
     m_mapConnections.clear();
 
 	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
@@ -1051,43 +1074,36 @@ void NetworkMesh::Disconnect()
 	}
 	else
 	{
-		// Unregister the global callback to prevent new callbacks from being queued
-		if (SteamNetworkingUtils())
-		{
-			SteamNetworkingUtils()->SetGlobalCallback_SteamNetConnectionStatusChanged(nullptr);
-		}
-
-		if (SteamNetworkingSockets())
+		if (SteamNetworkingSockets() && m_hListenSock != k_HSteamListenSocket_Invalid)
 		{
 			SteamNetworkingSockets()->CloseListenSocket(m_hListenSock);
 		}
 
-		// invalidate socket
-		m_hListenSock = k_HSteamNetConnection_Invalid;
-
-		// tear down steam sockets
-		GameNetworkingSockets_Kill();
+		m_hListenSock = k_HSteamListenSocket_Invalid;
 	}
-
-	// Reset flag after teardown is complete
-	g_bNetworkMeshDestroying.store(false);
 }
 
 void NetworkMesh::Tick()
 {
-	if (!AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+	// state reported from anticheat plugin threads; UpdateState reaches UI callbacks, so apply it here
+	std::vector<std::pair<int64_t, EConnectionState>> vecStateUpdates;
 	{
-		// Check for incoming signals, and dispatch them
-		if (m_pSignaling != nullptr)
+		std::lock_guard<std::mutex> lock(m_pendingStateUpdatesMutex);
+		vecStateUpdates.swap(m_vecPendingStateUpdates);
+	}
+	for (const auto& update : vecStateUpdates)
+	{
+		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+		auto it = m_mapConnections.find(update.first);
+		if (it != m_mapConnections.end())
 		{
-			m_pSignaling->Poll();
+			it->second.UpdateState(update.second, this);
 		}
+	}
 
-		// Check callbacks
-		if (SteamNetworkingSockets())
-		{
-			SteamNetworkingSockets()->RunCallbacks();
-		}
+	if (!AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport() && m_pSignaling != nullptr)
+	{
+		m_pSignaling->Poll();
 	}
 
 	// update connection histograms
