@@ -5,12 +5,14 @@
 	<link type="text/rcss" href="OnlineWelcome.rcss"/>
 </head>
 <body data-model="onlinewelcome">
-	<div class="frame panel">
-		<div class="title-bar">{{title}}</div>
+	<mappedimage class="shell-background" name="MainMenuRuler"/>
+
+	<div class="shell-frame">
+		<div class="shell-title-bar">{{title}}</div>
 
 		<div class="welcome-row">
 			<div class="motd-column">
-				<div class="section-title">{{num_players_text}}</div>
+				<div class="motd-players">{{num_players_text}}</div>
 				<div class="scroll-container motd-list">
 					<div data-for="line : motd_lines">
 						<div class="motd-line" data-if="line.used" data-class-heading="line.is_heading" data-style-color="line.color_hex">{{line.text}}</div>
@@ -18,51 +20,43 @@
 				</div>
 			</div>
 
-			<div class="stats-column">
-				<div class="section-title"><gametext key="GUI:WinPercent"/></div>
-				<div class="scroll-container stats-list">
-					<div data-for="stat : faction_stats">
-						<div class="stat-row" data-if="stat.used" data-attr-data-tooltip-text="stat.tooltip_text">
-							<mappedimage class="stat-icon" data-attr-name="stat.icon"/>
-							<div class="stat-value">{{stat.text}}</div>
-						</div>
-					</div>
-				</div>
+			<div class="buttons-column">
+				<button data-event-click="quick_match"><gametext key="GUI:QuickMatch"/></button>
+				<button data-event-click="custom_match"><gametext key="GUI:CustomMatch"/></button>
+				<button data-event-click="my_info"><gametext key="GUI:MyInfo"/></button>
+				<button data-event-click="buddies">{{buddies_button_text}}</button>
+				<button data-event-click="options"><gametext key="GUI:Options"/></button>
 			</div>
+		</div>
 
+		<div class="playerinfo-row">
 			<div class="rank-column">
-				<div class="section-title" data-tooltip="TOOLTIP:Community"><gametext key="GUI:Community"/></div>
+				<div class="section-title"><gametext key="GUI:Rank"/></div>
 				<div class="rank-border">
 					<div class="rank-image-wrap">
 						<mappedimage class="rank-image" data-attr-name="rank_image_name"/>
 						<mappedimage class="faction-image" data-attr-name="faction_image_name" data-if="show_faction_image"/>
 					</div>
-					<div class="rank-line"></div>
 					<div class="rank-progress" data-if="!rank_at_max">
 						<div class="rank-progress-fill" data-style-width="rank_progress_width_style"></div>
 					</div>
 				</div>
 				<div class="rank-label">{{rank_text}}</div>
 			</div>
+
+			<div class="community-column">
+				<div class="section-title" data-tooltip="TOOLTIP:Community"><gametext key="GUI:Community"/></div>
+				<div class="stats-grid">
+					<div class="stat-cell" data-for="stat : faction_stats" data-if="stat.used" data-attr-data-tooltip-text="stat.tooltip_text">
+						<mappedimage class="stat-icon" data-attr-name="stat.icon"/>
+						<div class="stat-value">{{stat.text}}</div>
+					</div>
+				</div>
+			</div>
 		</div>
 
-		<div class="footer welcome-footer">
-			<button data-event-click="quick_match">
-				<gametext key="GUI:QuickMatch"/>
-			</button>
-			<button data-event-click="custom_match">
-				<gametext key="GUI:CustomMatch"/>
-			</button>
-			<button data-event-click="buddies">{{buddies_button_text}}</button>
-			<button data-event-click="my_info">
-				<gametext key="GUI:MyInfo"/>
-			</button>
-			<button data-event-click="options">
-				<gametext key="GUI:Options"/>
-			</button>
-			<button data-event-click="back">
-				<gametext key="GUI:GotoMainMenu"/>
-			</button>
+		<div class="welcome-footer">
+			<button data-event-click="back"><gametext key="GUI:GotoMainMenu"/></button>
 		</div>
 	</div>
 </body>

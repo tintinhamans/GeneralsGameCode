@@ -1,44 +1,52 @@
 /*
 	OnlineWelcome.rcss -- WOLWelcomeMenu.wnd (the Generals Online hub screen).
-	Layout only; palette/buttons/scroll-container come from common.rcss.
+	.shell-background/.shell-frame/.shell-title-bar come from common.rcss (see WOLWelcomeMenu.wnd's
+	MainMenuRuler backdrop + GadgetParent). Percent geometry below mirrors the .wnd's own child
+	SCREENRECTs (CREATIONRESOLUTION 800x600), so this scales the same non-uniform way the .wnd does.
 */
+
+body
+{
+	width: 100%;
+	height: 100%;
+}
 
 .welcome-row
 {
 	display: flex;
 	flex-direction: row;
-	flex: 1 1 auto;
+	flex: 0 0 44%;
 	min-height: 0;
+	margin-bottom: 1.7%;
 }
 
 .motd-column
 {
 	display: flex;
 	flex-direction: column;
-	flex: 2 1 auto;
-	margin-right: 12dp;
+	flex: 0 0 70%;
+	margin-right: 2.3%;
 	min-height: 0;
 }
 
-.stats-column
+.motd-players
 {
-	display: flex;
-	flex-direction: column;
-	flex: 1 1 auto;
-	min-height: 0;
+	color: #FFCC00;
+	padding-bottom: 2dp;
 }
 
-.section-title
+.motd-list
 {
-	font-weight: bold;
-	padding-bottom: 4dp;
-	border-bottom: 1dp #2F37A8;
-	margin-bottom: 4dp;
+	background-color: rgba(0, 0, 0, 160);
+	border: 1dp #2F37A8;
+	padding: 4dp 6dp;
 }
 
 .motd-line
 {
-	padding: 2dp 0;
+	display: block;
+	padding: 1dp 0;
+	white-space: pre-line;
 	/* color comes from data-style-color (line.color_hex), matching the .wnd's per-line
 	   GameSpyColor[GSCOLOR_MOTD_HEADING]/GameSpyColor[GSCOLOR_MOTD]/hex-prefix override */
 }
@@ -48,43 +56,51 @@
 	font-weight: bold;
 }
 
-.stat-row
+.buttons-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 25%;
+	margin-left: auto;
+}
+
+.buttons-column button
+{
+	margin-bottom: 4dp;
+}
+
+/* Rank + Daily Army Win Percentages band -- mirrors WOLWelcomeMenu.wnd's PlayerInfoParent
+   (RankBorder/WinRank/FactionImage/ProgressBarRank/StaticTextRank + CommunityInfoParent/
+   StaticTextCommunity). See D:\INIZH\Window\Menus\WOLWelcomeMenu.wnd. */
+.playerinfo-row
 {
 	display: flex;
 	flex-direction: row;
-	align-items: center;
-	padding: 2dp 0;
+	flex: 0 0 43%;
+	min-height: 0;
 }
 
-.stat-icon
+.section-title
 {
-	width: 24dp;
-	height: 24dp;
-	margin-right: 6dp;
+	font-weight: bold;
+	padding-bottom: 4dp;
+	border-bottom: 1dp #2F37A8;
+	margin-bottom: 4dp;
 	flex: 0 0 auto;
 }
 
-.stat-value
-{
-	flex: 1 1 auto;
-	color: #C0C0C0;
-}
-
-.welcome-footer
-{
-	flex-wrap: wrap;
-}
-
-/* Community rank panel -- mirrors WOLWelcomeMenu.wnd's RankBorder/WinRank/FactionImage/
-   ProgressBarRank/StaticTextRank cluster (see D:\INIZH\Window\Menus\WOLWelcomeMenu.wnd). */
+/* mappedimage doesn't resolve percentage width/height (only fixed dp), so this whole cluster
+   uses fixed dp sizes (matching WOLWelcomeMenu.wnd's RankBorder/WinRank/FactionImage 1:1) instead
+   of percentages -- dp already scales with screen height (see common.rcss header comment), so
+   this still scales consistently across resolutions, just not stretched independently like the
+   .wnd's own non-uniform 800x600 stretch. */
 .rank-column
 {
 	display: flex;
 	flex-direction: column;
-	align-items: center;
 	flex: 0 0 auto;
-	margin-left: 12dp;
 	width: 128dp;
+	margin-right: 2.36%;
 }
 
 .rank-border
@@ -98,36 +114,37 @@
 
 .rank-image-wrap
 {
+	display: block;
 	position: relative;
 	width: 128dp;
 	height: 128dp;
+	border-bottom: 1dp #2E37A8;
 }
 
 .rank-image
 {
-	width: 100%;
-	height: 100%;
+	display: block;
+	width: 128dp;
+	height: 128dp;
 }
 
 .faction-image
 {
+	display: block;
 	position: absolute;
-	right: 0;
-	bottom: 0;
+	right: 0dp;
+	bottom: 0dp;
 	width: 48dp;
 	height: 48dp;
 }
 
-.rank-line
-{
-	width: 100%;
-	height: 1dp;
-	background-color: #2E37A8;
-}
-
 .rank-progress
 {
-	width: 100%;
+	display: block;
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	width: 128dp;
 	height: 24dp;
 	background-color: rgba(2, 2, 2, 164);
 	border: 1dp #FFBB00;
@@ -143,4 +160,60 @@
 {
 	margin-top: 4dp;
 	text-align: center;
+	flex: 0 0 auto;
+}
+
+.community-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.stats-grid
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	flex: 1 1 auto;
+	background-color: rgba(0, 64, 64, 140);
+	border: 1dp #2F37A8;
+	padding: 6dp;
+}
+
+.stat-cell
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	width: 25%;
+	box-sizing: border-box;
+	padding: 4dp 6dp;
+}
+
+.stat-icon
+{
+	display: block;
+	width: 28dp;
+	height: 28dp;
+	margin-right: 6dp;
+	flex: 0 0 auto;
+}
+
+.stat-value
+{
+	flex: 1 1 auto;
+	color: #FFFFFF;
+	font-weight: bold;
+}
+
+.welcome-footer
+{
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: row;
+	justify-content: flex-end;
+	margin-top: 8dp;
 }

@@ -196,3 +196,45 @@ input.checkbox:checked
 {
 	margin-left: 8dp;
 }
+
+/* ---- Shell frame: full-screen blueprint background + bordered panel ------------------
+   Shared by screens whose .wnd fills the whole 800x600 blueprint-ruler backdrop (see
+   WOLWelcomeMenu.wnd's WOLWelcomeMenuParent/MainMenuRuler + GadgetParent), instead of
+   floating in a fixed-size dialog like .frame. Percent geometry mirrors the .wnd's own
+   non-uniform 800x600-to-screen stretch. */
+.shell-background
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	z-index: -1;
+}
+
+.shell-frame
+{
+	position: absolute;
+	left: 5.125%;
+	top: 6.833%;
+	width: 89.75%;
+	height: 86.5%;
+	background-color: rgba(2, 2, 2, 190);
+	border: 2dp #2F37A8;
+	padding: 12dp;
+	display: flex;
+	flex-direction: column;
+}
+
+.shell-title-bar
+{
+	font-size: 22dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	text-align: left;
+	padding-bottom: 8dp;
+	border-bottom: 1dp #2F37A8;
+	margin-bottom: 8dp;
+	flex: 0 0 auto;
+}
