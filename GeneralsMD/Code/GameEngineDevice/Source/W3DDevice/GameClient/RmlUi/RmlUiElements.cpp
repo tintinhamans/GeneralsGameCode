@@ -127,9 +127,10 @@ void RmlMappedImageElement::refresh()
 	int right = (int)(uv->hi.x * texSize->x);
 	int bottom = (int)(uv->hi.y * texSize->y);
 
+	// Leading '/' stops RmlUi from resolving the texture name against the document folder.
 	char rml[512];
 	_snprintf_s(rml, sizeof(rml), _TRUNCATE,
-		"<img style=\"width:100%%;height:100%%;\" src=\"%s\" rect=\"%d %d %d %d\"/>",
+		"<img style=\"width:100%%;height:100%%;\" src=\"/%s\" rect=\"%d %d %d %d\"/>",
 		image->getFilename().str(), left, top, right - left, bottom - top);
 
 	SetInnerRML(rml);
@@ -189,7 +190,7 @@ void RmlMapPreviewElement::refresh()
 
 	char rml[512];
 	_snprintf_s(rml, sizeof(rml), _TRUNCATE,
-		"<img style=\"width:100%%;height:100%%;\" src=\"%s\" rect=\"%d %d %d %d\"/>",
+		"<img style=\"width:100%%;height:100%%;\" src=\"/%s\" rect=\"%d %d %d %d\"/>",
 		image->getFilename().str(), left, top, right - left, bottom - top);
 
 	SetInnerRML(rml);
