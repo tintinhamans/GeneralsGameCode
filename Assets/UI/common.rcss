@@ -119,11 +119,8 @@ button:hover, .button:hover
 	color: #8080FF;
 }
 
-/* button:disabled never matches in practice -- RmlUi's <button> has no ElementFormControlButton,
-   so it never gets the :disabled pseudo-class from a data-attr-disabled binding. button.disabled
-   (paired with a data-class-disabled binding on the same condition) is the real mechanism; kept
-   here too in case a future RmlUi upgrade adds real button disabled-state support. */
-button:disabled, .button.disabled, button.disabled
+/* <button> never gets :disabled in RmlUi; match the disabled attribute that data-attr-disabled sets. */
+button:disabled, button[disabled], .button.disabled, button.disabled
 {
 	color: #C0C0C0;
 	border-color: #6A6A6A;
