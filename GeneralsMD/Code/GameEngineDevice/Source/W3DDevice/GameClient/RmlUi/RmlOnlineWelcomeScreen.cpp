@@ -50,6 +50,18 @@ static Rml::String unicodeToUtf8(const UnicodeString &str)
 }
 
 //-------------------------------------------------------------------------------------------------
+// Same "rgba(r, g, b, a)" convention as RmlSkirmishSetupScreen.cpp's rgbToHex(), 0-255 alpha; Color is
+// GameMakeColor()'s ARGB packing (see GameClient/Color.h).
+static Rml::String colorToRgba(Color color)
+{
+	UnsignedByte r, g, b, a;
+	GameGetColorComponents(color, &r, &g, &b, &a);
+	char buf[32];
+	_snprintf_s(buf, sizeof(buf), _TRUNCATE, "rgba(%d, %d, %d, %d)", r, g, b, a);
+	return Rml::String(buf);
+}
+
+//-------------------------------------------------------------------------------------------------
 RmlOnlineWelcomeScreen &RmlOnlineWelcomeScreen::instance()
 {
 	static RmlOnlineWelcomeScreen s_screen;
@@ -70,6 +82,7 @@ void RmlOnlineWelcomeScreen::load(Rml::Context *context)
 		if (motdHandle)
 		{
 			motdHandle.RegisterMember("text", &MotdLineModel::text);
+			motdHandle.RegisterMember("color_hex", &MotdLineModel::colorHex);
 			motdHandle.RegisterMember("is_heading", &MotdLineModel::isHeading);
 			motdHandle.RegisterMember("used", &MotdLineModel::used);
 		}
@@ -79,6 +92,8 @@ void RmlOnlineWelcomeScreen::load(Rml::Context *context)
 		if (factionHandle)
 		{
 			factionHandle.RegisterMember("side", &FactionStatModel::side);
+			factionHandle.RegisterMember("icon", &FactionStatModel::icon);
+			factionHandle.RegisterMember("tooltip_text", &FactionStatModel::tooltipText);
 			factionHandle.RegisterMember("text", &FactionStatModel::text);
 			factionHandle.RegisterMember("used", &FactionStatModel::used);
 		}
@@ -111,6 +126,12 @@ static void onOnlineWelcomeNotificationsDelivered(int numNotifications)
 	RmlOnlineWelcomeScreen::instance().onNotificationsChanged(numNotifications);
 }
 
+// g_onlineWelcomeNumPlayersOnlineHook target.
+static void onOnlineWelcomeNumPlayersOnlineDelivered(int numPlayersOnline)
+{
+	RmlOnlineWelcomeScreen::instance().onNumPlayersOnlineChanged(numPlayersOnline);
+}
+
 //-------------------------------------------------------------------------------------------------
 void RmlOnlineWelcomeScreen::show()
 {
@@ -120,13 +141,17 @@ void RmlOnlineWelcomeScreen::show()
 	// Mirrors WOLWelcomeMenuInit()'s live GENERALS_ONLINE body: title, MOTD, num-players text, win
 	// stats, and the initial buddy notification count -- see OnlineWelcomeData.h.
 	m_model.title = unicodeToUtf8(OnlineWelcomeData::buildWelcomeTitle());
-	m_model.numPlayersText = unicodeToUtf8(OnlineWelcomeData::buildNumPlayersOnlineText(1));
+	// Matches WOLWelcomeMenuInit()'s own initial call: static lastNumPlayersOnline starts at 0 and
+	// isn't clamped to 1 until the first HandleNumPlayersOnline() delivery (see
+	// g_onlineWelcomeNumPlayersOnlineHook below).
+	m_model.numPlayersText = unicodeToUtf8(OnlineWelcomeData::buildNumPlayersOnlineText(0));
 
 	m_motdRows.beginUpdate();
 	for (const OnlineWelcomeMotdLine &line : OnlineWelcomeData::buildMotdLines())
 	{
 		MotdLineModel &row = m_motdRows.next();
 		row.text = unicodeToUtf8(line.text);
+		row.colorHex = colorToRgba(line.color);
 		row.isHeading = line.isHeading == TRUE;
 	}
 	m_motdRows.endUpdate();
@@ -143,6 +168,8 @@ void RmlOnlineWelcomeScreen::show()
 	g_onlineWelcomeNotificationsChangedHook = &onOnlineWelcomeNotificationsDelivered;
 	OnlineWelcomeData::registerNotificationsHook();
 
+	g_onlineWelcomeNumPlayersOnlineHook = &onOnlineWelcomeNumPlayersOnlineDelivered;
+
 	OnlineWelcomeData::requestFactionWinStats([this](std::vector<OnlineWelcomeFactionStat> stats)
 		{
 			m_factionRows.beginUpdate();
@@ -150,6 +177,8 @@ void RmlOnlineWelcomeScreen::show()
 			{
 				FactionStatModel &row = m_factionRows.next();
 				row.side = stat.side.str();
+				row.icon = stat.icon.str();
+				row.tooltipText = unicodeToUtf8(stat.tooltip);
 				row.text = unicodeToUtf8(stat.text);
 			}
 			m_factionRows.endUpdate();
@@ -168,6 +197,9 @@ void RmlOnlineWelcomeScreen::hide()
 
 	if (g_onlineWelcomeNotificationsChangedHook == &onOnlineWelcomeNotificationsDelivered)
 		g_onlineWelcomeNotificationsChangedHook = nullptr;
+
+	if (g_onlineWelcomeNumPlayersOnlineHook == &onOnlineWelcomeNumPlayersOnlineDelivered)
+		g_onlineWelcomeNumPlayersOnlineHook = nullptr;
 }
 
 bool RmlOnlineWelcomeScreen::isVisible() const
@@ -201,6 +233,14 @@ void RmlOnlineWelcomeScreen::onNotificationsChanged(int numNotifications)
 	m_model.buddiesButtonText = unicodeToUtf8(OnlineWelcomeData::buildBuddiesButtonText(numNotifications));
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("buddies_button_text");
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlOnlineWelcomeScreen::onNumPlayersOnlineChanged(int numPlayersOnline)
+{
+	m_model.numPlayersText = unicodeToUtf8(OnlineWelcomeData::buildNumPlayersOnlineText(numPlayersOnline));
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("num_players_text");
 }
 
 //-------------------------------------------------------------------------------------------------

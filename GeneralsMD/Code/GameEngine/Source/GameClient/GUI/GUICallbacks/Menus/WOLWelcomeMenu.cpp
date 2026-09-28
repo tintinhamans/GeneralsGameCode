@@ -214,6 +214,7 @@ static void shutdownComplete( WindowLayout *layout )
 
 static Int lastNumPlayersOnline = 0;
 
+#if !defined(GENERALS_ONLINE)
 static UnsignedByte grabUByte(const char *s)
 {
 	char tmp[5] = "0xff";
@@ -222,6 +223,7 @@ static UnsignedByte grabUByte(const char *s)
 	UnsignedByte b = strtol(tmp, nullptr, 16);
 	return b;
 }
+#endif
 
 static void updateNumPlayersOnline()
 {
@@ -238,14 +240,19 @@ static void updateNumPlayersOnline()
 	if (listboxInfo)
 	{
 		GadgetListBoxReset(listboxInfo);
+
+#if defined(GENERALS_ONLINE)
+		// Shared with RmlOnlineWelcomeScreen -- see OnlineWelcomeData::buildMotdLines() for the
+		// (now single) heading/body/color parse.
+		for (const OnlineWelcomeMotdLine &motdLine : OnlineWelcomeData::buildMotdLines())
+		{
+			GadgetListBoxAddEntryText(listboxInfo, motdLine.text, motdLine.color, -1, -1);
+		}
+#else
+		AsciiString aMotd = TheGameSpyInfo->getMOTD();
 		AsciiString aLine;
 		UnicodeString line;
 
-#if defined(GENERALS_ONLINE)
-		AsciiString aMotd = NGMP_OnlineServicesManager::GetInstance() == nullptr ? AsciiString() : AsciiString(NGMP_OnlineServicesManager::GetInstance()->GetMOTD().c_str());
-#else
-		AsciiString aMotd = TheGameSpyInfo->getMOTD();
-#endif
 		UnicodeString headingStr;
 		//Kris: Patch 1.01 - November 12, 2003
 		//Removed number of players from string, and removed the argument. The number is incorrect anyways...
@@ -303,6 +310,7 @@ static void updateNumPlayersOnline()
 
 			GadgetListBoxAddEntryText(listboxInfo, line, c, -1, -1);
 		}
+#endif
 	}
 }
 
@@ -312,6 +320,11 @@ void HandleNumPlayersOnline( Int numPlayersOnline )
 	if (lastNumPlayersOnline < 1)
 		lastNumPlayersOnline = 1;
 	updateNumPlayersOnline();
+
+#if defined(GENERALS_ONLINE)
+	if (g_onlineWelcomeNumPlayersOnlineHook)
+		g_onlineWelcomeNumPlayersOnlineHook(lastNumPlayersOnline);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------

@@ -79,9 +79,10 @@ public:
 	virtual void onBack() override; // same as ButtonBack, see header comment above
 	virtual void update() override; // pending-full-teardown poll, see header comment above
 
-	// Hook target (free function in the .cpp forwards into this); public so it can reach the
+	// Hook targets (free functions in the .cpp forward into these); public so they can reach the
 	// singleton without befriending it (same pattern as RmlLanLobbyScreen.cpp's onLanLobby*Delivered()).
 	void onNotificationsChanged(int numNotifications);
+	void onNumPlayersOnlineChanged(int numPlayersOnline);
 
 private:
 	RmlOnlineWelcomeScreen() : m_motdRows(m_model.motdLines), m_factionRows(m_model.factionStats) {}
@@ -98,18 +99,26 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
 
-	// One MOTD listbox line (see OnlineWelcomeData::buildMotdLines()).
+	// One MOTD listbox line (see OnlineWelcomeData::buildMotdLines()). colorHex is a
+	// "rgba(r, g, b, a)" CSS string (0-255 alpha, same convention as RmlSkirmishSetupScreen.cpp's
+	// rgbToHex()) bound via data-style-color.
 	struct MotdLineModel
 	{
 		Rml::String text;
+		Rml::String colorHex;
 		bool isHeading = false;
 		bool used = true; // grow-only storage, see RmlGrowOnlyList.h; hidden via data-if when false
 	};
 
-	// One "PercentXxx" checkbox (see OnlineWelcomeData::requestFactionWinStats()).
+	// One "PercentXxx" checkbox (see OnlineWelcomeData::requestFactionWinStats()). icon is the
+	// mapped-image name for <mappedimage>; tooltipText is the resolved "SIDE:<side>" TOOLTIPTEXT,
+	// bound via data-attr-data-tooltip-text (same dynamic-tooltip pattern as LanGameOptions.rml's
+	// row.player_tooltip/row.faction_tooltip).
 	struct FactionStatModel
 	{
 		Rml::String side;
+		Rml::String icon;
+		Rml::String tooltipText;
 		Rml::String text;
 		bool used = true; // grow-only storage, see RmlGrowOnlyList.h; hidden via data-if when false
 	};

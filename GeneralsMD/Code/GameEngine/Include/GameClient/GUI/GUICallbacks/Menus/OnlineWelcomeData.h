@@ -30,6 +30,7 @@
 
 #include "Common/AsciiString.h"
 #include "Common/UnicodeString.h"
+#include "GameClient/Color.h"
 
 #include <functional>
 #include <vector>
@@ -37,21 +38,28 @@
 // One line of the WOLWelcomeMenu.wnd MOTD listbox, in the .wnd's own display order (see
 // updateNumPlayersOnline()'s live GENERALS_ONLINE body): the "MOTD:NumPlayersHeading" text first
 // (isHeading = TRUE, split on '\n', blank lines shown as a single space), then the NGMP MOTD body
-// split the same way. Per-line color (GSCOLOR_MOTD_HEADING/GSCOLOR_MOTD, plus the original's
-// "\ffffffffText" hex-color-prefix parsing) is intentionally dropped: see OnlineWelcomeData.cpp.
+// split the same way. color mirrors the original's per-line GameSpyColor[GSCOLOR_MOTD_HEADING] /
+// GameSpyColor[GSCOLOR_MOTD], including the original's "\ffffffffText" hex-color-prefix override for
+// body lines (see OnlineWelcomeData.cpp's buildMotdLines()).
 struct OnlineWelcomeMotdLine
 {
 	UnicodeString text;
 	Bool isHeading;
+	Color color;
 };
 
 // One "PercentXxx" checkbox's text from updateOverallStats()'s live body, in
 // g_mapServiceIndexToPlayerTemplateString order -- matches WOLWelcomeMenu.wnd's PercentUSA..
 // PercentGLAStealthGeneral controls 1:1 (side is the "WOLWelcomeMenu.wnd:Percent%s" suffix).
+// icon is that control's ENABLEDDRAWDATA mapped-image name (e.g. "USA_Logo", "USA_Superweapon"), from
+// the .wnd's own per-control image, not derivable from side by a naming rule. tooltip is the fetched
+// "SIDE:<side>" TOOLTIPTEXT (see buildFactionStatTooltipKey()).
 struct OnlineWelcomeFactionStat
 {
 	AsciiString side;
+	AsciiString icon;
 	UnicodeString text;
+	UnicodeString tooltip;
 };
 
 namespace OnlineWelcomeData
@@ -67,6 +75,12 @@ namespace OnlineWelcomeData
 
 	// Mirrors updateNumPlayersOnline()'s "GUI:NumPlayersOnline" StaticTextNumPlayersOnline body.
 	UnicodeString buildNumPlayersOnlineText(Int numPlayersOnline);
+
+	// Mirrors WOLWelcomeMenu.wnd's "SIDE:<side>" TOOLTIPTEXT for a PercentXxx checkbox, given the same
+	// side string buildMotdLines()/requestFactionWinStats() key off. Index 0 ("USA") is the one
+	// mismatch between the control-name suffix and the tooltip's side literal (control is PercentUSA,
+	// tooltip is SIDE:America) -- see g_mapServiceIndexToPlayerTemplateString's own comment.
+	AsciiString buildFactionStatTooltipKey(const AsciiString &side);
 
 	// Mirrors updateOverallStats()'s live body exactly, including its divide-by-zero guards. Async:
 	// invokes callback once NGMP_OnlineServices_StatsInterface::GetGlobalStats() replies, matching the
@@ -93,3 +107,9 @@ namespace OnlineWelcomeData
 // WOLWelcomeMenu.wnd's path at a time via RmlUiScreenRegistry, so this is a plain function pointer,
 // not an additive delivery hook like g_lanLobby*Hook. Null (the default) drops the update.
 extern void (*g_onlineWelcomeNotificationsChangedHook)(int numNotifications);
+
+// Set by the active front end the same way; fired from WOLWelcomeMenu.cpp's HandleNumPlayersOnline()
+// (the live NGMP -> UI delivery path for the server's player count) so a registry-routed front end can
+// live-update its own "GUI:NumPlayersOnline" text the same way the .wnd's StaticTextNumPlayersOnline
+// does. Null (the default) drops the update.
+extern void (*g_onlineWelcomeNumPlayersOnlineHook)(int numPlayersOnline);

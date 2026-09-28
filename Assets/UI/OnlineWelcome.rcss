@@ -39,12 +39,12 @@
 .motd-line
 {
 	padding: 2dp 0;
-	color: #C0C0C0;
+	/* color comes from data-style-color (line.color_hex), matching the .wnd's per-line
+	   GameSpyColor[GSCOLOR_MOTD_HEADING]/GameSpyColor[GSCOLOR_MOTD]/hex-prefix override */
 }
 
 .motd-line.heading
 {
-	color: #FFFFFF;
 	font-weight: bold;
 }
 
@@ -52,18 +52,21 @@
 {
 	display: flex;
 	flex-direction: row;
+	align-items: center;
 	padding: 2dp 0;
 }
 
-.stat-side
+.stat-icon
 {
-	flex: 1 1 auto;
-	color: #FFFFFF;
+	width: 24dp;
+	height: 24dp;
+	margin-right: 6dp;
+	flex: 0 0 auto;
 }
 
 .stat-value
 {
-	flex: 0 0 auto;
+	flex: 1 1 auto;
 	color: #C0C0C0;
 }
 

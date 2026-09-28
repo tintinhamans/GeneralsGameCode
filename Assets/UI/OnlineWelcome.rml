@@ -13,7 +13,7 @@
 				<div class="section-title">{{num_players_text}}</div>
 				<div class="scroll-container motd-list">
 					<div data-for="line : motd_lines">
-						<div class="motd-line" data-if="line.used" data-class-heading="line.is_heading">{{line.text}}</div>
+						<div class="motd-line" data-if="line.used" data-class-heading="line.is_heading" data-style-color="line.color_hex">{{line.text}}</div>
 					</div>
 				</div>
 			</div>
@@ -22,8 +22,8 @@
 				<div class="section-title"><gametext key="GUI:WinPercent"/></div>
 				<div class="scroll-container stats-list">
 					<div data-for="stat : faction_stats">
-						<div class="stat-row" data-if="stat.used">
-							<div class="stat-side">{{stat.side}}</div>
+						<div class="stat-row" data-if="stat.used" data-attr-data-tooltip-text="stat.tooltip_text">
+							<mappedimage class="stat-icon" data-attr-name="stat.icon"/>
 							<div class="stat-value">{{stat.text}}</div>
 						</div>
 					</div>
