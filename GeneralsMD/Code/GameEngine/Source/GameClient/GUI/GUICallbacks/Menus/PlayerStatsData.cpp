@@ -35,6 +35,7 @@
 #include "GameClient/Image.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PersistentStorageDefs.h" // LOC_MIN/LOC_MAX
+#include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameNetwork/RankPointValue.h"
 
 #if defined(GENERALS_ONLINE)
@@ -357,4 +358,27 @@ PlayerStatsData BuildPlayerStatsData(const PSPlayerStats &stats, int64_t lookupI
 	data.stats = stats;
 
 	return data;
+}
+
+//-------------------------------------------------------------------------------------------------
+void RequestLocalPlayerStatsData(std::function<void(const PlayerStatsData &)> callback)
+{
+	NGMP_OnlineServices_AuthInterface *pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	NGMP_OnlineServices_StatsInterface *pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+	if (pAuthInterface == nullptr || pStatsInterface == nullptr)
+		return;
+
+	int64_t localID = pAuthInterface->GetUserID();
+	pStatsInterface->findPlayerStatsByID(localID, [callback, localID](bool bSuccess, PSPlayerStats stats)
+		{
+			if (!bSuccess || !TheRankPointValues)
+				return;
+
+#if defined(GENERALS_ONLINE)
+			PlayerStatsData data = BuildPlayerStatsData(stats, localID, std::string());
+#else
+			PlayerStatsData data = BuildPlayerStatsData(stats, localID, AsciiString::TheEmptyString);
+#endif
+			callback(data);
+		}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
 }

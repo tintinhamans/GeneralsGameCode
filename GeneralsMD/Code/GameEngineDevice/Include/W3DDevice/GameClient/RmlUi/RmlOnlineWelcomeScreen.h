@@ -57,6 +57,7 @@
 
 #pragma once
 
+#include "GameClient/GUI/GUICallbacks/Menus/PlayerStatsData.h"
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
@@ -83,6 +84,7 @@ public:
 	// singleton without befriending it (same pattern as RmlLanLobbyScreen.cpp's onLanLobby*Delivered()).
 	void onNotificationsChanged(int numNotifications);
 	void onNumPlayersOnlineChanged(int numPlayersOnline);
+	void onPlayerStatsUpdated(const PlayerStatsData &data);
 
 private:
 	RmlOnlineWelcomeScreen() : m_motdRows(m_model.motdLines), m_factionRows(m_model.factionStats) {}
@@ -130,7 +132,20 @@ private:
 		Rml::String buddiesButtonText;
 		Rml::Vector<MotdLineModel> motdLines;
 		Rml::Vector<FactionStatModel> factionStats;
+
+		// Community rank panel (see PlayerStatsData.h / WOLWelcomeMenu.wnd's RankBorder cluster).
+		// Only the rank-panel fields are shown on this screen, matching the .wnd.
+		bool rankAtMax = false;
+		Rml::String rankProgressWidthStyle = "0%"; // data-style-width can't bind a raw number
+		Rml::String rankImageName;
+		bool showFactionImage = false;
+		Rml::String factionImageName;
+		Rml::String rankText;
 	} m_model;
+
+	// Applies a BuildPlayerStatsData() result's rank-panel fields into m_model and dirties them
+	// individually (never DirtyAllVariables()).
+	void applyPlayerStatsToModel(const PlayerStatsData &data);
 
 	RmlGrowOnlyList<MotdLineModel> m_motdRows;
 	RmlGrowOnlyList<FactionStatModel> m_factionRows;

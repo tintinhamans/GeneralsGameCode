@@ -37,6 +37,7 @@
 #include "Common/UnicodeString.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h" // PSPlayerStats
 
+#include <functional>
 #include <string>
 
 // Mirrors PopulatePlayerInfoWindows()'s per-widget computation exactly (see PopupPlayerInfo.cpp),
@@ -116,6 +117,15 @@ PlayerStatsData BuildPlayerStatsData(const PSPlayerStats &stats, int64_t lookupI
 #else
 PlayerStatsData BuildPlayerStatsData(const PSPlayerStats &stats, int64_t lookupID, const AsciiString &lookAtPlayerName);
 #endif
+
+// Fetches PSPlayerStats for the local player (same NGMP_OnlineServices_AuthInterface /
+// NGMP_OnlineServices_StatsInterface lookup PopulatePlayerInfoWindows() itself does) and invokes
+// callback with BuildPlayerStatsData()'s result. No-op (callback never invoked) if the auth/stats
+// interfaces aren't available yet, the reply comes back without stats, or TheRankPointValues isn't
+// set -- same guards PopulatePlayerInfoWindows()'s reply lambda uses. lookAtPlayerName is passed as
+// empty, since callers of this (the local-player-only path) never show playerStatisticsLabelText.
+// Kept in this .cpp (rather than the caller) so callers don't need to pull in the NGMP headers.
+void RequestLocalPlayerStatsData(std::function<void(const PlayerStatsData &)> callback);
 
 // Set by the active front end around its own show()/hide(); fired from PopupPlayerInfo.cpp's
 // findPlayerStatsByID() reply lambda whenever the looked-up player is the local player, so a

@@ -29,6 +29,21 @@
 					</div>
 				</div>
 			</div>
+
+			<div class="rank-column">
+				<div class="section-title" data-tooltip="TOOLTIP:Community"><gametext key="GUI:Community"/></div>
+				<div class="rank-border">
+					<div class="rank-image-wrap">
+						<mappedimage class="rank-image" data-attr-name="rank_image_name"/>
+						<mappedimage class="faction-image" data-attr-name="faction_image_name" data-if="show_faction_image"/>
+					</div>
+					<div class="rank-line"></div>
+					<div class="rank-progress" data-if="!rank_at_max">
+						<div class="rank-progress-fill" data-style-width="rank_progress_width_style"></div>
+					</div>
+				</div>
+				<div class="rank-label">{{rank_text}}</div>
+			</div>
 		</div>
 
 		<div class="footer welcome-footer">

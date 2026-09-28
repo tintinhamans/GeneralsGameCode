@@ -22,6 +22,7 @@
 #include "Common/UnicodeString.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineWelcomeActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineWelcomeData.h"
+#include "GameClient/GUI/GUICallbacks/Menus/PlayerStatsData.h"
 #include "GameClient/Shell.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
@@ -105,6 +106,13 @@ void RmlOnlineWelcomeScreen::load(Rml::Context *context)
 		constructor.Bind("motd_lines", &m_model.motdLines);
 		constructor.Bind("faction_stats", &m_model.factionStats);
 
+		constructor.Bind("rank_at_max", &m_model.rankAtMax);
+		constructor.Bind("rank_progress_width_style", &m_model.rankProgressWidthStyle);
+		constructor.Bind("rank_image_name", &m_model.rankImageName);
+		constructor.Bind("show_faction_image", &m_model.showFactionImage);
+		constructor.Bind("faction_image_name", &m_model.factionImageName);
+		constructor.Bind("rank_text", &m_model.rankText);
+
 		constructor.BindEventCallback("back", &RmlOnlineWelcomeScreen::onBackPressed, this);
 		constructor.BindEventCallback("options", &RmlOnlineWelcomeScreen::onOptions, this);
 		constructor.BindEventCallback("quick_match", &RmlOnlineWelcomeScreen::onQuickMatch, this);
@@ -130,6 +138,13 @@ static void onOnlineWelcomeNotificationsDelivered(int numNotifications)
 static void onOnlineWelcomeNumPlayersOnlineDelivered(int numPlayersOnline)
 {
 	RmlOnlineWelcomeScreen::instance().onNumPlayersOnlineChanged(numPlayersOnline);
+}
+
+// g_playerStatsUpdatedHook target (see PlayerStatsData.h). Fired from PopupPlayerInfo.cpp's
+// findPlayerStatsByID() reply lambda whenever the looked-up player is the local player.
+static void onPlayerStatsDelivered(const PlayerStatsData &data)
+{
+	RmlOnlineWelcomeScreen::instance().onPlayerStatsUpdated(data);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -170,6 +185,17 @@ void RmlOnlineWelcomeScreen::show()
 
 	g_onlineWelcomeNumPlayersOnlineHook = &onOnlineWelcomeNumPlayersOnlineDelivered;
 
+	g_playerStatsUpdatedHook = &onPlayerStatsDelivered;
+
+	// Community rank panel: same PlayerStatsData build PopupPlayerInfo.cpp's PopulatePlayerInfoWindows()
+	// uses, fetched here for the local player (this screen has no PopupPlayerInfo.wnd-style GameWindow
+	// set of its own) -- see PlayerStatsData.h. Live updates after this arrive via
+	// g_playerStatsUpdatedHook, same as UpdateLocalPlayerStats()'s callers.
+	RequestLocalPlayerStatsData([this](const PlayerStatsData &data)
+		{
+			applyPlayerStatsToModel(data);
+		});
+
 	OnlineWelcomeData::requestFactionWinStats([this](std::vector<OnlineWelcomeFactionStat> stats)
 		{
 			m_factionRows.beginUpdate();
@@ -200,6 +226,9 @@ void RmlOnlineWelcomeScreen::hide()
 
 	if (g_onlineWelcomeNumPlayersOnlineHook == &onOnlineWelcomeNumPlayersOnlineDelivered)
 		g_onlineWelcomeNumPlayersOnlineHook = nullptr;
+
+	if (g_playerStatsUpdatedHook == &onPlayerStatsDelivered)
+		g_playerStatsUpdatedHook = nullptr;
 }
 
 bool RmlOnlineWelcomeScreen::isVisible() const
@@ -241,6 +270,46 @@ void RmlOnlineWelcomeScreen::onNumPlayersOnlineChanged(int numPlayersOnline)
 	m_model.numPlayersText = unicodeToUtf8(OnlineWelcomeData::buildNumPlayersOnlineText(numPlayersOnline));
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("num_players_text");
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlOnlineWelcomeScreen::onPlayerStatsUpdated(const PlayerStatsData &data)
+{
+	applyPlayerStatsToModel(data);
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlOnlineWelcomeScreen::applyPlayerStatsToModel(const PlayerStatsData &data)
+{
+	m_model.rankAtMax = data.rankAtMax == TRUE;
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("rank_at_max");
+
+	if (!data.rankAtMax)
+	{
+		char buf[16];
+		_snprintf_s(buf, sizeof(buf), _TRUNCATE, "%.3f%%", data.rankProgressPercent);
+		m_model.rankProgressWidthStyle = buf;
+	}
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("rank_progress_width_style");
+
+	m_model.rankImageName = data.rankImageName.str();
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("rank_image_name");
+
+	m_model.showFactionImage = data.showFactionImage == TRUE;
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("show_faction_image");
+
+	if (data.showFactionImage)
+		m_model.factionImageName = data.factionImageName.str();
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("faction_image_name");
+
+	m_model.rankText = unicodeToUtf8(data.rankText);
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("rank_text");
 }
 
 //-------------------------------------------------------------------------------------------------

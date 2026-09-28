@@ -74,3 +74,73 @@
 {
 	flex-wrap: wrap;
 }
+
+/* Community rank panel -- mirrors WOLWelcomeMenu.wnd's RankBorder/WinRank/FactionImage/
+   ProgressBarRank/StaticTextRank cluster (see D:\INIZH\Window\Menus\WOLWelcomeMenu.wnd). */
+.rank-column
+{
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-left: 12dp;
+	width: 128dp;
+}
+
+.rank-border
+{
+	position: relative;
+	width: 128dp;
+	height: 156dp;
+	background-color: #020280;
+	border: 1dp #2F37A8;
+}
+
+.rank-image-wrap
+{
+	position: relative;
+	width: 128dp;
+	height: 128dp;
+}
+
+.rank-image
+{
+	width: 100%;
+	height: 100%;
+}
+
+.faction-image
+{
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 48dp;
+	height: 48dp;
+}
+
+.rank-line
+{
+	width: 100%;
+	height: 1dp;
+	background-color: #2E37A8;
+}
+
+.rank-progress
+{
+	width: 100%;
+	height: 24dp;
+	background-color: rgba(2, 2, 2, 164);
+	border: 1dp #FFBB00;
+}
+
+.rank-progress-fill
+{
+	height: 100%;
+	background-color: rgba(59, 255, 0, 200);
+}
+
+.rank-label
+{
+	margin-top: 4dp;
+	text-align: center;
+}
