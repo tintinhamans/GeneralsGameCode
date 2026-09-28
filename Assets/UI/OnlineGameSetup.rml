@@ -22,7 +22,12 @@
 				</div>
 				<div class="slot-row" data-for="row : slots">
 					<div class="slot-occupant occupant-cell">
-						<select data-value="row.occupant_state" data-attr-disabled="!row.can_edit_occupant"
+						<!-- WOLGameSetupMenu.cpp's staticTextPlayer/comboBoxPlayer are mutually exclusive: the
+						     host always sees the combo (its edit box shows the occupant's name for human slots),
+						     a client only sees the combo for non-human slots and a static name label for human
+						     ones (staticTextPlayer[i]->winHide(TRUE) only when bIsHost, WOLGameSetupMenu.cpp:1223-1224).
+						     Showing both here duplicated the name; data-if keeps them exclusive like the .wnd. -->
+						<select data-if="is_host || !row.is_human_occupant" data-value="row.occupant_state" data-attr-disabled="!row.can_edit_occupant"
 							data-event-change="slot_occupant_changed(row.slot_index)">
 							<option value="0"><gametext key="GUI:Open"/></option>
 							<option value="1"><gametext key="GUI:Closed"/></option>
@@ -80,7 +85,12 @@
 					</div>
 				</div>
 				<div class="map-display-name">{{map_display_text}}</div>
-				<button data-attr-disabled="!is_host || settings_locked" data-event-click="select_map" data-tooltip="Tooltip:SelectMap"><gametext key="GUI:SelectMap"/></button>
+				<!-- RmlUi's <button> isn't an ElementFormControl (no ElementFormControlButton), so it never
+				     gets the :disabled pseudo-class from data-attr-disabled -- button:disabled in common.rcss
+				     never matched and the button looked enabled to a client. data-class-disabled drives the
+				     visual state via button.disabled instead; onSelectMap() (RmlOnlineGameSetupScreen.cpp)
+				     already refuses the action functionally via canOpenMapSelect(). -->
+				<button data-attr-disabled="!is_host || settings_locked" data-class-disabled="!is_host || settings_locked" data-event-click="select_map" data-tooltip="Tooltip:SelectMap"><gametext key="GUI:SelectMap"/></button>
 
 				<div class="row">
 					<div class="label"><gametext key="GUI:StartingMoney"/></div>
