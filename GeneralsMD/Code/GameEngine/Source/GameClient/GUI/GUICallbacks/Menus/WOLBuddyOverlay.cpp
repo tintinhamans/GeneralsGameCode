@@ -35,6 +35,7 @@
 #include "Common/PlayerList.h"
 #include "Common/Player.h"
 #include "GameClient/GameText.h"
+#include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlaySession.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/Shell.h"
@@ -957,17 +958,69 @@ void HandleBuddyResponses()
 	}
 #endif
 
+#if defined(GENERALS_ONLINE)
+	// text/timer/sound + the dismiss check itself now live in BuddyOverlaySession -- see
+	// ToastShownWidget()'s BuddyOverlaySession::setToastSink() registration in WOLBuddyOverlayInit().
+	BuddyOverlaySession::tickToast();
+#else
 	if(noticeLayout && timeGetTime() > noticeExpires)
 	{
 		deleteNotificationBox();
 	}
+#endif
 }
 
 #if defined(GENERALS_ONLINE)
+// BuddyOverlaySession::ToastSink::shown -- the widget half of showNotificationBox(): creates/shows
+// PopupBuddyListNotification.wnd and sets its button text to the already-formatted toast text.
+// BuddyOverlaySession owns the nick substitution, the NOTIFICATION_EXPIRES timer and the
+// GUICommunicatorIncoming sound (see showToast()); this only touches the GameWindow.
+static void ToastShownWidget( const UnicodeString &text )
+{
+	if( !noticeLayout )
+		noticeLayout = TheWindowManager->winCreateLayout( "Menus/PopupBuddyListNotification.wnd" );
+	noticeLayout->hide( FALSE );
+	if (buttonNotificationID == NAMEKEY_INVALID)
+	{
+		buttonNotificationID = TheNameKeyGenerator->nameToKey("PopupBuddyListNotification.wnd:ButtonNotification");
+	}
+	GameWindow *win = TheWindowManager->winGetWindowFromId(nullptr,buttonNotificationID);
+	if(!win)
+	{
+		BuddyOverlaySession::dismissToast();
+		return;
+	}
+
+	GadgetButtonSetText(win, text);
+	noticeLayout->bringForward();
+}
+
+// Installs the toast widget callbacks at static-init time (not lazily from WOLBuddyOverlayInit())
+// so RequestBuddyAdd()'s toast -- reachable from the lobby's shared context menu with the buddy
+// overlay never having been opened this session -- still works the first time, same as the
+// original inline showNotificationBox()'s "always available, same TU" guarantee.
+namespace
+{
+	struct BuddyToastSinkInstaller
+	{
+		BuddyToastSinkInstaller() { BuddyOverlaySession::setToastSink( { ToastShownWidget, deleteNotificationBox } ); }
+	};
+	static BuddyToastSinkInstaller s_buddyToastSinkInstaller;
+}
+#endif
+
+#if defined(GENERALS_ONLINE)
 void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySound)
+{
+	if (lastNotificationWasStatus && numOnlineInNotification > 1)
+	{
+		message = TheGameText->fetch("Buddy:MultipleOnlineNotification");
+	}
+
+	BuddyOverlaySession::showToast(nick, message, bPlaySound);
+}
 #else
 void showNotificationBox(AsciiString nick, UnicodeString message)
-#endif
 {
 //	if(!GameSpyIsOverlayOpen(GSOVERLAY_BUDDY))
 //		return;
@@ -1006,16 +1059,13 @@ void showNotificationBox(AsciiString nick, UnicodeString message)
 
 	AudioEventRTS buttonClick("GUICommunicatorIncoming");
 
-#if defined(GENERALS_ONLINE)
-	if (TheAudio && bPlaySound)
-#else
 	if( TheAudio )
-#endif
 	{
 		TheAudio->addAudioEvent( &buttonClick );
 	}
 
 }
+#endif
 
 void deleteNotificationBox()
 {
@@ -1043,6 +1093,54 @@ void PopulateOldBuddyMessages()
 #endif
 }
 
+#if defined(GENERALS_ONLINE)
+// BuddyOverlaySession::EventSink -- widget half of the NGMP callbacks WOLBuddyOverlayInit used to
+// register inline (1080-1109 pre-refactor): chatMessage does exactly what the old
+// RegisterForCallback_OnChatMessage lambda's body did (append to the chat pane if this is the
+// selected friend, clear their unread count); rosterNeedsRefresh does what both that lambda's and
+// RegisterForCallback_NewFriendRequest's tails did (a plain updateBuddyInfo() call, with whatever
+// (bIsAutoRefresh, bUseCache) the session passes through -- only meaningful for the GENERALS_ONLINE
+// 2-arg updateBuddyInfo() overload, which is why this whole helper is GO-only).
+static BuddyOverlaySession::EventSink BuildBuddyEventSink()
+{
+	BuddyOverlaySession::EventSink sink;
+
+	sink.chatMessage = []( int64_t source_user_id, int64_t target_user_id, const UnicodeString &unicodeStr )
+	{
+		// Only add if the user is currently selected, otherwise rely on the cache
+		Int selected = -1;
+		GadgetListBoxGetSelected(buddyControls.listboxBuddies, &selected);
+		if (selected >= 0)
+		{
+			GPProfile profileID = (GPProfile)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
+
+			// sending to them, or getting from them, is valid
+			if (profileID == source_user_id || profileID == target_user_id)
+			{
+				UnicodeString s;
+				s.format(L"%s", unicodeStr.str());
+				Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, s, GameSpyColor[GSCOLOR_PLAYER_BUDDY], -1, -1);
+				GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_PLAYER_BUDDY], index, 1);
+
+				// we read the message, so clear it
+				NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+				if (pSocialInterface != nullptr)
+				{
+					pSocialInterface->ClearUnreadChatMessagesForUser(profileID);
+				}
+			}
+		}
+	};
+
+	sink.rosterNeedsRefresh = []( bool bIsAutoRefresh, bool bUseCache )
+	{
+		updateBuddyInfo( bIsAutoRefresh, bUseCache );
+	};
+
+	return sink;
+}
+#endif
+
 //-------------------------------------------------------------------------------------------------
 /** Initialize the WOL Buddy Overlay */
 //-------------------------------------------------------------------------------------------------
@@ -1066,53 +1164,9 @@ void WOLBuddyOverlayInit( WindowLayout *layout, void *userData )
 // TODO_SOCIAL: Lobby sort list by member
 	//
 	// NOTE Init is only called when the UI is visible, so don't register for callbacks that you want to occur anytime
-	// GO: register for callbacks
-	NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
-	if (pSocialInterface != nullptr)
-	{
-		pSocialInterface->RegisterForRealtimeServiceUpdates();
-
-		// TODO_SOCIAL: Maybe later dont clear chat messaages until they open the chat?
-		// we opened things, clear it
-		pSocialInterface->ClearGlobalNotificatations();
-
-		pSocialInterface->RegisterForCallback_NewFriendRequest([](std::string strDisplayName)
-			{
-				updateBuddyInfo();
-			});
-
-		pSocialInterface->RegisterForCallback_OnChatMessage([](int64_t source_user_id, int64_t target_user_id, UnicodeString unicodeStr)
-			{
-				// Only add if the user is currently selected, otherwise show notification and just rely on the cache
-				Int selected = -1;
-				GadgetListBoxGetSelected(buddyControls.listboxBuddies, &selected);
-				if (selected >= 0)
-				{
-					GPProfile profileID = (GPProfile)GadgetListBoxGetItemData(buddyControls.listboxBuddies, selected);
-
-
-					// sending to them, or getting from them, is valid
-					if (profileID == source_user_id || profileID == target_user_id)
-					{
-						UnicodeString s;
-						s.format(L"%s", unicodeStr.str());
-						Int index = GadgetListBoxAddEntryText(buddyControls.listboxChat, s, GameSpyColor[GSCOLOR_PLAYER_BUDDY], -1, -1);
-						GadgetListBoxAddEntryText(buddyControls.listboxChat, UnicodeString::TheEmptyString, GameSpyColor[GSCOLOR_PLAYER_BUDDY], index, 1);
-
-						// we read the message, so clear it
-                        NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
-                        if (pSocialInterface != nullptr)
-                        {
-                            pSocialInterface->ClearUnreadChatMessagesForUser(profileID);
-                        }
-					}
-				}
-
-                // always update this (from cache)
-                updateBuddyInfo(true, true);
-			});
-	}
-
+#if defined(GENERALS_ONLINE)
+	BuddyOverlaySession::enter( BuildBuddyEventSink() );
+#endif
 
 	parent = TheWindowManager->winGetWindowFromId( NULL, parentID );
 	buttonHide = TheWindowManager->winGetWindowFromId( parent,  buttonHideID);
@@ -1158,11 +1212,9 @@ void WOLBuddyOverlayInit( WindowLayout *layout, void *userData )
 //-------------------------------------------------------------------------------------------------
 void WOLBuddyOverlayShutdown( WindowLayout *layout, void *userData )
 {
-	NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
-	if (pSocialInterface != nullptr)
-	{
-		pSocialInterface->DeregisterForRealtimeServiceUpdates();
-	}
+#if defined(GENERALS_ONLINE)
+	BuddyOverlaySession::leave();
+#endif
 
 	listboxIgnore = NULL;
 
