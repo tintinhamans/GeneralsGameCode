@@ -183,6 +183,14 @@ input.checkbox:checked
 	border-color: #8080FF;
 }
 
+/* Beats ".row > .control" width so checkboxes stay square and left-aligned in the control column */
+.row > .control.checkbox
+{
+	flex: 0 0 auto;
+	width: 18dp;
+	height: 18dp;
+}
+
 /* ---- Scroll container ------------------------------------------------------------------ */
 .scroll-container
 {

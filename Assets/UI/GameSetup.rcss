@@ -163,6 +163,14 @@
 	min-width: 0;
 }
 
+/* Checkboxes stay a fixed square instead of stretching to fill the side-panel control column */
+.side-panel .row > .control.checkbox
+{
+	flex: 0 0 auto;
+	width: 18dp;
+	height: 18dp;
+}
+
 /* ---- Map preview + start-position markers ----------------------------------------------
    Fixed square, larger than before (was 256dp) now that side panels have more room on a
    full shell screen; RmlUi's flex layout doesn't reliably support percentage-of-width
