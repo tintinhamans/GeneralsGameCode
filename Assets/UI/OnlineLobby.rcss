@@ -155,13 +155,18 @@ button.active
 {
 	flex: 1 1 auto;
 	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 .game-map
 {
-	width: 120dp;
+	width: 170dp;
 	flex: 0 0 auto;
 	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	margin-left: 8dp;
 }
 
 .game-players
