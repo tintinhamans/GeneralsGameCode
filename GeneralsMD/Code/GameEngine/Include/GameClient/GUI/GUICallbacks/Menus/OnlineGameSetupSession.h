@@ -100,8 +100,9 @@ namespace OnlineGameSetupSession
 	// keep going (anticheat and countdown never stop the frame, matching today's behaviour).
 	Bool update( const EventSink &sink );
 
-	// PopBackToLobby()'s widget-agnostic core: delete TheNAT, TheNGMPGame->reset(), LeaveCurrentLobby(),
-	// TheShell->pop(). The caller still owns the parentWOLGameSetup-style "is my screen even active"
-	// guard around this call -- that's screen lifecycle, not network/session state.
+	// Deletes TheNAT, resets TheNGMPGame and leaves the lobby; safe with no setup screen up.
+	void leaveLobby();
+
+	// leaveLobby() followed by TheShell->pop().
 	void backToLobby();
 }

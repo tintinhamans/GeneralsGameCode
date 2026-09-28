@@ -443,7 +443,7 @@ Bool update( const EventSink &sink )
 }
 
 //-------------------------------------------------------------------------------------------------
-void backToLobby()
+void leaveLobby()
 {
 	// delete TheNAT, its no good for us anymore.
 	if( TheNAT != nullptr )
@@ -462,7 +462,12 @@ void backToLobby()
 	{
 		pLobbyInterface->LeaveCurrentLobby();
 	}
+}
 
+//-------------------------------------------------------------------------------------------------
+void backToLobby()
+{
+	leaveLobby();
 	TheShell->pop();
 }
 

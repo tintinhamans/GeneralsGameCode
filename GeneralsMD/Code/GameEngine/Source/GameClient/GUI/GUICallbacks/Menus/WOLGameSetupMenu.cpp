@@ -272,14 +272,14 @@ WindowLayout *WOLMapSelectLayout = NULL;
 
 void PopBackToLobby()
 {
-	DEBUG_LOG(("PopBackToLobby() - parentWOLGameSetup is %X", parentWOLGameSetup));
+	// Leave even without the screen up: NGMPGame calls this from outside the setup screen.
+	OnlineGameSetupSession::leaveLobby();
 
-	// Widget-agnostic network leave + reset + pop now lives in OnlineGameSetupSession::backToLobby();
-	// this screen only owns the "am I even the active screen" guard around it.
+	DEBUG_LOG(("PopBackToLobby() - parentWOLGameSetup is %X", parentWOLGameSetup));
 	if (parentWOLGameSetup)
 	{
 		nextScreen = "Menus/WOLCustomLobby.wnd";
-		OnlineGameSetupSession::backToLobby();
+		TheShell->pop();
 	}
 }
 
