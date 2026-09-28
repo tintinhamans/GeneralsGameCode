@@ -73,6 +73,7 @@
 #include "Common/LadderPreferences.h"
 
 // GENERALS ONLINE:
+#include "GameClient/GUI/GUICallbacks/Menus/HostGameActions.h"
 #include "../NextGenMP_defines.h"
 #include "../OnlineServices_Init.h"
 #include "../OnlineServices_LobbyInterface.h"
@@ -592,6 +593,16 @@ WindowMsgHandledType PopupHostGameSystem( GameWindow *window, UnsignedInt msg, W
 			}
 			else if( controlID == buttonCreateGameID)
 			{
+#if defined(GENERALS_ONLINE)
+				UnicodeString name = GadgetTextEntryGetText(textEntryGameName);
+				UnicodeString password = GadgetTextEntryGetText(textEntryGamePassword);
+				Bool allowObs = GadgetCheckBoxIsChecked(checkBoxAllowObservers);
+				Bool useStats = GadgetCheckBoxIsChecked(checkBoxUseStats);
+				Bool limitArmies = GadgetCheckBoxIsChecked(checkBoxLimitArmies);
+				HostGameActions::createGame(name, password, allowObs == TRUE, useStats == TRUE, limitArmies == TRUE);
+				parentPopup = nullptr;
+				GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
+#else
 				UnicodeString name;
 				name = GadgetTextEntryGetText(textEntryGameName);
 				name.trim();
@@ -602,28 +613,10 @@ WindowMsgHandledType PopupHostGameSystem( GameWindow *window, UnsignedInt msg, W
 					GSMessageBoxOk(TheGameText->fetch("GUI:Error"), UnicodeString(L"Please enter a lobby name."), nullptr);
 					break;
 				}
-#if defined(GENERALS_ONLINE)
-				// save last used lobby name to CustomPref.ini
-				{
-					char buffer[256];
-					const WideChar* w = name.str();
-					int i = 0;
-					for (; w[i] != 0 && i < 255; ++i)
-					{
-						buffer[i] = (char)(w[i] & 0xFF);
-					}
-					buffer[i] = 0;
-
-					AsciiString lobbyNameAscii = buffer;
-
-					CustomMatchPreferences pref;
-					pref.setLastLobbyName(lobbyNameAscii);
-					pref.write();
-				}
-#endif
 				createGame();
 				parentPopup = nullptr;
 				GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
+#endif
 			}
 			break;
 		}
@@ -642,62 +635,14 @@ WindowMsgHandledType PopupHostGameSystem( GameWindow *window, UnsignedInt msg, W
 //-----------------------------------------------------------------------------
 
 extern GlobalData* TheWritableGlobalData;
+#if !defined(GENERALS_ONLINE)
+// GENERALS_ONLINE build routes ButtonCreateGame through HostGameActions::createGame() instead
+// (see the GBM_SELECTED case above); this legacy GameSpy path is unused there.
 void createGame()
 {
 	// TODO_NGMP: exe and ini crc, verison etc
 	// TODO_NGMP: passworded lobbies
 
-#if defined(GENERALS_ONLINE)
-	// TODO_NGMP: Support 'favorite map' again
-	AsciiString defaultMap = getDefaultMap(true);
-    CustomMatchPreferences pref;
-	AsciiString storedMap = pref.getAsciiString("Map", AsciiString::TheEmptyString);
-	if (!storedMap.isEmpty())
-	{
-		AsciiString decoded = QuotedPrintableToAsciiString(storedMap);
-		decoded.trim();
-		if (!decoded.isEmpty() && isValidMap(decoded, TRUE))
-		{
-			defaultMap = decoded;
-		}
-	}
-	const MapMetaData* md = TheMapCache->findMap(defaultMap);
-
-	Bool limitArmies = GadgetCheckBoxIsChecked(checkBoxLimitArmies);
-	Bool useStats = GadgetCheckBoxIsChecked(checkBoxUseStats);
-	Bool bAllowObservers = GadgetCheckBoxIsChecked(checkBoxAllowObservers);
-
-	{
-		CustomMatchPreferences pref;
-		pref.setAllowsObserver(bAllowObservers);
-		pref.setFactionsLimited(limitArmies);
-		pref.setUseStats(useStats);
-		pref.write();
-	}
-
-	UnicodeString gameName = GadgetTextEntryGetText(textEntryGameName);
-
-	AsciiString passwd;
-	passwd.translate(GadgetTextEntryGetText(textEntryGamePassword));
-
-
-	// NGMP:NOTE: We count money here because mods etc sometimes change the starting money, so we dont want to hard code it, just create with whatever the client is telling us is a sensible amount
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	if (!pLobbyInterface)
-	{
-		parentPopup = nullptr;
-		GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
-		SetLobbyAttemptHostJoin(FALSE);
-		GSMessageBoxOk(UnicodeString(L"Error"), UnicodeString(L"Failed to get Online Services Lobby Interface!"));
-		return;
-	}
-
-	pLobbyInterface->CreateLobby(gameName, md->m_displayName, md->m_fileName, md->m_isOfficial, md->m_numPlayers, limitArmies, useStats, TheGlobalData->m_defaultStartingCash.countMoney(), passwd.isNotEmpty(), std::string(passwd.str()), bAllowObservers);
-
-	GSMessageBoxCancel(UnicodeString(L"Creating Lobby"), UnicodeString(L"Lobby Creation is in progress..."), nullptr);
-
-	return;
-#else
 	// TODO_NGMP: Everything using TheGameSpy%
 
 	TheGameSpyInfo->setCurrentGroupRoom(0);
@@ -750,7 +695,7 @@ void createGame()
 	req.hostPingStr = TheGameSpyInfo->getPingString().str();
 
 	TheGameSpyPeerMessageQueue->addRequest(req);
-#endif
 }
+#endif // !GENERALS_ONLINE
 
 

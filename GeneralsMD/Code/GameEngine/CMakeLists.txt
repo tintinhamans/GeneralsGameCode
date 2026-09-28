@@ -750,6 +750,10 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/DownloadMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/EstablishConnectionsWindow.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/GameInfoWindow.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/HostGameActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/HostGameData.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/JoinGameActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/JoinGameData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/KeyboardOptionsMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/LanGameOptionsMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/LanGameSetupActions.cpp
