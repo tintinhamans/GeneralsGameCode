@@ -1,0 +1,296 @@
+/*
+	OnlineLobby.rcss -- layout specific to OnlineLobby.rml. Palette/frame/button/scroll-container
+	rules come from common.rcss; chat/footer reuse the same idioms as LanLobby.rcss.
+*/
+
+body
+{
+	width: 100%;
+	height: 100%;
+}
+
+.lobby-panel
+{
+	display: flex;
+	flex-direction: column;
+}
+
+.spacer
+{
+	flex: 1 1 auto;
+}
+
+.section-title
+{
+	font-weight: bold;
+	color: #FFFFFF;
+	padding-bottom: 4dp;
+	border-bottom: 1dp #2F37A8;
+	margin-bottom: 4dp;
+}
+
+/* ---- Two-column body: games (wide) / players (narrow) ------------------------------------ */
+.lobby-row
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.games-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	margin-right: 8dp;
+	min-height: 0;
+}
+
+.players-column
+{
+	display: flex;
+	flex-direction: column;
+	width: 200dp;
+	min-height: 0;
+}
+
+.games-header
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 4dp;
+}
+
+.games-header button
+{
+	margin-right: 4dp;
+	padding: 4dp 10dp;
+}
+
+.icon-btn
+{
+	width: 24dp;
+	height: 24dp;
+	padding: 0;
+	overflow: hidden; /* LobbyRefresh's source art isn't perfectly square; clip instead of overflow */
+}
+
+.icon-btn mappedimage
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+	overflow: hidden; /* LobbyRefresh's source art isn't perfectly square; clip instead of overflow */
+}
+
+.room-select
+{
+	width: 220dp;
+}
+
+button.active
+{
+	border-color: #8080FF;
+	color: #8080FF;
+	background-color: rgba(47, 55, 168, 120);
+}
+
+.filter-row
+{
+	display: flex;
+	flex-direction: row;
+	margin-bottom: 4dp;
+}
+
+.filter-row button
+{
+	margin-right: 4dp;
+	padding: 3dp 8dp;
+	font-size: 12dp;
+}
+
+.player-list,
+.game-list
+{
+	border: 1dp #2F37A8;
+	background-color: rgba(2, 2, 2, 140);
+}
+
+/* ---- Game list row: fixed dp columns (a scrolling overflow-y:auto container corrupts
+   flex/auto widths inside it, see project notes) ------------------------------------------- */
+.game-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 3dp 6dp;
+	color: #BFC6C9;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
+}
+
+.game-row:hover
+{
+	background-color: rgba(47, 55, 168, 60);
+}
+
+.game-row.selected
+{
+	background-color: rgba(47, 55, 168, 160);
+	color: #FFFFFF;
+}
+
+.game-row.buddy
+{
+	color: #14B1FF;
+}
+
+.game-row.crcmismatch
+{
+	color: #7A7A7A;
+}
+
+.game-name
+{
+	flex: 1 1 auto;
+	overflow: hidden;
+}
+
+.game-map
+{
+	width: 120dp;
+	flex: 0 0 auto;
+	overflow: hidden;
+}
+
+.game-players
+{
+	width: 44dp;
+	flex: 0 0 auto;
+	text-align: center;
+}
+
+.game-players.almost-full
+{
+	color: #10AD90;
+}
+
+.game-players.full
+{
+	color: #FF5050;
+}
+
+.game-icon
+{
+	width: 16dp;
+	height: 16dp;
+	flex: 0 0 auto;
+	margin-left: 4dp;
+}
+
+.game-ping
+{
+	width: 12dp;
+	height: 12dp;
+	flex: 0 0 auto;
+	margin-left: 4dp;
+	background-color: #10AD90;
+	border-radius: 6dp;
+}
+
+.game-ping.ok
+{
+	background-color: #F0C020;
+}
+
+.game-ping.bad
+{
+	background-color: #FF5050;
+}
+
+/* ---- Player list row: admin/friend/ignored/self coloring (see GSCOLOR_PLAYER_* in
+   WOLLobbyMenu.cpp's RebuildLobbyPlayerList(), which this mirrors) ------------------------- */
+.player-row
+{
+	display: block;
+	padding: 3dp 6dp;
+	color: #FFFFFF;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
+}
+
+.player-row.admin
+{
+	color: #F0C020;
+}
+
+.player-row.friend
+{
+	color: #14B1FF;
+}
+
+.player-row.ignored
+{
+	color: #7A7A7A;
+}
+
+.player-row.self
+{
+	color: #10AD90;
+}
+
+/* ---- Chat ---------------------------------------------------------------------------------- */
+.chat
+{
+	display: flex;
+	flex-direction: column;
+	margin-top: 8dp;
+	border-top: 1dp #2F37A8;
+	padding-top: 8dp;
+	height: 130dp;
+}
+
+.chat-body
+{
+	flex: 1 1 auto;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	padding: 4dp 6dp;
+}
+
+.chat-line
+{
+	display: block;
+}
+
+.chat-entry-row
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 4dp;
+}
+
+.chat-input
+{
+	flex: 1 1 auto;
+	margin-right: 4dp;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	color: #FFFFFF;
+	padding: 4dp 6dp;
+}
+
+.btn-send
+{
+	width: 24dp;
+	height: 24dp;
+	padding: 0;
+	text-align: center;
+}
+
+.btn-send mappedimage
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}

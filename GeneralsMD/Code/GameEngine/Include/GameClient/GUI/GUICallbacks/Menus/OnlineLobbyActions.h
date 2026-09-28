@@ -33,8 +33,10 @@
 #pragma once
 
 #include "Common/UnicodeString.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbyData.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace OnlineLobbyActions
 {
@@ -45,9 +47,36 @@ namespace OnlineLobbyActions
 	void back(); ///< mirrors ButtonBack (ExitState())
 	void toggleBuddyOverlay(); ///< mirrors ButtonBuddy (GSOVERLAY_BUDDY, stays a .wnd overlay)
 
+	// NGMP session accessors/registration -----------------------------------------------------
+	// Everything below exists so a GameEngineDevice caller (RmlOnlineLobbyScreen) never has to
+	// include a GeneralsOnline/NGMP header directly -- those pull winsock in a way that conflicts
+	// with <windows.h> when both land in the same translation unit (see design notes). All types
+	// crossing this boundary are plain (int/bool/std::string/std::vector of a plain struct).
+
+	std::vector<OnlineLobbyData::RoomInfo> getGroupRooms(); ///< mirrors PopulateLobbyFilterComboBox()'s room section
+	bool isPendingFullTeardown(); ///< mirrors NGMP_OnlineServicesManager::GetInstance()->IsPendingFullTeardown()
+	void leaveCurrentLobby(); ///< mirrors WOLLobbyMenuInit()'s pLobbyInterface->LeaveCurrentLobby()
+
+	struct SortState
+	{
+		bool sortByAge = false, sortAgeDescending = false;
+		bool sortByMap = true, sortMapDescending = false;
+		bool sortBuddiesFirst = true;
+	};
+	SortState getSortState();
+
+	// Registers the NGMP push callbacks WOLLobbyMenuInit() installs (RegisterForChatCallback/
+	// RegisterForRosterNeedsRefreshCallback/RegisterForRoomChangedCallback/RegisterForCreateLobbyCallback/
+	// RegisterForJoinLobbyCallback), all forwarding into the plain g_onlineLobby*Hook function
+	// pointers in OnlineLobbyData.h. Call once from a lobby screen's show(); these are single-slot
+	// std::function members on the NGMP interfaces, so this simply preempts WOLLobbyMenuInit's own
+	// registrations for as long as this screen -- not the .wnd one -- is open.
+	void installScreenHooks();
+
 	// Room / filter combo ---------------------------------------------------------------------
 	void joinRoom( int roomIndex ); ///< mirrors GCM_SELECTED's room-entry branch
 	void setFilter( int filterValue ); ///< mirrors GCM_SELECTED's filter-entry branch (LobbyGameModeFilter)
+	int getFilterValue(); ///< current LobbyGameModeFilter, as a plain int (0=All..5=Buddies)
 
 	// Sorting -----------------------------------------------------------------------------------
 	void toggleSortAge(); ///< mirrors ButtonSortAlpha (HandleSortButton)

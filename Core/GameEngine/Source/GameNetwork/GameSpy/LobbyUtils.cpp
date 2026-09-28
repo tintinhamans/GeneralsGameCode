@@ -63,6 +63,12 @@
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_LobbyInterface.h"
 
+// GeneralsMD-only (RmlOnlineLobbyScreen's game-list delivery hook); consistent with this file's
+// existing unconditional NGMP_interfaces.h dependency above (this .cpp is already GENERALS_ONLINE-only
+// in practice -- see e.g. insertGame()'s buddy-highlight block and RefreshGameListBox()'s
+// unconditional NGMP_OnlineServices_LobbyInterface use).
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbyData.h"
+
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 // Note: if you add more columns, you must modify the .wnd files and change the listbox properties (yuck!)
@@ -1268,6 +1274,37 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 				for (LobbyEntry& lobby : vecLobbies)
 				{
 					sgl.insert(lobby);
+				}
+
+				// Feed the same filtered/sorted result to a non-.wnd lobby screen (RmlOnlineLobbyScreen),
+				// same one SearchForLobbies() round trip and same row shape insertGame() is about to
+				// build widgets from -- see OnlineLobbyData.h.
+				if (g_onlineLobbyGameListHook != nullptr)
+				{
+					std::vector<OnlineLobbyData::GameRow> sharedRows;
+					sharedRows.reserve(sgl.size());
+					for (const LobbyEntry &lobby : sgl)
+					{
+						const bool crcMismatch = (lobby.exe_crc != TheGlobalData->m_exeCRC || lobby.ini_crc != TheGlobalData->m_iniCRC);
+
+						std::string mapDisplayName;
+						const MapMetaData* md = TheMapCache->findMap(AsciiString(lobby.map_name.c_str()));
+						if (md)
+						{
+							AsciiString ascii;
+							ascii.translate(md->m_displayName); // naive single-byte narrow, matches insertGame()'s own limitation
+							mapDisplayName = ascii.str();
+						}
+						else
+						{
+							const char* start = lobby.map_name.c_str();
+							const char* slashPos = strrchr(start, '\\');
+							mapDisplayName = slashPos ? (slashPos + 1) : start;
+						}
+
+						sharedRows.push_back(OnlineLobbyData::buildGameRow(lobby, mapDisplayName, lobbyHasBuddy(lobby.lobbyID) != FALSE, crcMismatch));
+					}
+					g_onlineLobbyGameListHook(sharedRows);
 				}
 
 				// now add the games

@@ -25,11 +25,18 @@
 #include <algorithm>
 #include <cctype>
 
+void (*g_onlineLobbyGameListHook)( const std::vector<OnlineLobbyData::GameRow> &rows ) = nullptr;
+void (*g_onlineLobbyChatHook)( const UnicodeString &text, Color color ) = nullptr;
+void (*g_onlineLobbyRosterRefreshHook)() = nullptr;
+void (*g_onlineLobbyRoomChangedHook)( int roomIndex, bool effectiveRoomChanged ) = nullptr;
+void (*g_onlineLobbyJoinResultHook)( int result ) = nullptr;
+void (*g_onlineLobbyCreateResultHook)( bool success ) = nullptr;
+
 namespace OnlineLobbyData
 {
 
 //-------------------------------------------------------------------------------------------------
-GameRow buildGameRow( const LobbyEntry &lobby, bool hasBuddy, bool crcMismatch )
+GameRow buildGameRow( const LobbyEntry &lobby, const std::string &mapDisplayName, bool hasBuddy, bool crcMismatch )
 {
 	GameRow row;
 	row.lobbyID = lobby.lobbyID;
@@ -42,7 +49,7 @@ GameRow buildGameRow( const LobbyEntry &lobby, bool hasBuddy, bool crcMismatch )
 	}
 
 	row.displayName = lobby.name + " (" + ownerName + ")";
-	row.mapDisplayName = lobby.map_name; // caller/view resolves TheMapCache display name if desired
+	row.mapDisplayName = mapDisplayName;
 	row.hasPassword = lobby.passworded;
 	row.allowObservers = lobby.allow_observers;
 	row.trackStats = lobby.track_stats;
@@ -72,6 +79,8 @@ std::vector<PlayerRow> collectPlayerRows()
 
 	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
 	NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	const int64_t localUserID = (pAuthInterface != nullptr) ? pAuthInterface->GetUserID() : 0;
 	if ( pRoomsInterface == nullptr )
 		return outRows;
 
@@ -86,6 +95,7 @@ std::vector<PlayerRow> collectPlayerRows()
 		row.isAdmin = member.m_bIsAdmin ? true : false;
 		row.isFriend = (pSocialInterface != nullptr && pSocialInterface->IsUserFriend(member.user_id));
 		row.isIgnored = (pSocialInterface != nullptr && pSocialInterface->IsUserIgnored(member.user_id));
+		row.isSelf = (member.user_id == localUserID);
 
 		row.sortKey.resize(row.displayName.size());
 		std::transform(row.displayName.begin(), row.displayName.end(), row.sortKey.begin(),

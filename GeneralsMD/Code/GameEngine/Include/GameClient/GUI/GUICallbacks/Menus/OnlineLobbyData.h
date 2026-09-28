@@ -40,6 +40,7 @@
 #pragma once
 
 #include "Common/UnicodeString.h"
+#include "GameClient/Color.h"
 
 #include <cstdint>
 #include <string>
@@ -82,10 +83,12 @@ namespace OnlineLobbyData
 		bool crcMismatch = false;
 	};
 
-	// Pure computation of a game row from raw lobby data, plus the two flags insertGame() resolves
-	// via lobbyHasBuddy()/TheGlobalData CRC comparison (kept out of this function so it has no
-	// GameSpy/global-data coupling; callers pass the already-resolved values).
-	GameRow buildGameRow( const LobbyEntry &lobby, bool hasBuddy, bool crcMismatch );
+	// Pure computation of a game row from raw lobby data, plus the values insertGame() resolves
+	// through GameSpy/global-data/TheMapCache (kept out of this function so it stays dependency-free;
+	// callers pass the already-resolved values -- mapDisplayName via TheMapCache->findMap() with the
+	// same basename fallback insertGame() uses, hasBuddy via lobbyHasBuddy(), crcMismatch via
+	// TheGlobalData CRC comparison).
+	GameRow buildGameRow( const LobbyEntry &lobby, const std::string &mapDisplayName, bool hasBuddy, bool crcMismatch );
 
 	// Room roster: name, then admins, then friends (see CollectLobbyPlayerRows() call sites in
 	// WOLLobbyMenu.cpp/PopulateLobbyPlayerListbox()).
@@ -95,6 +98,7 @@ namespace OnlineLobbyData
 		bool isAdmin = false;
 		bool isFriend = false;
 		bool isIgnored = false;
+		bool isSelf = false;
 		std::string displayName;
 		std::string sortKey; // lowercase display name
 	};
@@ -106,4 +110,33 @@ namespace OnlineLobbyData
 	// Cheap membership+flags signature so callers can skip an expensive rebuild when nothing changed
 	// (same purpose as WOLLobbyMenu.cpp's s_lobbyRosterSignature).
 	std::string buildRosterSignature( const std::vector<PlayerRow> &rows );
+
+	// One entry of the group-room combo (see PopulateLobbyFilterComboBox()'s room section). Plain/
+	// winsock-free so OnlineLobbyActions::getGroupRooms() can hand it to a GameEngineDevice caller --
+	// GameEngineDevice files can't include the GeneralsOnline headers NetworkRoom comes from
+	// alongside <windows.h> (winsock2/winsock conflict), see OnlineLobbyActions.h.
+	struct RoomInfo
+	{
+		int index = 0;
+		std::string label;
+		bool isCurrent = false;
+	};
 }
+
+// Game-list delivery hook: fired from LobbyUtils.cpp's RefreshGameListBox() SearchForLobbies()
+// completion callback, right after the async result is filtered/sorted and each entry run through
+// buildGameRow() the same way the .wnd listbox is about to be rebuilt from it -- same one network
+// round trip, same row shape, feeds both. Null (the default) drops the update;
+// RmlOnlineLobbyScreen installs its own target in show(), same lifetime pattern as
+// g_lanLobbyGameListHook (LANAPICallbacks.h).
+extern void (*g_onlineLobbyGameListHook)( const std::vector<OnlineLobbyData::GameRow> &rows );
+
+// Remaining push-delivery hooks a non-.wnd lobby screen needs, all plain/winsock-free types (see
+// OnlineLobbyActions::installScreenHooks(), which is the only place that actually calls the NGMP
+// RegisterFor*Callback() methods -- kept in the GameEngine layer, same "call it from the shared
+// layer" reasoning as g_onlineLobbyGameListHook above).
+extern void (*g_onlineLobbyChatHook)( const UnicodeString &text, Color color );
+extern void (*g_onlineLobbyRosterRefreshHook)();
+extern void (*g_onlineLobbyRoomChangedHook)( int roomIndex, bool effectiveRoomChanged );
+extern void (*g_onlineLobbyJoinResultHook)( int result ); // EJoinLobbyResult, passed as int
+extern void (*g_onlineLobbyCreateResultHook)( bool success );

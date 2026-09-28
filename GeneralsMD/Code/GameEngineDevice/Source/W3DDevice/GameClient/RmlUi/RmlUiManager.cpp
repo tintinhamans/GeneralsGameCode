@@ -33,6 +33,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
 #include "W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlOnlineLobbyScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineLoginScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineWelcomeScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
@@ -184,6 +185,9 @@ void RmlUiManager::init(int width, int height)
 
 	// RmlOnlineLoginScreen::onLoginSucceeded() pushes this path; see RmlOnlineWelcomeScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/WOLWelcomeMenu.wnd", &OpenRmlOnlineWelcomeScreen, &CloseRmlOnlineWelcomeScreen);
+
+	// OnlineWelcomeActions's Custom Match button pushes this same path; see RmlOnlineLobbyScreen.h.
+	RmlUiScreenRegistry::registerScreen("Menus/WOLCustomLobby.wnd", &OpenRmlOnlineLobbyScreen, &CloseRmlOnlineLobbyScreen);
 
 	// LANAPI::OnGameJoin() pushes this same path once LanLobbyActions::hostGame()/joinGame()'s
 	// RequestGameCreate()/RequestGameJoin() succeeds; see RmlLanGameSetupScreen.h.

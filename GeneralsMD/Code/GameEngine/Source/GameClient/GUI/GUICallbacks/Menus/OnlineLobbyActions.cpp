@@ -91,6 +91,11 @@ void setFilter( int filterValue )
 	refreshGameList( TRUE );
 }
 
+int getFilterValue()
+{
+	return (int)theLobbyFilter;
+}
+
 void toggleSortAge()
 {
 	SetGameSortType( GetGameSortType() == GAMESORT_AGE_ASCENDING ? GAMESORT_AGE_DESCENDING : GAMESORT_AGE_ASCENDING );
@@ -146,6 +151,88 @@ bool sendChatButton( const UnicodeString &text )
 		pRoomsInterface->SendChatMessageToCurrentRoom( trimmed, false );
 	}
 	return true;
+}
+
+std::vector<OnlineLobbyData::RoomInfo> getGroupRooms()
+{
+	std::vector<OnlineLobbyData::RoomInfo> result;
+	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+	if ( pRoomsInterface == nullptr )
+		return result;
+
+	const std::vector<NetworkRoom>& rooms = pRoomsInterface->GetGroupRooms();
+	const int currentIndex = pRoomsInterface->GetCurrentRoomIndex();
+	result.reserve( rooms.size() );
+	for ( int i = 0; i < (int)rooms.size(); ++i )
+	{
+		OnlineLobbyData::RoomInfo info;
+		info.index = i;
+		AsciiString ascii;
+		ascii.translate( rooms[i].GetRoomDisplayName() );
+		info.label = ascii.str();
+		info.isCurrent = (i == currentIndex);
+		result.push_back( info );
+	}
+	return result;
+}
+
+bool isPendingFullTeardown()
+{
+	auto pManager = NGMP_OnlineServicesManager::GetInstance();
+	return pManager != nullptr && pManager->IsPendingFullTeardown();
+}
+
+void leaveCurrentLobby()
+{
+	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	if ( pLobbyInterface != nullptr )
+		pLobbyInterface->LeaveCurrentLobby();
+}
+
+SortState getSortState()
+{
+	const GameSortType sortType = GetGameSortType();
+	SortState state;
+	state.sortByAge = (sortType == GAMESORT_AGE_ASCENDING || sortType == GAMESORT_AGE_DESCENDING);
+	state.sortAgeDescending = (sortType == GAMESORT_AGE_DESCENDING);
+	state.sortByMap = (sortType == GAMESORT_MAP_ASCENDING || sortType == GAMESORT_MAP_DESCENDING);
+	state.sortMapDescending = (sortType == GAMESORT_MAP_DESCENDING);
+	state.sortBuddiesFirst = GetSortByBuddies() != FALSE;
+	return state;
+}
+
+void installScreenHooks()
+{
+	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
+	if ( pLobbyInterface == nullptr || pRoomsInterface == nullptr )
+		return;
+
+	pLobbyInterface->RegisterForCreateLobbyCallback( []( bool bSuccess )
+		{
+			if ( g_onlineLobbyCreateResultHook )
+				g_onlineLobbyCreateResultHook( bSuccess );
+		} );
+	pLobbyInterface->RegisterForJoinLobbyCallback( []( EJoinLobbyResult result )
+		{
+			if ( g_onlineLobbyJoinResultHook )
+				g_onlineLobbyJoinResultHook( (int)result );
+		} );
+	pRoomsInterface->RegisterForChatCallback( []( UnicodeString strMessage, Color color )
+		{
+			if ( g_onlineLobbyChatHook )
+				g_onlineLobbyChatHook( strMessage, color );
+		} );
+	pRoomsInterface->RegisterForRosterNeedsRefreshCallback( []()
+		{
+			if ( g_onlineLobbyRosterRefreshHook )
+				g_onlineLobbyRosterRefreshHook();
+		} );
+	pRoomsInterface->RegisterForRoomChangedCallback( []( int roomIndex, bool effectiveRoomChanged )
+		{
+			if ( g_onlineLobbyRoomChangedHook )
+				g_onlineLobbyRoomChangedHook( roomIndex, effectiveRoomChanged );
+		} );
 }
 
 } // namespace OnlineLobbyActions
