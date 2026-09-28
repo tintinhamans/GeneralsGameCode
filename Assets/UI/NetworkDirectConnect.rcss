@@ -1,25 +1,53 @@
 /*
 	NetworkDirectConnect.rcss -- layout specific to NetworkDirectConnect.rml. Palette/frame/button/
 	scroll-container rules come from common.rcss; the remote-IP history rows reuse GameSetup.rcss's
-	.map-row/.selected (same look as LanLobby.rml's game-list rows).
+	.map-row/.selected (same look as LanLobby.rml's game-list rows). Shell layout: fields + IP
+	history on the left, Host/Join stacked on the right, like NetworkDirectConnect.wnd's dialog.
 */
 
+/* .dc-panel is the .shell-frame (full blueprint panel, see common.rcss) -- fills the screen like
+   the original NetworkDirectConnect.wnd instead of a fixed centered dialog. body needs an
+   explicit 100% size for .shell-frame's percent left/top/width/height to resolve against. */
 body
 {
-	width: 520dp;
-	height: 460dp;
-	left: 50%;
-	top: 50%;
-	margin-left: -260dp;
-	margin-top: -230dp;
+	width: 100%;
+	height: 100%;
 }
 
-.panel
+.dc-panel
 {
 	display: flex;
 	flex-direction: column;
-	width: 100%;
-	height: 100%;
+}
+
+.dc-body
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.dc-left
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	margin-right: 16dp;
+}
+
+.dc-right
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 auto;
+	width: 240dp;
+}
+
+.dc-right button
+{
+	margin-bottom: 8dp;
 }
 
 .dc-row
@@ -63,7 +91,6 @@ body
 	flex-direction: column;
 	flex: 1 1 auto;
 	min-height: 0;
-	margin-bottom: 8dp;
 }
 
 .dc-history-list
@@ -71,14 +98,4 @@ body
 	flex: 1 1 auto;
 	border: 1dp #2F37A8;
 	background-color: rgba(2, 2, 2, 140);
-}
-
-.dc-footer
-{
-	align-items: center;
-}
-
-.dc-footer .spacer
-{
-	flex: 1 1 auto;
 }
