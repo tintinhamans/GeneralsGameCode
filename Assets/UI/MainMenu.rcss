@@ -9,12 +9,16 @@
 
 body { width: 100%; height: 100%; }
 
-/* .shell-frame is already the full blueprint panel (see common.rcss); MainMenu has no
-   title-bar/footer of its own, just the logo + button column floating over it like the
-   original MainMenu.wnd. */
+/* .shell-frame is the full blueprint panel (see common.rcss), but the original MainMenu.wnd
+   draws only the ruler overlay plus the logo + button column over the live 3D shell map --
+   everything else is transparent. Drop shell-frame's full-panel fill/border here so the shell
+   map (stood in for by the renderer's background colour) shows through; the button column gets
+   its own panel below, like the original. */
 .mainmenu-frame
 {
 	display: block;
+	background-color: transparent;
+	border-width: 0;
 }
 
 .logo
@@ -52,6 +56,9 @@ body { width: 100%; height: 100%; }
 	max-width: 480dp;
 	bottom: 24dp;
 	padding: 0; /* panels below carry their own padding so the crossfade doesn't shift content */
+	box-sizing: border-box;
+	background-color: rgba(2, 2, 2, 190);
+	border: 2dp #2F37A8;
 }
 
 .panel
