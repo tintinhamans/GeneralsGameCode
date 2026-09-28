@@ -4,9 +4,21 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<style>
 		body { width: 720dp; height: 560dp; left: 50%; top: 50%; margin-left: -360dp; margin-top: -280dp; }
-		.frame { width: 100%; height: 100%; display: flex; flex-direction: column; }
+		.frame { box-sizing: border-box; width: 100%; height: 100%; display: flex; flex-direction: column; }
 		.panels { flex: 1 1 auto; display: flex; overflow: hidden; }
 		.panel { width: 100%; height: 100%; }
+		/* common.rcss's .row is display:flex with an auto/flex-grow-sized .label -- fine on every
+		   other screen, but here it collapses every row in this panel to 0 width (label and
+		   control end up painted on top of each other) as soon as the Graphics/Network tab's
+		   content actually needs to scroll: RmlUi's flex width resolution doesn't survive an
+		   overflow-y:auto container transitioning into "needs a scrollbar". Percentage/flex/auto
+		   widths on a *block* row have the same problem once scrolling engages, so this pins both
+		   columns to fixed dp widths instead (no auto-resolution left for the bug to corrupt) --
+		   720dp is the dialog's own fixed width, so 440dp label + 220dp control comfortably fits
+		   its content area at every supported resolution. */
+		.row { display: block; position: relative; min-height: 38dp; padding: 5dp 0; box-sizing: border-box; }
+		.row > .label { display: block; width: 440dp; box-sizing: border-box; }
+		.row > .control { position: absolute; top: 5dp; left: 440dp; width: 220dp; }
 	</style>
 </head>
 <body data-model="options">
