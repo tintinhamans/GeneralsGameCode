@@ -39,6 +39,7 @@
 #include "Common/PlayerTemplate.h"
 #include "GameClient/AnimateWindowManager.h"
 #include "GameClient/GUI/GUICallbacks/Menus/QuickMatchActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/QuickMatchSession.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GameText.h"
@@ -140,6 +141,7 @@ static GameWindow *comboBoxMaxDisconnects = nullptr;
 static GameWindow *staticTextNumPlayers = nullptr;
 static GameWindow *comboBoxSide = nullptr;
 static GameWindow *comboBoxColor = nullptr;
+static GameWindow *buttonBuddies = nullptr;
 
 static Bool isShuttingDown = false;
 static Bool buttonPushed = false;
@@ -156,12 +158,6 @@ static Int maxPingEntries = 0;
 static Int maxPoints= 100;
 static Int minPoints = 0;
 
-static Int matchFoundTimeoutStart = 0;
-static const Int lobbyTimeoutMs = 10000;
-static Int matchFoundTimeoutDurationMs = lobbyTimeoutMs;
-static const Int defaultMatchStartCountdownMs = 5000;
-static Int matchStartCountdownDurationMs = defaultMatchStartCountdownMs;
-static Int matchStartCountdownLastSecond = 0;
 
 static const LadderInfo * getLadderInfo();
 
@@ -831,6 +827,52 @@ static void saveQuickMatchOptions()
 //-------------------------------------------------------------------------------------------------
 /** Initialize the WOL Quick Match Menu */
 //-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+/** Builds the EventSink QuickMatchSession's async NGMP callbacks and per-frame update write
+ ** through -- same status listbox / button enable / Buddies badge writes the inline code used
+ ** to make directly, now routed via the .wnd's own static widget pointers. */
+//-------------------------------------------------------------------------------------------------
+static QuickMatchSession::EventSink buildQuickMatchSessionSink()
+{
+	QuickMatchSession::EventSink sink;
+
+	sink.statusLine = []( const UnicodeString &text, Color color )
+		{
+			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, text, color, -1, -1);
+			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
+		};
+	sink.setBackButtonEnabled = []( Bool enabled )
+		{
+			if (buttonBack) buttonBack->winEnable(enabled);
+		};
+	sink.setStopButtonEnabled = []( Bool enabled )
+		{
+			if (buttonStop) buttonStop->winEnable(enabled);
+		};
+	sink.setWidenButtonEnabled = []( Bool enabled )
+		{
+			if (buttonWiden) buttonWiden->winEnable(enabled);
+		};
+	sink.setCommunicatorButtonEnabled = []( Bool enabled )
+		{
+			if (buttonBuddies) buttonBuddies->winEnable(enabled);
+		};
+	sink.communicatorCountChanged = []( int numNotifications )
+		{
+			if (buttonBuddies != nullptr)
+			{
+				UnicodeString buttonText;
+				if (numNotifications > 0)
+					buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), numNotifications);
+				else
+					buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
+				buttonBuddies->winSetText(buttonText);
+			}
+		};
+
+	return sink;
+}
+
 void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 {
 	++s_quickMatchMenuGeneration;
@@ -862,10 +904,6 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	buttonPushed = false;
 	isShuttingDown = false;
 	raiseMessageBoxes = true;
-	matchFoundTimeoutStart = 0;
-	matchFoundTimeoutDurationMs = lobbyTimeoutMs;
-	matchStartCountdownLastSecond = 0;
-
 	delete TheNAT;
 	TheNAT = nullptr;
 
@@ -960,7 +998,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 		*/
 	}
 
-	GameWindow *buttonBuddies = TheWindowManager->winGetWindowFromId(nullptr, buttonBuddiesID);
+	buttonBuddies = TheWindowManager->winGetWindowFromId(nullptr, buttonBuddiesID);
 	if (buttonBuddies)
 		buttonBuddies->winEnable(TRUE);
 
@@ -1126,27 +1164,6 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 #endif
 
 #if defined(GENERALS_ONLINE)
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-
-	// cannot connect to the lobby we joined
-	if (pLobbyInterface != nullptr)
-	{
-
-	pLobbyInterface->RegisterForCannotConnectToLobbyCallback([](void)
-		{
-			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Could not connect to a player, waiting for the matchmaker..."), GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-
-			// don't cancel: racing a server-issued requeue could unregister us from its bucket
-			matchFoundTimeoutStart = 0;
-			matchStartCountdownLastSecond = 0;
-
-			buttonBack->winEnable(TRUE);
-			buttonStop->winEnable(TRUE);
-		});
-	}
-
-
 	// get playlist list
 	NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
 	if (pMatchmakingInterface != nullptr)
@@ -1175,234 +1192,11 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				GadgetComboBoxSetSelectedPos(comboBoxNumPlayers, 0);
 			});
 	}
-#endif
 
-
-	if (pLobbyInterface != nullptr)
-	{
-		// TODO_QUICKMATCH: Deregister when leaving QM
-		pLobbyInterface->RegisterForMatchmakingMessageCallback([](std::string strMsg)
-			{
-				UnicodeString uMsg;
-				uMsg = UnicodeString(from_utf8(strMsg).c_str());
-
-				Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, uMsg, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-				GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-			});
-
-		pLobbyInterface->RegisterForMatchmakingMatchFoundCallback([]()
-			{
-				buttonBack->winEnable(FALSE);
-				buttonStop->winEnable(FALSE);
-				matchFoundTimeoutDurationMs = lobbyTimeoutMs;
-				matchFoundTimeoutStart = timeGetTime();
-				matchStartCountdownLastSecond = 0;
-                if (TheAudio)
-				{
-					AudioEventRTS evt("GUICommunicatorOpen");
-					TheAudio->addAudioEvent(&evt);
-				}
-			});
-
-		pLobbyInterface->RegisterForMatchmakingRequeueCallback([]()
-			{
-				matchFoundTimeoutStart = 0;
-				matchFoundTimeoutDurationMs = lobbyTimeoutMs;
-				matchStartCountdownLastSecond = 0;
-				buttonBack->winEnable(TRUE);
-				buttonStop->winEnable(TRUE);
-				buttonWiden->winEnable(TRUE);
-			});
-
-		pLobbyInterface->RegisterForMatchmakingSetupProgressCallback([](int timeoutMs, int countdownMs)
-			{
-				matchFoundTimeoutDurationMs = timeoutMs;
-				matchFoundTimeoutStart = timeGetTime();
-
-				// Mirror the service-owned countdown for UI feedback. Older services don't send its length, so a short
-				// timeout is taken to mean the countdown.
-				if (countdownMs < 0)
-				{
-					countdownMs = timeoutMs < lobbyTimeoutMs ? defaultMatchStartCountdownMs : 0;
-				}
-
-				matchStartCountdownDurationMs = countdownMs;
-				matchStartCountdownLastSecond = countdownMs > 0 ? (countdownMs + 999) / 1000 : 0;
-			});
-
-		pLobbyInterface->RegisterForMatchmakingStartGameCallback([]()
-			{
-				matchFoundTimeoutStart = 0;
-				matchStartCountdownLastSecond = 0;
-				NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] GOT START GAME EVENT");
-
-				// Check if TheNGMPGame is initialized before dereferencing it
-				if (!TheNGMPGame)
-				{
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] NO NGMP GAME INSTANCE");
-					return;
-				}
-
-				// mark everyone as having the map, we dont allow user provided custom maps or map transfers in QM
-				// TODO_QUICKMATCH: Do this automatically for game type quickmatch, or better yet, do it on the service
-				for (int i = 0; i < MAX_SLOTS; i++)
-				{
-					GameSlot* slot = TheNGMPGame->getSlot(i);
-					if (slot != nullptr)
-					{
-						slot->setMapAvailability(TRUE);
-					}
-				}
-
-				// start
-				NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-				NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
-
-				if (pLobbyInterface == nullptr || !myGame || !myGame->isInGame())
-				{
-					NetworkLog(ELogVerbosity::LOG_DEBUG, "[QUICKMATCH] Checks failed, %d, %d, %d", pLobbyInterface == nullptr, !myGame, !myGame->isInGame());
-					return;
-				}
-
-
-				// TODO_NGMP
-				//SendStatsToOtherPlayers(TheNGMPGame);
-
-				GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
-				if (buttonBuddy)
-					buttonBuddy->winEnable(FALSE);
-				GameSpyCloseOverlay(GSOVERLAY_BUDDY);
-				GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
-
-				*TheNGMPGame = *myGame;
-				TheNGMPGame->startGame(0);
-			});
-
-		pLobbyInterface->RegisterForJoinLobbyCallback([](EJoinLobbyResult result)
-			{
-				NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-
-				if (!pLobbyInterface->IsInLobby())
-				{
-					return;
-				}
-
-				if (TheNGMPGame == nullptr)
-				{
-					TheNGMPGame = new NGMPGame();
-					TheNGMPGame->markGameAsQM();
-				}
-				pLobbyInterface->UpdateRoomDataCache([](bool bSuccess)
-					{
-
-					});
-
-				// connection events (for debug really)
-				NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-				if (pMesh != nullptr)
-				{
-					pMesh->RegisterForConnectionEvents([](int64_t userID, std::wstring strDisplayName, PlayerConnection* connection)
-						{
-#if _DEBUG // not enabled in quickmatch because then people see their opponent during matchmaking
-							std::string strState = "Unknown";
-
-							EConnectionState connState = connection->GetState();
-
-							switch (connState)
-							{
-							case EConnectionState::NOT_CONNECTED:
-								strState = "Not Connected";
-								break;
-
-							case EConnectionState::CONNECTING_DIRECT:
-								strState = "Connecting";
-								break;
-							case EConnectionState::FINDING_ROUTE:
-								strState = "Connecting (Finding Route)";
-								break;
-
-							case EConnectionState::CONNECTED_DIRECT:
-								strState = "Connected";
-								break;
-
-							case EConnectionState::CONNECTION_FAILED:
-								strState = "Connection Failed";
-								break;
-
-							case EConnectionState::CONNECTION_DISCONNECTED:
-								strState = "Disconnected (Was Connected Previously)";
-								break;
-
-							default:
-								strState = "Unknown";
-								break;
-							}
-
-							UnicodeString strConnectionMessage;
-							if (connState == EConnectionState::CONNECTING_DIRECT || connState == EConnectionState::FINDING_ROUTE)
-							{
-								strConnectionMessage.format(L"Connecting to %s", strDisplayName.c_str());
-
-								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GameMakeColor(255, 194, 15, 255), -1, -1);
-								GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-							}
-							else if (connState == EConnectionState::CONNECTED_DIRECT)
-							{
-								strConnectionMessage.format(L"Connected to %s", strDisplayName.c_str());
-
-								Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GameMakeColor(255, 194, 15, 255), -1, -1);
-								GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-							}
-							else
-							{
-								if (connState == EConnectionState::CONNECTION_FAILED || connState == EConnectionState::CONNECTION_DISCONNECTED)
-								{
-									strConnectionMessage.format(L"Connection failed to %s", strDisplayName.c_str());
-									Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, strConnectionMessage, GameMakeColor(255, 194, 15, 255), -1, -1);
-									GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-								}
-							}
-#endif
-						});
-				}
-
-			});
-	}
-
-#if defined(GENERALS_ONLINE)
-    // Update the communicator button anytime we get notifications
-    NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
-    if (pSocialInterface != nullptr)
-    {
-        // notifiactions callback
-        pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([=](int numNotifications)
-            {
-                // update communicator button
-                if (buttonBuddies != nullptr)
-                {
-                    UnicodeString buttonText;
-                    if (numNotifications > 0)
-                    {
-                        buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), numNotifications);
-                    }
-                    else
-                    {
-                        buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
-                    }
-					buttonBuddies->winSetText(buttonText);
-
-
-                }
-            });
-    }
-
-    // And also initialize it
-    if (buttonBuddies != nullptr && pSocialInterface != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
-    {
-        UnicodeString buttonText;
-        buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), pSocialInterface->GetNumTotalNotifications());
-        buttonBuddies->winSetText(buttonText);
-    }
+	// NGMP lobby callback registration (cannot-connect stub, matchmaking message/match-found/requeue/
+	// setup-progress/start-game, join-lobby, Buddies notification badge) now lives in QuickMatchSession,
+	// writing through this screen's own listbox/button/badge widgets via the sink.
+	QuickMatchSession::enter( buildQuickMatchSessionSink() );
 #endif
 }
 
@@ -1441,28 +1235,7 @@ void WOLQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 #endif
 
 #if defined(GENERALS_ONLINE)
-	NGMP_OnlineServices_MatchmakingInterface* pMatchmakingInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_MatchmakingInterface>();
-	if (pMatchmakingInterface != nullptr)
-	{
-		// Shutdown is invokved for UI exit but also for going to game... so don't tear down lobby on service in the latter case
-		if (TheNGMPGame == nullptr || !TheNGMPGame->isGameInProgress())
-		{
-			pMatchmakingInterface->CancelMatchmaking();
-		}
-	}
-
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	if (pLobbyInterface != nullptr)
-	{
-		pLobbyInterface->DeregisterForMatchmakingMessageCallback();
-		pLobbyInterface->DeRegisterForMatchmakingMatchFoundCallback();
-		pLobbyInterface->DeregisterForMatchmakingRequeueCallback();
-		pLobbyInterface->DeregisterForMatchmakingSetupProgressCallback();
-		pLobbyInterface->DeregisterForMatchmakingStartGameCallback();
-
-		pLobbyInterface->DeregisterForJoinLobbyCallback();
-		pLobbyInterface->DeregisterForCannotConnectToLobbyCallback();
-	}
+	QuickMatchSession::leave();
 #endif
 
 	if (!TheGameEngine->getQuitting())
@@ -1481,10 +1254,9 @@ void WOLQuickMatchMenuShutdown( WindowLayout *layout, void *userData )
 	buttonStop = nullptr;
 	buttonWiden = nullptr;
 	comboBoxNumPlayers = nullptr;
+	buttonBuddies = nullptr;
 	quickmatchTextWindow = nullptr;
 	selectedImage = unselectedImage = nullptr;
-	matchFoundTimeoutStart = 0;
-	matchStartCountdownLastSecond = 0;
 
 	isShuttingDown = true;
 
@@ -1592,40 +1364,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 	HandleBuddyResponses();
 #endif
 
-	if (matchStartCountdownLastSecond > 0)
-	{
-		Int elapsedMs = timeGetTime() - matchFoundTimeoutStart;
-		Int remainingMs = matchStartCountdownDurationMs - elapsedMs;
-		Int secondsRemaining = remainingMs > 0 ? (remainingMs + 999) / 1000 : 0;
-
-		if (secondsRemaining > 0 && secondsRemaining < matchStartCountdownLastSecond)
-		{
-			UnicodeString countdownMessage;
-			if (secondsRemaining == 1)
-			{
-				countdownMessage.format(TheGameText->fetch("LAN:GameStartTimerSingular"), secondsRemaining);
-			}
-			else
-			{
-				countdownMessage.format(TheGameText->fetch("LAN:GameStartTimerPlural"), secondsRemaining);
-			}
-
-			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, countdownMessage, GameMakeColor(192, 192, 192, 255), -1, -1);
-			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-			matchStartCountdownLastSecond = secondsRemaining;
-		}
-	}
-
-	// Leave time for the server's START_GAME event to arrive.
-	Int effectiveTimeoutMs = matchFoundTimeoutDurationMs < lobbyTimeoutMs ? lobbyTimeoutMs : matchFoundTimeoutDurationMs;
-	if (matchFoundTimeoutStart != 0 && timeGetTime() - matchFoundTimeoutStart >= effectiveTimeoutMs)
-	{
-		matchFoundTimeoutStart = 0;
-		buttonBack->winEnable(TRUE);
-		buttonStop->winEnable(TRUE);
-		Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, UnicodeString(L"Match setup timed out. You may cancel or continue waiting."), GameMakeColor(255, 194, 25, 255), -1, -1);
-		GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-	}
+	QuickMatchSession::update( buildQuickMatchSessionSink() );
 
 	/// @todo: MDC handle disconnects in-game the same way as Custom Match!
 

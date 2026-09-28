@@ -787,6 +787,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/PopupReplay.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupSaveLoad.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/QuickMatchActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/QuickMatchSession.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/QuitMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/QuitMenuActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/ReplayMenu.cpp
