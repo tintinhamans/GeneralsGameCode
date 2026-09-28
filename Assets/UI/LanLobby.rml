@@ -54,7 +54,7 @@
 			</div>
 			<div class="chat-entry-row">
 				<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-				<button data-event-click="send_chat"><gametext key="GUI:Send"/></button>
+				<button class="btn-send" data-event-click="send_chat"></button>
 			</div>
 		</div>
 

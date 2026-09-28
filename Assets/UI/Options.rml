@@ -165,10 +165,6 @@
 					<div class="label"><gametext key="GUI:DoubleClickAttackMove"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="double_click_attack_move" data-tooltip="TOOLTIP:DoubleClickAttackMove"/>
 				</div>
-				<div class="row">
-					<div class="label"><gametext key="GUI:LanguageFilter"/></div>
-					<input class="control checkbox" type="checkbox" data-checked="language_filter" data-tooltip="GUI:LanguageFilter"/>
-				</div>
 			</div>
 
 			<!-- Network: IP selection populated in C++ the same way as the Graphics tab's selects. -->

@@ -117,3 +117,11 @@
 	color: #FFFFFF;
 	padding: 4dp 6dp;
 }
+
+/* ---- Emote icon button (original is icon-only, no text label) -------------------------- */
+.btn-emote
+{
+	width: 24dp;
+	height: 24dp;
+	text-align: center;
+}

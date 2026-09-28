@@ -38,7 +38,7 @@
 					</select>
 					<select class="slot-team" data-value="row.team_number" data-attr-disabled="!row.can_edit || !row.is_occupied"
 						data-event-change="slot_team_changed(row.slot_index)">
-						<option value="-1"><gametext key="GUI:NoTeam"/></option>
+						<option value="-1"><gametext key="Team:0"/></option>
 						<option value="0">1</option>
 						<option value="1">2</option>
 						<option value="2">3</option>

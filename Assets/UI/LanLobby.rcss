@@ -193,3 +193,11 @@ body
 {
 	flex: 1 1 auto;
 }
+
+/* ---- Chat entry icon button (original is icon-only, Enter sends chat) ------------------ */
+.btn-send
+{
+	width: 24dp;
+	height: 24dp;
+	text-align: center;
+}

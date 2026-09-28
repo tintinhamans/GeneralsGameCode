@@ -17,13 +17,13 @@
 			<div class="table-header">
 				<div class="col-icon"></div>
 				<div class="col-name"></div>
-				<div class="col-stat"><gametext key="GUI:MoneyEarned"/></div>
+				<div class="col-stat"><gametext key="GUI:ResourcesCollected"/></div>
 				<div class="col-stat"><gametext key="GUI:UnitsBuilt"/></div>
 				<div class="col-stat"><gametext key="GUI:UnitsLost"/></div>
-				<div class="col-stat"><gametext key="GUI:UnitsDestroyed"/></div>
+				<div class="col-stat"><gametext key="GUI:UnitsKilled"/></div>
 				<div class="col-stat"><gametext key="GUI:BuildingsBuilt"/></div>
 				<div class="col-stat"><gametext key="GUI:BuildingsLost"/></div>
-				<div class="col-stat"><gametext key="GUI:BuildingsDestroyed"/></div>
+				<div class="col-stat"><gametext key="GUI:BuildingsKilled"/></div>
 			</div>
 			<div class="scroll-container table-body">
 				<div class="table-row" data-for="row : rows" data-class-observer="row.is_observer">
@@ -41,7 +41,7 @@
 			</div>
 
 			<div class="academy" data-if="show_academy_panel">
-				<div class="section-title"><gametext key="GUI:AcademyAdvice"/></div>
+				<div class="section-title"></div>
 				<div class="scroll-container academy-body">
 					<div data-for="tip : academy_advice">{{tip}}</div>
 				</div>
@@ -54,8 +54,8 @@
 					</div>
 					<div class="chat-entry-row" data-if="show_chat_entry">
 						<input type="text" class="chat-input" data-value="chat_entry_text"/>
-						<button data-event-click="send_chat"><gametext key="GUI:Send"/></button>
-						<button data-if="show_emote_button" data-event-click="send_emote"><gametext key="GUI:Emote"/></button>
+						<button class="btn-send" data-event-click="send_chat"></button>
+						<button class="btn-emote" data-if="show_emote_button" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"></button>
 					</div>
 				</div>
 			</div>

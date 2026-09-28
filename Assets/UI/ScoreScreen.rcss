@@ -164,3 +164,11 @@ body
 	text-align: center;
 	margin-top: 4dp;
 }
+
+/* ---- Chat entry icon buttons (original is icon-only, Enter sends chat) ----------------- */
+.btn-send, .btn-emote
+{
+	width: 24dp;
+	height: 24dp;
+	text-align: center;
+}
