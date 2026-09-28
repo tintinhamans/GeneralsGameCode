@@ -19,6 +19,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlQuickMatchScreen.h"
 
 #include "Common/AsciiString.h"
+#include "Common/QuickmatchPreferences.h"
 #include "Common/UnicodeString.h"
 #include "GameClient/Color.h"
 #include "GameClient/GameText.h"
@@ -110,6 +111,14 @@ void RmlQuickMatchScreen::load(Rml::Context *context)
 		}
 		constructor.RegisterArray<Rml::Vector<MapRowModel>>();
 
+		Rml::StructHandle<ComboOptionModel> comboOptionHandle = constructor.RegisterStruct<ComboOptionModel>();
+		if (comboOptionHandle)
+		{
+			comboOptionHandle.RegisterMember("value", &ComboOptionModel::value);
+			comboOptionHandle.RegisterMember("label", &ComboOptionModel::label);
+		}
+		constructor.RegisterArray<Rml::Vector<ComboOptionModel>>();
+
 		constructor.Bind("title", &m_model.title);
 		constructor.Bind("status_lines", &m_model.statusLines);
 		constructor.Bind("playlists", &m_model.playlists);
@@ -142,6 +151,17 @@ void RmlQuickMatchScreen::load(Rml::Context *context)
 		constructor.Bind("show_faction_image", &m_model.showFactionImage);
 		constructor.Bind("faction_image_name", &m_model.factionImageName);
 		constructor.Bind("rank_text", &m_model.rankText);
+
+		constructor.Bind("ladder_options", &m_model.ladderOptions);
+		constructor.Bind("ladder_selected", &m_model.ladderSelected);
+		constructor.Bind("max_ping_options", &m_model.maxPingOptions);
+		constructor.Bind("max_ping_selected", &m_model.maxPingSelected);
+		constructor.Bind("max_disconnects_options", &m_model.maxDisconnectsOptions);
+		constructor.Bind("max_disconnects_selected", &m_model.maxDisconnectsSelected);
+		constructor.Bind("side_options", &m_model.sideOptions);
+		constructor.Bind("side_selected", &m_model.sideSelected);
+		constructor.Bind("color_options", &m_model.colorOptions);
+		constructor.Bind("color_selected", &m_model.colorSelected);
 
 		constructor.BindEventCallback("playlist_changed", &RmlQuickMatchScreen::onPlaylistChanged, this);
 		constructor.BindEventCallback("map_row_clicked", &RmlQuickMatchScreen::onMapRowClicked, this);
@@ -208,6 +228,8 @@ void RmlQuickMatchScreen::show()
 	// Welcome msg + instructions (WOLQuickMatchMenu.cpp:1132-1135, hardcoded English literals, not GameText keys).
 	onStatusLine("Welcome to QuickMatch. Choose Setup to select playlists and maps.", colorToCss(GameMakeColor(255, 194, 25, 255)));
 	onStatusLine("Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible.", colorToCss(GameMakeColor(255, 194, 25, 255)));
+
+	populateDisabledOptionCombos();
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
@@ -326,6 +348,35 @@ void RmlQuickMatchScreen::refreshMapsForPlaylist()
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("maps");
+}
+
+// Fills the five disabled combos with the same values the .wnd's own population functions produce
+// (see QuickMatchActions.h's comment above getLadderOptions()). Called once from show() -- these
+// never change while the screen is open (they're disabled, so nothing can drive a repopulate).
+void RmlQuickMatchScreen::populateDisabledOptionCombos()
+{
+	QuickMatchPreferences pref;
+
+	auto fillCombo = [](const std::vector<QuickMatchData::ComboOption> &options, Rml::Vector<ComboOptionModel> &dest, int &selected)
+		{
+			dest.clear();
+			selected = 0;
+			for (const QuickMatchData::ComboOption &option : options)
+			{
+				ComboOptionModel row;
+				row.value = option.value;
+				row.label = unicodeToUtf8(option.label);
+				dest.push_back(row);
+				if (option.initiallySelected == TRUE)
+					selected = option.value;
+			}
+		};
+
+	fillCombo(QuickMatchActions::getLadderOptions(), m_model.ladderOptions, m_model.ladderSelected);
+	fillCombo(QuickMatchActions::getMaxPingOptions(), m_model.maxPingOptions, m_model.maxPingSelected);
+	fillCombo(QuickMatchActions::getMaxDisconnectsOptions(pref.getMaxDisconnects()), m_model.maxDisconnectsOptions, m_model.maxDisconnectsSelected);
+	fillCombo(QuickMatchActions::getSideOptions(pref.getSide()), m_model.sideOptions, m_model.sideSelected);
+	fillCombo(QuickMatchActions::getColorOptions(pref.getColor()), m_model.colorOptions, m_model.colorSelected);
 }
 
 void RmlQuickMatchScreen::applyPlayerStatsToModel(const PlayerStatsData &data)

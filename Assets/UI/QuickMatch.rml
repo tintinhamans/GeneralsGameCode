@@ -30,29 +30,39 @@
 				</div>
 
 				<!-- ComboBoxLadder/ComboBoxMaxPing/ComboBoxMaxDisconnects/ComboBoxSide/ComboBoxColor: real,
-				     populated controls the .wnd force-disables every Init under Generals Online (see the
-				     quick match triage note's §1/§2) -- shown disabled with their static labels/tooltips
-				     instead of omitted, not re-populated from live faction/color data (their values never
-				     reach an actual GO match). -->
+				     populated controls the .wnd force-disables every Init under Generals Online -- shown
+				     disabled, populated from the same QuickMatchActions::getLadderOptions()/getMaxPingOptions()/
+				     getMaxDisconnectsOptions()/getSideOptions()/getColorOptions() the .wnd's own population
+				     functions produce (see RmlQuickMatchScreen.cpp's populateDisabledOptionCombos()). -->
 				<div class="row disabled">
 					<div class="label"><gametext key="GUI:LadderName"/></div>
-					<select class="control" disabled="disabled" data-tooltip="TOOLTIP:Ladder"><option>Automatic Ladder</option></select>
+					<select class="control" disabled="disabled" data-value="ladder_selected" data-tooltip="TOOLTIP:Ladder">
+						<option data-for="opt : ladder_options" data-attr-value="opt.value">{{opt.label}}</option>
+					</select>
 				</div>
 				<div class="row disabled">
 					<div class="label"><gametext key="GUI:MaxPing"/></div>
-					<select class="control" disabled="disabled" data-tooltip="TOOLTIP:Ping"><option><gametext key="GUI:ANY"/></option></select>
+					<select class="control" disabled="disabled" data-value="max_ping_selected" data-tooltip="TOOLTIP:Ping">
+						<option data-for="opt : max_ping_options" data-attr-value="opt.value">{{opt.label}}</option>
+					</select>
 				</div>
 				<div class="row disabled">
 					<div class="label"><gametext key="GUI:MaxDisconnects"/></div>
-					<select class="control" disabled="disabled" data-tooltip="TOOLTIP:Disconnect"><option><gametext key="GUI:Any"/></option></select>
+					<select class="control" disabled="disabled" data-value="max_disconnects_selected" data-tooltip="TOOLTIP:Disconnect">
+						<option data-for="opt : max_disconnects_options" data-attr-value="opt.value">{{opt.label}}</option>
+					</select>
 				</div>
 				<div class="row disabled">
 					<div class="label"><gametext key="GUI:Side"/></div>
-					<select class="control" disabled="disabled"><option><gametext key="GUI:Random"/></option></select>
+					<select class="control" disabled="disabled" data-value="side_selected">
+						<option data-for="opt : side_options" data-attr-value="opt.value">{{opt.label}}</option>
+					</select>
 				</div>
 				<div class="row disabled">
 					<div class="label"><gametext key="GUI:Color"/></div>
-					<select class="control" disabled="disabled"><option><gametext key="GUI:???"/></option></select>
+					<select class="control" disabled="disabled" data-value="color_selected">
+						<option data-for="opt : color_options" data-attr-value="opt.value">{{opt.label}}</option>
+					</select>
 				</div>
 			</div>
 

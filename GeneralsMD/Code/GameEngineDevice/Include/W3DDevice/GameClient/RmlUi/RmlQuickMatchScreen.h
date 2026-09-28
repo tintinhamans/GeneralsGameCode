@@ -41,11 +41,10 @@
 //     RmlOnlineWelcomeScreen already uses, same subset of fields the .wnd's
 //     PopulatePlayerInfoWindows("WOLQuickMatchMenu.wnd") call fills.
 //   - ComboBoxLadder/ComboBoxMaxPing/ComboBoxMaxDisconnects/ComboBoxSide/ComboBoxColor
-//     are shown disabled with their static .wnd labels/tooltips (per the triage note:
-//     real, populated controls that are simply force-disabled under GO, not dead
-//     code) instead of omitted -- but not re-populated from live faction/color data,
-//     since their values never affect an actual GO match (matchmaking is
-//     playlist+map only). See the commit message for this simplification.
+//     are shown disabled, populated from QuickMatchActions::getLadderOptions()/
+//     getMaxPingOptions()/getMaxDisconnectsOptions()/getSideOptions()/getColorOptions() --
+//     the same values the .wnd's own population functions produce under GENERALS_ONLINE
+//     (real, populated controls that are simply force-disabled there, not dead code).
 // PopupLadderSelect/PopupLadderDetails are NOT ported (see the triage note's §1:
 // unreachable and unpopulated for Quick Match under Generals Online).
 ///////////////////////////////////////////////////////////////////////////////
@@ -96,6 +95,7 @@ private:
 	void refreshMapsForPlaylist(); // QuickMatchActions::getMapSelectOptions(selected_playlist) -> m_model.maps
 	void applyPlayerStatsToModel(const PlayerStatsData &data);
 	void scrollStatusFeedToBottom(); // called from update() when status_lines has grown, see RmlOnlineGameSetupScreen::scrollChatToBottom()
+	void populateDisabledOptionCombos(); // QuickMatchActions::getLadderOptions()/etc -> m_model.ladderOptions/etc, called once from show()
 
 	void onPlaylistChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onMapRowClicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -135,6 +135,13 @@ private:
 		Rml::String label;
 		bool selected = false;
 		bool used = true;   // grow-only storage, see RmlGrowOnlyList.h; hidden via data-if when false
+	};
+
+	// One disabled-combo entry, see QuickMatchData::ComboOption.
+	struct ComboOptionModel
+	{
+		int value = 0;
+		Rml::String label;
 	};
 
 	struct Model
@@ -179,6 +186,19 @@ private:
 		bool showFactionImage = false;
 		Rml::String factionImageName;
 		Rml::String rankText;
+
+		// ComboBoxLadder/MaxPing/MaxDisconnects/Side/Color -- populated once in populateDisabledOptionCombos()
+		// (see QuickMatchActions::getLadderOptions()/etc), shown disabled (QuickMatch.rml).
+		Rml::Vector<ComboOptionModel> ladderOptions;
+		int ladderSelected = 0;
+		Rml::Vector<ComboOptionModel> maxPingOptions;
+		int maxPingSelected = 0;
+		Rml::Vector<ComboOptionModel> maxDisconnectsOptions;
+		int maxDisconnectsSelected = 0;
+		Rml::Vector<ComboOptionModel> sideOptions;
+		int sideSelected = 0;
+		Rml::Vector<ComboOptionModel> colorOptions;
+		int colorSelected = 0;
 	} m_model;
 
 	RmlGrowOnlyList<MapRowModel> m_mapRows;
