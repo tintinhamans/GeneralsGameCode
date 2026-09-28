@@ -109,7 +109,7 @@ void RmlMappedImageElement::refresh()
 
 	char rml[512];
 	_snprintf_s(rml, sizeof(rml), _TRUNCATE,
-		"<img style=\"width:100%%;height:100%%;\" src=\"mapped:%s\" rect=\"%d %d %d %d\"/>",
+		"<img style=\"width:100%%;height:100%%;\" src=\"%s\" rect=\"%d %d %d %d\"/>",
 		image->getFilename().str(), left, top, right, bottom);
 
 	SetInnerRML(rml);
@@ -159,7 +159,7 @@ void RmlMapPreviewElement::refresh()
 
 	char rml[512];
 	_snprintf_s(rml, sizeof(rml), _TRUNCATE,
-		"<img style=\"width:100%%;height:100%%;\" src=\"mapped:%s\" rect=\"%d %d %d %d\"/>",
+		"<img style=\"width:100%%;height:100%%;\" src=\"%s\" rect=\"%d %d %d %d\"/>",
 		image->getFilename().str(), left, top, right, bottom);
 
 	SetInnerRML(rml);

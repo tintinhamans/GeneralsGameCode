@@ -354,10 +354,12 @@ Rml::TextureHandle RmlUiRenderInterface::loadEngineTexture(Rml::Vector2i &dimens
 	// through TheFileSystem (embedded Data/ archive, loose overrides, and Art/Textures
 	// inside the game's .big archives). We take our own AddRef'd D3D texture and let the
 	// engine keep owning/caching the TextureClass itself.
-	TextureClass *tex = WW3DAssetManager::Get_Instance() ? WW3DAssetManager::Get_Instance()->Get_Texture(path.c_str()) : nullptr;
+	TextureClass *tex = WW3DAssetManager::Get_Instance() ? WW3DAssetManager::Get_Instance()->Get_Texture(path.c_str(), MIP_LEVELS_1) : nullptr;
 	if (!tex)
 		return 0;
 
+	// Textures load lazily on first use; force the foreground load now.
+	tex->Init();
 	IDirect3DTexture8 *d3dTex = tex->Peek_D3D_Texture();
 	if (!d3dTex)
 	{
