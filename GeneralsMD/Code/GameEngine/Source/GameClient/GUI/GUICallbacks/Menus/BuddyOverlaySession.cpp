@@ -31,7 +31,12 @@ namespace BuddyOverlaySession
 namespace
 {
 	EventSink s_sink;
-	ToastSink s_toastSink;
+	// Function-local static: setToastSink() runs from another file's static initializer.
+	ToastSink &toastSink()
+	{
+		static ToastSink s_toastSink;
+		return s_toastSink;
+	}
 
 	// Same value as WOLBuddyOverlay.cpp's GENERALS_ONLINE NOTIFICATION_EXPIRES (107-108); duplicated
 	// rather than shared since the legacy (non-GO) NOTIFICATION_EXPIRES=3000 branch stays entirely
@@ -90,7 +95,7 @@ void leave()
 //-------------------------------------------------------------------------------------------------
 void setToastSink( const ToastSink &sink )
 {
-	s_toastSink = sink;
+	toastSink() = sink;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -108,8 +113,8 @@ void showToast( const AsciiString &nick, UnicodeString message, bool bPlaySound 
 		TheAudio->addAudioEvent( &buttonClick );
 	}
 
-	if ( s_toastSink.shown )
-		s_toastSink.shown( message );
+	if ( toastSink().shown )
+		toastSink().shown( message );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -121,8 +126,8 @@ void dismissToast()
 	s_toastActive = false;
 	s_noticeExpires = 0;
 
-	if ( s_toastSink.dismissed )
-		s_toastSink.dismissed();
+	if ( toastSink().dismissed )
+		toastSink().dismissed();
 }
 
 //-------------------------------------------------------------------------------------------------
