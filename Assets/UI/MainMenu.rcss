@@ -42,12 +42,15 @@ body { width: 100%; height: 100%; }
 .panels-stack
 {
 	position: absolute;
-	top: 30%;
+	/* directly under the logo (16dp top + up to 150dp max-height) instead of a fixed 30% that left
+	   a large dead gap between the logo and the button column (task: "put the button column
+	   directly under the logo like the original") */
+	top: 180dp;
 	right: 24dp;
 	width: 30%;
 	min-width: 320dp;
 	max-width: 480dp;
-	height: 60%;
+	bottom: 24dp;
 	padding: 0; /* panels below carry their own padding so the crossfade doesn't shift content */
 }
 
@@ -65,7 +68,7 @@ body { width: 100%; height: 100%; }
 	transition: opacity 0.2s;
 	display: flex;
 	flex-direction: column;
-	justify-content: flex-end;
+	justify-content: flex-start; /* buttons start right under the logo, not pinned to the bottom */
 }
 
 .panel.active
