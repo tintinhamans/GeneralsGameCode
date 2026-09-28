@@ -22,6 +22,7 @@
 
 #include "GameClient/WinInstanceData.h" // LobbyUtils.h's tooltip decls need this in scope
 #include "GameNetwork/GameSpy/LobbyUtils.h"
+#include "GameNetwork/GameSpy/PersistentStorageDefs.h" // SetLookAtPlayer()
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 
@@ -36,6 +37,11 @@ extern bool LobbyChatRateLimitAllowsSend();
 extern void LobbyMenu_HostGamePressed();
 extern void LobbyMenu_JoinLobbyByID( int64_t selectedID );
 extern UnicodeString FormatRoomLabel( const std::vector<NetworkRoom> &rooms, Int roomIndex ); // same tree-indent label the .wnd's PopulateLobbyFilterComboBox() uses
+
+// WOLBuddyOverlay.cpp free function (RequestBuddyAdd()'s GENERALS_ONLINE branch calls
+// SocialInterface::AddFriend() plus the same "Invite Sent" notification sound/box the .wnd's
+// ButtonAdd handler always has -- called through rather than duplicated so that stays intact).
+extern void RequestBuddyAdd( Int profileID, AsciiString nick );
 
 // LobbyUtils.cpp global (see its theLobbyFilter definition; WOLLobbyMenu.cpp forward-declares it
 // the same way inside GCM_SELECTED).
@@ -203,6 +209,43 @@ void leaveCurrentLobby()
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 	if ( pLobbyInterface != nullptr )
 		pLobbyInterface->LeaveCurrentLobby();
+}
+
+void performPlayerMenuAction( OnlineLobbyData::PlayerMenuAction action, const OnlineLobbyData::PlayerRow &player )
+{
+	AsciiString nick( player.displayName.c_str() );
+
+	switch ( action )
+	{
+		case OnlineLobbyData::PLAYERMENU_STATS:
+		{
+			SetLookAtPlayer( player.userID, UnicodeString( from_utf8( player.displayName ).c_str() ) );
+			GameSpyOpenOverlay( GSOVERLAY_PLAYERINFO );
+			break;
+		}
+		case OnlineLobbyData::PLAYERMENU_TOGGLE_BUDDY:
+		{
+			NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+			if ( pSocialInterface == nullptr )
+				break;
+			if ( player.isFriend )
+				pSocialInterface->RemoveFriend( player.userID );
+			else
+				RequestBuddyAdd( (Int)player.userID, nick );
+			break;
+		}
+		case OnlineLobbyData::PLAYERMENU_TOGGLE_IGNORE:
+		{
+			NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+			if ( pSocialInterface == nullptr )
+				break;
+			if ( pSocialInterface->IsUserIgnored( player.userID ) )
+				pSocialInterface->UnignoreUser( player.userID );
+			else
+				pSocialInterface->IgnoreUser( player.userID );
+			break;
+		}
+	}
 }
 
 SortState getSortState()

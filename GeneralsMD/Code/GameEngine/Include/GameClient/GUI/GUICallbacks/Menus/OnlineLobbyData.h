@@ -111,6 +111,36 @@ namespace OnlineLobbyData
 	// (same purpose as WOLLobbyMenu.cpp's s_lobbyRosterSignature).
 	std::string buildRosterSignature( const std::vector<PlayerRow> &rows );
 
+	// Player-row right-click menu (see WOLLobbyMenu.cpp's GLM_RIGHT_CLICKED, which picks one of
+	// RCLocalPlayerMenu.wnd/RCNoProfileMenu.wnd/RCBuddiesMenu.wnd/RCNonBuddiesMenu.wnd, and
+	// WOLBuddyOverlay.cpp's WOLBuddyOverlayRCMenuSystem(), which handles all four's buttons).
+	// buildPlayerContextMenu() collapses the four fixed .wnd layouts into one ordered item list --
+	// same "Stats" (ButtonStats), buddy add/remove (ButtonAdd/ButtonDelete), ignore toggle
+	// (ButtonIgnore) actions, same per-variant visibility rules -- so a single RmlUi context-menu
+	// component can render any of the four shapes from one PlayerRow.
+	enum PlayerMenuAction
+	{
+		PLAYERMENU_STATS = 0,        // ButtonStats: SetLookAtPlayer() + GSOVERLAY_PLAYERINFO
+		PLAYERMENU_TOGGLE_BUDDY,     // ButtonAdd/ButtonDelete depending on PlayerRow::isFriend
+		PLAYERMENU_TOGGLE_IGNORE,    // ButtonIgnore
+	};
+
+	// One context-menu entry. labelKey is a GUI: string-table key ready for TheGameText->fetch()
+	// EXCEPT for PLAYERMENU_TOGGLE_IGNORE, which is left empty: WOLBuddyOverlay.cpp's
+	// setUnignoreText() overwrites that button's text with a hardcoded (non-key) "Block"/"Unblock"
+	// literal under GENERALS_ONLINE, not a GUI: key, so the caller resolves that one itself from
+	// PlayerRow::isIgnored (see RmlOnlineLobbyScreen.cpp).
+	struct PlayerMenuItem
+	{
+		PlayerMenuAction action;
+		std::string labelKey;
+	};
+
+	// Mirrors the GLM_RIGHT_CLICKED variant-selection: self -> RCLocalPlayerMenu (Stats only), no
+	// profile (userID <= 0) -> RCNoProfileMenu (Ignore only), otherwise RCBuddiesMenu/
+	// RCNonBuddiesMenu (Stats, buddy toggle, Ignore) depending on PlayerRow::isFriend.
+	std::vector<PlayerMenuItem> buildPlayerContextMenu( const PlayerRow &player );
+
 	// One entry of the group-room combo (see PopulateLobbyFilterComboBox()'s room section). Plain/
 	// winsock-free so OnlineLobbyActions::getGroupRooms() can hand it to a GameEngineDevice caller --
 	// GameEngineDevice files can't include the GeneralsOnline headers NetworkRoom comes from

@@ -268,3 +268,54 @@ input.checkbox:checked
 	margin-bottom: 8dp;
 	flex: 0 0 auto;
 }
+
+/* ---- Right-click context menu -------------------------------------------------------------
+   Generic reusable popup for the RC*.wnd-style right-click menus (WOLLobbyMenu.cpp's
+   GLM_RIGHT_CLICKED, WOLBuddyOverlay.cpp's own right-click menus). A screen positions
+   .context-menu at the cursor via data-style-left/top (pre-clamped on-screen by the caller,
+   same clamp WOLLobbyMenu.cpp's GLM_RIGHT_CLICKED does against TheDisplay's width/height) and
+   toggles it + a full-viewport .context-menu-backdrop with data-if="menu_visible"; the backdrop
+   sits behind the menu and closes it on any click outside, replacing winSetLoneWindow()'s
+   click-away-closes behavior. Both use position:fixed (viewport-relative), not absolute: a caller
+   may nest .context-menu inside an already-positioned ancestor (e.g. OnlineLobby.rml's
+   .shell-frame), and RmlUi's mouse_x/mouse_y event coordinates the caller feeds into
+   data-style-left/top are viewport-relative, not relative to that ancestor. */
+.context-menu-backdrop
+{
+	display: block;
+	position: fixed;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 100;
+}
+
+.context-menu
+{
+	display: block;
+	position: fixed;
+	z-index: 101;
+	background-color: rgba(2, 2, 2, 235);
+	border: 1dp #2F37A8;
+	min-width: 110dp;
+}
+
+.context-menu-item
+{
+	display: block;
+	padding: 5dp 10dp;
+	color: #FFFFFF;
+	text-align: center;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
+}
+
+.context-menu-item:last-child
+{
+	border-bottom: 0dp transparent;
+}
+
+.context-menu-item:hover
+{
+	background-color: rgba(47, 55, 168, 160);
+}

@@ -135,4 +135,30 @@ std::string buildRosterSignature( const std::vector<PlayerRow> &rows )
 	return sig;
 }
 
+//-------------------------------------------------------------------------------------------------
+std::vector<PlayerMenuItem> buildPlayerContextMenu( const PlayerRow &player )
+{
+	std::vector<PlayerMenuItem> items;
+
+	if ( player.isSelf )
+	{
+		// RCLocalPlayerMenu.wnd: Persona only.
+		items.push_back( { PLAYERMENU_STATS, "GUI:Stats" } );
+		return items;
+	}
+
+	if ( player.userID <= 0 )
+	{
+		// RCNoProfileMenu.wnd: Ignore only.
+		items.push_back( { PLAYERMENU_TOGGLE_IGNORE, "" } );
+		return items;
+	}
+
+	// RCBuddiesMenu.wnd / RCNonBuddiesMenu.wnd: Persona, buddy toggle, Ignore, in that order.
+	items.push_back( { PLAYERMENU_STATS, "GUI:Stats" } );
+	items.push_back( { PLAYERMENU_TOGGLE_BUDDY, player.isFriend ? "GUI:Delete" : "GUI:Add" } );
+	items.push_back( { PLAYERMENU_TOGGLE_IGNORE, "" } );
+	return items;
+}
+
 } // namespace OnlineLobbyData

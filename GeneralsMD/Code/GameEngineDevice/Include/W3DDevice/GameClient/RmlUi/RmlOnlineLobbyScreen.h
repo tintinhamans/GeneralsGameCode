@@ -36,12 +36,19 @@
 // OnlineLobbyData::collectPlayerRows() (cheap; same roster-signature-diff idiom
 // as WOLLobbyMenu.cpp's PopulateLobbyPlayerListbox(), see .cpp).
 //
-// Not converted: GLM_RIGHT_CLICKED's moderation right-click menu (RC*Menu.wnd)
-// and the per-row async rank-icon stat lookups WOLLobbyMenu.cpp's listbox
-// viewport optimization drives -- both stay .wnd-only pending their own
-// conversion pass (see WOLLobbyMenu.cpp's GLM_RIGHT_CLICKED case and
-// ResolveRankIconForUser()). GSOVERLAY_GAMEOPTIONS/GSOVERLAY_GAMEPASSWORD/
-// GSOVERLAY_BUDDY still open as the same .wnd overlays either way.
+// The player-row right-click menu (GLM_RIGHT_CLICKED's RCLocalPlayerMenu.wnd/
+// RCNoProfileMenu.wnd/RCBuddiesMenu.wnd/RCNonBuddiesMenu.wnd, handled by
+// WOLBuddyOverlayRCMenuSystem()) is reimplemented as a generic RmlUi popup (see
+// common.rcss's .context-menu) driven by OnlineLobbyData::buildPlayerContextMenu()
+// + OnlineLobbyActions::performPlayerMenuAction() -- see onPlayerRowMouseDown()/
+// onPlayerMenuItemClicked() below.
+//
+// Not converted: the per-row async rank-icon stat lookups WOLLobbyMenu.cpp's
+// listbox viewport optimization drives -- stays .wnd-only pending its own
+// conversion pass (see ResolveRankIconForUser()). GSOVERLAY_GAMEOPTIONS/
+// GSOVERLAY_GAMEPASSWORD/GSOVERLAY_BUDDY still open as the same .wnd overlays
+// either way (GSOVERLAY_PLAYERINFO, opened by the new menu's Stats item, already
+// routes through RmlPlayerInfoScreen once registered -- see RmlUiScreenRegistry).
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -80,7 +87,8 @@ public:
 	void refreshPlayersFromHook(); // g_onlineLobbyRosterRefreshHook target; forwards to refreshPlayers(false)
 
 private:
-	RmlOnlineLobbyScreen() : m_gameRows(m_model.games), m_playerRows(m_model.players), m_chatRows(m_model.chatLines) {}
+	RmlOnlineLobbyScreen() : m_gameRows(m_model.games), m_playerRows(m_model.players), m_chatRows(m_model.chatLines),
+		m_playerMenuItemRows(m_model.playerMenuItems) {}
 
 	void refreshRoomCombo();
 	void refreshFilterHighlight();
@@ -101,6 +109,12 @@ private:
 	void onSortBuddies(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // Enter/blur, mirrors GEM_EDIT_DONE
 	void onSendChat(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // Send button, mirrors ButtonEmote
+	void onPlayerRowMouseDown(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // mirrors GLM_RIGHT_CLICKED
+	void onPlayerMenuItemClicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // mirrors WOLBuddyOverlayRCMenuSystem's GBM_SELECTED
+	void onPlayerMenuDismiss(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // click-away close, mirrors winSetLoneWindow()'s auto-close
+
+	void closePlayerMenu();
+	void clampPlayerMenu(); // called from update() while visible; see .cpp
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
@@ -128,14 +142,25 @@ private:
 		bool used = true; // grow-only storage, see RmlGrowOnlyList.h
 	};
 
-	// One row of the player list (see OnlineLobbyData::PlayerRow).
+	// One row of the player list (see OnlineLobbyData::PlayerRow). index feeds
+	// player_row_mousedown(player.index), which looks the row back up in m_rawPlayerRows for its
+	// userID/displayName (not worth exposing those to RmlUi, only the context menu needs them).
 	struct PlayerRowModel
 	{
+		int index = 0;
 		Rml::String name;
 		bool isAdmin = false;
 		bool isFriend = false;
 		bool isIgnored = false;
 		bool isSelf = false;
+		bool used = true;
+	};
+
+	// One entry of the player-row right-click menu (see OnlineLobbyData::buildPlayerContextMenu()).
+	struct PlayerMenuItemModel
+	{
+		Rml::String label;
+		int action = 0; // OnlineLobbyData::PlayerMenuAction
 		bool used = true;
 	};
 
@@ -179,11 +204,25 @@ private:
 		bool sortByAge = false, sortAgeDescending = false;
 		bool sortByMap = true, sortMapDescending = false;
 		bool sortBuddiesFirst = true;
+
+		bool playerMenuVisible = false;
+		Rml::String playerMenuXStyle = "0px";
+		Rml::String playerMenuYStyle = "0px";
+		Rml::Vector<PlayerMenuItemModel> playerMenuItems;
 	} m_model;
 
 	RmlGrowOnlyList<GameRowModel> m_gameRows;
 	RmlGrowOnlyList<PlayerRowModel> m_playerRows;
 	RmlGrowOnlyList<ChatLineModel> m_chatRows;
+	RmlGrowOnlyList<PlayerMenuItemModel> m_playerMenuItemRows;
+
+	// Snapshot of the last refreshPlayers() roster, same order/index as m_model.players, so
+	// onPlayerRowMouseDown()/onPlayerMenuItemClicked() can reach a row's userID/displayName without
+	// exposing those to RmlUi.
+	std::vector<OnlineLobbyData::PlayerRow> m_rawPlayerRows;
+	OnlineLobbyData::PlayerRow m_playerMenuTarget; // row the open context menu applies to
+	float m_playerMenuRawX = 0.0f; // unclamped cursor position; clampPlayerMenu() re-derives the
+	float m_playerMenuRawY = 0.0f; // clamped style strings from these once the menu's real size is known
 };
 
 // Registry entry point (see RmlUiManager::init()).

@@ -54,7 +54,8 @@
 				<div class="scroll-container player-list">
 					<div data-for="player : players">
 						<div class="player-row" data-if="player.used" data-class-admin="player.is_admin" data-class-friend="player.is_friend"
-							data-class-ignored="player.is_ignored" data-class-self="player.is_self">{{player.name}}</div>
+							data-class-ignored="player.is_ignored" data-class-self="player.is_self"
+							data-event-mousedown="player_row_mousedown(player.index)">{{player.name}}</div>
 					</div>
 				</div>
 			</div>
@@ -78,6 +79,17 @@
 			<button data-event-click="buddy_overlay"><gametext key="GUI:Buddies"/></button>
 			<div class="spacer"></div>
 			<button data-event-click="back"><gametext key="GUI:Back"/></button>
+		</div>
+
+	</div>
+
+	<!-- Siblings of .shell-frame (not nested inside it), same as .shell-background above: .shell-frame
+	     is itself position:absolute, so a .context-menu nested inside it would resolve data-style-left/
+	     top's viewport-relative mouse_x/mouse_y against .shell-frame's box instead of the viewport. -->
+	<div class="context-menu-backdrop" data-if="player_menu_visible" data-event-mousedown="player_menu_dismiss"></div>
+	<div id="player-context-menu" class="context-menu" data-if="player_menu_visible" data-style-left="player_menu_x_style" data-style-top="player_menu_y_style">
+		<div data-for="item : player_menu_items">
+			<div class="context-menu-item" data-if="item.used" data-event-click="player_menu_item_clicked(item.action)">{{item.label}}</div>
 		</div>
 	</div>
 </body>

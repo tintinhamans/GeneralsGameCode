@@ -34,6 +34,7 @@
 
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
 
 #include <windows.h>
@@ -118,6 +119,7 @@ void RmlOnlineLobbyScreen::load(Rml::Context *context)
 		Rml::StructHandle<PlayerRowModel> playerHandle = constructor.RegisterStruct<PlayerRowModel>();
 		if (playerHandle)
 		{
+			playerHandle.RegisterMember("index", &PlayerRowModel::index);
 			playerHandle.RegisterMember("name", &PlayerRowModel::name);
 			playerHandle.RegisterMember("is_admin", &PlayerRowModel::isAdmin);
 			playerHandle.RegisterMember("is_friend", &PlayerRowModel::isFriend);
@@ -126,6 +128,15 @@ void RmlOnlineLobbyScreen::load(Rml::Context *context)
 			playerHandle.RegisterMember("used", &PlayerRowModel::used);
 		}
 		constructor.RegisterArray<Rml::Vector<PlayerRowModel>>();
+
+		Rml::StructHandle<PlayerMenuItemModel> playerMenuItemHandle = constructor.RegisterStruct<PlayerMenuItemModel>();
+		if (playerMenuItemHandle)
+		{
+			playerMenuItemHandle.RegisterMember("label", &PlayerMenuItemModel::label);
+			playerMenuItemHandle.RegisterMember("action", &PlayerMenuItemModel::action);
+			playerMenuItemHandle.RegisterMember("used", &PlayerMenuItemModel::used);
+		}
+		constructor.RegisterArray<Rml::Vector<PlayerMenuItemModel>>();
 
 		Rml::StructHandle<ChatLineModel> chatHandle = constructor.RegisterStruct<ChatLineModel>();
 		if (chatHandle)
@@ -164,6 +175,10 @@ void RmlOnlineLobbyScreen::load(Rml::Context *context)
 		constructor.Bind("sort_by_map", &m_model.sortByMap);
 		constructor.Bind("sort_map_descending", &m_model.sortMapDescending);
 		constructor.Bind("sort_buddies_first", &m_model.sortBuddiesFirst);
+		constructor.Bind("player_menu_visible", &m_model.playerMenuVisible);
+		constructor.Bind("player_menu_x_style", &m_model.playerMenuXStyle);
+		constructor.Bind("player_menu_y_style", &m_model.playerMenuYStyle);
+		constructor.Bind("player_menu_items", &m_model.playerMenuItems);
 
 		constructor.BindEventCallback("host_game", &RmlOnlineLobbyScreen::onHostGame, this);
 		constructor.BindEventCallback("join_selected", &RmlOnlineLobbyScreen::onJoinSelected, this);
@@ -179,6 +194,9 @@ void RmlOnlineLobbyScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("sort_buddies", &RmlOnlineLobbyScreen::onSortBuddies, this);
 		constructor.BindEventCallback("chat_entry_committed", &RmlOnlineLobbyScreen::onChatEntryCommitted, this);
 		constructor.BindEventCallback("send_chat", &RmlOnlineLobbyScreen::onSendChat, this);
+		constructor.BindEventCallback("player_row_mousedown", &RmlOnlineLobbyScreen::onPlayerRowMouseDown, this);
+		constructor.BindEventCallback("player_menu_item_clicked", &RmlOnlineLobbyScreen::onPlayerMenuItemClicked, this);
+		constructor.BindEventCallback("player_menu_dismiss", &RmlOnlineLobbyScreen::onPlayerMenuDismiss, this);
 
 		m_modelHandle = constructor.GetModelHandle();
 	}
@@ -235,6 +253,10 @@ void RmlOnlineLobbyScreen::show()
 	m_model.selectedGameIndex = -1;
 	m_model.chatEntryText.clear();
 	m_rosterSignature.clear();
+	m_playerMenuItemRows.beginUpdate();
+	m_playerMenuItemRows.endUpdate();
+	m_model.playerMenuVisible = false;
+	m_rawPlayerRows.clear();
 
 	OnlineLobbyActions::leaveCurrentLobby();
 
@@ -292,6 +314,9 @@ void RmlOnlineLobbyScreen::update()
 	// WOLLobbyMenuUpdate() never runs for a registry-routed screen (see header comment); the periodic
 	// player-list re-poll it drove via refreshPlayerList()'s time-gate is replaced here.
 	refreshPlayers(false);
+
+	if (m_model.playerMenuVisible)
+		clampPlayerMenu();
 
 	if (OnlineLobbyActions::isPendingFullTeardown())
 	{
@@ -377,10 +402,14 @@ void RmlOnlineLobbyScreen::refreshPlayers(bool force)
 		return;
 	m_rosterSignature = signature;
 
+	m_rawPlayerRows = rows;
+
 	m_playerRows.beginUpdate();
+	int playerIndex = 0;
 	for (const OnlineLobbyData::PlayerRow &row : rows)
 	{
 		PlayerRowModel &player = m_playerRows.next();
+		player.index = playerIndex++;
 		player.name = row.displayName;
 		player.isAdmin = row.isAdmin;
 		player.isFriend = row.isFriend;
@@ -391,6 +420,10 @@ void RmlOnlineLobbyScreen::refreshPlayers(bool force)
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("players");
+
+	// A stale row (e.g. the target left the room) would leave the menu pointing at nothing; same
+	// "close on churn" behavior winSetLoneWindow() gets for free when its owning listbox rebuilds.
+	closePlayerMenu();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -589,6 +622,131 @@ void RmlOnlineLobbyScreen::onSendChat(Rml::DataModelHandle, Rml::Event &, const 
 		m_model.chatEntryText.clear();
 		if (m_modelHandle)
 			m_modelHandle.DirtyVariable("chat_entry_text");
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+// Mirrors GLM_RIGHT_CLICKED: RmlUi only synthesizes "click" for the left button, so the
+// right-click open has to be caught on the raw mousedown (button 1), same as
+// RmlLanGameSetupScreen.cpp's onStartPositionMarkerMouseDown().
+void RmlOnlineLobbyScreen::onPlayerRowMouseDown(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &args)
+{
+	if (args.empty() || ev.GetParameter<int>("button", 0) != 1)
+		return;
+
+	const int index = args[0].Get<int>();
+	if (index < 0 || index >= (int)m_rawPlayerRows.size())
+		return;
+
+	m_playerMenuTarget = m_rawPlayerRows[index];
+
+	const std::vector<OnlineLobbyData::PlayerMenuItem> items = OnlineLobbyData::buildPlayerContextMenu(m_playerMenuTarget);
+	m_playerMenuItemRows.beginUpdate();
+	for (const OnlineLobbyData::PlayerMenuItem &item : items)
+	{
+		PlayerMenuItemModel &menuItem = m_playerMenuItemRows.next();
+		menuItem.action = (int)item.action;
+		if (item.action == OnlineLobbyData::PLAYERMENU_TOGGLE_IGNORE)
+		{
+			// WOLBuddyOverlay.cpp's setUnignoreText() overwrites ButtonIgnore's text with this exact
+			// hardcoded (non-GUI:-key) literal under GENERALS_ONLINE; mirrored verbatim, not localized.
+			menuItem.label = m_playerMenuTarget.isIgnored ? "Unblock" : "Block";
+		}
+		else
+		{
+			menuItem.label = unicodeToUtf8(TheGameText->fetch(item.labelKey.c_str()));
+		}
+	}
+	m_playerMenuItemRows.endUpdate();
+
+	m_playerMenuRawX = (float)ev.GetParameter<int>("mouse_x", 0);
+	m_playerMenuRawY = (float)ev.GetParameter<int>("mouse_y", 0);
+	char buf[32];
+	snprintf(buf, sizeof(buf), "%dpx", (int)m_playerMenuRawX);
+	m_model.playerMenuXStyle = buf;
+	snprintf(buf, sizeof(buf), "%dpx", (int)m_playerMenuRawY);
+	m_model.playerMenuYStyle = buf;
+	m_model.playerMenuVisible = true;
+
+	if (m_modelHandle)
+	{
+		m_modelHandle.DirtyVariable("player_menu_items");
+		m_modelHandle.DirtyVariable("player_menu_x_style");
+		m_modelHandle.DirtyVariable("player_menu_y_style");
+		m_modelHandle.DirtyVariable("player_menu_visible");
+	}
+}
+
+void RmlOnlineLobbyScreen::onPlayerMenuItemClicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.empty())
+		return;
+	const OnlineLobbyData::PlayerMenuAction action = (OnlineLobbyData::PlayerMenuAction)args[0].Get<int>();
+	OnlineLobbyActions::performPlayerMenuAction(action, m_playerMenuTarget);
+	closePlayerMenu();
+	refreshPlayers(true); // reflect the new friend/ignored state immediately, same as
+	                       // WOLBuddyOverlayRCMenuSystem's PopulateLobbyPlayerListbox() call
+}
+
+void RmlOnlineLobbyScreen::onPlayerMenuDismiss(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+{
+	closePlayerMenu();
+}
+
+void RmlOnlineLobbyScreen::closePlayerMenu()
+{
+	if (!m_model.playerMenuVisible)
+		return;
+	m_model.playerMenuVisible = false;
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("player_menu_visible");
+}
+
+// Called each update() while the menu is visible. RmlUi doesn't know the menu's laid-out size until
+// after a layout pass, so the first frame positions it at the raw cursor point (onPlayerRowMouseDown)
+// and this re-derives a clamped position from m_playerMenuRawX/Y once the real size is available --
+// same on-screen clamp GLM_RIGHT_CLICKED does against TheDisplay's width/height, just deferred a
+// frame instead of using winGetSize() synchronously.
+void RmlOnlineLobbyScreen::clampPlayerMenu()
+{
+	if (!m_document || !m_context)
+		return;
+
+	Rml::Element *menu = m_document->GetElementById("player-context-menu");
+	if (!menu)
+		return;
+
+	const Rml::Vector2f size = menu->GetBox().GetSize();
+	if (size.x <= 0.0f || size.y <= 0.0f)
+		return;
+
+	const Rml::Vector2i contextSize = m_context->GetDimensions();
+	float left = m_playerMenuRawX;
+	float top = m_playerMenuRawY;
+	if (left + size.x > (float)contextSize.x)
+		left = (float)contextSize.x - size.x;
+	if (top + size.y > (float)contextSize.y)
+		top = (float)contextSize.y - size.y;
+	if (left < 0.0f)
+		left = 0.0f;
+	if (top < 0.0f)
+		top = 0.0f;
+
+	char buf[32];
+	snprintf(buf, sizeof(buf), "%dpx", (int)left);
+	const Rml::String newX = buf;
+	snprintf(buf, sizeof(buf), "%dpx", (int)top);
+	const Rml::String newY = buf;
+
+	if (newX != m_model.playerMenuXStyle || newY != m_model.playerMenuYStyle)
+	{
+		m_model.playerMenuXStyle = newX;
+		m_model.playerMenuYStyle = newY;
+		if (m_modelHandle)
+		{
+			m_modelHandle.DirtyVariable("player_menu_x_style");
+			m_modelHandle.DirtyVariable("player_menu_y_style");
+		}
 	}
 }
 
