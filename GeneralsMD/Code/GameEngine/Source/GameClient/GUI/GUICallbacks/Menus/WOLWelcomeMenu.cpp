@@ -69,6 +69,9 @@
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineWelcomeActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineWelcomeData.h"
+
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static Bool isShuttingDown = FALSE;
 static Bool buttonPushed = FALSE;
@@ -227,9 +230,7 @@ static void updateNumPlayersOnline()
 
 	if (playersOnlineWindow)
 	{
-		UnicodeString valStr;
-		valStr.format(TheGameText->fetch("GUI:NumPlayersOnline"), lastNumPlayersOnline);
-		GadgetStaticTextSetText(playersOnlineWindow, valStr);
+		GadgetStaticTextSetText(playersOnlineWindow, OnlineWelcomeData::buildNumPlayersOnlineText(lastNumPlayersOnline));
 	}
 
 	// TODO_NGMP
@@ -380,64 +381,17 @@ void HandleOverallStats( const char* szHTTPStats, unsigned len )
 //called only from WOLWelcomeMenuInit to set %win stats
 static void updateOverallStats()
 {
-	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
-	if (pStatsInterface == nullptr)
-	{
-		return;
-	}
-
-	pStatsInterface->GetGlobalStats([=](GlobalStats stats)
+	// GameWindow-specific rendering only; the percent math itself now lives in
+	// OnlineWelcomeData::requestFactionWinStats() (see OnlineWelcomeData.cpp).
+	OnlineWelcomeData::requestFactionWinStats([](std::vector<OnlineWelcomeFactionStat> stats)
 		{
-			UnicodeString percStr;
-			AsciiString wndName;
-			GameWindow* pWin;
-
-			// calculate total win percent
-			int totalWins = 0;
-			int totalGames = 0;
-			s_totalWinPercent = 0.f;
-
-			for (int i = 0; i < stats.matches.size(); ++i)
+			for (const OnlineWelcomeFactionStat &stat : stats)
 			{
-				totalWins += stats.wins[i];
-				totalGames += stats.matches[i];
+				AsciiString wndName;
+				wndName.format("WOLWelcomeMenu.wnd:Percent%s", stat.side.str());
+				GameWindow *pWin = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY(wndName));
+				GadgetCheckBoxSetText(pWin, stat.text);
 			}
-
-			if (totalGames <= 0)
-				totalGames = 1;  //prevent divide by zero
-
-			s_totalWinPercent = ((float)totalWins / (float)totalGames);
-
-			if (s_totalWinPercent <= 0)
-				s_totalWinPercent = 1;  //prevent divide by zero
-
-			//std::map<AsciiString, float>::iterator it;
-			//for (it = s_winStats.begin(); it != s_winStats.end(); ++it)
-			for (int i = 0; i < stats.matches.size(); ++i)
-			{
-				int wins = stats.wins[i];
-				int matches = stats.matches[i];
-
-				// div by 0 fix
-				if (matches == 0)
-				{
-					matches = 1;
-				}
-
-
-				float fThisPercent = ((float)wins / (float)matches);
-
-				std::string teamName = g_mapServiceIndexToPlayerTemplateString[i]; 
-
-				//int percent = (int)(100.0f * (fThisPercent / s_totalWinPercent));
-				//percStr.format(TheGameText->fetch("GUI:WinPercent"), percent);
-
-				percStr.format(L"%d%% (%d of %d)", (int)(100.f*fThisPercent), stats.wins[i], stats.matches[i]);
-				wndName.format("WOLWelcomeMenu.wnd:Percent%s", teamName.c_str());
-				pWin = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY(wndName));
-				GadgetCheckBoxSetText(pWin, percStr);
-				//x		DEBUG_LOG(("Initialized win percent: %s -> %s %f=%s\n", wndName.str(), it->first.str(), it->second, percStr.str() ));
-			} //for
 		});
 
 	return;
@@ -480,6 +434,16 @@ void UpdateLocalPlayerStats()
 }
 
 static Bool raiseMessageBoxes = FALSE;
+
+#if defined(GENERALS_ONLINE)
+// g_onlineWelcomeNotificationsChangedHook target (see OnlineWelcomeData.h).
+static void onWelcomeNotificationsChanged(int numNotifications)
+{
+	if (buttonBuddies != nullptr)
+		buttonBuddies->winSetText(OnlineWelcomeData::buildBuddiesButtonText(numNotifications));
+}
+#endif
+
 //-------------------------------------------------------------------------------------------------
 /** Initialize the WOL Welcome Menu */
 //-------------------------------------------------------------------------------------------------
@@ -547,14 +511,9 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 #else
 	if (staticTextTitle)
 	{
-		UnicodeString title;
-
-		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-		if (pAuthInterface != nullptr)
-		{
-			title.format(L"Welcome to Generals Online, %s", pAuthInterface->GetDisplayNameW().c_str());
+		UnicodeString title = OnlineWelcomeData::buildWelcomeTitle();
+		if (!title.isEmpty())
 			GadgetStaticTextSetText(staticTextTitle, title);
-		}
 	}
 #endif
 
@@ -657,37 +616,16 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	TheTransitionHandler->setGroup("WOLWelcomeMenuFade");
 
 #if defined(GENERALS_ONLINE)
-    // Update the communicator button anytime we get notifications
-    NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
-    if (pSocialInterface != nullptr)
-    {
-        // notifiactions callback
-        pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
-            {
-                // update communicator button
-                if (buttonBuddies != nullptr)
-                {
-                    UnicodeString buttonText;
-                    if (numNotifications > 0)
-                    {
-                        buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), numNotifications);
-                    }
-                    else
-                    {
-                        buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
-                    }
-					buttonBuddies->winSetText(buttonText);
-                }
-            });
+	// Update the communicator button anytime we get notifications (see OnlineWelcomeData.h).
+	g_onlineWelcomeNotificationsChangedHook = &onWelcomeNotificationsChanged;
+	OnlineWelcomeData::registerNotificationsHook();
 
-        // And also initialize it
-        if (buttonBuddies != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
-        {
-            UnicodeString buttonText;
-            buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), pSocialInterface->GetNumTotalNotifications());
-            buttonBuddies->winSetText(buttonText);
-        }
-    }
+	// And also initialize it
+	Int initialNotifications = OnlineWelcomeData::getCurrentNotificationCount();
+	if (buttonBuddies != nullptr && initialNotifications > 0)
+	{
+		buttonBuddies->winSetText(OnlineWelcomeData::buildBuddiesButtonText(initialNotifications));
+	}
 #endif
 }
 
@@ -737,10 +675,8 @@ void WOLWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 	}
 
 	// TODO_NGMP: We do this in multiple UIs, we should actually just do it in one place and send an event to every other screen
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr && NGMP_OnlineServicesManager::GetInstance()->IsPendingFullTeardown())
+	if (OnlineWelcomeActions::consumePendingFullTeardown())
 	{
-		NGMP_OnlineServicesManager::GetInstance()->ConsumePendingFullTeardown();
-
 		buttonPushed = TRUE;
 
 		TheShell->pop();
@@ -937,10 +873,7 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 					//TheGameSpyChat->disconnectFromChat();
 
 #if defined(GENERALS_ONLINE)
-					// NGMP: Don't need to logout here, just kill the WS connection, that triggers a log out
-					NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
-
-					DEBUG_LOG(("Tearing down GeneralsOnline from WOLWelcomeMenuSystem(GBM_SELECTED)\n"));
+					OnlineWelcomeActions::requestLogout();
 #else
 					PeerRequest req;
 					req.peerRequestType = PeerRequest::PEERREQUEST_LOGOUT;
@@ -977,16 +910,11 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				else if (controlID == buttonOptionsID)
 				{
-					GameSpyOpenOverlay( GSOVERLAY_OPTIONS );
+					OnlineWelcomeActions::openOptions();
 				}
 				else if (controlID == buttonQuickMatchID)
 				{
-					GameSpyMiscPreferences mPref;
-					if ((TheDisplay->getWidth() != 800 || TheDisplay->getHeight() != 600) && mPref.getQuickMatchResLocked())
-					{
-						GSMessageBoxOk(TheGameText->fetch("GUI:GSErrorTitle"), TheGameText->fetch("GUI:QuickMatch800x600"));
-					}
-					else
+					if (OnlineWelcomeActions::canStartQuickMatch())
 					{
 						buttonPushed = TRUE;
 						nextScreen = "Menus/WOLQuickMatchMenu.wnd";
@@ -996,12 +924,7 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 				else if (controlID == buttonMyInfoID )
 				{
 					// TODO_NGMP: This needs work for unicode once we support this
-					NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-					if (pAuthInterface != nullptr)
-					{
-						SetLookAtPlayer(pAuthInterface->GetUserID(), UnicodeString(pAuthInterface->GetDisplayNameW().c_str()));
-						GameSpyToggleOverlay(GSOVERLAY_PLAYERINFO);
-					}
+					OnlineWelcomeActions::openMyInfo();
 				}
 				else if (controlID == buttonLobbyID)
 				{
@@ -1025,7 +948,7 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				else if (controlID == buttonBuddiesID)
 				{
-					GameSpyToggleOverlay( GSOVERLAY_BUDDY );
+					OnlineWelcomeActions::toggleBuddiesOverlay();
 					/*
 					Bool joinedRoom = FALSE;
 					ClearGroupRoomList();
