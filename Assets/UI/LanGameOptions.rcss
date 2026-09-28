@@ -96,6 +96,14 @@ body
 .chat-body
 {
 	flex: 1 1 auto;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	padding: 4dp 6dp;
+}
+
+.chat-line
+{
+	display: block;
 }
 
 .chat-entry-row
@@ -115,10 +123,18 @@ body
 	padding: 4dp 6dp;
 }
 
-/* ---- Emote icon button (original is icon-only, no text label) -------------------------- */
+/* ---- Emote icon button (original ButtonEmote draws ReturnButton, no text label) --------- */
 .btn-emote
 {
 	width: 24dp;
 	height: 24dp;
+	padding: 0;
 	text-align: center;
+}
+
+.btn-emote mappedimage
+{
+	display: block;
+	width: 100%;
+	height: 100%;
 }

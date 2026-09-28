@@ -32,7 +32,7 @@
 					<div class="slot-name" data-if="row.is_human_occupant">{{row.player_name}}</div>
 					<select class="slot-color" data-value="row.color" data-attr-disabled="!row.can_edit || !row.is_occupied"
 						data-event-change="slot_color_changed(row.slot_index)">
-						<option data-for="opt : color_options" data-attr-value="opt.value" data-style-background-color="opt.label">&#160;&#160;&#160;&#160;</option>
+						<option data-for="opt : color_options" data-attr-value="opt.value"><span class="color-swatch" data-style-background-color="opt.label"></span></option>
 					</select>
 					<select class="slot-faction" data-if="!row.is_human_occupant" data-value="row.player_template"
 						data-attr-disabled="!row.can_edit || !row.is_occupied" data-attr-data-tooltip-text="row.faction_tooltip"
@@ -86,11 +86,11 @@
 
 		<div class="chat">
 			<div class="scroll-container chat-body">
-				<div data-for="line : chat_lines">{{line}}</div>
+				<div class="chat-line" data-for="line : chat_lines">{{line}}</div>
 			</div>
 			<div class="chat-entry-row">
 				<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-				<button class="btn-emote" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"></button>
+				<button class="btn-emote" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
 			</div>
 		</div>
 

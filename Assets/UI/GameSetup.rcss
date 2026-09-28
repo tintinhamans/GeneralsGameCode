@@ -100,6 +100,17 @@
 .slot-team { width: 19%; }
 .slot-name { color: #FFFFFF; font-weight: bold; }
 
+/* Color-slot swatch: an inner element carrying the data-style-background-color instead of the
+   <option>/selectvalue itself, so the colour survives RmlUi's <select> copying the chosen
+   option's content into its internal selectvalue element (task: "make the swatch survive that"). */
+.color-swatch
+{
+	display: block;
+	width: 100%;
+	height: 14dp;
+	border: 1dp rgba(255, 255, 255, 80);
+}
+
 /* common.rcss's .row/.label/.control assume a wide options panel (.label flex-grows, .control is a
    fixed 220dp); the 280dp side-panel here is too narrow for that, so the label wraps/overlaps the
    control. Shrink the label to its own text and let the control take what's left instead. */
