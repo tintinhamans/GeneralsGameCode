@@ -59,7 +59,17 @@ void RmlGameTextElement::OnAttributeChange(const Rml::ElementAttributes &changed
 {
 	Rml::Element::OnAttributeChange(changed_attributes);
 	if (changed_attributes.find("key") != changed_attributes.end())
+		m_dirty = true;
+}
+
+void RmlGameTextElement::OnUpdate()
+{
+	Rml::Element::OnUpdate();
+	if (m_dirty)
+	{
+		m_dirty = false;
 		refresh();
+	}
 }
 
 void RmlGameTextElement::refresh()
@@ -85,7 +95,17 @@ void RmlMappedImageElement::OnAttributeChange(const Rml::ElementAttributes &chan
 {
 	Rml::Element::OnAttributeChange(changed_attributes);
 	if (changed_attributes.find("name") != changed_attributes.end())
+		m_dirty = true;
+}
+
+void RmlMappedImageElement::OnUpdate()
+{
+	Rml::Element::OnUpdate();
+	if (m_dirty)
+	{
+		m_dirty = false;
 		refresh();
+	}
 }
 
 void RmlMappedImageElement::refresh()
@@ -128,7 +148,17 @@ void RmlMapPreviewElement::OnAttributeChange(const Rml::ElementAttributes &chang
 {
 	Rml::Element::OnAttributeChange(changed_attributes);
 	if (changed_attributes.find("map") != changed_attributes.end())
+		m_dirty = true;
+}
+
+void RmlMapPreviewElement::OnUpdate()
+{
+	Rml::Element::OnUpdate();
+	if (m_dirty)
+	{
+		m_dirty = false;
 		refresh();
+	}
 }
 
 void RmlMapPreviewElement::refresh()

@@ -52,9 +52,13 @@ public:
 
 protected:
 	virtual void OnAttributeChange(const Rml::ElementAttributes &changed_attributes) override;
+	virtual void OnUpdate() override;
 
 private:
 	void refresh();
+
+	// Rebuilt on update, after the parser has added any children (e.g. a <select> copying an option).
+	bool m_dirty = false;
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -66,9 +70,13 @@ public:
 
 protected:
 	virtual void OnAttributeChange(const Rml::ElementAttributes &changed_attributes) override;
+	virtual void OnUpdate() override;
 
 private:
 	void refresh();
+
+	// Rebuilt on update, after the parser has added any children (e.g. a <select> copying an option).
+	bool m_dirty = false;
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -80,7 +88,11 @@ public:
 
 protected:
 	virtual void OnAttributeChange(const Rml::ElementAttributes &changed_attributes) override;
+	virtual void OnUpdate() override;
 
 private:
 	void refresh();
+
+	// Rebuilt on update, after the parser has added any children (e.g. a <select> copying an option).
+	bool m_dirty = false;
 };
