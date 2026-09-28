@@ -8,7 +8,7 @@
 	<div class="frame hostgame-frame">
 		<div class="row">
 			<div class="label"><gametext key="GUI:GameName"/></div>
-			<input type="text" class="control hostgame-input" data-value="game_name"/>
+			<input type="text" class="control hostgame-input" data-value="game_name" maxlength="24"/>
 		</div>
 		<div class="row">
 			<div class="label"><gametext key="GUI:Password"/></div>
@@ -16,11 +16,11 @@
 		</div>
 		<div class="row">
 			<div class="label"><gametext key="GUI:UseStats"/></div>
-			<input class="control checkbox" type="checkbox" data-checked="use_stats"/>
+			<input class="control checkbox" type="checkbox" data-checked="use_stats" data-tooltip="TOOLTIP:UseStats"/>
 		</div>
 		<div class="row">
 			<div class="label"><gametext key="GUI:LimitArmies"/></div>
-			<input class="control checkbox" type="checkbox" data-checked="limit_armies"/>
+			<input class="control checkbox" type="checkbox" data-checked="limit_armies" data-tooltip="TOOLTIP:LimitArmies"/>
 		</div>
 		<div class="row">
 			<div class="label"><gametext key="GUI:AllowObservers"/></div>
