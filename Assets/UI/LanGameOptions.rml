@@ -30,10 +30,13 @@
 						<option value="4"><gametext key="GUI:HardAI"/></option>
 					</select>
 					<div class="slot-name" data-if="row.is_human_occupant">{{row.player_name}}</div>
-					<select class="slot-color" data-value="row.color" data-attr-disabled="!row.can_edit || !row.is_occupied"
-						data-event-change="slot_color_changed(row.slot_index)">
-						<option data-for="opt : color_options" data-attr-value="opt.value"><span class="color-swatch" data-style-background-color="opt.label"></span></option>
-					</select>
+					<div class="slot-color color-select">
+						<select data-value="row.color" data-attr-disabled="!row.can_edit || !row.is_occupied"
+							data-event-change="slot_color_changed(row.slot_index)">
+							<option data-for="opt : color_options" data-attr-value="opt.value"><span class="color-swatch" data-style-background-color="opt.label"></span></option>
+						</select>
+						<div class="color-chip" data-style-background-color="row.color_hex"></div>
+					</div>
 					<select class="slot-faction" data-if="!row.is_human_occupant" data-value="row.player_template"
 						data-attr-disabled="!row.can_edit || !row.is_occupied" data-attr-data-tooltip-text="row.faction_tooltip"
 						data-event-change="slot_faction_changed(row.slot_index)">
