@@ -45,9 +45,13 @@ namespace HostGameActions
 	// anything. On a non-empty name it writes CustomMatchPreferences (last lobby name, allow
 	// observers, limit armies, use stats), resolves the default/preferred map the same way
 	// createGame() does, calls NGMP_OnlineServices_LobbyInterface::CreateLobby(), and shows the
-	// "Creating Lobby" GSMessageBoxCancel(). The caller is still responsible for
-	// GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS) afterward, same as both GBM_SELECTED branches
-	// did (and, for the .wnd, for nulling its own parentPopup).
+	// "Creating Lobby" GSMessageBoxCancel(). Always closes GSOVERLAY_GAMEOPTIONS itself (both
+	// branches did in the original), so the caller only needs to clear its own parentPopup
+	// handle afterward.
 	void createGame( const UnicodeString &gameName, const UnicodeString &password,
 		bool allowObservers, bool useStats, bool limitArmies );
+
+	// Mirrors ButtonCancel's GBM_SELECTED body exactly: GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS)
+	// + SetLobbyAttemptHostJoin(FALSE).
+	void cancel();
 }

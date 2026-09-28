@@ -1,0 +1,36 @@
+/*
+	HostGame.rcss -- PopupHostGame.wnd (Create Game popup, GSOVERLAY_GAMEOPTIONS). Floating popup
+	over the online lobby, same body-centered pattern as PlayerInfo.rcss/QuitMenu.rcss. Reuses
+	common.rcss's .frame/.row/.label/.control/.button-lg/input.checkbox; only the text/password
+	inputs need a local class (same precedent as NetworkDirectConnect.rcss's .dc-input).
+*/
+
+body
+{
+	display: flex;
+	flex-direction: column;
+	width: 420dp;
+	left: 50%;
+	top: 50%;
+	margin-left: -210dp;
+	margin-top: -110dp;
+}
+
+.hostgame-frame
+{
+	display: flex;
+	flex-direction: column;
+}
+
+.hostgame-input
+{
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	color: #FFFFFF;
+	padding: 4dp 6dp;
+}
+
+.hostgame-input:focus
+{
+	border-color: #8080FF;
+}

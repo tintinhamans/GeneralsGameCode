@@ -32,6 +32,8 @@
 #include "W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
 #include "W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHostGameScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlJoinGameScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineLobbyScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineLoginScreen.h"
@@ -198,6 +200,9 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/QuitNoSave.wnd", &OpenRmlQuitNoSaveScreen, &CloseRmlQuitNoSaveScreen);
 	// GSOVERLAY_PLAYERINFO's .wnd path (see GameSpyOverlay.cpp's gsOverlays[] / GameSpyOpenOverlay()).
 	RmlUiScreenRegistry::registerScreen("Menus/PopupPlayerInfo.wnd", &OpenRmlPlayerInfoScreen, &CloseRmlPlayerInfoScreen);
+	// GSOVERLAY_GAMEOPTIONS/GSOVERLAY_GAMEPASSWORD's .wnd paths, same gsOverlays[] precedent.
+	RmlUiScreenRegistry::registerScreen("Menus/PopupHostGame.wnd", &OpenRmlHostGameScreen, &CloseRmlHostGameScreen);
+	RmlUiScreenRegistry::registerScreen("Menus/PopupJoinGame.wnd", &OpenRmlJoinGameScreen, &CloseRmlJoinGameScreen);
 
 	// GameLogicDispatch pushes this after a match/campaign mission ends; see RmlScoreScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/ScoreScreen.wnd", &OpenRmlScoreScreen, &CloseRmlScoreScreen);

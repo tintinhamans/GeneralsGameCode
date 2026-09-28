@@ -1,0 +1,54 @@
+/*
+	JoinGame.rcss -- PopupJoinGame.wnd (Join Game password popup, GSOVERLAY_GAMEPASSWORD). Floating
+	popup over the online lobby, same body-centered pattern as PlayerInfo.rcss/QuitMenu.rcss.
+*/
+
+body
+{
+	display: flex;
+	flex-direction: column;
+	width: 420dp;
+	left: 50%;
+	top: 50%;
+	margin-left: -210dp;
+	margin-top: -50dp;
+}
+
+.joingame-frame
+{
+	position: relative;
+	display: flex;
+	flex-direction: column;
+}
+
+.joingame-close
+{
+	position: absolute;
+	top: 2dp;
+	right: 2dp;
+	width: 24dp;
+	height: 24dp;
+	padding: 0;
+	text-align: center;
+	color: #FFBB00;
+	border-color: #FFBB00;
+}
+
+.joingame-close:hover
+{
+	color: #8080FF;
+	border-color: #8080FF;
+}
+
+.joingame-input
+{
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	color: #FFFFFF;
+	padding: 4dp 6dp;
+}
+
+.joingame-input:focus
+{
+	border-color: #8080FF;
+}

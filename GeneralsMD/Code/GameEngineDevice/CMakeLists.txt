@@ -65,6 +65,8 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlMessageBox.h
     Include/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlHostGameScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlJoinGameScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlOnlineLobbyScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlOnlineLoginScreen.h
@@ -203,6 +205,8 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlMessageBox.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlHostGameScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlJoinGameScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlOnlineLobbyScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlOnlineLoginScreen.cpp

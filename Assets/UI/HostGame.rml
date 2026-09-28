@@ -1,0 +1,36 @@
+<rml>
+<head>
+	<title>HostGame</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="HostGame.rcss"/>
+</head>
+<body data-model="hostgame">
+	<div class="frame hostgame-frame">
+		<div class="row">
+			<div class="label"><gametext key="GUI:GameName"/></div>
+			<input type="text" class="control hostgame-input" data-value="game_name"/>
+		</div>
+		<div class="row">
+			<div class="label"><gametext key="GUI:Password"/></div>
+			<input type="password" class="control hostgame-input" data-value="password" maxlength="16"/>
+		</div>
+		<div class="row">
+			<div class="label"><gametext key="GUI:UseStats"/></div>
+			<input class="control checkbox" type="checkbox" data-checked="use_stats"/>
+		</div>
+		<div class="row">
+			<div class="label"><gametext key="GUI:LimitArmies"/></div>
+			<input class="control checkbox" type="checkbox" data-checked="limit_armies"/>
+		</div>
+		<div class="row">
+			<div class="label"><gametext key="GUI:AllowObservers"/></div>
+			<input class="control checkbox" type="checkbox" data-checked="allow_observers"/>
+		</div>
+
+		<div class="footer footer-split">
+			<button class="button-lg" data-event-click="create_game"><gametext key="GUI:CreateGame"/></button>
+			<button class="button-lg" data-event-click="cancel"><gametext key="GUI:Cancel"/></button>
+		</div>
+	</div>
+</body>
+</rml>

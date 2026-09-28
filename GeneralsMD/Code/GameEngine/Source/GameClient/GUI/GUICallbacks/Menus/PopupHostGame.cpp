@@ -588,8 +588,12 @@ WindowMsgHandledType PopupHostGameSystem( GameWindow *window, UnsignedInt msg, W
       if( controlID == buttonCancelID )
 			{
 				parentPopup = nullptr;
+#if defined(GENERALS_ONLINE)
+				HostGameActions::cancel();
+#else
 				GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
 				SetLobbyAttemptHostJoin( FALSE );
+#endif
 			}
 			else if( controlID == buttonCreateGameID)
 			{
@@ -601,7 +605,6 @@ WindowMsgHandledType PopupHostGameSystem( GameWindow *window, UnsignedInt msg, W
 				Bool limitArmies = GadgetCheckBoxIsChecked(checkBoxLimitArmies);
 				HostGameActions::createGame(name, password, allowObs == TRUE, useStats == TRUE, limitArmies == TRUE);
 				parentPopup = nullptr;
-				GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
 #else
 				UnicodeString name;
 				name = GadgetTextEntryGetText(textEntryGameName);

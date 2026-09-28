@@ -40,6 +40,7 @@ namespace HostGameActions
 		if (name.isEmpty())
 		{
 			SetLobbyAttemptHostJoin(FALSE);
+			GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
 			GSMessageBoxOk(TheGameText->fetch("GUI:Error"), UnicodeString(L"Please enter a lobby name."), nullptr);
 			return;
 		}
@@ -93,12 +94,20 @@ namespace HostGameActions
 		if (!pLobbyInterface)
 		{
 			SetLobbyAttemptHostJoin(FALSE);
+			GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
 			GSMessageBoxOk(UnicodeString(L"Error"), UnicodeString(L"Failed to get Online Services Lobby Interface!"));
 			return;
 		}
 
 		pLobbyInterface->CreateLobby(name, md->m_displayName, md->m_fileName, md->m_isOfficial, md->m_numPlayers, limitArmies, useStats, TheGlobalData->m_defaultStartingCash.countMoney(), passwd.isNotEmpty(), std::string(passwd.str()), allowObservers);
 
+		GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
 		GSMessageBoxCancel(UnicodeString(L"Creating Lobby"), UnicodeString(L"Lobby Creation is in progress..."), nullptr);
+	}
+
+	void cancel()
+	{
+		GameSpyCloseOverlay(GSOVERLAY_GAMEOPTIONS);
+		SetLobbyAttemptHostJoin(FALSE);
 	}
 }
