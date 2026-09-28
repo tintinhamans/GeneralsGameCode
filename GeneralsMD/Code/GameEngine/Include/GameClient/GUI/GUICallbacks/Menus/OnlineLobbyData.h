@@ -99,6 +99,7 @@ namespace OnlineLobbyData
 		bool isFriend = false;
 		bool isIgnored = false;
 		bool isSelf = false;
+		bool isPendingRequest = false; // WOLBuddyOverlay's ITEM_REQUEST rows (a friend request from this user)
 		std::string displayName;
 		std::string sortKey; // lowercase display name
 	};
@@ -123,6 +124,8 @@ namespace OnlineLobbyData
 		PLAYERMENU_STATS = 0,        // ButtonStats: SetLookAtPlayer() + GSOVERLAY_PLAYERINFO
 		PLAYERMENU_TOGGLE_BUDDY,     // ButtonAdd/ButtonDelete depending on PlayerRow::isFriend
 		PLAYERMENU_TOGGLE_IGNORE,    // ButtonIgnore
+		PLAYERMENU_ACCEPT_REQUEST,   // RCBuddyRequestMenu.wnd ButtonAdd (GUI:AcceptSm, "ACCEPT")
+		PLAYERMENU_DENY_REQUEST,     // RCBuddyRequestMenu.wnd ButtonDelete (GUI:Deny, "Reject")
 	};
 
 	// One context-menu entry. labelKey is a GUI: string-table key ready for TheGameText->fetch()
@@ -137,8 +140,11 @@ namespace OnlineLobbyData
 	};
 
 	// Mirrors the GLM_RIGHT_CLICKED variant-selection: self -> RCLocalPlayerMenu (Stats only), no
-	// profile (userID <= 0) -> RCNoProfileMenu (Ignore only), otherwise RCBuddiesMenu/
-	// RCNonBuddiesMenu (Stats, buddy toggle, Ignore) depending on PlayerRow::isFriend.
+	// profile (userID <= 0) -> RCNoProfileMenu (Ignore only), a pending incoming request ->
+	// RCBuddyRequestMenu (Accept/Deny only, WOLBuddyOverlay.cpp's ITEM_REQUEST branch -- this
+	// overlay's port needed this pair added since the lobby's own roster never showed request
+	// rows), otherwise RCBuddiesMenu/RCNonBuddiesMenu (Stats, buddy toggle, Ignore) depending on
+	// PlayerRow::isFriend.
 	std::vector<PlayerMenuItem> buildPlayerContextMenu( const PlayerRow &player );
 
 	// One entry of the group-room combo (see PopulateLobbyFilterComboBox()'s room section). Plain/

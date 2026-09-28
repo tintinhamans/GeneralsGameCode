@@ -154,6 +154,14 @@ std::vector<PlayerMenuItem> buildPlayerContextMenu( const PlayerRow &player )
 		return items;
 	}
 
+	if ( player.isPendingRequest )
+	{
+		// RCBuddyRequestMenu.wnd: Accept/Deny only (WOLBuddyOverlay.cpp's ITEM_REQUEST branch).
+		items.push_back( { PLAYERMENU_ACCEPT_REQUEST, "GUI:AcceptSm" } );
+		items.push_back( { PLAYERMENU_DENY_REQUEST, "GUI:Deny" } );
+		return items;
+	}
+
 	// RCBuddiesMenu.wnd / RCNonBuddiesMenu.wnd: Persona, buddy toggle, Ignore, in that order.
 	items.push_back( { PLAYERMENU_STATS, "GUI:Stats" } );
 	items.push_back( { PLAYERMENU_TOGGLE_BUDDY, player.isFriend ? "GUI:Delete" : "GUI:Add" } );

@@ -245,6 +245,20 @@ void performPlayerMenuAction( OnlineLobbyData::PlayerMenuAction action, const On
 				pSocialInterface->IgnoreUser( player.userID );
 			break;
 		}
+		case OnlineLobbyData::PLAYERMENU_ACCEPT_REQUEST:
+		{
+			NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+			if ( pSocialInterface != nullptr )
+				pSocialInterface->AcceptPendingRequest( player.userID );
+			break;
+		}
+		case OnlineLobbyData::PLAYERMENU_DENY_REQUEST:
+		{
+			NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+			if ( pSocialInterface != nullptr )
+				pSocialInterface->RejectPendingRequest( player.userID );
+			break;
+		}
 	}
 }
 

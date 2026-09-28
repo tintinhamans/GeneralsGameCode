@@ -89,7 +89,10 @@ namespace OnlineLobbyActions
 	// GSOVERLAY_PLAYERINFO overlay (RmlPlayerInfoScreen, once registered), PLAYERMENU_TOGGLE_BUDDY
 	// calls RequestBuddyAdd()/SocialInterface::RemoveFriend() depending on isFriend,
 	// PLAYERMENU_TOGGLE_IGNORE calls SocialInterface::IgnoreUser()/UnignoreUser() depending on
-	// isIgnored. Caller refreshes its own player list afterward (this lobby has no
+	// isIgnored, PLAYERMENU_ACCEPT_REQUEST/PLAYERMENU_DENY_REQUEST call
+	// SocialInterface::AcceptPendingRequest()/RejectPendingRequest() (RCBuddyRequestMenu.wnd's
+	// ButtonAdd/ButtonDelete, same calls BuddyOverlayActions::acceptRequest()/rejectRequest() make).
+	// Caller refreshes its own player list afterward (this lobby has no
 	// PopulateLobbyPlayerListbox()/listboxIgnore/listboxBuddies GameWindow to repopulate).
 	void performPlayerMenuAction( OnlineLobbyData::PlayerMenuAction action, const OnlineLobbyData::PlayerRow &player );
 
