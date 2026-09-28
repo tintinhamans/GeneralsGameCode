@@ -42,9 +42,18 @@ body
 	padding: 4dp 6dp;
 }
 
+/* the data-for wraps each line in its own anonymous <div>; without an explicit width that wrapper
+   computes to 0 wide inside the scrolling (overflow-y:auto) motd-list, so its text child renders
+   as one unbroken unwrapped line spilling far past the panel (audit: OVERFLOW div.motd-line). */
+.motd-list > div
+{
+	width: 100%;
+}
+
 .motd-line
 {
 	display: block;
+	width: 100%;
 	padding: 1dp 0;
 	white-space: pre-line;
 	/* color comes from data-style-color (line.color_hex), matching the .wnd's per-line
@@ -107,6 +116,9 @@ body
 .rank-border
 {
 	position: relative;
+	box-sizing: border-box; /* declared width/height must include the border, or this (and its
+		border-box child .rank-progress below) overflow rank-column by the border width
+		(audit: OVERFLOW div.rank-border / div.rank-progress) */
 	width: 128dp;
 	height: 156dp;
 	background-color: #020280;
@@ -117,7 +129,9 @@ body
 {
 	display: block;
 	position: relative;
-	width: 128dp;
+	box-sizing: border-box;
+	width: 100%; /* fill rank-border's content box exactly, instead of duplicating its 128dp and
+		overflowing once rank-border switched to box-sizing:border-box */
 	height: 128dp;
 	border-bottom: 1dp #2E37A8;
 }
@@ -125,7 +139,7 @@ body
 .rank-image
 {
 	display: block;
-	width: 128dp;
+	width: 100%;
 	height: 128dp;
 }
 
@@ -143,9 +157,10 @@ body
 {
 	display: block;
 	position: absolute;
+	box-sizing: border-box;
 	left: 0;
 	bottom: 0;
-	width: 128dp;
+	width: 100%; /* fill rank-border's content box exactly, see .rank-image-wrap above */
 	height: 24dp;
 	background-color: rgba(2, 2, 2, 164);
 	border: 1dp #FFBB00;
@@ -181,7 +196,11 @@ body
 	flex-direction: row;
 	flex-wrap: wrap;
 	align-content: flex-start;
-	flex: 1 1 auto;
+	flex: 1 1 0%; /* basis 0, not auto -- with an intrinsic (content-driven) basis the wrapped grid's
+		own min-content height wins over its flex-grow share and it overflows onto whatever sits
+		below the panel (audit: OVERFLOW div.stats-grid -- win-grid spilling onto the MAIN MENU
+		button); starting from a 0 basis and growing avoids that shrink-from-content path */
+	min-height: 0;
 	background-color: rgba(0, 64, 64, 140);
 	border: 1dp #2F37A8;
 	padding: 6dp;
