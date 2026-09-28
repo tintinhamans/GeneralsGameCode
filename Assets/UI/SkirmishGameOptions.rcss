@@ -61,6 +61,7 @@
 
 .honors-panel
 {
+	display: block;
 	margin-top: 12dp;
 	padding-top: 8dp;
 	border-top: 1dp #2F37A8;
@@ -68,6 +69,7 @@
 
 .honors-row
 {
+	display: block;
 	color: #C0C0C0;
 	padding: 2dp 0;
 }

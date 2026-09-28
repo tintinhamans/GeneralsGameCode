@@ -13,13 +13,13 @@
 			<div class="slot-list">
 				<div class="slot-row slot-header">
 					<div class="slot-occupant"><gametext key="GUI:Players"/></div>
-					<div class="slot-faction"><gametext key="GUI:Faction"/></div>
 					<div class="slot-color"><gametext key="GUI:Color"/></div>
+					<div class="slot-faction"><gametext key="GUI:Faction"/></div>
 					<div class="slot-team"><gametext key="GUI:Team"/></div>
 					<div class="slot-accept"></div>
 				</div>
 				<div class="slot-row" data-for="row : slots">
-					<select class="slot-occupant" data-value="row.occupant_state" data-attr-disabled="!row.can_edit_occupant"
+					<select class="slot-occupant" data-if="!row.is_human_occupant" data-value="row.occupant_state" data-attr-disabled="!row.can_edit_occupant"
 						data-attr-data-tooltip-text="row.player_tooltip" data-event-change="slot_occupant_changed(row.slot_index)">
 						<option value="0"><gametext key="GUI:Open"/></option>
 						<option value="1"><gametext key="GUI:Closed"/></option>
@@ -28,16 +28,16 @@
 						<option value="4"><gametext key="GUI:HardAI"/></option>
 					</select>
 					<div class="slot-name" data-if="row.is_human_occupant">{{row.player_name}}</div>
+					<select class="slot-color" data-value="row.color" data-attr-disabled="!row.can_edit || !row.is_occupied"
+						data-event-change="slot_color_changed(row.slot_index)">
+						<option data-for="opt : color_options" data-attr-value="opt.value" data-style-background-color="opt.label">&#160;&#160;&#160;&#160;</option>
+					</select>
 					<select class="slot-faction" data-if="!row.is_human_occupant" data-value="row.player_template"
 						data-attr-disabled="!row.can_edit || !row.is_occupied" data-attr-data-tooltip-text="row.faction_tooltip"
 						data-event-change="slot_faction_changed(row.slot_index)">
 						<option data-for="opt : faction_options" data-attr-value="opt.value">{{opt.label}}</option>
 					</select>
 					<div class="slot-faction" data-if="row.is_human_occupant" data-attr-data-tooltip-text="row.faction_tooltip">{{row.faction_label}}</div>
-					<select class="slot-color" data-value="row.color" data-attr-disabled="!row.can_edit || !row.is_occupied"
-						data-event-change="slot_color_changed(row.slot_index)">
-						<option data-for="opt : color_options" data-attr-value="opt.value" data-style-background-color="opt.label">&#160;&#160;&#160;&#160;</option>
-					</select>
 					<select class="slot-team" data-value="row.team_number" data-attr-disabled="!row.can_edit || !row.is_occupied"
 						data-event-change="slot_team_changed(row.slot_index)">
 						<option value="-1"><gametext key="Team:0"/></option>
