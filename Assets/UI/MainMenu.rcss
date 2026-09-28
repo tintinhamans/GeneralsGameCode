@@ -9,20 +9,32 @@
 
 body { width: 100%; height: 100%; }
 
+/* .shell-frame is already the full blueprint panel (see common.rcss); MainMenu has no
+   title-bar/footer of its own, just the logo + button column floating over it like the
+   original MainMenu.wnd. */
+.mainmenu-frame
+{
+	display: block;
+}
+
 .logo
 {
 	position: absolute;
-	top: 24dp;
-	right: 40dp;
-	width: 360dp;
-	height: 110dp;
+	top: 16dp;
+	right: 24dp;
+	width: 30%;
+	min-width: 320dp;
+	max-width: 480dp;
+	height: 15%;
+	min-height: 100dp;
+	max-height: 150dp;
 }
 
 .version
 {
 	position: absolute;
-	bottom: 12dp;
-	right: 16dp;
+	bottom: 8dp;
+	right: 12dp;
 	font-size: 12dp;
 	color: #C0C0C0;
 }
@@ -30,10 +42,12 @@ body { width: 100%; height: 100%; }
 .panels-stack
 {
 	position: absolute;
-	top: 150dp;
-	right: 40dp;
-	width: 320dp;
-	height: 420dp;
+	top: 30%;
+	right: 24dp;
+	width: 30%;
+	min-width: 320dp;
+	max-width: 480dp;
+	height: 60%;
 	padding: 0; /* panels below carry their own padding so the crossfade doesn't shift content */
 }
 

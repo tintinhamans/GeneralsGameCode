@@ -5,72 +5,76 @@
 	<link type="text/rcss" href="MainMenu.rcss"/>
 </head>
 <body data-model="mainmenu">
-	<mappedimage name="GeneralsLogo" class="logo"/>
-	<div class="version">{{ version }}</div>
+	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
-	<div class="frame panels-stack">
-		<!-- Root -->
-		<div class="panel" data-class-active="panel == 'main'">
-			<div class="menu-list">
-				<button data-event-click="go_single"><gametext key="GUI:SinglePlayer"/></button>
-				<button data-event-click="go_multi"><gametext key="GUI:Multiplayer"/></button>
-				<button data-event-click="go_loadreplay"><gametext key="GUI:ReplayMenu"/></button>
-				<button data-event-click="go_options"><gametext key="GUI:Options"/></button>
-				<button data-event-click="go_credits"><gametext key="GUI:Credits"/></button>
-				<button data-event-click="go_exit"><gametext key="GUI:Exit"/></button>
-			</div>
-		</div>
+	<div class="shell-frame mainmenu-frame">
+		<mappedimage name="GeneralsLogo" class="logo"/>
+		<div class="version">{{ version }}</div>
 
-		<!-- Single player: skirmish, campaign faction pick, Generals Challenge -->
-		<div class="panel" data-class-active="panel == 'single'">
-			<!-- Faction hover previews: MainMenu.cpp's GBM_MOUSE_ENTERING/LEAVING art, crossfaded via CSS. -->
-			<div class="faction-preview">
-				<mappedimage name="SAFactionLogo144_US" data-class-visible="hover_faction == 'USA'"/>
-				<mappedimage name="SUFactionLogo144_GLA" data-class-visible="hover_faction == 'GLA'"/>
-				<mappedimage name="SNFactionLogo144_China" data-class-visible="hover_faction == 'China'"/>
-				<mappedimage name="Training144" data-class-visible="hover_faction == 'Training'"/>
+		<div class="panels-stack">
+			<!-- Root -->
+			<div class="panel" data-class-active="panel == 'main'">
+				<div class="menu-list">
+					<button class="button-lg" data-event-click="go_single"><gametext key="GUI:SinglePlayer"/></button>
+					<button class="button-lg" data-event-click="go_multi"><gametext key="GUI:Multiplayer"/></button>
+					<button class="button-lg" data-event-click="go_loadreplay"><gametext key="GUI:ReplayMenu"/></button>
+					<button class="button-lg" data-event-click="go_options"><gametext key="GUI:Options"/></button>
+					<button class="button-lg" data-event-click="go_credits"><gametext key="GUI:Credits"/></button>
+					<button class="button-lg" data-event-click="go_exit"><gametext key="GUI:Exit"/></button>
+				</div>
 			</div>
-			<div class="menu-list">
-				<button data-event-click="go_skirmish" data-tooltip="GUI:SkirmishLower"><gametext key="GUI:Skirmish"/></button>
-				<button data-event-click="select_usa" data-event-mouseover="preview_usa" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign3"><gametext key="GUI:USA"/></button>
-				<button data-event-click="select_gla" data-event-mouseover="preview_gla" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign2"><gametext key="GUI:GLA"/></button>
-				<button data-event-click="select_china" data-event-mouseover="preview_china" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign1"><gametext key="GUI:CHINA_Caps"/></button>
-				<button data-event-click="select_challenge" data-event-mouseover="preview_challenge" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:ChallengeButton"><gametext key="GUI:Generals_Challenge"/></button>
-				<button class="back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
-			</div>
-		</div>
 
-		<!-- Multiplayer -->
-		<div class="panel" data-class-active="panel == 'multi'">
-			<div class="menu-list">
-				<button data-event-click="go_online"><gametext key="GUI:GeneralsOnline"/></button>
-				<button data-event-click="go_network"><gametext key="GUI:Network"/></button>
-				<button class="back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
+			<!-- Single player: skirmish, campaign faction pick, Generals Challenge -->
+			<div class="panel" data-class-active="panel == 'single'">
+				<!-- Faction hover previews: MainMenu.cpp's GBM_MOUSE_ENTERING/LEAVING art, crossfaded via CSS. -->
+				<div class="faction-preview">
+					<mappedimage name="SAFactionLogo144_US" data-class-visible="hover_faction == 'USA'"/>
+					<mappedimage name="SUFactionLogo144_GLA" data-class-visible="hover_faction == 'GLA'"/>
+					<mappedimage name="SNFactionLogo144_China" data-class-visible="hover_faction == 'China'"/>
+					<mappedimage name="Training144" data-class-visible="hover_faction == 'Training'"/>
+				</div>
+				<div class="menu-list">
+					<button class="button-lg" data-event-click="go_skirmish" data-tooltip="GUI:SkirmishLower"><gametext key="GUI:Skirmish"/></button>
+					<button class="button-lg" data-event-click="select_usa" data-event-mouseover="preview_usa" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign3"><gametext key="GUI:USA"/></button>
+					<button class="button-lg" data-event-click="select_gla" data-event-mouseover="preview_gla" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign2"><gametext key="GUI:GLA"/></button>
+					<button class="button-lg" data-event-click="select_china" data-event-mouseover="preview_china" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign1"><gametext key="GUI:CHINA_Caps"/></button>
+					<button class="button-lg" data-event-click="select_challenge" data-event-mouseover="preview_challenge" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:ChallengeButton"><gametext key="GUI:Generals_Challenge"/></button>
+					<button class="back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
+				</div>
 			</div>
-		</div>
 
-		<!-- Load/Replay -->
-		<div class="panel" data-class-active="panel == 'loadreplay'">
-			<div class="menu-list">
-				<button data-event-click="go_load_game"><gametext key="GUI:MainMenuLoadGame"/></button>
-				<button data-event-click="go_replay"><gametext key="GUI:MainMenuLoadReplay"/></button>
-				<button class="back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
+			<!-- Multiplayer -->
+			<div class="panel" data-class-active="panel == 'multi'">
+				<div class="menu-list">
+					<button class="button-lg" data-event-click="go_online"><gametext key="GUI:GeneralsOnline"/></button>
+					<button class="button-lg" data-event-click="go_network"><gametext key="GUI:Network"/></button>
+					<button class="back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
+				</div>
 			</div>
-		</div>
 
-		<!-- Campaign difficulty select (reached from single player's faction/challenge buttons) -->
-		<div class="panel" data-class-active="panel == 'difficulty'">
-			<div class="faction-art">
-				<mappedimage name="SAFactionLogo144_US" data-class-hidden="selected_faction != 'USA'"/>
-				<mappedimage name="SUFactionLogo144_GLA" data-class-hidden="selected_faction != 'GLA'"/>
-				<mappedimage name="SNFactionLogo144_China" data-class-hidden="selected_faction != 'China'"/>
+			<!-- Load/Replay -->
+			<div class="panel" data-class-active="panel == 'loadreplay'">
+				<div class="menu-list">
+					<button class="button-lg" data-event-click="go_load_game"><gametext key="GUI:MainMenuLoadGame"/></button>
+					<button class="button-lg" data-event-click="go_replay"><gametext key="GUI:MainMenuLoadReplay"/></button>
+					<button class="back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
+				</div>
 			</div>
-			<div class="menu-list">
-				<div class="section-title"><gametext key="GUI:SelectDifficulty"/></div>
-				<button data-event-click="select_easy"><gametext key="GUI:EasyCaps"/></button>
-				<button data-event-click="select_medium"><gametext key="GUI:MediumDifficultyCaps"/></button>
-				<button data-event-click="select_hard"><gametext key="GUI:HardCaps"/></button>
-				<button class="back" data-event-click="diff_back"><gametext key="GUI:Back"/></button>
+
+			<!-- Campaign difficulty select (reached from single player's faction/challenge buttons) -->
+			<div class="panel" data-class-active="panel == 'difficulty'">
+				<div class="faction-art">
+					<mappedimage name="SAFactionLogo144_US" data-class-hidden="selected_faction != 'USA'"/>
+					<mappedimage name="SUFactionLogo144_GLA" data-class-hidden="selected_faction != 'GLA'"/>
+					<mappedimage name="SNFactionLogo144_China" data-class-hidden="selected_faction != 'China'"/>
+				</div>
+				<div class="menu-list">
+					<div class="section-title"><gametext key="GUI:SelectDifficulty"/></div>
+					<button class="button-lg" data-event-click="select_easy"><gametext key="GUI:EasyCaps"/></button>
+					<button class="button-lg" data-event-click="select_medium"><gametext key="GUI:MediumDifficultyCaps"/></button>
+					<button class="button-lg" data-event-click="select_hard"><gametext key="GUI:HardCaps"/></button>
+					<button class="back" data-event-click="diff_back"><gametext key="GUI:Back"/></button>
+				</div>
 			</div>
 		</div>
 	</div>

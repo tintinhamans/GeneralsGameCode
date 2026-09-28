@@ -125,6 +125,14 @@ button:disabled, .button.disabled
 	border-color: #6A6A6A;
 }
 
+/* Large, prominent button (main menu list, footer primary/secondary actions) -- the .wnd
+   originals use big chunky buttons, not the compact ~28dp controls above. */
+.button-lg
+{
+	padding: 14dp 24dp;
+	font-size: 18dp;
+}
+
 /* ---- Dropdown (select) --------------------------------------------------------------- */
 select
 {
@@ -196,6 +204,18 @@ input.checkbox:checked
 .footer button
 {
 	margin-left: 8dp;
+}
+
+/* Primary action left, secondary (Main Menu) right -- matches the .wnd originals (e.g.
+   Skirmish's Play Game / Main Menu) instead of grouping both buttons at the right edge. */
+.footer-split
+{
+	justify-content: space-between;
+}
+
+.footer-split button
+{
+	margin-left: 0;
 }
 
 /* ---- Shell frame: full-screen blueprint background + bordered panel ------------------
