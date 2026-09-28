@@ -56,6 +56,20 @@ namespace
 }
 
 //-------------------------------------------------------------------------------------------------
+NGMPGame *getCurrentGame()
+{
+	NGMP_OnlineServices_LobbyInterface *pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	return pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+}
+
+//-------------------------------------------------------------------------------------------------
+Bool isHost()
+{
+	NGMP_OnlineServices_LobbyInterface *pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	return pLobbyInterface != nullptr && pLobbyInterface->IsHost();
+}
+
+//-------------------------------------------------------------------------------------------------
 void prepareGameState()
 {
 	NGMP_OnlineServices_LobbyInterface *pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();

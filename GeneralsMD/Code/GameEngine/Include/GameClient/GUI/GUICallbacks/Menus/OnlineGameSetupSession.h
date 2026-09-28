@@ -43,9 +43,16 @@
 #include <functional>
 
 class UnicodeString;
+class NGMPGame;
 
 namespace OnlineGameSetupSession
 {
+	// Plain wrappers around NGMP_OnlineServices_LobbyInterface so a GameEngineDevice caller
+	// (RmlOnlineGameSetupScreen) can get at "the current lobby game"/"am I host" without ever
+	// including NGMP_interfaces.h itself, which can't coexist with windows.h in the same TU.
+	NGMPGame *getCurrentGame();
+	Bool isHost();
+
 	// Every write the async NGMP callbacks and the per-frame update used to make
 	// straight to a GameWindow now happens through here instead -- same shape as
 	// OnlineGameSetupActions::StartPressCallbacks, just covering the lifecycle/event
