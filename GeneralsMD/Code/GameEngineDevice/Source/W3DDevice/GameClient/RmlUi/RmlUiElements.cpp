@@ -119,7 +119,7 @@ void RmlMappedImageElement::refresh()
 		return;
 
 	// UV coords are normalized [0,1] over the atlas page; <img rect="..."> wants pixel
-	// coordinates (left top right bottom), so scale by the page's own dimensions.
+	// coordinates (x y width height), so scale by the page's own dimensions.
 	const Region2D *uv = image->getUV();
 	const ICoord2D *texSize = image->getTextureSize();
 	int left = (int)(uv->lo.x * texSize->x);
@@ -130,7 +130,7 @@ void RmlMappedImageElement::refresh()
 	char rml[512];
 	_snprintf_s(rml, sizeof(rml), _TRUNCATE,
 		"<img style=\"width:100%%;height:100%%;\" src=\"%s\" rect=\"%d %d %d %d\"/>",
-		image->getFilename().str(), left, top, right, bottom);
+		image->getFilename().str(), left, top, right - left, bottom - top);
 
 	SetInnerRML(rml);
 }
@@ -190,7 +190,7 @@ void RmlMapPreviewElement::refresh()
 	char rml[512];
 	_snprintf_s(rml, sizeof(rml), _TRUNCATE,
 		"<img style=\"width:100%%;height:100%%;\" src=\"%s\" rect=\"%d %d %d %d\"/>",
-		image->getFilename().str(), left, top, right, bottom);
+		image->getFilename().str(), left, top, right - left, bottom - top);
 
 	SetInnerRML(rml);
 }
