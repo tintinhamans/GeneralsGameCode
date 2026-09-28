@@ -643,21 +643,35 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 
 	// TODO_QUICKMATCH
 #if defined(GENERALS_ONLINE)
-	std::list<AsciiString> maps;
-	Int numPlayers = 0;
+	// Shared with RmlQuickMatchScreen.cpp's refreshMapsForPlaylist() -- see QuickMatchActions::
+	// getMapSelectOptions() for the playlist-index -> map-paths resolution + per-map filtering +
+	// pref-driven initial selection this used to reimplement inline (and had drifted from
+	// saveQuickMatchOptions()'s copy: this one alone handled custom/non-official map paths).
 	Int playlistIndex = -1;
 	GadgetComboBoxGetSelectedPos(comboBoxNumPlayers, &playlistIndex);
 
-	QuickMatchData::PlaylistMapInfo plMapInfo = QuickMatchActions::getPlaylistMapInfo(playlistIndex);
-	if (plMapInfo.m_valid)
+	std::vector<QuickMatchData::MapOption> options = QuickMatchActions::getMapSelectOptions(playlistIndex);
+
+	GadgetListBoxReset(listboxMapSelect);
+	for (const QuickMatchData::MapOption &option : options)
 	{
-		maps = plMapInfo.m_mapPaths;
-		numPlayers = plMapInfo.m_numPlayers;
+		const MapMetaData *md = TheMapCache->findMap(option.mapPath);
+		Bool isSelected = option.initiallySelected;
+		Int width = 10;
+		Int height = 10;
+		const Image *img = (isSelected)?selectedImage:unselectedImage;
+		if ( img )
+		{
+			width = min(GadgetListBoxGetColumnWidth(listboxMapSelect, 0), img->getImageWidth());
+			height = width;
+		}
+		Int index = GadgetListBoxAddEntryImage(listboxMapSelect, img, -1, 0, height, width);
+		GadgetListBoxAddEntryText(listboxMapSelect, option.displayName, GameSpyColor[(isSelected)?GSCOLOR_MAP_SELECTED:GSCOLOR_MAP_UNSELECTED], index, 1);
+		GadgetListBoxSetItemData(listboxMapSelect, (void *)isSelected, index);
+		GadgetListBoxSetItemData(listboxMapSelect, (void *)md, index, 1);
 	}
-	// else TODO_QUICKMATCH: Error?
 #else
 	std::list<AsciiString> maps = TheGameSpyConfig->getQMMaps();
-#endif
 
 	// enable/disable box based on ladder status
 	Int index;
@@ -667,8 +681,6 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 	const LadderInfo *li = TheLadderList->findLadderByIndex( index );
 	//listboxMapSelect->winEnable( li == nullptr || li->randomMaps == FALSE );
 
-	// GO does this differently (and does it above)
-#if !defined(GENERALS_ONLINE)
 	Int numPlayers = 0;
 	if (li)
 	{
@@ -683,8 +695,6 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 			selected = 0;
 		numPlayers = (selected+1)*2;
 	}
-#endif
-
 
 	GadgetListBoxReset(listboxMapSelect);
 	for (std::list<AsciiString>::const_iterator it = maps.begin(); it != maps.end(); ++it)
@@ -712,6 +722,7 @@ static void populateQuickMatchMapSelectListbox( QuickMatchPreferences& pref )
 			GadgetListBoxSetItemData(listboxMapSelect, (void *)md, index, 1);
 		}
 	}
+#endif
 }
 
 static void saveQuickMatchOptions()
@@ -721,31 +732,12 @@ static void saveQuickMatchOptions()
 	QuickMatchPreferences pref;
 
 #if defined(GENERALS_ONLINE)
-	Int numPlayers = 0;
-	std::list<AsciiString> maps;
+	// Map selections are saved below, after this function's own pref.write() -- see the comment there
+	// for why QuickMatchActions::saveMapSelections() (which loads/writes its own QuickMatchPreferences)
+	// can't run in the middle of this one's accumulated setters.
 	Int selected = -1;
 	GadgetComboBoxGetSelectedPos(comboBoxNumPlayers, &selected);
-
 	QuickMatchData::PlaylistMapInfo plMapInfo = QuickMatchActions::getPlaylistMapInfo(selected);
-	if (plMapInfo.m_valid)
-	{
-		numPlayers = plMapInfo.m_numPlayers;
-		maps = plMapInfo.m_mapPaths;
-
-		// ladder
-		pref.setLastLadder(AsciiString::TheEmptyString, 0);
-
-		// map
-		Int row = 0;
-		Int entries = GadgetListBoxGetNumEntries(listboxMapSelect);
-		while (row < entries)
-		{
-			const MapMetaData* md = (const MapMetaData*)GadgetListBoxGetItemData(listboxMapSelect, row, 1);
-			if (md)
-				pref.setMapSelected(md->m_fileName, (Bool)GadgetListBoxGetItemData(listboxMapSelect, row));
-			row++;
-		}
-	}
 	// else TODO_QUICKMATCH: Error?
 #else
 	std::list<AsciiString> maps = TheGameSpyConfig->getQMMaps();
@@ -822,6 +814,33 @@ static void saveQuickMatchOptions()
 
 
 	pref.write();
+
+#if defined(GENERALS_ONLINE)
+	// Shared with RmlQuickMatchScreen.cpp's hide(): writes each map's selected state + clears the
+	// last-ladder preference (QuickMatch under GO never uses a ladder). Deferred until after this
+	// function's own pref.write() above -- QuickMatchActions::saveMapSelections() loads/writes its own
+	// QuickMatchPreferences instance, so calling it earlier would get clobbered by the stale-loaded
+	// local `pref` here writing over it.
+	if (plMapInfo.m_valid)
+	{
+		std::vector<QuickMatchData::MapOption> maps;
+		Int row = 0;
+		Int entries = GadgetListBoxGetNumEntries(listboxMapSelect);
+		while (row < entries)
+		{
+			const MapMetaData *md = (const MapMetaData *)GadgetListBoxGetItemData(listboxMapSelect, row, 1);
+			if (md)
+			{
+				QuickMatchData::MapOption option;
+				option.mapPath = md->m_fileName;
+				option.initiallySelected = (Bool)GadgetListBoxGetItemData(listboxMapSelect, row);
+				maps.push_back(option);
+			}
+			row++;
+		}
+		QuickMatchActions::saveMapSelections(maps);
+	}
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------

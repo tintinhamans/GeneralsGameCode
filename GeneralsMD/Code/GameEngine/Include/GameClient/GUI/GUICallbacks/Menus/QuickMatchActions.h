@@ -93,4 +93,35 @@ namespace QuickMatchActions
 	// (Quick Match under GO never uses a ladder). Called once when the screen closes, same lifetime as the
 	// .wnd's WOLQuickMatchMenuShutdown() -> saveQuickMatchOptions() call.
 	void saveMapSelections( const std::vector<QuickMatchData::MapOption> &maps );
+
+	// The five combos below (ComboBoxLadder/MaxPing/MaxDisconnects/Side/Color) are populated and then
+	// immediately force-disabled every Init under GENERALS_ONLINE (WOLQuickMatchMenu.cpp:1119-1130) --
+	// real, populated controls whose values never reach an actual GO match, not dead placeholders. These
+	// mirror the .wnd's own population functions so the RmlUi screen can show the same thing in its
+	// disabled selects instead of inventing new placeholder text. The .wnd keeps its own
+	// populateQMSideComboBox()/populateQMColorComboBox() (they also drive the non-GO code path via a
+	// live LadderInfo*, which these widget-agnostic mirrors don't need since GO's ladder never resolves).
+
+	// Mirrors WOLQuickMatchMenu.cpp:957-994's no-ladders-found branch, which is the only branch reachable
+	// under GENERALS_ONLINE (TheLadderList is always empty there): a single disabled entry, "Automatic
+	// Ladder" (hardcoded literal in the .wnd too, not a GameText key).
+	std::vector<QuickMatchData::ComboOption> getLadderOptions();
+
+	// Mirrors ComboBoxMaxPing's population exactly (WOLQuickMatchMenu.cpp:1071-1091): under
+	// GENERALS_ONLINE maxPingEntries is 0 (ping filtering isn't supported), so the ms-step loop never
+	// runs and GUI:ANY is the only entry.
+	std::vector<QuickMatchData::ComboOption> getMaxPingOptions();
+
+	// Mirrors ComboBoxMaxDisconnects' population exactly (WOLQuickMatchMenu.cpp:1061-1069): GUI:Any plus
+	// 5/10/25/50, selected by favMaxDisconnects (QuickmatchPreferences::getMaxDisconnects()).
+	std::vector<QuickMatchData::ComboOption> getMaxDisconnectsOptions( Int favMaxDisconnects );
+
+	// Mirrors populateQMSideComboBox() exactly (WOLQuickMatchMenu.cpp:340-399) with li == nullptr (GO
+	// never resolves a ladder, so the li-driven faction filtering/disable never applies there). value is
+	// PLAYERTEMPLATE_RANDOM or the player-template index (QuickmatchPreferences::getSide() key).
+	std::vector<QuickMatchData::ComboOption> getSideOptions( Int favSide );
+
+	// Mirrors populateQMColorComboBox() exactly (WOLQuickMatchMenu.cpp:314-336). value is -1 (random) or
+	// the multiplayer color index (QuickmatchPreferences::getColor() key).
+	std::vector<QuickMatchData::ComboOption> getColorOptions( Int favColor );
 }

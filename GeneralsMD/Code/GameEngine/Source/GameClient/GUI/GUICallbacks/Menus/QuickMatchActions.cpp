@@ -26,15 +26,20 @@
 #include "GameClient/GUI/GUICallbacks/Menus/QuickMatchActions.h"
 
 #include "Common/GlobalData.h"
+#include "Common/MultiplayerSettings.h"
+#include "Common/PlayerTemplate.h"
 #include "Common/QuickmatchPreferences.h"
+#include "GameClient/ChallengeGenerals.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MapUtil.h"
+#include "GameNetwork/GameInfo.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_Auth.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_MatchmakingInterface.h"
 
 #include <format>
+#include <set>
 
 namespace QuickMatchActions
 {
@@ -200,6 +205,153 @@ void saveMapSelections( const std::vector<QuickMatchData::MapOption> &maps )
 		pref.setMapSelected( map.mapPath, map.initiallySelected );
 
 	pref.write();
+}
+
+//-------------------------------------------------------------------------------------------------
+std::vector<QuickMatchData::ComboOption> getLadderOptions()
+{
+	// Mirrors WOLQuickMatchMenu.cpp:957-994's no-ladders-found branch -- the only one reachable under
+	// GENERALS_ONLINE, since TheLadderList is always empty there.
+	std::vector<QuickMatchData::ComboOption> options;
+
+	QuickMatchData::ComboOption option;
+	option.label = UnicodeString( L"Automatic Ladder" );
+	option.value = 0;
+	option.initiallySelected = TRUE;
+	options.push_back( option );
+
+	return options;
+}
+
+//-------------------------------------------------------------------------------------------------
+std::vector<QuickMatchData::ComboOption> getMaxPingOptions()
+{
+	// Mirrors WOLQuickMatchMenu.cpp:1071-1091: maxPingEntries is 0 under GENERALS_ONLINE (ping
+	// filtering isn't supported there), so the ms-step loop never runs and GUI:ANY is the only entry.
+	std::vector<QuickMatchData::ComboOption> options;
+
+	QuickMatchData::ComboOption option;
+	option.label = TheGameText->fetch( "GUI:ANY" );
+	option.value = 0;
+	option.initiallySelected = TRUE;
+	options.push_back( option );
+
+	return options;
+}
+
+//-------------------------------------------------------------------------------------------------
+std::vector<QuickMatchData::ComboOption> getMaxDisconnectsOptions( Int favMaxDisconnects )
+{
+	// Mirrors WOLQuickMatchMenu.cpp:1061-1069 exactly (this list isn't GO-specific).
+	enum { MAX_DISCONNECTS_COUNT = 5 };
+	static const Int MAX_DISCONNECTS[MAX_DISCONNECTS_COUNT] = { 0, 5, 10, 25, 50 };
+
+	std::vector<QuickMatchData::ComboOption> options;
+
+	QuickMatchData::ComboOption any;
+	any.label = TheGameText->fetch( "GUI:Any" );
+	any.value = MAX_DISCONNECTS[0];
+	options.push_back( any );
+
+	for( Int i = 1; i < MAX_DISCONNECTS_COUNT; ++i )
+	{
+		QuickMatchData::ComboOption option;
+		option.label.format( L"%d", MAX_DISCONNECTS[i] );
+		option.value = MAX_DISCONNECTS[i];
+		options.push_back( option );
+	}
+
+	Int selectedIndex = max( 0, favMaxDisconnects );
+	if( selectedIndex >= (Int)options.size() )
+		selectedIndex = 0;
+	options[selectedIndex].initiallySelected = TRUE;
+
+	return options;
+}
+
+//-------------------------------------------------------------------------------------------------
+std::vector<QuickMatchData::ComboOption> getSideOptions( Int favSide )
+{
+	// Mirrors populateQMSideComboBox() exactly (WOLQuickMatchMenu.cpp:340-399) with li == nullptr.
+	std::vector<QuickMatchData::ComboOption> options;
+
+	QuickMatchData::ComboOption random;
+	random.label = TheGameText->fetch( "GUI:Random" );
+	random.value = PLAYERTEMPLATE_RANDOM;
+	options.push_back( random );
+
+	std::set<AsciiString> seenSides;
+	Int selectedIndex = 0; // select Random by default
+
+	Int numPlayerTemplates = ThePlayerTemplateStore->getPlayerTemplateCount();
+	for( Int c = 0; c < numPlayerTemplates; ++c )
+	{
+		const PlayerTemplate *fac = ThePlayerTemplateStore->getNthPlayerTemplate( c );
+		if( !fac )
+			continue;
+
+		if( fac->getStartingBuilding().isEmpty() )
+			continue;
+
+		AsciiString side;
+		side.format( "SIDE:%s", fac->getSide().str() );
+		if( seenSides.find( side ) != seenSides.end() )
+			continue;
+
+		// Remove disallowed generals from the choice list, same as populateQMSideComboBox().
+		Bool disallowLockedGenerals = TRUE;
+		const GeneralPersona *general = TheChallengeGenerals->getGeneralByTemplateName( fac->getName() );
+		Bool startsLocked = general ? !general->isStartingEnabled() : FALSE;
+		if( disallowLockedGenerals && startsLocked )
+			continue;
+
+		seenSides.insert( side );
+
+		QuickMatchData::ComboOption option;
+		option.label = TheGameText->fetch( side );
+		option.value = c;
+		options.push_back( option );
+
+		if( c == favSide )
+			selectedIndex = (Int)options.size() - 1;
+	}
+
+	options[selectedIndex].initiallySelected = TRUE;
+	return options;
+}
+
+//-------------------------------------------------------------------------------------------------
+std::vector<QuickMatchData::ComboOption> getColorOptions( Int favColor )
+{
+	// Mirrors populateQMColorComboBox() exactly (WOLQuickMatchMenu.cpp:314-336).
+	std::vector<QuickMatchData::ComboOption> options;
+
+	QuickMatchData::ComboOption random;
+	random.label = TheGameText->fetch( "GUI:???" );
+	random.value = -1;
+	options.push_back( random );
+
+	Int numColors = TheMultiplayerSettings->getNumColors();
+	for( Int c = 0; c < numColors; ++c )
+	{
+		MultiplayerColorDefinition *def = TheMultiplayerSettings->getColor( c );
+		if( !def )
+			continue;
+
+		QuickMatchData::ComboOption option;
+		option.label = TheGameText->fetch( def->getTooltipName().str() );
+		option.value = c;
+		options.push_back( option );
+	}
+
+	// populateQMColorComboBox() selects by combo POSITION (GadgetComboBoxSetSelectedPos(comboBoxColor,
+	// pref.getColor())), not by itemData -- position 0 is "???"/random, so favColor==0 (the
+	// QuickmatchPreferences default) shows Random, matching the .wnd exactly.
+	Int selectedIndex = favColor;
+	if( selectedIndex < 0 || selectedIndex >= (Int)options.size() )
+		selectedIndex = 0;
+	options[selectedIndex].initiallySelected = TRUE;
+	return options;
 }
 
 } // namespace QuickMatchActions

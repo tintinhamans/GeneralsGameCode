@@ -79,4 +79,16 @@ namespace QuickMatchData
 		UnicodeString displayName; // MapMetaData::m_displayName
 		Bool initiallySelected = FALSE;
 	};
+
+	// One entry of a disabled-under-GENERALS_ONLINE combo box (ComboBoxLadder/MaxPing/MaxDisconnects/
+	// Side/Color -- see QuickMatchActions::getLadderOptions()/getMaxPingOptions()/
+	// getMaxDisconnectsOptions()/getSideOptions()/getColorOptions()). These combos never take player
+	// input under GO (see WOLQuickMatchMenu.cpp:1119-1130), so this only needs to reproduce the .wnd's
+	// display, not a round-trippable preference key.
+	struct ComboOption
+	{
+		UnicodeString label;
+		Int value = 0;
+		Bool initiallySelected = FALSE;
+	};
 }
