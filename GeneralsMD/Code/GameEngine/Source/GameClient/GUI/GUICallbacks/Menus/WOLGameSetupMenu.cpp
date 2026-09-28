@@ -69,6 +69,7 @@
 #include "GameNetwork/GameSpy/GSConfig.h"
 
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupData.h"
 #include <ws2ipdef.h>
 #include <format>
 #include <cmath>
@@ -508,69 +509,30 @@ static void playerTooltip(GameWindow *window,
 			}
 
 #if defined(GENERALS_ONLINE)
-	int64_t localPlayerID = -1;
 	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-	if (pAuthInterface != nullptr)
-	{
-		localPlayerID = pAuthInterface->GetUserID();
-	}
+	OnlineGameSetupConnectionInfo connectionInfo = OnlineGameSetupData::computeConnectionInfo(pLobbyInterface, game, slot);
 
-	bool bIsConnected = false;
-	int connectionScore = -1;
-	int connectionLatency = -1;
-	int connectionJitter = -1;
-	int connectionQualityPct = -1;
-	std::string strConnectionType = "";
-
-	LobbyMemberEntry member = pLobbyInterface->GetRoomMemberFromID(slot->m_userID);
-
-	if (localPlayerID != slot->m_userID)
-	{
-		if (NGMP_OnlineServicesManager::GetNetworkMesh() != nullptr)
-		{
-			PlayerConnection* pConnection = NGMP_OnlineServicesManager::GetNetworkMesh()->GetConnectionForUser(slot->m_userID);
-
-			if (pConnection != nullptr)
-			{
-				strConnectionType = pConnection->GetConnectionType();
-				if (pConnection->GetState() == EConnectionState::CONNECTED_DIRECT)
-				{
-					bIsConnected = true;
-				}
-				else
-				{
-					bIsConnected = false;
-				}
-				connectionScore = pConnection->ComputeConnectionScore();
-				connectionLatency = pConnection->GetLatency();
-				connectionJitter = pConnection->GetJitter();
-				float rawQuality = pConnection->GetConnectionQuality();
-				connectionQualityPct = (rawQuality >= 0.0f) ? static_cast<int>(rawQuality * 100.0f) : -1;
-			}
-		}
-	}
-
-	if (localPlayerID == slot->m_userID)
+	if (connectionInfo.m_isLocalPlayer)
 	{
 		// local user wont have a connection
 		playerInfo.format(L"\nOverall Elo Rating: %d (in %d matches)\nWS Elo Rating: %d\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
 			stats.elo_rating, stats.elo_num_matches, stats.monthly_elo_rating, totalWins, totalLosses, totalDiscons, favoriteSide.str());
 	}
-	else if (bIsConnected)
+	else if (connectionInfo.m_isConnected)
 	{
 		UnicodeString scoreStr, latencyStr, jitterStr, qualityStr;
-		if (connectionScore >= 0) scoreStr.format(L"%d%%", connectionScore); else scoreStr = L"Unknown";
-		if (connectionLatency >= 0) latencyStr.format(L"%d ms", connectionLatency); else latencyStr = L"Unknown";
-		if (connectionJitter >= 0) jitterStr.format(L"%d ms", connectionJitter); else jitterStr = L"Unknown";
-		if (connectionQualityPct >= 0) qualityStr.format(L"%d%%", connectionQualityPct); else qualityStr = L"Unknown";
+		if (connectionInfo.m_score >= 0) scoreStr.format(L"%d%%", connectionInfo.m_score); else scoreStr = L"Unknown";
+		if (connectionInfo.m_latencyMs >= 0) latencyStr.format(L"%d ms", connectionInfo.m_latencyMs); else latencyStr = L"Unknown";
+		if (connectionInfo.m_jitterMs >= 0) jitterStr.format(L"%d ms", connectionInfo.m_jitterMs); else jitterStr = L"Unknown";
+		if (connectionInfo.m_qualityPct >= 0) qualityStr.format(L"%d%%", connectionInfo.m_qualityPct); else qualityStr = L"Unknown";
 		playerInfo.format(L"\nConnection State: Connected (%hs)\nConnection Score: %s\nLatency: %s\nJitter: %s\nReliability: %s\nRegion: %hs\nOverall Elo Rating: %d (in %d matches)\nWS Elo Rating: %d\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
-			strConnectionType.c_str(), scoreStr.str(), latencyStr.str(), jitterStr.str(), qualityStr.str(),
-			member.region.c_str(), stats.elo_rating, stats.elo_num_matches, stats.monthly_elo_rating, totalWins, totalLosses, totalDiscons, favoriteSide.str());
+			connectionInfo.m_connectionType.c_str(), scoreStr.str(), latencyStr.str(), jitterStr.str(), qualityStr.str(),
+			connectionInfo.m_region.c_str(), stats.elo_rating, stats.elo_num_matches, stats.monthly_elo_rating, totalWins, totalLosses, totalDiscons, favoriteSide.str());
 	}
 	else
 	{
 		playerInfo.format(L"\nConnection State: Connecting...\nRegion: %hs\nOverall Elo Rating: %d (in %d matches)\nWS Elo Rating: %d\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
-			member.region.c_str(), stats.elo_rating, stats.elo_num_matches, stats.monthly_elo_rating, totalWins, totalLosses, totalDiscons, favoriteSide.str());
+			connectionInfo.m_region.c_str(), stats.elo_rating, stats.elo_num_matches, stats.monthly_elo_rating, totalWins, totalLosses, totalDiscons, favoriteSide.str());
 	}
 #else
 			playerInfo.format(L"\nLatency: %d ms\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
@@ -1303,6 +1265,10 @@ void WOLDisplayGameOptions()
 		return;
 	}
 
+#if defined(GENERALS_ONLINE)
+	OnlineGameSetupData data = OnlineGameSetupData::build(theGame);
+	GadgetStaticTextSetText(textEntryMapDisplay, data.m_mapDisplayText);
+#else
 	const GameSlot *localSlot = NULL;
 	if (theGame->getLocalSlotNum() >= 0)
 		localSlot = theGame->getConstSlot(theGame->getLocalSlotNum());
@@ -1315,11 +1281,7 @@ void WOLDisplayGameOptions()
 	}
 	else
 	{
-#if defined(GENERALS_ONLINE)
-		AsciiString s = theGame->getMap();
-#else
 		AsciiString s = TheGameSpyInfo->getCurrentStagingRoom()->getMap();
-#endif
 		if (s.reverseFind('\\'))
 		{
 			s = s.reverseFind('\\') + 1;
@@ -1328,11 +1290,12 @@ void WOLDisplayGameOptions()
 		mapDisplay.translate(s);
 		GadgetStaticTextSetText(textEntryMapDisplay, mapDisplay);
 	}
+#endif
 	WOLPositionStartSpots();
 	updateMapStartSpots(theGame, buttonMapStartPosition);
 
 #if defined(GENERALS_ONLINE)
-	Bool isUsingStats = TheNGMPGame->getUseStats();
+	Bool isUsingStats = data.m_useStats;
 #else
   //If our display does not match the current state of game settings, update the checkbox.
   Bool isUsingStats = TheGameSpyInfo->getCurrentStagingRoom()->getUseStats() ? TRUE : FALSE;
@@ -1343,7 +1306,11 @@ void WOLDisplayGameOptions()
     checkBoxUseStats->winSetTooltip( TheGameText->fetch( isUsingStats ? "TOOLTIP:UseStatsOn" : "TOOLTIP:UseStatsOff" ) );
   }
 
+#if defined(GENERALS_ONLINE)
+  Bool oldFactionsOnly = data.m_limitArmies;
+#else
   Bool oldFactionsOnly = theGame->oldFactionsOnly();
+#endif
   if (GadgetCheckBoxIsChecked(checkBoxLimitArmies) != oldFactionsOnly)
   {
     GadgetCheckBoxSetChecked(checkBoxLimitArmies, oldFactionsOnly);
@@ -1357,8 +1324,13 @@ void WOLDisplayGameOptions()
     }
   }
 
+#if defined(GENERALS_ONLINE)
+  // Note: must check if checkbox is already correct to avoid infinite recursion
+  Bool limitSuperweapons = data.m_options.m_superweaponsRestricted;
+#else
   // Note: must check if checkbox is already correct to avoid infinite recursion
   Bool limitSuperweapons = (theGame->getSuperweaponRestriction() != 0);
+#endif
   if ( limitSuperweapons != GadgetCheckBoxIsChecked(checkBoxLimitSuperweapons))
     GadgetCheckBoxSetChecked( checkBoxLimitSuperweapons, limitSuperweapons );
 
@@ -1592,6 +1564,10 @@ void InitWOLGameGadgets()
 		return;
 	}
 
+#if defined(GENERALS_ONLINE)
+	OnlineGameSetupData initSetupData = OnlineGameSetupData::build(theGameInfo);
+#endif
+
 	for (Int i = 0; i < MAX_SLOTS; ++i)
 		connectionIndicatorState[i] = CONNECTION_INDICATOR_CONNECTING;
 
@@ -1646,7 +1622,7 @@ void InitWOLGameGadgets()
   checkBoxUseStats->winEnable( false );
 
 #if defined(GENERALS_ONLINE)
-  Int isUsingStats = theGameInfo->getUseStats();
+  Int isUsingStats = initSetupData.m_useStats;
 #else
   Int isUsingStats = TheGameSpyGame->getUseStats();
 #endif
@@ -1656,7 +1632,7 @@ void InitWOLGameGadgets()
   checkBoxUseStats->winSetTooltip( TheGameText->fetch( isUsingStats ? "TOOLTIP:UseStatsOn" : "TOOLTIP:UseStatsOff" ) );
 
 #if defined(GENERALS_ONLINE)
-  if (!pLobbyInterface->IsHost())
+  if (!initSetupData.m_isHost)
 #else
   if ( !TheGameSpyGame->amIHost() )
 #endif
@@ -1694,7 +1670,7 @@ void InitWOLGameGadgets()
 	if (staticTextTitle)
 	{
 #if defined(GENERALS_ONLINE)
-		GadgetStaticTextSetText(staticTextTitle, theGameInfo->getGameName());
+		GadgetStaticTextSetText(staticTextTitle, initSetupData.m_gameName);
 #else
 		GadgetStaticTextSetText(staticTextTitle, TheGameSpyGame->getGameName());
 #endif
