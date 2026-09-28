@@ -4,7 +4,11 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<style>
 		body { width: 606dp; height: 225dp; left: 50%; top: 50%; margin-left: -303dp; margin-top: -112dp; }
-		.frame { width: 100%; height: 100%; padding: 3dp; }
+		/* A plain display:block .frame here doesn't resolve width/height percentages against body
+		   at all (they come out 0, leaving only a border sliver) -- display:flex is needed to make
+		   RmlUi actually resolve them here, even though the flex layout itself isn't otherwise
+		   needed (a single block child still just fills the flex container). */
+		.frame { box-sizing: border-box; display: flex; width: 100%; height: 100%; padding: 3dp; }
 		.frame mappedimage { display: block; width: 100%; height: 100%; }
 	</style>
 </head>

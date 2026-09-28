@@ -5,7 +5,12 @@
 	<style>
 		body { width: 400dp; min-height: 140dp; left: 50%; top: 50%; margin-left: -200dp; }
 		.frame { display: flex; flex-direction: column; }
-		.logo { width: 100%; height: 48dp; margin-bottom: 8dp; }
+		/* display:flex is required here, not just cosmetic -- a plain display:block .logo doesn't
+		   resolve width/height percentages against its own box at all in this RmlUi build (see
+		   EndGameOverlay.rml's .frame for the same fix and a fuller explanation), so its mappedimage
+		   ends up drawn at some unrelated collapsed size instead of filling the logo area. */
+		.logo { display: flex; width: 100%; height: 48dp; margin-bottom: 8dp; }
+		.logo mappedimage { display: block; width: 100%; height: 100%; }
 		.body { flex: 1 1 auto; margin-bottom: 8dp; }
 	</style>
 </head>
