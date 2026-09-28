@@ -4,11 +4,17 @@
 	this file only positions this screen's own panels.
 */
 
+/* .map-select-panel is the .shell-frame (full blueprint panel, see common.rcss) -- fills the
+   screen like the original *MapSelectMenu.wnd instead of a fixed centered dialog. body needs an
+   explicit 100% size for .shell-frame's percent left/top/width/height to resolve against. */
+body
+{
+	width: 100%;
+	height: 100%;
+}
+
 .map-select-panel
 {
-	width: 820dp;
-	height: 560dp;
-	margin: 60dp auto;
 	display: flex;
 	flex-direction: column;
 }
@@ -30,7 +36,7 @@
 .side-panel
 {
 	flex: 0 0 auto;
-	width: 280dp;
+	width: 320dp;
 	display: flex;
 	flex-direction: column;
 }

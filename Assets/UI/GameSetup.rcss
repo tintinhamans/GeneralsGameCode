@@ -135,6 +135,7 @@
    padding tricks for a responsive aspect box, so this stays a fixed dp size. */
 .map-preview
 {
+	box-sizing: border-box;
 	position: relative;
 	width: 320dp;
 	height: 320dp;
