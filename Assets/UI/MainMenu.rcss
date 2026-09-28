@@ -54,7 +54,9 @@ body { width: 100%; height: 100%; }
 	width: 30%;
 	min-width: 320dp;
 	max-width: 480dp;
-	bottom: 24dp;
+	/* No "bottom:" -- height comes from the active panel's own content (see .panel.active below),
+	   so the translucent background hugs whichever button list is showing instead of stretching
+	   all the way down to the frame edge and leaving empty space under the last button. */
 	padding: 0; /* panels below carry their own padding so the crossfade doesn't shift content */
 	box-sizing: border-box;
 	background-color: rgba(2, 2, 2, 190);
@@ -63,11 +65,13 @@ body { width: 100%; height: 100%; }
 
 .panel
 {
+	/* Inactive panels are pulled out of flow (absolute, invisible) so they don't add to
+	   .panels-stack's height; the active one is put back in normal flow below so the stack's
+	   auto height tracks it. Both still crossfade via opacity like before. */
 	position: absolute;
 	left: 0;
 	top: 0;
 	width: 100%;
-	height: 100%;
 	box-sizing: border-box;
 	padding: 12dp;
 	opacity: 0;
@@ -80,6 +84,7 @@ body { width: 100%; height: 100%; }
 
 .panel.active
 {
+	position: static;
 	opacity: 1;
 	pointer-events: auto;
 }
