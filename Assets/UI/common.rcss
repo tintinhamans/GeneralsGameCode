@@ -236,11 +236,12 @@ input.checkbox:checked
 
 .shell-frame
 {
+	box-sizing: border-box;
 	position: absolute;
-	left: 5.125%;
-	top: 6.833%;
-	width: 89.75%;
-	height: 86.5%;
+	left: 5.6%;
+	top: 7.3%;
+	width: 88.8%;
+	height: 85.4%;
 	background-color: rgba(2, 2, 2, 190);
 	border: 2dp #2F37A8;
 	padding: 12dp;
