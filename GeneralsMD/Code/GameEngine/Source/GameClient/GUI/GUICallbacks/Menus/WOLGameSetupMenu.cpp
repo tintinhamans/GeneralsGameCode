@@ -71,6 +71,7 @@
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupData.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupSession.h"
 #include <ws2ipdef.h>
 #include <format>
 #include <cmath>
@@ -208,9 +209,7 @@ static NameKeyType buttonEmoteID = NAMEKEY_INVALID;
 static NameKeyType buttonSelectMapID = NAMEKEY_INVALID;
 static NameKeyType windowMapID = NAMEKEY_INVALID;
 
-#if defined(GENERALS_ONLINE_ENABLE_MATCH_START_COUNTDOWN)
-static bool s_matchStartCountdownWasRunning = false;
-#endif
+// Match-start countdown state now lives in OnlineGameSetupSession (owns update()'s countdown tick).
 
 static NameKeyType windowMapSelectMapID = NAMEKEY_INVALID;
 static NameKeyType checkBoxUseStatsID = NAMEKEY_INVALID;
@@ -273,33 +272,14 @@ WindowLayout *WOLMapSelectLayout = NULL;
 
 void PopBackToLobby()
 {
-	// delete TheNAT, its no good for us anymore.
-	if (TheNAT != nullptr)
-	{
-		delete TheNAT;
-		TheNAT = NULL;
-	}
-
-	if (TheNGMPGame) // this can be blown away by a disconnect on the map transfer screen
-	{
-		TheNGMPGame->reset();
-
-
-	}
-
 	DEBUG_LOG(("PopBackToLobby() - parentWOLGameSetup is %X", parentWOLGameSetup));
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	if (pLobbyInterface != nullptr)
-	{
-		pLobbyInterface->LeaveCurrentLobby();
-	}
 
+	// Widget-agnostic network leave + reset + pop now lives in OnlineGameSetupSession::backToLobby();
+	// this screen only owns the "am I even the active screen" guard around it.
 	if (parentWOLGameSetup)
 	{
 		nextScreen = "Menus/WOLCustomLobby.wnd";
-		TheShell->pop();
-
-
+		OnlineGameSetupSession::backToLobby();
 	}
 }
 
@@ -1376,6 +1356,79 @@ static Bool initDone = false;
 UnsignedInt lastSlotlistTime = 0;
 UnsignedInt enterTime = 0;
 Bool initialAcceptEnable = FALSE;
+
+//-------------------------------------------------------------------------------------------------
+/** Widget-side of OnlineGameSetupSession::EventSink: every async NGMP event and per-frame
+	update this screen used to handle by touching its own GameWindows directly now goes through
+	these lambdas instead, so OnlineGameSetupSession stays GameWindow-free. Built fresh for
+	Init/Update since it closes over this .wnd's own (file-static) widget pointers. */
+//-------------------------------------------------------------------------------------------------
+static OnlineGameSetupSession::EventSink BuildGameSetupEventSink()
+{
+	OnlineGameSetupSession::EventSink sink;
+
+	sink.chatLine = []( const UnicodeString &text, Color color )
+	{
+		if( listboxGameSetupChat )
+		{
+			GadgetListBoxAddEntryText( listboxGameSetupChat, text, color, -1, -1 );
+		}
+		else if( TheNGMPGame && TheNGMPGame->isGameInProgress() && g_scoreScreenChatDeliveryHook )
+		{
+			// Setup .wnd is torn down once the match starts; forward score-screen chat
+			// (internet games) the same way WOLGameSetupMenu's disconnect notice does.
+			g_scoreScreenChatDeliveryHook( text, color );
+		}
+	};
+
+	sink.slotsChanged = []() { WOLDisplaySlotList(); };
+	sink.optionsChanged = []() { WOLDisplayGameOptions(); };
+
+	sink.becameHost = []()
+	{
+		if( buttonStart != nullptr )
+		{
+			buttonStart->winSetText( TheGameText->fetch( "GUI:Start" ) );
+			buttonStart->winEnable( TRUE );
+		}
+		if( buttonSelectMap != nullptr )
+			buttonSelectMap->winEnable( TRUE );
+		initialAcceptEnable = TRUE;
+		if( comboBoxStartingCash != nullptr )
+			comboBoxStartingCash->winEnable( TRUE );
+		if( checkBoxLimitSuperweapons != nullptr )
+			checkBoxLimitSuperweapons->winEnable( TRUE );
+	};
+
+	sink.setBackButtonEnabled = []( Bool enabled ) { if( buttonBack != nullptr ) buttonBack->winEnable( enabled ); };
+	sink.setStartButtonEnabled = []( Bool enabled ) { if( buttonStart != nullptr ) buttonStart->winEnable( enabled ); };
+
+	sink.setCommunicatorButtonEnabled = []( Bool enabled )
+	{
+		GameWindow *buttonBuddy = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY( "GameSpyGameOptionsMenu.wnd:ButtonCommunicator" ) );
+		if( buttonBuddy != nullptr )
+			buttonBuddy->winEnable( enabled );
+	};
+
+	sink.lockSettings = []() { WOLLockSettings(); };
+
+	sink.communicatorCountChanged = []( int numNotifications )
+	{
+		GameWindow *buttonBuddy = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY( "GameSpyGameOptionsMenu.wnd:ButtonCommunicator" ) );
+		if( buttonBuddy != nullptr )
+		{
+			UnicodeString buttonText;
+			if( numNotifications > 0 )
+				buttonText.format( L"%s [%d]", TheGameText->fetch( "GUI:Buddies" ).str(), numNotifications );
+			else
+				buttonText.format( L"%s", TheGameText->fetch( "GUI:Buddies" ).str() );
+			buttonBuddy->winSetText( buttonText );
+		}
+	};
+
+	return sink;
+}
+
 //-------------------------------------------------------------------------------------------------
 /** Initialize the Lan Game Options Menu */
 //-------------------------------------------------------------------------------------------------
@@ -1387,162 +1440,9 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 		return;
 	}
 
-	// register for chat events
-	pLobbyInterface->RegisterForChatCallback([](UnicodeString strMessage, Color color)
-		{
-			if (listboxGameSetupChat)
-			{
-				GadgetListBoxAddEntryText(listboxGameSetupChat, strMessage, color, -1, -1);
-			}
-			else if (TheNGMPGame && TheNGMPGame->isGameInProgress() && g_scoreScreenChatDeliveryHook)
-			{
-				// Setup .wnd is torn down once the match starts; forward score-screen chat
-				// (internet games) the same way WOLGameSetupMenu's disconnect notice does.
-				g_scoreScreenChatDeliveryHook(strMessage, color);
-			}
-		});
-
-	// cannot connect to the lobby we joined
-	pLobbyInterface->RegisterForCannotConnectToLobbyCallback([](void)
-		{
-			if (TheNetwork != NULL) {
-				delete TheNetwork;
-				TheNetwork = NULL;
-			}
-			GSMessageBoxOk(TheGameText->fetch("GUI:Error"), UnicodeString(L"Could not connect to all players in the lobby"));
-
-			PopBackToLobby();
-		});
-
-	// connection events (for debug really)
-	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-	if (pMesh != nullptr)
-	{
-		pMesh->RegisterForConnectionEvents([](int64_t userID, std::wstring strDisplayName, PlayerConnection* connection)
-			{
-				std::string strState = "Unknown";
-
-				EConnectionState connState = connection->GetState();
-
-				switch (connState)
-				{
-				case EConnectionState::NOT_CONNECTED:
-					strState = "Not Connected";
-					break;
-
-				case EConnectionState::CONNECTING_DIRECT:
-					strState = "Connecting";
-					break;
-				case EConnectionState::FINDING_ROUTE:
-					strState = "Connecting (Finding Route)";
-					break;
-
-				case EConnectionState::CONNECTED_DIRECT:
-					strState = "Connected";
-					break;
-
-				case EConnectionState::CONNECTION_FAILED:
-					strState = "Connection Failed";
-					break;
-
-				case EConnectionState::CONNECTION_DISCONNECTED:
-					strState = "Disconnected (Was Connected Previously)";
-					break;
-
-				default:
-					strState = "Unknown";
-					break;
-				}
-
-				UnicodeString strConnectionMessage;
-				if (connState == EConnectionState::CONNECTED_DIRECT || connState == EConnectionState::CONNECTION_DISCONNECTED)
-				{
-					//strConnectionMessage.format(L"Connection state to %s changed to: %hs (mechanism: %hs | protocol: %hs)", strDisplayName.c_str(), strState.c_str(), strConnectionType.c_str(), connection->IsIPV4() ? "IPv4" : "IPv6");
-					//GadgetListBoxAddEntryText(listboxGameSetupChat, strConnectionMessage, GameMakeColor(255, 194, 15, 255), -1, -1);
-				}
-				else
-				{
-#if !defined(_DEBUG)
-					if (connState == EConnectionState::CONNECTION_FAILED)
-					{
-#endif
-						strConnectionMessage.format(L"Connection: %s is now %hs.", strDisplayName.c_str(), strState.c_str());
-						const Color connectionColor = connState == EConnectionState::CONNECTION_FAILED
-							? GameMakeColor(255, 0, 0, 255)
-							: GameMakeColor(192, 192, 192, 255);
-						GadgetListBoxAddEntryText(listboxGameSetupChat, strConnectionMessage, connectionColor, -1, -1);
-
-#if !defined(_DEBUG)
-					}
-#endif
-				}
-
-				// update UI
-				WOLDisplaySlotList();
-			});
-	}
-
-	// player doesnt have map events
-	pLobbyInterface->RegisterForPlayerDoesntHaveMapCallback([](LobbyMemberEntry lobbyMember)
-		{
-			// tell the host the user doesn't have the map
-			UnicodeString mapDisplayName;
-			const MapMetaData* mapData = TheMapCache->findMap(TheNGMPGame->getMap());
-			Bool willTransfer = TRUE;
-			if (mapData)
-			{
-				mapDisplayName.format(L"%ls", mapData->m_displayName.str());
-				willTransfer = !mapData->m_isOfficial;
-			}
-			else
-			{
-				mapDisplayName.translate(TheNGMPGame->getMap().str());
-				willTransfer = WouldMapTransfer(TheNGMPGame->getMap());
-			}
-
-			UnicodeString strDisplayName(from_utf8(lobbyMember.display_name).c_str());
-
-			UnicodeString text;
-			if (willTransfer)
-				text.format(TheGameText->fetch("GUI:PlayerNoMapWillTransfer"), strDisplayName.str(), mapDisplayName.str());
-			else
-				text.format(TheGameText->fetch("GUI:PlayerNoMap"), strDisplayName.str(), mapDisplayName.str());
-			GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameSpyColor[GSCOLOR_DEFAULT], -1, -1);
-		});
-
-	
-
-	// register for roster events
-	pLobbyInterface->RegisterForRosterNeedsRefreshCallback([]()
-		{
-			WOLDisplaySlotList();
-			WOLDisplayGameOptions();
-		});
-
-	pLobbyInterface->RegisterForGameStartPacket([]()
-		{
-			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-			NGMPGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
-
-			if (pLobbyInterface == nullptr || !myGame || !myGame->isInGame())
-				return;
-
-			if (!TheNGMPGame)
-				return;
-
-			// TODO_NGMP
-			//SendStatsToOtherPlayers(TheNGMPGame);
-
-			GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
-			if (buttonBuddy)
-				buttonBuddy->winEnable(FALSE);
-			GameSpyCloseOverlay(GSOVERLAY_BUDDY);
-			GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
-
-			*TheNGMPGame = *myGame;
-			TheNGMPGame->startGame(0);
-		});
-
+	// NGMP async-callback registration + entry chat notices + Communicator badge init all move to
+	// OnlineGameSetupSession::enter() (called below, after this screen's widgets exist) so a future
+	// RmlUi front end drives the same room without any GameWindow. See BuildGameSetupEventSink().
 
 	if (TheNGMPGame == nullptr || (TheNGMPGame && TheNGMPGame->isGameInProgress()))
 	{
@@ -1780,84 +1680,10 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	TheTransitionHandler->setGroup("GameSpyGameOptionsMenuFade");
 	TheWindowManager->winSetFocus(textEntryChat);
 
-#if defined(GENERALS_ONLINE)
-// NGMP: Did we just enter a lobby with modified camera height?
-	// if (pLobbyInterface->IsInLobby())
-	{
-		LobbyEntry& theLobby = pLobbyInterface->GetCurrentLobby();
-
-		if (theLobby.max_cam_height != GENERALS_ONLINE_DEFAULT_LOBBY_CAMERA_ZOOM)
-		{
-
-
-			if (!pLobbyInterface->IsHost())
-			{
-				UnicodeString strInform;
-				strInform.format(L"Camera height: The host set the limit to %lu.", theLobby.max_cam_height);
-				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(192, 192, 192, 255), -1, -1);
-			}
-			else
-			{
-				UnicodeString strInform;
-				strInform.format(L"Camera height: Your limit is %lu. Use /maxcameraheight <value> to change it. Default: 310.", theLobby.max_cam_height);
-				GadgetListBoxAddEntryText(listboxGameSetupChat, strInform, GameMakeColor(192, 192, 192, 255), -1, -1);
-			}
-
-		}
-	}
-
-    if (pLobbyInterface != nullptr)
-    {
-        if (pLobbyInterface->IsHost())
-        {
-			GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Lobby access: Anyone can join. Use /friendsonly to limit the lobby to friends."), GameMakeColor(192, 192, 192, 255), -1, -1);
-        }
-    }
-    
-    if (TheNGMPGame != nullptr)
-	{
-		if (!TheNGMPGame->getAllowObservers())
-		{
-			GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Observers: Disabled by the host."), GameMakeColor(192, 192, 192, 255), -1, -1);
-		}
-	}
-#endif
-
-#if defined(GENERALS_ONLINE)
-    // Update the communicator button anytime we get notifications
-    NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
-    if (pSocialInterface != nullptr)
-    {
-        // notifiactions callback
-        pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
-            {
-                // update communicator button
-                GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
-                if (buttonBuddy != nullptr)
-                {
-                    UnicodeString buttonText;
-                    if (numNotifications > 0)
-                    {
-                        buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), numNotifications);
-                    }
-                    else
-                    {
-                        buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
-                    }
-                    buttonBuddy->winSetText(buttonText);
-                }
-            });
-    }
-
-    // And also initialize it
-    GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
-    if (buttonBuddy != nullptr && pSocialInterface->GetNumTotalNotifications() > 0)
-    {
-        UnicodeString buttonText;
-        buttonText.format(L"%s [%d]", TheGameText->fetch("GUI:Buddies").str(), pSocialInterface->GetNumTotalNotifications());
-        buttonBuddy->winSetText(buttonText);
-    }
-#endif
+	// NGMP async-callback registration, the entry chat notices (camera height, join policy,
+	// observers), and the Communicator badge's initial state -- all routed through the same sink
+	// WOLGameSetupMenuUpdate() uses (see BuildGameSetupEventSink()).
+	OnlineGameSetupSession::enter( BuildGameSetupEventSink() );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1905,22 +1731,7 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void WOLGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 {
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-
-	if (pLobbyInterface != nullptr)
-	{
-		pLobbyInterface->DeregisterForChatCallback();
-		pLobbyInterface->DeregisterForCannotConnectToLobbyCallback();
-		pLobbyInterface->DeregisterForPlayerDoesntHaveMapCallback();
-		pLobbyInterface->DeregisterForRosterNeedsRefreshCallback();
-		pLobbyInterface->DeregisterForGameStartPacket();
-	}
-	
-	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-	if (pMesh != nullptr)
-	{
-		pMesh->DeregisterForConnectionEvents();
-	}
+	OnlineGameSetupSession::leave();
 
 	// drop any in-flight mesh connectivity check so a late reply never fires into this now-dead menu
 	std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
@@ -2007,189 +1818,15 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 		return;
 	}
 
-	if (AnticheatPlugInterface::g_bPendingExitLobby)
+	// Anticheat teardown, host migration, host-left, and the match-start countdown tick all live in
+	// OnlineGameSetupSession::update() now -- same order, same guards, routed through the sink
+	// instead of touching listboxGameSetupChat/buttonStart/etc. directly. TRUE mirrors the host-left
+	// early `return;` the .wnd path always had.
+	if (OnlineGameSetupSession::update(BuildGameSetupEventSink()))
 	{
-		AnticheatPlugInterface::g_bPendingExitLobby = false;
-
-        GSMessageBoxOk(TheGameText->fetchOrSubstitute("GUI:ACErrorHeader", L"AntiCheat Error"), TheGameText->fetchOrSubstitute("GUI:ACLobbyIntegrityError", L"Lobby integrity could not be validated. Leaving Lobby."));
-
-        PopBackToLobby();
+		buttonPushed = true;
+		return;
 	}
-
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
-	{
-		NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-		if (pLobbyInterface != nullptr)
-		{
-			ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
-			bool bHostMigrationEnabledOnService = serviceConf.enable_host_migration;
-
-			if (bHostMigrationEnabledOnService)
-			{
-				if (pLobbyInterface->m_bHostMigrated)
-				{
-					pLobbyInterface->m_bHostMigrated = false;
-
-					// If we are in-game, nothing to do here, the game handles it for us
-					if (!TheNGMPGame->isGameInProgress()) // in progress is in game, ingame is just in lobby
-					{
-						// TODO_NGMP: Make sure we did a lobby get first
-						// did we become the host?
-						bool bIsHost = pLobbyInterface->IsHost();
-
-						if (bIsHost)
-						{
-							// re init our UI & enable host buttons
-							buttonStart->winSetText(TheGameText->fetch("GUI:Start"));
-							buttonStart->winEnable(TRUE);
-							buttonSelectMap->winEnable(TRUE);
-							initialAcceptEnable = TRUE;
-
-							comboBoxStartingCash->winEnable(TRUE);
-							checkBoxLimitSuperweapons->winEnable(TRUE);
-
-
-							NetworkLog(ELogVerbosity::LOG_RELEASE, "Host left and server migrated the host to us...");
-
-							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Host: The previous host left. You are now the host."), GameMakeColor(192, 192, 192, 255), -1, -1);
-
-							// NOTE: don't need to mark ourselves ready, the service did it for us upon migration
-						}
-						else
-						{
-							GadgetListBoxAddEntryText(listboxGameSetupChat, UnicodeString(L"Host: The previous host left. A new host was selected."), GameMakeColor(192, 192, 192, 255), -1, -1);
-						}
-
-						// re-enable critical buttons for everyone
-						if (buttonBack != nullptr)
-						{
-							buttonBack->winEnable(TRUE);
-						}
-
-						if (buttonStart != nullptr)
-						{
-							buttonStart->winEnable(TRUE);
-						}
-
-						GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
-						if (buttonBuddy != nullptr)
-						{
-							buttonBuddy->winEnable(FALSE);
-						}
-					}
-
-					TheNGMPGame->UpdateSlotsFromCurrentLobby();
-
-					WOLDisplaySlotList();
-
-					// Force a refresh to get latest lobby data
-					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-					if (pLobbyInterface != nullptr)
-					{
-						pLobbyInterface->UpdateRoomDataCache([](bool bSuccess)
-							{
-
-							});
-					}
-				}
-			}
-
-			if (pLobbyInterface->m_bPendingHostHasLeft || pLobbyInterface->m_bHostMigrated)
-			{
-				pLobbyInterface->m_bHostMigrated = false;
-				pLobbyInterface->m_bPendingHostHasLeft = false;
-
-				buttonPushed = true;
-				DEBUG_LOG(("Host left lobby\n"));
-				if (TheNGMPGame)
-					TheNGMPGame->reset();
-
-				GSMessageBoxOk(TheGameText->fetch("GUI:HostLeftTitle"), TheGameText->fetch("GUI:HostLeft"));
-
-				PopBackToLobby();
-
-				return;
-			}
-		}
-	}
-
-#if defined(GENERALS_ONLINE_ENABLE_MATCH_START_COUNTDOWN)
-	// is there a countdown in progress?
-	if (TheNGMPGame != nullptr)
-	{
-		if (TheNGMPGame->IsCountdownStarted())
-		{
-			s_matchStartCountdownWasRunning = true;
-			const int64_t timeBetweenChecks = 1000;
-			int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
-
-			if (currTime - TheNGMPGame->GetCountdownLastCheckTime() >= timeBetweenChecks)
-			{
-				int secondsSinceCountdownStart = (currTime - TheNGMPGame->GetCountdownStartTime()) / 1000;
-				int secondsRemaining = TheNGMPGame->GetTotalCountdownDuration() - secondsSinceCountdownStart;
-
-				TheNGMPGame->UpdateCountdownLastCheckTime();
-
-				// remote msg
-				UnicodeString strInform;
-				if (secondsRemaining == 1)
-				{
-					// Lock all host controlled lobby settings last second of the match start countdown
-					// to prevent late local changes not propagating to remote clients in time
-					WOLLockSettings();
-
-					strInform.format(TheGameText->fetch("LAN:GameStartTimerSingular"), secondsRemaining);
-				}
-				else
-				{
-					strInform.format(TheGameText->fetch("LAN:GameStartTimerPlural"), secondsRemaining);
-				}
-
-				NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-				if (pLobbyInterface != nullptr)
-				{
-					pLobbyInterface->SendAnnouncementMessageToCurrentLobby(strInform, true);
-				}
-
-				// are we done?
-				if (secondsRemaining <= 0)
-				{
-					s_matchStartCountdownWasRunning = false;
-					// stop countdown
-					TheNGMPGame->StopCountdown();
-
-					// send start game packet
-					std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
-					if (pWS != nullptr)
-					{
-						pWS->SendData_StartGame();
-					}
-				}
-			}
-		}
-		else
-		{
-			// countdown is currently NOT running.
-			// If it was running before, it just got cancelled or finished.
-			if (s_matchStartCountdownWasRunning)
-			{
-				s_matchStartCountdownWasRunning = false;
-
-				// Re-enable Back and Start buttons when countdown stops
-				if (buttonBack != nullptr)
-				{
-					buttonBack->winEnable(TRUE);
-				}
-
-				if (buttonStart != nullptr)
-				{
-					buttonStart->winEnable(TRUE);
-				}
-			}
-
-		}
-	}
-#endif
 
 	if (raiseMessageBoxes)
 	{
