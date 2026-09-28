@@ -70,6 +70,8 @@ public:
 private:
 	RmlOnlineGameSetupScreen() {}
 
+	void scrollChatToBottom(); // called from update() when chatLines has grown, see .cpp
+
 	void onSlotOccupantChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotFactionChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotColorChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -93,9 +95,10 @@ public:
 	// public so the free-function sink builders in the .cpp (which close over a raw screen pointer,
 	// since std::function can't hold a member-function-on-this the way BindEventCallback can) can
 	// reach them without befriending the class.
-	// isGrey/isAmber/isGreen/isRed/isHelp mirror ChatLineModel's color flags (declared further down --
-	// passed individually rather than by struct reference so this declaration doesn't need it visible yet).
-	void onChatLine(const Rml::String &text, bool isGrey, bool isAmber, bool isGreen, bool isRed, bool isHelp);
+	// color is a pre-formatted "rgba(r,g,b,a)" string (see colorToCss() in the .cpp), same idiom as
+	// RmlOnlineLobbyScreen::ChatLineModel::color -- passed already-formatted rather than as a raw
+	// Color so this declaration doesn't need Color visible yet.
+	void onChatLine(const Rml::String &text, const Rml::String &color);
 	void onBecameHost();
 	void setBackButtonEnabled(bool enabled);
 	void setStartButtonEnabled(bool enabled);
@@ -107,6 +110,7 @@ private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
+	size_t m_lastChatLineCount = 0; // scrollChatToBottom() drives off this, see update()
 
 	// One slot row's worth of fields for the data-for-bound slot table (see load()). Same shape as
 	// RmlLanGameSetupScreen::SlotRowModel, plus the online-only bits (connection state/tooltip)
@@ -160,18 +164,13 @@ private:
 	};
 
 	// One chat/system-notice line (see OnlineGameSetupActions::ChatLineFn / OnlineGameSetupSession::
-	// EventSink::chatLine), colored with five mutually-exclusive data-class-* booleans (see
-	// OnlineGameSetup.rml's chat-line div) instead of a single dynamic class/style value -- both of
-	// those were found to corrupt the row's line-wrapping width (see report). All-false reads as
-	// the default/white color.
+	// EventSink::chatLine). color is bound with data-style-color on a child span of the data-for row
+	// (see OnlineGameSetup.rml), the same idiom RmlOnlineLobbyScreen/RmlLanLobbyScreen use for their
+	// chat -- same shape as RmlOnlineLobbyScreen::ChatLineModel.
 	struct ChatLineModel
 	{
 		Rml::String text;
-		bool isGrey = false;
-		bool isAmber = false;
-		bool isGreen = false;
-		bool isRed = false;
-		bool isHelp = false;
+		Rml::String color;
 	};
 
 	struct Model

@@ -140,26 +140,19 @@ body
 
 .chat-line
 {
+	/* Fixed dp width, not auto/percentage: once .chat-body actually needs to scroll (enough lines to
+	   overflow its 140dp height), a block child sized any other way -- auto/shrink-to-fit, or even a
+	   plain percentage -- gets its line-wrapping width corrupted (collapses to ~one word per line;
+	   confirmed by render for both, moving the per-line color from the row to a child <span> made no
+	   difference). This is a pre-existing RmlUi limitation of overflow-y:auto containers, not
+	   something specific to how this row is marked up. 1000dp comfortably fits the narrowest
+	   supported layout (1280x1024) without overflowing the panel; the unused width on wider layouts
+	   is blank space inside .chat-body rather than overflow (1000dp is still well under chat-body's
+	   own content width at every supported resolution), and text still wraps at a readable 1000dp
+	   measure at 2560x1080, just short of the panel's full width. */
 	display: block;
-	/* Fixed dp width, not auto/percentage: once chat_lines overflows the 140dp .chat-body and a
-	   scrollbar actually appears, an auto-sized block child of that overflow-y:auto container gets
-	   its line-wrapping width corrupted (collapses to ~one word per line) -- reproduced identically
-	   on the unmodified LanGameOptions.rml/.rcss chat block once it's given enough lines to scroll,
-	   so this is a pre-existing RmlUi limitation, not something specific to this screen (see report).
-	   1000dp comfortably fits the narrowest supported layout (1280x1024) without overflowing the
-	   panel; wasted width on wider layouts is fine since .chat-body clips to its own bounds. */
 	width: 1000dp;
 }
-
-/* Discrete chat-line colors (see RmlOnlineGameSetupScreen.cpp's chatLineFor()), toggled with
-   data-class-* booleans instead of a per-line inline color style or a fully dynamic class
-   attribute -- both of those were found to corrupt that row's line-wrapping width, see report.
-   Default (no class) reads as white, matching the .wnd's GameSpyColor[GSCOLOR_DEFAULT] fallback. */
-.chat-line.c_grey { color: #C0C0C0; }
-.chat-line.c_amber { color: #FFC20F; }
-.chat-line.c_green { color: #00FF00; }
-.chat-line.c_red { color: #FF0000; }
-.chat-line.c_help { color: #7F7F7F; }
 
 .chat-entry-row
 {

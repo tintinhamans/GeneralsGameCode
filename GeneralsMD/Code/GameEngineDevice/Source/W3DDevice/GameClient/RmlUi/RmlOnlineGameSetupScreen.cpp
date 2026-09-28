@@ -34,9 +34,9 @@
 
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
 
-#include <algorithm>
 #include <cstdlib>
 #include <cstdio>
 #include <windows.h>
@@ -86,57 +86,19 @@ static Rml::String colorToHex(Color color)
 // Fallback for an unset/unmatched color, see RmlLanGameSetupScreen.cpp's kNoColorHex.
 static const char *const kNoColorHex = "transparent";
 
-// Buckets a chat-line Color into one of OnlineGameSetup.rcss's discrete c_* classes (nearest-RGB
-// match against the palette OnlineGameSetupSession.cpp/OnlineGameSetupActions.cpp actually send --
-// see WOLGameSetupMenu.cpp's chat notice colors: grey/amber/green/red/help-grey/default, ported
-// verbatim in this change's report), returned as the row's data-class-* booleans instead of a
-// dynamic class/style value: both a per-line data-style-color and a fully dynamic data-attr-class
-// on a data-for row were found to corrupt that row's line-wrapping width (see report) -- five
-// static data-class-* booleans (the same idiom as row.accepted/row.is_connected elsewhere in this
-// screen) keep the same visual result without it. A plain local struct (not
-// RmlOnlineGameSetupScreen::ChatLineModel, which is private) so this file-scope helper doesn't
-// need class access.
-struct ChatColorFlags
+// ARGB packing, see Color.h's GameMakeColor(); RmlUi's rgba() takes 0-255 ints for every channel
+// including alpha, not a 0-1 float. Same helper RmlOnlineLobbyScreen.cpp/RmlLanLobbyScreen.cpp each
+// keep privately -- binds a chat line's exact Color (player/buddy/system colors alike) instead of
+// snapping it to a handful of CSS classes, which lost any color outside a tight RGB tolerance.
+static Rml::String colorToCss(Color color)
 {
-	bool isGrey = false;
-	bool isAmber = false;
-	bool isGreen = false;
-	bool isRed = false;
-	bool isHelp = false;
-};
-
-static ChatColorFlags chatColorFlagsFor(Color color)
-{
-	UnsignedByte r = (UnsignedByte)((color >> 16) & 0xFF);
-	UnsignedByte g = (UnsignedByte)((color >> 8) & 0xFF);
-	UnsignedByte b = (UnsignedByte)(color & 0xFF);
-
-	struct Bucket { UnsignedByte r, g, b; };
-	static const Bucket kGrey = { 192, 192, 192 };
-	static const Bucket kAmber = { 255, 194, 15 };
-	static const Bucket kGreen = { 0, 255, 0 };
-	static const Bucket kRed = { 255, 0, 0 };
-	static const Bucket kHelp = { 127, 127, 127 };
-
-	auto distTo = [&](const Bucket &bucket) {
-		int dr = (int)r - bucket.r, dg = (int)g - bucket.g, db = (int)b - bucket.b;
-		return dr * dr + dg * dg + db * db;
-	};
-
-	ChatColorFlags flags;
-
-	int bestDist = 24 * 24 * 3 + 1; // only snap to a bucket within a reasonably tight tolerance
-	int dGrey = distTo(kGrey), dAmber = distTo(kAmber), dGreen = distTo(kGreen), dRed = distTo(kRed), dHelp = distTo(kHelp);
-	int best = std::min({ dGrey, dAmber, dGreen, dRed, dHelp });
-	if (best <= bestDist)
-	{
-		if (best == dGrey) flags.isGrey = true;
-		else if (best == dAmber) flags.isAmber = true;
-		else if (best == dGreen) flags.isGreen = true;
-		else if (best == dRed) flags.isRed = true;
-		else flags.isHelp = true;
-	}
-	return flags;
+	const int a = (color >> 24) & 0xFF;
+	const int r = (color >> 16) & 0xFF;
+	const int g = (color >> 8) & 0xFF;
+	const int b = color & 0xFF;
+	char buf[48];
+	_snprintf_s(buf, sizeof(buf), _TRUNCATE, "rgba(%d,%d,%d,%d)", r, g, b, a);
+	return Rml::String(buf);
 }
 
 // Mirrors playerTemplateComboBoxTooltip()/playerTemplateListBoxTooltip() (LobbyUtils.cpp): the
@@ -236,11 +198,7 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 		if (chatHandle)
 		{
 			chatHandle.RegisterMember("text", &ChatLineModel::text);
-			chatHandle.RegisterMember("is_grey", &ChatLineModel::isGrey);
-			chatHandle.RegisterMember("is_amber", &ChatLineModel::isAmber);
-			chatHandle.RegisterMember("is_green", &ChatLineModel::isGreen);
-			chatHandle.RegisterMember("is_red", &ChatLineModel::isRed);
-			chatHandle.RegisterMember("is_help", &ChatLineModel::isHelp);
+			chatHandle.RegisterMember("color", &ChatLineModel::color);
 		}
 
 		constructor.RegisterArray<Rml::Vector<SlotRowModel>>();
@@ -433,7 +391,7 @@ static OnlineGameSetupSession::EventSink buildEventSink(RmlOnlineGameSetupScreen
 {
 	OnlineGameSetupSession::EventSink sink;
 
-	sink.chatLine = [screen](const UnicodeString &text, Color color) { Rml::String utf8 = unicodeToUtf8(text); ChatColorFlags flags = chatColorFlagsFor(color); screen->onChatLine(utf8, flags.isGrey, flags.isAmber, flags.isGreen, flags.isRed, flags.isHelp); };
+	sink.chatLine = [screen](const UnicodeString &text, Color color) { screen->onChatLine(unicodeToUtf8(text), colorToCss(color)); };
 	sink.slotsChanged = [screen]() { screen->refreshFromGameState(); };
 	sink.optionsChanged = [screen]() { screen->refreshFromGameState(); };
 	sink.becameHost = [screen]() { screen->onBecameHost(); };
@@ -467,6 +425,7 @@ void RmlOnlineGameSetupScreen::show()
 
 	m_model.chatLines.clear();
 	m_model.chatEntryText.clear();
+	m_lastChatLineCount = 0;
 	m_model.startEnabled = true;
 	m_model.backEnabled = true;
 	m_model.settingsLocked = false;
@@ -509,6 +468,25 @@ void RmlOnlineGameSetupScreen::update()
 		return; // host left this frame -- backToLobby() already popped the shell
 
 	refreshFromGameState(); // pick up connection-indicator/roster changes every frame, same as WOLGameSetupMenuUpdate()
+
+	// Keep the chat log pinned to its newest line -- a new chatLines entry lands via
+	// DirtyVariable() in onChatLine(), but RmlUi doesn't re-run layout until the next
+	// Context::Update(), so the scroll (which needs the post-layout GetScrollHeight()) happens
+	// here a frame later instead of inline in onChatLine().
+	if (m_model.chatLines.size() != m_lastChatLineCount)
+	{
+		m_lastChatLineCount = m_model.chatLines.size();
+		scrollChatToBottom();
+	}
+}
+
+void RmlOnlineGameSetupScreen::scrollChatToBottom()
+{
+	if (!m_document)
+		return;
+	Rml::Element *chatBody = m_document->GetElementById("chat-body");
+	if (chatBody)
+		chatBody->SetScrollTop(chatBody->GetScrollHeight());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -635,7 +613,7 @@ void RmlOnlineGameSetupScreen::onStart(Rml::DataModelHandle, Rml::Event &, const
 	if (OnlineGameSetupSession::isHost())
 	{
 		OnlineGameSetupActions::StartPressCallbacks callbacks;
-		callbacks.chatLine = [this](const UnicodeString &text, Color color) { Rml::String utf8 = unicodeToUtf8(text); ChatColorFlags flags = chatColorFlagsFor(color); onChatLine(utf8, flags.isGrey, flags.isAmber, flags.isGreen, flags.isRed, flags.isHelp); };
+		callbacks.chatLine = [this](const UnicodeString &text, Color color) { onChatLine(unicodeToUtf8(text), colorToCss(color)); };
 		callbacks.setStartButtonEnabled = [this](Bool enabled) { setStartButtonEnabled(enabled == TRUE); };
 		callbacks.setBackButtonEnabled = [this](Bool enabled) { setBackButtonEnabled(enabled == TRUE); };
 		// setSelectMapButtonEnabled left unset: select_map's data-attr-disabled already reads
@@ -661,7 +639,7 @@ void RmlOnlineGameSetupScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::E
 	text.trim();
 	if (!text.isEmpty())
 	{
-		if (!OnlineGameSetupActions::handleSlashCommand(text, [this](const UnicodeString &t, Color c) { Rml::String utf8 = unicodeToUtf8(t); ChatColorFlags flags = chatColorFlagsFor(c); onChatLine(utf8, flags.isGrey, flags.isAmber, flags.isGreen, flags.isRed, flags.isHelp); }))
+		if (!OnlineGameSetupActions::handleSlashCommand(text, [this](const UnicodeString &t, Color c) { onChatLine(unicodeToUtf8(t), colorToCss(c)); }))
 			OnlineGameSetupActions::sendChat(text);
 	}
 	m_model.chatEntryText.clear();
@@ -675,15 +653,11 @@ void RmlOnlineGameSetupScreen::onCommunicatorClicked(Rml::DataModelHandle, Rml::
 }
 
 //-------------------------------------------------------------------------------------------------
-void RmlOnlineGameSetupScreen::onChatLine(const Rml::String &text, bool isGrey, bool isAmber, bool isGreen, bool isRed, bool isHelp)
+void RmlOnlineGameSetupScreen::onChatLine(const Rml::String &text, const Rml::String &color)
 {
 	ChatLineModel line;
 	line.text = text;
-	line.isGrey = isGrey;
-	line.isAmber = isAmber;
-	line.isGreen = isGreen;
-	line.isRed = isRed;
-	line.isHelp = isHelp;
+	line.color = color;
 	m_model.chatLines.push_back(line);
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("chat_lines");
