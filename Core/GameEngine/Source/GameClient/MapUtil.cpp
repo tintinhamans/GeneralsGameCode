@@ -342,8 +342,12 @@ void MapCache::writeCacheINI( const AsciiString &mapDir )
 	TheFileSystem->createDirectory(mapDir);
 
 	filepath.concat(m_mapCacheName);
-	FILE *fp = fopen(filepath.str(), "w");
-	DEBUG_ASSERTCRASH(fp != nullptr, ("Failed to create %s", filepath.str()));
+
+	// write to a temp file and swap it in so a failed write never leaves a truncated MapCache.ini
+	AsciiString tempFilepath = filepath;
+	tempFilepath.concat(".tmp");
+	FILE *fp = fopen(tempFilepath.str(), "w");
+	DEBUG_ASSERTCRASH(fp != nullptr, ("Failed to create %s", tempFilepath.str()));
 	if (fp == nullptr) {
 		return;
 	}
@@ -406,7 +410,22 @@ void MapCache::writeCacheINI( const AsciiString &mapDir )
 		}
 	}
 
-	fclose(fp);
+	Bool ok = fflush(fp) == 0 && !ferror(fp);
+	if (fclose(fp) != 0)
+		ok = FALSE;
+
+#ifdef _WIN32
+	if (ok && !MoveFileExA(tempFilepath.str(), filepath.str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+		ok = FALSE;
+#else
+	if (ok && rename(tempFilepath.str(), filepath.str()) != 0)
+		ok = FALSE;
+#endif
+	if (!ok)
+	{
+		DEBUG_LOG(("MapCache::writeCacheINI - failed to write '%s'", filepath.str()));
+		remove(tempFilepath.str());
+	}
 }
 
 void MapCache::updateCache()

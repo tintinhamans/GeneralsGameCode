@@ -471,15 +471,20 @@ void NGMP_OnlineServicesManager::ContinueUpdate()
 		std::map<std::string, std::string> mapHeaders;
 		m_pHTTPManager->SendGETRequest(strDownloadPath.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 			{
+				auto fnShowUpdateFailed = []()
+					{
+						// show msg
+						ClearGSMessageBoxes();
+						MessageBoxOk(UnicodeString(L"Update Failed"), UnicodeString(L"Could not download the updater. Press below to exit."), []()
+							{
+								TheGameEngine->setQuitting(TRUE);
+							});
+						ShellExecuteA(NULL, "open", "https://www.playgenerals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
+					};
+
 				if (statusCode != 200)
 				{
-					// show msg
-					ClearGSMessageBoxes();
-					MessageBoxOk(UnicodeString(L"Update Failed"), UnicodeString(L"Could not download the updater. Press below to exit."), []()
-						{
-							TheGameEngine->setQuitting(TRUE);
-						});
-					ShellExecuteA(NULL, "open", "https://www.playgenerals.online/updatefailed", NULL, NULL, SW_SHOWNORMAL);
+					fnShowUpdateFailed();
 				}
 				else
 				{
@@ -502,15 +507,26 @@ void NGMP_OnlineServicesManager::ContinueUpdate()
 					std::vector<uint8_t> vecBuffer = pReq->GetBuffer();
 					size_t bufSize = pReq->GetBufferSize();
 
-					if (!std::filesystem::exists(strPatchDir))
+					std::error_code ec;
+					if (!std::filesystem::exists(strPatchDir, ec))
 					{
-						std::filesystem::create_directory(strPatchDir);
+						std::filesystem::create_directory(strPatchDir, ec);
 					}
 
+					// a partially written updater must not be treated as downloaded
+					bool bSaved = false;
 					FILE* pFile = fopen(strOutPath.c_str(), "wb");
 					if (pFile != nullptr) {
-						fwrite(vecBuffer.data(), sizeof(uint8_t), bufSize, pFile);
-						fclose(pFile);
+						bSaved = fwrite(vecBuffer.data(), sizeof(uint8_t), bufSize, pFile) == bufSize;
+						if (fclose(pFile) != 0)
+							bSaved = false;
+					}
+
+					if (!bSaved)
+					{
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "Failed to save downloaded file: %s", strOutPath.c_str());
+						fnShowUpdateFailed();
+						return;
 					}
 
 					// call continue update again, thisll check if we're done or have more work to do
