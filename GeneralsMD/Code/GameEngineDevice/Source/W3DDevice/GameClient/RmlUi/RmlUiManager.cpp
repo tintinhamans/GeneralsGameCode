@@ -51,6 +51,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlPlayerInfoScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlPopupReplayScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlChallengeMenuScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuickMatchScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlReplayMenuScreen.h"
@@ -360,6 +361,10 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/LocalDefeat.wnd", &OpenRmlLocalDefeatScreen, &CloseRmlLocalDefeatScreen, &screenVisible<RmlEndGameOverlayScreen>, nullptr, false);
 	RmlUiScreenRegistry::registerScreen("Menus/ObserverQuit.wnd", &OpenRmlObserverQuitScreen, &CloseRmlObserverQuitScreen, &screenVisible<RmlEndGameOverlayScreen>, nullptr, false);
 
+	// DisconnectMenu::showScreen()/hideScreen() open and close this through a placeholder layout; see
+	// RmlDisconnectScreen.h. It sits over live gameplay, so it does not capture input.
+	RmlUiScreenRegistry::registerScreen("Menus/DisconnectScreen.wnd", &OpenRmlDisconnectScreen, &CloseRmlDisconnectScreen, &screenVisible<RmlDisconnectScreen>, nullptr, false);
+
 	// The LoadScreen classes create these via winCreateFromScript(); see RmlLoadScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/MapTransferScreen.wnd", &OpenRmlMapTransferScreen, &CloseRmlMapTransferScreen, &loadScreenVisible<RmlLoadScreen::KIND_MAP_TRANSFER>, nullptr);
 	RmlUiScreenRegistry::registerScreen("Menus/MultiplayerLoadScreen.wnd", &OpenRmlMultiplayerLoadScreen, &CloseRmlMultiplayerLoadScreen, &loadScreenVisible<RmlLoadScreen::KIND_MULTIPLAYER>, nullptr);
@@ -455,6 +460,7 @@ void RmlUiManager::update()
 	RmlReplayMenuScreen::tick();
 	RmlPopupReplayScreen::tick();
 	RmlChallengeMenuScreen::tick();
+	RmlDisconnectScreen::tick();
 	RmlUiMessageBoxHook::raise(); // a box stays above screens shown after it
 	if (m_context)
 		m_context->Update();

@@ -1,0 +1,159 @@
+/*
+	DisconnectScreen.rcss -- DisconnectScreen.wnd, the panel over a running network game that lists the
+	players who stopped answering. The document is only the .wnd's DisconnectWindow rect (52,52)-(740,584
+	of 800x600), so the HUD around it keeps the mouse; everything in it is placed in percent of that
+	rect, like the .wnd's own non-uniform stretch. The capsule buttons and the text entry come from
+	common.rcss.
+*/
+
+body
+{
+	left: 6.5%;
+	top: 8.667%;
+	width: 86%;
+	height: 88.667%;
+}
+
+.dc-panel
+{
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 190);
+}
+
+/* Header text (58,52)-(736,84) and the line under it (y 85) */
+.dc-title
+{
+	position: absolute;
+	left: 0.87%;
+	top: 0;
+	width: 98.5%;
+	height: 6.02%;
+	display: flex;
+	align-items: center;
+	font-size: 36dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+}
+
+.dc-line
+{
+	position: absolute;
+	left: 0;
+	top: 6.2%;
+	width: 100%;
+	height: 1dp;
+	background-color: #2F37A8;
+}
+
+/* One row per other player, 28 of the 532 units tall, 32 apart from y 96 (top is set by the view) */
+.dc-row
+{
+	position: absolute;
+	left: 0;
+	width: 100%;
+	height: 5.263%;
+}
+
+.dc-cell
+{
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	color: #FFFFFF;
+	font-size: 18dp;
+	text-align: center;
+	background-color: rgba(2, 0, 0, 128);
+	overflow: hidden;
+	white-space: nowrap;
+}
+
+.dc-row .dc-cell,
+.dc-row .dc-vote
+{
+	top: 0;
+	height: 100%;
+}
+
+.dc-vote
+{
+	position: absolute;
+	left: 1.74%;
+	width: 8.72%;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 22dp;
+}
+
+.dc-votes { left: 11.63%; width: 10.47%; }
+.dc-name { left: 22.67%; width: 22.09%; }
+.dc-timeout { left: 45.93%; width: 10.47%; }
+
+/* Packet router timeout: label (448,176)-(592,232), value (604,176)-(732,232) */
+.dc-router-label
+{
+	left: 57.56%;
+	top: 23.31%;
+	width: 20.93%;
+	height: 10.53%;
+	font-size: 25dp;
+	white-space: normal;
+	background-color: rgba(0, 0, 0, 133);
+}
+
+.dc-router-value
+{
+	left: 80.23%;
+	top: 23.31%;
+	width: 18.6%;
+	height: 10.53%;
+	font-size: 25dp;
+	background-color: rgba(2, 0, 0, 133);
+}
+
+/* Chat: list (64,323)-(732,503), entry (62,512)-(732,537) */
+.dc-log
+{
+	position: absolute;
+	left: 1.74%;
+	top: 50.94%;
+	width: 97.09%;
+	height: 33.83%;
+	box-sizing: border-box;
+	font-size: 18dp;
+	background-color: rgba(0, 0, 0, 126);
+}
+
+.dc-entry
+{
+	position: absolute;
+	left: 1.45%;
+	top: 86.47%;
+	width: 97.38%;
+	height: 4.7%;
+	box-sizing: border-box;
+	font-size: 18dp;
+}
+
+/* Quit button (564,543)-(732,579) */
+.dc-quit
+{
+	position: absolute;
+	left: 74.42%;
+	top: 92.3%;
+	width: 24.42%;
+	height: 6.77%;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 29dp;
+}

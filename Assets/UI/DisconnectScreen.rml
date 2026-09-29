@@ -1,0 +1,33 @@
+<rml>
+<head>
+	<title>DisconnectScreen</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="DisconnectScreen.rcss"/>
+</head>
+<body data-model="disconnectscreen">
+	<div class="dc-panel">
+		<div class="dc-title"><gametext key="GUI:InternetDisconnectionMenuHeaderCaps"/></div>
+		<div class="dc-line"></div>
+
+		<div data-for="p : players">
+			<div class="dc-row" data-if="p.visible" data-style-top="p.top">
+				<button class="dc-vote" data-attrif-disabled="!p.vote_enabled" data-event-click="vote(p.index)" data-tooltip="Tooltip:Vote"><gametext key="Network:Vote"/></button>
+				<div class="dc-cell dc-votes" data-tooltip="Tooltip:NumberOfVotes"><span>{{p.votes}}</span></div>
+				<div class="dc-cell dc-name"><span>{{p.name}}</span></div>
+				<div class="dc-cell dc-timeout"><span>{{p.timeout}}</span></div>
+			</div>
+		</div>
+
+		<div class="dc-cell dc-router-label" data-if="router_visible"><gametext key="Network:PacketRouterTimeout"/></div>
+		<div class="dc-cell dc-router-value" data-if="router_visible"><span>{{router_timeout}}</span></div>
+
+		<scrolllog class="text-list scroll-container dc-log">
+			<div class="chat-line" data-for="line : chat_lines"><span data-if="line.used" data-style-color="line.color">{{line.text}}</span></div>
+		</scrolllog>
+
+		<input type="text" class="chat-input dc-entry" maxlength="128" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
+
+		<button class="dc-quit" data-attrif-disabled="!quit_enabled" data-event-click="quit" data-tooltip="Tooltip:QuitMultiplayerGame"><gametext key="Network:QuitGame"/></button>
+	</div>
+</body>
+</rml>
