@@ -87,6 +87,7 @@ struct GameSetupFactionOption
 {
 	Int m_playerTemplate = PLAYERTEMPLATE_RANDOM;
 	UnicodeString m_displayName;
+	AsciiString m_iconImage; // mapped image: the template's GeneralImage, else its SideIconImage; empty for random
 };
 
 // One color entry (TheMultiplayerSettings order, -1 first). A slot row offers the subset in its

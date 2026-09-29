@@ -96,6 +96,7 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 			optionHandle.RegisterMember("value", &OptionModel::value);
 			optionHandle.RegisterMember("label", &OptionModel::label);
 			optionHandle.RegisterMember("swatch", &OptionModel::swatch);
+			optionHandle.RegisterMember("icon", &OptionModel::icon);
 		}
 		constructor.RegisterArray<Rml::Vector<OptionModel>>();
 
@@ -154,6 +155,9 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("slot_faction_changed", &RmlSkirmishSetupScreen::onSlotFactionChanged, this);
 		constructor.BindEventCallback("slot_color_changed", &RmlSkirmishSetupScreen::onSlotColorChanged, this);
 		constructor.BindEventCallback("slot_team_changed", &RmlSkirmishSetupScreen::onSlotTeamChanged, this);
+		constructor.BindEventCallback("slot_color_picked", &RmlSkirmishSetupScreen::onSlotColorPicked, this);
+		constructor.BindEventCallback("slot_team_picked", &RmlSkirmishSetupScreen::onSlotTeamPicked, this);
+		constructor.BindEventCallback("starting_cash_picked", &RmlSkirmishSetupScreen::onStartingCashPicked, this);
 		constructor.BindEventCallback("start_marker_clicked", &RmlSkirmishSetupScreen::onStartPositionMarkerClick, this);
 		constructor.BindEventCallback("start_marker_mousedown", &RmlSkirmishSetupScreen::onStartPositionMarkerMouseDown, this);
 		constructor.BindEventCallback("starting_cash_changed", &RmlSkirmishSetupScreen::onStartingCashChanged, this);
@@ -257,7 +261,7 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 
 	m_model.factionOptions.clear();
 	for (const GameSetupFactionOption &faction : data.m_options.m_factionOptions)
-		m_model.factionOptions.push_back(OptionModel{ faction.m_playerTemplate, unicodeToUtf8(faction.m_displayName) });
+		m_model.factionOptions.push_back(OptionModel{ faction.m_playerTemplate, unicodeToUtf8(faction.m_displayName), Rml::String(), faction.m_iconImage.str() });
 
 	m_model.startingCashOptions.clear();
 	for (const GameSetupStartingCashOption &cash : data.m_options.m_startingCashOptions)
@@ -380,6 +384,32 @@ void RmlSkirmishSetupScreen::onSlotTeamChanged(Rml::DataModelHandle, Rml::Event 
 	Int team = atoi(ev.GetParameter<Rml::String>("value", "-1").c_str());
 	SkirmishSetupActions::selectTeam(TheSkirmishGameInfo, slotIndex, team);
 	refreshFromGameState();
+}
+
+void RmlSkirmishSetupScreen::onSlotColorPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.size() < 2)
+		return;
+	SkirmishSetupActions::selectColor(TheSkirmishGameInfo, args[0].Get<int>(), args[1].Get<int>());
+	refreshFromGameState();
+}
+
+void RmlSkirmishSetupScreen::onSlotTeamPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.size() < 2)
+		return;
+	SkirmishSetupActions::selectTeam(TheSkirmishGameInfo, args[0].Get<int>(), args[1].Get<int>());
+	refreshFromGameState();
+}
+
+void RmlSkirmishSetupScreen::onStartingCashPicked(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &args)
+{
+	if (args.empty())
+		return;
+	m_model.startingCash = args[0].Get<int>();
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("starting_cash");
+	onStartingCashChanged(m_modelHandle, ev, args);
 }
 
 void RmlSkirmishSetupScreen::onStartPositionMarkerClick(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)

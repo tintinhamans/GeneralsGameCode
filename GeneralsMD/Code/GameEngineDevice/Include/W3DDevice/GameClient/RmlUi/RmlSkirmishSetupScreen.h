@@ -60,6 +60,9 @@ private:
 	void onSlotFactionChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotColorChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotTeamChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onSlotColorPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // swatch click: (slot, color)
+	void onSlotTeamPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // team segment click: (slot, team)
+	void onStartingCashPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // cash segment click: (amount)
 	void onStartPositionMarkerClick(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onStartPositionMarkerMouseDown(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onStartingCashChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -87,6 +90,7 @@ private:
 		int value = 0;
 		Rml::String label;
 		Rml::String swatch; // color options only: "#RRGGBB", "transparent" for random
+		Rml::String icon; // faction options only: mapped image name, empty for random
 	};
 
 	// One slot row's worth of fields for the data-for-bound slot table (see load()). Field names

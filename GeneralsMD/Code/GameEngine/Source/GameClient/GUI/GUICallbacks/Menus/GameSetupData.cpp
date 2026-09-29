@@ -23,9 +23,11 @@
 #include "GameClient/GUI/GUICallbacks/Menus/GameSetupData.h"
 
 #include "Common/MultiplayerSettings.h"
+#include "Common/NameKeyGenerator.h"
 #include "Common/PlayerTemplate.h"
 #include "GameClient/ChallengeGenerals.h"
 #include "GameClient/GameText.h"
+#include "GameClient/Image.h"
 #include "GameClient/MapUtil.h"
 #include "GameNetwork/GUIUtil.h"
 
@@ -133,6 +135,9 @@ GameSetupData GameSetupData::build( GameInfo *game, Bool allowObservers )
 			GameSetupFactionOption option;
 			option.m_playerTemplate = i;
 			option.m_displayName = TheGameText->fetch( side );
+			const Image *icon = tmpl->getGeneralImage() ? tmpl->getGeneralImage() : tmpl->getSideIconImage();
+			if( icon )
+				option.m_iconImage = icon->getName();
 			options.m_factionOptions.push_back( option );
 		}
 
@@ -141,6 +146,9 @@ GameSetupData GameSetupData::build( GameInfo *game, Bool allowObservers )
 			GameSetupFactionOption observer;
 			observer.m_playerTemplate = PLAYERTEMPLATE_OBSERVER;
 			observer.m_displayName = TheGameText->fetch( "GUI:Observer" );
+			const PlayerTemplate *observerTemplate = ThePlayerTemplateStore->findPlayerTemplate( NAMEKEY( "FactionObserver" ) );
+			if( observerTemplate && observerTemplate->getSideIconImage() )
+				observer.m_iconImage = observerTemplate->getSideIconImage()->getName();
 			options.m_factionOptions.push_back( observer );
 		}
 	}
