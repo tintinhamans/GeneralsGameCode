@@ -28,6 +28,7 @@
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbyActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbySession.h"
 #include "GameClient/Shell.h"
+#include "GameClient/TransitionSounds.h"
 #include "W3DDevice/GameClient/RmlUi/RmlSocialDock.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
@@ -306,10 +307,17 @@ void RmlOnlineLobbyScreen::show()
 
 	m_document->Show();
 	OnlineLobbyActions::refresh();
+
+	// WOLLobbyMenuUpdate()'s entrance: the main menu's logo group stops, the lobby's plays; and
+	// WOLLobbyMenuShutdown()'s reverse below.
+	TransitionSounds::stop("MainMenuDefaultMenuLogoFade");
+	TransitionSounds::play("WOLCustomLobbyFade");
 }
 
 void RmlOnlineLobbyScreen::hide()
 {
+	if (m_document && m_document->IsVisible())
+		TransitionSounds::play("WOLCustomLobbyFade", TRUE);
 	if (m_document)
 		m_document->Hide();
 
