@@ -181,6 +181,14 @@ Int parseUseLegacyMenus(char *args[], int num)
 	return 1;
 }
 
+// Keep the RmlUi screens even where a mod supplies the .wnd (see RmlUiScreenRegistry::usesModWnd()).
+Int parseRmlIgnoreModWnds(char *args[], int num)
+{
+	TheWritableGlobalData->m_rmlIgnoreModWnds = TRUE;
+
+	return 1;
+}
+
 //=============================================================================
 //=============================================================================
 // TheSuperHackers @feature RmlUi phase 2: -rmldebug shows Rml::Debugger over RmlUi screens.
@@ -1216,6 +1224,7 @@ static CommandLineParam paramsForEngineInit[] =
 
 	// TheSuperHackers @feature RmlUi phase 1: use the original .wnd menus, not RmlUi.
 	{ "-wnd", parseUseLegacyMenus },
+	{ "-rmlignoremodwnd", parseRmlIgnoreModWnds },
 
 	// TheSuperHackers @feature RmlUi phase 2: show Rml::Debugger over RmlUi screens.
 	{ "-rmldebug", parseRmlDebugger },

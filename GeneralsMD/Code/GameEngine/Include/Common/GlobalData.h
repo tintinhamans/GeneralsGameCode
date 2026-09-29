@@ -132,6 +132,9 @@ public:
 	// RmlUi. Shell screens route on this flag starting phase 2 (see RmlUiManager/Shell).
 	Bool m_useLegacyMenus;
 
+	// -rmlignoremodwnd keeps the RmlUi screens even where a mod supplies the .wnd.
+	Bool m_rmlIgnoreModWnds;
+
 	// TheSuperHackers @feature RmlUi phase 2: -rmldebug shows Rml::Debugger over RmlUi screens.
 	Bool m_rmlDebugger;
 

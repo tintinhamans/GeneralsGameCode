@@ -19,15 +19,26 @@
 #include "PreRTS.h"
 #include "GameClient/RmlUiScreenRegistry.h"
 
+#include "Common/ArchiveFile.h"
+#include "Common/ArchiveFileSystem.h"
 #include "Common/AsciiString.h"
+#include "Common/EmbeddedArchiveFile.h"
 #include "Common/GlobalData.h"
+#include "Common/LocalFileSystem.h"
+#include "Common/Registry.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/RmlUiMessageBoxHook.h"
 #include "GameClient/Shell.h"
 #include "GameClient/WindowLayout.h"
 
+#include <set>
+#include <string>
 #include <vector>
+
+#if defined(GENERALS_ONLINE)
+#include "GameNetwork/GeneralsOnline/NGMP_include.h"
+#endif
 
 namespace
 {
@@ -104,8 +115,231 @@ namespace
 	}
 }
 
+//-------------------------------------------------------------------------------------------------
+// Mod .wnd fallback. A mod that ships its own Window\<path> means that one screen goes back to the
+// .wnd. Stock is what the retail archives or the embedded Generals Online archive provide; a loose
+// file or any other .big is a mod's.
+namespace
+{
+	// Retail Generals and Zero Hour .big names (Zero Hour's with a "ZH" suffix), per language where
+	// the SKUs ship one.
+	bool isRetailArchiveName(std::string name)
+	{
+		for (size_t i = 0; i < name.size(); ++i)
+			name[i] = (char)tolower((unsigned char)name[i]);
+		if (name.size() <= 4 || name.compare(name.size() - 4, 4, ".big") != 0)
+			return false;
+		name.erase(name.size() - 4);
+		if (name.size() > 2 && name.compare(name.size() - 2, 2, "zh") == 0)
+			name.erase(name.size() - 2);
+
+		static const char *const plain[] = { "audio", "english", "gensec", "ini", "maps", "music", "patch", "shaders", "speech", "terrain", "textures", "w3d", "window" };
+		static const char *const localizedPrefixes[] = { "", "audio", "speech", "w3d" };
+		static const char *const languages[] = { "english", "german", "french", "spanish", "italian", "korean", "chinese", "brazilian", "polish" };
+		for (size_t i = 0; i < ARRAY_SIZE(plain); ++i)
+			if (name == plain[i])
+				return true;
+		for (size_t p = 0; p < ARRAY_SIZE(localizedPrefixes); ++p)
+			for (size_t l = 0; l < ARRAY_SIZE(languages); ++l)
+				if (name == std::string(localizedPrefixes[p]) + languages[l])
+					return true;
+		return false;
+	}
+
+	std::string normalizedPath(const char *path)
+	{
+		std::string s(path ? path : "");
+		for (size_t i = 0; i < s.size(); ++i)
+			s[i] = s[i] == '/' ? '\\' : (char)tolower((unsigned char)s[i]);
+		return s;
+	}
+
+	// Win32BIGFileSystem::init() loads the game folder's .bigs (subfolders included, which is where
+	// mods go) and, for Zero Hour, the original Generals install's. Only the top of those folders is retail.
+	bool isStockArchive(ArchiveFile *archive)
+	{
+		if (dynamic_cast<EmbeddedArchiveFile *>(archive))
+			return true;
+
+		const std::string name = normalizedPath(archive->getName().str());
+		const size_t slash = name.find_last_of('\\');
+		const std::string base = slash == std::string::npos ? name : name.substr(slash + 1);
+		if (!isRetailArchiveName(base))
+			return false;
+		if (slash == std::string::npos)
+			return true;
+
+#if RTS_ZEROHOUR
+		AsciiString installPath;
+		if (GetStringFromGeneralsRegistry("", "InstallPath", installPath) && !installPath.isEmpty())
+		{
+			std::string dir = normalizedPath(installPath.str());
+			if (dir[dir.size() - 1] != '\\')
+				dir += '\\';
+			if (name.compare(0, slash + 1, dir) == 0)
+				return true;
+		}
+#endif
+		return false;
+	}
+
+	// FileSystem::openFile()'s order: a loose file first, then the archive on top of the directory tree.
+	// found is FALSE if nothing provides the file; source names what does.
+	bool isStockFile(const AsciiString &path, bool &found, AsciiString &source)
+	{
+		found = false;
+		if (TheLocalFileSystem && TheLocalFileSystem->doesFileExist(path.str()))
+		{
+			found = true;
+			source = "a loose file";
+			return false;
+		}
+		ArchiveFile *archive = TheArchiveFileSystem ? TheArchiveFileSystem->getArchiveFile(path) : nullptr;
+		if (!archive)
+			return true;
+		found = true;
+		source = archive->getName();
+		return isStockArchive(archive);
+	}
+
+	// Where winCreateFromScript() reads wndPath from.
+	bool isModWnd(const AsciiString &wndPath, AsciiString &source)
+	{
+		const bool bare = strchr(wndPath.str(), '\\') == nullptr;
+		bool found = false;
+		AsciiString path;
+#if defined(GENERALS_ONLINE)
+		path = bare ? AsciiString("GeneralsOnlineGameData\\") : AsciiString::TheEmptyString;
+		path.concat(wndPath);
+		const bool goStock = isStockFile(path, found, source);
+		if (found)
+			return !goStock;
+#endif
+		path = bare ? AsciiString("Window\\") : AsciiString::TheEmptyString;
+		path.concat(wndPath);
+		const bool stock = isStockFile(path, found, source);
+		return found && !stock;
+	}
+
+	// A .wnd popup cannot show over an RmlUi screen (RmlUi draws on top and takes the input), so
+	// when a popup falls back, the screens it opens over fall back with it. The map select popups
+	// also work only with their own setup screen, so those pairs go together both ways.
+	struct PopupHost
+	{
+		const char *popup;
+		const char *host;
+		bool both; ///< the host's fallback takes the popup along too
+	};
+
+	const PopupHost s_popupHosts[] =
+	{
+		{ "Menus/SkirmishMapSelectMenu.wnd", "Menus/SkirmishGameOptionsMenu.wnd", true },
+		{ "Menus/LanMapSelectMenu.wnd", "Menus/LanGameOptionsMenu.wnd", true },
+		{ "Menus/WOLMapSelectMenu.wnd", "Menus/GameSpyGameOptionsMenu.wnd", true },
+		{ "Menus/OptionsMenu.wnd", "Menus/MainMenu.wnd", false },
+		{ "Menus/OptionsMenu.wnd", "Menus/QuitMenu.wnd", false },
+		{ "Menus/OptionsMenu.wnd", "Menus/QuitNoSave.wnd", false },
+		{ "Menus/OptionsMenu.wnd", "Menus/WOLWelcomeMenu.wnd", false },
+		{ "Menus/OptionsMenu.wnd", "Menus/PopupPlayerInfo.wnd", false },
+		{ "Menus/DownloadMenu.wnd", "Menus/MainMenu.wnd", false },
+		{ "Menus/PopupSaveLoad.wnd", "Menus/QuitMenu.wnd", false },
+		{ "Menus/PopupSaveLoad.wnd", "Menus/QuitNoSave.wnd", false },
+		{ "Menus/PopupReplay.wnd", "Menus/ScoreScreen.wnd", false },
+		{ "Menus/PopupPlayerInfo.wnd", "Menus/WOLWelcomeMenu.wnd", false },
+		{ "Menus/PopupPlayerInfo.wnd", "Menus/WOLCustomLobby.wnd", false },
+		{ "Menus/PopupPlayerInfo.wnd", "Menus/WOLBuddyOverlay.wnd", false },
+		{ "Menus/WOLBuddyOverlay.wnd", "Menus/WOLWelcomeMenu.wnd", false },
+		{ "Menus/WOLBuddyOverlay.wnd", "Menus/WOLCustomLobby.wnd", false },
+		{ "Menus/WOLBuddyOverlay.wnd", "Menus/GameSpyGameOptionsMenu.wnd", false },
+		{ "Menus/WOLBuddyOverlay.wnd", "Menus/WOLQuickMatchMenu.wnd", false },
+		{ "Menus/WOLBuddyOverlay.wnd", "Menus/ScoreScreen.wnd", false },
+		{ "Menus/WOLBuddyOverlay.wnd", "Menus/PopupPlayerInfo.wnd", false },
+		{ "Menus/PopupHostGame.wnd", "Menus/WOLCustomLobby.wnd", false },
+		{ "Menus/PopupJoinGame.wnd", "Menus/WOLCustomLobby.wnd", false },
+	};
+
+	// The registered paths that go to the .wnd, worked out once all screens are registered (the
+	// mods are loaded by then) and logged once each.
+	struct ModFallback
+	{
+		bool computed = false;
+		std::set<AsciiString> paths;
+	};
+
+	ModFallback &modFallback()
+	{
+		static ModFallback s_fallback;
+		return s_fallback;
+	}
+
+	void logFallback(const AsciiString &wndPath, const char *reason, const char *detail)
+	{
+		DEBUG_LOG(("RmlUi: %s uses its .wnd, %s %s", wndPath.str(), reason, detail));
+#if defined(GENERALS_ONLINE)
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "RmlUi: %s uses its .wnd, %s %s", wndPath.str(), reason, detail);
+#endif
+	}
+
+	void computeModFallback()
+	{
+		ModFallback &fallback = modFallback();
+		fallback.computed = true;
+		fallback.paths.clear();
+
+		const std::vector<Entry> &e = entries();
+		for (size_t i = 0; i < e.size(); ++i)
+		{
+			AsciiString source;
+			if (isModWnd(e[i].wndPath, source))
+			{
+				fallback.paths.insert(e[i].wndPath);
+				logFallback(e[i].wndPath, "a mod provides it in", source.str());
+			}
+		}
+
+		bool changed = true;
+		while (changed)
+		{
+			changed = false;
+			for (size_t i = 0; i < ARRAY_SIZE(s_popupHosts); ++i)
+			{
+				const AsciiString popup(s_popupHosts[i].popup);
+				const AsciiString host(s_popupHosts[i].host);
+				const bool popupFalls = fallback.paths.count(popup) != 0;
+				const bool hostFalls = fallback.paths.count(host) != 0;
+				if (popupFalls && !hostFalls && find(host))
+				{
+					fallback.paths.insert(host);
+					logFallback(host, "along with its popup", popup.str());
+					changed = true;
+				}
+				else if (s_popupHosts[i].both && hostFalls && !popupFalls && find(popup))
+				{
+					fallback.paths.insert(popup);
+					logFallback(popup, "along with its screen", host.str());
+					changed = true;
+				}
+			}
+		}
+	}
+}
+
+bool RmlUiScreenRegistry::usesModWnd(const AsciiString &wndPath)
+{
+	if (TheGlobalData && TheGlobalData->m_rmlIgnoreModWnds)
+		return false;
+	if (!TheLocalFileSystem || !TheArchiveFileSystem)
+		return false;
+
+	ModFallback &fallback = modFallback();
+	if (!fallback.computed)
+		computeModFallback();
+	return fallback.paths.count(wndPath) != 0;
+}
+
 void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, RmlUiScreenFunc back, bool capturesInput, RmlUiScreenKeyFunc keys)
 {
+	modFallback().computed = false;
 	AsciiString path(wndPath);
 	Entry *existing = find(path);
 	if (existing)
@@ -147,6 +381,7 @@ void RmlUiScreenRegistry::unregisterScreen(const char *wndPath)
 void RmlUiScreenRegistry::unregisterAll()
 {
 	entries().clear();
+	modFallback().computed = false;
 }
 
 bool RmlUiScreenRegistry::isRegistered(const AsciiString &wndPath)
@@ -238,7 +473,7 @@ bool RmlUiScreenRegistry::usesLegacyMenus()
 
 bool RmlUiScreenRegistry::routesToRmlUi(const AsciiString &wndPath)
 {
-	return !usesLegacyMenus() && isRegistered(wndPath);
+	return !usesLegacyMenus() && isRegistered(wndPath) && !usesModWnd(wndPath);
 }
 
 bool RmlUiScreenRegistry::routesMessageBoxToRmlUi()

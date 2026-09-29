@@ -60,8 +60,15 @@ public:
 
 	// The one place that decides whether RmlUi or the legacy .wnd handles a path (or a message box).
 	static bool usesLegacyMenus(); ///< -wnd was given
-	static bool routesToRmlUi(const AsciiString &wndPath); ///< registered and not -wnd
+	static bool routesToRmlUi(const AsciiString &wndPath); ///< registered, not -wnd and not usesModWnd()
+	// The message box stays RmlUi when a mod supplies MessageBox.wnd: a .wnd box could not show over the
+	// RmlUi screens every box can pop up on.
 	static bool routesMessageBoxToRmlUi(); ///< message box hook set and not -wnd
+
+	// A mod supplies this screen's .wnd (a loose file or a .big other than the retail ones and the
+	// embedded Generals Online one), or a popup of it or its map select does, so it keeps its .wnd.
+	// Worked out once all screens are registered, logged once per screen; -rmlignoremodwnd turns it off.
+	static bool usesModWnd(const AsciiString &wndPath);
 
 	static bool open(const AsciiString &wndPath);  ///< calls the registered open func; returns true if handled
 	static bool close(const AsciiString &wndPath); ///< calls the registered close func; returns true if handled
