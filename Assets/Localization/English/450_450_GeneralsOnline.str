@@ -54,3 +54,7 @@ END
 GUI:GOStatusTitle
 "Generals Online"
 END
+
+GUI:GOAddAI
+"Add AI"
+END

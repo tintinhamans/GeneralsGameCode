@@ -1,227 +1,22 @@
 /*
-	SkirmishGameOptions.rcss -- skirmish setup on the screen template (common.rcss): the players
-	table and the option/honors panels in the main column, the map card in the side column. Each
-	panel is as tall as its content, so the shell map shows under the table and the map card.
+	SkirmishGameOptions.rcss -- skirmish setup on the screen template (common.rcss): a player card
+	per slot, two across, in the main column (the .player-card component); the map card and the
+	game options in the side column; the battle honors between Back and Play in the action bar.
 
 	Every select keeps an option matching its bound value (the hidden SLOT_PLAYER occupant on
-	human rows, Random in the army list): RmlUi fires a phantom "change" for an unmatched value.
+	human slots, Random in the army list): RmlUi fires a phantom "change" for an unmatched value.
 	x_style/y_style of a start marker are pre-formatted CSS lengths ("12.500%"); start_markers is
 	always MAX_SLOTS entries, unused ones hidden with data-if="marker.used".
 */
 
-/* ---- Players table --------------------------------------------------------------------------- */
-.slots
+/* ---- Player cards ------------------------------------------------------------------------------ */
+.sk-cards
 {
-	display: flex;
-	flex-direction: column;
-	flex: 0 1 auto;
-	min-height: 0;
-	padding-top: 10dp;
-	padding-bottom: 10dp;
-}
-
-.slot
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	box-sizing: border-box;
-	flex: 0 0 52dp;
-	height: 52dp;
-	border-bottom: 1dp #FFFFFF0A;
-}
-
-.slot:last-child
-{
-	border-bottom-width: 0;
-}
-
-.slot.list-head
-{
-	flex: 0 0 34dp;
-	min-height: 34dp;
-	height: 34dp;
-	padding: 0;
-	border-bottom: 1dp #8080FF28;
-}
-
-/* Player colour bar at the head of the row. */
-.slot-chip
-{
-	flex: 0 0 4dp;
-	height: 35dp;
-	margin-right: 15dp;
-}
-
-.slot.list-head .slot-chip
-{
-	height: 1dp;
-}
-
-/* Fixed columns: every row lines up and nothing in a row moves when a slot changes between open,
-   AI and human or picks another colour or team. Occupant and army share any spare width evenly. */
-.c-occupant, .c-army, .c-color, .c-team
-{
-	box-sizing: border-box;
-	min-width: 0;
-	margin-right: 20dp;
-}
-
-.c-occupant { flex: 1 1 250dp; max-width: 360dp; }
-.c-army { flex: 1 1 300dp; max-width: 420dp; }
-.c-color { flex: 0 0 270dp; }
-.c-team { flex: 0 0 236dp; margin-right: 0; }
-
-.c-occupant select, .c-army select
-{
-	width: 100%;
-	height: 42dp;
-}
-
-.c-occupant select selectvalue, .c-army select selectvalue
-{
-	height: 40dp;
-	line-height: 40dp;
-}
-
-.slot-name
-{
-	display: block;
-	height: 45dp;
-	line-height: 45dp;
-	padding: 0 13dp;
-	font-size: 21dp;
-	font-weight: bold;
-	color: #FFFFFF;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-/* Open and closed slots: only the occupant is set, the rest of the row is hidden. */
-.slot.empty .c-army select, .slot.empty .c-color .swatches, .slot.empty .c-team .seg
-{
-	visibility: hidden;
-}
-
-.slot.empty .slot-chip
-{
-	background-color: transparent;
-}
-
-/* Army: the general's badge in front of the name, in the list and in the closed select. */
-.army-icon
-{
-	display: inline-block;
-	width: 30dp;
-	height: 30dp;
-	margin-right: 13dp;
-	vertical-align: middle;
-}
-
-.army-random
-{
-	box-sizing: border-box;
-	line-height: 28dp;
-	text-align: center;
-	font-size: 16dp;
-	font-weight: bold;
-	color: #A9B1CF;
-	border: 1dp #8080FF46;
-	background-color: #141A3E;
-}
-
-.army-select selectbox
-{
-	width: 350dp;
-}
-
-/* Team: fixed-width segments, so the control is the same width in every row. */
-.screen .team-seg button.seg-item
-{
-	flex: 0 0 40dp;
-	width: 40dp;
-	min-width: 0;
-	padding: 0;
-}
-
-.screen .team-seg button.seg-item:first-child
-{
-	flex-basis: 64dp;
-	width: 64dp;
-}
-
-/* ---- Game options and honors ------------------------------------------------------------------ */
-.lower
-{
-	display: flex;
-	flex-direction: row;
-	flex: 0 0 auto;
-	margin-top: 20dp;
-}
-
-.lower .surface + .surface
-{
-	margin-top: 0;
-	margin-left: 20dp;
-}
-
-.options
-{
-	flex: 1.3 1 0%;
-	max-width: 950dp;
-	min-width: 0;
-}
-
-.opt-row
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	min-height: 40dp;
-	margin-bottom: 8dp;
-}
-
-.opt-row:last-child
-{
-	margin-bottom: 0;
-}
-
-.opt-label
-{
-	flex: 0 0 160dp;
-	color: #A9B1CF;
-}
-
-.speed
-{
-	flex: 1 1 auto;
-	max-width: 400dp;
-}
-
-.honors
-{
-	display: flex;
-	flex-direction: column;
 	flex: 1 1 0%;
-	min-width: 0;
+	min-height: 0;
 }
 
-.stats
-{
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	flex: 1 1 auto;
-}
-
-.stats .stat
-{
-	flex: 0 0 50%;
-	margin-bottom: 15dp;
-}
-
-/* ---- Map card ---------------------------------------------------------------------------------- */
+/* ---- Side column: map and options -------------------------------------------------------------- */
 .col-side
 {
 	width: 440dp;
@@ -229,37 +24,132 @@
 
 .map-card
 {
-	display: flex;
-	flex-direction: column;
-}
-
-.map-button
-{
 	display: block;
 }
 
-/* ---- 5:4 and 4:3: tighter fixed columns so the table still fits beside the map ------------------- */
+.map-card .map-frame
+{
+	width: 360dp;
+	height: 360dp;
+	margin: 0 auto;
+}
+
+.map-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 14dp;
+}
+
+.map-row .map-name
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	margin: 0 12dp 0 0;
+}
+
+.map-row button
+{
+	flex: 0 0 auto;
+}
+
+.options .opt-label
+{
+	display: block;
+	margin: 0 0 8dp 0;
+	font-size: 17dp;
+	color: #A9B1CF;
+}
+
+.cash-seg
+{
+	margin-bottom: 14dp;
+}
+
+.screen .cash-seg button.seg-item
+{
+	flex: 1 1 0%;
+	padding: 0 6dp;
+	font-size: 17dp;
+}
+
+.speed-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 12dp;
+}
+
+.speed-row .opt-label
+{
+	flex: 0 0 auto;
+	margin: 0 16dp 0 0;
+}
+
+.speed
+{
+	flex: 1 1 0%;
+}
+
+/* ---- Honors in the action bar ------------------------------------------------------------------ */
+.honors
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-left: 30dp;
+	padding: 8dp 20dp;
+	background-color: #070A1AC8;
+}
+
+.honors .stat
+{
+	flex: 0 0 auto;
+	margin-right: 28dp;
+}
+
+.honors .stat:last-child
+{
+	margin-right: 0;
+}
+
+.honors .stat-value
+{
+	font-size: 26dp;
+	line-height: 30dp;
+}
+
+.honors .stat-label
+{
+	font-size: 13dp;
+}
+
+/* ---- 5:4 and 4:3: a narrower side column and tighter cards ---------------------------------------- */
 @media (max-aspect-ratio: 3/2)
 {
-	.col-side { width: 300dp; }
-	.map-frame { width: 260dp; height: 260dp; }
-	.slots { padding-left: 14dp; padding-right: 14dp; }
-	.slot-chip { margin-right: 10dp; }
-	.c-occupant, .c-army, .c-color { margin-right: 12dp; }
-	.c-occupant { flex-basis: 160dp; }
-	.c-army { flex-basis: 188dp; }
-	.c-occupant select, .c-army select, .slot-name { font-size: 18dp; }
-	.army-icon { width: 26dp; height: 26dp; margin-right: 8dp; }
-	.c-color { flex-basis: 225dp; }
-	.screen .swatches button.swatch { width: 24dp; height: 24dp; margin-right: 1dp; }
-	.swatch .chip { line-height: 16dp; font-size: 13dp; }
-	.swatch.random .chip { line-height: 14dp; }
-	.c-team { flex-basis: 180dp; }
-	.screen .team-seg button.seg-item { flex-basis: 30dp; width: 30dp; font-size: 16dp; }
-	.screen .team-seg button.seg-item:first-child { flex-basis: 46dp; width: 46dp; }
-	.opt-label { flex-basis: 130dp; }
-	.options { flex-grow: 1.7; }
-	.screen .options .seg button.seg-item { padding: 0 8dp; font-size: 16dp; }
+	.col-side { width: 330dp; }
+	.map-card .map-frame { width: 290dp; height: 290dp; }
+	.speed-row { flex-wrap: wrap; }
+	.speed-row .opt-label { flex-basis: 100%; margin-bottom: 8dp; }
+	.map-row { flex-wrap: wrap; }
+	.map-row .map-name { flex-basis: 100%; margin-bottom: 8dp; }
+	.player-card { padding: 10dp 10dp; }
+	.pc-badge { flex-basis: 46dp; width: 46dp; height: 46dp; margin-right: 10dp; }
+	.pc-badge mappedimage { width: 38dp; height: 38dp; }
+	.pc-name { font-size: 20dp; }
+	.screen .team-seg button.seg-item { flex-basis: 28dp; width: 28dp; font-size: 15dp; }
+	.screen .team-seg button.seg-item:first-child { flex-basis: 48dp; width: 48dp; }
+	.screen .swatches button.swatch { width: 26dp; height: 26dp; margin-right: 1dp; }
+	.swatch .chip { line-height: 18dp; font-size: 13dp; }
+	.swatch.random .chip { line-height: 16dp; }
+	.pc-spot { width: 32dp; height: 32dp; line-height: 28dp; margin-left: 8dp; font-size: 16dp; }
+	.pc-compact .pc-who { flex-basis: 110dp; }
+	.screen .pc-add button { padding: 0 7dp; margin-left: 4dp; font-size: 14dp; }
+	.pc-add-label { display: none; }
+	.honors { margin-left: 16dp; padding: 6dp 12dp; }
+	.honors .stat { margin-right: 14dp; }
+	.honors .stat-label { font-size: 11dp; letter-spacing: 0; }
 	.marker-label { font-size: 13dp; margin-left: -56dp; margin-right: -56dp; }
-	.stats .stat-label { font-size: 13dp; letter-spacing: 0; }
 }

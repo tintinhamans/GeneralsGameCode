@@ -31,6 +31,7 @@
 #include "GameClient/MessageBox.h"
 #include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/Shell.h"
+#include "GameClient/TransitionSounds.h"
 #include "GameNetwork/GameInfo.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
@@ -137,6 +138,7 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 		constructor.Bind("honor_best_win_streak", &m_model.honorBestWinStreak);
 
 		constructor.BindEventCallback("slot_occupant_changed", &RmlSkirmishSetupScreen::onSlotOccupantChanged, this);
+		constructor.BindEventCallback("slot_occupant_picked", &RmlSkirmishSetupScreen::onSlotOccupantPicked, this);
 		constructor.BindEventCallback("slot_faction_changed", &RmlSkirmishSetupScreen::onSlotFactionChanged, this);
 		constructor.BindEventCallback("slot_color_changed", &RmlSkirmishSetupScreen::onSlotColorChanged, this);
 		constructor.BindEventCallback("slot_team_changed", &RmlSkirmishSetupScreen::onSlotTeamChanged, this);
@@ -309,10 +311,15 @@ void RmlSkirmishSetupScreen::show()
 
 	refreshFromGameState();
 	m_document->Show();
+
+	// SkirmishGameOptionsMenuUpdate()'s entrance group, and SkirmishGameOptionsMenuShutdown()'s reverse below.
+	TransitionSounds::play("SkirmishGameOptionsMenuFade");
 }
 
 void RmlSkirmishSetupScreen::hide()
 {
+	if (m_document && m_document->IsVisible())
+		TransitionSounds::play("SkirmishGameOptionsMenuFade", TRUE);
 	if (m_document)
 		m_document->Hide();
 }
@@ -341,6 +348,15 @@ void RmlSkirmishSetupScreen::onSlotOccupantChanged(Rml::DataModelHandle, Rml::Ev
 	Int slotIndex = args[0].Get<int>();
 	Int state = atoi(ev.GetParameter<Rml::String>("value", "0").c_str());
 	SkirmishSetupActions::selectPlayerState(TheSkirmishGameInfo, slotIndex, (SlotState)state, UnicodeString::TheEmptyString);
+	refreshFromGameState();
+}
+
+// Same as picking that occupant in the slot's select; the card's buttons only name the state.
+void RmlSkirmishSetupScreen::onSlotOccupantPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.size() < 2)
+		return;
+	SkirmishSetupActions::selectPlayerState(TheSkirmishGameInfo, args[0].Get<int>(), (SlotState)args[1].Get<int>(), UnicodeString::TheEmptyString);
 	refreshFromGameState();
 }
 

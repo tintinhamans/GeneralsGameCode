@@ -57,6 +57,7 @@ private:
 	void refreshFromGameState(); // GameSetupData::build(TheSkirmishGameInfo) -> m_model
 
 	void onSlotOccupantChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onSlotOccupantPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // an open slot's add-AI button: (slot, occupant state)
 	void onSlotFactionChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotColorChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotTeamChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
