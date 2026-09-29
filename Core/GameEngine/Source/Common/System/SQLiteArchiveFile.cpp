@@ -33,6 +33,9 @@
 #include "Common/RAMFile.h"
 #include "WWLib/mutex.h"
 
+// Schema version the launcher stamps into PRAGMA user_version.
+static const int kContentDatabaseVersion = 1;
+
 // One row per file of every included product of the current profile. The load key is the profile_release override,
 // else the release override, else the product default; rows come grouped by product.
 static const char *const s_indexQuery =
@@ -102,7 +105,7 @@ public:
 			delete this;
 	}
 
-	Bool open();	///< open read-only
+	Bool open();	///< open read-only and check the schema version
 	File* readBlob(const ArchivedFileInfo *fileInfo, const Char *filename);
 
 	const AsciiString& getPath() const { return m_path; }
@@ -136,6 +139,21 @@ Bool SQLiteContentDatabase::open()
 	}
 
 	sqlite3_exec(m_db, "PRAGMA mmap_size = 0;", nullptr, nullptr, nullptr);
+
+	sqlite3_stmt *stmt = nullptr;
+	if (sqlite3_prepare_v2(m_db, "PRAGMA user_version;", -1, &stmt, nullptr) != SQLITE_OK || sqlite3_step(stmt) != SQLITE_ROW)
+	{
+		DEBUG_LOG(("SQLiteContentDatabase::open - could not read the schema version of %s: %s", m_path.str(), sqlite3_errmsg(m_db)));
+		sqlite3_finalize(stmt);
+		return FALSE;
+	}
+	const int version = sqlite3_column_int(stmt, 0);
+	sqlite3_finalize(stmt);
+	if (version != kContentDatabaseVersion)
+	{
+		DEBUG_LOG(("SQLiteContentDatabase::open - %s has schema version %d, expected %d", m_path.str(), version, kContentDatabaseVersion));
+		return FALSE;
+	}
 
 	return TRUE;
 }
