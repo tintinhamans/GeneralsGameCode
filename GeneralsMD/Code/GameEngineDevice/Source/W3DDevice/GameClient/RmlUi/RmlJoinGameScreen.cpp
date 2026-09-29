@@ -145,6 +145,11 @@ void RmlJoinGameScreen::onCancel(Rml::DataModelHandle, Rml::Event &, const Rml::
 	JoinGameActions::cancel();
 }
 
+void RmlJoinGameScreen::back()
+{
+	JoinGameActions::cancel();
+}
+
 //-------------------------------------------------------------------------------------------------
 void OpenRmlJoinGameScreen()
 {

@@ -47,6 +47,7 @@ public:
 	void open();
 	void close();
 	bool isVisible() const;
+	void back(); ///< Escape: same as ButtonBack (KEY_ESC in SkirmishMapSelectMenu.cpp)
 
 private:
 	RmlSkirmishMapSelectScreen() : m_mapRows(m_model.maps) {}

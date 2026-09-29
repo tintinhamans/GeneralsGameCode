@@ -44,6 +44,7 @@ public:
 	void open(bool isPopup);
 	void close();
 	bool isVisible() const;
+	void back(); ///< Escape: same as KEY_ESC in PopupSaveLoad.cpp
 
 private:
 	RmlSaveLoadScreen() {}

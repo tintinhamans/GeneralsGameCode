@@ -61,6 +61,7 @@ public:
 	void open();
 	void close();
 	bool isVisible() const;
+	void back(); ///< Escape: same as ButtonCancel (KEY_ESC in PopupHostGame.cpp)
 
 private:
 	RmlHostGameScreen() {}

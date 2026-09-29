@@ -342,6 +342,12 @@ void RmlSkirmishMapSelectScreen::selectMap(const Rml::String &mapName)
 	ReturnToRmlSkirmishSetupScreen();
 }
 
+void RmlSkirmishMapSelectScreen::back()
+{
+	close();
+	ReturnToRmlSkirmishSetupScreen();
+}
+
 //-------------------------------------------------------------------------------------------------
 void OpenRmlSkirmishMapSelectScreen()
 {

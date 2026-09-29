@@ -248,6 +248,11 @@ void RmlPlayerInfoScreen::onLogout(Rml::DataModelHandle, Rml::Event &, const Rml
 	MessageBoxYesNo(UnicodeString(L"Log Out"), UnicodeString(L"Are you sure you want to log out?"), &rmlPlayerInfoLogoutConfirmed, nullptr);
 }
 
+void RmlPlayerInfoScreen::back()
+{
+	ClosePlayerInfoOverlay();
+}
+
 //-------------------------------------------------------------------------------------------------
 void OpenRmlPlayerInfoScreen()
 {

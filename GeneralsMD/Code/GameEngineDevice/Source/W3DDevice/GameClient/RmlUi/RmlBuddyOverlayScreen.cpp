@@ -512,6 +512,11 @@ void RmlBuddyOverlayScreen::onMenuDismiss(Rml::DataModelHandle, Rml::Event &, co
 	closeContextMenu();
 }
 
+void RmlBuddyOverlayScreen::back()
+{
+	BuddyOverlayActions::close();
+}
+
 //-------------------------------------------------------------------------------------------------
 void OpenRmlBuddyOverlayScreen()
 {

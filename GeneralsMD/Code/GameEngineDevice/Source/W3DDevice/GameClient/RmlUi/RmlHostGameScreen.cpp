@@ -143,6 +143,11 @@ void RmlHostGameScreen::onCancel(Rml::DataModelHandle, Rml::Event &, const Rml::
 	HostGameActions::cancel();
 }
 
+void RmlHostGameScreen::back()
+{
+	HostGameActions::cancel();
+}
+
 //-------------------------------------------------------------------------------------------------
 void OpenRmlHostGameScreen()
 {

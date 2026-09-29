@@ -61,6 +61,7 @@ public:
 	void open();
 	void close();
 	bool isVisible() const;
+	void back(); ///< Escape: same as ButtonClose (KEY_ESC in PopupPlayerInfo.cpp)
 
 private:
 	RmlPlayerInfoScreen() : m_honorRows(m_model.battleHonors) {}

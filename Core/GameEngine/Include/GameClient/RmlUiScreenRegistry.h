@@ -46,9 +46,10 @@ class RmlUiScreenRegistry
 public:
 	// wndPath must outlive the registration (string literals from the .wnd callers are fine).
 	// isVisible: the RmlUi side's own answer, so open state is never bookkept here.
+	// back: what Escape does while this is the topmost layer (the original .wnd's KEY_ESC); null = nothing.
 	// capturesInput: while visible, RmlUi owns all mouse/keyboard input; FALSE for overlays drawn over
 	// live gameplay, which only take the mouse over their own document (see ownsInput()).
-	static void registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, bool capturesInput = true);
+	static void registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, RmlUiScreenFunc back = nullptr, bool capturesInput = true);
 	static void unregisterScreen(const char *wndPath);
 	static void unregisterAll(); ///< RmlUiManager::shutdown()
 
@@ -66,6 +67,10 @@ public:
 	// TRUE while the topmost interactive layer is RmlUi: a visible capturing screen, popup or overlay,
 	// or an open message box. Everything else (legacy HUD, shell windows) gets input otherwise.
 	static bool ownsInput();
+
+	// Escape goes to the topmost capturing layer (the most recently opened visible one) and never to a
+	// screen underneath. Returns TRUE if a layer owns it (its back func runs on key down).
+	static bool escape(bool isDown);
 
 	// Placeholders: hidden GameWindows tracked against an RmlUi screen or message box.
 	static WindowLayout *createLayout(const AsciiString &wndPath); ///< layout holding a placeholder; runInit/hide(FALSE)/bringForward open the screen, runShutdown/hide(TRUE)/destroyWindows close it

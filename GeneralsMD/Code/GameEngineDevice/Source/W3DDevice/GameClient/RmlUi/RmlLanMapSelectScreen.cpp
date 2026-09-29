@@ -349,6 +349,12 @@ void RmlLanMapSelectScreen::selectMap(const Rml::String &mapName)
 	ReturnToRmlLanGameSetupScreen();
 }
 
+void RmlLanMapSelectScreen::back()
+{
+	close();
+	ReturnToRmlLanGameSetupScreen();
+}
+
 //-------------------------------------------------------------------------------------------------
 void OpenRmlLanMapSelectScreen()
 {

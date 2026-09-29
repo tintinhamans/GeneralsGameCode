@@ -66,6 +66,7 @@ public:
 	void open();
 	void close();
 	bool isVisible() const;
+	void back(); ///< Escape: same as ButtonHide (KEY_ESC in WOLBuddyOverlay.cpp)
 
 private:
 	RmlBuddyOverlayScreen() : m_rosterRows(m_model.rosterRows), m_blockedRows(m_model.blockedRows),

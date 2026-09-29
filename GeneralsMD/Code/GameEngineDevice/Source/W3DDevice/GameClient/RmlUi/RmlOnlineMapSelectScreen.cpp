@@ -309,6 +309,12 @@ void RmlOnlineMapSelectScreen::selectMap(const Rml::String &mapName)
 	ReturnToRmlOnlineGameSetupScreen();
 }
 
+void RmlOnlineMapSelectScreen::back()
+{
+	close();
+	ReturnToRmlOnlineGameSetupScreen();
+}
+
 //-------------------------------------------------------------------------------------------------
 void OpenRmlOnlineMapSelectScreen()
 {

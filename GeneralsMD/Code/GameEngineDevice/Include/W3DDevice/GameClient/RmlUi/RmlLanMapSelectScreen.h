@@ -48,6 +48,7 @@ public:
 	void open();
 	void close();
 	bool isVisible() const;
+	void back(); ///< Escape: same as ButtonBack (KEY_ESC in LanMapSelectMenu.cpp)
 
 private:
 	RmlLanMapSelectScreen() : m_mapRows(m_model.maps) {}

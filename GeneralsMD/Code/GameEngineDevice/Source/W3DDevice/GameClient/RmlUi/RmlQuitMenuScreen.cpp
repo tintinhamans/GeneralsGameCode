@@ -172,6 +172,11 @@ void RmlQuitMenuScreen::onSaveLoad(Rml::DataModelHandle, Rml::Event &, const Rml
 	openQuitMenuSaveLoad();
 }
 
+void RmlQuitMenuScreen::back()
+{
+	ToggleQuitMenu(); // hides this menu; see QuitMenu.cpp
+}
+
 //-------------------------------------------------------------------------------------------------
 void OpenRmlQuitMenuScreen()
 {

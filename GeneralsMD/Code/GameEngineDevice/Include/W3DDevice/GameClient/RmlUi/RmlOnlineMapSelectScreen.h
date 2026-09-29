@@ -52,6 +52,7 @@ public:
 	void open();
 	void close();
 	bool isVisible() const;
+	void back(); ///< Escape: same as ButtonBack (KEY_ESC in WOLMapSelectMenu.cpp)
 
 private:
 	RmlOnlineMapSelectScreen() : m_mapRows(m_model.maps) {}

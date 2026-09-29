@@ -170,6 +170,9 @@ void RmlUiSoundListener::ProcessEvent(Rml::Event &event)
 
 // What the registry asks to learn whether a screen is up: the RmlUi side's own visibility.
 template<class T> static bool screenVisible() { return T::instance().isVisible(); }
+// What Escape does for the topmost layer: an RmlScreen's onBack(), or a popup's back().
+template<class T> static void screenBack() { T::instance().onBack(); }
+template<class T> static void popupBack() { T::instance().back(); }
 template<RmlLoadScreen::Kind K> static bool loadScreenVisible() { return RmlLoadScreen::instance(K).isVisible(); }
 
 RmlUiManager *RmlUiManager::s_instance = nullptr;
@@ -274,79 +277,79 @@ void RmlUiManager::init(int width, int height)
 
 	// Shell::push/pop and the ad-hoc call sites (MainMenu.cpp/QuitMenu.cpp options button) look
 	// screens up in the registry by .wnd path, gated on !m_useLegacyMenus; see RmlUiScreenRegistry.h.
-	RmlUiScreenRegistry::registerScreen("Menus/OptionsMenu.wnd", &OpenRmlOptionsScreen, &CloseRmlOptionsScreen, &screenVisible<RmlOptionsScreen>);
-	RmlUiScreenRegistry::registerScreen("Menus/MainMenu.wnd", &OpenRmlMainMenuScreen, &CloseRmlMainMenuScreen, &screenVisible<RmlMainMenuScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/OptionsMenu.wnd", &OpenRmlOptionsScreen, &CloseRmlOptionsScreen, &screenVisible<RmlOptionsScreen>, &screenBack<RmlOptionsScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/MainMenu.wnd", &OpenRmlMainMenuScreen, &CloseRmlMainMenuScreen, &screenVisible<RmlMainMenuScreen>, &screenBack<RmlMainMenuScreen>);
 
 	// MainMenuActions::startSkirmishOptions() pushes this same path; see RmlSkirmishSetupScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/SkirmishGameOptionsMenu.wnd", &OpenRmlSkirmishSetupScreen, &CloseRmlSkirmishSetupScreen, &screenVisible<RmlSkirmishSetupScreen>);
-	RmlUiScreenRegistry::registerScreen("Menus/SkirmishMapSelectMenu.wnd", &OpenRmlSkirmishMapSelectScreen, &CloseRmlSkirmishMapSelectScreen, &screenVisible<RmlSkirmishMapSelectScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/SkirmishGameOptionsMenu.wnd", &OpenRmlSkirmishSetupScreen, &CloseRmlSkirmishSetupScreen, &screenVisible<RmlSkirmishSetupScreen>, &screenBack<RmlSkirmishSetupScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/SkirmishMapSelectMenu.wnd", &OpenRmlSkirmishMapSelectScreen, &CloseRmlSkirmishMapSelectScreen, &screenVisible<RmlSkirmishMapSelectScreen>, &popupBack<RmlSkirmishMapSelectScreen>);
 
 	// MainMenuActions pushes this same path; see RmlLanLobbyScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/LanLobbyMenu.wnd", &OpenRmlLanLobbyScreen, &CloseRmlLanLobbyScreen, &screenVisible<RmlLanLobbyScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/LanLobbyMenu.wnd", &OpenRmlLanLobbyScreen, &CloseRmlLanLobbyScreen, &screenVisible<RmlLanLobbyScreen>, &screenBack<RmlLanLobbyScreen>);
 
 	// RmlLanLobbyScreen::onDirectConnect() pushes this same path; see RmlNetworkDirectConnectScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/NetworkDirectConnect.wnd", &OpenRmlNetworkDirectConnectScreen, &CloseRmlNetworkDirectConnectScreen, &screenVisible<RmlNetworkDirectConnectScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/NetworkDirectConnect.wnd", &OpenRmlNetworkDirectConnectScreen, &CloseRmlNetworkDirectConnectScreen, &screenVisible<RmlNetworkDirectConnectScreen>, &screenBack<RmlNetworkDirectConnectScreen>);
 
 	// startOnline() (MainMenuUtils.cpp) pushes one or the other depending on
 	// ALLOW_NON_PROFILED_LOGIN/GameSpyUseProfiles; both behave identically under GENERALS_ONLINE
 	// (see RmlOnlineLoginScreen.h), so one screen serves both paths.
-	RmlUiScreenRegistry::registerScreen("Menus/GameSpyLoginProfile.wnd", &OpenRmlOnlineLoginScreen, &CloseRmlOnlineLoginScreen, &screenVisible<RmlOnlineLoginScreen>);
-	RmlUiScreenRegistry::registerScreen("Menus/GameSpyLoginQuick.wnd", &OpenRmlOnlineLoginScreen, &CloseRmlOnlineLoginScreen, &screenVisible<RmlOnlineLoginScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/GameSpyLoginProfile.wnd", &OpenRmlOnlineLoginScreen, &CloseRmlOnlineLoginScreen, &screenVisible<RmlOnlineLoginScreen>, &screenBack<RmlOnlineLoginScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/GameSpyLoginQuick.wnd", &OpenRmlOnlineLoginScreen, &CloseRmlOnlineLoginScreen, &screenVisible<RmlOnlineLoginScreen>, &screenBack<RmlOnlineLoginScreen>);
 
 	// RmlOnlineLoginScreen::onLoginSucceeded() pushes this path; see RmlOnlineWelcomeScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/WOLWelcomeMenu.wnd", &OpenRmlOnlineWelcomeScreen, &CloseRmlOnlineWelcomeScreen, &screenVisible<RmlOnlineWelcomeScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/WOLWelcomeMenu.wnd", &OpenRmlOnlineWelcomeScreen, &CloseRmlOnlineWelcomeScreen, &screenVisible<RmlOnlineWelcomeScreen>, &screenBack<RmlOnlineWelcomeScreen>);
 
 	// RmlOnlineWelcomeScreen's Quick Match button pushes this same path; see RmlQuickMatchScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/WOLQuickMatchMenu.wnd", &OpenRmlQuickMatchScreen, &CloseRmlQuickMatchScreen, &screenVisible<RmlQuickMatchScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/WOLQuickMatchMenu.wnd", &OpenRmlQuickMatchScreen, &CloseRmlQuickMatchScreen, &screenVisible<RmlQuickMatchScreen>, &screenBack<RmlQuickMatchScreen>);
 
 	// OnlineWelcomeActions's Custom Match button pushes this same path; see RmlOnlineLobbyScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/WOLCustomLobby.wnd", &OpenRmlOnlineLobbyScreen, &CloseRmlOnlineLobbyScreen, &screenVisible<RmlOnlineLobbyScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/WOLCustomLobby.wnd", &OpenRmlOnlineLobbyScreen, &CloseRmlOnlineLobbyScreen, &screenVisible<RmlOnlineLobbyScreen>, &screenBack<RmlOnlineLobbyScreen>);
 
 	// LANAPI::OnGameJoin() pushes this same path once LanLobbyActions::hostGame()/joinGame()'s
 	// RequestGameCreate()/RequestGameJoin() succeeds; see RmlLanGameSetupScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/LanGameOptionsMenu.wnd", &OpenRmlLanGameSetupScreen, &CloseRmlLanGameSetupScreen, &screenVisible<RmlLanGameSetupScreen>);
-	RmlUiScreenRegistry::registerScreen("Menus/LanMapSelectMenu.wnd", &OpenRmlLanMapSelectScreen, &CloseRmlLanMapSelectScreen, &screenVisible<RmlLanMapSelectScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/LanGameOptionsMenu.wnd", &OpenRmlLanGameSetupScreen, &CloseRmlLanGameSetupScreen, &screenVisible<RmlLanGameSetupScreen>, &screenBack<RmlLanGameSetupScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/LanMapSelectMenu.wnd", &OpenRmlLanMapSelectScreen, &CloseRmlLanMapSelectScreen, &screenVisible<RmlLanMapSelectScreen>, &popupBack<RmlLanMapSelectScreen>);
 
 	// RmlOnlineLobbyScreen pushes this path once a Generals Online lobby is created/joined; see
 	// RmlOnlineGameSetupScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/GameSpyGameOptionsMenu.wnd", &OpenRmlOnlineGameSetupScreen, &CloseRmlOnlineGameSetupScreen, &screenVisible<RmlOnlineGameSetupScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/GameSpyGameOptionsMenu.wnd", &OpenRmlOnlineGameSetupScreen, &CloseRmlOnlineGameSetupScreen, &screenVisible<RmlOnlineGameSetupScreen>, &screenBack<RmlOnlineGameSetupScreen>);
 	// RmlOnlineGameSetupScreen's Select Map button pushes this same path; see RmlOnlineMapSelectScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/WOLMapSelectMenu.wnd", &OpenRmlOnlineMapSelectScreen, &CloseRmlOnlineMapSelectScreen, &screenVisible<RmlOnlineMapSelectScreen>);
-	RmlUiScreenRegistry::registerScreen("Menus/CreditsMenu.wnd", &OpenRmlCreditsScreen, &CloseRmlCreditsScreen, &screenVisible<RmlCreditsScreen>);
-	RmlUiScreenRegistry::registerScreen("Menus/QuitMenu.wnd", &OpenRmlQuitMenuScreen, &CloseRmlQuitMenuScreen, &screenVisible<RmlQuitMenuScreen>);
-	RmlUiScreenRegistry::registerScreen("Menus/QuitNoSave.wnd", &OpenRmlQuitNoSaveScreen, &CloseRmlQuitNoSaveScreen, &screenVisible<RmlQuitMenuScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/WOLMapSelectMenu.wnd", &OpenRmlOnlineMapSelectScreen, &CloseRmlOnlineMapSelectScreen, &screenVisible<RmlOnlineMapSelectScreen>, &popupBack<RmlOnlineMapSelectScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/CreditsMenu.wnd", &OpenRmlCreditsScreen, &CloseRmlCreditsScreen, &screenVisible<RmlCreditsScreen>, &screenBack<RmlCreditsScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/QuitMenu.wnd", &OpenRmlQuitMenuScreen, &CloseRmlQuitMenuScreen, &screenVisible<RmlQuitMenuScreen>, &popupBack<RmlQuitMenuScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/QuitNoSave.wnd", &OpenRmlQuitNoSaveScreen, &CloseRmlQuitNoSaveScreen, &screenVisible<RmlQuitMenuScreen>, &popupBack<RmlQuitMenuScreen>);
 	// MainMenuActions::openLoadGame() pushes SaveLoad.wnd, openQuitMenuSaveLoad() opens the popup; see RmlSaveLoadScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/SaveLoad.wnd", &OpenRmlSaveLoadScreen, &CloseRmlSaveLoadScreen, &screenVisible<RmlSaveLoadScreen>);
-	RmlUiScreenRegistry::registerScreen("Menus/PopupSaveLoad.wnd", &OpenRmlPopupSaveLoadScreen, &CloseRmlPopupSaveLoadScreen, &screenVisible<RmlSaveLoadScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/SaveLoad.wnd", &OpenRmlSaveLoadScreen, &CloseRmlSaveLoadScreen, &screenVisible<RmlSaveLoadScreen>, &popupBack<RmlSaveLoadScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/PopupSaveLoad.wnd", &OpenRmlPopupSaveLoadScreen, &CloseRmlPopupSaveLoadScreen, &screenVisible<RmlSaveLoadScreen>, &popupBack<RmlSaveLoadScreen>);
 	// GSOVERLAY_PLAYERINFO's .wnd path (see GameSpyOverlay.cpp's gsOverlays[] / GameSpyOpenOverlay()).
-	RmlUiScreenRegistry::registerScreen("Menus/PopupPlayerInfo.wnd", &OpenRmlPlayerInfoScreen, &CloseRmlPlayerInfoScreen, &screenVisible<RmlPlayerInfoScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/PopupPlayerInfo.wnd", &OpenRmlPlayerInfoScreen, &CloseRmlPlayerInfoScreen, &screenVisible<RmlPlayerInfoScreen>, &popupBack<RmlPlayerInfoScreen>);
 	// GSOVERLAY_BUDDY's .wnd path, same gsOverlays[] precedent.
-	RmlUiScreenRegistry::registerScreen("Menus/WOLBuddyOverlay.wnd", &OpenRmlBuddyOverlayScreen, &CloseRmlBuddyOverlayScreen, &screenVisible<RmlBuddyOverlayScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/WOLBuddyOverlay.wnd", &OpenRmlBuddyOverlayScreen, &CloseRmlBuddyOverlayScreen, &screenVisible<RmlBuddyOverlayScreen>, &popupBack<RmlBuddyOverlayScreen>);
 
 	// Buddy toast: only while RmlUi owns the shell, so its toast presenter replaces the .wnd one
 	// (see RmlBuddyToastScreen.h); -wnd never calls this.
 	if (m_context && !RmlUiScreenRegistry::usesLegacyMenus())
 		InitRmlBuddyToastScreen(m_context);
 	// GSOVERLAY_GAMEOPTIONS/GSOVERLAY_GAMEPASSWORD's .wnd paths, same gsOverlays[] precedent.
-	RmlUiScreenRegistry::registerScreen("Menus/PopupHostGame.wnd", &OpenRmlHostGameScreen, &CloseRmlHostGameScreen, &screenVisible<RmlHostGameScreen>);
-	RmlUiScreenRegistry::registerScreen("Menus/PopupJoinGame.wnd", &OpenRmlJoinGameScreen, &CloseRmlJoinGameScreen, &screenVisible<RmlJoinGameScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/PopupHostGame.wnd", &OpenRmlHostGameScreen, &CloseRmlHostGameScreen, &screenVisible<RmlHostGameScreen>, &popupBack<RmlHostGameScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/PopupJoinGame.wnd", &OpenRmlJoinGameScreen, &CloseRmlJoinGameScreen, &screenVisible<RmlJoinGameScreen>, &popupBack<RmlJoinGameScreen>);
 
 	// GameLogicDispatch pushes this after a match/campaign mission ends; see RmlScoreScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/ScoreScreen.wnd", &OpenRmlScoreScreen, &CloseRmlScoreScreen, &screenVisible<RmlScoreScreen>);
+	RmlUiScreenRegistry::registerScreen("Menus/ScoreScreen.wnd", &OpenRmlScoreScreen, &CloseRmlScoreScreen, &screenVisible<RmlScoreScreen>, &screenBack<RmlScoreScreen>);
 
 	// ScriptActions::doVictory()/doDefeat()/doLocalDefeat() create these via winCreateFromScript();
 	// see GameWindowManagerScript.cpp's winCreateFromScript() and RmlEndGameOverlayScreen.h.
 	// They sit over live gameplay, so they don't capture input (see RmlUiScreenRegistry::ownsInput()).
-	RmlUiScreenRegistry::registerScreen("Menus/Victorious.wnd", &OpenRmlVictoriousScreen, &CloseRmlVictoriousScreen, &screenVisible<RmlEndGameOverlayScreen>, false);
-	RmlUiScreenRegistry::registerScreen("Menus/Defeat.wnd", &OpenRmlDefeatScreen, &CloseRmlDefeatScreen, &screenVisible<RmlEndGameOverlayScreen>, false);
-	RmlUiScreenRegistry::registerScreen("Menus/LocalDefeat.wnd", &OpenRmlLocalDefeatScreen, &CloseRmlLocalDefeatScreen, &screenVisible<RmlEndGameOverlayScreen>, false);
-	RmlUiScreenRegistry::registerScreen("Menus/ObserverQuit.wnd", &OpenRmlObserverQuitScreen, &CloseRmlObserverQuitScreen, &screenVisible<RmlEndGameOverlayScreen>, false);
+	RmlUiScreenRegistry::registerScreen("Menus/Victorious.wnd", &OpenRmlVictoriousScreen, &CloseRmlVictoriousScreen, &screenVisible<RmlEndGameOverlayScreen>, nullptr, false);
+	RmlUiScreenRegistry::registerScreen("Menus/Defeat.wnd", &OpenRmlDefeatScreen, &CloseRmlDefeatScreen, &screenVisible<RmlEndGameOverlayScreen>, nullptr, false);
+	RmlUiScreenRegistry::registerScreen("Menus/LocalDefeat.wnd", &OpenRmlLocalDefeatScreen, &CloseRmlLocalDefeatScreen, &screenVisible<RmlEndGameOverlayScreen>, nullptr, false);
+	RmlUiScreenRegistry::registerScreen("Menus/ObserverQuit.wnd", &OpenRmlObserverQuitScreen, &CloseRmlObserverQuitScreen, &screenVisible<RmlEndGameOverlayScreen>, nullptr, false);
 
 	// The LoadScreen classes create these via winCreateFromScript(); see RmlLoadScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/MapTransferScreen.wnd", &OpenRmlMapTransferScreen, &CloseRmlMapTransferScreen, &loadScreenVisible<RmlLoadScreen::KIND_MAP_TRANSFER>);
-	RmlUiScreenRegistry::registerScreen("Menus/MultiplayerLoadScreen.wnd", &OpenRmlMultiplayerLoadScreen, &CloseRmlMultiplayerLoadScreen, &loadScreenVisible<RmlLoadScreen::KIND_MULTIPLAYER>);
-	RmlUiScreenRegistry::registerScreen("Menus/GameSpyLoadScreen.wnd", &OpenRmlOnlineLoadScreen, &CloseRmlOnlineLoadScreen, &loadScreenVisible<RmlLoadScreen::KIND_ONLINE>);
-	RmlUiScreenRegistry::registerScreen("Menus/ShellGameLoadScreen.wnd", &OpenRmlShellLoadScreen, &CloseRmlShellLoadScreen, &loadScreenVisible<RmlLoadScreen::KIND_SHELL>);
+	RmlUiScreenRegistry::registerScreen("Menus/MapTransferScreen.wnd", &OpenRmlMapTransferScreen, &CloseRmlMapTransferScreen, &loadScreenVisible<RmlLoadScreen::KIND_MAP_TRANSFER>, nullptr);
+	RmlUiScreenRegistry::registerScreen("Menus/MultiplayerLoadScreen.wnd", &OpenRmlMultiplayerLoadScreen, &CloseRmlMultiplayerLoadScreen, &loadScreenVisible<RmlLoadScreen::KIND_MULTIPLAYER>, nullptr);
+	RmlUiScreenRegistry::registerScreen("Menus/GameSpyLoadScreen.wnd", &OpenRmlOnlineLoadScreen, &CloseRmlOnlineLoadScreen, &loadScreenVisible<RmlLoadScreen::KIND_ONLINE>, nullptr);
+	RmlUiScreenRegistry::registerScreen("Menus/ShellGameLoadScreen.wnd", &OpenRmlShellLoadScreen, &CloseRmlShellLoadScreen, &loadScreenVisible<RmlLoadScreen::KIND_SHELL>, nullptr);
 
 	// GameWindowManager::gogoMessageBox() looks this hook up the same way, gated on
 	// !m_useLegacyMenus; see RmlUiMessageBoxHook.h.
@@ -653,21 +656,10 @@ bool RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeySt
 	const bool isDown = BitIsSet(engineKeyState, KEY_STATE_DOWN);
 	Rml::Input::KeyIdentifier rmlKey = engineKeyToRmlKey(engineKey);
 
-	// Escape closes the active screen the same way the .wnd Cancel/Back button would,
-	// instead of reaching the context (which has no document-level close behavior of its own).
-	// A message box stacked on top must swallow this instead: the .wnd MessageBoxSystem/
-	// QuitMessageBoxSystem never handle Escape (no button, no dismissal), so it must not fall
-	// through to cancel whatever the box is stacked over either.
-	if (rmlKey == Rml::Input::KI_ESCAPE && isDown && !AnyRmlMessageBoxOpen() && m_currentScreen && m_currentScreen->isVisible())
-	{
-		m_currentScreen->onBack();
-		return true;
-	}
-
-	// No RmlUi screen or box to take Escape (e.g. the in-game quit menu, which the legacy Escape
-	// handler closes): leave it to the game.
-	if (rmlKey == Rml::Input::KI_ESCAPE && !AnyRmlMessageBoxOpen() && !(m_currentScreen && m_currentScreen->isVisible()))
-		return false;
+	// Escape goes to the topmost open layer only (a message box swallows it), as its .wnd's KEY_ESC
+	// handler would; with no RmlUi layer up it is left to the game (in-game quit menu, ...).
+	if (rmlKey == Rml::Input::KI_ESCAPE)
+		return RmlUiScreenRegistry::escape(isDown);
 
 	if (rmlKey == Rml::Input::KI_UNKNOWN)
 		return true;

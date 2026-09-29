@@ -44,6 +44,7 @@ public:
 	void open(bool noSaveVariant); ///< QuitMenu.wnd (false) or QuitNoSave.wnd (true)
 	void close();
 	bool isVisible() const;
+	void back(); ///< Escape: same as ButtonReturn
 
 private:
 	RmlQuitMenuScreen() {}

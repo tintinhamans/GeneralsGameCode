@@ -37,10 +37,14 @@ namespace
 		RmlUiScreenFunc open;
 		RmlUiScreenFunc close;
 		RmlUiScreenQueryFunc isVisible;
+		RmlUiScreenFunc back;
 		bool capturesInput;
+		unsigned order; ///< s_openCount at the last open(); orders the visible layers
 	};
 
 	// Small and linearly scanned: at most a few dozen screens, looked up on menu navigation only.
+	unsigned s_openCount = 0;
+
 	std::vector<Entry> &entries()
 	{
 		static std::vector<Entry> s_entries;
@@ -99,7 +103,7 @@ namespace
 	}
 }
 
-void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, bool capturesInput)
+void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, RmlUiScreenFunc back, bool capturesInput)
 {
 	AsciiString path(wndPath);
 	Entry *existing = find(path);
@@ -108,6 +112,7 @@ void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc op
 		existing->open = open;
 		existing->close = close;
 		existing->isVisible = isVisible;
+		existing->back = back;
 		existing->capturesInput = capturesInput;
 		return;
 	}
@@ -116,6 +121,8 @@ void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc op
 	e.open = open;
 	e.close = close;
 	e.isVisible = isVisible;
+	e.back = back;
+	e.order = 0;
 	e.capturesInput = capturesInput;
 	entries().push_back(e);
 }
@@ -149,6 +156,7 @@ bool RmlUiScreenRegistry::open(const AsciiString &wndPath)
 	Entry *e = find(wndPath);
 	if (!e || !e->open)
 		return false;
+	e->order = ++s_openCount;
 	e->open();
 	return true;
 }
@@ -176,6 +184,24 @@ bool RmlUiScreenRegistry::ownsInput()
 			return true;
 
 	return RmlUiMessageBoxHook::isOpen();
+}
+
+bool RmlUiScreenRegistry::escape(bool isDown)
+{
+	if (RmlUiMessageBoxHook::isOpen())
+		return true; // like the .wnd boxes, which take Escape without acting on it
+
+	const Entry *top = nullptr;
+	const std::vector<Entry> &e = entries();
+	for (size_t i = 0; i < e.size(); ++i)
+		if (e[i].capturesInput && e[i].isVisible && e[i].isVisible() && (!top || e[i].order > top->order))
+			top = &e[i];
+
+	if (!top)
+		return false;
+	if (isDown && top->back)
+		top->back();
+	return true;
 }
 
 bool RmlUiScreenRegistry::usesLegacyMenus()

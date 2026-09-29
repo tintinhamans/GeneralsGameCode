@@ -327,6 +327,12 @@ void RmlSaveLoadScreen::onCancelDelete(Rml::DataModelHandle, Rml::Event &, const
 	refresh();
 }
 
+void RmlSaveLoadScreen::back()
+{
+	SaveLoadActions::escape();
+	refresh();
+}
+
 //-------------------------------------------------------------------------------------------------
 void OpenRmlSaveLoadScreen() { RmlSaveLoadScreen::instance().open(false); }
 void CloseRmlSaveLoadScreen() { RmlSaveLoadScreen::instance().close(); }
