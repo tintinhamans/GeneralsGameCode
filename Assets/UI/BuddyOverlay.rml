@@ -21,9 +21,9 @@
 
 		<div class="buddy-body" data-if="!show_block_tab">
 			<div class="roster-column">
-				<div class="scroll-container roster-list">
+				<div class="scroll-container list-box opaque roster-list">
 					<div data-for="row : roster_rows">
-						<div class="roster-row" data-if="row.used"
+						<div class="list-row roster-row" data-if="row.used"
 							data-class-lobby="row.is_lobby_member" data-class-recent="row.is_recent"
 							data-class-request="row.is_request" data-class-friend="row.is_friend"
 							data-class-online="row.online" data-class-offline="row.is_friend && !row.online"
@@ -40,22 +40,22 @@
 			<div class="chat-column">
 				<div class="section-title" data-if="has_chat_target">{{chat_target_name}}</div>
 				<div class="section-title" data-if="!has_chat_target"><gametext key="GUI:Buddies"/></div>
-				<div class="scroll-container chat-body">
+				<div class="chat-log">
 					<div class="chat-line" data-for="line : chat_lines">
 						<span data-if="line.used" data-style-color="line.color">{{line.text}}</span>
 					</div>
 				</div>
-				<div class="chat-entry-row">
+				<div class="chat-entry">
 					<input type="text" class="chat-input" maxlength="64" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-					<button class="btn-send" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
+					<button class="icon-btn" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
 				</div>
 			</div>
 		</div>
 
 		<div class="buddy-body" data-if="show_block_tab">
-			<div class="scroll-container block-list">
+			<div class="scroll-container list-box opaque block-list">
 				<div data-for="row : blocked_rows">
-					<div class="block-row" data-if="row.used" data-event-mousedown="blocked_row_mousedown(row.index)">{{row.name}}</div>
+					<div class="list-row block-row" data-if="row.used" data-event-mousedown="blocked_row_mousedown(row.index)">{{row.name}}</div>
 				</div>
 			</div>
 		</div>

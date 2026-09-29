@@ -5,10 +5,10 @@
 	<link type="text/rcss" href="GameSetup.rcss"/>
 	<link type="text/rcss" href="OnlineLobby.rcss"/>
 </head>
-<body data-model="onlinelobby">
+<body class="shell" data-model="onlinelobby">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
-	<div class="shell-frame lobby-panel">
+	<div class="shell-frame">
 		<div class="lobby-row">
 			<div class="games-column">
 				<div class="games-header">
@@ -29,9 +29,9 @@
 					<button data-class-active="filter_is_aod" data-event-click="set_filter(4)">AOD</button>
 					<button data-class-active="filter_is_buddies" data-event-click="set_filter(5)">Buddies</button>
 				</div>
-				<div class="scroll-container game-list">
+				<div class="scroll-container list-box">
 					<div data-for="game : games">
-						<div class="game-row" data-if="game.used" data-class-selected="game.is_selected" data-class-buddy="game.has_buddy"
+						<div class="list-row flex compact game-row" data-if="game.used" data-class-selected="game.is_selected" data-class-buddy="game.has_buddy"
 							data-class-crcmismatch="game.crc_mismatch"
 							data-event-click="game_row_clicked(game.index)" data-event-dblclick="game_row_activated(game.index)">
 							<div class="game-name">{{game.display_name}}</div>
@@ -51,9 +51,9 @@
 
 			<div class="players-column">
 				<div class="section-title"><gametext key="GUI:Players"/></div>
-				<div class="scroll-container player-list">
+				<div class="scroll-container list-box">
 					<div data-for="player : players">
-						<div class="player-row" data-if="player.used" data-class-admin="player.is_admin" data-class-friend="player.is_friend"
+						<div class="list-row compact player-row" data-if="player.used" data-class-admin="player.is_admin" data-class-friend="player.is_friend"
 							data-class-ignored="player.is_ignored" data-class-self="player.is_self"
 							data-event-mousedown="player_row_mousedown(player.index)">{{player.name}}</div>
 					</div>
@@ -62,14 +62,14 @@
 		</div>
 
 		<div class="chat">
-			<div class="scroll-container chat-body">
+			<div class="chat-log">
 				<div class="chat-line" data-for="line : chat_lines">
 					<span data-if="line.used" data-style-color="line.color">{{line.text}}</span>
 				</div>
 			</div>
-			<div class="chat-entry-row">
+			<div class="chat-entry">
 				<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-				<button class="btn-send" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
+				<button class="icon-btn" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
 			</div>
 		</div>
 

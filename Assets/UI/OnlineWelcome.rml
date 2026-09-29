@@ -4,7 +4,7 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="OnlineWelcome.rcss"/>
 </head>
-<body data-model="onlinewelcome">
+<body class="shell" data-model="onlinewelcome">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
 	<div class="shell-frame">
@@ -13,9 +13,9 @@
 		<div class="welcome-row">
 			<div class="motd-column">
 				<div class="motd-players">{{num_players_text}}</div>
-				<div class="scroll-container motd-list">
+				<div class="scroll-container text-list motd-list">
 					<div data-for="line : motd_lines">
-						<div class="motd-line" data-if="line.used" data-class-heading="line.is_heading" data-style-color="line.color_hex">{{line.text}}</div>
+						<div class="text-line motd-line" data-if="line.used" data-class-heading="line.is_heading" data-style-color="line.color_hex">{{line.text}}</div>
 					</div>
 				</div>
 			</div>

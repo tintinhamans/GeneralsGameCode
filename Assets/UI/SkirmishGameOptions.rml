@@ -5,13 +5,13 @@
 	<link type="text/rcss" href="GameSetup.rcss"/>
 	<link type="text/rcss" href="SkirmishGameOptions.rcss"/>
 </head>
-<body data-model="skirmishsetup">
+<body class="shell" data-model="skirmishsetup">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
-	<div class="shell-frame skirmish-panel">
+	<div class="shell-frame">
 		<div class="shell-title-bar"><gametext key="GUI:Skirmish"/></div>
 
-		<div class="skirmish-body">
+		<div class="setup-body">
 			<div class="scroll-container slot-list">
 				<div class="slot-row slot-header">
 					<div class="slot-occupant"><gametext key="GUI:Players"/></div>

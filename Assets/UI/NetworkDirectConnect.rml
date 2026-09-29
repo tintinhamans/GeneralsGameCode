@@ -5,17 +5,17 @@
 	<link type="text/rcss" href="GameSetup.rcss"/>
 	<link type="text/rcss" href="NetworkDirectConnect.rcss"/>
 </head>
-<body data-model="networkdirectconnect">
+<body class="shell" data-model="networkdirectconnect">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
-	<div class="shell-frame dc-panel">
+	<div class="shell-frame">
 		<div class="shell-title-bar"><gametext key="GUI:DirectConnect"/></div>
 
 		<div class="dc-body">
 			<div class="dc-left">
 				<div class="dc-row">
 					<div class="dc-label"><gametext key="GUI:PlayerName"/></div>
-					<input type="text" class="dc-input" data-value="player_name"/>
+					<input type="text" class="text-input dc-input" data-value="player_name"/>
 				</div>
 
 				<div class="dc-row">
@@ -25,13 +25,13 @@
 
 				<div class="dc-row dc-remote-row">
 					<div class="dc-label"><gametext key="GUI:RemoteIPDesc"/></div>
-					<input type="text" class="dc-input" data-value="remote_ip_text" data-event-change="remote_ip_text_changed"/>
+					<input type="text" class="text-input dc-input" data-value="remote_ip_text" data-event-change="remote_ip_text_changed"/>
 				</div>
 
 				<div class="dc-history-column">
-					<div class="scroll-container dc-history-list">
+					<div class="scroll-container list-box dc-history-list">
 						<div data-for="entry : remote_ip_history">
-							<div class="map-row" data-if="entry.used" data-class-selected="entry.is_selected"
+							<div class="list-row flex map-row" data-if="entry.used" data-class-selected="entry.is_selected"
 								data-event-click="select_remote_ip(entry.index)">{{entry.text}}</div>
 						</div>
 					</div>

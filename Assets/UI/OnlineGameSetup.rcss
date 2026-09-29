@@ -1,71 +1,8 @@
 /*
-	OnlineGameSetup.rcss -- screen-specific layout for the Generals Online game setup screen
-	(GameSpyGameOptionsMenu.wnd). Slot-row/map-preview/start-marker element styles live in
-	GameSetup.rcss (shared with SkirmishGameOptions.rml/LanGameOptions.rml); the chat block and
-	most of the layout below are a copy of LanGameOptions.rcss's equivalents (kept local since this
-	screen doesn't otherwise link LanGameOptions.rcss), plus the online-only occupant-cell/
-	connection-indicator/communicator-button rules.
+	OnlineGameSetup.rcss -- online-only pieces of the Generals Online game setup screen
+	(GameSpyGameOptionsMenu.wnd): occupant cell, connection indicator, and the chat entry tweaks.
+	The layout, slot rows and map preview are shared, see GameSetup.rcss; chat is in common.rcss.
 */
-
-/* .online-setup-panel is the .shell-frame (full blueprint panel, see common.rcss) -- fills the
-   screen like the original GameSpyGameOptionsMenu.wnd instead of a fixed centered dialog.
-   body needs an explicit 100% size for .shell-frame's percent left/top/width/height to
-   resolve against (RmlUi, like CSS, treats an auto-sized body as shrink-to-fit). */
-body
-{
-	width: 100%;
-	height: 100%;
-}
-
-.online-setup-body
-{
-	display: flex;
-	flex-direction: row;
-	flex: 1 1 auto;
-	min-height: 0;
-}
-
-.slot-list
-{
-	flex: 1 1 auto;
-	margin-right: 16dp;
-	min-height: 0;
-}
-
-.slot-header
-{
-	font-weight: bold;
-	color: #8080FF;
-	border-bottom: 1dp #2F37A8;
-}
-
-.side-panel
-{
-	flex: 0 0 auto;
-	width: 30%;
-	min-width: 340dp;
-	max-width: 420dp;
-	display: flex;
-	flex-direction: column;
-}
-
-.map-not-found
-{
-	width: 100%;
-	height: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	text-align: center;
-	color: #C0C0C0;
-}
-
-.map-display-name
-{
-	margin-top: 4dp;
-	margin-bottom: 8dp;
-	color: #C0C0C0;
-}
 
 /* ---- Occupant cell: the state select + connection dot + (client-only) name label share the
    .slot-occupant column ------------------------------------------------------------------- */
@@ -103,77 +40,14 @@ body
 	margin-left: 4dp;
 }
 
-/* ---- Per-slot accept/ready indicator (only slot 0 shows one -- Generals Online has a single
-   local-player accept control, see SlotRowModel::showAccept) ------------------------------- */
-.slot-accept
+/* The chat entry aligns its icon button with the input and keeps the button off the frame edge
+   (the .wnd's ButtonEmote sits inset from the right border). */
+.chat-entry
 {
-	width: 16dp;
-	height: 16dp;
-	border: 1dp #2F37A8;
-	background-color: rgba(255, 255, 255, 40);
-}
-
-.slot-accept.accepted
-{
-	background-color: #40C040;
-	border-color: #FFFFFF;
-}
-
-/* ---- Chat (copy of LanGameOptions.rcss's chat block, plus the Communicator button) ------- */
-.chat
-{
-	display: flex;
-	flex-direction: column;
-	margin-top: 8dp;
-	border-top: 1dp #2F37A8;
-	padding-top: 8dp;
-	height: 140dp;
-}
-
-.chat-body
-{
-	flex: 1 1 auto;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-	padding: 4dp 6dp;
-}
-
-.chat-line
-{
-	display: block;
-}
-
-.chat-entry-row
-{
-	display: flex;
-	flex-direction: row;
-	margin-top: 4dp;
 	align-items: center;
 }
 
-.chat-input
+.chat-entry .icon-btn
 {
-	flex: 1 1 auto;
 	margin-right: 4dp;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-	color: #FFFFFF;
-	padding: 4dp 6dp;
-}
-
-/* ---- Send icon button (original ButtonEmote draws ReturnButton, no text label) ----------- */
-.btn-emote
-{
-	width: 24dp;
-	height: 24dp;
-	padding: 0;
-	text-align: center;
-	margin-right: 4dp;
-}
-
-.btn-emote mappedimage
-{
-	display: block;
-	width: 100%;
-	height: 100%;
 }

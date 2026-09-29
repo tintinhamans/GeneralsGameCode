@@ -13,7 +13,7 @@
 
 		<div class="sl-list scroll-container">
 			<div data-for="row : rows">
-				<div class="map-row sl-row" data-class-selected="row.selected" data-class-locked="list_locked"
+				<div class="list-row flex map-row sl-row" data-class-selected="row.selected" data-class-locked="list_locked"
 					data-event-click="select_row(row.index)" data-event-dblclick="activate_row(row.index)">
 					<div class="sl-name" data-style-color="row.color_hex">{{row.name}}</div>
 					<div class="sl-time" data-style-color="row.color_hex">{{row.time}}</div>
@@ -48,7 +48,7 @@
 
 	<div class="sl-dialog" data-if="show_save_desc">
 		<div class="sl-message sl-message-entry"><gametext key="GUI:EnterSaveDesc"/></div>
-		<input type="text" class="sl-input" data-value="description" data-attr-maxlength="description_max"/>
+		<input type="text" class="text-input sl-input" data-value="description" data-attr-maxlength="description_max"/>
 		<div class="sl-dialog-buttons">
 			<button class="button-lg" data-event-click="confirm_save_desc"><gametext key="GUI:SaveGame"/></button>
 			<button class="button-lg" data-event-click="cancel_save_desc"><gametext key="GUI:Cancel"/></button>

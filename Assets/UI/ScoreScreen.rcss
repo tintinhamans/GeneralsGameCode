@@ -108,14 +108,23 @@ body
 	max-height: 90dp;
 }
 
-/* ---- Chat -------------------------------------------------------------------------------- */
+/* ---- Chat ---------------------------------------------------------------------------------
+   The shared .chat/.chat-log (common.rcss), but sized by the leftover panel height instead of a
+   fixed 140dp, and with the border/padding on .chat-border (only when the .wnd's chat box has one)
+   instead of on the log itself. */
 .chat
 {
-	margin-top: 8dp;
-	border-top: 1dp #2F37A8;
-	padding-top: 8dp;
+	display: block;
+	height: auto;
 	flex: 1 1 0%;
 	min-height: 0;
+}
+
+.chat-border .chat-log
+{
+	border: 0dp transparent;
+	padding: 0;
+	background-color: transparent;
 }
 
 .chat-border
@@ -131,34 +140,6 @@ body
 {
 	border: 1dp #2F37A8;
 	padding: 4dp;
-}
-
-.chat-body
-{
-	flex: 1 1 0%;
-	min-height: 0;
-}
-
-.chat-line
-{
-	display: block;
-}
-
-.chat-entry-row
-{
-	display: flex;
-	flex-direction: row;
-	margin-top: 4dp;
-}
-
-.chat-input
-{
-	flex: 1 1 auto;
-	margin-right: 4dp;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-	color: #FFFFFF;
-	padding: 4dp 6dp;
 }
 
 /* ---- Challenge win/loss splash (single player), replaces the table/academy/chat -------- */
@@ -190,12 +171,4 @@ body
 {
 	text-align: center;
 	margin-top: 4dp;
-}
-
-/* ---- Chat entry icon buttons (original is icon-only, Enter sends chat) ----------------- */
-.btn-send, .btn-emote
-{
-	width: 24dp;
-	height: 24dp;
-	text-align: center;
 }

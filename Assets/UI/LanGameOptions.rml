@@ -3,15 +3,14 @@
 	<title>LanGameOptions</title>
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="GameSetup.rcss"/>
-	<link type="text/rcss" href="LanGameOptions.rcss"/>
 </head>
-<body data-model="langamesetup">
+<body class="shell" data-model="langamesetup">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
-	<div class="shell-frame lan-setup-panel">
+	<div class="shell-frame">
 		<div class="shell-title-bar"><gametext key="GUI:GameOptions"/></div>
 
-		<div class="lan-setup-body">
+		<div class="setup-body">
 			<div class="scroll-container slot-list">
 				<div class="slot-row slot-header">
 					<div class="slot-occupant"><gametext key="GUI:Players"/></div>
@@ -88,12 +87,12 @@
 		</div>
 
 		<div class="chat">
-			<div class="scroll-container chat-body">
+			<div class="chat-log">
 				<div class="chat-line" data-for="line : chat_lines">{{line}}</div>
 			</div>
-			<div class="chat-entry-row">
+			<div class="chat-entry">
 				<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-				<button class="btn-emote" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
+				<button class="icon-btn" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
 			</div>
 		</div>
 

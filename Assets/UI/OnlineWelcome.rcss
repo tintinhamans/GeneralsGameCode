@@ -5,12 +5,6 @@
 	SCREENRECTs (CREATIONRESOLUTION 800x600), so this scales the same non-uniform way the .wnd does.
 */
 
-body
-{
-	width: 100%;
-	height: 100%;
-}
-
 .welcome-row
 {
 	display: flex;
@@ -38,23 +32,11 @@ body
 .motd-list
 {
 	background-color: rgba(0, 0, 0, 160);
-	border: 1dp #2F37A8;
-	padding: 4dp 6dp;
-}
-
-/* the bare data-for wrapper <div> is display:inline (no UA stylesheet), and a block inside an
-   inline wrapper gets no reliable width; make it a real block. The scrollbar itself is sized in
-   common.rcss -- an unstyled one filled the whole panel and left the text no width once it scrolled. */
-.motd-list > div
-{
-	display: block;
 }
 
 .motd-line
 {
-	display: block;
 	width: 100%;
-	padding: 1dp 0;
 	white-space: pre-line;
 	/* color comes from data-style-color (line.color_hex), matching the .wnd's per-line
 	   GameSpyColor[GSCOLOR_MOTD_HEADING]/GameSpyColor[GSCOLOR_MOTD]/hex-prefix override */
@@ -89,94 +71,11 @@ body
 	min-height: 0;
 }
 
-.section-title
-{
-	font-weight: bold;
-	padding-bottom: 4dp;
-	border-bottom: 1dp #2F37A8;
-	margin-bottom: 4dp;
-	flex: 0 0 auto;
-}
-
-/* This cluster uses fixed dp sizes (matching WOLWelcomeMenu.wnd's RankBorder/WinRank/FactionImage
-   1:1) instead of percentages -- dp already scales with screen height (see common.rcss header
-   comment), so this still scales consistently across resolutions, just not stretched
-   independently like the .wnd's own non-uniform 800x600 stretch. mappedimage itself does resolve
-   percentage width/height fine (its inner <img> is always 100%x100% of it); fixed dp is used here
-   only because the whole rank-column is a fixed-width column, not a mappedimage limitation. */
+/* Its rank cluster (.rank-column and friends) is shared, see common.rcss; this screen gives it a
+   proportional gap to the community grid instead of the default 12dp. */
 .rank-column
 {
-	display: flex;
-	flex-direction: column;
-	flex: 0 0 auto;
-	width: 128dp;
 	margin-right: 2.36%;
-}
-
-.rank-border
-{
-	position: relative;
-	box-sizing: border-box; /* declared width/height must include the border, or this (and its
-		border-box child .rank-progress below) overflow rank-column by the border width
-		(audit: OVERFLOW div.rank-border / div.rank-progress) */
-	width: 128dp;
-	height: 156dp;
-	background-color: #020280;
-	border: 1dp #2F37A8;
-}
-
-.rank-image-wrap
-{
-	display: block;
-	position: relative;
-	box-sizing: border-box;
-	width: 100%; /* fill rank-border's content box exactly, instead of duplicating its 128dp and
-		overflowing once rank-border switched to box-sizing:border-box */
-	height: 128dp;
-	border-bottom: 1dp #2E37A8;
-}
-
-.rank-image
-{
-	display: block;
-	width: 100%;
-	height: 128dp;
-}
-
-.faction-image
-{
-	display: block;
-	position: absolute;
-	right: 0dp;
-	bottom: 0dp;
-	width: 48dp;
-	height: 48dp;
-}
-
-.rank-progress
-{
-	display: block;
-	position: absolute;
-	box-sizing: border-box;
-	left: 0;
-	bottom: 0;
-	width: 100%; /* fill rank-border's content box exactly, see .rank-image-wrap above */
-	height: 24dp;
-	background-color: rgba(2, 2, 2, 164);
-	border: 1dp #FFBB00;
-}
-
-.rank-progress-fill
-{
-	height: 100%;
-	background-color: rgba(59, 255, 0, 200);
-}
-
-.rank-label
-{
-	margin-top: 4dp;
-	text-align: center;
-	flex: 0 0 auto;
 }
 
 .community-column

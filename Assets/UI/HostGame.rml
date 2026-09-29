@@ -8,11 +8,11 @@
 	<div class="frame hostgame-frame">
 		<div class="row">
 			<div class="label"><gametext key="GUI:GameName"/></div>
-			<input type="text" class="control hostgame-input" data-value="game_name" maxlength="24"/>
+			<input type="text" class="control text-input" data-value="game_name" maxlength="24"/>
 		</div>
 		<div class="row">
 			<div class="label"><gametext key="GUI:Password"/></div>
-			<input type="password" class="control hostgame-input" data-value="password" maxlength="16"/>
+			<input type="password" class="control text-input" data-value="password" maxlength="16"/>
 		</div>
 		<div class="row">
 			<div class="label"><gametext key="GUI:UseStats"/></div>

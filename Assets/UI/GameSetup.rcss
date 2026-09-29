@@ -56,10 +56,10 @@
 	("marker.used") on a child instead of shrinking the array. data-for and data-if are both
 	structural views and can't share one element, hence the plain wrapper div.
 
-	Reusable map-list row (copy per screen, one <div class="map-row" data-for="entry : maps"> per
-	map-select-style document -- see RmlSkirmishMapSelectScreen::MapEntryModel):
+	Reusable map-list row (copy per screen, one <div class="list-row flex map-row" data-for="entry : maps">
+	per map-select-style document -- see RmlSkirmishMapSelectScreen::MapEntryModel):
 
-		<div class="map-row" data-for="entry : maps" data-class-selected="entry.is_selected"
+		<div class="list-row flex map-row" data-for="entry : maps" data-class-selected="entry.is_selected"
 			data-event-click="map_selected(entry.map_name)" data-event-dblclick="map_activated(entry.map_name)">
 			<mappedimage class="map-star" data-attr-name="entry.star_image" data-if="entry.has_star_image"/>
 			<div class="map-name">{{entry.display_name}}</div>
@@ -71,6 +71,94 @@
 	MapUtil.cpp's addMapEntryToMapListbox().
 */
 
+/* ---- Setup screen layout (skirmish, LAN, online) ----------------------------------------
+   .setup-body is the row under the title: .slot-list on the left, .side-panel (map preview + game
+   options) on the right. .map-select-body is the same idea for the map-select overlays, with a
+   .map-list instead of the slot list. */
+.setup-body
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+	min-height: 0; /* let slot-list scroll instead of overflowing the frame */
+}
+
+.map-select-body
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+	margin-top: 8dp;
+}
+
+.slot-list
+{
+	flex: 1 1 auto;
+	margin-right: 16dp;
+	min-height: 0;
+}
+
+.map-list
+{
+	flex: 1 1 auto;
+	margin-right: 12dp;
+}
+
+/* Per-slot accept/ready indicator (only slot 0 shows one). */
+.slot-accept
+{
+	width: 16dp;
+	height: 16dp;
+	border: 1dp #2F37A8;
+	background-color: rgba(255, 255, 255, 40);
+}
+
+.slot-accept.accepted
+{
+	background-color: #40C040;
+	border-color: #FFFFFF;
+}
+
+.side-panel
+{
+	flex: 0 0 auto;
+	width: 30%;
+	min-width: 340dp;
+	max-width: 420dp;
+	display: flex;
+	flex-direction: column;
+}
+
+.map-select-body .side-panel
+{
+	width: 320dp;
+	min-width: 0;
+	max-width: none;
+}
+
+.map-not-found
+{
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	color: #C0C0C0;
+}
+
+.map-display-name
+{
+	margin-top: 4dp;
+	margin-bottom: 8dp;
+	color: #C0C0C0;
+}
+
+.map-select-body .map-display-name
+{
+	margin-bottom: 0;
+}
+
 /* ---- Slot rows ------------------------------------------------------------------------- */
 .slot-row
 {
@@ -80,6 +168,13 @@
 	padding: 3dp 0;
 	min-height: 26dp;
 	border-bottom: 1dp rgba(47, 55, 168, 80);
+}
+
+.slot-row.slot-header
+{
+	font-weight: bold;
+	color: #8080FF;
+	border-bottom: 1dp #2F37A8;
 }
 
 .slot-row > select,
@@ -223,25 +318,10 @@
 }
 
 /* ---- Map-list rows ----------------------------------------------------------------------- */
+/* On top of common.rcss's .list-row.flex. */
 .map-row
 {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	padding: 4dp 6dp;
 	min-height: 24dp;
-	border-bottom: 1dp rgba(47, 55, 168, 80);
-}
-
-.map-row:hover
-{
-	background-color: rgba(47, 55, 168, 60);
-}
-
-.map-row.selected
-{
-	background-color: rgba(47, 55, 168, 120);
-	border: 1dp #8080FF;
 }
 
 .map-star

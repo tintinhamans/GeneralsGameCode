@@ -15,7 +15,7 @@
 		</div>
 		<div class="row">
 			<div class="label"><gametext key="GUI:Password"/></div>
-			<input type="password" class="control joingame-input" data-value="password" maxlength="10" data-event-change="password_committed"/>
+			<input type="password" class="control text-input" data-value="password" maxlength="10" data-event-change="password_committed"/>
 		</div>
 	</div>
 </body>

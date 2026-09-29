@@ -133,15 +133,6 @@ body.popup .sl-dialog
 	box-sizing: border-box;
 	width: 100%;
 	margin-bottom: 16dp;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-	color: #FFFFFF;
-	padding: 4dp 6dp;
-}
-
-.sl-input:focus
-{
-	border-color: #8080FF;
 }
 
 .sl-dialog-buttons

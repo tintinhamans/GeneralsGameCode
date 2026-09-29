@@ -69,7 +69,7 @@
 					<mappedimage name="SNFactionLogo144_China" data-class-hidden="selected_faction != 'China'"/>
 				</div>
 				<div class="menu-list">
-					<div class="section-title"><gametext key="GUI:SelectDifficulty"/></div>
+					<div class="menu-heading"><gametext key="GUI:SelectDifficulty"/></div>
 					<button class="button-lg" data-event-click="select_easy"><gametext key="GUI:EasyCaps"/></button>
 					<button class="button-lg" data-event-click="select_medium"><gametext key="GUI:MediumDifficultyCaps"/></button>
 					<button class="button-lg" data-event-click="select_hard"><gametext key="GUI:HardCaps"/></button>

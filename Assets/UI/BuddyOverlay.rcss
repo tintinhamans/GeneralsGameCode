@@ -36,11 +36,6 @@ body
 	margin-right: 6dp;
 }
 
-.spacer
-{
-	flex: 1 1 auto;
-}
-
 .buddy-body
 {
 	display: flex;
@@ -64,25 +59,11 @@ body
 {
 	flex: 1 1 0%;
 	min-height: 0;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
 }
 
-/* Block-level row, not flex: a scrolling overflow-y:auto container corrupts flex/auto child widths
-   (see report's gotcha note), so the dot/name/unread/status pieces below are laid out with plain
-   inline/block flow instead. */
-.roster-row
-{
-	display: block;
-	padding: 4dp 6dp;
-	border-bottom: 1dp rgba(47, 55, 168, 80);
-}
-
-.roster-row:hover
-{
-	background-color: rgba(47, 55, 168, 120);
-}
-
+/* Block-level .list-row, not flex: a scrolling overflow-y:auto container corrupts flex/auto child
+   widths (see report's gotcha note), so the dot/name/unread/status pieces below are laid out with
+   plain inline/block flow instead. */
 .roster-dot
 {
 	display: inline-block;
@@ -129,80 +110,14 @@ body
 	min-height: 0;
 }
 
-.section-title
-{
-	font-weight: bold;
-	color: #FFFFFF;
-	padding-bottom: 4dp;
-	border-bottom: 1dp #2F37A8;
-	margin-bottom: 4dp;
-	flex: 0 0 auto;
-}
-
-.chat-body
-{
-	flex: 1 1 0%;
-	min-height: 0;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-	padding: 4dp 6dp;
-}
-
-.chat-line
-{
-	display: block;
-}
-
-.chat-entry-row
-{
-	display: flex;
-	flex-direction: row;
-	margin-top: 4dp;
-	flex: 0 0 auto;
-}
-
-.chat-input
-{
-	flex: 1 1 auto;
-	margin-right: 4dp;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-	color: #FFFFFF;
-	padding: 4dp 6dp;
-}
-
-.btn-send
-{
-	width: 24dp;
-	height: 24dp;
-	padding: 0;
-	text-align: center;
-}
-
-.btn-send mappedimage
-{
-	display: block;
-	width: 100%;
-	height: 100%;
-}
-
 /* ---- Block list tab -------------------------------------------------------------------------- */
 .block-list
 {
 	flex: 1 1 auto;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
 }
 
 .block-row
 {
-	display: block;
-	padding: 4dp 6dp;
-	border-bottom: 1dp rgba(47, 55, 168, 80);
 	color: rgba(255, 100, 100, 255); /* red-tinted, matches refreshIgnoreList()'s GameMakeColor(255,100,100,255) */
 }
 
-.block-row:hover
-{
-	background-color: rgba(47, 55, 168, 120);
-}

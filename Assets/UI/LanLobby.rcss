@@ -1,31 +1,7 @@
 /*
-	LanLobby.rcss -- layout specific to LanLobby.rml. Palette/frame/button/scroll-container rules
-	come from common.rcss; game-list rows reuse GameSetup.rcss's .map-row/.map-name.
+	LanLobby.rcss -- layout specific to LanLobby.rml. Palette/frame/button/scroll-container/list/chat
+	rules come from common.rcss; game-list rows reuse GameSetup.rcss's .map-row/.map-name.
 */
-
-/* .lobby-panel is the .shell-frame (full blueprint panel, see common.rcss) -- fills the screen
-   like the original LanLobbyMenu.wnd instead of a fixed centered dialog. body needs an explicit
-   100% size for .shell-frame's percent left/top/width/height to resolve against. */
-body
-{
-	width: 100%;
-	height: 100%;
-}
-
-.lobby-panel
-{
-	display: flex;
-	flex-direction: column;
-}
-
-.section-title
-{
-	font-weight: bold;
-	color: #FFFFFF;
-	padding-bottom: 4dp;
-	border-bottom: 1dp #2F37A8;
-	margin-bottom: 4dp;
-}
 
 /* ---- Three-column body: players / games / details --------------------------------------- */
 .lobby-row
@@ -57,21 +33,6 @@ body
 	display: flex;
 	flex-direction: column;
 	width: 260dp;
-}
-
-.player-list,
-.game-list
-{
-	border: 1dp #2F37A8;
-	background-color: rgba(2, 2, 2, 140);
-}
-
-.player-row
-{
-	display: block;
-	padding: 3dp 6dp;
-	color: #FFFFFF;
-	border-bottom: 1dp rgba(47, 55, 168, 80);
 }
 
 .map-name.in-progress
@@ -132,46 +93,6 @@ body
 }
 
 /* ---- Chat ---------------------------------------------------------------------------------- */
-.chat
-{
-	display: flex;
-	flex-direction: column;
-	margin-top: 8dp;
-	border-top: 1dp #2F37A8;
-	padding-top: 8dp;
-	height: 140dp;
-}
-
-.chat-body
-{
-	flex: 1 1 auto;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-	padding: 4dp 6dp;
-}
-
-.chat-line
-{
-	display: block;
-}
-
-.chat-entry-row
-{
-	display: flex;
-	flex-direction: row;
-	margin-top: 4dp;
-}
-
-.chat-input
-{
-	flex: 1 1 auto;
-	margin-right: 4dp;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-	color: #FFFFFF;
-	padding: 4dp 6dp;
-}
-
 /* ---- Player name / footer row -------------------------------------------------------------- */
 .name-row
 {
@@ -189,29 +110,6 @@ body
 	flex: 0 0 auto;
 	width: 140dp;
 	margin-right: 8dp;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-	color: #FFFFFF;
-	padding: 4dp 6dp;
-}
-
-.name-row .spacer
-{
-	flex: 1 1 auto;
 }
 
 /* ---- Chat entry icon button (original ButtonSendChat draws ReturnButton) ---------------- */
-.btn-send
-{
-	width: 24dp;
-	height: 24dp;
-	padding: 0;
-	text-align: center;
-}
-
-.btn-send mappedimage
-{
-	display: block;
-	width: 100%;
-	height: 100%;
-}

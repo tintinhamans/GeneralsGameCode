@@ -43,82 +43,8 @@ body
 	margin-bottom: 8dp;
 }
 
-/* ---- Rank cluster -- same look as OnlineWelcome.rcss's rank-column/rank-border/etc, kept as its
-   own copy here since this popup has its own data model and isn't sharing OnlineWelcome.rml. ---- */
-.rank-column
-{
-	display: flex;
-	flex-direction: column;
-	flex: 0 0 auto;
-	width: 128dp;
-	margin-right: 12dp;
-}
-
-.rank-border
-{
-	position: relative;
-	box-sizing: border-box;
-	width: 128dp;
-	height: 156dp;
-	background-color: #020280;
-	border: 1dp #2F37A8;
-}
-
-.rank-image-wrap
-{
-	display: block;
-	position: relative;
-	box-sizing: border-box;
-	width: 100%;
-	height: 128dp;
-	border-bottom: 1dp #2E37A8;
-}
-
-.rank-image
-{
-	display: block;
-	width: 100%;
-	height: 128dp;
-}
-
-.faction-image
-{
-	display: block;
-	position: absolute;
-	right: 0dp;
-	bottom: 0dp;
-	width: 48dp;
-	height: 48dp;
-}
-
-.rank-progress
-{
-	display: block;
-	position: absolute;
-	box-sizing: border-box;
-	left: 0;
-	bottom: 0;
-	width: 100%;
-	height: 24dp;
-	background-color: rgba(2, 2, 2, 164);
-	border: 1dp #FFBB00;
-}
-
-.rank-progress-fill
-{
-	height: 100%;
-	background-color: rgba(59, 255, 0, 200);
-}
-
-.rank-label
-{
-	margin-top: 4dp;
-	text-align: center;
-	flex: 0 0 auto;
-}
-
 /* ---- Stats column -- reuses common.rcss's .row/.label/.control, tighter than the options-style
-   28dp rows since there are 13 of them in the popup. ---------------------------------------- */
+   28dp rows since there are 13 of them in the popup (the rank cluster is shared, see common.rcss). -- */
 .stats-column
 {
 	display: flex;

@@ -5,13 +5,13 @@
 	<link type="text/rcss" href="GameSetup.rcss"/>
 	<link type="text/rcss" href="OnlineGameSetup.rcss"/>
 </head>
-<body data-model="onlinegamesetup">
+<body class="shell" data-model="onlinegamesetup">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
-	<div class="shell-frame online-setup-panel">
+	<div class="shell-frame">
 		<div class="shell-title-bar">{{game_name}}</div>
 
-		<div class="online-setup-body">
+		<div class="setup-body">
 			<div class="scroll-container slot-list">
 				<div class="slot-row slot-header">
 					<div class="slot-occupant"><gametext key="GUI:Players"/></div>
@@ -117,12 +117,12 @@
 		</div>
 
 		<div class="chat">
-			<div id="chat-body" class="scroll-container chat-body">
+			<div id="chat-body" class="chat-log">
 				<div class="chat-line" data-for="line : chat_lines"><span data-style-color="line.color">{{line.text}}</span></div>
 			</div>
-			<div class="chat-entry-row">
+			<div class="chat-entry">
 				<input type="text" class="chat-input" maxlength="128" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-				<button class="btn-emote" data-event-click="chat_entry_committed" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
+				<button class="icon-btn" data-event-click="chat_entry_committed" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
 			</div>
 		</div>
 

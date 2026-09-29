@@ -41,7 +41,6 @@
 			</div>
 
 			<div class="academy" data-if="show_academy_panel">
-				<div class="section-title"></div>
 				<div class="scroll-container academy-body">
 					<div class="academy-tip" data-for="tip : academy_advice">{{tip}}</div>
 				</div>
@@ -49,13 +48,13 @@
 
 			<div class="chat" data-if="show_chat_log">
 				<div class="chat-border" data-class-bordered="show_chat_box_border">
-					<div class="scroll-container chat-body">
+					<div class="chat-log">
 						<div class="chat-line" data-for="line : chat_lines">{{line}}</div>
 					</div>
-					<div class="chat-entry-row" data-if="show_chat_entry">
+					<div class="chat-entry" data-if="show_chat_entry">
 						<input type="text" class="chat-input" data-value="chat_entry_text"/>
-						<button class="btn-send" data-event-click="send_chat"></button>
-						<button class="btn-emote" data-if="show_emote_button" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"></button>
+						<button class="icon-btn" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
+						<button class="icon-btn" data-if="show_emote_button" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
 					</div>
 				</div>
 			</div>

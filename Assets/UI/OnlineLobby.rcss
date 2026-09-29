@@ -1,33 +1,7 @@
 /*
-	OnlineLobby.rcss -- layout specific to OnlineLobby.rml. Palette/frame/button/scroll-container
-	rules come from common.rcss; chat/footer reuse the same idioms as LanLobby.rcss.
+	OnlineLobby.rcss -- layout specific to OnlineLobby.rml. Palette/frame/button/scroll-container/
+	list/chat rules come from common.rcss.
 */
-
-body
-{
-	width: 100%;
-	height: 100%;
-}
-
-.lobby-panel
-{
-	display: flex;
-	flex-direction: column;
-}
-
-.spacer
-{
-	flex: 1 1 auto;
-}
-
-.section-title
-{
-	font-weight: bold;
-	color: #FFFFFF;
-	padding-bottom: 4dp;
-	border-bottom: 1dp #2F37A8;
-	margin-bottom: 4dp;
-}
 
 /* ---- Two-column body: games (wide) / players (narrow) ------------------------------------ */
 .lobby-row
@@ -69,22 +43,6 @@ body
 	padding: 4dp 10dp;
 }
 
-.icon-btn
-{
-	width: 24dp;
-	height: 24dp;
-	padding: 0;
-	overflow: hidden; /* LobbyRefresh's source art isn't perfectly square; clip instead of overflow */
-}
-
-.icon-btn mappedimage
-{
-	display: block;
-	width: 100%;
-	height: 100%;
-	overflow: hidden; /* LobbyRefresh's source art isn't perfectly square; clip instead of overflow */
-}
-
 .room-select
 {
 	width: 220dp;
@@ -110,34 +68,21 @@ button.active
 	font-size: 12dp;
 }
 
-.player-list,
-.game-list
-{
-	border: 1dp #2F37A8;
-	background-color: rgba(2, 2, 2, 140);
-}
-
 /* ---- Game list row: fixed dp columns (a scrolling overflow-y:auto container corrupts
    flex/auto widths inside it, see project notes) ------------------------------------------- */
+/* .game-row sits on common.rcss's .list-row.flex.compact; its own text colour and a stronger
+   selected highlight without the outline. */
 .game-row
 {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	padding: 3dp 6dp;
 	color: #BFC6C9;
-	border-bottom: 1dp rgba(47, 55, 168, 80);
-}
-
-.game-row:hover
-{
-	background-color: rgba(47, 55, 168, 60);
 }
 
 .game-row.selected
 {
 	background-color: rgba(47, 55, 168, 160);
 	color: #FFFFFF;
+	border: 0dp transparent;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
 }
 
 .game-row.buddy
@@ -215,14 +160,6 @@ button.active
 
 /* ---- Player list row: admin/friend/ignored/self coloring (see GSCOLOR_PLAYER_* in
    WOLLobbyMenu.cpp's RebuildLobbyPlayerList(), which this mirrors) ------------------------- */
-.player-row
-{
-	display: block;
-	padding: 3dp 6dp;
-	color: #FFFFFF;
-	border-bottom: 1dp rgba(47, 55, 168, 80);
-}
-
 .player-row.admin
 {
 	color: #F0C020;
@@ -244,57 +181,9 @@ button.active
 }
 
 /* ---- Chat ---------------------------------------------------------------------------------- */
+
+/* Shorter than the shared 140dp: this screen has more list above the chat. */
 .chat
 {
-	display: flex;
-	flex-direction: column;
-	margin-top: 8dp;
-	border-top: 1dp #2F37A8;
-	padding-top: 8dp;
 	height: 130dp;
-}
-
-.chat-body
-{
-	flex: 1 1 auto;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-	padding: 4dp 6dp;
-}
-
-.chat-line
-{
-	display: block;
-}
-
-.chat-entry-row
-{
-	display: flex;
-	flex-direction: row;
-	margin-top: 4dp;
-}
-
-.chat-input
-{
-	flex: 1 1 auto;
-	margin-right: 4dp;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-	color: #FFFFFF;
-	padding: 4dp 6dp;
-}
-
-.btn-send
-{
-	width: 24dp;
-	height: 24dp;
-	padding: 0;
-	text-align: center;
-}
-
-.btn-send mappedimage
-{
-	display: block;
-	width: 100%;
-	height: 100%;
 }

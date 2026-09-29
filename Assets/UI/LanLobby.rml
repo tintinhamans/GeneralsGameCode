@@ -5,27 +5,27 @@
 	<link type="text/rcss" href="GameSetup.rcss"/>
 	<link type="text/rcss" href="LanLobby.rcss"/>
 </head>
-<body data-model="lanlobby">
+<body class="shell" data-model="lanlobby">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
-	<div class="shell-frame lobby-panel">
+	<div class="shell-frame">
 		<div class="shell-title-bar"><gametext key="GUI:LANLobby"/></div>
 
 		<div class="lobby-row">
 			<div class="players-column">
 				<div class="section-title"><gametext key="GUI:Players"/></div>
-				<div class="scroll-container player-list">
+				<div class="scroll-container list-box">
 					<div data-for="player : players">
-						<div class="player-row" data-if="player.used" data-attr-data-tooltip-text="player.tooltip">{{player.name}}</div>
+						<div class="list-row compact" data-if="player.used" data-attr-data-tooltip-text="player.tooltip">{{player.name}}</div>
 					</div>
 				</div>
 			</div>
 
 			<div class="games-column">
 				<div class="section-title"><gametext key="GUI:Games"/></div>
-				<div class="scroll-container game-list">
+				<div class="scroll-container list-box">
 					<div data-for="game : games">
-						<div class="map-row" data-if="game.used" data-class-selected="game.is_selected"
+						<div class="list-row flex map-row" data-if="game.used" data-class-selected="game.is_selected"
 							data-event-click="game_row_clicked(game.index)" data-event-dblclick="game_row_activated(game.index)">
 							<div class="map-name" data-class-in-progress="game.in_progress">{{game.display_name}}</div>
 						</div>
@@ -51,18 +51,18 @@
 		</div>
 
 		<div class="chat">
-			<div class="scroll-container chat-body">
+			<div class="chat-log">
 				<div class="chat-line" data-for="line : chat_lines">{{line}}</div>
 			</div>
-			<div class="chat-entry-row">
+			<div class="chat-entry">
 				<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-				<button class="btn-send" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
+				<button class="icon-btn" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
 			</div>
 		</div>
 
 		<div class="footer name-row">
 			<div class="label"><gametext key="GUI:PlayerName"/></div>
-			<input type="text" class="name-input" data-value="player_name" data-event-change="name_changed"/>
+			<input type="text" class="text-input name-input" data-value="player_name" data-event-change="name_changed"/>
 			<button data-event-click="clear_name" data-tooltip="TOOLTIP:ButtonClear"><gametext key="GUI:CLEAR"/></button>
 			<div class="spacer"></div>
 			<button data-event-click="host_game"><gametext key="GUI:Host"/></button>

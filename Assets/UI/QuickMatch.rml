@@ -4,10 +4,10 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="QuickMatch.rcss"/>
 </head>
-<body data-model="quickmatch">
+<body class="shell" data-model="quickmatch">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
-	<div class="shell-frame quickmatch-panel">
+	<div class="shell-frame">
 		<div class="shell-title-bar">{{title}}</div>
 
 		<div class="quickmatch-body">
@@ -20,9 +20,9 @@
 				</div>
 
 				<div class="section-title"><gametext key="GUI:AllowableMaps"/></div>
-				<div class="scroll-container map-list">
+				<div class="scroll-container list-box map-list">
 					<div data-for="row : maps">
-						<div class="map-row" data-if="row.used" data-class-selected="row.selected" data-event-click="map_row_clicked(row.index)"
+						<div class="list-row flex compact qm-map-row" data-if="row.used" data-class-selected="row.selected" data-event-click="map_row_clicked(row.index)"
 							data-event-mouseover="map_row_hover(row.index)" data-event-mousemove="map_row_hover(row.index)" data-event-mouseout="map_row_hover_clear">
 							<div class="map-check" data-class-checked="row.selected"></div>
 							<div class="map-name">{{row.label}}</div>
@@ -94,8 +94,8 @@
 			</div>
 		</div>
 
-		<div id="status-feed" class="scroll-container status-feed">
-			<div class="status-line" data-for="line : status_lines"><span data-style-color="line.color">{{line.text}}</span></div>
+		<div id="status-feed" class="scroll-container text-list status-feed">
+			<div class="text-line" data-for="line : status_lines"><span data-style-color="line.color">{{line.text}}</span></div>
 		</div>
 
 		<div class="footer footer-split">

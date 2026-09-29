@@ -3,12 +3,11 @@
 	<title>OnlineMapSelect</title>
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="GameSetup.rcss"/>
-	<link type="text/rcss" href="OnlineMapSelect.rcss"/>
 </head>
-<body data-model="onlinemapselect">
+<body class="shell" data-model="onlinemapselect">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
-	<div class="shell-frame map-select-panel">
+	<div class="shell-frame">
 		<div class="shell-title-bar"><gametext key="GUI:SelectAMapLowerCase"/></div>
 
 		<div class="tabs">
@@ -19,7 +18,7 @@
 		<div class="map-select-body">
 			<div class="map-list scroll-container">
 				<div data-for="entry : maps">
-					<div class="map-row" data-if="entry.used" data-class-selected="entry.is_selected"
+					<div class="list-row flex map-row" data-if="entry.used" data-class-selected="entry.is_selected"
 						data-event-click="map_selected(entry.map_name)" data-event-dblclick="map_activated(entry.map_name)">
 						<mappedimage class="map-star" data-attr-name="entry.star_image" data-if="entry.has_star_image"/>
 						<div class="map-name">{{entry.display_name}}</div>

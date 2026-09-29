@@ -1,68 +1,7 @@
 /*
-	SkirmishGameOptions.rcss -- screen-specific layout for the skirmish setup screen. Slot-row/
-	map-preview/start-marker element styles live in GameSetup.rcss (shared with any future LAN/
-	online lobby screen); this file only positions this screen's own panels.
+	SkirmishGameOptions.rcss -- skirmish-only piece of the setup screen: the career honors block under
+	the game options. Layout, slot rows and map preview are shared, see GameSetup.rcss.
 */
-
-/* .skirmish-panel is the .shell-frame (full blueprint panel, see common.rcss) -- no fixed
-   size/centering here, it fills the screen like the original SkirmishGameOptionsMenu.wnd.
-   body needs an explicit 100% size for .shell-frame's percent left/top/width/height to
-   resolve against (RmlUi, like CSS, treats an auto-sized body as shrink-to-fit). */
-body
-{
-	width: 100%;
-	height: 100%;
-}
-
-.skirmish-body
-{
-	display: flex;
-	flex-direction: row;
-	flex: 1 1 auto;
-	min-height: 0; /* let slot-list scroll instead of overflowing the frame */
-}
-
-.slot-list
-{
-	flex: 1 1 auto;
-	margin-right: 16dp;
-	min-height: 0;
-}
-
-.slot-header
-{
-	font-weight: bold;
-	color: #8080FF;
-	border-bottom: 1dp #2F37A8;
-}
-
-.side-panel
-{
-	flex: 0 0 auto;
-	width: 30%;
-	min-width: 340dp;
-	max-width: 420dp;
-	display: flex;
-	flex-direction: column;
-}
-
-.map-not-found
-{
-	width: 100%;
-	height: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	text-align: center;
-	color: #C0C0C0;
-}
-
-.map-display-name
-{
-	margin-top: 4dp;
-	margin-bottom: 8dp;
-	color: #C0C0C0;
-}
 
 .honors-panel
 {

@@ -13,6 +13,35 @@
 	density-independent-pixel ratio to screen height / 1080 so 1dp keeps the same apparent
 	size (and the same relative layout) at any resolution/aspect ratio -- no per-callsite
 	scaling math needed in the RML itself.
+
+	Shared components. Every screen links this sheet, so mods restyle a component here once
+	instead of per screen (screen sheets only hold what is unique to that screen; GameSetup.rcss
+	adds the setup-screen pieces):
+
+	  Frames        .frame, .title-bar             centered dialog panel and its heading
+	                .shell-frame, .shell-title-bar, .shell-background
+	                                               full-screen blueprint panel; put class="shell" on <body>
+	  Layout        .row > .label + .control       label left, control right (options-style rows)
+	                .tabs > .tab(.selected)        tab strip
+	                .footer, .footer-split         button row along the bottom edge
+	                .spacer                        pushes what follows to the far end of a flex row
+	                .section-title                 underlined heading over a column or list
+	  Controls      button, .button, .button-lg    capsule buttons (.disabled greys them out)
+	                .icon-btn                      24dp square button holding a <mappedimage> glyph
+	                select, input.range, input.checkbox, .text-input
+	  Lists         .list-box (+ .opaque)          bordered pane; combine with .scroll-container
+	                .list-row (+ .flex, .compact, .selected)
+	                                               one entry of a .list-box; block by default, .flex for cells
+	                .text-list, .text-line         bordered pane of plain text lines (status feed, MOTD)
+	  Chat          .chat > .chat-log > .chat-line       fixed-height block: scrolling lines ...
+	                     > .chat-entry > .chat-input + .icon-btn   ... over the entry row
+	  Rank cluster  .rank-column, .rank-border, .rank-image-wrap, .rank-image, .faction-image,
+	                .rank-progress(-fill), .rank-label   rank portrait, faction badge, progress, name
+	  Popups        .context-menu(-backdrop/-item) right-click menu placed at the cursor
+
+	A bare <div data-for="..."> wrapping a row is inline unless it is a direct child of a .list-box or
+	.text-list (which makes it a block); a row that is a data-for element itself needs display:block,
+	which .list-row and .chat-line/.text-line already give it.
 */
 
 body
@@ -141,9 +170,9 @@ button[disabled]:active, button.disabled:active, .button.disabled:active
 }
 
 /* Square glyph/icon buttons are too small for the capsule end caps: keep the plain bordered box. */
-.icon-btn, .btn-send, .btn-emote, .joingame-close,
-.icon-btn:hover, .btn-send:hover, .btn-emote:hover, .joingame-close:hover,
-.icon-btn:active, .btn-send:active, .btn-emote:active, .joingame-close:active
+.icon-btn, .joingame-close,
+.icon-btn:hover, .joingame-close:hover,
+.icon-btn:active, .joingame-close:active
 {
 	decorator: none;
 	font-effect: none;
@@ -151,10 +180,29 @@ button[disabled]:active, button.disabled:active, .button.disabled:active
 	border: 1dp #2F37A8;
 }
 
-.icon-btn:hover, .btn-send:hover, .btn-emote:hover, .joingame-close:hover
+.icon-btn:hover, .joingame-close:hover
 {
 	border-color: #8080FF;
 	color: #8080FF;
+}
+
+/* Fixed 24dp square holding a <mappedimage> glyph (chat send/emote, list refresh). The art isn't always
+   perfectly square, so both the button and the image clip instead of overflowing. */
+.icon-btn
+{
+	width: 24dp;
+	height: 24dp;
+	padding: 0;
+	text-align: center;
+	overflow: hidden;
+}
+
+.icon-btn mappedimage
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
 }
 
 /* Large, prominent button (main menu list, footer primary/secondary actions) -- the .wnd
@@ -280,6 +328,229 @@ scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
 	height: 0dp;
 }
 
+/* ---- Text input -------------------------------------------------------------------------- */
+.text-input, .chat-input
+{
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	color: #FFFFFF;
+	padding: 4dp 6dp;
+}
+
+.text-input:focus, .chat-input:focus
+{
+	border-color: #8080FF;
+}
+
+/* ---- Small layout helpers -------------------------------------------------------------- */
+/* Pushes whatever follows it to the far end of a flex row. */
+.spacer
+{
+	flex: 1 1 auto;
+}
+
+/* Underlined heading over a column or list. */
+.section-title
+{
+	font-weight: bold;
+	color: #FFFFFF;
+	padding-bottom: 4dp;
+	border-bottom: 1dp #2F37A8;
+	margin-bottom: 4dp;
+	flex: 0 0 auto;
+}
+
+/* ---- Boxed lists -------------------------------------------------------------------------
+   Combine with .scroll-container. .list-box is the bordered pane around a list of .list-row
+   entries, .text-list the same pane for plain text lines (status feed, message of the day), and
+   .chat-log the darker, tail-following variant a .chat uses. */
+.list-box, .text-list, .chat-log
+{
+	border: 1dp #2F37A8;
+	background-color: rgba(2, 2, 2, 140);
+}
+
+.list-box.opaque
+{
+	background-color: rgba(2, 2, 2, 191);
+}
+
+.text-list, .chat-log
+{
+	padding: 4dp 6dp;
+}
+
+/* The bare <div data-for="..."> wrapping each row is display:inline (no UA stylesheet), and a block
+   inside an inline wrapper gets no reliable width; make the wrapper a real block. */
+.list-box > div, .text-list > div
+{
+	display: block;
+}
+
+/* One line inside a .text-list. */
+.text-line
+{
+	display: block;
+	padding: 1dp 0;
+}
+
+/* ---- List row -----------------------------------------------------------------------------
+   One entry of a .list-box. Block by default: RmlUi lays out data-for children as inline unless told
+   otherwise, so every row needs the display. Add .flex for a row of cells (icon, name, count), and
+   .compact for the tighter padding. .selected marks the chosen row, hover lights it. */
+.list-row
+{
+	display: block;
+	padding: 4dp 6dp;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
+}
+
+.list-row.flex
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.list-row.compact
+{
+	padding: 3dp 6dp;
+}
+
+.list-row:hover
+{
+	background-color: rgba(47, 55, 168, 60);
+}
+
+.list-row.selected
+{
+	background-color: rgba(47, 55, 168, 120);
+	border: 1dp #8080FF;
+}
+
+/* ---- Chat ---------------------------------------------------------------------------------
+   <div class="chat"> is the fixed-height block at the bottom of a screen: a .chat-log (scrolling
+   lines, one .chat-line each) over a .chat-entry row (a .chat-input and one or two .icon-btn). */
+.chat
+{
+	display: flex;
+	flex-direction: column;
+	margin-top: 8dp;
+	border-top: 1dp #2F37A8;
+	padding-top: 8dp;
+	height: 140dp;
+}
+
+.chat-log
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	overflow-y: auto;
+	background-color: rgba(2, 2, 2, 191);
+}
+
+.chat-line
+{
+	display: block;
+}
+
+.chat-entry
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+	margin-top: 4dp;
+}
+
+.chat-input
+{
+	flex: 1 1 auto;
+	margin-right: 4dp;
+}
+
+/* ---- Rank cluster --------------------------------------------------------------------------
+   Rank portrait, faction badge, progress bar and rank name (online welcome, player info, quick
+   match stats). Uses fixed dp sizes (matching WOLWelcomeMenu.wnd's RankBorder/WinRank/FactionImage
+   1:1) instead of percentages -- dp already scales with screen height (see common.rcss header
+   comment), so this still scales consistently across resolutions, just not stretched
+   independently like the .wnd's own non-uniform 800x600 stretch. mappedimage itself does resolve
+   percentage width/height fine (its inner <img> is always 100%x100% of it); fixed dp is used here
+   only because the whole rank-column is a fixed-width column, not a mappedimage limitation. */
+.rank-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 auto;
+	width: 128dp;
+	margin-right: 12dp;
+}
+
+.rank-border
+{
+	position: relative;
+	box-sizing: border-box; /* declared width/height must include the border, or this (and its
+		border-box child .rank-progress below) overflow rank-column by the border width
+		(audit: OVERFLOW div.rank-border / div.rank-progress) */
+	width: 128dp;
+	height: 156dp;
+	background-color: #020280;
+	border: 1dp #2F37A8;
+}
+
+.rank-image-wrap
+{
+	display: block;
+	position: relative;
+	box-sizing: border-box;
+	width: 100%; /* fill rank-border's content box exactly, instead of duplicating its 128dp and
+		overflowing once rank-border switched to box-sizing:border-box */
+	height: 128dp;
+	border-bottom: 1dp #2E37A8;
+}
+
+.rank-image
+{
+	display: block;
+	width: 100%;
+	height: 128dp;
+}
+
+.faction-image
+{
+	display: block;
+	position: absolute;
+	right: 0dp;
+	bottom: 0dp;
+	width: 48dp;
+	height: 48dp;
+}
+
+.rank-progress
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: 0;
+	bottom: 0;
+	width: 100%; /* fill rank-border's content box exactly, see .rank-image-wrap above */
+	height: 24dp;
+	background-color: rgba(2, 2, 2, 164);
+	border: 1dp #FFBB00;
+}
+
+.rank-progress-fill
+{
+	height: 100%;
+	background-color: rgba(59, 255, 0, 200);
+}
+
+.rank-label
+{
+	margin-top: 4dp;
+	text-align: center;
+	flex: 0 0 auto;
+}
+
 /* ---- Footer button row ------------------------------------------------------------------ */
 .footer
 {
@@ -322,6 +593,12 @@ scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
 	width: 100%;
 	height: 100%;
 	z-index: -1;
+}
+
+body.shell
+{
+	width: 100%;
+	height: 100%;
 }
 
 .shell-frame
