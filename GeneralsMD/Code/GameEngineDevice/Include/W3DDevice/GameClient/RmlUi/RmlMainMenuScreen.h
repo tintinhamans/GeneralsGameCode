@@ -53,6 +53,7 @@ public:
 
 private:
 	void setPanel(const Rml::String &panel);
+	void playPanelSounds(const Rml::String &from, const Rml::String &to);
 
 	void onGoSingle(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { setPanel("single"); }
 	void onGoMulti(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { setPanel("multi"); }

@@ -28,6 +28,7 @@
 #include "GameClient/KeyDefs.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/RmlUiScreenRegistry.h"
+#include "GameClient/TransitionSounds.h"
 #include "W3DDevice/GameClient/RmlUi/RmlBuddyOverlayScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlBuddyToastScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlCreditsScreen.h"
@@ -410,6 +411,7 @@ void RmlUiManager::shutdown()
 	delete m_mapPreviewInstancer; m_mapPreviewInstancer = nullptr;
 	delete m_scrollLogInstancer; m_scrollLogInstancer = nullptr;
 	m_currentScreen = nullptr;
+	TransitionSounds::reset();
 	m_debuggerInitialized = false;
 
 	m_renderInterface.onDeviceLost();
@@ -443,6 +445,7 @@ void RmlUiManager::onDeviceReset()
 
 void RmlUiManager::update()
 {
+	TransitionSounds::update();
 	if (m_currentScreen)
 		m_currentScreen->update();
 	RmlLoadScreen::tick();

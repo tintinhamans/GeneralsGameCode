@@ -30,6 +30,7 @@
 #include "GameClient/Mouse.h"
 #include "GameClient/Shell.h"
 #include "GameClient/ShellHooks.h"
+#include "GameClient/TransitionSounds.h"
 #include "GameLogic/ScriptEngine.h"
 #include "GameNetwork/DownloadManager.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
@@ -154,6 +155,9 @@ void RmlMainMenuScreen::show()
 		m_modelHandle.DirtyAllVariables();
 
 	m_document->Show();
+
+	// MainMenuInit() entrance transition.
+	TransitionSounds::play("MainMenuDefaultMenuLogoFade");
 }
 
 void RmlMainMenuScreen::hide()
@@ -226,31 +230,92 @@ void RmlMainMenuScreen::setShellHook(const Rml::String &hook)
 	for (const HookPair &pair : hooks)
 	{
 		if (m_hookedName == pair.name)
+		{
+			DEBUG_LOG(("RmlMainMenu: script hook %s unhighlighted", pair.name));
 			TheScriptEngine->signalUIInteract(TheShellHookNames[pair.unhighlighted]);
+		}
 	}
 	for (const HookPair &pair : hooks)
 	{
 		if (hook == pair.name)
+		{
+			DEBUG_LOG(("RmlMainMenu: script hook %s highlighted", pair.name));
 			TheScriptEngine->signalUIInteract(TheShellHookNames[pair.highlighted]);
+		}
 	}
 
-	// Solo-menu buttons signal no script hook in MainMenu.cpp; their hover plays the logo
-	// scale-up transition (MainMenuMediumScaleUpTransition frame 1, forward only).
-	static const char *const logoHoverHooks[] = { "skirmish", "usa", "gla", "china", "challenge" };
-	for (const char *name : logoHoverHooks)
+	// Solo-menu buttons signal no script hook in MainMenu.cpp; their hover sets the faction
+	// transition group, whose logo scale-up plays its sound.
+	struct HoverGroup { const char *name; const char *group; };
+	static const HoverGroup hoverGroups[] =
 	{
-		if (hook == name && TheAudio)
+		{ "skirmish", "MainMenuFactionSkirmish" },
+		{ "usa", "MainMenuFactionUS" },
+		{ "gla", "MainMenuFactionGLA" },
+		{ "china", "MainMenuFactionChina" },
+		{ "challenge", "MainMenuFactionTraining" },
+	};
+	for (const HoverGroup &hover : hoverGroups)
+	{
+		if (hook == hover.name)
 		{
-			AudioEventRTS logoHover("GUILogoMouseOver");
-			TheAudio->addAudioEvent(&logoHover);
+			DEBUG_LOG(("RmlMainMenu: %s hover", hover.name));
+			TransitionSounds::play(hover.group);
 		}
 	}
 	m_hookedName = hook;
 }
 
 //-------------------------------------------------------------------------------------------------
+// The transition groups MainMenu.cpp runs when it switches panels: the panel it leaves plays its
+// reversed "Back" group, and the one it enters is set behind it.
+void RmlMainMenuScreen::playPanelSounds(const Rml::String &from, const Rml::String &to)
+{
+	if (from == to)
+		return;
+
+	struct Faction { const char *label, *shortName, *fromDiff; };
+	static const Faction factions[] =
+	{
+		{ "USA", "US", "USA" },
+		{ "GLA", "GLA", "GLA" },
+		{ "China", "China", "China" },
+		{ "Training", "Training", "Training" },
+	};
+	const Faction *faction = nullptr;
+	for (const Faction &f : factions)
+	{
+		if (m_model.selectedFaction == f.label)
+			faction = &f;
+	}
+
+	AsciiString back, next;
+	if (from == "main" && to == "single") { back = "MainMenuDefaultMenuBack"; next = "MainMenuSinglePlayerMenu"; }
+	else if (from == "main" && to == "multi") { back = "MainMenuDefaultMenuBack"; next = "MainMenuMultiPlayerMenu"; }
+	else if (from == "main" && to == "loadreplay") { back = "MainMenuDefaultMenuBack"; next = "MainMenuLoadReplayMenu"; }
+	else if (from == "single" && to == "main") { back = "MainMenuSinglePlayerMenuBack"; next = "MainMenuDefaultMenu"; }
+	else if (from == "multi" && to == "main") { back = "MainMenuMultiPlayerMenuReverse"; next = "MainMenuDefaultMenu"; }
+	else if (from == "loadreplay" && to == "main") { back = "MainMenuLoadReplayMenuBack"; next = "MainMenuDefaultMenu"; }
+	else if (faction && from == "single" && to == "difficulty")
+	{
+		back.format("MainMenuSinglePlayerMenuBack%s", faction->shortName);
+		next.format("MainMenuDifficultyMenu%s", faction->shortName);
+	}
+	else if (faction && from == "difficulty" && to == "single")
+	{
+		back.format("MainMenuDifficultyMenu%sBack", faction->shortName);
+		next.format("MainMenuSinglePlayer%sMenuFromDiff", faction->fromDiff);
+	}
+	else
+		return;
+
+	const Int backFrames = TransitionSounds::play(back.str(), TRUE);
+	TransitionSounds::play(next.str(), FALSE, backFrames);
+}
+
 void RmlMainMenuScreen::setPanel(const Rml::String &panel)
 {
+	playPanelSounds(m_model.panel, panel);
 	m_model.panel = panel;
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("panel");
@@ -297,6 +362,7 @@ void RmlMainMenuScreen::onGoExit(Rml::DataModelHandle, Rml::Event &, const Rml::
 
 void RmlMainMenuScreen::onGoSkirmish(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
+	TransitionSounds::play("MainMenuSinglePlayerMenuBackSkirmish", TRUE);
 	MainMenuActions::startSkirmishOptions();
 }
 
@@ -320,9 +386,9 @@ void RmlMainMenuScreen::onSelectChallenge(Rml::DataModelHandle, Rml::Event &, co
 void RmlMainMenuScreen::goBackFromDifficulty()
 {
 	MainMenuActions::selectCampaign(AsciiString::TheEmptyString);
-	m_model.selectedFaction = "";
 	m_challengePending = false;
-	setPanel("single");
+	setPanel("single"); // still needs the faction to pick its sounds
+	m_model.selectedFaction = "";
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("selected_faction");
 }
@@ -335,6 +401,7 @@ void RmlMainMenuScreen::onDiffBack(Rml::DataModelHandle, Rml::Event &, const Rml
 void RmlMainMenuScreen::startAtDifficulty(int diff)
 {
 	bool challenge = m_challengePending;
+	TransitionSounds::play(challenge ? "MainMenuDifficultyMenuTraining" : "MainMenuDifficultyMenuBack", TRUE);
 	MainMenuActions::startCampaignAtDifficulty((GameDifficulty)diff, challenge);
 
 	// Either the map is starting now (doGameStart()'s message was just queued) or ChallengeMenu.wnd
@@ -350,21 +417,25 @@ void RmlMainMenuScreen::onSelectHard(Rml::DataModelHandle, Rml::Event &, const R
 
 void RmlMainMenuScreen::onGoOnline(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
+	TransitionSounds::play("MainMenuMultiPlayerMenuTransitionToNext", TRUE);
 	MainMenuActions::startOnlinePatchCheck();
 }
 
 void RmlMainMenuScreen::onGoNetwork(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
+	TransitionSounds::play("MainMenuMultiPlayerMenuTransitionToNext", TRUE);
 	MainMenuActions::openNetworkLobby();
 }
 
 void RmlMainMenuScreen::onGoLoadGame(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
+	TransitionSounds::play("MainMenuLoadReplayMenuBackTransition", TRUE);
 	MainMenuActions::openLoadGame();
 }
 
 void RmlMainMenuScreen::onGoReplay(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
+	TransitionSounds::play("MainMenuLoadReplayMenuBackTransition", TRUE);
 	MainMenuActions::openReplayMenu();
 }
 

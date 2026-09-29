@@ -47,6 +47,8 @@
 
 #include "Common/GameCommon.h"
 
+#include <vector>
+
 //-----------------------------------------------------------------------------
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
@@ -595,6 +597,15 @@ protected:
 };
 
 //-----------------------------------------------------------------------------
+// A sound a transition group triggers, and the frame (30 per second at normal speed) it fires on.
+struct TransitionSoundCue
+{
+	AsciiString m_sound;
+	Int m_frame;
+};
+typedef std::vector<TransitionSoundCue> TransitionSoundCues;
+
+//-----------------------------------------------------------------------------
 class TransitionWindow
 {
 public:
@@ -642,6 +653,7 @@ public:
 	void addWindow( TransitionWindow *transWin );
 	Bool isReversed();
 	Bool isFireOnce() { return m_fireOnce; }
+	Int getSoundCues( Bool reversed, TransitionSoundCues &cues );
 	Bool m_fireOnce;
 private:
 	typedef std::list<TransitionWindow *> TransitionWindowList;
@@ -672,6 +684,12 @@ public:
 	void reverse( AsciiString groupName );// reverse the animations for the current group.
 	void remove( AsciiString groupName, Bool skipPending = FALSE );// remove the animation from the current or pending groups.
 	TransitionGroup *getNewGroup( AsciiString name );
+
+	// Appends the sounds the group's styles play when it runs forward or reversed, with the frame
+	// each fires on (a reversed group runs from its last frame down to 0). Returns the group's length
+	// in frames, or 0 if there is no such group. Text typing and count-up ticks depend on the text of
+	// a window and are not listed.
+	Int getGroupSounds( AsciiString groupName, Bool reversed, TransitionSoundCues &cues );
 private:
 	TransitionGroup *findGroup( AsciiString groupName );
 	typedef std::list<TransitionGroup *> TransitionGroupList;

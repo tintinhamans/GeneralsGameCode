@@ -21,8 +21,10 @@
 #include "Common/AsciiString.h"
 #include "Common/Recorder.h"
 #include "Common/UnicodeString.h"
+#include "GameClient/CampaignManager.h"
 #include "GameClient/GUI/GUICallbacks/Menus/ScoreScreenActions.h"
 #include "GameClient/Image.h"
+#include "GameClient/TransitionSounds.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
@@ -224,6 +226,11 @@ void RmlScoreScreen::show()
 	refreshFromGameState();
 	m_document->Show();
 
+	// ScoreScreen.cpp sets ScoreScreenShow right away for every mode but the campaign, which sets it
+	// once finishSinglePlayerIfNeeded() knows it is not a challenge.
+	if (m_mode != SCORESCREENMODE_SINGLEPLAYER)
+		TransitionSounds::play("ScoreScreenShow");
+
 	// Forwards LANAPI::OnChat()'s score-screen chat/emote/system lines (see LANAPICallbacks.cpp), and
 	// the WOLGameSetupMenu.cpp/WOLQuickMatchMenu.cpp disconnect notices, into this screen's chat log
 	// while it's the active score screen. No color support: chat_lines is a plain string list, same
@@ -236,6 +243,7 @@ void RmlScoreScreen::show()
 
 void RmlScoreScreen::hide()
 {
+	TransitionSounds::stop("ScoreScreenShow"); // ScoreScreen.cpp's remove("ScoreScreenShow")
 	if (m_document)
 		m_document->Hide();
 	m_chatConnection.disconnect();
@@ -288,6 +296,9 @@ void RmlScoreScreen::finishSinglePlayerIfNeeded()
 
 	ScoreScreenCampaignFinish result = ScoreScreenActions::finishSinglePlayer();
 	m_buttonIsFinishCampaign = result.m_campaignComplete == TRUE;
+
+	if (TheCampaignManager && TheCampaignManager->getCurrentCampaign() && !TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
+		TransitionSounds::play("ScoreScreenShow");
 
 	m_model.showChallengeSplash = result.m_showChallengeSplash == TRUE;
 	m_model.challengePortraitImage = result.m_challengePortrait ? result.m_challengePortrait->getName().str() : Rml::String();

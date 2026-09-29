@@ -33,6 +33,7 @@
 #include "Common/GameEngine.h"
 #include "Common/GlobalData.h"
 #include "GameClient/RmlUiScreenRegistry.h"
+#include "GameClient/TransitionSounds.h"
 #include "Common/MessageStream.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
@@ -77,11 +78,17 @@ static Bool isRmlQuitMenuOpen()
 	return FALSE;
 }
 
-static void closeRmlQuitMenu()
+// withSound: closing it the way the .wnd path runs its reversed transition (a destroy does not).
+static void closeRmlQuitMenu(Bool withSound = FALSE)
 {
 	for (size_t i = 0; i < ARRAY_SIZE(rmlQuitWndPaths); ++i)
-		if (RmlUiScreenRegistry::isOpen(rmlQuitWndPaths[i]))
-			RmlUiScreenRegistry::close(rmlQuitWndPaths[i]);
+	{
+		if (!RmlUiScreenRegistry::isOpen(rmlQuitWndPaths[i]))
+			continue;
+		if (withSound)
+			TransitionSounds::play(i == 0 ? "QuitFullBack" : "QuitNoSaveBack", TRUE);
+		RmlUiScreenRegistry::close(rmlQuitWndPaths[i]);
+	}
 }
 
 static GameWindow *quitConfirmationWindow = nullptr;
@@ -193,7 +200,7 @@ void HideQuitMenu()
 	if(!isVisible)
 		return;
 	if (isRmlQuitMenuOpen())
-		closeRmlQuitMenu();
+		closeRmlQuitMenu(TRUE);
 	else if(quitMenuLayout && quitMenuLayout == noSaveLoadQuitMenuLayout)
 		TheTransitionHandler->reverse("QuitNoSaveBack");
 	else if( quitMenuLayout && quitMenuLayout == fullQuitMenuLayout)
@@ -290,7 +297,7 @@ void ToggleQuitMenu()
 		quitConfirmationWindow = nullptr;
 		if ( !TheGameLogic->isInMultiplayerGame() )
 			TheGameLogic->setGamePaused(FALSE);
-		closeRmlQuitMenu();
+		closeRmlQuitMenu(TRUE);
 	}
 	else if(isVisible && quitMenuLayout)
 	{
@@ -344,6 +351,7 @@ void ToggleQuitMenu()
 			TheControlBar->hidePurchaseScience();
 
 			RmlUiScreenRegistry::open(rmlWndPath);
+			TransitionSounds::play(QuitMenuActions::useNoSaveVariant() ? "QuitNoSave" : "QuitFull");
 			isVisible = TRUE;
 			TheInGameUI->setQuitMenuVisible(isVisible);
 			return;
