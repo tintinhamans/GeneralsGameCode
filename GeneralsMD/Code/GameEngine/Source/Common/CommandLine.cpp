@@ -1106,6 +1106,16 @@ Int parseDisableCommunityDataPatch(char *args[], Int num)
 	return 1;
 }
 
+Int parseContentDatabase(char *args[], Int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_commandLineData.setContentDatabasePath(args[1]);
+		return 2;
+	}
+	return 1;
+}
+
 #ifdef DEBUG_LOGGING
 Int parseSetDebugLevel(char *args[], int num)
 {
@@ -1167,6 +1177,9 @@ static CommandLineParam paramsForStartup[] =
 
 	// Export game stats as JSON alongside replay file.
 	{ "-exportStats", parseExportStats },
+
+	// Launcher content database (GeneralsOnlineGameData.db) whose current profile products load among the .big files by load key. Needed before the archive file system is created.
+	{ "-contentdb", parseContentDatabase },
 
 	// URL to POST compressed stats JSON after export.
 	{ "-statsUrl", parseStatsUrl },

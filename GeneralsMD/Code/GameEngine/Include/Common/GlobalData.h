@@ -62,6 +62,8 @@ class CommandLineData
 public:
 	Bool isCommunityDataPatchDisabled() const { return m_disableCommunityDataPatch; }
 	void disableCommunityDataPatch() { m_disableCommunityDataPatch = true; }
+	const AsciiString& getContentDatabasePath() const { return m_contentDatabasePath; }
+	void setContentDatabasePath(const AsciiString& path) { m_contentDatabasePath = path; }
 
 private:
 	CommandLineData()
@@ -73,6 +75,7 @@ private:
 	Bool m_hasParsedCommandLineForStartup;
 	Bool m_hasParsedCommandLineForEngineInit;
 	Bool m_disableCommunityDataPatch;
+	AsciiString m_contentDatabasePath;
 };
 
 //-------------------------------------------------------------------------------------------------

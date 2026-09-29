@@ -51,6 +51,7 @@
 #include "Common/AsciiString.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/PerfTimer.h"
+#include "Common/SQLiteArchiveFile.h"
 #include "../NGMP_include.h"
 #include "../OnlineServices_Init.h"
 
@@ -229,6 +230,32 @@ void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool ove
 
 		it++;
 	}
+}
+
+Bool ArchiveFileSystem::loadContentDatabase()
+{
+#if RTS_ZEROHOUR
+	const AsciiString &path = TheGlobalData->m_commandLineData.getContentDatabasePath();
+	if (path.isEmpty())
+		return FALSE;
+
+#if defined(RTS_SQLITE_ARCHIVE)
+	std::vector<SQLiteArchiveFile*> archives;
+	if (!SQLiteArchiveFile::loadProducts(path, archives))
+		return FALSE;
+
+	// Each product sits among the .big files by its load key, like a file of that name; sorted after the .big scan so every name compares.
+	for (std::vector<SQLiteArchiveFile*>::iterator it = archives.begin(); it != archives.end(); ++it)
+	{
+		loadIntoDirectoryTree(*it, FALSE, TRUE);
+		m_archiveFileMap[(*it)->getName()] = *it;
+	}
+	return TRUE;
+#else
+	DEBUG_LOG(("ArchiveFileSystem::loadContentDatabase - ignoring -contentdb, SQLite support is not built in"));
+#endif
+#endif
+	return FALSE;
 }
 
 void ArchiveFileSystem::loadMods()

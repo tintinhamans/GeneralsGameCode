@@ -117,6 +117,7 @@ set(GAMEENGINE_SRC
 #    Include/Common/StackDump.h
 #    Include/Common/StateMachine.h
 #    Include/Common/StatsCollector.h
+    Include/Common/SQLiteArchiveFile.h
     Include/Common/STLTypedefs.h
     Include/Common/StreamingArchiveFile.h
     Include/Common/SubsystemInterface.h
@@ -671,6 +672,7 @@ set(GAMEENGINE_SRC
 #    Source/Common/System/SaveGame/GameState.cpp
 #    Source/Common/System/SaveGame/GameStateMap.cpp
     Source/Common/System/Snapshot.cpp
+    Source/Common/System/SQLiteArchiveFile.cpp
 #    Source/Common/System/StackDump.cpp
     Source/Common/System/StreamingArchiveFile.cpp
     Source/Common/System/SubsystemInterface.cpp

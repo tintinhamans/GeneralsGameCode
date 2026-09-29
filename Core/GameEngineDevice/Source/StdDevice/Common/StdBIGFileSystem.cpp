@@ -67,6 +67,9 @@ void StdBIGFileSystem::init() {
     if (!installPath.isEmpty())
       loadBigFilesFromDirectory(installPath, "*.big");
 #endif
+
+	// After the scans so each product finds its place among the .big files by name.
+	loadContentDatabase();
 }
 
 void StdBIGFileSystem::reset() {

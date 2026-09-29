@@ -226,6 +226,24 @@ Bool RAMFile::openFromArchive(File *archiveFile, const AsciiString& filename, In
 	return TRUE;
 }
 
+//============================================================================
+// RAMFile::openFromBuffer
+//============================================================================
+Bool RAMFile::openFromBuffer(const AsciiString& filename, Char *data, Int size)
+{
+	if (File::open(filename.str(), File::READ | File::BINARY) == FALSE) {
+		return FALSE;
+	}
+
+	delete[] m_data;
+	m_data = data;
+	m_size = size;
+	m_pos = 0;
+	m_nameStr = filename;
+
+	return TRUE;
+}
+
 //=================================================================
 // RAMFile::close
 //=================================================================
