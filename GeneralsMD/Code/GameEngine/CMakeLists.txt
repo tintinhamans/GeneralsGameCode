@@ -784,6 +784,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/OnlineLobbyData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OnlineLobbySession.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OnlineLoginActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/OnlineSessionExit.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OnlineWelcomeActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OnlineWelcomeData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/OptionsMenu.cpp

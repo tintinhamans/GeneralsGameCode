@@ -26,6 +26,7 @@
 #include "GameClient/GUI/GUICallbacks/Menus/PlayerStatsData.h"
 #include "GameClient/GUI/GUICallbacks/Menus/QuickMatchActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/QuickMatchData.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineSessionExit.h"
 #include "GameClient/GUI/GUICallbacks/Menus/QuickMatchSession.h"
 #include "GameClient/Shell.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
@@ -283,6 +284,14 @@ void RmlQuickMatchScreen::update()
 {
 	if (!m_document || !isVisible())
 		return;
+
+	// WOLQuickMatchMenuUpdate() never runs for a registry-routed screen; this is its pending-full-teardown exit.
+	if (OnlineSessionExit::isTeardownReady())
+	{
+		hide();
+		OnlineSessionExit::tearDownAndPop();
+		return;
+	}
 
 	QuickMatchSession::update();
 

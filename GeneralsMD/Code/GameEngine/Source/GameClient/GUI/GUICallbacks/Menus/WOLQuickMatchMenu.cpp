@@ -39,6 +39,7 @@
 #include "Common/PlayerTemplate.h"
 #include "GameClient/AnimateWindowManager.h"
 #include "GameClient/GUI/GUICallbacks/Menus/QuickMatchActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineSessionExit.h"
 #include "GameClient/GUI/GUICallbacks/Menus/QuickMatchSession.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
@@ -1281,18 +1282,12 @@ static const char* getMessageString(Int t)
 void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 {
     // need to exit?
-    if (NGMP_OnlineServicesManager::GetInstance() != nullptr && NGMP_OnlineServicesManager::GetInstance()->IsPendingFullTeardown())
+    if (OnlineSessionExit::isTeardownReady())
     {
-        // Only if not in game and not in anim
-        if ((TheNGMPGame == nullptr || !TheNGMPGame->isGameInProgress()) && TheShell->isAnimFinished() && TheTransitionHandler->isFinished())
-        {
-            bool bForceShutdown = true;
-            WOLQuickMatchMenuShutdown(layout, (void*)&bForceShutdown); // userdata is 'force shutdown'
-            TearDownGeneralsOnline();
-
-            TheShell->pop();
-            return;
-        }
+        bool bForceShutdown = true;
+        WOLQuickMatchMenuShutdown(layout, (void*)&bForceShutdown); // userdata is 'force shutdown'
+        OnlineSessionExit::tearDownAndPop();
+        return;
     }
 
 	if (TheGameLogic->isInShellGame() && TheGameLogic->getFrame() == 1)

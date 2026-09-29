@@ -27,6 +27,7 @@
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupData.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupSession.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineSessionExit.h"
 #include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/Shell.h"
 #include "GameNetwork/GeneralsOnline/NGMPGame.h"
@@ -462,6 +463,14 @@ void RmlOnlineGameSetupScreen::update()
 {
 	if (!m_document || !isVisible())
 		return;
+
+	// WOLGameSetupMenuUpdate() never runs for a registry-routed screen; this is its pending-full-teardown exit.
+	if (OnlineSessionExit::isTeardownReady())
+	{
+		hide();
+		OnlineSessionExit::tearDownAndPop();
+		return;
+	}
 
 	if (OnlineGameSetupSession::update() == TRUE)
 		return; // host left this frame -- backToLobby() already popped the shell

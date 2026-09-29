@@ -72,6 +72,7 @@
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupData.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupSession.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineSessionExit.h"
 #include <ws2ipdef.h>
 #include <format>
 #include <cmath>
@@ -1697,18 +1698,12 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 	WOLRefreshConnectionIndicators();
 
 	// need to exit?
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr && NGMP_OnlineServicesManager::GetInstance()->IsPendingFullTeardown())
+	if (OnlineSessionExit::isTeardownReady())
 	{
-		// Only if not in game and not in anim
-		if ((TheNGMPGame == nullptr || !TheNGMPGame->isGameInProgress()) && TheShell->isAnimFinished() && TheTransitionHandler->isFinished())
-		{
-			bool bForceShutdown = true;
-			WOLGameSetupMenuShutdown(layout, (void*)&bForceShutdown); // userdata is 'force shutdown'
-			TearDownGeneralsOnline();
-
-			TheShell->pop();
-			return;
-		}
+		bool bForceShutdown = true;
+		WOLGameSetupMenuShutdown(layout, (void*)&bForceShutdown); // userdata is 'force shutdown'
+		OnlineSessionExit::tearDownAndPop();
+		return;
 	}
 	
 	// We'll only be successful if we've requested to
