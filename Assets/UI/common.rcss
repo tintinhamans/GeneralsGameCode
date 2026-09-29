@@ -1986,6 +1986,435 @@ label.check:hover
 }
 
 
+/* =========================================================================================
+   Shared components of the redesigned screens (on top of the template above). Setup screens,
+   load screens, the online dashboard and options build from these, so a mod restyles them here.
+
+	Player card   one slot of a game: the player's colour down its left edge, the faction badge,
+	              who is in it and their choices. .pc-compact for an open or closed slot.
+		<div class="pc-grid">
+			<div class="player-card" data-style-border-left-color="row.color_hex">
+				<div class="pc-top"><div class="pc-badge"><mappedimage/></div>
+					<div class="pc-who">name or occupant select</div><div class="pc-spot">3</div></div>
+				<div class="pc-line">army select, team .seg</div>
+				<div class="pc-line">.swatches</div>
+			</div>
+		</div>
+	Stat card     .stat-card: an .overline over a .stat-row of .stat (big value, small caption).
+	Tile          button.tile > .tile-title + .tile-caption: a big clickable choice.
+	Tab rail      .tab-rail > button.rail-item(.on): categories down the side of a screen.
+	Progress      .progress > .progress-fill (width set inline): the one progress bar look.
+	Chip          .chip-label(.good/.accent): small tracked caps on a tinted plate (ready, host).
+	Load layout   see LoadScreen.rcss: every load screen is full-bleed art under the ruler with
+	              .ld-card player cards along the bottom.
+   ========================================================================================= */
+
+/* ---- Player cards --------------------------------------------------------------------------- */
+.pc-grid
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	align-content: flex-start;
+	justify-content: space-between;
+}
+
+.player-card
+{
+	display: block;
+	box-sizing: border-box;
+	width: 49.3%;
+	margin-bottom: 12dp;
+	padding: 12dp 14dp;
+	background-color: #070A1AE6;
+	border-left: 6dp #7079A0;
+	border-top: 1dp #8080FF1E;
+}
+
+.player-card.human
+{
+	background-color: #0B1030EB;
+	border-top-color: #8080FF46;
+}
+
+.pc-top, .pc-line
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.pc-line
+{
+	margin-top: 8dp;
+}
+
+/* Faction badge: the army's icon on a dark plate; a ? for Random. */
+.pc-badge
+{
+	display: block;
+	flex: 0 0 56dp;
+	box-sizing: border-box;
+	width: 56dp;
+	height: 56dp;
+	margin-right: 14dp;
+	background-color: #05070FDC;
+	border: 1dp #8080FF28;
+	text-align: center;
+	line-height: 54dp;
+	font-size: 28dp;
+	font-weight: bold;
+	color: #7079A0;
+}
+
+.pc-badge mappedimage
+{
+	display: block;
+	width: 46dp;
+	height: 46dp;
+	margin: 4dp;
+}
+
+.pc-who
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.pc-who select
+{
+	width: 100%;
+}
+
+.pc-name
+{
+	display: block;
+	font-size: 24dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.pc-sub
+{
+	display: block;
+	margin-top: 2dp;
+	font-size: 16dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Start spot: the numbered square of the map preview, or ? when the game picks it. */
+.pc-spot
+{
+	display: block;
+	flex: 0 0 auto;
+	box-sizing: border-box;
+	width: 38dp;
+	height: 38dp;
+	margin-left: 12dp;
+	line-height: 34dp;
+	text-align: center;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	background-color: #05070FC8;
+	border: 2dp #FFFFFF78;
+}
+
+.pc-spot.random
+{
+	color: #7079A0;
+	border-color: #8080FF46;
+}
+
+.pc-line select
+{
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.pc-line .seg
+{
+	margin-left: 10dp;
+}
+
+/* Army select: the general's badge in front of the name, in the list and the closed select. */
+.army-icon
+{
+	display: inline-block;
+	width: 30dp;
+	height: 30dp;
+	margin-right: 12dp;
+	vertical-align: middle;
+}
+
+.army-random
+{
+	box-sizing: border-box;
+	line-height: 28dp;
+	text-align: center;
+	font-size: 16dp;
+	font-weight: bold;
+	color: #A9B1CF;
+	border: 1dp #8080FF46;
+	background-color: #141A3E;
+}
+
+.army-select selectbox
+{
+	min-width: 340dp;
+}
+
+/* Team: fixed-width segments, so the control is the same width on every card. */
+.screen .team-seg button.seg-item
+{
+	flex: 0 0 38dp;
+	width: 38dp;
+	min-width: 0;
+	padding: 0;
+}
+
+.screen .team-seg button.seg-item:first-child
+{
+	flex-basis: 64dp;
+	width: 64dp;
+}
+
+/* Open or closed slot: one short row with quick ways to fill it. */
+.player-card.pc-compact
+{
+	padding-top: 9dp;
+	padding-bottom: 9dp;
+	background-color: #05070FB4;
+	border-left-color: #8080FF28;
+	border-top-color: transparent;
+}
+
+.pc-compact .pc-who
+{
+	flex: 0 0 160dp;
+}
+
+.pc-slot-no
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 30dp;
+	margin-right: 6dp;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #7079A0;
+}
+
+.pc-add
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+	justify-content: flex-end;
+}
+
+.screen .pc-add button
+{
+	height: 40dp;
+	line-height: 38dp;
+	padding: 0 12dp;
+	margin-left: 6dp;
+	font-size: 15dp;
+	color: #A9B1CF;
+	background-color: transparent;
+	border: 1dp #8080FF3C;
+}
+
+.screen .pc-add button:hover
+{
+	color: #FFFFFF;
+	border-color: #F07A1A;
+	background-color: #2F37A878;
+}
+
+.pc-add-label
+{
+	align-self: center;
+	margin-right: 6dp;
+	font-size: 13dp;
+	color: #7079A0;
+}
+
+.pc-plus
+{
+	color: #FF9A3D;
+	margin-right: 4dp;
+}
+
+/* ---- Stat card ------------------------------------------------------------------------------ */
+.stat-card
+{
+	display: block;
+}
+
+.stat-row
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 10dp;
+}
+
+.stat-row .stat + .stat
+{
+	margin-left: 16dp;
+	padding-left: 16dp;
+	border-left: 1dp #8080FF28;
+}
+
+/* ---- Tile: a big clickable choice ------------------------------------------------------------ */
+.screen button.tile
+{
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	box-sizing: border-box;
+	height: auto;
+	line-height: normal;
+	padding: 24dp 26dp;
+	text-align: left;
+	letter-spacing: 0;
+	background-color: #070A1AE6;
+	border: 1dp #8080FF28;
+	border-bottom: 4dp #2F37A8;
+	transition: background-color border-color 0.12s cubic-out;
+}
+
+.screen button.tile:hover
+{
+	background-color: #141A3EF0;
+	border-color: #8080FF;
+	border-bottom-color: #F07A1A;
+}
+
+.screen button.tile:active
+{
+	background-color: #1E246EF0;
+}
+
+.tile-title
+{
+	display: block;
+	font-size: 36dp;
+	line-height: 42dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #FFFFFF;
+	white-space: nowrap;
+}
+
+.tile-caption
+{
+	display: block;
+	margin-top: 6dp;
+	font-size: 18dp;
+	line-height: 24dp;
+	font-weight: normal;
+	letter-spacing: 0;
+	text-transform: none;
+	color: #A9B1CF;
+	white-space: normal;
+}
+
+.tile:hover .tile-title
+{
+	color: #FF9A3D;
+}
+
+/* ---- Tab rail: categories down the side of a screen ------------------------------------------ */
+.tab-rail
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 300dp;
+	padding: 10dp 0;
+	background-color: #070A1AE6;
+}
+
+.screen .tab-rail button.rail-item
+{
+	display: block;
+	width: 100%;
+	height: 62dp;
+	line-height: 62dp;
+	padding: 0 24dp 0 22dp;
+	text-align: left;
+	font-size: 22dp;
+	letter-spacing: 2dp;
+	color: #A9B1CF;
+	background-color: transparent;
+	border-width: 0;
+	border-left: 4dp transparent;
+}
+
+.screen .tab-rail button.rail-item:hover
+{
+	color: #FFFFFF;
+	decorator: horizontal-gradient(#2F37A8B4 #2F37A800);
+}
+
+.screen .tab-rail button.rail-item.on, .screen .tab-rail button.rail-item.on:hover
+{
+	color: #FFFFFF;
+	border-left-color: #F07A1A;
+	decorator: horizontal-gradient(#2F37A8F0 #2F37A840);
+}
+
+/* ---- Progress bar --------------------------------------------------------------------------- */
+.progress
+{
+	display: block;
+	box-sizing: border-box;
+	height: 18dp;
+	padding: 3dp;
+	background-color: #05070FE6;
+	border: 1dp #3A46D0;
+	border-top-color: #1E246E;
+}
+
+.progress-fill
+{
+	display: block;
+	box-sizing: border-box;
+	height: 100%;
+	decorator: vertical-gradient(#F5A93A #C9540F);
+	border-right: 2dp #FFE2B8;
+}
+
+/* ---- Chips ------------------------------------------------------------------------------------ */
+.chip-label
+{
+	display: inline-block;
+	padding: 2dp 10dp;
+	font-size: 14dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #D7DCF0;
+	background-color: #2F37A878;
+}
+
+.chip-label.good { color: #04140C; background-color: #3CD28C; }
+.chip-label.accent { color: #1A0C02; background-color: #F07A1A; }
+
+.accent-overline
+{
+	color: #FF9A3D;
+}
+
 /* ---- Social dock: an online screen makes room for the expanded dock ----------------------------
 	RmlSocialDock sets .dock-open on every body with .dock-host while its panel is out, so the
 	screen narrows beside the 390dp panel instead of sitting under it. */

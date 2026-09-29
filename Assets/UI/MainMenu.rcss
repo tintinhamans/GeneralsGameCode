@@ -206,11 +206,6 @@
 	width: 400dp;
 }
 
-.accent-overline
-{
-	color: #FF9A3D;
-}
-
 .mm-online
 {
 	display: block;
