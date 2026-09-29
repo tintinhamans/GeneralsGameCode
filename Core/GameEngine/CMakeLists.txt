@@ -107,6 +107,7 @@ set(GAMEENGINE_SRC
 #    Include/Common/Science.h
 #    Include/Common/ScopedMutex.h
 #    Include/Common/ScoreKeeper.h
+    Include/Common/Signal.h
     #Include/Common/simpleplayer.h # unused
 #    Include/Common/SkirmishBattleHonors.h
 #    Include/Common/SkirmishPreferences.h
