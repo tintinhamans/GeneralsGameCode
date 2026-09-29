@@ -745,6 +745,8 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/BuddyOverlayData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/BuddyOverlaySession.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/ChallengeMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/ChallengeMenuActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/ChallengeMenuData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/CreditsMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/DifficultySelect.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/DirectConnectActions.cpp
