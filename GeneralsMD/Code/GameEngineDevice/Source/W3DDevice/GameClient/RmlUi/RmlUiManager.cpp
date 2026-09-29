@@ -448,7 +448,20 @@ bool RmlUiManager::wantsKeyboardInput() const
 {
 	bool modal = false;
 	anyVisibleDocumentAt(0, 0, &modal);
-	return modal;
+	if (modal)
+		return true;
+
+	// Non-modal screens still own the keyboard while one of their text fields has focus.
+	Rml::Element *focus = m_context ? m_context->GetFocusElement() : nullptr;
+	if (!focus || !focus->IsVisible())
+		return false;
+	const Rml::String &tag = focus->GetTagName();
+	if (tag == "textarea")
+		return true;
+	if (tag != "input")
+		return false;
+	const Rml::String type = focus->GetAttribute<Rml::String>("type", "text");
+	return type == "text" || type == "password";
 }
 
 static int computeKeyModifiers()
@@ -557,6 +570,9 @@ void RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeySt
 
 void RmlUiManager::processTextInput(unsigned short utf16Char)
 {
+	// Control characters (backspace, enter, tab) arrive as key presses via processKey().
+	if (utf16Char < 32 || utf16Char == 127)
+		return;
 	if (m_context)
 		m_context->ProcessTextInput(Rml::Character(utf16Char));
 }

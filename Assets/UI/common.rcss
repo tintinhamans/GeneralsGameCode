@@ -149,6 +149,29 @@ select:hover
 	border-color: #8080FF;
 }
 
+/* The open list is its own box; without a background it draws see-through over the screen. */
+select selectbox
+{
+	background-color: rgba(2, 2, 2, 240);
+	border: 1dp #2F37A8;
+	z-index: 100;
+}
+
+select selectbox option
+{
+	padding: 4dp 8dp;
+}
+
+select selectbox option:hover
+{
+	background-color: rgba(47, 55, 168, 200);
+}
+
+select selectbox option:checked
+{
+	color: #BAFF0C;
+}
+
 /* ---- Slider (input type=range) ------------------------------------------------------- */
 input.range
 {
