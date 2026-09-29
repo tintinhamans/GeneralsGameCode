@@ -780,13 +780,13 @@ void NGMP_OnlineServices_LobbyInterface::Tick()
 		m_pLobbyMesh->Tick();
 	}
 
+	// stays pending until a menu has registered to handle it
 	if (m_bCannotConnectToLobbyPending)
 	{
-		m_bCannotConnectToLobbyPending = false;
-
 		auto callbackCopy = m_OnCannotConnectToLobbyCallback;
 		if (callbackCopy != nullptr)
 		{
+			m_bCannotConnectToLobbyPending = false;
 			callbackCopy();
 		}
 	}
