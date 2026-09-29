@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
+#include "W3DDevice/GameClient/RmlUi/RmlUiRenderInterface.h"
 
 #include "Common/AsciiString.h"
 #include "GameClient/GameText.h"
@@ -119,13 +120,13 @@ void RmlMappedImageElement::refresh()
 		return;
 
 	// UV coords are normalized [0,1] over the atlas page; <img rect="..."> wants pixel
-	// coordinates (x y width height), so scale by the page's own dimensions.
+	// coordinates (x y width height) in the fixed space LoadTexture reports for engine textures.
 	const Region2D *uv = image->getUV();
-	const ICoord2D *texSize = image->getTextureSize();
-	int left = (int)(uv->lo.x * texSize->x);
-	int top = (int)(uv->lo.y * texSize->y);
-	int right = (int)(uv->hi.x * texSize->x);
-	int bottom = (int)(uv->hi.y * texSize->y);
+	const float space = (float)RmlEngineTextureSpace;
+	int left = (int)(uv->lo.x * space + 0.5f);
+	int top = (int)(uv->lo.y * space + 0.5f);
+	int right = (int)(uv->hi.x * space + 0.5f);
+	int bottom = (int)(uv->hi.y * space + 0.5f);
 
 	// Leading '/' stops RmlUi from resolving the texture name against the document folder.
 	char rml[512];
@@ -182,11 +183,11 @@ void RmlMapPreviewElement::refresh()
 	}
 
 	const Region2D *uv = image->getUV();
-	const ICoord2D *texSize = image->getTextureSize();
-	int left = (int)(uv->lo.x * texSize->x);
-	int top = (int)(uv->lo.y * texSize->y);
-	int right = (int)(uv->hi.x * texSize->x);
-	int bottom = (int)(uv->hi.y * texSize->y);
+	const float space = (float)RmlEngineTextureSpace;
+	int left = (int)(uv->lo.x * space + 0.5f);
+	int top = (int)(uv->lo.y * space + 0.5f);
+	int right = (int)(uv->hi.x * space + 0.5f);
+	int bottom = (int)(uv->hi.y * space + 0.5f);
 
 	char rml[512];
 	_snprintf_s(rml, sizeof(rml), _TRUNCATE,

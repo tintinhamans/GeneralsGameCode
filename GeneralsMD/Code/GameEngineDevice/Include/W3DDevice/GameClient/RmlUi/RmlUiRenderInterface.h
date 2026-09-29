@@ -29,6 +29,10 @@
 #include <map>
 #include <vector>
 
+// Pixel space that engine textures report to RmlUi; <img rect> for them is uv * this, so crops
+// stay right whatever size the texture page actually loaded at.
+static const int RmlEngineTextureSpace = 4096;
+
 //-------------------------------------------------------------------------------------------------
 /** DX8 render backend for RmlUi. One instance is owned by RmlUiManager. */
 //-------------------------------------------------------------------------------------------------
@@ -77,9 +81,10 @@ private:
 	{
 		IDirect3DTexture8 *d3dTexture = nullptr; // AddRef'd copy we own and must Release
 		bool ownsRelease = true;
+		bool premultiplied = true; // engine .tga/.dds pages are straight alpha
 	};
 
-	Rml::TextureHandle registerTexture(IDirect3DTexture8 *tex, bool ownsRelease);
+	Rml::TextureHandle registerTexture(IDirect3DTexture8 *tex, bool ownsRelease, bool premultiplied);
 	Rml::TextureHandle loadEngineTexture(Rml::Vector2i &dimensions, const Rml::String &path);
 	Rml::TextureHandle loadStbTexture(Rml::Vector2i &dimensions, const Rml::String &path);
 	Rml::TextureHandle loadMappedTexture(Rml::Vector2i &dimensions, const Rml::String &mappedName);
@@ -107,7 +112,10 @@ private:
 		DWORD alphaTest = 0, fogEnable = 0, stencilEnable = 0;
 		DWORD colorOp0 = 0, colorArg1_0 = 0, colorArg2_0 = 0, alphaOp0 = 0, alphaArg1_0 = 0, alphaArg2_0 = 0;
 		DWORD magFilter0 = 0, minFilter0 = 0, addressU0 = 0, addressV0 = 0;
+		DWORD renderStates[3] = {};
+		DWORD stageStates[3][13] = {};
 		IDirect3DBaseTexture8 *texture0 = nullptr;
+		IDirect3DBaseTexture8 *texture1 = nullptr;
 		D3DMATRIX world, view, projection;
 		IDirect3DVertexBuffer8 *streamVb = nullptr;
 		UINT streamStride = 0;

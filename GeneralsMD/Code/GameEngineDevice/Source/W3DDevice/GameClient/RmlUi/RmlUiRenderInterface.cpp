@@ -153,6 +153,13 @@ void RmlUiRenderInterface::setOrthoProjection(int left, int right, int top, int 
 	DX8Wrapper::_Get_D3D_Device8()->SetTransform(D3DTS_PROJECTION, &m);
 }
 
+// Extra state the engine may leave set that would otherwise leak into (or out of) our draws.
+static const D3DRENDERSTATETYPE kExtraRenderStates[3] = { D3DRS_ZWRITEENABLE, D3DRS_SPECULARENABLE, D3DRS_SHADEMODE };
+static const D3DTEXTURESTAGESTATETYPE kStageStates[13] = {
+	D3DTSS_COLOROP, D3DTSS_COLORARG1, D3DTSS_COLORARG2, D3DTSS_ALPHAOP, D3DTSS_ALPHAARG1, D3DTSS_ALPHAARG2,
+	D3DTSS_TEXCOORDINDEX, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTSS_MAGFILTER, D3DTSS_MINFILTER, D3DTSS_MIPFILTER,
+	D3DTSS_ADDRESSU, D3DTSS_ADDRESSV };
+
 void RmlUiRenderInterface::beginFrame(int contextWidth, int contextHeight)
 {
 	m_contextWidth = contextWidth;
@@ -184,6 +191,12 @@ void RmlUiRenderInterface::beginFrame(int contextWidth, int contextHeight)
 	dev->GetTextureStageState(0, D3DTSS_ADDRESSV, &m_saved.addressV0);
 
 	dev->GetTexture(0, &m_saved.texture0); // AddRef'd by D3D
+	dev->GetTexture(1, &m_saved.texture1); // AddRef'd by D3D
+	for (int i = 0; i < 3; ++i)
+		dev->GetRenderState(kExtraRenderStates[i], &m_saved.renderStates[i]);
+	for (int stage = 0; stage < 3; ++stage)
+		for (int i = 0; i < 13; ++i)
+			dev->GetTextureStageState(stage, kStageStates[i], &m_saved.stageStates[stage][i]);
 
 	dev->GetTransform(D3DTS_WORLD, &m_saved.world);
 	dev->GetTransform(D3DTS_VIEW, &m_saved.view);
@@ -209,6 +222,26 @@ void RmlUiRenderInterface::beginFrame(int contextWidth, int contextHeight)
 	dev->SetTextureStageState(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
 	dev->SetTextureStageState(0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
 	dev->SetTextureStageState(0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+	dev->SetTextureStageState(0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+	dev->SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
+	dev->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+	dev->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+	dev->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
+	dev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
+
+	// Stage 1 only runs for straight-alpha textures (see RenderGeometry); stage 2 ends the chain.
+	dev->SetTexture(1, nullptr);
+	dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	dev->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+	dev->SetTextureStageState(1, D3DTSS_TEXCOORDINDEX, 0);
+	dev->SetTextureStageState(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+	dev->SetTextureStageState(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+	dev->SetTextureStageState(1, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
+	dev->SetTextureStageState(1, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+	dev->SetTextureStageState(1, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
+	dev->SetTextureStageState(1, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+	dev->SetTextureStageState(2, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	dev->SetTextureStageState(2, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 
 	dev->SetVertexShader(kRmlFvf);
 
@@ -249,8 +282,18 @@ void RmlUiRenderInterface::endFrame()
 	dev->SetTextureStageState(0, D3DTSS_ADDRESSU, m_saved.addressU0);
 	dev->SetTextureStageState(0, D3DTSS_ADDRESSV, m_saved.addressV0);
 
+	for (int i = 0; i < 3; ++i)
+		dev->SetRenderState(kExtraRenderStates[i], m_saved.renderStates[i]);
+	for (int stage = 0; stage < 3; ++stage)
+		for (int i = 0; i < 13; ++i)
+			dev->SetTextureStageState(stage, kStageStates[i], m_saved.stageStates[stage][i]);
+
 	dev->SetTexture(0, m_saved.texture0);
 	if (m_saved.texture0) m_saved.texture0->Release(); // drop the ref GetTexture added
+	dev->SetTexture(1, m_saved.texture1);
+	if (m_saved.texture1) m_saved.texture1->Release();
+	m_saved.texture0 = nullptr;
+	m_saved.texture1 = nullptr;
 
 	dev->SetTransform(D3DTS_WORLD, &m_saved.world);
 	dev->SetTransform(D3DTS_VIEW, &m_saved.view);
@@ -283,17 +326,39 @@ void RmlUiRenderInterface::RenderGeometry(Rml::CompiledGeometryHandle geometry, 
 	if (texture != 0)
 	{
 		TextureMap::iterator tit = m_textures.find(texture);
-		dev->SetTexture(0, tit != m_textures.end() ? tit->second.d3dTexture : nullptr);
+		IDirect3DTexture8 *d3dTex = tit != m_textures.end() ? tit->second.d3dTexture : nullptr;
+		const bool premultiplied = tit == m_textures.end() || tit->second.premultiplied;
+		dev->SetTexture(0, d3dTex);
 		dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
 		dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 		dev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 		dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
 		dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 		dev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+		// Blending is premultiplied; premultiply straight-alpha engine textures by their own alpha.
+		if (premultiplied)
+		{
+			dev->SetTexture(1, nullptr);
+			dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+			dev->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+		}
+		else
+		{
+			dev->SetTexture(1, d3dTex);
+			dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_MODULATE);
+			dev->SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
+			dev->SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_TEXTURE | D3DTA_ALPHAREPLICATE);
+			dev->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+			dev->SetTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+		}
 	}
 	else
 	{
 		dev->SetTexture(0, nullptr);
+		dev->SetTexture(1, nullptr);
+		dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+		dev->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 		dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
 		dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
 		dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
@@ -308,7 +373,7 @@ void RmlUiRenderInterface::RenderGeometry(Rml::CompiledGeometryHandle geometry, 
 }
 
 //-------------------------------------------------------------------------------------------------
-Rml::TextureHandle RmlUiRenderInterface::registerTexture(IDirect3DTexture8 *tex, bool ownsRelease)
+Rml::TextureHandle RmlUiRenderInterface::registerTexture(IDirect3DTexture8 *tex, bool ownsRelease, bool premultiplied)
 {
 	if (!tex)
 		return 0;
@@ -316,6 +381,7 @@ Rml::TextureHandle RmlUiRenderInterface::registerTexture(IDirect3DTexture8 *tex,
 	LoadedTexture lt;
 	lt.d3dTexture = tex;
 	lt.ownsRelease = ownsRelease;
+	lt.premultiplied = premultiplied;
 	m_textures[handle] = lt;
 	return handle;
 }
@@ -368,11 +434,11 @@ Rml::TextureHandle RmlUiRenderInterface::loadEngineTexture(Rml::Vector2i &dimens
 	}
 
 	d3dTex->AddRef();
-	dimensions.x = tex->Get_Width();
-	dimensions.y = tex->Get_Height();
+	dimensions.x = RmlEngineTextureSpace;
+	dimensions.y = RmlEngineTextureSpace;
 	tex->Release_Ref(); // drop the WW3DAssetManager ref we took; the D3D texture keeps its own refcount
 
-	return registerTexture(d3dTex, true);
+	return registerTexture(d3dTex, true, false);
 }
 
 Rml::TextureHandle RmlUiRenderInterface::loadMappedTexture(Rml::Vector2i &dimensions, const Rml::String &mappedName)
@@ -453,7 +519,7 @@ Rml::TextureHandle RmlUiRenderInterface::GenerateTexture(Rml::Span<const Rml::by
 		tex->UnlockRect(0);
 	}
 
-	return registerTexture(tex, true);
+	return registerTexture(tex, true, true);
 }
 
 //-------------------------------------------------------------------------------------------------
