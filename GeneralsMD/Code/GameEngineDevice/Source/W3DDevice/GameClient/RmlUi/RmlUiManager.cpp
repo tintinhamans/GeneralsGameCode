@@ -345,8 +345,9 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/PopupReplay.wnd", &OpenRmlPopupReplayScreen, &CloseRmlPopupReplayScreen, &screenVisible<RmlPopupReplayScreen>, &popupBack<RmlPopupReplayScreen>);
 	// GSOVERLAY_PLAYERINFO's .wnd path (see GameSpyOverlay.cpp's gsOverlays[] / GameSpyOpenOverlay()).
 	RmlUiScreenRegistry::registerScreen("Menus/PopupPlayerInfo.wnd", &OpenRmlPlayerInfoScreen, &CloseRmlPlayerInfoScreen, &screenVisible<RmlPlayerInfoScreen>, &popupBack<RmlPlayerInfoScreen>);
-	// GSOVERLAY_BUDDY's .wnd path, same gsOverlays[] precedent.
-	RmlUiScreenRegistry::registerScreen("Menus/WOLBuddyOverlay.wnd", &OpenRmlBuddyOverlayScreen, &CloseRmlBuddyOverlayScreen, &screenVisible<RmlBuddyOverlayScreen>, &popupBack<RmlBuddyOverlayScreen>);
+	// GSOVERLAY_BUDDY's .wnd path, same gsOverlays[] precedent: the social dock over the online screens
+	// that host it, the RmlBuddyOverlayScreen popup anywhere else (see RmlSocialDock.h).
+	RmlUiScreenRegistry::registerScreen("Menus/WOLBuddyOverlay.wnd", &OpenRmlCommunicator, &CloseRmlCommunicator, &RmlCommunicatorVisible, &RmlCommunicatorBack);
 
 	// Buddy toast: only while RmlUi owns the shell, so its toast presenter replaces the .wnd one
 	// (see RmlBuddyToastScreen.h); -wnd never calls this.

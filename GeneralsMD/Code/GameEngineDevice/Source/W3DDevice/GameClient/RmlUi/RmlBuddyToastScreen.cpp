@@ -20,6 +20,7 @@
 
 #include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlayActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlaySession.h"
+#include "W3DDevice/GameClient/RmlUi/RmlSocialDock.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include <RmlUi/Core/Context.h>
@@ -120,7 +121,9 @@ void RmlBuddyToastScreen::onToastDismissed()
 void RmlBuddyToastScreen::onClick(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
 	// Mirrors PopupBuddyNotificationSystem's GBM_SELECTED: click reopens the buddy overlay. The
-	// toast itself keeps showing until its own timer expires (tickToast()), same as the .wnd.
+	// toast itself keeps showing until its own timer expires (tickToast()), same as the .wnd. Over an
+	// online screen that is the social dock, opened on the conversation the toast was about.
+	RmlSocialDock::instance().noteToastClicked();
 	BuddyOverlayActions::open();
 }
 

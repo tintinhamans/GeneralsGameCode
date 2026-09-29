@@ -224,6 +224,9 @@ namespace
 	// A .wnd popup cannot show over an RmlUi screen (RmlUi draws on top and takes the input), so
 	// when a popup falls back, the screens it opens over fall back with it. The map select popups
 	// also work only with their own setup screen, so those pairs go together both ways.
+	// WOLBuddyOverlay.wnd is the communicator: the social dock beside the RmlUi online screens, the
+	// popup over the score screen and player info. A mod's own communicator takes all of them back to
+	// their .wnd, where the mod's popup is the communicator again.
 	struct PopupHost
 	{
 		const char *popup;
