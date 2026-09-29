@@ -175,7 +175,12 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not retrying, handling disconnect as failure...");
 
 					NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-					if (pLobbyInterface != nullptr)
+					if (pLobbyInterface != nullptr && pLobbyInterface->IsHost())
+					{
+						// the host keeps its lobby; the peer that can't connect is the one to go
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Not leaving, we host this lobby; dropping user %lld only", userID);
+					}
+					else if (pLobbyInterface != nullptr)
 					{
 						NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][DISCONNECT HANDLER] Performing local removal for user %lld from lobby due to failure to connect\n", userID);
 
