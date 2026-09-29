@@ -53,6 +53,7 @@
 
 #pragma once
 
+#include "Common/Signal.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 namespace Rml { class Context; class ElementDocument; }
@@ -73,10 +74,13 @@ public:
 private:
 	RmlOnlineLoginScreen() {}
 
-	static void onLoginSucceeded(); // OnlineLoginActions hook: -> Menus/WOLWelcomeMenu.wnd
-	static void onLoginFailed();    // OnlineLoginActions hook: matches the "Login failed." Ok box
-	static Bool isAlreadyLeaving(); // OnlineLoginActions hook: drop a late result once hidden
+	static void onLoginSucceeded(); // OnlineLoginSignals::succeeded: -> Menus/WOLWelcomeMenu.wnd
+	static void onLoginFailed();    // OnlineLoginSignals::failed: matches the "Login failed." Ok box
+	static Bool isAlreadyLeaving(); // OnlineLoginSignals::alreadyLeaving: drop a late result once hidden
 
+	SignalConnection m_leavingConnection;
+	SignalConnection m_succeededConnection;
+	SignalConnection m_failedConnection;
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 };

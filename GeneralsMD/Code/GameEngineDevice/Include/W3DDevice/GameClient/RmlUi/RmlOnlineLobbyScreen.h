@@ -30,8 +30,8 @@
 // registrations for as long as this screen -- not the .wnd one -- is open).
 //
 // Game list rows are pushed from LobbyUtils.cpp's RefreshGameListBox() async
-// SearchForLobbies() completion via g_onlineLobbyGameListHook (installed in
-// show(), cleared in hide()) so this screen and the .wnd listbox share the same
+// SearchForLobbies() completion via OnlineLobbySignals::gameList (connected in
+// show(), dropped in hide()) so this screen and the .wnd listbox share the same
 // one network round trip. Player rows are polled each update() from
 // OnlineLobbyData::collectPlayerRows() (cheap; same roster-signature-diff idiom
 // as WOLLobbyMenu.cpp's PopulateLobbyPlayerListbox(), see .cpp).
@@ -53,6 +53,7 @@
 
 #pragma once
 
+#include "Common/Signal.h"
 #include "GameClient/Color.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbyData.h"
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
@@ -79,12 +80,12 @@ public:
 	virtual void onBack() override; // same as ButtonBack (OnlineLobbyActions::back())
 	virtual void update() override; // player-list poll + NGMP teardown check, see .cpp
 
-	// Hook targets -------------------------------------------------------------------------
-	void onGameListChanged(const std::vector<OnlineLobbyData::GameRow> &rows); // g_onlineLobbyGameListHook target
-	void onChatLine(const UnicodeString &text, Color color); // g_onlineLobbyChatHook target
-	void onRoomChanged(int roomIndex, bool effectiveRoomChanged); // g_onlineLobbyRoomChangedHook target
-	void onLobbyJoinResult(int result); // g_onlineLobbyJoinResultHook target (EJoinLobbyResult)
-	void refreshPlayersFromHook(); // g_onlineLobbyRosterRefreshHook target; forwards to refreshPlayers(false)
+	// OnlineLobbySignals targets, connected in show() ---------------------------------------
+	void onGameListChanged(const std::vector<OnlineLobbyData::GameRow> &rows); // OnlineLobbySignals::gameList
+	void onChatLine(const UnicodeString &text, Color color); // OnlineLobbySignals::chatLine
+	void onRoomChanged(int roomIndex, bool effectiveRoomChanged); // OnlineLobbySignals::roomChanged
+	void onLobbyJoinResult(int result); // OnlineLobbySignals::joinResult (EJoinLobbyResult)
+	void refreshPlayersFromSignal(); // OnlineLobbySignals::rosterRefresh; forwards to refreshPlayers(false)
 
 private:
 	RmlOnlineLobbyScreen() : m_gameRows(m_model.games), m_playerRows(m_model.players), m_chatRows(m_model.chatLines),
@@ -118,6 +119,12 @@ private:
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
+	SignalConnection m_gameListConnection;
+	SignalConnection m_chatConnection;
+	SignalConnection m_rosterRefreshConnection;
+	SignalConnection m_roomChangedConnection;
+	SignalConnection m_joinResultConnection;
+	SignalConnection m_createResultConnection;
 	Rml::DataModelHandle m_modelHandle;
 	std::string m_rosterSignature; // see refreshPlayers()
 

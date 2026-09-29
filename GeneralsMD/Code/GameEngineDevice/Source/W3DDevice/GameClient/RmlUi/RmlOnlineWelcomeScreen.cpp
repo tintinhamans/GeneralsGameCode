@@ -128,26 +128,6 @@ void RmlOnlineWelcomeScreen::load(Rml::Context *context)
 }
 
 //-------------------------------------------------------------------------------------------------
-// g_onlineWelcomeNotificationsChangedHook target.
-static void onOnlineWelcomeNotificationsDelivered(int numNotifications)
-{
-	RmlOnlineWelcomeScreen::instance().onNotificationsChanged(numNotifications);
-}
-
-// g_onlineWelcomeNumPlayersOnlineHook target.
-static void onOnlineWelcomeNumPlayersOnlineDelivered(int numPlayersOnline)
-{
-	RmlOnlineWelcomeScreen::instance().onNumPlayersOnlineChanged(numPlayersOnline);
-}
-
-// g_playerStatsUpdatedHook target (see PlayerStatsData.h). Fired from PopupPlayerInfo.cpp's
-// findPlayerStatsByID() reply lambda whenever the looked-up player is the local player.
-static void onPlayerStatsDelivered(const PlayerStatsData &data)
-{
-	RmlOnlineWelcomeScreen::instance().onPlayerStatsUpdated(data);
-}
-
-//-------------------------------------------------------------------------------------------------
 void RmlOnlineWelcomeScreen::show()
 {
 	if (!m_document)
@@ -156,8 +136,8 @@ void RmlOnlineWelcomeScreen::show()
 	// Mirrors WOLWelcomeMenuInit()'s live GENERALS_ONLINE body: title, MOTD, num-players text, win
 	// stats, and the initial buddy notification count -- see OnlineWelcomeData.h.
 	m_model.title = unicodeToUtf8(OnlineWelcomeData::buildWelcomeTitle());
-	// The count can arrive before this screen exists (while the login screen is up), when no hook is
-	// installed yet; seed from what was already delivered, then live-update via the hook below.
+	// The count can arrive before this screen exists (while the login screen is up), when nothing is
+	// connected yet; seed from what was already delivered, then live-update via the signal below.
 	m_model.numPlayersText = unicodeToUtf8(OnlineWelcomeData::buildNumPlayersOnlineText(OnlineWelcomeData::currentNumPlayersOnline()));
 
 	m_motdRows.beginUpdate();
@@ -179,17 +159,19 @@ void RmlOnlineWelcomeScreen::show()
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
 
-	g_onlineWelcomeNotificationsChangedHook = &onOnlineWelcomeNotificationsDelivered;
-	OnlineWelcomeData::registerNotificationsHook();
+	m_notificationsConnection = OnlineWelcomeSignals::notificationsChanged().connect([this](int numNotifications) { onNotificationsChanged(numNotifications); });
+	OnlineWelcomeData::registerNotificationsCallback();
 
-	g_onlineWelcomeNumPlayersOnlineHook = &onOnlineWelcomeNumPlayersOnlineDelivered;
+	m_numPlayersConnection = OnlineWelcomeSignals::numPlayersOnline().connect([this](int numPlayersOnline) { onNumPlayersOnlineChanged(numPlayersOnline); });
 
-	g_playerStatsUpdatedHook = &onPlayerStatsDelivered;
+	// PlayerStatsSignals::localPlayerUpdated fires from PopupPlayerInfo.cpp's findPlayerStatsByID()
+	// reply lambda whenever the looked-up player is the local player (see PlayerStatsData.h).
+	m_playerStatsConnection = PlayerStatsSignals::localPlayerUpdated().connect([this](const PlayerStatsData &data) { onPlayerStatsUpdated(data); });
 
 	// Community rank panel: same PlayerStatsData build PopupPlayerInfo.cpp's PopulatePlayerInfoWindows()
 	// uses, fetched here for the local player (this screen has no PopupPlayerInfo.wnd-style GameWindow
 	// set of its own) -- see PlayerStatsData.h. Live updates after this arrive via
-	// g_playerStatsUpdatedHook, same as UpdateLocalPlayerStats()'s callers.
+	// PlayerStatsSignals::localPlayerUpdated, same as UpdateLocalPlayerStats()'s callers.
 	RequestLocalPlayerStatsData([this](const PlayerStatsData &data)
 		{
 			applyPlayerStatsToModel(data);
@@ -220,14 +202,9 @@ void RmlOnlineWelcomeScreen::hide()
 	if (m_document)
 		m_document->Hide();
 
-	if (g_onlineWelcomeNotificationsChangedHook == &onOnlineWelcomeNotificationsDelivered)
-		g_onlineWelcomeNotificationsChangedHook = nullptr;
-
-	if (g_onlineWelcomeNumPlayersOnlineHook == &onOnlineWelcomeNumPlayersOnlineDelivered)
-		g_onlineWelcomeNumPlayersOnlineHook = nullptr;
-
-	if (g_playerStatsUpdatedHook == &onPlayerStatsDelivered)
-		g_playerStatsUpdatedHook = nullptr;
+	m_notificationsConnection.disconnect();
+	m_numPlayersConnection.disconnect();
+	m_playerStatsConnection.disconnect();
 }
 
 bool RmlOnlineWelcomeScreen::isVisible() const

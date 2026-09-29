@@ -33,8 +33,11 @@
 #include "GameNetwork/GameSpy/ThreadUtils.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 
-void (*g_onlineWelcomeNotificationsChangedHook)(int numNotifications) = nullptr;
-void (*g_onlineWelcomeNumPlayersOnlineHook)(int numPlayersOnline) = nullptr;
+namespace OnlineWelcomeSignals
+{
+	Signal1<int> &notificationsChanged() { static Signal1<int> s; return s; }
+	Signal1<int> &numPlayersOnline() { static Signal1<int> s; return s; }
+}
 
 // grabUByte()/color-prefix parse mirrors WOLWelcomeMenu.cpp's original static grabUByte() exactly.
 static UnsignedByte grabUByte(const char *s)
@@ -238,7 +241,7 @@ Int getCurrentNotificationCount()
 }
 
 //-------------------------------------------------------------------------------------------------
-void registerNotificationsHook()
+void registerNotificationsCallback()
 {
 	NGMP_OnlineServices_SocialInterface *pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
 	if (pSocialInterface == nullptr)
@@ -246,8 +249,7 @@ void registerNotificationsHook()
 
 	pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged([](int numNotifications)
 		{
-			if (g_onlineWelcomeNotificationsChangedHook)
-				g_onlineWelcomeNotificationsChangedHook(numNotifications);
+			OnlineWelcomeSignals::notificationsChanged().emit(numNotifications);
 		});
 }
 

@@ -51,10 +51,10 @@ void RmlOnlineLoginScreen::show()
 
 	// NGMP: shared login flow (see OnlineLoginActions.h). beginLogin() itself shows "Please wait...",
 	// then NGMP_OnlineServices_AuthInterface drives the rest of the message-box sequence.
-	g_onlineLoginIsAlreadyLeavingHook = &RmlOnlineLoginScreen::isAlreadyLeaving;
-	g_onlineLoginSucceededHook = &RmlOnlineLoginScreen::onLoginSucceeded;
-	g_onlineLoginFailedHook = &RmlOnlineLoginScreen::onLoginFailed;
-	g_onlineLoginCancelledHook = nullptr; // no-op, same as the .wnd front end (see OnlineLoginActions.h)
+	m_leavingConnection = OnlineLoginSignals::alreadyLeaving().connect(&RmlOnlineLoginScreen::isAlreadyLeaving);
+	m_succeededConnection = OnlineLoginSignals::succeeded().connect(&RmlOnlineLoginScreen::onLoginSucceeded);
+	m_failedConnection = OnlineLoginSignals::failed().connect(&RmlOnlineLoginScreen::onLoginFailed);
+	// cancelled has no listener, same as the .wnd front end (see OnlineLoginActions.h)
 	OnlineLoginActions::beginLogin();
 }
 
@@ -64,6 +64,9 @@ void RmlOnlineLoginScreen::hide()
 		m_document->Hide();
 
 	OnlineLoginActions::endLogin();
+	m_leavingConnection.disconnect();
+	m_succeededConnection.disconnect();
+	m_failedConnection.disconnect();
 }
 
 bool RmlOnlineLoginScreen::isVisible() const

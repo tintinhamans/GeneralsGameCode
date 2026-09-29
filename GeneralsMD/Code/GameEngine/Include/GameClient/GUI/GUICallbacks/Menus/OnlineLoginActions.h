@@ -34,38 +34,39 @@
 // Exactly one front end is active at a time: RmlUiScreenRegistry fully replaces
 // .wnd loading for a registered path (GameWindowManager::winCreateLayout()), so
 // WOLLoginMenuInit() never runs while an RmlUi screen is registered for these
-// paths. That makes the hooks below plain function pointers the active front end
-// sets/clears around its own beginLogin()/endLogin() calls -- not additive
-// delivery hooks like g_lanLobby*Hook in LANAPICallbacks.h, which fire alongside
-// still-live .wnd code.
+// paths. The active front end connects to the signals below around its own
+// beginLogin()/endLogin() calls and drops the connections when it leaves.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
+#include "Common/Signal.h"
 #include "GameNetwork/GeneralsOnline/NGMP_types.h" // ELoginResult
 
-// Checked first by onLoginResult(); if it returns TRUE the result is dropped entirely (no message
-// box, no other hook call). Mirrors WOLLoginMenuInit()'s (via NGMP_WOLLoginMenu_LoginCallback())
-// "if (!buttonPushed)" guard -- a stray late callback after the player already backed out of the
-// screen must not reopen a message box or navigate again. Null (the default) means "never already
-// leaving", which is correct for a fresh RmlUi front end with no such guard state yet.
-extern Bool (*g_onlineLoginIsAlreadyLeavingHook)();
+namespace OnlineLoginSignals
+{
+	// Checked first by onLoginResult(); if any listener answers TRUE the result is dropped entirely (no
+	// message box, no other signal). Mirrors WOLLoginMenuInit()'s (via NGMP_WOLLoginMenu_LoginCallback())
+	// "if (!buttonPushed)" guard -- a stray late callback after the player already backed out of the
+	// screen must not reopen a message box or navigate again. No listener means "never already leaving".
+	Predicate0 &alreadyLeaving();
 
-// Called from onLoginResult() on ELoginResult::Success, after ClearGSMessageBoxes(). Mirrors the
-// .wnd's checkLogin(): the .wnd hook additionally sets its own buttonPushed/nextScreen state and
-// signals SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGIN before popping; a future RmlUi screen can just
-// push/pop directly (see RmlNetworkDirectConnectScreen::onBack() for the same direct-navigation
-// precedent -- RmlUi screens don't replicate the .wnd's deferred fade-then-push).
-extern void (*g_onlineLoginSucceededHook)();
+	// Fired from onLoginResult() on ELoginResult::Success, after ClearGSMessageBoxes(). Mirrors the
+	// .wnd's checkLogin(): the .wnd listener additionally sets its own buttonPushed/nextScreen state and
+	// signals SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGIN before popping; a RmlUi screen can just push/pop
+	// directly (see RmlNetworkDirectConnectScreen::onBack() for the same direct-navigation precedent --
+	// RmlUi screens don't replicate the .wnd's deferred fade-then-push).
+	Signal0 &succeeded();
 
-// Called from the "Login failed." message box's Ok button (ELoginResult::Failed). Mirrors the
-// .wnd's inline lambda, which just calls TheShell->pop().
-extern void (*g_onlineLoginFailedHook)();
+	// Fired from the "Login failed." message box's Ok button (ELoginResult::Failed). Mirrors the .wnd's
+	// inline lambda, which just calls TheShell->pop().
+	Signal0 &failed();
 
-// Called on ELoginResult::UserCancelled. Null (the default, matching the .wnd's own handling
-// today) is a no-op: the browser-cancel path already tears itself down before this callback ever
-// fires (see OnlineServices_Auth.cpp's DoFullLoginFlow() GSMessageBoxCancel handler).
-extern void (*g_onlineLoginCancelledHook)();
+	// Fired on ELoginResult::UserCancelled. Neither front end listens today (matching the .wnd's own
+	// handling): the browser-cancel path already tears itself down before this callback ever fires (see
+	// OnlineServices_Auth.cpp's DoFullLoginFlow() GSMessageBoxCancel handler).
+	Signal0 &cancelled();
+}
 
 namespace OnlineLoginActions
 {
@@ -79,7 +80,7 @@ namespace OnlineLoginActions
 	// Mirrors WOLLoginMenuShutdown()'s live GENERALS_ONLINE logic exactly: deregisters the callback.
 	void endLogin();
 
-	// Mirrors NGMP_WOLLoginMenu_LoginCallback() exactly, dispatching through the hooks above instead
+	// Mirrors NGMP_WOLLoginMenu_LoginCallback() exactly, dispatching through the signals above instead
 	// of touching GameWindow/.wnd state directly. Registered as the NGMP auth callback by
 	// beginLogin(); not normally called directly by a front end.
 	void onLoginResult(ELoginResult loginResult);

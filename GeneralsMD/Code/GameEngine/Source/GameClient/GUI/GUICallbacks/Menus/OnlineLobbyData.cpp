@@ -25,12 +25,15 @@
 #include <algorithm>
 #include <cctype>
 
-void (*g_onlineLobbyGameListHook)( const std::vector<OnlineLobbyData::GameRow> &rows ) = nullptr;
-void (*g_onlineLobbyChatHook)( const UnicodeString &text, Color color ) = nullptr;
-void (*g_onlineLobbyRosterRefreshHook)() = nullptr;
-void (*g_onlineLobbyRoomChangedHook)( int roomIndex, bool effectiveRoomChanged ) = nullptr;
-void (*g_onlineLobbyJoinResultHook)( int result ) = nullptr;
-void (*g_onlineLobbyCreateResultHook)( bool success ) = nullptr;
+namespace OnlineLobbySignals
+{
+	Signal1<const std::vector<OnlineLobbyData::GameRow> &> &gameList() { static Signal1<const std::vector<OnlineLobbyData::GameRow> &> s; return s; }
+	Signal2<const UnicodeString &, Color> &chatLine() { static Signal2<const UnicodeString &, Color> s; return s; }
+	Signal0 &rosterRefresh() { static Signal0 s; return s; }
+	Signal2<int, bool> &roomChanged() { static Signal2<int, bool> s; return s; }
+	Signal1<int> &joinResult() { static Signal1<int> s; return s; }
+	Signal1<bool> &createResult() { static Signal1<bool> s; return s; }
+}
 
 namespace OnlineLobbyData
 {

@@ -1279,7 +1279,7 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 				// Feed the same filtered/sorted result to a non-.wnd lobby screen (RmlOnlineLobbyScreen),
 				// same one SearchForLobbies() round trip and same row shape insertGame() is about to
 				// build widgets from -- see OnlineLobbyData.h.
-				if (g_onlineLobbyGameListHook != nullptr)
+				if (OnlineLobbySignals::gameList().hasListeners())
 				{
 					std::vector<OnlineLobbyData::GameRow> sharedRows;
 					sharedRows.reserve(sgl.size());
@@ -1304,7 +1304,7 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 
 						sharedRows.push_back(OnlineLobbyData::buildGameRow(lobby, mapDisplayName, lobbyHasBuddy(lobby.lobbyID) != FALSE, crcMismatch));
 					}
-					g_onlineLobbyGameListHook(sharedRows);
+					OnlineLobbySignals::gameList().emit(sharedRows);
 				}
 
 				// now add the games

@@ -38,11 +38,12 @@
 // GameWindow parent exists for the "PopupPlayerInfo.wnd" case when this screen (not
 // the .wnd) owns the popup, open() calls PopulatePlayerInfoWindows() itself to kick
 // off the async stats fetch (see PopupPlayerInfo.cpp's PopulatePlayerInfoWindows()
-// comment) and subscribes to g_lookAtPlayerStatsUpdatedHook for the reply.
+// comment) and connects to PlayerStatsSignals::lookAtPlayerUpdated for the reply.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
+#include "Common/Signal.h"
 #include "GameClient/GUI/GUICallbacks/Menus/PlayerStatsData.h"
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
 
@@ -61,12 +62,11 @@ public:
 	void close();
 	bool isVisible() const;
 
-	// g_lookAtPlayerStatsUpdatedHook target (see PlayerStatsData.h); public so the free-function
-	// hook target can reach the singleton without befriending it.
-	void onPlayerStatsUpdated(const PlayerStatsData &data);
-
 private:
 	RmlPlayerInfoScreen() : m_honorRows(m_model.battleHonors) {}
+
+	// PlayerStatsSignals::lookAtPlayerUpdated target (see PlayerStatsData.h), connected in open().
+	void onPlayerStatsUpdated(const PlayerStatsData &data);
 
 	void load(Rml::Context *context);
 
@@ -75,6 +75,7 @@ private:
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
+	SignalConnection m_playerStatsConnection;
 	Rml::DataModelHandle m_modelHandle;
 
 	// One battle-honor badge (see BattleHonorRow, PlayerStatsData.h). tooltipText is already

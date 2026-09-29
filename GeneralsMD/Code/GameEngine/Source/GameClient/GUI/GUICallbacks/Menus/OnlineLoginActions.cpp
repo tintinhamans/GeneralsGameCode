@@ -28,10 +28,13 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 
-Bool (*g_onlineLoginIsAlreadyLeavingHook)() = nullptr;
-void (*g_onlineLoginSucceededHook)() = nullptr;
-void (*g_onlineLoginFailedHook)() = nullptr;
-void (*g_onlineLoginCancelledHook)() = nullptr;
+namespace OnlineLoginSignals
+{
+	Predicate0 &alreadyLeaving() { static Predicate0 s; return s; }
+	Signal0 &succeeded() { static Signal0 s; return s; }
+	Signal0 &failed() { static Signal0 s; return s; }
+	Signal0 &cancelled() { static Signal0 s; return s; }
+}
 
 namespace OnlineLoginActions
 {
@@ -69,29 +72,26 @@ void endLogin()
 //-------------------------------------------------------------------------------------------------
 void onLoginResult(ELoginResult loginResult)
 {
-	if (g_onlineLoginIsAlreadyLeavingHook && g_onlineLoginIsAlreadyLeavingHook())
+	if (OnlineLoginSignals::alreadyLeaving().any())
 		return;
 
 	if (loginResult == ELoginResult::Success)
 	{
 		ClearGSMessageBoxes();
 
-		if (g_onlineLoginSucceededHook)
-			g_onlineLoginSucceededHook();
+		OnlineLoginSignals::succeeded().emit();
 	}
 	else if (loginResult == ELoginResult::Failed)
 	{
 		GSMessageBoxOk(UnicodeString(L"Logging In"), UnicodeString(L"Login failed."), []()
 			{
-				if (g_onlineLoginFailedHook)
-					g_onlineLoginFailedHook();
+				OnlineLoginSignals::failed().emit();
 			});
 	}
 	else if (loginResult == ELoginResult::UserCancelled)
 	{
 		// User requested, nothing to do here (mirrors NGMP_WOLLoginMenu_LoginCallback() exactly)
-		if (g_onlineLoginCancelledHook)
-			g_onlineLoginCancelledHook();
+		OnlineLoginSignals::cancelled().emit();
 	}
 }
 

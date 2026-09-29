@@ -29,6 +29,7 @@
 #pragma once
 
 #include "Common/AsciiString.h"
+#include "Common/Signal.h"
 #include "Common/UnicodeString.h"
 #include "GameClient/Color.h"
 
@@ -77,7 +78,7 @@ namespace OnlineWelcomeData
 	UnicodeString buildNumPlayersOnlineText(Int numPlayersOnline);
 
 	// Player count to seed the text with when the screen opens: the last HandleNumPlayersOnline()
-	// delivery (it can arrive while the login screen is still up, before any welcome hook is
+	// delivery (it can arrive while the login screen is still up, before any welcome listener is
 	// installed), else the count the server states in the MOTD, else 0.
 	Int currentNumPlayersOnline();
 
@@ -102,22 +103,24 @@ namespace OnlineWelcomeData
 	Int getCurrentNotificationCount();
 
 	// Mirrors WOLWelcomeMenuInit()'s pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged
-	// registration exactly; forwards live updates into g_onlineWelcomeNotificationsChangedHook below.
+	// registration exactly; forwards live updates into OnlineWelcomeSignals::notificationsChanged below.
 	// No-op if the social interface isn't available yet (same guard as the original).
-	void registerNotificationsHook();
+	void registerNotificationsCallback();
 }
 
-// Set by the active front end around its own enter()/leave() (or show()/hide()), same lifetime
-// pattern as g_onlineLogin*Hook in OnlineLoginActions.h -- exactly one front end owns
-// WOLWelcomeMenu.wnd's path at a time via RmlUiScreenRegistry, so this is a plain function pointer,
-// not an additive delivery hook like g_lanLobby*Hook. Null (the default) drops the update.
-extern void (*g_onlineWelcomeNotificationsChangedHook)(int numNotifications);
+// Live updates for the active front end (WOLWelcomeMenu.wnd or RmlOnlineWelcomeScreen): each connects
+// around its own init/show and drops the connection on shutdown/hide, same lifetime pattern as
+// OnlineLoginSignals in OnlineLoginActions.h.
+namespace OnlineWelcomeSignals
+{
+	// Buddy notification count, forwarded from OnlineWelcomeData::registerNotificationsCallback().
+	Signal1<int> &notificationsChanged();
 
-// Set by the active front end the same way; fired from WOLWelcomeMenu.cpp's HandleNumPlayersOnline()
-// (the live NGMP -> UI delivery path for the server's player count) so a registry-routed front end can
-// live-update its own "GUI:NumPlayersOnline" text the same way the .wnd's StaticTextNumPlayersOnline
-// does. Null (the default) drops the update.
-extern void (*g_onlineWelcomeNumPlayersOnlineHook)(int numPlayersOnline);
+	// Server player count, fired from WOLWelcomeMenu.cpp's HandleNumPlayersOnline() (the live NGMP -> UI
+	// delivery path) so a registry-routed front end can live-update its own "GUI:NumPlayersOnline" text
+	// the same way the .wnd's StaticTextNumPlayersOnline does.
+	Signal1<int> &numPlayersOnline();
+}
 
 // Last count HandleNumPlayersOnline() received (already floored at 1), 0 if none yet.
 Int GetLastNumPlayersOnline();

@@ -37,7 +37,7 @@
 //     calls.
 //   - The stats panel (ParentStats: streak/losses/disconnects/best streak/games
 //     played/wins/win percent + the rank/faction-image cluster) binds the same
-//     PlayerStatsData/RequestLocalPlayerStatsData()/g_playerStatsUpdatedHook pipeline
+//     PlayerStatsData/RequestLocalPlayerStatsData()/PlayerStatsSignals::localPlayerUpdated pipeline
 //     RmlOnlineWelcomeScreen already uses, same subset of fields the .wnd's
 //     PopulatePlayerInfoWindows("WOLQuickMatchMenu.wnd") call fills.
 //   - ComboBoxLadder/ComboBoxMaxPing/ComboBoxMaxDisconnects/ComboBoxSide/ComboBoxColor
@@ -51,6 +51,7 @@
 
 #pragma once
 
+#include "Common/Signal.h"
 #include "GameClient/GUI/GUICallbacks/Menus/PlayerStatsData.h"
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
@@ -85,7 +86,7 @@ public:
 	void setCommunicatorButtonEnabled(bool enabled);
 	void onCommunicatorCountChanged(int numNotifications);
 
-	// g_playerStatsUpdatedHook target (see PlayerStatsData.h); public for the same reason.
+	// PlayerStatsSignals::localPlayerUpdated target (see PlayerStatsData.h).
 	void onPlayerStatsUpdated(const PlayerStatsData &data);
 
 private:
@@ -117,6 +118,7 @@ private:
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
+	SignalConnection m_playerStatsConnection;
 	Rml::DataModelHandle m_modelHandle;
 	size_t m_lastStatusLineCount = 0;
 

@@ -43,8 +43,11 @@
 #include "GameNetwork/GeneralsOnline/OnlineServices_Init.h" // EGOTearDownReason
 #endif
 
-void (*g_playerStatsUpdatedHook)(const PlayerStatsData &data) = nullptr;
-void (*g_lookAtPlayerStatsUpdatedHook)(const PlayerStatsData &data) = nullptr;
+namespace PlayerStatsSignals
+{
+	Signal1<const PlayerStatsData &> &localPlayerUpdated() { static Signal1<const PlayerStatsData &> s; return s; }
+	Signal1<const PlayerStatsData &> &lookAtPlayerUpdated() { static Signal1<const PlayerStatsData &> s; return s; }
+}
 
 // SetLookAtPlayer()'s own module statics (PopupPlayerInfo.cpp), no longer file-static there so the
 // accessors below can read the same ONE source of truth instead of duplicating it.

@@ -63,12 +63,6 @@ namespace
 	{
 		PerformPlayerLogout();
 	}
-
-	// g_lookAtPlayerStatsUpdatedHook target (see PlayerStatsData.h).
-	void onLookAtPlayerStatsDelivered(const PlayerStatsData &data)
-	{
-		RmlPlayerInfoScreen::instance().onPlayerStatsUpdated(data);
-	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -159,11 +153,11 @@ void RmlPlayerInfoScreen::open()
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
 
-	g_lookAtPlayerStatsUpdatedHook = &onLookAtPlayerStatsDelivered;
+	m_playerStatsConnection = PlayerStatsSignals::lookAtPlayerUpdated().connect([this](const PlayerStatsData &data) { onPlayerStatsUpdated(data); });
 
 	// No GameWindow parent exists for this popup (unlike the .wnd path's GameSpyPlayerInfoOverlayInit()),
 	// so this screen kicks off the same async stats fetch PopulatePlayerInfoWindows() itself; the reply
-	// lambda fires g_lookAtPlayerStatsUpdatedHook regardless of whose stats these are (see PlayerStatsData.h).
+	// lambda fires PlayerStatsSignals::lookAtPlayerUpdated regardless of whose stats these are (see PlayerStatsData.h).
 	PopulatePlayerInfoWindows(AsciiString("PopupPlayerInfo.wnd"));
 
 	m_document->Show();
@@ -171,8 +165,7 @@ void RmlPlayerInfoScreen::open()
 
 void RmlPlayerInfoScreen::close()
 {
-	if (g_lookAtPlayerStatsUpdatedHook == &onLookAtPlayerStatsDelivered)
-		g_lookAtPlayerStatsUpdatedHook = nullptr;
+	m_playerStatsConnection.disconnect();
 
 	if (m_document)
 		m_document->Hide();

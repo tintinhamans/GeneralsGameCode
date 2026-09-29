@@ -813,7 +813,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 		if (g_lookAtPlayerID == -1)
 			return;
 		// parentWindow stays NULL when RmlPlayerInfoScreen (not the .wnd) owns this popup; the reply
-		// lambda below skips ApplyPlayerStatsData() in that case and fires g_lookAtPlayerStatsUpdatedHook
+		// lambda below skips ApplyPlayerStatsData() in that case and fires PlayerStatsSignals::lookAtPlayerUpdated
 		// instead (see PlayerStatsData.h).
 		parentWindow = parent;
 	}
@@ -850,18 +850,12 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			// Let a registry-routed front end (RmlOnlineWelcomeScreen) live-update its own rank panel
 			// the same way WOLWelcomeMenu.wnd's community panel does via UpdateLocalPlayerStats().
 			if (lookupID == localID)
-			{
-				if (g_playerStatsUpdatedHook)
-					g_playerStatsUpdatedHook(data);
-			}
+				PlayerStatsSignals::localPlayerUpdated().emit(data);
 
 			// Let RmlPlayerInfoScreen live-update regardless of whose stats these are (unlike
-			// g_playerStatsUpdatedHook above, which only fires for the local player).
+			// localPlayerUpdated above, which only fires for the local player).
 			if (parentWindowName == "PopupPlayerInfo.wnd")
-			{
-				if (g_lookAtPlayerStatsUpdatedHook)
-					g_lookAtPlayerStatsUpdatedHook(data);
-			}
+				PlayerStatsSignals::lookAtPlayerUpdated().emit(data);
 		}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
 }
 

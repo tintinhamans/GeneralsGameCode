@@ -178,7 +178,7 @@ void RmlLanLobbyScreen::show()
 	m_document->Show();
 
 	// Mirrors LanLobbyMenuUpdate()'s LANSocketErrorDetected handling timing: raised here so it isn't
-	// missed if SetLocalIP() failed before the hooks/document were even up (see update()'s own check
+	// missed if SetLocalIP() failed before the signals/document were even up (see update()'s own check
 	// for the same flag on every later frame).
 	if (socketError)
 		LANSocketErrorDetected = TRUE;

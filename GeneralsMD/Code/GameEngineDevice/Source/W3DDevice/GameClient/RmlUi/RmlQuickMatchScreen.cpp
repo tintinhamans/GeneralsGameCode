@@ -205,12 +205,6 @@ static QuickMatchSession::EventSink buildEventSink(RmlQuickMatchScreen *screen)
 	return sink;
 }
 
-// g_playerStatsUpdatedHook target (see PlayerStatsData.h).
-static void onQuickMatchPlayerStatsDelivered(const PlayerStatsData &data)
-{
-	RmlQuickMatchScreen::instance().onPlayerStatsUpdated(data);
-}
-
 //-------------------------------------------------------------------------------------------------
 void RmlQuickMatchScreen::show()
 {
@@ -245,7 +239,7 @@ void RmlQuickMatchScreen::show()
 
 	refreshPlaylists();
 
-	g_playerStatsUpdatedHook = &onQuickMatchPlayerStatsDelivered;
+	m_playerStatsConnection = PlayerStatsSignals::localPlayerUpdated().connect([this](const PlayerStatsData &data) { onPlayerStatsUpdated(data); });
 	RequestLocalPlayerStatsData([this](const PlayerStatsData &data) { applyPlayerStatsToModel(data); });
 
 	QuickMatchSession::enter(buildEventSink(this));
@@ -274,8 +268,7 @@ void RmlQuickMatchScreen::hide()
 
 	QuickMatchSession::leave();
 
-	if (g_playerStatsUpdatedHook == &onQuickMatchPlayerStatsDelivered)
-		g_playerStatsUpdatedHook = nullptr;
+	m_playerStatsConnection.disconnect();
 }
 
 bool RmlQuickMatchScreen::isVisible() const

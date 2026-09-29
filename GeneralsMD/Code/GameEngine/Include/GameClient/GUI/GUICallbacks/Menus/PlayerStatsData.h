@@ -34,6 +34,7 @@
 #pragma once
 
 #include "Common/AsciiString.h"
+#include "Common/Signal.h"
 #include "Common/UnicodeString.h"
 #include "GameNetwork/GameSpy/PersistentStorageThread.h" // PSPlayerStats
 
@@ -128,12 +129,20 @@ PlayerStatsData BuildPlayerStatsData(const PSPlayerStats &stats, int64_t lookupI
 // Kept in this .cpp (rather than the caller) so callers don't need to pull in the NGMP headers.
 void RequestLocalPlayerStatsData(std::function<void(const PlayerStatsData &)> callback);
 
-// Set by the active front end around its own show()/hide(); fired from PopupPlayerInfo.cpp's
-// findPlayerStatsByID() reply lambda whenever the looked-up player is the local player, so a
-// registry-routed front end (RmlOnlineWelcomeScreen) can live-update its own rank panel the same way
-// WOLWelcomeMenu.wnd's community panel does via UpdateLocalPlayerStats(). Null (the default) drops
-// the update -- same lifetime pattern as g_onlineWelcomeNotificationsChangedHook in OnlineWelcomeData.h.
-extern void (*g_playerStatsUpdatedHook)(const PlayerStatsData &data);
+// Stats replies for a registry-routed front end, fired from PopupPlayerInfo.cpp's findPlayerStatsByID()
+// reply lambda. The active front end connects around its own show()/hide().
+namespace PlayerStatsSignals
+{
+	// Only when the looked-up player is the local player, so RmlOnlineWelcomeScreen/RmlQuickMatchScreen
+	// can live-update their own rank panel the same way WOLWelcomeMenu.wnd's community panel does via
+	// UpdateLocalPlayerStats().
+	Signal1<const PlayerStatsData &> &localPlayerUpdated();
+
+	// Unconditionally from PopulatePlayerInfoWindows()'s "PopupPlayerInfo.wnd" branch (both the local
+	// player and another player's info), so RmlPlayerInfoScreen live-updates regardless of whose stats
+	// it's showing.
+	Signal1<const PlayerStatsData &> &lookAtPlayerUpdated();
+}
 
 // FILE: PlayerStatsData.h (popup-info sharing) /////////////////////////////////
 // Widget-agnostic split of PopupPlayerInfo.cpp/PopupPlayerInfo.wnd's own popup logic (look-at
@@ -170,11 +179,6 @@ int64_t GetLookAtPlayerID();
 #if defined(GENERALS_ONLINE)
 std::string GetLookAtPlayerNameUtf8();
 #endif
-
-// Fired unconditionally from PopulatePlayerInfoWindows()'s "PopupPlayerInfo.wnd" branch (both the
-// local player and another player's info), unlike g_playerStatsUpdatedHook above which only fires
-// for the local player. Lets RmlPlayerInfoScreen live-update regardless of whose stats it's showing.
-extern void (*g_lookAtPlayerStatsUpdatedHook)(const PlayerStatsData &data);
 
 // Shared body of PopupPlayerInfo.cpp's messageBoxYes() Logout confirmation: logs out of the NGMP
 // account and flags the pending full teardown. Callers still own closing their own popup afterwards

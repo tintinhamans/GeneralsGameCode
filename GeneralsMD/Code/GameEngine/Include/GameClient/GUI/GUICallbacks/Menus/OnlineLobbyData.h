@@ -39,6 +39,7 @@
 
 #pragma once
 
+#include "Common/Signal.h"
 #include "Common/UnicodeString.h"
 #include "GameClient/Color.h"
 
@@ -159,20 +160,22 @@ namespace OnlineLobbyData
 	};
 }
 
-// Game-list delivery hook: fired from LobbyUtils.cpp's RefreshGameListBox() SearchForLobbies()
-// completion callback, right after the async result is filtered/sorted and each entry run through
-// buildGameRow() the same way the .wnd listbox is about to be rebuilt from it -- same one network
-// round trip, same row shape, feeds both. Null (the default) drops the update;
-// RmlOnlineLobbyScreen installs its own target in show(), same lifetime pattern as
-// g_lanLobbyGameListHook (LANAPICallbacks.h).
-extern void (*g_onlineLobbyGameListHook)( const std::vector<OnlineLobbyData::GameRow> &rows );
+// Push delivery for a non-.wnd lobby screen (RmlOnlineLobbyScreen), which connects in show() and drops
+// its connections in hide().
+namespace OnlineLobbySignals
+{
+	// Fired from LobbyUtils.cpp's RefreshGameListBox() SearchForLobbies() completion callback, right after
+	// the async result is filtered/sorted and each entry run through buildGameRow() the same way the .wnd
+	// listbox is about to be rebuilt from it -- same one network round trip, same row shape, feeds both.
+	Signal1<const std::vector<OnlineLobbyData::GameRow> &> &gameList();
 
-// Remaining push-delivery hooks a non-.wnd lobby screen needs, all plain/winsock-free types (see
-// OnlineLobbyActions::installScreenHooks(), which is the only place that actually calls the NGMP
-// RegisterFor*Callback() methods -- kept in the GameEngine layer, same "call it from the shared
-// layer" reasoning as g_onlineLobbyGameListHook above).
-extern void (*g_onlineLobbyChatHook)( const UnicodeString &text, Color color );
-extern void (*g_onlineLobbyRosterRefreshHook)();
-extern void (*g_onlineLobbyRoomChangedHook)( int roomIndex, bool effectiveRoomChanged );
-extern void (*g_onlineLobbyJoinResultHook)( int result ); // EJoinLobbyResult, passed as int
-extern void (*g_onlineLobbyCreateResultHook)( bool success );
+	// The remaining push events a non-.wnd lobby screen needs, all plain/winsock-free types (see
+	// OnlineLobbyActions::registerNetworkCallbacks(), which is the only place that actually calls the NGMP
+	// RegisterFor*Callback() methods -- kept in the GameEngine layer, same "call it from the shared
+	// layer" reasoning as gameList above).
+	Signal2<const UnicodeString &, Color> &chatLine();
+	Signal0 &rosterRefresh();
+	Signal2<int, bool> &roomChanged(); // roomIndex, effectiveRoomChanged
+	Signal1<int> &joinResult(); // EJoinLobbyResult, passed as int
+	Signal1<bool> &createResult();
+}

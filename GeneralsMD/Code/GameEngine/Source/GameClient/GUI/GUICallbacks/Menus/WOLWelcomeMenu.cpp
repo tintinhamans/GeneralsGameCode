@@ -327,8 +327,7 @@ void HandleNumPlayersOnline( Int numPlayersOnline )
 	updateNumPlayersOnline();
 
 #if defined(GENERALS_ONLINE)
-	if (g_onlineWelcomeNumPlayersOnlineHook)
-		g_onlineWelcomeNumPlayersOnlineHook(lastNumPlayersOnline);
+	OnlineWelcomeSignals::numPlayersOnline().emit(lastNumPlayersOnline);
 #endif
 }
 
@@ -454,7 +453,9 @@ void UpdateLocalPlayerStats()
 static Bool raiseMessageBoxes = FALSE;
 
 #if defined(GENERALS_ONLINE)
-// g_onlineWelcomeNotificationsChangedHook target (see OnlineWelcomeData.h).
+// OnlineWelcomeSignals::notificationsChanged target (see OnlineWelcomeData.h), connected in
+// WOLWelcomeMenuInit() and dropped in WOLWelcomeMenuShutdown().
+static SignalConnection notificationsConnection;
 static void onWelcomeNotificationsChanged(int numNotifications)
 {
 	if (buttonBuddies != nullptr)
@@ -635,8 +636,8 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 
 #if defined(GENERALS_ONLINE)
 	// Update the communicator button anytime we get notifications (see OnlineWelcomeData.h).
-	g_onlineWelcomeNotificationsChangedHook = &onWelcomeNotificationsChanged;
-	OnlineWelcomeData::registerNotificationsHook();
+	notificationsConnection = OnlineWelcomeSignals::notificationsChanged().connect(&onWelcomeNotificationsChanged);
+	OnlineWelcomeData::registerNotificationsCallback();
 
 	// And also initialize it
 	Int initialNotifications = OnlineWelcomeData::getCurrentNotificationCount();
@@ -653,6 +654,9 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 void WOLWelcomeMenuShutdown( WindowLayout *layout, void *userData )
 {
 	listboxInfo = nullptr;
+#if defined(GENERALS_ONLINE)
+	notificationsConnection.disconnect();
+#endif
 
 	delete TheFirewallHelper;
 	TheFirewallHelper = nullptr;

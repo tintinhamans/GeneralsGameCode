@@ -38,10 +38,9 @@
 //     TheShell's own update loop -- see Shell.cpp).
 //   - update() polls OnlineWelcomeActions::consumePendingFullTeardown(), mirroring
 //     WOLWelcomeMenuUpdate()'s pending-full-teardown branch exactly.
-// The buddy notification count arrives via g_onlineWelcomeNotificationsChangedHook
-// (OnlineWelcomeData.h), subscribed in show() -- same lifetime pattern as
-// g_onlineLogin*Hook in OnlineLoginActions.h (exactly one front end owns this path
-// at a time via RmlUiScreenRegistry).
+// The buddy notification count arrives via OnlineWelcomeSignals::notificationsChanged
+// (OnlineWelcomeData.h), connected in show() and dropped in hide() -- same lifetime
+// pattern as OnlineLoginSignals in OnlineLoginActions.h.
 //
 // Navigation targets not yet converted to RmlUi (Custom Match -> WOLCustomLobby.wnd,
 // Ladder -> WOLLadderScreen.wnd, the Options/Buddies/My Info GameSpyOverlay popups)
@@ -57,6 +56,7 @@
 
 #pragma once
 
+#include "Common/Signal.h"
 #include "GameClient/GUI/GUICallbacks/Menus/PlayerStatsData.h"
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
@@ -80,14 +80,13 @@ public:
 	virtual void onBack() override; // same as ButtonBack, see header comment above
 	virtual void update() override; // pending-full-teardown poll, see header comment above
 
-	// Hook targets (free functions in the .cpp forward into these); public so they can reach the
-	// singleton without befriending it (same pattern as RmlLanLobbyScreen.cpp's onLanLobby*Delivered()).
+private:
+	RmlOnlineWelcomeScreen() : m_motdRows(m_model.motdLines), m_factionRows(m_model.factionStats) {}
+
+	// Signal targets, connected in show().
 	void onNotificationsChanged(int numNotifications);
 	void onNumPlayersOnlineChanged(int numPlayersOnline);
 	void onPlayerStatsUpdated(const PlayerStatsData &data);
-
-private:
-	RmlOnlineWelcomeScreen() : m_motdRows(m_model.motdLines), m_factionRows(m_model.factionStats) {}
 
 	void onBackPressed(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onOptions(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -99,6 +98,9 @@ private:
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
+	SignalConnection m_notificationsConnection;
+	SignalConnection m_numPlayersConnection;
+	SignalConnection m_playerStatsConnection;
 	Rml::DataModelHandle m_modelHandle;
 
 	// One MOTD listbox line (see OnlineWelcomeData::buildMotdLines()). colorHex is a

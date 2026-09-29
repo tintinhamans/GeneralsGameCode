@@ -67,11 +67,11 @@ namespace OnlineLobbyActions
 
 	// Registers the NGMP push callbacks WOLLobbyMenuInit() installs (RegisterForChatCallback/
 	// RegisterForRosterNeedsRefreshCallback/RegisterForRoomChangedCallback/RegisterForCreateLobbyCallback/
-	// RegisterForJoinLobbyCallback), all forwarding into the plain g_onlineLobby*Hook function
-	// pointers in OnlineLobbyData.h. Call once from a lobby screen's show(); these are single-slot
+	// RegisterForJoinLobbyCallback), all forwarding into the
+	// OnlineLobbySignals in OnlineLobbyData.h. Call once from a lobby screen's show(); these are single-slot
 	// std::function members on the NGMP interfaces, so this simply preempts WOLLobbyMenuInit's own
 	// registrations for as long as this screen -- not the .wnd one -- is open.
-	void installScreenHooks();
+	void registerNetworkCallbacks();
 
 	// Room / filter combo ---------------------------------------------------------------------
 	void joinRoom( int roomIndex ); ///< mirrors GCM_SELECTED's room-entry branch

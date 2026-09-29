@@ -88,8 +88,11 @@ static const char *nextScreen = NULL;
 static const UnsignedInt loginTimeoutInMS = 10000;
 static UnsignedInt loginAttemptTime = 0;
 
-// OnlineLoginActions hooks (see OnlineLoginActions.h): this screen's own state/navigation for the
-// shared login flow, set in WOLLoginMenuInit() and cleared in WOLLoginMenuShutdown().
+// OnlineLoginSignals listeners (see OnlineLoginActions.h): this screen's own state/navigation for the
+// shared login flow, connected in WOLLoginMenuInit() and dropped in WOLLoginMenuShutdown().
+static SignalConnection loginLeavingConnection;
+static SignalConnection loginSucceededConnection;
+static SignalConnection loginFailedConnection;
 static Bool WOLLoginMenuIsAlreadyLeaving() { return buttonPushed; }
 
 static void WOLLoginMenuOnLoginSucceeded()
@@ -474,10 +477,9 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 	loginAttemptTime = 0;
 
 	// NGMP: shared login flow (see OnlineLoginActions.h)
-	g_onlineLoginIsAlreadyLeavingHook = &WOLLoginMenuIsAlreadyLeaving;
-	g_onlineLoginSucceededHook = &WOLLoginMenuOnLoginSucceeded;
-	g_onlineLoginFailedHook = &WOLLoginMenuOnLoginFailed;
-	g_onlineLoginCancelledHook = nullptr;
+	loginLeavingConnection = OnlineLoginSignals::alreadyLeaving().connect(&WOLLoginMenuIsAlreadyLeaving);
+	loginSucceededConnection = OnlineLoginSignals::succeeded().connect(&WOLLoginMenuOnLoginSucceeded);
+	loginFailedConnection = OnlineLoginSignals::failed().connect(&WOLLoginMenuOnLoginFailed);
 	if (!OnlineLoginActions::beginLogin())
 	{
 		return;
@@ -566,6 +568,9 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 void WOLLoginMenuShutdown( WindowLayout *layout, void *userData )
 {
 	OnlineLoginActions::endLogin();
+	loginLeavingConnection.disconnect();
+	loginSucceededConnection.disconnect();
+	loginFailedConnection.disconnect();
 
 	isShuttingDown = true;
 	TheWindowManager->clearTabList();
@@ -595,7 +600,7 @@ void WOLLoginMenuShutdown( WindowLayout *layout, void *userData )
 
 
 // NGMP login start/stop/result-decision logic now lives in OnlineLoginActions (see
-// OnlineLoginActions.h/.cpp and the g_onlineLogin*Hook assignments in WOLLoginMenuInit()); this
+// OnlineLoginActions.h/.cpp and the OnlineLoginSignals connections in WOLLoginMenuInit()); this
 // screen's own succeeded/failed/isAlreadyLeaving hook bodies above are the exact former contents of
 // checkLogin() and NGMP_WOLLoginMenu_LoginCallback().
 

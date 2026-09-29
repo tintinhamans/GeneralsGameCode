@@ -205,40 +205,6 @@ void RmlOnlineLobbyScreen::load(Rml::Context *context)
 }
 
 //-------------------------------------------------------------------------------------------------
-// Hook targets: forward into the singleton, same pattern as RmlLanLobbyScreen.cpp's free functions.
-static void onOnlineLobbyGameListDelivered(const std::vector<OnlineLobbyData::GameRow> &rows)
-{
-	RmlOnlineLobbyScreen::instance().onGameListChanged(rows);
-}
-
-static void onOnlineLobbyChatDelivered(const UnicodeString &text, Color color)
-{
-	RmlOnlineLobbyScreen::instance().onChatLine(text, color);
-}
-
-static void onOnlineLobbyRosterRefreshDelivered()
-{
-	RmlOnlineLobbyScreen::instance().refreshPlayersFromHook();
-}
-
-static void onOnlineLobbyRoomChanged(int roomIndex, bool effectiveRoomChanged)
-{
-	RmlOnlineLobbyScreen::instance().onRoomChanged(roomIndex, effectiveRoomChanged);
-}
-
-static void onOnlineLobbyJoinResult(int result)
-{
-	RmlOnlineLobbyScreen::instance().onLobbyJoinResult(result);
-}
-
-static void onOnlineLobbyCreateResult(bool /*bSuccess*/)
-{
-	// Mirrors NGMP_WOLLobbyMenu_CreateLobbyCallback(): always proceeds to game options on success path;
-	// TODO_NGMP upstream has no error case either (see WOLLobbyMenu.cpp).
-	TheShell->push("Menus/GameSpyGameOptionsMenu.wnd");
-}
-
-//-------------------------------------------------------------------------------------------------
 void RmlOnlineLobbyScreen::show()
 {
 	if (!m_document)
@@ -268,13 +234,18 @@ void RmlOnlineLobbyScreen::show()
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
 
-	g_onlineLobbyGameListHook = &onOnlineLobbyGameListDelivered;
-	g_onlineLobbyChatHook = &onOnlineLobbyChatDelivered;
-	g_onlineLobbyRosterRefreshHook = &onOnlineLobbyRosterRefreshDelivered;
-	g_onlineLobbyRoomChangedHook = &onOnlineLobbyRoomChanged;
-	g_onlineLobbyJoinResultHook = &onOnlineLobbyJoinResult;
-	g_onlineLobbyCreateResultHook = &onOnlineLobbyCreateResult;
-	OnlineLobbyActions::installScreenHooks();
+	m_gameListConnection = OnlineLobbySignals::gameList().connect([this](const std::vector<OnlineLobbyData::GameRow> &rows) { onGameListChanged(rows); });
+	m_chatConnection = OnlineLobbySignals::chatLine().connect([this](const UnicodeString &text, Color color) { onChatLine(text, color); });
+	m_rosterRefreshConnection = OnlineLobbySignals::rosterRefresh().connect([this]() { refreshPlayersFromSignal(); });
+	m_roomChangedConnection = OnlineLobbySignals::roomChanged().connect([this](int roomIndex, bool effectiveRoomChanged) { onRoomChanged(roomIndex, effectiveRoomChanged); });
+	m_joinResultConnection = OnlineLobbySignals::joinResult().connect([this](int result) { onLobbyJoinResult(result); });
+	m_createResultConnection = OnlineLobbySignals::createResult().connect([](bool /*bSuccess*/)
+		{
+			// Mirrors NGMP_WOLLobbyMenu_CreateLobbyCallback(): always proceeds to game options on success path;
+			// TODO_NGMP upstream has no error case either (see WOLLobbyMenu.cpp).
+			TheShell->push("Menus/GameSpyGameOptionsMenu.wnd");
+		});
+	OnlineLobbyActions::registerNetworkCallbacks();
 
 	m_document->Show();
 	OnlineLobbyActions::refresh();
@@ -285,18 +256,12 @@ void RmlOnlineLobbyScreen::hide()
 	if (m_document)
 		m_document->Hide();
 
-	if (g_onlineLobbyGameListHook == &onOnlineLobbyGameListDelivered)
-		g_onlineLobbyGameListHook = nullptr;
-	if (g_onlineLobbyChatHook == &onOnlineLobbyChatDelivered)
-		g_onlineLobbyChatHook = nullptr;
-	if (g_onlineLobbyRosterRefreshHook == &onOnlineLobbyRosterRefreshDelivered)
-		g_onlineLobbyRosterRefreshHook = nullptr;
-	if (g_onlineLobbyRoomChangedHook == &onOnlineLobbyRoomChanged)
-		g_onlineLobbyRoomChangedHook = nullptr;
-	if (g_onlineLobbyJoinResultHook == &onOnlineLobbyJoinResult)
-		g_onlineLobbyJoinResultHook = nullptr;
-	if (g_onlineLobbyCreateResultHook == &onOnlineLobbyCreateResult)
-		g_onlineLobbyCreateResultHook = nullptr;
+	m_gameListConnection.disconnect();
+	m_chatConnection.disconnect();
+	m_rosterRefreshConnection.disconnect();
+	m_roomChangedConnection.disconnect();
+	m_joinResultConnection.disconnect();
+	m_createResultConnection.disconnect();
 }
 
 bool RmlOnlineLobbyScreen::isVisible() const
@@ -498,7 +463,7 @@ void RmlOnlineLobbyScreen::onRoomChanged(int roomIndex, bool effectiveRoomChange
 	refreshRoomCombo();
 }
 
-void RmlOnlineLobbyScreen::refreshPlayersFromHook()
+void RmlOnlineLobbyScreen::refreshPlayersFromSignal()
 {
 	refreshPlayers(false);
 }
@@ -508,7 +473,7 @@ void RmlOnlineLobbyScreen::onLobbyJoinResult(int result)
 	// Mirrors NGMP_WOLLobbyMenu_JoinLobbyCallback()'s success path; the failure message boxes it
 	// raises are unchanged (GSMessageBoxOk stays a .wnd overlay either way). 0 ==
 	// EJoinLobbyResult::JoinLobbyResult_Success (OnlineServices_LobbyInterface.h's first, unvalued
-	// enumerator); the g_onlineLobbyJoinResultHook target passes the raw enum cast to int so this
+	// enumerator); the OnlineLobbySignals::joinResult target passes the raw enum cast to int so this
 	// file never has to include the NGMP header that declares it (see .h comment).
 	if (result == 0)
 	{

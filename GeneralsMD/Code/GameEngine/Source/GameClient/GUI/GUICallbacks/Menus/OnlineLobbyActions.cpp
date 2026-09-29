@@ -274,7 +274,7 @@ SortState getSortState()
 	return state;
 }
 
-void installScreenHooks()
+void registerNetworkCallbacks()
 {
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
@@ -283,28 +283,23 @@ void installScreenHooks()
 
 	pLobbyInterface->RegisterForCreateLobbyCallback( []( bool bSuccess )
 		{
-			if ( g_onlineLobbyCreateResultHook )
-				g_onlineLobbyCreateResultHook( bSuccess );
+			OnlineLobbySignals::createResult().emit( bSuccess );
 		} );
 	pLobbyInterface->RegisterForJoinLobbyCallback( []( EJoinLobbyResult result )
 		{
-			if ( g_onlineLobbyJoinResultHook )
-				g_onlineLobbyJoinResultHook( (int)result );
+			OnlineLobbySignals::joinResult().emit( (int)result );
 		} );
 	pRoomsInterface->RegisterForChatCallback( []( UnicodeString strMessage, Color color )
 		{
-			if ( g_onlineLobbyChatHook )
-				g_onlineLobbyChatHook( strMessage, color );
+			OnlineLobbySignals::chatLine().emit( strMessage, color );
 		} );
 	pRoomsInterface->RegisterForRosterNeedsRefreshCallback( []()
 		{
-			if ( g_onlineLobbyRosterRefreshHook )
-				g_onlineLobbyRosterRefreshHook();
+			OnlineLobbySignals::rosterRefresh().emit();
 		} );
 	pRoomsInterface->RegisterForRoomChangedCallback( []( int roomIndex, bool effectiveRoomChanged )
 		{
-			if ( g_onlineLobbyRoomChangedHook )
-				g_onlineLobbyRoomChangedHook( roomIndex, effectiveRoomChanged );
+			OnlineLobbySignals::roomChanged().emit( roomIndex, effectiveRoomChanged );
 		} );
 }
 
