@@ -891,6 +891,13 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 								fnCallback(false);
 							}
 
+							// the match runs on this lobby's mesh
+							if (TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress())
+							{
+								NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Lobby lookup returned 404 during a match, keeping the match running");
+								return;
+							}
+
 							LeaveCurrentLobby();
 							return;
 						}
