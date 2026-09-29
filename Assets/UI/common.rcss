@@ -191,16 +191,41 @@ body
    The engine's own capsule button art (the Buttons, Buttons-HiLite, Buttons-Pushed and
    Buttons-Disabled Left/Middle/Right mapped images, exposed as sprites by RmlUiFileInterface):
    fixed end caps scaled to the button height, stretched middle. Text colours and the 1dp dark shadow follow
-   the .wnd PUSHBUTTON text colours (white / 186,255,12 hilite / 62,64,92 disabled). */
+   the .wnd PUSHBUTTON text colours (white / 186,255,12 hilite / 62,64,92 disabled).
+   Three sizes with fixed heights and one line of centred, upper case text: button (secondary),
+   .btn-primary/.button-lg (footer and menu actions) and .btn-inline (next to a 32dp control). */
 button, .button
 {
+	display: inline-block;
 	box-sizing: border-box;
 	decorator: tiled-horizontal(Buttons-Left, Buttons-Middle, Buttons-Right);
 	color: #FFFFFF;
 	font-effect: shadow(1dp 1dp #000000);
-	padding: 6dp 20dp;
-	text-align: center;
+	height: 34dp;
+	line-height: 34dp;
+	padding: 0 18dp;
+	font-size: 16dp;
 	font-weight: bold;
+	text-align: center;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.btn-primary, .button-lg
+{
+	height: 48dp;
+	line-height: 48dp;
+	padding: 0 32dp;
+	min-width: 180dp;
+	font-size: 20dp;
+}
+
+.btn-inline
+{
+	height: 32dp;
+	line-height: 32dp;
+	padding: 0 12dp;
+	font-size: 14dp;
 }
 
 button:hover, .button:hover
@@ -215,7 +240,14 @@ button:active, .button:active
 	color: #BAFF0C;
 }
 
-/* <button> never gets :disabled in RmlUi; match the disabled attribute that data-attr-disabled sets.
+/* A toggle button that is on (sort/filter/tab buttons): drawn lit like a hovered button. */
+button.active
+{
+	decorator: tiled-horizontal(Buttons-HiLite-Left, Buttons-HiLite-Middle, Buttons-HiLite-Right);
+	color: #BAFF0C;
+}
+
+/* <button> never gets :disabled in RmlUi; match the disabled attribute that data-attrif-disabled sets.
    Listed after :hover/:active (and repeated with them) so a disabled button never lights up. */
 button:disabled, button[disabled], .button.disabled, button.disabled,
 button[disabled]:hover, button.disabled:hover, .button.disabled:hover,
@@ -243,15 +275,16 @@ button[disabled]:active, button.disabled:active, .button.disabled:active
 	color: #8080FF;
 }
 
-/* Fixed 24dp square holding a <mappedimage> glyph (chat send/emote, list refresh). The art isn't always
-   perfectly square, so both the button and the image clip instead of overflowing. The doubled class
-   outranks a screen's "<container> button { padding }" rule (0,1,1), which would otherwise leave the
-   glyph a sliver-wide content box. */
+/* Fixed 32dp square (the control height) holding a <mappedimage> glyph (chat send/emote, list
+   refresh). The art isn't always perfectly square, so both the button and the image clip instead of
+   overflowing. The doubled class outranks a screen's "<container> button { padding }" rule. */
 .icon-btn.icon-btn
 {
-	width: 24dp;
-	height: 24dp;
-	padding: 0;
+	width: 32dp;
+	height: 32dp;
+	min-width: 0;
+	line-height: 30dp;
+	padding: 3dp;
 	text-align: center;
 	overflow: hidden;
 }
@@ -262,15 +295,6 @@ button[disabled]:active, button.disabled:active, .button.disabled:active
 	width: 100%;
 	height: 100%;
 	overflow: hidden;
-}
-
-/* Large, prominent button (main menu list, footer primary/secondary actions) -- the .wnd
-   originals use big chunky buttons (208x36 at 800x600, i.e. ~65dp tall at 1080p), not the compact
-   controls above. */
-.button-lg
-{
-	padding: 19dp 28dp;
-	font-size: 22dp;
 }
 
 /* ---- Dropdown (select) ---------------------------------------------------------------
