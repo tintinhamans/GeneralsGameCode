@@ -17,9 +17,9 @@
 
 		<div class="screen-body">
 			<div class="col col-main">
-				<!-- Players: one row per slot. Colour is a row of swatches, team a segmented control;
-				     occupant and army stay drop-downs (long lists). Open and closed slots only show
-				     their occupant. -->
+				<!-- Players: one row per slot. Colour is the whole palette as swatches, the same in every
+				     row, with colours other slots hold dimmed; team a segmented control; occupant and army
+				     stay drop-downs (long lists). Open and closed slots only show their occupant. -->
 				<div class="surface slots">
 					<div class="list-head slot">
 						<div class="slot-chip"></div>
@@ -51,8 +51,9 @@
 						<div class="c-color">
 							<div class="swatches">
 								<button class="swatch" data-for="opt : row.color_options" data-class-random="opt.value &lt; 0" data-class-on="opt.value == row.color"
-									data-style-background-color="opt.value &lt; 0 ? '#141A3E' : opt.swatch" data-attrif-disabled="!row.can_edit || !row.is_occupied"
-									data-event-click="slot_color_picked(row.slot_index, opt.value)"><span data-if="opt.value &lt; 0">?</span></button>
+									data-class-taken="opt.taken" data-attrif-disabled="!row.can_edit || !row.is_occupied || opt.taken"
+									data-event-click="slot_color_picked(row.slot_index, opt.value)"><span class="chip"
+									data-style-background-color="opt.value &lt; 0 ? '#141A3E' : opt.swatch"><span data-if="opt.value &lt; 0">?</span></span></button>
 							</div>
 						</div>
 						<div class="c-team">

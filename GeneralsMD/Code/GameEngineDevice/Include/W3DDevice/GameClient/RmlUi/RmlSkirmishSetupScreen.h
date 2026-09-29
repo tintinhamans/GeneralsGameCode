@@ -91,6 +91,7 @@ private:
 		Rml::String label;
 		Rml::String swatch; // color options only: "#RRGGBB", "transparent" for random
 		Rml::String icon; // faction options only: mapped image name, empty for random
+		bool taken = false; // color options only: another slot holds this color
 	};
 
 	// One slot row's worth of fields for the data-for-bound slot table (see load()). Field names
@@ -111,7 +112,7 @@ private:
 		int color = -1;
 		Rml::String colorHex; // "#RRGGBB", "transparent" if color == -1
 		Rml::String colorName;
-		Rml::Vector<OptionModel> colorOptions; // GameSetupSlotRow::m_colorChoices
+		Rml::Vector<OptionModel> colorOptions; // the whole palette, Random first; taken = not in GameSetupSlotRow::m_colorChoices
 		int teamNumber = -1;
 		int startPosition = -1;
 	};

@@ -16,8 +16,8 @@
 	flex-direction: column;
 	flex: 0 1 auto;
 	min-height: 0;
-	padding-top: 8dp;
-	padding-bottom: 8dp;
+	padding-top: 10dp;
+	padding-bottom: 10dp;
 }
 
 .slot
@@ -26,8 +26,8 @@
 	flex-direction: row;
 	align-items: center;
 	box-sizing: border-box;
-	flex: 0 0 50dp;
-	height: 50dp;
+	flex: 0 0 52dp;
+	height: 52dp;
 	border-bottom: 1dp #FFFFFF0A;
 }
 
@@ -38,9 +38,9 @@
 
 .slot.list-head
 {
-	flex: 0 0 30dp;
-	min-height: 30dp;
-	height: 30dp;
+	flex: 0 0 34dp;
+	min-height: 34dp;
+	height: 34dp;
 	padding: 0;
 	border-bottom: 1dp #8080FF28;
 }
@@ -49,8 +49,8 @@
 .slot-chip
 {
 	flex: 0 0 4dp;
-	height: 28dp;
-	margin-right: 12dp;
+	height: 35dp;
+	margin-right: 15dp;
 }
 
 .slot.list-head .slot-chip
@@ -58,30 +58,39 @@
 	height: 1dp;
 }
 
+/* Fixed columns: every row lines up and nothing in a row moves when a slot changes between open,
+   AI and human or picks another colour or team. Occupant and army share any spare width evenly. */
 .c-occupant, .c-army, .c-color, .c-team
 {
 	box-sizing: border-box;
 	min-width: 0;
-	margin-right: 16dp;
+	margin-right: 20dp;
 }
 
-.c-occupant { flex: 1 1 0%; max-width: 300dp; }
-.c-army { flex: 1.2 1 0%; max-width: 360dp; }
-.c-color { flex: 0 0 234dp; }
-.c-team { flex: 0 0 196dp; margin-right: 0; }
+.c-occupant { flex: 1 1 250dp; max-width: 360dp; }
+.c-army { flex: 1 1 300dp; max-width: 420dp; }
+.c-color { flex: 0 0 270dp; }
+.c-team { flex: 0 0 236dp; margin-right: 0; }
 
 .c-occupant select, .c-army select
 {
 	width: 100%;
+	height: 42dp;
+}
+
+.c-occupant select selectvalue, .c-army select selectvalue
+{
+	height: 40dp;
+	line-height: 40dp;
 }
 
 .slot-name
 {
 	display: block;
-	height: 36dp;
-	line-height: 36dp;
-	padding: 0 10dp;
-	font-size: 17dp;
+	height: 45dp;
+	line-height: 45dp;
+	padding: 0 13dp;
+	font-size: 21dp;
 	font-weight: bold;
 	color: #FFFFFF;
 	white-space: nowrap;
@@ -104,18 +113,18 @@
 .army-icon
 {
 	display: inline-block;
-	width: 24dp;
-	height: 24dp;
-	margin-right: 10dp;
+	width: 30dp;
+	height: 30dp;
+	margin-right: 13dp;
 	vertical-align: middle;
 }
 
 .army-random
 {
 	box-sizing: border-box;
-	line-height: 22dp;
+	line-height: 28dp;
 	text-align: center;
-	font-size: 13dp;
+	font-size: 16dp;
 	font-weight: bold;
 	color: #A9B1CF;
 	border: 1dp #8080FF46;
@@ -124,13 +133,22 @@
 
 .army-select selectbox
 {
-	width: 280dp;
+	width: 350dp;
 }
 
+/* Team: fixed-width segments, so the control is the same width in every row. */
 .screen .team-seg button.seg-item
 {
-	min-width: 32dp;
-	padding: 0 9dp;
+	flex: 0 0 40dp;
+	width: 40dp;
+	min-width: 0;
+	padding: 0;
+}
+
+.screen .team-seg button.seg-item:first-child
+{
+	flex-basis: 64dp;
+	width: 64dp;
 }
 
 /* ---- Game options and honors ------------------------------------------------------------------ */
@@ -139,19 +157,19 @@
 	display: flex;
 	flex-direction: row;
 	flex: 0 0 auto;
-	margin-top: 16dp;
+	margin-top: 20dp;
 }
 
 .lower .surface + .surface
 {
 	margin-top: 0;
-	margin-left: 16dp;
+	margin-left: 20dp;
 }
 
 .options
 {
 	flex: 1.3 1 0%;
-	max-width: 760dp;
+	max-width: 950dp;
 	min-width: 0;
 }
 
@@ -160,7 +178,7 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	min-height: 36dp;
+	min-height: 40dp;
 	margin-bottom: 8dp;
 }
 
@@ -171,14 +189,14 @@
 
 .opt-label
 {
-	flex: 0 0 150dp;
+	flex: 0 0 160dp;
 	color: #A9B1CF;
 }
 
 .speed
 {
 	flex: 1 1 auto;
-	max-width: 320dp;
+	max-width: 400dp;
 }
 
 .honors
@@ -200,7 +218,7 @@
 .stats .stat
 {
 	flex: 0 0 50%;
-	margin-bottom: 12dp;
+	margin-bottom: 15dp;
 }
 
 .honors-reset
@@ -211,7 +229,7 @@
 /* ---- Map card ---------------------------------------------------------------------------------- */
 .col-side
 {
-	width: 404dp;
+	width: 440dp;
 }
 
 .map-card
@@ -225,17 +243,28 @@
 	display: block;
 }
 
-/* ---- 5:4 and 4:3: tighter columns so the table still fits beside the map ------------------------ */
+/* ---- 5:4 and 4:3: tighter fixed columns so the table still fits beside the map ------------------- */
 @media (max-aspect-ratio: 3/2)
 {
-	.col-side { width: 332dp; }
-	.map-frame { width: 300dp; height: 300dp; }
-	.c-color { flex-basis: 198dp; }
-	.screen .swatches button.swatch { width: 18dp; height: 18dp; line-height: 14dp; font-size: 11dp; }
-	.c-team { flex-basis: 158dp; }
-	.screen .team-seg button.seg-item { min-width: 26dp; padding: 0 6dp; font-size: 13dp; }
-	.c-occupant, .c-army, .c-color { margin-right: 10dp; }
-	.opt-label { flex-basis: 110dp; }
+	.col-side { width: 300dp; }
+	.map-frame { width: 260dp; height: 260dp; }
+	.slots { padding-left: 14dp; padding-right: 14dp; }
+	.slot-chip { margin-right: 10dp; }
+	.c-occupant, .c-army, .c-color { margin-right: 12dp; }
+	.c-occupant { flex-basis: 160dp; }
+	.c-army { flex-basis: 188dp; }
+	.c-occupant select, .c-army select, .slot-name { font-size: 18dp; }
+	.army-icon { width: 26dp; height: 26dp; margin-right: 8dp; }
+	.c-color { flex-basis: 225dp; }
+	.screen .swatches button.swatch { width: 24dp; height: 24dp; margin-right: 1dp; }
+	.swatch .chip { line-height: 16dp; font-size: 13dp; }
+	.swatch.random .chip { line-height: 14dp; }
+	.c-team { flex-basis: 180dp; }
+	.screen .team-seg button.seg-item { flex-basis: 30dp; width: 30dp; font-size: 16dp; }
+	.screen .team-seg button.seg-item:first-child { flex-basis: 46dp; width: 46dp; }
+	.opt-label { flex-basis: 130dp; }
 	.options { flex-grow: 1.7; }
-	.screen .options .seg button.seg-item { padding: 0 7dp; font-size: 13dp; }
+	.screen .options .seg button.seg-item { padding: 0 8dp; font-size: 16dp; }
+	.marker-label { font-size: 13dp; margin-left: -56dp; margin-right: -56dp; }
+	.stats .stat-label { font-size: 13dp; letter-spacing: 0; }
 }

@@ -97,6 +97,7 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 			optionHandle.RegisterMember("label", &OptionModel::label);
 			optionHandle.RegisterMember("swatch", &OptionModel::swatch);
 			optionHandle.RegisterMember("icon", &OptionModel::icon);
+			optionHandle.RegisterMember("taken", &OptionModel::taken);
 		}
 		constructor.RegisterArray<Rml::Vector<OptionModel>>();
 
@@ -215,11 +216,14 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 				if (color.m_color >= 0)
 					row.colorHex = rgbToHex(color.m_rgb);
 			}
+			// Every row lists the whole palette in the same order so the swatches never move; a
+			// color missing from m_colorChoices (PopulateColorComboBox()'s filter) is shown taken.
+			bool offered = false;
 			for (Int choice : src.m_colorChoices)
-			{
-				if (choice == color.m_color)
-					row.colorOptions.push_back(OptionModel{ color.m_color, unicodeToUtf8(color.m_name), color.m_color >= 0 ? rgbToHex(color.m_rgb) : Rml::String(kNoColorHex) });
-			}
+				offered = offered || choice == color.m_color;
+			OptionModel option{ color.m_color, unicodeToUtf8(color.m_name), color.m_color >= 0 ? rgbToHex(color.m_rgb) : Rml::String(kNoColorHex) };
+			option.taken = !offered;
+			row.colorOptions.push_back(option);
 		}
 
 		m_model.slots.push_back(row);

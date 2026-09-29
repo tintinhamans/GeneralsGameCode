@@ -1338,8 +1338,11 @@ body.screen
 }
 
 /* ---- Colour swatches -----------------------------------------------------------------------
-	<div class="swatches"><button class="swatch" data-class-on=".." data-style-background-color=".."/>
-	.swatch.random is the hollow "?" swatch for no fixed colour. */
+	<div class="swatches"><button class="swatch" data-class-on=".." data-class-taken=".."><span class="chip"
+		data-style-background-color=".."/></button>..</div>
+	Every row lists the same palette in the same order (.random, the hollow "?", first), so nothing
+	moves when a colour is picked. A colour another slot holds stays in place, dimmed and disabled
+	(.taken). The picked one gets a ring in the button's own border: no size or layout change. */
 .swatches
 {
 	display: flex;
@@ -1349,53 +1352,86 @@ body.screen
 
 .screen .swatches button.swatch
 {
+	box-sizing: border-box;
+	flex: 0 0 auto;
 	width: 28dp;
 	height: 28dp;
-	line-height: 23dp;
-	padding: 0;
-	margin-right: 4dp;
-	font-size: 16dp;
+	padding: 2dp;
+	margin-right: 2dp;
+	background-color: transparent;
+	border: 2dp transparent;
+	transition: border-color 0.12s cubic-out;
+}
+
+.swatch .chip
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+	line-height: 20dp;
+	font-size: 15dp;
+	font-weight: bold;
 	text-align: center;
 	color: #A9B1CF;
-	border: 2dp #05070F;
-	opacity: 0.8;
-	transition: opacity border-color 0.12s cubic-out;
+	transition: opacity 0.12s cubic-out;
+}
+
+.swatch.random .chip
+{
+	box-sizing: border-box;
+	line-height: 18dp;
+	border: 1dp #8080FF6E;
 }
 
 .screen .swatches button.swatch:hover
 {
-	opacity: 1;
-	border-color: #FFFFFF;
+	background-color: transparent;
+	border-color: #FFFFFF78;
+}
+
+.swatch.random:hover .chip
+{
+	color: #FFFFFF;
 }
 
 .screen .swatches button.swatch.on, .screen .swatches button.swatch.on:hover
 {
-	opacity: 1;
+	background-color: transparent;
 	border-color: #FFFFFF;
 }
 
-.screen .swatches button.swatch.random
-{
-	background-color: #141A3E;
-	border-color: #8080FF46;
-}
-
-.screen .swatches button.swatch.random.on, .screen .swatches button.swatch.random:hover
+.swatch.random.on .chip
 {
 	color: #FFFFFF;
 	border-color: #FFFFFF;
 }
 
+/* Not editable here (a slot someone else controls): the palette stays readable, the pick ringed grey. */
 .screen .swatches button.swatch[disabled], .screen .swatches button.swatch[disabled]:hover
 {
-	opacity: 0.25;
-	border-color: #05070F;
+	background-color: transparent;
+	border-color: transparent;
+}
+
+.swatch[disabled] .chip
+{
+	opacity: 0.45;
 }
 
 .screen .swatches button.swatch.on[disabled]
 {
-	opacity: 0.9;
 	border-color: #A9B1CF;
+}
+
+.swatch.on[disabled] .chip
+{
+	opacity: 1;
+}
+
+/* Held by another slot: faded right back so it reads as unavailable. */
+.swatch.taken .chip, .swatch.taken[disabled] .chip
+{
+	opacity: 0.16;
 }
 
 /* ---- Checkbox: <label class="check"><input class="checkbox" type="checkbox"/><span>..</span></label> */
