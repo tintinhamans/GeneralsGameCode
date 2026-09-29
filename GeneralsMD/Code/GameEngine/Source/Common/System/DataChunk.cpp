@@ -57,6 +57,11 @@ Bool CachedFileInputStream::open(AsciiString path)
 		if (m_size) {
 			m_buffer = file->readEntireAndClose();
 			file = nullptr;
+			if (m_buffer == nullptr)
+			{
+				m_size = 0;
+				return FALSE;
+			}
 		}
 		m_pos=0;
 	}
