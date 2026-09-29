@@ -102,7 +102,7 @@
 		below the panel (audit: OVERFLOW div.stats-grid -- win-grid spilling onto the MAIN MENU
 		button); starting from a 0 basis and growing avoids that shrink-from-content path */
 	min-height: 0;
-	background-color: rgba(0, 64, 64, 140);
+	background-color: rgba(2, 2, 2, 128); /* CommunityInfoParent's near-black fill */
 	border: 1dp #2F37A8;
 	padding: 12dp;
 }
