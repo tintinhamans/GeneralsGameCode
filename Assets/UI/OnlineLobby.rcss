@@ -206,7 +206,7 @@
 .b2 { height: 10dp; }
 .b3 { height: 14dp; }
 
-.signal.ok .bar { background-color: #F0C020; }
+.signal.ok .bar { background-color: #E8D440; }
 .signal.ok .b3 { background-color: #FFFFFF26; }
 .signal.bad .bar { background-color: #FF5050; }
 .signal.bad .b2, .signal.bad .b3 { background-color: #FFFFFF26; }
@@ -342,7 +342,7 @@
 	vertical-align: middle;
 }
 
-.dot.ok { background-color: #F0C020; }
+.dot.ok { background-color: #E8D440; }
 .dot.bad { background-color: #FF5050; }
 
 .tags
@@ -397,7 +397,7 @@
 
 .member.host
 {
-	border-left-color: #BAFF0C;
+	border-left-color: #F07A1A;
 	font-weight: bold;
 	color: #FFFFFF;
 }

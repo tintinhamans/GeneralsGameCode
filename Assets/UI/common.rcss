@@ -900,9 +900,14 @@ body.shell
 	            line      #8080FF28          hairline separators; borders only where needed
 	            blue      #2F37A8 / #3A46D0 / #8080FF   brand, selected, hover/focus
 	            text      #EEF1FA  text-2 #A9B1CF  text-3 #7079A0 (labels, overlines)
-	            accent    #BAFF0C            the one "act here" colour: primary action,
-	                                         focus ring, selected-row bar
-	            status    good #3CD28C  warn #F0C020  bad #FF5050  buddy #14B1FF
+	            accent    #F07A1A            Zero Hour orange, the one "act here" colour: title
+	                                         tick, focus ring, selected-row bar, checks, badges
+	                      #FF9A3D            accent as text on dark (pressed, checked option)
+	                      #F5A93A            gold: only the highlight atop the hovered primary
+	                      #C9540F            pressed primary; #1A0C02 text on the accent
+	                                         Selection fills and "on" segments stay blue.
+	            status    good #3CD28C  warn #E8D440 (yellow, clear of the accent)  bad #FF5050
+	                      buddy #14B1FF
 	  Type      Barlow Regular/Bold. Title 32dp bold caps behind an accent tick; crumb and
 	            overline 12-13dp bold caps tracked 2dp; body 16dp; small 13dp. Text drawn
 	            straight on the map (.on-map, the header, the back button) gets .map-glow.
@@ -1038,7 +1043,7 @@ body.screen
 	letter-spacing: 1dp;
 	text-transform: uppercase;
 	color: #FFFFFF;
-	border-left: 4dp #BAFF0C;
+	border-left: 4dp #F07A1A;
 	padding-left: 12dp;
 	white-space: nowrap;
 }
@@ -1159,14 +1164,14 @@ body.screen
 .screen button:active, .screen .button:active
 {
 	decorator: none;
-	color: #BAFF0C;
+	color: #FF9A3D;
 	background-color: #1E246EE6;
 	border-color: #8080FF;
 }
 
 .screen button:focus-visible
 {
-	border-color: #BAFF0C;
+	border-color: #F07A1A;
 }
 
 .screen button[disabled], .screen button.disabled,
@@ -1189,21 +1194,21 @@ body.screen
 	padding: 0 40dp;
 	font-size: 20dp;
 	letter-spacing: 2dp;
-	color: #0B1400;
+	color: #1A0C02;
 	border-width: 0;
-	decorator: vertical-gradient(#CBFF3A #A4E600);
+	decorator: vertical-gradient(#F79A34 #E0661A);
 }
 
 .screen button.btn-cta:hover
 {
-	color: #050A00;
-	decorator: vertical-gradient(#DAFF6E #B6F51A);
+	color: #120800;
+	decorator: vertical-gradient(#F5A93A #F07A1A);
 }
 
 .screen button.btn-cta:active
 {
-	color: #050A00;
-	decorator: vertical-gradient(#94D000 #A8E40A);
+	color: #120800;
+	decorator: vertical-gradient(#C9540F #D8601A);
 }
 
 .screen button.btn-cta[disabled], .screen button.btn-cta[disabled]:hover, .screen button.btn-cta[disabled]:active
@@ -1234,7 +1239,7 @@ body.screen
 
 .screen button.btn-back:active
 {
-	color: #BAFF0C;
+	color: #FF9A3D;
 }
 
 .chevron
@@ -1403,7 +1408,7 @@ label.check:hover
 .screen input.checkbox:checked, .screen input.checkbox:checked:hover
 {
 	decorator: none;
-	background-color: #BAFF0C;
+	background-color: #F07A1A;
 	border: 5dp #0B1030;
 }
 
@@ -1438,7 +1443,7 @@ label.check:hover
 
 .screen input.range sliderbar:hover, .screen input.range sliderbar:active
 {
-	background-color: #BAFF0C;
+	background-color: #F07A1A;
 }
 
 /* ---- Dropdown ----------------------------------------------------------------------------- */
@@ -1522,7 +1527,7 @@ label.check:hover
 
 .screen select selectbox option:checked
 {
-	color: #BAFF0C;
+	color: #FF9A3D;
 }
 
 /* ---- Text input --------------------------------------------------------------------------- */
@@ -1597,7 +1602,7 @@ label.check:hover
 .row-item.selected, .row-item.selected:hover
 {
 	background-color: #2F37A8A0;
-	border-left-color: #BAFF0C;
+	border-left-color: #F07A1A;
 }
 
 /* Column caption row over a list. */
@@ -1766,7 +1771,7 @@ label.check:hover
 
 .marker:hover .marker-dot
 {
-	border-color: #BAFF0C;
+	border-color: #F07A1A;
 }
 
 .marker.occupied .marker-dot

@@ -71,7 +71,7 @@
 .tile.selected, .tile.selected:hover
 {
 	background-color: #2F37A8B4;
-	border-color: #BAFF0C;
+	border-color: #F07A1A;
 }
 
 .thumb

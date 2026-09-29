@@ -9,7 +9,7 @@
 	             (body.dock-open, see common.rcss), so it never covers the screen's own actions.
 	             Three views: friends and requests, the block list, one conversation.
 
-	Presence: online #3CD28C, in a lobby #14B1FF, in a game #F0C020, offline grey. The unread badge
+	Presence: online #3CD28C, in a lobby #14B1FF, in a game #E8D440, offline grey. The unread badge
 	uses the accent. .template/.shell (from the host screen) line the panel up with its frame.
 */
 
@@ -42,7 +42,7 @@ body
 {
 	background-color: #1E246EE6;
 	border-color: #8080FF;
-	border-left-color: #BAFF0C;
+	border-left-color: #F07A1A;
 }
 
 .screen button.dock-tab[disabled], .screen button.dock-tab[disabled]:hover
@@ -123,8 +123,8 @@ body
 	text-align: center;
 	font-size: 13dp;
 	font-weight: bold;
-	color: #0B1400;
-	background-color: #BAFF0C;
+	color: #1A0C02;
+	background-color: #F07A1A;
 }
 
 .tab-chevron
@@ -276,7 +276,7 @@ body
 .person.friend.selected, .person.friend.selected:hover
 {
 	background-color: #2F37A880;
-	border-left-color: #BAFF0C;
+	border-left-color: #F07A1A;
 }
 
 .avatar
@@ -311,7 +311,7 @@ body
 
 .presence.online { background-color: #3CD28C; }
 .presence.lobby { background-color: #14B1FF; }
-.presence.game { background-color: #F0C020; }
+.presence.game { background-color: #E8D440; }
 
 .who
 {
@@ -361,8 +361,8 @@ body
 	text-align: center;
 	font-size: 13dp;
 	font-weight: bold;
-	color: #0B1400;
-	background-color: #BAFF0C;
+	color: #1A0C02;
+	background-color: #F07A1A;
 }
 
 /* Requests: two lines of who, the answer buttons under them. */
@@ -393,15 +393,15 @@ body
 
 .screen .person button.accept
 {
-	color: #0B1400;
-	background-color: #A4E600;
-	border-color: #A4E600;
+	color: #1A0C02;
+	background-color: #F07A1A;
+	border-color: #F07A1A;
 }
 
 .screen .person button.accept:hover
 {
-	background-color: #CBFF3A;
-	border-color: #CBFF3A;
+	background-color: #F79A34;
+	border-color: #F79A34;
 }
 
 .screen .person button.quiet

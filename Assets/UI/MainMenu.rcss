@@ -98,22 +98,22 @@
 {
 	color: #FFFFFF;
 	padding-left: 24dp;
-	border-left-color: #BAFF0C;
+	border-left-color: #F07A1A;
 	background-color: transparent;
 	decorator: horizontal-gradient(#2F37A8D2 #2F37A800);
 }
 
 .screen button.mm-item:active
 {
-	color: #BAFF0C;
-	border-left-color: #BAFF0C;
+	color: #FF9A3D;
+	border-left-color: #F07A1A;
 	background-color: transparent;
 	decorator: horizontal-gradient(#1E246EE6 #1E246E00);
 }
 
 .screen button.mm-item:focus-visible
 {
-	border-left-color: #BAFF0C;
+	border-left-color: #F07A1A;
 }
 
 /* Right-hand chevron on items that open another panel. */
@@ -133,7 +133,7 @@
 .mm-item:hover .mm-more
 {
 	opacity: 1;
-	color: #BAFF0C;
+	color: #FF9A3D;
 }
 
 .screen button.mm-quiet, .screen button.mm-back
