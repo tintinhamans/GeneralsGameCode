@@ -39,6 +39,7 @@ namespace
 		RmlUiScreenQueryFunc isVisible;
 		RmlUiScreenFunc back;
 		bool capturesInput;
+		RmlUiScreenKeyFunc keys;
 		unsigned order; ///< s_openCount at the last open(); orders the visible layers
 	};
 
@@ -103,7 +104,7 @@ namespace
 	}
 }
 
-void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, RmlUiScreenFunc back, bool capturesInput)
+void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, RmlUiScreenFunc back, bool capturesInput, RmlUiScreenKeyFunc keys)
 {
 	AsciiString path(wndPath);
 	Entry *existing = find(path);
@@ -114,6 +115,7 @@ void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc op
 		existing->isVisible = isVisible;
 		existing->back = back;
 		existing->capturesInput = capturesInput;
+		existing->keys = keys;
 		return;
 	}
 	Entry e;
@@ -124,6 +126,7 @@ void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc op
 	e.back = back;
 	e.order = 0;
 	e.capturesInput = capturesInput;
+	e.keys = keys;
 	entries().push_back(e);
 }
 
@@ -202,6 +205,30 @@ bool RmlUiScreenRegistry::escape(bool isDown)
 	if (isDown && top->back)
 		top->back();
 	return true;
+}
+
+bool RmlUiScreenRegistry::wantsOverlayKeys()
+{
+	const std::vector<Entry> &e = entries();
+	for (size_t i = 0; i < e.size(); ++i)
+		if (e[i].keys && e[i].isVisible && e[i].isVisible())
+			return true;
+
+	return false;
+}
+
+bool RmlUiScreenRegistry::overlayKey(unsigned char key, unsigned char state)
+{
+	if (ownsInput())
+		return false;
+
+	const Entry *top = nullptr;
+	const std::vector<Entry> &e = entries();
+	for (size_t i = 0; i < e.size(); ++i)
+		if (e[i].keys && e[i].isVisible && e[i].isVisible() && (!top || e[i].order > top->order))
+			top = &e[i];
+
+	return top && top->keys(key, state);
 }
 
 bool RmlUiScreenRegistry::usesLegacyMenus()

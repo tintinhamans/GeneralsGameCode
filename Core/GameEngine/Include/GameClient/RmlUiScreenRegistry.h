@@ -39,6 +39,7 @@ class WindowLayout;
 
 typedef void (*RmlUiScreenFunc)();
 typedef bool (*RmlUiScreenQueryFunc)();
+typedef bool (*RmlUiScreenKeyFunc)(unsigned char key, unsigned char state); ///< TRUE if the screen took the key
 
 //-------------------------------------------------------------------------------------------------
 class RmlUiScreenRegistry
@@ -49,7 +50,9 @@ public:
 	// back: what Escape does while this is the topmost layer (the original .wnd's KEY_ESC); null = nothing.
 	// capturesInput: while visible, RmlUi owns all mouse/keyboard input; FALSE for overlays drawn over
 	// live gameplay, which only take the mouse over their own document (see ownsInput()).
-	static void registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, RmlUiScreenFunc back = nullptr, bool capturesInput = true);
+	// keys: for an overlay that wants a few keys while it is up (an Enter or Escape that dismisses it, ...) although it
+	// does not capture input; see overlayKey().
+	static void registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, RmlUiScreenFunc back = nullptr, bool capturesInput = true, RmlUiScreenKeyFunc keys = nullptr);
 	static void unregisterScreen(const char *wndPath);
 	static void unregisterAll(); ///< RmlUiManager::shutdown()
 
@@ -71,6 +74,11 @@ public:
 	// Escape goes to the topmost capturing layer (the most recently opened visible one) and never to a
 	// screen underneath. Returns TRUE if a layer owns it (its back func runs on key down).
 	static bool escape(bool isDown);
+
+	// A visible overlay with a key handler takes the keys it wants ahead of the game, as the .wnd overlay did
+	// while it had the keyboard focus. Nothing is offered while a capturing layer is up: that owns the keyboard.
+	static bool wantsOverlayKeys(); ///< such an overlay is visible
+	static bool overlayKey(unsigned char key, unsigned char state); ///< offers a key to the topmost one; TRUE if it took it
 
 	// Placeholders: hidden GameWindows tracked against an RmlUi screen or message box.
 	static WindowLayout *createLayout(const AsciiString &wndPath); ///< layout holding a placeholder; runInit/hide(FALSE)/bringForward open the screen, runShutdown/hide(TRUE)/destroyWindows close it

@@ -53,6 +53,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlChallengeMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlDownloadScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlInGamePopupScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuickMatchScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlReplayMenuScreen.h"
@@ -184,6 +185,8 @@ template<class T> static bool screenVisible() { return T::instance().isVisible()
 // What Escape does for the topmost layer: an RmlScreen's onBack(), or a popup's back().
 template<class T> static void screenBack() { T::instance().onBack(); }
 template<class T> static void popupBack() { T::instance().back(); }
+// The keys an overlay takes ahead of the game while it is up (see RmlUiScreenRegistry::overlayKey()).
+template<class T> static bool screenKey(unsigned char key, unsigned char state) { return T::instance().onKey(key, state); }
 template<RmlLoadScreen::Kind K> static bool loadScreenVisible() { return RmlLoadScreen::instance(K).isVisible(); }
 
 RmlUiManager *RmlUiManager::s_instance = nullptr;
@@ -368,6 +371,10 @@ void RmlUiManager::init(int width, int height)
 
 	// The Generals Online patch check creates this layout over the main menu; see RmlDownloadScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/DownloadMenu.wnd", &OpenRmlDownloadScreen, &CloseRmlDownloadScreen, &screenVisible<RmlDownloadScreen>, &popupBack<RmlDownloadScreen>);
+
+	// InGameUI::popupMessage() creates this layout for a map script; see RmlInGamePopupScreen.h. It sits over live
+	// gameplay, so it does not capture input, but it takes Enter and Escape like the .wnd did.
+	RmlUiScreenRegistry::registerScreen("InGamePopupMessage.wnd", &OpenRmlInGamePopupScreen, &CloseRmlInGamePopupScreen, &screenVisible<RmlInGamePopupScreen>, nullptr, false, &screenKey<RmlInGamePopupScreen>);
 
 	// The LoadScreen classes create these via winCreateFromScript(); see RmlLoadScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/MapTransferScreen.wnd", &OpenRmlMapTransferScreen, &CloseRmlMapTransferScreen, &loadScreenVisible<RmlLoadScreen::KIND_MAP_TRANSFER>, nullptr);
@@ -590,7 +597,14 @@ bool RmlUiManager::wantsMouseInput(int mouseX, int mouseY) const
 	return ownsInput() || anyVisibleDocumentAt(mouseX, mouseY);
 }
 
+// An overlay that handles a few keys itself (the script popup's Enter and Escape) gets them offered too; see
+// processKey().
 bool RmlUiManager::wantsKeyboardInput() const
+{
+	return keyboardOwned() || RmlUiScreenRegistry::wantsOverlayKeys();
+}
+
+bool RmlUiManager::keyboardOwned() const
 {
 	if (ownsInput())
 		return true;
@@ -686,6 +700,12 @@ static Rml::Input::KeyIdentifier engineKeyToRmlKey(unsigned char key)
 bool RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeyState)
 {
 	if (!m_context)
+		return false;
+
+	// An overlay's own keys come first, taking them from the game even where RmlUi owns no keyboard.
+	if (RmlUiScreenRegistry::overlayKey(engineKey, engineKeyState))
+		return true;
+	if (!keyboardOwned())
 		return false;
 
 	const bool isDown = BitIsSet(engineKeyState, KEY_STATE_DOWN);

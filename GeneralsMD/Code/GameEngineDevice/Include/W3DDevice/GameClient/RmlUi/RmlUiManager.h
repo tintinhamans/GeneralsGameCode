@@ -78,6 +78,7 @@ private:
 	static RmlUiManager *s_instance;
 
 	bool ownsInput() const;               ///< RmlUiScreenRegistry::ownsInput()
+	bool keyboardOwned() const;           ///< RmlUi owns the keyboard: a capturing layer, or a focused text field
 	bool anyVisibleDocumentAt(int x, int y) const;
 	void registerCustomElements();
 
