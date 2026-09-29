@@ -49,8 +49,15 @@ public:
 	static void unregisterAll(); ///< RmlUiManager::shutdown()
 
 	static bool isRegistered(const AsciiString &wndPath);
+
+	// The one place that decides whether RmlUi or the legacy .wnd handles a path (or a message box).
+	static bool usesLegacyMenus(); ///< -wnd was given
+	static bool routesToRmlUi(const AsciiString &wndPath); ///< registered and not -wnd
+	static bool routesMessageBoxToRmlUi(); ///< message box hook set and not -wnd
+
 	static bool open(const AsciiString &wndPath);  ///< calls the registered open func; returns true if handled
 	static bool close(const AsciiString &wndPath); ///< calls the registered close func; returns true if handled
+	static bool isOpen(const AsciiString &wndPath); ///< opened through open() and not closed since
 
 	// Placeholders: hidden GameWindows tracked against an RmlUi screen or message box.
 	static WindowLayout *createLayout(const AsciiString &wndPath); ///< layout holding a placeholder; runInit/hide(FALSE)/bringForward open the screen, runShutdown/hide(TRUE)/destroyWindows close it

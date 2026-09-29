@@ -250,19 +250,37 @@ void GSMessageBoxNoButtons(UnicodeString title, UnicodeString message, bool bSho
 /**
 	* gsOverlays holds a list of the .wnd files used in GS overlays.
 	* The entries *MUST* be in the same order as the GSOverlayType enum.
+	* viaRegistry: when RmlUiScreenRegistry routes the path to RmlUi, the popup is opened and closed
+	* straight through the registry (isOpen() is the state) instead of through a placeholder layout.
 	*/
-static const char * gsOverlays[GSOVERLAY_MAX] =
+struct GSOverlayInfo
 {
-	"Menus/PopupPlayerInfo.wnd",	// Player info (right-click)
-	"Menus/WOLMapSelectMenu.wnd",	// Map select
-	"Menus/WOLBuddyOverlay.wnd",	// Buddy list
-	"Menus/WOLPageOverlay.wnd",		// Find/page
-	"Menus/PopupHostGame.wnd",		// Hosting options (game name, password, etc)
-	"Menus/PopupJoinGame.wnd",		// Joining options (password, etc)
-	"Menus/PopupLadderSelect.wnd",// LadderSelect
-	"Menus/PopupLocaleSelect.wnd",// Prompt for user's locale
-	"Menus/OptionsMenu.wnd",			// popup options
+	const char *wndPath;
+	Bool viaRegistry;
 };
+
+static const GSOverlayInfo gsOverlays[GSOVERLAY_MAX] =
+{
+	{ "Menus/PopupPlayerInfo.wnd", TRUE },	// Player info (right-click)
+	{ "Menus/WOLMapSelectMenu.wnd", FALSE },	// Map select
+	{ "Menus/WOLBuddyOverlay.wnd", TRUE },	// Buddy list
+	{ "Menus/WOLPageOverlay.wnd", FALSE },		// Find/page
+	{ "Menus/PopupHostGame.wnd", TRUE },		// Hosting options (game name, password, etc)
+	{ "Menus/PopupJoinGame.wnd", TRUE },		// Joining options (password, etc)
+	{ "Menus/PopupLadderSelect.wnd", FALSE },// LadderSelect
+	{ "Menus/PopupLocaleSelect.wnd", FALSE },// Prompt for user's locale
+	{ "Menus/OptionsMenu.wnd", FALSE },			// popup options
+};
+
+// The .wnd path of the RmlUi screen that stands in for this overlay, or empty when the overlay
+// is a plain .wnd layout (legacy menus, or not opened through the registry).
+static AsciiString rmlOverlayPath( GSOverlayType overlay )
+{
+	const AsciiString path( gsOverlays[overlay].wndPath );
+	if (gsOverlays[overlay].viaRegistry && RmlUiScreenRegistry::routesToRmlUi(path))
+		return path;
+	return AsciiString::TheEmptyString;
+}
 
 static WindowLayout *overlayLayouts[GSOVERLAY_MAX] =
 {
@@ -283,20 +301,6 @@ static void buddyTryReconnect()
 	req.buddyRequestType = BuddyRequest::BUDDYREQUEST_RELOGIN;
 	TheGameSpyBuddyMessageQueue->addRequest( req );
 }
-
-// TheSuperHackers @feature RmlUi player info popup: true while RmlPlayerInfoScreen (not the .wnd)
-// owns GSOVERLAY_PLAYERINFO -- overlayLayouts[GSOVERLAY_PLAYERINFO] stays NULL in that case, same
-// "no WindowLayout for this path" precedent as QuitMenu.cpp's rmlQuitWndPath.
-static Bool isRmlPlayerInfoOpen = FALSE;
-
-// TheSuperHackers @feature RmlUi host/join game popups: same precedent as isRmlPlayerInfoOpen
-// above, for GSOVERLAY_GAMEOPTIONS (PopupHostGame.wnd) and GSOVERLAY_GAMEPASSWORD (PopupJoinGame.wnd).
-static Bool isRmlHostGameOpen = FALSE;
-static Bool isRmlJoinGameOpen = FALSE;
-
-// TheSuperHackers @feature RmlUi buddy overlay: same precedent as isRmlPlayerInfoOpen above, for
-// GSOVERLAY_BUDDY (WOLBuddyOverlay.wnd).
-static Bool isRmlBuddyOpen = FALSE;
 
 void GameSpyOpenOverlay( GSOverlayType overlay )
 {
@@ -327,23 +331,12 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 		}
 	}
 
-	if (overlay == GSOVERLAY_PLAYERINFO || overlay == GSOVERLAY_GAMEOPTIONS || overlay == GSOVERLAY_GAMEPASSWORD
-		|| overlay == GSOVERLAY_BUDDY)
+	// TheSuperHackers @feature RmlUi popups: no WindowLayout for a path the registry routes to RmlUi.
+	const AsciiString rmlPath = rmlOverlayPath(overlay);
+	if (!rmlPath.isEmpty())
 	{
-		const AsciiString rmlWndPath( gsOverlays[overlay] );
-		if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered(rmlWndPath))
-		{
-			RmlUiScreenRegistry::open(rmlWndPath);
-			if (overlay == GSOVERLAY_PLAYERINFO)
-				isRmlPlayerInfoOpen = TRUE;
-			else if (overlay == GSOVERLAY_GAMEOPTIONS)
-				isRmlHostGameOpen = TRUE;
-			else if (overlay == GSOVERLAY_GAMEPASSWORD)
-				isRmlJoinGameOpen = TRUE;
-			else
-				isRmlBuddyOpen = TRUE;
-			return;
-		}
+		RmlUiScreenRegistry::open(rmlPath);
+		return;
 	}
 
 	if (overlayLayouts[overlay])
@@ -353,7 +346,7 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 	}
 	else
 	{
-		overlayLayouts[overlay] = TheWindowManager->winCreateLayout( AsciiString( gsOverlays[overlay] ) );
+		overlayLayouts[overlay] = TheWindowManager->winCreateLayout( AsciiString( gsOverlays[overlay].wndPath ) );
 		overlayLayouts[overlay]->runInit();
 		overlayLayouts[overlay]->hide( FALSE );
 		overlayLayouts[overlay]->bringForward();
@@ -362,21 +355,14 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 
 void GameSpyCloseOverlay( GSOverlayType overlay )
 {
-	if ((overlay == GSOVERLAY_PLAYERINFO && isRmlPlayerInfoOpen)
-		|| (overlay == GSOVERLAY_GAMEOPTIONS && isRmlHostGameOpen)
-		|| (overlay == GSOVERLAY_GAMEPASSWORD && isRmlJoinGameOpen)
-		|| (overlay == GSOVERLAY_BUDDY && isRmlBuddyOpen))
+	const AsciiString rmlPath = rmlOverlayPath(overlay);
+	if (!rmlPath.isEmpty())
 	{
-		DEBUG_LOG(("Closing overlay %d (RmlUi)", (int)overlay));
-		RmlUiScreenRegistry::close( AsciiString( gsOverlays[overlay] ) );
-		if (overlay == GSOVERLAY_PLAYERINFO)
-			isRmlPlayerInfoOpen = FALSE;
-		else if (overlay == GSOVERLAY_GAMEOPTIONS)
-			isRmlHostGameOpen = FALSE;
-		else if (overlay == GSOVERLAY_GAMEPASSWORD)
-			isRmlJoinGameOpen = FALSE;
-		else
-			isRmlBuddyOpen = FALSE;
+		if (RmlUiScreenRegistry::isOpen(rmlPath))
+		{
+			DEBUG_LOG(("Closing overlay %d (RmlUi)", (int)overlay));
+			RmlUiScreenRegistry::close(rmlPath);
+		}
 		return;
 	}
 
@@ -422,14 +408,9 @@ void GameSpyCloseOverlay( GSOverlayType overlay )
 
 Bool GameSpyIsOverlayOpen( GSOverlayType overlay )
 {
-	if (overlay == GSOVERLAY_PLAYERINFO && isRmlPlayerInfoOpen)
-		return TRUE;
-	if (overlay == GSOVERLAY_GAMEOPTIONS && isRmlHostGameOpen)
-		return TRUE;
-	if (overlay == GSOVERLAY_GAMEPASSWORD && isRmlJoinGameOpen)
-		return TRUE;
-	if (overlay == GSOVERLAY_BUDDY && isRmlBuddyOpen)
-		return TRUE;
+	const AsciiString rmlPath = rmlOverlayPath(overlay);
+	if (!rmlPath.isEmpty())
+		return RmlUiScreenRegistry::isOpen(rmlPath);
 	return (overlayLayouts[overlay] != nullptr);
 }
 

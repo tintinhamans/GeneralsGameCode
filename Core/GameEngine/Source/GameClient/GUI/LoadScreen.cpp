@@ -123,10 +123,10 @@ bool g_bHasDoneSOGScreenshot = false;
 
 UnsignedInt GetTeamUiColor(Int teamNumber);
 
-// RmlUi draws a load screen instead of its .wnd when the path is registered and -wnd wasn't given.
+// RmlUi draws a load screen instead of its .wnd when the registry routes the path to it.
 static Bool shouldUseRml( const char *wndPath )
 {
-	return TheGlobalData && !TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered( AsciiString( wndPath ) );
+	return RmlUiScreenRegistry::routesToRmlUi( AsciiString( wndPath ) );
 }
 
 #if !RTS_GENERALS

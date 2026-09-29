@@ -256,7 +256,7 @@ void RmlUiManager::init(int width, int height)
 
 	m_initialized = true;
 
-	if (TheGlobalData && TheGlobalData->m_useLegacyMenus)
+	if (RmlUiScreenRegistry::usesLegacyMenus())
 	{
 		Rml::Log::Message(Rml::Log::LT_INFO, "-wnd given: legacy .wnd menus are active, RmlUi will show no documents.");
 	}
@@ -321,7 +321,7 @@ void RmlUiManager::init(int width, int height)
 
 	// Buddy toast: only while RmlUi owns the shell, so its toast presenter replaces the .wnd one
 	// (see RmlBuddyToastScreen.h); -wnd never calls this.
-	if (m_context && !(TheGlobalData && TheGlobalData->m_useLegacyMenus))
+	if (m_context && !RmlUiScreenRegistry::usesLegacyMenus())
 		InitRmlBuddyToastScreen(m_context);
 	// GSOVERLAY_GAMEOPTIONS/GSOVERLAY_GAMEPASSWORD's .wnd paths, same gsOverlays[] precedent.
 	RmlUiScreenRegistry::registerScreen("Menus/PopupHostGame.wnd", &OpenRmlHostGameScreen, &CloseRmlHostGameScreen);

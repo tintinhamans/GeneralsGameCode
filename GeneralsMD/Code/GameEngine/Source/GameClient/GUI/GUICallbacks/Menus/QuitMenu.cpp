@@ -65,9 +65,24 @@ static WindowLayout *noSaveLoadQuitMenuLayout = nullptr;
 
 static Bool isVisible = FALSE;
 
-// TheSuperHackers @feature RmlUi quit menu: non-empty while RmlQuitMenuScreen is the active
-// screen (no WindowLayout is created for that path; see ToggleQuitMenu()).
-static AsciiString rmlQuitWndPath;
+// TheSuperHackers @feature RmlUi quit menu: RmlQuitMenuScreen is the active screen while the
+// registry says one of these is open (no WindowLayout is created for the path; see ToggleQuitMenu()).
+static const char *const rmlQuitWndPaths[] = { "Menus/QuitMenu.wnd", "Menus/QuitNoSave.wnd" };
+
+static Bool isRmlQuitMenuOpen()
+{
+	for (size_t i = 0; i < ARRAY_SIZE(rmlQuitWndPaths); ++i)
+		if (RmlUiScreenRegistry::isOpen(rmlQuitWndPaths[i]))
+			return TRUE;
+	return FALSE;
+}
+
+static void closeRmlQuitMenu()
+{
+	for (size_t i = 0; i < ARRAY_SIZE(rmlQuitWndPaths); ++i)
+		if (RmlUiScreenRegistry::isOpen(rmlQuitWndPaths[i]))
+			RmlUiScreenRegistry::close(rmlQuitWndPaths[i]);
+}
 
 static GameWindow *quitConfirmationWindow = nullptr;
 
@@ -120,11 +135,7 @@ void destroyQuitMenu()
 {
   // destroy the quit menu
 	quitConfirmationWindow = nullptr;
-	if (!rmlQuitWndPath.isEmpty())
-	{
-		RmlUiScreenRegistry::close(rmlQuitWndPath);
-		rmlQuitWndPath.clear();
-	}
+	closeRmlQuitMenu();
 	if(fullQuitMenuLayout)
 	{
 		fullQuitMenuLayout->destroyWindows();
@@ -181,11 +192,8 @@ void HideQuitMenu()
 	// So don't do anything that counts on that menu actually being here.
 	if(!isVisible)
 		return;
-	if (!rmlQuitWndPath.isEmpty())
-	{
-		RmlUiScreenRegistry::close(rmlQuitWndPath);
-		rmlQuitWndPath.clear();
-	}
+	if (isRmlQuitMenuOpen())
+		closeRmlQuitMenu();
 	else if(quitMenuLayout && quitMenuLayout == noSaveLoadQuitMenuLayout)
 		TheTransitionHandler->reverse("QuitNoSaveBack");
 	else if( quitMenuLayout && quitMenuLayout == fullQuitMenuLayout)
@@ -205,7 +213,7 @@ void HideQuitMenu()
 // under -wnd.
 void openQuitMenuSaveLoad()
 {
-	if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered("Menus/PopupSaveLoad.wnd"))
+	if (RmlUiScreenRegistry::routesToRmlUi("Menus/PopupSaveLoad.wnd"))
 	{
 		RmlUiScreenRegistry::open("Menus/PopupSaveLoad.wnd");
 		return;
@@ -273,7 +281,7 @@ void ToggleQuitMenu()
 	}
 
 	// if we're visible hide our quit menu
-	if (isVisible && !rmlQuitWndPath.isEmpty())
+	if (isVisible && isRmlQuitMenuOpen())
 	{
 		// TheSuperHackers @feature RmlUi quit menu: no WindowLayout/gadgets for this path.
 		isVisible = FALSE;
@@ -282,8 +290,7 @@ void ToggleQuitMenu()
 		quitConfirmationWindow = nullptr;
 		if ( !TheGameLogic->isInMultiplayerGame() )
 			TheGameLogic->setGamePaused(FALSE);
-		RmlUiScreenRegistry::close(rmlQuitWndPath);
-		rmlQuitWndPath.clear();
+		closeRmlQuitMenu();
 	}
 	else if(isVisible && quitMenuLayout)
 	{
@@ -325,7 +332,7 @@ void ToggleQuitMenu()
 		// captions/enabled state from QuitMenuActions (see RmlQuitMenuScreen.cpp); no gadgets to
 		// look up or manipulate here, unlike the .wnd path below.
 		const AsciiString rmlWndPath = QuitMenuActions::useNoSaveVariant() ? AsciiString("Menus/QuitNoSave.wnd") : AsciiString("Menus/QuitMenu.wnd");
-		if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered(rmlWndPath))
+		if (RmlUiScreenRegistry::routesToRmlUi(rmlWndPath))
 		{
 			QuitMenuActions::pauseForOpen();
 
@@ -336,8 +343,7 @@ void ToggleQuitMenu()
 			HideInGameChat();
 			TheControlBar->hidePurchaseScience();
 
-			rmlQuitWndPath = rmlWndPath;
-			RmlUiScreenRegistry::open(rmlQuitWndPath);
+			RmlUiScreenRegistry::open(rmlWndPath);
 			isVisible = TRUE;
 			TheInGameUI->setQuitMenuVisible(isVisible);
 			return;

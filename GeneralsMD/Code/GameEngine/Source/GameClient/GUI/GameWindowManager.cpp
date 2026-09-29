@@ -1644,7 +1644,7 @@ GameWindow* GameWindowManager::gogoMessageBox(Int x, Int y, Int width, Int heigh
 	// TheSuperHackers @feature RmlUi message box: same routing as RmlUiScreenRegistry (see
 	// RmlUiMessageBoxHook.h). The handle is a registry placeholder window: winDestroy() closes the
 	// box, and a button click destroys it after the callback, like the .wnd MessageBoxSystem does.
-	if (!TheGlobalData->m_useLegacyMenus && RmlUiMessageBoxHook::isAvailable())
+	if (RmlUiScreenRegistry::routesMessageBoxToRmlUi())
 	{
 		const UnsignedInt boxId = RmlUiMessageBoxHook::show(buttonFlags, titleString, bodyString, yesCallback, noCallback, okCallback, cancelCallback, useLogo);
 		return boxId != 0 ? RmlUiScreenRegistry::createMessageBoxWindow(boxId) : NULL;

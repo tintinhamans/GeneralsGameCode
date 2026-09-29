@@ -20,6 +20,7 @@
 #include "GameClient/RmlUiScreenRegistry.h"
 
 #include "Common/AsciiString.h"
+#include "Common/GlobalData.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/RmlUiMessageBoxHook.h"
@@ -35,6 +36,7 @@ namespace
 		AsciiString wndPath;
 		RmlUiScreenFunc open;
 		RmlUiScreenFunc close;
+		bool isOpen;
 	};
 
 	// Small and linearly scanned: at most a few dozen screens, looked up on menu navigation only.
@@ -110,6 +112,7 @@ void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc op
 	e.wndPath = path;
 	e.open = open;
 	e.close = close;
+	e.isOpen = false;
 	entries().push_back(e);
 }
 
@@ -142,6 +145,7 @@ bool RmlUiScreenRegistry::open(const AsciiString &wndPath)
 	Entry *e = find(wndPath);
 	if (!e || !e->open)
 		return false;
+	e->isOpen = true;
 	e->open();
 	return true;
 }
@@ -151,8 +155,30 @@ bool RmlUiScreenRegistry::close(const AsciiString &wndPath)
 	Entry *e = find(wndPath);
 	if (!e || !e->close)
 		return false;
+	e->isOpen = false;
 	e->close();
 	return true;
+}
+
+bool RmlUiScreenRegistry::isOpen(const AsciiString &wndPath)
+{
+	const Entry *e = find(wndPath);
+	return e && e->isOpen;
+}
+
+bool RmlUiScreenRegistry::usesLegacyMenus()
+{
+	return TheGlobalData && TheGlobalData->m_useLegacyMenus;
+}
+
+bool RmlUiScreenRegistry::routesToRmlUi(const AsciiString &wndPath)
+{
+	return !usesLegacyMenus() && isRegistered(wndPath);
+}
+
+bool RmlUiScreenRegistry::routesMessageBoxToRmlUi()
+{
+	return !usesLegacyMenus() && RmlUiMessageBoxHook::isAvailable();
 }
 
 //-------------------------------------------------------------------------------------------------

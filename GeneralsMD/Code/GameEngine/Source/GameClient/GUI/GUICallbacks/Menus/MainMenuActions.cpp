@@ -83,7 +83,7 @@ void openOptions()
 {
 	// TheSuperHackers @feature RmlUi screen registry: route to the RmlUi options screen
 	// unless -wnd was given or RmlUi isn't linked/initialized (see RmlUiScreenRegistry.h).
-	if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered("Menus/OptionsMenu.wnd"))
+	if (RmlUiScreenRegistry::routesToRmlUi("Menus/OptionsMenu.wnd"))
 	{
 		RmlUiScreenRegistry::open("Menus/OptionsMenu.wnd");
 	}
