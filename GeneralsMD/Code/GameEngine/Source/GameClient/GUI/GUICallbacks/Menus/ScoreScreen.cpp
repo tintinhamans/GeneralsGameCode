@@ -149,7 +149,6 @@ NameKeyType staticTextAcademyTitleID = NAMEKEY_INVALID;
 GameWindow *staticTextAcademyTitle = nullptr;
 
 
-std::string LastReplayFileName;
 static Bool canSaveReplay = FALSE;
 extern void PopupReplayUpdate(WindowLayout *layout, void *userData);
 
@@ -288,8 +287,6 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 	challengeWinLossText = TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey("ScoreScreen.wnd:ChallengeWinLossText") );
 	challengeRemarks = TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey("ScoreScreen.wnd:GeneralRemarks") );
 	gadgetParent = TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey("ScoreScreen.wnd:GadgetParent") );
-	// get the replay filename for later (not full path)
-	LastReplayFileName = TheRecorder->getLastReplayFileName().str();
 	staticTextGameSaved->winHide(TRUE);
 	overidePlayerDisplayName = FALSE;
 	WindowLayout *replayLayout = TheShell->getPopupReplayLayout();

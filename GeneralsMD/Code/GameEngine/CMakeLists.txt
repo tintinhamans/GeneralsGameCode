@@ -788,6 +788,8 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/PlayerStatsData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupPlayerInfo.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupReplay.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/PopupReplayActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/PopupReplayData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/PopupSaveLoad.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/QuickMatchActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/QuickMatchSession.cpp

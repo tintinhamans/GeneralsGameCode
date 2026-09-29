@@ -81,9 +81,9 @@ static Color toColor( UnsignedInt rgb )
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Fill the listbox from the replay rows */
+/** Fill the listbox from the replay rows. Also used by PopupReplay. */
 //-------------------------------------------------------------------------------------------------
-static void fillListbox(GameWindow *listbox, const std::vector<ReplayRow> &rows)
+void FillReplayListbox(GameWindow *listbox, const std::vector<ReplayRow> &rows)
 {
 	GadgetListBoxReset(listbox);
 	const Int listboxLength = GadgetListBoxGetListLength(listbox);
@@ -129,34 +129,6 @@ static void fillListbox(GameWindow *listbox, const std::vector<ReplayRow> &rows)
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Populate the listbox with the names of the available replay files. Also used by PopupReplay. */
-//-------------------------------------------------------------------------------------------------
-void PopulateReplayFileListbox(GameWindow *listbox)
-{
-	std::vector<ReplayRow> rows;
-	if (!ReplayList::scan(rows))
-		return;
-
-	fillListbox(listbox, rows);
-}
-
-UnicodeString GetReplayFilenameFromListbox(GameWindow *listbox, Int index)
-{
-	UnicodeString fname = GadgetListBoxGetText(listbox, index);
-
-	if (fname == TheGameText->fetch("GUI:LastReplay"))
-	{
-		fname.translate(TheRecorder->getLastReplayFileName());
-	}
-
-	UnicodeString ext;
-	ext.translate(TheRecorder->getReplayExtention());
-	fname.concat(ext);
-
-	return fname;
-}
-
-//-------------------------------------------------------------------------------------------------
 /** Make the listbox show the replay data: the rows and the selection */
 //-------------------------------------------------------------------------------------------------
 static void syncWindows()
@@ -165,8 +137,8 @@ static void syncWindows()
 
 	if( shownRowsVersion != data.m_rowsVersion )
 	{
-		fillListbox( listboxReplayFiles, data.m_rows );
 		shownRowsVersion = data.m_rowsVersion;
+		FillReplayListbox( listboxReplayFiles, data.m_rows );
 	}
 
 	Int selected;
