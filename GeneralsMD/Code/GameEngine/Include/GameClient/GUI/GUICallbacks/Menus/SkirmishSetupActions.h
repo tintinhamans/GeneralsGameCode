@@ -83,7 +83,8 @@ namespace SkirmishSetupActions
 	// Non-hosts can never move anyone, so this always returns -1 for them.
 	Int getNextSelectablePlayer( GameInfo *game, Int start );
 
-	// ComboBoxPlayer[i]: set slot i's occupant (open/closed/AI difficulty/human) and name.
+	// ComboBoxPlayer[i]: set slot i's occupant (open/closed/AI difficulty/human) and name. No-op for
+	// the local slot or an unchanged state.
 	void selectPlayerState( GameInfo *game, Int slotIndex, SlotState state, const UnicodeString &name );
 
 	// ComboBoxColor[i]: set slot i's color, unless another slot already has it. Returns

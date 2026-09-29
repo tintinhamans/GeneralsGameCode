@@ -27,14 +27,14 @@
 						<option value="2"><gametext key="GUI:EasyAI"/></option>
 						<option value="3"><gametext key="GUI:MediumAI"/></option>
 						<option value="4"><gametext key="GUI:HardAI"/></option>
+						<option value="5" data-if="row.is_human_occupant">{{row.player_name}}</option>
 					</select>
 					<div class="slot-name" data-if="row.is_human_occupant">{{row.player_name}}</div>
-					<div class="slot-color color-select">
+					<div class="slot-color">
 						<select data-value="row.color" data-attrif-disabled="!row.can_edit || !row.is_occupied"
 							data-event-change="slot_color_changed(row.slot_index)">
-							<option data-for="opt : color_options" data-attr-value="opt.value"><span class="color-swatch" data-style-background-color="opt.label"></span></option>
+							<option data-for="opt : row.color_options" data-attr-value="opt.value"><span class="color-swatch" data-style-background-color="opt.swatch"></span>{{opt.label}}</option>
 						</select>
-						<div class="color-chip" data-style-background-color="row.color_hex"></div>
 					</div>
 					<select class="slot-faction" data-if="!row.is_human_occupant" data-value="row.player_template"
 						data-attrif-disabled="!row.can_edit || !row.is_occupied" data-event-change="slot_faction_changed(row.slot_index)">
@@ -44,10 +44,10 @@
 					<select class="slot-team" data-value="row.team_number" data-attrif-disabled="!row.can_edit || !row.is_occupied"
 						data-event-change="slot_team_changed(row.slot_index)">
 						<option value="-1"><gametext key="Team:0"/></option>
-						<option value="0">1</option>
-						<option value="1">2</option>
-						<option value="2">3</option>
-						<option value="3">4</option>
+						<option value="0"><gametext key="Team:1"/></option>
+						<option value="1"><gametext key="Team:2"/></option>
+						<option value="2"><gametext key="Team:3"/></option>
+						<option value="3"><gametext key="Team:4"/></option>
 					</select>
 				</div>
 			</div>

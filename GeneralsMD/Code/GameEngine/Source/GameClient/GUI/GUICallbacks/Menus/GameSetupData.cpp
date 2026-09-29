@@ -24,10 +24,14 @@
 
 #include "Common/MultiplayerSettings.h"
 #include "Common/PlayerTemplate.h"
+#include "GameClient/ChallengeGenerals.h"
+#include "GameClient/GameText.h"
 #include "GameClient/MapUtil.h"
 #include "GameNetwork/GUIUtil.h"
 
-GameSetupData GameSetupData::build( GameInfo *game )
+#include <set>
+
+GameSetupData GameSetupData::build( GameInfo *game, Bool allowObservers )
 {
 	GameSetupData data;
 
@@ -53,7 +57,25 @@ GameSetupData GameSetupData::build( GameInfo *game )
 		row.m_startPosition = slot->getStartPos();
 		row.m_isAI = slot->isAI();
 		row.m_isLocalSlot = ( i == localSlotNum );
-		row.m_canEdit = amIHost || row.m_isLocalSlot;
+		row.m_canEdit = row.m_isLocalSlot || ( amIHost && slot->isAI() );
+		row.m_canEditOccupant = amIHost && !row.m_isLocalSlot;
+
+		// Same filter as PopulateColorComboBox().
+		row.m_colorChoices.push_back( -1 );
+		if( TheMultiplayerSettings && row.m_playerTemplate != PLAYERTEMPLATE_OBSERVER )
+		{
+			for( Int c = 0; c < TheMultiplayerSettings->getNumColors(); ++c )
+			{
+				Bool taken = FALSE;
+				for( Int j = 0; j < MAX_SLOTS && !taken; ++j )
+				{
+					const GameSlot *other = game->getConstSlot( j );
+					taken = ( j != i && other && other->getColor() == c );
+				}
+				if( !taken && TheMultiplayerSettings->getColor( c ) )
+					row.m_colorChoices.push_back( c );
+			}
+		}
 	}
 
 	AsciiString lowerMap = game->getMap();
@@ -81,23 +103,57 @@ GameSetupData GameSetupData::build( GameInfo *game )
 		options.m_mapNumPlayers = 0;
 	}
 
-	if( ThePlayerTemplateStore )
+	// Same entries as PopulatePlayerTemplateComboBox().
+	if( ThePlayerTemplateStore && TheGameText )
 	{
+		GameSetupFactionOption random;
+		random.m_playerTemplate = PLAYERTEMPLATE_RANDOM;
+		random.m_displayName = TheGameText->fetch( "GUI:Random" );
+		options.m_factionOptions.push_back( random );
+
+		std::set<AsciiString> seenSides;
 		for( Int i = 0; i < ThePlayerTemplateStore->getPlayerTemplateCount(); ++i )
 		{
 			const PlayerTemplate *tmpl = ThePlayerTemplateStore->getNthPlayerTemplate( i );
-			if( !tmpl || !tmpl->isPlayableSide() )
+			if( !tmpl || tmpl->getStartingBuilding().isEmpty() )
+				continue;
+
+			if( game->oldFactionsOnly() && !tmpl->isOldFaction() )
+				continue;
+
+			const GeneralPersona *general = TheChallengeGenerals ? TheChallengeGenerals->getGeneralByTemplateName( tmpl->getName() ) : nullptr;
+			if( general && !general->isStartingEnabled() )
+				continue;
+
+			AsciiString side;
+			side.format( "SIDE:%s", tmpl->getSide().str() );
+			if( !seenSides.insert( side ).second )
 				continue;
 
 			GameSetupFactionOption option;
 			option.m_playerTemplate = i;
-			option.m_displayName = tmpl->getDisplayName();
+			option.m_displayName = TheGameText->fetch( side );
 			options.m_factionOptions.push_back( option );
+		}
+
+		if( allowObservers )
+		{
+			GameSetupFactionOption observer;
+			observer.m_playerTemplate = PLAYERTEMPLATE_OBSERVER;
+			observer.m_displayName = TheGameText->fetch( "GUI:Observer" );
+			options.m_factionOptions.push_back( observer );
 		}
 	}
 
-	if( TheMultiplayerSettings )
+	if( TheMultiplayerSettings && TheGameText )
 	{
+		GameSetupColorOption random;
+		random.m_color = -1;
+		MultiplayerColorDefinition *randomDef = TheMultiplayerSettings->getColor( PLAYERTEMPLATE_RANDOM );
+		random.m_rgb = randomDef ? ( randomDef->getColor() & 0x00FFFFFF ) : 0x00FFFFFF;
+		random.m_name = TheGameText->fetch( "GUI:Random" );
+		options.m_colorOptions.push_back( random );
+
 		for( Int i = 0; i < TheMultiplayerSettings->getNumColors(); ++i )
 		{
 			MultiplayerColorDefinition *colorDef = TheMultiplayerSettings->getColor( i );
@@ -107,6 +163,12 @@ GameSetupData GameSetupData::build( GameInfo *game )
 			GameSetupColorOption option;
 			option.m_color = i;
 			option.m_rgb = colorDef->getColor() & 0x00FFFFFF;
+
+			// Same name lookup as PopulateColorComboBox().
+			Bool found = FALSE;
+			option.m_name = TheGameText->fetch( colorDef->getTooltipName().str(), &found );
+			if( !found )
+				option.m_name.format( L"%hs", colorDef->getTooltipName().str() );
 			options.m_colorOptions.push_back( option );
 		}
 	}

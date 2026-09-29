@@ -82,6 +82,13 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
 
+	struct OptionModel
+	{
+		int value = 0;
+		Rml::String label;
+		Rml::String swatch; // color options only: "#RRGGBB", "transparent" for random
+	};
+
 	// One slot row's worth of fields for the data-for-bound slot table (see load()). Field names
 	// mirror GameSetupSlotRow, plus the occupant/faction/color/team labels/hex the RML needs to
 	// draw the row without re-deriving them from raw ids.
@@ -93,12 +100,14 @@ private:
 		bool isHumanOccupant = false; // state == SLOT_PLAYER (name comes from the player, not a fixed AI label)
 		Rml::String occupantLabel; // player name, or "Open"/"Closed"/"Easy AI"/etc for the dropdown's current value
 		bool canEdit = false;
-		bool canEditOccupant = false; // canEdit && not the local slot (host can't reassign their own occupant here)
+		bool canEditOccupant = false; // GameSetupSlotRow::m_canEditOccupant
 		Rml::String playerName;
 		int playerTemplate = 0;
 		Rml::String factionLabel;
 		int color = -1;
-		Rml::String colorHex; // "#RRGGBB", empty if color == -1
+		Rml::String colorHex; // "#RRGGBB", "transparent" if color == -1
+		Rml::String colorName;
+		Rml::Vector<OptionModel> colorOptions; // GameSetupSlotRow::m_colorChoices
 		int teamNumber = -1;
 		int startPosition = -1;
 	};
@@ -123,18 +132,11 @@ private:
 		bool used = false;
 	};
 
-	struct OptionModel
-	{
-		int value = 0;
-		Rml::String label;
-	};
-
 	struct Model
 	{
 		Rml::Vector<SlotRowModel> slots;
 		Rml::Vector<StartMarkerModel> startMarkers;
 		Rml::Vector<OptionModel> factionOptions;
-		Rml::Vector<OptionModel> colorOptions;
 		Rml::Vector<OptionModel> startingCashOptions; // GameSetupStartingCashOption, same preset list as the .wnd combo box
 
 		Rml::String mapName;

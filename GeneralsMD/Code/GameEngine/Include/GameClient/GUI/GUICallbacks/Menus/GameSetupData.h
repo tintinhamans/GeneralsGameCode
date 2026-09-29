@@ -51,9 +51,17 @@ struct GameSetupSlotRow
 	// True for the slot the local machine controls (the only slot a non-host can edit).
 	Bool m_isLocalSlot = FALSE;
 
-	// True if this slot can be edited from here: always true for the host, true for
-	// non-hosts only on their own local slot.
+	// True if this slot's color/faction/team can be set from here: the local slot, and AI slots
+	// for the host. Same rule as UpdateSlotList()'s EnableAcceptControls() calls.
 	Bool m_canEdit = FALSE;
+
+	// True if this slot's occupant (open/closed/AI) can be set from here: every slot but the
+	// local one, for the host only.
+	Bool m_canEditOccupant = FALSE;
+
+	// Colors this slot's color combo offers, in order: -1 (random) first, then every color no other
+	// slot has taken; only -1 for an observer. Same list PopulateColorComboBox() builds per slot.
+	std::vector<Int> m_colorChoices;
 };
 
 // One start-position marker for the map preview: waypoint position expressed as a fraction
@@ -72,20 +80,22 @@ struct GameSetupStartPositionMarker
 	Bool m_used = FALSE;
 };
 
-// One selectable faction entry (ThePlayerTemplateStore order), for the faction dropdown every
-// slot row shares.
+// One selectable faction entry, for the faction dropdown every slot row shares. Same entries and
+// order as PopulatePlayerTemplateComboBox(): Random first, one entry per playable side, then
+// Observer when the game allows observers.
 struct GameSetupFactionOption
 {
 	Int m_playerTemplate = PLAYERTEMPLATE_RANDOM;
 	UnicodeString m_displayName;
 };
 
-// One selectable color entry (TheMultiplayerSettings order), for the color dropdown every slot
-// row shares.
+// One color entry (TheMultiplayerSettings order, -1 first). A slot row offers the subset in its
+// GameSetupSlotRow::m_colorChoices.
 struct GameSetupColorOption
 {
 	Int m_color = -1;
 	UnsignedInt m_rgb = 0; // 0x00RRGGBB, from MultiplayerColorDefinition::getColor()
+	UnicodeString m_name; // the color's tooltip name; GUI:Random for -1
 };
 
 // One selectable starting-cash preset (TheMultiplayerSettings::getStartingMoneyList() order),
@@ -135,7 +145,9 @@ struct GameSetupData
 
 	// Snapshot the current slots and map/options state out of game. Read-only: no side
 	// effects, safe to call every frame a renderer needs to refresh.
-	static GameSetupData build( GameInfo *game );
+	// allowObservers adds the Observer faction entry, as PopulatePlayerTemplateComboBox()'s
+	// allowObservers does (LAN and online setup; never skirmish).
+	static GameSetupData build( GameInfo *game, Bool allowObservers = FALSE );
 
 	// Same fractional math as positionStartSpots( AsciiString, ... )/positionStartSpotControls(),
 	// keyed only by map name so a map-browse preview (no GameInfo/slots yet, e.g. the map select

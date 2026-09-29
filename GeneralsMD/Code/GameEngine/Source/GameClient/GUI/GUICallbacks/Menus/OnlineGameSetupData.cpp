@@ -72,7 +72,7 @@ OnlineGameSetupData OnlineGameSetupData::build( NGMPGame *game )
 	if( !game )
 		return data;
 
-	GameSetupData setup = GameSetupData::build( game );
+	GameSetupData setup = GameSetupData::build( game, game->getAllowObservers() );
 	data.m_options = setup.m_options;
 	data.m_isHost = game->amIHost();
 	data.m_gameName = game->getGameName();

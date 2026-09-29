@@ -151,6 +151,16 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("onlinegamesetup");
 	if (constructor)
 	{
+		// Registered before the slot rows, which hold a per-row list of these.
+		Rml::StructHandle<OptionModel> optionHandle = constructor.RegisterStruct<OptionModel>();
+		if (optionHandle)
+		{
+			optionHandle.RegisterMember("value", &OptionModel::value);
+			optionHandle.RegisterMember("label", &OptionModel::label);
+			optionHandle.RegisterMember("swatch", &OptionModel::swatch);
+		}
+		constructor.RegisterArray<Rml::Vector<OptionModel>>();
+
 		Rml::StructHandle<SlotRowModel> rowHandle = constructor.RegisterStruct<SlotRowModel>();
 		if (rowHandle)
 		{
@@ -167,6 +177,8 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 			rowHandle.RegisterMember("faction_tooltip", &SlotRowModel::factionTooltip);
 			rowHandle.RegisterMember("color", &SlotRowModel::color);
 			rowHandle.RegisterMember("color_hex", &SlotRowModel::colorHex);
+			rowHandle.RegisterMember("color_name", &SlotRowModel::colorName);
+			rowHandle.RegisterMember("color_options", &SlotRowModel::colorOptions);
 			rowHandle.RegisterMember("team_number", &SlotRowModel::teamNumber);
 			rowHandle.RegisterMember("start_position", &SlotRowModel::startPosition);
 			rowHandle.RegisterMember("accepted", &SlotRowModel::accepted);
@@ -188,13 +200,6 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 			markerHandle.RegisterMember("used", &StartMarkerModel::used);
 		}
 
-		Rml::StructHandle<OptionModel> optionHandle = constructor.RegisterStruct<OptionModel>();
-		if (optionHandle)
-		{
-			optionHandle.RegisterMember("value", &OptionModel::value);
-			optionHandle.RegisterMember("label", &OptionModel::label);
-		}
-
 		Rml::StructHandle<ChatLineModel> chatHandle = constructor.RegisterStruct<ChatLineModel>();
 		if (chatHandle)
 		{
@@ -204,13 +209,11 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 
 		constructor.RegisterArray<Rml::Vector<SlotRowModel>>();
 		constructor.RegisterArray<Rml::Vector<StartMarkerModel>>();
-		constructor.RegisterArray<Rml::Vector<OptionModel>>();
 		constructor.RegisterArray<Rml::Vector<ChatLineModel>>();
 
 		constructor.Bind("slots", &m_model.slots);
 		constructor.Bind("start_markers", &m_model.startMarkers);
 		constructor.Bind("faction_options", &m_model.factionOptions);
-		constructor.Bind("color_options", &m_model.colorOptions);
 		constructor.Bind("starting_cash_options", &m_model.startingCashOptions);
 		constructor.Bind("game_name", &m_model.gameName);
 		constructor.Bind("map_name", &m_model.mapName);
@@ -277,7 +280,7 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 		row.isHumanOccupant = base.m_state == SLOT_PLAYER;
 		row.occupantLabel = unicodeToUtf8(base.m_name);
 		row.canEdit = base.m_canEdit == TRUE;
-		row.canEditOccupant = row.canEdit && !base.m_isLocalSlot;
+		row.canEditOccupant = base.m_canEditOccupant == TRUE;
 		row.playerName = unicodeToUtf8(base.m_name);
 		row.playerTemplate = base.m_playerTemplate;
 		row.color = base.m_color;
@@ -303,8 +306,14 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 		{
 			if (color.m_color == base.m_color)
 			{
-				row.colorHex = rgbToHex(color.m_rgb);
-				break;
+				row.colorName = unicodeToUtf8(color.m_name);
+				if (color.m_color >= 0)
+					row.colorHex = rgbToHex(color.m_rgb);
+			}
+			for (Int choice : base.m_colorChoices)
+			{
+				if (choice == color.m_color)
+					row.colorOptions.push_back(OptionModel{ color.m_color, unicodeToUtf8(color.m_name), color.m_color >= 0 ? rgbToHex(color.m_rgb) : Rml::String(kNoColorHex) });
 			}
 		}
 
@@ -333,7 +342,7 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 				markerModel.occupantLabel = unicodeToUtf8(src.m_name);
 				for (const GameSetupColorOption &color : data.m_options.m_colorOptions)
 				{
-					if (color.m_color == src.m_color)
+					if (color.m_color >= 0 && color.m_color == src.m_color)
 					{
 						markerModel.colorHex = rgbToHex(color.m_rgb);
 						break;
@@ -350,10 +359,6 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 	for (const GameSetupFactionOption &faction : data.m_options.m_factionOptions)
 		m_model.factionOptions.push_back(OptionModel{ faction.m_playerTemplate, unicodeToUtf8(faction.m_displayName) });
 
-	m_model.colorOptions.clear();
-	for (const GameSetupColorOption &color : data.m_options.m_colorOptions)
-		m_model.colorOptions.push_back(OptionModel{ color.m_color, rgbToHex(color.m_rgb) });
-
 	m_model.startingCashOptions.clear();
 	for (const GameSetupStartingCashOption &cash : data.m_options.m_startingCashOptions)
 		m_model.startingCashOptions.push_back(OptionModel{ cash.m_amount, unicodeToUtf8(cash.m_label) });
@@ -369,7 +374,6 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 		m_modelHandle.DirtyVariable("slots");
 		m_modelHandle.DirtyVariable("start_markers");
 		m_modelHandle.DirtyVariable("faction_options");
-		m_modelHandle.DirtyVariable("color_options");
 		m_modelHandle.DirtyVariable("starting_cash_options");
 		m_modelHandle.DirtyVariable("game_name");
 		m_modelHandle.DirtyVariable("map_name");

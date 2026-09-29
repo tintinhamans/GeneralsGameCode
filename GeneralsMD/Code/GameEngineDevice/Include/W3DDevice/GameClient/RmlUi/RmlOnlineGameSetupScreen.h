@@ -110,6 +110,13 @@ private:
 	SignalConnections m_connections; // OnlineGameSetupSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
 
+	struct OptionModel
+	{
+		int value = 0;
+		Rml::String label;
+		Rml::String swatch; // color options only: "#RRGGBB", "transparent" for random
+	};
+
 	// One slot row's worth of fields for the data-for-bound slot table (see load()). Same shape as
 	// RmlLanGameSetupScreen::SlotRowModel, plus the online-only bits (connection state/tooltip)
 	// OnlineGameSetupData layers on top of GameSetupSlotRow.
@@ -128,6 +135,8 @@ private:
 		Rml::String factionTooltip; // "Army Tooltip" text, mirrors playerTemplateComboBoxTooltip()
 		int color = -1;
 		Rml::String colorHex;
+		Rml::String colorName;
+		Rml::Vector<OptionModel> colorOptions; // GameSetupSlotRow::m_colorChoices
 		int teamNumber = -1;
 		int startPosition = -1;
 
@@ -155,12 +164,6 @@ private:
 		bool used = false;
 	};
 
-	struct OptionModel
-	{
-		int value = 0;
-		Rml::String label;
-	};
-
 	// One chat/system-notice line (see OnlineGameSetupActions::ChatLineFn / OnlineGameSetupSignals::
 	// chatLine). color is bound with data-style-color on a child span of the data-for row
 	// (see OnlineGameSetup.rml), the same idiom RmlOnlineLobbyScreen/RmlLanLobbyScreen use for their
@@ -176,7 +179,6 @@ private:
 		Rml::Vector<SlotRowModel> slots;
 		Rml::Vector<StartMarkerModel> startMarkers;
 		Rml::Vector<OptionModel> factionOptions;
-		Rml::Vector<OptionModel> colorOptions;
 		Rml::Vector<OptionModel> startingCashOptions;
 
 		Rml::String gameName; // StaticTextGameName, theGameInfo->getGameName()

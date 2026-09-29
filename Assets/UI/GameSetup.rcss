@@ -196,48 +196,20 @@
 .slot-team { width: 19%; }
 .slot-name { color: #FFFFFF; font-weight: bold; }
 
-/* Color-slot swatch: an inner element carrying the data-style-background-color instead of the
-   <option>/selectvalue itself, so the colour survives RmlUi's <select> copying the chosen
-   option's content into its internal selectvalue element (task: "make the swatch survive that"). */
+/* Color choice: a swatch in front of the colour's name (a hollow swatch for Random). */
 .color-swatch
 {
-	display: block;
-	width: 100%;
+	display: inline-block;
+	width: 14dp;
 	height: 14dp;
-	border: 1dp rgba(255, 255, 255, 80);
+	margin-right: 6dp;
+	border: 1dp rgba(255, 255, 255, 160);
 }
 
-/* RmlUi's internal selectvalue box doesn't reliably size itself to its <select>'s own content
-   width (it can end up sized off the widest cloned option instead), so a full-width .color-swatch
-   cloned into it can bleed past the select's right edge into the next column. Rather than rely on
-   that box, hide the cloned swatch when it's sitting inside selectvalue (it's still shown normally
-   in the open dropdown list, where it's a real descendant of each <option>) and paint the current
-   colour with a plain overlay div sized off the wrapper instead, which lays out like any other
-   block and can't escape it. */
-.color-select
-{
-	position: relative;
-}
-
-.color-select > select
+.slot-color > select
 {
 	width: 100%;
 	box-sizing: border-box;
-}
-
-.color-select > select selectvalue .color-swatch
-{
-	display: none;
-}
-
-.color-select > .color-chip
-{
-	position: absolute;
-	left: 1dp;
-	top: 1dp;
-	right: 1dp;
-	bottom: 1dp;
-	pointer-events: none;
 }
 
 /* common.rcss's .row/.label/.control assume a wide options panel (.label flex-grows, .control is a

@@ -29,7 +29,7 @@ LanGameSetupData LanGameSetupData::build( LANGameInfo *game, Bool startButtonEna
 	if( !game )
 		return data;
 
-	GameSetupData setup = GameSetupData::build( game );
+	GameSetupData setup = GameSetupData::build( game, TRUE );
 	data.m_options = setup.m_options;
 	data.m_isHost = game->amIHost();
 	data.m_startButtonEnabled = startButtonEnabled;

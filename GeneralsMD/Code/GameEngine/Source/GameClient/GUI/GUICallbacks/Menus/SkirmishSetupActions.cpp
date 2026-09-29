@@ -53,7 +53,8 @@ void SkirmishSetupActions::selectPlayerState( GameInfo *game, Int slotIndex, Slo
 		return;
 
 	GameSlot *slot = game->getSlot( slotIndex );
-	if( !slot )
+	// The local player's own slot has no occupant choice (handlePlayerSelection() skips slot 0).
+	if( !slot || slotIndex == game->getLocalSlotNum() || slot->getState() == state )
 		return;
 
 	slot->setState( state, name );
