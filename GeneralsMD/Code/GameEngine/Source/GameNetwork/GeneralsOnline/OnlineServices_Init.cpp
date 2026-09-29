@@ -1059,16 +1059,27 @@ void NGMP_OnlineServicesManager::InitSentry()
 	curl_global_init(CURL_GLOBAL_DEFAULT);
 
 #if !_DEBUG
-	std::string strDumpPath = std::format("{}/GeneralsOnlineCrashData/", TheGlobalData->getPath_UserData().str());
-	if (!std::filesystem::exists(strDumpPath))
+	// game paths are in the process code page, sentry's char* API wants UTF-8, so hand it the wide path
+	std::wstring strDumpPath;
+	const AsciiString& strUserDataPath = TheGlobalData->getPath_UserData();
+	const int wideLen = MultiByteToWideChar(CP_ACP, 0, strUserDataPath.str(), -1, nullptr, 0);
+	if (!strUserDataPath.isEmpty() && wideLen > 1)
 	{
-		std::filesystem::create_directory(strDumpPath);
+		std::wstring strUserDataPathW(wideLen - 1, L'\0');
+		MultiByteToWideChar(CP_ACP, 0, strUserDataPath.str(), -1, strUserDataPathW.data(), wideLen);
+		strDumpPath = strUserDataPathW + L"GeneralsOnlineCrashData\\";
+
+		std::error_code ec;
+		std::filesystem::create_directories(strDumpPath, ec);
 	}
 
 	sentry_options_t* options = sentry_options_new();
 
 	sentry_options_set_dsn(options, "https://61750bebd112d279bcc286d617819269@o4509316925554688.ingest.us.sentry.io/4509316927586304");
-	sentry_options_set_database_path(options, strDumpPath.c_str());
+	if (!strDumpPath.empty())
+	{
+		sentry_options_set_database_pathw(options, strDumpPath.c_str());
+	}
 
 	std::string strVersionStr = std::format("generalsonline-client@{}", GENERALS_ONLINE_VERSION_STRING);
 	sentry_options_set_release(options, strVersionStr.c_str());
