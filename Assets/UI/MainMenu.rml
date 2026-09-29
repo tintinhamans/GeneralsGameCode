@@ -8,30 +8,32 @@
 	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
 	<div class="screen-frame mm-frame">
-	<!-- Faction emblem over the shell map, left of the menu: the solo panel's hover preview
-	     (MainMenu.cpp's GBM_MOUSE_ENTERING/LEAVING art) and the difficulty panel's chosen side. -->
-	<div class="mm-hero">
-		<mappedimage name="SAFactionLogo144_US" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'USA') || (panel == 'difficulty' &amp;&amp; selected_faction == 'USA')"/>
-		<mappedimage name="SUFactionLogo144_GLA" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'GLA') || (panel == 'difficulty' &amp;&amp; selected_faction == 'GLA')"/>
-		<mappedimage name="SNFactionLogo144_China" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'China') || (panel == 'difficulty' &amp;&amp; selected_faction == 'China')"/>
-		<mappedimage name="Training144" data-class-visible="panel == 'single' &amp;&amp; hover_faction == 'Training'"/>
-	</div>
+		<!-- Faction emblem over the shell map, beside the menus: the solo panel's hover preview
+		     (MainMenu.cpp's GBM_MOUSE_ENTERING/LEAVING art) and the difficulty panel's chosen side. -->
+		<div class="mm-hero">
+			<mappedimage name="SAFactionLogo144_US" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'USA') || (panel == 'difficulty' &amp;&amp; selected_faction == 'USA')"/>
+			<mappedimage name="SUFactionLogo144_GLA" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'GLA') || (panel == 'difficulty' &amp;&amp; selected_faction == 'GLA')"/>
+			<mappedimage name="SNFactionLogo144_China" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'China') || (panel == 'difficulty' &amp;&amp; selected_faction == 'China')"/>
+			<mappedimage name="Training144" data-class-visible="panel == 'single' &amp;&amp; hover_faction == 'Training'"/>
+		</div>
 
-	<div class="mm-column">
-		<mappedimage name="GeneralsLogo" class="mm-logo"/>
+		<!-- Logo and the root menu down the left; it stays up while a sub-panel is open beside it. -->
+		<div class="mm-left">
+			<mappedimage name="GeneralsLogo" class="mm-logo"/>
 
-		<div class="mm-card">
-			<!-- Root -->
-			<div class="panel" data-class-active="panel == 'main'">
-				<button class="mm-item" data-event-click="go_single"><gametext key="GUI:SinglePlayer"/><span class="mm-more">&#8250;</span></button>
-				<button class="mm-item" data-event-click="go_multi"><gametext key="GUI:Multiplayer"/><span class="mm-more">&#8250;</span></button>
-				<button class="mm-item" data-event-click="go_loadreplay"><gametext key="GUI:ReplayMenu"/><span class="mm-more">&#8250;</span></button>
+			<div class="mm-menu">
+				<button class="mm-item" data-class-current="panel == 'single' || panel == 'difficulty'" data-event-click="go_single"><gametext key="GUI:SinglePlayer"/><span class="mm-more">&#8250;</span></button>
+				<button class="mm-item" data-class-current="panel == 'multi'" data-event-click="go_multi"><gametext key="GUI:Multiplayer"/><span class="mm-more">&#8250;</span></button>
+				<button class="mm-item" data-class-current="panel == 'loadreplay'" data-event-click="go_loadreplay"><gametext key="GUI:ReplayMenu"/><span class="mm-more">&#8250;</span></button>
 				<button class="mm-item" data-hook="options" data-event-click="go_options"><gametext key="GUI:Options"/></button>
 				<button class="mm-item" data-event-click="go_credits"><gametext key="GUI:Credits"/></button>
 				<div class="mm-rule"></div>
 				<button class="mm-item mm-quiet" data-hook="exit" data-event-click="go_exit"><gametext key="GUI:Exit"/></button>
 			</div>
+		</div>
 
+		<!-- Sub-panels slide in beside the menu; only the active one is laid out. -->
+		<div class="mm-sub" data-class-open="panel != 'main'">
 			<!-- Single player: skirmish, campaign faction pick, Generals Challenge -->
 			<div class="panel" data-class-active="panel == 'single'">
 				<div class="mm-heading"><gametext key="GUI:SinglePlayer"/></div>
@@ -72,9 +74,26 @@
 				<button class="mm-item mm-back" data-event-click="diff_back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
 			</div>
 		</div>
-	</div>
 
-	<div class="mm-version on-map">{{ version }}</div>
+		<!-- News and status down the right: Generals Online's player count and message of the day
+		     while the client has them, otherwise how to get them; the build version always. -->
+		<div class="mm-strip" data-class-covered="panel != 'main'">
+			<div class="surface mm-news">
+				<div class="overline accent-overline"><gametext key="GUI:GOStatusTitle"/></div>
+				<div class="mm-online" data-if="players_online_text != ''"><span class="dot"></span>{{players_online_text}}</div>
+				<div class="mm-motd" data-if="has_news">
+					<div class="overline mm-sub-overline"><gametext key="GUI:MOTD"/></div>
+					<div class="mm-motd-lines">
+						<div class="mm-motd-line" data-for="line : news_lines">{{line}}</div>
+					</div>
+				</div>
+				<div class="mm-offline muted" data-if="!has_news &amp;&amp; players_online_text == ''"><gametext key="GUI:GOMenuOffline"/></div>
+			</div>
+			<div class="surface mm-version">
+				<div class="overline"><gametext key="GUI:GOVersion"/></div>
+				<div class="mm-version-value">{{ version }}</div>
+			</div>
+		</div>
 	</div>
 </body>
 </rml>

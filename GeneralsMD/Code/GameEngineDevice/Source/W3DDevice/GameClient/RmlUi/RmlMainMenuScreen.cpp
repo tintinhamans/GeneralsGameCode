@@ -26,6 +26,7 @@
 #include "Common/UnicodeUtf8.h"
 #include "Common/version.h"
 #include "GameClient/GUI/GUICallbacks/Menus/MainMenuActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineWelcomeData.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/Mouse.h"
@@ -80,6 +81,10 @@ void RmlMainMenuScreen::load(Rml::Context *context)
 		constructor.Bind("selected_faction", &m_model.selectedFaction);
 		constructor.Bind("hover_faction", &m_model.hoverFaction);
 		constructor.Bind("version", &m_model.version);
+		constructor.RegisterArray<Rml::Vector<Rml::String>>();
+		constructor.Bind("news_lines", &m_model.newsLines);
+		constructor.Bind("has_news", &m_model.hasNews);
+		constructor.Bind("players_online_text", &m_model.playersOnlineText);
 
 		constructor.BindEventCallback("go_single", &RmlMainMenuScreen::onGoSingle, this);
 		constructor.BindEventCallback("go_multi", &RmlMainMenuScreen::onGoMulti, this);
@@ -133,6 +138,7 @@ void RmlMainMenuScreen::show()
 	m_model.hoverFaction = "";
 	m_challengePending = false;
 	m_model.version = TheVersion ? unicodeToUtf8(TheVersion->getUnicodeProductVersionHashString()) : Rml::String();
+	refreshNews();
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
@@ -315,6 +321,42 @@ void RmlMainMenuScreen::setHoverFaction(const Rml::String &faction)
 	m_model.hoverFaction = faction;
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("hover_faction");
+}
+
+// The welcome screen's message of the day and player count (OnlineWelcomeData), shown only while the
+// client has them: after a logout the online services are gone and the strip falls back to the version.
+void RmlMainMenuScreen::refreshNews()
+{
+	m_model.newsLines.clear();
+	for (const OnlineWelcomeMotdLine &line : OnlineWelcomeData::buildMotdLines())
+	{
+		if (!line.isHeading)
+			m_model.newsLines.push_back(unicodeToUtf8(line.text));
+	}
+	m_model.hasNews = false;
+	for (const Rml::String &line : m_model.newsLines)
+	{
+		if (line.find_first_not_of(' ') != Rml::String::npos)
+			m_model.hasNews = true;
+	}
+	if (!m_model.hasNews)
+		m_model.newsLines.clear();
+
+	const Int playersOnline = OnlineWelcomeData::currentNumPlayersOnline();
+	m_model.playersOnlineText = playersOnline > 0 ? unicodeToUtf8(OnlineWelcomeData::buildNumPlayersOnlineText(playersOnline)) : Rml::String();
+}
+
+void RmlMainMenuScreen::openFromRoot(const Rml::String &panel)
+{
+	if (m_model.panel == "difficulty")
+	{
+		goBackFromDifficulty();
+		if (panel == "single")
+			return;
+	}
+	if (m_model.panel != "main" && m_model.panel != panel)
+		setPanel("main"); // plays the leaving panel's back group and the root's, as its Back button would
+	setPanel(panel);
 }
 
 void RmlMainMenuScreen::onBackToMain(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)

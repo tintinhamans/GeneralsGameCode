@@ -55,9 +55,13 @@ private:
 	void setPanel(const Rml::String &panel);
 	void playPanelSounds(const Rml::String &from, const Rml::String &to);
 
-	void onGoSingle(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { setPanel("single"); }
-	void onGoMulti(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { setPanel("multi"); }
-	void onGoLoadReplay(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { setPanel("loadreplay"); }
+	// The root menu stays up beside an open sub-panel, so these also switch straight from one
+	// sub-panel to another (leaving a pending difficulty pick the way its Back button does).
+	void onGoSingle(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { openFromRoot("single"); }
+	void onGoMulti(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { openFromRoot("multi"); }
+	void onGoLoadReplay(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { openFromRoot("loadreplay"); }
+	void openFromRoot(const Rml::String &panel);
+	void refreshNews();
 	void onBackToMain(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onGoOptions(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onGoCredits(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -112,6 +116,10 @@ private:
 		Rml::String selectedFaction; // "", "USA", "GLA", "China", "Training"
 		Rml::String hoverFaction; // "", "USA", "GLA", "China", "Training" -- single panel preview only
 		Rml::String version;
+		// News strip: Generals Online's message of the day and player count, while the client has them.
+		Rml::Vector<Rml::String> newsLines;
+		bool hasNews = false;
+		Rml::String playersOnlineText;
 	} m_model;
 };
 

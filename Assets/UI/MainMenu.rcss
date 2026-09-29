@@ -2,27 +2,29 @@
 	MainMenu.rcss -- the main menu. Palette, type and motion tokens come from the screen template
 	in common.rcss.
 
-	The shell map is the main menu's picture, so the menu is one floating card on the right of the
-	frame (where MainMenu.wnd keeps its buttons) with the logo above it on the map; everything else
-	stays clear. Every panel (main/single/multi/loadreplay/difficulty) is always present in
-	.mm-card; the "panel" data model variable marks one .active, which is the only one laid out,
-	and it slides in from the right as it fades up (a keyframe animation on opacity and
-	margin-left: the renderer has no transforms). The card grows and shrinks with its panel.
+	The shell map is the main menu's picture. The logo sits top-left with the root menu under it
+	down the left edge; a sub-panel (solo, multiplayer, load/replay, difficulty) slides in beside the
+	menu while the root stays up with its item marked. The faction emblem of the solo and
+	difficulty panels floats over the map between the menus and the news strip on the right, which
+	holds Generals Online's player count and message of the day when the client has them and the
+	build version always. Every panel is always in .mm-sub; the "panel" data model variable marks
+	one .active, the only one laid out, and it slides in as it fades up (opacity and margin-left:
+	the renderer has no transforms).
 */
 
-/* ---- Menu card ------------------------------------------------------------------------------- */
+/* ---- Layout -------------------------------------------------------------------------------- */
 .mm-frame
 {
-	flex-direction: row;
-	justify-content: flex-end;
-	align-items: flex-start;
+	display: block;
 }
 
-.mm-column
+.mm-left
 {
 	display: block;
-	flex: 0 0 525dp;
-	margin-top: 45dp;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 540dp;
 }
 
 /* The logo is fixed dp: mappedimage ignores percentage sizes. 370x120 art. */
@@ -31,15 +33,38 @@
 	display: block;
 	width: 463dp;
 	height: 150dp;
-	margin: 0 0 30dp 31dp;
+	margin: 6dp 0 34dp 4dp;
 }
 
-.mm-card
+.mm-menu, .mm-sub
 {
 	display: block;
+	box-sizing: border-box;
 	padding: 18dp 20dp;
-	background-color: #070A1ADB;
-	border-top: 2dp #8080FF46;
+	background-color: #070A1AE0;
+	border-top: 2dp #F07A1A;
+}
+
+.mm-sub
+{
+	display: none;
+	position: absolute;
+	left: 560dp;
+	top: 190dp;
+	width: 450dp;
+	border-top-color: #8080FF46;
+}
+
+.mm-sub.open
+{
+	display: block;
+	animation: 0.24s cubic-out sub-in;
+}
+
+@keyframes sub-in
+{
+	from { opacity: 0; margin-left: -40dp; }
+	to { opacity: 1; margin-left: 0dp; }
 }
 
 /* Only the active panel is laid out; it slides in from the right as it fades up. */
@@ -116,6 +141,20 @@
 	border-left-color: #F07A1A;
 }
 
+/* The root item whose panel is open beside the menu. */
+.screen button.mm-item.current, .screen button.mm-item.current:hover
+{
+	color: #FFFFFF;
+	border-left-color: #F07A1A;
+	decorator: horizontal-gradient(#2F37A8F0 #2F37A840);
+}
+
+.mm-item.current .mm-more
+{
+	opacity: 1;
+	color: #FF9A3D;
+}
+
 /* Right-hand chevron on items that open another panel. */
 .mm-item gametext
 {
@@ -157,34 +196,94 @@
 	background-color: #8080FF28;
 }
 
-.mm-version
+/* ---- News strip ------------------------------------------------------------------------------ */
+.mm-strip
 {
+	display: block;
 	position: absolute;
-	right: 4dp;
-	bottom: 0;
-	font-size: 16dp;
-	color: #A9B1CF;
-	padding: 2dp 10dp;
-	background-color: #070A1AC8;
+	right: 0;
+	top: 0;
+	width: 400dp;
 }
 
-/* ---- Faction emblem over the map ------------------------------------------------------------ */
+.accent-overline
+{
+	color: #FF9A3D;
+}
+
+.mm-online
+{
+	display: block;
+	margin-top: 14dp;
+	font-size: 22dp;
+	font-weight: bold;
+	color: #EEF1FA;
+}
+
+.mm-online .dot
+{
+	margin-right: 12dp;
+	vertical-align: middle;
+}
+
+.mm-sub-overline
+{
+	margin-top: 22dp;
+	padding-top: 16dp;
+	border-top: 1dp #8080FF28;
+}
+
+.mm-motd-lines
+{
+	display: block;
+	margin-top: 10dp;
+	max-height: 460dp;
+	overflow: hidden;
+}
+
+.mm-motd-line
+{
+	display: block;
+	font-size: 18dp;
+	line-height: 25dp;
+	color: #D7DCF0;
+}
+
+.mm-offline
+{
+	display: block;
+	margin-top: 12dp;
+	font-size: 18dp;
+	line-height: 25dp;
+}
+
+.mm-version-value
+{
+	display: block;
+	margin-top: 6dp;
+	font-size: 18dp;
+	color: #D7DCF0;
+}
+
+/* ---- Faction emblem over the map, between the menus and the strip ----------------------------- */
 .mm-hero
 {
+	display: block;
 	position: absolute;
-	top: 34%;
-	left: 20%;
-	width: 270dp;
-	height: 270dp;
+	left: 1030dp;
+	right: 420dp;
+	top: 250dp;
+	height: 280dp;
 }
 
 .mm-hero mappedimage
 {
 	position: absolute;
 	top: 0;
-	left: 0;
-	width: 270dp;
-	height: 270dp;
+	left: 50%;
+	margin-left: -130dp;
+	width: 260dp;
+	height: 260dp;
 	opacity: 0;
 	transition: opacity 0.2s cubic-out;
 }
@@ -194,11 +293,14 @@
 	opacity: 1;
 }
 
-/* Narrow (5:4, 4:3) screens: the card takes more of the frame, so the emblem moves left. */
+/* Narrow (5:4, 4:3) screens: no room for the emblem, and the strip gives way to an open sub-panel. */
 @media (max-aspect-ratio: 3/2)
 {
-	.mm-hero
-	{
-		left: 8%;
-	}
+	.mm-left { width: 470dp; }
+	.mm-sub { left: 490dp; width: 420dp; }
+	.mm-logo { width: 432dp; height: 140dp; }
+	.mm-sub { top: 180dp; }
+	.mm-hero { display: none; }
+	.mm-strip { width: 330dp; }
+	.mm-strip.covered { display: none; }
 }

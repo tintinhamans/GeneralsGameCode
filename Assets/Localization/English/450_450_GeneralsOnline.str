@@ -42,3 +42,15 @@ END
 GUI:GODockUnblock
 "Unblock"
 END
+
+GUI:GOMenuOffline
+"Log in through Multiplayer to see the news and who is online."
+END
+
+GUI:GOVersion
+"Version"
+END
+
+GUI:GOStatusTitle
+"Generals Online"
+END
