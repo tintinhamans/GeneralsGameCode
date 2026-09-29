@@ -18,8 +18,8 @@
 
 // FILE: RmlLoadScreen.h //////////////////////////////////////////////////////
 // RmlUi view of the load screens (Menus/MapTransferScreen.wnd, Menus/MultiplayerLoadScreen.wnd,
-// Menus/GameSpyLoadScreen.wnd, Menus/ShellGameLoadScreen.wnd, Menus/SinglePlayerLoadScreen.wnd).
-// The LoadScreen classes keep all the logic and write a LoadScreenData; this only mirrors that
+// Menus/GameSpyLoadScreen.wnd, Menus/ShellGameLoadScreen.wnd, Menus/SinglePlayerLoadScreen.wnd,
+// Menus/ChallengeLoadScreen.wnd). The LoadScreen classes keep all the logic and write a LoadScreenData; this only mirrors that
 // into a data model whenever its version changes. One instance per document,
 // created by winCreateFromScript() through RmlUiScreenRegistry and closed when
 // the LoadScreen destroys its placeholder window. RmlUiManager::update() calls
@@ -39,7 +39,7 @@ namespace Rml { class Context; class ElementDocument; }
 class RmlLoadScreen
 {
 public:
-	enum Kind { KIND_MAP_TRANSFER, KIND_MULTIPLAYER, KIND_ONLINE, KIND_SHELL, KIND_SINGLE_PLAYER, KIND_COUNT };
+	enum Kind { KIND_MAP_TRANSFER, KIND_MULTIPLAYER, KIND_ONLINE, KIND_SHELL, KIND_SINGLE_PLAYER, KIND_CHALLENGE, KIND_COUNT };
 
 	static RmlLoadScreen &instance(Kind kind);
 	static void tick(); ///< refreshes every open instance whose LoadScreenData changed
@@ -89,6 +89,16 @@ private:
 		bool shown = false;
 	};
 
+	struct GeneralModel
+	{
+		Rml::String bigName;
+		Rml::String name;
+		Rml::String rank;
+		Rml::String strategy;
+		Rml::String portrait;
+		bool hasPortrait = false;
+	};
+
 	const char *m_documentPath;
 	const char *m_modelName;
 	Rml::Context *m_context = nullptr;
@@ -119,6 +129,17 @@ private:
 	Rml::Vector<UnitModel> m_units;
 	Rml::String m_location;
 	bool m_showLocation = false;
+
+	// challenge
+	Rml::Vector<GeneralModel> m_generals;
+	bool m_showBioTitles = false;
+	bool m_showBioEntries = false;
+	bool m_showPortraitMovies = false;
+	bool m_showPortraits = false;
+	bool m_showOuterCircle = false;
+	bool m_showInnerCircle = false;
+	bool m_showVersusBackdrop = false;
+	bool m_showVersus = false;
 };
 
 // Registry entry points (see RmlUiManager::init()).
@@ -132,3 +153,5 @@ void OpenRmlShellLoadScreen();
 void CloseRmlShellLoadScreen();
 void OpenRmlSinglePlayerLoadScreen();
 void CloseRmlSinglePlayerLoadScreen();
+void OpenRmlChallengeLoadScreen();
+void CloseRmlChallengeLoadScreen();

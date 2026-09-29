@@ -1,0 +1,47 @@
+<rml>
+<head>
+	<title>ChallengeLoadScreen</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="LoadScreen.rcss"/>
+	<link type="text/rcss" href="ChallengeLoadScreen.rcss"/>
+</head>
+<body class="ls-screen" data-model="challengeload">
+	<div class="ls-stage">
+		<div class="ls-fill ls-movie" data-if="has_movie"><video source="loadscreen-background" fit="contain"/></div>
+		<mappedimage class="ls-fill" name="MainMenuRuler"/>
+
+		<div class="cl-big-name left" data-if="show_bio_entries"><div>{{generals[0].big_name}}</div></div>
+		<div class="cl-portrait-movie left" data-if="show_portrait_movies"><video source="loadscreen-portrait-left" fit="contain"/></div>
+		<div class="cl-portrait left" data-if="show_portraits &amp;&amp; generals[0].has_portrait"><mappedimage data-attr-name="generals[0].portrait"/></div>
+		<div class="cl-bio left" data-if="show_bio_titles">
+			<div class="cl-bio-row"><div class="cl-bio-label"><gametext key="GUI:BioName"/></div><div class="cl-bio-entry" data-if="show_bio_entries">{{generals[0].name}}</div></div>
+			<div class="cl-bio-row"><div class="cl-bio-label"><gametext key="GUI:BioRank"/></div><div class="cl-bio-entry" data-if="show_bio_entries">{{generals[0].rank}}</div></div>
+			<div class="cl-bio-row"><div class="cl-bio-label"><gametext key="GUI:BioStrategy"/></div><div class="cl-bio-entry" data-if="show_bio_entries">{{generals[0].strategy}}</div></div>
+		</div>
+
+		<div class="cl-big-name right" data-if="show_bio_entries"><div>{{generals[1].big_name}}</div></div>
+		<div class="cl-portrait-movie right" data-if="show_portrait_movies"><video source="loadscreen-portrait-right" fit="contain"/></div>
+		<div class="cl-portrait right" data-if="show_portraits &amp;&amp; generals[1].has_portrait"><mappedimage data-attr-name="generals[1].portrait"/></div>
+		<div class="cl-bio right" data-if="show_bio_titles">
+			<div class="cl-bio-row"><div class="cl-bio-label"><gametext key="GUI:BioName"/></div><div class="cl-bio-entry" data-if="show_bio_entries">{{generals[1].name}}</div></div>
+			<div class="cl-bio-row"><div class="cl-bio-label"><gametext key="GUI:BioRank"/></div><div class="cl-bio-entry" data-if="show_bio_entries">{{generals[1].rank}}</div></div>
+			<div class="cl-bio-row"><div class="cl-bio-label"><gametext key="GUI:BioStrategy"/></div><div class="cl-bio-entry" data-if="show_bio_entries">{{generals[1].strategy}}</div></div>
+		</div>
+
+		<mappedimage class="cl-outer-circle" data-if="show_outer_circle" name="Circle_Small01"/>
+		<mappedimage class="cl-inner-circle" data-if="show_inner_circle" name="Circle_Small01"/>
+		<mappedimage class="cl-versus-backdrop" data-if="show_versus_backdrop" name="Circle_Small03_Black"/>
+		<div class="cl-versus" data-if="show_versus"><video source="loadscreen-versus" fit="contain"/></div>
+
+		<div class="ls-bar framed cl-bar">
+			<mappedimage class="ls-bar-cap ls-bar-cap-l" name="LoadingBar_L"/>
+			<div class="ls-bar-mid"></div>
+			<mappedimage class="ls-bar-cap ls-bar-cap-r" name="LoadingBar_R"/>
+			<div class="ls-bar-track">
+				<div class="ls-bar-rows ls-bar-rest"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+				<div class="ls-bar-fill" data-style-width="progress_style"><div class="ls-bar-rows ls-bar-done"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+			</div>
+		</div>
+	</div>
+</body>
+</rml>

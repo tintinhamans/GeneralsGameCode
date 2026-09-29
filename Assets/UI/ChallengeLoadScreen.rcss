@@ -1,0 +1,133 @@
+/*
+	ChallengeLoadScreen.rcss -- ChallengeLoadScreen.wnd: the mission's backdrop movie under the ruler
+	frame, the two generals' portrait movies (stills on min spec) with their typed out names and bios,
+	the reticle circles and the "vs" movie between them, and the framed load bar. The stage, the movies
+	and the bar are shared with SinglePlayerLoadScreen.rml (LoadScreen.rcss). The bios get a dark
+	panel so they read over the movie.
+*/
+
+/* BigNameEntryLeft/Right (63,52)-(394,102), (406,52)-(737,102) */
+.cl-big-name
+{
+	position: absolute;
+	top: 8.667%;
+	width: 41.375%;
+	height: 8.333%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	font-size: 36dp;
+	font-weight: bold;
+	color: #FEFEFE;
+	white-space: nowrap;
+}
+
+.cl-big-name.left { left: 7.875%; }
+.cl-big-name.right { left: 50.75%; }
+
+/* PortraitMovieLeft/Right (4,105)-(398,434), (404,105)-(798,434) */
+.cl-portrait-movie
+{
+	position: absolute;
+	top: 17.5%;
+	width: 49.25%;
+	height: 54.833%;
+}
+
+.cl-portrait-movie.left { left: 0.5%; }
+.cl-portrait-movie.right { left: 50.5%; }
+
+.cl-portrait-movie video,
+.cl-versus video
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* PortraitLeft/Right (63,105)-(394,434), (406,105)-(739,434): the stills on min spec */
+.cl-portrait
+{
+	position: absolute;
+	top: 17.5%;
+	width: 41.5%;
+	height: 54.833%;
+	display: flex;
+}
+
+.cl-portrait.left { left: 7.875%; }
+.cl-portrait.right { left: 50.75%; }
+
+.cl-portrait mappedimage
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* BioName/BioBirthplace/BioStrategy labels and entries: (59,453)-(396,508), (406,452)-(745,508) */
+.cl-bio
+{
+	position: absolute;
+	top: 75.333%;
+	width: 42.25%;
+	height: 9.5%;
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	padding: 0 6dp;
+	background-color: rgba(2, 2, 2, 160);
+	font-size: 18dp;
+	font-weight: bold;
+	color: #FEFEFE;
+}
+
+.cl-bio.left { left: 7.375%; }
+.cl-bio.right { left: 50.75%; }
+
+.cl-bio-row
+{
+	flex: 1 1 0;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	white-space: nowrap;
+}
+
+.cl-bio-label
+{
+	flex: 0 0 27.6%;
+}
+
+.cl-bio-entry
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+}
+
+/* CircleAlphaOuter (218,84)-(585,452), CircleAlphaInner (275,140)-(526,396),
+   VersusBackdrop (315,178)-(486,355), OverlayVs (351,206)-(455,325) */
+.cl-outer-circle,
+.cl-inner-circle,
+.cl-versus-backdrop,
+.cl-versus
+{
+	display: block;
+	position: absolute;
+}
+
+.cl-outer-circle { left: 27.25%; top: 14%; width: 45.875%; height: 61.333%; }
+.cl-inner-circle { left: 34.375%; top: 23.333%; width: 31.375%; height: 42.667%; }
+.cl-versus-backdrop { left: 39.375%; top: 29.667%; width: 21.375%; height: 29.5%; }
+.cl-versus { left: 43.875%; top: 34.333%; width: 13%; height: 19.833%; }
+
+/* ProgressLoad (39,565)-(761,585) */
+.cl-bar
+{
+	left: 4.875%;
+	top: 94.167%;
+	width: 90.25%;
+	height: 3.333%;
+}

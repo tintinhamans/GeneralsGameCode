@@ -69,6 +69,7 @@ RmlLoadScreen &RmlLoadScreen::instance(Kind kind)
 		RmlLoadScreen("UI/GameSpyLoad.rml", "onlineload"),
 		RmlLoadScreen("UI/ShellGameLoad.rml", "shellload"),
 		RmlLoadScreen("UI/SinglePlayerLoadScreen.rml", "singleplayerload"),
+		RmlLoadScreen("UI/ChallengeLoadScreen.rml", "challengeload"),
 	};
 	return s_screens[kind];
 }
@@ -101,6 +102,7 @@ void RmlLoadScreen::load(Rml::Context *context)
 	m_markers.assign(MAX_SLOTS, MarkerModel());
 	m_objectiveLines.assign(MAX_OBJECTIVE_LINES, Rml::String());
 	m_units.assign(MAX_DISPLAYED_UNITS, UnitModel());
+	m_generals.assign(2, GeneralModel());
 
 	Rml::DataModelConstructor constructor = context->CreateDataModel(m_modelName);
 	if (constructor)
@@ -140,7 +142,17 @@ void RmlLoadScreen::load(Rml::Context *context)
 		constructor.RegisterArray<Rml::Vector<RowModel>>();
 		constructor.RegisterArray<Rml::Vector<MarkerModel>>();
 		constructor.RegisterArray<Rml::Vector<Rml::String>>();
+		if (Rml::StructHandle<GeneralModel> generalHandle = constructor.RegisterStruct<GeneralModel>())
+		{
+			generalHandle.RegisterMember("big_name", &GeneralModel::bigName);
+			generalHandle.RegisterMember("name", &GeneralModel::name);
+			generalHandle.RegisterMember("rank", &GeneralModel::rank);
+			generalHandle.RegisterMember("strategy", &GeneralModel::strategy);
+			generalHandle.RegisterMember("portrait", &GeneralModel::portrait);
+			generalHandle.RegisterMember("has_portrait", &GeneralModel::hasPortrait);
+		}
 		constructor.RegisterArray<Rml::Vector<UnitModel>>();
+		constructor.RegisterArray<Rml::Vector<GeneralModel>>();
 
 		constructor.Bind("rows", &m_rows);
 		constructor.Bind("markers", &m_markers);
@@ -163,6 +175,15 @@ void RmlLoadScreen::load(Rml::Context *context)
 		constructor.Bind("units", &m_units);
 		constructor.Bind("location", &m_location);
 		constructor.Bind("show_location", &m_showLocation);
+		constructor.Bind("generals", &m_generals);
+		constructor.Bind("show_bio_titles", &m_showBioTitles);
+		constructor.Bind("show_bio_entries", &m_showBioEntries);
+		constructor.Bind("show_portrait_movies", &m_showPortraitMovies);
+		constructor.Bind("show_portraits", &m_showPortraits);
+		constructor.Bind("show_outer_circle", &m_showOuterCircle);
+		constructor.Bind("show_inner_circle", &m_showInnerCircle);
+		constructor.Bind("show_versus_backdrop", &m_showVersusBackdrop);
+		constructor.Bind("show_versus", &m_showVersus);
 
 		m_modelHandle = constructor.GetModelHandle();
 	}
@@ -233,6 +254,26 @@ void RmlLoadScreen::refresh()
 	m_location = unicodeToUtf8(data.m_location);
 	m_showLocation = data.m_showLocation == TRUE;
 
+	for (Int i = 0; i < 2; ++i)
+	{
+		const LoadScreenGeneral &src = data.m_generals[i];
+		GeneralModel &general = m_generals[i];
+		general.bigName = unicodeToUtf8(src.m_bigName);
+		general.name = unicodeToUtf8(src.m_name);
+		general.rank = unicodeToUtf8(src.m_rank);
+		general.strategy = unicodeToUtf8(src.m_strategy);
+		general.portrait = src.m_portrait.str();
+		general.hasPortrait = !src.m_portrait.isEmpty();
+	}
+	m_showBioTitles = data.m_showBioTitles == TRUE;
+	m_showBioEntries = data.m_showBioEntries == TRUE;
+	m_showPortraitMovies = data.m_showPortraitMovies == TRUE;
+	m_showPortraits = data.m_showPortraits == TRUE;
+	m_showOuterCircle = data.m_showOuterCircle == TRUE;
+	m_showInnerCircle = data.m_showInnerCircle == TRUE;
+	m_showVersusBackdrop = data.m_showVersusBackdrop == TRUE;
+	m_showVersus = data.m_showVersus == TRUE;
+
 	for (Int i = 0; i < LOAD_VIDEO_COUNT; ++i)
 		RmlVideoElement::setSource(s_videoSources[i], data.m_videos[i]);
 
@@ -259,6 +300,15 @@ void RmlLoadScreen::refresh()
 		m_modelHandle.DirtyVariable("units");
 		m_modelHandle.DirtyVariable("location");
 		m_modelHandle.DirtyVariable("show_location");
+		m_modelHandle.DirtyVariable("generals");
+		m_modelHandle.DirtyVariable("show_bio_titles");
+		m_modelHandle.DirtyVariable("show_bio_entries");
+		m_modelHandle.DirtyVariable("show_portrait_movies");
+		m_modelHandle.DirtyVariable("show_portraits");
+		m_modelHandle.DirtyVariable("show_outer_circle");
+		m_modelHandle.DirtyVariable("show_inner_circle");
+		m_modelHandle.DirtyVariable("show_versus_backdrop");
+		m_modelHandle.DirtyVariable("show_versus");
 	}
 }
 
@@ -301,3 +351,5 @@ void OpenRmlShellLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_SHEL
 void CloseRmlShellLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_SHELL).close(); }
 void OpenRmlSinglePlayerLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_SINGLE_PLAYER).open(); }
 void CloseRmlSinglePlayerLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_SINGLE_PLAYER).close(); }
+void OpenRmlChallengeLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_CHALLENGE).open(); }
+void CloseRmlChallengeLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_CHALLENGE).close(); }
