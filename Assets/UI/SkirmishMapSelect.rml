@@ -13,17 +13,9 @@
 				<div class="screen-crumb"><gametext key="GUI:Skirmish"/><span class="crumb-sep">&#8250;</span></div>
 				<div class="screen-title"><gametext key="GUI:SelectAMapLowerCase"/></div>
 			</div>
-			<div class="screen-header-aside">
-				<div class="seg source-seg">
-					<button class="seg-item" data-class-on="use_system_maps" data-event-click="filter_changed(1)"><gametext key="GUI:SystemMaps"/></button>
-					<button class="seg-item" data-class-on="!use_system_maps" data-event-click="filter_changed(0)"><gametext key="GUI:UserMaps"/></button>
-				</div>
-			</div>
-		</div>
-
-		<div class="screen-body">
-			<div class="col col-main surface browser">
-				<div class="filter-bar">
+			<!-- Filters: the player count (client side) and official/unofficial maps. -->
+			<div class="screen-header-aside ms-filters">
+				<div class="ms-filter-plate">
 					<div class="overline filter-label"><gametext key="GUI:Players"/></div>
 					<div class="seg">
 						<button class="seg-item" data-class-on="player_filter == 0" data-event-click="player_filter_changed(0)"><gametext key="GUI:Any"/></button>
@@ -35,15 +27,22 @@
 						<button class="seg-item" data-class-on="player_filter == 7" data-event-click="player_filter_changed(7)">7</button>
 						<button class="seg-item" data-class-on="player_filter == 8" data-event-click="player_filter_changed(8)">8</button>
 					</div>
-					<div class="spacer"></div>
 					<div class="count">{{visible_count}}</div>
 				</div>
+				<div class="seg source-seg">
+					<button class="seg-item" data-class-on="use_system_maps" data-event-click="filter_changed(1)"><gametext key="GUI:SystemMaps"/></button>
+					<button class="seg-item" data-class-on="!use_system_maps" data-event-click="filter_changed(0)"><gametext key="GUI:UserMaps"/></button>
+				</div>
+			</div>
+		</div>
 
-				<!-- Thumbnail grid: every map's own preview (getMapPreviewImage() via <mappreview>),
-				     its skirmish star and player count. Click selects, double-click accepts. -->
+		<div class="screen-body">
+			<!-- Thumbnail grid across the whole frame: every map's own preview (getMapPreviewImage() via
+			     <mappreview>), its skirmish star and player count. Click selects, double-click accepts. -->
+			<div class="col col-main surface browser">
 				<div class="grid">
 					<div data-for="entry : maps">
-						<div class="tile" data-if="entry.used &amp;&amp; (player_filter == 0 || entry.num_players == player_filter)"
+						<div class="map-tile" data-if="entry.used &amp;&amp; (player_filter == 0 || entry.num_players == player_filter)"
 							data-class-selected="entry.is_selected"
 							data-event-click="map_selected(entry.map_name)" data-event-dblclick="map_activated(entry.map_name)">
 							<div class="thumb">
@@ -51,27 +50,27 @@
 								<mappedimage class="thumb-star" data-attr-name="entry.star_image" data-if="entry.has_star_image"/>
 								<div class="thumb-players">{{entry.num_players}}</div>
 							</div>
-							<div class="tile-name">{{entry.display_name}}</div>
+							<div class="map-tile-name">{{entry.display_name}}</div>
 						</div>
 					</div>
 					<div class="empty-state" data-if="visible_count == 0"><gametext key="GUI:GONoMapsForFilter"/></div>
 				</div>
 			</div>
 
-			<div class="col col-side">
+			<!-- The selected map's details slide in from the side. -->
+			<div class="col col-side detail-col" data-if="has_selection">
 				<div class="surface detail">
-					<div class="overline group-title"><gametext key="GUI:MapPreview"/></div>
+					<div class="overline accent-overline group-title"><gametext key="GUI:MapPreview"/></div>
 					<div class="map-frame">
-						<mappreview class="map-image" data-attr-map="selected_map_name" data-if="has_selection"/>
-						<div class="map-missing" data-if="!has_selection"><gametext key="GUI:CantFindMap"/></div>
+						<mappreview class="map-image" data-attr-map="selected_map_name"/>
 						<div data-for="marker : start_markers">
 							<div class="marker" data-if="marker.used" data-style-left="marker.x_style" data-style-top="marker.y_style">
 								<div class="marker-dot">{{marker.position + 1}}</div>
 							</div>
 						</div>
 					</div>
-					<div class="map-name" data-if="has_selection">{{selected_display_name}}</div>
-					<div class="map-meta" data-if="has_selection">{{selected_num_players}} <gametext key="GUI:Players"/></div>
+					<div class="map-name">{{selected_display_name}}</div>
+					<div class="map-meta">{{selected_num_players}} <gametext key="GUI:Players"/></div>
 				</div>
 			</div>
 		</div>

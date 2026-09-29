@@ -1,41 +1,49 @@
 /*
-	SkirmishMapSelect.rcss -- map browser on the screen template (common.rcss): a filter bar and a
-	scrolling grid of map thumbnails in the main column, the selected map's card on the side.
+	SkirmishMapSelect.rcss -- map browser on the screen template (common.rcss): a thumbnail grid
+	across the frame, the player-count filter and official/unofficial toggle in the header, and the
+	selected map's details sliding in from the right.
 
-	Official/unofficial sits in the header; the player-count filter is client side
-	(player_filter, a data-if per tile) and visible_count drives the empty state. maps is a
-	grow-only list, so every tile also checks entry.used.
+	The player-count filter is client side (player_filter, a data-if per tile) and visible_count
+	drives the empty state. maps is a grow-only list, so every tile also checks entry.used.
 */
 
-.browser
+/* ---- Header filters ---------------------------------------------------------------------------- */
+.ms-filters
 {
-	display: flex;
-	flex: 0 1 auto;
-	max-height: 100%;
-	flex-direction: column;
-	padding-right: 10dp;
+	padding-left: 20dp;
 }
 
-.filter-bar
+.ms-filter-plate
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	flex: 0 0 auto;
-	margin-bottom: 20dp;
-	padding-right: 10dp;
+	margin-right: 20dp;
+	padding: 6dp 8dp 6dp 18dp;
+	background-color: #070A1AD9;
 }
 
 .filter-label
 {
-	margin-right: 18dp;
+	margin-right: 14dp;
 }
 
 .count
 {
-	font-size: 28dp;
+	min-width: 60dp;
+	margin-left: 14dp;
+	text-align: right;
+	font-size: 26dp;
 	font-weight: bold;
 	color: #A9B1CF;
+}
+
+/* ---- Grid ---------------------------------------------------------------------------------------- */
+.browser
+{
+	display: flex;
+	flex-direction: column;
+	padding: 20dp 6dp 0 20dp;
 }
 
 .grid
@@ -49,12 +57,11 @@
 	overflow-y: auto;
 }
 
-/* ---- Tile: thumbnail over the name ------------------------------------------------------------ */
-.tile
+.map-tile
 {
 	display: block;
 	box-sizing: border-box;
-	width: 210dp;
+	width: 214dp;
 	margin: 0 14dp 18dp 0;
 	padding: 4dp;
 	border: 1dp transparent;
@@ -62,13 +69,13 @@
 	transition: background-color border-color 0.12s cubic-out;
 }
 
-.tile:hover
+.map-tile:hover
 {
 	background-color: #2F37A860;
 	border-color: #8080FF8C;
 }
 
-.tile.selected, .tile.selected:hover
+.map-tile.selected, .map-tile.selected:hover
 {
 	background-color: #2F37A8B4;
 	border-color: #F07A1A;
@@ -78,21 +85,21 @@
 {
 	display: block;
 	position: relative;
-	width: 198dp;
-	height: 198dp;
+	width: 202dp;
+	height: 202dp;
 	background-color: #05070F;
 }
 
 .thumb-image
 {
 	display: block;
-	width: 198dp;
-	height: 198dp;
+	width: 202dp;
+	height: 202dp;
 	opacity: 0.85;
 	transition: opacity 0.12s cubic-out;
 }
 
-.tile:hover .thumb-image, .tile.selected .thumb-image
+.map-tile:hover .thumb-image, .map-tile.selected .thumb-image
 {
 	opacity: 1;
 }
@@ -123,7 +130,7 @@
 	background-color: #05070FC8;
 }
 
-.tile-name
+.map-tile-name
 {
 	display: block;
 	height: 40dp;
@@ -136,7 +143,7 @@
 	text-overflow: ellipsis;
 }
 
-.tile.selected .tile-name
+.map-tile.selected .map-tile-name
 {
 	color: #FFFFFF;
 	font-weight: bold;
@@ -147,16 +154,38 @@
 	width: 100%;
 }
 
-/* ---- Selected map card ------------------------------------------------------------------------ */
-.col-side
+/* ---- Selected map details, sliding in from the right --------------------------------------------- */
+.detail-col
 {
-	width: 440dp;
+	width: 460dp;
+	animation: 0.22s cubic-out detail-in;
+}
+
+@keyframes detail-in
+{
+	from { opacity: 0; margin-right: -60dp; }
+	to { opacity: 1; margin-right: 0dp; }
+}
+
+.detail
+{
+	border-top: 2dp #F07A1A;
+}
+
+.detail .map-frame
+{
+	width: 420dp;
+	height: 420dp;
 }
 
 @media (max-aspect-ratio: 3/2)
 {
-	.col-side { width: 415dp; }
-	.map-frame { width: 375dp; height: 375dp; }
-	.tile { width: 172dp; }
-	.thumb, .thumb-image { width: 160dp; height: 160dp; }
+	.filter-label, .count { display: none; }
+	.ms-filter-plate { padding-left: 8dp; margin-right: 12dp; }
+	.screen .ms-filters .seg button.seg-item { padding: 0 10dp; font-size: 16dp; }
+	.detail-col { width: 360dp; }
+	.detail .map-frame { width: 320dp; height: 320dp; }
+	.map-tile { width: 162dp; margin-right: 12dp; }
+	.thumb, .thumb-image { width: 150dp; height: 150dp; }
+	.map-tile-name { height: 34dp; line-height: 34dp; font-size: 17dp; }
 }
