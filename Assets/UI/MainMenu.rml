@@ -7,7 +7,8 @@
 <body class="screen" data-model="mainmenu">
 	<div class="screen-ruler"><div class="rc tl"></div><div class="rc tr"></div><div class="rc bl"></div><div class="rc br"></div></div>
 
-	<!-- Faction emblem over the shell map, left of the rail: the solo panel's hover preview
+	<div class="screen-frame mm-frame">
+	<!-- Faction emblem over the shell map, left of the menu: the solo panel's hover preview
 	     (MainMenu.cpp's GBM_MOUSE_ENTERING/LEAVING art) and the difficulty panel's chosen side. -->
 	<div class="mm-hero">
 		<mappedimage name="SAFactionLogo144_US" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'USA') || (panel == 'difficulty' &amp;&amp; selected_faction == 'USA')"/>
@@ -16,12 +17,10 @@
 		<mappedimage name="Training144" data-class-visible="panel == 'single' &amp;&amp; hover_faction == 'Training'"/>
 	</div>
 
-	<div class="mm-side">
-	<div class="mm-fade"></div>
-	<div class="mm-rail">
+	<div class="mm-column">
 		<mappedimage name="GeneralsLogo" class="mm-logo"/>
 
-		<div class="mm-panels">
+		<div class="mm-card">
 			<!-- Root -->
 			<div class="panel" data-class-active="panel == 'main'">
 				<button class="mm-item" data-event-click="go_single"><gametext key="GUI:SinglePlayer"/><span class="mm-more">&#8250;</span></button>
@@ -73,9 +72,9 @@
 				<button class="mm-item mm-back" data-event-click="diff_back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
 			</div>
 		</div>
-
-		<div class="mm-version">{{ version }}</div>
 	</div>
+
+	<div class="mm-version on-map">{{ version }}</div>
 	</div>
 </body>
 </rml>
