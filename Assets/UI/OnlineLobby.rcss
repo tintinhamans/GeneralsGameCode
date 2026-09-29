@@ -19,7 +19,16 @@
 	width: 260dp;
 }
 
-.details, .players
+/* The game card is as tall as its content, so the shell map shows under it; the roster scrolls. */
+.details
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 1 auto;
+	min-height: 0;
+}
+
+.players
 {
 	display: flex;
 	flex-direction: column;
