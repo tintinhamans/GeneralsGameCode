@@ -794,6 +794,8 @@ set(GAMEENGINE_SRC
     Source/GameClient/GUI/GUICallbacks/Menus/QuitMenu.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/QuitMenuActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/ReplayMenu.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/SaveLoadActions.cpp
+    Source/GameClient/GUI/GUICallbacks/Menus/SaveLoadData.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/ScoreScreen.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/ScoreScreenActions.cpp
     Source/GameClient/GUI/GUICallbacks/Menus/ScoreScreenData.cpp

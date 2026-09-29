@@ -171,6 +171,9 @@ public:
 	Bool doesSaveGameExist( AsciiString filename );							///< does the save file exist
 	void populateSaveGameListbox( GameWindow *listbox, SaveLoadLayoutType layoutType );	///< populate listbox with available save games
 	Bool getSaveGameInfoFromFile( AsciiString filename, SaveGameInfo *saveGameInfo );		///< get save game info from file, false if it can't be read
+	AvailableGameInfo *refreshAvailableGames();									///< rescan the save directory, returns the new list head
+	Int describeAvailableGame( const AvailableGameInfo *info, UnsignedInt count,
+															 UnicodeString &label, UnicodeString &time, UnicodeString &date );	///< list texts and 0xAARRGGBB color of the nth available game
 
 	void friend_xferSaveDataForCRC( Xfer *xfer, SnapshotType which );		///< This should only be called to DeepCRC sanity checking
 

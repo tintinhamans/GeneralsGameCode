@@ -51,6 +51,7 @@
 #include "Common/GameState.h"
 #include "Common/MessageStream.h"
 #include "GameClient/CampaignManager.h"
+#include "GameClient/Color.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetTextEntry.h"
 #include "GameClient/GameText.h"
@@ -59,6 +60,8 @@
 #include "GameClient/Shell.h"
 #include "GameLogic/GameLogic.h"
 #include "GameClient/GameWindowTransitions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/SaveLoadActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/SaveLoadData.h"
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static NameKeyType buttonBackKey					= NAMEKEY_INVALID;
@@ -84,43 +87,104 @@ static GameWindow *editDesc = nullptr;
 static GameWindow *deleteConfirm = nullptr;
 
 static GameWindow *parent = nullptr;
-static SaveLoadLayoutType currentLayoutType = SLLT_INVALID;
-static Bool isPopup = FALSE;
 static Int	initialGadgetDelay = 2;
 static Bool justEntered = FALSE;
 static Bool isShuttingDown = false;
+static UnsignedInt shownRowsVersion = 0;
 
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////////////////////////
 extern Bool DontShowMainMenu; //KRIS
 extern Bool ReplayWasPressed;
+
 // ------------------------------------------------------------------------------------------------
-/** Given the current layout and selection in the game listbox, update the main save/load
-	* menu buttons to be enabled or disabled */
+/** Fill the games listbox from the save list */
 // ------------------------------------------------------------------------------------------------
-static void updateMenuActions()
+static void populateListbox()
 {
+	const SaveLoadData &data = SaveLoadData::instance();
+
+	GadgetListBoxReset( listboxGames );
+
+	for( Int i = 0; i < (Int)data.m_rows.size(); ++i )
+	{
+		const SaveLoadRow &row = data.m_rows[i];
+		Color color = GameMakeColor( (row.m_color >> 16) & 0xFF, (row.m_color >> 8) & 0xFF, row.m_color & 0xFF, 255 );
+
+		Int index;
+		if( row.m_info == nullptr )
+		{
+			// the new save game entry
+			index = GadgetListBoxAddEntryText( listboxGames, row.m_name, color, -1 );
+		}
+		else
+		{
+			index = GadgetListBoxAddEntryText( listboxGames, row.m_name, color, -1, 0 );
+			GadgetListBoxAddEntryText( listboxGames, row.m_time, color, index, 1 );
+			GadgetListBoxAddEntryText( listboxGames, row.m_date, color, index, 2 );
+		}
+		GadgetListBoxSetItemData( listboxGames, row.m_info, index );
+	}
+
+	shownRowsVersion = data.m_rowsVersion;
+}
+
+// ------------------------------------------------------------------------------------------------
+/** Make the windows show the save/load data: the list and its selection, which dialog is up and
+	* which controls are enabled */
+// ------------------------------------------------------------------------------------------------
+static void syncWindows()
+{
+	const SaveLoadData &data = SaveLoadData::instance();
+
+	if( shownRowsVersion != data.m_rowsVersion )
+		populateListbox();
+
+	Int selected;
+	GadgetListBoxGetSelected( listboxGames, &selected );
+	if( selected != data.m_selected && data.m_selected >= 0 )
+		GadgetListBoxSetSelected( listboxGames, data.m_selected );
+
+	overwriteConfirm->winHide( data.m_dialog != SaveLoadData::DIALOG_OVERWRITE_CONFIRM );
+	loadConfirm->winHide( data.m_dialog != SaveLoadData::DIALOG_LOAD_CONFIRM );
+	saveDesc->winHide( data.m_dialog != SaveLoadData::DIALOG_SAVE_DESC );
+	deleteConfirm->winHide( data.m_dialog != SaveLoadData::DIALOG_DELETE_CONFIRM );
+
+	listboxGames->winEnable( data.isListEnabled() );
+	buttonFrame->winEnable( data.areButtonsEnabled() );
 
 	// for loading only, disable the save button, otherwise enable it
 	GameWindow *saveButton = TheWindowManager->winGetWindowFromId( nullptr, buttonSaveKey );
 	DEBUG_ASSERTCRASH( saveButton, ("SaveLoadMenuInit: Unable to find save button") );
-	if( currentLayoutType == SLLT_LOAD_ONLY )
-		saveButton->winEnable( FALSE );
-	else
-		saveButton->winEnable( TRUE );
-
-	// get the games listbox
-	//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( nullptr, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
+	saveButton->winEnable( data.canSave() );
 
 	// if something with a game file is selected we can use load and delete
-	Int selected;
-	GadgetListBoxGetSelected( listboxGames, &selected );
-	AvailableGameInfo *selectedGameInfo;
-	selectedGameInfo = (AvailableGameInfo *)GadgetListBoxGetItemData( listboxGames, selected );
 	GameWindow *buttonLoad = TheWindowManager->winGetWindowFromId( nullptr, buttonLoadKey );
-	buttonLoad->winEnable( selectedGameInfo != nullptr );
+	buttonLoad->winEnable( data.canLoad() );
 	GameWindow *buttonDelete = TheWindowManager->winGetWindowFromId( nullptr, buttonDeleteKey );
-	buttonDelete->winEnable( selectedGameInfo != nullptr );
+	buttonDelete->winEnable( data.canDelete() );
+}
 
+// ------------------------------------------------------------------------------------------------
+/** Drop the dialogs from the windows before an action closes the menu */
+// ------------------------------------------------------------------------------------------------
+static void resetDialogWindows()
+{
+	overwriteConfirm->winHide( TRUE );
+	loadConfirm->winHide( TRUE );
+	saveDesc->winHide( TRUE );
+	deleteConfirm->winHide( TRUE );
+	listboxGames->winEnable( TRUE );
+	buttonFrame->winEnable( TRUE );
+}
+
+// ------------------------------------------------------------------------------------------------
+/** Hide the popup layout */
+// ------------------------------------------------------------------------------------------------
+static void closePopup()
+{
+	WindowLayout *saveLoadMenuLayout = parent ? parent->winGetLayout() : nullptr;
+	if( saveLoadMenuLayout )
+		saveLoadMenuLayout->hide( TRUE );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -130,11 +194,10 @@ void SaveLoadMenuInit( WindowLayout *layout, void *userData )
 {
 
 	// set default behavior for this menu
-	currentLayoutType = SLLT_SAVE_AND_LOAD;
-	isPopup = TRUE;
+	SaveLoadLayoutType layoutType = SLLT_SAVE_AND_LOAD;
 	// get layout type if present
 	if( userData )
-		currentLayoutType = *((SaveLoadLayoutType *)userData);
+		layoutType = *((SaveLoadLayoutType *)userData);
 
   // get ids for our children controls
 	buttonBackKey					 = NAMEKEY( "PopupSaveLoad.wnd:ButtonBack" );
@@ -159,26 +222,24 @@ void SaveLoadMenuInit( WindowLayout *layout, void *userData )
 
 	// enable the menu action buttons
 	buttonFrame = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:MenuButtonFrame" ) );
-	buttonFrame->winEnable( TRUE );
 
-	// get confirmation windows and hide
+	// get confirmation windows
 	overwriteConfirm = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:OverwriteConfirmParent" ) );
-	overwriteConfirm->winHide( TRUE );
 	loadConfirm = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:LoadConfirmParent" ) );
-	loadConfirm->winHide( TRUE );
 	saveDesc = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:SaveDescParent" ) );
-	saveDesc->winHide( TRUE );
 	deleteConfirm = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:DeleteConfirmParent" ) );
 	editDesc = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:EntryDesc" ) );
 	// get the listbox that will have the save games in it
 	listboxGames = TheWindowManager->winGetWindowFromId( nullptr, listboxGamesKey );
 	DEBUG_ASSERTCRASH( listboxGames != nullptr, ("SaveLoadMenuInit - Unable to find games listbox") );
 
-	// populate the listbox with the save games on disk
-	TheGameState->populateSaveGameListbox( listboxGames, currentLayoutType );
+	// list the save games on disk and show them
+	SaveLoadActions::open( layoutType, TRUE, &closePopup );
+	populateListbox();
+	GadgetListBoxSetSelected( listboxGames, 0 );
 
-	// update the availability of the menu buttons
-	updateMenuActions();
+	// update the dialogs and the availability of the menu buttons
+	syncWindows();
 
 }
 
@@ -188,15 +249,12 @@ void SaveLoadMenuInit( WindowLayout *layout, void *userData )
 void SaveLoadMenuFullScreenInit( WindowLayout *layout, void *userData )
 {
 
-	TheShell->showShellMap(TRUE);
-
-	isPopup = FALSE;
 	// set default behavior for this menu
-	currentLayoutType = SLLT_LOAD_ONLY;
+	SaveLoadLayoutType layoutType = SLLT_LOAD_ONLY;
 
 	// get layout type if present
 	if( userData )
-		currentLayoutType = *((SaveLoadLayoutType *)userData);
+		layoutType = *((SaveLoadLayoutType *)userData);
 
   // get ids for our children controls
 	buttonBackKey					 = NAMEKEY( "SaveLoad.wnd:ButtonBack" );
@@ -221,15 +279,11 @@ void SaveLoadMenuFullScreenInit( WindowLayout *layout, void *userData )
 
 	// enable the menu action buttons
 	buttonFrame = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "SaveLoad.wnd:MenuButtonFrame" ) );
-	buttonFrame->winEnable( TRUE );
 
-	// get confirmation windows and hide
+	// get confirmation windows
 	overwriteConfirm = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "SaveLoad.wnd:OverwriteConfirmParent" ) );
-	overwriteConfirm->winHide( TRUE );
 	loadConfirm = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "SaveLoad.wnd:LoadConfirmParent" ) );
-	loadConfirm->winHide( TRUE );
 	saveDesc = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "SaveLoad.wnd:SaveDescParent" ) );
-	saveDesc->winHide( TRUE );
 
 	editDesc = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "SaveLoad.wnd:EntryDesc" ) );
 	deleteConfirm = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "SaveLoad.wnd:DeleteConfirmParent" ) );
@@ -237,11 +291,13 @@ void SaveLoadMenuFullScreenInit( WindowLayout *layout, void *userData )
 	listboxGames = TheWindowManager->winGetWindowFromId( nullptr, listboxGamesKey );
 	DEBUG_ASSERTCRASH( listboxGames != nullptr, ("SaveLoadMenuInit - Unable to find games listbox") );
 
-	// populate the listbox with the save games on disk
-	TheGameState->populateSaveGameListbox( listboxGames, currentLayoutType );
+	// list the save games on disk and show them
+	SaveLoadActions::open( layoutType, FALSE, nullptr );
+	populateListbox();
+	GadgetListBoxSetSelected( listboxGames, 0 );
 
-	// update the availability of the menu buttons
-	updateMenuActions();
+	// update the dialogs and the availability of the menu buttons
+	syncWindows();
 
 	layout->hide(FALSE);
 	justEntered = TRUE;
@@ -324,24 +380,19 @@ WindowMsgHandledType SaveLoadMenuInput( GameWindow *window, UnsignedInt msg, Win
 				{
 
 					//
-					// send a simulated selected event to the parent window of the
-					// back/exit button
+					// same as the back/exit button
 					//
 					if( BitIsSet( state, KEY_STATE_UP ) )
 					{
-						GameWindow *button = TheWindowManager->winGetWindowFromId( parent, buttonBackKey );
 
 						//Kris: Patch 1.01 - November 12, 2003
 						//If you are in the game, then bring up the popup save menu, select a save game, click delete,
 						//hit ESC (brings you back to menu), then hit save/load again, the delete confirmation is still up
 						//and clicking on yes causes it to crash. So whenever we hit esc to leave this interface, kill
 						//the confirmation, and re-enable the listbox and buttonFrame.
-						deleteConfirm->winHide( TRUE );
-						listboxGames->winEnable( TRUE );
-						buttonFrame->winEnable( TRUE );
+						resetDialogWindows();
 
-						TheWindowManager->winSendSystemMsg( window, GBM_SELECTED,
-																								(WindowMsgData)button, buttonBackKey );
+						SaveLoadActions::escape();
 
 					}
 
@@ -357,165 +408,6 @@ WindowMsgHandledType SaveLoadMenuInput( GameWindow *window, UnsignedInt msg, Win
 	}
 
 	return MSG_IGNORED;
-}
-
-// ------------------------------------------------------------------------------------------------
-/** Get the file info of the selected savegame file in the listbox */
-// ------------------------------------------------------------------------------------------------
-static AvailableGameInfo *getSelectedSaveFileInfo( GameWindow *window )
-{
-
-	// get the listbox
-	//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( window, listboxGamesKey );
-	DEBUG_ASSERTCRASH( listboxGames != nullptr, ("SaveLoadMenuInit - Unable to find games listbox") );
-
-	// which item is selected
-	Int selected;
-	GadgetListBoxGetSelected( listboxGames, &selected );
-
-	// get the item data of the selection
-	AvailableGameInfo *selectedGameInfo;
-	selectedGameInfo = (AvailableGameInfo *)GadgetListBoxGetItemData( listboxGames, selected );
-
-	return selectedGameInfo;
-
-}
-
-// ---------------------------------------------------con------------------------------------------
-// ------------------------------------------------------------------------------------------------				// close the save/load menu
-static void doLoadGame()
-{
-
-	// get listbox of games
-	//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
-	DEBUG_ASSERTCRASH( listboxGames, ("doLoadGame: Unable to find game listbox") );
-
-	// get selected game info
-	AvailableGameInfo *selectedGameInfo = getSelectedSaveFileInfo( listboxGames );
-	DEBUG_ASSERTCRASH( selectedGameInfo, ("doLoadGame: No selected game info found") );
-
-	// when loading a game we also close the quit/esc menu for the user when in-game
-	if( TheShell->isShellActive() == FALSE )
-	{
-		destroyQuitMenu();
-//		ToggleQuitMenu();
-//		TheTransitionHandler->remove("QuitNoSave");
-//		TheTransitionHandler->remove("QuitFull");
-	}
-	else
-	{
-		TheTransitionHandler->remove("MainMenuLoadReplayMenu");
-		TheTransitionHandler->remove("MainMenuLoadReplayMenuBack");
-		TheGameLogic->prepareNewGame( GAME_SINGLE_PLAYER, DIFFICULTY_NORMAL, 0 );
-	}
-
-	//
-	// load game, note the *copy* of the selected game info is passed here because we will
-	// loose these allocated user data pointers attached as listbox item data when the
-	// engine resets
-	//
-	if (TheGameState->loadGame( *selectedGameInfo ) != SC_OK)
-	{
-		if (TheGameLogic->isInGame())
-			TheGameLogic->clearGameData( FALSE );
-		TheGameEngine->reset();
-		TheShell->showShell(TRUE);
-	}
-
-}
-
-// ------------------------------------------------------------------------------------------------
-/** Close the save/load menu */
-// ------------------------------------------------------------------------------------------------
-static void closeSaveMenu( GameWindow *window )
-{
-
-	if(isPopup)
-	{
-		WindowLayout *saveLoadMenuLayout = window->winGetLayout();
-		if( saveLoadMenuLayout )
-			saveLoadMenuLayout->hide( TRUE );
-	}
-	else
-		TheShell->hideShell();
-
-}
-
-// ------------------------------------------------------------------------------------------------
-// ------------------------------------------------------------------------------------------------
-static void setEditDescription( GameWindow *editControl )
-{
-	UnicodeString defaultDesc;
-	Campaign *campaign = TheCampaignManager->getCurrentCampaign();
-
-	//
-	// if we have a campaign we will use a default description that describes the
-	// location and map in the campaign nicely, otherwise we will default to just
-	// the map name (which is really only used in debug)
-	//
-	if( campaign )
-		defaultDesc.format( L"%s %d",
-												TheGameText->fetch( campaign->m_campaignNameLabel ).str(),
-												TheCampaignManager->getCurrentMissionNumber() + 1 );
-	else
-	{
-		const char *mapName = TheGlobalData->m_mapName.reverseFind( '\\' );
-
-		if( mapName )
-			defaultDesc.format( L"%S", mapName + 1 );
-		else
-			defaultDesc.format( L"%S", TheGlobalData->m_mapName.str() );
-
-		//Keep the extension out of the descriptive name.
-		if( (defaultDesc.getLength() >= 4)  &&  (defaultDesc.getCharAt(defaultDesc.getLength()-4) == '.') )
-		{
-			defaultDesc.truncateBy(4);
-		}
-
-	}
-
-	// set into edit control
-	GadgetTextEntrySetText( editControl, defaultDesc );
-
-}
-
-//----------------------------------------------------------------------------------------------
-static void processLoadButtonPress(GameWindow *window)
-{
-	// get the filename of the selected savegame in the listbox
-	AvailableGameInfo *selectedGameInfo = getSelectedSaveFileInfo( window );
-	if( selectedGameInfo )
-	{
-
-		//
-		// if we're in the shell we do not need a confirmation dialog that states we will
-		// lose the current loaded game data cause we're not in a game
-		//
-		if( TheShell->isShellActive() == TRUE )
-		{
-
-			// just close the menu and do the load game logic
-			closeSaveMenu( window );
-			doLoadGame();
-
-		}
-		else
-		{
-
-			//GameWindow *buttonFrame  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:MenuButtonFrame" ) );
-			//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
-			//GameWindow *loadConfirm  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:LoadConfirmParent" ) );
-
-			// disable listbox and buttons
-			listboxGames->winEnable( FALSE );
-			buttonFrame->winEnable( FALSE );
-
-			// show the load confirm dialog
-			loadConfirm->winHide( FALSE );
-
-		}
-
-	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -568,7 +460,11 @@ WindowMsgHandledType SaveLoadMenuSystem( GameWindow *window, UnsignedInt msg,
 
 					if (control == listboxGames)
 					{
-						processLoadButtonPress(window);
+						SaveLoadActions::activate(rowSelected);
+
+						// loading in game asks first, the rest closes the menu
+						if( SaveLoadData::instance().m_dialog != SaveLoadData::DIALOG_NONE )
+							syncWindows();
 					}
 				}
 				break;
@@ -587,7 +483,12 @@ WindowMsgHandledType SaveLoadMenuSystem( GameWindow *window, UnsignedInt msg,
 			// commands are available
 			//
 			if( control == listboxGames )
-				updateMenuActions();
+			{
+				Int selected;
+				GadgetListBoxGetSelected( listboxGames, &selected );
+				SaveLoadActions::select( selected );
+				syncWindows();
+			}
 
 			break;
 
@@ -601,298 +502,87 @@ WindowMsgHandledType SaveLoadMenuSystem( GameWindow *window, UnsignedInt msg,
 
       if( controlID == buttonLoadKey )
       {
-				processLoadButtonPress(window);
+				SaveLoadActions::load();
+
+				// loading in game asks first, the rest closes the menu
+				if( SaveLoadData::instance().m_dialog != SaveLoadData::DIALOG_NONE )
+					syncWindows();
       }
       else if( controlID == buttonSaveKey )
       {
 
-				// sanity
-				DEBUG_ASSERTCRASH( currentLayoutType == SLLT_SAVE_AND_LOAD ||
-													 currentLayoutType == SLLT_SAVE_ONLY,
-													 ("SaveLoadMenuSystem - layout type '%d' does not allow saving",
-													 currentLayoutType) );
+				SaveLoadActions::save();
 
-				// get save file info
-				AvailableGameInfo *selectedGameInfo = getSelectedSaveFileInfo( window );
-
-				// if there is no file info, this is a new game
-				if( selectedGameInfo == nullptr )
+				if( SaveLoadData::instance().m_dialog == SaveLoadData::DIALOG_SAVE_DESC )
 				{
-
-					// show the save description window
-					//GameWindow *saveDesc = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:SaveDescParent" ) );
-					saveDesc->winHide( FALSE );
-
 					// set the description text entry field to default value
-					//GameWindow *editDesc = TheWindowManager->winGetWindowFromId( saveDesc, NAMEKEY( "PopupSaveLoad.wnd:EntryDesc" ) );
-					setEditDescription( editDesc );
-
-					// disable the listbox of games
-					//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
-					listboxGames->winEnable( FALSE );
-
-					// disable the frame window of buttons for the main save/load menu
-					//GameWindow *buttonFrame  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:MenuButtonFrame" ) );
-					//buttonFrame->winEnable( FALSE );
-
+					GadgetTextEntrySetText( editDesc, SaveLoadData::instance().m_description );
 					TheWindowManager->winSetFocus(editDesc);
-
 				}
-				else
-				{
-
-					// disable listbox of games
-					//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
-					listboxGames->winEnable( FALSE );
-
-					// disable and therefore lock out main save/load menu buttons
-					//GameWindow *buttonFrame  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:MenuButtonFrame" ) );
-					buttonFrame->winEnable( FALSE );
-
-					// show the save save confirm
-					//GameWindow *overwriteConfirm  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:OverwriteConfirmParent" ) );
-					overwriteConfirm->winHide( FALSE );
-
-				}
+				syncWindows();
 
       }
 			else if( controlID == buttonDeleteKey )
 			{
 
-				// which item is selected in the game listbox
-				//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
-				Int selected;
-				GadgetListBoxGetSelected( listboxGames, &selected );
-				AvailableGameInfo *selectedGameInfo;
-				selectedGameInfo = (AvailableGameInfo *)GadgetListBoxGetItemData( listboxGames, selected );
-
-				// delete file
-				if( selectedGameInfo )
-				{
-
-					// disable games listbox
-					listboxGames->winEnable( FALSE );
-
-					// disable menu buttons
-					//GameWindow *buttonFrame = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:MenuButtonFrame" ) );
-					buttonFrame->winEnable( FALSE );
-
-					// unhide confirmation dialog
-					//GameWindow *deleteConfirm = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:DeleteConfirmParent" ) );
-					deleteConfirm->winHide( FALSE );
-
-				}
+				SaveLoadActions::remove();
+				syncWindows();
 
 			}
 			else if( controlID == buttonBackKey )
 			{
-				if(isPopup)
-				{
-					// close the save/load menu
-					closeSaveMenu( window );
-				}
-				else
-				{
-					TheShell->pop();
-				}
+
+				SaveLoadActions::back();
 
 			}
-			else if( controlID == buttonDeleteConfirm || controlID == buttonDeleteCancel )
+			else if( controlID == buttonDeleteConfirm )
 			{
-				//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
-
-				// delete if confirm
-				if( controlID == buttonDeleteConfirm )
-				{
-
-					// which item is selected in the game listbox
-					Int selected;
-					GadgetListBoxGetSelected( listboxGames, &selected );
-					AvailableGameInfo *selectedGameInfo;
-					selectedGameInfo = (AvailableGameInfo *)GadgetListBoxGetItemData( listboxGames, selected );
-
-					// construct path to filename
-					AsciiString filepath = TheGameState->getFilePathInSaveDirectory(selectedGameInfo->filename);
-
-					// delete the file
-					DeleteFile( filepath.str() );
-
-					// repopulate the listbox
-					TheGameState->populateSaveGameListbox( listboxGames, currentLayoutType );
-
-				}
-
-				// hide the confirm dialog
-				//GameWindow *deleteConfirm = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:DeleteConfirmParent" ) );
-				deleteConfirm->winHide( TRUE );
-
-				// enable listbox of games
-				listboxGames->winEnable( TRUE );
-
-				// enable menu actions pane
-				//GameWindow *buttonFrame = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:MenuButtonFrame" ) );
-				buttonFrame->winEnable( TRUE );
-				updateMenuActions();
-
+				SaveLoadActions::confirmDelete();
+				syncWindows();
 			}
-			else if( controlID == buttonOverwriteCancel || controlID == buttonOverwriteConfirm )
+			else if( controlID == buttonDeleteCancel )
 			{
-				//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
-
-				// hide save confirm dialog
-				//GameWindow *overwriteConfirm  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:OverwriteConfirmParent" ) );
-				overwriteConfirm->winHide( TRUE );
-
-				// if saving, do the save for the selected listbox item
-				if( controlID == buttonOverwriteConfirm )
-				{
-
-					// show the save description window
-//					GameWindow *saveDesc = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:SaveDescParent" ) );
-//					saveDesc->winHide( FALSE );
-
-					// get save game info for the currently selected game in the listbox
-					Int selected;
-					GadgetListBoxGetSelected( listboxGames, &selected );
-
-					// get the item data of the selection
-					AvailableGameInfo *selectedGameInfo;
-					selectedGameInfo = (AvailableGameInfo *)GadgetListBoxGetItemData( listboxGames, selected );
-					DEBUG_ASSERTCRASH( selectedGameInfo, ("SaveLoadMenuSystem: Internal error, listbox entry to overwrite game has no item data set into listbox element") );
-
-					// enable the listbox of games
-					//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
-					listboxGames->winEnable( TRUE );
-
-					// enable the frame window of buttons for the main save/load menu
-					//GameWindow *buttonFrame  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:MenuButtonFrame" ) );
-					buttonFrame->winEnable( TRUE );
-					updateMenuActions();
-
-					// close save menu
-					closeSaveMenu( window );
-
-					//
-					// given the context of this menu figure out which type of save game we're actually
-					// saving right now.  As it turns out, when this menu is used in the save only
-					// mode it means that the save is a mission save between maps because you can only
-					// save the game between maps and can of course not load one
-					//
-					SaveFileType fileType;
-					if( currentLayoutType == SLLT_SAVE_AND_LOAD )
-						fileType = SAVE_FILE_TYPE_NORMAL;
-					else
-						fileType = SAVE_FILE_TYPE_MISSION;
-
-					// save the game
-					AsciiString filename;
-					filename = selectedGameInfo->filename;
-					TheGameState->saveGame( filename, selectedGameInfo->saveGameInfo.description, fileType );
-
-/*
-					// set the description text entry field to default value
-					GameWindow *editDesc = TheWindowManager->winGetWindowFromId( saveDesc, NAMEKEY( "PopupSaveLoad.wnd:EntryDesc" ) );
-					setEditDescription( editDesc );
-*/
-				}
-				else if( controlID == buttonOverwriteCancel )
-				{
-					//GameWindow *buttonFrame  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:MenuButtonFrame" ) );
-
-					// enable buttons and list box on main parent
-					buttonFrame->winEnable( TRUE );
-					updateMenuActions();
-					listboxGames->winEnable( TRUE );
-
-				}
-
+				SaveLoadActions::cancelDelete();
+				syncWindows();
+			}
+			else if( controlID == buttonOverwriteConfirm )
+			{
+				resetDialogWindows();
+				SaveLoadActions::confirmOverwrite();
+			}
+			else if( controlID == buttonOverwriteCancel )
+			{
+				SaveLoadActions::cancelOverwrite();
+				syncWindows();
 			}
 			else if( controlID == buttonSaveDescConfirm )
 			{
 
-				// get description window
-				//GameWindow *saveDesc = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:SaveDescParent" ) );
+				SaveLoadData::instance().m_description = GadgetTextEntryGetText( editDesc );
 
-				// get description text
-				//GameWindow *entryDesc = TheWindowManager->winGetWindowFromId( saveDesc, NAMEKEY( "PopupSaveLoad.wnd:EntryDesc" ) );
-				UnicodeString desc = GadgetTextEntryGetText( editDesc );
-
-				// hide desc window
-				saveDesc->winHide( TRUE );
-
-				// enable the listbox of games
-				//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
-				listboxGames->winEnable( TRUE );
-
-				// enable the frame window of buttons for the main save/load menu
-				//GameWindow *buttonFrame  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:MenuButtonFrame" ) );
-				buttonFrame->winEnable( TRUE );
-				updateMenuActions();
-
-				// close save menu
-				closeSaveMenu( window );
-
-				// get save filename
-				AvailableGameInfo *selectedGameInfo = getSelectedSaveFileInfo( listboxGames );
-
-				//
-				// given the context of this menu figure out which type of save game we're actually
-				// saving right now.  As it turns out, when this menu is used in the save only
-				// mode it means that the save is a mission save between maps because you can only
-				// save the game between maps and can of course not load one
-				//
-				SaveFileType fileType;
-				if( currentLayoutType == SLLT_SAVE_AND_LOAD )
-					fileType = SAVE_FILE_TYPE_NORMAL;
-				else
-					fileType = SAVE_FILE_TYPE_MISSION;
-
-				// save the game
-				AsciiString filename;
-				if( selectedGameInfo )
-					filename = selectedGameInfo->filename;
-				TheGameState->saveGame( filename, desc, fileType );
+				resetDialogWindows();
+				SaveLoadActions::confirmSaveDesc();
 
 			}
 			else if( controlID == buttonSaveDescCancel )
 			{
 
-				// hide the desc window
-				//GameWindow *saveDesc = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:SaveDescParent" ) );
-				saveDesc->winHide( TRUE );
-
-				// enable the listbox of games
-				//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
-				listboxGames->winEnable( TRUE );
-
-				// enable the frame window of buttons for the main save/load menu
-				//GameWindow *buttonFrame  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:MenuButtonFrame" ) );
-				buttonFrame->winEnable( TRUE );
-				updateMenuActions();
+				SaveLoadActions::cancelSaveDesc();
+				syncWindows();
 
 			}
-			else if( controlID == buttonLoadConfirm || controlID == buttonLoadCancel )
+			else if( controlID == buttonLoadConfirm )
 			{
 
-				// hide confirm dialog
-				//GameWindow *loadConfirm  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:LoadConfirmParent" ) );
-				loadConfirm->winHide( TRUE );
+				resetDialogWindows();
+				SaveLoadActions::confirmLoad();
 
-				// enable the listbox of games again
-				//GameWindow *listboxGames = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:ListboxGames" ) );
-				listboxGames->winEnable( TRUE );
+			}
+			else if( controlID == buttonLoadCancel )
+			{
 
-				// enable the main save/load menu button controls
-				//GameWindow *buttonFrame  = TheWindowManager->winGetWindowFromId( parent, NAMEKEY( "PopupSaveLoad.wnd:MenuButtonFrame" ) );
-				buttonFrame->winEnable( TRUE );
-				updateMenuActions();
-
-				// do the load game
-				if( controlID == buttonLoadConfirm )
-				{
-					closeSaveMenu( window );
-					doLoadGame();
-				}
+				SaveLoadActions::cancelLoad();
+				syncWindows();
 
 			}
 

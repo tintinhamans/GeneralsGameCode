@@ -1177,6 +1177,66 @@ static void addGameToAvailableList( AsciiString filename, void *userData )
 // ------------------------------------------------------------------------------------------------
 /** Populate the listbox passed in with a list of the save games present on the hard drive */
 // ------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------
+/** Rescan the save directory into the available games list */
+// ------------------------------------------------------------------------------------------------
+AvailableGameInfo *GameState::refreshAvailableGames()
+{
+
+	clearAvailableGames();
+	iterateSaveFiles( addGameToAvailableList, &m_availableGames );
+	return m_availableGames;
+
+}
+
+// ------------------------------------------------------------------------------------------------
+/** Label, time and date text of a save game and its list color, the nth entry of the list */
+// ------------------------------------------------------------------------------------------------
+Int GameState::describeAvailableGame( const AvailableGameInfo *info, UnsignedInt count,
+																				UnicodeString &label, UnicodeString &time, UnicodeString &date )
+{
+
+	// get save game info
+	const SaveGameInfo *saveGameInfo = &info->saveGameInfo;
+
+	// setup a system time structure given the data we saved in the file
+	SYSTEMTIME systemTime;
+	systemTime.wYear = saveGameInfo->date.year;
+	systemTime.wMonth = saveGameInfo->date.month;
+	systemTime.wDayOfWeek = saveGameInfo->date.dayOfWeek;
+	systemTime.wDay = saveGameInfo->date.day;
+	systemTime.wHour = saveGameInfo->date.hour;
+	systemTime.wMinute = saveGameInfo->date.minute;
+	systemTime.wSecond = saveGameInfo->date.second;
+	systemTime.wMilliseconds = saveGameInfo->date.milliseconds;
+
+	// setup date buffer for local region date format
+	date = getUnicodeDateBuffer(systemTime);
+
+	// setup time buffer for local region time format
+	time = getUnicodeTimeBuffer(systemTime);
+
+	// description string
+	label = saveGameInfo->description;
+	if( label.isEmpty() == TRUE )
+	{
+		Bool exists = FALSE;
+
+		label = TheGameText->fetch( saveGameInfo->mapLabel, &exists );
+		if( exists == FALSE )
+			label.format( L"%S", saveGameInfo->mapLabel.str() );
+
+	}
+
+	// pick color for text (we alternate it each game)
+	if( saveGameInfo->saveFileType == SAVE_FILE_TYPE_MISSION )
+		return GameMakeColor( 200, 255, 200, 255 );
+	else if( count & 0x1 )
+		return GameMakeColor( 255, 255, 255, 255 );
+	return GameMakeColor( 170, 170, 235, 255 );
+
+}
+
 void GameState::populateSaveGameListbox( GameWindow *listbox, SaveLoadLayoutType layoutType )
 {
 	Int index;
@@ -1199,59 +1259,17 @@ void GameState::populateSaveGameListbox( GameWindow *listbox, SaveLoadLayoutType
 
 	}
 
-	// clear the available games
-	clearAvailableGames();
-
-	// iterate all the save files in the directory and populate the listbox
-	iterateSaveFiles( addGameToAvailableList, &m_availableGames );
+	// rescan the save directory
+	refreshAvailableGames();
 
 	// add all games found to the list box
 	AvailableGameInfo *info;
-	SaveGameInfo *saveGameInfo;
-	SYSTEMTIME systemTime;
 	UnsignedInt count = 0;
 	for( info = m_availableGames; info; info = info->next, count++ )
 	{
 
-		// get save game info
-		saveGameInfo = &info->saveGameInfo;
-
-		// setup a system time structure given the data we saved in the file
-		systemTime.wYear = saveGameInfo->date.year;
-		systemTime.wMonth = saveGameInfo->date.month;
-		systemTime.wDayOfWeek = saveGameInfo->date.dayOfWeek;
-		systemTime.wDay = saveGameInfo->date.day;
-		systemTime.wHour = saveGameInfo->date.hour;
-		systemTime.wMinute = saveGameInfo->date.minute;
-		systemTime.wSecond = saveGameInfo->date.second;
-		systemTime.wMilliseconds = saveGameInfo->date.milliseconds;
-
-		// setup date buffer for local region date format
-		UnicodeString displayDateBuffer = getUnicodeDateBuffer(systemTime);
-
-		// setup time buffer for local region time format
-		UnicodeString displayTimeBuffer = getUnicodeTimeBuffer(systemTime);
-
-		// description string
-		UnicodeString displayLabel = saveGameInfo->description;
-		if( displayLabel.isEmpty() == TRUE )
-		{
-			Bool exists = FALSE;
-
-			displayLabel = TheGameText->fetch( saveGameInfo->mapLabel, &exists );
-			if( exists == FALSE )
-				displayLabel.format( L"%S", saveGameInfo->mapLabel.str() );
-
-		}
-
-		// pick color for text (we alternate it each game)
-		Color color;
-		if( saveGameInfo->saveFileType == SAVE_FILE_TYPE_MISSION )
-			color = GameMakeColor( 200, 255, 200, 255 );
-		else if( count & 0x1 )
-			color = GameMakeColor( 255, 255, 255, 255 );
-		else
-			color = GameMakeColor( 170, 170, 235, 255 );
+		UnicodeString displayLabel, displayTimeBuffer, displayDateBuffer;
+		Color color = describeAvailableGame( info, count, displayLabel, displayTimeBuffer, displayDateBuffer );
 
 		// add string to listbox
 		index = GadgetListBoxAddEntryText( listbox, displayLabel, color, -1, 0 );
