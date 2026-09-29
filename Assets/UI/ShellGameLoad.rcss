@@ -39,11 +39,17 @@
 	height: 2.667%;
 	display: flex;
 	box-sizing: border-box;
-	background-color: #2F37A8;
+	padding: 2dp;
+	background-color: #05070FE6;
+	border: 1dp #3A46D0;
+	border-top-color: #1E246E;
 }
 
+/* The shared progress look (see LoadScreen.rcss .load-bar): a lit blue tube with a bright end cap. */
 .shell-bar-fill
 {
 	flex: 0 0 auto;
-	background-color: #8080FF;
+	box-sizing: border-box;
+	decorator: vertical-gradient(#A0A8FF #2F37A8);
+	border-right: 2dp #E0E4FF;
 }

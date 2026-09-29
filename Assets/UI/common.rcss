@@ -483,18 +483,32 @@ scrollbarvertical slidertrack
 	width: 12dp;
 	background-color: rgba(2, 2, 2, 191);
 	border-left: 1dp rgba(47, 55, 168, 110);
+	border-right: 1dp rgba(47, 55, 168, 60);
 }
 
+/* Bevelled like the .wnd's slider thumb art: lit top and left edge, dark bottom and right. */
 scrollbarvertical sliderbar
 {
+	box-sizing: border-box;
 	width: 12dp;
 	min-height: 32dp;
-	background-color: #2F37A8;
+	border-top: 1dp #8080FF;
+	border-left: 1dp #4A55D8;
+	border-bottom: 1dp #0B1030;
+	border-right: 1dp #1E246E;
+	decorator: horizontal-gradient(#3A46D0 #2A33A0);
 }
 
-scrollbarvertical sliderbar:hover, scrollbarvertical sliderbar:active
+scrollbarvertical sliderbar:hover
 {
-	background-color: #8080FF;
+	border-top-color: #C0C4FF;
+	decorator: horizontal-gradient(#5560E8 #3A46D0);
+}
+
+scrollbarvertical sliderbar:active
+{
+	border-top-color: #FFFFFF;
+	decorator: horizontal-gradient(#8080FF #5560E8);
 }
 
 scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
@@ -723,6 +737,9 @@ scrolllog
 	height: 48dp;
 }
 
+/* Progress bars share one look: a recessed dark track with a blue edge, the fill a lit tube (light top,
+   dark bottom) ending in a bright cap. Rank progress fills with the accent. A fill needs display: block
+   or its width is ignored. */
 .rank-progress
 {
 	display: block;
@@ -732,14 +749,20 @@ scrolllog
 	bottom: 0;
 	width: 100%; /* fill rank-border's content box exactly, see .rank-image-wrap above */
 	height: 24dp;
-	background-color: rgba(2, 2, 2, 164);
-	border: 1dp #FFBB00;
+	padding: 3dp;
+	background-color: #05070FE6;
+	border: 1dp #3A46D0;
+	border-top-color: #1E246E;
 }
 
 .rank-progress-fill
 {
+	display: block;
+	box-sizing: border-box;
 	height: 100%;
-	background-color: rgba(59, 255, 0, 200);
+	background-color: #F07A1A;
+	decorator: vertical-gradient(#F5A93A #C9540F);
+	border-right: 2dp #FFE2B8;
 }
 
 .rank-label
@@ -1621,29 +1644,48 @@ label.check:hover
 }
 
 /* ---- Scrollbar: slim, lit on hover -------------------------------------------------------- */
+/* A recessed channel with a bevelled blue thumb, like the .wnd slider art: lit top and left edges,
+   dark bottom and right. Brighter on hover, the accent while dragged. */
 .screen scrollbarvertical
 {
-	width: 10dp;
+	width: 12dp;
+	margin-left: 4dp;
 }
 
 .screen scrollbarvertical slidertrack
 {
-	width: 10dp;
-	background-color: #FFFFFF0A;
-	border-width: 0;
+	width: 12dp;
+	background-color: #05070FB4;
+	border-left: 1dp #8080FF1F;
+	border-right: 1dp #8080FF1F;
 }
 
 .screen scrollbarvertical sliderbar
 {
-	width: 10dp;
-	min-height: 50dp;
-	background-color: #8080FF64;
-	transition: background-color 0.12s cubic-out;
+	box-sizing: border-box;
+	width: 12dp;
+	min-height: 48dp;
+	border-top: 1dp #A0A8FF;
+	border-bottom: 1dp #141A3E;
+	border-left: 1dp #5560E8;
+	border-right: 1dp #1E246E;
+	decorator: horizontal-gradient(#3A46D0 #2A33A0);
+	transition: border-color 0.12s cubic-out;
 }
 
-.screen scrollbarvertical sliderbar:hover, .screen scrollbarvertical sliderbar:active
+.screen scrollbarvertical sliderbar:hover
 {
-	background-color: #8080FF;
+	border-top-color: #D0D4FF;
+	decorator: horizontal-gradient(#5560E8 #3A46D0);
+}
+
+.screen scrollbarvertical sliderbar:active
+{
+	border-top-color: #F5A93A;
+	border-left-color: #F79A34;
+	border-right-color: #C9540F;
+	border-bottom-color: #7A3208;
+	decorator: horizontal-gradient(#F07A1A #D8601A);
 }
 
 /* ---- List rows ---------------------------------------------------------------------------

@@ -84,14 +84,18 @@ body
 	text-align: center;
 }
 
+/* Progress: a recessed track with a blue edge; the fill is the player's house colour as a lit tube
+   (light top, dark bottom) with a bright end cap, standing in for LoadingBar_ProgressCenterN. */
 .load-bar
 {
 	display: flex;
 	width: 100%;
 	box-sizing: border-box;
 	height: 36dp;
-	background-color: rgba(2, 2, 2, 200);
-	border: 2dp #2F37A8;
+	padding: 4dp;
+	background-color: #05070FE6;
+	border: 1dp #3A46D0;
+	border-top-color: #1E246E;
 }
 
 /* Bars the .wnd hides (host, or a player who already has the map) keep their slot. */
@@ -103,6 +107,9 @@ body
 .load-bar-fill
 {
 	flex: 0 0 auto;
+	box-sizing: border-box;
+	decorator: vertical-gradient(#FFFFFF73 #0000006B);
+	border-right: 2dp #FFFFFFCC;
 }
 
 /* ---- Top half shared by the multiplayer and online screens -------------------------------
