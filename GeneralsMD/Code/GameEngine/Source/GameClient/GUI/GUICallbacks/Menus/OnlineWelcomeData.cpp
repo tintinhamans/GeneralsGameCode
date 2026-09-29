@@ -171,14 +171,15 @@ AsciiString buildFactionStatTooltipKey(const AsciiString &side)
 	return key;
 }
 
-// WOLWelcomeMenu.wnd's PercentXxx ENABLEDDRAWDATA image, keyed the same way (index order matches
-// g_mapServiceIndexToPlayerTemplateString exactly; not derivable from side by any naming rule).
+// The image WOLWelcomeMenu.wnd's PercentXxx CHECKBOX really draws: W3DGadgetCheckBoxImageDraw()
+// paints only the box (ENABLEDDRAWDATA slot 1 while unchecked, the silver medallion), never slot 0.
+// Index order matches g_mapServiceIndexToPlayerTemplateString; not derivable from side by any rule.
 static const char *const kFactionStatIcons[] =
 {
-	"USA_Logo", "China_Logo", "GLA_Logo",
-	"USA_Superweapon", "USA_Laser", "USA_Air",
-	"China_Tank", "China_Infantry", "China_Nuke",
-	"GLA_Toxin", "GLA_Demo", "GLA_Stealth",
+	"USAGeneral_slvr", "ChinaGeneral_slvr", "GLAGeneral_slvr",
+	"SuperWGeneral_slvr", "LaserGeneral_slvr", "AirGeneral_slvr",
+	"TankGeneral_slvr", "InfantryGeneral_slvr", "NukeGeneral_slvr",
+	"ToxinGeneral_slvr", "DemoGeneral_slvr", "StealthGeneral_slvr",
 };
 
 //-------------------------------------------------------------------------------------------------
