@@ -912,14 +912,16 @@ body.shell
 	            overline 12-13dp bold caps tracked 2dp; body 16dp; small 13dp. Text drawn
 	            straight on the map (.on-map, the header, the back button) gets .map-glow.
 	  Spacing   4 / 8 / 12 / 16 / 24 / 32dp; 16dp between floating panels.
-	  Frame     the ruler is a hairline with corner brackets (.screen-ruler); the content frame
-	            sits inside it and is at most 1720dp wide, centred.
+	  Frame     the ruler is the MainMenuRuler art's tick strips and frame line at full strength
+	            (.screen-ruler) without its grid band; the content frame sits inside it and is at
+	            most 1720dp wide, centred.
 	  Motion    hover/press 0.12s cubic-out, panels 0.22s cubic-out, loading pulse 1.2s.
 	            Opacity, colours and margins only: the renderer has no transforms.
 
    Skeleton
 	<body class="screen" data-model="...">
-		<div class="screen-ruler"><div class="rc tl"/><div class="rc tr"/><div class="rc bl"/><div class="rc br"/></div>
+		<div class="screen-ruler"><div class="rs rs-top"><mappedimage name="MainMenuRuler"/></div>
+			(rs-bottom, rs-left and rs-right the same)</div>
 		<div class="screen-frame">
 			<div class="screen-header">
 				<div class="screen-heading">
@@ -949,32 +951,48 @@ body.screen
 	height: 100%;
 }
 
-/* ---- Ruler: a faint hairline round the old ruler opening, with corner brackets --------------- */
+/* ---- Ruler: the MainMenuRuler art's tick strips and bright frame line ----------------------------
+   Four clipped windows onto the full-screen art (its 800x600 maps to the viewport, so the strips land
+   where the .wnd draws them): rows and columns 24-43 of each edge. The grid band outside them is left
+   off so the map shows out to the screen edge. mappedimage ignores percentage sizes: vw/vh instead. */
 .screen-ruler
 {
 	display: block;
 	position: absolute;
-	left: 5.25%;
-	top: 7%;
-	right: 5.25%;
-	bottom: 7%;
-	border: 1dp #8080FF26;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
 	pointer-events: none;
 }
 
-.screen-ruler .rc
+.screen-ruler .rs
 {
 	display: block;
 	position: absolute;
-	width: 20dp;
-	height: 20dp;
-	border-color: #8080FF8C;
+	overflow: hidden;
+	clip: always; /* the art is absolutely placed, so it never counts as overflow to clip */
 }
 
-.rc.tl { left: -1dp; top: -1dp; border-top-width: 2dp; border-left-width: 2dp; }
-.rc.tr { right: -1dp; top: -1dp; border-top-width: 2dp; border-right-width: 2dp; }
-.rc.bl { left: -1dp; bottom: -1dp; border-bottom-width: 2dp; border-left-width: 2dp; }
-.rc.br { right: -1dp; bottom: -1dp; border-bottom-width: 2dp; border-right-width: 2dp; }
+.rs-top, .rs-bottom { left: 3vw; width: 94vw; height: 3.1667vh; }
+.rs-top { top: 4vh; }
+.rs-bottom { top: 92.8333vh; }
+.rs-left, .rs-right { top: 7.1667vh; width: 2.375vw; height: 85.6667vh; }
+.rs-left { left: 3vw; }
+.rs-right { left: 94.625vw; }
+
+.screen-ruler .rs mappedimage
+{
+	display: block;
+	position: absolute;
+	width: 100vw;
+	height: 100vh;
+}
+
+.rs-top mappedimage { left: -3vw; top: -4vh; }
+.rs-bottom mappedimage { left: -3vw; top: -92.8333vh; }
+.rs-left mappedimage { left: -3vw; top: -7.1667vh; }
+.rs-right mappedimage { left: -94.625vw; top: -7.1667vh; }
 
 /* Content frame: inside the ruler, at most 1720dp wide and centred, no fill of its own. */
 .screen-frame

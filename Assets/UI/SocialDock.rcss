@@ -26,7 +26,7 @@ body
 	flex-direction: column;
 	align-items: center;
 	position: fixed;
-	right: 1.1%;
+	right: 0.6%;
 	top: 38%;
 	width: 50dp;
 	height: auto;
