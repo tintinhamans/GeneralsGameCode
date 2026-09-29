@@ -275,7 +275,11 @@ Int W3DDisplayString::getWidth( Int charPos )
 
 		while ( (ch = *text++ ) != 0 && ( charPos == -1 || count < charPos ) )
 		{
-			if ( ch != (WideChar)'\n' )
+			// A surrogate pair draws as one '?' (see Render2DSentenceClass::Replace_Non_BMP), so its
+			// high half takes that width and its low half none.
+			if ( ch >= 0xD800 && ch <= 0xDFFF )
+				ch = ( ch <= 0xDBFF ) ? (WideChar)'?' : (WideChar)0;
+			if ( ch != (WideChar)'\n' && ch != 0 )
 			{
 				width += font->Get_Char_Spacing( ch );
 			}

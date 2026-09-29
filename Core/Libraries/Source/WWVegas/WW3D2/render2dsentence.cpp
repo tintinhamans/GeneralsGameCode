@@ -40,6 +40,7 @@
 #include "WWDebug/wwprofile.h"
 #include "WWDebug/wwmemlog.h"
 #include "dx8wrapper.h"
+#include <string>
 
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -244,12 +245,56 @@ Render2DSentenceClass::Set_Location (const Vector2 &loc)
 
 ////////////////////////////////////////////////////////////////////////////////////
 //
+//	Replace_Non_BMP
+//
+//	The fonts have no glyphs beyond the Basic Multilingual Plane (an emoji in a chat line, say), and
+//	the two surrogate halves of such a character would each draw as a broken glyph. Replaces every
+//	surrogate pair with a single '?' (and any unpaired half too) in 'storage' and returns it, or
+//	returns 'text' itself when it has none. Only what is drawn changes; the caller's text does not.
+//
+////////////////////////////////////////////////////////////////////////////////////
+static const WCHAR *Replace_Non_BMP (const WCHAR *text, std::wstring &storage)
+{
+	if (text == nullptr) {
+		return text;
+	}
+
+	const WCHAR *scan = text;
+	while (*scan != 0 && (*scan < 0xD800 || *scan > 0xDFFF)) {
+		++scan;
+	}
+	if (*scan == 0) {
+		return text;
+	}
+
+	storage.assign (text, scan);
+	while (*scan != 0) {
+		const bool high = (*scan >= 0xD800 && *scan <= 0xDBFF);
+		if (high && scan[1] >= 0xDC00 && scan[1] <= 0xDFFF) {
+			++scan;
+			storage.push_back (L'?');
+		} else if (*scan >= 0xD800 && *scan <= 0xDFFF) {
+			storage.push_back (L'?');
+		} else {
+			storage.push_back (*scan);
+		}
+		++scan;
+	}
+	return storage.c_str ();
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////
+//
 //	Get_Text_Extents
 //
 ////////////////////////////////////////////////////////////////////////////////////
 Vector2
 Render2DSentenceClass::Get_Text_Extents (const WCHAR *text)
 {
+	std::wstring drawable;
+	text = Replace_Non_BMP (text, drawable);
+
 	Vector2 extent (0, Font->Get_Char_Height());
 
 	while (*text) {
@@ -272,6 +317,9 @@ Render2DSentenceClass::Get_Text_Extents (const WCHAR *text)
 Vector2
 Render2DSentenceClass::Get_Formatted_Text_Extents (const WCHAR *text)
 {
+	std::wstring drawable;
+	text = Replace_Non_BMP (text, drawable);
+
 	return Build_Sentence_Not_Centered(text, nullptr, nullptr, true);
 }
 
@@ -1157,6 +1205,9 @@ Render2DSentenceClass::Build_Sentence (const WCHAR *text, int *hkX, int *hkY)
 
 	if (Font == nullptr)
 		return;
+
+	std::wstring drawable;
+	text = Replace_Non_BMP (text, drawable);
 
 	if(Centered && (WrapWidth > 0 || wcschr(text,L'\n')))
 		Build_Sentence_Centered(text, hkX, hkY);
