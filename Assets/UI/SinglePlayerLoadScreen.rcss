@@ -26,7 +26,7 @@
 	flex-direction: column;
 	justify-content: center;
 	text-align: center;
-	font-size: 24dp;
+	font-size: 26dp;
 	color: #FF0400;
 }
 
@@ -41,7 +41,7 @@
 	flex-direction: column;
 	justify-content: center;
 	text-align: center;
-	font-size: 17dp;
+	font-size: 16dp;
 	color: #FEFEFE;
 	background-color: rgba(0, 0, 0, 126);
 }
@@ -66,7 +66,7 @@
 	display: block;
 	height: 16.667%;
 	padding-left: 4dp;
-	font-size: 24dp;
+	font-size: 26dp;
 	color: #FFFFFF;
 	white-space: nowrap;
 	overflow: hidden;

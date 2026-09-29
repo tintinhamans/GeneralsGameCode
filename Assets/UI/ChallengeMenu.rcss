@@ -51,7 +51,7 @@
 	position: absolute;
 	left: 5.75%;
 	top: 7.667%;
-	font-size: 36dp;
+	font-size: 40dp;
 	font-weight: bold;
 	color: #FFFFFF;
 	white-space: nowrap;
@@ -162,7 +162,7 @@
 	position: absolute;
 	left: 0.9%;
 	top: 3.5%;
-	font-size: 25dp;
+	font-size: 26dp;
 	color: #FFFFFF;
 	white-space: nowrap;
 }
@@ -210,7 +210,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 26dp;
+	font-size: 20dp;
 }
 
 .ch-play { left: 47.75%; }

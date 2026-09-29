@@ -17,7 +17,7 @@
 	flex-direction: column;
 	justify-content: center;
 	text-align: center;
-	font-size: 36dp;
+	font-size: 40dp;
 	font-weight: bold;
 	color: #FEFEFE;
 	white-space: nowrap;

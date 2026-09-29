@@ -48,7 +48,7 @@ body { width: 100%; height: 100%; }
 
 .credit-line.normal
 {
-	font-size: 12dp;
+	font-size: 13dp;
 }
 
 /* CREDIT_STYLE_COLUMN's two DisplayStrings are centered at width/3 and 2*width/3 in the .wnd
