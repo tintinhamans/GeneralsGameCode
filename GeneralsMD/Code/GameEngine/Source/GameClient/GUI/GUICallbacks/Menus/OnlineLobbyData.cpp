@@ -88,7 +88,7 @@ std::vector<PlayerRow> collectPlayerRows()
 	if ( pRoomsInterface == nullptr )
 		return outRows;
 
-	auto membersMap = pRoomsInterface->GetMembersListForCurrentRoom();
+	const auto& membersMap = pRoomsInterface->GetMembersListForCurrentRoom();
 	outRows.reserve( membersMap.size() );
 
 	for ( auto& [id, member] : membersMap )

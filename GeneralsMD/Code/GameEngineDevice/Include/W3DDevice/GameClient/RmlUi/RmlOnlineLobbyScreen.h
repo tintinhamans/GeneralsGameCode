@@ -121,6 +121,8 @@ private:
 	SignalConnections m_connections; // OnlineLobbySignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
 	std::string m_rosterSignature; // see refreshPlayers()
+	static const unsigned long PLAYER_LIST_POLL_MS = 4000; // WOLLobbyMenu.cpp's playerListRefreshInterval
+	unsigned long m_lastRosterPoll = 0; // GetTickCount() of the last update() poll
 
 	// One row of the game list (see OnlineLobbyData::GameRow, which this mirrors 1:1 for RmlUi binding).
 	struct GameRowModel

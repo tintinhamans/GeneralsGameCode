@@ -208,8 +208,12 @@ void RmlOnlineLobbyScreen::load(Rml::Context *context)
 //-------------------------------------------------------------------------------------------------
 void RmlOnlineLobbyScreen::show()
 {
-	if (!m_document)
+	// Shell::doPush() opens a routed screen twice (runInit, then bringForward); entering the session a
+	// second time would fetch the room list again and restart the lobby state.
+	if (!m_document || m_document->IsVisible())
 		return;
+
+	m_lastRosterPoll = ::GetTickCount();
 
 	m_gameRows.beginUpdate();
 	m_gameRows.endUpdate();
@@ -283,7 +287,14 @@ void RmlOnlineLobbyScreen::update()
 
 	OnlineLobbySession::update();
 
-	refreshPlayers(false);
+	// The roster signal covers roster changes; this only picks up friend/ignore changes, on the .wnd's
+	// playerListRefreshInterval, since a poll every frame rebuilds the whole roster (hundreds of players).
+	const DWORD now = ::GetTickCount();
+	if (now - m_lastRosterPoll >= PLAYER_LIST_POLL_MS)
+	{
+		m_lastRosterPoll = now;
+		refreshPlayers(false);
+	}
 
 	if (m_model.playerMenuVisible)
 		clampPlayerMenu();
