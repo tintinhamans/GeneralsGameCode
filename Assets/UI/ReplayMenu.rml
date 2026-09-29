@@ -24,12 +24,14 @@
 			</div>
 
 			<div class="rp-buttons">
-				<button data-event-click="load"><gametext key="GUI:LoadReplay"/></button>
-				<button data-event-click="delete"><gametext key="GUI:DeleteReplay"/></button>
-				<button data-event-click="copy"><gametext key="GUI:CopyReplay"/></button>
-				<div class="spacer"></div>
-				<button data-event-click="back"><gametext key="GUI:BACK"/></button>
+				<button class="btn-primary" data-event-click="load"><gametext key="GUI:LoadReplay"/></button>
+				<button class="btn-primary" data-event-click="delete"><gametext key="GUI:DeleteReplay"/></button>
+				<button class="btn-primary" data-event-click="copy"><gametext key="GUI:CopyReplay"/></button>
 			</div>
+		</div>
+
+		<div class="footer">
+			<button class="btn-primary" data-event-click="back"><gametext key="GUI:BACK"/></button>
 		</div>
 	</div>
 </body>

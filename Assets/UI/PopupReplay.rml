@@ -22,8 +22,8 @@
 		<input type="text" id="name-input" class="text-input pr-input" data-value="name" data-attr-maxlength="name_max" data-event-change="name_changed"/>
 
 		<div class="pr-buttons">
-			<button class="button-lg" data-attrif-disabled="save_disabled" data-event-click="save"><gametext key="GUI:SaveReplay"/></button>
-			<button class="button-lg" data-event-click="back"><gametext key="GUI:Back"/></button>
+			<button class="btn-primary" data-attrif-disabled="save_disabled" data-event-click="save"><gametext key="GUI:SaveReplay"/></button>
+			<button class="btn-primary" data-event-click="back"><gametext key="GUI:Back"/></button>
 		</div>
 
 		<div class="pr-saved" data-if="show_saved"><gametext key="GUI:ReplaySaved"/></div>

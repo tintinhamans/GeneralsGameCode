@@ -63,11 +63,11 @@
 		<div class="save-game-text" data-if="show_save_game_text"><gametext key="GUI:GameSaveComplete"/></div>
 
 		<div class="footer">
-			<button data-if="show_buddies_button" data-event-click="buddies"><gametext key="GUI:Buddies"/></button>
-			<button data-event-click="save_replay"><gametext key="GUI:SaveReplay"/></button>
-			<button data-if="show_continue_button &amp;&amp; show_default_continue_label" data-event-click="continue_pressed"><gametext key="GUI:Continue"/></button>
-			<button data-if="show_continue_button &amp;&amp; !show_default_continue_label" data-event-click="continue_pressed">{{continue_button_caption}}</button>
-			<button data-event-click="ok"><gametext key="GUI:Ok"/></button>
+			<button class="btn-primary" data-if="show_buddies_button" data-event-click="buddies"><gametext key="GUI:Buddies"/></button>
+			<button class="btn-primary" data-event-click="save_replay"><gametext key="GUI:SaveReplay"/></button>
+			<button class="btn-primary" data-if="show_continue_button &amp;&amp; show_default_continue_label" data-event-click="continue_pressed"><gametext key="GUI:Continue"/></button>
+			<button class="btn-primary" data-if="show_continue_button &amp;&amp; !show_default_continue_label" data-event-click="continue_pressed">{{continue_button_caption}}</button>
+			<button class="btn-primary" data-event-click="ok"><gametext key="GUI:Ok"/></button>
 		</div>
 	</div>
 </body>

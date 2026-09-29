@@ -23,26 +23,26 @@
 		</div>
 
 		<div class="sl-buttons">
-			<button class="button-lg" data-attrif-disabled="save_disabled" data-event-click="save"><gametext key="GUI:SaveGame"/></button>
-			<button class="button-lg" data-attrif-disabled="load_disabled" data-event-click="load"><gametext key="GUI:LoadGame"/></button>
-			<button class="button-lg" data-attrif-disabled="delete_disabled" data-event-click="delete"><gametext key="GUI:DeleteGame"/></button>
-			<button class="button-lg" data-attrif-disabled="back_disabled" data-event-click="back"><gametext key="GUI:Back"/></button>
+			<button class="btn-primary" data-attrif-disabled="save_disabled" data-event-click="save"><gametext key="GUI:SaveGame"/></button>
+			<button class="btn-primary" data-attrif-disabled="load_disabled" data-event-click="load"><gametext key="GUI:LoadGame"/></button>
+			<button class="btn-primary" data-attrif-disabled="delete_disabled" data-event-click="delete"><gametext key="GUI:DeleteGame"/></button>
+			<button class="btn-primary" data-attrif-disabled="back_disabled" data-event-click="back"><gametext key="GUI:Back"/></button>
 		</div>
 	</div>
 
 	<div class="sl-dialog sl-dialog-load" data-if="show_load_confirm">
 		<div class="sl-message"><gametext key="GUI:LoadGameConfirmation"/></div>
 		<div class="sl-dialog-buttons">
-			<button class="button-lg" data-event-click="confirm_load"><gametext key="GUI:LoadGame"/></button>
-			<button class="button-lg" data-event-click="cancel_load"><gametext key="GUI:Cancel"/></button>
+			<button class="btn-primary" data-event-click="confirm_load"><gametext key="GUI:LoadGame"/></button>
+			<button class="btn-primary" data-event-click="cancel_load"><gametext key="GUI:Cancel"/></button>
 		</div>
 	</div>
 
 	<div class="sl-dialog" data-if="show_overwrite_confirm">
 		<div class="sl-message"><gametext key="GUI:OverwriteSaveConfirmation"/></div>
 		<div class="sl-dialog-buttons">
-			<button class="button-lg" data-event-click="confirm_overwrite"><gametext key="GUI:SaveGame"/></button>
-			<button class="button-lg" data-event-click="cancel_overwrite"><gametext key="GUI:Cancel"/></button>
+			<button class="btn-primary" data-event-click="confirm_overwrite"><gametext key="GUI:SaveGame"/></button>
+			<button class="btn-primary" data-event-click="cancel_overwrite"><gametext key="GUI:Cancel"/></button>
 		</div>
 	</div>
 
@@ -50,16 +50,16 @@
 		<div class="sl-message sl-message-entry"><gametext key="GUI:EnterSaveDesc"/></div>
 		<input type="text" class="text-input sl-input" data-value="description" data-attr-maxlength="description_max"/>
 		<div class="sl-dialog-buttons">
-			<button class="button-lg" data-event-click="confirm_save_desc"><gametext key="GUI:SaveGame"/></button>
-			<button class="button-lg" data-event-click="cancel_save_desc"><gametext key="GUI:Cancel"/></button>
+			<button class="btn-primary" data-event-click="confirm_save_desc"><gametext key="GUI:SaveGame"/></button>
+			<button class="btn-primary" data-event-click="cancel_save_desc"><gametext key="GUI:Cancel"/></button>
 		</div>
 	</div>
 
 	<div class="sl-dialog" data-if="show_delete_confirm">
 		<div class="sl-message"><gametext key="GUI:ConfirmDelete"/></div>
 		<div class="sl-dialog-buttons">
-			<button class="button-lg" data-event-click="confirm_delete"><gametext key="GUI:Yes"/></button>
-			<button class="button-lg" data-event-click="cancel_delete"><gametext key="GUI:No"/></button>
+			<button class="btn-primary" data-event-click="confirm_delete"><gametext key="GUI:Yes"/></button>
+			<button class="btn-primary" data-event-click="cancel_delete"><gametext key="GUI:No"/></button>
 		</div>
 	</div>
 </body>

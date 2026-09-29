@@ -22,9 +22,9 @@ body
 	height: 78.333%;
 	display: flex;
 	flex-direction: column;
-	padding: 12dp 20dp 18dp 20dp;
+	padding: 16dp;
 	background-color: #020202;
-	border: 1dp #2F37A8;
+	border: 2dp #2F37A8;
 }
 
 .pr-list
@@ -62,7 +62,7 @@ body
 	flex: 0 0 auto;
 	box-sizing: border-box;
 	width: 100%;
-	margin-top: 8dp;
+	margin-top: 12dp;
 }
 
 .pr-buttons
@@ -72,12 +72,8 @@ body
 	flex-direction: row;
 	justify-content: space-between;
 	margin-top: 12dp;
-}
-
-.pr-buttons button
-{
-	flex: 0 0 auto;
-	width: 270dp;
+	padding-top: 12dp;
+	border-top: 1dp #2F37A8;
 }
 
 /* The "Replay Saved" notice over the list, up for a second before the popup closes. */
@@ -93,7 +89,8 @@ body
 	flex-direction: column;
 	justify-content: center;
 	text-align: center;
-	font-size: 22dp;
+	font-size: 26dp;
+	font-weight: bold;
 	color: #FFFFFF;
 	background-color: rgba(0, 0, 1, 235);
 	border: 1dp #2F37A8;
