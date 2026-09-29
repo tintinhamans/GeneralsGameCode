@@ -23,10 +23,10 @@
 		</div>
 
 		<div class="sl-buttons">
-			<button class="button-lg" data-attr-disabled="save_disabled" data-event-click="save"><gametext key="GUI:SaveGame"/></button>
-			<button class="button-lg" data-attr-disabled="load_disabled" data-event-click="load"><gametext key="GUI:LoadGame"/></button>
-			<button class="button-lg" data-attr-disabled="delete_disabled" data-event-click="delete"><gametext key="GUI:DeleteGame"/></button>
-			<button class="button-lg" data-attr-disabled="back_disabled" data-event-click="back"><gametext key="GUI:Back"/></button>
+			<button class="button-lg" data-attrif-disabled="save_disabled" data-event-click="save"><gametext key="GUI:SaveGame"/></button>
+			<button class="button-lg" data-attrif-disabled="load_disabled" data-event-click="load"><gametext key="GUI:LoadGame"/></button>
+			<button class="button-lg" data-attrif-disabled="delete_disabled" data-event-click="delete"><gametext key="GUI:DeleteGame"/></button>
+			<button class="button-lg" data-attrif-disabled="back_disabled" data-event-click="back"><gametext key="GUI:Back"/></button>
 		</div>
 	</div>
 

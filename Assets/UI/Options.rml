@@ -74,72 +74,72 @@
 			<div class="panel scroll-container" data-if="tab == 'graphics'">
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:Resolution"/></div>
-					<select id="select_resolution" class="control" data-value="resolution_index" data-attr-disabled="restricted"></select>
+					<select id="select_resolution" class="control" data-value="resolution_index" data-attrif-disabled="restricted"></select>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:Detail"/></div>
-					<select id="select_detail" class="control" data-value="detail_level" data-attr-disabled="restricted"
+					<select id="select_detail" class="control" data-value="detail_level" data-attrif-disabled="restricted"
 						data-event-change="detail_level_changed"></select>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label">Texture Resolution</div>
 					<input class="control range" type="range" min="0" max="2" step="1" data-value="texture_resolution"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:LowResSlider"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:LowResSlider"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:ParticleCap"/></div>
 					<input class="control range" type="range" min="0" max="2500" step="50" data-value="particle_cap"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:ParticleCapSlider"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:ParticleCapSlider"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:Shadows3D"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="shadow_3d"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:Shadows3D"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:Shadows3D"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:Shadows2D"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="shadow_2d"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:Shadows2D"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:Shadows2D"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:CloudShadows"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="cloud_shadows"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:CloudShadows"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:CloudShadows"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:GroundLighting"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="ground_lighting"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:GroundLighting"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:GroundLighting"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:SmoothWater"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="smooth_water"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:SmoothWater"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:SmoothWater"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:ExtraAnimations"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="extra_animations"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:ExtraAnimations"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:ExtraAnimations"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:NoDynamicLOD"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="no_dynamic_lod"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:NoDynamicLOD"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:NoDynamicLOD"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:HeatEffects"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="heat_effects"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:HeatEffects"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:HeatEffects"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:BehindBuilding"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="building_occlusion"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:BehindBuilding"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:BehindBuilding"/>
 				</div>
 				<div class="row" data-class-disabled="detail_controls_disabled">
 					<div class="label"><gametext key="GUI:ShowProps"/></div>
 					<input class="control checkbox" type="checkbox" data-checked="props"
-						data-attr-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:ShowProps"/>
+						data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:ShowProps"/>
 				</div>
 			</div>
 
@@ -183,27 +183,27 @@
 			<div class="panel scroll-container" data-if="tab == 'network'">
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:IPAddresses"/></div>
-					<select id="select_lan_ip" class="control" data-value="lan_ip_index" data-attr-disabled="restricted" data-tooltip="TOOLTIP:LanIP"></select>
+					<select id="select_lan_ip" class="control" data-value="lan_ip_index" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:LanIP"></select>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:OnlineIPAddresses"/></div>
-					<select id="select_online_ip" class="control" data-value="online_ip_index" data-attr-disabled="restricted" data-tooltip="TOOLTIP:OnlineIP"></select>
+					<select id="select_online_ip" class="control" data-value="online_ip_index" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:OnlineIP"></select>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:FireWallPort"/></div>
-					<input class="control" type="text" maxlength="5" data-value="firewall_port_override" data-attr-disabled="restricted" data-tooltip="TOOLTIP:FireWallPort"/>
+					<input class="control" type="text" maxlength="5" data-value="firewall_port_override" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:FireWallPort"/>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:HTTPProxy"/></div>
-					<input class="control" type="text" data-value="http_proxy" data-attr-disabled="restricted" data-tooltip="TOOLTIP:HTTPProxy"/>
+					<input class="control" type="text" data-value="http_proxy" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:HTTPProxy"/>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:SendDelay"/></div>
-					<input class="control checkbox" type="checkbox" data-checked="send_delay" data-attr-disabled="restricted" data-tooltip="TOOLTIP:SendDelay"/>
+					<input class="control checkbox" type="checkbox" data-checked="send_delay" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:SendDelay"/>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:FirewallRefresh"/></div>
-					<button class="control" data-event-click="firewall_refresh" data-attr-disabled="restricted" data-tooltip="TOOLTIP:RefreshNat"><gametext key="GUI:FirewallRefresh"/></button>
+					<button class="control" data-event-click="firewall_refresh" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:RefreshNat"><gametext key="GUI:FirewallRefresh"/></button>
 				</div>
 			</div>
 		</div>

@@ -27,7 +27,7 @@
 						     a client only sees the combo for non-human slots and a static name label for human
 						     ones (staticTextPlayer[i]->winHide(TRUE) only when bIsHost, WOLGameSetupMenu.cpp:1223-1224).
 						     Showing both here duplicated the name; data-if keeps them exclusive like the .wnd. -->
-						<select data-if="is_host || !row.is_human_occupant" data-value="row.occupant_state" data-attr-disabled="!row.can_edit_occupant"
+						<select data-if="is_host || !row.is_human_occupant" data-value="row.occupant_state" data-attrif-disabled="!row.can_edit_occupant"
 							data-event-change="slot_occupant_changed(row.slot_index)">
 							<option value="0"><gametext key="GUI:Open"/></option>
 							<option value="1"><gametext key="GUI:Closed"/></option>
@@ -41,7 +41,7 @@
 						<div class="slot-name" data-if="row.is_human_occupant &amp;&amp; !is_host">{{row.player_name}}</div>
 					</div>
 					<div class="slot-color color-select">
-						<select data-value="row.color" data-attr-disabled="!row.can_edit || !row.is_occupied"
+						<select data-value="row.color" data-attrif-disabled="!row.can_edit || !row.is_occupied"
 							data-event-change="slot_color_changed(row.slot_index)">
 							<option data-for="opt : color_options" data-attr-value="opt.value"><span class="color-swatch" data-style-background-color="opt.label"></span></option>
 						</select>
@@ -54,11 +54,11 @@
 					     the same way the .wnd's combo enable state does: the host can edit any slot, a
 					     non-host only their own (GameSetupSlotRow::m_canEdit). -->
 					<select class="slot-faction" data-value="row.player_template"
-						data-attr-disabled="!row.can_edit || !row.is_occupied" data-attr-data-tooltip-text="row.faction_tooltip"
+						data-attrif-disabled="!row.can_edit || !row.is_occupied" data-attr-data-tooltip-text="row.faction_tooltip"
 						data-event-change="slot_faction_changed(row.slot_index)">
 						<option data-for="opt : faction_options" data-attr-value="opt.value">{{opt.label}}</option>
 					</select>
-					<select class="slot-team" data-value="row.team_number" data-attr-disabled="!row.can_edit || !row.is_occupied"
+					<select class="slot-team" data-value="row.team_number" data-attrif-disabled="!row.can_edit || !row.is_occupied"
 						data-event-change="slot_team_changed(row.slot_index)">
 						<option value="-1"><gametext key="Team:0"/></option>
 						<option value="0">1</option>
@@ -85,23 +85,18 @@
 					</div>
 				</div>
 				<div class="map-display-name">{{map_display_text}}</div>
-				<!-- RmlUi's <button> isn't an ElementFormControl (no ElementFormControlButton), so it never
-				     gets the :disabled pseudo-class from data-attr-disabled -- button:disabled in common.rcss
-				     never matched and the button looked enabled to a client. data-class-disabled drives the
-				     visual state via button.disabled instead; onSelectMap() (RmlOnlineGameSetupScreen.cpp)
-				     already refuses the action functionally via canOpenMapSelect(). -->
-				<button data-attr-disabled="!is_host || settings_locked" data-class-disabled="!is_host || settings_locked" data-event-click="select_map" data-tooltip="Tooltip:SelectMap"><gametext key="GUI:SelectMap"/></button>
+				<button data-attrif-disabled="!is_host || settings_locked" data-event-click="select_map" data-tooltip="Tooltip:SelectMap"><gametext key="GUI:SelectMap"/></button>
 
 				<div class="row">
 					<div class="label"><gametext key="GUI:StartingMoney"/></div>
-					<select class="control" data-value="starting_cash" data-attr-disabled="!cash_and_sw_enabled || settings_locked"
+					<select class="control" data-value="starting_cash" data-attrif-disabled="!cash_and_sw_enabled || settings_locked"
 						data-event-change="starting_cash_changed" data-tooltip="TOOLTIP:StartingMoney">
 						<option data-for="opt : starting_cash_options" data-attr-value="opt.value">{{opt.label}}</option>
 					</select>
 				</div>
 				<div class="row">
 					<div class="label"><gametext key="GUI:LimitSuperweapons"/></div>
-					<input class="control checkbox" type="checkbox" data-checked="superweapons_restricted" data-attr-disabled="!cash_and_sw_enabled || settings_locked"
+					<input class="control checkbox" type="checkbox" data-checked="superweapons_restricted" data-attrif-disabled="!cash_and_sw_enabled || settings_locked"
 						data-event-change="superweapons_changed" data-tooltip="TOOLTIP:LimitSuperweapons"/>
 				</div>
 				<div class="row">
@@ -127,12 +122,12 @@
 		</div>
 
 		<div class="footer footer-split">
-			<button class="button-lg" data-attr-disabled="!start_enabled" data-event-click="start">
+			<button class="button-lg" data-attrif-disabled="!start_enabled" data-event-click="start">
 				<gametext key="GUI:Start" data-if="is_host"/>
 				<gametext key="GUI:Accept" data-if="!is_host"/>
 			</button>
-			<button class="button-lg" data-attr-disabled="!communicator_enabled" data-event-click="communicator_clicked">{{communicator_label}}</button>
-			<button class="button-lg" data-attr-disabled="!back_enabled" data-event-click="back"><gametext key="GUI:Back"/></button>
+			<button class="button-lg" data-attrif-disabled="!communicator_enabled" data-event-click="communicator_clicked">{{communicator_label}}</button>
+			<button class="button-lg" data-attrif-disabled="!back_enabled" data-event-click="back"><gametext key="GUI:Back"/></button>
 		</div>
 	</div>
 </body>

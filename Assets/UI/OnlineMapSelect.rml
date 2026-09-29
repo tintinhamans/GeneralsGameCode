@@ -38,7 +38,7 @@
 
 		<div class="footer">
 			<button data-event-click="back"><gametext key="GUI:CancelMapSelect"/></button>
-			<button data-attr-disabled="!has_selection" data-event-click="ok"><gametext key="GUI:Accept"/></button>
+			<button data-attrif-disabled="!has_selection" data-event-click="ok"><gametext key="GUI:Accept"/></button>
 		</div>
 	</div>
 </body>

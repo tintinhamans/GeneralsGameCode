@@ -20,7 +20,7 @@
 					<div class="slot-team"><gametext key="GUI:Team"/></div>
 				</div>
 				<div class="slot-row" data-for="row : slots">
-					<select class="slot-occupant" data-if="!row.is_human_occupant" data-value="row.occupant_state" data-attr-disabled="!row.can_edit_occupant"
+					<select class="slot-occupant" data-if="!row.is_human_occupant" data-value="row.occupant_state" data-attrif-disabled="!row.can_edit_occupant"
 						data-event-change="slot_occupant_changed(row.slot_index)">
 						<option value="0"><gametext key="GUI:Open"/></option>
 						<option value="1"><gametext key="GUI:Closed"/></option>
@@ -30,18 +30,18 @@
 					</select>
 					<div class="slot-name" data-if="row.is_human_occupant">{{row.player_name}}</div>
 					<div class="slot-color color-select">
-						<select data-value="row.color" data-attr-disabled="!row.can_edit || !row.is_occupied"
+						<select data-value="row.color" data-attrif-disabled="!row.can_edit || !row.is_occupied"
 							data-event-change="slot_color_changed(row.slot_index)">
 							<option data-for="opt : color_options" data-attr-value="opt.value"><span class="color-swatch" data-style-background-color="opt.label"></span></option>
 						</select>
 						<div class="color-chip" data-style-background-color="row.color_hex"></div>
 					</div>
 					<select class="slot-faction" data-if="!row.is_human_occupant" data-value="row.player_template"
-						data-attr-disabled="!row.can_edit || !row.is_occupied" data-event-change="slot_faction_changed(row.slot_index)">
+						data-attrif-disabled="!row.can_edit || !row.is_occupied" data-event-change="slot_faction_changed(row.slot_index)">
 						<option data-for="opt : faction_options" data-attr-value="opt.value">{{opt.label}}</option>
 					</select>
 					<div class="slot-faction" data-if="row.is_human_occupant">{{row.faction_label}}</div>
-					<select class="slot-team" data-value="row.team_number" data-attr-disabled="!row.can_edit || !row.is_occupied"
+					<select class="slot-team" data-value="row.team_number" data-attrif-disabled="!row.can_edit || !row.is_occupied"
 						data-event-change="slot_team_changed(row.slot_index)">
 						<option value="-1"><gametext key="Team:0"/></option>
 						<option value="0">1</option>
