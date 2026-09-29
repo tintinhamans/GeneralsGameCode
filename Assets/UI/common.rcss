@@ -273,41 +273,106 @@ button[disabled]:active, button.disabled:active, .button.disabled:active
 	font-size: 22dp;
 }
 
-/* ---- Dropdown (select) --------------------------------------------------------------- */
+/* ---- Dropdown (select) ---------------------------------------------------------------
+   32dp control with the .wnd combo box's drop-down button art on the right
+   (COMBOBOXDROPDOWNBUTTON*DRAWDATA: VSliderDownButtonEnabled/-Hilite/-HiliteSelected/-Disabled).
+   The open list is opaque, scrolls past ten rows and lights the hovered row. */
 select
 {
-	background-color: rgba(2, 2, 2, 191);
+	display: inline-block;
+	box-sizing: border-box;
+	height: 32dp;
+	background-color: rgba(2, 2, 2, 220);
 	border: 1dp #2F37A8;
 	color: #FFFFFF;
-	padding: 4dp 8dp;
+	font-size: 16dp;
+	vertical-align: middle;
 }
 
-select:hover
+select selectvalue
+{
+	height: 30dp;
+	line-height: 30dp;
+	margin-right: 32dp;
+	padding: 0 8dp;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+select selectarrow
+{
+	width: 30dp;
+	height: 30dp;
+	decorator: image(VSliderDownButtonEnabled);
+}
+
+select:hover, select:focus
 {
 	border-color: #8080FF;
 }
 
-/* The open list is its own box; without a background it draws see-through over the screen. */
+select:hover selectarrow
+{
+	decorator: image(VSliderDownButtonHilite);
+}
+
+select:checked selectarrow
+{
+	decorator: image(VSliderDownButtonHiliteSelected);
+}
+
+select[disabled], select[disabled]:hover
+{
+	border-color: rgba(47, 55, 168, 110);
+	background-color: rgba(2, 2, 2, 120);
+	color: #7C7E99;
+}
+
+select[disabled] selectarrow, select[disabled]:hover selectarrow
+{
+	decorator: image(VSliderDownButtonDisabled);
+	opacity: 0.6;
+}
+
 select selectbox
 {
-	background-color: rgba(2, 2, 2, 240);
-	border: 1dp #2F37A8;
+	box-sizing: border-box;
+	background-color: #06061A;
+	border: 1dp #8080FF;
+	padding: 2dp 0;
+	max-height: 320dp;
+	overflow-y: auto;
 	z-index: 100;
 }
 
 select selectbox option
 {
-	padding: 4dp 8dp;
+	height: 30dp;
+	line-height: 30dp;
+	padding: 0 10dp;
+	white-space: nowrap;
+	color: #FFFFFF;
 }
 
 select selectbox option:hover
 {
-	background-color: rgba(47, 55, 168, 200);
+	background-color: rgba(47, 55, 168, 220);
 }
 
 select selectbox option:checked
 {
 	color: #BAFF0C;
+}
+
+/* Colour choice: a swatch in front of the colour's name (a hollow swatch for Random). */
+.color-swatch
+{
+	display: inline-block;
+	width: 14dp;
+	height: 14dp;
+	margin-right: 8dp;
+	border: 1dp rgba(255, 255, 255, 160);
+	vertical-align: middle;
 }
 
 /* ---- Slider (input type=range) ------------------------------------------------------- */
