@@ -462,10 +462,13 @@ input.checkbox[disabled]:checked
 }
 
 /* ---- Scroll container ------------------------------------------------------------------ */
+/* min-height: 0 lets the box shrink to its frame; without it a flex item never goes below its
+   content height, so a long list grows past the frame instead of scrolling. */
 .scroll-container
 {
 	overflow-y: auto;
 	flex: 1 1 auto;
+	min-height: 0;
 }
 
 /* Scrollbar must be sized explicitly: unstyled, RmlUi gives it the container's full width, so as
