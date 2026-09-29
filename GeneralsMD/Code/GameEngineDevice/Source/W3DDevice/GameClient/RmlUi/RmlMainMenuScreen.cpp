@@ -19,6 +19,8 @@
 #include "W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h"
 
 #include "Common/AsciiString.h"
+#include "Common/AudioEventRTS.h"
+#include "Common/GameAudio.h"
 #include "Common/GameCommon.h"
 #include "Common/GlobalData.h"
 #include "Common/version.h"
@@ -230,6 +232,18 @@ void RmlMainMenuScreen::setShellHook(const Rml::String &hook)
 	{
 		if (hook == pair.name)
 			TheScriptEngine->signalUIInteract(TheShellHookNames[pair.highlighted]);
+	}
+
+	// Solo-menu buttons signal no script hook in MainMenu.cpp; their hover plays the logo
+	// scale-up transition (MainMenuMediumScaleUpTransition frame 1, forward only).
+	static const char *const logoHoverHooks[] = { "skirmish", "usa", "gla", "china", "challenge" };
+	for (const char *name : logoHoverHooks)
+	{
+		if (hook == name && TheAudio)
+		{
+			AudioEventRTS logoHover("GUILogoMouseOver");
+			TheAudio->addAudioEvent(&logoHover);
+		}
 	}
 	m_hookedName = hook;
 }

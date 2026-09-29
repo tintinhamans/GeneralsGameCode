@@ -34,11 +34,11 @@
 					<mappedimage name="Training144" data-class-visible="hover_faction == 'Training'"/>
 				</div>
 				<div class="menu-list">
-					<button class="button-lg" data-event-click="go_skirmish" data-tooltip="GUI:SkirmishLower"><gametext key="GUI:Skirmish"/></button>
-					<button class="button-lg" data-event-click="select_usa" data-event-mouseover="preview_usa" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign3"><gametext key="GUI:USA"/></button>
-					<button class="button-lg" data-event-click="select_gla" data-event-mouseover="preview_gla" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign2"><gametext key="GUI:GLA"/></button>
-					<button class="button-lg" data-event-click="select_china" data-event-mouseover="preview_china" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign1"><gametext key="GUI:CHINA_Caps"/></button>
-					<button class="button-lg" data-event-click="select_challenge" data-event-mouseover="preview_challenge" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:ChallengeButton"><gametext key="GUI:Generals_Challenge"/></button>
+					<button class="button-lg" data-hook="skirmish" data-event-click="go_skirmish" data-tooltip="GUI:SkirmishLower"><gametext key="GUI:Skirmish"/></button>
+					<button class="button-lg" data-hook="usa" data-event-click="select_usa" data-event-mouseover="preview_usa" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign3"><gametext key="GUI:USA"/></button>
+					<button class="button-lg" data-hook="gla" data-event-click="select_gla" data-event-mouseover="preview_gla" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign2"><gametext key="GUI:GLA"/></button>
+					<button class="button-lg" data-hook="china" data-event-click="select_china" data-event-mouseover="preview_china" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign1"><gametext key="GUI:CHINA_Caps"/></button>
+					<button class="button-lg" data-hook="challenge" data-event-click="select_challenge" data-event-mouseover="preview_challenge" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:ChallengeButton"><gametext key="GUI:Generals_Challenge"/></button>
 					<button class="button-lg back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
 				</div>
 			</div>
