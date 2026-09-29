@@ -1,149 +1,213 @@
 /*
-	MainMenu.rcss -- layout only; palette/buttons/frame come from common.rcss.
+	MainMenu.rcss -- the main menu rail. Palette, type and motion tokens come from the screen
+	template in common.rcss.
 
-	Panel navigation (main/single/multi/loadreplay/difficulty) is CSS-class driven, not
-	data-if: every panel is always present, stacked on top of each other, and crossfades via
-	opacity so switching panels gets a simple transition instead of popping in/out (see
-	RmlMainMenuScreen -- "panel" data model variable selects which one is .active).
+	The menu is a dark rail down the right of the ruler opening (where MainMenu.wnd keeps its
+	buttons), with the logo on top; the rest of the opening stays clear for the shell map, with a
+	soft fade into the rail. Every panel (main/single/multi/loadreplay/difficulty) is always
+	present in .mm-panels; the "panel" data model variable marks one .active, which is the only one
+	laid out, and it slides in from the right as it fades up (a keyframe animation on opacity and
+	margin-left: the renderer has no transforms).
 */
 
-body { width: 100%; height: 100%; }
+/* ---- Rail ---------------------------------------------------------------------------------- */
+/* The rail plus the soft fade on its left, down the right of the ruler opening. */
+.mm-side
+{
+	position: absolute;
+	top: 7.3%;
+	right: 5.6%;
+	height: 85.4%;
+	width: 42%;
+	min-width: 620dp;
+	max-width: 720dp;
+	display: flex;
+	flex-direction: row;
+}
 
-/* .shell-frame is the full blueprint panel (see common.rcss), but the original MainMenu.wnd
-   draws only the ruler overlay plus the logo + button column over the live 3D shell map --
-   everything else is transparent. Drop shell-frame's full-panel fill/border here so the shell
-   map (stood in for by the renderer's background colour) shows through; the button column gets
-   its own panel below, like the original. */
-.mainmenu-frame
+.mm-fade
+{
+	flex: 0 0 160dp;
+	decorator: horizontal-gradient(#05070F00 #05070FD2);
+}
+
+.mm-rail
+{
+	position: relative;
+	flex: 1 1 0%;
+	padding-top: 44dp;
+	background-color: #05070FD2;
+}
+
+/* The logo is fixed dp: mappedimage ignores percentage sizes. 370x120 art. */
+.mm-logo
 {
 	display: block;
-	background-color: transparent;
-	border-width: 0;
+	width: 380dp;
+	height: 123dp;
+	margin: 0 0 44dp 36dp;
 }
 
-.logo
+.mm-panels
 {
-	position: absolute;
-	top: 16dp;
-	right: 24dp;
-	width: 30%;
-	min-width: 320dp;
-	max-width: 480dp;
-	height: 15%;
-	min-height: 100dp;
-	max-height: 150dp;
+	margin: 0 40dp;
 }
 
-.version
-{
-	position: absolute;
-	bottom: 8dp;
-	right: 12dp;
-	font-size: 13dp;
-	color: #C0C0C0;
-}
-
-.panels-stack
-{
-	position: absolute;
-	/* directly under the logo (16dp top + up to 150dp max-height) instead of a fixed 30% that left
-	   a large dead gap between the logo and the button column (task: "put the button column
-	   directly under the logo like the original") */
-	top: 180dp;
-	right: 24dp;
-	width: 30%;
-	min-width: 320dp;
-	max-width: 480dp;
-	/* No "bottom:" -- height comes from the active panel's own content (see .panel.active below),
-	   so the translucent background hugs whichever button list is showing instead of stretching
-	   all the way down to the frame edge and leaving empty space under the last button. */
-	padding: 0; /* panels below carry their own padding so the crossfade doesn't shift content */
-	box-sizing: border-box;
-	background-color: rgba(2, 2, 2, 190);
-	border: 2dp #2F37A8;
-}
-
+/* Only the active panel is laid out; it slides in from the right as it fades up. */
 .panel
 {
-	/* Inactive panels are pulled out of flow (absolute, invisible) so they don't add to
-	   .panels-stack's height; the active one is put back in normal flow below so the stack's
-	   auto height tracks it. Both still crossfade via opacity like before. */
-	position: absolute;
-	left: 0;
-	top: 0;
-	width: 100%;
-	box-sizing: border-box;
-	padding: 16dp;
-	opacity: 0;
-	pointer-events: none;
-	transition: opacity 0.2s;
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-start; /* buttons start right under the logo, not pinned to the bottom */
+	display: none;
 }
 
 .panel.active
 {
-	position: static;
-	opacity: 1;
-	pointer-events: auto;
+	display: block;
+	animation: 0.26s cubic-out panel-in;
 }
 
-.menu-list
+@keyframes panel-in
+{
+	from { opacity: 0; margin-left: 48dp; }
+	to { opacity: 1; margin-left: 0dp; }
+}
+
+/* Sub-panel title, same accent tick as a screen title. */
+.mm-heading
+{
+	display: block;
+	font-size: 13dp;
+	font-weight: bold;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+	color: #7079A0;
+	padding-left: 16dp;
+	margin-bottom: 12dp;
+	white-space: nowrap;
+}
+
+/* ---- Menu items: big tracked caps, lit bar on hover ------------------------------------------ */
+.screen button.mm-item
 {
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
+	align-items: center;
+	width: 100%;
+	height: 58dp;
+	line-height: 58dp;
+	padding: 0 20dp 0 16dp;
+	text-align: left;
+	font-size: 25dp;
+	letter-spacing: 3dp;
+	color: #D7DCF0;
+	background-color: transparent;
+	border-width: 0;
+	border-left: 4dp transparent;
+	transition: color border-color 0.12s cubic-out, padding-left 0.16s cubic-out;
 }
 
-.menu-list button
+.screen button.mm-item:hover
 {
-	margin-bottom: 8dp;
+	color: #FFFFFF;
+	padding-left: 24dp;
+	border-left-color: #BAFF0C;
+	background-color: transparent;
+	decorator: horizontal-gradient(#2F37A8D2 #2F37A800);
 }
 
-.menu-list button.back
+.screen button.mm-item:active
 {
-	margin-top: 16dp;
+	color: #BAFF0C;
+	border-left-color: #BAFF0C;
+	background-color: transparent;
+	decorator: horizontal-gradient(#1E246EE6 #1E246E00);
 }
 
-.menu-heading
+.screen button.mm-item:focus-visible
 {
-	text-align: center;
-	font-size: 18dp;
-	font-weight: bold;
-	margin-bottom: 12dp;
+	border-left-color: #BAFF0C;
 }
 
-.faction-art
+/* Right-hand chevron on items that open another panel. */
+.mm-item gametext
 {
-	width: 144dp;
-	height: 144dp;
-	margin: 0 auto 16dp auto;
+	flex: 1 1 auto;
 }
 
-/* Single panel's faction hover previews: stacked, crossfaded via opacity (see .faction-preview
-   mappedimage.visible) instead of the .wnd's TheTransitionHandler animation groups. */
-.faction-preview
+.mm-more
 {
-	position: relative;
-	width: 144dp;
-	height: 144dp;
-	margin: 0 auto 16dp auto;
+	flex: 0 0 auto;
+	font-size: 30dp;
+	color: #8080FF;
+	opacity: 0.6;
 }
 
-.faction-preview mappedimage
+.mm-item:hover .mm-more
+{
+	opacity: 1;
+	color: #BAFF0C;
+}
+
+.screen button.mm-quiet, .screen button.mm-back
+{
+	height: 50dp;
+	line-height: 50dp;
+	font-size: 19dp;
+	color: #A9B1CF;
+}
+
+.mm-back .chevron
+{
+	font-size: 28dp;
+	margin-right: 12dp;
+}
+
+.mm-rule
+{
+	height: 1dp;
+	margin: 12dp 0 12dp 16dp;
+	background-color: #8080FF28;
+}
+
+.mm-version
+{
+	position: absolute;
+	right: 20dp;
+	bottom: 14dp;
+	font-size: 13dp;
+	color: #7079A0;
+}
+
+/* ---- Faction emblem over the map ------------------------------------------------------------ */
+.mm-hero
+{
+	position: absolute;
+	top: 36%;
+	left: 22%;
+	width: 216dp;
+	height: 216dp;
+}
+
+.mm-hero mappedimage
 {
 	position: absolute;
 	top: 0;
 	left: 0;
-	width: 100%;
-	height: 100%;
+	width: 216dp;
+	height: 216dp;
 	opacity: 0;
-	transition: opacity 0.15s;
+	transition: opacity 0.2s cubic-out;
 }
 
-.faction-preview mappedimage.visible
+.mm-hero mappedimage.visible
 {
 	opacity: 1;
 }
 
-.hidden { display: none; }
+/* Narrow (5:4, 4:3) screens: the rail takes more of the opening, so the emblem moves left. */
+@media (max-aspect-ratio: 3/2)
+{
+	.mm-hero
+	{
+		left: 12%;
+	}
+}

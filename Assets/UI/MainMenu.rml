@@ -4,79 +4,78 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="MainMenu.rcss"/>
 </head>
-<body data-model="mainmenu">
+<body class="screen" data-model="mainmenu">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
-	<div class="shell-frame mainmenu-frame">
-		<mappedimage name="GeneralsLogo" class="logo"/>
-		<div class="version">{{ version }}</div>
+	<!-- Faction emblem over the shell map, left of the rail: the solo panel's hover preview
+	     (MainMenu.cpp's GBM_MOUSE_ENTERING/LEAVING art) and the difficulty panel's chosen side. -->
+	<div class="mm-hero">
+		<mappedimage name="SAFactionLogo144_US" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'USA') || (panel == 'difficulty' &amp;&amp; selected_faction == 'USA')"/>
+		<mappedimage name="SUFactionLogo144_GLA" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'GLA') || (panel == 'difficulty' &amp;&amp; selected_faction == 'GLA')"/>
+		<mappedimage name="SNFactionLogo144_China" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'China') || (panel == 'difficulty' &amp;&amp; selected_faction == 'China')"/>
+		<mappedimage name="Training144" data-class-visible="panel == 'single' &amp;&amp; hover_faction == 'Training'"/>
+	</div>
 
-		<div class="panels-stack">
+	<div class="mm-side">
+	<div class="mm-fade"></div>
+	<div class="mm-rail">
+		<mappedimage name="GeneralsLogo" class="mm-logo"/>
+
+		<div class="mm-panels">
 			<!-- Root -->
 			<div class="panel" data-class-active="panel == 'main'">
-				<div class="menu-list">
-					<button class="btn-primary" data-event-click="go_single"><gametext key="GUI:SinglePlayer"/></button>
-					<button class="btn-primary" data-event-click="go_multi"><gametext key="GUI:Multiplayer"/></button>
-					<button class="btn-primary" data-event-click="go_loadreplay"><gametext key="GUI:ReplayMenu"/></button>
-					<button class="btn-primary" data-hook="options" data-event-click="go_options"><gametext key="GUI:Options"/></button>
-					<button class="btn-primary" data-event-click="go_credits"><gametext key="GUI:Credits"/></button>
-					<button class="btn-primary" data-hook="exit" data-event-click="go_exit"><gametext key="GUI:Exit"/></button>
-				</div>
+				<button class="mm-item" data-event-click="go_single"><gametext key="GUI:SinglePlayer"/><span class="mm-more">&#8250;</span></button>
+				<button class="mm-item" data-event-click="go_multi"><gametext key="GUI:Multiplayer"/><span class="mm-more">&#8250;</span></button>
+				<button class="mm-item" data-event-click="go_loadreplay"><gametext key="GUI:ReplayMenu"/><span class="mm-more">&#8250;</span></button>
+				<button class="mm-item" data-hook="options" data-event-click="go_options"><gametext key="GUI:Options"/></button>
+				<button class="mm-item" data-event-click="go_credits"><gametext key="GUI:Credits"/></button>
+				<div class="mm-rule"></div>
+				<button class="mm-item mm-quiet" data-hook="exit" data-event-click="go_exit"><gametext key="GUI:Exit"/></button>
 			</div>
 
 			<!-- Single player: skirmish, campaign faction pick, Generals Challenge -->
 			<div class="panel" data-class-active="panel == 'single'">
-				<!-- Faction hover previews: MainMenu.cpp's GBM_MOUSE_ENTERING/LEAVING art, crossfaded via CSS. -->
-				<div class="faction-preview">
-					<mappedimage name="SAFactionLogo144_US" data-class-visible="hover_faction == 'USA'"/>
-					<mappedimage name="SUFactionLogo144_GLA" data-class-visible="hover_faction == 'GLA'"/>
-					<mappedimage name="SNFactionLogo144_China" data-class-visible="hover_faction == 'China'"/>
-					<mappedimage name="Training144" data-class-visible="hover_faction == 'Training'"/>
-				</div>
-				<div class="menu-list">
-					<button class="btn-primary" data-hook="skirmish" data-event-click="go_skirmish" data-tooltip="GUI:SkirmishLower"><gametext key="GUI:Skirmish"/></button>
-					<button class="btn-primary" data-hook="usa" data-event-click="select_usa" data-event-mouseover="preview_usa" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign3"><gametext key="GUI:USA"/></button>
-					<button class="btn-primary" data-hook="gla" data-event-click="select_gla" data-event-mouseover="preview_gla" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign2"><gametext key="GUI:GLA"/></button>
-					<button class="btn-primary" data-hook="china" data-event-click="select_china" data-event-mouseover="preview_china" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign1"><gametext key="GUI:CHINA_Caps"/></button>
-					<button class="btn-primary" data-hook="challenge" data-event-click="select_challenge" data-event-mouseover="preview_challenge" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:ChallengeButton"><gametext key="GUI:Generals_Challenge"/></button>
-					<button class="btn-primary back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
-				</div>
+				<div class="mm-heading"><gametext key="GUI:SinglePlayer"/></div>
+				<button class="mm-item" data-hook="skirmish" data-event-click="go_skirmish" data-tooltip="GUI:SkirmishLower"><gametext key="GUI:Skirmish"/></button>
+				<button class="mm-item" data-hook="usa" data-event-click="select_usa" data-event-mouseover="preview_usa" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign3"><gametext key="GUI:USA"/><span class="mm-more">&#8250;</span></button>
+				<button class="mm-item" data-hook="gla" data-event-click="select_gla" data-event-mouseover="preview_gla" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign2"><gametext key="GUI:GLA"/><span class="mm-more">&#8250;</span></button>
+				<button class="mm-item" data-hook="china" data-event-click="select_china" data-event-mouseover="preview_china" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign1"><gametext key="GUI:CHINA_Caps"/><span class="mm-more">&#8250;</span></button>
+				<button class="mm-item" data-hook="challenge" data-event-click="select_challenge" data-event-mouseover="preview_challenge" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:ChallengeButton"><gametext key="GUI:Generals_Challenge"/><span class="mm-more">&#8250;</span></button>
+				<div class="mm-rule"></div>
+				<button class="mm-item mm-back" data-event-click="back_main"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
 			</div>
 
 			<!-- Multiplayer -->
 			<div class="panel" data-class-active="panel == 'multi'">
-				<div class="menu-list">
-					<button class="btn-primary" data-hook="online" data-event-click="go_online"><gametext key="GUI:GeneralsOnline"/></button>
-					<button class="btn-primary" data-hook="network" data-event-click="go_network"><gametext key="GUI:Network"/></button>
-					<button class="btn-primary back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
-				</div>
+				<div class="mm-heading"><gametext key="GUI:Multiplayer"/></div>
+				<button class="mm-item" data-hook="online" data-event-click="go_online"><gametext key="GUI:GeneralsOnline"/></button>
+				<button class="mm-item" data-hook="network" data-event-click="go_network"><gametext key="GUI:Network"/></button>
+				<div class="mm-rule"></div>
+				<button class="mm-item mm-back" data-event-click="back_main"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
 			</div>
 
 			<!-- Load/Replay -->
 			<div class="panel" data-class-active="panel == 'loadreplay'">
-				<div class="menu-list">
-					<button class="btn-primary" data-event-click="go_load_game"><gametext key="GUI:MainMenuLoadGame"/></button>
-					<button class="btn-primary" data-event-click="go_replay"><gametext key="GUI:MainMenuLoadReplay"/></button>
-					<button class="btn-primary back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
-				</div>
+				<div class="mm-heading"><gametext key="GUI:ReplayMenu"/></div>
+				<button class="mm-item" data-event-click="go_load_game"><gametext key="GUI:MainMenuLoadGame"/></button>
+				<button class="mm-item" data-event-click="go_replay"><gametext key="GUI:MainMenuLoadReplay"/></button>
+				<div class="mm-rule"></div>
+				<button class="mm-item mm-back" data-event-click="back_main"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
 			</div>
 
 			<!-- Campaign difficulty select (reached from single player's faction/challenge buttons) -->
 			<div class="panel" data-class-active="panel == 'difficulty'">
-				<div class="faction-art">
-					<mappedimage name="SAFactionLogo144_US" data-class-hidden="selected_faction != 'USA'"/>
-					<mappedimage name="SUFactionLogo144_GLA" data-class-hidden="selected_faction != 'GLA'"/>
-					<mappedimage name="SNFactionLogo144_China" data-class-hidden="selected_faction != 'China'"/>
-				</div>
-				<div class="menu-list">
-					<div class="menu-heading"><gametext key="GUI:SelectDifficulty"/></div>
-					<button class="btn-primary" data-event-click="select_easy"><gametext key="GUI:EasyCaps"/></button>
-					<button class="btn-primary" data-event-click="select_medium"><gametext key="GUI:MediumDifficultyCaps"/></button>
-					<button class="btn-primary" data-event-click="select_hard"><gametext key="GUI:HardCaps"/></button>
-					<button class="btn-primary back" data-event-click="diff_back"><gametext key="GUI:Back"/></button>
-				</div>
+				<div class="mm-heading"><gametext key="GUI:SelectDifficulty"/></div>
+				<button class="mm-item" data-event-click="select_easy"><gametext key="GUI:EasyCaps"/></button>
+				<button class="mm-item" data-event-click="select_medium"><gametext key="GUI:MediumDifficultyCaps"/></button>
+				<button class="mm-item" data-event-click="select_hard"><gametext key="GUI:HardCaps"/></button>
+				<div class="mm-rule"></div>
+				<button class="mm-item mm-back" data-event-click="diff_back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
 			</div>
 		</div>
+
+		<div class="mm-version">{{ version }}</div>
+	</div>
 	</div>
 </body>
 </rml>
