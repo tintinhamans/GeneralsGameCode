@@ -7,12 +7,31 @@
 		panel border       #2F37A8                -- thin blue border (47 55 168)
 		text               #FFFFFF                -- white
 		hilite / focus     #8080FF                -- hilite blue (128 128 255)
-		disabled text      #C0C0C0                -- disabled grey (192 192 192)
+		button hilite      #BAFF0C                -- PUSHBUTTON hilite text (186 255 12)
+		muted text         #C0C0C0                -- disabled grey (192 192 192)
+		disabled text      #7C7E99                -- text of a disabled control
 
 	Sizing uses RmlUi's dp unit throughout; RmlUiManager sets the context's
 	density-independent-pixel ratio to screen height / 1080 so 1dp keeps the same apparent
 	size (and the same relative layout) at any resolution/aspect ratio -- no per-callsite
 	scaling math needed in the RML itself.
+
+	Design tokens. RCSS has no variables, so these values are the contract: screen sheets use
+	them (or the classes that carry them) instead of one-off sizes.
+	  Type scale     display  40dp bold       splash text only: load screen titles and names, challenge title
+	                 title    26dp bold       .title-bar, .shell-title-bar, .t-title
+	                 section  18dp bold       .section-title, .slot-header, .t-section
+	                 body     16dp            body, .t-body
+	                 small    13dp            .t-small (versions, hints, map marker labels)
+	  Controls       control height 32dp      select, .text-input, .chat-input, .btn-inline, .icon-btn
+	                 row height 40dp          .slot-row; list rows (.list-row) are 30dp
+	  Buttons        primary   48dp tall, 20dp text, at least 180dp wide   .btn-primary (= .button-lg)
+	                 secondary 34dp tall, 16dp text                        button
+	                 inline    32dp tall, 14dp text                        .btn-inline
+	                 icon      32dp square                                 .icon-btn
+	                 button text is always upper case
+	  Spacing        4 / 8 / 12 / 16 / 24dp   (xs / s / m / l / xl)
+	  Panels         frame padding 16dp, sub-panel padding 12dp, 1dp #2F37A8 separators
 
 	Shared components. Every screen links this sheet, so mods restyle a component here once
 	instead of per screen (screen sheets only hold what is unique to that screen; GameSetup.rcss
@@ -21,14 +40,16 @@
 	  Frames        .frame, .title-bar             centered dialog panel and its heading
 	                .shell-frame, .shell-title-bar, .shell-background
 	                                               full-screen blueprint panel; put class="shell" on <body>
-	  Layout        .row > .label + .control       label left, control right (options-style rows)
+	                .panel-box                     bordered sub-panel inside a frame
+	  Layout        .row > .label + .control       label/control grid: label 40%, control the rest;
+	                                               wrap a checkbox in <div class="control"> to keep the grid
 	                .tabs > .tab(.selected)        tab strip
 	                .footer, .footer-split         button row along the bottom edge
 	                .spacer                        pushes what follows to the far end of a flex row
 	                .section-title                 underlined heading over a column or list
-	  Controls      button, .button, .button-lg    capsule buttons (.disabled greys them out)
-	                .icon-btn                      24dp square button holding a <mappedimage> glyph
-	                select, input.range, input.checkbox, .text-input
+	  Controls      .btn-primary/.button-lg, button, .btn-inline, .icon-btn, button.active (toggle on)
+	                select (drop-down arrow from the .wnd combo box art), .color-swatch,
+	                input.range, input.checkbox, .text-input
 	  Lists         .list-box (+ .opaque)          bordered pane; combine with .scroll-container
 	                .list-row (+ .flex, .compact, .selected)
 	                                               one entry of a .list-box; block by default, .flex for cells
@@ -54,23 +75,38 @@ body
 	color: #FFFFFF;
 }
 
+/* ---- Type scale ------------------------------------------------------------------------ */
+.t-title { font-size: 26dp; font-weight: bold; }
+.t-section { font-size: 18dp; font-weight: bold; }
+.t-body { font-size: 16dp; }
+.t-small { font-size: 13dp; }
+.t-muted { color: #C0C0C0; }
+
 /* ---- Frame: the translucent bordered panel every screen is drawn on ------------------- */
 .frame
 {
 	background-color: rgba(2, 2, 2, 191);
 	border: 2dp #2F37A8;
-	padding: 12dp;
+	padding: 16dp;
 }
 
 .title-bar
 {
-	font-size: 22dp;
+	font-size: 26dp;
 	font-weight: bold;
 	color: #FFFFFF;
 	text-align: center;
 	padding-bottom: 8dp;
 	border-bottom: 1dp #2F37A8;
-	margin-bottom: 8dp;
+	margin-bottom: 12dp;
+}
+
+/* Bordered sub-panel inside a frame (option groups, honors, stats). */
+.panel-box
+{
+	border: 1dp #2F37A8;
+	background-color: rgba(2, 2, 2, 140);
+	padding: 12dp;
 }
 
 /* ---- Tabs -------------------------------------------------------------------------- */
@@ -78,53 +114,71 @@ body
 {
 	display: flex;
 	flex-direction: row;
-	margin-bottom: 8dp;
+	margin-bottom: 12dp;
 }
 
 .tab
 {
-	flex: 1 1 auto;
+	flex: 1 1 0%;
+	box-sizing: border-box;
+	height: 34dp;
+	line-height: 32dp;
 	text-align: center;
-	padding: 6dp 4dp;
+	font-size: 16dp;
+	font-weight: bold;
 	color: #C0C0C0;
 	background-color: rgba(2, 2, 2, 140);
 	border: 1dp #2F37A8;
-	margin-right: 2dp;
-	font-weight: bold;
+	margin-right: 4dp;
+}
+
+.tab:last-child
+{
+	margin-right: 0;
 }
 
 .tab:hover
 {
 	color: #FFFFFF;
+	border-color: #8080FF;
 }
 
 .tab.selected
 {
 	color: #FFFFFF;
-	background-color: rgba(47, 55, 168, 120);
+	background-color: rgba(47, 55, 168, 140);
 	border: 1dp #8080FF;
 }
 
-/* ---- Rows: label left, control right, on a grid ------------------------------------- */
+/* ---- Rows: label/control grid ------------------------------------------------------------
+   The label takes 40% of the row and the control the rest, so every control of a panel starts
+   at the same x. A checkbox goes inside <div class="control"> so it sits at that x too. */
 .row
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	padding: 4dp 0;
-	min-height: 28dp;
+	min-height: 32dp;
+	margin-bottom: 8dp;
 }
 
 .row > .label
 {
-	flex: 1 1 auto;
+	flex: 0 0 40%;
+	box-sizing: border-box;
+	padding-right: 12dp;
 	color: #FFFFFF;
 }
 
 .row > .control
 {
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.row > .control.checkbox
+{
 	flex: 0 0 auto;
-	width: 220dp;
 }
 
 .row.disabled > .label,
@@ -259,45 +313,63 @@ select selectbox option:checked
 /* ---- Slider (input type=range) ------------------------------------------------------- */
 input.range
 {
-	width: 100%;
-	height: 16dp;
+	height: 20dp;
 }
 
 input.range slidertrack
 {
+	margin-top: 7dp;
+	height: 6dp;
 	background-color: rgba(2, 2, 2, 191);
 	border: 1dp #2F37A8;
-	height: 4dp;
 }
 
 input.range sliderbar
 {
+	width: 12dp;
+	height: 20dp;
 	background-color: #8080FF;
 	border: 1dp #2F37A8;
-	width: 12dp;
 }
 
-/* ---- Checkbox ------------------------------------------------------------------------- */
+input.range sliderbar:hover
+{
+	background-color: #BAFF0C;
+}
+
+input.range[disabled] sliderbar
+{
+	background-color: #3E405C;
+}
+
+/* ---- Checkbox -------------------------------------------------------------------------
+   The .wnd checkbox art (CHECKBOX draw data: Active-Unchecked/-HiLighted/-Checked and
+   Disabled-Unchecked/-Checked). */
 input.checkbox
 {
-	width: 18dp;
-	height: 18dp;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
+	width: 20dp;
+	height: 20dp;
+	decorator: image(Active-Unchecked);
 }
 
-input.checkbox:checked
+input.checkbox:hover
 {
-	background-color: #8080FF;
-	border-color: #8080FF;
+	decorator: image(Active-HiLighted);
 }
 
-/* Beats ".row > .control" width so checkboxes stay square and left-aligned in the control column */
-.row > .control.checkbox
+input.checkbox:checked, input.checkbox:checked:hover
 {
-	flex: 0 0 auto;
-	width: 18dp;
-	height: 18dp;
+	decorator: image(Active-Checked);
+}
+
+input.checkbox[disabled], input.checkbox[disabled]:hover
+{
+	decorator: image(Disabled-Unchecked);
+}
+
+input.checkbox[disabled]:checked
+{
+	decorator: image(Disabled-Checked);
 }
 
 /* ---- Scroll container ------------------------------------------------------------------ */
@@ -311,20 +383,26 @@ input.checkbox:checked
    soon as a list needs to scroll its content width collapses to ~0 (one word per line). */
 scrollbarvertical
 {
-	width: 10dp;
+	width: 12dp;
 }
 
 scrollbarvertical slidertrack
 {
-	width: 10dp;
+	width: 12dp;
 	background-color: rgba(2, 2, 2, 191);
+	border-left: 1dp rgba(47, 55, 168, 110);
 }
 
 scrollbarvertical sliderbar
 {
-	width: 10dp;
-	min-height: 24dp;
+	width: 12dp;
+	min-height: 32dp;
 	background-color: #2F37A8;
+}
+
+scrollbarvertical sliderbar:hover, scrollbarvertical sliderbar:active
+{
+	background-color: #8080FF;
 }
 
 scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
@@ -336,10 +414,24 @@ scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
 /* ---- Text input -------------------------------------------------------------------------- */
 .text-input, .chat-input
 {
-	background-color: rgba(2, 2, 2, 191);
+	box-sizing: border-box;
+	height: 32dp;
+	line-height: 30dp;
+	background-color: rgba(2, 2, 2, 220);
 	border: 1dp #2F37A8;
 	color: #FFFFFF;
-	padding: 4dp 6dp;
+	padding: 0 8dp;
+}
+
+.text-input:hover, .chat-input:hover
+{
+	border-color: #5A5FD0;
+}
+
+.text-input[disabled]
+{
+	color: #7C7E99;
+	border-color: rgba(47, 55, 168, 110);
 }
 
 .text-input:focus, .chat-input:focus
@@ -357,11 +449,12 @@ scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
 /* Underlined heading over a column or list. */
 .section-title
 {
+	font-size: 18dp;
 	font-weight: bold;
 	color: #FFFFFF;
 	padding-bottom: 4dp;
 	border-bottom: 1dp #2F37A8;
-	margin-bottom: 4dp;
+	margin-bottom: 8dp;
 	flex: 0 0 auto;
 }
 
@@ -413,7 +506,9 @@ scrolllog
 .list-row
 {
 	display: block;
-	padding: 4dp 6dp;
+	box-sizing: border-box;
+	min-height: 30dp;
+	padding: 5dp 8dp;
 	border-bottom: 1dp rgba(47, 55, 168, 80);
 }
 
@@ -426,7 +521,8 @@ scrolllog
 
 .list-row.compact
 {
-	padding: 3dp 6dp;
+	min-height: 26dp;
+	padding: 2dp 8dp;
 }
 
 .list-row:hover
@@ -447,10 +543,8 @@ scrolllog
 {
 	display: flex;
 	flex-direction: column;
-	margin-top: 8dp;
-	border-top: 1dp #2F37A8;
-	padding-top: 8dp;
-	height: 140dp;
+	margin-top: 12dp;
+	height: 160dp;
 }
 
 .chat-log
@@ -469,14 +563,15 @@ scrolllog
 {
 	display: flex;
 	flex-direction: row;
+	align-items: center;
 	flex: 0 0 auto;
-	margin-top: 4dp;
+	margin-top: 8dp;
 }
 
 .chat-input
 {
 	flex: 1 1 auto;
-	margin-right: 4dp;
+	margin-right: 8dp;
 }
 
 /* ---- Rank cluster --------------------------------------------------------------------------
@@ -567,15 +662,17 @@ scrolllog
 {
 	display: flex;
 	flex-direction: row;
+	align-items: center;
 	justify-content: flex-end;
-	margin-top: 8dp;
+	flex: 0 0 auto;
+	margin-top: 12dp;
 	border-top: 1dp #2F37A8;
-	padding-top: 8dp;
+	padding-top: 12dp;
 }
 
 .footer button
 {
-	margin-left: 8dp;
+	margin-left: 12dp;
 }
 
 /* Primary action left, secondary (Main Menu) right -- matches the .wnd originals (e.g.
@@ -622,20 +719,20 @@ body.shell
 	height: 85.4%;
 	background-color: rgba(2, 2, 2, 190);
 	border: 2dp #2F37A8;
-	padding: 12dp;
+	padding: 16dp;
 	display: flex;
 	flex-direction: column;
 }
 
 .shell-title-bar
 {
-	font-size: 22dp;
+	font-size: 26dp;
 	font-weight: bold;
 	color: #FFFFFF;
 	text-align: left;
 	padding-bottom: 8dp;
 	border-bottom: 1dp #2F37A8;
-	margin-bottom: 8dp;
+	margin-bottom: 12dp;
 	flex: 0 0 auto;
 }
 
@@ -674,7 +771,9 @@ body.shell
 .context-menu-item
 {
 	display: block;
-	padding: 5dp 10dp;
+	height: 30dp;
+	line-height: 30dp;
+	padding: 0 12dp;
 	color: #FFFFFF;
 	text-align: center;
 	border-bottom: 1dp rgba(47, 55, 168, 80);
