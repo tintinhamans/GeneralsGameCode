@@ -1,6 +1,7 @@
 /*
 	LoadScreen.rcss -- pieces shared by the network load screens (MapTransfer.rml,
-	MultiplayerLoad.rml, GameSpyLoad.rml). Positions are body percentages of the .wnd's
+	MultiplayerLoad.rml, GameSpyLoad.rml) and the movie load screens (SinglePlayerLoadScreen.rml,
+	ChallengeLoadScreen.rml; see the end of this sheet). Positions are body percentages of the .wnd's
 	800x600 space, so the layout stretches the way the original does at any aspect ratio;
 	row heights are dp because dp follows screen height like the vertical percentages do.
 */
@@ -251,3 +252,175 @@ body
 {
 	padding-left: 4dp;
 }
+
+/* ---- Movie load screens ----------------------------------------------------------------
+   SinglePlayerLoadScreen.rml and ChallengeLoadScreen.rml. Their art and movies are 4:3 pictures,
+   so everything sits on a 4:3 stage centred on the screen instead of being stretched: black at the
+   sides of wider screens, as the engine shows its full-screen movies. The stage is 1440dp wide
+   (4:3 of the 1080dp height) and narrows to the screen on narrower aspects. Positions inside it
+   are percentages of the .wnd's 800x600 rects. */
+body.ls-screen
+{
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	background-color: #000000;
+}
+
+.ls-stage
+{
+	position: relative;
+	flex: 0 0 auto;
+	width: 1440dp;
+	max-width: 100%;
+	height: 100%;
+}
+
+/* Art or movie over the whole stage. A movie keeps its aspect on black. */
+.ls-fill
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.ls-movie
+{
+	background-color: #000000;
+}
+
+.ls-movie video
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* Load bar, drawn like the engine's image progress bar: 20px end caps with a tiled middle between
+   them (.framed only), the bar inset 10px from the sides and 5px from top and bottom, the done part
+   in the bar art and the rest in the powered down art. The bar pieces are 3px wide and cannot be
+   tiled from the sprites, so their 11 rows of color are drawn here. */
+.ls-bar
+{
+	position: absolute;
+}
+
+.ls-bar-cap,
+.ls-bar-mid
+{
+	display: none;
+}
+
+.ls-bar.framed .ls-bar-cap
+{
+	display: block;
+	position: absolute;
+	top: 0;
+	width: 20px;
+	height: 100%;
+}
+
+.ls-bar-cap-l { left: 0; }
+.ls-bar-cap-r { right: 0; }
+
+/* LoadingBar_C only varies vertically, so stretching it along the bar shows the same lines */
+.ls-bar.framed .ls-bar-mid
+{
+	display: block;
+	position: absolute;
+	left: 20px;
+	right: 20px;
+	top: 0;
+	height: 100%;
+	decorator: tiled-horizontal(LoadingBar_C, LoadingBar_C, LoadingBar_C);
+}
+
+.ls-bar-track
+{
+	position: absolute;
+	left: 10px;
+	right: 10px;
+	top: 5px;
+	bottom: 5px;
+}
+
+.ls-bar-fill
+{
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 100%;
+}
+
+.ls-bar-rows
+{
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.ls-bar-rows div
+{
+	display: block;
+	height: 9.0909%;
+}
+
+/* LoadingBar_DePowered */
+.ls-bar-rest div:nth-child(1) { background-color: #323232; }
+.ls-bar-rest div:nth-child(2) { background-color: #3B3B3B; }
+.ls-bar-rest div:nth-child(3) { background-color: #535353; }
+.ls-bar-rest div:nth-child(4) { background-color: #757575; }
+.ls-bar-rest div:nth-child(5) { background-color: #8A8A8A; }
+.ls-bar-rest div:nth-child(6) { background-color: #898989; }
+.ls-bar-rest div:nth-child(7) { background-color: #747476; }
+.ls-bar-rest div:nth-child(8) { background-color: #515152; }
+.ls-bar-rest div:nth-child(9) { background-color: #3B3B3D; }
+.ls-bar-rest div:nth-child(10) { background-color: #303030; }
+.ls-bar-rest div:nth-child(11) { background-color: #000000; }
+
+/* LoadingBar_Progress, the .wnd's own */
+.ls-bar-done div:nth-child(1) { background-color: #0B1516; }
+.ls-bar-done div:nth-child(2) { background-color: #1E2BDB; }
+.ls-bar-done div:nth-child(3) { background-color: #202DE2; }
+.ls-bar-done div:nth-child(4) { background-color: #3441FF; }
+.ls-bar-done div:nth-child(5) { background-color: #7881FF; }
+.ls-bar-done div:nth-child(6) { background-color: #DCDFFF; }
+.ls-bar-done div:nth-child(7) { background-color: #DCDFFF; }
+.ls-bar-done div:nth-child(8) { background-color: #A4AAFF; }
+.ls-bar-done div:nth-child(9) { background-color: #717AFF; }
+.ls-bar-done div:nth-child(10) { background-color: #2E3BF8; }
+.ls-bar-done div:nth-child(11) { background-color: #000000; }
+
+/* LoadingBar_ProgressCenter1 (China), 2 (USA) and 3 (GLA): the same white middle, their own colour around it */
+.ls-bar.center1 .ls-bar-done div:nth-child(1),
+.ls-bar.center2 .ls-bar-done div:nth-child(1),
+.ls-bar.center3 .ls-bar-done div:nth-child(1) { background-color: #000000; }
+
+.ls-bar.center1 .ls-bar-done div:nth-child(2),
+.ls-bar.center1 .ls-bar-done div:nth-child(3),
+.ls-bar.center1 .ls-bar-done div:nth-child(10) { background-color: #FF0000; }
+.ls-bar.center1 .ls-bar-done div:nth-child(4),
+.ls-bar.center1 .ls-bar-done div:nth-child(9) { background-color: #FF4545; }
+.ls-bar.center1 .ls-bar-done div:nth-child(5),
+.ls-bar.center1 .ls-bar-done div:nth-child(8) { background-color: #FCA7A7; }
+
+.ls-bar.center2 .ls-bar-done div:nth-child(2),
+.ls-bar.center2 .ls-bar-done div:nth-child(3),
+.ls-bar.center2 .ls-bar-done div:nth-child(10) { background-color: #4368FE; }
+.ls-bar.center2 .ls-bar-done div:nth-child(4),
+.ls-bar.center2 .ls-bar-done div:nth-child(9) { background-color: #7590FD; }
+.ls-bar.center2 .ls-bar-done div:nth-child(5),
+.ls-bar.center2 .ls-bar-done div:nth-child(8) { background-color: #B5C3FB; }
+
+.ls-bar.center3 .ls-bar-done div:nth-child(2),
+.ls-bar.center3 .ls-bar-done div:nth-child(3),
+.ls-bar.center3 .ls-bar-done div:nth-child(10) { background-color: #3ED12E; }
+.ls-bar.center3 .ls-bar-done div:nth-child(4),
+.ls-bar.center3 .ls-bar-done div:nth-child(9) { background-color: #74FB65; }
+.ls-bar.center3 .ls-bar-done div:nth-child(5),
+.ls-bar.center3 .ls-bar-done div:nth-child(8) { background-color: #AFFCA7; }

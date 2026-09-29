@@ -19,6 +19,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlLoadScreen.h"
 
 #include "GameClient/LoadScreenData.h"
+#include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include <RmlUi/Core/Context.h>
@@ -67,9 +68,18 @@ RmlLoadScreen &RmlLoadScreen::instance(Kind kind)
 		RmlLoadScreen("UI/MultiplayerLoad.rml", "multiplayerload"),
 		RmlLoadScreen("UI/GameSpyLoad.rml", "onlineload"),
 		RmlLoadScreen("UI/ShellGameLoad.rml", "shellload"),
+		RmlLoadScreen("UI/SinglePlayerLoadScreen.rml", "singleplayerload"),
 	};
 	return s_screens[kind];
 }
+
+// <video source="..."> names of the LoadScreenData movies, by LoadScreenVideo slot.
+static const char *const s_videoSources[LOAD_VIDEO_COUNT] = {
+	"loadscreen-background",
+	"loadscreen-portrait-left",
+	"loadscreen-portrait-right",
+	"loadscreen-versus",
+};
 
 void RmlLoadScreen::tick()
 {
@@ -89,6 +99,8 @@ void RmlLoadScreen::load(Rml::Context *context)
 	m_context = context;
 	m_rows.assign(MAX_SLOTS, RowModel());
 	m_markers.assign(MAX_SLOTS, MarkerModel());
+	m_objectiveLines.assign(MAX_OBJECTIVE_LINES, Rml::String());
+	m_units.assign(MAX_DISPLAYED_UNITS, UnitModel());
 
 	Rml::DataModelConstructor constructor = context->CreateDataModel(m_modelName);
 	if (constructor)
@@ -120,8 +132,15 @@ void RmlLoadScreen::load(Rml::Context *context)
 			markerHandle.RegisterMember("used", &MarkerModel::used);
 			markerHandle.RegisterMember("has_label", &MarkerModel::hasLabel);
 		}
+		if (Rml::StructHandle<UnitModel> unitHandle = constructor.RegisterStruct<UnitModel>())
+		{
+			unitHandle.RegisterMember("name", &UnitModel::name);
+			unitHandle.RegisterMember("shown", &UnitModel::shown);
+		}
 		constructor.RegisterArray<Rml::Vector<RowModel>>();
 		constructor.RegisterArray<Rml::Vector<MarkerModel>>();
+		constructor.RegisterArray<Rml::Vector<Rml::String>>();
+		constructor.RegisterArray<Rml::Vector<UnitModel>>();
 
 		constructor.Bind("rows", &m_rows);
 		constructor.Bind("markers", &m_markers);
@@ -135,6 +154,15 @@ void RmlLoadScreen::load(Rml::Context *context)
 		constructor.Bind("timeout", &m_timeout);
 		constructor.Bind("progress_style", &m_progressStyle);
 		constructor.Bind("title_screen", &m_titleScreen);
+		constructor.Bind("background_image", &m_backgroundImage);
+		constructor.Bind("has_background", &m_hasBackground);
+		constructor.Bind("has_movie", &m_hasMovie);
+		constructor.Bind("bar_color", &m_barColor);
+		constructor.Bind("show_objectives", &m_showObjectives);
+		constructor.Bind("objective_lines", &m_objectiveLines);
+		constructor.Bind("units", &m_units);
+		constructor.Bind("location", &m_location);
+		constructor.Bind("show_location", &m_showLocation);
 
 		m_modelHandle = constructor.GetModelHandle();
 	}
@@ -190,6 +218,24 @@ void RmlLoadScreen::refresh()
 	m_progressStyle = percentStyle((float)data.m_progress);
 	m_titleScreen = data.m_titleScreen == TRUE;
 
+	m_backgroundImage = data.m_backgroundImage.str();
+	m_hasBackground = !data.m_backgroundImage.isEmpty();
+	m_hasMovie = data.m_videos[LOAD_VIDEO_BACKGROUND] != nullptr;
+	m_barColor = data.m_barColorIndex;
+	m_showObjectives = data.m_showObjectives == TRUE;
+	for (Int i = 0; i < MAX_OBJECTIVE_LINES; ++i)
+		m_objectiveLines[i] = unicodeToUtf8(data.m_objectiveLines[i]);
+	for (Int i = 0; i < MAX_DISPLAYED_UNITS; ++i)
+	{
+		m_units[i].name = unicodeToUtf8(data.m_unitNames[i]);
+		m_units[i].shown = data.m_showUnit[i] == TRUE;
+	}
+	m_location = unicodeToUtf8(data.m_location);
+	m_showLocation = data.m_showLocation == TRUE;
+
+	for (Int i = 0; i < LOAD_VIDEO_COUNT; ++i)
+		RmlVideoElement::setSource(s_videoSources[i], data.m_videos[i]);
+
 	if (m_modelHandle)
 	{
 		m_modelHandle.DirtyVariable("rows");
@@ -204,6 +250,15 @@ void RmlLoadScreen::refresh()
 		m_modelHandle.DirtyVariable("timeout");
 		m_modelHandle.DirtyVariable("progress_style");
 		m_modelHandle.DirtyVariable("title_screen");
+		m_modelHandle.DirtyVariable("background_image");
+		m_modelHandle.DirtyVariable("has_background");
+		m_modelHandle.DirtyVariable("has_movie");
+		m_modelHandle.DirtyVariable("bar_color");
+		m_modelHandle.DirtyVariable("show_objectives");
+		m_modelHandle.DirtyVariable("objective_lines");
+		m_modelHandle.DirtyVariable("units");
+		m_modelHandle.DirtyVariable("location");
+		m_modelHandle.DirtyVariable("show_location");
 	}
 }
 
@@ -222,6 +277,10 @@ void RmlLoadScreen::open()
 
 void RmlLoadScreen::close()
 {
+	// the LoadScreen deletes its movies right after; a later load screen publishes its own
+	for (Int i = 0; i < LOAD_VIDEO_COUNT; ++i)
+		RmlVideoElement::setSource(s_videoSources[i], nullptr);
+
 	if (m_document)
 		m_document->Hide();
 }
@@ -240,3 +299,5 @@ void OpenRmlOnlineLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_ONL
 void CloseRmlOnlineLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_ONLINE).close(); }
 void OpenRmlShellLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_SHELL).open(); }
 void CloseRmlShellLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_SHELL).close(); }
+void OpenRmlSinglePlayerLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_SINGLE_PLAYER).open(); }
+void CloseRmlSinglePlayerLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_SINGLE_PLAYER).close(); }

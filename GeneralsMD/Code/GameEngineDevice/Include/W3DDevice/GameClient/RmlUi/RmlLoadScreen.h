@@ -18,12 +18,14 @@
 
 // FILE: RmlLoadScreen.h //////////////////////////////////////////////////////
 // RmlUi view of the load screens (Menus/MapTransferScreen.wnd, Menus/MultiplayerLoadScreen.wnd,
-// Menus/GameSpyLoadScreen.wnd, Menus/ShellGameLoadScreen.wnd). The LoadScreen
-// classes keep all the logic and write a LoadScreenData; this only mirrors that
+// Menus/GameSpyLoadScreen.wnd, Menus/ShellGameLoadScreen.wnd, Menus/SinglePlayerLoadScreen.wnd).
+// The LoadScreen classes keep all the logic and write a LoadScreenData; this only mirrors that
 // into a data model whenever its version changes. One instance per document,
 // created by winCreateFromScript() through RmlUiScreenRegistry and closed when
 // the LoadScreen destroys its placeholder window. RmlUiManager::update() calls
 // tick(): load screens block the main loop, so nothing else would refresh them.
+// The LoadScreen decodes the movies; their buffers are published to <video> elements as sources named
+// loadscreen-<slot> (see refresh()).
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -37,7 +39,7 @@ namespace Rml { class Context; class ElementDocument; }
 class RmlLoadScreen
 {
 public:
-	enum Kind { KIND_MAP_TRANSFER, KIND_MULTIPLAYER, KIND_ONLINE, KIND_SHELL, KIND_COUNT };
+	enum Kind { KIND_MAP_TRANSFER, KIND_MULTIPLAYER, KIND_ONLINE, KIND_SHELL, KIND_SINGLE_PLAYER, KIND_COUNT };
 
 	static RmlLoadScreen &instance(Kind kind);
 	static void tick(); ///< refreshes every open instance whose LoadScreenData changed
@@ -81,6 +83,12 @@ private:
 		bool hasLabel = false;
 	};
 
+	struct UnitModel
+	{
+		Rml::String name;
+		bool shown = false;
+	};
+
 	const char *m_documentPath;
 	const char *m_modelName;
 	Rml::Context *m_context = nullptr;
@@ -100,6 +108,17 @@ private:
 	bool m_titleScreen = false;
 	bool m_hasPortrait = false;
 	bool m_hasMap = false;
+
+	// single player
+	Rml::String m_backgroundImage;
+	bool m_hasBackground = false;
+	bool m_hasMovie = false; ///< the backdrop movie is up
+	int m_barColor = -1;
+	bool m_showObjectives = false;
+	Rml::Vector<Rml::String> m_objectiveLines;
+	Rml::Vector<UnitModel> m_units;
+	Rml::String m_location;
+	bool m_showLocation = false;
 };
 
 // Registry entry points (see RmlUiManager::init()).
@@ -111,3 +130,5 @@ void OpenRmlOnlineLoadScreen();
 void CloseRmlOnlineLoadScreen();
 void OpenRmlShellLoadScreen();
 void CloseRmlShellLoadScreen();
+void OpenRmlSinglePlayerLoadScreen();
+void CloseRmlSinglePlayerLoadScreen();

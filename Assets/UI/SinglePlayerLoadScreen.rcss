@@ -1,0 +1,73 @@
+/*
+	SinglePlayerLoadScreen.rcss -- SinglePlayerLoadScreen.wnd: the mission's briefing movie, then the
+	campaign's art, with the load bar in the campaign's colour. The stage, the movie and the bar are
+	shared with ChallengeLoadScreen.rml (LoadScreen.rcss). The location, unit and objective texts are
+	the original Generals' briefing; Zero Hour never shows them.
+*/
+
+/* ProgressLoad (140,564)-(659,584) */
+.sp-bar
+{
+	left: 17.5%;
+	top: 94%;
+	width: 64.875%;
+	height: 3.333%;
+}
+
+/* StaticTextCameoText3 (92,312)-(259,354) */
+.sp-location
+{
+	position: absolute;
+	left: 11.5%;
+	top: 52%;
+	width: 20.875%;
+	height: 7%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	font-size: 24dp;
+	color: #FF0400;
+}
+
+/* StaticTextCameoText0..2 (441,146)-(539,192), (544,146)-(642,192), (647,146)-(746,192) */
+.sp-unit
+{
+	position: absolute;
+	top: 24.333%;
+	width: 12.25%;
+	height: 7.667%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	font-size: 17dp;
+	color: #FEFEFE;
+	background-color: rgba(0, 0, 0, 126);
+}
+
+.sp-unit0 { left: 55.125%; }
+.sp-unit1 { left: 68%; }
+.sp-unit2 { left: 80.875%; }
+
+/* ObjectivesWin (255,369)-(768,513), five lines of 24 */
+.sp-objectives
+{
+	position: absolute;
+	left: 31.875%;
+	top: 61.5%;
+	width: 64.125%;
+	height: 24%;
+	background-color: rgba(2, 2, 2, 160);
+}
+
+.sp-objective
+{
+	display: block;
+	height: 16.667%;
+	padding-left: 4dp;
+	font-size: 24dp;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+}

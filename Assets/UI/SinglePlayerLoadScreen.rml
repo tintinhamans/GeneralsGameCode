@@ -1,0 +1,32 @@
+<rml>
+<head>
+	<title>SinglePlayerLoadScreen</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="LoadScreen.rcss"/>
+	<link type="text/rcss" href="SinglePlayerLoadScreen.rcss"/>
+</head>
+<body class="ls-screen" data-model="singleplayerload">
+	<div class="ls-stage">
+		<mappedimage class="ls-fill" data-if="!has_background" name="LoadPageHuge"/>
+		<mappedimage class="ls-fill" data-if="has_background" data-attr-name="background_image"/>
+
+		<div class="ls-fill ls-movie" data-if="has_movie"><video source="loadscreen-background" fit="contain"/></div>
+
+		<!-- Briefing texts: only the original Generals shows these -->
+		<div class="sp-location" data-if="show_location"><div>{{location}}</div></div>
+		<div class="sp-unit sp-unit0" data-if="units[0].shown"><div>{{units[0].name}}</div></div>
+		<div class="sp-unit sp-unit1" data-if="units[1].shown"><div>{{units[1].name}}</div></div>
+		<div class="sp-unit sp-unit2" data-if="units[2].shown"><div>{{units[2].name}}</div></div>
+		<div class="sp-objectives" data-if="show_objectives">
+			<div class="sp-objective" data-for="line : objective_lines">{{line}}</div>
+		</div>
+
+		<div class="ls-bar sp-bar" data-class-center1="bar_color == 1" data-class-center2="bar_color == 2" data-class-center3="bar_color == 3">
+			<div class="ls-bar-track">
+				<div class="ls-bar-rows ls-bar-rest"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+				<div class="ls-bar-fill" data-style-width="progress_style"><div class="ls-bar-rows ls-bar-done"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+			</div>
+		</div>
+	</div>
+</body>
+</rml>
