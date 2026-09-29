@@ -957,8 +957,9 @@ body.screen
 /* ---- Ruler: the MainMenuRuler art's tick strips, flush with the screen edges -----------------------
    Four clipped windows onto the full-screen art (its 800x600 maps to the viewport): only the ticks
    (rows/columns 25-37 along the opening), without the grid band, corners or bright frame line, pulled
-   out to the viewport edges and drawn faint so they frame the screen quietly. mappedimage ignores
-   percentage sizes, so the art is sized in vw/vh. */
+   out to the viewport edges. Each strip sits on a dark band, darkest at the screen edge, so the ticks
+   keep the same contrast over bright sand or dark water while staying a quiet frame. mappedimage
+   ignores percentage sizes, so the art is sized in vw/vh. */
 .screen-ruler
 {
 	display: block;
@@ -967,7 +968,6 @@ body.screen
 	top: 0;
 	width: 100%;
 	height: 100%;
-	opacity: 0.55;
 	pointer-events: none;
 }
 
@@ -978,6 +978,11 @@ body.screen
 	overflow: hidden;
 	clip: always; /* the art is absolutely placed, so it never counts as overflow to clip */
 }
+
+.rs-top { decorator: vertical-gradient(#05070FC4 #05070F5C); }
+.rs-bottom { decorator: vertical-gradient(#05070F5C #05070FC4); }
+.rs-left { decorator: horizontal-gradient(#05070FC4 #05070F5C); }
+.rs-right { decorator: horizontal-gradient(#05070F5C #05070FC4); }
 
 .rs-top, .rs-bottom { left: 5vw; width: 90vw; height: 2vh; }
 .rs-top { top: 0; }
@@ -992,6 +997,7 @@ body.screen
 	position: absolute;
 	width: 100vw;
 	height: 100vh;
+	opacity: 0.85;
 }
 
 .rs-top mappedimage { left: -5vw; top: -4.1667vh; }
