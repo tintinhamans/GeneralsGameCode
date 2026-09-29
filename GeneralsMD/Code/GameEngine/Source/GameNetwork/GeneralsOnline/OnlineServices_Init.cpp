@@ -82,21 +82,14 @@ void NGMP_OnlineServicesManager::GetAndParseServiceConfig(std::function<void(voi
 				}
 				else
 				{
-					// It's OK to fail, we'll just use the sensible defaults
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to get service config, using defaults. Status code: %d", statusCode);
-					pMgr->m_ServiceConfig = ServiceConfig();
+					// keep the last good config (defaults if there never was one); resetting would turn off retry_signalling
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to get service config, keeping the current one. Status code: %d", statusCode);
 				}
 				
 			}
 			catch (...)
 			{
-				// It's OK to fail, we'll just use the sensible defaults
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to get service config, using defaults. Exception.");
-				NGMP_OnlineServicesManager* pMgr = NGMP_OnlineServicesManager::GetInstance();
-				if (pMgr != nullptr)
-				{
-					pMgr->m_ServiceConfig = ServiceConfig();
-				}
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to parse service config, keeping the current one.");
 			}
 
 			if (cbOnDone != nullptr)

@@ -5,7 +5,7 @@
 #include "../OnlineServices_Auth.h"
 #include "../OnlineServices_LobbyInterface.h"
 
-bool AnticheatPlugInterface::g_bPendingExitLobby = false;
+std::atomic<bool> AnticheatPlugInterface::g_bPendingExitLobby = false;
 
 #if defined(GENERALS_ONLINE_USE_PLUGINS_INTERFACE)
 
@@ -475,6 +475,9 @@ void AnticheatPlugInterface::BeginSession()
 
 void AnticheatPlugInterface::EndSession()
 {
+    // a stale exit request would eject us from the next lobby
+    g_bPendingExitLobby = false;
+
 #if defined(AC_ENABLED)
     if (IsPluginLoaded() && Functions.fnEndSession != nullptr)
     {
