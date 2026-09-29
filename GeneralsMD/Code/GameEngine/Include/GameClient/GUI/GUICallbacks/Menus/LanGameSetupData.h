@@ -53,7 +53,7 @@ struct LanGameSetupData
 
 	// Snapshot the current slots and map/options state out of game, plus the LAN-only bits
 	// GameSetupData::build() doesn't know about. startButtonEnabled mirrors the caller's own
-	// LANEnableStartButton()/g_lanGameSetupStartButtonHook state (see LanGameOptionsMenu.cpp),
+	// LANEnableStartButton()/LanGameSetupSignals::startButton state (see LanGameOptionsMenu.cpp),
 	// since that toggle has no equivalent read back off LANGameInfo itself.
 	static LanGameSetupData build( LANGameInfo *game, Bool startButtonEnabled );
 };

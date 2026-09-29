@@ -25,12 +25,12 @@
 //     read for the host, map CRC/size recheck + RequestHasMap() for the client,
 //     RequestGameOptions()/RequestGameAnnounce()) itself, through
 //     LanGameSetupActions/LanGameSetupData -- see LanGameOptionsMenu.cpp.
-//   - hide() clears the four hooks below; leaving the game (LanGameSetupActions::
+//   - hide() drops the four signal connections below; leaving the game (LanGameSetupActions::
 //     leaveGame()) only happens on Back, same as the .wnd's buttonBack handler.
-// Slot/option state arrives via g_lanGameSetupSlotUpdateHook/
-// g_lanGameSetupOptionsUpdateHook/g_lanGameSetupStartButtonHook, and chat via
-// g_lanGameSetupChatHook (LANAPICallbacks.h), subscribed in show() and cleared in
-// hide(), same lifetime pattern as RmlLanLobbyScreen's g_lanLobby*Hook. Slot/map
+// Slot/option state arrives via LanGameSetupSignals::slotsChanged/optionsChanged/
+// startButton, and chat via LanGameSetupSignals::chatLine (LANAPICallbacks.h), connected
+// in show() and dropped in hide(), same lifetime pattern as RmlLanLobbyScreen's
+// LanLobbySignals. Slot/map
 // data is built through LanGameSetupData/GameSetupData (widget-agnostic, see
 // LanGameSetupData.h), same shape as RmlSkirmishSetupScreen for the parts they
 // share.
@@ -38,6 +38,7 @@
 
 #pragma once
 
+#include "Common/Signal.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -60,15 +61,15 @@ public:
 	virtual bool isVisible() const override;
 	virtual void onBack() override; // same as ButtonBack
 
-	// Hook targets (free functions in the .cpp forward into these); public so the free functions
-	// can reach the singleton without befriending it.
+private:
+	RmlLanGameSetupScreen() {}
+
+	// LanGameSetupSignals targets, see connectSignals().
 	void onSlotsChanged(LANGameInfo *game);
 	void onOptionsChanged(LANGameInfo *game);
 	void onStartButtonEnabledChanged(bool enabled);
 	void onChatLine(const Rml::String &line);
-
-private:
-	RmlLanGameSetupScreen() {}
+	void connectSignals();
 
 	void refreshFromGameState(); // LanGameSetupData::build(TheLAN->GetMyGame()) -> m_model
 
@@ -94,6 +95,10 @@ public:
 private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
+	SignalConnection m_slotsConnection;
+	SignalConnection m_optionsConnection;
+	SignalConnection m_startButtonConnection;
+	SignalConnection m_chatConnection;
 	Rml::DataModelHandle m_modelHandle;
 
 	// One slot row's worth of fields for the data-for-bound slot table (see load()). Same shape as
@@ -159,7 +164,7 @@ private:
 		bool superweaponsRestricted = false;
 
 		bool isHost = false; // gates host-only controls; also picks the Start/Accept caption
-		bool startEnabled = true; // mirrors LANEnableStartButton()/g_lanGameSetupStartButtonHook
+		bool startEnabled = true; // mirrors LANEnableStartButton()/LanGameSetupSignals::startButton
 
 		Rml::Vector<Rml::String> chatLines; // append-only while the document is open, see onChatLine()
 		Rml::String chatEntryText;

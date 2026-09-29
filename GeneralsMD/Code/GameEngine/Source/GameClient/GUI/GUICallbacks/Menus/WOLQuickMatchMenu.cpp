@@ -1414,10 +1414,10 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 							GadgetListBoxAddEntryText(listboxChatWindowScoreScreen, TheGameText->fetch(disconMunkee),
 								GameSpyColor[GSCOLOR_DEFAULT], -1);
 						}
-						else if (g_scoreScreenChatDeliveryHook)
+						else if (ScoreScreenSignals::chatLine().hasListeners())
 						{
 							// non-.wnd score screen (e.g. RmlUi): no listbox to check for
-							g_scoreScreenChatDeliveryHook(TheGameText->fetch(disconMunkee), GameSpyColor[GSCOLOR_DEFAULT]);
+							ScoreScreenSignals::chatLine().emit(TheGameText->fetch(disconMunkee), GameSpyColor[GSCOLOR_DEFAULT]);
 						}
 						else
 						{

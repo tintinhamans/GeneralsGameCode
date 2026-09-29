@@ -216,15 +216,6 @@ void RmlScoreScreen::refreshFromGameState()
 	m_needsFinishSinglePlayer = (m_mode == SCORESCREENMODE_SINGLEPLAYER);
 }
 
-// Forwards LANAPI::OnChat()'s score-screen chat/emote/system lines (see LANAPICallbacks.cpp), and
-// the WOLGameSetupMenu.cpp/WOLQuickMatchMenu.cpp disconnect notices, into this screen's chat log
-// while it's the active score screen. No color support: chat_lines is a plain string list, same
-// as the local-echo path in onSendChat()/onSendEmote().
-static void onScoreScreenChatDelivered(const UnicodeString &line, Color /*color*/)
-{
-	RmlScoreScreen::instance().appendChatLine(unicodeToUtf8(line));
-}
-
 void RmlScoreScreen::show()
 {
 	if (!m_document)
@@ -232,15 +223,22 @@ void RmlScoreScreen::show()
 
 	refreshFromGameState();
 	m_document->Show();
-	g_scoreScreenChatDeliveryHook = &onScoreScreenChatDelivered;
+
+	// Forwards LANAPI::OnChat()'s score-screen chat/emote/system lines (see LANAPICallbacks.cpp), and
+	// the WOLGameSetupMenu.cpp/WOLQuickMatchMenu.cpp disconnect notices, into this screen's chat log
+	// while it's the active score screen. No color support: chat_lines is a plain string list, same
+	// as the local-echo path in onSendChat()/onSendEmote().
+	m_chatConnection = ScoreScreenSignals::chatLine().connect([this](const UnicodeString &line, Color)
+		{
+			appendChatLine(unicodeToUtf8(line));
+		});
 }
 
 void RmlScoreScreen::hide()
 {
 	if (m_document)
 		m_document->Hide();
-	if (g_scoreScreenChatDeliveryHook == &onScoreScreenChatDelivered)
-		g_scoreScreenChatDeliveryHook = nullptr;
+	m_chatConnection.disconnect();
 }
 
 bool RmlScoreScreen::isVisible() const

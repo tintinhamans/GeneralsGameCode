@@ -219,27 +219,12 @@ void RmlLanGameSetupScreen::load(Rml::Context *context)
 }
 
 //-------------------------------------------------------------------------------------------------
-// Hook targets: LANAPICallbacks.h's g_lanGameSetup*Hook are plain function pointers, not member
-// pointers, so these free functions forward into the singleton (same pattern as
-// RmlLanLobbyScreen.cpp's onLanLobby*Delivered()).
-static void onLanGameSetupSlotsChanged(LANGameInfo *game)
+void RmlLanGameSetupScreen::connectSignals()
 {
-	RmlLanGameSetupScreen::instance().onSlotsChanged(game);
-}
-
-static void onLanGameSetupOptionsChanged(LANGameInfo *game)
-{
-	RmlLanGameSetupScreen::instance().onOptionsChanged(game);
-}
-
-static void onLanGameSetupStartButtonChanged(Bool enabled)
-{
-	RmlLanGameSetupScreen::instance().onStartButtonEnabledChanged(enabled == TRUE);
-}
-
-static void onLanGameSetupChatDelivered(const UnicodeString &line, Color /*color*/)
-{
-	RmlLanGameSetupScreen::instance().onChatLine(unicodeToUtf8(line));
+	m_slotsConnection = LanGameSetupSignals::slotsChanged().connect([this](LANGameInfo *game) { onSlotsChanged(game); });
+	m_optionsConnection = LanGameSetupSignals::optionsChanged().connect([this](LANGameInfo *game) { onOptionsChanged(game); });
+	m_startButtonConnection = LanGameSetupSignals::startButton().connect([this](Bool enabled) { onStartButtonEnabledChanged(enabled == TRUE); });
+	m_chatConnection = LanGameSetupSignals::chatLine().connect([this](const UnicodeString &line, Color) { onChatLine(unicodeToUtf8(line)); });
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -432,10 +417,7 @@ void RmlLanGameSetupScreen::show()
 
 	refreshFromGameState();
 
-	g_lanGameSetupSlotUpdateHook = &onLanGameSetupSlotsChanged;
-	g_lanGameSetupOptionsUpdateHook = &onLanGameSetupOptionsChanged;
-	g_lanGameSetupStartButtonHook = &onLanGameSetupStartButtonChanged;
-	g_lanGameSetupChatHook = &onLanGameSetupChatDelivered;
+	connectSignals();
 
 	m_document->Show();
 }
@@ -445,14 +427,10 @@ void RmlLanGameSetupScreen::hide()
 	if (m_document)
 		m_document->Hide();
 
-	if (g_lanGameSetupSlotUpdateHook == &onLanGameSetupSlotsChanged)
-		g_lanGameSetupSlotUpdateHook = nullptr;
-	if (g_lanGameSetupOptionsUpdateHook == &onLanGameSetupOptionsChanged)
-		g_lanGameSetupOptionsUpdateHook = nullptr;
-	if (g_lanGameSetupStartButtonHook == &onLanGameSetupStartButtonChanged)
-		g_lanGameSetupStartButtonHook = nullptr;
-	if (g_lanGameSetupChatHook == &onLanGameSetupChatDelivered)
-		g_lanGameSetupChatHook = nullptr;
+	m_slotsConnection.disconnect();
+	m_optionsConnection.disconnect();
+	m_startButtonConnection.disconnect();
+	m_chatConnection.disconnect();
 }
 
 bool RmlLanGameSetupScreen::isVisible() const
@@ -622,7 +600,7 @@ void RmlLanGameSetupScreen::onSendEmote(Rml::DataModelHandle, Rml::Event &, cons
 }
 
 //-------------------------------------------------------------------------------------------------
-// g_lanGameSetupSlotUpdateHook/g_lanGameSetupOptionsUpdateHook targets: full snapshot rebuild, same
+// LanGameSetupSignals::slotsChanged/optionsChanged targets: full snapshot rebuild, same
 // reasoning as RmlLanLobbyScreen::onPlayerListChanged()/onGameListChanged().
 void RmlLanGameSetupScreen::onSlotsChanged(LANGameInfo * /*game*/)
 {
@@ -641,7 +619,7 @@ void RmlLanGameSetupScreen::onStartButtonEnabledChanged(bool enabled)
 		m_modelHandle.DirtyVariable("start_enabled");
 }
 
-// g_lanGameSetupChatHook target. No echo-on-send: LAN chat is a broadcast the sender receives too,
+// LanGameSetupSignals::chatLine target. No echo-on-send: LAN chat is a broadcast the sender receives too,
 // same as RmlLanLobbyScreen::onChatLine().
 void RmlLanGameSetupScreen::onChatLine(const Rml::String &line)
 {
@@ -656,10 +634,7 @@ void RmlLanGameSetupScreen::returnFromMapSelect()
 		return;
 	refreshFromGameState();
 
-	g_lanGameSetupSlotUpdateHook = &onLanGameSetupSlotsChanged;
-	g_lanGameSetupOptionsUpdateHook = &onLanGameSetupOptionsChanged;
-	g_lanGameSetupStartButtonHook = &onLanGameSetupStartButtonChanged;
-	g_lanGameSetupChatHook = &onLanGameSetupChatDelivered;
+	connectSignals();
 
 	m_document->Show();
 }

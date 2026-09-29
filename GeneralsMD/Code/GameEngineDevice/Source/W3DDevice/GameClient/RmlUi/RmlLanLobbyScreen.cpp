@@ -148,25 +148,6 @@ void RmlLanLobbyScreen::load(Rml::Context *context)
 }
 
 //-------------------------------------------------------------------------------------------------
-// Hook targets: LANAPICallbacks.h's g_lanLobby*Hook are plain function pointers, not member
-// pointers, so these free functions forward into the singleton (same pattern as RmlScoreScreen.cpp's
-// onScoreScreenChatDelivered()).
-static void onLanLobbyPlayerListDelivered(LANPlayer *playerList)
-{
-	RmlLanLobbyScreen::instance().onPlayerListChanged(playerList);
-}
-
-static void onLanLobbyGameListDelivered(LANGameInfo *gameList)
-{
-	RmlLanLobbyScreen::instance().onGameListChanged(gameList);
-}
-
-static void onLanLobbyChatDelivered(const UnicodeString &line, Color /*color*/)
-{
-	RmlLanLobbyScreen::instance().onChatLine(unicodeToUtf8(line));
-}
-
-//-------------------------------------------------------------------------------------------------
 void RmlLanLobbyScreen::show()
 {
 	if (!m_document)
@@ -190,9 +171,9 @@ void RmlLanLobbyScreen::show()
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
 
-	g_lanLobbyPlayerListHook = &onLanLobbyPlayerListDelivered;
-	g_lanLobbyGameListHook = &onLanLobbyGameListDelivered;
-	g_lanLobbyChatHook = &onLanLobbyChatDelivered;
+	m_playerListConnection = LanLobbySignals::playerList().connect([this](LANPlayer *playerList) { onPlayerListChanged(playerList); });
+	m_gameListConnection = LanLobbySignals::gameList().connect([this](LANGameInfo *gameList) { onGameListChanged(gameList); });
+	m_chatConnection = LanLobbySignals::chatLine().connect([this](const UnicodeString &line, Color) { onChatLine(unicodeToUtf8(line)); });
 
 	m_document->Show();
 
@@ -208,12 +189,9 @@ void RmlLanLobbyScreen::hide()
 	if (m_document)
 		m_document->Hide();
 
-	if (g_lanLobbyPlayerListHook == &onLanLobbyPlayerListDelivered)
-		g_lanLobbyPlayerListHook = nullptr;
-	if (g_lanLobbyGameListHook == &onLanLobbyGameListDelivered)
-		g_lanLobbyGameListHook = nullptr;
-	if (g_lanLobbyChatHook == &onLanLobbyChatDelivered)
-		g_lanLobbyChatHook = nullptr;
+	m_playerListConnection.disconnect();
+	m_gameListConnection.disconnect();
+	m_chatConnection.disconnect();
 
 	LanLobbyActions::leaveLobby(utf8ToUnicode(m_model.playerName));
 }
@@ -310,7 +288,7 @@ void RmlLanLobbyScreen::refreshSelectedGameDetails()
 }
 
 //-------------------------------------------------------------------------------------------------
-// g_lanLobbyPlayerListHook target (see LANAPI::OnPlayerList()). Full snapshot each call, same as
+// LanLobbySignals::playerList target (see LANAPI::OnPlayerList()). Full snapshot each call, same as
 // the .wnd path's GadgetListBoxReset()+repopulate -- rebuilt in one step, one Dirty*() call, per
 // the growing/shrinking-list rule (see RmlSkirmishSetupScreen.h's start_markers comment for why an
 // in-place resize is unsafe; here the array is simply rebuilt fresh, which RmlUi tolerates).
@@ -331,7 +309,7 @@ void RmlLanLobbyScreen::onPlayerListChanged(LANPlayer *playerList)
 		m_modelHandle.DirtyVariable("players");
 }
 
-// g_lanLobbyGameListHook target (see LANAPI::OnGameList()). Same full-snapshot-rebuild reasoning as
+// LanLobbySignals::gameList target (see LANAPI::OnGameList()). Same full-snapshot-rebuild reasoning as
 // onPlayerListChanged(). Preserves the current selection by list offset (matches the .wnd path's
 // GLM_SELECTED-driven listboxGames, which also just keys off list offset, not a stable game handle).
 void RmlLanLobbyScreen::onGameListChanged(LANGameInfo *gameList)
@@ -368,9 +346,9 @@ void RmlLanLobbyScreen::onGameListChanged(LANGameInfo *gameList)
 	}
 }
 
-// g_lanLobbyChatHook target (see LANAPI::OnChat()). No color support: chat_lines is a plain string
+// LanLobbySignals::chatLine target (see LANAPI::OnChat()). No color support: chat_lines is a plain string
 // list, same as RmlScoreScreen's chat_lines. Sending your own chat also arrives back through this
-// hook (LAN chat is a broadcast the sender receives too), so onSendChat()/onChatEntryCommitted()
+// signal (LAN chat is a broadcast the sender receives too), so onSendChat()/onChatEntryCommitted()
 // below do not echo locally -- same as the .wnd path, whose GEM_EDIT_DONE/ButtonEmote handlers never
 // write to listboxChatWindow themselves either.
 void RmlLanLobbyScreen::onChatLine(const Rml::String &line)

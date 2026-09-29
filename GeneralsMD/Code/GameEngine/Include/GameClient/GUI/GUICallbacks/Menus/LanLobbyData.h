@@ -43,7 +43,7 @@ struct LanLobbyPlayerRow
 };
 
 // One row of the lobby game list. m_game is only valid for the lifetime of the LANGameInfo list
-// LANAPI just handed to OnGameList()/g_lanLobbyGameListHook -- do not retain across callbacks,
+// LANAPI just handed to OnGameList()/LanLobbySignals::gameList -- do not retain across callbacks,
 // same lifetime rule the .wnd path already relies on via GadgetListBoxSetItemData.
 struct LanLobbyGameRow
 {

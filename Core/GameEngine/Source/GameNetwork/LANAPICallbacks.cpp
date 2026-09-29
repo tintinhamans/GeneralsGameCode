@@ -582,7 +582,25 @@ void LANAPI::OnPlayerLeave( UnicodeString player )
 	}
 }
 
-void (*g_lanLobbyGameListHook)(LANGameInfo *gameList) = nullptr;
+namespace ScoreScreenSignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine() { static Signal2<const UnicodeString &, Color> s; return s; }
+}
+
+namespace LanLobbySignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine() { static Signal2<const UnicodeString &, Color> s; return s; }
+	Signal1<LANPlayer *> &playerList() { static Signal1<LANPlayer *> s; return s; }
+	Signal1<LANGameInfo *> &gameList() { static Signal1<LANGameInfo *> s; return s; }
+}
+
+namespace LanGameSetupSignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine() { static Signal2<const UnicodeString &, Color> s; return s; }
+	Signal1<LANGameInfo *> &slotsChanged() { static Signal1<LANGameInfo *> s; return s; }
+	Signal1<LANGameInfo *> &optionsChanged() { static Signal1<LANGameInfo *> s; return s; }
+	Signal1<Bool> &startButton() { static Signal1<Bool> s; return s; }
+}
 
 void LANAPI::OnGameList( LANGameInfo *gameList )
 {
@@ -590,8 +608,7 @@ void LANAPI::OnGameList( LANGameInfo *gameList )
 	if (m_inLobby)
 	{
 		LANDisplayGameList(listboxGames, gameList);
-		if (g_lanLobbyGameListHook)
-			g_lanLobbyGameListHook(gameList);
+		LanLobbySignals::gameList().emit(gameList);
 	}
 }
 
@@ -624,25 +641,18 @@ void LANAPI::OnGameCreate( ReturnType ret )
 			}
 			GadgetListBoxAddEntryText(listboxChatWindow, errorText, chatSystemColor, -1, -1);
 			// A non-.wnd lobby (e.g. RmlLanLobbyScreen) has no listboxChatWindow; let it through via
-			// the hook instead, same pattern as OnChat().
-			if (g_lanLobbyChatHook)
-				g_lanLobbyChatHook(errorText, chatSystemColor);
+			// the signal instead, same pattern as OnChat().
+			LanLobbySignals::chatLine().emit(errorText, chatSystemColor);
 		}
 	}
 
 }
 
-void (*g_lanLobbyPlayerListHook)(LANPlayer *playerList) = nullptr;
-void (*g_lanGameSetupSlotUpdateHook)(LANGameInfo *game) = nullptr;
-void (*g_lanGameSetupOptionsUpdateHook)(LANGameInfo *game) = nullptr;
-void (*g_lanGameSetupStartButtonHook)(Bool enabled) = nullptr;
-
 void LANAPI::OnPlayerList( LANPlayer *playerList )
 {
 	if (m_inLobby)
 	{
-		if (g_lanLobbyPlayerListHook)
-			g_lanLobbyPlayerListHook(playerList);
+		LanLobbySignals::playerList().emit(playerList);
 
 		UnsignedInt selectedIP = 0;
 		Int selectedIndex = -1;
@@ -680,10 +690,6 @@ void LANAPI::OnInActive(UnsignedInt IP) {
 
 }
 
-void (*g_scoreScreenChatDeliveryHook)(const UnicodeString &line, Color color) = nullptr;
-void (*g_lanLobbyChatHook)(const UnicodeString &line, Color color) = nullptr;
-void (*g_lanGameSetupChatHook)(const UnicodeString &line, Color color) = nullptr;
-
 void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message, ChatType format )
 {
 	GameWindow *chatWindow = nullptr;
@@ -707,8 +713,8 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 		isGameSetupChat = TRUE;
 	}
 	// A non-.wnd score screen/lobby/setup screen has no chatWindow of its own; let it through via
-	// the hook instead.
-	if (chatWindow == nullptr && !((isScoreScreenChat && g_scoreScreenChatDeliveryHook) || (isLobbyChat && g_lanLobbyChatHook) || (isGameSetupChat && g_lanGameSetupChatHook)))
+	// the signal instead.
+	if (chatWindow == nullptr && !((isScoreScreenChat && ScoreScreenSignals::chatLine().hasListeners()) || (isLobbyChat && LanLobbySignals::chatLine().hasListeners()) || (isGameSetupChat && LanGameSetupSignals::chatLine().hasListeners())))
 		return;
 	Int index = -1;
 	UnicodeString unicodeChat;
@@ -764,12 +770,12 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 	if (chatWindow)
 		GadgetListBoxSetItemData(chatWindow, (void *)-1, index);
 
-	if (isScoreScreenChat && g_scoreScreenChatDeliveryHook)
-		g_scoreScreenChatDeliveryHook(unicodeChat, chatColorOut);
+	if (isScoreScreenChat)
+		ScoreScreenSignals::chatLine().emit(unicodeChat, chatColorOut);
 
-	if (isLobbyChat && g_lanLobbyChatHook)
-		g_lanLobbyChatHook(unicodeChat, chatColorOut);
+	if (isLobbyChat)
+		LanLobbySignals::chatLine().emit(unicodeChat, chatColorOut);
 
-	if (isGameSetupChat && g_lanGameSetupChatHook)
-		g_lanGameSetupChatHook(unicodeChat, chatColorOut);
+	if (isGameSetupChat)
+		LanGameSetupSignals::chatLine().emit(unicodeChat, chatColorOut);
 }

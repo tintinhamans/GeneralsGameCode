@@ -21,7 +21,7 @@
 // write straight into listboxChatWindowLanGame (a per-player "doesn't have the map"
 // line, and "notified players of your intent to start") are now sent through
 // TheLAN->OnChat(SYSTEM) like every other validation message in this function --
-// same visible text/color, but it now also reaches g_lanGameSetupChatHook instead of
+// same visible text/color, but it now also reaches LanGameSetupSignals::chatLine instead of
 // requiring a GameWindow.
 ///////////////////////////////////////////////////////////////////////////////
 

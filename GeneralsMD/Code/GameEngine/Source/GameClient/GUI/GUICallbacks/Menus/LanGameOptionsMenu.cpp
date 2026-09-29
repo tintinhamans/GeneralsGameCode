@@ -219,8 +219,7 @@ void LANEnableStartButton(Bool enabled)
 		buttonStart->winEnable(enabled);
 	if (buttonSelectMap)
 		buttonSelectMap->winEnable(enabled);
-	if (g_lanGameSetupStartButtonHook)
-		g_lanGameSetupStartButtonHook(enabled);
+	LanGameSetupSignals::startButton().emit(enabled);
 }
 
 static void handleColorSelection(int index)
@@ -275,8 +274,8 @@ static void handleLimitSuperweaponsClick()
 
 void lanUpdateSlotList()
 {
-	// Widget refresh stays gated on the .wnd's own state exactly as before; the hook fires
-	// unconditionally below (same shape as updateGameOptions()'s g_lanGameSetupOptionsUpdateHook)
+	// Widget refresh stays gated on the .wnd's own state exactly as before; the signal fires
+	// unconditionally below (same shape as updateGameOptions()'s optionsChanged)
 	// so an RmlUi front end (see RmlLanGameSetupScreen) still hears every slot change -- including
 	// ones driven by network callbacks (OnPlayerJoin(), OnGameOptions(), etc.) -- even though it
 	// never runs InitLanGameGadgets() and so never sets AreSlotListUpdatesEnabled().
@@ -288,8 +287,7 @@ void lanUpdateSlotList()
 		updateMapStartSpots(TheLAN->GetMyGame(), buttonMapStartPosition);
 	}
 
-	if (g_lanGameSetupSlotUpdateHook)
-		g_lanGameSetupSlotUpdateHook(TheLAN->GetMyGame());
+	LanGameSetupSignals::slotsChanged().emit(TheLAN->GetMyGame());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -605,8 +603,7 @@ void updateGameOptions()
     DEBUG_ASSERTCRASH( index < itemCount, ("Could not find new starting cash amount %d in list", theGame->getStartingCash().countMoney() ) );
 	}
 
-	if (g_lanGameSetupOptionsUpdateHook)
-		g_lanGameSetupOptionsUpdateHook(theGame);
+	LanGameSetupSignals::optionsChanged().emit(theGame);
 }
 
 

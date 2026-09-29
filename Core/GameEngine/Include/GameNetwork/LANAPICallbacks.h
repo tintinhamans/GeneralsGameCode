@@ -31,6 +31,7 @@
 #pragma once
 
 #include "Common/NameKeyGenerator.h"
+#include "Common/Signal.h"
 #include "GameClient/Shell.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetTextEntry.h"
@@ -55,32 +56,38 @@ extern WindowLayout *mapSelectLayout;
 extern NameKeyType listboxChatWindowScoreScreenID;
 extern GameWindow *listboxChatWindowScoreScreen;
 
-// Optional hook so a non-.wnd score screen (e.g. RmlUi) can also receive whatever
-// LANAPI::OnChat() would otherwise only write into listboxChatWindowScoreScreen -- that window
-// stays null for such a screen since it never runs the .wnd ScoreScreenInit(). Null when no such
-// screen is active; the owning front end sets/clears it on show()/hide(), same lifetime as
-// listboxChatWindowScoreScreen itself. Left null (no-op) by the original Generals target.
-extern void (*g_scoreScreenChatDeliveryHook)(const UnicodeString &line, Color color);
+// Events for non-.wnd front ends (e.g. RmlUi): each carries whatever LANAPI/the setup menu would
+// otherwise only write into the .wnd listboxes, and fires in addition to the existing GameWindow
+// updates, never in place of them, so the .wnd path is untouched. Listeners connect in show() and
+// drop the connection in hide(), same lifetime as the matching listbox globals above.
 
-// Same idea as g_scoreScreenChatDeliveryHook, but for the LAN lobby (m_inLobby) instead of the
-// score screen. Called in addition to the existing listboxChatWindow/listboxPlayers/listboxGames
-// updates below, never in place of them, so the .wnd path is untouched. Null when no alternative
-// lobby front end (e.g. RmlLanLobbyScreen) is active.
-extern void (*g_lanLobbyChatHook)(const UnicodeString &line, Color color);
-extern void (*g_lanLobbyPlayerListHook)(LANPlayer *playerList);
-extern void (*g_lanLobbyGameListHook)(LANGameInfo *gameList);
+// LANAPI::OnChat() lines while a game is in progress and the shell is active (the score screen).
+// listboxChatWindowScoreScreen stays null for a screen that never runs the .wnd ScoreScreenInit().
+namespace ScoreScreenSignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine();
+}
 
-// Same idea, for the LAN game setup screen (LanGameOptionsMenu.wnd) instead of the lobby.
-// g_lanGameSetupChatHook fires wherever OnChat() would otherwise only write into
-// listboxChatWindowLanGame. g_lanGameSetupSlotUpdateHook/g_lanGameSetupOptionsUpdateHook fire
-// at the end of lanUpdateSlotList()/updateGameOptions() (LanGameOptionsMenu.cpp), in addition to
-// the existing GameWindow updates, never in place of them. g_lanGameSetupStartButtonHook fires
-// from LANEnableStartButton(). Null when no alternative setup front end (e.g.
-// RmlLanGameSetupScreen) is active.
-extern void (*g_lanGameSetupChatHook)(const UnicodeString &line, Color color);
-extern void (*g_lanGameSetupSlotUpdateHook)(LANGameInfo *game);
-extern void (*g_lanGameSetupOptionsUpdateHook)(LANGameInfo *game);
-extern void (*g_lanGameSetupStartButtonHook)(Bool enabled);
+// LAN lobby (m_inLobby): chat, player list and game list, alongside listboxChatWindow/
+// listboxPlayers/listboxGames.
+namespace LanLobbySignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine();
+	Signal1<LANPlayer *> &playerList();
+	Signal1<LANGameInfo *> &gameList();
+}
+
+// LAN game setup (LanGameOptionsMenu.wnd). chatLine fires wherever OnChat() would otherwise only
+// write into listboxChatWindowLanGame; slotsChanged/optionsChanged at the end of
+// lanUpdateSlotList()/updateGameOptions() (LanGameOptionsMenu.cpp); startButton from
+// LANEnableStartButton().
+namespace LanGameSetupSignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine();
+	Signal1<LANGameInfo *> &slotsChanged();
+	Signal1<LANGameInfo *> &optionsChanged();
+	Signal1<Bool> &startButton();
+}
 
 
 //Colors used for the chat dialogs

@@ -27,15 +27,16 @@
 //   - update() pumps TheLAN->update() and the socket-error message box itself,
 //     since LanLobbyMenuUpdate() (the .wnd's per-frame Update callback) never runs
 //     for a registry-routed screen either.
-// Player list/game list/chat arrive via g_lanLobbyPlayerListHook/g_lanLobbyGameListHook/
-// g_lanLobbyChatHook (LANAPICallbacks.h), subscribed in show() and cleared in hide(),
-// same lifetime pattern as RmlScoreScreen's g_scoreScreenChatDeliveryHook. Game rows/
+// Player list/game list/chat arrive via LanLobbySignals::playerList/gameList/chatLine
+// (LANAPICallbacks.h), connected in show() and dropped in hide(), same lifetime pattern
+// as RmlScoreScreen's ScoreScreenSignals::chatLine. Game rows/
 // details are built through LanLobbyData (widget-agnostic, see LanLobbyData.h).
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
 #include "GameClient/GUI/GUICallbacks/Menus/LanLobbyData.h"
+#include "Common/Signal.h"
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
@@ -61,14 +62,13 @@ public:
 	virtual void onBack() override; // same as ButtonBack (see LanLobbyMenu.cpp's GBM_SELECTED)
 	virtual void update() override; // TheLAN->update() + socket-error box, see header comment
 
-	// Hook targets (free functions in the .cpp forward into these); public so the free functions
-	// can reach the singleton without befriending it.
+private:
+	RmlLanLobbyScreen() : m_playerRows(m_model.players), m_gameRows(m_model.games) {}
+
+	// LanLobbySignals targets, connected in show().
 	void onPlayerListChanged(LANPlayer *playerList);
 	void onGameListChanged(LANGameInfo *gameList);
 	void onChatLine(const Rml::String &line);
-
-private:
-	RmlLanLobbyScreen() : m_playerRows(m_model.players), m_gameRows(m_model.games) {}
 
 	void refreshSelectedGameDetails(); // rebuilds m_model.gameDetailSlots from the selected game
 	void clearSelection();
@@ -86,6 +86,9 @@ private:
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
+	SignalConnection m_playerListConnection;
+	SignalConnection m_gameListConnection;
+	SignalConnection m_chatConnection;
 	Rml::DataModelHandle m_modelHandle;
 	UnicodeString m_defaultName;
 

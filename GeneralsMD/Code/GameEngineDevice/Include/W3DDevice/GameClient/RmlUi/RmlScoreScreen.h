@@ -30,11 +30,12 @@
 // playback, auto-save, Retry/EndCampaign/SaveAndContinue caption switch) --
 // see finishSinglePlayerIfNeeded() and ScoreScreenActions::finishSinglePlayer().
 // Incoming LAN chat/emotes and disconnect notices reach this screen the same way
-// via g_scoreScreenChatDeliveryHook (see LANAPICallbacks.h/.cpp).
+// via ScoreScreenSignals::chatLine (see LANAPICallbacks.h/.cpp).
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
+#include "Common/Signal.h"
 #include "GameClient/GUI/GUICallbacks/Menus/ScoreScreenData.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
@@ -58,7 +59,7 @@ public:
 	virtual void update() override; // one-shot single player campaign finish, see finishSinglePlayerIfNeeded()
 
 	// Appends a chat/emote/system line to the chat log. Called by the local onSendChat/onSendEmote
-	// handlers (so the sender always sees their own line) and by g_scoreScreenChatDeliveryHook
+	// handlers (so the sender always sees their own line) and by ScoreScreenSignals::chatLine
 	// (see LANAPICallbacks.h/.cpp) while this screen is showing, which forwards everything
 	// LANAPI::OnChat() would otherwise only write into the .wnd path's listboxChatWindowScoreScreen
 	// -- other players' LAN chat/emotes and the WOLGameSetupMenu.cpp/WOLQuickMatchMenu.cpp
@@ -82,6 +83,7 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
 	ScoreScreenModeType m_mode = SCORESCREENMODE_SINGLEPLAYER;
+	SignalConnection m_chatConnection; // ScoreScreenSignals::chatLine, connected while showing
 
 	// Single player campaign finish (ScoreScreen.cpp's finishSinglePlayerInit()), deferred to the
 	// first update() after show() so the screen has a chance to render once first -- same timing

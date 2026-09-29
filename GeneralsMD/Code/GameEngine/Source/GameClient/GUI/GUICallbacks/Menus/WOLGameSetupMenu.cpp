@@ -1373,11 +1373,11 @@ static OnlineGameSetupSession::EventSink BuildGameSetupEventSink()
 		{
 			GadgetListBoxAddEntryText( listboxGameSetupChat, text, color, -1, -1 );
 		}
-		else if( TheNGMPGame && TheNGMPGame->isGameInProgress() && g_scoreScreenChatDeliveryHook )
+		else if( TheNGMPGame && TheNGMPGame->isGameInProgress() && ScoreScreenSignals::chatLine().hasListeners() )
 		{
 			// Setup .wnd is torn down once the match starts; forward score-screen chat
 			// (internet games) the same way WOLGameSetupMenu's disconnect notice does.
-			g_scoreScreenChatDeliveryHook( text, color );
+			ScoreScreenSignals::chatLine().emit( text, color );
 		}
 	};
 
@@ -1768,10 +1768,10 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 							GadgetListBoxAddEntryText(listboxChatWindowScoreScreen, TheGameText->fetch(disconMunkee),
 								GameSpyColor[GSCOLOR_DEFAULT], -1);
 						}
-						else if (g_scoreScreenChatDeliveryHook)
+						else if (ScoreScreenSignals::chatLine().hasListeners())
 						{
 							// non-.wnd score screen (e.g. RmlUi): no listbox to check for
-							g_scoreScreenChatDeliveryHook(TheGameText->fetch(disconMunkee), GameSpyColor[GSCOLOR_DEFAULT]);
+							ScoreScreenSignals::chatLine().emit(TheGameText->fetch(disconMunkee), GameSpyColor[GSCOLOR_DEFAULT]);
 						}
 						else
 						{
