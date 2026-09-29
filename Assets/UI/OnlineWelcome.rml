@@ -21,11 +21,11 @@
 			</div>
 
 			<div class="buttons-column">
-				<button data-event-click="quick_match"><gametext key="GUI:QuickMatch"/></button>
-				<button data-event-click="custom_match"><gametext key="GUI:CustomMatch"/></button>
-				<button data-event-click="my_info"><gametext key="GUI:MyInfo"/></button>
-				<button data-event-click="buddies">{{buddies_button_text}}</button>
-				<button data-event-click="options"><gametext key="GUI:Options"/></button>
+				<button class="btn-primary" data-event-click="quick_match"><gametext key="GUI:QuickMatch"/></button>
+				<button class="btn-primary" data-event-click="custom_match"><gametext key="GUI:CustomMatch"/></button>
+				<button class="btn-primary" data-event-click="my_info"><gametext key="GUI:MyInfo"/></button>
+				<button class="btn-primary" data-event-click="buddies">{{buddies_button_text}}</button>
+				<button class="btn-primary" data-event-click="options"><gametext key="GUI:Options"/></button>
 			</div>
 		</div>
 
@@ -55,8 +55,8 @@
 			</div>
 		</div>
 
-		<div class="welcome-footer">
-			<button data-event-click="back"><gametext key="GUI:GotoMainMenu"/></button>
+		<div class="footer">
+			<button class="btn-primary" data-event-click="back"><gametext key="GUI:GotoMainMenu"/></button>
 		</div>
 	</div>
 </body>

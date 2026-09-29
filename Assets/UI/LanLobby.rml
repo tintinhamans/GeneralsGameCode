@@ -60,15 +60,15 @@
 			</div>
 		</div>
 
-		<div class="footer name-row">
+		<div class="footer">
 			<div class="label"><gametext key="GUI:PlayerName"/></div>
 			<input type="text" class="text-input name-input" data-value="player_name" data-event-change="name_changed"/>
-			<button data-event-click="clear_name" data-tooltip="TOOLTIP:ButtonClear"><gametext key="GUI:CLEAR"/></button>
+			<button class="btn-inline" data-event-click="clear_name" data-tooltip="TOOLTIP:ButtonClear"><gametext key="GUI:CLEAR"/></button>
 			<div class="spacer"></div>
-			<button data-event-click="host_game"><gametext key="GUI:Host"/></button>
-			<button data-event-click="join_selected"><gametext key="GUI:Join"/></button>
-			<button data-event-click="direct_connect"><gametext key="GUI:DirectConnect"/></button>
-			<button data-event-click="back"><gametext key="GUI:GotoMainMenu"/></button>
+			<button class="btn-primary" data-event-click="host_game"><gametext key="GUI:Host"/></button>
+			<button class="btn-primary" data-event-click="join_selected"><gametext key="GUI:Join"/></button>
+			<button class="btn-primary" data-event-click="direct_connect"><gametext key="GUI:DirectConnect"/></button>
+			<button class="btn-primary" data-event-click="back"><gametext key="GUI:GotoMainMenu"/></button>
 		</div>
 	</div>
 </body>

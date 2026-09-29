@@ -27,7 +27,7 @@
 {
 	flex: 1 1 auto;
 	min-height: 80dp;
-	margin-bottom: 6dp;
+	margin-bottom: 12dp;
 }
 
 /* Map rows are common.rcss's .list-row.flex.compact with a stronger selected highlight and no outline. */
@@ -41,8 +41,8 @@
 .map-check
 {
 	box-sizing: border-box;
-	width: 14dp;
-	height: 14dp;
+	width: 16dp;
+	height: 16dp;
 	margin-right: 8dp;
 	background-color: rgba(2, 2, 2, 191);
 	border: 1dp #2F37A8;
@@ -57,14 +57,6 @@
 .map-name
 {
 	flex: 1 1 auto;
-}
-
-/* row.disabled already dims .label/.control via common.rcss; select[disabled] isn't styled by
-   common.rcss's select rule (only button is), so dim it here too. */
-.row.disabled select
-{
-	color: #C0C0C0;
-	border-color: #6A6A6A;
 }
 
 /* ---- Stats panel: the shared rank cluster (common.rcss) + a tighter stats column, same subset of
@@ -99,7 +91,6 @@
 .status-feed
 {
 	flex: 0 0 96dp;
-	margin-bottom: 8dp;
 }
 
 /* ---- Map hover preview: ports updateMapHoverPreview() (WOLQuickMatchMenu.cpp:248-282), the preview

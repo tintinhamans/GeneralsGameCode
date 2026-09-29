@@ -32,7 +32,7 @@
 
 .dc-right button
 {
-	margin-bottom: 8dp;
+	margin-bottom: 12dp;
 }
 
 .dc-row
@@ -40,13 +40,14 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
+	min-height: 32dp;
 	margin-bottom: 8dp;
 }
 
 .dc-label
 {
 	flex: 0 0 auto;
-	width: 160dp;
+	width: 200dp;
 	color: #FFFFFF;
 }
 
@@ -63,7 +64,7 @@
 
 .dc-remote-row
 {
-	margin-bottom: 4dp;
+	margin-bottom: 12dp;
 }
 
 .dc-history-column

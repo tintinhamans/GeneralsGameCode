@@ -39,13 +39,13 @@
 			</div>
 
 			<div class="dc-right">
-				<button class="button-lg" data-event-click="host_game"><gametext key="GUI:Host"/></button>
-				<button class="button-lg" data-event-click="join_game"><gametext key="GUI:Join"/></button>
+				<button class="btn-primary" data-event-click="host_game"><gametext key="GUI:Host"/></button>
+				<button class="btn-primary" data-event-click="join_game"><gametext key="GUI:Join"/></button>
 			</div>
 		</div>
 
 		<div class="footer">
-			<button class="button-lg" data-event-click="back"><gametext key="GUI:Back"/></button>
+			<button class="btn-primary" data-event-click="back"><gametext key="GUI:Back"/></button>
 		</div>
 	</div>
 </body>

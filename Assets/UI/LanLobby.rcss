@@ -16,8 +16,8 @@
 {
 	display: flex;
 	flex-direction: column;
-	width: 180dp;
-	margin-right: 8dp;
+	width: 220dp;
+	margin-right: 16dp;
 }
 
 .games-column
@@ -25,14 +25,14 @@
 	display: flex;
 	flex-direction: column;
 	flex: 1 1 auto;
-	margin-right: 8dp;
+	margin-right: 16dp;
 }
 
 .details-column
 {
 	display: flex;
 	flex-direction: column;
-	width: 260dp;
+	width: 300dp;
 }
 
 .map-name.in-progress
@@ -49,14 +49,14 @@
 	min-height: 0;
 	border: 1dp #2F37A8;
 	background-color: rgba(2, 2, 2, 140);
-	padding: 6dp;
+	padding: 12dp;
 }
 
 .details-map
 {
 	font-weight: bold;
 	color: #FFFFFF;
-	margin-bottom: 6dp;
+	margin-bottom: 8dp;
 	padding-bottom: 4dp;
 	border-bottom: 1dp #2F37A8;
 }
@@ -71,7 +71,7 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	padding: 2dp 0;
+	padding: 4dp 0;
 }
 
 .details-slot.observer
@@ -84,7 +84,7 @@
 	flex: 0 0 auto;
 	width: 20dp;
 	height: 20dp;
-	margin-right: 6dp;
+	margin-right: 8dp;
 }
 
 .details-slot-label
@@ -92,24 +92,21 @@
 	flex: 1 1 auto;
 }
 
-/* ---- Chat ---------------------------------------------------------------------------------- */
-/* ---- Player name / footer row -------------------------------------------------------------- */
-.name-row
-{
-	align-items: center;
-}
-
-.name-row > .label
+/* ---- Player name, at the start of the footer ---------------------------------------------- */
+.footer > .label
 {
 	flex: 0 0 auto;
-	margin-right: 6dp;
+	margin-right: 8dp;
 }
 
 .name-input
 {
 	flex: 0 0 auto;
-	width: 140dp;
+	width: 180dp;
 	margin-right: 8dp;
 }
 
-/* ---- Chat entry icon button (original ButtonSendChat draws ReturnButton) ---------------- */
+.footer > .btn-inline
+{
+	margin-left: 0;
+}

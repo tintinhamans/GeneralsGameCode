@@ -101,12 +101,12 @@
 		<div class="footer footer-split">
 			<!-- WOLQuickMatchMenu.cpp:1114-1115 relabels these to hardcoded English literals at Init
 			     (not GameText keys) -- kept verbatim, same as the welcome/instructions status lines. -->
-			<button class="button-lg" data-if="start_visible" data-attrif-disabled="!start_enabled" data-class-disabled="!start_enabled" data-event-click="start">START MATCHMAKING</button>
-			<button class="button-lg" data-if="stop_visible" data-attrif-disabled="!stop_enabled" data-class-disabled="!stop_enabled" data-event-click="stop">CANCEL MATCHMAKING</button>
-			<button class="button-lg" data-attrif-disabled="!widen_enabled" data-class-disabled="!widen_enabled" data-event-click="widen"><gametext key="GUI:WidenSearch"/></button>
-			<button class="button-lg" data-event-click="toggle_options">{{options_button_label}}</button>
-			<button class="button-lg" data-attrif-disabled="!communicator_enabled" data-class-disabled="!communicator_enabled" data-event-click="buddies">{{communicator_label}}</button>
-			<button class="button-lg" data-attrif-disabled="!back_enabled" data-class-disabled="!back_enabled" data-event-click="back"><gametext key="GUI:Back"/></button>
+			<button class="btn-primary" data-if="start_visible" data-attrif-disabled="!start_enabled" data-class-disabled="!start_enabled" data-event-click="start">START MATCHMAKING</button>
+			<button class="btn-primary" data-if="stop_visible" data-attrif-disabled="!stop_enabled" data-class-disabled="!stop_enabled" data-event-click="stop">CANCEL MATCHMAKING</button>
+			<button class="btn-primary" data-attrif-disabled="!widen_enabled" data-class-disabled="!widen_enabled" data-event-click="widen"><gametext key="GUI:WidenSearch"/></button>
+			<button class="btn-primary" data-event-click="toggle_options">{{options_button_label}}</button>
+			<button class="btn-primary" data-attrif-disabled="!communicator_enabled" data-class-disabled="!communicator_enabled" data-event-click="buddies">{{communicator_label}}</button>
+			<button class="btn-primary" data-attrif-disabled="!back_enabled" data-class-disabled="!back_enabled" data-event-click="back"><gametext key="GUI:Back"/></button>
 		</div>
 	</div>
 

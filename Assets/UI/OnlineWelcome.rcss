@@ -1,32 +1,34 @@
 /*
 	OnlineWelcome.rcss -- WOLWelcomeMenu.wnd (the Generals Online hub screen).
 	.shell-background/.shell-frame/.shell-title-bar come from common.rcss (see WOLWelcomeMenu.wnd's
-	MainMenuRuler backdrop + GadgetParent). Percent geometry below mirrors the .wnd's own child
-	SCREENRECTs (CREATIONRESOLUTION 800x600), so this scales the same non-uniform way the .wnd does.
+	MainMenuRuler backdrop + GadgetParent). The MOTD row and the rank/community row share the
+	height between the title and the footer equally, like the .wnd's two bands.
 */
 
 .welcome-row
 {
 	display: flex;
 	flex-direction: row;
-	flex: 0 0 44%;
+	flex: 1 1 0%;
 	min-height: 0;
-	margin-bottom: 1.7%;
+	margin-bottom: 16dp;
 }
 
 .motd-column
 {
 	display: flex;
 	flex-direction: column;
-	flex: 0 0 70%;
-	margin-right: 2.3%;
+	flex: 1 1 0%;
+	margin-right: 16dp;
 	min-height: 0;
 }
 
 .motd-players
 {
 	color: #FFCC00;
-	padding-bottom: 2dp;
+	font-size: 18dp;
+	font-weight: bold;
+	padding-bottom: 8dp;
 }
 
 .motd-list
@@ -51,13 +53,12 @@
 {
 	display: flex;
 	flex-direction: column;
-	flex: 0 0 25%;
-	margin-left: auto;
+	flex: 0 0 320dp;
 }
 
 .buttons-column button
 {
-	margin-bottom: 4dp;
+	margin-bottom: 12dp;
 }
 
 /* Rank + Daily Army Win Percentages band -- mirrors WOLWelcomeMenu.wnd's PlayerInfoParent
@@ -67,15 +68,15 @@
 {
 	display: flex;
 	flex-direction: row;
-	flex: 0 0 43%;
+	flex: 1 1 0%;
 	min-height: 0;
 }
 
-/* Its rank cluster (.rank-column and friends) is shared, see common.rcss; this screen gives it a
-   proportional gap to the community grid instead of the default 12dp. */
+/* Its rank cluster (.rank-column and friends) is shared, see common.rcss; this screen gives it the
+   16dp column gap instead of the default 12dp. */
 .rank-column
 {
-	margin-right: 2.36%;
+	margin-right: 16dp;
 }
 
 .community-column
@@ -103,7 +104,7 @@
 	min-height: 0;
 	background-color: rgba(0, 64, 64, 140);
 	border: 1dp #2F37A8;
-	padding: 6dp;
+	padding: 12dp;
 }
 
 .stat-cell
@@ -131,13 +132,4 @@
 	margin-left: 8dp;
 	color: #FFFFFF;
 	font-weight: bold;
-}
-
-.welcome-footer
-{
-	flex: 0 0 auto;
-	display: flex;
-	flex-direction: row;
-	justify-content: flex-end;
-	margin-top: 8dp;
 }

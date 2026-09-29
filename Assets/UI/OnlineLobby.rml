@@ -13,21 +13,21 @@
 			<div class="games-column">
 				<div class="games-header">
 					<button class="icon-btn" data-event-click="refresh"><mappedimage name="LobbyRefresh"/></button>
-					<button data-class-active="sort_by_age" data-event-click="sort_age" data-tooltip="Tooltip:NameButton"><gametext key="GUI:SortAlpha"/></button>
-					<button data-class-active="sort_by_map" data-event-click="sort_map" data-tooltip="Tooltip:PingButton"><gametext key="GUI:SortPing"/></button>
-					<button data-class-active="sort_buddies_first" data-event-click="sort_buddies" data-tooltip="Tooltip:SortBuddies"><gametext key="GUI:SortBuddies"/></button>
+					<button class="btn-inline" data-class-active="sort_by_age" data-event-click="sort_age" data-tooltip="Tooltip:NameButton"><gametext key="GUI:SortAlpha"/></button>
+					<button class="btn-inline" data-class-active="sort_by_map" data-event-click="sort_map" data-tooltip="Tooltip:PingButton"><gametext key="GUI:SortPing"/></button>
+					<button class="btn-inline" data-class-active="sort_buddies_first" data-event-click="sort_buddies" data-tooltip="Tooltip:SortBuddies"><gametext key="GUI:SortBuddies"/></button>
 					<div class="spacer"></div>
 					<select class="room-select" data-value="current_room_index" data-event-change="join_room">
 						<option data-for="room : rooms" data-if="room.used" data-attr-value="room.index">{{room.label}}</option>
 					</select>
 				</div>
 				<div class="filter-row">
-					<button data-class-active="filter_is_all" data-event-click="set_filter(0)">Filter: All</button>
-					<button data-class-active="filter_is_1v1" data-event-click="set_filter(1)">1v1</button>
-					<button data-class-active="filter_is_team" data-event-click="set_filter(2)">Team</button>
-					<button data-class-active="filter_is_ffa" data-event-click="set_filter(3)">FFA</button>
-					<button data-class-active="filter_is_aod" data-event-click="set_filter(4)">AOD</button>
-					<button data-class-active="filter_is_buddies" data-event-click="set_filter(5)">Buddies</button>
+					<button class="btn-inline" data-class-active="filter_is_all" data-event-click="set_filter(0)">Filter: All</button>
+					<button class="btn-inline" data-class-active="filter_is_1v1" data-event-click="set_filter(1)">1v1</button>
+					<button class="btn-inline" data-class-active="filter_is_team" data-event-click="set_filter(2)">Team</button>
+					<button class="btn-inline" data-class-active="filter_is_ffa" data-event-click="set_filter(3)">FFA</button>
+					<button class="btn-inline" data-class-active="filter_is_aod" data-event-click="set_filter(4)">AOD</button>
+					<button class="btn-inline" data-class-active="filter_is_buddies" data-event-click="set_filter(5)">Buddies</button>
 				</div>
 				<div class="scroll-container list-box">
 					<div data-for="game : games">
@@ -74,11 +74,11 @@
 		</div>
 
 		<div class="footer">
-			<button data-event-click="host_game"><gametext key="GUI:Host"/></button>
-			<button data-event-click="join_selected"><gametext key="GUI:Join"/></button>
-			<button data-event-click="buddy_overlay"><gametext key="GUI:Buddies"/></button>
+			<button class="btn-primary" data-event-click="host_game"><gametext key="GUI:Host"/></button>
+			<button class="btn-primary" data-event-click="join_selected"><gametext key="GUI:Join"/></button>
+			<button class="btn-primary" data-event-click="buddy_overlay"><gametext key="GUI:Buddies"/></button>
 			<div class="spacer"></div>
-			<button data-event-click="back"><gametext key="GUI:Back"/></button>
+			<button class="btn-primary" data-event-click="back"><gametext key="GUI:Back"/></button>
 		</div>
 
 	</div>
