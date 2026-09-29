@@ -880,3 +880,882 @@ body.shell
 {
 	background-color: rgba(47, 55, 168, 160);
 }
+
+
+/* =========================================================================================
+   Screen template -- the redesigned shell look. Opt in with class="screen" on <body>; every
+   rule below is scoped to it, so screens that still use .shell-frame keep their look.
+
+   Design language
+	  Palette   ink       #05070F            deepest backdrop (fills are this at 60-85% alpha)
+	            surface   #090C1ECD          panels (.surface), the only filled boxes
+	            raised    #141A3ED7          controls, hovered rows
+	            line      #8080FF28          hairline separators; borders only where needed
+	            blue      #2F37A8 / #3A46D0 / #8080FF   brand, selected, hover/focus
+	            text      #EEF1FA  text-2 #A9B1CF  text-3 #7079A0 (labels, overlines)
+	            accent    #BAFF0C            the one "act here" colour: primary action,
+	                                         focus ring, selected-row bar
+	            status    good #3CD28C  warn #F0C020  bad #FF5050  buddy #14B1FF
+	  Type      Barlow Regular/Bold. Title 32dp bold caps behind an accent tick; crumb and
+	            overline 12-13dp bold caps tracked 2dp; body 16dp; small 13dp.
+	  Spacing   4 / 8 / 12 / 16 / 24 / 32dp; 32dp screen gutter.
+	  Motion    hover/press 0.12s cubic-out, panels 0.22s cubic-out, loading pulse 1.2s.
+	            Opacity, colours and margins only: the renderer has no transforms.
+
+   Skeleton
+	<body class="screen" data-model="...">
+		<mappedimage class="shell-background" name="MainMenuRuler"/>     (drawn lighter)
+		<div class="screen-frame">
+			<div class="screen-header">
+				<div class="screen-heading">
+					<div class="screen-crumb">parent<span class="crumb-sep">&#8250;</span></div>
+					<div class="screen-title">title</div>
+				</div>
+				<div class="screen-header-aside">optional controls</div>
+			</div>
+			<div class="screen-body">.col.col-main / .col.col-side of .surface panels</div>
+			<div class="action-bar">
+				<button class="btn-back">back or cancel</button>   always far left
+				<div class="spacer"/> secondary buttons
+				<button class="btn-cta">primary</button>            always far right
+			</div>
+		</div>
+	</body>
+
+   Components: .surface, .overline, .seg > button.seg-item(.on), label.check > input.checkbox,
+   .swatches > button.swatch(.on/.random), .row-item(.selected), .list-head, .empty-state,
+   .pulse, .stat, .dot, the map card (.map-frame, .marker, .map-name), plus scoped restyles of button, select, input.range, text inputs and
+   scrollbars. Clickable pieces are <button>s so they get the click sound and disabled handling.
+   ========================================================================================= */
+
+body.screen
+{
+	width: 100%;
+	height: 100%;
+}
+
+/* The blueprint ruler stays, drawn lighter so the shell map reads through it. */
+.screen .shell-background
+{
+	opacity: 0.6;
+}
+
+/* Same opening as the ruler art; lighter than .shell-frame so the shell map shows through. */
+.screen-frame
+{
+	box-sizing: border-box;
+	position: absolute;
+	left: 5.6%;
+	top: 7.3%;
+	width: 88.8%;
+	height: 85.4%;
+	padding: 0 32dp;
+	display: flex;
+	flex-direction: column;
+	decorator: vertical-gradient(#05070FB4 #05070FDC);
+}
+
+/* ---- Header ------------------------------------------------------------------------------ */
+.screen-header
+{
+	display: flex;
+	flex-direction: row;
+	align-items: flex-end;
+	flex: 0 0 auto;
+	padding: 24dp 0 16dp 0;
+	margin-bottom: 20dp;
+	border-bottom: 1dp #8080FF28;
+}
+
+.screen-heading
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.screen-crumb
+{
+	font-size: 13dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #7079A0;
+	margin-right: 14dp;
+	white-space: nowrap;
+}
+
+.crumb-sep
+{
+	color: #8080FF;
+	margin: 0 6dp;
+}
+
+.screen-title
+{
+	font-size: 32dp;
+	line-height: 40dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #EEF1FA;
+	border-left: 4dp #BAFF0C;
+	padding-left: 12dp;
+	white-space: nowrap;
+}
+
+.screen-header-aside
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-left: 24dp;
+}
+
+/* ---- Body and columns --------------------------------------------------------------------- */
+.screen-body
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 0%;
+	min-height: 0;
+}
+
+.col
+{
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+
+.col-main
+{
+	flex: 1 1 0%;
+}
+
+.col-side
+{
+	flex: 0 0 auto;
+	margin-left: 24dp;
+}
+
+/* Translucent panel: the only filled box on a screen. */
+.surface
+{
+	display: block;
+	background-color: #090C1ECD;
+	padding: 16dp;
+}
+
+.surface + .surface
+{
+	margin-top: 16dp;
+}
+
+/* Small tracked caps over a group: the section heading of the template. */
+.overline
+{
+	display: block;
+	font-size: 12dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #7079A0;
+	white-space: nowrap;
+}
+
+.muted { color: #A9B1CF; }
+.dim { color: #7079A0; }
+
+/* ---- Action bar: back far left, primary far right ----------------------------------------- */
+.action-bar
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 84dp;
+	margin-top: 20dp;
+	border-top: 1dp #8080FF28;
+}
+
+.action-bar button
+{
+	margin-left: 12dp;
+}
+
+.action-bar button:first-child
+{
+	margin-left: 0;
+}
+
+/* ---- Buttons ------------------------------------------------------------------------------ */
+.screen button, .screen .button
+{
+	decorator: none;
+	font-effect: none;
+	box-sizing: border-box;
+	height: 40dp;
+	line-height: 38dp;
+	padding: 0 20dp;
+	min-width: 0;
+	font-size: 15dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	color: #D7DCF0;
+	background-color: #141A3ED7;
+	border: 1dp #8080FF46;
+	transition: background-color color border-color 0.12s cubic-out;
+}
+
+.screen button:hover, .screen .button:hover
+{
+	decorator: none;
+	color: #FFFFFF;
+	background-color: #2F37A8D2;
+	border-color: #8080FF;
+}
+
+.screen button:active, .screen .button:active
+{
+	decorator: none;
+	color: #BAFF0C;
+	background-color: #1E246EE6;
+	border-color: #8080FF;
+}
+
+.screen button:focus-visible
+{
+	border-color: #BAFF0C;
+}
+
+.screen button[disabled], .screen button.disabled,
+.screen button[disabled]:hover, .screen button.disabled:hover,
+.screen button[disabled]:active, .screen button.disabled:active
+{
+	decorator: none;
+	font-effect: none;
+	color: #4A5070;
+	background-color: #0C0F24AA;
+	border-color: #8080FF1E;
+}
+
+/* Primary action: the accent. One per screen, always at the right end of the action bar. */
+.screen button.btn-cta
+{
+	height: 52dp;
+	line-height: 52dp;
+	min-width: 240dp;
+	padding: 0 40dp;
+	font-size: 20dp;
+	letter-spacing: 2dp;
+	color: #0B1400;
+	border-width: 0;
+	decorator: vertical-gradient(#CBFF3A #A4E600);
+}
+
+.screen button.btn-cta:hover
+{
+	color: #050A00;
+	decorator: vertical-gradient(#DAFF6E #B6F51A);
+}
+
+.screen button.btn-cta:active
+{
+	color: #050A00;
+	decorator: vertical-gradient(#94D000 #A8E40A);
+}
+
+.screen button.btn-cta[disabled], .screen button.btn-cta[disabled]:hover, .screen button.btn-cta[disabled]:active
+{
+	decorator: none;
+	color: #4A5070;
+	background-color: #1A2040C8;
+}
+
+/* Back/cancel: quiet text button with a chevron, always at the left end of the action bar. */
+.screen button.btn-back
+{
+	height: 44dp;
+	line-height: 44dp;
+	padding: 0 18dp 0 12dp;
+	font-size: 17dp;
+	color: #A9B1CF;
+	background-color: transparent;
+	border-color: transparent;
+}
+
+.screen button.btn-back:hover
+{
+	color: #FFFFFF;
+	background-color: #2F37A850;
+	border-color: transparent;
+}
+
+.screen button.btn-back:active
+{
+	color: #BAFF0C;
+}
+
+.chevron
+{
+	font-size: 26dp;
+	margin-right: 8dp;
+	color: #8080FF;
+}
+
+.screen button.btn-small
+{
+	height: 32dp;
+	line-height: 30dp;
+	padding: 0 14dp;
+	font-size: 13dp;
+}
+
+/* ---- Segmented control: a small set of choices, one on --------------------------------------
+	<div class="seg"><button class="seg-item" data-class-on="...">1</button>...</div> */
+.seg
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+	background-color: #05070FC8;
+	border: 1dp #8080FF28;
+	padding: 2dp;
+}
+
+.screen .seg button.seg-item
+{
+	height: 30dp;
+	line-height: 30dp;
+	padding: 0 12dp;
+	min-width: 30dp;
+	font-size: 14dp;
+	letter-spacing: 0.5dp;
+	text-align: center;
+	color: #A9B1CF;
+	background-color: transparent;
+	border-width: 0;
+	margin-left: 2dp;
+}
+
+.screen .seg button.seg-item:first-child
+{
+	margin-left: 0;
+}
+
+.screen .seg button.seg-item:hover
+{
+	color: #FFFFFF;
+	background-color: #2F37A878;
+}
+
+.screen .seg button.seg-item.on, .screen .seg button.seg-item.on:hover
+{
+	color: #FFFFFF;
+	background-color: #3A46D0;
+}
+
+.screen .seg button.seg-item[disabled], .screen .seg button.seg-item[disabled]:hover
+{
+	color: #4A5070;
+	background-color: transparent;
+}
+
+.screen .seg button.seg-item.on[disabled]
+{
+	color: #A9B1CF;
+	background-color: #2F37A850;
+}
+
+/* ---- Colour swatches -----------------------------------------------------------------------
+	<div class="swatches"><button class="swatch" data-class-on=".." data-style-background-color=".."/>
+	.swatch.random is the hollow "?" swatch for no fixed colour. */
+.swatches
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.screen .swatches button.swatch
+{
+	width: 22dp;
+	height: 22dp;
+	line-height: 18dp;
+	padding: 0;
+	margin-right: 4dp;
+	font-size: 13dp;
+	text-align: center;
+	color: #A9B1CF;
+	border: 2dp #05070F;
+	opacity: 0.8;
+	transition: opacity border-color 0.12s cubic-out;
+}
+
+.screen .swatches button.swatch:hover
+{
+	opacity: 1;
+	border-color: #FFFFFF;
+}
+
+.screen .swatches button.swatch.on, .screen .swatches button.swatch.on:hover
+{
+	opacity: 1;
+	border-color: #FFFFFF;
+}
+
+.screen .swatches button.swatch.random
+{
+	background-color: #141A3E;
+	border-color: #8080FF46;
+}
+
+.screen .swatches button.swatch.random.on, .screen .swatches button.swatch.random:hover
+{
+	color: #FFFFFF;
+	border-color: #FFFFFF;
+}
+
+.screen .swatches button.swatch[disabled], .screen .swatches button.swatch[disabled]:hover
+{
+	opacity: 0.25;
+	border-color: #05070F;
+}
+
+.screen .swatches button.swatch.on[disabled]
+{
+	opacity: 0.9;
+	border-color: #A9B1CF;
+}
+
+/* ---- Checkbox: <label class="check"><input class="checkbox" type="checkbox"/><span>..</span></label> */
+label.check
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	color: #D7DCF0;
+}
+
+label.check:hover
+{
+	color: #FFFFFF;
+}
+
+.screen input.checkbox, .screen input.checkbox:hover
+{
+	decorator: none;
+	box-sizing: border-box;
+	width: 20dp;
+	height: 20dp;
+	margin-right: 10dp;
+	background-color: #05070FDC;
+	border: 2dp #8080FF6E;
+	transition: background-color border-color 0.12s cubic-out;
+}
+
+.screen label.check:hover input.checkbox
+{
+	border-color: #8080FF;
+}
+
+.screen input.checkbox:checked, .screen input.checkbox:checked:hover
+{
+	decorator: none;
+	background-color: #BAFF0C;
+	border: 5dp #0B1030;
+}
+
+.screen input.checkbox[disabled], .screen input.checkbox[disabled]:checked
+{
+	decorator: none;
+	opacity: 0.4;
+}
+
+/* ---- Slider ------------------------------------------------------------------------------- */
+.screen input.range
+{
+	height: 24dp;
+}
+
+.screen input.range slidertrack
+{
+	margin-top: 10dp;
+	height: 4dp;
+	background-color: #8080FF3C;
+	border-width: 0;
+}
+
+.screen input.range sliderbar
+{
+	width: 14dp;
+	height: 24dp;
+	background-color: #D7DCF0;
+	border-width: 0;
+	transition: background-color 0.12s cubic-out;
+}
+
+.screen input.range sliderbar:hover, .screen input.range sliderbar:active
+{
+	background-color: #BAFF0C;
+}
+
+/* ---- Dropdown ----------------------------------------------------------------------------- */
+.screen select
+{
+	height: 36dp;
+	background-color: #05070FD2;
+	border: 1dp #8080FF3C;
+	color: #EEF1FA;
+	font-size: 15dp;
+	transition: background-color border-color 0.12s cubic-out;
+}
+
+.screen select selectvalue
+{
+	height: 34dp;
+	line-height: 34dp;
+	margin-right: 28dp;
+	padding: 0 10dp;
+}
+
+/* A small down triangle drawn with borders (no such glyph in Barlow, no rotation in the renderer). */
+.screen select selectarrow, .screen select:hover selectarrow, .screen select:checked selectarrow
+{
+	decorator: none;
+	width: 0;
+	height: 0;
+	margin: 15dp 12dp 0 0;
+	border-top: 6dp #8080FF;
+	border-left: 5dp transparent;
+	border-right: 5dp transparent;
+}
+
+.screen select:hover, .screen select:focus
+{
+	background-color: #141A3EE6;
+	border-color: #8080FF;
+}
+
+.screen select:hover selectarrow, .screen select:checked selectarrow
+{
+	border-top-color: #FFFFFF;
+}
+
+.screen select[disabled], .screen select[disabled]:hover
+{
+	opacity: 0.45;
+	background-color: #05070FA0;
+	border-color: #8080FF28;
+	color: #A9B1CF;
+}
+
+.screen select[disabled] selectarrow
+{
+	decorator: none;
+	opacity: 1;
+	border-top-color: #7079A0;
+}
+
+.screen select selectbox
+{
+	background-color: #090C1E;
+	border: 1dp #3A46D0;
+	padding: 4dp 0;
+	max-height: 360dp;
+}
+
+.screen select selectbox option
+{
+	height: 32dp;
+	line-height: 32dp;
+	padding: 0 12dp;
+	color: #D7DCF0;
+}
+
+.screen select selectbox option:hover
+{
+	background-color: #2F37A8DC;
+	color: #FFFFFF;
+}
+
+.screen select selectbox option:checked
+{
+	color: #BAFF0C;
+}
+
+/* ---- Text input --------------------------------------------------------------------------- */
+.screen .text-input, .screen .chat-input
+{
+	height: 40dp;
+	line-height: 38dp;
+	padding: 0 12dp;
+	background-color: #05070FD2;
+	border: 1dp #8080FF3C;
+	transition: border-color 0.12s cubic-out;
+}
+
+.screen .text-input:hover, .screen .chat-input:hover
+{
+	border-color: #8080FF8C;
+}
+
+.screen .text-input:focus, .screen .chat-input:focus
+{
+	border-color: #8080FF;
+	background-color: #0B1030E6;
+}
+
+/* ---- Scrollbar: slim, lit on hover -------------------------------------------------------- */
+.screen scrollbarvertical
+{
+	width: 8dp;
+}
+
+.screen scrollbarvertical slidertrack
+{
+	width: 8dp;
+	background-color: #FFFFFF0A;
+	border-width: 0;
+}
+
+.screen scrollbarvertical sliderbar
+{
+	width: 8dp;
+	min-height: 40dp;
+	background-color: #8080FF64;
+	transition: background-color 0.12s cubic-out;
+}
+
+.screen scrollbarvertical sliderbar:hover, .screen scrollbarvertical sliderbar:active
+{
+	background-color: #8080FF;
+}
+
+/* ---- List rows ---------------------------------------------------------------------------
+	One entry of a scrolling list, a flex row of cells. Hover lights it; .selected adds the
+	accent bar on the left. A data-for row needs the display, which this gives it. */
+.row-item
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	box-sizing: border-box;
+	height: 38dp;
+	padding: 0 12dp 0 10dp;
+	border-left: 3dp transparent;
+	border-bottom: 1dp #FFFFFF0A;
+	transition: background-color 0.1s cubic-out;
+}
+
+.row-item:hover
+{
+	background-color: #2F37A84B;
+}
+
+.row-item.selected, .row-item.selected:hover
+{
+	background-color: #2F37A8A0;
+	border-left-color: #BAFF0C;
+}
+
+/* Column caption row over a list. */
+.list-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 30dp;
+	padding: 0 12dp 0 13dp;
+	border-bottom: 1dp #8080FF28;
+}
+
+/* ---- Empty and loading states --------------------------------------------------------------- */
+.empty-state
+{
+	display: block;
+	padding: 48dp 24dp;
+	text-align: center;
+	color: #7079A0;
+	font-size: 16dp;
+}
+
+.empty-state .overline
+{
+	display: block;
+	margin-bottom: 8dp;
+}
+
+@keyframes pulse
+{
+	from { opacity: 0.35; }
+	to { opacity: 1; }
+}
+
+.pulse
+{
+	animation: 1.2s cubic-in-out infinite alternate pulse;
+}
+
+/* ---- Small pieces ------------------------------------------------------------------------- */
+/* Big number over a small caption (career stats and the like). */
+.stat
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.stat-value
+{
+	font-size: 26dp;
+	line-height: 30dp;
+	font-weight: bold;
+	color: #EEF1FA;
+}
+
+.stat-label
+{
+	font-size: 12dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #7079A0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Status dot (ping, presence). */
+.dot
+{
+	display: inline-block;
+	width: 8dp;
+	height: 8dp;
+	border-radius: 4dp;
+	background-color: #3CD28C;
+}
+
+/* ---- Map card: a map preview with numbered start positions, its name under it ---------------
+	<div class="map-frame"><mappreview class="map-image" data-attr-map=".."/>
+		<div data-for="marker : start_markers"><div class="marker" data-if="marker.used"
+			data-style-left="marker.x_style" data-style-top="marker.y_style">
+			<div class="marker-dot">{{marker.position + 1}}</div></div></div></div>
+	<div class="map-name">..</div> <div class="map-meta">..</div> */
+.group-title
+{
+	margin-bottom: 12dp;
+}
+
+.map-frame
+{
+	display: block;
+	position: relative;
+	flex: 0 0 auto;
+	width: 372dp;
+	height: 372dp;
+	background-color: #05070F;
+}
+
+.map-image
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.map-missing
+{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	color: #7079A0;
+	text-align: center;
+}
+
+.map-name
+{
+	display: block;
+	margin: 14dp 0 14dp 0;
+	font-size: 20dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.map-button
+{
+	display: block;
+}
+
+/* Start positions: numbered squares, filled with the occupant's colour. Left click takes the
+   spot, right click clears it. */
+.marker
+{
+	display: block;
+	position: absolute;
+	width: 24dp;
+	height: 24dp;
+	margin-left: -12dp;
+	margin-top: -12dp;
+}
+
+.marker-dot
+{
+	display: block;
+	box-sizing: border-box;
+	width: 24dp;
+	height: 24dp;
+	line-height: 20dp;
+	text-align: center;
+	font-size: 13dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	font-effect: shadow(1dp 1dp #000000);
+	border: 2dp #FFFFFFB4;
+	background-color: #05070FA0;
+	transition: border-color 0.12s cubic-out;
+}
+
+.marker:hover .marker-dot
+{
+	border-color: #BAFF0C;
+}
+
+.marker.occupied .marker-dot
+{
+	border-color: #FFFFFF;
+}
+
+.marker-label
+{
+	display: block;
+	margin-left: -70dp;
+	margin-right: -70dp;
+	margin-top: 2dp;
+	text-align: center;
+	font-size: 13dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	font-effect: shadow(1dp 1dp #000000);
+	white-space: nowrap;
+}
+
+.map-meta
+{
+	display: block;
+	margin-top: -8dp;
+	color: #A9B1CF;
+}
+
