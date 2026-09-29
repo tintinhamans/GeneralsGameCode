@@ -905,7 +905,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 						nlohmann::json jsonObjectRoot = nlohmann::json::parse(strBody);
 
 						NetworkLog(ELogVerbosity::LOG_DEBUG, "LOBBY JSON");
-						NetworkLog(ELogVerbosity::LOG_DEBUG, strBody.c_str());
+						NetworkLog(ELogVerbosity::LOG_DEBUG, "%s", strBody.c_str());
 
 						auto lobbyEntryIter = jsonObjectRoot["lobby"];
 
