@@ -16,6 +16,7 @@
       "zlib",
       "ffmpeg",
       "stb",
+      "sqlite3",
       {
         "name": "curl",
         "default-features": false,

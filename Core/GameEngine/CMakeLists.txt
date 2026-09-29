@@ -1194,6 +1194,7 @@ target_link_libraries(corei_gameengine_public INTERFACE
     #core_wwvegas
     d3d8lib
     gamespy::gamespy
+    rts_sqlite
     stlport
 )
 
