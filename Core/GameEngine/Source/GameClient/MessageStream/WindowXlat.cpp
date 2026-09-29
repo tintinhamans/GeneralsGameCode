@@ -173,9 +173,9 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 	Bool forceKeepMessage = FALSE;
 	WinInputReturnCode returnCode = WIN_INPUT_NOT_USED;
 
-	// TheSuperHackers @feature RmlUi phase 1: while an RmlUi document is visible and the mouse
-	// is over it (or it is modal), steal raw mouse/keyboard input before the game window
-	// manager ever sees it. TheRmlUiInputHook is null on targets that don't link RmlUi.
+	// TheSuperHackers @feature RmlUi phase 1: while RmlUi owns input (an open RmlUi screen, popup or
+	// message box, or the mouse over a visible document), steal raw mouse/keyboard input before the
+	// game window manager ever sees it. TheRmlUiInputHook is null on targets that don't link RmlUi.
 	if (TheRmlUiInputHook)
 	{
 		switch (msg->getType())
@@ -242,8 +242,8 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 				{
 					UnsignedByte key = msg->getArgument( 0 )->integer;
 					UnsignedByte state = msg->getArgument( 1 )->integer;
-					TheRmlUiInputHook->processKey( key, state );
-					return DESTROY_MESSAGE;
+					if( TheRmlUiInputHook->processKey( key, state ) )
+						return DESTROY_MESSAGE;
 				}
 				break;
 

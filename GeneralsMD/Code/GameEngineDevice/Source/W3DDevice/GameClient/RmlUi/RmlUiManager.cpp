@@ -332,10 +332,11 @@ void RmlUiManager::init(int width, int height)
 
 	// ScriptActions::doVictory()/doDefeat()/doLocalDefeat() create these via winCreateFromScript();
 	// see GameWindowManagerScript.cpp's winCreateFromScript() and RmlEndGameOverlayScreen.h.
-	RmlUiScreenRegistry::registerScreen("Menus/Victorious.wnd", &OpenRmlVictoriousScreen, &CloseRmlVictoriousScreen);
-	RmlUiScreenRegistry::registerScreen("Menus/Defeat.wnd", &OpenRmlDefeatScreen, &CloseRmlDefeatScreen);
-	RmlUiScreenRegistry::registerScreen("Menus/LocalDefeat.wnd", &OpenRmlLocalDefeatScreen, &CloseRmlLocalDefeatScreen);
-	RmlUiScreenRegistry::registerScreen("Menus/ObserverQuit.wnd", &OpenRmlObserverQuitScreen, &CloseRmlObserverQuitScreen);
+	// They sit over live gameplay, so they don't capture input (see RmlUiScreenRegistry::ownsInput()).
+	RmlUiScreenRegistry::registerScreen("Menus/Victorious.wnd", &OpenRmlVictoriousScreen, &CloseRmlVictoriousScreen, false);
+	RmlUiScreenRegistry::registerScreen("Menus/Defeat.wnd", &OpenRmlDefeatScreen, &CloseRmlDefeatScreen, false);
+	RmlUiScreenRegistry::registerScreen("Menus/LocalDefeat.wnd", &OpenRmlLocalDefeatScreen, &CloseRmlLocalDefeatScreen, false);
+	RmlUiScreenRegistry::registerScreen("Menus/ObserverQuit.wnd", &OpenRmlObserverQuitScreen, &CloseRmlObserverQuitScreen, false);
 
 	// The LoadScreen classes create these via winCreateFromScript(); see RmlLoadScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/MapTransferScreen.wnd", &OpenRmlMapTransferScreen, &CloseRmlMapTransferScreen);
@@ -514,11 +515,8 @@ bool RmlUiManager::hasVisibleDocument() const
 }
 
 //-------------------------------------------------------------------------------------------------
-// No document is loaded in phase 1 (see init()), so these scan whatever the context happens
-// to have open -- always nothing for now -- and stay ready for phase 2's shell screens.
-bool RmlUiManager::anyVisibleDocumentAt(int x, int y, bool *outModal) const
+bool RmlUiManager::anyVisibleDocumentAt(int x, int y) const
 {
-	if (outModal) *outModal = false;
 	if (!m_context)
 		return false;
 
@@ -528,12 +526,6 @@ bool RmlUiManager::anyVisibleDocumentAt(int x, int y, bool *outModal) const
 		if (!doc || !doc->IsVisible())
 			continue;
 
-		if (doc->IsModal())
-		{
-			if (outModal) *outModal = true;
-			return true;
-		}
-
 		float left = doc->GetAbsoluteLeft();
 		float top = doc->GetAbsoluteTop();
 		if (x >= left && y >= top && x <= left + doc->GetOffsetWidth() && y <= top + doc->GetOffsetHeight())
@@ -542,19 +534,26 @@ bool RmlUiManager::anyVisibleDocumentAt(int x, int y, bool *outModal) const
 	return false;
 }
 
+// The registry knows which layers (screens, popups, message boxes) are open; the visible-document
+// check only keeps a stale entry from swallowing the game's input once nothing is drawn.
+bool RmlUiManager::ownsInput() const
+{
+	return RmlUiScreenRegistry::ownsInput() && hasVisibleDocument();
+}
+
+// Over a capturing layer RmlUi owns the whole mouse; otherwise only over a visible document (the
+// buddy toast, an end-game overlay), so the legacy HUD keeps the rest of the screen.
 bool RmlUiManager::wantsMouseInput(int mouseX, int mouseY) const
 {
-	return anyVisibleDocumentAt(mouseX, mouseY, nullptr);
+	return ownsInput() || anyVisibleDocumentAt(mouseX, mouseY);
 }
 
 bool RmlUiManager::wantsKeyboardInput() const
 {
-	bool modal = false;
-	anyVisibleDocumentAt(0, 0, &modal);
-	if (modal)
+	if (ownsInput())
 		return true;
 
-	// Non-modal screens still own the keyboard while one of their text fields has focus.
+	// Otherwise a visible document still owns the keyboard while one of its text fields has focus.
 	Rml::Element *focus = m_context ? m_context->GetFocusElement() : nullptr;
 	if (!focus || !focus->IsVisible())
 		return false;
@@ -642,10 +641,10 @@ static Rml::Input::KeyIdentifier engineKeyToRmlKey(unsigned char key)
 	}
 }
 
-void RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeyState)
+bool RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeyState)
 {
 	if (!m_context)
-		return;
+		return false;
 
 	const bool isDown = BitIsSet(engineKeyState, KEY_STATE_DOWN);
 	Rml::Input::KeyIdentifier rmlKey = engineKeyToRmlKey(engineKey);
@@ -658,17 +657,23 @@ void RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeySt
 	if (rmlKey == Rml::Input::KI_ESCAPE && isDown && !AnyRmlMessageBoxOpen() && m_currentScreen && m_currentScreen->isVisible())
 	{
 		m_currentScreen->onBack();
-		return;
+		return true;
 	}
 
+	// No RmlUi screen or box to take Escape (e.g. the in-game quit menu, which the legacy Escape
+	// handler closes): leave it to the game.
+	if (rmlKey == Rml::Input::KI_ESCAPE && !AnyRmlMessageBoxOpen() && !(m_currentScreen && m_currentScreen->isVisible()))
+		return false;
+
 	if (rmlKey == Rml::Input::KI_UNKNOWN)
-		return;
+		return true;
 
 	int mods = computeKeyModifiers();
 	if (isDown)
 		m_context->ProcessKeyDown(rmlKey, mods);
 	else
 		m_context->ProcessKeyUp(rmlKey, mods);
+	return true;
 }
 
 void RmlUiManager::processTextInput(unsigned short utf16Char)

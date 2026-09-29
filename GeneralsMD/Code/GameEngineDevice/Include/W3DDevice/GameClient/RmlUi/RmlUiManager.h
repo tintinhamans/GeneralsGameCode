@@ -77,13 +77,14 @@ public:
 	virtual void processMouseMove(int x, int y) override;
 	virtual void processMouseButton(int button, bool down) override;
 	virtual void processMouseWheel(float delta) override;
-	virtual void processKey(unsigned char engineKey, unsigned char engineKeyState) override;
+	virtual bool processKey(unsigned char engineKey, unsigned char engineKeyState) override;
 	virtual void processTextInput(unsigned short utf16Char) override;
 
 private:
 	static RmlUiManager *s_instance;
 
-	bool anyVisibleDocumentAt(int x, int y, bool *outModal) const;
+	bool ownsInput() const;               ///< RmlUiScreenRegistry::ownsInput() and something is actually drawn
+	bool anyVisibleDocumentAt(int x, int y) const;
 	void registerCustomElements();
 
 	// Drives TheMouse's engine tooltip from whichever RmlUi element is hovered, so tooltips reuse

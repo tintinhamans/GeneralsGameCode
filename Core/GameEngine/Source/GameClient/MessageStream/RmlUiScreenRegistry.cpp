@@ -37,6 +37,7 @@ namespace
 		RmlUiScreenFunc open;
 		RmlUiScreenFunc close;
 		bool isOpen;
+		bool capturesInput;
 	};
 
 	// Small and linearly scanned: at most a few dozen screens, looked up on menu navigation only.
@@ -52,6 +53,7 @@ namespace
 		GameWindow *window;
 		AsciiString wndPath;
 		UnsignedInt boxId;
+		bool boxOpen; ///< the latest box handed out; older ones were closed by the RmlUi side when it replaced them
 	};
 
 	std::vector<Placeholder> &placeholders()
@@ -69,6 +71,7 @@ namespace
 			p.window = window;
 			p.wndPath = wndPath;
 			p.boxId = boxId;
+			p.boxOpen = boxId != 0;
 			placeholders().push_back(p);
 		}
 		return window;
@@ -98,7 +101,7 @@ namespace
 	}
 }
 
-void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close)
+void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, bool capturesInput)
 {
 	AsciiString path(wndPath);
 	Entry *existing = find(path);
@@ -106,6 +109,7 @@ void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc op
 	{
 		existing->open = open;
 		existing->close = close;
+		existing->capturesInput = capturesInput;
 		return;
 	}
 	Entry e;
@@ -113,6 +117,7 @@ void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc op
 	e.open = open;
 	e.close = close;
 	e.isOpen = false;
+	e.capturesInput = capturesInput;
 	entries().push_back(e);
 }
 
@@ -166,6 +171,21 @@ bool RmlUiScreenRegistry::isOpen(const AsciiString &wndPath)
 	return e && e->isOpen;
 }
 
+bool RmlUiScreenRegistry::ownsInput()
+{
+	const std::vector<Entry> &e = entries();
+	for (size_t i = 0; i < e.size(); ++i)
+		if (e[i].isOpen && e[i].capturesInput)
+			return true;
+
+	const std::vector<Placeholder> &p = placeholders();
+	for (size_t i = 0; i < p.size(); ++i)
+		if (p[i].boxOpen)
+			return true;
+
+	return false;
+}
+
 bool RmlUiScreenRegistry::usesLegacyMenus()
 {
 	return TheGlobalData && TheGlobalData->m_useLegacyMenus;
@@ -207,7 +227,7 @@ GameWindow *RmlUiScreenRegistry::createMessageBoxWindow(UnsignedInt boxId)
 	// The RmlUi side closed any earlier box when this one opened; its placeholder is now inert.
 	std::vector<Placeholder> &p = placeholders();
 	for (size_t i = 0; i < p.size(); ++i)
-		p[i].boxId = 0;
+		p[i].boxOpen = false;
 	return makePlaceholder(AsciiString::TheEmptyString, boxId);
 }
 

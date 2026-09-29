@@ -33,18 +33,18 @@ class RmlUiInputHook
 public:
 	virtual ~RmlUiInputHook() {}
 
-	// TRUE if an RmlUi document is visible and should intercept mouse input right now
-	// (cursor over the document, or a modal document is showing).
+	// TRUE if RmlUi should intercept mouse input right now: the topmost interactive layer is RmlUi
+	// (see RmlUiScreenRegistry::ownsInput()), or the cursor is over a visible document.
 	virtual bool wantsMouseInput(int mouseX, int mouseY) const = 0;
 
-	// TRUE if an RmlUi document is visible and modal, so keyboard input should not
-	// reach the game's window manager.
+	// TRUE if RmlUi owns the keyboard (same rule), or a text field in a visible document has
+	// focus, so keyboard input should not reach the game's window manager.
 	virtual bool wantsKeyboardInput() const = 0;
 
 	virtual void processMouseMove(int x, int y) = 0;
 	virtual void processMouseButton(int button, bool down) = 0; // 0=left,1=right,2=middle
 	virtual void processMouseWheel(float delta) = 0;
-	virtual void processKey(unsigned char engineKey, unsigned char engineKeyState) = 0;
+	virtual bool processKey(unsigned char engineKey, unsigned char engineKeyState) = 0; // FALSE: not consumed, the game handles the key
 
 	// One UTF-16 code unit from WM_CHAR. DirectInput (processKey above) gives scan codes only,
 	// not text, so the window proc forwards WM_CHAR here directly for text entry fields.
