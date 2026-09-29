@@ -66,7 +66,6 @@
 #include "GameClient/ShellHooks.h"
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/GlobalLanguage.h"
-#include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OptionsValues.h"
 #include "GameNetwork/FirewallHelper.h"
 #include "GameNetwork/IPEnumeration.h"
@@ -751,60 +750,6 @@ static void saveOptions()
 	}
 
 	// MUST NEVER ADD ANOTHER OPTION HERE AT THE END !
-}
-
-// Main menu windows hidden while the options menu covers the shell; the rulers stay
-static const Int MAX_HIDDEN_MAIN_MENU_WINDOWS = 64;
-static Int hiddenMainMenuWindows[MAX_HIDDEN_MAIN_MENU_WINDOWS];
-static Int hiddenMainMenuWindowCount = 0;
-
-static GameWindow *getMainMenuParent()
-{
-	return TheWindowManager->winGetWindowFromId( nullptr, TheNameKeyGenerator->nameToKey( "MainMenu.wnd:MainMenuParent" ) );
-}
-
-static void hideMainMenu()
-{
-	GameWindow *parent = getMainMenuParent();
-	if (!parent)
-		return;
-
-	NameKeyType rulerID = TheNameKeyGenerator->nameToKey( "MainMenu.wnd:MainMenuRuler" );
-	for (GameWindow *child = parent->winGetChild(); child; child = child->winGetNext())
-	{
-		if (child->winGetWindowId() == rulerID || child->winIsHidden() || hiddenMainMenuWindowCount >= MAX_HIDDEN_MAIN_MENU_WINDOWS)
-			continue;
-		child->winHide( TRUE );
-		hiddenMainMenuWindows[hiddenMainMenuWindowCount++] = child->winGetWindowId();
-	}
-}
-
-static void showMainMenu()
-{
-	GameWindow *parent = getMainMenuParent();
-	for (Int i = 0; parent && i < hiddenMainMenuWindowCount; ++i)
-	{
-		GameWindow *win = TheWindowManager->winGetWindowFromId( parent, hiddenMainMenuWindows[i] );
-		if (win)
-			win->winHide( FALSE );
-	}
-	hiddenMainMenuWindowCount = 0;
-}
-
-// Exported so RmlOptionsScreen can hide/restore the same MainMenu.wnd children while the RmlUi
-// options screen is up, instead of duplicating this window-walking logic (see OptionsValues.h).
-// hideMainMenu()/showMainMenu() no-op when MainMenu.wnd itself is RmlUi-routed (no GameWindow to
-// find), so the registry calls below cover that case: MainMenu.wnd registers its own open/close
-// (show/hide) the same way OptionsMenu.wnd does (see RmlUiManager::init()).
-void HideMainMenuForOptions()
-{
-	hideMainMenu();
-	RmlUiScreenRegistry::close("Menus/MainMenu.wnd");
-}
-void ShowMainMenuForOptions()
-{
-	showMainMenu();
-	RmlUiScreenRegistry::open("Menus/MainMenu.wnd");
 }
 
 static void DestroyOptionsLayout() {

@@ -58,8 +58,6 @@ extern void OptionsMenuUpdate( WindowLayout *layout, void *userData );
 extern void OptionsMenuShutdown( WindowLayout *layout, void *userData );
 extern WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType OptionsMenuInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
-extern void HideMainMenuForOptions();	///< shared with RmlOptionsScreen; see OptionsMenu.cpp
-extern void ShowMainMenuForOptions();
 
 // Map Select Menu --------------------------------------------------------------------------------
 extern void MapSelectMenuInit( WindowLayout *layout, void *userData );

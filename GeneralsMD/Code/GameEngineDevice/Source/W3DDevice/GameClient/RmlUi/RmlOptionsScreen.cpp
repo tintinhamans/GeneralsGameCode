@@ -20,6 +20,7 @@
 
 #include "Common/OptionPreferences.h"
 #include "GameClient/GUICallbacks.h"
+#include "GameClient/ShellHooks.h"
 #include "GameClient/Shell.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
@@ -118,35 +119,22 @@ void RmlOptionsScreen::show()
 	if (!m_document)
 		return;
 
-	// Remember what showScreen() swapped out to show us (the shell main menu, Credits, or nullptr
-	// if nothing was current -- e.g. opened from the in-game quit menu overlay, which never goes
-	// through showScreen). hide() restores exactly this instead of hardcoding the main menu.
-	if (TheRmlUiManager)
-	{
-		RmlScreen *previous = TheRmlUiManager->getPreviousScreen();
-		m_screenToRestore = (previous != this) ? previous : nullptr;
-	}
-
 	loadCurrentValues();
 	populateSelectOptions();
-	HideMainMenuForOptions(); // no-op if MainMenu.wnd isn't the current shell screen
 
-	// Modal: blocks the shell behind it, matching the .wnd version hiding the main menu and
-	// disabling in-game input while Options is up (see Shell::getOptionsLayout call sites).
+	// An overlay like the .wnd (runInit/hide(FALSE)/bringForward): whatever opened it stays visible
+	// behind. Modal keeps it from taking hover/focus.
 	m_document->Show(Rml::ModalFlag::Modal);
+	SignalUIInteraction(SHELL_SCRIPT_HOOK_OPTIONS_OPENED);
 }
 
 void RmlOptionsScreen::hide()
 {
-	if (m_document)
-		m_document->Hide();
+	if (!isVisible())
+		return;
 
-	// Restore exactly what Options covered: the shell screen it swapped out (main menu, Credits),
-	// or nothing if it was opened as an overlay over live gameplay (the in-game quit menu, which
-	// stays up on its own and must never be replaced by the main menu here).
-	if (m_screenToRestore && TheRmlUiManager)
-		TheRmlUiManager->showScreen(m_screenToRestore);
-	m_screenToRestore = nullptr;
+	m_document->Hide();
+	SignalUIInteraction(SHELL_SCRIPT_HOOK_OPTIONS_CLOSED);
 }
 
 bool RmlOptionsScreen::isVisible() const
@@ -426,12 +414,15 @@ RmlOptionsScreen &RmlOptionsScreen::instance()
 
 void OpenRmlOptionsScreen()
 {
-	if (TheRmlUiManager)
-		TheRmlUiManager->showScreen(&RmlOptionsScreen::instance());
+	if (!TheRmlUiManager)
+		return;
+
+	RmlOptionsScreen &screen = RmlOptionsScreen::instance();
+	screen.load(TheRmlUiManager->getContext());
+	screen.show();
 }
 
 void CloseRmlOptionsScreen()
 {
-	if (TheRmlUiManager)
-		TheRmlUiManager->hideCurrentScreen();
+	RmlOptionsScreen::instance().hide();
 }

@@ -383,8 +383,7 @@ void OpenRmlMainMenuScreen()
 
 void CloseRmlMainMenuScreen()
 {
-	// Guards against RmlUiManager::showScreen()'s reentrant call while some other screen (e.g.
-	// Options) is the one actually being hidden/shown; see RmlUiManager::showScreen()'s comment.
+	// Guards against closing while some other screen is the current one; see RmlUiManager::showScreen().
 	if (TheRmlUiManager && TheRmlUiManager->getCurrentScreen() == &RmlMainMenuScreen::instance())
 		TheRmlUiManager->hideCurrentScreen();
 }

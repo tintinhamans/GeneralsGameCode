@@ -20,10 +20,8 @@
 // RmlScreen for Data/UI/QuitMenu.rml, the in-game Escape overlay (QuitMenu.wnd/
 // QuitNoSave.wnd). Unlike MainMenu/Options/Credits this is NOT routed through
 // RmlUiManager::showScreen()'s single-current-screen swap: it stays up over
-// live gameplay (not a shell screen), and RmlOptionsScreen::hide() already
-// hardcodes restoring the RmlUi *main menu* when Options closes (see
-// ShowMainMenuForOptions), which would be wrong here. So this loads/shows/hides
-// its own document directly, the same independent-overlay pattern RmlMessageBox
+// live gameplay (not a shell screen). So this loads/shows/hides its own
+// document directly, the same independent-overlay pattern RmlMessageBox
 // uses, and RmlUiScreenRegistry's open/close pair for both .wnd paths just
 // forwards into show()/hide() with the right save/load variant.
 ///////////////////////////////////////////////////////////////////////////////

@@ -704,13 +704,10 @@ void RmlUiManager::showScreen(RmlScreen *screen)
 		return;
 
 	// TheSuperHackers @fix Set m_currentScreen before hiding the previous one, not after: a
-	// screen's hide() can itself call back into showScreen() for the same screen (e.g. Options
-	// hiding restores the main menu via RmlUiScreenRegistry, which is exactly this call re-entered
-	// while the main menu's own showScreen() call is still hiding Options). With the old screen
-	// already installed as current, that reentrant call sees previous == screen and skips hiding
-	// it again instead of recursing forever.
+	// screen's hide() can itself call back into showScreen() for the same screen. With the new
+	// screen already installed as current, that reentrant call sees previous == screen and skips
+	// hiding it again instead of recursing forever.
 	RmlScreen *previous = m_currentScreen;
-	m_previousScreen = previous;
 	m_currentScreen = screen;
 
 	if (previous && previous != screen)

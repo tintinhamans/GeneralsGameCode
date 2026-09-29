@@ -114,8 +114,6 @@ private:
 	} m_model;
 };
 
-// Router entry points: Shell::push/pop route "Menus/MainMenu.wnd" here via the registry, and
-// OptionsMenu.cpp's HideMainMenuForOptions/ShowMainMenuForOptions use the same pair to cover/
-// restore this screen while Options is up (mirrors OpenRmlOptionsScreen/CloseRmlOptionsScreen).
+// Router entry points: Shell::push/pop route "Menus/MainMenu.wnd" here via the registry.
 void OpenRmlMainMenuScreen();
 void CloseRmlMainMenuScreen();

@@ -269,7 +269,7 @@ static const GSOverlayInfo gsOverlays[GSOVERLAY_MAX] =
 	{ "Menus/PopupJoinGame.wnd", TRUE },		// Joining options (password, etc)
 	{ "Menus/PopupLadderSelect.wnd", FALSE },// LadderSelect
 	{ "Menus/PopupLocaleSelect.wnd", FALSE },// Prompt for user's locale
-	{ "Menus/OptionsMenu.wnd", FALSE },			// popup options
+	{ "Menus/OptionsMenu.wnd", TRUE },			// popup options
 };
 
 // The .wnd path of the RmlUi screen that stands in for this overlay, or empty when the overlay

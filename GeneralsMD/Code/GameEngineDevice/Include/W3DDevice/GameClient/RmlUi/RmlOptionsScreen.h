@@ -17,7 +17,7 @@
 */
 
 // FILE: RmlOptionsScreen.h ////////////////////////////////////////////////////
-// RmlScreen for Data/UI/Options.rml. Loads the document once, binds an RmlUi
+// RmlScreen (shown as an overlay, see below) for Data/UI/Options.rml. Loads the document once, binds an RmlUi
 // data model over the same OptionsValues:: functions the .wnd OptionsMenu
 // callbacks use (see OptionsValues.h), and reads back the model on Accept.
 // No option apply/save/default logic is duplicated here; this file only
@@ -81,7 +81,6 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
 	OptionPreferences *m_pref = nullptr;
-	RmlScreen *m_screenToRestore = nullptr; // screen showScreen() swapped out to show Options, if any; see show()/hide()
 	bool m_applyingDetailPreset = false; // suppresses onDetailControlChanged while previewing a preset
 
 	// Data model fields, bound by pointer in load(). Kept as plain members (like the .wnd
@@ -135,8 +134,8 @@ private:
 	} m_model;
 };
 
-// Router entry points: MainMenu.cpp/QuitMenu.cpp call these instead of TheShell->getOptionsLayout()
-// when !TheGlobalData->m_useLegacyMenus. One process-lifetime RmlOptionsScreen is reused across
-// opens (mirrors TheShell's own options layout being created once and reused).
+// Registry entry points. Options is an overlay over whatever opened it (main menu, online welcome,
+// in-game quit menu), not swapped in by RmlUiManager::showScreen(), so that screen stays up
+// behind it untouched. One process-lifetime RmlOptionsScreen is reused across opens.
 void OpenRmlOptionsScreen();
 void CloseRmlOptionsScreen();
