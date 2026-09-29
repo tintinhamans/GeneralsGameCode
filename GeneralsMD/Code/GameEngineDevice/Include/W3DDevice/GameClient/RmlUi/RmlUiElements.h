@@ -34,6 +34,8 @@
 //    element; they come from GameSetupData::m_options.m_startPositionMarkers,
 //    laid out by the screen's own data-for markup over this element (see
 //    Assets/UI/GameSetup.rcss).
+//  - <scrolllog>                  a scrolling text pane that follows its newest line (chat, status
+//    feed) -- see RmlScrollLogElement.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
@@ -95,4 +97,37 @@ private:
 
 	// Rebuilt on update, after the parser has added any children (e.g. a <select> copying an option).
 	bool m_dirty = false;
+};
+
+//-------------------------------------------------------------------------------------------------
+// Scrolling log pane (chat, status feed): when its content grows it jumps to the new bottom, unless
+// the user has scrolled up to read older lines. Screens just bind the lines; no per-screen scrolling.
+// Checked every update against the previous layout's scroll height, so the jump lands a frame after
+// the data change, once the new line has been laid out.
+class RmlScrollLogElement : public Rml::Element
+{
+public:
+	explicit RmlScrollLogElement(const Rml::String &tag) : Rml::Element(tag) {}
+
+protected:
+	virtual void OnUpdate() override
+	{
+		Rml::Element::OnUpdate();
+
+		const float height = GetScrollHeight();
+		if (height != m_lastHeight)
+		{
+			m_lastHeight = height;
+			if (m_following)
+				SetScrollTop(height);
+		}
+		else
+		{
+			m_following = GetScrollTop() + GetClientHeight() >= height - 1.0f;
+		}
+	}
+
+private:
+	float m_lastHeight = 0.0f;
+	bool m_following = true; // false once the user scrolled away from the bottom
 };

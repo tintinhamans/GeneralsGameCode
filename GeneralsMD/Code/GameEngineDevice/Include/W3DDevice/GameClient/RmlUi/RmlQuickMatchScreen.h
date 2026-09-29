@@ -95,7 +95,6 @@ private:
 	void refreshPlaylists();     // QuickMatchActions::retrievePlaylists() -> m_model.playlists
 	void refreshMapsForPlaylist(); // QuickMatchActions::getMapSelectOptions(selected_playlist) -> m_model.maps
 	void applyPlayerStatsToModel(const PlayerStatsData &data);
-	void scrollStatusFeedToBottom(); // called from update() when status_lines has grown, see RmlOnlineGameSetupScreen::scrollChatToBottom()
 	void populateDisabledOptionCombos(); // QuickMatchActions::getLadderOptions()/etc -> m_model.ladderOptions/etc, called once from show()
 
 	void onPlaylistChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -120,7 +119,6 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	SignalConnections m_connections; // QuickMatchSignals + PlayerStatsSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
-	size_t m_lastStatusLineCount = 0;
 
 	// One status/chat line (see QuickMatchSignals::statusLine). color is a pre-formatted
 	// "rgba(r,g,b,a)" string, same idiom RmlOnlineGameSetupScreen.cpp's colorToCss() produces -- append

@@ -366,6 +366,9 @@ void RmlUiManager::registerCustomElements()
 
 	m_mapPreviewInstancer = new Rml::ElementInstancerGeneric<RmlMapPreviewElement>();
 	Rml::Factory::RegisterElementInstancer("mappreview", m_mapPreviewInstancer);
+
+	m_scrollLogInstancer = new Rml::ElementInstancerGeneric<RmlScrollLogElement>();
+	Rml::Factory::RegisterElementInstancer("scrolllog", m_scrollLogInstancer);
 }
 
 void RmlUiManager::shutdown()
@@ -394,6 +397,7 @@ void RmlUiManager::shutdown()
 	delete m_gameTextInstancer; m_gameTextInstancer = nullptr;
 	delete m_mappedImageInstancer; m_mappedImageInstancer = nullptr;
 	delete m_mapPreviewInstancer; m_mapPreviewInstancer = nullptr;
+	delete m_scrollLogInstancer; m_scrollLogInstancer = nullptr;
 	m_currentScreen = nullptr;
 	m_debuggerInitialized = false;
 

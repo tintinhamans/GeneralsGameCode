@@ -99,6 +99,7 @@ private:
 	Rml::ElementInstancer *m_gameTextInstancer = nullptr;
 	Rml::ElementInstancer *m_mappedImageInstancer = nullptr;
 	Rml::ElementInstancer *m_mapPreviewInstancer = nullptr;
+	Rml::ElementInstancer *m_scrollLogInstancer = nullptr;
 	RmlScreen *m_currentScreen = nullptr;
 	RmlScreen *m_previousScreen = nullptr;
 	Rml::Element *m_tooltipElement = nullptr; // element updateTooltip() last drove TheMouse's tooltip from

@@ -35,6 +35,9 @@
 	                .text-list, .text-line         bordered pane of plain text lines (status feed, MOTD)
 	  Chat          .chat > .chat-log > .chat-line       fixed-height block: scrolling lines ...
 	                     > .chat-entry > .chat-input + .icon-btn   ... over the entry row
+	                <scrolllog>                    scrolling pane that stays at its newest line unless
+	                                               the user scrolled up; use it for .chat-log and log-style
+	                                               .text-list panes (plain <div> for ones that start at the top)
 	  Rank cluster  .rank-column, .rank-border, .rank-image-wrap, .rank-image, .faction-image,
 	                .rank-progress(-fill), .rank-label   rank portrait, faction badge, progress, name
 	  Popups        .context-menu(-backdrop/-item) right-click menu placed at the cursor
@@ -360,6 +363,13 @@ scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
 	flex: 0 0 auto;
 }
 
+/* <scrolllog> is a scrolling block that keeps itself at its newest line (C++ RmlScrollLogElement). */
+scrolllog
+{
+	display: block;
+	overflow-y: auto;
+}
+
 /* ---- Boxed lists -------------------------------------------------------------------------
    Combine with .scroll-container. .list-box is the bordered pane around a list of .list-row
    entries, .text-list the same pane for plain text lines (status feed, message of the day), and
@@ -445,7 +455,6 @@ scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
 {
 	flex: 1 1 0%;
 	min-height: 0;
-	overflow-y: auto;
 	background-color: rgba(2, 2, 2, 191);
 }
 

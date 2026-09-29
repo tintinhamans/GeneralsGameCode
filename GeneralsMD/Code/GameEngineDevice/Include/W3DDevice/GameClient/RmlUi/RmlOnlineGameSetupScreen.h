@@ -71,8 +71,6 @@ public:
 private:
 	RmlOnlineGameSetupScreen() {}
 
-	void scrollChatToBottom(); // called from update() when chatLines has grown, see .cpp
-
 	void onSlotOccupantChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotFactionChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotColorChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -111,7 +109,6 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	SignalConnections m_connections; // OnlineGameSetupSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
-	size_t m_lastChatLineCount = 0; // scrollChatToBottom() drives off this, see update()
 
 	// One slot row's worth of fields for the data-for-bound slot table (see load()). Same shape as
 	// RmlLanGameSetupScreen::SlotRowModel, plus the online-only bits (connection state/tooltip)

@@ -48,9 +48,9 @@
 
 			<div class="chat" data-if="show_chat_log">
 				<div class="chat-border" data-class-bordered="show_chat_box_border">
-					<div class="chat-log">
+					<scrolllog class="chat-log">
 						<div class="chat-line" data-for="line : chat_lines">{{line}}</div>
-					</div>
+					</scrolllog>
 					<div class="chat-entry" data-if="show_chat_entry">
 						<input type="text" class="chat-input" data-value="chat_entry_text"/>
 						<button class="icon-btn" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>

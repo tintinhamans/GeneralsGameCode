@@ -94,9 +94,9 @@
 			</div>
 		</div>
 
-		<div id="status-feed" class="scroll-container text-list status-feed">
+		<scrolllog class="text-list status-feed">
 			<div class="text-line" data-for="line : status_lines"><span data-style-color="line.color">{{line.text}}</span></div>
-		</div>
+		</scrolllog>
 
 		<div class="footer footer-split">
 			<!-- WOLQuickMatchMenu.cpp:1114-1115 relabels these to hardcoded English literals at Init

@@ -208,7 +208,6 @@ void RmlQuickMatchScreen::show()
 		return;
 
 	m_model.statusLines.clear();
-	m_lastStatusLineCount = 0;
 	m_model.showStats = true;
 	m_model.optionsButtonLabel = unicodeToUtf8(TheGameText->fetch("GUI:Setup"));
 	m_model.startVisible = true;
@@ -287,25 +286,8 @@ void RmlQuickMatchScreen::update()
 
 	QuickMatchSession::update();
 
-	// See RmlOnlineGameSetupScreen::scrollChatToBottom(): the DirtyVariable() in onStatusLine() lands
-	// before RmlUi's next layout pass, so the post-layout GetScrollHeight() has to happen here instead.
-	if (m_model.statusLines.size() != m_lastStatusLineCount)
-	{
-		m_lastStatusLineCount = m_model.statusLines.size();
-		scrollStatusFeedToBottom();
-	}
-
 	if (m_model.mapPreviewVisible)
 		clampMapPreview();
-}
-
-void RmlQuickMatchScreen::scrollStatusFeedToBottom()
-{
-	if (!m_document)
-		return;
-	Rml::Element *feed = m_document->GetElementById("status-feed");
-	if (feed)
-		feed->SetScrollTop(feed->GetScrollHeight());
 }
 
 // Called each update() while the preview is visible; see the declaration's comment.

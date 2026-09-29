@@ -117,9 +117,9 @@
 		</div>
 
 		<div class="chat">
-			<div id="chat-body" class="chat-log">
+			<scrolllog class="chat-log">
 				<div class="chat-line" data-for="line : chat_lines"><span data-style-color="line.color">{{line.text}}</span></div>
-			</div>
+			</scrolllog>
 			<div class="chat-entry">
 				<input type="text" class="chat-input" maxlength="128" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
 				<button class="icon-btn" data-event-click="chat_entry_committed" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>

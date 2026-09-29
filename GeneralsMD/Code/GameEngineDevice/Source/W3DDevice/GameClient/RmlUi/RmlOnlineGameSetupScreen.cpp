@@ -423,7 +423,6 @@ void RmlOnlineGameSetupScreen::show()
 
 	m_model.chatLines.clear();
 	m_model.chatEntryText.clear();
-	m_lastChatLineCount = 0;
 	m_model.startEnabled = true;
 	m_model.backEnabled = true;
 	m_model.settingsLocked = false;
@@ -468,25 +467,6 @@ void RmlOnlineGameSetupScreen::update()
 		return; // host left this frame -- backToLobby() already popped the shell
 
 	refreshFromGameState(); // pick up connection-indicator/roster changes every frame, same as WOLGameSetupMenuUpdate()
-
-	// Keep the chat log pinned to its newest line -- a new chatLines entry lands via
-	// DirtyVariable() in onChatLine(), but RmlUi doesn't re-run layout until the next
-	// Context::Update(), so the scroll (which needs the post-layout GetScrollHeight()) happens
-	// here a frame later instead of inline in onChatLine().
-	if (m_model.chatLines.size() != m_lastChatLineCount)
-	{
-		m_lastChatLineCount = m_model.chatLines.size();
-		scrollChatToBottom();
-	}
-}
-
-void RmlOnlineGameSetupScreen::scrollChatToBottom()
-{
-	if (!m_document)
-		return;
-	Rml::Element *chatBody = m_document->GetElementById("chat-body");
-	if (chatBody)
-		chatBody->SetScrollTop(chatBody->GetScrollHeight());
 }
 
 //-------------------------------------------------------------------------------------------------
