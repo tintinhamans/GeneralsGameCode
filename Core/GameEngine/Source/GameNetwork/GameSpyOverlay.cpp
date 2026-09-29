@@ -284,24 +284,12 @@ static Bool isRmlPlayerInfoOpen = FALSE;
 static Bool isRmlHostGameOpen = FALSE;
 static Bool isRmlJoinGameOpen = FALSE;
 
+// TheSuperHackers @feature RmlUi buddy overlay: same precedent as isRmlPlayerInfoOpen above, for
+// GSOVERLAY_BUDDY (WOLBuddyOverlay.wnd).
+static Bool isRmlBuddyOpen = FALSE;
+
 void GameSpyOpenOverlay( GSOverlayType overlay )
 {
-	if (overlay == GSOVERLAY_PLAYERINFO || overlay == GSOVERLAY_GAMEOPTIONS || overlay == GSOVERLAY_GAMEPASSWORD)
-	{
-		const AsciiString rmlWndPath( gsOverlays[overlay] );
-		if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered(rmlWndPath))
-		{
-			RmlUiScreenRegistry::open(rmlWndPath);
-			if (overlay == GSOVERLAY_PLAYERINFO)
-				isRmlPlayerInfoOpen = TRUE;
-			else if (overlay == GSOVERLAY_GAMEOPTIONS)
-				isRmlHostGameOpen = TRUE;
-			else
-				isRmlJoinGameOpen = TRUE;
-			return;
-		}
-	}
-
 	if (overlay == GSOVERLAY_BUDDY)
 	{
 #if !defined(GENERALS_ONLINE)
@@ -328,6 +316,26 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 			TheAudio->addAudioEvent( &buttonClick );
 		}
 	}
+
+	if (overlay == GSOVERLAY_PLAYERINFO || overlay == GSOVERLAY_GAMEOPTIONS || overlay == GSOVERLAY_GAMEPASSWORD
+		|| overlay == GSOVERLAY_BUDDY)
+	{
+		const AsciiString rmlWndPath( gsOverlays[overlay] );
+		if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered(rmlWndPath))
+		{
+			RmlUiScreenRegistry::open(rmlWndPath);
+			if (overlay == GSOVERLAY_PLAYERINFO)
+				isRmlPlayerInfoOpen = TRUE;
+			else if (overlay == GSOVERLAY_GAMEOPTIONS)
+				isRmlHostGameOpen = TRUE;
+			else if (overlay == GSOVERLAY_GAMEPASSWORD)
+				isRmlJoinGameOpen = TRUE;
+			else
+				isRmlBuddyOpen = TRUE;
+			return;
+		}
+	}
+
 	if (overlayLayouts[overlay])
 	{
 		overlayLayouts[overlay]->hide( FALSE );
@@ -346,7 +354,8 @@ void GameSpyCloseOverlay( GSOverlayType overlay )
 {
 	if ((overlay == GSOVERLAY_PLAYERINFO && isRmlPlayerInfoOpen)
 		|| (overlay == GSOVERLAY_GAMEOPTIONS && isRmlHostGameOpen)
-		|| (overlay == GSOVERLAY_GAMEPASSWORD && isRmlJoinGameOpen))
+		|| (overlay == GSOVERLAY_GAMEPASSWORD && isRmlJoinGameOpen)
+		|| (overlay == GSOVERLAY_BUDDY && isRmlBuddyOpen))
 	{
 		DEBUG_LOG(("Closing overlay %d (RmlUi)", (int)overlay));
 		RmlUiScreenRegistry::close( AsciiString( gsOverlays[overlay] ) );
@@ -354,8 +363,10 @@ void GameSpyCloseOverlay( GSOverlayType overlay )
 			isRmlPlayerInfoOpen = FALSE;
 		else if (overlay == GSOVERLAY_GAMEOPTIONS)
 			isRmlHostGameOpen = FALSE;
-		else
+		else if (overlay == GSOVERLAY_GAMEPASSWORD)
 			isRmlJoinGameOpen = FALSE;
+		else
+			isRmlBuddyOpen = FALSE;
 		return;
 	}
 
@@ -406,6 +417,8 @@ Bool GameSpyIsOverlayOpen( GSOverlayType overlay )
 	if (overlay == GSOVERLAY_GAMEOPTIONS && isRmlHostGameOpen)
 		return TRUE;
 	if (overlay == GSOVERLAY_GAMEPASSWORD && isRmlJoinGameOpen)
+		return TRUE;
+	if (overlay == GSOVERLAY_BUDDY && isRmlBuddyOpen)
 		return TRUE;
 	return (overlayLayouts[overlay] != nullptr);
 }

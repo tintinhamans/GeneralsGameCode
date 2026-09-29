@@ -1,0 +1,203 @@
+/*
+	BuddyOverlay.rcss -- WOLBuddyOverlay.wnd (the Generals Online buddy overlay, GSOVERLAY_BUDDY).
+	Floating popup over whatever's showing underneath, same "body itself is centered and flex"
+	precedent as PlayerInfo.rcss/QuitMenu.rcss.
+*/
+
+body
+{
+	display: flex;
+	flex-direction: column;
+	width: 720dp;
+	left: 50%;
+	top: 50%;
+	margin-left: -360dp;
+	margin-top: -220dp;
+}
+
+.buddy-frame
+{
+	display: flex;
+	flex-direction: column;
+	height: 440dp;
+}
+
+.buddy-tabs
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-bottom: 8dp;
+}
+
+.buddy-tabs button
+{
+	margin-right: 6dp;
+}
+
+.spacer
+{
+	flex: 1 1 auto;
+}
+
+.buddy-body
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+/* ---- Roster (friends/requests/current-lobby/recently-played) ------------------------------ */
+.roster-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 auto;
+	width: 280dp;
+	margin-right: 10dp;
+}
+
+.roster-list
+{
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+}
+
+/* Block-level row, not flex: a scrolling overflow-y:auto container corrupts flex/auto child widths
+   (see report's gotcha note), so the dot/name/unread/status pieces below are laid out with plain
+   inline/block flow instead. */
+.roster-row
+{
+	display: block;
+	padding: 4dp 6dp;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
+}
+
+.roster-row:hover
+{
+	background-color: rgba(47, 55, 168, 120);
+}
+
+.roster-dot
+{
+	display: inline-block;
+	width: 8dp;
+	height: 8dp;
+	margin-right: 6dp;
+	background-color: #64828C; /* offline grey, matches GameMakeColor(100,130,150,255) */
+}
+
+.roster-row.online .roster-dot
+{
+	background-color: #3BFF00; /* online green, matches GSCOLOR_PLAYER_BUDDY's usual hue */
+}
+
+.roster-name
+{
+	display: inline;
+	font-weight: bold;
+}
+
+.roster-unread
+{
+	display: inline;
+	margin-left: 4dp;
+	color: #FFBB00;
+	font-weight: bold;
+}
+
+.roster-status
+{
+	display: block;
+	font-size: 12dp;
+	color: #C0C0C0;
+	margin-left: 14dp;
+}
+
+/* ---- Chat pane ------------------------------------------------------------------------------ */
+.chat-column
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.section-title
+{
+	font-weight: bold;
+	color: #FFFFFF;
+	padding-bottom: 4dp;
+	border-bottom: 1dp #2F37A8;
+	margin-bottom: 4dp;
+	flex: 0 0 auto;
+}
+
+.chat-body
+{
+	flex: 1 1 auto;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	padding: 4dp 6dp;
+}
+
+.chat-line
+{
+	display: block;
+}
+
+.chat-entry-row
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 4dp;
+	flex: 0 0 auto;
+}
+
+.chat-input
+{
+	flex: 1 1 auto;
+	margin-right: 4dp;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	color: #FFFFFF;
+	padding: 4dp 6dp;
+}
+
+.btn-send
+{
+	width: 24dp;
+	height: 24dp;
+	padding: 0;
+	text-align: center;
+}
+
+.btn-send mappedimage
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* ---- Block list tab -------------------------------------------------------------------------- */
+.block-list
+{
+	flex: 1 1 auto;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+}
+
+.block-row
+{
+	display: block;
+	padding: 4dp 6dp;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
+	color: rgba(255, 100, 100, 255); /* red-tinted, matches refreshIgnoreList()'s GameMakeColor(255,100,100,255) */
+}
+
+.block-row:hover
+{
+	background-color: rgba(47, 55, 168, 120);
+}
