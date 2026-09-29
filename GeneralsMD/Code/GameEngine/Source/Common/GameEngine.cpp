@@ -100,6 +100,7 @@
 #include "GameClient/GlobalLanguage.h"
 #include "GameClient/Drawable.h"
 #include "GameClient/GUICallbacks.h"
+#include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlaySession.h"
 
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
@@ -1007,6 +1008,7 @@ void GameEngine::update()
 			{
 				g_bTearDownGeneralsOnlineRequested = false;
 
+				BuddyOverlaySession::detach(); // the social dock's login-long callbacks go with the login
 				NGMP_OnlineServicesManager::DestroyInstance();
 
 			}

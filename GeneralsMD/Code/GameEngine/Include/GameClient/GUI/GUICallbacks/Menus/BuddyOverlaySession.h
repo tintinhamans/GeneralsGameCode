@@ -88,6 +88,25 @@ namespace BuddyOverlaySession
 	// registered callbacks above.
 	void leave();
 
+	// ---- Login-long attachment ---------------------------------------------------------------
+	// A persistent front end (the RmlUi social dock, see RmlSocialDock.h) needs chatMessage/
+	// requestArrived/rosterNeedsRefresh for the whole online login, not only while it is open, so its
+	// badges keep up while it is collapsed. attach() registers the same chat and friend-request push
+	// callbacks enter() does, but neither subscribes to the realtime presence updates nor clears the
+	// global notifications (that stays enter()'s, i.e. "the UI is visible"), and leaves the
+	// notification-count callback to the screens that show the count. The social interface dies with
+	// the login, so the dock attaches from the first online screen and TearDownGeneralsOnline's
+	// delayed teardown calls detach(). attach() is a no-op while attached to the current login.
+	void attach();
+	void detach();
+	bool isAttached();
+
+	// The "UI is visible" half of enter()/leave() for an attached front end: subscribes to (or drops)
+	// the realtime presence updates and, on showing, clears the pending global notifications. While
+	// visible the social interface stops counting unread chat and toasting incoming messages, as it
+	// does for the open overlay. Unlike enter() this keeps the screens' notification-count callback.
+	void setVisible( bool visible );
+
 	// ---- Notification toast -----------------------------------------------------------------
 	// Text/timer half of showNotificationBox()/deleteNotificationBox()/HandleBuddyResponses()'s
 	// dismiss check (969-1026, 963-966): independent of enter()/leave() because the toast is shown
