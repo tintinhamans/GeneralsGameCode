@@ -903,6 +903,14 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 								return;
 							}
 
+							// the server requeues quick match players itself, a DELETE would cancel that
+							if (TheNGMPGame->isQMGame() || m_CurrentLobby.lobby_type == ELobbyType::QuickMatch)
+							{
+								NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Quick match lobby lookup returned 404, tearing down locally only");
+								ResetForMatchmakingRequeue();
+								return;
+							}
+
 							LeaveCurrentLobby();
 
 							// after leaving, which clears it, so the setup menu backs out
@@ -1141,12 +1149,12 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 	return;
 }
 
-void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPassword)
+bool NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPassword)
 {
 	if (m_bAttemptingToJoinLobby)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "Not attempting to join lobby because a join attempt is already in progress");
-		return;
+		return false;
 	}
 
 	const uint64_t lobbyJoinGeneration = ++m_LobbyJoinGeneration;
@@ -1366,6 +1374,8 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 
 				});
 		});
+
+	return true;
 }
 
 void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()

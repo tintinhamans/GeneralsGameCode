@@ -1588,9 +1588,14 @@ void WebSocket::Tick()
 												lobbyEntry.lobbyID = mmEvent.lobby_id;
 												lobbyEntry.map_path = "Maps\\Alpine Assault\\Alpine Assault.map";
 
-												pLobbyInterface->JoinLobby(lobbyEntry, std::string());
-
-												pLobbyInterface->InvokeMatchmakingMessageCallback("Joining QuickMatch Lobby");
+												if (pLobbyInterface->JoinLobby(lobbyEntry, std::string()))
+												{
+													pLobbyInterface->InvokeMatchmakingMessageCallback("Joining QuickMatch Lobby");
+												}
+												else
+												{
+													pLobbyInterface->InvokeMatchmakingMessageCallback("Could not join the QuickMatch lobby, another join is still in progress");
+												}
 											}
 											else
 											{

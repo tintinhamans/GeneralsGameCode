@@ -472,7 +472,8 @@ public:
 
 	NetworkMesh* GetNetworkMeshForLobby() { return m_pLobbyMesh; }
 
-	void JoinLobby(LobbyEntry lobby, std::string strPassword);
+	// false when a join is already in progress and this request was dropped
+	bool JoinLobby(LobbyEntry lobby, std::string strPassword);
 
 	void LeaveCurrentLobby();
 	void ResetForMatchmakingRequeue();
