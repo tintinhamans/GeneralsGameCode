@@ -54,8 +54,8 @@
 {
 	display: block;
 	box-sizing: border-box;
-	width: 225dp;
-	margin: 0 15dp 18dp 0;
+	width: 210dp;
+	margin: 0 14dp 18dp 0;
 	padding: 4dp;
 	border: 1dp transparent;
 	background-color: #05070FB4;
@@ -78,16 +78,16 @@
 {
 	display: block;
 	position: relative;
-	width: 213dp;
-	height: 213dp;
+	width: 198dp;
+	height: 198dp;
 	background-color: #05070F;
 }
 
 .thumb-image
 {
 	display: block;
-	width: 213dp;
-	height: 213dp;
+	width: 198dp;
+	height: 198dp;
 	opacity: 0.85;
 	transition: opacity 0.12s cubic-out;
 }
@@ -157,6 +157,6 @@
 {
 	.col-side { width: 415dp; }
 	.map-frame { width: 375dp; height: 375dp; }
-	.tile { width: 195dp; }
-	.thumb, .thumb-image { width: 183dp; height: 183dp; }
+	.tile { width: 172dp; }
+	.thumb, .thumb-image { width: 160dp; height: 160dp; }
 }
