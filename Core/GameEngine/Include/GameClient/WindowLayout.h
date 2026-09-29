@@ -62,7 +62,7 @@ public:
 	AsciiString getFilename() const;					///< return source window filename
 	Bool load( AsciiString filename );							///< create windows and load from .wnd file
 	Bool loadEmpty( AsciiString filename );				///< no .wnd parse, no windows; for screens rendered elsewhere (RmlUi)
-	void routeToRmlUi( Bool routed );							///< hide/bringForward/destroyWindows also open/close the registered RmlUi screen for getFilename(); see GameWindowManager::winCreateLayout
+	void routeToRmlUi( Bool routed );							///< hide/bringForward open/close the registered RmlUi screen for getFilename(); set by RmlUiScreenRegistry::createLayout
 	void hide( Bool hide );													///< hide/show all windows on this screen
 	Bool isHidden() const;										///< return visible state of screen
 	void bringForward();											///< bring all windows in this screen forward

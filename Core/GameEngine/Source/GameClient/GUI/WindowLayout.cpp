@@ -77,7 +77,7 @@ void WindowLayout::hide( Bool hide )
 {
 	GameWindow *window;
 
-	// TheSuperHackers @feature RmlUi screen registry: routed placeholders have no windows to hide;
+	// TheSuperHackers @feature RmlUi screen registry: a routed layout only holds a hidden placeholder;
 	// close/open the RmlUi screen instead. See routeToRmlUi()/RmlUiScreenRegistry.h.
 	if( m_rmlUiRouted )
 	{
@@ -85,6 +85,8 @@ void WindowLayout::hide( Bool hide )
 			RmlUiScreenRegistry::close( m_filenameString );
 		else
 			RmlUiScreenRegistry::open( m_filenameString );
+		m_hidden = hide;
+		return;
 	}
 
 	// hide or unhide all windows in this layout
@@ -188,11 +190,6 @@ void WindowLayout::destroyWindows()
 {
 	GameWindow *window;
 
-	// TheSuperHackers @feature RmlUi screen registry: close the routed screen too; callers such as
-	// QuitMenu.cpp call this directly without going through runShutdown(). Idempotent if already closed.
-	if( m_rmlUiRouted )
-		RmlUiScreenRegistry::close( m_filenameString );
-
 	while( (window = getFirstWindow()) != nullptr )
 	{
 
@@ -295,11 +292,14 @@ Bool WindowLayout::loadEmpty( AsciiString filename )
 void WindowLayout::bringForward()
 {
 
-	// TheSuperHackers @feature RmlUi screen registry: routed placeholders have no windows to bring
+	// TheSuperHackers @feature RmlUi screen registry: a routed layout has no windows to bring
 	// forward; (re)open the RmlUi screen instead, mirroring the runInit()/hide(FALSE)/bringForward()
 	// idiom callers already use to show a cached layout (e.g. QuitMenu.cpp's options button).
 	if( m_rmlUiRouted )
+	{
 		RmlUiScreenRegistry::open( m_filenameString );
+		return;
+	}
 
 	//
 	// loop through all our windows and bring each of them to the top of

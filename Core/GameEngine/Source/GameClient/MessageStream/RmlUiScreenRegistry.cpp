@@ -20,6 +20,11 @@
 #include "GameClient/RmlUiScreenRegistry.h"
 
 #include "Common/AsciiString.h"
+#include "GameClient/GameWindow.h"
+#include "GameClient/GameWindowManager.h"
+#include "GameClient/RmlUiMessageBoxHook.h"
+#include "GameClient/Shell.h"
+#include "GameClient/WindowLayout.h"
 
 #include <vector>
 
@@ -37,6 +42,48 @@ namespace
 	{
 		static std::vector<Entry> s_entries;
 		return s_entries;
+	}
+
+	// A hidden window standing in for a screen (wndPath) or a message box (boxId != 0).
+	struct Placeholder
+	{
+		GameWindow *window;
+		AsciiString wndPath;
+		UnsignedInt boxId;
+	};
+
+	std::vector<Placeholder> &placeholders()
+	{
+		static std::vector<Placeholder> s_placeholders;
+		return s_placeholders;
+	}
+
+	GameWindow *makePlaceholder(const AsciiString &wndPath, UnsignedInt boxId)
+	{
+		GameWindow *window = TheWindowManager->winCreate(nullptr, WIN_STATUS_HIDDEN, 0, 0, 0, 0, GameWinDefaultSystem, nullptr);
+		if (window)
+		{
+			Placeholder p;
+			p.window = window;
+			p.wndPath = wndPath;
+			p.boxId = boxId;
+			placeholders().push_back(p);
+		}
+		return window;
+	}
+
+	void layoutInit(WindowLayout *layout, void *userData)
+	{
+		RmlUiScreenRegistry::open(layout->getFilename());
+	}
+
+	// RmlUi documents have no shutdown animation to wait on, so a shell screen completes its
+	// push/pop immediately.
+	void layoutShutdown(WindowLayout *layout, void *userData)
+	{
+		RmlUiScreenRegistry::close(layout->getFilename());
+		if (TheShell && TheShell->top() == layout)
+			TheShell->shutdownComplete(layout);
 	}
 
 	Entry *find(const AsciiString &wndPath)
@@ -106,4 +153,68 @@ bool RmlUiScreenRegistry::close(const AsciiString &wndPath)
 		return false;
 	e->close();
 	return true;
+}
+
+//-------------------------------------------------------------------------------------------------
+WindowLayout *RmlUiScreenRegistry::createLayout(const AsciiString &wndPath)
+{
+	WindowLayout *layout = newInstance(WindowLayout);
+	layout->loadEmpty(wndPath);
+	if (GameWindow *placeholder = makePlaceholder(wndPath, 0))
+		layout->addWindow(placeholder);
+	layout->setInit(layoutInit);
+	layout->setShutdown(layoutShutdown);
+	layout->routeToRmlUi(TRUE);
+	return layout;
+}
+
+GameWindow *RmlUiScreenRegistry::createWindow(const AsciiString &wndPath)
+{
+	GameWindow *window = makePlaceholder(wndPath, 0);
+	if (window)
+		open(wndPath);
+	return window;
+}
+
+GameWindow *RmlUiScreenRegistry::createMessageBoxWindow(UnsignedInt boxId)
+{
+	// The RmlUi side closed any earlier box when this one opened; its placeholder is now inert.
+	std::vector<Placeholder> &p = placeholders();
+	for (size_t i = 0; i < p.size(); ++i)
+		p[i].boxId = 0;
+	return makePlaceholder(AsciiString::TheEmptyString, boxId);
+}
+
+void RmlUiScreenRegistry::windowDestroyed(GameWindow *window)
+{
+	std::vector<Placeholder> &p = placeholders();
+	for (size_t i = 0; i < p.size(); ++i)
+	{
+		if (p[i].window != window)
+			continue;
+
+		const Placeholder placeholder = p[i];
+		p.erase(p.begin() + i);
+		if (placeholder.boxId != 0)
+			RmlUiMessageBoxHook::close(placeholder.boxId);
+		else if (!placeholder.wndPath.isEmpty())
+			close(placeholder.wndPath);
+		return;
+	}
+}
+
+void RmlUiScreenRegistry::destroyMessageBox(UnsignedInt boxId)
+{
+	if (boxId == 0)
+		return;
+
+	std::vector<Placeholder> &p = placeholders();
+	for (size_t i = 0; i < p.size(); ++i)
+	{
+		if (p[i].boxId == boxId)
+		{
+			TheWindowManager->winDestroy(p[i].window);
+			return;
+		}
+	}
 }

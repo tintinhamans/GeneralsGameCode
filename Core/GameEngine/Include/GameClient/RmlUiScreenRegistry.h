@@ -24,11 +24,18 @@
 // hardcoded pair of globals. GameEngineDevice's RmlUiManager registers entries at
 // init() and clears them at shutdown(); entries stay empty on targets that don't
 // link RmlUi, so isRegistered() is always safe to call.
+//
+// It also owns the one placeholder mechanism between RmlUi and the GameWindow world: a hidden
+// GameWindow standing in for a screen or message box. winDestroy() of it closes the RmlUi side.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
+#include "Lib/BaseType.h"
+
 class AsciiString;
+class GameWindow;
+class WindowLayout;
 
 typedef void (*RmlUiScreenFunc)();
 
@@ -44,4 +51,11 @@ public:
 	static bool isRegistered(const AsciiString &wndPath);
 	static bool open(const AsciiString &wndPath);  ///< calls the registered open func; returns true if handled
 	static bool close(const AsciiString &wndPath); ///< calls the registered close func; returns true if handled
+
+	// Placeholders: hidden GameWindows tracked against an RmlUi screen or message box.
+	static WindowLayout *createLayout(const AsciiString &wndPath); ///< layout holding a placeholder; runInit/hide(FALSE)/bringForward open the screen, runShutdown/hide(TRUE)/destroyWindows close it
+	static GameWindow *createWindow(const AsciiString &wndPath); ///< opens the screen and returns its placeholder; winDestroy() it to close
+	static GameWindow *createMessageBoxWindow(UnsignedInt boxId); ///< placeholder for a box RmlUiMessageBoxHook::show() returned
+	static void windowDestroyed(GameWindow *window); ///< GameWindowManager::winDestroy(): closes the RmlUi side of a placeholder; no-op for other windows
+	static void destroyMessageBox(UnsignedInt boxId); ///< the RmlUi box closed itself: destroys its placeholder like the .wnd box does
 };

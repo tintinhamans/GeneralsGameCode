@@ -1399,56 +1399,6 @@ GameWindow* GameWindowManager::winCreate(GameWindow* parent,
 /** Take a window and its children off the top level list and free
 	* their allocation class data. */
 	//-------------------------------------------------------------------------------------------------
-// TheSuperHackers @feature RmlUi screen registry: winCreateFromScript() tags its placeholder
-// windows here so winDestroy() can close the RmlUi screen when the (real, otherwise-ordinary)
-// window goes away. See RmlUiScreenRegistry.h.
-//-------------------------------------------------------------------------------------------------
-void GameWindowManager::trackRmlUiScriptWindow(GameWindow *window, AsciiString wndPath)
-{
-	m_rmlUiScriptWindows.push_back(std::make_pair(window, wndPath));
-}
-
-Bool GameWindowManager::untrackRmlUiScriptWindow(GameWindow *window, AsciiString &wndPathOut)
-{
-	for (size_t i = 0; i < m_rmlUiScriptWindows.size(); ++i)
-	{
-		if (m_rmlUiScriptWindows[i].first == window)
-		{
-			wndPathOut = m_rmlUiScriptWindows[i].second;
-			m_rmlUiScriptWindows.erase(m_rmlUiScriptWindows.begin() + i);
-			return TRUE;
-		}
-	}
-	return FALSE;
-}
-
-Bool GameWindowManager::untrackRmlUiMessageBox(GameWindow *window, UnsignedInt &idOut)
-{
-	for (size_t i = 0; i < m_rmlUiMessageBoxes.size(); ++i)
-	{
-		if (m_rmlUiMessageBoxes[i].first == window)
-		{
-			idOut = m_rmlUiMessageBoxes[i].second;
-			m_rmlUiMessageBoxes.erase(m_rmlUiMessageBoxes.begin() + i);
-			return TRUE;
-		}
-	}
-	return FALSE;
-}
-
-void GameWindowManager::destroyRmlUiMessageBox(UnsignedInt id)
-{
-	for (size_t i = 0; i < m_rmlUiMessageBoxes.size(); ++i)
-	{
-		if (m_rmlUiMessageBoxes[i].second == id)
-		{
-			winDestroy(m_rmlUiMessageBoxes[i].first);
-			return;
-		}
-	}
-}
-
-//-------------------------------------------------------------------------------------------------
 Int GameWindowManager::winDestroy(GameWindow* window)
 {
 	GameWindow* child, * next;
@@ -1456,15 +1406,8 @@ Int GameWindowManager::winDestroy(GameWindow* window)
 	if (window == NULL)
 		return WIN_ERR_INVALID_WINDOW;
 
-	{
-		AsciiString wndPath;
-		if (untrackRmlUiScriptWindow(window, wndPath))
-			RmlUiScreenRegistry::close(wndPath);
-
-		UnsignedInt boxId;
-		if (untrackRmlUiMessageBox(window, boxId))
-			RmlUiMessageBoxHook::close(boxId);
-	}
+	// TheSuperHackers @feature RmlUi screen registry: closes the RmlUi side if this is a placeholder.
+	RmlUiScreenRegistry::windowDestroyed(window);
 
 	//
 	// we should never have edit data allocated in the window code, it's
@@ -1699,21 +1642,12 @@ GameWindow* GameWindowManager::gogoMessageBox(Int x, Int y, Int width, Int heigh
 	}
 
 	// TheSuperHackers @feature RmlUi message box: same routing as RmlUiScreenRegistry (see
-	// RmlUiMessageBoxHook.h). The handle is an invisible placeholder window tracked against the box:
-	// winDestroy() closes the box, and a button click destroys it after the callback, like the .wnd
-	// MessageBoxSystem does for its own window.
+	// RmlUiMessageBoxHook.h). The handle is a registry placeholder window: winDestroy() closes the
+	// box, and a button click destroys it after the callback, like the .wnd MessageBoxSystem does.
 	if (!TheGlobalData->m_useLegacyMenus && RmlUiMessageBoxHook::isAvailable())
 	{
-		GameWindow *placeholder = winCreate(NULL, WIN_STATUS_HIDDEN, 0, 0, 0, 0, GameWinDefaultSystem, nullptr);
 		const UnsignedInt boxId = RmlUiMessageBoxHook::show(buttonFlags, titleString, bodyString, yesCallback, noCallback, okCallback, cancelCallback, useLogo);
-		if (placeholder)
-		{
-			if (boxId != 0)
-				m_rmlUiMessageBoxes.push_back(std::make_pair(placeholder, boxId));
-			else
-				winDestroy(placeholder);
-		}
-		return boxId != 0 ? placeholder : NULL;
+		return boxId != 0 ? RmlUiScreenRegistry::createMessageBoxWindow(boxId) : NULL;
 	}
 
 	GameWindow* trueParent = NULL;

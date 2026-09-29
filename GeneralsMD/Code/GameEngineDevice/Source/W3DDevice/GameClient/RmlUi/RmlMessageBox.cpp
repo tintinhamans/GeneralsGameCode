@@ -20,6 +20,7 @@
 
 #include "Common/UnicodeString.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/DataModelHandle.h>
@@ -109,8 +110,7 @@ namespace
 	{
 		if (callback)
 			callback();
-		if (TheWindowManager)
-			TheWindowManager->destroyRmlUiMessageBox(id);
+		RmlUiScreenRegistry::destroyMessageBox(id);
 	}
 
 	void onOk(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)

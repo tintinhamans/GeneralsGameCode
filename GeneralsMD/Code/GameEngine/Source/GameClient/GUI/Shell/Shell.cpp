@@ -38,7 +38,6 @@
 #include "GameClient/IMEManager.h"
 #include "GameClient/AnimateWindowManager.h"
 #include "GameClient/ShellMenuScheme.h"
-#include "GameClient/RmlUiScreenRegistry.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/PeerDefsImplementation.h"
@@ -659,48 +658,16 @@ void Shell::unlinkScreen(WindowLayout* screen)
 }
 
 //-------------------------------------------------------------------------------------------------
-/** init callback for an RmlUi-routed screen's placeholder layout: hands off to the registry
-	* instead of anything .wnd-based. See RmlUiScreenRegistry.h. */
-//-------------------------------------------------------------------------------------------------
-static void rmlUiScreenInit(WindowLayout *layout, void *userData)
-{
-	RmlUiScreenRegistry::open(layout->getFilename());
-}
-
-//-------------------------------------------------------------------------------------------------
-/** shutdown callback for an RmlUi-routed screen's placeholder layout. RmlUi documents have no
-	* shutdown animation to wait on, so this completes the shell's push/pop immediately. */
-//-------------------------------------------------------------------------------------------------
-static void rmlUiScreenShutdown(WindowLayout *layout, void *userData)
-{
-	RmlUiScreenRegistry::close(layout->getFilename());
-	TheShell->shutdownComplete(layout);
-}
-
-//-------------------------------------------------------------------------------------------------
 /** Actually do the work for a push */
 //-------------------------------------------------------------------------------------------------
 void Shell::doPush(AsciiString layoutFile)
 {
 	if (TheGameSpyInfo)
 		GameSpyCloseAllOverlays();
-	WindowLayout* newScreen;
 
-	// TheSuperHackers @feature RmlUi screen registry: when a screen is registered and legacy
-	// menus weren't forced with -wnd, use a windowless placeholder routed to the registry
-	// instead of loading the .wnd; see RmlUiScreenRegistry.h.
-	if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered(layoutFile))
-	{
-		newScreen = newInstance(WindowLayout);
-		newScreen->loadEmpty(layoutFile);
-		newScreen->setInit(rmlUiScreenInit);
-		newScreen->setShutdown(rmlUiScreenShutdown);
-	}
-	else
-	{
-		// create new layout and load from window manager
-		newScreen = TheWindowManager->winCreateLayout(layoutFile);
-	}
+	// create new layout and load from window manager; a registered RmlUi screen comes back as a
+	// placeholder layout (see winCreateLayout)
+	WindowLayout* newScreen = TheWindowManager->winCreateLayout(layoutFile);
 	DEBUG_ASSERTCRASH(newScreen != NULL, ("Shell unable to load pending push layout"));
 
 	// link screen to the top
