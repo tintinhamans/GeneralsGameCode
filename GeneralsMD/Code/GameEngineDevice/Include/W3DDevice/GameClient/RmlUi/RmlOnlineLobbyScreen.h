@@ -95,6 +95,7 @@ private:
 	void refreshSortHighlight();
 	void refreshPlayers(bool force);
 	void refreshRankIcons(); // badges from the stats cache, and a stats fetch for the rows in view
+	void pushRoomToDock(); // the roster is the social dock's Lobby tab
 	void refreshDetail(); // details panel: the hovered game, else the selected one
 
 	void onHostGame(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);

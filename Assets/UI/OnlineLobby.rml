@@ -83,7 +83,8 @@
 				</div>
 			</div>
 
-			<!-- Details of the hovered game, else the selected one. -->
+			<!-- Details of the hovered game, else the selected one. The room's players are the social
+			     dock's Lobby tab (RmlSocialDock), so the screen is the games, their card and the chat. -->
 			<div class="col col-side details-col">
 				<div class="surface details">
 					<div class="overline group-title"><gametext key="GUI:GameInfo"/></div>
@@ -114,23 +115,6 @@
 				</div>
 			</div>
 
-			<!-- Room roster: rank badge, buddies marked, admins/self/ignored coloured like the .wnd. -->
-			<div class="col col-side players-col">
-				<div class="surface players">
-					<div class="overline group-title"><gametext key="GUI:Players"/></div>
-					<div id="player-list" class="player-list">
-						<div data-for="player : players">
-							<div class="player-row" data-if="player.used" data-class-admin="player.is_admin" data-class-friend="player.is_friend"
-								data-class-ignored="player.is_ignored" data-class-self="player.is_self"
-								data-event-mousedown="player_row_mousedown(player.index)">
-								<div class="rank"><mappedimage data-if="player.rank_image != ''" data-attr-name="player.rank_image"/></div>
-								<div class="player-name">{{player.name}}</div>
-								<div class="buddy-mark" data-if="player.is_friend"></div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</div>
 		</div>
 
 		<div class="action-bar">
@@ -142,14 +126,5 @@
 		</div>
 	</div>
 
-	<!-- Siblings of .screen-frame (not nested inside it): .screen-frame is position:absolute, so a
-	     .context-menu inside it would resolve the viewport-relative mouse_x/mouse_y of
-	     data-style-left/top against the frame instead of the viewport. -->
-	<div class="context-menu-backdrop" data-if="player_menu_visible" data-event-mousedown="player_menu_dismiss"></div>
-	<div id="player-context-menu" class="context-menu" data-if="player_menu_visible" data-style-left="player_menu_x_style" data-style-top="player_menu_y_style">
-		<div data-for="item : player_menu_items">
-			<div class="context-menu-item" data-if="item.used" data-event-click="player_menu_item_clicked(item.action)">{{item.label}}</div>
-		</div>
-	</div>
 </body>
 </rml>

@@ -28,6 +28,7 @@
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbyActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbySession.h"
 #include "GameClient/Shell.h"
+#include "W3DDevice/GameClient/RmlUi/RmlSocialDock.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 // No GeneralsOnline/NGMP or LobbyUtils.h include here on purpose: those pull winsock headers that
@@ -314,6 +315,7 @@ void RmlOnlineLobbyScreen::hide()
 
 	OnlineLobbySession::leave();
 	m_connections.disconnect();
+	RmlSocialDock::instance().clearRoom();
 }
 
 bool RmlOnlineLobbyScreen::isVisible() const
@@ -447,6 +449,7 @@ void RmlOnlineLobbyScreen::refreshPlayers(bool force)
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("players");
+	pushRoomToDock();
 
 	// A stale row (e.g. the target left the room) would leave the menu pointing at nothing; same
 	// "close on churn" behavior winSetLoneWindow() gets for free when its owning listbox rebuilds.
@@ -462,15 +465,13 @@ void RmlOnlineLobbyScreen::refreshRankIcons()
 	if (rowCount == 0 || !m_document)
 		return;
 
+	// The roster is the social dock's Lobby tab: the rows in view there, else only the first screenful.
 	int first = 0;
 	int last = rowCount - 1;
-	Rml::Element *list = m_document->GetElementById("player-list");
-	Rml::Element *firstRow = list ? list->QuerySelector(".player-row") : nullptr;
-	if (list && firstRow && firstRow->GetOffsetHeight() > 0.0f)
+	if (!RmlSocialDock::instance().roomRowsInView(first, last))
 	{
-		const float rowHeight = firstRow->GetOffsetHeight();
-		first = (int)(list->GetScrollTop() / rowHeight);
-		last = first + (int)(list->GetClientHeight() / rowHeight) + 1;
+		first = 0;
+		last = min(rowCount - 1, 20);
 	}
 	static const int VISIBLE_STATS_BUFFER = 8; // same prefetch margin as WOLLobbyMenu.cpp
 	first = max(0, first - VISIBLE_STATS_BUFFER);
@@ -493,6 +494,23 @@ void RmlOnlineLobbyScreen::refreshRankIcons()
 	}
 	if (changed && m_modelHandle)
 		m_modelHandle.DirtyVariable("players");
+	if (changed)
+		pushRoomToDock();
+}
+
+void RmlOnlineLobbyScreen::pushRoomToDock()
+{
+	std::vector<RmlSocialDock::RoomPlayer> players;
+	players.reserve(m_rawPlayerRows.size());
+	for (size_t i = 0; i < m_rawPlayerRows.size(); ++i)
+	{
+		RmlSocialDock::RoomPlayer player;
+		player.row = m_rawPlayerRows[i];
+		if (i < m_model.players.size())
+			player.rankImage = m_model.players[i].rankImage;
+		players.push_back(player);
+	}
+	RmlSocialDock::instance().setRoom(players);
 }
 
 void RmlOnlineLobbyScreen::refreshDetail()
