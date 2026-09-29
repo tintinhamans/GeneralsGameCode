@@ -19,6 +19,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
 
 #include "Common/UnicodeString.h"
+#include "GameClient/GameWindowManager.h"
 
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/DataModelHandle.h>
@@ -50,6 +51,10 @@ namespace
 	Rml::Context *s_context = nullptr;
 	Rml::ElementDocument *s_document = nullptr;
 	Rml::DataModelHandle s_modelHandle;
+
+	// Id of the open box (0 = none); the placeholder GameWindow gogoMessageBox() returned carries it.
+	UnsignedInt s_currentId = 0;
+	UnsignedInt s_nextId = 1;
 
 	GameWinMsgBoxFunc s_yesCallback = nullptr;
 	GameWinMsgBoxFunc s_noCallback = nullptr;
@@ -88,45 +93,62 @@ namespace
 			s_context->RemoveDataModel("messagebox");
 		}
 		s_document = nullptr;
+		s_currentId = 0;
 		s_yesCallback = s_noCallback = s_okCallback = s_cancelCallback = nullptr;
+	}
+
+	// winDestroy() of a placeholder: ignore ids of boxes that were already replaced or clicked.
+	void closeById(UnsignedInt id)
+	{
+		if (id == 0 || id == s_currentId)
+			closeCurrent();
+	}
+
+	// Mirrors MessageBoxSystem: run the callback, then destroy the box's window.
+	void finishClick(UnsignedInt id, GameWinMsgBoxFunc callback)
+	{
+		if (callback)
+			callback();
+		if (TheWindowManager)
+			TheWindowManager->destroyRmlUiMessageBox(id);
 	}
 
 	void onOk(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 	{
 		GameWinMsgBoxFunc callback = s_okCallback;
+		const UnsignedInt id = s_currentId;
 		closeCurrent();
-		if (callback)
-			callback();
+		finishClick(id, callback);
 	}
 	void onYes(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 	{
 		GameWinMsgBoxFunc callback = s_yesCallback;
+		const UnsignedInt id = s_currentId;
 		closeCurrent();
-		if (callback)
-			callback();
+		finishClick(id, callback);
 	}
 	void onNo(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 	{
 		GameWinMsgBoxFunc callback = s_noCallback;
+		const UnsignedInt id = s_currentId;
 		closeCurrent();
-		if (callback)
-			callback();
+		finishClick(id, callback);
 	}
 	void onCancel(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 	{
 		GameWinMsgBoxFunc callback = s_cancelCallback;
+		const UnsignedInt id = s_currentId;
 		closeCurrent();
-		if (callback)
-			callback();
+		finishClick(id, callback);
 	}
 
-	void ShowRmlMessageBox(UnsignedShort buttonFlags, const UnicodeString &titleString, const UnicodeString &bodyString,
+	UnsignedInt ShowRmlMessageBox(UnsignedShort buttonFlags, const UnicodeString &titleString, const UnicodeString &bodyString,
 		GameWinMsgBoxFunc yesCallback, GameWinMsgBoxFunc noCallback,
 		GameWinMsgBoxFunc okCallback, GameWinMsgBoxFunc cancelCallback,
 		Bool useLogo, const RmlUiMessageBoxLabels &labels)
 	{
 		if (!s_context)
-			return;
+			return 0;
 
 		closeCurrent(); // see closeCurrent() comment: only matters for the nested-open case
 
@@ -145,6 +167,7 @@ namespace
 		m.noLabel = unicodeToUtf8(labels.no);
 		m.cancelLabel = unicodeToUtf8(labels.cancel);
 
+		s_currentId = s_nextId++;
 		s_yesCallback = yesCallback;
 		s_noCallback = noCallback;
 		s_okCallback = okCallback;
@@ -174,6 +197,16 @@ namespace
 		s_document = s_context->LoadDocument("UI/MessageBox.rml");
 		if (s_document)
 			s_document->Show(Rml::ModalFlag::Modal);
+		return s_currentId;
+	}
+
+	void raiseBox()
+	{
+		if (!s_document || !s_context)
+			return;
+		const int count = s_context->GetNumDocuments();
+		if (count > 0 && s_context->GetDocument(count - 1) != s_document)
+			s_document->PullToFront();
 	}
 }
 
@@ -186,13 +219,15 @@ void RegisterRmlMessageBoxHook(Rml::Context *context)
 {
 	s_context = context;
 	RmlUiMessageBoxHook::setHandler(&ShowRmlMessageBox);
-	RmlUiMessageBoxHook::setCloseHandler(&closeCurrent);
+	RmlUiMessageBoxHook::setCloseHandler(&closeById);
+	RmlUiMessageBoxHook::setRaiseHandler(&raiseBox);
 }
 
 void UnregisterRmlMessageBoxHook()
 {
 	RmlUiMessageBoxHook::setHandler(nullptr);
 	RmlUiMessageBoxHook::setCloseHandler(nullptr);
+	RmlUiMessageBoxHook::setRaiseHandler(nullptr);
 	closeCurrent();
 	s_context = nullptr;
 }

@@ -324,6 +324,10 @@ public:
 
 	virtual GameWindow* getWindowUnderCursor(Int x, Int y, Bool ignoreEnabled = FALSE);	///< find the top window at the given coordinates
 
+	// TheSuperHackers @feature RmlUi message box: destroys the placeholder window gogoMessageBox()
+	// returned for that box id after its button callback ran; no-op if already destroyed.
+	void destroyRmlUiMessageBox( UnsignedInt id );
+
 	//---------------------------------------------------------------------------
 	/////////////////////////////////////////////////////////////////////////////
 	//---------------------------------------------------------------------------
@@ -343,6 +347,7 @@ protected:
 	// their .wnd path to close the RmlUi screen too. See RmlUiScreenRegistry.h.
 	void trackRmlUiScriptWindow( GameWindow *window, AsciiString wndPath );
 	Bool untrackRmlUiScriptWindow( GameWindow *window, AsciiString &wndPathOut );
+	Bool untrackRmlUiMessageBox( GameWindow *window, UnsignedInt &idOut );
 
 	Int drawWindow(GameWindow* window);  ///< draw this window
 
@@ -364,6 +369,7 @@ protected:
 	UnsignedInt m_captureFlags;
 
 	std::vector< std::pair<GameWindow*, AsciiString> > m_rmlUiScriptWindows; ///< see trackRmlUiScriptWindow()
+	std::vector< std::pair<GameWindow*, UnsignedInt> > m_rmlUiMessageBoxes; ///< placeholder window -> RmlUi box id
 
 };
 

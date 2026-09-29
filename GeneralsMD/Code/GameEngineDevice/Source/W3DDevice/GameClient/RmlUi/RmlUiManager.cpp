@@ -423,6 +423,7 @@ void RmlUiManager::update()
 	if (m_currentScreen)
 		m_currentScreen->update();
 	RmlLoadScreen::tick();
+	RmlUiMessageBoxHook::raise(); // a box stays above screens shown after it
 	if (m_context)
 		m_context->Update();
 	updateTooltip();

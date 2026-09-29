@@ -37,12 +37,13 @@ struct RmlUiMessageBoxLabels
 	UnicodeString ok, yes, no, cancel;
 };
 
-typedef void (*RmlUiMessageBoxFunc)(UnsignedShort buttonFlags,
+typedef UnsignedInt (*RmlUiMessageBoxFunc)(UnsignedShort buttonFlags,
 	const UnicodeString &titleString, const UnicodeString &bodyString,
 	GameWinMsgBoxFunc yesCallback, GameWinMsgBoxFunc noCallback,
 	GameWinMsgBoxFunc okCallback, GameWinMsgBoxFunc cancelCallback,
 	Bool useLogo, const RmlUiMessageBoxLabels &labels);
-typedef void (*RmlUiMessageBoxCloseFunc)();
+typedef void (*RmlUiMessageBoxCloseFunc)(UnsignedInt id); ///< id 0 = whichever box is open
+typedef void (*RmlUiMessageBoxRaiseFunc)();
 
 //-------------------------------------------------------------------------------------------------
 class RmlUiMessageBoxHook
@@ -50,15 +51,15 @@ class RmlUiMessageBoxHook
 public:
 	static void setHandler(RmlUiMessageBoxFunc handler);
 	static void setCloseHandler(RmlUiMessageBoxCloseFunc closeHandler);
+	static void setRaiseHandler(RmlUiMessageBoxRaiseFunc raiseHandler);
 	static bool isAvailable();
 	static void setPendingLabels(const RmlUiMessageBoxLabels &labels); ///< applied to the next show() only
 	static void clearPendingLabels(); ///< drops labels no show() consumed (legacy .wnd path)
-	static void show(UnsignedShort buttonFlags, const UnicodeString &titleString, const UnicodeString &bodyString,
+	static UnsignedInt show(UnsignedShort buttonFlags, const UnicodeString &titleString, const UnicodeString &bodyString,
 		GameWinMsgBoxFunc yesCallback, GameWinMsgBoxFunc noCallback,
 		GameWinMsgBoxFunc okCallback, GameWinMsgBoxFunc cancelCallback,
-		Bool useLogo); ///< no-op if !isAvailable()
+		Bool useLogo); ///< returns the box id (0 if !isAvailable())
 	static void closeCurrent(); ///< dismiss the open box without running its callback; no-op if none open.
-	///< gogoMessageBox() returns NULL for RmlUi boxes (no GameWindow backs them), so callers that
-	///< used the legacy handle to force-close a box they opened (e.g. on menu teardown) call this
-	///< instead, guarded the same way (harmless no-op if !isAvailable() or nothing is showing).
+	static void close(UnsignedInt id); ///< same, but only if box id is the one still open
+	static void raise(); ///< pull the open box above every other RmlUi document
 };

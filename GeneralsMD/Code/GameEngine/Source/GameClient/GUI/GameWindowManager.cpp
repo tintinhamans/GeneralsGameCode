@@ -1422,6 +1422,32 @@ Bool GameWindowManager::untrackRmlUiScriptWindow(GameWindow *window, AsciiString
 	return FALSE;
 }
 
+Bool GameWindowManager::untrackRmlUiMessageBox(GameWindow *window, UnsignedInt &idOut)
+{
+	for (size_t i = 0; i < m_rmlUiMessageBoxes.size(); ++i)
+	{
+		if (m_rmlUiMessageBoxes[i].first == window)
+		{
+			idOut = m_rmlUiMessageBoxes[i].second;
+			m_rmlUiMessageBoxes.erase(m_rmlUiMessageBoxes.begin() + i);
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+void GameWindowManager::destroyRmlUiMessageBox(UnsignedInt id)
+{
+	for (size_t i = 0; i < m_rmlUiMessageBoxes.size(); ++i)
+	{
+		if (m_rmlUiMessageBoxes[i].second == id)
+		{
+			winDestroy(m_rmlUiMessageBoxes[i].first);
+			return;
+		}
+	}
+}
+
 //-------------------------------------------------------------------------------------------------
 Int GameWindowManager::winDestroy(GameWindow* window)
 {
@@ -1434,6 +1460,10 @@ Int GameWindowManager::winDestroy(GameWindow* window)
 		AsciiString wndPath;
 		if (untrackRmlUiScriptWindow(window, wndPath))
 			RmlUiScreenRegistry::close(wndPath);
+
+		UnsignedInt boxId;
+		if (untrackRmlUiMessageBox(window, boxId))
+			RmlUiMessageBoxHook::close(boxId);
 	}
 
 	//
@@ -1669,14 +1699,21 @@ GameWindow* GameWindowManager::gogoMessageBox(Int x, Int y, Int width, Int heigh
 	}
 
 	// TheSuperHackers @feature RmlUi message box: same routing as RmlUiScreenRegistry (see
-	// RmlUiMessageBoxHook.h) -- no GameWindow backs the RmlUi document, so callers that only ever
-	// dismiss the box via its own callbacks (the intended usage) see no difference; callers that
-	// try to force-close it early via the returned handle (a handful of unconverted .wnd screens)
-	// are outside this batch's scope and keep their legacy behavior only under -wnd.
+	// RmlUiMessageBoxHook.h). The handle is an invisible placeholder window tracked against the box:
+	// winDestroy() closes the box, and a button click destroys it after the callback, like the .wnd
+	// MessageBoxSystem does for its own window.
 	if (!TheGlobalData->m_useLegacyMenus && RmlUiMessageBoxHook::isAvailable())
 	{
-		RmlUiMessageBoxHook::show(buttonFlags, titleString, bodyString, yesCallback, noCallback, okCallback, cancelCallback, useLogo);
-		return NULL;
+		GameWindow *placeholder = winCreate(NULL, WIN_STATUS_HIDDEN, 0, 0, 0, 0, GameWinDefaultSystem, nullptr);
+		const UnsignedInt boxId = RmlUiMessageBoxHook::show(buttonFlags, titleString, bodyString, yesCallback, noCallback, okCallback, cancelCallback, useLogo);
+		if (placeholder)
+		{
+			if (boxId != 0)
+				m_rmlUiMessageBoxes.push_back(std::make_pair(placeholder, boxId));
+			else
+				winDestroy(placeholder);
+		}
+		return boxId != 0 ? placeholder : NULL;
 	}
 
 	GameWindow* trueParent = NULL;

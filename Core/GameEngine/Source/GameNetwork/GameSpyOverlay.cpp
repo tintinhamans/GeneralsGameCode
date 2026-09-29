@@ -151,6 +151,7 @@ void GSMessageBoxOkCancelWithLabels(
 		return;
 	}
 
+	// RmlUi boxes are backed by a childless placeholder; the lookups below then find nothing.
 	GameWindow* buttonOk = TheWindowManager->winGetWindowFromId(messageBoxWindow, TheNameKeyGenerator->nameToKey("MessageBox.wnd:ButtonOk"));
 	GameWindow* buttonCancel = TheWindowManager->winGetWindowFromId(messageBoxWindow, TheNameKeyGenerator->nameToKey("MessageBox.wnd:ButtonCancel"));
 	if (buttonOk != nullptr)
@@ -226,6 +227,8 @@ void RaiseGSMessageBox()
 
 	if (!messageBoxWindow)
 		return;
+
+	RmlUiMessageBoxHook::raise(); // RmlUi box: the window below is only a placeholder
 
 	messageBoxWindow->winBringToTop();
 }

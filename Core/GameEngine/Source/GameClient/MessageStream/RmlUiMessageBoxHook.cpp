@@ -23,6 +23,7 @@ namespace
 {
 	RmlUiMessageBoxFunc s_handler = nullptr;
 	RmlUiMessageBoxCloseFunc s_closeHandler = nullptr;
+	RmlUiMessageBoxRaiseFunc s_raiseHandler = nullptr;
 	RmlUiMessageBoxLabels s_pendingLabels;
 }
 
@@ -34,6 +35,11 @@ void RmlUiMessageBoxHook::setHandler(RmlUiMessageBoxFunc handler)
 void RmlUiMessageBoxHook::setCloseHandler(RmlUiMessageBoxCloseFunc closeHandler)
 {
 	s_closeHandler = closeHandler;
+}
+
+void RmlUiMessageBoxHook::setRaiseHandler(RmlUiMessageBoxRaiseFunc raiseHandler)
+{
+	s_raiseHandler = raiseHandler;
 }
 
 void RmlUiMessageBoxHook::setPendingLabels(const RmlUiMessageBoxLabels &labels)
@@ -51,7 +57,7 @@ bool RmlUiMessageBoxHook::isAvailable()
 	return s_handler != nullptr;
 }
 
-void RmlUiMessageBoxHook::show(UnsignedShort buttonFlags, const UnicodeString &titleString, const UnicodeString &bodyString,
+UnsignedInt RmlUiMessageBoxHook::show(UnsignedShort buttonFlags, const UnicodeString &titleString, const UnicodeString &bodyString,
 	GameWinMsgBoxFunc yesCallback, GameWinMsgBoxFunc noCallback,
 	GameWinMsgBoxFunc okCallback, GameWinMsgBoxFunc cancelCallback,
 	Bool useLogo)
@@ -59,11 +65,23 @@ void RmlUiMessageBoxHook::show(UnsignedShort buttonFlags, const UnicodeString &t
 	const RmlUiMessageBoxLabels labels = s_pendingLabels;
 	clearPendingLabels();
 	if (s_handler)
-		s_handler(buttonFlags, titleString, bodyString, yesCallback, noCallback, okCallback, cancelCallback, useLogo, labels);
+		return s_handler(buttonFlags, titleString, bodyString, yesCallback, noCallback, okCallback, cancelCallback, useLogo, labels);
+	return 0;
 }
 
 void RmlUiMessageBoxHook::closeCurrent()
 {
+	close(0);
+}
+
+void RmlUiMessageBoxHook::close(UnsignedInt id)
+{
 	if (s_closeHandler)
-		s_closeHandler();
+		s_closeHandler(id);
+}
+
+void RmlUiMessageBoxHook::raise()
+{
+	if (s_raiseHandler)
+		s_raiseHandler();
 }
