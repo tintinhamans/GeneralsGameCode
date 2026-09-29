@@ -423,6 +423,15 @@ void NGMP_OnlineServicesManager::StartVersionCheck(std::function<void(bool bSucc
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Needs Update");
 
+					// the name becomes a local path, so it must be a bare file name
+					const std::string& strName = authResp.patcher_name;
+					if (strName.empty() || strName.find_first_of("/\\:") != std::string::npos || strName.find("..") != std::string::npos)
+					{
+						NetworkLog(ELogVerbosity::LOG_RELEASE, "VERSION CHECK: Rejected invalid patcher name");
+						fnCallback(false, false);
+						return;
+					}
+
 					// cache the data
 					m_patcher_name = authResp.patcher_name;
 					m_patcher_path = authResp.patcher_path;
@@ -493,9 +502,8 @@ void NGMP_OnlineServicesManager::ContinueUpdate()
 					if (strPatchDir.empty())
 						return;
 
-					// Extract the filename with extension from strDownloadPath  
-					std::string strFileName = strDownloadPath.substr(strDownloadPath.find_last_of('/') + 1);
-					std::string strOutPath = std::format("{}/{}", strPatchDir, strFileName.c_str());
+					// save under the validated patcher name so LaunchPatcher runs this exact file
+					std::string strOutPath = std::format("{}/{}", strPatchDir, m_patcher_name);
 
 					std::vector<uint8_t> vecBuffer = pReq->GetBuffer();
 					size_t bufSize = pReq->GetBufferSize();
