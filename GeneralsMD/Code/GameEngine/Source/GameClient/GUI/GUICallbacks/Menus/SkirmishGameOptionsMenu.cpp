@@ -197,24 +197,32 @@ void SkirmishPreferences::setSlotList()
 	setAsciiString("SlotList", GameInfoToAsciiString(TheSkirmishGameInfo));
 }
 
+Bool SkirmishPreferences::isSlotStateName( const UnicodeString &name )
+{
+	static const char *const labels[] = { "GUI:Open", "GUI:Closed", "GUI:EasyAI", "GUI:MediumAI", "GUI:HardAI" };
+	for (size_t i = 0; i < sizeof(labels) / sizeof(labels[0]); ++i)
+	{
+		if (!name.compareNoCase(TheGameText->fetch(labels[i])))
+			return TRUE;
+	}
+	return FALSE;
+}
+
 UnicodeString SkirmishPreferences::getUserName()
 {
 	UnicodeString ret;
 	SkirmishPreferences::const_iterator it = find("UserName");
-	if (it == end())
+	if (it != end())
 	{
-		IPEnumeration IPs;
-		ret.translate(IPs.getMachineName());
-		return ret;
+		ret = QuotedPrintableToUnicodeString(it->second);
+		ret.trim();
 	}
 
-	ret = QuotedPrintableToUnicodeString(it->second);
-	ret.trim();
-	if (ret.isEmpty())
+	// An older RmlUi build saved slot 0's "Open" label as the name; fall back like a missing key.
+	if (ret.isEmpty() || isSlotStateName(ret))
 	{
 		IPEnumeration IPs;
 		ret.translate(IPs.getMachineName());
-		return ret;
 	}
 
 	return ret;
@@ -343,6 +351,11 @@ Bool SkirmishPreferences::write()
 	if (!TheSkirmishGameInfo)
 		return FALSE;
 
+	// Slot 0 is always the local human; anything else is a corrupted setup that would be
+	// restored as-is next launch (all slots locked, name "Open").
+	if (!TheSkirmishGameInfo->getConstSlot(0)->isHuman())
+		return FALSE;
+
 	AsciiString tmp;
 
 	tmp.format("%d", TheSkirmishGameInfo->getConstSlot(0)->getColor());
@@ -353,7 +366,8 @@ Bool SkirmishPreferences::write()
 
 	(*this)["Map"] = TheSkirmishGameInfo->getMap();
 
-	(*this)["UserName"] = UnicodeStringToQuotedPrintable(TheSkirmishGameInfo->getConstSlot(0)->getName());
+	if (!isSlotStateName(TheSkirmishGameInfo->getConstSlot(0)->getName()))
+		(*this)["UserName"] = UnicodeStringToQuotedPrintable(TheSkirmishGameInfo->getConstSlot(0)->getName());
 
   setStartingCash( TheSkirmishGameInfo->getStartingCash() );
   setSuperweaponRestricted( TheSkirmishGameInfo->getSuperweaponRestriction() != 0 );
@@ -1177,11 +1191,13 @@ void SkirmishGameOptionsMenuInit( WindowLayout *layout, void *userData )
   gSlot.setColor(prefs.getPreferredColor());
   gSlot.setPlayerTemplate(prefs.getPreferredFaction());
   TheSkirmishGameInfo->setSlot(0,gSlot);
+  GameSlot localSlot = gSlot;
 
 	gSlot.setState( SkirmishSetupActions::defaultSlot1AIDifficulty() );
 	TheSkirmishGameInfo->setSlot(1, gSlot);
 
 	ParseAsciiStringToGameInfo(TheSkirmishGameInfo, prefs.getSlotList());
+	SkirmishSetupActions::restoreLocalSlot(TheSkirmishGameInfo, localSlot);
 	TheSkirmishGameInfo->setSeed(GetTickCount());
 
 	SkirmishSetupActions::applyPreorderFlag( TheSkirmishGameInfo, 0 );

@@ -54,7 +54,9 @@ void SkirmishSetupActions::selectPlayerState( GameInfo *game, Int slotIndex, Slo
 
 	GameSlot *slot = game->getSlot( slotIndex );
 	// The local player's own slot has no occupant choice (handlePlayerSelection() skips slot 0).
-	if( !slot || slotIndex == game->getLocalSlotNum() || slot->getState() == state )
+	// Slot 0 is the skirmish host, so it is also guarded by index: getLocalSlotNum() is -1 once
+	// slot 0 stops being the local human, which would let a stray event keep it Open.
+	if( !slot || slotIndex == 0 || slotIndex == game->getLocalSlotNum() || slot->getState() == state )
 		return;
 
 	slot->setState( state, name );
@@ -310,6 +312,26 @@ void SkirmishSetupActions::applyPreorderFlag( GameInfo *game, Int slotIndex )
 		game->markPlayerAsPreorder( slotIndex );
 }
 
+void SkirmishSetupActions::restoreLocalSlot( GameInfo *game, const GameSlot &localSlot )
+{
+	if( !game )
+		return;
+
+	UnsignedInt localIP = game->getLocalIP();
+	GameSlot *hostSlot = game->getSlot( 0 );
+	if( !hostSlot->isHuman() )
+	{
+		GameSlot restored = localSlot;
+		restored.setIP( localIP );
+		game->setSlot( 0, restored );
+	}
+	else
+	{
+		hostSlot->setName( localSlot.getName() );
+		hostSlot->setIP( localIP );
+	}
+}
+
 // See header. Mirrors SkirmishGameOptionsMenuInit()'s non-gadget lines exactly.
 void SkirmishSetupActions::enterSkirmishSetup()
 {
@@ -347,6 +369,7 @@ void SkirmishSetupActions::enterSkirmishSetup()
 	TheSkirmishGameInfo->setSlot( 1, aiSlot );
 
 	ParseAsciiStringToGameInfo( TheSkirmishGameInfo, prefs.getSlotList() );
+	restoreLocalSlot( TheSkirmishGameInfo, localSlot );
 	TheSkirmishGameInfo->setSeed( GetTickCount() );
 
 	applyPreorderFlag( TheSkirmishGameInfo, 0 );

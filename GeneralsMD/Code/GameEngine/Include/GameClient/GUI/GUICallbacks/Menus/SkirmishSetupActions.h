@@ -60,6 +60,12 @@ namespace SkirmishSetupActions
 	// Shared so the .wnd Init and enterSkirmishSetup() apply the same tiering instead of duplicating it.
 	SlotState defaultSlot1AIDifficulty();
 
+	// Makes slot 0 the local human again after a saved SlotList was parsed over it: an older RmlUi
+	// build saved it Open, which leaves the local player without a slot and every row locked.
+	// localSlot is the slot built from the preferences (name, color, faction). A slot that is
+	// already the local human keeps its saved color/faction/team/position. No-op if game is null.
+	void restoreLocalSlot( GameInfo *game, const GameSlot &localSlot );
+
 	// Marks slotIndex as a preorder player if the registry's "Preorder" DWORD is non-zero, same as
 	// SkirmishGameOptionsMenuInit(). No-op if game is null.
 	void applyPreorderFlag( GameInfo *game, Int slotIndex );

@@ -49,7 +49,7 @@ public:
 	virtual Bool write() override;
 	AsciiString getSlotList();
 	void setSlotList();
-	UnicodeString getUserName();		// convenience function
+	UnicodeString getUserName();		// convenience function; never a slot label, see isSlotStateName()
 	Int getPreferredFaction();			// convenience function
 	Int getPreferredColor();				// convenience function
 	AsciiString getPreferredMap();	// convenience function
@@ -66,6 +66,10 @@ public:
   // SkirmishSetupActions::persistPreferences()). -1 (the default) keeps write()'s old gadget-query
   // behavior, so the .wnd path is unaffected.
   void setGameSpeedFPS( Int fps );
+
+  // TRUE for the text a slot shows for a non-human state (Open, Closed, AI difficulty). A user
+  // name equal to one of those means a slot's state leaked into the name; it is never valid.
+  static Bool isSlotStateName( const UnicodeString &name );
 
 private:
   Int m_pendingGameSpeedFPS;
