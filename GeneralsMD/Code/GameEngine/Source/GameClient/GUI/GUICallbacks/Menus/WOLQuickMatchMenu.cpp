@@ -235,19 +235,6 @@ static void enableOptionsGadgets(Bool doIt)
 	}
 }
 
-enum
-{
-	MAX_DISCONNECTS_ANY = 0,
-	MAX_DISCONNECTS_5 = 5,
-	MAX_DISCONNECTS_10 = 10,
-	MAX_DISCONNECTS_25 = 25,
-	MAX_DISCONNECTS_50 = 50,
-};
-enum{ MAX_DISCONNECTS_COUNT = 5 };
-
-static Int MAX_DISCONNECTS[MAX_DISCONNECTS_COUNT] = {MAX_DISCONNECTS_ANY, MAX_DISCONNECTS_5,
-																											MAX_DISCONNECTS_10, MAX_DISCONNECTS_25,
-																											MAX_DISCONNECTS_50};
 void updateMapHoverPreview(GameWindow* window, WinInstanceData* instData)
 {
 	if (mapListboxPreviewFunc)
@@ -314,87 +301,42 @@ void UpdateStartButton()
 
 // -----------------------------------------------------------------------------
 
+// Fills a combo from the shared QuickMatchActions option list; colorFor gives each entry's text colour.
+static void fillQMCombo(GameWindow *combo, const std::vector<QuickMatchData::ComboOption> &options, const std::function<Color(Int)> &colorFor, Bool setItemData)
+{
+	GadgetComboBoxReset(combo);
+
+	Int selectedPos = 0;
+	for (const QuickMatchData::ComboOption &option : options)
+	{
+		Int newIndex = GadgetComboBoxAddEntry(combo, option.label, colorFor(option.value));
+		if (setItemData)
+			GadgetComboBoxSetItemData(combo, newIndex, (void *)(intptr_t)option.value);
+		if (option.initiallySelected)
+			selectedPos = newIndex;
+	}
+	GadgetComboBoxSetSelectedPos(combo, selectedPos);
+}
+
+// -----------------------------------------------------------------------------
+
 static void populateQMColorComboBox(QuickMatchPreferences& pref)
 {
-	Int numColors = TheMultiplayerSettings->getNumColors();
-	UnicodeString colorName;
-
-	GadgetComboBoxReset(comboBoxColor);
-
-	MultiplayerColorDefinition *def = TheMultiplayerSettings->getColor(PLAYERTEMPLATE_RANDOM);
-	Int newIndex = GadgetComboBoxAddEntry(comboBoxColor, TheGameText->fetch("GUI:???"), def->getColor());
-	GadgetComboBoxSetItemData(comboBoxColor, newIndex, (void *)-1);
-
-	for (Int c=0; c<numColors; ++c)
+	fillQMCombo(comboBoxColor, QuickMatchActions::getColorOptions(pref.getColor()), [](Int color)
 	{
-		def = TheMultiplayerSettings->getColor(c);
-		if (!def)
-			continue;
-
-		colorName = TheGameText->fetch(def->getTooltipName().str());
-		newIndex = GadgetComboBoxAddEntry(comboBoxColor, colorName, def->getColor());
-		GadgetComboBoxSetItemData(comboBoxColor, newIndex, (void *)c);
-	}
-	GadgetComboBoxSetSelectedPos(comboBoxColor, pref.getColor());
+		MultiplayerColorDefinition *def = TheMultiplayerSettings->getColor(color < 0 ? PLAYERTEMPLATE_RANDOM : color);
+		return def->getColor();
+	}, TRUE);
 }
 
 // -----------------------------------------------------------------------------
 
 static void populateQMSideComboBox(Int favSide, const LadderInfo *li = nullptr)
 {
-	Int numPlayerTemplates = ThePlayerTemplateStore->getPlayerTemplateCount();
-	UnicodeString playerTemplateName;
-
-	GadgetComboBoxReset(comboBoxSide);
-
 	MultiplayerColorDefinition *def = TheMultiplayerSettings->getColor(PLAYERTEMPLATE_RANDOM);
-	Int newIndex = GadgetComboBoxAddEntry(comboBoxSide, TheGameText->fetch("GUI:Random"), def->getColor());
-	GadgetComboBoxSetItemData(comboBoxSide, newIndex, (void *)PLAYERTEMPLATE_RANDOM);
+	Color color = def->getColor();
+	fillQMCombo(comboBoxSide, QuickMatchActions::getSideOptions(favSide, li), [color](Int) { return color; }, TRUE);
 
-	std::set<AsciiString> seenSides;
-
-	Int entryToSelect = 0; // select Random by default
-
-	for (Int c=0; c<numPlayerTemplates; ++c)
-	{
-		const PlayerTemplate *fac = ThePlayerTemplateStore->getNthPlayerTemplate(c);
-		if (!fac)
-			continue;
-
-		if (fac->getStartingBuilding().isEmpty())
-			continue;
-
-		AsciiString side;
-		side.format("SIDE:%s", fac->getSide().str());
-		if (seenSides.find(side) != seenSides.end())
-			continue;
-
-		if (li)
-		{
-			if (std::find(li->validFactions.begin(), li->validFactions.end(), fac->getSide()) == li->validFactions.end())
-				continue; // ladder doesn't allow it.
-		}
-
-		// Remove disallowed generals from the choice list.
-		// This is also enforced at GUI setup (GUIUtil.cpp and UserPreferences.cpp).
-		// @todo: unlock these when something rad happens
-		Bool disallowLockedGenerals = TRUE;
-		const GeneralPersona *general = TheChallengeGenerals->getGeneralByTemplateName(fac->getName());
-		Bool startsLocked = general ? !general->isStartingEnabled() : FALSE;
-		if (disallowLockedGenerals && startsLocked)
-			continue;
-
-		seenSides.insert(side);
-
-		newIndex = GadgetComboBoxAddEntry(comboBoxSide, TheGameText->fetch(side), def->getColor());
-		GadgetComboBoxSetItemData(comboBoxSide, newIndex, (void *)c);
-
-		if (c == favSide)
-			entryToSelect = newIndex;
-	}
-	seenSides.clear();
-
-	GadgetComboBoxSetSelectedPos(comboBoxSide, entryToSelect);
 	if (li && li->randomFactions)
 		comboBoxSide->winEnable(FALSE);
 	else
@@ -990,16 +932,15 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 		isPopulatingLadderBox = TRUE;
 
 		Color normalColor = GameSpyColor[GSCOLOR_MAP_UNSELECTED];
+#if defined(GENERALS_ONLINE)
+		fillQMCombo(comboBoxDisabledLadder, QuickMatchActions::getLadderOptions(), [normalColor](Int) { return normalColor; }, TRUE);
+#else
 		Int index;
 		GadgetComboBoxReset( comboBoxDisabledLadder );
-
-#if defined(GENERALS_ONLINE)
-		index = GadgetComboBoxAddEntry(comboBoxDisabledLadder, UnicodeString(L"Automatic Ladder"), normalColor);
-#else
 		index = GadgetComboBoxAddEntry( comboBoxDisabledLadder, TheGameText->fetch("GUI:NoLadder"), normalColor );
-#endif
 		GadgetComboBoxSetItemData( comboBoxDisabledLadder, index, 0 );
 		GadgetComboBoxSetSelectedPos( comboBoxDisabledLadder, index );
+#endif
 
 		isPopulatingLadderBox = FALSE;
 
@@ -1071,9 +1012,9 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	minPoints = pref.getMinPoints();
 
 	// NOTE: On GO, this comes from the service
-	Int i;
 	Color c = GameSpyColor[GSCOLOR_DEFAULT];
 #if !defined(GENERALS_ONLINE)
+	Int i;
 	GadgetComboBoxReset( comboBoxNumPlayers );
 	for (i=1; i<5; ++i)
 	{
@@ -1083,23 +1024,15 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	GadgetComboBoxSetSelectedPos( comboBoxNumPlayers, max(0, pref.getNumPlayers()) );
 #endif
 
-	GadgetComboBoxReset(comboBoxMaxDisconnects);
-	GadgetComboBoxAddEntry( comboBoxMaxDisconnects, TheGameText->fetch("GUI:Any"), c);
-	for( i = 1; i < MAX_DISCONNECTS_COUNT; ++i )
-	{
-		s.format(L"%d", MAX_DISCONNECTS[i]);
-		GadgetComboBoxAddEntry( comboBoxMaxDisconnects, s, c );
-	}
-	Int maxDisconIndex = max(0, pref.getMaxDisconnects());
-	GadgetComboBoxSetSelectedPos(comboBoxMaxDisconnects, maxDisconIndex);
+	fillQMCombo(comboBoxMaxDisconnects, QuickMatchActions::getMaxDisconnectsOptions(pref.getMaxDisconnects()), [c](Int) { return c; }, FALSE);
 
-	GadgetComboBoxReset( comboBoxMaxPing );
 #if defined(GENERALS_ONLINE)
-	// not supported in GO
-	maxPingEntries = 0;
+	// not supported in GO: ANY is the only entry
+	maxPingEntries = 1;
+	fillQMCombo(comboBoxMaxPing, QuickMatchActions::getMaxPingOptions(), [c](Int) { return c; }, FALSE);
 #else
+	GadgetComboBoxReset( comboBoxMaxPing );
 	maxPingEntries = (TheGameSpyConfig->getPingTimeoutInMs() - 1) / 100;
-#endif
 
 	maxPingEntries++; // need to add the entry for the actual timeout
 	for (i=1; i <maxPingEntries; ++i)
@@ -1114,6 +1047,7 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 	if( i >= maxPingEntries )
 		i = maxPingEntries - 1;
 	GadgetComboBoxSetSelectedPos( comboBoxMaxPing, i );
+#endif
 
 	populateQMColorComboBox(pref);
 	populateQMSideComboBox(pref.getSide(), getLadderInfo());
@@ -2128,7 +2062,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					GadgetComboBoxGetSelectedPos(comboBoxMaxDisconnects, &val);
 					if( val < 0)
 						 val = 0;
-					req.QM.maxDiscons = MAX_DISCONNECTS[val];
+					req.QM.maxDiscons = QuickMatchActions::getMaxDisconnectsValue(val);
 
 					GadgetComboBoxGetSelectedPos(comboBoxMaxPing, &val);
 					if (val < 0)
