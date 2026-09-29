@@ -124,6 +124,7 @@ private:
 	Rml::TextureHandle m_nextTextureHandle = 1;
 
 	bool m_scissorEnabled = false;
+	bool m_scissorEmpty = false; // the scissor region has no on-screen part; draws are skipped
 	Rml::Rectanglei m_scissorRegion;
 	int m_contextWidth = 0;
 	int m_contextHeight = 0;

@@ -309,7 +309,7 @@ void RmlUiRenderInterface::endFrame()
 void RmlUiRenderInterface::RenderGeometry(Rml::CompiledGeometryHandle geometry, Rml::Vector2f translation, Rml::TextureHandle texture)
 {
 	GeometryMap::iterator git = m_geometry.find(geometry);
-	if (git == m_geometry.end())
+	if (git == m_geometry.end() || (m_scissorEnabled && m_scissorEmpty))
 		return;
 
 	IDirect3DDevice8 *dev = DX8Wrapper::_Get_D3D_Device8();
@@ -541,6 +541,7 @@ Rml::TextureHandle RmlUiRenderInterface::GenerateTexture(Rml::Span<const Rml::by
 void RmlUiRenderInterface::EnableScissorRegion(bool enable)
 {
 	m_scissorEnabled = enable;
+	m_scissorEmpty = false;
 	IDirect3DDevice8 *dev = DX8Wrapper::_Get_D3D_Device8();
 	if (!dev)
 		return;
@@ -563,12 +564,19 @@ void RmlUiRenderInterface::SetScissorRegion(Rml::Rectanglei region)
 	if (!dev)
 		return;
 
-	int left = region.Left() < 0 ? 0 : region.Left();
-	int top = region.Top() < 0 ? 0 : region.Top();
-	int width = region.Width() < 1 ? 1 : region.Width();
-	int height = region.Height() < 1 ? 1 : region.Height();
+	// D3D rejects a viewport that leaves the render target and would keep the previous one, while the
+	// projection below still followed the region: a clipped element far off screen (e.g. a chat box under
+	// a list that outgrew the screen) then drew its contents stretched over the whole screen. Clamp to the
+	// target, and skip drawing while nothing of the region is on screen.
+	const int left = region.Left() < 0 ? 0 : region.Left();
+	const int top = region.Top() < 0 ? 0 : region.Top();
+	const int right = region.Right() > m_contextWidth ? m_contextWidth : region.Right();
+	const int bottom = region.Bottom() > m_contextHeight ? m_contextHeight : region.Bottom();
+	m_scissorEmpty = right <= left || bottom <= top;
+	if (m_scissorEmpty)
+		return;
 
-	D3DVIEWPORT8 vp = { (DWORD)left, (DWORD)top, (DWORD)width, (DWORD)height, 0.0f, 1.0f };
+	D3DVIEWPORT8 vp = { (DWORD)left, (DWORD)top, (DWORD)(right - left), (DWORD)(bottom - top), 0.0f, 1.0f };
 	dev->SetViewport(&vp);
-	setOrthoProjection(left, left + width, top, top + height);
+	setOrthoProjection(left, right, top, bottom);
 }
