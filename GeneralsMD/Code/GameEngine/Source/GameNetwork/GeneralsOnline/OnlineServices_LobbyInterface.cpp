@@ -1448,6 +1448,7 @@ void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()
 	if (pWS != nullptr)
 	{
 		pWS->ClearConnectivityCheckCallback();
+		pWS->ClearPendingSignals();
 	}
 
 	// reset host migration flags
@@ -1497,6 +1498,12 @@ void NGMP_OnlineServices_LobbyInterface::ResetForMatchmakingRequeue()
 	++m_LobbyJoinGeneration;
 	ResetHostMigrationFlags();
 	AnticheatPlugInterface::EndSession();
+
+	std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
+	if (pWS != nullptr)
+	{
+		pWS->ClearPendingSignals();
+	}
 
 	if (m_pLobbyMesh != nullptr)
 	{

@@ -1337,22 +1337,30 @@ CURLcode WebSocket::ReceiveOneFrame()
 										WebSocketMessage_NetworkStartSignalling startSignallingData;
 										bool bParsed = JSONGetAsObject(jsonObject, &startSignallingData);
 
-										// TODO_NGMP: Better location for this
-										// When we find a new player, get their latest stats. Tooltip and loading screen need it, so we'll grab it now and then use cached data later since it cannot possibly change while in a lobby
-										NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
-										if (pStatsInterface != nullptr)
-										{
-											pStatsInterface->findPlayerStatsByID(startSignallingData.user_id, [=](bool bSuccess, PSPlayerStats stats)
-												{
-
-												}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
-										}
-
 										if (bParsed)
 										{
 											NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 											if (pLobbyInterface != nullptr)
 											{
+												// -1 while a join is still in flight, when this can legitimately arrive first
+												const int64_t currentLobbyID = pLobbyInterface->GetCurrentLobby().lobbyID;
+												if (currentLobbyID != -1 && currentLobbyID != startSignallingData.lobby_id)
+												{
+													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Ignoring signalling for lobby %lld, we are in lobby %lld", startSignallingData.lobby_id, currentLobbyID);
+													break;
+												}
+
+												// TODO_NGMP: Better location for this
+												// When we find a new player, get their latest stats. Tooltip and loading screen need it, so we'll grab it now and then use cached data later since it cannot possibly change while in a lobby
+												NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+												if (pStatsInterface != nullptr)
+												{
+													pStatsInterface->findPlayerStatsByID(startSignallingData.user_id, [=](bool bSuccess, PSPlayerStats stats)
+														{
+
+														}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
+												}
+
 												NetworkMesh* pMesh = pLobbyInterface->GetNetworkMeshForLobby();
 
 												if (pMesh != nullptr)

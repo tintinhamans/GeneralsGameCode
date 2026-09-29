@@ -219,6 +219,13 @@ public:
 		m_pendingSignals.push(std::move(payload));
 	}
 
+	// signals queued for a lobby we've since left must not reach the next one
+	void ClearPendingSignals()
+	{
+		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
+		m_pendingSignals = std::queue<std::vector<uint8_t>>();
+	}
+
 	std::queue<std::vector<uint8_t>> DrainPendingSignals()
 	{
 		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
