@@ -122,3 +122,74 @@ public:
 private:
 	GameWindow *m_progressBar;
 };
+
+// Briefing movie over the campaign art, progress bar, and on the original Generals the objectives,
+// units and location.
+class SinglePlayerLoadScreenView : public LoadScreenView
+{
+public:
+	SinglePlayerLoadScreenView();
+
+	virtual void init( GameWindow *root, GameInfo *game, const LoadScreenData &data ) override;
+	virtual void update( const LoadScreenData &data ) override;
+	virtual void reset() override;
+
+private:
+	GameWindow *m_root;
+	GameWindow *m_background;
+	GameWindow *m_progressBar;
+	GameWindow *m_percent;
+	GameWindow *m_objectiveWin;
+	GameWindow *m_objectiveLines[MAX_OBJECTIVE_LINES];
+	GameWindow *m_unitDesc[MAX_DISPLAYED_UNITS];
+	GameWindow *m_location;
+
+	// what the gadgets show, so publishing every frame does not touch them
+	Int m_appliedProgress;
+	VideoBuffer *m_appliedVideo;
+	AsciiString m_appliedBackground;
+	Int m_appliedBarColor;
+	Bool m_appliedShowObjectives;
+	UnicodeString m_appliedObjectiveLines[MAX_OBJECTIVE_LINES];
+	Bool m_appliedShowUnit[MAX_DISPLAYED_UNITS];
+	Bool m_appliedShowLocation;
+};
+
+// Backdrop movie, the two generals' portraits and typed out bios, the versus animation and the bar.
+class ChallengeLoadScreenView : public LoadScreenView
+{
+public:
+	ChallengeLoadScreenView();
+
+	virtual void init( GameWindow *root, GameInfo *game, const LoadScreenData &data ) override;
+	virtual void update( const LoadScreenData &data ) override;
+	virtual void reset() override;
+
+private:
+	enum { BIO_TITLE_COUNT = 3, BIO_ENTRY_COUNT = 4 };
+
+	void apply( const LoadScreenData &data, Bool force );
+
+	GameWindow *m_root;
+	GameWindow *m_progressBar;
+	GameWindow *m_bioTitles[2][BIO_TITLE_COUNT]; ///< name, rank and strategy labels
+	GameWindow *m_bioEntries[2][BIO_ENTRY_COUNT]; ///< big name, name, rank, strategy
+	GameWindow *m_portraits[2];
+	GameWindow *m_portraitMovies[2];
+	GameWindow *m_outerCircle;
+	GameWindow *m_innerCircle;
+	GameWindow *m_versusBackdrop;
+	GameWindow *m_versus;
+
+	Int m_appliedProgress;
+	VideoBuffer *m_appliedVideos[LOAD_VIDEO_COUNT];
+	LoadScreenGeneral m_appliedGenerals[2];
+	Bool m_appliedShowBioTitles;
+	Bool m_appliedShowBioEntries;
+	Bool m_appliedShowPortraitMovies;
+	Bool m_appliedShowPortraits;
+	Bool m_appliedShowOuterCircle;
+	Bool m_appliedShowInnerCircle;
+	Bool m_appliedShowVersusBackdrop;
+	Bool m_appliedShowVersus;
+};

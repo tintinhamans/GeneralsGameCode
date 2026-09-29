@@ -17,16 +17,41 @@
 */
 
 // FILE: LoadScreenData.h /////////////////////////////////////////////////////
-// Widget-agnostic content of the network and shell load screens (map transfer, multiplayer,
-// online, shell). The LoadScreen classes fill this instead of GameWindows when RmlUi
-// draws the screen; the RmlUi load screen reads it back every frame.
+// Widget-agnostic content of the load screens (map transfer, multiplayer, online, shell,
+// single player and challenge). The LoadScreen classes fill this and never touch a GameWindow;
+// the legacy .wnd view and the RmlUi load screen both draw it.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
 #include "Common/AsciiString.h"
 #include "Common/UnicodeString.h"
+#include "GameClient/CampaignManager.h"
 #include "GameNetwork/GameInfo.h"
+
+class VideoBuffer;
+
+// Movies of the single player and challenge screens. The LoadScreen owns and decodes them; a view
+// only draws the buffer published for a slot, null while that movie shows nothing.
+enum LoadScreenVideo
+{
+	LOAD_VIDEO_BACKGROUND, ///< briefing or challenge backdrop over the whole screen
+	LOAD_VIDEO_PORTRAIT_LEFT, ///< challenge: the player's general
+	LOAD_VIDEO_PORTRAIT_RIGHT, ///< challenge: the opponent
+	LOAD_VIDEO_VERSUS, ///< challenge: the "vs" animation
+	LOAD_VIDEO_COUNT
+};
+
+// One side of the challenge screen. The entries are typed out a character at a time, so these hold
+// what is shown so far, not the full text.
+struct LoadScreenGeneral
+{
+	UnicodeString m_bigName;
+	UnicodeString m_name;
+	UnicodeString m_rank;
+	UnicodeString m_strategy;
+	AsciiString m_portrait; ///< still portrait shown instead of the movie on min spec
+};
 
 struct LoadScreenPlayerRow
 {
@@ -86,8 +111,32 @@ struct LoadScreenData
 	UnicodeString m_currentFile; ///< map transfer only
 	UnicodeString m_timeout;
 
-	Int m_progress = 0; ///< shell load bar, 0..100
+	Int m_progress = 0; ///< shell, single player and challenge load bar, 0..100
 	Bool m_titleScreen = FALSE; ///< first shell load: title art and copyright line
+
+	// Single player and challenge -----------------------------------------------------------
+	VideoBuffer *m_videos[LOAD_VIDEO_COUNT] = {};
+	Int m_barColorIndex = -1; ///< fill is LoadingBar_ProgressCenter<n>, -1 for the .wnd's own
+
+	// Single player briefing. The objectives, unit and location texts only ever show on the original Generals.
+	Bool m_showObjectives = FALSE;
+	UnicodeString m_objectiveLines[MAX_OBJECTIVE_LINES]; ///< typed out so far
+	UnicodeString m_unitNames[MAX_DISPLAYED_UNITS];
+	Bool m_showUnit[MAX_DISPLAYED_UNITS] = {};
+	UnicodeString m_location;
+	Bool m_showLocation = FALSE;
+
+	// Challenge: [0] is the player's general on the left, [1] the opponent. The circles and the
+	// versus backdrop start out shown, as in the .wnd, until the movies are known to play.
+	LoadScreenGeneral m_generals[2];
+	Bool m_showBioTitles = FALSE;
+	Bool m_showBioEntries = FALSE;
+	Bool m_showPortraitMovies = FALSE;
+	Bool m_showPortraits = FALSE; ///< the still portraits
+	Bool m_showOuterCircle = TRUE;
+	Bool m_showInnerCircle = TRUE;
+	Bool m_showVersusBackdrop = TRUE;
+	Bool m_showVersus = FALSE;
 
 	UnsignedInt m_version = 0;
 };

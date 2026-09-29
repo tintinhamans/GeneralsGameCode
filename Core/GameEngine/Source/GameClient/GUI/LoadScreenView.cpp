@@ -496,3 +496,330 @@ void ShellLoadScreenView::reset()
 {
 	m_progressBar = nullptr;
 }
+
+static GameWindow *findChild( GameWindow *root, const char *name )
+{
+	return TheWindowManager->winGetWindowFromId( root, TheNameKeyGenerator->nameToKey( name ));
+}
+
+// SinglePlayerLoadScreenView /////////////////////////////////////////////////
+SinglePlayerLoadScreenView::SinglePlayerLoadScreenView()
+{
+	reset();
+}
+
+void SinglePlayerLoadScreenView::init( GameWindow *root, GameInfo *game, const LoadScreenData &data )
+{
+	m_root = root;
+	root->winHide(FALSE);
+	root->winBringToTop();
+
+	// Store the pointer to the progress bar on the loadscreen
+	m_progressBar = findChild( root, "SinglePlayerLoadScreen.wnd:ProgressLoad" );
+	DEBUG_ASSERTCRASH(m_progressBar, ("Can't initialize the progressbar for the single player loadscreen"));
+	GadgetProgressBarSetProgress(m_progressBar, 0 );
+
+	m_percent = findChild( root, "SinglePlayerLoadScreen.wnd:Percent" );
+	DEBUG_ASSERTCRASH(m_percent, ("Can't initialize the m_percent for the single player loadscreen"));
+	GadgetStaticTextSetText(m_percent,L"0%");
+	m_percent->winHide(TRUE);
+
+	m_objectiveWin = findChild( root, "SinglePlayerLoadScreen.wnd:ObjectivesWin" );
+	DEBUG_ASSERTCRASH(m_objectiveWin, ("Can't initialize the m_objectiveWin for the single player loadscreen"));
+	m_objectiveWin->winHide(TRUE);
+
+	AsciiString lineName;
+	Int i = 0;
+	for(; i < MAX_OBJECTIVE_LINES; ++i)
+	{
+		lineName.format("SinglePlayerLoadScreen.wnd:StaticTextLine%d",i);
+		m_objectiveLines[i] = findChild( root, lineName.str() );
+		DEBUG_ASSERTCRASH(m_objectiveLines[i], ("Can't initialize the m_objectiveLines[%d] for the single player loadscreen", i));
+		GadgetStaticTextSetText(m_objectiveLines[i],UnicodeString::TheEmptyString);
+	}
+
+	for(i = 0; i < MAX_DISPLAYED_UNITS; ++i)
+	{
+		lineName.format("SinglePlayerLoadScreen.wnd:StaticTextCameoText%d",i);
+		m_unitDesc[i] = findChild( root, lineName.str() );
+		DEBUG_ASSERTCRASH(m_unitDesc[i], ("Can't initialize the m_objectiveLines[%d] for the single player loadscreen", i));
+		GadgetStaticTextSetText(m_unitDesc[i], data.m_unitNames[i]);
+		m_unitDesc[i]->winHide(TRUE);
+	}
+	m_location = findChild( root, "SinglePlayerLoadScreen.wnd:StaticTextCameoText3" );
+	DEBUG_ASSERTCRASH(m_location, ("Can't initialize the m_objectiveWin for the single player loadscreen"));
+	m_location->winHide(TRUE);
+	GadgetStaticTextSetText(m_location, data.m_location);
+
+	m_background = findChild( root, "SinglePlayerLoadScreen.wnd:ParentSinglePlayerLoadScreen" );
+
+	update( data );
+}
+
+void SinglePlayerLoadScreenView::update( const LoadScreenData &data )
+{
+	if (!m_root)
+		return;
+
+	if (m_appliedProgress != data.m_progress)
+	{
+		m_appliedProgress = data.m_progress;
+		UnicodeString per;
+		per.format(L"%d%%", data.m_progress);
+		GadgetProgressBarSetProgress(m_progressBar, data.m_progress);
+		GadgetStaticTextSetText(m_percent, per);
+	}
+
+	if (m_appliedVideo != data.m_videos[LOAD_VIDEO_BACKGROUND])
+	{
+		m_appliedVideo = data.m_videos[LOAD_VIDEO_BACKGROUND];
+		m_root->winGetInstanceData()->setVideoBuffer( m_appliedVideo );
+	}
+
+	// the campaign's art, and its bar: USA to blue, GLA to green, China to red
+	if (m_appliedBackground != data.m_backgroundImage)
+	{
+		m_appliedBackground = data.m_backgroundImage;
+		if (const Image *image = findImage( data.m_backgroundImage ))
+			m_background->winSetEnabledImage( 0, image );
+	}
+	if (m_appliedBarColor != data.m_barColorIndex)
+	{
+		m_appliedBarColor = data.m_barColorIndex;
+		AsciiString imageName;
+		imageName.format("LoadingBar_ProgressCenter%d", data.m_barColorIndex);
+		if (const Image *image = TheMappedImageCollection->findImageByName( imageName ))
+			m_progressBar->winSetEnabledImage( 6, image );
+	}
+
+	if (m_appliedShowObjectives != data.m_showObjectives)
+	{
+		m_appliedShowObjectives = data.m_showObjectives;
+		m_objectiveWin->winHide( !data.m_showObjectives );
+	}
+	for (Int i = 0; i < MAX_OBJECTIVE_LINES; ++i)
+	{
+		if (m_appliedObjectiveLines[i] != data.m_objectiveLines[i])
+		{
+			m_appliedObjectiveLines[i] = data.m_objectiveLines[i];
+			GadgetStaticTextSetText(m_objectiveLines[i], data.m_objectiveLines[i]);
+		}
+	}
+	for (Int i = 0; i < MAX_DISPLAYED_UNITS; ++i)
+	{
+		if (m_appliedShowUnit[i] != data.m_showUnit[i])
+		{
+			m_appliedShowUnit[i] = data.m_showUnit[i];
+			m_unitDesc[i]->winHide( !data.m_showUnit[i] );
+		}
+	}
+	if (m_appliedShowLocation != data.m_showLocation)
+	{
+		m_appliedShowLocation = data.m_showLocation;
+		m_location->winHide( !data.m_showLocation );
+	}
+}
+
+void SinglePlayerLoadScreenView::reset()
+{
+	m_root = nullptr;
+	m_background = nullptr;
+	m_progressBar = nullptr;
+	m_percent = nullptr;
+	m_objectiveWin = nullptr;
+	m_location = nullptr;
+	for (Int i = 0; i < MAX_OBJECTIVE_LINES; ++i)
+	{
+		m_objectiveLines[i] = nullptr;
+		m_appliedObjectiveLines[i].clear();
+	}
+	for (Int i = 0; i < MAX_DISPLAYED_UNITS; ++i)
+	{
+		m_unitDesc[i] = nullptr;
+		m_appliedShowUnit[i] = FALSE;
+	}
+
+	// what init() leaves on screen
+	m_appliedProgress = 0;
+	m_appliedVideo = nullptr;
+	m_appliedBackground.clear();
+	m_appliedBarColor = -1;
+	m_appliedShowObjectives = FALSE;
+	m_appliedShowLocation = FALSE;
+}
+
+// ChallengeLoadScreenView ////////////////////////////////////////////////////
+ChallengeLoadScreenView::ChallengeLoadScreenView()
+{
+	reset();
+}
+
+void ChallengeLoadScreenView::init( GameWindow *root, GameInfo *game, const LoadScreenData &data )
+{
+	static const char *const sides[2] = { "Left", "Right" };
+	static const char *const titles[BIO_TITLE_COUNT] = { "BioName", "BioBirthplace", "BioStrategy" };
+	static const char *const entries[BIO_ENTRY_COUNT] = { "BigNameEntry", "BioNameEntry", "BioBirthplaceEntry", "BioStrategyEntry" };
+
+	m_root = root;
+	root->winHide(FALSE);
+	root->winBringToTop();
+
+	// Store the pointer to the progress bar on the loadscreen
+	m_progressBar = findChild( root, "ChallengeLoadScreen.wnd:ProgressLoad" );
+	DEBUG_ASSERTCRASH(m_progressBar, ("Can't initialize the progressbar for the single player loadscreen"));
+	GadgetProgressBarSetProgress(m_progressBar, 0 );
+
+	AsciiString name;
+	for (Int side = 0; side < 2; ++side)
+	{
+		name.format("ChallengeLoadScreen.wnd:Portrait%s", sides[side]);
+		m_portraits[side] = findChild( root, name.str() );
+		name.format("ChallengeLoadScreen.wnd:PortraitMovie%s", sides[side]);
+		m_portraitMovies[side] = findChild( root, name.str() );
+		for (Int i = 0; i < BIO_TITLE_COUNT; ++i)
+		{
+			name.format("ChallengeLoadScreen.wnd:%s%s", titles[i], sides[side]);
+			m_bioTitles[side][i] = findChild( root, name.str() );
+		}
+		for (Int i = 0; i < BIO_ENTRY_COUNT; ++i)
+		{
+			name.format("ChallengeLoadScreen.wnd:%s%s", entries[i], sides[side]);
+			m_bioEntries[side][i] = findChild( root, name.str() );
+		}
+	}
+	m_outerCircle = findChild( root, "ChallengeLoadScreen.wnd:CircleAlphaOuter" );
+	m_innerCircle = findChild( root, "ChallengeLoadScreen.wnd:CircleAlphaInner" );
+	m_versusBackdrop = findChild( root, "ChallengeLoadScreen.wnd:VersusBackdrop" );
+	m_versus = findChild( root, "ChallengeLoadScreen.wnd:OverlayVs" );
+
+	apply( data, TRUE );
+}
+
+void ChallengeLoadScreenView::update( const LoadScreenData &data )
+{
+	apply( data, FALSE );
+}
+
+// force: the entries still hold the .wnd's placeholder text, so write what the data holds (hidden until shown).
+void ChallengeLoadScreenView::apply( const LoadScreenData &data, Bool force )
+{
+	if (!m_root)
+		return;
+
+	if (m_appliedProgress != data.m_progress)
+	{
+		m_appliedProgress = data.m_progress;
+		GadgetProgressBarSetProgress(m_progressBar, data.m_progress);
+	}
+
+	GameWindow *const videoWindows[LOAD_VIDEO_COUNT] = { m_root, m_portraitMovies[0], m_portraitMovies[1], m_versus };
+	for (Int i = 0; i < LOAD_VIDEO_COUNT; ++i)
+	{
+		if (m_appliedVideos[i] != data.m_videos[i])
+		{
+			m_appliedVideos[i] = data.m_videos[i];
+			videoWindows[i]->winGetInstanceData()->setVideoBuffer( data.m_videos[i] );
+		}
+	}
+
+	for (Int side = 0; side < 2; ++side)
+	{
+		const LoadScreenGeneral &general = data.m_generals[side];
+		LoadScreenGeneral &applied = m_appliedGenerals[side];
+		const UnicodeString *texts[BIO_ENTRY_COUNT] = { &general.m_bigName, &general.m_name, &general.m_rank, &general.m_strategy };
+		UnicodeString *appliedTexts[BIO_ENTRY_COUNT] = { &applied.m_bigName, &applied.m_name, &applied.m_rank, &applied.m_strategy };
+		for (Int i = 0; i < BIO_ENTRY_COUNT; ++i)
+		{
+			if (force || *appliedTexts[i] != *texts[i])
+			{
+				*appliedTexts[i] = *texts[i];
+				GadgetStaticTextSetText( m_bioEntries[side][i], *texts[i] );
+			}
+		}
+		if (applied.m_portrait != general.m_portrait)
+		{
+			applied.m_portrait = general.m_portrait;
+			m_portraits[side]->winSetEnabledImage( 0, findImage( general.m_portrait ) );
+		}
+	}
+
+	if (m_appliedShowBioTitles != data.m_showBioTitles)
+	{
+		m_appliedShowBioTitles = data.m_showBioTitles;
+		for (Int side = 0; side < 2; ++side)
+			for (Int i = 0; i < BIO_TITLE_COUNT; ++i)
+				m_bioTitles[side][i]->winHide( !data.m_showBioTitles );
+	}
+	if (m_appliedShowBioEntries != data.m_showBioEntries)
+	{
+		m_appliedShowBioEntries = data.m_showBioEntries;
+		for (Int side = 0; side < 2; ++side)
+			for (Int i = 0; i < BIO_ENTRY_COUNT; ++i)
+				m_bioEntries[side][i]->winHide( !data.m_showBioEntries );
+	}
+	if (m_appliedShowPortraitMovies != data.m_showPortraitMovies)
+	{
+		m_appliedShowPortraitMovies = data.m_showPortraitMovies;
+		m_portraitMovies[0]->winHide( !data.m_showPortraitMovies );
+		m_portraitMovies[1]->winHide( !data.m_showPortraitMovies );
+	}
+	if (m_appliedShowPortraits != data.m_showPortraits)
+	{
+		m_appliedShowPortraits = data.m_showPortraits;
+		m_portraits[0]->winHide( !data.m_showPortraits );
+		m_portraits[1]->winHide( !data.m_showPortraits );
+	}
+	if (m_appliedShowOuterCircle != data.m_showOuterCircle)
+	{
+		m_appliedShowOuterCircle = data.m_showOuterCircle;
+		m_outerCircle->winHide( !data.m_showOuterCircle );
+	}
+	if (m_appliedShowInnerCircle != data.m_showInnerCircle)
+	{
+		m_appliedShowInnerCircle = data.m_showInnerCircle;
+		m_innerCircle->winHide( !data.m_showInnerCircle );
+	}
+	if (m_appliedShowVersusBackdrop != data.m_showVersusBackdrop)
+	{
+		m_appliedShowVersusBackdrop = data.m_showVersusBackdrop;
+		m_versusBackdrop->winHide( !data.m_showVersusBackdrop );
+	}
+	if (m_appliedShowVersus != data.m_showVersus)
+	{
+		m_appliedShowVersus = data.m_showVersus;
+		m_versus->winHide( !data.m_showVersus );
+	}
+}
+
+void ChallengeLoadScreenView::reset()
+{
+	m_root = nullptr;
+	m_progressBar = nullptr;
+	for (Int side = 0; side < 2; ++side)
+	{
+		for (Int i = 0; i < BIO_TITLE_COUNT; ++i)
+			m_bioTitles[side][i] = nullptr;
+		for (Int i = 0; i < BIO_ENTRY_COUNT; ++i)
+			m_bioEntries[side][i] = nullptr;
+		m_portraits[side] = nullptr;
+		m_portraitMovies[side] = nullptr;
+		m_appliedGenerals[side] = LoadScreenGeneral();
+	}
+	m_outerCircle = nullptr;
+	m_innerCircle = nullptr;
+	m_versusBackdrop = nullptr;
+	m_versus = nullptr;
+
+	// what the .wnd shows before anything is applied
+	m_appliedProgress = 0;
+	for (Int i = 0; i < LOAD_VIDEO_COUNT; ++i)
+		m_appliedVideos[i] = nullptr;
+	m_appliedShowBioTitles = FALSE;
+	m_appliedShowBioEntries = FALSE;
+	m_appliedShowPortraitMovies = FALSE;
+	m_appliedShowPortraits = FALSE;
+	m_appliedShowOuterCircle = TRUE;
+	m_appliedShowInnerCircle = TRUE;
+	m_appliedShowVersusBackdrop = TRUE;
+	m_appliedShowVersus = FALSE;
+}

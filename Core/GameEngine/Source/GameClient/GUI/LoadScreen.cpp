@@ -85,7 +85,6 @@
 #include "GameClient/Shell.h"
 #include "GameClient/VideoPlayer.h"
 #include "GameClient/WindowLayout.h"
-#include "GameClient/WindowVideoManager.h"
 #include "GameClient/ChallengeGenerals.h"
 #include "GameLogic/FPUControl.h"
 #include "GameLogic/GameLogic.h"
@@ -249,6 +248,16 @@ void LoadScreen::publishData()
 		m_view->update( data );
 }
 
+void LoadScreen::publishProgress( Int percent )
+{
+	LoadScreenData &data = LoadScreenData::instance();
+	if (data.m_progress != percent)
+	{
+		data.m_progress = percent;
+		publishData();
+	}
+}
+
 void LoadScreen::update( Int percent )
 {
 	TheGameEngine->serviceWindowsOS();
@@ -272,18 +281,16 @@ SinglePlayerLoadScreen::SinglePlayerLoadScreen()
 	m_currentObjectiveLineCharacter = 0;
 	m_finishedObjectiveText = FALSE;
 	m_currentObjectiveWidthOffset = 0;
-	m_progressBar = nullptr;
-	m_percent = nullptr;
 	m_videoStream = nullptr;
 	m_videoBuffer = nullptr;
-	m_objectiveWin = nullptr;
-	for(Int i = 0; i < MAX_OBJECTIVE_LINES; ++i)
-		m_objectiveLines[i] = nullptr;
-
 }
 
 SinglePlayerLoadScreen::~SinglePlayerLoadScreen()
 {
+	// nothing may draw the buffer once it is gone
+	LoadScreenData::instance().m_videos[LOAD_VIDEO_BACKGROUND] = nullptr;
+	publishData();
+
 	delete m_videoBuffer;
 
 	if ( m_videoStream )
@@ -315,6 +322,8 @@ void SinglePlayerLoadScreen::moveWindows( Int frame )
 	if(frame < STATE_BEGIN || frame > STATE_END)
 		return;
 
+	LoadScreenData &data = LoadScreenData::instance();
+
 	if( frame == STATE_BEGIN_BRIEFING)
 	{
 		// add sound support here
@@ -323,7 +332,7 @@ void SinglePlayerLoadScreen::moveWindows( Int frame )
 
 	if( frame == STATE_BEGIN_ANIMATING_TEXT)
 	{
-		m_objectiveWin->winHide(FALSE);
+		data.m_showObjectives = TRUE;
 		// animate the text and stuff
 	}
 
@@ -341,228 +350,78 @@ void SinglePlayerLoadScreen::moveWindows( Int frame )
 		else
 		{
 			WideChar wChar = m_unicodeObjectiveLines[m_currentObjectiveLine].getCharAt(m_currentObjectiveLineCharacter);
-			UnicodeString text = GadgetStaticTextGetText(m_objectiveLines[m_currentObjectiveLine]);
-			text.concat(wChar);
-			GadgetStaticTextSetText(m_objectiveLines[m_currentObjectiveLine], text);
-
+			data.m_objectiveLines[m_currentObjectiveLine].concat(wChar);
 		}
 		m_currentObjectiveLineCharacter++;
 	}
 	switch (frame) {
 
 	case STATE_SHOW_LOCATION:
-		m_location->winHide(FALSE);
+		data.m_showLocation = TRUE;
 		break;
 	case STATE_SHOW_CAMEO_1:
-		m_unitDesc[0]->winHide(FALSE);
+		data.m_showUnit[0] = TRUE;
 		break;
 	case STATE_HIDE_CAMEO_1:
-		m_unitDesc[0]->winHide(TRUE);
+		data.m_showUnit[0] = FALSE;
 		break;
 	case STATE_SHOW_CAMEO_2:
-		m_unitDesc[1]->winHide(FALSE);
+		data.m_showUnit[1] = TRUE;
 		break;
 	case STATE_HIDE_CAMEO_2:
-		m_unitDesc[1]->winHide(TRUE);
+		data.m_showUnit[1] = FALSE;
 		break;
 	case STATE_SHOW_CAMEO_3:
-		m_unitDesc[2]->winHide(FALSE);
+		data.m_showUnit[2] = TRUE;
 		break;
 	case STATE_HIDE_CAMEO_3:
-		m_unitDesc[2]->winHide(TRUE);
+		data.m_showUnit[2] = FALSE;
 		break;
 	}
 
+	publishData();
 }
-/*
-	static Bool on = FALSE;
-	static ICoord2D startPos, endPos;
-	enum{
-		STATE_BEGIN = 275,
-		STATE_BEGIN_ANIM = 290,
-		STATE_ANIM_CAMEO1 = 300,
-		STATE_ANIM_CAMEO1_TRANSITION_CAMEO2 = 350,
-		STATE_ANIM_CAMEO2 = 400,
-		STATE_ANIM_CAMEO2_TRANSITION_CAMEO3 = 450,
-		STATE_ANIM_CAMEO3 = 500,
-		STATED_END_ANIM = 550,
-		STATE_END = 800
-	};
-	if(frame < STATE_BEGIN)
-		return;
-	else if(frame == STATE_BEGIN )
-	{
-		m_cameoWindow1->winHide(FALSE);
-		m_cameoWindow2->winHide(FALSE);
-		m_cameoWindow3->winHide(FALSE);
-		m_cameoFrame->winHide(FALSE);
-	}
-	else if( frame == STATE_ANIM_CAMEO1)
-	{
-		m_cameoWindow1->winEnable(TRUE);
-		GadgetStaticTextSetText(m_cameoText, TheGameText->fetch(TheCampaignManager->getCurrentMission()->m_cameoImageName[0]));
-		//save of positions
-	}
-	else if( frame == STATE_ANIM_CAMEO1_TRANSITION_CAMEO2)
-	{
-		m_cameoWindow1->winEnable(FALSE);
-		GadgetStaticTextSetText(m_cameoText, UnicodeString::TheEmptyString);
-		ICoord2D tempPos;
-		Int xOffset;
-		m_cameoFrame->winGetPosition(&startPos.x, &startPos.y);
-		m_cameoWindow1->winGetPosition(&tempPos.x, &tempPos.y);
-		xOffset = tempPos.x - startPos.x;
-		m_cameoWindow2->winGetPosition(&endPos.x, &endPos.y);
-		endPos.x = endPos.x - xOffset;
-		endPos.y = startPos.y;
-
-	}
-	else if( frame > STATE_ANIM_CAMEO1_TRANSITION_CAMEO2 && frame < STATE_ANIM_CAMEO2)
-	{
-
-		//extrapolate between start and end pos
-		Real percent = INT_TO_REAL((frame - STATE_ANIM_CAMEO1_TRANSITION_CAMEO2)) / (STATE_ANIM_CAMEO2 - STATE_ANIM_CAMEO1_TRANSITION_CAMEO2);
-		m_cameoFrame->winSetPosition(startPos.x + (endPos.x - startPos.x) * percent, endPos.y);
-	}
-	else if( frame == STATE_ANIM_CAMEO2 )
-	{
-		m_cameoWindow2->winEnable(TRUE);
-		m_cameoFrame->winSetPosition(endPos.x, endPos.y);
-		GadgetStaticTextSetText(m_cameoText, TheGameText->fetch(TheCampaignManager->getCurrentMission()->m_cameoImageName[1]));
-	}
-	else if( frame == STATE_ANIM_CAMEO2_TRANSITION_CAMEO3)
-	{
-		m_cameoWindow2->winEnable(FALSE);
-		GadgetStaticTextSetText(m_cameoText, UnicodeString::TheEmptyString);
-		ICoord2D tempPos;
-		Int xOffset;
-		m_cameoFrame->winGetPosition(&startPos.x, &startPos.y);
-		m_cameoWindow2->winGetPosition(&tempPos.x, &tempPos.y);
-		xOffset = tempPos.x - startPos.x;
-		m_cameoWindow3->winGetPosition(&endPos.x, &endPos.y);
-		endPos.x = endPos.x - xOffset;
-		endPos.y = startPos.y;
-
-	}
-	else if( frame > STATE_ANIM_CAMEO2_TRANSITION_CAMEO3 && frame < STATE_ANIM_CAMEO3)
-	{
-
-		//extrapolate between start and end pos
-		Real percent = INT_TO_REAL((frame - STATE_ANIM_CAMEO2_TRANSITION_CAMEO3)) / (STATE_ANIM_CAMEO3 - STATE_ANIM_CAMEO2_TRANSITION_CAMEO3);
-		m_cameoFrame->winSetPosition(startPos.x + (endPos.x - startPos.x) * percent, endPos.y);
-	}
-	else if( frame == STATE_ANIM_CAMEO3 )
-	{
-		m_cameoFrame->winSetPosition(endPos.x, endPos.y);
-		m_cameoWindow3->winEnable(TRUE);
-		GadgetStaticTextSetText(m_cameoText, TheGameText->fetch(TheCampaignManager->getCurrentMission()->m_cameoImageName[2]));
-	}
-	else if( frame ==STATED_END_ANIM)
-	{
-		m_cameoWindow3->winEnable(FALSE);
-		GadgetStaticTextSetText(m_cameoText, UnicodeString::TheEmptyString);
-		m_cameoFrame->winHide(TRUE);
-
-	}
-}*/
 
 void SinglePlayerLoadScreen::init( GameInfo *game )
 {
 	//No music in SinglePlayerLoadScreen
 
-	// create the layout of the load screen
-	m_loadScreen = TheWindowManager->winCreateFromScript( "Menus/SinglePlayerLoadScreen.wnd" );
-	DEBUG_ASSERTCRASH(m_loadScreen, ("Can't initialize the single player loadscreen"));
-	m_loadScreen->winHide(FALSE);
-	m_loadScreen->winBringToTop();
-//	Mission *mission = TheCampaignManager->getCurrentMission();
-	// Store the pointer to the progress bar on the loadscreen
-	m_progressBar = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:ProgressLoad" ));
-	DEBUG_ASSERTCRASH(m_progressBar, ("Can't initialize the progressbar for the single player loadscreen"));
-	GadgetProgressBarSetProgress(m_progressBar, 0 );
-
-	m_percent = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:Percent" ));
-	DEBUG_ASSERTCRASH(m_percent, ("Can't initialize the m_percent for the single player loadscreen"));
-	GadgetStaticTextSetText(m_percent,L"0%");
-	m_percent->winHide(TRUE);
-
-	m_objectiveWin = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:ObjectivesWin" ));
-	DEBUG_ASSERTCRASH(m_objectiveWin, ("Can't initialize the m_objectiveWin for the single player loadscreen"));
-	m_objectiveWin->winHide(TRUE);
-
+	static const char *wndPath = "Menus/SinglePlayerLoadScreen.wnd";
+	LoadScreenData &data = LoadScreenData::instance();
+	data.reset();
 
 	Mission *mission = TheCampaignManager->getCurrentMission();
-	AsciiString lineName;
 	Int i = 0;
 	for(; i < MAX_OBJECTIVE_LINES; ++i)
 	{
-		lineName.format("SinglePlayerLoadScreen.wnd:StaticTextLine%d",i);
-		m_objectiveLines[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( lineName ));
-		DEBUG_ASSERTCRASH(m_objectiveLines[i], ("Can't initialize the m_objectiveLines[%d] for the single player loadscreen", i));
-		GadgetStaticTextSetText(m_objectiveLines[i],UnicodeString::TheEmptyString);
-
 		// translate the objective lines
 		if(mission->m_missionObjectivesLabel[i].isNotEmpty())
 			m_unicodeObjectiveLines[i] = TheGameText->fetch(mission->m_missionObjectivesLabel[i]);
 	}
-
 	for(i = 0; i < MAX_DISPLAYED_UNITS; ++i)
+		data.m_unitNames[i] = TheGameText->fetch(mission->m_unitNames[i]);
+	data.m_location = TheGameText->fetch(mission->m_locationNameLabel);
+
+	// create the layout of the load screen
+	m_loadScreen = TheWindowManager->winCreateFromScript( wndPath );
+	DEBUG_ASSERTCRASH(m_loadScreen, ("Can't initialize the single player loadscreen"));
+	if (usesLegacyView( wndPath ))
 	{
-		lineName.format("SinglePlayerLoadScreen.wnd:StaticTextCameoText%d",i);
-		m_unitDesc[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( lineName ));
-		DEBUG_ASSERTCRASH(m_unitDesc[i], ("Can't initialize the m_objectiveLines[%d] for the single player loadscreen", i));
-		GadgetStaticTextSetText(m_unitDesc[i],TheGameText->fetch(mission->m_unitNames[i]));
-		m_unitDesc[i]->winHide(TRUE);
+		m_view = NEW SinglePlayerLoadScreenView;
+		m_view->init( m_loadScreen, game, data );
 	}
-	m_location = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:StaticTextCameoText3" ));
-	DEBUG_ASSERTCRASH(m_location, ("Can't initialize the m_objectiveWin for the single player loadscreen"));
-	m_location->winHide(TRUE);
-	GadgetStaticTextSetText(m_location, TheGameText->fetch(mission->m_locationNameLabel));
-
-
+	data.touch();
 
 	m_currentObjectiveLine = 0;
 	m_currentObjectiveWidthOffset = 0;
 	m_currentObjectiveLineCharacter = 0;
 	m_finishedObjectiveText = FALSE;
-/*
-	m_cameoWindow1 = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowCameo1" ));
-	DEBUG_ASSERTCRASH(m_cameoWindow1, ("Can't initialize the m_cameoWindow1 for the single player loadscreen"));
-	m_cameoWindow1->winHide(TRUE);
-	m_cameoWindow1->winEnable(FALSE);
-	m_cameoWindow1->winSetEnabledImage(0, mission->m_cameoImage[0]);
-	m_cameoWindow1->winSetDisabledImage(0, mission->m_cameoDisabledImage[0]);
 
-	m_cameoWindow2 = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowCameo2" ));
-	DEBUG_ASSERTCRASH(m_cameoWindow2, ("Can't initialize the m_cameoWindow2 for the single player loadscreen"));
-	m_cameoWindow2->winHide(TRUE);
-	m_cameoWindow2->winEnable(FALSE);
-	m_cameoWindow2->winSetEnabledImage(0, mission->m_cameoImage[1]);
-	m_cameoWindow2->winSetDisabledImage(0, mission->m_cameoDisabledImage[1]);
-
-	m_cameoWindow3 = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowCameo3" ));
-	DEBUG_ASSERTCRASH(m_cameoWindow3, ("Can't initialize the m_cameoWindow3 for the single player loadscreen"));
-	m_cameoWindow3->winHide(TRUE);
-	m_cameoWindow3->winEnable(FALSE);
-	m_cameoWindow3->winSetEnabledImage(0, mission->m_cameoImage[2]);
-	m_cameoWindow3->winSetDisabledImage(0, mission->m_cameoDisabledImage[2]);
-
-	m_headMovie = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowHead" ));
-	DEBUG_ASSERTCRASH(m_headMovie, ("Can't initialize the m_headMovie for the single player loadscreen"));
-	m_headMovie->winHide(TRUE);
-	m_cameoFrame = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowHiliteCameo" ));
-	DEBUG_ASSERTCRASH(m_cameoFrame, ("Can't initialize the m_cameoFrame for the single player loadscreen"));
-	m_cameoFrame->winHide(TRUE);
-	m_cameoText = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:StaticTextCameoText" ));
-	DEBUG_ASSERTCRASH(m_cameoText, ("Can't initialize the m_cameoText for the single player loadscreen"));
-
-*/
 	m_ambientLoop.setEventName("LoadScreenAmbient");
 	// create the new stream
-	m_videoStream = TheVideoPlayer->open( TheCampaignManager->getCurrentMission()->m_movieLabel );
+	m_videoStream = TheVideoPlayer->open( mission->m_movieLabel );
 	if ( m_videoStream == nullptr )
 	{
-		m_percent->winHide(TRUE);
 		return;
 	}
 
@@ -588,41 +447,23 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 	// format the progress bar: USA to blue, GLA to green, China to red
 	// and set the background image
 	AsciiString campaignName = TheCampaignManager->getCurrentCampaign()->m_name;
-	GameWindow *backgroundWin = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:ParentSinglePlayerLoadScreen" ));
 	if (campaignName.compareNoCase("USA") == 0)
 	{
-		if (const Image *image = TheMappedImageCollection->findImageByName("MissionLoad_USA"))
-		{
-			backgroundWin->winSetEnabledImage( 0, image);
-		}
-		if (const Image *image = TheMappedImageCollection->findImageByName("LoadingBar_ProgressCenter2"))
-		{
-			m_progressBar->winSetEnabledImage( 6, image );
-		}
+		data.m_backgroundImage = "MissionLoad_USA";
+		data.m_barColorIndex = 2;
 	}
 	else if (campaignName.compareNoCase("GLA") == 0)
 	{
-		if (const Image *image = TheMappedImageCollection->findImageByName("MissionLoad_GLA"))
-		{
-			backgroundWin->winSetEnabledImage( 0, image );
-		}
-		if (const Image *image = TheMappedImageCollection->findImageByName("LoadingBar_ProgressCenter3"))
-		{
-			m_progressBar->winSetEnabledImage( 6, image );
-		}
+		data.m_backgroundImage = "MissionLoad_GLA";
+		data.m_barColorIndex = 3;
 	}
 	else if (campaignName.compareNoCase("China") == 0)
 	{
-		if (const Image *image = TheMappedImageCollection->findImageByName("MissionLoad_China"))
-		{
-			backgroundWin->winSetEnabledImage( 0, image );
-		}
-		if (const Image *image = TheMappedImageCollection->findImageByName("LoadingBar_ProgressCenter1"))
-		{
-			m_progressBar->winSetEnabledImage( 6, image );
-		}
+		data.m_backgroundImage = "MissionLoad_China";
+		data.m_barColorIndex = 1;
 	}
 	// else leave the default background screen
+	publishData();
 
 
 	if(TheGameLODManager && TheGameLODManager->didMemPass())
@@ -654,19 +495,19 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 
 			m_videoStream->frameNext();
 
-			if(m_videoBuffer)
-				m_loadScreen->winGetInstanceData()->setVideoBuffer(m_videoBuffer);
+			if(m_videoBuffer && data.m_videos[LOAD_VIDEO_BACKGROUND] != m_videoBuffer)
+			{
+				data.m_videos[LOAD_VIDEO_BACKGROUND] = m_videoBuffer;
+				publishData();
+			}
 			if(m_videoStream->frameIndex() % progressUpdateCount == 0)
 			{
 				shiftedPercent++;
 				if(shiftedPercent >0)
 					shiftedPercent = 0;
 				Int percent = (shiftedPercent + FRAME_FUDGE_ADD)/1.3;
-				UnicodeString per;
-				per.format(L"%d%%",percent);
 				TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
-				GadgetProgressBarSetProgress(m_progressBar, percent);
-				GadgetStaticTextSetText(m_percent, per);
+				publishProgress( percent );
 
 			}
 			TheWindowManager->update();
@@ -679,7 +520,8 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 		// let the background image show through
 		m_videoStream->close();
 		m_videoStream = nullptr;
-		m_loadScreen->winGetInstanceData()->setVideoBuffer( nullptr );
+		data.m_videos[LOAD_VIDEO_BACKGROUND] = nullptr;
+		publishData();
 		TheDisplay->draw();
 #endif
 	}
@@ -693,20 +535,21 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 		m_videoStream->frameDecompress();
 		m_videoStream->frameRender(m_videoBuffer);
 		if(m_videoBuffer)
-				m_loadScreen->winGetInstanceData()->setVideoBuffer(m_videoBuffer);
+			data.m_videos[LOAD_VIDEO_BACKGROUND] = m_videoBuffer;
 
-		m_objectiveWin->winHide(FALSE);
+		data.m_showObjectives = TRUE;
 		for(i = 0; i < MAX_DISPLAYED_UNITS; ++i)
-			m_unitDesc[i]->winHide(FALSE);
-		m_location->winHide(FALSE);
+			data.m_showUnit[i] = TRUE;
+		data.m_showLocation = TRUE;
 
 		// Audio was choppy so, I chopped it out!
 		TheAudio->friend_forcePlayAudioEventRTS(&TheCampaignManager->getCurrentMission()->m_briefingVoice);
 
 		for(Int i = 0; i < MAX_OBJECTIVE_LINES; ++i)
 		{
-			GadgetStaticTextSetText(m_objectiveLines[i], m_unicodeObjectiveLines[i]);
+			data.m_objectiveLines[i] = m_unicodeObjectiveLines[i];
 		}
+		publishData();
 #else
 		// if we're min spec'ed don't play a movie
 #endif
@@ -718,7 +561,7 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 		while(begin + delay > currTime )
 		{
 			fudgeFactor = 30 * ((currTime - begin)/ INT_TO_REAL(delay ));
-			GadgetProgressBarSetProgress(m_progressBar, fudgeFactor);
+			publishProgress( fudgeFactor );
 
 			if (GameClient::isMovieAbortRequested())
 			{
@@ -737,25 +580,22 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 
 	}
 	setFPMode();
-	m_percent->winHide(TRUE);
 	m_ambientLoopHandle = TheAudio->addAudioEvent(&m_ambientLoop);
 
 }
 
 void SinglePlayerLoadScreen::reset()
 {
- setLoadScreen(nullptr);
- m_progressBar = nullptr;
+	setLoadScreen(nullptr);
+	if (m_view)
+		m_view->reset();
 }
 
 void SinglePlayerLoadScreen::update( Int percent )
 {
 	percent = (percent + FRAME_FUDGE_ADD)/1.3;
-	UnicodeString per;
-	per.format(L"%d%%",percent);
 	TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
-	GadgetProgressBarSetProgress(m_progressBar, percent);
-	GadgetStaticTextSetText(m_percent, per);
+	publishProgress( percent );
 
 	// Do this last!
 	LoadScreen::update( percent );
@@ -766,50 +606,116 @@ void SinglePlayerLoadScreen::setProgressRange( Int min, Int max )
 
 }
 
+// LoadScreenMovie Class //////////////////////////////////////////////////////
+//-----------------------------------------------------------------------------
+LoadScreenMovie::LoadScreenMovie()
+{
+	m_stream = nullptr;
+	m_buffer = nullptr;
+	m_playType = WINDOW_PLAY_MOVIE_ONCE;
+	m_state = WINDOW_VIDEO_STATE_STOP;
+}
+
+LoadScreenMovie::~LoadScreenMovie()
+{
+	release();
+}
+
+void LoadScreenMovie::release()
+{
+	delete m_buffer;
+	m_buffer = nullptr;
+
+	if ( m_stream )
+	{
+		m_stream->close();
+		m_stream = nullptr;
+	}
+	m_state = WINDOW_VIDEO_STATE_STOP;
+}
+
+void LoadScreenMovie::play( const AsciiString &movieName, WindowVideoPlayType playType )
+{
+	// if we already have a movie playing, kill it.
+	release();
+
+	// create the new stream
+	VideoStreamInterface *videoStream = TheVideoPlayer->open( movieName );
+	if ( videoStream == nullptr )
+	{
+		return;
+	}
+
+	// Create the new buffer
+	VideoBuffer *videoBuffer = TheDisplay->createVideoBuffer();
+	if (	videoBuffer == nullptr ||
+				!videoBuffer->allocate(	videoStream->width(),
+													videoStream->height())
+		)
+	{
+		delete videoBuffer;
+		videoStream->close();
+		return;
+	}
+
+	m_stream = videoStream;
+	m_buffer = videoBuffer;
+	m_playType = playType;
+	m_state = WINDOW_VIDEO_STATE_PLAY;
+}
+
+void LoadScreenMovie::update()
+{
+	// Only advance the frame if we're playing
+	if ( m_state != WINDOW_VIDEO_STATE_PLAY || !m_stream || !m_buffer )
+		return;
+
+	if ( m_stream->isFrameReady())
+	{
+		m_stream->frameDecompress();
+		m_stream->frameRender( m_buffer );
+		m_stream->frameNext();
+
+		// If we reach frame Index of 0, we might have to pause, or loop.
+		if ( m_stream->frameIndex() == 0 )
+		{
+			if(m_playType == WINDOW_PLAY_MOVIE_ONCE)
+				m_state = WINDOW_VIDEO_STATE_STOP;
+			else if (m_playType == WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME)
+				m_state = WINDOW_VIDEO_STATE_PAUSE;
+		}
+	}
+}
+
+VideoBuffer *LoadScreenMovie::buffer() const
+{
+	return (m_state == WINDOW_VIDEO_STATE_PLAY || m_state == WINDOW_VIDEO_STATE_PAUSE) ? m_buffer : nullptr;
+}
+
 // ChallengeLoadScreen Class ///////////////////////////////////////////////
 //-----------------------------------------------------------------------------
 ChallengeLoadScreen::ChallengeLoadScreen()
 {
-	m_progressBar = nullptr;
 	m_videoStream = nullptr;
 	m_videoBuffer = nullptr;
 
-	m_bioNameLeft = nullptr;
-	m_bioAgeLeft = nullptr;
-	m_bioBirthplaceLeft = nullptr;
-	m_bioStrategyLeft = nullptr;
-	m_bioBigNameEntryLeft = nullptr;
-	m_bioNameEntryLeft = nullptr;
-	m_bioAgeEntryLeft = nullptr;
-	m_bioBirthplaceEntryLeft = nullptr;
-	m_bioStrategyEntryLeft = nullptr;
-	m_bioBigNameEntryRight = nullptr;
-	m_bioNameRight = nullptr;
-	m_bioAgeRight = nullptr;
-	m_bioBirthplaceRight = nullptr;
-	m_bioStrategyRight = nullptr;
-	m_bioNameEntryRight = nullptr;
-	m_bioAgeEntryRight = nullptr;
-	m_bioBirthplaceEntryRight = nullptr;
-	m_bioStrategyEntryRight = nullptr;
-
-	m_portraitLeft = nullptr;
-	m_portraitRight = nullptr;
-	m_portraitMovieLeft = nullptr;
-	m_portraitMovieRight = nullptr;
-
-//	m_overlayReticleCrosshairs = nullptr;
-//	m_overlayReticleCircleLineOuter = nullptr;
-//	m_overlayReticleCircleLineInner = nullptr;
-	m_overlayReticleCircleAlphaOuter = nullptr;
-	m_overlayReticleCircleAlphaInner = nullptr;
-	m_overlayVsBackdrop = nullptr;
-	m_overlayVs = nullptr;
-	m_wndVideoManager = nullptr;
+	for (Int i = 0; i < 2; ++i)
+	{
+		m_textPosBigName[i] = 0;
+		m_textPosName[i] = 0;
+		m_textPosRank[i] = 0;
+		m_textPosStrategy[i] = 0;
+	}
 }
 
 ChallengeLoadScreen::~ChallengeLoadScreen()
 {
+	// nothing may draw the buffers once they are gone
+	LoadScreenData &data = LoadScreenData::instance();
+	for (Int i = 0; i < LOAD_VIDEO_COUNT; ++i)
+		data.m_videos[i] = nullptr;
+	publishData();
+
 	delete m_videoBuffer;
 
 	if ( m_videoStream )
@@ -817,43 +723,30 @@ ChallengeLoadScreen::~ChallengeLoadScreen()
 		m_videoStream->close();
 	}
 
-	delete m_wndVideoManager;
-
 	TheAudio->removeAudioEvent( m_ambientLoopHandle );
 }
 
-// accepts the number of chars to advance, the window we're concerned with, the total text for final display, and the current position of the readout
+// accepts the number of chars to advance, the text shown so far, the total text for final display, and the current position of the readout
 // returns the updated position of the readout
-Int updateTeletypeText( Int num_chars, GameWindow* window, UnicodeString full_text, Int current_text_pos )
+static Int updateTeletypeText( Int num_chars, UnicodeString &shownText, const UnicodeString &full_text, Int current_text_pos )
 {
-	DEBUG_ASSERTCRASH(window, ("No window for teletype text update"));
-	UnicodeString currentText = GadgetStaticTextGetText(window);
 	WideChar wChar;
 	for (Int i = 0; i < num_chars; i++)
 	{
 		if (current_text_pos < full_text.getLength())
 		{
 			wChar = full_text.getCharAt(current_text_pos);
-			currentText.concat(wChar);
+			shownText.concat(wChar);
 			current_text_pos++;
 		}
 	}
-	GadgetStaticTextSetText(window, currentText);
 	return current_text_pos;
 }
 
 void ChallengeLoadScreen::activatePieces( Int frame, const GeneralPersona *generalPlayer, const GeneralPersona *generalOpponent )
 {
-	static Int textPosBigNameRight = 0;
-	static Int textPosNameRight = 0;
-	static Int textPosAgeRight = 0;
-	static Int textPosBirthplaceRight = 0;
-	static Int textPosStrategyRight = 0;
-	static Int textPosBigNameLeft = 0;
-	static Int textPosNameLeft = 0;
-	static Int textPosAgeLeft = 0;
-	static Int textPosBirthplaceLeft = 0;
-	static Int textPosStrategyLeft = 0;
+	LoadScreenData &data = LoadScreenData::instance();
+	Bool changed = TRUE;
 
 	AudioEventRTS eventLeftGeneral( generalPlayer->getNameSound() );
 	AudioEventRTS eventVS("Taunts_GCAnnouncer12");
@@ -862,88 +755,47 @@ void ChallengeLoadScreen::activatePieces( Int frame, const GeneralPersona *gener
 	switch (frame)
 	{
 		case FRAME_TITLES_START:
-			m_bioNameLeft->winHide(FALSE);
-//			m_bioAgeLeft->winHide(FALSE);
-			m_bioBirthplaceLeft->winHide(FALSE);
-			m_bioStrategyLeft->winHide(FALSE);
-			m_bioNameRight->winHide(FALSE);
-//			m_bioAgeRight->winHide(FALSE);
-			m_bioBirthplaceRight->winHide(FALSE);
-			m_bioStrategyRight->winHide(FALSE);
-
+			data.m_showBioTitles = TRUE;
 			break;
 		case FRAME_TELETYPE_START:
-			// reinit the statics for each new load screen
-			textPosBigNameRight = 0;
-			textPosNameRight = 0;
-			textPosAgeRight = 0;
-			textPosBirthplaceRight = 0;
-			textPosStrategyRight = 0;
-			textPosBigNameLeft = 0;
-			textPosNameLeft = 0;
-			textPosAgeLeft = 0;
-			textPosBirthplaceLeft = 0;
-			textPosStrategyLeft = 0;
+			// reinit the readouts for each new load screen
+			for (Int i = 0; i < 2; ++i)
+			{
+				m_textPosBigName[i] = 0;
+				m_textPosName[i] = 0;
+				m_textPosRank[i] = 0;
+				m_textPosStrategy[i] = 0;
 
-			m_bioBigNameEntryLeft->winHide(FALSE);
-			m_bioNameEntryLeft->winHide(FALSE);
-//			m_bioAgeEntryLeft->winHide(FALSE);
-			m_bioBirthplaceEntryLeft->winHide(FALSE);
-			m_bioStrategyEntryLeft->winHide(FALSE);
-			GadgetStaticTextSetText( m_bioBigNameEntryLeft, UnicodeString::TheEmptyString );
-			GadgetStaticTextSetText( m_bioNameEntryLeft, UnicodeString::TheEmptyString );
-//			GadgetStaticTextSetText( m_bioAgeEntryLeft, UnicodeString::TheEmptyString );
-			GadgetStaticTextSetText( m_bioBirthplaceEntryLeft, UnicodeString::TheEmptyString );
-			GadgetStaticTextSetText( m_bioStrategyEntryLeft, UnicodeString::TheEmptyString );
-
-			m_bioBigNameEntryRight->winHide(FALSE);
-			m_bioNameEntryRight->winHide(FALSE);
-//			m_bioAgeEntryRight->winHide(FALSE);
-			m_bioBirthplaceEntryRight->winHide(FALSE);
-			m_bioStrategyEntryRight->winHide(FALSE);
-			GadgetStaticTextSetText( m_bioBigNameEntryRight, UnicodeString::TheEmptyString );
-			GadgetStaticTextSetText( m_bioNameEntryRight, UnicodeString::TheEmptyString );
-//			GadgetStaticTextSetText( m_bioAgeEntryRight, UnicodeString::TheEmptyString );
-			GadgetStaticTextSetText( m_bioBirthplaceEntryRight, UnicodeString::TheEmptyString );
-			GadgetStaticTextSetText( m_bioStrategyEntryRight, UnicodeString::TheEmptyString );
+				data.m_generals[i].m_bigName.clear();
+				data.m_generals[i].m_name.clear();
+				data.m_generals[i].m_rank.clear();
+				data.m_generals[i].m_strategy.clear();
+			}
+			data.m_showBioEntries = TRUE;
 			break;
 		case FRAME_PORTRAITS_START:
 
-			m_wndVideoManager->playMovie( m_portraitMovieLeft, generalPlayer->getPortraitMovieLeftName(), WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
-			m_wndVideoManager->playMovie( m_portraitMovieRight, generalOpponent->getPortraitMovieRightName(), WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
-			m_portraitMovieLeft->winHide(FALSE);
-			m_portraitMovieRight->winHide(FALSE);
+			m_portraitMovieLeft.play( generalPlayer->getPortraitMovieLeftName(), WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
+			m_portraitMovieRight.play( generalOpponent->getPortraitMovieRightName(), WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
+			data.m_showPortraitMovies = TRUE;
 
 			TheAudio->addAudioEvent( &eventLeftGeneral );
 
 			break;
-		case FRAME_OUTER_CIRCLE_LINE_SHOW:
-//			m_overlayReticleCircleLineOuter->winHide(FALSE);
-			break;
-		case FRAME_INNER_CIRCLE_LINE_SHOW:
-//			m_overlayReticleCircleLineInner->winHide(FALSE);
-			break;
 		case FRAME_OUTER_CIRCLE_ALPHA_SHOW:
-			m_overlayReticleCircleAlphaOuter->winHide(FALSE);
+			data.m_showOuterCircle = TRUE;
 			break;
 		case FRAME_INNER_CIRCLE_ALPHA_SHOW:
-			m_overlayReticleCircleAlphaInner->winHide(FALSE);
-			break;
-		case FRAME_OUTER_CIRCLE_LINE_HIDE:
-//			m_overlayReticleCircleLineOuter->winHide(TRUE);
+			data.m_showInnerCircle = TRUE;
 			break;
 		case FRAME_INNER_BACKDROP_ALPHA_SHOW:
-			m_overlayVsBackdrop->winHide(FALSE);
-			break;
-		case FRAME_INNER_CIRCLE_LINE_HIDE:
-//			m_overlayReticleCircleLineInner->winHide(TRUE);
+			data.m_showVersusBackdrop = TRUE;
 			break;
 		case FRAME_VS_ANIM_START:
 			// it's time to start the overlay movie
-//					m_overlayVsBackdrop->winSetEnabledImage( 0, TheMappedImageCollection->findImageByFilename("))
-			m_overlayVsBackdrop->winHide(FALSE);
-			m_overlayVs->winHide(FALSE);
-			m_wndVideoManager->playMovie( m_overlayVs, "VSSmall", WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
+			data.m_showVersusBackdrop = TRUE;
+			data.m_showVersus = TRUE;
+			m_versusMovie.play( "VSSmall", WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
 
 			// "Verses"
 			TheAudio->addAudioEvent( &eventVS );
@@ -951,67 +803,74 @@ void ChallengeLoadScreen::activatePieces( Int frame, const GeneralPersona *gener
 			break;
 		case FRAME_RIGHT_VOICE:
 			TheAudio->addAudioEvent( &eventRightGeneral );
-
+			changed = FALSE;
+			break;
+		default:
+			changed = FALSE;
 			break;
 	}
 
 	// update the teletype readout
 	if (frame > FRAME_TELETYPE_START && (frame % TELETYPE_UPDATE_FREQ) == 0)
 	{
-		textPosNameLeft = updateTeletypeText( 1, m_bioNameEntryLeft, TheGameText->fetch(generalPlayer->getBioName()), textPosNameLeft);
-		textPosBigNameLeft = updateTeletypeText( 1, m_bioBigNameEntryLeft, TheGameText->fetch(generalPlayer->getBioName()), textPosBigNameLeft);
-//		textPosAgeLeft = updateTeletypeText( 1, m_bioAgeEntryLeft, TheGameText->fetch(generalPlayer->getBioDOB()), textPosAgeLeft);
-		textPosBirthplaceLeft = updateTeletypeText( 1, m_bioBirthplaceEntryLeft, TheGameText->fetch(generalPlayer->getBioRank()), textPosBirthplaceLeft);
-		textPosStrategyLeft = updateTeletypeText( 1, m_bioStrategyEntryLeft, TheGameText->fetch(generalPlayer->getBioStrategy()), textPosStrategyLeft);
-
-		textPosNameRight = updateTeletypeText( 1, m_bioNameEntryRight, TheGameText->fetch(generalOpponent->getBioName()), textPosNameRight);
-		textPosBigNameRight = updateTeletypeText( 1, m_bioBigNameEntryRight, TheGameText->fetch(generalOpponent->getBioName()), textPosBigNameRight);
-//		textPosAgeRight = updateTeletypeText( 1, m_bioAgeEntryRight, TheGameText->fetch(generalOpponent->getBioDOB()), textPosAgeRight);
-		textPosBirthplaceRight = updateTeletypeText( 1, m_bioBirthplaceEntryRight, TheGameText->fetch(generalOpponent->getBioRank()), textPosBirthplaceRight);
-		textPosStrategyRight = updateTeletypeText( 1, m_bioStrategyEntryRight, TheGameText->fetch(generalOpponent->getBioStrategy()), textPosStrategyRight);
+		for (Int i = 0; i < 2; ++i)
+		{
+			LoadScreenGeneral &general = data.m_generals[i];
+			m_textPosName[i] = updateTeletypeText( 1, general.m_name, m_bioName[i], m_textPosName[i]);
+			m_textPosBigName[i] = updateTeletypeText( 1, general.m_bigName, m_bioName[i], m_textPosBigName[i]);
+			m_textPosRank[i] = updateTeletypeText( 1, general.m_rank, m_bioRank[i], m_textPosRank[i]);
+			m_textPosStrategy[i] = updateTeletypeText( 1, general.m_strategy, m_bioStrategy[i], m_textPosStrategy[i]);
+		}
+		changed = TRUE;
 	}
+
+	if (changed)
+		publishData();
 }
 
 void ChallengeLoadScreen::activatePiecesMinSpec(const GeneralPersona *generalPlayer, const GeneralPersona *generalOpponent)
 {
-	m_bioNameLeft->winHide(FALSE);
-//	m_bioAgeLeft->winHide(FALSE);
-	m_bioBirthplaceLeft->winHide(FALSE);
-	m_bioStrategyLeft->winHide(FALSE);
-	m_bioNameRight->winHide(FALSE);
-//	m_bioAgeRight->winHide(FALSE);
-	m_bioBirthplaceRight->winHide(FALSE);
-	m_bioStrategyRight->winHide(FALSE);
-	m_bioBigNameEntryLeft->winHide(FALSE);
-	m_bioNameEntryLeft->winHide(FALSE);
-//	m_bioAgeEntryLeft->winHide(FALSE);
-	m_bioBirthplaceEntryLeft->winHide(FALSE);
-	m_bioStrategyEntryLeft->winHide(FALSE);
-	GadgetStaticTextSetText( m_bioBigNameEntryLeft, TheGameText->fetch(generalPlayer->getBioName()) );
-	GadgetStaticTextSetText( m_bioNameEntryLeft, TheGameText->fetch(generalPlayer->getBioName()) );
-//	GadgetStaticTextSetText( m_bioAgeEntryLeft, TheGameText->fetch(generalPlayer->getBioDOB()) );
-	GadgetStaticTextSetText( m_bioBirthplaceEntryLeft, TheGameText->fetch(generalPlayer->getBioRank()) );
-	GadgetStaticTextSetText( m_bioStrategyEntryLeft, TheGameText->fetch(generalPlayer->getBioStrategy()) );
-	m_bioBigNameEntryRight->winHide(FALSE);
-	m_bioNameEntryRight->winHide(FALSE);
-//	m_bioAgeEntryRight->winHide(FALSE);
-	m_bioBirthplaceEntryRight->winHide(FALSE);
-	m_bioStrategyEntryRight->winHide(FALSE);
-	GadgetStaticTextSetText( m_bioBigNameEntryRight, TheGameText->fetch(generalOpponent->getBioName()) );
-	GadgetStaticTextSetText( m_bioNameEntryRight, TheGameText->fetch(generalOpponent->getBioName()) );
-//	GadgetStaticTextSetText( m_bioAgeEntryRight, TheGameText->fetch(generalOpponent->getBioDOB()) );
-	GadgetStaticTextSetText( m_bioBirthplaceEntryRight, TheGameText->fetch(generalOpponent->getBioRank()) );
-	GadgetStaticTextSetText( m_bioStrategyEntryRight, TheGameText->fetch(generalOpponent->getBioStrategy()) );
-	m_portraitLeft->winSetEnabledImage(0, generalPlayer->getBioPortraitLarge() );
-	m_portraitRight->winSetEnabledImage(0, generalOpponent->getBioPortraitLarge() );
-	m_portraitLeft->winHide(FALSE);
-	m_portraitRight->winHide(FALSE);
-	m_overlayReticleCircleAlphaOuter->winHide(FALSE);
-	m_overlayReticleCircleAlphaInner->winHide(FALSE);
-	m_overlayVsBackdrop->winHide(FALSE);
-	m_overlayVsBackdrop->winHide(FALSE);
-	m_overlayVs->winHide(FALSE);
-	m_wndVideoManager->playMovie( m_overlayVs, "VSSmall", WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
+	LoadScreenData &data = LoadScreenData::instance();
+	const Image *portraits[2] = { generalPlayer->getBioPortraitLarge(), generalOpponent->getBioPortraitLarge() };
+
+	data.m_showBioTitles = TRUE;
+	data.m_showBioEntries = TRUE;
+	for (Int i = 0; i < 2; ++i)
+	{
+		LoadScreenGeneral &general = data.m_generals[i];
+		general.m_bigName = m_bioName[i];
+		general.m_name = m_bioName[i];
+		general.m_rank = m_bioRank[i];
+		general.m_strategy = m_bioStrategy[i];
+		general.m_portrait = portraits[i] ? portraits[i]->getName() : AsciiString::TheEmptyString;
+	}
+	data.m_showPortraits = TRUE;
+	data.m_showOuterCircle = TRUE;
+	data.m_showInnerCircle = TRUE;
+	data.m_showVersusBackdrop = TRUE;
+	data.m_showVersus = TRUE;
+	m_versusMovie.play( "VSSmall", WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
+	data.m_videos[LOAD_VIDEO_VERSUS] = m_versusMovie.buffer();
+	publishData();
+}
+
+void ChallengeLoadScreen::updateMovies()
+{
+	m_portraitMovieLeft.update();
+	m_portraitMovieRight.update();
+	m_versusMovie.update();
+
+	LoadScreenData &data = LoadScreenData::instance();
+	VideoBuffer *left = m_portraitMovieLeft.buffer();
+	VideoBuffer *right = m_portraitMovieRight.buffer();
+	VideoBuffer *versus = m_versusMovie.buffer();
+	if (data.m_videos[LOAD_VIDEO_PORTRAIT_LEFT] != left || data.m_videos[LOAD_VIDEO_PORTRAIT_RIGHT] != right || data.m_videos[LOAD_VIDEO_VERSUS] != versus)
+	{
+		data.m_videos[LOAD_VIDEO_PORTRAIT_LEFT] = left;
+		data.m_videos[LOAD_VIDEO_PORTRAIT_RIGHT] = right;
+		data.m_videos[LOAD_VIDEO_VERSUS] = versus;
+		publishData();
+	}
 }
 
 
@@ -1027,16 +886,27 @@ void ChallengeLoadScreen::init( GameInfo *game )
 	DEBUG_ASSERTCRASH(mission->m_generalName.isNotEmpty(), ("No GeneralName associated with this mission, check Campaign.ini"));
 	const GeneralPersona* generalOpponent = TheChallengeGenerals->getGeneralByGeneralName( mission->m_generalName );
 
-	// create the layout of the load screen
-	m_loadScreen = TheWindowManager->winCreateFromScript( "Menus/ChallengeLoadScreen.wnd" );
-	DEBUG_ASSERTCRASH(m_loadScreen, ("Can't initialize the single player loadscreen"));
-	m_loadScreen->winHide(FALSE);
-	m_loadScreen->winBringToTop();
+	static const char *wndPath = "Menus/ChallengeLoadScreen.wnd";
+	LoadScreenData &data = LoadScreenData::instance();
+	data.reset();
 
-	// Store the pointer to the progress bar on the loadscreen
-	m_progressBar = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:ProgressLoad" ));
-	DEBUG_ASSERTCRASH(m_progressBar, ("Can't initialize the progressbar for the single player loadscreen"));
-	GadgetProgressBarSetProgress(m_progressBar, 0 );
+	const GeneralPersona *generals[2] = { generalPlayer, generalOpponent };
+	for (Int i = 0; i < 2; ++i)
+	{
+		m_bioName[i] = TheGameText->fetch(generals[i]->getBioName());
+		m_bioRank[i] = TheGameText->fetch(generals[i]->getBioRank());
+		m_bioStrategy[i] = TheGameText->fetch(generals[i]->getBioStrategy());
+	}
+
+	// create the layout of the load screen
+	m_loadScreen = TheWindowManager->winCreateFromScript( wndPath );
+	DEBUG_ASSERTCRASH(m_loadScreen, ("Can't initialize the single player loadscreen"));
+	if (usesLegacyView( wndPath ))
+	{
+		m_view = NEW ChallengeLoadScreenView;
+		m_view->init( m_loadScreen, game, data );
+	}
+	data.touch();
 
 	m_ambientLoop.setEventName("LoadScreenAmbient");
 
@@ -1045,7 +915,7 @@ void ChallengeLoadScreen::init( GameInfo *game )
 
 	// Create the new buffer
 	m_videoBuffer = TheDisplay->createVideoBuffer();
-	if (m_videoBuffer == nullptr || !m_videoBuffer->allocate(	m_videoStream->width(), m_videoStream->height() ))
+	if (m_videoBuffer == nullptr || m_videoStream == nullptr || !m_videoBuffer->allocate(	m_videoStream->width(), m_videoStream->height() ))
 	{
 		delete m_videoBuffer;
 		m_videoBuffer = nullptr;
@@ -1059,82 +929,12 @@ void ChallengeLoadScreen::init( GameInfo *game )
 		return;
 	}
 
-	// init overlays
-	NameKeyType namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:PortraitLeft");
-	m_portraitLeft = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:PortraitRight");
-	m_portraitRight = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:PortraitMovieLeft");
-	m_portraitMovieLeft = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:PortraitMovieRight");
-	m_portraitMovieRight = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-
-//	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:ReticleCrosshairs");
-//	m_overlayReticleCrosshairs = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-/*
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:OuterCircleLine");
-	m_overlayReticleCircleLineOuter = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:InnerCircleLine");
-	m_overlayReticleCircleLineInner = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-*/
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:CircleAlphaOuter");
-	m_overlayReticleCircleAlphaOuter = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:CircleAlphaInner");
-	m_overlayReticleCircleAlphaInner = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:VersusBackdrop");
-	m_overlayVsBackdrop = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:OverlayVs");
-	m_overlayVs = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioNameLeft");
-	m_bioNameLeft = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-//	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioDOBLeft");
-//	m_bioAgeLeft = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioBirthplaceLeft");
-	m_bioBirthplaceLeft = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioStrategyLeft");
-	m_bioStrategyLeft = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BigNameEntryLeft");
-	m_bioBigNameEntryLeft = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioNameEntryLeft");
-	m_bioNameEntryLeft = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-//	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioDOBEntryLeft");
-//	m_bioAgeEntryLeft = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioBirthplaceEntryLeft");
-	m_bioBirthplaceEntryLeft = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioStrategyEntryLeft");
-	m_bioStrategyEntryLeft = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioNameRight");
-	m_bioNameRight = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-//	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioDOBRight");
-//	m_bioAgeRight = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioBirthplaceRight");
-	m_bioBirthplaceRight = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioStrategyRight");
-	m_bioStrategyRight = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BigNameEntryRight");
-	m_bioBigNameEntryRight = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioNameEntryRight");
-	m_bioNameEntryRight = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-//	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioDOBEntryRight");
-//	m_bioAgeEntryRight = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioBirthplaceEntryRight");
-	m_bioBirthplaceEntryRight = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:BioStrategyEntryRight");
-	m_bioStrategyEntryRight = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-
-
 	// make sure reticle stuff starts out hidden
-//	m_overlayReticleCircleLineOuter->winHide(TRUE);
-//	m_overlayReticleCircleLineInner->winHide(TRUE);
-	m_overlayReticleCircleAlphaOuter->winHide(TRUE);
-	m_overlayReticleCircleAlphaInner->winHide(TRUE);
-	m_overlayVsBackdrop->winHide(TRUE);
-	m_overlayVs->winHide(TRUE);
-
-	m_wndVideoManager = NEW WindowVideoManager;
-	m_wndVideoManager->init();
+	data.m_showOuterCircle = FALSE;
+	data.m_showInnerCircle = FALSE;
+	data.m_showVersusBackdrop = FALSE;
+	data.m_showVersus = FALSE;
+	publishData();
 
 	if(TheGameLODManager && TheGameLODManager->didMemPass())
 	{
@@ -1160,8 +960,11 @@ void ChallengeLoadScreen::init( GameInfo *game )
 			m_videoStream->frameRender(m_videoBuffer);
 			m_videoStream->frameNext();
 
-			if(m_videoBuffer)
-				m_loadScreen->winGetInstanceData()->setVideoBuffer(m_videoBuffer);
+			if(m_videoBuffer && data.m_videos[LOAD_VIDEO_BACKGROUND] != m_videoBuffer)
+			{
+				data.m_videos[LOAD_VIDEO_BACKGROUND] = m_videoBuffer;
+				publishData();
+			}
 
 			Int frame = m_videoStream->frameIndex();
 			if(frame % progressUpdateCount == 0)
@@ -1170,15 +973,13 @@ void ChallengeLoadScreen::init( GameInfo *game )
 				if(shiftedPercent >0)
 					shiftedPercent = 0;
 				Int percent = (shiftedPercent + FRAME_FUDGE_ADD)/1.3;
-				UnicodeString per;
-				per.format(L"%d%%",percent);
 				TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
-				GadgetProgressBarSetProgress(m_progressBar, percent);
+				publishProgress( percent );
 			}
 			TheWindowManager->update();
 
 			activatePieces(frame, generalPlayer, generalOpponent);
-			m_wndVideoManager->update();
+			updateMovies();
 
 			// redraw all views, update the GUI
 			TheDisplay->draw();
@@ -1201,7 +1002,7 @@ void ChallengeLoadScreen::init( GameInfo *game )
 		m_videoStream->frameDecompress();
 		m_videoStream->frameRender(m_videoBuffer);
 		if(m_videoBuffer)
-			m_loadScreen->winGetInstanceData()->setVideoBuffer(m_videoBuffer);
+			data.m_videos[LOAD_VIDEO_BACKGROUND] = m_videoBuffer;
 
 		activatePiecesMinSpec(generalPlayer, generalOpponent);
 
@@ -1212,7 +1013,7 @@ void ChallengeLoadScreen::init( GameInfo *game )
 		while(begin + delay > currTime )
 		{
 			fudgeFactor = 30 * ((currTime - begin)/ INT_TO_REAL(delay ));
-			GadgetProgressBarSetProgress(m_progressBar, fudgeFactor);
+			publishProgress( fudgeFactor );
 
 			if (GameClient::isMovieAbortRequested())
 			{
@@ -1225,7 +1026,7 @@ void ChallengeLoadScreen::init( GameInfo *game )
 			currTime = timeGetTime();
 		}
 
-		m_wndVideoManager->update();
+		updateMovies();
 		TheWindowManager->update();
 		TheDisplay->draw();
 	}
@@ -1241,17 +1042,16 @@ void ChallengeLoadScreen::init( GameInfo *game )
 
 void ChallengeLoadScreen::reset()
 {
- setLoadScreen(nullptr);
- m_progressBar = nullptr;
+	setLoadScreen(nullptr);
+	if (m_view)
+		m_view->reset();
 }
 
 void ChallengeLoadScreen::update( Int percent )
 {
 	percent = (percent + FRAME_FUDGE_ADD)/1.3;
-	UnicodeString per;
-	per.format(L"%d%%",percent);
 	TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
-	GadgetProgressBarSetProgress(m_progressBar, percent);
+	publishProgress( percent );
 
 	// Do this last!
 	LoadScreen::update( percent );
@@ -1309,12 +1109,7 @@ void ShellGameLoadScreen::reset()
 void ShellGameLoadScreen::update( Int percent )
 {
 	TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
-	LoadScreenData &data = LoadScreenData::instance();
-	if (data.m_progress != percent)
-	{
-		data.m_progress = percent;
-		publishData();
-	}
+	publishProgress( percent );
 
 	// Do this last!
 	LoadScreen::update( percent );
