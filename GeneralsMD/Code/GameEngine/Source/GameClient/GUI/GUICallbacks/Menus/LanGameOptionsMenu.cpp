@@ -59,6 +59,7 @@
 #include "Common/MultiplayerSettings.h"
 #include "GameClient/GameText.h"
 #include "GameNetwork/GUIUtil.h"
+#include "GameClient/GUI/GUICallbacks/Menus/LanLobbyData.h"
 #include "GameClient/GUI/GUICallbacks/Menus/LanGameSetupActions.h"
 
 
@@ -611,18 +612,7 @@ void updateGameOptions()
 //-------------------------------------------------------------------------------------------------
 void setLANPlayerTooltip(LANPlayer* player)
 {
-	UnicodeString tooltip;
-
-	if (!player->getLogin().isEmpty() || !player->getHost().isEmpty())
-	{
-		tooltip.format(TheGameText->fetch("TOOLTIP:LANPlayer"), player->getLogin().str(), player->getHost().str());
-	}
-
-#if defined(RTS_DEBUG)
-	UnicodeString ip;
-	ip.format(L" - %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(player->getIP()));
-	tooltip.concat(ip);
-#endif
+	UnicodeString tooltip = LanLobbyData::buildPlayerTooltip(player);
 
 	if (!tooltip.isEmpty())
 	{

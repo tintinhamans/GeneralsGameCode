@@ -39,7 +39,7 @@ struct LanLobbyPlayerRow
 {
 	UnicodeString m_name;
 	UnsignedInt m_ip = 0;
-	UnicodeString m_tooltip; // same text as setLANPlayerTooltip() (login/host, +IP in RTS_DEBUG)
+	UnicodeString m_tooltip; // buildPlayerTooltip(): login/host, +IP in RTS_DEBUG
 };
 
 // One row of the lobby game list. m_game is only valid for the lifetime of the LANGameInfo list
@@ -75,6 +75,9 @@ struct LanLobbyGameDetails
 
 namespace LanLobbyData
 {
+	// The lobby player list's tooltip text: login/host (plus the IP in debug builds), empty if the
+	// player has neither. Shared with the .wnd's cursor tooltip (setLANPlayerTooltip()).
+	UnicodeString buildPlayerTooltip( LANPlayer *player );
 	std::vector<LanLobbyPlayerRow> buildPlayerRows( LANPlayer *playerList );
 	std::vector<LanLobbyGameRow> buildGameRows( LANGameInfo *gameList );
 	LanLobbyGameDetails buildGameDetails( LANGameInfo *game );
