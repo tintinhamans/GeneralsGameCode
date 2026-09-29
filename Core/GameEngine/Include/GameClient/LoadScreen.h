@@ -45,6 +45,7 @@
 class VideoBuffer;
 class VideoStreamInterface;
 class WindowVideoManager;
+class LoadScreenView;
 
 
 
@@ -65,8 +66,10 @@ public:
 	virtual void setProgressRange( Int min, Int max ) = 0;
 protected:
 	void setLoadScreen( GameWindow *g ) { m_loadScreen = g; }
+	void publishData();					///< bump LoadScreenData and refresh the legacy view
 	GameWindow *m_loadScreen;		///< The GameWindow that is our loadscreen
-	Bool m_useRml;							///< RmlUi draws this screen, fed through LoadScreenData; m_loadScreen is an empty placeholder
+	LoadScreenView *m_view;			///< .wnd presentation of LoadScreenData, null when RmlUi draws the screen (m_loadScreen is then an empty placeholder)
+	Bool m_useRml;							///< RmlUi draws this screen, fed through LoadScreenData
 
 private:
 
@@ -215,9 +218,6 @@ public:
 		DEBUG_CRASH(("We Got to a single player load screen throw the Network..."));
 	}
 	virtual void setProgressRange( Int min, Int max ) override { }
-
-private:
-	GameWindow *m_progressBar	;				///< Pointer to the Progress Bar on the window
 
 };
 

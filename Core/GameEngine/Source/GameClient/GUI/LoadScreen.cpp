@@ -78,6 +78,7 @@
 #include "GameClient/Keyboard.h"
 #include "GameClient/LoadScreen.h"
 #include "GameClient/LoadScreenData.h"
+#include "GameClient/LoadScreenView.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/RmlUiScreenRegistry.h"
@@ -127,6 +128,12 @@ UnsignedInt GetTeamUiColor(Int teamNumber);
 static Bool shouldUseRml( const char *wndPath )
 {
 	return RmlUiScreenRegistry::routesToRmlUi( AsciiString( wndPath ) );
+}
+
+// The .wnd load screen gets a view over LoadScreenData only when RmlUi does not draw it.
+static Bool usesLegacyView( const char *wndPath )
+{
+	return !shouldUseRml( wndPath );
 }
 
 #if !RTS_GENERALS
@@ -234,13 +241,23 @@ static const Int TELETYPE_UPDATE_FREQ = 2; // how many frames between teletype u
 LoadScreen::LoadScreen()
 {
 	m_loadScreen = nullptr;
+	m_view = nullptr;
 	m_useRml = FALSE;
 }
 
 LoadScreen::~LoadScreen()
 {
+	delete m_view;
 	if(m_loadScreen)
 		TheWindowManager->winDestroy( m_loadScreen );
+}
+
+void LoadScreen::publishData()
+{
+	LoadScreenData &data = LoadScreenData::instance();
+	data.touch();
+	if (m_view)
+		m_view->update( data );
 }
 
 void LoadScreen::update( Int percent )
@@ -1260,7 +1277,6 @@ void ChallengeLoadScreen::setProgressRange( Int min, Int max )
 //-----------------------------------------------------------------------------
 ShellGameLoadScreen::ShellGameLoadScreen()
 {
-	m_progressBar = nullptr;
 }
 
 ShellGameLoadScreen::~ShellGameLoadScreen()
@@ -1271,68 +1287,45 @@ void ShellGameLoadScreen::init( GameInfo *game )
 {
 	static BOOL firstLoad = TRUE;
 
-	m_useRml = shouldUseRml( "Menus/ShellGameLoadScreen.wnd" );
-	if (m_useRml)
-		LoadScreenData::instance().reset();
+	static const char *wndPath = "Menus/ShellGameLoadScreen.wnd";
+	LoadScreenData &data = LoadScreenData::instance();
+	data.reset();
 
 	// create the layout of the load screen
-	m_loadScreen = TheWindowManager->winCreateFromScript( "Menus/ShellGameLoadScreen.wnd" );
+	m_loadScreen = TheWindowManager->winCreateFromScript( wndPath );
 	DEBUG_ASSERTCRASH(m_loadScreen, ("Can't initialize the ShellGame loadscreen"));
 
-	if (m_useRml)
+	if (firstLoad && TheGameLODManager && TheGameLODManager->didMemPass())
 	{
-		if (firstLoad && TheGameLODManager && TheGameLODManager->didMemPass())
-		{
-			LoadScreenData::instance().m_titleScreen = TRUE;
-			TheWritableGlobalData->m_breakTheMovie = FALSE;
-			firstLoad = FALSE;
-		}
-		LoadScreenData::instance().touch();
-		return;
-	}
-
-	m_loadScreen->winHide(FALSE);
-	m_loadScreen->winBringToTop();
-
-	// Store the pointer to the progress bar on the loadscreen
-	m_progressBar = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "ShellGameLoadScreen.wnd:ProgressLoad" ));
-	DEBUG_ASSERTCRASH(m_progressBar, ("Can't initialize the progressbar for the single player loadscreen"));
-	GadgetProgressBarSetProgress(m_progressBar, 0 );
-	m_progressBar->winHide(TRUE);
-
-	if(m_loadScreen && firstLoad && TheGameLODManager && TheGameLODManager->didMemPass())
-	{
-		m_loadScreen->winSetEnabledImage(0, TheMappedImageCollection->findImageByName("TitleScreen"));
+		data.m_titleScreen = TRUE;
 		TheWritableGlobalData->m_breakTheMovie = FALSE;
-
-		GameWindow *win = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "ShellGameLoadScreen.wnd:StaticTextLegal" ));
-		if(win)
-			win->winHide(FALSE);
 		firstLoad = FALSE;
 	}
-	m_progressBar->winHide(FALSE);
+
+	if (usesLegacyView( wndPath ))
+	{
+		m_view = NEW ShellLoadScreenView;
+		m_view->init( m_loadScreen, game, data );
+	}
+	data.touch();
 }
 
 void ShellGameLoadScreen::reset()
 {
- setLoadScreen(nullptr);
- m_progressBar = nullptr;
+	setLoadScreen(nullptr);
+	if (m_view)
+		m_view->reset();
 }
 
 void ShellGameLoadScreen::update( Int percent )
 {
 	TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
-	if (m_useRml)
+	LoadScreenData &data = LoadScreenData::instance();
+	if (data.m_progress != percent)
 	{
-		LoadScreenData &view = LoadScreenData::instance();
-		if (view.m_progress != percent)
-		{
-			view.m_progress = percent;
-			view.touch();
-		}
+		data.m_progress = percent;
+		publishData();
 	}
-	else
-		GadgetProgressBarSetProgress(m_progressBar, percent);
 
 	// Do this last!
 	LoadScreen::update( percent );
