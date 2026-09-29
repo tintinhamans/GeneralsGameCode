@@ -80,6 +80,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlPlayerInfoScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlQuickMatchScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlSaveLoadScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlScoreScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.h
@@ -226,6 +227,7 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/RmlUi/RmlPlayerInfoScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlQuickMatchScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlSaveLoadScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlScoreScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.cpp

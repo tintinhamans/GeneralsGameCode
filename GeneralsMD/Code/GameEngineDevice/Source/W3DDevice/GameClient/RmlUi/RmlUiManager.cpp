@@ -48,6 +48,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlPlayerInfoScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuickMatchScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlSaveLoadScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScoreScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.h"
@@ -214,6 +215,9 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/CreditsMenu.wnd", &OpenRmlCreditsScreen, &CloseRmlCreditsScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitMenu.wnd", &OpenRmlQuitMenuScreen, &CloseRmlQuitMenuScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/QuitNoSave.wnd", &OpenRmlQuitNoSaveScreen, &CloseRmlQuitNoSaveScreen);
+	// MainMenuActions::openLoadGame() pushes SaveLoad.wnd, openQuitMenuSaveLoad() opens the popup; see RmlSaveLoadScreen.h.
+	RmlUiScreenRegistry::registerScreen("Menus/SaveLoad.wnd", &OpenRmlSaveLoadScreen, &CloseRmlSaveLoadScreen);
+	RmlUiScreenRegistry::registerScreen("Menus/PopupSaveLoad.wnd", &OpenRmlPopupSaveLoadScreen, &CloseRmlPopupSaveLoadScreen);
 	// GSOVERLAY_PLAYERINFO's .wnd path (see GameSpyOverlay.cpp's gsOverlays[] / GameSpyOpenOverlay()).
 	RmlUiScreenRegistry::registerScreen("Menus/PopupPlayerInfo.wnd", &OpenRmlPlayerInfoScreen, &CloseRmlPlayerInfoScreen);
 	// GSOVERLAY_BUDDY's .wnd path, same gsOverlays[] precedent.

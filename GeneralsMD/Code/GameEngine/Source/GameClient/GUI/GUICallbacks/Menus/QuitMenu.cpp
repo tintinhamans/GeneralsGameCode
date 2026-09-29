@@ -54,6 +54,8 @@
 #include "GameClient/ControlBar.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/DisconnectMenu.h"
+#include "GameClient/GUI/GUICallbacks/Menus/SaveLoadActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/SaveLoadData.h"
 
 
 
@@ -201,10 +203,16 @@ void HideQuitMenu()
 
 }
 
-// Shared with RmlQuitMenuScreen's SaveLoad button: PopupSaveLoad.wnd hasn't been converted to
-// RmlUi yet, so both paths open the same legacy WindowLayout.
+// Shared with RmlQuitMenuScreen's SaveLoad button: the RmlUi popup, or the legacy WindowLayout
+// under -wnd.
 void openQuitMenuSaveLoad()
 {
+	if (!TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered("Menus/PopupSaveLoad.wnd"))
+	{
+		RmlUiScreenRegistry::open("Menus/PopupSaveLoad.wnd");
+		return;
+	}
+
 	saveLoadMenuLayout = TheShell->getSaveLoadMenuLayout();
 	saveLoadMenuLayout->runInit();
 	saveLoadMenuLayout->hide( FALSE );
@@ -247,6 +255,12 @@ void ToggleQuitMenu()
 		GameWindow *optionsBack = TheWindowManager->winGetWindowFromId(optionsParent, TheNameKeyGenerator->nameToKey( "OptionsMenu.wnd:ButtonBack" ));
 		DEBUG_ASSERTCRASH(optionsBack != nullptr, ("Not able to get the back button window from the options menu"));
 		TheWindowManager->winSendSystemMsg(optLayout->getFirstWindow(), GBM_SELECTED, (WindowMsgData)optionsBack, 0);
+		return;
+	}
+	// The RmlUi save/load popup closes like its Back button.
+	if (SaveLoadData::instance().m_open)
+	{
+		SaveLoadActions::escape();
 		return;
 	}
 	if ((saveLoadMenuLayout != nullptr) && (saveLoadMenuLayout->isHidden() == FALSE))

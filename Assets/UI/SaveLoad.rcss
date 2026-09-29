@@ -1,0 +1,160 @@
+/*
+	SaveLoad.rcss -- SaveLoad.wnd (main menu Load Game, full screen) and PopupSaveLoad.wnd (in-game
+	Save/Load popup): one document, body.popup selects the popup geometry. Positions are body
+	percentages of the .wnd's 800x600 rects, so the layout stretches the way the original does.
+	The confirmations sit directly under <body> so they are viewport-positioned like the .wnd's.
+*/
+
+body
+{
+	width: 100%;
+	height: 100%;
+}
+
+.sl-frame
+{
+	box-sizing: border-box;
+	position: absolute;
+	left: 5.6%;
+	top: 7.3%;
+	width: 88.8%;
+	height: 85.4%;
+	display: flex;
+	flex-direction: column;
+	padding: 12dp 20dp 18dp 20dp;
+	background-color: rgba(0, 0, 0, 126);
+}
+
+body.popup .sl-frame
+{
+	left: 16%;
+	top: 8.667%;
+	width: 70.5%;
+	height: 77.5%;
+	background-color: #020202;
+}
+
+.sl-list
+{
+	flex: 1 1 auto;
+	min-height: 0;
+	background-color: rgba(0, 0, 0, 126);
+}
+
+.sl-row
+{
+	display: flex;
+	flex-direction: row;
+}
+
+.sl-row.locked
+{
+	pointer-events: none;
+}
+
+.sl-name
+{
+	flex: 1 1 auto;
+}
+
+.sl-time,
+.sl-date
+{
+	flex: 0 0 auto;
+	width: 200dp;
+}
+
+.sl-buttons
+{
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: row;
+	margin-top: 16dp;
+}
+
+.sl-buttons button
+{
+	flex: 1 1 0px;
+	margin-left: 16dp;
+}
+
+.sl-buttons button:first-child
+{
+	margin-left: 0dp;
+}
+
+/* ---- Confirmations and the save name entry -------------------------------------------- */
+.sl-dialog
+{
+	box-sizing: border-box;
+	position: absolute;
+	left: 25.5%;
+	top: 36.667%;
+	width: 48.5%;
+	height: 28.667%;
+	display: flex;
+	flex-direction: column;
+	padding: 12dp 32dp;
+	z-index: 10;
+	background-color: #000000;
+}
+
+body.popup .sl-dialog
+{
+	left: 27.5%;
+	top: 38.667%;
+}
+
+.sl-dialog-load
+{
+	background-color: rgba(0, 0, 1, 200);
+}
+
+.sl-message
+{
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	font-size: 20dp;
+	color: #FFFFFF;
+}
+
+.sl-message-entry
+{
+	flex: 0 0 auto;
+	height: 48dp;
+}
+
+.sl-input
+{
+	flex: 0 0 auto;
+	box-sizing: border-box;
+	width: 100%;
+	margin-bottom: 16dp;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+	color: #FFFFFF;
+	padding: 4dp 6dp;
+}
+
+.sl-input:focus
+{
+	border-color: #8080FF;
+}
+
+.sl-dialog-buttons
+{
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+}
+
+.sl-dialog-buttons button
+{
+	flex: 0 0 auto;
+	width: 190dp;
+	margin: 0dp 12dp;
+}
