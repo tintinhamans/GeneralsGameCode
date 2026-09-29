@@ -34,12 +34,6 @@
 					<div class="row"><div class="label"><gametext key="GUI:BestWinStreak"/></div><div class="control">{{best_streak_text}}</div></div>
 					<div class="row"><div class="label">{{streak_label_text}}</div><div class="control">{{streak_value_text}}</div></div>
 					<div class="row"><div class="label"><gametext key="GUI:CarrerWinPercent"/></div><div class="control">{{win_percent_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:TotalKills"/></div><div class="control">{{total_kills_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:TotalDeaths"/></div><div class="control">{{total_deaths_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:TotalBuilt"/></div><div class="control">{{total_built_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:BuildingsKilledStat"/></div><div class="control">{{buildings_killed_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:BuildingsLostStat"/></div><div class="control">{{buildings_lost_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:BuildingsBuiltStat"/></div><div class="control">{{buildings_built_text}}</div></div>
 				</div>
 			</div>
 

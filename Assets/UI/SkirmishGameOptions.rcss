@@ -221,11 +221,6 @@
 	margin-bottom: 15dp;
 }
 
-.honors-reset
-{
-	align-self: flex-start;
-}
-
 /* ---- Map card ---------------------------------------------------------------------------------- */
 .col-side
 {

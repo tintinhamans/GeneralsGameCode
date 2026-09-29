@@ -97,7 +97,6 @@
 							<div class="stat"><div class="stat-value">{{honor_win_streak}}</div><div class="stat-label"><gametext key="GUI:CurrentWinStreak"/></div></div>
 							<div class="stat"><div class="stat-value">{{honor_best_win_streak}}</div><div class="stat-label"><gametext key="GUI:BestWinStreak"/></div></div>
 						</div>
-						<button class="btn-small honors-reset" data-event-click="reset_honors"><gametext key="GUI:ResetHonors"/></button>
 					</div>
 				</div>
 			</div>
