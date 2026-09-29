@@ -691,6 +691,82 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 
 }
 
+// SplashWndProc ==============================================================
+/** Paints the load screen bitmap; the bitmap lives exactly as long as this window. */
+//=============================================================================
+static LRESULT CALLBACK SplashWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+		case WM_PAINT:
+		{
+			PAINTSTRUCT paint;
+			HDC dc = ::BeginPaint(hWnd, &paint);
+			if (gLoadScreenBitmap != nullptr)
+			{
+				RECT client;
+				::GetClientRect(hWnd, &client);
+				HDC tmpDC = ::CreateCompatibleDC(dc);
+				HBITMAP savBitmap = (HBITMAP)::SelectObject(tmpDC, gLoadScreenBitmap);
+				::BitBlt(dc, 0, 0, client.right, client.bottom, tmpDC, 0, 0, SRCCOPY);
+				::SelectObject(tmpDC, savBitmap);
+				::DeleteDC(tmpDC);
+			}
+			::EndPaint(hWnd, &paint);
+			return 0;
+		}
+
+		case WM_ERASEBKGND:
+			return TRUE;	// the bitmap covers the whole window
+
+		case WM_NCDESTROY:
+			if (gLoadScreenBitmap != nullptr)
+			{
+				::DeleteObject(gLoadScreenBitmap);
+				gLoadScreenBitmap = nullptr;
+			}
+			break;
+	}
+	return DefWindowProc(hWnd, message, wParam, lParam);
+}
+
+// createSplashWindow =========================================================
+/** Frameless window with the load screen bitmap, centred on the primary monitor. */
+//=============================================================================
+static HWND createSplashWindow(HINSTANCE hInstance, HICON icon)
+{
+	BITMAP bitmap;
+	if (gLoadScreenBitmap == nullptr || ::GetObject(gLoadScreenBitmap, sizeof(bitmap), &bitmap) == 0
+		|| bitmap.bmWidth <= 0 || bitmap.bmHeight <= 0)
+	{
+		return nullptr;
+	}
+
+	WNDCLASS splashClass = { 0, SplashWndProc, 0, 0, hInstance, icon,
+							 LoadCursor(nullptr, IDC_APPSTARTING),
+							 (HBRUSH)GetStockObject(BLACK_BRUSH), nullptr,
+							 TEXT("Game Splash") };
+	if (RegisterClass(&splashClass) == 0)
+	{
+		return nullptr;
+	}
+
+	const POINT origin = { 0, 0 };
+	MONITORINFO monitorInfo = { sizeof(MONITORINFO) };
+	GetMonitorInfo(MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY), &monitorInfo);
+	const Int x = (monitorInfo.rcWork.left + monitorInfo.rcWork.right - bitmap.bmWidth) / 2;
+	const Int y = (monitorInfo.rcWork.top + monitorInfo.rcWork.bottom - bitmap.bmHeight) / 2;
+
+	HWND hWnd = CreateWindow(TEXT("Game Splash"), TEXT("Command and Conquer Generals"), WS_POPUP | WS_VISIBLE,
+		x, y, bitmap.bmWidth, bitmap.bmHeight, nullptr, nullptr, hInstance, nullptr);
+	if (hWnd != nullptr)
+	{
+		SetForegroundWindow(hWnd);
+		UpdateWindow(hWnd);
+	}
+	return hWnd;
+}
+
 // initializeAppWindows =======================================================
 /** Register windows class and create application windows. */
 //=============================================================================
@@ -709,8 +785,14 @@ static Bool initializeAppWindows(HINSTANCE hInstance, Int nCmdShow, Bool runWind
 						   L"Game Window" };
 	RegisterClassW(&wndClass);
 
+	// The splash gets its own frameless window; the game window stays hidden until W3DDisplay hands over,
+	// so it never shows stale splash pixels while its frame, size and render device are set up
+	ApplicationSplashHWnd = createSplashWindow(hInstance, wndClass.hIcon);
+
 	// Create our main window
-	windowStyle = WS_POPUP | WS_VISIBLE;
+	windowStyle = WS_POPUP;
+	if (ApplicationSplashHWnd == nullptr)
+		windowStyle |= WS_VISIBLE;
 	if (runWindowed)
 		windowStyle |= WS_MINIMIZEBOX | WS_SYSMENU | WS_DLGFRAME | WS_CAPTION;
 	else
@@ -759,16 +841,19 @@ static Bool initializeAppWindows(HINSTANCE hInstance, Int nCmdShow, Bool runWind
     else
         SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
 
-	SetFocus(hWnd);
+	if (ApplicationSplashHWnd == nullptr)
+	{
+		SetFocus(hWnd);
 
-	SetForegroundWindow(hWnd);
-	ShowWindow(hWnd, nCmdShow);
-	UpdateWindow(hWnd);
+		SetForegroundWindow(hWnd);
+		ShowWindow(hWnd, nCmdShow);
+		UpdateWindow(hWnd);
+	}
 
 	// save our application window handle for future use
 	ApplicationHWnd = hWnd;
 	gInitializing = false;
-	if (!runWindowed) {
+	if (!runWindowed || ApplicationSplashHWnd != nullptr) {
 		gDoPaint = false;
 	}
 
@@ -895,7 +980,8 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		// save our application instance for future use
 		ApplicationHInstance = hInstance;
 
-		if (gLoadScreenBitmap != nullptr) {
+		// the splash window owns the bitmap while it exists
+		if (gLoadScreenBitmap != nullptr && ApplicationSplashHWnd == nullptr) {
 			::DeleteObject(gLoadScreenBitmap);
 			gLoadScreenBitmap = nullptr;
 		}
@@ -945,6 +1031,12 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 		// run the game main loop
 		exitcode = GameMain();
+
+		// startup ended before the first frame was drawn
+		if (ApplicationSplashHWnd != nullptr) {
+			::DestroyWindow(ApplicationSplashHWnd);
+			ApplicationSplashHWnd = nullptr;
+		}
 
 		delete TheVersion;
 		TheVersion = nullptr;
