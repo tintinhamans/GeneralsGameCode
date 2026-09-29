@@ -41,6 +41,8 @@ public:
 	RmlMainMenuScreen();
 	virtual ~RmlMainMenuScreen() override;
 
+	static RmlMainMenuScreen &instance();
+
 	// RmlScreen ----------------------------------------------------------------------------
 	virtual void load(Rml::Context *context) override;
 	virtual void show() override;

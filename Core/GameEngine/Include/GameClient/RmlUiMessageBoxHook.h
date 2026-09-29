@@ -44,6 +44,7 @@ typedef UnsignedInt (*RmlUiMessageBoxFunc)(UnsignedShort buttonFlags,
 	Bool useLogo, const RmlUiMessageBoxLabels &labels);
 typedef void (*RmlUiMessageBoxCloseFunc)(UnsignedInt id); ///< id 0 = whichever box is open
 typedef void (*RmlUiMessageBoxRaiseFunc)();
+typedef bool (*RmlUiMessageBoxOpenFunc)();
 
 //-------------------------------------------------------------------------------------------------
 class RmlUiMessageBoxHook
@@ -52,6 +53,7 @@ public:
 	static void setHandler(RmlUiMessageBoxFunc handler);
 	static void setCloseHandler(RmlUiMessageBoxCloseFunc closeHandler);
 	static void setRaiseHandler(RmlUiMessageBoxRaiseFunc raiseHandler);
+	static void setOpenQuery(RmlUiMessageBoxOpenFunc openQuery);
 	static bool isAvailable();
 	static void setPendingLabels(const RmlUiMessageBoxLabels &labels); ///< applied to the next show() only
 	static void clearPendingLabels(); ///< drops labels no show() consumed (legacy .wnd path)
@@ -62,4 +64,5 @@ public:
 	static void closeCurrent(); ///< dismiss the open box without running its callback; no-op if none open.
 	static void close(UnsignedInt id); ///< same, but only if box id is the one still open
 	static void raise(); ///< pull the open box above every other RmlUi document
+	static bool isOpen(); ///< a box is showing right now (RmlUi's own state)
 };

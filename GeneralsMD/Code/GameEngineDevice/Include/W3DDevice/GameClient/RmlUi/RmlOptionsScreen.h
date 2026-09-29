@@ -44,6 +44,8 @@ public:
 	RmlOptionsScreen();
 	virtual ~RmlOptionsScreen() override;
 
+	static RmlOptionsScreen &instance();
+
 	// RmlScreen ----------------------------------------------------------------------------
 	virtual void load(Rml::Context *context) override;
 	virtual void show() override;

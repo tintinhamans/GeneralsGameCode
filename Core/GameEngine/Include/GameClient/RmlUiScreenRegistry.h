@@ -38,15 +38,17 @@ class GameWindow;
 class WindowLayout;
 
 typedef void (*RmlUiScreenFunc)();
+typedef bool (*RmlUiScreenQueryFunc)();
 
 //-------------------------------------------------------------------------------------------------
 class RmlUiScreenRegistry
 {
 public:
 	// wndPath must outlive the registration (string literals from the .wnd callers are fine).
-	// capturesInput: while open, RmlUi owns all mouse/keyboard input; FALSE for overlays drawn over
+	// isVisible: the RmlUi side's own answer, so open state is never bookkept here.
+	// capturesInput: while visible, RmlUi owns all mouse/keyboard input; FALSE for overlays drawn over
 	// live gameplay, which only take the mouse over their own document (see ownsInput()).
-	static void registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, bool capturesInput = true);
+	static void registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, bool capturesInput = true);
 	static void unregisterScreen(const char *wndPath);
 	static void unregisterAll(); ///< RmlUiManager::shutdown()
 
@@ -59,9 +61,9 @@ public:
 
 	static bool open(const AsciiString &wndPath);  ///< calls the registered open func; returns true if handled
 	static bool close(const AsciiString &wndPath); ///< calls the registered close func; returns true if handled
-	static bool isOpen(const AsciiString &wndPath); ///< opened through open() and not closed since
+	static bool isOpen(const AsciiString &wndPath); ///< the screen is visible right now
 
-	// TRUE while the topmost interactive layer is RmlUi: an open capturing screen, popup or overlay,
+	// TRUE while the topmost interactive layer is RmlUi: a visible capturing screen, popup or overlay,
 	// or an open message box. Everything else (legacy HUD, shell windows) gets input otherwise.
 	static bool ownsInput();
 

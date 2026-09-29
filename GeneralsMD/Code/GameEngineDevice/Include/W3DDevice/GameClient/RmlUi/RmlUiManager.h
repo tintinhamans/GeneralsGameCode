@@ -83,7 +83,7 @@ public:
 private:
 	static RmlUiManager *s_instance;
 
-	bool ownsInput() const;               ///< RmlUiScreenRegistry::ownsInput() and something is actually drawn
+	bool ownsInput() const;               ///< RmlUiScreenRegistry::ownsInput()
 	bool anyVisibleDocumentAt(int x, int y) const;
 	void registerCustomElements();
 

@@ -369,7 +369,7 @@ void RmlMainMenuScreen::onGoReplay(Rml::DataModelHandle, Rml::Event &, const Rml
 }
 
 //-------------------------------------------------------------------------------------------------
-static RmlMainMenuScreen &instance()
+RmlMainMenuScreen &RmlMainMenuScreen::instance()
 {
 	static RmlMainMenuScreen s_screen;
 	return s_screen;
@@ -378,13 +378,13 @@ static RmlMainMenuScreen &instance()
 void OpenRmlMainMenuScreen()
 {
 	if (TheRmlUiManager)
-		TheRmlUiManager->showScreen(&instance());
+		TheRmlUiManager->showScreen(&RmlMainMenuScreen::instance());
 }
 
 void CloseRmlMainMenuScreen()
 {
 	// Guards against RmlUiManager::showScreen()'s reentrant call while some other screen (e.g.
 	// Options) is the one actually being hidden/shown; see RmlUiManager::showScreen()'s comment.
-	if (TheRmlUiManager && TheRmlUiManager->getCurrentScreen() == &instance())
+	if (TheRmlUiManager && TheRmlUiManager->getCurrentScreen() == &RmlMainMenuScreen::instance())
 		TheRmlUiManager->hideCurrentScreen();
 }

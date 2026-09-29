@@ -221,6 +221,7 @@ void RegisterRmlMessageBoxHook(Rml::Context *context)
 	RmlUiMessageBoxHook::setHandler(&ShowRmlMessageBox);
 	RmlUiMessageBoxHook::setCloseHandler(&closeById);
 	RmlUiMessageBoxHook::setRaiseHandler(&raiseBox);
+	RmlUiMessageBoxHook::setOpenQuery(&AnyRmlMessageBoxOpen);
 }
 
 void UnregisterRmlMessageBoxHook()
@@ -228,6 +229,7 @@ void UnregisterRmlMessageBoxHook()
 	RmlUiMessageBoxHook::setHandler(nullptr);
 	RmlUiMessageBoxHook::setCloseHandler(nullptr);
 	RmlUiMessageBoxHook::setRaiseHandler(nullptr);
+	RmlUiMessageBoxHook::setOpenQuery(nullptr);
 	closeCurrent();
 	s_context = nullptr;
 }

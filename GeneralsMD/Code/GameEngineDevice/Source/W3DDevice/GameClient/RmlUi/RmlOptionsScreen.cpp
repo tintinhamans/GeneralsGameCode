@@ -418,11 +418,16 @@ void RmlOptionsScreen::onFirewallRefresh(Rml::DataModelHandle, Rml::Event &, con
 }
 
 //-------------------------------------------------------------------------------------------------
-void OpenRmlOptionsScreen()
+RmlOptionsScreen &RmlOptionsScreen::instance()
 {
 	static RmlOptionsScreen s_screen;
+	return s_screen;
+}
+
+void OpenRmlOptionsScreen()
+{
 	if (TheRmlUiManager)
-		TheRmlUiManager->showScreen(&s_screen);
+		TheRmlUiManager->showScreen(&RmlOptionsScreen::instance());
 }
 
 void CloseRmlOptionsScreen()

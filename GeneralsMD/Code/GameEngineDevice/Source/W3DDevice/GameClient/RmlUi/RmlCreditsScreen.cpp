@@ -234,7 +234,7 @@ void RmlCreditsScreen::syncDisplayedLines()
 }
 
 //-------------------------------------------------------------------------------------------------
-static RmlCreditsScreen &instance()
+RmlCreditsScreen &RmlCreditsScreen::instance()
 {
 	static RmlCreditsScreen s_screen;
 	return s_screen;
@@ -243,11 +243,11 @@ static RmlCreditsScreen &instance()
 void OpenRmlCreditsScreen()
 {
 	if (TheRmlUiManager)
-		TheRmlUiManager->showScreen(&instance());
+		TheRmlUiManager->showScreen(&RmlCreditsScreen::instance());
 }
 
 void CloseRmlCreditsScreen()
 {
-	if (TheRmlUiManager && TheRmlUiManager->getCurrentScreen() == &instance())
+	if (TheRmlUiManager && TheRmlUiManager->getCurrentScreen() == &RmlCreditsScreen::instance())
 		TheRmlUiManager->hideCurrentScreen();
 }

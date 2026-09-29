@@ -36,7 +36,7 @@ namespace
 		AsciiString wndPath;
 		RmlUiScreenFunc open;
 		RmlUiScreenFunc close;
-		bool isOpen;
+		RmlUiScreenQueryFunc isVisible;
 		bool capturesInput;
 	};
 
@@ -53,7 +53,6 @@ namespace
 		GameWindow *window;
 		AsciiString wndPath;
 		UnsignedInt boxId;
-		bool boxOpen; ///< the latest box handed out; older ones were closed by the RmlUi side when it replaced them
 	};
 
 	std::vector<Placeholder> &placeholders()
@@ -71,7 +70,6 @@ namespace
 			p.window = window;
 			p.wndPath = wndPath;
 			p.boxId = boxId;
-			p.boxOpen = boxId != 0;
 			placeholders().push_back(p);
 		}
 		return window;
@@ -101,7 +99,7 @@ namespace
 	}
 }
 
-void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, bool capturesInput)
+void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, bool capturesInput)
 {
 	AsciiString path(wndPath);
 	Entry *existing = find(path);
@@ -109,6 +107,7 @@ void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc op
 	{
 		existing->open = open;
 		existing->close = close;
+		existing->isVisible = isVisible;
 		existing->capturesInput = capturesInput;
 		return;
 	}
@@ -116,7 +115,7 @@ void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc op
 	e.wndPath = path;
 	e.open = open;
 	e.close = close;
-	e.isOpen = false;
+	e.isVisible = isVisible;
 	e.capturesInput = capturesInput;
 	entries().push_back(e);
 }
@@ -150,7 +149,6 @@ bool RmlUiScreenRegistry::open(const AsciiString &wndPath)
 	Entry *e = find(wndPath);
 	if (!e || !e->open)
 		return false;
-	e->isOpen = true;
 	e->open();
 	return true;
 }
@@ -160,7 +158,6 @@ bool RmlUiScreenRegistry::close(const AsciiString &wndPath)
 	Entry *e = find(wndPath);
 	if (!e || !e->close)
 		return false;
-	e->isOpen = false;
 	e->close();
 	return true;
 }
@@ -168,22 +165,17 @@ bool RmlUiScreenRegistry::close(const AsciiString &wndPath)
 bool RmlUiScreenRegistry::isOpen(const AsciiString &wndPath)
 {
 	const Entry *e = find(wndPath);
-	return e && e->isOpen;
+	return e && e->isVisible && e->isVisible();
 }
 
 bool RmlUiScreenRegistry::ownsInput()
 {
 	const std::vector<Entry> &e = entries();
 	for (size_t i = 0; i < e.size(); ++i)
-		if (e[i].isOpen && e[i].capturesInput)
+		if (e[i].capturesInput && e[i].isVisible && e[i].isVisible())
 			return true;
 
-	const std::vector<Placeholder> &p = placeholders();
-	for (size_t i = 0; i < p.size(); ++i)
-		if (p[i].boxOpen)
-			return true;
-
-	return false;
+	return RmlUiMessageBoxHook::isOpen();
 }
 
 bool RmlUiScreenRegistry::usesLegacyMenus()
@@ -224,10 +216,6 @@ GameWindow *RmlUiScreenRegistry::createWindow(const AsciiString &wndPath)
 
 GameWindow *RmlUiScreenRegistry::createMessageBoxWindow(UnsignedInt boxId)
 {
-	// The RmlUi side closed any earlier box when this one opened; its placeholder is now inert.
-	std::vector<Placeholder> &p = placeholders();
-	for (size_t i = 0; i < p.size(); ++i)
-		p[i].boxOpen = false;
 	return makePlaceholder(AsciiString::TheEmptyString, boxId);
 }
 

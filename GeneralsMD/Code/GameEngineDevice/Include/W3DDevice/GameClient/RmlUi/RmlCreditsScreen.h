@@ -40,6 +40,8 @@ public:
 	RmlCreditsScreen();
 	virtual ~RmlCreditsScreen() override;
 
+	static RmlCreditsScreen &instance();
+
 	// RmlScreen ----------------------------------------------------------------------------
 	virtual void load(Rml::Context *context) override;
 	virtual void show() override;

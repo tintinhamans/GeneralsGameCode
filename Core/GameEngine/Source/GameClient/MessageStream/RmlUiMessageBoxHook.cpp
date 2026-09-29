@@ -24,6 +24,7 @@ namespace
 	RmlUiMessageBoxFunc s_handler = nullptr;
 	RmlUiMessageBoxCloseFunc s_closeHandler = nullptr;
 	RmlUiMessageBoxRaiseFunc s_raiseHandler = nullptr;
+	RmlUiMessageBoxOpenFunc s_openQuery = nullptr;
 	RmlUiMessageBoxLabels s_pendingLabels;
 }
 
@@ -40,6 +41,11 @@ void RmlUiMessageBoxHook::setCloseHandler(RmlUiMessageBoxCloseFunc closeHandler)
 void RmlUiMessageBoxHook::setRaiseHandler(RmlUiMessageBoxRaiseFunc raiseHandler)
 {
 	s_raiseHandler = raiseHandler;
+}
+
+void RmlUiMessageBoxHook::setOpenQuery(RmlUiMessageBoxOpenFunc openQuery)
+{
+	s_openQuery = openQuery;
 }
 
 void RmlUiMessageBoxHook::setPendingLabels(const RmlUiMessageBoxLabels &labels)
@@ -84,4 +90,9 @@ void RmlUiMessageBoxHook::raise()
 {
 	if (s_raiseHandler)
 		s_raiseHandler();
+}
+
+bool RmlUiMessageBoxHook::isOpen()
+{
+	return s_openQuery && s_openQuery();
 }
