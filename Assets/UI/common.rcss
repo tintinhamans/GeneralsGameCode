@@ -914,9 +914,9 @@ body.shell
 	            small 16dp; primary button 24dp. Text drawn straight on the map (.on-map, the
 	            header, the back button) gets .map-glow.
 	  Spacing   4 / 8 / 12 / 16 / 20 / 24 / 40dp; 20dp between floating panels.
-	  Frame     the ruler is the MainMenuRuler art's tick strips and frame line at full strength
-	            (.screen-ruler) without its grid band; the content frame sits inside it and is at
-	            most 2150dp wide, centred.
+	  Frame     the ruler is the MainMenuRuler art's tick strips, faint and flush with the screen
+	            edges (.screen-ruler); the content frame sits inside them (3.4% / 4.4% gutters) and
+	            is at most 2150dp wide, centred.
 	  Motion    hover/press 0.12s cubic-out, panels 0.22s cubic-out, loading pulse 1.2s.
 	            Opacity, colours and margins only: the renderer has no transforms.
 
@@ -954,10 +954,11 @@ body.screen
 	font-size: 20dp;
 }
 
-/* ---- Ruler: the MainMenuRuler art's tick strips and bright frame line ----------------------------
-   Four clipped windows onto the full-screen art (its 800x600 maps to the viewport, so the strips land
-   where the .wnd draws them): rows and columns 24-43 of each edge. The grid band outside them is left
-   off so the map shows out to the screen edge. mappedimage ignores percentage sizes: vw/vh instead. */
+/* ---- Ruler: the MainMenuRuler art's tick strips, flush with the screen edges -----------------------
+   Four clipped windows onto the full-screen art (its 800x600 maps to the viewport): only the ticks
+   (rows/columns 25-37 along the opening), without the grid band, corners or bright frame line, pulled
+   out to the viewport edges and drawn faint so they frame the screen quietly. mappedimage ignores
+   percentage sizes, so the art is sized in vw/vh. */
 .screen-ruler
 {
 	display: block;
@@ -966,6 +967,7 @@ body.screen
 	top: 0;
 	width: 100%;
 	height: 100%;
+	opacity: 0.55;
 	pointer-events: none;
 }
 
@@ -977,12 +979,12 @@ body.screen
 	clip: always; /* the art is absolutely placed, so it never counts as overflow to clip */
 }
 
-.rs-top, .rs-bottom { left: 3vw; width: 94vw; height: 3.1667vh; }
-.rs-top { top: 4vh; }
-.rs-bottom { top: 92.8333vh; }
-.rs-left, .rs-right { top: 7.1667vh; width: 2.375vw; height: 85.6667vh; }
-.rs-left { left: 3vw; }
-.rs-right { left: 94.625vw; }
+.rs-top, .rs-bottom { left: 5vw; width: 90vw; height: 2vh; }
+.rs-top { top: 0; }
+.rs-bottom { top: 98vh; }
+.rs-left, .rs-right { top: 6.6667vh; width: 1.5vw; height: 86.6667vh; }
+.rs-left { left: 0; }
+.rs-right { left: 98.5vw; }
 
 .screen-ruler .rs mappedimage
 {
@@ -992,20 +994,20 @@ body.screen
 	height: 100vh;
 }
 
-.rs-top mappedimage { left: -3vw; top: -4vh; }
-.rs-bottom mappedimage { left: -3vw; top: -92.8333vh; }
-.rs-left mappedimage { left: -3vw; top: -7.1667vh; }
-.rs-right mappedimage { left: -94.625vw; top: -7.1667vh; }
+.rs-top mappedimage { left: -5vw; top: -4.1667vh; }
+.rs-bottom mappedimage { left: -5vw; top: -93.6667vh; }
+.rs-left mappedimage { left: -3.125vw; top: -6.6667vh; }
+.rs-right mappedimage { left: -95.25vw; top: -6.6667vh; }
 
 /* Content frame: inside the ruler, at most 2150dp wide and centred, no fill of its own. */
 .screen-frame
 {
 	box-sizing: border-box;
 	position: absolute;
-	left: 6.6%;
-	right: 6.6%;
-	top: 7.9%;
-	bottom: 8.1%;
+	left: 3.4%;
+	right: 3.4%;
+	top: 4.4%;
+	bottom: 4.2%;
 	max-width: 2150dp;
 	margin-left: auto;
 	margin-right: auto;
