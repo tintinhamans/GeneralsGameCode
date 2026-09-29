@@ -894,8 +894,9 @@ body.shell
 
    Design language
 	  Palette   ink       #05070F            deepest backdrop
-	            surface   #070A1AAD          panels (.surface), the only filled boxes; ~68% so
-	                                         the map reads through
+	            surface   #070A1AE0          panels (.surface), the only filled boxes; 88% so text
+	                                         reads over any terrain. Text on the map itself gets
+	                                         a #070A1AC8-D9 plate (heading, back) or .map-glow
 	            raised    #141A3ED7          controls, hovered rows
 	            line      #8080FF28          hairline separators; borders only where needed
 	            blue      #2F37A8 / #3A46D0 / #8080FF   brand, selected, hover/focus
@@ -1010,10 +1011,10 @@ body.screen
 	flex-direction: column;
 }
 
-/* Soft dark halo behind text drawn straight on the map: a local scrim, only as big as the text. */
+/* Dark halo behind text drawn straight on the map: a local scrim, only as big as the text. */
 .map-glow, .screen-crumb, .screen-title, .screen .btn-back, .on-map
 {
-	font-effect: glow(0dp 6dp 0dp 1dp #000000D2);
+	font-effect: glow(1dp 6dp 0dp 1dp #000000F0);
 }
 
 /* ---- Header ------------------------------------------------------------------------------ */
@@ -1027,13 +1028,16 @@ body.screen
 	margin-bottom: 18dp;
 }
 
+/* The heading sits on its own plate so it reads over bright terrain. */
 .screen-heading
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	flex: 1 1 auto;
+	flex: 0 1 auto;
 	min-width: 0;
+	padding: 6dp 22dp 6dp 16dp;
+	background-color: #070A1AD9;
 }
 
 .screen-crumb
@@ -1072,7 +1076,7 @@ body.screen
 	flex-direction: row;
 	align-items: center;
 	flex: 0 0 auto;
-	margin-left: 24dp;
+	margin-left: auto;
 }
 
 /* ---- Body and columns --------------------------------------------------------------------- */
@@ -1103,11 +1107,11 @@ body.screen
 	margin-left: 16dp;
 }
 
-/* Translucent floating panel: the only filled box on a screen. */
+/* Floating panel: the only filled box on a screen, 88% so text on it reads over any map. */
 .surface
 {
 	display: block;
-	background-color: #070A1AAD;
+	background-color: #070A1AE0;
 	padding: 16dp;
 }
 
@@ -1243,15 +1247,15 @@ body.screen
 	line-height: 44dp;
 	padding: 0 18dp 0 12dp;
 	font-size: 17dp;
-	color: #A9B1CF;
-	background-color: transparent;
+	color: #C4CAE4;
+	background-color: #070A1AC8;
 	border-color: transparent;
 }
 
 .screen button.btn-back:hover
 {
 	color: #FFFFFF;
-	background-color: #2F37A850;
+	background-color: #1E246EE6;
 	border-color: transparent;
 }
 

@@ -58,7 +58,7 @@
 	margin: 0 12dp 14dp 0;
 	padding: 4dp;
 	border: 1dp transparent;
-	background-color: #05070F78;
+	background-color: #05070FB4;
 	transition: background-color border-color 0.12s cubic-out;
 }
 

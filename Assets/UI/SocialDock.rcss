@@ -32,7 +32,7 @@ body
 	height: auto;
 	line-height: 20dp;
 	padding: 12dp 0 8dp 0;
-	background-color: #070A1AD2;
+	background-color: #070A1AEB;
 	border: 1dp #8080FF46;
 	border-left: 2dp #3A46D0;
 	pointer-events: auto;
@@ -47,7 +47,7 @@ body
 
 .screen button.dock-tab[disabled], .screen button.dock-tab[disabled]:hover
 {
-	background-color: #070A1AA0;
+	background-color: #070A1AD2;
 	border-color: #8080FF1E;
 	opacity: 0.6;
 }
@@ -148,7 +148,7 @@ body
 	bottom: 8.6%;
 	width: 340dp;
 	padding: 0 14dp 14dp 14dp;
-	background-color: #070A1AD2;
+	background-color: #070A1AEB;
 	border-top: 2dp #3A46D0;
 	pointer-events: auto;
 	animation: 0.2s cubic-out dock-in;

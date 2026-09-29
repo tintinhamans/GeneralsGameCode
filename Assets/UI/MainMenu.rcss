@@ -38,7 +38,7 @@
 {
 	display: block;
 	padding: 14dp 16dp;
-	background-color: #070A1A9E;
+	background-color: #070A1ADB;
 	border-top: 2dp #8080FF46;
 }
 
@@ -164,6 +164,8 @@
 	bottom: 0;
 	font-size: 13dp;
 	color: #A9B1CF;
+	padding: 2dp 8dp;
+	background-color: #070A1AC8;
 }
 
 /* ---- Faction emblem over the map ------------------------------------------------------------ */
