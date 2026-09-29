@@ -60,6 +60,55 @@ private:
 	UnicodeString m_appliedTimeout;
 };
 
+// Rows, local general and map preview shared by the multiplayer and online screens.
+class RosterLoadScreenView : public LoadScreenView
+{
+public:
+	RosterLoadScreenView( const char *wndName );
+	virtual ~RosterLoadScreenView() override;
+
+	virtual void update( const LoadScreenData &data ) override;
+	virtual void reset() override;
+
+protected:
+	void bindCommon( GameWindow *root ); ///< map preview window
+	void applyCommon( GameWindow *root, GameInfo *game, const LoadScreenData &data ); ///< background and local general
+	void applyMapPreview( GameInfo *game, const LoadScreenData &data ); ///< after the start spot buttons are bound
+
+	AsciiString m_wndName; ///< prefix of the gadget names, e.g. MultiplayerLoadScreen.wnd
+	GameWindow *m_progressBars[MAX_SLOTS];
+	GameWindow *m_playerNames[MAX_SLOTS];
+	GameWindow *m_playerSide[MAX_SLOTS];
+	GameWindow *m_mapPreview;
+	GameWindow *m_buttonMapStartPosition[MAX_SLOTS];
+	GameWindow *m_portraitLocalGeneral;
+	GameWindow *m_featuresLocalGeneral;
+	GameWindow *m_nameLocalGeneral;
+	Int m_appliedProgress[MAX_SLOTS]; ///< so publishing every frame does not touch the gadgets
+};
+
+class MultiPlayerLoadScreenView : public RosterLoadScreenView
+{
+public:
+	MultiPlayerLoadScreenView();
+	virtual void init( GameWindow *root, GameInfo *game, const LoadScreenData &data ) override;
+};
+
+// Adds the online stats: rank, officer medal, win/loss and disconnects.
+class GameSpyLoadScreenView : public RosterLoadScreenView
+{
+public:
+	GameSpyLoadScreenView();
+	virtual void init( GameWindow *root, GameInfo *game, const LoadScreenData &data ) override;
+
+private:
+	GameWindow *m_playerWin[MAX_SLOTS];
+	GameWindow *m_playerTotalDisconnects[MAX_SLOTS];
+	GameWindow *m_playerWinLosses[MAX_SLOTS];
+	GameWindow *m_playerRank[MAX_SLOTS];
+	GameWindow *m_playerOfficerMedal[MAX_SLOTS];
+};
+
 // Title art, legal line and progress bar of the shell load.
 class ShellLoadScreenView : public LoadScreenView
 {

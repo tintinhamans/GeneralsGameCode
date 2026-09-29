@@ -124,16 +124,10 @@ bool g_bHasDoneSOGScreenshot = false;
 
 UnsignedInt GetTeamUiColor(Int teamNumber);
 
-// RmlUi draws a load screen instead of its .wnd when the registry routes the path to it.
-static Bool shouldUseRml( const char *wndPath )
-{
-	return RmlUiScreenRegistry::routesToRmlUi( AsciiString( wndPath ) );
-}
-
-// The .wnd load screen gets a view over LoadScreenData only when RmlUi does not draw it.
+// The .wnd load screen gets a view over LoadScreenData only when the registry does not route the path to RmlUi.
 static Bool usesLegacyView( const char *wndPath )
 {
-	return !shouldUseRml( wndPath );
+	return !RmlUiScreenRegistry::routesToRmlUi( AsciiString( wndPath ) );
 }
 
 #if !RTS_GENERALS
@@ -210,10 +204,6 @@ static UnicodeString getSlotSideName( GameSlot *slot )
 //-----------------------------------------------------------------------------
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
-void positionStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[], GameWindow *mapWindow);
-void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[], Bool onLoadScreen = FALSE );
-void positionAdditionalImages( MapMetaData *mmd, GameWindow *mapWindow, Bool force);
-
 enum{
 FRAME_TITLES_START = 20,
 FRAME_TELETYPE_START = 24,
@@ -242,7 +232,6 @@ LoadScreen::LoadScreen()
 {
 	m_loadScreen = nullptr;
 	m_view = nullptr;
-	m_useRml = FALSE;
 }
 
 LoadScreen::~LoadScreen()
@@ -1335,47 +1324,27 @@ void ShellGameLoadScreen::update( Int percent )
 //-----------------------------------------------------------------------------
 MultiPlayerLoadScreen::MultiPlayerLoadScreen()
 {
-	m_mapPreview = nullptr;
-	m_portraitLocalGeneral = nullptr;
-	m_featuresLocalGeneral = nullptr;
-	m_nameLocalGeneral = nullptr;
-
 	for(Int i = 0; i < MAX_SLOTS; ++i)
 	{
-		m_buttonMapStartPosition[i] = nullptr;
-		m_progressBars[i] = nullptr;
-		m_playerNames[i] = nullptr;
-		m_playerSide[i]= nullptr;
 		m_playerLookup[i] = -1;
 	}
 }
 
 MultiPlayerLoadScreen::~MultiPlayerLoadScreen()
 {
-	if(m_mapPreview)
-	{
-		m_mapPreview->winSetUserData(nullptr);
-	}
-
 	TheAudio->removeAudioEvent( AHSV_StopTheMusicFade );
 //	TheAudio->stopAudio( AudioAffect_Music );
 }
 
 void MultiPlayerLoadScreen::init( GameInfo *game )
 {
-	m_useRml = shouldUseRml( "Menus/MultiplayerLoadScreen.wnd" );
-	if (m_useRml)
-		LoadScreenData::instance().reset();
+	static const char *wndPath = "Menus/MultiplayerLoadScreen.wnd";
+	LoadScreenData &data = LoadScreenData::instance();
+	data.reset();
 
 	// create the layout of the load screen
-	m_loadScreen = TheWindowManager->winCreateFromScript( "Menus/MultiplayerLoadScreen.wnd" );
+	m_loadScreen = TheWindowManager->winCreateFromScript( wndPath );
 	DEBUG_ASSERTCRASH(m_loadScreen, ("Can't initialize the Multiplayer loadscreen"));
-	if (!m_useRml)
-	{
-		m_loadScreen->winHide(FALSE);
-		m_loadScreen->winBringToTop();
-		m_mapPreview = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "MultiplayerLoadScreen.wnd:WinMapPreview"));
-	}
 	GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 	const PlayerTemplate* pt;
 	if (lSlot->getPlayerTemplate() >= 0)
@@ -1384,27 +1353,10 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 		pt = ThePlayerTemplateStore->findPlayerTemplate( TheNameKeyGenerator->nameToKey("FactionObserver") );
 
 #if RTS_GENERALS
-	const Image *loadScreenImage = TheMappedImageCollection->findImageByName(pt->getLoadScreen());
-	if(loadScreenImage)
-		m_loadScreen->winSetEnabledImage(0, loadScreenImage);
+	data.m_backgroundImage = pt->getLoadScreen();
 #else
-	// add portrait, features, and name for the local player's general
-	if (m_useRml)
-	{
-		fillLocalGeneral( LoadScreenData::instance(), pt, TRUE );
-	}
-	else
-	{
-		UnicodeString localName;
-		const Image *portrait = getLocalGeneralPortrait( pt, TRUE, localName );
-		m_portraitLocalGeneral = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "MultiplayerLoadScreen.wnd:LocalGeneralPortrait"));
-		m_portraitLocalGeneral->winSetEnabledImage( 0, portrait);
-		m_featuresLocalGeneral = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "MultiplayerLoadScreen.wnd:LocalGeneralFeatures"));
-		AsciiString features = pt->getGeneralFeatures();
-		GadgetStaticTextSetText( m_featuresLocalGeneral, TheGameText->fetch( features.isEmpty() ? "GUI:PlayerObserver" : pt->getGeneralFeatures() ) );
-		m_nameLocalGeneral = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "MultiplayerLoadScreen.wnd:LocalGeneralName"));
-		GadgetStaticTextSetText( m_nameLocalGeneral, localName );
-	}
+	// portrait, features, and name for the local player's general
+	fillLocalGeneral( data, pt, TRUE );
 #endif
 
 	AsciiString musicName = pt->getLoadScreenMusic();
@@ -1422,148 +1374,34 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 	//DEBUG_ASSERTCRASH(TheNetwork, ("Where the Heck is the Network!!!!"));
 	//DEBUG_LOG(("NumPlayers %d", TheNetwork->getNumPlayers()));
 
-	if (m_useRml)
-	{
-		LoadScreenData &view = LoadScreenData::instance();
-		Int rmlSlot = 0;
-		for (Int slotNum = 0; slotNum < MAX_SLOTS; ++slotNum)
-		{
-			GameSlot *slot = game->getSlot(slotNum);
-			if (!slot || !slot->isOccupied())
-				continue;
-
-			LoadScreenPlayerRow &row = view.m_rows[rmlSlot];
-			row.m_name = slot->getName();
-			row.m_color = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor() & 0xFFFFFF;
-			row.m_side = getSlotSideName( slot );
-			row.m_showProgress = !slot->isAI();
-			AsciiString teamStr;
-			teamStr.format("Team:%d", slot->getTeamNumber() + 1);
-			row.m_team = TheGameText->fetch(teamStr);
-			m_playerLookup[slotNum] = rmlSlot;
-			rmlSlot++;
-		}
-		view.m_rowCount = rmlSlot;
-		fillMapView( view, game );
-		view.touch();
-
-		TheGameLogic->initTimeOutValues();
-		return;
-	}
-
-	GameWindow *teamWin[MAX_SLOTS];
-	Int i = 0;
-	for (; i < MAX_SLOTS; ++i)
-	{
-		teamWin[i] = nullptr;
-	}
-
 	Int netSlot = 0;
-	// Loop through and make the loadscreen look all good.
-	for (i = 0; i < MAX_SLOTS; ++i)
+	for (Int slotNum = 0; slotNum < MAX_SLOTS; ++slotNum)
 	{
-		// Load the Progress Bar
-		AsciiString winName;
-		winName.format( "MultiplayerLoadScreen.wnd:ProgressLoad%d",i);
-		m_progressBars[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_progressBars[i], ("Can't initialize the progressbars for the Multiplayer loadscreen"));
-		// set the progressbar to zero
-		GadgetProgressBarSetProgress(m_progressBars[i], 0 );
-
-		// Load MapStart Positions
-		winName.format( "MultiplayerLoadScreen.wnd:ButtonMapStartPosition%d",i);
-		m_buttonMapStartPosition[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_buttonMapStartPosition[i], ("Can't initialize the MapStart Positions for the MultiplayerLoadScreen loadscreen"));
-
-
-		// Load the Player's name
-		winName.format( "MultiplayerLoadScreen.wnd:StaticTextPlayer%d",i);
-		m_playerNames[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_playerNames[i], ("Can't initialize the Names for the Multiplayer loadscreen"));
-
-		// Load the Player's Side
-		winName.format( "MultiplayerLoadScreen.wnd:StaticTextSide%d",i);
-		m_playerSide[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_playerSide[i], ("Can't initialize the Sides for the Multiplayer loadscreen"));
-
-		winName.format( "MultiplayerLoadScreen.wnd:StaticTextTeam%d",i);
-		teamWin[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-
-		// get the slot man!
-		GameSlot *slot = game->getSlot(i);
+		GameSlot *slot = game->getSlot(slotNum);
 		if (!slot || !slot->isOccupied())
 			continue;
 
-		Color houseColor = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor();
-#if RTS_GENERALS
-		GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot],houseColor );
-#else
-		// format the progress bar to house colors
-		AsciiString imageName;
-		imageName.format("LoadingBar_ProgressCenter%d", slot->getApparentColor());
-		const Image *houseImage = TheMappedImageCollection->findImageByName(imageName);
-		if (! houseImage)
-			houseImage = TheMappedImageCollection->findImageByName("LoadingBar_Progress");
-		m_progressBars[netSlot]->winSetEnabledImage( 6, houseImage );
-#endif
-
-		UnicodeString name = slot->getName();
-		GadgetStaticTextSetText(m_playerNames[netSlot], name );
-		m_playerNames[netSlot]->winSetEnabledTextColors(houseColor, m_playerNames[netSlot]->winGetEnabledTextBorderColor());
-
-#if defined(GO_REVEAL_TEAMS)
-        const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
-        GadgetStaticTextSetText(m_playerSide[netSlot], pt ? pt->getDisplayName() : slot->getApparentPlayerTemplateDisplayName());
-#else
-        GadgetStaticTextSetText(m_playerSide[netSlot], slot->getApparentPlayerTemplateDisplayName());
-#endif
-		
-		m_playerSide[netSlot]->winSetEnabledTextColors(houseColor, m_playerSide[netSlot]->winGetEnabledTextBorderColor());
-
-		if (slot->isAI() && m_progressBars[netSlot])
-			m_progressBars[netSlot]->winHide(TRUE);
-
-		if (teamWin[netSlot])
-		{
-			AsciiString teamStr;
-			teamStr.format("Team:%d", slot->getTeamNumber() + 1);
-			GadgetStaticTextSetText(teamWin[netSlot], TheGameText->fetch(teamStr));
-			teamWin[netSlot]->winSetEnabledTextColors(houseColor, m_playerNames[netSlot]->winGetEnabledTextBorderColor());
-		}
-
-		m_playerLookup[i] = netSlot; // save our mapping so we can update progress correctly
-
+		LoadScreenPlayerRow &row = data.m_rows[netSlot];
+		row.m_name = slot->getName();
+		row.m_colorIndex = slot->getApparentColor();
+		row.m_color = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor() & 0xFFFFFF;
+		row.m_side = getSlotSideName( slot );
+		row.m_showProgress = !slot->isAI();
+		AsciiString teamStr;
+		teamStr.format("Team:%d", slot->getTeamNumber() + 1);
+		row.m_team = TheGameText->fetch(teamStr);
+		m_playerLookup[slotNum] = netSlot; // save our mapping so we can update progress correctly
 		netSlot++;
 	}
+	data.m_rowCount = netSlot;
+	fillMapView( data, game );
 
-	for(i = netSlot; i < MAX_SLOTS; ++i)
+	if (usesLegacyView( wndPath ))
 	{
-		m_progressBars[i]->winHide(TRUE);
-		m_playerNames[i]->winHide(TRUE);
-		m_playerSide[i]->winHide(TRUE);
-		teamWin[i]->winHide(TRUE);
+		m_view = NEW MultiPlayerLoadScreenView;
+		m_view->init( m_loadScreen, game, data );
 	}
-
-	if(m_mapPreview)
-	{
-		const MapMetaData *mmd = TheMapCache->findMap(game->getMap());
-		Image *image = getMapPreviewImage(game->getMap());
-		m_mapPreview->winSetUserData((void *)mmd);
-
-		positionStartSpots( game, m_buttonMapStartPosition, m_mapPreview);
-		updateMapStartSpots( game, m_buttonMapStartPosition, TRUE );
-		//positionAdditionalImages((MapMetaData *)mmd, m_mapPreview, TRUE);
-		if(image)
-		{
-			m_mapPreview->winSetStatus(WIN_STATUS_IMAGE);
-			m_mapPreview->winSetEnabledImage(0, image);
-		}
-		else
-		{
-			m_mapPreview->winClearStatus(WIN_STATUS_IMAGE);
-		}
-	}
-
+	data.touch();
 
 	TheGameLogic->initTimeOutValues();
 }
@@ -1571,12 +1409,8 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 void MultiPlayerLoadScreen::reset()
 {
 	setLoadScreen(nullptr);
-	for(Int i = 0; i < MAX_SLOTS; ++i)
-	{
-		m_progressBars[i] = nullptr;
-		m_playerNames[i] = nullptr;
-		m_playerSide[i]= nullptr;
-	}
+	if (m_view)
+		m_view->reset();
 }
 
 void MultiPlayerLoadScreen::update( Int percent )
@@ -1610,50 +1444,22 @@ void MultiPlayerLoadScreen::processProgress(Int playerId, Int percentage)
 		return;
 	}
 	//DEBUG_LOG(("Percentage %d was passed in for Player %d (in loadscreen position %d)", percentage, playerId, m_playerLookup[playerId]));
-	if (m_useRml)
-	{
-		LoadScreenData::instance().m_rows[m_playerLookup[playerId]].m_progress = percentage;
-		LoadScreenData::instance().touch();
-		return;
-	}
-	if(m_progressBars[m_playerLookup[playerId]])
-		GadgetProgressBarSetProgress(m_progressBars[m_playerLookup[playerId]], percentage );
+	LoadScreenData::instance().m_rows[m_playerLookup[playerId]].m_progress = percentage;
+	publishData();
 }
 
 // GameSpyLoadScreen Class //////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
 GameSpyLoadScreen::GameSpyLoadScreen()
 {
-
-	m_mapPreview = nullptr;
-	m_portraitLocalGeneral = nullptr;
-	m_featuresLocalGeneral = nullptr;
-	m_nameLocalGeneral = nullptr;
-
 	for(Int i = 0; i < MAX_SLOTS; ++i)
 	{
-
-		m_buttonMapStartPosition[i] = nullptr;
-		m_playerRank[i] = nullptr;
-
-		m_playerOfficerMedal[i] = nullptr;
-		m_progressBars[i] = nullptr;
-		m_playerNames[i] = nullptr;
-		m_playerSide[i]= nullptr;
 		m_playerLookup[i] = -1;
-		m_playerFavoriteFactions[i]= nullptr;
-		m_playerTotalDisconnects[i]= nullptr;
-		m_playerWin[i]= nullptr;
-		m_playerWinLosses[i]= nullptr;
 	}
 }
 
 GameSpyLoadScreen::~GameSpyLoadScreen()
 {
-	if(m_mapPreview)
-	{
-		m_mapPreview->winSetUserData(nullptr);
-	}
 }
 
 #if !defined(GENERALS_ONLINE)
@@ -1749,19 +1555,13 @@ void GameSpyLoadScreen::init( GameInfo *game )
 {
 	g_bHasDoneSOGScreenshot = FALSE;
 
-	m_useRml = shouldUseRml( "Menus/GameSpyLoadScreen.wnd" );
-	if (m_useRml)
-		LoadScreenData::instance().reset();
+	static const char *wndPath = "Menus/GameSpyLoadScreen.wnd";
+	LoadScreenData &data = LoadScreenData::instance();
+	data.reset();
 
 	// create the layout of the load screen
-	m_loadScreen = TheWindowManager->winCreateFromScript( "Menus/GameSpyLoadScreen.wnd" );
+	m_loadScreen = TheWindowManager->winCreateFromScript( wndPath );
 	DEBUG_ASSERTCRASH(m_loadScreen, ("Can't initialize the Multiplayer loadscreen"));
-	if (!m_useRml)
-	{
-		m_loadScreen->winHide(FALSE);
-		m_loadScreen->winBringToTop();
-		m_mapPreview = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "GameSpyLoadScreen.wnd:WinMapPreview"));
-	}
 	DEBUG_ASSERTCRASH(TheNetwork, ("Where the Heck is the Network!!!!"));
 	DEBUG_LOG(("NumPlayers %d", TheNetwork->getNumPlayers()));
 GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
@@ -1772,229 +1572,50 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		pt = ThePlayerTemplateStore->findPlayerTemplate( TheNameKeyGenerator->nameToKey("FactionObserver") );
 
 #if RTS_GENERALS
-	const Image *loadScreenImage = TheMappedImageCollection->findImageByName(pt->getLoadScreen());
-	if(loadScreenImage)
-		m_loadScreen->winSetEnabledImage(0, loadScreenImage);
+	data.m_backgroundImage = pt->getLoadScreen();
 #else
-	// add portrait, features, and name for the local player's general
-	if (m_useRml)
-	{
-		fillLocalGeneral( LoadScreenData::instance(), pt, FALSE );
-	}
-	else
-	{
-		UnicodeString localName;
-		const Image *portrait = getLocalGeneralPortrait( pt, FALSE, localName );
-		m_portraitLocalGeneral = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "GameSpyLoadScreen.wnd:LocalGeneralPortrait"));
-		m_portraitLocalGeneral->winSetEnabledImage( 0, portrait);
-		m_featuresLocalGeneral = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "GameSpyLoadScreen.wnd:LocalGeneralFeatures"));
-		AsciiString features = pt->getGeneralFeatures();
-		GadgetStaticTextSetText( m_featuresLocalGeneral, TheGameText->fetch( features.isEmpty() ? "GUI:PlayerObserver" : pt->getGeneralFeatures() ) );
-		m_nameLocalGeneral = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "GameSpyLoadScreen.wnd:LocalGeneralName"));
-		GadgetStaticTextSetText( m_nameLocalGeneral, localName );
-	}
+	// portrait, features, and name for the local player's general
+	fillLocalGeneral( data, pt, FALSE );
 #endif
-
-	if (m_useRml)
-	{
-		LoadScreenData &view = LoadScreenData::instance();
-		Int rmlSlot = 0;
-		for (Int slotNum = 0; slotNum < MAX_SLOTS; ++slotNum)
-		{
-			GameSpyGameSlot *slot = (GameSpyGameSlot *)game->getSlot(slotNum);
-			if (!slot || !slot->isOccupied())
-				continue;
-
-			GameSpySlotInfo info;
-			gatherGameSpySlotInfo( game, slot, info );
-
-			LoadScreenPlayerRow &row = view.m_rows[rmlSlot];
-			row.m_name = info.m_name;
-			row.m_color = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor() & 0xFFFFFF;
-			row.m_side = getSlotSideName( slot );
-			row.m_winLoss = info.m_winLoss;
-			row.m_disconnects = info.m_disconnects;
-			row.m_rankImage = info.m_rankImage ? info.m_rankImage->getName() : AsciiString::TheEmptyString;
-			row.m_medalImage = info.m_medalImage ? info.m_medalImage->getName() : AsciiString::TheEmptyString;
-			row.m_showProgress = !slot->isAI();
-			row.m_showStats = !slot->isAI();
-			m_playerLookup[slotNum] = rmlSlot;
-			rmlSlot++;
-		}
-		view.m_rowCount = rmlSlot;
-		fillMapView( view, game );
-		view.touch();
-
-		TheGameLogic->initTimeOutValues();
-		return;
-	}
-
-	GameWindow *teamWin[MAX_SLOTS];
-	Int i = 0;
-	for (; i < MAX_SLOTS; ++i)
-	{
-		teamWin[i] = nullptr;
-	}
 
 	Int netSlot = 0;
-	// Loop through and make the loadscreen look all good.
-	for (i = 0; i < MAX_SLOTS; ++i)
+	for (Int slotNum = 0; slotNum < MAX_SLOTS; ++slotNum)
 	{
-		// Load the Progress Bar
-		AsciiString winName;
-		winName.format( "GameSpyLoadScreen.wnd:ProgressLoad%d",i);
-		m_progressBars[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_progressBars[i], ("Can't initialize the progressbars for the GameSpyLoadScreen loadscreen"));
-		// set the progressbar to zero
-		GadgetProgressBarSetProgress(m_progressBars[i], 0 );
-
-		// Load the Player's name
-		winName.format( "GameSpyLoadScreen.wnd:StaticTextPlayer%d",i);
-		m_playerNames[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_playerNames[i], ("Can't initialize the Names for the GameSpyLoadScreen loadscreen"));
-
-		// Load MapStart Positions
-		winName.format( "GameSpyLoadScreen.wnd:ButtonMapStartPosition%d",i);
-		m_buttonMapStartPosition[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_buttonMapStartPosition[i], ("Can't initialize the MapStart Positions for the GameSpyLoadScreen loadscreen"));
-
-
-		// Load the Player's Side
-		winName.format( "GameSpyLoadScreen.wnd:StaticTextSide%d",i);
-		m_playerSide[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_playerSide[i], ("Can't initialize the Sides for the GameSpyLoadScreen loadscreen"));
-
-		// Load the Player's window
-		winName.format( "GameSpyLoadScreen.wnd:WinPlayer%d",i);
-		m_playerWin[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_playerWin[i], ("Can't initialize the WinPlayer for the GameSpyLoadScreen loadscreen"));
-
-		// Load the Player's m_playerTotalDisconnects
-		winName.format( "GameSpyLoadScreen.wnd:StaticTextTotalDisconnects%d",i);
-		m_playerTotalDisconnects[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_playerTotalDisconnects[i], ("Can't initialize the m_playerTotalDisconnects for the GameSpyLoadScreen loadscreen"));
-
-//		// Load the Player's m_playerFavoriteFactions
-//		winName.format( "GameSpyLoadScreen.wnd:StaticTextFavoriteFaction%d",i);
-//		m_playerFavoriteFactions[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-//		DEBUG_ASSERTCRASH(m_playerFavoriteFactions[i], ("Can't initialize the StaticTextFavoriteFaction for the GameSpyLoadScreen loadscreen"));
-
-		// Load the Player's m_playerWinLosses
-		winName.format( "GameSpyLoadScreen.wnd:StaticTextWinLoss%d",i);
-		m_playerWinLosses[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_playerWinLosses[i], ("Can't initialize the m_playerWinLosses for the GameSpyLoadScreen loadscreen"));
-
-		// Load the Player's m_playerWinLosses
-		winName.format( "GameSpyLoadScreen.wnd:WinRank%d",i);
-		m_playerRank[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_playerRank[i], ("Can't initialize the m_playerRank for the GameSpyLoadScreen loadscreen"));
-
-		// Load the Player's m_playerOfficerMedal
-		winName.format( "GameSpyLoadScreen.wnd:WinOfficer%d",i);
-		m_playerOfficerMedal[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_playerOfficerMedal[i], ("Can't initialize the m_playerOfficerMedal for the GameSpyLoadScreen loadscreen"));
-
-		winName.format( "MultiplayerLoadScreen.wnd:StaticTextTeam%d",i);
-		teamWin[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-
-		// get the slot man!
-		GameSpyGameSlot *slot = (GameSpyGameSlot *)game->getSlot(i);
+		GameSpyGameSlot *slot = (GameSpyGameSlot *)game->getSlot(slotNum);
 		if (!slot || !slot->isOccupied())
 			continue;
-
-		Color houseColor = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor();
-#if RTS_GENERALS
-		GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot],houseColor );
-#else
-		// format the progress bar to house colors
-		AsciiString imageName;
-		imageName.format("LoadingBar_ProgressCenter%d", slot->getApparentColor());
-		const Image *houseImage = TheMappedImageCollection->findImageByName(imageName);
-		if (! houseImage)
-			houseImage = TheMappedImageCollection->findImageByName("LoadingBar_Progress");
-		m_progressBars[netSlot]->winSetEnabledImage( 6, houseImage );
-#endif
 
 		GameSpySlotInfo info;
 		gatherGameSpySlotInfo( game, slot, info );
 
-		GadgetStaticTextSetText(m_playerNames[netSlot], info.m_name );
-		m_playerNames[netSlot]->winSetEnabledTextColors(houseColor, m_playerNames[netSlot]->winGetEnabledTextBorderColor());
-
-		m_playerOfficerMedal[i]->winSetEnabledImage(0, info.m_medalImage);
-		m_playerRank[i]->winSetEnabledImage(0, info.m_rankImage);
-
-		GadgetStaticTextSetText(m_playerWinLosses[netSlot], info.m_winLoss);
-		m_playerWinLosses[netSlot]->winSetEnabledTextColors(houseColor, m_playerWinLosses[netSlot]->winGetEnabledTextBorderColor());
-
-		GadgetStaticTextSetText(m_playerTotalDisconnects[netSlot], info.m_disconnects);
-		m_playerTotalDisconnects[netSlot]->winSetEnabledTextColors(houseColor, m_playerTotalDisconnects[netSlot]->winGetEnabledTextBorderColor());
-
-#if defined(GO_REVEAL_TEAMS)
-		const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
-        GadgetStaticTextSetText(m_playerSide[netSlot], pt ? pt->getDisplayName() : slot->getApparentPlayerTemplateDisplayName());
-#else
-		GadgetStaticTextSetText(m_playerSide[netSlot], slot->getApparentPlayerTemplateDisplayName());
-#endif
-		m_playerSide[netSlot]->winSetEnabledTextColors(houseColor, m_playerSide[netSlot]->winGetEnabledTextBorderColor());
-
-		if (slot->isAI())
-		{
-			if (m_progressBars[netSlot])
-				m_progressBars[netSlot]->winHide(TRUE);
-			if (m_playerTotalDisconnects[netSlot])
-				m_playerTotalDisconnects[netSlot]->winHide(TRUE);
-//			if (m_playerFavoriteFactions[netSlot])
-//				m_playerFavoriteFactions[netSlot]->winHide(TRUE);
-			if (m_playerWinLosses[netSlot])
-				m_playerWinLosses[netSlot]->winHide(TRUE);
-			if (m_playerRank[netSlot])
-				m_playerRank[netSlot]->winHide(TRUE);
-			if (m_playerOfficerMedal[netSlot])
-				m_playerOfficerMedal[netSlot]->winHide(TRUE);
-		}
-
-		if (teamWin[netSlot])
-		{
-			AsciiString teamStr;
-			teamStr.format("Team:%d", slot->getTeamNumber() + 1);
-			if (slot->isAI() && slot->getTeamNumber() == -1)
-				teamStr = "Team:AI";
-			GadgetStaticTextSetText(teamWin[netSlot], TheGameText->fetch(teamStr));
-			teamWin[netSlot]->winSetEnabledTextColors(houseColor, m_playerNames[netSlot]->winGetEnabledTextBorderColor());
-		}
-
-		m_playerLookup[i] = netSlot; // save our mapping so we can update progress correctly
-
+		LoadScreenPlayerRow &row = data.m_rows[netSlot];
+		row.m_name = info.m_name;
+		row.m_colorIndex = slot->getApparentColor();
+		row.m_color = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor() & 0xFFFFFF;
+		row.m_side = getSlotSideName( slot );
+		row.m_winLoss = info.m_winLoss;
+		row.m_disconnects = info.m_disconnects;
+		row.m_rankImage = info.m_rankImage ? info.m_rankImage->getName() : AsciiString::TheEmptyString;
+		row.m_medalImage = info.m_medalImage ? info.m_medalImage->getName() : AsciiString::TheEmptyString;
+		row.m_showProgress = !slot->isAI();
+		row.m_showStats = !slot->isAI();
+		AsciiString teamStr;
+		teamStr.format("Team:%d", slot->getTeamNumber() + 1);
+		if (slot->isAI() && slot->getTeamNumber() == -1)
+			teamStr = "Team:AI";
+		row.m_team = TheGameText->fetch(teamStr);
+		m_playerLookup[slotNum] = netSlot; // save our mapping so we can update progress correctly
 		netSlot++;
 	}
+	data.m_rowCount = netSlot;
+	fillMapView( data, game );
 
-	for(i = netSlot; i < MAX_SLOTS; ++i)
+	if (usesLegacyView( wndPath ))
 	{
-		m_playerWin[i]->winHide(TRUE);
-		//m_playerNames[i]->winHide(TRUE);
-		//m_playerSide[i]->winHide(TRUE);
+		m_view = NEW GameSpyLoadScreenView;
+		m_view->init( m_loadScreen, game, data );
 	}
-
-	if(m_mapPreview)
-	{
-		const MapMetaData *mmd = TheMapCache->findMap(game->getMap());
-		Image *image = getMapPreviewImage(game->getMap());
-		m_mapPreview->winSetUserData((void *)mmd);
-
-		positionStartSpots( game, m_buttonMapStartPosition, m_mapPreview);
-		updateMapStartSpots( game, m_buttonMapStartPosition, TRUE );
-		//positionAdditionalImages((MapMetaData *)mmd, m_mapPreview, TRUE);
-		if(image)
-		{
-			m_mapPreview->winSetStatus(WIN_STATUS_IMAGE);
-			m_mapPreview->winSetEnabledImage(0, image);
-		}
-		else
-		{
-			m_mapPreview->winClearStatus(WIN_STATUS_IMAGE);
-		}
-	}
+	data.touch();
 
 	TheGameLogic->initTimeOutValues();
 }
@@ -2002,12 +1623,8 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 void GameSpyLoadScreen::reset()
 {
 	setLoadScreen(nullptr);
-	for(Int i = 0; i < MAX_SLOTS; ++i)
-	{
-		m_progressBars[i] = nullptr;
-		m_playerNames[i] = nullptr;
-		m_playerSide[i]= nullptr;
-	}
+	if (m_view)
+		m_view->reset();
 }
 
 void GameSpyLoadScreen::update( Int percent )
@@ -2051,14 +1668,8 @@ void GameSpyLoadScreen::processProgress(Int playerId, Int percentage)
 		return;
 	}
 	//DEBUG_LOG(("Percentage %d was passed in for Player %d (in loadscreen position %d)", percentage, playerId, m_playerLookup[playerId]));
-	if (m_useRml)
-	{
-		LoadScreenData::instance().m_rows[m_playerLookup[playerId]].m_progress = percentage;
-		LoadScreenData::instance().touch();
-		return;
-	}
-	if(m_progressBars[m_playerLookup[playerId]])
-		GadgetProgressBarSetProgress(m_progressBars[m_playerLookup[playerId]], percentage );
+	LoadScreenData::instance().m_rows[m_playerLookup[playerId]].m_progress = percentage;
+	publishData();
 }
 
 // MapTransferLoadScreen Class //////////////////////////////////////////////////

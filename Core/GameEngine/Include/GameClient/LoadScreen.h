@@ -69,7 +69,6 @@ protected:
 	void publishData();					///< bump LoadScreenData and refresh the legacy view
 	GameWindow *m_loadScreen;		///< The GameWindow that is our loadscreen
 	LoadScreenView *m_view;			///< .wnd presentation of LoadScreenData, null when RmlUi draws the screen (m_loadScreen is then an empty placeholder)
-	Bool m_useRml;							///< RmlUi draws this screen, fed through LoadScreenData
 
 private:
 
@@ -241,16 +240,7 @@ public:
 	virtual void processProgress(Int playerId, Int percentage) override;
 	virtual void setProgressRange( Int min, Int max ) override { }
 private:
-	GameWindow *m_progressBars[MAX_SLOTS];	///< pointer array to all the progress bars on the window
-	GameWindow *m_playerNames[MAX_SLOTS];		///< pointer array to all the static text player names on the window
-	GameWindow *m_playerSide[MAX_SLOTS];		///< pointer array to all the static text player sides
 	Int m_playerLookup[MAX_SLOTS];					///< lookup table to translate network slot info screen slot (to account for holes in the slot list)
-	GameWindow *m_mapPreview;
-	GameWindow *m_buttonMapStartPosition[MAX_SLOTS];
-	GameWindow *m_portraitLocalGeneral;
-	GameWindow *m_featuresLocalGeneral;
-	GameWindow *m_nameLocalGeneral;
-
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -272,23 +262,7 @@ public:
 	virtual void processProgress(Int playerId, Int percentage) override;
 	virtual void setProgressRange( Int min, Int max ) override { }
 private:
-	GameWindow *m_progressBars[MAX_SLOTS];	///< pointer array to all the progress bars on the window
-	GameWindow *m_playerNames[MAX_SLOTS];		///< pointer array to all the static text player names on the window
-	GameWindow *m_playerSide[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerFavoriteFactions[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerTotalDisconnects[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerWin[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerWinLosses[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerRank[MAX_SLOTS];		///< pointer array to all the static text player sides
-	GameWindow *m_playerOfficerMedal[MAX_SLOTS];		///< pointer array to all the static text player munkees
-	GameWindow *m_mapPreview;
-	GameWindow *m_buttonMapStartPosition[MAX_SLOTS];
-
 	Int m_playerLookup[MAX_SLOTS];					///< lookup table to translate network slot info screen slot (to account for holes in the slot list)
-
-	GameWindow *m_portraitLocalGeneral;
-	GameWindow *m_featuresLocalGeneral;
-	GameWindow *m_nameLocalGeneral;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

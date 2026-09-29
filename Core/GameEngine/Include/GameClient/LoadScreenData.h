@@ -39,6 +39,7 @@ struct LoadScreenPlayerRow
 	AsciiString m_rankImage; ///< mapped image names, empty for none
 	AsciiString m_medalImage;
 	UnsignedInt m_color = 0xFFFFFF; ///< 0x00RRGGBB
+	Int m_colorIndex = 0; ///< slot's apparent color index, for the legacy house-colored bar
 	Int m_progress = 0; ///< 0..100
 	Bool m_showProgress = TRUE;
 	Bool m_showStats = TRUE; ///< FALSE for AI: no rank, win/loss or disconnects
@@ -76,6 +77,8 @@ struct LoadScreenData
 	UnicodeString m_localName; ///< local player's general or faction
 	UnicodeString m_localFeatures;
 	AsciiString m_localPortrait; ///< mapped image name
+
+	AsciiString m_backgroundImage; ///< mapped image behind the screen, empty for none (original Generals)
 
 	AsciiString m_mapName;
 	LoadScreenStartMarker m_markers[MAX_SLOTS];
