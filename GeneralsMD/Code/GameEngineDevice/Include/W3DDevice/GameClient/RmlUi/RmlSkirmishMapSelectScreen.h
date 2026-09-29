@@ -58,6 +58,8 @@ private:
 	void selectMap(const Rml::String &mapName); // OK/double-click: write back + return to setup
 
 	void onFilterChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onPlayerFilterChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (players), 0 = any
+	void refreshVisibleCount();
 	void onMapSelected(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onMapActivated(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // double-click: select + OK
 	void onOk(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -101,6 +103,9 @@ private:
 		int selectedNumPlayers = 0;
 
 		Rml::Vector<StartMarkerModel> startMarkers;
+
+		int playerFilter = 0; // show only maps for this many players; 0 = any
+		int visibleCount = 0; // live maps that pass playerFilter, for the empty state
 	} m_model;
 
 	// Grow-only wrapper around m_model.maps (see RmlGrowOnlyList.h): the filter toggle can rebuild

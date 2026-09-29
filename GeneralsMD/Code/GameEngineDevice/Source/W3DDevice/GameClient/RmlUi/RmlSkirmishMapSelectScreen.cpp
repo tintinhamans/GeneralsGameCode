@@ -98,8 +98,11 @@ void RmlSkirmishMapSelectScreen::load(Rml::Context *context)
 		constructor.Bind("has_selection", &m_model.hasSelection);
 		constructor.Bind("selected_num_players", &m_model.selectedNumPlayers);
 		constructor.Bind("start_markers", &m_model.startMarkers);
+		constructor.Bind("player_filter", &m_model.playerFilter);
+		constructor.Bind("visible_count", &m_model.visibleCount);
 
 		constructor.BindEventCallback("filter_changed", &RmlSkirmishMapSelectScreen::onFilterChanged, this);
+		constructor.BindEventCallback("player_filter_changed", &RmlSkirmishMapSelectScreen::onPlayerFilterChanged, this);
 		constructor.BindEventCallback("map_selected", &RmlSkirmishMapSelectScreen::onMapSelected, this);
 		constructor.BindEventCallback("map_activated", &RmlSkirmishMapSelectScreen::onMapActivated, this);
 		constructor.BindEventCallback("ok", &RmlSkirmishMapSelectScreen::onOk, this);
@@ -181,6 +184,8 @@ void RmlSkirmishMapSelectScreen::refreshMapList()
 
 	if (!m_model.hasSelection)
 		m_model.selectedMapName.clear();
+
+	refreshVisibleCount();
 
 	if (m_modelHandle)
 	{
@@ -274,6 +279,28 @@ void RmlSkirmishMapSelectScreen::onFilterChanged(Rml::DataModelHandle, Rml::Even
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("use_system_maps");
+}
+
+void RmlSkirmishMapSelectScreen::onPlayerFilterChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.empty())
+		return;
+	m_model.playerFilter = args[0].Get<int>();
+	refreshVisibleCount();
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("player_filter");
+}
+
+void RmlSkirmishMapSelectScreen::refreshVisibleCount()
+{
+	m_model.visibleCount = 0;
+	for (const MapEntryModel &entry : m_model.maps)
+	{
+		if (entry.used && (m_model.playerFilter == 0 || entry.numPlayers == m_model.playerFilter))
+			++m_model.visibleCount;
+	}
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("visible_count");
 }
 
 void RmlSkirmishMapSelectScreen::onMapSelected(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
