@@ -1,0 +1,35 @@
+<rml>
+<head>
+	<title>ChallengeMenu</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ChallengeMenu.rcss"/>
+</head>
+<body class="shell" data-model="challengemenu">
+	<div class="ch-screen">
+		<mappedimage class="ch-background" name="GCBackgroundMinSpec"/>
+		<div class="ch-frame"></div>
+		<div class="ch-title"><gametext key="GUI:GeneralsChallenge"/></div>
+		<div class="ch-title-line"></div>
+
+		<button class="ch-general" data-for="g : generals" data-class-selected="g.selected"
+			data-style-left="g.left" data-style-top="g.top" data-style-width="g.size" data-style-height="g.size"
+			data-event-mouseover="hover(g.index)" data-event-mouseout="unhover(g.index)" data-event-mousedown="select(g.index)">
+			<mappedimage class="ch-normal" data-attr-name="g.normal_image"/>
+			<mappedimage class="ch-hilite" data-attr-name="g.hilite_image"/>
+			<mappedimage class="ch-selected" data-attr-name="g.selected_image"/>
+		</button>
+
+		<div class="ch-bio" data-if="show_bio">
+			<div class="ch-portrait"><mappedimage data-attr-name="portrait_image" data-if="has_portrait"/></div>
+			<div class="ch-bio-title"><gametext key="GUI:Biography"/></div>
+			<div class="ch-bio-row ch-row0"><div class="ch-bio-label"><gametext key="GUI:BioName"/></div><div class="ch-bio-entry">{{bio_name}}</div></div>
+			<div class="ch-bio-row ch-row1"><div class="ch-bio-label"><gametext key="GUI:BioRank"/></div><div class="ch-bio-entry">{{bio_rank}}</div></div>
+			<div class="ch-bio-row ch-row2"><div class="ch-bio-label"><gametext key="GUI:BioBranch"/></div><div class="ch-bio-entry">{{bio_branch}}</div></div>
+			<div class="ch-bio-row ch-row3"><div class="ch-bio-label"><gametext key="GUI:BioStrategy"/></div><div class="ch-bio-entry">{{bio_strategy}}</div></div>
+		</div>
+
+		<button class="ch-play" data-if="show_play" data-event-click="play"><gametext key="GUI:Start"/></button>
+		<button class="ch-back" data-event-click="back"><gametext key="GUI:BACK"/></button>
+	</div>
+</body>
+</rml>

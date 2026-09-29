@@ -1,0 +1,217 @@
+/*
+	ChallengeMenu.rcss -- ChallengeMenu.wnd (main menu > Single Player > Generals Challenge). Everything is
+	placed in percent of the screen from the .wnd's 800x600 rects (the .wnd stretches non-uniformly to the
+	screen too), so the medallions stay on their spots of the world map art. The capsule buttons come
+	from common.rcss; the medallions are three stacked images swapped by hover and selection.
+*/
+
+.ch-screen
+{
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	animation: 0.4s linear-in-out 1 ch-fade-in; /* ChallengeMenuFade */
+}
+
+@keyframes ch-fade-in
+{
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+.ch-background
+{
+	pointer-events: none;
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+}
+
+/* Frame (41,40)-(760,561), the title and the line under it (Line1 at y 78). */
+.ch-frame
+{
+	pointer-events: none;
+	position: absolute;
+	left: 5.125%;
+	top: 6.667%;
+	width: 89.875%;
+	height: 86.833%;
+	box-sizing: border-box;
+	border: 1dp #FFFFFF;
+}
+
+.ch-title
+{
+	pointer-events: none;
+	position: absolute;
+	left: 5.75%;
+	top: 7.667%;
+	font-size: 36dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+}
+
+.ch-title-line
+{
+	pointer-events: none;
+	position: absolute;
+	left: 5.25%;
+	top: 13%;
+	width: 89.75%;
+	height: 1dp;
+	background-color: #FFFFFF;
+}
+
+/* ---- Medallions ---------------------------------------------------------------------------
+   normal art; the hilite art under the cursor; the selected art once chosen, hovered or not. */
+.ch-general,
+.ch-general:hover,
+.ch-general:active
+{
+	decorator: none;
+	font-effect: none;
+	position: absolute;
+	padding: 0;
+	margin: 0;
+	border-width: 0;
+	background-color: transparent;
+}
+
+.ch-general mappedimage
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.ch-general mappedimage.ch-hilite,
+.ch-general mappedimage.ch-selected
+{
+	display: none;
+}
+
+.ch-general:hover mappedimage.ch-normal
+{
+	display: none;
+}
+
+.ch-general:hover mappedimage.ch-hilite
+{
+	display: block;
+}
+
+.ch-general.selected mappedimage.ch-normal,
+.ch-general.selected:hover mappedimage.ch-normal,
+.ch-general.selected mappedimage.ch-hilite,
+.ch-general.selected:hover mappedimage.ch-hilite
+{
+	display: none;
+}
+
+.ch-general.selected mappedimage.ch-selected,
+.ch-general.selected:hover mappedimage.ch-selected
+{
+	display: block;
+}
+
+/* ---- Biography panel: GeneralsBioParent (199,379)-(747,493) ---------------------------------- */
+.ch-bio
+{
+	position: absolute;
+	left: 24.875%;
+	top: 63.167%;
+	width: 68.5%;
+	height: 19%;
+	box-sizing: border-box;
+	background-color: rgba(0, 0, 50, 173);
+	border: 1dp #FFFFFF;
+}
+
+/* BioPortrait (641,386)-(738,486) */
+.ch-portrait
+{
+	position: absolute;
+	left: 80.66%;
+	top: 6.14%;
+	width: 17.7%;
+	height: 87.7%;
+	box-sizing: border-box;
+	background-color: #000000;
+	border: 1dp #FFFFFF;
+}
+
+.ch-portrait mappedimage
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.ch-bio-title
+{
+	position: absolute;
+	left: 0.9%;
+	top: 3.5%;
+	font-size: 25dp;
+	color: #FFFFFF;
+	white-space: nowrap;
+}
+
+.ch-bio-row
+{
+	position: absolute;
+	left: 0.9%;
+	width: 77%;
+	height: 15%;
+	display: flex;
+	flex-direction: row;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+}
+
+.ch-row0 { top: 22.8%; }
+.ch-row1 { top: 36.8%; }
+.ch-row2 { top: 50.9%; }
+.ch-row3 { top: 64.9%; }
+
+.ch-bio-label
+{
+	flex: 0 0 21.4%;
+}
+
+.ch-bio-entry
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+}
+
+/* ---- Play / Back: (382,505)-(554,541) and (576,505)-(748,541) ---------------------------------- */
+.ch-play,
+.ch-back
+{
+	position: absolute;
+	top: 84.167%;
+	width: 21.5%;
+	height: 6%;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 26dp;
+}
+
+.ch-play { left: 47.75%; }
+.ch-back { left: 72%; }
