@@ -187,22 +187,18 @@ void RmlQuickMatchScreen::load(Rml::Context *context)
 }
 
 //-------------------------------------------------------------------------------------------------
-// QuickMatchSession::EventSink -- every write the async NGMP lobby callbacks and the per-frame
+// QuickMatchSignals listeners -- every write the async NGMP lobby callbacks and the per-frame
 // update used to make straight to quickmatchTextWindow/buttonBack/buttonStop/buttonWiden/
-// buttonBuddies (WOLQuickMatchMenu.cpp's buildQuickMatchSessionSink()) lands on m_model +
+// buttonBuddies (WOLQuickMatchMenu.cpp's connectQuickMatchSessionSignals()) lands on m_model +
 // DirtyVariable() here instead.
-static QuickMatchSession::EventSink buildEventSink(RmlQuickMatchScreen *screen)
+static void connectSessionSignals(RmlQuickMatchScreen *screen, SignalConnections &connections)
 {
-	QuickMatchSession::EventSink sink;
-
-	sink.statusLine = [screen](const UnicodeString &text, Color color) { screen->onStatusLine(unicodeToUtf8(text), colorToCss(color)); };
-	sink.setBackButtonEnabled = [screen](Bool enabled) { screen->setBackButtonEnabled(enabled == TRUE); };
-	sink.setStopButtonEnabled = [screen](Bool enabled) { screen->setStopButtonEnabled(enabled == TRUE); };
-	sink.setWidenButtonEnabled = [screen](Bool enabled) { screen->setWidenButtonEnabled(enabled == TRUE); };
-	sink.setCommunicatorButtonEnabled = [screen](Bool enabled) { screen->setCommunicatorButtonEnabled(enabled == TRUE); };
-	sink.communicatorCountChanged = [screen](int numNotifications) { screen->onCommunicatorCountChanged(numNotifications); };
-
-	return sink;
+	connections.add( QuickMatchSignals::statusLine().connect( [screen](const UnicodeString &text, Color color) { screen->onStatusLine(unicodeToUtf8(text), colorToCss(color)); } ) );
+	connections.add( QuickMatchSignals::backButtonEnabled().connect( [screen](Bool enabled) { screen->setBackButtonEnabled(enabled == TRUE); } ) );
+	connections.add( QuickMatchSignals::stopButtonEnabled().connect( [screen](Bool enabled) { screen->setStopButtonEnabled(enabled == TRUE); } ) );
+	connections.add( QuickMatchSignals::widenButtonEnabled().connect( [screen](Bool enabled) { screen->setWidenButtonEnabled(enabled == TRUE); } ) );
+	connections.add( QuickMatchSignals::communicatorButtonEnabled().connect( [screen](Bool enabled) { screen->setCommunicatorButtonEnabled(enabled == TRUE); } ) );
+	connections.add( QuickMatchSignals::communicatorCount().connect( [screen](int numNotifications) { screen->onCommunicatorCountChanged(numNotifications); } ) );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -239,10 +235,12 @@ void RmlQuickMatchScreen::show()
 
 	refreshPlaylists();
 
-	m_playerStatsConnection = PlayerStatsSignals::localPlayerUpdated().connect([this](const PlayerStatsData &data) { onPlayerStatsUpdated(data); });
+	m_connections.disconnect();
+	m_connections.add(PlayerStatsSignals::localPlayerUpdated().connect([this](const PlayerStatsData &data) { onPlayerStatsUpdated(data); }));
 	RequestLocalPlayerStatsData([this](const PlayerStatsData &data) { applyPlayerStatsToModel(data); });
 
-	QuickMatchSession::enter(buildEventSink(this));
+	connectSessionSignals(this, m_connections);
+	QuickMatchSession::enter();
 
 	m_document->Show();
 }
@@ -268,7 +266,7 @@ void RmlQuickMatchScreen::hide()
 
 	QuickMatchSession::leave();
 
-	m_playerStatsConnection.disconnect();
+	m_connections.disconnect();
 }
 
 bool RmlQuickMatchScreen::isVisible() const
@@ -287,7 +285,7 @@ void RmlQuickMatchScreen::update()
 	if (!m_document || !isVisible())
 		return;
 
-	QuickMatchSession::update(buildEventSink(this));
+	QuickMatchSession::update();
 
 	// See RmlOnlineGameSetupScreen::scrollChatToBottom(): the DirtyVariable() in onStatusLine() lands
 	// before RmlUi's next layout pass, so the post-layout GetScrollHeight() has to happen here instead.

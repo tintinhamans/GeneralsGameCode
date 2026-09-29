@@ -67,14 +67,13 @@ public:
 	void close();
 	bool isVisible() const;
 
-	// BuddyOverlaySession::EventSink targets, public so the free-function sink built in the .cpp
-	// can reach the singleton without befriending it.
-	void onChatMessage( int64_t sourceUserID, int64_t targetUserID, const UnicodeString &text );
-	void onRosterNeedsRefresh( bool bIsAutoRefresh, bool bUseCache );
-
 private:
 	RmlBuddyOverlayScreen() : m_rosterRows(m_model.rosterRows), m_blockedRows(m_model.blockedRows),
 		m_chatRows(m_model.chatLines), m_menuItemRows(m_model.playerMenuItems) {}
+
+	// BuddyOverlaySignals targets, connected in open().
+	void onChatMessage( int64_t sourceUserID, int64_t targetUserID, const UnicodeString &text );
+	void onRosterNeedsRefresh( bool bIsAutoRefresh, bool bUseCache );
 
 	void load(Rml::Context *context);
 
@@ -97,6 +96,7 @@ private:
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
+	SignalConnections m_connections; // BuddyOverlaySignals, connected while open
 	Rml::DataModelHandle m_modelHandle;
 
 	// One row of the roster (see BuddyOverlayData::BuddyRow, which this mirrors 1:1 for RmlUi binding).

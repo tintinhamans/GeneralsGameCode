@@ -221,10 +221,11 @@ void RmlLanGameSetupScreen::load(Rml::Context *context)
 //-------------------------------------------------------------------------------------------------
 void RmlLanGameSetupScreen::connectSignals()
 {
-	m_slotsConnection = LanGameSetupSignals::slotsChanged().connect([this](LANGameInfo *game) { onSlotsChanged(game); });
-	m_optionsConnection = LanGameSetupSignals::optionsChanged().connect([this](LANGameInfo *game) { onOptionsChanged(game); });
-	m_startButtonConnection = LanGameSetupSignals::startButton().connect([this](Bool enabled) { onStartButtonEnabledChanged(enabled == TRUE); });
-	m_chatConnection = LanGameSetupSignals::chatLine().connect([this](const UnicodeString &line, Color) { onChatLine(unicodeToUtf8(line)); });
+	m_connections.disconnect();
+	m_connections.add(LanGameSetupSignals::slotsChanged().connect([this](LANGameInfo *game) { onSlotsChanged(game); }));
+	m_connections.add(LanGameSetupSignals::optionsChanged().connect([this](LANGameInfo *game) { onOptionsChanged(game); }));
+	m_connections.add(LanGameSetupSignals::startButton().connect([this](Bool enabled) { onStartButtonEnabledChanged(enabled == TRUE); }));
+	m_connections.add(LanGameSetupSignals::chatLine().connect([this](const UnicodeString &line, Color) { onChatLine(unicodeToUtf8(line)); }));
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -427,10 +428,7 @@ void RmlLanGameSetupScreen::hide()
 	if (m_document)
 		m_document->Hide();
 
-	m_slotsConnection.disconnect();
-	m_optionsConnection.disconnect();
-	m_startButtonConnection.disconnect();
-	m_chatConnection.disconnect();
+	m_connections.disconnect();
 }
 
 bool RmlLanGameSetupScreen::isVisible() const

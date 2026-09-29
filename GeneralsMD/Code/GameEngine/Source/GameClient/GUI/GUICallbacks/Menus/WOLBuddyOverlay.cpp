@@ -960,7 +960,7 @@ void HandleBuddyResponses()
 
 #if defined(GENERALS_ONLINE)
 	// text/timer/sound + the dismiss check itself now live in BuddyOverlaySession -- see
-	// ToastShownWidget()'s BuddyOverlaySession::setToastSink() registration in WOLBuddyOverlayInit().
+	// the BuddyToastSignals connection below (BuddyToastPresenter).
 	BuddyOverlaySession::tickToast();
 #else
 	if(noticeLayout && timeGetTime() > noticeExpires)
@@ -971,7 +971,7 @@ void HandleBuddyResponses()
 }
 
 #if defined(GENERALS_ONLINE)
-// BuddyOverlaySession::ToastSink::shown -- the widget half of showNotificationBox(): creates/shows
+// BuddyToastSignals::shown -- the widget half of showNotificationBox(): creates/shows
 // PopupBuddyListNotification.wnd and sets its button text to the already-formatted toast text.
 // BuddyOverlaySession owns the nick substitution, the NOTIFICATION_EXPIRES timer and the
 // GUICommunicatorIncoming sound (see showToast()); this only touches the GameWindow.
@@ -995,17 +995,27 @@ static void ToastShownWidget( const UnicodeString &text )
 	noticeLayout->bringForward();
 }
 
-// Installs the toast widget callbacks at static-init time (not lazily from WOLBuddyOverlayInit())
+// Connects the toast widget callbacks at static-init time (not lazily from WOLBuddyOverlayInit())
 // so RequestBuddyAdd()'s toast -- reachable from the lobby's shared context menu with the buddy
 // overlay never having been opened this session -- still works the first time, same as the
 // original inline showNotificationBox()'s "always available, same TU" guarantee.
 namespace
 {
-	struct BuddyToastSinkInstaller
+	struct BuddyToastPresenter
 	{
-		BuddyToastSinkInstaller() { BuddyOverlaySession::setToastSink( { ToastShownWidget, deleteNotificationBox } ); }
+		BuddyToastPresenter()
+		{
+			connections.add( BuddyToastSignals::shown().connect( &ToastShownWidget ) );
+			connections.add( BuddyToastSignals::dismissed().connect( &deleteNotificationBox ) );
+		}
+		SignalConnections connections;
 	};
-	static BuddyToastSinkInstaller s_buddyToastSinkInstaller;
+	static BuddyToastPresenter s_buddyToastPresenter;
+}
+
+void BuddyOverlaySession::releaseWidgetToast()
+{
+	s_buddyToastPresenter.connections.disconnect();
 }
 #endif
 
@@ -1094,18 +1104,20 @@ void PopulateOldBuddyMessages()
 }
 
 #if defined(GENERALS_ONLINE)
-// BuddyOverlaySession::EventSink -- widget half of the NGMP callbacks WOLBuddyOverlayInit used to
+// BuddyOverlaySignals listeners -- widget half of the NGMP callbacks WOLBuddyOverlayInit used to
 // register inline (1080-1109 pre-refactor): chatMessage does exactly what the old
 // RegisterForCallback_OnChatMessage lambda's body did (append to the chat pane if this is the
 // selected friend, clear their unread count); rosterNeedsRefresh does what both that lambda's and
 // RegisterForCallback_NewFriendRequest's tails did (a plain updateBuddyInfo() call, with whatever
 // (bIsAutoRefresh, bUseCache) the session passes through -- only meaningful for the GENERALS_ONLINE
 // 2-arg updateBuddyInfo() overload, which is why this whole helper is GO-only).
-static BuddyOverlaySession::EventSink BuildBuddyEventSink()
-{
-	BuddyOverlaySession::EventSink sink;
+static SignalConnections s_buddyOverlayConnections;
 
-	sink.chatMessage = []( int64_t source_user_id, int64_t target_user_id, const UnicodeString &unicodeStr )
+static void ConnectBuddyOverlaySignals()
+{
+	s_buddyOverlayConnections.disconnect();
+
+	s_buddyOverlayConnections.add( BuddyOverlaySignals::chatMessage().connect( []( int64_t source_user_id, int64_t target_user_id, const UnicodeString &unicodeStr )
 	{
 		// Only add if the user is currently selected, otherwise rely on the cache
 		Int selected = -1;
@@ -1130,14 +1142,12 @@ static BuddyOverlaySession::EventSink BuildBuddyEventSink()
 				}
 			}
 		}
-	};
+	} ) );
 
-	sink.rosterNeedsRefresh = []( bool bIsAutoRefresh, bool bUseCache )
+	s_buddyOverlayConnections.add( BuddyOverlaySignals::rosterNeedsRefresh().connect( []( bool bIsAutoRefresh, bool bUseCache )
 	{
 		updateBuddyInfo( bIsAutoRefresh, bUseCache );
-	};
-
-	return sink;
+	} ) );
 }
 #endif
 
@@ -1165,7 +1175,8 @@ void WOLBuddyOverlayInit( WindowLayout *layout, void *userData )
 	//
 	// NOTE Init is only called when the UI is visible, so don't register for callbacks that you want to occur anytime
 #if defined(GENERALS_ONLINE)
-	BuddyOverlaySession::enter( BuildBuddyEventSink() );
+	ConnectBuddyOverlaySignals();
+	BuddyOverlaySession::enter();
 #endif
 
 	parent = TheWindowManager->winGetWindowFromId( NULL, parentID );
@@ -1214,6 +1225,7 @@ void WOLBuddyOverlayShutdown( WindowLayout *layout, void *userData )
 {
 #if defined(GENERALS_ONLINE)
 	BuddyOverlaySession::leave();
+	s_buddyOverlayConnections.disconnect();
 #endif
 
 	listboxIgnore = NULL;

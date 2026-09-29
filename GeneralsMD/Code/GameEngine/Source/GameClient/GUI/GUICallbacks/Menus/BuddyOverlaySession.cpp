@@ -25,19 +25,26 @@
 #include "Common/GameAudio.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 
+namespace BuddyOverlaySignals
+{
+	Signal3<int64_t, int64_t, const UnicodeString &> &chatMessage() { static Signal3<int64_t, int64_t, const UnicodeString &> s; return s; }
+	Signal0 &requestArrived() { static Signal0 s; return s; }
+	Signal2<bool, bool> &rosterNeedsRefresh() { static Signal2<bool, bool> s; return s; }
+	Signal1<int> &notificationCountChanged() { static Signal1<int> s; return s; }
+}
+
+// Function-local statics: the .wnd toast presenter connects from another file's static initializer.
+namespace BuddyToastSignals
+{
+	Signal1<const UnicodeString &> &shown() { static Signal1<const UnicodeString &> s; return s; }
+	Signal0 &dismissed() { static Signal0 s; return s; }
+}
+
 namespace BuddyOverlaySession
 {
 
 namespace
 {
-	EventSink s_sink;
-	// Function-local static: setToastSink() runs from another file's static initializer.
-	ToastSink &toastSink()
-	{
-		static ToastSink s_toastSink;
-		return s_toastSink;
-	}
-
 	// Same value as WOLBuddyOverlay.cpp's GENERALS_ONLINE NOTIFICATION_EXPIRES (107-108); duplicated
 	// rather than shared since the legacy (non-GO) NOTIFICATION_EXPIRES=3000 branch stays entirely
 	// inside WOLBuddyOverlay.cpp's own dead-code path and never touches this session.
@@ -48,10 +55,8 @@ namespace
 }
 
 //-------------------------------------------------------------------------------------------------
-void enter( const EventSink &sink )
+void enter()
 {
-	s_sink = sink;
-
 	NGMP_OnlineServices_SocialInterface *pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
 	if ( pSocialInterface == nullptr )
 		return;
@@ -61,24 +66,19 @@ void enter( const EventSink &sink )
 
 	pSocialInterface->RegisterForCallback_NewFriendRequest( []( std::string strDisplayName )
 		{
-			if ( s_sink.requestArrived )
-				s_sink.requestArrived();
-			if ( s_sink.rosterNeedsRefresh )
-				s_sink.rosterNeedsRefresh( false, false );
+			BuddyOverlaySignals::requestArrived().emit();
+			BuddyOverlaySignals::rosterNeedsRefresh().emit( false, false );
 		} );
 
 	pSocialInterface->RegisterForCallback_OnChatMessage( []( int64_t source_user_id, int64_t target_user_id, UnicodeString unicodeStr )
 		{
-			if ( s_sink.chatMessage )
-				s_sink.chatMessage( source_user_id, target_user_id, unicodeStr );
-			if ( s_sink.rosterNeedsRefresh )
-				s_sink.rosterNeedsRefresh( true, true );
+			BuddyOverlaySignals::chatMessage().emit( source_user_id, target_user_id, unicodeStr );
+			BuddyOverlaySignals::rosterNeedsRefresh().emit( true, true );
 		} );
 
 	pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged( []( int newNumNotifications )
 		{
-			if ( s_sink.notificationCountChanged )
-				s_sink.notificationCountChanged( newNumNotifications );
+			BuddyOverlaySignals::notificationCountChanged().emit( newNumNotifications );
 		} );
 }
 
@@ -88,14 +88,6 @@ void leave()
 	NGMP_OnlineServices_SocialInterface *pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
 	if ( pSocialInterface != nullptr )
 		pSocialInterface->DeregisterForRealtimeServiceUpdates();
-
-	s_sink = EventSink();
-}
-
-//-------------------------------------------------------------------------------------------------
-void setToastSink( const ToastSink &sink )
-{
-	toastSink() = sink;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -113,8 +105,7 @@ void showToast( const AsciiString &nick, UnicodeString message, bool bPlaySound 
 		TheAudio->addAudioEvent( &buttonClick );
 	}
 
-	if ( toastSink().shown )
-		toastSink().shown( message );
+	BuddyToastSignals::shown().emit( message );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -126,8 +117,7 @@ void dismissToast()
 	s_toastActive = false;
 	s_noticeExpires = 0;
 
-	if ( toastSink().dismissed )
-		toastSink().dismissed();
+	BuddyToastSignals::dismissed().emit();
 }
 
 //-------------------------------------------------------------------------------------------------

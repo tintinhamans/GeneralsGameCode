@@ -159,14 +159,15 @@ void RmlOnlineWelcomeScreen::show()
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
 
-	m_notificationsConnection = OnlineWelcomeSignals::notificationsChanged().connect([this](int numNotifications) { onNotificationsChanged(numNotifications); });
+	m_connections.disconnect();
+	m_connections.add(OnlineWelcomeSignals::notificationsChanged().connect([this](int numNotifications) { onNotificationsChanged(numNotifications); }));
 	OnlineWelcomeData::registerNotificationsCallback();
 
-	m_numPlayersConnection = OnlineWelcomeSignals::numPlayersOnline().connect([this](int numPlayersOnline) { onNumPlayersOnlineChanged(numPlayersOnline); });
+	m_connections.add(OnlineWelcomeSignals::numPlayersOnline().connect([this](int numPlayersOnline) { onNumPlayersOnlineChanged(numPlayersOnline); }));
 
 	// PlayerStatsSignals::localPlayerUpdated fires from PopupPlayerInfo.cpp's findPlayerStatsByID()
 	// reply lambda whenever the looked-up player is the local player (see PlayerStatsData.h).
-	m_playerStatsConnection = PlayerStatsSignals::localPlayerUpdated().connect([this](const PlayerStatsData &data) { onPlayerStatsUpdated(data); });
+	m_connections.add(PlayerStatsSignals::localPlayerUpdated().connect([this](const PlayerStatsData &data) { onPlayerStatsUpdated(data); }));
 
 	// Community rank panel: same PlayerStatsData build PopupPlayerInfo.cpp's PopulatePlayerInfoWindows()
 	// uses, fetched here for the local player (this screen has no PopupPlayerInfo.wnd-style GameWindow
@@ -202,9 +203,7 @@ void RmlOnlineWelcomeScreen::hide()
 	if (m_document)
 		m_document->Hide();
 
-	m_notificationsConnection.disconnect();
-	m_numPlayersConnection.disconnect();
-	m_playerStatsConnection.disconnect();
+	m_connections.disconnect();
 }
 
 bool RmlOnlineWelcomeScreen::isVisible() const

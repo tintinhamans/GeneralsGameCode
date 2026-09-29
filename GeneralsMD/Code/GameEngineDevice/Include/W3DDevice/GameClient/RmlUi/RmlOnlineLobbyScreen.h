@@ -119,12 +119,7 @@ private:
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
-	SignalConnection m_gameListConnection;
-	SignalConnection m_chatConnection;
-	SignalConnection m_rosterRefreshConnection;
-	SignalConnection m_roomChangedConnection;
-	SignalConnection m_joinResultConnection;
-	SignalConnection m_createResultConnection;
+	SignalConnections m_connections; // OnlineLobbySignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
 	std::string m_rosterSignature; // see refreshPlayers()
 

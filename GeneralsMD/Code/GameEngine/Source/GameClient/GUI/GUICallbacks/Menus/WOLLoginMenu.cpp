@@ -90,9 +90,7 @@ static UnsignedInt loginAttemptTime = 0;
 
 // OnlineLoginSignals listeners (see OnlineLoginActions.h): this screen's own state/navigation for the
 // shared login flow, connected in WOLLoginMenuInit() and dropped in WOLLoginMenuShutdown().
-static SignalConnection loginLeavingConnection;
-static SignalConnection loginSucceededConnection;
-static SignalConnection loginFailedConnection;
+static SignalConnections loginConnections;
 static Bool WOLLoginMenuIsAlreadyLeaving() { return buttonPushed; }
 
 static void WOLLoginMenuOnLoginSucceeded()
@@ -477,9 +475,10 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 	loginAttemptTime = 0;
 
 	// NGMP: shared login flow (see OnlineLoginActions.h)
-	loginLeavingConnection = OnlineLoginSignals::alreadyLeaving().connect(&WOLLoginMenuIsAlreadyLeaving);
-	loginSucceededConnection = OnlineLoginSignals::succeeded().connect(&WOLLoginMenuOnLoginSucceeded);
-	loginFailedConnection = OnlineLoginSignals::failed().connect(&WOLLoginMenuOnLoginFailed);
+	loginConnections.disconnect();
+	loginConnections.add(OnlineLoginSignals::alreadyLeaving().connect(&WOLLoginMenuIsAlreadyLeaving));
+	loginConnections.add(OnlineLoginSignals::succeeded().connect(&WOLLoginMenuOnLoginSucceeded));
+	loginConnections.add(OnlineLoginSignals::failed().connect(&WOLLoginMenuOnLoginFailed));
 	if (!OnlineLoginActions::beginLogin())
 	{
 		return;
@@ -568,9 +567,7 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 void WOLLoginMenuShutdown( WindowLayout *layout, void *userData )
 {
 	OnlineLoginActions::endLogin();
-	loginLeavingConnection.disconnect();
-	loginSucceededConnection.disconnect();
-	loginFailedConnection.disconnect();
+	loginConnections.disconnect();
 
 	isShuttingDown = true;
 	TheWindowManager->clearTabList();

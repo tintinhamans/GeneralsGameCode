@@ -847,36 +847,39 @@ static void saveQuickMatchOptions()
 /** Initialize the WOL Quick Match Menu */
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-/** Builds the EventSink QuickMatchSession's async NGMP callbacks and per-frame update write
+/** Connects the listeners QuickMatchSession's async NGMP callbacks and per-frame update write
  ** through -- same status listbox / button enable / Buddies badge writes the inline code used
- ** to make directly, now routed via the .wnd's own static widget pointers. */
+ ** to make directly, now routed via the .wnd's own static widget pointers. Connected in Init and
+ ** dropped in shutdownComplete() (the per-frame update keeps running through the exit animation). */
 //-------------------------------------------------------------------------------------------------
-static QuickMatchSession::EventSink buildQuickMatchSessionSink()
-{
-	QuickMatchSession::EventSink sink;
+static SignalConnections s_sessionConnections;
 
-	sink.statusLine = []( const UnicodeString &text, Color color )
+static void connectQuickMatchSessionSignals()
+{
+	s_sessionConnections.disconnect();
+
+	s_sessionConnections.add( QuickMatchSignals::statusLine().connect( []( const UnicodeString &text, Color color )
 		{
 			Int index = GadgetListBoxAddEntryText(quickmatchTextWindow, text, color, -1, -1);
 			GadgetListBoxSetItemData(quickmatchTextWindow, (void*)-1, index);
-		};
-	sink.setBackButtonEnabled = []( Bool enabled )
+		} ) );
+	s_sessionConnections.add( QuickMatchSignals::backButtonEnabled().connect( []( Bool enabled )
 		{
 			if (buttonBack) buttonBack->winEnable(enabled);
-		};
-	sink.setStopButtonEnabled = []( Bool enabled )
+		} ) );
+	s_sessionConnections.add( QuickMatchSignals::stopButtonEnabled().connect( []( Bool enabled )
 		{
 			if (buttonStop) buttonStop->winEnable(enabled);
-		};
-	sink.setWidenButtonEnabled = []( Bool enabled )
+		} ) );
+	s_sessionConnections.add( QuickMatchSignals::widenButtonEnabled().connect( []( Bool enabled )
 		{
 			if (buttonWiden) buttonWiden->winEnable(enabled);
-		};
-	sink.setCommunicatorButtonEnabled = []( Bool enabled )
+		} ) );
+	s_sessionConnections.add( QuickMatchSignals::communicatorButtonEnabled().connect( []( Bool enabled )
 		{
 			if (buttonBuddies) buttonBuddies->winEnable(enabled);
-		};
-	sink.communicatorCountChanged = []( int numNotifications )
+		} ) );
+	s_sessionConnections.add( QuickMatchSignals::communicatorCount().connect( []( int numNotifications )
 		{
 			if (buttonBuddies != nullptr)
 			{
@@ -887,9 +890,7 @@ static QuickMatchSession::EventSink buildQuickMatchSessionSink()
 					buttonText.format(L"%s", TheGameText->fetch("GUI:Buddies").str());
 				buttonBuddies->winSetText(buttonText);
 			}
-		};
-
-	return sink;
+		} ) );
 }
 
 void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
@@ -1208,8 +1209,9 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 
 	// NGMP lobby callback registration (cannot-connect stub, matchmaking message/match-found/requeue/
 	// setup-progress/start-game, join-lobby, Buddies notification badge) now lives in QuickMatchSession,
-	// writing through this screen's own listbox/button/badge widgets via the sink.
-	QuickMatchSession::enter( buildQuickMatchSessionSink() );
+	// writing through this screen's own listbox/button/badge widgets via QuickMatchSignals.
+	connectQuickMatchSessionSignals();
+	QuickMatchSession::enter();
 #endif
 }
 
@@ -1220,6 +1222,7 @@ static void shutdownComplete( WindowLayout *layout )
 {
 
 	isShuttingDown = false;
+	s_sessionConnections.disconnect();
 
 	// hide the layout
 	layout->hide( TRUE );
@@ -1377,7 +1380,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 	HandleBuddyResponses();
 #endif
 
-	QuickMatchSession::update( buildQuickMatchSessionSink() );
+	QuickMatchSession::update();
 
 	/// @todo: MDC handle disconnects in-game the same way as Custom Match!
 

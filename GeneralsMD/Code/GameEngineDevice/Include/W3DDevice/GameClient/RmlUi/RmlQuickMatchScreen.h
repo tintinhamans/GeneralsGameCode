@@ -29,7 +29,7 @@
 //     toggleBuddiesOverlay(), the same widget-agnostic actions the .wnd calls.
 //   - The async lobby lifecycle (status lines, Back/Stop/Widen enable state, the
 //     Buddies notification badge, match-found/countdown/timeout) comes from
-//     QuickMatchSession::enter()/update()/leave() via the EventSink built in the
+//     QuickMatchSession::enter()/update()/leave() via the QuickMatchSignals connected in the
 //     .cpp -- no GameWindow involved, same session the .wnd shares.
 //   - ButtonOptions' Setup/PlayerInfo toggle (WOLQuickMatchMenu.cpp's isInfoShown()/
 //     hideInfoGadgets()/hideOptionsGadgets()) becomes show_stats/showsSetup panels
@@ -75,7 +75,7 @@ public:
 	virtual void onBack() override; // same as ButtonBack
 	virtual void update() override; // QuickMatchSession::update(), same as WOLQuickMatchMenuUpdate()'s non-widget slice
 
-	// QuickMatchSession::EventSink targets -- public so the free-function sink builder in the .cpp
+	// QuickMatchSignals targets -- public so the free function connecting them in the .cpp
 	// (which closes over a raw screen pointer, since std::function can't bind a member function the
 	// way BindEventCallback can) can reach them without befriending the class. Same idiom as
 	// RmlOnlineGameSetupScreen's onChatLine()/setBackButtonEnabled()/etc.
@@ -118,11 +118,11 @@ private:
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
-	SignalConnection m_playerStatsConnection;
+	SignalConnections m_connections; // QuickMatchSignals + PlayerStatsSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
 	size_t m_lastStatusLineCount = 0;
 
-	// One status/chat line (see QuickMatchSession::EventSink::statusLine). color is a pre-formatted
+	// One status/chat line (see QuickMatchSignals::statusLine). color is a pre-formatted
 	// "rgba(r,g,b,a)" string, same idiom RmlOnlineGameSetupScreen.cpp's colorToCss() produces -- append
 	// only, mirrors quickmatchTextWindow's listbox (which only ever grows while the screen is open).
 	struct StatusLineModel

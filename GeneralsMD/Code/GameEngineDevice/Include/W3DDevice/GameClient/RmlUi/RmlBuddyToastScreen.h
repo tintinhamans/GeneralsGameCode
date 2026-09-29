@@ -26,12 +26,10 @@
 // everything else this frame" precedent as RmlUiManager::render() itself).
 //
 // Ownership: RmlUiManager::init() calls InitRmlBuddyToastScreen() only when
-// !m_useLegacyMenus, which installs this screen's BuddyOverlaySession::ToastSink
-// -- replacing WOLBuddyOverlay.cpp's own static-initializer-installed .wnd sink
-// (BuddyToastSinkInstaller) for as long as RmlUi owns the shell. The .wnd sink
-// stays installed too (it runs from a static initializer, unconditionally) but
-// setToastSink()'s last write wins, and RmlUiManager::init() always runs after
-// all static initializers, so this one deterministically overrides it. The -wnd
+// !m_useLegacyMenus, which connects this screen to BuddyToastSignals after
+// BuddyOverlaySession::releaseWidgetToast() has disconnected WOLBuddyOverlay.cpp's
+// own static-initializer-connected .wnd presenter (BuddyToastPresenter), so only
+// one of them ever shows a toast for as long as RmlUi owns the shell. The -wnd
 // command-line flag never calls InitRmlBuddyToastScreen(), so the .wnd toast
 // keeps working unchanged there.
 //
@@ -40,11 +38,12 @@
 // while mid-transition); RmlUiManager::update() -- already called unconditionally
 // every frame from W3DDisplay::draw() -- calls BuddyOverlaySession::tickToast()
 // for exactly this reason (harmless no-op the rest of the time, and harmless if
-// the .wnd sink is the one currently installed).
+// the .wnd presenter is the one currently connected).
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
+#include "Common/Signal.h"
 #include "Common/UnicodeString.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -61,19 +60,19 @@ public:
 	void init(Rml::Context *context);
 	void shutdown();
 
-	// BuddyOverlaySession::ToastSink targets, public so the free-function sink built in the .cpp
-	// can reach the singleton without befriending it.
-	void onToastShown(const UnicodeString &text);
-	void onToastDismissed();
-
 private:
 	RmlBuddyToastScreen() = default;
+
+	// BuddyToastSignals targets, connected in init().
+	void onToastShown(const UnicodeString &text);
+	void onToastDismissed();
 
 	void load(Rml::Context *context);
 	void onClick(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // mirrors PopupBuddyNotificationSystem's GBM_SELECTED
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
+	SignalConnections m_connections; // BuddyToastSignals, connected from init() to shutdown()
 	Rml::DataModelHandle m_modelHandle;
 
 	struct Model

@@ -234,17 +234,18 @@ void RmlOnlineLobbyScreen::show()
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
 
-	m_gameListConnection = OnlineLobbySignals::gameList().connect([this](const std::vector<OnlineLobbyData::GameRow> &rows) { onGameListChanged(rows); });
-	m_chatConnection = OnlineLobbySignals::chatLine().connect([this](const UnicodeString &text, Color color) { onChatLine(text, color); });
-	m_rosterRefreshConnection = OnlineLobbySignals::rosterRefresh().connect([this]() { refreshPlayersFromSignal(); });
-	m_roomChangedConnection = OnlineLobbySignals::roomChanged().connect([this](int roomIndex, bool effectiveRoomChanged) { onRoomChanged(roomIndex, effectiveRoomChanged); });
-	m_joinResultConnection = OnlineLobbySignals::joinResult().connect([this](int result) { onLobbyJoinResult(result); });
-	m_createResultConnection = OnlineLobbySignals::createResult().connect([](bool /*bSuccess*/)
+	m_connections.disconnect();
+	m_connections.add(OnlineLobbySignals::gameList().connect([this](const std::vector<OnlineLobbyData::GameRow> &rows) { onGameListChanged(rows); }));
+	m_connections.add(OnlineLobbySignals::chatLine().connect([this](const UnicodeString &text, Color color) { onChatLine(text, color); }));
+	m_connections.add(OnlineLobbySignals::rosterRefresh().connect([this]() { refreshPlayersFromSignal(); }));
+	m_connections.add(OnlineLobbySignals::roomChanged().connect([this](int roomIndex, bool effectiveRoomChanged) { onRoomChanged(roomIndex, effectiveRoomChanged); }));
+	m_connections.add(OnlineLobbySignals::joinResult().connect([this](int result) { onLobbyJoinResult(result); }));
+	m_connections.add(OnlineLobbySignals::createResult().connect([](bool /*bSuccess*/)
 		{
 			// Mirrors NGMP_WOLLobbyMenu_CreateLobbyCallback(): always proceeds to game options on success path;
 			// TODO_NGMP upstream has no error case either (see WOLLobbyMenu.cpp).
 			TheShell->push("Menus/GameSpyGameOptionsMenu.wnd");
-		});
+		}));
 	OnlineLobbyActions::registerNetworkCallbacks();
 
 	m_document->Show();
@@ -256,12 +257,7 @@ void RmlOnlineLobbyScreen::hide()
 	if (m_document)
 		m_document->Hide();
 
-	m_gameListConnection.disconnect();
-	m_chatConnection.disconnect();
-	m_rosterRefreshConnection.disconnect();
-	m_roomChangedConnection.disconnect();
-	m_joinResultConnection.disconnect();
-	m_createResultConnection.disconnect();
+	m_connections.disconnect();
 }
 
 bool RmlOnlineLobbyScreen::isVisible() const

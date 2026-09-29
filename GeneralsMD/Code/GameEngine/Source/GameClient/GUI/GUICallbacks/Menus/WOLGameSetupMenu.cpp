@@ -1358,16 +1358,19 @@ UnsignedInt enterTime = 0;
 Bool initialAcceptEnable = FALSE;
 
 //-------------------------------------------------------------------------------------------------
-/** Widget-side of OnlineGameSetupSession::EventSink: every async NGMP event and per-frame
+/** Widget-side listeners of OnlineGameSetupSignals: every async NGMP event and per-frame
 	update this screen used to handle by touching its own GameWindows directly now goes through
-	these lambdas instead, so OnlineGameSetupSession stays GameWindow-free. Built fresh for
-	Init/Update since it closes over this .wnd's own (file-static) widget pointers. */
+	these lambdas instead, so OnlineGameSetupSession stays GameWindow-free. Connected in Init
+	and dropped in shutdownComplete() (the per-frame update keeps running through the exit
+	animation), since they close over this .wnd's own (file-static) widget pointers. */
 //-------------------------------------------------------------------------------------------------
-static OnlineGameSetupSession::EventSink BuildGameSetupEventSink()
-{
-	OnlineGameSetupSession::EventSink sink;
+static SignalConnections s_setupConnections;
 
-	sink.chatLine = []( const UnicodeString &text, Color color )
+static void ConnectGameSetupSignals()
+{
+	s_setupConnections.disconnect();
+
+	s_setupConnections.add( OnlineGameSetupSignals::chatLine().connect( []( const UnicodeString &text, Color color )
 	{
 		if( listboxGameSetupChat )
 		{
@@ -1379,12 +1382,12 @@ static OnlineGameSetupSession::EventSink BuildGameSetupEventSink()
 			// (internet games) the same way WOLGameSetupMenu's disconnect notice does.
 			ScoreScreenSignals::chatLine().emit( text, color );
 		}
-	};
+	} ) );
 
-	sink.slotsChanged = []() { WOLDisplaySlotList(); };
-	sink.optionsChanged = []() { WOLDisplayGameOptions(); };
+	s_setupConnections.add( OnlineGameSetupSignals::slotsChanged().connect( []() { WOLDisplaySlotList(); } ) );
+	s_setupConnections.add( OnlineGameSetupSignals::optionsChanged().connect( []() { WOLDisplayGameOptions(); } ) );
 
-	sink.becameHost = []()
+	s_setupConnections.add( OnlineGameSetupSignals::becameHost().connect( []()
 	{
 		if( buttonStart != nullptr )
 		{
@@ -1398,21 +1401,21 @@ static OnlineGameSetupSession::EventSink BuildGameSetupEventSink()
 			comboBoxStartingCash->winEnable( TRUE );
 		if( checkBoxLimitSuperweapons != nullptr )
 			checkBoxLimitSuperweapons->winEnable( TRUE );
-	};
+	} ) );
 
-	sink.setBackButtonEnabled = []( Bool enabled ) { if( buttonBack != nullptr ) buttonBack->winEnable( enabled ); };
-	sink.setStartButtonEnabled = []( Bool enabled ) { if( buttonStart != nullptr ) buttonStart->winEnable( enabled ); };
+	s_setupConnections.add( OnlineGameSetupSignals::backButtonEnabled().connect( []( Bool enabled ) { if( buttonBack != nullptr ) buttonBack->winEnable( enabled ); } ) );
+	s_setupConnections.add( OnlineGameSetupSignals::startButtonEnabled().connect( []( Bool enabled ) { if( buttonStart != nullptr ) buttonStart->winEnable( enabled ); } ) );
 
-	sink.setCommunicatorButtonEnabled = []( Bool enabled )
+	s_setupConnections.add( OnlineGameSetupSignals::communicatorButtonEnabled().connect( []( Bool enabled )
 	{
 		GameWindow *buttonBuddy = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY( "GameSpyGameOptionsMenu.wnd:ButtonCommunicator" ) );
 		if( buttonBuddy != nullptr )
 			buttonBuddy->winEnable( enabled );
-	};
+	} ) );
 
-	sink.lockSettings = []() { WOLLockSettings(); };
+	s_setupConnections.add( OnlineGameSetupSignals::lockSettings().connect( []() { WOLLockSettings(); } ) );
 
-	sink.communicatorCountChanged = []( int numNotifications )
+	s_setupConnections.add( OnlineGameSetupSignals::communicatorCount().connect( []( int numNotifications )
 	{
 		GameWindow *buttonBuddy = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY( "GameSpyGameOptionsMenu.wnd:ButtonCommunicator" ) );
 		if( buttonBuddy != nullptr )
@@ -1424,9 +1427,7 @@ static OnlineGameSetupSession::EventSink BuildGameSetupEventSink()
 				buttonText.format( L"%s", TheGameText->fetch( "GUI:Buddies" ).str() );
 			buttonBuddy->winSetText( buttonText );
 		}
-	};
-
-	return sink;
+	} ) );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1434,6 +1435,8 @@ static OnlineGameSetupSession::EventSink BuildGameSetupEventSink()
 //-------------------------------------------------------------------------------------------------
 void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 {
+	ConnectGameSetupSignals();
+
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
@@ -1442,7 +1445,7 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 	// NGMP async-callback registration + entry chat notices + Communicator badge init all move to
 	// OnlineGameSetupSession::enter() (called below, after this screen's widgets exist) so a future
-	// RmlUi front end drives the same room without any GameWindow. See BuildGameSetupEventSink().
+	// RmlUi front end drives the same room without any GameWindow. See ConnectGameSetupSignals().
 
 	if (TheNGMPGame == nullptr || (TheNGMPGame && TheNGMPGame->isGameInProgress()))
 	{
@@ -1577,9 +1580,9 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 	TheWindowManager->winSetFocus(textEntryChat);
 
 	// NGMP async-callback registration, the entry chat notices (camera height, join policy,
-	// observers), and the Communicator badge's initial state -- all routed through the same sink
-	// WOLGameSetupMenuUpdate() uses (see BuildGameSetupEventSink()).
-	OnlineGameSetupSession::enter( BuildGameSetupEventSink() );
+	// observers), and the Communicator badge's initial state -- all routed through the same signals
+	// WOLGameSetupMenuUpdate() uses (see ConnectGameSetupSignals()).
+	OnlineGameSetupSession::enter();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1589,6 +1592,7 @@ static void shutdownComplete( WindowLayout *layout )
 {
 
 	isShuttingDown = false;
+	s_setupConnections.disconnect();
 
 	// hide the layout
 	layout->hide( TRUE );
@@ -1715,10 +1719,10 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 	}
 
 	// Anticheat teardown, host migration, host-left, and the match-start countdown tick all live in
-	// OnlineGameSetupSession::update() now -- same order, same guards, routed through the sink
+	// OnlineGameSetupSession::update() now -- same order, same guards, routed through the signals
 	// instead of touching listboxGameSetupChat/buttonStart/etc. directly. TRUE mirrors the host-left
 	// early `return;` the .wnd path always had.
-	if (OnlineGameSetupSession::update(BuildGameSetupEventSink()))
+	if (OnlineGameSetupSession::update())
 	{
 		buttonPushed = true;
 		return;

@@ -171,9 +171,10 @@ void RmlLanLobbyScreen::show()
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
 
-	m_playerListConnection = LanLobbySignals::playerList().connect([this](LANPlayer *playerList) { onPlayerListChanged(playerList); });
-	m_gameListConnection = LanLobbySignals::gameList().connect([this](LANGameInfo *gameList) { onGameListChanged(gameList); });
-	m_chatConnection = LanLobbySignals::chatLine().connect([this](const UnicodeString &line, Color) { onChatLine(unicodeToUtf8(line)); });
+	m_connections.disconnect();
+	m_connections.add(LanLobbySignals::playerList().connect([this](LANPlayer *playerList) { onPlayerListChanged(playerList); }));
+	m_connections.add(LanLobbySignals::gameList().connect([this](LANGameInfo *gameList) { onGameListChanged(gameList); }));
+	m_connections.add(LanLobbySignals::chatLine().connect([this](const UnicodeString &line, Color) { onChatLine(unicodeToUtf8(line)); }));
 
 	m_document->Show();
 
@@ -189,9 +190,7 @@ void RmlLanLobbyScreen::hide()
 	if (m_document)
 		m_document->Hide();
 
-	m_playerListConnection.disconnect();
-	m_gameListConnection.disconnect();
-	m_chatConnection.disconnect();
+	m_connections.disconnect();
 
 	LanLobbyActions::leaveLobby(utf8ToUnicode(m_model.playerName));
 }

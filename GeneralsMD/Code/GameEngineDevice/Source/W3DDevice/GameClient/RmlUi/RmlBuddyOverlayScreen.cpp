@@ -76,19 +76,6 @@ namespace
 		snprintf(buf, sizeof(buf), "rgba(%d,%d,%d,%d)", r, g, b, a);
 		return Rml::String(buf);
 	}
-
-	// BuddyOverlaySession::EventSink targets (see RmlBuddyOverlayScreen.h's public onChatMessage/
-	// onRosterNeedsRefresh); free functions since EventSink's members are plain std::function, not
-	// bound to an instance, same shape as WOLBuddyOverlay.cpp's BuildBuddyEventSink().
-	void onChatMessageTarget( int64_t sourceUserID, int64_t targetUserID, const UnicodeString &text )
-	{
-		RmlBuddyOverlayScreen::instance().onChatMessage( sourceUserID, targetUserID, text );
-	}
-
-	void onRosterNeedsRefreshTarget( bool bIsAutoRefresh, bool bUseCache )
-	{
-		RmlBuddyOverlayScreen::instance().onRosterNeedsRefresh( bIsAutoRefresh, bUseCache );
-	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -199,10 +186,11 @@ void RmlBuddyOverlayScreen::open()
 	m_model.chatTargetName.clear();
 	m_model.playerMenuVisible = false;
 
-	BuddyOverlaySession::EventSink sink;
-	sink.chatMessage = &onChatMessageTarget;
-	sink.rosterNeedsRefresh = &onRosterNeedsRefreshTarget;
-	BuddyOverlaySession::enter( sink );
+	// BuddyOverlaySignals targets, same shape as WOLBuddyOverlay.cpp's ConnectBuddyOverlaySignals().
+	m_connections.disconnect();
+	m_connections.add( BuddyOverlaySignals::chatMessage().connect( [this]( int64_t sourceUserID, int64_t targetUserID, const UnicodeString &text ) { onChatMessage( sourceUserID, targetUserID, text ); } ) );
+	m_connections.add( BuddyOverlaySignals::rosterNeedsRefresh().connect( [this]( bool bIsAutoRefresh, bool bUseCache ) { onRosterNeedsRefresh( bIsAutoRefresh, bUseCache ); } ) );
+	BuddyOverlaySession::enter();
 
 	refreshRoster();
 	refreshChat();
@@ -216,6 +204,7 @@ void RmlBuddyOverlayScreen::open()
 void RmlBuddyOverlayScreen::close()
 {
 	BuddyOverlaySession::leave();
+	m_connections.disconnect();
 	if (m_document)
 		m_document->Hide();
 }
@@ -302,7 +291,7 @@ void RmlBuddyOverlayScreen::refreshChat()
 //-------------------------------------------------------------------------------------------------
 void RmlBuddyOverlayScreen::onChatMessage( int64_t sourceUserID, int64_t targetUserID, const UnicodeString & )
 {
-	// Mirrors BuildBuddyEventSink()'s chatMessage lambda: only touch the open chat pane if this
+	// Mirrors ConnectBuddyOverlaySignals()'s chatMessage listener: only touch the open chat pane if this
 	// message belongs to the currently-selected friend, otherwise rely on the roster refresh
 	// (unread count) BuddyOverlaySession fires right after this.
 	if (m_selectedUserID != 0 && (sourceUserID == m_selectedUserID || targetUserID == m_selectedUserID))

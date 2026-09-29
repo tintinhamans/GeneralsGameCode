@@ -37,21 +37,31 @@
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameNetwork/GeneralsOnline/PluginInterfaces.h"
 
+namespace OnlineGameSetupSignals
+{
+	Signal2<const UnicodeString &, Color> &chatLine() { static Signal2<const UnicodeString &, Color> s; return s; }
+	Signal0 &slotsChanged() { static Signal0 s; return s; }
+	Signal0 &optionsChanged() { static Signal0 s; return s; }
+	Signal0 &becameHost() { static Signal0 s; return s; }
+	Signal1<Bool> &backButtonEnabled() { static Signal1<Bool> s; return s; }
+	Signal1<Bool> &startButtonEnabled() { static Signal1<Bool> s; return s; }
+	Signal1<Bool> &communicatorButtonEnabled() { static Signal1<Bool> s; return s; }
+	Signal0 &lockSettings() { static Signal0 s; return s; }
+	Signal1<int> &communicatorCount() { static Signal1<int> s; return s; }
+}
+
 namespace OnlineGameSetupSession
 {
 
 namespace
 {
-	EventSink s_sink;
-
 #if defined(GENERALS_ONLINE_ENABLE_MATCH_START_COUNTDOWN)
 	bool s_matchStartCountdownWasRunning = false;
 #endif
 
 	void callChatLine( const UnicodeString &text, Color color )
 	{
-		if( s_sink.chatLine )
-			s_sink.chatLine( text, color );
+		OnlineGameSetupSignals::chatLine().emit( text, color );
 	}
 }
 
@@ -151,9 +161,8 @@ void prepareGameState()
 }
 
 //-------------------------------------------------------------------------------------------------
-void enter( const EventSink &sink )
+void enter()
 {
-	s_sink = sink;
 
 	NGMP_OnlineServices_LobbyInterface *pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 	if( pLobbyInterface == nullptr )
@@ -241,8 +250,7 @@ void enter( const EventSink &sink )
 				}
 
 				// update UI
-				if( s_sink.slotsChanged )
-					s_sink.slotsChanged();
+				OnlineGameSetupSignals::slotsChanged().emit();
 			} );
 	}
 
@@ -277,10 +285,8 @@ void enter( const EventSink &sink )
 	// register for roster events
 	pLobbyInterface->RegisterForRosterNeedsRefreshCallback( []()
 		{
-			if( s_sink.slotsChanged )
-				s_sink.slotsChanged();
-			if( s_sink.optionsChanged )
-				s_sink.optionsChanged();
+			OnlineGameSetupSignals::slotsChanged().emit();
+			OnlineGameSetupSignals::optionsChanged().emit();
 		} );
 
 	pLobbyInterface->RegisterForGameStartPacket( []()
@@ -294,8 +300,7 @@ void enter( const EventSink &sink )
 			if( !TheNGMPGame )
 				return;
 
-			if( s_sink.setCommunicatorButtonEnabled )
-				s_sink.setCommunicatorButtonEnabled( FALSE );
+			OnlineGameSetupSignals::communicatorButtonEnabled().emit( FALSE );
 			GameSpyCloseOverlay( GSOVERLAY_BUDDY );
 			GameSpyCloseOverlay( GSOVERLAY_PLAYERINFO );
 
@@ -309,8 +314,7 @@ void enter( const EventSink &sink )
 	{
 		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged( []( int numNotifications )
 			{
-				if( s_sink.communicatorCountChanged )
-					s_sink.communicatorCountChanged( numNotifications );
+				OnlineGameSetupSignals::communicatorCount().emit( numNotifications );
 			} );
 	}
 
@@ -343,9 +347,9 @@ void enter( const EventSink &sink )
 	}
 
 	// Initialize the Communicator badge for whatever notification count is already pending.
-	if( pSocialInterface != nullptr && s_sink.communicatorCountChanged && pSocialInterface->GetNumTotalNotifications() > 0 )
+	if( pSocialInterface != nullptr && OnlineGameSetupSignals::communicatorCount().hasListeners() && pSocialInterface->GetNumTotalNotifications() > 0 )
 	{
-		s_sink.communicatorCountChanged( pSocialInterface->GetNumTotalNotifications() );
+		OnlineGameSetupSignals::communicatorCount().emit( pSocialInterface->GetNumTotalNotifications() );
 	}
 }
 
@@ -368,14 +372,11 @@ void leave()
 		pMesh->DeregisterForConnectionEvents();
 	}
 
-	s_sink = EventSink();
 }
 
 //-------------------------------------------------------------------------------------------------
-Bool update( const EventSink &sink )
+Bool update()
 {
-	s_sink = sink;
-
 	if( AnticheatPlugInterface::g_bPendingExitLobby )
 	{
 		AnticheatPlugInterface::g_bPendingExitLobby = false;
@@ -407,8 +408,7 @@ Bool update( const EventSink &sink )
 
 						if( bIsHost )
 						{
-							if( s_sink.becameHost )
-								s_sink.becameHost();
+							OnlineGameSetupSignals::becameHost().emit();
 
 							NetworkLog( ELogVerbosity::LOG_RELEASE, "Host left and server migrated the host to us..." );
 
@@ -422,18 +422,14 @@ Bool update( const EventSink &sink )
 						}
 
 						// re-enable critical buttons for everyone
-						if( s_sink.setBackButtonEnabled )
-							s_sink.setBackButtonEnabled( TRUE );
-						if( s_sink.setStartButtonEnabled )
-							s_sink.setStartButtonEnabled( TRUE );
-						if( s_sink.setCommunicatorButtonEnabled )
-							s_sink.setCommunicatorButtonEnabled( FALSE );
+						OnlineGameSetupSignals::backButtonEnabled().emit( TRUE );
+						OnlineGameSetupSignals::startButtonEnabled().emit( TRUE );
+						OnlineGameSetupSignals::communicatorButtonEnabled().emit( FALSE );
 					}
 
 					TheNGMPGame->UpdateSlotsFromCurrentLobby();
 
-					if( s_sink.slotsChanged )
-						s_sink.slotsChanged();
+					OnlineGameSetupSignals::slotsChanged().emit();
 
 					// Force a refresh to get latest lobby data
 					NGMP_OnlineServices_LobbyInterface *pLobbyInterfaceRefresh = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
@@ -487,8 +483,7 @@ Bool update( const EventSink &sink )
 				{
 					// Lock all host controlled lobby settings last second of the match start countdown
 					// to prevent late local changes not propagating to remote clients in time
-					if( s_sink.lockSettings )
-						s_sink.lockSettings();
+					OnlineGameSetupSignals::lockSettings().emit();
 
 					strInform.format( TheGameText->fetch( "LAN:GameStartTimerSingular" ), secondsRemaining );
 				}
@@ -528,10 +523,8 @@ Bool update( const EventSink &sink )
 				s_matchStartCountdownWasRunning = false;
 
 				// Re-enable Back and Start buttons when countdown stops
-				if( s_sink.setBackButtonEnabled )
-					s_sink.setBackButtonEnabled( TRUE );
-				if( s_sink.setStartButtonEnabled )
-					s_sink.setStartButtonEnabled( TRUE );
+				OnlineGameSetupSignals::backButtonEnabled().emit( TRUE );
+				OnlineGameSetupSignals::startButtonEnabled().emit( TRUE );
 			}
 		}
 	}

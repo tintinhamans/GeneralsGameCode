@@ -86,9 +86,7 @@ private:
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
-	SignalConnection m_playerListConnection;
-	SignalConnection m_gameListConnection;
-	SignalConnection m_chatConnection;
+	SignalConnections m_connections; // LanLobbySignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
 	UnicodeString m_defaultName;
 

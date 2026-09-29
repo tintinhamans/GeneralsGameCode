@@ -98,9 +98,7 @@ private:
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
-	SignalConnection m_notificationsConnection;
-	SignalConnection m_numPlayersConnection;
-	SignalConnection m_playerStatsConnection;
+	SignalConnections m_connections; // OnlineWelcomeSignals + PlayerStatsSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
 
 	// One MOTD listbox line (see OnlineWelcomeData::buildMotdLines()). colorHex is a

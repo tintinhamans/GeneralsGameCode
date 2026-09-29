@@ -95,10 +95,7 @@ public:
 private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
-	SignalConnection m_slotsConnection;
-	SignalConnection m_optionsConnection;
-	SignalConnection m_startButtonConnection;
-	SignalConnection m_chatConnection;
+	SignalConnections m_connections; // LanGameSetupSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
 
 	// One slot row's worth of fields for the data-for-bound slot table (see load()). Same shape as

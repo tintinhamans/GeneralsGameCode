@@ -384,24 +384,22 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 }
 
 //-------------------------------------------------------------------------------------------------
-// EventSink -- see OnlineGameSetupSession.h. Every write the async NGMP callbacks and the
-// per-frame update used to make straight to a GameWindow (WOLGameSetupMenu.cpp's
-// BuildGameSetupEventSink()) lands on m_model + DirtyVariable() here instead.
-static OnlineGameSetupSession::EventSink buildEventSink(RmlOnlineGameSetupScreen *screen)
+// OnlineGameSetupSignals listeners -- see OnlineGameSetupSession.h. Every write the async NGMP
+// callbacks and the per-frame update used to make straight to a GameWindow (WOLGameSetupMenu.cpp's
+// ConnectGameSetupSignals()) lands on m_model + DirtyVariable() here instead.
+static void connectSessionSignals(RmlOnlineGameSetupScreen *screen, SignalConnections &connections)
 {
-	OnlineGameSetupSession::EventSink sink;
+	connections.disconnect();
 
-	sink.chatLine = [screen](const UnicodeString &text, Color color) { screen->onChatLine(unicodeToUtf8(text), colorToCss(color)); };
-	sink.slotsChanged = [screen]() { screen->refreshFromGameState(); };
-	sink.optionsChanged = [screen]() { screen->refreshFromGameState(); };
-	sink.becameHost = [screen]() { screen->onBecameHost(); };
-	sink.setBackButtonEnabled = [screen](Bool enabled) { screen->setBackButtonEnabled(enabled == TRUE); };
-	sink.setStartButtonEnabled = [screen](Bool enabled) { screen->setStartButtonEnabled(enabled == TRUE); };
-	sink.setCommunicatorButtonEnabled = [screen](Bool enabled) { screen->setCommunicatorButtonEnabled(enabled == TRUE); };
-	sink.lockSettings = [screen]() { screen->lockSettings(); };
-	sink.communicatorCountChanged = [screen](int numNotifications) { screen->onCommunicatorCountChanged(numNotifications); };
-
-	return sink;
+	connections.add( OnlineGameSetupSignals::chatLine().connect( [screen](const UnicodeString &text, Color color) { screen->onChatLine(unicodeToUtf8(text), colorToCss(color)); } ) );
+	connections.add( OnlineGameSetupSignals::slotsChanged().connect( [screen]() { screen->refreshFromGameState(); } ) );
+	connections.add( OnlineGameSetupSignals::optionsChanged().connect( [screen]() { screen->refreshFromGameState(); } ) );
+	connections.add( OnlineGameSetupSignals::becameHost().connect( [screen]() { screen->onBecameHost(); } ) );
+	connections.add( OnlineGameSetupSignals::backButtonEnabled().connect( [screen](Bool enabled) { screen->setBackButtonEnabled(enabled == TRUE); } ) );
+	connections.add( OnlineGameSetupSignals::startButtonEnabled().connect( [screen](Bool enabled) { screen->setStartButtonEnabled(enabled == TRUE); } ) );
+	connections.add( OnlineGameSetupSignals::communicatorButtonEnabled().connect( [screen](Bool enabled) { screen->setCommunicatorButtonEnabled(enabled == TRUE); } ) );
+	connections.add( OnlineGameSetupSignals::lockSettings().connect( [screen]() { screen->lockSettings(); } ) );
+	connections.add( OnlineGameSetupSignals::communicatorCount().connect( [screen](int numNotifications) { screen->onCommunicatorCountChanged(numNotifications); } ) );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -435,7 +433,8 @@ void RmlOnlineGameSetupScreen::show()
 	OnlineGameSetupSession::prepareGameState();
 	refreshFromGameState();
 
-	OnlineGameSetupSession::enter(buildEventSink(this));
+	connectSessionSignals(this, m_connections);
+	OnlineGameSetupSession::enter();
 
 	m_document->Show();
 }
@@ -446,6 +445,7 @@ void RmlOnlineGameSetupScreen::hide()
 		m_document->Hide();
 
 	OnlineGameSetupSession::leave();
+	m_connections.disconnect();
 }
 
 bool RmlOnlineGameSetupScreen::isVisible() const
@@ -464,7 +464,7 @@ void RmlOnlineGameSetupScreen::update()
 	if (!m_document || !isVisible())
 		return;
 
-	if (OnlineGameSetupSession::update(buildEventSink(this)) == TRUE)
+	if (OnlineGameSetupSession::update() == TRUE)
 		return; // host left this frame -- backToLobby() already popped the shell
 
 	refreshFromGameState(); // pick up connection-indicator/roster changes every frame, same as WOLGameSetupMenuUpdate()

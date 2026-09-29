@@ -319,7 +319,7 @@ void RmlUiManager::init(int width, int height)
 	// GSOVERLAY_BUDDY's .wnd path, same gsOverlays[] precedent.
 	RmlUiScreenRegistry::registerScreen("Menus/WOLBuddyOverlay.wnd", &OpenRmlBuddyOverlayScreen, &CloseRmlBuddyOverlayScreen);
 
-	// Buddy toast: only while RmlUi owns the shell, so its ToastSink overrides the .wnd one
+	// Buddy toast: only while RmlUi owns the shell, so its toast presenter replaces the .wnd one
 	// (see RmlBuddyToastScreen.h); -wnd never calls this.
 	if (m_context && !(TheGlobalData && TheGlobalData->m_useLegacyMenus))
 		InitRmlBuddyToastScreen(m_context);

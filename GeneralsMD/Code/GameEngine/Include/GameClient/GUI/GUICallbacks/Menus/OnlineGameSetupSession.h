@@ -24,9 +24,9 @@
 // match-start countdown tick), moved out from under GameWindow -- same "shared
 // actions" precedent as OnlineGameSetupActions.h. Every place these paths used to
 // write straight to a widget (chat listbox, slot/option refresh, button enable
-// state, the Communicator badge) now goes through the EventSink the caller passes
-// in, so a future non-.wnd front end (RmlOnlineGameSetupScreen) can own the same
-// room without any GameWindow. The legacy GameSpy peer-message-queue drain and
+// state, the Communicator badge) now goes through OnlineGameSetupSignals, which any
+// front end connects to before enter(), so a non-.wnd front end
+// (RmlOnlineGameSetupScreen) can own the same room without any GameWindow. The legacy GameSpy peer-message-queue drain and
 // TheNAT->update() in WOLGameSetupMenuUpdate() are NOT covered here -- they're
 // classic-GameSpy plumbing entangled with TheGameSpyPeerMessageQueue/TheGameSpyInfo,
 // not part of the NGMP async-event set this session models; WOLGameSetupMenu.cpp
@@ -38,12 +38,48 @@
 #pragma once
 
 #include "Common/GameMemory.h"
+#include "Common/Signal.h"
 #include "GameClient/Color.h"
 
-#include <functional>
 
 class UnicodeString;
 class NGMPGame;
+
+namespace OnlineGameSetupSignals
+{
+	// Every write the async NGMP callbacks and the per-frame update used to make straight to a
+	// GameWindow (chat listbox, slot/option refresh, button enable state, the Communicator badge).
+
+	// A chat/system-notice line, same text/color a GadgetListBoxAddEntryText(listboxGameSetupChat, ...)
+	// call would have produced.
+	Signal2<const UnicodeString &, Color> &chatLine();
+
+	// WOLDisplaySlotList()/WOLDisplayGameOptions() need a refresh: roster change, a mesh
+	// connection event, or host migration all end in this.
+	Signal0 &slotsChanged();
+	Signal0 &optionsChanged();
+
+	// Host migration made the local player the new host: re-enable Start/SelectMap/starting-cash/
+	// limit-superweapons controls, relabel Start back to GUI:Start, and reset initialAcceptEnable --
+	// same set WOLGameSetupMenuUpdate's host-migration branch flips.
+	Signal0 &becameHost();
+
+	// Re-enable/disable Back and Start after a countdown starts, cancels, or a migration completes.
+	Signal1<Bool> &backButtonEnabled();
+	Signal1<Bool> &startButtonEnabled();
+
+	// The Communicator/buddy button toggles on host migration (disabled for the new host until
+	// the roster settles) independently of the badge-count text below.
+	Signal1<Bool> &communicatorButtonEnabled();
+
+	// WOLLockSettings(): lock the host-controlled settings widgets. The session only decides
+	// *when* (one second left on the match-start countdown) -- the widget lock itself stays
+	// at the call site.
+	Signal0 &lockSettings();
+
+	// Communicator/buddy badge text needs its notification count refreshed.
+	Signal1<int> &communicatorCount();
+}
 
 namespace OnlineGameSetupSession
 {
@@ -52,43 +88,6 @@ namespace OnlineGameSetupSession
 	// including NGMP_interfaces.h itself, which can't coexist with windows.h in the same TU.
 	NGMPGame *getCurrentGame();
 	Bool isHost();
-
-	// Every write the async NGMP callbacks and the per-frame update used to make
-	// straight to a GameWindow now happens through here instead -- same shape as
-	// OnlineGameSetupActions::StartPressCallbacks, just covering the lifecycle/event
-	// surface instead of a single button press.
-	struct EventSink
-	{
-		// A chat/system-notice line, same text/color a GadgetListBoxAddEntryText(listboxGameSetupChat, ...)
-		// call would have produced.
-		std::function<void( const UnicodeString &text, Color color )> chatLine;
-
-		// WOLDisplaySlotList()/WOLDisplayGameOptions() need a refresh: roster change, a mesh
-		// connection event, or host migration all end in this.
-		std::function<void()> slotsChanged;
-		std::function<void()> optionsChanged;
-
-		// Host migration made the local player the new host: re-enable Start/SelectMap/starting-cash/
-		// limit-superweapons controls, relabel Start back to GUI:Start, and reset initialAcceptEnable --
-		// same set WOLGameSetupMenuUpdate's host-migration branch flips.
-		std::function<void()> becameHost;
-
-		// Re-enable/disable Back and Start after a countdown starts, cancels, or a migration completes.
-		std::function<void( Bool enabled )> setBackButtonEnabled;
-		std::function<void( Bool enabled )> setStartButtonEnabled;
-
-		// The Communicator/buddy button toggles on host migration (disabled for the new host until
-		// the roster settles) independently of the badge-count text below.
-		std::function<void( Bool enabled )> setCommunicatorButtonEnabled;
-
-		// WOLLockSettings(): lock the host-controlled settings widgets. The session only decides
-		// *when* (one second left on the match-start countdown) -- the widget lock itself stays
-		// at the call site.
-		std::function<void()> lockSettings;
-
-		// Communicator/buddy badge text needs its notification count refreshed.
-		std::function<void( int numNotifications )> communicatorCountChanged;
-	};
 
 	// WOLGameSetupMenuInit's host/client game-state setup: the host slot's accept flag, color,
 	// player template, ping string, starting cash / superweapon restriction / old-factions-only
@@ -101,9 +100,8 @@ namespace OnlineGameSetupSession
 	// WOLGameSetupMenuInit's NGMP async-callback registration: chat, cannot-connect-to-lobby, mesh
 	// connection events, player-doesn't-have-map, roster-needs-refresh, game-start-packet, and the
 	// Communicator/social notification-count callback. Callback bodies are ported verbatim, routed
-	// through sink instead of touching listboxGameSetupChat/buttonBuddy directly. sink is copied and
-	// kept alive for the registration's lifetime (until leave()).
-	void enter( const EventSink &sink );
+	// through OnlineGameSetupSignals instead of touching listboxGameSetupChat/buttonBuddy directly.
+	void enter();
 
 	// WOLGameSetupMenuShutdown's dereg calls for everything enter() registered.
 	void leave();
@@ -113,7 +111,7 @@ namespace OnlineGameSetupSession
 	// the match-start countdown tick -- same order, same guards. Returns TRUE if the caller must stop
 	// processing this frame (mirrors WOLGameSetupMenuUpdate's early `return;` on host-left), FALSE to
 	// keep going (anticheat and countdown never stop the frame, matching today's behaviour).
-	Bool update( const EventSink &sink );
+	Bool update();
 
 	// Deletes TheNAT, resets TheNGMPGame and leaves the lobby; safe with no setup screen up.
 	void leaveLobby();

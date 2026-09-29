@@ -25,9 +25,9 @@
 // and the non-widget slice of WOLQuickMatchMenuUpdate() (match-found lobby timeout and
 // the match-start countdown tick) move out from under GameWindow. Every place these
 // paths used to write straight to a widget (the status listbox, Back/Stop/Widen button
-// enable state, the Buddies notification badge) now goes through the EventSink the
-// caller passes in, so a future non-.wnd front end (RmlQuickMatchScreen) can own the
-// same lobby without any GameWindow. No GameWindow type appears in this header or its
+// enable state, the Buddies notification badge) now goes through QuickMatchSignals,
+// which any front end connects to before enter(), so a non-.wnd front end
+// (RmlQuickMatchScreen) can own the same lobby without any GameWindow. No GameWindow type appears in this header or its
 // .cpp -- GameEngineDevice callers can't mix NGMP/GameNetwork headers with windows.h in
 // the same translation unit.
 //
@@ -41,47 +41,46 @@
 #pragma once
 
 #include "Common/GameMemory.h"
+#include "Common/Signal.h"
 #include "GameClient/Color.h"
 
-#include <functional>
 
 class UnicodeString;
 
+// Every write the async NGMP lobby callbacks and the per-frame update used to make straight to a
+// GameWindow. A front end connects to what it needs, then calls QuickMatchSession::enter().
+namespace QuickMatchSignals
+{
+	// A status/chat line, same text/color a GadgetListBoxAddEntryText(quickmatchTextWindow, ...)
+	// + GadgetListBoxSetItemData(..., (void*)-1, ...) pair would have produced.
+	Signal2<const UnicodeString &, Color> &statusLine();
+
+	// Back/Stop/Widen enable state: flipped on match-found (Back/Stop disabled), requeue
+	// (all three re-enabled) and lobby timeout (Back/Stop re-enabled).
+	Signal1<Bool> &backButtonEnabled();
+	Signal1<Bool> &stopButtonEnabled();
+	Signal1<Bool> &widenButtonEnabled();
+
+	// The Buddies button disables once the match-start packet arrives. NOTE: the original
+	// inline code looked this up by the wrong window name (GameSpyGameOptionsMenu.wnd's
+	// ButtonCommunicator, not this screen's ButtonBuddies) and so was always a silent no-op --
+	// see the commit message for this behaviour difference.
+	Signal1<Bool> &communicatorButtonEnabled();
+
+	// Buddies badge text needs its notification count refreshed.
+	Signal1<int> &communicatorCount();
+}
+
 namespace QuickMatchSession
 {
-	// Every write the async NGMP lobby callbacks and the per-frame update used to make
-	// straight to a GameWindow now happens through here instead -- same shape as
-	// OnlineGameSetupSession::EventSink.
-	struct EventSink
-	{
-		// A status/chat line, same text/color a GadgetListBoxAddEntryText(quickmatchTextWindow, ...)
-		// + GadgetListBoxSetItemData(..., (void*)-1, ...) pair would have produced.
-		std::function<void( const UnicodeString &text, Color color )> statusLine;
-
-		// Back/Stop/Widen enable state: flipped on match-found (Back/Stop disabled), requeue
-		// (all three re-enabled) and lobby timeout (Back/Stop re-enabled).
-		std::function<void( Bool enabled )> setBackButtonEnabled;
-		std::function<void( Bool enabled )> setStopButtonEnabled;
-		std::function<void( Bool enabled )> setWidenButtonEnabled;
-
-		// The Buddies button disables once the match-start packet arrives. NOTE: the original
-		// inline code looked this up by the wrong window name (GameSpyGameOptionsMenu.wnd's
-		// ButtonCommunicator, not this screen's ButtonBuddies) and so was always a silent no-op --
-		// see the commit message for this behaviour difference.
-		std::function<void( Bool enabled )> setCommunicatorButtonEnabled;
-
-		// Buddies badge text needs its notification count refreshed.
-		std::function<void( int numNotifications )> communicatorCountChanged;
-	};
-
 	// WOLQuickMatchMenuInit's NGMP async-callback registration: cannot-connect-to-lobby,
 	// matchmaking message/match-found/requeue/setup-progress/start-game, join-lobby (incl. the
 	// debug-only mesh connection-event chat spam), and the Buddies notification-count callback.
-	// Callback bodies are ported verbatim, routed through sink instead of touching
+	// Callback bodies are ported verbatim, routed through QuickMatchSignals instead of touching
 	// quickmatchTextWindow/buttonBack/buttonStop/buttonWiden/buttonBuddies directly. Also resets
 	// the match-found timeout/countdown state and seeds the Buddies badge from any notifications
-	// already pending, same as Init's tail. sink is copied and kept alive until leave().
-	void enter( const EventSink &sink );
+	// already pending (if anything is connected to communicatorCount), same as Init's tail.
+	void enter();
 
 	// WOLQuickMatchMenuShutdown's dereg calls for everything enter() registered, plus the
 	// conditional CancelMatchmaking() call (skipped while a game is starting, same guard as today).
@@ -89,5 +88,5 @@ namespace QuickMatchSession
 
 	// WOLQuickMatchMenuUpdate's non-widget per-frame logic: the match-start countdown tick and the
 	// match-found lobby timeout fallback. Same order, same guards.
-	void update( const EventSink &sink );
+	void update();
 }

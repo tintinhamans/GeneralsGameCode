@@ -78,9 +78,7 @@ private:
 	static void onLoginFailed();    // OnlineLoginSignals::failed: matches the "Login failed." Ok box
 	static Bool isAlreadyLeaving(); // OnlineLoginSignals::alreadyLeaving: drop a late result once hidden
 
-	SignalConnection m_leavingConnection;
-	SignalConnection m_succeededConnection;
-	SignalConnection m_failedConnection;
+	SignalConnections m_connections; // OnlineLoginSignals, connected while showing
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 };

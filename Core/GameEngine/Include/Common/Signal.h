@@ -125,6 +125,7 @@ namespace SignalDetail
 	struct Node0 : Node { virtual void call() = 0; };
 	template<class A> struct Node1 : Node { virtual void call( A a ) = 0; };
 	template<class A, class B> struct Node2 : Node { virtual void call( A a, B b ) = 0; };
+	template<class A, class B, class C> struct Node3 : Node { virtual void call( A a, B b, C c ) = 0; };
 	struct NodeBool0 : Node { virtual bool call() = 0; };
 
 	template<class F> struct Fn0 : Node0
@@ -143,6 +144,12 @@ namespace SignalDetail
 	{
 		explicit Fn2( F fn ) : f( fn ) {}
 		virtual void call( A a, B b ) { f( a, b ); }
+		F f;
+	};
+	template<class A, class B, class C, class F> struct Fn3 : Node3<A, B, C>
+	{
+		explicit Fn3( F fn ) : f( fn ) {}
+		virtual void call( A a, B b, C c ) { f( a, b, c ); }
 		F f;
 	};
 	template<class F> struct FnBool0 : NodeBool0
@@ -203,12 +210,52 @@ public:
 
 	bool connected() const { return m_node != 0 && m_node->alive; }
 
+	// Gives up ownership without disconnecting (SignalConnections adopts it).
+	SignalDetail::Node *detach()
+	{
+		SignalDetail::Node *node = m_node;
+		m_node = 0;
+		return node;
+	}
+
 private:
 #if defined(__cplusplus) && __cplusplus >= 201103L
 	SignalDetail::Node *m_node;
 #else
 	mutable SignalDetail::Node *m_node;
 #endif
+};
+
+// A screen's whole set of listeners: add() every connect() result, disconnect() once in hide()/
+// shutdown (also runs on destruction).
+class SignalConnections
+{
+public:
+	SignalConnections() {}
+	~SignalConnections() { disconnect(); }
+
+	void add( SignalConnection connection )
+	{
+		SignalDetail::Node *node = connection.detach();
+		if ( node != 0 )
+			m_nodes.push_back( node );
+	}
+
+	void disconnect()
+	{
+		for ( size_t i = 0; i < m_nodes.size(); ++i )
+		{
+			m_nodes[i]->alive = false;
+			m_nodes[i]->release();
+		}
+		m_nodes.clear();
+	}
+
+private:
+	SignalConnections( const SignalConnections & );
+	SignalConnections &operator=( const SignalConnections & );
+
+	std::vector<SignalDetail::Node *> m_nodes;
 };
 
 class Signal0
@@ -294,6 +341,37 @@ public:
 			SignalDetail::Node2<A, B> *node = static_cast<SignalDetail::Node2<A, B> *>( m_slots.at( i ) );
 			if ( node->alive )
 				node->call( a, b );
+		}
+	}
+
+	bool hasListeners() const { return m_slots.hasListeners(); }
+
+private:
+	SignalDetail::Slots m_slots;
+};
+
+template<class A, class B, class C>
+class Signal3
+{
+public:
+	typedef SignalConnection Connection;
+
+	template<class F> Connection connect( F fn )
+	{
+		SignalDetail::Fn3<A, B, C, F> *node = new SignalDetail::Fn3<A, B, C, F>( fn );
+		m_slots.add( node );
+		return Connection( node );
+	}
+
+	void emit( A a, B b, C c )
+	{
+		const size_t count = m_slots.size();
+		SignalDetail::Slots::EmitScope scope( m_slots );
+		for ( size_t i = 0; i < count; ++i )
+		{
+			SignalDetail::Node3<A, B, C> *node = static_cast<SignalDetail::Node3<A, B, C> *>( m_slots.at( i ) );
+			if ( node->alive )
+				node->call( a, b, c );
 		}
 	}
 

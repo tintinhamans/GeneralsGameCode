@@ -25,16 +25,16 @@
 // instead of LanGameSetupData/LanGameSetupActions/LANAPICallbacks -- see
 // WOLGameSetupMenu.cpp for the .wnd this reproduces:
 //   - show() calls OnlineGameSetupSession::prepareGameState() (same as
-//     WOLGameSetupMenuInit() does before its widget setup) then enter(sink), same
+//     WOLGameSetupMenuInit() does before its widget setup) then enter(), same
 //     lifetime pattern as the .wnd's Init/Shutdown pair.
-//   - the per-frame OnlineGameSetupSession::update(sink) call happens from this
+//   - the per-frame OnlineGameSetupSession::update() call happens from this
 //     screen's update() override (called every frame by RmlUiManager::update()
 //     while this screen is visible); a TRUE return means the host left and the
 //     screen must stop processing this frame, same as WOLGameSetupMenuUpdate()'s
 //     early return.
 //   - hide() calls leave(); Back calls backToLobby() (leaveLobby() + TheShell->pop()),
 //     same as PopBackToLobby().
-// The EventSink lambdas (see OnlineGameSetupSession.h) all land on m_model fields and
+// The OnlineGameSetupSignals listeners (see OnlineGameSetupSession.h) all land on m_model fields and
 // DirtyVariable() calls instead of GameWindow calls -- chat lines, slot/options
 // refresh, host migration, Back/Start/Communicator enabled state, the last-second
 // settings lock, and the Communicator notification badge.
@@ -42,6 +42,7 @@
 
 #pragma once
 
+#include "Common/Signal.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -91,9 +92,8 @@ public:
 	// screen and refreshes it from the current game, without show()'s prepareGameState()-style reset.
 	void returnFromMapSelect();
 
-	// OnlineGameSetupSession::EventSink / OnlineGameSetupActions::StartPressCallbacks targets --
-	// public so the free-function sink builders in the .cpp (which close over a raw screen pointer,
-	// since std::function can't hold a member-function-on-this the way BindEventCallback can) can
+	// OnlineGameSetupSignals / OnlineGameSetupActions::StartPressCallbacks targets --
+	// public so the free functions in the .cpp (which close over a raw screen pointer) can
 	// reach them without befriending the class.
 	// color is a pre-formatted "rgba(r,g,b,a)" string (see colorToCss() in the .cpp), same idiom as
 	// RmlOnlineLobbyScreen::ChatLineModel::color -- passed already-formatted rather than as a raw
@@ -109,6 +109,7 @@ public:
 private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
+	SignalConnections m_connections; // OnlineGameSetupSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
 	size_t m_lastChatLineCount = 0; // scrollChatToBottom() drives off this, see update()
 
@@ -163,8 +164,8 @@ private:
 		Rml::String label;
 	};
 
-	// One chat/system-notice line (see OnlineGameSetupActions::ChatLineFn / OnlineGameSetupSession::
-	// EventSink::chatLine). color is bound with data-style-color on a child span of the data-for row
+	// One chat/system-notice line (see OnlineGameSetupActions::ChatLineFn / OnlineGameSetupSignals::
+	// chatLine). color is bound with data-style-color on a child span of the data-for row
 	// (see OnlineGameSetup.rml), the same idiom RmlOnlineLobbyScreen/RmlLanLobbyScreen use for their
 	// chat -- same shape as RmlOnlineLobbyScreen::ChatLineModel.
 	struct ChatLineModel

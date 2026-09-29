@@ -45,19 +45,6 @@ namespace
 		::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
 		return utf8;
 	}
-
-	// BuddyOverlaySession::ToastSink targets (see RmlBuddyToastScreen.h's public onToastShown/
-	// onToastDismissed); free functions since ToastSink's members are plain std::function, not
-	// bound to an instance.
-	void onToastShownTarget( const UnicodeString &text )
-	{
-		RmlBuddyToastScreen::instance().onToastShown( text );
-	}
-
-	void onToastDismissedTarget()
-	{
-		RmlBuddyToastScreen::instance().onToastDismissed();
-	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -95,14 +82,16 @@ void RmlBuddyToastScreen::init(Rml::Context *context)
 {
 	load(context);
 
-	BuddyOverlaySession::ToastSink sink;
-	sink.shown = &onToastShownTarget;
-	sink.dismissed = &onToastDismissedTarget;
-	BuddyOverlaySession::setToastSink( sink );
+	// The .wnd presenter would otherwise show its own popup on top of this one.
+	BuddyOverlaySession::releaseWidgetToast();
+	m_connections.disconnect();
+	m_connections.add( BuddyToastSignals::shown().connect( [this]( const UnicodeString &text ) { onToastShown( text ); } ) );
+	m_connections.add( BuddyToastSignals::dismissed().connect( [this]() { onToastDismissed(); } ) );
 }
 
 void RmlBuddyToastScreen::shutdown()
 {
+	m_connections.disconnect();
 	m_document = nullptr; // Rml::Shutdown() (RmlUiManager::shutdown()) destroys the document itself
 	m_context = nullptr;
 	m_modelHandle = Rml::DataModelHandle();

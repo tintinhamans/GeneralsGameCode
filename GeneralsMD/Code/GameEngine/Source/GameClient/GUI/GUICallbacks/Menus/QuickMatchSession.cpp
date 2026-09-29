@@ -38,13 +38,21 @@
 
 extern NGMPGame *TheNGMPGame;
 
+namespace QuickMatchSignals
+{
+	Signal2<const UnicodeString &, Color> &statusLine() { static Signal2<const UnicodeString &, Color> s; return s; }
+	Signal1<Bool> &backButtonEnabled() { static Signal1<Bool> s; return s; }
+	Signal1<Bool> &stopButtonEnabled() { static Signal1<Bool> s; return s; }
+	Signal1<Bool> &widenButtonEnabled() { static Signal1<Bool> s; return s; }
+	Signal1<Bool> &communicatorButtonEnabled() { static Signal1<Bool> s; return s; }
+	Signal1<int> &communicatorCount() { static Signal1<int> s; return s; }
+}
+
 namespace QuickMatchSession
 {
 
 namespace
 {
-	EventSink s_sink;
-
 	static const Int lobbyTimeoutMs = 10000;
 	static const Int defaultMatchStartCountdownMs = 5000;
 
@@ -55,16 +63,13 @@ namespace
 
 	void callStatusLine( const UnicodeString &text, Color color )
 	{
-		if( s_sink.statusLine )
-			s_sink.statusLine( text, color );
+		QuickMatchSignals::statusLine().emit( text, color );
 	}
 }
 
 //-------------------------------------------------------------------------------------------------
-void enter( const EventSink &sink )
+void enter()
 {
-	s_sink = sink;
-
 	s_matchFoundTimeoutStart = 0;
 	s_matchFoundTimeoutDurationMs = lobbyTimeoutMs;
 	s_matchStartCountdownDurationMs = defaultMatchStartCountdownMs;
@@ -83,10 +88,8 @@ void enter( const EventSink &sink )
 			s_matchFoundTimeoutStart = 0;
 			s_matchStartCountdownLastSecond = 0;
 
-			if( s_sink.setBackButtonEnabled )
-				s_sink.setBackButtonEnabled( TRUE );
-			if( s_sink.setStopButtonEnabled )
-				s_sink.setStopButtonEnabled( TRUE );
+			QuickMatchSignals::backButtonEnabled().emit( TRUE );
+			QuickMatchSignals::stopButtonEnabled().emit( TRUE );
 		} );
 
 	// TODO_QUICKMATCH: Deregister when leaving QM
@@ -100,10 +103,8 @@ void enter( const EventSink &sink )
 
 	pLobbyInterface->RegisterForMatchmakingMatchFoundCallback( []()
 		{
-			if( s_sink.setBackButtonEnabled )
-				s_sink.setBackButtonEnabled( FALSE );
-			if( s_sink.setStopButtonEnabled )
-				s_sink.setStopButtonEnabled( FALSE );
+			QuickMatchSignals::backButtonEnabled().emit( FALSE );
+			QuickMatchSignals::stopButtonEnabled().emit( FALSE );
 			s_matchFoundTimeoutDurationMs = lobbyTimeoutMs;
 			s_matchFoundTimeoutStart = timeGetTime();
 			s_matchStartCountdownLastSecond = 0;
@@ -119,12 +120,9 @@ void enter( const EventSink &sink )
 			s_matchFoundTimeoutStart = 0;
 			s_matchFoundTimeoutDurationMs = lobbyTimeoutMs;
 			s_matchStartCountdownLastSecond = 0;
-			if( s_sink.setBackButtonEnabled )
-				s_sink.setBackButtonEnabled( TRUE );
-			if( s_sink.setStopButtonEnabled )
-				s_sink.setStopButtonEnabled( TRUE );
-			if( s_sink.setWidenButtonEnabled )
-				s_sink.setWidenButtonEnabled( TRUE );
+			QuickMatchSignals::backButtonEnabled().emit( TRUE );
+			QuickMatchSignals::stopButtonEnabled().emit( TRUE );
+			QuickMatchSignals::widenButtonEnabled().emit( TRUE );
 		} );
 
 	pLobbyInterface->RegisterForMatchmakingSetupProgressCallback( []( int timeoutMs, int countdownMs )
@@ -183,8 +181,7 @@ void enter( const EventSink &sink )
 			// NOTE: the original inline code looked this button up by the wrong window name
 			// (GameSpyGameOptionsMenu.wnd:ButtonCommunicator, not this screen's ButtonBuddies) and so
 			// this winEnable(FALSE) was always a silent no-op -- see the commit message.
-			if( s_sink.setCommunicatorButtonEnabled )
-				s_sink.setCommunicatorButtonEnabled( FALSE );
+			QuickMatchSignals::communicatorButtonEnabled().emit( FALSE );
 			GameSpyCloseOverlay( GSOVERLAY_BUDDY );
 			GameSpyCloseOverlay( GSOVERLAY_PLAYERINFO );
 
@@ -283,15 +280,14 @@ void enter( const EventSink &sink )
 	{
 		pSocialInterface->RegisterForCallback_OnNumberGlobalNotificationsChanged( []( int numNotifications )
 			{
-				if( s_sink.communicatorCountChanged )
-					s_sink.communicatorCountChanged( numNotifications );
+				QuickMatchSignals::communicatorCount().emit( numNotifications );
 			} );
 	}
 
 	// And also initialize it
-	if( pSocialInterface != nullptr && s_sink.communicatorCountChanged && pSocialInterface->GetNumTotalNotifications() > 0 )
+	if( pSocialInterface != nullptr && QuickMatchSignals::communicatorCount().hasListeners() && pSocialInterface->GetNumTotalNotifications() > 0 )
 	{
-		s_sink.communicatorCountChanged( pSocialInterface->GetNumTotalNotifications() );
+		QuickMatchSignals::communicatorCount().emit( pSocialInterface->GetNumTotalNotifications() );
 	}
 }
 
@@ -321,16 +317,13 @@ void leave()
 		pLobbyInterface->DeregisterForCannotConnectToLobbyCallback();
 	}
 
-	s_sink = EventSink();
 	s_matchFoundTimeoutStart = 0;
 	s_matchStartCountdownLastSecond = 0;
 }
 
 //-------------------------------------------------------------------------------------------------
-void update( const EventSink &sink )
+void update()
 {
-	s_sink = sink;
-
 	if( s_matchStartCountdownLastSecond > 0 )
 	{
 		Int elapsedMs = timeGetTime() - s_matchFoundTimeoutStart;
@@ -359,10 +352,8 @@ void update( const EventSink &sink )
 	if( s_matchFoundTimeoutStart != 0 && timeGetTime() - s_matchFoundTimeoutStart >= effectiveTimeoutMs )
 	{
 		s_matchFoundTimeoutStart = 0;
-		if( s_sink.setBackButtonEnabled )
-			s_sink.setBackButtonEnabled( TRUE );
-		if( s_sink.setStopButtonEnabled )
-			s_sink.setStopButtonEnabled( TRUE );
+		QuickMatchSignals::backButtonEnabled().emit( TRUE );
+		QuickMatchSignals::stopButtonEnabled().emit( TRUE );
 		callStatusLine( UnicodeString( L"Match setup timed out. You may cancel or continue waiting." ), GameMakeColor( 255, 194, 25, 255 ) );
 	}
 }
