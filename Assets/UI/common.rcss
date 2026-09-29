@@ -977,12 +977,35 @@ body.screen
 	font-size: 20dp;
 }
 
-/* ---- Ruler: the MainMenuRuler art's tick strips, flush with the screen edges -----------------------
-   Four clipped windows onto the full-screen art (its 800x600 maps to the viewport): only the ticks
-   (rows/columns 25-37 along the opening), without the grid band, corners or bright frame line, pulled
-   out to the viewport edges. Each strip sits on a dark band, darkest at the screen edge, so the ticks
-   keep the same contrast over bright sand or dark water while staying a quiet frame. mappedimage
-   ignores percentage sizes, so the art is sized in vw/vh. */
+/* ---- Ruler: the MainMenuRuler frame, flush with the screen edges ---------------------------------
+   The original shell's frame drawn from its own art (MainMenuRuleruserinterface.tga, 800x600 of a
+   1024 page; the sprite rects below are in the 4096 engine texture space): the grid band, the tick
+   rows and the bright frame line along all four edges, the art's corners, and an L joining the tick
+   rows round each corner so the frame runs unbroken. The art is drawn at a fixed 1.5dp per art pixel
+   instead of being stretched to the screen, so its squares stay square and its ticks stay 3dp apart
+   at any aspect ratio; each edge repeats a long run of the band (a whole number of its 20px period)
+   so the tiles join seamlessly. A dark backing sits under the band so it reads over bright maps.
+
+	<div class="screen-ruler">
+		<div class="rs rs-top"><div/><div/><div/><div/></div>   (rs-bottom the same)
+		<div class="rs rs-left"><div/><div/></div>              (rs-right the same)
+		<div class="rc rc-tl"><div/></div>                      (rc-tr, rc-bl, rc-br the same)
+	</div>
+
+   Band depth: 43 art px = 64.5dp. Content sits inside it: .screen-frame keeps 88dp / 78dp gutters. */
+@spritesheet generals-ruler
+{
+	src: /MainMenuRuleruserinterface.tga;
+	ruler-top: 172px 0px 2800px 172px;
+	ruler-bottom: 172px 2228px 2800px 172px;
+	ruler-left: 0px 172px 172px 2000px;
+	ruler-right: 3028px 172px 172px 2000px;
+	ruler-tl: 0px 0px 172px 172px;
+	ruler-tr: 3028px 0px 172px 172px;
+	ruler-bl: 0px 2228px 172px 172px;
+	ruler-br: 3028px 2228px 172px 172px;
+}
+
 .screen-ruler
 {
 	display: block;
@@ -994,49 +1017,101 @@ body.screen
 	pointer-events: none;
 }
 
-.screen-ruler .rs
+.screen-ruler .rs, .screen-ruler .rc
 {
 	display: block;
 	position: absolute;
 	overflow: hidden;
-	clip: always; /* the art is absolutely placed, so it never counts as overflow to clip */
+	clip: always;
+	background-color: #05070FB4;
 }
 
-.rs-top { decorator: vertical-gradient(#05070FC4 #05070F5C); }
-.rs-bottom { decorator: vertical-gradient(#05070F5C #05070FC4); }
-.rs-left { decorator: horizontal-gradient(#05070FC4 #05070F5C); }
-.rs-right { decorator: horizontal-gradient(#05070F5C #05070FC4); }
+.rs-top, .rs-bottom
+{
+	left: 64.5dp;
+	right: 64.5dp;
+	height: 64.5dp;
+}
 
-.rs-top, .rs-bottom { left: 5vw; width: 90vw; height: 2vh; }
 .rs-top { top: 0; }
-.rs-bottom { top: 98vh; }
-.rs-left, .rs-right { top: 6.6667vh; width: 1.5vw; height: 86.6667vh; }
-.rs-left { left: 0; }
-.rs-right { left: 98.5vw; }
+.rs-bottom { bottom: 0; }
 
-.screen-ruler .rs mappedimage
+.rs-left, .rs-right
+{
+	top: 64.5dp;
+	bottom: 64.5dp;
+	width: 64.5dp;
+}
+
+.rs-left { left: 0; }
+.rs-right { right: 0; }
+
+/* Runs of the band, laid end to end: 700 art px along the top and bottom (35 periods), 500 down the
+   sides (25 periods). Enough of them for a 32:9 screen; the edge clips the last one. */
+.rs > div
 {
 	display: block;
 	position: absolute;
-	width: 100vw;
-	height: 100vh;
-	opacity: 0.85;
 }
 
-.rs-top mappedimage { left: -5vw; top: -4.1667vh; }
-.rs-bottom mappedimage { left: -5vw; top: -93.6667vh; }
-.rs-left mappedimage { left: -3.125vw; top: -6.6667vh; }
-.rs-right mappedimage { left: -95.25vw; top: -6.6667vh; }
+.rs-top > div, .rs-bottom > div
+{
+	top: 0;
+	width: 1050dp;
+	height: 64.5dp;
+}
+
+.rs-top > div:nth-child(2), .rs-bottom > div:nth-child(2) { left: 1050dp; }
+.rs-top > div:nth-child(3), .rs-bottom > div:nth-child(3) { left: 2100dp; }
+.rs-top > div:nth-child(4), .rs-bottom > div:nth-child(4) { left: 3150dp; }
+
+.rs-left > div, .rs-right > div
+{
+	left: 0;
+	width: 64.5dp;
+	height: 750dp;
+}
+
+.rs-left > div:nth-child(2), .rs-right > div:nth-child(2) { top: 750dp; }
+
+.rs-top > div { decorator: image(ruler-top); }
+.rs-bottom > div { decorator: image(ruler-bottom); }
+.rs-left > div { decorator: image(ruler-left); }
+.rs-right > div { decorator: image(ruler-right); }
+
+.screen-ruler .rc
+{
+	width: 64.5dp;
+	height: 64.5dp;
+}
+
+.rc-tl { left: 0; top: 0; decorator: image(ruler-tl); }
+.rc-tr { right: 0; top: 0; decorator: image(ruler-tr); }
+.rc-bl { left: 0; bottom: 0; decorator: image(ruler-bl); }
+.rc-br { right: 0; bottom: 0; decorator: image(ruler-br); }
+
+/* The art's tick rows stop short of each corner; this L carries both base lines into the corner. */
+.rc > div
+{
+	display: block;
+	position: absolute;
+	border-color: #3543E7B0;
+}
+
+.rc-tl > div { left: 39dp; top: 39dp; width: 21dp; height: 21dp; border-top-width: 1.5dp; border-left-width: 1.5dp; }
+.rc-tr > div { right: 37.5dp; top: 39dp; width: 22.5dp; height: 21dp; border-top-width: 1.5dp; border-right-width: 1.5dp; }
+.rc-bl > div { left: 39dp; bottom: 36dp; width: 21dp; height: 24dp; border-bottom-width: 1.5dp; border-left-width: 1.5dp; }
+.rc-br > div { right: 37.5dp; bottom: 36dp; width: 22.5dp; height: 24dp; border-bottom-width: 1.5dp; border-right-width: 1.5dp; }
 
 /* Content frame: inside the ruler, at most 2150dp wide and centred, no fill of its own. */
 .screen-frame
 {
 	box-sizing: border-box;
 	position: absolute;
-	left: 3.4%;
-	right: 3.4%;
-	top: 4.4%;
-	bottom: 4.2%;
+	left: 88dp;
+	right: 88dp;
+	top: 78dp;
+	bottom: 78dp;
 	max-width: 2150dp;
 	margin-left: auto;
 	margin-right: auto;

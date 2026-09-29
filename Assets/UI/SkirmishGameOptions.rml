@@ -5,7 +5,7 @@
 	<link type="text/rcss" href="SkirmishGameOptions.rcss"/>
 </head>
 <body class="screen" data-model="skirmishsetup">
-	<div class="screen-ruler"><div class="rs rs-top"><mappedimage name="MainMenuRuler"/></div><div class="rs rs-bottom"><mappedimage name="MainMenuRuler"/></div><div class="rs rs-left"><mappedimage name="MainMenuRuler"/></div><div class="rs rs-right"><mappedimage name="MainMenuRuler"/></div></div>
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
 	<div class="screen-frame">
 		<div class="screen-header">
