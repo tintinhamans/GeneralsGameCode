@@ -1,0 +1,57 @@
+/*
+	ReplayMenu.rcss -- ReplayMenu.wnd (main menu Load > Replay). The blueprint backdrop, frame and title
+	come from common.rcss; the list columns follow the .wnd's LISTBOXDATA (name 30, time and date 25,
+	version 20, map 25 -- the time/date and version widths swapped by ReplayMenu.cpp's GUI hack).
+*/
+
+.rp-body
+{
+	display: flex;
+	flex-direction: row;
+	flex: 1 1 0px;
+	min-height: 0;
+}
+
+.rp-list
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	background-color: rgba(0, 0, 0, 160);
+}
+
+.rp-name
+{
+	flex: 0 0 30%;
+	overflow: hidden;
+}
+
+.rp-date
+{
+	flex: 0 0 25%;
+	overflow: hidden;
+}
+
+.rp-version
+{
+	flex: 0 0 20%;
+	overflow: hidden;
+}
+
+.rp-map
+{
+	flex: 0 0 25%;
+	overflow: hidden;
+}
+
+.rp-buttons
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 22%;
+	margin-left: 2.3%;
+}
+
+.rp-buttons button
+{
+	margin-bottom: 4dp;
+}

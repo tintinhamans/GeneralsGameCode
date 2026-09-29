@@ -1,0 +1,36 @@
+<rml>
+<head>
+	<title>ReplayMenu</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ReplayMenu.rcss"/>
+</head>
+<body class="shell" data-model="replaymenu">
+	<mappedimage class="shell-background" name="MainMenuRuler"/>
+
+	<div class="shell-frame">
+		<div class="shell-title-bar"><gametext key="GUI:LoadReplay"/></div>
+
+		<div class="rp-body">
+			<div class="rp-list list-box scroll-container">
+				<div data-for="row : rows">
+					<div class="list-row flex compact" data-class-selected="row.selected" data-attr-data-tooltip-text="row.tooltip"
+						data-event-click="select_row(row.index)" data-event-dblclick="activate_row(row.index)">
+						<div class="rp-name" data-style-color="row.color_hex">{{row.name}}</div>
+						<div class="rp-date" data-style-color="row.color_hex">{{row.date_time}}</div>
+						<div class="rp-version" data-style-color="row.color_hex">{{row.version}}</div>
+						<div class="rp-map" data-style-color="row.map_color_hex">{{row.map}}</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="rp-buttons">
+				<button data-event-click="load"><gametext key="GUI:LoadReplay"/></button>
+				<button data-event-click="delete"><gametext key="GUI:DeleteReplay"/></button>
+				<button data-event-click="copy"><gametext key="GUI:CopyReplay"/></button>
+				<div class="spacer"></div>
+				<button data-event-click="back"><gametext key="GUI:BACK"/></button>
+			</div>
+		</div>
+	</div>
+</body>
+</rml>
