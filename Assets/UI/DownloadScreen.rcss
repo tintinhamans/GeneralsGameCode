@@ -1,0 +1,155 @@
+/*
+	DownloadScreen.rcss -- DownloadMenu.wnd, the update download panel over the main menu. The document
+	is only the .wnd's ParentDownload rect (232,208)-(592,384 of 800x600); everything in it is placed in
+	percent of that rect, like the .wnd's own non-uniform stretch. The capsule button comes from
+	common.rcss.
+*/
+
+body
+{
+	left: 29%;
+	top: 34.667%;
+	width: 45%;
+	height: 29.333%;
+}
+
+.dl-panel
+{
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	box-sizing: border-box;
+	background-color: #020202;
+	border: 1dp #2F37A8;
+}
+
+/* Centered static texts, 32 of the 176 units tall */
+.dl-text
+{
+	position: absolute;
+	height: 18.182%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	overflow: hidden;
+	font-size: 18dp;
+	color: #FFFFFF;
+}
+
+/* File (240,216)-(576,248), size (240,256)-(400,288), time (408,256)-(576,288) */
+.dl-file { left: 2.222%; top: 4.545%; width: 93.333%; }
+.dl-size { left: 2.222%; top: 27.273%; width: 44.444%; }
+.dl-time { left: 48.889%; top: 27.273%; width: 46.667%; }
+
+/* Progress bar (240,296)-(583,321). The engine draws the loading bar art at its own pixel size: 20 px end
+   caps, the bar inset 10 px from the sides and 5 px from top and bottom, filled from the left. The bar
+   pieces are 3 px wide and cannot be tiled from the sprites, so their 11 rows of color are drawn here
+   (the 1 px dark line between the engine's pieces is not). */
+.dl-bar
+{
+	position: absolute;
+	left: 2.222%;
+	top: 50%;
+	width: 95.278%;
+	height: 14.205%;
+}
+
+.dl-bar mappedimage
+{
+	position: absolute;
+	top: 0;
+	width: 20px;
+	height: 100%;
+	display: block;
+}
+
+.dl-bar-l { left: 0; }
+.dl-bar-r { right: 0; }
+
+/* LoadingBar_C only varies vertically, so stretching it along the bar shows the same lines */
+.dl-bar-c
+{
+	position: absolute;
+	left: 20px;
+	right: 20px;
+	top: 0;
+	height: 100%;
+	decorator: tiled-horizontal(LoadingBar_C, LoadingBar_C, LoadingBar_C);
+}
+
+.dl-bar-track
+{
+	position: absolute;
+	left: 10px;
+	right: 10px;
+	top: 5px;
+	bottom: 5px;
+}
+
+.dl-bar-fill
+{
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 100%;
+}
+
+.dl-bar-rows
+{
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.dl-bar-rows div
+{
+	display: block;
+	height: 9.0909%;
+}
+
+/* LoadingBar_Progress (done) and LoadingBar_DePowered (rest), row by row */
+.dl-bar-done div:nth-child(1) { background-color: #0B1516; }
+.dl-bar-done div:nth-child(2) { background-color: #1E2BDB; }
+.dl-bar-done div:nth-child(3) { background-color: #202DE2; }
+.dl-bar-done div:nth-child(4) { background-color: #3441FF; }
+.dl-bar-done div:nth-child(5) { background-color: #7881FF; }
+.dl-bar-done div:nth-child(6) { background-color: #DCDFFF; }
+.dl-bar-done div:nth-child(7) { background-color: #DCDFFF; }
+.dl-bar-done div:nth-child(8) { background-color: #A4AAFF; }
+.dl-bar-done div:nth-child(9) { background-color: #717AFF; }
+.dl-bar-done div:nth-child(10) { background-color: #2E3BF8; }
+.dl-bar-done div:nth-child(11) { background-color: #000000; }
+
+.dl-bar-rest div:nth-child(1) { background-color: #323232; }
+.dl-bar-rest div:nth-child(2) { background-color: #3B3B3B; }
+.dl-bar-rest div:nth-child(3) { background-color: #535353; }
+.dl-bar-rest div:nth-child(4) { background-color: #757575; }
+.dl-bar-rest div:nth-child(5) { background-color: #8A8A8A; }
+.dl-bar-rest div:nth-child(6) { background-color: #898989; }
+.dl-bar-rest div:nth-child(7) { background-color: #747476; }
+.dl-bar-rest div:nth-child(8) { background-color: #515152; }
+.dl-bar-rest div:nth-child(9) { background-color: #3B3B3D; }
+.dl-bar-rest div:nth-child(10) { background-color: #303030; }
+.dl-bar-rest div:nth-child(11) { background-color: #000000; }
+
+/* Status (240,336)-(448,368), Cancel (456,336)-(576,368) */
+.dl-status { left: 2.222%; top: 72.727%; width: 57.778%; }
+
+.dl-cancel
+{
+	position: absolute;
+	left: 62.222%;
+	top: 72.727%;
+	width: 33.333%;
+	height: 18.182%;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 29dp;
+}

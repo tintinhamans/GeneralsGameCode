@@ -240,6 +240,16 @@ GameWindow *RmlUiScreenRegistry::createWindow(const AsciiString &wndPath)
 	return window;
 }
 
+WindowLayout *RmlUiScreenRegistry::layoutFor(const AsciiString &wndPath)
+{
+	const std::vector<Placeholder> &p = placeholders();
+	for (size_t i = p.size(); i > 0; --i)
+		if (p[i - 1].boxId == 0 && p[i - 1].wndPath == wndPath)
+			return p[i - 1].window->winGetLayout();
+
+	return nullptr;
+}
+
 GameWindow *RmlUiScreenRegistry::createMessageBoxWindow(UnsignedInt boxId)
 {
 	return makePlaceholder(AsciiString::TheEmptyString, boxId);

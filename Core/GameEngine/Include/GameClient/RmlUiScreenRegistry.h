@@ -75,6 +75,7 @@ public:
 	// Placeholders: hidden GameWindows tracked against an RmlUi screen or message box.
 	static WindowLayout *createLayout(const AsciiString &wndPath); ///< layout holding a placeholder; runInit/hide(FALSE)/bringForward open the screen, runShutdown/hide(TRUE)/destroyWindows close it
 	static GameWindow *createWindow(const AsciiString &wndPath); ///< opens the screen and returns its placeholder; winDestroy() it to close
+	static WindowLayout *layoutFor(const AsciiString &wndPath); ///< the newest layout createLayout() made for a screen; null if there is none
 	static GameWindow *createMessageBoxWindow(UnsignedInt boxId); ///< placeholder for a box RmlUiMessageBoxHook::show() returned
 	static void windowDestroyed(GameWindow *window); ///< GameWindowManager::winDestroy(): closes the RmlUi side of a placeholder; no-op for other windows
 	static void destroyMessageBox(UnsignedInt boxId); ///< the RmlUi box closed itself: destroys its placeholder like the .wnd box does

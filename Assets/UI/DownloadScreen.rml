@@ -1,0 +1,27 @@
+<rml>
+<head>
+	<title>DownloadScreen</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="DownloadScreen.rcss"/>
+</head>
+<body data-model="downloadscreen">
+	<div class="dl-panel">
+		<div class="dl-text dl-file"><span>{{file_text}}</span></div>
+		<div class="dl-text dl-size"><span>{{size_text}}</span></div>
+		<div class="dl-text dl-time"><span>{{time_text}}</span></div>
+
+		<div class="dl-bar" data-tooltip="Tooltip:DownloadProgress">
+			<mappedimage class="dl-bar-l" name="LoadingBar_L"/>
+			<div class="dl-bar-c"></div>
+			<mappedimage class="dl-bar-r" name="LoadingBar_R"/>
+			<div class="dl-bar-track">
+				<div class="dl-bar-rows dl-bar-rest"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+				<div class="dl-bar-fill" data-style-width="progress_style"><div class="dl-bar-rows dl-bar-done"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+			</div>
+		</div>
+
+		<div class="dl-text dl-status"><span>{{status_text}}</span></div>
+		<button class="dl-cancel" data-event-click="cancel"><gametext key="GUI:Cancel"/></button>
+	</div>
+</body>
+</rml>

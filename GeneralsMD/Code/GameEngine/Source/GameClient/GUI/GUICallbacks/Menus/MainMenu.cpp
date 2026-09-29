@@ -221,7 +221,7 @@ void HandleCanceledDownload( Bool resetDropDown )
 	NGMP_OnlineServicesManager::GetInstance()->CancelUpdate();
 
 	buttonPushed = FALSE;
-	if (resetDropDown)
+	if (resetDropDown && dropDownWindows[DROPDOWN_MAIN]) // none while the RmlUi main menu is up
 	{
 		dropDownWindows[DROPDOWN_MAIN]->winHide(FALSE);
 		TheTransitionHandler->setGroup("MainMenuDefaultMenuLogoFade");

@@ -61,6 +61,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlBuddyOverlayScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlChallengeMenuScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlDownloadScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlBuddyToastScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlCreditsScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlLanGameSetupScreen.h
@@ -212,6 +213,7 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/RmlUi/RmlBuddyOverlayScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlChallengeMenuScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlDownloadScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlBuddyToastScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlCreditsScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlLanGameSetupScreen.cpp
