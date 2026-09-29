@@ -112,7 +112,9 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 			NGMP_OnlineServices_LobbyInterface* pJoinOrderLobby = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 			const bool bWeJoinedLater = pJoinOrderLobby == nullptr || !pJoinOrderLobby->IsJoinOrderKnown() || pJoinOrderLobby->JoinedAfter(userID);
 			const bool bPeerLeft = pJoinOrderLobby != nullptr && pJoinOrderLobby->IsJoinOrderKnown() && !pJoinOrderLobby->IsLobbyMember(userID);
-			bool bShouldRetry = serviceConf.retry_signalling && ((!bWeJoinedLater && !bPeerLeft) || signallingAttemptsBeforeDisconnect < numSignallingAttempts);
+			// a match can't leave its lobby, so keep repairing the link until the game drops the player
+			const bool bInMatch = TheGameLogic != nullptr && TheGameLogic->isInInternetGame();
+			bool bShouldRetry = serviceConf.retry_signalling && (bInMatch || (!bWeJoinedLater && !bPeerLeft) || signallingAttemptsBeforeDisconnect < numSignallingAttempts);
 
 			bool bWasError = pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ProblemDetectedLocally || pInfo->m_info.m_eEndReason != k_ESteamNetConnectionEnd_App_Generic;
 			plrConnection.SetDisconnected(bWasError, pMesh, bShouldRetry && bWasError);
