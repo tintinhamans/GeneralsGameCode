@@ -1193,11 +1193,10 @@ static Int insertGame(GameWindow* win, LobbyEntry& lobbyInfo, Bool showMap)
 
 }
 
+// win may be null (a non-.wnd lobby screen owns no listbox): the search/filter/sort and the
+// OnlineLobbySignals::gameList() delivery still run, only the widget half is skipped.
 void RefreshGameListBox(GameWindow* win, Bool showMap)
 {
-	if (!win)
-		return;
-
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
@@ -1207,16 +1206,23 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 	// save off selection
 	Int selectedIndex = -1;
 	int64_t selectedID = -1;
-	GadgetListBoxGetSelected(win, &selectedIndex);
-	if (selectedIndex != -1)
+	int prevPos = 0;
+	if (win)
 	{
-		selectedID = ResolveGameListLobbyID((Int)GadgetListBoxGetItemData(win, selectedIndex));
+		GadgetListBoxGetSelected(win, &selectedIndex);
+		if (selectedIndex != -1)
+		{
+			selectedID = ResolveGameListLobbyID((Int)GadgetListBoxGetItemData(win, selectedIndex));
+		}
+		prevPos = GadgetListBoxGetTopVisibleEntry(win);
 	}
-	int prevPos = GadgetListBoxGetTopVisibleEntry(win);
 
 	pLobbyInterface->SearchForLobbies(
 		[=]()
 		{
+			if (win == nullptr)
+				return;
+
 			win->winEnable(true);
 			if (GadgetListBoxGetNumEntries(win) == 0)
 			{
@@ -1227,20 +1233,25 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 		[=](std::vector<LobbyEntry> vecLobbies)
 		{
 			// empty listbox
-			GadgetListBoxReset(win);
+			if (win)
+				GadgetListBoxReset(win);
 			s_lobbyRowIDs.clear();
 
 			size_t numResults = vecLobbies.size();
 
 			if (numResults == 0)
 			{
-				GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies were found"), GameMakeColor(255, 194, 15, 255), -1, -1);
-				GadgetListBoxSetSelected(win, -1);
-
+				if (win)
+				{
+					GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies were found"), GameMakeColor(255, 194, 15, 255), -1, -1);
+					GadgetListBoxSetSelected(win, -1);
+				}
+				OnlineLobbySignals::gameList().emit(std::vector<OnlineLobbyData::GameRow>());
 			}
 			else
 			{
-				win->winEnable(true);
+				if (win)
+					win->winEnable(true);
 
 				populateBuddyGames(vecLobbies);
 
@@ -1261,8 +1272,12 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 					vecLobbies = filtered;
 					if (vecLobbies.empty())
 					{
-						GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies currently match this filter"), GameMakeColor(255, 194, 15, 255), -1, -1);
-						GadgetListBoxSetSelected(win, -1);
+						if (win)
+						{
+							GadgetListBoxAddEntryText(win, UnicodeString(L"No lobbies currently match this filter"), GameMakeColor(255, 194, 15, 255), -1, -1);
+							GadgetListBoxSetSelected(win, -1);
+						}
+						OnlineLobbySignals::gameList().emit(std::vector<OnlineLobbyData::GameRow>());
 						clearBuddyGames();
 						return;
 					}
@@ -1305,6 +1320,12 @@ void RefreshGameListBox(GameWindow* win, Bool showMap)
 						sharedRows.push_back(OnlineLobbyData::buildGameRow(lobby, mapDisplayName, lobbyHasBuddy(lobby.lobbyID) != FALSE, crcMismatch));
 					}
 					OnlineLobbySignals::gameList().emit(sharedRows);
+				}
+
+				if (win == nullptr)
+				{
+					clearBuddyGames();
+					return;
 				}
 
 				// now add the games
@@ -1459,6 +1480,10 @@ void RefreshGameListBoxes( void )
 {
 	GameWindow *main = GetGameListBox();
 	GameWindow *info = GetGameInfoListBox();
+
+	// No listbox and nobody listening for rows (e.g. buddy overlay refresh from another screen): nothing to search for
+	if (main == nullptr && !OnlineLobbySignals::gameList().hasListeners())
+		return;
 
 	RefreshGameListBox( main, (info == nullptr) );
 
