@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlBuddyOverlayScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
 
 #include "Common/UnicodeString.h"
 #include "GameClient/GameText.h"
@@ -480,6 +481,11 @@ void RmlBuddyOverlayScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Even
 	if (!ev.GetParameter<bool>("linebreak", false))
 		return;
 
+	sendChat(ev);
+}
+
+void RmlBuddyOverlayScreen::sendChat(Rml::Event &ev)
+{
 	if (m_selectedUserID == 0)
 	{
 		// Mirrors GEM_EDIT_DONE's nothing-selected case (Buddy:SelectBuddyToChat) -- no send target.
@@ -488,15 +494,17 @@ void RmlBuddyOverlayScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Even
 	if (BuddyOverlayActions::sendChatMessage( m_selectedUserID, utf8ToUnicode( m_model.chatEntryText ) ))
 	{
 		m_model.chatEntryText.clear();
+		RmlClearChatInput(ev);
 		if (m_modelHandle)
 			m_modelHandle.DirtyVariable("chat_entry_text");
 		refreshChat();
 	}
 }
 
-void RmlBuddyOverlayScreen::onSendChat(Rml::DataModelHandle handle, Rml::Event &ev, const Rml::VariantList &args)
+// The send button's click carries no linebreak flag, so it takes the send path directly.
+void RmlBuddyOverlayScreen::onSendChat(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
-	onChatEntryCommitted(handle, ev, args);
+	sendChat(ev);
 }
 
 void RmlBuddyOverlayScreen::onMenuItemClicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)

@@ -39,7 +39,7 @@ class WindowLayout;
 
 typedef void (*RmlUiScreenFunc)();
 typedef bool (*RmlUiScreenQueryFunc)();
-typedef bool (*RmlUiScreenKeyFunc)(unsigned char key, unsigned char state); ///< TRUE if the screen took the key
+typedef bool (*RmlUiScreenKeyFunc)(unsigned char key, unsigned short state); ///< TRUE if the screen took the key
 
 //-------------------------------------------------------------------------------------------------
 class RmlUiScreenRegistry
@@ -93,7 +93,7 @@ public:
 	// A visible overlay with a key handler takes the keys it wants ahead of the game, as the .wnd overlay did
 	// while it had the keyboard focus. Nothing is offered while a capturing layer is up: that owns the keyboard.
 	static bool wantsOverlayKeys(); ///< such an overlay is visible
-	static bool overlayKey(unsigned char key, unsigned char state); ///< offers a key to the topmost one; TRUE if it took it
+	static bool overlayKey(unsigned char key, unsigned short state); ///< offers a key to the topmost one; TRUE if it took it
 
 	// Placeholders: hidden GameWindows tracked against an RmlUi screen or message box.
 	static WindowLayout *createLayout(const AsciiString &wndPath); ///< layout holding a placeholder; runInit/hide(FALSE)/bringForward open the screen, runShutdown/hide(TRUE)/destroyWindows close it

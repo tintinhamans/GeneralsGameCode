@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlLanGameSetupScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
 
 #include "Common/AsciiString.h"
 #include "Common/MultiplayerSettings.h"
@@ -585,11 +586,12 @@ void RmlLanGameSetupScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Even
 			TheLAN->RequestChat(text, LANAPIInterface::LANCHAT_NORMAL);
 	}
 	m_model.chatEntryText.clear();
+	RmlClearChatInput(ev);
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("chat_entry_text");
 }
 
-void RmlLanGameSetupScreen::onSendEmote(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlLanGameSetupScreen::onSendEmote(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
 	// Mirrors ButtonEmote's actual behavior: unlike RmlLanLobbyScreen's onSendChat() (whose ButtonEmote
 	// really sends normal chat), the LAN game setup screen's ButtonEmote genuinely sends LANCHAT_EMOTE.
@@ -601,6 +603,7 @@ void RmlLanGameSetupScreen::onSendEmote(Rml::DataModelHandle, Rml::Event &, cons
 			TheLAN->RequestChat(text, LANAPIInterface::LANCHAT_EMOTE);
 	}
 	m_model.chatEntryText.clear();
+	RmlClearChatInput(ev);
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("chat_entry_text");
 }

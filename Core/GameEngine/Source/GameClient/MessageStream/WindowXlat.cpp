@@ -241,7 +241,7 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 				if( TheRmlUiInputHook->wantsKeyboardInput() )
 				{
 					UnsignedByte key = msg->getArgument( 0 )->integer;
-					UnsignedByte state = msg->getArgument( 1 )->integer;
+					UnsignedShort state = msg->getArgument( 1 )->integer; // 16 bits: KEY_STATE_AUTOREPEAT is 0x100
 					if( TheRmlUiInputHook->processKey( key, state ) )
 						return DESTROY_MESSAGE;
 				}

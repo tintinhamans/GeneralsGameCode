@@ -71,7 +71,7 @@ public:
 	virtual void processMouseMove(int x, int y) override;
 	virtual void processMouseButton(int button, bool down) override;
 	virtual void processMouseWheel(float delta) override;
-	virtual bool processKey(unsigned char engineKey, unsigned char engineKeyState) override;
+	virtual bool processKey(unsigned char engineKey, unsigned short engineKeyState) override;
 	virtual void processTextInput(unsigned short utf16Char) override;
 
 private:

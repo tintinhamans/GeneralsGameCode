@@ -148,9 +148,9 @@ void RmlInGamePopupScreen::onOk(Rml::DataModelHandle, Rml::Event &, const Rml::V
 	InGamePopupMessageActions::ok();
 }
 
-bool RmlInGamePopupScreen::onKey(unsigned char key, unsigned char state)
+bool RmlInGamePopupScreen::onKey(unsigned char key, unsigned short state)
 {
-	return InGamePopupMessageActions::key(key, state);
+	return InGamePopupMessageActions::key(key, (unsigned char)state);
 }
 
 //-------------------------------------------------------------------------------------------------

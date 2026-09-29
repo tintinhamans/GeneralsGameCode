@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlLanLobbyScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
 
 #include "Common/AsciiString.h"
 #include "Common/Debug.h"
@@ -446,16 +447,18 @@ void RmlLanLobbyScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &e
 
 	LanLobbyActions::sendChatEntry(utf8ToUnicode(m_model.chatEntryText));
 	m_model.chatEntryText.clear();
+	RmlClearChatInput(ev);
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("chat_entry_text");
 }
 
-void RmlLanLobbyScreen::onSendChat(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlLanLobbyScreen::onSendChat(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
 	// Despite the .wnd's ButtonEmote name, this sends normal chat (LANCHAT_NORMAL) -- see
 	// LanLobbyActions.h's sendChatButton() comment. Kept for exact parity.
 	LanLobbyActions::sendChatButton(utf8ToUnicode(m_model.chatEntryText));
 	m_model.chatEntryText.clear();
+	RmlClearChatInput(ev);
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("chat_entry_text");
 }

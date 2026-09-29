@@ -491,7 +491,7 @@ bool RmlUiScreenRegistry::wantsOverlayKeys()
 	return false;
 }
 
-bool RmlUiScreenRegistry::overlayKey(unsigned char key, unsigned char state)
+bool RmlUiScreenRegistry::overlayKey(unsigned char key, unsigned short state)
 {
 	if (ownsInput())
 		return false;

@@ -83,6 +83,8 @@ private:
 	void onStart(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onBackPressed(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // Enter, mirrors TextEntryChat GEM_EDIT_DONE
+	void onSendChat(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // send button, same path as Enter
+	void sendChatEntry(Rml::Event &ev);
 	void onCommunicatorClicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // ButtonCommunicator
 
 public:

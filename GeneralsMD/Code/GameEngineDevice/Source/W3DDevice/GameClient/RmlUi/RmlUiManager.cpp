@@ -188,7 +188,7 @@ template<class T> static bool screenVisible() { return T::instance().isVisible()
 template<class T> static void screenBack() { T::instance().onBack(); }
 template<class T> static void popupBack() { T::instance().back(); }
 // The keys an overlay takes ahead of the game while it is up (see RmlUiScreenRegistry::overlayKey()).
-template<class T> static bool screenKey(unsigned char key, unsigned char state) { return T::instance().onKey(key, state); }
+template<class T> static bool screenKey(unsigned char key, unsigned short state) { return T::instance().onKey(key, state); }
 template<RmlLoadScreen::Kind K> static bool loadScreenVisible() { return RmlLoadScreen::instance(K).isVisible(); }
 
 RmlUiManager *RmlUiManager::s_instance = nullptr;
@@ -687,6 +687,7 @@ static Rml::Input::KeyIdentifier engineKeyToRmlKey(unsigned char key)
 		case KEY_ESC: return KI_ESCAPE;
 		case KEY_TAB: return KI_TAB;
 		case KEY_ENTER: return KI_RETURN;
+		case KEY_KPENTER: return KI_NUMPADENTER;
 		case KEY_SPACE: return KI_SPACE;
 		case KEY_BACKSPACE: return KI_BACK;
 		case KEY_UP: return KI_UP;
@@ -719,7 +720,7 @@ static Rml::Input::KeyIdentifier engineKeyToRmlKey(unsigned char key)
 	}
 }
 
-bool RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeyState)
+bool RmlUiManager::processKey(unsigned char engineKey, unsigned short engineKeyState)
 {
 	if (!m_context)
 		return false;
@@ -739,6 +740,13 @@ bool RmlUiManager::processKey(unsigned char engineKey, unsigned char engineKeySt
 		return RmlUiScreenRegistry::escape(isDown);
 
 	if (rmlKey == Rml::Input::KI_UNKNOWN)
+		return true;
+
+	// A held Enter must not re-commit: RmlUi's text input fires "change" (linebreak) on every Enter
+	// key-down, so the OS repeat would send a chat line again every few frames. Editing keys keep
+	// their repeat.
+	if (isDown && BitIsSet(engineKeyState, KEY_STATE_AUTOREPEAT)
+		&& (rmlKey == Rml::Input::KI_RETURN || rmlKey == Rml::Input::KI_NUMPADENTER))
 		return true;
 
 	int mods = computeKeyModifiers();

@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
 
 #include "GameClient/DisconnectMenu.h"
 #include "GameClient/GUI/GUICallbacks/Menus/DisconnectMenuActions.h"
@@ -275,6 +276,7 @@ void RmlDisconnectScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event 
 	const UnicodeString text = utf8ToUnicode(m_model.chatEntryText);
 
 	m_model.chatEntryText.clear();
+	RmlClearChatInput(ev);
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("chat_entry_text");
 

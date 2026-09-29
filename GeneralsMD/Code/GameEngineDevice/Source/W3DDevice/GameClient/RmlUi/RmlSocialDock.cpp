@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlSocialDock.h"
+#include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
 
 #include "GameClient/GameText.h"
 #include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlayActions.h"
@@ -752,13 +753,14 @@ void RmlSocialDock::onUnblock(Rml::DataModelHandle, Rml::Event &, const Rml::Var
 }
 
 //-------------------------------------------------------------------------------------------------
-void RmlSocialDock::sendChat()
+void RmlSocialDock::sendChat(Rml::Event &ev)
 {
 	if (m_threadUserID == 0)
 		return;
 	if (BuddyOverlayActions::sendChatMessage( m_threadUserID, utf8ToUnicode( m_model.chatEntryText ) ))
 	{
 		m_model.chatEntryText.clear();
+		RmlClearChatInput(ev);
 		dirty("chat_entry_text");
 		refreshChat();
 	}
@@ -768,12 +770,12 @@ void RmlSocialDock::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &ev, c
 {
 	// change fires on every edit; only Enter (linebreak) sends
 	if (ev.GetParameter<bool>("linebreak", false))
-		sendChat();
+		sendChat(ev);
 }
 
-void RmlSocialDock::onSendChat(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlSocialDock::onSendChat(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
-	sendChat();
+	sendChat(ev);
 }
 
 //-------------------------------------------------------------------------------------------------

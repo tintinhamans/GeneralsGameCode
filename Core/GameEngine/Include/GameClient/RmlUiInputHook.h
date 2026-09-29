@@ -44,7 +44,7 @@ public:
 	virtual void processMouseMove(int x, int y) = 0;
 	virtual void processMouseButton(int button, bool down) = 0; // 0=left,1=right,2=middle
 	virtual void processMouseWheel(float delta) = 0;
-	virtual bool processKey(unsigned char engineKey, unsigned char engineKeyState) = 0; // FALSE: not consumed, the game handles the key
+	virtual bool processKey(unsigned char engineKey, unsigned short engineKeyState) = 0; // FALSE: not consumed, the game handles the key; state is 16 bits so KEY_STATE_AUTOREPEAT (0x100) survives
 
 	// One UTF-16 code unit from WM_CHAR. DirectInput (processKey above) gives scan codes only,
 	// not text, so the window proc forwards WM_CHAR here directly for text entry fields.

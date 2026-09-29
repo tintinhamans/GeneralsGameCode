@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineLobbyScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
 
 #include "Common/AsciiString.h"
 #include "Common/Debug.h"
@@ -776,16 +777,18 @@ void RmlOnlineLobbyScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event
 	if (OnlineLobbyActions::sendChatEntry(utf8ToUnicode(m_model.chatEntryText)))
 	{
 		m_model.chatEntryText.clear();
+		RmlClearChatInput(ev);
 		if (m_modelHandle)
 			m_modelHandle.DirtyVariable("chat_entry_text");
 	}
 }
 
-void RmlOnlineLobbyScreen::onSendChat(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlOnlineLobbyScreen::onSendChat(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
 	if (OnlineLobbyActions::sendChatButton(utf8ToUnicode(m_model.chatEntryText)))
 	{
 		m_model.chatEntryText.clear();
+		RmlClearChatInput(ev);
 		if (m_modelHandle)
 			m_modelHandle.DirtyVariable("chat_entry_text");
 	}

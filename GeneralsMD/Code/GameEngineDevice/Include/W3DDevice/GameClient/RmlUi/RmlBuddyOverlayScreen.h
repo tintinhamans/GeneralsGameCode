@@ -89,6 +89,7 @@ private:
 	void onBlockedRowMouseDown(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // same, block list
 	void onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // mirrors GEM_EDIT_DONE
 	void onSendChat(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void sendChat(Rml::Event &ev);
 	void onMenuItemClicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onMenuDismiss(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 

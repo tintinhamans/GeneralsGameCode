@@ -59,6 +59,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/W3DProjectedShadow.h
 #    Include/W3DDevice/GameClient/W3DPropBuffer.h
     Include/W3DDevice/GameClient/RmlUi/RmlBuddyOverlayScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlChatInput.h
     Include/W3DDevice/GameClient/RmlUi/RmlChallengeMenuScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlDownloadScreen.h

@@ -126,7 +126,7 @@
 			</scrolllog>
 			<div class="chat-entry">
 				<input type="text" class="chat-input" maxlength="128" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-				<button class="icon-btn" data-event-click="chat_entry_committed" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
+				<button class="icon-btn" data-event-click="send_chat" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
 			</div>
 		</div>
 

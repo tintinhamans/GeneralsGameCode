@@ -48,7 +48,7 @@ public:
 	void open();
 	void close();
 	bool isVisible() const;
-	bool onKey(unsigned char key, unsigned char state); ///< Enter and Escape: same as InGamePopupMessageInput
+	bool onKey(unsigned char key, unsigned short state); ///< Enter and Escape: same as InGamePopupMessageInput
 
 private:
 	RmlInGamePopupScreen() {}

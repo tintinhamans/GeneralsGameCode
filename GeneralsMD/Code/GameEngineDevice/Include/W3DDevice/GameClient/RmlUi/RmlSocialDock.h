@@ -118,7 +118,7 @@ private:
 	void onMenuItemClicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onMenuDismiss(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 
-	void sendChat();
+	void sendChat(Rml::Event &ev);
 	const BuddyOverlayData::BuddyRow *rowAt(const Rml::VariantList &args) const;
 	void openContextMenu(const OnlineLobbyData::PlayerRow &target, Rml::Event &ev);
 	void closeContextMenu();

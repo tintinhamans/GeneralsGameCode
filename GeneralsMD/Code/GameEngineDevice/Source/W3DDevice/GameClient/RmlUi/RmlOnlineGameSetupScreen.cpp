@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineGameSetupScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
 
 #include "Common/AsciiString.h"
 #include "Common/Money.h"
@@ -245,6 +246,7 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("start", &RmlOnlineGameSetupScreen::onStart, this);
 		constructor.BindEventCallback("back", &RmlOnlineGameSetupScreen::onBackPressed, this);
 		constructor.BindEventCallback("chat_entry_committed", &RmlOnlineGameSetupScreen::onChatEntryCommitted, this);
+		constructor.BindEventCallback("send_chat", &RmlOnlineGameSetupScreen::onSendChat, this);
 		constructor.BindEventCallback("communicator_clicked", &RmlOnlineGameSetupScreen::onCommunicatorClicked, this);
 
 		m_modelHandle = constructor.GetModelHandle();
@@ -624,6 +626,17 @@ void RmlOnlineGameSetupScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::E
 	if (!ev.GetParameter<bool>("linebreak", false))
 		return;
 
+	sendChatEntry(ev);
+}
+
+// The send button (ButtonEmote) takes the same path as Enter: slash commands first, then plain chat.
+void RmlOnlineGameSetupScreen::onSendChat(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
+{
+	sendChatEntry(ev);
+}
+
+void RmlOnlineGameSetupScreen::sendChatEntry(Rml::Event &ev)
+{
 	UnicodeString text = utf8ToUnicode(m_model.chatEntryText);
 	text.trim();
 	if (!text.isEmpty())
@@ -632,6 +645,7 @@ void RmlOnlineGameSetupScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::E
 			OnlineGameSetupActions::sendChat(text);
 	}
 	m_model.chatEntryText.clear();
+	RmlClearChatInput(ev);
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("chat_entry_text");
 }

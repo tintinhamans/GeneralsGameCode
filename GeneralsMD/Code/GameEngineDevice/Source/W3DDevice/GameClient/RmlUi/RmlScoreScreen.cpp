@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlScoreScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
 
 #include "Common/AsciiString.h"
 #include "Common/Recorder.h"
@@ -330,7 +331,7 @@ void RmlScoreScreen::onSaveReplay(Rml::DataModelHandle, Rml::Event &, const Rml:
 // Chat text entry is plain ASCII (RmlUi's Rml::String is UTF-8, but AsciiString::translate()
 // does a naive single-byte widen, same limitation the .wnd TextEntry gadget always had --
 // no full Unicode chat input either).
-void RmlScoreScreen::onSendChat(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlScoreScreen::onSendChat(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
 	AsciiString ascii(m_model.chatEntryText.c_str());
 	UnicodeString text;
@@ -340,11 +341,12 @@ void RmlScoreScreen::onSendChat(Rml::DataModelHandle, Rml::Event &, const Rml::V
 		appendChatLine(m_model.chatEntryText);
 	ScoreScreenActions::sendChat(text, FALSE);
 	m_model.chatEntryText.clear();
+	RmlClearChatInput(ev);
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("chat_entry_text");
 }
 
-void RmlScoreScreen::onSendEmote(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlScoreScreen::onSendEmote(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
 	AsciiString ascii(m_model.chatEntryText.c_str());
 	UnicodeString text;
@@ -354,6 +356,7 @@ void RmlScoreScreen::onSendEmote(Rml::DataModelHandle, Rml::Event &, const Rml::
 		appendChatLine(m_model.chatEntryText);
 	ScoreScreenActions::sendChat(text, TRUE);
 	m_model.chatEntryText.clear();
+	RmlClearChatInput(ev);
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("chat_entry_text");
 }
