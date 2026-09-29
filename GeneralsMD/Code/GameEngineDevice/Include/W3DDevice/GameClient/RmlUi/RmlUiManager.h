@@ -63,6 +63,8 @@ public:
 	void hideCurrentScreen();
 	RmlScreen *getCurrentScreen() const { return m_currentScreen; }
 
+	bool hasVisibleDocument() const; ///< true if any document is shown (gates rendering during load screens)
+
 	// The screen showScreen() last swapped out (nullptr if none was current, e.g. an in-game
 	// overlay like the quit menu that never goes through showScreen). Lets an overlay screen
 	// (Options) restore exactly what it covered instead of hardcoding a specific screen; see

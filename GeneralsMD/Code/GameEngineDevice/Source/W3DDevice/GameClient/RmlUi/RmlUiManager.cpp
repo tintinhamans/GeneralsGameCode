@@ -388,6 +388,21 @@ void RmlUiManager::render()
 }
 
 //-------------------------------------------------------------------------------------------------
+bool RmlUiManager::hasVisibleDocument() const
+{
+	if (!m_context)
+		return false;
+
+	for (int i = 0; i < m_context->GetNumDocuments(); ++i)
+	{
+		Rml::ElementDocument *doc = m_context->GetDocument(i);
+		if (doc && doc->IsVisible())
+			return true;
+	}
+	return false;
+}
+
+//-------------------------------------------------------------------------------------------------
 // No document is loaded in phase 1 (see init()), so these scan whatever the context happens
 // to have open -- always nothing for now -- and stay ready for phase 2's shell screens.
 bool RmlUiManager::anyVisibleDocumentAt(int x, int y, bool *outModal) const

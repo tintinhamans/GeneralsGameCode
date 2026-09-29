@@ -2053,6 +2053,13 @@ AGAIN:
 				if(TheGlobalData->m_loadScreenRender == TRUE)
 				{
 					TheInGameUI->draw();
+					// RmlUi only when a document is up, so .wnd load screens are untouched;
+					// before the mouse so the cursor stays topmost.
+					if( TheRmlUiManager && TheRmlUiManager->hasVisibleDocument() )
+					{
+						TheRmlUiManager->update();
+						TheRmlUiManager->render();
+					}
 					if( TheMouse )
 						TheMouse->draw();	//keep applying the current cursor style so it remains hidden if needed.
 					WW3D::End_Render();
