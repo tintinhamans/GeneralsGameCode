@@ -65,6 +65,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
 
 #include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/ComputedValues.h>
 #include <RmlUi/Core/Core.h>
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
@@ -570,6 +571,9 @@ bool RmlUiManager::hasVisibleDocument() const
 }
 
 //-------------------------------------------------------------------------------------------------
+// A document's box is not enough: a persistent one such as the buddy toast is full-screen with only
+// a small corner shown, and would take the mouse from the legacy windows everywhere. What counts is
+// an element at the point that takes pointer events (a body can opt out with pointer-events: none).
 bool RmlUiManager::anyVisibleDocumentAt(int x, int y) const
 {
 	if (!m_context)
@@ -583,7 +587,11 @@ bool RmlUiManager::anyVisibleDocumentAt(int x, int y) const
 
 		float left = doc->GetAbsoluteLeft();
 		float top = doc->GetAbsoluteTop();
-		if (x >= left && y >= top && x <= left + doc->GetOffsetWidth() && y <= top + doc->GetOffsetHeight())
+		if (x < left || y < top || x > left + doc->GetOffsetWidth() || y > top + doc->GetOffsetHeight())
+			continue;
+
+		Rml::Element *hit = m_context->GetElementAtPoint(Rml::Vector2f((float)x, (float)y), nullptr, doc);
+		if (hit && hit->GetComputedValues().pointer_events() == Rml::Style::PointerEvents::Auto)
 			return true;
 	}
 	return false;
