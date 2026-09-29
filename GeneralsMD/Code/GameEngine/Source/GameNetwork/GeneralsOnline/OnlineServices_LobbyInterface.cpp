@@ -1167,7 +1167,7 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 
 			if (!strPassword.empty())
 			{
-				j["password"] = strPassword.c_str();
+				j["password"] = local_to_utf8(strPassword);
 			}
 
 			std::string strPostData = j.dump();
@@ -1506,7 +1506,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 			j["track_stats"] = bTrackStats;
 			j["starting_cash"] = startingCash;
 			j["passworded"] = bPassworded;
-			j["password"] = strPassword;
+			j["password"] = local_to_utf8(strPassword);
 			j["allow_observers"] = bAllowObservers;
 			j["exe_crc"] = TheGlobalData->m_exeCRC;
 			j["ini_crc"] = TheGlobalData->m_iniCRC;
