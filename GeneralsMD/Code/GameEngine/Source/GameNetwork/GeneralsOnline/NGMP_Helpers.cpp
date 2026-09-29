@@ -1,4 +1,5 @@
 #include "GameNetwork/GeneralsOnline/NGMP_include.h"
+#include "Common/UnicodeUtf8.h"
 #include <chrono>
 #include <cwctype>
 #include <ctime>
@@ -12,28 +13,16 @@ std::mutex m_logMutex;
 
 extern NGMPGame* TheNGMPGame;
 
-// Win32 conversions handle surrogate pairs and substitute U+FFFD for invalid input instead of throwing,
+// Shared Common/UnicodeUtf8 helper: surrogate pairs, and U+FFFD for invalid input instead of throwing,
 // so a malformed name from the server can't take down the UI
 std::string to_utf8(const std::wstring& wstr)
 {
-	if (wstr.empty())
-		return std::string();
-
-	int len = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), (int)wstr.size(), nullptr, 0, nullptr, nullptr);
-	std::string result(len, '\0');
-	WideCharToMultiByte(CP_UTF8, 0, wstr.data(), (int)wstr.size(), result.data(), len, nullptr, nullptr);
-	return result;
+	return wideToUtf8(wstr);
 }
 
 std::wstring from_utf8(const std::string& utf8_str)
 {
-	if (utf8_str.empty())
-		return std::wstring();
-
-	int len = MultiByteToWideChar(CP_UTF8, 0, utf8_str.data(), (int)utf8_str.size(), nullptr, 0);
-	std::wstring result(len, L'\0');
-	MultiByteToWideChar(CP_UTF8, 0, utf8_str.data(), (int)utf8_str.size(), result.data(), len);
-	return result;
+	return utf8ToWide(utf8_str);
 }
 
 #ifndef WC_NO_BEST_FIT_CHARS

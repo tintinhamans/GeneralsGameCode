@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlBuddyToastScreen.h"
+#include "Common/UnicodeUtf8.h"
 
 #include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlayActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlaySession.h"
@@ -27,26 +28,6 @@
 #include <RmlUi/Core/ElementDocument.h>
 
 #include <windows.h>
-
-namespace
-{
-	// Same conversion as RmlPlayerInfoScreen.cpp/RmlBuddyOverlayScreen.cpp.
-	Rml::String unicodeToUtf8(const UnicodeString &str)
-	{
-		const WideChar *wide = str.str();
-		if (!wide || !*wide)
-			return Rml::String();
-
-		int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
-		if (len <= 0)
-			return Rml::String();
-
-		Rml::String utf8;
-		utf8.resize((size_t)len - 1);
-		::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
-		return utf8;
-	}
-}
 
 //-------------------------------------------------------------------------------------------------
 RmlBuddyToastScreen &RmlBuddyToastScreen::instance()

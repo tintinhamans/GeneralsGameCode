@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
+#include "Common/UnicodeUtf8.h"
 
 #include "GameClient/GUI/GUICallbacks/Menus/MainMenuActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/QuitMenuActions.h"
@@ -34,24 +35,6 @@
 
 namespace
 {
-	// Same conversion as RmlMainMenuScreen/RmlMessageBox: TheGameText->fetch() is UnicodeString
-	// (UTF-16), Rml::String is UTF-8.
-	Rml::String unicodeToUtf8(const UnicodeString &str)
-	{
-		const WideChar *wide = str.str();
-		if (!wide || !*wide)
-			return Rml::String();
-
-		int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
-		if (len <= 0)
-			return Rml::String();
-
-		Rml::String utf8;
-		utf8.resize((size_t)len - 1); // len includes the null terminator
-		::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
-		return utf8;
-	}
-
 	// ButtonExit's Yes callback: destroy the quit menu the same way the .wnd exitQuitMenu() does,
 	// then quit. GameWinMsgBoxFunc is a plain void(*)(); can't bind the instance, so these are free
 	// functions the same way RmlMainMenuScreen.cpp's quitConfirmedCallback() is.

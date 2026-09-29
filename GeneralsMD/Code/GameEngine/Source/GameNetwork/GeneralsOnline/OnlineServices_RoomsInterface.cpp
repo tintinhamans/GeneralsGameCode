@@ -1,5 +1,6 @@
 #include <random>
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "Common/UnicodeUtf8.h"
 #include "GameNetwork/GeneralsOnline/NGMP_include.h"
 #include "GameNetwork/GeneralsOnline/NetworkPacket.h"
 #include "GameNetwork/GeneralsOnline/NetworkBitstream.h"
@@ -43,19 +44,11 @@ struct GOModuleInfo {
 // UTF-8 <-> UTF-16 helpers
 // -----------------------------
 std::wstring ToWide(const std::string& s) {
-    int size = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
-    std::wstring out(size, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &out[0], size);
-    out.resize(size - 1);
-    return out;
+    return utf8ToWide(s);
 }
 
 std::string ToUtf8(const std::wstring& s) {
-    int size = WideCharToMultiByte(CP_UTF8, 0, s.c_str(), -1, nullptr, 0, nullptr, nullptr);
-    std::string out(size, '\0');
-    WideCharToMultiByte(CP_UTF8, 0, s.c_str(), -1, &out[0], size, nullptr, nullptr);
-    out.resize(size - 1);
-    return out;
+    return wideToUtf8(s);
 }
 
 std::vector<GOModuleInfo> GetLoadedModules() {

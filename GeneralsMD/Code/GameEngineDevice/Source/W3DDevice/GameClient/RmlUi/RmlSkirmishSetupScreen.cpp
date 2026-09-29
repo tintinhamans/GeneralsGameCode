@@ -23,6 +23,7 @@
 #include "Common/SkirmishBattleHonors.h"
 #include "Common/SkirmishPreferences.h"
 #include "Common/UnicodeString.h"
+#include "Common/UnicodeUtf8.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GUI/GUICallbacks/Menus/GameSetupData.h"
 #include "GameClient/GUI/GUICallbacks/Menus/SkirmishSetupActions.h"
@@ -42,23 +43,6 @@
 #include <windows.h>
 
 //-------------------------------------------------------------------------------------------------
-// Same conversion every other RmlUi screen keeps as a private helper.
-static Rml::String unicodeToUtf8(const UnicodeString &str)
-{
-	const WideChar *wide = str.str();
-	if (!wide || !*wide)
-		return Rml::String();
-
-	int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
-	if (len <= 0)
-		return Rml::String();
-
-	Rml::String utf8;
-	utf8.resize((size_t)len - 1);
-	::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
-	return utf8;
-}
-
 static Rml::String rgbToHex(UnsignedInt rgb)
 {
 	char hex[8];

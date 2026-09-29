@@ -22,6 +22,7 @@
 #include "Common/AsciiString.h"
 #include "Common/Recorder.h"
 #include "Common/UnicodeString.h"
+#include "Common/UnicodeUtf8.h"
 #include "GameClient/CampaignManager.h"
 #include "GameClient/GUI/GUICallbacks/Menus/ScoreScreenActions.h"
 #include "GameClient/Image.h"
@@ -37,23 +38,6 @@
 #include <windows.h>
 
 //-------------------------------------------------------------------------------------------------
-// Same conversion RmlMainMenuScreen.cpp/RmlOptionsScreen.cpp/etc. each keep as a private helper.
-static Rml::String unicodeToUtf8(const UnicodeString &str)
-{
-	const WideChar *wide = str.str();
-	if (!wide || !*wide)
-		return Rml::String();
-
-	int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
-	if (len <= 0)
-		return Rml::String();
-
-	Rml::String utf8;
-	utf8.resize((size_t)len - 1); // len includes the null terminator
-	::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
-	return utf8;
-}
-
 //-------------------------------------------------------------------------------------------------
 RmlScoreScreen &RmlScoreScreen::instance()
 {
@@ -328,14 +312,9 @@ void RmlScoreScreen::onSaveReplay(Rml::DataModelHandle, Rml::Event &, const Rml:
 	ScoreScreenActions::startSaveReplayFlow();
 }
 
-// Chat text entry is plain ASCII (RmlUi's Rml::String is UTF-8, but AsciiString::translate()
-// does a naive single-byte widen, same limitation the .wnd TextEntry gadget always had --
-// no full Unicode chat input either).
 void RmlScoreScreen::onSendChat(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
-	AsciiString ascii(m_model.chatEntryText.c_str());
-	UnicodeString text;
-	text.translate(ascii);
+	UnicodeString text = utf8ToUnicode(m_model.chatEntryText);
 	text.trim();
 	if (!text.isEmpty())
 		appendChatLine(m_model.chatEntryText);
@@ -348,9 +327,7 @@ void RmlScoreScreen::onSendChat(Rml::DataModelHandle, Rml::Event &ev, const Rml:
 
 void RmlScoreScreen::onSendEmote(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
-	AsciiString ascii(m_model.chatEntryText.c_str());
-	UnicodeString text;
-	text.translate(ascii);
+	UnicodeString text = utf8ToUnicode(m_model.chatEntryText);
 	text.trim();
 	if (!text.isEmpty())
 		appendChatLine(m_model.chatEntryText);

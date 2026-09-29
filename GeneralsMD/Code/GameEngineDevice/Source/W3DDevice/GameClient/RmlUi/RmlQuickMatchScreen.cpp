@@ -21,6 +21,7 @@
 #include "Common/AsciiString.h"
 #include "Common/QuickmatchPreferences.h"
 #include "Common/UnicodeString.h"
+#include "Common/UnicodeUtf8.h"
 #include "GameClient/Color.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GUI/GUICallbacks/Menus/PlayerStatsData.h"
@@ -40,23 +41,6 @@
 #include <windows.h>
 
 //-------------------------------------------------------------------------------------------------
-// Same private per-file helper every RmlScreen keeps (see e.g. RmlOnlineGameSetupScreen.cpp).
-static Rml::String unicodeToUtf8(const UnicodeString &str)
-{
-	const WideChar *wide = str.str();
-	if (!wide || !*wide)
-		return Rml::String();
-
-	int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
-	if (len <= 0)
-		return Rml::String();
-
-	Rml::String utf8;
-	utf8.resize((size_t)len - 1);
-	::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
-	return utf8;
-}
-
 // ARGB packing (Color.h's GameMakeColor()); RmlUi's rgba() takes 0-255 ints including alpha. Same
 // helper RmlOnlineGameSetupScreen.cpp/RmlOnlineLobbyScreen.cpp each keep privately.
 static Rml::String colorToCss(Color color)

@@ -18,6 +18,7 @@
 
 
 #include "W3DDevice/GameClient/RmlUi/RmlInGamePopupScreen.h"
+#include "Common/UnicodeUtf8.h"
 
 #include "GameClient/GameWindow.h"
 #include "GameClient/RmlUiScreenRegistry.h"
@@ -36,22 +37,6 @@
 
 namespace
 {
-	Rml::String unicodeToUtf8(const UnicodeString &str)
-	{
-		const WideChar *wide = str.str();
-		if (!wide || !*wide)
-			return Rml::String();
-
-		int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
-		if (len <= 0)
-			return Rml::String();
-
-		Rml::String utf8;
-		utf8.resize((size_t)len - 1);
-		::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
-		return utf8;
-	}
-
 	const char *const kWndPath = "InGamePopupMessage.wnd";
 
 	Rml::String pixels(int value)

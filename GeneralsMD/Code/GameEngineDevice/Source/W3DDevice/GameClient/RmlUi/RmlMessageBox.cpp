@@ -19,6 +19,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
 
 #include "Common/UnicodeString.h"
+#include "Common/UnicodeUtf8.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/RmlUiScreenRegistry.h"
 
@@ -31,24 +32,6 @@
 
 namespace
 {
-	// Same conversion as RmlUiElements.cpp's gametext element; duplicated locally to avoid a
-	// cross-file dependency for five lines (that helper has internal linkage there too).
-	Rml::String unicodeToUtf8(const UnicodeString &str)
-	{
-		const WideChar *wide = str.str();
-		if (!wide || !*wide)
-			return Rml::String();
-
-		int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
-		if (len <= 0)
-			return Rml::String();
-
-		Rml::String utf8;
-		utf8.resize((size_t)len - 1);
-		::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
-		return utf8;
-	}
-
 	Rml::Context *s_context = nullptr;
 	Rml::ElementDocument *s_document = nullptr;
 	Rml::DataModelHandle s_modelHandle;

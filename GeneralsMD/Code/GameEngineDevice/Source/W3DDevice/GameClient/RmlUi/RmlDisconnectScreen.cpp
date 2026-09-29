@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.h"
+#include "Common/UnicodeUtf8.h"
 #include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
 
 #include "GameClient/DisconnectMenu.h"
@@ -35,38 +36,6 @@
 
 namespace
 {
-	Rml::String unicodeToUtf8(const UnicodeString &str)
-	{
-		const WideChar *wide = str.str();
-		if (!wide || !*wide)
-			return Rml::String();
-
-		int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
-		if (len <= 0)
-			return Rml::String();
-
-		Rml::String utf8;
-		utf8.resize((size_t)len - 1);
-		::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
-		return utf8;
-	}
-
-	UnicodeString utf8ToUnicode(const Rml::String &utf8)
-	{
-		UnicodeString text;
-		if (utf8.empty())
-			return text;
-
-		int len = ::MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, nullptr, 0);
-		if (len <= 1)
-			return text;
-
-		std::vector<wchar_t> wide((size_t)len);
-		::MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, &wide[0], len);
-		text.set((const WideChar *)&wide[0]);
-		return text;
-	}
-
 	Rml::String rgbToHex(UnsignedInt rgb)
 	{
 		char hex[8];

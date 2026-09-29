@@ -21,6 +21,7 @@
 #include "Common/AudioEventRTS.h"
 #include "Common/AudioHandleSpecialValues.h"
 #include "Common/GameAudio.h"
+#include "Common/UnicodeUtf8.h"
 #include "GameClient/Color.h"
 #include "GameClient/Credits.h"
 #include "GameClient/Display.h"
@@ -37,24 +38,6 @@
 #include <string>
 
 //-------------------------------------------------------------------------------------------------
-// Same conversion as RmlGameTextElement (RmlUiElements.cpp): UnicodeString is UTF-16, Rml::String
-// is UTF-8.
-static Rml::String unicodeToUtf8(const UnicodeString &str)
-{
-	const WideChar *wide = str.str();
-	if (!wide || !*wide)
-		return Rml::String();
-
-	int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
-	if (len <= 0)
-		return Rml::String();
-
-	Rml::String utf8;
-	utf8.resize((size_t)len - 1); // len includes the null terminator
-	::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
-	return utf8;
-}
-
 // HTML-escapes the handful of characters that would otherwise break SetInnerRML's parse; credit
 // names/titles are plain text, not markup.
 static Rml::String escapeRml(const Rml::String &text)

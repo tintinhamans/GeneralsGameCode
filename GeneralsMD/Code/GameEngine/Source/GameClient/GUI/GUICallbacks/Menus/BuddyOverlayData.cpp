@@ -19,6 +19,7 @@
 #include "PreRTS.h"
 
 #include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlayData.h"
+#include "Common/UnicodeUtf8.h"
 
 #include "GameClient/GameText.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
@@ -26,22 +27,6 @@
 
 #include <algorithm>
 #include <unordered_set>
-
-// UnicodeString (UTF-16) -> UTF-8 std::string, same conversion OnlineLobbyActions.cpp's
-// unicodeToUtf8() does (duplicated rather than shared -- no common header covers both yet).
-static std::string unicodeToUtf8( const UnicodeString &str )
-{
-	const wchar_t *wide = (const wchar_t *)str.str();
-	if ( wide == nullptr || wide[0] == 0 )
-		return std::string();
-	int len = ::WideCharToMultiByte( CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr );
-	if ( len <= 0 )
-		return std::string();
-	std::string utf8;
-	utf8.resize( (size_t)len - 1 );
-	::WideCharToMultiByte( CP_UTF8, 0, wide, -1, &utf8[0], len, nullptr, nullptr );
-	return utf8;
-}
 
 namespace BuddyOverlayData
 {

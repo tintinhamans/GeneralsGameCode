@@ -22,6 +22,7 @@
 #include "Common/AsciiString.h"
 #include "Common/Debug.h"
 #include "Common/UnicodeString.h"
+#include "Common/UnicodeUtf8.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GUI/GUICallbacks/Menus/LanLobbyActions.h"
 #include "GameClient/MessageBox.h"
@@ -41,34 +42,6 @@ extern Bool LANbuttonPushed; // LanLobbyMenu.cpp; see RmlLanLobbyScreen::update(
 extern Bool LANSocketErrorDetected; // ditto -- set by LANAPI::update() on transport failure
 
 //-------------------------------------------------------------------------------------------------
-// Same conversion RmlScoreScreen.cpp/RmlSkirmishSetupScreen.cpp/etc. each keep as a private helper.
-static Rml::String unicodeToUtf8(const UnicodeString &str)
-{
-	const WideChar *wide = str.str();
-	if (!wide || !*wide)
-		return Rml::String();
-
-	int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
-	if (len <= 0)
-		return Rml::String();
-
-	Rml::String utf8;
-	utf8.resize((size_t)len - 1); // len includes the null terminator
-	::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
-	return utf8;
-}
-
-// Chat text entry is plain ASCII (RmlUi's Rml::String is UTF-8, but AsciiString::translate() does a
-// naive single-byte widen) -- same limitation the .wnd TextEntry gadget always had, see
-// RmlScoreScreen::onSendChat().
-static UnicodeString utf8ToUnicode(const Rml::String &utf8)
-{
-	AsciiString ascii(utf8.c_str());
-	UnicodeString text;
-	text.translate(ascii);
-	return text;
-}
-
 //-------------------------------------------------------------------------------------------------
 RmlLanLobbyScreen &RmlLanLobbyScreen::instance()
 {

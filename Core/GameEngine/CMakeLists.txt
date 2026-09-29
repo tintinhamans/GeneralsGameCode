@@ -131,6 +131,7 @@ set(GAMEENGINE_SRC
 #    Include/Common/ThingTemplate.h
 #    Include/Common/TunnelTracker.h
     Include/Common/UnicodeString.h
+    Include/Common/UnicodeUtf8.h
 #    Include/Common/UnitTimings.h
 #    Include/Common/Upgrade.h
     #Include/Common/urllaunch.h # unused
@@ -685,6 +686,7 @@ set(GAMEENGINE_SRC
     Source/Common/System/SubsystemInterface.cpp
 #    Source/Common/System/Trig.cpp
     Source/Common/System/UnicodeString.cpp
+    Source/Common/System/UnicodeUtf8.cpp
 #    Source/Common/System/Upgrade.cpp
     Source/Common/System/Xfer.cpp
     Source/Common/System/XferCRC.cpp

@@ -101,6 +101,7 @@ private:
 	int m_width = 0, m_height = 0;
 	bool m_initialized = false;
 	bool m_debuggerInitialized = false;
+	unsigned short m_pendingHighSurrogate = 0; // first half of a WM_CHAR surrogate pair, see processTextInput()
 };
 
 extern RmlUiManager *TheRmlUiManager;

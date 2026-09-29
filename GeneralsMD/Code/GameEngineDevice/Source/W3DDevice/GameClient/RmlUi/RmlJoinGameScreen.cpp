@@ -20,6 +20,7 @@
 
 #include "Common/AsciiString.h"
 #include "Common/UnicodeString.h"
+#include "Common/UnicodeUtf8.h"
 #include "GameClient/GUI/GUICallbacks/Menus/JoinGameActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/JoinGameData.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
@@ -34,34 +35,6 @@
 #include <RmlUi/Core/ElementDocument.h>
 
 #include <windows.h>
-
-namespace
-{
-	// Same conversion as RmlOnlineLobbyScreen.cpp/RmlHostGameScreen.cpp.
-	Rml::String unicodeToUtf8(const UnicodeString &str)
-	{
-		const WideChar *wide = str.str();
-		if (!wide || !*wide)
-			return Rml::String();
-
-		int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
-		if (len <= 0)
-			return Rml::String();
-
-		Rml::String utf8;
-		utf8.resize((size_t)len - 1); // len includes the null terminator
-		::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
-		return utf8;
-	}
-
-	UnicodeString utf8ToUnicode(const Rml::String &utf8)
-	{
-		AsciiString ascii(utf8.c_str());
-		UnicodeString text;
-		text.translate(ascii);
-		return text;
-	}
-}
 
 //-------------------------------------------------------------------------------------------------
 RmlJoinGameScreen &RmlJoinGameScreen::instance()

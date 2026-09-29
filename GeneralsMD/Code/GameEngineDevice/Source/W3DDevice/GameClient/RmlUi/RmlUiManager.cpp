@@ -23,6 +23,7 @@
 #include "Common/GameAudio.h"
 #include "Common/GlobalData.h"
 #include "Common/UnicodeString.h"
+#include "Common/UnicodeUtf8.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlaySession.h"
 #include "GameClient/KeyDefs.h"
@@ -80,21 +81,6 @@
 
 #include <vector>
 #include <windows.h>
-
-// Converts a data-bound data-tooltip-text value (RmlUi strings are UTF-8) back to the UnicodeString
-// TheMouse's tooltip API wants; tooltips can carry player names.
-static UnicodeString utf8ToUnicode(const Rml::String &utf8)
-{
-	UnicodeString text;
-	int len = ::MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, nullptr, 0);
-	if (len <= 1)
-		return text;
-
-	std::vector<wchar_t> wide((size_t)len);
-	::MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, &wide[0], len);
-	text.set((const WideChar *)&wide[0]);
-	return text;
-}
 
 //-------------------------------------------------------------------------------------------------
 // Plays the sounds the .wnd gadgets do (context-level, so no screen has to): GUIClick on a push
@@ -762,8 +748,26 @@ void RmlUiManager::processTextInput(unsigned short utf16Char)
 	// Control characters (backspace, enter, tab) arrive as key presses via processKey().
 	if (utf16Char < 32 || utf16Char == 127)
 		return;
-	if (m_context)
-		m_context->ProcessTextInput(Rml::Character(utf16Char));
+	if (!m_context)
+		return;
+
+	// WM_CHAR delivers a character beyond the BMP (an emoji) as two units, high then low. Hold the
+	// high one and hand RmlUi the whole code point; a stray half is dropped.
+	Rml::Character codePoint = Rml::Character(utf16Char);
+	if (utf16Char >= 0xD800 && utf16Char <= 0xDBFF)
+	{
+		m_pendingHighSurrogate = utf16Char;
+		return;
+	}
+	if (utf16Char >= 0xDC00 && utf16Char <= 0xDFFF)
+	{
+		if (!m_pendingHighSurrogate)
+			return;
+		codePoint = Rml::Character(0x10000 + ((m_pendingHighSurrogate - 0xD800) << 10) + (utf16Char - 0xDC00));
+	}
+	m_pendingHighSurrogate = 0;
+
+	m_context->ProcessTextInput(codePoint);
 }
 
 void RmlUiManager::showScreen(RmlScreen *screen)
