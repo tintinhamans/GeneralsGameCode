@@ -13,7 +13,7 @@
 		<div class="playerinfo-body" data-if="!stats_loading">
 			<div class="playerinfo-row">
 				<div class="rank-column">
-					<div><gametext key="GUI:Rank"/></div>
+					<div class="t-muted"><gametext key="GUI:Rank"/></div>
 					<div class="rank-border">
 						<div class="rank-image-wrap">
 							<mappedimage class="rank-image" data-attr-name="rank_image_name"/>
@@ -43,7 +43,7 @@
 				</div>
 			</div>
 
-			<div data-tooltip="TOOLTIP:BattleHonors"><gametext key="GUI:BattleHonors"/></div>
+			<div class="section-title" data-tooltip="TOOLTIP:BattleHonors"><gametext key="GUI:BattleHonors"/></div>
 			<div class="honors-grid">
 				<div class="honor-cell" data-for="honor : battle_honors" data-if="honor.used" data-class-disabled="!honor.enabled"
 					data-attr-data-tooltip-text="honor.tooltip_text">

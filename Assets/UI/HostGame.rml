@@ -16,20 +16,20 @@
 		</div>
 		<div class="row">
 			<div class="label"><gametext key="GUI:UseStats"/></div>
-			<input class="control checkbox" type="checkbox" data-checked="use_stats" data-tooltip="TOOLTIP:UseStats"/>
+			<div class="control"><input class="checkbox" type="checkbox" data-checked="use_stats" data-tooltip="TOOLTIP:UseStats"/></div>
 		</div>
 		<div class="row">
 			<div class="label"><gametext key="GUI:LimitArmies"/></div>
-			<input class="control checkbox" type="checkbox" data-checked="limit_armies" data-tooltip="TOOLTIP:LimitArmies"/>
+			<div class="control"><input class="checkbox" type="checkbox" data-checked="limit_armies" data-tooltip="TOOLTIP:LimitArmies"/></div>
 		</div>
 		<div class="row">
 			<div class="label"><gametext key="GUI:AllowObservers"/></div>
-			<input class="control checkbox" type="checkbox" data-checked="allow_observers"/>
+			<div class="control"><input class="checkbox" type="checkbox" data-checked="allow_observers"/></div>
 		</div>
 
 		<div class="footer footer-split">
-			<button class="button-lg" data-event-click="create_game"><gametext key="GUI:CreateGame"/></button>
-			<button class="button-lg" data-event-click="cancel"><gametext key="GUI:Cancel"/></button>
+			<button class="btn-primary" data-event-click="create_game"><gametext key="GUI:CreateGame"/></button>
+			<button class="btn-primary" data-event-click="cancel"><gametext key="GUI:Cancel"/></button>
 		</div>
 	</div>
 </body>

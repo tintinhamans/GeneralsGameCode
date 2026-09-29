@@ -10,11 +10,11 @@ body
 {
 	display: flex;
 	flex-direction: column;
-	width: 640dp;
+	width: 680dp;
 	left: 50%;
 	top: 50%;
-	margin-left: -320dp;
-	margin-top: -220dp;
+	margin-left: -340dp;
+	margin-top: -280dp;
 }
 
 .playerinfo-frame
@@ -43,8 +43,8 @@ body
 	margin-bottom: 8dp;
 }
 
-/* ---- Stats column -- reuses common.rcss's .row/.label/.control, tighter than the options-style
-   28dp rows since there are 13 of them in the popup (the rank cluster is shared, see common.rcss). -- */
+/* ---- Stats column -- reuses common.rcss's .row/.label/.control, 24dp instead of the 32dp control
+   rows since there are 13 of them in the popup (the rank cluster is shared, see common.rcss). -- */
 .stats-column
 {
 	display: flex;
@@ -55,8 +55,13 @@ body
 
 .stats-column .row
 {
-	min-height: 20dp;
-	padding: 1dp 0;
+	min-height: 24dp;
+	margin-bottom: 0;
+}
+
+.stats-column .row > .label
+{
+	flex: 1 1 auto;
 }
 
 .stats-column .row > .control
@@ -106,7 +111,7 @@ body
 	bottom: 2dp;
 	color: #FFFFFF;
 	font-weight: bold;
-	font-size: 12dp;
+	font-size: 13dp;
 }
 
 .playerinfo-footer
@@ -115,10 +120,10 @@ body
 	display: flex;
 	flex-direction: row;
 	justify-content: flex-end;
-	margin-top: 10dp;
+	margin-top: 12dp;
 }
 
 .playerinfo-footer button
 {
-	margin-left: 8dp;
+	margin-left: 12dp;
 }

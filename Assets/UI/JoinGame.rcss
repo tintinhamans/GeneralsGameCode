@@ -7,16 +7,17 @@ body
 {
 	display: flex;
 	flex-direction: column;
-	width: 420dp;
+	width: 480dp;
 	left: 50%;
 	top: 50%;
-	margin-left: -210dp;
-	margin-top: -50dp;
+	margin-left: -240dp;
+	margin-top: -60dp;
 }
 
 .joingame-frame
 {
 	position: relative;
+	padding-top: 44dp;
 	display: flex;
 	flex-direction: column;
 }
@@ -24,10 +25,12 @@ body
 .joingame-close
 {
 	position: absolute;
-	top: 2dp;
-	right: 2dp;
-	width: 24dp;
-	height: 24dp;
+	top: 4dp;
+	right: 4dp;
+	width: 28dp;
+	height: 28dp;
+	min-width: 0;
+	line-height: 26dp;
 	padding: 0;
 	text-align: center;
 	color: #FFBB00;

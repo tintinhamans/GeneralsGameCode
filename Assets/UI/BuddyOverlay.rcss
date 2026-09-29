@@ -8,18 +8,18 @@ body
 {
 	display: flex;
 	flex-direction: column;
-	width: 720dp;
+	width: 800dp;
 	left: 50%;
 	top: 50%;
-	margin-left: -360dp;
-	margin-top: -220dp;
+	margin-left: -400dp;
+	margin-top: -260dp;
 }
 
 .buddy-frame
 {
 	display: flex;
 	flex-direction: column;
-	height: 440dp;
+	height: 520dp;
 }
 
 .buddy-tabs
@@ -28,12 +28,12 @@ body
 	flex-direction: row;
 	align-items: center;
 	flex: 0 0 auto;
-	margin-bottom: 8dp;
+	margin-bottom: 12dp;
 }
 
 .buddy-tabs button
 {
-	margin-right: 6dp;
+	margin-right: 8dp;
 }
 
 .buddy-body
@@ -50,8 +50,8 @@ body
 	display: flex;
 	flex-direction: column;
 	flex: 0 0 auto;
-	width: 280dp;
-	margin-right: 10dp;
+	width: 300dp;
+	margin-right: 16dp;
 	min-height: 0;
 }
 
@@ -95,7 +95,7 @@ body
 .roster-status
 {
 	display: block;
-	font-size: 12dp;
+	font-size: 13dp;
 	color: #C0C0C0;
 	margin-left: 14dp;
 }

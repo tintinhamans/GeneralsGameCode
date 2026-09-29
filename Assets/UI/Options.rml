@@ -3,22 +3,21 @@
 	<title>Options</title>
 	<link type="text/rcss" href="common.rcss"/>
 	<style>
-		body { width: 720dp; height: 560dp; left: 50%; top: 50%; margin-left: -360dp; margin-top: -280dp; }
+		body { width: 840dp; height: 640dp; left: 50%; top: 50%; margin-left: -420dp; margin-top: -320dp; }
 		.frame { box-sizing: border-box; width: 100%; height: 100%; display: flex; flex-direction: column; }
 		.panels { flex: 1 1 auto; display: flex; overflow: hidden; }
 		.panel { width: 100%; height: 100%; }
-		/* common.rcss's .row is display:flex with an auto/flex-grow-sized .label -- fine on every
-		   other screen, but here it collapses every row in this panel to 0 width (label and
-		   control end up painted on top of each other) as soon as the Graphics/Network tab's
-		   content actually needs to scroll: RmlUi's flex width resolution doesn't survive an
-		   overflow-y:auto container transitioning into "needs a scrollbar". Percentage/flex/auto
-		   widths on a *block* row have the same problem once scrolling engages, so this pins both
-		   columns to fixed dp widths instead (no auto-resolution left for the bug to corrupt) --
-		   720dp is the dialog's own fixed width, so 440dp label + 220dp control comfortably fits
-		   its content area at every supported resolution. */
-		.row { display: block; position: relative; min-height: 38dp; padding: 5dp 0; box-sizing: border-box; }
-		.row > .label { display: block; width: 440dp; box-sizing: border-box; }
-		.row > .control { position: absolute; top: 5dp; left: 440dp; width: 220dp; }
+		/* common.rcss's .row is a flex label/control grid -- fine on every other screen, but here it
+		   collapses every row in this panel to 0 width as soon as the Graphics/Network tab's content
+		   needs to scroll: RmlUi's flex width resolution doesn't survive an overflow-y:auto container
+		   transitioning into "needs a scrollbar". So both columns are pinned to fixed dp instead: the
+		   frame's 808dp content box minus the 12dp scrollbar is a 440dp label column and a 340dp
+		   control column. */
+		.row { display: block; position: relative; height: 40dp; margin-bottom: 0; box-sizing: border-box; }
+		.row > .label { display: block; width: 440dp; line-height: 40dp; box-sizing: border-box; }
+		.row > .control { position: absolute; top: 4dp; left: 440dp; width: 340dp; }
+		.row > input.range.control { top: 10dp; }
+		.row > .control.checkbox { top: 10dp; width: 20dp; }
 	</style>
 </head>
 <body data-model="options">
@@ -191,11 +190,11 @@
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:FireWallPort"/></div>
-					<input class="control" type="text" maxlength="5" data-value="firewall_port_override" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:FireWallPort"/>
+					<input class="control text-input" type="text" maxlength="5" data-value="firewall_port_override" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:FireWallPort"/>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:HTTPProxy"/></div>
-					<input class="control" type="text" data-value="http_proxy" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:HTTPProxy"/>
+					<input class="control text-input" type="text" data-value="http_proxy" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:HTTPProxy"/>
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:SendDelay"/></div>
@@ -203,15 +202,15 @@
 				</div>
 				<div class="row" data-class-disabled="restricted">
 					<div class="label"><gametext key="GUI:FirewallRefresh"/></div>
-					<button class="control" data-event-click="firewall_refresh" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:RefreshNat"><gametext key="GUI:FirewallRefresh"/></button>
+					<button class="control btn-inline" data-event-click="firewall_refresh" data-attrif-disabled="restricted" data-tooltip="TOOLTIP:RefreshNat"><gametext key="GUI:FirewallRefresh"/></button>
 				</div>
 			</div>
 		</div>
 
 		<div class="footer">
-			<button data-event-click="defaults" data-tooltip="TOOLTIP:OptionsDefaults"><gametext key="GUI:Defaults"/></button>
-			<button data-event-click="cancel" data-tooltip="TOOLTIP:OptionsCancel"><gametext key="GUI:Cancel"/></button>
-			<button data-event-click="accept" data-tooltip="TOOLTIP:OptionsAccept"><gametext key="GUI:Accept"/></button>
+			<button class="btn-primary" data-event-click="defaults" data-tooltip="TOOLTIP:OptionsDefaults"><gametext key="GUI:Defaults"/></button>
+			<button class="btn-primary" data-event-click="cancel" data-tooltip="TOOLTIP:OptionsCancel"><gametext key="GUI:Cancel"/></button>
+			<button class="btn-primary" data-event-click="accept" data-tooltip="TOOLTIP:OptionsAccept"><gametext key="GUI:Accept"/></button>
 		</div>
 	</div>
 </body>
