@@ -626,27 +626,7 @@ static void saveOptions()
  	val = GadgetSliderGetPosition(sliderGamma);
  	if(val != -1)
  	{
-		Real gammaval=1.0f;
-		//generate a value between 0.6 and 2.0.
-		if (val < 50)
-		{	//darker gamma
-			if (val <= 0)
-				gammaval = 0.6f;
-			else
-				gammaval=1.0f-(0.4f) * (Real)(50-val)/50.0f;
-		}
-		else
-		if (val > 50)
-			gammaval=1.0f+(1.0f) * (Real)(val-50)/50.0f;
-
- 		AsciiString prefString;
- 		prefString.format("%d", val);
- 		(*pref)["Gamma"] = prefString;
-
-		if (TheGlobalData->m_displayGamma != gammaval)
-		{	TheWritableGlobalData->m_displayGamma = gammaval;
-			TheDisplay->setGamma(TheGlobalData->m_displayGamma,0.0f, 1.0f, FALSE);
-		}
+		OptionsValues::ApplyBrightnessPercent(*pref, val);
  	}
 
 	//-------------------------------------------------------------------------------------------------
@@ -1162,9 +1142,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	if (textEntryHTTPProxy)
 	{
 		UnicodeString uStr;
-		std::string proxy;
-		GetStringFromRegistry("", "Proxy", proxy);
-		uStr.translate(proxy.c_str());
+		uStr.translate(OptionsValues::GetCurrentHTTPProxy());
 		GadgetTextEntrySetText(textEntryHTTPProxy, uStr);
 	}
 
@@ -1173,9 +1151,9 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	if (textEntryFirewallPortOverride)
 	{
 			UnicodeString uStr;
-			if (TheGlobalData->m_firewallPortOverride != 0)
+			if (OptionsValues::GetCurrentFirewallPortOverride() != 0)
 			{	AsciiString aStr;
-				aStr.format("%d",TheGlobalData->m_firewallPortOverride);
+				aStr.format("%d",OptionsValues::GetCurrentFirewallPortOverride());
 				uStr.translate(aStr);
 			}
 			GadgetTextEntrySetText(textEntryFirewallPortOverride,uStr);
@@ -1407,7 +1385,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	GadgetSliderSetPosition( sliderVoiceVolume, REAL_TO_INT(pref->getSpeechVolume()) );
 
 	// set the gamma slider
- 	GadgetSliderSetPosition( sliderGamma, REAL_TO_INT(pref->getGammaValue()) );
+ 	GadgetSliderSetPosition( sliderGamma, OptionsValues::GetCurrentBrightnessPercent(*pref) );
 
 	// show menu
 	layout->hide( FALSE );
@@ -1417,7 +1395,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	GameWindow *parent = TheWindowManager->winGetWindowFromId( nullptr, parentID );
 	TheWindowManager->winSetFocus( parent );
 
-	if( (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || NGMP_OnlineServicesManager::GetInstance() != nullptr)
+	if( OptionsValues::IsOptionsRestrictedContext() )
 	{
 		// disable controls that you can't change the options for in game
 		comboBoxLANIP->winEnable(FALSE);
