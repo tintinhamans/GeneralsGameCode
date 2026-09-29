@@ -266,8 +266,12 @@ void RmlDisconnectScreen::onQuit(Rml::DataModelHandle, Rml::Event &, const Rml::
 }
 
 // Enter in the entry (or leaving it): echo and send what was typed, then clear the line.
-void RmlDisconnectScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlDisconnectScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
+	// Change fires on every edit; only Enter (linebreak) commits, like the .wnd's GEM_EDIT_DONE.
+	if (!ev.GetParameter<bool>("linebreak", false))
+		return;
+
 	const UnicodeString text = utf8ToUnicode(m_model.chatEntryText);
 
 	m_model.chatEntryText.clear();

@@ -474,8 +474,12 @@ void RmlBuddyOverlayScreen::closeContextMenu()
 }
 
 //-------------------------------------------------------------------------------------------------
-void RmlBuddyOverlayScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlBuddyOverlayScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
+	// Change fires on every edit; only Enter (linebreak) commits, like the .wnd's GEM_EDIT_DONE.
+	if (!ev.GetParameter<bool>("linebreak", false))
+		return;
+
 	if (m_selectedUserID == 0)
 	{
 		// Mirrors GEM_EDIT_DONE's nothing-selected case (Buddy:SelectBuddyToChat) -- no send target.

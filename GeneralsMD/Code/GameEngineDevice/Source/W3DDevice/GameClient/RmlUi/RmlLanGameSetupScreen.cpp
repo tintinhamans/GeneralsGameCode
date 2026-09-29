@@ -567,8 +567,12 @@ void RmlLanGameSetupScreen::onBackPressed(Rml::DataModelHandle, Rml::Event &, co
 	onBack();
 }
 
-void RmlLanGameSetupScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlLanGameSetupScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
+	// Change fires on every edit; only Enter (linebreak) commits, like the .wnd's GEM_EDIT_DONE.
+	if (!ev.GetParameter<bool>("linebreak", false))
+		return;
+
 	if (TheLAN)
 	{
 		UnicodeString text = utf8ToUnicode(m_model.chatEntryText);

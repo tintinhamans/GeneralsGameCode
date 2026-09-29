@@ -614,8 +614,12 @@ void RmlOnlineGameSetupScreen::onBackPressed(Rml::DataModelHandle, Rml::Event &,
 	onBack();
 }
 
-void RmlOnlineGameSetupScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlOnlineGameSetupScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
+	// Change fires on every edit; only Enter (linebreak) commits, like the .wnd's GEM_EDIT_DONE.
+	if (!ev.GetParameter<bool>("linebreak", false))
+		return;
+
 	UnicodeString text = utf8ToUnicode(m_model.chatEntryText);
 	text.trim();
 	if (!text.isEmpty())

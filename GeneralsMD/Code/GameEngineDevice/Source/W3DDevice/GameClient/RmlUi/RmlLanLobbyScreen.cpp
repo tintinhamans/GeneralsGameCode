@@ -438,8 +438,12 @@ void RmlLanLobbyScreen::onClearName(Rml::DataModelHandle handle, Rml::Event &eve
 	onNameChanged(handle, event, args);
 }
 
-void RmlLanLobbyScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlLanLobbyScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
+	// Change fires on every edit; only Enter (linebreak) commits, like the .wnd's GEM_EDIT_DONE.
+	if (!ev.GetParameter<bool>("linebreak", false))
+		return;
+
 	LanLobbyActions::sendChatEntry(utf8ToUnicode(m_model.chatEntryText));
 	m_model.chatEntryText.clear();
 	if (m_modelHandle)

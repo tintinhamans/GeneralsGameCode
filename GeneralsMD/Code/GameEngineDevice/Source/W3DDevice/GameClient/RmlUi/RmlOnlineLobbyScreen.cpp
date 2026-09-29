@@ -579,8 +579,12 @@ void RmlOnlineLobbyScreen::onSortBuddies(Rml::DataModelHandle, Rml::Event &, con
 	refreshSortHighlight();
 }
 
-void RmlOnlineLobbyScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlOnlineLobbyScreen::onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
+	// Change fires on every edit; only Enter (linebreak) commits, like the .wnd's GEM_EDIT_DONE.
+	if (!ev.GetParameter<bool>("linebreak", false))
+		return;
+
 	if (OnlineLobbyActions::sendChatEntry(utf8ToUnicode(m_model.chatEntryText)))
 	{
 		m_model.chatEntryText.clear();

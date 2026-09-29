@@ -124,8 +124,12 @@ bool RmlJoinGameScreen::isVisible() const
 }
 
 //-------------------------------------------------------------------------------------------------
-void RmlJoinGameScreen::onPasswordCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+void RmlJoinGameScreen::onPasswordCommitted(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
 {
+	// Change fires on every edit; only Enter (linebreak) commits, like the .wnd's GEM_EDIT_DONE.
+	if (!ev.GetParameter<bool>("linebreak", false))
+		return;
+
 	// Mirrors TextEntryGamePassword's GEM_EDIT_DONE body exactly: trims, ignores an empty commit
 	// (same as the .wnd, which never calls joinGame() for an empty trimmed entry), and clears the
 	// field back out (see JoinGameActions::joinGame()'s DEBUG_LOG + GameSpyCloseOverlay).
