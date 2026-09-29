@@ -64,6 +64,8 @@ RmlLoadScreen &RmlLoadScreen::instance(Kind kind)
 {
 	static RmlLoadScreen s_screens[KIND_COUNT] = {
 		RmlLoadScreen("UI/MapTransfer.rml", "maptransfer"),
+		RmlLoadScreen("UI/MultiplayerLoad.rml", "multiplayerload"),
+		RmlLoadScreen("UI/GameSpyLoad.rml", "onlineload"),
 	};
 	return s_screens[kind];
 }
@@ -85,6 +87,7 @@ void RmlLoadScreen::load(Rml::Context *context)
 
 	m_context = context;
 	m_rows.assign(MAX_SLOTS, RowModel());
+	m_markers.assign(MAX_SLOTS, MarkerModel());
 
 	Rml::DataModelConstructor constructor = context->CreateDataModel(m_modelName);
 	if (constructor)
@@ -92,15 +95,41 @@ void RmlLoadScreen::load(Rml::Context *context)
 		if (Rml::StructHandle<RowModel> rowHandle = constructor.RegisterStruct<RowModel>())
 		{
 			rowHandle.RegisterMember("name", &RowModel::name);
+			rowHandle.RegisterMember("side", &RowModel::side);
+			rowHandle.RegisterMember("team", &RowModel::team);
+			rowHandle.RegisterMember("win_loss", &RowModel::winLoss);
+			rowHandle.RegisterMember("disconnects", &RowModel::disconnects);
 			rowHandle.RegisterMember("status", &RowModel::status);
+			rowHandle.RegisterMember("rank_image", &RowModel::rankImage);
+			rowHandle.RegisterMember("medal_image", &RowModel::medalImage);
 			rowHandle.RegisterMember("color_hex", &RowModel::colorHex);
 			rowHandle.RegisterMember("progress_style", &RowModel::progressStyle);
 			rowHandle.RegisterMember("used", &RowModel::used);
 			rowHandle.RegisterMember("show_progress", &RowModel::showProgress);
+			rowHandle.RegisterMember("show_stats", &RowModel::showStats);
+			rowHandle.RegisterMember("has_rank", &RowModel::hasRank);
+			rowHandle.RegisterMember("has_medal", &RowModel::hasMedal);
+		}
+		if (Rml::StructHandle<MarkerModel> markerHandle = constructor.RegisterStruct<MarkerModel>())
+		{
+			markerHandle.RegisterMember("x_style", &MarkerModel::xStyle);
+			markerHandle.RegisterMember("y_style", &MarkerModel::yStyle);
+			markerHandle.RegisterMember("label", &MarkerModel::label);
+			markerHandle.RegisterMember("color_hex", &MarkerModel::colorHex);
+			markerHandle.RegisterMember("used", &MarkerModel::used);
+			markerHandle.RegisterMember("has_label", &MarkerModel::hasLabel);
 		}
 		constructor.RegisterArray<Rml::Vector<RowModel>>();
+		constructor.RegisterArray<Rml::Vector<MarkerModel>>();
 
 		constructor.Bind("rows", &m_rows);
+		constructor.Bind("markers", &m_markers);
+		constructor.Bind("local_name", &m_localName);
+		constructor.Bind("local_features", &m_localFeatures);
+		constructor.Bind("local_portrait", &m_localPortrait);
+		constructor.Bind("has_portrait", &m_hasPortrait);
+		constructor.Bind("map_name", &m_mapName);
+		constructor.Bind("has_map", &m_hasMap);
 		constructor.Bind("current_file", &m_currentFile);
 		constructor.Bind("timeout", &m_timeout);
 
@@ -121,19 +150,51 @@ void RmlLoadScreen::refresh()
 		RowModel &row = m_rows[i];
 		row.used = i < data.m_rowCount;
 		row.name = unicodeToUtf8(src.m_name);
+		row.side = unicodeToUtf8(src.m_side);
+		row.team = unicodeToUtf8(src.m_team);
+		row.winLoss = unicodeToUtf8(src.m_winLoss);
+		row.disconnects = unicodeToUtf8(src.m_disconnects);
 		row.status = unicodeToUtf8(src.m_status);
+		row.rankImage = src.m_rankImage.str();
+		row.medalImage = src.m_medalImage.str();
+		row.hasRank = !src.m_rankImage.isEmpty();
+		row.hasMedal = !src.m_medalImage.isEmpty();
 		row.colorHex = rgbToHex(src.m_color);
 		row.progressStyle = percentStyle((float)src.m_progress);
 		row.showProgress = src.m_showProgress == TRUE;
+		row.showStats = src.m_showStats == TRUE;
 
+		const LoadScreenStartMarker &srcMarker = data.m_markers[i];
+		MarkerModel &marker = m_markers[i];
+		marker.used = srcMarker.m_used == TRUE;
+		marker.xStyle = percentStyle(srcMarker.m_x * 100.0f);
+		marker.yStyle = percentStyle(srcMarker.m_y * 100.0f);
+		marker.hasLabel = srcMarker.m_slotNumber > 0;
+		marker.colorHex = rgbToHex(srcMarker.m_color);
+		char number[8];
+		_snprintf_s(number, sizeof(number), _TRUNCATE, "%d", srcMarker.m_slotNumber);
+		marker.label = marker.hasLabel ? number : "";
 	}
 
+	m_localName = unicodeToUtf8(data.m_localName);
+	m_localFeatures = unicodeToUtf8(data.m_localFeatures);
+	m_localPortrait = data.m_localPortrait.str();
+	m_hasPortrait = !data.m_localPortrait.isEmpty();
+	m_mapName = data.m_mapName.str();
+	m_hasMap = !data.m_mapName.isEmpty();
 	m_currentFile = unicodeToUtf8(data.m_currentFile);
 	m_timeout = unicodeToUtf8(data.m_timeout);
 
 	if (m_modelHandle)
 	{
 		m_modelHandle.DirtyVariable("rows");
+		m_modelHandle.DirtyVariable("markers");
+		m_modelHandle.DirtyVariable("local_name");
+		m_modelHandle.DirtyVariable("local_features");
+		m_modelHandle.DirtyVariable("local_portrait");
+		m_modelHandle.DirtyVariable("has_portrait");
+		m_modelHandle.DirtyVariable("map_name");
+		m_modelHandle.DirtyVariable("has_map");
 		m_modelHandle.DirtyVariable("current_file");
 		m_modelHandle.DirtyVariable("timeout");
 	}
@@ -166,3 +227,7 @@ bool RmlLoadScreen::isVisible() const
 //-------------------------------------------------------------------------------------------------
 void OpenRmlMapTransferScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_MAP_TRANSFER).open(); }
 void CloseRmlMapTransferScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_MAP_TRANSFER).close(); }
+void OpenRmlMultiplayerLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_MULTIPLAYER).open(); }
+void CloseRmlMultiplayerLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_MULTIPLAYER).close(); }
+void OpenRmlOnlineLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_ONLINE).open(); }
+void CloseRmlOnlineLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_ONLINE).close(); }

@@ -1,0 +1,48 @@
+/*
+	GameSpyLoad.rcss -- GameSpyLoadScreen.wnd: rank, name, army, win/loss, disconnects and progress
+	table on black rows under the shared top half (see LoadScreen.rcss). Geometry is the .wnd's
+	800x600 rects.
+*/
+
+.gs-heads .load-head { top: 55.5%; }
+.gs-head-rank { left: 7.125%; }
+.gs-head-name { left: 13.125%; }
+.gs-head-side { left: 34.625%; }
+.gs-head-winloss { left: 61.5%; }
+.gs-head-discons { left: 72%; }
+.gs-head-progress { left: 84%; }
+
+.gs-rows { left: 7.25%; top: 59.667%; width: 86%; }
+
+.gs-row { background-color: #000000; }
+
+.gs-row .load-cell,
+.gs-row .load-bar
+{
+	top: 7dp;
+}
+
+.gs-medal, .gs-rank
+{
+	position: absolute;
+	top: 7dp;
+	width: 36dp;
+	height: 36dp;
+	display: flex;
+}
+
+.gs-medal { left: 0.3%; }
+.gs-rank { left: 3.2%; }
+
+.gs-medal mappedimage, .gs-rank mappedimage
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.gs-name { left: 6.83%; width: 24.4%; }
+.gs-side { left: 31.8%; width: 32%; }
+.gs-winloss { left: 64.2%; width: 10.5%; }
+.gs-discons { left: 75.3%; width: 13.4%; }
+.gs-bar { left: 89.2%; width: 10.6%; }

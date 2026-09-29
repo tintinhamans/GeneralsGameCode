@@ -1,0 +1,53 @@
+<rml>
+<head>
+	<title>GameSpyLoad</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="LoadScreen.rcss"/>
+	<link type="text/rcss" href="GameSpyLoad.rcss"/>
+</head>
+<body data-model="onlineload">
+	<mappedimage class="shell-background" name="MDSkirmishLoadB"/>
+
+	<div class="load-name"><div>{{local_name}}</div></div>
+
+	<div class="load-portrait"><mappedimage data-attr-name="local_portrait" data-if="has_portrait"/></div>
+	<div class="load-features"><div>{{local_features}}</div></div>
+
+	<div class="load-map">
+		<mappreview data-attr-map="map_name" data-if="has_map"/>
+		<div class="load-marker-layer">
+			<div data-for="marker : markers">
+				<div class="load-marker" data-if="marker.used" data-style-left="marker.x_style" data-style-top="marker.y_style">
+					<mappedimage name="PlayerStart"/>
+					<div class="load-marker-label" data-if="marker.has_label" data-style-color="marker.color_hex"><div>{{marker.label}}</div></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="gs-heads">
+		<div class="load-head gs-head-rank"><gametext key="GUI:Rank"/></div>
+		<div class="load-head gs-head-name"><gametext key="GUI:PlayerName"/></div>
+		<div class="load-head gs-head-side"><gametext key="GUI:Side"/></div>
+		<div class="load-head gs-head-winloss"><gametext key="GUI:WINLOSS"/></div>
+		<div class="load-head gs-head-discons"><gametext key="GUI:Discons"/></div>
+		<div class="load-head gs-head-progress"><gametext key="GUI:Progress"/></div>
+	</div>
+
+	<div class="load-rows gs-rows">
+		<div class="load-line" data-for="row : rows">
+			<div class="load-row gs-row" data-if="row.used">
+				<div class="gs-medal"><mappedimage data-attr-name="row.medal_image" data-if="row.has_medal"/></div>
+				<div class="gs-rank"><mappedimage data-attr-name="row.rank_image" data-if="row.has_rank"/></div>
+				<div class="load-cell gs-name" data-style-color="row.color_hex">{{row.name}}</div>
+				<div class="load-cell gs-side" data-style-color="row.color_hex">{{row.side}}</div>
+				<div class="load-cell gs-winloss" data-style-color="row.color_hex" data-if="row.show_stats">{{row.win_loss}}</div>
+				<div class="load-cell gs-discons" data-style-color="row.color_hex" data-if="row.show_stats">{{row.disconnects}}</div>
+				<div class="load-bar gs-bar" data-class-invisible="!row.show_progress">
+					<div class="load-bar-fill" data-style-width="row.progress_style" data-style-background-color="row.color_hex"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</rml>

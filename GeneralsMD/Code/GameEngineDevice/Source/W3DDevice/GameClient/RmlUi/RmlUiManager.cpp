@@ -237,8 +237,10 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/LocalDefeat.wnd", &OpenRmlLocalDefeatScreen, &CloseRmlLocalDefeatScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/ObserverQuit.wnd", &OpenRmlObserverQuitScreen, &CloseRmlObserverQuitScreen);
 
-	// MapTransferLoadScreen::init() creates this via winCreateFromScript(); see RmlLoadScreen.h.
+	// The LoadScreen classes create these via winCreateFromScript(); see RmlLoadScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/MapTransferScreen.wnd", &OpenRmlMapTransferScreen, &CloseRmlMapTransferScreen);
+	RmlUiScreenRegistry::registerScreen("Menus/MultiplayerLoadScreen.wnd", &OpenRmlMultiplayerLoadScreen, &CloseRmlMultiplayerLoadScreen);
+	RmlUiScreenRegistry::registerScreen("Menus/GameSpyLoadScreen.wnd", &OpenRmlOnlineLoadScreen, &CloseRmlOnlineLoadScreen);
 
 	// GameWindowManager::gogoMessageBox() looks this hook up the same way, gated on
 	// !m_useLegacyMenus; see RmlUiMessageBoxHook.h.

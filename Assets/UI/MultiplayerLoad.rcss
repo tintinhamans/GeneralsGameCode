@@ -1,0 +1,17 @@
+/*
+	MultiplayerLoad.rcss -- MultiplayerLoadScreen.wnd: player, army, team and progress table under
+	the shared top half (see LoadScreen.rcss). Geometry is the .wnd's 800x600 rects.
+*/
+
+.mp-heads .load-head { top: 55.833%; }
+.mp-head-name { left: 7.75%; }
+.mp-head-side { left: 30.75%; }
+.mp-head-team { left: 66.75%; }
+.mp-head-progress { left: 74.5%; }
+
+.mp-rows { left: 7.75%; top: 60.5%; width: 85.25%; }
+
+.mp-name { left: 0%; width: 26.4%; }
+.mp-side { left: 27%; width: 41.35%; }
+.mp-team { left: 68.9%; width: 8.8%; text-align: center; }
+.mp-bar { left: 78.3%; width: 21.7%; }

@@ -1,0 +1,48 @@
+<rml>
+<head>
+	<title>MultiplayerLoad</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="LoadScreen.rcss"/>
+	<link type="text/rcss" href="MultiplayerLoad.rcss"/>
+</head>
+<body data-model="multiplayerload">
+	<mappedimage class="shell-background" name="MDSkirmishLoadB"/>
+
+	<div class="load-name"><div>{{local_name}}</div></div>
+
+	<div class="load-portrait"><mappedimage data-attr-name="local_portrait" data-if="has_portrait"/></div>
+	<div class="load-features"><div>{{local_features}}</div></div>
+
+	<div class="load-map">
+		<mappreview data-attr-map="map_name" data-if="has_map"/>
+		<div class="load-marker-layer">
+			<div data-for="marker : markers">
+				<div class="load-marker" data-if="marker.used" data-style-left="marker.x_style" data-style-top="marker.y_style">
+					<mappedimage name="PlayerStart"/>
+					<div class="load-marker-label" data-if="marker.has_label" data-style-color="marker.color_hex"><div>{{marker.label}}</div></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="mp-heads">
+		<div class="load-head mp-head-name"><gametext key="GUI:PlayerName"/></div>
+		<div class="load-head mp-head-side"><gametext key="GUI:Side"/></div>
+		<div class="load-head mp-head-team"><gametext key="GUI:Team"/></div>
+		<div class="load-head mp-head-progress"><gametext key="GUI:Progress"/></div>
+	</div>
+
+	<div class="load-rows mp-rows">
+		<div class="load-line" data-for="row : rows">
+			<div class="load-row" data-if="row.used">
+				<div class="load-cell mp-name" data-style-color="row.color_hex">{{row.name}}</div>
+				<div class="load-cell mp-side" data-style-color="row.color_hex">{{row.side}}</div>
+				<div class="load-cell mp-team" data-style-color="row.color_hex">{{row.team}}</div>
+				<div class="load-bar mp-bar" data-class-invisible="!row.show_progress">
+					<div class="load-bar-fill" data-style-width="row.progress_style" data-style-background-color="row.color_hex"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</rml>

@@ -17,22 +17,41 @@
 */
 
 // FILE: LoadScreenData.h /////////////////////////////////////////////////////
-// Widget-agnostic content of the network load screens (map transfer so far). The LoadScreen classes fill this instead of GameWindows when RmlUi
+// Widget-agnostic content of the network load screens (map transfer, multiplayer,
+// online). The LoadScreen classes fill this instead of GameWindows when RmlUi
 // draws the screen; the RmlUi load screen reads it back every frame.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
+#include "Common/AsciiString.h"
 #include "Common/UnicodeString.h"
 #include "GameNetwork/GameInfo.h"
 
 struct LoadScreenPlayerRow
 {
 	UnicodeString m_name;
+	UnicodeString m_side;
+	UnicodeString m_team;
+	UnicodeString m_winLoss;
+	UnicodeString m_disconnects;
 	UnicodeString m_status; ///< map transfer state text
+	AsciiString m_rankImage; ///< mapped image names, empty for none
+	AsciiString m_medalImage;
 	UnsignedInt m_color = 0xFFFFFF; ///< 0x00RRGGBB
 	Int m_progress = 0; ///< 0..100
 	Bool m_showProgress = TRUE;
+	Bool m_showStats = TRUE; ///< FALSE for AI: no rank, win/loss or disconnects
+};
+
+// Start position marker over the map preview, laid out as fractions of the preview.
+struct LoadScreenStartMarker
+{
+	Real m_x = 0.0f;
+	Real m_y = 0.0f;
+	Int m_slotNumber = 0; ///< 1-based number of the slot starting here
+	UnsignedInt m_color = 0xFFFFFF;
+	Bool m_used = FALSE;
 };
 
 struct LoadScreenData
@@ -53,6 +72,13 @@ struct LoadScreenData
 
 	Int m_rowCount = 0;
 	LoadScreenPlayerRow m_rows[MAX_SLOTS];
+
+	UnicodeString m_localName; ///< local player's general or faction
+	UnicodeString m_localFeatures;
+	AsciiString m_localPortrait; ///< mapped image name
+
+	AsciiString m_mapName;
+	LoadScreenStartMarker m_markers[MAX_SLOTS];
 
 	UnicodeString m_currentFile; ///< map transfer only
 	UnicodeString m_timeout;

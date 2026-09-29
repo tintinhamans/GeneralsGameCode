@@ -17,7 +17,8 @@
 */
 
 // FILE: RmlLoadScreen.h //////////////////////////////////////////////////////
-// RmlUi view of the network load screens (Menus/MapTransferScreen.wnd). The LoadScreen
+// RmlUi view of the network load screens (Menus/MapTransferScreen.wnd,
+// Menus/MultiplayerLoadScreen.wnd, Menus/GameSpyLoadScreen.wnd). The LoadScreen
 // classes keep all the logic and write a LoadScreenData; this only mirrors that
 // into a data model whenever its version changes. One instance per document,
 // created by winCreateFromScript() through RmlUiScreenRegistry and closed when
@@ -36,7 +37,7 @@ namespace Rml { class Context; class ElementDocument; }
 class RmlLoadScreen
 {
 public:
-	enum Kind { KIND_MAP_TRANSFER, KIND_COUNT };
+	enum Kind { KIND_MAP_TRANSFER, KIND_MULTIPLAYER, KIND_ONLINE, KIND_COUNT };
 
 	static RmlLoadScreen &instance(Kind kind);
 	static void tick(); ///< refreshes every open instance whose LoadScreenData changed
@@ -54,11 +55,30 @@ private:
 	struct RowModel
 	{
 		Rml::String name;
+		Rml::String side;
+		Rml::String team;
+		Rml::String winLoss;
+		Rml::String disconnects;
 		Rml::String status;
+		Rml::String rankImage;
+		Rml::String medalImage;
 		Rml::String colorHex = "#FFFFFF";
 		Rml::String progressStyle = "0%"; ///< "42%", bound via data-style-width
 		bool used = false; ///< the array is always MAX_SLOTS long; unused rows are hidden
 		bool showProgress = true;
+		bool showStats = true;
+		bool hasRank = false;
+		bool hasMedal = false;
+	};
+
+	struct MarkerModel
+	{
+		Rml::String xStyle = "0%"; ///< "12.500%", bound via data-style-left
+		Rml::String yStyle = "0%";
+		Rml::String label;
+		Rml::String colorHex = "#FFFFFF";
+		bool used = false;
+		bool hasLabel = false;
 	};
 
 	const char *m_documentPath;
@@ -69,10 +89,21 @@ private:
 	unsigned int m_seenVersion = 0;
 
 	Rml::Vector<RowModel> m_rows;
+	Rml::Vector<MarkerModel> m_markers;
+	Rml::String m_localName;
+	Rml::String m_localFeatures;
+	Rml::String m_localPortrait;
+	Rml::String m_mapName;
 	Rml::String m_currentFile;
 	Rml::String m_timeout;
+	bool m_hasPortrait = false;
+	bool m_hasMap = false;
 };
 
 // Registry entry points (see RmlUiManager::init()).
 void OpenRmlMapTransferScreen();
 void CloseRmlMapTransferScreen();
+void OpenRmlMultiplayerLoadScreen();
+void CloseRmlMultiplayerLoadScreen();
+void OpenRmlOnlineLoadScreen();
+void CloseRmlOnlineLoadScreen();
