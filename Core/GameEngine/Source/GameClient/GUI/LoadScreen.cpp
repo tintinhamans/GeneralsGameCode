@@ -2068,14 +2068,9 @@ MapTransferLoadScreen::MapTransferLoadScreen()
 	m_oldTimeout = 0;
 	for(Int i = 0; i < MAX_SLOTS; ++i)
 	{
-		m_progressBars[i] = nullptr;
-		m_playerNames[i] = nullptr;
-		m_progressText[i]= nullptr;
 		m_playerLookup[i] = -1;
 		m_oldProgress[i] = -1;
 	}
-	m_fileNameText = nullptr;
-	m_timeoutText = nullptr;
 }
 
 MapTransferLoadScreen::~MapTransferLoadScreen()
@@ -2084,12 +2079,12 @@ MapTransferLoadScreen::~MapTransferLoadScreen()
 
 void MapTransferLoadScreen::init( GameInfo *game )
 {
-	m_useRml = shouldUseRml( "Menus/MapTransferScreen.wnd" );
-	if (m_useRml)
-		LoadScreenData::instance().reset();
+	static const char *wndPath = "Menus/MapTransferScreen.wnd";
+	LoadScreenData &data = LoadScreenData::instance();
+	data.reset();
 
 	// create the layout of the load screen
-	m_loadScreen = TheWindowManager->winCreateFromScript( "Menus/MapTransferScreen.wnd" );
+	m_loadScreen = TheWindowManager->winCreateFromScript( wndPath );
 	DEBUG_ASSERTCRASH(m_loadScreen, ("Can't initialize the map transfer loadscreen"));
 	if (!m_loadScreen)
 		return;
@@ -2097,108 +2092,41 @@ void MapTransferLoadScreen::init( GameInfo *game )
 	DEBUG_ASSERTCRASH(TheNetwork, ("Where the Heck is the Network?!!!!"));
 	DEBUG_LOG(("NumPlayers %d", TheNetwork->getNumPlayers()));
 
-	if (m_useRml)
-	{
-		LoadScreenData &view = LoadScreenData::instance();
-		Int rmlSlot = 0;
-		for (Int slotNum = 0; slotNum < MAX_SLOTS; ++slotNum)
-		{
-			GameSlot *slot = game->getSlot(slotNum);
-			if (!slot || !slot->isHuman())
-				continue;
-
-			LoadScreenPlayerRow &row = view.m_rows[rmlSlot];
-			row.m_name = slot->getName();
-			row.m_color = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor() & 0xFFFFFF;
-			const GameSlot *gameInfoSlot = TheGameInfo->getConstSlot(slotNum);
-			row.m_showProgress = !(slotNum == 0 || (gameInfoSlot && gameInfoSlot->isHuman() && gameInfoSlot->hasMap()));
-			m_playerLookup[slotNum] = rmlSlot;
-			rmlSlot++;
-		}
-		view.m_rowCount = rmlSlot;
-		view.touch();
-		return;
-	}
-
-	m_loadScreen->winHide(FALSE);
-	m_loadScreen->winBringToTop();
-
-	AsciiString winName;
-	Int i;
-
-	// Load the Filename Text
-	m_fileNameText = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "MapTransferScreen.wnd:StaticTextCurrentFile" ));
-	DEBUG_ASSERTCRASH(m_fileNameText, ("Can't initialize the filename for the map transfer loadscreen"));
-
-	// Load the Timeout Text
-	m_timeoutText = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "MapTransferScreen.wnd:StaticTextTimeout" ));
-	DEBUG_ASSERTCRASH(m_timeoutText, ("Can't initialize the timeout for the map transfer loadscreen"));
-
 	Int netSlot = 0;
-	// Loop through and make the loadscreen look all good.
-	for (i = 0; i < MAX_SLOTS; ++i)
+	for (Int slotNum = 0; slotNum < MAX_SLOTS; ++slotNum)
 	{
-		// Load the Progress Bar
-		winName.format( "MapTransferScreen.wnd:ProgressLoad%d",i);
-		m_progressBars[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_progressBars[i], ("Can't initialize the progressbars for the map transfer loadscreen"));
-		// set the progressbar to zero
-		GadgetProgressBarSetProgress(m_progressBars[i], 0 );
-
-		// Load the Player's name
-		winName.format( "MapTransferScreen.wnd:StaticTextPlayer%d",i);
-		m_playerNames[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_playerNames[i], ("Can't initialize the Names for the map transfer loadscreen"));
-
-		// Load the Progress Text
-		winName.format( "MapTransferScreen.wnd:StaticTextProgress%d",i);
-		m_progressText[i] = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( winName ));
-		DEBUG_ASSERTCRASH(m_progressText[i], ("Can't initialize the progress text for the map transfer loadscreen"));
-
-		// get the slot man!
-		GameSlot *slot = game->getSlot(i);
+		GameSlot *slot = game->getSlot(slotNum);
 		if (!slot || !slot->isHuman())
 			continue;
-		Color houseColor = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor();
-		GadgetProgressBarSetEnabledBarColor(m_progressBars[netSlot], houseColor );
 
-		UnicodeString name = slot->getName();
-		GadgetStaticTextSetText(m_playerNames[netSlot], name );
-		m_playerNames[netSlot]->winSetEnabledTextColors(houseColor, m_playerNames[netSlot]->winGetEnabledTextBorderColor());
-
-		GadgetStaticTextSetText(m_progressText[netSlot], UnicodeString::TheEmptyString );
-		m_progressText[netSlot]->winSetEnabledTextColors(houseColor, m_progressText[netSlot]->winGetEnabledTextBorderColor());
-
-		const GameSlot *gameInfoSlot = TheGameInfo->getConstSlot(i);
-		if ((i == 0 || (gameInfoSlot && gameInfoSlot->isHuman() && gameInfoSlot->hasMap())) && m_progressBars[netSlot])
-			m_progressBars[netSlot]->winHide(TRUE);
-
-		m_playerLookup[i] = netSlot; // save our mapping so we can update progress correctly
-
+		LoadScreenPlayerRow &row = data.m_rows[netSlot];
+		row.m_name = slot->getName();
+		row.m_color = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor() & 0xFFFFFF;
+		const GameSlot *gameInfoSlot = TheGameInfo->getConstSlot(slotNum);
+		row.m_showProgress = !(slotNum == 0 || (gameInfoSlot && gameInfoSlot->isHuman() && gameInfoSlot->hasMap()));
+		m_playerLookup[slotNum] = netSlot; // save our mapping so we can update progress correctly
 		netSlot++;
 	}
+	data.m_rowCount = netSlot;
 
-	for(i = netSlot; i < MAX_SLOTS; ++i)
+	if (usesLegacyView( wndPath ))
 	{
-		m_progressBars[i]->winHide(TRUE);
-		m_playerNames[i]->winHide(TRUE);
-		m_progressText[i]->winHide(TRUE);
+		m_view = NEW MapTransferLoadScreenView;
+		m_view->init( m_loadScreen, game, data );
 	}
+	data.touch();
 }
 
 void MapTransferLoadScreen::reset()
 {
 	setLoadScreen(nullptr);
+	if (m_view)
+		m_view->reset();
 	for(Int i = 0; i < MAX_SLOTS; ++i)
 	{
-		m_progressBars[i] = nullptr;
-		m_playerNames[i] = nullptr;
-		m_progressText[i]= nullptr;
 		m_playerLookup[i] = -1;
 		m_oldProgress[i] = -1;
 	}
-	m_fileNameText = nullptr;
-	m_timeoutText = nullptr;
 }
 
 void MapTransferLoadScreen::update( Int percent )
@@ -2233,19 +2161,10 @@ void MapTransferLoadScreen::processProgress(Int playerId, Int percentage, AsciiS
 		return;
 	m_oldProgress[playerId] = percentage;
 
-	Int translatedSlot = m_playerLookup[playerId];
-	if (m_useRml)
-	{
-		LoadScreenData &view = LoadScreenData::instance();
-		view.m_rows[translatedSlot].m_progress = percentage;
-		view.m_rows[translatedSlot].m_status = TheGameText->fetch(stateStr);
-		view.touch();
-		return;
-	}
-	if(m_progressBars[translatedSlot])
-		GadgetProgressBarSetProgress(m_progressBars[translatedSlot], percentage );
-	if (m_progressText[translatedSlot])
-		GadgetStaticTextSetText(m_progressText[translatedSlot], TheGameText->fetch(stateStr));
+	LoadScreenPlayerRow &row = LoadScreenData::instance().m_rows[m_playerLookup[playerId]];
+	row.m_progress = percentage;
+	row.m_status = TheGameText->fetch(stateStr);
+	publishData();
 }
 
 void MapTransferLoadScreen::processTimeout(Int secondsLeft)
@@ -2254,34 +2173,17 @@ void MapTransferLoadScreen::processTimeout(Int secondsLeft)
 		return;
 	m_oldTimeout = secondsLeft;
 
-	if (m_timeoutText || m_useRml)
-	{
-		UnicodeString txt;
-		txt.format(TheGameText->fetch("MapTransfer:Timeout"), (secondsLeft/60), (secondsLeft%60));
-		if (m_useRml)
-		{
-			LoadScreenData::instance().m_timeout = txt;
-			LoadScreenData::instance().touch();
-		}
-		else
-			GadgetStaticTextSetText(m_timeoutText, txt);
-	}
+	UnicodeString txt;
+	txt.format(TheGameText->fetch("MapTransfer:Timeout"), (secondsLeft/60), (secondsLeft%60));
+	LoadScreenData::instance().m_timeout = txt;
+	publishData();
 }
 
 void MapTransferLoadScreen::setCurrentFilename(AsciiString filename)
 {
-	if (m_fileNameText || m_useRml)
-	{
-		UnicodeString txt;
-		txt.translate(TheGameState->getMapLeafName(filename));
-		txt.format(TheGameText->fetch("MapTransfer:CurrentFile"), txt.str());
-		if (m_useRml)
-		{
-			LoadScreenData::instance().m_currentFile = txt;
-			LoadScreenData::instance().touch();
-		}
-		else
-			GadgetStaticTextSetText(m_fileNameText, txt);
-	}
+	UnicodeString txt;
+	txt.translate(TheGameState->getMapLeafName(filename));
+	txt.format(TheGameText->fetch("MapTransfer:CurrentFile"), txt.str());
+	LoadScreenData::instance().m_currentFile = txt;
+	publishData();
 }
-

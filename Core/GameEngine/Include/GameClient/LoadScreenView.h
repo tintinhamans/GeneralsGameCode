@@ -38,6 +38,28 @@ public:
 	virtual void reset() = 0; ///< the window is going away, drop the gadget pointers
 };
 
+// Per-player transfer bars, state texts, current file and timeout.
+class MapTransferLoadScreenView : public LoadScreenView
+{
+public:
+	MapTransferLoadScreenView();
+
+	virtual void init( GameWindow *root, GameInfo *game, const LoadScreenData &data ) override;
+	virtual void update( const LoadScreenData &data ) override;
+	virtual void reset() override;
+
+private:
+	GameWindow *m_progressBars[MAX_SLOTS];
+	GameWindow *m_playerNames[MAX_SLOTS];
+	GameWindow *m_progressText[MAX_SLOTS];
+	GameWindow *m_fileNameText;
+	GameWindow *m_timeoutText;
+	Int m_appliedProgress[MAX_SLOTS]; ///< so publishing every frame does not touch the gadgets
+	UnicodeString m_appliedStatus[MAX_SLOTS];
+	UnicodeString m_appliedFile;
+	UnicodeString m_appliedTimeout;
+};
+
 // Title art, legal line and progress bar of the shell load.
 class ShellLoadScreenView : public LoadScreenView
 {
