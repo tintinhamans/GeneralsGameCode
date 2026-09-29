@@ -135,6 +135,9 @@ public:
 	// -rmlignoremodwnd keeps the RmlUi screens even where a mod supplies the .wnd.
 	Bool m_rmlIgnoreModWnds;
 
+	// -rmlwnd MainMenu,QuitMenu sends those screens back to their .wnd, as a mod's would (to test the fallback).
+	AsciiString m_rmlForceWnds;
+
 	// TheSuperHackers @feature RmlUi phase 2: -rmldebug shows Rml::Debugger over RmlUi screens.
 	Bool m_rmlDebugger;
 

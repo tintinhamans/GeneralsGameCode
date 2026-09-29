@@ -297,6 +297,21 @@ namespace
 			}
 		}
 
+		// -rmlwnd names: the screen's file name without folder or .wnd, comma separated.
+		if (TheGlobalData && !TheGlobalData->m_rmlForceWnds.isEmpty())
+		{
+			const std::string names = "," + normalizedPath(TheGlobalData->m_rmlForceWnds.str()) + ",";
+			for (size_t i = 0; i < e.size(); ++i)
+			{
+				std::string name = normalizedPath(e[i].wndPath.str());
+				name.erase(0, name.find_last_of('\\') + 1);
+				if (name.size() > 4 && name.compare(name.size() - 4, 4, ".wnd") == 0)
+					name.erase(name.size() - 4);
+				if (names.find("," + name + ",") != std::string::npos && fallback.paths.insert(e[i].wndPath).second)
+					logFallback(e[i].wndPath, "-rmlwnd asks for", "it");
+			}
+		}
+
 		bool changed = true;
 		while (changed)
 		{
