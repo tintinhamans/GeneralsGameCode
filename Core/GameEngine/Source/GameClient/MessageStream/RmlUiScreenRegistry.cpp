@@ -121,8 +121,8 @@ namespace
 // file or any other .big is a mod's.
 namespace
 {
-	// Retail Generals and Zero Hour .big names (Zero Hour's with a "ZH" suffix), per language where
-	// the SKUs ship one.
+	// Retail Generals and Zero Hour .big names (Zero Hour's with a "ZH" suffix, Patch*.big from the Steam
+	// release), per language where the SKUs ship one.
 	bool isRetailArchiveName(std::string name)
 	{
 		for (size_t i = 0; i < name.size(); ++i)
@@ -133,7 +133,7 @@ namespace
 		if (name.size() > 2 && name.compare(name.size() - 2, 2, "zh") == 0)
 			name.erase(name.size() - 2);
 
-		static const char *const plain[] = { "audio", "english", "gensec", "ini", "maps", "music", "patch", "shaders", "speech", "terrain", "textures", "w3d", "window" };
+		static const char *const plain[] = { "audio", "english", "gensec", "ini", "maps", "music", "patch", "patchdata", "patchini", "patchwindow", "shaders", "speech", "terrain", "textures", "w3d", "window" };
 		static const char *const localizedPrefixes[] = { "", "audio", "speech", "w3d" };
 		static const char *const languages[] = { "english", "german", "french", "spanish", "italian", "korean", "chinese", "brazilian", "polish" };
 		for (size_t i = 0; i < ARRAY_SIZE(plain); ++i)
