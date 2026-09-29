@@ -20,10 +20,10 @@
 		<div class="title-bar">{{title}}</div>
 		<div class="body">{{body}}</div>
 		<div class="footer">
-			<button data-if="show_yes" data-event-click="yes"><gametext key="GUI:Yes"/></button>
-			<button data-if="show_ok" data-event-click="ok"><gametext key="GUI:Ok"/></button>
-			<button data-if="show_no" data-event-click="no"><gametext key="GUI:No"/></button>
-			<button data-if="show_cancel" data-event-click="cancel_click"><gametext key="GUI:Cancel"/></button>
+			<button data-if="show_yes" data-event-click="yes"><gametext data-if="yes_label == ''" key="GUI:Yes"/><span data-if="yes_label != ''">{{yes_label}}</span></button>
+			<button data-if="show_ok" data-event-click="ok"><gametext data-if="ok_label == ''" key="GUI:Ok"/><span data-if="ok_label != ''">{{ok_label}}</span></button>
+			<button data-if="show_no" data-event-click="no"><gametext data-if="no_label == ''" key="GUI:No"/><span data-if="no_label != ''">{{no_label}}</span></button>
+			<button data-if="show_cancel" data-event-click="cancel_click"><gametext data-if="cancel_label == ''" key="GUI:Cancel"/><span data-if="cancel_label != ''">{{cancel_label}}</span></button>
 		</div>
 	</div>
 </body>

@@ -29,14 +29,19 @@
 #pragma once
 
 #include "GameClient/GameWindow.h" // GameWinMsgBoxFunc, MSG_BOX_*
+#include "Common/UnicodeString.h"
 
-class UnicodeString;
+// Button text overrides; an empty entry keeps the default GUI:Ok/Yes/No/Cancel label.
+struct RmlUiMessageBoxLabels
+{
+	UnicodeString ok, yes, no, cancel;
+};
 
 typedef void (*RmlUiMessageBoxFunc)(UnsignedShort buttonFlags,
 	const UnicodeString &titleString, const UnicodeString &bodyString,
 	GameWinMsgBoxFunc yesCallback, GameWinMsgBoxFunc noCallback,
 	GameWinMsgBoxFunc okCallback, GameWinMsgBoxFunc cancelCallback,
-	Bool useLogo);
+	Bool useLogo, const RmlUiMessageBoxLabels &labels);
 typedef void (*RmlUiMessageBoxCloseFunc)();
 
 //-------------------------------------------------------------------------------------------------
@@ -46,6 +51,8 @@ public:
 	static void setHandler(RmlUiMessageBoxFunc handler);
 	static void setCloseHandler(RmlUiMessageBoxCloseFunc closeHandler);
 	static bool isAvailable();
+	static void setPendingLabels(const RmlUiMessageBoxLabels &labels); ///< applied to the next show() only
+	static void clearPendingLabels(); ///< drops labels no show() consumed (legacy .wnd path)
 	static void show(UnsignedShort buttonFlags, const UnicodeString &titleString, const UnicodeString &bodyString,
 		GameWinMsgBoxFunc yesCallback, GameWinMsgBoxFunc noCallback,
 		GameWinMsgBoxFunc okCallback, GameWinMsgBoxFunc cancelCallback,

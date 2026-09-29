@@ -65,6 +65,7 @@ namespace
 		bool showNo = false;
 		bool showCancel = false;
 		bool useLogo = false;
+		Rml::String okLabel, yesLabel, noLabel, cancelLabel; ///< empty = default gametext label
 	};
 	Model &model()
 	{
@@ -122,7 +123,7 @@ namespace
 	void ShowRmlMessageBox(UnsignedShort buttonFlags, const UnicodeString &titleString, const UnicodeString &bodyString,
 		GameWinMsgBoxFunc yesCallback, GameWinMsgBoxFunc noCallback,
 		GameWinMsgBoxFunc okCallback, GameWinMsgBoxFunc cancelCallback,
-		Bool useLogo)
+		Bool useLogo, const RmlUiMessageBoxLabels &labels)
 	{
 		if (!s_context)
 			return;
@@ -139,6 +140,10 @@ namespace
 		m.showNo = (buttonFlags & MSG_BOX_NO) != 0;
 		m.showCancel = (buttonFlags & MSG_BOX_CANCEL) != 0;
 		m.useLogo = useLogo != 0;
+		m.okLabel = unicodeToUtf8(labels.ok);
+		m.yesLabel = unicodeToUtf8(labels.yes);
+		m.noLabel = unicodeToUtf8(labels.no);
+		m.cancelLabel = unicodeToUtf8(labels.cancel);
 
 		s_yesCallback = yesCallback;
 		s_noCallback = noCallback;
@@ -155,6 +160,10 @@ namespace
 			constructor.Bind("show_no", &m.showNo);
 			constructor.Bind("show_cancel", &m.showCancel);
 			constructor.Bind("use_logo", &m.useLogo);
+			constructor.Bind("ok_label", &m.okLabel);
+			constructor.Bind("yes_label", &m.yesLabel);
+			constructor.Bind("no_label", &m.noLabel);
+			constructor.Bind("cancel_label", &m.cancelLabel);
 			constructor.BindEventCallback("ok", &onOk);
 			constructor.BindEventCallback("yes", &onYes);
 			constructor.BindEventCallback("no", &onNo);

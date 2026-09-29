@@ -36,6 +36,7 @@
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MessageBox.h"
+#include "GameClient/RmlUiMessageBoxHook.h"
 #include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/ShellHooks.h"
 //#include "GameNetwork/GameSpy.h"
@@ -138,7 +139,13 @@ void GSMessageBoxOkCancelWithLabels(
 	GameWinMsgBoxFunc newOkFunc,
 	GameWinMsgBoxFunc newCancelFunc)
 {
+	// RmlUi boxes have no GameWindow to relabel, so hand the labels to the hook for the next box.
+	RmlUiMessageBoxLabels labels;
+	labels.ok = okLabel;
+	labels.cancel = cancelLabel;
+	RmlUiMessageBoxHook::setPendingLabels(labels);
 	GSMessageBoxOkCancel(title, message, newOkFunc, newCancelFunc);
+	RmlUiMessageBoxHook::clearPendingLabels();
 	if (messageBoxWindow == nullptr)
 	{
 		return;
