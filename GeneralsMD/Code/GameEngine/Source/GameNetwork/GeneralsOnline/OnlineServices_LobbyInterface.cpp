@@ -36,7 +36,7 @@ UnicodeString NGMP_OnlineServices_LobbyInterface::GetCurrentLobbyMapDisplayName(
 
 	if (IsInLobby())
 	{
-		strDisplayName.format(L"%hs", m_CurrentLobby.map_name.c_str());
+		strDisplayName = UnicodeString(from_utf8(m_CurrentLobby.map_name).c_str());
 	}
 
 	return strDisplayName;
@@ -77,7 +77,7 @@ enum class ELobbyUpdateField
 	JOINABILITY = 18
 };
 
-void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_Map(AsciiString strMap, AsciiString strMapPath, bool bIsOfficial, int newMaxPlayers)
+void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_Map(UnicodeString strMap, AsciiString strMapPath, bool bIsOfficial, int newMaxPlayers)
 {
 	// reset autostart if host changes anything (because ready flag will reset too)
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
@@ -101,8 +101,8 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_Map(AsciiString strM
 
 	nlohmann::json j;
 	j["field"] = ELobbyUpdateField::LOBBY_MAP;
-	j["map"] = strMap.str();
-	j["map_path"] = sanitizedMapPath.str();
+	j["map"] = to_utf8(strMap.str());
+	j["map_path"] = local_to_utf8(sanitizedMapPath.str());
 	j["map_official"] = bIsOfficial;
 	j["max_players"] = newMaxPlayers;
 	std::string strPostData = j.dump();
@@ -578,6 +578,7 @@ void NGMP_OnlineServices_LobbyInterface::SearchForLobbies(std::function<void()> 
 				lobbyEntryIter["Name"].get_to(lobbyEntry.name);
 				lobbyEntryIter["MapName"].get_to(lobbyEntry.map_name);
 				lobbyEntryIter["MapPath"].get_to(lobbyEntry.map_path);
+				lobbyEntry.map_path = utf8_to_local(lobbyEntry.map_path); // local file path from here on
 				lobbyEntryIter["IsMapOfficial"].get_to(lobbyEntry.map_official);
 				lobbyEntryIter["NumCurrentPlayers"].get_to(lobbyEntry.current_players);
 				lobbyEntryIter["MaxPlayers"].get_to(lobbyEntry.max_players);
@@ -907,6 +908,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 						lobbyEntryIter["Name"].get_to(lobbyEntry.name);
 						lobbyEntryIter["MapName"].get_to(lobbyEntry.map_name);
 						lobbyEntryIter["MapPath"].get_to(lobbyEntry.map_path);
+						lobbyEntry.map_path = utf8_to_local(lobbyEntry.map_path); // local file path from here on
 						lobbyEntryIter["IsMapOfficial"].get_to(lobbyEntry.map_official);
 						lobbyEntryIter["NumCurrentPlayers"].get_to(lobbyEntry.current_players);
 						lobbyEntryIter["MaxPlayers"].get_to(lobbyEntry.max_players);
@@ -1165,7 +1167,7 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 
 			if (!strPassword.empty())
 			{
-				j["password"] = strPassword.c_str();
+				j["password"] = local_to_utf8(strPassword);
 			}
 
 			std::string strPostData = j.dump();
@@ -1493,7 +1495,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 			nlohmann::json j;
 			j["name"] = to_utf8(strLobbyName.str());
 			j["map_name"] = strMapName;
-			j["map_path"] = sanitizedMapPath.str();
+			j["map_path"] = local_to_utf8(sanitizedMapPath.str());
 			j["map_official"] = bIsOfficial;
 			j["max_players"] = initialMaxSize;
 
@@ -1504,7 +1506,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 			j["track_stats"] = bTrackStats;
 			j["starting_cash"] = startingCash;
 			j["passworded"] = bPassworded;
-			j["password"] = strPassword;
+			j["password"] = local_to_utf8(strPassword);
 			j["allow_observers"] = bAllowObservers;
 			j["exe_crc"] = TheGlobalData->m_exeCRC;
 			j["ini_crc"] = TheGlobalData->m_iniCRC;

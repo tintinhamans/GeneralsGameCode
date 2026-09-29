@@ -611,9 +611,10 @@ void NGMP_OnlineServices_AuthInterface::LogoutOfMyAccount()
 	// delete local credentials cache
 	std::string strCredentialsCachePath = GetCredentialsFilePath();
 
-	if (std::filesystem::exists(strCredentialsCachePath))
+	std::error_code ec;
+	if (std::filesystem::exists(strCredentialsCachePath, ec))
 	{
-		std::filesystem::remove(strCredentialsCachePath);
+		std::filesystem::remove(strCredentialsCachePath, ec);
 	}
 }
 
@@ -632,30 +633,49 @@ void NGMP_OnlineServices_AuthInterface::SaveCredentials(const char* szRefreshTok
 
 	std::string strData = root.dump(1);
 
-	FILE* file = fopen(GetCredentialsFilePath().c_str(), "wb");
-	if (file)
-	{
+	// encrypt before touching the file so a failure doesn't truncate the credentials already stored
+	std::string strFileData;
 #if defined(GENERALS_ONLINE_ENCRYPT_CREDENTIALS)
-		DATA_BLOB inputBlob;
-		DATA_BLOB outputBlob;
+	DATA_BLOB inputBlob;
+	DATA_BLOB outputBlob;
 
-		inputBlob.pbData = (BYTE*)strData.c_str();
-		inputBlob.cbData = static_cast<DWORD>(strData.size());
+	inputBlob.pbData = (BYTE*)strData.c_str();
+	inputBlob.cbData = static_cast<DWORD>(strData.size());
 
-		if (CryptProtectData(&inputBlob, L"GO Credentials", nullptr, nullptr, nullptr, 0, &outputBlob))
-		{
-			fwrite(outputBlob.pbData, 1, outputBlob.cbData, file);
-			LocalFree(outputBlob.pbData);
-		}
-		else
-		{
-			// TODO_JWT: Handle failure case
-		}
+	if (CryptProtectData(&inputBlob, L"GO Credentials", nullptr, nullptr, nullptr, 0, &outputBlob))
+	{
+		strFileData.assign((const char*)outputBlob.pbData, outputBlob.cbData);
+		LocalFree(outputBlob.pbData);
+	}
+	else
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to encrypt credentials, keeping the stored ones");
+		return;
+	}
 #else
-		fwrite(strData.data(), 1, strData.size(), file);
+	strFileData = strData;
 #endif
 
-		fclose(file);
+	// write to a temp file and swap it in so a failed write never leaves truncated credentials
+	std::string strCredentialsPath = GetCredentialsFilePath();
+	std::string strTempPath = strCredentialsPath + ".tmp";
+	bool bSaved = false;
+	FILE* file = fopen(strTempPath.c_str(), "wb");
+	if (file)
+	{
+		bSaved = fwrite(strFileData.data(), 1, strFileData.size(), file) == strFileData.size();
+		if (fclose(file) != 0)
+			bSaved = false;
+	}
+
+	if (bSaved)
+		bSaved = MoveFileExA(strTempPath.c_str(), strCredentialsPath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+
+	if (!bSaved)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Failed to save credentials");
+		std::error_code ec;
+		std::filesystem::remove(strTempPath, ec);
 	}
 }
 
