@@ -11,20 +11,20 @@
 /* ---- Columns ------------------------------------------------------------------------------- */
 .details-col
 {
-	width: 340dp;
+	width: 360dp;
 }
 
 .players-col
 {
-	width: 260dp;
+	width: 300dp;
 }
 
-/* The game card is as tall as its content, so the shell map shows under it; the roster scrolls. */
+/* The game card fills its column; a long member list scrolls inside it, as does the roster. */
 .details
 {
 	display: flex;
 	flex-direction: column;
-	flex: 0 1 auto;
+	flex: 1 1 0%;
 	min-height: 0;
 }
 
@@ -38,7 +38,7 @@
 
 .room-select
 {
-	width: 240dp;
+	width: 300dp;
 }
 
 /* ---- Game list ------------------------------------------------------------------------------- */
@@ -48,7 +48,7 @@
 	flex-direction: column;
 	flex: 1 1 0%;
 	min-height: 0;
-	padding-bottom: 8dp;
+	padding-bottom: 10dp;
 }
 
 .toolbar
@@ -63,15 +63,15 @@
 
 .toolbar .seg, .toolbar .icon-btn
 {
-	margin-bottom: 8dp;
+	margin-bottom: 10dp;
 }
 
 .screen .toolbar .icon-btn
 {
-	width: 36dp;
-	height: 36dp;
-	padding: 5dp;
-	margin-right: 12dp;
+	width: 45dp;
+	height: 45dp;
+	padding: 6dp;
+	margin-right: 15dp;
 	background-color: #05070FC8;
 	border: 1dp #8080FF28;
 }
@@ -106,16 +106,16 @@
 
 .game-lock
 {
-	flex: 0 0 18dp;
-	height: 16dp;
-	margin-right: 8dp;
+	flex: 0 0 23dp;
+	height: 20dp;
+	margin-right: 10dp;
 }
 
 .game-lock mappedimage
 {
 	display: block;
-	width: 16dp;
-	height: 16dp;
+	width: 20dp;
+	height: 20dp;
 }
 
 .game-name
@@ -135,8 +135,8 @@
 
 .game-map
 {
-	flex: 0 0 200dp;
-	margin-left: 12dp;
+	flex: 0 0 250dp;
+	margin-left: 15dp;
 	color: #A9B1CF;
 	white-space: nowrap;
 	overflow: hidden;
@@ -148,27 +148,27 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	flex: 0 0 52dp;
-	margin-left: 8dp;
+	flex: 0 0 65dp;
+	margin-left: 10dp;
 	opacity: 0.8;
 }
 
 .flag-observers
 {
-	width: 22dp;
-	height: 15dp;
-	margin-right: 6dp;
+	width: 28dp;
+	height: 19dp;
+	margin-right: 8dp;
 }
 
 .flag-stats
 {
-	width: 12dp;
-	height: 12dp;
+	width: 15dp;
+	height: 15dp;
 }
 
 .game-players
 {
-	flex: 0 0 48dp;
+	flex: 0 0 60dp;
 	text-align: right;
 	font-weight: bold;
 	color: #EEF1FA;
@@ -191,8 +191,8 @@
 	flex-direction: row;
 	align-items: flex-end;
 	flex: 0 0 auto;
-	height: 14dp;
-	margin-left: 16dp;
+	height: 18dp;
+	margin-left: 20dp;
 }
 
 .bar
@@ -202,9 +202,9 @@
 	background-color: #3CD28C;
 }
 
-.b1 { height: 6dp; }
-.b2 { height: 10dp; }
-.b3 { height: 14dp; }
+.b1 { height: 8dp; }
+.b2 { height: 13dp; }
+.b3 { height: 18dp; }
 
 .signal.ok .bar { background-color: #E8D440; }
 .signal.ok .b3 { background-color: #FFFFFF26; }
@@ -223,34 +223,34 @@
 	display: flex;
 	flex-direction: column;
 	flex: 0 0 auto;
-	height: 232dp;
+	height: 220dp;
 }
 
 .chat-lines
 {
 	flex: 1 1 0%;
 	min-height: 0;
-	padding-right: 8dp;
+	padding-right: 10dp;
 }
 
 .chat-row
 {
 	display: block;
 	padding: 3dp 0;
-	line-height: 20dp;
+	line-height: 25dp;
 }
 
 .chat-time
 {
-	font-size: 13dp;
+	font-size: 16dp;
 	color: #7079A0;
-	margin-right: 8dp;
+	margin-right: 10dp;
 }
 
 .chat-name
 {
 	font-weight: bold;
-	margin-right: 8dp;
+	margin-right: 10dp;
 }
 
 .chat-body
@@ -264,20 +264,20 @@
 	flex-direction: row;
 	align-items: center;
 	flex: 0 0 auto;
-	margin-top: 10dp;
+	margin-top: 13dp;
 }
 
 .chat-input
 {
 	flex: 1 1 auto;
-	margin-right: 8dp;
+	margin-right: 10dp;
 }
 
 .screen .chat-entry .icon-btn
 {
-	width: 40dp;
-	height: 40dp;
-	padding: 8dp;
+	width: 50dp;
+	height: 50dp;
+	padding: 10dp;
 	background-color: #2F37A8D2;
 	border: 1dp #8080FF;
 }
@@ -290,15 +290,15 @@
 /* ---- Details panel -------------------------------------------------------------------------- */
 .detail-map
 {
-	width: 308dp;
-	height: 308dp;
+	width: 280dp;
+	height: 280dp;
 }
 
 .detail-name
 {
 	display: block;
-	margin-top: 14dp;
-	font-size: 18dp;
+	margin-top: 18dp;
+	font-size: 23dp;
 	font-weight: bold;
 	color: #FFFFFF;
 	white-space: nowrap;
@@ -317,7 +317,12 @@
 {
 	display: flex;
 	flex-direction: row;
-	margin-top: 16dp;
+	margin-top: 20dp;
+}
+
+.facts .stat-label
+{
+	letter-spacing: 0;
 }
 
 .fact
@@ -330,7 +335,7 @@
 {
 	display: block;
 	margin-top: 2dp;
-	font-size: 17dp;
+	font-size: 21dp;
 	font-weight: bold;
 	color: #EEF1FA;
 	white-space: nowrap;
@@ -338,7 +343,7 @@
 
 .fact-value .dot
 {
-	margin-right: 6dp;
+	margin-right: 8dp;
 	vertical-align: middle;
 }
 
@@ -350,7 +355,7 @@
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
-	margin-top: 14dp;
+	margin-top: 18dp;
 }
 
 .tag
@@ -358,35 +363,52 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	height: 26dp;
-	padding: 0 8dp;
-	margin: 0 6dp 6dp 0;
-	font-size: 13dp;
+	height: 33dp;
+	padding: 0 10dp;
+	margin: 0 8dp 8dp 0;
+	font-size: 16dp;
 	color: #D7DCF0;
 	background-color: #2F37A850;
 }
 
 .tag mappedimage
 {
-	width: 14dp;
-	height: 14dp;
-	margin-right: 6dp;
+	width: 18dp;
+	height: 18dp;
+	margin-right: 8dp;
+}
+
+/* The details stack in a column so a long member list scrolls instead of running off the card. */
+.detail-body
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.detail-body .map-frame, .detail-name, .detail-map-name, .facts, .tags
+{
+	flex: 0 0 auto;
 }
 
 .members
 {
 	display: block;
-	margin-top: 10dp;
+	flex: 1 1 0%;
+	min-height: 0;
+	overflow-y: auto;
+	margin-top: 13dp;
 	border-top: 1dp #8080FF28;
-	padding-top: 8dp;
+	padding-top: 10dp;
 }
 
 .member
 {
 	display: block;
-	height: 26dp;
-	line-height: 26dp;
-	padding-left: 10dp;
+	height: 33dp;
+	line-height: 33dp;
+	padding-left: 13dp;
 	border-left: 2dp #8080FF46;
 	margin-bottom: 2dp;
 	color: #D7DCF0;
@@ -415,8 +437,8 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	height: 30dp;
-	padding: 0 8dp 0 6dp;
+	height: 38dp;
+	padding: 0 10dp 0 8dp;
 	border-left: 3dp transparent;
 	color: #D7DCF0;
 	transition: background-color 0.1s cubic-out;
@@ -429,16 +451,16 @@
 
 .rank
 {
-	flex: 0 0 20dp;
-	height: 20dp;
-	margin-right: 8dp;
+	flex: 0 0 25dp;
+	height: 25dp;
+	margin-right: 10dp;
 }
 
 .rank mappedimage
 {
 	display: block;
-	width: 20dp;
-	height: 20dp;
+	width: 25dp;
+	height: 25dp;
 }
 
 .player-name
@@ -460,10 +482,10 @@
 
 .buddy-mark
 {
-	flex: 0 0 8dp;
-	width: 8dp;
-	height: 8dp;
-	margin-left: 6dp;
+	flex: 0 0 10dp;
+	width: 10dp;
+	height: 10dp;
+	margin-left: 8dp;
 	border-radius: 4dp;
 	background-color: #14B1FF;
 }
@@ -495,9 +517,9 @@
 
 .screen .context-menu-item
 {
-	height: 32dp;
-	line-height: 32dp;
-	padding: 0 14dp;
+	height: 36dp;
+	line-height: 36dp;
+	padding: 0 18dp;
 	text-align: left;
 	border-bottom-width: 0;
 	color: #D7DCF0;
@@ -512,17 +534,18 @@
 /* ---- 5:4 and 4:3 ------------------------------------------------------------------------------ */
 @media (max-aspect-ratio: 3/2)
 {
-	.details-col { width: 272dp; }
-	.detail-map { width: 240dp; height: 240dp; }
-	.players-col { width: 210dp; }
-	.game-map { flex-basis: 130dp; }
+	.details-col { width: 300dp; }
+	.detail-map { width: 260dp; height: 260dp; }
+	.players-col { width: 250dp; }
+	.game-map { flex-basis: 163dp; }
 	.game-flags { display: none; }
-	.facts .stat-label { letter-spacing: 0; }
-	.col-side { margin-left: 16dp; }
+	.facts { flex-wrap: wrap; }
+	.fact { flex: 0 0 50%; margin-bottom: 8dp; }
+	.col-side { margin-left: 20dp; }
 }
 
-/* Beside the expanded social dock on 5:4 and 4:3 the game card goes: the list keeps the width. */
-@media (max-aspect-ratio: 3/2)
+/* Beside the expanded social dock the game card goes: the list keeps the width. */
+.dock-open .details-col
 {
-	.dock-open .details-col { display: none; }
+	display: none;
 }

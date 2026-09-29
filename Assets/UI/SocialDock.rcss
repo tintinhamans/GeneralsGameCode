@@ -3,9 +3,9 @@
 	palette (common.rcss). It stays up beside every online shell screen, so it is built to cost the
 	screen nothing while collapsed:
 
-	  collapsed  a 50dp tab in the ruler band at the right edge (outside every screen's content):
+	  collapsed  a 63dp tab in the ruler band at the right edge (outside every screen's content):
 	             friends online, a badge for unread conversations plus friend requests.
-	  expanded   a 340dp side panel down the right of the frame. The host screen makes room for it
+	  expanded   a 390dp side panel down the right of the frame. The host screen makes room for it
 	             (body.dock-open, see common.rcss), so it never covers the screen's own actions.
 	             Three views: friends and requests, the block list, one conversation.
 
@@ -28,10 +28,10 @@ body
 	position: fixed;
 	right: 0.6%;
 	top: 38%;
-	width: 50dp;
+	width: 63dp;
 	height: auto;
-	line-height: 20dp;
-	padding: 12dp 0 8dp 0;
+	line-height: 25dp;
+	padding: 15dp 0 10dp 0;
 	background-color: #070A1AEB;
 	border: 1dp #8080FF46;
 	border-left: 2dp #3A46D0;
@@ -56,15 +56,15 @@ body
 .tab-icon, .head-icon
 {
 	display: block;
-	width: 20dp;
-	height: 20dp;
+	width: 25dp;
+	height: 25dp;
 }
 
 .icon-head
 {
 	display: block;
-	width: 8dp;
-	height: 8dp;
+	width: 10dp;
+	height: 10dp;
 	margin: 0 auto 2dp auto;
 	border-radius: 4dp;
 	background-color: #A9B1CF;
@@ -73,10 +73,10 @@ body
 .icon-body
 {
 	display: block;
-	width: 16dp;
-	height: 8dp;
+	width: 20dp;
+	height: 10dp;
 	margin: 0 auto;
-	border-radius: 8dp 8dp 0 0;
+	border-radius: 10dp 10dp 0 0;
 	background-color: #A9B1CF;
 }
 
@@ -90,38 +90,38 @@ body
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	margin-top: 10dp;
-	height: 18dp;
-	font-size: 15dp;
+	margin-top: 13dp;
+	height: 23dp;
+	font-size: 19dp;
 	font-weight: bold;
 	color: #D7DCF0;
 }
 
 .tab-count
 {
-	font-size: 16dp;
+	font-size: 20dp;
 	font-weight: normal;
-	line-height: 18dp;
+	line-height: 23dp;
 }
 
 .tab-online .dot
 {
-	flex: 0 0 8dp;
-	margin-right: 5dp;
+	flex: 0 0 10dp;
+	margin-right: 6dp;
 }
 
 .tab-badge
 {
 	display: block;
-	margin-top: 8dp;
-	min-width: 24dp;
-	height: 22dp;
-	line-height: 22dp;
+	margin-top: 10dp;
+	min-width: 30dp;
+	height: 28dp;
+	line-height: 28dp;
 	padding: 0 4dp;
 	box-sizing: border-box;
-	border-radius: 11dp;
+	border-radius: 14dp;
 	text-align: center;
-	font-size: 13dp;
+	font-size: 16dp;
 	font-weight: bold;
 	color: #1A0C02;
 	background-color: #F07A1A;
@@ -130,9 +130,9 @@ body
 .tab-chevron
 {
 	display: block;
-	margin-top: 6dp;
-	font-size: 28dp;
-	line-height: 26dp;
+	margin-top: 8dp;
+	font-size: 35dp;
+	line-height: 33dp;
 	color: #8080FF;
 }
 
@@ -144,10 +144,10 @@ body
 	box-sizing: border-box;
 	position: fixed;
 	right: 6.6%;
-	top: 8.2%;
-	bottom: 8.6%;
-	width: 340dp;
-	padding: 0 14dp 14dp 14dp;
+	top: 7.9%;
+	bottom: 8.1%;
+	width: 390dp;
+	padding: 0 18dp 18dp 18dp;
 	background-color: #070A1AEB;
 	border-top: 2dp #3A46D0;
 	pointer-events: auto;
@@ -164,7 +164,7 @@ body
 
 @keyframes dock-in
 {
-	from { opacity: 0; margin-right: -24dp; }
+	from { opacity: 0; margin-right: -30dp; }
 	to { opacity: 1; margin-right: 0dp; }
 }
 
@@ -174,17 +174,17 @@ body
 	flex-direction: row;
 	align-items: center;
 	flex: 0 0 auto;
-	height: 48dp;
+	height: 60dp;
 }
 
 .head-icon
 {
-	margin-right: 10dp;
+	margin-right: 13dp;
 }
 
 .dock-title
 {
-	font-size: 15dp;
+	font-size: 19dp;
 	font-weight: bold;
 	letter-spacing: 2dp;
 	color: #EEF1FA;
@@ -193,12 +193,12 @@ body
 
 .screen button.head-btn
 {
-	width: 32dp;
-	height: 32dp;
-	line-height: 28dp;
+	width: 40dp;
+	height: 40dp;
+	line-height: 35dp;
 	padding: 0;
 	text-align: center;
-	font-size: 26dp;
+	font-size: 33dp;
 	color: #A9B1CF;
 	background-color: transparent;
 	border-color: transparent;
@@ -233,7 +233,7 @@ body
 {
 	flex: 1 1 0%;
 	min-height: 0;
-	margin-top: 6dp;
+	margin-top: 8dp;
 	overflow-y: auto;
 }
 
@@ -246,12 +246,12 @@ body
 .section-head
 {
 	display: block;
-	margin: 14dp 0 6dp 4dp;
+	margin: 18dp 0 8dp 4dp;
 }
 
 .section-count
 {
-	margin-left: 8dp;
+	margin-left: 10dp;
 	color: #A9B1CF;
 	letter-spacing: 1dp;
 }
@@ -262,8 +262,8 @@ body
 	flex-direction: row;
 	align-items: center;
 	box-sizing: border-box;
-	height: 50dp;
-	padding: 0 8dp 0 6dp;
+	height: 63dp;
+	padding: 0 10dp 0 8dp;
 	border-left: 3dp transparent;
 	transition: background-color 0.1s cubic-out;
 }
@@ -283,13 +283,13 @@ body
 {
 	display: block;
 	position: relative;
-	flex: 0 0 32dp;
-	width: 32dp;
-	height: 32dp;
-	line-height: 32dp;
-	margin-right: 10dp;
+	flex: 0 0 40dp;
+	width: 40dp;
+	height: 40dp;
+	line-height: 40dp;
+	margin-right: 13dp;
 	text-align: center;
-	font-size: 15dp;
+	font-size: 19dp;
 	font-weight: bold;
 	color: #D7DCF0;
 	background-color: #1E246E;
@@ -301,10 +301,10 @@ body
 	position: absolute;
 	right: 0;
 	bottom: 0;
-	width: 12dp;
-	height: 12dp;
+	width: 15dp;
+	height: 15dp;
 	box-sizing: border-box;
-	border-radius: 6dp;
+	border-radius: 8dp;
 	border: 2dp #070A1A;
 	background-color: #4A5070;
 }
@@ -323,8 +323,8 @@ body
 .name
 {
 	display: block;
-	font-size: 16dp;
-	line-height: 20dp;
+	font-size: 20dp;
+	line-height: 25dp;
 	font-weight: bold;
 	color: #EEF1FA;
 	white-space: nowrap;
@@ -335,8 +335,8 @@ body
 .sub
 {
 	display: block;
-	font-size: 13dp;
-	line-height: 17dp;
+	font-size: 16dp;
+	line-height: 21dp;
 	color: #A9B1CF;
 	white-space: nowrap;
 	overflow: hidden;
@@ -351,15 +351,15 @@ body
 {
 	display: block;
 	flex: 0 0 auto;
-	min-width: 22dp;
-	height: 22dp;
-	line-height: 22dp;
-	padding: 0 5dp;
-	margin-left: 8dp;
+	min-width: 28dp;
+	height: 28dp;
+	line-height: 28dp;
+	padding: 0 6dp;
+	margin-left: 10dp;
 	box-sizing: border-box;
-	border-radius: 11dp;
+	border-radius: 14dp;
 	text-align: center;
-	font-size: 13dp;
+	font-size: 16dp;
 	font-weight: bold;
 	color: #1A0C02;
 	background-color: #F07A1A;
@@ -369,8 +369,8 @@ body
 .person.request
 {
 	height: auto;
-	padding-top: 8dp;
-	padding-bottom: 8dp;
+	padding-top: 10dp;
+	padding-bottom: 10dp;
 	align-items: flex-start;
 }
 
@@ -378,17 +378,17 @@ body
 {
 	display: flex;
 	flex-direction: row;
-	margin-top: 6dp;
+	margin-top: 8dp;
 }
 
 .screen .person button.btn-small
 {
 	flex: 0 0 auto;
-	height: 28dp;
-	line-height: 26dp;
-	padding: 0 12dp;
-	margin-right: 6dp;
-	font-size: 12dp;
+	height: 35dp;
+	line-height: 33dp;
+	padding: 0 15dp;
+	margin-right: 8dp;
+	font-size: 15dp;
 }
 
 .screen .person button.accept
@@ -417,9 +417,9 @@ body
 .dock-empty
 {
 	display: block;
-	padding: 10dp 8dp;
-	font-size: 14dp;
-	line-height: 19dp;
+	padding: 13dp 10dp;
+	font-size: 18dp;
+	line-height: 24dp;
 	color: #7079A0;
 }
 
@@ -430,14 +430,14 @@ body
 	flex-direction: row;
 	align-items: center;
 	flex: 0 0 auto;
-	height: 52dp;
-	padding-bottom: 6dp;
+	height: 65dp;
+	padding-bottom: 8dp;
 	border-bottom: 1dp #8080FF28;
 }
 
 .screen button.head-btn.back
 {
-	margin-right: 8dp;
+	margin-right: 10dp;
 }
 
 .thread-lines
@@ -445,8 +445,8 @@ body
 	display: block;
 	flex: 1 1 0%;
 	min-height: 0;
-	margin-top: 10dp;
-	padding-right: 6dp;
+	margin-top: 13dp;
+	padding-right: 8dp;
 }
 
 /* Their messages hang off a blue rule on the left, mine sit indented with the brand blue; a run from
@@ -454,9 +454,9 @@ body
 .msg
 {
 	display: block;
-	padding: 5dp 10dp;
-	margin: 8dp 28dp 0 0;
-	line-height: 20dp;
+	padding: 6dp 13dp;
+	margin: 10dp 35dp 0 0;
+	line-height: 25dp;
 	color: #EEF1FA;
 	background-color: #141A3E8C;
 	border-left: 2dp #14B1FF;
@@ -469,7 +469,7 @@ body
 
 .msg.mine
 {
-	margin-left: 28dp;
+	margin-left: 35dp;
 	margin-right: 0;
 	background-color: #2F37A866;
 	border-left-color: #8080FF;
@@ -478,7 +478,7 @@ body
 .msg-name
 {
 	display: block;
-	font-size: 13dp;
+	font-size: 16dp;
 	font-weight: bold;
 	letter-spacing: 0.5dp;
 	color: #14B1FF;
@@ -503,20 +503,20 @@ body
 	flex-direction: row;
 	align-items: center;
 	flex: 0 0 auto;
-	margin-top: 10dp;
+	margin-top: 13dp;
 }
 
 .thread-entry .chat-input
 {
 	flex: 1 1 auto;
-	margin-right: 8dp;
+	margin-right: 10dp;
 }
 
 .screen .thread-entry .icon-btn
 {
-	width: 40dp;
-	height: 40dp;
-	padding: 8dp;
+	width: 50dp;
+	height: 50dp;
+	padding: 10dp;
 	background-color: #2F37A8D2;
 	border: 1dp #8080FF;
 }
@@ -548,9 +548,9 @@ body
 
 .screen .context-menu-item
 {
-	height: 32dp;
-	line-height: 32dp;
-	padding: 0 14dp;
+	height: 36dp;
+	line-height: 36dp;
+	padding: 0 18dp;
 	text-align: left;
 	border-bottom-width: 0;
 	color: #D7DCF0;
@@ -562,8 +562,8 @@ body
 	color: #FFFFFF;
 }
 
-/* ---- 5:4 and 4:3: a narrower panel; the host keeps 316dp for it (common.rcss) ------------------------ */
+/* ---- 5:4 and 4:3: a narrower panel; the host keeps 356dp for it (common.rcss) ------------------------ */
 @media (max-aspect-ratio: 3/2)
 {
-	.dock-panel { width: 300dp; padding: 0 10dp 10dp 10dp; }
+	.dock-panel { width: 340dp; padding: 0 12dp 12dp 12dp; }
 }

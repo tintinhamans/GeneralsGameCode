@@ -21,23 +21,23 @@
 .mm-column
 {
 	display: block;
-	flex: 0 0 420dp;
-	margin-top: 36dp;
+	flex: 0 0 525dp;
+	margin-top: 45dp;
 }
 
 /* The logo is fixed dp: mappedimage ignores percentage sizes. 370x120 art. */
 .mm-logo
 {
 	display: block;
-	width: 370dp;
-	height: 120dp;
-	margin: 0 0 24dp 25dp;
+	width: 463dp;
+	height: 150dp;
+	margin: 0 0 30dp 31dp;
 }
 
 .mm-card
 {
 	display: block;
-	padding: 14dp 16dp;
+	padding: 18dp 20dp;
 	background-color: #070A1ADB;
 	border-top: 2dp #8080FF46;
 }
@@ -56,7 +56,7 @@
 
 @keyframes panel-in
 {
-	from { opacity: 0; margin-left: 48dp; }
+	from { opacity: 0; margin-left: 60dp; }
 	to { opacity: 1; margin-left: 0dp; }
 }
 
@@ -64,13 +64,13 @@
 .mm-heading
 {
 	display: block;
-	font-size: 13dp;
+	font-size: 16dp;
 	font-weight: bold;
 	letter-spacing: 3dp;
 	text-transform: uppercase;
 	color: #7079A0;
-	padding-left: 16dp;
-	margin-bottom: 12dp;
+	padding-left: 20dp;
+	margin-bottom: 15dp;
 	white-space: nowrap;
 }
 
@@ -81,11 +81,11 @@
 	flex-direction: row;
 	align-items: center;
 	width: 100%;
-	height: 58dp;
-	line-height: 58dp;
-	padding: 0 20dp 0 16dp;
+	height: 73dp;
+	line-height: 73dp;
+	padding: 0 25dp 0 20dp;
 	text-align: left;
-	font-size: 25dp;
+	font-size: 31dp;
 	letter-spacing: 3dp;
 	color: #D7DCF0;
 	background-color: transparent;
@@ -97,7 +97,7 @@
 .screen button.mm-item:hover
 {
 	color: #FFFFFF;
-	padding-left: 24dp;
+	padding-left: 30dp;
 	border-left-color: #F07A1A;
 	background-color: transparent;
 	decorator: horizontal-gradient(#2F37A8D2 #2F37A800);
@@ -125,7 +125,7 @@
 .mm-more
 {
 	flex: 0 0 auto;
-	font-size: 30dp;
+	font-size: 38dp;
 	color: #8080FF;
 	opacity: 0.6;
 }
@@ -138,22 +138,22 @@
 
 .screen button.mm-quiet, .screen button.mm-back
 {
-	height: 50dp;
-	line-height: 50dp;
-	font-size: 19dp;
+	height: 63dp;
+	line-height: 63dp;
+	font-size: 24dp;
 	color: #A9B1CF;
 }
 
 .mm-back .chevron
 {
-	font-size: 28dp;
-	margin-right: 12dp;
+	font-size: 35dp;
+	margin-right: 15dp;
 }
 
 .mm-rule
 {
 	height: 1dp;
-	margin: 12dp 0 12dp 16dp;
+	margin: 15dp 0 15dp 20dp;
 	background-color: #8080FF28;
 }
 
@@ -162,9 +162,9 @@
 	position: absolute;
 	right: 4dp;
 	bottom: 0;
-	font-size: 13dp;
+	font-size: 16dp;
 	color: #A9B1CF;
-	padding: 2dp 8dp;
+	padding: 2dp 10dp;
 	background-color: #070A1AC8;
 }
 
@@ -174,8 +174,8 @@
 	position: absolute;
 	top: 34%;
 	left: 20%;
-	width: 216dp;
-	height: 216dp;
+	width: 270dp;
+	height: 270dp;
 }
 
 .mm-hero mappedimage
@@ -183,8 +183,8 @@
 	position: absolute;
 	top: 0;
 	left: 0;
-	width: 216dp;
-	height: 216dp;
+	width: 270dp;
+	height: 270dp;
 	opacity: 0;
 	transition: opacity 0.2s cubic-out;
 }

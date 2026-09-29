@@ -87,7 +87,7 @@
 			<div class="col col-side details-col">
 				<div class="surface details">
 					<div class="overline group-title"><gametext key="GUI:GameInfo"/></div>
-					<div data-if="detail_visible">
+					<div class="detail-body" data-if="detail_visible">
 						<div class="map-frame detail-map">
 							<mappreview class="map-image" data-attr-map="detail_map_path"/>
 						</div>

@@ -13,7 +13,7 @@
 	flex: 0 1 auto;
 	max-height: 100%;
 	flex-direction: column;
-	padding-right: 8dp;
+	padding-right: 10dp;
 }
 
 .filter-bar
@@ -22,18 +22,18 @@
 	flex-direction: row;
 	align-items: center;
 	flex: 0 0 auto;
-	margin-bottom: 16dp;
-	padding-right: 8dp;
+	margin-bottom: 20dp;
+	padding-right: 10dp;
 }
 
 .filter-label
 {
-	margin-right: 14dp;
+	margin-right: 18dp;
 }
 
 .count
 {
-	font-size: 22dp;
+	font-size: 28dp;
 	font-weight: bold;
 	color: #A9B1CF;
 }
@@ -54,8 +54,8 @@
 {
 	display: block;
 	box-sizing: border-box;
-	width: 180dp;
-	margin: 0 12dp 14dp 0;
+	width: 225dp;
+	margin: 0 15dp 18dp 0;
 	padding: 4dp;
 	border: 1dp transparent;
 	background-color: #05070FB4;
@@ -78,16 +78,16 @@
 {
 	display: block;
 	position: relative;
-	width: 170dp;
-	height: 170dp;
+	width: 213dp;
+	height: 213dp;
 	background-color: #05070F;
 }
 
 .thumb-image
 {
 	display: block;
-	width: 170dp;
-	height: 170dp;
+	width: 213dp;
+	height: 213dp;
 	opacity: 0.85;
 	transition: opacity 0.12s cubic-out;
 }
@@ -100,24 +100,24 @@
 .thumb-star
 {
 	position: absolute;
-	top: 6dp;
-	left: 6dp;
-	width: 20dp;
-	height: 20dp;
+	top: 8dp;
+	left: 8dp;
+	width: 25dp;
+	height: 25dp;
 }
 
 .thumb-players
 {
 	display: block;
 	position: absolute;
-	top: 6dp;
-	right: 6dp;
-	min-width: 22dp;
-	height: 22dp;
-	line-height: 22dp;
+	top: 8dp;
+	right: 8dp;
+	min-width: 28dp;
+	height: 28dp;
+	line-height: 28dp;
 	padding: 0 4dp;
 	text-align: center;
-	font-size: 14dp;
+	font-size: 18dp;
 	font-weight: bold;
 	color: #FFFFFF;
 	background-color: #05070FC8;
@@ -126,10 +126,10 @@
 .tile-name
 {
 	display: block;
-	height: 32dp;
-	line-height: 32dp;
+	height: 40dp;
+	line-height: 40dp;
 	padding: 0 4dp;
-	font-size: 15dp;
+	font-size: 19dp;
 	color: #D7DCF0;
 	white-space: nowrap;
 	overflow: hidden;
@@ -150,13 +150,13 @@
 /* ---- Selected map card ------------------------------------------------------------------------ */
 .col-side
 {
-	width: 404dp;
+	width: 440dp;
 }
 
 @media (max-aspect-ratio: 3/2)
 {
-	.col-side { width: 332dp; }
-	.map-frame { width: 300dp; height: 300dp; }
-	.tile { width: 156dp; }
-	.thumb, .thumb-image { width: 146dp; height: 146dp; }
+	.col-side { width: 415dp; }
+	.map-frame { width: 375dp; height: 375dp; }
+	.tile { width: 195dp; }
+	.thumb, .thumb-image { width: 183dp; height: 183dp; }
 }
