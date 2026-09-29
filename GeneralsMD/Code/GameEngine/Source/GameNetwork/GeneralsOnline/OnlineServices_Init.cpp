@@ -536,7 +536,8 @@ void NGMP_OnlineServicesManager::ContinueUpdate()
 				{
 					TheDownloadManager->OnProgressUpdate(bytesReceived, downloadSize, -1, -1);
 				}
-			}
+			},
+			30 * 60 * 1000 // the 5s default aborts any real download
 			);
 	}
 	else if (m_vecFilesToDownload.size() == 0 && m_vecFilesDownloaded.size() > 0) // nothing left but we did download something
