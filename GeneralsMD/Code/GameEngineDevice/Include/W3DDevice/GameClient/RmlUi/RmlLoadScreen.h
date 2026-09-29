@@ -64,6 +64,8 @@ private:
 		Rml::String status;
 		Rml::String rankImage;
 		Rml::String medalImage;
+		Rml::String sideImage;
+		bool hasSideImage = false;
 		Rml::String colorHex = "#FFFFFF";
 		Rml::String progressStyle = "0%"; ///< "42%", bound via data-style-width
 		bool used = false; ///< the array is always MAX_SLOTS long; unused rows are hidden
@@ -112,6 +114,8 @@ private:
 	Rml::String m_localFeatures;
 	Rml::String m_localPortrait;
 	Rml::String m_mapName;
+	Rml::String m_mapDisplayName;
+	Rml::String m_gameMode;
 	Rml::String m_currentFile;
 	Rml::String m_timeout;
 	Rml::String m_progressStyle = "0%";

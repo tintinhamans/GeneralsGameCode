@@ -63,6 +63,7 @@ struct LoadScreenPlayerRow
 	UnicodeString m_status; ///< map transfer state text
 	AsciiString m_rankImage; ///< mapped image names, empty for none
 	AsciiString m_medalImage;
+	AsciiString m_sideImage; ///< faction badge (the army's general image, else its side icon), empty for random
 	UnsignedInt m_color = 0xFFFFFF; ///< 0x00RRGGBB
 	Int m_colorIndex = 0; ///< slot's apparent color index, for the legacy house-colored bar
 	Int m_progress = 0; ///< 0..100
@@ -106,6 +107,8 @@ struct LoadScreenData
 	AsciiString m_backgroundImage; ///< mapped image behind the screen, empty for none (original Generals)
 
 	AsciiString m_mapName;
+	UnicodeString m_mapDisplayName; ///< the map's name as the map list shows it
+	UnicodeString m_gameMode; ///< skirmish, network or online, over the map name
 	LoadScreenStartMarker m_markers[MAX_SLOTS];
 
 	UnicodeString m_currentFile; ///< map transfer only

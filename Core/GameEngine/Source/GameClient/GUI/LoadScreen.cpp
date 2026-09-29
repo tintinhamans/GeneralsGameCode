@@ -170,6 +170,11 @@ static void fillLocalGeneral( LoadScreenData &view, const PlayerTemplate *pt, Bo
 static void fillMapView( LoadScreenData &view, GameInfo *game )
 {
 	view.m_mapName = game->getMap();
+	const MapMetaData *md = TheMapCache ? TheMapCache->findMap( game->getMap() ) : nullptr;
+	if (md)
+		view.m_mapDisplayName = md->m_displayName;
+	else
+		view.m_mapDisplayName.translate( game->getMap() );
 	std::vector<GameSetupStartPositionMarker> markers = GameSetupData::computeStartPositionMarkers( game->getMap() );
 	for (Int i = 0; i < MAX_SLOTS && i < (Int)markers.size(); ++i)
 	{
@@ -188,6 +193,29 @@ static void fillMapView( LoadScreenData &view, GameInfo *game )
 		view.m_markers[startPos].m_slotNumber = i + 1;
 		view.m_markers[startPos].m_color = (slot->getTeamNumber() >= 0 ? GetTeamUiColor( slot->getTeamNumber() ) : 0xFFFFFF) & 0xFFFFFF;
 	}
+}
+
+// The badge for the side getSlotSideName() names: the general's image, else the side icon.
+static AsciiString getSlotSideImage( GameSlot *slot )
+{
+#if defined(GO_REVEAL_TEAMS)
+	Int templateNum = slot->getPlayerTemplate();
+#else
+	Int templateNum = slot->getApparentPlayerTemplate();
+#endif
+	const PlayerTemplate *pt = nullptr;
+	if (templateNum >= 0)
+		pt = ThePlayerTemplateStore->getNthPlayerTemplate( templateNum );
+	else if (templateNum == PLAYERTEMPLATE_OBSERVER)
+		pt = ThePlayerTemplateStore->findPlayerTemplate( TheNameKeyGenerator->nameToKey( "FactionObserver" ) );
+	if (!pt)
+		return AsciiString::TheEmptyString;
+#if RTS_GENERALS
+	const Image *image = pt->getSideIconImage();
+#else
+	const Image *image = pt->getGeneralImage() ? pt->getGeneralImage() : pt->getSideIconImage();
+#endif
+	return image ? image->getName() : AsciiString::TheEmptyString;
 }
 
 static UnicodeString getSlotSideName( GameSlot *slot )
@@ -1181,6 +1209,7 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 		row.m_colorIndex = slot->getApparentColor();
 		row.m_color = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor() & 0xFFFFFF;
 		row.m_side = getSlotSideName( slot );
+		row.m_sideImage = getSlotSideImage( slot );
 		row.m_showProgress = !slot->isAI();
 		AsciiString teamStr;
 		teamStr.format("Team:%d", slot->getTeamNumber() + 1);
@@ -1190,6 +1219,7 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 	}
 	data.m_rowCount = netSlot;
 	fillMapView( data, game );
+	data.m_gameMode = TheGameText->fetch( TheGameLogic->getGameMode() == GAME_SKIRMISH ? "GUI:Skirmish" : "GUI:Network" );
 
 	if (usesLegacyView( wndPath ))
 	{
@@ -1388,6 +1418,7 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		row.m_colorIndex = slot->getApparentColor();
 		row.m_color = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor() & 0xFFFFFF;
 		row.m_side = getSlotSideName( slot );
+		row.m_sideImage = getSlotSideImage( slot );
 		row.m_winLoss = info.m_winLoss;
 		row.m_disconnects = info.m_disconnects;
 		row.m_rankImage = info.m_rankImage ? info.m_rankImage->getName() : AsciiString::TheEmptyString;
@@ -1404,6 +1435,7 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 	}
 	data.m_rowCount = netSlot;
 	fillMapView( data, game );
+	data.m_gameMode = TheGameText->fetch( "GUI:GeneralsOnline" );
 
 	if (usesLegacyView( wndPath ))
 	{

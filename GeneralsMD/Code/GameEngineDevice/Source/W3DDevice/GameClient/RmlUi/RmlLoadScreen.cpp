@@ -102,6 +102,8 @@ void RmlLoadScreen::load(Rml::Context *context)
 			rowHandle.RegisterMember("status", &RowModel::status);
 			rowHandle.RegisterMember("rank_image", &RowModel::rankImage);
 			rowHandle.RegisterMember("medal_image", &RowModel::medalImage);
+			rowHandle.RegisterMember("side_image", &RowModel::sideImage);
+			rowHandle.RegisterMember("has_side_image", &RowModel::hasSideImage);
 			rowHandle.RegisterMember("color_hex", &RowModel::colorHex);
 			rowHandle.RegisterMember("progress_style", &RowModel::progressStyle);
 			rowHandle.RegisterMember("used", &RowModel::used);
@@ -146,6 +148,8 @@ void RmlLoadScreen::load(Rml::Context *context)
 		constructor.Bind("local_portrait", &m_localPortrait);
 		constructor.Bind("has_portrait", &m_hasPortrait);
 		constructor.Bind("map_name", &m_mapName);
+		constructor.Bind("map_display_name", &m_mapDisplayName);
+		constructor.Bind("game_mode", &m_gameMode);
 		constructor.Bind("has_map", &m_hasMap);
 		constructor.Bind("current_file", &m_currentFile);
 		constructor.Bind("timeout", &m_timeout);
@@ -196,6 +200,8 @@ void RmlLoadScreen::refresh()
 		row.medalImage = src.m_medalImage.str();
 		row.hasRank = !src.m_rankImage.isEmpty();
 		row.hasMedal = !src.m_medalImage.isEmpty();
+		row.sideImage = src.m_sideImage.str();
+		row.hasSideImage = !src.m_sideImage.isEmpty();
 		row.colorHex = rgbToHex(src.m_color);
 		row.progressStyle = percentStyle((float)src.m_progress);
 		row.showProgress = src.m_showProgress == TRUE;
@@ -219,6 +225,8 @@ void RmlLoadScreen::refresh()
 	m_hasPortrait = !data.m_localPortrait.isEmpty();
 	m_mapName = data.m_mapName.str();
 	m_hasMap = !data.m_mapName.isEmpty();
+	m_mapDisplayName = unicodeToUtf8(data.m_mapDisplayName);
+	m_gameMode = unicodeToUtf8(data.m_gameMode);
 	m_currentFile = unicodeToUtf8(data.m_currentFile);
 	m_timeout = unicodeToUtf8(data.m_timeout);
 	m_progressStyle = percentStyle((float)data.m_progress);
@@ -272,6 +280,8 @@ void RmlLoadScreen::refresh()
 		m_modelHandle.DirtyVariable("has_portrait");
 		m_modelHandle.DirtyVariable("map_name");
 		m_modelHandle.DirtyVariable("has_map");
+		m_modelHandle.DirtyVariable("map_display_name");
+		m_modelHandle.DirtyVariable("game_mode");
 		m_modelHandle.DirtyVariable("current_file");
 		m_modelHandle.DirtyVariable("timeout");
 		m_modelHandle.DirtyVariable("progress_style");
