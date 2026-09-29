@@ -32,6 +32,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlLanGameSetupScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlLanLobbyScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlLanMapSelectScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlLoadScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlMessageBox.h"
 #include "W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h"
@@ -236,6 +237,9 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/LocalDefeat.wnd", &OpenRmlLocalDefeatScreen, &CloseRmlLocalDefeatScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/ObserverQuit.wnd", &OpenRmlObserverQuitScreen, &CloseRmlObserverQuitScreen);
 
+	// MapTransferLoadScreen::init() creates this via winCreateFromScript(); see RmlLoadScreen.h.
+	RmlUiScreenRegistry::registerScreen("Menus/MapTransferScreen.wnd", &OpenRmlMapTransferScreen, &CloseRmlMapTransferScreen);
+
 	// GameWindowManager::gogoMessageBox() looks this hook up the same way, gated on
 	// !m_useLegacyMenus; see RmlUiMessageBoxHook.h.
 	RegisterRmlMessageBoxHook(m_context);
@@ -313,6 +317,7 @@ void RmlUiManager::update()
 {
 	if (m_currentScreen)
 		m_currentScreen->update();
+	RmlLoadScreen::tick();
 	if (m_context)
 		m_context->Update();
 	updateTooltip();

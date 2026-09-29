@@ -204,6 +204,7 @@ set(GAMEENGINE_SRC
     Include/GameClient/LanguageFilter.h
     Include/GameClient/Line2D.h
     Include/GameClient/LoadScreen.h
+    Include/GameClient/LoadScreenData.h
     Include/GameClient/LookAtXlat.h
     Include/GameClient/MapUtil.h
 #    Include/GameClient/MessageBox.h

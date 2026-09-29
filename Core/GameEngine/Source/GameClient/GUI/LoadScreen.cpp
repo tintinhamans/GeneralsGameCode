@@ -60,6 +60,7 @@
 #include "Common/GameEngine.h"
 #include "Common/GameLOD.h"
 #include "Common/GameState.h"
+#include "Common/GlobalData.h"
 #include "Common/MessageStream.h"
 #include "Common/MultiplayerSettings.h"
 #include "Common/Player.h"
@@ -75,8 +76,10 @@
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/Keyboard.h"
 #include "GameClient/LoadScreen.h"
+#include "GameClient/LoadScreenData.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/Mouse.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/Shell.h"
 #include "GameClient/VideoPlayer.h"
 #include "GameClient/WindowLayout.h"
@@ -117,6 +120,12 @@ bool g_bHasDoneSOGScreenshot = false;
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
 
+// RmlUi draws a load screen instead of its .wnd when the path is registered and -wnd wasn't given.
+static Bool shouldUseRml( const char *wndPath )
+{
+	return TheGlobalData && !TheGlobalData->m_useLegacyMenus && RmlUiScreenRegistry::isRegistered( AsciiString( wndPath ) );
+}
+
 //-----------------------------------------------------------------------------
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
@@ -151,6 +160,7 @@ static const Int TELETYPE_UPDATE_FREQ = 2; // how many frames between teletype u
 LoadScreen::LoadScreen()
 {
 	m_loadScreen = nullptr;
+	m_useRml = FALSE;
 }
 
 LoadScreen::~LoadScreen()
@@ -1932,17 +1942,44 @@ MapTransferLoadScreen::~MapTransferLoadScreen()
 
 void MapTransferLoadScreen::init( GameInfo *game )
 {
+	m_useRml = shouldUseRml( "Menus/MapTransferScreen.wnd" );
+	if (m_useRml)
+		LoadScreenData::instance().reset();
+
 	// create the layout of the load screen
 	m_loadScreen = TheWindowManager->winCreateFromScript( "Menus/MapTransferScreen.wnd" );
 	DEBUG_ASSERTCRASH(m_loadScreen, ("Can't initialize the map transfer loadscreen"));
 	if (!m_loadScreen)
 		return;
 
-	m_loadScreen->winHide(FALSE);
-	m_loadScreen->winBringToTop();
-
 	DEBUG_ASSERTCRASH(TheNetwork, ("Where the Heck is the Network?!!!!"));
 	DEBUG_LOG(("NumPlayers %d", TheNetwork->getNumPlayers()));
+
+	if (m_useRml)
+	{
+		LoadScreenData &view = LoadScreenData::instance();
+		Int rmlSlot = 0;
+		for (Int slotNum = 0; slotNum < MAX_SLOTS; ++slotNum)
+		{
+			GameSlot *slot = game->getSlot(slotNum);
+			if (!slot || !slot->isHuman())
+				continue;
+
+			LoadScreenPlayerRow &row = view.m_rows[rmlSlot];
+			row.m_name = slot->getName();
+			row.m_color = TheMultiplayerSettings->getColor(slot->getApparentColor())->getColor() & 0xFFFFFF;
+			const GameSlot *gameInfoSlot = TheGameInfo->getConstSlot(slotNum);
+			row.m_showProgress = !(slotNum == 0 || (gameInfoSlot && gameInfoSlot->isHuman() && gameInfoSlot->hasMap()));
+			m_playerLookup[slotNum] = rmlSlot;
+			rmlSlot++;
+		}
+		view.m_rowCount = rmlSlot;
+		view.touch();
+		return;
+	}
+
+	m_loadScreen->winHide(FALSE);
+	m_loadScreen->winBringToTop();
 
 	AsciiString winName;
 	Int i;
@@ -2055,6 +2092,14 @@ void MapTransferLoadScreen::processProgress(Int playerId, Int percentage, AsciiS
 	m_oldProgress[playerId] = percentage;
 
 	Int translatedSlot = m_playerLookup[playerId];
+	if (m_useRml)
+	{
+		LoadScreenData &view = LoadScreenData::instance();
+		view.m_rows[translatedSlot].m_progress = percentage;
+		view.m_rows[translatedSlot].m_status = TheGameText->fetch(stateStr);
+		view.touch();
+		return;
+	}
 	if(m_progressBars[translatedSlot])
 		GadgetProgressBarSetProgress(m_progressBars[translatedSlot], percentage );
 	if (m_progressText[translatedSlot])
@@ -2067,22 +2112,34 @@ void MapTransferLoadScreen::processTimeout(Int secondsLeft)
 		return;
 	m_oldTimeout = secondsLeft;
 
-	if (m_timeoutText)
+	if (m_timeoutText || m_useRml)
 	{
 		UnicodeString txt;
 		txt.format(TheGameText->fetch("MapTransfer:Timeout"), (secondsLeft/60), (secondsLeft%60));
-		GadgetStaticTextSetText(m_timeoutText, txt);
+		if (m_useRml)
+		{
+			LoadScreenData::instance().m_timeout = txt;
+			LoadScreenData::instance().touch();
+		}
+		else
+			GadgetStaticTextSetText(m_timeoutText, txt);
 	}
 }
 
 void MapTransferLoadScreen::setCurrentFilename(AsciiString filename)
 {
-	if (m_fileNameText)
+	if (m_fileNameText || m_useRml)
 	{
 		UnicodeString txt;
 		txt.translate(TheGameState->getMapLeafName(filename));
 		txt.format(TheGameText->fetch("MapTransfer:CurrentFile"), txt.str());
-		GadgetStaticTextSetText(m_fileNameText, txt);
+		if (m_useRml)
+		{
+			LoadScreenData::instance().m_currentFile = txt;
+			LoadScreenData::instance().touch();
+		}
+		else
+			GadgetStaticTextSetText(m_fileNameText, txt);
 	}
 }
 

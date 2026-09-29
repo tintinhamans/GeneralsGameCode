@@ -1,0 +1,57 @@
+/*
+	MapTransfer.rcss -- MapTransferScreen.wnd: player, progress and status columns over the
+	load page, plus the current file and abort countdown. Geometry is the .wnd's 800x600 rects.
+*/
+
+.transfer-frame { left: 8.75%; top: 9.333%; width: 82.625%; height: 82.667%; }
+.transfer-line { left: 8.75%; top: 16.333%; width: 82.625%; }
+.transfer-title { left: 8.875%; top: 9.5%; width: 39%; height: 7.333%; }
+
+.transfer-file
+{
+	position: absolute;
+	left: 23.75%;
+	top: 20.667%;
+	width: 55.5%;
+	height: 6%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	font-size: 18dp;
+	color: #FFFFFF;
+}
+
+.transfer-name-column { left: 11.25%; top: 28%; width: 26%; height: 38%; }
+.transfer-progress-column { left: 39.75%; top: 28%; width: 22%; height: 38%; }
+.transfer-status-column { left: 64.25%; top: 28%; width: 26%; height: 38%; }
+
+.transfer-name-column .load-column-title { left: 8.17%; }
+.transfer-progress-column .load-column-title { left: 7.4%; }
+.transfer-status-column .load-column-title { left: 14.4%; }
+
+.transfer-rows
+{
+	position: absolute;
+	top: 11.4%;
+	bottom: 0dp;
+}
+
+.transfer-name-column .transfer-rows { left: 8.17%; width: 86.5%; }
+.transfer-progress-column .transfer-rows { left: 7.4%; width: 84%; }
+.transfer-status-column .transfer-rows { left: 3.8%; width: 92.3%; }
+
+.transfer-timeout
+{
+	position: absolute;
+	left: 64.25%;
+	top: 84.667%;
+	width: 26%;
+	height: 6%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	font-size: 18dp;
+	color: #FFFFFF;
+}

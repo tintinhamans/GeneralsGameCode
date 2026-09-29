@@ -1,0 +1,48 @@
+<rml>
+<head>
+	<title>MapTransfer</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="LoadScreen.rcss"/>
+	<link type="text/rcss" href="MapTransfer.rcss"/>
+</head>
+<body data-model="maptransfer">
+	<mappedimage class="shell-background" name="LoadPageHuge"/>
+
+	<div class="load-frame transfer-frame"></div>
+	<div class="load-title-line transfer-line"></div>
+	<div class="load-title transfer-title"><gametext key="GUI:Loading"/></div>
+
+	<div class="transfer-file"><div>{{current_file}}</div></div>
+
+	<div class="load-column transfer-name-column">
+		<div class="load-column-title"><gametext key="GUI:PlayerName"/></div>
+		<div class="transfer-rows">
+			<div class="load-line" data-for="row : rows">
+				<div class="load-cell boxed" data-if="row.used" data-style-color="row.color_hex">{{row.name}}</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="load-column transfer-progress-column">
+		<div class="load-column-title"><gametext key="GUI:Progress"/></div>
+		<div class="transfer-rows">
+			<div class="load-line" data-for="row : rows">
+				<div class="load-bar" data-if="row.used" data-class-invisible="!row.show_progress">
+					<div class="load-bar-fill" data-style-width="row.progress_style" data-style-background-color="row.color_hex"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="load-column transfer-status-column">
+		<div class="load-column-title"><gametext key="GUI:Status"/></div>
+		<div class="transfer-rows">
+			<div class="load-line" data-for="row : rows">
+				<div class="load-cell" data-if="row.used" data-style-color="row.color_hex">{{row.status}}</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="transfer-timeout"><div>{{timeout}}</div></div>
+</body>
+</rml>

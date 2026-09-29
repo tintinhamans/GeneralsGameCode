@@ -1,0 +1,105 @@
+/*
+	LoadScreen.rcss -- pieces shared by the network load screens (MapTransfer.rml,
+	MultiplayerLoad.rml, GameSpyLoad.rml). Positions are body percentages of the .wnd's
+	800x600 space, so the layout stretches the way the original does at any aspect ratio;
+	row heights are dp because dp follows screen height like the vertical percentages do.
+*/
+
+body
+{
+	width: 100%;
+	height: 100%;
+}
+
+.load-frame
+{
+	position: absolute;
+	background-color: rgba(2, 2, 2, 129);
+}
+
+.load-title-line
+{
+	position: absolute;
+	height: 0dp;
+	border-top: 2dp #2F37A8;
+}
+
+.load-title
+{
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	padding-left: 8dp;
+	padding-bottom: 6dp;
+	box-sizing: border-box;
+	font-size: 40dp;
+	color: #FFFFFF;
+}
+
+.load-column
+{
+	position: absolute;
+	box-sizing: border-box;
+	background-color: #000000;
+}
+
+.load-column-title
+{
+	position: absolute;
+	top: 0dp;
+	height: 44dp;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	font-size: 26dp;
+	color: #FFFFFF;
+	white-space: nowrap;
+}
+
+/* One line per player; the data-for wrapper is display:block so unused rows collapse. The pitch
+   is the wrapper's fixed height, so no row has a trailing margin to overflow the column. */
+.load-line
+{
+	display: block;
+	height: 43dp;
+}
+
+.load-cell
+{
+	box-sizing: border-box;
+	height: 36dp;
+	padding: 6dp 8dp 0dp 8dp;
+	font-size: 17dp;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.load-cell.boxed
+{
+	background-color: rgba(2, 2, 2, 200);
+	border: 2dp #2F37A8;
+	text-align: center;
+}
+
+.load-bar
+{
+	display: flex;
+	width: 100%;
+	box-sizing: border-box;
+	height: 36dp;
+	background-color: rgba(2, 2, 2, 200);
+	border: 2dp #2F37A8;
+}
+
+/* Bars the .wnd hides (host, or a player who already has the map) keep their slot. */
+.load-bar.invisible
+{
+	visibility: hidden;
+}
+
+.load-bar-fill
+{
+	flex: 0 0 auto;
+}

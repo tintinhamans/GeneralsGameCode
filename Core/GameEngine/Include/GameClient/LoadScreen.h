@@ -66,6 +66,7 @@ public:
 protected:
 	void setLoadScreen( GameWindow *g ) { m_loadScreen = g; }
 	GameWindow *m_loadScreen;		///< The GameWindow that is our loadscreen
+	Bool m_useRml;							///< RmlUi draws this screen, fed through LoadScreenData; m_loadScreen is an empty placeholder
 
 private:
 
