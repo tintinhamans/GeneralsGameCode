@@ -16,7 +16,7 @@
 		</div>
 
 		<div class="map-select-body">
-			<div class="map-list scroll-container">
+			<div class="map-list list-box scroll-container">
 				<div data-for="entry : maps">
 					<div class="list-row flex map-row" data-if="entry.used" data-class-selected="entry.is_selected"
 						data-event-click="map_selected(entry.map_name)" data-event-dblclick="map_activated(entry.map_name)">
@@ -36,9 +36,9 @@
 			</div>
 		</div>
 
-		<div class="footer">
-			<button data-event-click="back"><gametext key="GUI:CancelMapSelect"/></button>
-			<button data-attrif-disabled="!has_selection" data-event-click="ok"><gametext key="GUI:Accept"/></button>
+		<div class="footer footer-split">
+			<button class="btn-primary" data-attrif-disabled="!has_selection" data-event-click="ok"><gametext key="GUI:Accept"/></button>
+			<button class="btn-primary" data-event-click="back"><gametext key="GUI:CancelMapSelect"/></button>
 		</div>
 	</div>
 </body>

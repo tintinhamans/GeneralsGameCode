@@ -12,43 +12,80 @@
 		<div class="shell-title-bar"><gametext key="GUI:Skirmish"/></div>
 
 		<div class="setup-body">
-			<div class="scroll-container slot-list">
-				<div class="slot-row slot-header">
-					<div class="slot-occupant"><gametext key="GUI:Players"/></div>
-					<div class="slot-color"><gametext key="GUI:Color"/></div>
-					<div class="slot-faction"><gametext key="GUI:Faction"/></div>
-					<div class="slot-team"><gametext key="GUI:Team"/></div>
-				</div>
-				<div class="slot-row" data-for="row : slots">
-					<select class="slot-occupant" data-if="!row.is_human_occupant" data-value="row.occupant_state" data-attrif-disabled="!row.can_edit_occupant"
-						data-event-change="slot_occupant_changed(row.slot_index)">
-						<option value="0"><gametext key="GUI:Open"/></option>
-						<option value="1"><gametext key="GUI:Closed"/></option>
-						<option value="2"><gametext key="GUI:EasyAI"/></option>
-						<option value="3"><gametext key="GUI:MediumAI"/></option>
-						<option value="4"><gametext key="GUI:HardAI"/></option>
-						<option value="5" data-if="row.is_human_occupant">{{row.player_name}}</option>
-					</select>
-					<div class="slot-name" data-if="row.is_human_occupant">{{row.player_name}}</div>
-					<div class="slot-color">
-						<select data-value="row.color" data-attrif-disabled="!row.can_edit || !row.is_occupied"
-							data-event-change="slot_color_changed(row.slot_index)">
-							<option data-for="opt : row.color_options" data-attr-value="opt.value"><span class="color-swatch" data-style-background-color="opt.swatch"></span>{{opt.label}}</option>
-						</select>
+			<div class="setup-main">
+				<div class="slot-table">
+					<div class="slot-row slot-header">
+						<div class="slot-occupant"><gametext key="GUI:Players"/></div>
+						<div class="slot-color"><gametext key="GUI:Color"/></div>
+						<div class="slot-faction"><gametext key="GUI:Faction"/></div>
+						<div class="slot-team"><gametext key="GUI:Team"/></div>
 					</div>
-					<select class="slot-faction" data-if="!row.is_human_occupant" data-value="row.player_template"
-						data-attrif-disabled="!row.can_edit || !row.is_occupied" data-event-change="slot_faction_changed(row.slot_index)">
-						<option data-for="opt : faction_options" data-attr-value="opt.value">{{opt.label}}</option>
-					</select>
-					<div class="slot-faction" data-if="row.is_human_occupant">{{row.faction_label}}</div>
-					<select class="slot-team" data-value="row.team_number" data-attrif-disabled="!row.can_edit || !row.is_occupied"
-						data-event-change="slot_team_changed(row.slot_index)">
-						<option value="-1"><gametext key="Team:0"/></option>
-						<option value="0"><gametext key="Team:1"/></option>
-						<option value="1"><gametext key="Team:2"/></option>
-						<option value="2"><gametext key="Team:3"/></option>
-						<option value="3"><gametext key="Team:4"/></option>
-					</select>
+					<div class="slot-row" data-for="row : slots" data-class-empty="!row.is_occupied">
+						<div class="slot-occupant">
+							<select data-if="!row.is_human_occupant" data-value="row.occupant_state" data-attrif-disabled="!row.can_edit_occupant"
+								data-event-change="slot_occupant_changed(row.slot_index)">
+								<option value="0"><gametext key="GUI:Open"/></option>
+								<option value="1"><gametext key="GUI:Closed"/></option>
+								<option value="2"><gametext key="GUI:EasyAI"/></option>
+								<option value="3"><gametext key="GUI:MediumAI"/></option>
+								<option value="4"><gametext key="GUI:HardAI"/></option>
+								<option value="5" data-if="row.is_human_occupant">{{row.player_name}}</option>
+							</select>
+							<div class="slot-name" data-if="row.is_human_occupant">{{row.player_name}}</div>
+						</div>
+						<div class="slot-color">
+							<select data-value="row.color" data-attrif-disabled="!row.can_edit || !row.is_occupied"
+								data-event-change="slot_color_changed(row.slot_index)">
+								<option data-for="opt : row.color_options" data-attr-value="opt.value"><span class="color-swatch" data-style-background-color="opt.swatch"></span>{{opt.label}}</option>
+							</select>
+						</div>
+						<div class="slot-faction">
+							<select data-value="row.player_template" data-attrif-disabled="!row.can_edit || !row.is_occupied"
+								data-event-change="slot_faction_changed(row.slot_index)">
+								<option data-for="opt : faction_options" data-attr-value="opt.value">{{opt.label}}</option>
+							</select>
+						</div>
+						<div class="slot-team">
+							<select data-value="row.team_number" data-attrif-disabled="!row.can_edit || !row.is_occupied"
+								data-event-change="slot_team_changed(row.slot_index)">
+								<option value="-1"><gametext key="Team:0"/></option>
+								<option value="0"><gametext key="Team:1"/></option>
+								<option value="1"><gametext key="Team:2"/></option>
+								<option value="2"><gametext key="Team:3"/></option>
+								<option value="3"><gametext key="Team:4"/></option>
+							</select>
+						</div>
+					</div>
+				</div>
+
+				<div class="setup-lower">
+					<div class="panel-box">
+						<div class="row">
+							<div class="label"><gametext key="GUI:StartingMoney"/></div>
+							<select class="control" data-value="starting_cash" data-event-change="starting_cash_changed" data-tooltip="TOOLTIP:StartingMoney">
+								<option data-for="opt : starting_cash_options" data-attr-value="opt.value">{{opt.label}}</option>
+							</select>
+						</div>
+						<div class="row">
+							<div class="label"><gametext key="GUI:LimitSuperweapons"/></div>
+							<div class="control">
+								<input class="checkbox" type="checkbox" data-checked="superweapons_restricted" data-event-change="superweapons_changed" data-tooltip="TOOLTIP:LimitSuperweapons"/>
+							</div>
+						</div>
+						<div class="row">
+							<div class="label"><gametext key="GUI:GameSpeed"/></div>
+							<input class="control range" type="range" min="15" max="61" step="1" data-value="game_speed_slider_pos" data-event-change="game_speed_changed" data-tooltip="GUI:AdjustGameSpeed"/>
+						</div>
+					</div>
+
+					<div class="panel-box honors-panel" data-tooltip="TOOLTIP:BattleHonors">
+						<div class="row"><div class="label"><gametext key="GUI:CareerWins"/></div><div class="control">{{honor_wins}}</div></div>
+						<div class="row"><div class="label"><gametext key="GUI:CareerLosses"/></div><div class="control">{{honor_losses}}</div></div>
+						<div class="row"><div class="label"><gametext key="GUI:CurrentWinStreak"/></div><div class="control">{{honor_win_streak}}</div></div>
+						<div class="row"><div class="label"><gametext key="GUI:BestWinStreak"/></div><div class="control">{{honor_best_win_streak}}</div></div>
+						<div class="spacer"></div>
+						<button class="honors-reset" data-event-click="reset_honors"><gametext key="GUI:ResetHonors"/></button>
+					</div>
 				</div>
 			</div>
 
@@ -68,35 +105,12 @@
 				</div>
 				<div class="map-display-name"><gametext key="GUI:MapPreview"/>: {{map_display_name}}</div>
 				<button data-event-click="select_map"><gametext key="GUI:SelectMap"/></button>
-
-				<div class="row">
-					<div class="label"><gametext key="GUI:StartingMoney"/></div>
-					<select class="control" data-value="starting_cash" data-event-change="starting_cash_changed" data-tooltip="TOOLTIP:StartingMoney">
-						<option data-for="opt : starting_cash_options" data-attr-value="opt.value">{{opt.label}}</option>
-					</select>
-				</div>
-				<div class="row">
-					<div class="label"><gametext key="GUI:LimitSuperweapons"/></div>
-					<input class="control checkbox" type="checkbox" data-checked="superweapons_restricted" data-event-change="superweapons_changed" data-tooltip="TOOLTIP:LimitSuperweapons"/>
-				</div>
-				<div class="row">
-					<div class="label"><gametext key="GUI:GameSpeed"/></div>
-					<input class="control range" type="range" min="15" max="61" step="1" data-value="game_speed_slider_pos" data-event-change="game_speed_changed" data-tooltip="GUI:AdjustGameSpeed"/>
-				</div>
-
-				<div class="honors-panel" data-tooltip="TOOLTIP:BattleHonors">
-					<div class="honors-row"><gametext key="GUI:CareerWins"/>: {{honor_wins}}</div>
-					<div class="honors-row"><gametext key="GUI:CareerLosses"/>: {{honor_losses}}</div>
-					<div class="honors-row"><gametext key="GUI:CurrentWinStreak"/>: {{honor_win_streak}}</div>
-					<div class="honors-row"><gametext key="GUI:BestWinStreak"/>: {{honor_best_win_streak}}</div>
-					<button data-event-click="reset_honors"><gametext key="GUI:ResetHonors"/></button>
-				</div>
 			</div>
 		</div>
 
 		<div class="footer footer-split">
-			<button class="button-lg" data-event-click="start"><gametext key="GUI:Start"/></button>
-			<button class="button-lg" data-event-click="back"><gametext key="GUI:GotoMainMenu"/></button>
+			<button class="btn-primary" data-event-click="start"><gametext key="GUI:Start"/></button>
+			<button class="btn-primary" data-event-click="back"><gametext key="GUI:GotoMainMenu"/></button>
 		</div>
 	</div>
 </body>

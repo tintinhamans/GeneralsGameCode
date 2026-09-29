@@ -1,30 +1,26 @@
 /*
-	SkirmishGameOptions.rcss -- skirmish-only piece of the setup screen: the career honors block under
-	the game options. Layout, slot rows and map preview are shared, see GameSetup.rcss.
+	SkirmishGameOptions.rcss -- skirmish-only piece of the setup screen: the career honors box next
+	to the game options. Layout, slot rows and map preview are shared, see GameSetup.rcss.
 */
 
 .honors-panel
 {
-	display: flex; /* plain block stacking left the Reset Honors button overlapping the last
-		honors-row (Best Win Streak) by a few px -- flex column stacks reliably instead
-		(audit: OVERLAP div.honors-row / button) */
+	display: flex;
 	flex-direction: column;
-	margin-top: 12dp;
-	padding-top: 8dp;
-	border-top: 1dp #2F37A8;
 }
 
-.honors-row
+.honors-panel .row
 {
-	display: block;
 	flex: 0 0 auto;
-	color: #C0C0C0;
-	padding: 2dp 0;
 }
 
-.honors-panel button
+.honors-panel .row > .control
+{
+	color: #C0C0C0;
+}
+
+.honors-reset
 {
 	flex: 0 0 auto;
 	align-self: flex-start;
-	margin-top: 6dp;
 }

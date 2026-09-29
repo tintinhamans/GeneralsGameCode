@@ -1,63 +1,40 @@
 /*
-	GameSetup.rcss -- shared markup/styles for skirmish-style game setup and map-select screens
-	(slot rows, map preview + start-position markers, map-list rows). Built for
-	SkirmishGameOptions.rml/SkirmishMapSelect.rml; LAN/online lobby and map-select screens can
-	reuse the same classes over the same GameSetupData/SkirmishSetupActions/MapUtil-shaped data by
-	copying the "slot-row"/"map-preview"/"start-marker"/"map-row" markup blocks below.
+	GameSetup.rcss -- shared pieces of the game setup screens (skirmish, LAN, online) and the map
+	select screens: the slot table, the options panels under it, the map preview with its
+	start-position markers, and the map list rows. Sizes follow the tokens in common.rcss.
 
-	Reusable markup block (copy per screen, one <div class="slot-row" data-for="row : slots"> per
-	setup document):
+	Setup screen layout, loosely the .wnd arrangement (slot table top left, map preview top right,
+	game options under the slots, chat along the bottom):
 
-		<div class="slot-row" data-for="row : slots">
-			<select class="slot-occupant" data-value="row.occupant_state" data-attr-disabled="!row.can_edit_occupant"
-				data-event-change="slot_occupant_changed(row.slot_index)">
-				<option value="0"><gametext key="GUI:Open"/></option>
-				<option value="1"><gametext key="GUI:Closed"/></option>
-				<option value="2"><gametext key="GUI:EasyAI"/></option>
-				<option value="3"><gametext key="GUI:MediumAI"/></option>
-				<option value="4"><gametext key="GUI:HardAI"/></option>
-			</select>
-			<div class="slot-name" data-if="row.is_human_occupant">{{row.player_name}}</div>
-			<select class="slot-faction" data-value="row.player_template" data-attr-disabled="!row.can_edit || !row.is_occupied"
-				data-event-change="slot_faction_changed(row.slot_index)">
-				<option data-for="opt : faction_options" data-attr-value="opt.value">{{opt.label}}</option>
-			</select>
-			<select class="slot-color" data-value="row.color" data-attr-disabled="!row.can_edit || !row.is_occupied"
-				data-event-change="slot_color_changed(row.slot_index)">
-				<option data-for="opt : color_options" data-attr-value="opt.value" data-style-background-color="opt.label">&#160;</option>
-			</select>
-			<select class="slot-team" data-value="row.team_number" data-attr-disabled="!row.can_edit || !row.is_occupied"
-				data-event-change="slot_team_changed(row.slot_index)">
-				<option value="-1"><gametext key="GUI:NoTeam"/></option>
-				<option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option>
-			</select>
-		</div>
-
-		<div class="map-preview">
-			<mappreview class="map-preview-image" data-attr-map="map_name"/>
-			<div data-for="marker : start_markers">
-				<div class="start-marker" data-if="marker.used"
-					data-style-left="marker.x_style" data-style-top="marker.y_style"
-					data-event-click="start_marker_clicked(marker.position)">
-					<div class="start-marker-dot" data-class-occupied="marker.is_occupied"
-						data-style-background-color="marker.color_hex"></div>
-					<div class="start-marker-label" data-if="marker.is_occupied">{{marker.occupant_label}}</div>
-				</div>
+		<div class="setup-body">
+			<div class="setup-main">
+				<div class="slot-table"> .slot-row.slot-header, then one .slot-row per slot </div>
+				<div class="setup-lower"> one or more .panel-box option groups (.row grids) </div>
 			</div>
+			<div class="side-panel"> .map-preview, .map-display-name, Select Map button </div>
 		</div>
 
-	x_style/y_style are pre-formatted CSS length strings ("12.500%"), not raw numbers: RmlUi can't
-	interpolate "{{expr}}" inside a style="..." attribute (that's parsed as a literal RCSS property
-	value), and data-style-<prop> bindings take one expression value, not string concatenation --
-	see RmlSkirmishSetupScreen::StartMarkerModel.
+	One slot row (the cells hold full-width controls so every row lines up under the header):
 
-	start_markers is always MAX_SLOTS entries (see GameSetupData::m_startPositionMarkers): a bound
-	RmlUi array must never change size in place, so unused positions are hidden with data-if
-	("marker.used") on a child instead of shrinking the array. data-for and data-if are both
-	structural views and can't share one element, hence the plain wrapper div.
+		<div class="slot-row" data-for="row : slots" data-class-empty="!row.is_occupied">
+			<div class="slot-occupant"> <select> Open/Closed/AI, or .slot-name for a human </div>
+			<div class="slot-color"> <select> over row.color_options, each option
+				<span class="color-swatch" data-style-background-color="opt.swatch"/>{{opt.label}} </div>
+			<div class="slot-faction"> <select> over faction_options </div>
+			<div class="slot-team"> <select> Team:0..Team:4 </div>
+		</div>
 
-	Reusable map-list row (copy per screen, one <div class="list-row flex map-row" data-for="entry : maps">
-	per map-select-style document -- see RmlSkirmishMapSelectScreen::MapEntryModel):
+	Every select must always have an option matching its bound value: RmlUi selects the first
+	option when nothing matches and dispatches "change" for it, which the screens would apply to
+	the game. Hence the hidden SLOT_PLAYER occupant option on human rows and the Random entries in
+	the colour and faction lists.
+
+	x_style/y_style of a start marker are pre-formatted CSS lengths ("12.500%"): RmlUi can't
+	interpolate "{{expr}}" inside style="..." and data-style-<prop> takes one expression.
+	start_markers is always MAX_SLOTS entries (a bound array must never shrink in place), so unused
+	positions are hidden with data-if="marker.used" on a child of a plain data-for wrapper.
+
+	Map list row (see RmlSkirmishMapSelectScreen::MapEntryModel):
 
 		<div class="list-row flex map-row" data-for="entry : maps" data-class-selected="entry.is_selected"
 			data-event-click="map_selected(entry.map_name)" data-event-dblclick="map_activated(entry.map_name)">
@@ -65,22 +42,24 @@
 			<div class="map-name">{{entry.display_name}}</div>
 			<div class="map-players">{{entry.num_players}}</div>
 		</div>
-
-	star_image is a TheMappedImageCollection name ("Star-Bronze"/"Star-Silver"/"Star-Gold"/
-	"RedYell_Star"), only set for multiplayer maps with an endurance medal -- same tiering as
-	MapUtil.cpp's addMapEntryToMapListbox().
 */
 
-/* ---- Setup screen layout (skirmish, LAN, online) ----------------------------------------
-   .setup-body is the row under the title: .slot-list on the left, .side-panel (map preview + game
-   options) on the right. .map-select-body is the same idea for the map-select overlays, with a
-   .map-list instead of the slot list. */
+/* ---- Setup screen layout ------------------------------------------------------------------ */
 .setup-body
 {
 	display: flex;
 	flex-direction: row;
 	flex: 1 1 auto;
-	min-height: 0; /* let slot-list scroll instead of overflowing the frame */
+	min-height: 0;
+}
+
+.setup-main
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-right: 16dp;
 }
 
 .map-select-body
@@ -88,9 +67,10 @@
 	display: flex;
 	flex-direction: row;
 	flex: 1 1 auto;
-	margin-top: 8dp;
+	min-height: 0;
 }
 
+/* The lobby player lists reuse this for a scrolling column. */
 .slot-list
 {
 	flex: 1 1 auto;
@@ -100,17 +80,149 @@
 
 .map-list
 {
-	flex: 1 1 auto;
-	margin-right: 12dp;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-right: 16dp;
 }
 
-/* Per-slot accept/ready indicator (only slot 0 shows one). */
+.side-panel
+{
+	flex: 0 0 auto;
+	width: 384dp;
+	display: flex;
+	flex-direction: column;
+}
+
+.side-panel > button
+{
+	display: block;
+}
+
+/* Option groups under the slot table, side by side and as tall as the tallest group. */
+.setup-lower
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+	margin-top: 16dp;
+}
+
+.setup-lower > .panel-box
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	max-width: 720dp;
+	margin-right: 16dp;
+}
+
+.setup-lower > .panel-box:last-child
+{
+	margin-right: 0;
+}
+
+.setup-lower .row:last-child
+{
+	margin-bottom: 0;
+}
+
+.setup-lower .row > .label
+{
+	flex-basis: 48%;
+}
+
+/* ---- Slot table --------------------------------------------------------------------------
+   Header plus eight rows of 40dp, growing to 58dp when the screen has the height to spare, so
+   the table fills the space over the option groups instead of leaving it empty. Columns share
+   the width 3 : 2.2 : 3 : 1.4 (players, colour, army, team) with an 8dp gutter; LAN/online add
+   a fixed accept column. */
+.slot-table
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.slot-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	box-sizing: border-box;
+	flex: 1 1 40dp;
+	min-height: 40dp;
+	max-height: 58dp;
+	border-bottom: 1dp rgba(47, 55, 168, 80);
+}
+
+.slot-row.slot-header
+{
+	flex: 0 0 32dp;
+	min-height: 32dp;
+	height: 32dp;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #8080FF;
+	border-bottom: 1dp #2F37A8;
+}
+
+.slot-occupant, .slot-color, .slot-faction, .slot-team
+{
+	box-sizing: border-box;
+	min-width: 0;
+	margin-right: 8dp;
+}
+
+.slot-occupant { flex: 3 1 0%; }
+.slot-color { flex: 2.2 1 0%; }
+.slot-faction { flex: 3 1 0%; }
+.slot-team { flex: 1.4 1 0%; }
+
+.slot-row select
+{
+	width: 100%;
+}
+
+.slot-name
+{
+	box-sizing: border-box;
+	height: 32dp;
+	line-height: 32dp;
+	padding: 0 9dp;
+	color: #FFFFFF;
+	font-weight: bold;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+/* Open and closed slots: nothing to set but the occupant, so the rest of the row recedes. */
+.slot-row.empty .slot-color,
+.slot-row.empty .slot-faction,
+.slot-row.empty .slot-team
+{
+	opacity: 0.45;
+}
+
+/* Per-slot accept indicator (only the local slot shows one). */
 .slot-accept
 {
-	width: 16dp;
-	height: 16dp;
+	flex: 0 0 auto;
+	width: 18dp;
+	height: 18dp;
+	box-sizing: border-box;
 	border: 1dp #2F37A8;
 	background-color: rgba(255, 255, 255, 40);
+}
+
+.slot-row.slot-header .slot-accept
+{
+	border-width: 0;
+	background-color: transparent;
+}
+
+.slot-accept.hidden
+{
+	visibility: hidden;
 }
 
 .slot-accept.accepted
@@ -119,21 +231,24 @@
 	border-color: #FFFFFF;
 }
 
-.side-panel
+/* ---- Map preview + start-position markers ------------------------------------------------
+   Square, the side panel's full width. */
+.map-preview
 {
+	box-sizing: border-box;
+	position: relative;
 	flex: 0 0 auto;
-	width: 30%;
-	min-width: 340dp;
-	max-width: 420dp;
-	display: flex;
-	flex-direction: column;
+	width: 384dp;
+	height: 384dp;
+	border: 1dp #2F37A8;
+	background-color: rgba(2, 2, 2, 191);
 }
 
-.map-select-body .side-panel
+.map-preview-image
 {
-	width: 320dp;
-	min-width: 0;
-	max-width: none;
+	display: block;
+	width: 100%;
+	height: 100%;
 }
 
 .map-not-found
@@ -149,114 +264,9 @@
 
 .map-display-name
 {
-	margin-top: 4dp;
-	margin-bottom: 8dp;
+	flex: 0 0 auto;
+	margin: 8dp 0 12dp 0;
 	color: #C0C0C0;
-}
-
-.map-select-body .map-display-name
-{
-	margin-bottom: 0;
-}
-
-/* ---- Slot rows ------------------------------------------------------------------------- */
-.slot-row
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	padding: 3dp 0;
-	min-height: 26dp;
-	border-bottom: 1dp rgba(47, 55, 168, 80);
-}
-
-.slot-row.slot-header
-{
-	font-weight: bold;
-	color: #8080FF;
-	border-bottom: 1dp #2F37A8;
-}
-
-.slot-row > select,
-.slot-row > .slot-name,
-.slot-row > .color-select
-{
-	box-sizing: border-box;
-	margin-right: 6dp;
-}
-
-/* Proportional columns so the table fills the whole slot-list width instead of leaving a dead gap
-   after a handful of fixed-dp columns (task: "the slot table must use the whole left region").
-   .slot-name substitutes for .slot-occupant on the host's own row (a name, not a select), so it
-   matches its width exactly to keep every row's cells aligned under the header. */
-/* percentages sum to under 100% to leave room for the 6dp margin-right between columns above */
-.slot-occupant, .slot-name { width: 34%; }
-.slot-faction { width: 32%; }
-.slot-color { width: 11%; }
-.slot-team { width: 19%; }
-.slot-name { color: #FFFFFF; font-weight: bold; }
-
-/* Color choice: a swatch in front of the colour's name (a hollow swatch for Random). */
-.color-swatch
-{
-	display: inline-block;
-	width: 14dp;
-	height: 14dp;
-	margin-right: 6dp;
-	border: 1dp rgba(255, 255, 255, 160);
-}
-
-.slot-color > select
-{
-	width: 100%;
-	box-sizing: border-box;
-}
-
-/* common.rcss's .row/.label/.control assume a wide options panel (.label flex-grows, .control is a
-   fixed 220dp); the 280dp side-panel here is too narrow for that, so the label wraps/overlaps the
-   control. Shrink the label to its own text and let the control take what's left instead. */
-.side-panel .row > .label
-{
-	flex: 0 0 auto;
-	width: auto;
-	margin-right: 8dp;
-	white-space: nowrap;
-}
-
-.side-panel .row > .control
-{
-	flex: 1 1 auto;
-	width: auto;
-	min-width: 0;
-}
-
-/* Checkboxes stay a fixed square instead of stretching to fill the side-panel control column */
-.side-panel .row > .control.checkbox
-{
-	flex: 0 0 auto;
-	width: 18dp;
-	height: 18dp;
-}
-
-/* ---- Map preview + start-position markers ----------------------------------------------
-   Fixed square, larger than before (was 256dp) now that side panels have more room on a
-   full shell screen; RmlUi's flex layout doesn't reliably support percentage-of-width
-   padding tricks for a responsive aspect box, so this stays a fixed dp size. */
-.map-preview
-{
-	box-sizing: border-box;
-	position: relative;
-	width: 320dp;
-	height: 320dp;
-	border: 1dp #2F37A8;
-	background-color: rgba(2, 2, 2, 191);
-}
-
-.map-preview-image
-{
-	display: block;
-	width: 100%;
-	height: 100%;
 }
 
 .start-marker
@@ -271,10 +281,18 @@
 
 .start-marker-dot
 {
-	width: 16dp;
-	height: 16dp;
-	border: 1dp #FFFFFF;
+	display: block;
+	box-sizing: border-box;
+	margin: 1dp auto 0 auto;
+	width: 18dp;
+	height: 18dp;
+	border: 2dp #FFFFFF;
 	background-color: rgba(255, 255, 255, 60);
+}
+
+.start-marker:hover .start-marker-dot
+{
+	border-color: #BAFF0C;
 }
 
 .start-marker-dot.occupied
@@ -284,23 +302,24 @@
 
 .start-marker-label
 {
-	font-size: 11dp;
+	display: block;
+	margin-left: -60dp;
+	margin-right: -60dp;
+	text-align: center;
+	font-size: 13dp;
 	color: #FFFFFF;
+	font-effect: shadow(1dp 1dp #000000);
 	white-space: nowrap;
 }
 
 /* ---- Map-list rows ----------------------------------------------------------------------- */
 /* On top of common.rcss's .list-row.flex. */
-.map-row
-{
-	min-height: 24dp;
-}
-
 .map-star
 {
-	width: 16dp;
-	height: 16dp;
-	margin-right: 6dp;
+	flex: 0 0 auto;
+	width: 18dp;
+	height: 18dp;
+	margin-right: 8dp;
 }
 
 .map-name
@@ -311,7 +330,8 @@
 
 .map-players
 {
-	width: 30dp;
+	flex: 0 0 auto;
+	width: 40dp;
 	text-align: center;
 	color: #C0C0C0;
 }

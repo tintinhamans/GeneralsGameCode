@@ -1,6 +1,6 @@
 /*
 	OnlineGameSetup.rcss -- online-only pieces of the Generals Online game setup screen
-	(GameSpyGameOptionsMenu.wnd): occupant cell, connection indicator, and the chat entry tweaks.
+	(GameSpyGameOptionsMenu.wnd): the occupant cell and its connection indicator.
 	The layout, slot rows and map preview are shared, see GameSetup.rcss; chat is in common.rcss.
 */
 
@@ -13,19 +13,20 @@
 	align-items: center;
 }
 
-.occupant-cell select
+.occupant-cell select, .occupant-cell .slot-name
 {
-	flex: 1 1 auto;
+	flex: 1 1 0%;
+	min-width: 0;
 }
 
 /* Live mesh connection indicator, one per occupied human slot (GenericPing0..7 /
    WOLConnectionIndicatorDraw). Default (data-class-connected unset) reads as not-yet-connected. */
 .conn-indicator
 {
-	width: 10dp;
-	height: 10dp;
-	margin-left: 4dp;
-	border-radius: 5dp;
+	width: 12dp;
+	height: 12dp;
+	margin-left: 8dp;
+	border-radius: 6dp;
 	background-color: #C0C000;
 	flex-shrink: 0;
 }
@@ -33,21 +34,4 @@
 .conn-indicator.connected
 {
 	background-color: #40C040;
-}
-
-.slot-name
-{
-	margin-left: 4dp;
-}
-
-/* The chat entry aligns its icon button with the input and keeps the button off the frame edge
-   (the .wnd's ButtonEmote sits inset from the right border). */
-.chat-entry
-{
-	align-items: center;
-}
-
-.chat-entry .icon-btn
-{
-	margin-right: 4dp;
 }
