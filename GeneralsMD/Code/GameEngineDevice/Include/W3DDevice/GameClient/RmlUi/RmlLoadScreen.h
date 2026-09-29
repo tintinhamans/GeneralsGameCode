@@ -17,8 +17,8 @@
 */
 
 // FILE: RmlLoadScreen.h //////////////////////////////////////////////////////
-// RmlUi view of the network load screens (Menus/MapTransferScreen.wnd,
-// Menus/MultiplayerLoadScreen.wnd, Menus/GameSpyLoadScreen.wnd). The LoadScreen
+// RmlUi view of the load screens (Menus/MapTransferScreen.wnd, Menus/MultiplayerLoadScreen.wnd,
+// Menus/GameSpyLoadScreen.wnd, Menus/ShellGameLoadScreen.wnd). The LoadScreen
 // classes keep all the logic and write a LoadScreenData; this only mirrors that
 // into a data model whenever its version changes. One instance per document,
 // created by winCreateFromScript() through RmlUiScreenRegistry and closed when
@@ -37,7 +37,7 @@ namespace Rml { class Context; class ElementDocument; }
 class RmlLoadScreen
 {
 public:
-	enum Kind { KIND_MAP_TRANSFER, KIND_MULTIPLAYER, KIND_ONLINE, KIND_COUNT };
+	enum Kind { KIND_MAP_TRANSFER, KIND_MULTIPLAYER, KIND_ONLINE, KIND_SHELL, KIND_COUNT };
 
 	static RmlLoadScreen &instance(Kind kind);
 	static void tick(); ///< refreshes every open instance whose LoadScreenData changed
@@ -96,6 +96,8 @@ private:
 	Rml::String m_mapName;
 	Rml::String m_currentFile;
 	Rml::String m_timeout;
+	Rml::String m_progressStyle = "0%";
+	bool m_titleScreen = false;
 	bool m_hasPortrait = false;
 	bool m_hasMap = false;
 };
@@ -107,3 +109,5 @@ void OpenRmlMultiplayerLoadScreen();
 void CloseRmlMultiplayerLoadScreen();
 void OpenRmlOnlineLoadScreen();
 void CloseRmlOnlineLoadScreen();
+void OpenRmlShellLoadScreen();
+void CloseRmlShellLoadScreen();

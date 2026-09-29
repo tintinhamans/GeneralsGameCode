@@ -1271,10 +1271,26 @@ void ShellGameLoadScreen::init( GameInfo *game )
 {
 	static BOOL firstLoad = TRUE;
 
+	m_useRml = shouldUseRml( "Menus/ShellGameLoadScreen.wnd" );
+	if (m_useRml)
+		LoadScreenData::instance().reset();
 
 	// create the layout of the load screen
 	m_loadScreen = TheWindowManager->winCreateFromScript( "Menus/ShellGameLoadScreen.wnd" );
 	DEBUG_ASSERTCRASH(m_loadScreen, ("Can't initialize the ShellGame loadscreen"));
+
+	if (m_useRml)
+	{
+		if (firstLoad && TheGameLODManager && TheGameLODManager->didMemPass())
+		{
+			LoadScreenData::instance().m_titleScreen = TRUE;
+			TheWritableGlobalData->m_breakTheMovie = FALSE;
+			firstLoad = FALSE;
+		}
+		LoadScreenData::instance().touch();
+		return;
+	}
+
 	m_loadScreen->winHide(FALSE);
 	m_loadScreen->winBringToTop();
 
@@ -1306,7 +1322,17 @@ void ShellGameLoadScreen::reset()
 void ShellGameLoadScreen::update( Int percent )
 {
 	TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
-	GadgetProgressBarSetProgress(m_progressBar, percent);
+	if (m_useRml)
+	{
+		LoadScreenData &view = LoadScreenData::instance();
+		if (view.m_progress != percent)
+		{
+			view.m_progress = percent;
+			view.touch();
+		}
+	}
+	else
+		GadgetProgressBarSetProgress(m_progressBar, percent);
 
 	// Do this last!
 	LoadScreen::update( percent );

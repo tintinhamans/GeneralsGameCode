@@ -241,6 +241,7 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/MapTransferScreen.wnd", &OpenRmlMapTransferScreen, &CloseRmlMapTransferScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/MultiplayerLoadScreen.wnd", &OpenRmlMultiplayerLoadScreen, &CloseRmlMultiplayerLoadScreen);
 	RmlUiScreenRegistry::registerScreen("Menus/GameSpyLoadScreen.wnd", &OpenRmlOnlineLoadScreen, &CloseRmlOnlineLoadScreen);
+	RmlUiScreenRegistry::registerScreen("Menus/ShellGameLoadScreen.wnd", &OpenRmlShellLoadScreen, &CloseRmlShellLoadScreen);
 
 	// GameWindowManager::gogoMessageBox() looks this hook up the same way, gated on
 	// !m_useLegacyMenus; see RmlUiMessageBoxHook.h.

@@ -17,8 +17,8 @@
 */
 
 // FILE: LoadScreenData.h /////////////////////////////////////////////////////
-// Widget-agnostic content of the network load screens (map transfer, multiplayer,
-// online). The LoadScreen classes fill this instead of GameWindows when RmlUi
+// Widget-agnostic content of the network and shell load screens (map transfer, multiplayer,
+// online, shell). The LoadScreen classes fill this instead of GameWindows when RmlUi
 // draws the screen; the RmlUi load screen reads it back every frame.
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -82,6 +82,9 @@ struct LoadScreenData
 
 	UnicodeString m_currentFile; ///< map transfer only
 	UnicodeString m_timeout;
+
+	Int m_progress = 0; ///< shell load bar, 0..100
+	Bool m_titleScreen = FALSE; ///< first shell load: title art and copyright line
 
 	UnsignedInt m_version = 0;
 };

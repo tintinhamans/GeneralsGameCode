@@ -66,6 +66,7 @@ RmlLoadScreen &RmlLoadScreen::instance(Kind kind)
 		RmlLoadScreen("UI/MapTransfer.rml", "maptransfer"),
 		RmlLoadScreen("UI/MultiplayerLoad.rml", "multiplayerload"),
 		RmlLoadScreen("UI/GameSpyLoad.rml", "onlineload"),
+		RmlLoadScreen("UI/ShellGameLoad.rml", "shellload"),
 	};
 	return s_screens[kind];
 }
@@ -132,6 +133,8 @@ void RmlLoadScreen::load(Rml::Context *context)
 		constructor.Bind("has_map", &m_hasMap);
 		constructor.Bind("current_file", &m_currentFile);
 		constructor.Bind("timeout", &m_timeout);
+		constructor.Bind("progress_style", &m_progressStyle);
+		constructor.Bind("title_screen", &m_titleScreen);
 
 		m_modelHandle = constructor.GetModelHandle();
 	}
@@ -184,6 +187,8 @@ void RmlLoadScreen::refresh()
 	m_hasMap = !data.m_mapName.isEmpty();
 	m_currentFile = unicodeToUtf8(data.m_currentFile);
 	m_timeout = unicodeToUtf8(data.m_timeout);
+	m_progressStyle = percentStyle((float)data.m_progress);
+	m_titleScreen = data.m_titleScreen == TRUE;
 
 	if (m_modelHandle)
 	{
@@ -197,6 +202,8 @@ void RmlLoadScreen::refresh()
 		m_modelHandle.DirtyVariable("has_map");
 		m_modelHandle.DirtyVariable("current_file");
 		m_modelHandle.DirtyVariable("timeout");
+		m_modelHandle.DirtyVariable("progress_style");
+		m_modelHandle.DirtyVariable("title_screen");
 	}
 }
 
@@ -231,3 +238,5 @@ void OpenRmlMultiplayerLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIN
 void CloseRmlMultiplayerLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_MULTIPLAYER).close(); }
 void OpenRmlOnlineLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_ONLINE).open(); }
 void CloseRmlOnlineLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_ONLINE).close(); }
+void OpenRmlShellLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_SHELL).open(); }
+void CloseRmlShellLoadScreen() { RmlLoadScreen::instance(RmlLoadScreen::KIND_SHELL).close(); }

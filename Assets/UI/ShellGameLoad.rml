@@ -1,0 +1,18 @@
+<rml>
+<head>
+	<title>ShellGameLoad</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="LoadScreen.rcss"/>
+	<link type="text/rcss" href="ShellGameLoad.rcss"/>
+</head>
+<body data-model="shellload">
+	<mappedimage class="shell-art" data-if="!title_screen" name="LoadPageHuge"/>
+	<mappedimage class="shell-art" data-if="title_screen" name="TitleScreen"/>
+
+	<div class="shell-legal" data-if="title_screen"><gametext key="GUI:EACopyright"/></div>
+
+	<div class="shell-bar">
+		<div class="shell-bar-fill" data-style-width="progress_style"></div>
+	</div>
+</body>
+</rml>

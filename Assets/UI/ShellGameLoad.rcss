@@ -1,0 +1,49 @@
+/*
+	ShellGameLoad.rcss -- ShellGameLoadScreen.wnd: full-screen art, copyright line on the first
+	load and the progress bar. Geometry is the .wnd's 800x600 rects.
+*/
+
+/* Full-screen art like .shell-background, but this screen's content sits over the art's frame. */
+.shell-art
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	z-index: -1;
+}
+
+.shell-legal
+{
+	position: absolute;
+	left: 17.5%;
+	top: 90%;
+	width: 65%;
+	height: 4.667%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	font-size: 11dp;
+	color: #062BCC;
+}
+
+.shell-bar
+{
+	position: absolute;
+	left: 40.5%;
+	top: 96%;
+	width: 18.5%;
+	height: 2.667%;
+	display: flex;
+	box-sizing: border-box;
+	background-color: #2F37A8;
+}
+
+.shell-bar-fill
+{
+	flex: 0 0 auto;
+	background-color: #8080FF;
+}
