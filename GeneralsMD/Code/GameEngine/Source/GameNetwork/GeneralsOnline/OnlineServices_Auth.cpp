@@ -173,9 +173,12 @@ void NGMP_OnlineServices_AuthInterface::SendMiddlewareToken(std::string strMWTok
 
 void NGMP_OnlineServices_AuthInterface::OnRefreshTokenFailed(const char* szReason, const std::string& strBody)
 {
-	// log the raw response so refresh failures are actually diagnosable
-	std::string strBodySnippet = strBody.substr(0, 512);
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Refresh response body: %s", strBodySnippet.c_str());
+	// the body can hold a rotated refresh token, so release builds log only its size
+#if _DEBUG
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Refresh response body: %s", strBody.c_str());
+#else
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Refresh response body was %zu bytes", strBody.size());
+#endif
 
 	if (m_currentRefreshAttempt < m_maxRefreshAttempts)
 	{
@@ -431,9 +434,9 @@ void NGMP_OnlineServices_AuthInterface::DoFullLoginFlow()
 						NetworkLog(ELogVerbosity::LOG_DEBUG, "Login Code is %s", m_strCode.c_str());
 
 #if defined(USE_TEST_ENV)
-                        std::string strURI = std::format("http://www.playgenerals.online/login/?gamecode={}&env=test", m_strCode.c_str());
+                        std::string strURI = std::format("https://www.playgenerals.online/login/?gamecode={}&env=test", m_strCode.c_str());
 #else
-                        std::string strURI = std::format("http://www.playgenerals.online/login/?gamecode={}", m_strCode.c_str());
+                        std::string strURI = std::format("https://www.playgenerals.online/login/?gamecode={}", m_strCode.c_str());
 #endif
 
                         ClearGSMessageBoxes();
@@ -533,7 +536,9 @@ void NGMP_OnlineServices_AuthInterface::Tick()
 						nlohmann::json jsonObject = nlohmann::json::parse(strBody);
 						AuthResponse authResp = jsonObject.get<AuthResponse>();
 
+#if _DEBUG
 						NetworkLog(ELogVerbosity::LOG_RELEASE, "PageBody: %s", strBody.c_str());
+#endif
 						if (authResp.result == EAuthResponseResult::CODE_INVALID)
 						{
 							NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Code didnt exist, trying again soon");

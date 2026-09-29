@@ -423,7 +423,11 @@ void AnticheatPlugInterface::Authenticate()
                         // don't trust the plugin to terminate the buffer
                         buf[sizeof(buf) - 1] = '\0';
 
+#if _DEBUG
                         NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Got MW token: %s", buf);
+#else
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Got MW token (%zu chars)", strlen(buf));
+#endif
 
                         // Now we can begin login
                         NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
