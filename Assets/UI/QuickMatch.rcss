@@ -215,12 +215,7 @@ body
 
 .status-line
 {
-	/* Fixed dp width, not auto/percentage -- overflow-y:auto containers corrupt an auto/percentage
-	   block child's line-wrapping width once scrolling is actually needed, and RmlUi's own line-box
-	   height calc goes with it (rows slightly overlap instead of stacking); see OnlineGameSetup.rcss's
-	   .chat-line comment for the full explanation, same fix here. */
 	display: block;
-	width: 1000dp;
 	padding: 1dp 0;
 }
 

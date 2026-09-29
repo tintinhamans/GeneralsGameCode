@@ -98,6 +98,11 @@ body
 	padding-top: 8dp;
 }
 
+.academy-tip
+{
+	display: block;
+}
+
 .academy-body
 {
 	max-height: 90dp;
@@ -109,7 +114,8 @@ body
 	margin-top: 8dp;
 	border-top: 1dp #2F37A8;
 	padding-top: 8dp;
-	flex: 1 1 auto;
+	flex: 1 1 0%;
+	min-height: 0;
 }
 
 .chat-border
@@ -118,6 +124,7 @@ body
 	flex-direction: column;
 	box-sizing: border-box;
 	height: 100%;
+	min-height: 0;
 }
 
 .chat-border.bordered
@@ -128,7 +135,13 @@ body
 
 .chat-body
 {
-	flex: 1 1 auto;
+	flex: 1 1 0%;
+	min-height: 0;
+}
+
+.chat-line
+{
+	display: block;
 }
 
 .chat-entry-row

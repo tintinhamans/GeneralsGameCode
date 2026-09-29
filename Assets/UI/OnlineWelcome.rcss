@@ -42,12 +42,12 @@ body
 	padding: 4dp 6dp;
 }
 
-/* the data-for wraps each line in its own anonymous <div>; without an explicit width that wrapper
-   computes to 0 wide inside the scrolling (overflow-y:auto) motd-list, so its text child renders
-   as one unbroken unwrapped line spilling far past the panel (audit: OVERFLOW div.motd-line). */
+/* the bare data-for wrapper <div> is display:inline (no UA stylesheet), and a block inside an
+   inline wrapper gets no reliable width; make it a real block. The scrollbar itself is sized in
+   common.rcss -- an unstyled one filled the whole panel and left the text no width once it scrolled. */
 .motd-list > div
 {
-	width: 100%;
+	display: block;
 }
 
 .motd-line

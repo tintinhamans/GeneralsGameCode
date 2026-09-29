@@ -43,14 +43,14 @@
 			<div class="academy" data-if="show_academy_panel">
 				<div class="section-title"></div>
 				<div class="scroll-container academy-body">
-					<div data-for="tip : academy_advice">{{tip}}</div>
+					<div class="academy-tip" data-for="tip : academy_advice">{{tip}}</div>
 				</div>
 			</div>
 
 			<div class="chat" data-if="show_chat_log">
 				<div class="chat-border" data-class-bordered="show_chat_box_border">
 					<div class="scroll-container chat-body">
-						<div data-for="line : chat_lines">{{line}}</div>
+						<div class="chat-line" data-for="line : chat_lines">{{line}}</div>
 					</div>
 					<div class="chat-entry-row" data-if="show_chat_entry">
 						<input type="text" class="chat-input" data-value="chat_entry_text"/>

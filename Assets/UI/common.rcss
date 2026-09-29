@@ -254,6 +254,32 @@ input.checkbox:checked
 	flex: 1 1 auto;
 }
 
+/* Scrollbar must be sized explicitly: unstyled, RmlUi gives it the container's full width, so as
+   soon as a list needs to scroll its content width collapses to ~0 (one word per line). */
+scrollbarvertical
+{
+	width: 10dp;
+}
+
+scrollbarvertical slidertrack
+{
+	width: 10dp;
+	background-color: rgba(2, 2, 2, 191);
+}
+
+scrollbarvertical sliderbar
+{
+	width: 10dp;
+	min-height: 24dp;
+	background-color: #2F37A8;
+}
+
+scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc
+{
+	width: 0dp;
+	height: 0dp;
+}
+
 /* ---- Footer button row ------------------------------------------------------------------ */
 .footer
 {

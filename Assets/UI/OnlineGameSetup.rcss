@@ -140,18 +140,7 @@ body
 
 .chat-line
 {
-	/* Fixed dp width, not auto/percentage: once .chat-body actually needs to scroll (enough lines to
-	   overflow its 140dp height), a block child sized any other way -- auto/shrink-to-fit, or even a
-	   plain percentage -- gets its line-wrapping width corrupted (collapses to ~one word per line;
-	   confirmed by render for both, moving the per-line color from the row to a child <span> made no
-	   difference). This is a pre-existing RmlUi limitation of overflow-y:auto containers, not
-	   something specific to how this row is marked up. 1000dp comfortably fits the narrowest
-	   supported layout (1280x1024) without overflowing the panel; the unused width on wider layouts
-	   is blank space inside .chat-body rather than overflow (1000dp is still well under chat-body's
-	   own content width at every supported resolution), and text still wraps at a readable 1000dp
-	   measure at 2560x1080, just short of the panel's full width. */
 	display: block;
-	width: 1000dp;
 }
 
 .chat-entry-row
