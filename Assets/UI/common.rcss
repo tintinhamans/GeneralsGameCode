@@ -190,8 +190,10 @@ button[disabled]:active, button.disabled:active, .button.disabled:active
 }
 
 /* Fixed 24dp square holding a <mappedimage> glyph (chat send/emote, list refresh). The art isn't always
-   perfectly square, so both the button and the image clip instead of overflowing. */
-.icon-btn
+   perfectly square, so both the button and the image clip instead of overflowing. The doubled class
+   outranks a screen's "<container> button { padding }" rule (0,1,1), which would otherwise leave the
+   glyph a sliver-wide content box. */
+.icon-btn.icon-btn
 {
 	width: 24dp;
 	height: 24dp;
