@@ -1191,6 +1191,9 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 				m_pLobbyMesh = pNewMesh;
 			}
 
+			// TURN credentials arrive with the join response
+			m_pLobbyMesh->AwaitTurnCredentials();
+
 			// convert
 			NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->SendPUTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 				{
@@ -1250,6 +1253,11 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 						catch (...)
 						{
 
+						}
+
+						if (m_pLobbyMesh != nullptr)
+						{
+							m_pLobbyMesh->SetTurnCredentials(m_strTURNUsername, m_strTURNToken);
 						}
 
 						// for safety
@@ -1548,6 +1556,11 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 						m_strTURNToken = resp.turn_token;
 						NetworkLog(ELogVerbosity::LOG_DEBUG, "Got TURN username: %s, token: %s", m_strTURNUsername.c_str(), m_strTURNToken.c_str());
 
+						// a mesh kept from a failed join has stale credentials
+						if (m_pLobbyMesh != nullptr)
+						{
+							m_pLobbyMesh->SetTurnCredentials(m_strTURNUsername, m_strTURNToken);
+						}
 
 						if (resp.result == ECreateLobbyResponseResult::SUCCEEDED)
 						{

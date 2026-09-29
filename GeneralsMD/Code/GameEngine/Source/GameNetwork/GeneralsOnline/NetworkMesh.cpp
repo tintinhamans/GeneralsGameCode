@@ -871,6 +871,14 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
 	}
 	else
 	{
+        // no relay without our TURN credentials
+        if (m_bAwaitingTurnCredentials)
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Holding signalling with %lld until our TURN credentials arrive", remoteUserID);
+            m_vecSignallingAwaitingTurn.push_back({ szMiddlewareID != nullptr ? szMiddlewareID : "", remoteUserID, preferredPort });
+            return;
+        }
+
         // if we already have a connection to this use, drop it, having a single-direction connection will break signalling
         int previousAttempts = 0;
         auto it = m_mapConnections.find(remoteUserID);
@@ -992,7 +1000,44 @@ void NetworkMesh::StartConnectionSignalling(const char* szMiddlewareID, int64_t 
             m_mapConnections[remoteUserID].m_SignallingAttempts = previousAttempts + 1;
         }
 	}
-	
+
+}
+
+void NetworkMesh::AwaitTurnCredentials()
+{
+	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+	m_bAwaitingTurnCredentials = true;
+}
+
+void NetworkMesh::SetTurnCredentials(const std::string& strUsername, const std::string& strToken)
+{
+	std::vector<PendingSignalling> vecPending;
+	{
+		std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+
+		m_strTurnUsername = strUsername;
+		m_strTurnToken = strToken;
+		m_strTurnUsernameString = std::format("{},{}", m_strTurnUsername.c_str(), m_strTurnUsername.c_str());
+		m_strTurnTokenString = std::format("{},{}", m_strTurnToken.c_str(), m_strTurnToken.c_str());
+
+		// incoming connections use the listen socket's TURN settings
+		if (m_hListenSock != k_HSteamListenSocket_Invalid)
+		{
+			SteamNetworkingUtils()->SetConfigValue(k_ESteamNetworkingConfig_P2P_TURN_UserList, k_ESteamNetworkingConfig_ListenSocket,
+				(intptr_t)m_hListenSock, k_ESteamNetworkingConfig_String, m_strTurnUsernameString.c_str());
+			SteamNetworkingUtils()->SetConfigValue(k_ESteamNetworkingConfig_P2P_TURN_PassList, k_ESteamNetworkingConfig_ListenSocket,
+				(intptr_t)m_hListenSock, k_ESteamNetworkingConfig_String, m_strTurnTokenString.c_str());
+		}
+
+		m_bAwaitingTurnCredentials = false;
+		vecPending.swap(m_vecSignallingAwaitingTurn);
+	}
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Got TURN credentials, starting %d held signalling request(s)", (int)vecPending.size());
+	for (const PendingSignalling& pending : vecPending)
+	{
+		StartConnectionSignalling(pending.strMiddlewareID.c_str(), pending.remoteUserID, pending.preferredPort);
+	}
 }
 
 
