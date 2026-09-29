@@ -1111,6 +1111,47 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 								TheNGMPGame->StopCountdown();
 							}
 
+							// a player who joined after the connectivity check passed hasn't been checked, so the host must re-run it
+							if (IsHost()
+								&& TheNGMPGame != nullptr
+								&& TheNGMPGame->IsCountdownStarted()
+								&& lobbyEntry.lobby_type != ELobbyType::QuickMatch
+								&& !TheNGMPGame->isQMGame())
+							{
+								bool bPlayerJoined = false;
+								for (const LobbyMemberEntry& newMember : lobbyEntry.members)
+								{
+									if (!newMember.IsHuman())
+									{
+										continue;
+									}
+
+									bool bWasInLobby = false;
+									for (const LobbyMemberEntry& oldMember : m_CurrentLobby.members)
+									{
+										if (oldMember.IsHuman() && oldMember.user_id == newMember.user_id)
+										{
+											bWasInLobby = true;
+											break;
+										}
+									}
+
+									if (!bWasInLobby)
+									{
+										bPlayerJoined = true;
+										break;
+									}
+								}
+
+								if (bPlayerJoined)
+								{
+									TheNGMPGame->StopCountdown();
+
+									UnicodeString strInform = UnicodeString(L"Countdown stopped: a player joined, start again to re-check connections.");
+									SendAnnouncementMessageToCurrentLobby(strInform, true);
+								}
+							}
+
 							// store
 							m_CurrentLobby = lobbyEntry;
 							RecordJoinOrder(lobbyEntry.members);
