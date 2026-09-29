@@ -33,6 +33,26 @@
 // stay right whatever size the texture page actually loaded at.
 static const int RmlEngineTextureSpace = 4096;
 
+// Pulls a sprite rect (RmlEngineTextureSpace units) in by half a texel of its atlas page, so linear
+// filtering never blends in the neighbouring image's edge texels. Page size is the INI-declared one.
+inline void RmlInsetTexelRect(int &left, int &top, int &right, int &bottom, int pageWidth, int pageHeight)
+{
+	if (pageWidth <= 0 || pageHeight <= 0)
+		return;
+	int dx = (int)(0.5f * RmlEngineTextureSpace / pageWidth + 0.5f);
+	int dy = (int)(0.5f * RmlEngineTextureSpace / pageHeight + 0.5f);
+	if (right - left > 2 * dx)
+	{
+		left += dx;
+		right -= dx;
+	}
+	if (bottom - top > 2 * dy)
+	{
+		top += dy;
+		bottom -= dy;
+	}
+}
+
 //-------------------------------------------------------------------------------------------------
 /** DX8 render backend for RmlUi. One instance is owned by RmlUiManager. */
 //-------------------------------------------------------------------------------------------------

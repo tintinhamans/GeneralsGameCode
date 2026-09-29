@@ -61,10 +61,13 @@ static std::string buildMappedImagesRcss()
 		const Region2D *uv = image->getUV();
 		int left = (int)(uv->lo.x * space + 0.5f);
 		int top = (int)(uv->lo.y * space + 0.5f);
-		int width = (int)(uv->hi.x * space + 0.5f) - left;
-		int height = (int)(uv->hi.y * space + 0.5f) - top;
-		if (width <= 0 || height <= 0)
+		int right = (int)(uv->hi.x * space + 0.5f);
+		int bottom = (int)(uv->hi.y * space + 0.5f);
+		if (right <= left || bottom <= top)
 			continue;
+		RmlInsetTexelRect(left, top, right, bottom, image->getTextureSize()->x, image->getTextureSize()->y);
+		int width = right - left;
+		int height = bottom - top;
 
 		std::string key = file;
 		for (size_t c = 0; c < key.size(); ++c)

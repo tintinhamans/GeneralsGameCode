@@ -127,6 +127,7 @@ void RmlMappedImageElement::refresh()
 	int top = (int)(uv->lo.y * space + 0.5f);
 	int right = (int)(uv->hi.x * space + 0.5f);
 	int bottom = (int)(uv->hi.y * space + 0.5f);
+	RmlInsetTexelRect(left, top, right, bottom, image->getTextureSize()->x, image->getTextureSize()->y);
 
 	// Leading '/' stops RmlUi from resolving the texture name against the document folder.
 	char rml[512];
@@ -188,6 +189,7 @@ void RmlMapPreviewElement::refresh()
 	int top = (int)(uv->lo.y * space + 0.5f);
 	int right = (int)(uv->hi.x * space + 0.5f);
 	int bottom = (int)(uv->hi.y * space + 0.5f);
+	RmlInsetTexelRect(left, top, right, bottom, image->getTextureSize()->x, image->getTextureSize()->y);
 
 	char rml[512];
 	_snprintf_s(rml, sizeof(rml), _TRUNCATE,
