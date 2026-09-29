@@ -88,17 +88,20 @@ public:
 
 private:
 	RmlOnlineLobbyScreen() : m_gameRows(m_model.games), m_playerRows(m_model.players), m_chatRows(m_model.chatLines),
-		m_playerMenuItemRows(m_model.playerMenuItems) {}
+		m_playerMenuItemRows(m_model.playerMenuItems), m_detailMemberRows(m_model.detailMembers) {}
 
 	void refreshRoomCombo();
 	void refreshFilterHighlight();
 	void refreshSortHighlight();
 	void refreshPlayers(bool force);
+	void refreshRankIcons(); // badges from the stats cache, and a stats fetch for the rows in view
+	void refreshDetail(); // details panel: the hovered game, else the selected one
 
 	void onHostGame(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onJoinSelected(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onGameRowClicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onGameRowActivated(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // double-click
+	void onGameRowHovered(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (index), -1 when the pointer leaves
 	void onRefresh(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onBackPressed(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onBuddyOverlay(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -145,6 +148,14 @@ private:
 		bool used = true; // grow-only storage, see RmlGrowOnlyList.h
 	};
 
+	// One human player of the details panel's game.
+	struct DetailMemberModel
+	{
+		Rml::String name;
+		bool isHost = false;
+		bool used = true;
+	};
+
 	// One row of the player list (see OnlineLobbyData::PlayerRow). index feeds
 	// player_row_mousedown(player.index), which looks the row back up in m_rawPlayerRows for its
 	// userID/displayName (not worth exposing those to RmlUi, only the context menu needs them).
@@ -156,6 +167,7 @@ private:
 		bool isFriend = false;
 		bool isIgnored = false;
 		bool isSelf = false;
+		Rml::String rankImage; // small rank badge mapped image, empty when unranked/unknown
 		bool used = true;
 	};
 
@@ -175,6 +187,10 @@ private:
 	{
 		Rml::String text;
 		Rml::String color = "rgba(255,255,255,255)"; // never left empty, see colorToCss()
+		// text split for display (see splitChatLine()): the "[hh:mm] " prefix, the "name: " sender, the rest.
+		Rml::String time;
+		Rml::String name;
+		Rml::String body;
 		bool used = true;
 	};
 
@@ -192,6 +208,24 @@ private:
 	{
 		Rml::Vector<GameRowModel> games;
 		int selectedGameIndex = -1;
+		int gameCount = 0; // live rows, for the empty state
+		int hoverGameIndex = -1;
+
+		// Details panel (refreshDetail()).
+		bool detailVisible = false;
+		Rml::String detailName;
+		Rml::String detailMap;
+		Rml::String detailMapPath;
+		Rml::String detailPlayers;
+		Rml::String detailPing;
+		Rml::String detailCash;
+		bool detailPingOk = false;
+		bool detailPingBad = false;
+		bool detailPassword = false;
+		bool detailObservers = false;
+		bool detailStats = false;
+		bool detailLimitSuperweapons = false;
+		Rml::Vector<DetailMemberModel> detailMembers;
 
 		Rml::Vector<PlayerRowModel> players;
 
@@ -218,6 +252,8 @@ private:
 	RmlGrowOnlyList<PlayerRowModel> m_playerRows;
 	RmlGrowOnlyList<ChatLineModel> m_chatRows;
 	RmlGrowOnlyList<PlayerMenuItemModel> m_playerMenuItemRows;
+	RmlGrowOnlyList<DetailMemberModel> m_detailMemberRows;
+	std::vector<OnlineLobbyData::GameRow> m_rawGameRows; // last game list, same order/index as m_model.games
 
 	// Snapshot of the last refreshPlayers() roster, same order/index as m_model.players, so
 	// onPlayerRowMouseDown()/onPlayerMenuItemClicked() can reach a row's userID/displayName without

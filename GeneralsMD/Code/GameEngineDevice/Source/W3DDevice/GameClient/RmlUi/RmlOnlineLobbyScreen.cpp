@@ -66,6 +66,44 @@ static UnicodeString utf8ToUnicode(const Rml::String &utf8)
 	return text;
 }
 
+// Chat lines arrive as one string: the rooms interface prefixes "[hh:mm] " and player chat is
+// "name: message". Split those off for display only; anything else stays in body.
+static void splitChatLine(const Rml::String &text, Rml::String &time, Rml::String &name, Rml::String &body)
+{
+	time.clear();
+	name.clear();
+	body = text;
+
+	if (body.size() >= 8 && body[0] == '[' && body[3] == ':' && body[6] == ']' && body[7] == ' '
+		&& isdigit((unsigned char)body[1]) && isdigit((unsigned char)body[2]) && isdigit((unsigned char)body[4]) && isdigit((unsigned char)body[5]))
+	{
+		time = body.substr(1, 5);
+		body = body.substr(8);
+	}
+
+	const size_t colon = body.find(": ");
+	if (colon != Rml::String::npos && colon > 0 && colon <= 32 && body.find(' ') >= colon)
+	{
+		name = body.substr(0, colon);
+		body = body.substr(colon + 2);
+	}
+}
+
+static Rml::String formatCash(unsigned int amount)
+{
+	char digits[16];
+	snprintf(digits, sizeof(digits), "%u", amount);
+	Rml::String out = "$";
+	const size_t len = strlen(digits);
+	for (size_t i = 0; i < len; ++i)
+	{
+		if (i > 0 && (len - i) % 3 == 0)
+			out += ',';
+		out += digits[i];
+	}
+	return out;
+}
+
 static Rml::String colorToCss(Color color)
 {
 	// ARGB packing, see Color.h's GameMakeColor(); RmlUi's rgba() takes 0-255 ints for every
@@ -126,6 +164,7 @@ void RmlOnlineLobbyScreen::load(Rml::Context *context)
 			playerHandle.RegisterMember("is_friend", &PlayerRowModel::isFriend);
 			playerHandle.RegisterMember("is_ignored", &PlayerRowModel::isIgnored);
 			playerHandle.RegisterMember("is_self", &PlayerRowModel::isSelf);
+			playerHandle.RegisterMember("rank_image", &PlayerRowModel::rankImage);
 			playerHandle.RegisterMember("used", &PlayerRowModel::used);
 		}
 		constructor.RegisterArray<Rml::Vector<PlayerRowModel>>();
@@ -144,6 +183,9 @@ void RmlOnlineLobbyScreen::load(Rml::Context *context)
 		{
 			chatHandle.RegisterMember("text", &ChatLineModel::text);
 			chatHandle.RegisterMember("color", &ChatLineModel::color);
+			chatHandle.RegisterMember("time", &ChatLineModel::time);
+			chatHandle.RegisterMember("name", &ChatLineModel::name);
+			chatHandle.RegisterMember("body", &ChatLineModel::body);
 			chatHandle.RegisterMember("used", &ChatLineModel::used);
 		}
 		constructor.RegisterArray<Rml::Vector<ChatLineModel>>();
@@ -158,8 +200,32 @@ void RmlOnlineLobbyScreen::load(Rml::Context *context)
 		}
 		constructor.RegisterArray<Rml::Vector<RoomRowModel>>();
 
+		Rml::StructHandle<DetailMemberModel> memberHandle = constructor.RegisterStruct<DetailMemberModel>();
+		if (memberHandle)
+		{
+			memberHandle.RegisterMember("name", &DetailMemberModel::name);
+			memberHandle.RegisterMember("is_host", &DetailMemberModel::isHost);
+			memberHandle.RegisterMember("used", &DetailMemberModel::used);
+		}
+		constructor.RegisterArray<Rml::Vector<DetailMemberModel>>();
+
 		constructor.Bind("games", &m_model.games);
 		constructor.Bind("selected_game_index", &m_model.selectedGameIndex);
+		constructor.Bind("game_count", &m_model.gameCount);
+		constructor.Bind("detail_visible", &m_model.detailVisible);
+		constructor.Bind("detail_name", &m_model.detailName);
+		constructor.Bind("detail_map", &m_model.detailMap);
+		constructor.Bind("detail_map_path", &m_model.detailMapPath);
+		constructor.Bind("detail_players", &m_model.detailPlayers);
+		constructor.Bind("detail_ping", &m_model.detailPing);
+		constructor.Bind("detail_cash", &m_model.detailCash);
+		constructor.Bind("detail_ping_ok", &m_model.detailPingOk);
+		constructor.Bind("detail_ping_bad", &m_model.detailPingBad);
+		constructor.Bind("detail_password", &m_model.detailPassword);
+		constructor.Bind("detail_observers", &m_model.detailObservers);
+		constructor.Bind("detail_stats", &m_model.detailStats);
+		constructor.Bind("detail_limit_superweapons", &m_model.detailLimitSuperweapons);
+		constructor.Bind("detail_members", &m_model.detailMembers);
 		constructor.Bind("players", &m_model.players);
 		constructor.Bind("chat_lines", &m_model.chatLines);
 		constructor.Bind("chat_entry_text", &m_model.chatEntryText);
@@ -185,6 +251,7 @@ void RmlOnlineLobbyScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("join_selected", &RmlOnlineLobbyScreen::onJoinSelected, this);
 		constructor.BindEventCallback("game_row_clicked", &RmlOnlineLobbyScreen::onGameRowClicked, this);
 		constructor.BindEventCallback("game_row_activated", &RmlOnlineLobbyScreen::onGameRowActivated, this);
+		constructor.BindEventCallback("game_row_hovered", &RmlOnlineLobbyScreen::onGameRowHovered, this);
 		constructor.BindEventCallback("refresh", &RmlOnlineLobbyScreen::onRefresh, this);
 		constructor.BindEventCallback("back", &RmlOnlineLobbyScreen::onBackPressed, this);
 		constructor.BindEventCallback("buddy_overlay", &RmlOnlineLobbyScreen::onBuddyOverlay, this);
@@ -222,6 +289,9 @@ void RmlOnlineLobbyScreen::show()
 	m_chatRows.beginUpdate();
 	m_chatRows.endUpdate();
 	m_model.selectedGameIndex = -1;
+	m_model.hoverGameIndex = -1;
+	m_model.gameCount = 0;
+	m_rawGameRows.clear();
 	m_model.chatEntryText.clear();
 	m_rosterSignature.clear();
 	m_playerMenuItemRows.beginUpdate();
@@ -245,11 +315,13 @@ void RmlOnlineLobbyScreen::show()
 
 	// Leaves any lobby, registers the NGMP callbacks, fetches the room list and joins the first room.
 	OnlineLobbySession::enter();
+	OnlineLobbyData::resetPlayerStatsRequests();
 
 	refreshRoomCombo();
 	refreshFilterHighlight();
 	refreshSortHighlight();
 	refreshPlayers(true);
+	refreshDetail();
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
@@ -294,6 +366,7 @@ void RmlOnlineLobbyScreen::update()
 	{
 		m_lastRosterPoll = now;
 		refreshPlayers(false);
+		refreshRankIcons();
 	}
 
 	if (m_model.playerMenuVisible)
@@ -391,6 +464,7 @@ void RmlOnlineLobbyScreen::refreshPlayers(bool force)
 		player.isFriend = row.isFriend;
 		player.isIgnored = row.isIgnored;
 		player.isSelf = row.isSelf;
+		player.rankImage = OnlineLobbyData::rankImageForUser(row.userID);
 	}
 	m_playerRows.endUpdate();
 
@@ -403,6 +477,92 @@ void RmlOnlineLobbyScreen::refreshPlayers(bool force)
 }
 
 //-------------------------------------------------------------------------------------------------
+// The .wnd repaints the badges of the rows in view from the stats cache and fetches stats for them
+// (plus a margin); this does the same from the player list's scroll position.
+void RmlOnlineLobbyScreen::refreshRankIcons()
+{
+	const int rowCount = (int)m_rawPlayerRows.size();
+	if (rowCount == 0 || !m_document)
+		return;
+
+	int first = 0;
+	int last = rowCount - 1;
+	Rml::Element *list = m_document->GetElementById("player-list");
+	Rml::Element *firstRow = list ? list->QuerySelector(".player-row") : nullptr;
+	if (list && firstRow && firstRow->GetOffsetHeight() > 0.0f)
+	{
+		const float rowHeight = firstRow->GetOffsetHeight();
+		first = (int)(list->GetScrollTop() / rowHeight);
+		last = first + (int)(list->GetClientHeight() / rowHeight) + 1;
+	}
+	static const int VISIBLE_STATS_BUFFER = 8; // same prefetch margin as WOLLobbyMenu.cpp
+	first = max(0, first - VISIBLE_STATS_BUFFER);
+	last = min(rowCount - 1, last + VISIBLE_STATS_BUFFER);
+
+	std::vector<int64_t> visibleUsers;
+	for (int i = first; i <= last; ++i)
+		visibleUsers.push_back(m_rawPlayerRows[i].userID);
+	OnlineLobbyData::requestPlayerStats(visibleUsers);
+
+	bool changed = false;
+	for (int i = 0; i < rowCount && i < (int)m_model.players.size(); ++i)
+	{
+		const Rml::String rank = OnlineLobbyData::rankImageForUser(m_rawPlayerRows[i].userID);
+		if (rank != m_model.players[i].rankImage)
+		{
+			m_model.players[i].rankImage = rank;
+			changed = true;
+		}
+	}
+	if (changed && m_modelHandle)
+		m_modelHandle.DirtyVariable("players");
+}
+
+void RmlOnlineLobbyScreen::refreshDetail()
+{
+	const int count = m_gameRows.liveCount();
+	int index = m_model.hoverGameIndex;
+	if (index < 0 || index >= count || index >= (int)m_rawGameRows.size())
+		index = m_model.selectedGameIndex;
+
+	m_detailMemberRows.beginUpdate();
+	m_model.detailVisible = index >= 0 && index < count && index < (int)m_rawGameRows.size();
+	if (m_model.detailVisible)
+	{
+		const OnlineLobbyData::GameRow &row = m_rawGameRows[index];
+		m_model.detailName = row.displayName;
+		m_model.detailMap = row.mapDisplayName;
+		m_model.detailMapPath = row.mapPath;
+		m_model.detailPlayers = row.playersText;
+		char ping[32];
+		snprintf(ping, sizeof(ping), "%d ms", row.latency);
+		m_model.detailPing = ping;
+		m_model.detailCash = formatCash(row.startingCash);
+		m_model.detailPingOk = row.pingTier == OnlineLobbyData::PING_OK;
+		m_model.detailPingBad = row.pingTier == OnlineLobbyData::PING_BAD;
+		m_model.detailPassword = row.hasPassword;
+		m_model.detailObservers = row.allowObservers;
+		m_model.detailStats = row.trackStats;
+		m_model.detailLimitSuperweapons = row.limitSuperweapons;
+		for (size_t i = 0; i < row.memberNames.size(); ++i)
+		{
+			DetailMemberModel &member = m_detailMemberRows.next();
+			member.name = row.memberNames[i];
+			member.isHost = i == 0;
+		}
+	}
+	m_detailMemberRows.endUpdate();
+
+	if (m_modelHandle)
+	{
+		static const char *const vars[] = { "detail_visible", "detail_name", "detail_map", "detail_map_path", "detail_players",
+			"detail_ping", "detail_cash", "detail_ping_ok", "detail_ping_bad", "detail_password", "detail_observers",
+			"detail_stats", "detail_limit_superweapons", "detail_members" };
+		for (const char *var : vars)
+			m_modelHandle.DirtyVariable(var);
+	}
+}
+
 void RmlOnlineLobbyScreen::onGameListChanged(const std::vector<OnlineLobbyData::GameRow> &rows)
 {
 	m_gameRows.beginUpdate();
@@ -428,15 +588,21 @@ void RmlOnlineLobbyScreen::onGameListChanged(const std::vector<OnlineLobbyData::
 		++i;
 	}
 	m_gameRows.endUpdate();
+	m_rawGameRows = rows;
+	m_model.gameCount = m_gameRows.liveCount();
 
 	if (m_model.selectedGameIndex >= m_gameRows.liveCount())
 		m_model.selectedGameIndex = -1;
+	if (m_model.hoverGameIndex >= m_gameRows.liveCount())
+		m_model.hoverGameIndex = -1;
 
 	if (m_modelHandle)
 	{
 		m_modelHandle.DirtyVariable("games");
 		m_modelHandle.DirtyVariable("selected_game_index");
+		m_modelHandle.DirtyVariable("game_count");
 	}
+	refreshDetail();
 }
 
 // Chat is append-only (never diffed/rebuilt like games/players): next() alone grows liveCount by one
@@ -448,6 +614,7 @@ void RmlOnlineLobbyScreen::onChatLine(const UnicodeString &text, Color color)
 	ChatLineModel &line = m_chatRows.next();
 	line.text = unicodeToUtf8(text);
 	line.color = colorToCss(color);
+	splitChatLine(line.text, line.time, line.name, line.body);
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("chat_lines");
@@ -533,6 +700,16 @@ void RmlOnlineLobbyScreen::onGameRowClicked(Rml::DataModelHandle, Rml::Event &, 
 		m_modelHandle.DirtyVariable("games");
 		m_modelHandle.DirtyVariable("selected_game_index");
 	}
+	refreshDetail();
+}
+
+void RmlOnlineLobbyScreen::onGameRowHovered(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	const int index = args.empty() ? -1 : args[0].Get<int>();
+	if (index == m_model.hoverGameIndex)
+		return;
+	m_model.hoverGameIndex = index;
+	refreshDetail();
 }
 
 void RmlOnlineLobbyScreen::onGameRowActivated(Rml::DataModelHandle constructorHandle, Rml::Event &event, const Rml::VariantList &args)

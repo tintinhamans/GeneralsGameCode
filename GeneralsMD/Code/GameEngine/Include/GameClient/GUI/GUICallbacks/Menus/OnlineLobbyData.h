@@ -82,6 +82,13 @@ namespace OnlineLobbyData
 		PingTier pingTier = PING_GOOD;
 		bool hasBuddy = false;
 		bool crcMismatch = false;
+
+		// Details for the lobby's game details panel.
+		std::string mapPath;                  // for the map preview
+		int latency = 0;                      // ms
+		unsigned int startingCash = 0;
+		bool limitSuperweapons = false;
+		std::vector<std::string> memberNames; // human players, host first
 	};
 
 	// Pure computation of a game row from raw lobby data, plus the values insertGame() resolves
@@ -112,6 +119,17 @@ namespace OnlineLobbyData
 	// Cheap membership+flags signature so callers can skip an expensive rebuild when nothing changed
 	// (same purpose as WOLLobbyMenu.cpp's s_lobbyRosterSignature).
 	std::string buildRosterSignature( const std::vector<PlayerRow> &rows );
+
+	// Small rank badge (mapped image name, "Private-USA" etc.) for a roster member from the stats
+	// cache, falling back to the last value seen for that user; empty when unranked or unknown. No
+	// network: pair with requestPlayerStats().
+	std::string rankImageForUser( int64_t userID );
+
+	// Fetches stats for the users that have no fresh stats yet, one batch in flight at a time and each
+	// user once per lobby visit (same as WOLLobbyMenu.cpp's RequestVisibleLobbyStats()). Callers pass
+	// the roster rows the player can see.
+	void requestPlayerStats( const std::vector<int64_t> &userIDs );
+	void resetPlayerStatsRequests(); // start of a lobby visit
 
 	// Player-row right-click menu (see WOLLobbyMenu.cpp's GLM_RIGHT_CLICKED, which picks one of
 	// RCLocalPlayerMenu.wnd/RCNoProfileMenu.wnd/RCBuddiesMenu.wnd/RCNonBuddiesMenu.wnd, and

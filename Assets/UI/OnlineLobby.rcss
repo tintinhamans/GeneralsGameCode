@@ -1,85 +1,88 @@
 /*
-	OnlineLobby.rcss -- layout specific to OnlineLobby.rml. Palette/frame/button/scroll-container/
-	list/chat rules come from common.rcss.
+	OnlineLobby.rcss -- the online custom match lobby on the screen template (common.rcss): game
+	list over chat in the main column, the hovered/selected game's details and the room roster in
+	two side columns.
+
+	Rows keep the .wnd's colour language: buddy games and buddies #14B1FF, admins #F0C020, self
+	#10AD90, ignored #7A7A7A, CRC-mismatched games grey, player counts green when almost full and red
+	when full. Connection is a three-bar signal (good/ok/bad = 3/2/1 bars).
 */
 
-/* ---- Two-column body: games (wide) / players (narrow) ------------------------------------ */
-.lobby-row
+/* ---- Columns ------------------------------------------------------------------------------- */
+.details-col
 {
-	display: flex;
-	flex-direction: row;
-	flex: 1 1 0%; /* 0 basis: a content-sized basis grows with the roster (hundreds of players) and pushes the chat and footer off screen */
-	min-height: 0;
+	width: 340dp;
 }
 
-.games-column
+.players-col
 {
-	display: flex;
-	flex-direction: column;
-	flex: 1 1 auto;
-	margin-right: 16dp;
-	min-height: 0;
+	width: 260dp;
 }
 
-.players-column
+.details, .players
 {
 	display: flex;
 	flex-direction: column;
-	width: 240dp;
-	min-height: 0;
-}
-
-.games-column .list-box, .players-column .list-box
-{
 	flex: 1 1 0%;
 	min-height: 0;
 }
 
-.games-header
+.room-select
+{
+	width: 240dp;
+}
+
+/* ---- Game list ------------------------------------------------------------------------------- */
+.games
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding-bottom: 8dp;
+}
+
+.toolbar
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
+	flex: 0 0 auto;
+	flex-wrap: wrap;
+	margin-bottom: 4dp;
+}
+
+.toolbar .seg, .toolbar .icon-btn
+{
 	margin-bottom: 8dp;
 }
 
-.games-header button
+.screen .toolbar .icon-btn
 {
-	margin-right: 4dp;
+	width: 36dp;
+	height: 36dp;
+	padding: 5dp;
+	margin-right: 12dp;
+	background-color: #05070FC8;
+	border: 1dp #8080FF28;
 }
 
-.room-select
+.screen .toolbar .icon-btn:hover
 {
-	width: 220dp;
+	border-color: #8080FF;
+	background-color: #2F37A878;
 }
 
-.filter-row
+.game-list
 {
-	display: flex;
-	flex-direction: row;
-	margin-bottom: 8dp;
+	flex: 1 1 0%;
+	min-height: 0;
+	overflow-y: auto;
 }
 
-.filter-row button
-{
-	margin-right: 4dp;
-}
-
-/* ---- Game list row: fixed dp columns (a scrolling overflow-y:auto container corrupts
-   flex/auto widths inside it, see project notes) ------------------------------------------- */
-/* .game-row sits on common.rcss's .list-row.flex.compact; its own text colour and a stronger
-   selected highlight without the outline. */
 .game-row
 {
-	color: #BFC6C9;
-}
-
-.game-row.selected
-{
-	background-color: rgba(47, 55, 168, 160);
-	color: #FFFFFF;
-	border: 0dp transparent;
-	border-bottom: 1dp rgba(47, 55, 168, 80);
+	color: #D7DCF0;
 }
 
 .game-row.buddy
@@ -89,37 +92,82 @@
 
 .game-row.crcmismatch
 {
-	color: #7A7A7A;
+	color: #6A6F88;
+}
+
+.game-lock
+{
+	flex: 0 0 18dp;
+	height: 16dp;
+	margin-right: 8dp;
+}
+
+.game-lock mappedimage
+{
+	display: block;
+	width: 16dp;
+	height: 16dp;
 }
 
 .game-name
 {
 	flex: 1 1 auto;
-	overflow: hidden;
+	min-width: 0;
 	white-space: nowrap;
+	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.game-row.selected .game-name
+{
+	font-weight: bold;
+	color: #FFFFFF;
 }
 
 .game-map
 {
-	width: 170dp;
-	flex: 0 0 auto;
-	overflow: hidden;
+	flex: 0 0 200dp;
+	margin-left: 12dp;
+	color: #A9B1CF;
 	white-space: nowrap;
+	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.game-flags
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 52dp;
 	margin-left: 8dp;
+	opacity: 0.8;
+}
+
+.flag-observers
+{
+	width: 22dp;
+	height: 15dp;
+	margin-right: 6dp;
+}
+
+.flag-stats
+{
+	width: 12dp;
+	height: 12dp;
 }
 
 .game-players
 {
-	width: 44dp;
-	flex: 0 0 auto;
-	text-align: center;
+	flex: 0 0 48dp;
+	text-align: right;
+	font-weight: bold;
+	color: #EEF1FA;
 }
 
 .game-players.almost-full
 {
-	color: #10AD90;
+	color: #3CD28C;
 }
 
 .game-players.full
@@ -127,44 +175,299 @@
 	color: #FF5050;
 }
 
-.game-icon
+/* Three-bar connection signal. */
+.signal
 {
-	width: 16dp;
-	height: 16dp;
+	display: flex;
+	flex-direction: row;
+	align-items: flex-end;
 	flex: 0 0 auto;
-	margin-left: 4dp;
+	height: 14dp;
+	margin-left: 16dp;
 }
 
-.game-ping
+.bar
 {
-	width: 12dp;
-	height: 12dp;
+	width: 4dp;
+	margin-left: 2dp;
+	background-color: #3CD28C;
+}
+
+.b1 { height: 6dp; }
+.b2 { height: 10dp; }
+.b3 { height: 14dp; }
+
+.signal.ok .bar { background-color: #F0C020; }
+.signal.ok .b3 { background-color: #FFFFFF26; }
+.signal.bad .bar { background-color: #FF5050; }
+.signal.bad .b2, .signal.bad .b3 { background-color: #FFFFFF26; }
+
+/* Keep the art's inline <img> from sitting on a text baseline inside its box. */
+.game-row mappedimage img, .rank mappedimage img, .tag mappedimage img
+{
+	display: block;
+}
+
+/* ---- Chat --------------------------------------------------------------------------------- */
+.chat-panel
+{
+	display: flex;
+	flex-direction: column;
 	flex: 0 0 auto;
-	margin-left: 4dp;
-	background-color: #10AD90;
-	border-radius: 6dp;
+	height: 232dp;
 }
 
-.game-ping.ok
+.chat-lines
 {
-	background-color: #F0C020;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding-right: 8dp;
 }
 
-.game-ping.bad
+.chat-row
 {
-	background-color: #FF5050;
+	display: block;
+	padding: 3dp 0;
+	line-height: 20dp;
 }
 
-/* ---- Player list row: admin/friend/ignored/self coloring (see GSCOLOR_PLAYER_* in
-   WOLLobbyMenu.cpp's RebuildLobbyPlayerList(), which this mirrors) ------------------------- */
+.chat-time
+{
+	font-size: 13dp;
+	color: #7079A0;
+	margin-right: 8dp;
+}
+
+.chat-name
+{
+	font-weight: bold;
+	margin-right: 8dp;
+}
+
+.chat-body
+{
+	color: #D7DCF0;
+}
+
+.chat-entry
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-top: 10dp;
+}
+
+.chat-input
+{
+	flex: 1 1 auto;
+	margin-right: 8dp;
+}
+
+.screen .chat-entry .icon-btn
+{
+	width: 40dp;
+	height: 40dp;
+	padding: 8dp;
+	background-color: #2F37A8D2;
+	border: 1dp #8080FF;
+}
+
+.screen .chat-entry .icon-btn:hover
+{
+	background-color: #3A46D0;
+}
+
+/* ---- Details panel -------------------------------------------------------------------------- */
+.detail-map
+{
+	width: 308dp;
+	height: 308dp;
+}
+
+.detail-name
+{
+	display: block;
+	margin-top: 14dp;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.detail-map-name
+{
+	display: block;
+	margin-top: 2dp;
+	color: #A9B1CF;
+}
+
+.facts
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 16dp;
+}
+
+.fact
+{
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.fact-value
+{
+	display: block;
+	margin-top: 2dp;
+	font-size: 17dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+}
+
+.fact-value .dot
+{
+	margin-right: 6dp;
+	vertical-align: middle;
+}
+
+.dot.ok { background-color: #F0C020; }
+.dot.bad { background-color: #FF5050; }
+
+.tags
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	margin-top: 14dp;
+}
+
+.tag
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 26dp;
+	padding: 0 8dp;
+	margin: 0 6dp 6dp 0;
+	font-size: 13dp;
+	color: #D7DCF0;
+	background-color: #2F37A850;
+}
+
+.tag mappedimage
+{
+	width: 14dp;
+	height: 14dp;
+	margin-right: 6dp;
+}
+
+.members
+{
+	display: block;
+	margin-top: 10dp;
+	border-top: 1dp #8080FF28;
+	padding-top: 8dp;
+}
+
+.member
+{
+	display: block;
+	height: 26dp;
+	line-height: 26dp;
+	padding-left: 10dp;
+	border-left: 2dp #8080FF46;
+	margin-bottom: 2dp;
+	color: #D7DCF0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.member.host
+{
+	border-left-color: #BAFF0C;
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+/* ---- Player roster -------------------------------------------------------------------------- */
+.player-list
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.player-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 30dp;
+	padding: 0 8dp 0 6dp;
+	border-left: 3dp transparent;
+	color: #D7DCF0;
+	transition: background-color 0.1s cubic-out;
+}
+
+.player-row:hover
+{
+	background-color: #2F37A84B;
+}
+
+.rank
+{
+	flex: 0 0 20dp;
+	height: 20dp;
+	margin-right: 8dp;
+}
+
+.rank mappedimage
+{
+	display: block;
+	width: 20dp;
+	height: 20dp;
+}
+
+.player-name
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Buddies: blue name, blue bar and a dot at the end of the row. */
+.player-row.friend
+{
+	color: #14B1FF;
+	border-left-color: #14B1FF;
+	background-color: #14B1FF14;
+}
+
+.buddy-mark
+{
+	flex: 0 0 8dp;
+	width: 8dp;
+	height: 8dp;
+	margin-left: 6dp;
+	border-radius: 4dp;
+	background-color: #14B1FF;
+}
+
 .player-row.admin
 {
 	color: #F0C020;
 }
 
-.player-row.friend
+.player-row.self
 {
-	color: #14B1FF;
+	color: #10AD90;
+	font-weight: bold;
 }
 
 .player-row.ignored
@@ -172,7 +475,39 @@
 	color: #7A7A7A;
 }
 
-.player-row.self
+/* ---- Context menu on the template palette ------------------------------------------------------- */
+.screen .context-menu
 {
-	color: #10AD90;
+	background-color: #090C1EF5;
+	border: 1dp #3A46D0;
+	min-width: 110dp;
+	padding: 4dp 0;
+}
+
+.screen .context-menu-item
+{
+	height: 32dp;
+	line-height: 32dp;
+	padding: 0 14dp;
+	text-align: left;
+	border-bottom-width: 0;
+	color: #D7DCF0;
+}
+
+.screen .context-menu-item:hover
+{
+	background-color: #2F37A8DC;
+	color: #FFFFFF;
+}
+
+/* ---- 5:4 and 4:3 ------------------------------------------------------------------------------ */
+@media (max-aspect-ratio: 3/2)
+{
+	.details-col { width: 272dp; }
+	.detail-map { width: 240dp; height: 240dp; }
+	.players-col { width: 210dp; }
+	.game-map { flex-basis: 130dp; }
+	.game-flags { display: none; }
+	.facts .stat-label { letter-spacing: 0; }
+	.col-side { margin-left: 16dp; }
 }

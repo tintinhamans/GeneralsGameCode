@@ -2,90 +2,149 @@
 <head>
 	<title>OnlineLobby</title>
 	<link type="text/rcss" href="common.rcss"/>
-	<link type="text/rcss" href="GameSetup.rcss"/>
 	<link type="text/rcss" href="OnlineLobby.rcss"/>
 </head>
-<body class="shell" data-model="onlinelobby">
+<body class="screen" data-model="onlinelobby">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
-	<div class="shell-frame">
-		<div class="lobby-row">
-			<div class="games-column">
-				<div class="games-header">
-					<button class="icon-btn" data-event-click="refresh"><mappedimage name="LobbyRefresh"/></button>
-					<button class="btn-inline" data-class-active="sort_by_age" data-event-click="sort_age" data-tooltip="Tooltip:NameButton"><gametext key="GUI:SortAlpha"/></button>
-					<button class="btn-inline" data-class-active="sort_by_map" data-event-click="sort_map" data-tooltip="Tooltip:PingButton"><gametext key="GUI:SortPing"/></button>
-					<button class="btn-inline" data-class-active="sort_buddies_first" data-event-click="sort_buddies" data-tooltip="Tooltip:SortBuddies"><gametext key="GUI:SortBuddies"/></button>
-					<div class="spacer"></div>
-					<select class="room-select" data-value="current_room_index" data-event-change="join_room">
-						<option data-for="room : rooms" data-if="room.used" data-attr-value="room.index">{{room.label}}</option>
-					</select>
+	<div class="screen-frame">
+		<div class="screen-header">
+			<div class="screen-heading">
+				<div class="screen-crumb"><gametext key="GUI:GeneralsOnline"/><span class="crumb-sep">&#8250;</span></div>
+				<div class="screen-title"><gametext key="GUI:CustomMatch"/></div>
+			</div>
+			<div class="screen-header-aside">
+				<select class="room-select" data-value="current_room_index" data-event-change="join_room">
+					<option data-for="room : rooms" data-if="room.used" data-attr-value="room.index">{{room.label}}</option>
+				</select>
+			</div>
+		</div>
+
+		<div class="screen-body">
+			<div class="col col-main">
+				<!-- Game list: name, map, players x/y, connection and lock at a glance. Hover or
+				     select a row for its details on the right. -->
+				<div class="surface games">
+					<div class="toolbar">
+						<button class="icon-btn refresh" data-event-click="refresh"><mappedimage name="LobbyRefresh"/></button>
+						<div class="seg">
+							<button class="seg-item" data-class-on="filter_is_all" data-event-click="set_filter(0)"><gametext key="GUI:Any"/></button>
+							<button class="seg-item" data-class-on="filter_is_1v1" data-event-click="set_filter(1)">1v1</button>
+							<button class="seg-item" data-class-on="filter_is_team" data-event-click="set_filter(2)"><gametext key="GUI:Team"/></button>
+							<button class="seg-item" data-class-on="filter_is_ffa" data-event-click="set_filter(3)">FFA</button>
+							<button class="seg-item" data-class-on="filter_is_aod" data-event-click="set_filter(4)">AOD</button>
+							<button class="seg-item" data-class-on="filter_is_buddies" data-event-click="set_filter(5)"><gametext key="GUI:SortBuddies"/></button>
+						</div>
+						<div class="spacer"></div>
+						<div class="seg sort-seg">
+							<button class="seg-item" data-class-on="sort_by_age" data-event-click="sort_age" data-tooltip="Tooltip:NameButton"><gametext key="GUI:SortAlpha"/></button>
+							<button class="seg-item" data-class-on="sort_by_map" data-event-click="sort_map" data-tooltip="Tooltip:PingButton"><gametext key="GUI:SortPing"/></button>
+							<button class="seg-item" data-class-on="sort_buddies_first" data-event-click="sort_buddies" data-tooltip="Tooltip:SortBuddies"><gametext key="GUI:SortBuddies"/></button>
+						</div>
+					</div>
+
+					<div class="game-list" data-event-mouseout="game_row_hovered(-1)">
+						<div data-for="game : games">
+							<div class="row-item game-row" data-if="game.used" data-class-selected="game.is_selected" data-class-buddy="game.has_buddy"
+								data-class-crcmismatch="game.crc_mismatch"
+								data-event-mouseover="game_row_hovered(game.index)"
+								data-event-click="game_row_clicked(game.index)" data-event-dblclick="game_row_activated(game.index)">
+								<div class="game-lock"><mappedimage name="Password" data-if="game.has_password"/></div>
+								<div class="game-name">{{game.display_name}}</div>
+								<div class="game-map">{{game.map_display_name}}</div>
+								<div class="game-flags">
+									<mappedimage class="flag-observers" name="Observer" data-if="game.allow_observers"/>
+									<mappedimage class="flag-stats" name="GoodStatsIcon" data-if="game.track_stats"/>
+								</div>
+								<div class="game-players" data-class-almost-full="game.players_almost_full" data-class-full="game.players_full">{{game.players_text}}</div>
+								<div class="signal" data-class-ok="game.ping_ok" data-class-bad="game.ping_bad">
+									<div class="bar b1"></div><div class="bar b2"></div><div class="bar b3"></div>
+								</div>
+							</div>
+						</div>
+						<div class="empty-state" data-if="game_count == 0"><gametext key="GUI:GONoGames"/></div>
+					</div>
 				</div>
-				<div class="filter-row">
-					<button class="btn-inline" data-class-active="filter_is_all" data-event-click="set_filter(0)">Filter: All</button>
-					<button class="btn-inline" data-class-active="filter_is_1v1" data-event-click="set_filter(1)">1v1</button>
-					<button class="btn-inline" data-class-active="filter_is_team" data-event-click="set_filter(2)">Team</button>
-					<button class="btn-inline" data-class-active="filter_is_ffa" data-event-click="set_filter(3)">FFA</button>
-					<button class="btn-inline" data-class-active="filter_is_aod" data-event-click="set_filter(4)">AOD</button>
-					<button class="btn-inline" data-class-active="filter_is_buddies" data-event-click="set_filter(5)">Buddies</button>
+
+				<div class="surface chat-panel">
+					<scrolllog class="chat-lines">
+						<div data-for="line : chat_lines">
+							<div class="chat-row" data-if="line.used">
+								<span class="chat-time" data-if="line.time != ''">{{line.time}}</span>
+								<span class="chat-name" data-if="line.name != ''" data-style-color="line.color">{{line.name}}</span>
+								<span class="chat-body" data-class-plain="line.name == ''" data-style-color="line.name == '' ? line.color : '#D7DCF0'">{{line.body}}</span>
+							</div>
+						</div>
+					</scrolllog>
+					<div class="chat-entry">
+						<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
+						<button class="icon-btn" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
+					</div>
 				</div>
-				<div class="scroll-container list-box">
-					<div data-for="game : games">
-						<div class="list-row flex compact game-row" data-if="game.used" data-class-selected="game.is_selected" data-class-buddy="game.has_buddy"
-							data-class-crcmismatch="game.crc_mismatch"
-							data-event-click="game_row_clicked(game.index)" data-event-dblclick="game_row_activated(game.index)">
-							<div class="game-name">{{game.display_name}}</div>
-							<div class="game-map">{{game.map_display_name}}</div>
-							<div class="game-players" data-class-almost-full="game.players_almost_full" data-class-full="game.players_full">{{game.players_text}}</div>
-							<mappedimage class="game-icon" name="Password" data-if="game.has_password"/>
-							<div class="game-icon" data-if="!game.has_password"></div>
-							<mappedimage class="game-icon" name="Observer" data-if="game.allow_observers"/>
-							<div class="game-icon" data-if="!game.allow_observers"></div>
-							<mappedimage class="game-icon" name="GoodStatsIcon" data-if="game.track_stats"/>
-							<div class="game-icon" data-if="!game.track_stats"></div>
-							<div class="game-ping" data-class-ok="game.ping_ok" data-class-bad="game.ping_bad"></div>
+			</div>
+
+			<!-- Details of the hovered game, else the selected one. -->
+			<div class="col col-side details-col">
+				<div class="surface details">
+					<div class="overline group-title"><gametext key="GUI:GameInfo"/></div>
+					<div data-if="detail_visible">
+						<div class="map-frame detail-map">
+							<mappreview class="map-image" data-attr-map="detail_map_path"/>
+						</div>
+						<div class="detail-name">{{detail_name}}</div>
+						<div class="detail-map-name">{{detail_map}}</div>
+						<div class="facts">
+							<div class="fact"><div class="stat-label"><gametext key="GUI:Players"/></div><div class="fact-value">{{detail_players}}</div></div>
+							<div class="fact"><div class="stat-label"><gametext key="GUI:SortPing"/></div>
+								<div class="fact-value"><span class="dot" data-class-ok="detail_ping_ok" data-class-bad="detail_ping_bad"></span>{{detail_ping}}</div></div>
+							<div class="fact"><div class="stat-label"><gametext key="GUI:StartingMoney"/></div><div class="fact-value">{{detail_cash}}</div></div>
+						</div>
+						<div class="tags">
+							<div class="tag" data-if="detail_password"><mappedimage name="Password"/><gametext key="GUI:Password"/></div>
+							<div class="tag" data-if="detail_observers"><mappedimage name="Observer"/><gametext key="GUI:AllowObservers"/></div>
+							<div class="tag" data-if="detail_limit_superweapons"><gametext key="GUI:LimitSuperweapons"/></div>
+						</div>
+						<div class="members">
+							<div data-for="member : detail_members">
+								<div class="member" data-if="member.used" data-class-host="member.is_host">{{member.name}}</div>
+							</div>
+						</div>
+					</div>
+					<div class="empty-state" data-if="!detail_visible"><gametext key="GUI:NoGameSelected"/></div>
+				</div>
+			</div>
+
+			<!-- Room roster: rank badge, buddies marked, admins/self/ignored coloured like the .wnd. -->
+			<div class="col col-side players-col">
+				<div class="surface players">
+					<div class="overline group-title"><gametext key="GUI:Players"/></div>
+					<div id="player-list" class="player-list">
+						<div data-for="player : players">
+							<div class="player-row" data-if="player.used" data-class-admin="player.is_admin" data-class-friend="player.is_friend"
+								data-class-ignored="player.is_ignored" data-class-self="player.is_self"
+								data-event-mousedown="player_row_mousedown(player.index)">
+								<div class="rank"><mappedimage data-if="player.rank_image != ''" data-attr-name="player.rank_image"/></div>
+								<div class="player-name">{{player.name}}</div>
+								<div class="buddy-mark" data-if="player.is_friend"></div>
+							</div>
 						</div>
 					</div>
 				</div>
 			</div>
-
-			<div class="players-column">
-				<div class="section-title"><gametext key="GUI:Players"/></div>
-				<div class="scroll-container list-box">
-					<div data-for="player : players">
-						<div class="list-row compact player-row" data-if="player.used" data-class-admin="player.is_admin" data-class-friend="player.is_friend"
-							data-class-ignored="player.is_ignored" data-class-self="player.is_self"
-							data-event-mousedown="player_row_mousedown(player.index)">{{player.name}}</div>
-					</div>
-				</div>
-			</div>
 		</div>
 
-		<div class="chat">
-			<scrolllog class="chat-log">
-				<div class="chat-line" data-for="line : chat_lines">
-					<span data-if="line.used" data-style-color="line.color">{{line.text}}</span>
-				</div>
-			</scrolllog>
-			<div class="chat-entry">
-				<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-				<button class="icon-btn" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
-			</div>
-		</div>
-
-		<div class="footer">
-			<button class="btn-primary" data-event-click="host_game"><gametext key="GUI:Host"/></button>
-			<button class="btn-primary" data-event-click="join_selected"><gametext key="GUI:Join"/></button>
-			<button class="btn-primary" data-event-click="buddy_overlay"><gametext key="GUI:Buddies"/></button>
+		<div class="action-bar">
+			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
 			<div class="spacer"></div>
-			<button class="btn-primary" data-event-click="back"><gametext key="GUI:Back"/></button>
+			<button data-event-click="buddy_overlay"><gametext key="GUI:Buddies"/></button>
+			<button data-event-click="host_game"><gametext key="GUI:Host"/></button>
+			<button class="btn-cta" data-event-click="join_selected"><gametext key="GUI:Join"/></button>
 		</div>
-
 	</div>
 
-	<!-- Siblings of .shell-frame (not nested inside it), same as .shell-background above: .shell-frame
-	     is itself position:absolute, so a .context-menu nested inside it would resolve data-style-left/
-	     top's viewport-relative mouse_x/mouse_y against .shell-frame's box instead of the viewport. -->
+	<!-- Siblings of .screen-frame (not nested inside it): .screen-frame is position:absolute, so a
+	     .context-menu inside it would resolve the viewport-relative mouse_x/mouse_y of
+	     data-style-left/top against the frame instead of the viewport. -->
 	<div class="context-menu-backdrop" data-if="player_menu_visible" data-event-mousedown="player_menu_dismiss"></div>
 	<div id="player-context-menu" class="context-menu" data-if="player_menu_visible" data-style-left="player_menu_x_style" data-style-top="player_menu_y_style">
 		<div data-for="item : player_menu_items">

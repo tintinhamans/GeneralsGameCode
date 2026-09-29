@@ -6,3 +6,7 @@
 GUI:GONoMapsForFilter
 "No maps for this many players"
 END
+
+GUI:GONoGames
+"No games in this room yet"
+END

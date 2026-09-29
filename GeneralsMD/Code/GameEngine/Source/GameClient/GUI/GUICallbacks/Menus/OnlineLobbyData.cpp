@@ -20,10 +20,14 @@
 
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbyData.h"
 
+#include "GameClient/Image.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "GameNetwork/RankPointValue.h"
 
 #include <algorithm>
 #include <cctype>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace OnlineLobbySignals
 {
@@ -72,7 +76,94 @@ GameRow buildGameRow( const LobbyEntry &lobby, const std::string &mapDisplayName
 	// Same buckets as insertGame()'s pingImages[0..2] selection.
 	row.pingTier = (lobby.latency < 250) ? PING_GOOD : (lobby.latency < 500) ? PING_OK : PING_BAD;
 
+	row.mapPath = lobby.map_path;
+	row.latency = lobby.latency;
+	row.startingCash = lobby.starting_cash;
+	row.limitSuperweapons = lobby.limit_superweapons;
+	if ( !ownerName.empty() )
+		row.memberNames.push_back( ownerName );
+	for ( const LobbyMemberEntry &member : lobby.members )
+	{
+		if ( member.IsHuman() && member.user_id != lobby.owner )
+			row.memberNames.push_back( member.display_name );
+	}
+
 	return row;
+}
+
+//-------------------------------------------------------------------------------------------------
+std::string rankImageForUser( int64_t userID )
+{
+	// Last resolved (rank points, favorite side) per user, so a cache miss doesn't blank the badge.
+	static std::unordered_map<int64_t, std::pair<Int, Int>> s_lastKnown;
+
+	Int rankPoints = 0;
+	Int favoriteSide = 0;
+	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+	PSPlayerStats stats = PSPlayerStats();
+	if ( pStatsInterface != nullptr && pStatsInterface->getPlayerStatsFromCache( userID, &stats ) && stats.id != 0 )
+	{
+		rankPoints = CalculateRank( stats );
+		favoriteSide = GetFavoriteSide( stats );
+		s_lastKnown[userID] = std::make_pair( rankPoints, favoriteSide );
+	}
+	else
+	{
+		auto it = s_lastKnown.find( userID );
+		if ( it != s_lastKnown.end() )
+		{
+			rankPoints = it->second.first;
+			favoriteSide = it->second.second;
+		}
+	}
+
+	const Image *image = LookupSmallRankImage( favoriteSide, rankPoints );
+	return image ? std::string( image->getName().str() ) : std::string();
+}
+
+//-------------------------------------------------------------------------------------------------
+static bool s_statsBatchInFlight = false;
+static UnsignedInt s_statsBatchStartTime = 0;
+static UnsignedInt s_statsBatchGeneration = 0; // bumped per lobby visit; stale responses are ignored
+static std::unordered_set<int64_t> s_statsRequestedUserIDs;
+static const UnsignedInt STATS_BATCH_WATCHDOG_MS = 30000; // recover from a lost response
+
+void requestPlayerStats( const std::vector<int64_t> &userIDs )
+{
+	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+	if ( pStatsInterface == nullptr )
+		return;
+
+	const UnsignedInt now = timeGetTime();
+	if ( s_statsBatchInFlight && (now - s_statsBatchStartTime) < STATS_BATCH_WATCHDOG_MS )
+		return;
+
+	std::vector<int64_t> toRequest;
+	for ( int64_t userID : userIDs )
+	{
+		if ( userID <= 0 || s_statsRequestedUserIDs.count( userID ) != 0 || pStatsInterface->HasFreshPlayerStats( userID ) )
+			continue;
+		toRequest.push_back( userID );
+	}
+	if ( toRequest.empty() )
+		return;
+
+	s_statsRequestedUserIDs.insert( toRequest.begin(), toRequest.end() );
+	s_statsBatchInFlight = true;
+	s_statsBatchStartTime = now;
+	const UnsignedInt generation = s_statsBatchGeneration;
+	pStatsInterface->findPlayerStatsByBatch( toRequest, [generation]( bool /*bSuccess*/ )
+		{
+			if ( generation == s_statsBatchGeneration )
+				s_statsBatchInFlight = false;
+		} );
+}
+
+void resetPlayerStatsRequests()
+{
+	++s_statsBatchGeneration;
+	s_statsBatchInFlight = false;
+	s_statsRequestedUserIDs.clear();
 }
 
 //-------------------------------------------------------------------------------------------------
