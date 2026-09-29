@@ -33,6 +33,7 @@ namespace OnlineLobbySignals
 	Signal2<int, bool> &roomChanged() { static Signal2<int, bool> s; return s; }
 	Signal1<int> &joinResult() { static Signal1<int> s; return s; }
 	Signal1<bool> &createResult() { static Signal1<bool> s; return s; }
+	Signal1<bool> &roomListResult() { static Signal1<bool> s; return s; }
 }
 
 namespace OnlineLobbyData

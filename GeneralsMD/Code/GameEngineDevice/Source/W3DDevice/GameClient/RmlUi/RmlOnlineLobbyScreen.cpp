@@ -24,6 +24,7 @@
 #include "GameClient/Color.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbyActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbySession.h"
 #include "GameClient/Shell.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
@@ -224,16 +225,6 @@ void RmlOnlineLobbyScreen::show()
 	m_model.playerMenuVisible = false;
 	m_rawPlayerRows.clear();
 
-	OnlineLobbyActions::leaveCurrentLobby();
-
-	refreshRoomCombo();
-	refreshFilterHighlight();
-	refreshSortHighlight();
-	refreshPlayers(true);
-
-	if (m_modelHandle)
-		m_modelHandle.DirtyAllVariables();
-
 	m_connections.disconnect();
 	m_connections.add(OnlineLobbySignals::gameList().connect([this](const std::vector<OnlineLobbyData::GameRow> &rows) { onGameListChanged(rows); }));
 	m_connections.add(OnlineLobbySignals::chatLine().connect([this](const UnicodeString &text, Color color) { onChatLine(text, color); }));
@@ -246,7 +237,18 @@ void RmlOnlineLobbyScreen::show()
 			// TODO_NGMP upstream has no error case either (see WOLLobbyMenu.cpp).
 			TheShell->push("Menus/GameSpyGameOptionsMenu.wnd");
 		}));
-	OnlineLobbyActions::registerNetworkCallbacks();
+	m_connections.add(OnlineLobbySignals::roomListResult().connect([this](bool success) { onRoomListResult(success); }));
+
+	// Leaves any lobby, registers the NGMP callbacks, fetches the room list and joins the first room.
+	OnlineLobbySession::enter();
+
+	refreshRoomCombo();
+	refreshFilterHighlight();
+	refreshSortHighlight();
+	refreshPlayers(true);
+
+	if (m_modelHandle)
+		m_modelHandle.DirtyAllVariables();
 
 	m_document->Show();
 	OnlineLobbyActions::refresh();
@@ -257,6 +259,7 @@ void RmlOnlineLobbyScreen::hide()
 	if (m_document)
 		m_document->Hide();
 
+	OnlineLobbySession::leave();
 	m_connections.disconnect();
 }
 
@@ -272,17 +275,18 @@ void RmlOnlineLobbyScreen::onBack()
 
 void RmlOnlineLobbyScreen::update()
 {
-	// WOLLobbyMenuUpdate() never runs for a registry-routed screen (see header comment); the periodic
+	// WOLLobbyMenuUpdate() never runs for a registry-routed screen (see header comment); its
+	// pending-full-teardown exit and lobby-list-dirty poll are OnlineLobbySession's, and the periodic
 	// player-list re-poll it drove via refreshPlayerList()'s time-gate is replaced here.
+	if (OnlineLobbySession::handlePendingTeardown())
+		return;
+
+	OnlineLobbySession::update();
+
 	refreshPlayers(false);
 
 	if (m_model.playerMenuVisible)
 		clampPlayerMenu();
-
-	if (OnlineLobbyActions::isPendingFullTeardown())
-	{
-		onBack();
-	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -462,6 +466,15 @@ void RmlOnlineLobbyScreen::onRoomChanged(int roomIndex, bool effectiveRoomChange
 void RmlOnlineLobbyScreen::refreshPlayersFromSignal()
 {
 	refreshPlayers(false);
+}
+
+void RmlOnlineLobbyScreen::onRoomListResult(bool success)
+{
+	refreshRoomCombo();
+
+	// Same error line WOLLobbyMenu.cpp adds to its chat listbox.
+	if (!success)
+		onChatLine(UnicodeString(L"	 ERROR: No rooms are available. Try logging in again."), GameMakeColor(255, 0, 0, 255));
 }
 
 void RmlOnlineLobbyScreen::onLobbyJoinResult(int result)

@@ -178,4 +178,8 @@ namespace OnlineLobbySignals
 	Signal2<int, bool> &roomChanged(); // roomIndex, effectiveRoomChanged
 	Signal1<int> &joinResult(); // EJoinLobbyResult, passed as int
 	Signal1<bool> &createResult();
+
+	// OnlineLobbySession::enter()'s room list fetch finished: TRUE and the first room is being joined,
+	// or FALSE with no rooms available (the front end shows the "No rooms are available" error line).
+	Signal1<bool> &roomListResult();
 }

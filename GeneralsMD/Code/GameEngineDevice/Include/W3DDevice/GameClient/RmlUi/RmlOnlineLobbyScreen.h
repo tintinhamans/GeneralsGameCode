@@ -21,13 +21,11 @@
 // (OnlineWelcomeActions's Custom Match button pushes that path). Like
 // RmlLanLobbyScreen this never gets a WOLLobbyMenuInit()/Update()/Shutdown()
 // callback (RmlUiScreenRegistry routes the whole placeholder layout), so show()/
-// hide() do the engine-state setup/teardown themselves and independently
-// register the NGMP push callbacks WOLLobbyMenuInit() would otherwise install
-// (RegisterForChatCallback/RegisterForRosterNeedsRefreshCallback/
-// RegisterForRoomChangedCallback/RegisterForCreateLobbyCallback/
-// RegisterForJoinLobbyCallback -- all single-slot std::function members on the
-// NGMP interfaces, so registering our own here simply preempts WOLLobbyMenuInit's
-// registrations for as long as this screen -- not the .wnd one -- is open).
+// hide() do the engine-state setup/teardown themselves through
+// OnlineLobbySession::enter()/leave() -- the same NGMP callback registration,
+// room list fetch/first room join and pending-teardown exit WOLLobbyMenu.cpp
+// uses, so both front ends behave identically. Its results arrive through
+// OnlineLobbySignals, connected in show() and dropped in hide().
 //
 // Game list rows are pushed from LobbyUtils.cpp's RefreshGameListBox() async
 // SearchForLobbies() completion via OnlineLobbySignals::gameList (connected in
@@ -86,6 +84,7 @@ public:
 	void onRoomChanged(int roomIndex, bool effectiveRoomChanged); // OnlineLobbySignals::roomChanged
 	void onLobbyJoinResult(int result); // OnlineLobbySignals::joinResult (EJoinLobbyResult)
 	void refreshPlayersFromSignal(); // OnlineLobbySignals::rosterRefresh; forwards to refreshPlayers(false)
+	void onRoomListResult(bool success); // OnlineLobbySignals::roomListResult
 
 private:
 	RmlOnlineLobbyScreen() : m_gameRows(m_model.games), m_playerRows(m_model.players), m_chatRows(m_model.chatLines),

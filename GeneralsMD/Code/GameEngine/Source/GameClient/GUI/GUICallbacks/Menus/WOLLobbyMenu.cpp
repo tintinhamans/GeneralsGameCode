@@ -72,6 +72,7 @@
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_Moderation.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbyData.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbySession.h"
 
 #include <deque>
 #include <string>
@@ -95,7 +96,6 @@ static Bool isShuttingDown = false;
 static Bool buttonPushed = false;
 static const char *nextScreen = nullptr;
 static Bool raiseMessageBoxes = false;
-static UnsignedInt s_lobbyMenuGeneration = 0;
 static time_t gameListRefreshTime = 0;
 static const time_t gameListRefreshInterval = 4000;
 static time_t playerListRefreshTime = 0;
@@ -337,6 +337,18 @@ static Bool s_tryingToHostOrJoin = FALSE;
 void SetLobbyAttemptHostJoin(Bool start)
 {
 	s_tryingToHostOrJoin = start;
+}
+
+Bool IsLobbyAttemptHostJoin()
+{
+	return s_tryingToHostOrJoin;
+}
+
+// Lets the next refreshGameList()/refreshPlayerList() through their time gates (OnlineLobbySession::enter()).
+void ResetLobbyRefreshGates()
+{
+	gameListRefreshTime = 0;
+	playerListRefreshTime = 0;
 }
 
 // Tooltips -------------------------------------------------------------------------------
@@ -1181,6 +1193,7 @@ void NGMP_WOLLobbyMenu_CreateLobbyCallback(bool bSuccess)
 	// TODO_NGMP: Handle error case
 
 	buttonPushed = true;
+	OnlineLobbySession::markLeaving();
 	nextScreen = "Menus/GameSpyGameOptionsMenu.wnd";
 	TheShell->pop();
 	//TheGameSpyInfo->markAsStagingRoomHost();
@@ -1196,6 +1209,7 @@ void NGMP_WOLLobbyMenu_JoinLobbyCallback(EJoinLobbyResult result)
 	{
 		// Woohoo!  On to our next screen!
 		buttonPushed = true;
+		OnlineLobbySession::markLeaving();
 		nextScreen = "Menus/GameSpyGameOptionsMenu.wnd";
 		TheShell->pop();
 	}
@@ -1257,28 +1271,54 @@ void NGMP_WOLLobbyMenu_JoinLobbyCallback(EJoinLobbyResult result)
 	}
 }
 
+// OnlineLobbySession::enter() registers the NGMP callbacks and forwards them into OnlineLobbySignals;
+// this is where the .wnd puts them on its widgets.
+static SignalConnections s_lobbySessionConnections;
+
+static void connectLobbySessionSignals()
+{
+	s_lobbySessionConnections.disconnect();
+
+	s_lobbySessionConnections.add(OnlineLobbySignals::createResult().connect([](bool bSuccess)
+		{
+			NGMP_WOLLobbyMenu_CreateLobbyCallback(bSuccess);
+		}));
+	s_lobbySessionConnections.add(OnlineLobbySignals::joinResult().connect([](int result)
+		{
+			NGMP_WOLLobbyMenu_JoinLobbyCallback((EJoinLobbyResult)result);
+		}));
+	s_lobbySessionConnections.add(OnlineLobbySignals::chatLine().connect([](const UnicodeString &strMessage, Color color)
+		{
+			GadgetListBoxAddEntryText(listboxLobbyChat, strMessage, color, -1, -1);
+		}));
+	s_lobbySessionConnections.add(OnlineLobbySignals::rosterRefresh().connect([]()
+		{
+			refreshPlayerList(false);
+		}));
+	s_lobbySessionConnections.add(OnlineLobbySignals::roomChanged().connect([](int roomIndex, bool effectiveRoomChanged)
+		{
+			HandleNetworkRoomChanged(roomIndex, effectiveRoomChanged);
+		}));
+	s_lobbySessionConnections.add(OnlineLobbySignals::roomListResult().connect([](bool success)
+		{
+			if (success || buttonPushed || isShuttingDown || listboxLobbyChat == nullptr)
+				return;
+
+			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"\t ERROR: No rooms are available. Try logging in again."), GameMakeColor(255, 0, 0, 255), -1, -1);
+		}));
+}
+
 //-------------------------------------------------------------------------------------------------
 /** Initialize the WOL Lobby Menu */
 //-------------------------------------------------------------------------------------------------
 void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 {
-	const UnsignedInt lobbyMenuGeneration = ++s_lobbyMenuGeneration;
-
-	// for safety (and sanity)
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	if (pLobbyInterface != nullptr)
-	{
-		pLobbyInterface->LeaveCurrentLobby();
-	}
+	// lobby leave, host/join reset and refresh gates: OnlineLobbySession::enter() below
 	
 	nextScreen = nullptr;
 	buttonPushed = false;
 	isShuttingDown = false;
 
-	SetLobbyAttemptHostJoin(FALSE); // not trying to host or join
-
-	gameListRefreshTime = 0;
-	playerListRefreshTime = 0;
 	s_statsBatchInFlight = FALSE;
 	++s_statsBatchGeneration;
 	s_statsRequestedUserIDs.clear();
@@ -1359,35 +1399,9 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 	}
 	*/
 
-	// NGMP: Register for create lobby callback
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-	if (pLobbyInterface != nullptr && pRoomsInterface != nullptr)
-	{
-		pLobbyInterface->RegisterForCreateLobbyCallback(NGMP_WOLLobbyMenu_CreateLobbyCallback);
-
-		// NGMP: Join lobby callback
-		pLobbyInterface->RegisterForJoinLobbyCallback(NGMP_WOLLobbyMenu_JoinLobbyCallback);
-
-		// NGMP: Request lobbies
-
-		//GadgetListBoxSetItemData(listboxLobbyChat, (void*)-1, index);
-
-		// TODO_NGMP: player list change callbacks
-
-		// register for chat events
-		pRoomsInterface->RegisterForChatCallback([](UnicodeString strMessage, Color color)
-			{
-				GadgetListBoxAddEntryText(listboxLobbyChat, strMessage, color, -1, -1);
-			});
-
-		// register for roster events (throttled path)
-		pRoomsInterface->RegisterForRosterNeedsRefreshCallback([]()
-				{
-					refreshPlayerList(false);
-			});
-
-		pRoomsInterface->RegisterForRoomChangedCallback(HandleNetworkRoomChanged);
-	}
+	// NGMP push events (create/join lobby, chat, roster, room changed, room list) reach this menu through
+	// OnlineLobbySignals; OnlineLobbySession::enter() below registers the NGMP side.
+	connectLobbySessionSignals();
 
 	GrabWindowInfo();
 
@@ -1408,11 +1422,6 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 #if !defined(GENERALS_ONLINE)
 	TheGameSpyGame->reset();
 	
-#else
-	if (TheNGMPGame != nullptr)
-	{
-		TheNGMPGame->reset();
-	}
 #endif
 
 	// TODO_NGMP
@@ -1445,28 +1454,8 @@ void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 
 
 #if defined(GENERALS_ONLINE)
-// upon entry, retrieve room list
-
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterfaceOuter = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-	if (pRoomsInterfaceOuter != nullptr)
-	{
-		pRoomsInterfaceOuter->GetRoomList([=](bool success)
-			{
-				if (lobbyMenuGeneration != s_lobbyMenuGeneration || buttonPushed || isShuttingDown || listboxLobbyChat == nullptr)
-				{
-					return;
-				}
-
-				const std::vector<NetworkRoom>& rooms = pRoomsInterfaceOuter->GetGroupRooms();
-				if (!success || rooms.empty())
-				{
-					GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"\t ERROR: No rooms are available. Try logging in again."), GameMakeColor(255, 0, 0, 255), -1, -1);
-					return;
-				}
-
-				pRoomsInterfaceOuter->JoinRoom(0);
-			});
-	}
+// upon entry, leave any lobby, register the NGMP callbacks and retrieve the room list
+	OnlineLobbySession::enter();
 
 	// Update the communicator button anytime we get notifications
     NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
@@ -1530,23 +1519,8 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void WOLLobbyMenuShutdown( WindowLayout *layout, void *userData )
 {
-	++s_lobbyMenuGeneration;
-
-	NGMP_OnlineServices_RoomsInterface* pRoomsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_RoomsInterface>();
-	if (pRoomsInterface != nullptr)
-	{
-		pRoomsInterface->DeregisterForChatCallback();
-		pRoomsInterface->DeregisterForRosterNeedsRefreshCallback();
-		pRoomsInterface->DeregisterForRoomChangedCallback();
-	}
-
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	if (pLobbyInterface != nullptr)
-	{
-		pLobbyInterface->DeregisterForCreateLobbyCallback();
-		pLobbyInterface->DeregisterForJoinLobbyCallback();
-		pLobbyInterface->DeregisterForSearchForLobbiesCallback();
-	}
+	OnlineLobbySession::leave();
+	s_lobbySessionConnections.disconnect();
 
 	CustomMatchPreferences pref;
 //	GameWindow *slider = TheWindowManager->winGetWindowFromId(parent, sliderChatAdjustID);
@@ -1733,6 +1707,7 @@ void ExitState()
 
 	SetLobbyAttemptHostJoin(TRUE); // pretend, since we don't want to queue up another action
 	buttonPushed = true;
+	OnlineLobbySession::markLeaving();
 
 	if (pOnlineServicesManager == nullptr || pOnlineServicesManager->IsPendingFullTeardown()) // go back to the front end
 	{
@@ -1752,17 +1727,8 @@ void ExitState()
 void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 {
 	// need to exit?
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr && NGMP_OnlineServicesManager::GetInstance()->IsPendingFullTeardown())
-	{
-		if (!s_tryingToHostOrJoin)
-		{
-			s_tryingToHostOrJoin = false;
-			ExitState();
-			TearDownGeneralsOnline();
-		}		
-
+	if (OnlineLobbySession::handlePendingTeardown())
 		return;
-	}
 
 	if(justEntered)
 	{
@@ -1794,21 +1760,7 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 	}
 	
 	// do we need to update?
-	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
-	if (pLobbyInterface != nullptr && pLobbyInterface->IsLobbyListDirty() && !isShuttingDown && !buttonPushed && !pLobbyInterface->IsInLobby() && pLobbyInterface->GetLobbyTryingToJoin().lobbyID == -1)
-	{
-		const bool bShouldAutoRefresh = true;
-
-		if (bShouldAutoRefresh)
-		{
-			refreshGameList(false);
-		}
-		else
-		{
-			GadgetListBoxAddEntryText(listboxLobbyChat, UnicodeString(L"Your lobby list is outdated. Hit refresh to see the latest servers."), GameMakeColor(255, 194, 15, 255), -1, -1);
-		}
-
-	}
+	OnlineLobbySession::update();
 
 #if defined(GENERALS_ONLINE) // GO needs to tick this, so notifications disappear etc
 	HandleBuddyResponses();
