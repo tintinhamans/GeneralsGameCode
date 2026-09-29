@@ -92,9 +92,8 @@ body
 
 button.active
 {
-	border-color: #8080FF;
-	color: #8080FF;
-	background-color: rgba(47, 55, 168, 120);
+	decorator: tiled-horizontal(Buttons-HiLite-Left, Buttons-HiLite-Middle, Buttons-HiLite-Right);
+	color: #BAFF0C;
 }
 
 .filter-row

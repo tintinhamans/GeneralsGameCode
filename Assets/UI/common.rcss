@@ -101,38 +101,70 @@ body
 	color: #C0C0C0;
 }
 
-/* ---- Buttons ------------------------------------------------------------------------ */
+/* ---- Buttons -------------------------------------------------------------------------
+   The engine's own capsule button art (the Buttons, Buttons-HiLite, Buttons-Pushed and
+   Buttons-Disabled Left/Middle/Right mapped images, exposed as sprites by RmlUiFileInterface):
+   fixed end caps scaled to the button height, stretched middle. Text colours and the 1dp dark shadow follow
+   the .wnd PUSHBUTTON text colours (white / 186,255,12 hilite / 62,64,92 disabled). */
 button, .button
 {
 	box-sizing: border-box;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
+	decorator: tiled-horizontal(Buttons-Left, Buttons-Middle, Buttons-Right);
 	color: #FFFFFF;
-	padding: 6dp 16dp;
+	font-effect: shadow(1dp 1dp #000000);
+	padding: 6dp 20dp;
 	text-align: center;
 	font-weight: bold;
 }
 
 button:hover, .button:hover
 {
+	decorator: tiled-horizontal(Buttons-HiLite-Left, Buttons-HiLite-Middle, Buttons-HiLite-Right);
+	color: #BAFF0C;
+}
+
+button:active, .button:active
+{
+	decorator: tiled-horizontal(Buttons-Pushed-Left, Buttons-Pushed-Middle, Buttons-Pushed-Right);
+	color: #BAFF0C;
+}
+
+/* <button> never gets :disabled in RmlUi; match the disabled attribute that data-attr-disabled sets.
+   Listed after :hover/:active (and repeated with them) so a disabled button never lights up. */
+button:disabled, button[disabled], .button.disabled, button.disabled,
+button[disabled]:hover, button.disabled:hover, .button.disabled:hover,
+button[disabled]:active, button.disabled:active, .button.disabled:active
+{
+	decorator: tiled-horizontal(Buttons-Disabled-Left, Buttons-Disabled-Middle, Buttons-Disabled-Right);
+	color: #3E405C;
+	font-effect: shadow(1dp 1dp #1F202F);
+	pointer-events: none;
+}
+
+/* Square glyph/icon buttons are too small for the capsule end caps: keep the plain bordered box. */
+.icon-btn, .btn-send, .btn-emote, .joingame-close,
+.icon-btn:hover, .btn-send:hover, .btn-emote:hover, .joingame-close:hover,
+.icon-btn:active, .btn-send:active, .btn-emote:active, .joingame-close:active
+{
+	decorator: none;
+	font-effect: none;
+	background-color: rgba(2, 2, 2, 191);
+	border: 1dp #2F37A8;
+}
+
+.icon-btn:hover, .btn-send:hover, .btn-emote:hover, .joingame-close:hover
+{
 	border-color: #8080FF;
 	color: #8080FF;
 }
 
-/* <button> never gets :disabled in RmlUi; match the disabled attribute that data-attr-disabled sets. */
-button:disabled, button[disabled], .button.disabled, button.disabled
-{
-	color: #C0C0C0;
-	border-color: #6A6A6A;
-	pointer-events: none;
-}
-
 /* Large, prominent button (main menu list, footer primary/secondary actions) -- the .wnd
-   originals use big chunky buttons, not the compact ~28dp controls above. */
+   originals use big chunky buttons (208x36 at 800x600, i.e. ~65dp tall at 1080p), not the compact
+   controls above. */
 .button-lg
 {
-	padding: 14dp 24dp;
-	font-size: 18dp;
+	padding: 19dp 28dp;
+	font-size: 22dp;
 }
 
 /* ---- Dropdown (select) --------------------------------------------------------------- */
