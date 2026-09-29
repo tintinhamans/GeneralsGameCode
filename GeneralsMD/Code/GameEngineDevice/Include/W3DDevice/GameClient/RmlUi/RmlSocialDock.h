@@ -82,9 +82,23 @@ public:
 
 	void noteToastClicked(); ///< the next expand opens the conversation the last toast was about
 
+	// The custom lobby's room roster, shown in the dock's Lobby tab instead of a list on the lobby
+	// screen. RmlOnlineLobbyScreen collects it (and the rank badges) and hands it over whenever it
+	// changes; clearRoom() when it leaves the lobby.
+	struct RoomPlayer
+	{
+		OnlineLobbyData::PlayerRow row;
+		Rml::String rankImage;
+	};
+	void setRoom(const std::vector<RoomPlayer> &players);
+	void clearRoom();
+	// The roster rows the Lobby tab shows right now, for the lobby's rank badge fetch; false when the
+	// tab is not showing.
+	bool roomRowsInView(int &first, int &last) const;
+
 private:
 	RmlSocialDock() : m_rowList(m_model.rows), m_blockedList(m_model.blockedRows),
-		m_lineList(m_model.chatLines), m_menuList(m_model.playerMenuItems) {}
+		m_lineList(m_model.chatLines), m_menuList(m_model.playerMenuItems), m_roomList(m_model.roomRows) {}
 
 	void load(Rml::Context *context);
 	void attachSession();
@@ -106,6 +120,8 @@ private:
 	void onCollapse(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onShowList(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onShowBlocked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onShowRoom(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onRoomRowMouseDown(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onOpenThread(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onRowMouseDown(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onAccept(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -164,6 +180,19 @@ private:
 		bool used = true;
 	};
 
+	// One member of the custom lobby's room: rank badge, name, coloured like the lobby's list was.
+	struct RoomRowModel
+	{
+		int index = 0;
+		Rml::String name;
+		Rml::String rankImage;
+		bool isAdmin = false;
+		bool isFriend = false;
+		bool isIgnored = false;
+		bool isSelf = false;
+		bool used = true;
+	};
+
 	struct MenuItemModel
 	{
 		Rml::String label;
@@ -176,7 +205,7 @@ private:
 		bool expanded = false;
 		bool locked = false;
 		bool hostTemplate = true;
-		Rml::String view = "list"; // list / blocked / thread
+		Rml::String view = "list"; // list / room / blocked / thread
 
 		int onlineCount = 0;
 		int badgeCount = 0;
@@ -188,6 +217,10 @@ private:
 		int blockedCount = 0;
 		Rml::Vector<RowModel> rows;
 		Rml::Vector<BlockedModel> blockedRows;
+
+		bool hasRoom = false; // over the custom lobby: the Lobby tab and its roster
+		int roomCount = 0;
+		Rml::Vector<RoomRowModel> roomRows;
 
 		Rml::String threadName;
 		Rml::String threadInitial;
@@ -207,6 +240,8 @@ private:
 	RmlGrowOnlyList<BlockedModel> m_blockedList;
 	RmlGrowOnlyList<LineModel> m_lineList;
 	RmlGrowOnlyList<MenuItemModel> m_menuList;
+	RmlGrowOnlyList<RoomRowModel> m_roomList;
+	std::vector<OnlineLobbyData::PlayerRow> m_rawRoom;
 
 	std::vector<BuddyOverlayData::BuddyRow> m_rawRows;
 	std::vector<BuddyOverlayData::BlockedRow> m_rawBlocked;

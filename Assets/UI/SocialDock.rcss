@@ -3,11 +3,12 @@
 	palette (common.rcss). It stays up beside every online shell screen, so it is built to cost the
 	screen nothing while collapsed:
 
-	  collapsed  a 63dp tab in the ruler band at the right edge (outside every screen's content):
+	  collapsed  a 62dp tab in the ruler band at the right edge (outside every screen's content):
 	             friends online, a badge for unread conversations plus friend requests.
 	  expanded   a 390dp side panel down the right of the frame. The host screen makes room for it
 	             (body.dock-open, see common.rcss), so it never covers the screen's own actions.
-	             Three views: friends and requests, the block list, one conversation.
+	             Views: friends and requests, the custom lobby's room (its Lobby tab, while the
+	             lobby is up), the block list, one conversation.
 
 	Presence: online #3CD28C, in a lobby #14B1FF, in a game #E8D440, offline grey. The unread badge
 	uses the accent. .template/.shell (from the host screen) line the panel up with its frame.
@@ -26,9 +27,9 @@ body
 	flex-direction: column;
 	align-items: center;
 	position: fixed;
-	right: 1.9%;
+	right: 1dp;
 	top: 38%;
-	width: 63dp;
+	width: 62dp;
 	height: auto;
 	line-height: 25dp;
 	padding: 15dp 0 10dp 0;
@@ -143,9 +144,9 @@ body
 	flex-direction: column;
 	box-sizing: border-box;
 	position: fixed;
-	right: 3.4%;
-	top: 4.4%;
-	bottom: 4.2%;
+	right: 88dp;
+	top: 78dp;
+	bottom: 78dp;
 	width: 390dp;
 	padding: 0 18dp 18dp 18dp;
 	background-color: #070A1AEB;
@@ -236,6 +237,87 @@ body
 	margin-top: 8dp;
 	overflow-y: auto;
 }
+
+/* ---- Lobby tab: the custom lobby's room ----------------------------------------------------------- */
+.tab-count-chip
+{
+	margin-left: 6dp;
+	font-size: 14dp;
+	color: #A9B1CF;
+}
+
+.seg-item.on .tab-count-chip
+{
+	color: #FFFFFF;
+}
+
+.room-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 36dp;
+	padding: 0 10dp 0 8dp;
+	border-left: 3dp transparent;
+	color: #D7DCF0;
+	font-size: 18dp;
+	transition: background-color 0.1s cubic-out;
+}
+
+.room-row:hover
+{
+	background-color: #2F37A84B;
+}
+
+.room-rank
+{
+	flex: 0 0 24dp;
+	height: 24dp;
+	margin-right: 10dp;
+}
+
+.room-rank mappedimage
+{
+	display: block;
+	width: 24dp;
+	height: 24dp;
+}
+
+.room-rank mappedimage img
+{
+	display: block;
+}
+
+.room-name
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Buddies: blue name, blue bar and a dot at the end of the row; admins gold, you green, blocked grey. */
+.room-row.friend
+{
+	color: #14B1FF;
+	border-left-color: #14B1FF;
+	background-color: #14B1FF14;
+}
+
+.room-buddy
+{
+	flex: 0 0 10dp;
+	width: 10dp;
+	height: 10dp;
+	margin-left: 8dp;
+	border-radius: 4dp;
+	background-color: #14B1FF;
+}
+
+.room-row.admin { color: #F0C020; }
+.room-row.self { color: #10AD90; font-weight: bold; }
+.room-row.ignored { color: #7A7A7A; }
 
 /* ---- Sections and rows ----------------------------------------------------------------------------- */
 .section

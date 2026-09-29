@@ -30,6 +30,7 @@
 		<div class="dock-view" data-if="view == 'list'">
 			<div class="dock-tabs seg">
 				<button class="seg-item on"><gametext key="GUI:GODockFriends"/></button>
+				<button class="seg-item" data-if="has_room" data-event-click="show_room"><gametext key="GUI:GODockRoom"/><span class="tab-count-chip">{{room_count}}</span></button>
 				<button class="seg-item" data-event-click="show_blocked"><gametext key="GUI:GODockBlocked"/></button>
 			</div>
 			<div class="dock-scroll">
@@ -86,10 +87,32 @@
 			</div>
 		</div>
 
+		<!-- The custom lobby's room: rank badge, name; admins, friends, blocked players and you
+		     marked as the lobby list did. Right click for the lobby's player menu. -->
+		<div class="dock-view" data-if="view == 'room'">
+			<div class="dock-tabs seg">
+				<button class="seg-item" data-event-click="show_list"><gametext key="GUI:GODockFriends"/></button>
+				<button class="seg-item on" data-if="has_room"><gametext key="GUI:GODockRoom"/><span class="tab-count-chip">{{room_count}}</span></button>
+				<button class="seg-item" data-event-click="show_blocked"><gametext key="GUI:GODockBlocked"/></button>
+			</div>
+			<div id="room-list" class="dock-scroll room-list">
+				<div data-for="player : room_rows">
+					<div class="room-row" data-if="player.used" data-class-admin="player.is_admin" data-class-friend="player.is_friend"
+						data-class-ignored="player.is_ignored" data-class-self="player.is_self"
+						data-event-mousedown="room_row_mousedown(player.index)">
+						<div class="room-rank"><mappedimage data-if="player.rank_image != ''" data-attr-name="player.rank_image"/></div>
+						<div class="room-name">{{player.name}}</div>
+						<div class="room-buddy" data-if="player.is_friend"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<!-- Block list -->
 		<div class="dock-view" data-if="view == 'blocked'">
 			<div class="dock-tabs seg">
 				<button class="seg-item" data-event-click="show_list"><gametext key="GUI:GODockFriends"/></button>
+				<button class="seg-item" data-if="has_room" data-event-click="show_room"><gametext key="GUI:GODockRoom"/><span class="tab-count-chip">{{room_count}}</span></button>
 				<button class="seg-item on"><gametext key="GUI:GODockBlocked"/></button>
 			</div>
 			<div class="dock-scroll">

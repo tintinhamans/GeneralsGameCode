@@ -166,6 +166,19 @@ void RmlSocialDock::load(Rml::Context *context)
 		}
 		constructor.RegisterArray<Rml::Vector<MenuItemModel>>();
 
+		if (Rml::StructHandle<RoomRowModel> h = constructor.RegisterStruct<RoomRowModel>())
+		{
+			h.RegisterMember("index", &RoomRowModel::index);
+			h.RegisterMember("name", &RoomRowModel::name);
+			h.RegisterMember("rank_image", &RoomRowModel::rankImage);
+			h.RegisterMember("is_admin", &RoomRowModel::isAdmin);
+			h.RegisterMember("is_friend", &RoomRowModel::isFriend);
+			h.RegisterMember("is_ignored", &RoomRowModel::isIgnored);
+			h.RegisterMember("is_self", &RoomRowModel::isSelf);
+			h.RegisterMember("used", &RoomRowModel::used);
+		}
+		constructor.RegisterArray<Rml::Vector<RoomRowModel>>();
+
 		constructor.Bind("expanded", &m_model.expanded);
 		constructor.Bind("locked", &m_model.locked);
 		constructor.Bind("host_template", &m_model.hostTemplate);
@@ -180,6 +193,9 @@ void RmlSocialDock::load(Rml::Context *context)
 		constructor.Bind("blocked_count", &m_model.blockedCount);
 		constructor.Bind("rows", &m_model.rows);
 		constructor.Bind("blocked_rows", &m_model.blockedRows);
+		constructor.Bind("has_room", &m_model.hasRoom);
+		constructor.Bind("room_count", &m_model.roomCount);
+		constructor.Bind("room_rows", &m_model.roomRows);
 		constructor.Bind("thread_name", &m_model.threadName);
 		constructor.Bind("thread_initial", &m_model.threadInitial);
 		constructor.Bind("thread_sub", &m_model.threadSub);
@@ -196,6 +212,8 @@ void RmlSocialDock::load(Rml::Context *context)
 		constructor.BindEventCallback("collapse", &RmlSocialDock::onCollapse, this);
 		constructor.BindEventCallback("show_list", &RmlSocialDock::onShowList, this);
 		constructor.BindEventCallback("show_blocked", &RmlSocialDock::onShowBlocked, this);
+		constructor.BindEventCallback("show_room", &RmlSocialDock::onShowRoom, this);
+		constructor.BindEventCallback("room_row_mousedown", &RmlSocialDock::onRoomRowMouseDown, this);
 		constructor.BindEventCallback("open_thread", &RmlSocialDock::onOpenThread, this);
 		constructor.BindEventCallback("row_mousedown", &RmlSocialDock::onRowMouseDown, this);
 		constructor.BindEventCallback("accept", &RmlSocialDock::onAccept, this);
@@ -643,6 +661,88 @@ void RmlSocialDock::onShowBlocked(Rml::DataModelHandle, Rml::Event &, const Rml:
 	refreshBlockList(); // async, like the popup's block tab
 }
 
+void RmlSocialDock::onShowRoom(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+{
+	if (!m_model.hasRoom)
+		return;
+	m_model.view = "room";
+	dirty("view");
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlSocialDock::setRoom(const std::vector<RoomPlayer> &players)
+{
+	m_rawRoom.clear();
+	m_roomList.beginUpdate();
+	int index = 0;
+	for (const RoomPlayer &player : players)
+	{
+		m_rawRoom.push_back(player.row);
+		RoomRowModel &m = m_roomList.next();
+		m.index = index++;
+		m.name = player.row.displayName;
+		m.rankImage = player.rankImage;
+		m.isAdmin = player.row.isAdmin;
+		m.isFriend = player.row.isFriend;
+		m.isIgnored = player.row.isIgnored;
+		m.isSelf = player.row.isSelf;
+	}
+	m_roomList.endUpdate();
+	m_model.roomCount = (int)players.size();
+	const bool hadRoom = m_model.hasRoom;
+	m_model.hasRoom = true;
+
+	dirty("room_rows");
+	dirty("room_count");
+	if (!hadRoom)
+		dirty("has_room");
+}
+
+void RmlSocialDock::clearRoom()
+{
+	if (!m_model.hasRoom)
+		return;
+	m_rawRoom.clear();
+	m_roomList.beginUpdate();
+	m_roomList.endUpdate();
+	m_model.roomCount = 0;
+	m_model.hasRoom = false;
+	if (m_model.view == "room")
+	{
+		closeContextMenu();
+		m_model.view = "list";
+		dirty("view");
+	}
+	dirty("room_rows");
+	dirty("room_count");
+	dirty("has_room");
+}
+
+bool RmlSocialDock::roomRowsInView(int &first, int &last) const
+{
+	if (!isExpanded() || m_model.view != "room" || !m_document || m_rawRoom.empty())
+		return false;
+	Rml::Element *list = m_document->GetElementById("room-list");
+	Rml::Element *firstRow = list ? list->QuerySelector(".room-row") : nullptr;
+	if (!list || !firstRow || firstRow->GetOffsetHeight() <= 0.0f)
+		return false;
+	const float rowHeight = firstRow->GetOffsetHeight();
+	first = (int)(list->GetScrollTop() / rowHeight);
+	last = first + (int)(list->GetClientHeight() / rowHeight) + 1;
+	return true;
+}
+
+// Right click on a room member: the lobby's own player menu (GLM_RIGHT_CLICKED in WOLLobbyMenu.cpp).
+void RmlSocialDock::onRoomRowMouseDown(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &args)
+{
+	if (ev.GetParameter<int>("button", 0) != 1)
+		return;
+	const int index = argIndex(args);
+	if (index < 0 || index >= (int)m_rawRoom.size())
+		return;
+	openContextMenu(m_rawRoom[index], ev);
+}
+
 const BuddyOverlayData::BuddyRow *RmlSocialDock::rowAt(const Rml::VariantList &args) const
 {
 	const int index = argIndex(args);
@@ -818,6 +918,9 @@ void RmlSocialDock::onMenuItemClicked(Rml::DataModelHandle, Rml::Event &, const 
 		BuddyOverlayActions::refreshFriendsList( false, []() { RmlSocialDock::instance().m_rosterDirty = true; } );
 	if (m_model.view == "blocked")
 		refreshBlockList();
+	// The lobby rebuilds its roster when the friend or blocked state it shows has changed.
+	if (m_model.view == "room")
+		OnlineLobbySignals::rosterRefresh().emit();
 }
 
 void RmlSocialDock::onMenuDismiss(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)

@@ -58,3 +58,7 @@ END
 GUI:GOAddAI
 "Add AI"
 END
+
+GUI:GODockRoom
+"Lobby"
+END
