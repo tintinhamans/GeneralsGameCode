@@ -544,8 +544,9 @@
 	.col-side { margin-left: 20dp; }
 }
 
-/* Beside the expanded social dock the game card goes: the list keeps the width. */
-.dock-open .details-col
+/* Beside the expanded social dock the game card goes (up to 2:1; ultrawide has room for both): the
+   list keeps the width. */
+@media (max-aspect-ratio: 2/1)
 {
-	display: none;
+	.dock-open .details-col { display: none; }
 }
