@@ -68,4 +68,5 @@ namespace BuddyOverlayActions
 	void openPlayerInfo( int64_t userID, const std::string &displayName ); ///< RC ButtonStats
 
 	void close(); ///< ButtonHide -- mirrors GameSpyCloseOverlay(GSOVERLAY_BUDDY)
+	void open(); ///< PopupBuddyNotificationSystem's GBM_SELECTED -- mirrors GameSpyOpenOverlay(GSOVERLAY_BUDDY)
 }

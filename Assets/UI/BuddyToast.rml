@@ -1,0 +1,12 @@
+<rml>
+<head>
+	<title>BuddyToast</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="BuddyToast.rcss"/>
+</head>
+<body data-model="buddytoast">
+	<!-- Direct child of body, position:fixed bottom-right -- same viewport-positioned-layer rule
+	     every other screen's overlay layers follow (see report). -->
+	<div class="buddy-toast" data-if="visible" data-event-click="click">{{text}}</div>
+</body>
+</rml>

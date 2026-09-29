@@ -1,0 +1,30 @@
+/*
+	BuddyToast.rcss -- PopupBuddyListNotification.wnd (the bottom-right buddy notification toast).
+	Persistent document, always loaded; visibility is driven by data-if="visible" on the one div
+	below rather than Show()/Hide() (see RmlBuddyToastScreen.cpp), so body itself stays plain.
+*/
+
+body
+{
+	width: 100%;
+	height: 100%;
+}
+
+.buddy-toast
+{
+	display: block;
+	position: fixed;
+	right: 24dp;
+	bottom: 24dp;
+	max-width: 280dp;
+	padding: 10dp 14dp;
+	background-color: rgba(2, 2, 2, 235);
+	border: 1dp #2F37A8;
+	color: #FFFFFF;
+	z-index: 200; /* above .context-menu's 101, same "always on top" role the .wnd's SEE_THRU toast had */
+}
+
+.buddy-toast:hover
+{
+	background-color: rgba(47, 55, 168, 160);
+}

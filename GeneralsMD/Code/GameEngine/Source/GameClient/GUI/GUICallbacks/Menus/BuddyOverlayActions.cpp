@@ -143,4 +143,9 @@ void close()
 	GameSpyCloseOverlay( GSOVERLAY_BUDDY );
 }
 
+void open()
+{
+	GameSpyOpenOverlay( GSOVERLAY_BUDDY );
+}
+
 } // namespace BuddyOverlayActions

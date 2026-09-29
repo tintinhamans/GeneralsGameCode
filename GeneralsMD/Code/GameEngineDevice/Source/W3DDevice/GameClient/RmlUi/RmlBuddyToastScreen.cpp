@@ -1,0 +1,147 @@
+/*
+**	Command & Conquer Generals Zero Hour(tm)
+**	Copyright 2025 Electronic Arts Inc.
+**
+**	This program is free software: you can redistribute it and/or modify
+**	it under the terms of the GNU General Public License as published by
+**	the Free Software Foundation, either version 3 of the License, or
+**	(at your option) any later version.
+**
+**	This program is distributed in the hope that it will be useful,
+**	but WITHOUT ANY WARRANTY; without even the implied warranty of
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	GNU General Public License for more details.
+**
+**	You should have received a copy of the GNU General Public License
+**	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include "W3DDevice/GameClient/RmlUi/RmlBuddyToastScreen.h"
+
+#include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlayActions.h"
+#include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlaySession.h"
+#include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
+
+#include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/ElementDocument.h>
+
+#include <windows.h>
+
+namespace
+{
+	// Same conversion as RmlPlayerInfoScreen.cpp/RmlBuddyOverlayScreen.cpp.
+	Rml::String unicodeToUtf8(const UnicodeString &str)
+	{
+		const WideChar *wide = str.str();
+		if (!wide || !*wide)
+			return Rml::String();
+
+		int len = ::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, nullptr, 0, nullptr, nullptr);
+		if (len <= 0)
+			return Rml::String();
+
+		Rml::String utf8;
+		utf8.resize((size_t)len - 1);
+		::WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)wide, -1, &utf8[0], len, nullptr, nullptr);
+		return utf8;
+	}
+
+	// BuddyOverlaySession::ToastSink targets (see RmlBuddyToastScreen.h's public onToastShown/
+	// onToastDismissed); free functions since ToastSink's members are plain std::function, not
+	// bound to an instance.
+	void onToastShownTarget( const UnicodeString &text )
+	{
+		RmlBuddyToastScreen::instance().onToastShown( text );
+	}
+
+	void onToastDismissedTarget()
+	{
+		RmlBuddyToastScreen::instance().onToastDismissed();
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+RmlBuddyToastScreen &RmlBuddyToastScreen::instance()
+{
+	static RmlBuddyToastScreen s_screen;
+	return s_screen;
+}
+
+void RmlBuddyToastScreen::load(Rml::Context *context)
+{
+	if (m_document)
+		return; // already loaded
+
+	m_context = context;
+
+	Rml::DataModelConstructor constructor = context->CreateDataModel("buddytoast");
+	if (constructor)
+	{
+		constructor.Bind("visible", &m_model.visible);
+		constructor.Bind("text", &m_model.text);
+		constructor.BindEventCallback("click", &RmlBuddyToastScreen::onClick, this);
+		m_modelHandle = constructor.GetModelHandle();
+	}
+
+	m_document = context->LoadDocument("UI/BuddyToast.rml");
+	if (m_document)
+		m_document->Show(); // stays loaded/shown; the inner .buddy-toast div's data-if="visible"
+		                     // controls whether anything actually appears, same as the .wnd's
+		                     // create-once/hide-and-reuse noticeLayout.
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlBuddyToastScreen::init(Rml::Context *context)
+{
+	load(context);
+
+	BuddyOverlaySession::ToastSink sink;
+	sink.shown = &onToastShownTarget;
+	sink.dismissed = &onToastDismissedTarget;
+	BuddyOverlaySession::setToastSink( sink );
+}
+
+void RmlBuddyToastScreen::shutdown()
+{
+	m_document = nullptr; // Rml::Shutdown() (RmlUiManager::shutdown()) destroys the document itself
+	m_context = nullptr;
+	m_modelHandle = Rml::DataModelHandle();
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlBuddyToastScreen::onToastShown( const UnicodeString &text )
+{
+	m_model.text = unicodeToUtf8( text );
+	m_model.visible = true;
+	if (m_modelHandle)
+	{
+		m_modelHandle.DirtyVariable("text");
+		m_modelHandle.DirtyVariable("visible");
+	}
+}
+
+void RmlBuddyToastScreen::onToastDismissed()
+{
+	m_model.visible = false;
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("visible");
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlBuddyToastScreen::onClick(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+{
+	// Mirrors PopupBuddyNotificationSystem's GBM_SELECTED: click reopens the buddy overlay. The
+	// toast itself keeps showing until its own timer expires (tickToast()), same as the .wnd.
+	BuddyOverlayActions::open();
+}
+
+//-------------------------------------------------------------------------------------------------
+void InitRmlBuddyToastScreen(Rml::Context *context)
+{
+	RmlBuddyToastScreen::instance().init(context);
+}
+
+void ShutdownRmlBuddyToastScreen()
+{
+	RmlBuddyToastScreen::instance().shutdown();
+}
