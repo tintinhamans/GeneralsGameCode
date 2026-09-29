@@ -882,9 +882,6 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 					{
 						if (statusCode == 404) // lobby destroyed, just leave
 						{
-							m_bPendingHostHasLeft = true;
-							// error msg
-
 							// TODO_NGMP: We still want to do this, but we need to send back that it failed and back out, proceeding to lobby crashes because mesh wasn't created
 							if (fnCallback != nullptr)
 							{
@@ -899,6 +896,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 							}
 
 							LeaveCurrentLobby();
+
+							// after leaving, which clears it, so the setup menu backs out
+							m_bPendingHostHasLeft = true;
 							return;
 						}
 
@@ -1148,6 +1148,7 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 	m_bAttemptingToJoinLobby = true;
 	m_CurrentLobby = LobbyEntry();
 	ResetJoinOrder();
+	ResetHostMigrationFlags();
 
 	NGMP_OnlineServicesManager::GetInstance()->GetAndParseServiceConfig([=]()
 		{
@@ -1491,6 +1492,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 		{
 			m_CurrentLobby = LobbyEntry();
 			ResetJoinOrder();
+			ResetHostMigrationFlags();
 			m_bJoinOrderKnown = true;
 			std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("Lobbies");
 			std::map<std::string, std::string> mapHeaders;
