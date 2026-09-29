@@ -291,6 +291,21 @@ static const char* messageToString(unsigned int message)
 }
 #endif
 
+static void setWinMainActive(Bool active)
+{
+	isWinMainActive = active;
+
+	if (TheGameEngine)
+		TheGameEngine->setIsActive(isWinMainActive);
+
+	if (isWinMainActive)
+	{
+		//restore mouse cursor to our custom version.
+		if (TheWin32Mouse)
+			TheWin32Mouse->setCursor(TheWin32Mouse->getMouseCursor());
+	}
+}
+
 // WndProc ====================================================================
 /** Window Procedure */
 //=============================================================================
@@ -471,17 +486,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 				// of TestCooperativeLevel() == D3DERR_DEVICENOTRESET is not a requirement. There are other code
 				// paths that take care of that.
 
-				isWinMainActive = (BOOL)wParam;
-
-				if (TheGameEngine)
-					TheGameEngine->setIsActive(isWinMainActive);
-
-				if (isWinMainActive)
-				{
-					//restore mouse cursor to our custom version.
-					if (TheWin32Mouse)
-						TheWin32Mouse->setCursor(TheWin32Mouse->getMouseCursor());
-				}
+				setWinMainActive((BOOL)wParam);
 			}
 			return 0;
 		}
@@ -500,6 +505,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 			{
 				if (TheAudio)
 					TheAudio->unmuteAudio(AudioManager::MuteAudioReason_WindowFocus);
+
+				// taking over from the splash stays within the app, so no WM_ACTIVATEAPP arrives
+				if (!isWinMainActive)
+					setWinMainActive(TRUE);
 
 				// Cursor can only be captured after one of the activation events.
 				if (TheMouse)
