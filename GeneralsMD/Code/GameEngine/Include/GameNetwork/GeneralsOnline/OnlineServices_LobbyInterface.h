@@ -552,6 +552,10 @@ private:
 #endif
 
 	bool m_bAttemptingToJoinLobby = false;
+
+	// GET Lobby/{id} responses can arrive out of order; only apply ones newer than the last applied
+	std::atomic<uint64_t> m_LobbyUpdateRequestSeq = 0;
+	std::atomic<uint64_t> m_LobbyUpdateAppliedSeq = 0;
 	// Invalidates asynchronous callbacks left behind by an abandoned lobby join.
 	std::atomic<uint64_t> m_LobbyJoinGeneration = 0;
 	LobbyEntry m_LobbyTryingToJoin;
