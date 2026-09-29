@@ -76,6 +76,11 @@ namespace OnlineWelcomeData
 	// Mirrors updateNumPlayersOnline()'s "GUI:NumPlayersOnline" StaticTextNumPlayersOnline body.
 	UnicodeString buildNumPlayersOnlineText(Int numPlayersOnline);
 
+	// Player count to seed the text with when the screen opens: the last HandleNumPlayersOnline()
+	// delivery (it can arrive while the login screen is still up, before any welcome hook is
+	// installed), else the count the server states in the MOTD, else 0.
+	Int currentNumPlayersOnline();
+
 	// Mirrors WOLWelcomeMenu.wnd's "SIDE:<side>" TOOLTIPTEXT for a PercentXxx checkbox, given the same
 	// side string buildMotdLines()/requestFactionWinStats() key off. Index 0 ("USA") is the one
 	// mismatch between the control-name suffix and the tooltip's side literal (control is PercentUSA,
@@ -113,3 +118,6 @@ extern void (*g_onlineWelcomeNotificationsChangedHook)(int numNotifications);
 // live-update its own "GUI:NumPlayersOnline" text the same way the .wnd's StaticTextNumPlayersOnline
 // does. Null (the default) drops the update.
 extern void (*g_onlineWelcomeNumPlayersOnlineHook)(int numPlayersOnline);
+
+// Last count HandleNumPlayersOnline() received (already floored at 1), 0 if none yet.
+Int GetLastNumPlayersOnline();

@@ -156,10 +156,9 @@ void RmlOnlineWelcomeScreen::show()
 	// Mirrors WOLWelcomeMenuInit()'s live GENERALS_ONLINE body: title, MOTD, num-players text, win
 	// stats, and the initial buddy notification count -- see OnlineWelcomeData.h.
 	m_model.title = unicodeToUtf8(OnlineWelcomeData::buildWelcomeTitle());
-	// Matches WOLWelcomeMenuInit()'s own initial call: static lastNumPlayersOnline starts at 0 and
-	// isn't clamped to 1 until the first HandleNumPlayersOnline() delivery (see
-	// g_onlineWelcomeNumPlayersOnlineHook below).
-	m_model.numPlayersText = unicodeToUtf8(OnlineWelcomeData::buildNumPlayersOnlineText(0));
+	// The count can arrive before this screen exists (while the login screen is up), when no hook is
+	// installed yet; seed from what was already delivered, then live-update via the hook below.
+	m_model.numPlayersText = unicodeToUtf8(OnlineWelcomeData::buildNumPlayersOnlineText(OnlineWelcomeData::currentNumPlayersOnline()));
 
 	m_motdRows.beginUpdate();
 	for (const OnlineWelcomeMotdLine &line : OnlineWelcomeData::buildMotdLines())

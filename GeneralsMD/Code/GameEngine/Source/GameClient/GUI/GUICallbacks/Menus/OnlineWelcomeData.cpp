@@ -134,6 +134,31 @@ UnicodeString buildNumPlayersOnlineText(Int numPlayersOnline)
 }
 
 //-------------------------------------------------------------------------------------------------
+Int currentNumPlayersOnline()
+{
+	Int last = GetLastNumPlayersOnline();
+	if (last > 0)
+		return last;
+
+	// "... currently 188 player(s) online ..." -- the only count the Generals Online server sends.
+	if (NGMP_OnlineServicesManager::GetInstance() == nullptr)
+		return 0;
+	const std::string motd = NGMP_OnlineServicesManager::GetInstance()->GetMOTD();
+	const size_t tag = motd.find("player(s) online");
+	if (tag == std::string::npos)
+		return 0;
+	size_t end = tag;
+	while (end > 0 && motd[end - 1] == ' ')
+		--end;
+	size_t begin = end;
+	while (begin > 0 && motd[begin - 1] >= '0' && motd[begin - 1] <= '9')
+		--begin;
+	if (begin == end)
+		return 0;
+	return atoi(motd.substr(begin, end - begin).c_str());
+}
+
+//-------------------------------------------------------------------------------------------------
 AsciiString buildFactionStatTooltipKey(const AsciiString &side)
 {
 	// See NGMP_include.h's g_mapServiceIndexToPlayerTemplateString comment: GameSpy/NGMP calls index 0

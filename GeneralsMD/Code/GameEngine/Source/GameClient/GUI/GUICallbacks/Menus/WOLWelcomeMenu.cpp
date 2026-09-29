@@ -314,6 +314,11 @@ static void updateNumPlayersOnline()
 	}
 }
 
+Int GetLastNumPlayersOnline()
+{
+	return lastNumPlayersOnline;
+}
+
 void HandleNumPlayersOnline( Int numPlayersOnline )
 {
 	lastNumPlayersOnline = numPlayersOnline;
