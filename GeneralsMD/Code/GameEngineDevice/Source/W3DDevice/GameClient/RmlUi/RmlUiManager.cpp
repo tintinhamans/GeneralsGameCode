@@ -232,6 +232,13 @@ void RmlUiManager::init(int width, int height)
 	Rml::LoadFontFace("UI/Fonts/Barlow-Regular.ttf", true);
 	Rml::LoadFontFace("UI/Fonts/Barlow-Bold.ttf");
 
+	// SIL OFL-licensed Noto Color Emoji (see Data/UI/Fonts/OFL-NotoColorEmoji.txt), a subset of about
+	// 1,400 common emoji (CBDT colour bitmaps), is the last fallback face so chat can show them.
+	// RmlUi does no OpenType shaping, so a sequence (flag, skin tone, ZWJ family) is drawn as its
+	// parts. The blank face maps the invisible parts of those sequences to a zero-width glyph and
+	// has to come before Arial, whose own ZWJ glyph is visible.
+	Rml::LoadFontFace("UI/Fonts/NotoColorEmoji-Blank.ttf", true);
+
 	// Arial, if present in the Windows fonts folder, is loaded only as a fallback face (not
 	// bundled) so glyphs Barlow lacks -- other scripts in player names/translations -- still
 	// render. Missing files are not an error: Barlow alone remains fully usable.
@@ -245,6 +252,8 @@ void RmlUiManager::init(int width, int height)
 		if (!regularOk && !boldOk)
 			Rml::Log::Message(Rml::Log::LT_INFO, "Arial not found under %%WINDIR%%\\Fonts; falling back to Barlow only.");
 	}
+
+	Rml::LoadFontFace("UI/Fonts/NotoColorEmoji-Subset.ttf", true);
 
 	m_context = Rml::CreateContext("main", Rml::Vector2i(width, height));
 
