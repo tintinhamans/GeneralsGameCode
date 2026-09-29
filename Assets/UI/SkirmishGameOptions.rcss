@@ -1,6 +1,7 @@
 /*
 	SkirmishGameOptions.rcss -- skirmish setup on the screen template (common.rcss): the players
-	table and the option/honors panels in the main column, the map card in the side column.
+	table and the option/honors panels in the main column, the map card in the side column. Each
+	panel is as tall as its content, so the shell map shows under the table and the map card.
 
 	Every select keeps an option matching its bound value (the hidden SLOT_PLAYER occupant on
 	human rows, Random in the army list): RmlUi fires a phantom "change" for an unmatched value.
@@ -13,7 +14,7 @@
 {
 	display: flex;
 	flex-direction: column;
-	flex: 1 1 auto;
+	flex: 0 1 auto;
 	min-height: 0;
 	padding-top: 8dp;
 	padding-bottom: 8dp;
@@ -25,9 +26,8 @@
 	flex-direction: row;
 	align-items: center;
 	box-sizing: border-box;
-	flex: 1 1 44dp;
-	min-height: 44dp;
-	max-height: 58dp;
+	flex: 0 0 50dp;
+	height: 50dp;
 	border-bottom: 1dp #FFFFFF0A;
 }
 
