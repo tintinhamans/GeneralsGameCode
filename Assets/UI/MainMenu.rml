@@ -5,7 +5,7 @@
 	<link type="text/rcss" href="MainMenu.rcss"/>
 </head>
 <body class="screen" data-model="mainmenu">
-	<mappedimage class="shell-background" name="MainMenuRuler"/>
+	<div class="screen-ruler"><div class="rc tl"></div><div class="rc tr"></div><div class="rc bl"></div><div class="rc br"></div></div>
 
 	<!-- Faction emblem over the shell map, left of the rail: the solo panel's hover preview
 	     (MainMenu.cpp's GBM_MOUSE_ENTERING/LEAVING art) and the difficulty panel's chosen side. -->
