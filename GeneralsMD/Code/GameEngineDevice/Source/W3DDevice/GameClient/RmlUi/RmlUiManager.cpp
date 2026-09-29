@@ -19,6 +19,8 @@
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include "Common/AsciiString.h"
+#include "Common/AudioEventRTS.h"
+#include "Common/GameAudio.h"
 #include "Common/GlobalData.h"
 #include "Common/UnicodeString.h"
 #include "GameClient/GameText.h"
@@ -60,6 +62,8 @@
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
 #include <RmlUi/Core/ElementInstancer.h>
+#include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/EventListener.h>
 #include <RmlUi/Core/Factory.h>
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Core/Log.h>
@@ -76,6 +80,92 @@ static UnicodeString utf8ToUnicode(const Rml::String &utf8)
 	UnicodeString text;
 	text.translate(ascii);
 	return text;
+}
+
+//-------------------------------------------------------------------------------------------------
+// Plays the sounds the .wnd gadgets do (context-level, so no screen has to): GUIClick on a push
+// button's mouse-down (GadgetPushButton.cpp; a data-sound attribute stands in for its altSound),
+// GUIClickDisabled on pressing a disabled control (GameWindow.cpp), GUIClick when a combo is
+// pressed (GadgetComboBox.cpp) and GUIComboBoxClick when one of its options is picked
+// (GadgetListBox.cpp, which only the combo lists enable). Check boxes, radio buttons, sliders and
+// tabs are silent in the original, so they are here too.
+class RmlUiSoundListener : public Rml::EventListener
+{
+public:
+	virtual void ProcessEvent(Rml::Event &event) override;
+};
+
+static RmlUiSoundListener s_soundListener;
+
+static void playUiSound(const Rml::String &name)
+{
+	if (!TheAudio || name.empty())
+		return;
+	AudioEventRTS sound;
+	sound.setEventName(AsciiString(name.c_str()));
+	TheAudio->addAudioEvent(&sound);
+}
+
+static bool isButton(const Rml::Element *e)
+{
+	return e->GetTagName() == "button" || e->IsClassSet("button");
+}
+
+// Nearest element at or above e with the given tag name, or the nearest button for tag == nullptr.
+static Rml::Element *findControl(Rml::Element *e, const char *tag)
+{
+	for (; e; e = e->GetParentNode())
+	{
+		if (tag ? e->GetTagName() == tag : isButton(e))
+			return e;
+	}
+	return nullptr;
+}
+
+static bool isDisabledControl(const Rml::Element *e)
+{
+	return e->HasAttribute("disabled") || e->IsClassSet("disabled");
+}
+
+void RmlUiSoundListener::ProcessEvent(Rml::Event &event)
+{
+	Rml::Element *target = event.GetTargetElement();
+	if (!target)
+		return;
+
+	if (event.GetId() == Rml::EventId::Mousedown)
+	{
+		if (event.GetParameter<int>("button", 0) != 0)
+			return; // left button only, like GWM_LEFT_DOWN
+
+		if (Rml::Element *button = findControl(target, nullptr))
+		{
+			if (isDisabledControl(button))
+				playUiSound("GUIClickDisabled");
+			else
+				playUiSound(button->GetAttribute<Rml::String>("data-sound", "GUIClick"));
+		}
+		else if (Rml::Element *select = findControl(target, "select"))
+		{
+			// The open list is a child of the select; picking an option is the click event's job.
+			if (!findControl(target, "selectbox"))
+				playUiSound(isDisabledControl(select) ? "GUIClickDisabled" : "GUIClick");
+		}
+	}
+	else if (event.GetId() == Rml::EventId::Click)
+	{
+		Rml::Element *button = findControl(target, nullptr);
+		if (button && isDisabledControl(button))
+		{
+			// <button> has no native disabled state in RmlUi; keep its click handlers from running.
+			event.StopImmediatePropagation();
+			return;
+		}
+
+		Rml::Element *option = findControl(target, "option");
+		if (option && findControl(option, "selectbox") && !isDisabledControl(option))
+			playUiSound("GUIComboBoxClick");
+	}
 }
 
 RmlUiManager *RmlUiManager::s_instance = nullptr;
@@ -155,6 +245,12 @@ void RmlUiManager::init(int width, int height)
 		m_context->SetDensityIndependentPixelRatio(height / 1080.0f);
 
 	registerCustomElements();
+
+	if (m_context)
+	{
+		m_context->AddEventListener("mousedown", &s_soundListener, true);
+		m_context->AddEventListener("click", &s_soundListener, true);
+	}
 
 	TheRmlUiInputHook = this;
 
@@ -278,6 +374,8 @@ void RmlUiManager::shutdown()
 
 	if (m_context)
 	{
+		m_context->RemoveEventListener("mousedown", &s_soundListener, true);
+		m_context->RemoveEventListener("click", &s_soundListener, true);
 		Rml::RemoveContext(m_context->GetName());
 		m_context = nullptr;
 	}

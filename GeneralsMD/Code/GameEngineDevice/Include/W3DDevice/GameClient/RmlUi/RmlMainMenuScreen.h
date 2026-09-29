@@ -87,6 +87,12 @@ private:
 	void onGoLoadGame(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onGoReplay(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 
+	// Shell-map script hooks (MainMenu.cpp's GBM_MOUSE_ENTERING/LEAVING on Online/Network/Options/
+	// Exit): polled off the hovered element's data-hook attribute, since RmlUi sends a raw
+	// mouseover/mouseout for every child element instead of one enter/leave per control.
+	void updateShellHook();
+	void setShellHook(const Rml::String &hook);
+
 	void selectFaction(const char *campaignName, const char *factionLabel, bool challenge);
 	void startAtDifficulty(int diff);
 	void goBackFromDifficulty(); // shared by the diff_back button event and onBack()/Escape
@@ -94,6 +100,7 @@ private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
+	Rml::String m_hookedName; // data-hook of the control currently signalled as highlighted
 	bool m_challengePending = false; // true if the pending difficulty pick launches ChallengeMenu.wnd
 
 	struct Model

@@ -18,9 +18,9 @@
 					<button class="button-lg" data-event-click="go_single"><gametext key="GUI:SinglePlayer"/></button>
 					<button class="button-lg" data-event-click="go_multi"><gametext key="GUI:Multiplayer"/></button>
 					<button class="button-lg" data-event-click="go_loadreplay"><gametext key="GUI:ReplayMenu"/></button>
-					<button class="button-lg" data-event-click="go_options"><gametext key="GUI:Options"/></button>
+					<button class="button-lg" data-hook="options" data-event-click="go_options"><gametext key="GUI:Options"/></button>
 					<button class="button-lg" data-event-click="go_credits"><gametext key="GUI:Credits"/></button>
-					<button class="button-lg" data-event-click="go_exit"><gametext key="GUI:Exit"/></button>
+					<button class="button-lg" data-hook="exit" data-event-click="go_exit"><gametext key="GUI:Exit"/></button>
 				</div>
 			</div>
 
@@ -46,8 +46,8 @@
 			<!-- Multiplayer -->
 			<div class="panel" data-class-active="panel == 'multi'">
 				<div class="menu-list">
-					<button class="button-lg" data-event-click="go_online"><gametext key="GUI:GeneralsOnline"/></button>
-					<button class="button-lg" data-event-click="go_network"><gametext key="GUI:Network"/></button>
+					<button class="button-lg" data-hook="online" data-event-click="go_online"><gametext key="GUI:GeneralsOnline"/></button>
+					<button class="button-lg" data-hook="network" data-event-click="go_network"><gametext key="GUI:Network"/></button>
 					<button class="button-lg back" data-event-click="back_main"><gametext key="GUI:Back"/></button>
 				</div>
 			</div>

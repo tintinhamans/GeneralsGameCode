@@ -27,6 +27,8 @@
 #include "GameClient/MessageBox.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/Shell.h"
+#include "GameClient/ShellHooks.h"
+#include "GameLogic/ScriptEngine.h"
 #include "GameNetwork/DownloadManager.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
@@ -154,6 +156,7 @@ void RmlMainMenuScreen::show()
 
 void RmlMainMenuScreen::hide()
 {
+	setShellHook("");
 	if (m_document)
 		m_document->Hide();
 }
@@ -182,6 +185,53 @@ void RmlMainMenuScreen::update()
 		TheDownloadManager->update();
 
 	HTTPThinkWrapper();
+
+	updateShellHook();
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlMainMenuScreen::updateShellHook()
+{
+	Rml::String hook;
+	if (m_context && isVisible())
+	{
+		for (Rml::Element *e = m_context->GetHoverElement(); e && e != m_document; e = e->GetParentNode())
+		{
+			if (e->HasAttribute("data-hook"))
+			{
+				hook = e->GetAttribute<Rml::String>("data-hook", "");
+				break;
+			}
+		}
+	}
+	setShellHook(hook);
+}
+
+void RmlMainMenuScreen::setShellHook(const Rml::String &hook)
+{
+	if (hook == m_hookedName || !TheScriptEngine)
+		return;
+
+	struct HookPair { const char *name; int highlighted, unhighlighted; };
+	static const HookPair hooks[] =
+	{
+		{ "online", SHELL_SCRIPT_HOOK_MAIN_MENU_ONLINE_HIGHLIGHTED, SHELL_SCRIPT_HOOK_MAIN_MENU_ONLINE_UNHIGHLIGHTED },
+		{ "network", SHELL_SCRIPT_HOOK_MAIN_MENU_NETWORK_HIGHLIGHTED, SHELL_SCRIPT_HOOK_MAIN_MENU_NETWORK_UNHIGHLIGHTED },
+		{ "options", SHELL_SCRIPT_HOOK_MAIN_MENU_OPTIONS_HIGHLIGHTED, SHELL_SCRIPT_HOOK_MAIN_MENU_OPTIONS_UNHIGHLIGHTED },
+		{ "exit", SHELL_SCRIPT_HOOK_MAIN_MENU_EXIT_HIGHLIGHTED, SHELL_SCRIPT_HOOK_MAIN_MENU_EXIT_UNHIGHLIGHTED },
+	};
+
+	for (const HookPair &pair : hooks)
+	{
+		if (m_hookedName == pair.name)
+			TheScriptEngine->signalUIInteract(TheShellHookNames[pair.unhighlighted]);
+	}
+	for (const HookPair &pair : hooks)
+	{
+		if (hook == pair.name)
+			TheScriptEngine->signalUIInteract(TheShellHookNames[pair.highlighted]);
+	}
+	m_hookedName = hook;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -212,6 +262,8 @@ void RmlMainMenuScreen::onBackToMain(Rml::DataModelHandle, Rml::Event &, const R
 
 void RmlMainMenuScreen::onGoOptions(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
+	if (TheScriptEngine)
+		TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_OPTIONS_SELECTED]);
 	MainMenuActions::openOptions();
 }
 

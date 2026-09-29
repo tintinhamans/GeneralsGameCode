@@ -138,7 +138,6 @@ button[disabled]:active, button.disabled:active, .button.disabled:active
 	decorator: tiled-horizontal(Buttons-Disabled-Left, Buttons-Disabled-Middle, Buttons-Disabled-Right);
 	color: #3E405C;
 	font-effect: shadow(1dp 1dp #1F202F);
-	pointer-events: none;
 }
 
 /* Square glyph/icon buttons are too small for the capsule end caps: keep the plain bordered box. */
