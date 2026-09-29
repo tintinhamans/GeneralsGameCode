@@ -86,6 +86,10 @@ public:
 	virtual void EnableScissorRegion(bool enable) override;
 	virtual void SetScissorRegion(Rml::Rectanglei region) override;
 
+	// A texture the engine keeps writing to (a movie's video buffer), drawn as is: video formats have no alpha
+	// channel, so it samples opaque and needs no premultiply pass. Takes its own reference.
+	Rml::TextureHandle registerVideoTexture(IDirect3DTexture8 *tex);
+
 private:
 	struct CompiledGeometry
 	{

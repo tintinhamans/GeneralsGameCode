@@ -386,6 +386,14 @@ Rml::TextureHandle RmlUiRenderInterface::registerTexture(IDirect3DTexture8 *tex,
 	return handle;
 }
 
+Rml::TextureHandle RmlUiRenderInterface::registerVideoTexture(IDirect3DTexture8 *tex)
+{
+	if (!tex)
+		return 0;
+	tex->AddRef();
+	return registerTexture(tex, true, true);
+}
+
 void RmlUiRenderInterface::ReleaseTexture(Rml::TextureHandle texture)
 {
 	TextureMap::iterator it = m_textures.find(texture);

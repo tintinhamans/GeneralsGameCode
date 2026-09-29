@@ -400,6 +400,9 @@ void RmlUiManager::registerCustomElements()
 
 	m_scrollLogInstancer = new Rml::ElementInstancerGeneric<RmlScrollLogElement>();
 	Rml::Factory::RegisterElementInstancer("scrolllog", m_scrollLogInstancer);
+
+	m_videoInstancer = new Rml::ElementInstancerGeneric<RmlVideoElement>();
+	Rml::Factory::RegisterElementInstancer("video", m_videoInstancer);
 }
 
 void RmlUiManager::shutdown()
@@ -429,6 +432,7 @@ void RmlUiManager::shutdown()
 	delete m_mappedImageInstancer; m_mappedImageInstancer = nullptr;
 	delete m_mapPreviewInstancer; m_mapPreviewInstancer = nullptr;
 	delete m_scrollLogInstancer; m_scrollLogInstancer = nullptr;
+	delete m_videoInstancer; m_videoInstancer = nullptr;
 	m_currentScreen = nullptr;
 	TransitionSounds::reset();
 	m_debuggerInitialized = false;

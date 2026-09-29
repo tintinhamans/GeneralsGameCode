@@ -95,6 +95,7 @@ private:
 	Rml::ElementInstancer *m_mappedImageInstancer = nullptr;
 	Rml::ElementInstancer *m_mapPreviewInstancer = nullptr;
 	Rml::ElementInstancer *m_scrollLogInstancer = nullptr;
+	Rml::ElementInstancer *m_videoInstancer = nullptr;
 	RmlScreen *m_currentScreen = nullptr;
 	Rml::Element *m_tooltipElement = nullptr; // element updateTooltip() last drove TheMouse's tooltip from
 	int m_width = 0, m_height = 0;

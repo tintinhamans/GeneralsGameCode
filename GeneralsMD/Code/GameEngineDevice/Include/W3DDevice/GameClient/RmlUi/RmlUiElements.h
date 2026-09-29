@@ -36,11 +36,18 @@
 //    Assets/UI/GameSetup.rcss).
 //  - <scrolllog>                  a scrolling text pane that follows its newest line (chat, status
 //    feed) -- see RmlScrollLogElement.
+//  - <video source="Name" fit="contain"/>  draws a movie the game decodes into a VideoBuffer and
+//    publishes under Name -- see RmlVideoElement.
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
+#include <RmlUi/Core/CallbackTexture.h>
 #include <RmlUi/Core/Element.h>
+#include <RmlUi/Core/Geometry.h>
+
+class VideoBuffer;
+struct IDirect3DTexture8;
 
 // Registered with Rml::ElementInstancerGeneric<T> (see RmlUiManager::registerCustomElements()),
 // so no custom instancer class is needed here.
@@ -130,4 +137,38 @@ protected:
 private:
 	float m_lastHeight = 0.0f;
 	bool m_following = true; // false once the user scrolled away from the bottom
+};
+
+//-------------------------------------------------------------------------------------------------
+// Movie frame: shows the VideoBuffer published under its "source" attribute, the texture the owner's
+// stream renders every frame into, so decoding and timing stay with the owner (the load screens decode
+// for their .wnd view the same way). fit: "fill" stretches (the .wnd way), "contain" letterboxes
+// and "cover" crops, both keeping the movie's aspect. Only the visible part of the power-of-two
+// buffer texture is sampled. Nothing is drawn while no buffer is published.
+class RmlVideoElement : public Rml::Element
+{
+public:
+	explicit RmlVideoElement(const Rml::String &tag);
+	virtual ~RmlVideoElement() override;
+
+	// null clears it. An owner clears or replaces its buffer before deleting it.
+	static void setSource(const Rml::String &name, VideoBuffer *buffer);
+
+protected:
+	virtual void OnRender() override;
+	virtual void OnResize() override;
+	virtual void OnAttributeChange(const Rml::ElementAttributes &changed_attributes) override;
+	virtual void OnPropertyChange(const Rml::PropertyIdSet &changed_properties) override;
+
+private:
+	void bind(VideoBuffer *buffer);
+	void buildGeometry();
+
+	VideoBuffer *m_buffer = nullptr; ///< only compared once bound; everything read from it is cached here
+	IDirect3DTexture8 *m_d3dTexture = nullptr; ///< our own reference
+	Rml::Vector2i m_textureSize;
+	Rml::Vector2f m_videoSize;
+	Rml::CallbackTexture m_texture;
+	Rml::Geometry m_geometry;
+	bool m_geometryDirty = true;
 };
