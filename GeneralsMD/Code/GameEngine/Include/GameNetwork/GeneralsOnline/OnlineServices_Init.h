@@ -185,12 +185,16 @@ public:
 	// lobby ID the check was started for; a stale reply (different lobby) is ignored
 	int64_t m_connectivityCheckLobbyID = -1;
 
+	// when the check was sent; Tick() gives up on it after a client-side timeout
+	int64_t m_connectivityCheckStartMs = -1;
+
 	void SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> cbOnConnectivityCheckComplete);
 
 	void ClearConnectivityCheckCallback()
 	{
 		m_cbOnConnectivityCheckComplete = nullptr;
 		m_connectivityCheckLobbyID = -1;
+		m_connectivityCheckStartMs = -1;
 	}
 
 	void Tick();
