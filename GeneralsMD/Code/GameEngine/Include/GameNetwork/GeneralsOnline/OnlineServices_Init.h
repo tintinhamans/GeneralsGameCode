@@ -228,6 +228,8 @@ public:
 	}
 
 private:
+	CURLcode ReceiveOneFrame();
+
 	CURL* m_pCurlWS = nullptr;
     CURLM* m_pMulti = nullptr;
 	struct curl_slist* m_pHeaders = nullptr;

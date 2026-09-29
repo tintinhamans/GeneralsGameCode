@@ -893,6 +893,41 @@ void WebSocket::Tick()
         }
 	}
 
+	// drain what the server queued, a signalling burst shouldn't take one frame per tick
+	static constexpr int MAX_WS_FRAMES_PER_TICK = 64;
+	CURLcode ret = CURL_LAST;
+	for (int numFrames = 0; numFrames < MAX_WS_FRAMES_PER_TICK; ++numFrames)
+	{
+		ret = ReceiveOneFrame();
+		if (ret != CURLE_OK || !m_bConnected)
+		{
+			break;
+		}
+	}
+
+	// time since last pong?
+	if (m_lastPong != -1 && (currTime - m_lastPong) >= m_timeForWSTimeout)
+	{
+        // send event to sentry
+#if defined(GENERALS_ONLINE_USE_SENTRY)
+        if (TheNGMPGame != nullptr)
+        {
+            AsciiString sentryMsg;
+            sentryMsg.format("Got websocket disconnect (Timeout: %s), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", curl_easy_strerror(ret), currTime - m_lastPong, m_lastPong, currTime);
+            sentry_capture_event(sentry_value_new_message_event(SENTRY_LEVEL_ERROR, "WEBSOCKET_DISCONNECT_TIMEOUT", sentryMsg.str()));
+        }
+#endif
+
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (Timeout: %s), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", curl_easy_strerror(ret), currTime - m_lastPong, m_lastPong, currTime);
+        m_bConnected = false;
+		BeginReconnect();
+        m_vecWSPartialBuffer.clear();
+	};
+}
+
+// Reads and handles at most one frame, returns the curl_ws_recv result (CURL_LAST if nothing was read)
+CURLcode WebSocket::ReceiveOneFrame()
+{
 	// do recv
 	size_t rlen = 0;
 	const struct curl_ws_frame* meta = nullptr;
@@ -905,7 +940,7 @@ void WebSocket::Tick()
 	if (rlen > sizeof(bufferThisRecv))
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Received data size %zu exceeds buffer size %zu, discarding", rlen, sizeof(bufferThisRecv));
-		return;
+		return CURL_LAST;
 	}
 
 	if (ret != CURLE_RECV_ERROR && ret != CURL_LAST && ret != CURLE_AGAIN && ret != CURLE_GOT_NOTHING)
@@ -933,7 +968,7 @@ void WebSocket::Tick()
 				{
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Partial buffer overflow, discarding message");
 					m_vecWSPartialBuffer.clear();
-					return;
+					return CURL_LAST;
 				}
 				
 				// SECURITY FIX: Store old size BEFORE resize to avoid off-by-one error in memcpy
@@ -1808,24 +1843,7 @@ void WebSocket::Tick()
 #endif
 	}
 
-	// time since last pong?
-	if (m_lastPong != -1 && (currTime - m_lastPong) >= m_timeForWSTimeout)
-	{
-        // send event to sentry
-#if defined(GENERALS_ONLINE_USE_SENTRY)
-        if (TheNGMPGame != nullptr)
-        {
-            AsciiString sentryMsg;
-            sentryMsg.format("Got websocket disconnect (Timeout: %s), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", curl_easy_strerror(ret), currTime - m_lastPong, m_lastPong, currTime);
-            sentry_capture_event(sentry_value_new_message_event(SENTRY_LEVEL_ERROR, "WEBSOCKET_DISCONNECT_TIMEOUT", sentryMsg.str()));
-        }
-#endif
-
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (Timeout: %s), timeout is %lld, last pong was at %lld, current time is %lld, attempting reconnect", curl_easy_strerror(ret), currTime - m_lastPong, m_lastPong, currTime);
-        m_bConnected = false;
-		BeginReconnect();
-        m_vecWSPartialBuffer.clear();
-	};
+	return ret;
 }
 
 NGMP_OnlineServices_RoomsInterface::NGMP_OnlineServices_RoomsInterface()
