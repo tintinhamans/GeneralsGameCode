@@ -1,17 +1,10 @@
 /*
-	MultiplayerLoad.rcss -- MultiplayerLoadScreen.wnd: player, army, team and progress table under
-	the shared top half (see LoadScreen.rcss). Geometry is the .wnd's 800x600 rects.
+	MultiplayerLoad.rcss -- skirmish and network games (MultiplayerLoadScreen.wnd). Everything is the
+	shared load look of LoadScreen.rcss: the map full-bleed, the map name and mode, the local
+	general, the map card and a card per player. Screen-specific overrides go here.
 */
 
-.mp-heads .load-head { top: 55.833%; }
-.mp-head-name { left: 7.75%; }
-.mp-head-side { left: 30.75%; }
-.mp-head-team { left: 66.75%; }
-.mp-head-progress { left: 74.5%; }
-
-.mp-rows { left: 7.75%; top: 60.5%; width: 85.25%; }
-
-.mp-name { left: 0%; width: 26.4%; }
-.mp-side { left: 27%; width: 41.35%; }
-.mp-team { left: 68.9%; width: 8.8%; text-align: center; }
-.mp-bar { left: 78.3%; width: 21.7%; }
+body.ld
+{
+	font-size: 20dp;
+}

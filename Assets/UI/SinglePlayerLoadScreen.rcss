@@ -1,18 +1,9 @@
 /*
-	SinglePlayerLoadScreen.rcss -- SinglePlayerLoadScreen.wnd: the mission's briefing movie, then the
-	campaign's art, with the load bar in the campaign's colour. The stage, the movie and the bar are
-	shared with ChallengeLoadScreen.rml (LoadScreen.rcss). The location, unit and objective texts are
-	the original Generals' briefing; Zero Hour never shows them.
+	SinglePlayerLoadScreen.rcss -- SinglePlayerLoadScreen.wnd: the campaign's art, then the mission's
+	briefing movie, full-bleed, with the shared load bar in the campaign's colour (LoadScreen.rcss).
+	The location, unit and objective texts are the original Generals' briefing, at their .wnd places
+	on the 4:3 stage; Zero Hour never shows them.
 */
-
-/* ProgressLoad (140,564)-(659,584) */
-.sp-bar
-{
-	left: 17.5%;
-	top: 94%;
-	width: 64.875%;
-	height: 3.333%;
-}
 
 /* StaticTextCameoText3 (92,312)-(259,354) */
 .sp-location
@@ -58,7 +49,7 @@
 	top: 61.5%;
 	width: 64.125%;
 	height: 24%;
-	background-color: rgba(2, 2, 2, 160);
+	background-color: #070A1AD9;
 }
 
 .sp-objective

@@ -2282,7 +2282,6 @@ label.check:hover
 	justify-content: flex-end;
 	box-sizing: border-box;
 	height: auto;
-	line-height: normal;
 	padding: 24dp 26dp;
 	text-align: left;
 	letter-spacing: 0;

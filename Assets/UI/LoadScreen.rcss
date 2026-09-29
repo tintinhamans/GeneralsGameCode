@@ -1,277 +1,451 @@
 /*
-	LoadScreen.rcss -- pieces shared by the network load screens (MapTransfer.rml,
-	MultiplayerLoad.rml, GameSpyLoad.rml) and the movie load screens (SinglePlayerLoadScreen.rml,
-	ChallengeLoadScreen.rml; see the end of this sheet). Positions are body percentages of the .wnd's
-	800x600 space, so the layout stretches the way the original does at any aspect ratio;
-	row heights are dp because dp follows screen height like the vertical percentages do.
+	LoadScreen.rcss -- the one look of every load screen (map transfer, multiplayer, online, shell,
+	single player and challenge), on the screen template of common.rcss.
+
+	The map or campaign art, or the mission's movie, fills the whole screen under the ruler frame;
+	a scrim darkens it towards the bottom where the text sits. Inside the frame:
+		.ld-head    the game mode over the map name (or what is loading) and, on the multiplayer
+		            screens, the local player's general with his portrait and features
+		.ld-mid     the map card with its start positions, on the right
+		.ld-cards   a card per player along the bottom: colour, faction badge, name, army, team,
+		            rank and record (online), load progress in the player's colour
+		.ld-bottom  the one load bar (shell, single player, challenge)
+	The single player briefing texts and the challenge's general against general keep the .wnd's
+	places on a 4:3 stage centred over the art (.ls-stage-wrap > .ls-stage), since their movies
+	and portraits are 4:3 pictures.
+
+	Every value comes from LoadScreenData through RmlLoadScreen; rows and markers are always
+	MAX_SLOTS long and hidden with data-if="row.used"/"marker.used".
 */
 
-body
+body.ld
 {
+	background-color: #05070F;
+}
+
+/* ---- Full-bleed art ---------------------------------------------------------------------------- */
+.ld-art
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	clip: always;
+	background-color: #05070F;
+}
+
+/* The map's own preview, square, covering the screen: centred and cropped top and bottom. */
+.ld-map-art
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 50%;
+	width: 100vw;
+	height: 100vw;
+	margin-top: -50vw;
+	opacity: 0.9;
+}
+
+/* Full-screen art made for the whole screen (the .wnd's own backgrounds): stretched to it. */
+.ld-fallback-art
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100vw;
+	height: 100vh;
+}
+
+/* 4:3 campaign art covering the screen: full width, cropped top and bottom. mappedimage takes no
+   percentages, so the 4:3 box is sized in vw. */
+.ld-cover-art
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 50%;
+	width: 100vw;
+	height: 75vw;
+	margin-top: -37.5vw;
+}
+
+.ld-movie
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	background-color: #000000;
+}
+
+.ld-movie video
+{
+	display: block;
 	width: 100%;
 	height: 100%;
 }
 
-.load-frame
-{
-	position: absolute;
-	background-color: rgba(2, 2, 2, 129);
-}
-
-.load-title-line
-{
-	position: absolute;
-	height: 0dp;
-	border-top: 2dp #2F37A8;
-}
-
-.load-title
-{
-	position: absolute;
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-end;
-	padding-left: 8dp;
-	padding-bottom: 6dp;
-	box-sizing: border-box;
-	font-size: 40dp;
-	color: #FFFFFF;
-}
-
-.load-column
-{
-	position: absolute;
-	box-sizing: border-box;
-	background-color: #000000;
-}
-
-.load-column-title
-{
-	position: absolute;
-	top: 0dp;
-	height: 44dp;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	font-size: 26dp;
-	color: #FFFFFF;
-	white-space: nowrap;
-}
-
-/* One line per player; the data-for wrapper is display:block so unused rows collapse. The pitch
-   is the wrapper's fixed height, so no row has a trailing margin to overflow the column. */
-.load-line
+/* Darker towards the bottom, where the cards and the bar sit. */
+.ld-scrim
 {
 	display: block;
-	height: 43dp;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	decorator: vertical-gradient(#05070F59 #05070FD9);
 }
 
-.load-cell
+/* ---- Frame ------------------------------------------------------------------------------------ */
+.ld-frame
 {
-	box-sizing: border-box;
-	height: 36dp;
-	padding: 6dp 8dp 0dp 8dp;
-	font-size: 16dp;
+	display: flex;
+	flex-direction: column;
+}
+
+.ld-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	flex: 0 0 auto;
+	padding-top: 10dp;
+}
+
+.ld-heading
+{
+	display: block;
+	flex: 0 1 auto;
+	min-width: 0;
+	padding: 14dp 30dp 16dp 22dp;
+	background-color: #070A1AD9;
+	border-left: 4dp #F07A1A;
+}
+
+.ld-mode
+{
+	font-size: 17dp;
+	letter-spacing: 3dp;
+}
+
+.ld-title
+{
+	display: block;
+	margin-top: 4dp;
+	font-size: 56dp;
+	line-height: 64dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
 	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ld-title-small
+{
+	font-size: 32dp;
+	line-height: 40dp;
+	text-transform: none;
+}
+
+.ld-loading
+{
+	display: block;
+	margin-top: 6dp;
+	font-size: 16dp;
+	font-weight: bold;
+	letter-spacing: 3dp;
+	color: #A9B1CF;
+}
+
+.ld-timeout
+{
+	padding: 10dp 20dp;
+	font-size: 24dp;
+	font-weight: bold;
+	color: #FF9A3D;
+	background-color: #070A1AD9;
+}
+
+/* The local player's general: portrait, name and special abilities. */
+.ld-general
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 1 620dp;
+	min-width: 0;
+	margin-left: 30dp;
+	padding: 12dp 20dp 12dp 12dp;
+	background-color: #070A1AD9;
+}
+
+.ld-portrait
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 124dp;
+	height: 124dp;
+	margin-right: 18dp;
+}
+
+.ld-portrait mappedimage
+{
+	display: block;
+	width: 124dp;
+	height: 124dp;
+}
+
+.ld-general-text
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.ld-general-name
+{
+	display: block;
+	font-size: 28dp;
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+.ld-general-features
+{
+	display: block;
+	margin-top: 6dp;
+	font-size: 18dp;
+	line-height: 24dp;
+	color: #A9B1CF;
+}
+
+/* ---- Map card --------------------------------------------------------------------------------- */
+.ld-mid
+{
+	display: flex;
+	flex-direction: row;
+	align-items: flex-end;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding: 20dp 0;
+}
+
+.ld-map-card
+{
+	padding: 12dp;
+	border-top: 2dp #8080FF46;
+}
+
+.ld-map-frame
+{
+	width: 340dp;
+	height: 340dp;
+}
+
+/* ---- Player cards ------------------------------------------------------------------------------ */
+.ld-cards
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+}
+
+.ld-card
+{
+	display: block;
+	box-sizing: border-box;
+	flex: 0 1 400dp;
+	min-width: 0;
+	margin-right: 12dp;
+	padding: 14dp 16dp 16dp 16dp;
+	background-color: #070A1AEB;
+	border-top: 5dp #7079A0;
+}
+
+.ld-card-top
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 10dp;
+}
+
+.ld-badge
+{
+	margin-right: 10dp;
+}
+
+.ld-rank, .ld-medal
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 40dp;
+	height: 40dp;
+	margin-right: 8dp;
+}
+
+.ld-rank mappedimage, .ld-medal mappedimage
+{
+	display: block;
+	width: 40dp;
+	height: 40dp;
+}
+
+.ld-army-line
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 2dp;
+}
+
+.ld-team
+{
+	flex: 0 1 auto;
+	min-width: 0;
+	margin-left: 8dp;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ld-name
+{
+	display: block;
+	font-size: 23dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ld-army
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	font-size: 17dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ld-stats
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 8dp;
+}
+
+.ld-stat
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #EEF1FA;
 	white-space: nowrap;
 	overflow: hidden;
 }
 
-.load-cell.boxed
+.ld-stat-label
 {
-	background-color: rgba(2, 2, 2, 200);
-	border: 2dp #2F37A8;
-	text-align: center;
+	display: block;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: 12dp;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #7079A0;
 }
 
-/* Progress: a recessed track with a blue edge; the fill is the player's house colour as a lit tube
-   (light top, dark bottom) with a bright end cap, standing in for LoadingBar_ProgressCenterN. */
-.load-bar
+.ld-player-bar
 {
-	display: flex;
-	width: 100%;
-	box-sizing: border-box;
-	height: 36dp;
-	padding: 4dp;
-	background-color: #05070FE6;
-	border: 1dp #3A46D0;
-	border-top-color: #1E246E;
+	margin-top: 12dp;
+	height: 14dp;
+	padding: 2dp;
 }
 
-/* Bars the .wnd hides (host, or a player who already has the map) keep their slot. */
-.load-bar.invisible
+.ld-player-bar .progress-fill
+{
+	decorator: none;
+	border-right: 2dp #FFFFFF;
+}
+
+.ld-player-bar.invisible
 {
 	visibility: hidden;
 }
 
-.load-bar-fill
+/* ---- The one load bar ------------------------------------------------------------------------- */
+.ld-bottom
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	padding: 16dp 22dp;
+	background-color: #070A1AD9;
+}
+
+.ld-bottom-label
 {
 	flex: 0 0 auto;
-	box-sizing: border-box;
-	decorator: vertical-gradient(#FFFFFF73 #0000006B);
-	border-right: 2dp #FFFFFFCC;
+	margin-right: 22dp;
+	font-size: 17dp;
+	letter-spacing: 3dp;
+	color: #D7DCF0;
 }
 
-/* ---- Top half shared by the multiplayer and online screens -------------------------------
-   Local general name, portrait, features text and the map preview with start markers. */
-.load-name
+.ld-bar
 {
-	position: absolute;
-	left: 7%;
-	top: 7.333%;
-	width: 56.1%;
-	height: 5.5%;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	font-size: 40dp;
-	color: #FFFFFF;
-	white-space: nowrap;
+	flex: 1 1 0%;
+	height: 26dp;
+	padding: 4dp;
 }
 
-/* Flex parents: block containers don't resolve the percent size of an image child here. */
-.load-portrait
-{
-	position: absolute;
-	left: 7.5%;
-	top: 19.667%;
-	width: 27.375%;
-	height: 33.833%;
-	display: flex;
-}
+/* The campaign's colour: LoadingBar_ProgressCenter1 (China), 2 (USA) and 3 (GLA). */
+.ld-bar.center1 .progress-fill { decorator: vertical-gradient(#FF7070 #C00000); border-right-color: #FFD0D0; }
+.ld-bar.center2 .progress-fill { decorator: vertical-gradient(#8FA5FF #2F4AD8); border-right-color: #D8E0FF; }
+.ld-bar.center3 .progress-fill { decorator: vertical-gradient(#8CF57E #2A9A1E); border-right-color: #D6FFD0; }
 
-.load-portrait mappedimage
+.ld-legal
 {
 	display: block;
-	width: 100%;
-	height: 100%;
-}
-
-.load-features
-{
-	position: absolute;
-	left: 35.75%;
-	top: 20%;
-	width: 29.625%;
-	height: 33.167%;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
+	flex: 0 0 auto;
+	margin-bottom: 12dp;
 	text-align: center;
-	font-size: 18dp;
-	font-weight: bold;
-	color: #FFFFFF;
+	font-size: 14dp;
+	color: #A9B1CF;
 }
 
-.load-map
-{
-	position: absolute;
-	left: 66.25%;
-	top: 20%;
-	width: 26.625%;
-	height: 33.333%;
-	display: flex;
-	background-color: #000000;
-}
-
-.load-map mappreview
-{
-	display: block;
-	width: 100%;
-	height: 100%;
-}
-
-.load-marker-layer
-{
-	position: absolute;
-	left: 0dp;
-	top: 0dp;
-	width: 100%;
-	height: 100%;
-}
-
-.load-marker
-{
-	position: absolute;
-	width: 30dp;
-	height: 30dp;
-	margin-left: -15dp;
-	margin-top: -15dp;
-	display: flex;
-}
-
-.load-marker mappedimage
-{
-	display: block;
-	width: 100%;
-	height: 100%;
-}
-
-.load-marker-label
-{
-	position: absolute;
-	left: 0dp;
-	top: 0dp;
-	width: 100%;
-	height: 100%;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	text-align: center;
-	font-size: 13dp;
-	font-weight: bold;
-}
-
-/* ---- Player table pieces --------------------------------------------------------------- */
-.load-head
-{
-	position: absolute;
-	height: 4.667%;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	font-size: 18dp;
-	font-weight: bold;
-	color: #FFFFFF;
-	white-space: nowrap;
-}
-
-.load-rows
-{
-	position: absolute;
-}
-
-.load-row
-{
-	display: block;
-	position: relative;
-	height: 43dp;
-}
-
-.load-row .load-cell,
-.load-row .load-bar
-{
-	position: absolute;
-	top: 0dp;
-}
-
-.load-row .load-cell
-{
-	padding-left: 4dp;
-}
-
-/* ---- Movie load screens ----------------------------------------------------------------
-   SinglePlayerLoadScreen.rml and ChallengeLoadScreen.rml. Their art and movies are 4:3 pictures,
-   so everything sits on a 4:3 stage centred on the screen instead of being stretched: black at the
-   sides of wider screens, as the engine shows its full-screen movies. The stage is 1440dp wide
-   (4:3 of the 1080dp height) and narrows to the screen on narrower aspects. Positions inside it
-   are percentages of the .wnd's 800x600 rects. */
-body.ls-screen
+/* ---- 4:3 stage for the briefing texts and the general against general ------------------------- */
+/* 1440dp wide (4:3 of the 1080dp height), centred, narrowing to the screen on narrower aspects.
+   Positions inside it are percentages of the .wnd's 800x600 rects. */
+.ls-stage-wrap
 {
 	display: flex;
 	flex-direction: row;
 	justify-content: center;
-	background-color: #000000;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
 }
 
 .ls-stage
@@ -283,151 +457,28 @@ body.ls-screen
 	height: 100%;
 }
 
-/* Art or movie over the whole stage. A movie keeps its aspect on black. */
-.ls-fill
+/* ---- 5:4 and 4:3 ---------------------------------------------------------------------------------- */
+@media (max-aspect-ratio: 3/2)
 {
-	display: block;
-	position: absolute;
-	left: 0;
-	top: 0;
-	width: 100%;
-	height: 100%;
+	.ld-title { font-size: 44dp; line-height: 52dp; }
+	.ld-general { flex-basis: 480dp; }
+	.ld-portrait, .ld-portrait mappedimage { width: 96dp; height: 96dp; }
+	.ld-general-features { font-size: 16dp; line-height: 21dp; }
+	.ld-card { padding: 12dp 10dp 12dp 10dp; margin-right: 8dp; }
+	.ld-name { font-size: 19dp; }
+	.ld-army { font-size: 15dp; }
+	.ld-badge { flex-basis: 44dp; width: 44dp; height: 44dp; line-height: 42dp; margin-right: 8dp; }
+	.ld-badge mappedimage { width: 36dp; height: 36dp; }
+	.ld-rank, .ld-medal, .ld-rank mappedimage, .ld-medal mappedimage { width: 30dp; height: 30dp; }
+	.ld-rank, .ld-medal { margin-right: 6dp; }
 }
 
-.ls-movie
+.ld-bottom-mode
 {
-	background-color: #000000;
+	flex: 0 0 auto;
+	margin-right: 18dp;
+	padding-right: 18dp;
+	font-size: 17dp;
+	letter-spacing: 3dp;
+	border-right: 1dp #8080FF46;
 }
-
-.ls-movie video
-{
-	display: block;
-	width: 100%;
-	height: 100%;
-}
-
-/* Load bar, drawn like the engine's image progress bar: 20px end caps with a tiled middle between
-   them (.framed only), the bar inset 10px from the sides and 5px from top and bottom, the done part
-   in the bar art and the rest in the powered down art. The bar pieces are 3px wide and cannot be
-   tiled from the sprites, so their 11 rows of color are drawn here. */
-.ls-bar
-{
-	position: absolute;
-}
-
-.ls-bar-cap,
-.ls-bar-mid
-{
-	display: none;
-}
-
-.ls-bar.framed .ls-bar-cap
-{
-	display: block;
-	position: absolute;
-	top: 0;
-	width: 20px;
-	height: 100%;
-}
-
-.ls-bar-cap-l { left: 0; }
-.ls-bar-cap-r { right: 0; }
-
-/* LoadingBar_C only varies vertically, so stretching it along the bar shows the same lines */
-.ls-bar.framed .ls-bar-mid
-{
-	display: block;
-	position: absolute;
-	left: 20px;
-	right: 20px;
-	top: 0;
-	height: 100%;
-	decorator: tiled-horizontal(LoadingBar_C, LoadingBar_C, LoadingBar_C);
-}
-
-.ls-bar-track
-{
-	position: absolute;
-	left: 10px;
-	right: 10px;
-	top: 5px;
-	bottom: 5px;
-}
-
-.ls-bar-fill
-{
-	position: absolute;
-	left: 0;
-	top: 0;
-	height: 100%;
-}
-
-.ls-bar-rows
-{
-	position: absolute;
-	left: 0;
-	top: 0;
-	width: 100%;
-	height: 100%;
-}
-
-.ls-bar-rows div
-{
-	display: block;
-	height: 9.0909%;
-}
-
-/* LoadingBar_DePowered */
-.ls-bar-rest div:nth-child(1) { background-color: #323232; }
-.ls-bar-rest div:nth-child(2) { background-color: #3B3B3B; }
-.ls-bar-rest div:nth-child(3) { background-color: #535353; }
-.ls-bar-rest div:nth-child(4) { background-color: #757575; }
-.ls-bar-rest div:nth-child(5) { background-color: #8A8A8A; }
-.ls-bar-rest div:nth-child(6) { background-color: #898989; }
-.ls-bar-rest div:nth-child(7) { background-color: #747476; }
-.ls-bar-rest div:nth-child(8) { background-color: #515152; }
-.ls-bar-rest div:nth-child(9) { background-color: #3B3B3D; }
-.ls-bar-rest div:nth-child(10) { background-color: #303030; }
-.ls-bar-rest div:nth-child(11) { background-color: #000000; }
-
-/* LoadingBar_Progress, the .wnd's own */
-.ls-bar-done div:nth-child(1) { background-color: #0B1516; }
-.ls-bar-done div:nth-child(2) { background-color: #1E2BDB; }
-.ls-bar-done div:nth-child(3) { background-color: #202DE2; }
-.ls-bar-done div:nth-child(4) { background-color: #3441FF; }
-.ls-bar-done div:nth-child(5) { background-color: #7881FF; }
-.ls-bar-done div:nth-child(6) { background-color: #DCDFFF; }
-.ls-bar-done div:nth-child(7) { background-color: #DCDFFF; }
-.ls-bar-done div:nth-child(8) { background-color: #A4AAFF; }
-.ls-bar-done div:nth-child(9) { background-color: #717AFF; }
-.ls-bar-done div:nth-child(10) { background-color: #2E3BF8; }
-.ls-bar-done div:nth-child(11) { background-color: #000000; }
-
-/* LoadingBar_ProgressCenter1 (China), 2 (USA) and 3 (GLA): the same white middle, their own colour around it */
-.ls-bar.center1 .ls-bar-done div:nth-child(1),
-.ls-bar.center2 .ls-bar-done div:nth-child(1),
-.ls-bar.center3 .ls-bar-done div:nth-child(1) { background-color: #000000; }
-
-.ls-bar.center1 .ls-bar-done div:nth-child(2),
-.ls-bar.center1 .ls-bar-done div:nth-child(3),
-.ls-bar.center1 .ls-bar-done div:nth-child(10) { background-color: #FF0000; }
-.ls-bar.center1 .ls-bar-done div:nth-child(4),
-.ls-bar.center1 .ls-bar-done div:nth-child(9) { background-color: #FF4545; }
-.ls-bar.center1 .ls-bar-done div:nth-child(5),
-.ls-bar.center1 .ls-bar-done div:nth-child(8) { background-color: #FCA7A7; }
-
-.ls-bar.center2 .ls-bar-done div:nth-child(2),
-.ls-bar.center2 .ls-bar-done div:nth-child(3),
-.ls-bar.center2 .ls-bar-done div:nth-child(10) { background-color: #4368FE; }
-.ls-bar.center2 .ls-bar-done div:nth-child(4),
-.ls-bar.center2 .ls-bar-done div:nth-child(9) { background-color: #7590FD; }
-.ls-bar.center2 .ls-bar-done div:nth-child(5),
-.ls-bar.center2 .ls-bar-done div:nth-child(8) { background-color: #B5C3FB; }
-
-.ls-bar.center3 .ls-bar-done div:nth-child(2),
-.ls-bar.center3 .ls-bar-done div:nth-child(3),
-.ls-bar.center3 .ls-bar-done div:nth-child(10) { background-color: #3ED12E; }
-.ls-bar.center3 .ls-bar-done div:nth-child(4),
-.ls-bar.center3 .ls-bar-done div:nth-child(9) { background-color: #74FB65; }
-.ls-bar.center3 .ls-bar-done div:nth-child(5),
-.ls-bar.center3 .ls-bar-done div:nth-child(8) { background-color: #AFFCA7; }

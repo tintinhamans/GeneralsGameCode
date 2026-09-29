@@ -1,9 +1,8 @@
 /*
-	ChallengeLoadScreen.rcss -- ChallengeLoadScreen.wnd: the mission's backdrop movie under the ruler
-	frame, the two generals' portrait movies (stills on min spec) with their typed out names and bios,
-	the reticle circles and the "vs" movie between them, and the framed load bar. The stage, the movies
-	and the bar are shared with SinglePlayerLoadScreen.rml (LoadScreen.rcss). The bios get a dark
-	panel so they read over the movie.
+	ChallengeLoadScreen.rcss -- ChallengeLoadScreen.wnd: the mission's backdrop movie full-bleed under
+	the ruler frame, the two generals' portrait movies (stills on min spec) with their typed out names
+	and bios, the reticle circles and the "vs" movie between them on the 4:3 stage, and the shared
+	load bar (LoadScreen.rcss). The bios get a dark panel so they read over the movie.
 */
 
 /* BigNameEntryLeft/Right (63,52)-(394,102), (406,52)-(737,102) */
@@ -77,7 +76,7 @@
 	flex-direction: column;
 	box-sizing: border-box;
 	padding: 0 6dp;
-	background-color: rgba(2, 2, 2, 160);
+	background-color: #070A1AD9;
 	font-size: 18dp;
 	font-weight: bold;
 	color: #FEFEFE;
@@ -123,11 +122,8 @@
 .cl-versus-backdrop { left: 39.375%; top: 29.667%; width: 21.375%; height: 29.5%; }
 .cl-versus { left: 43.875%; top: 34.333%; width: 13%; height: 19.833%; }
 
-/* ProgressLoad (39,565)-(761,585) */
-.cl-bar
+/* The movie keeps most of its strength: the stage carries the scene, the bar sits on its own plate. */
+.cl-scrim
 {
-	left: 4.875%;
-	top: 94.167%;
-	width: 90.25%;
-	height: 3.333%;
+	decorator: vertical-gradient(#05070F00 #05070F8C);
 }
