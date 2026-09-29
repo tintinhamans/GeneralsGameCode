@@ -1,0 +1,100 @@
+/*
+	PopupReplay.rcss -- PopupReplay.wnd (the score screen's Save Replay popup). Positions are body
+	percentages of the .wnd's 800x600 rects, so the layout stretches the way the original does. The list
+	columns follow the .wnd's LISTBOXDATA, like the replay menu's (name 30, time and date 25, version 20,
+	map 25).
+*/
+
+body
+{
+	width: 100%;
+	height: 100%;
+	background-color: rgba(2, 2, 2, 128);
+}
+
+.pr-frame
+{
+	box-sizing: border-box;
+	position: absolute;
+	left: 16%;
+	top: 8.667%;
+	width: 70.5%;
+	height: 78.333%;
+	display: flex;
+	flex-direction: column;
+	padding: 12dp 20dp 18dp 20dp;
+	background-color: #020202;
+	border: 1dp #2F37A8;
+}
+
+.pr-list
+{
+	flex: 1 1 0px;
+	min-height: 0;
+}
+
+.pr-name
+{
+	flex: 0 0 30%;
+	overflow: hidden;
+}
+
+.pr-date
+{
+	flex: 0 0 25%;
+	overflow: hidden;
+}
+
+.pr-version
+{
+	flex: 0 0 20%;
+	overflow: hidden;
+}
+
+.pr-map
+{
+	flex: 0 0 25%;
+	overflow: hidden;
+}
+
+.pr-input
+{
+	flex: 0 0 auto;
+	box-sizing: border-box;
+	width: 100%;
+	margin-top: 8dp;
+}
+
+.pr-buttons
+{
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	margin-top: 12dp;
+}
+
+.pr-buttons button
+{
+	flex: 0 0 auto;
+	width: 270dp;
+}
+
+/* The "Replay Saved" notice over the list, up for a second before the popup closes. */
+.pr-saved
+{
+	box-sizing: border-box;
+	position: absolute;
+	left: 3.55%;
+	top: 29.8%;
+	width: 92.9%;
+	height: 29.8%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	font-size: 22dp;
+	color: #FFFFFF;
+	background-color: rgba(0, 0, 1, 235);
+	border: 1dp #2F37A8;
+}

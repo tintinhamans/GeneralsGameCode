@@ -1,0 +1,32 @@
+<rml>
+<head>
+	<title>PopupReplay</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="PopupReplay.rcss"/>
+</head>
+<body data-model="popupreplay">
+	<div class="pr-frame">
+		<div class="shell-title-bar"><gametext key="GUI:SaveReplay"/></div>
+
+		<div class="pr-list list-box scroll-container">
+			<div data-for="row : rows">
+				<div class="list-row flex compact" data-class-selected="row.selected" data-event-click="select_row(row.index)">
+					<div class="pr-name" data-style-color="row.color_hex">{{row.name}}</div>
+					<div class="pr-date" data-style-color="row.color_hex">{{row.date_time}}</div>
+					<div class="pr-version" data-style-color="row.color_hex">{{row.version}}</div>
+					<div class="pr-map" data-style-color="row.map_color_hex">{{row.map}}</div>
+				</div>
+			</div>
+		</div>
+
+		<input type="text" id="name-input" class="text-input pr-input" data-value="name" data-attr-maxlength="name_max" data-event-change="name_changed"/>
+
+		<div class="pr-buttons">
+			<button class="button-lg" data-attrif-disabled="save_disabled" data-event-click="save"><gametext key="GUI:SaveReplay"/></button>
+			<button class="button-lg" data-event-click="back"><gametext key="GUI:Back"/></button>
+		</div>
+
+		<div class="pr-saved" data-if="show_saved"><gametext key="GUI:ReplaySaved"/></div>
+	</div>
+</body>
+</rml>

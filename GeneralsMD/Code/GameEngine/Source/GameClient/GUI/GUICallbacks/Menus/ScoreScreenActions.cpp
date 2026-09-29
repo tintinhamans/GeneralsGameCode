@@ -40,6 +40,7 @@
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/Keyboard.h"
+#include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/KeyDefs.h"
 #include "GameClient/Shell.h"
 #include "GameClient/VideoPlayer.h"
@@ -127,6 +128,12 @@ void toggleBuddyOverlay()
 //-------------------------------------------------------------------------------------------------
 void startSaveReplayFlow()
 {
+	if (RmlUiScreenRegistry::routesToRmlUi("Menus/PopupReplay.wnd"))
+	{
+		RmlUiScreenRegistry::open("Menus/PopupReplay.wnd");
+		return;
+	}
+
 	WindowLayout *saveReplayLayout = TheShell->getPopupReplayLayout();
 	DEBUG_ASSERTCRASH( saveReplayLayout, ("Unable to get save replay menu layout.") );
 	saveReplayLayout->runInit();

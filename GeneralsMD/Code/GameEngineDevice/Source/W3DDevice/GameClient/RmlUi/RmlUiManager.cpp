@@ -48,6 +48,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlOnlineWelcomeScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlPlayerInfoScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlPopupReplayScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuickMatchScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlQuitMenuScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlReplayMenuScreen.h"
@@ -329,6 +330,8 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/PopupSaveLoad.wnd", &OpenRmlPopupSaveLoadScreen, &CloseRmlPopupSaveLoadScreen, &screenVisible<RmlSaveLoadScreen>, &popupBack<RmlSaveLoadScreen>);
 	// MainMenuActions::openReplayMenu() pushes this path; see RmlReplayMenuScreen.h.
 	RmlUiScreenRegistry::registerScreen("Menus/ReplayMenu.wnd", &OpenRmlReplayMenuScreen, &CloseRmlReplayMenuScreen, &screenVisible<RmlReplayMenuScreen>, &popupBack<RmlReplayMenuScreen>);
+	// ScoreScreenActions::startSaveReplayFlow() opens this over the score screen; see RmlPopupReplayScreen.h.
+	RmlUiScreenRegistry::registerScreen("Menus/PopupReplay.wnd", &OpenRmlPopupReplayScreen, &CloseRmlPopupReplayScreen, &screenVisible<RmlPopupReplayScreen>, &popupBack<RmlPopupReplayScreen>);
 	// GSOVERLAY_PLAYERINFO's .wnd path (see GameSpyOverlay.cpp's gsOverlays[] / GameSpyOpenOverlay()).
 	RmlUiScreenRegistry::registerScreen("Menus/PopupPlayerInfo.wnd", &OpenRmlPlayerInfoScreen, &CloseRmlPlayerInfoScreen, &screenVisible<RmlPlayerInfoScreen>, &popupBack<RmlPlayerInfoScreen>);
 	// GSOVERLAY_BUDDY's .wnd path, same gsOverlays[] precedent.
@@ -444,6 +447,7 @@ void RmlUiManager::update()
 		m_currentScreen->update();
 	RmlLoadScreen::tick();
 	RmlReplayMenuScreen::tick();
+	RmlPopupReplayScreen::tick();
 	RmlUiMessageBoxHook::raise(); // a box stays above screens shown after it
 	if (m_context)
 		m_context->Update();
