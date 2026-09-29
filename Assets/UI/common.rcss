@@ -1795,3 +1795,25 @@ label.check:hover
 	color: #A9B1CF;
 }
 
+
+/* ---- Social dock: an online screen makes room for the expanded dock ----------------------------
+	RmlSocialDock sets .dock-open on every body with .dock-host while its panel is out, so the
+	screen narrows beside the 340dp panel instead of sitting under it. */
+.screen.dock-open .screen-frame
+{
+	margin-right: 356dp;
+}
+
+.shell.dock-open .shell-frame
+{
+	width: auto;
+	right: 5.6%;
+	margin-right: 352dp;
+}
+
+/* 5:4 and 4:3: a 300dp panel. */
+@media (max-aspect-ratio: 3/2)
+{
+	.screen.dock-open .screen-frame { margin-right: 316dp; }
+	.shell.dock-open .shell-frame { margin-right: 312dp; }
+}

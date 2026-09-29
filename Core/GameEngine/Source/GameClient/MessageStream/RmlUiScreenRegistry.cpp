@@ -457,6 +457,27 @@ bool RmlUiScreenRegistry::escape(bool isDown)
 	return true;
 }
 
+AsciiString RmlUiScreenRegistry::topLayer(const AsciiString &except)
+{
+	if (RmlUiMessageBoxHook::isOpen())
+		return AsciiString::TheEmptyString;
+
+	const Entry *top = nullptr;
+	const std::vector<Entry> &e = entries();
+	for (size_t i = 0; i < e.size(); ++i)
+		if (e[i].capturesInput && e[i].wndPath != except && e[i].isVisible && e[i].isVisible() && (!top || e[i].order > top->order))
+			top = &e[i];
+
+	return top ? top->wndPath : AsciiString::TheEmptyString;
+}
+
+void RmlUiScreenRegistry::raise(const AsciiString &wndPath)
+{
+	Entry *e = find(wndPath);
+	if (e)
+		e->order = ++s_openCount;
+}
+
 bool RmlUiScreenRegistry::wantsOverlayKeys()
 {
 	const std::vector<Entry> &e = entries();

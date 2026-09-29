@@ -336,3 +336,10 @@
 	text-align: center;
 	color: #C0C0C0;
 }
+
+/* Beside the expanded social dock on 5:4 and 4:3: a smaller map so the slot table keeps its width. */
+@media (max-aspect-ratio: 3/2)
+{
+	.dock-open .side-panel { width: 260dp; }
+	.dock-open .map-preview { width: 260dp; height: 260dp; }
+}

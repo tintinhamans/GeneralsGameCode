@@ -4,7 +4,7 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="QuickMatch.rcss"/>
 </head>
-<body class="shell" data-model="quickmatch">
+<body class="shell dock-host" data-model="quickmatch">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
 	<div class="shell-frame">

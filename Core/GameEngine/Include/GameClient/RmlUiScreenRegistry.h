@@ -82,6 +82,14 @@ public:
 	// screen underneath. Returns TRUE if a layer owns it (its back func runs on key down).
 	static bool escape(bool isDown);
 
+	// The topmost capturing layer (the most recently opened visible one) other than except; empty when
+	// there is none or a message box is up. A layer that sits beside the screens (the social dock) asks
+	// this to know which screen it is over.
+	static AsciiString topLayer(const AsciiString &except);
+	// Makes a visible layer the topmost again without reopening it, so Escape reaches it first; for a
+	// layer that stays open while the screens change under it.
+	static void raise(const AsciiString &wndPath);
+
 	// A visible overlay with a key handler takes the keys it wants ahead of the game, as the .wnd overlay did
 	// while it had the keyboard focus. Nothing is offered while a capturing layer is up: that owns the keyboard.
 	static bool wantsOverlayKeys(); ///< such an overlay is visible

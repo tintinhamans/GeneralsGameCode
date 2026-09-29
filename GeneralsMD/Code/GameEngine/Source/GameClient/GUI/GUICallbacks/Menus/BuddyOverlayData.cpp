@@ -46,6 +46,18 @@ static std::string unicodeToUtf8( const UnicodeString &str )
 namespace BuddyOverlayData
 {
 
+// Presence is free text from the server; look for the two states the social dock shows apart.
+static Activity classifyPresence( const std::string &presence )
+{
+	std::string lower = presence;
+	std::transform( lower.begin(), lower.end(), lower.begin(), []( unsigned char c ) { return (char)tolower( c ); } );
+	if ( lower.find( "lobby" ) != std::string::npos )
+		return ACTIVITY_IN_LOBBY;
+	if ( lower.find( "game" ) != std::string::npos || lower.find( "playing" ) != std::string::npos || lower.find( "match" ) != std::string::npos )
+		return ACTIVITY_IN_GAME;
+	return ACTIVITY_ONLINE;
+}
+
 //-------------------------------------------------------------------------------------------------
 // Mirrors updateBuddyInfo()'s GENERALS_ONLINE branch (WOLBuddyOverlay.cpp:469-698), minus the
 // listbox writes: same four sections in the same order, same skip rules, same friends-list sort.
@@ -150,6 +162,11 @@ std::vector<BuddyRow> collectBuddyRows()
 		row.unreadCount = pSocialInterface->GetNumberUnreadChatMessagesForUser( friendsEntry.user_id );
 		row.category = ROW_FRIEND;
 		row.nameColor = friendsEntry.online ? GameSpyColor[GSCOLOR_PLAYER_BUDDY] : GameMakeColor( 100, 130, 150, 255 );
+		if ( friendsEntry.online )
+		{
+			row.presence = friendsEntry.presence;
+			row.activity = classifyPresence( friendsEntry.presence );
+		}
 
 		if ( friendsEntry.online )
 		{
@@ -192,7 +209,7 @@ std::vector<ChatLine> collectChatHistory( int64_t userID )
 
 	if ( userID <= 0 )
 	{
-		lines.push_back( { UnicodeString( L"Select a friend to start chatting" ), GameSpyColor[GSCOLOR_DEFAULT] } );
+		lines.push_back( { UnicodeString( L"Select a friend to start chatting" ), GameSpyColor[GSCOLOR_DEFAULT], true } );
 		return lines;
 	}
 
@@ -202,21 +219,21 @@ std::vector<ChatLine> collectChatHistory( int64_t userID )
 
 	if ( !pSocialInterface->IsUserFriend( userID ) && !pSocialInterface->IsUserPendingRequest( userID ) )
 	{
-		lines.push_back( { UnicodeString( L"This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or block them." ), GameSpyColor[GSCOLOR_DEFAULT] } );
+		lines.push_back( { UnicodeString( L"This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or block them." ), GameSpyColor[GSCOLOR_DEFAULT], true } );
 		return lines;
 	}
 
 	if ( pSocialInterface->IsUserPendingRequest( userID ) )
 	{
-		lines.push_back( { UnicodeString( L"This is a pending friend request. You cannot chat with the player until you accept it." ), GameSpyColor[GSCOLOR_DEFAULT] } );
+		lines.push_back( { UnicodeString( L"This is a pending friend request. You cannot chat with the player until you accept it." ), GameSpyColor[GSCOLOR_DEFAULT], true } );
 		return lines;
 	}
 
 	for ( const UnicodeString &line : pSocialInterface->GetChatMessagesForUser( userID ) )
-		lines.push_back( { line, GameSpyColor[GSCOLOR_PLAYER_BUDDY] } );
+		lines.push_back( { line, GameSpyColor[GSCOLOR_PLAYER_BUDDY], false } );
 
 	if ( lines.empty() )
-		lines.push_back( { UnicodeString( L"This chat is empty. Send a message to start a conversation" ), GameSpyColor[GSCOLOR_DEFAULT] } );
+		lines.push_back( { UnicodeString( L"This chat is empty. Send a message to start a conversation" ), GameSpyColor[GSCOLOR_DEFAULT], true } );
 
 	return lines;
 }
@@ -226,6 +243,19 @@ int getNotificationBadgeCount()
 {
 	NGMP_OnlineServices_SocialInterface *pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
 	return (pSocialInterface != nullptr) ? pSocialInterface->GetNumTotalNotifications() : 0;
+}
+
+//-------------------------------------------------------------------------------------------------
+bool isOnline()
+{
+	return NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>() != nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
+int64_t getLocalUserID()
+{
+	NGMP_OnlineServices_AuthInterface *pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	return (pAuthInterface != nullptr) ? pAuthInterface->GetUserID() : -1;
 }
 
 } // namespace BuddyOverlayData

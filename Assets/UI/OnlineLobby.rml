@@ -4,7 +4,7 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="OnlineLobby.rcss"/>
 </head>
-<body class="screen" data-model="onlinelobby">
+<body class="screen dock-host" data-model="onlinelobby">
 	<div class="screen-ruler"><div class="rc tl"></div><div class="rc tr"></div><div class="rc bl"></div><div class="rc br"></div></div>
 
 	<div class="screen-frame">

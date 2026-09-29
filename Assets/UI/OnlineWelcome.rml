@@ -4,7 +4,7 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="OnlineWelcome.rcss"/>
 </head>
-<body class="shell" data-model="onlinewelcome">
+<body class="shell dock-host" data-model="onlinewelcome">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
 	<div class="shell-frame">

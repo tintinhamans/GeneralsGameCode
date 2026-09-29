@@ -520,3 +520,9 @@
 	.facts .stat-label { letter-spacing: 0; }
 	.col-side { margin-left: 16dp; }
 }
+
+/* Beside the expanded social dock on 5:4 and 4:3 the game card goes: the list keeps the width. */
+@media (max-aspect-ratio: 3/2)
+{
+	.dock-open .details-col { display: none; }
+}

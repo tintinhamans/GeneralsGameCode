@@ -119,3 +119,9 @@
 	width: 100%;
 	height: 100%;
 }
+
+/* Beside the expanded social dock on 5:4 and 4:3: the five footer buttons get tighter. */
+@media (max-aspect-ratio: 3/2)
+{
+	.dock-open .footer .btn-primary { min-width: 0; padding: 0 10dp; font-size: 15dp; }
+}

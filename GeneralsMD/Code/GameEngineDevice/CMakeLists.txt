@@ -91,6 +91,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlSocialDock.h
     Include/W3DDevice/GameClient/RmlUi/RmlUiElements.h
     Include/W3DDevice/GameClient/RmlUi/RmlUiFileInterface.h
     Include/W3DDevice/GameClient/RmlUi/RmlUiManager.h
@@ -243,6 +244,7 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/RmlUi/RmlScoreScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlSocialDock.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiElements.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiFileInterface.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiManager.cpp

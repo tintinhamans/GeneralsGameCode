@@ -1,0 +1,569 @@
+/*
+	SocialDock.rcss -- the Generals Online social dock (RmlSocialDock) on the screen template's
+	palette (common.rcss). It stays up beside every online shell screen, so it is built to cost the
+	screen nothing while collapsed:
+
+	  collapsed  a 50dp tab in the ruler band at the right edge (outside every screen's content):
+	             friends online, a badge for unread conversations plus friend requests.
+	  expanded   a 340dp side panel down the right of the frame. The host screen makes room for it
+	             (body.dock-open, see common.rcss), so it never covers the screen's own actions.
+	             Three views: friends and requests, the block list, one conversation.
+
+	Presence: online #3CD28C, in a lobby #14B1FF, in a game #F0C020, offline grey. The unread badge
+	uses the accent. .template/.shell (from the host screen) line the panel up with its frame.
+*/
+
+body
+{
+	pointer-events: none;
+	z-index: 50;
+}
+
+/* ---- Collapsed tab ----------------------------------------------------------------------------- */
+.screen button.dock-tab
+{
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	position: fixed;
+	right: 1.1%;
+	top: 38%;
+	width: 50dp;
+	height: auto;
+	line-height: 20dp;
+	padding: 12dp 0 8dp 0;
+	background-color: #070A1AD2;
+	border: 1dp #8080FF46;
+	border-left: 2dp #3A46D0;
+	pointer-events: auto;
+}
+
+.screen button.dock-tab:hover
+{
+	background-color: #1E246EE6;
+	border-color: #8080FF;
+	border-left-color: #BAFF0C;
+}
+
+.screen button.dock-tab[disabled], .screen button.dock-tab[disabled]:hover
+{
+	background-color: #070A1AA0;
+	border-color: #8080FF1E;
+	opacity: 0.6;
+}
+
+/* A person glyph drawn from two boxes (Barlow has no icons). */
+.tab-icon, .head-icon
+{
+	display: block;
+	width: 20dp;
+	height: 20dp;
+}
+
+.icon-head
+{
+	display: block;
+	width: 8dp;
+	height: 8dp;
+	margin: 0 auto 2dp auto;
+	border-radius: 4dp;
+	background-color: #A9B1CF;
+}
+
+.icon-body
+{
+	display: block;
+	width: 16dp;
+	height: 8dp;
+	margin: 0 auto;
+	border-radius: 8dp 8dp 0 0;
+	background-color: #A9B1CF;
+}
+
+.dock-tab:hover .icon-head, .dock-tab:hover .icon-body
+{
+	background-color: #FFFFFF;
+}
+
+.tab-online
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 10dp;
+	height: 18dp;
+	font-size: 15dp;
+	font-weight: bold;
+	color: #D7DCF0;
+}
+
+.tab-count
+{
+	font-size: 16dp;
+	font-weight: normal;
+	line-height: 18dp;
+}
+
+.tab-online .dot
+{
+	flex: 0 0 8dp;
+	margin-right: 5dp;
+}
+
+.tab-badge
+{
+	display: block;
+	margin-top: 8dp;
+	min-width: 24dp;
+	height: 22dp;
+	line-height: 22dp;
+	padding: 0 4dp;
+	box-sizing: border-box;
+	border-radius: 11dp;
+	text-align: center;
+	font-size: 13dp;
+	font-weight: bold;
+	color: #0B1400;
+	background-color: #BAFF0C;
+}
+
+.tab-chevron
+{
+	display: block;
+	margin-top: 6dp;
+	font-size: 28dp;
+	line-height: 26dp;
+	color: #8080FF;
+}
+
+/* ---- Expanded panel ------------------------------------------------------------------------------ */
+.dock-panel
+{
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	position: fixed;
+	right: 6.6%;
+	top: 8.2%;
+	bottom: 8.6%;
+	width: 340dp;
+	padding: 0 14dp 14dp 14dp;
+	background-color: #070A1AD2;
+	border-top: 2dp #3A46D0;
+	pointer-events: auto;
+	animation: 0.2s cubic-out dock-in;
+}
+
+/* Over a screen still on the .shell-frame look, line up with that frame instead. */
+.dock-panel.shell
+{
+	right: 5.6%;
+	top: 7.3%;
+	bottom: 7.3%;
+}
+
+@keyframes dock-in
+{
+	from { opacity: 0; margin-right: -24dp; }
+	to { opacity: 1; margin-right: 0dp; }
+}
+
+.dock-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 48dp;
+}
+
+.head-icon
+{
+	margin-right: 10dp;
+}
+
+.dock-title
+{
+	font-size: 15dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	color: #EEF1FA;
+	white-space: nowrap;
+}
+
+.screen button.head-btn
+{
+	width: 32dp;
+	height: 32dp;
+	line-height: 28dp;
+	padding: 0;
+	text-align: center;
+	font-size: 26dp;
+	color: #A9B1CF;
+	background-color: transparent;
+	border-color: transparent;
+}
+
+.screen button.head-btn:hover
+{
+	color: #FFFFFF;
+	background-color: #2F37A878;
+	border-color: transparent;
+}
+
+.dock-view
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+}
+
+.dock-tabs
+{
+	flex: 0 0 auto;
+}
+
+.screen .dock-tabs button.seg-item
+{
+	flex: 1 1 0%;
+}
+
+.dock-scroll
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 6dp;
+	overflow-y: auto;
+}
+
+/* ---- Sections and rows ----------------------------------------------------------------------------- */
+.section
+{
+	display: block;
+}
+
+.section-head
+{
+	display: block;
+	margin: 14dp 0 6dp 4dp;
+}
+
+.section-count
+{
+	margin-left: 8dp;
+	color: #A9B1CF;
+	letter-spacing: 1dp;
+}
+
+.person
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	box-sizing: border-box;
+	height: 50dp;
+	padding: 0 8dp 0 6dp;
+	border-left: 3dp transparent;
+	transition: background-color 0.1s cubic-out;
+}
+
+.person:hover
+{
+	background-color: #2F37A84B;
+}
+
+.person.friend.selected, .person.friend.selected:hover
+{
+	background-color: #2F37A880;
+	border-left-color: #BAFF0C;
+}
+
+.avatar
+{
+	display: block;
+	position: relative;
+	flex: 0 0 32dp;
+	width: 32dp;
+	height: 32dp;
+	line-height: 32dp;
+	margin-right: 10dp;
+	text-align: center;
+	font-size: 15dp;
+	font-weight: bold;
+	color: #D7DCF0;
+	background-color: #1E246E;
+}
+
+.presence
+{
+	display: block;
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 12dp;
+	height: 12dp;
+	box-sizing: border-box;
+	border-radius: 6dp;
+	border: 2dp #070A1A;
+	background-color: #4A5070;
+}
+
+.presence.online { background-color: #3CD28C; }
+.presence.lobby { background-color: #14B1FF; }
+.presence.game { background-color: #F0C020; }
+
+.who
+{
+	display: block;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.name
+{
+	display: block;
+	font-size: 16dp;
+	line-height: 20dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sub
+{
+	display: block;
+	font-size: 13dp;
+	line-height: 17dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.person.offline .name { color: #7079A0; }
+.person.offline .sub { color: #5A6288; }
+.person.offline .avatar { color: #7079A0; background-color: #141A3E; }
+
+.unread, .thread-others
+{
+	display: block;
+	flex: 0 0 auto;
+	min-width: 22dp;
+	height: 22dp;
+	line-height: 22dp;
+	padding: 0 5dp;
+	margin-left: 8dp;
+	box-sizing: border-box;
+	border-radius: 11dp;
+	text-align: center;
+	font-size: 13dp;
+	font-weight: bold;
+	color: #0B1400;
+	background-color: #BAFF0C;
+}
+
+/* Requests: two lines of who, the answer buttons under them. */
+.person.request
+{
+	height: auto;
+	padding-top: 8dp;
+	padding-bottom: 8dp;
+	align-items: flex-start;
+}
+
+.req-actions
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 6dp;
+}
+
+.screen .person button.btn-small
+{
+	flex: 0 0 auto;
+	height: 28dp;
+	line-height: 26dp;
+	padding: 0 12dp;
+	margin-right: 6dp;
+	font-size: 12dp;
+}
+
+.screen .person button.accept
+{
+	color: #0B1400;
+	background-color: #A4E600;
+	border-color: #A4E600;
+}
+
+.screen .person button.accept:hover
+{
+	background-color: #CBFF3A;
+	border-color: #CBFF3A;
+}
+
+.screen .person button.quiet
+{
+	background-color: transparent;
+}
+
+.screen .person button.quiet:hover
+{
+	background-color: #2F37A8D2;
+}
+
+.dock-empty
+{
+	display: block;
+	padding: 10dp 8dp;
+	font-size: 14dp;
+	line-height: 19dp;
+	color: #7079A0;
+}
+
+/* ---- Conversation ---------------------------------------------------------------------------------- */
+.thread-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 52dp;
+	padding-bottom: 6dp;
+	border-bottom: 1dp #8080FF28;
+}
+
+.screen button.head-btn.back
+{
+	margin-right: 8dp;
+}
+
+.thread-lines
+{
+	display: block;
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 10dp;
+	padding-right: 6dp;
+}
+
+/* Their messages hang off a blue rule on the left, mine sit indented with the brand blue; a run from
+   one sender shows the name once. */
+.msg
+{
+	display: block;
+	padding: 5dp 10dp;
+	margin: 8dp 28dp 0 0;
+	line-height: 20dp;
+	color: #EEF1FA;
+	background-color: #141A3E8C;
+	border-left: 2dp #14B1FF;
+}
+
+.msg.cont
+{
+	margin-top: 2dp;
+}
+
+.msg.mine
+{
+	margin-left: 28dp;
+	margin-right: 0;
+	background-color: #2F37A866;
+	border-left-color: #8080FF;
+}
+
+.msg-name
+{
+	display: block;
+	font-size: 13dp;
+	font-weight: bold;
+	letter-spacing: 0.5dp;
+	color: #14B1FF;
+}
+
+.msg.mine .msg-name
+{
+	color: #A9B1CF;
+}
+
+.msg.note
+{
+	margin-right: 0;
+	color: #A9B1CF;
+	background-color: transparent;
+	border-left-color: #8080FF46;
+}
+
+.thread-entry
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-top: 10dp;
+}
+
+.thread-entry .chat-input
+{
+	flex: 1 1 auto;
+	margin-right: 8dp;
+}
+
+.screen .thread-entry .icon-btn
+{
+	width: 40dp;
+	height: 40dp;
+	padding: 8dp;
+	background-color: #2F37A8D2;
+	border: 1dp #8080FF;
+}
+
+.screen .thread-entry .icon-btn:hover
+{
+	background-color: #3A46D0;
+}
+
+.thread-entry mappedimage img
+{
+	display: block;
+}
+
+/* ---- Context menu on the template palette ---------------------------------------------------------- */
+.context-menu-backdrop
+{
+	pointer-events: auto;
+}
+
+.screen .context-menu
+{
+	pointer-events: auto;
+	background-color: #090C1EF5;
+	border: 1dp #3A46D0;
+	min-width: 110dp;
+	padding: 4dp 0;
+}
+
+.screen .context-menu-item
+{
+	height: 32dp;
+	line-height: 32dp;
+	padding: 0 14dp;
+	text-align: left;
+	border-bottom-width: 0;
+	color: #D7DCF0;
+}
+
+.screen .context-menu-item:hover
+{
+	background-color: #2F37A8DC;
+	color: #FFFFFF;
+}
+
+/* ---- 5:4 and 4:3: a narrower panel; the host keeps 316dp for it (common.rcss) ------------------------ */
+@media (max-aspect-ratio: 3/2)
+{
+	.dock-panel { width: 300dp; padding: 0 10dp 10dp 10dp; }
+}

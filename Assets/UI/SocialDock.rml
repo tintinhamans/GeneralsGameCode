@@ -1,0 +1,134 @@
+<rml>
+<head>
+	<title>SocialDock</title>
+	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="SocialDock.rcss"/>
+</head>
+<!-- The Generals Online social dock (RmlSocialDock): friends, requests and direct messages, beside
+     every online shell screen. Full-screen but pointer-events: none, so only the tab and the panel
+     take the mouse. Both are viewport layers, direct children of <body>. -->
+<body class="screen" data-model="socialdock">
+	<!-- Collapsed: a slim tab in the ruler band at the right edge. -->
+	<button class="dock-tab" data-if="!expanded" data-attrif-disabled="locked"
+		data-event-click="toggle" data-tooltip="GUI:Buddies">
+		<div class="tab-icon"><div class="icon-head"></div><div class="icon-body"></div></div>
+		<div class="tab-online"><span class="dot"></span><span class="tab-count">{{online_count}}</span></div>
+		<div class="tab-badge" data-if="badge_count &gt; 0">{{badge_count}}</div>
+		<div class="tab-chevron">&#8249;</div>
+	</button>
+
+	<!-- Expanded: a side panel the host screen makes room for (body.dock-open on the host). -->
+	<div class="dock-panel" data-if="expanded" data-class-shell="!host_template">
+		<div class="dock-head">
+			<div class="head-icon"><div class="icon-head"></div><div class="icon-body"></div></div>
+			<div class="dock-title"><gametext key="GUI:Buddies"/></div>
+			<div class="spacer"></div>
+			<button class="head-btn" data-event-click="collapse" data-tooltip="GUI:Close">&#8250;</button>
+		</div>
+
+		<!-- Friends and requests -->
+		<div class="dock-view" data-if="view == 'list'">
+			<div class="dock-tabs seg">
+				<button class="seg-item on"><gametext key="GUI:GODockFriends"/></button>
+				<button class="seg-item" data-event-click="show_blocked"><gametext key="GUI:GODockBlocked"/></button>
+			</div>
+			<div class="dock-scroll">
+				<div class="section" data-if="request_count &gt; 0">
+					<div class="overline section-head"><gametext key="GUI:GODockRequests"/><span class="section-count">{{request_count}}</span></div>
+					<div data-for="row : rows">
+						<div class="person request" data-if="row.used &amp;&amp; row.is_request" data-event-mousedown="row_mousedown(row.index)">
+							<div class="avatar">{{row.initial}}</div>
+							<div class="who">
+								<div class="name">{{row.name}}</div><div class="sub">{{row.sub}}</div>
+								<div class="req-actions">
+									<button class="btn-small accept" data-event-click="accept(row.index)"><gametext key="GUI:AcceptSm"/></button>
+									<button class="btn-small quiet" data-event-click="deny(row.index)"><gametext key="GUI:Deny"/></button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="section">
+					<div class="overline section-head"><gametext key="GUI:GODockFriends"/><span class="section-count">{{online_text}}</span></div>
+					<div data-for="row : rows">
+						<div class="person friend" data-if="row.used &amp;&amp; row.is_friend" data-class-offline="row.activity == 0"
+							data-class-selected="row.is_open" data-event-click="open_thread(row.index)" data-event-mousedown="row_mousedown(row.index)">
+							<div class="avatar">{{row.initial}}<div class="presence" data-class-online="row.activity == 1" data-class-lobby="row.activity == 2" data-class-game="row.activity == 3"></div></div>
+							<div class="who"><div class="name">{{row.name}}</div><div class="sub">{{row.sub}}</div></div>
+							<div class="unread" data-if="row.unread &gt; 0">{{row.unread}}</div>
+						</div>
+					</div>
+					<div class="dock-empty" data-if="friend_count == 0"><gametext key="GUI:GODockNoFriends"/></div>
+				</div>
+
+				<div class="section" data-if="lobby_count &gt; 0">
+					<div class="overline section-head"><gametext key="GUI:GODockLobby"/></div>
+					<div data-for="row : rows">
+						<div class="person other" data-if="row.used &amp;&amp; row.is_lobby" data-event-mousedown="row_mousedown(row.index)">
+							<div class="avatar">{{row.initial}}</div>
+							<div class="who"><div class="name">{{row.name}}</div></div>
+							<button class="btn-small quiet" data-event-click="add(row.index)"><gametext key="GUI:Add"/></button>
+						</div>
+					</div>
+				</div>
+
+				<div class="section" data-if="recent_count &gt; 0">
+					<div class="overline section-head"><gametext key="GUI:GODockRecent"/></div>
+					<div data-for="row : rows">
+						<div class="person other" data-if="row.used &amp;&amp; row.is_recent" data-event-mousedown="row_mousedown(row.index)">
+							<div class="avatar">{{row.initial}}</div>
+							<div class="who"><div class="name">{{row.name}}</div></div>
+							<button class="btn-small quiet" data-event-click="add(row.index)"><gametext key="GUI:Add"/></button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Block list -->
+		<div class="dock-view" data-if="view == 'blocked'">
+			<div class="dock-tabs seg">
+				<button class="seg-item" data-event-click="show_list"><gametext key="GUI:GODockFriends"/></button>
+				<button class="seg-item on"><gametext key="GUI:GODockBlocked"/></button>
+			</div>
+			<div class="dock-scroll">
+				<div data-for="row : blocked_rows">
+					<div class="person other" data-if="row.used" data-event-mousedown="blocked_row_mousedown(row.index)">
+						<div class="avatar">{{row.initial}}</div>
+						<div class="who"><div class="name">{{row.name}}</div></div>
+						<button class="btn-small quiet" data-event-click="unblock(row.index)"><gametext key="GUI:GODockUnblock"/></button>
+					</div>
+				</div>
+				<div class="dock-empty" data-if="blocked_count == 0"><gametext key="GUI:GODockNoBlocked"/></div>
+			</div>
+		</div>
+
+		<!-- One conversation -->
+		<div class="dock-view" data-if="view == 'thread'">
+			<div class="thread-head">
+				<button class="head-btn back" data-event-click="show_list">&#8249;</button>
+				<div class="avatar">{{thread_initial}}<div class="presence" data-class-online="thread_activity == 1" data-class-lobby="thread_activity == 2" data-class-game="thread_activity == 3"></div></div>
+				<div class="who"><div class="name">{{thread_name}}</div><div class="sub">{{thread_sub}}</div></div>
+				<div class="thread-others" data-if="others_unread &gt; 0">{{others_unread}}</div>
+			</div>
+			<scrolllog class="thread-lines">
+				<div data-for="line : chat_lines">
+					<div class="msg" data-if="line.used" data-class-note="line.is_note" data-class-mine="line.mine" data-class-cont="line.cont"><div class="msg-name" data-if="line.name != '' &amp;&amp; !line.cont">{{line.name}}</div>{{line.body}}</div>
+				</div>
+			</scrolllog>
+			<div class="thread-entry">
+				<input type="text" class="chat-input" maxlength="200" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
+				<button class="icon-btn send" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
+			</div>
+		</div>
+	</div>
+
+	<div class="context-menu-backdrop" data-if="player_menu_visible" data-event-mousedown="player_menu_dismiss"></div>
+	<div class="context-menu" data-if="player_menu_visible" data-style-left="player_menu_x_style" data-style-top="player_menu_y_style">
+		<div data-for="item : player_menu_items">
+			<div class="context-menu-item" data-if="item.used" data-event-click="player_menu_item_clicked(item.action)">{{item.label}}</div>
+		</div>
+	</div>
+</body>
+</rml>

@@ -10,3 +10,35 @@ END
 GUI:GONoGames
 "No games in this room yet"
 END
+
+GUI:GODockFriends
+"Friends"
+END
+
+GUI:GODockBlocked
+"Blocked"
+END
+
+GUI:GODockRequests
+"Friend requests"
+END
+
+GUI:GODockLobby
+"In your lobby"
+END
+
+GUI:GODockRecent
+"Recently played with"
+END
+
+GUI:GODockNoFriends
+"No friends yet. Right-click a player in a lobby to send a friend request."
+END
+
+GUI:GODockNoBlocked
+"Nobody is blocked."
+END
+
+GUI:GODockUnblock
+"Unblock"
+END

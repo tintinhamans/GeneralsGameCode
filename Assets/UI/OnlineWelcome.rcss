@@ -133,3 +133,11 @@
 	color: #FFFFFF;
 	font-weight: bold;
 }
+
+/* Beside the expanded social dock on 5:4 and 4:3: smaller win-percentage cells so they stay on one line. */
+@media (max-aspect-ratio: 3/2)
+{
+	.dock-open .stat-icon { width: 44dp; height: 44dp; }
+	.dock-open .stat-value { font-size: 18dp; margin-left: 4dp; }
+	.dock-open .buttons-column { flex-basis: 260dp; }
+}

@@ -5,7 +5,7 @@
 	<link type="text/rcss" href="GameSetup.rcss"/>
 	<link type="text/rcss" href="OnlineGameSetup.rcss"/>
 </head>
-<body class="shell" data-model="onlinegamesetup">
+<body class="shell dock-host" data-model="onlinegamesetup">
 	<mappedimage class="shell-background" name="MainMenuRuler"/>
 
 	<div class="shell-frame">

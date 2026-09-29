@@ -56,6 +56,16 @@ namespace BuddyOverlayData
 		ROW_FRIEND,           // accepted friend (ITEM_BUDDY)
 	};
 
+	// What an online friend is doing, read from their presence text: the server sends free text
+	// ("In Menus", "In Lobby ...", "In Game ..."), so anything unrecognised is plain online.
+	enum Activity
+	{
+		ACTIVITY_OFFLINE = 0,
+		ACTIVITY_ONLINE,
+		ACTIVITY_IN_LOBBY,
+		ACTIVITY_IN_GAME,
+	};
+
 	// One row of the roster listbox, covering all four sections.
 	struct BuddyRow
 	{
@@ -67,6 +77,8 @@ namespace BuddyOverlayData
 		RowCategory category = ROW_LOBBY_MEMBER;
 		bool online = false;     // only meaningful for ROW_FRIEND
 		int unreadCount = 0;     // only meaningful for ROW_FRIEND
+		std::string presence;    // ROW_FRIEND: the server's presence text, empty while offline
+		Activity activity = ACTIVITY_OFFLINE; // ROW_FRIEND: presence classified, see Activity
 	};
 
 	// Rebuilds all four sections from the social interface's cached/local state, same sort as
@@ -92,6 +104,7 @@ namespace BuddyOverlayData
 	{
 		UnicodeString text;
 		Color color = 0;
+		bool isNote = false; // one of the placeholders below rather than a message
 	};
 
 	// Chat history for the given friend, or one placeholder line describing why chat isn't
@@ -103,4 +116,11 @@ namespace BuddyOverlayData
 	// Total notification badge (unread-chat senders + pending friend requests), same count
 	// NGMP_OnlineServices_SocialInterface::GetNumTotalNotifications() already tracks.
 	int getNotificationBadgeCount();
+
+	// Logged in to Generals Online (the social interface exists).
+	bool isOnline();
+
+	// The local player's user ID, -1 when not logged in. Tells a received chat message from one
+	// this client sent.
+	int64_t getLocalUserID();
 }

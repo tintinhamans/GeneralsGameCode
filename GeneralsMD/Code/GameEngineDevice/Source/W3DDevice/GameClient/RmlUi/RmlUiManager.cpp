@@ -61,6 +61,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlScoreScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlSocialDock.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
 
@@ -350,7 +351,11 @@ void RmlUiManager::init(int width, int height)
 	// Buddy toast: only while RmlUi owns the shell, so its toast presenter replaces the .wnd one
 	// (see RmlBuddyToastScreen.h); -wnd never calls this.
 	if (m_context && !RmlUiScreenRegistry::usesLegacyMenus())
+	{
 		InitRmlBuddyToastScreen(m_context);
+		// The social dock beside the online screens; see RmlSocialDock.h.
+		RmlSocialDock::instance().init(m_context);
+	}
 	// GSOVERLAY_GAMEOPTIONS/GSOVERLAY_GAMEPASSWORD's .wnd paths, same gsOverlays[] precedent.
 	RmlUiScreenRegistry::registerScreen("Menus/PopupHostGame.wnd", &OpenRmlHostGameScreen, &CloseRmlHostGameScreen, &screenVisible<RmlHostGameScreen>, &popupBack<RmlHostGameScreen>);
 	RmlUiScreenRegistry::registerScreen("Menus/PopupJoinGame.wnd", &OpenRmlJoinGameScreen, &CloseRmlJoinGameScreen, &screenVisible<RmlJoinGameScreen>, &popupBack<RmlJoinGameScreen>);
@@ -418,6 +423,7 @@ void RmlUiManager::shutdown()
 
 	UnregisterRmlMessageBoxHook();
 	ShutdownRmlBuddyToastScreen();
+	RmlSocialDock::instance().shutdown();
 	RmlUiScreenRegistry::unregisterAll();
 
 	if (m_context)
@@ -481,6 +487,7 @@ void RmlUiManager::update()
 	RmlDisconnectScreen::tick();
 	RmlDownloadScreen::tick();
 	RmlUiMessageBoxHook::raise(); // a box stays above screens shown after it
+	RmlSocialDock::instance().tick(); // after the screen's update, before layout: shows, hides and places the dock
 	if (m_context)
 		m_context->Update();
 	updateTooltip();
