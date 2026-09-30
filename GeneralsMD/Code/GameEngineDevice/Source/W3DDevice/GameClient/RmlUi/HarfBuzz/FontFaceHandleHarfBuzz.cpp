@@ -20,6 +20,13 @@ static bool IsControlCharacter(Character c)
 	return (char32_t)c < U' ' || ((char32_t)c >= U'\x7F' && (char32_t)c <= U'\x9F');
 }
 
+// HarfBuzz advances are 26.6 fixed point. Truncating each one loses half a pixel per glyph on
+// average, which squeezes text and shrinks narrow spaces (Exo 2 Bold) until words run together.
+static int RoundAdvance(hb_position_t advance)
+{
+	return (advance + 32) >> 6;
+}
+
 static bool IsKerningEnabled(const TextShapingContext& text_shaping_context, int font_size)
 {
 	static constexpr int minimum_font_size_to_enable_kerning = 14;
@@ -185,7 +192,7 @@ int FontFaceHandleHarfBuzz::GetStringWidth(StringView string, const TextShapingC
 
 			// Adjust the cursor for this character's advance.
 			if (glyph_info[g].codepoint != 0)
-				width += glyph_positions[g].x_advance >> 6;
+				width += RoundAdvance(glyph_positions[g].x_advance);
 			else
 				// Use the unshaped advance for unsupported characters.
 				width += glyph_pair.second->advance;
@@ -408,7 +415,7 @@ int FontFaceHandleHarfBuzz::GenerateString(RenderManager& render_manager, Textur
 
 				// Adjust the cursor for this character's advance.
 				if (glyph_info[g].codepoint != 0)
-					line_width += glyph_positions[g].x_advance >> 6;
+					line_width += RoundAdvance(glyph_positions[g].x_advance);
 				else
 					// Use the unshaped advance for unsupported characters.
 					line_width += glyph_pair.second.bitmap->advance;

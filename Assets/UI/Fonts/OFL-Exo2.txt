@@ -1,7 +1,7 @@
 Copyright 2013 The Exo 2 Project Authors (https://github.com/googlefonts/Exo-2.0)
 Exo 2, https://github.com/googlefonts/Exo-2.0 (Google Fonts' Exo2[wght].ttf)
 Exo2-Bold.ttf is its Bold (700) instance, subset to Latin, Greek and Cyrillic; the design of the
-glyphs is unchanged.
+glyphs is unchanged, except that the space advance is widened from 216 to 290 units so words do not run together.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
