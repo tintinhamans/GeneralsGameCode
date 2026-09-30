@@ -4572,3 +4572,14 @@ body[dir=rtl]
 {
 	text-align: right;
 }
+
+/* A line's leading pieces come before its text, which in a right-to-left line is to the right: a
+   menu index number, the plus of an add-AI button, a chat line's time and name. RmlUi lays inline
+   boxes out left to right whatever the direction, so they float right instead. */
+body[dir=rtl] .rail-idx,
+body[dir=rtl] .pc-plus,
+body[dir=rtl] .chat-time,
+body[dir=rtl] .chat-name
+{
+	float: right;
+}
