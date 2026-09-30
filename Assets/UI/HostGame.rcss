@@ -1,22 +1,16 @@
 /*
-	HostGame.rcss -- PopupHostGame.wnd (Create Game popup, GSOVERLAY_GAMEOPTIONS). Floating popup
-	over the online lobby, same body-centered pattern as PlayerInfo.rcss/QuitMenu.rcss. Reuses
-	common.rcss's .frame/.row/.label/.control/.btn-primary/.text-input/input.checkbox.
+	HostGame.rcss -- PopupHostGame.wnd (Create Game, GSOVERLAY_GAMEOPTIONS): the modal card of
+	common.rcss over the custom match lobby. The game's name and password, then the rules it keeps.
 */
 
-body
+.host-card
 {
-	display: flex;
-	flex-direction: column;
-	width: 520dp;
-	left: 50%;
-	top: 50%;
-	margin-left: -260dp;
-	margin-top: -160dp;
+	width: 620dp;
 }
 
-.hostgame-frame
+.host-rules
 {
-	display: flex;
-	flex-direction: column;
+	margin-top: 24dp;
+	padding-top: 16dp;
+	border-top: 1dp #8080FF1E;
 }

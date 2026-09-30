@@ -57,6 +57,8 @@ private:
 
 	void onPasswordCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onCancel(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onJoin(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void commitPassword();
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;

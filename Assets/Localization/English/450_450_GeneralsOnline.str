@@ -110,3 +110,11 @@ END
 GUI:GOParticleCap
 "Particle Cap"
 END
+
+GUI:GOGameNameLabel
+"Game name"
+END
+
+GUI:GOPasswordRequired
+"This game is password protected."
+END

@@ -58,6 +58,7 @@ void RmlJoinGameScreen::load(Rml::Context *context)
 
 		constructor.BindEventCallback("password_committed", &RmlJoinGameScreen::onPasswordCommitted, this);
 		constructor.BindEventCallback("cancel", &RmlJoinGameScreen::onCancel, this);
+		constructor.BindEventCallback("join", &RmlJoinGameScreen::onJoin, this);
 
 		m_modelHandle = constructor.GetModelHandle();
 	}
@@ -103,6 +104,17 @@ void RmlJoinGameScreen::onPasswordCommitted(Rml::DataModelHandle, Rml::Event &ev
 	if (!ev.GetParameter<bool>("linebreak", false))
 		return;
 
+	commitPassword();
+}
+
+// The Join button: the same as Enter in the field.
+void RmlJoinGameScreen::onJoin(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+{
+	commitPassword();
+}
+
+void RmlJoinGameScreen::commitPassword()
+{
 	// Mirrors TextEntryGamePassword's GEM_EDIT_DONE body exactly: trims, ignores an empty commit
 	// (same as the .wnd, which never calls joinGame() for an empty trimmed entry), and clears the
 	// field back out (see JoinGameActions::joinGame()'s DEBUG_LOG + GameSpyCloseOverlay).

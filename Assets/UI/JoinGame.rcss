@@ -1,44 +1,31 @@
 /*
-	JoinGame.rcss -- PopupJoinGame.wnd (Join Game password popup, GSOVERLAY_GAMEPASSWORD). Floating
-	popup over the online lobby, same body-centered pattern as PlayerInfo.rcss/QuitMenu.rcss.
+	JoinGame.rcss -- PopupJoinGame.wnd (the password prompt, GSOVERLAY_GAMEPASSWORD): the modal card
+	of common.rcss, the game's name as its title.
 */
 
-body
+.join-card
+{
+	width: 560dp;
+}
+
+.join-lock
 {
 	display: flex;
-	flex-direction: column;
-	width: 480dp;
-	left: 50%;
-	top: 50%;
-	margin-left: -240dp;
-	margin-top: -60dp;
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 20dp;
+	color: #A9B1CF;
 }
 
-.joingame-frame
+.join-lock mappedimage
 {
-	position: relative;
-	padding-top: 44dp;
-	display: flex;
-	flex-direction: column;
+	display: block;
+	width: 22dp;
+	height: 22dp;
+	margin-right: 12dp;
 }
 
-.joingame-close
+.join-lock mappedimage img
 {
-	position: absolute;
-	top: 4dp;
-	right: 4dp;
-	width: 28dp;
-	height: 28dp;
-	min-width: 0;
-	line-height: 26dp;
-	padding: 0;
-	text-align: center;
-	color: #FFBB00;
-	border-color: #FFBB00;
-}
-
-.joingame-close:hover
-{
-	color: #8080FF;
-	border-color: #8080FF;
+	display: block;
 }

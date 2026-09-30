@@ -4,32 +4,37 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="HostGame.rcss"/>
 </head>
-<body data-model="hostgame">
-	<div class="frame hostgame-frame">
-		<div class="row">
-			<div class="label"><gametext key="GUI:GameName"/></div>
-			<input type="text" class="control text-input" data-value="game_name" maxlength="24"/>
-		</div>
-		<div class="row">
-			<div class="label"><gametext key="GUI:Password"/></div>
-			<input type="password" class="control text-input" data-value="password" maxlength="16"/>
-		</div>
-		<div class="row">
-			<div class="label"><gametext key="GUI:UseStats"/></div>
-			<div class="control"><input class="checkbox" type="checkbox" data-checked="use_stats" data-tooltip="TOOLTIP:UseStats"/></div>
-		</div>
-		<div class="row">
-			<div class="label"><gametext key="GUI:LimitArmies"/></div>
-			<div class="control"><input class="checkbox" type="checkbox" data-checked="limit_armies" data-tooltip="TOOLTIP:LimitArmies"/></div>
-		</div>
-		<div class="row">
-			<div class="label"><gametext key="GUI:AllowObservers"/></div>
-			<div class="control"><input class="checkbox" type="checkbox" data-checked="allow_observers"/></div>
+<!-- Create Game (PopupHostGame.wnd): a modal card over the custom match lobby. -->
+<body class="screen modal" data-model="hostgame">
+	<div class="modal-card host-card">
+		<div class="modal-head">
+			<div class="modal-heading">
+				<div class="overline"><gametext key="GUI:CustomMatch"/></div>
+				<div class="modal-title"><gametext key="GUI:CreateGame"/></div>
+			</div>
 		</div>
 
-		<div class="footer footer-split">
-			<button class="btn-primary" data-event-click="create_game"><gametext key="GUI:CreateGame"/></button>
-			<button class="btn-primary" data-event-click="cancel"><gametext key="GUI:Cancel"/></button>
+		<div class="modal-body">
+			<div class="field">
+				<div class="overline"><gametext key="GUI:GOGameNameLabel"/></div>
+				<input type="text" class="text-input" data-value="game_name" maxlength="24"/>
+			</div>
+			<div class="field">
+				<div class="overline"><gametext key="GUI:Password"/></div>
+				<input type="password" class="text-input" data-value="password" maxlength="16"/>
+			</div>
+			<!-- The rules the game keeps once created. -->
+			<div class="checks host-rules">
+				<label class="check" data-tooltip="TOOLTIP:UseStats"><input class="checkbox" type="checkbox" data-checked="use_stats"/><gametext key="GUI:UseStats"/></label>
+				<label class="check" data-tooltip="TOOLTIP:LimitArmies"><input class="checkbox" type="checkbox" data-checked="limit_armies"/><gametext key="GUI:LimitArmies"/></label>
+				<label class="check"><input class="checkbox" type="checkbox" data-checked="allow_observers"/><gametext key="GUI:AllowObservers"/></label>
+			</div>
+		</div>
+
+		<div class="modal-actions">
+			<button class="btn-back" data-event-click="cancel"><span class="chevron">&#8249;</span><gametext key="GUI:Cancel"/></button>
+			<div class="spacer"></div>
+			<button class="btn-cta" data-event-click="create_game"><gametext key="GUI:CreateGame"/></button>
 		</div>
 	</div>
 </body>

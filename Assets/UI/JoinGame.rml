@@ -4,18 +4,31 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="JoinGame.rcss"/>
 </head>
-<body data-model="joingame">
-	<div class="frame joingame-frame">
-		<!-- ButtonCancel: a small X-icon close button in the .wnd's top-right corner, not a text button. -->
-		<button class="joingame-close" data-event-click="cancel">X</button>
-
-		<div class="row">
-			<div class="label"><gametext key="GUI:GameName"/></div>
-			<div class="control">{{lobby_name}}</div>
+<!-- Join Game password prompt (PopupJoinGame.wnd): a modal card over the custom match lobby. Enter in
+     the field or the Join button tries the password. -->
+<body class="screen modal" data-model="joingame">
+	<div class="modal-card join-card">
+		<div class="modal-head">
+			<div class="modal-heading">
+				<div class="overline"><gametext key="GUI:Join"/></div>
+				<div class="modal-title">{{lobby_name}}</div>
+			</div>
+			<!-- ButtonCancel: the .wnd's close button in the top-right corner. -->
+			<button class="modal-close" data-event-click="cancel" data-tooltip="GUI:Close">&#215;</button>
 		</div>
-		<div class="row">
-			<div class="label"><gametext key="GUI:Password"/></div>
-			<input type="password" class="control text-input" data-value="password" maxlength="10" data-event-change="password_committed"/>
+
+		<div class="modal-body">
+			<div class="join-lock"><mappedimage name="Password"/><span><gametext key="GUI:GOPasswordRequired"/></span></div>
+			<div class="field">
+				<div class="overline"><gametext key="GUI:Password"/></div>
+				<input type="password" class="text-input" data-value="password" maxlength="10" data-event-change="password_committed"/>
+			</div>
+		</div>
+
+		<div class="modal-actions">
+			<button class="btn-back" data-event-click="cancel"><span class="chevron">&#8249;</span><gametext key="GUI:Cancel"/></button>
+			<div class="spacer"></div>
+			<button class="btn-cta" data-attrif-disabled="password == ''" data-event-click="join"><gametext key="GUI:Join"/></button>
 		</div>
 	</div>
 </body>
