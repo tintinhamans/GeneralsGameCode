@@ -42,6 +42,7 @@
 #define SETTINGS_KEY_UI "ui"
 #define SETTINGS_KEY_UI_LANGUAGE "language"
 #define SETTINGS_KEY_UI_LANGUAGES_DIR "languages_dir"
+#define SETTINGS_KEY_UI_INTERFACE_WIDTH "interface_width"
 
 #define SETTINGS_FILENAME_LEGACY "GeneralsOnline_settings.json"
 #define SETTINGS_FILENAME "settings.json"
@@ -312,6 +313,11 @@ void GenOnlineSettings::Load(void)
 				{
 					m_UI_LanguagesDir = uiSettings[SETTINGS_KEY_UI_LANGUAGES_DIR];
 				}
+
+				if (uiSettings.contains(SETTINGS_KEY_UI_INTERFACE_WIDTH) && uiSettings[SETTINGS_KEY_UI_INTERFACE_WIDTH].is_string())
+				{
+					m_UI_InterfaceWidth = uiSettings[SETTINGS_KEY_UI_INTERFACE_WIDTH];
+				}
 			}
 		}
 		catch (...)
@@ -440,7 +446,8 @@ void GenOnlineSettings::Save()
 			SETTINGS_KEY_UI,
 				{
 					{SETTINGS_KEY_UI_LANGUAGE, m_UI_Language},
-					{SETTINGS_KEY_UI_LANGUAGES_DIR, m_UI_LanguagesDir}
+					{SETTINGS_KEY_UI_LANGUAGES_DIR, m_UI_LanguagesDir},
+					{SETTINGS_KEY_UI_INTERFACE_WIDTH, m_UI_InterfaceWidth}
 				}
 		}
     };

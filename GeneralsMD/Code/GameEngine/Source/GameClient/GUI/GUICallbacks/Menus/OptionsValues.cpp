@@ -544,6 +544,26 @@ void ApplyTextLanguageChoice(Int index)
 	NGMP_OnlineServicesManager::Settings.UI_SetLanguage(known ? GameTextLanguages[index - 1].code : "");
 }
 
+static const char *const InterfaceWidths[] = { "full", "21:9", "16:9" };
+
+Int GetCurrentInterfaceWidth()
+{
+	const std::string &width = NGMP_OnlineServicesManager::Settings.UI_GetInterfaceWidth();
+	for (Int i = 1; i < (Int)ARRAY_SIZE(InterfaceWidths); ++i)
+	{
+		if (width == InterfaceWidths[i])
+			return i;
+	}
+	return 0;
+}
+
+void ApplyInterfaceWidth(Int index)
+{
+	if (index < 0 || index >= (Int)ARRAY_SIZE(InterfaceWidths) || index == GetCurrentInterfaceWidth())
+		return;
+	NGMP_OnlineServicesManager::Settings.UI_SetInterfaceWidth(InterfaceWidths[index]);
+}
+
 Int GetCurrentFirewallPortOverride() { return TheGlobalData->m_firewallPortOverride; }
 
 void ApplyFirewallPortOverride(OptionPreferences &pref, Int port)

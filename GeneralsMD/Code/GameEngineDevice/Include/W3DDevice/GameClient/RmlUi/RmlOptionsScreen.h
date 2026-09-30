@@ -107,6 +107,7 @@ private:
 		bool doubleClickAttackMove = false;
 
 		int textLanguage = 0; // OptionsValues::GetTextLanguageChoice*: 0 = the installed language
+		int interfaceWidth = 0; // OptionsValues::GetCurrentInterfaceWidth: 0 full, 1 21:9, 2 16:9
 		int antiAliasing = 0;
 		int textureFilter = 0;
 		int anisotropy = 0;

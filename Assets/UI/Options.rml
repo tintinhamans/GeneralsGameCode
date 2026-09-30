@@ -39,6 +39,17 @@
 						<div class="opt-text"><div class="opt-label"><gametext key="GO:GUI:Language"/></div><div class="opt-desc"><gametext key="GO:GUI:LanguageRestart"/></div></div>
 						<div class="opt-control"><select id="select_language" data-value="text_language"></select></div>
 					</div>
+					<!-- How much of a wide screen the menus and the control bar use (settings.json ui.interface_width). -->
+					<div class="opt-row">
+						<div class="opt-text"><div class="opt-label"><gametext key="GO:GUI:InterfaceWidth"/></div><div class="opt-desc"><gametext key="GO:GUI:InterfaceWidthDesc"/></div></div>
+						<div class="opt-control">
+							<select data-value="interface_width">
+								<option value="0"><gametext key="GO:GUI:InterfaceWidthFull"/></option>
+								<option value="1"><gametext key="GO:GUI:InterfaceWidth21x9"/></option>
+								<option value="2"><gametext key="GO:GUI:InterfaceWidth16x9"/></option>
+							</select>
+						</div>
+					</div>
 					<div class="opt-row" data-class-disabled="restricted">
 						<div class="opt-text"><div class="opt-label"><gametext key="GUI:Resolution"/></div><div class="opt-desc"><gametext key="TOOLTIP:Resolution"/></div></div>
 						<div class="opt-control"><select id="select_resolution" data-value="resolution_index" data-attrif-disabled="restricted"></select></div>

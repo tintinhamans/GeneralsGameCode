@@ -1858,3 +1858,23 @@ END
 GUI:Multiplayer
 UK: "МЕРЕЖЕВА ГРА"
 END
+
+GO:GUI:InterfaceWidth
+"Interface Width"
+END
+
+GO:GUI:InterfaceWidthDesc
+"On wide screens, keeps the menus and the control bar in a centred area."
+END
+
+GO:GUI:InterfaceWidthFull
+"Full width"
+END
+
+GO:GUI:InterfaceWidth21x9
+"21:9"
+END
+
+GO:GUI:InterfaceWidth16x9
+"16:9 (centred)"
+END

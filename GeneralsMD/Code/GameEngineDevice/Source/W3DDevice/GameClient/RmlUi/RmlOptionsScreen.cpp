@@ -71,6 +71,7 @@ void RmlOptionsScreen::load(Rml::Context *context)
 		constructor.Bind("retaliation", &m_model.retaliation);
 		constructor.Bind("double_click_attack_move", &m_model.doubleClickAttackMove);
 		constructor.Bind("text_language", &m_model.textLanguage);
+		constructor.Bind("interface_width", &m_model.interfaceWidth);
 		constructor.Bind("anti_aliasing", &m_model.antiAliasing);
 		constructor.Bind("texture_filter", &m_model.textureFilter);
 		constructor.Bind("anisotropy", &m_model.anisotropy);
@@ -193,6 +194,7 @@ void RmlOptionsScreen::loadCurrentValues()
 	m_model.retaliation = OptionsValues::GetCurrentRetaliation();
 	m_model.doubleClickAttackMove = OptionsValues::GetCurrentDoubleClickAttackMove();
 	m_model.textLanguage = OptionsValues::GetCurrentTextLanguageChoice();
+	m_model.interfaceWidth = OptionsValues::GetCurrentInterfaceWidth();
 	m_model.antiAliasing = OptionsValues::GetCurrentAntiAliasingIndex();
 	m_model.textureFilter = OptionsValues::GetCurrentTextureFilterIndex();
 	m_model.anisotropy = OptionsValues::GetCurrentAnisotropyIndex();
@@ -255,6 +257,7 @@ bool RmlOptionsScreen::applyAndSave()
 	OptionsValues::ApplyVoiceVolumePercent(*m_pref, m_model.voiceVolume);
 	OptionsValues::ApplyMouseOptions(*m_pref, m_model.alternateMouse, m_model.retaliation, m_model.doubleClickAttackMove);
 	OptionsValues::ApplyTextLanguageChoice(m_model.textLanguage);
+	OptionsValues::ApplyInterfaceWidth(m_model.interfaceWidth); // RmlUiManager::update() applies it to every open screen
 	OptionsValues::ApplyAntiAliasing(*m_pref, m_model.antiAliasing);
 	OptionsValues::ApplyTextureFilter(*m_pref, m_model.textureFilter);
 	OptionsValues::ApplyAnisotropy(*m_pref, m_model.anisotropy);

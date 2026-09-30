@@ -83,6 +83,14 @@ public:
 	// Where the languages' base game text is; "" = <user data>/GeneralsOnlineGameData/Languages/.
 	const std::string &UI_GetLanguagesDir() const { return m_UI_LanguagesDir; }
 
+	// How much of a wide screen the interface uses: "full", or a centred "21:9" or "16:9" band.
+	const std::string &UI_GetInterfaceWidth() const { return m_UI_InterfaceWidth; }
+	void UI_SetInterfaceWidth(const std::string &width)
+	{
+		m_UI_InterfaceWidth = width;
+		Save();
+	}
+
 	bool Network_UseAlternativeEndpoint() const { return m_Network_UseAlternativeEndpoint; }
 	EHTTPVersion Network_GetHTTPVersion() const { return m_Network_HTTPVersion; }
 	int Network_GetHTTPVersionForCurl() const
@@ -154,6 +162,7 @@ private:
 
 	std::string m_UI_Language = std::string();
 	std::string m_UI_LanguagesDir = std::string();
+	std::string m_UI_InterfaceWidth = "full";
 
 	std::string m_Plugins_Anticheat = std::string();
 

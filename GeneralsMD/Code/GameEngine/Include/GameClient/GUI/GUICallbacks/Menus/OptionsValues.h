@@ -97,6 +97,10 @@ namespace OptionsValues
 	Int GetCurrentTextLanguageChoice();
 	void ApplyTextLanguageChoice(Int index);
 
+	// The interface width (settings.json ui.interface_width): 0 full, 1 a centred 21:9 band, 2 a centred 16:9 band.
+	Int GetCurrentInterfaceWidth();
+	void ApplyInterfaceWidth(Int index);
+
 	Int GetCurrentFirewallPortOverride();          ///< 0 if unset
 	void ApplyFirewallPortOverride(OptionPreferences &pref, Int port);
 
