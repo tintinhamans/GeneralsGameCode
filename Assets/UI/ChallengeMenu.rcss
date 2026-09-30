@@ -317,3 +317,11 @@
 	.ch-bio-empty { line-height: 128dp; }
 	.ch-bio-name { font-size: 26dp; line-height: 32dp; min-height: 32dp; }
 }
+
+/* Right to left: the stage is a map, its pins and tiles placed where the world map puts them, so
+   the general's dossier keeps its place beside them rather than mirroring onto them. */
+body[dir=rtl] .ch-stage .surface.ch-dossier
+{
+	left: 62%;
+	right: auto;
+}
