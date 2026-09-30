@@ -55,8 +55,8 @@ body.cr
 	position: absolute;
 	left: 16.667%;
 	width: 66.667%;
-	top: 78dp;
-	bottom: 78dp;
+	top: 104dp;
+	bottom: 40dp;
 	background-color: #070A1AB4;
 	border-left: 1dp #8080FF28;
 	border-right: 1dp #8080FF28;

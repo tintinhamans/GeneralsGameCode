@@ -3,7 +3,7 @@
 	palette (common.rcss). It stays up beside every online shell screen, so it is built to cost the
 	screen nothing while collapsed:
 
-	  collapsed  a 62dp tab in the ruler band at the right edge (outside every screen's content):
+	  collapsed  a 62dp tab on the right edge, over the ruler's side band and the 64dp gutter (outside every screen's content):
 	             friends online, a badge for unread conversations plus friend requests.
 	  expanded   a 390dp side panel down the right of the frame, under the host's .hq-header strip.
 	             The host screen makes room for it
@@ -145,9 +145,9 @@ body
 	flex-direction: column;
 	box-sizing: border-box;
 	position: fixed;
-	right: 88dp;
-	top: 168.5dp;
-	bottom: 78dp;
+	right: 64dp;
+	top: 104dp;
+	bottom: 40dp;
 	width: 390dp;
 	padding: 0 18dp 18dp 18dp;
 	background-color: #070A1AEB;
