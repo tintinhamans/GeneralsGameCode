@@ -4558,7 +4558,7 @@ button.hq-card:hover .hq-card-title
 	.su-ready.blocked { font-size: 14dp; }
 }
 
-/* ==== Right-to-left documents (dir="rtl") ======================================================
+/* ==== Text languages: right-to-left (dir="rtl") and Chinese (lang="zh-Hant") ==================
 
 	RmlTextShaping gives a right-to-left document (Arabic) dir="rtl" and replaces its style sheets
 	with mirrored copies (see RmlTextShaping::mirrorStyleSheet): left and right swap in properties
@@ -4582,4 +4582,11 @@ body[dir=rtl] .chat-time,
 body[dir=rtl] .chat-name
 {
 	float: right;
+}
+
+/* Chinese runs its words together, and RmlUi breaks lines only at spaces: let a line break
+   anywhere a word would overflow, so a sentence wraps inside its box. */
+body[lang^=zh]
+{
+	word-break: break-word;
 }

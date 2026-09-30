@@ -1187,3 +1187,11 @@ body[lang=de] .d-solo .hq-card-title
 	font-size: 21dp;
 	letter-spacing: 0;
 }
+
+/* Italian and Brazilian Portuguese root items ("Carica partita/replay") run into the open cards at
+   the full display size. */
+body[lang=it] .d-label, body[lang=pt-BR] .d-label
+{
+	font-size: 38dp;
+	letter-spacing: 3dp;
+}
