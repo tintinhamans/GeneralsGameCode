@@ -314,7 +314,6 @@ body.cb
 .cb-glyph
 {
 	display: block;
-	font-family: "Segoe UI Symbol"; /* the monochrome symbols; the emoji font would colour them */
 	font-size: 16dp;
 	line-height: 34dp;
 }
