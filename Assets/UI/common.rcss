@@ -1372,6 +1372,18 @@ body.screen
 	color: #FF9A3D;
 }
 
+.screen button.btn-back[disabled], .screen button.btn-back[disabled]:hover, .screen button.btn-back[disabled]:active
+{
+	color: #4A5070;
+	background-color: #070A1A8C;
+	border-color: transparent;
+}
+
+.btn-back[disabled] .chevron
+{
+	color: #4A5070;
+}
+
 .chevron
 {
 	font-size: 33dp;
@@ -2191,6 +2203,37 @@ label.check:hover
 	min-width: 340dp;
 }
 
+/* A slot's army when this machine cannot change it: the closed select's look, no arrow. */
+.army-ro
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 1 1 0%;
+	min-width: 0;
+	box-sizing: border-box;
+	height: 45dp;
+	padding: 0 13dp;
+	background-color: #05070F8C;
+	border: 1dp #8080FF1E;
+	color: #D7DCF0;
+	font-size: 19dp;
+}
+
+.army-ro > div
+{
+	flex: 0 0 auto;
+}
+
+.army-ro-label
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 /* Team: fixed-width segments, so the control is the same width on every card. */
 .screen .team-seg button.seg-item
 {
@@ -2257,6 +2300,18 @@ label.check:hover
 	color: #FFFFFF;
 	border-color: #F07A1A;
 	background-color: #2F37A878;
+}
+
+.screen .pc-add button[disabled], .screen .pc-add button[disabled]:hover, .screen .pc-add button[disabled]:active
+{
+	color: #4A5070;
+	background-color: transparent;
+	border-color: #8080FF1E;
+}
+
+.pc-add button[disabled] .pc-plus
+{
+	color: #4A5070;
 }
 
 .pc-add-label
@@ -2427,6 +2482,7 @@ label.check:hover
 
 .chip-label.good { color: #04140C; background-color: #3CD28C; }
 .chip-label.accent { color: #1A0C02; background-color: #F07A1A; }
+.chip-label.warn { color: #1A1604; background-color: #E8D440; }
 
 .accent-overline
 {

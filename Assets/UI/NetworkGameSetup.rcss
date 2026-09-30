@@ -67,50 +67,6 @@
 	padding: 3dp 10dp;
 }
 
-.chip-label.warn { color: #1A1604; background-color: #E8D440; }
-
-/* Add AI while the countdown locks the slots. */
-.screen .pc-add button[disabled], .screen .pc-add button[disabled]:hover
-{
-	color: #4A5070;
-	background-color: transparent;
-	border-color: #8080FF1E;
-}
-
-.pc-add button[disabled] .pc-plus
-{
-	color: #4A5070;
-}
-
-/* A slot's army when this machine cannot change it: the closed select's look, no arrow. */
-.army-ro
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	flex: 1 1 0%;
-	min-width: 0;
-	box-sizing: border-box;
-	height: 45dp;
-	padding: 0 13dp;
-	background-color: #05070F8C;
-	border: 1dp #8080FF1E;
-	color: #D7DCF0;
-	font-size: 19dp;
-}
-
-.army-ro > div
-{
-	flex: 0 0 auto;
-}
-
-.army-ro-label
-{
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
 /* ---- Side column: map card and options --------------------------------------------------------- */
 .col-side
 {
@@ -245,18 +201,6 @@
 }
 
 /* ---- Action bar -------------------------------------------------------------------------------- */
-.screen button.btn-back[disabled], .screen button.btn-back[disabled]:hover
-{
-	color: #4A5070;
-	background-color: #070A1A8C;
-	border-color: transparent;
-}
-
-.btn-back[disabled] .chevron
-{
-	color: #4A5070;
-}
-
 /* Where the start stands: the countdown, or a client waiting on the host. */
 .ns-state
 {
