@@ -59,7 +59,7 @@ UnicodeString buildWelcomeTitle()
 	NGMP_OnlineServices_AuthInterface *pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
 	if (pAuthInterface != nullptr)
 	{
-		title.format(L"Welcome to Generals Online, %s", pAuthInterface->GetDisplayNameW().c_str());
+		title = TheGameText->fetchFormat("GUI:GOWelcomeName", pAuthInterface->GetDisplayNameW().c_str());
 	}
 
 	return title;
@@ -224,7 +224,7 @@ void requestFactionWinStats(std::function<void(std::vector<OnlineWelcomeFactionS
 				OnlineWelcomeFactionStat stat;
 				stat.side = g_mapServiceIndexToPlayerTemplateString[i].c_str();
 				stat.icon = (i >= 0 && i < (int)(sizeof(kFactionStatIcons)/sizeof(kFactionStatIcons[0]))) ? kFactionStatIcons[i] : "";
-				stat.text.format(L"%d%% (%d of %d)", (int)(100.f*fThisPercent), stats.wins[i], stats.matches[i]);
+				stat.text = TheGameText->fetchFormat("GUI:GOWinRateOf", (int)(100.f*fThisPercent), stats.wins[i], stats.matches[i]);
 				stat.tooltip = TheGameText->fetch(buildFactionStatTooltipKey(stat.side));
 				result.push_back(stat);
 			}

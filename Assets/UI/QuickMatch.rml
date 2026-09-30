@@ -135,8 +135,8 @@
 			<div class="spacer"></div>
 			<!-- WOLQuickMatchMenu.cpp:1114-1115 relabels these to hardcoded English literals at Init
 			     (not GameText keys), kept verbatim. -->
-			<button class="btn-cta" data-if="start_visible" data-attrif-disabled="!start_enabled" data-event-click="start">START MATCHMAKING</button>
-			<button class="btn-cta qm-stop" data-if="stop_visible" data-attrif-disabled="!stop_enabled" data-event-click="stop">CANCEL MATCHMAKING</button>
+			<button class="btn-cta" data-if="start_visible" data-attrif-disabled="!start_enabled" data-event-click="start"><gametext key="GUI:GOStartMatchmaking"/></button>
+			<button class="btn-cta qm-stop" data-if="stop_visible" data-attrif-disabled="!stop_enabled" data-event-click="stop"><gametext key="GUI:GOCancelMatchmaking"/></button>
 		</div>
 	</div>
 

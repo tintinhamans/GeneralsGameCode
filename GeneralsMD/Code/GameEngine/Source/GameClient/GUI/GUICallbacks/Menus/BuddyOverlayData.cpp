@@ -79,7 +79,7 @@ std::vector<BuddyRow> collectBuddyRows()
 			BuddyRow row;
 			row.userID = profileID;
 			row.displayName = unicodeToUtf8( slot->getName() );
-			row.statusText = "In Current Lobby";
+			row.statusText = unicodeToUtf8( TheGameText->fetch( "GUI:GODockLobby" ) );
 			row.nameColor = GameSpyColor[GSCOLOR_CHAT_EMOTE];
 			row.category = ROW_LOBBY_MEMBER;
 			rows.push_back( row );
@@ -100,7 +100,7 @@ std::vector<BuddyRow> collectBuddyRows()
 		BuddyRow row;
 		row.userID = profileID;
 		row.displayName = friendsEntry.display_name;
-		row.statusText = "Recently Played With";
+		row.statusText = unicodeToUtf8( TheGameText->fetch( "GUI:GODockRecent" ) );
 		row.nameColor = GameSpyColor[GSCOLOR_CHAT_EMOTE];
 		row.category = ROW_RECENTLY_PLAYED;
 		rows.push_back( row );
@@ -194,7 +194,7 @@ std::vector<ChatLine> collectChatHistory( int64_t userID )
 
 	if ( userID <= 0 )
 	{
-		lines.push_back( { UnicodeString( L"Select a friend to start chatting" ), GameSpyColor[GSCOLOR_DEFAULT], true } );
+		lines.push_back( { TheGameText->fetch( "GUI:GOBuddySelectFriend" ), GameSpyColor[GSCOLOR_DEFAULT], true } );
 		return lines;
 	}
 
@@ -204,13 +204,13 @@ std::vector<ChatLine> collectChatHistory( int64_t userID )
 
 	if ( !pSocialInterface->IsUserFriend( userID ) && !pSocialInterface->IsUserPendingRequest( userID ) )
 	{
-		lines.push_back( { UnicodeString( L"This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or block them." ), GameSpyColor[GSCOLOR_DEFAULT], true } );
+		lines.push_back( { TheGameText->fetch( "GUI:GOBuddyNotFriend" ), GameSpyColor[GSCOLOR_DEFAULT], true } );
 		return lines;
 	}
 
 	if ( pSocialInterface->IsUserPendingRequest( userID ) )
 	{
-		lines.push_back( { UnicodeString( L"This is a pending friend request. You cannot chat with the player until you accept it." ), GameSpyColor[GSCOLOR_DEFAULT], true } );
+		lines.push_back( { TheGameText->fetch( "GUI:GOBuddyPending" ), GameSpyColor[GSCOLOR_DEFAULT], true } );
 		return lines;
 	}
 
@@ -218,7 +218,7 @@ std::vector<ChatLine> collectChatHistory( int64_t userID )
 		lines.push_back( { line, GameSpyColor[GSCOLOR_PLAYER_BUDDY], false } );
 
 	if ( lines.empty() )
-		lines.push_back( { UnicodeString( L"This chat is empty. Send a message to start a conversation" ), GameSpyColor[GSCOLOR_DEFAULT], true } );
+		lines.push_back( { TheGameText->fetch( "GUI:GOBuddyEmpty" ), GameSpyColor[GSCOLOR_DEFAULT], true } );
 
 	return lines;
 }

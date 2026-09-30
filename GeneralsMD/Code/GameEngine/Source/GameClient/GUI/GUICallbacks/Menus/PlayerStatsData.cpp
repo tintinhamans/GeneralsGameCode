@@ -265,13 +265,13 @@ PlayerStatsData BuildPlayerStatsData(const PSPlayerStats &stats, int64_t lookupI
 	data.playerStatisticsLabelText = uStr;
 
 #if defined(GENERALS_ONLINE)
-	data.gamesPlayedText.format(L"%d (%d QM)", numGames, stats.elo_num_matches);
+	data.gamesPlayedText = TheGameText->fetchFormat("GUI:GOGamesQM", numGames, stats.elo_num_matches);
 #else
 	data.gamesPlayedText.format(L"%d", numGames);
 #endif
 
 #if defined(GENERALS_ONLINE)
-	data.winsText.format(L"%d (Elo: %d)", numWins, stats.elo_rating);
+	data.winsText = TheGameText->fetchFormat("GUI:GOWinsElo", numWins, stats.elo_rating);
 #else
 	data.winsText.format(L"%d", numWins);
 #endif
@@ -279,7 +279,7 @@ PlayerStatsData BuildPlayerStatsData(const PSPlayerStats &stats, int64_t lookupI
 	data.lossesText.format(L"%d", numLosses);
 
 #if defined(GENERALS_ONLINE)
-	data.disconnectsLabelText.format(L"World Series Elo:");
+	data.disconnectsLabelText = TheGameText->fetch("GUI:GOWorldSeriesElo");
 #endif
 
 #if defined(GENERALS_ONLINE)

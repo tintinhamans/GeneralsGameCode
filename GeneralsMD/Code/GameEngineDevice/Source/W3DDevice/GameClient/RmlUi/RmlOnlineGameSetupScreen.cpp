@@ -103,13 +103,12 @@ static Rml::String connectionTooltipFor(const OnlineGameSetupConnectionInfo &inf
 	if (info.m_isLocalPlayer)
 		return Rml::String();
 
-	char buf[256];
-	_snprintf_s(buf, sizeof(buf), _TRUNCATE, "%s%s%s%d ms%s%d%%",
-		info.m_region.empty() ? "" : (info.m_region + " - ").c_str(),
-		info.m_connectionType.empty() ? "" : (info.m_connectionType + " - ").c_str(),
-		"Ping: ", info.m_latencyMs,
-		" - Quality: ", info.m_qualityPct);
-	return Rml::String(buf);
+	Rml::String tooltip;
+	if (!info.m_region.empty())
+		tooltip += info.m_region + " - ";
+	if (!info.m_connectionType.empty())
+		tooltip += info.m_connectionType + " - ";
+	return tooltip + unicodeToUtf8(TheGameText->fetchFormat("GUI:GOPingQuality", info.m_latencyMs, info.m_qualityPct));
 }
 
 //-------------------------------------------------------------------------------------------------

@@ -211,9 +211,9 @@ void RmlQuickMatchScreen::show()
 	// StaticTextTitle: GUI:QuickMatchTitle formatted with the NGMP display name (WOLQuickMatchMenu.cpp:1008-1011).
 	m_model.title = unicodeToUtf8(QuickMatchActions::buildTitle());
 
-	// Welcome msg + instructions (WOLQuickMatchMenu.cpp:1132-1135, hardcoded English literals, not GameText keys).
-	onStatusLine("Welcome to QuickMatch. Choose Setup to select playlists and maps.", colorToCss(GameMakeColor(255, 194, 25, 255)));
-	onStatusLine("Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible.", colorToCss(GameMakeColor(255, 194, 25, 255)));
+	// Welcome msg + instructions (WOLQuickMatchMenu.cpp:1132-1135 hardcodes them in English).
+	onStatusLine(unicodeToUtf8(TheGameText->fetch("GUI:GOQMWelcome")), colorToCss(GameMakeColor(255, 194, 25, 255)));
+	onStatusLine(unicodeToUtf8(TheGameText->fetch("GUI:GOQMThanks")), colorToCss(GameMakeColor(255, 194, 25, 255)));
 
 	m_model.mapPreviewVisible = false;
 	m_searchClockRunning = false;
@@ -563,9 +563,7 @@ void RmlQuickMatchScreen::onStart(Rml::DataModelHandle, Rml::Event &, const Rml:
 
 	if (!plMapInfo.m_valid || (Int)selectedMapIndexes.size() < plMapInfo.m_minSelectedMaps)
 	{
-		UnicodeString msg;
-		msg.format(L"You must select at least %d maps.", plMapInfo.m_minSelectedMaps);
-		onStatusLine(unicodeToUtf8(msg), colorToCss(GameMakeColor(255, 255, 255, 255)));
+		onStatusLine(unicodeToUtf8(TheGameText->fetchFormat("GUI:GOQMMinMaps", plMapInfo.m_minSelectedMaps)), colorToCss(GameMakeColor(255, 255, 255, 255)));
 		return;
 	}
 
@@ -589,7 +587,7 @@ void RmlQuickMatchScreen::onStart(Rml::DataModelHandle, Rml::Event &, const Rml:
 			}
 			else
 			{
-				onStatusLine("Failed to start matchmaking.", colorToCss(GameMakeColor(255, 255, 255, 255)));
+				onStatusLine(unicodeToUtf8(TheGameText->fetch("GUI:GOQMStartFailed")), colorToCss(GameMakeColor(255, 255, 255, 255)));
 				m_model.widenEnabled = false;
 				m_model.startVisible = true;
 				m_model.startEnabled = true;

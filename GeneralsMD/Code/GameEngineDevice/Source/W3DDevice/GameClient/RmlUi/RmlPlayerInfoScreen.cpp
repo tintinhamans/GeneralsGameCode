@@ -229,7 +229,7 @@ void RmlPlayerInfoScreen::onLogout(Rml::DataModelHandle, Rml::Event &, const Rml
 	// confirm. MessageBoxYesNo() already routes through RmlUiMessageBoxHook when it's set (see
 	// RmlUiMessageBoxHook.h), same as every other RmlUi screen's confirmation dialogs.
 	ClosePlayerInfoOverlay();
-	MessageBoxYesNo(UnicodeString(L"Log Out"), UnicodeString(L"Are you sure you want to log out?"), &rmlPlayerInfoLogoutConfirmed, nullptr);
+	MessageBoxYesNo(TheGameText->fetch("GUI:GOLogoutTitle"), TheGameText->fetch("GUI:GOLogoutConfirm"), &rmlPlayerInfoLogoutConfirmed, nullptr);
 }
 
 void RmlPlayerInfoScreen::back()
