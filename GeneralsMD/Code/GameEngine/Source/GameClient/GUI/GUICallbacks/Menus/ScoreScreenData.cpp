@@ -31,6 +31,7 @@
 #include "Common/BattleHonors.h"
 #include "Common/GameLOD.h"
 #include "Common/GameSpyMiscPreferences.h"
+#include "Common/GlobalData.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
@@ -41,6 +42,7 @@
 #include "Common/ThingFactory.h"
 #include "GameClient/GameText.h"
 #include "GameClient/Image.h"
+#include "GameClient/MapUtil.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/VictoryConditions.h"
 #include "GameNetwork/GameInfo.h"
@@ -940,7 +942,13 @@ void gatherPlayerRow(Player *player, ScoreScreenModeType mode, Bool overrideDisp
 	row.m_touchSideIcon = TRUE;
 	const PlayerTemplate *fact = player->getPlayerTemplate();
 	if (fact != nullptr)
+	{
 		row.m_sideIconImage = fact->getSideIconImage();
+		row.m_badgeImage = fact->getGeneralImage() ? fact->getGeneralImage() : fact->getSideIconImage();
+	}
+
+	if (mode != SCORESCREENMODE_SINGLEPLAYER)
+		row.m_isVictor = TheVictoryConditions->hasAchievedVictory(player);
 
 	if (mode == SCORESCREENMODE_SKIRMISH)
 		runSkirmishHonorsSideEffect(player);
@@ -958,7 +966,27 @@ void gatherObserverRow(Player *player, ScoreScreenPlayerRow &row)
 	row.m_touchSideIcon = TRUE;
 	const PlayerTemplate *fact = player->getPlayerTemplate();
 	if (fact != nullptr)
+	{
 		row.m_sideIconImage = fact->getSideIconImage();
+		row.m_badgeImage = fact->getSideIconImage();
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
+// The outcome, map and length of the game, for every mode.
+void gatherMatchInfo(ScoreScreenData &data)
+{
+	data.m_localVictory = TheVictoryConditions->isLocalAlliedVictory();
+	data.m_localDefeat = !data.m_localVictory && TheVictoryConditions->isLocalAlliedDefeat();
+
+	const MapMetaData *md = TheMapCache ? TheMapCache->findMap(TheGlobalData->m_mapName) : nullptr;
+	if (md)
+		data.m_mapDisplayName = md->m_displayName;
+
+	UnsignedInt frames = TheVictoryConditions->getEndFrame();
+	if (frames == 0)
+		frames = TheGameLogic->getFrame();
+	data.m_gameSeconds = frames / LOGICFRAMES_PER_SECOND;
 }
 
 } // namespace
@@ -968,6 +996,7 @@ ScoreScreenData ScoreScreenData::buildForMultiPlayer(ScoreScreenModeType mode)
 {
 	ScoreScreenData data;
 	data.m_mode = mode;
+	gatherMatchInfo(data);
 
 	typedef std::multimap<Int, Player *> ScoreMap;
 	typedef ScoreMap::reverse_iterator RevScoreMapIt;
@@ -1017,6 +1046,7 @@ ScoreScreenData ScoreScreenData::buildForSinglePlayer()
 {
 	ScoreScreenData data;
 	data.m_mode = SCORESCREENMODE_SINGLEPLAYER;
+	gatherMatchInfo(data);
 
 	Player *player, *localPlayer;
 	localPlayer = ThePlayerList->getLocalPlayer();
@@ -1136,6 +1166,7 @@ ScoreScreenData ScoreScreenData::buildForSinglePlayer()
 			{
 				row.m_touchSideIcon = TRUE;
 				row.m_sideIconImage = sg.m_sideImage;
+				row.m_badgeImage = sg.m_sideImage;
 			}
 			data.m_rows.push_back(row);
 		}

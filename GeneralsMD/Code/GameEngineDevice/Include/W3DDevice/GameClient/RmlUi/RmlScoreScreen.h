@@ -71,12 +71,14 @@ private:
 
 	void refreshFromGameState(); // mode dispatch + ScoreScreenData/ScoreScreenLayout -> m_model
 	void finishSinglePlayerIfNeeded(); // single player campaign finish, called once from update()
+	void markLeaders(); // best_* flags and the highlight tiles from m_model.rows
 
 	void onOk(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onContinue(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onBuddies(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSaveReplay(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSendChat(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSendEmote(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 
 	Rml::Context *m_context = nullptr;
@@ -107,11 +109,40 @@ private:
 		int buildingsDestroyed = 0;
 		Rml::String sideIconImage; // mapped image name; empty means no icon
 		bool showSideIcon = false;
+		Rml::String badgeImage; // the general's badge, empty means none
+		Rml::String colorHex; // the player's colour, #RRGGBB
+		bool isLocal = false;
+		bool isVictor = false;
+		// This row leads the game in that stat (ties all lead; zero never does).
+		bool bestMoney = false;
+		bool bestUnitsBuilt = false;
+		bool bestUnitsDestroyed = false;
+		bool bestBuildingsBuilt = false;
+		bool bestBuildingsDestroyed = false;
+	};
+
+	// One "best of the match" tile: which stat (0 supplies, 1 units destroyed, 2 buildings
+	// destroyed, 3 units built), who leads it, in their colour, and by how much.
+	struct HighlightModel
+	{
+		int stat = 0;
+		Rml::String name;
+		Rml::String colorHex;
+		int value = 0;
 	};
 
 	struct Model
 	{
 		Rml::Vector<RowModel> rows;
+		Rml::Vector<HighlightModel> highlights;
+
+		// The match header: mode (ScoreScreenModeType), the local side's outcome, map and length.
+		int mode = 0;
+		bool isVictory = false;
+		bool isDefeat = false;
+		Rml::String mapName;
+		Rml::String gameTime; // h:mm:ss or m:ss
+		bool canSaveReplay = false; // the game was recorded (ScoreScreen.cpp's canSaveReplay)
 		Rml::String backgroundImage;
 		bool hasBackgroundImage = false;
 

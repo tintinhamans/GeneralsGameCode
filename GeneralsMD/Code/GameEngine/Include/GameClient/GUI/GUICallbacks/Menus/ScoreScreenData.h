@@ -76,6 +76,13 @@ struct ScoreScreenPlayerRow
 	const Image *m_sideIconImage = nullptr;
 	Bool m_touchSideIcon = FALSE;
 
+	// The general's badge (PlayerTemplate GeneralImage, else the side icon), for front ends that
+	// draw a faction badge per row.
+	const Image *m_badgeImage = nullptr;
+
+	// Multiplayer rows only: this player and his allies won (VictoryConditions::hasAchievedVictory).
+	Bool m_isVictor = FALSE;
+
 	// Academy advice tips; non-empty only for the local player's row, and only in
 	// skirmish/internet modes.
 	std::vector<UnicodeString> m_academyAdvice;
@@ -98,6 +105,14 @@ struct ScoreScreenData
 	// Score screen backdrop image (per side, or the generic multiplayer backdrop).
 	const Image *m_backgroundImage = nullptr;
 	Bool m_hasBackgroundImage = FALSE;
+
+	// The match as a whole: the local side's outcome (neither for an observer or an unfinished
+	// game), the map's display name as the map list shows it (empty when the map cache has no
+	// entry) and how long the game ran, in seconds, up to the end frame.
+	Bool m_localVictory = FALSE;
+	Bool m_localDefeat = FALSE;
+	UnicodeString m_mapDisplayName;
+	UnsignedInt m_gameSeconds = 0;
 
 	// Multiplayer (skirmish/LAN/internet/replay): one row per occupied slot, sorted by
 	// score descending, observers appended with no stats. mode selects the per-mode

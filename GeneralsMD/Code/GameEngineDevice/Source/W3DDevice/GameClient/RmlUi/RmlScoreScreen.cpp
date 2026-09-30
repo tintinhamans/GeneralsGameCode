@@ -35,7 +35,28 @@
 #include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/ElementDocument.h>
 
+#include <cstdio>
 #include <windows.h>
+
+namespace
+{
+	Rml::String colorToHex(Color color)
+	{
+		char hex[8];
+		_snprintf_s(hex, sizeof(hex), _TRUNCATE, "#%02X%02X%02X", (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
+		return Rml::String(hex);
+	}
+
+	Rml::String formatGameTime(UnsignedInt seconds)
+	{
+		char text[32];
+		if (seconds >= 3600)
+			_snprintf_s(text, sizeof(text), _TRUNCATE, "%u:%02u:%02u", seconds / 3600, (seconds / 60) % 60, seconds % 60);
+		else
+			_snprintf_s(text, sizeof(text), _TRUNCATE, "%u:%02u", seconds / 60, seconds % 60);
+		return Rml::String(text);
+	}
+}
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -69,11 +90,36 @@ void RmlScoreScreen::load(Rml::Context *context)
 			rowHandle.RegisterMember("buildings_destroyed", &RowModel::buildingsDestroyed);
 			rowHandle.RegisterMember("side_icon_image", &RowModel::sideIconImage);
 			rowHandle.RegisterMember("show_side_icon", &RowModel::showSideIcon);
+			rowHandle.RegisterMember("badge_image", &RowModel::badgeImage);
+			rowHandle.RegisterMember("color_hex", &RowModel::colorHex);
+			rowHandle.RegisterMember("is_local", &RowModel::isLocal);
+			rowHandle.RegisterMember("is_victor", &RowModel::isVictor);
+			rowHandle.RegisterMember("best_money", &RowModel::bestMoney);
+			rowHandle.RegisterMember("best_units_built", &RowModel::bestUnitsBuilt);
+			rowHandle.RegisterMember("best_units_destroyed", &RowModel::bestUnitsDestroyed);
+			rowHandle.RegisterMember("best_buildings_built", &RowModel::bestBuildingsBuilt);
+			rowHandle.RegisterMember("best_buildings_destroyed", &RowModel::bestBuildingsDestroyed);
 		}
 		constructor.RegisterArray<Rml::Vector<RowModel>>();
+		Rml::StructHandle<HighlightModel> highlightHandle = constructor.RegisterStruct<HighlightModel>();
+		if (highlightHandle)
+		{
+			highlightHandle.RegisterMember("stat", &HighlightModel::stat);
+			highlightHandle.RegisterMember("name", &HighlightModel::name);
+			highlightHandle.RegisterMember("color_hex", &HighlightModel::colorHex);
+			highlightHandle.RegisterMember("value", &HighlightModel::value);
+		}
+		constructor.RegisterArray<Rml::Vector<HighlightModel>>();
 		constructor.RegisterArray<Rml::Vector<Rml::String>>();
 
 		constructor.Bind("rows", &m_model.rows);
+		constructor.Bind("highlights", &m_model.highlights);
+		constructor.Bind("mode", &m_model.mode);
+		constructor.Bind("is_victory", &m_model.isVictory);
+		constructor.Bind("is_defeat", &m_model.isDefeat);
+		constructor.Bind("map_name", &m_model.mapName);
+		constructor.Bind("game_time", &m_model.gameTime);
+		constructor.Bind("can_save_replay", &m_model.canSaveReplay);
 		constructor.Bind("background_image", &m_model.backgroundImage);
 		constructor.Bind("has_background_image", &m_model.hasBackgroundImage);
 		constructor.Bind("show_chat_entry", &m_model.showChatEntry);
@@ -99,6 +145,7 @@ void RmlScoreScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("buddies", &RmlScoreScreen::onBuddies, this);
 		constructor.BindEventCallback("save_replay", &RmlScoreScreen::onSaveReplay, this);
 		constructor.BindEventCallback("send_chat", &RmlScoreScreen::onSendChat, this);
+		constructor.BindEventCallback("chat_entry_committed", &RmlScoreScreen::onChatEntryCommitted, this);
 		constructor.BindEventCallback("send_emote", &RmlScoreScreen::onSendEmote, this);
 
 		m_modelHandle = constructor.GetModelHandle();
@@ -165,12 +212,25 @@ void RmlScoreScreen::refreshFromGameState()
 			rowModel.sideIconImage = row.m_sideIconImage->getName().str();
 			rowModel.showSideIcon = true;
 		}
+		rowModel.badgeImage = row.m_badgeImage ? row.m_badgeImage->getName().str() : Rml::String();
+		rowModel.colorHex = colorToHex(row.m_textColor);
+		rowModel.isLocal = row.m_isLocalPlayerRow == TRUE;
+		rowModel.isVictor = row.m_isVictor == TRUE;
 		m_model.rows.push_back(rowModel);
 
 		if (row.m_isLocalPlayerRow)
 			for (const UnicodeString &tip : row.m_academyAdvice)
 				m_model.academyAdvice.push_back(unicodeToUtf8(tip));
 	}
+
+	markLeaders();
+
+	m_model.mode = (int)m_mode;
+	m_model.isVictory = data.m_localVictory == TRUE;
+	m_model.isDefeat = data.m_localDefeat == TRUE;
+	m_model.mapName = unicodeToUtf8(data.m_mapDisplayName);
+	m_model.gameTime = formatGameTime(data.m_gameSeconds);
+	m_model.canSaveReplay = TheRecorder && TheRecorder->getMode() == RECORDERMODETYPE_RECORD;
 
 	m_model.hasBackgroundImage = data.m_hasBackgroundImage == TRUE;
 	m_model.backgroundImage = data.m_hasBackgroundImage && data.m_backgroundImage ? data.m_backgroundImage->getName().str() : Rml::String();
@@ -247,6 +307,57 @@ void RmlScoreScreen::onBack()
 	ScoreScreenActions::pressOk();
 }
 
+// Marks each stat's leader among the players (not observers) and builds the highlight tiles from
+// the same leaders. Needs two players to compare; zero leads nothing.
+void RmlScoreScreen::markLeaders()
+{
+	m_model.highlights.clear();
+
+	int contenders = 0;
+	for (const RowModel &row : m_model.rows)
+		if (!row.isObserver)
+			++contenders;
+	if (contenders < 2)
+		return;
+
+	struct Stat { int RowModel::*value; bool RowModel::*best; int highlight; };
+	const Stat stats[] =
+	{
+		{ &RowModel::moneyEarned, &RowModel::bestMoney, 0 },
+		{ &RowModel::unitsDestroyed, &RowModel::bestUnitsDestroyed, 1 },
+		{ &RowModel::buildingsDestroyed, &RowModel::bestBuildingsDestroyed, 2 },
+		{ &RowModel::unitsBuilt, &RowModel::bestUnitsBuilt, 3 },
+		{ &RowModel::buildingsBuilt, &RowModel::bestBuildingsBuilt, -1 },
+	};
+
+	for (const Stat &stat : stats)
+	{
+		int best = 0;
+		const RowModel *leader = nullptr;
+		for (const RowModel &row : m_model.rows)
+			if (!row.isObserver && row.*stat.value > best)
+			{
+				best = row.*stat.value;
+				leader = &row;
+			}
+		if (!leader)
+			continue;
+
+		for (RowModel &row : m_model.rows)
+			row.*stat.best = !row.isObserver && row.*stat.value == best;
+
+		if (stat.highlight >= 0)
+		{
+			HighlightModel highlight;
+			highlight.stat = stat.highlight;
+			highlight.name = leader->displayName;
+			highlight.colorHex = leader->colorHex;
+			highlight.value = best;
+			m_model.highlights.push_back(highlight);
+		}
+	}
+}
+
 void RmlScoreScreen::appendChatLine(const Rml::String &line)
 {
 	m_model.chatLines.push_back(line);
@@ -281,6 +392,8 @@ void RmlScoreScreen::finishSinglePlayerIfNeeded()
 
 	ScoreScreenCampaignFinish result = ScoreScreenActions::finishSinglePlayer();
 	m_buttonIsFinishCampaign = result.m_campaignComplete == TRUE;
+	m_model.isVictory = result.m_victorious == TRUE;
+	m_model.isDefeat = result.m_victorious != TRUE;
 
 	if (TheCampaignManager && TheCampaignManager->getCurrentCampaign() && !TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
 		TransitionSounds::play("ScoreScreenShow");
@@ -323,6 +436,15 @@ void RmlScoreScreen::onSendChat(Rml::DataModelHandle, Rml::Event &ev, const Rml:
 	RmlClearChatInput(ev);
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("chat_entry_text");
+}
+
+// Enter in the entry: same as the .wnd's GEM_EDIT_DONE. Change fires on every edit, so only a
+// linebreak commits.
+void RmlScoreScreen::onChatEntryCommitted(Rml::DataModelHandle handle, Rml::Event &ev, const Rml::VariantList &args)
+{
+	if (!ev.GetParameter<bool>("linebreak", false))
+		return;
+	onSendChat(handle, ev, args);
 }
 
 void RmlScoreScreen::onSendEmote(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)

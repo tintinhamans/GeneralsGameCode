@@ -194,3 +194,11 @@ END
 GUI:GOReplayName
 "Replay name"
 END
+
+GUI:GOScoreMap
+"Map"
+END
+
+GUI:GOScoreGameTime
+"Game Time"
+END
