@@ -28,6 +28,56 @@
 #include "GameClient/GameText.h"
 #include "GameClient/Image.h"
 
+namespace
+{
+	// Where each general is stationed (their bio's BioBirthplaceEntry, else the GLA's usual haunts), as
+	// fractions of the map area of GCBackgroundMinSpec: its pixels (41,41)-(759,560) of 800x600.
+	struct MapPin
+	{
+		const char *playerTemplate;
+		Real x;
+		Real y;
+	};
+
+	const MapPin kMapPins[] =
+	{
+		{ "FactionAmericaLaserGeneral", 0.092f, 0.279f }, // Townes: Redwood Shores, California
+		{ "FactionAmericaAirForceGeneral", 0.185f, 0.331f }, // Granger: Houston, Texas
+		{ "FactionAmericaSuperWeaponGeneral", 0.276f, 0.233f }, // Alexander: Belfast, Maine
+		{ "FactionGLAStealthGeneral", 0.540f, 0.308f }, // Kassad: Tripoli, Libya
+		{ "FactionGLAToxinGeneral", 0.645f, 0.295f }, // Thrax: Syria
+		{ "FactionGLADemolitionGeneral", 0.742f, 0.304f }, // Juhziz: Afghanistan
+		{ "FactionBossGeneral", 0.869f, 0.285f }, // Leang: Lanzhou, China
+		{ "FactionChinaNukeGeneral", 0.873f, 0.326f }, // Tao: Chengdu, China
+		{ "FactionChinaInfantryGeneral", 0.914f, 0.258f }, // Fai: Beijing, China
+		{ "FactionChinaTankGeneral", 0.922f, 0.289f }, // Kwai: Jinan, China
+	};
+
+	// Generals not in the table (mods) keep the medallion spot of their GeneralPosition in
+	// ChallengeMenu.wnd: the top left of its 40px medallion, in the .wnd's 800x600.
+	const Int kWndPositions[NUM_GENERALS][2] =
+	{
+		{ 152, 198 }, { 500, 222 }, { 624, 198 }, { 220, 159 }, { 663, 218 }, { 102, 186 },
+		{ 438, 206 }, { 691, 183 }, { 535, 189 }, { 641, 176 }, { 292, 199 }, { 293, 228 },
+	};
+
+	void findMapPin( const AsciiString &playerTemplate, Int index, Real &x, Real &y )
+	{
+		for( Int i = 0; i < (Int)( sizeof( kMapPins ) / sizeof( kMapPins[0] ) ); ++i )
+		{
+			if( playerTemplate.compareNoCase( kMapPins[i].playerTemplate ) == 0 )
+			{
+				x = kMapPins[i].x;
+				y = kMapPins[i].y;
+				return;
+			}
+		}
+
+		x = ( kWndPositions[index][0] + 20 - 41 ) / 718.0f;
+		y = ( kWndPositions[index][1] + 20 - 41 ) / 519.0f;
+	}
+}
+
 void ChallengeMenuData::open()
 {
 	const GeneralPersona *generals = TheChallengeGenerals->getChallengeGenerals();
@@ -39,6 +89,7 @@ void ChallengeMenuData::open()
 		general.m_enabled = generals[i].isStartingEnabled();
 		general.m_portrait = generals[i].getBioPortraitSmall();
 		general.m_name = TheGameText->fetch( generals[i].getBioName() );
+		findMapPin( generals[i].getPlayerTemplateName(), i, general.m_mapX, general.m_mapY );
 
 		Int templateNum = ThePlayerTemplateStore->getTemplateNumByName( generals[i].getPlayerTemplateName() );
 		const PlayerTemplate *playerTemplate = ThePlayerTemplateStore->getNthPlayerTemplate( templateNum );

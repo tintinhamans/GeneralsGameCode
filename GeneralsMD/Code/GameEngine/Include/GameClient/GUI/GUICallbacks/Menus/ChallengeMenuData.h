@@ -47,6 +47,8 @@ struct ChallengeMenuData
 		const Image *m_selected = nullptr;
 		const Image *m_portrait = nullptr; ///< the small bio portrait, for views that show every general
 		UnicodeString m_name; ///< the bio name
+		Real m_mapX = 0.0f; ///< home region on the world map (GCBackgroundMinSpec's map area), 0..1 across
+		Real m_mapY = 0.0f; ///< and 0..1 down
 	};
 
 	void open(); ///< read the generals, clear the selection and the bio
