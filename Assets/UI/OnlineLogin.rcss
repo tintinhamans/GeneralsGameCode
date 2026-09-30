@@ -1,14 +1,27 @@
 /*
-	OnlineLogin.rcss -- this screen never renders anything of its own under GENERALS_ONLINE (see
-	RmlOnlineLoginScreen.h / OnlineLogin.rml), so there is no look to define beyond common.rcss's
-	transparent default body. Kept as its own file (rather than skipping the link in
-	OnlineLogin.rml) to match every other RmlUi screen's <screen>.rml + <screen>.rcss pairing, and
-	as the obvious place to add styling if this screen ever gains real content. body is restated
-	explicitly (not just a comment) because RmlUi's style sheet loader rejects an empty sheet.
+	OnlineLogin.rcss -- the screen under the Generals Online login flow, on the screen template
+	(common.rcss). It has no controls (see OnlineLogin.rml): the ruler frame and header over the
+	map, the centre left free for the message-box card the login flow shows, and a pulsing status
+	where the back button would be (there is no way back from here but that card's Cancel).
 */
 
-body
+.login-status
 {
-	width: 100%;
-	height: 100%;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 55dp;
+	padding: 0 24dp 0 20dp;
+	font-size: 19dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #C4CAE4;
+	background-color: #070A1AC8;
+}
+
+.login-status .dot
+{
+	margin-right: 14dp;
+	background-color: #F07A1A;
 }

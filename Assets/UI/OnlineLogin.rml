@@ -5,12 +5,31 @@
 	<link type="text/rcss" href="OnlineLogin.rcss"/>
 </head>
 <!--
-	Deliberately empty: see RmlOnlineLoginScreen.h for why. Under GENERALS_ONLINE this screen never
-	shows any control of its own (the .wnd it replaces hides its whole layout immediately); every
-	visible thing the player sees during login -- "Please wait...", the "continue in your web
-	browser" Cancel box, "Logged in!", "Login failed." -- is the separate RmlUi message-box system
-	(gogoMessageBox()/RmlUiMessageBoxHook), already implemented and already routed regardless of
-	which front end owns this placeholder document.
+	The screen under the login flow. It has no controls of its own: under GENERALS_ONLINE the .wnd
+	it replaces hides its whole layout, and everything the player answers during login ("Please
+	wait...", the "continue in your web browser" Cancel box, "Logged in!", "Login failed.") is the
+	RmlUi message-box card (gogoMessageBox()/RmlUiMessageBoxHook) drawn centred on top of this.
+	So this only frames the map in the shell template and says what is going on; the centre stays
+	free for that card. See RmlOnlineLoginScreen.h.
 -->
-<body></body>
+<body class="screen">
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
+
+	<div class="screen-frame">
+		<div class="screen-header">
+			<div class="screen-heading">
+				<div class="screen-crumb"><gametext key="GUI:GeneralsOnline"/><span class="crumb-sep">&#8250;</span></div>
+				<div class="screen-title"><gametext key="GUI:Login"/></div>
+			</div>
+		</div>
+
+		<div class="screen-body"></div>
+
+		<div class="action-bar">
+			<div class="login-status">
+				<span class="dot pulse"></span><gametext key="FTP:StatusLoggingIn"/>
+			</div>
+		</div>
+	</div>
+</body>
 </rml>

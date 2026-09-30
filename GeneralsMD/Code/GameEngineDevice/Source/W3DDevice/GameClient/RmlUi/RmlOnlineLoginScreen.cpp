@@ -20,6 +20,7 @@
 
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineLoginActions.h"
 #include "GameClient/Shell.h"
+#include "GameClient/TransitionSounds.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include <RmlUi/Core/Context.h>
@@ -49,6 +50,9 @@ void RmlOnlineLoginScreen::show()
 
 	m_document->Show();
 
+	// WOLLoginMenuInit()'s entrance group, and WOLLoginMenuShutdown()'s reverse in hide().
+	TransitionSounds::play("GameSpyLoginProfileFade");
+
 	// NGMP: shared login flow (see OnlineLoginActions.h). beginLogin() itself shows "Please wait...",
 	// then NGMP_OnlineServices_AuthInterface drives the rest of the message-box sequence.
 	m_connections.disconnect();
@@ -61,6 +65,8 @@ void RmlOnlineLoginScreen::show()
 
 void RmlOnlineLoginScreen::hide()
 {
+	if (m_document && m_document->IsVisible())
+		TransitionSounds::play("GameSpyLoginProfileFade", TRUE);
 	if (m_document)
 		m_document->Hide();
 

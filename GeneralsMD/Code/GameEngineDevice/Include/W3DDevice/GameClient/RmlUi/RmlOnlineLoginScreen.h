@@ -38,10 +38,10 @@
 // gogoMessageBox()/RmlUiMessageBoxHook regardless of which front end owns this
 // screen, so there is no widget/status-text/tooltip parity work left to do
 // here -- see OnlineLoginActions.h for the shared start/stop/result logic this
-// screen drives. This screen's own document is therefore an empty, invisible
-// placeholder (matching the .wnd's own `layout->hide(TRUE)`): its only job is
-// to be *something* RmlUiScreenRegistry can show/hide while the login flow
-// (message boxes) runs on top of it.
+// screen drives. This screen's own document therefore has no controls (the .wnd
+// hides its own layout with `layout->hide(TRUE)`): it frames the map in the
+// shell template with a "Logging In" status and leaves the centre to the login
+// flow's message boxes, which run on top of it.
 //
 // onBack() is a no-op: the original .wnd's GWM_CHAR/KEY_ESC handler sends
 // GBM_SELECTED to buttonBack, but buttonBack/buttonBackID are never assigned
