@@ -4590,3 +4590,12 @@ body[lang^=zh]
 {
 	word-break: break-word;
 }
+
+/* Progress bars fill from the right. A fill is a block sized in percent, which RmlUi starts at the
+   left edge whatever the direction; an auto left margin moves it to the right one. */
+body[dir=rtl] .progress-fill,
+body[dir=rtl] .rank-progress-fill,
+body[dir=rtl] .wc-army-fill
+{
+	margin-left: auto;
+}
