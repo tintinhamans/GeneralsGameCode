@@ -4,67 +4,69 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="BuddyOverlay.rcss"/>
 </head>
-<body data-model="buddyoverlay">
-	<div class="frame buddy-frame">
-		<div class="buddy-tabs">
-			<button data-class-active="!show_block_tab" data-event-click="set_tab(0)"><gametext key="GUI:Buddies"/></button>
-			<!-- RadioButtonIgnore's text is overwritten to this exact hardcoded (non-GUI:-key) literal
-			     under GENERALS_ONLINE (WOLBuddyOverlay.cpp), not a GameText key -- mirrored verbatim. -->
-			<button data-class-active="show_block_tab" data-event-click="set_tab(1)">Block</button>
+<!-- The Generals Online buddy overlay (WOLBuddyOverlay.wnd, GSOVERLAY_BUDDY), up in game, over the
+     score screen and over .wnd screens: the social dock's look as a centred panel on a light scrim.
+     The roster down the left, the open conversation on the right; the block list on its own tab. -->
+<body class="screen modal over-game" data-model="buddyoverlay">
+	<div class="modal-card bo-card">
+		<div class="bo-head">
+			<div class="head-icon"><div class="icon-head"></div><div class="icon-body"></div></div>
+			<div class="bo-title"><gametext key="GUI:Buddies"/></div>
+			<div class="seg bo-tabs">
+				<button class="seg-item" data-class-on="!show_block_tab" data-event-click="set_tab(0)"><gametext key="GUI:GODockFriends"/></button>
+				<button class="seg-item" data-class-on="show_block_tab" data-event-click="set_tab(1)"><gametext key="GUI:GODockBlocked"/></button>
+			</div>
 			<div class="spacer"></div>
-			<!-- ButtonHide's .wnd-baked label reads "EXIT" verbatim (confirmed by rendering the
-			     original WOLBuddyOverlay.wnd, see report) -- a plain hardcoded literal, same as
-			     PlayerInfo.rml's LOGOUT/this file's "Block" tab, not a GameText key. No TOOLTIPTEXT
-			     exists on any control in the original .wnd family, so this popup carries none either. -->
-			<button data-event-click="close">EXIT</button>
+			<!-- ButtonHide ("EXIT" on the .wnd). -->
+			<button class="modal-close" data-event-click="close" data-tooltip="GUI:Close">&#215;</button>
 		</div>
 
-		<div class="buddy-body" data-if="!show_block_tab">
-			<div class="roster-column">
-				<div class="scroll-container list-box opaque roster-list">
-					<div data-for="row : roster_rows">
-						<div class="list-row roster-row" data-if="row.used"
-							data-class-lobby="row.is_lobby_member" data-class-recent="row.is_recent"
-							data-class-request="row.is_request" data-class-friend="row.is_friend"
-							data-class-online="row.online" data-class-offline="row.is_friend && !row.online"
-							data-event-click="row_clicked(row.index)" data-event-mousedown="row_mousedown(row.index)">
-							<div class="roster-dot" data-if="row.is_friend"></div>
-							<div class="roster-name" data-style-color="row.name_color">{{row.name}}</div>
-							<div class="roster-unread" data-if="row.has_unread">[{{row.unread_text}}]</div>
-							<div class="roster-status">{{row.status_text}}</div>
+		<div class="bo-body" data-if="!show_block_tab">
+			<div class="bo-roster">
+				<div data-for="row : roster_rows">
+					<div class="bo-person" data-if="row.used"
+						data-class-lobby="row.is_lobby_member" data-class-recent="row.is_recent"
+						data-class-request="row.is_request" data-class-friend="row.is_friend"
+						data-class-online="row.online" data-class-offline="row.is_friend &amp;&amp; !row.online"
+						data-event-click="row_clicked(row.index)" data-event-mousedown="row_mousedown(row.index)">
+						<div class="bo-presence"></div>
+						<div class="bo-who">
+							<div class="bo-name" data-style-color="row.name_color">{{row.name}}</div>
+							<div class="bo-sub">{{row.status_text}}</div>
 						</div>
+						<div class="bo-unread" data-if="row.has_unread">{{row.unread_text}}</div>
 					</div>
 				</div>
 			</div>
 
-			<div class="chat-column">
-				<div class="section-title" data-if="has_chat_target">{{chat_target_name}}</div>
-				<div class="section-title" data-if="!has_chat_target"><gametext key="GUI:Buddies"/></div>
-				<scrolllog class="chat-log">
-					<div class="chat-line" data-for="line : chat_lines">
+			<div class="bo-thread">
+				<div class="bo-thread-head">
+					<div class="bo-thread-name" data-if="has_chat_target">{{chat_target_name}}</div>
+					<div class="bo-thread-name dim" data-if="!has_chat_target"><gametext key="GUI:Buddies"/></div>
+				</div>
+				<scrolllog class="bo-lines">
+					<div class="bo-line" data-for="line : chat_lines">
 						<span data-if="line.used" data-style-color="line.color">{{line.text}}</span>
 					</div>
 				</scrolllog>
-				<div class="chat-entry">
+				<div class="bo-entry">
 					<input type="text" class="chat-input" maxlength="64" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-					<button class="icon-btn" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
+					<button class="icon-btn bo-send" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
 				</div>
 			</div>
 		</div>
 
-		<div class="buddy-body" data-if="show_block_tab">
-			<div class="scroll-container list-box opaque block-list">
-				<div data-for="row : blocked_rows">
-					<div class="list-row block-row" data-if="row.used" data-event-mousedown="blocked_row_mousedown(row.index)">{{row.name}}</div>
+		<div class="bo-body bo-blocked" data-if="show_block_tab">
+			<div data-for="row : blocked_rows">
+				<div class="bo-person blocked" data-if="row.used" data-event-mousedown="blocked_row_mousedown(row.index)">
+					<div class="bo-presence"></div>
+					<div class="bo-who"><div class="bo-name">{{row.name}}</div></div>
 				</div>
 			</div>
 		</div>
 	</div>
 
-	<!-- Siblings of .frame (not nested inside it), same reasoning as OnlineLobby.rml's context menu:
-	     .frame is position:absolute, so a .context-menu nested inside it would resolve
-	     data-style-left/top's viewport-relative mouse_x/mouse_y against .frame's box instead of the
-	     viewport. -->
+	<!-- Viewport layers, direct children of <body>: the menu is placed at the cursor. -->
 	<div class="context-menu-backdrop" data-if="player_menu_visible" data-event-mousedown="player_menu_dismiss"></div>
 	<div id="player-context-menu" class="context-menu" data-if="player_menu_visible" data-style-left="player_menu_x_style" data-style-top="player_menu_y_style">
 		<div data-for="item : player_menu_items">

@@ -1,123 +1,281 @@
 /*
-	BuddyOverlay.rcss -- WOLBuddyOverlay.wnd (the Generals Online buddy overlay, GSOVERLAY_BUDDY).
-	Floating popup over whatever's showing underneath, same "body itself is centered and flex"
-	precedent as PlayerInfo.rcss/QuitMenu.rcss.
+	BuddyOverlay.rcss -- WOLBuddyOverlay.wnd (the buddy overlay, GSOVERLAY_BUDDY), up in game, over the
+	score screen and over .wnd screens where the social dock is not. The dock's look (SocialDock.rcss)
+	as a centred panel on the modal card of common.rcss: its head, presence dots, unread badges and
+	message lines. Roster name colours stay the ones the overlay computes (buddies, requests, lobby).
 */
 
-body
+.bo-card
 {
-	display: flex;
-	flex-direction: column;
-	width: 800dp;
-	left: 50%;
-	top: 50%;
-	margin-left: -400dp;
-	margin-top: -260dp;
+	width: 1040dp;
+	height: 660dp;
+	border-top: 2dp #3A46D0;
 }
 
-.buddy-frame
-{
-	display: flex;
-	flex-direction: column;
-	height: 520dp;
-}
-
-.buddy-tabs
+/* ---- Head: the dock's person glyph and title, the two tabs, close ------------------------------ */
+.bo-head
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 	flex: 0 0 auto;
-	margin-bottom: 12dp;
+	height: 72dp;
+	padding: 0 16dp 0 24dp;
+	border-bottom: 1dp #8080FF1E;
 }
 
-.buddy-tabs button
+.head-icon
 {
-	margin-right: 8dp;
+	display: block;
+	width: 25dp;
+	height: 25dp;
+	margin-right: 13dp;
 }
 
-.buddy-body
+.icon-head
+{
+	display: block;
+	width: 10dp;
+	height: 10dp;
+	margin: 0 auto 2dp auto;
+	border-radius: 4dp;
+	background-color: #A9B1CF;
+}
+
+.icon-body
+{
+	display: block;
+	width: 20dp;
+	height: 10dp;
+	margin: 0 auto;
+	border-radius: 10dp 10dp 0 0;
+	background-color: #A9B1CF;
+}
+
+.bo-title
+{
+	font-size: 21dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	color: #EEF1FA;
+	white-space: nowrap;
+	margin-right: 28dp;
+}
+
+.screen .bo-tabs button.seg-item
+{
+	min-width: 130dp;
+}
+
+/* ---- Body: roster | conversation ---------------------------------------------------------------- */
+.bo-body
 {
 	display: flex;
 	flex-direction: row;
-	flex: 1 1 0%; /* 0 basis: a content-sized basis never shrinks the tall chat/roster back into the frame */
-	min-height: 0;
-}
-
-/* ---- Roster (friends/requests/current-lobby/recently-played) ------------------------------ */
-.roster-column
-{
-	display: flex;
-	flex-direction: column;
-	flex: 0 0 auto;
-	width: 300dp;
-	margin-right: 16dp;
-	min-height: 0;
-}
-
-.roster-list
-{
 	flex: 1 1 0%;
 	min-height: 0;
 }
 
-/* Block-level .list-row, not flex: a scrolling overflow-y:auto container corrupts flex/auto child
-   widths (see report's gotcha note), so the dot/name/unread/status pieces below are laid out with
-   plain inline/block flow instead. */
-.roster-dot
-{
-	display: inline-block;
-	width: 8dp;
-	height: 8dp;
-	margin-right: 6dp;
-	background-color: #64828C; /* offline grey, matches GameMakeColor(100,130,150,255) */
-}
-
-.roster-row.online .roster-dot
-{
-	background-color: #3BFF00; /* online green, matches GSCOLOR_PLAYER_BUDDY's usual hue */
-}
-
-.roster-name
-{
-	display: inline;
-	font-weight: bold;
-}
-
-.roster-unread
-{
-	display: inline;
-	margin-left: 4dp;
-	color: #FFBB00;
-	font-weight: bold;
-}
-
-.roster-status
+.bo-roster
 {
 	display: block;
-	font-size: 13dp;
-	color: #C0C0C0;
-	margin-left: 14dp;
+	flex: 0 0 360dp;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 10dp 8dp 10dp 12dp;
+	border-right: 1dp #8080FF1E;
 }
 
-/* ---- Chat pane ------------------------------------------------------------------------------ */
-.chat-column
+.bo-person
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	box-sizing: border-box;
+	height: 60dp;
+	padding: 0 10dp 0 12dp;
+	border-left: 3dp transparent;
+	transition: background-color 0.1s cubic-out;
+}
+
+.bo-person:hover
+{
+	background-color: #2F37A84B;
+}
+
+/* A friend request waits on an answer (right click): the accent bar. */
+.bo-person.request
+{
+	border-left-color: #F07A1A;
+	background-color: #F07A1A14;
+}
+
+.bo-presence
+{
+	display: block;
+	flex: 0 0 12dp;
+	width: 12dp;
+	height: 12dp;
+	margin-right: 14dp;
+	border-radius: 6dp;
+	background-color: #4A5070;
+}
+
+.bo-person.friend.online .bo-presence { background-color: #3CD28C; }
+.bo-person.lobby .bo-presence { background-color: #14B1FF; }
+.bo-person.recent .bo-presence, .bo-person.request .bo-presence { background-color: #7079A0; }
+.bo-person.blocked .bo-presence { background-color: #FF5050; }
+
+.bo-who
+{
+	display: block;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.bo-name
+{
+	display: block;
+	font-size: 20dp;
+	line-height: 25dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.bo-sub
+{
+	display: block;
+	font-size: 16dp;
+	line-height: 21dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.bo-person.offline .bo-sub { color: #5A6288; }
+
+.bo-unread
+{
+	display: block;
+	flex: 0 0 auto;
+	min-width: 28dp;
+	height: 28dp;
+	line-height: 28dp;
+	padding: 0 6dp;
+	margin-left: 10dp;
+	box-sizing: border-box;
+	border-radius: 14dp;
+	text-align: center;
+	font-size: 16dp;
+	font-weight: bold;
+	color: #1A0C02;
+	background-color: #F07A1A;
+}
+
+/* ---- Conversation ---------------------------------------------------------------------------- */
+.bo-thread
 {
 	display: flex;
 	flex-direction: column;
-	flex: 1 1 auto;
+	flex: 1 1 0%;
 	min-width: 0;
 	min-height: 0;
+	padding: 0 20dp 18dp 22dp;
 }
 
-/* ---- Block list tab -------------------------------------------------------------------------- */
-.block-list
+.bo-thread-head
+{
+	display: block;
+	flex: 0 0 auto;
+	padding: 16dp 0 12dp 0;
+	border-bottom: 1dp #8080FF1E;
+}
+
+.bo-thread-name
+{
+	font-size: 22dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.bo-lines
+{
+	display: block;
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 10dp;
+	padding-right: 10dp;
+}
+
+.bo-line
+{
+	display: block;
+	padding: 4dp 0 4dp 12dp;
+	border-left: 2dp #8080FF28;
+	margin-bottom: 4dp;
+	font-size: 18dp;
+	line-height: 24dp;
+}
+
+.bo-entry
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-top: 12dp;
+}
+
+.bo-entry .chat-input
 {
 	flex: 1 1 auto;
+	margin-right: 10dp;
 }
 
-.block-row
+.screen .bo-entry .icon-btn
 {
-	color: rgba(255, 100, 100, 255); /* red-tinted, matches refreshIgnoreList()'s GameMakeColor(255,100,100,255) */
+	flex: 0 0 auto;
+	width: 50dp;
+	height: 50dp;
+	padding: 10dp;
+	background-color: #2F37A8D2;
+	border: 1dp #8080FF;
 }
 
+.screen .bo-entry .icon-btn:hover
+{
+	background-color: #3A46D0;
+}
+
+.bo-entry .icon-btn mappedimage
+{
+	display: block;
+	width: 28dp;
+	height: 28dp;
+}
+
+/* ---- Block list --------------------------------------------------------------------------------- */
+.bo-blocked
+{
+	display: block;
+	overflow-y: auto;
+	padding: 10dp 12dp;
+}
+
+.bo-person.blocked .bo-name
+{
+	color: #FF8C8C;
+}
+
+@media (max-aspect-ratio: 3/2)
+{
+	.bo-card { width: 960dp; }
+	.bo-roster { flex-basis: 320dp; }
+}
