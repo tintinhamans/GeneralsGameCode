@@ -2,137 +2,18 @@
 	OnlineWelcome.rcss -- the Generals Online hub (WOLWelcomeMenu.wnd) as a dashboard on the screen
 	template (common.rcss):
 
-	  header     the .hq-header strip; Communicator and Options in its aside
-	  main       Quick Match and Custom Match as two big HQ cards (index, brackets, scan line, green
-	             edge on hover; Quick Match's edge always lit); under them the message of the day
-	             and the daily army win rates (the .wnd's silver medallions, a rate and a bar each)
+	  header     the .hq-header strip; Options in its aside (the social dock replaces the Communicator)
+	  main       the message of the day and the daily army win rates (the .wnd's silver medallions,
+	             a rate and a bar each), over the full height
 	  side       the player card: rank portrait with the general badge, progress to the next rank,
 	             the career record and My Persona
 	  action bar Main Menu (logs out) on the left; the players online count only on 5:4 and 4:3,
-	             where the strip's pill drops its count
+	             where the strip's pill drops its count; Custom Match and Quick Match, the two ways
+	             into a game, as primary buttons at the right end, Quick Match last (their descriptions are tooltips)
 
 	The page narrows beside the expanded social dock (.dock-open, see common.rcss): the win rates
 	then drop under the news as one wide row.
 */
-
-/* ---- Tiles ------------------------------------------------------------------------------------- */
-.wc-tiles
-{
-	display: flex;
-	flex-direction: row;
-	flex: 0 0 auto;
-	height: 210dp;
-}
-
-.screen button.wc-tile
-{
-	display: flex;
-	flex-direction: column;
-	justify-content: flex-end;
-	position: relative;
-	flex: 1 1 0%;
-	min-width: 0;
-	height: 100%;
-	padding: 24dp 30dp 26dp 30dp;
-}
-
-/* The shell's world map (234x251 art), faint behind the text; mappedimage takes dp sizes only. */
-.wc-art
-{
-	position: absolute;
-	left: 0;
-	top: 0;
-	right: 0;
-	bottom: 0;
-}
-
-.wc-art-img
-{
-	position: absolute;
-	right: -40dp;
-	top: -190dp;
-	width: 540dp;
-	height: 580dp;
-	opacity: 0.3;
-	transition: opacity 0.16s cubic-out;
-}
-
-.wc-tile:hover .wc-art-img
-{
-	opacity: 0.5;
-}
-
-.wc-art-tint
-{
-	display: block;
-	position: absolute;
-	left: 0;
-	top: 0;
-	right: 0;
-	bottom: 0;
-	decorator: horizontal-gradient(#070A1AF4 #070A1A60);
-}
-
-.wc-idx
-{
-	position: absolute;
-	left: 30dp;
-	top: 24dp;
-}
-
-.wc-tile .hq-scan
-{
-	left: 30dp;
-	bottom: 12dp;
-}
-
-.screen button.wc-tile + button.wc-tile
-{
-	margin-left: 20dp;
-}
-
-/* Quick Match is the one-click way in: its edge stays lit. */
-.wc-tile-qm .hq-edge
-{
-	background-color: #D1FD04;
-}
-
-/* In-flow text over the positioned art. */
-.wc-tile .tile-title, .wc-tile .tile-caption
-{
-	position: relative;
-}
-
-.wc-tile .tile-title
-{
-	font-size: 40dp;
-	line-height: 46dp;
-}
-
-.wc-tile .tile-caption
-{
-	margin-top: 8dp;
-	max-width: 620dp;
-	font-size: 18dp;
-	line-height: 25dp;
-}
-
-.wc-tile-go
-{
-	display: block;
-	position: absolute;
-	top: 14dp;
-	right: 28dp;
-	font-size: 64dp;
-	line-height: 64dp;
-	font-weight: normal;
-	color: #8080FF;
-}
-
-.wc-tile-qm .wc-tile-go, .wc-tile:hover .wc-tile-go
-{
-	color: #D1FD04;
-}
 
 /* ---- News and win rates ------------------------------------------------------------------------ */
 .wc-lower
@@ -141,7 +22,6 @@
 	flex-direction: row;
 	flex: 1 1 0%;
 	min-height: 0;
-	margin-top: 20dp;
 }
 
 .wc-lower .surface + .surface
@@ -429,8 +309,14 @@
 	vertical-align: middle;
 }
 
+/* ---- Primary actions --------------------------------------------------------------------------- */
+.screen button.wc-cta
+{
+	min-width: 300dp;
+}
+
 /* ---- Narrow: beside the expanded dock and on 5:4 / 4:3 the win rates go under the news as a
-   compact grid (medallion beside its rate), the tiles get shorter and the side column narrower. */
+   compact grid (medallion beside its rate), the side column narrower. */
 .dock-open .wc-lower { flex-direction: column; }
 .dock-open .wc-lower .surface + .surface { margin-left: 0; margin-top: 20dp; }
 .dock-open .wc-armies { flex: 0 0 auto; width: auto; padding-bottom: 12dp; }
@@ -441,12 +327,12 @@
 .dock-open .wc-army-pct { margin-top: 0; font-size: 20dp; line-height: 22dp; }
 .dock-open .wc-army-count { font-size: 13dp; line-height: 16dp; }
 .dock-open .wc-army-bar { display: none; }
-.dock-open .wc-tiles { height: 170dp; }
 .dock-open .col-side { width: 400dp; }
 
 @media (max-aspect-ratio: 3/2)
 {
 	.wc-online { display: block; }
+	.screen button.wc-cta { min-width: 210dp; padding: 0 30dp; }
 	.wc-lower { flex-direction: column; }
 	.wc-lower .surface + .surface { margin-left: 0; margin-top: 20dp; }
 	.wc-armies { flex: 0 0 auto; width: auto; padding-bottom: 12dp; }
@@ -457,14 +343,7 @@
 	.wc-army-pct { margin-top: 0; font-size: 20dp; line-height: 22dp; }
 	.wc-army-count { font-size: 13dp; line-height: 16dp; }
 	.wc-army-bar { display: none; }
-	.wc-tiles { height: 170dp; }
 	.col-side { width: 380dp; }
-	.wc-tile .tile-title { font-size: 30dp; line-height: 36dp; }
-	.wc-tile .tile-caption { font-size: 16dp; line-height: 21dp; }
-	.wc-tile-go { font-size: 52dp; }
-	.screen button.wc-tile { padding: 20dp 22dp 20dp 22dp; }
-	.wc-idx { left: 22dp; top: 18dp; }
-	.wc-tile .hq-scan { left: 22dp; bottom: 10dp; }
 	.wc-portrait { width: 122dp; height: 122dp; }
 	.wc-rank-image { width: 112dp; height: 112dp; }
 	.wc-rank-info { margin-left: 18dp; }
@@ -473,9 +352,6 @@
 	/* and beside the expanded dock: three medallions a row, a narrower player card */
 	.dock-open .wc-army { width: 33.33%; }
 	.dock-open .col-side { width: 300dp; }
-	.dock-open .wc-tile .tile-caption { display: none; }
-	.dock-open .wc-tile .tile-title { font-size: 24dp; line-height: 30dp; }
-	.dock-open .wc-tile-go { font-size: 40dp; line-height: 40dp; right: 16dp; }
 	.dock-open .wc-player { padding: 18dp; }
 	.dock-open .wc-greeting { font-size: 19dp; line-height: 24dp; }
 	.dock-open .wc-portrait { width: 90dp; height: 90dp; }

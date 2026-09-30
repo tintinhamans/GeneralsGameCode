@@ -23,26 +23,6 @@
 	<div class="screen-frame">
 		<div class="screen-body">
 			<div class="col col-main">
-				<!-- The two ways into a game, side by side. -->
-				<div class="wc-tiles">
-					<button class="tile hq-card hq-brackets wc-tile wc-tile-qm" data-event-click="quick_match">
-						<div class="hq-art wc-art"><mappedimage class="wc-art-img" name="EarthMap"/><div class="wc-art-tint"></div></div>
-						<span class="hq-index wc-idx">01</span>
-						<span class="wc-tile-go">&#8250;</span>
-						<span class="tile-title"><gametext key="GUI:QuickMatch"/></span>
-						<span class="tile-caption"><gametext key="TOOLTIP:Quickmatch"/></span>
-						<span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span><span class="hq-edge"></span>
-					</button>
-					<button class="tile hq-card hq-brackets wc-tile" data-event-click="custom_match">
-						<div class="hq-art wc-art"><mappedimage class="wc-art-img" name="EarthMap"/><div class="wc-art-tint"></div></div>
-						<span class="hq-index wc-idx">02</span>
-						<span class="wc-tile-go">&#8250;</span>
-						<span class="tile-title"><gametext key="GUI:CustomMatch"/></span>
-						<span class="tile-caption"><gametext key="TOOLTIP:CustomMatch"/></span>
-						<span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span><span class="hq-edge"></span>
-					</button>
-				</div>
-
 				<div class="wc-lower">
 					<!-- Message of the day, lines coloured as the .wnd listbox colours them. -->
 					<div class="surface wc-news">
@@ -107,6 +87,9 @@
 			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:GotoMainMenu"/></button>
 			<div class="spacer"></div>
 			<div class="wc-online" data-if="num_players_text != ''"><span class="dot"></span>{{num_players_text}}</div>
+			<!-- The two ways into a game: primary actions, Quick Match at the far right; the tooltips carry the descriptions. -->
+			<button class="btn-cta wc-cta" data-event-click="custom_match" data-tooltip="TOOLTIP:CustomMatch"><gametext key="GUI:CustomMatch"/></button>
+			<button class="btn-cta wc-cta" data-event-click="quick_match" data-tooltip="TOOLTIP:Quickmatch"><gametext key="GUI:QuickMatch"/></button>
 		</div>
 	</div>
 </body>
