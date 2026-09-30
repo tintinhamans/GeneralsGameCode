@@ -34,10 +34,13 @@ body.dc
 	border-bottom: 1dp #8080FF28;
 }
 
+/* The modal title's look: tracked caps behind the accent tick. */
 .dc-title
 {
 	font-size: 28dp;
 	line-height: 36dp;
+	padding-left: 15dp;
+	border-left: 4dp #F07A1A;
 	font-weight: bold;
 	letter-spacing: 1dp;
 	text-transform: uppercase;
