@@ -266,7 +266,10 @@ void RmlUiManager::init(int width, int height)
 			Rml::LoadFontFace(symbolPath, true);
 	}
 
+	Rml::SetTextInputHandler(&m_ime);
+	m_systemInterface.setIme(&m_ime);
 	m_context = Rml::CreateContext("main", Rml::Vector2i(width, height));
+	m_ime.setContext(m_context);
 
 	// dp units scale off a 1080p baseline so common.rcss's spacing/sizes stay consistent
 	// across resolutions and aspect ratios (see report for the palette this backs).
@@ -433,6 +436,8 @@ void RmlUiManager::shutdown()
 	RmlSocialDock::instance().shutdown();
 	RmlUiScreenRegistry::unregisterAll();
 
+	m_ime.shutdown();
+
 	if (m_context)
 	{
 		m_context->RemoveEventListener("mousedown", &s_soundListener, true);
@@ -442,6 +447,7 @@ void RmlUiManager::shutdown()
 	}
 
 	Rml::Shutdown();
+	m_systemInterface.setIme(nullptr);
 
 	// Rml::Shutdown() does not take ownership of instancers registered via Factory; free them now.
 	delete m_gameTextInstancer; m_gameTextInstancer = nullptr;
@@ -499,6 +505,11 @@ void RmlUiManager::update()
 	if (m_context)
 		m_context->Update();
 	updateTooltip();
+
+	// A field whose document was hidden loses focus without a blur; the IME must not stay bound to it.
+	if (m_ime.isActive() && !textFieldFocused())
+		m_ime.deactivate();
+	m_ime.update();
 
 	// Toast auto-dismiss needs a per-frame tick whichever screen is current; no-op otherwise.
 	BuddyOverlaySession::tickToast();
@@ -639,6 +650,11 @@ bool RmlUiManager::keyboardOwned() const
 		return true;
 
 	// Otherwise a visible document still owns the keyboard while one of its text fields has focus.
+	return textFieldFocused();
+}
+
+bool RmlUiManager::textFieldFocused() const
+{
 	Rml::Element *focus = m_context ? m_context->GetFocusElement() : nullptr;
 	if (!focus || !focus->IsVisible())
 		return false;
@@ -672,7 +688,10 @@ void RmlUiManager::processMouseButton(int button, bool down)
 	if (!m_context)
 		return;
 	if (down)
+	{
+		m_ime.completeComposition(); // Windows sends nothing when a click ends a composition
 		m_context->ProcessMouseButtonDown(button, computeKeyModifiers());
+	}
 	else
 		m_context->ProcessMouseButtonUp(button, computeKeyModifiers());
 }
@@ -743,6 +762,10 @@ bool RmlUiManager::processKey(unsigned char engineKey, unsigned short engineKeyS
 
 	// Escape goes to the topmost open layer only (a message box swallows it), as its .wnd's KEY_ESC
 	// handler would; with no RmlUi layer up it is left to the game (in-game quit menu, ...).
+	// A key the IME took (Enter that confirms a composition, Backspace inside one) is not ours.
+	if (m_ime.filterKey(rmlKey, isDown))
+		return true;
+
 	if (rmlKey == Rml::Input::KI_ESCAPE)
 		return RmlUiScreenRegistry::escape(isDown);
 
@@ -789,6 +812,15 @@ void RmlUiManager::processTextInput(unsigned short utf16Char)
 	m_pendingHighSurrogate = 0;
 
 	m_context->ProcessTextInput(codePoint);
+}
+
+bool RmlUiManager::processImeMessage(void *hwnd, unsigned int message, uintptr_t wParam, intptr_t lParam, intptr_t &result)
+{
+	LRESULT lresult = 0;
+	if (!m_ime.handleMessage((HWND)hwnd, message, (WPARAM)wParam, (LPARAM)lParam, lresult))
+		return false;
+	result = (intptr_t)lresult;
+	return true;
 }
 
 void RmlUiManager::showScreen(RmlScreen *screen)

@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlUiSystemInterface.h"
+#include "W3DDevice/GameClient/RmlUi/RmlUiIme.h"
 
 RmlUiSystemInterface::RmlUiSystemInterface()
 {
@@ -46,4 +47,10 @@ bool RmlUiSystemInterface::LogMessage(Rml::Log::Type type, const Rml::String &me
 	::OutputDebugStringA(buffer);
 
 	return true; // continue execution (don't break into debugger)
+}
+
+void RmlUiSystemInterface::ActivateKeyboard(Rml::Vector2f caret_position, float line_height)
+{
+	if (m_ime)
+		m_ime->setCaret(caret_position, line_height);
 }

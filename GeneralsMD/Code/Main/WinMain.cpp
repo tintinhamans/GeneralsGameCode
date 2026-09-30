@@ -318,8 +318,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 
 	try
 	{
+		// An RmlUi text field with focus owns the IME (composition, emoji panel), so it gets the
+		// messages first and the IME manager, which serves the legacy .wnd text entries, stays out.
+		bool rmlUiOwnsIme = false;
+		if (TheRmlUiInputHook)
+		{
+			intptr_t imeResult = 0;
+			if (TheRmlUiInputHook->processImeMessage(hWnd, message, wParam, lParam, imeResult))
+				return (LRESULT)imeResult;
+			rmlUiOwnsIme = TheRmlUiInputHook->wantsImeInput();
+		}
+
 		// First let the IME manager do it's stuff.
-		if (TheIMEManager)
+		if (TheIMEManager && !rmlUiOwnsIme)
 		{
 			if (TheIMEManager->serviceIMEMessage(hWnd, message, wParam, lParam))
 			{

@@ -27,6 +27,7 @@
 
 #include "GameClient/RmlUiInputHook.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiFileInterface.h"
+#include "W3DDevice/GameClient/RmlUi/RmlUiIme.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiRenderInterface.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiSystemInterface.h"
 
@@ -73,12 +74,15 @@ public:
 	virtual void processMouseWheel(float delta) override;
 	virtual bool processKey(unsigned char engineKey, unsigned short engineKeyState) override;
 	virtual void processTextInput(unsigned short utf16Char) override;
+	virtual bool wantsImeInput() const override { return m_ime.isActive(); }
+	virtual bool processImeMessage(void *hwnd, unsigned int message, uintptr_t wParam, intptr_t lParam, intptr_t &result) override;
 
 private:
 	static RmlUiManager *s_instance;
 
 	bool ownsInput() const;               ///< RmlUiScreenRegistry::ownsInput()
 	bool keyboardOwned() const;           ///< RmlUi owns the keyboard: a capturing layer, or a focused text field
+	bool textFieldFocused() const;        ///< a visible text field has focus
 	bool anyVisibleDocumentAt(int x, int y) const;
 	void registerCustomElements();
 
@@ -90,6 +94,7 @@ private:
 	RmlUiSystemInterface m_systemInterface;
 	RmlUiFileInterface m_fileInterface;
 	RmlUiRenderInterface m_renderInterface;
+	RmlUiIme m_ime;
 	Rml::Context *m_context = nullptr;
 	Rml::ElementInstancer *m_gameTextInstancer = nullptr;
 	Rml::ElementInstancer *m_mappedImageInstancer = nullptr;

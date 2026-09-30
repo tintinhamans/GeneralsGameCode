@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "Common/AsciiString.h"
 
 //-------------------------------------------------------------------------------------------------
@@ -49,6 +51,13 @@ public:
 	// One UTF-16 code unit from WM_CHAR. DirectInput (processKey above) gives scan codes only,
 	// not text, so the window proc forwards WM_CHAR here directly for text entry fields.
 	virtual void processTextInput(unsigned short utf16Char) = 0;
+
+	// TRUE while an RmlUi text field has focus and owns the IME: the window proc then offers every
+	// window message to processImeMessage() and keeps the legacy IMEManager out of it.
+	virtual bool wantsImeInput() const = 0;
+
+	// TRUE if consumed; result is then the window proc's return value.
+	virtual bool processImeMessage(void *hwnd, unsigned int message, uintptr_t wParam, intptr_t lParam, intptr_t &result) = 0;
 };
 
 extern RmlUiInputHook *TheRmlUiInputHook; ///< null unless an RmlUi-enabled target has set it

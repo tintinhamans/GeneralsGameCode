@@ -22,6 +22,8 @@
 #include <RmlUi/Core/SystemInterface.h>
 
 //-------------------------------------------------------------------------------------------------
+class RmlUiIme;
+
 class RmlUiSystemInterface : public Rml::SystemInterface
 {
 public:
@@ -29,6 +31,11 @@ public:
 	virtual double GetElapsedTime() override;
 	virtual bool LogMessage(Rml::Log::Type type, const Rml::String &message) override;
 
+	// RmlUi reports the text caret here whenever it moves; the IME follows it.
+	virtual void ActivateKeyboard(Rml::Vector2f caret_position, float line_height) override;
+	void setIme(RmlUiIme *ime) { m_ime = ime; }
+
 private:
 	DWORD m_startTickMs;
+	RmlUiIme *m_ime = nullptr;
 };

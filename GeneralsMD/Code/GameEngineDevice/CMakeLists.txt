@@ -97,6 +97,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlSocialDock.h
     Include/W3DDevice/GameClient/RmlUi/RmlUiElements.h
     Include/W3DDevice/GameClient/RmlUi/RmlUiFileInterface.h
+    Include/W3DDevice/GameClient/RmlUi/RmlUiIme.h
     Include/W3DDevice/GameClient/RmlUi/RmlUiManager.h
     Include/W3DDevice/GameClient/RmlUi/RmlUiRenderInterface.h
     Include/W3DDevice/GameClient/RmlUi/RmlUiSystemInterface.h
@@ -250,6 +251,7 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/RmlUi/RmlSocialDock.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiElements.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiFileInterface.cpp
+    Source/W3DDevice/GameClient/RmlUi/RmlUiIme.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiManager.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiRenderInterface.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiSystemInterface.cpp
