@@ -28,16 +28,6 @@
 	margin-right: 14dp;
 }
 
-.count
-{
-	min-width: 60dp;
-	margin-left: 14dp;
-	text-align: right;
-	font-size: 26dp;
-	font-weight: bold;
-	color: #A9B1CF;
-}
-
 /* ---- Grid ---------------------------------------------------------------------------------------- */
 .browser
 {
@@ -180,7 +170,7 @@
 
 @media (max-aspect-ratio: 3/2)
 {
-	.filter-label, .count { display: none; }
+	.filter-label { display: none; }
 	.ms-filter-plate { padding-left: 8dp; margin-right: 12dp; }
 	.screen .ms-filters .seg button.seg-item { padding: 0 10dp; font-size: 16dp; }
 	.detail-col { width: 360dp; }

@@ -27,7 +27,6 @@
 						<button class="seg-item" data-class-on="player_filter == 7" data-event-click="player_filter_changed(7)">7</button>
 						<button class="seg-item" data-class-on="player_filter == 8" data-event-click="player_filter_changed(8)">8</button>
 					</div>
-					<div class="count">{{visible_count}}</div>
 				</div>
 				<div class="seg source-seg">
 					<button class="seg-item" data-class-on="use_system_maps" data-event-click="filter_changed(1)"><gametext key="GUI:SystemMaps"/></button>
