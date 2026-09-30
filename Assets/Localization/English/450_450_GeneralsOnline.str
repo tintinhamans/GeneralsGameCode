@@ -82,3 +82,31 @@ END
 GUI:GOWaitingForHost
 "Waiting for the host to start"
 END
+
+GUI:GOOptionsDisplay
+"Display"
+END
+
+GUI:GOOptionsGraphics
+"Graphics"
+END
+
+GUI:GOOptionsControls
+"Controls"
+END
+
+GUI:GOTextureFiltering
+"Texture Filtering"
+END
+
+GUI:GOAnisotropy
+"Anisotropy"
+END
+
+GUI:GOTextureResolution
+"Texture Resolution"
+END
+
+GUI:GOParticleCap
+"Particle Cap"
+END

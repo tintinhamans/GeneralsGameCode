@@ -1,0 +1,229 @@
+/*
+	Options.rcss -- the options (OptionsMenu.wnd) on the screen template (common.rcss): the
+	categories down a tab rail on the left, the chosen one's settings on the right as
+	label/control rows with the setting's tooltip text under its label, Cancel / Defaults / Accept
+	in the action bar.
+
+	It opens as an overlay over the main menu, the online welcome screen or the in-game quit
+	menu, so the whole page sits on a scrim that dims whatever is behind it, and it makes room
+	for the expanded social dock like the online screens (dock-host).
+
+	Disabled rows (restricted: in a game or logged in online; detail_controls_disabled: a named
+	preset that can't be changed there) dim their text; the controls disable themselves.
+*/
+
+body.screen
+{
+	background-color: #03050CC8;
+}
+
+/* ---- Rail and panel ---------------------------------------------------------------------------- */
+.tab-rail
+{
+	flex: 0 0 300dp;
+	margin-right: 20dp;
+}
+
+.opt-panel
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-width: 0;
+	min-height: 0;
+	padding: 8dp 28dp 20dp 32dp;
+}
+
+.opt-page
+{
+	display: block;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding-right: 8dp;
+}
+
+.opt-head
+{
+	display: block;
+	padding: 14dp 0 16dp 0;
+	font-size: 26dp;
+	line-height: 32dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #FFFFFF;
+	border-bottom: 1dp #8080FF28;
+}
+
+/* ---- Rows: label and its description on the left, the control in a fixed column on the right -- */
+.opt-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	min-height: 76dp;
+	padding: 12dp 0;
+	box-sizing: border-box;
+	border-bottom: 1dp #FFFFFF0A;
+}
+
+.opt-text
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	padding-right: 32dp;
+}
+
+.opt-label
+{
+	display: block;
+	font-size: 20dp;
+	line-height: 26dp;
+	color: #EEF1FA;
+}
+
+.opt-desc
+{
+	display: block;
+	margin-top: 3dp;
+	font-size: 16dp;
+	line-height: 21dp;
+	color: #8089B0;
+}
+
+.opt-control
+{
+	display: block;
+	flex: 0 0 440dp;
+	width: 440dp;
+}
+
+.opt-control select, .opt-control .text-input
+{
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.opt-row.disabled .opt-label, .opt-toggles.disabled .opt-label
+{
+	color: #7079A0;
+}
+
+.opt-row.disabled .opt-desc, .opt-toggles.disabled .opt-desc
+{
+	color: #4A5070;
+}
+
+/* A slider with its value after it. */
+.opt-slider
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.opt-slider input.range
+{
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.opt-value
+{
+	flex: 0 0 64dp;
+	width: 64dp;
+	text-align: right;
+	font-size: 20dp;
+	font-weight: bold;
+	color: #EEF1FA;
+}
+
+.opt-row.disabled .opt-value
+{
+	color: #4A5070;
+}
+
+/* A whole row that toggles its checkbox: the box sits at the start of the control column. */
+label.opt-check-row:hover .opt-label
+{
+	color: #FFFFFF;
+}
+
+.opt-check-row .opt-control
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+/* ---- The effect toggles, two to a row ---------------------------------------------------------- */
+.opt-group
+{
+	display: block;
+	margin-top: 26dp;
+}
+
+.opt-group .opt-desc
+{
+	margin-top: 6dp;
+}
+
+.opt-toggles
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	margin-top: 10dp;
+}
+
+label.opt-toggle
+{
+	align-items: flex-start;
+	box-sizing: border-box;
+	width: 49%;
+	padding: 14dp 12dp 14dp 0;
+	border-bottom: 1dp #FFFFFF0A;
+}
+
+.opt-toggle input.checkbox
+{
+	flex: 0 0 auto;
+	margin-top: 1dp;
+}
+
+.opt-toggle .opt-text
+{
+	padding-right: 0;
+}
+
+label.opt-toggle:hover .opt-label
+{
+	color: #FFFFFF;
+}
+
+/* ---- Action bar -------------------------------------------------------------------------------- */
+.action-bar button.btn-cta
+{
+	margin-left: 20dp;
+}
+
+/* ---- Narrower screens and beside the expanded dock ---------------------------------------------- */
+.dock-open .tab-rail { flex-basis: 250dp; }
+.dock-open .opt-control { flex-basis: 360dp; width: 360dp; }
+
+@media (max-aspect-ratio: 3/2)
+{
+	.tab-rail { flex-basis: 250dp; }
+	.opt-control { flex-basis: 360dp; width: 360dp; }
+	.opt-text { padding-right: 24dp; }
+
+	/* beside the dock: the control goes under its label */
+	.dock-open .tab-rail { flex-basis: 200dp; }
+	.dock-open .tab-rail button.rail-item { font-size: 19dp; }
+	.dock-open .opt-row { flex-wrap: wrap; }
+	.dock-open .opt-row .opt-text { flex: 0 0 100%; padding-right: 0; margin-bottom: 10dp; }
+	.dock-open .opt-control { flex: 1 1 100%; width: auto; }
+	.dock-open label.opt-toggle { width: 100%; }
+}
