@@ -24,14 +24,15 @@
 				<div class="cb-power-bar"><div class="cb-power-track"></div><div class="cb-power-fill" data-style-width="power_fill"></div><div class="cb-power-rail"><div class="cb-power-needle" data-style-left="power_needle"></div></div></div>
 				<div class="cb-power-value">{{power_text}}</div>
 			</div>
-			<div class="cb-rank" data-cb="i2">
+			<div class="cb-replay" data-if="replay"><gametext key="GUI:GOHudReplay"/></div>
+			<div class="cb-rank" data-cb="i2" data-if="!observer_list_shown &amp;&amp; !observer_info_shown">
 				<div class="cb-rank-stars"><span class="cb-star" data-class-on="rank &gt;= 1">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 2">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 3">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 4">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 5">&#9733;</span></div>
 				<div class="cb-exp"><div class="cb-exp-fill" data-style-width="experience"></div></div>
 			</div>
 		</div>
 		<div class="cb-body">
 			<!-- ButtonCommand01..14: two rows, filled column by column like the .wnd -->
-			<div class="cb-grid" data-if="context != 'construction' &amp;&amp; context != 'ocl' &amp;&amp; context != 'beacon'">
+			<div class="cb-grid" data-if="context != 'construction' &amp;&amp; context != 'ocl' &amp;&amp; context != 'beacon' &amp;&amp; !observer_list_shown &amp;&amp; !observer_info_shown">
 				<div class="cb-slot" data-cb="c0" data-alias-s="commands[0]" data-class-live="commands_shown &amp;&amp; s.shown" data-class-off="!s.enabled &amp;&amp; !s.not_ready" data-class-poor="s.poor" data-class-checked="s.checked" data-class-flash="s.flash" data-class-b1="s.border == 1" data-class-b2="s.border == 2" data-class-b3="s.border == 3" data-class-b4="s.border == 4"><div class="cb-art" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.icon != ''"><mappedimage data-attr-name="s.icon"/></div><div class="cb-vet" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.overlay != ''"><mappedimage data-attr-name="s.overlay"/></div><div class="cb-clock" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.has_clock" data-style-height="s.clock"></div><span class="cb-key" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.key != ''">{{s.key}}</span><span class="cb-text" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.text != ''">{{s.text}}</span></div>
 				<div class="cb-slot" data-cb="c1" data-alias-s="commands[1]" data-class-live="commands_shown &amp;&amp; s.shown" data-class-off="!s.enabled &amp;&amp; !s.not_ready" data-class-poor="s.poor" data-class-checked="s.checked" data-class-flash="s.flash" data-class-b1="s.border == 1" data-class-b2="s.border == 2" data-class-b3="s.border == 3" data-class-b4="s.border == 4"><div class="cb-art" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.icon != ''"><mappedimage data-attr-name="s.icon"/></div><div class="cb-vet" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.overlay != ''"><mappedimage data-attr-name="s.overlay"/></div><div class="cb-clock" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.has_clock" data-style-height="s.clock"></div><span class="cb-key" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.key != ''">{{s.key}}</span><span class="cb-text" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.text != ''">{{s.text}}</span></div>
 				<div class="cb-slot" data-cb="c2" data-alias-s="commands[2]" data-class-live="commands_shown &amp;&amp; s.shown" data-class-off="!s.enabled &amp;&amp; !s.not_ready" data-class-poor="s.poor" data-class-checked="s.checked" data-class-flash="s.flash" data-class-b1="s.border == 1" data-class-b2="s.border == 2" data-class-b3="s.border == 3" data-class-b4="s.border == 4"><div class="cb-art" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.icon != ''"><mappedimage data-attr-name="s.icon"/></div><div class="cb-vet" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.overlay != ''"><mappedimage data-attr-name="s.overlay"/></div><div class="cb-clock" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.has_clock" data-style-height="s.clock"></div><span class="cb-key" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.key != ''">{{s.key}}</span><span class="cb-text" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.text != ''">{{s.text}}</span></div>
@@ -56,6 +57,29 @@
 					<div class="cb-task-text">{{context_text}}</div>
 					<div class="cb-task-bar" data-if="context_has_percent"><div class="cb-task-fill" data-style-width="context_percent"></div></div>
 				</div>
+			</div>
+
+			<!-- Observing: the players to look at (ButtonPlayer0..7) -->
+			<div class="cb-observers" data-if="observer_list_shown">
+				<div class="cb-obs-player" data-for="p : observer_players" data-if="p.shown" data-attr-data-cb="'o' + it_index">
+					<div class="cb-obs-side"><mappedimage data-if="p.icon != ''" data-attr-name="p.icon"/></div>
+					<div class="cb-obs-name" data-style-color="p.color">{{p.name}}</div>
+				</div>
+			</div>
+
+			<!-- Observing a player: name, flag, units, buildings, kills, losses and Back -->
+			<div class="cb-observed" data-if="observer_info_shown">
+				<div class="cb-obs-flag"><mappedimage data-if="observer_flag != ''" data-attr-name="observer_flag"/></div>
+				<div class="cb-obs-main">
+					<div class="cb-obs-title" data-style-color="observer_color">{{observer_name}}</div>
+					<div class="cb-obs-stats">
+						<div class="cb-obs-stat"><div class="cb-obs-value">{{observer_units}}</div><div class="cb-obs-label"><gametext key="GUI:Units"/></div></div>
+						<div class="cb-obs-stat"><div class="cb-obs-value">{{observer_buildings}}</div><div class="cb-obs-label"><gametext key="GUI:Buildings"/></div></div>
+						<div class="cb-obs-stat"><div class="cb-obs-value">{{observer_kills}}</div><div class="cb-obs-label"><gametext key="GUI:UnitsKilled"/></div></div>
+						<div class="cb-obs-stat"><div class="cb-obs-value">{{observer_losses}}</div><div class="cb-obs-label"><gametext key="GUI:UnitsLost"/></div></div>
+					</div>
+				</div>
+				<div class="cb-text-btn cb-obs-back" data-cb="o8" data-alias-s="observer_buttons[8]" data-if="s.shown"><gametext key="GUI:ControlBarBack"/></div>
 			</div>
 
 			<!-- A beacon: delete it, and for our own its message (EditBeaconText; Enter sends it) -->

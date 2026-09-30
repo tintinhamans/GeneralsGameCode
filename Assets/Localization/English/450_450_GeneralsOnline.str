@@ -354,3 +354,7 @@ END
 GO:GUI:ChallengeVersus
 "VS"
 END
+
+GUI:GOHudReplay
+"REPLAY"
+END

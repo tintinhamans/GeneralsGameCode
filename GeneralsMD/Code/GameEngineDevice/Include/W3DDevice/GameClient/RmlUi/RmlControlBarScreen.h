@@ -79,6 +79,14 @@ public:
 		int border = 0;					///< CommandButtonMappedBorderType
 	};
 
+	struct ObserverPlayerModel
+	{
+		bool shown = false;
+		Rml::String icon;
+		Rml::String name;
+		Rml::String color = "#FFFFFF";
+	};
+
 	struct UpgradeModel
 	{
 		bool shown = false;
@@ -145,6 +153,18 @@ private:
 		bool scienceShown = false;
 		Rml::String scienceTitle;
 		Rml::Vector<SlotModel> sciences;
+		bool observerListShown = false;
+		Rml::Vector<ObserverPlayerModel> observerPlayers;
+		bool observerInfoShown = false;
+		Rml::String observerName;
+		Rml::String observerColor = "#FFFFFF";
+		Rml::String observerFlag;
+		Rml::String observerUnits;
+		Rml::String observerBuildings;
+		Rml::String observerKills;
+		Rml::String observerLosses;
+		Rml::Vector<SlotModel> observerButtons;
+		bool replay = false;
 	};
 
 	Rml::Context *m_context = nullptr;

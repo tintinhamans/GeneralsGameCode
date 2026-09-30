@@ -127,6 +127,25 @@ void ControlBarData::clear()
 	scienceTitle.clear();
 	for( Int i = 0; i < CB_SCIENCE_COUNT; ++i )
 		sciences[ i ].clear();
+	observerListShown = FALSE;
+	for( Int i = 0; i < CB_OBSERVER_PLAYERS; ++i )
+	{
+		observerPlayers[ i ].shown = FALSE;
+		observerPlayers[ i ].image = nullptr;
+		observerPlayers[ i ].name.clear();
+		observerPlayers[ i ].color = 0;
+	}
+	observerInfoShown = FALSE;
+	observerName.clear();
+	observerColor = 0;
+	observerFlag = nullptr;
+	observerUnits.clear();
+	observerBuildings.clear();
+	observerKills.clear();
+	observerLosses.clear();
+	for( Int i = 0; i <= CB_OBSERVER_PLAYERS; ++i )
+		observerButtons[ i ].clear();
+	replay = FALSE;
 	generalLit = FALSE;
 	rank = 0;
 	sciencePoints = 0;
@@ -168,6 +187,8 @@ namespace
 		NameKeyType side[ CB_SIDE_COUNT ];
 		NameKeyType context[ CB_CTX_COUNT ];
 		NameKeyType info[ CB_INFO_COUNT ];
+		NameKeyType observer[ CB_OBSERVER_PLAYERS + 1 ];
+		NameKeyType observerText[ CB_OBSERVER_PLAYERS ];
 
 		ButtonKeys()
 		{
@@ -183,6 +204,14 @@ namespace
 				context[ i ] = TheNameKeyGenerator->nameToKey( kContextButtonNames[ i ] );
 			for( Int i = 0; i < CB_INFO_COUNT; ++i )
 				info[ i ] = TheNameKeyGenerator->nameToKey( kInfoNames[ i ] );
+			for( Int i = 0; i < CB_OBSERVER_PLAYERS; ++i )
+			{
+				name.format( "ControlBar.wnd:ButtonPlayer%d", i );
+				observer[ i ] = TheNameKeyGenerator->nameToKey( name );
+				name.format( "ControlBar.wnd:StaticTextPlayer%d", i );
+				observerText[ i ] = TheNameKeyGenerator->nameToKey( name );
+			}
+			observer[ CB_OBSERVER_BACK ] = TheNameKeyGenerator->nameToKey( "ControlBar.wnd:ButtonCancel" );
 		}
 	};
 
@@ -278,6 +307,9 @@ GameWindow *ControlBar::getButtonWindow( const ControlBarButtonId &id )
 				return TheWindowManager->winGetWindowFromId( m_contextParent[ CP_PURCHASE_SCIENCE ], doneID );
 			}
 			return nullptr;
+
+		case CBB_OBSERVER:
+			return id.index <= CB_OBSERVER_BACK ? TheWindowManager->winGetWindowFromId( m_contextParent[ CP_MASTER ], buttonKeys().observer[ id.index ] ) : nullptr;
 
 		case CBB_INFO:
 			return id.index < CB_INFO_COUNT ? TheWindowManager->winGetWindowFromId( m_contextParent[ CP_MASTER ], buttonKeys().info[ id.index ] ) : nullptr;
@@ -471,6 +503,63 @@ void ControlBar::fillData( ControlBarData &data )
 			readButton( getButtonWindow( id ), TRUE, data.sciences[ i ] );
 		}
 	}
+
+	// the observer bar: populateObserverList() and populateObserverInfoWindow() fill the windows ControlBarObserverSystem
+	// switches between
+	if( m_isObserverCommandBar )
+	{
+		GameWindow *list = m_contextParent[ CP_OBSERVER_LIST ];
+		GameWindow *info = m_contextParent[ CP_OBSERVER_INFO ];
+		data.observerListShown = list && !list->winIsHidden();
+		data.observerInfoShown = info && !info->winIsHidden();
+		for( Int i = 0; i <= CB_OBSERVER_PLAYERS; ++i )
+		{
+			const ControlBarButtonId id = { CBB_OBSERVER, i };
+			GameWindow *button = getButtonWindow( id );
+			readButton( button, i < CB_OBSERVER_PLAYERS ? data.observerListShown : data.observerInfoShown, data.observerButtons[ i ] );
+			if( i == CB_OBSERVER_PLAYERS || button == nullptr )
+				continue;
+			GameWindow *text = TheWindowManager->winGetWindowFromId( list, buttonKeys().observerText[ i ] );
+			ControlBarObserverPlayerData &player = data.observerPlayers[ i ];
+			player.shown = data.observerButtons[ i ].shown;
+			player.image = GadgetButtonGetEnabledImage( button );
+			if( text )
+			{
+				player.name = GadgetStaticTextGetText( text );
+				player.color = text->winGetEnabledTextColor();
+			}
+		}
+		if( data.observerInfoShown )
+		{
+			static const NameKeyType nameID = NAMEKEY( "ControlBar.wnd:StaticTextPlayerName" );
+			static const NameKeyType flagID = NAMEKEY( "ControlBar.wnd:WinFlag" );
+			static const NameKeyType unitsID = NAMEKEY( "ControlBar.wnd:StaticTextNumberOfUnits" );
+			static const NameKeyType buildingsID = NAMEKEY( "ControlBar.wnd:StaticTextNumberOfBuildings" );
+			static const NameKeyType killsID = NAMEKEY( "ControlBar.wnd:StaticTextNumberOfUnitsKilled" );
+			static const NameKeyType lossesID = NAMEKEY( "ControlBar.wnd:StaticTextNumberOfUnitsLost" );
+			GameWindow *win = TheWindowManager->winGetWindowFromId( info, nameID );
+			if( win )
+			{
+				data.observerName = GadgetStaticTextGetText( win );
+				data.observerColor = win->winGetEnabledTextColor();
+			}
+			win = TheWindowManager->winGetWindowFromId( info, flagID );
+			data.observerFlag = win ? win->winGetEnabledImage( 0 ) : nullptr;
+			if( ( win = TheWindowManager->winGetWindowFromId( info, unitsID ) ) != nullptr )
+				data.observerUnits = GadgetStaticTextGetText( win );
+			if( ( win = TheWindowManager->winGetWindowFromId( info, buildingsID ) ) != nullptr )
+				data.observerBuildings = GadgetStaticTextGetText( win );
+			if( ( win = TheWindowManager->winGetWindowFromId( info, killsID ) ) != nullptr )
+				data.observerKills = GadgetStaticTextGetText( win );
+			if( ( win = TheWindowManager->winGetWindowFromId( info, lossesID ) ) != nullptr )
+				data.observerLosses = GadgetStaticTextGetText( win );
+		}
+	}
+
+	// replays: ReplayControl.wnd shows while one plays (showReplayControls())
+	static const NameKeyType replayID = NAMEKEY( "ReplayControl.wnd:ParentReplayControl" );
+	GameWindow *replay = TheWindowManager->winGetWindowFromId( nullptr, replayID );
+	data.replay = replay && !replay->winIsHidden();
 
 	// the general's rank, points and blinking button
 	Player *local = ThePlayerList->getLocalPlayer();

@@ -49,6 +49,13 @@ namespace
 		return image ? Rml::String(image->getName().str()) : Rml::String();
 	}
 
+	Rml::String colorHex(Color color)
+	{
+		char text[8];
+		_snprintf_s(text, sizeof(text), _TRUNCATE, "#%02X%02X%02X", (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
+		return Rml::String(text);
+	}
+
 	Rml::String percent(float value)
 	{
 		char text[32];
@@ -127,6 +134,7 @@ namespace
 				case 'i': id.group = CBB_INFO; break;
 				case 'p': id.group = CBB_SHORTCUT; break;
 				case 'g': id.group = CBB_SCIENCE; break;
+				case 'o': id.group = CBB_OBSERVER; break;
 				default: return false;
 			}
 			id.index = atoi(value.c_str() + 1);
@@ -217,6 +225,8 @@ void RmlControlBarScreen::load(Rml::Context *context)
 	m_model.sideButtons.resize(CB_SIDE_COUNT);
 	m_model.shortcuts.resize(MAX_SPECIAL_POWER_SHORTCUTS);
 	m_model.sciences.resize(CB_SCIENCE_COUNT);
+	m_model.observerPlayers.resize(CB_OBSERVER_PLAYERS);
+	m_model.observerButtons.resize(CB_OBSERVER_PLAYERS + 1);
 
 	Rml::DataModelConstructor constructor = context->CreateDataModel("controlbar");
 	if (constructor)
@@ -245,6 +255,14 @@ void RmlControlBarScreen::load(Rml::Context *context)
 			upgrade.RegisterMember("icon", &UpgradeModel::icon);
 		}
 		constructor.RegisterArray<Rml::Vector<UpgradeModel>>();
+		if (Rml::StructHandle<ObserverPlayerModel> player = constructor.RegisterStruct<ObserverPlayerModel>())
+		{
+			player.RegisterMember("shown", &ObserverPlayerModel::shown);
+			player.RegisterMember("icon", &ObserverPlayerModel::icon);
+			player.RegisterMember("name", &ObserverPlayerModel::name);
+			player.RegisterMember("color", &ObserverPlayerModel::color);
+		}
+		constructor.RegisterArray<Rml::Vector<ObserverPlayerModel>>();
 
 		constructor.Bind("low", &m_model.low);
 		constructor.Bind("context", &m_model.context);
@@ -290,6 +308,18 @@ void RmlControlBarScreen::load(Rml::Context *context)
 		constructor.Bind("science_shown", &m_model.scienceShown);
 		constructor.Bind("science_title", &m_model.scienceTitle);
 		constructor.Bind("sciences", &m_model.sciences);
+		constructor.Bind("observer_list_shown", &m_model.observerListShown);
+		constructor.Bind("observer_players", &m_model.observerPlayers);
+		constructor.Bind("observer_info_shown", &m_model.observerInfoShown);
+		constructor.Bind("observer_name", &m_model.observerName);
+		constructor.Bind("observer_color", &m_model.observerColor);
+		constructor.Bind("observer_flag", &m_model.observerFlag);
+		constructor.Bind("observer_units", &m_model.observerUnits);
+		constructor.Bind("observer_buildings", &m_model.observerBuildings);
+		constructor.Bind("observer_kills", &m_model.observerKills);
+		constructor.Bind("observer_losses", &m_model.observerLosses);
+		constructor.Bind("observer_buttons", &m_model.observerButtons);
+		constructor.Bind("replay", &m_model.replay);
 		constructor.BindEventCallback("beacon_change", &RmlControlBarScreen::onBeaconChange, this);
 
 		m_modelHandle = constructor.GetModelHandle();
@@ -573,6 +603,60 @@ void RmlControlBarScreen::refresh(const ControlBarData &data, bool all)
 	}
 	if (dirty)
 		m_modelHandle.DirtyVariable("sciences");
+
+	if (all || data.observerListShown != old.observerListShown || data.observerInfoShown != old.observerInfoShown)
+	{
+		m_model.observerListShown = data.observerListShown != FALSE;
+		m_model.observerInfoShown = data.observerInfoShown != FALSE;
+		m_modelHandle.DirtyVariable("observer_list_shown");
+		m_modelHandle.DirtyVariable("observer_info_shown");
+	}
+	dirty = all;
+	for (int i = 0; i < CB_OBSERVER_PLAYERS; ++i)
+	{
+		const ControlBarObserverPlayerData &player = data.observerPlayers[i];
+		const ControlBarObserverPlayerData &was = old.observerPlayers[i];
+		if (all || player.shown != was.shown || player.image != was.image || player.name != was.name || player.color != was.color)
+		{
+			m_model.observerPlayers[i].shown = player.shown != FALSE;
+			m_model.observerPlayers[i].icon = imageName(player.image);
+			m_model.observerPlayers[i].name = unicodeToUtf8(player.name);
+			m_model.observerPlayers[i].color = colorHex(player.color);
+			dirty = true;
+		}
+	}
+	if (dirty)
+		m_modelHandle.DirtyVariable("observer_players");
+	if (all || data.observerName != old.observerName || data.observerColor != old.observerColor || data.observerFlag != old.observerFlag
+		|| data.observerUnits != old.observerUnits || data.observerBuildings != old.observerBuildings || data.observerKills != old.observerKills
+		|| data.observerLosses != old.observerLosses)
+	{
+		m_model.observerName = unicodeToUtf8(data.observerName);
+		m_model.observerColor = colorHex(data.observerColor);
+		m_model.observerFlag = imageName(data.observerFlag);
+		m_model.observerUnits = unicodeToUtf8(data.observerUnits);
+		m_model.observerBuildings = unicodeToUtf8(data.observerBuildings);
+		m_model.observerKills = unicodeToUtf8(data.observerKills);
+		m_model.observerLosses = unicodeToUtf8(data.observerLosses);
+		for (const char *name : { "observer_name", "observer_color", "observer_flag", "observer_units", "observer_buildings", "observer_kills", "observer_losses" })
+			m_modelHandle.DirtyVariable(name);
+	}
+	dirty = all;
+	for (int i = 0; i <= CB_OBSERVER_PLAYERS; ++i)
+	{
+		if (all || data.observerButtons[i] != old.observerButtons[i])
+		{
+			toSlot(data.observerButtons[i], m_model.observerButtons[i]);
+			dirty = true;
+		}
+	}
+	if (dirty)
+		m_modelHandle.DirtyVariable("observer_buttons");
+	if (all || data.replay != old.replay)
+	{
+		m_model.replay = data.replay != FALSE;
+		m_modelHandle.DirtyVariable("replay");
+	}
 
 	m_shown = data;
 	m_hasShown = true;

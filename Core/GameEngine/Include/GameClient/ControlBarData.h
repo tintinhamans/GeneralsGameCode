@@ -46,6 +46,7 @@ enum ControlBarButtonGroup CPP_11(: Int)
 	CBB_INFO,					///< the readouts with a tooltip, ControlBarInfo (not buttons)
 	CBB_SHORTCUT,			///< the general's powers bar, GenPowersShortcutBar*.wnd ButtonCommand1..
 	CBB_SCIENCE,			///< the promotions panel: rank 1, rank 3 and rank 8 buttons in a row, then Done
+	CBB_OBSERVER,			///< the observer's players (ButtonPlayer0..7), then Back (ButtonCancel)
 
 	CBB_COUNT
 };
@@ -120,6 +121,16 @@ struct ControlBarButtonData
 	const CommandButton *command;
 };
 
+enum { CB_OBSERVER_PLAYERS = 8, CB_OBSERVER_BACK = CB_OBSERVER_PLAYERS };
+
+struct ControlBarObserverPlayerData
+{
+	Bool shown;
+	const Image *image;			///< the side's button art
+	UnicodeString name;			///< name and team (CONTROLBAR:ObsPlayerLabel)
+	Color color;						///< the player's colour
+};
+
 struct ControlBarUpgradeData
 {
 	Bool shown;
@@ -186,6 +197,21 @@ struct ControlBarData
 	Bool scienceShown;
 	UnicodeString scienceTitle;					///< the rank's name
 	ControlBarButtonData sciences[ CB_SCIENCE_COUNT ];
+
+	// the observer bar: its players, or the one looked at (ControlBarObserver.cpp)
+	Bool observerListShown;
+	ControlBarObserverPlayerData observerPlayers[ CB_OBSERVER_PLAYERS ];
+	Bool observerInfoShown;
+	UnicodeString observerName;
+	Color observerColor;
+	const Image *observerFlag;
+	UnicodeString observerUnits;
+	UnicodeString observerBuildings;
+	UnicodeString observerKills;
+	UnicodeString observerLosses;
+	ControlBarButtonData observerButtons[ CB_OBSERVER_PLAYERS + 1 ];
+
+	Bool replay;										///< a replay plays (ReplayControl.wnd is up; its buttons do nothing)
 
 	Bool generalLit;								///< the general's button blinks while promotion points are unspent
 	Int rank;

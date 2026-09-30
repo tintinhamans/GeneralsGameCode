@@ -902,3 +902,151 @@ body.gla .cb-powers { border-right-color: #B8862B; }
 	justify-content: flex-end;
 	margin-top: 8dp;
 }
+
+/* ---- Observing ------------------------------------------------------------------------------------ */
+.cb-observers
+{
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	width: 448dp;
+	height: 128dp;
+}
+
+.cb-obs-player
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	box-sizing: border-box;
+	width: 218dp;
+	height: 29dp;
+	margin: 0 6dp 3dp 0;
+	padding: 0 8dp 0 2dp;
+	background-color: #0E1330;
+	border: 1dp #8080FF33;
+	border-left: 3dp #8080FF33;
+}
+
+.cb-obs-player:hover { border-color: #D1FD04; }
+
+.cb-obs-side
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 30dp;
+	height: 24dp;
+	margin-right: 8dp;
+}
+
+.cb-obs-side mappedimage { display: block; width: 100%; height: 100%; }
+
+.cb-obs-name
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	font-size: 15dp;
+	line-height: 20dp;
+	font-weight: bold;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cb-observed
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	width: 448dp;
+	height: 128dp;
+}
+
+.cb-obs-flag
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 60dp;
+	height: 100dp;
+	margin-right: 14dp;
+}
+
+.cb-obs-flag mappedimage { display: block; width: 100%; height: 100%; }
+
+.cb-obs-main
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.cb-obs-title
+{
+	display: block;
+	font-size: 20dp;
+	line-height: 26dp;
+	font-weight: bold;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	margin-bottom: 8dp;
+}
+
+.cb-obs-stats
+{
+	display: flex;
+	flex-direction: row;
+}
+
+.cb-obs-stat
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.cb-obs-value
+{
+	display: block;
+	font-size: 22dp;
+	line-height: 26dp;
+	font-weight: bold;
+	color: #D1FD04;
+}
+
+.cb-obs-label
+{
+	display: block;
+	white-space: pre-line;
+	font-size: 12dp;
+	line-height: 14dp;
+	font-weight: bold;
+	text-transform: uppercase;
+	color: #7079A0;
+}
+
+.cb-obs-back { margin: 0 8dp 0 10dp; }
+
+/* a replay plays */
+.cb-replay
+{
+	flex: 0 0 auto;
+	height: 20dp;
+	padding: 0 8dp;
+	margin-left: 12dp;
+	font-size: 13dp;
+	line-height: 20dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	color: #0E1400;
+	background-color: #D1FD04;
+}
+
+/* ---- Collapsed (the min/max button, CONTROL_BAR_STAGE_LOW): only the strip and the buttons round the bar --- */
+body.low .cb-radar, body.low .cb-unit { display: none; }
+body.low .cb-main { height: 104dp; }
+body.low .cb-grid, body.low .cb-task, body.low .cb-observers, body.low .cb-observed { display: none; }
+body.low .cb-body { height: 44dp; }
+body.low .cb-side { width: auto; height: 44dp; margin-left: auto; flex-wrap: nowrap; }
+body.low .cb-tip, body.low .cb-science { bottom: 112dp; }
