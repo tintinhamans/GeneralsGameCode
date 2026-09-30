@@ -4,20 +4,16 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="ScoreScreen.rcss"/>
 </head>
-<body class="screen ss" data-model="scorescreen">
+<body class="screen hq ss" data-model="scorescreen">
 	<!-- The side's score screen art (or the multiplayer one) over the whole screen, darkened. -->
 	<div class="ss-art"><mappedimage class="ss-cover-art" data-if="has_background_image" data-attr-name="background_image"/></div>
 	<div class="ss-scrim"></div>
 	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
-	<div class="screen-frame">
-		<!-- The outcome as the title, the game mode as the crumb, the map and game length beside it. -->
-		<div class="screen-header">
-			<div class="screen-heading ss-heading" data-class-victory="is_victory" data-class-defeat="is_defeat">
-				<div class="screen-crumb"><gametext key="GUI:SinglePlayer" data-if="mode == 0"/><gametext key="GUI:Skirmish" data-if="mode == 1"/><gametext key="GUI:Network" data-if="mode == 2"/><gametext key="GUI:GeneralsOnline" data-if="mode == 3"/><gametext key="GUI:LoadReplay" data-if="mode == 4"/><span class="crumb-sep">&#8250;</span></div>
-				<div class="screen-title"><gametext key="GUI:Victory" data-if="is_victory"/><gametext key="GUI:Defeat" data-if="is_defeat"/><gametext key="GUI:GameOver" data-if="!is_victory &amp;&amp; !is_defeat"/></div>
-			</div>
-			<div class="screen-header-aside ss-match">
+	<div class="hq-band hq-header"><div class="hq-band-in">
+			<mappedimage name="GeneralsLogo" class="hq-logo"/>
+			<div class="hq-heading ss-heading" data-class-victory="is_victory" data-class-defeat="is_defeat"><div class="hq-crumb"><gametext key="GUI:SinglePlayer" data-if="mode == 0"/><gametext key="GUI:Skirmish" data-if="mode == 1"/><gametext key="GUI:Network" data-if="mode == 2"/><gametext key="GUI:GeneralsOnline" data-if="mode == 3"/><gametext key="GUI:LoadReplay" data-if="mode == 4"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:Victory" data-if="is_victory"/><gametext key="GUI:Defeat" data-if="is_defeat"/><gametext key="GUI:GameOver" data-if="!is_victory &amp;&amp; !is_defeat"/></div></div>
+			<div class="hq-aside ss-match">
 				<div class="ss-fact" data-if="map_name != ''">
 					<div class="overline"><gametext key="GUI:GOScoreMap"/></div>
 					<div class="ss-fact-value">{{map_name}}</div>
@@ -27,7 +23,15 @@
 					<div class="ss-fact-value">{{game_time}}</div>
 				</div>
 			</div>
-		</div>
+			<div class="hq-status">
+				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
+			</div>
+	</div></div>
+
+	<div class="screen-frame">
+		<!-- The outcome as the title, the game mode as the crumb, the map and game length beside it. -->
 
 		<div class="screen-body" data-class-has-side="!show_challenge_splash &amp;&amp; (show_academy_panel || show_chat_log)">
 			<div class="col col-main">

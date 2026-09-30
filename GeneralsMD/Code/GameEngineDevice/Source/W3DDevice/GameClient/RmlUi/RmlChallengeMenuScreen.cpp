@@ -78,6 +78,7 @@ void RmlChallengeMenuScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("challengemenu");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
 		if (Rml::StructHandle<GeneralModel> generalHandle = constructor.RegisterStruct<GeneralModel>())
 		{
 			generalHandle.RegisterMember("index", &GeneralModel::index);
@@ -204,6 +205,7 @@ void RmlChallengeMenuScreen::open()
 	m_hovered = -1;
 	refresh();
 
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show(Rml::ModalFlag::Modal);
 
 	// ChallengeMenuUpdate()'s entrance group, and ChallengeMenuShutdown()'s reverse below.
@@ -238,6 +240,7 @@ void RmlChallengeMenuScreen::tick()
 	if (!screen.isVisible() || !screen.m_active)
 		return;
 
+	screen.m_hq.refresh(screen.m_modelHandle);
 	ChallengeMenuActions::update();
 	if (screen.m_shownVersion != ChallengeMenuData::instance().m_version)
 		screen.refresh();

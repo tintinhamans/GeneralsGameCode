@@ -93,7 +93,11 @@ void RmlCreditsScreen::load(Rml::Context *context)
 
 	Rml::DataModelConstructor constructor = context->CreateDataModel("credits");
 	if (constructor)
+	{
 		constructor.BindEventCallback("back", &RmlCreditsScreen::onBackClicked, this);
+		m_hq.bind(constructor);
+		m_modelHandle = constructor.GetModelHandle();
+	}
 
 	m_document = context->LoadDocument("UI/CreditsMenu.rml");
 }
@@ -125,6 +129,7 @@ void RmlCreditsScreen::show()
 	if (lines)
 		lines->SetInnerRML("");
 
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
 }
 
@@ -165,6 +170,7 @@ void RmlCreditsScreen::onBackClicked(Rml::DataModelHandle, Rml::Event &, const R
 
 void RmlCreditsScreen::update()
 {
+	m_hq.refresh(m_modelHandle);
 	if (!TheCredits)
 	{
 		if (TheShell)

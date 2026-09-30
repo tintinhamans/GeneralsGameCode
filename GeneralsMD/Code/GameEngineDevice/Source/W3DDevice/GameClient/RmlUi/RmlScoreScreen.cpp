@@ -76,6 +76,7 @@ void RmlScoreScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("scorescreen");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
 		Rml::StructHandle<RowModel> rowHandle = constructor.RegisterStruct<RowModel>();
 		if (rowHandle)
 		{
@@ -269,6 +270,7 @@ void RmlScoreScreen::show()
 		return;
 
 	refreshFromGameState();
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
 
 	// ScoreScreen.cpp sets ScoreScreenShow right away for every mode but the campaign, which sets it
@@ -378,6 +380,7 @@ void RmlScoreScreen::onContinue(Rml::DataModelHandle, Rml::Event &, const Rml::V
 
 void RmlScoreScreen::update()
 {
+	m_hq.refresh(m_modelHandle);
 	finishSinglePlayerIfNeeded();
 }
 

@@ -29,6 +29,7 @@
 
 #pragma once
 
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -59,6 +60,8 @@ private:
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
+	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 };
 
 // Router entry points: Shell::push/pop route "Menus/CreditsMenu.wnd" here via the registry.

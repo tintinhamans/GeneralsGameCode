@@ -4,7 +4,7 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="CreditsMenu.rcss"/>
 </head>
-<body class="screen cr" data-model="credits">
+<body class="screen hq cr" data-model="credits">
 	<!-- The credits art, darkened, with a dark band down the middle where the lines scroll. -->
 	<div class="cr-art"><mappedimage name="CreditsScreen" class="cr-art-image"/></div>
 	<div class="cr-scrim"></div>
@@ -15,12 +15,17 @@
 	     screen pixels, so it spans the whole screen. -->
 	<div id="credits_lines" class="cr-lines"></div>
 
-	<div class="screen-frame cr-frame">
-		<div class="screen-header">
-			<div class="screen-heading">
-				<div class="screen-title"><gametext key="GUI:Credits"/></div>
+	<div class="hq-band hq-header"><div class="hq-band-in">
+			<mappedimage name="GeneralsLogo" class="hq-logo"/>
+			<div class="hq-heading"><div class="hq-title"><gametext key="GUI:Credits"/></div></div>
+			<div class="hq-status">
+				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 			</div>
-		</div>
+	</div></div>
+
+	<div class="screen-frame cr-frame">
 		<div class="spacer"></div>
 		<div class="action-bar">
 			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>

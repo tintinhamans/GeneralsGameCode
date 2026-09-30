@@ -79,7 +79,7 @@ body.cr
 	pointer-events: none;
 }
 
-.cr-frame .screen-heading, .cr-frame .action-bar button
+.cr-frame .action-bar button
 {
 	pointer-events: auto;
 }

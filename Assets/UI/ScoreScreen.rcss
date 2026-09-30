@@ -51,27 +51,35 @@ body.ss
 }
 
 /* ---- Header ------------------------------------------------------------------------------------ */
-.ss-heading .screen-title
+/* The result in the .hq-header strip: green for a victory, red for a defeat; the map and the game
+   time in its aside. */
+.ss-heading .hq-title
 {
+	flex-shrink: 0;
 	color: #FFFFFF;
 }
 
-.ss-heading.victory .screen-title
+.ss-heading.victory .hq-title
 {
 	color: #D1FD04;
 }
 
-.ss-heading.defeat .screen-title
+.ss-heading.defeat .hq-title
 {
 	color: #FF5050;
 	border-left-color: #FF5050;
 }
 
-.ss-match
+.hq-aside.ss-match
 {
 	align-self: stretch;
-	padding: 0;
-	background-color: #070A1AD9;
+	min-width: 0;
+	flex-shrink: 1;
+}
+
+.hq-aside.ss-match > *
+{
+	margin-left: 0;
 }
 
 .ss-fact
@@ -79,7 +87,8 @@ body.ss
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	padding: 0 28dp;
+	min-width: 0;
+	padding: 0 24dp;
 	max-width: 480dp;
 	border-left: 1dp #8080FF28;
 }
@@ -515,7 +524,8 @@ body.ss
 	.ss-hl .overline { font-size: 14dp; letter-spacing: 0.5dp; white-space: normal; line-height: 17dp; height: 34dp; }
 	.ss-hl-value { font-size: 30dp; line-height: 36dp; }
 	.ss-hl-name { font-size: 16dp; }
-	.ss-fact { padding: 0 18dp; max-width: 300dp; }
+	.ss-fact { padding: 0 14dp; max-width: 300dp; }
+	.ss .hq-crumb { display: none; }
 
 	/* The name over its chip; beside the side column also no badge, so the name keeps its room. */
 	.ss-name-wrap { display: block; }

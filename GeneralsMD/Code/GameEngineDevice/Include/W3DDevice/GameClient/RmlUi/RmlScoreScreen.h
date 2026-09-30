@@ -37,6 +37,7 @@
 
 #include "Common/Signal.h"
 #include "GameClient/GUI/GUICallbacks/Menus/ScoreScreenData.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -84,6 +85,7 @@ private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 	ScoreScreenModeType m_mode = SCORESCREENMODE_SINGLEPLAYER;
 	SignalConnection m_chatConnection; // ScoreScreenSignals::chatLine, connected while showing
 
