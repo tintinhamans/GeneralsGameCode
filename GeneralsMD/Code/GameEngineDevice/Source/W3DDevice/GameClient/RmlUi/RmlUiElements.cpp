@@ -209,10 +209,18 @@ void RmlMapPreviewElement::refresh()
 	art->SetAttribute("src", Rml::String("/") + image->getFilename().str());
 	art->SetAttribute("rect", Rml::String(rect));
 
-	refreshSites(TheMapCache ? TheMapCache->findMap(AsciiString(mapName.c_str())) : nullptr);
+	const MapMetaData *md = TheMapCache ? TheMapCache->findMap(AsciiString(mapName.c_str())) : nullptr;
+	refreshSites(md);
 
-	const float width = (uv->hi.x - uv->lo.x) * (float)image->getTextureSize()->x;
-	const float height = (uv->hi.y - uv->lo.y) * (float)image->getTextureSize()->y;
+	// W3DDrawMapPreview() stretches the art over the map's own proportions (findDrawPositions() on
+	// its extent), whatever shape the preview file has; the file's shape only without map data.
+	float width = (uv->hi.x - uv->lo.x) * (float)image->getTextureSize()->x;
+	float height = (uv->hi.y - uv->lo.y) * (float)image->getTextureSize()->y;
+	if (md && md->m_extent.width() > 0.0f && md->m_extent.height() > 0.0f)
+	{
+		width = md->m_extent.width();
+		height = md->m_extent.height();
+	}
 	fitToAspect(height > 0.0f ? width / height : 0.0f);
 }
 
