@@ -233,6 +233,18 @@
 	min-width: 0;
 }
 
+.detail-kind
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+}
+
+.detail-kind .chip-label
+{
+	margin: 0 8dp 4dp 0;
+}
+
 .detail-name
 {
 	display: block;

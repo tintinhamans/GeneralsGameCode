@@ -179,9 +179,16 @@ body.popup
 	overflow-y: auto;
 }
 
+.detail-kind
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+}
+
 .detail-kind .chip-label
 {
-	margin-right: 8dp;
+	margin: 0 8dp 4dp 0;
 }
 
 .detail-name
