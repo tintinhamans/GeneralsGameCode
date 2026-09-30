@@ -1138,3 +1138,471 @@ PL: "VS"
 RU: "VS"
 AR: "ضد"
 END
+
+GUI:GOLanguage
+DE: "Spielsprache"
+FR: "Langue du jeu"
+ES: "Idioma del juego"
+IT: "Lingua del gioco"
+KO: "게임 언어"
+ZH: "遊戲語言"
+BP: "Idioma do jogo"
+PL: "Język gry"
+RU: "Язык игры"
+AR: "لغة اللعبة"
+END
+
+GUI:GOLanguageInstalled
+DE: "Installierte Sprache"
+FR: "Langue installée"
+ES: "Idioma instalado"
+IT: "Lingua installata"
+KO: "설치된 언어"
+ZH: "已安裝的語言"
+BP: "Idioma instalado"
+PL: "Zainstalowany język"
+RU: "Язык установки"
+AR: "اللغة المثبتة"
+END
+
+GUI:GOLanguageRestart
+DE: "Wird beim nächsten Spielstart wirksam."
+FR: "Prend effet au prochain lancement du jeu."
+ES: "Se aplica la próxima vez que inicies el juego."
+IT: "Ha effetto al prossimo avvio del gioco."
+KO: "다음에 게임을 시작할 때 적용됩니다."
+ZH: "下次啟動遊戲時生效。"
+BP: "Entra em vigor na próxima vez que você iniciar o jogo."
+PL: "Zmiana zadziała po ponownym uruchomieniu gry."
+RU: "Вступит в силу при следующем запуске игры."
+AR: "يسري التغيير عند تشغيل اللعبة في المرة القادمة."
+END
+
+GUI:GOMSAA2
+DE: "2x MSAA"
+FR: "2x MSAA"
+ES: "2x MSAA"
+IT: "2x MSAA"
+KO: "2x MSAA"
+ZH: "2x MSAA"
+BP: "2x MSAA"
+PL: "2x MSAA"
+RU: "2x MSAA"
+AR: "2x MSAA"
+END
+
+GUI:GOMSAA4
+DE: "4x MSAA"
+FR: "4x MSAA"
+ES: "4x MSAA"
+IT: "4x MSAA"
+KO: "4x MSAA"
+ZH: "4x MSAA"
+BP: "4x MSAA"
+PL: "4x MSAA"
+RU: "4x MSAA"
+AR: "4x MSAA"
+END
+
+GUI:GOMSAA8
+DE: "8x MSAA"
+FR: "8x MSAA"
+ES: "8x MSAA"
+IT: "8x MSAA"
+KO: "8x MSAA"
+ZH: "8x MSAA"
+BP: "8x MSAA"
+PL: "8x MSAA"
+RU: "8x MSAA"
+AR: "8x MSAA"
+END
+
+GUI:GOBilinear
+DE: "Bilinear"
+FR: "Bilinéaire"
+ES: "Bilineal"
+IT: "Bilineare"
+KO: "바이리니어"
+ZH: "雙線性"
+BP: "Bilinear"
+PL: "Dwuliniowe"
+RU: "Билинейная"
+AR: "ثنائي الخطية"
+END
+
+GUI:GOTrilinear
+DE: "Trilinear"
+FR: "Trilinéaire"
+ES: "Trilineal"
+IT: "Trilineare"
+KO: "트라이리니어"
+ZH: "三線性"
+BP: "Trilinear"
+PL: "Trójliniowe"
+RU: "Трилинейная"
+AR: "ثلاثي الخطية"
+END
+
+GUI:GOAnisotropic
+DE: "Anisotrop"
+FR: "Anisotrope"
+ES: "Anisotrópico"
+IT: "Anisotropico"
+KO: "이방성"
+ZH: "非等向性"
+BP: "Anisotrópico"
+PL: "Anizotropowe"
+RU: "Анизотропная"
+AR: "متباين الاتجاه"
+END
+
+GUI:GOVeryHigh
+DE: "Sehr hoch"
+FR: "Très élevé"
+ES: "Muy alto"
+IT: "Molto alto"
+KO: "매우 높음"
+ZH: "極高"
+BP: "Muito alto"
+PL: "Bardzo wysokie"
+RU: "Очень высокое"
+AR: "عالٍ جداً"
+END
+
+GUI:GOFilter1v1
+DE: "1v1"
+FR: "1c1"
+ES: "1c1"
+IT: "1v1"
+KO: "1대1"
+ZH: "1對1"
+BP: "1x1"
+PL: "1v1"
+RU: "1×1"
+AR: "1ض1"
+END
+
+GUI:GOFilterFFA
+DE: "FFA"
+FR: "Mêlée"
+ES: "Todos"
+IT: "FFA"
+KO: "개인전"
+ZH: "混戰"
+BP: "FFA"
+PL: "FFA"
+RU: "FFA"
+AR: "الكل ضد الكل"
+END
+
+GUI:GOFilterAOD
+DE: "AOD"
+FR: "AOD"
+ES: "AOD"
+IT: "AOD"
+KO: "AOD"
+ZH: "AOD"
+BP: "AOD"
+PL: "AOD"
+RU: "AOD"
+AR: "AOD"
+END
+
+GUI:GOMs
+DE: "ms"
+FR: "ms"
+ES: "ms"
+IT: "ms"
+KO: "ms"
+ZH: "ms"
+BP: "ms"
+PL: "ms"
+RU: "мс"
+AR: "مللي ث"
+END
+
+GUI:GOLogout
+DE: "ABMELDEN"
+FR: "DÉCONNEXION"
+ES: "CERRAR SESIÓN"
+IT: "DISCONNETTI"
+KO: "로그아웃"
+ZH: "登出"
+BP: "SAIR"
+PL: "WYLOGUJ"
+RU: "ВЫЙТИ"
+AR: "تسجيل الخروج"
+END
+
+GUI:GOLogoutTitle
+DE: "Abmelden"
+FR: "Déconnexion"
+ES: "Cerrar sesión"
+IT: "Disconnetti"
+KO: "로그아웃"
+ZH: "登出"
+BP: "Sair"
+PL: "Wyloguj"
+RU: "Выход"
+AR: "تسجيل الخروج"
+END
+
+GUI:GOLogoutConfirm
+DE: "Möchtest du dich wirklich abmelden?"
+FR: "Veux-tu vraiment te déconnecter ?"
+ES: "¿Seguro que quieres cerrar sesión?"
+IT: "Vuoi davvero disconnetterti?"
+KO: "정말 로그아웃하시겠습니까?"
+ZH: "確定要登出嗎？"
+BP: "Tem certeza de que deseja sair?"
+PL: "Czy na pewno chcesz się wylogować?"
+RU: "Вы действительно хотите выйти?"
+AR: "هل أنت متأكد أنك تريد تسجيل الخروج؟"
+END
+
+GUI:GOStartMatchmaking
+DE: "SPIELERSUCHE STARTEN"
+FR: "LANCER LA RECHERCHE"
+ES: "BUSCAR PARTIDA"
+IT: "AVVIA RICERCA"
+KO: "매치메이킹 시작"
+ZH: "開始配對"
+BP: "INICIAR BUSCA"
+PL: "SZUKAJ MECZU"
+RU: "НАЧАТЬ ПОИСК"
+AR: "بدء البحث عن مباراة"
+END
+
+GUI:GOCancelMatchmaking
+DE: "SUCHE ABBRECHEN"
+FR: "ANNULER LA RECHERCHE"
+ES: "CANCELAR BÚSQUEDA"
+IT: "ANNULLA RICERCA"
+KO: "매치메이킹 취소"
+ZH: "取消配對"
+BP: "CANCELAR BUSCA"
+PL: "ANULUJ WYSZUKIWANIE"
+RU: "ОТМЕНИТЬ ПОИСК"
+AR: "إلغاء البحث"
+END
+
+GUI:GOQMWelcome
+DE: "Willkommen bei QuickMatch. Wähle „Einstellungen“, um Playlists und Karten auszuwählen."
+FR: "Bienvenue dans QuickMatch. Choisis Configuration pour sélectionner les playlists et les cartes."
+ES: "Bienvenido a QuickMatch. Elige Configuración para seleccionar listas y mapas."
+IT: "Benvenuto in QuickMatch. Scegli Impostazioni per selezionare playlist e mappe."
+KO: "QuickMatch에 오신 것을 환영합니다. 설정에서 플레이리스트와 맵을 고르세요."
+ZH: "歡迎來到快速對戰。選擇「設定」來挑選對戰清單與地圖。"
+BP: "Bem-vindo ao QuickMatch. Escolha Configurar para selecionar playlists e mapas."
+PL: "Witaj w QuickMatch. Wybierz Ustawienia, aby wybrać playlisty i mapy."
+RU: "Добро пожаловать в QuickMatch. Выберите «Настройки», чтобы выбрать плейлисты и карты."
+AR: "مرحباً بك في المباراة السريعة. اختر الإعداد لتحديد قوائم التشغيل والخرائط."
+END
+
+GUI:GOQMThanks
+DE: "Besonderer Dank an die Kartenbauer Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich, die QuickMatch möglich gemacht haben."
+FR: "Merci tout particulièrement aux créateurs de cartes Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich qui ont rendu QuickMatch possible."
+ES: "Agradecimiento especial a los creadores de mapas Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy y Bamovich por hacer posible QuickMatch."
+IT: "Un ringraziamento speciale ai creatori di mappe Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy e Bamovich per aver reso possibile QuickMatch."
+KO: "QuickMatch를 가능하게 해 준 맵 제작자 Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy, Bamovich에게 특별히 감사드립니다."
+ZH: "特別感謝地圖作者 Tanso、ReLaX、cncHD、Specovik、Mp3、Jundiyy 與 Bamovich，讓快速對戰得以實現。"
+BP: "Agradecimentos especiais aos criadores de mapas Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy e Bamovich por tornarem o QuickMatch possível."
+PL: "Specjalne podziękowania dla twórców map Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy i Bamovich za umożliwienie QuickMatch."
+RU: "Особая благодарность авторам карт Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy и Bamovich, благодаря которым QuickMatch стал возможен."
+AR: "شكر خاص لصانعي الخرائط Tanso وReLaX وcncHD وSpecovik وMp3 وJundiyy وBamovich لجعل المباراة السريعة ممكنة."
+END
+
+GUI:GOQMMinMaps
+DE: "Du musst mindestens %d Karten auswählen."
+FR: "Tu dois sélectionner au moins %d cartes."
+ES: "Debes seleccionar al menos %d mapas."
+IT: "Devi selezionare almeno %d mappe."
+KO: "맵을 최소 %d개 선택해야 합니다."
+ZH: "至少必須選擇 %d 張地圖。"
+BP: "Você precisa selecionar pelo menos %d mapas."
+PL: "Musisz wybrać co najmniej %d map."
+RU: "Нужно выбрать не менее %d карт."
+AR: "يجب أن تختار %d خرائط على الأقل."
+END
+
+GUI:GOQMStartFailed
+DE: "Die Spielersuche konnte nicht gestartet werden."
+FR: "Impossible de lancer la recherche."
+ES: "No se pudo iniciar la búsqueda de partida."
+IT: "Impossibile avviare la ricerca."
+KO: "매치메이킹을 시작하지 못했습니다."
+ZH: "無法開始配對。"
+BP: "Não foi possível iniciar a busca."
+PL: "Nie udało się rozpocząć wyszukiwania."
+RU: "Не удалось начать поиск."
+AR: "تعذّر بدء البحث عن مباراة."
+END
+
+GUI:GOBlock
+DE: "Blockieren"
+FR: "Bloquer"
+ES: "Bloquear"
+IT: "Blocca"
+KO: "차단"
+ZH: "封鎖"
+BP: "Bloquear"
+PL: "Zablokuj"
+RU: "Заблокировать"
+AR: "حظر"
+END
+
+GUI:GOPingQuality
+DE: "Ping: %d ms - Qualität: %d%%"
+FR: "Ping : %d ms - Qualité : %d%%"
+ES: "Ping: %d ms - Calidad: %d%%"
+IT: "Ping: %d ms - Qualità: %d%%"
+KO: "핑: %d ms - 품질: %d%%"
+ZH: "Ping：%d ms - 品質：%d%%"
+BP: "Ping: %d ms - Qualidade: %d%%"
+PL: "Ping: %d ms - Jakość: %d%%"
+RU: "Пинг: %d мс - Качество: %d%%"
+AR: "البينغ: %d مللي ث - الجودة: %d%%"
+END
+
+GUI:GONoRooms
+DE: "FEHLER: Keine Räume verfügbar. Melde dich erneut an."
+FR: "ERREUR : aucun salon disponible. Reconnecte-toi."
+ES: "ERROR: No hay salas disponibles. Vuelve a iniciar sesión."
+IT: "ERRORE: nessuna stanza disponibile. Prova ad accedere di nuovo."
+KO: "오류: 사용할 수 있는 방이 없습니다. 다시 로그인하세요."
+ZH: "錯誤：沒有可用的房間。請重新登入。"
+BP: "ERRO: nenhuma sala disponível. Tente entrar novamente."
+PL: "BŁĄD: brak dostępnych pokoi. Zaloguj się ponownie."
+RU: "ОШИБКА: нет доступных комнат. Попробуйте войти снова."
+AR: "خطأ: لا توجد غرف متاحة. حاول تسجيل الدخول مرة أخرى."
+END
+
+GUI:GOBuddySelectFriend
+DE: "Wähle einen Freund, um zu chatten"
+FR: "Choisis un ami pour discuter"
+ES: "Elige un amigo para chatear"
+IT: "Scegli un amico per chattare"
+KO: "대화할 친구를 선택하세요"
+ZH: "選擇好友開始聊天"
+BP: "Escolha um amigo para conversar"
+PL: "Wybierz znajomego, aby porozmawiać"
+RU: "Выберите друга, чтобы начать чат"
+AR: "اختر صديقاً لبدء الدردشة"
+END
+
+GUI:GOBuddyNotFriend
+DE: "Diese Person ist in deiner Lobby oder hat kürzlich mit dir gespielt, ist aber noch kein Freund, daher kannst du nicht mit ihr chatten. Mit einem Rechtsklick kannst du sie hinzufügen oder blockieren."
+FR: "Cette personne est dans ton salon ou a joué récemment avec toi, mais n'est pas encore ton amie : tu ne peux pas discuter avec elle. Fais un clic droit pour l'ajouter ou la bloquer."
+ES: "Esta persona está en tu sala o jugó contigo recientemente, pero aún no es tu amiga, así que no puedes chatear con ella. Haz clic derecho para agregarla o bloquearla."
+IT: "Questa persona è nella tua lobby o ha giocato di recente con te, ma non è ancora tua amica e non puoi chattare con lei. Fai clic destro per aggiungerla o bloccarla."
+KO: "이 플레이어는 로비에 있거나 최근 함께 플레이했지만 아직 친구가 아니어서 대화할 수 없습니다. 우클릭하여 추가하거나 차단하세요."
+ZH: "此人在你的大廳中或最近與你一起遊玩，但還不是好友，無法聊天。右鍵點擊即可加為好友或封鎖。"
+BP: "Esta pessoa está no seu lobby ou jogou com você recentemente, mas ainda não é sua amiga e não é possível conversar. Clique com o botão direito para adicionar ou bloquear."
+PL: "Ta osoba jest w twoim lobby lub niedawno z tobą grała, ale nie jest jeszcze znajomym, więc nie możesz z nią rozmawiać. Kliknij prawym przyciskiem, aby ją dodać lub zablokować."
+RU: "Этот игрок в вашем лобби или недавно играл с вами, но ещё не ваш друг, поэтому чат недоступен. Щёлкните правой кнопкой, чтобы добавить или заблокировать его."
+AR: "هذا الشخص في ردهتك أو لعب معك مؤخراً لكنه ليس صديقاً بعد، لذا لا يمكنك الدردشة معه. انقر بزر الفأرة الأيمن لإضافته أو حظره."
+END
+
+GUI:GOBuddyPending
+DE: "Das ist eine offene Freundschaftsanfrage. Du kannst erst chatten, wenn du sie annimmst."
+FR: "C'est une demande d'ami en attente. Tu ne peux pas discuter avant de l'accepter."
+ES: "Es una solicitud de amistad pendiente. No puedes chatear hasta aceptarla."
+IT: "È una richiesta di amicizia in sospeso. Non puoi chattare finché non la accetti."
+KO: "대기 중인 친구 요청입니다. 수락해야 대화할 수 있습니다."
+ZH: "這是待處理的好友邀請。接受後才能聊天。"
+BP: "Este é um pedido de amizade pendente. Você só pode conversar depois de aceitá-lo."
+PL: "To oczekujące zaproszenie do znajomych. Możesz rozmawiać dopiero po jego przyjęciu."
+RU: "Это входящая заявка в друзья. Общаться можно после того, как вы её примете."
+AR: "هذا طلب صداقة معلّق. لا يمكنك الدردشة مع اللاعب حتى تقبله."
+END
+
+GUI:GOBuddyEmpty
+DE: "Dieser Chat ist leer. Schreib eine Nachricht, um das Gespräch zu beginnen"
+FR: "Cette discussion est vide. Envoie un message pour commencer"
+ES: "Este chat está vacío. Envía un mensaje para empezar una conversación"
+IT: "Questa chat è vuota. Invia un messaggio per iniziare una conversazione"
+KO: "대화 내용이 없습니다. 메시지를 보내 대화를 시작하세요"
+ZH: "此聊天目前沒有內容。發送訊息開始對話"
+BP: "Este chat está vazio. Envie uma mensagem para começar uma conversa"
+PL: "Ten czat jest pusty. Wyślij wiadomość, aby rozpocząć rozmowę"
+RU: "Чат пуст. Отправьте сообщение, чтобы начать разговор"
+AR: "هذه الدردشة فارغة. أرسل رسالة لبدء محادثة"
+END
+
+GUI:GOWelcomeName
+DE: "Willkommen bei Generals Online, %s"
+FR: "Bienvenue sur Generals Online, %s"
+ES: "Bienvenido a Generals Online, %s"
+IT: "Benvenuto in Generals Online, %s"
+KO: "Generals Online에 오신 것을 환영합니다, %s"
+ZH: "歡迎來到 Generals Online，%s"
+BP: "Bem-vindo ao Generals Online, %s"
+PL: "Witaj w Generals Online, %s"
+RU: "Добро пожаловать в Generals Online, %s"
+AR: "مرحباً بك في Generals Online يا %s"
+END
+
+GUI:GOWinRateOf
+DE: "%d%% (%d von %d)"
+FR: "%d%% (%d sur %d)"
+ES: "%d%% (%d de %d)"
+IT: "%d%% (%d su %d)"
+KO: "%d%% (%d/%d)"
+ZH: "%d%%（%d / %d）"
+BP: "%d%% (%d de %d)"
+PL: "%d%% (%d z %d)"
+RU: "%d%% (%d из %d)"
+AR: "%d%% (%d من %d)"
+END
+
+GUI:GOGamesQM
+DE: "%d (%d QM)"
+FR: "%d (%d QM)"
+ES: "%d (%d QM)"
+IT: "%d (%d QM)"
+KO: "%d (%d QM)"
+ZH: "%d（%d QM）"
+BP: "%d (%d QM)"
+PL: "%d (%d QM)"
+RU: "%d (%d QM)"
+AR: "%d (%d QM)"
+END
+
+GUI:GOWinsElo
+DE: "%d (Elo: %d)"
+FR: "%d (Elo : %d)"
+ES: "%d (Elo: %d)"
+IT: "%d (Elo: %d)"
+KO: "%d (Elo: %d)"
+ZH: "%d（Elo：%d）"
+BP: "%d (Elo: %d)"
+PL: "%d (Elo: %d)"
+RU: "%d (Эло: %d)"
+AR: "%d (Elo: %d)"
+END
+
+GUI:GOWorldSeriesElo
+DE: "World-Series-Elo:"
+FR: "Elo World Series :"
+ES: "Elo World Series:"
+IT: "Elo World Series:"
+KO: "월드 시리즈 Elo:"
+ZH: "世界系列賽 Elo："
+BP: "Elo da World Series:"
+PL: "Elo World Series:"
+RU: "Эло World Series:"
+AR: "تصنيف Elo لبطولة World Series:"
+END
+
+GUI:GOAutoLadder
+DE: "Automatische Rangliste"
+FR: "Classement automatique"
+ES: "Clasificación automática"
+IT: "Classifica automatica"
+KO: "자동 래더"
+ZH: "自動天梯"
+BP: "Ranking automático"
+PL: "Automatyczny ranking"
+RU: "Автоматический рейтинг"
+AR: "التصنيف التلقائي"
+END

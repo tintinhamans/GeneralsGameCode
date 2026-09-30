@@ -354,3 +354,147 @@ END
 GO:GUI:HudReplay
 "REPLAY"
 END
+
+GUI:GOLanguage
+"Game language"
+END
+
+GUI:GOLanguageInstalled
+"Installed language"
+END
+
+GUI:GOLanguageRestart
+"Takes effect the next time you start the game."
+END
+
+GUI:GOMSAA2
+"2x MSAA"
+END
+
+GUI:GOMSAA4
+"4x MSAA"
+END
+
+GUI:GOMSAA8
+"8x MSAA"
+END
+
+GUI:GOBilinear
+"Bilinear"
+END
+
+GUI:GOTrilinear
+"Trilinear"
+END
+
+GUI:GOAnisotropic
+"Anisotropic"
+END
+
+GUI:GOVeryHigh
+"Very High"
+END
+
+GUI:GOFilter1v1
+"1v1"
+END
+
+GUI:GOFilterFFA
+"FFA"
+END
+
+GUI:GOFilterAOD
+"AOD"
+END
+
+GUI:GOMs
+"ms"
+END
+
+GUI:GOLogout
+"LOG OUT"
+END
+
+GUI:GOLogoutTitle
+"Log Out"
+END
+
+GUI:GOLogoutConfirm
+"Are you sure you want to log out?"
+END
+
+GUI:GOStartMatchmaking
+"START MATCHMAKING"
+END
+
+GUI:GOCancelMatchmaking
+"CANCEL MATCHMAKING"
+END
+
+GUI:GOQMWelcome
+"Welcome to QuickMatch. Choose Setup to select playlists and maps."
+END
+
+GUI:GOQMThanks
+"Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible."
+END
+
+GUI:GOQMMinMaps
+"You must select at least %d maps."
+END
+
+GUI:GOQMStartFailed
+"Failed to start matchmaking."
+END
+
+GUI:GOBlock
+"Block"
+END
+
+GUI:GOPingQuality
+"Ping: %d ms - Quality: %d%%"
+END
+
+GUI:GONoRooms
+"ERROR: No rooms are available. Try logging in again."
+END
+
+GUI:GOBuddySelectFriend
+"Select a friend to start chatting"
+END
+
+GUI:GOBuddyNotFriend
+"This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or block them."
+END
+
+GUI:GOBuddyPending
+"This is a pending friend request. You cannot chat with the player until you accept it."
+END
+
+GUI:GOBuddyEmpty
+"This chat is empty. Send a message to start a conversation"
+END
+
+GUI:GOWelcomeName
+"Welcome to Generals Online, %s"
+END
+
+GUI:GOWinRateOf
+"%d%% (%d of %d)"
+END
+
+GUI:GOGamesQM
+"%d (%d QM)"
+END
+
+GUI:GOWinsElo
+"%d (Elo: %d)"
+END
+
+GUI:GOWorldSeriesElo
+"World Series Elo:"
+END
+
+GUI:GOAutoLadder
+"Automatic Ladder"
+END
