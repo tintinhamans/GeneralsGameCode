@@ -476,6 +476,5 @@
 	.screen button.qm-pl { min-width: 150dp; padding: 0 20dp; font-size: 19dp; }
 	.dock-open .qm-side { width: 330dp; }
 	.dock-open .qm-map { width: 100%; margin-right: 0; }
-	.screen.dock-open .action-bar button.btn-cta { min-width: 0; padding: 0 24dp; font-size: 20dp; }
 }
 

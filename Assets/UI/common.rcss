@@ -75,8 +75,8 @@
 	this RmlUi build, each documented where it is defined.
 
 	On top of the template, every shell screen speaks the main menu's HQ terminal language (last
-	section of this sheet): the .hq-header strip (logo, crumb and title, online status, clock), which is
-	the ruler's top band, in place of the title plate, .hq-brackets (green corner brackets and a scan line) on primary rows and tiles,
+	section of this sheet): the .hq-header strip (logo, crumb and title, online status, clock) in the
+	frame's top band, in place of the title plate, .hq-brackets (green corner brackets and a scan line) on primary rows and tiles,
 	.hq-index step numbers, .hq-card art cards with a green top edge, and the .hq-ticker news strip.
 	Its status comes from RmlHqStatus in the device layer, bound into each screen's data model.
 */
@@ -961,11 +961,11 @@ body.shell
 	            small 16dp; primary button 24dp. Text drawn straight on the map (.on-map, the
 	            header, the back button) gets .map-glow.
 	  Spacing   4 / 8 / 12 / 16 / 20 / 24 / 40dp; 20dp between floating panels.
-	  Frame     the ruler is a tick scale along all four screen edges (.screen-ruler, drawn by the
-	            ruler-ticks decorator) with a hairline on the inside of each band; the top band is
-	            the .hq-header strip and the main menu's bottom band the ticker. The content frame
-	            sits inside the bands (64dp from the sides on an HQ screen) and is at most 2150dp
-	            wide, centred.
+	  Frame     one instrument frame on every shell screen (.screen-ruler): a frame line inset from the
+	            screen edges, a tinted ruler band outside it (side 40dp, top 112dp, bottom 88dp,
+	            fixed), a tick scale standing on the line in every band, a corner block where the
+	            scales meet. The top band holds the .hq-header, the bottom band the .action-bar (the
+	            main menu's: the news ticker). The content frame keeps a 20dp gutter inside the line.
 	  Motion    hover/press 0.12s cubic-out, panels 0.22s cubic-out, loading pulse 1.2s.
 	            Opacity, colours and margins only: the renderer has no transforms.
 
@@ -973,6 +973,7 @@ body.shell
 	<body class="screen" data-model="...">
 		<div class="screen-ruler"><div class="rs rs-top"></div>
 			(rs-bottom, rs-left and rs-right the same, then rc-tl, rc-tr, rc-bl, rc-br)</div>
+		<div class="hq-band hq-header">...</div>          (see HQ terminal)
 		<div class="screen-frame">
 			<div class="screen-header">
 				<div class="screen-heading">
@@ -982,9 +983,9 @@ body.shell
 				<div class="screen-header-aside">optional controls</div>
 			</div>
 			<div class="screen-body">.col.col-main / .col.col-side of .surface panels</div>
-			<div class="action-bar">
+			<div class="action-bar">                             drawn in the bottom band
 				<button class="btn-back">back or cancel</button>   always far left
-				<div class="spacer"/> secondary buttons
+				status (readiness, countdown) <div class="spacer"/> secondary buttons
 				<button class="btn-cta">primary</button>            always far right
 			</div>
 		</div>
@@ -1003,27 +1004,30 @@ body.screen
 	font-size: 20dp;
 }
 
-/* ---- Ruler: our own tick scale and bands, drawn with the screen ------------------------------------
-   No art. The screen edge is a ruler: a tick scale (the ruler-ticks decorator, RmlRulerDecorator.h)
-   stands on each of the four edges and points inwards, a minor tick every 4dp, a longer one every
-   5th and the longest every 10th, over a faint scrim that fades out under it. The ticks are
-   generated for whatever box they are given, so they run edge to edge at any resolution and aspect
-   ratio, never stretched. All four scales count from the same corner grid (the bands are whole
-   multiples of the 4dp unit), and a hairline closes each band on its inner side; a small mark sits
-   where the hairlines meet.
+/* ---- Frame: the instrument frame every shell screen shares -------------------------------------
+   No art. One frame line runs round the screen, inset from its edges; everything between that line
+   and the edges is the ruler band, one quiet tint on all four sides that lets the map read through.
+   The frame line is a ruler's edge: a tick scale (the ruler-ticks decorator, RmlRulerDecorator.h)
+   stands on it on every side and points out into the band, a minor tick every 4dp, a longer one
+   every 5th and the longest every 10th, counted from each corner with an index mark in the middle.
+   Each corner carries the same small block where the scales meet.
 
 	<div class="screen-ruler">
 		<div class="rs rs-top"><div></div>x4</div>    (rs-bottom the same; rs-left and rs-right hold
-		<div class="rc rc-tl"><div></div></div>        two marks; the rc squares are unused)
+		<div class="rc rc-tl"><div></div></div>        two; the rc blocks are the corner pieces)
 	</div>
 
-   Bands (dp): the top and bottom bands are 20 deep on a plain screen. On a screen with the HQ
-   header (body.hq, or the main menu) the top band is the header strip, 84 deep: its ticks run along
-   the screen edge and the logo, title, status and clock sit under them, its hairline is the strip's
-   bottom border. The main menu's bottom band also carries the news ticker (44 above the 20 of
-   ticks). The side bands are 20 wide and stay thin; the social dock's tab sits in the right one.
-   Content keeps 64dp from the sides (.screen-frame). Any child divs of the top and bottom strips
-   (older markup) are not drawn. */
+   Bands (dp), fixed for every framed screen (body.hq and the main menu), never overridden per screen:
+	  side     40   the social dock's tab sits in the right one
+	  top     112   the .hq-header (logo, crumb and title, status, clock) over a 16dp tick lane
+	  bottom   88   a 16dp tick lane over the .action-bar (back left, status, primary right), or the
+	                main menu's news ticker
+   The frame line is the band's last dp. Content (.screen-frame) keeps a 20dp gutter inside it on
+   every side: 60dp from the sides, 132dp from the top, 108dp from the bottom. Screens fit their
+   content to this frame; the frame never moves for a screen.
+
+   Load screens keep the thin edge ruler (their art is the picture and they have no header or
+   actions): 20dp strips on the screen edges with the ticks standing on the edge. */
 .screen-ruler
 {
 	display: block;
@@ -1036,21 +1040,95 @@ body.screen
 	pointer-events: none;
 }
 
-.screen-ruler .rs
+.screen-ruler .rs, .screen-ruler .rc
 {
 	display: block;
 	position: absolute;
 	box-sizing: border-box;
 	pointer-events: none;
-	border-color: #8E97F890;
+	border-color: #8E97F8B8;
 }
 
-.screen-ruler .rc, .screen-ruler .rs-top > div, .screen-ruler .rs-bottom > div
+.screen-ruler .rs > div, .screen-ruler .rc > div
 {
 	display: none;
 }
 
-.screen-ruler .rs-top
+/* The band: one tint under all four sides and the corners, the opening left clear. */
+.hq .screen-ruler, .mm-d .screen-ruler
+{
+	border-width: 112dp 40dp 88dp 40dp;
+	border-color: #070A18A8;
+}
+
+/* The tick lanes, 16dp deep, each closed by the frame line on its inner side. */
+.hq .screen-ruler .rs-top, .mm-d .screen-ruler .rs-top
+{
+	left: 0;
+	right: 0;
+	top: -16dp;
+	height: 16dp;
+	border-bottom-width: 1dp;
+	decorator: ruler-ticks(bottom #8E97F8A0 none);
+}
+
+.hq .screen-ruler .rs-bottom, .mm-d .screen-ruler .rs-bottom
+{
+	left: 0;
+	right: 0;
+	bottom: -16dp;
+	height: 16dp;
+	border-top-width: 1dp;
+	decorator: ruler-ticks(top #8E97F8A0 none);
+}
+
+.hq .screen-ruler .rs-left, .mm-d .screen-ruler .rs-left
+{
+	left: -16dp;
+	top: 0;
+	bottom: 0;
+	width: 16dp;
+	border-right-width: 1dp;
+	decorator: ruler-ticks(right #8E97F8A0 none);
+}
+
+.hq .screen-ruler .rs-right, .mm-d .screen-ruler .rs-right
+{
+	right: -16dp;
+	top: 0;
+	bottom: 0;
+	width: 16dp;
+	border-left-width: 1dp;
+	decorator: ruler-ticks(left #8E97F8A0 none);
+}
+
+/* Corner pieces: a block where two tick lanes meet, its inner sides on the frame line. */
+.hq .screen-ruler .rc, .mm-d .screen-ruler .rc
+{
+	width: 16dp;
+	height: 16dp;
+	border-width: 1dp;
+	background-color: #8E97F830;
+}
+
+.hq .screen-ruler .rc > div, .mm-d .screen-ruler .rc > div
+{
+	display: block;
+	position: absolute;
+	left: 4dp;
+	top: 4dp;
+	width: 6dp;
+	height: 6dp;
+	background-color: #8E97F8C0;
+}
+
+.hq .rc-tl, .mm-d .rc-tl { left: -16dp; top: -16dp; }
+.hq .rc-tr, .mm-d .rc-tr { right: -16dp; top: -16dp; }
+.hq .rc-bl, .mm-d .rc-bl { left: -16dp; bottom: -16dp; }
+.hq .rc-br, .mm-d .rc-br { right: -16dp; bottom: -16dp; }
+
+/* Load screens: the thin edge ruler over the full-bleed art. */
+.ld .screen-ruler .rs-top, .mm-a .screen-ruler .rs-top, .mm-b .screen-ruler .rs-top, .mm-c .screen-ruler .rs-top
 {
 	left: 0;
 	right: 0;
@@ -1060,7 +1138,7 @@ body.screen
 	decorator: ruler-ticks(top #8E97F8B8);
 }
 
-.screen-ruler .rs-bottom
+.ld .screen-ruler .rs-bottom, .mm-a .screen-ruler .rs-bottom, .mm-b .screen-ruler .rs-bottom, .mm-c .screen-ruler .rs-bottom
 {
 	left: 0;
 	right: 0;
@@ -1070,7 +1148,7 @@ body.screen
 	decorator: ruler-ticks(bottom #8E97F8B8);
 }
 
-.screen-ruler .rs-left
+.ld .screen-ruler .rs-left, .mm-a .screen-ruler .rs-left, .mm-b .screen-ruler .rs-left, .mm-c .screen-ruler .rs-left
 {
 	left: 0;
 	top: 20dp;
@@ -1080,7 +1158,7 @@ body.screen
 	decorator: ruler-ticks(left #8E97F8B8);
 }
 
-.screen-ruler .rs-right
+.ld .screen-ruler .rs-right, .mm-a .screen-ruler .rs-right, .mm-b .screen-ruler .rs-right, .mm-c .screen-ruler .rs-right
 {
 	right: 0;
 	top: 20dp;
@@ -1090,46 +1168,8 @@ body.screen
 	decorator: ruler-ticks(right #8E97F8B8);
 }
 
-/* With the HQ header (or the main menu's) the header is the top band and its bottom border is the hairline. */
-body.hq .screen-ruler .rs-top, .mm-d .screen-ruler .rs-top
-{
-	border-bottom-width: 0;
-}
-
-body.hq .screen-ruler .rs-left, body.hq .screen-ruler .rs-right, .mm-d .screen-ruler .rs-left, .mm-d .screen-ruler .rs-right
-{
-	top: 84dp;
-}
-
-/* The main menu's ticker sits on the ticks and draws the bottom hairline itself. */
-.mm-d .screen-ruler .rs-bottom
-{
-	border-top-width: 0;
-}
-
-.mm-d .screen-ruler .rs-left, .mm-d .screen-ruler .rs-right
-{
-	bottom: 64dp;
-}
-
-/* Marks where the side hairlines meet the top and bottom ones. */
-.screen-ruler .rs-left > div, .screen-ruler .rs-right > div
-{
-	display: block;
-	position: absolute;
-	width: 8dp;
-	height: 8dp;
-	background-color: #8E97F8D0;
-}
-
-.rs-left > div:nth-child(1) { left: 15dp; top: -5dp; }
-.rs-left > div:nth-child(2) { left: 15dp; bottom: -5dp; }
-.rs-right > div:nth-child(1) { left: -5dp; top: -5dp; }
-.rs-right > div:nth-child(2) { left: -5dp; bottom: -5dp; }
-
-/* Content frame: inside the ruler, at most 2150dp wide and centred, no fill of its own. On a plain
-   screen it keeps 88dp / 78dp from the edges; under the HQ header (body.hq) it starts 20dp below
-   the strip and keeps 64dp from the sides and 20dp above the bottom band. */
+/* Content frame: a flex column. On a framed screen it keeps the 20dp gutter inside the frame line;
+   on a load screen it keeps 88dp / 78dp from the edges, at most 2150dp wide and centred. */
 .screen-frame
 {
 	box-sizing: border-box;
@@ -1145,8 +1185,17 @@ body.hq .screen-ruler .rs-left, body.hq .screen-ruler .rs-right, .mm-d .screen-r
 	flex-direction: column;
 }
 
+.hq .screen-frame, .mm-d .screen-frame
+{
+	left: 60dp;
+	right: 60dp;
+	top: 132dp;
+	bottom: 108dp;
+	max-width: none;
+}
+
 /* Dark halo behind text drawn straight on the map: a local scrim, only as big as the text. */
-.map-glow, .screen-crumb, .screen-title, .screen .btn-back, .on-map
+.map-glow, .screen-crumb, .screen-title, .screen .btn-back, .on-map, .hq-crumb, .hq-title, .hq-clock
 {
 	font-effect: glow(1dp 8dp 0dp 1dp #000000F0);
 }
@@ -1269,7 +1318,10 @@ body.hq .screen-ruler .rs-left, body.hq .screen-ruler .rs-right, .mm-d .screen-r
 .muted { color: #A9B1CF; }
 .dim { color: #7079A0; }
 
-/* ---- Action bar: back far left, primary far right; floats on the map ------------------------ */
+/* ---- Action bar: back far left, status between, primary far right ------------------------------
+   On a framed screen it is part of the frame: it leaves the content column and sits in the bottom
+   band under the tick lane, 58dp tall, lined up with the content's sides (and stays full width
+   while the social dock is out). Buttons in it are 48dp, the primary 58dp. */
 .action-bar
 {
 	display: flex;
@@ -1278,6 +1330,34 @@ body.hq .screen-ruler .rs-left, body.hq .screen-ruler .rs-right, .mm-d .screen-r
 	flex: 0 0 auto;
 	height: 75dp;
 	margin-top: 20dp;
+}
+
+.hq .screen-frame > .action-bar
+{
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -100dp;
+	height: 58dp;
+	margin-top: 0;
+	z-index: 4;
+}
+
+.hq.dock-open .screen-frame > .action-bar
+{
+	right: -390dp;
+}
+
+.screen.hq .action-bar button
+{
+	height: 48dp;
+	line-height: 46dp;
+}
+
+.screen.hq .action-bar button.btn-cta
+{
+	height: 58dp;
+	line-height: 54dp;
 }
 
 .action-bar button
@@ -3221,10 +3301,11 @@ body.modal.over-game
 
 /* ---- Social dock: an online screen makes room for the expanded dock ----------------------------
 	RmlSocialDock sets .dock-open on every body with .dock-host while its panel is out, so the
-	screen narrows beside the 390dp panel instead of sitting under it. */
+	screen narrows beside the 390dp panel instead of sitting under it. The panel docks against the
+	right band inside the frame line; the content keeps its 20dp gutter to it. */
 .screen.dock-open .screen-frame
 {
-	margin-right: 406dp;
+	margin-right: 390dp;
 }
 
 .shell.dock-open .shell-frame
@@ -3237,7 +3318,8 @@ body.modal.over-game
 /* 5:4 and 4:3: a 340dp panel. */
 @media (max-aspect-ratio: 3/2)
 {
-	.screen.dock-open .screen-frame { margin-right: 356dp; }
+	.screen.dock-open .screen-frame { margin-right: 340dp; }
+	.hq.dock-open .screen-frame > .action-bar { right: -340dp; }
 	.shell.dock-open .shell-frame { margin-right: 352dp; }
 }
 
@@ -3248,10 +3330,10 @@ body.modal.over-game
    green hilite marks what the pointer is on, and art cards open the next step.
 
 	Header strip  .hq-band.hq-header > .hq-band-in: the logo, the screen's crumb and title, optional
-	              small controls, and the status (online pill and clock) far right. A direct child
-	              of <body> (a viewport layer, like the ruler); class="hq" on <body> starts the frame
-	              under it. It replaces the .screen-heading plate: a screen's .screen-header then only
-	              holds its toolbar (filters, pickers), if it has one.
+	              small controls, and the status (online pill and clock) far right, in the frame's top
+	              band. A direct child of <body> (a viewport layer, like the ruler); class="hq" on
+	              <body> puts the screen in the frame. It replaces the .screen-heading plate: a
+	              screen's .screen-header then only holds its toolbar (filters, pickers), if it has one.
 		<body class="screen hq">
 		<div class="hq-band hq-header"><div class="hq-band-in">
 			<mappedimage name="GeneralsLogo" class="hq-logo"/>
@@ -3279,25 +3361,24 @@ body.modal.over-game
 	Card          button.hq-card > .hq-art (art well, clips) + .hq-card-text (.hq-card-title,
 	              .hq-card-desc) + <span class="hq-edge"/>: the edge and the border light green on
 	              hover and focus. A div.hq-card keeps the look without the hover.
-	Ticker        .hq-band.hq-ticker > .hq-band-in > .hq-tag + .hq-tk-view (see MainMenu.rml): a bottom
-	              strip of scrolling news; .hq-tk-static for a still line.
+	Ticker        .hq-band.hq-ticker > .hq-band-in > .hq-tag + .hq-tk-view (see MainMenu.rml): scrolling
+	              news in the frame's bottom band; .hq-tk-static for a still line.
    ========================================================================================= */
 
-/* ---- Bands: strips across the ruler's opening -------------------------------------------------
-   Flush with the frame line; the inner row keeps to the frame's width and gutters, so its content
-   lines up with the screen's own on any aspect ratio. */
+/* ---- Bands: the header and the ticker in the frame's top and bottom bands ----------------------
+   No fill of their own: the frame's band tint is under them. They span the frame line's width and
+   their row keeps the 20dp gutter, so the logo, Back and the first panel share one left edge. Above
+   the frame's band tint (z-index 3). */
 .hq-band
 {
 	display: block;
 	position: absolute;
-	left: 0;
-	right: 0;
+	left: 40dp;
+	right: 40dp;
 	box-sizing: border-box;
-	background-color: #060914B4;
+	z-index: 4;
 }
 
-/* Lines up with .screen-frame: 64dp from the sides, at most 2150dp of content. The top 16dp are the
-   ruler's ticks. */
 .hq-band-in
 {
 	display: flex;
@@ -3305,48 +3386,31 @@ body.modal.over-game
 	align-items: center;
 	box-sizing: border-box;
 	height: 100%;
-	max-width: 2278dp;
-	margin: 0 auto;
-	padding: 16dp 64dp 0 64dp;
+	padding: 0 20dp;
 }
 
-.hq-ticker .hq-band-in
-{
-	padding: 0 64dp;
-}
-
+/* The top band above its tick lane. */
 .hq-header
 {
 	top: 0;
-	height: 84dp;
-	border-bottom: 2dp #8E97F890;
-}
-
-/* The frame starts 20dp under the strip, 20dp above the bottom band, 64dp from the sides (clear of
-   the dock's collapsed tab). */
-body.hq .screen-frame
-{
-	left: 64dp;
-	right: 64dp;
-	top: 104dp;
-	bottom: 40dp;
-}
-
-/* The main menu also has the ticker above the bottom ticks. */
-.mm-d .screen-frame
-{
-	left: 64dp;
-	right: 64dp;
-	top: 104dp;
-	bottom: 84dp;
+	height: 96dp;
 }
 
 /* GeneralsLogo is 370x120 art. */
 .hq-logo
 {
 	flex: 0 0 auto;
-	width: 185dp;
-	height: 60dp;
+	width: 256dp;
+	height: 83dp;
+}
+
+/* The main menu's emblem: the art at full size, hanging over the frame line into the gutter. */
+.mm-d .hq-logo
+{
+	align-self: flex-start;
+	width: 370dp;
+	height: 120dp;
+	margin-top: 10dp;
 }
 
 .hq-heading
@@ -3514,6 +3578,7 @@ body.hq .screen-frame
 /* 5:4 and 4:3: the strip keeps the title; the logo shrinks and the count gives way to the name. */
 @media (max-aspect-ratio: 3/2)
 {
+	body.hq .hq-logo { width: 222dp; height: 72dp; }
 	body.hq .hq-heading { margin-left: 16dp; padding-left: 18dp; }
 	body.hq .hq-title { font-size: 30dp; }
 	body.hq .hq-count, body.hq .hq-sep { display: none; }
@@ -3523,9 +3588,8 @@ body.hq .screen-frame
 /* ---- Ticker: the bottom strip ------------------------------------------------------------------ */
 .hq-ticker
 {
-	bottom: 20dp;
-	height: 44dp;
-	border-top: 2dp #8E97F890;
+	bottom: 0;
+	height: 72dp;
 }
 
 .hq-tag
@@ -3621,7 +3685,7 @@ body.hq .screen-frame
 	top: 0;
 	bottom: 0;
 	width: 48dp;
-	decorator: horizontal-gradient(#060914 #06091400);
+	decorator: horizontal-gradient(#070A18D0 #070A1800);
 }
 
 .hq-tk-item
@@ -4391,7 +4455,7 @@ button.hq-card:hover .hq-card-title
 	align-items: center;
 	flex: 0 1 auto;
 	min-width: 0;
-	height: 55dp;
+	height: 58dp;
 	margin-right: 20dp;
 	padding: 0 20dp 0 16dp;
 	background-color: #070A1AD9;
@@ -4410,11 +4474,15 @@ button.hq-card:hover .hq-card-title
 	background-color: #D1FD04;
 }
 
+/* Up to three reasons fit the bar's 58dp; more are cut (Start still refuses with its message). */
 .su-ready.blocked
 {
 	height: auto;
-	min-height: 55dp;
-	padding: 6dp 20dp 6dp 16dp;
+	min-height: 58dp;
+	max-height: 58dp;
+	overflow: hidden;
+	box-sizing: border-box;
+	padding: 3dp 20dp 3dp 16dp;
 	border-left-color: #E8D440;
 	font-size: 16dp;
 	letter-spacing: 0;
@@ -4434,17 +4502,17 @@ button.hq-card:hover .hq-card-title
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	line-height: 22dp;
+	line-height: 17dp;
 	white-space: nowrap;
 }
 
 .su-blocker-mark
 {
 	flex: 0 0 auto;
-	width: 18dp;
-	height: 18dp;
+	width: 15dp;
+	height: 15dp;
 	margin-right: 10dp;
-	line-height: 18dp;
+	line-height: 15dp;
 	text-align: center;
 	font-size: 14dp;
 	font-weight: bold;

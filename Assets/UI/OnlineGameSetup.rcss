@@ -66,10 +66,6 @@
 .dock-open .prow-pop .swatch.random .chip { line-height: 16dp; }
 .dock-open .prow-pop-name { display: none; }
 .screen.dock-open .su-rules .cash-seg button.seg-item { padding: 0 2dp; font-size: 15dp; letter-spacing: 0; }
-.dock-open .su-ready { padding: 0 14dp 0 12dp; font-size: 15dp; margin-right: 14dp; }
-.dock-open .su-ready.blocked { font-size: 14dp; }
-.dock-open .ns-state { margin-left: 16dp; padding: 0 14dp; }
-.dock-open .ns-state-text { display: none; }
 
 @media (max-aspect-ratio: 3/2)
 {
@@ -88,6 +84,5 @@
 	.screen.dock-open .prow .team-seg button.seg-item:first-child { flex-basis: 42dp; width: 42dp; font-size: 12dp; }
 	.dock-open .prow-spot { width: 32dp; margin-left: 6dp; }
 	.dock-open .prow .team-seg { margin-left: 6dp; }
-	.dock-open .su-ready { display: none; }
 	.screen.dock-open .su-rules .cash-seg button.seg-item { font-size: 13dp; }
 }

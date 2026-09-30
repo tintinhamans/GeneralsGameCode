@@ -48,15 +48,15 @@ body.cr
 	background-color: #05070FA0;
 }
 
-/* The band the lines scroll in: the width of CreditsManager's two column bands, inside the ruler. */
+/* The band the lines scroll in: the width of CreditsManager's two column bands, inside the frame line. */
 .cr-band
 {
 	display: block;
 	position: absolute;
 	left: 16.667%;
 	width: 66.667%;
-	top: 104dp;
-	bottom: 40dp;
+	top: 112dp;
+	bottom: 88dp;
 	background-color: #070A1AB4;
 	border-left: 1dp #8080FF28;
 	border-right: 1dp #8080FF28;
