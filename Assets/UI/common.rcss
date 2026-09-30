@@ -3367,7 +3367,7 @@ body.hq .screen-frame
 	margin-left: 10dp;
 }
 
-.screen .hq-aside button
+.screen .hq-aside > button
 {
 	height: 42dp;
 	line-height: 40dp;
@@ -3379,7 +3379,7 @@ body.hq .screen-frame
 	border: 1dp #8080FF40;
 }
 
-.screen .hq-aside button:hover
+.screen .hq-aside > button:hover
 {
 	color: #D1FD04;
 	background-color: #141A3EE6;

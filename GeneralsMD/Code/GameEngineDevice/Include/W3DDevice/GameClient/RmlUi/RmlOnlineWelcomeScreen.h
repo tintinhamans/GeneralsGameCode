@@ -59,6 +59,7 @@
 #include "Common/Signal.h"
 #include "GameClient/GUI/GUICallbacks/Menus/PlayerStatsData.h"
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -100,6 +101,7 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	SignalConnections m_connections; // OnlineWelcomeSignals + PlayerStatsSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 
 	// One MOTD listbox line (see OnlineWelcomeData::buildMotdLines()). colorHex is a
 	// "rgba(r, g, b, a)" CSS string (0-255 alpha, same convention as RmlSkirmishSetupScreen.cpp's

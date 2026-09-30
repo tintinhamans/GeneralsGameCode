@@ -55,6 +55,7 @@
 #include "GameClient/Color.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbyData.h"
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -124,6 +125,7 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	SignalConnections m_connections; // OnlineLobbySignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 	std::string m_rosterSignature; // see refreshPlayers()
 	static const unsigned long PLAYER_LIST_POLL_MS = 4000; // WOLLobbyMenu.cpp's playerListRefreshInterval
 	unsigned long m_lastRosterPoll = 0; // GetTickCount() of the last update() poll

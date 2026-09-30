@@ -4,34 +4,43 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="OnlineWelcome.rcss"/>
 </head>
-<body class="screen dock-host" data-model="onlinewelcome">
+<body class="screen hq dock-host" data-model="onlinewelcome">
 	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
-	<div class="screen-frame">
-		<div class="screen-header">
-			<div class="screen-heading">
-				<div class="screen-crumb"><gametext key="GUI:Multiplayer"/><span class="crumb-sep">&#8250;</span></div>
-				<div class="screen-title"><gametext key="GUI:GOStatusTitle"/></div>
-			</div>
-			<div class="screen-header-aside wc-header-actions">
+	<div class="hq-band hq-header"><div class="hq-band-in">
+			<mappedimage name="GeneralsLogo" class="hq-logo"/>
+			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:Multiplayer"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:GOStatusTitle"/></div></div>
+			<div class="hq-aside wc-header-actions">
 				<button data-event-click="buddies" data-tooltip="TOOLTIP:CommunicatorButton">{{buddies_button_text}}</button>
 				<button data-event-click="options" data-tooltip="TOOLTIP:Options"><gametext key="GUI:Options"/></button>
 			</div>
-		</div>
+			<div class="hq-status">
+				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
+			</div>
+	</div></div>
 
+	<div class="screen-frame">
 		<div class="screen-body">
 			<div class="col col-main">
 				<!-- The two ways into a game, side by side. -->
 				<div class="wc-tiles">
-					<button class="tile wc-tile wc-tile-qm" data-event-click="quick_match">
+					<button class="tile hq-card hq-brackets wc-tile wc-tile-qm" data-event-click="quick_match">
+						<div class="hq-art wc-art"><mappedimage class="wc-art-img" name="EarthMap"/><div class="wc-art-tint"></div></div>
+						<span class="hq-index wc-idx">01</span>
 						<span class="wc-tile-go">&#8250;</span>
 						<span class="tile-title"><gametext key="GUI:QuickMatch"/></span>
 						<span class="tile-caption"><gametext key="TOOLTIP:Quickmatch"/></span>
+						<span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span><span class="hq-edge"></span>
 					</button>
-					<button class="tile wc-tile" data-event-click="custom_match">
+					<button class="tile hq-card hq-brackets wc-tile" data-event-click="custom_match">
+						<div class="hq-art wc-art"><mappedimage class="wc-art-img" name="EarthMap"/><div class="wc-art-tint"></div></div>
+						<span class="hq-index wc-idx">02</span>
 						<span class="wc-tile-go">&#8250;</span>
 						<span class="tile-title"><gametext key="GUI:CustomMatch"/></span>
 						<span class="tile-caption"><gametext key="TOOLTIP:CustomMatch"/></span>
+						<span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span><span class="hq-edge"></span>
 					</button>
 				</div>
 

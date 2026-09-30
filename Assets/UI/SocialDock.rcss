@@ -5,7 +5,8 @@
 
 	  collapsed  a 62dp tab in the ruler band at the right edge (outside every screen's content):
 	             friends online, a badge for unread conversations plus friend requests.
-	  expanded   a 390dp side panel down the right of the frame. The host screen makes room for it
+	  expanded   a 390dp side panel down the right of the frame, under the host's .hq-header strip.
+	             The host screen makes room for it
 	             (body.dock-open, see common.rcss), so it never covers the screen's own actions.
 	             Views: friends and requests, the custom lobby's room (its Lobby tab, while the
 	             lobby is up), the block list, one conversation.
@@ -145,7 +146,7 @@ body
 	box-sizing: border-box;
 	position: fixed;
 	right: 88dp;
-	top: 78dp;
+	top: 168.5dp;
 	bottom: 78dp;
 	width: 390dp;
 	padding: 0 18dp 18dp 18dp;

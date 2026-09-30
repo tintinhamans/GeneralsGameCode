@@ -72,6 +72,7 @@ void RmlQuickMatchScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("quickmatch");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
 		Rml::StructHandle<StatusLineModel> statusHandle = constructor.RegisterStruct<StatusLineModel>();
 		if (statusHandle)
 		{
@@ -231,6 +232,7 @@ void RmlQuickMatchScreen::show()
 	connectSessionSignals(this, m_connections);
 	QuickMatchSession::enter();
 
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
 
 	// WOLQuickMatchMenuInit()'s entrance group, and WOLQuickMatchMenuShutdown()'s reverse below.
@@ -276,6 +278,7 @@ void RmlQuickMatchScreen::onBack()
 
 void RmlQuickMatchScreen::update()
 {
+	m_hq.refresh(m_modelHandle);
 	if (!m_document || !isVisible())
 		return;
 

@@ -2,22 +2,18 @@
 	OnlineWelcome.rcss -- the Generals Online hub (WOLWelcomeMenu.wnd) as a dashboard on the screen
 	template (common.rcss):
 
-	  header     Communicator and Options beside the heading
-	  main       Quick Match and Custom Match as two big tiles; under them the message of the day
+	  header     the .hq-header strip; Communicator and Options in its aside
+	  main       Quick Match and Custom Match as two big HQ cards (index, brackets, scan line, green
+	             edge on hover; Quick Match's edge always lit); under them the message of the day
 	             and the daily army win rates (the .wnd's silver medallions, a rate and a bar each)
 	  side       the player card: rank portrait with the general badge, progress to the next rank,
 	             the career record and My Persona
-	  action bar Main Menu (logs out) on the left, the players online count on the right
+	  action bar Main Menu (logs out) on the left; the players online count only on 5:4 and 4:3,
+	             where the strip's pill drops its count
 
 	The page narrows beside the expanded social dock (.dock-open, see common.rcss): the win rates
 	then drop under the news as one wide row.
 */
-
-/* ---- Header ------------------------------------------------------------------------------------ */
-.wc-header-actions button
-{
-	margin-left: 12dp;
-}
 
 /* ---- Tiles ------------------------------------------------------------------------------------- */
 .wc-tiles
@@ -30,6 +26,9 @@
 
 .screen button.wc-tile
 {
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
 	position: relative;
 	flex: 1 1 0%;
 	min-width: 0;
@@ -37,15 +36,71 @@
 	padding: 24dp 30dp 26dp 30dp;
 }
 
+/* The shell's world map (234x251 art), faint behind the text; mappedimage takes dp sizes only. */
+.wc-art
+{
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+}
+
+.wc-art-img
+{
+	position: absolute;
+	right: -40dp;
+	top: -190dp;
+	width: 540dp;
+	height: 580dp;
+	opacity: 0.3;
+	transition: opacity 0.16s cubic-out;
+}
+
+.wc-tile:hover .wc-art-img
+{
+	opacity: 0.5;
+}
+
+.wc-art-tint
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	decorator: horizontal-gradient(#070A1AF4 #070A1A60);
+}
+
+.wc-idx
+{
+	position: absolute;
+	left: 30dp;
+	top: 24dp;
+}
+
+.wc-tile .hq-scan
+{
+	left: 30dp;
+	bottom: 12dp;
+}
+
 .screen button.wc-tile + button.wc-tile
 {
 	margin-left: 20dp;
 }
 
-/* Quick Match is the one-click way in: it carries the accent. */
-.screen button.wc-tile-qm
+/* Quick Match is the one-click way in: its edge stays lit. */
+.wc-tile-qm .hq-edge
 {
-	border-bottom-color: #D1FD04;
+	background-color: #D1FD04;
+}
+
+/* In-flow text over the positioned art. */
+.wc-tile .tile-title, .wc-tile .tile-caption
+{
+	position: relative;
 }
 
 .wc-tile .tile-title
@@ -360,7 +415,7 @@
 /* ---- Action bar -------------------------------------------------------------------------------- */
 .wc-online
 {
-	display: block;
+	display: none;
 	padding: 12dp 22dp;
 	font-size: 21dp;
 	font-weight: bold;
@@ -391,6 +446,7 @@
 
 @media (max-aspect-ratio: 3/2)
 {
+	.wc-online { display: block; }
 	.wc-lower { flex-direction: column; }
 	.wc-lower .surface + .surface { margin-left: 0; margin-top: 20dp; }
 	.wc-armies { flex: 0 0 auto; width: auto; padding-bottom: 12dp; }
@@ -407,6 +463,8 @@
 	.wc-tile .tile-caption { font-size: 16dp; line-height: 21dp; }
 	.wc-tile-go { font-size: 52dp; }
 	.screen button.wc-tile { padding: 20dp 22dp 20dp 22dp; }
+	.wc-idx { left: 22dp; top: 18dp; }
+	.wc-tile .hq-scan { left: 22dp; bottom: 10dp; }
 	.wc-portrait { width: 122dp; height: 122dp; }
 	.wc-rank-image { width: 112dp; height: 112dp; }
 	.wc-rank-info { margin-left: 18dp; }
@@ -427,6 +485,4 @@
 	.dock-open .wc-rank-name { font-size: 22dp; line-height: 28dp; }
 	.dock-open .wc-stat-label { font-size: 15dp; }
 	.dock-open .wc-stat-value { font-size: 17dp; }
-	.dock-open .screen-crumb { display: none; }
-	.dock-open .wc-header-actions button { padding: 0 16dp; margin-left: 8dp; }
 }

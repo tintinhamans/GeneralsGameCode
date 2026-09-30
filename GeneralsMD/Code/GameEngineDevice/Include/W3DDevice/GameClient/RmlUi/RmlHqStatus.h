@@ -29,7 +29,6 @@
 
 #include <RmlUi/Core/DataModelHandle.h>
 
-#include <cstdio>
 #include <ctime>
 
 class RmlHqStatus
@@ -69,8 +68,8 @@ public:
 
 		std::tm local = {};
 		localtime_s(&local, &now);
-		char clock[8];
-		std::snprintf(clock, sizeof(clock), "%02d:%02d", local.tm_hour, local.tm_min);
+		const char clock[] = { char('0' + local.tm_hour / 10), char('0' + local.tm_hour % 10), ':',
+			char('0' + local.tm_min / 10), char('0' + local.tm_min % 10), '\0' };
 
 		set(handle, "logged_in", m_loggedIn, loggedIn, force);
 		set(handle, "player_name", m_playerName, name, force);

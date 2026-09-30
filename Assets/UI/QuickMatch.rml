@@ -8,32 +8,34 @@
      template. The main column is the setup (playlist cards over the map pool) or the player's
      persona, switched in the header; the side column is the search state over the loadout and the
      status feed. Start and Cancel matchmaking take turns as the primary action. -->
-<body class="screen dock-host" data-model="quickmatch">
+<body class="screen hq dock-host" data-model="quickmatch">
 	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
-	<div class="screen-frame">
-		<div class="screen-header">
-			<div class="screen-heading">
-				<div class="screen-crumb"><gametext key="GUI:GeneralsOnline"/><span class="crumb-sep">&#8250;</span></div>
-				<div class="screen-title qm-title">{{title}}</div>
-			</div>
-			<!-- ButtonOptions: Setup or the player's info, one at a time (toggle_options flips it). -->
-			<div class="screen-header-aside qm-views">
+	<div class="hq-band hq-header"><div class="hq-band-in">
+			<mappedimage name="GeneralsLogo" class="hq-logo"/>
+			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:GeneralsOnline"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title qm-title">{{title}}</div></div>
+			<div class="hq-aside qm-views">
 				<div class="seg">
 					<button class="seg-item" data-class-on="!show_stats" data-attrif-disabled="!show_stats" data-event-click="toggle_options"><gametext key="GUI:Setup"/></button>
 					<button class="seg-item" data-class-on="show_stats" data-attrif-disabled="show_stats" data-event-click="toggle_options"><gametext key="GUI:PlayerInfo"/></button>
 				</div>
 			</div>
-		</div>
+			<div class="hq-status">
+				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
+			</div>
+	</div></div>
 
+	<div class="screen-frame">
 		<div class="screen-body">
 			<div class="col col-main">
 				<!-- Setup: the playlist as cards, then the maps it allows, each toggled in or out. -->
 				<div class="surface qm-playlists" data-if="!show_stats" data-tooltip="TOOLTIP:PlayerSetting">
 					<div class="overline group-title"><gametext key="GUI:GOQMPlaylist"/></div>
 					<div class="qm-pl-row">
-						<button class="qm-pl" data-for="opt : playlists" data-class-on="opt.index == selected_playlist"
-							data-event-click="selected_playlist = opt.index; playlist_changed()">{{opt.label}}</button>
+						<button class="qm-pl hq-brackets" data-for="opt : playlists" data-class-on="opt.index == selected_playlist" data-class-selected="opt.index == selected_playlist"
+							data-event-click="selected_playlist = opt.index; playlist_changed()"><span class="qm-pl-label">{{opt.label}}</span><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span><span class="hq-edge"></span></button>
 					</div>
 				</div>
 

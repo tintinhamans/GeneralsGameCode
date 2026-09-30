@@ -54,7 +54,10 @@
 #pragma once
 
 #include "Common/Signal.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
+
+#include <RmlUi/Core/DataModelHandle.h>
 
 namespace Rml { class Context; class ElementDocument; }
 
@@ -70,6 +73,7 @@ public:
 	virtual void hide() override;
 	virtual bool isVisible() const override;
 	virtual void onBack() override; // no-op; see header comment above
+	virtual void update() override; // ticks the .hq-header status
 
 private:
 	RmlOnlineLoginScreen() {}
@@ -81,6 +85,8 @@ private:
 	SignalConnections m_connections; // OnlineLoginSignals, connected while showing
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
+	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 };
 
 // Registry entry point (see RmlUiManager::init()). Shared by both GameSpyLoginProfile.wnd and

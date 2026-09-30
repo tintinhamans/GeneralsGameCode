@@ -24,6 +24,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include <RmlUi/Core/Context.h>
+#include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/ElementDocument.h>
 
 //-------------------------------------------------------------------------------------------------
@@ -39,6 +40,15 @@ void RmlOnlineLoginScreen::load(Rml::Context *context)
 		return; // already loaded
 
 	m_context = context;
+
+	// Only the .hq-header status: the screen has no controls of its own.
+	Rml::DataModelConstructor constructor = context->CreateDataModel("onlinelogin");
+	if (constructor)
+	{
+		m_hq.bind(constructor);
+		m_modelHandle = constructor.GetModelHandle();
+	}
+
 	m_document = context->LoadDocument("UI/OnlineLogin.rml");
 }
 
@@ -48,6 +58,7 @@ void RmlOnlineLoginScreen::show()
 	if (!m_document)
 		return;
 
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
 
 	// WOLLoginMenuInit()'s entrance group, and WOLLoginMenuShutdown()'s reverse in hide().
@@ -83,6 +94,11 @@ void RmlOnlineLoginScreen::onBack()
 {
 	// No-op: see the header comment above -- Escape has no effect on the real .wnd screen either
 	// under GENERALS_ONLINE (buttonBack is never assigned).
+}
+
+void RmlOnlineLoginScreen::update()
+{
+	m_hq.refresh(m_modelHandle);
 }
 
 //-------------------------------------------------------------------------------------------------

@@ -113,6 +113,7 @@ void RmlOnlineLobbyScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("onlinelobby");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
 		Rml::StructHandle<GameRowModel> gameHandle = constructor.RegisterStruct<GameRowModel>();
 		if (gameHandle)
 		{
@@ -304,6 +305,7 @@ void RmlOnlineLobbyScreen::show()
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
 
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
 	OnlineLobbyActions::refresh();
 
@@ -337,6 +339,7 @@ void RmlOnlineLobbyScreen::onBack()
 
 void RmlOnlineLobbyScreen::update()
 {
+	m_hq.refresh(m_modelHandle);
 	// WOLLobbyMenuUpdate() never runs for a registry-routed screen (see header comment); its
 	// pending-full-teardown exit and lobby-list-dirty poll are OnlineLobbySession's, and the periodic
 	// player-list re-poll it drove via refreshPlayerList()'s time-gate is replaced here.

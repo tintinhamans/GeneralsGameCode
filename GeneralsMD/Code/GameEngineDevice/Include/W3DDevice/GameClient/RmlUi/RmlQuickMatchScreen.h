@@ -54,6 +54,7 @@
 #include "Common/Signal.h"
 #include "GameClient/GUI/GUICallbacks/Menus/PlayerStatsData.h"
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -119,6 +120,7 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	SignalConnections m_connections; // QuickMatchSignals + PlayerStatsSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 
 	// One status/chat line (see QuickMatchSignals::statusLine). color is a pre-formatted
 	// "rgba(r,g,b,a)" string, same idiom RmlOnlineGameSetupScreen.cpp's colorToCss() produces -- append

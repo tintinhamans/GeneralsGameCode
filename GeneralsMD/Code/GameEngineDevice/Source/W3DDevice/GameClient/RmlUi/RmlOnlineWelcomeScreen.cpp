@@ -65,6 +65,7 @@ void RmlOnlineWelcomeScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("onlinewelcome");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
 		Rml::StructHandle<MotdLineModel> motdHandle = constructor.RegisterStruct<MotdLineModel>();
 		if (motdHandle)
 		{
@@ -196,6 +197,7 @@ void RmlOnlineWelcomeScreen::show()
 				m_modelHandle.DirtyVariable("faction_stats");
 		});
 
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
 
 	// WOLWelcomeMenuInit()'s entrance group, and WOLWelcomeMenuShutdown()'s reverse below.
@@ -228,6 +230,7 @@ void RmlOnlineWelcomeScreen::onBack()
 
 void RmlOnlineWelcomeScreen::update()
 {
+	m_hq.refresh(m_modelHandle);
 	// WOLWelcomeMenuUpdate() never runs for a registry-routed screen (see header comment); this is
 	// its replacement for the pending-full-teardown branch.
 	if (OnlineWelcomeActions::consumePendingFullTeardown())

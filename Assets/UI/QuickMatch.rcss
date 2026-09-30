@@ -1,7 +1,8 @@
 /*
 	QuickMatch.rcss -- WOLQuickMatchMenu.wnd as a matchmaking hub on the screen template (common.rcss).
-	Main column: the playlist as cards over the map pool (a grid of toggles), or the player's persona
-	(common.rcss's persona and stat blocks) -- show_stats picks one, the header switches. Side column:
+	The .hq-header strip carries the title and the Setup / Player info switch. Main column: the
+	playlist as HQ bracketed cards over the map pool (a grid of toggles), or the player's persona
+	(common.rcss's persona and stat blocks) -- show_stats picks one. Side column:
 	the search state (ready, or searching with a pulsing radar and the time in the queue), the
 	loadout and filters the service sets, and the status feed. Start and Cancel matchmaking take
 	turns as the primary action at the right end of the action bar.
@@ -47,15 +48,14 @@
 	color: #D7DCF0;
 	background-color: #05070FC8;
 	border: 1dp #8080FF28;
-	border-bottom: 4dp #2F37A8;
 }
 
+/* HQ brackets and scan line on hover; the picked one keeps them with a lit top edge. */
 .screen button.qm-pl:hover
 {
-	color: #FFFFFF;
+	color: #D1FD04;
 	background-color: #141A3EF0;
 	border-color: #8080FF;
-	border-bottom-color: #D1FD04;
 }
 
 .screen button.qm-pl.on, .screen button.qm-pl.on:hover
@@ -63,7 +63,17 @@
 	color: #FFFFFF;
 	background-color: #2F37A8C8;
 	border-color: #8080FF;
-	border-bottom-color: #D1FD04;
+}
+
+.qm-pl .hq-scan
+{
+	left: 30dp;
+	bottom: 12dp;
+}
+
+.qm-pl.on .hq-edge
+{
+	background-color: #D1FD04;
 }
 
 /* ---- Map pool: a grid of toggles ------------------------------------------------------------------- */
@@ -467,6 +477,5 @@
 	.dock-open .qm-side { width: 330dp; }
 	.dock-open .qm-map { width: 100%; margin-right: 0; }
 	.screen.dock-open .action-bar button.btn-cta { min-width: 0; padding: 0 24dp; font-size: 20dp; }
-	.dock-open .screen-crumb { display: none; }
 }
 
