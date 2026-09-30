@@ -1,129 +1,70 @@
 /*
-	PlayerInfo.rcss -- PopupPlayerInfo.wnd (the player info right-click popup, GSOVERLAY_PLAYERINFO).
-	Unlike the shell screens this is a floating popup over whatever's showing underneath (the
-	Generals Online welcome screen or WOLQuickMatchMenu.wnd), same as QuitMenu.rcss -- body itself is
-	centered and made display:flex (not just its .frame child) so the percentage-sized honors-grid
-	below can resolve against it (see common.rcss's gotcha note on body-centered popups).
+	PlayerInfo.rcss -- PopupPlayerInfo.wnd (the persona popup, GSOVERLAY_PLAYERINFO): the modal card of
+	common.rcss as a persona card. A rank header like the online dashboard's player card, the career
+	record as stat blocks four across, the battle honors on a dark plate (earned ones lit).
 */
 
-body
+.pi-card
 {
-	display: flex;
-	flex-direction: column;
-	width: 680dp;
-	left: 50%;
-	top: 50%;
-	margin-left: -340dp;
-	margin-top: -280dp;
+	width: 900dp;
 }
 
-.playerinfo-frame
+.pi-body
 {
-	display: flex;
-	flex-direction: column;
+	padding-top: 20dp;
 }
 
-.playerinfo-loading
+/* ---- Battle honors ------------------------------------------------------------------------------ */
+.pi-honors-title
 {
-	padding: 24dp 0;
-	text-align: center;
-	color: #C0C0C0;
+	margin-top: 22dp;
 }
 
-.playerinfo-body
-{
-	display: flex;
-	flex-direction: column;
-}
-
-.playerinfo-row
-{
-	display: flex;
-	flex-direction: row;
-	margin-bottom: 8dp;
-}
-
-/* ---- Stats column -- reuses common.rcss's .row/.label/.control, 24dp instead of the 32dp control
-   rows since there are 13 of them in the popup (the rank cluster is shared, see common.rcss). -- */
-.stats-column
-{
-	display: flex;
-	flex-direction: column;
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
-.stats-column .row
-{
-	min-height: 24dp;
-	margin-bottom: 0;
-}
-
-.stats-column .row > .label
-{
-	flex: 1 1 auto;
-}
-
-.stats-column .row > .control
-{
-	width: auto;
-	flex: 0 0 auto;
-	margin-left: auto;
-	color: #FFFFFF;
-	font-weight: bold;
-}
-
-/* ---- Battle honors grid ---------------------------------------------------------------------- */
-.honors-grid
+.pi-honors
 {
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
-	background-color: rgba(0, 64, 64, 140);
-	border: 1dp #2F37A8;
-	padding: 6dp;
+	margin-top: 10dp;
+	padding: 8dp;
+	background-color: #05070FC8;
+	border: 1dp #8080FF1E;
 }
 
-.honor-cell
+.pi-honor
 {
 	position: relative;
-	width: 56dp;
-	height: 57dp;
-	margin: 2dp;
+	width: 58dp;
+	height: 58dp;
+	margin: 3dp;
 }
 
-.honor-cell.disabled
+.pi-honor.disabled
 {
-	opacity: 0.35;
+	opacity: 0.25;
 }
 
-.honor-icon
+.pi-honor-icon
 {
 	display: block;
 	width: 100%;
 	height: 100%;
 }
 
-.honor-count
+.pi-honor-count
 {
 	position: absolute;
-	left: 2dp;
-	bottom: 2dp;
-	color: #FFFFFF;
+	left: 0;
+	bottom: 0;
+	padding: 0 4dp;
+	font-size: 14dp;
+	line-height: 17dp;
 	font-weight: bold;
-	font-size: 13dp;
+	color: #FFFFFF;
+	background-color: #05070FC8;
 }
 
-.playerinfo-footer
+@media (max-aspect-ratio: 3/2)
 {
-	flex: 0 0 auto;
-	display: flex;
-	flex-direction: row;
-	justify-content: flex-end;
-	margin-top: 12dp;
-}
-
-.playerinfo-footer button
-{
-	margin-left: 12dp;
+	.pi-card { width: 820dp; }
 }

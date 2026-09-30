@@ -4,53 +4,63 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="PlayerInfo.rcss"/>
 </head>
-<body data-model="playerinfo">
-	<div class="frame playerinfo-frame">
-		<div class="title-bar">{{title}}</div>
+<!-- A player's persona (PopupPlayerInfo.wnd, GSOVERLAY_PLAYERINFO): a modal card over the online
+     screens. The rank leads, the career record follows as stat blocks, then the battle honors. -->
+<body class="screen modal" data-model="playerinfo">
+	<div class="modal-card pi-card">
+		<div class="modal-head">
+			<div class="modal-heading">
+				<div class="overline"><gametext key="GUI:Persona"/></div>
+				<div class="modal-title">{{title}}</div>
+			</div>
+			<button class="modal-close" data-event-click="close" data-tooltip="GUI:Close">&#215;</button>
+		</div>
 
-		<div class="playerinfo-loading" data-if="stats_loading"><gametext key="GUI:FetchingPlayerInfo"/></div>
+		<div class="modal-body pi-loading" data-if="stats_loading">
+			<div class="empty-state pulse"><gametext key="GUI:FetchingPlayerInfo"/></div>
+		</div>
 
-		<div class="playerinfo-body" data-if="!stats_loading">
-			<div class="playerinfo-row">
-				<div class="rank-column">
-					<div class="t-muted"><gametext key="GUI:Rank"/></div>
-					<div class="rank-border">
-						<div class="rank-image-wrap">
-							<mappedimage class="rank-image" data-attr-name="rank_image_name"/>
-							<mappedimage class="faction-image" data-attr-name="faction_image_name" data-if="show_faction_image"/>
-						</div>
-						<div class="rank-progress" data-if="!rank_at_max">
-							<div class="rank-progress-fill" data-style-width="rank_progress_width_style"></div>
-						</div>
-					</div>
-					<div class="rank-label">{{rank_text}}</div>
+		<div class="modal-body pi-body" data-if="!stats_loading">
+			<!-- Rank art with the general's badge in its corner, the rank and the way to the next one. -->
+			<div class="persona-hero">
+				<div class="persona-portrait">
+					<mappedimage class="persona-rank-image" data-attr-name="rank_image_name"/>
+					<div class="persona-badge" data-if="show_faction_image"><mappedimage data-attr-name="faction_image_name"/></div>
 				</div>
-
-				<div class="stats-column">
-					<div class="row"><div class="label"><gametext key="GUI:GamesPlayed"/></div><div class="control">{{games_played_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:CareerWins"/></div><div class="control">{{wins_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:CareerLosses"/></div><div class="control">{{losses_text}}</div></div>
-					<div class="row"><div class="label">{{disconnects_label_text}}</div><div class="control">{{disconnects_value_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:BestWinStreak"/></div><div class="control">{{best_streak_text}}</div></div>
-					<div class="row"><div class="label">{{streak_label_text}}</div><div class="control">{{streak_value_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:CarrerWinPercent"/></div><div class="control">{{win_percent_text}}</div></div>
+				<div class="persona-rank">
+					<div class="overline"><gametext key="GUI:Rank"/></div>
+					<div class="persona-rank-name">{{rank_text}}</div>
+					<div class="progress persona-progress" data-if="!rank_at_max" data-tooltip="TOOLTIP:ProgressToNextRank">
+						<div class="progress-fill" data-style-width="rank_progress_width_style"></div>
+					</div>
 				</div>
 			</div>
 
-			<div class="section-title" data-tooltip="TOOLTIP:BattleHonors"><gametext key="GUI:BattleHonors"/></div>
-			<div class="honors-grid">
-				<div class="honor-cell" data-for="honor : battle_honors" data-if="honor.used" data-class-disabled="!honor.enabled"
+			<div class="stat-blocks">
+				<div class="stat-block"><div class="stat-block-value">{{games_played_text}}</div><div class="stat-label"><gametext key="GUI:GamesPlayed"/></div></div>
+				<div class="stat-block"><div class="stat-block-value">{{wins_text}}</div><div class="stat-label"><gametext key="GUI:CareerWins"/></div></div>
+				<div class="stat-block"><div class="stat-block-value">{{losses_text}}</div><div class="stat-label"><gametext key="GUI:CareerLosses"/></div></div>
+				<div class="stat-block"><div class="stat-block-value">{{win_percent_text}}</div><div class="stat-label"><gametext key="GUI:CarrerWinPercent"/></div></div>
+				<div class="stat-block"><div class="stat-block-value">{{disconnects_value_text}}</div><div class="stat-label">{{disconnects_label_text}}</div></div>
+				<div class="stat-block"><div class="stat-block-value">{{best_streak_text}}</div><div class="stat-label"><gametext key="GUI:BestWinStreak"/></div></div>
+				<div class="stat-block"><div class="stat-block-value">{{streak_value_text}}</div><div class="stat-label">{{streak_label_text}}</div></div>
+			</div>
+
+			<div class="overline pi-honors-title" data-tooltip="TOOLTIP:BattleHonors"><gametext key="GUI:BattleHonors"/></div>
+			<div class="pi-honors">
+				<div class="pi-honor" data-for="honor : battle_honors" data-if="honor.used" data-class-disabled="!honor.enabled"
 					data-attr-data-tooltip-text="honor.tooltip_text">
-					<mappedimage class="honor-icon" data-attr-name="honor.image_name"/>
-					<div class="honor-count" data-if="honor.has_count">{{honor.count_text}}</div>
+					<mappedimage class="pi-honor-icon" data-attr-name="honor.image_name"/>
+					<div class="pi-honor-count" data-if="honor.has_count">{{honor.count_text}}</div>
 				</div>
 			</div>
 		</div>
 
-		<div class="playerinfo-footer">
+		<div class="modal-actions">
+			<button class="btn-back" data-event-click="close"><span class="chevron">&#8249;</span><gametext key="GUI:Hide"/></button>
+			<div class="spacer"></div>
 			<!-- LOGOUT is a hardcoded literal in the .wnd too (buttonDeleteAccount->winSetText(L"LOGOUT")), not a GameText key. -->
 			<button data-event-click="logout" data-if="show_logout">LOGOUT</button>
-			<button data-event-click="close"><gametext key="GUI:Hide"/></button>
 		</div>
 	</div>
 </body>
