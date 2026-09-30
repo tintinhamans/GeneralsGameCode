@@ -20,6 +20,7 @@
 
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineLobbyActions.h"
 #include "Common/UnicodeUtf8.h"
+#include "GameClient/GameText.h"
 
 #include "GameClient/WinInstanceData.h" // LobbyUtils.h's tooltip decls need this in scope
 #include "GameNetwork/GameSpy/LobbyUtils.h"
@@ -37,6 +38,8 @@ extern Bool handleLobbySlashCommands( UnicodeString uText, Bool *wasRateLimited 
 extern bool LobbyChatRateLimitAllowsSend();
 extern void LobbyMenu_HostGamePressed();
 extern void LobbyMenu_JoinLobbyByID( int64_t selectedID );
+extern void NGMP_WOLLobbyMenu_JoinLobbyCallback( EJoinLobbyResult result );
+extern void SetLobbyAttemptHostJoin( Bool start );
 extern UnicodeString FormatRoomLabel( const std::vector<NetworkRoom> &rooms, Int roomIndex ); // same tree-indent label the .wnd's PopulateLobbyFilterComboBox() uses
 
 // WOLBuddyOverlay.cpp free function (RequestBuddyAdd()'s GENERALS_ONLINE branch calls
@@ -61,6 +64,30 @@ void joinLobby( int64_t lobbyID )
 	if ( lobbyID < 0 )
 		return;
 	LobbyMenu_JoinLobbyByID( lobbyID );
+}
+
+bool finishCreateLobby( bool success )
+{
+	ClearGSMessageBoxes();
+	if ( !success )
+	{
+		SetLobbyAttemptHostJoin( FALSE );
+		GSMessageBoxOk( TheGameText->fetch( "GUI:Error" ), TheGameText->fetch( "GUI:GOCreateLobbyFailed" ) );
+	}
+	return success;
+}
+
+bool finishJoinLobby( int result )
+{
+	if ( (EJoinLobbyResult)result == EJoinLobbyResult::JoinLobbyResult_Success )
+	{
+		SetLobbyAttemptHostJoin( FALSE );
+		return true;
+	}
+
+	// Its failure branch is front-end neutral: clears the flag and shows the reason.
+	NGMP_WOLLobbyMenu_JoinLobbyCallback( (EJoinLobbyResult)result );
+	return false;
 }
 
 void refresh()

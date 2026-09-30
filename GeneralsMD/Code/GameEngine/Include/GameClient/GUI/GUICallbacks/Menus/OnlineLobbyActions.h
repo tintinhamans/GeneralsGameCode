@@ -47,6 +47,11 @@ namespace OnlineLobbyActions
 	void back(); ///< mirrors ButtonBack (ExitState())
 	void toggleBuddyOverlay(); ///< mirrors ButtonBuddy (GSOVERLAY_BUDDY, stays a .wnd overlay)
 
+	// Create/join replies. The .wnd closes the "Creating Lobby" box in InitWOLGameGadgets() and
+	// clears the host/join flag in NGMP_WOLLobbyMenu_JoinLobbyCallback(); neither runs for RmlUi.
+	bool finishCreateLobby( bool success ); ///< closes the progress box; on failure clears the flag and reports it. Returns success.
+	bool finishJoinLobby( int result ); ///< clears the flag; on failure shows the .wnd's join error box. Returns success.
+
 	// NGMP session accessors/registration -----------------------------------------------------
 	// Everything below exists so a GameEngineDevice caller (RmlOnlineLobbyScreen) never has to
 	// include a GeneralsOnline/NGMP header directly -- those pull winsock in a way that conflicts

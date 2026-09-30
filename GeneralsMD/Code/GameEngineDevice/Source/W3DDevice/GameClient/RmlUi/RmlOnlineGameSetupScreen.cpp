@@ -33,6 +33,7 @@
 #include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/Shell.h"
 #include "GameClient/TransitionSounds.h"
+#include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GeneralsOnline/NGMPGame.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
@@ -413,6 +414,9 @@ void RmlOnlineGameSetupScreen::show()
 {
 	if (!m_document)
 		return;
+
+	// InitWOLGameGadgets(): drops the "Creating Lobby" progress box.
+	ClearGSMessageBoxes();
 
 	NGMPGame *game = OnlineGameSetupSession::getCurrentGame();
 	if (!game)

@@ -218,3 +218,7 @@ END
 GUI:GOTimeout
 "Timeout"
 END
+
+GUI:GOCreateLobbyFailed
+"The lobby could not be created. Please try again."
+END

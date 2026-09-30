@@ -284,11 +284,10 @@ void RmlOnlineLobbyScreen::show()
 	m_connections.add(OnlineLobbySignals::rosterRefresh().connect([this]() { refreshPlayersFromSignal(); }));
 	m_connections.add(OnlineLobbySignals::roomChanged().connect([this](int roomIndex, bool effectiveRoomChanged) { onRoomChanged(roomIndex, effectiveRoomChanged); }));
 	m_connections.add(OnlineLobbySignals::joinResult().connect([this](int result) { onLobbyJoinResult(result); }));
-	m_connections.add(OnlineLobbySignals::createResult().connect([](bool /*bSuccess*/)
+	m_connections.add(OnlineLobbySignals::createResult().connect([](bool bSuccess)
 		{
-			// Mirrors NGMP_WOLLobbyMenu_CreateLobbyCallback(): always proceeds to game options on success path;
-			// TODO_NGMP upstream has no error case either (see WOLLobbyMenu.cpp).
-			TheShell->push("Menus/GameSpyGameOptionsMenu.wnd");
+			if (OnlineLobbyActions::finishCreateLobby(bSuccess))
+				TheShell->push("Menus/GameSpyGameOptionsMenu.wnd");
 		}));
 	m_connections.add(OnlineLobbySignals::roomListResult().connect([this](bool success) { onRoomListResult(success); }));
 
@@ -660,12 +659,9 @@ void RmlOnlineLobbyScreen::onRoomListResult(bool success)
 
 void RmlOnlineLobbyScreen::onLobbyJoinResult(int result)
 {
-	// Mirrors NGMP_WOLLobbyMenu_JoinLobbyCallback()'s success path; the failure message boxes it
-	// raises are unchanged (GSMessageBoxOk stays a .wnd overlay either way). 0 ==
-	// EJoinLobbyResult::JoinLobbyResult_Success (OnlineServices_LobbyInterface.h's first, unvalued
-	// enumerator); the OnlineLobbySignals::joinResult target passes the raw enum cast to int so this
-	// file never has to include the NGMP header that declares it (see .h comment).
-	if (result == 0)
+	// Mirrors NGMP_WOLLobbyMenu_JoinLobbyCallback(): clears the host/join flag, then the setup
+	// screen on success or the join error box on failure.
+	if (OnlineLobbyActions::finishJoinLobby(result))
 	{
 		TheShell->push("Menus/GameSpyGameOptionsMenu.wnd");
 	}
