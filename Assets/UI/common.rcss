@@ -2673,6 +2673,18 @@ mappreview .mp-art
 	decorator: horizontal-gradient(#2F37A8F0 #2F37A840);
 }
 
+/* With the HQ index and brackets (.hq-brackets): the number in front, the scan line under the label. */
+.rail-idx
+{
+	margin-right: 14dp;
+}
+
+.rail-item .hq-scan
+{
+	left: 22dp;
+	bottom: 10dp;
+}
+
 /* ---- Progress bar --------------------------------------------------------------------------- */
 .progress
 {

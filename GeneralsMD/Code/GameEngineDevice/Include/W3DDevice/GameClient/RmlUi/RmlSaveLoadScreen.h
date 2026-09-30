@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/Types.h>
 
@@ -86,6 +87,7 @@ private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 
 	Rml::Vector<RowModel> m_rows;
 	RowModel m_selected; ///< the selected row for the details card, valid when m_hasSelection

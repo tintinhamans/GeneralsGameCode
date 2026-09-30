@@ -58,6 +58,7 @@ void RmlOptionsScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("options");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
 		constructor.Bind("tab", &m_model.tab);
 		constructor.Bind("language_filter", &m_model.languageFilter);
 		constructor.Bind("send_delay", &m_model.sendDelay);
@@ -124,6 +125,7 @@ void RmlOptionsScreen::show()
 
 	// An overlay like the .wnd (runInit/hide(FALSE)/bringForward): whatever opened it stays visible
 	// behind. Modal keeps it from taking hover/focus.
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show(Rml::ModalFlag::Modal);
 	SignalUIInteraction(SHELL_SCRIPT_HOOK_OPTIONS_OPENED);
 }
@@ -425,4 +427,10 @@ void OpenRmlOptionsScreen()
 void CloseRmlOptionsScreen()
 {
 	RmlOptionsScreen::instance().hide();
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlOptionsScreen::update()
+{
+	m_hq.refresh(m_modelHandle);
 }

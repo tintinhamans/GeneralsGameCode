@@ -69,6 +69,7 @@ void RmlSaveLoadScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("saveload");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
 		if (Rml::StructHandle<RowModel> rowHandle = constructor.RegisterStruct<RowModel>())
 		{
 			rowHandle.RegisterMember("name", &RowModel::name);
@@ -198,6 +199,7 @@ void RmlSaveLoadScreen::open(bool isPopup)
 		m_modelHandle.DirtyVariable("description");
 	refresh();
 
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show(Rml::ModalFlag::Modal);
 
 	// SaveLoadMenuUpdate()'s entrance group, which only the shell's SaveLoad.wnd plays (and not

@@ -28,6 +28,7 @@
 #pragma once
 
 #include "GameClient/GUI/GUICallbacks/Menus/OptionsValues.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -52,6 +53,7 @@ public:
 	virtual void hide() override;
 	virtual bool isVisible() const override;
 	virtual void onBack() override; // same as Cancel
+	virtual void update() override; // ticks the .hq-header status
 
 private:
 	void loadCurrentValues();      // pulls OptionsValues::GetCurrent*() into the model
@@ -80,6 +82,7 @@ private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 	OptionPreferences *m_pref = nullptr;
 	bool m_applyingDetailPreset = false; // suppresses onDetailControlChanged while previewing a preset
 

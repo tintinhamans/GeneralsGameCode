@@ -64,6 +64,7 @@ void RmlReplayMenuScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("replaymenu");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
 		if (Rml::StructHandle<RowModel> rowHandle = constructor.RegisterStruct<RowModel>())
 		{
 			rowHandle.RegisterMember("name", &RowModel::name);
@@ -188,6 +189,7 @@ void RmlReplayMenuScreen::open()
 	ReplayMenuActions::open(&closeDocument);
 	refresh();
 
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show(Rml::ModalFlag::Modal);
 
 	// ReplayMenuUpdate()'s entrance group, and ReplayMenuShutdown()'s reverse in close().
@@ -214,6 +216,7 @@ void RmlReplayMenuScreen::tick()
 	if (!screen.isVisible())
 		return;
 
+	screen.m_hq.refresh(screen.m_modelHandle);
 	ReplayMenuActions::update();
 	if (screen.m_shownVersion != ReplayMenuData::instance().m_version)
 		screen.refresh();
