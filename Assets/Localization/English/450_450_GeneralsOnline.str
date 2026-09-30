@@ -43,10 +43,6 @@ GO:GUI:DockUnblock
 "Unblock"
 END
 
-GO:GUI:MenuOffline
-"Log in through Multiplayer to see the news and who is online."
-END
-
 GO:GUI:Version
 "Version"
 END
@@ -355,6 +351,6 @@ GO:GUI:ChallengeVersus
 "VS"
 END
 
-GUI:GOHudReplay
+GO:GUI:HudReplay
 "REPLAY"
 END

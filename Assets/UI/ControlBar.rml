@@ -24,7 +24,7 @@
 				<div class="cb-power-bar"><div class="cb-power-track"></div><div class="cb-power-fill" data-style-width="power_fill"></div><div class="cb-power-rail"><div class="cb-power-needle" data-style-left="power_needle"></div></div></div>
 				<div class="cb-power-value">{{power_text}}</div>
 			</div>
-			<div class="cb-replay" data-if="replay"><gametext key="GUI:GOHudReplay"/></div>
+			<div class="cb-replay" data-if="replay"><gametext key="GO:GUI:HudReplay"/></div>
 			<div class="cb-rank" data-cb="i2" data-if="!observer_list_shown &amp;&amp; !observer_info_shown">
 				<div class="cb-rank-stars"><span class="cb-star" data-class-on="rank &gt;= 1">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 2">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 3">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 4">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 5">&#9733;</span></div>
 				<div class="cb-exp"><div class="cb-exp-fill" data-style-width="experience"></div></div>
