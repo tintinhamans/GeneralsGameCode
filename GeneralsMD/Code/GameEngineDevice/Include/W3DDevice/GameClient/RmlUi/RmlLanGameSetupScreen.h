@@ -74,6 +74,10 @@ private:
 	void refreshFromGameState(); // LanGameSetupData::build(TheLAN->GetMyGame()) -> m_model
 
 	void onSlotOccupantChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onSlotOccupantPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (slot, state): an open slot's Add AI buttons
+	void onSlotColorPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (slot, color): a swatch
+	void onSlotTeamPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (slot, team): a team segment
+	void onStartingCashPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (amount): a cash segment
 	void onSlotFactionChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotColorChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotTeamChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -103,6 +107,8 @@ private:
 		int value = 0;
 		Rml::String label;
 		Rml::String swatch; // color options only: "#RRGGBB", "transparent" for random
+		Rml::String icon; // faction options only: the army's mapped image, empty for random
+		bool taken = false; // color options only: another slot holds it
 	};
 
 	// One slot row's worth of fields for the data-for-bound slot table (see load()). Same shape as
@@ -124,13 +130,15 @@ private:
 		int color = -1;
 		Rml::String colorHex;
 		Rml::String colorName;
-		Rml::Vector<OptionModel> colorOptions; // GameSetupSlotRow::m_colorChoices
+		Rml::Vector<OptionModel> colorOptions; // the whole palette, taken = not in GameSetupSlotRow::m_colorChoices
 		int teamNumber = -1;
 		int startPosition = -1;
 
 		bool accepted = false; // GameSlot::isAccepted()
 		bool hasMap = true;    // GameSlot::hasMap(), human slots only
 		bool showAccept = false; // true only for slot 0, mirrors the .wnd hiding buttonAccept[1..7]
+		bool isHostSlot = false; // slot 0, where the LAN host always sits
+		bool isLocal = false;    // GameSetupSlotRow::m_isLocalSlot
 		Rml::String playerTooltip; // LAN identity tooltip (login/host), mirrors playerTooltip(), empty if none
 	};
 
@@ -164,6 +172,8 @@ private:
 
 		bool isHost = false; // gates host-only controls; also picks the Start/Accept caption
 		bool startEnabled = true; // mirrors LANEnableStartButton()/LanGameSetupSignals::startButton
+		Rml::String gameName; // LANGameInfo::getName()
+		bool localAccepted = false; // the local slot's accepted flag, for the client's waiting state
 
 		Rml::Vector<Rml::String> chatLines; // append-only while the document is open, see onChatLine()
 		Rml::String chatEntryText;

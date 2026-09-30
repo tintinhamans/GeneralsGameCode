@@ -32,6 +32,7 @@
 #include "GameClient/MapUtil.h"
 #include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/Shell.h"
+#include "GameClient/TransitionSounds.h"
 #include "GameNetwork/FirewallHelper.h"
 #include "GameNetwork/LANAPI.h"
 #include "GameNetwork/LANAPICallbacks.h"
@@ -117,6 +118,8 @@ void RmlLanGameSetupScreen::load(Rml::Context *context)
 			optionHandle.RegisterMember("value", &OptionModel::value);
 			optionHandle.RegisterMember("label", &OptionModel::label);
 			optionHandle.RegisterMember("swatch", &OptionModel::swatch);
+			optionHandle.RegisterMember("icon", &OptionModel::icon);
+			optionHandle.RegisterMember("taken", &OptionModel::taken);
 		}
 		constructor.RegisterArray<Rml::Vector<OptionModel>>();
 
@@ -143,6 +146,8 @@ void RmlLanGameSetupScreen::load(Rml::Context *context)
 			rowHandle.RegisterMember("accepted", &SlotRowModel::accepted);
 			rowHandle.RegisterMember("has_map", &SlotRowModel::hasMap);
 			rowHandle.RegisterMember("show_accept", &SlotRowModel::showAccept);
+			rowHandle.RegisterMember("is_host_slot", &SlotRowModel::isHostSlot);
+			rowHandle.RegisterMember("is_local", &SlotRowModel::isLocal);
 			rowHandle.RegisterMember("player_tooltip", &SlotRowModel::playerTooltip);
 		}
 
@@ -173,10 +178,16 @@ void RmlLanGameSetupScreen::load(Rml::Context *context)
 		constructor.Bind("superweapons_restricted", &m_model.superweaponsRestricted);
 		constructor.Bind("is_host", &m_model.isHost);
 		constructor.Bind("start_enabled", &m_model.startEnabled);
+		constructor.Bind("game_name", &m_model.gameName);
+		constructor.Bind("local_accepted", &m_model.localAccepted);
 		constructor.Bind("chat_lines", &m_model.chatLines);
 		constructor.Bind("chat_entry_text", &m_model.chatEntryText);
 
 		constructor.BindEventCallback("slot_occupant_changed", &RmlLanGameSetupScreen::onSlotOccupantChanged, this);
+		constructor.BindEventCallback("slot_occupant_picked", &RmlLanGameSetupScreen::onSlotOccupantPicked, this);
+		constructor.BindEventCallback("slot_color_picked", &RmlLanGameSetupScreen::onSlotColorPicked, this);
+		constructor.BindEventCallback("slot_team_picked", &RmlLanGameSetupScreen::onSlotTeamPicked, this);
+		constructor.BindEventCallback("starting_cash_picked", &RmlLanGameSetupScreen::onStartingCashPicked, this);
 		constructor.BindEventCallback("slot_faction_changed", &RmlLanGameSetupScreen::onSlotFactionChanged, this);
 		constructor.BindEventCallback("slot_color_changed", &RmlLanGameSetupScreen::onSlotColorChanged, this);
 		constructor.BindEventCallback("slot_team_changed", &RmlLanGameSetupScreen::onSlotTeamChanged, this);
@@ -213,6 +224,8 @@ void RmlLanGameSetupScreen::refreshFromGameState()
 	LanGameSetupData data = LanGameSetupData::build(game, m_model.startEnabled);
 
 	m_model.isHost = data.m_isHost == TRUE;
+	m_model.gameName = game ? unicodeToUtf8(game->getName()) : Rml::String();
+	m_model.localAccepted = false;
 
 	m_model.slots.clear();
 	for (size_t i = 0; i < data.m_slots.size(); ++i)
@@ -237,6 +250,10 @@ void RmlLanGameSetupScreen::refreshFromGameState()
 		row.accepted = src.m_accepted == TRUE;
 		row.hasMap = src.m_hasMap == TRUE;
 		row.showAccept = (i == 0);
+		row.isHostSlot = (i == 0) && row.isHumanOccupant;
+		row.isLocal = base.m_isLocalSlot == TRUE;
+		if (row.isLocal)
+			m_model.localAccepted = row.accepted;
 		row.factionTooltip = factionTooltipFor(base.m_playerTemplate);
 
 		for (const GameSetupFactionOption &faction : data.m_options.m_factionOptions)
@@ -255,11 +272,14 @@ void RmlLanGameSetupScreen::refreshFromGameState()
 				if (color.m_color >= 0)
 					row.colorHex = rgbToHex(color.m_rgb);
 			}
+			// Every row lists the whole palette in the same order so the swatches never move; a
+			// color missing from m_colorChoices (PopulateColorComboBox()'s filter) is shown taken.
+			bool offered = false;
 			for (Int choice : base.m_colorChoices)
-			{
-				if (choice == color.m_color)
-					row.colorOptions.push_back(OptionModel{ color.m_color, unicodeToUtf8(color.m_name), color.m_color >= 0 ? rgbToHex(color.m_rgb) : Rml::String(kNoColorHex) });
-			}
+				offered = offered || choice == color.m_color;
+			OptionModel option{ color.m_color, unicodeToUtf8(color.m_name), color.m_color >= 0 ? rgbToHex(color.m_rgb) : Rml::String(kNoColorHex) };
+			option.taken = !offered;
+			row.colorOptions.push_back(option);
 		}
 
 		if (row.isHumanOccupant && game)
@@ -308,7 +328,7 @@ void RmlLanGameSetupScreen::refreshFromGameState()
 
 	m_model.factionOptions.clear();
 	for (const GameSetupFactionOption &faction : data.m_options.m_factionOptions)
-		m_model.factionOptions.push_back(OptionModel{ faction.m_playerTemplate, unicodeToUtf8(faction.m_displayName) });
+		m_model.factionOptions.push_back(OptionModel{ faction.m_playerTemplate, unicodeToUtf8(faction.m_displayName), Rml::String(), faction.m_iconImage.str() });
 
 	m_model.startingCashOptions.clear();
 	for (const GameSetupStartingCashOption &cash : data.m_options.m_startingCashOptions)
@@ -335,6 +355,8 @@ void RmlLanGameSetupScreen::refreshFromGameState()
 		m_modelHandle.DirtyVariable("starting_cash");
 		m_modelHandle.DirtyVariable("superweapons_restricted");
 		m_modelHandle.DirtyVariable("is_host");
+		m_modelHandle.DirtyVariable("game_name");
+		m_modelHandle.DirtyVariable("local_accepted");
 	}
 }
 
@@ -400,10 +422,15 @@ void RmlLanGameSetupScreen::show()
 	connectSignals();
 
 	m_document->Show();
+
+	// LanGameOptionsMenuInit()'s entrance group, and LanGameOptionsMenuShutdown()'s reverse below.
+	TransitionSounds::play("LanGameOptionsFade");
 }
 
 void RmlLanGameSetupScreen::hide()
 {
+	if (m_document && m_document->IsVisible())
+		TransitionSounds::play("LanGameOptionsFade", TRUE);
 	if (m_document)
 		m_document->Hide();
 
@@ -433,6 +460,40 @@ void RmlLanGameSetupScreen::onSlotOccupantChanged(Rml::DataModelHandle, Rml::Eve
 	Bool isAIChanged = FALSE;
 	LanGameSetupActions::selectPlayerState(TheLAN->GetMyGame(), slotIndex, (SlotState)state, &isAIChanged);
 	refreshFromGameState();
+}
+
+// An open slot's Add AI buttons: the same path as its occupant select.
+void RmlLanGameSetupScreen::onSlotOccupantPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.size() < 2 || !TheLAN)
+		return;
+	Bool isAIChanged = FALSE;
+	LanGameSetupActions::selectPlayerState(TheLAN->GetMyGame(), args[0].Get<int>(), (SlotState)args[1].Get<int>(), &isAIChanged);
+	refreshFromGameState();
+}
+
+void RmlLanGameSetupScreen::onSlotColorPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.size() < 2 || !TheLAN)
+		return;
+	LanGameSetupActions::selectColor(TheLAN->GetMyGame(), args[0].Get<int>(), args[1].Get<int>(), FALSE);
+	refreshFromGameState();
+}
+
+void RmlLanGameSetupScreen::onSlotTeamPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.size() < 2 || !TheLAN)
+		return;
+	LanGameSetupActions::selectTeam(TheLAN->GetMyGame(), args[0].Get<int>(), args[1].Get<int>(), FALSE);
+	refreshFromGameState();
+}
+
+void RmlLanGameSetupScreen::onStartingCashPicked(Rml::DataModelHandle handle, Rml::Event &ev, const Rml::VariantList &args)
+{
+	if (args.empty() || !m_model.isHost)
+		return;
+	m_model.startingCash = args[0].Get<int>();
+	onStartingCashChanged(handle, ev, args);
 }
 
 void RmlLanGameSetupScreen::onSlotFactionChanged(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &args)

@@ -2,118 +2,142 @@
 <head>
 	<title>LanGameOptions</title>
 	<link type="text/rcss" href="common.rcss"/>
-	<link type="text/rcss" href="GameSetup.rcss"/>
+	<link type="text/rcss" href="NetworkGameSetup.rcss"/>
 </head>
-<body class="shell" data-model="langamesetup">
-	<mappedimage class="shell-background" name="MainMenuRuler"/>
+<body class="screen" data-model="langamesetup">
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
-	<div class="shell-frame">
-		<div class="shell-title-bar"><gametext key="GUI:GameOptions"/></div>
+	<div class="screen-frame">
+		<div class="screen-header">
+			<div class="screen-heading">
+				<div class="screen-crumb"><gametext key="GUI:LANLobby"/><span class="crumb-sep">&#8250;</span></div>
+				<div class="screen-title ns-title">{{game_name}}</div>
+			</div>
+		</div>
 
-		<div class="setup-body">
-			<div class="setup-main">
-				<div class="slot-table">
-					<div class="slot-row slot-header">
-						<div class="slot-occupant"><gametext key="GUI:Players"/></div>
-						<div class="slot-color"><gametext key="GUI:Color"/></div>
-						<div class="slot-faction"><gametext key="GUI:Faction"/></div>
-						<div class="slot-team"><gametext key="GUI:Team"/></div>
-						<div class="slot-accept"></div>
-					</div>
-					<div class="slot-row" data-for="row : slots" data-class-empty="!row.is_occupied">
-						<div class="slot-occupant">
-							<select data-if="!row.is_human_occupant" data-value="row.occupant_state" data-attrif-disabled="!row.can_edit_occupant"
-								data-attr-data-tooltip-text="row.player_tooltip" data-event-change="slot_occupant_changed(row.slot_index)">
-								<option value="0"><gametext key="GUI:Open"/></option>
-								<option value="1"><gametext key="GUI:Closed"/></option>
-								<option value="2"><gametext key="GUI:EasyAI"/></option>
-								<option value="3"><gametext key="GUI:MediumAI"/></option>
-								<option value="4"><gametext key="GUI:HardAI"/></option>
-								<option value="5" data-if="row.is_human_occupant">{{row.player_name}}</option>
-							</select>
-							<div class="slot-name" data-if="row.is_human_occupant" data-attr-data-tooltip-text="row.player_tooltip">{{row.player_name}}</div>
+		<div class="screen-body">
+			<!-- One card per slot, two across: the skirmish card plus the host and who is ready. The host
+			     fills open slots and sets the AI; everyone edits their own slot. A player's slot is never
+			     picked from here (LAN has no kick). What this machine cannot edit reads as text. -->
+			<div class="col col-main">
+				<div class="pc-grid ns-cards scroll-container">
+					<div class="player-card" data-for="row : slots" data-class-pc-compact="!row.is_occupied" data-class-human="row.is_human_occupant"
+						data-style-border-left-color="row.is_occupied ? row.color_hex : '#8080FF28'">
+						<div class="pc-top">
+							<div class="pc-slot-no" data-if="!row.is_occupied">{{row.slot_index + 1}}</div>
+							<div class="pc-badge" data-if="row.is_occupied">
+								<div data-for="opt : faction_options"><mappedimage data-if="opt.value == row.player_template &amp;&amp; opt.icon != ''" data-attr-name="opt.icon"/><span data-if="opt.value == row.player_template &amp;&amp; opt.icon == ''">?</span></div>
+							</div>
+							<div class="pc-who">
+								<!-- Only on AI, open and closed slots; the SLOT_PLAYER option still keeps the value
+								     matched while a player takes the slot (RmlUi fires a phantom change otherwise). -->
+								<select data-if="!row.is_human_occupant &amp;&amp; row.can_edit_occupant" data-value="row.occupant_state"
+									data-event-change="slot_occupant_changed(row.slot_index)">
+									<option value="0"><gametext key="GUI:Open"/></option>
+									<option value="1"><gametext key="GUI:Closed"/></option>
+									<option value="2"><gametext key="GUI:EasyAI"/></option>
+									<option value="3"><gametext key="GUI:MediumAI"/></option>
+									<option value="4"><gametext key="GUI:HardAI"/></option>
+									<option value="5" data-if="row.is_human_occupant">{{row.player_name}}</option>
+								</select>
+								<div class="pc-name" data-if="row.is_human_occupant" data-attr-data-tooltip-text="row.player_tooltip">{{row.player_name}}</div>
+								<div class="pc-state" data-if="!row.can_edit_occupant &amp;&amp; !row.is_human_occupant"><gametext key="GUI:Open" data-if="row.occupant_state == 0"/><gametext key="GUI:Closed" data-if="row.occupant_state == 1"/><gametext key="GUI:EasyAI" data-if="row.occupant_state == 2"/><gametext key="GUI:MediumAI" data-if="row.occupant_state == 3"/><gametext key="GUI:HardAI" data-if="row.occupant_state == 4"/></div>
+							</div>
+							<div class="pc-status" data-if="row.is_human_occupant">
+								<div class="chip-label warn" data-if="!row.has_map"><gametext key="GUI:GONoMap"/></div>
+								<div class="chip-label accent" data-if="row.is_host_slot"><gametext key="GUI:GOHost"/></div>
+								<div class="chip-label good" data-if="!row.is_host_slot &amp;&amp; row.accepted" data-tooltip="TOOLTIP:GameAcceptance"><gametext key="GUI:GOReady"/></div>
+							</div>
+							<div class="pc-add" data-if="!row.is_occupied &amp;&amp; row.can_edit_occupant">
+								<div class="pc-add-label overline"><gametext key="GUI:GOAddAI"/></div>
+								<button data-event-click="slot_occupant_picked(row.slot_index, 2)" data-tooltip="GUI:EasyAI"><span class="pc-plus">+</span><gametext key="GUI:EasyCaps"/></button>
+								<button data-event-click="slot_occupant_picked(row.slot_index, 3)" data-tooltip="GUI:MediumAI"><span class="pc-plus">+</span><gametext key="GUI:MediumDifficultyCaps"/></button>
+								<button data-event-click="slot_occupant_picked(row.slot_index, 4)" data-tooltip="GUI:HardAI"><span class="pc-plus">+</span><gametext key="GUI:HardCaps"/></button>
+							</div>
+							<div class="pc-spot" data-if="row.is_occupied" data-class-random="row.start_position &lt; 0" data-style-border-color="row.start_position &lt; 0 ? '#8080FF46' : row.color_hex">{{row.start_position &lt; 0 ? '?' : row.start_position + 1}}</div>
 						</div>
-						<div class="slot-color">
-							<select data-value="row.color" data-attrif-disabled="!row.can_edit || !row.is_occupied"
-								data-event-change="slot_color_changed(row.slot_index)">
-								<option data-for="opt : row.color_options" data-attr-value="opt.value"><span class="color-swatch" data-style-background-color="opt.swatch"></span>{{opt.label}}</option>
+						<div class="pc-line" data-if="row.is_occupied">
+							<select class="army-select" data-if="row.can_edit" data-value="row.player_template" data-attr-data-tooltip-text="row.faction_tooltip"
+								data-event-change="slot_faction_changed(row.slot_index)">
+								<option data-for="opt : faction_options" data-attr-value="opt.value"><mappedimage class="army-icon" data-if="opt.icon != ''" data-attr-name="opt.icon"/><span class="army-icon army-random" data-if="opt.icon == ''">?</span>{{opt.label}}</option>
 							</select>
+							<div class="army-ro" data-if="!row.can_edit" data-attr-data-tooltip-text="row.faction_tooltip"><div data-for="opt : faction_options"><mappedimage class="army-icon" data-if="opt.value == row.player_template &amp;&amp; opt.icon != ''" data-attr-name="opt.icon"/><span class="army-icon army-random" data-if="opt.value == row.player_template &amp;&amp; opt.icon == ''">?</span></div><span class="army-ro-label">{{row.faction_label}}</span></div>
+							<div class="seg team-seg">
+								<button class="seg-item" data-class-on="row.team_number == -1" data-attrif-disabled="!row.can_edit" data-event-click="slot_team_picked(row.slot_index, -1)"><gametext key="Team:0"/></button>
+								<button class="seg-item" data-class-on="row.team_number == 0" data-attrif-disabled="!row.can_edit" data-event-click="slot_team_picked(row.slot_index, 0)"><gametext key="Team:1"/></button>
+								<button class="seg-item" data-class-on="row.team_number == 1" data-attrif-disabled="!row.can_edit" data-event-click="slot_team_picked(row.slot_index, 1)"><gametext key="Team:2"/></button>
+								<button class="seg-item" data-class-on="row.team_number == 2" data-attrif-disabled="!row.can_edit" data-event-click="slot_team_picked(row.slot_index, 2)"><gametext key="Team:3"/></button>
+								<button class="seg-item" data-class-on="row.team_number == 3" data-attrif-disabled="!row.can_edit" data-event-click="slot_team_picked(row.slot_index, 3)"><gametext key="Team:4"/></button>
+							</div>
 						</div>
-						<div class="slot-faction">
-							<select data-value="row.player_template" data-attrif-disabled="!row.can_edit || !row.is_occupied"
-								data-attr-data-tooltip-text="row.faction_tooltip" data-event-change="slot_faction_changed(row.slot_index)">
-								<option data-for="opt : faction_options" data-attr-value="opt.value">{{opt.label}}</option>
-							</select>
-						</div>
-						<div class="slot-team">
-							<select data-value="row.team_number" data-attrif-disabled="!row.can_edit || !row.is_occupied"
-								data-event-change="slot_team_changed(row.slot_index)">
-								<option value="-1"><gametext key="Team:0"/></option>
-								<option value="0"><gametext key="Team:1"/></option>
-								<option value="1"><gametext key="Team:2"/></option>
-								<option value="2"><gametext key="Team:3"/></option>
-								<option value="3"><gametext key="Team:4"/></option>
-							</select>
-						</div>
-						<div class="slot-accept" data-class-hidden="!row.show_accept" data-class-accepted="row.accepted" data-tooltip="TOOLTIP:GameAcceptance"></div>
-					</div>
-				</div>
-
-				<div class="setup-lower">
-					<div class="panel-box">
-						<div class="row">
-							<div class="label"><gametext key="GUI:StartingMoney"/></div>
-							<select class="control" data-value="starting_cash" data-attrif-disabled="!is_host"
-								data-event-change="starting_cash_changed" data-tooltip="TOOLTIP:StartingMoney">
-								<option data-for="opt : starting_cash_options" data-attr-value="opt.value">{{opt.label}}</option>
-							</select>
-						</div>
-						<div class="row">
-							<div class="label"><gametext key="GUI:LimitSuperweapons"/></div>
-							<div class="control">
-								<input class="checkbox" type="checkbox" data-checked="superweapons_restricted" data-attrif-disabled="!is_host"
-									data-event-change="superweapons_changed" data-tooltip="TOOLTIP:LimitSuperweapons"/>
+						<div class="pc-line" data-if="row.is_occupied">
+							<div class="swatches">
+								<button class="swatch" data-for="opt : row.color_options" data-class-random="opt.value &lt; 0" data-class-on="opt.value == row.color"
+									data-class-taken="opt.taken" data-attrif-disabled="!row.can_edit || opt.taken"
+									data-event-click="slot_color_picked(row.slot_index, opt.value)"><span class="chip"
+									data-style-background-color="opt.value &lt; 0 ? '#141A3E' : opt.swatch"><span data-if="opt.value &lt; 0">?</span></span></button>
 							</div>
 						</div>
 					</div>
 				</div>
 			</div>
 
-			<div class="side-panel">
-				<div class="map-preview">
-					<mappreview class="map-preview-image" data-attr-map="map_name" data-if="map_found"/>
-					<div class="map-not-found" data-if="!map_found"><gametext key="GUI:CantFindMap"/></div>
-					<div data-for="marker : start_markers">
-						<div class="start-marker" data-if="marker.used"
-							data-style-left="marker.x_style" data-style-top="marker.y_style"
-							data-event-click="start_marker_clicked(marker.position)"
-							data-event-mousedown="start_marker_mousedown(marker.position)">
-							<div class="start-marker-dot" data-class-occupied="marker.is_occupied" data-style-background-color="marker.color_hex"></div>
-							<div class="start-marker-label" data-if="marker.is_occupied">{{marker.occupant_label}}</div>
+			<!-- The map and the host's options over the chat. -->
+			<div class="col col-side">
+				<div class="surface map-card">
+					<div class="map-frame">
+						<mappreview class="map-image" data-attr-map="map_name" data-if="map_found"/>
+						<div class="map-missing" data-if="!map_found"><gametext key="GUI:CantFindMap"/></div>
+						<div data-for="marker : start_markers">
+							<div class="marker" data-if="marker.used" data-class-occupied="marker.is_occupied"
+								data-style-left="marker.x_style" data-style-top="marker.y_style"
+								data-event-click="start_marker_clicked(marker.position)"
+								data-event-mousedown="start_marker_mousedown(marker.position)">
+								<div class="marker-dot" data-style-background-color="marker.color_hex">{{marker.position + 1}}</div>
+								<div class="marker-label" data-if="marker.is_occupied">{{marker.occupant_label}}</div>
+							</div>
 						</div>
 					</div>
+					<div class="map-row">
+						<div class="map-name">{{map_display_name}}</div>
+						<button class="btn-small" data-if="is_host" data-event-click="select_map" data-tooltip="Tooltip:SelectMap"><gametext key="GUI:SelectMap"/></button>
+					</div>
+					<div class="ns-options">
+						<div class="opt-label"><gametext key="GUI:StartingMoney"/></div>
+						<div class="seg cash-seg" data-tooltip="TOOLTIP:StartingMoney">
+							<button class="seg-item" data-for="opt : starting_cash_options" data-class-on="opt.value == starting_cash"
+								data-attrif-disabled="!is_host" data-event-click="starting_cash_picked(opt.value)">{{opt.label}}</button>
+						</div>
+						<label class="check" data-tooltip="TOOLTIP:LimitSuperweapons">
+							<input class="checkbox" type="checkbox" data-checked="superweapons_restricted" data-attrif-disabled="!is_host"
+								data-event-change="superweapons_changed"/>
+							<gametext key="GUI:LimitSuperweapons"/>
+						</label>
+					</div>
 				</div>
-				<div class="map-display-name"><gametext key="GUI:MapPreview"/>: {{map_display_name}}</div>
-				<button data-attrif-disabled="!is_host" data-event-click="select_map"><gametext key="GUI:SelectMap"/></button>
+
+				<div class="surface chat-card">
+					<scrolllog class="chat-log">
+						<div class="chat-line" data-for="line : chat_lines">{{line}}</div>
+					</scrolllog>
+					<div class="chat-entry">
+						<!-- Enter sends chat; the button beside it sends the line as an emote, as ButtonEmote does. -->
+						<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
+						<button class="icon-btn" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
+					</div>
+				</div>
 			</div>
 		</div>
 
-		<div class="chat">
-			<scrolllog class="chat-log">
-				<div class="chat-line" data-for="line : chat_lines">{{line}}</div>
-			</scrolllog>
-			<div class="chat-entry">
-				<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-				<button class="icon-btn" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
+		<div class="action-bar">
+			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
+			<!-- A client that accepted waits on the host. -->
+			<div class="ns-state" data-if="!is_host &amp;&amp; local_accepted">
+				<div class="chip-label good"><gametext key="GUI:GOReady"/></div>
+				<div class="ns-state-text"><gametext key="GUI:GOWaitingForHost"/></div>
 			</div>
-		</div>
-
-		<div class="footer footer-split">
-			<button class="btn-primary" data-attrif-disabled="!start_enabled" data-event-click="start">
-				<gametext key="GUI:Start" data-if="is_host"/>
-				<gametext key="GUI:Accept" data-if="!is_host"/>
-			</button>
-			<button class="btn-primary" data-event-click="back"><gametext key="GUI:Back"/></button>
+			<div class="spacer"></div>
+			<button class="btn-cta" data-attrif-disabled="!start_enabled" data-event-click="start"><gametext key="GUI:Start" data-if="is_host"/><gametext key="GUI:Accept" data-if="!is_host"/></button>
 		</div>
 	</div>
 </body>
