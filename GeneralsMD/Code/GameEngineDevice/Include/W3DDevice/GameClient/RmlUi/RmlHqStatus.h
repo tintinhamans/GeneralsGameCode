@@ -61,7 +61,7 @@ public:
 			if (playersOnline > 0 && TheGameText)
 			{
 				UnicodeString text;
-				text.format(TheGameText->fetch("GUI:GOMenuPlayersOnline"), playersOnline);
+				text.format(TheGameText->fetch("GO:GUI:MenuPlayersOnline"), playersOnline);
 				count = unicodeToUtf8(text);
 			}
 		}

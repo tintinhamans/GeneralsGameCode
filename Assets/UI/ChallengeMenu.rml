@@ -16,7 +16,7 @@
 			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:SinglePlayer"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:GeneralsChallenge"/></div></div>
 			<div class="hq-status">
 				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
-				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GO:GUI:MenuOffline"/></div>
 				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 			</div>
 	</div></div>
@@ -69,14 +69,14 @@
 					<div class="ch-bio-empty" data-if="!show_bio"><span>?</span></div>
 				</div>
 				<div class="ch-dossier-id">
-					<div class="ch-bio-hint" data-if="!show_bio"><gametext key="GUI:GOChallengeHint"/></div>
+					<div class="ch-bio-hint" data-if="!show_bio"><gametext key="GO:GUI:ChallengeHint"/></div>
 					<div class="ch-bio-name" data-if="show_bio">{{bio_name}}</div>
 					<div class="fact" data-if="show_bio"><div class="stat-label"><gametext key="GUI:Rank"/></div><div class="fact-value">{{bio_rank}}</div></div>
 				</div>
 			</div>
 			<div class="ch-dossier-facts" data-if="show_bio">
-				<div class="fact"><div class="stat-label"><gametext key="GUI:GOBioBranch"/></div><div class="fact-value">{{bio_branch}}</div></div>
-				<div class="fact"><div class="stat-label"><gametext key="GUI:GOBioTactics"/></div><div class="fact-value">{{bio_strategy}}</div></div>
+				<div class="fact"><div class="stat-label"><gametext key="GO:GUI:BioBranch"/></div><div class="fact-value">{{bio_branch}}</div></div>
+				<div class="fact"><div class="stat-label"><gametext key="GO:GUI:BioTactics"/></div><div class="fact-value">{{bio_strategy}}</div></div>
 			</div>
 		</div>
 	</div>

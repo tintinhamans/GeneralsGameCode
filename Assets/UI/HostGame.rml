@@ -16,7 +16,7 @@
 
 		<div class="modal-body">
 			<div class="field">
-				<div class="overline"><gametext key="GUI:GOGameNameLabel"/></div>
+				<div class="overline"><gametext key="GO:GUI:GameNameLabel"/></div>
 				<input type="text" class="text-input" data-value="game_name" maxlength="24"/>
 			</div>
 			<div class="field">

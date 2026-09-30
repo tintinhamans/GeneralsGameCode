@@ -32,11 +32,11 @@
 						<div class="cl-lock"><span class="cl-br cl-br-tl"></span><span class="cl-br cl-br-tr"></span><span class="cl-br cl-br-bl"></span><span class="cl-br cl-br-br"></span><span class="cl-tk cl-tk-l"></span><span class="cl-tk cl-tk-r"></span><span class="cl-tk cl-tk-t"></span><span class="cl-tk cl-tk-b"></span></div>
 					</div>
 					<div class="cl-card cl-you">
-						<div class="overline accent-overline"><gametext key="GUI:GOChallengeYou"/></div>
+						<div class="overline accent-overline"><gametext key="GO:GUI:ChallengeYou"/></div>
 						<div class="cl-name">{{show_bio_entries ? generals[0].big_name : ''}}<span class="cl-caret"></span></div>
 						<div class="cl-facts">
 							<div class="fact cl-fact-rank"><div class="stat-label"><gametext key="GUI:Rank"/></div><div class="fact-value">{{show_bio_entries ? generals[0].rank : ''}}</div></div>
-							<div class="fact cl-fact-tactics"><div class="stat-label"><gametext key="GUI:GOBioTactics"/></div><div class="fact-value">{{show_bio_entries ? generals[0].strategy : ''}}</div></div>
+							<div class="fact cl-fact-tactics"><div class="stat-label"><gametext key="GO:GUI:BioTactics"/></div><div class="fact-value">{{show_bio_entries ? generals[0].strategy : ''}}</div></div>
 						</div>
 					</div>
 				</div>
@@ -47,7 +47,7 @@
 						<div class="cl-arm"><div class="cl-ring cl-ring-spin"></div><div class="cl-ring cl-ring-counter"></div></div>
 						<div class="cl-shock"></div><div class="cl-shock cl-shock-2"></div>
 						<div class="cl-plate"></div>
-						<div class="cl-vs"><gametext key="GUI:GOChallengeVersus"/></div>
+						<div class="cl-vs"><gametext key="GO:GUI:ChallengeVersus"/></div>
 					</div>
 				</div>
 
@@ -60,11 +60,11 @@
 						<div class="cl-lock"><span class="cl-br cl-br-tl"></span><span class="cl-br cl-br-tr"></span><span class="cl-br cl-br-bl"></span><span class="cl-br cl-br-br"></span><span class="cl-tk cl-tk-l"></span><span class="cl-tk cl-tk-r"></span><span class="cl-tk cl-tk-t"></span><span class="cl-tk cl-tk-b"></span></div>
 					</div>
 					<div class="cl-card cl-opponent">
-						<div class="overline cl-enemy-overline"><gametext key="GUI:GOChallengeOpponent"/></div>
+						<div class="overline cl-enemy-overline"><gametext key="GO:GUI:ChallengeOpponent"/></div>
 						<div class="cl-name">{{show_bio_entries ? generals[1].big_name : ''}}<span class="cl-caret"></span></div>
 						<div class="cl-facts">
 							<div class="fact cl-fact-rank"><div class="stat-label"><gametext key="GUI:Rank"/></div><div class="fact-value">{{show_bio_entries ? generals[1].rank : ''}}</div></div>
-							<div class="fact cl-fact-tactics"><div class="stat-label"><gametext key="GUI:GOBioTactics"/></div><div class="fact-value">{{show_bio_entries ? generals[1].strategy : ''}}</div></div>
+							<div class="fact cl-fact-tactics"><div class="stat-label"><gametext key="GO:GUI:BioTactics"/></div><div class="fact-value">{{show_bio_entries ? generals[1].strategy : ''}}</div></div>
 						</div>
 					</div>
 				</div>

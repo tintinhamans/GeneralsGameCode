@@ -12,7 +12,7 @@
 			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:ReplayMenu"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:LoadReplay"/></div></div>
 			<div class="hq-status">
 				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
-				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GO:GUI:MenuOffline"/></div>
 				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 			</div>
 	</div></div>
@@ -23,8 +23,8 @@
 			     another game version (it will not play back) is dimmed; a map that is not installed is red. -->
 			<div class="col col-main surface replays">
 				<div class="list-head">
-					<div class="head-name overline"><gametext key="GUI:GOReplay"/></div>
-					<div class="head-version overline"><gametext key="GUI:GOVersion"/></div>
+					<div class="head-name overline"><gametext key="GO:GUI:Replay"/></div>
+					<div class="head-version overline"><gametext key="GO:GUI:Version"/></div>
 					<div class="head-when overline"><gametext key="GUI:SaveDate"/></div>
 				</div>
 				<div class="replay-list">
@@ -46,7 +46,7 @@
 							</div>
 						</div>
 					</div>
-					<div class="empty-state" data-if="rows.size == 0"><gametext key="GUI:GONoReplays"/></div>
+					<div class="empty-state" data-if="rows.size == 0"><gametext key="GO:GUI:NoReplays"/></div>
 				</div>
 			</div>
 
@@ -71,15 +71,15 @@
 							</div>
 						</div>
 						<div class="warnings">
-							<div class="warning" data-if="!sel.is_compatible"><span class="warning-mark">!</span><gametext key="GUI:GOVersionMismatch"/></div>
-							<div class="warning" data-if="!sel.has_map"><span class="warning-mark">!</span><gametext key="GUI:GOMapMissing"/></div>
+							<div class="warning" data-if="!sel.is_compatible"><span class="warning-mark">!</span><gametext key="GO:GUI:VersionMismatch"/></div>
+							<div class="warning" data-if="!sel.has_map"><span class="warning-mark">!</span><gametext key="GO:GUI:MapMissing"/></div>
 						</div>
 						<div class="facts">
 							<div class="fact"><div class="stat-label"><gametext key="GUI:SaveDate"/></div><div class="fact-value">{{sel.date}}</div></div>
 							<div class="fact"><div class="stat-label"><gametext key="GUI:SaveTime"/></div><div class="fact-value">{{sel.time}}</div></div>
-							<div class="fact"><div class="stat-label"><gametext key="GUI:GODuration"/></div><div class="fact-value">{{sel.duration}}</div></div>
+							<div class="fact"><div class="stat-label"><gametext key="GO:GUI:Duration"/></div><div class="fact-value">{{sel.duration}}</div></div>
 						</div>
-						<div class="fact version-fact"><div class="stat-label"><gametext key="GUI:GOVersion"/></div><div class="fact-value">{{sel.version}}</div></div>
+						<div class="fact version-fact"><div class="stat-label"><gametext key="GO:GUI:Version"/></div><div class="fact-value">{{sel.version}}</div></div>
 						<div class="stat-label players-label"><gametext key="GUI:Players"/></div>
 						<div class="players">
 							<div data-for="player : sel_players">
@@ -87,7 +87,7 @@
 							</div>
 						</div>
 					</div>
-					<div class="empty-state" data-if="!has_selection"><gametext key="GUI:GONoReplays"/></div>
+					<div class="empty-state" data-if="!has_selection"><gametext key="GO:GUI:NoReplays"/></div>
 				</div>
 			</div>
 		</div>

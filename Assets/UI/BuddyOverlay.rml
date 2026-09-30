@@ -13,8 +13,8 @@
 			<div class="head-icon"><div class="icon-head"></div><div class="icon-body"></div></div>
 			<div class="bo-title"><gametext key="GUI:Buddies"/></div>
 			<div class="seg bo-tabs">
-				<button class="seg-item" data-class-on="!show_block_tab" data-event-click="set_tab(0)"><gametext key="GUI:GODockFriends"/></button>
-				<button class="seg-item" data-class-on="show_block_tab" data-event-click="set_tab(1)"><gametext key="GUI:GODockBlocked"/></button>
+				<button class="seg-item" data-class-on="!show_block_tab" data-event-click="set_tab(0)"><gametext key="GO:GUI:DockFriends"/></button>
+				<button class="seg-item" data-class-on="show_block_tab" data-event-click="set_tab(1)"><gametext key="GO:GUI:DockBlocked"/></button>
 			</div>
 			<div class="spacer"></div>
 			<!-- ButtonHide ("EXIT" on the .wnd). -->

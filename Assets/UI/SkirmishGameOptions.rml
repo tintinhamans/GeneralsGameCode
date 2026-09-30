@@ -12,7 +12,7 @@
 			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:SinglePlayer"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:Skirmish"/></div></div>
 			<div class="hq-status">
 				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
-				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GO:GUI:MenuOffline"/></div>
 				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 			</div>
 	</div></div>
@@ -23,7 +23,7 @@
 			<!-- 01 Map: the preview with its start spots (left click takes one, right click clears it). -->
 			<div class="col su-map-col">
 				<div class="hq-card su-hero">
-					<div class="hq-section"><span class="hq-index">01</span><gametext key="GUI:GOMap"/></div>
+					<div class="hq-section"><span class="hq-index">01</span><gametext key="GO:GUI:Map"/></div>
 					<div class="map-frame">
 						<mappreview class="map-image" fit="width" sites="16" data-attr-map="map_name" data-if="map_found">
 							<div data-for="marker : start_markers">
@@ -52,7 +52,7 @@
 					<div class="su-players-head">
 						<div class="hq-section"><span class="hq-index">02</span><gametext key="GUI:Players"/></div>
 						<div class="su-fill">
-							<div class="overline"><gametext key="GUI:GOFillWithAI"/></div>
+							<div class="overline"><gametext key="GO:GUI:FillWithAI"/></div>
 							<button data-event-click="fill_ai(2)" data-tooltip="GUI:EasyAI"><span class="pc-plus">+</span><gametext key="GUI:EasyCaps"/></button>
 							<button data-event-click="fill_ai(3)" data-tooltip="GUI:MediumAI"><span class="pc-plus">+</span><gametext key="GUI:MediumDifficultyCaps"/></button>
 							<button data-event-click="fill_ai(4)" data-tooltip="GUI:HardAI"><span class="pc-plus">+</span><gametext key="GUI:HardCaps"/></button>
@@ -62,10 +62,10 @@
 						<div class="su-item" data-for="row : slots">
 							<div class="su-group" data-if="row.group_head">
 								<gametext key="GUI:Team" data-if="row.group_team &gt;= 0"/><span class="su-group-no" data-if="row.group_team &gt;= 0">{{row.group_team + 1}}</span>
-								<gametext key="GUI:GONoTeam" data-if="row.group_team &lt; 0"/>
+								<gametext key="GO:GUI:NoTeam" data-if="row.group_team &lt; 0"/>
 							</div>
 							<div class="su-fold" data-if="row.fold_head" data-event-click="show_unused = !show_unused">
-								<span class="su-fold-mark">{{show_unused ? '&#8722;' : '+'}}</span><gametext key="GUI:GOUnusedSlots"/><span class="su-fold-count">({{unused_count}})</span>
+								<span class="su-fold-mark">{{show_unused ? '&#8722;' : '+'}}</span><gametext key="GO:GUI:UnusedSlots"/><span class="su-fold-count">({{unused_count}})</span>
 							</div>
 
 							<div class="prow" data-if="!row.unused || show_unused" data-class-empty="!row.is_occupied" data-class-unused="row.unused" data-class-human="row.is_human_occupant"
@@ -104,7 +104,7 @@
 								</div>
 								<div class="prow-spot" data-if="row.is_occupied" data-class-random="row.start_position &lt; 0" data-style-border-color="row.start_position &lt; 0 ? '#8080FF46' : (row.color &lt; 0 ? '#A9B1CF' : row.color_hex)" data-tooltip="TOOLTIP:StartPosition">{{row.start_position &lt; 0 ? '?' : row.start_position + 1}}</div>
 								<div class="prow-add" data-if="!row.is_occupied &amp;&amp; row.can_edit_occupant">
-									<div class="overline"><gametext key="GUI:GOAddAI"/></div>
+									<div class="overline"><gametext key="GO:GUI:AddAI"/></div>
 									<button data-event-click="slot_occupant_picked(row.slot_index, 2)" data-tooltip="GUI:EasyAI"><span class="pc-plus">+</span><gametext key="GUI:EasyCaps"/></button>
 									<button data-event-click="slot_occupant_picked(row.slot_index, 3)" data-tooltip="GUI:MediumAI"><span class="pc-plus">+</span><gametext key="GUI:MediumDifficultyCaps"/></button>
 									<button data-event-click="slot_occupant_picked(row.slot_index, 4)" data-tooltip="GUI:HardAI"><span class="pc-plus">+</span><gametext key="GUI:HardCaps"/></button>
@@ -129,7 +129,7 @@
 			<!-- 03 Rules, and the battle honors under them. -->
 			<div class="col col-side su-side">
 				<div class="surface su-rules">
-					<div class="hq-section"><span class="hq-index">03</span><gametext key="GUI:GORules"/></div>
+					<div class="hq-section"><span class="hq-index">03</span><gametext key="GO:GUI:Rules"/></div>
 					<div class="opt-label"><gametext key="GUI:StartingMoney"/></div>
 					<div class="seg cash-seg" data-if="starting_cash_options.size &lt;= 4" data-tooltip="TOOLTIP:StartingMoney">
 						<button class="seg-item" data-for="opt : starting_cash_options" data-class-on="opt.value == starting_cash"
@@ -166,7 +166,7 @@
 			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:GotoMainMenu"/></button>
 			<div class="spacer"></div>
 			<!-- What Start would refuse (GameSetupData::startBlockers()), or ready. -->
-			<div class="su-ready" data-if="start_blockers.size == 0"><span class="dot"></span><gametext key="GUI:GOReadyToStart"/></div>
+			<div class="su-ready" data-if="start_blockers.size == 0"><span class="dot"></span><gametext key="GO:GUI:ReadyToStart"/></div>
 			<div class="su-ready blocked" data-if="start_blockers.size &gt; 0">
 				<div class="su-blockers"><div data-for="reason : start_blockers"><div class="su-blocker"><span class="su-blocker-mark">!</span><span>{{reason}}</span></div></div></div>
 			</div>

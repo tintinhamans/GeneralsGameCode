@@ -11,7 +11,7 @@
 		<div class="modal-head">
 			<div class="modal-heading">
 				<div class="overline accent-overline"><gametext key="TOOLTIP:DownloadProgress"/></div>
-				<div class="modal-title"><gametext key="GUI:GODownloadingUpdate"/></div>
+				<div class="modal-title"><gametext key="GO:GUI:DownloadingUpdate"/></div>
 			</div>
 		</div>
 

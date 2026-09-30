@@ -3,354 +3,354 @@
 // str2csf compiles this into Data/English/450_450_GeneralsOnline.csf, which
 // is embedded into the game exe as part of the 450_450_GeneralsOnline archive.
 
-GUI:GONoMapsForFilter
+GO:GUI:NoMapsForFilter
 "No maps for this many players"
 END
 
-GUI:GONoGames
+GO:GUI:NoGames
 "No games in this room yet"
 END
 
-GUI:GODockFriends
+GO:GUI:DockFriends
 "Friends"
 END
 
-GUI:GODockBlocked
+GO:GUI:DockBlocked
 "Blocked"
 END
 
-GUI:GODockRequests
+GO:GUI:DockRequests
 "Friend requests"
 END
 
-GUI:GODockLobby
+GO:GUI:DockLobby
 "In your lobby"
 END
 
-GUI:GODockRecent
+GO:GUI:DockRecent
 "Recently played with"
 END
 
-GUI:GODockNoFriends
+GO:GUI:DockNoFriends
 "No friends yet. Right-click a player in a lobby to send a friend request."
 END
 
-GUI:GODockNoBlocked
+GO:GUI:DockNoBlocked
 "Nobody is blocked."
 END
 
-GUI:GODockUnblock
+GO:GUI:DockUnblock
 "Unblock"
 END
 
-GUI:GOMenuOffline
+GO:GUI:MenuOffline
 "Log in through Multiplayer to see the news and who is online."
 END
 
-GUI:GOVersion
+GO:GUI:Version
 "Version"
 END
 
-GUI:GOStatusTitle
+GO:GUI:StatusTitle
 "Generals Online"
 END
 
-GUI:GOAddAI
+GO:GUI:AddAI
 "Add AI"
 END
 
-GUI:GODockRoom
+GO:GUI:DockRoom
 "Lobby"
 END
 
-GUI:GOHost
+GO:GUI:Host
 "Host"
 END
 
-GUI:GOReady
+GO:GUI:Ready
 "Ready"
 END
 
-GUI:GONoMap
+GO:GUI:NoMap
 "No map"
 END
 
-GUI:GOStartingIn
+GO:GUI:StartingIn
 "Starting in"
 END
 
-GUI:GOWaitingForHost
+GO:GUI:WaitingForHost
 "Waiting for the host to start"
 END
 
-GUI:GOOptionsDisplay
+GO:GUI:OptionsDisplay
 "Display"
 END
 
-GUI:GOOptionsGraphics
+GO:GUI:OptionsGraphics
 "Graphics"
 END
 
-GUI:GOOptionsControls
+GO:GUI:OptionsControls
 "Controls"
 END
 
-GUI:GOTextureFiltering
+GO:GUI:TextureFiltering
 "Texture Filtering"
 END
 
-GUI:GOAnisotropy
+GO:GUI:Anisotropy
 "Anisotropy"
 END
 
-GUI:GOTextureResolution
+GO:GUI:TextureResolution
 "Texture Resolution"
 END
 
-GUI:GOParticleCap
+GO:GUI:ParticleCap
 "Particle Cap"
 END
 
-GUI:GOGameNameLabel
+GO:GUI:GameNameLabel
 "Game name"
 END
 
-GUI:GOPasswordRequired
+GO:GUI:PasswordRequired
 "This game is password protected."
 END
 
-GUI:GOGameMenu
+GO:GUI:GameMenu
 "Game Menu"
 END
 
-GUI:GOQMPlaylist
+GO:GUI:QMPlaylist
 "Playlist"
 END
 
-GUI:GOQMReady
+GO:GUI:QMReady
 "Ready"
 END
 
-GUI:GOQMReadyHint
+GO:GUI:QMReadyHint
 "Pick a playlist and the maps you will play in Setup, then start matchmaking."
 END
 
-GUI:GOQMSearching
+GO:GUI:QMSearching
 "Searching for a match"
 END
 
-GUI:GOQMElapsed
+GO:GUI:QMElapsed
 "Time in queue"
 END
 
-GUI:GOMap
+GO:GUI:Map
 "Map"
 END
 
-GUI:GOInProgress
+GO:GUI:InProgress
 "In progress"
 END
 
-GUI:GONoLanGames
+GO:GUI:NoLanGames
 "No games on your network yet"
 END
 
-GUI:GOMission
+GO:GUI:Mission
 "Mission"
 END
 
-GUI:GOMissionStart
+GO:GUI:MissionStart
 "Mission start"
 END
 
-GUI:GONewSave
+GO:GUI:NewSave
 "New save"
 END
 
-GUI:GONoSaves
+GO:GUI:NoSaves
 "No saved games yet"
 END
 
-GUI:GOReplay
+GO:GUI:Replay
 "Replay"
 END
 
-GUI:GODuration
+GO:GUI:Duration
 "Duration"
 END
 
-GUI:GOVersionMismatch
+GO:GUI:VersionMismatch
 "Recorded by another game version"
 END
 
-GUI:GOMapMissing
+GO:GUI:MapMissing
 "Map not installed"
 END
 
-GUI:GONoReplays
+GO:GUI:NoReplays
 "No replays yet"
 END
 
-GUI:GOReplayName
+GO:GUI:ReplayName
 "Replay name"
 END
 
-GUI:GOScoreMap
+GO:GUI:ScoreMap
 "Map"
 END
 
-GUI:GOScoreGameTime
+GO:GUI:ScoreGameTime
 "Game Time"
 END
 
-GUI:GOChallengeHint
+GO:GUI:ChallengeHint
 "Pick a general to read their dossier, then press Play Game to lead them through the challenge."
 END
 
-GUI:GODownloadingUpdate
+GO:GUI:DownloadingUpdate
 "Downloading Update"
 END
 
-GUI:GOVotes
+GO:GUI:Votes
 "Votes"
 END
 
-GUI:GOTimeout
+GO:GUI:Timeout
 "Timeout"
 END
 
-GUI:GOCreateLobbyFailed
+GO:GUI:CreateLobbyFailed
 "The lobby could not be created. Please try again."
 END
 
-GUI:GOStartSpot
+GO:GUI:StartSpot
 "Start"
 END
 
-GUI:GOBioBranch
+GO:GUI:BioBranch
 "Branch"
 END
 
-GUI:GOBioTactics
+GO:GUI:BioTactics
 "Tactics"
 END
 
-GUI:GOChallengeYou
+GO:GUI:ChallengeYou
 "Your General"
 END
 
-GUI:GOChallengeOpponent
+GO:GUI:ChallengeOpponent
 "Opponent"
 END
 
-GUI:GOMenuPlayersOnline
+GO:GUI:MenuPlayersOnline
 "%d online"
 END
 
-GUI:GOMenuOffline
+GO:GUI:MenuOffline
 "Offline"
 END
 
-GUI:GOMenuSoloDesc
+GO:GUI:MenuSoloDesc
 "Campaign, skirmish and Generals' Challenge"
 END
 
-GUI:GOMenuMultiDesc
+GO:GUI:MenuMultiDesc
 "Online and LAN battles"
 END
 
-GUI:GOMenuLoadDesc
+GO:GUI:MenuLoadDesc
 "Saved games and replays"
 END
 
-GUI:GOMenuOptionsDesc
+GO:GUI:MenuOptionsDesc
 "Video, audio and controls"
 END
 
-GUI:GOMenuCreditsDesc
+GO:GUI:MenuCreditsDesc
 "The people behind the game"
 END
 
-GUI:GOMenuSkirmishDesc
+GO:GUI:MenuSkirmishDesc
 "Battle the AI on any map"
 END
 
-GUI:GOMenuChallengeDesc
+GO:GUI:MenuChallengeDesc
 "Defeat the generals one by one"
 END
 
-GUI:GOMenuOnlineDesc
+GO:GUI:MenuOnlineDesc
 "Ranked and custom games on Generals Online"
 END
 
-GUI:GOMenuNetworkDesc
+GO:GUI:MenuNetworkDesc
 "Play over your local network"
 END
 
-GUI:GOMenuLoadGameDesc
+GO:GUI:MenuLoadGameDesc
 "Resume a saved mission"
 END
 
-GUI:GOMenuReplayDesc
+GO:GUI:MenuReplayDesc
 "Watch your recorded battles"
 END
 
-GUI:GOMenuEasyDesc
+GO:GUI:MenuEasyDesc
 "For new commanders"
 END
 
-GUI:GOMenuMediumDesc
+GO:GUI:MenuMediumDesc
 "A fair fight"
 END
 
-GUI:GOMenuHardDesc
+GO:GUI:MenuHardDesc
 "No mercy for veterans"
 END
 
-GUI:GORules
+GO:GUI:Rules
 "Rules"
 END
 
-GUI:GOFillWithAI
+GO:GUI:FillWithAI
 "Fill with AI"
 END
 
-GUI:GOUnusedSlots
+GO:GUI:UnusedSlots
 "Unused on this map"
 END
 
-GUI:GONoTeam
+GO:GUI:NoTeam
 "No team"
 END
 
-GUI:GOReadyToStart
+GO:GUI:ReadyToStart
 "Ready to start"
 END
 
-GUI:GOWaitingForAccepts
+GO:GUI:WaitingForAccepts
 "Waiting for every player to accept"
 END
 
-GUI:GOMapCount
+GO:GUI:MapCount
 "%d of %d maps"
 END
 
-GUI:GOSearchMaps
+GO:GUI:SearchMaps
 "Search"
 END
 
-GUI:GOSortBy
+GO:GUI:SortBy
 "Sort"
 END
 
-GUI:GOSortName
+GO:GUI:SortName
 "Name"
 END
 
-GUI:GONoMapsMatch
+GO:GUI:NoMapsMatch
 "No maps match your search"
 END
 
-GUI:GOChallengeVersus
+GO:GUI:ChallengeVersus
 "VS"
 END

@@ -13,8 +13,8 @@
 		<div class="modal-body pr-body">
 			<div class="pr-list-wrap">
 				<div class="list-head">
-					<div class="head-name overline"><gametext key="GUI:GOReplay"/></div>
-					<div class="head-map overline"><gametext key="GUI:GOMap"/></div>
+					<div class="head-name overline"><gametext key="GO:GUI:Replay"/></div>
+					<div class="head-map overline"><gametext key="GO:GUI:Map"/></div>
 					<div class="head-when overline"><gametext key="GUI:SaveDate"/></div>
 				</div>
 				<div class="pr-list">
@@ -25,7 +25,7 @@
 							<div class="pr-when">{{row.date_time}}</div>
 						</div>
 					</div>
-					<div class="empty-state" data-if="rows.size == 0"><gametext key="GUI:GONoReplays"/></div>
+					<div class="empty-state" data-if="rows.size == 0"><gametext key="GO:GUI:NoReplays"/></div>
 				</div>
 
 				<!-- Up for a second once saved, over the list, before the popup closes (the .wnd's notice). -->
@@ -36,7 +36,7 @@
 			</div>
 
 			<div class="field pr-field">
-				<div class="overline"><gametext key="GUI:GOReplayName"/></div>
+				<div class="overline"><gametext key="GO:GUI:ReplayName"/></div>
 				<input type="text" id="name-input" class="text-input" data-value="name" data-attr-maxlength="name_max" data-event-change="name_changed"/>
 			</div>
 		</div>

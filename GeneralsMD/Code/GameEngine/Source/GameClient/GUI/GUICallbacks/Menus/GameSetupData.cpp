@@ -410,7 +410,7 @@ std::vector<UnicodeString> GameSetupData::startBlockers( GameInfo *game, Bool is
 		}
 	}
 	if( waiting )
-		blockers.push_back( TheGameText->fetch( "GUI:GOWaitingForAccepts" ) );
+		blockers.push_back( TheGameText->fetch( "GO:GUI:WaitingForAccepts" ) );
 
 	return blockers;
 }

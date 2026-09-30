@@ -12,7 +12,7 @@
 			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:Skirmish"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:SelectAMapLowerCase"/></div></div>
 			<div class="hq-status">
 				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
-				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GO:GUI:MenuOffline"/></div>
 				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 			</div>
 	</div></div>
@@ -22,13 +22,13 @@
 		     official/unofficial maps; the count of what is left at the far end. -->
 		<div class="screen-header ms-toolbar">
 			<div class="ms-filter-plate ms-search">
-				<div class="overline filter-label"><gametext key="GUI:GOSearchMaps"/></div>
+				<div class="overline filter-label"><gametext key="GO:GUI:SearchMaps"/></div>
 				<div class="ms-search-box"><span class="ms-search-mark"></span><input type="text" class="text-input ms-search-input" maxlength="48" data-value="search_text" data-event-change="search_changed"/></div>
 			</div>
 			<div class="ms-filter-plate">
-				<div class="overline filter-label"><gametext key="GUI:GOSortBy"/></div>
+				<div class="overline filter-label"><gametext key="GO:GUI:SortBy"/></div>
 				<div class="seg">
-					<button class="seg-item" data-class-on="!sort_by_players" data-event-click="sort_changed(0)"><gametext key="GUI:GOSortName"/></button>
+					<button class="seg-item" data-class-on="!sort_by_players" data-event-click="sort_changed(0)"><gametext key="GO:GUI:SortName"/></button>
 					<button class="seg-item" data-class-on="sort_by_players" data-event-click="sort_changed(1)"><gametext key="GUI:Players"/></button>
 				</div>
 			</div>
@@ -69,8 +69,8 @@
 							<div class="map-tile-name">{{entry.display_name}}</div>
 						</div>
 					</div>
-					<div class="empty-state" data-if="visible_count == 0 &amp;&amp; search_text == ''"><gametext key="GUI:GONoMapsForFilter"/></div>
-					<div class="empty-state" data-if="visible_count == 0 &amp;&amp; search_text != ''"><div class="overline">&quot;{{search_text}}&quot;</div><gametext key="GUI:GONoMapsMatch"/></div>
+					<div class="empty-state" data-if="visible_count == 0 &amp;&amp; search_text == ''"><gametext key="GO:GUI:NoMapsForFilter"/></div>
+					<div class="empty-state" data-if="visible_count == 0 &amp;&amp; search_text != ''"><div class="overline">&quot;{{search_text}}&quot;</div><gametext key="GO:GUI:NoMapsMatch"/></div>
 				</div>
 			</div>
 

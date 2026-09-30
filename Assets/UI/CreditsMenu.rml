@@ -20,7 +20,7 @@
 			<div class="hq-heading"><div class="hq-title"><gametext key="GUI:Credits"/></div></div>
 			<div class="hq-status">
 				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
-				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GO:GUI:MenuOffline"/></div>
 				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 			</div>
 	</div></div>

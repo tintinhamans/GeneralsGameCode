@@ -65,6 +65,6 @@ inline Rml::String RmlMapSearchCountText(int shown, int total)
 	if (!TheGameText)
 		return Rml::String();
 	UnicodeString text;
-	text.format(TheGameText->fetch("GUI:GOMapCount"), shown, total);
+	text.format(TheGameText->fetch("GO:GUI:MapCount"), shown, total);
 	return unicodeToUtf8(text);
 }

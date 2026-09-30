@@ -9,13 +9,13 @@
 
 	<div class="hq-band hq-header"><div class="hq-band-in">
 			<mappedimage name="GeneralsLogo" class="hq-logo"/>
-			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:Multiplayer"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:GOStatusTitle"/></div></div>
+			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:Multiplayer"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GO:GUI:StatusTitle"/></div></div>
 			<div class="hq-aside wc-header-actions">
 				<button data-event-click="options" data-tooltip="TOOLTIP:Options"><gametext key="GUI:Options"/></button>
 			</div>
 			<div class="hq-status">
 				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
-				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GO:GUI:MenuOffline"/></div>
 				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 			</div>
 	</div></div>

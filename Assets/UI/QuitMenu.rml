@@ -18,7 +18,7 @@
 	<div class="modal-card quit-card">
 		<div class="modal-head">
 			<div class="modal-heading">
-				<div class="modal-title"><gametext key="GUI:GOGameMenu"/></div>
+				<div class="modal-title"><gametext key="GO:GUI:GameMenu"/></div>
 			</div>
 		</div>
 		<div class="quit-list">

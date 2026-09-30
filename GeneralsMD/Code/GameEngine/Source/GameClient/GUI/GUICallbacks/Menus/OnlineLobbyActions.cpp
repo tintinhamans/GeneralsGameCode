@@ -72,7 +72,7 @@ bool finishCreateLobby( bool success )
 	if ( !success )
 	{
 		SetLobbyAttemptHostJoin( FALSE );
-		GSMessageBoxOk( TheGameText->fetch( "GUI:Error" ), TheGameText->fetch( "GUI:GOCreateLobbyFailed" ) );
+		GSMessageBoxOk( TheGameText->fetch( "GUI:Error" ), TheGameText->fetch( "GO:GUI:CreateLobbyFailed" ) );
 	}
 	return success;
 }

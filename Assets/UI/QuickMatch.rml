@@ -22,7 +22,7 @@
 			</div>
 			<div class="hq-status">
 				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
-				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GO:GUI:MenuOffline"/></div>
 				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 			</div>
 	</div></div>
@@ -32,7 +32,7 @@
 			<div class="col col-main">
 				<!-- Setup: the playlist as cards, then the maps it allows, each toggled in or out. -->
 				<div class="surface qm-playlists" data-if="!show_stats" data-tooltip="TOOLTIP:PlayerSetting">
-					<div class="overline group-title"><gametext key="GUI:GOQMPlaylist"/></div>
+					<div class="overline group-title"><gametext key="GO:GUI:QMPlaylist"/></div>
 					<div class="qm-pl-row">
 						<button class="qm-pl hq-brackets" data-for="opt : playlists" data-class-on="opt.index == selected_playlist" data-class-selected="opt.index == selected_playlist"
 							data-event-click="selected_playlist = opt.index; playlist_changed()"><span class="qm-pl-label">{{opt.label}}</span><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span><span class="hq-edge"></span></button>
@@ -84,16 +84,16 @@
 					<div class="overline"><gametext key="GUI:QuickMatch"/></div>
 					<div class="qm-state" data-if="!stop_visible">
 						<div class="qm-idle">
-							<div class="qm-state-title"><gametext key="GUI:GOQMReady"/></div>
-							<div class="qm-state-hint"><gametext key="GUI:GOQMReadyHint"/></div>
+							<div class="qm-state-title"><gametext key="GO:GUI:QMReady"/></div>
+							<div class="qm-state-hint"><gametext key="GO:GUI:QMReadyHint"/></div>
 						</div>
 					</div>
 					<div class="qm-state" data-if="stop_visible">
 						<div class="qm-radar"><div class="qm-ring pulse"></div><div class="qm-core"></div></div>
 						<div class="qm-searching">
-							<div class="qm-state-title qm-accent"><gametext key="GUI:GOQMSearching"/></div>
+							<div class="qm-state-title qm-accent"><gametext key="GO:GUI:QMSearching"/></div>
 							<div class="qm-elapsed">{{search_elapsed_text}}</div>
-							<div class="stat-label"><gametext key="GUI:GOQMElapsed"/></div>
+							<div class="stat-label"><gametext key="GO:GUI:QMElapsed"/></div>
 						</div>
 					</div>
 					<button class="qm-widen" data-if="stop_visible" data-attrif-disabled="!widen_enabled" data-event-click="widen"><gametext key="GUI:WidenSearch"/></button>

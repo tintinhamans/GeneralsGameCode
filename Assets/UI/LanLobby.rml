@@ -12,7 +12,7 @@
 			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:Multiplayer"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:LANLobby"/></div></div>
 			<div class="hq-status">
 				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
-				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GO:GUI:MenuOffline"/></div>
 				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 			</div>
 	</div></div>
@@ -25,8 +25,8 @@
 				     the right, double-click joins. A game already under way is dimmed. -->
 				<div class="surface games">
 					<div class="list-head">
-						<div class="head-name overline"><gametext key="GUI:GOHost"/></div>
-						<div class="head-map overline"><gametext key="GUI:GOMap"/></div>
+						<div class="head-name overline"><gametext key="GO:GUI:Host"/></div>
+						<div class="head-map overline"><gametext key="GO:GUI:Map"/></div>
 						<div class="head-players overline"><gametext key="GUI:Players"/></div>
 					</div>
 					<div class="game-list">
@@ -34,12 +34,12 @@
 							<div class="row-item game-row" data-if="game.used" data-class-selected="game.is_selected" data-class-in-progress="game.in_progress"
 								data-event-click="game_row_clicked(game.index)" data-event-dblclick="game_row_activated(game.index)">
 								<div class="game-name">{{game.display_name}}</div>
-								<div class="game-state"><span class="chip-label" data-if="game.in_progress"><gametext key="GUI:GOInProgress"/></span></div>
+								<div class="game-state"><span class="chip-label" data-if="game.in_progress"><gametext key="GO:GUI:InProgress"/></span></div>
 								<div class="game-map">{{game.map_name}}</div>
 								<div class="game-players">{{game.players_text}}</div>
 							</div>
 						</div>
-						<div class="empty-state" data-if="game_count == 0"><gametext key="GUI:GONoLanGames"/></div>
+						<div class="empty-state" data-if="game_count == 0"><gametext key="GO:GUI:NoLanGames"/></div>
 					</div>
 				</div>
 
@@ -90,7 +90,7 @@
 								<div class="detail-map-name">{{details_map_display_name}}</div>
 								<div class="stat-label detail-players-label"><gametext key="GUI:Players"/></div>
 								<div class="detail-players">{{details_players_text}}</div>
-								<div class="detail-chip" data-if="details_in_progress"><span class="chip-label"><gametext key="GUI:GOInProgress"/></span></div>
+								<div class="detail-chip" data-if="details_in_progress"><span class="chip-label"><gametext key="GO:GUI:InProgress"/></span></div>
 							</div>
 						</div>
 						<div class="slots">

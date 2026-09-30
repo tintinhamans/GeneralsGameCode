@@ -16,7 +16,7 @@
 		</div>
 
 		<div class="modal-body">
-			<div class="join-lock"><mappedimage name="Password"/><span><gametext key="GUI:GOPasswordRequired"/></span></div>
+			<div class="join-lock"><mappedimage name="Password"/><span><gametext key="GO:GUI:PasswordRequired"/></span></div>
 			<div class="field">
 				<div class="overline"><gametext key="GUI:Password"/></div>
 				<input type="password" class="text-input" data-value="password" maxlength="10" data-event-change="password_committed"/>

@@ -21,8 +21,8 @@
 		<div class="dc-list">
 			<div class="list-head dc-list-head">
 				<div class="dc-name overline"><gametext key="GUI:Player"/></div>
-				<div class="dc-votes overline" data-tooltip="Tooltip:NumberOfVotes"><gametext key="GUI:GOVotes"/></div>
-				<div class="dc-timeout overline"><gametext key="GUI:GOTimeout"/></div>
+				<div class="dc-votes overline" data-tooltip="Tooltip:NumberOfVotes"><gametext key="GO:GUI:Votes"/></div>
+				<div class="dc-timeout overline"><gametext key="GO:GUI:Timeout"/></div>
 				<div class="dc-vote-cell"></div>
 			</div>
 			<div class="dc-slot" data-for="p : players">

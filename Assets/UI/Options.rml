@@ -12,7 +12,7 @@
 			<div class="hq-heading"><div class="hq-title"><gametext key="GUI:Options"/></div></div>
 			<div class="hq-status">
 				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
-				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GO:GUI:MenuOffline"/></div>
 				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 			</div>
 	</div></div>
@@ -21,10 +21,10 @@
 		<div class="screen-body">
 			<!-- Categories down the left. -->
 			<div class="tab-rail">
-				<button class="rail-item hq-brackets" data-class-on="tab == 'video'" data-class-selected="tab == 'video'" data-event-click="select_video"><span class="hq-index rail-idx">01</span><gametext key="GUI:GOOptionsDisplay"/><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
-				<button class="rail-item hq-brackets" data-class-on="tab == 'graphics'" data-class-selected="tab == 'graphics'" data-event-click="select_graphics"><span class="hq-index rail-idx">02</span><gametext key="GUI:GOOptionsGraphics"/><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
+				<button class="rail-item hq-brackets" data-class-on="tab == 'video'" data-class-selected="tab == 'video'" data-event-click="select_video"><span class="hq-index rail-idx">01</span><gametext key="GO:GUI:OptionsDisplay"/><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
+				<button class="rail-item hq-brackets" data-class-on="tab == 'graphics'" data-class-selected="tab == 'graphics'" data-event-click="select_graphics"><span class="hq-index rail-idx">02</span><gametext key="GO:GUI:OptionsGraphics"/><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
 				<button class="rail-item hq-brackets" data-class-on="tab == 'audio'" data-class-selected="tab == 'audio'" data-event-click="select_audio"><span class="hq-index rail-idx">03</span><gametext key="GUI:Audio"/><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
-				<button class="rail-item hq-brackets" data-class-on="tab == 'controls'" data-class-selected="tab == 'controls'" data-event-click="select_controls"><span class="hq-index rail-idx">04</span><gametext key="GUI:GOOptionsControls"/><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
+				<button class="rail-item hq-brackets" data-class-on="tab == 'controls'" data-class-selected="tab == 'controls'" data-event-click="select_controls"><span class="hq-index rail-idx">04</span><gametext key="GO:GUI:OptionsControls"/><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
 				<button class="rail-item hq-brackets" data-class-on="tab == 'network'" data-class-selected="tab == 'network'" data-event-click="select_network"><span class="hq-index rail-idx">05</span><gametext key="GUI:Network"/><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
 			</div>
 
@@ -33,7 +33,7 @@
 			<div class="surface opt-panel">
 				<!-- Display: resolution, brightness, anti-aliasing, texture filtering, anisotropy -->
 				<div class="opt-page scroll-container" data-if="tab == 'video'">
-					<div class="opt-head"><gametext key="GUI:GOOptionsDisplay"/></div>
+					<div class="opt-head"><gametext key="GO:GUI:OptionsDisplay"/></div>
 					<div class="opt-row" data-class-disabled="restricted">
 						<div class="opt-text"><div class="opt-label"><gametext key="GUI:Resolution"/></div><div class="opt-desc"><gametext key="TOOLTIP:Resolution"/></div></div>
 						<div class="opt-control"><select id="select_resolution" data-value="resolution_index" data-attrif-disabled="restricted"></select></div>
@@ -57,7 +57,7 @@
 						</div>
 					</div>
 					<div class="opt-row">
-						<div class="opt-text"><div class="opt-label"><gametext key="GUI:GOTextureFiltering"/></div></div>
+						<div class="opt-text"><div class="opt-label"><gametext key="GO:GUI:TextureFiltering"/></div></div>
 						<div class="opt-control">
 							<select data-value="texture_filter">
 								<option value="0">Bilinear</option>
@@ -67,7 +67,7 @@
 						</div>
 					</div>
 					<div class="opt-row">
-						<div class="opt-text"><div class="opt-label"><gametext key="GUI:GOAnisotropy"/></div></div>
+						<div class="opt-text"><div class="opt-label"><gametext key="GO:GUI:Anisotropy"/></div></div>
 						<div class="opt-control">
 							<select data-value="anisotropy">
 								<option value="0">2x</option>
@@ -82,21 +82,21 @@
 				<!-- Graphics: the detail preset (options filled in C++, RmlOptionsScreen::populateSelectOptions),
 				     its sliders and every effect toggle; editing one switches the preset to Custom. -->
 				<div class="opt-page scroll-container" data-if="tab == 'graphics'">
-					<div class="opt-head"><gametext key="GUI:GOOptionsGraphics"/></div>
+					<div class="opt-head"><gametext key="GO:GUI:OptionsGraphics"/></div>
 					<div class="opt-row" data-class-disabled="restricted">
 						<div class="opt-text"><div class="opt-label"><gametext key="GUI:Detail"/></div></div>
 						<div class="opt-control"><select id="select_detail" data-value="detail_level" data-attrif-disabled="restricted"
 							data-event-change="detail_level_changed"></select></div>
 					</div>
 					<div class="opt-row" data-class-disabled="detail_controls_disabled">
-						<div class="opt-text"><div class="opt-label"><gametext key="GUI:GOTextureResolution"/></div><div class="opt-desc"><gametext key="TOOLTIP:LowResSlider"/></div></div>
+						<div class="opt-text"><div class="opt-label"><gametext key="GO:GUI:TextureResolution"/></div><div class="opt-desc"><gametext key="TOOLTIP:LowResSlider"/></div></div>
 						<div class="opt-control opt-slider">
 							<input class="range" type="range" min="0" max="2" step="1" data-value="texture_resolution"
 								data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:LowResSlider"/>
 						</div>
 					</div>
 					<div class="opt-row" data-class-disabled="detail_controls_disabled">
-						<div class="opt-text"><div class="opt-label"><gametext key="GUI:GOParticleCap"/></div><div class="opt-desc"><gametext key="TOOLTIP:ParticleCapSlider"/></div></div>
+						<div class="opt-text"><div class="opt-label"><gametext key="GO:GUI:ParticleCap"/></div><div class="opt-desc"><gametext key="TOOLTIP:ParticleCapSlider"/></div></div>
 						<div class="opt-control opt-slider">
 							<input class="range" type="range" min="0" max="2500" step="50" data-value="particle_cap"
 								data-attrif-disabled="detail_controls_disabled" data-event-change="detail_control_changed" data-tooltip="TOOLTIP:ParticleCapSlider"/>
@@ -190,7 +190,7 @@
 
 				<!-- Controls -->
 				<div class="opt-page scroll-container" data-if="tab == 'controls'">
-					<div class="opt-head"><gametext key="GUI:GOOptionsControls"/></div>
+					<div class="opt-head"><gametext key="GO:GUI:OptionsControls"/></div>
 					<div class="opt-row">
 						<div class="opt-text"><div class="opt-label"><gametext key="GUI:ScrollSpeed"/></div><div class="opt-desc"><gametext key="TOOLTIP:ScrollSpeed"/></div></div>
 						<div class="opt-control opt-slider">

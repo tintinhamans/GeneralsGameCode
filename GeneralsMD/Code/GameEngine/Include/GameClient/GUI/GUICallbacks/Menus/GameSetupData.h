@@ -187,7 +187,7 @@ struct GameSetupData
 	// Why ButtonStart would be refused now, in the order the start handlers check, with their own
 	// messages: skirmish (SkirmishSetupActions::validateStart()) or network (LanGameSetupActions::
 	// validateStart(), OnlineGameSetupActions' StartPressed()), the latter also naming a player
-	// without the map and, while anyone has not accepted, GUI:GOWaitingForAccepts. Read-only: sends
+	// without the map and, while anyone has not accepted, GO:GUI:WaitingForAccepts. Read-only: sends
 	// nothing, changes nothing. Empty when Start would go ahead.
 	static std::vector<UnicodeString> startBlockers( GameInfo *game, Bool isNetwork );
 };

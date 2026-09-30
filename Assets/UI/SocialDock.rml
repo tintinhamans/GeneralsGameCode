@@ -29,13 +29,13 @@
 		<!-- Friends and requests -->
 		<div class="dock-view" data-if="view == 'list'">
 			<div class="dock-tabs seg">
-				<button class="seg-item on"><gametext key="GUI:GODockFriends"/></button>
-				<button class="seg-item" data-if="has_room" data-event-click="show_room"><gametext key="GUI:GODockRoom"/><span class="tab-count-chip">{{room_count}}</span></button>
-				<button class="seg-item" data-event-click="show_blocked"><gametext key="GUI:GODockBlocked"/></button>
+				<button class="seg-item on"><gametext key="GO:GUI:DockFriends"/></button>
+				<button class="seg-item" data-if="has_room" data-event-click="show_room"><gametext key="GO:GUI:DockRoom"/><span class="tab-count-chip">{{room_count}}</span></button>
+				<button class="seg-item" data-event-click="show_blocked"><gametext key="GO:GUI:DockBlocked"/></button>
 			</div>
 			<div class="dock-scroll">
 				<div class="section" data-if="request_count &gt; 0">
-					<div class="overline section-head"><gametext key="GUI:GODockRequests"/><span class="section-count">{{request_count}}</span></div>
+					<div class="overline section-head"><gametext key="GO:GUI:DockRequests"/><span class="section-count">{{request_count}}</span></div>
 					<div data-for="row : rows">
 						<div class="person request" data-if="row.used &amp;&amp; row.is_request" data-event-mousedown="row_mousedown(row.index)">
 							<div class="avatar">{{row.initial}}</div>
@@ -51,7 +51,7 @@
 				</div>
 
 				<div class="section">
-					<div class="overline section-head"><gametext key="GUI:GODockFriends"/><span class="section-count">{{online_text}}</span></div>
+					<div class="overline section-head"><gametext key="GO:GUI:DockFriends"/><span class="section-count">{{online_text}}</span></div>
 					<div data-for="row : rows">
 						<div class="person friend" data-if="row.used &amp;&amp; row.is_friend" data-class-offline="row.activity == 0"
 							data-class-selected="row.is_open" data-event-click="open_thread(row.index)" data-event-mousedown="row_mousedown(row.index)">
@@ -60,11 +60,11 @@
 							<div class="unread" data-if="row.unread &gt; 0">{{row.unread}}</div>
 						</div>
 					</div>
-					<div class="dock-empty" data-if="friend_count == 0"><gametext key="GUI:GODockNoFriends"/></div>
+					<div class="dock-empty" data-if="friend_count == 0"><gametext key="GO:GUI:DockNoFriends"/></div>
 				</div>
 
 				<div class="section" data-if="lobby_count &gt; 0">
-					<div class="overline section-head"><gametext key="GUI:GODockLobby"/></div>
+					<div class="overline section-head"><gametext key="GO:GUI:DockLobby"/></div>
 					<div data-for="row : rows">
 						<div class="person other" data-if="row.used &amp;&amp; row.is_lobby" data-event-mousedown="row_mousedown(row.index)">
 							<div class="avatar">{{row.initial}}</div>
@@ -75,7 +75,7 @@
 				</div>
 
 				<div class="section" data-if="recent_count &gt; 0">
-					<div class="overline section-head"><gametext key="GUI:GODockRecent"/></div>
+					<div class="overline section-head"><gametext key="GO:GUI:DockRecent"/></div>
 					<div data-for="row : rows">
 						<div class="person other" data-if="row.used &amp;&amp; row.is_recent" data-event-mousedown="row_mousedown(row.index)">
 							<div class="avatar">{{row.initial}}</div>
@@ -91,9 +91,9 @@
 		     marked as the lobby list did. Right click for the lobby's player menu. -->
 		<div class="dock-view" data-if="view == 'room'">
 			<div class="dock-tabs seg">
-				<button class="seg-item" data-event-click="show_list"><gametext key="GUI:GODockFriends"/></button>
-				<button class="seg-item on" data-if="has_room"><gametext key="GUI:GODockRoom"/><span class="tab-count-chip">{{room_count}}</span></button>
-				<button class="seg-item" data-event-click="show_blocked"><gametext key="GUI:GODockBlocked"/></button>
+				<button class="seg-item" data-event-click="show_list"><gametext key="GO:GUI:DockFriends"/></button>
+				<button class="seg-item on" data-if="has_room"><gametext key="GO:GUI:DockRoom"/><span class="tab-count-chip">{{room_count}}</span></button>
+				<button class="seg-item" data-event-click="show_blocked"><gametext key="GO:GUI:DockBlocked"/></button>
 			</div>
 			<div id="room-list" class="dock-scroll room-list">
 				<div data-for="player : room_rows">
@@ -111,19 +111,19 @@
 		<!-- Block list -->
 		<div class="dock-view" data-if="view == 'blocked'">
 			<div class="dock-tabs seg">
-				<button class="seg-item" data-event-click="show_list"><gametext key="GUI:GODockFriends"/></button>
-				<button class="seg-item" data-if="has_room" data-event-click="show_room"><gametext key="GUI:GODockRoom"/><span class="tab-count-chip">{{room_count}}</span></button>
-				<button class="seg-item on"><gametext key="GUI:GODockBlocked"/></button>
+				<button class="seg-item" data-event-click="show_list"><gametext key="GO:GUI:DockFriends"/></button>
+				<button class="seg-item" data-if="has_room" data-event-click="show_room"><gametext key="GO:GUI:DockRoom"/><span class="tab-count-chip">{{room_count}}</span></button>
+				<button class="seg-item on"><gametext key="GO:GUI:DockBlocked"/></button>
 			</div>
 			<div class="dock-scroll">
 				<div data-for="row : blocked_rows">
 					<div class="person other" data-if="row.used" data-event-mousedown="blocked_row_mousedown(row.index)">
 						<div class="avatar">{{row.initial}}</div>
 						<div class="who"><div class="name">{{row.name}}</div></div>
-						<button class="btn-small quiet" data-event-click="unblock(row.index)"><gametext key="GUI:GODockUnblock"/></button>
+						<button class="btn-small quiet" data-event-click="unblock(row.index)"><gametext key="GO:GUI:DockUnblock"/></button>
 					</div>
 				</div>
-				<div class="dock-empty" data-if="blocked_count == 0"><gametext key="GUI:GODockNoBlocked"/></div>
+				<div class="dock-empty" data-if="blocked_count == 0"><gametext key="GO:GUI:DockNoBlocked"/></div>
 			</div>
 		</div>
 
