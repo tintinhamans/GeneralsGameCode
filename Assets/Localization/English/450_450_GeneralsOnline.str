@@ -122,3 +122,23 @@ END
 GUI:GOGameMenu
 "Game Menu"
 END
+
+GUI:GOQMPlaylist
+"Playlist"
+END
+
+GUI:GOQMReady
+"Ready"
+END
+
+GUI:GOQMReadyHint
+"Pick a playlist and the maps you will play in Setup, then start matchmaking."
+END
+
+GUI:GOQMSearching
+"Searching for a match"
+END
+
+GUI:GOQMElapsed
+"Time in queue"
+END

@@ -1,118 +1,443 @@
 /*
-	QuickMatch.rcss -- WOLQuickMatchMenu.wnd. Shell screen, same .shell-frame/.shell-title-bar
-	backdrop as OnlineGameSetup.rcss/OnlineWelcome.rcss. ParentOptions (setup-panel) and ParentStats
-	(stats-panel) are mutually exclusive, toggled by show_stats -- see QuickMatch.rml.
+	QuickMatch.rcss -- WOLQuickMatchMenu.wnd as a matchmaking hub on the screen template (common.rcss).
+	Main column: the playlist as cards over the map pool (a grid of toggles), or the player's persona
+	(common.rcss's persona and stat blocks) -- show_stats picks one, the header switches. Side column:
+	the search state (ready, or searching with a pulsing radar and the time in the queue), the
+	loadout and filters the service sets, and the status feed. Start and Cancel matchmaking take
+	turns as the primary action at the right end of the action bar.
 */
 
-.quickmatch-body
+.qm-title
 {
-	display: flex;
-	flex-direction: column;
-	flex: 1 1 auto;
-	min-height: 0;
-	margin-bottom: 8dp;
+	max-width: 900dp;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
-/* ---- Setup panel: playlist combo, map list, disabled cosmetic ladder/ping/disconnects/side/color
-   rows (see QuickMatch.rml's comment -- real controls the .wnd force-disables under GO). --------- */
-.setup-panel
+/* The active view reads as on, not as a disabled button. */
+.screen .qm-views .seg button.seg-item.on[disabled]
 {
-	display: flex;
-	flex-direction: column;
-	flex: 1 1 auto;
-	min-height: 0;
+	color: #FFFFFF;
+	background-color: #3A46D0;
 }
 
-.map-list
+/* ---- Playlist cards -------------------------------------------------------------------------------- */
+.qm-playlists
 {
-	flex: 1 1 auto;
-	min-height: 80dp;
-	margin-bottom: 12dp;
+	flex: 0 0 auto;
 }
 
-/* Map rows are common.rcss's .list-row.flex.compact with a stronger selected highlight and no outline. */
-.qm-map-row.selected
-{
-	background-color: rgba(47, 55, 168, 160);
-	border: 0dp transparent;
-	border-bottom: 1dp rgba(47, 55, 168, 80);
-}
-
-.map-check
-{
-	box-sizing: border-box;
-	width: 16dp;
-	height: 16dp;
-	margin-right: 8dp;
-	background-color: rgba(2, 2, 2, 191);
-	border: 1dp #2F37A8;
-}
-
-.map-check.checked
-{
-	background-color: #FFFF00;
-	border-color: #FFFF00;
-}
-
-.map-name
-{
-	flex: 1 1 auto;
-}
-
-/* ---- Stats panel: the shared rank cluster (common.rcss) + a tighter stats column, same subset of
-   fields WOLQuickMatchMenu.wnd's ParentStats shows. -------------------------------------------- */
-.stats-panel
+.qm-pl-row
 {
 	display: flex;
 	flex-direction: row;
-	flex: 1 1 auto;
-	min-height: 0;
+	flex-wrap: wrap;
 }
 
-.stats-column
+.screen button.qm-pl
+{
+	flex: 0 0 auto;
+	height: 72dp;
+	line-height: 70dp;
+	min-width: 200dp;
+	padding: 0 30dp;
+	margin: 0 12dp 0 0;
+	font-size: 22dp;
+	letter-spacing: 1dp;
+	color: #D7DCF0;
+	background-color: #05070FC8;
+	border: 1dp #8080FF28;
+	border-bottom: 4dp #2F37A8;
+}
+
+.screen button.qm-pl:hover
+{
+	color: #FFFFFF;
+	background-color: #141A3EF0;
+	border-color: #8080FF;
+	border-bottom-color: #F07A1A;
+}
+
+.screen button.qm-pl.on, .screen button.qm-pl.on:hover
+{
+	color: #FFFFFF;
+	background-color: #2F37A8C8;
+	border-color: #8080FF;
+	border-bottom-color: #F07A1A;
+}
+
+/* ---- Map pool: a grid of toggles ------------------------------------------------------------------- */
+.qm-maps
 {
 	display: flex;
 	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+}
+
+.qm-map-grid
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	flex: 1 1 0%;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.qm-map
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	box-sizing: border-box;
+	width: 32%;
+	height: 92dp;
+	margin: 0 1.33% 12dp 0;
+	padding: 0 18dp 0 8dp;
+	background-color: #05070FB4;
+	border: 1dp #8080FF1E;
+	border-left: 3dp #8080FF28;
+	color: #A9B1CF;
+	transition: background-color border-color 0.12s cubic-out;
+}
+
+.qm-map:hover
+{
+	color: #FFFFFF;
+	background-color: #141A3EE6;
+	border-color: #8080FF;
+}
+
+.qm-map.on
+{
+	color: #FFFFFF;
+	background-color: #1E246ED2;
+	border-color: #8080FF46;
+	border-left-color: #F07A1A;
+}
+
+.qm-thumb
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 74dp;
+	height: 74dp;
+	margin-right: 16dp;
+	background-color: #05070F;
+}
+
+.qm-thumb-image
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* Left out of the pool: the thumbnail fades back. */
+.qm-map .qm-thumb
+{
+	opacity: 0.45;
+}
+
+.qm-map.on .qm-thumb, .qm-map:hover .qm-thumb
+{
+	opacity: 1;
+}
+
+.qm-map-name
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: 20dp;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.qm-check
+{
+	display: block;
+	flex: 0 0 auto;
+	box-sizing: border-box;
+	width: 24dp;
+	height: 24dp;
+	margin-left: 12dp;
+	background-color: #05070FDC;
+	border: 2dp #8080FF6E;
+}
+
+.qm-map.on .qm-check
+{
+	background-color: #F07A1A;
+	border: 6dp #0B1030;
+}
+
+/* ---- Persona (player info) ------------------------------------------------------------------------ */
+/* As tall as its content, the map below it; the setup surfaces before it are hidden, not gone. */
+.surface.qm-persona
+{
+	flex: 0 0 auto;
+	margin-top: 0;
+	padding: 28dp 32dp 16dp 32dp;
+}
+
+/* ---- Side column --------------------------------------------------------------------------------- */
+.qm-side
+{
+	width: 460dp;
+}
+
+.qm-search
+{
+	flex: 0 0 auto;
+	border-top: 2dp #3A46D0;
+}
+
+.qm-search.searching
+{
+	border-top-color: #F07A1A;
+}
+
+.qm-state
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 14dp;
+	min-height: 110dp;
+}
+
+.qm-idle
+{
+	display: block;
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.stats-column .row > .control
+.qm-state-title
 {
-	width: auto;
-	flex: 0 0 auto;
-	margin-left: auto;
-	color: #FFFFFF;
+	display: block;
+	font-size: 34dp;
+	line-height: 40dp;
 	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #FFFFFF;
 }
 
-/* ---- Status feed: ListboxQuickMatch, append-only colored lines (see QuickMatchSession::EventSink::
-   statusLine) -- a .text-list of .text-line, common.rcss. --------------------------------------- */
-.status-feed
+.qm-accent
 {
-	flex: 0 0 96dp;
+	color: #FF9A3D;
+	font-size: 19dp;
+	line-height: 24dp;
+	letter-spacing: 1dp;
+	white-space: nowrap;
 }
 
-/* ---- Map hover preview: ports updateMapHoverPreview() (WOLQuickMatchMenu.cpp:248-282), the preview
-   image that follows the mouse near ListBoxMapSelect. Sibling of .shell-frame (not nested inside it,
-   same reasoning as OnlineLobby.rcss's .context-menu: data-style-left/top's mouse_x/mouse_y are
-   viewport-relative) and position:fixed so RmlQuickMatchScreen.cpp's clampMapPreview() can place it
-   in viewport pixels. pointer-events:none so it never steals the map-row hover/click it's floating
-   over. --------------------------------------------------------------------------------------- */
+.qm-state-hint
+{
+	display: block;
+	margin-top: 8dp;
+	font-size: 17dp;
+	line-height: 23dp;
+	color: #A9B1CF;
+}
+
+/* The searching radar: a pulsing ring round a steady accent core. */
+.qm-radar
+{
+	position: relative;
+	flex: 0 0 auto;
+	width: 104dp;
+	height: 104dp;
+	margin-right: 24dp;
+}
+
+.qm-ring
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	box-sizing: border-box;
+	width: 104dp;
+	height: 104dp;
+	border-radius: 52dp;
+	border: 3dp #F07A1A;
+	background-color: #F07A1A1E;
+}
+
+.qm-core
+{
+	display: block;
+	position: absolute;
+	left: 36dp;
+	top: 36dp;
+	width: 32dp;
+	height: 32dp;
+	border-radius: 16dp;
+	background-color: #F07A1A;
+}
+
+.qm-searching
+{
+	display: block;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.qm-elapsed
+{
+	display: block;
+	margin-top: 2dp;
+	font-size: 46dp;
+	line-height: 52dp;
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+.screen button.qm-widen
+{
+	display: block;
+	width: 100%;
+	margin-top: 18dp;
+	text-align: center;
+}
+
+/* Loadout: army and colour as two cards, then the filters as label/value rows. */
+.qm-loadout
+{
+	flex: 0 0 auto;
+}
+
+.qm-cards
+{
+	display: flex;
+	flex-direction: row;
+	margin-bottom: 10dp;
+}
+
+.qm-card
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	padding: 12dp 14dp;
+	background-color: #05070FC8;
+	border-left: 3dp #8080FF46;
+}
+
+.qm-card + .qm-card
+{
+	margin-left: 12dp;
+}
+
+.qm-card-value
+{
+	display: block;
+	margin-top: 4dp;
+	font-size: 22dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.qm-filter
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 38dp;
+	border-bottom: 1dp #FFFFFF0A;
+}
+
+.qm-filter-label
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: 17dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.qm-filter-value
+{
+	flex: 0 0 auto;
+	margin-left: 12dp;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+}
+
+/* Status feed: the session's coloured lines, filling what the column leaves. */
+.qm-feed
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+}
+
+.qm-lines
+{
+	display: block;
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 10dp;
+	padding-right: 8dp;
+}
+
+.qm-line
+{
+	display: block;
+	padding: 2dp 0;
+	font-size: 17dp;
+	line-height: 22dp;
+}
+
+/* ---- Action bar: Cancel matchmaking is the red twin of Start ---------------------------------- */
+.screen button.btn-cta.qm-stop
+{
+	color: #FFFFFF;
+	decorator: vertical-gradient(#C23A3A #8E1E24);
+}
+
+.screen button.btn-cta.qm-stop:hover
+{
+	color: #FFFFFF;
+	decorator: vertical-gradient(#E04848 #A8262C);
+}
+
+.screen button.btn-cta.qm-stop:active
+{
+	decorator: vertical-gradient(#7A1A1E #9A2228);
+}
+
+/* ---- Map hover preview: follows the cursor over the map pool (see the screen's clampMapPreview());
+   position:fixed in viewport pixels, pointer-events:none so it never takes the hover it floats over. */
 .map-hover-preview
 {
 	display: block;
 	position: fixed;
 	z-index: 100;
-	width: 128dp;
-	height: 128dp;
+	box-sizing: border-box;
+	width: 240dp;
+	height: 240dp;
+	padding: 4dp;
 	pointer-events: none;
-	border: 1dp #2F37A8;
-	background-color: rgba(2, 2, 2, 200);
+	background-color: #070A1AF0;
+	border: 1dp #8080FF;
+	border-top: 3dp #F07A1A;
 }
 
-/* <mappreview> is a custom element (RmlUiElements.cpp) with no default display -- same reasoning as
-   PlayerInfo.rcss's .rank-image/.faction-image classes on <mappedimage>. */
+/* <mappreview> is a custom element (RmlUiElements.cpp) with no default display. */
 .map-hover-preview-image
 {
 	display: block;
@@ -120,8 +445,24 @@
 	height: 100%;
 }
 
-/* Beside the expanded social dock on 5:4 and 4:3: the five footer buttons get tighter. */
+/* ---- Beside the open social dock: two map columns, a narrower side column ----------------------- */
+.dock-open .qm-map { width: 48.5%; margin-right: 1.5%; }
+.dock-open .qm-side { width: 400dp; }
+
+/* ---- 5:4 and 4:3, and beside the open social dock ---------------------------------------------- */
 @media (max-aspect-ratio: 3/2)
 {
-	.dock-open .footer .btn-primary { min-width: 0; padding: 0 10dp; font-size: 15dp; }
+	.qm-side { width: 380dp; }
+	.qm-map { width: 48.5%; margin-right: 1.5%; }
+	.qm-radar, .qm-ring { width: 84dp; height: 84dp; border-radius: 42dp; }
+	.qm-core { left: 28dp; top: 28dp; width: 28dp; height: 28dp; border-radius: 14dp; }
+	.qm-elapsed { font-size: 38dp; line-height: 44dp; }
+	.qm-state-title { font-size: 28dp; line-height: 34dp; }
+	.qm-accent { font-size: 16dp; line-height: 22dp; letter-spacing: 0.5dp; }
+	.screen button.qm-pl { min-width: 150dp; padding: 0 20dp; font-size: 19dp; }
+	.dock-open .qm-side { width: 330dp; }
+	.dock-open .qm-map { width: 100%; margin-right: 0; }
+	.screen.dock-open .action-bar button.btn-cta { min-width: 0; padding: 0 24dp; font-size: 20dp; }
+	.dock-open .screen-crumb { display: none; }
 }
+

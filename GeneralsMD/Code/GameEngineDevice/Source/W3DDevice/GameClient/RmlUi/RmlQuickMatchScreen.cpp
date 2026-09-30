@@ -30,6 +30,7 @@
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineSessionExit.h"
 #include "GameClient/GUI/GUICallbacks/Menus/QuickMatchSession.h"
 #include "GameClient/Shell.h"
+#include "GameClient/TransitionSounds.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include <RmlUi/Core/Context.h>
@@ -92,6 +93,7 @@ void RmlQuickMatchScreen::load(Rml::Context *context)
 		{
 			mapHandle.RegisterMember("index", &MapRowModel::index);
 			mapHandle.RegisterMember("label", &MapRowModel::label);
+			mapHandle.RegisterMember("path", &MapRowModel::path); // the tile's <mappreview>
 			mapHandle.RegisterMember("selected", &MapRowModel::selected);
 			mapHandle.RegisterMember("used", &MapRowModel::used);
 		}
@@ -153,6 +155,7 @@ void RmlQuickMatchScreen::load(Rml::Context *context)
 		constructor.Bind("map_preview_x_style", &m_model.mapPreviewXStyle);
 		constructor.Bind("map_preview_y_style", &m_model.mapPreviewYStyle);
 		constructor.Bind("map_preview_map_path", &m_model.mapPreviewMapPath);
+		constructor.Bind("search_elapsed_text", &m_model.searchElapsedText);
 
 		constructor.BindEventCallback("playlist_changed", &RmlQuickMatchScreen::onPlaylistChanged, this);
 		constructor.BindEventCallback("map_row_clicked", &RmlQuickMatchScreen::onMapRowClicked, this);
@@ -212,6 +215,8 @@ void RmlQuickMatchScreen::show()
 	onStatusLine("Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible.", colorToCss(GameMakeColor(255, 194, 25, 255)));
 
 	m_model.mapPreviewVisible = false;
+	m_searchClockRunning = false;
+	m_model.searchElapsedText = "0:00";
 	populateDisabledOptionCombos();
 
 	if (m_modelHandle)
@@ -227,10 +232,15 @@ void RmlQuickMatchScreen::show()
 	QuickMatchSession::enter();
 
 	m_document->Show();
+
+	// WOLQuickMatchMenuInit()'s entrance group, and WOLQuickMatchMenuShutdown()'s reverse below.
+	TransitionSounds::play("WOLQuickMatchMenuFade");
 }
 
 void RmlQuickMatchScreen::hide()
 {
+	if (m_document && m_document->IsVisible())
+		TransitionSounds::play("WOLQuickMatchMenuFade", TRUE);
 	if (m_document)
 		m_document->Hide();
 
@@ -278,9 +288,38 @@ void RmlQuickMatchScreen::update()
 	}
 
 	QuickMatchSession::update();
+	updateSearchClock();
 
 	if (m_model.mapPreviewVisible)
 		clampMapPreview();
+}
+
+void RmlQuickMatchScreen::updateSearchClock()
+{
+	if (!m_model.stopVisible)
+	{
+		m_searchClockRunning = false;
+		return;
+	}
+
+	const unsigned long long now = ::GetTickCount64();
+	if (!m_searchClockRunning)
+	{
+		m_searchClockRunning = true;
+		m_searchStartMs = now;
+		m_searchElapsedSeconds = -1;
+	}
+
+	const int seconds = (int)((now - m_searchStartMs) / 1000ULL);
+	if (seconds == m_searchElapsedSeconds)
+		return;
+	m_searchElapsedSeconds = seconds;
+
+	char buf[32];
+	_snprintf_s(buf, sizeof(buf), _TRUNCATE, "%d:%02d", seconds / 60, seconds % 60);
+	m_model.searchElapsedText = buf;
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("search_elapsed_text");
 }
 
 // Called each update() while the preview is visible; see the declaration's comment.

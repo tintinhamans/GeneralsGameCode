@@ -4,116 +4,143 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="QuickMatch.rcss"/>
 </head>
-<body class="shell dock-host" data-model="quickmatch">
-	<mappedimage class="shell-background" name="MainMenuRuler"/>
+<!-- Quick match (WOLQuickMatchMenu.wnd, RmlQuickMatchScreen) as a matchmaking hub on the screen
+     template. The main column is the setup (playlist cards over the map pool) or the player's
+     persona, switched in the header; the side column is the search state over the loadout and the
+     status feed. Start and Cancel matchmaking take turns as the primary action. -->
+<body class="screen dock-host" data-model="quickmatch">
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
-	<div class="shell-frame">
-		<div class="shell-title-bar">{{title}}</div>
-
-		<div class="quickmatch-body">
-			<div class="setup-panel" data-if="!show_stats">
-				<div class="row">
-					<div class="label"><gametext key="GUI:NumPlayers"/></div>
-					<select class="control" data-value="selected_playlist" data-event-change="playlist_changed" data-tooltip="TOOLTIP:PlayerSetting">
-						<option data-for="opt : playlists" data-attr-value="opt.index">{{opt.label}}</option>
-					</select>
-				</div>
-
-				<div class="section-title"><gametext key="GUI:AllowableMaps"/></div>
-				<div class="scroll-container list-box map-list">
-					<div data-for="row : maps">
-						<div class="list-row flex compact qm-map-row" data-if="row.used" data-class-selected="row.selected" data-event-click="map_row_clicked(row.index)"
-							data-event-mouseover="map_row_hover(row.index)" data-event-mousemove="map_row_hover(row.index)" data-event-mouseout="map_row_hover_clear">
-							<div class="map-check" data-class-checked="row.selected"></div>
-							<div class="map-name">{{row.label}}</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- ComboBoxLadder/ComboBoxMaxPing/ComboBoxMaxDisconnects/ComboBoxSide/ComboBoxColor: real,
-				     populated controls the .wnd force-disables every Init under Generals Online -- shown
-				     disabled, populated from the same QuickMatchActions::getLadderOptions()/getMaxPingOptions()/
-				     getMaxDisconnectsOptions()/getSideOptions()/getColorOptions() the .wnd's own population
-				     functions produce (see RmlQuickMatchScreen.cpp's populateDisabledOptionCombos()). -->
-				<div class="row disabled">
-					<div class="label"><gametext key="GUI:LadderName"/></div>
-					<select class="control" disabled="disabled" data-value="ladder_selected" data-tooltip="TOOLTIP:Ladder">
-						<option data-for="opt : ladder_options" data-attr-value="opt.value">{{opt.label}}</option>
-					</select>
-				</div>
-				<div class="row disabled">
-					<div class="label"><gametext key="GUI:MaxPing"/></div>
-					<select class="control" disabled="disabled" data-value="max_ping_selected" data-tooltip="TOOLTIP:Ping">
-						<option data-for="opt : max_ping_options" data-attr-value="opt.value">{{opt.label}}</option>
-					</select>
-				</div>
-				<div class="row disabled">
-					<div class="label"><gametext key="GUI:MaxDisconnects"/></div>
-					<select class="control" disabled="disabled" data-value="max_disconnects_selected" data-tooltip="TOOLTIP:Disconnect">
-						<option data-for="opt : max_disconnects_options" data-attr-value="opt.value">{{opt.label}}</option>
-					</select>
-				</div>
-				<div class="row disabled">
-					<div class="label"><gametext key="GUI:Side"/></div>
-					<select class="control" disabled="disabled" data-value="side_selected">
-						<option data-for="opt : side_options" data-attr-value="opt.value">{{opt.label}}</option>
-					</select>
-				</div>
-				<div class="row disabled">
-					<div class="label"><gametext key="GUI:Color"/></div>
-					<select class="control" disabled="disabled" data-value="color_selected">
-						<option data-for="opt : color_options" data-attr-value="opt.value">{{opt.label}}</option>
-					</select>
-				</div>
+	<div class="screen-frame">
+		<div class="screen-header">
+			<div class="screen-heading">
+				<div class="screen-crumb"><gametext key="GUI:GeneralsOnline"/><span class="crumb-sep">&#8250;</span></div>
+				<div class="screen-title qm-title">{{title}}</div>
 			</div>
-
-			<div class="stats-panel" data-if="show_stats">
-				<div class="rank-column">
-					<div class="section-title"><gametext key="GUI:Rank"/></div>
-					<div class="rank-border">
-						<div class="rank-image-wrap">
-							<mappedimage class="rank-image" data-attr-name="rank_image_name"/>
-							<mappedimage class="faction-image" data-attr-name="faction_image_name" data-if="show_faction_image"/>
-						</div>
-						<div class="rank-progress" data-if="!rank_at_max">
-							<div class="rank-progress-fill" data-style-width="rank_progress_width_style"></div>
-						</div>
-					</div>
-					<div class="rank-label">{{rank_text}}</div>
-				</div>
-
-				<div class="stats-column">
-					<div class="row"><div class="label"><gametext key="GUI:GamesPlayed"/></div><div class="control">{{games_played_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:CareerWins"/></div><div class="control">{{wins_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:CareerLosses"/></div><div class="control">{{losses_text}}</div></div>
-					<div class="row"><div class="label">{{disconnects_label_text}}</div><div class="control">{{disconnects_value_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:BestWinStreak"/></div><div class="control">{{best_streak_text}}</div></div>
-					<div class="row"><div class="label">{{streak_label_text}}</div><div class="control">{{streak_value_text}}</div></div>
-					<div class="row"><div class="label"><gametext key="GUI:CarrerWinPercent"/></div><div class="control">{{win_percent_text}}</div></div>
+			<!-- ButtonOptions: Setup or the player's info, one at a time (toggle_options flips it). -->
+			<div class="screen-header-aside qm-views">
+				<div class="seg">
+					<button class="seg-item" data-class-on="!show_stats" data-attrif-disabled="!show_stats" data-event-click="toggle_options"><gametext key="GUI:Setup"/></button>
+					<button class="seg-item" data-class-on="show_stats" data-attrif-disabled="show_stats" data-event-click="toggle_options"><gametext key="GUI:PlayerInfo"/></button>
 				</div>
 			</div>
 		</div>
 
-		<scrolllog class="text-list status-feed">
-			<div class="text-line" data-for="line : status_lines"><span data-style-color="line.color">{{line.text}}</span></div>
-		</scrolllog>
+		<div class="screen-body">
+			<div class="col col-main">
+				<!-- Setup: the playlist as cards, then the maps it allows, each toggled in or out. -->
+				<div class="surface qm-playlists" data-if="!show_stats" data-tooltip="TOOLTIP:PlayerSetting">
+					<div class="overline group-title"><gametext key="GUI:GOQMPlaylist"/></div>
+					<div class="qm-pl-row">
+						<button class="qm-pl" data-for="opt : playlists" data-class-on="opt.index == selected_playlist"
+							data-event-click="selected_playlist = opt.index; playlist_changed()">{{opt.label}}</button>
+					</div>
+				</div>
 
-		<div class="footer footer-split">
+				<div class="surface qm-maps" data-if="!show_stats">
+					<div class="overline group-title"><gametext key="GUI:AllowableMaps"/></div>
+					<div class="qm-map-grid">
+						<div class="qm-map" data-for="row : maps" data-if="row.used" data-class-on="row.selected" data-event-click="map_row_clicked(row.index)"
+							data-event-mouseover="map_row_hover(row.index)" data-event-mousemove="map_row_hover(row.index)" data-event-mouseout="map_row_hover_clear">
+							<div class="qm-thumb"><mappreview class="qm-thumb-image" data-attr-map="row.path"/></div>
+							<div class="qm-map-name">{{row.label}}</div>
+							<div class="qm-check"></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Player info (ParentStats): the persona of the dashboard, rank and career record. -->
+				<div class="surface qm-persona" data-if="show_stats">
+					<div class="persona-hero">
+						<div class="persona-portrait">
+							<mappedimage class="persona-rank-image" data-attr-name="rank_image_name"/>
+							<div class="persona-badge" data-if="show_faction_image"><mappedimage data-attr-name="faction_image_name"/></div>
+						</div>
+						<div class="persona-rank">
+							<div class="overline"><gametext key="GUI:Rank"/></div>
+							<div class="persona-rank-name">{{rank_text}}</div>
+							<div class="progress persona-progress" data-if="!rank_at_max" data-tooltip="TOOLTIP:ProgressToNextRank">
+								<div class="progress-fill" data-style-width="rank_progress_width_style"></div>
+							</div>
+						</div>
+					</div>
+					<div class="stat-blocks">
+						<div class="stat-block"><div class="stat-block-value">{{games_played_text}}</div><div class="stat-label"><gametext key="GUI:GamesPlayed"/></div></div>
+						<div class="stat-block"><div class="stat-block-value">{{wins_text}}</div><div class="stat-label"><gametext key="GUI:CareerWins"/></div></div>
+						<div class="stat-block"><div class="stat-block-value">{{losses_text}}</div><div class="stat-label"><gametext key="GUI:CareerLosses"/></div></div>
+						<div class="stat-block"><div class="stat-block-value">{{win_percent_text}}</div><div class="stat-label"><gametext key="GUI:CarrerWinPercent"/></div></div>
+						<div class="stat-block"><div class="stat-block-value">{{disconnects_value_text}}</div><div class="stat-label">{{disconnects_label_text}}</div></div>
+						<div class="stat-block"><div class="stat-block-value">{{best_streak_text}}</div><div class="stat-label"><gametext key="GUI:BestWinStreak"/></div></div>
+						<div class="stat-block"><div class="stat-block-value">{{streak_value_text}}</div><div class="stat-label">{{streak_label_text}}</div></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="col col-side qm-side">
+				<!-- Where the search stands: ready, or searching with the time in the queue. -->
+				<div class="surface qm-search" data-class-searching="stop_visible">
+					<div class="overline"><gametext key="GUI:QuickMatch"/></div>
+					<div class="qm-state" data-if="!stop_visible">
+						<div class="qm-idle">
+							<div class="qm-state-title"><gametext key="GUI:GOQMReady"/></div>
+							<div class="qm-state-hint"><gametext key="GUI:GOQMReadyHint"/></div>
+						</div>
+					</div>
+					<div class="qm-state" data-if="stop_visible">
+						<div class="qm-radar"><div class="qm-ring pulse"></div><div class="qm-core"></div></div>
+						<div class="qm-searching">
+							<div class="qm-state-title qm-accent"><gametext key="GUI:GOQMSearching"/></div>
+							<div class="qm-elapsed">{{search_elapsed_text}}</div>
+							<div class="stat-label"><gametext key="GUI:GOQMElapsed"/></div>
+						</div>
+					</div>
+					<button class="qm-widen" data-if="stop_visible" data-attrif-disabled="!widen_enabled" data-event-click="widen"><gametext key="GUI:WidenSearch"/></button>
+				</div>
+
+				<!-- The loadout and filters the service decides for Generals Online (the .wnd shows them
+				     disabled): what they are set to, read only. -->
+				<div class="surface qm-loadout">
+					<div class="qm-cards">
+						<div class="qm-card">
+							<div class="stat-label"><gametext key="GUI:Side"/></div>
+							<div class="qm-card-value"><div data-for="opt : side_options"><span data-if="opt.value == side_selected">{{opt.label}}</span></div></div>
+						</div>
+						<div class="qm-card">
+							<div class="stat-label"><gametext key="GUI:Color"/></div>
+							<div class="qm-card-value"><div data-for="opt : color_options"><span data-if="opt.value == color_selected">{{opt.label}}</span></div></div>
+						</div>
+					</div>
+					<div class="qm-filter" data-tooltip="TOOLTIP:Ladder"><div class="qm-filter-label"><gametext key="GUI:Ladder"/></div>
+						<div class="qm-filter-value"><div data-for="opt : ladder_options"><span data-if="opt.value == ladder_selected">{{opt.label}}</span></div></div></div>
+					<div class="qm-filter" data-tooltip="TOOLTIP:Ping"><div class="qm-filter-label"><gametext key="GUI:MaxPing"/></div>
+						<div class="qm-filter-value"><div data-for="opt : max_ping_options"><span data-if="opt.value == max_ping_selected">{{opt.label}}</span></div></div></div>
+					<div class="qm-filter" data-tooltip="TOOLTIP:Disconnect"><div class="qm-filter-label"><gametext key="GUI:MaxDisconnects"/></div>
+						<div class="qm-filter-value"><div data-for="opt : max_disconnects_options"><span data-if="opt.value == max_disconnects_selected">{{opt.label}}</span></div></div></div>
+				</div>
+
+				<!-- ListboxQuickMatch: the session's status lines, newest at the bottom. -->
+				<div class="surface qm-feed">
+					<div class="overline"><gametext key="GUI:Status"/></div>
+					<scrolllog class="qm-lines">
+						<div class="qm-line" data-for="line : status_lines"><span data-style-color="line.color">{{line.text}}</span></div>
+					</scrolllog>
+				</div>
+			</div>
+		</div>
+
+		<div class="action-bar">
+			<button class="btn-back" data-attrif-disabled="!back_enabled" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
+			<div class="spacer"></div>
+			<button data-attrif-disabled="!communicator_enabled" data-event-click="buddies">{{communicator_label}}</button>
 			<!-- WOLQuickMatchMenu.cpp:1114-1115 relabels these to hardcoded English literals at Init
-			     (not GameText keys) -- kept verbatim, same as the welcome/instructions status lines. -->
-			<button class="btn-primary" data-if="start_visible" data-attrif-disabled="!start_enabled" data-class-disabled="!start_enabled" data-event-click="start">START MATCHMAKING</button>
-			<button class="btn-primary" data-if="stop_visible" data-attrif-disabled="!stop_enabled" data-class-disabled="!stop_enabled" data-event-click="stop">CANCEL MATCHMAKING</button>
-			<button class="btn-primary" data-attrif-disabled="!widen_enabled" data-class-disabled="!widen_enabled" data-event-click="widen"><gametext key="GUI:WidenSearch"/></button>
-			<button class="btn-primary" data-event-click="toggle_options">{{options_button_label}}</button>
-			<button class="btn-primary" data-attrif-disabled="!communicator_enabled" data-class-disabled="!communicator_enabled" data-event-click="buddies">{{communicator_label}}</button>
-			<button class="btn-primary" data-attrif-disabled="!back_enabled" data-class-disabled="!back_enabled" data-event-click="back"><gametext key="GUI:Back"/></button>
+			     (not GameText keys), kept verbatim. -->
+			<button class="btn-cta" data-if="start_visible" data-attrif-disabled="!start_enabled" data-event-click="start">START MATCHMAKING</button>
+			<button class="btn-cta qm-stop" data-if="stop_visible" data-attrif-disabled="!stop_enabled" data-event-click="stop">CANCEL MATCHMAKING</button>
 		</div>
 	</div>
 
-	<!-- Sibling of .shell-frame (not nested inside it), same reasoning as OnlineLobby.rml's
-	     .context-menu: .shell-frame is itself position:absolute, so a nested .map-hover-preview
-	     would resolve data-style-left/top's viewport-relative mouse_x/mouse_y against .shell-frame's
-	     box instead of the viewport. Ports updateMapHoverPreview() (WOLQuickMatchMenu.cpp:248-282). -->
+	<!-- A viewport layer, direct child of <body>: the hovered map's preview beside the cursor
+	     (updateMapHoverPreview(), WOLQuickMatchMenu.cpp:248-282), clamped on screen by the screen. -->
 	<div id="map-hover-preview" class="map-hover-preview" data-if="map_preview_visible" data-style-left="map_preview_x_style" data-style-top="map_preview_y_style">
 		<mappreview class="map-hover-preview-image" data-attr-map="map_preview_map_path"/>
 	</div>

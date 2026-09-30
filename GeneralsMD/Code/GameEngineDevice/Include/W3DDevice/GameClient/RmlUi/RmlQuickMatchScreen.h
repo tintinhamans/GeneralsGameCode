@@ -214,6 +214,8 @@ private:
 		Rml::String mapPreviewXStyle = "0px";
 		Rml::String mapPreviewYStyle = "0px";
 		Rml::String mapPreviewMapPath; // QuickMatchData::MapOption::mapPath of the hovered row
+
+		Rml::String searchElapsedText = "0:00"; // time in the queue while Cancel matchmaking shows, "m:ss"
 	} m_model;
 
 	RmlGrowOnlyList<MapRowModel> m_mapRows;
@@ -223,6 +225,13 @@ private:
 	// idiom as RmlOnlineLobbyScreen's m_playerMenuRawX/Y.
 	float m_mapPreviewRawX = 0.0f;
 	float m_mapPreviewRawY = 0.0f;
+
+	// The search clock behind searchElapsedText: started when Cancel matchmaking appears (the search
+	// is up), stopped when it goes.
+	void updateSearchClock();
+	bool m_searchClockRunning = false;
+	unsigned long long m_searchStartMs = 0;
+	int m_searchElapsedSeconds = -1;
 };
 
 // Registry entry point (see RmlUiManager::init()).
