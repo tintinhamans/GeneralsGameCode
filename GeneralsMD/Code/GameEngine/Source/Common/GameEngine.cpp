@@ -574,8 +574,9 @@ void GameEngine::init()
 		initSubsystem(TheDeepCRCSanityCheck, "TheDeepCRCSanityCheck", MSGNEW("GameEngineSubystem") DeepCRCSanityCheck, nullptr);
 #endif // DEBUG_CRC
 		// NGMP_CHANGE: The UI text language (Options > Game language) loads over the installed one, its base
-		// game text from the Languages folder beside the community patch data. RmlUi shapes right-to-left
-		// text itself, so the table keeps it in logical order; W3DDisplayString turns it back for GameFont.
+		// game text from the bundled Generals Game Patch tables unless the Languages folder beside the
+		// community patch data overrides them. RmlUi shapes right-to-left text itself, so the table keeps
+		// it in logical order; W3DDisplayString turns it back for GameFont.
 		{
 			const std::string &language = NGMP_OnlineServicesManager::Settings.UI_GetLanguage();
 			AsciiString languagesDir(NGMP_OnlineServicesManager::Settings.UI_GetLanguagesDir().c_str());

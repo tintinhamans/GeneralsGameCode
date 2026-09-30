@@ -245,6 +245,7 @@ const GameTextLanguage GameTextLanguages[] =
 	{ "bp", L"Portugu\x00EAs (Brasil)", FALSE },
 	{ "pl", L"Polski", FALSE },
 	{ "ru", L"\x0420\x0443\x0441\x0441\x043A\x0438\x0439", FALSE },
+	{ "uk", L"\x0423\x043A\x0440\x0430\x0457\x043D\x0441\x044C\x043A\x0430", FALSE },
 	{ "ar", L"\x0627\x0644\x0639\x0631\x0628\x064A\x0629", TRUE },
 };
 const Int GameTextLanguageCount = ARRAY_SIZE( GameTextLanguages );
@@ -571,12 +572,14 @@ void GameTextManager::mergeEntries( const StringInfo *entries, Int count, const 
 // GameTextManager::mergeTextLanguage
 //============================================================================
 // Layers the chosen text language (SetGameTextOptions()) over the installed one. The base game's text
-// comes from the languages directory, which Generals Online ships separately:
-//   <languagesDir><code>\generals.csf   a compiled table for that language, else
-//   <languagesDir>generals.str          Patch104p's multi-language table, reading the <CODE>: lines
-//                                       and falling back to US: for labels without one.
-// The game's own strings then come from data\Languages\<code>\ (the embedded archive, loose files or
-// a .big). With no base game text the installed language stays and the language counts as not loaded.
+// comes from the first of these that has the language:
+//   1. <languagesDir><code>\generals.csf   a user override: a compiled table for that language, else
+//      <languagesDir>generals.str          a multi-language table (Patch104p's format), reading the
+//                                          <CODE>: lines and falling back to US: for labels without one
+//   2. data\Languages\<code>\generals.csf  the Generals Game Patch text bundled in the embedded archive
+//   3. the installed language               (the language then counts as not loaded)
+// The game's own strings then come from the other files in data\Languages\<code>\ (the embedded
+// archive, loose files or a .big), over whichever base was used.
 
 void GameTextManager::mergeTextLanguage( std::vector<StringInfo>& merged, LabelIndexMap& labelIndex )
 {
@@ -615,14 +618,23 @@ void GameTextManager::mergeTextLanguage( std::vector<StringInfo>& merged, LabelI
 		}
 	}
 
+	AsciiString gameDir;
+	gameDir.format( "data\\Languages\\%s\\", s_textLanguageCode.str() );
+
 	if ( !loaded )
 	{
-		DEBUG_LOG(("GameText: No '%s' text in '%s', keeping the installed language", s_textLanguageCode.str(), s_textLanguagesDir.str()));
+		AsciiString bundledFile;
+		bundledFile.format( "%sgenerals.csf", gameDir.str() );
+		loaded = mergeStringFile( bundledFile, merged, labelIndex );
+		DEBUG_LOG(("GameText: %s bundled '%s'", loaded ? "Using" : "No", bundledFile.str()));
+	}
+
+	if ( !loaded )
+	{
+		DEBUG_LOG(("GameText: No '%s' text in '%s' or the bundled files, keeping the installed language", s_textLanguageCode.str(), s_textLanguagesDir.str()));
 		return;
 	}
 
-	AsciiString gameDir;
-	gameDir.format( "data\\Languages\\%s\\", s_textLanguageCode.str() );
 	FilenameList files;
 	TheFileSystem->getFileListInDirectory( gameDir, "*.csf", files, FALSE );
 	TheFileSystem->getFileListInDirectory( gameDir, "*.str", files, FALSE );
@@ -630,6 +642,9 @@ void GameTextManager::mergeTextLanguage( std::vector<StringInfo>& merged, LabelI
 	std::stable_sort( sortedFiles.begin(), sortedFiles.end(), basenameLess );
 	for ( Int i = (Int)sortedFiles.size() - 1; i >= 0; i-- )
 	{
+		// The bundled base table was either merged above or is shadowed by the user's override.
+		if ( stricmp( getFileBaseName( sortedFiles[i] ), "generals.csf" ) == 0 )
+			continue;
 		mergeStringFile( sortedFiles[i], merged, labelIndex );
 	}
 
