@@ -226,3 +226,19 @@ END
 GUI:GOStartSpot
 "Start"
 END
+
+GUI:GOBioBranch
+"Branch"
+END
+
+GUI:GOBioTactics
+"Tactics"
+END
+
+GUI:GOChallengeYou
+"Your General"
+END
+
+GUI:GOChallengeOpponent
+"Opponent"
+END

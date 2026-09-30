@@ -64,10 +64,15 @@ private:
 		Rml::String normalImage;
 		Rml::String hiliteImage;
 		Rml::String selectedImage;
-		Rml::String left;
-		Rml::String top;
-		Rml::String size;
 		bool selected = false;
+		bool hovered = false; // under the cursor, on its tile or its pin
+		// Placement in percent of the map theatre: the pin at the general's home region, the roster
+		// tile, and the wire from pin to tile (down to its bus line, along it, down into the tile).
+		Rml::String pinLeft, pinTop;
+		Rml::String tileLeft, tileTop;
+		Rml::String dropTop, dropHeight;
+		Rml::String railLeft, railTop, railWidth;
+		Rml::String feedTop, feedHeight;
 		Rml::String portraitImage; // small bio portrait
 		Rml::String name; // bio name
 	};
@@ -89,6 +94,7 @@ private:
 
 	Model m_model;
 	unsigned int m_shownVersion = 0;
+	int m_hovered = -1; ///< general under the cursor, -1 for none
 	bool m_active = false; ///< opened and not closed yet
 };
 

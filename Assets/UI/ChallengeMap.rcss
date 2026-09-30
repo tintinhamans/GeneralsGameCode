@@ -1,0 +1,148 @@
+/*
+	ChallengeMap.rcss -- the command room behind both Generals Challenge screens (ChallengeMenu and
+	ChallengeLoadScreen): the world map of GCBackgroundMinSpec, the original menu's own backdrop, dark
+	and blue under a faint tactical grid on the deepest ink.
+
+	The map is the art's map area, (41,41)-(759,560) of its 800x600, drawn contain-fit on the screen
+	(.cm-theatre): full height on 16:9 and wider, where its east and west edges fade into the grid, and
+	full width on 5:4 and 4:3. Anything placed on the map in percent of a .cm-theatre box (the menu's
+	pins, wires and roster) stays on its spot at any aspect ratio.
+
+		<div class="cm-grid"><div class="cm-grid-v"><div/>x32</div><div class="cm-grid-h"><div/>x14</div></div>
+		<div class="cm-theatre cm-map"><mappedimage class="cm-map-art" name="GCBackgroundMinSpec"/>
+			<div class="cm-map-tint"/><div class="cm-fade cm-fade-l"/> (-r, -t, -b the same)</div>
+*/
+
+/* ---- Tactical grid: hairlines every 90dp from the centre of the screen, on the ink ------------ */
+.cm-grid
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	clip: always;
+	background-color: #05070F;
+	pointer-events: none;
+}
+
+.cm-grid-v, .cm-grid-h
+{
+	display: flex;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	justify-content: center;
+	align-items: center;
+	overflow: hidden;
+}
+
+.cm-grid-v { flex-direction: row; }
+.cm-grid-h { flex-direction: column; }
+
+.cm-grid-v > div
+{
+	flex: 0 0 90dp;
+	height: 100%;
+	border-left: 1dp #8080FF14;
+}
+
+.cm-grid-h > div
+{
+	flex: 0 0 90dp;
+	width: 100%;
+	border-top: 1dp #8080FF14;
+}
+
+/* ---- The map theatre ------------------------------------------------------------------------ */
+/* 718:519 is the art's map area. Wide: 100vh tall, 138.34vh wide, centred. */
+.cm-theatre
+{
+	display: block;
+	position: absolute;
+	left: 50%;
+	top: 0;
+	width: 138.34vh;
+	height: 100vh;
+	margin-left: -69.17vh;
+}
+
+.cm-map
+{
+	overflow: hidden;
+	clip: always;
+	pointer-events: none;
+}
+
+/* The whole 800x600 art, placed so its map area fills the theatre; the frame around it is clipped.
+   mappedimage takes no percentages, so the sizes follow the theatre's own vh / vw. */
+.cm-map-art
+{
+	display: block;
+	position: absolute;
+	left: -7.9vh;
+	top: -7.9vh;
+	width: 154.14vh;
+	height: 115.61vh;
+	opacity: 0.7;
+}
+
+/* The backdrop movie (load screen) in the same place, stretched like the art to the 800x600 it was
+   made for. */
+.cm-map-movie video
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* Dark and blue: the art's glowing blues pushed down to a night map. */
+.cm-map-tint
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	background-color: #04061ABE;
+}
+
+/* Soft edges into the grid: east and west where the grid carries on, and under the header and the
+   action bar. */
+.cm-fade
+{
+	display: block;
+	position: absolute;
+}
+
+.cm-fade-l { left: 0; top: 0; width: 14%; height: 100%; decorator: horizontal-gradient(#05070FFF #05070F00); }
+.cm-fade-r { right: 0; top: 0; width: 14%; height: 100%; decorator: horizontal-gradient(#05070F00 #05070FFF); }
+.cm-fade-t { left: 0; top: 0; width: 100%; height: 16%; decorator: vertical-gradient(#05070FE6 #05070F00); }
+.cm-fade-b { left: 0; bottom: 0; width: 100%; height: 30%; decorator: vertical-gradient(#05070F00 #05070FF5); }
+
+/* ---- 5:4 and 4:3: the map fits the width instead, centred on the height ---------------------- */
+@media (max-aspect-ratio: 1383/1000)
+{
+	.cm-theatre
+	{
+		left: 0;
+		top: 50%;
+		width: 100vw;
+		height: 72.28vw;
+		margin-left: 0;
+		margin-top: -36.14vw;
+	}
+
+	.cm-map-art
+	{
+		left: -5.71vw;
+		top: -5.71vw;
+		width: 111.42vw;
+		height: 83.57vw;
+	}
+}

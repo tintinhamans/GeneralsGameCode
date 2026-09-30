@@ -1,11 +1,19 @@
 /*
 	ChallengeMenu.rcss -- the Generals Challenge general select (ChallengeMenu.wnd), on the screen
-	template of common.rcss over the shell map. A grid of the generals the challenge starts with
-	(portrait, medallion and name), the dossier of the one under the cursor or chosen beside it,
-	typed out like the .wnd's, and Play once one is chosen.
+	template of common.rcss over the command room of ChallengeMap.rcss.
+
+	Everything below the header sits on the map, in percent of its theatre (RmlChallengeMenuScreen
+	places it): each general's medallion at their home region, as the .wnd's medallion buttons were,
+	the roster of portraits along two staggered rows ordered west to east, and a wire from pin down to
+	the general's bus line, along it and down into the tile, lit for the general under the cursor
+	(blue) and the chosen one (accent). The dossier of the one under the cursor, else the chosen one,
+	is typed out on the right; Play once one is chosen.
+
+	The accent reaches the pins, wires and tile bars through .chip-label.accent (common.rcss), which
+	the view sets on the chosen general's pieces; the rules here only reshape them.
 */
 
-.ch-frame
+.ch-frame, .ch-stage
 {
 	animation: 0.4s linear-in-out 1 ch-fade-in; /* ChallengeMenuFade */
 }
@@ -16,146 +24,223 @@
 	to { opacity: 1; }
 }
 
-/* ---- Grid ------------------------------------------------------------------------------------ */
-.ch-grid-scroll
+/* The stage covers the map; only its pins, tiles and dossier take the mouse, so the action bar under
+   it stays clickable. */
+.ch-stage
 {
-	flex: 1 1 0%;
-	min-height: 0;
+	pointer-events: none;
 }
 
-.ch-grid
+.ch-stage button, .ch-dossier
 {
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	align-content: flex-start;
+	pointer-events: auto;
 }
 
-.ch-slot
+/* ---- Wires ------------------------------------------------------------------------------------ */
+.ch-wires
 {
 	display: block;
-	margin: 0 16dp 16dp 0;
 }
 
-.screen button.ch-tile
+.ch-wire
 {
-	display: block;
-	position: relative;
-	box-sizing: border-box;
-	width: 212dp;
-	height: auto;
-	padding: 0;
-	line-height: 24dp;
-	text-align: left;
-	letter-spacing: 0;
-	background-color: #070A1AE6;
-	border: 1dp #8080FF28;
-	border-bottom: 4dp #2F37A8;
-	transition: background-color border-color 0.12s cubic-out;
+	background-color: #8080FF;
 }
 
-.screen button.ch-tile:hover
-{
-	background-color: #141A3EF0;
-	border-color: #8080FF;
-	border-bottom-color: #F07A1A;
-}
-
-.screen button.ch-tile.selected, .screen button.ch-tile.selected:hover
-{
-	background-color: #2F37A8C8;
-	border-color: #F07A1A;
-	border-bottom-color: #F07A1A;
-}
-
-.ch-portrait
-{
-	display: block;
-	width: 210dp;
-	height: 208dp;
-	background-color: #05070F;
-	overflow: hidden;
-}
-
-.ch-portrait mappedimage
-{
-	display: block;
-	width: 210dp;
-	height: 208dp;
-	opacity: 0.85;
-	transition: opacity 0.12s cubic-out;
-}
-
-.ch-tile:hover .ch-portrait mappedimage, .ch-tile.selected .ch-portrait mappedimage
-{
-	opacity: 1;
-}
-
-/* The general's medallion over the portrait's corner: silver, blue under the cursor, orange once chosen. */
-.ch-medal
+.ch-stage .ch-wire
 {
 	display: block;
 	position: absolute;
-	left: 8dp;
-	top: 150dp;
-	width: 50dp;
-	height: 50dp;
+	padding: 0;
+	font-size: 0;
 }
 
-.ch-medal mappedimage
+.ch-stage .ch-drop, .ch-stage .ch-feed
+{
+	width: 2dp;
+	margin-left: -1dp;
+}
+
+.ch-stage .ch-rail
+{
+	height: 2dp;
+	margin-top: -1dp;
+}
+
+/* ---- Pins: the general's medallion on a ring; the ring takes the accent once chosen ---------- */
+.ch-stage button.ch-pin
+{
+	display: block;
+	position: absolute;
+	width: 30dp;
+	height: 30dp;
+	margin-left: -15dp;
+	margin-top: -15dp;
+	padding: 0;
+	line-height: 30dp;
+	background-color: transparent;
+	border-width: 0;
+}
+
+.ch-stage button.ch-pin.lit
+{
+	z-index: 2;
+}
+
+.ch-pin-ring
+{
+	background-color: #05070FC8;
+}
+
+.ch-pin .ch-pin-ring
+{
+	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	left: -6dp;
+	top: -6dp;
+	width: 42dp;
+	height: 42dp;
+	padding: 0;
+	font-size: 0;
+	border-radius: 21dp;
+	border: 2dp #8080FF50;
+}
+
+.ch-pin.lit .ch-pin-ring
+{
+	border-color: #FFFFFF;
+}
+
+.ch-pin-medal
 {
 	display: block;
 	position: absolute;
 	left: 0;
 	top: 0;
-	width: 50dp;
-	height: 50dp;
+	width: 30dp;
+	height: 30dp;
 }
 
-.ch-medal .ch-hilite, .ch-medal .ch-selected,
-.ch-tile:hover .ch-medal .ch-normal,
-.ch-tile.selected .ch-medal .ch-normal, .ch-tile.selected .ch-medal .ch-hilite
-{
-	display: none;
-}
-
-.ch-tile:hover .ch-medal .ch-hilite, .ch-tile.selected .ch-medal .ch-selected
+/* ---- Roster tiles ------------------------------------------------------------------------------ */
+.ch-stage button.ch-tile
 {
 	display: block;
+	position: absolute;
+	box-sizing: border-box;
+	width: 150dp;
+	height: auto;
+	margin-left: -75dp;
+	padding: 0;
+	line-height: 20dp;
+	text-align: center;
+	letter-spacing: 0;
+	background-color: #070A1AE6;
+	border: 1dp #8080FF28;
+}
+
+.ch-stage button.ch-tile.lit
+{
+	background-color: #141A3EF0;
+	border-color: #8080FF;
+}
+
+.ch-stage button.ch-tile.selected
+{
+	background-color: #2F37A8C8;
+	border-color: #8080FF;
+}
+
+/* Where the wire comes in: dim, blue under the cursor, the accent once chosen. */
+.ch-tile-bar
+{
+	background-color: #8080FF46;
+}
+
+.ch-tile .ch-tile-bar
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 4dp;
+	padding: 0;
+	font-size: 0;
+}
+
+.ch-tile.lit .ch-tile-bar
+{
+	background-color: #8080FF;
+}
+
+.ch-portrait
+{
+	display: block;
+	width: 148dp;
+	height: 148dp;
+	background-color: #05070F;
+}
+
+.ch-portrait mappedimage
+{
+	display: block;
+	width: 148dp;
+	height: 148dp;
+	opacity: 0.8;
+	transition: opacity 0.12s cubic-out;
+}
+
+.ch-tile.lit .ch-portrait mappedimage, .ch-tile.selected .ch-portrait mappedimage
+{
+	opacity: 1;
 }
 
 .ch-name
 {
 	display: block;
-	padding: 10dp 12dp 10dp 12dp;
-	font-size: 19dp;
-	line-height: 24dp;
+	padding: 7dp 6dp;
+	font-size: 17dp;
+	line-height: 20dp;
 	font-weight: bold;
+	text-transform: none;
 	color: #D7DCF0;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.ch-tile:hover .ch-name, .ch-tile.selected .ch-name
+.ch-tile.lit .ch-name, .ch-tile.selected .ch-name
 {
 	color: #FFFFFF;
 }
 
 /* ---- Dossier ---------------------------------------------------------------------------------- */
-.col-side .surface.ch-bio
+.ch-stage .surface.ch-dossier
 {
-	width: 480dp;
-	padding: 20dp 24dp 24dp 24dp;
-	border-left: 4dp #F07A1A;
+	position: absolute;
+	box-sizing: border-box;
+	left: 62%;
+	top: 44%;
+	width: 30%;
+	padding: 18dp 22dp 22dp 22dp;
+	border-top: 2dp #8080FF46;
+}
+
+.ch-dossier-head
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 12dp;
 }
 
 .ch-bio-portrait
 {
 	display: block;
-	width: 330dp;
-	height: 327dp;
-	margin: 0 auto 18dp auto;
+	flex: 0 0 auto;
+	width: 150dp;
+	height: 150dp;
+	margin-right: 18dp;
 	background-color: #05070F;
 	border: 1dp #8080FF46;
 }
@@ -163,85 +248,72 @@
 .ch-bio-portrait mappedimage
 {
 	display: block;
-	width: 330dp;
-	height: 327dp;
+	width: 150dp;
+	height: 150dp;
 }
 
 .ch-bio-empty
 {
 	display: block;
-	line-height: 327dp;
+	line-height: 150dp;
 	text-align: center;
-	font-size: 120dp;
+	font-size: 80dp;
 	font-weight: bold;
 	color: #8080FF28;
+}
+
+.ch-dossier-id
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
 }
 
 .ch-bio-hint
 {
 	display: block;
-	margin-top: 10dp;
-	font-size: 19dp;
-	line-height: 26dp;
+	font-size: 18dp;
+	line-height: 25dp;
 	color: #A9B1CF;
-}
-
-.ch-bio-body
-{
-	display: block;
 }
 
 .ch-bio-name
 {
 	display: block;
-	min-height: 40dp;
-	margin: 4dp 0 10dp 0;
-	font-size: 32dp;
-	line-height: 40dp;
+	min-height: 36dp;
+	margin-bottom: 12dp;
+	font-size: 30dp;
+	line-height: 36dp;
 	font-weight: bold;
 	color: #FFFFFF;
 }
 
-.ch-bio-row
+.ch-dossier .fact-value
 {
-	display: flex;
-	flex-direction: row;
-	padding: 7dp 0;
-	border-top: 1dp #8080FF1E;
+	min-height: 26dp;
+	line-height: 26dp;
 }
 
-.ch-bio-label
+.ch-dossier-facts
 {
-	flex: 0 0 110dp;
-	font-size: 15dp;
-	line-height: 25dp;
-	font-weight: bold;
-	letter-spacing: 1dp;
-	text-transform: uppercase;
-	color: #8089B0;
+	display: block;
+	margin-top: 16dp;
+	padding-top: 14dp;
+	border-top: 1dp #8080FF28;
 }
 
-.ch-bio-entry
+.ch-dossier-facts .fact + .fact
 {
-	flex: 1 1 0%;
-	min-width: 0;
-	min-height: 25dp;
-	font-size: 19dp;
-	line-height: 25dp;
-	color: #EEF1FA;
+	margin-top: 12dp;
 }
 
-/* ---- 5:4 and 4:3: smaller tiles and a narrower dossier ---------------------------------------- */
-@media (max-aspect-ratio: 3/2)
+/* ---- 5:4 and 4:3: the theatre is a little narrower, so are the tiles --------------------------- */
+@media (max-aspect-ratio: 1383/1000)
 {
-	.screen button.ch-tile { width: 172dp; }
-	.ch-portrait, .ch-portrait mappedimage { width: 170dp; height: 168dp; }
-	.ch-medal { top: 112dp; width: 46dp; height: 46dp; }
-	.ch-medal mappedimage { width: 46dp; height: 46dp; }
-	.ch-slot { margin: 0 12dp 12dp 0; }
-	.ch-name { font-size: 17dp; padding: 8dp 10dp; }
-	.col-side .surface.ch-bio { width: 380dp; }
-	.ch-bio-portrait, .ch-bio-portrait mappedimage { width: 280dp; height: 277dp; }
-	.ch-bio-empty { line-height: 277dp; }
-	.ch-bio-name { font-size: 28dp; line-height: 34dp; min-height: 34dp; }
+	.ch-stage button.ch-tile { width: 136dp; margin-left: -68dp; }
+	.ch-portrait, .ch-portrait mappedimage { width: 134dp; height: 134dp; }
+	.ch-name { font-size: 15dp; }
+	.ch-bio-portrait, .ch-bio-portrait mappedimage { width: 128dp; height: 128dp; }
+	.ch-bio-empty { line-height: 128dp; }
+	.ch-bio-name { font-size: 26dp; line-height: 32dp; min-height: 32dp; }
 }

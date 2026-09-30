@@ -2,9 +2,13 @@
 <head>
 	<title>ChallengeMenu</title>
 	<link type="text/rcss" href="common.rcss"/>
+	<link type="text/rcss" href="ChallengeMap.rcss"/>
 	<link type="text/rcss" href="ChallengeMenu.rcss"/>
 </head>
 <body class="screen" data-model="challengemenu">
+	<!-- The command room: the world map under a tactical grid (ChallengeMap.rcss). -->
+	<div class="cm-grid"><div class="cm-grid-v"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div><div class="cm-grid-h"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+	<div class="cm-theatre cm-map"><mappedimage class="cm-map-art" name="GCBackgroundMinSpec"/><div class="cm-map-tint"></div><div class="cm-fade cm-fade-l"></div><div class="cm-fade cm-fade-r"></div><div class="cm-fade cm-fade-t"></div><div class="cm-fade cm-fade-b"></div></div>
 	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
 	<div class="screen-frame ch-frame">
@@ -14,52 +18,62 @@
 				<div class="screen-title"><gametext key="GUI:GeneralsChallenge"/></div>
 			</div>
 		</div>
-
-		<div class="screen-body">
-			<!-- Every general the challenge starts with: portrait, name and medallion. Hover previews the
-			     bio, a press chooses (like the .wnd's medallions, on mouse down). -->
-			<div class="col col-main">
-				<div class="scroll-container ch-grid-scroll">
-					<div class="ch-grid">
-						<div class="ch-slot" data-for="g : generals">
-							<button class="ch-tile" data-class-selected="g.selected"
-								data-event-mouseover="hover(g.index)" data-event-mouseout="unhover(g.index)" data-event-mousedown="select(g.index)">
-								<div class="ch-portrait"><mappedimage data-if="g.portrait_image != ''" data-attr-name="g.portrait_image"/></div>
-								<div class="ch-medal">
-									<mappedimage class="ch-normal" data-attr-name="g.normal_image"/>
-									<mappedimage class="ch-hilite" data-attr-name="g.hilite_image"/>
-									<mappedimage class="ch-selected" data-attr-name="g.selected_image"/>
-								</div>
-								<div class="ch-name">{{g.name}}</div>
-							</button>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- The dossier of the general under the cursor, else the chosen one, typed out like the .wnd's. -->
-			<div class="col col-side">
-				<div class="surface ch-bio">
-					<div class="ch-bio-portrait">
-						<mappedimage data-if="show_bio &amp;&amp; has_portrait" data-attr-name="portrait_large_image"/>
-						<div class="ch-bio-empty" data-if="!show_bio">?</div>
-					</div>
-					<div class="overline accent-overline ch-bio-overline"><gametext key="GUI:Biography"/></div>
-					<div class="ch-bio-hint" data-if="!show_bio"><gametext key="GUI:GOChallengeHint"/></div>
-					<div class="ch-bio-body" data-if="show_bio">
-						<div class="ch-bio-name">{{bio_name}}</div>
-						<div class="ch-bio-row"><div class="ch-bio-label"><gametext key="GUI:BioRank"/></div><div class="ch-bio-entry">{{bio_rank}}</div></div>
-						<div class="ch-bio-row"><div class="ch-bio-label"><gametext key="GUI:BioBranch"/></div><div class="ch-bio-entry">{{bio_branch}}</div></div>
-						<div class="ch-bio-row"><div class="ch-bio-label"><gametext key="GUI:BioStrategy"/></div><div class="ch-bio-entry">{{bio_strategy}}</div></div>
-					</div>
-				</div>
-			</div>
-		</div>
-
+		<div class="screen-body"></div>
 		<div class="action-bar">
 			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:BACK"/></button>
 			<div class="spacer"></div>
 			<button class="btn-cta" data-attrif-disabled="!show_play" data-event-click="play"><gametext key="GUI:Start"/></button>
+		</div>
+	</div>
+
+	<!-- On the map, in percent of it: every general's medallion at their home region (the .wnd's
+	     buttons), the roster of portraits west to east below, and a wire from pin to tile, lit for the
+	     general under the cursor and the chosen one. Pins and tiles both hover, unhover and choose (on
+	     press, like the .wnd's medallions). -->
+	<div class="cm-theatre ch-stage">
+		<div data-for="g : generals">
+			<div class="ch-wires" data-if="g.hovered || g.selected">
+				<div class="ch-wire ch-drop" data-class-chip-label="g.selected" data-class-accent="g.selected" data-style-left="g.pin_left" data-style-top="g.drop_top" data-style-height="g.drop_height"></div>
+				<div class="ch-wire ch-rail" data-class-chip-label="g.selected" data-class-accent="g.selected" data-style-left="g.rail_left" data-style-top="g.rail_top" data-style-width="g.rail_width"></div>
+				<div class="ch-wire ch-feed" data-class-chip-label="g.selected" data-class-accent="g.selected" data-style-left="g.tile_left" data-style-top="g.feed_top" data-style-height="g.feed_height"></div>
+			</div>
+		</div>
+
+		<div data-for="g : generals">
+			<button class="ch-pin" data-class-lit="g.hovered || g.selected" data-style-left="g.pin_left" data-style-top="g.pin_top"
+				data-event-mouseover="hover(g.index)" data-event-mouseout="unhover(g.index)" data-event-mousedown="select(g.index)">
+				<div class="ch-pin-ring" data-class-chip-label="g.selected" data-class-accent="g.selected"></div>
+				<mappedimage class="ch-pin-medal" data-attr-name="g.hovered || g.selected ? g.hilite_image : g.normal_image"/>
+			</button>
+		</div>
+
+		<div data-for="g : generals">
+			<button class="ch-tile" data-class-selected="g.selected" data-class-lit="g.hovered" data-style-left="g.tile_left" data-style-top="g.tile_top"
+				data-event-mouseover="hover(g.index)" data-event-mouseout="unhover(g.index)" data-event-mousedown="select(g.index)">
+				<div class="ch-tile-bar" data-class-chip-label="g.selected" data-class-accent="g.selected"></div>
+				<div class="ch-portrait"><mappedimage data-if="g.portrait_image != ''" data-attr-name="g.portrait_image"/></div>
+				<div class="ch-name">{{g.name}}</div>
+			</button>
+		</div>
+
+		<!-- The dossier of the general under the cursor, else the chosen one, typed out like the .wnd's. -->
+		<div class="surface ch-dossier">
+			<div class="overline accent-overline"><gametext key="GUI:Biography"/></div>
+			<div class="ch-dossier-head">
+				<div class="ch-bio-portrait">
+					<mappedimage data-if="show_bio &amp;&amp; has_portrait" data-attr-name="portrait_large_image"/>
+					<div class="ch-bio-empty" data-if="!show_bio"><span>?</span></div>
+				</div>
+				<div class="ch-dossier-id">
+					<div class="ch-bio-hint" data-if="!show_bio"><gametext key="GUI:GOChallengeHint"/></div>
+					<div class="ch-bio-name" data-if="show_bio">{{bio_name}}</div>
+					<div class="fact" data-if="show_bio"><div class="stat-label"><gametext key="GUI:Rank"/></div><div class="fact-value">{{bio_rank}}</div></div>
+				</div>
+			</div>
+			<div class="ch-dossier-facts" data-if="show_bio">
+				<div class="fact"><div class="stat-label"><gametext key="GUI:GOBioBranch"/></div><div class="fact-value">{{bio_branch}}</div></div>
+				<div class="fact"><div class="stat-label"><gametext key="GUI:GOBioTactics"/></div><div class="fact-value">{{bio_strategy}}</div></div>
+			</div>
 		</div>
 	</div>
 </body>
