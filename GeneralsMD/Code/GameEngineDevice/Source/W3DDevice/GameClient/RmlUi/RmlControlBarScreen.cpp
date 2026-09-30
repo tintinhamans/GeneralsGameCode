@@ -265,6 +265,7 @@ void RmlControlBarScreen::load(Rml::Context *context)
 		constructor.RegisterArray<Rml::Vector<ObserverPlayerModel>>();
 
 		constructor.Bind("low", &m_model.low);
+		constructor.Bind("observer", &m_model.observer);
 		constructor.Bind("context", &m_model.context);
 		constructor.Bind("side", &m_model.side);
 		constructor.Bind("money_shown", &m_model.moneyShown);
@@ -395,6 +396,11 @@ void RmlControlBarScreen::refresh(const ControlBarData &data, bool all)
 	{
 		m_model.context = contextName(data.context);
 		m_modelHandle.DirtyVariable("context");
+	}
+	if (all || data.observer != old.observer)
+	{
+		m_model.observer = data.observer != FALSE;
+		m_modelHandle.DirtyVariable("observer");
 	}
 	if (all || data.faction != old.faction)
 	{

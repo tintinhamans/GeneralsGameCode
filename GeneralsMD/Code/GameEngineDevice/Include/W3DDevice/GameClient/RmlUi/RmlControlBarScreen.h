@@ -111,6 +111,7 @@ private:
 	struct Model
 	{
 		bool low = false;
+		bool observer = false; // the observer bar: the neutral look
 		Rml::String context;
 		Rml::String side;
 		bool moneyShown = false;
