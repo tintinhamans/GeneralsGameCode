@@ -16,7 +16,7 @@
 	margin-bottom: 20dp;
 }
 
-/* Search: the ring of a magnifier (Barlow has no icons) in front of a borderless input, one box. */
+/* Search: the ring of a magnifier (the UI fonts have no icons) in front of a borderless input, one box. */
 .ms-filter-plate.ms-search
 {
 	flex: 0 1 400dp;

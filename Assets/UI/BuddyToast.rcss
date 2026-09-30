@@ -15,7 +15,7 @@ body
 }
 
 /* The template's look (common.rcss): a dark surface with the buddy-blue edge of the social dock,
-   Barlow body text, lit on hover like a row. */
+   Body text, lit on hover like a row. */
 .buddy-toast
 {
 	display: block;

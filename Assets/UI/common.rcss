@@ -83,7 +83,7 @@
 
 body
 {
-	font-family: Barlow;
+	font-family: "Noto Sans";
 	font-size: 16dp;
 	color: #FFFFFF;
 }
@@ -956,7 +956,8 @@ body.shell
 	                                         Selection fills and "on" segments stay blue.
 	            status    good #36D8B2 (teal, clear of the lime accent)  warn #E8D440  bad #FF5050
 	                      buddy #14B1FF
-	  Type      Barlow Regular/Bold. Title 40dp bold caps behind an accent tick; crumb and
+	  Type      Noto Sans for body text; bold text (titles, buttons, labels) draws in Exo 2 Bold, and
+	            each script's own faces take over (RmlTextShaping). Title 40dp bold caps behind an accent tick; crumb and
 	            overline 15-16dp bold caps tracked 2dp; body 20dp (the .wnd Arial 12 at 800x600);
 	            small 16dp; primary button 24dp. Text drawn straight on the map (.on-map, the
 	            header, the back button) gets .map-glow.
@@ -1782,7 +1783,7 @@ label.check:hover
 	text-overflow: ellipsis;
 }
 
-/* A small down triangle drawn with borders (no such glyph in Barlow, no rotation in the renderer). */
+/* A small down triangle drawn with borders (no such glyph in the UI fonts, no rotation in the renderer). */
 .screen select selectarrow, .screen select:hover selectarrow, .screen select:checked selectarrow
 {
 	decorator: none;

@@ -54,7 +54,7 @@ body
 	opacity: 0.6;
 }
 
-/* A person glyph drawn from two boxes (Barlow has no icons). */
+/* A person glyph drawn from two boxes (the UI fonts have no icons). */
 .tab-icon, .head-icon
 {
 	display: block;

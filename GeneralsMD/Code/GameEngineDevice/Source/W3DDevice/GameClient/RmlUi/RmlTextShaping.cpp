@@ -62,7 +62,6 @@ const Rml::Style::FontWeight BOLD = Rml::Style::FontWeight::Bold;
 const Rml::Style::FontWeight BLACK = (Rml::Style::FontWeight)900;
 
 const FontRole NOTO_SANS = { "Noto Sans", REGULAR, { "NotoSans-Regular.ttf", "NotoSans-VF.ttf", nullptr } };
-const FontRole NOTO_SANS_BOLD = { "Noto Sans", BOLD, { "NotoSans-Bold.ttf", "NotoSans-VF.ttf", nullptr } };
 const FontRole EXO2_BOLD = { "Exo 2", BOLD, { "Exo2-Bold.ttf", "Exo2-VF.ttf", nullptr } };
 const FontRole OSWALD_BOLD = { "Oswald", BOLD, { "Oswald-Bold.ttf", "Oswald-VF.ttf", nullptr } };
 const FontRole ARABIC_BODY = { "Noto Sans Arabic", REGULAR, { "NotoSansArabic-Regular.ttf", "NotoSansArabic-VF.ttf", nullptr } };
@@ -132,7 +131,7 @@ bool loadRole(const FontRole &role, const std::vector<std::string> &dirs, bool f
 
 void substitute(const char *regularFamily, Rml::Style::FontWeight regularWeight, const char *boldFamily, Rml::Style::FontWeight boldWeight)
 {
-	s_engine->SetFamilySubstitute("Barlow", Engine::FamilySubstitute{ regularFamily ? regularFamily : "", regularWeight },
+	s_engine->SetFamilySubstitute(NOTO_SANS.family, Engine::FamilySubstitute{ regularFamily ? regularFamily : "", regularWeight },
 		Engine::FamilySubstitute{ boldFamily ? boldFamily : "", boldWeight });
 }
 
@@ -542,7 +541,7 @@ bool isRightToLeft(const std::string &language)
 
 std::vector<std::string> fontFilesFor(const std::string &language)
 {
-	std::vector<const FontRole *> roles = { &NOTO_SANS, &NOTO_SANS_BOLD, &EXO2_BOLD, &OSWALD_BOLD };
+	std::vector<const FontRole *> roles = { &NOTO_SANS, &EXO2_BOLD, &OSWALD_BOLD };
 	if (language == "ar")
 		roles = { &ARABIC_BODY, &ARABIC_HEADING };
 	else if (language == "ko")
@@ -564,17 +563,11 @@ void loadFonts(const FontSetup &setup)
 	const std::vector<std::string> systemDirs = { setup.windowsFontsDir };
 	const std::string &language = setup.language;
 
-	// Noto Sans first, as a fallback face too: Latin, Cyrillic and Greek that a language's own face
-	// lacks (the Arabic faces have no Latin) then match the body text rather than Arial.
-	const bool notoSans = loadRole(NOTO_SANS, dirs, true);
-	const bool notoSansBold = loadRole(NOTO_SANS_BOLD, dirs, false);
-
-	// SIL OFL-licensed Barlow (see Data/UI/Fonts/OFL.txt), the family the style sheets name. The UI
-	// draws it as the faces substituted below; it stays loaded as a fallback and for mods' sheets.
-	// LoadFontFace reads family/style/weight straight from the font, so both weights register under
-	// the "Barlow" family.
-	Rml::LoadFontFace("UI/Fonts/Barlow-Regular.ttf", true);
-	Rml::LoadFontFace("UI/Fonts/Barlow-Bold.ttf");
+	// Noto Sans (SIL OFL, see Data/UI/Fonts/OFL-NotoSans.txt), the family the style sheets name, and
+	// the first fallback face: Latin, Cyrillic and Greek that a language's own face lacks (the Arabic
+	// faces have no Latin) then match the body text rather than Arial.
+	if (!loadRole(NOTO_SANS, dirs, true))
+		Rml::Log::Message(Rml::Log::LT_ERROR, "UI/Fonts/NotoSans-Regular.ttf is missing; UI text falls back to Arial.");
 
 	// The language's own faces: body text at normal weight, headings (bold) in the heading face.
 	if (language == "ar")
@@ -610,16 +603,13 @@ void loadFonts(const FontSetup &setup)
 	else
 	{
 		// Latin and Cyrillic: Noto Sans body text under Exo 2 headings (SIL OFL, see
-		// Data/UI/Fonts/OFL-NotoSans.txt and OFL-Exo2.txt). Barlow has no Cyrillic, so Russian
-		// headings with the Barlow pairing use Noto Sans Bold.
+		// Data/UI/Fonts/OFL-NotoSans.txt and OFL-Exo2.txt).
 		const char *headingFamily = nullptr;
-		if (setup.heading == HEADING_EXO2 && loadRole(EXO2_BOLD, dirs, false))
-			headingFamily = EXO2_BOLD.family;
-		else if (setup.heading == HEADING_OSWALD && loadRole(OSWALD_BOLD, dirs, false))
+		if (setup.heading == HEADING_OSWALD && loadRole(OSWALD_BOLD, dirs, false))
 			headingFamily = OSWALD_BOLD.family;
-		else if (language == "ru" && notoSansBold)
-			headingFamily = NOTO_SANS_BOLD.family;
-		substitute(notoSans ? NOTO_SANS.family : nullptr, REGULAR, headingFamily, BOLD);
+		else if (loadRole(EXO2_BOLD, dirs, false))
+			headingFamily = EXO2_BOLD.family;
+		substitute(nullptr, REGULAR, headingFamily, BOLD);
 	}
 
 	// SIL OFL-licensed Noto Color Emoji (see Data/UI/Fonts/OFL-NotoColorEmoji.txt), a subset of about

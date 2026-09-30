@@ -32,11 +32,10 @@ namespace Rml { class FontEngineInterface; }
 namespace RmlTextShaping
 {
 
-/// The heading font for Latin and Cyrillic text; body text is Noto Sans. The UI uses Exo 2; the
-/// others remain for comparing pairings (the render harness).
+/// The heading font for Latin and Cyrillic text; body text is Noto Sans. The UI uses Exo 2; Oswald
+/// remains for comparing pairings (the render harness).
 enum HeadingFont
 {
-	HEADING_BARLOW,	///< Barlow Bold (Latin only; Cyrillic headings use Noto Sans Bold)
 	HEADING_EXO2,	///< Exo 2 Bold
 	HEADING_OSWALD,	///< Oswald Bold
 };
@@ -54,10 +53,10 @@ Rml::FontEngineInterface *createFontEngine();
 /// Frees it and the font data; call after Rml::Shutdown().
 void destroyFontEngine();
 
-/// Loads the UI fonts for the language and points the style sheets' family (Barlow, which the UI no
-/// longer draws with) at them: body text (normal weight) in Noto Sans, headings (bold) in Exo 2, and
-/// in Arabic, Korean and Chinese their own Noto faces. Call after Rml::Initialise(). Missing fonts
-/// are skipped: the language then keeps Barlow plus fallbacks.
+/// Loads the UI fonts for the language and points the style sheets' family, Noto Sans, at them: body
+/// text (normal weight) in Noto Sans, headings (bold) in Exo 2, and in Arabic, Korean and Chinese
+/// their own faces. Call after Rml::Initialise(). A missing font is skipped: its text then falls
+/// back through Noto Sans, Arial, the colour emoji and Segoe UI Symbol.
 void loadFonts(const FontSetup &setup);
 
 /// The font files a language looks for (for the distribution notes and the harness).
