@@ -613,7 +613,7 @@ body
 	display: block;
 }
 
-/* ---- Context menu on the template palette ---------------------------------------------------------- */
+/* ---- Context menu: common.rcss draws it; here it takes the mouse over the pass-through body ------- */
 .context-menu-backdrop
 {
 	pointer-events: auto;
@@ -622,26 +622,6 @@ body
 .screen .context-menu
 {
 	pointer-events: auto;
-	background-color: #090C1EF5;
-	border: 1dp #3A46D0;
-	min-width: 110dp;
-	padding: 4dp 0;
-}
-
-.screen .context-menu-item
-{
-	height: 36dp;
-	line-height: 36dp;
-	padding: 0 18dp;
-	text-align: left;
-	border-bottom-width: 0;
-	color: #D7DCF0;
-}
-
-.screen .context-menu-item:hover
-{
-	background-color: #2F37A8DC;
-	color: #FFFFFF;
 }
 
 /* ---- 5:4 and 4:3: a narrower panel; the host keeps 356dp for it (common.rcss) ------------------------ */

@@ -2519,6 +2519,341 @@ label.check:hover
 	color: #FF9A3D;
 }
 
+/* ---- Persona: a player's rank header and career record ---------------------------------------
+	<div class="persona-hero"><div class="persona-portrait"><mappedimage class="persona-rank-image"/>
+		<div class="persona-badge"><mappedimage/></div></div>
+		<div class="persona-rank"><div class="overline">Rank</div><div class="persona-rank-name">..</div>
+		<div class="progress persona-progress">..</div></div></div>
+	<div class="stat-blocks"><div class="stat-block"><div class="stat-block-value">..</div>
+		<div class="stat-label">..</div></div>..</div>   four blocks a row */
+.persona-hero
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding-bottom: 22dp;
+	border-bottom: 1dp #8080FF28;
+}
+
+.persona-portrait
+{
+	position: relative;
+	flex: 0 0 auto;
+	width: 150dp;
+	height: 150dp;
+	background-color: #05070FDC;
+	border: 1dp #8080FF3C;
+}
+
+.persona-rank-image
+{
+	display: block;
+	width: 140dp;
+	height: 140dp;
+	margin: 4dp;
+}
+
+.persona-badge
+{
+	display: block;
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 54dp;
+	height: 54dp;
+	background-color: #070A1AF0;
+	border-top: 1dp #F07A1A;
+	border-left: 1dp #F07A1A;
+}
+
+.persona-badge mappedimage
+{
+	display: block;
+	width: 46dp;
+	height: 46dp;
+	margin: 4dp;
+}
+
+.persona-rank
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-left: 28dp;
+}
+
+.persona-rank-name
+{
+	display: block;
+	margin-top: 4dp;
+	font-size: 36dp;
+	line-height: 44dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.persona-progress
+{
+	margin-top: 16dp;
+	width: 70%;
+}
+
+.stat-blocks
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	margin-top: 8dp;
+}
+
+.stat-block
+{
+	display: block;
+	box-sizing: border-box;
+	width: 25%;
+	padding: 14dp 16dp 12dp 0;
+	border-bottom: 1dp #FFFFFF0A;
+}
+
+.stat-block-value
+{
+	display: block;
+	font-size: 28dp;
+	line-height: 34dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.stat-block .stat-label
+{
+	display: block;
+	margin-top: 2dp;
+	letter-spacing: 0.5dp;
+}
+
+/* ---- Right-click menu on the template palette ------------------------------------------------- */
+.screen .context-menu
+{
+	background-color: #090C1EF5;
+	border: 1dp #3A46D0;
+	min-width: 110dp;
+	padding: 4dp 0;
+}
+
+.screen .context-menu-item
+{
+	height: 36dp;
+	line-height: 36dp;
+	padding: 0 18dp;
+	text-align: left;
+	border-bottom-width: 0;
+	color: #D7DCF0;
+}
+
+.screen .context-menu-item:hover
+{
+	background-color: #2F37A8DC;
+	color: #FFFFFF;
+}
+
+/* ---- Modal: a centred card on a dim scrim ------------------------------------------------------
+	A popup over another screen or over the game. <body class="screen modal"> is the scrim and centres
+	the card; the card speaks the screen template's language: an overline and a title behind the
+	accent tick, the content, then an action bar with back/cancel far left and the primary far right.
+		<body class="screen modal">
+			<div class="modal-card">
+				<div class="modal-head"><div class="overline">crumb</div><div class="modal-title">title</div></div>
+				<div class="modal-body">..</div>
+				<div class="modal-actions"><button class="btn-back">..</button><div class="spacer"/>
+					<button class="btn-cta">..</button></div>
+			</div>
+		</body>
+	.modal.over-game keeps the scrim light, so live gameplay stays readable around a compact card. */
+body.modal
+{
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	background-color: #02030AB4;
+}
+
+body.modal.over-game
+{
+	background-color: #02030A5A;
+}
+
+.modal-card
+{
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	width: 640dp;
+	max-height: 90%;
+	background-color: #070A1AF2;
+	border-top: 3dp #F07A1A;
+	animation: 0.18s cubic-out modal-in;
+}
+
+@keyframes modal-in
+{
+	from { opacity: 0; margin-top: 24dp; }
+	to { opacity: 1; margin-top: 0dp; }
+}
+
+.modal-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	padding: 24dp 28dp 0 28dp;
+}
+
+.modal-heading
+{
+	display: block;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.modal-head .overline
+{
+	margin: 0 0 6dp 19dp;
+}
+
+.modal-title
+{
+	display: block;
+	font-size: 30dp;
+	line-height: 38dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #FFFFFF;
+	border-left: 4dp #F07A1A;
+	padding-left: 15dp;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* A square close button in the head, for popups whose .wnd had one. */
+.screen button.modal-close
+{
+	flex: 0 0 auto;
+	width: 44dp;
+	height: 44dp;
+	line-height: 40dp;
+	padding: 0;
+	margin-left: 16dp;
+	text-align: center;
+	font-size: 28dp;
+	color: #A9B1CF;
+	background-color: transparent;
+	border-color: transparent;
+}
+
+.screen button.modal-close:hover
+{
+	color: #FFFFFF;
+	background-color: #2F37A878;
+	border-color: transparent;
+}
+
+.modal-body
+{
+	display: block;
+	flex: 1 1 auto;
+	min-height: 0;
+	padding: 22dp 28dp 26dp 28dp;
+	color: #D7DCF0;
+	line-height: 28dp;
+}
+
+.modal-actions
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	padding: 18dp 28dp;
+	background-color: #04060FC8;
+	border-top: 1dp #8080FF1E;
+}
+
+.modal-actions button
+{
+	margin-left: 12dp;
+}
+
+.modal-actions button:first-child
+{
+	margin-left: 0;
+}
+
+.screen .modal-actions button.btn-cta
+{
+	height: 54dp;
+	line-height: 54dp;
+	min-width: 200dp;
+	padding: 0 36dp;
+	font-size: 21dp;
+}
+
+.screen .modal-actions button.btn-back
+{
+	height: 50dp;
+	line-height: 50dp;
+	font-size: 19dp;
+	background-color: transparent;
+}
+
+.screen .modal-actions button.btn-back:hover
+{
+	background-color: #1E246EE6;
+}
+
+/* A labelled field: an overline over its control. */
+.field
+{
+	display: block;
+}
+
+.field + .field, .field + .checks, .checks + .field
+{
+	margin-top: 20dp;
+}
+
+.field .overline
+{
+	margin-bottom: 8dp;
+}
+
+.field .text-input
+{
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+}
+
+/* A column of checkboxes. */
+.checks
+{
+	display: block;
+}
+
+.checks label.check
+{
+	height: 40dp;
+}
+
 /* ---- Social dock: an online screen makes room for the expanded dock ----------------------------
 	RmlSocialDock sets .dock-open on every body with .dock-host while its panel is out, so the
 	screen narrows beside the 390dp panel instead of sitting under it. */
