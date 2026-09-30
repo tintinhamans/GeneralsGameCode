@@ -25,7 +25,12 @@
 #include <RmlUi/Core/FileInterface.h>
 #include <RmlUi/Core/Log.h>
 #include <RmlUi/Core/Plugin.h>
+#include <RmlUi/Core/StreamMemory.h>
+#include <RmlUi/Core/StyleSheetContainer.h>
+#include <RmlUi/Core/SystemInterface.h>
 
+#include <cstdlib>
+#include <cstring>
 #include <map>
 #include <memory>
 
@@ -131,6 +136,312 @@ void substitute(const char *regularFamily, Rml::Style::FontWeight regularWeight,
 		Engine::FamilySubstitute{ boldFamily ? boldFamily : "", boldWeight });
 }
 
+//-------------------------------------------------------------------------------------------------
+// Style sheet mirroring (mirrorStyleSheet()).
+
+std::string trim(const std::string &s)
+{
+	const size_t a = s.find_first_not_of(" \t\r\n");
+	if (a == std::string::npos)
+		return std::string();
+	const size_t b = s.find_last_not_of(" \t\r\n");
+	return s.substr(a, b - a + 1);
+}
+
+std::string lower(std::string s)
+{
+	for (char &c : s)
+		c = (char)tolower((unsigned char)c);
+	return s;
+}
+
+// Splits at `separator` outside parentheses and quotes.
+std::vector<std::string> splitTopLevel(const std::string &s, char separator)
+{
+	std::vector<std::string> parts;
+	std::string current;
+	int depth = 0;
+	char quote = 0;
+	for (char c : s)
+	{
+		if (quote)
+		{
+			if (c == quote)
+				quote = 0;
+		}
+		else if (c == '"' || c == '\'')
+			quote = c;
+		else if (c == '(')
+			++depth;
+		else if (c == ')')
+			--depth;
+		else if (depth == 0 && (separator == ' ' ? (c == ' ' || c == '\t' || c == '\n' || c == '\r') : c == separator))
+		{
+			if (separator != ' ' || !current.empty())
+				parts.push_back(current);
+			current.clear();
+			continue;
+		}
+		current.push_back(c);
+	}
+	if (!current.empty() || separator != ' ')
+		parts.push_back(current);
+	return parts;
+}
+
+std::string join(const std::vector<std::string> &parts, const char *separator)
+{
+	std::string out;
+	for (size_t i = 0; i < parts.size(); ++i)
+	{
+		if (i)
+			out += separator;
+		out += parts[i];
+	}
+	return out;
+}
+
+std::string swapWords(const std::string &value, const char *a, const char *b)
+{
+	std::vector<std::string> words = splitTopLevel(value, ' ');
+	for (std::string &word : words)
+	{
+		const std::string w = lower(word);
+		if (w == a)
+			word = b;
+		else if (w == b)
+			word = a;
+	}
+	return join(words, " ");
+}
+
+std::string mirrorProperty(const std::string &property)
+{
+	static const char *const pairs[][2] = {
+		{ "left", "right" },
+		{ "margin-left", "margin-right" },
+		{ "padding-left", "padding-right" },
+		{ "border-left", "border-right" },
+		{ "border-left-width", "border-right-width" },
+		{ "border-left-color", "border-right-color" },
+		{ "border-top-left-radius", "border-top-right-radius" },
+		{ "border-bottom-left-radius", "border-bottom-right-radius" },
+	};
+	for (const auto &pair : pairs)
+	{
+		if (property == pair[0])
+			return pair[1];
+		if (property == pair[1])
+			return pair[0];
+	}
+	return property;
+}
+
+std::string mirrorGradients(std::string value)
+{
+	// horizontal-gradient(from to) runs left to right: swap its colours.
+	for (size_t at = 0; (at = lower(value).find("horizontal-gradient(", at)) != std::string::npos;)
+	{
+		const size_t open = at + strlen("horizontal-gradient(");
+		const size_t close = value.find(')', open);
+		if (close == std::string::npos)
+			break;
+		std::vector<std::string> colours = splitTopLevel(value.substr(open, close - open), ' ');
+		if (colours.size() == 2)
+			value.replace(open, close - open, colours[1] + " " + colours[0]);
+		at = close;
+	}
+	// linear-gradient(to left/right ...) and angles.
+	for (size_t at = 0; (at = lower(value).find("linear-gradient(", at)) != std::string::npos;)
+	{
+		const size_t open = at + strlen("linear-gradient(");
+		std::vector<std::string> args = splitTopLevel(value.substr(open), ',');
+		if (args.empty())
+			break;
+		std::string first = trim(args[0]);
+		const std::string firstLower = lower(first);
+		std::string mirrored = first;
+		if (firstLower.rfind("to ", 0) == 0)
+			mirrored = swapWords(first, "left", "right");
+		else if (firstLower.size() > 3 && firstLower.compare(firstLower.size() - 3, 3, "deg") == 0)
+			mirrored = std::to_string((360 - atoi(first.c_str()) % 360) % 360) + "deg";
+		const size_t firstPos = value.find(args[0], open);
+		if (firstPos != std::string::npos)
+			value.replace(firstPos, args[0].size(), std::string(args[0].size() - trim(args[0]).size() ? " " : "") + mirrored);
+		at = open;
+	}
+	return value;
+}
+
+std::string mirrorValue(const std::string &property, const std::string &value)
+{
+	if (property == "text-align" || property == "float" || property == "clear")
+		return swapWords(value, "left", "right");
+	if (property == "flex-direction")
+	{
+		const std::string v = lower(trim(value));
+		if (v == "row")
+			return "row-reverse";
+		if (v == "row-reverse")
+			return "row";
+		return value;
+	}
+	if (property == "margin" || property == "padding" || property == "border-width" || property == "border-color")
+	{
+		std::vector<std::string> sides = splitTopLevel(value, ' ');
+		if (sides.size() == 4)
+			return sides[0] + " " + sides[3] + " " + sides[2] + " " + sides[1];
+		return value;
+	}
+	if (property == "border-radius")
+	{
+		std::vector<std::string> corners = splitTopLevel(value, ' ');
+		if (corners.size() == 4)
+			return corners[1] + " " + corners[0] + " " + corners[3] + " " + corners[2];
+		if (corners.size() == 3)
+			return corners[1] + " " + corners[0] + " " + corners[1] + " " + corners[2];
+		return value;
+	}
+	if (property == "decorator" || property == "background")
+		return mirrorGradients(value);
+	return value;
+}
+
+std::string mirrorDeclarations(const std::string &body)
+{
+	std::string out;
+	for (const std::string &declaration : splitTopLevel(body, ';'))
+	{
+		const std::string d = trim(declaration);
+		if (d.empty())
+			continue;
+		const size_t colon = d.find(':');
+		if (colon == std::string::npos)
+			continue;
+		const std::string property = lower(trim(d.substr(0, colon)));
+		const std::string value = trim(d.substr(colon + 1));
+		out += "\n\t" + mirrorProperty(property) + ": " + mirrorValue(property, value) + ";";
+	}
+	return out + "\n";
+}
+
+// Index just past the '}' matching the '{' at `open`, skipping comments and strings.
+size_t matchingBrace(const std::string &s, size_t open)
+{
+	int depth = 0;
+	for (size_t i = open; i < s.size(); ++i)
+	{
+		const char c = s[i];
+		if (c == '/' && i + 1 < s.size() && s[i + 1] == '*')
+		{
+			const size_t end = s.find("*/", i + 2);
+			if (end == std::string::npos)
+				return s.size();
+			i = end + 1;
+		}
+		else if (c == '"' || c == '\'')
+		{
+			const size_t end = s.find(c, i + 1);
+			if (end == std::string::npos)
+				return s.size();
+			i = end;
+		}
+		else if (c == '{')
+			++depth;
+		else if (c == '}' && --depth == 0)
+			return i + 1;
+	}
+	return s.size();
+}
+
+std::string stripComments(const std::string &s)
+{
+	std::string out;
+	for (size_t i = 0; i < s.size(); ++i)
+	{
+		if (s[i] == '/' && i + 1 < s.size() && s[i + 1] == '*')
+		{
+			const size_t end = s.find("*/", i + 2);
+			if (end == std::string::npos)
+				break;
+			i = end + 1;
+			continue;
+		}
+		out.push_back(s[i]);
+	}
+	return out;
+}
+
+//-------------------------------------------------------------------------------------------------
+// Documents.
+
+// The style sheets a document links and embeds, in order, read from its RML (as RmlUi's
+// DocumentHeader collects them); inline sheets get the document's path.
+struct SheetSource
+{
+	std::string path;
+	std::string text;
+};
+
+bool readText(const std::string &path, std::string &out)
+{
+	Rml::FileInterface *files = Rml::GetFileInterface();
+	Rml::FileHandle handle = files ? files->Open(path) : 0;
+	if (!handle)
+		return false;
+	out.resize(files->Length(handle));
+	const size_t read = out.empty() ? 0 : files->Read(&out[0], out.size(), handle);
+	files->Close(handle);
+	out.resize(read);
+	return true;
+}
+
+std::vector<SheetSource> documentSheets(const std::string &documentPath)
+{
+	std::vector<SheetSource> sheets;
+	std::string rml;
+	if (!readText(documentPath, rml))
+		return sheets;
+	const size_t headEnd = rml.find("</head>");
+	const std::string head = rml.substr(0, headEnd == std::string::npos ? rml.size() : headEnd);
+
+	for (size_t at = 0; at < head.size();)
+	{
+		const size_t link = head.find("<link", at);
+		const size_t style = head.find("<style", at);
+		if (link == std::string::npos && style == std::string::npos)
+			break;
+		if (link != std::string::npos && (style == std::string::npos || link < style))
+		{
+			const size_t end = head.find('>', link);
+			const std::string tag = head.substr(link, end - link);
+			at = end == std::string::npos ? head.size() : end;
+			if (tag.find("rcss") == std::string::npos)
+				continue;
+			const size_t href = tag.find("href=\"");
+			if (href == std::string::npos)
+				continue;
+			const size_t hrefEnd = tag.find('"', href + 6);
+			Rml::String path;
+			Rml::GetSystemInterface()->JoinPath(path, documentPath, tag.substr(href + 6, hrefEnd - href - 6));
+			SheetSource sheet;
+			sheet.path = path;
+			if (readText(path, sheet.text))
+				sheets.push_back(sheet);
+		}
+		else
+		{
+			const size_t open = head.find('>', style);
+			const size_t close = head.find("</style>", open);
+			if (open == std::string::npos || close == std::string::npos)
+				break;
+			sheets.push_back(SheetSource{ documentPath, head.substr(open + 1, close - open - 1) });
+			at = close + 8;
+		}
+	}
+	return sheets;
+}
+
 class DocumentLanguagePlugin : public Rml::Plugin
 {
 public:
@@ -146,7 +457,32 @@ public:
 		if (!lang.empty())
 			document->SetAttribute("lang", lang);
 		if (rightToLeft)
+		{
 			document->SetAttribute("dir", "rtl");
+			mirror(document);
+		}
+	}
+
+private:
+	// Right-to-left documents get their style sheets replaced by mirrored ones (mirrorStyleSheet()).
+	void mirror(Rml::ElementDocument *document)
+	{
+		Rml::SharedPtr<Rml::StyleSheetContainer> combined;
+		for (const SheetSource &sheet : documentSheets(document->GetSourceURL()))
+		{
+			auto container = Rml::MakeShared<Rml::StyleSheetContainer>();
+			const std::string mirrored = mirrorStyleSheet(sheet.text);
+			Rml::StreamMemory stream((const Rml::byte *)mirrored.data(), mirrored.size());
+			stream.SetSourceURL(sheet.path);
+			if (!container->LoadStyleSheetContainer(&stream))
+				continue;
+			if (combined)
+				combined->MergeStyleSheetContainer(*container);
+			else
+				combined = container;
+		}
+		if (combined)
+			document->SetStyleSheetContainer(combined);
 	}
 };
 
@@ -289,6 +625,45 @@ void loadFonts(const FontSetup &setup)
 	// emoji, so it comes after the colour subset; a missing file is skipped.
 	if (!setup.windowsFontsDir.empty() && fileExists(setup.windowsFontsDir + "seguisym.ttf"))
 		Rml::LoadFontFace(setup.windowsFontsDir + "seguisym.ttf", true);
+}
+
+std::string mirrorStyleSheet(const std::string &rcss)
+{
+	const std::string s = stripComments(rcss);
+	std::string out;
+	out.reserve(s.size() + s.size() / 4);
+	size_t i = 0;
+	while (i < s.size())
+	{
+		const size_t open = s.find('{', i);
+		if (open == std::string::npos)
+		{
+			out += s.substr(i);
+			break;
+		}
+		const std::string head = s.substr(i, open - i);
+		const size_t close = matchingBrace(s, open);
+		const std::string body = s.substr(open + 1, close > open + 1 ? close - open - 2 : 0);
+		const std::string selector = lower(trim(head));
+
+		if (!selector.empty() && selector[0] == '@')
+		{
+			if (selector.rfind("@media", 0) == 0)
+				out += head + "{" + mirrorStyleSheet(body) + "}";
+			else
+				out += head + "{" + body + "}";
+		}
+		else if (selector.find("[dir=rtl]") != std::string::npos || selector.find("[dir=\"rtl\"]") != std::string::npos)
+		{
+			out += head + "{" + body + "}";
+		}
+		else
+		{
+			out += head + "{" + mirrorDeclarations(body) + "}";
+		}
+		i = close;
+	}
+	return out;
 }
 
 void tagDocuments(const std::string &language)

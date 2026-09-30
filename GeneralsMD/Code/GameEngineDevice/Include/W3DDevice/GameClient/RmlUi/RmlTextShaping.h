@@ -65,7 +65,15 @@ std::vector<std::string> fontFilesFor(const std::string &language);
 bool isRightToLeft(const std::string &language);
 
 /// Gives every document loaded from now on lang (BCP 47) and, for right-to-left languages,
-/// dir="rtl", which the shaper reads.
+/// dir="rtl", which the shaper reads, plus mirrored style sheets (see mirrorStyleSheet()).
 void tagDocuments(const std::string &language);
+
+/// A right-to-left copy of an RCSS sheet, the way rtlcss mirrors CSS: left and right swap in
+/// property names (left, margin-left, border-left-width, ...) and values (text-align, float),
+/// rows become row-reverse, four-value margins/paddings/borders and radii swap their sides, and
+/// horizontal gradients run the other way. A right-to-left document gets its sheets replaced by
+/// these, which keeps the cascade exactly as it was. Rules whose selector names [dir=rtl] are
+/// written for right-to-left already and stay as they are; at-rules other than @media too.
+std::string mirrorStyleSheet(const std::string &rcss);
 
 } // namespace RmlTextShaping

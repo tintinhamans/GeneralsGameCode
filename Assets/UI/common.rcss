@@ -4557,3 +4557,18 @@ button.hq-card:hover .hq-card-title
 	.su-ready { padding: 0 14dp 0 12dp; font-size: 15dp; margin-right: 14dp; }
 	.su-ready.blocked { font-size: 14dp; }
 }
+
+/* ==== Right-to-left documents (dir="rtl") ======================================================
+
+	RmlTextShaping gives a right-to-left document (Arabic) dir="rtl" and replaces its style sheets
+	with mirrored copies (see RmlTextShaping::mirrorStyleSheet): left and right swap in properties
+	and values, rows run right to left, four-sided boxes and horizontal gradients flip. What follows
+	is what that can't work out on its own. Rules naming [dir=rtl] are not mirrored themselves, so
+	they read as written. Keep this section self-contained so it merges cleanly.
+*/
+
+/* Text starts at the right. */
+body[dir=rtl]
+{
+	text-align: right;
+}
