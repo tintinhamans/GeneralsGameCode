@@ -350,3 +350,7 @@ END
 GUI:GONoMapsMatch
 "No maps match your search"
 END
+
+GUI:GOChallengeVersus
+"VS"
+END

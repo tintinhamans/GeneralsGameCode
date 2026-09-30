@@ -823,7 +823,9 @@ void ChallengeLoadScreen::activatePieces( Int frame, const GeneralPersona *gener
 			// it's time to start the overlay movie
 			data.m_showVersusBackdrop = TRUE;
 			data.m_showVersus = TRUE;
-			m_versusMovie.play( "VSSmall", WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
+			// only the .wnd shows the movie; the RmlUi screen animates its own "vs" off m_showVersus
+			if (m_view)
+				m_versusMovie.play( "VSSmall", WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
 
 			// "Verses"
 			TheAudio->addAudioEvent( &eventVS );
@@ -877,7 +879,8 @@ void ChallengeLoadScreen::activatePiecesMinSpec(const GeneralPersona *generalPla
 	data.m_showInnerCircle = TRUE;
 	data.m_showVersusBackdrop = TRUE;
 	data.m_showVersus = TRUE;
-	m_versusMovie.play( "VSSmall", WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
+	if (m_view)
+		m_versusMovie.play( "VSSmall", WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME);
 	data.m_videos[LOAD_VIDEO_VERSUS] = m_versusMovie.buffer();
 	publishData();
 }

@@ -38,7 +38,7 @@ enum LoadScreenVideo
 	LOAD_VIDEO_BACKGROUND, ///< briefing or challenge backdrop over the whole screen
 	LOAD_VIDEO_PORTRAIT_LEFT, ///< challenge: the player's general
 	LOAD_VIDEO_PORTRAIT_RIGHT, ///< challenge: the opponent
-	LOAD_VIDEO_VERSUS, ///< challenge: the "vs" animation
+	LOAD_VIDEO_VERSUS, ///< challenge: the "vs" animation, .wnd view only (the RmlUi screen draws its own)
 	LOAD_VIDEO_COUNT
 };
 
