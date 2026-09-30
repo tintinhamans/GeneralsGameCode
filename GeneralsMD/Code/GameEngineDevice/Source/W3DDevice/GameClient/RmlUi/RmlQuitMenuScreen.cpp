@@ -35,13 +35,15 @@
 
 namespace
 {
-	// ButtonExit's Yes callback: destroy the quit menu the same way the .wnd exitQuitMenu() does,
-	// then quit. GameWinMsgBoxFunc is a plain void(*)(); can't bind the instance, so these are free
+	// ButtonExit's Yes callback: quit first, then destroy the menu, as the .wnd exitQuitMenu() does.
+	// GameLogic::quit() re-opens the quit menu instead of quitting when canOpenQuitMenu() is true,
+	// and destroyQuitMenu() clears the quit-menu-visible flag that keeps it false.
+	// GameWinMsgBoxFunc is a plain void(*)(); can't bind the instance, so these are free
 	// functions the same way RmlMainMenuScreen.cpp's quitConfirmedCallback() is.
 	void quitConfirmedCallback()
 	{
-		destroyQuitMenu();
 		QuitMenuActions::exit();
+		destroyQuitMenu();
 	}
 
 	// ButtonRestart's confirmation Yes callback (both the restart and surrender titles use it; the
