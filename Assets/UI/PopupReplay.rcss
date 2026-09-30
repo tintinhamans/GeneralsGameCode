@@ -1,97 +1,179 @@
 /*
-	PopupReplay.rcss -- PopupReplay.wnd (the score screen's Save Replay popup). Positions are body
-	percentages of the .wnd's 800x600 rects, so the layout stretches the way the original does. The list
-	columns follow the .wnd's LISTBOXDATA, like the replay menu's (name 30, time and date 25, version 20,
-	map 25).
+	PopupReplay.rcss -- the score screen's Save Replay popup (PopupReplay.wnd) as a modal card on a
+	scrim, in the screen template's language (common.rcss): the title behind the accent tick, the saved
+	replays as list rows (the .wnd's colours: a replay from another version grey, a missing map red), the
+	name entry, and Back / Save Replay along the bottom. "Replay Saved" covers the list for a second.
 */
 
-body
+body.screen
 {
-	width: 100%;
-	height: 100%;
-	background-color: rgba(2, 2, 2, 128);
-}
-
-.pr-frame
-{
-	box-sizing: border-box;
-	position: absolute;
-	left: 16%;
-	top: 8.667%;
-	width: 70.5%;
-	height: 78.333%;
 	display: flex;
 	flex-direction: column;
-	padding: 16dp;
-	background-color: #020202;
-	border: 2dp #2F37A8;
+	align-items: center;
+	justify-content: center;
+	background-color: #03050CB4;
+}
+
+.pr-card
+{
+	display: flex;
+	flex-direction: column;
+	position: relative;
+	box-sizing: border-box;
+	width: 1100dp;
+	height: 780dp;
+	padding: 28dp 32dp 28dp 32dp;
+	background-color: #070A1AF0;
+	border-top: 4dp #F07A1A;
+}
+
+.pr-title
+{
+	display: block;
+	flex: 0 0 auto;
+	margin-bottom: 18dp;
+	padding-left: 15dp;
+	font-size: 34dp;
+	line-height: 42dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #FFFFFF;
+	border-left: 4dp #F07A1A;
+}
+
+/* ---- Saved replays ---------------------------------------------------------------------------- */
+.head-name, .pr-name
+{
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.head-map, .pr-map
+{
+	flex: 0 0 320dp;
+	margin-left: 14dp;
+}
+
+.head-when, .pr-when
+{
+	flex: 0 0 230dp;
+	margin-left: 14dp;
+	text-align: right;
+}
+
+.pr-list-wrap
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+	position: relative;
 }
 
 .pr-list
 {
-	flex: 1 1 0px;
+	flex: 1 1 0%;
 	min-height: 0;
+	overflow-y: auto;
+}
+
+.pr-row
+{
+	height: 48dp;
 }
 
 .pr-name
 {
-	flex: 0 0 30%;
+	font-weight: bold;
+	white-space: nowrap;
 	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
-.pr-date
+.pr-map, .pr-when
 {
-	flex: 0 0 25%;
+	font-size: 17dp;
+	white-space: nowrap;
 	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
-.pr-version
+.pr-when
 {
-	flex: 0 0 20%;
-	overflow: hidden;
+	color: #A9B1CF;
 }
 
-.pr-map
+/* ---- Name and actions -------------------------------------------------------------------------- */
+.pr-label
 {
-	flex: 0 0 25%;
-	overflow: hidden;
+	flex: 0 0 auto;
+	margin-top: 20dp;
+	margin-bottom: 10dp;
 }
 
 .pr-input
 {
+	display: block;
 	flex: 0 0 auto;
 	box-sizing: border-box;
 	width: 100%;
-	margin-top: 12dp;
 }
 
-.pr-buttons
+.pr-actions
 {
-	flex: 0 0 auto;
 	display: flex;
 	flex-direction: row;
-	justify-content: space-between;
-	margin-top: 12dp;
-	padding-top: 12dp;
-	border-top: 1dp #2F37A8;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-top: 26dp;
 }
 
-/* The "Replay Saved" notice over the list, up for a second before the popup closes. */
+/* ---- Saved ------------------------------------------------------------------------------------- */
 .pr-saved
 {
-	box-sizing: border-box;
-	position: absolute;
-	left: 3.55%;
-	top: 29.8%;
-	width: 92.9%;
-	height: 29.8%;
 	display: flex;
 	flex-direction: column;
+	align-items: center;
 	justify-content: center;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 10;
+	background-color: #070A1AFA;
+}
+
+.pr-saved-mark
+{
+	display: block;
+	box-sizing: border-box;
+	width: 96dp;
+	height: 96dp;
+	line-height: 90dp;
 	text-align: center;
-	font-size: 26dp;
+	font-size: 56dp;
 	font-weight: bold;
+	color: #3CD28C;
+	border: 3dp #3CD28C;
+}
+
+.pr-saved-text
+{
+	display: block;
+	margin-top: 22dp;
+	font-size: 34dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
 	color: #FFFFFF;
-	background-color: rgba(0, 0, 1, 235);
-	border: 1dp #2F37A8;
+}
+
+/* ---- 5:4 and 4:3 ------------------------------------------------------------------------------ */
+@media (max-aspect-ratio: 3/2)
+{
+	.pr-card { width: 960dp; }
+	.head-map, .pr-map { flex-basis: 260dp; }
+	.head-when, .pr-when { flex-basis: 200dp; }
 }

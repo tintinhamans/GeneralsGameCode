@@ -1,56 +1,366 @@
 /*
-	ReplayMenu.rcss -- ReplayMenu.wnd (main menu Load > Replay). The blueprint backdrop, frame and title
-	come from common.rcss; the list columns follow the .wnd's LISTBOXDATA (name 30, time and date 25,
-	version 20, map 25 -- the time/date and version widths swapped by ReplayMenu.cpp's GUI hack).
+	ReplayMenu.rcss -- the replay browser (ReplayMenu.wnd) on the screen template (common.rcss): a
+	rich list of the replays in the main column (the map's preview, name, map and players, version,
+	date and time), the selected replay's card on the right, Copy / Delete / Load in the action bar.
+
+	The .wnd's colour language stays: a replay from another game version (it will not play back) is
+	dimmed, and a map that is not installed is red.
 */
 
-.rp-body
-{
-	display: flex;
-	flex-direction: row;
-	flex: 1 1 0px;
-	min-height: 0;
-}
-
-.rp-list
-{
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
-.rp-name
-{
-	flex: 0 0 30%;
-	overflow: hidden;
-}
-
-.rp-date
-{
-	flex: 0 0 25%;
-	overflow: hidden;
-}
-
-.rp-version
-{
-	flex: 0 0 20%;
-	overflow: hidden;
-}
-
-.rp-map
-{
-	flex: 0 0 25%;
-	overflow: hidden;
-}
-
-.rp-buttons
+/* ---- Replay list ----------------------------------------------------------------------------- */
+.replays
 {
 	display: flex;
 	flex-direction: column;
-	flex: 0 0 22%;
-	margin-left: 16dp;
+	min-height: 0;
+	padding: 10dp 20dp 10dp 20dp;
 }
 
-.rp-buttons button
+.head-name
 {
-	margin-bottom: 12dp;
+	flex: 1 1 0%;
+	min-width: 0;
+	padding-left: 76dp;
+}
+
+.head-version
+{
+	flex: 0 0 230dp;
+	margin-left: 14dp;
+}
+
+.head-when
+{
+	flex: 0 0 150dp;
+	text-align: right;
+}
+
+.replay-list
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.replay-row
+{
+	height: 76dp;
+	color: #D7DCF0;
+}
+
+.replay-thumb
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 60dp;
+	height: 60dp;
+	margin-right: 16dp;
+	background-color: #05070F;
+	border: 1dp #8080FF28;
+}
+
+.thumb-missing
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+	line-height: 58dp;
+	text-align: center;
+	font-size: 30dp;
+	font-weight: bold;
+	color: #FF505080;
+}
+
+.replay-main
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.replay-name
+{
+	display: block;
+	font-size: 21dp;
+	line-height: 27dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.replay-sub
+{
+	display: block;
+	margin-top: 2dp;
+	font-size: 16dp;
+	line-height: 21dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.replay-map.missing
+{
+	color: #FF5050;
+}
+
+.replay-sep
+{
+	margin: 0 8dp;
+	color: #7079A0;
+}
+
+.replay-version
+{
+	display: block;
+	flex: 0 0 230dp;
+	margin-left: 14dp;
+	min-width: 0;
+}
+
+.replay-version-text
+{
+	display: block;
+	font-size: 16dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.replay-when
+{
+	display: block;
+	flex: 0 0 150dp;
+	text-align: right;
+}
+
+.replay-date
+{
+	display: block;
+	font-size: 19dp;
+	line-height: 25dp;
+	color: #EEF1FA;
+}
+
+.replay-time
+{
+	display: block;
+	margin-top: 2dp;
+	font-size: 16dp;
+	line-height: 21dp;
+	color: #7079A0;
+}
+
+/* Another game version: it will not play back, so the row steps back (the .wnd's grey). */
+.replay-row.incompatible .replay-name, .replay-row.incompatible .replay-date, .replay-row.incompatible .replay-version-text
+{
+	color: #6A6F88;
+}
+
+.replay-row.incompatible .replay-thumb
+{
+	opacity: 0.5;
+}
+
+.replay-row.selected .replay-name
+{
+	color: #FFFFFF;
+}
+
+.replay-row.selected .replay-sub, .replay-row.selected .replay-time
+{
+	color: #C4CAE4;
+}
+
+.replay-row.selected .replay-map.missing
+{
+	color: #FF8080;
+}
+
+/* ---- Details card ---------------------------------------------------------------------------- */
+.detail-col
+{
+	width: 520dp;
+}
+
+.detail
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+}
+
+.detail-body
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+}
+
+.detail-top
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+}
+
+.detail-map
+{
+	width: 200dp;
+	height: 200dp;
+	margin-right: 20dp;
+}
+
+.detail-map .map-missing
+{
+	display: block;
+	line-height: 200dp;
+	font-size: 80dp;
+	font-weight: bold;
+	color: #FF505080;
+}
+
+.detail-text
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.detail-name
+{
+	display: block;
+	margin-top: 12dp;
+	word-break: break-word;
+	font-size: 25dp;
+	line-height: 31dp;
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+.detail-map-name
+{
+	display: block;
+	margin-top: 4dp;
+	color: #A9B1CF;
+	word-break: break-word;
+}
+
+.detail-map-name.missing
+{
+	color: #FF5050;
+}
+
+.warnings
+{
+	display: block;
+	flex: 0 0 auto;
+}
+
+.warning
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 12dp;
+	padding: 8dp 12dp;
+	font-size: 16dp;
+	color: #FFD0D0;
+	background-color: #FF505026;
+	border-left: 3dp #FF5050;
+}
+
+.warning-mark
+{
+	margin-right: 10dp;
+	font-weight: bold;
+	color: #FF5050;
+}
+
+.facts
+{
+	display: flex;
+	flex-direction: row;
+	flex: 0 0 auto;
+	margin-top: 20dp;
+	border-top: 1dp #8080FF28;
+	padding-top: 14dp;
+}
+
+.fact
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.fact .stat-label, .players-label
+{
+	letter-spacing: 0;
+}
+
+.fact-value
+{
+	display: block;
+	margin-top: 2dp;
+	font-size: 20dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.version-fact
+{
+	flex: 0 0 auto;
+	margin-top: 14dp;
+}
+
+.players-label
+{
+	display: block;
+	flex: 0 0 auto;
+	margin-top: 18dp;
+}
+
+/* Who played, in their colours. */
+.players
+{
+	display: block;
+	flex: 1 1 0%;
+	min-height: 0;
+	overflow-y: auto;
+	margin-top: 8dp;
+}
+
+.player
+{
+	display: block;
+	height: 36dp;
+	line-height: 36dp;
+	padding-left: 12dp;
+	margin-bottom: 4dp;
+	border-left: 4dp #7079A0;
+	background-color: #05070FB4;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ---- 5:4 and 4:3 ------------------------------------------------------------------------------ */
+@media (max-aspect-ratio: 3/2)
+{
+	.detail-col { width: 360dp; }
+	.detail-map { width: 120dp; height: 120dp; margin-right: 14dp; }
+	.detail-map .map-missing { line-height: 120dp; font-size: 50dp; }
+	.head-version, .replay-version { display: none; }
+	.head-when, .replay-when { flex-basis: 130dp; }
 }

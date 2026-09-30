@@ -21,6 +21,7 @@
 
 #include "GameClient/GUI/GUICallbacks/Menus/ReplayMenuActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/ReplayMenuData.h"
+#include "GameClient/TransitionSounds.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include <RmlUi/Core/Context.h>
@@ -39,9 +40,10 @@ namespace
 		return Rml::String(hex);
 	}
 
+	// A replay started: the .wnd pops without its shutdown transition then.
 	void closeDocument()
 	{
-		RmlReplayMenuScreen::instance().close();
+		RmlReplayMenuScreen::instance().close(false);
 	}
 }
 
@@ -71,12 +73,30 @@ void RmlReplayMenuScreen::load(Rml::Context *context)
 			rowHandle.RegisterMember("tooltip", &RowModel::tooltip);
 			rowHandle.RegisterMember("color_hex", &RowModel::colorHex);
 			rowHandle.RegisterMember("map_color_hex", &RowModel::mapColorHex);
+			rowHandle.RegisterMember("time", &RowModel::time);
+			rowHandle.RegisterMember("date", &RowModel::date);
+			rowHandle.RegisterMember("map_path", &RowModel::mapPath);
+			rowHandle.RegisterMember("duration", &RowModel::duration);
+			rowHandle.RegisterMember("players_text", &RowModel::playersText);
+			rowHandle.RegisterMember("has_map", &RowModel::hasMap);
+			rowHandle.RegisterMember("is_compatible", &RowModel::isCompatible);
+			rowHandle.RegisterMember("is_multiplayer", &RowModel::isMultiplayer);
 			rowHandle.RegisterMember("index", &RowModel::index);
 			rowHandle.RegisterMember("selected", &RowModel::selected);
 		}
 		constructor.RegisterArray<Rml::Vector<RowModel>>();
 
+		if (Rml::StructHandle<PlayerModel> playerHandle = constructor.RegisterStruct<PlayerModel>())
+		{
+			playerHandle.RegisterMember("name", &PlayerModel::name);
+			playerHandle.RegisterMember("color_hex", &PlayerModel::colorHex);
+		}
+		constructor.RegisterArray<Rml::Vector<PlayerModel>>();
+
 		constructor.Bind("rows", &m_rows);
+		constructor.Bind("has_selection", &m_hasSelection);
+		constructor.Bind("sel", &m_selected);
+		constructor.Bind("sel_players", &m_selectedPlayers);
 
 		constructor.BindEventCallback("select_row", &RmlReplayMenuScreen::onSelectRow, this);
 		constructor.BindEventCallback("activate_row", &RmlReplayMenuScreen::onActivateRow, this);
@@ -113,13 +133,47 @@ void RmlReplayMenuScreen::refresh()
 		row.tooltip = unicodeToUtf8(src.m_tooltip);
 		row.colorHex = rgbToHex(src.m_color);
 		row.mapColorHex = rgbToHex(src.m_mapColor);
+		row.time = unicodeToUtf8(src.m_time);
+		row.date = unicodeToUtf8(src.m_date);
+		row.mapPath = src.m_mapPath.str();
+		row.duration = unicodeToUtf8(src.m_duration);
+		row.playersText.clear();
+		for (const ReplayPlayer &player : src.m_players)
+		{
+			if (!row.playersText.empty())
+				row.playersText += ", ";
+			row.playersText += unicodeToUtf8(player.m_name);
+		}
+		row.hasMap = src.m_hasMap == TRUE;
+		row.isCompatible = src.m_isCompatible == TRUE;
+		row.isMultiplayer = src.m_isMultiplayer == TRUE;
 		row.index = (int)i;
 		row.selected = (int)i == data.m_selected;
+	}
+
+	m_hasSelection = data.m_selected >= 0 && data.m_selected < (int)m_rows.size();
+	m_selected = m_hasSelection ? m_rows[data.m_selected] : RowModel();
+	m_selectedPlayers.clear();
+	if (m_hasSelection)
+	{
+		for (const ReplayPlayer &src : data.m_rows[data.m_selected].m_players)
+		{
+			PlayerModel player;
+			player.name = unicodeToUtf8(src.m_name);
+			if (src.m_hasColor)
+				player.colorHex = rgbToHex(src.m_rgb);
+			m_selectedPlayers.push_back(player);
+		}
 	}
 	m_shownVersion = data.m_version;
 
 	if (m_modelHandle)
+	{
 		m_modelHandle.DirtyVariable("rows");
+		m_modelHandle.DirtyVariable("has_selection");
+		m_modelHandle.DirtyVariable("sel");
+		m_modelHandle.DirtyVariable("sel_players");
+	}
 }
 
 void RmlReplayMenuScreen::open()
@@ -135,10 +189,16 @@ void RmlReplayMenuScreen::open()
 	refresh();
 
 	m_document->Show(Rml::ModalFlag::Modal);
+
+	// ReplayMenuUpdate()'s entrance group, and ReplayMenuShutdown()'s reverse in close().
+	TransitionSounds::stop("MainMenuDefaultMenuLogoFade");
+	TransitionSounds::play("ReplayMenuFade");
 }
 
-void RmlReplayMenuScreen::close()
+void RmlReplayMenuScreen::close(bool reverseTransition)
 {
+	if (reverseTransition && isVisible())
+		TransitionSounds::play("ReplayMenuFade", TRUE);
 	if (m_document)
 		m_document->Hide();
 }

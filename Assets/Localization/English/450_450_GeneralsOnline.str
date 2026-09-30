@@ -170,3 +170,27 @@ END
 GUI:GONoSaves
 "No saved games yet"
 END
+
+GUI:GOReplay
+"Replay"
+END
+
+GUI:GODuration
+"Duration"
+END
+
+GUI:GOVersionMismatch
+"Recorded by another game version"
+END
+
+GUI:GOMapMissing
+"Map not installed"
+END
+
+GUI:GONoReplays
+"No replays yet"
+END
+
+GUI:GOReplayName
+"Replay name"
+END

@@ -4,34 +4,97 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="ReplayMenu.rcss"/>
 </head>
-<body class="shell" data-model="replaymenu">
-	<mappedimage class="shell-background" name="MainMenuRuler"/>
+<body class="screen" data-model="replaymenu">
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
-	<div class="shell-frame">
-		<div class="shell-title-bar"><gametext key="GUI:LoadReplay"/></div>
-
-		<div class="rp-body">
-			<div class="rp-list list-box scroll-container">
-				<div data-for="row : rows">
-					<div class="list-row flex compact" data-class-selected="row.selected" data-attr-data-tooltip-text="row.tooltip"
-						data-event-click="select_row(row.index)" data-event-dblclick="activate_row(row.index)">
-						<div class="rp-name" data-style-color="row.color_hex">{{row.name}}</div>
-						<div class="rp-date" data-style-color="row.color_hex">{{row.date_time}}</div>
-						<div class="rp-version" data-style-color="row.color_hex">{{row.version}}</div>
-						<div class="rp-map" data-style-color="row.map_color_hex">{{row.map}}</div>
-					</div>
-				</div>
-			</div>
-
-			<div class="rp-buttons">
-				<button class="btn-primary" data-event-click="load"><gametext key="GUI:LoadReplay"/></button>
-				<button class="btn-primary" data-event-click="delete"><gametext key="GUI:DeleteReplay"/></button>
-				<button class="btn-primary" data-event-click="copy"><gametext key="GUI:CopyReplay"/></button>
+	<div class="screen-frame">
+		<div class="screen-header">
+			<div class="screen-heading">
+				<div class="screen-crumb"><gametext key="GUI:ReplayMenu"/><span class="crumb-sep">&#8250;</span></div>
+				<div class="screen-title"><gametext key="GUI:LoadReplay"/></div>
 			</div>
 		</div>
 
-		<div class="footer">
-			<button class="btn-primary" data-event-click="back"><gametext key="GUI:BACK"/></button>
+		<div class="screen-body">
+			<!-- Every replay: its map, who played, the version that recorded it and when. One from
+			     another game version (it will not play back) is dimmed; a map that is not installed is red. -->
+			<div class="col col-main surface replays">
+				<div class="list-head">
+					<div class="head-name overline"><gametext key="GUI:GOReplay"/></div>
+					<div class="head-version overline"><gametext key="GUI:GOVersion"/></div>
+					<div class="head-when overline"><gametext key="GUI:SaveDate"/></div>
+				</div>
+				<div class="replay-list">
+					<div data-for="row : rows">
+						<div class="row-item replay-row" data-class-selected="row.selected" data-class-incompatible="!row.is_compatible"
+							data-attr-data-tooltip-text="row.tooltip"
+							data-event-click="select_row(row.index)" data-event-dblclick="activate_row(row.index)">
+							<div class="replay-thumb"><mappreview class="map-image" data-if="row.has_map" data-attr-map="row.map_path"/><div class="thumb-missing" data-if="!row.has_map">?</div></div>
+							<div class="replay-main">
+								<div class="replay-name">{{row.name}}</div>
+								<div class="replay-sub"><span class="replay-map" data-class-missing="!row.has_map">{{row.map}}</span><span class="replay-sep" data-if="row.players_text != ''">&#183;</span><span>{{row.players_text}}</span></div>
+							</div>
+							<div class="replay-version">
+								<div class="replay-version-text">{{row.version}}</div>
+							</div>
+							<div class="replay-when">
+								<div class="replay-date">{{row.date}}</div>
+								<div class="replay-time">{{row.time}}</div>
+							</div>
+						</div>
+					</div>
+					<div class="empty-state" data-if="rows.size == 0"><gametext key="GUI:GONoReplays"/></div>
+				</div>
+			</div>
+
+			<!-- The selected replay: its map, the players in their colours, and what might keep it
+			     from playing back. -->
+			<div class="col col-side detail-col">
+				<div class="surface detail">
+					<div class="overline group-title"><gametext key="GUI:GameInfo"/></div>
+					<div class="detail-body" data-if="has_selection">
+						<div class="detail-top">
+							<div class="map-frame detail-map">
+								<mappreview class="map-image" data-if="sel.has_map" data-attr-map="sel.map_path"/>
+								<div class="map-missing" data-if="!sel.has_map">?</div>
+							</div>
+							<div class="detail-text">
+								<div class="detail-kind">
+									<span class="chip-label" data-if="sel.is_multiplayer"><gametext key="GUI:Multiplayer"/></span>
+									<span class="chip-label" data-if="!sel.is_multiplayer"><gametext key="GUI:SinglePlayer"/></span>
+								</div>
+								<div class="detail-name">{{sel.name}}</div>
+								<div class="detail-map-name" data-class-missing="!sel.has_map">{{sel.map}}</div>
+							</div>
+						</div>
+						<div class="warnings">
+							<div class="warning" data-if="!sel.is_compatible"><span class="warning-mark">!</span><gametext key="GUI:GOVersionMismatch"/></div>
+							<div class="warning" data-if="!sel.has_map"><span class="warning-mark">!</span><gametext key="GUI:GOMapMissing"/></div>
+						</div>
+						<div class="facts">
+							<div class="fact"><div class="stat-label"><gametext key="GUI:SaveDate"/></div><div class="fact-value">{{sel.date}}</div></div>
+							<div class="fact"><div class="stat-label"><gametext key="GUI:SaveTime"/></div><div class="fact-value">{{sel.time}}</div></div>
+							<div class="fact"><div class="stat-label"><gametext key="GUI:GODuration"/></div><div class="fact-value">{{sel.duration}}</div></div>
+						</div>
+						<div class="fact version-fact"><div class="stat-label"><gametext key="GUI:GOVersion"/></div><div class="fact-value">{{sel.version}}</div></div>
+						<div class="stat-label players-label"><gametext key="GUI:Players"/></div>
+						<div class="players">
+							<div data-for="player : sel_players">
+								<div class="player" data-style-border-left-color="player.color_hex != '' ? player.color_hex : '#7079A0'">{{player.name}}</div>
+							</div>
+						</div>
+					</div>
+					<div class="empty-state" data-if="!has_selection"><gametext key="GUI:GONoReplays"/></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="action-bar">
+			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
+			<div class="spacer"></div>
+			<button data-event-click="copy"><gametext key="GUI:CopyReplay"/></button>
+			<button data-event-click="delete"><gametext key="GUI:DeleteReplay"/></button>
+			<button class="btn-cta" data-event-click="load"><gametext key="GUI:LoadReplay"/></button>
 		</div>
 	</div>
 </body>

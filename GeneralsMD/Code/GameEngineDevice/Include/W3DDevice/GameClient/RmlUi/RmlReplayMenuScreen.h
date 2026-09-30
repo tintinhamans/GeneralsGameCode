@@ -40,7 +40,7 @@ public:
 	static RmlReplayMenuScreen &instance();
 
 	void open();
-	void close();
+	void close(bool reverseTransition = true); ///< false once a replay took over, like an immediate pop
 	bool isVisible() const;
 	void back(); ///< Escape: same as KEY_ESC in ReplayMenu.cpp
 
@@ -69,8 +69,23 @@ private:
 		Rml::String tooltip;
 		Rml::String colorHex = "#FFFFFF";
 		Rml::String mapColorHex = "#FFFFFF";
+		Rml::String time;
+		Rml::String date;
+		Rml::String mapPath;
+		Rml::String duration;
+		Rml::String playersText; ///< the players, comma separated
+		bool hasMap = false;
+		bool isCompatible = false;
+		bool isMultiplayer = false;
 		int index = 0;
 		bool selected = false;
+	};
+
+	// One player of the selected replay, for its card.
+	struct PlayerModel
+	{
+		Rml::String name;
+		Rml::String colorHex; ///< empty when the slot has no colour
 	};
 
 	Rml::Context *m_context = nullptr;
@@ -78,6 +93,9 @@ private:
 	Rml::DataModelHandle m_modelHandle;
 
 	Rml::Vector<RowModel> m_rows;
+	RowModel m_selected; ///< the selected row for the details card, valid when m_hasSelection
+	bool m_hasSelection = false;
+	Rml::Vector<PlayerModel> m_selectedPlayers;
 	unsigned int m_shownVersion = 0;
 };
 

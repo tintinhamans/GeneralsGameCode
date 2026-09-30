@@ -26,6 +26,8 @@
 
 #include "Common/FileSystem.h"
 #include "Common/GameState.h"
+#include "Common/MultiplayerSettings.h"
+#include "Common/PlayerTemplate.h"
 #include "GameClient/GameText.h"
 #include "GameNetwork/GameInfo.h"
 
@@ -125,6 +127,45 @@ static UnicodeString buildReplayTooltip(RecorderClass::ReplayHeader header, Repl
 	return tooltipStr;
 }
 
+static UnicodeString buildDuration(const RecorderClass::ReplayHeader &header)
+{
+	const time_t totalSeconds = header.endTime > header.startTime ? header.endTime - header.startTime : 0;
+	UnicodeString duration;
+	duration.format(L"%02u:%02u:%02u", (UnsignedInt)(totalSeconds / 3600), (UnsignedInt)((totalSeconds % 3600) / 60), (UnsignedInt)(totalSeconds % 60));
+	return duration;
+}
+
+// Everyone who played, humans by name and AIs by level; observers left out.
+static void buildPlayers(const ReplayGameInfo &info, std::vector<ReplayPlayer> &players)
+{
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		const GameSlot *slot = info.getConstSlot(i);
+		if (!slot || !slot->isOccupied() || slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
+			continue;
+
+		ReplayPlayer player;
+		if (slot->isHuman())
+			player.m_name = slot->getName();
+		else if (slot->getState() == SLOT_EASY_AI)
+			player.m_name = TheGameText->fetch("GUI:EasyAI");
+		else if (slot->getState() == SLOT_MED_AI)
+			player.m_name = TheGameText->fetch("GUI:MediumAI");
+		else if (slot->getState() == SLOT_BRUTAL_AI)
+			player.m_name = TheGameText->fetch("GUI:HardAI");
+
+		if (slot->getColor() >= 0)
+		{
+			if (const MultiplayerColorDefinition *color = TheMultiplayerSettings->getColor(slot->getColor()))
+			{
+				player.m_rgb = color->getColor() & 0xFFFFFF;
+				player.m_hasColor = TRUE;
+			}
+		}
+		players.push_back(player);
+	}
+}
+
 Bool scan( std::vector<ReplayRow> &rows )
 {
 	if (!TheMapCache)
@@ -189,6 +230,13 @@ Bool scan( std::vector<ReplayRow> &rows )
 			const Bool hasMap = mapData != nullptr;
 			const Bool isCrcCompatible = RecorderClass::replayMatchesGameVersion(header);
 			const Bool isMultiplayer = header.localPlayerIndex >= 0;
+
+			row.m_mapPath = info.getMap();
+			row.m_duration = buildDuration(header);
+			buildPlayers(info, row.m_players);
+			row.m_hasMap = hasMap;
+			row.m_isCompatible = isCrcCompatible;
+			row.m_isMultiplayer = isMultiplayer;
 
 			if (isCrcCompatible)
 			{
