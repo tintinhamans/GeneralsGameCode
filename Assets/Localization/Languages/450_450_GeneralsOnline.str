@@ -1,7 +1,7 @@
 // 450_450_GeneralsOnline.str (multi-language)
 // Generals Online strings in the other text languages, one 'XX: "text"' line per language
-// (Patch104p's codes: DE FR ES IT KO ZH BP PL RU AR; ZH is traditional Chinese, AR is in
-// logical order). The English text stays in Localization/English/; a label without a line
+// (Patch104p's codes: DE FR ES IT KO ZH BP PL RU AR, plus UK for Ukrainian; ZH is traditional
+// Chinese, AR is in logical order). The English text stays in Localization/English/; a label without a line
 // for a language shows the English one. str2csf --column compiles each language into
 // Data/Languages/<code>/450_450_GeneralsOnline.csf in the embedded archive.
 //
@@ -19,6 +19,7 @@ BP: "Nenhum mapa para este número de jogadores"
 PL: "Brak map dla tej liczby graczy"
 RU: "Нет карт для такого числа игроков"
 AR: "لا توجد خرائط لهذا العدد من اللاعبين"
+UK: "Немає карт для такої кількості гравців"
 END
 
 GO:GUI:NoGames
@@ -32,6 +33,7 @@ BP: "Nenhuma partida nesta sala ainda"
 PL: "W tym pokoju nie ma jeszcze gier"
 RU: "В этой комнате пока нет игр"
 AR: "لا توجد ألعاب في هذه الغرفة بعد"
+UK: "У цій кімнаті ще немає ігор"
 END
 
 GO:GUI:DockFriends
@@ -45,6 +47,7 @@ BP: "Amigos"
 PL: "Znajomi"
 RU: "Друзья"
 AR: "الأصدقاء"
+UK: "Друзі"
 END
 
 GO:GUI:DockBlocked
@@ -58,6 +61,7 @@ BP: "Bloqueados"
 PL: "Blokowani"
 RU: "Игнор"
 AR: "المحظورون"
+UK: "Заблоковані"
 END
 
 GO:GUI:DockRequests
@@ -71,6 +75,7 @@ BP: "Pedidos de amizade"
 PL: "Zaproszenia do znajomych"
 RU: "Заявки в друзья"
 AR: "طلبات الصداقة"
+UK: "Запити в друзі"
 END
 
 GO:GUI:DockLobby
@@ -84,6 +89,7 @@ BP: "No seu lobby"
 PL: "W twoim lobby"
 RU: "В вашем лобби"
 AR: "في ردهتك"
+UK: "У вашому лобі"
 END
 
 GO:GUI:DockRecent
@@ -97,6 +103,7 @@ BP: "Jogou recentemente com"
 PL: "Ostatnio grano z"
 RU: "Недавние соперники"
 AR: "لعبت معهم مؤخراً"
+UK: "Нещодавні суперники"
 END
 
 GO:GUI:DockNoFriends
@@ -110,6 +117,7 @@ BP: "Nenhum amigo ainda. Clique com o botão direito em um jogador num lobby par
 PL: "Nie masz jeszcze znajomych. Kliknij gracza prawym przyciskiem w lobby, aby wysłać zaproszenie."
 RU: "Друзей пока нет. Щёлкните правой кнопкой по игроку в лобби, чтобы отправить заявку в друзья."
 AR: "لا يوجد أصدقاء بعد. انقر بزر الفأرة الأيمن على لاعب في الردهة لإرسال طلب صداقة."
+UK: "Друзів ще немає. Клацніть гравця в лобі правою кнопкою миші, щоб надіслати запит у друзі."
 END
 
 GO:GUI:DockNoBlocked
@@ -123,6 +131,7 @@ BP: "Ninguém está bloqueado."
 PL: "Nikt nie jest zablokowany."
 RU: "Никто не заблокирован."
 AR: "لا يوجد أحد محظور."
+UK: "Нікого не заблоковано."
 END
 
 GO:GUI:DockUnblock
@@ -136,6 +145,7 @@ BP: "Desbloquear"
 PL: "Odblokuj"
 RU: "Разблокировать"
 AR: "إلغاء الحظر"
+UK: "Розблокувати"
 END
 
 GO:GUI:MenuOffline
@@ -149,6 +159,7 @@ BP: "Offline"
 PL: "Offline"
 RU: "Не в сети"
 AR: "غير متصل"
+UK: "Не в мережі"
 END
 
 GO:GUI:Version
@@ -162,6 +173,7 @@ BP: "Versão"
 PL: "Wersja"
 RU: "Версия"
 AR: "الإصدار"
+UK: "Версія"
 END
 
 GO:GUI:StatusTitle
@@ -175,6 +187,7 @@ BP: "Generals Online"
 PL: "Generals Online"
 RU: "Generals Online"
 AR: "Generals Online"
+UK: "Generals Online"
 END
 
 GO:GUI:AddAI
@@ -188,6 +201,7 @@ BP: "Adicionar IA"
 PL: "Dodaj SI"
 RU: "Добавить ИИ"
 AR: "إضافة ذكاء اصطناعي"
+UK: "Додати ШІ"
 END
 
 GO:GUI:DockRoom
@@ -201,6 +215,7 @@ BP: "Lobby"
 PL: "Lobby"
 RU: "Лобби"
 AR: "الردهة"
+UK: "Лобі"
 END
 
 GO:GUI:Host
@@ -214,6 +229,7 @@ BP: "Anfitrião"
 PL: "Gospodarz"
 RU: "Хост"
 AR: "المضيف"
+UK: "Хост"
 END
 
 GO:GUI:Ready
@@ -227,6 +243,7 @@ BP: "Pronto"
 PL: "Gotowy"
 RU: "Готов"
 AR: "جاهز"
+UK: "Готовий"
 END
 
 GO:GUI:NoMap
@@ -240,6 +257,7 @@ BP: "Sem mapa"
 PL: "Brak mapy"
 RU: "Нет карты"
 AR: "لا توجد خريطة"
+UK: "Немає карти"
 END
 
 GO:GUI:StartingIn
@@ -253,6 +271,7 @@ BP: "Começa em"
 PL: "Start za"
 RU: "Начало через"
 AR: "تبدأ خلال"
+UK: "Початок через"
 END
 
 GO:GUI:WaitingForHost
@@ -266,6 +285,7 @@ BP: "Aguardando o anfitrião iniciar"
 PL: "Oczekiwanie na start gospodarza"
 RU: "Ожидание запуска хостом"
 AR: "في انتظار أن يبدأ المضيف"
+UK: "Очікування запуску хостом"
 END
 
 GO:GUI:OptionsDisplay
@@ -279,6 +299,7 @@ BP: "Tela"
 PL: "Ekran"
 RU: "Экран"
 AR: "العرض"
+UK: "Екран"
 END
 
 GO:GUI:OptionsGraphics
@@ -292,6 +313,7 @@ BP: "Gráficos"
 PL: "Grafika"
 RU: "Графика"
 AR: "الرسوميات"
+UK: "Графіка"
 END
 
 GO:GUI:OptionsControls
@@ -305,6 +327,7 @@ BP: "Controles"
 PL: "Sterowanie"
 RU: "Управление"
 AR: "التحكم"
+UK: "Керування"
 END
 
 GO:GUI:TextureFiltering
@@ -318,6 +341,7 @@ BP: "Filtragem de texturas"
 PL: "Filtrowanie tekstur"
 RU: "Фильтрация текстур"
 AR: "تنقية الأنسجة"
+UK: "Фільтрація текстур"
 END
 
 GO:GUI:Anisotropy
@@ -331,6 +355,7 @@ BP: "Anisotropia"
 PL: "Anizotropia"
 RU: "Анизотропия"
 AR: "التباين الاتجاهي"
+UK: "Анізотропія"
 END
 
 GO:GUI:TextureResolution
@@ -344,6 +369,7 @@ BP: "Resolução de texturas"
 PL: "Rozdzielczość tekstur"
 RU: "Разрешение текстур"
 AR: "دقة الأنسجة"
+UK: "Роздільність текстур"
 END
 
 GO:GUI:ParticleCap
@@ -357,6 +383,7 @@ BP: "Limite de partículas"
 PL: "Limit cząsteczek"
 RU: "Лимит частиц"
 AR: "حد الجسيمات"
+UK: "Ліміт частинок"
 END
 
 GO:GUI:GameNameLabel
@@ -370,6 +397,7 @@ BP: "Nome da partida"
 PL: "Nazwa gry"
 RU: "Название игры"
 AR: "اسم اللعبة"
+UK: "Назва гри"
 END
 
 GO:GUI:PasswordRequired
@@ -383,6 +411,7 @@ BP: "Esta partida é protegida por senha."
 PL: "Ta gra jest chroniona hasłem."
 RU: "Эта игра защищена паролем."
 AR: "هذه اللعبة محمية بكلمة مرور."
+UK: "Ця гра захищена паролем."
 END
 
 GO:GUI:GameMenu
@@ -396,6 +425,7 @@ BP: "Menu do jogo"
 PL: "Menu gry"
 RU: "Меню игры"
 AR: "قائمة اللعبة"
+UK: "Меню гри"
 END
 
 GO:GUI:QMPlaylist
@@ -409,6 +439,7 @@ BP: "Playlist"
 PL: "Playlista"
 RU: "Плейлист"
 AR: "قائمة التشغيل"
+UK: "Плейлист"
 END
 
 GO:GUI:QMReady
@@ -422,6 +453,7 @@ BP: "Pronto"
 PL: "Gotowy"
 RU: "Готов"
 AR: "جاهز"
+UK: "Готовий"
 END
 
 GO:GUI:QMReadyHint
@@ -435,6 +467,7 @@ BP: "Escolha uma playlist e, em Configurar, os mapas que vai jogar; depois inici
 PL: "Wybierz playlistę i w Ustawieniach mapy, na których zagrasz, a potem rozpocznij wyszukiwanie."
 RU: "Выберите плейлист и в настройках карты, на которых будете играть, затем начните поиск матча."
 AR: "اختر قائمة التشغيل والخرائط التي ستلعبها من الإعداد، ثم ابدأ البحث عن مباراة."
+UK: "Виберіть плейлист і в налаштуваннях карти, на яких гратимете, а потім почніть пошук матчу."
 END
 
 GO:GUI:QMSearching
@@ -448,6 +481,7 @@ BP: "Procurando partida"
 PL: "Szukanie meczu"
 RU: "Поиск матча"
 AR: "جارٍ البحث عن مباراة"
+UK: "Пошук матчу"
 END
 
 GO:GUI:QMElapsed
@@ -461,6 +495,7 @@ BP: "Tempo na fila"
 PL: "Czas w kolejce"
 RU: "Время в очереди"
 AR: "الوقت في قائمة الانتظار"
+UK: "Час у черзі"
 END
 
 GO:GUI:Map
@@ -474,6 +509,7 @@ BP: "Mapa"
 PL: "Mapa"
 RU: "Карта"
 AR: "الخريطة"
+UK: "Карта"
 END
 
 GO:GUI:InProgress
@@ -487,6 +523,7 @@ BP: "Em andamento"
 PL: "W trakcie"
 RU: "Идёт игра"
 AR: "قيد التقدم"
+UK: "Триває гра"
 END
 
 GO:GUI:NoLanGames
@@ -500,6 +537,7 @@ BP: "Nenhuma partida na sua rede ainda"
 PL: "W twojej sieci nie ma jeszcze gier"
 RU: "В вашей сети пока нет игр"
 AR: "لا توجد ألعاب على شبكتك بعد"
+UK: "У вашій мережі ще немає ігор"
 END
 
 GO:GUI:Mission
@@ -513,6 +551,7 @@ BP: "Missão"
 PL: "Misja"
 RU: "Миссия"
 AR: "المهمة"
+UK: "Місія"
 END
 
 GO:GUI:MissionStart
@@ -526,6 +565,7 @@ BP: "Início da missão"
 PL: "Początek misji"
 RU: "Начало миссии"
 AR: "بداية المهمة"
+UK: "Початок місії"
 END
 
 GO:GUI:NewSave
@@ -539,6 +579,7 @@ BP: "Novo jogo salvo"
 PL: "Nowy zapis"
 RU: "Новое сохранение"
 AR: "حفظ جديد"
+UK: "Нове збереження"
 END
 
 GO:GUI:NoSaves
@@ -552,6 +593,7 @@ BP: "Nenhum jogo salvo ainda"
 PL: "Brak zapisanych gier"
 RU: "Сохранений пока нет"
 AR: "لا توجد ألعاب محفوظة بعد"
+UK: "Збережень ще немає"
 END
 
 GO:GUI:Replay
@@ -565,6 +607,7 @@ BP: "Replay"
 PL: "Powtórka"
 RU: "Запись"
 AR: "الإعادة"
+UK: "Запис"
 END
 
 GO:GUI:Duration
@@ -578,6 +621,7 @@ BP: "Duração"
 PL: "Czas trwania"
 RU: "Длительность"
 AR: "المدة"
+UK: "Тривалість"
 END
 
 GO:GUI:VersionMismatch
@@ -591,6 +635,7 @@ BP: "Gravado com outra versão do jogo"
 PL: "Nagrane w innej wersji gry"
 RU: "Записано в другой версии игры"
 AR: "مسجّلة بإصدار آخر من اللعبة"
+UK: "Записано в іншій версії гри"
 END
 
 GO:GUI:MapMissing
@@ -604,6 +649,7 @@ BP: "Mapa não instalado"
 PL: "Mapa nie jest zainstalowana"
 RU: "Карта не установлена"
 AR: "الخريطة غير مثبتة"
+UK: "Карту не встановлено"
 END
 
 GO:GUI:NoReplays
@@ -617,6 +663,7 @@ BP: "Nenhum replay ainda"
 PL: "Brak powtórek"
 RU: "Записей пока нет"
 AR: "لا توجد إعادات بعد"
+UK: "Записів ще немає"
 END
 
 GO:GUI:ReplayName
@@ -630,6 +677,7 @@ BP: "Nome do replay"
 PL: "Nazwa powtórki"
 RU: "Название записи"
 AR: "اسم الإعادة"
+UK: "Назва запису"
 END
 
 GO:GUI:ScoreMap
@@ -643,6 +691,7 @@ BP: "Mapa"
 PL: "Mapa"
 RU: "Карта"
 AR: "الخريطة"
+UK: "Карта"
 END
 
 GO:GUI:ScoreGameTime
@@ -656,6 +705,7 @@ BP: "Tempo de jogo"
 PL: "Czas gry"
 RU: "Время игры"
 AR: "وقت اللعب"
+UK: "Час гри"
 END
 
 GO:GUI:ChallengeHint
@@ -669,6 +719,7 @@ BP: "Escolha um general para ler o dossiê e depois clique em Jogar para conduzi
 PL: "Wybierz generała, aby przeczytać jego akta, a potem naciśnij Graj, by poprowadzić go przez wyzwanie."
 RU: "Выберите генерала, чтобы прочитать его досье, затем нажмите «Начать игру», чтобы провести его через испытание."
 AR: "اختر جنرالاً لقراءة ملفه، ثم اضغط بدء اللعبة لتقوده خلال التحدي."
+UK: "Виберіть генерала, щоб прочитати його досьє, потім натисніть «Почати гру», щоб провести його через випробування."
 END
 
 GO:GUI:DownloadingUpdate
@@ -682,6 +733,7 @@ BP: "Baixando atualização"
 PL: "Pobieranie aktualizacji"
 RU: "Загрузка обновления"
 AR: "جارٍ تنزيل التحديث"
+UK: "Завантаження оновлення"
 END
 
 GO:GUI:Votes
@@ -695,6 +747,7 @@ BP: "Votos"
 PL: "Głosy"
 RU: "Голоса"
 AR: "الأصوات"
+UK: "Голоси"
 END
 
 GO:GUI:Timeout
@@ -708,6 +761,7 @@ BP: "Tempo limite"
 PL: "Limit czasu"
 RU: "Тайм-аут"
 AR: "المهلة"
+UK: "Тайм-аут"
 END
 
 GO:GUI:CreateLobbyFailed
@@ -721,6 +775,7 @@ BP: "Não foi possível criar o lobby. Tente novamente."
 PL: "Nie udało się utworzyć lobby. Spróbuj ponownie."
 RU: "Не удалось создать лобби. Попробуйте ещё раз."
 AR: "تعذّر إنشاء الردهة. يرجى المحاولة مرة أخرى."
+UK: "Не вдалося створити лобі. Спробуйте ще раз."
 END
 
 GO:GUI:StartSpot
@@ -734,6 +789,7 @@ BP: "Início"
 PL: "Start"
 RU: "Старт"
 AR: "البداية"
+UK: "Старт"
 END
 
 GO:GUI:BioBranch
@@ -747,6 +803,7 @@ BP: "Arma"
 PL: "Rodzaj wojsk"
 RU: "Род войск"
 AR: "الفرع"
+UK: "Рід військ"
 END
 
 GO:GUI:BioTactics
@@ -760,6 +817,7 @@ BP: "Tática"
 PL: "Taktyka"
 RU: "Тактика"
 AR: "التكتيك"
+UK: "Тактика"
 END
 
 GO:GUI:ChallengeYou
@@ -773,6 +831,7 @@ BP: "Seu general"
 PL: "Twój generał"
 RU: "Ваш генерал"
 AR: "جنرالك"
+UK: "Ваш генерал"
 END
 
 GO:GUI:ChallengeOpponent
@@ -786,6 +845,7 @@ BP: "Oponente"
 PL: "Przeciwnik"
 RU: "Противник"
 AR: "الخصم"
+UK: "Суперник"
 END
 
 GO:GUI:MenuPlayersOnline
@@ -799,6 +859,7 @@ BP: "%d online"
 PL: "%d online"
 RU: "В сети: %d"
 AR: "%d متصل"
+UK: "У мережі: %d"
 END
 
 GO:GUI:MenuSoloDesc
@@ -812,6 +873,7 @@ BP: "Campanha, escaramuça e desafio dos generais"
 PL: "Kampania, potyczka i wyzwanie generałów"
 RU: "Кампания, схватка и испытание генералов"
 AR: "الحملة والمناوشة وتحدي الجنرالات"
+UK: "Кампанія, сутичка та випробування генералів"
 END
 
 GO:GUI:MenuMultiDesc
@@ -825,6 +887,7 @@ BP: "Batalhas online e em LAN"
 PL: "Bitwy online i w sieci LAN"
 RU: "Сражения по сети и в LAN"
 AR: "معارك عبر الإنترنت والشبكة المحلية"
+UK: "Битви в мережі та в LAN"
 END
 
 GO:GUI:MenuLoadDesc
@@ -838,6 +901,7 @@ BP: "Jogos salvos e replays"
 PL: "Zapisane gry i powtórki"
 RU: "Сохранения и записи"
 AR: "الألعاب المحفوظة والإعادات"
+UK: "Збереження та записи"
 END
 
 GO:GUI:MenuOptionsDesc
@@ -851,6 +915,7 @@ BP: "Vídeo, áudio e controles"
 PL: "Obraz, dźwięk i sterowanie"
 RU: "Видео, звук и управление"
 AR: "الفيديو والصوت والتحكم"
+UK: "Відео, звук і керування"
 END
 
 GO:GUI:MenuCreditsDesc
@@ -864,6 +929,7 @@ BP: "As pessoas por trás do jogo"
 PL: "Ludzie, którzy stworzyli grę"
 RU: "Люди, создавшие игру"
 AR: "الأشخاص وراء اللعبة"
+UK: "Люди, які створили гру"
 END
 
 GO:GUI:MenuSkirmishDesc
@@ -877,6 +943,7 @@ BP: "Enfrente a IA em qualquer mapa"
 PL: "Walcz z SI na dowolnej mapie"
 RU: "Сражайтесь с ИИ на любой карте"
 AR: "قاتل الذكاء الاصطناعي على أي خريطة"
+UK: "Боріться зі ШІ на будь-якій карті"
 END
 
 GO:GUI:MenuChallengeDesc
@@ -890,6 +957,7 @@ BP: "Derrote os generais um a um"
 PL: "Pokonaj generałów jednego po drugim"
 RU: "Одолейте генералов одного за другим"
 AR: "اهزم الجنرالات واحداً تلو الآخر"
+UK: "Переможіть генералів одного за одним"
 END
 
 GO:GUI:MenuOnlineDesc
@@ -903,6 +971,7 @@ BP: "Partidas ranqueadas e personalizadas no Generals Online"
 PL: "Gry rankingowe i własne w Generals Online"
 RU: "Рейтинговые и пользовательские игры в Generals Online"
 AR: "ألعاب مصنّفة ومخصصة على Generals Online"
+UK: "Рейтингові та користувацькі ігри в Generals Online"
 END
 
 GO:GUI:MenuNetworkDesc
@@ -916,6 +985,7 @@ BP: "Jogue na sua rede local"
 PL: "Graj w sieci lokalnej"
 RU: "Играйте по локальной сети"
 AR: "العب عبر شبكتك المحلية"
+UK: "Грайте через локальну мережу"
 END
 
 GO:GUI:MenuLoadGameDesc
@@ -929,6 +999,7 @@ BP: "Retome uma missão salva"
 PL: "Wznów zapisaną misję"
 RU: "Продолжить сохранённую миссию"
 AR: "استأنف مهمة محفوظة"
+UK: "Продовжити збережену місію"
 END
 
 GO:GUI:MenuReplayDesc
@@ -942,6 +1013,7 @@ BP: "Assista às suas batalhas gravadas"
 PL: "Oglądaj nagrane bitwy"
 RU: "Смотрите записи своих сражений"
 AR: "شاهد معاركك المسجّلة"
+UK: "Дивіться записи своїх битв"
 END
 
 GO:GUI:MenuEasyDesc
@@ -955,6 +1027,7 @@ BP: "Para novos comandantes"
 PL: "Dla nowych dowódców"
 RU: "Для новых командиров"
 AR: "للقادة الجدد"
+UK: "Для нових командирів"
 END
 
 GO:GUI:MenuMediumDesc
@@ -968,6 +1041,7 @@ BP: "Uma luta justa"
 PL: "Uczciwa walka"
 RU: "Честный бой"
 AR: "قتال متكافئ"
+UK: "Чесний бій"
 END
 
 GO:GUI:MenuHardDesc
@@ -981,6 +1055,7 @@ BP: "Sem piedade para veteranos"
 PL: "Bez litości dla weteranów"
 RU: "Никакой пощады ветеранам"
 AR: "لا رحمة للمحاربين القدامى"
+UK: "Жодної пощади ветеранам"
 END
 
 GO:GUI:Rules
@@ -994,6 +1069,7 @@ BP: "Regras"
 PL: "Zasady"
 RU: "Правила"
 AR: "القواعد"
+UK: "Правила"
 END
 
 GO:GUI:FillWithAI
@@ -1007,6 +1083,7 @@ BP: "Preencher com IA"
 PL: "Uzupełnij SI"
 RU: "Заполнить ИИ"
 AR: "املأ بالذكاء الاصطناعي"
+UK: "Заповнити ШІ"
 END
 
 GO:GUI:UnusedSlots
@@ -1020,6 +1097,7 @@ BP: "Não usado neste mapa"
 PL: "Nieużywane na tej mapie"
 RU: "Не используется на этой карте"
 AR: "غير مستخدم في هذه الخريطة"
+UK: "Не використовується на цій карті"
 END
 
 GO:GUI:NoTeam
@@ -1033,6 +1111,7 @@ BP: "Sem equipe"
 PL: "Bez drużyny"
 RU: "Без команды"
 AR: "بلا فريق"
+UK: "Без команди"
 END
 
 GO:GUI:ReadyToStart
@@ -1046,6 +1125,7 @@ BP: "Pronto para começar"
 PL: "Gotowe do startu"
 RU: "Готово к началу"
 AR: "جاهز للبدء"
+UK: "Готово до початку"
 END
 
 GO:GUI:WaitingForAccepts
@@ -1059,6 +1139,7 @@ BP: "Aguardando todos os jogadores aceitarem"
 PL: "Oczekiwanie na akceptację wszystkich graczy"
 RU: "Ожидание согласия всех игроков"
 AR: "في انتظار موافقة جميع اللاعبين"
+UK: "Очікування згоди всіх гравців"
 END
 
 GO:GUI:MapCount
@@ -1072,6 +1153,7 @@ BP: "%d de %d mapas"
 PL: "%d z %d map"
 RU: "Карт: %d из %d"
 AR: "%d من %d خرائط"
+UK: "Карт: %d з %d"
 END
 
 GO:GUI:SearchMaps
@@ -1085,6 +1167,7 @@ BP: "Buscar"
 PL: "Szukaj"
 RU: "Поиск"
 AR: "بحث"
+UK: "Пошук"
 END
 
 GO:GUI:SortBy
@@ -1098,6 +1181,7 @@ BP: "Ordenar"
 PL: "Sortuj"
 RU: "Сортировка"
 AR: "ترتيب"
+UK: "Сортування"
 END
 
 GO:GUI:SortName
@@ -1111,6 +1195,7 @@ BP: "Nome"
 PL: "Nazwa"
 RU: "Название"
 AR: "الاسم"
+UK: "Назва"
 END
 
 GO:GUI:NoMapsMatch
@@ -1124,6 +1209,7 @@ BP: "Nenhum mapa corresponde à sua busca"
 PL: "Żadna mapa nie pasuje do wyszukiwania"
 RU: "Нет карт по вашему запросу"
 AR: "لا توجد خرائط تطابق بحثك"
+UK: "Немає карт за вашим запитом"
 END
 
 GO:GUI:ChallengeVersus
@@ -1137,6 +1223,7 @@ BP: "VS"
 PL: "VS"
 RU: "VS"
 AR: "ضد"
+UK: "VS"
 END
 
 GO:GUI:Language
@@ -1150,6 +1237,7 @@ BP: "Idioma do jogo"
 PL: "Język gry"
 RU: "Язык игры"
 AR: "لغة اللعبة"
+UK: "Мова гри"
 END
 
 GO:GUI:LanguageInstalled
@@ -1163,6 +1251,7 @@ BP: "Idioma instalado"
 PL: "Zainstalowany język"
 RU: "Язык установки"
 AR: "اللغة المثبتة"
+UK: "Мова встановлення"
 END
 
 GO:GUI:LanguageRestart
@@ -1176,6 +1265,7 @@ BP: "Entra em vigor na próxima vez que você iniciar o jogo."
 PL: "Zmiana zadziała po ponownym uruchomieniu gry."
 RU: "Вступит в силу при следующем запуске игры."
 AR: "يسري التغيير عند تشغيل اللعبة في المرة القادمة."
+UK: "Набуде чинності під час наступного запуску гри."
 END
 
 GO:GUI:MSAA2
@@ -1189,6 +1279,7 @@ BP: "2x MSAA"
 PL: "2x MSAA"
 RU: "2x MSAA"
 AR: "2x MSAA"
+UK: "2x MSAA"
 END
 
 GO:GUI:MSAA4
@@ -1202,6 +1293,7 @@ BP: "4x MSAA"
 PL: "4x MSAA"
 RU: "4x MSAA"
 AR: "4x MSAA"
+UK: "4x MSAA"
 END
 
 GO:GUI:MSAA8
@@ -1215,6 +1307,7 @@ BP: "8x MSAA"
 PL: "8x MSAA"
 RU: "8x MSAA"
 AR: "8x MSAA"
+UK: "8x MSAA"
 END
 
 GO:GUI:Bilinear
@@ -1228,6 +1321,7 @@ BP: "Bilinear"
 PL: "Dwuliniowe"
 RU: "Билинейная"
 AR: "ثنائي الخطية"
+UK: "Білінійна"
 END
 
 GO:GUI:Trilinear
@@ -1241,6 +1335,7 @@ BP: "Trilinear"
 PL: "Trójliniowe"
 RU: "Трилинейная"
 AR: "ثلاثي الخطية"
+UK: "Трилінійна"
 END
 
 GO:GUI:Anisotropic
@@ -1254,6 +1349,7 @@ BP: "Anisotrópico"
 PL: "Anizotropowe"
 RU: "Анизотропная"
 AR: "متباين الاتجاه"
+UK: "Анізотропна"
 END
 
 GO:GUI:VeryHigh
@@ -1267,6 +1363,7 @@ BP: "Muito alto"
 PL: "Bardzo wysokie"
 RU: "Очень высокое"
 AR: "عالٍ جداً"
+UK: "Дуже високо"
 END
 
 GO:GUI:Filter1v1
@@ -1280,6 +1377,7 @@ BP: "1x1"
 PL: "1v1"
 RU: "1×1"
 AR: "1ض1"
+UK: "1×1"
 END
 
 GO:GUI:FilterFFA
@@ -1293,6 +1391,7 @@ BP: "FFA"
 PL: "FFA"
 RU: "FFA"
 AR: "الكل ضد الكل"
+UK: "FFA"
 END
 
 GO:GUI:FilterAOD
@@ -1306,6 +1405,7 @@ BP: "AOD"
 PL: "AOD"
 RU: "AOD"
 AR: "AOD"
+UK: "AOD"
 END
 
 GO:GUI:Ms
@@ -1319,6 +1419,7 @@ BP: "ms"
 PL: "ms"
 RU: "мс"
 AR: "مللي ث"
+UK: "мс"
 END
 
 GO:GUI:Logout
@@ -1332,6 +1433,7 @@ BP: "SAIR"
 PL: "WYLOGUJ"
 RU: "ВЫЙТИ"
 AR: "تسجيل الخروج"
+UK: "ВИЙТИ"
 END
 
 GO:GUI:LogoutTitle
@@ -1345,6 +1447,7 @@ BP: "Sair"
 PL: "Wyloguj"
 RU: "Выход"
 AR: "تسجيل الخروج"
+UK: "Вихід"
 END
 
 GO:GUI:LogoutConfirm
@@ -1358,6 +1461,7 @@ BP: "Tem certeza de que deseja sair?"
 PL: "Czy na pewno chcesz się wylogować?"
 RU: "Вы действительно хотите выйти?"
 AR: "هل أنت متأكد أنك تريد تسجيل الخروج؟"
+UK: "Ви справді хочете вийти?"
 END
 
 GO:GUI:StartMatchmaking
@@ -1371,6 +1475,7 @@ BP: "INICIAR BUSCA"
 PL: "SZUKAJ MECZU"
 RU: "НАЧАТЬ ПОИСК"
 AR: "بدء البحث عن مباراة"
+UK: "ПОЧАТИ ПОШУК"
 END
 
 GO:GUI:CancelMatchmaking
@@ -1384,6 +1489,7 @@ BP: "CANCELAR BUSCA"
 PL: "ANULUJ WYSZUKIWANIE"
 RU: "ОТМЕНИТЬ ПОИСК"
 AR: "إلغاء البحث"
+UK: "СКАСУВАТИ ПОШУК"
 END
 
 GO:GUI:QMWelcome
@@ -1397,6 +1503,7 @@ BP: "Bem-vindo ao QuickMatch. Escolha Configurar para selecionar playlists e map
 PL: "Witaj w QuickMatch. Wybierz Ustawienia, aby wybrać playlisty i mapy."
 RU: "Добро пожаловать в QuickMatch. Выберите «Настройки», чтобы выбрать плейлисты и карты."
 AR: "مرحباً بك في المباراة السريعة. اختر الإعداد لتحديد قوائم التشغيل والخرائط."
+UK: "Ласкаво просимо до QuickMatch. Виберіть «Налаштування», щоб обрати плейлисти й карти."
 END
 
 GO:GUI:QMThanks
@@ -1410,6 +1517,7 @@ BP: "Agradecimentos especiais aos criadores de mapas Tanso, ReLaX, cncHD, Specov
 PL: "Specjalne podziękowania dla twórców map Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy i Bamovich za umożliwienie QuickMatch."
 RU: "Особая благодарность авторам карт Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy и Bamovich, благодаря которым QuickMatch стал возможен."
 AR: "شكر خاص لصانعي الخرائط Tanso وReLaX وcncHD وSpecovik وMp3 وJundiyy وBamovich لجعل المباراة السريعة ممكنة."
+UK: "Особлива подяка авторам карт Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy і Bamovich, завдяки яким QuickMatch став можливим."
 END
 
 GO:GUI:QMMinMaps
@@ -1423,6 +1531,7 @@ BP: "Você precisa selecionar pelo menos %d mapas."
 PL: "Musisz wybrać co najmniej %d map."
 RU: "Нужно выбрать не менее %d карт."
 AR: "يجب أن تختار %d خرائط على الأقل."
+UK: "Потрібно вибрати щонайменше %d карт."
 END
 
 GO:GUI:QMStartFailed
@@ -1436,6 +1545,7 @@ BP: "Não foi possível iniciar a busca."
 PL: "Nie udało się rozpocząć wyszukiwania."
 RU: "Не удалось начать поиск."
 AR: "تعذّر بدء البحث عن مباراة."
+UK: "Не вдалося почати пошук."
 END
 
 GO:GUI:Block
@@ -1449,6 +1559,7 @@ BP: "Bloquear"
 PL: "Zablokuj"
 RU: "Заблокировать"
 AR: "حظر"
+UK: "Заблокувати"
 END
 
 GO:GUI:PingQuality
@@ -1462,6 +1573,7 @@ BP: "Ping: %d ms - Qualidade: %d%%"
 PL: "Ping: %d ms - Jakość: %d%%"
 RU: "Пинг: %d мс - Качество: %d%%"
 AR: "البينغ: %d مللي ث - الجودة: %d%%"
+UK: "Пінг: %d мс - Якість: %d%%"
 END
 
 GO:GUI:NoRooms
@@ -1475,6 +1587,7 @@ BP: "ERRO: nenhuma sala disponível. Tente entrar novamente."
 PL: "BŁĄD: brak dostępnych pokoi. Zaloguj się ponownie."
 RU: "ОШИБКА: нет доступных комнат. Попробуйте войти снова."
 AR: "خطأ: لا توجد غرف متاحة. حاول تسجيل الدخول مرة أخرى."
+UK: "ПОМИЛКА: немає доступних кімнат. Спробуйте увійти знову."
 END
 
 GO:GUI:BuddySelectFriend
@@ -1488,6 +1601,7 @@ BP: "Escolha um amigo para conversar"
 PL: "Wybierz znajomego, aby porozmawiać"
 RU: "Выберите друга, чтобы начать чат"
 AR: "اختر صديقاً لبدء الدردشة"
+UK: "Виберіть друга, щоб почати чат"
 END
 
 GO:GUI:BuddyNotFriend
@@ -1501,6 +1615,7 @@ BP: "Esta pessoa está no seu lobby ou jogou com você recentemente, mas ainda n
 PL: "Ta osoba jest w twoim lobby lub niedawno z tobą grała, ale nie jest jeszcze znajomym, więc nie możesz z nią rozmawiać. Kliknij prawym przyciskiem, aby ją dodać lub zablokować."
 RU: "Этот игрок в вашем лобби или недавно играл с вами, но ещё не ваш друг, поэтому чат недоступен. Щёлкните правой кнопкой, чтобы добавить или заблокировать его."
 AR: "هذا الشخص في ردهتك أو لعب معك مؤخراً لكنه ليس صديقاً بعد، لذا لا يمكنك الدردشة معه. انقر بزر الفأرة الأيمن لإضافته أو حظره."
+UK: "Цей гравець у вашому лобі або нещодавно грав з вами, але ще не є вашим другом, тому чат недоступний. Клацніть його правою кнопкою миші, щоб додати або заблокувати."
 END
 
 GO:GUI:BuddyPending
@@ -1514,6 +1629,7 @@ BP: "Este é um pedido de amizade pendente. Você só pode conversar depois de a
 PL: "To oczekujące zaproszenie do znajomych. Możesz rozmawiać dopiero po jego przyjęciu."
 RU: "Это входящая заявка в друзья. Общаться можно после того, как вы её примете."
 AR: "هذا طلب صداقة معلّق. لا يمكنك الدردشة مع اللاعب حتى تقبله."
+UK: "Це вхідний запит у друзі. Спілкуватися можна після того, як ви його приймете."
 END
 
 GO:GUI:BuddyEmpty
@@ -1527,6 +1643,7 @@ BP: "Este chat está vazio. Envie uma mensagem para começar uma conversa"
 PL: "Ten czat jest pusty. Wyślij wiadomość, aby rozpocząć rozmowę"
 RU: "Чат пуст. Отправьте сообщение, чтобы начать разговор"
 AR: "هذه الدردشة فارغة. أرسل رسالة لبدء محادثة"
+UK: "Чат порожній. Надішліть повідомлення, щоб почати розмову"
 END
 
 GO:GUI:WelcomeName
@@ -1540,6 +1657,7 @@ BP: "Bem-vindo ao Generals Online, %s"
 PL: "Witaj w Generals Online, %s"
 RU: "Добро пожаловать в Generals Online, %s"
 AR: "مرحباً بك في Generals Online يا %s"
+UK: "Ласкаво просимо до Generals Online, %s"
 END
 
 GO:GUI:WinRateOf
@@ -1553,6 +1671,7 @@ BP: "%d%% (%d de %d)"
 PL: "%d%% (%d z %d)"
 RU: "%d%% (%d из %d)"
 AR: "%d%% (%d من %d)"
+UK: "%d%% (%d з %d)"
 END
 
 GO:GUI:GamesQM
@@ -1566,6 +1685,7 @@ BP: "%d (%d QM)"
 PL: "%d (%d QM)"
 RU: "%d (%d QM)"
 AR: "%d (%d QM)"
+UK: "%d (%d QM)"
 END
 
 GO:GUI:WinsElo
@@ -1579,6 +1699,7 @@ BP: "%d (Elo: %d)"
 PL: "%d (Elo: %d)"
 RU: "%d (Эло: %d)"
 AR: "%d (Elo: %d)"
+UK: "%d (Ело: %d)"
 END
 
 GO:GUI:WorldSeriesElo
@@ -1592,6 +1713,7 @@ BP: "Elo da World Series:"
 PL: "Elo World Series:"
 RU: "Эло World Series:"
 AR: "تصنيف Elo لبطولة World Series:"
+UK: "Ело World Series:"
 END
 
 GO:GUI:AutoLadder
@@ -1605,4 +1727,5 @@ BP: "Ranking automático"
 PL: "Automatyczny ranking"
 RU: "Автоматический рейтинг"
 AR: "التصنيف التلقائي"
+UK: "Автоматичний рейтинг"
 END
