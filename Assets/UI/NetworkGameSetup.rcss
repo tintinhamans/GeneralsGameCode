@@ -54,6 +54,7 @@
 	line-height: 23dp;
 	color: #D7DCF0;
 	font-effect: shadow(1dp 1dp #000000E0);
+	word-break: break-word;
 }
 
 .chat-card .chat-entry

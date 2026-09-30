@@ -43,6 +43,7 @@
 #pragma once
 
 #include "Common/Signal.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -85,6 +86,7 @@ private:
 	void onStartingCashChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSuperweaponsChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSelectMap(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onFillAI(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // "Fill with AI" (host): (occupant state)
 	void onStart(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onBackPressed(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // Enter, mirrors TextEntryChat GEM_EDIT_DONE
@@ -116,6 +118,7 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	SignalConnections m_connections; // OnlineGameSetupSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 
 	struct OptionModel
 	{
@@ -161,6 +164,12 @@ private:
 		bool isConnected = false;
 		Rml::String connectionTooltip; // formatted from region/latency/jitter/quality/score, empty if none
 		int latencyMs = -1; // OnlineGameSetupConnectionInfo::m_latencyMs, -1 if unknown
+
+		// Where the row sits in the list: see RmlSkirmishSetupScreen::SlotRowModel.
+		bool unused = false;
+		bool groupHead = false;
+		int groupTeam = -1;
+		bool foldHead = false;
 	};
 
 	// One start-position marker on the map preview -- identical shape to
@@ -216,6 +225,14 @@ private:
 
 		Rml::Vector<ChatLineModel> chatLines; // append-only while the document is open
 		Rml::String chatEntryText;
+
+		// Presentation: see RmlSkirmishSetupScreen's Model.
+		int mapNumPlayers = 0;
+		bool teamMode = false;
+		int unusedCount = 0;
+		bool showUnused = false;
+		int colorPopoverSlot = -1;
+		Rml::Vector<Rml::String> startBlockers;
 	} m_model;
 };
 

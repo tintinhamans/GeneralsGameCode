@@ -1,14 +1,9 @@
 /*
 	OnlineGameSetup.rcss -- online-only pieces of the Generals Online game setup screen, on top of
-	NetworkGameSetup.rcss: the game's rules in the header, each remote player's connection on their
-	card, and room for the social dock (body.dock-host; RmlSocialDock sets .dock-open).
+	NetworkGameSetup.rcss: each remote player's connection under their name, the host's read-only
+	rules (Limit Armies, Record Stats) as status chips under the rules, the Communicator in the
+	action bar, and room for the social dock (body.dock-host; RmlSocialDock sets .dock-open).
 */
-
-/* ---- Header: the rules the host set, read-only status chips ------------------------------------ */
-.ns-rules .chip-status
-{
-	margin-left: 10dp;
-}
 
 /* ---- Connection: a status dot and the round trip, details in the tooltip ------------------------ */
 .conn
@@ -17,17 +12,17 @@
 	flex-direction: row;
 	align-items: center;
 	flex: 0 0 auto;
-	height: 28dp;
-	padding: 0 8dp;
+	height: 20dp;
+	padding: 0 6dp;
 	background-color: #05070FB4;
 }
 
 .conn-dot
 {
 	display: block;
-	width: 10dp;
-	height: 10dp;
-	border-radius: 5dp;
+	width: 9dp;
+	height: 9dp;
+	border-radius: 4dp;
 	background-color: #E8D440;
 }
 
@@ -38,49 +33,67 @@
 
 .conn-ms
 {
-	margin-left: 7dp;
-	font-size: 15dp;
+	margin-left: 6dp;
+	font-size: 13dp;
 	font-weight: bold;
 	color: #A9B1CF;
 	white-space: nowrap;
 }
 
-/* ---- Beside the open social dock: the 5:4 layout of NetworkGameSetup.rcss ------------------------ */
-.dock-open .col-side { width: 330dp; }
-.dock-open .map-card .map-frame { width: 200dp; }
-.dock-open .map-row .map-name { font-size: 20dp; }
-.dock-open .player-card { padding: 10dp 10dp; }
-.dock-open .pc-badge { flex-basis: 46dp; width: 46dp; height: 46dp; margin-right: 10dp; }
-.dock-open .pc-badge mappedimage { width: 38dp; height: 38dp; }
-.dock-open .pc-name { font-size: 20dp; }
-.dock-open .pc-state { font-size: 18dp; }
-.dock-open .pc-status { margin-left: 6dp; min-width: 120dp; }
-.screen.dock-open .cash-seg button.seg-item { padding: 0 2dp; font-size: 15dp; letter-spacing: 0; }
-.dock-open .pc-status .chip-label { margin-left: 5dp; padding: 3dp 7dp; font-size: 13dp; letter-spacing: 0.5dp; }
-.screen.dock-open .team-seg button.seg-item { flex-basis: 28dp; width: 28dp; font-size: 15dp; }
-.screen.dock-open .team-seg button.seg-item:first-child { flex-basis: 48dp; width: 48dp; }
-.screen.dock-open .swatches button.swatch { width: 26dp; height: 26dp; margin-right: 1dp; }
-.dock-open .swatch .chip { line-height: 18dp; font-size: 13dp; }
-.dock-open .swatch.random .chip { line-height: 16dp; }
-.dock-open .pc-spot { height: 28dp; margin-left: 8dp; padding: 0 7dp 0 6dp; }
-.dock-open .pc-spot-cap { display: none; }
-.dock-open .pc-spot-no { font-size: 16dp; }
-.dock-open .army-ro { font-size: 17dp; padding: 0 8dp; }
-.dock-open .pc-compact .pc-who { flex-basis: 110dp; }
-.screen.dock-open .pc-add button { padding: 0 7dp; margin-left: 4dp; font-size: 14dp; }
-.dock-open .pc-add-label { display: none; }
-.dock-open .ns-rules { display: none; }
+.screen .action-bar button.ns-comm
+{
+	margin-right: 15dp;
+}
+
+/* ---- Beside the open social dock: the 5:4 layout of the setup flow --------------------------------- */
+.dock-open .su-map-col { flex-basis: 300dp; width: 300dp; }
+.dock-open .su-hero { padding: 14dp 14dp 16dp 14dp; }
+.dock-open .su-hero .map-frame { width: 272dp; }
+.dock-open .su-map-name { font-size: 22dp; line-height: 27dp; }
+.dock-open .su-side { width: 300dp; }
+.dock-open .su-players { padding: 14dp 14dp 12dp 14dp; }
+.dock-open .su-fill .overline { display: none; }
+.screen.dock-open .su-fill button { padding: 0 8dp; margin-left: 4dp; font-size: 14dp; }
+.dock-open .prow { flex-wrap: wrap; height: auto; padding: 8dp; }
+.dock-open .prow.empty { height: auto; }
+.dock-open .prow-who { flex: 1 0 70%; width: auto; margin-right: 0; }
+.dock-open .prow > .prow-army { flex: 1 1 0%; min-width: 150dp; margin: 8dp 0 0 42dp; }
+.dock-open .prow .team-seg { margin-top: 8dp; }
+.dock-open .prow-spot { margin-top: 8dp; }
+.screen.dock-open .prow .team-seg button.seg-item { flex-basis: 28dp; width: 28dp; font-size: 15dp; }
+.screen.dock-open .prow .team-seg button.seg-item:first-child { flex-basis: 48dp; width: 48dp; }
+.dock-open .prow-badge { display: none; }
+.dock-open .prow-add { flex: 1 1 100%; justify-content: flex-end; margin-top: 6dp; }
+.dock-open .prow-add .overline { display: none; }
+.screen.dock-open .prow-add button { padding: 0 8dp; margin-left: 4dp; font-size: 14dp; }
+.dock-open .prow-pop { margin-left: 8dp; }
+.screen.dock-open .prow-pop .swatches button.swatch { width: 26dp; height: 26dp; margin-right: 1dp; }
+.dock-open .prow-pop .swatch .chip { line-height: 18dp; font-size: 13dp; }
+.dock-open .prow-pop .swatch.random .chip { line-height: 16dp; }
+.dock-open .prow-pop-name { display: none; }
+.screen.dock-open .su-rules .cash-seg button.seg-item { padding: 0 2dp; font-size: 15dp; letter-spacing: 0; }
+.dock-open .su-ready { padding: 0 14dp 0 12dp; font-size: 15dp; margin-right: 14dp; }
+.dock-open .su-ready.blocked { font-size: 14dp; }
 .dock-open .ns-state { margin-left: 16dp; padding: 0 14dp; }
 .dock-open .ns-state-text { display: none; }
 
 @media (max-aspect-ratio: 3/2)
 {
-	.ns-rules .chip-status { margin-left: 8dp; padding: 0 10dp 0 9dp; font-size: 14dp; }
-	.ns-rules .chip-dot { margin-right: 6dp; }
 	.conn { padding: 0 5dp; }
-	.conn-ms { margin-left: 5dp; font-size: 13dp; }
-	.dock-open .col-side { width: 290dp; }
-	.dock-open .map-card .map-frame { width: 190dp; }
-	/* Too narrow for two cards across: one, scrolling. */
-	.dock-open .player-card { width: 100%; }
+	/* Beside the dock on 5:4: the narrowest columns, the fill buttons under the heading. */
+	.dock-open .su-map-col { flex-basis: 200dp; width: 200dp; }
+	.dock-open .su-hero { padding: 12dp 10dp 14dp 10dp; }
+	.dock-open .su-hero .map-frame { width: 180dp; }
+	.dock-open .su-map-name { font-size: 19dp; line-height: 24dp; }
+	.dock-open .su-side { width: 240dp; }
+	.dock-open .su-players { padding: 12dp 10dp 10dp 10dp; }
+	.dock-open .su-players-head { flex-wrap: wrap; height: auto; }
+	.dock-open .su-fill { margin: 6dp 0 0 0; }
+	.dock-open .prow > .prow-army { min-width: 110dp; margin-left: 0; }
+	.screen.dock-open .prow .team-seg button.seg-item { flex-basis: 24dp; width: 24dp; font-size: 14dp; }
+	.screen.dock-open .prow .team-seg button.seg-item:first-child { flex-basis: 42dp; width: 42dp; font-size: 12dp; }
+	.dock-open .prow-spot { width: 32dp; margin-left: 6dp; }
+	.dock-open .prow .team-seg { margin-left: 6dp; }
+	.dock-open .su-ready { display: none; }
+	.screen.dock-open .su-rules .cash-seg button.seg-item { font-size: 13dp; }
 }

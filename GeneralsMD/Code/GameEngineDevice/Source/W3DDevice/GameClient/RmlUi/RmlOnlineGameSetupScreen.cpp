@@ -129,6 +129,8 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("onlinegamesetup");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
+
 		// Registered before the slot rows, which hold a per-row list of these.
 		Rml::StructHandle<OptionModel> optionHandle = constructor.RegisterStruct<OptionModel>();
 		if (optionHandle)
@@ -161,6 +163,10 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 			rowHandle.RegisterMember("color_options", &SlotRowModel::colorOptions);
 			rowHandle.RegisterMember("team_number", &SlotRowModel::teamNumber);
 			rowHandle.RegisterMember("start_position", &SlotRowModel::startPosition);
+			rowHandle.RegisterMember("unused", &SlotRowModel::unused);
+			rowHandle.RegisterMember("group_head", &SlotRowModel::groupHead);
+			rowHandle.RegisterMember("group_team", &SlotRowModel::groupTeam);
+			rowHandle.RegisterMember("fold_head", &SlotRowModel::foldHead);
 			rowHandle.RegisterMember("accepted", &SlotRowModel::accepted);
 			rowHandle.RegisterMember("has_map", &SlotRowModel::hasMap);
 			rowHandle.RegisterMember("show_accept", &SlotRowModel::showAccept);
@@ -207,6 +213,13 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 		constructor.Bind("use_stats", &m_model.useStats);
 		constructor.Bind("limit_armies", &m_model.limitArmies);
 		constructor.Bind("is_host", &m_model.isHost);
+		constructor.RegisterArray<Rml::Vector<Rml::String>>();
+		constructor.Bind("map_num_players", &m_model.mapNumPlayers);
+		constructor.Bind("team_mode", &m_model.teamMode);
+		constructor.Bind("unused_count", &m_model.unusedCount);
+		constructor.Bind("show_unused", &m_model.showUnused);
+		constructor.Bind("color_popover_slot", &m_model.colorPopoverSlot);
+		constructor.Bind("start_blockers", &m_model.startBlockers);
 		constructor.Bind("cash_and_sw_enabled", &m_model.cashAndSuperweaponsEnabled);
 		constructor.Bind("start_enabled", &m_model.startEnabled);
 		constructor.Bind("back_enabled", &m_model.backEnabled);
@@ -232,6 +245,7 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("starting_cash_changed", &RmlOnlineGameSetupScreen::onStartingCashChanged, this);
 		constructor.BindEventCallback("superweapons_changed", &RmlOnlineGameSetupScreen::onSuperweaponsChanged, this);
 		constructor.BindEventCallback("select_map", &RmlOnlineGameSetupScreen::onSelectMap, this);
+		constructor.BindEventCallback("fill_ai", &RmlOnlineGameSetupScreen::onFillAI, this);
 		constructor.BindEventCallback("start", &RmlOnlineGameSetupScreen::onStart, this);
 		constructor.BindEventCallback("back", &RmlOnlineGameSetupScreen::onBackPressed, this);
 		constructor.BindEventCallback("chat_entry_committed", &RmlOnlineGameSetupScreen::onChatEntryCommitted, this);
@@ -260,10 +274,12 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 	m_model.countdownSeconds = data.m_countdownSecondsRemaining;
 	m_model.localAccepted = false;
 
-	m_model.slots.clear();
+	Rml::Vector<SlotRowModel> rows;
+	std::vector<GameSetupSlotRow> bases;
 	for (size_t i = 0; i < data.m_slots.size(); ++i)
 	{
 		const OnlineGameSetupSlotRow &src = data.m_slots[i];
+		bases.push_back(src.m_base);
 		const GameSetupSlotRow &base = src.m_base;
 
 		SlotRowModel row;
@@ -318,8 +334,31 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 			row.colorOptions.push_back(option);
 		}
 
+		rows.push_back(row);
+	}
+
+	// The list's order: in capacity first (grouped by team in team mode), unused ones folded last.
+	Bool teamMode = FALSE;
+	Int unusedCount = 0;
+	m_model.slots.clear();
+	for (const GameSetupDisplayRow &at : GameSetupData::displayOrder(bases, data.m_options, &teamMode, &unusedCount))
+	{
+		SlotRowModel row = rows[at.m_slot];
+		row.unused = at.m_unused == TRUE;
+		row.groupHead = at.m_groupHead == TRUE;
+		row.groupTeam = at.m_groupTeam;
+		row.foldHead = at.m_foldHead == TRUE;
 		m_model.slots.push_back(row);
 	}
+	m_model.teamMode = teamMode == TRUE;
+	m_model.unusedCount = unusedCount;
+	m_model.mapNumPlayers = data.m_options.m_mapFound ? data.m_options.m_mapNumPlayers : 0;
+
+	// Why the host's Start would be refused (a client's Accept has no checks).
+	m_model.startBlockers.clear();
+	if (m_model.isHost)
+		for (const UnicodeString &reason : GameSetupData::startBlockers(game, TRUE))
+			m_model.startBlockers.push_back(unicodeToUtf8(reason));
 
 	m_model.startMarkers.clear();
 	for (const GameSetupStartPositionMarker &marker : data.m_options.m_startPositionMarkers)
@@ -388,6 +427,10 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 		m_modelHandle.DirtyVariable("cash_and_sw_enabled");
 		m_modelHandle.DirtyVariable("countdown_seconds");
 		m_modelHandle.DirtyVariable("local_accepted");
+		m_modelHandle.DirtyVariable("map_num_players");
+		m_modelHandle.DirtyVariable("team_mode");
+		m_modelHandle.DirtyVariable("unused_count");
+		m_modelHandle.DirtyVariable("start_blockers");
 	}
 }
 
@@ -439,6 +482,13 @@ void RmlOnlineGameSetupScreen::show()
 	m_model.settingsLocked = false;
 	m_model.communicatorEnabled = true;
 	m_model.communicatorLabel = unicodeToUtf8(TheGameText->fetch("GUI:Buddies"));
+	m_model.showUnused = false;
+	m_model.colorPopoverSlot = -1;
+	if (m_modelHandle)
+	{
+		m_modelHandle.DirtyVariable("show_unused");
+		m_modelHandle.DirtyVariable("color_popover_slot");
+	}
 
 	OnlineGameSetupSession::prepareGameState();
 	refreshFromGameState();
@@ -446,6 +496,7 @@ void RmlOnlineGameSetupScreen::show()
 	connectSessionSignals(this, m_connections);
 	OnlineGameSetupSession::enter();
 
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
 
 	// WOLGameSetupMenuInit()'s entrance group, and WOLGameSetupMenuShutdown()'s reverse below.
@@ -479,6 +530,8 @@ void RmlOnlineGameSetupScreen::update()
 	if (!m_document || !isVisible())
 		return;
 
+	m_hq.refresh(m_modelHandle);
+
 	// WOLGameSetupMenuUpdate() never runs for a registry-routed screen; this is its pending-full-teardown exit.
 	if (OnlineSessionExit::isTeardownReady())
 	{
@@ -505,6 +558,33 @@ void RmlOnlineGameSetupScreen::onSlotOccupantChanged(Rml::DataModelHandle, Rml::
 	Int state = atoi(ev.GetParameter<Rml::String>("value", "0").c_str());
 	Bool isAIChanged = FALSE;
 	OnlineGameSetupActions::selectSlotState(game, slotIndex, (SlotState)state, &isAIChanged);
+	refreshFromGameState();
+}
+
+// "Fill with AI" (host): the open slots, in order, up to the map's player count, each the same as its
+// own Add AI button.
+void RmlOnlineGameSetupScreen::onFillAI(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	NGMPGame *game = OnlineGameSetupSession::getCurrentGame();
+	if (args.empty() || !game || !m_model.isHost || m_model.settingsLocked)
+		return;
+	const SlotState state = (SlotState)args[0].Get<int>();
+	if (state < SLOT_EASY_AI || state > SLOT_BRUTAL_AI)
+		return;
+
+	const GameSetupData data = GameSetupData::build(game, TRUE);
+	const Int capacity = data.m_options.m_mapFound && data.m_options.m_mapNumPlayers > 0 ? data.m_options.m_mapNumPlayers : MAX_SLOTS;
+	Int players = 0;
+	for (const GameSetupSlotRow &slot : data.m_slots)
+		players += (slot.m_state != SLOT_OPEN && slot.m_state != SLOT_CLOSED) ? 1 : 0;
+	for (Int i = 0; i < (Int)data.m_slots.size() && players < capacity; ++i)
+	{
+		if (data.m_slots[i].m_state != SLOT_OPEN || !data.m_slots[i].m_canEditOccupant)
+			continue;
+		Bool isAIChanged = FALSE;
+		OnlineGameSetupActions::selectSlotState(game, i, state, &isAIChanged);
+		++players;
+	}
 	refreshFromGameState();
 }
 
@@ -792,6 +872,7 @@ void RmlOnlineGameSetupScreen::returnFromMapSelect()
 	if (!m_document)
 		return;
 	refreshFromGameState();
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
 }
 
