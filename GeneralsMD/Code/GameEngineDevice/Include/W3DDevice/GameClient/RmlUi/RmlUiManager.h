@@ -69,6 +69,7 @@ public:
 	// RmlUiInputHook ---------------------------------------------------------------------------
 	virtual bool wantsMouseInput(int mouseX, int mouseY) const override;
 	virtual bool capturesInput() const override { return ownsInput(); }
+	virtual bool leavesMiddleToWorld(int mouseX, int mouseY) const override;
 	virtual bool wantsKeyboardInput() const override;
 	virtual void processMouseMove(int x, int y) override;
 	virtual void processMouseButton(int button, bool down) override;
@@ -104,6 +105,7 @@ private:
 	Rml::ElementInstancer *m_mapPreviewInstancer = nullptr;
 	Rml::ElementInstancer *m_scrollLogInstancer = nullptr;
 	Rml::ElementInstancer *m_videoInstancer = nullptr;
+	Rml::ElementInstancer *m_radarInstancer = nullptr;
 	RmlScreen *m_currentScreen = nullptr;
 	Rml::Element *m_tooltipElement = nullptr; // element updateTooltip() last drove TheMouse's tooltip from
 	int m_width = 0, m_height = 0;

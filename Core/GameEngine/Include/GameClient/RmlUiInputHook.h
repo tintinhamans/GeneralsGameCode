@@ -43,6 +43,10 @@ public:
 	// (the HUD) is not one, and leaves the mouse to the world while the world holds it (drag-select, scrolling).
 	virtual bool capturesInput() const = 0;
 
+	// TRUE where a document leaves the middle button and the wheel to the world (the HUD's radar, like the
+	// .wnd radar that let them fall through to scrolling and zoom).
+	virtual bool leavesMiddleToWorld(int mouseX, int mouseY) const = 0;
+
 	// TRUE if RmlUi owns the keyboard (same rule), or a text field in a visible document has
 	// focus, so keyboard input should not reach the game's window manager.
 	virtual bool wantsKeyboardInput() const = 0;

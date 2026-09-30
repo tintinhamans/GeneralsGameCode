@@ -793,6 +793,7 @@ public:
 	Bool isHeadless() const { return m_headless; }
 	void fillData( ControlBarData &data ); ///< what the headless windows show, for the view
 	GameWindow *getButtonWindow( const ControlBarButtonId &id ); ///< the .wnd button behind a view's button; null if none
+	GameWindow *getRadarWindow(); ///< LeftHUD: the radar's window, whose rect the radar logic works in
 	ControlBarStages getControlBarStage() const { return m_currentControlBarStage; }
 
 protected:

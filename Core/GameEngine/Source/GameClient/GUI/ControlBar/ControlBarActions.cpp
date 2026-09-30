@@ -24,11 +24,16 @@
 
 #include "Common/AudioEventRTS.h"
 #include "Common/GameAudio.h"
+#include "Common/GameUtility.h"
+#include "Common/GlobalData.h"
+#include "Common/Radar.h"
 #include "GameClient/ControlBar.h"
 #include "GameClient/ControlBarData.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/InGameUI.h"
 #include "GameClient/Mouse.h"
+#include "GameClient/View.h"
 
 namespace
 {
@@ -95,4 +100,60 @@ void ControlBarActions::release( const ControlBarButtonId &id, Bool right )
 void ControlBarActions::panelRelease()
 {
 	GameWinBlockInput( nullptr, GWM_LEFT_UP, mousePosition(), 0 );
+}
+
+//-------------------------------------------------------------------------------------------------
+void ControlBarActions::placeRadar( Int x, Int y, Int width, Int height )
+{
+	GameWindow *win = TheControlBar ? TheControlBar->getRadarWindow() : nullptr;
+	if( win == nullptr )
+		return;
+
+	ICoord2D pos, size;
+	win->winGetScreenPosition( &pos.x, &pos.y );
+	win->winGetSize( &size.x, &size.y );
+	if( pos.x == x && pos.y == y && size.x == width && size.y == height )
+		return;
+
+	// winSetPosition() is relative to the parent
+	ICoord2D local;
+	win->winGetPosition( &local.x, &local.y );
+	win->winSetPosition( local.x + x - pos.x, local.y + y - pos.y );
+	win->winSetSize( width, height );
+}
+
+void ControlBarActions::drawRadar()
+{
+	GameWindow *win = TheControlBar ? TheControlBar->getRadarWindow() : nullptr;
+	if( win && win->winGetDrawFunc() )
+		win->winGetDrawFunc()( win, win->winGetInstanceData() );
+}
+
+void ControlBarActions::radarInput( UnsignedInt message )
+{
+	GameWindow *win = TheControlBar ? TheControlBar->getRadarWindow() : nullptr;
+	if( win )
+		TheWindowManager->winSendInputMsg( win, message, mousePosition(), 0 );
+}
+
+void ControlBarActions::radarDrag( Bool right )
+{
+	GameWindow *win = TheControlBar ? TheControlBar->getRadarWindow() : nullptr;
+	const MouseIO *io = TheMouse ? TheMouse->getMouseStatus() : nullptr;
+	if( win == nullptr || io == nullptr || !rts::localPlayerHasRadar() )
+		return;
+
+	const DrawableList *drawables = TheInGameUI->getAllSelectedLocalDrawables();
+	const Bool looks = drawables->empty() || ( TheGlobalData->m_useAlternateMouse ? !right : right );
+	if( !looks )
+		return;
+
+	// LeftHUDInput's look at, at the pointer
+	ICoord2D screenPos, mouse, radar;
+	win->winGetScreenPosition( &screenPos.x, &screenPos.y );
+	mouse.x = io->pos.x - screenPos.x;
+	mouse.y = io->pos.y - screenPos.y;
+	Coord3D world;
+	if( TheRadar->localPixelToRadar( &mouse, &radar ) && TheRadar->radarToWorld( &radar, &world ) )
+		TheTacticalView->userLookAt( &world );
 }

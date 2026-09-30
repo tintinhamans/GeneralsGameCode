@@ -43,4 +43,14 @@ namespace ControlBarActions
 	// A left release over the view's panels ends a drag-select that started in the world, like GameWinBlockInput
 	// over the .wnd bar.
 	void panelRelease();
+
+	// The radar: the view keeps the headless LeftHUD window on its own radar box (the radar logic converts
+	// pixels through that window), has the engine draw it there (W3DLeftHUDDraw: the radar or the radar movie),
+	// and gives it the pointer (LeftHUDInput: cursors, look at, move and attack-move orders, targeted powers).
+	void placeRadar( Int x, Int y, Int width, Int height );
+	void drawRadar();
+	void radarInput( UnsignedInt message ); ///< GWM_MOUSE_POS, GWM_LEFT_DOWN, ... at the pointer
+	// A look button held while dragging keeps looking, like its press (no selection, or the right button,
+	// the left with the alternate mouse).
+	void radarDrag( Bool right );
 }

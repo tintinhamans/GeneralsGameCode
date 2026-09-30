@@ -11,8 +11,8 @@
 <body class="cb" data-model="controlbar" data-class-low="low" data-class-usa="side == 'usa'" data-class-china="side == 'china'" data-class-gla="side == 'gla'">
 
 	<!-- Radar, bottom left -->
-	<div class="cb-panel cb-radar">
-		<div class="cb-radar-well"></div>
+	<div class="cb-panel cb-radar" data-class-alert="radar_alert">
+		<div class="cb-radar-well" data-class-dark="!has_radar"><radar class="cb-radar-map" data-world-middle="1"></radar></div>
 	</div>
 
 	<!-- Money, power, the command grid and the buttons round the bar, bottom centre -->
@@ -71,7 +71,7 @@
 	</div>
 
 	<!-- The selection: portrait, name, veterancy and upgrades, or the build queue, bottom right -->
-	<div class="cb-panel cb-unit" data-if="portrait_shown || queue_shown || select_count &gt; 1" data-class-narrow="!queue_shown &amp;&amp; !upgrades[0].shown">
+	<div class="cb-panel cb-unit" data-if="portrait_shown || queue_shown || select_count &gt; 1 || cameo_movie" data-class-narrow="!queue_shown &amp;&amp; !upgrades[0].shown">
 		<div class="cb-unit-head">
 			<div class="cb-name" data-if="portrait_shown || queue_shown">{{name}}</div>
 			<div class="cb-count" data-if="select_count &gt; 1 &amp;&amp; (portrait_shown || queue_shown)">&#215;{{select_count}}</div>
@@ -86,6 +86,7 @@
 				<div class="cb-upgrade" data-for="u : upgrades" data-if="u.shown" data-class-owned="u.owned"><mappedimage data-if="u.icon != ''" data-attr-name="u.icon"/></div>
 			</div>
 		</div>
+		<video class="cb-cameo-movie" source="cameo-movie" fit="cover" data-if="cameo_movie"></video>
 		<div class="cb-queue" data-if="queue_shown">
 			<div class="cb-slot cb-qslot" data-cb="q0" data-alias-s="queue[0]" data-class-live="s.shown &amp;&amp; s.icon != ''"><div class="cb-art" data-if="s.shown &amp;&amp; s.icon != ''"><mappedimage data-attr-name="s.icon"/></div><div class="cb-vet" data-if="s.shown &amp;&amp; s.overlay != ''"><mappedimage data-attr-name="s.overlay"/></div><div class="cb-clock" data-if="s.shown &amp;&amp; s.has_clock" data-style-height="s.clock"></div></div>
 			<div class="cb-slot cb-qslot" data-cb="q1" data-alias-s="queue[1]" data-class-live="s.shown &amp;&amp; s.icon != ''"><div class="cb-art" data-if="s.shown &amp;&amp; s.icon != ''"><mappedimage data-attr-name="s.icon"/></div><div class="cb-vet" data-if="s.shown &amp;&amp; s.overlay != ''"><mappedimage data-attr-name="s.overlay"/></div></div>

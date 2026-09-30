@@ -476,6 +476,9 @@ void RmlUiManager::registerCustomElements()
 	Rml::Factory::RegisterElementInstancer("video", m_videoInstancer);
 
 	RmlRulerTicksInstancer::registerWithRml();
+
+	m_radarInstancer = new Rml::ElementInstancerGeneric<RmlRadarElement>();
+	Rml::Factory::RegisterElementInstancer("radar", m_radarInstancer);
 }
 
 void RmlUiManager::shutdown()
@@ -512,6 +515,7 @@ void RmlUiManager::shutdown()
 	delete m_mapPreviewInstancer; m_mapPreviewInstancer = nullptr;
 	delete m_scrollLogInstancer; m_scrollLogInstancer = nullptr;
 	delete m_videoInstancer; m_videoInstancer = nullptr;
+	delete m_radarInstancer; m_radarInstancer = nullptr;
 	m_currentScreen = nullptr;
 	TransitionSounds::reset();
 	m_debuggerInitialized = false;
@@ -691,6 +695,18 @@ bool RmlUiManager::anyVisibleDocumentAt(int x, int y) const
 		if (hit && hit->GetComputedValues().pointer_events() == Rml::Style::PointerEvents::Auto)
 			return true;
 	}
+	return false;
+}
+
+// The pointer over an element marked data-world-middle (the HUD's radar): the middle button and the wheel
+// go to the world there.
+bool RmlUiManager::leavesMiddleToWorld(int x, int y) const
+{
+	if (!m_context || ownsInput())
+		return false;
+	for (Rml::Element *e = m_context->GetElementAtPoint(Rml::Vector2f((float)x, (float)y)); e; e = e->GetParentNode())
+		if (e->HasAttribute("data-world-middle"))
+			return true;
 	return false;
 }
 

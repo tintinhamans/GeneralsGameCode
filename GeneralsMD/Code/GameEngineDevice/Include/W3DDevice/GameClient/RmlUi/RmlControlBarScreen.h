@@ -32,10 +32,23 @@
 #include "GameClient/ControlBarData.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/EventListener.h>
 #include <RmlUi/Core/Types.h>
 
 namespace Rml { class Context; class Element; class ElementDocument; }
+
+//-------------------------------------------------------------------------------------------------
+// <radar data-world-middle/>: the engine draws the radar (or the radar movie) in this element's box, in its place in the
+// document, through the headless LeftHUD window it keeps on that box; see ControlBarActions::placeRadar().
+class RmlRadarElement : public Rml::Element
+{
+public:
+	explicit RmlRadarElement(const Rml::String &tag) : Rml::Element(tag) {}
+
+protected:
+	virtual void OnRender() override;
+};
 
 //-------------------------------------------------------------------------------------------------
 class RmlControlBarScreen : public Rml::EventListener
@@ -114,6 +127,9 @@ private:
 		int rank = 0;
 		int sciencePoints = 0;
 		Rml::String experience;
+		bool hasRadar = false;
+		bool radarAlert = false;
+		bool cameoMovie = false;
 	};
 
 	Rml::Context *m_context = nullptr;
@@ -131,4 +147,8 @@ private:
 	bool m_pressing = false;
 	bool m_pressRight = false;
 	ControlBarButtonId m_pressed;
+
+	// the pointer on the radar: LeftHUDInput hears it enter, leave, move and press
+	bool m_onRadar = false;
+	int m_radarButton = -1; ///< held since a press on the radar; 0 left, 1 right
 };

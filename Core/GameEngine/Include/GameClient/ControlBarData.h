@@ -145,6 +145,10 @@ struct ControlBarData
 	ControlBarButtonData contextButtons[ CB_CTX_COUNT ];
 
 	ControlBarButtonData sideButtons[ CB_SIDE_COUNT ];
+	Bool hasRadar;										///< the local player has a working radar
+	Bool radarAlert;								///< the radar's under-attack light is lit (it blinks for a while)
+	Bool cameoMovie;								///< a script plays a movie in the portrait (InGameUI::playCameoMovie())
+
 	Bool generalLit;								///< the general's button blinks while promotion points are unspent
 	Int rank;
 	Int sciencePoints;

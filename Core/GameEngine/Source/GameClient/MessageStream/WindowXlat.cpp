@@ -200,6 +200,10 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 				// overlay drawn over the game (the HUD) leaves it alone too; only a left click while scrolling reaches it.
 				const Bool leftClick = msg->getType() == GameMessage::MSG_RAW_MOUSE_LEFT_BUTTON_DOWN || msg->getType() == GameMessage::MSG_RAW_MOUSE_LEFT_BUTTON_UP;
 				const Bool worldHasMouse = TheTacticalView && TheTacticalView->isMouseLocked() && !(TheInGameUI && TheInGameUI->isScrolling() && leftClick);
+				const Bool middleOrWheel = msg->getType() == GameMessage::MSG_RAW_MOUSE_MIDDLE_BUTTON_DOWN || msg->getType() == GameMessage::MSG_RAW_MOUSE_MIDDLE_BUTTON_UP
+					|| msg->getType() == GameMessage::MSG_RAW_MOUSE_MIDDLE_DOUBLE_CLICK || msg->getType() == GameMessage::MSG_RAW_MOUSE_MIDDLE_DRAG || msg->getType() == GameMessage::MSG_RAW_MOUSE_WHEEL;
+				if( middleOrWheel && TheRmlUiInputHook->leavesMiddleToWorld( mousePos.x, mousePos.y ) )
+					break;
 				if( TheRmlUiInputHook->wantsMouseInput( mousePos.x, mousePos.y ) && (!worldHasMouse || TheRmlUiInputHook->capturesInput()) )
 				{
 					switch( msg->getType() )

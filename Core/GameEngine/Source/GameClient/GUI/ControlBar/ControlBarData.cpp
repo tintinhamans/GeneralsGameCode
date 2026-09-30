@@ -26,6 +26,7 @@
 
 #include "GameClient/ControlBarData.h"
 
+#include "Common/GameUtility.h"
 #include "Common/GlobalData.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/Player.h"
@@ -108,6 +109,9 @@ void ControlBarData::clear()
 		contextButtons[ i ].clear();
 	for( Int i = 0; i < CB_SIDE_COUNT; ++i )
 		sideButtons[ i ].clear();
+	hasRadar = FALSE;
+	radarAlert = FALSE;
+	cameoMovie = FALSE;
 	generalLit = FALSE;
 	rank = 0;
 	sciencePoints = 0;
@@ -237,6 +241,13 @@ GameWindow *ControlBar::getButtonWindow( const ControlBarButtonId &id )
 }
 
 //-------------------------------------------------------------------------------------------------
+GameWindow *ControlBar::getRadarWindow()
+{
+	static const NameKeyType radarID = NAMEKEY( "ControlBar.wnd:LeftHUD" );
+	return m_contextParent[ CP_MASTER ] ? TheWindowManager->winGetWindowFromId( m_contextParent[ CP_MASTER ], radarID ) : nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
 void ControlBar::fillData( ControlBarData &data )
 {
 	data.clear();
@@ -353,6 +364,11 @@ void ControlBar::fillData( ControlBarData &data )
 		data.sideButtons[ i ].image = nullptr; // scheme art for the .wnd; the view draws its own
 	}
 	data.sideButtons[ CB_SIDE_MIN_MAX ].checked = m_currentControlBarStage == CONTROL_BAR_STAGE_LOW;
+
+	// the radar, its under-attack light (updateRadarAttackGlow() blinks WinUAttack by disabling it) and the portrait movie
+	data.hasRadar = rts::localPlayerHasRadar();
+	data.radarAlert = m_radarAttackGlowOn && m_radarAttackGlowWindow && !BitIsSet( m_radarAttackGlowWindow->winGetStatus(), WIN_STATUS_ENABLED );
+	data.cameoMovie = TheInGameUI && TheInGameUI->cameoVideoBuffer() != nullptr;
 
 	// the general's rank, points and blinking button
 	Player *local = ThePlayerList->getLocalPlayer();

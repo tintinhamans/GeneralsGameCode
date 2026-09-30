@@ -400,6 +400,20 @@ Rml::TextureHandle RmlUiRenderInterface::registerTexture(IDirect3DTexture8 *tex,
 	return handle;
 }
 
+void RmlUiRenderInterface::drawEngine(void (*draw)(void *), void *context)
+{
+	const bool scissorEnabled = m_scissorEnabled;
+	const Rml::Rectanglei scissorRegion = m_scissorRegion;
+	endFrame();
+	draw(context);
+	beginFrame(m_contextWidth, m_contextHeight);
+	if (scissorEnabled)
+	{
+		EnableScissorRegion(true);
+		SetScissorRegion(scissorRegion);
+	}
+}
+
 Rml::TextureHandle RmlUiRenderInterface::registerVideoTexture(IDirect3DTexture8 *tex)
 {
 	if (!tex)

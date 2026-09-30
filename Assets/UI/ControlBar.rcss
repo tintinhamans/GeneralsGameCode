@@ -53,10 +53,41 @@ body.gla .cb-panel { border-top-color: #B8862B; }
 .cb-radar-well
 {
 	display: block;
+	position: relative;
 	width: 100%;
 	height: 100%;
+	box-sizing: border-box;
 	background-color: #03050C;
 	border: 1dp #8080FF28;
+}
+
+/* the engine draws the radar here (RmlRadarElement) */
+.cb-radar-map
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+}
+
+.cb-radar-well.dark { background-color: #020308; }
+
+/* under attack: the radar's frame blinks red with the .wnd's WinUAttack light */
+.cb-radar.alert { border-color: #FF5050; border-top-color: #FF5050; }
+.cb-radar.alert .cb-radar-well { border-color: #FF5050; }
+
+/* a movie a script plays in the portrait, over the selection */
+.cb-cameo-movie
+{
+	display: block;
+	position: absolute;
+	left: 12dp;
+	top: 53dp;
+	width: 140dp;
+	height: 112dp;
+	background-color: #000000;
 }
 
 /* ---- Centre: strip, grid and side buttons ------------------------------------------------------ */

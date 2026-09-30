@@ -22,13 +22,18 @@
 #include "GameClient/ControlBar.h"
 #include "GameClient/ControlBarActions.h"
 #include "GameClient/Image.h"
+#include "GameClient/GameWindow.h"
+#include "GameClient/InGameUI.h"
 #include "GameClient/Mouse.h"
+#include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
+#include "W3DDevice/GameClient/RmlUi/RmlUiRenderInterface.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include <RmlUi/Core/Context.h>
 #include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/ElementDocument.h>
+#include <RmlUi/Core/Core.h>
 #include <RmlUi/Core/Event.h>
 
 #include <cctype>
@@ -126,10 +131,39 @@ namespace
 		return false;
 	}
 
+	bool onRadar(Rml::Element *element)
+	{
+		for (Rml::Element *e = element; e; e = e->GetParentNode())
+			if (e->GetTagName() == "radar")
+				return true;
+		return false;
+	}
+
+	void drawRadar(void *)
+	{
+		ControlBarActions::drawRadar();
+	}
+
 	bool sameSlot(const ControlBarButtonId &a, const ControlBarButtonId &b)
 	{
 		return a.group == b.group && a.index == b.index;
 	}
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlRadarElement::OnRender()
+{
+	Rml::Element::OnRender();
+	if (!TheControlBar || !TheControlBar->isHeadless())
+		return;
+
+	const Rml::Vector2f pos = GetAbsoluteOffset(Rml::BoxArea::Content);
+	const Rml::Vector2f size = GetBox().GetSize(Rml::BoxArea::Content);
+	ControlBarActions::placeRadar((Int)(pos.x + 0.5f), (Int)(pos.y + 0.5f), (Int)(size.x + 0.5f), (Int)(size.y + 0.5f));
+
+	RmlUiRenderInterface *renderInterface = static_cast<RmlUiRenderInterface *>(Rml::GetRenderInterface());
+	if (renderInterface)
+		renderInterface->drawEngine(&drawRadar, nullptr);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -208,6 +242,9 @@ void RmlControlBarScreen::load(Rml::Context *context)
 		constructor.Bind("rank", &m_model.rank);
 		constructor.Bind("science_points", &m_model.sciencePoints);
 		constructor.Bind("experience", &m_model.experience);
+		constructor.Bind("has_radar", &m_model.hasRadar);
+		constructor.Bind("radar_alert", &m_model.radarAlert);
+		constructor.Bind("cameo_movie", &m_model.cameoMovie);
 
 		m_modelHandle = constructor.GetModelHandle();
 	}
@@ -235,6 +272,8 @@ void RmlControlBarScreen::shutdown()
 	m_hasShown = false;
 	m_hovering = false;
 	m_pressing = false;
+	m_onRadar = false;
+	m_radarButton = -1;
 }
 
 bool RmlControlBarScreen::isVisible() const
@@ -252,8 +291,12 @@ void RmlControlBarScreen::hide()
 {
 	if (m_hovering && TheControlBar)
 		ControlBarActions::leave(m_hovered);
+	if (m_onRadar && TheControlBar)
+		ControlBarActions::radarInput(GWM_MOUSE_LEAVING);
 	m_hovering = false;
 	m_pressing = false;
+	m_onRadar = false;
+	m_radarButton = -1;
 	if (m_document && m_document->IsVisible())
 		m_document->Hide();
 }
@@ -417,6 +460,16 @@ void RmlControlBarScreen::refresh(const ControlBarData &data, bool all)
 		m_modelHandle.DirtyVariable("experience");
 	}
 
+	if (all || data.hasRadar != old.hasRadar || data.radarAlert != old.radarAlert || data.cameoMovie != old.cameoMovie)
+	{
+		m_model.hasRadar = data.hasRadar != FALSE;
+		m_model.radarAlert = data.radarAlert != FALSE;
+		m_model.cameoMovie = data.cameoMovie != FALSE;
+		m_modelHandle.DirtyVariable("has_radar");
+		m_modelHandle.DirtyVariable("radar_alert");
+		m_modelHandle.DirtyVariable("cameo_movie");
+	}
+
 	m_shown = data;
 	m_hasShown = true;
 }
@@ -428,7 +481,15 @@ void RmlControlBarScreen::trackHover()
 {
 	ControlBarButtonId id = { CBB_COMMAND, -1 };
 	Rml::Element *hover = m_context ? m_context->GetHoverElement() : nullptr;
-	const bool onSlot = hover && hover->GetOwnerDocument() == m_document && slotOf(hover, id);
+	const bool inDocument = hover && hover->GetOwnerDocument() == m_document;
+	const bool radar = inDocument && onRadar(hover);
+	if (radar != m_onRadar)
+	{
+		m_onRadar = radar;
+		ControlBarActions::radarInput(radar ? GWM_MOUSE_ENTERING : GWM_MOUSE_LEAVING);
+	}
+
+	const bool onSlot = inDocument && slotOf(hover, id);
 
 	if (m_hovering && (!onSlot || !sameSlot(id, m_hovered)))
 	{
@@ -451,9 +512,15 @@ void RmlControlBarScreen::ProcessEvent(Rml::Event &event)
 	switch (event.GetId())
 	{
 		case Rml::EventId::Mousemove:
-			// over a panel the pointer is the plain arrow, like over the .wnd bar (InGameUI's underWindow)
-			if (TheMouse)
-				TheMouse->setCursor(Mouse::ARROW);
+			if (onRadar(event.GetTargetElement()))
+			{
+				// LeftHUDInput sets the cursor over the radar; a held look button keeps looking
+				ControlBarActions::radarInput(GWM_MOUSE_POS);
+				if (m_radarButton >= 0)
+					ControlBarActions::radarDrag(m_radarButton == 1);
+			}
+			else if (TheMouse)
+				TheMouse->setCursor(Mouse::ARROW); // over a panel the plain arrow, like over the .wnd bar (InGameUI's underWindow)
 			break;
 
 		case Rml::EventId::Mousedown:
@@ -462,6 +529,12 @@ void RmlControlBarScreen::ProcessEvent(Rml::Event &event)
 			if (button != 0 && button != 1)
 				break;
 			trackHover();
+			if (onRadar(event.GetTargetElement()))
+			{
+				m_radarButton = button;
+				ControlBarActions::radarInput(button == 1 ? GWM_RIGHT_DOWN : GWM_LEFT_DOWN);
+				break;
+			}
 			ControlBarButtonId id;
 			if (slotOf(event.GetTargetElement(), id))
 			{
@@ -479,6 +552,15 @@ void RmlControlBarScreen::ProcessEvent(Rml::Event &event)
 			if (button != 0 && button != 1)
 				break;
 			const bool right = button == 1;
+			if (m_radarButton == button)
+			{
+				m_radarButton = -1;
+				if (onRadar(event.GetTargetElement()))
+				{
+					ControlBarActions::radarInput(right ? GWM_RIGHT_UP : GWM_LEFT_UP);
+					break;
+				}
+			}
 			ControlBarButtonId id;
 			if (m_pressing && m_pressRight == right && slotOf(event.GetTargetElement(), id) && sameSlot(id, m_pressed))
 				ControlBarActions::release(id, right);
@@ -516,6 +598,17 @@ void RmlControlBarScreen::tick()
 	screen.load(TheRmlUiManager->getContext());
 	if (!screen.m_document)
 		return;
+
+	// a radar press released over the world: no mouseup reached the document
+	if (screen.m_radarButton >= 0 && TheMouse)
+	{
+		const MouseIO *io = TheMouse->getMouseStatus();
+		if (io && (screen.m_radarButton == 1 ? io->rightState : io->leftState) == MBS_Up)
+			screen.m_radarButton = -1;
+	}
+
+	// the portrait movie a script plays (InGameUI::playCameoMovie()), for the <video> in the unit panel
+	RmlVideoElement::setSource("cameo-movie", TheInGameUI ? TheInGameUI->cameoVideoBuffer() : nullptr);
 
 	screen.refresh(screen.m_data, !screen.m_hasShown);
 	screen.show();

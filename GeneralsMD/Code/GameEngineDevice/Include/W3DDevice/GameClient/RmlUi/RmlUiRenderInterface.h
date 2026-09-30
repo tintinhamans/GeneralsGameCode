@@ -96,6 +96,10 @@ public:
 	// channel, so it samples opaque and needs no premultiply pass. Takes its own reference.
 	Rml::TextureHandle registerVideoTexture(IDirect3DTexture8 *tex);
 
+	// Hands the device back to the engine for a drawing of its own in the middle of a document (the HUD's radar):
+	// the engine's state is restored first, RmlUi's set up again after, the scissor region included.
+	void drawEngine(void (*draw)(void *), void *context);
+
 private:
 	struct CompiledGeometry
 	{
