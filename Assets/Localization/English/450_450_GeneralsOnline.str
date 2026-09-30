@@ -118,3 +118,7 @@ END
 GUI:GOPasswordRequired
 "This game is password protected."
 END
+
+GUI:GOGameMenu
+"Game Menu"
+END
