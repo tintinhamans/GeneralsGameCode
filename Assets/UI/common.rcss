@@ -2085,7 +2085,8 @@ mappreview .mp-art
 	Tab rail      .tab-rail > button.rail-item(.on): categories down the side of a screen.
 	Progress      .progress > .progress-fill (width set inline): the one progress bar look.
 	Chip          .chip-label(.good/.accent/.warn): small tracked caps on a tinted plate (ready, host,
-	              no map); never shrinks in a flex row.
+	              no map); never shrinks in a flex row. .chip-status(.on) > .chip-dot + text: a setting
+	              shown read-only, on (green dot) or off (hollow, struck through).
 	Load layout   see LoadScreen.rcss: every load screen is full-bleed art under the ruler with
 	              .ld-card player cards along the bottom.
 	Persona       .persona-hero (rank portrait, badge, rank name, .progress) over .stat-blocks of
@@ -2587,6 +2588,61 @@ mappreview .mp-art
 .chip-label.good { color: #04140C; background-color: #3CD28C; }
 .chip-label.accent { color: #1A0C02; background-color: #F07A1A; }
 .chip-label.warn { color: #1A1604; background-color: #E8D440; }
+
+/* Status chip: a setting shown, not edited. On: a filled green dot on a green tint. Off: a hollow
+   dot, dim and struck through. Flat, no hover, so it never reads as a button.
+	<div class="chip-status" data-class-on="..."><span class="chip-dot"></span><gametext key=".."/></div> */
+.chip-status
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 34dp;
+	padding: 0 14dp 0 12dp;
+	font-size: 15dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #8089B0;
+	background-color: #070A1AC8;
+	border: 1dp #8080FF28;
+}
+
+.chip-status gametext
+{
+	text-decoration: line-through;
+}
+
+.chip-status .chip-dot
+{
+	display: block;
+	box-sizing: border-box;
+	width: 12dp;
+	height: 12dp;
+	margin-right: 9dp;
+	border-radius: 6dp;
+	border: 2dp #7079A0;
+}
+
+.chip-status.on
+{
+	color: #E4F8EE;
+	background-color: #0E2A22D8;
+	border-color: #3CD28C8C;
+}
+
+.chip-status.on gametext
+{
+	text-decoration: none;
+}
+
+.chip-status.on .chip-dot
+{
+	background-color: #3CD28C;
+	border-color: #3CD28C;
+}
 
 .accent-overline
 {

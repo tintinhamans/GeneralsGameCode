@@ -4,44 +4,10 @@
 	card, and room for the social dock (body.dock-host; RmlSocialDock sets .dock-open).
 */
 
-/* ---- Header: the rules the host set, read-only ------------------------------------------------- */
-.ns-rules .rule
+/* ---- Header: the rules the host set, read-only status chips ------------------------------------ */
+.ns-rules .chip-status
 {
-	white-space: nowrap;
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	flex: 0 0 auto;
-	height: 40dp;
-	margin-left: 12dp;
-	padding: 0 16dp 0 12dp;
-	font-size: 16dp;
-	font-weight: bold;
-	letter-spacing: 1dp;
-	text-transform: uppercase;
-	color: #7079A0;
-	background-color: #070A1AC8;
-}
-
-.ns-rules .rule.on
-{
-	color: #D7DCF0;
-}
-
-.rule-box
-{
-	display: block;
-	box-sizing: border-box;
-	width: 16dp;
-	height: 16dp;
-	margin-right: 10dp;
-	border: 2dp #8080FF46;
-}
-
-.rule.on .rule-box
-{
-	background-color: #F07A1A;
-	border: 4dp #0B1030;
+	margin-left: 10dp;
 }
 
 /* ---- Connection: a status dot and the round trip, details in the tooltip ------------------------ */
@@ -107,8 +73,8 @@
 
 @media (max-aspect-ratio: 3/2)
 {
-	.ns-rules .rule { height: 38dp; margin-left: 8dp; padding: 0 12dp 0 10dp; font-size: 15dp; letter-spacing: 1dp; }
-	.rule-box { width: 14dp; height: 14dp; margin-right: 6dp; }
+	.ns-rules .chip-status { margin-left: 8dp; padding: 0 10dp 0 9dp; font-size: 14dp; }
+	.ns-rules .chip-dot { margin-right: 6dp; }
 	.conn { padding: 0 5dp; }
 	.conn-ms { margin-left: 5dp; font-size: 13dp; }
 	.dock-open .col-side { width: 290dp; }

@@ -16,9 +16,9 @@
 			</div>
 			<!-- Rules the host set when creating the game: shown here, never edited. -->
 			<div class="screen-header-aside ns-rules">
-				<div class="rule" data-class-on="limit_armies" data-tooltip="TOOLTIP:LimitArmies"><span class="rule-box"></span><gametext key="GUI:LimitArmies"/></div>
-				<div class="rule on" data-if="use_stats" data-tooltip="TOOLTIP:UseStatsOn"><span class="rule-box"></span><gametext key="GUI:UseStats"/></div>
-				<div class="rule" data-if="!use_stats" data-tooltip="TOOLTIP:UseStatsOff"><span class="rule-box"></span><gametext key="GUI:UseStats"/></div>
+				<div class="chip-status" data-class-on="limit_armies" data-tooltip="TOOLTIP:LimitArmies"><span class="chip-dot"></span><gametext key="GUI:LimitArmies"/></div>
+				<div class="chip-status on" data-if="use_stats" data-tooltip="TOOLTIP:UseStatsOn"><span class="chip-dot"></span><gametext key="GUI:UseStats"/></div>
+				<div class="chip-status" data-if="!use_stats" data-tooltip="TOOLTIP:UseStatsOff"><span class="chip-dot"></span><gametext key="GUI:UseStats"/></div>
 			</div>
 		</div>
 
