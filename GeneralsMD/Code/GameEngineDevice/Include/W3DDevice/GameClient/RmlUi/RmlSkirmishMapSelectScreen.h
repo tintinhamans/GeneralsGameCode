@@ -32,6 +32,7 @@
 #pragma once
 
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/Types.h>
@@ -59,7 +60,9 @@ private:
 
 	void onFilterChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onPlayerFilterChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (players), 0 = any
-	void refreshVisibleCount();
+	void refreshVisibleCount(); // applies the player filter and the search, and counts what is left
+	void onSearchChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // search box, every keystroke
+	void onSortChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (1: by players, 0: by name)
 	void onMapSelected(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onMapActivated(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // double-click: select + OK
 	void onOk(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -68,6 +71,7 @@ private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 
 	// One row in the map-list (see GameSetup.rcss's reusable "map-row" markup block).
 	struct MapEntryModel
@@ -79,6 +83,7 @@ private:
 		Rml::String starImage; // TheMappedImageCollection name, valid only if hasStarImage
 		bool isSelected = false;
 		bool used = true; // grow-only storage, see RmlGrowOnlyList.h; hidden via data-if when false
+		bool visible = true; // passes the player filter and the search
 	};
 
 	// One start-position marker on the preview (see GameSetupStartPositionMarker); no occupant/color
@@ -105,7 +110,10 @@ private:
 		Rml::Vector<StartMarkerModel> startMarkers;
 
 		int playerFilter = 0; // show only maps for this many players; 0 = any
-		int visibleCount = 0; // live maps that pass playerFilter, for the empty state
+		int visibleCount = 0; // live maps that pass playerFilter and the search, for the empty state
+		Rml::String searchText; // the search box: a case-insensitive part of the name
+		bool sortByPlayers = false; // order by player count instead of name
+		Rml::String mapCountText; // "n of N maps"
 	} m_model;
 
 	// Grow-only wrapper around m_model.maps (see RmlGrowOnlyList.h): the filter toggle can rebuild

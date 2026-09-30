@@ -1,16 +1,71 @@
 /*
-	SkirmishMapSelect.rcss -- map browser on the screen template (common.rcss): a thumbnail grid
-	across the frame, the player-count filter and official/unofficial toggle in the header, and the
-	selected map's details sliding in from the right.
+	SkirmishMapSelect.rcss -- the map browser of all three map selects (skirmish, LAN, online) under
+	the .hq-header strip: a toolbar (search, order, player count, official/unofficial, "n of N
+	maps"), a thumbnail grid across the frame, and the selected map's details sliding in from the
+	right.
 
-	The player-count filter is client side (player_filter, a data-if per tile) and visible_count
-	drives the empty state. maps is a grow-only list, so every tile also checks entry.used.
+	Search, order and the player-count filter are the screen's C++ model (entry.visible,
+	visible_count, map_count_text; RmlMapSearch.h); an empty grid says why. maps is a grow-only
+	list, so every tile also checks entry.used.
 */
 
-/* ---- Header filters ---------------------------------------------------------------------------- */
-.ms-filters
+/* ---- Toolbar ------------------------------------------------------------------------------------ */
+.screen-header.ms-toolbar
 {
-	padding-left: 20dp;
+	padding: 0;
+	margin-bottom: 20dp;
+}
+
+/* Search: the ring of a magnifier (Barlow has no icons) in front of a borderless input, one box. */
+.ms-filter-plate.ms-search
+{
+	flex: 0 1 400dp;
+	min-width: 200dp;
+}
+
+.ms-search-box
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 1 1 0%;
+	min-width: 0;
+	height: 42dp;
+	padding-left: 12dp;
+	background-color: #05070FD2;
+	border: 1dp #8080FF3C;
+}
+
+.ms-search-box:hover
+{
+	border-color: #8080FF8C;
+}
+
+.ms-search-mark
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 14dp;
+	height: 14dp;
+	margin-right: 4dp;
+	border: 2dp #8080FF;
+	border-radius: 8dp;
+}
+
+.ms-search-box:hover .ms-search-mark
+{
+	border-color: #D1FD04;
+}
+
+.screen .ms-search-input, .screen .ms-search-input:hover, .screen .ms-search-input:focus
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	height: 40dp;
+	line-height: 38dp;
+	padding: 0 10dp;
+	background-color: transparent;
+	border-width: 0;
 }
 
 .ms-filter-plate
@@ -18,9 +73,24 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	margin-right: 20dp;
+	flex: 0 0 auto;
+	margin-right: 16dp;
 	padding: 6dp 8dp 6dp 18dp;
 	background-color: #070A1AD9;
+}
+
+.ms-count
+{
+	flex: 0 0 auto;
+	margin-left: auto;
+	padding: 0 4dp 0 16dp;
+	font-size: 16dp;
+	font-weight: bold;
+	letter-spacing: 1.5dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #B8C0DE;
+	font-effect: glow(1dp 8dp 0dp 1dp #000000F0);
 }
 
 .filter-label
@@ -171,8 +241,9 @@
 @media (max-aspect-ratio: 3/2)
 {
 	.filter-label { display: none; }
-	.ms-filter-plate { padding-left: 8dp; margin-right: 12dp; }
-	.screen .ms-filters .seg button.seg-item { padding: 0 10dp; font-size: 16dp; }
+	.ms-filter-plate { padding-left: 8dp; margin-right: 10dp; }
+	.screen .ms-toolbar .seg button.seg-item { padding: 0 9dp; font-size: 16dp; }
+	.ms-filter-plate.ms-search { flex-basis: 240dp; min-width: 150dp; }
 	.detail-col { width: 360dp; }
 	.detail .map-frame { width: 320dp; height: 320dp; }
 	.map-tile { width: 162dp; margin-right: 12dp; }

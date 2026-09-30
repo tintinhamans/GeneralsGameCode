@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlMapSearch.h"
 
 #include "Common/SkirmishBattleHonors.h"
 #include "Common/UnicodeString.h"
@@ -62,6 +63,7 @@ void RmlSkirmishMapSelectScreen::load(Rml::Context *context)
 			entryHandle.RegisterMember("star_image", &MapEntryModel::starImage);
 			entryHandle.RegisterMember("is_selected", &MapEntryModel::isSelected);
 			entryHandle.RegisterMember("used", &MapEntryModel::used);
+			entryHandle.RegisterMember("visible", &MapEntryModel::visible);
 		}
 		Rml::StructHandle<StartMarkerModel> markerHandle = constructor.RegisterStruct<StartMarkerModel>();
 		if (markerHandle)
@@ -84,6 +86,12 @@ void RmlSkirmishMapSelectScreen::load(Rml::Context *context)
 		constructor.Bind("start_markers", &m_model.startMarkers);
 		constructor.Bind("player_filter", &m_model.playerFilter);
 		constructor.Bind("visible_count", &m_model.visibleCount);
+		constructor.Bind("search_text", &m_model.searchText);
+		constructor.Bind("sort_by_players", &m_model.sortByPlayers);
+		constructor.Bind("map_count_text", &m_model.mapCountText);
+		constructor.BindEventCallback("search_changed", &RmlSkirmishMapSelectScreen::onSearchChanged, this);
+		constructor.BindEventCallback("sort_changed", &RmlSkirmishMapSelectScreen::onSortChanged, this);
+		m_hq.bind(constructor);
 
 		constructor.BindEventCallback("filter_changed", &RmlSkirmishMapSelectScreen::onFilterChanged, this);
 		constructor.BindEventCallback("player_filter_changed", &RmlSkirmishMapSelectScreen::onPlayerFilterChanged, this);
@@ -165,6 +173,7 @@ void RmlSkirmishMapSelectScreen::refreshMapList()
 	}
 
 	m_mapRows.endUpdate();
+	RmlMapSearchSort(m_model.maps, m_mapRows.liveCount(), m_model.sortByPlayers);
 
 	if (!m_model.hasSelection)
 		m_model.selectedMapName.clear();
@@ -231,6 +240,12 @@ void RmlSkirmishMapSelectScreen::open()
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("use_system_maps");
 
+	m_model.searchText.clear();
+	refreshVisibleCount();
+	m_hq.refresh(m_modelHandle, true);
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("search_text");
+
 	m_document->Show();
 }
 
@@ -278,13 +293,42 @@ void RmlSkirmishMapSelectScreen::onPlayerFilterChanged(Rml::DataModelHandle, Rml
 void RmlSkirmishMapSelectScreen::refreshVisibleCount()
 {
 	m_model.visibleCount = 0;
-	for (const MapEntryModel &entry : m_model.maps)
+	for (MapEntryModel &entry : m_model.maps)
 	{
-		if (entry.used && (m_model.playerFilter == 0 || entry.numPlayers == m_model.playerFilter))
+		entry.visible = (m_model.playerFilter == 0 || entry.numPlayers == m_model.playerFilter)
+			&& RmlMapSearchMatches(entry.displayName, m_model.searchText);
+		if (entry.used && entry.visible)
 			++m_model.visibleCount;
 	}
+	m_model.mapCountText = RmlMapSearchCountText(m_model.visibleCount, m_mapRows.liveCount());
 	if (m_modelHandle)
+	{
+		m_modelHandle.DirtyVariable("maps");
 		m_modelHandle.DirtyVariable("visible_count");
+		m_modelHandle.DirtyVariable("map_count_text");
+	}
+}
+
+// Filtering on every keystroke is fine here: nothing is sent. The value comes off the event, which
+// can run before the input's own data-value controller writes search_text.
+void RmlSkirmishMapSelectScreen::onSearchChanged(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &)
+{
+	m_model.searchText = ev.GetParameter<Rml::String>("value", m_model.searchText);
+	refreshVisibleCount();
+}
+
+void RmlSkirmishMapSelectScreen::onSortChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.empty())
+		return;
+	const bool byPlayers = args[0].Get<int>() != 0;
+	if (byPlayers == m_model.sortByPlayers)
+		return;
+	m_model.sortByPlayers = byPlayers;
+	RmlMapSearchSort(m_model.maps, m_mapRows.liveCount(), m_model.sortByPlayers);
+	refreshVisibleCount();
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("sort_by_players");
 }
 
 void RmlSkirmishMapSelectScreen::onMapSelected(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)

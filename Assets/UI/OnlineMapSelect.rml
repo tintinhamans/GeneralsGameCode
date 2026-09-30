@@ -5,35 +5,52 @@
 	<link type="text/rcss" href="SkirmishMapSelect.rcss"/>
 </head>
 <!-- WOLMapSelectMenu.wnd, opened from the online game setup: the skirmish map select's layout and sheet (SkirmishMapSelect.rcss). -->
-<body class="screen" data-model="onlinemapselect">
+<body class="screen hq" data-model="onlinemapselect">
 	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
+	<div class="hq-band hq-header"><div class="hq-band-in">
+			<mappedimage name="GeneralsLogo" class="hq-logo"/>
+			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:CustomMatch"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:SelectAMapLowerCase"/></div></div>
+			<div class="hq-status">
+				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
+			</div>
+	</div></div>
+
 	<div class="screen-frame">
-		<div class="screen-header">
-			<div class="screen-heading">
-				<div class="screen-crumb"><gametext key="GUI:CustomMatch"/><span class="crumb-sep">&#8250;</span></div>
-				<div class="screen-title"><gametext key="GUI:SelectAMapLowerCase"/></div>
+		<!-- Toolbar: search by name (live, nothing is sent), the order, the player-count filter and
+		     official/unofficial maps; the count of what is left at the far end. -->
+		<div class="screen-header ms-toolbar">
+			<div class="ms-filter-plate ms-search">
+				<div class="overline filter-label"><gametext key="GUI:GOSearchMaps"/></div>
+				<div class="ms-search-box"><span class="ms-search-mark"></span><input type="text" class="text-input ms-search-input" maxlength="48" data-value="search_text" data-event-change="search_changed"/></div>
 			</div>
-			<!-- Filters: the player count (client side) and official/unofficial maps. -->
-			<div class="screen-header-aside ms-filters">
-				<div class="ms-filter-plate">
-					<div class="overline filter-label"><gametext key="GUI:Players"/></div>
-					<div class="seg">
-						<button class="seg-item" data-class-on="player_filter == 0" data-event-click="player_filter_changed(0)"><gametext key="GUI:Any"/></button>
-						<button class="seg-item" data-class-on="player_filter == 2" data-event-click="player_filter_changed(2)">2</button>
-						<button class="seg-item" data-class-on="player_filter == 3" data-event-click="player_filter_changed(3)">3</button>
-						<button class="seg-item" data-class-on="player_filter == 4" data-event-click="player_filter_changed(4)">4</button>
-						<button class="seg-item" data-class-on="player_filter == 5" data-event-click="player_filter_changed(5)">5</button>
-						<button class="seg-item" data-class-on="player_filter == 6" data-event-click="player_filter_changed(6)">6</button>
-						<button class="seg-item" data-class-on="player_filter == 7" data-event-click="player_filter_changed(7)">7</button>
-						<button class="seg-item" data-class-on="player_filter == 8" data-event-click="player_filter_changed(8)">8</button>
-					</div>
-				</div>
-				<div class="seg source-seg">
-					<button class="seg-item" data-class-on="use_system_maps" data-event-click="filter_changed(1)"><gametext key="GUI:SystemMaps"/></button>
-					<button class="seg-item" data-class-on="!use_system_maps" data-event-click="filter_changed(0)" data-tooltip="TOOLTIP:NoUserMaps"><gametext key="GUI:UserMaps"/></button>
+			<div class="ms-filter-plate">
+				<div class="overline filter-label"><gametext key="GUI:GOSortBy"/></div>
+				<div class="seg">
+					<button class="seg-item" data-class-on="!sort_by_players" data-event-click="sort_changed(0)"><gametext key="GUI:GOSortName"/></button>
+					<button class="seg-item" data-class-on="sort_by_players" data-event-click="sort_changed(1)"><gametext key="GUI:Players"/></button>
 				</div>
 			</div>
+			<div class="ms-filter-plate">
+				<div class="overline filter-label"><gametext key="GUI:Players"/></div>
+				<div class="seg">
+					<button class="seg-item" data-class-on="player_filter == 0" data-event-click="player_filter_changed(0)"><gametext key="GUI:Any"/></button>
+					<button class="seg-item" data-class-on="player_filter == 2" data-event-click="player_filter_changed(2)">2</button>
+					<button class="seg-item" data-class-on="player_filter == 3" data-event-click="player_filter_changed(3)">3</button>
+					<button class="seg-item" data-class-on="player_filter == 4" data-event-click="player_filter_changed(4)">4</button>
+					<button class="seg-item" data-class-on="player_filter == 5" data-event-click="player_filter_changed(5)">5</button>
+					<button class="seg-item" data-class-on="player_filter == 6" data-event-click="player_filter_changed(6)">6</button>
+					<button class="seg-item" data-class-on="player_filter == 7" data-event-click="player_filter_changed(7)">7</button>
+					<button class="seg-item" data-class-on="player_filter == 8" data-event-click="player_filter_changed(8)">8</button>
+				</div>
+			</div>
+			<div class="seg source-seg">
+				<button class="seg-item" data-class-on="use_system_maps" data-event-click="filter_changed(1)"><gametext key="GUI:SystemMaps"/></button>
+				<button class="seg-item" data-class-on="!use_system_maps" data-event-click="filter_changed(0)" data-tooltip="TOOLTIP:NoUserMaps"><gametext key="GUI:UserMaps"/></button>
+			</div>
+			<div class="ms-count">{{map_count_text}}</div>
 		</div>
 
 		<div class="screen-body">
@@ -42,7 +59,7 @@
 			<div class="col col-main surface browser">
 				<div class="grid">
 					<div data-for="entry : maps">
-						<div class="map-tile" data-if="entry.used &amp;&amp; (player_filter == 0 || entry.num_players == player_filter)"
+						<div class="map-tile" data-if="entry.used &amp;&amp; entry.visible"
 							data-class-selected="entry.is_selected"
 							data-event-click="map_selected(entry.map_name)" data-event-dblclick="map_activated(entry.map_name)">
 							<div class="thumb">
@@ -53,7 +70,8 @@
 							<div class="map-tile-name">{{entry.display_name}}</div>
 						</div>
 					</div>
-					<div class="empty-state" data-if="visible_count == 0"><gametext key="GUI:GONoMapsForFilter"/></div>
+					<div class="empty-state" data-if="visible_count == 0 &amp;&amp; search_text == ''"><gametext key="GUI:GONoMapsForFilter"/></div>
+					<div class="empty-state" data-if="visible_count == 0 &amp;&amp; search_text != ''"><div class="overline">&quot;{{search_text}}&quot;</div><gametext key="GUI:GONoMapsMatch"/></div>
 				</div>
 			</div>
 

@@ -71,6 +71,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlLanMapSelectScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlLoadScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlMapSearch.h
     Include/W3DDevice/GameClient/RmlUi/RmlMessageBox.h
     Include/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlHqStatus.h

@@ -330,3 +330,23 @@ END
 GUI:GOWaitingForAccepts
 "Waiting for every player to accept"
 END
+
+GUI:GOMapCount
+"%d of %d maps"
+END
+
+GUI:GOSearchMaps
+"Search"
+END
+
+GUI:GOSortBy
+"Sort"
+END
+
+GUI:GOSortName
+"Name"
+END
+
+GUI:GONoMapsMatch
+"No maps match your search"
+END
