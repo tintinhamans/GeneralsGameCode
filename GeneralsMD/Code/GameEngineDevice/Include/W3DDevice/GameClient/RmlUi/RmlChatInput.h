@@ -64,6 +64,13 @@ inline void RmlClearChatInput(Rml::Event &ev)
 	}
 }
 
+// RmlUiManager::shutdown(): the observers reference RmlUi pool memory that Rml::Shutdown() frees, so
+// they have to go first, not when this static is destroyed at process exit.
+inline void RmlDropChatClears()
+{
+	RmlPendingChatClears().clear();
+}
+
 // Once per frame from RmlUiManager::update(), so after the commit event has run to its end.
 inline void RmlFlushChatClears()
 {

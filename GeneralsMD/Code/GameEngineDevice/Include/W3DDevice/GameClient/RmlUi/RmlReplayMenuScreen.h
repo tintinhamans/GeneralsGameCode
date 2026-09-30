@@ -39,6 +39,8 @@ class RmlReplayMenuScreen
 {
 public:
 	static RmlReplayMenuScreen &instance();
+	// RmlUiManager::shutdown(): Rml::Shutdown() frees the document and context, and this outlives them.
+	void releaseRml() { m_document = nullptr; m_context = nullptr; m_modelHandle = Rml::DataModelHandle(); }
 
 	void open();
 	void close(bool reverseTransition = true); ///< false once a replay took over, like an immediate pop

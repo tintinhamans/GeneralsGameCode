@@ -42,6 +42,8 @@ public:
 	enum Kind { KIND_MAP_TRANSFER, KIND_MULTIPLAYER, KIND_ONLINE, KIND_SHELL, KIND_SINGLE_PLAYER, KIND_CHALLENGE, KIND_COUNT };
 
 	static RmlLoadScreen &instance(Kind kind);
+	// RmlUiManager::shutdown(): Rml::Shutdown() frees the document and context, and this outlives them.
+	void releaseRml() { m_document = nullptr; m_context = nullptr; m_modelHandle = Rml::DataModelHandle(); }
 	static void tick(); ///< refreshes every open instance whose LoadScreenData changed
 
 	void open();

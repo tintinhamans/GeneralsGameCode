@@ -43,6 +43,8 @@ public:
 	virtual ~RmlMainMenuScreen() override;
 
 	static RmlMainMenuScreen &instance();
+	// RmlUiManager::shutdown(): Rml::Shutdown() frees the document and context, and this outlives them.
+	void releaseRml() { m_document = nullptr; m_context = nullptr; m_modelHandle = Rml::DataModelHandle(); }
 
 	// RmlScreen ----------------------------------------------------------------------------
 	virtual void load(Rml::Context *context) override;

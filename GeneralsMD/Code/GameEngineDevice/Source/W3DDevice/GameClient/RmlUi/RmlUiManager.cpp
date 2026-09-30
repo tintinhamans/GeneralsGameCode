@@ -178,6 +178,47 @@ template<class T> static void popupBack() { T::instance().back(); }
 template<class T> static bool screenKey(unsigned char key, unsigned short state) { return T::instance().onKey(key, state); }
 template<RmlLoadScreen::Kind K> static bool loadScreenVisible() { return RmlLoadScreen::instance(K).isVisible(); }
 
+//-------------------------------------------------------------------------------------------------
+// The screens are function-local statics, so they are destroyed at process exit, long after
+// Rml::Shutdown() has freed the context and every document. Their destructors (and a later
+// load()) must not see the stale pointers; RmlBuddyToastScreen and RmlSocialDock have their own
+// shutdown() calls.
+static void releaseRmlScreens()
+{
+	RmlBuddyOverlayScreen::instance().releaseRml();
+	RmlChallengeMenuScreen::instance().releaseRml();
+	RmlCreditsScreen::instance().releaseRml();
+	RmlDisconnectScreen::instance().releaseRml();
+	RmlDownloadScreen::instance().releaseRml();
+	RmlEndGameOverlayScreen::instance().releaseRml();
+	RmlHostGameScreen::instance().releaseRml();
+	RmlInGamePopupScreen::instance().releaseRml();
+	RmlJoinGameScreen::instance().releaseRml();
+	RmlLanGameSetupScreen::instance().releaseRml();
+	RmlLanLobbyScreen::instance().releaseRml();
+	RmlLanMapSelectScreen::instance().releaseRml();
+	RmlMainMenuScreen::instance().releaseRml();
+	RmlNetworkDirectConnectScreen::instance().releaseRml();
+	RmlOnlineGameSetupScreen::instance().releaseRml();
+	RmlOnlineLobbyScreen::instance().releaseRml();
+	RmlOnlineLoginScreen::instance().releaseRml();
+	RmlOnlineMapSelectScreen::instance().releaseRml();
+	RmlOnlineWelcomeScreen::instance().releaseRml();
+	RmlOptionsScreen::instance().releaseRml();
+	RmlPlayerInfoScreen::instance().releaseRml();
+	RmlPopupReplayScreen::instance().releaseRml();
+	RmlQuickMatchScreen::instance().releaseRml();
+	RmlQuitMenuScreen::instance().releaseRml();
+	RmlReplayMenuScreen::instance().releaseRml();
+	RmlSaveLoadScreen::instance().releaseRml();
+	RmlScoreScreen::instance().releaseRml();
+	RmlSkirmishMapSelectScreen::instance().releaseRml();
+	RmlSkirmishSetupScreen::instance().releaseRml();
+	for (int i = 0; i < RmlLoadScreen::KIND_COUNT; ++i)
+		RmlLoadScreen::instance((RmlLoadScreen::Kind)i).releaseRml();
+	RmlDropChatClears();
+}
+
 RmlUiManager *RmlUiManager::s_instance = nullptr;
 RmlUiManager *TheRmlUiManager = nullptr;
 
@@ -437,6 +478,7 @@ void RmlUiManager::shutdown()
 	RmlUiScreenRegistry::unregisterAll();
 
 	m_ime.shutdown();
+	releaseRmlScreens();
 
 	if (m_context)
 	{

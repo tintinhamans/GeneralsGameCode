@@ -38,6 +38,8 @@ class RmlQuitMenuScreen
 {
 public:
 	static RmlQuitMenuScreen &instance();
+	// RmlUiManager::shutdown(): Rml::Shutdown() frees the document and context, and this outlives them.
+	void releaseRml() { m_document = nullptr; m_context = nullptr; m_modelHandle = Rml::DataModelHandle(); }
 
 	void open(bool noSaveVariant); ///< QuitMenu.wnd (false) or QuitNoSave.wnd (true)
 	void close();

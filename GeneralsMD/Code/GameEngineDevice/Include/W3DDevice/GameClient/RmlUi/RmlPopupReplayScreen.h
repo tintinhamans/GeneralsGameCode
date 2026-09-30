@@ -38,6 +38,8 @@ class RmlPopupReplayScreen
 {
 public:
 	static RmlPopupReplayScreen &instance();
+	// RmlUiManager::shutdown(): Rml::Shutdown() frees the document and context, and this outlives them.
+	void releaseRml() { m_document = nullptr; m_context = nullptr; m_modelHandle = Rml::DataModelHandle(); }
 
 	void open();
 	void close();
