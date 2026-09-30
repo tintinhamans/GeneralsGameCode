@@ -89,6 +89,7 @@ const LanguageEntry kLanguages[] = {
 	{ "pl", 9 },
 	{ "ru", 9 },
 	{ "ar", 9 },
+	{ "uk", 9 },
 };
 
 bool stricmpAscii(const std::string &a, const std::string &b)
