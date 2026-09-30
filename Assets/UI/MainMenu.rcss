@@ -1163,3 +1163,27 @@
 	.d-card .hq-card-title { font-size: 22dp; }
 	.d-card .hq-card-desc { font-size: 15dp; line-height: 19dp; }
 }
+
+/* Translated side and mode names run longer than the English ones (German "Westliche Allianz"):
+   a card title may take two lines rather than run out of its card, and on a side card the text
+   sits on the art's foot so that second line grows up into the art. */
+.d-card .hq-card-title
+{
+	white-space: normal;
+	letter-spacing: 1dp;
+}
+
+.d-fac .d-card-text
+{
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+}
+
+/* German's one-word "Herausforderung" is wider than a narrow card at the full title size. */
+body[lang=de] .d-solo .hq-card-title
+{
+	font-size: 21dp;
+	letter-spacing: 0;
+}

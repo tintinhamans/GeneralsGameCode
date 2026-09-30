@@ -227,3 +227,19 @@ label.opt-toggle:hover .opt-label
 	.dock-open .opt-control { flex: 1 1 100%; width: auto; }
 	.dock-open label.opt-toggle { width: 100%; }
 }
+
+/* In the narrower rail beside the open social dock a long category name (Russian "Network") takes
+   two lines, centred like one. */
+.dock-open .tab-rail button.rail-item
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	line-height: 24dp;
+}
+
+.dock-open .tab-rail button.rail-item gametext
+{
+	flex: 1 1 0%;
+	white-space: normal;
+}

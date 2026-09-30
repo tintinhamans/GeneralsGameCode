@@ -193,3 +193,27 @@ body.dc
 	background-color: #0C0F24AA;
 	border-color: #8080FF1E;
 }
+
+/* Translated labels run longer than the English ones: the router timeout label wraps beside the
+   title instead of running under it, and a column head may take two lines. */
+.dc-router
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-left: 16dp;
+}
+
+.dc-router .overline
+{
+	white-space: normal;
+	text-align: right;
+}
+
+.dc-list-head .dc-votes, .dc-list-head .dc-timeout
+{
+	white-space: normal;
+	word-break: break-word;
+	font-size: 13dp;
+	line-height: 16dp;
+	letter-spacing: 1dp;
+}
