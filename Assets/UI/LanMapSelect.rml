@@ -62,12 +62,13 @@
 				<div class="surface detail">
 					<div class="overline accent-overline group-title"><gametext key="GUI:MapPreview"/></div>
 					<div class="map-frame">
-						<mappreview class="map-image" data-attr-map="selected_map_name"/>
-						<div data-for="marker : start_markers">
-							<div class="marker" data-if="marker.used" data-style-left="marker.x_style" data-style-top="marker.y_style">
-								<div class="marker-dot">{{marker.position + 1}}</div>
+						<mappreview class="map-image" data-attr-map="selected_map_name">
+							<div data-for="marker : start_markers">
+								<div class="marker" data-if="marker.used" data-style-left="marker.x_style" data-style-top="marker.y_style">
+									<div class="marker-dot">{{marker.position + 1}}</div>
+								</div>
 							</div>
-						</div>
+						</mappreview>
 					</div>
 					<div class="map-name">{{selected_display_name}}</div>
 					<div class="map-meta">{{selected_num_players}} <gametext key="GUI:Players"/></div>

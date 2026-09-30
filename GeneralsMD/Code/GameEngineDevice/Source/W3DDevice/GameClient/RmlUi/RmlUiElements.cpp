@@ -29,6 +29,7 @@
 
 #include <RmlUi/Core/ComputedValues.h>
 #include <RmlUi/Core/Core.h>
+#include <RmlUi/Core/ElementDocument.h>
 #include <RmlUi/Core/ElementUtilities.h>
 #include <RmlUi/Core/Mesh.h>
 #include <RmlUi/Core/MeshUtilities.h>
@@ -160,20 +161,22 @@ void RmlMapPreviewElement::OnUpdate()
 
 void RmlMapPreviewElement::refresh()
 {
-	Rml::String mapName = GetAttribute<Rml::String>("map", "");
-	if (mapName.empty())
-	{
-		SetInnerRML("");
-		return;
-	}
+	// The art is this element's first child, so children in the markup (start markers) stay on top
+	// of it and are placed on the image itself.
+	Rml::Element *art = GetFirstChild();
+	if (art && !art->IsClassSet("mp-art"))
+		art = nullptr;
 
+	Rml::String mapName = GetAttribute<Rml::String>("map", "");
 	// getMapPreviewImage() both generates (first use) and registers the map's preview .tga into
 	// TheMappedImageCollection, then returns it -- same call SkirmishGameOptionsMenu.cpp's
 	// positionStartSpots() makes for the .wnd map preview window.
-	Image *image = getMapPreviewImage(AsciiString(mapName.c_str()));
+	Image *image = mapName.empty() ? nullptr : getMapPreviewImage(AsciiString(mapName.c_str()));
 	if (!image)
 	{
-		SetInnerRML("");
+		if (art)
+			RemoveChild(art);
+		fitToAspect(0.0f);
 		return;
 	}
 
@@ -185,12 +188,48 @@ void RmlMapPreviewElement::refresh()
 	int bottom = (int)(uv->hi.y * space + 0.5f);
 	RmlInsetTexelRect(left, top, right, bottom, image->getTextureSize()->x, image->getTextureSize()->y);
 
-	char rml[512];
-	_snprintf_s(rml, sizeof(rml), _TRUNCATE,
-		"<img style=\"width:100%%;height:100%%;\" src=\"/%s\" rect=\"%d %d %d %d\"/>",
-		image->getFilename().str(), left, top, right - left, bottom - top);
+	if (!art)
+	{
+		Rml::ElementPtr created = GetOwnerDocument()->CreateElement("img");
+		created->SetClass("mp-art", true);
+		art = GetFirstChild() ? InsertBefore(std::move(created), GetFirstChild()) : AppendChild(std::move(created));
+	}
 
-	SetInnerRML(rml);
+	char rect[64];
+	_snprintf_s(rect, sizeof(rect), _TRUNCATE, "%d %d %d %d", left, top, right - left, bottom - top);
+	art->SetAttribute("src", Rml::String("/") + image->getFilename().str());
+	art->SetAttribute("rect", Rml::String(rect));
+
+	const float width = (uv->hi.x - uv->lo.x) * (float)image->getTextureSize()->x;
+	const float height = (uv->hi.y - uv->lo.y) * (float)image->getTextureSize()->y;
+	fitToAspect(height > 0.0f ? width / height : 0.0f);
+}
+
+// A map's own preview can have any shape: it is letterboxed, centred in its (square) frame, never
+// stretched. Percentage margins resolve against the frame's width, which equals its height.
+// fit="fill" keeps the element's own size (full-bleed load screen art).
+void RmlMapPreviewElement::fitToAspect(float aspect)
+{
+	if (aspect <= 0.0f || GetAttribute<Rml::String>("fit", "") == "fill")
+	{
+		RemoveProperty("width");
+		RemoveProperty("height");
+		RemoveProperty("margin-left");
+		RemoveProperty("margin-top");
+		return;
+	}
+
+	const float widthPct = aspect >= 1.0f ? 100.0f : 100.0f * aspect;
+	const float heightPct = aspect >= 1.0f ? 100.0f / aspect : 100.0f;
+	char value[32];
+	_snprintf_s(value, sizeof(value), _TRUNCATE, "%.3f%%", widthPct);
+	SetProperty("width", value);
+	_snprintf_s(value, sizeof(value), _TRUNCATE, "%.3f%%", heightPct);
+	SetProperty("height", value);
+	_snprintf_s(value, sizeof(value), _TRUNCATE, "%.3f%%", (100.0f - widthPct) * 0.5f);
+	SetProperty("margin-left", value);
+	_snprintf_s(value, sizeof(value), _TRUNCATE, "%.3f%%", (100.0f - heightPct) * 0.5f);
+	SetProperty("margin-top", value);
 }
 
 //-------------------------------------------------------------------------------------------------

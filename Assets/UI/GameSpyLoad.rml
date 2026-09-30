@@ -6,7 +6,7 @@
 	<link type="text/rcss" href="GameSpyLoad.rcss"/>
 </head>
 <body class="screen ld" data-model="onlineload">
-	<div class="ld-art"><mappreview class="ld-map-art" data-attr-map="map_name" data-if="has_map"/><mappedimage class="ld-fallback-art" data-if="!has_map" name="MDSkirmishLoadB"/></div>
+	<div class="ld-art"><mappreview class="ld-map-art" fit="fill" data-attr-map="map_name" data-if="has_map"/><mappedimage class="ld-fallback-art" data-if="!has_map" name="MDSkirmishLoadB"/></div>
 	<div class="ld-scrim"></div>
 	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
@@ -31,12 +31,13 @@
 			<div class="spacer"></div>
 			<div class="surface ld-map-card" data-if="has_map">
 				<div class="map-frame ld-map-frame">
-					<mappreview class="map-image" data-attr-map="map_name"/>
-					<div data-for="marker : markers">
-						<div class="marker" data-if="marker.used" data-style-left="marker.x_style" data-style-top="marker.y_style">
-							<div class="marker-dot" data-style-border-color="marker.has_label ? marker.color_hex : '#FFFFFF78'">{{marker.has_label ? marker.label : ''}}</div>
+					<mappreview class="map-image" data-attr-map="map_name">
+						<div data-for="marker : markers">
+							<div class="marker" data-if="marker.used" data-style-left="marker.x_style" data-style-top="marker.y_style">
+								<div class="marker-dot" data-style-border-color="marker.has_label ? marker.color_hex : '#FFFFFF78'">{{marker.has_label ? marker.label : ''}}</div>
+							</div>
 						</div>
-					</div>
+					</mappreview>
 				</div>
 			</div>
 		</div>

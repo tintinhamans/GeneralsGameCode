@@ -1915,10 +1915,10 @@ label.check:hover
 }
 
 /* ---- Map card: a map preview with numbered start positions, its name under it ---------------
-	<div class="map-frame"><mappreview class="map-image" data-attr-map=".."/>
+	<div class="map-frame"><mappreview class="map-image" data-attr-map="..">
 		<div data-for="marker : start_markers"><div class="marker" data-if="marker.used"
 			data-style-left="marker.x_style" data-style-top="marker.y_style">
-			<div class="marker-dot">{{marker.position + 1}}</div></div></div></div>
+			<div class="marker-dot">{{marker.position + 1}}</div></div></div></mappreview></div>
 	<div class="map-name">..</div> <div class="map-meta">..</div> */
 .group-title
 {
@@ -1938,6 +1938,22 @@ label.check:hover
 .map-image
 {
 	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* <mappreview> letterboxes the map's own art (any aspect) inside its frame and draws it as its first
+   child, .mp-art; start markers go inside the <mappreview> so they sit on the image. */
+mappreview
+{
+	position: relative;
+}
+
+mappreview .mp-art
+{
+	position: absolute;
+	left: 0;
+	top: 0;
 	width: 100%;
 	height: 100%;
 }

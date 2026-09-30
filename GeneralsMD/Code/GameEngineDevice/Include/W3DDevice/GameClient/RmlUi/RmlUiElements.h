@@ -101,6 +101,7 @@ protected:
 
 private:
 	void refresh();
+	void fitToAspect(float aspect);
 
 	// Rebuilt on update, after the parser has added any children (e.g. a <select> copying an option).
 	bool m_dirty = false;

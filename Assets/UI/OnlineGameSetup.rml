@@ -95,17 +95,18 @@
 			<div class="col col-side">
 				<div class="surface map-card">
 					<div class="map-frame">
-						<mappreview class="map-image" data-attr-map="map_name" data-if="map_found"/>
-						<div class="map-missing" data-if="!map_found"><gametext key="GUI:CantFindMap"/></div>
-						<div data-for="marker : start_markers">
-							<div class="marker" data-if="marker.used" data-class-occupied="marker.is_occupied"
-								data-style-left="marker.x_style" data-style-top="marker.y_style"
-								data-event-click="start_marker_clicked(marker.position)"
-								data-event-mousedown="start_marker_mousedown(marker.position)">
-								<div class="marker-dot" data-style-background-color="marker.color_hex">{{marker.position + 1}}</div>
-								<div class="marker-label" data-if="marker.is_occupied"><span>{{marker.occupant_label}}</span></div>
+						<mappreview class="map-image" data-attr-map="map_name" data-if="map_found">
+							<div data-for="marker : start_markers">
+								<div class="marker" data-if="marker.used" data-class-occupied="marker.is_occupied"
+									data-style-left="marker.x_style" data-style-top="marker.y_style"
+									data-event-click="start_marker_clicked(marker.position)"
+									data-event-mousedown="start_marker_mousedown(marker.position)">
+									<div class="marker-dot" data-style-background-color="marker.color_hex">{{marker.position + 1}}</div>
+									<div class="marker-label" data-if="marker.is_occupied"><span>{{marker.occupant_label}}</span></div>
+								</div>
 							</div>
-						</div>
+						</mappreview>
+						<div class="map-missing" data-if="!map_found"><gametext key="GUI:CantFindMap"/></div>
 					</div>
 					<div class="map-row">
 						<div class="map-name">{{map_display_text}}</div>
