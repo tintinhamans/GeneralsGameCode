@@ -1,17 +1,12 @@
 /*
-	ChallengeMenu.rcss -- ChallengeMenu.wnd (main menu > Single Player > Generals Challenge). Everything is
-	placed in percent of the screen from the .wnd's 800x600 rects (the .wnd stretches non-uniformly to the
-	screen too), so the medallions stay on their spots of the world map art. The capsule buttons come
-	from common.rcss; the medallions are three stacked images swapped by hover and selection.
+	ChallengeMenu.rcss -- the Generals Challenge general select (ChallengeMenu.wnd), on the screen
+	template of common.rcss over the shell map. A grid of the generals the challenge starts with
+	(portrait, medallion and name), the dossier of the one under the cursor or chosen beside it,
+	typed out like the .wnd's, and Play once one is chosen.
 */
 
-.ch-screen
+.ch-frame
 {
-	position: absolute;
-	left: 0;
-	top: 0;
-	width: 100%;
-	height: 100%;
 	animation: 0.4s linear-in-out 1 ch-fade-in; /* ChallengeMenuFade */
 }
 
@@ -21,197 +16,232 @@
 	to { opacity: 1; }
 }
 
-.ch-background
+/* ---- Grid ------------------------------------------------------------------------------------ */
+.ch-grid-scroll
 {
-	pointer-events: none;
+	flex: 1 1 0%;
+	min-height: 0;
+}
+
+.ch-grid
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-content: flex-start;
+}
+
+.ch-slot
+{
 	display: block;
-	position: absolute;
-	left: 0;
-	top: 0;
-	width: 100%;
-	height: 100%;
+	margin: 0 16dp 16dp 0;
 }
 
-/* Frame (41,40)-(760,561), the title and the line under it (Line1 at y 78). */
-.ch-frame
+.screen button.ch-tile
 {
-	pointer-events: none;
-	position: absolute;
-	left: 5.125%;
-	top: 6.667%;
-	width: 89.875%;
-	height: 86.833%;
+	display: block;
+	position: relative;
 	box-sizing: border-box;
-	border: 1dp #FFFFFF;
-}
-
-.ch-title
-{
-	pointer-events: none;
-	position: absolute;
-	left: 5.75%;
-	top: 7.667%;
-	font-size: 40dp;
-	font-weight: bold;
-	color: #FFFFFF;
-	white-space: nowrap;
-}
-
-.ch-title-line
-{
-	pointer-events: none;
-	position: absolute;
-	left: 5.25%;
-	top: 13%;
-	width: 89.75%;
-	height: 1dp;
-	background-color: #FFFFFF;
-}
-
-/* ---- Medallions ---------------------------------------------------------------------------
-   normal art; the hilite art under the cursor; the selected art once chosen, hovered or not. */
-.ch-general,
-.ch-general:hover,
-.ch-general:active
-{
-	decorator: none;
-	font-effect: none;
-	position: absolute;
+	width: 212dp;
+	height: auto;
 	padding: 0;
-	margin: 0;
-	border-width: 0;
-	background-color: transparent;
+	line-height: 24dp;
+	text-align: left;
+	letter-spacing: 0;
+	background-color: #070A1AE6;
+	border: 1dp #8080FF28;
+	border-bottom: 4dp #2F37A8;
+	transition: background-color border-color 0.12s cubic-out;
 }
 
-.ch-general mappedimage
+.screen button.ch-tile:hover
 {
-	display: block;
-	position: absolute;
-	left: 0;
-	top: 0;
-	width: 100%;
-	height: 100%;
-	pointer-events: none;
+	background-color: #141A3EF0;
+	border-color: #8080FF;
+	border-bottom-color: #F07A1A;
 }
 
-.ch-general mappedimage.ch-hilite,
-.ch-general mappedimage.ch-selected
+.screen button.ch-tile.selected, .screen button.ch-tile.selected:hover
 {
-	display: none;
+	background-color: #2F37A8C8;
+	border-color: #F07A1A;
+	border-bottom-color: #F07A1A;
 }
 
-.ch-general:hover mappedimage.ch-normal
-{
-	display: none;
-}
-
-.ch-general:hover mappedimage.ch-hilite
-{
-	display: block;
-}
-
-.ch-general.selected mappedimage.ch-normal,
-.ch-general.selected:hover mappedimage.ch-normal,
-.ch-general.selected mappedimage.ch-hilite,
-.ch-general.selected:hover mappedimage.ch-hilite
-{
-	display: none;
-}
-
-.ch-general.selected mappedimage.ch-selected,
-.ch-general.selected:hover mappedimage.ch-selected
-{
-	display: block;
-}
-
-/* ---- Biography panel: GeneralsBioParent (199,379)-(747,493) ---------------------------------- */
-.ch-bio
-{
-	position: absolute;
-	left: 24.875%;
-	top: 63.167%;
-	width: 68.5%;
-	height: 19%;
-	box-sizing: border-box;
-	background-color: rgba(0, 0, 50, 173);
-	border: 1dp #FFFFFF;
-}
-
-/* BioPortrait (641,386)-(738,486) */
 .ch-portrait
 {
-	position: absolute;
-	left: 80.66%;
-	top: 6.14%;
-	width: 17.7%;
-	height: 87.7%;
-	box-sizing: border-box;
-	background-color: #000000;
-	border: 1dp #FFFFFF;
+	display: block;
+	width: 210dp;
+	height: 208dp;
+	background-color: #05070F;
+	overflow: hidden;
 }
 
 .ch-portrait mappedimage
 {
 	display: block;
-	width: 100%;
-	height: 100%;
+	width: 210dp;
+	height: 208dp;
+	opacity: 0.85;
+	transition: opacity 0.12s cubic-out;
 }
 
-.ch-bio-title
+.ch-tile:hover .ch-portrait mappedimage, .ch-tile.selected .ch-portrait mappedimage
 {
+	opacity: 1;
+}
+
+/* The general's medallion over the portrait's corner: silver, blue under the cursor, orange once chosen. */
+.ch-medal
+{
+	display: block;
 	position: absolute;
-	left: 0.9%;
-	top: 3.5%;
-	font-size: 26dp;
-	color: #FFFFFF;
+	left: 8dp;
+	top: 150dp;
+	width: 50dp;
+	height: 50dp;
+}
+
+.ch-medal mappedimage
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 50dp;
+	height: 50dp;
+}
+
+.ch-medal .ch-hilite, .ch-medal .ch-selected,
+.ch-tile:hover .ch-medal .ch-normal,
+.ch-tile.selected .ch-medal .ch-normal, .ch-tile.selected .ch-medal .ch-hilite
+{
+	display: none;
+}
+
+.ch-tile:hover .ch-medal .ch-hilite, .ch-tile.selected .ch-medal .ch-selected
+{
+	display: block;
+}
+
+.ch-name
+{
+	display: block;
+	padding: 10dp 12dp 10dp 12dp;
+	font-size: 19dp;
+	line-height: 24dp;
+	font-weight: bold;
+	color: #D7DCF0;
 	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ch-tile:hover .ch-name, .ch-tile.selected .ch-name
+{
+	color: #FFFFFF;
+}
+
+/* ---- Dossier ---------------------------------------------------------------------------------- */
+.col-side .surface.ch-bio
+{
+	width: 480dp;
+	padding: 20dp 24dp 24dp 24dp;
+	border-left: 4dp #F07A1A;
+}
+
+.ch-bio-portrait
+{
+	display: block;
+	width: 330dp;
+	height: 327dp;
+	margin: 0 auto 18dp auto;
+	background-color: #05070F;
+	border: 1dp #8080FF46;
+}
+
+.ch-bio-portrait mappedimage
+{
+	display: block;
+	width: 330dp;
+	height: 327dp;
+}
+
+.ch-bio-empty
+{
+	display: block;
+	line-height: 327dp;
+	text-align: center;
+	font-size: 120dp;
+	font-weight: bold;
+	color: #8080FF28;
+}
+
+.ch-bio-hint
+{
+	display: block;
+	margin-top: 10dp;
+	font-size: 19dp;
+	line-height: 26dp;
+	color: #A9B1CF;
+}
+
+.ch-bio-body
+{
+	display: block;
+}
+
+.ch-bio-name
+{
+	display: block;
+	min-height: 40dp;
+	margin: 4dp 0 10dp 0;
+	font-size: 32dp;
+	line-height: 40dp;
+	font-weight: bold;
+	color: #FFFFFF;
 }
 
 .ch-bio-row
 {
-	position: absolute;
-	left: 0.9%;
-	width: 77%;
-	height: 15%;
 	display: flex;
 	flex-direction: row;
-	font-size: 18dp;
-	font-weight: bold;
-	color: #FFFFFF;
-	white-space: nowrap;
+	padding: 7dp 0;
+	border-top: 1dp #8080FF1E;
 }
-
-.ch-row0 { top: 22.8%; }
-.ch-row1 { top: 36.8%; }
-.ch-row2 { top: 50.9%; }
-.ch-row3 { top: 64.9%; }
 
 .ch-bio-label
 {
-	flex: 0 0 21.4%;
+	flex: 0 0 110dp;
+	font-size: 15dp;
+	line-height: 25dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #8089B0;
 }
 
 .ch-bio-entry
 {
-	flex: 1 1 auto;
+	flex: 1 1 0%;
 	min-width: 0;
-	overflow: hidden;
+	min-height: 25dp;
+	font-size: 19dp;
+	line-height: 25dp;
+	color: #EEF1FA;
 }
 
-/* ---- Play / Back: (382,505)-(554,541) and (576,505)-(748,541) ---------------------------------- */
-.ch-play,
-.ch-back
+/* ---- 5:4 and 4:3: smaller tiles and a narrower dossier ---------------------------------------- */
+@media (max-aspect-ratio: 3/2)
 {
-	position: absolute;
-	top: 84.167%;
-	width: 21.5%;
-	height: 6%;
-	padding: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 20dp;
+	.screen button.ch-tile { width: 172dp; }
+	.ch-portrait, .ch-portrait mappedimage { width: 170dp; height: 168dp; }
+	.ch-medal { top: 112dp; width: 46dp; height: 46dp; }
+	.ch-medal mappedimage { width: 46dp; height: 46dp; }
+	.ch-slot { margin: 0 12dp 12dp 0; }
+	.ch-name { font-size: 17dp; padding: 8dp 10dp; }
+	.col-side .surface.ch-bio { width: 380dp; }
+	.ch-bio-portrait, .ch-bio-portrait mappedimage { width: 280dp; height: 277dp; }
+	.ch-bio-empty { line-height: 277dp; }
+	.ch-bio-name { font-size: 28dp; line-height: 34dp; min-height: 34dp; }
 }
-
-.ch-play { left: 47.75%; }
-.ch-back { left: 72%; }

@@ -68,6 +68,8 @@ private:
 		Rml::String top;
 		Rml::String size;
 		bool selected = false;
+		Rml::String portraitImage; // small bio portrait
+		Rml::String name; // bio name
 	};
 
 	struct Model
@@ -76,6 +78,7 @@ private:
 		bool showBio = false;
 		bool hasPortrait = false;
 		Rml::String portraitImage;
+		Rml::String portraitLargeImage;
 		Rml::String bioName, bioRank, bioBranch, bioStrategy;
 		bool showPlay = false;
 	};

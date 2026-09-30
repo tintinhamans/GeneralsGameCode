@@ -45,6 +45,8 @@ struct ChallengeMenuData
 		const Image *m_normal = nullptr;
 		const Image *m_hilite = nullptr;
 		const Image *m_selected = nullptr;
+		const Image *m_portrait = nullptr; ///< the small bio portrait, for views that show every general
+		UnicodeString m_name; ///< the bio name
 	};
 
 	void open(); ///< read the generals, clear the selection and the bio
@@ -58,6 +60,7 @@ struct ChallengeMenuData
 
 	Bool m_bioVisible = FALSE; ///< hidden until a bio was shown
 	const Image *m_portrait = nullptr;
+	const Image *m_portraitLarge = nullptr; ///< the same general's large portrait
 	UnicodeString m_bioText[BIO_LINES]; ///< the full lines
 	UnicodeString m_bioShown[BIO_LINES]; ///< what was typed so far
 	Int m_bioPosition = 0;

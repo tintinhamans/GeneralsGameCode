@@ -20,6 +20,7 @@
 #include "Common/UnicodeUtf8.h"
 
 #include "GameClient/Image.h"
+#include "GameClient/TransitionSounds.h"
 #include "GameClient/GUI/GUICallbacks/Menus/ChallengeMenuActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/ChallengeMenuData.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
@@ -85,6 +86,8 @@ void RmlChallengeMenuScreen::load(Rml::Context *context)
 			generalHandle.RegisterMember("top", &GeneralModel::top);
 			generalHandle.RegisterMember("size", &GeneralModel::size);
 			generalHandle.RegisterMember("selected", &GeneralModel::selected);
+			generalHandle.RegisterMember("portrait_image", &GeneralModel::portraitImage);
+			generalHandle.RegisterMember("name", &GeneralModel::name);
 		}
 		constructor.RegisterArray<Rml::Vector<GeneralModel>>();
 
@@ -92,6 +95,7 @@ void RmlChallengeMenuScreen::load(Rml::Context *context)
 		constructor.Bind("show_bio", &m_model.showBio);
 		constructor.Bind("has_portrait", &m_model.hasPortrait);
 		constructor.Bind("portrait_image", &m_model.portraitImage);
+		constructor.Bind("portrait_large_image", &m_model.portraitLargeImage);
 		constructor.Bind("bio_name", &m_model.bioName);
 		constructor.Bind("bio_rank", &m_model.bioRank);
 		constructor.Bind("bio_branch", &m_model.bioBranch);
@@ -137,12 +141,15 @@ void RmlChallengeMenuScreen::refresh()
 		general.size = size;
 
 		general.selected = i == data.m_selected;
+		general.portraitImage = imageName(src.m_portrait);
+		general.name = unicodeToUtf8(src.m_name);
 		m_model.generals.push_back(general);
 	}
 
 	m_model.showBio = data.m_bioVisible;
 	m_model.hasPortrait = data.m_portrait != nullptr;
 	m_model.portraitImage = imageName(data.m_portrait);
+	m_model.portraitLargeImage = imageName(data.m_portraitLarge ? data.m_portraitLarge : data.m_portrait);
 	m_model.bioName = unicodeToUtf8(data.m_bioShown[0]);
 	m_model.bioRank = unicodeToUtf8(data.m_bioShown[1]);
 	m_model.bioBranch = unicodeToUtf8(data.m_bioShown[2]);
@@ -168,6 +175,9 @@ void RmlChallengeMenuScreen::open()
 	refresh();
 
 	m_document->Show(Rml::ModalFlag::Modal);
+
+	// ChallengeMenuUpdate()'s entrance group, and ChallengeMenuShutdown()'s reverse below.
+	TransitionSounds::play("ChallengeMenuFade");
 }
 
 void RmlChallengeMenuScreen::close()
@@ -177,7 +187,10 @@ void RmlChallengeMenuScreen::close()
 		m_active = false;
 
 		// Play hides the shell for the game, which the score screen needs the game info of
-		ChallengeMenuActions::close(ChallengeMenuData::instance().m_gameStarting);
+		const Bool gameStarting = ChallengeMenuData::instance().m_gameStarting;
+		ChallengeMenuActions::close(gameStarting);
+		if (!gameStarting)
+			TransitionSounds::play("ChallengeMenuFade", TRUE);
 	}
 
 	if (m_document)

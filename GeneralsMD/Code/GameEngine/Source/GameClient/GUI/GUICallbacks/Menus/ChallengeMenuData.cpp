@@ -37,6 +37,8 @@ void ChallengeMenuData::open()
 		General &general = m_generals[i];
 		general = General();
 		general.m_enabled = generals[i].isStartingEnabled();
+		general.m_portrait = generals[i].getBioPortraitSmall();
+		general.m_name = TheGameText->fetch( generals[i].getBioName() );
 
 		Int templateNum = ThePlayerTemplateStore->getTemplateNumByName( generals[i].getPlayerTemplateName() );
 		const PlayerTemplate *playerTemplate = ThePlayerTemplateStore->getNthPlayerTemplate( templateNum );
@@ -51,6 +53,7 @@ void ChallengeMenuData::open()
 	m_selected = -1;
 	m_bioVisible = FALSE;
 	m_portrait = nullptr;
+	m_portraitLarge = nullptr;
 	for( Int i = 0; i < BIO_LINES; ++i )
 	{
 		m_bioText[i].clear();
@@ -71,6 +74,7 @@ void ChallengeMenuData::showBio( Int general )
 
 	const GeneralPersona &persona = TheChallengeGenerals->getChallengeGenerals()[general];
 	m_portrait = persona.getBioPortraitSmall();
+	m_portraitLarge = persona.getBioPortraitLarge();
 
 	m_bioPosition = 0;
 	m_bioText[0] = TheGameText->fetch( persona.getBioName() );

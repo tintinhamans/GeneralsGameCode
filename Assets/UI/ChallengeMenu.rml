@@ -4,32 +4,63 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="ChallengeMenu.rcss"/>
 </head>
-<body class="shell" data-model="challengemenu">
-	<div class="ch-screen">
-		<mappedimage class="ch-background" name="GCBackgroundMinSpec"/>
-		<div class="ch-frame"></div>
-		<div class="ch-title"><gametext key="GUI:GeneralsChallenge"/></div>
-		<div class="ch-title-line"></div>
+<body class="screen" data-model="challengemenu">
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
-		<button class="ch-general" data-for="g : generals" data-class-selected="g.selected"
-			data-style-left="g.left" data-style-top="g.top" data-style-width="g.size" data-style-height="g.size"
-			data-event-mouseover="hover(g.index)" data-event-mouseout="unhover(g.index)" data-event-mousedown="select(g.index)">
-			<mappedimage class="ch-normal" data-attr-name="g.normal_image"/>
-			<mappedimage class="ch-hilite" data-attr-name="g.hilite_image"/>
-			<mappedimage class="ch-selected" data-attr-name="g.selected_image"/>
-		</button>
-
-		<div class="ch-bio" data-if="show_bio">
-			<div class="ch-portrait"><mappedimage data-attr-name="portrait_image" data-if="has_portrait"/></div>
-			<div class="ch-bio-title"><gametext key="GUI:Biography"/></div>
-			<div class="ch-bio-row ch-row0"><div class="ch-bio-label"><gametext key="GUI:BioName"/></div><div class="ch-bio-entry">{{bio_name}}</div></div>
-			<div class="ch-bio-row ch-row1"><div class="ch-bio-label"><gametext key="GUI:BioRank"/></div><div class="ch-bio-entry">{{bio_rank}}</div></div>
-			<div class="ch-bio-row ch-row2"><div class="ch-bio-label"><gametext key="GUI:BioBranch"/></div><div class="ch-bio-entry">{{bio_branch}}</div></div>
-			<div class="ch-bio-row ch-row3"><div class="ch-bio-label"><gametext key="GUI:BioStrategy"/></div><div class="ch-bio-entry">{{bio_strategy}}</div></div>
+	<div class="screen-frame ch-frame">
+		<div class="screen-header">
+			<div class="screen-heading">
+				<div class="screen-crumb"><gametext key="GUI:SinglePlayer"/><span class="crumb-sep">&#8250;</span></div>
+				<div class="screen-title"><gametext key="GUI:GeneralsChallenge"/></div>
+			</div>
 		</div>
 
-		<button class="ch-play" data-if="show_play" data-event-click="play"><gametext key="GUI:Start"/></button>
-		<button class="ch-back" data-event-click="back"><gametext key="GUI:BACK"/></button>
+		<div class="screen-body">
+			<!-- Every general the challenge starts with: portrait, name and medallion. Hover previews the
+			     bio, a press chooses (like the .wnd's medallions, on mouse down). -->
+			<div class="col col-main">
+				<div class="scroll-container ch-grid-scroll">
+					<div class="ch-grid">
+						<div class="ch-slot" data-for="g : generals">
+							<button class="ch-tile" data-class-selected="g.selected"
+								data-event-mouseover="hover(g.index)" data-event-mouseout="unhover(g.index)" data-event-mousedown="select(g.index)">
+								<div class="ch-portrait"><mappedimage data-if="g.portrait_image != ''" data-attr-name="g.portrait_image"/></div>
+								<div class="ch-medal">
+									<mappedimage class="ch-normal" data-attr-name="g.normal_image"/>
+									<mappedimage class="ch-hilite" data-attr-name="g.hilite_image"/>
+									<mappedimage class="ch-selected" data-attr-name="g.selected_image"/>
+								</div>
+								<div class="ch-name">{{g.name}}</div>
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- The dossier of the general under the cursor, else the chosen one, typed out like the .wnd's. -->
+			<div class="col col-side">
+				<div class="surface ch-bio">
+					<div class="ch-bio-portrait">
+						<mappedimage data-if="show_bio &amp;&amp; has_portrait" data-attr-name="portrait_large_image"/>
+						<div class="ch-bio-empty" data-if="!show_bio">?</div>
+					</div>
+					<div class="overline accent-overline ch-bio-overline"><gametext key="GUI:Biography"/></div>
+					<div class="ch-bio-hint" data-if="!show_bio"><gametext key="GUI:GOChallengeHint"/></div>
+					<div class="ch-bio-body" data-if="show_bio">
+						<div class="ch-bio-name">{{bio_name}}</div>
+						<div class="ch-bio-row"><div class="ch-bio-label"><gametext key="GUI:BioRank"/></div><div class="ch-bio-entry">{{bio_rank}}</div></div>
+						<div class="ch-bio-row"><div class="ch-bio-label"><gametext key="GUI:BioBranch"/></div><div class="ch-bio-entry">{{bio_branch}}</div></div>
+						<div class="ch-bio-row"><div class="ch-bio-label"><gametext key="GUI:BioStrategy"/></div><div class="ch-bio-entry">{{bio_strategy}}</div></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="action-bar">
+			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:BACK"/></button>
+			<div class="spacer"></div>
+			<button class="btn-cta" data-attrif-disabled="!show_play" data-event-click="play"><gametext key="GUI:Start"/></button>
+		</div>
 	</div>
 </body>
 </rml>
