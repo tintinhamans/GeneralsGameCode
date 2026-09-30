@@ -134,9 +134,9 @@
 					<scrolllog class="chat-log">
 						<div class="chat-line" data-for="line : chat_lines"><span data-style-color="line.color">{{line.text}}</span></div>
 					</scrolllog>
-					<div class="chat-entry">
+					<div class="chat-entry send-row">
 						<input type="text" class="chat-input" maxlength="128" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-						<button class="icon-btn" data-event-click="send_chat" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
+						<button class="chat-send" data-event-click="send_chat" data-tooltip="TOOLTIP:EmoteButton"><span class="send-arrow"></span></button>
 					</div>
 				</div>
 			</div>

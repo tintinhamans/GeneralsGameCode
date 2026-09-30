@@ -270,20 +270,6 @@
 	margin-right: 10dp;
 }
 
-.screen .chat-entry .icon-btn
-{
-	width: 50dp;
-	height: 50dp;
-	padding: 10dp;
-	background-color: #2F37A8D2;
-	border: 1dp #8080FF;
-}
-
-.screen .chat-entry .icon-btn:hover
-{
-	background-color: #3A46D0;
-}
-
 /* ---- Details panel -------------------------------------------------------------------------- */
 .detail-name
 {

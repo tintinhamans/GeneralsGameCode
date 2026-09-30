@@ -96,10 +96,10 @@
 					<scrolllog class="scroll-container ss-chat-log">
 						<div class="ss-chat-line" data-for="line : chat_lines">{{line}}</div>
 					</scrolllog>
-					<div class="ss-chat-entry" data-if="show_chat_entry">
+					<div class="ss-chat-entry send-row" data-if="show_chat_entry">
 						<input type="text" class="chat-input" maxlength="128" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-						<button class="icon-btn" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
-						<button class="icon-btn" data-if="show_emote_button" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
+						<button class="chat-send" data-event-click="send_chat"><span class="send-arrow"></span></button>
+						<button class="chat-send emote" data-if="show_emote_button" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><span class="send-emote">*</span></button>
 					</div>
 				</div>
 			</div>

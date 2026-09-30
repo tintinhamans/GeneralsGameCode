@@ -49,9 +49,9 @@
 						<span data-if="line.used" data-style-color="line.color">{{line.text}}</span>
 					</div>
 				</scrolllog>
-				<div class="bo-entry">
+				<div class="bo-entry send-row">
 					<input type="text" class="chat-input" maxlength="64" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-					<button class="icon-btn bo-send" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
+					<button class="chat-send" data-event-click="send_chat"><span class="send-arrow"></span></button>
 				</div>
 			</div>
 		</div>

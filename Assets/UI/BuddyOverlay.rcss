@@ -239,28 +239,6 @@
 	margin-right: 10dp;
 }
 
-.screen .bo-entry .icon-btn
-{
-	flex: 0 0 auto;
-	width: 50dp;
-	height: 50dp;
-	padding: 10dp;
-	background-color: #2F37A8D2;
-	border: 1dp #8080FF;
-}
-
-.screen .bo-entry .icon-btn:hover
-{
-	background-color: #3A46D0;
-}
-
-.bo-entry .icon-btn mappedimage
-{
-	display: block;
-	width: 28dp;
-	height: 28dp;
-}
-
 /* ---- Block list --------------------------------------------------------------------------------- */
 .bo-blocked
 {

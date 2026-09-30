@@ -125,10 +125,10 @@
 					<scrolllog class="chat-log">
 						<div class="chat-line" data-for="line : chat_lines">{{line}}</div>
 					</scrolllog>
-					<div class="chat-entry">
+					<div class="chat-entry send-row">
 						<!-- Enter sends chat; the button beside it sends the line as an emote, as ButtonEmote does. -->
 						<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-						<button class="icon-btn" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><mappedimage name="ReturnButton"/></button>
+						<button class="chat-send" data-event-click="send_emote" data-tooltip="TOOLTIP:EmoteButton"><span class="send-arrow"></span></button>
 					</div>
 				</div>
 			</div>

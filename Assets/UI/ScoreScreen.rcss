@@ -480,34 +480,6 @@ body.ss
 	margin-right: 10dp;
 }
 
-.screen .ss-chat-entry .icon-btn
-{
-	flex: 0 0 auto;
-	width: 50dp;
-	height: 50dp;
-	margin-left: 0;
-	padding: 10dp;
-	background-color: #2F37A8D2;
-	border: 1dp #8080FF;
-}
-
-.screen .ss-chat-entry .icon-btn + .icon-btn
-{
-	margin-left: 10dp;
-}
-
-.screen .ss-chat-entry .icon-btn:hover
-{
-	background-color: #3A46D0;
-}
-
-.ss-chat-entry .icon-btn mappedimage
-{
-	display: block;
-	width: 28dp;
-	height: 28dp;
-}
-
 /* ---- Action bar ------------------------------------------------------------------------------------ */
 .ss-saved
 {

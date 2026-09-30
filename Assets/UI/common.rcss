@@ -56,6 +56,8 @@
 	                .text-list, .text-line         bordered pane of plain text lines (status feed, MOTD)
 	  Chat          .chat > .chat-log > .chat-line       fixed-height block: scrolling lines ...
 	                     > .chat-entry > .chat-input + .icon-btn   ... over the entry row
+	                .send-row > .chat-input + button.chat-send     redesigned screens: the input and an
+	                                               accent send arrow as one control (see Chat entry)
 	                <scrolllog>                    scrolling pane that stays at its newest line unless
 	                                               the user scrolled up; use it for .chat-log and log-style
 	                                               .text-list panes (plain <div> for ones that start at the top)
@@ -1761,6 +1763,77 @@ label.check:hover
 {
 	border-color: #8080FF;
 	background-color: #0B1030E6;
+}
+
+/* ---- Chat entry: the input with its send button flush to its right -------------------------
+	<div class="chat-entry send-row"><input type="text" class="chat-input"/>
+		<button class="chat-send" data-event-click="send_chat"><span class="send-arrow"></span></button>
+		<button class="chat-send emote" data-event-click="send_emote"><span class="send-emote">*</span></button></div>
+	The row's own class keeps its spacing; send-row joins the input and the button(s) into one control
+	of the input's height. The arrow is the accent, drawn with borders (no glyph needed). */
+.screen .send-row .chat-input
+{
+	margin-right: 0;
+}
+
+.screen .send-row button.chat-send
+{
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	align-self: stretch;
+	width: 52dp;
+	height: auto;
+	min-width: 0;
+	padding: 0;
+	margin-left: -1dp;
+	line-height: 1;
+	background-color: #0B1030E6;
+	border: 1dp #8080FF3C;
+}
+
+.screen .send-row button.chat-send:hover
+{
+	background-color: #2F37A8D2;
+	border-color: #F07A1A;
+}
+
+.screen .send-row button.chat-send:active
+{
+	background-color: #1E246EE6;
+	border-color: #F07A1A;
+}
+
+.chat-send .send-arrow
+{
+	display: block;
+	width: 0;
+	height: 0;
+	margin-left: 4dp;
+	border-left: 16dp #F07A1A;
+	border-top: 10dp transparent;
+	border-bottom: 10dp transparent;
+}
+
+.chat-send:hover .send-arrow
+{
+	border-left-color: #FF9A3D;
+}
+
+.chat-send .send-emote
+{
+	display: block;
+	margin-top: 16dp;
+	font-size: 44dp;
+	line-height: 44dp;
+	font-weight: bold;
+	color: #F07A1A;
+}
+
+.chat-send:hover .send-emote
+{
+	color: #FF9A3D;
 }
 
 /* ---- Scrollbar: slim, lit on hover -------------------------------------------------------- */

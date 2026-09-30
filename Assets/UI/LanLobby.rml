@@ -53,9 +53,9 @@
 						<scrolllog class="chat-lines">
 							<div class="chat-row" data-for="line : chat_lines">{{line}}</div>
 						</scrolllog>
-						<div class="chat-entry">
+						<div class="chat-entry send-row">
 							<input type="text" class="chat-input" data-value="chat_entry_text" data-event-change="chat_entry_committed"/>
-							<button class="icon-btn" data-event-click="send_chat"><mappedimage name="ReturnButton"/></button>
+							<button class="chat-send" data-event-click="send_chat"><span class="send-arrow"></span></button>
 						</div>
 					</div>
 					<div class="roster">
