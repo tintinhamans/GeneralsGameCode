@@ -50,6 +50,9 @@ struct LanLobbyGameRow
 	LANGameInfo *m_game = nullptr;
 	UnicodeString m_displayName; // host's player name, bracketed like "[Name]" while in progress
 	Bool m_inProgress = FALSE;
+	UnicodeString m_mapDisplayName;
+	Int m_numPlayers = 0;
+	Int m_maxPlayers = 0;
 };
 
 // One slot of a selected game's details panel (mirrors GameInfoWindow.cpp's RefreshGameInfoWindow).
@@ -62,6 +65,7 @@ struct LanLobbyGameDetailSlot
 	UnicodeString m_label; // player name, or the AI difficulty's localized label
 	AsciiString m_sideIconImage; // side icon image name; empty when none applies (random/observer)
 	Int m_colorIndex = -1;
+	UnsignedInt m_rgb = 0; // 0x00RRGGBB of m_colorIndex, 0 when it has none
 };
 
 // A selected game's details (mirrors GameInfoWindow.cpp's RefreshGameInfoWindow contents).
@@ -70,6 +74,10 @@ struct LanLobbyGameDetails
 	Bool m_valid = FALSE;
 	UnicodeString m_gameName;
 	UnicodeString m_mapDisplayName;
+	AsciiString m_mapName; // the map's path, for its preview
+	Bool m_inProgress = FALSE;
+	Int m_numPlayers = 0;
+	Int m_maxPlayers = 0;
 	LanLobbyGameDetailSlot m_slots[MAX_SLOTS];
 };
 

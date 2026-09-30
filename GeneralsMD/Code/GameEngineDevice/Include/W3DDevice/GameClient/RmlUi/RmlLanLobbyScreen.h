@@ -106,6 +106,8 @@ private:
 	{
 		int index = 0;
 		Rml::String displayName;
+		Rml::String mapName; // display name
+		Rml::String playersText; // "3/8", or "3" when the map is not installed
 		bool inProgress = false;
 		bool isSelected = false;
 		bool used = true; // grow-only storage, see RmlGrowOnlyList.h; hidden via data-if when false
@@ -123,17 +125,23 @@ private:
 		Rml::String label;
 		Rml::String sideIconImage;
 		bool showSideIcon = false;
+		Rml::String colorHex; // the slot's colour, empty when it has none
 	};
 
 	struct Model
 	{
 		Rml::Vector<PlayerRowModel> players;
 		Rml::Vector<GameRowModel> games;
+		int playerCount = 0;
+		int gameCount = 0;
 		int selectedGameIndex = -1;
 
 		bool detailsValid = false;
 		Rml::String detailsGameName;
 		Rml::String detailsMapDisplayName;
+		Rml::String detailsMapPath;
+		Rml::String detailsPlayersText;
+		bool detailsInProgress = false;
 		Rml::Vector<GameDetailSlotModel> detailSlots;
 
 		Rml::String playerName;

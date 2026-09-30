@@ -27,6 +27,7 @@
 #include "GameClient/GUI/GUICallbacks/Menus/LanLobbyActions.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/Shell.h"
+#include "GameClient/TransitionSounds.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/LANGameInfo.h"
 #include "GameNetwork/LANPlayer.h"
@@ -36,10 +37,32 @@
 #include <RmlUi/Core/DataModelHandle.h>
 #include <RmlUi/Core/ElementDocument.h>
 
+#include <cstdio>
 #include <windows.h>
 
 extern Bool LANbuttonPushed; // LanLobbyMenu.cpp; see RmlLanLobbyScreen::update()
 extern Bool LANSocketErrorDetected; // ditto -- set by LANAPI::update() on transport failure
+
+namespace
+{
+	Rml::String rgbToHex(UnsignedInt rgb)
+	{
+		char hex[8];
+		_snprintf_s(hex, sizeof(hex), _TRUNCATE, "#%02X%02X%02X", (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+		return Rml::String(hex);
+	}
+
+	// "3/8", or just "3" when the map is not installed and its size is unknown.
+	Rml::String playersText(Int numPlayers, Int maxPlayers)
+	{
+		char text[16];
+		if (maxPlayers > 0)
+			_snprintf_s(text, sizeof(text), _TRUNCATE, "%d/%d", numPlayers, maxPlayers);
+		else
+			_snprintf_s(text, sizeof(text), _TRUNCATE, "%d", numPlayers);
+		return Rml::String(text);
+	}
+}
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -73,6 +96,8 @@ void RmlLanLobbyScreen::load(Rml::Context *context)
 		{
 			gameHandle.RegisterMember("index", &GameRowModel::index);
 			gameHandle.RegisterMember("display_name", &GameRowModel::displayName);
+			gameHandle.RegisterMember("map_name", &GameRowModel::mapName);
+			gameHandle.RegisterMember("players_text", &GameRowModel::playersText);
 			gameHandle.RegisterMember("in_progress", &GameRowModel::inProgress);
 			gameHandle.RegisterMember("is_selected", &GameRowModel::isSelected);
 			gameHandle.RegisterMember("used", &GameRowModel::used);
@@ -89,16 +114,22 @@ void RmlLanLobbyScreen::load(Rml::Context *context)
 			slotHandle.RegisterMember("label", &GameDetailSlotModel::label);
 			slotHandle.RegisterMember("side_icon_image", &GameDetailSlotModel::sideIconImage);
 			slotHandle.RegisterMember("show_side_icon", &GameDetailSlotModel::showSideIcon);
+			slotHandle.RegisterMember("color_hex", &GameDetailSlotModel::colorHex);
 		}
 		constructor.RegisterArray<Rml::Vector<GameDetailSlotModel>>();
 		constructor.RegisterArray<Rml::Vector<Rml::String>>();
 
 		constructor.Bind("players", &m_model.players);
 		constructor.Bind("games", &m_model.games);
+		constructor.Bind("player_count", &m_model.playerCount);
+		constructor.Bind("game_count", &m_model.gameCount);
 		constructor.Bind("selected_game_index", &m_model.selectedGameIndex);
 		constructor.Bind("details_valid", &m_model.detailsValid);
 		constructor.Bind("details_game_name", &m_model.detailsGameName);
 		constructor.Bind("details_map_display_name", &m_model.detailsMapDisplayName);
+		constructor.Bind("details_map_path", &m_model.detailsMapPath);
+		constructor.Bind("details_players_text", &m_model.detailsPlayersText);
+		constructor.Bind("details_in_progress", &m_model.detailsInProgress);
 		constructor.Bind("detail_slots", &m_model.detailSlots);
 		constructor.Bind("player_name", &m_model.playerName);
 		constructor.Bind("chat_entry_text", &m_model.chatEntryText);
@@ -133,6 +164,8 @@ void RmlLanLobbyScreen::show()
 	m_playerRows.endUpdate();
 	m_gameRows.beginUpdate();
 	m_gameRows.endUpdate();
+	m_model.playerCount = 0;
+	m_model.gameCount = 0;
 	m_model.selectedGameIndex = -1;
 	clearSelection();
 	m_model.chatLines.clear();
@@ -152,6 +185,9 @@ void RmlLanLobbyScreen::show()
 
 	m_document->Show();
 
+	// LanLobbyMenuUpdate()'s entrance group, and LanLobbyMenuShutdown()'s reverse in hide().
+	TransitionSounds::play("LanLobbyFade");
+
 	// Mirrors LanLobbyMenuUpdate()'s LANSocketErrorDetected handling timing: raised here so it isn't
 	// missed if SetLocalIP() failed before the signals/document were even up (see update()'s own check
 	// for the same flag on every later frame).
@@ -161,6 +197,8 @@ void RmlLanLobbyScreen::show()
 
 void RmlLanLobbyScreen::hide()
 {
+	if (m_document && m_document->IsVisible())
+		TransitionSounds::play("LanLobbyFade", TRUE);
 	if (m_document)
 		m_document->Hide();
 
@@ -208,6 +246,9 @@ void RmlLanLobbyScreen::clearSelection()
 	m_model.detailsValid = false;
 	m_model.detailsGameName.clear();
 	m_model.detailsMapDisplayName.clear();
+	m_model.detailsMapPath.clear();
+	m_model.detailsPlayersText.clear();
+	m_model.detailsInProgress = false;
 	m_model.detailSlots.clear();
 	for (Int i = 0; i < MAX_SLOTS; ++i)
 		m_model.detailSlots.push_back(GameDetailSlotModel());
@@ -224,6 +265,7 @@ void RmlLanLobbyScreen::refreshSelectedGameDetails()
 		if (m_modelHandle)
 		{
 			m_modelHandle.DirtyVariable("details_valid");
+			m_modelHandle.DirtyVariable("details_map_path");
 			m_modelHandle.DirtyVariable("detail_slots");
 		}
 		return;
@@ -235,6 +277,9 @@ void RmlLanLobbyScreen::refreshSelectedGameDetails()
 	m_model.detailsValid = details.m_valid == TRUE;
 	m_model.detailsGameName = unicodeToUtf8(details.m_gameName);
 	m_model.detailsMapDisplayName = unicodeToUtf8(details.m_mapDisplayName);
+	m_model.detailsMapPath = details.m_mapName.str();
+	m_model.detailsPlayersText = playersText(details.m_numPlayers, details.m_maxPlayers);
+	m_model.detailsInProgress = details.m_inProgress == TRUE;
 
 	m_model.detailSlots.clear();
 	for (Int i = 0; i < MAX_SLOTS; ++i)
@@ -248,6 +293,8 @@ void RmlLanLobbyScreen::refreshSelectedGameDetails()
 		slot.label = unicodeToUtf8(src.m_label);
 		slot.sideIconImage = src.m_sideIconImage.str();
 		slot.showSideIcon = src.m_sideIconImage.isNotEmpty();
+		if (src.m_colorIndex >= 0)
+			slot.colorHex = rgbToHex(src.m_rgb);
 		m_model.detailSlots.push_back(slot);
 	}
 
@@ -256,6 +303,9 @@ void RmlLanLobbyScreen::refreshSelectedGameDetails()
 		m_modelHandle.DirtyVariable("details_valid");
 		m_modelHandle.DirtyVariable("details_game_name");
 		m_modelHandle.DirtyVariable("details_map_display_name");
+		m_modelHandle.DirtyVariable("details_map_path");
+		m_modelHandle.DirtyVariable("details_players_text");
+		m_modelHandle.DirtyVariable("details_in_progress");
 		m_modelHandle.DirtyVariable("detail_slots");
 	}
 }
@@ -277,9 +327,13 @@ void RmlLanLobbyScreen::onPlayerListChanged(LANPlayer *playerList)
 		player.tooltip = unicodeToUtf8(row.m_tooltip);
 	}
 	m_playerRows.endUpdate();
+	m_model.playerCount = (int)rows.size();
 
 	if (m_modelHandle)
+	{
 		m_modelHandle.DirtyVariable("players");
+		m_modelHandle.DirtyVariable("player_count");
+	}
 }
 
 // LanLobbySignals::gameList target (see LANAPI::OnGameList()). Same full-snapshot-rebuild reasoning as
@@ -296,11 +350,14 @@ void RmlLanLobbyScreen::onGameListChanged(LANGameInfo *gameList)
 		GameRowModel &game = m_gameRows.next();
 		game.index = i;
 		game.displayName = unicodeToUtf8(row.m_displayName);
+		game.mapName = unicodeToUtf8(row.m_mapDisplayName);
+		game.playersText = playersText(row.m_numPlayers, row.m_maxPlayers);
 		game.inProgress = row.m_inProgress == TRUE;
 		game.isSelected = (i == m_model.selectedGameIndex);
 		++i;
 	}
 	m_gameRows.endUpdate();
+	m_model.gameCount = (int)rows.size();
 
 	if (m_model.selectedGameIndex >= (Int)rows.size())
 	{
@@ -315,6 +372,7 @@ void RmlLanLobbyScreen::onGameListChanged(LANGameInfo *gameList)
 	if (m_modelHandle)
 	{
 		m_modelHandle.DirtyVariable("games");
+		m_modelHandle.DirtyVariable("game_count");
 		m_modelHandle.DirtyVariable("selected_game_index");
 	}
 }

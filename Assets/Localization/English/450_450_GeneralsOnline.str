@@ -142,3 +142,15 @@ END
 GUI:GOQMElapsed
 "Time in queue"
 END
+
+GUI:GOMap
+"Map"
+END
+
+GUI:GOInProgress
+"In progress"
+END
+
+GUI:GONoLanGames
+"No games on your network yet"
+END

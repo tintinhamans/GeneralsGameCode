@@ -34,6 +34,29 @@
 #include "GameClient/MapUtil.h"
 #include "GameNetwork/NetworkDefs.h"
 
+// The map's display name, or its leaf name when it is not installed (it will have to be transferred).
+static UnicodeString mapDisplayName( LANGameInfo *game )
+{
+	UnicodeString name;
+	AsciiString asciiMap = game->getMap();
+	asciiMap.toLower();
+	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
+	if ( it != TheMapCache->end() )
+	{
+		name = it->second.m_displayName;
+	}
+	else
+	{
+		const char *noPath = game->getMap().reverseFind('\\');
+		if ( noPath )
+			++noPath;
+		else
+			noPath = game->getMap().str();
+		name.translate(noPath);
+	}
+	return name;
+}
+
 UnicodeString LanLobbyData::buildPlayerTooltip( LANPlayer *player )
 {
 	UnicodeString tooltip;
@@ -79,6 +102,9 @@ std::vector<LanLobbyGameRow> LanLobbyData::buildGameRows( LANGameInfo *gameList 
 		if ( row.m_inProgress )
 			name.concat(L"]");
 		row.m_displayName = name;
+		row.m_mapDisplayName = mapDisplayName(game);
+		row.m_numPlayers = game->getNumPlayers();
+		row.m_maxPlayers = game->getMaxPlayers();
 
 		rows.push_back(row);
 	}
@@ -96,24 +122,11 @@ LanLobbyGameDetails LanLobbyData::buildGameDetails( LANGameInfo *game )
 
 	details.m_valid = TRUE;
 	details.m_gameName = game->getPlayerName(0);
-
-	AsciiString asciiMap = game->getMap();
-	asciiMap.toLower();
-	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
-	if ( it != TheMapCache->end() )
-	{
-		details.m_mapDisplayName = it->second.m_displayName;
-	}
-	else
-	{
-		// Map will have to be transferred -- use the leaf name (see RefreshGameInfoWindow()).
-		const char *noPath = game->getMap().reverseFind('\\');
-		if ( noPath )
-			++noPath;
-		else
-			noPath = game->getMap().str();
-		details.m_mapDisplayName.translate(noPath);
-	}
+	details.m_mapDisplayName = mapDisplayName(game);
+	details.m_mapName = game->getMap();
+	details.m_inProgress = game->isGameInProgress();
+	details.m_numPlayers = game->getNumPlayers();
+	details.m_maxPlayers = game->getMaxPlayers();
 
 	for ( Int i = 0; i < MAX_SLOTS; ++i )
 	{
@@ -124,6 +137,11 @@ LanLobbyGameDetails LanLobbyData::buildGameDetails( LANGameInfo *game )
 
 		slot.m_occupied = TRUE;
 		slot.m_colorIndex = gameSlot->getColor();
+		if ( slot.m_colorIndex >= 0 )
+		{
+			if ( const MultiplayerColorDefinition *color = TheMultiplayerSettings->getColor(slot.m_colorIndex) )
+				slot.m_rgb = color->getColor() & 0xFFFFFF;
+		}
 
 		if ( gameSlot->isAI() )
 		{
