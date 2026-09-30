@@ -441,7 +441,9 @@ static void connectSessionSignals(RmlOnlineGameSetupScreen *screen, SignalConnec
 //-------------------------------------------------------------------------------------------------
 void RmlOnlineGameSetupScreen::show()
 {
-	if (!m_document)
+	// Shell::doPush() opens a routed screen more than once (runInit, hide(FALSE), bringForward), and
+	// the shell reopens its top layout later too. Entering again would wipe the chat log.
+	if (!m_document || m_document->IsVisible() || m_inMapSelect)
 		return;
 
 	// InitWOLGameGadgets(): drops the "Creating Lobby" progress box.
@@ -494,6 +496,7 @@ void RmlOnlineGameSetupScreen::hide()
 		TransitionSounds::play("GameSpyGameOptionsMenuFade", TRUE);
 	if (m_document)
 		m_document->Hide();
+	m_inMapSelect = false;
 
 	OnlineGameSetupSession::leave();
 	m_connections.disconnect();
@@ -714,10 +717,14 @@ void RmlOnlineGameSetupScreen::onSelectMap(Rml::DataModelHandle, Rml::Event &, c
 	if (!OnlineGameSetupActions::canOpenMapSelect(game))
 		return;
 
-	// Same as RmlLanGameSetupScreen::onSelectMap(): hide this screen and open the map-select screen
-	// through the registry instead of a legacy window layout, same shape as LanGameOptionsMenu.cpp's
-	// showLANGameOptionsUnderlyingGUIElements(FALSE) precedent.
-	hide();
+	// Hide only the document under the map-select popup: hide() would leave the session, and
+	// returnFromMapSelect() does not enter it again, so chat and the lobby callbacks would stop.
+	if (m_document && m_document->IsVisible())
+	{
+		TransitionSounds::play("GameSpyGameOptionsMenuFade", TRUE);
+		m_document->Hide();
+	}
+	m_inMapSelect = true;
 	RmlUiScreenRegistry::open("Menus/WOLMapSelectMenu.wnd");
 }
 
@@ -854,8 +861,9 @@ void RmlOnlineGameSetupScreen::onCommunicatorCountChanged(int numNotifications)
 
 void RmlOnlineGameSetupScreen::returnFromMapSelect()
 {
-	if (!m_document)
+	if (!m_document || !m_inMapSelect)
 		return;
+	m_inMapSelect = false;
 	refreshFromGameState();
 	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();

@@ -121,6 +121,7 @@ private:
 	SignalConnections m_connections; // OnlineGameSetupSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
 	RmlHqStatus m_hq; // .hq-header status
+	bool m_inMapSelect = false; // document hidden under the map-select popup, session still entered
 
 	struct OptionModel
 	{

@@ -391,7 +391,9 @@ void RmlLanGameSetupScreen::refreshFromGameState()
 //-------------------------------------------------------------------------------------------------
 void RmlLanGameSetupScreen::show()
 {
-	if (!m_document || !TheLAN)
+	// Shell::doPush() opens a routed screen more than once, and the shell reopens its top layout
+	// later too. Setting up again would wipe the chat log.
+	if (!m_document || !TheLAN || m_document->IsVisible())
 		return;
 
 	LANGameInfo *game = TheLAN->GetMyGame();
