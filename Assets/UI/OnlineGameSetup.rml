@@ -95,7 +95,7 @@
 			<div class="col col-side">
 				<div class="surface map-card">
 					<div class="map-frame">
-						<mappreview class="map-image" data-attr-map="map_name" data-if="map_found">
+						<mappreview class="map-image" fit="width" data-attr-map="map_name" data-if="map_found">
 							<div data-for="marker : start_markers">
 								<div class="marker" data-if="marker.used" data-class-occupied="marker.is_occupied"
 									data-style-left="marker.x_style" data-style-top="marker.y_style"

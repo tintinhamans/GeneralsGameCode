@@ -81,8 +81,8 @@
 
 .map-card .map-frame
 {
-	width: 250dp;
-	height: 250dp;
+	width: 220dp;
+	height: auto; /* follows the preview: <mappreview fit="width"> */
 	margin: 0 auto;
 }
 
@@ -90,17 +90,21 @@
 {
 	display: flex;
 	flex-direction: row;
+	flex-wrap: wrap;
 	align-items: center;
-	height: 40dp;
 	margin-top: 12dp;
 }
 
+/* The whole name, never cut: a short one keeps Select Map beside it, a long one takes its own
+   line and wraps, and Select Map moves under it. */
 .map-row .map-name
 {
-	flex: 1 1 0%;
+	flex: 1 1 auto;
 	min-width: 0;
-	margin: 0 12dp 0 0;
+	margin: 4dp 12dp 4dp 0;
 	font-size: 23dp;
+	line-height: 1.2;
+	white-space: normal;
 }
 
 .map-row button
@@ -250,7 +254,7 @@
 @media (max-aspect-ratio: 3/2)
 {
 	.col-side { width: 330dp; }
-	.map-card .map-frame { width: 230dp; height: 230dp; }
+	.map-card .map-frame { width: 200dp; }
 	.map-row .map-name { font-size: 20dp; }
 	.player-card { padding: 10dp 10dp; }
 	.pc-badge { flex-basis: 46dp; width: 46dp; height: 46dp; margin-right: 10dp; }

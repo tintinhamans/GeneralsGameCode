@@ -47,7 +47,7 @@
 
 /* ---- Beside the open social dock: the 5:4 layout of NetworkGameSetup.rcss ------------------------ */
 .dock-open .col-side { width: 330dp; }
-.dock-open .map-card .map-frame { width: 230dp; height: 230dp; }
+.dock-open .map-card .map-frame { width: 200dp; }
 .dock-open .map-row .map-name { font-size: 20dp; }
 .dock-open .player-card { padding: 10dp 10dp; }
 .dock-open .pc-badge { flex-basis: 46dp; width: 46dp; height: 46dp; margin-right: 10dp; }
@@ -78,7 +78,7 @@
 	.conn { padding: 0 5dp; }
 	.conn-ms { margin-left: 5dp; font-size: 13dp; }
 	.dock-open .col-side { width: 290dp; }
-	.dock-open .map-card .map-frame { width: 210dp; height: 210dp; }
+	.dock-open .map-card .map-frame { width: 190dp; }
 	/* Too narrow for two cards across: one, scrolling. */
 	.dock-open .player-card { width: 100%; }
 }

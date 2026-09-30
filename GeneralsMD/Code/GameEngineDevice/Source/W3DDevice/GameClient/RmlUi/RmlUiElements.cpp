@@ -205,23 +205,42 @@ void RmlMapPreviewElement::refresh()
 	fitToAspect(height > 0.0f ? width / height : 0.0f);
 }
 
-// A map's own preview can have any shape: it is letterboxed, centred in its (square) frame, never
-// stretched. Percentage margins resolve against the frame's width, which equals its height.
-// fit="fill" keeps the element's own size (full-bleed load screen art).
+// A map's own preview can have any shape and is never stretched. By default it is letterboxed,
+// centred in its square frame (percentage margins resolve against the frame's width, which equals its
+// height). fit="width" spans the frame's width and takes the art's height (at most square), for a
+// frame whose height follows it. fit="fill" keeps the element's own size (full-bleed load screen art).
 void RmlMapPreviewElement::fitToAspect(float aspect)
 {
-	if (aspect <= 0.0f || GetAttribute<Rml::String>("fit", "") == "fill")
+	const Rml::String fit = GetAttribute<Rml::String>("fit", "");
+	if (fit == "fill" || (aspect <= 0.0f && fit != "width"))
 	{
 		RemoveProperty("width");
 		RemoveProperty("height");
+		RemoveProperty("padding-bottom");
 		RemoveProperty("margin-left");
+		RemoveProperty("margin-top");
+		return;
+	}
+
+	char value[32];
+	if (fit == "width")
+	{
+		if (aspect <= 0.0f)
+			aspect = 1.0f;
+		const float widthPct = aspect >= 1.0f ? 100.0f : 100.0f * aspect;
+		_snprintf_s(value, sizeof(value), _TRUNCATE, "%.3f%%", widthPct);
+		SetProperty("width", value);
+		SetProperty("height", "0px");
+		_snprintf_s(value, sizeof(value), _TRUNCATE, "%.3f%%", widthPct / aspect); // padding % resolves against the width
+		SetProperty("padding-bottom", value);
+		_snprintf_s(value, sizeof(value), _TRUNCATE, "%.3f%%", (100.0f - widthPct) * 0.5f);
+		SetProperty("margin-left", value);
 		RemoveProperty("margin-top");
 		return;
 	}
 
 	const float widthPct = aspect >= 1.0f ? 100.0f : 100.0f * aspect;
 	const float heightPct = aspect >= 1.0f ? 100.0f / aspect : 100.0f;
-	char value[32];
 	_snprintf_s(value, sizeof(value), _TRUNCATE, "%.3f%%", widthPct);
 	SetProperty("width", value);
 	_snprintf_s(value, sizeof(value), _TRUNCATE, "%.3f%%", heightPct);

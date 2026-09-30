@@ -1969,6 +1969,12 @@ mappreview .mp-art
 	text-align: center;
 }
 
+/* A frame whose height follows its preview (fit="width") has none of its own. */
+.map-card .map-missing
+{
+	height: 160dp;
+}
+
 .map-name
 {
 	display: block;
