@@ -3,16 +3,20 @@
 	in common.rcss.
 
 	The shell map is the main menu's picture, so the menu takes as little of it as it can. One
-	document, three layouts, picked by a class on <body> in MainMenu.rml:
+	document, four layouts, picked by a class on <body> in MainMenu.rml:
 
-		mm-a   floating menu (default): the logo and the root items float on the map top-left
+		mm-d   HQ command terminal (default): a header strip (logo, online status, clock) and a
+		       news ticker along the frame, the root menu large in the lower left, each sub-panel a
+		       row of cards beside it. Its markup is the d-* elements; see the D section below.
+		mm-a   floating menu: the logo and the root items float on the map top-left
 		       over a soft fade, the sub-panel on a light plate beside them.
 		mm-b   command rail: a full-height panel down the left holds the logo, the root items
 		       and Exit at its foot; the sub-panel docks against its edge.
 		mm-c   bottom bar: the root items run along a bar at the foot of the frame, a sub-panel
 		       opens as a second bar above it; the logo sits top-left.
 
-	In every layout: a sub-panel (solo, multiplayer, load/replay, difficulty) opens while the root
+	In A, B and C (D has its own markup over the same panels, hooks and emblem): a sub-panel (solo,
+	multiplayer, load/replay, difficulty) opens while the root
 	stays up with its item marked; the faction emblem of the solo and difficulty panels floats over
 	the open map; Generals Online's card (player count, message of the day) is top-right and only
 	there while logged in; the build is one small line. Every panel is always in .mm-sub; the
@@ -539,4 +543,982 @@
 	.mm-b .mm-left { width: 420dp; }
 	.mm-b .mm-sub { left: 420dp; width: 380dp; }
 	.screen.mm-c button.mm-item, .screen.mm-c button.mm-item:hover, .screen.mm-c button.mm-item:active { padding: 0 18dp; font-size: 22dp; letter-spacing: 2dp; }
+}
+
+/* ==== D: HQ command terminal =====================================================================
+   The front door as a command post: the shell map stays the picture, and only three things darken
+   it -- the header strip and the news ticker, bands that run the full opening of the ruler, and a
+   soft fade from the left edge behind the menu. The root menu sits large in the lower left; a
+   sub-panel is a row of cards beside it, the campaign sides under one "Campaign" bracket.
+
+	body > .d-shade                            the fade, under the ruler
+	body > .d-band.d-header > .d-band-in       logo | status pill (logged in: dot, count, name;
+	                                           else "Offline") and the local time
+	.screen-frame > .d-menu > button.d-item    index, label, description; brackets and scan line
+	                        > button.d-exit    set apart, smaller
+	.screen-frame > .d-cards > .d-row(.active) > .d-row-head (title, back) + .d-deck of .d-card
+	body > .d-band.d-ticker > .d-band-in       "Generals Online" tag and the scrolling news, or the
+	                                           build when there is none
+
+   The bands' inner row keeps to the frame's width and gutters, so their content lines up with the
+   menu and the cards on any aspect ratio. None of this is laid out in A, B or C, and none of theirs
+   in D. */
+.d-shade, .d-band, .d-menu, .d-cards
+{
+	display: none;
+}
+
+.mm-d .mm-left, .mm-d .mm-sub, .mm-d .mm-sub.open, .mm-d .mm-news, .mm-d .mm-build
+{
+	display: none;
+}
+
+.mm-d .d-shade, .mm-d .d-band, .mm-d .d-menu
+{
+	display: block;
+	position: absolute;
+}
+
+/* ---- Fade and bands ------------------------------------------------------------------------ */
+.d-shade
+{
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 1150dp;
+	decorator: horizontal-gradient(#03050CE8 #03050C00);
+}
+
+.d-band
+{
+	left: 64.5dp;
+	right: 64.5dp;
+	box-sizing: border-box;
+	background-color: #060914E8;
+}
+
+.d-band-in
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	box-sizing: border-box;
+	height: 100%;
+	max-width: 2150dp;
+	margin: 0 auto;
+	padding: 0 23.5dp;
+}
+
+.d-header
+{
+	top: 64.5dp;
+	height: 84dp;
+	border-bottom: 1dp #8080FF38;
+}
+
+/* GeneralsLogo is 370x120 art. */
+.d-logo
+{
+	flex: 0 0 auto;
+	width: 231dp;
+	height: 75dp;
+	margin-left: -8dp;
+}
+
+.d-status
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-left: auto;
+}
+
+.d-pill
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 38dp;
+	padding: 0 18dp 0 16dp;
+	font-size: 16dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #EEF1FA;
+	background-color: #0E1433;
+	border: 1dp #8080FF40;
+}
+
+.d-dot
+{
+	display: inline-block;
+	width: 10dp;
+	height: 10dp;
+	border-radius: 5dp;
+	margin-right: 12dp;
+	background-color: #36D8B2;
+}
+
+.d-off
+{
+	color: #7079A0;
+	background-color: transparent;
+	border-color: #8080FF24;
+}
+
+.d-off .d-dot
+{
+	background-color: transparent;
+	border: 2dp #5A6390;
+}
+
+.d-sep
+{
+	display: inline-block;
+	width: 1dp;
+	height: 18dp;
+	margin: 0 14dp;
+	background-color: #8080FF50;
+}
+
+.d-name
+{
+	color: #D1FD04;
+	letter-spacing: 1dp;
+	text-transform: none;
+	font-size: 18dp;
+}
+
+.d-clock
+{
+	margin-left: 20dp;
+	padding-left: 20dp;
+	border-left: 1dp #8080FF38;
+	height: 38dp;
+	line-height: 38dp;
+	font-size: 24dp;
+	font-weight: bold;
+	letter-spacing: 3dp;
+	color: #A9B1CF;
+}
+
+.d-ticker
+{
+	bottom: 64.5dp;
+	height: 44dp;
+	border-top: 1dp #8080FF38;
+}
+
+.d-tag
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 44dp;
+	padding-right: 20dp;
+	margin-right: 4dp;
+	border-right: 1dp #8080FF38;
+	font-size: 14dp;
+	font-weight: bold;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #D1FD04;
+}
+
+.d-tag .d-dot
+{
+	width: 8dp;
+	height: 8dp;
+	border-radius: 4dp;
+	margin-right: 10dp;
+}
+
+/* The news run: see MainMenu.rml. The slide is very wide so the track's shrink-to-fit width is the
+   whole run, never capped at the viewport. */
+.d-tk-view
+{
+	display: block;
+	position: relative;
+	flex: 1 1 0%;
+	min-width: 0;
+	height: 44dp;
+	overflow: hidden;
+	clip: always;
+}
+
+.d-tk-slide
+{
+	display: block;
+	position: absolute;
+	top: 0;
+	left: 100%;
+	width: 30000dp;
+	height: 44dp;
+	animation: 80s linear infinite ticker-slide;
+}
+
+.d-tk-track
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	white-space: nowrap;
+}
+
+.d-tk-run
+{
+	display: block;
+	position: relative;
+	left: 0%;
+	line-height: 44dp;
+	font-size: 17dp;
+	color: #C9CFE8;
+	animation: 80s linear infinite ticker-run;
+}
+
+@keyframes ticker-slide
+{
+	from { left: 100%; }
+	to { left: 0%; }
+}
+
+@keyframes ticker-run
+{
+	from { left: 0%; }
+	to { left: -100%; }
+}
+
+/* The run fades out against the tag instead of being cut. */
+.d-tk-fade
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 48dp;
+	decorator: horizontal-gradient(#060914 #06091400);
+}
+
+.d-tk-item
+{
+	margin-left: 26dp;
+	padding-left: 26dp;
+	border-left: 2dp #8080FF60;
+}
+
+.d-tk-static
+{
+	flex: 1 1 auto;
+	font-size: 15dp;
+	letter-spacing: 1dp;
+	white-space: nowrap;
+	color: #7079A0;
+}
+
+/* ---- Root menu ------------------------------------------------------------------------------- */
+.d-menu
+{
+	left: 0;
+	bottom: 60dp;
+}
+
+.screen button.d-item
+{
+	display: block;
+	position: relative;
+	box-sizing: border-box;
+	width: 100%;
+	height: 90dp;
+	line-height: 1.2;
+	padding: 6dp 36dp 0 62dp;
+	text-align: left;
+	text-transform: none;
+	white-space: nowrap;
+	color: #EEF1FA;
+	background-color: transparent;
+	border-width: 0;
+	transition: none;
+}
+
+.screen button.d-item:hover
+{
+	background-color: transparent;
+	decorator: horizontal-gradient(#2F37A850 #2F37A800);
+}
+
+.screen button.d-item:active
+{
+	background-color: transparent;
+	decorator: horizontal-gradient(#1E246E90 #1E246E00);
+}
+
+.d-idx
+{
+	position: absolute;
+	left: 16dp;
+	top: 23dp;
+	font-size: 15dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	color: #7C86B4;
+	font-effect: glow(1dp 6dp 0dp 1dp #000000E6);
+	transition: color 0.12s cubic-out;
+}
+
+.d-text
+{
+	display: block;
+}
+
+.d-label
+{
+	display: block;
+	font-size: 46dp;
+	line-height: 56dp;
+	font-weight: bold;
+	letter-spacing: 4dp;
+	text-transform: uppercase;
+	color: #EEF1FA;
+	font-effect: glow(1dp 10dp 0dp 1dp #000000E6);
+	transition: color 0.12s cubic-out;
+}
+
+.d-desc
+{
+	display: block;
+	margin-top: 1dp;
+	font-size: 14dp;
+	line-height: 18dp;
+	font-weight: bold;
+	letter-spacing: 2.5dp;
+	text-transform: uppercase;
+	color: #8E97BE;
+	font-effect: glow(1dp 6dp 0dp 1dp #000000E0);
+	transition: color 0.12s cubic-out;
+}
+
+/* Thin green scan line under the label, drawn out from the left on hover. */
+.d-scan
+{
+	display: block;
+	position: absolute;
+	left: 62dp;
+	bottom: 4dp;
+	width: 0%;
+	height: 2dp;
+	decorator: horizontal-gradient(#D1FD04 #D1FD0400);
+	transition: width 0.22s cubic-out;
+}
+
+/* Tactical corner brackets round the item. */
+.br
+{
+	display: block;
+	position: absolute;
+	width: 14dp;
+	height: 14dp;
+	border-color: #D1FD04;
+	opacity: 0;
+	transition: opacity 0.12s cubic-out;
+}
+
+.br-tl { left: 0; top: 0; border-left-width: 2dp; border-top-width: 2dp; }
+.br-tr { right: 0; top: 0; border-right-width: 2dp; border-top-width: 2dp; }
+.br-bl { left: 0; bottom: 0; border-left-width: 2dp; border-bottom-width: 2dp; }
+.br-br { right: 0; bottom: 0; border-right-width: 2dp; border-bottom-width: 2dp; }
+
+.d-item:hover .d-label, .d-item:active .d-label { color: #D1FD04; }
+.d-item:hover .d-idx, .d-item.current .d-idx { color: #D1FD04; }
+.d-item:hover .d-desc { color: #C4CAE4; }
+.d-item:hover .br, .d-item:focus-visible .br { opacity: 1; }
+.d-item:hover .d-scan { width: 70%; }
+
+/* The root item whose row is open: brackets and scan line stay, quieter. */
+.d-item.current .d-label { color: #FFFFFF; }
+.d-item.current .br { opacity: 0.55; }
+.d-item.current .d-scan { width: 70%; }
+.d-item.current:hover .br { opacity: 1; }
+.d-item.current:hover .d-label { color: #D1FD04; }
+
+.screen button.d-exit
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin: 18dp 0 0 62dp;
+	height: 40dp;
+	line-height: 40dp;
+	padding: 0 14dp 0 0;
+	font-size: 18dp;
+	letter-spacing: 3dp;
+	color: #A9B1CF;
+	background-color: transparent;
+	border-width: 0;
+	font-effect: glow(1dp 8dp 0dp 1dp #000000E6);
+}
+
+.d-exit-mark
+{
+	display: inline-block;
+	width: 22dp;
+	height: 2dp;
+	margin-right: 14dp;
+	background-color: #8080FF80;
+	transition: width background-color 0.16s cubic-out;
+}
+
+.screen button.d-exit:hover, .screen button.d-exit:active
+{
+	color: #D1FD04;
+	background-color: transparent;
+}
+
+.d-exit:hover .d-exit-mark
+{
+	width: 34dp;
+	background-color: #D1FD04;
+}
+
+/* ---- Card rows -------------------------------------------------------------------------------- */
+.mm-d .d-cards
+{
+	position: absolute;
+	left: 620dp;
+	right: 0;
+	bottom: 60dp;
+}
+
+.mm-d .d-cards.open
+{
+	display: block;
+	animation: 0.24s cubic-out sub-in;
+}
+
+.d-row
+{
+	display: none;
+}
+
+.d-row.active
+{
+	display: block;
+	animation: 0.26s cubic-out panel-in;
+}
+
+.d-row-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 40dp;
+	margin-bottom: 16dp;
+}
+
+/* On its own plate, like the other screens' headings, so it reads over bright terrain. */
+.d-row-title
+{
+	flex: 0 0 auto;
+	padding: 5dp 20dp 5dp 14dp;
+	background-color: #070A1AD9;
+	border-left: 4dp #D1FD04;
+	font-size: 22dp;
+	line-height: 30dp;
+	font-weight: bold;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #FFFFFF;
+	font-effect: glow(1dp 8dp 0dp 1dp #000000F0);
+}
+
+.screen button.d-back
+{
+	flex: 0 0 auto;
+	margin-left: auto;
+	height: 38dp;
+	line-height: 36dp;
+	padding: 0 18dp 0 12dp;
+	font-size: 15dp;
+	letter-spacing: 2dp;
+	color: #B8C0DE;
+	background-color: #070A1AD0;
+	border: 1dp #8080FF38;
+}
+
+.d-back .chevron
+{
+	font-size: 26dp;
+	margin-right: 8dp;
+}
+
+.screen button.d-back:hover
+{
+	color: #D1FD04;
+	background-color: #141A3EE6;
+	border-color: #D1FD04;
+}
+
+.d-deck
+{
+	display: flex;
+	flex-direction: row;
+	align-items: flex-end;
+}
+
+.d-group
+{
+	display: block;
+	flex: 3 3 0%;
+	min-width: 0;
+	margin-right: 16dp;
+}
+
+.d-group-head
+{
+	display: block;
+	height: 28dp;
+	line-height: 28dp;
+	padding-left: 12dp;
+	background-color: #070A1AC0;
+	margin-bottom: 12dp;
+	border-bottom: 1dp #8080FF50;
+	font-size: 14dp;
+	font-weight: bold;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+	color: #B8C0DE;
+	font-effect: glow(1dp 8dp 0dp 1dp #000000F0);
+}
+
+.d-group-cards
+{
+	display: flex;
+	flex-direction: row;
+}
+
+/* A card: art well on top, title and one line under it; the edge lights green on hover. */
+.screen button.d-card, .d-card
+{
+	display: block;
+	position: relative;
+	flex: 1 1 0%;
+	min-width: 0;
+	max-width: 300dp;
+	box-sizing: border-box;
+	height: 348dp;
+	line-height: 1.2;
+	margin-left: 16dp;
+	padding: 0;
+	text-align: left;
+	text-transform: none;
+	white-space: normal;
+	color: #EEF1FA;
+	background-color: #070A1AEC;
+	border: 1dp #8080FF3A;
+	transition: border-color 0.12s cubic-out;
+}
+
+.d-group-cards .d-card:first-child, .d-deck > .d-card:first-child
+{
+	margin-left: 0;
+}
+
+.screen button.d-card.d-wide
+{
+	max-width: 440dp;
+}
+
+.screen button.d-card:hover, .screen button.d-card:focus-visible
+{
+	background-color: #0B1030F0;
+	border-color: #D1FD04;
+}
+
+.screen button.d-card:active
+{
+	background-color: #141A3EF0;
+	border-color: #A8CC00;
+}
+
+.d-edge
+{
+	display: block;
+	position: absolute;
+	left: -1dp;
+	right: -1dp;
+	top: -1dp;
+	height: 4dp;
+	background-color: transparent;
+	transition: background-color 0.12s cubic-out;
+}
+
+.d-card:hover .d-edge, .d-card:focus-visible .d-edge
+{
+	background-color: #D1FD04;
+}
+
+.d-art
+{
+	display: block;
+	position: relative;
+	height: 226dp;
+	overflow: hidden;
+	clip: always;
+	background-color: #0A0E26;
+}
+
+.d-art mappedimage, .d-glyph
+{
+	position: absolute;
+}
+
+/* Full-bleed 4:3 art (MissionLoad_*, MDSkirmishLoadB), centred and cropped by the well. */
+.d-full
+{
+	left: 50%;
+	top: 50%;
+	width: 400dp;
+	height: 300dp;
+	margin-left: -200dp;
+	margin-top: -150dp;
+	opacity: 0.86;
+	transition: opacity 0.16s cubic-out;
+}
+
+/* The campaign sides have no line under the title: their art takes the room. */
+.d-fac .d-art
+{
+	height: 282dp;
+}
+
+.d-fac .d-full, .d-pick .d-full
+{
+	width: 340dp;
+	height: 255dp;
+	margin-left: -170dp;
+	margin-top: -122dp;
+}
+
+.d-wide .d-full
+{
+	width: 480dp;
+	height: 360dp;
+	margin-left: -240dp;
+	margin-top: -180dp;
+}
+
+/* Backdrop art under an emblem: dimmed, and tinted to the palette. */
+.d-bg
+{
+	left: 50%;
+	top: 50%;
+	width: 480dp;
+	height: 330dp;
+	margin-left: -240dp;
+	margin-top: -165dp;
+	opacity: 0.5;
+	transition: opacity 0.16s cubic-out;
+}
+
+.d-tint
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	decorator: vertical-gradient(#0A0E2640 #070A1AD0);
+}
+
+.d-tint-soft
+{
+	decorator: vertical-gradient(#0A0E2600 #070A1A90);
+}
+
+.d-shine
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 60dp;
+	decorator: vertical-gradient(#070A1A00 #070A1AE0);
+}
+
+.d-emb
+{
+	left: 50%;
+	top: 50%;
+	width: 150dp;
+	height: 150dp;
+	margin-left: -75dp;
+	margin-top: -75dp;
+}
+
+/* Training144 is 142x128. */
+.d-emb[name="Training144"]
+{
+	width: 160dp;
+	height: 144dp;
+	margin-left: -80dp;
+	margin-top: -72dp;
+}
+
+.d-medal
+{
+	left: 50%;
+	top: 50%;
+	width: 128dp;
+	height: 128dp;
+	margin-left: -64dp;
+	margin-top: -64dp;
+}
+
+.d-card:hover .d-full, .d-card:hover .d-bg
+{
+	opacity: 1;
+}
+
+.d-card-text
+{
+	display: block;
+	padding: 16dp 18dp 0 18dp;
+}
+
+.d-title
+{
+	display: block;
+	font-size: 25dp;
+	line-height: 30dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #FFFFFF;
+	transition: color 0.12s cubic-out;
+}
+
+.d-card:hover .d-title
+{
+	color: #D1FD04;
+}
+
+.d-cdesc
+{
+	display: block;
+	margin-top: 6dp;
+	font-weight: normal;
+	font-size: 16dp;
+	line-height: 21dp;
+	color: #A9B1CF;
+}
+
+/* The chosen side on the difficulty row: not a button, drawn quieter. */
+.d-pick
+{
+	border-color: #8080FF26;
+}
+
+/* ---- Card glyphs (no suitable game art): drawn from boxes ---------------------------------- */
+.d-glyph
+{
+	display: block;
+	left: 50%;
+	top: 50%;
+}
+
+/* LAN: a hub and three linked stations. */
+.g-net
+{
+	width: 200dp;
+	height: 110dp;
+	margin-left: -100dp;
+	margin-top: -50dp;
+}
+
+.g-net .n, .g-net .l
+{
+	display: block;
+	position: absolute;
+}
+
+.g-net .l
+{
+	background-color: #8080FFB0;
+}
+
+.g-net .l1 { left: 20dp; right: 20dp; top: 69dp; height: 2dp; }
+.g-net .l2 { left: 99dp; width: 2dp; top: 18dp; height: 52dp; }
+.g-net .l3 { display: none; }
+
+.g-net .n
+{
+	width: 20dp;
+	height: 20dp;
+	border-radius: 10dp;
+	border: 2dp #C4CAE4;
+	background-color: #0A0E26;
+}
+
+.g-net .n0 { left: 86dp; top: 56dp; width: 28dp; height: 28dp; border-radius: 14dp; border-color: #D1FD04; background-color: #D1FD04; }
+.g-net .n1 { left: 10dp; top: 60dp; }
+.g-net .n2 { right: 10dp; top: 60dp; }
+.g-net .n3 { left: 90dp; top: 0; }
+
+/* Load game: three save slots, the newest lit. */
+.g-save
+{
+	width: 210dp;
+	height: 120dp;
+	margin-left: -105dp;
+	margin-top: -60dp;
+}
+
+.g-save .s
+{
+	display: block;
+	box-sizing: border-box;
+	height: 32dp;
+	margin-bottom: 12dp;
+	border: 2dp #8080FFA0;
+	background-color: #070A1AC8;
+}
+
+.g-save .s1 { border-left: 8dp #D1FD04; }
+.g-save .s2 { margin-left: 16dp; opacity: 0.8; }
+.g-save .s3 { margin-left: 32dp; opacity: 0.55; }
+
+/* Replays: a reticle, two rings with a lit core and four ticks. */
+.g-rec
+{
+	width: 160dp;
+	height: 160dp;
+	margin-left: -80dp;
+	margin-top: -80dp;
+}
+
+.g-rec .ring
+{
+	left: 14dp;
+	top: 14dp;
+	width: 132dp;
+	height: 132dp;
+}
+
+.g-rec .ring-in
+{
+	left: 44dp;
+	top: 44dp;
+	width: 72dp;
+	height: 72dp;
+	opacity: 0.6;
+}
+
+.g-rec .tick
+{
+	display: block;
+	position: absolute;
+	background-color: #C4CAE4;
+}
+
+.g-rec .t-n { left: 79dp; top: 0; width: 2dp; height: 22dp; }
+.g-rec .t-s { left: 79dp; bottom: 0; width: 2dp; height: 22dp; }
+.g-rec .t-w { left: 0; top: 79dp; width: 22dp; height: 2dp; }
+.g-rec .t-e { right: 0; top: 79dp; width: 22dp; height: 2dp; }
+
+.g-rec .core
+{
+	display: block;
+	position: absolute;
+	left: 64dp;
+	top: 64dp;
+	width: 32dp;
+	height: 32dp;
+	border-radius: 16dp;
+	background-color: #D1FD04;
+}
+
+/* Difficulty: a three-step level meter. */
+.d-diff .d-art
+{
+	decorator: vertical-gradient(#141A3E #070A1A);
+}
+
+.d-level
+{
+	display: flex;
+	flex-direction: row;
+	align-items: flex-end;
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 108dp;
+	height: 96dp;
+	margin-left: -54dp;
+	margin-top: -48dp;
+}
+
+.d-level .bar
+{
+	display: block;
+	box-sizing: border-box;
+	width: 28dp;
+	margin-right: 12dp;
+	background-color: #8080FF30;
+	border: 1dp #8080FF50;
+}
+
+.d-level .bar:nth-child(1) { height: 40dp; }
+.d-level .bar:nth-child(2) { height: 68dp; }
+.d-level .bar:nth-child(3) { height: 96dp; margin-right: 0; }
+
+.d-level .bar.on
+{
+	background-color: #D1FD04;
+	border-color: #E6FF6A;
+}
+
+/* ---- Faction emblem: over the map, above the card row ------------------------------------- */
+.mm-d .mm-hero
+{
+	left: 620dp;
+	right: 0;
+	top: 96dp;
+}
+
+/* On the difficulty row the chosen side is its first card. */
+.mm-d .mm-hero.diff
+{
+	display: none;
+}
+
+/* ---- Narrow (5:4, 4:3) ------------------------------------------------------------------------
+   The menu tightens and a row of cards wraps: the campaign bracket on its own line. */
+@media (max-aspect-ratio: 3/2)
+{
+	.d-shade { width: 900dp; }
+	.d-label { font-size: 40dp; line-height: 50dp; letter-spacing: 3dp; }
+	.screen button.d-item { height: 80dp; padding-left: 54dp; padding-right: 24dp; }
+	.d-idx { left: 12dp; top: 20dp; }
+	.d-scan { left: 54dp; }
+	.screen button.d-exit { margin-left: 54dp; }
+	.mm-d .d-cards { left: 530dp; }
+	.d-deck { flex-wrap: wrap; }
+	.d-group { flex: 0 0 100%; margin: 0 0 16dp 0; }
+	.screen button.d-card, .d-card { height: 280dp; }
+	.d-art { height: 164dp; }
+	.d-fac .d-art { height: 214dp; }
+	.screen .d-deck > .d-card { flex: 1 1 40%; max-width: none; }
+	.screen .d-deck > .d-card:nth-child(odd), .screen .d-group + .d-card { margin-left: 0; }
+	.screen .d-deck > .d-card.d-solo + .d-card.d-solo { margin-left: 16dp; }
+	.screen .d-deck > .d-card:nth-child(n+3) { margin-top: 16dp; }
+	.d-title { font-size: 22dp; }
+	.d-cdesc { font-size: 15dp; line-height: 19dp; }
 }

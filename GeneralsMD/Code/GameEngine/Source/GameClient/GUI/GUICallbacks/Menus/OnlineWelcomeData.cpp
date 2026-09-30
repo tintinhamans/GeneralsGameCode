@@ -144,6 +144,16 @@ Bool isLoggedIn()
 }
 
 //-------------------------------------------------------------------------------------------------
+UnicodeString localDisplayName()
+{
+	UnicodeString name;
+	NGMP_OnlineServices_AuthInterface *auth = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	if (auth != nullptr)
+		name = auth->GetDisplayNameW().c_str();
+	return name;
+}
+
+//-------------------------------------------------------------------------------------------------
 Int currentNumPlayersOnline()
 {
 	Int last = GetLastNumPlayersOnline();

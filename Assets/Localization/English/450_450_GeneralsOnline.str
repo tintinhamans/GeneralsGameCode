@@ -242,3 +242,67 @@ END
 GUI:GOChallengeOpponent
 "Opponent"
 END
+
+GUI:GOMenuPlayersOnline
+"%d online"
+END
+
+GUI:GOMenuOffline
+"Offline"
+END
+
+GUI:GOMenuSoloDesc
+"Campaign, skirmish and Generals' Challenge"
+END
+
+GUI:GOMenuMultiDesc
+"Online and LAN battles"
+END
+
+GUI:GOMenuLoadDesc
+"Saved games and replays"
+END
+
+GUI:GOMenuOptionsDesc
+"Video, audio and controls"
+END
+
+GUI:GOMenuCreditsDesc
+"The people behind the game"
+END
+
+GUI:GOMenuSkirmishDesc
+"Battle the AI on any map"
+END
+
+GUI:GOMenuChallengeDesc
+"Defeat the generals one by one"
+END
+
+GUI:GOMenuOnlineDesc
+"Ranked and custom games on Generals Online"
+END
+
+GUI:GOMenuNetworkDesc
+"Play over your local network"
+END
+
+GUI:GOMenuLoadGameDesc
+"Resume a saved mission"
+END
+
+GUI:GOMenuReplayDesc
+"Watch your recorded battles"
+END
+
+GUI:GOMenuEasyDesc
+"For new commanders"
+END
+
+GUI:GOMenuMediumDesc
+"A fair fight"
+END
+
+GUI:GOMenuHardDesc
+"No mercy for veterans"
+END

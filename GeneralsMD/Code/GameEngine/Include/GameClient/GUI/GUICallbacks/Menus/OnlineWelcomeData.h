@@ -85,6 +85,9 @@ namespace OnlineWelcomeData
 	// Whether the client is logged in to Generals Online (news and the player count are only current then).
 	Bool isLoggedIn();
 
+	// The logged-in player's display name, or an empty string if the auth interface isn't available.
+	UnicodeString localDisplayName();
+
 	// Mirrors WOLWelcomeMenu.wnd's "SIDE:<side>" TOOLTIPTEXT for a PercentXxx checkbox, given the same
 	// side string buildMotdLines()/requestFactionWinStats() key off. Index 0 ("USA") is the one
 	// mismatch between the control-name suffix and the tooltip's side literal (control is PercentUSA,
