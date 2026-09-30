@@ -29,6 +29,7 @@
 
 #pragma once
 
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -50,6 +51,7 @@ public:
 	virtual void hide() override;
 	virtual bool isVisible() const override;
 	virtual void onBack() override; // same as ButtonExit/Back
+	virtual void update() override; // ticks the .hq-header status
 
 private:
 	RmlSkirmishSetupScreen() {}
@@ -74,6 +76,7 @@ private:
 	void onBackPressed(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onResetHonors(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSelectMap(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onFillAI(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // "Fill with AI": (occupant state)
 
 public:
 	// Called by RmlSkirmishMapSelectScreen when it closes (OK or Back): re-shows this screen and
@@ -86,6 +89,7 @@ private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 
 	struct OptionModel
 	{
@@ -117,6 +121,13 @@ private:
 		Rml::Vector<OptionModel> colorOptions; // the whole palette, Random first; taken = not in GameSetupSlotRow::m_colorChoices
 		int teamNumber = -1;
 		int startPosition = -1;
+
+		// Where the row sits in the list (GameSetupData::displayOrder()): folded away as unused on
+		// this map, the first of its team group, or the first unused one.
+		bool unused = false;
+		bool groupHead = false;
+		int groupTeam = -1;
+		bool foldHead = false;
 	};
 
 	// One start-position marker on the map preview (see GameSetupStartPositionMarker). x_style/
@@ -165,6 +176,15 @@ private:
 		int honorLosses = 0;
 		int honorWinStreak = 0;
 		int honorBestWinStreak = 0;
+
+		// Presentation: the map's player count, team grouping, the unused-slot fold, the open colour
+		// popover (-1: none) and why Start would be refused (GameSetupData::startBlockers()).
+		int mapNumPlayers = 0;
+		bool teamMode = false;
+		int unusedCount = 0;
+		bool showUnused = false;
+		int colorPopoverSlot = -1;
+		Rml::Vector<Rml::String> startBlockers;
 	} m_model;
 };
 

@@ -22,6 +22,7 @@
 
 #include "GameClient/GUI/GUICallbacks/Menus/GameSetupData.h"
 
+#include "Common/GlobalData.h"
 #include "Common/MultiplayerSettings.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/PlayerTemplate.h"
@@ -31,6 +32,7 @@
 #include "GameClient/MapUtil.h"
 #include "GameNetwork/GUIUtil.h"
 
+#include <algorithm>
 #include <set>
 
 GameSetupData GameSetupData::build( GameInfo *game, Bool allowObservers )
@@ -236,4 +238,145 @@ std::vector<GameSetupStartPositionMarker> GameSetupData::computeStartPositionMar
 	}
 
 	return markers;
+}
+
+//-------------------------------------------------------------------------------------------------
+std::vector<GameSetupDisplayRow> GameSetupData::displayOrder( const std::vector<GameSetupSlotRow> &slots, const GameSetupOptionsData &options,
+	Bool *teamMode, Int *unusedCount )
+{
+	const Int capacity = ( options.m_mapFound && options.m_mapNumPlayers > 0 ) ? options.m_mapNumPlayers : MAX_SLOTS;
+
+	std::vector<GameSetupDisplayRow> rows;
+	Bool teams = FALSE;
+	for( Int i = 0; i < (Int)slots.size(); ++i )
+	{
+		const GameSetupSlotRow &slot = slots[i];
+		const Bool occupied = slot.m_state != SLOT_OPEN && slot.m_state != SLOT_CLOSED;
+		GameSetupDisplayRow row;
+		row.m_slot = i;
+		row.m_unused = !occupied && i >= capacity;
+		row.m_groupTeam = occupied ? slot.m_teamNumber : -1;
+		if( occupied && slot.m_teamNumber >= 0 )
+			teams = TRUE;
+		rows.push_back( row );
+	}
+
+	// Stable: slot order inside a group, like the .wnd list.
+	auto rank = [teams]( const GameSetupDisplayRow &row ) -> Int
+	{
+		if( row.m_unused )
+			return 100;
+		if( !teams )
+			return 0;
+		return row.m_groupTeam >= 0 ? row.m_groupTeam : 50;
+	};
+	std::stable_sort( rows.begin(), rows.end(), [&rank]( const GameSetupDisplayRow &a, const GameSetupDisplayRow &b ) { return rank( a ) < rank( b ); } );
+
+	Int unused = 0;
+	for( size_t i = 0; i < rows.size(); ++i )
+	{
+		const Bool first = i == 0 || rank( rows[i] ) != rank( rows[i - 1] );
+		if( rows[i].m_unused )
+		{
+			rows[i].m_foldHead = first;
+			++unused;
+		}
+		else if( teams )
+			rows[i].m_groupHead = first;
+	}
+
+	if( teamMode )
+		*teamMode = teams;
+	if( unusedCount )
+		*unusedCount = unused;
+	return rows;
+}
+
+//-------------------------------------------------------------------------------------------------
+std::vector<UnicodeString> GameSetupData::startBlockers( GameInfo *game, Bool isNetwork )
+{
+	std::vector<UnicodeString> blockers;
+	if( !game )
+		return blockers;
+
+	const MapMetaData *md = TheMapCache ? TheMapCache->findMap( game->getMap() ) : nullptr;
+
+	if( !isNetwork )
+	{
+		if( !md )
+			blockers.push_back( TheGameText->fetch( "GUI:CantFindMap" ) );
+		else if( game->getNumPlayers() > md->m_numPlayers )
+		{
+			UnicodeString text;
+			text.format( TheGameText->fetch( "GUI:TooManyPlayers" ), md->m_numPlayers );
+			blockers.push_back( text );
+		}
+		return blockers;
+	}
+
+	Int numUsers = 0, numHumans = 0, numRandom = 0;
+	std::set<Int> teams;
+	for( Int i = 0; i < MAX_SLOTS; ++i )
+	{
+		const GameSlot *slot = game->getConstSlot( i );
+		if( slot && slot->isOccupied() && slot->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER )
+		{
+			if( slot->isHuman() )
+				++numHumans;
+			++numUsers;
+			if( slot->getTeamNumber() >= 0 )
+				teams.insert( slot->getTeamNumber() );
+			else
+				++numRandom;
+		}
+	}
+
+	if( !md || md->m_numPlayers < numUsers )
+	{
+		UnicodeString text;
+		text.format( TheGameText->fetch( "LAN:TooManyPlayers" ), md ? md->m_numPlayers : 0 );
+		blockers.push_back( text );
+	}
+	if( TheGlobalData->m_netMinPlayers && !numHumans )
+		blockers.push_back( TheGameText->fetch( "GUI:NeedHumanPlayers" ) );
+	if( numUsers < TheGlobalData->m_netMinPlayers )
+	{
+		UnicodeString text;
+		text.format( TheGameText->fetch( "LAN:NeedMorePlayers" ), numUsers );
+		blockers.push_back( text );
+	}
+	else if( numRandom + (Int)teams.size() < TheGlobalData->m_netMinPlayers )
+		blockers.push_back( TheGameText->fetch( "LAN:NeedMoreTeams" ) );
+
+	UnicodeString mapDisplayName;
+	Bool willTransfer = TRUE;
+	if( md )
+	{
+		mapDisplayName.format( L"%ls", md->m_displayName.str() );
+		willTransfer = !md->m_isOfficial;
+	}
+	else
+	{
+		mapDisplayName.format( L"%hs", game->getMap().str() );
+		willTransfer = WouldMapTransfer( game->getMap() );
+	}
+
+	Bool waiting = FALSE;
+	for( Int i = 0; i < MAX_SLOTS; ++i )
+	{
+		const GameSlot *slot = game->getConstSlot( i );
+		if( !slot || !slot->isHuman() || slot->isAccepted() || i == game->getLocalSlotNum() )
+			continue;
+		waiting = TRUE;
+		if( !slot->hasMap() && !willTransfer )
+		{
+			UnicodeString text;
+			text.format( TheGameText->fetch( "GUI:PlayerNoMap" ), slot->getName().str(), mapDisplayName.str() );
+			blockers.push_back( text );
+		}
+	}
+	if( waiting )
+		blockers.push_back( TheGameText->fetch( "GUI:GOWaitingForAccepts" ) );
+
+	return blockers;
 }

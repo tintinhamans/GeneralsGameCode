@@ -3772,3 +3772,667 @@ button.hq-card:hover .hq-card-title
 	line-height: 21dp;
 	color: #A9B1CF;
 }
+
+
+/* =========================================================================================
+   Game setup -- skirmish, LAN and online share one flow, in the order players think: the map,
+   then who plays, then the rules, then start.
+
+	<div class="screen-body su-body">
+		<div class="col su-map-col"><div class="hq-card su-hero">       01 Map: the preview with its
+			.hq-section, .map-frame (markers), .su-hero-info (.su-map-name, .su-cap, Select Map)</div></div>
+		<div class="col col-main"><div class="surface su-players">      02 Players
+			.su-players-head (.hq-section, .su-fill "Fill with AI" buttons)
+			.su-list > .su-item (data-for over the slots, in GameSetupData::displayOrder() order):
+				.su-group    a team group's head (team mode)
+				.su-fold     "Unused on this map (n)": opens and closes the folded slots
+				.prow        one slot: .prow-chip (colour, opens .prow-pop), .prow-badge, .prow-who,
+				             .prow-army, .team-seg, .prow-spot; .prow.empty for an open or closed slot
+				             (.prow-add quick AI buttons)
+				.prow-pop    the colour popover: the fixed palette, taken colours dimmed
+		</div></div>
+		<div class="col col-side su-side"><div class="surface su-rules"> 03 Rules; chat or honors under it
+	</div>
+	<div class="action-bar"> back | spacer | .su-ready (Ready to start, or .su-blockers) | Start </div>
+
+   Two-line rows on 5:4 and 4:3. The rows are the only list: the fold and team groups are
+   presentation, every row keeps its own slot's controls and events.
+   ========================================================================================= */
+.su-body
+{
+	align-items: flex-start;
+}
+
+.su-map-col
+{
+	flex: 0 0 440dp;
+	width: 440dp;
+	margin-right: 20dp;
+}
+
+.su-side
+{
+	width: 380dp;
+	align-self: stretch;
+}
+
+.col-main.su-main
+{
+	align-self: stretch;
+}
+
+/* ---- 01 Map ---------------------------------------------------------------------------------- */
+.su-hero
+{
+	padding: 16dp 18dp 18dp 18dp;
+}
+
+.su-hero .hq-section
+{
+	margin-bottom: 14dp;
+}
+
+.su-hero .map-frame
+{
+	width: 404dp;
+	height: auto; /* follows the preview: <mappreview fit="width"> */
+}
+
+.su-hero .map-missing
+{
+	height: 300dp;
+}
+
+.su-hero-info
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	margin-top: 14dp;
+}
+
+.su-map-name
+{
+	display: block;
+	flex: 1 1 100%;
+	font-size: 25dp;
+	line-height: 30dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: normal;
+}
+
+.su-cap
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 30dp;
+	margin-top: 10dp;
+	padding: 0 12dp;
+	font-size: 15dp;
+	font-weight: bold;
+	letter-spacing: 1.5dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #D7DCF0;
+	background-color: #2F37A878;
+}
+
+.su-cap span
+{
+	margin-right: 6dp;
+	color: #D1FD04;
+}
+
+.screen button.su-map-btn
+{
+	flex: 0 0 auto;
+	margin: 10dp 0 0 auto;
+}
+
+/* ---- 02 Players -------------------------------------------------------------------------------- */
+/* As tall as its rows, scrolling only when they outgrow the column. */
+.su-players
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 1 auto;
+	min-height: 0;
+	max-height: 100%;
+	box-sizing: border-box;
+	padding: 16dp 20dp 14dp 20dp;
+}
+
+.su-players-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 40dp;
+	margin-bottom: 6dp;
+}
+
+.su-fill
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-left: auto;
+}
+
+.su-fill .overline
+{
+	margin-right: 10dp;
+}
+
+.screen .su-fill button, .screen .prow-add button
+{
+	height: 36dp;
+	line-height: 34dp;
+	padding: 0 12dp;
+	margin-left: 6dp;
+	font-size: 15dp;
+	color: #A9B1CF;
+	background-color: transparent;
+	border: 1dp #8080FF3C;
+}
+
+.screen .su-fill button:hover, .screen .prow-add button:hover
+{
+	color: #FFFFFF;
+	border-color: #D1FD04;
+	background-color: #2F37A878;
+}
+
+.screen .su-fill button[disabled], .screen .su-fill button[disabled]:hover,
+.screen .prow-add button[disabled], .screen .prow-add button[disabled]:hover
+{
+	color: #4A5070;
+	background-color: transparent;
+	border-color: #8080FF1E;
+}
+
+.su-fill button[disabled] .pc-plus, .prow-add button[disabled] .pc-plus
+{
+	color: #4A5070;
+}
+
+.su-list
+{
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.su-item
+{
+	display: block;
+}
+
+/* A team group's head: "TEAM 1", or "NO TEAM". */
+.su-group
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 30dp;
+	margin: 12dp 0 2dp 0;
+	font-size: 14dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #B8C0DE;
+	border-bottom: 1dp #8080FF30;
+}
+
+.su-item:first-child .su-group
+{
+	margin-top: 0;
+}
+
+.su-group-no
+{
+	margin-left: 8dp;
+	color: #D1FD04;
+}
+
+/* The fold over the slots the map has no room for. */
+.su-fold
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 38dp;
+	margin-top: 10dp;
+	padding: 0 12dp;
+	font-size: 15dp;
+	font-weight: bold;
+	letter-spacing: 1.5dp;
+	text-transform: uppercase;
+	color: #7C86B4;
+	background-color: #05070F8C;
+	border: 1dp #8080FF1E;
+	transition: color border-color 0.12s cubic-out;
+}
+
+.su-fold:hover
+{
+	color: #FFFFFF;
+	border-color: #8080FF60;
+}
+
+.su-fold-mark
+{
+	width: 18dp;
+	margin-right: 6dp;
+	font-size: 22dp;
+	color: #8080FF;
+}
+
+.su-fold:hover .su-fold-mark
+{
+	color: #D1FD04;
+}
+
+.su-fold-count
+{
+	margin-left: 8dp;
+	color: #A9B1CF;
+}
+
+/* One slot: its colour down the left edge. */
+.prow
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	box-sizing: border-box;
+	height: 58dp;
+	margin-top: 6dp;
+	padding: 0 10dp 0 10dp;
+	background-color: #0B1030C8;
+	border-left: 5dp #7079A0;
+}
+
+.prow.human
+{
+	background-color: #11184AD2;
+}
+
+.prow.empty
+{
+	height: 50dp;
+	background-color: #05070F8C;
+	border-left-color: #8080FF28;
+}
+
+.prow.unused
+{
+	opacity: 0.8;
+}
+
+.prow > *
+{
+	flex: 0 0 auto;
+}
+
+/* The colour chip: the slot's colour (a hollow "?" for random); opens the popover. */
+.screen button.prow-chip
+{
+	box-sizing: border-box;
+	width: 32dp;
+	height: 32dp;
+	line-height: 26dp;
+	padding: 0;
+	margin-right: 10dp;
+	font-size: 16dp;
+	text-align: center;
+	color: #A9B1CF;
+	border: 2dp #FFFFFF46;
+	transition: border-color 0.12s cubic-out;
+}
+
+.screen button.prow-chip:hover, .screen button.prow-chip.open
+{
+	border-color: #D1FD04;
+}
+
+.screen button.prow-chip[disabled], .screen button.prow-chip[disabled]:hover
+{
+	border-color: #FFFFFF1E;
+}
+
+.prow-no
+{
+	width: 32dp;
+	margin-right: 10dp;
+	text-align: center;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #7079A0;
+}
+
+.prow-badge
+{
+	display: block;
+	box-sizing: border-box;
+	width: 42dp;
+	height: 42dp;
+	margin-right: 12dp;
+	line-height: 40dp;
+	text-align: center;
+	font-size: 22dp;
+	font-weight: bold;
+	color: #7079A0;
+	background-color: #05070FDC;
+	border: 1dp #8080FF28;
+}
+
+.prow-badge mappedimage
+{
+	display: block;
+	width: 34dp;
+	height: 34dp;
+	margin: 3dp;
+}
+
+.prow-who
+{
+	display: block;
+	width: 200dp;
+	min-width: 0;
+	margin-right: 10dp;
+}
+
+.prow-who select
+{
+	width: 100%;
+}
+
+.prow-name
+{
+	display: block;
+	font-size: 21dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.prow-state
+{
+	display: block;
+	font-size: 19dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.prow > .prow-army
+{
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.prow-army select, .prow-army .army-ro
+{
+	width: 100%;
+}
+
+.prow .team-seg
+{
+	margin-left: 10dp;
+}
+
+/* Start spot: the map's numbered square, edged in the player's colour; "?" when the game picks it. */
+.prow-spot
+{
+	box-sizing: border-box;
+	width: 40dp;
+	height: 36dp;
+	margin-left: 10dp;
+	line-height: 32dp;
+	text-align: center;
+	font-size: 18dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	background-color: #05070FC8;
+	border: 2dp #A9B1CF;
+}
+
+.prow-spot.random
+{
+	color: #7079A0;
+	border-color: #8080FF46;
+}
+
+/* An open or closed slot: its occupant, then quick ways to add an AI. */
+.prow-add
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-left: auto;
+}
+
+.prow-add .overline
+{
+	margin-right: 4dp;
+}
+
+/* Status chips on a network slot (connection, host, ready, no map). */
+.prow-status
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-left: 8dp;
+}
+
+.prow-status > *
+{
+	margin-left: 6dp;
+}
+
+/* The colour popover: opens under its row from the chip, the whole palette in a fixed order. */
+.prow-pop
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin: 2dp 0 4dp 15dp;
+	padding: 8dp 10dp;
+	background-color: #090C1EF5;
+	border: 1dp #3A46D0;
+	border-top: 2dp #D1FD04;
+	animation: 0.14s cubic-out pop-in;
+}
+
+@keyframes pop-in
+{
+	from { opacity: 0; margin-top: -6dp; }
+	to { opacity: 1; margin-top: 2dp; }
+}
+
+.prow-pop .swatches
+{
+	flex: 0 0 auto;
+}
+
+.prow-pop-name
+{
+	margin-left: 12dp;
+	font-size: 16dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+}
+
+/* ---- 03 Rules ---------------------------------------------------------------------------------- */
+.su-rules .hq-section
+{
+	margin-bottom: 16dp;
+}
+
+.su-rules .opt-label
+{
+	display: block;
+	margin: 0 0 8dp 0;
+	font-size: 17dp;
+	color: #A9B1CF;
+}
+
+.su-rules .cash-seg
+{
+	margin-bottom: 16dp;
+}
+
+.screen .su-rules .cash-seg button.seg-item
+{
+	flex: 1 1 0%;
+	padding: 0 4dp;
+	font-size: 17dp;
+}
+
+.su-speed
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 14dp;
+}
+
+.su-speed .opt-label
+{
+	flex: 0 0 auto;
+	margin: 0 16dp 0 0;
+}
+
+.su-speed input.range
+{
+	flex: 1 1 0%;
+}
+
+.su-chips
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	margin-top: 14dp;
+}
+
+.su-chips .chip-status
+{
+	margin: 0 8dp 8dp 0;
+}
+
+/* ---- Readiness: what Start would refuse, by the Start button --------------------------------- */
+.su-ready
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 1 auto;
+	min-width: 0;
+	height: 55dp;
+	margin-right: 20dp;
+	padding: 0 20dp 0 16dp;
+	background-color: #070A1AD9;
+	border-left: 3dp #D1FD04;
+	font-size: 17dp;
+	font-weight: bold;
+	letter-spacing: 1.5dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #D1FD04;
+}
+
+.su-ready .dot
+{
+	margin-right: 12dp;
+	background-color: #D1FD04;
+}
+
+.su-ready.blocked
+{
+	height: auto;
+	min-height: 55dp;
+	padding: 6dp 20dp 6dp 16dp;
+	border-left-color: #E8D440;
+	font-size: 16dp;
+	letter-spacing: 0;
+	text-transform: none;
+	font-weight: normal;
+	color: #EEF1FA;
+}
+
+.su-blockers
+{
+	display: block;
+	min-width: 0;
+}
+
+.su-blocker
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	line-height: 22dp;
+	white-space: nowrap;
+}
+
+.su-blocker-mark
+{
+	flex: 0 0 auto;
+	width: 18dp;
+	height: 18dp;
+	margin-right: 10dp;
+	line-height: 18dp;
+	text-align: center;
+	font-size: 14dp;
+	font-weight: bold;
+	color: #1A1604;
+	background-color: #E8D440;
+}
+
+.su-blocker span
+{
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ---- 5:4 and 4:3: narrower columns, two-line rows ------------------------------------------------ */
+@media (max-aspect-ratio: 3/2)
+{
+	.su-map-col { flex-basis: 330dp; width: 330dp; }
+	.su-hero { padding: 14dp 14dp 16dp 14dp; }
+	.su-hero .map-frame { width: 302dp; }
+	.su-map-name { font-size: 22dp; line-height: 27dp; }
+	.su-side { width: 300dp; }
+	.su-players { padding: 14dp 14dp 12dp 14dp; }
+	.su-fill .overline { display: none; }
+	.screen .su-fill button { padding: 0 8dp; margin-left: 4dp; font-size: 14dp; }
+	.prow { flex-wrap: wrap; height: auto; padding: 8dp 8dp 8dp 8dp; }
+	.prow.empty { height: auto; }
+	.prow-who { flex: 1 0 70%; width: auto; margin-right: 0; }
+	.prow > .prow-army { flex: 1 1 0%; min-width: 150dp; margin: 8dp 0 0 42dp; }
+	.prow .team-seg { margin-top: 8dp; }
+	.prow-spot { margin-top: 8dp; }
+	.screen .prow .team-seg button.seg-item { flex-basis: 28dp; width: 28dp; font-size: 15dp; }
+	.screen .prow .team-seg button.seg-item:first-child { flex-basis: 48dp; width: 48dp; }
+	.prow-badge { display: none; }
+	.prow-add { flex: 1 1 100%; justify-content: flex-end; margin-top: 6dp; }
+	.prow-add .overline { display: none; }
+	.screen .prow-add button { padding: 0 8dp; margin-left: 4dp; font-size: 14dp; }
+	.prow-pop { margin-left: 8dp; }
+	.screen .prow-pop .swatches button.swatch { width: 26dp; height: 26dp; margin-right: 1dp; }
+	.prow-pop .swatch .chip { line-height: 18dp; font-size: 13dp; }
+	.prow-pop .swatch.random .chip { line-height: 16dp; }
+	.prow-pop-name { display: none; }
+	.su-ready { padding: 0 14dp 0 12dp; font-size: 15dp; margin-right: 14dp; }
+	.su-ready.blocked { font-size: 14dp; }
+}

@@ -139,6 +139,16 @@ struct GameSetupOptionsData
 	std::vector<GameSetupStartingCashOption> m_startingCashOptions;
 };
 
+// Where a slot row goes in a setup screen's player list (see GameSetupData::displayOrder()).
+struct GameSetupDisplayRow
+{
+	Int m_slot = 0;
+	Bool m_unused = FALSE; // an open or closed slot past the map's player count: folded away
+	Bool m_groupHead = FALSE; // first row of a team group (team mode only)
+	Int m_groupTeam = -1; // that group's team, -1 for "no team"
+	Bool m_foldHead = FALSE; // first unused row
+};
+
 struct GameSetupData
 {
 	std::vector<GameSetupSlotRow> m_slots; // always MAX_SLOTS entries
@@ -156,4 +166,18 @@ struct GameSetupData
 	// GameSetupStartPositionMarker::m_used); every entry unused if the map isn't found or isn't
 	// multiplayer. Shared by GameSetupData::build() so the two call sites can't drift apart.
 	static std::vector<GameSetupStartPositionMarker> computeStartPositionMarkers( AsciiString mapName );
+
+	// Presentation only, from a build() snapshot (or LAN/online's m_base rows): the slots in the
+	// order a player list shows them. Slots the map has no room for (index past its player count,
+	// open or closed) go last, marked unused; with any team picked (team mode) the rest group by
+	// team, 1 to 4, then no team. One entry per slot; the slots themselves are untouched.
+	static std::vector<GameSetupDisplayRow> displayOrder( const std::vector<GameSetupSlotRow> &slots, const GameSetupOptionsData &options,
+		Bool *teamMode = nullptr, Int *unusedCount = nullptr );
+
+	// Why ButtonStart would be refused now, in the order the start handlers check, with their own
+	// messages: skirmish (SkirmishSetupActions::validateStart()) or network (LanGameSetupActions::
+	// validateStart(), OnlineGameSetupActions' StartPressed()), the latter also naming a player
+	// without the map and, while anyone has not accepted, GUI:GOWaitingForAccepts. Read-only: sends
+	// nothing, changes nothing. Empty when Start would go ahead.
+	static std::vector<UnicodeString> startBlockers( GameInfo *game, Bool isNetwork );
 };

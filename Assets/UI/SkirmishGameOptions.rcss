@@ -1,159 +1,44 @@
 /*
-	SkirmishGameOptions.rcss -- skirmish setup on the screen template (common.rcss): a player card
-	per slot, two across, in the main column (the .player-card component); the map card and the
-	game options in the side column; the battle honors between Back and Play in the action bar.
+	SkirmishGameOptions.rcss -- skirmish setup: the game setup flow of common.rcss (01 map, 02
+	players, 03 rules, readiness by Start) under the .hq-header strip; the battle honors sit under
+	the rules.
 
-	Every select keeps an option matching its bound value (the hidden SLOT_PLAYER occupant on
-	human slots, Random in the army list): RmlUi fires a phantom "change" for an unmatched value.
+	Every select keeps an option matching its bound value (the hidden SLOT_PLAYER occupant on human
+	slots, Random in the army list): RmlUi fires a phantom "change" for an unmatched value.
 	x_style/y_style of a start marker are pre-formatted CSS lengths ("12.500%"); start_markers is
 	always MAX_SLOTS entries, unused ones hidden with data-if="marker.used".
 */
 
-/* ---- Player cards ------------------------------------------------------------------------------ */
-.sk-cards
-{
-	flex: 1 1 0%;
-	min-height: 0;
-}
-
-/* ---- Side column: map and options -------------------------------------------------------------- */
-.col-side
-{
-	width: 440dp;
-}
-
-.map-card
-{
-	display: block;
-}
-
-.map-card .map-frame
-{
-	width: 330dp;
-	height: auto; /* follows the preview: <mappreview fit="width"> */
-	margin: 0 auto;
-}
-
-.map-row
+/* ---- Battle honors under the rules ---------------------------------------------------------------- */
+.honor-grid
 {
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
-	align-items: center;
-	margin-top: 14dp;
+	margin-top: 10dp;
 }
 
-/* The whole name, never cut: a short one keeps Select Map beside it, a long one takes its own
-   line and wraps, and Select Map moves under it. */
-.map-row .map-name
+.honor-grid .stat
 {
-	flex: 1 1 auto;
-	min-width: 0;
-	margin: 4dp 12dp 4dp 0;
-	line-height: 1.2;
-	white-space: normal;
+	flex: 0 0 50%;
+	box-sizing: border-box;
+	padding: 8dp 8dp 8dp 0;
 }
 
-.map-row button
+.honor-grid .stat-value
 {
-	flex: 0 0 auto;
+	font-size: 28dp;
+	line-height: 32dp;
 }
 
-.options .opt-label
-{
-	display: block;
-	margin: 0 0 8dp 0;
-	font-size: 17dp;
-	color: #A9B1CF;
-}
-
-.cash-seg
-{
-	margin-bottom: 14dp;
-}
-
-.screen .cash-seg button.seg-item
-{
-	flex: 1 1 0%;
-	padding: 0 6dp;
-	font-size: 17dp;
-}
-
-.speed-row
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	margin-bottom: 12dp;
-}
-
-.speed-row .opt-label
-{
-	flex: 0 0 auto;
-	margin: 0 16dp 0 0;
-}
-
-.speed
-{
-	flex: 1 1 0%;
-}
-
-/* ---- Honors in the action bar ------------------------------------------------------------------ */
-.honors
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	margin-left: 30dp;
-	padding: 8dp 20dp;
-	background-color: #070A1AC8;
-}
-
-.honors .stat
-{
-	flex: 0 0 auto;
-	margin-right: 28dp;
-}
-
-.honors .stat:last-child
-{
-	margin-right: 0;
-}
-
-.honors .stat-value
-{
-	font-size: 26dp;
-	line-height: 30dp;
-}
-
-.honors .stat-label
+.honor-grid .stat-label
 {
 	font-size: 13dp;
+	letter-spacing: 0.5dp;
 }
 
-/* ---- 5:4 and 4:3: a narrower side column and tighter cards ---------------------------------------- */
 @media (max-aspect-ratio: 3/2)
 {
-	.col-side { width: 330dp; }
-	.map-card .map-frame { width: 290dp; }
-	.speed-row { flex-wrap: wrap; }
-	.speed-row .opt-label { flex-basis: 100%; margin-bottom: 8dp; }
-	.player-card { padding: 10dp 10dp; }
-	.pc-badge { flex-basis: 46dp; width: 46dp; height: 46dp; margin-right: 10dp; }
-	.pc-badge mappedimage { width: 38dp; height: 38dp; }
-	.pc-name { font-size: 20dp; }
-	.screen .team-seg button.seg-item { flex-basis: 28dp; width: 28dp; font-size: 15dp; }
-	.screen .team-seg button.seg-item:first-child { flex-basis: 48dp; width: 48dp; }
-	.screen .swatches button.swatch { width: 26dp; height: 26dp; margin-right: 1dp; }
-	.swatch .chip { line-height: 18dp; font-size: 13dp; }
-	.swatch.random .chip { line-height: 16dp; }
-	.pc-spot { height: 28dp; margin-left: 8dp; padding: 0 7dp 0 6dp; }
-	.pc-spot-cap { display: none; } /* the number alone; its tooltip names it */
-	.pc-spot-no { font-size: 16dp; }
-	.pc-compact .pc-who { flex-basis: 110dp; }
-	.screen .pc-add button { padding: 0 7dp; margin-left: 4dp; font-size: 14dp; }
-	.pc-add-label { display: none; }
-	.honors { margin-left: 16dp; padding: 6dp 12dp; }
-	.honors .stat { margin-right: 14dp; }
-	.honors .stat-label { font-size: 11dp; letter-spacing: 0; }
+	.honor-grid .stat-value { font-size: 24dp; line-height: 28dp; }
+	.honor-grid .stat-label { font-size: 12dp; letter-spacing: 0; }
 }

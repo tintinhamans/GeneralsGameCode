@@ -74,6 +74,8 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("skirmishsetup");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
+
 		// Registered before the slot rows, which hold a per-row list of these.
 		Rml::StructHandle<OptionModel> optionHandle = constructor.RegisterStruct<OptionModel>();
 		if (optionHandle)
@@ -105,6 +107,10 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 			rowHandle.RegisterMember("color_options", &SlotRowModel::colorOptions);
 			rowHandle.RegisterMember("team_number", &SlotRowModel::teamNumber);
 			rowHandle.RegisterMember("start_position", &SlotRowModel::startPosition);
+			rowHandle.RegisterMember("unused", &SlotRowModel::unused);
+			rowHandle.RegisterMember("group_head", &SlotRowModel::groupHead);
+			rowHandle.RegisterMember("group_team", &SlotRowModel::groupTeam);
+			rowHandle.RegisterMember("fold_head", &SlotRowModel::foldHead);
 		}
 
 		Rml::StructHandle<StartMarkerModel> markerHandle = constructor.RegisterStruct<StartMarkerModel>();
@@ -136,6 +142,13 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 		constructor.Bind("honor_losses", &m_model.honorLosses);
 		constructor.Bind("honor_win_streak", &m_model.honorWinStreak);
 		constructor.Bind("honor_best_win_streak", &m_model.honorBestWinStreak);
+		constructor.RegisterArray<Rml::Vector<Rml::String>>();
+		constructor.Bind("map_num_players", &m_model.mapNumPlayers);
+		constructor.Bind("team_mode", &m_model.teamMode);
+		constructor.Bind("unused_count", &m_model.unusedCount);
+		constructor.Bind("show_unused", &m_model.showUnused);
+		constructor.Bind("color_popover_slot", &m_model.colorPopoverSlot);
+		constructor.Bind("start_blockers", &m_model.startBlockers);
 
 		constructor.BindEventCallback("slot_occupant_changed", &RmlSkirmishSetupScreen::onSlotOccupantChanged, this);
 		constructor.BindEventCallback("slot_occupant_picked", &RmlSkirmishSetupScreen::onSlotOccupantPicked, this);
@@ -155,6 +168,7 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("back", &RmlSkirmishSetupScreen::onBackPressed, this);
 		constructor.BindEventCallback("reset_honors", &RmlSkirmishSetupScreen::onResetHonors, this);
 		constructor.BindEventCallback("select_map", &RmlSkirmishSetupScreen::onSelectMap, this);
+		constructor.BindEventCallback("fill_ai", &RmlSkirmishSetupScreen::onFillAI, this);
 
 		m_modelHandle = constructor.GetModelHandle();
 	}
@@ -167,7 +181,7 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 {
 	GameSetupData data = GameSetupData::build(TheSkirmishGameInfo);
 
-	m_model.slots.clear();
+	Rml::Vector<SlotRowModel> rows;
 	for (size_t i = 0; i < data.m_slots.size(); ++i)
 	{
 		const GameSetupSlotRow &src = data.m_slots[i];
@@ -215,8 +229,29 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 			row.colorOptions.push_back(option);
 		}
 
+		rows.push_back(row);
+	}
+
+	// The list's order: in capacity first (grouped by team in team mode), unused ones folded last.
+	Bool teamMode = FALSE;
+	Int unusedCount = 0;
+	m_model.slots.clear();
+	for (const GameSetupDisplayRow &at : GameSetupData::displayOrder(data.m_slots, data.m_options, &teamMode, &unusedCount))
+	{
+		SlotRowModel row = rows[at.m_slot];
+		row.unused = at.m_unused == TRUE;
+		row.groupHead = at.m_groupHead == TRUE;
+		row.groupTeam = at.m_groupTeam;
+		row.foldHead = at.m_foldHead == TRUE;
 		m_model.slots.push_back(row);
 	}
+	m_model.teamMode = teamMode == TRUE;
+	m_model.unusedCount = unusedCount;
+	m_model.mapNumPlayers = data.m_options.m_mapFound ? data.m_options.m_mapNumPlayers : 0;
+
+	m_model.startBlockers.clear();
+	for (const UnicodeString &reason : GameSetupData::startBlockers(TheSkirmishGameInfo, FALSE))
+		m_model.startBlockers.push_back(unicodeToUtf8(reason));
 
 	m_model.startMarkers.clear();
 	for (const GameSetupStartPositionMarker &marker : data.m_options.m_startPositionMarkers)
@@ -294,6 +329,10 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 		m_modelHandle.DirtyVariable("honor_losses");
 		m_modelHandle.DirtyVariable("honor_win_streak");
 		m_modelHandle.DirtyVariable("honor_best_win_streak");
+		m_modelHandle.DirtyVariable("map_num_players");
+		m_modelHandle.DirtyVariable("team_mode");
+		m_modelHandle.DirtyVariable("unused_count");
+		m_modelHandle.DirtyVariable("start_blockers");
 	}
 }
 
@@ -312,7 +351,16 @@ void RmlSkirmishSetupScreen::show()
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("game_speed_slider_pos");
 
+	m_model.showUnused = false;
+	m_model.colorPopoverSlot = -1;
+	if (m_modelHandle)
+	{
+		m_modelHandle.DirtyVariable("show_unused");
+		m_modelHandle.DirtyVariable("color_popover_slot");
+	}
+
 	refreshFromGameState();
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
 
 	// SkirmishGameOptionsMenuUpdate()'s entrance group, and SkirmishGameOptionsMenuShutdown()'s reverse below.
@@ -518,6 +566,31 @@ void RmlSkirmishSetupScreen::onResetHonors(Rml::DataModelHandle, Rml::Event &, c
 	refreshFromGameState();
 }
 
+// "Fill with AI": the open slots, in order, up to the map's player count, each the same as its own
+// add-AI button (SkirmishSetupActions::selectPlayerState()).
+void RmlSkirmishSetupScreen::onFillAI(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.empty() || !TheSkirmishGameInfo)
+		return;
+	const SlotState state = (SlotState)args[0].Get<int>();
+	if (state < SLOT_EASY_AI || state > SLOT_BRUTAL_AI)
+		return;
+
+	const GameSetupData data = GameSetupData::build(TheSkirmishGameInfo);
+	const Int capacity = data.m_options.m_mapFound && data.m_options.m_mapNumPlayers > 0 ? data.m_options.m_mapNumPlayers : MAX_SLOTS;
+	Int players = 0;
+	for (const GameSetupSlotRow &slot : data.m_slots)
+		players += (slot.m_state != SLOT_OPEN && slot.m_state != SLOT_CLOSED) ? 1 : 0;
+	for (Int i = 0; i < (Int)data.m_slots.size() && players < capacity; ++i)
+	{
+		if (data.m_slots[i].m_state != SLOT_OPEN || !data.m_slots[i].m_canEditOccupant)
+			continue;
+		SkirmishSetupActions::selectPlayerState(TheSkirmishGameInfo, i, state, UnicodeString::TheEmptyString);
+		++players;
+	}
+	refreshFromGameState();
+}
+
 void RmlSkirmishSetupScreen::onSelectMap(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
 {
 	// Same as SkirmishGameOptionsMenu.cpp's ButtonSelectMap: hide this screen while the map-select
@@ -531,7 +604,13 @@ void RmlSkirmishSetupScreen::returnFromMapSelect()
 	if (!m_document)
 		return;
 	refreshFromGameState();
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
+}
+
+void RmlSkirmishSetupScreen::update()
+{
+	m_hq.refresh(m_modelHandle);
 }
 
 //-------------------------------------------------------------------------------------------------

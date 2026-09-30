@@ -306,3 +306,27 @@ END
 GUI:GOMenuHardDesc
 "No mercy for veterans"
 END
+
+GUI:GORules
+"Rules"
+END
+
+GUI:GOFillWithAI
+"Fill with AI"
+END
+
+GUI:GOUnusedSlots
+"Unused on this map"
+END
+
+GUI:GONoTeam
+"No team"
+END
+
+GUI:GOReadyToStart
+"Ready to start"
+END
+
+GUI:GOWaitingForAccepts
+"Waiting for every player to accept"
+END
