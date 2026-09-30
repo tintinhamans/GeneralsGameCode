@@ -73,6 +73,12 @@
 	template (body.screen) further down: its design language and skeleton, then the shared components
 	(player card, stat card, tile, tab rail, progress, chips, persona, facts, modal) and the gotchas of
 	this RmlUi build, each documented where it is defined.
+
+	On top of the template, every shell screen speaks the main menu's HQ terminal language (last
+	section of this sheet): the .hq-header strip (logo, crumb and title, online status, clock) in place
+	of the title plate, .hq-brackets (green corner brackets and a scan line) on primary rows and tiles,
+	.hq-index step numbers, .hq-card art cards with a green top edge, and the .hq-ticker news strip.
+	Its status comes from RmlHqStatus in the device layer, bound into each screen's data model.
 */
 
 body
@@ -3213,4 +3219,556 @@ body.modal.over-game
 {
 	.screen.dock-open .screen-frame { margin-right: 356dp; }
 	.shell.dock-open .shell-frame { margin-right: 352dp; }
+}
+
+
+/* =========================================================================================
+   HQ terminal -- the main menu's command-post language, shared by every screen. The shell map
+   stays the picture; full-width bands along the ruler carry where you are and who is online, the
+   green hilite marks what the pointer is on, and art cards open the next step.
+
+	Header strip  .hq-band.hq-header > .hq-band-in: the logo, the screen's crumb and title, optional
+	              small controls, and the status (online pill and clock) far right. A direct child
+	              of <body> (a viewport layer, like the ruler); class="hq" on <body> starts the frame
+	              under it. It replaces the .screen-heading plate: a screen's .screen-header then only
+	              holds its toolbar (filters, pickers), if it has one.
+		<body class="screen hq">
+		<div class="hq-band hq-header"><div class="hq-band-in">
+			<mappedimage name="GeneralsLogo" class="hq-logo"/>
+			<div class="hq-heading"><div class="hq-crumb">parent<span class="crumb-sep">&#8250;</span></div>
+				<div class="hq-title">title</div></div>
+			<div class="hq-aside">optional buttons</div>
+			<div class="hq-status">
+				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span>
+					<span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span>
+					<span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span>
+					<span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
+			</div>
+		</div></div>
+	              The four variables come from RmlHqStatus (RmlHqStatus.h): a screen binds it into its
+	              data model, refreshes it on show and ticks it from update().
+	Brackets      .hq-brackets on a primary row or tile, holding <span class="hq-br hq-br-tl"/> (tl, tr,
+	              bl, br) and <span class="hq-scan"/>: green corner brackets and a scan line drawn out
+	              under it on hover and focus; .current or .selected keeps them, quieter. For a few big
+	              choices, never a dense list.
+	Index         .hq-index: the small number in front of a menu item ("01"), green on a hovered
+	              .hq-brackets. .hq-section is a section heading with its step number in front:
+	              <div class="hq-section"><span class="hq-index">01</span><gametext/></div>
+	Card          button.hq-card > .hq-art (art well, clips) + .hq-card-text (.hq-card-title,
+	              .hq-card-desc) + <span class="hq-edge"/>: the edge and the border light green on
+	              hover and focus. A div.hq-card keeps the look without the hover.
+	Ticker        .hq-band.hq-ticker > .hq-band-in > .hq-tag + .hq-tk-view (see MainMenu.rml): a bottom
+	              strip of scrolling news; .hq-tk-static for a still line.
+   ========================================================================================= */
+
+/* ---- Bands: strips across the ruler's opening -------------------------------------------------
+   Flush with the frame line; the inner row keeps to the frame's width and gutters, so its content
+   lines up with the screen's own on any aspect ratio. */
+.hq-band
+{
+	display: block;
+	position: absolute;
+	left: 64.5dp;
+	right: 64.5dp;
+	box-sizing: border-box;
+	background-color: #060914E8;
+}
+
+.hq-band-in
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	box-sizing: border-box;
+	height: 100%;
+	max-width: 2150dp;
+	margin: 0 auto;
+	padding: 0 23.5dp;
+}
+
+.hq-header
+{
+	top: 64.5dp;
+	height: 84dp;
+	border-bottom: 1dp #8080FF38;
+}
+
+/* The frame starts 20dp under the strip. */
+body.hq .screen-frame
+{
+	top: 168.5dp;
+}
+
+/* GeneralsLogo is 370x120 art. */
+.hq-logo
+{
+	flex: 0 0 auto;
+	width: 231dp;
+	height: 75dp;
+	margin-left: -8dp;
+}
+
+.hq-heading
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 1 auto;
+	min-width: 0;
+	height: 44dp;
+	margin-left: 22dp;
+	padding-left: 26dp;
+	border-left: 1dp #8080FF38;
+}
+
+.hq-crumb
+{
+	flex: 0 0 auto;
+	margin-right: 16dp;
+	font-size: 16dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #A9B1CF;
+}
+
+.hq-title
+{
+	flex: 0 1 auto;
+	min-width: 0;
+	font-size: 34dp;
+	line-height: 40dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: #FFFFFF;
+	border-left: 4dp #D1FD04;
+	padding-left: 14dp;
+}
+
+/* Small controls a screen keeps in the strip (Communicator, Options): quiet until hovered. */
+.hq-aside
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-left: auto;
+}
+
+.hq-aside > *
+{
+	margin-left: 10dp;
+}
+
+.screen .hq-aside button
+{
+	height: 42dp;
+	line-height: 40dp;
+	padding: 0 18dp;
+	font-size: 16dp;
+	letter-spacing: 2dp;
+	color: #B8C0DE;
+	background-color: #0E1433;
+	border: 1dp #8080FF40;
+}
+
+.screen .hq-aside button:hover
+{
+	color: #D1FD04;
+	background-color: #141A3EE6;
+	border-color: #D1FD04;
+}
+
+.hq-status
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	margin-left: auto;
+}
+
+.hq-aside + .hq-status
+{
+	margin-left: 20dp;
+	padding-left: 20dp;
+	border-left: 1dp #8080FF38;
+}
+
+.hq-pill
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 38dp;
+	padding: 0 18dp 0 16dp;
+	font-size: 16dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #EEF1FA;
+	background-color: #0E1433;
+	border: 1dp #8080FF40;
+}
+
+.hq-dot
+{
+	display: inline-block;
+	width: 10dp;
+	height: 10dp;
+	border-radius: 5dp;
+	margin-right: 12dp;
+	background-color: #36D8B2;
+}
+
+.hq-off
+{
+	color: #7079A0;
+	background-color: transparent;
+	border-color: #8080FF24;
+}
+
+.hq-off .hq-dot
+{
+	background-color: transparent;
+	border: 2dp #5A6390;
+}
+
+.hq-sep
+{
+	display: inline-block;
+	width: 1dp;
+	height: 18dp;
+	margin: 0 14dp;
+	background-color: #8080FF50;
+}
+
+.hq-name
+{
+	color: #D1FD04;
+	letter-spacing: 1dp;
+	text-transform: none;
+	font-size: 18dp;
+}
+
+.hq-clock
+{
+	margin-left: 20dp;
+	padding-left: 20dp;
+	border-left: 1dp #8080FF38;
+	height: 38dp;
+	line-height: 38dp;
+	font-size: 24dp;
+	font-weight: bold;
+	letter-spacing: 3dp;
+	color: #A9B1CF;
+}
+
+/* 5:4 and 4:3: the strip keeps the title; the logo shrinks and the count gives way to the name. */
+@media (max-aspect-ratio: 3/2)
+{
+	body.hq .hq-logo { width: 185dp; height: 60dp; }
+	body.hq .hq-heading { margin-left: 16dp; padding-left: 18dp; }
+	body.hq .hq-title { font-size: 30dp; }
+	body.hq .hq-count, body.hq .hq-sep { display: none; }
+	body.hq .hq-clock { margin-left: 14dp; padding-left: 14dp; font-size: 22dp; letter-spacing: 2dp; }
+}
+
+/* ---- Ticker: the bottom strip ------------------------------------------------------------------ */
+.hq-ticker
+{
+	bottom: 64.5dp;
+	height: 44dp;
+	border-top: 1dp #8080FF38;
+}
+
+.hq-tag
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 44dp;
+	padding-right: 20dp;
+	margin-right: 4dp;
+	border-right: 1dp #8080FF38;
+	font-size: 14dp;
+	font-weight: bold;
+	letter-spacing: 3dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #D1FD04;
+}
+
+.hq-tag .hq-dot
+{
+	width: 8dp;
+	height: 8dp;
+	border-radius: 4dp;
+	margin-right: 10dp;
+}
+
+/* The news run. The slide comes in from the right edge (its left, a share of the viewport) while the
+   run moves back by its own width (its left, a share of the shrink-to-fit track), so the text enters
+   on the right and leaves on the left whatever its length. The slide is very wide so the track's
+   shrink-to-fit width is the whole run, never capped at the viewport. */
+.hq-tk-view
+{
+	display: block;
+	position: relative;
+	flex: 1 1 0%;
+	min-width: 0;
+	height: 44dp;
+	overflow: hidden;
+	clip: always;
+}
+
+.hq-tk-slide
+{
+	display: block;
+	position: absolute;
+	top: 0;
+	left: 100%;
+	width: 30000dp;
+	height: 44dp;
+	animation: 80s linear infinite ticker-slide;
+}
+
+.hq-tk-track
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	white-space: nowrap;
+}
+
+.hq-tk-run
+{
+	display: block;
+	position: relative;
+	left: 0%;
+	line-height: 44dp;
+	font-size: 17dp;
+	color: #C9CFE8;
+	animation: 80s linear infinite ticker-run;
+}
+
+@keyframes ticker-slide
+{
+	from { left: 100%; }
+	to { left: 0%; }
+}
+
+@keyframes ticker-run
+{
+	from { left: 0%; }
+	to { left: -100%; }
+}
+
+/* The run fades out against the tag instead of being cut. */
+.hq-tk-fade
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 48dp;
+	decorator: horizontal-gradient(#060914 #06091400);
+}
+
+.hq-tk-item
+{
+	margin-left: 26dp;
+	padding-left: 26dp;
+	border-left: 2dp #8080FF60;
+}
+
+.hq-tk-static
+{
+	flex: 1 1 auto;
+	font-size: 15dp;
+	letter-spacing: 1dp;
+	white-space: nowrap;
+	color: #7079A0;
+}
+
+/* ---- Brackets and scan line ------------------------------------------------------------------- */
+.hq-brackets
+{
+	position: relative;
+}
+
+.hq-br
+{
+	display: block;
+	position: absolute;
+	width: 14dp;
+	height: 14dp;
+	border-color: #D1FD04;
+	opacity: 0;
+	transition: opacity 0.12s cubic-out;
+}
+
+.hq-br-tl { left: 0; top: 0; border-left-width: 2dp; border-top-width: 2dp; }
+.hq-br-tr { right: 0; top: 0; border-right-width: 2dp; border-top-width: 2dp; }
+.hq-br-bl { left: 0; bottom: 0; border-left-width: 2dp; border-bottom-width: 2dp; }
+.hq-br-br { right: 0; bottom: 0; border-right-width: 2dp; border-bottom-width: 2dp; }
+
+/* Drawn out from the left under the item's label; the host moves it under its own label. */
+.hq-scan
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	bottom: 4dp;
+	width: 0%;
+	height: 2dp;
+	decorator: horizontal-gradient(#D1FD04 #D1FD0400);
+	transition: width 0.22s cubic-out;
+}
+
+.hq-brackets:hover .hq-br, .hq-brackets:focus-visible .hq-br { opacity: 1; }
+.hq-brackets:hover .hq-scan { width: 70%; }
+
+/* The open or chosen one: brackets and scan line stay, quieter. */
+.hq-brackets.current .hq-br, .hq-brackets.selected .hq-br { opacity: 0.55; }
+.hq-brackets.current .hq-scan, .hq-brackets.selected .hq-scan { width: 70%; }
+.hq-brackets.current:hover .hq-br, .hq-brackets.selected:hover .hq-br { opacity: 1; }
+
+/* ---- Index numbers ------------------------------------------------------------------------------ */
+.hq-index
+{
+	font-size: 15dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	color: #7C86B4;
+	transition: color 0.12s cubic-out;
+}
+
+.hq-brackets:hover .hq-index, .hq-brackets.current .hq-index, .hq-brackets.selected .hq-index
+{
+	color: #D1FD04;
+}
+
+/* A section heading with its step number: "01 | MAP". */
+.hq-section
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	font-size: 15dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #B8C0DE;
+}
+
+.hq-section .hq-index
+{
+	flex: 0 0 auto;
+	margin-right: 12dp;
+	padding-right: 12dp;
+	border-right: 1dp #8080FF50;
+	color: #D1FD04;
+}
+
+/* ---- Art card ------------------------------------------------------------------------------------ */
+.screen button.hq-card, .hq-card
+{
+	display: block;
+	position: relative;
+	box-sizing: border-box;
+	height: auto;
+	line-height: 1.2;
+	padding: 0;
+	text-align: left;
+	text-transform: none;
+	white-space: normal;
+	color: #EEF1FA;
+	background-color: #070A1AEC;
+	border: 1dp #8080FF3A;
+	transition: border-color 0.12s cubic-out;
+}
+
+.screen button.hq-card:hover, .screen button.hq-card:focus-visible
+{
+	background-color: #0B1030F0;
+	border-color: #D1FD04;
+}
+
+.screen button.hq-card:active
+{
+	background-color: #141A3EF0;
+	border-color: #A8CC00;
+}
+
+.hq-edge
+{
+	display: block;
+	position: absolute;
+	left: -1dp;
+	right: -1dp;
+	top: -1dp;
+	height: 4dp;
+	background-color: transparent;
+	transition: background-color 0.12s cubic-out;
+}
+
+button.hq-card:hover .hq-edge, button.hq-card:focus-visible .hq-edge
+{
+	background-color: #D1FD04;
+}
+
+.hq-art
+{
+	display: block;
+	position: relative;
+	overflow: hidden;
+	clip: always;
+	background-color: #0A0E26;
+}
+
+.hq-card-text
+{
+	display: block;
+	padding: 16dp 18dp;
+}
+
+.hq-card-title
+{
+	display: block;
+	font-size: 25dp;
+	line-height: 30dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #FFFFFF;
+	transition: color 0.12s cubic-out;
+}
+
+button.hq-card:hover .hq-card-title
+{
+	color: #D1FD04;
+}
+
+.hq-card-desc
+{
+	display: block;
+	margin-top: 6dp;
+	font-weight: normal;
+	font-size: 16dp;
+	line-height: 21dp;
+	color: #A9B1CF;
 }

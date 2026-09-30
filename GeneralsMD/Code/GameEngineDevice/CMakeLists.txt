@@ -73,6 +73,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlMainMenuScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlMessageBox.h
     Include/W3DDevice/GameClient/RmlUi/RmlEndGameOverlayScreen.h
+    Include/W3DDevice/GameClient/RmlUi/RmlHqStatus.h
     Include/W3DDevice/GameClient/RmlUi/RmlHostGameScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlJoinGameScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlNetworkDirectConnectScreen.h

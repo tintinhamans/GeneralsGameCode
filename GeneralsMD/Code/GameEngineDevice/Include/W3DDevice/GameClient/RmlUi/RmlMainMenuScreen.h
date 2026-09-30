@@ -27,6 +27,7 @@
 
 #pragma once
 
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -62,7 +63,6 @@ private:
 	void onGoLoadReplay(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &) { openFromRoot("loadreplay"); }
 	void openFromRoot(const Rml::String &panel);
 	void refreshNews();
-	void refreshClock(); // local HH:MM for the header, redirtied only when the minute changes
 	void onBackToMain(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onGoOptions(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onGoCredits(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -121,12 +121,8 @@ private:
 		Rml::Vector<Rml::String> newsLines;
 		bool hasNews = false;
 		Rml::String playersOnlineText;
-		// Header status: logged in, the player's name, a short player count, and the local time.
-		bool loggedIn = false;
-		Rml::String playerName;
-		Rml::String onlineCountText;
-		Rml::String clockText;
 	} m_model;
+	RmlHqStatus m_hq;
 };
 
 // Router entry points: Shell::push/pop route "Menus/MainMenu.wnd" here via the registry.

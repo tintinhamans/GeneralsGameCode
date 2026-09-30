@@ -13,12 +13,12 @@
 	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
 	<!-- Header strip: logo left; online status and the local time right. -->
-	<div class="d-band d-header"><div class="d-band-in">
-		<mappedimage name="GeneralsLogo" class="d-logo"/>
-		<div class="d-status">
-			<div class="d-pill d-on" data-if="logged_in"><span class="d-dot"></span><span class="d-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="d-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="d-name" data-if="player_name != ''">{{player_name}}</span></div>
-			<div class="d-pill d-off" data-if="!logged_in"><span class="d-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
-			<div class="d-clock" data-if="clock_text != ''">{{clock_text}}</div>
+	<div class="hq-band hq-header"><div class="hq-band-in">
+		<mappedimage name="GeneralsLogo" class="hq-logo"/>
+		<div class="hq-status">
+			<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+			<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+			<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 		</div>
 	</div></div>
 
@@ -109,11 +109,11 @@
 		<!-- Root menu, lower left: big stencil labels over a line of description; brackets, an index and a
 		     scan line on hover. -->
 		<div class="d-menu">
-			<button class="d-item" data-class-current="panel == 'single' || panel == 'difficulty'" data-event-click="go_single"><span class="d-idx">01</span><div class="d-text"><div class="d-label"><gametext key="GUI:SinglePlayer"/></div><div class="d-desc"><gametext key="GUI:GOMenuSoloDesc"/></div></div><span class="d-scan"></span><span class="br br-tl"></span><span class="br br-tr"></span><span class="br br-bl"></span><span class="br br-br"></span></button>
-			<button class="d-item" data-class-current="panel == 'multi'" data-event-click="go_multi"><span class="d-idx">02</span><div class="d-text"><div class="d-label"><gametext key="GUI:Multiplayer"/></div><div class="d-desc"><gametext key="GUI:GOMenuMultiDesc"/></div></div><span class="d-scan"></span><span class="br br-tl"></span><span class="br br-tr"></span><span class="br br-bl"></span><span class="br br-br"></span></button>
-			<button class="d-item" data-class-current="panel == 'loadreplay'" data-event-click="go_loadreplay"><span class="d-idx">03</span><div class="d-text"><div class="d-label"><gametext key="GUI:ReplayMenu"/></div><div class="d-desc"><gametext key="GUI:GOMenuLoadDesc"/></div></div><span class="d-scan"></span><span class="br br-tl"></span><span class="br br-tr"></span><span class="br br-bl"></span><span class="br br-br"></span></button>
-			<button class="d-item" data-hook="options" data-event-click="go_options"><span class="d-idx">04</span><div class="d-text"><div class="d-label"><gametext key="GUI:Options"/></div><div class="d-desc"><gametext key="GUI:GOMenuOptionsDesc"/></div></div><span class="d-scan"></span><span class="br br-tl"></span><span class="br br-tr"></span><span class="br br-bl"></span><span class="br br-br"></span></button>
-			<button class="d-item" data-event-click="go_credits"><span class="d-idx">05</span><div class="d-text"><div class="d-label"><gametext key="GUI:Credits"/></div><div class="d-desc"><gametext key="GUI:GOMenuCreditsDesc"/></div></div><span class="d-scan"></span><span class="br br-tl"></span><span class="br br-tr"></span><span class="br br-bl"></span><span class="br br-br"></span></button>
+			<button class="d-item hq-brackets" data-class-current="panel == 'single' || panel == 'difficulty'" data-event-click="go_single"><span class="hq-index d-idx">01</span><div class="d-text"><div class="d-label"><gametext key="GUI:SinglePlayer"/></div><div class="d-desc"><gametext key="GUI:GOMenuSoloDesc"/></div></div><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
+			<button class="d-item hq-brackets" data-class-current="panel == 'multi'" data-event-click="go_multi"><span class="hq-index d-idx">02</span><div class="d-text"><div class="d-label"><gametext key="GUI:Multiplayer"/></div><div class="d-desc"><gametext key="GUI:GOMenuMultiDesc"/></div></div><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
+			<button class="d-item hq-brackets" data-class-current="panel == 'loadreplay'" data-event-click="go_loadreplay"><span class="hq-index d-idx">03</span><div class="d-text"><div class="d-label"><gametext key="GUI:ReplayMenu"/></div><div class="d-desc"><gametext key="GUI:GOMenuLoadDesc"/></div></div><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
+			<button class="d-item hq-brackets" data-hook="options" data-event-click="go_options"><span class="hq-index d-idx">04</span><div class="d-text"><div class="d-label"><gametext key="GUI:Options"/></div><div class="d-desc"><gametext key="GUI:GOMenuOptionsDesc"/></div></div><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
+			<button class="d-item hq-brackets" data-event-click="go_credits"><span class="hq-index d-idx">05</span><div class="d-text"><div class="d-label"><gametext key="GUI:Credits"/></div><div class="d-desc"><gametext key="GUI:GOMenuCreditsDesc"/></div></div><span class="hq-scan"></span><span class="hq-br hq-br-tl"></span><span class="hq-br hq-br-tr"></span><span class="hq-br hq-br-bl"></span><span class="hq-br hq-br-br"></span></button>
 			<button class="d-exit" data-hook="exit" data-event-click="go_exit"><span class="d-exit-mark"></span><gametext key="GUI:Exit"/></button>
 		</div>
 
@@ -125,29 +125,29 @@
 				<div class="d-group">
 				<div class="d-group-head"><gametext key="GUI:Campaign"/></div>
 				<div class="d-group-cards">
-				<button class="d-card d-fac" data-hook="usa" data-event-click="select_usa" data-event-mouseover="preview_usa" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign3"><div class="d-art"><mappedimage class="d-full" name="MissionLoad_USA"/><div class="d-shine"></div></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:USA"/></div></div><span class="d-edge"></span></button>
-				<button class="d-card d-fac" data-hook="gla" data-event-click="select_gla" data-event-mouseover="preview_gla" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign2"><div class="d-art"><mappedimage class="d-full" name="MissionLoad_GLA"/><div class="d-shine"></div></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:GLA"/></div></div><span class="d-edge"></span></button>
-				<button class="d-card d-fac" data-hook="china" data-event-click="select_china" data-event-mouseover="preview_china" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign1"><div class="d-art"><mappedimage class="d-full" name="MissionLoad_China"/><div class="d-shine"></div></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:CHINA_Caps"/></div></div><span class="d-edge"></span></button>
+				<button class="hq-card d-card d-fac" data-hook="usa" data-event-click="select_usa" data-event-mouseover="preview_usa" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign3"><div class="hq-art d-art"><mappedimage class="d-full" name="MissionLoad_USA"/><div class="d-shine"></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:USA"/></div></div><span class="hq-edge"></span></button>
+				<button class="hq-card d-card d-fac" data-hook="gla" data-event-click="select_gla" data-event-mouseover="preview_gla" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign2"><div class="hq-art d-art"><mappedimage class="d-full" name="MissionLoad_GLA"/><div class="d-shine"></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:GLA"/></div></div><span class="hq-edge"></span></button>
+				<button class="hq-card d-card d-fac" data-hook="china" data-event-click="select_china" data-event-mouseover="preview_china" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:Campaign1"><div class="hq-art d-art"><mappedimage class="d-full" name="MissionLoad_China"/><div class="d-shine"></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:CHINA_Caps"/></div></div><span class="hq-edge"></span></button>
 				</div>
 				</div>
-				<button class="d-card d-solo" data-hook="skirmish" data-event-click="go_skirmish" data-tooltip="GUI:SkirmishLower"><div class="d-art"><mappedimage class="d-bg" name="MDSkirmishLoadB"/><div class="d-tint"></div><mappedimage class="d-emb" name="Skirmish144"/></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:Skirmish"/></div><div class="d-cdesc"><gametext key="GUI:GOMenuSkirmishDesc"/></div></div><span class="d-edge"></span></button>
-				<button class="d-card d-solo" data-hook="challenge" data-event-click="select_challenge" data-event-mouseover="preview_challenge" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:ChallengeButton"><div class="d-art"><mappedimage class="d-bg" name="GCBackgroundMinSpec"/><div class="d-tint"></div><mappedimage class="d-emb" name="Training144"/></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:Generals_Challenge"/></div><div class="d-cdesc"><gametext key="GUI:GOMenuChallengeDesc"/></div></div><span class="d-edge"></span></button>
+				<button class="hq-card d-card d-solo" data-hook="skirmish" data-event-click="go_skirmish" data-tooltip="GUI:SkirmishLower"><div class="hq-art d-art"><mappedimage class="d-bg" name="MDSkirmishLoadB"/><div class="d-tint"></div><mappedimage class="d-emb" name="Skirmish144"/></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:Skirmish"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuSkirmishDesc"/></div></div><span class="hq-edge"></span></button>
+				<button class="hq-card d-card d-solo" data-hook="challenge" data-event-click="select_challenge" data-event-mouseover="preview_challenge" data-event-mouseout="preview_clear" data-tooltip="TOOLTIP:ChallengeButton"><div class="hq-art d-art"><mappedimage class="d-bg" name="GCBackgroundMinSpec"/><div class="d-tint"></div><mappedimage class="d-emb" name="Training144"/></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:Generals_Challenge"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuChallengeDesc"/></div></div><span class="hq-edge"></span></button>
 				</div>
 			</div>
 
 			<div class="d-row" data-class-active="panel == 'multi'">
 				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:Multiplayer"/></div><button class="d-back" data-event-click="back_main"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button></div>
 				<div class="d-deck">
-				<button class="d-card d-wide" data-hook="online" data-event-click="go_online" data-tooltip="TOOLTIP:Online"><div class="d-art"><mappedimage class="d-bg" name="GCBackgroundMinSpec"/><div class="d-tint"></div><mappedimage class="d-medal" name="GlobalGen"/></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:GeneralsOnline"/></div><div class="d-cdesc"><gametext key="GUI:GOMenuOnlineDesc"/></div></div><span class="d-edge"></span></button>
-				<button class="d-card d-wide" data-hook="network" data-event-click="go_network" data-tooltip="TOOLTIP:Network"><div class="d-art"><mappedimage class="d-bg" name="EarthMap"/><div class="d-tint"></div><div class="d-glyph g-net"><span class="l l1"></span><span class="l l2"></span><span class="l l3"></span><span class="n n0"></span><span class="n n1"></span><span class="n n2"></span><span class="n n3"></span></div></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:Network"/></div><div class="d-cdesc"><gametext key="GUI:GOMenuNetworkDesc"/></div></div><span class="d-edge"></span></button>
+				<button class="hq-card d-card d-wide" data-hook="online" data-event-click="go_online" data-tooltip="TOOLTIP:Online"><div class="hq-art d-art"><mappedimage class="d-bg" name="GCBackgroundMinSpec"/><div class="d-tint"></div><mappedimage class="d-medal" name="GlobalGen"/></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:GeneralsOnline"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuOnlineDesc"/></div></div><span class="hq-edge"></span></button>
+				<button class="hq-card d-card d-wide" data-hook="network" data-event-click="go_network" data-tooltip="TOOLTIP:Network"><div class="hq-art d-art"><mappedimage class="d-bg" name="EarthMap"/><div class="d-tint"></div><div class="d-glyph g-net"><span class="l l1"></span><span class="l l2"></span><span class="l l3"></span><span class="n n0"></span><span class="n n1"></span><span class="n n2"></span><span class="n n3"></span></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:Network"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuNetworkDesc"/></div></div><span class="hq-edge"></span></button>
 				</div>
 			</div>
 
 			<div class="d-row" data-class-active="panel == 'loadreplay'">
 				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:ReplayMenu"/></div><button class="d-back" data-event-click="back_main"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button></div>
 				<div class="d-deck">
-				<button class="d-card d-wide" data-event-click="go_load_game"><div class="d-art"><mappedimage class="d-bg" name="EarthMap"/><div class="d-tint"></div><div class="d-glyph g-save"><span class="s s1"></span><span class="s s2"></span><span class="s s3"></span></div></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:MainMenuLoadGame"/></div><div class="d-cdesc"><gametext key="GUI:GOMenuLoadGameDesc"/></div></div><span class="d-edge"></span></button>
-				<button class="d-card d-wide" data-event-click="go_replay"><div class="d-art"><mappedimage class="d-bg" name="EarthMap"/><div class="d-tint"></div><div class="d-glyph g-rec"><mappedimage class="ring" name="Circle_Mid"/><mappedimage class="ring ring-in" name="Circle_Mid"/><span class="tick t-n"></span><span class="tick t-s"></span><span class="tick t-w"></span><span class="tick t-e"></span><span class="core"></span></div></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:MainMenuLoadReplay"/></div><div class="d-cdesc"><gametext key="GUI:GOMenuReplayDesc"/></div></div><span class="d-edge"></span></button>
+				<button class="hq-card d-card d-wide" data-event-click="go_load_game"><div class="hq-art d-art"><mappedimage class="d-bg" name="EarthMap"/><div class="d-tint"></div><div class="d-glyph g-save"><span class="s s1"></span><span class="s s2"></span><span class="s s3"></span></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:MainMenuLoadGame"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuLoadGameDesc"/></div></div><span class="hq-edge"></span></button>
+				<button class="hq-card d-card d-wide" data-event-click="go_replay"><div class="hq-art d-art"><mappedimage class="d-bg" name="EarthMap"/><div class="d-tint"></div><div class="d-glyph g-rec"><mappedimage class="ring" name="Circle_Mid"/><mappedimage class="ring ring-in" name="Circle_Mid"/><span class="tick t-n"></span><span class="tick t-s"></span><span class="tick t-w"></span><span class="tick t-e"></span><span class="core"></span></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:MainMenuLoadReplay"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuReplayDesc"/></div></div><span class="hq-edge"></span></button>
 				</div>
 			</div>
 
@@ -155,8 +155,8 @@
 			<div class="d-row" data-class-active="panel == 'difficulty'">
 				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:SelectDifficulty"/></div><button class="d-back" data-event-click="diff_back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button></div>
 				<div class="d-deck">
-				<div class="d-card d-pick">
-					<div class="d-art">
+				<div class="hq-card d-card d-pick">
+					<div class="hq-art d-art">
 						<mappedimage class="d-full" name="MissionLoad_USA" data-if="selected_faction == 'USA'"/>
 						<mappedimage class="d-full" name="MissionLoad_GLA" data-if="selected_faction == 'GLA'"/>
 						<mappedimage class="d-full" name="MissionLoad_China" data-if="selected_faction == 'China'"/>
@@ -165,17 +165,17 @@
 						<mappedimage class="d-emb" name="Training144" data-if="selected_faction == 'Training'"/>
 						<div class="d-shine"></div>
 					</div>
-					<div class="d-card-text">
-						<div class="d-title" data-if="selected_faction == 'USA'"><gametext key="GUI:USA"/></div>
-						<div class="d-title" data-if="selected_faction == 'GLA'"><gametext key="GUI:GLA"/></div>
-						<div class="d-title" data-if="selected_faction == 'China'"><gametext key="GUI:CHINA_Caps"/></div>
-						<div class="d-title" data-if="selected_faction == 'Training'"><gametext key="GUI:Generals_Challenge"/></div>
-						<div class="d-cdesc" data-if="selected_faction != 'Training'"><gametext key="GUI:Campaign"/></div>
+					<div class="hq-card-text d-card-text">
+						<div class="hq-card-title" data-if="selected_faction == 'USA'"><gametext key="GUI:USA"/></div>
+						<div class="hq-card-title" data-if="selected_faction == 'GLA'"><gametext key="GUI:GLA"/></div>
+						<div class="hq-card-title" data-if="selected_faction == 'China'"><gametext key="GUI:CHINA_Caps"/></div>
+						<div class="hq-card-title" data-if="selected_faction == 'Training'"><gametext key="GUI:Generals_Challenge"/></div>
+						<div class="hq-card-desc" data-if="selected_faction != 'Training'"><gametext key="GUI:Campaign"/></div>
 					</div>
 				</div>
-				<button class="d-card d-diff" data-event-click="select_easy"><div class="d-art"><div class="d-level"><span class="bar on"></span><span class="bar"></span><span class="bar"></span></div></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:EasyCaps"/></div><div class="d-cdesc"><gametext key="GUI:GOMenuEasyDesc"/></div></div><span class="d-edge"></span></button>
-				<button class="d-card d-diff" data-event-click="select_medium"><div class="d-art"><div class="d-level"><span class="bar on"></span><span class="bar on"></span><span class="bar"></span></div></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:MediumDifficultyCaps"/></div><div class="d-cdesc"><gametext key="GUI:GOMenuMediumDesc"/></div></div><span class="d-edge"></span></button>
-				<button class="d-card d-diff" data-event-click="select_hard"><div class="d-art"><div class="d-level"><span class="bar on"></span><span class="bar on"></span><span class="bar on"></span></div></div><div class="d-card-text"><div class="d-title"><gametext key="GUI:HardCaps"/></div><div class="d-cdesc"><gametext key="GUI:GOMenuHardDesc"/></div></div><span class="d-edge"></span></button>
+				<button class="hq-card d-card d-diff" data-event-click="select_easy"><div class="hq-art d-art"><div class="d-level"><span class="bar on"></span><span class="bar"></span><span class="bar"></span></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:EasyCaps"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuEasyDesc"/></div></div><span class="hq-edge"></span></button>
+				<button class="hq-card d-card d-diff" data-event-click="select_medium"><div class="hq-art d-art"><div class="d-level"><span class="bar on"></span><span class="bar on"></span><span class="bar"></span></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:MediumDifficultyCaps"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuMediumDesc"/></div></div><span class="hq-edge"></span></button>
+				<button class="hq-card d-card d-diff" data-event-click="select_hard"><div class="hq-art d-art"><div class="d-level"><span class="bar on"></span><span class="bar on"></span><span class="bar on"></span></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:HardCaps"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuHardDesc"/></div></div><span class="hq-edge"></span></button>
 				</div>
 			</div>
 		</div>
@@ -185,13 +185,13 @@
 	     brings the run in from the right edge (its left, a share of the viewport) while the run moves
 	     back by its own width (its left, a share of the shrink-to-fit track), so the text enters on
 	     the right and leaves on the left whatever its length. -->
-	<div class="d-band d-ticker"><div class="d-band-in">
-		<div class="d-tag" data-if="has_news"><span class="d-dot"></span><gametext key="GUI:GOStatusTitle"/></div>
-		<div class="d-tk-view" data-if="has_news">
-			<div class="d-tk-slide"><div class="d-tk-track"><div class="d-tk-run"><span data-for="line : news_lines"><span class="d-tk-item" data-if="line != ' ' &amp;&amp; line != ''">{{line}}</span></span></div></div></div>
-			<div class="d-tk-fade"></div>
+	<div class="hq-band hq-ticker"><div class="hq-band-in">
+		<div class="hq-tag" data-if="has_news"><span class="hq-dot"></span><gametext key="GUI:GOStatusTitle"/></div>
+		<div class="hq-tk-view" data-if="has_news">
+			<div class="hq-tk-slide"><div class="hq-tk-track"><div class="hq-tk-run"><span data-for="line : news_lines"><span class="hq-tk-item" data-if="line != ' ' &amp;&amp; line != ''">{{line}}</span></span></div></div></div>
+			<div class="hq-tk-fade"></div>
 		</div>
-		<div class="d-tk-static" data-if="!has_news">{{ version }}</div>
+		<div class="hq-tk-static" data-if="!has_news">{{ version }}</div>
 	</div></div>
 </body>
 </rml>

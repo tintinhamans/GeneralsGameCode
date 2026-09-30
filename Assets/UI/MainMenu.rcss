@@ -547,23 +547,26 @@
 
 /* ==== D: HQ command terminal =====================================================================
    The front door as a command post: the shell map stays the picture, and only three things darken
-   it -- the header strip and the news ticker, bands that run the full opening of the ruler, and a
+   it -- the header strip and the news ticker (common.rcss's .hq-header and .hq-ticker bands), and a
    soft fade from the left edge behind the menu. The root menu sits large in the lower left; a
-   sub-panel is a row of cards beside it, the campaign sides under one "Campaign" bracket.
+   sub-panel is a row of .hq-card cards beside it, the campaign sides under one "Campaign" bracket.
 
 	body > .d-shade                            the fade, under the ruler
-	body > .d-band.d-header > .d-band-in       logo | status pill (logged in: dot, count, name;
-	                                           else "Offline") and the local time
-	.screen-frame > .d-menu > button.d-item    index, label, description; brackets and scan line
+	body > .hq-band.hq-header                  logo | status pill and the local time (no title: this
+	                                           is the front door)
+	.screen-frame > .d-menu > button.d-item    .hq-index, label, description; .hq-brackets
 	                        > button.d-exit    set apart, smaller
 	.screen-frame > .d-cards > .d-row(.active) > .d-row-head (title, back) + .d-deck of .d-card
-	body > .d-band.d-ticker > .d-band-in       "Generals Online" tag and the scrolling news, or the
+	body > .hq-band.hq-ticker                  "Generals Online" tag and the scrolling news, or the
 	                                           build when there is none
 
-   The bands' inner row keeps to the frame's width and gutters, so their content lines up with the
-   menu and the cards on any aspect ratio. None of this is laid out in A, B or C, and none of theirs
-   in D. */
-.d-shade, .d-band, .d-menu, .d-cards
+   None of this is laid out in A, B or C, and none of theirs in D. */
+.d-shade, .d-menu, .d-cards
+{
+	display: none;
+}
+
+.mm-a .hq-band, .mm-b .hq-band, .mm-c .hq-band
 {
 	display: none;
 }
@@ -573,13 +576,13 @@
 	display: none;
 }
 
-.mm-d .d-shade, .mm-d .d-band, .mm-d .d-menu
+.mm-d .d-shade, .mm-d .d-menu
 {
 	display: block;
 	position: absolute;
 }
 
-/* ---- Fade and bands ------------------------------------------------------------------------ */
+/* ---- Fade ------------------------------------------------------------------------------------ */
 .d-shade
 {
 	left: 0;
@@ -587,237 +590,6 @@
 	bottom: 0;
 	width: 1150dp;
 	decorator: horizontal-gradient(#03050CE8 #03050C00);
-}
-
-.d-band
-{
-	left: 64.5dp;
-	right: 64.5dp;
-	box-sizing: border-box;
-	background-color: #060914E8;
-}
-
-.d-band-in
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	box-sizing: border-box;
-	height: 100%;
-	max-width: 2150dp;
-	margin: 0 auto;
-	padding: 0 23.5dp;
-}
-
-.d-header
-{
-	top: 64.5dp;
-	height: 84dp;
-	border-bottom: 1dp #8080FF38;
-}
-
-/* GeneralsLogo is 370x120 art. */
-.d-logo
-{
-	flex: 0 0 auto;
-	width: 231dp;
-	height: 75dp;
-	margin-left: -8dp;
-}
-
-.d-status
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	margin-left: auto;
-}
-
-.d-pill
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	height: 38dp;
-	padding: 0 18dp 0 16dp;
-	font-size: 16dp;
-	font-weight: bold;
-	letter-spacing: 2dp;
-	text-transform: uppercase;
-	white-space: nowrap;
-	color: #EEF1FA;
-	background-color: #0E1433;
-	border: 1dp #8080FF40;
-}
-
-.d-dot
-{
-	display: inline-block;
-	width: 10dp;
-	height: 10dp;
-	border-radius: 5dp;
-	margin-right: 12dp;
-	background-color: #36D8B2;
-}
-
-.d-off
-{
-	color: #7079A0;
-	background-color: transparent;
-	border-color: #8080FF24;
-}
-
-.d-off .d-dot
-{
-	background-color: transparent;
-	border: 2dp #5A6390;
-}
-
-.d-sep
-{
-	display: inline-block;
-	width: 1dp;
-	height: 18dp;
-	margin: 0 14dp;
-	background-color: #8080FF50;
-}
-
-.d-name
-{
-	color: #D1FD04;
-	letter-spacing: 1dp;
-	text-transform: none;
-	font-size: 18dp;
-}
-
-.d-clock
-{
-	margin-left: 20dp;
-	padding-left: 20dp;
-	border-left: 1dp #8080FF38;
-	height: 38dp;
-	line-height: 38dp;
-	font-size: 24dp;
-	font-weight: bold;
-	letter-spacing: 3dp;
-	color: #A9B1CF;
-}
-
-.d-ticker
-{
-	bottom: 64.5dp;
-	height: 44dp;
-	border-top: 1dp #8080FF38;
-}
-
-.d-tag
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	flex: 0 0 auto;
-	height: 44dp;
-	padding-right: 20dp;
-	margin-right: 4dp;
-	border-right: 1dp #8080FF38;
-	font-size: 14dp;
-	font-weight: bold;
-	letter-spacing: 3dp;
-	text-transform: uppercase;
-	white-space: nowrap;
-	color: #D1FD04;
-}
-
-.d-tag .d-dot
-{
-	width: 8dp;
-	height: 8dp;
-	border-radius: 4dp;
-	margin-right: 10dp;
-}
-
-/* The news run: see MainMenu.rml. The slide is very wide so the track's shrink-to-fit width is the
-   whole run, never capped at the viewport. */
-.d-tk-view
-{
-	display: block;
-	position: relative;
-	flex: 1 1 0%;
-	min-width: 0;
-	height: 44dp;
-	overflow: hidden;
-	clip: always;
-}
-
-.d-tk-slide
-{
-	display: block;
-	position: absolute;
-	top: 0;
-	left: 100%;
-	width: 30000dp;
-	height: 44dp;
-	animation: 80s linear infinite ticker-slide;
-}
-
-.d-tk-track
-{
-	display: block;
-	position: absolute;
-	left: 0;
-	top: 0;
-	white-space: nowrap;
-}
-
-.d-tk-run
-{
-	display: block;
-	position: relative;
-	left: 0%;
-	line-height: 44dp;
-	font-size: 17dp;
-	color: #C9CFE8;
-	animation: 80s linear infinite ticker-run;
-}
-
-@keyframes ticker-slide
-{
-	from { left: 100%; }
-	to { left: 0%; }
-}
-
-@keyframes ticker-run
-{
-	from { left: 0%; }
-	to { left: -100%; }
-}
-
-/* The run fades out against the tag instead of being cut. */
-.d-tk-fade
-{
-	display: block;
-	position: absolute;
-	left: 0;
-	top: 0;
-	bottom: 0;
-	width: 48dp;
-	decorator: horizontal-gradient(#060914 #06091400);
-}
-
-.d-tk-item
-{
-	margin-left: 26dp;
-	padding-left: 26dp;
-	border-left: 2dp #8080FF60;
-}
-
-.d-tk-static
-{
-	flex: 1 1 auto;
-	font-size: 15dp;
-	letter-spacing: 1dp;
-	white-space: nowrap;
-	color: #7079A0;
 }
 
 /* ---- Root menu ------------------------------------------------------------------------------- */
@@ -862,12 +634,7 @@
 	position: absolute;
 	left: 16dp;
 	top: 23dp;
-	font-size: 15dp;
-	font-weight: bold;
-	letter-spacing: 1dp;
-	color: #7C86B4;
 	font-effect: glow(1dp 6dp 0dp 1dp #000000E6);
-	transition: color 0.12s cubic-out;
 }
 
 .d-text
@@ -902,47 +669,17 @@
 	transition: color 0.12s cubic-out;
 }
 
-/* Thin green scan line under the label, drawn out from the left on hover. */
-.d-scan
+/* The scan line runs under the label. */
+.d-item .hq-scan
 {
-	display: block;
-	position: absolute;
 	left: 62dp;
-	bottom: 4dp;
-	width: 0%;
-	height: 2dp;
-	decorator: horizontal-gradient(#D1FD04 #D1FD0400);
-	transition: width 0.22s cubic-out;
 }
-
-/* Tactical corner brackets round the item. */
-.br
-{
-	display: block;
-	position: absolute;
-	width: 14dp;
-	height: 14dp;
-	border-color: #D1FD04;
-	opacity: 0;
-	transition: opacity 0.12s cubic-out;
-}
-
-.br-tl { left: 0; top: 0; border-left-width: 2dp; border-top-width: 2dp; }
-.br-tr { right: 0; top: 0; border-right-width: 2dp; border-top-width: 2dp; }
-.br-bl { left: 0; bottom: 0; border-left-width: 2dp; border-bottom-width: 2dp; }
-.br-br { right: 0; bottom: 0; border-right-width: 2dp; border-bottom-width: 2dp; }
 
 .d-item:hover .d-label, .d-item:active .d-label { color: #D1FD04; }
-.d-item:hover .d-idx, .d-item.current .d-idx { color: #D1FD04; }
 .d-item:hover .d-desc { color: #C4CAE4; }
-.d-item:hover .br, .d-item:focus-visible .br { opacity: 1; }
-.d-item:hover .d-scan { width: 70%; }
 
-/* The root item whose row is open: brackets and scan line stay, quieter. */
+/* The root item whose row is open. */
 .d-item.current .d-label { color: #FFFFFF; }
-.d-item.current .br { opacity: 0.55; }
-.d-item.current .d-scan { width: 70%; }
-.d-item.current:hover .br { opacity: 1; }
 .d-item.current:hover .d-label { color: #D1FD04; }
 
 .screen button.d-exit
@@ -1101,26 +838,14 @@
 	flex-direction: row;
 }
 
-/* A card: art well on top, title and one line under it; the edge lights green on hover. */
+/* A card (.hq-card): an art well on top, the title and one line under it. */
 .screen button.d-card, .d-card
 {
-	display: block;
-	position: relative;
 	flex: 1 1 0%;
 	min-width: 0;
 	max-width: 300dp;
-	box-sizing: border-box;
 	height: 348dp;
-	line-height: 1.2;
 	margin-left: 16dp;
-	padding: 0;
-	text-align: left;
-	text-transform: none;
-	white-space: normal;
-	color: #EEF1FA;
-	background-color: #070A1AEC;
-	border: 1dp #8080FF3A;
-	transition: border-color 0.12s cubic-out;
 }
 
 .d-group-cards .d-card:first-child, .d-deck > .d-card:first-child
@@ -1133,43 +858,9 @@
 	max-width: 440dp;
 }
 
-.screen button.d-card:hover, .screen button.d-card:focus-visible
-{
-	background-color: #0B1030F0;
-	border-color: #D1FD04;
-}
-
-.screen button.d-card:active
-{
-	background-color: #141A3EF0;
-	border-color: #A8CC00;
-}
-
-.d-edge
-{
-	display: block;
-	position: absolute;
-	left: -1dp;
-	right: -1dp;
-	top: -1dp;
-	height: 4dp;
-	background-color: transparent;
-	transition: background-color 0.12s cubic-out;
-}
-
-.d-card:hover .d-edge, .d-card:focus-visible .d-edge
-{
-	background-color: #D1FD04;
-}
-
 .d-art
 {
-	display: block;
-	position: relative;
 	height: 226dp;
-	overflow: hidden;
-	clip: always;
-	background-color: #0A0E26;
 }
 
 .d-art mappedimage, .d-glyph
@@ -1288,36 +979,7 @@
 
 .d-card-text
 {
-	display: block;
-	padding: 16dp 18dp 0 18dp;
-}
-
-.d-title
-{
-	display: block;
-	font-size: 25dp;
-	line-height: 30dp;
-	font-weight: bold;
-	letter-spacing: 2dp;
-	text-transform: uppercase;
-	white-space: nowrap;
-	color: #FFFFFF;
-	transition: color 0.12s cubic-out;
-}
-
-.d-card:hover .d-title
-{
-	color: #D1FD04;
-}
-
-.d-cdesc
-{
-	display: block;
-	margin-top: 6dp;
-	font-weight: normal;
-	font-size: 16dp;
-	line-height: 21dp;
-	color: #A9B1CF;
+	padding-bottom: 0;
 }
 
 /* The chosen side on the difficulty row: not a button, drawn quieter. */
@@ -1507,7 +1169,7 @@
 	.d-label { font-size: 40dp; line-height: 50dp; letter-spacing: 3dp; }
 	.screen button.d-item { height: 80dp; padding-left: 54dp; padding-right: 24dp; }
 	.d-idx { left: 12dp; top: 20dp; }
-	.d-scan { left: 54dp; }
+	.d-item .hq-scan { left: 54dp; }
 	.screen button.d-exit { margin-left: 54dp; }
 	.mm-d .d-cards { left: 530dp; }
 	.d-deck { flex-wrap: wrap; }
@@ -1519,6 +1181,6 @@
 	.screen .d-deck > .d-card:nth-child(odd), .screen .d-group + .d-card { margin-left: 0; }
 	.screen .d-deck > .d-card.d-solo + .d-card.d-solo { margin-left: 16dp; }
 	.screen .d-deck > .d-card:nth-child(n+3) { margin-top: 16dp; }
-	.d-title { font-size: 22dp; }
-	.d-cdesc { font-size: 15dp; line-height: 19dp; }
+	.d-card .hq-card-title { font-size: 22dp; }
+	.d-card .hq-card-desc { font-size: 15dp; line-height: 19dp; }
 }

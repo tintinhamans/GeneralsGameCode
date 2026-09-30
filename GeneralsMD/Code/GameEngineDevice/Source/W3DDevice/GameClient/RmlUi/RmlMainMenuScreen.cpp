@@ -85,10 +85,7 @@ void RmlMainMenuScreen::load(Rml::Context *context)
 		constructor.Bind("news_lines", &m_model.newsLines);
 		constructor.Bind("has_news", &m_model.hasNews);
 		constructor.Bind("players_online_text", &m_model.playersOnlineText);
-		constructor.Bind("logged_in", &m_model.loggedIn);
-		constructor.Bind("player_name", &m_model.playerName);
-		constructor.Bind("online_count_text", &m_model.onlineCountText);
-		constructor.Bind("clock_text", &m_model.clockText);
+		m_hq.bind(constructor);
 
 		constructor.BindEventCallback("go_single", &RmlMainMenuScreen::onGoSingle, this);
 		constructor.BindEventCallback("go_multi", &RmlMainMenuScreen::onGoMulti, this);
@@ -153,8 +150,7 @@ void RmlMainMenuScreen::show()
 		m_model.version = unicodeToUtf8(build);
 	}
 	refreshNews();
-	m_model.clockText.clear();
-	refreshClock();
+	m_hq.refresh(m_modelHandle, true);
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
@@ -198,20 +194,7 @@ void RmlMainMenuScreen::update()
 	HTTPThinkWrapper();
 
 	updateShellHook();
-	refreshClock();
-}
-
-void RmlMainMenuScreen::refreshClock()
-{
-	SYSTEMTIME now;
-	GetLocalTime(&now);
-	char text[8];
-	snprintf(text, sizeof(text), "%02u:%02u", (unsigned)now.wHour, (unsigned)now.wMinute);
-	if (m_model.clockText == text)
-		return;
-	m_model.clockText = text;
-	if (m_modelHandle)
-		m_modelHandle.DirtyVariable("clock_text");
+	m_hq.refresh(m_modelHandle);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -360,16 +343,10 @@ void RmlMainMenuScreen::refreshNews()
 	m_model.newsLines.clear();
 	m_model.hasNews = false;
 	m_model.playersOnlineText.clear();
-	m_model.loggedIn = false;
-	m_model.playerName.clear();
-	m_model.onlineCountText.clear();
 
 	// News and the player count only while logged in; a logged-out client may still hold the last ones.
 	if (!OnlineWelcomeData::isLoggedIn())
 		return;
-
-	m_model.loggedIn = true;
-	m_model.playerName = unicodeToUtf8(OnlineWelcomeData::localDisplayName());
 
 	for (const OnlineWelcomeMotdLine &line : OnlineWelcomeData::buildMotdLines())
 	{
@@ -387,12 +364,6 @@ void RmlMainMenuScreen::refreshNews()
 
 	const Int playersOnline = OnlineWelcomeData::currentNumPlayersOnline();
 	m_model.playersOnlineText = playersOnline > 0 ? unicodeToUtf8(OnlineWelcomeData::buildNumPlayersOnlineText(playersOnline)) : Rml::String();
-	if (playersOnline > 0)
-	{
-		UnicodeString count;
-		count.format(TheGameText->fetch("GUI:GOMenuPlayersOnline"), playersOnline);
-		m_model.onlineCountText = unicodeToUtf8(count);
-	}
 }
 
 void RmlMainMenuScreen::openFromRoot(const Rml::String &panel)
