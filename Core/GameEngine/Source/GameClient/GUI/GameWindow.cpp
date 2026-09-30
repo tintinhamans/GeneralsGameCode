@@ -82,6 +82,7 @@
 GameWindow::GameWindow()
 {
 	m_status = WIN_STATUS_NONE;
+	m_headless = FALSE;
 
 	m_size.x = 0;
 	m_size.y = 0;

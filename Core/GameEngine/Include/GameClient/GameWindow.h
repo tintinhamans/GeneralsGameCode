@@ -255,6 +255,10 @@ public:
   Bool winGetEnabled(); ///< Is window enabled?
 	Int winHide( Bool hide );  ///< hide/unhide a window
 	Bool winIsHidden();  ///< is this window hidden/
+	// A headless window, and everything in it, is loaded and kept up to date but neither drawn nor hit by the
+	// mouse: the model under an RmlUi view of it (the control bar).
+	void winSetHeadless( Bool headless ) { m_headless = headless; }
+	Bool winIsHeadless() const { return m_headless; }
 	UnsignedInt winSetStatus( UnsignedInt status );  ///< set status bits
 	UnsignedInt winClearStatus( UnsignedInt status );  ///< clear status bits
 	UnsignedInt winGetStatus();  ///< get status bits
@@ -396,6 +400,7 @@ protected:
 	// **************************************************************************
 
 	Int m_status;      									// Status bits for this window
+	Bool m_headless;										///< see winSetHeadless()
 	ICoord2D  m_size;						     	  // Width and height of the window
 	IRegion2D m_region;      					  // Current region occupied by window.
 	// Low x,y is the window's origin

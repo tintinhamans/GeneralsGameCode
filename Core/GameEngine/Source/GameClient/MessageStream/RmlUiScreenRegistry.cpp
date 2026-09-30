@@ -51,6 +51,7 @@ namespace
 		RmlUiScreenFunc back;
 		bool capturesInput;
 		RmlUiScreenKeyFunc keys;
+		bool view; ///< the .wnd stays loaded as the model; see registerView()
 		unsigned order; ///< s_openCount at the last open(); orders the visible layers
 	};
 
@@ -259,6 +260,13 @@ namespace
 		{ "Menus/WOLBuddyOverlay.wnd", "Menus/PopupPlayerInfo.wnd", false },
 		{ "Menus/PopupHostGame.wnd", "Menus/WOLCustomLobby.wnd", false },
 		{ "Menus/PopupJoinGame.wnd", "Menus/WOLCustomLobby.wnd", false },
+		// The control bar is one view over several .wnd files: a mod's copy of any of them keeps the whole HUD on its .wnd.
+		{ "GeneralsExpPoints.wnd", "ControlBar.wnd", true },
+		{ "ControlBarPopupDescription.wnd", "ControlBar.wnd", true },
+		{ "GenPowersShortcutBarUS.wnd", "ControlBar.wnd", true },
+		{ "GenPowersShortcutBarChina.wnd", "ControlBar.wnd", true },
+		{ "GenPowersShortcutBarGLA.wnd", "ControlBar.wnd", true },
+		{ "ReplayControl.wnd", "ControlBar.wnd", true },
 	};
 
 	// The registered paths that go to the .wnd, worked out once all screens are registered (the
@@ -379,7 +387,20 @@ void RmlUiScreenRegistry::registerScreen(const char *wndPath, RmlUiScreenFunc op
 	e.order = 0;
 	e.capturesInput = capturesInput;
 	e.keys = keys;
+	e.view = false;
 	entries().push_back(e);
+}
+
+void RmlUiScreenRegistry::registerView(const char *wndPath)
+{
+	registerScreen(wndPath, nullptr, nullptr, nullptr, nullptr, false, nullptr);
+	find(AsciiString(wndPath))->view = true;
+}
+
+bool RmlUiScreenRegistry::isView(const AsciiString &wndPath)
+{
+	const Entry *e = find(wndPath);
+	return e && e->view;
 }
 
 void RmlUiScreenRegistry::unregisterScreen(const char *wndPath)

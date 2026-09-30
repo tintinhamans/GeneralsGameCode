@@ -39,6 +39,10 @@ public:
 	// (see RmlUiScreenRegistry::ownsInput()), or the cursor is over a visible document.
 	virtual bool wantsMouseInput(int mouseX, int mouseY) const = 0;
 
+	// TRUE while a capturing RmlUi layer (screen, popup, message box) is up; an overlay drawn over the game
+	// (the HUD) is not one, and leaves the mouse to the world while the world holds it (drag-select, scrolling).
+	virtual bool capturesInput() const = 0;
+
 	// TRUE if RmlUi owns the keyboard (same rule), or a text field in a visible document has
 	// focus, so keyboard input should not reach the game's window manager.
 	virtual bool wantsKeyboardInput() const = 0;

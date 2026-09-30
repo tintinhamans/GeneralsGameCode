@@ -153,6 +153,8 @@ set(GAMEENGINE_SRC
     Include/GameClient/Color.h
     Include/GameClient/CommandXlat.h
     Include/GameClient/ControlBar.h
+    Include/GameClient/ControlBarActions.h
+    Include/GameClient/ControlBarData.h
     Include/GameClient/ControlBarResizer.h
     Include/GameClient/ControlBarScheme.h
     Include/GameClient/Credits.h
@@ -723,9 +725,11 @@ set(GAMEENGINE_SRC
 #    Source/GameClient/GUI/AnimateWindowManager.cpp
     Source/GameClient/GUI/ChallengeGenerals.cpp
     Source/GameClient/GUI/ControlBar/ControlBar.cpp
+    Source/GameClient/GUI/ControlBar/ControlBarActions.cpp
     Source/GameClient/GUI/ControlBar/ControlBarBeacon.cpp
     Source/GameClient/GUI/ControlBar/ControlBarCommand.cpp
     Source/GameClient/GUI/ControlBar/ControlBarCommandProcessing.cpp
+    Source/GameClient/GUI/ControlBar/ControlBarData.cpp
     Source/GameClient/GUI/ControlBar/ControlBarMultiSelect.cpp
     Source/GameClient/GUI/ControlBar/ControlBarObserver.cpp
     Source/GameClient/GUI/ControlBar/ControlBarOCLTimer.cpp

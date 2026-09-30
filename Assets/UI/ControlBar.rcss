@@ -1,0 +1,582 @@
+/*
+	ControlBar.rcss -- the in-game control bar (ControlBar.rml, RmlControlBarScreen): the classic layout on the
+	template's palette. Radar bottom left, the command grid bottom centre, the selection bottom right, as dark
+	translucent panels over the battlefield with a hairline edge and a faction accent along the top; blue for
+	the base, the accent green for what the pointer is on, checked and ready. Everything is in dp, so the bar is
+	the same height at every resolution and aspect ratio; wider screens only show more battlefield between the
+	corners.
+
+	Buttons (.cb-slot) are square: the cameo art (5:4) fills the height and is cropped at the sides, the
+	veterancy art stays anchored right so its chevrons show, the clock darkens the part still to go from the
+	top down with a green edge, the hotkey letter sits bottom left and the command's border kind is a thin
+	stripe along the top (build blue, action teal, upgrade orange, system yellow, as the .wnd borders).
+*/
+
+body.cb
+{
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	z-index: -1; /* under every other in-game document (menus, popups) */
+	font-family: Barlow;
+	font-size: 16dp;
+	color: #EEF1FA;
+}
+
+/* ---- Panels ----------------------------------------------------------------------------------- */
+.cb-panel
+{
+	display: block;
+	position: absolute;
+	bottom: 0;
+	box-sizing: border-box;
+	pointer-events: auto;
+	background-color: #070A1AE6;
+	border: 1dp #8080FF33;
+	border-top: 2dp #3A46D0;
+}
+
+body.china .cb-panel { border-top-color: #C8323C; }
+body.gla .cb-panel { border-top-color: #B8862B; }
+
+/* ---- Radar ------------------------------------------------------------------------------------ */
+.cb-radar
+{
+	left: 0;
+	width: 216dp;
+	height: 216dp;
+	padding: 8dp;
+	border-left-width: 0;
+	border-bottom-width: 0;
+}
+
+.cb-radar-well
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+	background-color: #03050C;
+	border: 1dp #8080FF28;
+}
+
+/* ---- Centre: strip, grid and side buttons ------------------------------------------------------ */
+.cb-main
+{
+	left: 50%;
+	width: 568dp;
+	margin-left: -284dp;
+	height: 196dp;
+	padding: 8dp 12dp 12dp 12dp;
+	border-bottom-width: 0;
+}
+
+.cb-strip
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 32dp;
+	margin-bottom: 8dp;
+	border-bottom: 1dp #8080FF28;
+	padding-bottom: 4dp;
+}
+
+.cb-money
+{
+	flex: 0 0 auto;
+	font-size: 22dp;
+	line-height: 28dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	color: #D1FD04;
+	white-space: nowrap;
+	margin-right: 20dp;
+}
+
+.cb-power
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
+.cb-power-label
+{
+	font-size: 13dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #7079A0;
+	margin-right: 8dp;
+}
+
+.cb-power-bar
+{
+	display: block;
+	position: relative;
+	width: 112dp;
+	height: 14dp;
+}
+
+.cb-power-track
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 3dp;
+	height: 8dp;
+	box-sizing: border-box;
+	background-color: #141A3E;
+	border: 1dp #8080FF33;
+}
+
+.cb-power-fill
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 4dp;
+	height: 6dp;
+	background-color: #36D8B2;
+}
+
+.cb-power.low-power .cb-power-fill { background-color: #E8D440; }
+.cb-power.no-power .cb-power-fill { background-color: #FF5050; }
+
+.cb-power-rail
+{
+	display: block;
+	position: absolute;
+	left: 1dp;
+	right: 1dp;
+	top: 0;
+	bottom: 0;
+}
+
+.cb-power-needle
+{
+	display: block;
+	position: absolute;
+	top: 0;
+	width: 2dp;
+	height: 14dp;
+	margin-left: -1dp;
+	background-color: #FFFFFF;
+}
+
+.cb-power-value
+{
+	font-size: 15dp;
+	font-weight: bold;
+	color: #A9B1CF;
+	margin-left: 8dp;
+}
+
+.cb-power.no-power .cb-power-value { color: #FF7070; }
+
+/* The general's rank: five stars and the progress to the next one. */
+.cb-rank
+{
+	display: block;
+	flex: 1 1 auto;
+	text-align: right;
+}
+
+.cb-rank-stars
+{
+	display: block;
+	font-size: 14dp;
+	line-height: 16dp;
+	letter-spacing: 1dp;
+	color: #2C3458;
+}
+
+.cb-star.on { color: #D1FD04; }
+
+.cb-exp
+{
+	display: block;
+	position: relative;
+	width: 86dp;
+	height: 3dp;
+	margin: 4dp 0 0 auto;
+	background-color: #141A3E;
+}
+
+.cb-exp-fill
+{
+	display: block;
+	height: 100%;
+	background-color: #A8CC00;
+}
+
+.cb-body
+{
+	display: flex;
+	flex-direction: row;
+	height: 128dp;
+}
+
+/* ButtonCommand01..14: two rows, filled a column at a time. */
+.cb-grid
+{
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	width: 448dp;
+	height: 128dp;
+}
+
+.cb-slot
+{
+	display: block;
+	position: relative;
+	box-sizing: border-box;
+	width: 60dp;
+	height: 60dp;
+	margin: 0 4dp 4dp 0;
+	overflow: hidden;
+	clip: always;
+	background-color: #0A0E26;
+	border: 1dp #8080FF1A;
+}
+
+.cb-slot.live
+{
+	background-color: #0E1330;
+	border-color: #8080FF40;
+}
+
+.cb-slot.live:hover { border-color: #D1FD04; }
+.cb-slot.live:active { border-color: #A8CC00; background-color: #141A3E; }
+.cb-slot.live.checked { border: 2dp #D1FD04; }
+.cb-slot.live.flash { border-color: #E6FF6A; background-color: #2A3310; }
+
+/* the command's border kind along the top */
+.cb-slot.live.b1 { border-top: 2dp #6170FA; }
+.cb-slot.live.b2 { border-top: 2dp #F07A1A; }
+.cb-slot.live.b3 { border-top: 2dp #36D8B2; }
+.cb-slot.live.b4 { border-top: 2dp #E8D440; }
+.cb-slot.live.b1:hover, .cb-slot.live.b2:hover, .cb-slot.live.b3:hover, .cb-slot.live.b4:hover, .cb-slot.live.checked { border-top-color: #D1FD04; }
+
+/* The cameo, 5:4, fills the height and is cropped evenly at the sides. */
+.cb-art
+{
+	display: block;
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -12.5%;
+	right: -12.5%;
+}
+
+.cb-art mappedimage, .cb-vet mappedimage
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.cb-slot.off .cb-art img { image-color: #50546A; }
+.cb-slot.poor .cb-art img { image-color: #9A9A9A; }
+
+/* The veterancy art is the cameo's size with the chevrons at its right edge: keep that edge. */
+.cb-vet
+{
+	display: block;
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	right: 0;
+	width: 125%;
+}
+
+.cb-clock
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	background-color: #000000A8;
+	border-bottom: 2dp #D1FD04;
+}
+
+.cb-key
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	min-width: 12dp;
+	height: 16dp;
+	padding: 0 3dp;
+	font-size: 13dp;
+	line-height: 16dp;
+	font-weight: bold;
+	text-align: center;
+	color: #EEF1FA;
+	background-color: #070A1AD0;
+}
+
+.cb-slot.live:hover .cb-key { color: #D1FD04; }
+.cb-slot.off .cb-key { color: #7079A0; }
+
+.cb-text
+{
+	display: block;
+	position: absolute;
+	right: 2dp;
+	top: 1dp;
+	font-size: 14dp;
+	line-height: 16dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	font-effect: outline(1dp #000000);
+}
+
+/* Under construction and OCL timers */
+.cb-task
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	width: 448dp;
+	height: 128dp;
+}
+
+.cb-task-slot { flex: 0 0 auto; margin: 0 16dp 0 0; }
+
+.cb-task-info
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-right: 12dp;
+}
+
+.cb-task-text
+{
+	display: block;
+	font-size: 18dp;
+	line-height: 24dp;
+	color: #EEF1FA;
+}
+
+.cb-task-bar
+{
+	display: block;
+	height: 6dp;
+	margin-top: 10dp;
+	background-color: #141A3E;
+	border: 1dp #8080FF33;
+}
+
+.cb-task-fill
+{
+	display: block;
+	height: 100%;
+	background-color: #D1FD04;
+}
+
+/* Round the bar: two columns of small buttons. */
+.cb-side
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	width: 84dp;
+	height: 128dp;
+	margin-left: 8dp;
+}
+
+.cb-side-btn
+{
+	display: block;
+	position: relative;
+	box-sizing: border-box;
+	width: 38dp;
+	height: 38dp;
+	margin: 0 4dp 5dp 0;
+	text-align: center;
+	background-color: #141A3ED7;
+	border: 1dp #8080FF40;
+	color: #B8C0DE;
+}
+
+.cb-side-btn:hover { border-color: #D1FD04; color: #D1FD04; }
+.cb-side-btn:active { background-color: #252E96; }
+.cb-side-btn.off { color: #4A5270; border-color: #8080FF1A; }
+
+.cb-glyph
+{
+	display: block;
+	font-size: 20dp;
+	line-height: 36dp;
+}
+
+.cb-general.lit { border-color: #D1FD04; background-color: #2A3310; color: #E6FF6A; }
+
+.cb-badge
+{
+	display: block;
+	position: absolute;
+	right: 1dp;
+	top: 1dp;
+	min-width: 10dp;
+	height: 15dp;
+	padding: 0 3dp;
+	font-size: 12dp;
+	line-height: 15dp;
+	font-weight: bold;
+	color: #0E1400;
+	background-color: #D1FD04;
+}
+
+/* ---- The selection -------------------------------------------------------------------------------- */
+.cb-unit
+{
+	right: 0;
+	width: 316dp;
+	height: 196dp;
+	padding: 8dp 12dp 12dp 12dp;
+	border-right-width: 0;
+	border-bottom-width: 0;
+}
+
+.cb-unit-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 32dp;
+	margin-bottom: 8dp;
+	border-bottom: 1dp #8080FF28;
+	padding-bottom: 4dp;
+}
+
+.cb-name
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	font-size: 17dp;
+	line-height: 24dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: #FFFFFF;
+}
+
+.cb-count
+{
+	flex: 0 0 auto;
+	font-size: 16dp;
+	font-weight: bold;
+	color: #D1FD04;
+	margin-left: 8dp;
+}
+
+.cb-unit-body
+{
+	display: flex;
+	flex-direction: row;
+	height: 124dp;
+}
+
+.cb-portrait
+{
+	display: block;
+	position: relative;
+	flex: 0 0 auto;
+	width: 140dp;
+	height: 112dp;
+	background-color: #03050C;
+	border: 1dp #8080FF33;
+}
+
+.cb-portrait mappedimage
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.cb-portrait-vet
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.cb-upgrades
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	flex: 1 1 0%;
+	margin-left: 8dp;
+}
+
+.cb-upgrade
+{
+	display: block;
+	box-sizing: border-box;
+	width: 44dp;
+	height: 35dp;
+	margin: 0 4dp 4dp 0;
+	background-color: #0A0E26;
+	border: 1dp #8080FF1A;
+}
+
+.cb-upgrade mappedimage { display: block; width: 100%; height: 100%; }
+.cb-upgrade img { image-color: #4A4F66; }
+.cb-upgrade.owned { border-color: #8080FF50; }
+.cb-upgrade.owned img { image-color: #FFFFFF; }
+
+/* Several things selected: how many. */
+.cb-multi
+{
+	display: block;
+	height: 124dp;
+	font-size: 56dp;
+	line-height: 120dp;
+	font-weight: bold;
+	text-align: center;
+	color: #EEF1FA;
+}
+
+.cb-multi-x { font-size: 36dp; color: #D1FD04; margin-right: 4dp; }
+
+/* Without upgrades or a queue the panel is only as wide as the portrait. */
+.cb-unit.narrow { width: 168dp; }
+.cb-unit.narrow .cb-upgrades { display: none; }
+
+/* The build queue: nine slots, five and four. */
+.cb-queue
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	width: 292dp;
+	height: 124dp;
+}
+
+.cb-qslot
+{
+	width: 54dp;
+	height: 54dp;
+	margin: 0 4dp 4dp 0;
+}

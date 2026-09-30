@@ -54,6 +54,11 @@ public:
 	// does not capture input; see overlayKey().
 	static void registerScreen(const char *wndPath, RmlUiScreenFunc open, RmlUiScreenFunc close, RmlUiScreenQueryFunc isVisible, RmlUiScreenFunc back = nullptr, bool capturesInput = true, RmlUiScreenKeyFunc keys = nullptr);
 	static void unregisterScreen(const char *wndPath);
+	// A view: an RmlUi document drawn over a .wnd that stays loaded as its model (the control bar keeps its state in
+	// its windows). Routed like a screen (-wnd, -rmlwnd, a mod's own .wnd), but winCreateFromScript() and
+	// winCreateLayout() still load the .wnd: the view makes it headless and draws it instead.
+	static void registerView(const char *wndPath);
+	static bool isView(const AsciiString &wndPath);
 	static void unregisterAll(); ///< RmlUiManager::shutdown()
 
 	static bool isRegistered(const AsciiString &wndPath);

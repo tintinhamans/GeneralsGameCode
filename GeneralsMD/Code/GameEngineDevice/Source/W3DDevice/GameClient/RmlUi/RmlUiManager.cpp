@@ -33,6 +33,7 @@
 #include "GameClient/TransitionSounds.h"
 #include "W3DDevice/GameClient/RmlUi/RmlBuddyOverlayScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlBuddyToastScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlControlBarScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlCreditsScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlLanGameSetupScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlLanLobbyScreen.h"
@@ -442,6 +443,16 @@ void RmlUiManager::init(int width, int height)
 	RmlUiScreenRegistry::registerScreen("Menus/SinglePlayerLoadScreen.wnd", &OpenRmlSinglePlayerLoadScreen, &CloseRmlSinglePlayerLoadScreen, &loadScreenVisible<RmlLoadScreen::KIND_SINGLE_PLAYER>, nullptr);
 	RmlUiScreenRegistry::registerScreen("Menus/ChallengeLoadScreen.wnd", &OpenRmlChallengeLoadScreen, &CloseRmlChallengeLoadScreen, &loadScreenVisible<RmlLoadScreen::KIND_CHALLENGE>, nullptr);
 
+	// The in-game control bar and its family: views over their .wnd files, which ControlBar keeps as the model
+	// (headless while routed here); see RmlControlBarScreen.h. A mod's copy of any of them keeps them all on the .wnd.
+	RmlUiScreenRegistry::registerView("ControlBar.wnd");
+	RmlUiScreenRegistry::registerView("GeneralsExpPoints.wnd");
+	RmlUiScreenRegistry::registerView("ControlBarPopupDescription.wnd");
+	RmlUiScreenRegistry::registerView("GenPowersShortcutBarUS.wnd");
+	RmlUiScreenRegistry::registerView("GenPowersShortcutBarChina.wnd");
+	RmlUiScreenRegistry::registerView("GenPowersShortcutBarGLA.wnd");
+	RmlUiScreenRegistry::registerView("ReplayControl.wnd");
+
 	// GameWindowManager::gogoMessageBox() looks this hook up the same way, gated on
 	// !m_useLegacyMenus; see RmlUiMessageBoxHook.h.
 	RegisterRmlMessageBoxHook(m_context);
@@ -478,6 +489,7 @@ void RmlUiManager::shutdown()
 	UnregisterRmlMessageBoxHook();
 	ShutdownRmlBuddyToastScreen();
 	RmlSocialDock::instance().shutdown();
+	RmlControlBarScreen::instance().shutdown();
 	RmlUiScreenRegistry::unregisterAll();
 
 	m_ime.shutdown();
@@ -545,10 +557,12 @@ void RmlUiManager::update()
 	RmlChallengeMenuScreen::tick();
 	RmlDisconnectScreen::tick();
 	RmlDownloadScreen::tick();
+	RmlControlBarScreen::tick();
 	RmlUiMessageBoxHook::raise(); // a box stays above screens shown after it
 	RmlSocialDock::instance().tick(); // after the screen's update, before layout: shows, hides and places the dock
 	if (m_context)
 		m_context->Update();
+	endHoverOverWorld();
 	updateTooltip();
 
 	// A field whose document was hidden loses focus without a blur; the IME must not stay bound to it.
@@ -558,6 +572,18 @@ void RmlUiManager::update()
 
 	// Toast auto-dismiss needs a per-frame tick whichever screen is current; no-op otherwise.
 	BuddyOverlaySession::tickToast();
+}
+
+//-------------------------------------------------------------------------------------------------
+// WindowXlat stops feeding RmlUi the pointer once it is over the world, so an overlay's element would keep
+// its hover (a HUD button stays lit and hears no leave); end it when the pointer is off every document.
+void RmlUiManager::endHoverOverWorld()
+{
+	if (!m_context || !TheMouse || !m_context->GetHoverElement())
+		return;
+	const MouseIO *io = TheMouse->getMouseStatus();
+	if (io && !wantsMouseInput(io->pos.x, io->pos.y))
+		m_context->ProcessMouseLeave();
 }
 
 //-------------------------------------------------------------------------------------------------

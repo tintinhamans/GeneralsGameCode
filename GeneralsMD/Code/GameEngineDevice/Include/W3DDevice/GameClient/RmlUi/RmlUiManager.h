@@ -68,6 +68,7 @@ public:
 
 	// RmlUiInputHook ---------------------------------------------------------------------------
 	virtual bool wantsMouseInput(int mouseX, int mouseY) const override;
+	virtual bool capturesInput() const override { return ownsInput(); }
 	virtual bool wantsKeyboardInput() const override;
 	virtual void processMouseMove(int x, int y) override;
 	virtual void processMouseButton(int button, bool down) override;
@@ -90,6 +91,8 @@ private:
 	// the .wnd rendering/delay exactly (see report). Walks up from GetHoverElement() for a
 	// data-tooltip (GUI:/CSF key) or data-tooltip-text (literal/bound text) attribute.
 	void updateTooltip();
+
+	void endHoverOverWorld(); ///< see .cpp
 
 	RmlUiSystemInterface m_systemInterface;
 	RmlUiFileInterface m_fileInterface;

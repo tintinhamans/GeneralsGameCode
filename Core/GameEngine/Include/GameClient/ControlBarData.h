@@ -1,0 +1,152 @@
+/*
+**	Command & Conquer Generals Zero Hour(tm)
+**	Copyright 2025 Electronic Arts Inc.
+**
+**	This program is free software: you can redistribute it and/or modify
+**	it under the terms of the GNU General Public License as published by
+**	the Free Software Foundation, either version 3 of the License, or
+**	(at your option) any later version.
+**
+**	This program is distributed in the hope that it will be useful,
+**	but WITHOUT ANY WARRANTY; without even the implied warranty of
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	GNU General Public License for more details.
+**
+**	You should have received a copy of the GNU General Public License
+**	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+// FILE: ControlBarData.h ////////////////////////////////////////////////////
+// Widget-agnostic snapshot of the control bar for a view other than its .wnd (the RmlUi HUD). The
+// ControlBar keeps its state in the .wnd windows it drives; while a view shows, those windows are
+// headless (loaded and updated, never drawn) and ControlBar::fillData() copies what they show into
+// this once a frame. Buttons are addressed by ControlBarButtonId for ControlBarActions.
+///////////////////////////////////////////////////////////////////////////////
+
+#pragma once
+
+#include "Common/AsciiString.h"
+#include "Common/GameCommon.h"
+#include "Common/Override.h"
+#include "Common/UnicodeString.h"
+
+class Team;
+
+#include "GameClient/ControlBar.h"
+
+class Image;
+
+//-------------------------------------------------------------------------------------------------
+enum ControlBarButtonGroup CPP_11(: Int)
+{
+	CBB_COMMAND,			///< the context command slots, ButtonCommand01..
+	CBB_QUEUE,				///< the build queue, ButtonQueue01..
+	CBB_SIDE,					///< the buttons round the bar, ControlBarSideButton
+	CBB_CONTEXT,			///< the single buttons of a context, ControlBarContextButton
+
+	CBB_COUNT
+};
+
+enum ControlBarSideButton CPP_11(: Int)
+{
+	CB_SIDE_OPTIONS,				///< the in-game menu
+	CB_SIDE_IDLE_WORKER,		///< select the next idle worker; its text is the idle count
+	CB_SIDE_BEACON,					///< place a beacon (multiplayer)
+	CB_SIDE_COMMUNICATOR,		///< diplomacy
+	CB_SIDE_GENERAL,				///< the general's promotions
+	CB_SIDE_MIN_MAX,				///< collapse or restore the bar
+
+	CB_SIDE_COUNT
+};
+
+enum ControlBarContextButton CPP_11(: Int)
+{
+	CB_CTX_CANCEL_CONSTRUCTION,	///< under construction
+	CB_CTX_OCL_BUTTON,					///< OCL timer: sell, or a rally point for tech buildings
+
+	CB_CTX_COUNT
+};
+
+struct ControlBarButtonId
+{
+	ControlBarButtonGroup group;
+	Int index;
+};
+
+enum { CONTROL_BAR_VISIBLE_COMMANDS = 14 }; ///< ButtonCommand01..14: column i / 2, row i % 2
+
+//-------------------------------------------------------------------------------------------------
+struct ControlBarButtonData
+{
+	ControlBarButtonData() { clear(); }
+	void clear();
+	Bool operator==( const ControlBarButtonData &other ) const;
+	Bool operator!=( const ControlBarButtonData &other ) const { return !(*this == other); }
+
+	Bool shown;
+	Bool enabled;
+	Bool checked;						///< check-like command that is on, or pressed
+	Bool notReady;					///< disabled only until it recharges: drawn in colour under its clock
+	Bool alwaysColor;				///< disabled but not greyed (can't afford)
+	Bool flashing;					///< a script made the cameo flash
+	const Image *image;			///< the icon
+	const Image *overlay;		///< veterancy chevrons and the like, drawn over the icon
+	Int clockPercent;				///< -1 without a clock
+	Bool clockInverse;			///< the part still to go is darkened (the build and recharge clocks)
+	UnicodeString text;			///< drawn on the button (the idle worker count)
+	AsciiString hotkey;			///< from the '&' of the command's label
+	Int border;							///< CommandButtonMappedBorderType
+	const CommandButton *command;
+};
+
+struct ControlBarUpgradeData
+{
+	Bool shown;
+	Bool owned;
+	const Image *image;
+};
+
+//-------------------------------------------------------------------------------------------------
+struct ControlBarData
+{
+	ControlBarData() { clear(); }
+	void clear();
+
+	Bool visible;										///< the bar is up (ControlBarParent is shown)
+	ControlBarStages stage;
+	ControlBarContext context;
+	Bool observer;									///< the observer bar
+	AsciiString faction;							///< base side of the viewed player ("America", "China", "GLA", ...)
+
+	Bool moneyShown;
+	UnicodeString money;						///< GUI:ControlBarMoneyDisplay (with the income, when shown)
+	Bool powerShown;
+	Int powerProduction;
+	Int powerConsumption;
+	Int powerState;									///< 0 enough, 1 within the yellow margin, 2 short
+	Real powerFill;									///< production on the .wnd meter's log scale, 0..1
+	Real powerNeedle;								///< consumption on the same scale
+
+	ControlBarButtonData commands[ CONTROL_BAR_VISIBLE_COMMANDS ];
+	Bool commandsShown;							///< the command context is up (commands, inventory, multi select)
+
+	Bool queueShown;
+	ControlBarButtonData queue[ MAX_BUILD_QUEUE_BUTTONS ];
+
+	Bool portraitShown;
+	const Image *portrait;
+	const Image *portraitOverlay;		///< veterancy
+	UnicodeString name;							///< display name of the portrait's thing
+	ControlBarUpgradeData upgrades[ MAX_RIGHT_HUD_UPGRADE_CAMEOS ];
+	Int selectCount;
+
+	UnicodeString contextText;			///< under construction or OCL timer text
+	Int contextPercent;							///< their progress, -1 without one
+	ControlBarButtonData contextButtons[ CB_CTX_COUNT ];
+
+	ControlBarButtonData sideButtons[ CB_SIDE_COUNT ];
+	Bool generalLit;								///< the general's button blinks while promotion points are unspent
+	Int rank;
+	Int sciencePoints;
+	Real experience;								///< progress to the next rank, 0..1
+};

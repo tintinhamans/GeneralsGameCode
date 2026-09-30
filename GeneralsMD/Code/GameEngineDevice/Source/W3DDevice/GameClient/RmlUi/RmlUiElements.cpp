@@ -131,6 +131,8 @@ void RmlMappedImageElement::refresh()
 	Rml::String name = GetAttribute<Rml::String>("name", "");
 	if (name.empty() || !TheMappedImageCollection)
 		return;
+	if (name == m_shownName)
+		return;
 
 	const Image *image = TheMappedImageCollection->findImageByName(AsciiString(name.c_str()));
 	if (!image)
@@ -139,6 +141,7 @@ void RmlMappedImageElement::refresh()
 	Rml::String src, rect;
 	mappedImageSource(image, src, rect);
 	SetInnerRML("<img style=\"width:100%;height:100%;\" src=\"" + src + "\" rect=\"" + rect + "\"/>");
+	m_shownName = name;
 }
 
 //-------------------------------------------------------------------------------------------------

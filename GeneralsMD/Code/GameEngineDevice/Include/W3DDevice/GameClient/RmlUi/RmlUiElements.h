@@ -89,6 +89,7 @@ private:
 
 	// Rebuilt on update, after the parser has added any children (e.g. a <select> copying an option).
 	bool m_dirty = false;
+	Rml::String m_shownName; ///< a data binding sets the name again on every update; rebuild only when it changes
 };
 
 //-------------------------------------------------------------------------------------------------

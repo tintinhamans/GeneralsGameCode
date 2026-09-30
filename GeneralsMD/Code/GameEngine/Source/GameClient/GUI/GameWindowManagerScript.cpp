@@ -2651,7 +2651,8 @@ WindowLayout *GameWindowManager::winCreateLayout( AsciiString filename )
 	// weren't forced with -wnd, hand back a placeholder layout routed to the registry instead of
 	// loading the .wnd, so callers that create/show/hide/destroy a cached layout (Shell::doPush,
 	// QuitMenu, ...) keep working unchanged. See RmlUiScreenRegistry.h.
-	if (RmlUiScreenRegistry::routesToRmlUi(filename))
+	// A view (the control bar) keeps loading its .wnd as its model.
+	if (RmlUiScreenRegistry::routesToRmlUi(filename) && !RmlUiScreenRegistry::isView(filename))
 		return RmlUiScreenRegistry::createLayout(filename);
 
 	// allocate a new window layout
@@ -2711,7 +2712,7 @@ GameWindow *GameWindowManager::winCreateFromScript( AsciiString filenameString,
 	// LocalDefeat, ObserverQuit, ...) get an invisible real window instead of parsing the .wnd, so
 	// callers can winDestroy() it like any other window; winDestroy() closes the RmlUi screen for it.
 	// See RmlUiScreenRegistry.h.
-	if (RmlUiScreenRegistry::routesToRmlUi(filenameString))
+	if (RmlUiScreenRegistry::routesToRmlUi(filenameString) && !RmlUiScreenRegistry::isView(filenameString))
 		return RmlUiScreenRegistry::createWindow(filenameString);
 
 	const char* filename = filenameString.str();

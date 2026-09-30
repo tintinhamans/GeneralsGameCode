@@ -81,6 +81,8 @@
 #include "GameClient/HotKey.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/GUICallbacks.h"
+#include "GameClient/RmlUiScreenRegistry.h"
+#include "GameClient/WindowLayout.h"
 
 #include "GameNetwork/GameInfo.h"
 
@@ -974,6 +976,8 @@ ControlBar::ControlBar()
 	m_radarAttackGlowOn = FALSE;
 	m_remainingRadarAttackGlowFrames = 0;
 	m_radarAttackGlowWindow = nullptr;
+	m_headless = FALSE;
+	m_portraitThing = nullptr;
 
 #if defined(RTS_DEBUG)
 	m_lastFrameMarkedDirty = 0;
@@ -1090,10 +1094,15 @@ void ControlBar::init()
 		NameKeyType id;
 		id = TheNameKeyGenerator->nameToKey( "ControlBar.wnd:ControlBarParent" );
 		m_contextParent[ CP_MASTER ] = TheWindowManager->winGetWindowFromId( nullptr, id );
+		// the RmlUi HUD draws the bar over its headless windows unless -wnd, -rmlwnd or a mod's .wnd keeps the .wnd
+		m_headless = RmlUiScreenRegistry::routesToRmlUi( AsciiString( "ControlBar.wnd" ) );
+		makeHeadless( m_contextParent[ CP_MASTER ] );
+		makeHeadless( TheWindowManager->winGetWindowFromId( nullptr, TheNameKeyGenerator->nameToKey( "ReplayControl.wnd:ParentReplayControl" ) ) );
 	m_contextParent[ CP_MASTER ]->winGetPosition(&m_defaultControlBarPosition.x, &m_defaultControlBarPosition.y);
 
 		m_scienceLayout = TheWindowManager->winCreateLayout("GeneralsExpPoints.wnd");
 		m_scienceLayout->hide(TRUE);
+		makeHeadless( m_scienceLayout->getFirstWindow() );
 		id = TheNameKeyGenerator->nameToKey( "GeneralsExpPoints.wnd:GenExpParent" );
 
 		m_contextParent[ CP_PURCHASE_SCIENCE ] = TheWindowManager->winGetWindowFromId( nullptr, id );//m_scienceLayout->getFirstWindow();
@@ -1277,6 +1286,7 @@ void ControlBar::init()
 		{
 			m_buildToolTipLayout->hide(TRUE);
 			m_buildToolTipLayout->setUpdate(ControlBarPopupDescriptionUpdateFunc);
+			makeHeadless( m_buildToolTipLayout->getFirstWindow() );
 		}
 
 		m_genStarOn = TheMappedImageCollection ? (Image *)TheMappedImageCollection->findImageByName("BarButtonGenStarON") : nullptr;
@@ -1711,7 +1721,7 @@ void ControlBar::onPlayerRankChanged(const Player *p)
 
 	if(!(m_lastFlashedAtPointValue > ThePlayerList->getLocalPlayer()->getSciencePurchasePoints()))
 	{
-		if(TheTransitionHandler && TheInGameUI->getInputEnabled())
+		if(TheTransitionHandler && TheInGameUI->getInputEnabled() && !m_headless)
 			TheTransitionHandler->setGroup("ControlBarArrow");
 	}
 //	populateSpecialPowerShortcut((Player *)p);
@@ -1728,7 +1738,7 @@ void ControlBar::onPlayerSciencePurchasePointsChanged(const Player *p)
 		return;
 	if(!(m_lastFlashedAtPointValue > ThePlayerList->getLocalPlayer()->getSciencePurchasePoints()))
 	{
-		if(TheTransitionHandler && TheInGameUI->getInputEnabled())
+		if(TheTransitionHandler && TheInGameUI->getInputEnabled() && !m_headless)
 			TheTransitionHandler->setGroup("ControlBarArrow");
 	}
 //	populateSpecialPowerShortcut((Player *)p);
@@ -2656,6 +2666,7 @@ void ControlBar::setPortraitByObject( Object *obj )
 		}
 
 		const Image* portrait = thing->getSelectedPortraitImage();
+		m_portraitThing = thing;
 
 		m_rightHUDUnitSelectParent->winHide(FALSE);
 		// enable the window window as an image window and set the image
@@ -2707,6 +2718,7 @@ void ControlBar::setPortraitByObject( Object *obj )
 	}
 	else
 	{
+		m_portraitThing = nullptr;
 		m_rightHUDUnitSelectParent->winHide(TRUE);
 		m_rightHUDWindow->winSetStatus( WIN_STATUS_IMAGE );
 		m_rightHUDCameoWindow->winClearStatus( WIN_STATUS_IMAGE );
@@ -2978,7 +2990,7 @@ void ControlBar::showPurchaseScience()
 		return;
 	//switchToContext(CB_CONTEXT_PURCHASE_SCIENCE, nullptr);
 	m_contextParent[ CP_PURCHASE_SCIENCE ]->winHide(FALSE);
-	if (TheGlobalData->m_animateWindows)
+	if (TheGlobalData->m_animateWindows && !m_headless)
 		TheTransitionHandler->setGroup("GenExpFade");
 		//m_generalsScreenAnimate->registerGameWindow( m_contextParent[ CP_PURCHASE_SCIENCE ], WIN_ANIMATION_SLIDE_TOP, TRUE, 200 );
 
@@ -3274,6 +3286,7 @@ void ControlBar::initSpecialPowershortcutBar( Player *player)
 	layoutName = pt->getSpecialPowerShortcutWinName();
 	m_specialPowerLayout = TheWindowManager->winCreateLayout(layoutName);
 	m_specialPowerLayout->hide(TRUE);
+	makeHeadless( m_specialPowerLayout->getFirstWindow() );
 
 	tempName = layoutName;
 	tempName.concat(":GenPowersShortcutBarParent");
@@ -3825,5 +3838,17 @@ void ControlBar::setFullViewportHeight()
 
 void ControlBar::setScaledViewportHeight()
 {
+	// the RmlUi HUD floats over the world instead of standing under it
+	if (m_headless)
+	{
+		setFullViewportHeight();
+		return;
+	}
 	TheTacticalView->setHeight(TheDisplay->getHeight() * TheGlobalData->m_viewportHeightScale);
+}
+
+void ControlBar::makeHeadless( GameWindow *root )
+{
+	if( m_headless && root )
+		root->winSetHeadless( TRUE );
 }

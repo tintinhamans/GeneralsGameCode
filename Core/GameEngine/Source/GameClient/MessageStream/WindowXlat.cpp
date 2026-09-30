@@ -196,7 +196,11 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 			case GameMessage::MSG_RAW_MOUSE_WHEEL:
 			{
 				ICoord2D mousePos = msg->getArgument( 0 )->pixel;
-				if( TheRmlUiInputHook->wantsMouseInput( mousePos.x, mousePos.y ) )
+				// While the world holds the mouse (drag-select, scrolling) the window manager is skipped below, so an
+				// overlay drawn over the game (the HUD) leaves it alone too; only a left click while scrolling reaches it.
+				const Bool leftClick = msg->getType() == GameMessage::MSG_RAW_MOUSE_LEFT_BUTTON_DOWN || msg->getType() == GameMessage::MSG_RAW_MOUSE_LEFT_BUTTON_UP;
+				const Bool worldHasMouse = TheTacticalView && TheTacticalView->isMouseLocked() && !(TheInGameUI && TheInGameUI->isScrolling() && leftClick);
+				if( TheRmlUiInputHook->wantsMouseInput( mousePos.x, mousePos.y ) && (!worldHasMouse || TheRmlUiInputHook->capturesInput()) )
 				{
 					switch( msg->getType() )
 					{
