@@ -1,143 +1,432 @@
 /*
-	OnlineWelcome.rcss -- WOLWelcomeMenu.wnd (the Generals Online hub screen).
-	.shell-background/.shell-frame/.shell-title-bar come from common.rcss (see WOLWelcomeMenu.wnd's
-	MainMenuRuler backdrop + GadgetParent). The MOTD row and the rank/community row share the
-	height between the title and the footer equally, like the .wnd's two bands.
+	OnlineWelcome.rcss -- the Generals Online hub (WOLWelcomeMenu.wnd) as a dashboard on the screen
+	template (common.rcss):
+
+	  header     Communicator and Options beside the heading
+	  main       Quick Match and Custom Match as two big tiles; under them the message of the day
+	             and the daily army win rates (the .wnd's silver medallions, a rate and a bar each)
+	  side       the player card: rank portrait with the general badge, progress to the next rank,
+	             the career record and My Persona
+	  action bar Main Menu (logs out) on the left, the players online count on the right
+
+	The page narrows beside the expanded social dock (.dock-open, see common.rcss): the win rates
+	then drop under the news as one wide row.
 */
 
-.welcome-row
+/* ---- Header ------------------------------------------------------------------------------------ */
+.wc-header-actions button
+{
+	margin-left: 12dp;
+}
+
+/* ---- Tiles ------------------------------------------------------------------------------------- */
+.wc-tiles
 {
 	display: flex;
 	flex-direction: row;
-	flex: 1 1 0%;
-	min-height: 0;
-	margin-bottom: 16dp;
+	flex: 0 0 auto;
+	height: 210dp;
 }
 
-.motd-column
+.screen button.wc-tile
 {
-	display: flex;
-	flex-direction: column;
+	position: relative;
 	flex: 1 1 0%;
-	margin-right: 16dp;
-	min-height: 0;
+	min-width: 0;
+	height: 100%;
+	padding: 24dp 30dp 26dp 30dp;
 }
 
-.motd-players
+.screen button.wc-tile + button.wc-tile
 {
-	color: #FFCC00;
+	margin-left: 20dp;
+}
+
+/* Quick Match is the one-click way in: it carries the accent. */
+.screen button.wc-tile-qm
+{
+	border-bottom-color: #F07A1A;
+}
+
+.wc-tile .tile-title
+{
+	font-size: 40dp;
+	line-height: 46dp;
+}
+
+.wc-tile .tile-caption
+{
+	margin-top: 8dp;
+	max-width: 620dp;
 	font-size: 18dp;
-	font-weight: bold;
-	padding-bottom: 8dp;
+	line-height: 25dp;
 }
 
-.motd-list
+.wc-tile-go
 {
-	background-color: rgba(0, 0, 0, 160);
+	display: block;
+	position: absolute;
+	top: 14dp;
+	right: 28dp;
+	font-size: 64dp;
+	line-height: 64dp;
+	font-weight: normal;
+	color: #8080FF;
 }
 
-.motd-line
+.wc-tile-qm .wc-tile-go, .wc-tile:hover .wc-tile-go
 {
-	width: 100%;
-	white-space: pre-line;
-	/* color comes from data-style-color (line.color_hex), matching the .wnd's per-line
-	   GameSpyColor[GSCOLOR_MOTD_HEADING]/GameSpyColor[GSCOLOR_MOTD]/hex-prefix override */
+	color: #F07A1A;
 }
 
-.motd-line.heading
-{
-	font-weight: bold;
-}
-
-.buttons-column
-{
-	display: flex;
-	flex-direction: column;
-	flex: 0 0 320dp;
-}
-
-.buttons-column button
-{
-	margin-bottom: 12dp;
-}
-
-/* Rank + Daily Army Win Percentages band -- mirrors WOLWelcomeMenu.wnd's PlayerInfoParent
-   (RankBorder/WinRank/FactionImage/ProgressBarRank/StaticTextRank + CommunityInfoParent/
-   StaticTextCommunity). See D:\INIZH\Window\Menus\WOLWelcomeMenu.wnd. */
-.playerinfo-row
+/* ---- News and win rates ------------------------------------------------------------------------ */
+.wc-lower
 {
 	display: flex;
 	flex-direction: row;
 	flex: 1 1 0%;
 	min-height: 0;
+	margin-top: 20dp;
 }
 
-/* Its rank cluster (.rank-column and friends) is shared, see common.rcss; this screen gives it the
-   16dp column gap instead of the default 12dp. */
-.rank-column
+.wc-lower .surface + .surface
 {
-	margin-right: 16dp;
+	margin-top: 0;
+	margin-left: 20dp;
 }
 
-.community-column
+.wc-news
 {
 	display: flex;
 	flex-direction: column;
-	flex: 1 1 auto;
+	flex: 1 1 0%;
+	min-width: 0;
 	min-height: 0;
 }
 
-/* 4 columns x 3 rows filling the panel -- each cell is a faction icon at its natural (square) aspect,
-   roughly the size WOLWelcomeMenu.wnd draws its PercentXxx checkboxes (~72px tall at 1080p; the
-   48px source art was blown up ~8x when it filled the whole cell), with the win-percent text
-   beside it. */
-.stats-grid
+.wc-motd
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 12dp;
+}
+
+.wc-motd-line
+{
+	display: block;
+	padding: 2dp 0 6dp 0;
+	font-size: 19dp;
+	line-height: 26dp;
+	white-space: pre-line;
+	/* colour from line.color_hex: the .wnd's GSCOLOR_MOTD / GSCOLOR_MOTD_HEADING or the line's own */
+}
+
+.wc-motd-line.heading
+{
+	font-weight: bold;
+	font-size: 21dp;
+}
+
+.wc-armies
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 600dp;
+	width: 600dp;
+	box-sizing: border-box;
+}
+
+.wc-army-grid
 {
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
-	align-content: flex-start;
-	flex: 1 1 0%; /* basis 0, not auto -- with an intrinsic (content-driven) basis the wrapped grid's
-		own min-content height wins over its flex-grow share and it overflows onto whatever sits
-		below the panel (audit: OVERFLOW div.stats-grid -- win-grid spilling onto the MAIN MENU
-		button); starting from a 0 basis and growing avoids that shrink-from-content path */
+	align-content: space-between;
+	flex: 1 1 0%;
 	min-height: 0;
-	background-color: rgba(2, 2, 2, 128); /* CommunityInfoParent's near-black fill */
-	border: 1dp #2F37A8;
-	padding: 12dp;
+	margin-top: 12dp;
 }
 
-.stat-cell
+.wc-army
+{
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	box-sizing: border-box;
+	width: 25%;
+	padding: 4dp 6dp;
+}
+
+.wc-army-icon
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 64dp;
+	height: 64dp;
+}
+
+.wc-army-text
+{
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	width: 100%;
+}
+
+.wc-army-pct
+{
+	display: block;
+	margin-top: 4dp;
+	font-size: 24dp;
+	line-height: 28dp;
+	font-weight: bold;
+	color: #EEF1FA;
+}
+
+.wc-army-count
+{
+	display: block;
+	font-size: 14dp;
+	line-height: 18dp;
+	color: #7079A0;
+	white-space: nowrap;
+}
+
+.wc-army-bar
+{
+	display: block;
+	width: 76%;
+	height: 4dp;
+	margin-top: 6dp;
+	background-color: #8080FF28;
+}
+
+.wc-army-fill
+{
+	display: block;
+	height: 100%;
+	background-color: #3A46D0;
+}
+
+.wc-army:hover .wc-army-fill
+{
+	background-color: #F07A1A;
+}
+
+/* ---- Player card ------------------------------------------------------------------------------- */
+.col-side
+{
+	width: 440dp;
+}
+
+.wc-player
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding: 24dp;
+}
+
+.wc-greeting
+{
+	display: block;
+	font-size: 22dp;
+	line-height: 28dp;
+	font-weight: bold;
+	color: #EEF1FA;
+}
+
+.wc-rank
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	width: 25%;
-	height: 33.333%;
-	box-sizing: border-box;
-	padding: 2dp;
+	margin-top: 20dp;
+	padding-bottom: 20dp;
+	border-bottom: 1dp #8080FF28;
 }
 
-.stat-icon
+/* Rank art on the dark plate the .wnd's RankBorder draws, the general's badge in its corner. */
+.wc-portrait
+{
+	position: relative;
+	flex: 0 0 auto;
+	width: 162dp;
+	height: 162dp;
+	background-color: #05070FDC;
+	border: 1dp #8080FF3C;
+}
+
+.wc-rank-image
+{
+	display: block;
+	width: 152dp;
+	height: 152dp;
+	margin: 4dp;
+}
+
+.wc-badge
+{
+	display: block;
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 58dp;
+	height: 58dp;
+	background-color: #070A1AF0;
+	border-top: 1dp #F07A1A;
+	border-left: 1dp #F07A1A;
+}
+
+.wc-badge mappedimage
+{
+	display: block;
+	width: 49dp;
+	height: 49dp;
+	margin: 4dp;
+}
+
+.wc-rank-info
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-left: 26dp;
+}
+
+.wc-rank-name
+{
+	display: block;
+	margin-top: 4dp;
+	font-size: 30dp;
+	line-height: 36dp;
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+.wc-progress
+{
+	margin-top: 14dp;
+}
+
+.wc-stats
+{
+	display: block;
+	flex: 1 1 0%;
+	min-height: 0;
+	margin-top: 8dp;
+}
+
+.wc-stat
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 54dp;
+	border-bottom: 1dp #FFFFFF0A;
+}
+
+.wc-stat-label
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	font-size: 18dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.wc-stat-value
+{
+	flex: 0 0 auto;
+	margin-left: 12dp;
+	font-size: 22dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+}
+
+.screen button.wc-persona
 {
 	display: block;
 	flex: 0 0 auto;
-	width: 72dp;
-	height: 72dp;
+	width: 100%;
+	margin-top: 16dp;
+	text-align: center;
 }
 
-.stat-value
+/* ---- Action bar -------------------------------------------------------------------------------- */
+.wc-online
 {
-	flex: 0 1 auto;
-	margin-left: 8dp;
-	color: #FFFFFF;
+	display: block;
+	padding: 12dp 22dp;
+	font-size: 21dp;
 	font-weight: bold;
+	color: #EEF1FA;
+	background-color: #070A1AC8;
 }
 
-/* Beside the expanded social dock on 5:4 and 4:3: smaller win-percentage cells so they stay on one line. */
+.wc-online .dot
+{
+	margin-right: 12dp;
+	vertical-align: middle;
+}
+
+/* ---- Narrow: beside the expanded dock and on 5:4 / 4:3 the win rates go under the news as a
+   compact grid (medallion beside its rate), the tiles get shorter and the side column narrower. */
+.dock-open .wc-lower { flex-direction: column; }
+.dock-open .wc-lower .surface + .surface { margin-left: 0; margin-top: 20dp; }
+.dock-open .wc-armies { flex: 0 0 auto; width: auto; padding-bottom: 12dp; }
+.dock-open .wc-army-grid { flex: 0 0 auto; }
+.dock-open .wc-army { flex-direction: row; width: 16.66%; padding: 4dp 4dp 8dp 0; }
+.dock-open .wc-army-icon { width: 44dp; height: 44dp; margin-right: 8dp; }
+.dock-open .wc-army-text { align-items: flex-start; width: auto; flex: 1 1 0%; min-width: 0; }
+.dock-open .wc-army-pct { margin-top: 0; font-size: 20dp; line-height: 22dp; }
+.dock-open .wc-army-count { font-size: 13dp; line-height: 16dp; }
+.dock-open .wc-army-bar { display: none; }
+.dock-open .wc-tiles { height: 170dp; }
+.dock-open .col-side { width: 400dp; }
+
 @media (max-aspect-ratio: 3/2)
 {
-	.dock-open .stat-icon { width: 44dp; height: 44dp; }
-	.dock-open .stat-value { font-size: 18dp; margin-left: 4dp; }
-	.dock-open .buttons-column { flex-basis: 260dp; }
+	.wc-lower { flex-direction: column; }
+	.wc-lower .surface + .surface { margin-left: 0; margin-top: 20dp; }
+	.wc-armies { flex: 0 0 auto; width: auto; padding-bottom: 12dp; }
+	.wc-army-grid { flex: 0 0 auto; }
+	.wc-army { flex-direction: row; width: 16.66%; padding: 4dp 4dp 8dp 0; }
+	.wc-army-icon { width: 44dp; height: 44dp; margin-right: 8dp; }
+	.wc-army-text { align-items: flex-start; width: auto; flex: 1 1 0%; min-width: 0; }
+	.wc-army-pct { margin-top: 0; font-size: 20dp; line-height: 22dp; }
+	.wc-army-count { font-size: 13dp; line-height: 16dp; }
+	.wc-army-bar { display: none; }
+	.wc-tiles { height: 170dp; }
+	.col-side { width: 380dp; }
+	.wc-tile .tile-title { font-size: 30dp; line-height: 36dp; }
+	.wc-tile .tile-caption { font-size: 16dp; line-height: 21dp; }
+	.wc-tile-go { font-size: 52dp; }
+	.screen button.wc-tile { padding: 20dp 22dp 20dp 22dp; }
+	.wc-portrait { width: 122dp; height: 122dp; }
+	.wc-rank-image { width: 112dp; height: 112dp; }
+	.wc-rank-info { margin-left: 18dp; }
+	.wc-rank-name { font-size: 26dp; }
+
+	/* and beside the expanded dock: three medallions a row, a narrower player card */
+	.dock-open .wc-army { width: 33.33%; }
+	.dock-open .col-side { width: 300dp; }
+	.dock-open .wc-tile .tile-caption { display: none; }
+	.dock-open .wc-tile .tile-title { font-size: 24dp; line-height: 30dp; }
+	.dock-open .wc-tile-go { font-size: 40dp; line-height: 40dp; right: 16dp; }
+	.dock-open .wc-player { padding: 18dp; }
+	.dock-open .wc-greeting { font-size: 19dp; line-height: 24dp; }
+	.dock-open .wc-portrait { width: 90dp; height: 90dp; }
+	.dock-open .wc-rank-image { width: 80dp; height: 80dp; }
+	.dock-open .wc-badge { width: 38dp; height: 38dp; }
+	.dock-open .wc-badge mappedimage { width: 30dp; height: 30dp; }
+	.dock-open .wc-rank-name { font-size: 22dp; line-height: 28dp; }
+	.dock-open .wc-stat-label { font-size: 15dp; }
+	.dock-open .wc-stat-value { font-size: 17dp; }
+	.dock-open .screen-crumb { display: none; }
+	.dock-open .wc-header-actions button { padding: 0 16dp; margin-left: 8dp; }
 }

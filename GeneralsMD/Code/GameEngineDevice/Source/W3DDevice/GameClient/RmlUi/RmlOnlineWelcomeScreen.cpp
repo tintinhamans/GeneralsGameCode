@@ -24,7 +24,9 @@
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineWelcomeActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineWelcomeData.h"
 #include "GameClient/GUI/GUICallbacks/Menus/PlayerStatsData.h"
+#include "GameClient/GameText.h"
 #include "GameClient/Shell.h"
+#include "GameClient/TransitionSounds.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include <RmlUi/Core/Context.h>
@@ -80,6 +82,8 @@ void RmlOnlineWelcomeScreen::load(Rml::Context *context)
 			factionHandle.RegisterMember("icon", &FactionStatModel::icon);
 			factionHandle.RegisterMember("tooltip_text", &FactionStatModel::tooltipText);
 			factionHandle.RegisterMember("text", &FactionStatModel::text);
+			factionHandle.RegisterMember("percent_text", &FactionStatModel::percentText);
+			factionHandle.RegisterMember("count_text", &FactionStatModel::countText);
 			factionHandle.RegisterMember("used", &FactionStatModel::used);
 		}
 		constructor.RegisterArray<Rml::Vector<FactionStatModel>>();
@@ -96,6 +100,14 @@ void RmlOnlineWelcomeScreen::load(Rml::Context *context)
 		constructor.Bind("show_faction_image", &m_model.showFactionImage);
 		constructor.Bind("faction_image_name", &m_model.factionImageName);
 		constructor.Bind("rank_text", &m_model.rankText);
+		constructor.Bind("has_stats", &m_model.hasStats);
+		constructor.Bind("games_played_text", &m_model.gamesPlayedText);
+		constructor.Bind("wins_text", &m_model.winsText);
+		constructor.Bind("losses_text", &m_model.lossesText);
+		constructor.Bind("win_percent_text", &m_model.winPercentText);
+		constructor.Bind("best_streak_text", &m_model.bestStreakText);
+		constructor.Bind("streak_label_text", &m_model.streakLabelText);
+		constructor.Bind("streak_value_text", &m_model.streakValueText);
 
 		constructor.BindEventCallback("back", &RmlOnlineWelcomeScreen::onBackPressed, this);
 		constructor.BindEventCallback("options", &RmlOnlineWelcomeScreen::onOptions, this);
@@ -172,6 +184,11 @@ void RmlOnlineWelcomeScreen::show()
 				row.icon = stat.icon.str();
 				row.tooltipText = unicodeToUtf8(stat.tooltip);
 				row.text = unicodeToUtf8(stat.text);
+				// "42% (21 of 50)": the rate and the count are shown apart.
+				const size_t paren = row.text.find(" (");
+				row.percentText = paren == Rml::String::npos ? row.text : row.text.substr(0, paren);
+				row.countText = paren == Rml::String::npos || row.text.back() != ')'
+					? Rml::String() : row.text.substr(paren + 2, row.text.size() - paren - 3);
 			}
 			m_factionRows.endUpdate();
 
@@ -180,10 +197,15 @@ void RmlOnlineWelcomeScreen::show()
 		});
 
 	m_document->Show();
+
+	// WOLWelcomeMenuInit()'s entrance group, and WOLWelcomeMenuShutdown()'s reverse below.
+	TransitionSounds::play("WOLWelcomeMenuFade");
 }
 
 void RmlOnlineWelcomeScreen::hide()
 {
+	if (m_document && m_document->IsVisible())
+		TransitionSounds::play("WOLWelcomeMenuFade", TRUE);
 	if (m_document)
 		m_document->Hide();
 
@@ -269,6 +291,22 @@ void RmlOnlineWelcomeScreen::applyPlayerStatsToModel(const PlayerStatsData &data
 	m_model.rankText = unicodeToUtf8(data.rankText);
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("rank_text");
+
+	// The career record, as PopupPlayerInfo.wnd shows it.
+	m_model.hasStats = true;
+	m_model.gamesPlayedText = unicodeToUtf8(data.gamesPlayedText);
+	m_model.winsText = unicodeToUtf8(data.winsText);
+	m_model.lossesText = unicodeToUtf8(data.lossesText);
+	m_model.winPercentText = unicodeToUtf8(data.winPercentText);
+	m_model.bestStreakText = unicodeToUtf8(data.bestStreakText);
+	m_model.streakLabelText = unicodeToUtf8(TheGameText->fetch(data.streakLabelKey));
+	m_model.streakValueText = unicodeToUtf8(data.streakValueText);
+	if (m_modelHandle)
+	{
+		for (const char *name : { "has_stats", "games_played_text", "wins_text", "losses_text", "win_percent_text",
+				"best_streak_text", "streak_label_text", "streak_value_text" })
+			m_modelHandle.DirtyVariable(name);
+	}
 }
 
 //-------------------------------------------------------------------------------------------------

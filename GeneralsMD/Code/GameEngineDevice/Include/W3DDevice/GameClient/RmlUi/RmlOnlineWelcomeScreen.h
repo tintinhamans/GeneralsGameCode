@@ -115,13 +115,16 @@ private:
 	// One "PercentXxx" checkbox (see OnlineWelcomeData::requestFactionWinStats()). icon is the
 	// mapped-image name for <mappedimage>; tooltipText is the resolved "SIDE:<side>" TOOLTIPTEXT,
 	// bound via data-attr-data-tooltip-text (same dynamic-tooltip pattern as LanGameOptions.rml's
-	// row.player_tooltip/row.faction_tooltip).
+	// row.player_tooltip/row.faction_tooltip). percentText/countText split text ("42% (21 of 50)")
+	// into "42%" and "21 of 50".
 	struct FactionStatModel
 	{
 		Rml::String side;
 		Rml::String icon;
 		Rml::String tooltipText;
 		Rml::String text;
+		Rml::String percentText;
+		Rml::String countText;
 		bool used = true; // grow-only storage, see RmlGrowOnlyList.h; hidden via data-if when false
 	};
 
@@ -133,17 +136,25 @@ private:
 		Rml::Vector<MotdLineModel> motdLines;
 		Rml::Vector<FactionStatModel> factionStats;
 
-		// Community rank panel (see PlayerStatsData.h / WOLWelcomeMenu.wnd's RankBorder cluster).
-		// Only the rank-panel fields are shown on this screen, matching the .wnd.
+		// Player card (see PlayerStatsData.h): WOLWelcomeMenu.wnd's RankBorder cluster plus the
+		// career record PopupPlayerInfo.wnd shows.
 		bool rankAtMax = false;
 		Rml::String rankProgressWidthStyle = "0%"; // data-style-width can't bind a raw number
 		Rml::String rankImageName;
 		bool showFactionImage = false;
 		Rml::String factionImageName;
 		Rml::String rankText;
+		bool hasStats = false;
+		Rml::String gamesPlayedText;
+		Rml::String winsText;
+		Rml::String lossesText;
+		Rml::String winPercentText;
+		Rml::String bestStreakText;
+		Rml::String streakLabelText;
+		Rml::String streakValueText;
 	} m_model;
 
-	// Applies a BuildPlayerStatsData() result's rank-panel fields into m_model and dirties them
+	// Applies a BuildPlayerStatsData() result's player-card fields into m_model and dirties them
 	// individually (never DirtyAllVariables()).
 	void applyPlayerStatsToModel(const PlayerStatsData &data);
 

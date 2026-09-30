@@ -4,59 +4,101 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="OnlineWelcome.rcss"/>
 </head>
-<body class="shell dock-host" data-model="onlinewelcome">
-	<mappedimage class="shell-background" name="MainMenuRuler"/>
+<body class="screen dock-host" data-model="onlinewelcome">
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
-	<div class="shell-frame">
-		<div class="shell-title-bar">{{title}}</div>
-
-		<div class="welcome-row">
-			<div class="motd-column">
-				<div class="motd-players">{{num_players_text}}</div>
-				<div class="scroll-container text-list motd-list">
-					<div data-for="line : motd_lines">
-						<div class="text-line motd-line" data-if="line.used" data-class-heading="line.is_heading" data-style-color="line.color_hex">{{line.text}}</div>
-					</div>
-				</div>
+	<div class="screen-frame">
+		<div class="screen-header">
+			<div class="screen-heading">
+				<div class="screen-crumb"><gametext key="GUI:Multiplayer"/><span class="crumb-sep">&#8250;</span></div>
+				<div class="screen-title"><gametext key="GUI:GOStatusTitle"/></div>
 			</div>
-
-			<div class="buttons-column">
-				<button class="btn-primary" data-event-click="quick_match"><gametext key="GUI:QuickMatch"/></button>
-				<button class="btn-primary" data-event-click="custom_match"><gametext key="GUI:CustomMatch"/></button>
-				<button class="btn-primary" data-event-click="my_info"><gametext key="GUI:MyInfo"/></button>
-				<button class="btn-primary" data-event-click="buddies">{{buddies_button_text}}</button>
-				<button class="btn-primary" data-event-click="options"><gametext key="GUI:Options"/></button>
+			<div class="screen-header-aside wc-header-actions">
+				<button data-event-click="buddies" data-tooltip="TOOLTIP:CommunicatorButton">{{buddies_button_text}}</button>
+				<button data-event-click="options" data-tooltip="TOOLTIP:Options"><gametext key="GUI:Options"/></button>
 			</div>
 		</div>
 
-		<div class="playerinfo-row">
-			<div class="rank-column">
-				<div class="section-title"><gametext key="GUI:Rank"/></div>
-				<div class="rank-border">
-					<div class="rank-image-wrap">
-						<mappedimage class="rank-image" data-attr-name="rank_image_name"/>
-						<mappedimage class="faction-image" data-attr-name="faction_image_name" data-if="show_faction_image"/>
+		<div class="screen-body">
+			<div class="col col-main">
+				<!-- The two ways into a game, side by side. -->
+				<div class="wc-tiles">
+					<button class="tile wc-tile wc-tile-qm" data-event-click="quick_match">
+						<span class="wc-tile-go">&#8250;</span>
+						<span class="tile-title"><gametext key="GUI:QuickMatch"/></span>
+						<span class="tile-caption"><gametext key="TOOLTIP:Quickmatch"/></span>
+					</button>
+					<button class="tile wc-tile" data-event-click="custom_match">
+						<span class="wc-tile-go">&#8250;</span>
+						<span class="tile-title"><gametext key="GUI:CustomMatch"/></span>
+						<span class="tile-caption"><gametext key="TOOLTIP:CustomMatch"/></span>
+					</button>
+				</div>
+
+				<div class="wc-lower">
+					<!-- Message of the day, lines coloured as the .wnd listbox colours them. -->
+					<div class="surface wc-news">
+						<div class="overline accent-overline"><gametext key="GUI:MOTD"/></div>
+						<div class="scroll-container wc-motd">
+							<div data-for="line : motd_lines">
+								<div class="wc-motd-line" data-if="line.used" data-class-heading="line.is_heading" data-style-color="line.color_hex">{{line.text}}</div>
+							</div>
+						</div>
 					</div>
-					<div class="rank-progress" data-if="!rank_at_max">
-						<div class="rank-progress-fill" data-style-width="rank_progress_width_style"></div>
+
+					<!-- Daily army win rates: each general's silver medallion, its rate and a bar. -->
+					<div class="surface wc-armies">
+						<div class="overline" data-tooltip="TOOLTIP:Community"><gametext key="GUI:Community"/></div>
+						<div class="wc-army-grid">
+							<div class="wc-army" data-for="stat : faction_stats" data-if="stat.used" data-attr-data-tooltip-text="stat.tooltip_text">
+								<mappedimage class="wc-army-icon" data-attr-name="stat.icon"/>
+								<div class="wc-army-text">
+									<div class="wc-army-pct">{{stat.percent_text}}</div>
+									<div class="wc-army-count">{{stat.count_text}}</div>
+									<div class="wc-army-bar"><div class="wc-army-fill" data-style-width="stat.percent_text != '' ? stat.percent_text : '0%'"></div></div>
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
-				<div class="rank-label">{{rank_text}}</div>
 			</div>
 
-			<div class="community-column">
-				<div class="section-title" data-tooltip="TOOLTIP:Community"><gametext key="GUI:Community"/></div>
-				<div class="stats-grid">
-					<div class="stat-cell" data-for="stat : faction_stats" data-if="stat.used" data-attr-data-tooltip-text="stat.tooltip_text">
-						<mappedimage class="stat-icon" data-attr-name="stat.icon"/>
-						<div class="stat-value">{{stat.text}}</div>
+			<!-- The player: rank portrait with the general badge, progress to the next rank, career record. -->
+			<div class="col col-side">
+				<div class="surface wc-player">
+					<div class="wc-greeting">{{title}}</div>
+					<div class="wc-rank">
+						<div class="wc-portrait">
+							<mappedimage class="wc-rank-image" data-attr-name="rank_image_name"/>
+							<div class="wc-badge" data-if="show_faction_image"><mappedimage data-attr-name="faction_image_name"/></div>
+						</div>
+						<div class="wc-rank-info">
+							<div class="overline"><gametext key="GUI:Rank"/></div>
+							<div class="wc-rank-name">{{rank_text}}</div>
+							<div class="progress wc-progress" data-if="!rank_at_max" data-tooltip="TOOLTIP:ProgressToNextRank">
+								<div class="progress-fill" data-style-width="rank_progress_width_style"></div>
+							</div>
+						</div>
 					</div>
+
+					<div class="wc-stats">
+						<div class="wc-stat"><div class="wc-stat-label"><gametext key="GUI:GamesPlayed"/></div><div class="wc-stat-value">{{has_stats ? games_played_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label"><gametext key="GUI:CareerWins"/></div><div class="wc-stat-value">{{has_stats ? wins_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label"><gametext key="GUI:CareerLosses"/></div><div class="wc-stat-value">{{has_stats ? losses_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label"><gametext key="GUI:WinPercentLabel"/></div><div class="wc-stat-value">{{has_stats ? win_percent_text : '-'}}</div></div>
+						<div class="wc-stat"><div class="wc-stat-label"><gametext key="GUI:BestWinStreak"/></div><div class="wc-stat-value">{{has_stats ? best_streak_text : '-'}}</div></div>
+						<div class="wc-stat" data-if="has_stats"><div class="wc-stat-label">{{streak_label_text}}</div><div class="wc-stat-value">{{streak_value_text}}</div></div>
+					</div>
+
+					<button class="wc-persona" data-event-click="my_info" data-tooltip="TOOLTIP:MyInfo"><gametext key="GUI:MyInfo"/></button>
 				</div>
 			</div>
 		</div>
 
-		<div class="footer">
-			<button class="btn-primary" data-event-click="back"><gametext key="GUI:GotoMainMenu"/></button>
+		<div class="action-bar">
+			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:GotoMainMenu"/></button>
+			<div class="spacer"></div>
+			<div class="wc-online" data-if="num_players_text != ''"><span class="dot"></span>{{num_players_text}}</div>
 		</div>
 	</div>
 </body>
