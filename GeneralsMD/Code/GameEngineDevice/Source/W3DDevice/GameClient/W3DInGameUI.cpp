@@ -437,7 +437,10 @@ void W3DInGameUI::draw()
 
 	TheWindowManager->winRepaint();
 
-	postWindowDraw();
+	if (m_deferPostWindowDraw)
+		m_postWindowDrawPending = TRUE;
+	else
+		postWindowDraw();
 
 #ifdef EXTENDED_STATS
 	}

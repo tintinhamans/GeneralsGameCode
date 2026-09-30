@@ -1175,6 +1175,8 @@ InGameUI::InGameUI()
 	m_networkLatencyDropColor = GameMakeColor(0, 0, 0, 255);
 	m_lastNetworkLatencyFrames = ~0u;
 
+	m_deferPostWindowDraw = FALSE;
+	m_postWindowDrawPending = FALSE;
 	m_renderFpsString = nullptr;
 	m_renderFpsLimitString = nullptr;
 	m_renderFpsFont = "Tahoma";

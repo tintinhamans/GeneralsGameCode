@@ -484,6 +484,10 @@ public:  // ********************************************************************
 	virtual void draw() override = 0;													///< Render the in-game user interface
 	virtual void postDraw();													///< Logic which needs to occur after the UI renders
 	virtual void postWindowDraw();											///< Logic which needs to occur after the WindowManager has repainted the menus
+	// TheSuperHackers @bugfix RmlUi draws after the window manager, so the display holds the HUD text
+	// (fps, clock, latency, observer stats) back and draws it over RmlUi.
+	void deferPostWindowDraw() { m_deferPostWindowDraw = TRUE; }
+	void drawDeferredPostWindow() { m_deferPostWindowDraw = FALSE; if (m_postWindowDrawPending) { m_postWindowDrawPending = FALSE; postWindowDraw(); } }
 
 	/// Ingame video playback
 	virtual void playMovie(const AsciiString& movieName);
@@ -835,6 +839,8 @@ protected:
 	UnsignedInt									m_lastNetworkLatencyFrames;
 
 	// Render FPS Counter
+	Bool m_deferPostWindowDraw;
+	Bool m_postWindowDrawPending;
 	DisplayString* m_renderFpsString;
 	DisplayString* m_renderFpsLimitString;
 	AsciiString									m_renderFpsFont;

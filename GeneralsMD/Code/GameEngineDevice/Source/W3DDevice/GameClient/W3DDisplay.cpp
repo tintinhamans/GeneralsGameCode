@@ -2052,6 +2052,7 @@ AGAIN:
 
 				if(TheGlobalData->m_loadScreenRender == TRUE)
 				{
+					TheInGameUI->deferPostWindowDraw();
 					TheInGameUI->draw();
 					// RmlUi only when a document is up, so .wnd load screens are untouched;
 					// before the mouse so the cursor stays topmost.
@@ -2060,6 +2061,7 @@ AGAIN:
 						TheRmlUiManager->update();
 						TheRmlUiManager->render();
 					}
+					TheInGameUI->drawDeferredPostWindow();
 					if( TheMouse )
 						TheMouse->draw();	//keep applying the current cursor style so it remains hidden if needed.
 					WW3D::End_Render();
@@ -2074,6 +2076,7 @@ AGAIN:
 				drawViews();
 
 				// draw the user interface
+				TheInGameUI->deferPostWindowDraw();
 				TheInGameUI->DRAW();
 
 				TheGameClient->DRAW();
@@ -2085,6 +2088,9 @@ AGAIN:
 					TheRmlUiManager->update();
 					TheRmlUiManager->render();
 				}
+
+				// HUD text (fps, clock, latency) over RmlUi's frame and panels.
+				TheInGameUI->drawDeferredPostWindow();
 
 				// draw the mouse
 				if( TheMouse )
