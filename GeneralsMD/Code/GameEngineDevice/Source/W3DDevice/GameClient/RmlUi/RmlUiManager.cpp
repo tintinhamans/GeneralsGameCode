@@ -18,6 +18,7 @@
 
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 #include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
+#include "W3DDevice/GameClient/RmlUi/RmlInterfaceArea.h"
 
 #include "Common/AsciiString.h"
 #include "Common/AudioEventRTS.h"
@@ -27,6 +28,7 @@
 #include "Common/UnicodeUtf8.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GUI/GUICallbacks/Menus/BuddyOverlaySession.h"
+#include "GameClient/GUI/GUICallbacks/Menus/OptionsValues.h"
 #include "GameClient/KeyDefs.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/RmlUiScreenRegistry.h"
@@ -553,6 +555,7 @@ void RmlUiManager::update()
 	RmlControlBarScreen::tick();
 	RmlUiMessageBoxHook::raise(); // a box stays above screens shown after it
 	RmlSocialDock::instance().tick(); // after the screen's update, before layout: shows, hides and places the dock
+	RmlInterfaceArea::apply(m_context, OptionsValues::GetCurrentInterfaceWidth()); // Options > Display > Interface Width, live
 	if (m_context)
 		m_context->Update();
 	endHoverOverWorld();

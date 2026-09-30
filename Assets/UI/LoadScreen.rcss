@@ -24,13 +24,16 @@ body.ld
 }
 
 /* ---- Full-bleed art ---------------------------------------------------------------------------- */
+/* The art, the movie and the scrim fill the screen from its middle, so they still do when the
+   interface width option narrows the body to a centred band (RmlInterfaceArea.h). */
 .ld-art
 {
 	display: block;
 	position: absolute;
-	left: 0;
+	left: 50%;
 	top: 0;
-	width: 100%;
+	width: 100vw;
+	margin-left: -50vw;
 	height: 100%;
 	overflow: hidden;
 	clip: always;
@@ -78,9 +81,10 @@ body.ld
 {
 	display: block;
 	position: absolute;
-	left: 0;
+	left: 50%;
 	top: 0;
-	width: 100%;
+	width: 100vw;
+	margin-left: -50vw;
 	height: 100%;
 	background-color: #000000;
 }
@@ -97,9 +101,10 @@ body.ld
 {
 	display: block;
 	position: absolute;
-	left: 0;
+	left: 50%;
 	top: 0;
-	width: 100%;
+	width: 100vw;
+	margin-left: -50vw;
 	height: 100%;
 	decorator: vertical-gradient(#05070F59 #05070FD9);
 }
