@@ -180,6 +180,8 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 		row.canEdit = src.m_canEdit == TRUE;
 		row.canEditOccupant = src.m_canEditOccupant == TRUE;
 		row.playerName = unicodeToUtf8(src.m_name);
+		if (row.isHumanOccupant && row.playerName.empty())
+			row.playerName = unicodeToUtf8(TheGameText->fetch("GUI:Player"));
 		row.playerTemplate = src.m_playerTemplate;
 		row.color = src.m_color;
 		row.colorHex = kNoColorHex;
@@ -347,6 +349,8 @@ void RmlSkirmishSetupScreen::onSlotOccupantChanged(Rml::DataModelHandle, Rml::Ev
 		return;
 	Int slotIndex = args[0].Get<int>();
 	Int state = atoi(ev.GetParameter<Rml::String>("value", "0").c_str());
+	if (state < SLOT_OPEN || state > SLOT_BRUTAL_AI)
+		return; // the SLOT_PLAYER entry only matches a player's value
 	SkirmishSetupActions::selectPlayerState(TheSkirmishGameInfo, slotIndex, (SlotState)state, UnicodeString::TheEmptyString);
 	refreshFromGameState();
 }

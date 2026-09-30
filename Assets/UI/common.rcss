@@ -1714,6 +1714,18 @@ label.check:hover
 	color: #FF9A3D;
 }
 
+/* An occupant select's SLOT_PLAYER entry: it only keeps a player's value matched, so it is disabled
+   and takes no room in the list. data-if cannot hide an <option>: the select forces display:block on
+   every option, so a hidden one stays pickable. */
+.screen select selectbox option.occ-player
+{
+	height: 0;
+	line-height: 0;
+	padding: 0;
+	overflow: hidden;
+	visibility: hidden;
+}
+
 /* ---- Text input --------------------------------------------------------------------------- */
 .screen .text-input, .screen .chat-input
 {

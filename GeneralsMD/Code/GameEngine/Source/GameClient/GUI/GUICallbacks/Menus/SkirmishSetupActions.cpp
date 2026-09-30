@@ -58,6 +58,8 @@ void SkirmishSetupActions::selectPlayerState( GameInfo *game, Int slotIndex, Slo
 	// slot 0 stops being the local human, which would let a stray event keep it Open.
 	if( !slot || slotIndex == 0 || slotIndex == game->getLocalSlotNum() || slot->getState() == state )
 		return;
+	if( state < SLOT_OPEN || state > SLOT_BRUTAL_AI )
+		return;
 
 	slot->setState( state, name );
 }
@@ -370,6 +372,12 @@ void SkirmishSetupActions::enterSkirmishSetup()
 
 	ParseAsciiStringToGameInfo( TheSkirmishGameInfo, prefs.getSlotList() );
 	restoreLocalSlot( TheSkirmishGameInfo, localSlot );
+	for( Int i = 1; i < MAX_SLOTS; ++i )
+	{
+		GameSlot *slot = TheSkirmishGameInfo->getSlot( i );
+		if( slot && slot->getState() == SLOT_PLAYER )
+			slot->setState( SLOT_OPEN );
+	}
 	TheSkirmishGameInfo->setSeed( GetTickCount() );
 
 	applyPreorderFlag( TheSkirmishGameInfo, 0 );

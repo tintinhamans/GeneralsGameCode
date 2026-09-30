@@ -30,16 +30,16 @@
 								<div data-for="opt : faction_options"><mappedimage data-if="opt.value == row.player_template &amp;&amp; opt.icon != ''" data-attr-name="opt.icon"/><span data-if="opt.value == row.player_template &amp;&amp; opt.icon == ''">?</span></div>
 							</div>
 							<div class="pc-who">
-								<select data-if="!row.is_human_occupant" data-value="row.occupant_state" data-attrif-disabled="!row.can_edit_occupant"
+								<select data-if="!row.is_human_occupant || row.can_edit_occupant" data-value="row.occupant_state" data-attrif-disabled="!row.can_edit_occupant"
 									data-event-change="slot_occupant_changed(row.slot_index)">
 									<option value="0"><gametext key="GUI:Open"/></option>
 									<option value="1"><gametext key="GUI:Closed"/></option>
 									<option value="2"><gametext key="GUI:EasyAI"/></option>
 									<option value="3"><gametext key="GUI:MediumAI"/></option>
 									<option value="4"><gametext key="GUI:HardAI"/></option>
-									<option value="5" data-if="row.is_human_occupant">{{row.player_name}}</option>
+									<option class="occ-player" value="5" disabled="disabled">{{row.player_name}}</option>
 								</select>
-								<div class="pc-name" data-if="row.is_human_occupant">{{row.player_name}}</div>
+								<div class="pc-name" data-if="row.is_human_occupant &amp;&amp; !row.can_edit_occupant">{{row.player_name}}</div>
 							</div>
 							<div class="pc-add" data-if="!row.is_occupied &amp;&amp; row.can_edit_occupant">
 								<div class="pc-add-label overline"><gametext key="GUI:GOAddAI"/></div>

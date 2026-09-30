@@ -46,7 +46,7 @@
 									<option value="2"><gametext key="GUI:EasyAI"/></option>
 									<option value="3"><gametext key="GUI:MediumAI"/></option>
 									<option value="4"><gametext key="GUI:HardAI"/></option>
-									<option value="5" data-if="row.is_human_occupant">{{row.occupant_label}}</option>
+									<option class="occ-player" value="5" disabled="disabled">{{row.occupant_label}}</option>
 								</select>
 								<div class="pc-name" data-if="!row.can_edit_occupant &amp;&amp; row.is_human_occupant">{{row.player_name}}</div>
 								<div class="pc-state" data-if="!row.can_edit_occupant &amp;&amp; !row.is_human_occupant"><gametext key="GUI:Open" data-if="row.occupant_state == 0"/><gametext key="GUI:Closed" data-if="row.occupant_state == 1"/><gametext key="GUI:EasyAI" data-if="row.occupant_state == 2"/><gametext key="GUI:MediumAI" data-if="row.occupant_state == 3"/><gametext key="GUI:HardAI" data-if="row.occupant_state == 4"/></div>
