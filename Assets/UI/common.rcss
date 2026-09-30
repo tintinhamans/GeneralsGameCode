@@ -66,6 +66,11 @@
 	A bare <div data-for="..."> wrapping a row is inline unless it is a direct child of a .list-box or
 	.text-list (which makes it a block); a row that is a data-for element itself needs display:block,
 	which .list-row and .chat-line/.text-line already give it.
+
+	The components above are the legacy .shell look. Every redesigned screen opts into the screen
+	template (body.screen) further down: its design language and skeleton, then the shared components
+	(player card, stat card, tile, tab rail, progress, chips, persona, facts, modal) and the gotchas of
+	this RmlUi build, each documented where it is defined.
 */
 
 body
@@ -2040,6 +2045,32 @@ label.check:hover
 	              no map); never shrinks in a flex row.
 	Load layout   see LoadScreen.rcss: every load screen is full-bleed art under the ruler with
 	              .ld-card player cards along the bottom.
+	Persona       .persona-hero (rank portrait, badge, rank name, .progress) over .stat-blocks of
+	              .stat-block: a player's rank header and career record (player info).
+	Facts         .fact > .stat-label + .fact-value, .detail-kind of chips: a detail card's
+	              label/value pairs; the screen lays them out.
+	Modal         .modal-card > .modal-head(.modal-heading > .overline + .modal-title, .modal-close)
+	              + .modal-body + .modal-actions: every popup, message box, confirmation and
+	              progress card. The scrim is either the page (<body class="screen modal">, a
+	              popup document; .over-game for a light one over live play) or, for a confirm over
+	              its own screen, a <div class="modal-scrim"> child of <body>. .modal-card.danger is
+	              a destructive confirm (red edge, tick and primary). Size a card with its own class
+	              (.pr-card { width; height }); .modal-body holds .field (overline over an input) and
+	              .checks. A card with no primary may put a status line where it would sit.
+
+   Gotchas of this RmlUi build (each one has bitten a screen):
+	- Bare text directly inside a flex container does not render: wrap it in a <span>.
+	- A binding on the data-for element itself can read past the end of a shrinking list for one
+	  frame: repeat a plain wrapper (<div data-for="row : rows">) and bind on an element inside it.
+	- Army option labels go in <span class="army-name">.
+	- .marker-label text goes in a <span>.
+	- A full-viewport scrim (.modal-scrim, the score and credits art and scrims) trips the harness
+	  ruler audit on purpose: give a new one an exemption in rmlui_render's audit.
+	- line-height takes a length or a number, not "normal".
+	- See also: data-attrif-disabled (never data-attr-disabled), button[disabled], display:block on
+	  data-for rows, scroll containers flex: 1 1 0% + min-height: 0, viewport layers as direct
+	  children of <body>, no transforms, no box-shadow, clip: always on clipped absolute art, and
+	  every select needs an option matching its value.
    ========================================================================================= */
 
 /* ---- Player cards --------------------------------------------------------------------------- */
