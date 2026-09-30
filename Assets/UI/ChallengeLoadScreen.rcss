@@ -127,3 +127,12 @@
 {
 	decorator: vertical-gradient(#05070F00 #05070F8C);
 }
+
+/* ---- 5:4 and 4:3 ---------------------------------------------------------------------------------- */
+/* The portraits span the whole 4:3 stage, so there it fits inside the ruler (1174dp is the frame's
+   width at 5:4) and stays 4:3, centred, instead of stretching edge to edge under the frame. */
+@media (max-aspect-ratio: 3/2)
+{
+	.ls-stage-wrap { align-items: center; }
+	.ls-stage { width: 1174dp; height: 880dp; max-width: none; }
+}
