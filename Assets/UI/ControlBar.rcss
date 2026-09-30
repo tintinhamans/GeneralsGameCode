@@ -6,19 +6,21 @@
 	grid. Sizes follow Pro's at 1080 lines and are in dp, so they keep the same share of the screen height at
 	every resolution.
 
-	The look is our own art on the faction: steel blue for the USA, red and gold for China, tan and rust for
-	the GLA, the template's blue and green for observers (and any other side). The chamfered metal frames,
-	inset wells, bevelled button frames, notch, tab, wings and ribbon plates are ninepatch sprites from
-	Textures/ControlBar/cb_<faction>.png (generated art, 2 px per dp); fills are gradients.
+	The look is an instrument panel: graphite plates with a restrained bevel and precise corner cuts, recessed
+	wells, hairline button frames, small caps labels and plain numerals (Noto Sans figures are tabular). The
+	side shows only as a muted line inside each plate's top edge and a small tag by the selection's name:
+	steel blue for the USA, red for China, tan for the GLA, blue-grey for observers (and any other side). The
+	plates, wells, frames, notch, tab and wings are ninepatch sprites from Textures/ControlBar/cb_<faction>.png
+	(generated art, 2 px per dp).
 
-	Wide screens: the dock (everything but the rail) spans the screen up to 21:9 and is centred beyond it, the
-	wings and the rail carrying the bar out to the edges. The interface width option narrows it further
-	(body.iw-169). 5:4 and 4:3 move the command panel right next to the radar.
+	Wide screens: the dock (everything but the rail and the wings) spans the screen up to 21:9 and is centred
+	beyond it, the wings and the rail carrying the bar out to the edges. The interface width option narrows it
+	further (body.iw-169, RmlInterfaceArea.h). 5:4 and 4:3 move the command panel right next to the radar.
 
-	Buttons (.cb-slot) are 5:4 like the cameo art: a dark well, the cameo in the frame's window, the veterancy
-	art on it, the clock sweeping down from the top with a lit edge, the hotkey on a badge bottom left, a count
-	top right, and the command's border kind as a thin line along the window's top (build blue, upgrade
-	orange, action teal, system yellow, as the .wnd borders).
+	Buttons (.cb-slot) are 5:4 like the cameo art: a recess, the cameo in the frame's window, the veterancy art
+	on it, the clock darkening what is still to go from the top, the hotkey small bottom left, a count top right,
+	and the command's border kind as a hairline along the window's top (build blue, upgrade orange, action teal,
+	system yellow, as the .wnd borders, muted).
 */
 
 body.cb
@@ -28,11 +30,11 @@ body.cb
 	pointer-events: none;
 	z-index: -1; /* under every other in-game document (menus, popups) */
 	font-family: "Noto Sans";
-	font-size: 16dp;
-	color: #EEF1FA;
+	font-size: 15dp;
+	color: #D8DDE4;
 }
 
-/* ---- The rail and the dock ------------------------------------------------------------------------- */
+/* ---- The rail, the wings and the dock ------------------------------------------------------------ */
 .cb-rail
 {
 	display: block;
@@ -40,8 +42,10 @@ body.cb
 	left: 0;
 	right: 0;
 	bottom: 0;
-	height: 10dp;
+	height: 8dp;
 	pointer-events: none;
+	decorator: vertical-gradient(#2C3036 #131519);
+	border-top: 1dp #06070A;
 }
 
 .cb-dock
@@ -62,7 +66,7 @@ body.cb
 	display: none;
 	position: absolute;
 	bottom: 0;
-	height: 48dp;
+	height: 36dp;
 	pointer-events: none;
 }
 
@@ -79,15 +83,14 @@ body.cb
 	pointer-events: auto;
 }
 
-/* the faction ribbon on a rim */
-.cb-plate
+/* small caps labels */
+.cb-power-label, .cb-sci-tier, .cb-beacon-label, .cb-obs-label
 {
-	display: block;
-	position: absolute;
-	top: 1dp;
-	height: 7dp;
-	width: 80dp;
-	pointer-events: none;
+	font-size: 12dp;
+	line-height: 16dp;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #8A929C;
 }
 
 /* ---- Radar ------------------------------------------------------------------------------------------ */
@@ -96,10 +99,8 @@ body.cb
 	left: 0;
 	width: 332dp;
 	height: 332dp;
-	padding: 28dp 22dp 8dp 8dp;
+	padding: 18dp 14dp 6dp 6dp;
 }
-
-.cb-plate-radar { left: 120dp; }
 
 .cb-radar-well
 {
@@ -108,7 +109,6 @@ body.cb
 	width: 100%;
 	height: 100%;
 	box-sizing: border-box;
-	padding: 4dp;
 }
 
 /* the engine draws the radar here (RmlRadarElement) */
@@ -116,14 +116,14 @@ body.cb
 {
 	display: block;
 	position: absolute;
-	left: 4dp;
-	top: 4dp;
-	right: 4dp;
-	bottom: 4dp;
+	left: 3dp;
+	top: 3dp;
+	right: 3dp;
+	bottom: 3dp;
 }
 
-/* under attack: a red line inside the well, blinking with the .wnd's WinUAttack light */
-.cb-radar.alert .cb-radar-well { border: 2dp #FF5050; }
+/* under attack: a red hairline inside the well, blinking with the .wnd's WinUAttack light */
+.cb-radar.alert .cb-radar-well { border: 1dp #D04848; }
 
 /* ---- Centre: the notch, the power strip, the side buttons and the grid ---------------------------- */
 .cb-centre
@@ -134,7 +134,7 @@ body.cb
 	bottom: 0;
 	width: 768dp;
 	margin-left: -384dp;
-	height: 250dp;
+	height: 240dp;
 	pointer-events: none;
 }
 
@@ -142,26 +142,9 @@ body.cb
 {
 	left: 10dp;
 	width: 748dp;
-	height: 210dp;
-	padding: 26dp 20dp 6dp 20dp;
+	height: 208dp;
+	padding: 18dp 18dp 6dp 18dp;
 }
-
-.cb-plate-ml { left: 150dp; }
-
-/* brackets bolted to the command panel's sides */
-.cb-ear
-{
-	display: block;
-	position: absolute;
-	bottom: 94dp;
-	width: 12dp;
-	height: 48dp;
-	pointer-events: none;
-}
-
-.cb-ear-l { left: 1dp; }
-.cb-ear-r { right: 1dp; }
-.cb-plate-mr { right: 150dp; }
 
 .cb-notch-row
 {
@@ -172,7 +155,7 @@ body.cb
 	left: 0;
 	right: 0;
 	top: 0;
-	height: 48dp;
+	height: 40dp;
 	pointer-events: none;
 }
 
@@ -181,17 +164,15 @@ body.cb
 	display: block;
 	flex: 0 0 auto;
 	box-sizing: border-box;
-	min-width: 236dp;
-	height: 48dp;
-	padding: 8dp 50dp 0 50dp;
-	font-size: 28dp;
-	line-height: 34dp;
-	font-weight: bold;
+	min-width: 200dp;
+	height: 40dp;
+	padding: 6dp 32dp 0 32dp;
+	font-size: 22dp;
+	line-height: 30dp;
 	letter-spacing: 1dp;
 	text-align: center;
 	white-space: nowrap;
-	color: #D1FD04;
-	font-effect: glow(0dp 3dp 0dp 0dp #000000C0);
+	color: #E4E8EE;
 	pointer-events: auto;
 }
 
@@ -215,47 +196,39 @@ body.cb
 	white-space: nowrap;
 }
 
-.cb-power-label
-{
-	flex: 0 0 auto;
-	font-size: 13dp;
-	font-weight: bold;
-	letter-spacing: 2dp;
-	text-transform: uppercase;
-	margin-right: 10dp;
-}
+.cb-power-label { flex: 0 0 auto; margin-right: 10dp; }
 
-/* the gauge: a well, the supply fill, the scale's ticks and the consumption needle */
+/* the gauge: a recess, the supply fill, the scale's ticks and the consumption needle */
 .cb-power-bar
 {
 	display: block;
 	position: relative;
 	flex: 1 1 auto;
-	height: 20dp;
+	height: 14dp;
 }
 
 .cb-power-fill
 {
 	display: block;
 	position: absolute;
-	left: 3dp;
-	top: 3dp;
-	height: 14dp;
+	left: 2dp;
+	top: 2dp;
+	height: 10dp;
 	max-width: 100%;
-	decorator: vertical-gradient(#E6FF6A #8FB000);
+	background-color: #7C9C48;
 }
 
-.cb-power.low-power .cb-power-fill { decorator: vertical-gradient(#FFF08A #C9A814); }
-.cb-power.no-power .cb-power-fill { decorator: vertical-gradient(#FF8A8A #C01818); }
+.cb-power.low-power .cb-power-fill { background-color: #B89A3C; }
+.cb-power.no-power .cb-power-fill { background-color: #A8463E; }
 
 .cb-power-ticks
 {
 	display: block;
 	position: absolute;
-	left: 3dp;
-	right: 3dp;
-	top: 3dp;
-	height: 14dp;
+	left: 2dp;
+	right: 2dp;
+	top: 2dp;
+	height: 10dp;
 }
 
 /* the needle stands at the end of a track as long as the consumption */
@@ -263,7 +236,7 @@ body.cb
 {
 	display: block;
 	position: absolute;
-	left: 3dp;
+	left: 2dp;
 	top: 0;
 	bottom: 0;
 	max-width: 100%;
@@ -275,40 +248,36 @@ body.cb
 	position: absolute;
 	right: 0;
 	top: 0;
-	width: 4dp;
-	height: 20dp;
-	box-sizing: border-box;
-	background-color: #FFFFFF;
-	border: 1dp #000000;
+	width: 2dp;
+	height: 14dp;
+	background-color: #F2F4F7;
 }
 
 .cb-power-value
 {
 	flex: 0 0 auto;
-	min-width: 76dp;
-	font-size: 17dp;
-	font-weight: bold;
+	min-width: 72dp;
+	font-size: 15dp;
 	text-align: right;
 	margin-left: 10dp;
-	color: #EEF1FA;
+	color: #C8CED6;
 }
 
-.cb-power.no-power .cb-power-value { color: #FF7070; }
-.cb-power.low-power .cb-power-value { color: #FFE680; }
+.cb-power.no-power .cb-power-value { color: #D87068; }
+.cb-power.low-power .cb-power-value { color: #D8C070; }
 
 /* a replay plays */
 .cb-replay
 {
 	flex: 0 0 auto;
-	height: 20dp;
-	padding: 0 8dp;
+	height: 16dp;
+	padding: 0 6dp;
 	margin-left: 12dp;
-	font-size: 13dp;
-	line-height: 20dp;
-	font-weight: bold;
+	font-size: 11dp;
+	line-height: 16dp;
 	letter-spacing: 2dp;
-	color: #0E1400;
-	background-color: #D1FD04;
+	color: #D1FD04;
+	border: 1dp #D1FD0480;
 }
 
 .cb-body
@@ -338,19 +307,20 @@ body.cb
 	height: 34dp;
 	margin-bottom: 4dp;
 	text-align: center;
-	background-color: #04060A;
-	color: #D6DCEA;
+	background-color: #0C0D10;
+	color: #A8AFB8;
 }
 
 .cb-glyph
 {
 	display: block;
-	font-size: 19dp;
+	font-family: "Segoe UI Symbol"; /* the monochrome symbols; the emoji font would colour them */
+	font-size: 16dp;
 	line-height: 34dp;
 }
 
 .cb-side-btn:hover { color: #D1FD04; }
-.cb-side-btn.off { color: #5A6072; }
+.cb-side-btn.off { color: #4A4E55; }
 
 .cb-badge
 {
@@ -358,14 +328,14 @@ body.cb
 	position: absolute;
 	right: 3dp;
 	top: 3dp;
-	min-width: 10dp;
-	height: 16dp;
-	padding: 0 4dp;
-	font-size: 13dp;
-	line-height: 16dp;
-	font-weight: bold;
-	color: #0E1400;
-	background-color: #D1FD04;
+	min-width: 8dp;
+	height: 13dp;
+	padding: 0 3dp;
+	font-size: 11dp;
+	line-height: 13dp;
+	color: #D1FD04;
+	background-color: #0C0D10E6;
+	border: 1dp #D1FD0470;
 }
 
 /* ButtonCommand01..14: two rows, filled a column at a time. */
@@ -389,27 +359,27 @@ body.cb
 	margin: 0 4dp 4dp 0;
 }
 
-.cb-slot.live { background-color: #04060A; }
-.cb-slot.live.flash { background-color: #3A4A08; }
+.cb-slot.live { background-color: #0C0D10; }
+.cb-slot.live.flash { background-color: #2A3212; }
 
 /* the frame's window */
 .cb-win
 {
 	display: block;
 	position: absolute;
-	left: 5dp;
-	top: 5dp;
-	right: 5dp;
-	bottom: 5dp;
+	left: 2dp;
+	top: 2dp;
+	right: 2dp;
+	bottom: 2dp;
 	overflow: hidden;
 	clip: always;
 }
 
 /* the command's border kind along the window's top */
-.cb-slot.live.b1 .cb-win { border-top: 2dp #6D86FF; }
-.cb-slot.live.b2 .cb-win { border-top: 2dp #F07A1A; }
-.cb-slot.live.b3 .cb-win { border-top: 2dp #36D8B2; }
-.cb-slot.live.b4 .cb-win { border-top: 2dp #E8D440; }
+.cb-slot.live.b1 .cb-win { border-top: 1dp #6A7CC8; }
+.cb-slot.live.b2 .cb-win { border-top: 1dp #C0773A; }
+.cb-slot.live.b3 .cb-win { border-top: 1dp #4AA890; }
+.cb-slot.live.b4 .cb-win { border-top: 1dp #B8A850; }
 
 .cb-art, .cb-vet
 {
@@ -428,10 +398,10 @@ body.cb
 	height: 100%;
 }
 
-.cb-slot.off .cb-art img { image-color: #50546A; }
-.cb-slot.poor .cb-art img { image-color: #9A9A9A; }
+.cb-slot.off .cb-art img { image-color: #4E525C; }
+.cb-slot.poor .cb-art img { image-color: #8E8E8E; }
 
-/* the clock: what is still to go darkens from the top, its edge lit */
+/* the clock: what is still to go darkens from the top, a hairline at its edge */
 .cb-clock
 {
 	display: block;
@@ -439,41 +409,36 @@ body.cb
 	left: 0;
 	right: 0;
 	top: 0;
-	decorator: vertical-gradient(#000000B8 #000000D8);
-	border-bottom: 2dp #D1FD04;
+	background-color: #000000A6;
+	border-bottom: 1dp #FFFFFF70;
 }
 
 .cb-key
 {
 	display: block;
 	position: absolute;
-	left: 6dp;
-	bottom: 6dp;
-	min-width: 12dp;
-	height: 18dp;
-	padding: 0 4dp;
-	font-size: 14dp;
-	line-height: 18dp;
-	font-weight: bold;
-	text-align: center;
-	color: #FFFFFF;
-	background-color: #04060AE0;
+	left: 4dp;
+	bottom: 3dp;
+	font-size: 12dp;
+	line-height: 14dp;
+	letter-spacing: 1dp;
+	color: #E4E8EE;
+	font-effect: outline(1dp #000000D0);
 }
 
-.cb-slot.live:hover .cb-key { color: #0E1400; background-color: #D1FD04; }
-.cb-slot.off .cb-key { color: #7079A0; }
+.cb-slot.live:hover .cb-key { color: #D1FD04; }
+.cb-slot.off .cb-key { color: #7A808A; }
 
 .cb-text
 {
 	display: block;
 	position: absolute;
-	right: 6dp;
-	top: 6dp;
-	font-size: 18dp;
-	line-height: 20dp;
-	font-weight: bold;
-	color: #FFFFFF;
-	font-effect: outline(2dp #000000);
+	right: 5dp;
+	top: 3dp;
+	font-size: 14dp;
+	line-height: 16dp;
+	color: #F2F4F7;
+	font-effect: outline(1dp #000000D0);
 }
 
 /* Under construction and OCL timers */
@@ -499,27 +464,26 @@ body.cb
 .cb-task-text
 {
 	display: block;
-	font-size: 22dp;
-	line-height: 28dp;
-	font-weight: bold;
-	color: #EEF1FA;
+	font-size: 17dp;
+	line-height: 24dp;
+	color: #E4E8EE;
 }
 
 .cb-task-bar
 {
 	display: block;
 	position: relative;
-	height: 20dp;
-	margin-top: 12dp;
+	height: 12dp;
+	margin-top: 10dp;
 	box-sizing: border-box;
-	padding: 3dp;
+	padding: 2dp;
 }
 
 .cb-task-fill
 {
 	display: block;
 	height: 100%;
-	decorator: vertical-gradient(#E6FF6A #8FB000);
+	background-color: #7C9C48;
 }
 
 /* A beacon: the delete button and the message entry. */
@@ -530,20 +494,19 @@ body.cb
 	display: block;
 	flex: 0 0 auto;
 	box-sizing: border-box;
-	height: 38dp;
-	padding: 0 16dp;
-	font-size: 16dp;
-	line-height: 38dp;
-	font-weight: bold;
-	letter-spacing: 1dp;
+	height: 34dp;
+	padding: 0 14dp;
+	font-size: 13dp;
+	line-height: 34dp;
+	letter-spacing: 2dp;
 	text-transform: uppercase;
 	white-space: nowrap;
-	color: #EEF1FA;
-	background-color: #04060A;
+	color: #C8CED6;
+	background-color: #0C0D10;
 }
 
 .cb-text-btn:hover { color: #D1FD04; }
-.cb-text-btn.off { color: #5A6072; }
+.cb-text-btn.off { color: #4A4E55; }
 
 .cb-beacon-delete { margin-right: 20dp; }
 
@@ -555,16 +518,7 @@ body.cb
 	margin-right: 12dp;
 }
 
-.cb-beacon-label
-{
-	display: block;
-	font-size: 14dp;
-	line-height: 20dp;
-	font-weight: bold;
-	letter-spacing: 2dp;
-	text-transform: uppercase;
-	margin-bottom: 6dp;
-}
+.cb-beacon-label { display: block; margin-bottom: 6dp; }
 
 .cb-beacon-row
 {
@@ -579,14 +533,14 @@ input.cb-input
 	flex: 1 1 0%;
 	min-width: 0;
 	box-sizing: border-box;
-	height: 38dp;
+	height: 34dp;
 	padding: 0 10dp;
 	margin-right: 8dp;
-	font-size: 18dp;
-	line-height: 36dp;
-	color: #EEF1FA;
-	background-color: #020305;
-	border: 1dp #FFFFFF30;
+	font-size: 16dp;
+	line-height: 32dp;
+	color: #E4E8EE;
+	background-color: #08090B;
+	border: 1dp #3A3F46;
 }
 
 input.cb-input:focus { border-color: #D1FD04; }
@@ -599,10 +553,10 @@ input.cb-input:focus { border-color: #D1FD04; }
 	align-items: center;
 	position: absolute;
 	right: 0;
-	bottom: 238dp;
+	bottom: 240dp;
 	box-sizing: border-box;
-	height: 46dp;
-	padding: 8dp 8dp 0 46dp;
+	height: 40dp;
+	padding: 6dp 8dp 0 42dp;
 	pointer-events: auto;
 }
 
@@ -610,29 +564,29 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	display: block;
 	flex: 0 0 auto;
-	width: 96dp;
+	width: 84dp;
 	margin-right: 6dp;
-	font-size: 18dp;
-	line-height: 24dp;
-	letter-spacing: 1dp;
+	font-size: 14dp;
+	line-height: 20dp;
+	letter-spacing: 2dp;
 	white-space: nowrap;
-	color: #FFFFFF26;
+	color: #FFFFFF1C;
 }
 
-.cb-star.on { color: #D1FD04; }
+.cb-star.on { color: #C8D0DA; }
 
 .cb-side-btn.cb-general, .cb-side-btn.cb-minmax
 {
 	flex: 0 0 auto;
-	width: 52dp;
-	height: 32dp;
+	width: 46dp;
+	height: 26dp;
 	margin: 0 0 0 4dp;
 }
 
-.cb-side-btn.cb-minmax { width: 40dp; }
-.cb-general .cb-glyph, .cb-minmax .cb-glyph { line-height: 32dp; }
-.cb-general.lit { color: #0E1400; background-color: #D1FD04; }
-.cb-general.lit .cb-badge { color: #D1FD04; background-color: #0E1400; }
+.cb-side-btn.cb-minmax { width: 34dp; }
+.cb-general .cb-glyph, .cb-minmax .cb-glyph { font-size: 14dp; line-height: 26dp; }
+.cb-general.lit { color: #D1FD04; }
+.cb-general .cb-badge { right: 2dp; top: 2dp; }
 
 /* ---- The selection ------------------------------------------------------------------------------------ */
 .cb-unit
@@ -640,10 +594,8 @@ input.cb-input:focus { border-color: #D1FD04; }
 	right: 0;
 	width: 308dp;
 	height: 248dp;
-	padding: 26dp 14dp 6dp 18dp;
+	padding: 18dp 14dp 6dp 18dp;
 }
-
-.cb-plate-unit { left: 150dp; }
 
 .cb-unit-head
 {
@@ -651,30 +603,39 @@ input.cb-input:focus { border-color: #D1FD04; }
 	flex-direction: row;
 	align-items: center;
 	height: 22dp;
-	margin-bottom: 4dp;
+	margin-bottom: 8dp;
+}
+
+/* the side's small tag by the name */
+.cb-tag
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 3dp;
+	height: 14dp;
+	margin-right: 8dp;
 }
 
 .cb-name
 {
 	flex: 1 1 0%;
 	min-width: 0;
-	font-size: 16dp;
+	font-size: 14dp;
 	line-height: 22dp;
 	font-weight: bold;
-	letter-spacing: 1dp;
+	letter-spacing: 2dp;
 	text-transform: uppercase;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	color: #FFFFFF;
+	color: #E4E8EE;
 }
 
 .cb-count
 {
 	flex: 0 0 auto;
-	font-size: 16dp;
-	font-weight: bold;
-	color: #D1FD04;
+	font-size: 15dp;
+	color: #C8CED6;
 	margin-left: 8dp;
 }
 
@@ -703,10 +664,10 @@ input.cb-input:focus { border-color: #D1FD04; }
 	top: 0;
 	width: 158dp;
 	height: 124dp;
-	background-color: #04060A;
+	background-color: #0C0D10;
 }
 
-.cb-portrait .cb-win { left: 5dp; top: 5dp; right: 5dp; bottom: 5dp; }
+.cb-portrait .cb-win { left: 2dp; top: 2dp; right: 2dp; bottom: 2dp; }
 
 .cb-portrait-vet
 {
@@ -735,7 +696,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 	box-sizing: border-box;
 	width: 78dp;
 	height: 62dp;
-	background-color: #04060A;
+	background-color: #0C0D10;
 }
 
 .cb-up0 { left: 162dp; top: 0; }
@@ -744,7 +705,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 .cb-up3 { left: 81dp; top: 126dp; }
 .cb-up4 { left: 0; top: 126dp; }
 
-.cb-upgrade img { image-color: #4A4F66; }
+.cb-upgrade img { image-color: #464A52; }
 .cb-upgrade.owned img { image-color: #FFFFFF; }
 
 /* the build queue: nine cells, three by three */
@@ -773,10 +734,10 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	display: block;
 	position: absolute;
-	left: 5dp;
-	top: 5dp;
-	width: 148dp;
-	height: 114dp;
+	left: 2dp;
+	top: 2dp;
+	width: 154dp;
+	height: 120dp;
 	background-color: #000000;
 }
 
@@ -786,30 +747,30 @@ input.cb-input:focus { border-color: #D1FD04; }
 	display: block;
 	position: absolute;
 	left: 0;
-	top: 20dp;
-	width: 240dp;
-	font-size: 64dp;
-	line-height: 120dp;
-	font-weight: bold;
+	top: 30dp;
+	width: 243dp;
+	font-size: 48dp;
+	line-height: 100dp;
 	text-align: center;
-	color: #EEF1FA;
+	color: #E4E8EE;
 }
 
-.cb-multi-x { font-size: 40dp; color: #D1FD04; margin-right: 4dp; }
+.cb-multi-x { font-size: 30dp; color: #8A929C; margin-right: 6dp; }
 
-/* Nothing selected: the side's emblem, faint. */
+/* Nothing selected: the side's emblem, faint and grey. */
 .cb-emblem
 {
 	display: block;
 	position: absolute;
-	left: 50dp;
-	top: 24dp;
-	width: 140dp;
-	height: 140dp;
-	opacity: 0.16;
+	left: 60dp;
+	top: 30dp;
+	width: 120dp;
+	height: 120dp;
+	opacity: 0.08;
 }
 
-.cb-emblem-img { display: block; width: 140dp; height: 140dp; }
+.cb-emblem-img { display: block; width: 120dp; height: 120dp; }
+.cb-emblem img { image-color: #B0B0B0; }
 
 /* the general's experience: Pro's upright gauge at the right edge */
 .cb-exp
@@ -817,42 +778,41 @@ input.cb-input:focus { border-color: #D1FD04; }
 	display: block;
 	position: relative;
 	flex: 0 0 auto;
-	width: 18dp;
+	width: 12dp;
 	height: 188dp;
-	margin-left: 12dp;
+	margin-left: 15dp;
 	box-sizing: border-box;
-	padding: 3dp;
+	padding: 2dp;
 }
 
 .cb-exp-fill
 {
 	display: block;
 	position: absolute;
-	left: 3dp;
-	right: 3dp;
-	bottom: 3dp;
-	max-height: 182dp;
-	decorator: vertical-gradient(#E6FF6A #8FB000);
+	left: 2dp;
+	right: 2dp;
+	bottom: 2dp;
+	max-height: 184dp;
+	background-color: #8C9A6A;
 }
 
 .cb-exp-marks
 {
 	display: block;
 	position: absolute;
-	left: 3dp;
-	right: 3dp;
-	top: 3dp;
-	bottom: 3dp;
-	border-top: 1dp #00000000;
+	left: 2dp;
+	right: 2dp;
+	top: 2dp;
+	bottom: 2dp;
 }
 
 /* ---- The general's powers: a column at the right edge above the tab ------------------------------------ */
 .cb-powers
 {
 	right: 0;
-	bottom: 292dp;
-	width: 104dp;
-	padding: 16dp 10dp 10dp 16dp;
+	bottom: 290dp;
+	width: 100dp;
+	padding: 14dp 10dp 8dp 12dp;
 }
 
 .cb-slot.cb-pslot
@@ -862,9 +822,6 @@ input.cb-input:focus { border-color: #D1FD04; }
 	margin: 0 0 4dp 0;
 }
 
-/* ready count: the bigger number */
-.cb-pslot .cb-text { color: #D1FD04; }
-
 /* ---- The promotions panel: over the grid, the tiers of the side's sciences ---------------------------- */
 .cb-science
 {
@@ -872,7 +829,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 	margin-left: -268dp;
 	bottom: 252dp;
 	width: 536dp;
-	padding: 18dp 24dp 20dp 24dp;
+	padding: 16dp 22dp 18dp 22dp;
 }
 
 .cb-sci-head
@@ -886,24 +843,23 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	flex: 1 1 0%;
 	min-width: 0;
-	font-size: 24dp;
-	line-height: 30dp;
+	font-size: 17dp;
+	line-height: 26dp;
 	font-weight: bold;
-	letter-spacing: 2dp;
+	letter-spacing: 3dp;
 	text-transform: uppercase;
-	color: #FFFFFF;
+	color: #E4E8EE;
 }
 
 .cb-sci-points
 {
 	flex: 0 0 auto;
-	height: 28dp;
-	padding: 0 10dp;
-	font-size: 19dp;
-	line-height: 28dp;
-	font-weight: bold;
-	color: #0E1400;
-	background-color: #D1FD04;
+	height: 22dp;
+	padding: 0 8dp;
+	font-size: 14dp;
+	line-height: 22dp;
+	color: #D1FD04;
+	border: 1dp #D1FD0480;
 }
 
 .cb-sci-star { margin-right: 4dp; }
@@ -911,28 +867,23 @@ input.cb-input:focus { border-color: #D1FD04; }
 .cb-sci-exp
 {
 	display: block;
-	height: 12dp;
+	height: 8dp;
 	margin: 10dp 0 4dp 0;
 	box-sizing: border-box;
-	padding: 3dp;
+	padding: 2dp;
 }
 
 .cb-sci-exp-fill
 {
 	display: block;
 	height: 100%;
-	decorator: vertical-gradient(#E6FF6A #8FB000);
+	background-color: #8C9A6A;
 }
 
 .cb-sci-tier
 {
 	display: block;
 	margin: 12dp 0 6dp 0;
-	font-size: 14dp;
-	line-height: 18dp;
-	font-weight: bold;
-	letter-spacing: 2dp;
-	text-transform: uppercase;
 }
 
 .cb-sci-row
@@ -951,22 +902,17 @@ input.cb-input:focus { border-color: #D1FD04; }
 }
 
 .cb-slot.cb-sci { margin: 0 6dp 4dp 0; }
-.cb-slot.cb-sci.buy { background-color: #2A3310; }
 
 .cb-owned
 {
 	display: block;
 	position: absolute;
-	right: 5dp;
-	bottom: 5dp;
-	width: 20dp;
-	height: 20dp;
-	font-size: 15dp;
-	line-height: 20dp;
-	font-weight: bold;
-	text-align: center;
-	color: #04120E;
-	background-color: #36D8B2;
+	right: 4dp;
+	bottom: 3dp;
+	font-size: 13dp;
+	line-height: 14dp;
+	color: #6CC0A8;
+	font-effect: outline(1dp #000000D0);
 }
 
 .cb-sci-foot
@@ -982,8 +928,8 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	left: 8dp;
 	bottom: 344dp;
-	width: 440dp;
-	padding: 16dp 20dp 18dp 20dp;
+	width: 420dp;
+	padding: 14dp 18dp 16dp 18dp;
 	pointer-events: none;
 }
 
@@ -998,37 +944,35 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	flex: 1 1 0%;
 	min-width: 0;
-	font-size: 20dp;
-	line-height: 26dp;
+	font-size: 15dp;
+	line-height: 22dp;
 	font-weight: bold;
-	letter-spacing: 1dp;
+	letter-spacing: 2dp;
 	text-transform: uppercase;
-	color: #FFFFFF;
+	color: #E4E8EE;
 }
 
 .cb-tip-key
 {
 	flex: 0 0 auto;
-	min-width: 16dp;
-	height: 24dp;
-	padding: 0 6dp;
+	min-width: 12dp;
+	height: 18dp;
+	padding: 0 4dp;
 	margin-left: 10dp;
-	font-size: 16dp;
-	line-height: 24dp;
-	font-weight: bold;
+	font-size: 12dp;
+	line-height: 18dp;
 	text-align: center;
-	color: #0E1400;
-	background-color: #D1FD04;
+	color: #C8CED6;
+	border: 1dp #4A5058;
 }
 
 .cb-tip-cost
 {
 	display: block;
 	margin-top: 4dp;
-	font-size: 18dp;
-	line-height: 24dp;
-	font-weight: bold;
-	color: #D1FD04;
+	font-size: 15dp;
+	line-height: 20dp;
+	color: #C8D6A0;
 }
 
 .cb-tip-desc
@@ -1036,11 +980,11 @@ input.cb-input:focus { border-color: #D1FD04; }
 	display: block;
 	margin-top: 8dp;
 	padding-top: 8dp;
-	border-top: 1dp #FFFFFF22;
-	font-size: 17dp;
-	line-height: 22dp;
+	border-top: 1dp #FFFFFF18;
+	font-size: 14dp;
+	line-height: 20dp;
 	white-space: pre-line;
-	color: #C4CAD8;
+	color: #A6AEB8;
 }
 
 /* ---- Observing ------------------------------------------------------------------------------------ */
@@ -1060,22 +1004,22 @@ input.cb-input:focus { border-color: #D1FD04; }
 	flex-direction: row;
 	align-items: center;
 	box-sizing: border-box;
-	width: 312dp;
+	width: 314dp;
 	height: 34dp;
 	margin: 0 8dp 3dp 0;
 	padding: 0 8dp 0 3dp;
-	background-color: #04060AE0;
-	border-left: 3dp #FFFFFF30;
+	background-color: #0C0D10E6;
+	border-left: 2dp #FFFFFF22;
 }
 
-.cb-obs-player:hover { border-left-color: #D1FD04; background-color: #1A2208; }
+.cb-obs-player:hover { border-left-color: #D1FD04; background-color: #16181C; }
 
 .cb-obs-side
 {
 	display: block;
 	flex: 0 0 auto;
-	width: 34dp;
-	height: 28dp;
+	width: 32dp;
+	height: 26dp;
 	margin-right: 8dp;
 }
 
@@ -1085,9 +1029,8 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	flex: 1 1 0%;
 	min-width: 0;
-	font-size: 16dp;
+	font-size: 15dp;
 	line-height: 22dp;
-	font-weight: bold;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -1106,8 +1049,8 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	display: block;
 	flex: 0 0 auto;
-	width: 72dp;
-	height: 120dp;
+	width: 64dp;
+	height: 106dp;
 	margin-right: 16dp;
 }
 
@@ -1123,9 +1066,10 @@ input.cb-input:focus { border-color: #D1FD04; }
 .cb-obs-title
 {
 	display: block;
-	font-size: 22dp;
-	line-height: 28dp;
+	font-size: 17dp;
+	line-height: 24dp;
 	font-weight: bold;
+	letter-spacing: 1dp;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -1148,27 +1092,18 @@ input.cb-input:focus { border-color: #D1FD04; }
 .cb-obs-value
 {
 	display: block;
-	font-size: 28dp;
-	line-height: 32dp;
-	font-weight: bold;
-	color: #D1FD04;
+	font-size: 24dp;
+	line-height: 30dp;
+	color: #E4E8EE;
 }
 
-.cb-obs-label
-{
-	display: block;
-	white-space: pre-line;
-	font-size: 13dp;
-	line-height: 16dp;
-	font-weight: bold;
-	text-transform: uppercase;
-}
+.cb-obs-label { display: block; white-space: pre-line; }
 
 .cb-obs-back { margin: 0 4dp 0 12dp; }
 
 /* ---- Collapsed (the min/max button, CONTROL_BAR_STAGE_LOW): the notch, the power strip, the buttons ---- */
 body.low .cb-radar, body.low .cb-unit, body.low .cb-powers { display: none; }
-body.low .cb-main { height: 96dp; }
+body.low .cb-main { height: 94dp; }
 body.low .cb-grid, body.low .cb-task, body.low .cb-observers, body.low .cb-observed { display: none; }
 body.low .cb-body { height: 40dp; }
 body.low .cb-side { flex-direction: row; width: auto; height: 40dp; }
@@ -1182,14 +1117,13 @@ body.low .cb-science { bottom: 140dp; }
 {
 	.cb-radar { width: 280dp; height: 280dp; }
 	.cb-centre { left: 274dp; margin-left: 0; }
-	.cb-ear { display: none; }
 	.cb-science { left: 390dp; margin-left: 0; }
 	.cb-tip { bottom: 292dp; }
 }
 
 /* ---- Wide screens: past 21:9 (43:18, 3440x1440) the dock stops and centres; the wings carry the bar out to
    the edges. The interface width option's 21:9 is the same band, so only its 16:9 needs its own rule
-   (RmlUiManager's body.iw-169). ------------------------------------------------------------------------ */
+   (RmlInterfaceArea.h sets body.iw-169). ------------------------------------------------------------------ */
 @media (min-aspect-ratio: 12/5)
 {
 	.cb-dock { left: 50%; right: auto; width: 2580dp; margin-left: -1290dp; }
@@ -1209,153 +1143,136 @@ body.low .cb-science { bottom: 140dp; }
 {
 	src: Textures/ControlBar/cb_usa.png;
 	resolution: 2x;
-	cb-usa-frame-c: 0px 0px 168px 112px;
-	cb-usa-frame-c-in: 62px 58px 44px 20px;
-	cb-usa-frame-l: 170px 0px 168px 112px;
-	cb-usa-frame-l-in: 174px 58px 102px 20px;
-	cb-usa-frame-r: 340px 0px 168px 112px;
-	cb-usa-frame-r-in: 402px 58px 102px 20px;
-	cb-usa-box: 0px 114px 112px 112px;
-	cb-usa-box-in: 42px 156px 28px 28px;
-	cb-usa-well: 114px 114px 32px 32px;
-	cb-usa-well-in: 122px 122px 16px 16px;
-	cb-usa-btn-normal: 148px 114px 48px 48px;
-	cb-usa-btn-normal-in: 164px 130px 16px 16px;
-	cb-usa-btn-hover: 198px 114px 48px 48px;
-	cb-usa-btn-hover-in: 214px 130px 16px 16px;
-	cb-usa-btn-pressed: 248px 114px 48px 48px;
-	cb-usa-btn-pressed-in: 264px 130px 16px 16px;
-	cb-usa-btn-checked: 298px 114px 48px 48px;
-	cb-usa-btn-checked-in: 314px 130px 16px 16px;
-	cb-usa-btn-disabled: 348px 114px 48px 48px;
-	cb-usa-btn-disabled-in: 364px 130px 16px 16px;
-	cb-usa-notch: 0px 228px 180px 48px;
-	cb-usa-notch-in: 64px 262px 52px 12px;
-	cb-usa-tab: 182px 228px 130px 48px;
-	cb-usa-tab-in: 246px 262px 64px 12px;
-	cb-usa-wing-l: 314px 228px 130px 48px;
-	cb-usa-wing-l-in: 316px 262px 64px 12px;
-	cb-usa-plate: 0px 278px 80px 14px;
-	cb-usa-plate-in: 16px 281px 48px 8px;
-	cb-usa-ear: 82px 278px 24px 96px;
-	cb-usa-ear-in: 84px 308px 20px 36px;
-	cb-usa-ticks: 108px 278px 256px 16px;
+	cb-usa-frame-c: 0px 0px 128px 96px;
+	cb-usa-frame-c-in: 40px 36px 48px 40px;
+	cb-usa-frame-l: 130px 0px 128px 96px;
+	cb-usa-frame-l-in: 134px 36px 84px 40px;
+	cb-usa-frame-r: 260px 0px 128px 96px;
+	cb-usa-frame-r-in: 300px 36px 84px 40px;
+	cb-usa-box: 390px 0px 96px 96px;
+	cb-usa-box-in: 424px 34px 28px 28px;
+	cb-usa-well: 488px 0px 24px 24px;
+	cb-usa-well-in: 494px 6px 12px 12px;
+	cb-usa-btn-normal: 0px 98px 40px 40px;
+	cb-usa-btn-normal-in: 14px 112px 12px 12px;
+	cb-usa-btn-hover: 42px 98px 40px 40px;
+	cb-usa-btn-hover-in: 56px 112px 12px 12px;
+	cb-usa-btn-pressed: 84px 98px 40px 40px;
+	cb-usa-btn-pressed-in: 98px 112px 12px 12px;
+	cb-usa-btn-checked: 126px 98px 40px 40px;
+	cb-usa-btn-checked-in: 140px 112px 12px 12px;
+	cb-usa-btn-disabled: 168px 98px 40px 40px;
+	cb-usa-btn-disabled-in: 182px 112px 12px 12px;
+	cb-usa-notch: 210px 98px 144px 40px;
+	cb-usa-notch-in: 258px 128px 48px 8px;
+	cb-usa-tab: 356px 98px 104px 40px;
+	cb-usa-tab-in: 404px 128px 54px 8px;
+	cb-usa-wing-l: 0px 140px 104px 40px;
+	cb-usa-wing-l-in: 2px 170px 54px 8px;
+	cb-usa-ticks: 106px 140px 256px 16px;
 }
 
 @spritesheet cb-china
 {
 	src: Textures/ControlBar/cb_china.png;
 	resolution: 2x;
-	cb-china-frame-c: 0px 0px 168px 112px;
-	cb-china-frame-c-in: 62px 58px 44px 20px;
-	cb-china-frame-l: 170px 0px 168px 112px;
-	cb-china-frame-l-in: 174px 58px 102px 20px;
-	cb-china-frame-r: 340px 0px 168px 112px;
-	cb-china-frame-r-in: 402px 58px 102px 20px;
-	cb-china-box: 0px 114px 112px 112px;
-	cb-china-box-in: 42px 156px 28px 28px;
-	cb-china-well: 114px 114px 32px 32px;
-	cb-china-well-in: 122px 122px 16px 16px;
-	cb-china-btn-normal: 148px 114px 48px 48px;
-	cb-china-btn-normal-in: 164px 130px 16px 16px;
-	cb-china-btn-hover: 198px 114px 48px 48px;
-	cb-china-btn-hover-in: 214px 130px 16px 16px;
-	cb-china-btn-pressed: 248px 114px 48px 48px;
-	cb-china-btn-pressed-in: 264px 130px 16px 16px;
-	cb-china-btn-checked: 298px 114px 48px 48px;
-	cb-china-btn-checked-in: 314px 130px 16px 16px;
-	cb-china-btn-disabled: 348px 114px 48px 48px;
-	cb-china-btn-disabled-in: 364px 130px 16px 16px;
-	cb-china-notch: 0px 228px 180px 48px;
-	cb-china-notch-in: 64px 262px 52px 12px;
-	cb-china-tab: 182px 228px 130px 48px;
-	cb-china-tab-in: 246px 262px 64px 12px;
-	cb-china-wing-l: 314px 228px 130px 48px;
-	cb-china-wing-l-in: 316px 262px 64px 12px;
-	cb-china-plate: 0px 278px 80px 14px;
-	cb-china-plate-in: 16px 281px 48px 8px;
-	cb-china-ear: 82px 278px 24px 96px;
-	cb-china-ear-in: 84px 308px 20px 36px;
-	cb-china-ticks: 108px 278px 256px 16px;
+	cb-china-frame-c: 0px 0px 128px 96px;
+	cb-china-frame-c-in: 40px 36px 48px 40px;
+	cb-china-frame-l: 130px 0px 128px 96px;
+	cb-china-frame-l-in: 134px 36px 84px 40px;
+	cb-china-frame-r: 260px 0px 128px 96px;
+	cb-china-frame-r-in: 300px 36px 84px 40px;
+	cb-china-box: 390px 0px 96px 96px;
+	cb-china-box-in: 424px 34px 28px 28px;
+	cb-china-well: 488px 0px 24px 24px;
+	cb-china-well-in: 494px 6px 12px 12px;
+	cb-china-btn-normal: 0px 98px 40px 40px;
+	cb-china-btn-normal-in: 14px 112px 12px 12px;
+	cb-china-btn-hover: 42px 98px 40px 40px;
+	cb-china-btn-hover-in: 56px 112px 12px 12px;
+	cb-china-btn-pressed: 84px 98px 40px 40px;
+	cb-china-btn-pressed-in: 98px 112px 12px 12px;
+	cb-china-btn-checked: 126px 98px 40px 40px;
+	cb-china-btn-checked-in: 140px 112px 12px 12px;
+	cb-china-btn-disabled: 168px 98px 40px 40px;
+	cb-china-btn-disabled-in: 182px 112px 12px 12px;
+	cb-china-notch: 210px 98px 144px 40px;
+	cb-china-notch-in: 258px 128px 48px 8px;
+	cb-china-tab: 356px 98px 104px 40px;
+	cb-china-tab-in: 404px 128px 54px 8px;
+	cb-china-wing-l: 0px 140px 104px 40px;
+	cb-china-wing-l-in: 2px 170px 54px 8px;
+	cb-china-ticks: 106px 140px 256px 16px;
 }
 
 @spritesheet cb-gla
 {
 	src: Textures/ControlBar/cb_gla.png;
 	resolution: 2x;
-	cb-gla-frame-c: 0px 0px 168px 112px;
-	cb-gla-frame-c-in: 62px 58px 44px 20px;
-	cb-gla-frame-l: 170px 0px 168px 112px;
-	cb-gla-frame-l-in: 174px 58px 102px 20px;
-	cb-gla-frame-r: 340px 0px 168px 112px;
-	cb-gla-frame-r-in: 402px 58px 102px 20px;
-	cb-gla-box: 0px 114px 112px 112px;
-	cb-gla-box-in: 42px 156px 28px 28px;
-	cb-gla-well: 114px 114px 32px 32px;
-	cb-gla-well-in: 122px 122px 16px 16px;
-	cb-gla-btn-normal: 148px 114px 48px 48px;
-	cb-gla-btn-normal-in: 164px 130px 16px 16px;
-	cb-gla-btn-hover: 198px 114px 48px 48px;
-	cb-gla-btn-hover-in: 214px 130px 16px 16px;
-	cb-gla-btn-pressed: 248px 114px 48px 48px;
-	cb-gla-btn-pressed-in: 264px 130px 16px 16px;
-	cb-gla-btn-checked: 298px 114px 48px 48px;
-	cb-gla-btn-checked-in: 314px 130px 16px 16px;
-	cb-gla-btn-disabled: 348px 114px 48px 48px;
-	cb-gla-btn-disabled-in: 364px 130px 16px 16px;
-	cb-gla-notch: 0px 228px 180px 48px;
-	cb-gla-notch-in: 64px 262px 52px 12px;
-	cb-gla-tab: 182px 228px 130px 48px;
-	cb-gla-tab-in: 246px 262px 64px 12px;
-	cb-gla-wing-l: 314px 228px 130px 48px;
-	cb-gla-wing-l-in: 316px 262px 64px 12px;
-	cb-gla-plate: 0px 278px 80px 14px;
-	cb-gla-plate-in: 16px 281px 48px 8px;
-	cb-gla-ear: 82px 278px 24px 96px;
-	cb-gla-ear-in: 84px 308px 20px 36px;
-	cb-gla-ticks: 108px 278px 256px 16px;
+	cb-gla-frame-c: 0px 0px 128px 96px;
+	cb-gla-frame-c-in: 40px 36px 48px 40px;
+	cb-gla-frame-l: 130px 0px 128px 96px;
+	cb-gla-frame-l-in: 134px 36px 84px 40px;
+	cb-gla-frame-r: 260px 0px 128px 96px;
+	cb-gla-frame-r-in: 300px 36px 84px 40px;
+	cb-gla-box: 390px 0px 96px 96px;
+	cb-gla-box-in: 424px 34px 28px 28px;
+	cb-gla-well: 488px 0px 24px 24px;
+	cb-gla-well-in: 494px 6px 12px 12px;
+	cb-gla-btn-normal: 0px 98px 40px 40px;
+	cb-gla-btn-normal-in: 14px 112px 12px 12px;
+	cb-gla-btn-hover: 42px 98px 40px 40px;
+	cb-gla-btn-hover-in: 56px 112px 12px 12px;
+	cb-gla-btn-pressed: 84px 98px 40px 40px;
+	cb-gla-btn-pressed-in: 98px 112px 12px 12px;
+	cb-gla-btn-checked: 126px 98px 40px 40px;
+	cb-gla-btn-checked-in: 140px 112px 12px 12px;
+	cb-gla-btn-disabled: 168px 98px 40px 40px;
+	cb-gla-btn-disabled-in: 182px 112px 12px 12px;
+	cb-gla-notch: 210px 98px 144px 40px;
+	cb-gla-notch-in: 258px 128px 48px 8px;
+	cb-gla-tab: 356px 98px 104px 40px;
+	cb-gla-tab-in: 404px 128px 54px 8px;
+	cb-gla-wing-l: 0px 140px 104px 40px;
+	cb-gla-wing-l-in: 2px 170px 54px 8px;
+	cb-gla-ticks: 106px 140px 256px 16px;
 }
 
 @spritesheet cb-neutral
 {
 	src: Textures/ControlBar/cb_neutral.png;
 	resolution: 2x;
-	cb-neutral-frame-c: 0px 0px 168px 112px;
-	cb-neutral-frame-c-in: 62px 58px 44px 20px;
-	cb-neutral-frame-l: 170px 0px 168px 112px;
-	cb-neutral-frame-l-in: 174px 58px 102px 20px;
-	cb-neutral-frame-r: 340px 0px 168px 112px;
-	cb-neutral-frame-r-in: 402px 58px 102px 20px;
-	cb-neutral-box: 0px 114px 112px 112px;
-	cb-neutral-box-in: 42px 156px 28px 28px;
-	cb-neutral-well: 114px 114px 32px 32px;
-	cb-neutral-well-in: 122px 122px 16px 16px;
-	cb-neutral-btn-normal: 148px 114px 48px 48px;
-	cb-neutral-btn-normal-in: 164px 130px 16px 16px;
-	cb-neutral-btn-hover: 198px 114px 48px 48px;
-	cb-neutral-btn-hover-in: 214px 130px 16px 16px;
-	cb-neutral-btn-pressed: 248px 114px 48px 48px;
-	cb-neutral-btn-pressed-in: 264px 130px 16px 16px;
-	cb-neutral-btn-checked: 298px 114px 48px 48px;
-	cb-neutral-btn-checked-in: 314px 130px 16px 16px;
-	cb-neutral-btn-disabled: 348px 114px 48px 48px;
-	cb-neutral-btn-disabled-in: 364px 130px 16px 16px;
-	cb-neutral-notch: 0px 228px 180px 48px;
-	cb-neutral-notch-in: 64px 262px 52px 12px;
-	cb-neutral-tab: 182px 228px 130px 48px;
-	cb-neutral-tab-in: 246px 262px 64px 12px;
-	cb-neutral-wing-l: 314px 228px 130px 48px;
-	cb-neutral-wing-l-in: 316px 262px 64px 12px;
-	cb-neutral-plate: 0px 278px 80px 14px;
-	cb-neutral-plate-in: 16px 281px 48px 8px;
-	cb-neutral-ear: 82px 278px 24px 96px;
-	cb-neutral-ear-in: 84px 308px 20px 36px;
-	cb-neutral-ticks: 108px 278px 256px 16px;
+	cb-neutral-frame-c: 0px 0px 128px 96px;
+	cb-neutral-frame-c-in: 40px 36px 48px 40px;
+	cb-neutral-frame-l: 130px 0px 128px 96px;
+	cb-neutral-frame-l-in: 134px 36px 84px 40px;
+	cb-neutral-frame-r: 260px 0px 128px 96px;
+	cb-neutral-frame-r-in: 300px 36px 84px 40px;
+	cb-neutral-box: 390px 0px 96px 96px;
+	cb-neutral-box-in: 424px 34px 28px 28px;
+	cb-neutral-well: 488px 0px 24px 24px;
+	cb-neutral-well-in: 494px 6px 12px 12px;
+	cb-neutral-btn-normal: 0px 98px 40px 40px;
+	cb-neutral-btn-normal-in: 14px 112px 12px 12px;
+	cb-neutral-btn-hover: 42px 98px 40px 40px;
+	cb-neutral-btn-hover-in: 56px 112px 12px 12px;
+	cb-neutral-btn-pressed: 84px 98px 40px 40px;
+	cb-neutral-btn-pressed-in: 98px 112px 12px 12px;
+	cb-neutral-btn-checked: 126px 98px 40px 40px;
+	cb-neutral-btn-checked-in: 140px 112px 12px 12px;
+	cb-neutral-btn-disabled: 168px 98px 40px 40px;
+	cb-neutral-btn-disabled-in: 182px 112px 12px 12px;
+	cb-neutral-notch: 210px 98px 144px 40px;
+	cb-neutral-notch-in: 258px 128px 48px 8px;
+	cb-neutral-tab: 356px 98px 104px 40px;
+	cb-neutral-tab-in: 404px 128px 54px 8px;
+	cb-neutral-wing-l: 0px 140px 104px 40px;
+	cb-neutral-wing-l-in: 2px 170px 54px 8px;
+	cb-neutral-ticks: 106px 140px 256px 16px;
 }
 
 /* ---- Skins: which sprite draws what, per faction ---------------------------------------------------- */
 /* ---- usa ---- */
-body.usa .cb-rail { decorator: vertical-gradient(#8CA2B8 #1E2833); border-top: 1dp #000000; }
 body.usa .cb-wing-l { decorator: ninepatch(cb-usa-wing-l, cb-usa-wing-l-in, 1); }
 body.usa .cb-wing-r { decorator: ninepatch(cb-usa-tab, cb-usa-tab-in, 1); }
 body.usa .cb-radar { decorator: ninepatch(cb-usa-frame-l, cb-usa-frame-l-in, 1); }
@@ -1364,8 +1281,7 @@ body.usa .cb-unit { decorator: ninepatch(cb-usa-frame-r, cb-usa-frame-r-in, 1); 
 body.usa .cb-tab { decorator: ninepatch(cb-usa-tab, cb-usa-tab-in, 1); }
 body.usa .cb-money { decorator: ninepatch(cb-usa-notch, cb-usa-notch-in, 1); }
 body.usa .cb-powers, body.usa .cb-science, body.usa .cb-tip { decorator: ninepatch(cb-usa-box, cb-usa-box-in, 1); }
-body.usa .cb-plate { decorator: ninepatch(cb-usa-plate, cb-usa-plate-in, 1); }
-body.usa .cb-ear { decorator: ninepatch(cb-usa-ear, cb-usa-ear-in, 1); }
+body.usa .cb-tag { background-color: #6886A4; }
 body.usa .cb-radar-well, body.usa .cb-power-bar, body.usa .cb-task-bar, body.usa .cb-exp, body.usa .cb-sci-exp, body.usa .cb-slot { decorator: ninepatch(cb-usa-well, cb-usa-well-in, 1); }
 body.usa .cb-power-ticks { decorator: image(cb-usa-ticks fill); }
 body.usa .cb-slot.live, body.usa .cb-side-btn, body.usa .cb-text-btn, body.usa .cb-portrait, body.usa .cb-upgrade.owned { decorator: ninepatch(cb-usa-btn-normal, cb-usa-btn-normal-in, 1); }
@@ -1373,8 +1289,8 @@ body.usa .cb-upgrade { decorator: ninepatch(cb-usa-btn-disabled, cb-usa-btn-disa
 body.usa .cb-slot.live:hover, body.usa .cb-slot.live.flash, body.usa .cb-side-btn:hover, body.usa .cb-text-btn:hover { decorator: ninepatch(cb-usa-btn-hover, cb-usa-btn-hover-in, 1); }
 body.usa .cb-slot.live:active, body.usa .cb-side-btn:active, body.usa .cb-text-btn:active { decorator: ninepatch(cb-usa-btn-pressed, cb-usa-btn-pressed-in, 1); }
 body.usa .cb-slot.live.off, body.usa .cb-side-btn.off, body.usa .cb-text-btn.off { decorator: ninepatch(cb-usa-btn-disabled, cb-usa-btn-disabled-in, 1); }
-body.usa .cb-slot.live.checked, body.usa .cb-slot.cb-sci.buy, body.usa .cb-general.lit { decorator: ninepatch(cb-usa-btn-checked, cb-usa-btn-checked-in, 1); }
-body.usa .cb-power-label, body.usa .cb-sci-tier, body.usa .cb-beacon-label, body.usa .cb-obs-label { color: #8FB4D6; }
+body.usa .cb-slot.live.checked { decorator: ninepatch(cb-usa-btn-checked, cb-usa-btn-checked-in, 1); }
+body.usa .cb-slot.cb-sci.buy, body.usa .cb-general.lit { decorator: ninepatch(cb-usa-btn-hover, cb-usa-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
 	body.usa .cb-radar { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
@@ -1389,7 +1305,6 @@ body.usa .cb-power-label, body.usa .cb-sci-tier, body.usa .cb-beacon-label, body
 }
 
 /* ---- china ---- */
-body.china .cb-rail { decorator: vertical-gradient(#968A84 #2A201D); border-top: 1dp #000000; }
 body.china .cb-wing-l { decorator: ninepatch(cb-china-wing-l, cb-china-wing-l-in, 1); }
 body.china .cb-wing-r { decorator: ninepatch(cb-china-tab, cb-china-tab-in, 1); }
 body.china .cb-radar { decorator: ninepatch(cb-china-frame-l, cb-china-frame-l-in, 1); }
@@ -1398,8 +1313,7 @@ body.china .cb-unit { decorator: ninepatch(cb-china-frame-r, cb-china-frame-r-in
 body.china .cb-tab { decorator: ninepatch(cb-china-tab, cb-china-tab-in, 1); }
 body.china .cb-money { decorator: ninepatch(cb-china-notch, cb-china-notch-in, 1); }
 body.china .cb-powers, body.china .cb-science, body.china .cb-tip { decorator: ninepatch(cb-china-box, cb-china-box-in, 1); }
-body.china .cb-plate { decorator: ninepatch(cb-china-plate, cb-china-plate-in, 1); }
-body.china .cb-ear { decorator: ninepatch(cb-china-ear, cb-china-ear-in, 1); }
+body.china .cb-tag { background-color: #9C4640; }
 body.china .cb-radar-well, body.china .cb-power-bar, body.china .cb-task-bar, body.china .cb-exp, body.china .cb-sci-exp, body.china .cb-slot { decorator: ninepatch(cb-china-well, cb-china-well-in, 1); }
 body.china .cb-power-ticks { decorator: image(cb-china-ticks fill); }
 body.china .cb-slot.live, body.china .cb-side-btn, body.china .cb-text-btn, body.china .cb-portrait, body.china .cb-upgrade.owned { decorator: ninepatch(cb-china-btn-normal, cb-china-btn-normal-in, 1); }
@@ -1407,8 +1321,8 @@ body.china .cb-upgrade { decorator: ninepatch(cb-china-btn-disabled, cb-china-bt
 body.china .cb-slot.live:hover, body.china .cb-slot.live.flash, body.china .cb-side-btn:hover, body.china .cb-text-btn:hover { decorator: ninepatch(cb-china-btn-hover, cb-china-btn-hover-in, 1); }
 body.china .cb-slot.live:active, body.china .cb-side-btn:active, body.china .cb-text-btn:active { decorator: ninepatch(cb-china-btn-pressed, cb-china-btn-pressed-in, 1); }
 body.china .cb-slot.live.off, body.china .cb-side-btn.off, body.china .cb-text-btn.off { decorator: ninepatch(cb-china-btn-disabled, cb-china-btn-disabled-in, 1); }
-body.china .cb-slot.live.checked, body.china .cb-slot.cb-sci.buy, body.china .cb-general.lit { decorator: ninepatch(cb-china-btn-checked, cb-china-btn-checked-in, 1); }
-body.china .cb-power-label, body.china .cb-sci-tier, body.china .cb-beacon-label, body.china .cb-obs-label { color: #E0B040; }
+body.china .cb-slot.live.checked { decorator: ninepatch(cb-china-btn-checked, cb-china-btn-checked-in, 1); }
+body.china .cb-slot.cb-sci.buy, body.china .cb-general.lit { decorator: ninepatch(cb-china-btn-hover, cb-china-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
 	body.china .cb-radar { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
@@ -1423,7 +1337,6 @@ body.china .cb-power-label, body.china .cb-sci-tier, body.china .cb-beacon-label
 }
 
 /* ---- gla ---- */
-body.gla .cb-rail { decorator: vertical-gradient(#A8926C #2C2619); border-top: 1dp #000000; }
 body.gla .cb-wing-l { decorator: ninepatch(cb-gla-wing-l, cb-gla-wing-l-in, 1); }
 body.gla .cb-wing-r { decorator: ninepatch(cb-gla-tab, cb-gla-tab-in, 1); }
 body.gla .cb-radar { decorator: ninepatch(cb-gla-frame-l, cb-gla-frame-l-in, 1); }
@@ -1432,8 +1345,7 @@ body.gla .cb-unit { decorator: ninepatch(cb-gla-frame-r, cb-gla-frame-r-in, 1); 
 body.gla .cb-tab { decorator: ninepatch(cb-gla-tab, cb-gla-tab-in, 1); }
 body.gla .cb-money { decorator: ninepatch(cb-gla-notch, cb-gla-notch-in, 1); }
 body.gla .cb-powers, body.gla .cb-science, body.gla .cb-tip { decorator: ninepatch(cb-gla-box, cb-gla-box-in, 1); }
-body.gla .cb-plate { decorator: ninepatch(cb-gla-plate, cb-gla-plate-in, 1); }
-body.gla .cb-ear { decorator: ninepatch(cb-gla-ear, cb-gla-ear-in, 1); }
+body.gla .cb-tag { background-color: #A08862; }
 body.gla .cb-radar-well, body.gla .cb-power-bar, body.gla .cb-task-bar, body.gla .cb-exp, body.gla .cb-sci-exp, body.gla .cb-slot { decorator: ninepatch(cb-gla-well, cb-gla-well-in, 1); }
 body.gla .cb-power-ticks { decorator: image(cb-gla-ticks fill); }
 body.gla .cb-slot.live, body.gla .cb-side-btn, body.gla .cb-text-btn, body.gla .cb-portrait, body.gla .cb-upgrade.owned { decorator: ninepatch(cb-gla-btn-normal, cb-gla-btn-normal-in, 1); }
@@ -1441,8 +1353,8 @@ body.gla .cb-upgrade { decorator: ninepatch(cb-gla-btn-disabled, cb-gla-btn-disa
 body.gla .cb-slot.live:hover, body.gla .cb-slot.live.flash, body.gla .cb-side-btn:hover, body.gla .cb-text-btn:hover { decorator: ninepatch(cb-gla-btn-hover, cb-gla-btn-hover-in, 1); }
 body.gla .cb-slot.live:active, body.gla .cb-side-btn:active, body.gla .cb-text-btn:active { decorator: ninepatch(cb-gla-btn-pressed, cb-gla-btn-pressed-in, 1); }
 body.gla .cb-slot.live.off, body.gla .cb-side-btn.off, body.gla .cb-text-btn.off { decorator: ninepatch(cb-gla-btn-disabled, cb-gla-btn-disabled-in, 1); }
-body.gla .cb-slot.live.checked, body.gla .cb-slot.cb-sci.buy, body.gla .cb-general.lit { decorator: ninepatch(cb-gla-btn-checked, cb-gla-btn-checked-in, 1); }
-body.gla .cb-power-label, body.gla .cb-sci-tier, body.gla .cb-beacon-label, body.gla .cb-obs-label { color: #D8B47C; }
+body.gla .cb-slot.live.checked { decorator: ninepatch(cb-gla-btn-checked, cb-gla-btn-checked-in, 1); }
+body.gla .cb-slot.cb-sci.buy, body.gla .cb-general.lit { decorator: ninepatch(cb-gla-btn-hover, cb-gla-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
 	body.gla .cb-radar { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
@@ -1457,7 +1369,6 @@ body.gla .cb-power-label, body.gla .cb-sci-tier, body.gla .cb-beacon-label, body
 }
 
 /* ---- neutral ---- */
-body.neutral .cb-rail { decorator: vertical-gradient(#5C66B8 #141836); border-top: 1dp #000000; }
 body.neutral .cb-wing-l { decorator: ninepatch(cb-neutral-wing-l, cb-neutral-wing-l-in, 1); }
 body.neutral .cb-wing-r { decorator: ninepatch(cb-neutral-tab, cb-neutral-tab-in, 1); }
 body.neutral .cb-radar { decorator: ninepatch(cb-neutral-frame-l, cb-neutral-frame-l-in, 1); }
@@ -1466,8 +1377,7 @@ body.neutral .cb-unit { decorator: ninepatch(cb-neutral-frame-r, cb-neutral-fram
 body.neutral .cb-tab { decorator: ninepatch(cb-neutral-tab, cb-neutral-tab-in, 1); }
 body.neutral .cb-money { decorator: ninepatch(cb-neutral-notch, cb-neutral-notch-in, 1); }
 body.neutral .cb-powers, body.neutral .cb-science, body.neutral .cb-tip { decorator: ninepatch(cb-neutral-box, cb-neutral-box-in, 1); }
-body.neutral .cb-plate { decorator: ninepatch(cb-neutral-plate, cb-neutral-plate-in, 1); }
-body.neutral .cb-ear { decorator: ninepatch(cb-neutral-ear, cb-neutral-ear-in, 1); }
+body.neutral .cb-tag { background-color: #7076B0; }
 body.neutral .cb-radar-well, body.neutral .cb-power-bar, body.neutral .cb-task-bar, body.neutral .cb-exp, body.neutral .cb-sci-exp, body.neutral .cb-slot { decorator: ninepatch(cb-neutral-well, cb-neutral-well-in, 1); }
 body.neutral .cb-power-ticks { decorator: image(cb-neutral-ticks fill); }
 body.neutral .cb-slot.live, body.neutral .cb-side-btn, body.neutral .cb-text-btn, body.neutral .cb-portrait, body.neutral .cb-upgrade.owned { decorator: ninepatch(cb-neutral-btn-normal, cb-neutral-btn-normal-in, 1); }
@@ -1475,8 +1385,8 @@ body.neutral .cb-upgrade { decorator: ninepatch(cb-neutral-btn-disabled, cb-neut
 body.neutral .cb-slot.live:hover, body.neutral .cb-slot.live.flash, body.neutral .cb-side-btn:hover, body.neutral .cb-text-btn:hover { decorator: ninepatch(cb-neutral-btn-hover, cb-neutral-btn-hover-in, 1); }
 body.neutral .cb-slot.live:active, body.neutral .cb-side-btn:active, body.neutral .cb-text-btn:active { decorator: ninepatch(cb-neutral-btn-pressed, cb-neutral-btn-pressed-in, 1); }
 body.neutral .cb-slot.live.off, body.neutral .cb-side-btn.off, body.neutral .cb-text-btn.off { decorator: ninepatch(cb-neutral-btn-disabled, cb-neutral-btn-disabled-in, 1); }
-body.neutral .cb-slot.live.checked, body.neutral .cb-slot.cb-sci.buy, body.neutral .cb-general.lit { decorator: ninepatch(cb-neutral-btn-checked, cb-neutral-btn-checked-in, 1); }
-body.neutral .cb-power-label, body.neutral .cb-sci-tier, body.neutral .cb-beacon-label, body.neutral .cb-obs-label { color: #8E97F8; }
+body.neutral .cb-slot.live.checked { decorator: ninepatch(cb-neutral-btn-checked, cb-neutral-btn-checked-in, 1); }
+body.neutral .cb-slot.cb-sci.buy, body.neutral .cb-general.lit { decorator: ninepatch(cb-neutral-btn-hover, cb-neutral-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
 	body.neutral .cb-radar { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
