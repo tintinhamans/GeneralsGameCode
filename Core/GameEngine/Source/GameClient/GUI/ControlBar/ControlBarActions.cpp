@@ -29,6 +29,9 @@
 #include "Common/Radar.h"
 #include "GameClient/ControlBar.h"
 #include "GameClient/ControlBarData.h"
+#include "Common/NameKeyGenerator.h"
+#include "GameClient/Gadget.h"
+#include "GameClient/GadgetTextEntry.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/InGameUI.h"
@@ -110,6 +113,22 @@ void ControlBarActions::hover( const ControlBarButtonId &id )
 	GameWindow *win = buttonWindow( id );
 	if( win && !win->winIsHidden() && win->winGetTooltipFunc() )
 		win->winGetTooltipFunc()( win, win->winGetInstanceData(), mousePosition() );
+}
+
+void ControlBarActions::setBeaconText( const UnicodeString &text )
+{
+	static const NameKeyType textID = NAMEKEY( "ControlBar.wnd:EditBeaconText" );
+	GameWindow *entry = TheWindowManager->winGetWindowFromId( nullptr, textID );
+	if( entry == nullptr || entry->winIsHidden() )
+		return;
+	GadgetTextEntrySetText( entry, text );
+	TheWindowManager->winSendSystemMsg( entry->winGetOwner(), GEM_EDIT_DONE, (WindowMsgData)entry, 0 );
+}
+
+void ControlBarActions::leaveBeacon()
+{
+	if( TheInGameUI )
+		TheInGameUI->deselectAllDrawables(); // there is only the beacon selected
 }
 
 void ControlBarActions::panelRelease()

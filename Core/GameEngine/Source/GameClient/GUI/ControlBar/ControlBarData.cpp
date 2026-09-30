@@ -37,6 +37,7 @@
 #include "GameClient/Gadget.h"
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetStaticText.h"
+#include "GameClient/GadgetTextEntry.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/HotKey.h"
@@ -108,6 +109,8 @@ void ControlBarData::clear()
 	contextPercent = -1;
 	for( Int i = 0; i < CB_CTX_COUNT; ++i )
 		contextButtons[ i ].clear();
+	beaconEditable = FALSE;
+	beaconText.clear();
 	for( Int i = 0; i < CB_SIDE_COUNT; ++i )
 		sideButtons[ i ].clear();
 	hasRadar = FALSE;
@@ -147,6 +150,8 @@ namespace
 	{
 		"ControlBar.wnd:ButtonCancelConstruction",
 		"ControlBar.wnd:OCLTimerSellButton",
+		"ControlBar.wnd:ButtonDeleteBeacon",
+		"ControlBar.wnd:ButtonClearBeaconText",
 	};
 
 	// name keys of the buttons a view addresses, looked up once
@@ -366,11 +371,23 @@ void ControlBar::fillData( ControlBarData &data )
 	{
 		!m_contextParent[ CP_UNDER_CONSTRUCTION ]->winIsHidden(),
 		!m_contextParent[ CP_OCL_TIMER ]->winIsHidden(),
+		!m_contextParent[ CP_BEACON ]->winIsHidden(),
+		!m_contextParent[ CP_BEACON ]->winIsHidden(),
 	};
 	for( Int i = 0; i < CB_CTX_COUNT; ++i )
 	{
 		const ControlBarButtonId id = { CBB_CONTEXT, i };
 		readButton( getButtonWindow( id ), contextParentShown[ i ], data.contextButtons[ i ] );
+	}
+
+	// a beacon's text (populateBeacon())
+	if( m_currContext == CB_CONTEXT_BEACON )
+	{
+		static const NameKeyType textID = NAMEKEY( "ControlBar.wnd:EditBeaconText" );
+		GameWindow *text = TheWindowManager->winGetWindowFromId( m_contextParent[ CP_BEACON ], textID );
+		data.beaconEditable = text && !text->winIsHidden();
+		if( text )
+			data.beaconText = GadgetTextEntryGetText( text );
 	}
 
 	// the buttons round the bar

@@ -64,6 +64,8 @@ enum ControlBarContextButton CPP_11(: Int)
 {
 	CB_CTX_CANCEL_CONSTRUCTION,	///< under construction
 	CB_CTX_OCL_BUTTON,					///< OCL timer: sell, or a rally point for tech buildings
+	CB_CTX_BEACON_DELETE,				///< a beacon
+	CB_CTX_BEACON_CLEAR,				///< clears its text
 
 	CB_CTX_COUNT
 };
@@ -153,6 +155,8 @@ struct ControlBarData
 	UnicodeString contextText;			///< under construction or OCL timer text
 	Int contextPercent;							///< their progress, -1 without one
 	ControlBarButtonData contextButtons[ CB_CTX_COUNT ];
+	Bool beaconEditable;						///< our own beacon: its text can be typed (EditBeaconText)
+	UnicodeString beaconText;				///< what EditBeaconText holds
 
 	ControlBarButtonData sideButtons[ CB_SIDE_COUNT ];
 	Bool hasRadar;										///< the local player has a working radar

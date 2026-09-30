@@ -446,6 +446,8 @@ void RmlUiManager::init(int width, int height)
 	// The in-game control bar and its family: views over their .wnd files, which ControlBar keeps as the model
 	// (headless while routed here); see RmlControlBarScreen.h. A mod's copy of any of them keeps them all on the .wnd.
 	RmlUiScreenRegistry::registerView("ControlBar.wnd");
+	// while up it takes Escape from the beacon's text entry, as BeaconWindowInput did
+	RmlUiScreenRegistry::registerScreen("ControlBar.wnd", nullptr, nullptr, &screenVisible<RmlControlBarScreen>, nullptr, false, &screenKey<RmlControlBarScreen>);
 	RmlUiScreenRegistry::registerView("GeneralsExpPoints.wnd");
 	RmlUiScreenRegistry::registerView("ControlBarPopupDescription.wnd");
 	RmlUiScreenRegistry::registerView("GenPowersShortcutBarUS.wnd");

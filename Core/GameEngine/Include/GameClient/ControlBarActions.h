@@ -27,6 +27,8 @@
 
 #include "Lib/BaseType.h"
 
+class UnicodeString;
+
 struct ControlBarButtonId;
 
 namespace ControlBarActions
@@ -43,6 +45,12 @@ namespace ControlBarActions
 	// A left release over the view's panels ends a drag-select that started in the world, like GameWinBlockInput
 	// over the .wnd bar.
 	void panelRelease();
+
+	// The beacon's text typed in the view and entered: into EditBeaconText and on to the bar (GEM_EDIT_DONE),
+	// which sends it with MSG_SET_BEACON_TEXT like the .wnd entry's Enter.
+	void setBeaconText( const UnicodeString &text );
+	// Escape in the beacon's text: deselects the beacon, like BeaconWindowInput.
+	void leaveBeacon();
 
 	// The pointer resting on a button or readout, every frame, like the window manager calling the .wnd window's
 	// tooltip callback while the mouse is over it: the build tooltip comes up after its delay (ControlBarData).

@@ -61,7 +61,9 @@ void ControlBar::populateBeacon( Object *beacon )
 		{
 			textEntryWin->winHide(FALSE);
 			GadgetTextEntrySetText( textEntryWin, beacon->getDrawable()->getCaptionText() );
-			TheWindowManager->winSetFocus( textEntryWin );
+			// a view (the RmlUi HUD) focuses its own entry instead of the headless one
+			if( !m_headless )
+				TheWindowManager->winSetFocus( textEntryWin );
 		}
 
 		if (staticTextWin)

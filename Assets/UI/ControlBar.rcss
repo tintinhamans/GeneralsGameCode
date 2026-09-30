@@ -414,6 +414,78 @@ body.gla .cb-panel { border-top-color: #B8862B; }
 	background-color: #D1FD04;
 }
 
+/* A beacon: the delete button and the message entry. */
+.cb-beacon { align-items: center; }
+
+.cb-text-btn
+{
+	display: block;
+	flex: 0 0 auto;
+	box-sizing: border-box;
+	height: 34dp;
+	padding: 0 14dp;
+	font-size: 15dp;
+	line-height: 32dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: #EEF1FA;
+	background-color: #141A3ED7;
+	border: 1dp #8080FF40;
+}
+
+.cb-text-btn:hover { color: #D1FD04; border-color: #D1FD04; }
+.cb-text-btn:active { background-color: #252E96; }
+.cb-text-btn.off { color: #4A5270; border-color: #8080FF1A; }
+
+.cb-beacon-delete { margin-right: 16dp; }
+
+.cb-beacon-entry
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-right: 12dp;
+}
+
+.cb-beacon-label
+{
+	display: block;
+	font-size: 14dp;
+	line-height: 20dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #7079A0;
+	margin-bottom: 4dp;
+}
+
+.cb-beacon-row
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+input.cb-input
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	box-sizing: border-box;
+	height: 34dp;
+	padding: 0 8dp;
+	margin-right: 8dp;
+	font-size: 17dp;
+	line-height: 32dp;
+	color: #EEF1FA;
+	background-color: #03050C;
+	border: 1dp #8080FF40;
+}
+
+input.cb-input:focus { border-color: #D1FD04; }
+
 /* Round the bar: two columns of small buttons. */
 .cb-side
 {

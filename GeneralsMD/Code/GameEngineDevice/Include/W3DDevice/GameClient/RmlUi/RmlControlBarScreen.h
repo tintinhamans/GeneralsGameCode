@@ -60,6 +60,7 @@ public:
 	void shutdown();	///< RmlUiManager::shutdown(): the context and the document go away
 
 	bool isVisible() const;
+	bool onKey(unsigned char key, unsigned short state); ///< Escape in the beacon's text; see RmlUiManager::init()
 
 	struct SlotModel
 	{
@@ -93,6 +94,8 @@ private:
 	void hide();
 	void refresh(const ControlBarData &data, bool all);
 	void trackHover();
+	void onBeaconChange(Rml::DataModelHandle, Rml::Event &event, const Rml::VariantList &);
+	Rml::Element *beaconEntry() const;
 
 	virtual void ProcessEvent(Rml::Event &event) override;
 
@@ -135,6 +138,8 @@ private:
 		Rml::String tooltipKey;
 		Rml::String tooltipCost;
 		Rml::String tooltipDescription;
+		bool beaconEditable = false;
+		Rml::String beaconText;
 	};
 
 	Rml::Context *m_context = nullptr;
@@ -155,5 +160,6 @@ private:
 
 	// the pointer on the radar: LeftHUDInput hears it enter, leave, move and press
 	bool m_onRadar = false;
+	bool m_beaconFocused = false; ///< the beacon's entry got the focus when the beacon context came up
 	int m_radarButton = -1; ///< held since a press on the radar; 0 left, 1 right
 };

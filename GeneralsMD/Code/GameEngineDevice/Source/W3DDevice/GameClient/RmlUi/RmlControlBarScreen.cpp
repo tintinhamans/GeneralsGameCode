@@ -24,6 +24,7 @@
 #include "GameClient/Image.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/InGameUI.h"
+#include "GameClient/KeyDefs.h"
 #include "GameClient/Mouse.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiRenderInterface.h"
@@ -278,6 +279,9 @@ void RmlControlBarScreen::load(Rml::Context *context)
 		constructor.Bind("tooltip_key", &m_model.tooltipKey);
 		constructor.Bind("tooltip_cost", &m_model.tooltipCost);
 		constructor.Bind("tooltip_description", &m_model.tooltipDescription);
+		constructor.Bind("beacon_editable", &m_model.beaconEditable);
+		constructor.Bind("beacon_text", &m_model.beaconText);
+		constructor.BindEventCallback("beacon_change", &RmlControlBarScreen::onBeaconChange, this);
 
 		m_modelHandle = constructor.GetModelHandle();
 	}
@@ -516,8 +520,44 @@ void RmlControlBarScreen::refresh(const ControlBarData &data, bool all)
 		m_modelHandle.DirtyVariable("tooltip_description");
 	}
 
+	// the entry's text as the bar sets it (a new beacon, Clear); what is being typed stays in the model
+	if (all || data.beaconEditable != old.beaconEditable || data.beaconText != old.beaconText)
+	{
+		m_model.beaconEditable = data.beaconEditable != FALSE;
+		m_model.beaconText = unicodeToUtf8(data.beaconText);
+		m_modelHandle.DirtyVariable("beacon_editable");
+		m_modelHandle.DirtyVariable("beacon_text");
+	}
+
 	m_shown = data;
 	m_hasShown = true;
+}
+
+//-------------------------------------------------------------------------------------------------
+Rml::Element *RmlControlBarScreen::beaconEntry() const
+{
+	return m_document ? m_document->GetElementById("cb-beacon-text") : nullptr;
+}
+
+// Enter (linebreak) sends the text, like the .wnd entry's GEM_EDIT_DONE; the line stays as typed.
+void RmlControlBarScreen::onBeaconChange(Rml::DataModelHandle, Rml::Event &event, const Rml::VariantList &)
+{
+	if (!event.GetParameter<bool>("linebreak", false) || !TheControlBar)
+		return;
+	ControlBarActions::setBeaconText(utf8ToUnicode(m_model.beaconText));
+}
+
+bool RmlControlBarScreen::onKey(unsigned char key, unsigned short state)
+{
+	Rml::Element *entry = beaconEntry();
+	if (key != KEY_ESC || !entry || !m_context || m_context->GetFocusElement() != entry)
+		return false;
+	if (BitIsSet(state, KEY_STATE_DOWN))
+	{
+		entry->Blur();
+		ControlBarActions::leaveBeacon();
+	}
+	return true;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -658,6 +698,22 @@ void RmlControlBarScreen::tick()
 
 	screen.refresh(screen.m_data, !screen.m_hasShown);
 	screen.show();
+
+	// our beacon selected: its entry takes the keyboard, like the .wnd's (populateBeacon()); gone, it lets go
+	const bool beacon = screen.m_data.context == CB_CONTEXT_BEACON && screen.m_data.beaconEditable;
+	if (beacon != screen.m_beaconFocused)
+	{
+		screen.m_beaconFocused = beacon;
+		screen.m_context->Update(); // lay the entry out before focusing it
+		if (Rml::Element *entry = screen.beaconEntry())
+		{
+			if (beacon)
+				entry->Focus();
+			else
+				entry->Blur();
+		}
+	}
+
 	screen.trackHover();
 	if (screen.m_hovering)
 		ControlBarActions::hover(screen.m_hovered);

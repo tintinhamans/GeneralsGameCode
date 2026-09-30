@@ -31,7 +31,7 @@
 		</div>
 		<div class="cb-body">
 			<!-- ButtonCommand01..14: two rows, filled column by column like the .wnd -->
-			<div class="cb-grid" data-if="context != 'construction' &amp;&amp; context != 'ocl'">
+			<div class="cb-grid" data-if="context != 'construction' &amp;&amp; context != 'ocl' &amp;&amp; context != 'beacon'">
 				<div class="cb-slot" data-cb="c0" data-alias-s="commands[0]" data-class-live="commands_shown &amp;&amp; s.shown" data-class-off="!s.enabled &amp;&amp; !s.not_ready" data-class-poor="s.poor" data-class-checked="s.checked" data-class-flash="s.flash" data-class-b1="s.border == 1" data-class-b2="s.border == 2" data-class-b3="s.border == 3" data-class-b4="s.border == 4"><div class="cb-art" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.icon != ''"><mappedimage data-attr-name="s.icon"/></div><div class="cb-vet" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.overlay != ''"><mappedimage data-attr-name="s.overlay"/></div><div class="cb-clock" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.has_clock" data-style-height="s.clock"></div><span class="cb-key" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.key != ''">{{s.key}}</span><span class="cb-text" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.text != ''">{{s.text}}</span></div>
 				<div class="cb-slot" data-cb="c1" data-alias-s="commands[1]" data-class-live="commands_shown &amp;&amp; s.shown" data-class-off="!s.enabled &amp;&amp; !s.not_ready" data-class-poor="s.poor" data-class-checked="s.checked" data-class-flash="s.flash" data-class-b1="s.border == 1" data-class-b2="s.border == 2" data-class-b3="s.border == 3" data-class-b4="s.border == 4"><div class="cb-art" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.icon != ''"><mappedimage data-attr-name="s.icon"/></div><div class="cb-vet" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.overlay != ''"><mappedimage data-attr-name="s.overlay"/></div><div class="cb-clock" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.has_clock" data-style-height="s.clock"></div><span class="cb-key" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.key != ''">{{s.key}}</span><span class="cb-text" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.text != ''">{{s.text}}</span></div>
 				<div class="cb-slot" data-cb="c2" data-alias-s="commands[2]" data-class-live="commands_shown &amp;&amp; s.shown" data-class-off="!s.enabled &amp;&amp; !s.not_ready" data-class-poor="s.poor" data-class-checked="s.checked" data-class-flash="s.flash" data-class-b1="s.border == 1" data-class-b2="s.border == 2" data-class-b3="s.border == 3" data-class-b4="s.border == 4"><div class="cb-art" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.icon != ''"><mappedimage data-attr-name="s.icon"/></div><div class="cb-vet" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.overlay != ''"><mappedimage data-attr-name="s.overlay"/></div><div class="cb-clock" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.has_clock" data-style-height="s.clock"></div><span class="cb-key" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.key != ''">{{s.key}}</span><span class="cb-text" data-if="commands_shown &amp;&amp; s.shown &amp;&amp; s.text != ''">{{s.text}}</span></div>
@@ -55,6 +55,18 @@
 				<div class="cb-task-info">
 					<div class="cb-task-text">{{context_text}}</div>
 					<div class="cb-task-bar" data-if="context_has_percent"><div class="cb-task-fill" data-style-width="context_percent"></div></div>
+				</div>
+			</div>
+
+			<!-- A beacon: delete it, and for our own its message (EditBeaconText; Enter sends it) -->
+			<div class="cb-task cb-beacon" data-if="context == 'beacon'">
+				<div class="cb-text-btn cb-beacon-delete" data-cb="x2" data-alias-s="context_buttons[2]" data-if="s.shown" data-class-off="!s.enabled"><gametext key="GUI:DeleteBeacon"/></div>
+				<div class="cb-beacon-entry" data-if="beacon_editable">
+					<div class="cb-beacon-label"><gametext key="GUI:BeaconLabel"/></div>
+					<div class="cb-beacon-row">
+						<input type="text" id="cb-beacon-text" class="cb-input" maxlength="64" data-value="beacon_text" data-event-change="beacon_change"/>
+						<div class="cb-text-btn" data-cb="x3" data-alias-s="context_buttons[3]" data-if="s.shown" data-class-off="!s.enabled"><gametext key="GUI:Clear"/></div>
+					</div>
 				</div>
 			</div>
 
