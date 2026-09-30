@@ -59,6 +59,8 @@ namespace
 //-------------------------------------------------------------------------------------------------
 void ControlBarActions::enter( const ControlBarButtonId &id )
 {
+	if( id.group == CBB_INFO )
+		return;
 	GameWindow *win = buttonWindow( id );
 	if( win && takesInput( win ) )
 		TheWindowManager->winSendInputMsg( win, GWM_MOUSE_ENTERING, mousePosition(), 0 );
@@ -66,6 +68,8 @@ void ControlBarActions::enter( const ControlBarButtonId &id )
 
 void ControlBarActions::leave( const ControlBarButtonId &id )
 {
+	if( id.group == CBB_INFO )
+		return;
 	GameWindow *win = buttonWindow( id );
 	if( win )
 		TheWindowManager->winSendInputMsg( win, GWM_MOUSE_LEAVING, mousePosition(), 0 );
@@ -73,6 +77,8 @@ void ControlBarActions::leave( const ControlBarButtonId &id )
 
 void ControlBarActions::press( const ControlBarButtonId &id, Bool right )
 {
+	if( id.group == CBB_INFO )
+		return;
 	GameWindow *win = buttonWindow( id );
 	if( win && takesInput( win ) )
 		TheWindowManager->winSendInputMsg( win, right ? GWM_RIGHT_DOWN : GWM_LEFT_DOWN, mousePosition(), 0 );
@@ -80,6 +86,8 @@ void ControlBarActions::press( const ControlBarButtonId &id, Bool right )
 
 void ControlBarActions::release( const ControlBarButtonId &id, Bool right )
 {
+	if( id.group == CBB_INFO )
+		return;
 	GameWindow *win = buttonWindow( id );
 	if( win == nullptr || win->winIsHidden() )
 		return;
@@ -95,6 +103,13 @@ void ControlBarActions::release( const ControlBarButtonId &id, Bool right )
 	}
 
 	TheWindowManager->winSendInputMsg( win, right ? GWM_RIGHT_UP : GWM_LEFT_UP, mousePosition(), 0 );
+}
+
+void ControlBarActions::hover( const ControlBarButtonId &id )
+{
+	GameWindow *win = buttonWindow( id );
+	if( win && !win->winIsHidden() && win->winGetTooltipFunc() )
+		win->winGetTooltipFunc()( win, win->winGetInstanceData(), mousePosition() );
 }
 
 void ControlBarActions::panelRelease()

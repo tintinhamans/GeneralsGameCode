@@ -130,6 +130,11 @@ private:
 		bool hasRadar = false;
 		bool radarAlert = false;
 		bool cameoMovie = false;
+		bool tooltipShown = false;
+		Rml::String tooltipName;
+		Rml::String tooltipKey;
+		Rml::String tooltipCost;
+		Rml::String tooltipDescription;
 	};
 
 	Rml::Context *m_context = nullptr;

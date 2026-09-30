@@ -44,6 +44,10 @@ namespace ControlBarActions
 	// over the .wnd bar.
 	void panelRelease();
 
+	// The pointer resting on a button or readout, every frame, like the window manager calling the .wnd window's
+	// tooltip callback while the mouse is over it: the build tooltip comes up after its delay (ControlBarData).
+	void hover( const ControlBarButtonId &id );
+
 	// The radar: the view keeps the headless LeftHUD window on its own radar box (the radar logic converts
 	// pixels through that window), has the engine draw it there (W3DLeftHUDDraw: the radar or the radar movie),
 	// and gives it the pointer (LeftHUDInput: cursors, look at, move and attack-move orders, targeted powers).

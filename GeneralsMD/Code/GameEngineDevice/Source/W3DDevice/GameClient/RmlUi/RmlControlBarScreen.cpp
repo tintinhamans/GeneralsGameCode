@@ -123,12 +123,40 @@ namespace
 				case 'q': id.group = CBB_QUEUE; break;
 				case 's': id.group = CBB_SIDE; break;
 				case 'x': id.group = CBB_CONTEXT; break;
+				case 'i': id.group = CBB_INFO; break;
 				default: return false;
 			}
 			id.index = atoi(value.c_str() + 1);
 			return true;
 		}
 		return false;
+	}
+
+	// "Cold Fusion &Reactor": the label without the '&' ("&&" is a literal one) and its hotkey letter
+	void splitHotkey(const UnicodeString &label, Rml::String &text, Rml::String &key)
+	{
+		UnicodeString plain;
+		WideChar hotkey = 0;
+		for (const WideChar *c = label.str(); c && *c; ++c)
+		{
+			if (*c == L'&' && c[1] != 0)
+			{
+				++c;
+				if (*c != L'&' && hotkey == 0)
+					hotkey = *c;
+			}
+			plain.concat(*c);
+		}
+		text = unicodeToUtf8(plain);
+		key.clear();
+		if (hotkey)
+		{
+			UnicodeString letter;
+			letter.concat(hotkey);
+			key = unicodeToUtf8(letter);
+			for (size_t i = 0; i < key.size(); ++i)
+				key[i] = (char)toupper((unsigned char)key[i]);
+		}
 	}
 
 	bool onRadar(Rml::Element *element)
@@ -245,6 +273,11 @@ void RmlControlBarScreen::load(Rml::Context *context)
 		constructor.Bind("has_radar", &m_model.hasRadar);
 		constructor.Bind("radar_alert", &m_model.radarAlert);
 		constructor.Bind("cameo_movie", &m_model.cameoMovie);
+		constructor.Bind("tooltip_shown", &m_model.tooltipShown);
+		constructor.Bind("tooltip_name", &m_model.tooltipName);
+		constructor.Bind("tooltip_key", &m_model.tooltipKey);
+		constructor.Bind("tooltip_cost", &m_model.tooltipCost);
+		constructor.Bind("tooltip_description", &m_model.tooltipDescription);
 
 		m_modelHandle = constructor.GetModelHandle();
 	}
@@ -470,6 +503,19 @@ void RmlControlBarScreen::refresh(const ControlBarData &data, bool all)
 		m_modelHandle.DirtyVariable("cameo_movie");
 	}
 
+	if (all || data.tooltipShown != old.tooltipShown || data.tooltipName != old.tooltipName || data.tooltipCost != old.tooltipCost || data.tooltipDescription != old.tooltipDescription)
+	{
+		splitHotkey(data.tooltipName, m_model.tooltipName, m_model.tooltipKey);
+		m_model.tooltipShown = data.tooltipShown != FALSE;
+		m_model.tooltipCost = unicodeToUtf8(data.tooltipCost);
+		m_model.tooltipDescription = unicodeToUtf8(data.tooltipDescription);
+		m_modelHandle.DirtyVariable("tooltip_shown");
+		m_modelHandle.DirtyVariable("tooltip_name");
+		m_modelHandle.DirtyVariable("tooltip_key");
+		m_modelHandle.DirtyVariable("tooltip_cost");
+		m_modelHandle.DirtyVariable("tooltip_description");
+	}
+
 	m_shown = data;
 	m_hasShown = true;
 }
@@ -613,4 +659,6 @@ void RmlControlBarScreen::tick()
 	screen.refresh(screen.m_data, !screen.m_hasShown);
 	screen.show();
 	screen.trackHover();
+	if (screen.m_hovering)
+		ControlBarActions::hover(screen.m_hovered);
 }

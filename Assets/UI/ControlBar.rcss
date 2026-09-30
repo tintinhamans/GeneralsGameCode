@@ -591,7 +591,9 @@ body.gla .cb-panel { border-top-color: #B8862B; }
 .cb-multi-x { font-size: 36dp; color: #D1FD04; margin-right: 4dp; }
 
 /* Without upgrades or a queue the panel is only as wide as the portrait. */
-.cb-unit.narrow { width: 168dp; }
+.cb-unit.narrow { width: 216dp; }
+.cb-unit.narrow .cb-unit-body { justify-content: center; }
+.cb-unit.narrow .cb-cameo-movie { left: 38dp; }
 .cb-unit.narrow .cb-upgrades { display: none; }
 
 /* The build queue: nine slots, five and four. */
@@ -610,4 +612,77 @@ body.gla .cb-panel { border-top-color: #B8862B; }
 	width: 54dp;
 	height: 54dp;
 	margin: 0 4dp 4dp 0;
+}
+
+/* ---- Build tooltip: above the grid, left aligned with it; it never takes the mouse ------------------ */
+.cb-tip
+{
+	display: block;
+	position: absolute;
+	left: 50%;
+	margin-left: -284dp;
+	bottom: 204dp;
+	width: 392dp;
+	box-sizing: border-box;
+	padding: 10dp 14dp 12dp 14dp;
+	pointer-events: none;
+	background-color: #070A1AF0;
+	border: 1dp #8080FF3A;
+	border-top: 3dp #D1FD04;
+}
+
+.cb-tip-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.cb-tip-name
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	font-size: 19dp;
+	line-height: 24dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #FFFFFF;
+}
+
+.cb-tip-key
+{
+	flex: 0 0 auto;
+	min-width: 14dp;
+	height: 22dp;
+	padding: 0 5dp;
+	margin-left: 10dp;
+	font-size: 15dp;
+	line-height: 22dp;
+	font-weight: bold;
+	text-align: center;
+	color: #0E1400;
+	background-color: #D1FD04;
+}
+
+.cb-tip-cost
+{
+	display: block;
+	margin-top: 4dp;
+	font-size: 17dp;
+	line-height: 22dp;
+	font-weight: bold;
+	color: #D1FD04;
+}
+
+.cb-tip-desc
+{
+	display: block;
+	margin-top: 6dp;
+	padding-top: 6dp;
+	border-top: 1dp #8080FF28;
+	font-size: 16dp;
+	line-height: 21dp;
+	white-space: pre-line;
+	color: #A9B1CF;
 }

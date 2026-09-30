@@ -18,13 +18,13 @@
 	<!-- Money, power, the command grid and the buttons round the bar, bottom centre -->
 	<div class="cb-panel cb-main">
 		<div class="cb-strip">
-			<div class="cb-money" data-if="money_shown">{{money}}</div>
-			<div class="cb-power" data-if="power_shown" data-class-low-power="power_state == 1" data-class-no-power="power_state == 2">
+			<div class="cb-money" data-cb="i0" data-if="money_shown">{{money}}</div>
+			<div class="cb-power" data-cb="i1" data-if="power_shown" data-class-low-power="power_state == 1" data-class-no-power="power_state == 2">
 				<div class="cb-power-label"><gametext key="CONTROLBAR:Power"/></div>
 				<div class="cb-power-bar"><div class="cb-power-track"></div><div class="cb-power-fill" data-style-width="power_fill"></div><div class="cb-power-rail"><div class="cb-power-needle" data-style-left="power_needle"></div></div></div>
 				<div class="cb-power-value">{{power_text}}</div>
 			</div>
-			<div class="cb-rank">
+			<div class="cb-rank" data-cb="i2">
 				<div class="cb-rank-stars"><span class="cb-star" data-class-on="rank &gt;= 1">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 2">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 3">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 4">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 5">&#9733;</span></div>
 				<div class="cb-exp"><div class="cb-exp-fill" data-style-width="experience"></div></div>
 			</div>
@@ -68,6 +68,17 @@
 				<div class="cb-side-btn" data-cb="s5" data-alias-s="side_buttons[5]" data-if="s.shown" data-class-off="!s.enabled"><span class="cb-glyph" data-if="!low">&#9662;</span><span class="cb-glyph" data-if="low">&#9652;</span></div>
 			</div>
 		</div>
+	</div>
+
+	<!-- The build tooltip over the grid (ControlBarPopupDescription.wnd): name, hotkey, cost, then what it does and what it
+	     still needs, as ControlBar::populateBuildTooltipLayout() words it. -->
+	<div class="cb-tip" data-if="tooltip_shown">
+		<div class="cb-tip-head">
+			<div class="cb-tip-name">{{tooltip_name}}</div>
+			<div class="cb-tip-key" data-if="tooltip_key != ''">{{tooltip_key}}</div>
+		</div>
+		<div class="cb-tip-cost" data-if="tooltip_cost != ''">{{tooltip_cost}}</div>
+		<div class="cb-tip-desc" data-if="tooltip_description != ''">{{tooltip_description}}</div>
 	</div>
 
 	<!-- The selection: portrait, name, veterancy and upgrades, or the build queue, bottom right -->

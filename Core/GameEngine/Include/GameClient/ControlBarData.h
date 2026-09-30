@@ -43,6 +43,7 @@ enum ControlBarButtonGroup CPP_11(: Int)
 	CBB_QUEUE,				///< the build queue, ButtonQueue01..
 	CBB_SIDE,					///< the buttons round the bar, ControlBarSideButton
 	CBB_CONTEXT,			///< the single buttons of a context, ControlBarContextButton
+	CBB_INFO,					///< the readouts with a tooltip, ControlBarInfo (not buttons)
 
 	CBB_COUNT
 };
@@ -65,6 +66,15 @@ enum ControlBarContextButton CPP_11(: Int)
 	CB_CTX_OCL_BUTTON,					///< OCL timer: sell, or a rally point for tech buildings
 
 	CB_CTX_COUNT
+};
+
+enum ControlBarInfo CPP_11(: Int)
+{
+	CB_INFO_MONEY,
+	CB_INFO_POWER,
+	CB_INFO_EXPERIENCE,
+
+	CB_INFO_COUNT
 };
 
 struct ControlBarButtonId
@@ -148,6 +158,12 @@ struct ControlBarData
 	Bool hasRadar;										///< the local player has a working radar
 	Bool radarAlert;								///< the radar's under-attack light is lit (it blinks for a while)
 	Bool cameoMovie;								///< a script plays a movie in the portrait (InGameUI::playCameoMovie())
+
+	// the build tooltip (ControlBarPopupDescription.wnd, populateBuildTooltipLayout()): shown after the hover delay
+	Bool tooltipShown;
+	UnicodeString tooltipName;						///< with the '&' of its hotkey
+	UnicodeString tooltipCost;						///< empty when free
+	UnicodeString tooltipDescription;
 
 	Bool generalLit;								///< the general's button blinks while promotion points are unspent
 	Int rank;

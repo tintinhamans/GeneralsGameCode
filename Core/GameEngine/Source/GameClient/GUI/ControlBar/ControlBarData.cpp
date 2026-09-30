@@ -41,6 +41,7 @@
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/HotKey.h"
 #include "GameClient/InGameUI.h"
+#include "GameClient/WindowLayout.h"
 
 #include <math.h>
 
@@ -112,6 +113,10 @@ void ControlBarData::clear()
 	hasRadar = FALSE;
 	radarAlert = FALSE;
 	cameoMovie = FALSE;
+	tooltipShown = FALSE;
+	tooltipName.clear();
+	tooltipCost.clear();
+	tooltipDescription.clear();
 	generalLit = FALSE;
 	rank = 0;
 	sciencePoints = 0;
@@ -131,6 +136,13 @@ namespace
 		"ControlBar.wnd:ButtonLarge",
 	};
 
+	const char *const kInfoNames[ CB_INFO_COUNT ] =
+	{
+		"ControlBar.wnd:MoneyDisplay",
+		"ControlBar.wnd:PowerWindow",
+		"ControlBar.wnd:GeneralsExp",
+	};
+
 	const char *const kContextButtonNames[ CB_CTX_COUNT ] =
 	{
 		"ControlBar.wnd:ButtonCancelConstruction",
@@ -143,6 +155,7 @@ namespace
 		NameKeyType queue[ MAX_BUILD_QUEUE_BUTTONS ];
 		NameKeyType side[ CB_SIDE_COUNT ];
 		NameKeyType context[ CB_CTX_COUNT ];
+		NameKeyType info[ CB_INFO_COUNT ];
 
 		ButtonKeys()
 		{
@@ -156,6 +169,8 @@ namespace
 				side[ i ] = TheNameKeyGenerator->nameToKey( kSideButtonNames[ i ] );
 			for( Int i = 0; i < CB_CTX_COUNT; ++i )
 				context[ i ] = TheNameKeyGenerator->nameToKey( kContextButtonNames[ i ] );
+			for( Int i = 0; i < CB_INFO_COUNT; ++i )
+				info[ i ] = TheNameKeyGenerator->nameToKey( kInfoNames[ i ] );
 		}
 	};
 
@@ -234,6 +249,9 @@ GameWindow *ControlBar::getButtonWindow( const ControlBarButtonId &id )
 
 		case CBB_CONTEXT:
 			return id.index < CB_CTX_COUNT ? TheWindowManager->winGetWindowFromId( m_contextParent[ CP_MASTER ], buttonKeys().context[ id.index ] ) : nullptr;
+
+		case CBB_INFO:
+			return id.index < CB_INFO_COUNT ? TheWindowManager->winGetWindowFromId( m_contextParent[ CP_MASTER ], buttonKeys().info[ id.index ] ) : nullptr;
 
 		default:
 			return nullptr;
@@ -369,6 +387,25 @@ void ControlBar::fillData( ControlBarData &data )
 	data.hasRadar = rts::localPlayerHasRadar();
 	data.radarAlert = m_radarAttackGlowOn && m_radarAttackGlowWindow && !BitIsSet( m_radarAttackGlowWindow->winGetStatus(), WIN_STATUS_ENABLED );
 	data.cameoMovie = TheInGameUI && TheInGameUI->cameoVideoBuffer() != nullptr;
+
+	// the build tooltip's texts, as populateBuildTooltipLayout() left them
+	if( m_buildToolTipLayout && !m_buildToolTipLayout->isHidden() )
+	{
+		static const NameKeyType nameID = NAMEKEY( "ControlBarPopupDescription.wnd:StaticTextName" );
+		static const NameKeyType costID = NAMEKEY( "ControlBarPopupDescription.wnd:StaticTextCost" );
+		static const NameKeyType descID = NAMEKEY( "ControlBarPopupDescription.wnd:StaticTextDescription" );
+		GameWindow *parent = m_buildToolTipLayout->getFirstWindow();
+		GameWindow *name = TheWindowManager->winGetWindowFromId( parent, nameID );
+		GameWindow *cost = TheWindowManager->winGetWindowFromId( parent, costID );
+		GameWindow *desc = TheWindowManager->winGetWindowFromId( parent, descID );
+		data.tooltipShown = TRUE;
+		if( name )
+			data.tooltipName = GadgetStaticTextGetText( name );
+		if( cost && !cost->winIsHidden() )
+			data.tooltipCost = GadgetStaticTextGetText( cost );
+		if( desc )
+			data.tooltipDescription = GadgetStaticTextGetText( desc );
+	}
 
 	// the general's rank, points and blinking button
 	Player *local = ThePlayerList->getLocalPlayer();
