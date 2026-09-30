@@ -66,14 +66,14 @@ public:
 
 		const float opacity = element->GetComputedValues().opacity();
 		const float dp = element->GetContext() ? element->GetContext()->GetDensityIndependentPixelRatio() : 1.0f;
-		const float thickness = std::max(1.0f, std::floor(dp + 0.5f));
+		const float thickness = (std::max)(1.0f, std::floor(dp + 0.5f));
 
 		Rml::Mesh mesh;
 
 		// Scrim: darkest on the edge, gone at the far side of the box, and faded in over the first and
 		// last `depth` of the run so a scale that ends short of a corner leaves no hard step.
 		{
-			const float ramp = std::min(depth, along * 0.5f);
+			const float ramp = (std::min)(depth, along * 0.5f);
 			const float alongStops[4] = {0.0f, ramp, along - ramp, along};
 			const float alongFade[4] = {0.0f, 1.0f, 1.0f, 0.0f};
 			const int base = (int)mesh.vertices.size();
@@ -107,8 +107,8 @@ public:
 			if (pos >= along)
 				break;
 			const float lenDp = i % 10 == 0 ? kMajorDp : (i % 5 == 0 ? kMidDp : kMinorDp);
-			const float len = std::min(depth, std::floor(lenDp * dp + 0.5f));
-			const float across = std::min(thickness, along - pos);
+			const float len = (std::min)(depth, std::floor(lenDp * dp + 0.5f));
+			const float across = (std::min)(thickness, along - pos);
 
 			Rml::Vector2f tickOrigin, tickSize;
 			if (horizontal)
