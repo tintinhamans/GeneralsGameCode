@@ -89,16 +89,19 @@
 				<div class="surface details">
 					<div class="overline group-title"><gametext key="GUI:GameInfo"/></div>
 					<div class="detail-body" data-if="detail_visible">
-						<div class="map-frame detail-map">
-							<mappreview class="map-image" data-attr-map="detail_map_path"/>
-						</div>
 						<div class="detail-name">{{detail_name}}</div>
 						<div class="detail-map-name">{{detail_map}}</div>
-						<div class="facts">
-							<div class="fact"><div class="stat-label"><gametext key="GUI:Players"/></div><div class="fact-value">{{detail_players}}</div></div>
-							<div class="fact"><div class="stat-label"><gametext key="GUI:SortPing"/></div>
-								<div class="fact-value"><span class="dot" data-class-ok="detail_ping_ok" data-class-bad="detail_ping_bad"></span>{{detail_ping}}</div></div>
-							<div class="fact"><div class="stat-label"><gametext key="GUI:StartingMoney"/></div><div class="fact-value">{{detail_cash}}</div></div>
+						<!-- The map beside the facts, so the member list keeps most of the card. -->
+						<div class="detail-head">
+							<div class="map-frame detail-map">
+								<mappreview class="map-image" data-attr-map="detail_map_path"/>
+							</div>
+							<div class="facts">
+								<div class="fact"><div class="stat-label"><gametext key="GUI:Players"/></div><div class="fact-value">{{detail_players}}</div></div>
+								<div class="fact"><div class="stat-label"><gametext key="GUI:SortPing"/></div>
+									<div class="fact-value"><span class="dot" data-class-ok="detail_ping_ok" data-class-bad="detail_ping_bad"></span>{{detail_ping}}</div></div>
+								<div class="fact"><div class="stat-label"><gametext key="GUI:StartingMoney"/></div><div class="fact-value">{{detail_cash}}</div></div>
+							</div>
 						</div>
 						<div class="tags">
 							<div class="tag" data-if="detail_password"><mappedimage name="Password"/><gametext key="GUI:Password"/></div>

@@ -112,9 +112,10 @@
 	height: 20dp;
 }
 
+/* The name gets three parts of the room to the map's two; the map stops at 250dp. */
 .game-name
 {
-	flex: 1 1 auto;
+	flex: 3 1 0%;
 	min-width: 0;
 	white-space: nowrap;
 	overflow: hidden;
@@ -129,7 +130,9 @@
 
 .game-map
 {
-	flex: 0 0 250dp;
+	flex: 2 1 0%;
+	min-width: 0;
+	max-width: 250dp;
 	margin-left: 15dp;
 	color: #A9B1CF;
 	white-space: nowrap;
@@ -142,7 +145,7 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	flex: 0 0 65dp;
+	flex: 0 0 58dp;
 	margin-left: 10dp;
 	opacity: 0.8;
 }
@@ -162,7 +165,7 @@
 
 .game-players
 {
-	flex: 0 0 60dp;
+	flex: 0 0 52dp;
 	text-align: right;
 	font-weight: bold;
 	color: #EEF1FA;
@@ -282,16 +285,10 @@
 }
 
 /* ---- Details panel -------------------------------------------------------------------------- */
-.detail-map
-{
-	width: 400dp;
-	height: 400dp;
-}
-
 .detail-name
 {
 	display: block;
-	margin-top: 18dp;
+	margin-top: 4dp;
 	font-size: 23dp;
 	font-weight: bold;
 	color: #FFFFFF;
@@ -307,11 +304,28 @@
 	color: #A9B1CF;
 }
 
-.facts
+.detail-head
 {
 	display: flex;
 	flex-direction: row;
-	margin-top: 20dp;
+	margin-top: 16dp;
+}
+
+.detail-map
+{
+	flex: 0 0 auto;
+	width: 220dp;
+	height: 220dp;
+}
+
+/* The facts stack down beside the map. */
+.facts
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-left: 20dp;
 }
 
 .facts .stat-label
@@ -321,8 +335,9 @@
 
 .fact
 {
-	flex: 1 1 0%;
+	display: block;
 	min-width: 0;
+	margin-bottom: 14dp;
 }
 
 .fact-value
@@ -349,7 +364,7 @@
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
-	margin-top: 18dp;
+	margin-top: 12dp;
 }
 
 .tag
@@ -381,7 +396,7 @@
 	min-height: 0;
 }
 
-.detail-body .map-frame, .detail-name, .detail-map-name, .facts, .tags
+.detail-head, .detail-name, .detail-map-name, .tags
 {
 	flex: 0 0 auto;
 }
@@ -422,11 +437,13 @@
 @media (max-aspect-ratio: 3/2)
 {
 	.details-col { width: 300dp; }
-	.detail-map { width: 260dp; height: 260dp; }
-	.game-map { flex-basis: 163dp; }
+	.detail-map { width: 140dp; height: 140dp; }
+	.facts { margin-left: 14dp; }
+	.fact { margin-bottom: 6dp; }
+	.facts .stat-label { font-size: 14dp; }
+	.fact-value { font-size: 18dp; }
+	.game-map { max-width: 163dp; }
 	.game-flags { display: none; }
-	.facts { flex-wrap: wrap; }
-	.fact { flex: 0 0 50%; margin-bottom: 8dp; }
 	.col-side { margin-left: 20dp; }
 }
 
