@@ -14,22 +14,28 @@ body
 	z-index: 60; /* above the social dock (SocialDock.rcss), which a click on the toast opens */
 }
 
+/* The template's look (common.rcss): a dark surface with the buddy-blue edge of the social dock,
+   Barlow body text, lit on hover like a row. */
 .buddy-toast
 {
 	display: block;
 	position: fixed;
-	right: 24dp;
-	bottom: 24dp;
-	max-width: 280dp;
-	padding: 10dp 14dp;
-	background-color: rgba(2, 2, 2, 235);
-	border: 1dp #2F37A8;
-	color: #FFFFFF;
+	right: 72dp; /* in the bottom ruler band, clear of the frame line and the action bar */
+	bottom: 8dp;
+	max-width: 360dp;
+	padding: 12dp 18dp 12dp 16dp;
+	font-size: 18dp;
+	line-height: 24dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	background-color: #070A1AF2;
+	border-left: 4dp #14B1FF;
 	pointer-events: auto;
 	z-index: 200; /* above .context-menu's 101, same "always on top" role the .wnd's SEE_THRU toast had */
 }
 
 .buddy-toast:hover
 {
-	background-color: rgba(47, 55, 168, 160);
+	background-color: #141A3EF2;
+	color: #FFFFFF;
 }
