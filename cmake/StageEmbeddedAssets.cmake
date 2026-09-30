@@ -7,6 +7,9 @@
 #
 # Mapping from Assets/<TopFolder>/... to OUTPUT_DIR/...:
 #   Localization/<Language>/<name>.str  -> Data/<Language>/<name>.csf  (compiled via str2csf)
+#   Localization/Languages/<name>.str   -> Data/Languages/<code>/<name>.csf, one per column of the
+#                                          multi-language file (str2csf --column; see GameText.cpp's
+#                                          GameTextLanguages for the codes)
 #   UI/**                               -> UI/**                       (passthrough)
 #   Window/**                           -> Window/**                   (passthrough)
 #   Art/**                              -> Art/**                      (passthrough)
@@ -37,6 +40,10 @@ endif()
 
 set(staged_count 0)
 
+# The text languages a multi-language .str under Localization/Languages/ can carry (besides US,
+# which the Localization/English/ table provides).
+set(RTS_TEXT_LANGUAGE_COLUMNS de fr es it ko zh bp pl ru ar)
+
 foreach(asset_file ${RTS_ASSET_FILES})
     get_filename_component(base_name "${asset_file}" NAME)
     string(SUBSTRING "${base_name}" 0 1 base_name_first_char)
@@ -62,6 +69,23 @@ foreach(asset_file ${RTS_ASSET_FILES})
         get_filename_component(ext "${rest_path}" EXT)
         if(NOT ext STREQUAL ".str")
             message(FATAL_ERROR "StageEmbeddedAssets: '${rel_path}' -- only .str files are allowed under Assets/Localization/<Language>/")
+        endif()
+        if(lang_name STREQUAL "Languages")
+            foreach(column ${RTS_TEXT_LANGUAGE_COLUMNS})
+                set(dest_file "${OUTPUT_DIR}/Data/Languages/${column}/${base_stem}.csf")
+                file(MAKE_DIRECTORY "${OUTPUT_DIR}/Data/Languages/${column}")
+                execute_process(
+                    COMMAND "${STR2CSF_EXE}" "${asset_file}" "${dest_file}" --column "${column}"
+                    RESULT_VARIABLE str2csf_result
+                    OUTPUT_VARIABLE str2csf_output
+                    ERROR_VARIABLE str2csf_error
+                )
+                if(NOT str2csf_result EQUAL 0)
+                    message(FATAL_ERROR "StageEmbeddedAssets: str2csf --column ${column} failed on '${rel_path}':\n${str2csf_output}${str2csf_error}")
+                endif()
+            endforeach()
+            math(EXPR staged_count "${staged_count} + 1")
+            continue()
         endif()
         set(dest_file "${OUTPUT_DIR}/Data/${lang_name}/${base_stem}.csf")
         get_filename_component(dest_dir "${dest_file}" DIRECTORY)

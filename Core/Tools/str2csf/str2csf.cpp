@@ -13,7 +13,13 @@
 //
 // Usage:
 //   str2csf <input.str> <output.csf> --lang <LanguageName>
+//   str2csf <input.str> <output.csf> --column <XX>
 //   str2csf --csf2str <input.csf> <output.str>
+//
+// --column reads a UTF-8 multi-language .str instead (the format of Patch104p's generals.str and
+// Assets/Localization/Languages), where each label has one 'XX: "text"' line per language, and
+// compiles the XX lines only: labels without one are left out, so the game falls back to the
+// tables loaded before it. Nothing is written when the column has no text at all.
 
 #include <algorithm>
 #include <cctype>
@@ -70,6 +76,19 @@ const LanguageEntry kLanguages[] = {
 	{ "Japanese", 6 },	// LANGUAGE_ID_JAPANESE
 	{ "Jabber", 7 },	// LANGUAGE_ID_JABBER
 	{ "Korean", 8 },	// LANGUAGE_ID_KOREAN
+	// Multi-language column codes (GameTextLanguages in GameText.cpp); LanguageID has no entry for
+	// most, so they get LANGUAGE_ID_UNKNOWN.
+	{ "us", 0 },
+	{ "de", 2 },
+	{ "fr", 3 },
+	{ "es", 4 },
+	{ "it", 5 },
+	{ "ko", 8 },
+	{ "zh", 9 },
+	{ "bp", 9 },
+	{ "pl", 9 },
+	{ "ru", 9 },
+	{ "ar", 9 },
 };
 
 bool stricmpAscii(const std::string &a, const std::string &b)
@@ -353,6 +372,47 @@ std::u16string stripSpaces(const std::u16string &s)
 	return out;
 }
 
+// Decodes UTF-8 to UTF-16; malformed bytes become U+FFFD.
+std::u16string utf8ToUtf16(const std::string &in)
+{
+	std::u16string out;
+	for (size_t i = 0; i < in.size();)
+	{
+		const unsigned char c = (unsigned char)in[i];
+		char32_t cp = 0xFFFD;
+		size_t extra = 0;
+		if (c < 0x80)
+			cp = c;
+		else if ((c & 0xE0) == 0xC0)
+			cp = c & 0x1F, extra = 1;
+		else if ((c & 0xF0) == 0xE0)
+			cp = c & 0x0F, extra = 2;
+		else if ((c & 0xF8) == 0xF0)
+			cp = c & 0x07, extra = 3;
+		++i;
+		for (size_t k = 0; k < extra; ++k, ++i)
+		{
+			if (i >= in.size() || ((unsigned char)in[i] & 0xC0) != 0x80)
+			{
+				cp = 0xFFFD;
+				break;
+			}
+			cp = (cp << 6) | ((unsigned char)in[i] & 0x3F);
+		}
+		if (cp >= 0x10000)
+		{
+			cp -= 0x10000;
+			out.push_back((char16_t)(0xD800 + (cp >> 10)));
+			out.push_back((char16_t)(0xDC00 + (cp & 0x3FF)));
+		}
+		else
+		{
+			out.push_back((char16_t)cp);
+		}
+	}
+	return out;
+}
+
 bool isCommentOrBlank(const std::string &trimmedLine)
 {
 	if (trimmedLine.empty())
@@ -424,6 +484,124 @@ std::vector<StringEntry> parseStrFile(const std::string &path)
 		if (!sawEnd)
 			throw std::runtime_error("unexpected end of string file (missing END for label '" + entry.label + "')");
 
+		entries.push_back(std::move(entry));
+	}
+
+	return entries;
+}
+
+// Mirrors GameTextManager::parseMultiLanguageStringFile, keeping only the
+// entries that have a line for `column` (upper-case code).
+std::vector<StringEntry> parseMultiLanguageStrFile(const std::string &path, const std::string &column)
+{
+	std::ifstream in(path, std::ios::binary);
+	if (!in)
+		throw std::runtime_error("cannot open input .str file: " + path);
+	std::ostringstream ss;
+	ss << in.rdbuf();
+	std::string doc = normalizeLineEndings(ss.str());
+	if (doc.size() >= 3 && (unsigned char)doc[0] == 0xEF && (unsigned char)doc[1] == 0xBB && (unsigned char)doc[2] == 0xBF)
+		doc.erase(0, 3);
+
+	DocReader r{ doc };
+	std::vector<StringEntry> entries;
+	std::string line;
+
+	while (readLine(r, line))
+	{
+		trimAscii(line);
+		if (isCommentOrBlank(line))
+			continue;
+
+		StringEntry entry;
+		entry.label = line;
+		bool found = false;
+		bool sawEnd = false;
+
+		while (readLine(r, line))
+		{
+			trimAscii(line);
+			if (isCommentOrBlank(line))
+				continue;
+			if (stricmpAscii(line, "END"))
+			{
+				sawEnd = true;
+				break;
+			}
+
+			std::string key;
+			size_t quote = std::string::npos;
+			if (line[0] == '"')
+			{
+				key = "US";
+				quote = 0;
+			}
+			else if (line.size() > 3 && std::isalpha((unsigned char)line[0]) && std::isalpha((unsigned char)line[1]) && line[2] == ':')
+			{
+				key = { (char)std::toupper((unsigned char)line[0]), (char)std::toupper((unsigned char)line[1]) };
+				quote = line.find('"', 3);
+			}
+			if (quote == std::string::npos)
+				continue;
+
+			// readToEndOfQuote's quote/escape scan; the wave name after it is not supported here.
+			std::string text;
+			std::string rest = line.substr(quote + 1);
+			bool closed = false;
+			for (;;)
+			{
+				bool slash = false;
+				for (char c : rest)
+				{
+					if (c == '"' && !slash)
+					{
+						closed = true;
+						break;
+					}
+					slash = (c == '\\' && !slash);
+					text.push_back(std::isspace((unsigned char)c) ? ' ' : c);
+				}
+				if (closed || !readLine(r, rest))
+					break;
+				text.push_back(' ');
+			}
+			if (!closed)
+				throw std::runtime_error("unterminated quoted string (missing closing '\"') in label '" + entry.label + "'");
+
+			if (key != column)
+				continue;
+
+			// translateCopy's escapes, on UTF-8.
+			std::string unescaped;
+			for (size_t i = 0; i < text.size(); ++i)
+			{
+				if (text[i] == '\\' && i + 1 < text.size())
+				{
+					const char e = text[++i];
+					unescaped.push_back(e == 'n' ? '\n' : (e == 't' ? '\t' : e));
+				}
+				else
+				{
+					unescaped.push_back(text[i]);
+				}
+			}
+			entry.text = stripSpaces(utf8ToUtf16(unescaped));
+			found = true;
+		}
+
+		if (!sawEnd)
+			throw std::runtime_error("unexpected end of string file (missing END for label '" + entry.label + "')");
+
+		if (!found)
+			continue;
+		for (const auto &existing : entries)
+		{
+			if (stricmpAscii(existing.label, entry.label))
+			{
+				std::cerr << "warning: string label '" << entry.label << "' multiply defined\n";
+				break;
+			}
+		}
 		entries.push_back(std::move(entry));
 	}
 
@@ -669,6 +847,7 @@ int usage(const char *argv0)
 {
 	std::cerr << "usage:\n"
 			  << "  " << argv0 << " <input.str> <output.csf> --lang <LanguageName>\n"
+			  << "  " << argv0 << " <input.str> <output.csf> --column <XX>\n"
 			  << "  " << argv0 << " --csf2str <input.csf> <output.str>\n";
 	return 2;
 }
@@ -688,6 +867,29 @@ int main(int argc, char **argv)
 			CsfDoc doc = readCsf(args[1]);
 			writeStrFile(args[2], doc, args[1]);
 			std::cout << "str2csf: wrote " << doc.entries.size() << " label(s) to " << args[2] << "\n";
+			return 0;
+		}
+
+		if (args.size() == 4 && args[2] == "--column")
+		{
+			std::string column = args[3];
+			int32_t langId;
+			if (column.size() != 2 || !languageIdForName(column, langId))
+			{
+				std::cerr << "error: unknown language column '" << args[3] << "'\n";
+				return 1;
+			}
+			for (char &c : column)
+				c = (char)std::toupper((unsigned char)c);
+
+			std::vector<StringEntry> entries = parseMultiLanguageStrFile(args[0], column);
+			if (entries.empty())
+			{
+				std::cout << "str2csf: no " << column << " text in " << args[0] << ", nothing written\n";
+				return 0;
+			}
+			writeCsf(args[1], entries, langId);
+			std::cout << "str2csf: wrote " << entries.size() << " label(s) to " << args[1] << " (column=" << column << ")\n";
 			return 0;
 		}
 

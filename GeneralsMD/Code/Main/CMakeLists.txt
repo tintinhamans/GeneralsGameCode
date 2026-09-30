@@ -116,7 +116,8 @@ endif()
 # ArchiveFileSystem::loadMods()). Assets/ holds human-authored sources organized
 # by type; StageEmbeddedAssets.cmake first lays them out as the game-relative tree
 # the archive actually needs (compiling Localization/*.str to Data/<Lang>/*.csf via
-# the str2csf host tool, copying everything else) into a generated EmbeddedRoot/
+# the str2csf host tool, and each language of the multi-language Localization/Languages/
+# *.str to Data/Languages/<code>/*.csf, copying everything else) into a generated EmbeddedRoot/
 # under the build dir, which GenerateEmbeddedData.cmake then embeds exactly as it
 # used to embed a literal Data/ folder. CONFIGURE_DEPENDS reruns the glob whenever
 # CMake reconfigures, which happens automatically when a file is added or removed.
