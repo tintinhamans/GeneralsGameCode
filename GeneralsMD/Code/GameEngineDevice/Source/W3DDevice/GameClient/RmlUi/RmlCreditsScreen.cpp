@@ -104,13 +104,20 @@ void RmlCreditsScreen::load(Rml::Context *context)
 
 void RmlCreditsScreen::show()
 {
-	if (!m_document)
+	// showShellMap() brings the shell's top layout forward, and for this routed screen that reopens
+	// it through the registry, re-entering show(); without this guard that recursed until the stack
+	// overflowed.
+	if (!m_document || m_inShellMapChange)
 		return;
 
 	// Mirrors CreditsMenuInit(): hide the shell map behind the credits, (re)load TheCredits fresh
 	// from Data/INI/Credits, and start the same fading-in "Credits" music track.
 	if (TheShell)
+	{
+		m_inShellMapChange = true;
 		TheShell->showShellMap(FALSE);
+		m_inShellMapChange = false;
+	}
 
 	delete TheCredits;
 	TheCredits = new CreditsManager;
@@ -143,7 +150,12 @@ void RmlCreditsScreen::hide()
 		TheCredits = nullptr;
 	}
 	if (TheShell)
+	{
+		// With the shell map off this also brings the still-top credits layout forward.
+		m_inShellMapChange = true;
 		TheShell->showShellMap(TRUE);
+		m_inShellMapChange = false;
+	}
 	if (TheAudio)
 		TheAudio->removeAudioEvent(AHSV_StopTheMusicFade);
 

@@ -123,13 +123,19 @@ void RmlMainMenuScreen::load(Rml::Context *context)
 
 void RmlMainMenuScreen::show()
 {
-	if (!m_document)
+	// With the shell map off, showShellMap() brings this routed screen's layout forward, which
+	// reopens it and re-enters show().
+	if (!m_document || m_inShellMapChange)
 		return;
 
 	// Mirrors MainMenuInit()'s TheShell->showShellMap(TRUE)/TheMouse->setVisibility(TRUE); both
 	// are no-ops if the shell map is already running (see Shell::showShellMap).
 	if (TheShell)
+	{
+		m_inShellMapChange = true;
 		TheShell->showShellMap(TRUE);
+		m_inShellMapChange = false;
+	}
 	if (TheMouse)
 		TheMouse->setVisibility(TRUE);
 

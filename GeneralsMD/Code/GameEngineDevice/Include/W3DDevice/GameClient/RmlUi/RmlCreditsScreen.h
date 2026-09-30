@@ -62,6 +62,7 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
 	RmlHqStatus m_hq; // .hq-header status
+	bool m_inShellMapChange = false; // show()/hide() are inside Shell::showShellMap()
 };
 
 // Router entry points: Shell::push/pop route "Menus/CreditsMenu.wnd" here via the registry.

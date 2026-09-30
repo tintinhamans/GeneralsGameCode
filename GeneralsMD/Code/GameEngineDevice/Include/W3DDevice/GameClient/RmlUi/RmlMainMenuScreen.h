@@ -123,6 +123,7 @@ private:
 		Rml::String playersOnlineText;
 	} m_model;
 	RmlHqStatus m_hq;
+	bool m_inShellMapChange = false; // show() is inside Shell::showShellMap()
 };
 
 // Router entry points: Shell::push/pop route "Menus/MainMenu.wnd" here via the registry.
