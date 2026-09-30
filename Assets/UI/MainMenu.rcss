@@ -560,7 +560,7 @@
 	body > .d-shade                            the fade, under the ruler
 	body > .hq-band.hq-header                  logo | status pill and the local time (no title: this
 	                                           is the front door)
-	.screen-frame > .d-menu > button.d-item    .hq-index, label, description; .hq-brackets
+	.screen-frame > .d-menu > button.d-item    label and description; .hq-brackets
 	                        > button.d-exit    set apart, smaller
 	.screen-frame > .d-cards > .d-row(.active) > .d-row-head (title, back) + .d-deck of .d-card
 	body > .hq-band.hq-ticker                  "Generals Online" tag and the scrolling news, or the
@@ -613,7 +613,7 @@
 	width: 100%;
 	height: 90dp;
 	line-height: 1.2;
-	padding: 6dp 36dp 0 62dp;
+	padding: 6dp 36dp 0 34dp;
 	text-align: left;
 	text-transform: none;
 	white-space: nowrap;
@@ -633,14 +633,6 @@
 {
 	background-color: transparent;
 	decorator: horizontal-gradient(#1E246E90 #1E246E00);
-}
-
-.d-idx
-{
-	position: absolute;
-	left: 16dp;
-	top: 23dp;
-	font-effect: glow(1dp 6dp 0dp 1dp #000000E6);
 }
 
 .d-text
@@ -678,7 +670,7 @@
 /* The scan line runs under the label. */
 .d-item .hq-scan
 {
-	left: 62dp;
+	left: 34dp;
 }
 
 .d-item:hover .d-label, .d-item:active .d-label { color: #D1FD04; }
@@ -693,7 +685,7 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	margin: 18dp 0 0 62dp;
+	margin: 18dp 0 0 34dp;
 	height: 40dp;
 	line-height: 40dp;
 	padding: 0 14dp 0 0;
@@ -1146,10 +1138,9 @@
 {
 	.d-shade { width: 900dp; }
 	.d-label { font-size: 40dp; line-height: 50dp; letter-spacing: 3dp; }
-	.screen button.d-item { height: 80dp; padding-left: 54dp; padding-right: 24dp; }
-	.d-idx { left: 12dp; top: 20dp; }
-	.d-item .hq-scan { left: 54dp; }
-	.screen button.d-exit { margin-left: 54dp; }
+	.screen button.d-item { height: 80dp; padding-left: 30dp; padding-right: 24dp; }
+	.d-item .hq-scan { left: 30dp; }
+	.screen button.d-exit { margin-left: 30dp; }
 	.mm-d .d-cards { left: 530dp; }
 	.d-deck { flex-wrap: wrap; }
 	.d-group { flex: 0 0 100%; margin: 0 0 16dp 0; }

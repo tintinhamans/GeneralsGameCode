@@ -77,7 +77,7 @@
 	On top of the template, every shell screen speaks the main menu's HQ terminal language (last
 	section of this sheet): the .hq-header strip (logo, crumb and title, online status, clock) in the
 	frame's top band, in place of the title plate, .hq-brackets (green corner brackets and a scan line) on primary rows and tiles,
-	.hq-index step numbers, .hq-card art cards with a green top edge, and the .hq-ticker news strip.
+	.hq-card art cards with a green top edge, and the .hq-ticker news strip.
 	Its status comes from RmlHqStatus in the device layer, bound into each screen's data model.
 */
 
@@ -2761,12 +2761,7 @@ mappreview .mp-art
 	decorator: horizontal-gradient(#2F37A8F0 #2F37A840);
 }
 
-/* With the HQ index and brackets (.hq-brackets): the number in front, the scan line under the label. */
-.rail-idx
-{
-	margin-right: 14dp;
-}
-
+/* With the HQ brackets (.hq-brackets): the scan line under the label. */
 .rail-item .hq-scan
 {
 	left: 22dp;
@@ -3356,9 +3351,7 @@ body.modal.over-game
 	              bl, br) and <span class="hq-scan"/>: green corner brackets and a scan line drawn out
 	              under it on hover and focus; .current or .selected keeps them, quieter. For a few big
 	              choices, never a dense list.
-	Index         .hq-index: the small number in front of a menu item ("01"), green on a hovered
-	              .hq-brackets. .hq-section is a section heading with its step number in front:
-	              <div class="hq-section"><span class="hq-index">01</span><gametext/></div>
+	Section       .hq-section: a section heading, small caps: <div class="hq-section"><gametext/></div>
 	Card          button.hq-card > .hq-art (art well, clips) + .hq-card-text (.hq-card-title,
 	              .hq-card-desc) + <span class="hq-edge"/>: the edge and the border light green on
 	              hover and focus. A div.hq-card keeps the look without the hover.
@@ -3748,22 +3741,7 @@ body.modal.over-game
 .hq-brackets.current .hq-scan, .hq-brackets.selected .hq-scan { width: 70%; }
 .hq-brackets.current:hover .hq-br, .hq-brackets.selected:hover .hq-br { opacity: 1; }
 
-/* ---- Index numbers ------------------------------------------------------------------------------ */
-.hq-index
-{
-	font-size: 15dp;
-	font-weight: bold;
-	letter-spacing: 1dp;
-	color: #7C86B4;
-	transition: color 0.12s cubic-out;
-}
-
-.hq-brackets:hover .hq-index, .hq-brackets.current .hq-index, .hq-brackets.selected .hq-index
-{
-	color: #D1FD04;
-}
-
-/* A section heading with its step number: "01 | MAP". */
+/* ---- Section heading ------------------------------------------------------------------------- */
 .hq-section
 {
 	display: flex;
@@ -3775,15 +3753,6 @@ body.modal.over-game
 	text-transform: uppercase;
 	white-space: nowrap;
 	color: #B8C0DE;
-}
-
-.hq-section .hq-index
-{
-	flex: 0 0 auto;
-	margin-right: 12dp;
-	padding-right: 12dp;
-	border-right: 1dp #8080FF50;
-	color: #D1FD04;
 }
 
 /* ---- Art card ------------------------------------------------------------------------------------ */
@@ -4575,9 +4544,8 @@ body[dir=rtl]
 }
 
 /* A line's leading pieces come before its text, which in a right-to-left line is to the right: a
-   menu index number, the plus of an add-AI button, a chat line's time and name. RmlUi lays inline
+   the plus of an add-AI button, a chat line's time and name. RmlUi lays inline
    boxes out left to right whatever the direction, so they float right instead. */
-body[dir=rtl] .rail-idx,
 body[dir=rtl] .pc-plus,
 body[dir=rtl] .chat-time,
 body[dir=rtl] .chat-name

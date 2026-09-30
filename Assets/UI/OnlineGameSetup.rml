@@ -26,7 +26,7 @@
 			<!-- 01 Map: the preview with its start spots (left click takes one, right click clears it). -->
 			<div class="col su-map-col">
 				<div class="hq-card su-hero">
-					<div class="hq-section"><span class="hq-index">01</span><gametext key="GO:GUI:Map"/></div>
+					<div class="hq-section"><gametext key="GO:GUI:Map"/></div>
 					<div class="map-frame">
 						<mappreview class="map-image" fit="width" sites="16" data-attr-map="map_name" data-if="map_found">
 							<div data-for="marker : start_markers">
@@ -53,7 +53,7 @@
 			<div class="col col-main su-main">
 				<div class="surface su-players">
 					<div class="su-players-head">
-						<div class="hq-section"><span class="hq-index">02</span><gametext key="GUI:Players"/></div>
+						<div class="hq-section"><gametext key="GUI:Players"/></div>
 						<div class="su-fill" data-if="is_host">
 							<div class="overline"><gametext key="GO:GUI:FillWithAI"/></div>
 							<button data-attrif-disabled="settings_locked" data-event-click="fill_ai(2)" data-tooltip="GUI:EasyAI"><span class="pc-plus">+</span><gametext key="GUI:EasyCaps"/></button>
@@ -143,7 +143,7 @@
 			<!-- 03 Rules (the host's to set), and the chat under them. -->
 			<div class="col col-side su-side">
 				<div class="surface su-rules">
-					<div class="hq-section"><span class="hq-index">03</span><gametext key="GO:GUI:Rules"/></div>
+					<div class="hq-section"><gametext key="GO:GUI:Rules"/></div>
 					<div class="opt-label"><gametext key="GUI:StartingMoney"/></div>
 					<div class="seg cash-seg" data-if="starting_cash_options.size &lt;= 4" data-tooltip="TOOLTIP:StartingMoney">
 						<button class="seg-item" data-for="opt : starting_cash_options" data-class-on="opt.value == starting_cash"
