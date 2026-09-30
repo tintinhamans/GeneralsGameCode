@@ -569,9 +569,10 @@ void loadFonts(const FontSetup &setup)
 	const bool notoSans = loadRole(NOTO_SANS, dirs, true);
 	const bool notoSansBold = loadRole(NOTO_SANS_BOLD, dirs, false);
 
-	// SIL OFL-licensed Barlow (see Data/UI/Fonts/OFL.txt), the bundled default UI font.
-	// LoadFontFace reads family/style/weight straight from the font, so both weights
-	// register under the "Barlow" family; common.rcss picks weight via font-weight.
+	// SIL OFL-licensed Barlow (see Data/UI/Fonts/OFL.txt), the family the style sheets name. The UI
+	// draws it as the faces substituted below; it stays loaded as a fallback and for mods' sheets.
+	// LoadFontFace reads family/style/weight straight from the font, so both weights register under
+	// the "Barlow" family.
 	Rml::LoadFontFace("UI/Fonts/Barlow-Regular.ttf", true);
 	Rml::LoadFontFace("UI/Fonts/Barlow-Bold.ttf");
 
@@ -608,8 +609,9 @@ void loadFonts(const FontSetup &setup)
 	}
 	else
 	{
-		// Latin and Cyrillic: Noto Sans body text under the chosen heading face. Barlow has no
-		// Cyrillic, so Russian headings with the Barlow pairing use Noto Sans Bold.
+		// Latin and Cyrillic: Noto Sans body text under Exo 2 headings (SIL OFL, see
+		// Data/UI/Fonts/OFL-NotoSans.txt and OFL-Exo2.txt). Barlow has no Cyrillic, so Russian
+		// headings with the Barlow pairing use Noto Sans Bold.
 		const char *headingFamily = nullptr;
 		if (setup.heading == HEADING_EXO2 && loadRole(EXO2_BOLD, dirs, false))
 			headingFamily = EXO2_BOLD.family;

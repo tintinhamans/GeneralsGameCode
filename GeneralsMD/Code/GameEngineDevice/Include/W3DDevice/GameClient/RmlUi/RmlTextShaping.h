@@ -32,7 +32,8 @@ namespace Rml { class FontEngineInterface; }
 namespace RmlTextShaping
 {
 
-/// The heading font for Latin and Cyrillic text; body text is Noto Sans whenever it is there.
+/// The heading font for Latin and Cyrillic text; body text is Noto Sans. The UI uses Exo 2; the
+/// others remain for comparing pairings (the render harness).
 enum HeadingFont
 {
 	HEADING_BARLOW,	///< Barlow Bold (Latin only; Cyrillic headings use Noto Sans Bold)
@@ -45,7 +46,7 @@ struct FontSetup
 	std::string language;					///< GameTextLanguages code; "" for the installed language
 	std::vector<std::string> fontDirs;		///< where to look for fonts, in order ("UI/Fonts/", language packs)
 	std::string windowsFontsDir;			///< the system fonts folder, for fallbacks ("C:\Windows\Fonts\")
-	HeadingFont heading = HEADING_BARLOW;
+	HeadingFont heading = HEADING_EXO2;
 };
 
 /// The font engine to give Rml::SetFontEngineInterface() before Rml::Initialise(); owned here.
@@ -53,9 +54,10 @@ Rml::FontEngineInterface *createFontEngine();
 /// Frees it and the font data; call after Rml::Shutdown().
 void destroyFontEngine();
 
-/// Loads the UI fonts for the language and points the style sheets' Barlow at them: body text
-/// (normal weight) and headings (bold) each in a face with the language's script. Call after
-/// Rml::Initialise(). Missing fonts are skipped: the language then keeps Barlow plus fallbacks.
+/// Loads the UI fonts for the language and points the style sheets' family (Barlow, which the UI no
+/// longer draws with) at them: body text (normal weight) in Noto Sans, headings (bold) in Exo 2, and
+/// in Arabic, Korean and Chinese their own Noto faces. Call after Rml::Initialise(). Missing fonts
+/// are skipped: the language then keeps Barlow plus fallbacks.
 void loadFonts(const FontSetup &setup);
 
 /// The font files a language looks for (for the distribution notes and the harness).
