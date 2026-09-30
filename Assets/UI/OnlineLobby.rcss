@@ -35,6 +35,12 @@
 	width: 300dp;
 }
 
+/* Room names can be longer than the closed select. */
+.room-select selectbox
+{
+	min-width: 380dp;
+}
+
 /* ---- Game list ------------------------------------------------------------------------------- */
 .games
 {

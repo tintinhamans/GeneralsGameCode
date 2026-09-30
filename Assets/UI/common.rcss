@@ -371,8 +371,13 @@ select[disabled] selectarrow, select[disabled]:hover selectarrow
 	opacity: 0.6;
 }
 
+/* The option list is created by RmlUi as a child of the select, so a select sitting in a flex row
+   (a header strip, a setup row) would otherwise lay its options out along that row. It is always a
+   vertical list of full-width rows, scrolling once it is taller than max-height. */
 select selectbox
 {
+	display: flex;
+	flex-direction: column;
 	box-sizing: border-box;
 	background-color: #06061A;
 	border: 1dp #8080FF;
@@ -384,6 +389,9 @@ select selectbox
 
 select selectbox option
 {
+	flex: 0 0 auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	height: 30dp;
 	line-height: 30dp;
 	padding: 0 10dp;
