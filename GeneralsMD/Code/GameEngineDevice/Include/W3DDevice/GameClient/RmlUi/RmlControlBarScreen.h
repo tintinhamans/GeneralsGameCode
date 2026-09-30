@@ -140,6 +140,11 @@ private:
 		Rml::String tooltipDescription;
 		bool beaconEditable = false;
 		Rml::String beaconText;
+		bool shortcutsShown = false;
+		Rml::Vector<SlotModel> shortcuts;
+		bool scienceShown = false;
+		Rml::String scienceTitle;
+		Rml::Vector<SlotModel> sciences;
 	};
 
 	Rml::Context *m_context = nullptr;
@@ -160,6 +165,7 @@ private:
 
 	// the pointer on the radar: LeftHUDInput hears it enter, leave, move and press
 	bool m_onRadar = false;
+	bool m_onSciencePanel = false;
 	bool m_beaconFocused = false; ///< the beacon's entry got the focus when the beacon context came up
 	int m_radarButton = -1; ///< held since a press on the radar; 0 left, 1 right
 };

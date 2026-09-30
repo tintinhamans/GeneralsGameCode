@@ -44,6 +44,8 @@ enum ControlBarButtonGroup CPP_11(: Int)
 	CBB_SIDE,					///< the buttons round the bar, ControlBarSideButton
 	CBB_CONTEXT,			///< the single buttons of a context, ControlBarContextButton
 	CBB_INFO,					///< the readouts with a tooltip, ControlBarInfo (not buttons)
+	CBB_SHORTCUT,			///< the general's powers bar, GenPowersShortcutBar*.wnd ButtonCommand1..
+	CBB_SCIENCE,			///< the promotions panel: rank 1, rank 3 and rank 8 buttons in a row, then Done
 
 	CBB_COUNT
 };
@@ -85,7 +87,14 @@ struct ControlBarButtonId
 	Int index;
 };
 
-enum { CONTROL_BAR_VISIBLE_COMMANDS = 14 }; ///< ButtonCommand01..14: column i / 2, row i % 2
+enum { CONTROL_BAR_VISIBLE_COMMANDS = 14 };
+enum
+{
+	CB_SCIENCE_RANK3_FIRST = MAX_PURCHASE_SCIENCE_RANK_1,
+	CB_SCIENCE_RANK8_FIRST = CB_SCIENCE_RANK3_FIRST + MAX_PURCHASE_SCIENCE_RANK_3,
+	CB_SCIENCE_DONE = CB_SCIENCE_RANK8_FIRST + MAX_PURCHASE_SCIENCE_RANK_8,
+	CB_SCIENCE_COUNT
+}; ///< ButtonCommand01..14: column i / 2, row i % 2
 
 //-------------------------------------------------------------------------------------------------
 struct ControlBarButtonData
@@ -168,6 +177,15 @@ struct ControlBarData
 	UnicodeString tooltipName;						///< with the '&' of its hotkey
 	UnicodeString tooltipCost;						///< empty when free
 	UnicodeString tooltipDescription;
+
+	// the general's powers bar
+	Bool shortcutsShown;
+	ControlBarButtonData shortcuts[ MAX_SPECIAL_POWER_SHORTCUTS ];
+
+	// the promotions panel (GeneralsExpPoints.wnd)
+	Bool scienceShown;
+	UnicodeString scienceTitle;					///< the rank's name
+	ControlBarButtonData sciences[ CB_SCIENCE_COUNT ];
 
 	Bool generalLit;								///< the general's button blinks while promotion points are unspent
 	Int rank;

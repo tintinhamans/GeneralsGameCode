@@ -131,6 +131,14 @@ void ControlBarActions::leaveBeacon()
 		TheInGameUI->deselectAllDrawables(); // there is only the beacon selected
 }
 
+void ControlBarActions::enterSciencePanel()
+{
+	static const NameKeyType panelID = NAMEKEY( "GeneralsExpPoints.wnd:GenExpParent" );
+	GameWindow *panel = TheWindowManager->winGetWindowFromId( nullptr, panelID );
+	if( panel )
+		TheWindowManager->winSendInputMsg( panel, GWM_MOUSE_ENTERING, mousePosition(), 0 );
+}
+
 void ControlBarActions::panelRelease()
 {
 	GameWinBlockInput( nullptr, GWM_LEFT_UP, mousePosition(), 0 );

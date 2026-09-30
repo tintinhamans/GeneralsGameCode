@@ -56,6 +56,9 @@ namespace ControlBarActions
 	// tooltip callback while the mouse is over it: the build tooltip comes up after its delay (ControlBarData).
 	void hover( const ControlBarButtonId &id );
 
+	// The pointer entering the promotions panel: GeneralsExpPointsInput drops any building placement.
+	void enterSciencePanel();
+
 	// The radar: the view keeps the headless LeftHUD window on its own radar box (the radar logic converts
 	// pixels through that window), has the engine draw it there (W3DLeftHUDDraw: the radar or the radar movie),
 	// and gives it the pointer (LeftHUDInput: cursors, look at, move and attack-move orders, targeted powers).

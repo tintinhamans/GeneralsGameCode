@@ -120,6 +120,13 @@ void ControlBarData::clear()
 	tooltipName.clear();
 	tooltipCost.clear();
 	tooltipDescription.clear();
+	shortcutsShown = FALSE;
+	for( Int i = 0; i < MAX_SPECIAL_POWER_SHORTCUTS; ++i )
+		shortcuts[ i ].clear();
+	scienceShown = FALSE;
+	scienceTitle.clear();
+	for( Int i = 0; i < CB_SCIENCE_COUNT; ++i )
+		sciences[ i ].clear();
 	generalLit = FALSE;
 	rank = 0;
 	sciencePoints = 0;
@@ -254,6 +261,23 @@ GameWindow *ControlBar::getButtonWindow( const ControlBarButtonId &id )
 
 		case CBB_CONTEXT:
 			return id.index < CB_CTX_COUNT ? TheWindowManager->winGetWindowFromId( m_contextParent[ CP_MASTER ], buttonKeys().context[ id.index ] ) : nullptr;
+
+		case CBB_SHORTCUT:
+			return id.index < m_currentlyUsedSpecialPowersButtons && id.index < MAX_SPECIAL_POWER_SHORTCUTS ? m_specialPowerShortcutButtons[ id.index ] : nullptr;
+
+		case CBB_SCIENCE:
+			if( id.index < CB_SCIENCE_RANK3_FIRST )
+				return m_sciencePurchaseWindowsRank1[ id.index ];
+			if( id.index < CB_SCIENCE_RANK8_FIRST )
+				return m_sciencePurchaseWindowsRank3[ id.index - CB_SCIENCE_RANK3_FIRST ];
+			if( id.index < CB_SCIENCE_DONE )
+				return m_sciencePurchaseWindowsRank8[ id.index - CB_SCIENCE_RANK8_FIRST ];
+			if( id.index == CB_SCIENCE_DONE && m_contextParent[ CP_PURCHASE_SCIENCE ] )
+			{
+				static const NameKeyType doneID = NAMEKEY( "GeneralsExpPoints.wnd:ButtonExit" );
+				return TheWindowManager->winGetWindowFromId( m_contextParent[ CP_PURCHASE_SCIENCE ], doneID );
+			}
+			return nullptr;
 
 		case CBB_INFO:
 			return id.index < CB_INFO_COUNT ? TheWindowManager->winGetWindowFromId( m_contextParent[ CP_MASTER ], buttonKeys().info[ id.index ] ) : nullptr;
@@ -422,6 +446,30 @@ void ControlBar::fillData( ControlBarData &data )
 			data.tooltipCost = GadgetStaticTextGetText( cost );
 		if( desc )
 			data.tooltipDescription = GadgetStaticTextGetText( desc );
+	}
+
+	// the general's powers bar (populateSpecialPowerShortcut(), updateSpecialPowerShortcut())
+	data.shortcutsShown = m_specialPowerShortcutParent && !m_specialPowerShortcutParent->winIsHidden();
+	for( Int i = 0; i < m_currentlyUsedSpecialPowersButtons && i < MAX_SPECIAL_POWER_SHORTCUTS; ++i )
+	{
+		GameWindow *parent = m_specialPowerShortcutButtonParents[ i ];
+		readButton( m_specialPowerShortcutButtons[ i ], data.shortcutsShown && ( parent == nullptr || !parent->winIsHidden() ), data.shortcuts[ i ] );
+	}
+
+	// the promotions panel (populatePurchaseScience(), updateContextPurchaseScience())
+	GameWindow *sciencePanel = m_contextParent[ CP_PURCHASE_SCIENCE ];
+	data.scienceShown = sciencePanel && !sciencePanel->winIsHidden();
+	if( data.scienceShown )
+	{
+		static const NameKeyType titleID = NAMEKEY( "GeneralsExpPoints.wnd:StaticTextTitle" );
+		GameWindow *title = TheWindowManager->winGetWindowFromId( sciencePanel, titleID );
+		if( title )
+			data.scienceTitle = GadgetStaticTextGetText( title );
+		for( Int i = 0; i < CB_SCIENCE_COUNT; ++i )
+		{
+			const ControlBarButtonId id = { CBB_SCIENCE, i };
+			readButton( getButtonWindow( id ), TRUE, data.sciences[ i ] );
+		}
 	}
 
 	// the general's rank, points and blinking button

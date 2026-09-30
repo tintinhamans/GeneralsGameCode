@@ -758,3 +758,147 @@ input.cb-input:focus { border-color: #D1FD04; }
 	white-space: pre-line;
 	color: #A9B1CF;
 }
+
+/* ---- The general's powers: a column at the left edge, its foot above the in-game chat line -------------- */
+.cb-powers
+{
+	left: 0;
+	bottom: 38%;
+	width: 66dp;
+	padding: 6dp 6dp 2dp 6dp;
+	border-left-width: 0;
+	border-top-width: 1dp;
+	border-right: 2dp #3A46D0;
+}
+
+body.china .cb-powers { border-right-color: #C8323C; }
+body.gla .cb-powers { border-right-color: #B8862B; }
+
+.cb-slot.cb-pslot
+{
+	width: 52dp;
+	height: 52dp;
+	margin: 0 0 4dp 0;
+}
+
+/* ready count: the bigger number */
+.cb-pslot .cb-text
+{
+	font-size: 16dp;
+	color: #D1FD04;
+}
+
+/* ---- The promotions panel: over the grid, the tiers of the side's sciences ---------------------------- */
+.cb-science
+{
+	left: 50%;
+	margin-left: -200dp;
+	bottom: 204dp;
+	width: 400dp;
+	padding: 12dp 16dp 14dp 16dp;
+	border: 1dp #8080FF3A;
+	border-top: 3dp #D1FD04;
+	background-color: #070A1AF2;
+}
+
+.cb-sci-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.cb-sci-title
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	font-size: 22dp;
+	line-height: 28dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #FFFFFF;
+}
+
+.cb-sci-points
+{
+	flex: 0 0 auto;
+	height: 26dp;
+	padding: 0 8dp;
+	font-size: 18dp;
+	line-height: 26dp;
+	font-weight: bold;
+	color: #0E1400;
+	background-color: #D1FD04;
+}
+
+.cb-sci-star { margin-right: 4dp; }
+
+.cb-sci-exp
+{
+	display: block;
+	height: 4dp;
+	margin: 8dp 0 4dp 0;
+	background-color: #141A3E;
+}
+
+.cb-sci-tier
+{
+	display: block;
+	margin: 10dp 0 6dp 0;
+	font-size: 13dp;
+	line-height: 18dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	color: #7079A0;
+}
+
+.cb-sci-row
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+}
+
+/* the rank 3 tier: five columns of three, filled a column at a time like the .wnd */
+.cb-sci-rank3
+{
+	flex-direction: column;
+	height: 192dp;
+	align-content: flex-start;
+}
+
+.cb-slot.cb-sci
+{
+	width: 60dp;
+	height: 60dp;
+	margin: 0 4dp 4dp 0;
+}
+
+.cb-slot.cb-sci.owned { border: 2dp #36D8B2; }
+.cb-slot.cb-sci.buy { border-color: #D1FD04; }
+.cb-slot.cb-sci.buy:hover { background-color: #2A3310; }
+
+.cb-owned
+{
+	display: block;
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 18dp;
+	height: 18dp;
+	font-size: 14dp;
+	line-height: 18dp;
+	font-weight: bold;
+	text-align: center;
+	color: #04120E;
+	background-color: #36D8B2;
+}
+
+.cb-sci-foot
+{
+	display: flex;
+	flex-direction: row;
+	justify-content: flex-end;
+	margin-top: 8dp;
+}

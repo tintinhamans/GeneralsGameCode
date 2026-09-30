@@ -125,6 +125,8 @@ namespace
 				case 's': id.group = CBB_SIDE; break;
 				case 'x': id.group = CBB_CONTEXT; break;
 				case 'i': id.group = CBB_INFO; break;
+				case 'p': id.group = CBB_SHORTCUT; break;
+				case 'g': id.group = CBB_SCIENCE; break;
 				default: return false;
 			}
 			id.index = atoi(value.c_str() + 1);
@@ -213,6 +215,8 @@ void RmlControlBarScreen::load(Rml::Context *context)
 	m_model.upgrades.resize(MAX_RIGHT_HUD_UPGRADE_CAMEOS);
 	m_model.contextButtons.resize(CB_CTX_COUNT);
 	m_model.sideButtons.resize(CB_SIDE_COUNT);
+	m_model.shortcuts.resize(MAX_SPECIAL_POWER_SHORTCUTS);
+	m_model.sciences.resize(CB_SCIENCE_COUNT);
 
 	Rml::DataModelConstructor constructor = context->CreateDataModel("controlbar");
 	if (constructor)
@@ -281,6 +285,11 @@ void RmlControlBarScreen::load(Rml::Context *context)
 		constructor.Bind("tooltip_description", &m_model.tooltipDescription);
 		constructor.Bind("beacon_editable", &m_model.beaconEditable);
 		constructor.Bind("beacon_text", &m_model.beaconText);
+		constructor.Bind("shortcuts_shown", &m_model.shortcutsShown);
+		constructor.Bind("shortcuts", &m_model.shortcuts);
+		constructor.Bind("science_shown", &m_model.scienceShown);
+		constructor.Bind("science_title", &m_model.scienceTitle);
+		constructor.Bind("sciences", &m_model.sciences);
 		constructor.BindEventCallback("beacon_change", &RmlControlBarScreen::onBeaconChange, this);
 
 		m_modelHandle = constructor.GetModelHandle();
@@ -529,6 +538,42 @@ void RmlControlBarScreen::refresh(const ControlBarData &data, bool all)
 		m_modelHandle.DirtyVariable("beacon_text");
 	}
 
+	if (all || data.shortcutsShown != old.shortcutsShown)
+	{
+		m_model.shortcutsShown = data.shortcutsShown != FALSE;
+		m_modelHandle.DirtyVariable("shortcuts_shown");
+	}
+	dirty = all;
+	for (int i = 0; i < MAX_SPECIAL_POWER_SHORTCUTS; ++i)
+	{
+		if (all || data.shortcuts[i] != old.shortcuts[i])
+		{
+			toSlot(data.shortcuts[i], m_model.shortcuts[i]);
+			dirty = true;
+		}
+	}
+	if (dirty)
+		m_modelHandle.DirtyVariable("shortcuts");
+
+	if (all || data.scienceShown != old.scienceShown || data.scienceTitle != old.scienceTitle)
+	{
+		m_model.scienceShown = data.scienceShown != FALSE;
+		m_model.scienceTitle = unicodeToUtf8(data.scienceTitle);
+		m_modelHandle.DirtyVariable("science_shown");
+		m_modelHandle.DirtyVariable("science_title");
+	}
+	dirty = all;
+	for (int i = 0; i < CB_SCIENCE_COUNT; ++i)
+	{
+		if (all || data.sciences[i] != old.sciences[i])
+		{
+			toSlot(data.sciences[i], m_model.sciences[i]);
+			dirty = true;
+		}
+	}
+	if (dirty)
+		m_modelHandle.DirtyVariable("sciences");
+
 	m_shown = data;
 	m_hasShown = true;
 }
@@ -574,6 +619,14 @@ void RmlControlBarScreen::trackHover()
 		m_onRadar = radar;
 		ControlBarActions::radarInput(radar ? GWM_MOUSE_ENTERING : GWM_MOUSE_LEAVING);
 	}
+
+	// the promotions panel drops a building placement when the pointer comes onto it
+	bool science = false;
+	for (Rml::Element *e = inDocument ? hover : nullptr; e && !science; e = e->GetParentNode())
+		science = e->GetId() == "cb-science";
+	if (science && !m_onSciencePanel)
+		ControlBarActions::enterSciencePanel();
+	m_onSciencePanel = science;
 
 	const bool onSlot = inDocument && slotOf(hover, id);
 
