@@ -151,5 +151,4 @@
 	.honors { margin-left: 16dp; padding: 6dp 12dp; }
 	.honors .stat { margin-right: 14dp; }
 	.honors .stat-label { font-size: 11dp; letter-spacing: 0; }
-	.marker-label { font-size: 13dp; margin-left: -56dp; margin-right: -56dp; }
 }

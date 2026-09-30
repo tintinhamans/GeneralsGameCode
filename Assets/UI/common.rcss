@@ -1964,18 +1964,37 @@ label.check:hover
 	border-color: #FFFFFF;
 }
 
+/* The occupant's name only on hover: eight names under eight squares run into each other, and every
+   player card already carries its spot number. The hovered marker rises over its neighbours. */
+.marker:hover
+{
+	z-index: 5;
+}
+
 .marker-label
 {
-	display: block;
-	margin-left: -88dp;
-	margin-right: -88dp;
-	margin-top: 2dp;
+	display: none;
+	position: absolute;
+	top: 34dp;
+	left: -115dp;
+	width: 260dp;
 	text-align: center;
 	font-size: 16dp;
 	font-weight: bold;
 	color: #FFFFFF;
-	font-effect: shadow(1dp 1dp #000000);
 	white-space: nowrap;
+}
+
+.marker:hover .marker-label
+{
+	display: block;
+}
+
+.marker-label span
+{
+	display: inline-block;
+	padding: 2dp 8dp;
+	background-color: #05070FE6;
 }
 
 .map-meta

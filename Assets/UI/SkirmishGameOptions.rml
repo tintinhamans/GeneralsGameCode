@@ -86,7 +86,7 @@
 								data-event-click="start_marker_clicked(marker.position)"
 								data-event-mousedown="start_marker_mousedown(marker.position)">
 								<div class="marker-dot" data-style-background-color="marker.color_hex">{{marker.position + 1}}</div>
-								<div class="marker-label" data-if="marker.is_occupied">{{marker.occupant_label}}</div>
+								<div class="marker-label" data-if="marker.is_occupied"><span>{{marker.occupant_label}}</span></div>
 							</div>
 						</div>
 					</div>

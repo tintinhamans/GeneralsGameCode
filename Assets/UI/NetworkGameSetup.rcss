@@ -329,5 +329,4 @@
 	.pc-add-label { display: none; }
 	.ns-state { margin-left: 16dp; padding: 0 14dp; }
 	.ns-state-text { font-size: 16dp; margin-left: 10dp; }
-	.marker-label { font-size: 13dp; margin-left: -56dp; margin-right: -56dp; }
 }
