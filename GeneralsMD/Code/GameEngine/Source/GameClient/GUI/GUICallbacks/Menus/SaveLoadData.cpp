@@ -24,7 +24,30 @@
 
 #include "GameClient/GUI/GUICallbacks/Menus/SaveLoadData.h"
 
+#include "GameClient/CampaignManager.h"
 #include "GameClient/GameText.h"
+
+// The save's map and campaign as the details of the list show them.
+static void describeSave( const SaveGameInfo &info, SaveLoadRow &row )
+{
+	Bool exists = FALSE;
+	row.m_mapLabel = TheGameText->fetch( info.mapLabel, &exists );
+	if( exists == FALSE )
+		row.m_mapLabel.translate( info.mapLabel );
+
+	if( info.campaignSide.isNotEmpty() )
+	{
+		AsciiString label;
+		label.format( "CAMPAIGN:%s", info.campaignSide.str() );
+		row.m_campaign = TheGameText->fetch( label, &exists );
+		if( exists == FALSE )
+			row.m_campaign.translate( info.campaignSide );
+		if( info.missionNumber != CampaignManager::INVALID_MISSION_NUMBER )
+			row.m_missionNumber = info.missionNumber + 1;
+	}
+
+	row.m_isMissionSave = info.saveFileType == SAVE_FILE_TYPE_MISSION;
+}
 
 void SaveLoadData::open( SaveLoadLayoutType layoutType, Bool isPopup )
 {
@@ -55,6 +78,7 @@ void SaveLoadData::refresh()
 		Int color = TheGameState->describeAvailableGame( info, count, row.m_name, row.m_time, row.m_date );
 		row.m_color = color & 0xFFFFFF;
 		row.m_info = info;
+		describeSave( info->saveGameInfo, row );
 		m_rows.push_back( row );
 	}
 

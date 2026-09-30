@@ -42,7 +42,7 @@ public:
 	static RmlSaveLoadScreen &instance();
 
 	void open(bool isPopup);
-	void close();
+	void close(bool reverseTransition = true); ///< false once a load took over, like an immediate pop
 	bool isVisible() const;
 	void back(); ///< Escape: same as KEY_ESC in PopupSaveLoad.cpp
 
@@ -74,6 +74,11 @@ private:
 		Rml::String time;
 		Rml::String date;
 		Rml::String colorHex = "#FFFFFF";
+		Rml::String map;
+		Rml::String campaign; ///< empty outside a campaign
+		int mission = 0; ///< 1-based, 0 outside a campaign
+		bool isMissionSave = false;
+		bool isNew = false; ///< the "new save game" entry
 		int index = 0;
 		bool selected = false;
 	};
@@ -83,6 +88,8 @@ private:
 	Rml::DataModelHandle m_modelHandle;
 
 	Rml::Vector<RowModel> m_rows;
+	RowModel m_selected; ///< the selected row for the details card, valid when m_hasSelection
+	bool m_hasSelection = false;
 	Rml::String m_description; ///< the save name entry, two-way bound
 	int m_descriptionMax = 0;
 	bool m_isPopup = false;

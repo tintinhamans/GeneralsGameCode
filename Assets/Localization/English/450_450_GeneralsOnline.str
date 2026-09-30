@@ -154,3 +154,19 @@ END
 GUI:GONoLanGames
 "No games on your network yet"
 END
+
+GUI:GOMission
+"Mission"
+END
+
+GUI:GOMissionStart
+"Mission start"
+END
+
+GUI:GONewSave
+"New save"
+END
+
+GUI:GONoSaves
+"No saved games yet"
+END

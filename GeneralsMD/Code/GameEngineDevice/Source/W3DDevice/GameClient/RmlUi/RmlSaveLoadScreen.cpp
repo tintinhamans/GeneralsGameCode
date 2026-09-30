@@ -21,6 +21,7 @@
 
 #include "GameClient/GUI/GUICallbacks/Menus/SaveLoadActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/SaveLoadData.h"
+#include "GameClient/TransitionSounds.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include <RmlUi/Core/Context.h>
@@ -32,6 +33,9 @@
 #include <vector>
 #include <windows.h>
 
+extern Bool DontShowMainMenu; // WOLLobbyMenu.cpp; see RmlSaveLoadScreen::open()
+extern Bool ReplayWasPressed; // ScoreScreen.cpp; ditto
+
 namespace
 {
 	Rml::String rgbToHex(UnsignedInt rgb)
@@ -41,9 +45,10 @@ namespace
 		return Rml::String(hex);
 	}
 
+	// A load took over: the .wnd pops without its shutdown transition then.
 	void closeDocument()
 	{
-		RmlSaveLoadScreen::instance().close();
+		RmlSaveLoadScreen::instance().close(false);
 	}
 }
 
@@ -70,12 +75,19 @@ void RmlSaveLoadScreen::load(Rml::Context *context)
 			rowHandle.RegisterMember("time", &RowModel::time);
 			rowHandle.RegisterMember("date", &RowModel::date);
 			rowHandle.RegisterMember("color_hex", &RowModel::colorHex);
+			rowHandle.RegisterMember("map", &RowModel::map);
+			rowHandle.RegisterMember("campaign", &RowModel::campaign);
+			rowHandle.RegisterMember("mission", &RowModel::mission);
+			rowHandle.RegisterMember("is_mission_save", &RowModel::isMissionSave);
+			rowHandle.RegisterMember("is_new", &RowModel::isNew);
 			rowHandle.RegisterMember("index", &RowModel::index);
 			rowHandle.RegisterMember("selected", &RowModel::selected);
 		}
 		constructor.RegisterArray<Rml::Vector<RowModel>>();
 
 		constructor.Bind("rows", &m_rows);
+		constructor.Bind("has_selection", &m_hasSelection);
+		constructor.Bind("sel", &m_selected);
 		constructor.Bind("description", &m_description);
 		constructor.Bind("description_max", &m_descriptionMax);
 		constructor.Bind("is_popup", &m_isPopup);
@@ -125,9 +137,17 @@ void RmlSaveLoadScreen::refresh()
 		row.time = unicodeToUtf8(src.m_time);
 		row.date = unicodeToUtf8(src.m_date);
 		row.colorHex = rgbToHex(src.m_color);
+		row.map = unicodeToUtf8(src.m_mapLabel);
+		row.campaign = unicodeToUtf8(src.m_campaign);
+		row.mission = src.m_missionNumber;
+		row.isMissionSave = src.m_isMissionSave == TRUE;
+		row.isNew = src.m_info == nullptr;
 		row.index = (int)i;
 		row.selected = (int)i == data.m_selected;
 	}
+
+	m_hasSelection = data.m_selected >= 0 && data.m_selected < (int)m_rows.size();
+	m_selected = m_hasSelection ? m_rows[data.m_selected] : RowModel();
 
 	m_isPopup = data.m_isPopup == TRUE;
 	m_listLocked = !data.isListEnabled();
@@ -144,6 +164,8 @@ void RmlSaveLoadScreen::refresh()
 	if (m_modelHandle)
 	{
 		m_modelHandle.DirtyVariable("rows");
+		m_modelHandle.DirtyVariable("has_selection");
+		m_modelHandle.DirtyVariable("sel");
 		m_modelHandle.DirtyVariable("description_max");
 		m_modelHandle.DirtyVariable("is_popup");
 		m_modelHandle.DirtyVariable("list_locked");
@@ -177,10 +199,21 @@ void RmlSaveLoadScreen::open(bool isPopup)
 	refresh();
 
 	m_document->Show(Rml::ModalFlag::Modal);
+
+	// SaveLoadMenuUpdate()'s entrance group, which only the shell's SaveLoad.wnd plays (and not
+	// straight out of a game), and SaveLoadMenuShutdown()'s reverse in close().
+	if (!isPopup && !DontShowMainMenu && !ReplayWasPressed)
+	{
+		TransitionSounds::stop("MainMenuDefaultMenuLogoFade");
+		TransitionSounds::play("SaveLoadMenuFade");
+	}
 }
 
-void RmlSaveLoadScreen::close()
+void RmlSaveLoadScreen::close(bool reverseTransition)
 {
+	if (reverseTransition && !m_isPopup && isVisible())
+		TransitionSounds::play("SaveLoadMenuFade", TRUE);
+
 	SaveLoadData::instance().m_open = FALSE;
 	if (m_document)
 		m_document->Hide();

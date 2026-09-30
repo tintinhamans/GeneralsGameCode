@@ -37,6 +37,10 @@ struct SaveLoadRow
 	UnicodeString m_date;
 	UnsignedInt m_color = 0xFFFFFF; ///< 0x00RRGGBB
 	AvailableGameInfo *m_info = nullptr; ///< nullptr for the "new save game" entry
+	UnicodeString m_mapLabel; ///< the map's display name
+	UnicodeString m_campaign; ///< the campaign's display name, empty outside a campaign
+	Int m_missionNumber = 0; ///< 1-based mission of the campaign, 0 outside one
+	Bool m_isMissionSave = FALSE; ///< the automatic save at the start of a mission
 };
 
 struct SaveLoadData

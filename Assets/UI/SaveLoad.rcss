@@ -1,156 +1,354 @@
 /*
-	SaveLoad.rcss -- SaveLoad.wnd (main menu Load Game, full screen) and PopupSaveLoad.wnd (in-game
-	Save/Load popup): one document, body.popup selects the popup geometry. Positions are body
-	percentages of the .wnd's 800x600 rects, so the layout stretches the way the original does.
-	The confirmations sit directly under <body> so they are viewport-positioned like the .wnd's.
+	SaveLoad.rcss -- SaveLoad.wnd (the main menu's Load Game) and PopupSaveLoad.wnd (the in-game
+	Save/Load, body.popup) on the screen template (common.rcss): a rich list of the saves in the
+	main column (name, campaign and mission or map, date and time), the selected save's card on the
+	right, and the load / overwrite / save name / delete confirmations as modal cards on a scrim.
+
+	Over the game (body.popup) the page sits on a scrim that dims the game, like the options.
+	A save game keeps no map picture the list can show (the save list only reads the save's header),
+	so the card leads with what the save is instead of a thumbnail.
 */
 
-body
+body.popup
 {
-	width: 100%;
-	height: 100%;
+	background-color: #03050CC8;
 }
 
-.sl-frame
+/* ---- Save list ------------------------------------------------------------------------------- */
+.saves
 {
-	box-sizing: border-box;
-	position: absolute;
-	left: 5.6%;
-	top: 7.3%;
-	width: 88.8%;
-	height: 85.4%;
 	display: flex;
 	flex-direction: column;
-	padding: 16dp;
-	border: 2dp #2F37A8;
-	background-color: rgba(2, 2, 2, 190);
-}
-
-body.popup .sl-frame
-{
-	left: 16%;
-	top: 8.667%;
-	width: 70.5%;
-	height: 77.5%;
-	background-color: #020202;
-}
-
-.sl-list
-{
-	flex: 1 1 auto;
 	min-height: 0;
-	border: 1dp #2F37A8;
-	background-color: rgba(2, 2, 2, 140);
+	padding: 10dp 20dp 10dp 20dp;
 }
 
-.sl-row
+.head-name
 {
-	display: flex;
-	flex-direction: row;
+	flex: 1 1 0%;
+	min-width: 0;
 }
 
-.sl-row.locked
+.head-when
+{
+	flex: 0 0 200dp;
+	text-align: right;
+}
+
+.save-list
+{
+	flex: 1 1 0%;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.save-row
+{
+	height: 72dp;
+	padding-left: 15dp;
+	color: #D7DCF0;
+}
+
+.save-row.locked
 {
 	pointer-events: none;
 }
 
-.sl-name
-{
-	flex: 1 1 auto;
-}
-
-.sl-time,
-.sl-date
+/* The new save entry leads with a plus. */
+.save-mark
 {
 	flex: 0 0 auto;
-	width: 200dp;
-}
-
-.sl-buttons
-{
-	flex: 0 0 auto;
-	display: flex;
-	flex-direction: row;
-	margin-top: 12dp;
-	padding-top: 12dp;
-	border-top: 1dp #2F37A8;
-}
-
-.sl-buttons button
-{
-	flex: 1 1 0px;
-	margin-left: 16dp;
-}
-
-.sl-buttons button:first-child
-{
-	margin-left: 0dp;
-}
-
-/* ---- Confirmations and the save name entry -------------------------------------------- */
-.sl-dialog
-{
 	box-sizing: border-box;
-	position: absolute;
-	left: 25.5%;
-	top: 36.667%;
-	width: 48.5%;
-	height: 28.667%;
-	display: flex;
-	flex-direction: column;
-	padding: 16dp 32dp;
-	z-index: 10;
-	border: 2dp #2F37A8;
-	background-color: #020202;
-}
-
-body.popup .sl-dialog
-{
-	left: 27.5%;
-	top: 38.667%;
-}
-
-.sl-dialog-load
-{
-	background-color: rgba(0, 0, 1, 200);
-}
-
-.sl-message
-{
-	flex: 1 1 auto;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
+	width: 38dp;
+	height: 38dp;
+	margin-right: 14dp;
+	line-height: 34dp;
 	text-align: center;
-	font-size: 18dp;
+	font-size: 28dp;
+	font-weight: bold;
+	color: #FF9A3D;
+	border: 2dp #F07A1A;
+}
+
+.save-main
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+}
+
+.save-name
+{
+	display: block;
+	font-size: 21dp;
+	line-height: 27dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.save-row.new .save-name
+{
+	color: #FF9A3D;
+}
+
+.save-sub
+{
+	display: block;
+	margin-top: 2dp;
+	font-size: 16dp;
+	line-height: 21dp;
+	color: #A9B1CF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.save-sep
+{
+	margin: 0 8dp;
+	color: #7079A0;
+}
+
+.save-chip
+{
+	padding: 0 8dp;
+	margin-right: 10dp;
+	font-size: 13dp;
+	line-height: 19dp;
+}
+
+.save-when
+{
+	display: block;
+	flex: 0 0 200dp;
+	margin-left: 14dp;
+	text-align: right;
+}
+
+.save-date
+{
+	display: block;
+	font-size: 19dp;
+	line-height: 25dp;
+	color: #EEF1FA;
+}
+
+.save-time
+{
+	display: block;
+	margin-top: 2dp;
+	font-size: 16dp;
+	line-height: 21dp;
+	color: #7079A0;
+}
+
+.save-row.selected .save-name
+{
 	color: #FFFFFF;
 }
 
-.sl-message-entry
+.save-row.selected .save-sub, .save-row.selected .save-time
 {
-	flex: 0 0 auto;
-	height: 48dp;
+	color: #C4CAE4;
 }
 
-.sl-input
+/* ---- Details card ---------------------------------------------------------------------------- */
+.detail-col
 {
-	flex: 0 0 auto;
-	box-sizing: border-box;
-	width: 100%;
-	margin-bottom: 16dp;
+	width: 520dp;
 }
 
-.sl-dialog-buttons
+.detail
 {
-	flex: 0 0 auto;
+	display: flex;
+	flex-direction: column;
+	flex: 0 1 auto;
+	min-height: 0;
+	padding: 20dp 28dp 30dp 28dp;
+	border-top: 4dp #3A46D0;
+}
+
+.detail-body
+{
+	display: block;
+	flex: 0 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.detail-kind .chip-label
+{
+	margin-right: 8dp;
+}
+
+.detail-name
+{
+	display: block;
+	margin-top: 16dp;
+	font-size: 30dp;
+	line-height: 36dp;
+	font-weight: bold;
+	color: #FFFFFF;
+}
+
+.facts
+{
+	display: block;
+	margin-top: 22dp;
+	border-top: 1dp #8080FF28;
+	padding-top: 6dp;
+}
+
+.fact
+{
+	display: block;
+	flex: 1 1 0%;
+	min-width: 0;
+	margin-top: 14dp;
+}
+
+.fact .stat-label
+{
+	letter-spacing: 0;
+}
+
+.fact-row
+{
 	display: flex;
 	flex-direction: row;
-	justify-content: center;
 }
 
-.sl-dialog-buttons button
+.fact-value
 {
-	flex: 0 0 auto;
-	width: 200dp;
-	margin: 0dp 12dp;
+	display: block;
+	margin-top: 2dp;
+	font-size: 21dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.detail-new-mark
+{
+	display: block;
+	box-sizing: border-box;
+	width: 64dp;
+	height: 64dp;
+	margin-top: 10dp;
+	line-height: 58dp;
+	text-align: center;
+	font-size: 44dp;
+	font-weight: bold;
+	color: #FF9A3D;
+	border: 3dp #F07A1A;
+}
+
+.detail-hint
+{
+	display: block;
+	margin-top: 8dp;
+	color: #A9B1CF;
+}
+
+/* ---- Modal cards ------------------------------------------------------------------------------- */
+.modal-scrim
+{
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 10;
+	background-color: #03050CB4;
+}
+
+.modal-card
+{
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	width: 680dp;
+	padding: 28dp 32dp 28dp 32dp;
+	background-color: #070A1AF0;
+	border-top: 4dp #F07A1A;
+}
+
+.modal-card.danger
+{
+	border-top-color: #FF5050;
+}
+
+.modal-title
+{
+	display: block;
+	font-size: 30dp;
+	line-height: 36dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #FFFFFF;
+}
+
+.modal-message
+{
+	display: block;
+	margin-top: 16dp;
+	color: #D7DCF0;
+}
+
+.modal-label
+{
+	margin-top: 20dp;
+	margin-bottom: 10dp;
+}
+
+.modal-input
+{
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+}
+
+.modal-actions
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-top: 30dp;
+}
+
+.screen .modal-actions button.btn-cta
+{
+	height: 55dp;
+	line-height: 55dp;
+	min-width: 220dp;
+	padding: 0 34dp;
+	font-size: 21dp;
+}
+
+.screen .modal-card.danger button.btn-cta
+{
+	color: #FFFFFF;
+	decorator: vertical-gradient(#E04848 #B82E2E);
+}
+
+.screen .modal-card.danger button.btn-cta:hover
+{
+	decorator: vertical-gradient(#F05A5A #C83838);
+}
+
+/* ---- 5:4 and 4:3 ------------------------------------------------------------------------------ */
+@media (max-aspect-ratio: 3/2)
+{
+	.detail-col { width: 360dp; }
+	.head-when, .save-when { flex-basis: 150dp; }
 }

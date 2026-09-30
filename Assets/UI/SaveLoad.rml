@@ -2,64 +2,143 @@
 <head>
 	<title>SaveLoad</title>
 	<link type="text/rcss" href="common.rcss"/>
-	<link type="text/rcss" href="GameSetup.rcss"/>
 	<link type="text/rcss" href="SaveLoad.rcss"/>
 </head>
-<body data-model="saveload" data-class-popup="is_popup" data-event-keydown="key_down">
-	<mappedimage class="shell-background" name="MainMenuRuler" data-if="!is_popup"/>
+<!-- SaveLoad.wnd (the main menu's Load Game, a shell screen) and PopupSaveLoad.wnd (the in-game
+     Save/Load over the game, body.popup): the saves down the left, the selected one's card on the
+     right, the confirmations as modal cards. -->
+<body class="screen" data-model="saveload" data-class-popup="is_popup" data-event-keydown="key_down">
+	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
-	<div class="sl-frame">
-		<div class="shell-title-bar"><gametext key="GUI:SelectAGame"/></div>
+	<div class="screen-frame">
+		<div class="screen-header">
+			<div class="screen-heading">
+				<div class="screen-crumb" data-if="!is_popup"><gametext key="GUI:ReplayMenu"/><span class="crumb-sep">&#8250;</span></div>
+				<div class="screen-title" data-if="!is_popup"><gametext key="GUI:LoadGame"/></div>
+				<div class="screen-title" data-if="is_popup"><gametext key="GUI:SelectAGame"/></div>
+			</div>
+		</div>
 
-		<div class="sl-list scroll-container">
-			<div data-for="row : rows">
-				<div class="list-row flex map-row sl-row" data-class-selected="row.selected" data-class-locked="list_locked"
-					data-event-click="select_row(row.index)" data-event-dblclick="activate_row(row.index)">
-					<div class="sl-name" data-style-color="row.color_hex">{{row.name}}</div>
-					<div class="sl-time" data-style-color="row.color_hex">{{row.time}}</div>
-					<div class="sl-date" data-style-color="row.color_hex">{{row.date}}</div>
+		<div class="screen-body">
+			<!-- Every save, newest first: its name, where it is (campaign and mission, or the map)
+			     and when. Mission saves (the automatic one at a mission's start) are marked. -->
+			<div class="col col-main surface saves">
+				<div class="list-head">
+					<div class="head-name overline"><gametext key="GUI:Description"/></div>
+					<div class="head-when overline"><gametext key="GUI:SaveDate"/></div>
+				</div>
+				<div class="save-list">
+					<div data-for="row : rows">
+						<div class="row-item save-row" data-class-selected="row.selected" data-class-locked="list_locked" data-class-new="row.is_new"
+							data-class-mission-save="row.is_mission_save"
+							data-event-click="select_row(row.index)" data-event-dblclick="activate_row(row.index)">
+							<div class="save-mark" data-if="row.is_new">+</div>
+							<div class="save-main" data-if="row.is_new">
+								<div class="save-name"><gametext key="GUI:GONewSave"/></div>
+								<div class="save-sub"><gametext key="GUI:EnterSaveDesc"/></div>
+							</div>
+							<div class="save-main" data-if="!row.is_new">
+								<div class="save-name">{{row.name}}</div>
+								<div class="save-sub">
+									<span class="chip-label good save-chip" data-if="row.is_mission_save"><gametext key="GUI:GOMissionStart"/></span><span data-if="row.campaign != ''">{{row.campaign}}</span><span class="save-sep" data-if="row.mission > 0">&#183;</span><span data-if="row.mission > 0"><gametext key="GUI:GOMission"/> {{row.mission}}</span><span class="save-sep" data-if="row.campaign != ''">&#183;</span><span>{{row.map}}</span>
+								</div>
+							</div>
+							<div class="save-when" data-if="!row.is_new">
+								<div class="save-date">{{row.date}}</div>
+								<div class="save-time">{{row.time}}</div>
+							</div>
+						</div>
+					</div>
+					<div class="empty-state" data-if="rows.size == 0"><gametext key="GUI:GONoSaves"/></div>
+				</div>
+			</div>
+
+			<div class="col col-side detail-col">
+				<div class="surface detail">
+					<div class="overline group-title"><gametext key="GUI:GameInfo"/></div>
+					<div class="detail-body" data-if="has_selection &amp;&amp; !sel.is_new">
+						<div class="detail-kind">
+							<span class="chip-label accent" data-if="sel.campaign != ''"><gametext key="GUI:Campaign"/></span>
+							<span class="chip-label" data-if="sel.campaign == ''"><gametext key="GUI:Skirmish"/></span>
+							<span class="chip-label good" data-if="sel.is_mission_save"><gametext key="GUI:GOMissionStart"/></span>
+						</div>
+						<div class="detail-name">{{sel.name}}</div>
+						<div class="facts">
+							<div class="fact" data-if="sel.campaign != ''"><div class="stat-label"><gametext key="GUI:Campaign"/></div><div class="fact-value">{{sel.campaign}}</div></div>
+							<div class="fact" data-if="sel.mission > 0"><div class="stat-label"><gametext key="GUI:GOMission"/></div><div class="fact-value">{{sel.mission}}</div></div>
+							<div class="fact"><div class="stat-label"><gametext key="GUI:GOMap"/></div><div class="fact-value">{{sel.map}}</div></div>
+							<div class="fact-row">
+								<div class="fact"><div class="stat-label"><gametext key="GUI:SaveDate"/></div><div class="fact-value">{{sel.date}}</div></div>
+								<div class="fact"><div class="stat-label"><gametext key="GUI:SaveTime"/></div><div class="fact-value">{{sel.time}}</div></div>
+							</div>
+						</div>
+					</div>
+					<div class="detail-body" data-if="has_selection &amp;&amp; sel.is_new">
+						<div class="detail-new-mark">+</div>
+						<div class="detail-name"><gametext key="GUI:GONewSave"/></div>
+						<div class="detail-hint"><gametext key="GUI:EnterSaveDesc"/></div>
+					</div>
+					<div class="empty-state" data-if="!has_selection"><gametext key="GUI:GONoSaves"/></div>
 				</div>
 			</div>
 		</div>
 
-		<div class="sl-buttons">
-			<button class="btn-primary" data-attrif-disabled="save_disabled" data-event-click="save"><gametext key="GUI:SaveGame"/></button>
-			<button class="btn-primary" data-attrif-disabled="load_disabled" data-event-click="load"><gametext key="GUI:LoadGame"/></button>
-			<button class="btn-primary" data-attrif-disabled="delete_disabled" data-event-click="delete"><gametext key="GUI:DeleteGame"/></button>
-			<button class="btn-primary" data-attrif-disabled="back_disabled" data-event-click="back"><gametext key="GUI:Back"/></button>
+		<div class="action-bar">
+			<button class="btn-back" data-attrif-disabled="back_disabled" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
+			<div class="spacer"></div>
+			<button data-attrif-disabled="delete_disabled" data-event-click="delete"><gametext key="GUI:DeleteGame"/></button>
+			<button data-if="is_popup" data-attrif-disabled="save_disabled" data-event-click="save"><gametext key="GUI:SaveGame"/></button>
+			<button class="btn-cta" data-attrif-disabled="load_disabled" data-event-click="load"><gametext key="GUI:LoadGame"/></button>
 		</div>
 	</div>
 
-	<div class="sl-dialog sl-dialog-load" data-if="show_load_confirm">
-		<div class="sl-message"><gametext key="GUI:LoadGameConfirmation"/></div>
-		<div class="sl-dialog-buttons">
-			<button class="btn-primary" data-event-click="confirm_load"><gametext key="GUI:LoadGame"/></button>
-			<button class="btn-primary" data-event-click="cancel_load"><gametext key="GUI:Cancel"/></button>
+	<!-- Confirmations and the save name: modal cards on a scrim over the whole screen. -->
+	<div class="modal-scrim" data-if="show_load_confirm">
+		<div class="modal-card">
+			<div class="modal-title"><gametext key="GUI:LoadGame"/></div>
+			<div class="modal-message"><gametext key="GUI:LoadGameConfirmation"/></div>
+			<div class="modal-actions">
+				<button class="btn-back" data-event-click="cancel_load"><gametext key="GUI:Cancel"/></button>
+				<div class="spacer"></div>
+				<button class="btn-cta" data-event-click="confirm_load"><gametext key="GUI:LoadGame"/></button>
+			</div>
 		</div>
 	</div>
 
-	<div class="sl-dialog" data-if="show_overwrite_confirm">
-		<div class="sl-message"><gametext key="GUI:OverwriteSaveConfirmation"/></div>
-		<div class="sl-dialog-buttons">
-			<button class="btn-primary" data-event-click="confirm_overwrite"><gametext key="GUI:SaveGame"/></button>
-			<button class="btn-primary" data-event-click="cancel_overwrite"><gametext key="GUI:Cancel"/></button>
+	<div class="modal-scrim" data-if="show_overwrite_confirm">
+		<div class="modal-card">
+			<div class="modal-title"><gametext key="GUI:SaveGame"/></div>
+			<div class="modal-message"><gametext key="GUI:OverwriteSaveConfirmation"/></div>
+			<div class="modal-actions">
+				<button class="btn-back" data-event-click="cancel_overwrite"><gametext key="GUI:Cancel"/></button>
+				<div class="spacer"></div>
+				<button class="btn-cta" data-event-click="confirm_overwrite"><gametext key="GUI:SaveGame"/></button>
+			</div>
 		</div>
 	</div>
 
-	<div class="sl-dialog" data-if="show_save_desc">
-		<div class="sl-message sl-message-entry"><gametext key="GUI:EnterSaveDesc"/></div>
-		<input type="text" class="text-input sl-input" data-value="description" data-attr-maxlength="description_max"/>
-		<div class="sl-dialog-buttons">
-			<button class="btn-primary" data-event-click="confirm_save_desc"><gametext key="GUI:SaveGame"/></button>
-			<button class="btn-primary" data-event-click="cancel_save_desc"><gametext key="GUI:Cancel"/></button>
+	<div class="modal-scrim" data-if="show_save_desc">
+		<div class="modal-card">
+			<div class="modal-title"><gametext key="GUI:SaveGame"/></div>
+			<div class="overline modal-label"><gametext key="GUI:EnterSaveDesc"/></div>
+			<input type="text" class="text-input modal-input" data-value="description" data-attr-maxlength="description_max"/>
+			<div class="modal-actions">
+				<button class="btn-back" data-event-click="cancel_save_desc"><gametext key="GUI:Cancel"/></button>
+				<div class="spacer"></div>
+				<button class="btn-cta" data-event-click="confirm_save_desc"><gametext key="GUI:SaveGame"/></button>
+			</div>
 		</div>
 	</div>
 
-	<div class="sl-dialog" data-if="show_delete_confirm">
-		<div class="sl-message"><gametext key="GUI:ConfirmDelete"/></div>
-		<div class="sl-dialog-buttons">
-			<button class="btn-primary" data-event-click="confirm_delete"><gametext key="GUI:Yes"/></button>
-			<button class="btn-primary" data-event-click="cancel_delete"><gametext key="GUI:No"/></button>
+	<div class="modal-scrim" data-if="show_delete_confirm">
+		<div class="modal-card danger">
+			<div class="modal-title"><gametext key="GUI:DeleteGame"/></div>
+			<div class="modal-message"><gametext key="GUI:ConfirmDelete"/></div>
+			<div class="modal-actions">
+				<button class="btn-back" data-event-click="cancel_delete"><gametext key="GUI:No"/></button>
+				<div class="spacer"></div>
+				<button class="btn-cta" data-event-click="confirm_delete"><gametext key="GUI:Yes"/></button>
+			</div>
 		</div>
 	</div>
 </body>
