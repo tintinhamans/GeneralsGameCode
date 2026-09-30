@@ -657,7 +657,7 @@ void RmlOnlineLobbyScreen::onRoomListResult(bool success)
 
 	// Same error line WOLLobbyMenu.cpp adds to its chat listbox.
 	if (!success)
-		onChatLine(TheGameText->fetch("GUI:GONoRooms"), GameMakeColor(255, 0, 0, 255));
+		onChatLine(TheGameText->fetch("GO:GUI:NoRooms"), GameMakeColor(255, 0, 0, 255));
 }
 
 void RmlOnlineLobbyScreen::onLobbyJoinResult(int result)
@@ -820,7 +820,7 @@ void RmlOnlineLobbyScreen::onPlayerRowMouseDown(Rml::DataModelHandle, Rml::Event
 		{
 			// WOLBuddyOverlay.cpp's setUnignoreText() overwrites ButtonIgnore's text with this exact
 			// hardcoded (non-GUI:-key) literal under GENERALS_ONLINE; mirrored verbatim, not localized.
-			menuItem.label = unicodeToUtf8(TheGameText->fetch(m_playerMenuTarget.isIgnored ? "GUI:GODockUnblock" : "GUI:GOBlock"));
+			menuItem.label = unicodeToUtf8(TheGameText->fetch(m_playerMenuTarget.isIgnored ? "GO:GUI:DockUnblock" : "GO:GUI:Block"));
 		}
 		else
 		{

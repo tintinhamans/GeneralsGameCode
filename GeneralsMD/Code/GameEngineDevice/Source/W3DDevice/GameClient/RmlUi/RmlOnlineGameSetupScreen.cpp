@@ -108,7 +108,7 @@ static Rml::String connectionTooltipFor(const OnlineGameSetupConnectionInfo &inf
 		tooltip += info.m_region + " - ";
 	if (!info.m_connectionType.empty())
 		tooltip += info.m_connectionType + " - ";
-	return tooltip + unicodeToUtf8(TheGameText->fetchFormat("GUI:GOPingQuality", info.m_latencyMs, info.m_qualityPct));
+	return tooltip + unicodeToUtf8(TheGameText->fetchFormat("GO:GUI:PingQuality", info.m_latencyMs, info.m_qualityPct));
 }
 
 //-------------------------------------------------------------------------------------------------

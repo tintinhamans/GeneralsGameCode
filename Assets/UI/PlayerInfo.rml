@@ -59,7 +59,7 @@
 			<button class="btn-back" data-event-click="close"><span class="chevron">&#8249;</span><gametext key="GUI:Hide"/></button>
 			<div class="spacer"></div>
 			<!-- The .wnd hardcodes L"LOGOUT" (buttonDeleteAccount->winSetText); here it is a GO string. -->
-			<button data-event-click="logout" data-if="show_logout"><gametext key="GUI:GOLogout"/></button>
+			<button data-event-click="logout" data-if="show_logout"><gametext key="GO:GUI:Logout"/></button>
 		</div>
 	</div>
 </body>

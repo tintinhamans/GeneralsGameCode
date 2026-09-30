@@ -32,10 +32,10 @@
 						<button class="icon-btn refresh" data-event-click="refresh"><mappedimage name="LobbyRefresh"/></button>
 						<div class="seg">
 							<button class="seg-item" data-class-on="filter_is_all" data-event-click="set_filter(0)"><gametext key="GUI:Any"/></button>
-							<button class="seg-item" data-class-on="filter_is_1v1" data-event-click="set_filter(1)"><gametext key="GUI:GOFilter1v1"/></button>
+							<button class="seg-item" data-class-on="filter_is_1v1" data-event-click="set_filter(1)"><gametext key="GO:GUI:Filter1v1"/></button>
 							<button class="seg-item" data-class-on="filter_is_team" data-event-click="set_filter(2)"><gametext key="GUI:Team"/></button>
-							<button class="seg-item" data-class-on="filter_is_ffa" data-event-click="set_filter(3)"><gametext key="GUI:GOFilterFFA"/></button>
-							<button class="seg-item" data-class-on="filter_is_aod" data-event-click="set_filter(4)"><gametext key="GUI:GOFilterAOD"/></button>
+							<button class="seg-item" data-class-on="filter_is_ffa" data-event-click="set_filter(3)"><gametext key="GO:GUI:FilterFFA"/></button>
+							<button class="seg-item" data-class-on="filter_is_aod" data-event-click="set_filter(4)"><gametext key="GO:GUI:FilterAOD"/></button>
 							<button class="seg-item" data-class-on="filter_is_buddies" data-event-click="set_filter(5)"><gametext key="GUI:SortBuddies"/></button>
 						</div>
 						<div class="spacer"></div>

@@ -215,7 +215,7 @@ std::vector<QuickMatchData::ComboOption> getLadderOptions()
 	std::vector<QuickMatchData::ComboOption> options;
 
 	QuickMatchData::ComboOption option;
-	option.label = TheGameText->fetch( "GUI:GOAutoLadder" );
+	option.label = TheGameText->fetch( "GO:GUI:AutoLadder" );
 	option.value = 0;
 	option.initiallySelected = TRUE;
 	options.push_back( option );

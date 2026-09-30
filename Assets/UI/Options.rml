@@ -36,7 +36,7 @@
 					<div class="opt-head"><gametext key="GO:GUI:OptionsDisplay"/></div>
 					<!-- The UI text language (Generals Online's settings.json); the options are filled in C++. -->
 					<div class="opt-row">
-						<div class="opt-text"><div class="opt-label"><gametext key="GUI:GOLanguage"/></div><div class="opt-desc"><gametext key="GUI:GOLanguageRestart"/></div></div>
+						<div class="opt-text"><div class="opt-label"><gametext key="GO:GUI:Language"/></div><div class="opt-desc"><gametext key="GO:GUI:LanguageRestart"/></div></div>
 						<div class="opt-control"><select id="select_language" data-value="text_language"></select></div>
 					</div>
 					<div class="opt-row" data-class-disabled="restricted">
@@ -55,9 +55,9 @@
 						<div class="opt-control">
 							<select data-value="anti_aliasing">
 								<option value="0"><gametext key="GUI:AntiAliasing0"/></option>
-								<option value="1"><gametext key="GUI:GOMSAA2"/></option>
-								<option value="2"><gametext key="GUI:GOMSAA4"/></option>
-								<option value="3"><gametext key="GUI:GOMSAA8"/></option>
+								<option value="1"><gametext key="GO:GUI:MSAA2"/></option>
+								<option value="2"><gametext key="GO:GUI:MSAA4"/></option>
+								<option value="3"><gametext key="GO:GUI:MSAA8"/></option>
 							</select>
 						</div>
 					</div>
@@ -65,9 +65,9 @@
 						<div class="opt-text"><div class="opt-label"><gametext key="GO:GUI:TextureFiltering"/></div></div>
 						<div class="opt-control">
 							<select data-value="texture_filter">
-								<option value="0"><gametext key="GUI:GOBilinear"/></option>
-								<option value="1"><gametext key="GUI:GOTrilinear"/></option>
-								<option value="2"><gametext key="GUI:GOAnisotropic"/></option>
+								<option value="0"><gametext key="GO:GUI:Bilinear"/></option>
+								<option value="1"><gametext key="GO:GUI:Trilinear"/></option>
+								<option value="2"><gametext key="GO:GUI:Anisotropic"/></option>
 							</select>
 						</div>
 					</div>

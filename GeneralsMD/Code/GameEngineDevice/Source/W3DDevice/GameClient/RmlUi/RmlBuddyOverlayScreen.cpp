@@ -394,7 +394,7 @@ void RmlBuddyOverlayScreen::openContextMenu( const OnlineLobbyData::PlayerRow &t
 		if (item.action == OnlineLobbyData::PLAYERMENU_TOGGLE_IGNORE)
 		{
 			// setUnignoreText()'s exact hardcoded (non-GUI:-key) literal, mirrored verbatim.
-			menuItem.label = unicodeToUtf8(TheGameText->fetch(m_menuTarget.isIgnored ? "GUI:GODockUnblock" : "GUI:GOBlock"));
+			menuItem.label = unicodeToUtf8(TheGameText->fetch(m_menuTarget.isIgnored ? "GO:GUI:DockUnblock" : "GO:GUI:Block"));
 		}
 		else
 		{

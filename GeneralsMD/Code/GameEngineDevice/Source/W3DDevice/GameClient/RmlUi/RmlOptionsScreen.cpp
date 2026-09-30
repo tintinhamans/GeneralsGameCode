@@ -333,7 +333,7 @@ void RmlOptionsScreen::populateSelectOptions()
 		[customLevel](int i)
 		{
 			// The .wnd's comboBoxDetail labels (OptionsMenu.cpp), which the LOD names only stand in for.
-			static const char *const levelKeys[] = { "GUI:Low", "GUI:Medium", "GUI:High", "GUI:GOVeryHigh" };
+			static const char *const levelKeys[] = { "GUI:Low", "GUI:Medium", "GUI:High", "GO:GUI:VeryHigh" };
 			if (i == customLevel)
 				return Rml::String("<gametext key=\"GUI:Custom\"/>");
 			if (i >= 0 && i < (int)(sizeof(levelKeys) / sizeof(levelKeys[0])))
@@ -346,7 +346,7 @@ void RmlOptionsScreen::populateSelectOptions()
 		[](int i)
 		{
 			if (i == 0)
-				return Rml::String("<gametext key=\"GUI:GOLanguageInstalled\"/>");
+				return Rml::String("<gametext key=\"GO:GUI:LanguageInstalled\"/>");
 			return unicodeToUtf8(OptionsValues::GetTextLanguageChoiceName(i));
 		});
 

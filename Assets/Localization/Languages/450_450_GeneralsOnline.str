@@ -8,7 +8,7 @@
 // These are MACHINE TRANSLATIONS, not yet reviewed by native speakers. Corrections from the
 // community are welcome; keep each label's placeholders (%d, %s) as they are.
 
-GUI:GONoMapsForFilter
+GO:GUI:NoMapsForFilter
 DE: "Keine Karten für diese Spielerzahl"
 FR: "Aucune carte pour ce nombre de joueurs"
 ES: "No hay mapas para este número de jugadores"
@@ -21,7 +21,7 @@ RU: "Нет карт для такого числа игроков"
 AR: "لا توجد خرائط لهذا العدد من اللاعبين"
 END
 
-GUI:GONoGames
+GO:GUI:NoGames
 DE: "Noch keine Spiele in diesem Raum"
 FR: "Aucune partie dans ce salon pour l'instant"
 ES: "Aún no hay partidas en esta sala"
@@ -34,7 +34,7 @@ RU: "В этой комнате пока нет игр"
 AR: "لا توجد ألعاب في هذه الغرفة بعد"
 END
 
-GUI:GODockFriends
+GO:GUI:DockFriends
 DE: "Freunde"
 FR: "Amis"
 ES: "Amigos"
@@ -47,7 +47,7 @@ RU: "Друзья"
 AR: "الأصدقاء"
 END
 
-GUI:GODockBlocked
+GO:GUI:DockBlocked
 DE: "Blockiert"
 FR: "Bloqués"
 ES: "Bloqueados"
@@ -60,7 +60,7 @@ RU: "Игнор"
 AR: "المحظورون"
 END
 
-GUI:GODockRequests
+GO:GUI:DockRequests
 DE: "Freundschaftsanfragen"
 FR: "Demandes d'ami"
 ES: "Solicitudes de amistad"
@@ -73,7 +73,7 @@ RU: "Заявки в друзья"
 AR: "طلبات الصداقة"
 END
 
-GUI:GODockLobby
+GO:GUI:DockLobby
 DE: "In deiner Lobby"
 FR: "Dans ton salon"
 ES: "En tu sala"
@@ -86,7 +86,7 @@ RU: "В вашем лобби"
 AR: "في ردهتك"
 END
 
-GUI:GODockRecent
+GO:GUI:DockRecent
 DE: "Zuletzt gespielt mit"
 FR: "Joué récemment avec"
 ES: "Jugaste recientemente con"
@@ -99,7 +99,7 @@ RU: "Недавние соперники"
 AR: "لعبت معهم مؤخراً"
 END
 
-GUI:GODockNoFriends
+GO:GUI:DockNoFriends
 DE: "Noch keine Freunde. Rechtsklicke in einer Lobby auf einen Spieler, um eine Freundschaftsanfrage zu senden."
 FR: "Pas encore d'amis. Fais un clic droit sur un joueur dans un salon pour lui envoyer une demande d'ami."
 ES: "Aún no tienes amigos. Haz clic derecho sobre un jugador en una sala para enviarle una solicitud de amistad."
@@ -112,7 +112,7 @@ RU: "Друзей пока нет. Щёлкните правой кнопкой 
 AR: "لا يوجد أصدقاء بعد. انقر بزر الفأرة الأيمن على لاعب في الردهة لإرسال طلب صداقة."
 END
 
-GUI:GODockNoBlocked
+GO:GUI:DockNoBlocked
 DE: "Niemand ist blockiert."
 FR: "Personne n'est bloqué."
 ES: "No hay nadie bloqueado."
@@ -125,7 +125,7 @@ RU: "Никто не заблокирован."
 AR: "لا يوجد أحد محظور."
 END
 
-GUI:GODockUnblock
+GO:GUI:DockUnblock
 DE: "Entblocken"
 FR: "Débloquer"
 ES: "Desbloquear"
@@ -138,7 +138,7 @@ RU: "Разблокировать"
 AR: "إلغاء الحظر"
 END
 
-GUI:GOMenuOffline
+GO:GUI:MenuOffline
 DE: "Offline"
 FR: "Hors ligne"
 ES: "Sin conexión"
@@ -151,7 +151,7 @@ RU: "Не в сети"
 AR: "غير متصل"
 END
 
-GUI:GOVersion
+GO:GUI:Version
 DE: "Version"
 FR: "Version"
 ES: "Versión"
@@ -164,7 +164,7 @@ RU: "Версия"
 AR: "الإصدار"
 END
 
-GUI:GOStatusTitle
+GO:GUI:StatusTitle
 DE: "Generals Online"
 FR: "Generals Online"
 ES: "Generals Online"
@@ -177,7 +177,7 @@ RU: "Generals Online"
 AR: "Generals Online"
 END
 
-GUI:GOAddAI
+GO:GUI:AddAI
 DE: "KI hinzufügen"
 FR: "Ajouter une IA"
 ES: "Añadir IA"
@@ -190,7 +190,7 @@ RU: "Добавить ИИ"
 AR: "إضافة ذكاء اصطناعي"
 END
 
-GUI:GODockRoom
+GO:GUI:DockRoom
 DE: "Lobby"
 FR: "Salon"
 ES: "Sala"
@@ -203,7 +203,7 @@ RU: "Лобби"
 AR: "الردهة"
 END
 
-GUI:GOHost
+GO:GUI:Host
 DE: "Host"
 FR: "Hôte"
 ES: "Anfitrión"
@@ -216,7 +216,7 @@ RU: "Хост"
 AR: "المضيف"
 END
 
-GUI:GOReady
+GO:GUI:Ready
 DE: "Bereit"
 FR: "Prêt"
 ES: "Listo"
@@ -229,7 +229,7 @@ RU: "Готов"
 AR: "جاهز"
 END
 
-GUI:GONoMap
+GO:GUI:NoMap
 DE: "Keine Karte"
 FR: "Aucune carte"
 ES: "Sin mapa"
@@ -242,7 +242,7 @@ RU: "Нет карты"
 AR: "لا توجد خريطة"
 END
 
-GUI:GOStartingIn
+GO:GUI:StartingIn
 DE: "Start in"
 FR: "Début dans"
 ES: "Empieza en"
@@ -255,7 +255,7 @@ RU: "Начало через"
 AR: "تبدأ خلال"
 END
 
-GUI:GOWaitingForHost
+GO:GUI:WaitingForHost
 DE: "Warten auf den Start durch den Host"
 FR: "En attente du lancement par l'hôte"
 ES: "Esperando a que el anfitrión empiece"
@@ -268,7 +268,7 @@ RU: "Ожидание запуска хостом"
 AR: "في انتظار أن يبدأ المضيف"
 END
 
-GUI:GOOptionsDisplay
+GO:GUI:OptionsDisplay
 DE: "Anzeige"
 FR: "Affichage"
 ES: "Pantalla"
@@ -281,7 +281,7 @@ RU: "Экран"
 AR: "العرض"
 END
 
-GUI:GOOptionsGraphics
+GO:GUI:OptionsGraphics
 DE: "Grafik"
 FR: "Graphismes"
 ES: "Gráficos"
@@ -294,7 +294,7 @@ RU: "Графика"
 AR: "الرسوميات"
 END
 
-GUI:GOOptionsControls
+GO:GUI:OptionsControls
 DE: "Steuerung"
 FR: "Commandes"
 ES: "Controles"
@@ -307,7 +307,7 @@ RU: "Управление"
 AR: "التحكم"
 END
 
-GUI:GOTextureFiltering
+GO:GUI:TextureFiltering
 DE: "Texturfilterung"
 FR: "Filtrage des textures"
 ES: "Filtrado de texturas"
@@ -320,7 +320,7 @@ RU: "Фильтрация текстур"
 AR: "تنقية الأنسجة"
 END
 
-GUI:GOAnisotropy
+GO:GUI:Anisotropy
 DE: "Anisotropie"
 FR: "Anisotropie"
 ES: "Anisotropía"
@@ -333,7 +333,7 @@ RU: "Анизотропия"
 AR: "التباين الاتجاهي"
 END
 
-GUI:GOTextureResolution
+GO:GUI:TextureResolution
 DE: "Texturauflösung"
 FR: "Résolution des textures"
 ES: "Resolución de texturas"
@@ -346,7 +346,7 @@ RU: "Разрешение текстур"
 AR: "دقة الأنسجة"
 END
 
-GUI:GOParticleCap
+GO:GUI:ParticleCap
 DE: "Partikelgrenze"
 FR: "Limite de particules"
 ES: "Límite de partículas"
@@ -359,7 +359,7 @@ RU: "Лимит частиц"
 AR: "حد الجسيمات"
 END
 
-GUI:GOGameNameLabel
+GO:GUI:GameNameLabel
 DE: "Spielname"
 FR: "Nom de la partie"
 ES: "Nombre de la partida"
@@ -372,7 +372,7 @@ RU: "Название игры"
 AR: "اسم اللعبة"
 END
 
-GUI:GOPasswordRequired
+GO:GUI:PasswordRequired
 DE: "Dieses Spiel ist passwortgeschützt."
 FR: "Cette partie est protégée par un mot de passe."
 ES: "Esta partida está protegida con contraseña."
@@ -385,7 +385,7 @@ RU: "Эта игра защищена паролем."
 AR: "هذه اللعبة محمية بكلمة مرور."
 END
 
-GUI:GOGameMenu
+GO:GUI:GameMenu
 DE: "Spielmenü"
 FR: "Menu du jeu"
 ES: "Menú del juego"
@@ -398,7 +398,7 @@ RU: "Меню игры"
 AR: "قائمة اللعبة"
 END
 
-GUI:GOQMPlaylist
+GO:GUI:QMPlaylist
 DE: "Playlist"
 FR: "Playlist"
 ES: "Lista de juego"
@@ -411,7 +411,7 @@ RU: "Плейлист"
 AR: "قائمة التشغيل"
 END
 
-GUI:GOQMReady
+GO:GUI:QMReady
 DE: "Bereit"
 FR: "Prêt"
 ES: "Listo"
@@ -424,7 +424,7 @@ RU: "Готов"
 AR: "جاهز"
 END
 
-GUI:GOQMReadyHint
+GO:GUI:QMReadyHint
 DE: "Wähle eine Playlist und in den Einstellungen die Karten, die du spielen willst, und starte dann die Spielersuche."
 FR: "Choisis une playlist et, dans Configuration, les cartes que tu veux jouer, puis lance la recherche."
 ES: "Elige una lista de juego y, en Configuración, los mapas que jugarás; después empieza a buscar partida."
@@ -437,7 +437,7 @@ RU: "Выберите плейлист и в настройках карты, н
 AR: "اختر قائمة التشغيل والخرائط التي ستلعبها من الإعداد، ثم ابدأ البحث عن مباراة."
 END
 
-GUI:GOQMSearching
+GO:GUI:QMSearching
 DE: "Suche nach einem Spiel"
 FR: "Recherche d'une partie"
 ES: "Buscando partida"
@@ -450,7 +450,7 @@ RU: "Поиск матча"
 AR: "جارٍ البحث عن مباراة"
 END
 
-GUI:GOQMElapsed
+GO:GUI:QMElapsed
 DE: "Zeit in der Warteschlange"
 FR: "Temps d'attente"
 ES: "Tiempo en cola"
@@ -463,7 +463,7 @@ RU: "Время в очереди"
 AR: "الوقت في قائمة الانتظار"
 END
 
-GUI:GOMap
+GO:GUI:Map
 DE: "Karte"
 FR: "Carte"
 ES: "Mapa"
@@ -476,7 +476,7 @@ RU: "Карта"
 AR: "الخريطة"
 END
 
-GUI:GOInProgress
+GO:GUI:InProgress
 DE: "Läuft"
 FR: "En cours"
 ES: "En curso"
@@ -489,7 +489,7 @@ RU: "Идёт игра"
 AR: "قيد التقدم"
 END
 
-GUI:GONoLanGames
+GO:GUI:NoLanGames
 DE: "Noch keine Spiele in deinem Netzwerk"
 FR: "Aucune partie sur ton réseau pour l'instant"
 ES: "Aún no hay partidas en tu red"
@@ -502,7 +502,7 @@ RU: "В вашей сети пока нет игр"
 AR: "لا توجد ألعاب على شبكتك بعد"
 END
 
-GUI:GOMission
+GO:GUI:Mission
 DE: "Mission"
 FR: "Mission"
 ES: "Misión"
@@ -515,7 +515,7 @@ RU: "Миссия"
 AR: "المهمة"
 END
 
-GUI:GOMissionStart
+GO:GUI:MissionStart
 DE: "Missionsbeginn"
 FR: "Début de mission"
 ES: "Inicio de la misión"
@@ -528,7 +528,7 @@ RU: "Начало миссии"
 AR: "بداية المهمة"
 END
 
-GUI:GONewSave
+GO:GUI:NewSave
 DE: "Neuer Spielstand"
 FR: "Nouvelle sauvegarde"
 ES: "Nueva partida guardada"
@@ -541,7 +541,7 @@ RU: "Новое сохранение"
 AR: "حفظ جديد"
 END
 
-GUI:GONoSaves
+GO:GUI:NoSaves
 DE: "Noch keine Spielstände"
 FR: "Aucune sauvegarde pour l'instant"
 ES: "Aún no hay partidas guardadas"
@@ -554,7 +554,7 @@ RU: "Сохранений пока нет"
 AR: "لا توجد ألعاب محفوظة بعد"
 END
 
-GUI:GOReplay
+GO:GUI:Replay
 DE: "Wiederholung"
 FR: "Rediffusion"
 ES: "Repetición"
@@ -567,7 +567,7 @@ RU: "Запись"
 AR: "الإعادة"
 END
 
-GUI:GODuration
+GO:GUI:Duration
 DE: "Dauer"
 FR: "Durée"
 ES: "Duración"
@@ -580,7 +580,7 @@ RU: "Длительность"
 AR: "المدة"
 END
 
-GUI:GOVersionMismatch
+GO:GUI:VersionMismatch
 DE: "Mit einer anderen Spielversion aufgenommen"
 FR: "Enregistrée avec une autre version du jeu"
 ES: "Grabada con otra versión del juego"
@@ -593,7 +593,7 @@ RU: "Записано в другой версии игры"
 AR: "مسجّلة بإصدار آخر من اللعبة"
 END
 
-GUI:GOMapMissing
+GO:GUI:MapMissing
 DE: "Karte nicht installiert"
 FR: "Carte non installée"
 ES: "Mapa no instalado"
@@ -606,7 +606,7 @@ RU: "Карта не установлена"
 AR: "الخريطة غير مثبتة"
 END
 
-GUI:GONoReplays
+GO:GUI:NoReplays
 DE: "Noch keine Wiederholungen"
 FR: "Aucune rediffusion pour l'instant"
 ES: "Aún no hay repeticiones"
@@ -619,7 +619,7 @@ RU: "Записей пока нет"
 AR: "لا توجد إعادات بعد"
 END
 
-GUI:GOReplayName
+GO:GUI:ReplayName
 DE: "Name der Wiederholung"
 FR: "Nom de la rediffusion"
 ES: "Nombre de la repetición"
@@ -632,7 +632,7 @@ RU: "Название записи"
 AR: "اسم الإعادة"
 END
 
-GUI:GOScoreMap
+GO:GUI:ScoreMap
 DE: "Karte"
 FR: "Carte"
 ES: "Mapa"
@@ -645,7 +645,7 @@ RU: "Карта"
 AR: "الخريطة"
 END
 
-GUI:GOScoreGameTime
+GO:GUI:ScoreGameTime
 DE: "Spielzeit"
 FR: "Durée de la partie"
 ES: "Tiempo de juego"
@@ -658,7 +658,7 @@ RU: "Время игры"
 AR: "وقت اللعب"
 END
 
-GUI:GOChallengeHint
+GO:GUI:ChallengeHint
 DE: "Wähle einen General, um sein Dossier zu lesen, und drücke dann „Spiel starten“, um ihn durch die Herausforderung zu führen."
 FR: "Choisis un général pour lire son dossier, puis appuie sur Jouer pour le mener à travers le défi."
 ES: "Elige un general para leer su expediente y pulsa Jugar para guiarlo en el desafío."
@@ -671,7 +671,7 @@ RU: "Выберите генерала, чтобы прочитать его д�
 AR: "اختر جنرالاً لقراءة ملفه، ثم اضغط بدء اللعبة لتقوده خلال التحدي."
 END
 
-GUI:GODownloadingUpdate
+GO:GUI:DownloadingUpdate
 DE: "Update wird heruntergeladen"
 FR: "Téléchargement de la mise à jour"
 ES: "Descargando actualización"
@@ -684,7 +684,7 @@ RU: "Загрузка обновления"
 AR: "جارٍ تنزيل التحديث"
 END
 
-GUI:GOVotes
+GO:GUI:Votes
 DE: "Stimmen"
 FR: "Votes"
 ES: "Votos"
@@ -697,7 +697,7 @@ RU: "Голоса"
 AR: "الأصوات"
 END
 
-GUI:GOTimeout
+GO:GUI:Timeout
 DE: "Zeitüberschreitung"
 FR: "Délai"
 ES: "Tiempo de espera"
@@ -710,7 +710,7 @@ RU: "Тайм-аут"
 AR: "المهلة"
 END
 
-GUI:GOCreateLobbyFailed
+GO:GUI:CreateLobbyFailed
 DE: "Die Lobby konnte nicht erstellt werden. Bitte versuche es erneut."
 FR: "Impossible de créer le salon. Réessaie."
 ES: "No se pudo crear la sala. Inténtalo de nuevo."
@@ -723,7 +723,7 @@ RU: "Не удалось создать лобби. Попробуйте ещё 
 AR: "تعذّر إنشاء الردهة. يرجى المحاولة مرة أخرى."
 END
 
-GUI:GOStartSpot
+GO:GUI:StartSpot
 DE: "Start"
 FR: "Départ"
 ES: "Inicio"
@@ -736,7 +736,7 @@ RU: "Старт"
 AR: "البداية"
 END
 
-GUI:GOBioBranch
+GO:GUI:BioBranch
 DE: "Waffengattung"
 FR: "Arme"
 ES: "Rama"
@@ -749,7 +749,7 @@ RU: "Род войск"
 AR: "الفرع"
 END
 
-GUI:GOBioTactics
+GO:GUI:BioTactics
 DE: "Taktik"
 FR: "Tactique"
 ES: "Táctica"
@@ -762,7 +762,7 @@ RU: "Тактика"
 AR: "التكتيك"
 END
 
-GUI:GOChallengeYou
+GO:GUI:ChallengeYou
 DE: "Dein General"
 FR: "Ton général"
 ES: "Tu general"
@@ -775,7 +775,7 @@ RU: "Ваш генерал"
 AR: "جنرالك"
 END
 
-GUI:GOChallengeOpponent
+GO:GUI:ChallengeOpponent
 DE: "Gegner"
 FR: "Adversaire"
 ES: "Rival"
@@ -788,7 +788,7 @@ RU: "Противник"
 AR: "الخصم"
 END
 
-GUI:GOMenuPlayersOnline
+GO:GUI:MenuPlayersOnline
 DE: "%d online"
 FR: "%d en ligne"
 ES: "%d en línea"
@@ -801,7 +801,7 @@ RU: "В сети: %d"
 AR: "%d متصل"
 END
 
-GUI:GOMenuSoloDesc
+GO:GUI:MenuSoloDesc
 DE: "Kampagne, Gefecht und Generals-Herausforderung"
 FR: "Campagne, escarmouche et défi des généraux"
 ES: "Campaña, escaramuza y desafío de los generales"
@@ -814,7 +814,7 @@ RU: "Кампания, схватка и испытание генералов"
 AR: "الحملة والمناوشة وتحدي الجنرالات"
 END
 
-GUI:GOMenuMultiDesc
+GO:GUI:MenuMultiDesc
 DE: "Online- und LAN-Gefechte"
 FR: "Batailles en ligne et en réseau local"
 ES: "Batallas en línea y en LAN"
@@ -827,7 +827,7 @@ RU: "Сражения по сети и в LAN"
 AR: "معارك عبر الإنترنت والشبكة المحلية"
 END
 
-GUI:GOMenuLoadDesc
+GO:GUI:MenuLoadDesc
 DE: "Spielstände und Wiederholungen"
 FR: "Sauvegardes et rediffusions"
 ES: "Partidas guardadas y repeticiones"
@@ -840,7 +840,7 @@ RU: "Сохранения и записи"
 AR: "الألعاب المحفوظة والإعادات"
 END
 
-GUI:GOMenuOptionsDesc
+GO:GUI:MenuOptionsDesc
 DE: "Grafik, Audio und Steuerung"
 FR: "Vidéo, audio et commandes"
 ES: "Vídeo, audio y controles"
@@ -853,7 +853,7 @@ RU: "Видео, звук и управление"
 AR: "الفيديو والصوت والتحكم"
 END
 
-GUI:GOMenuCreditsDesc
+GO:GUI:MenuCreditsDesc
 DE: "Die Menschen hinter dem Spiel"
 FR: "Les personnes derrière le jeu"
 ES: "Las personas detrás del juego"
@@ -866,7 +866,7 @@ RU: "Люди, создавшие игру"
 AR: "الأشخاص وراء اللعبة"
 END
 
-GUI:GOMenuSkirmishDesc
+GO:GUI:MenuSkirmishDesc
 DE: "Kämpfe auf jeder Karte gegen die KI"
 FR: "Affronte l'IA sur n'importe quelle carte"
 ES: "Lucha contra la IA en cualquier mapa"
@@ -879,7 +879,7 @@ RU: "Сражайтесь с ИИ на любой карте"
 AR: "قاتل الذكاء الاصطناعي على أي خريطة"
 END
 
-GUI:GOMenuChallengeDesc
+GO:GUI:MenuChallengeDesc
 DE: "Besiege die Generäle einen nach dem anderen"
 FR: "Bats les généraux un par un"
 ES: "Derrota a los generales uno a uno"
@@ -892,7 +892,7 @@ RU: "Одолейте генералов одного за другим"
 AR: "اهزم الجنرالات واحداً تلو الآخر"
 END
 
-GUI:GOMenuOnlineDesc
+GO:GUI:MenuOnlineDesc
 DE: "Ranglisten- und eigene Spiele auf Generals Online"
 FR: "Parties classées et personnalisées sur Generals Online"
 ES: "Partidas clasificatorias y personalizadas en Generals Online"
@@ -905,7 +905,7 @@ RU: "Рейтинговые и пользовательские игры в Gene
 AR: "ألعاب مصنّفة ومخصصة على Generals Online"
 END
 
-GUI:GOMenuNetworkDesc
+GO:GUI:MenuNetworkDesc
 DE: "Über dein lokales Netzwerk spielen"
 FR: "Joue sur ton réseau local"
 ES: "Juega en tu red local"
@@ -918,7 +918,7 @@ RU: "Играйте по локальной сети"
 AR: "العب عبر شبكتك المحلية"
 END
 
-GUI:GOMenuLoadGameDesc
+GO:GUI:MenuLoadGameDesc
 DE: "Eine gespeicherte Mission fortsetzen"
 FR: "Reprends une mission sauvegardée"
 ES: "Reanuda una misión guardada"
@@ -931,7 +931,7 @@ RU: "Продолжить сохранённую миссию"
 AR: "استأنف مهمة محفوظة"
 END
 
-GUI:GOMenuReplayDesc
+GO:GUI:MenuReplayDesc
 DE: "Sieh dir deine aufgezeichneten Gefechte an"
 FR: "Regarde tes batailles enregistrées"
 ES: "Mira tus batallas grabadas"
@@ -944,7 +944,7 @@ RU: "Смотрите записи своих сражений"
 AR: "شاهد معاركك المسجّلة"
 END
 
-GUI:GOMenuEasyDesc
+GO:GUI:MenuEasyDesc
 DE: "Für neue Kommandeure"
 FR: "Pour les nouveaux commandants"
 ES: "Para comandantes novatos"
@@ -957,7 +957,7 @@ RU: "Для новых командиров"
 AR: "للقادة الجدد"
 END
 
-GUI:GOMenuMediumDesc
+GO:GUI:MenuMediumDesc
 DE: "Ein fairer Kampf"
 FR: "Un combat équitable"
 ES: "Una lucha justa"
@@ -970,7 +970,7 @@ RU: "Честный бой"
 AR: "قتال متكافئ"
 END
 
-GUI:GOMenuHardDesc
+GO:GUI:MenuHardDesc
 DE: "Keine Gnade für Veteranen"
 FR: "Aucune pitié pour les vétérans"
 ES: "Sin piedad para los veteranos"
@@ -983,7 +983,7 @@ RU: "Никакой пощады ветеранам"
 AR: "لا رحمة للمحاربين القدامى"
 END
 
-GUI:GORules
+GO:GUI:Rules
 DE: "Regeln"
 FR: "Règles"
 ES: "Reglas"
@@ -996,7 +996,7 @@ RU: "Правила"
 AR: "القواعد"
 END
 
-GUI:GOFillWithAI
+GO:GUI:FillWithAI
 DE: "Mit KI auffüllen"
 FR: "Compléter avec l'IA"
 ES: "Completar con IA"
@@ -1009,7 +1009,7 @@ RU: "Заполнить ИИ"
 AR: "املأ بالذكاء الاصطناعي"
 END
 
-GUI:GOUnusedSlots
+GO:GUI:UnusedSlots
 DE: "Auf dieser Karte nicht verwendet"
 FR: "Inutilisé sur cette carte"
 ES: "Sin uso en este mapa"
@@ -1022,7 +1022,7 @@ RU: "Не используется на этой карте"
 AR: "غير مستخدم في هذه الخريطة"
 END
 
-GUI:GONoTeam
+GO:GUI:NoTeam
 DE: "Kein Team"
 FR: "Aucune équipe"
 ES: "Sin equipo"
@@ -1035,7 +1035,7 @@ RU: "Без команды"
 AR: "بلا فريق"
 END
 
-GUI:GOReadyToStart
+GO:GUI:ReadyToStart
 DE: "Startbereit"
 FR: "Prêt à commencer"
 ES: "Listo para empezar"
@@ -1048,7 +1048,7 @@ RU: "Готово к началу"
 AR: "جاهز للبدء"
 END
 
-GUI:GOWaitingForAccepts
+GO:GUI:WaitingForAccepts
 DE: "Warten, bis alle Spieler zustimmen"
 FR: "En attente de l'accord de tous les joueurs"
 ES: "Esperando a que todos los jugadores acepten"
@@ -1061,7 +1061,7 @@ RU: "Ожидание согласия всех игроков"
 AR: "في انتظار موافقة جميع اللاعبين"
 END
 
-GUI:GOMapCount
+GO:GUI:MapCount
 DE: "%d von %d Karten"
 FR: "%d cartes sur %d"
 ES: "%d de %d mapas"
@@ -1074,7 +1074,7 @@ RU: "Карт: %d из %d"
 AR: "%d من %d خرائط"
 END
 
-GUI:GOSearchMaps
+GO:GUI:SearchMaps
 DE: "Suchen"
 FR: "Rechercher"
 ES: "Buscar"
@@ -1087,7 +1087,7 @@ RU: "Поиск"
 AR: "بحث"
 END
 
-GUI:GOSortBy
+GO:GUI:SortBy
 DE: "Sortieren"
 FR: "Trier"
 ES: "Ordenar"
@@ -1100,7 +1100,7 @@ RU: "Сортировка"
 AR: "ترتيب"
 END
 
-GUI:GOSortName
+GO:GUI:SortName
 DE: "Name"
 FR: "Nom"
 ES: "Nombre"
@@ -1113,7 +1113,7 @@ RU: "Название"
 AR: "الاسم"
 END
 
-GUI:GONoMapsMatch
+GO:GUI:NoMapsMatch
 DE: "Keine Karten passen zu deiner Suche"
 FR: "Aucune carte ne correspond à ta recherche"
 ES: "Ningún mapa coincide con tu búsqueda"
@@ -1126,7 +1126,7 @@ RU: "Нет карт по вашему запросу"
 AR: "لا توجد خرائط تطابق بحثك"
 END
 
-GUI:GOChallengeVersus
+GO:GUI:ChallengeVersus
 DE: "VS"
 FR: "VS"
 ES: "VS"
@@ -1139,7 +1139,7 @@ RU: "VS"
 AR: "ضد"
 END
 
-GUI:GOLanguage
+GO:GUI:Language
 DE: "Spielsprache"
 FR: "Langue du jeu"
 ES: "Idioma del juego"
@@ -1152,7 +1152,7 @@ RU: "Язык игры"
 AR: "لغة اللعبة"
 END
 
-GUI:GOLanguageInstalled
+GO:GUI:LanguageInstalled
 DE: "Installierte Sprache"
 FR: "Langue installée"
 ES: "Idioma instalado"
@@ -1165,7 +1165,7 @@ RU: "Язык установки"
 AR: "اللغة المثبتة"
 END
 
-GUI:GOLanguageRestart
+GO:GUI:LanguageRestart
 DE: "Wird beim nächsten Spielstart wirksam."
 FR: "Prend effet au prochain lancement du jeu."
 ES: "Se aplica la próxima vez que inicies el juego."
@@ -1178,7 +1178,7 @@ RU: "Вступит в силу при следующем запуске игр�
 AR: "يسري التغيير عند تشغيل اللعبة في المرة القادمة."
 END
 
-GUI:GOMSAA2
+GO:GUI:MSAA2
 DE: "2x MSAA"
 FR: "2x MSAA"
 ES: "2x MSAA"
@@ -1191,7 +1191,7 @@ RU: "2x MSAA"
 AR: "2x MSAA"
 END
 
-GUI:GOMSAA4
+GO:GUI:MSAA4
 DE: "4x MSAA"
 FR: "4x MSAA"
 ES: "4x MSAA"
@@ -1204,7 +1204,7 @@ RU: "4x MSAA"
 AR: "4x MSAA"
 END
 
-GUI:GOMSAA8
+GO:GUI:MSAA8
 DE: "8x MSAA"
 FR: "8x MSAA"
 ES: "8x MSAA"
@@ -1217,7 +1217,7 @@ RU: "8x MSAA"
 AR: "8x MSAA"
 END
 
-GUI:GOBilinear
+GO:GUI:Bilinear
 DE: "Bilinear"
 FR: "Bilinéaire"
 ES: "Bilineal"
@@ -1230,7 +1230,7 @@ RU: "Билинейная"
 AR: "ثنائي الخطية"
 END
 
-GUI:GOTrilinear
+GO:GUI:Trilinear
 DE: "Trilinear"
 FR: "Trilinéaire"
 ES: "Trilineal"
@@ -1243,7 +1243,7 @@ RU: "Трилинейная"
 AR: "ثلاثي الخطية"
 END
 
-GUI:GOAnisotropic
+GO:GUI:Anisotropic
 DE: "Anisotrop"
 FR: "Anisotrope"
 ES: "Anisotrópico"
@@ -1256,7 +1256,7 @@ RU: "Анизотропная"
 AR: "متباين الاتجاه"
 END
 
-GUI:GOVeryHigh
+GO:GUI:VeryHigh
 DE: "Sehr hoch"
 FR: "Très élevé"
 ES: "Muy alto"
@@ -1269,7 +1269,7 @@ RU: "Очень высокое"
 AR: "عالٍ جداً"
 END
 
-GUI:GOFilter1v1
+GO:GUI:Filter1v1
 DE: "1v1"
 FR: "1c1"
 ES: "1c1"
@@ -1282,7 +1282,7 @@ RU: "1×1"
 AR: "1ض1"
 END
 
-GUI:GOFilterFFA
+GO:GUI:FilterFFA
 DE: "FFA"
 FR: "Mêlée"
 ES: "Todos"
@@ -1295,7 +1295,7 @@ RU: "FFA"
 AR: "الكل ضد الكل"
 END
 
-GUI:GOFilterAOD
+GO:GUI:FilterAOD
 DE: "AOD"
 FR: "AOD"
 ES: "AOD"
@@ -1308,7 +1308,7 @@ RU: "AOD"
 AR: "AOD"
 END
 
-GUI:GOMs
+GO:GUI:Ms
 DE: "ms"
 FR: "ms"
 ES: "ms"
@@ -1321,7 +1321,7 @@ RU: "мс"
 AR: "مللي ث"
 END
 
-GUI:GOLogout
+GO:GUI:Logout
 DE: "ABMELDEN"
 FR: "DÉCONNEXION"
 ES: "CERRAR SESIÓN"
@@ -1334,7 +1334,7 @@ RU: "ВЫЙТИ"
 AR: "تسجيل الخروج"
 END
 
-GUI:GOLogoutTitle
+GO:GUI:LogoutTitle
 DE: "Abmelden"
 FR: "Déconnexion"
 ES: "Cerrar sesión"
@@ -1347,7 +1347,7 @@ RU: "Выход"
 AR: "تسجيل الخروج"
 END
 
-GUI:GOLogoutConfirm
+GO:GUI:LogoutConfirm
 DE: "Möchtest du dich wirklich abmelden?"
 FR: "Veux-tu vraiment te déconnecter ?"
 ES: "¿Seguro que quieres cerrar sesión?"
@@ -1360,7 +1360,7 @@ RU: "Вы действительно хотите выйти?"
 AR: "هل أنت متأكد أنك تريد تسجيل الخروج؟"
 END
 
-GUI:GOStartMatchmaking
+GO:GUI:StartMatchmaking
 DE: "SPIELERSUCHE STARTEN"
 FR: "LANCER LA RECHERCHE"
 ES: "BUSCAR PARTIDA"
@@ -1373,7 +1373,7 @@ RU: "НАЧАТЬ ПОИСК"
 AR: "بدء البحث عن مباراة"
 END
 
-GUI:GOCancelMatchmaking
+GO:GUI:CancelMatchmaking
 DE: "SUCHE ABBRECHEN"
 FR: "ANNULER LA RECHERCHE"
 ES: "CANCELAR BÚSQUEDA"
@@ -1386,7 +1386,7 @@ RU: "ОТМЕНИТЬ ПОИСК"
 AR: "إلغاء البحث"
 END
 
-GUI:GOQMWelcome
+GO:GUI:QMWelcome
 DE: "Willkommen bei QuickMatch. Wähle „Einstellungen“, um Playlists und Karten auszuwählen."
 FR: "Bienvenue dans QuickMatch. Choisis Configuration pour sélectionner les playlists et les cartes."
 ES: "Bienvenido a QuickMatch. Elige Configuración para seleccionar listas y mapas."
@@ -1399,7 +1399,7 @@ RU: "Добро пожаловать в QuickMatch. Выберите «Наст�
 AR: "مرحباً بك في المباراة السريعة. اختر الإعداد لتحديد قوائم التشغيل والخرائط."
 END
 
-GUI:GOQMThanks
+GO:GUI:QMThanks
 DE: "Besonderer Dank an die Kartenbauer Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich, die QuickMatch möglich gemacht haben."
 FR: "Merci tout particulièrement aux créateurs de cartes Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich qui ont rendu QuickMatch possible."
 ES: "Agradecimiento especial a los creadores de mapas Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy y Bamovich por hacer posible QuickMatch."
@@ -1412,7 +1412,7 @@ RU: "Особая благодарность авторам карт Tanso, ReLa
 AR: "شكر خاص لصانعي الخرائط Tanso وReLaX وcncHD وSpecovik وMp3 وJundiyy وBamovich لجعل المباراة السريعة ممكنة."
 END
 
-GUI:GOQMMinMaps
+GO:GUI:QMMinMaps
 DE: "Du musst mindestens %d Karten auswählen."
 FR: "Tu dois sélectionner au moins %d cartes."
 ES: "Debes seleccionar al menos %d mapas."
@@ -1425,7 +1425,7 @@ RU: "Нужно выбрать не менее %d карт."
 AR: "يجب أن تختار %d خرائط على الأقل."
 END
 
-GUI:GOQMStartFailed
+GO:GUI:QMStartFailed
 DE: "Die Spielersuche konnte nicht gestartet werden."
 FR: "Impossible de lancer la recherche."
 ES: "No se pudo iniciar la búsqueda de partida."
@@ -1438,7 +1438,7 @@ RU: "Не удалось начать поиск."
 AR: "تعذّر بدء البحث عن مباراة."
 END
 
-GUI:GOBlock
+GO:GUI:Block
 DE: "Blockieren"
 FR: "Bloquer"
 ES: "Bloquear"
@@ -1451,7 +1451,7 @@ RU: "Заблокировать"
 AR: "حظر"
 END
 
-GUI:GOPingQuality
+GO:GUI:PingQuality
 DE: "Ping: %d ms - Qualität: %d%%"
 FR: "Ping : %d ms - Qualité : %d%%"
 ES: "Ping: %d ms - Calidad: %d%%"
@@ -1464,7 +1464,7 @@ RU: "Пинг: %d мс - Качество: %d%%"
 AR: "البينغ: %d مللي ث - الجودة: %d%%"
 END
 
-GUI:GONoRooms
+GO:GUI:NoRooms
 DE: "FEHLER: Keine Räume verfügbar. Melde dich erneut an."
 FR: "ERREUR : aucun salon disponible. Reconnecte-toi."
 ES: "ERROR: No hay salas disponibles. Vuelve a iniciar sesión."
@@ -1477,7 +1477,7 @@ RU: "ОШИБКА: нет доступных комнат. Попробуйте 
 AR: "خطأ: لا توجد غرف متاحة. حاول تسجيل الدخول مرة أخرى."
 END
 
-GUI:GOBuddySelectFriend
+GO:GUI:BuddySelectFriend
 DE: "Wähle einen Freund, um zu chatten"
 FR: "Choisis un ami pour discuter"
 ES: "Elige un amigo para chatear"
@@ -1490,7 +1490,7 @@ RU: "Выберите друга, чтобы начать чат"
 AR: "اختر صديقاً لبدء الدردشة"
 END
 
-GUI:GOBuddyNotFriend
+GO:GUI:BuddyNotFriend
 DE: "Diese Person ist in deiner Lobby oder hat kürzlich mit dir gespielt, ist aber noch kein Freund, daher kannst du nicht mit ihr chatten. Mit einem Rechtsklick kannst du sie hinzufügen oder blockieren."
 FR: "Cette personne est dans ton salon ou a joué récemment avec toi, mais n'est pas encore ton amie : tu ne peux pas discuter avec elle. Fais un clic droit pour l'ajouter ou la bloquer."
 ES: "Esta persona está en tu sala o jugó contigo recientemente, pero aún no es tu amiga, así que no puedes chatear con ella. Haz clic derecho para agregarla o bloquearla."
@@ -1503,7 +1503,7 @@ RU: "Этот игрок в вашем лобби или недавно игра
 AR: "هذا الشخص في ردهتك أو لعب معك مؤخراً لكنه ليس صديقاً بعد، لذا لا يمكنك الدردشة معه. انقر بزر الفأرة الأيمن لإضافته أو حظره."
 END
 
-GUI:GOBuddyPending
+GO:GUI:BuddyPending
 DE: "Das ist eine offene Freundschaftsanfrage. Du kannst erst chatten, wenn du sie annimmst."
 FR: "C'est une demande d'ami en attente. Tu ne peux pas discuter avant de l'accepter."
 ES: "Es una solicitud de amistad pendiente. No puedes chatear hasta aceptarla."
@@ -1516,7 +1516,7 @@ RU: "Это входящая заявка в друзья. Общаться мо
 AR: "هذا طلب صداقة معلّق. لا يمكنك الدردشة مع اللاعب حتى تقبله."
 END
 
-GUI:GOBuddyEmpty
+GO:GUI:BuddyEmpty
 DE: "Dieser Chat ist leer. Schreib eine Nachricht, um das Gespräch zu beginnen"
 FR: "Cette discussion est vide. Envoie un message pour commencer"
 ES: "Este chat está vacío. Envía un mensaje para empezar una conversación"
@@ -1529,7 +1529,7 @@ RU: "Чат пуст. Отправьте сообщение, чтобы нача
 AR: "هذه الدردشة فارغة. أرسل رسالة لبدء محادثة"
 END
 
-GUI:GOWelcomeName
+GO:GUI:WelcomeName
 DE: "Willkommen bei Generals Online, %s"
 FR: "Bienvenue sur Generals Online, %s"
 ES: "Bienvenido a Generals Online, %s"
@@ -1542,7 +1542,7 @@ RU: "Добро пожаловать в Generals Online, %s"
 AR: "مرحباً بك في Generals Online يا %s"
 END
 
-GUI:GOWinRateOf
+GO:GUI:WinRateOf
 DE: "%d%% (%d von %d)"
 FR: "%d%% (%d sur %d)"
 ES: "%d%% (%d de %d)"
@@ -1555,7 +1555,7 @@ RU: "%d%% (%d из %d)"
 AR: "%d%% (%d من %d)"
 END
 
-GUI:GOGamesQM
+GO:GUI:GamesQM
 DE: "%d (%d QM)"
 FR: "%d (%d QM)"
 ES: "%d (%d QM)"
@@ -1568,7 +1568,7 @@ RU: "%d (%d QM)"
 AR: "%d (%d QM)"
 END
 
-GUI:GOWinsElo
+GO:GUI:WinsElo
 DE: "%d (Elo: %d)"
 FR: "%d (Elo : %d)"
 ES: "%d (Elo: %d)"
@@ -1581,7 +1581,7 @@ RU: "%d (Эло: %d)"
 AR: "%d (Elo: %d)"
 END
 
-GUI:GOWorldSeriesElo
+GO:GUI:WorldSeriesElo
 DE: "World-Series-Elo:"
 FR: "Elo World Series :"
 ES: "Elo World Series:"
@@ -1594,7 +1594,7 @@ RU: "Эло World Series:"
 AR: "تصنيف Elo لبطولة World Series:"
 END
 
-GUI:GOAutoLadder
+GO:GUI:AutoLadder
 DE: "Automatische Rangliste"
 FR: "Classement automatique"
 ES: "Clasificación automática"

@@ -96,7 +96,7 @@
 								<div class="prow-state" data-if="!row.can_edit_occupant &amp;&amp; !row.is_human_occupant"><gametext key="GUI:Open" data-if="row.occupant_state == 0"/><gametext key="GUI:Closed" data-if="row.occupant_state == 1"/><gametext key="GUI:EasyAI" data-if="row.occupant_state == 2"/><gametext key="GUI:MediumAI" data-if="row.occupant_state == 3"/><gametext key="GUI:HardAI" data-if="row.occupant_state == 4"/></div>
 									<!-- Under the name: the connection, who lacks the map, hosts, is ready. -->
 									<div class="prow-sub" data-if="row.is_human_occupant">
-								<div class="conn" data-if="!row.is_local" data-class-connected="row.is_connected" data-attr-data-tooltip-text="row.connection_tooltip"><span class="conn-dot"></span><span class="conn-ms" data-if="row.latency_ms &gt;= 0">{{row.latency_ms}} <gametext key="GUI:GOMs"/></span></div>
+								<div class="conn" data-if="!row.is_local" data-class-connected="row.is_connected" data-attr-data-tooltip-text="row.connection_tooltip"><span class="conn-dot"></span><span class="conn-ms" data-if="row.latency_ms &gt;= 0">{{row.latency_ms}} <gametext key="GO:GUI:Ms"/></span></div>
 										<div class="chip-label warn" data-if="!row.has_map"><gametext key="GO:GUI:NoMap"/></div>
 										<div class="chip-label accent" data-if="row.is_host_slot"><gametext key="GO:GUI:Host"/></div>
 										<div class="chip-label good" data-if="!row.is_host_slot &amp;&amp; row.accepted" data-tooltip="TOOLTIP:GameAcceptance"><gametext key="GO:GUI:Ready"/></div>

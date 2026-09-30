@@ -861,7 +861,7 @@ void RmlSocialDock::openContextMenu(const OnlineLobbyData::PlayerRow &target, Rm
 		MenuItemModel &menuItem = m_menuList.next();
 		menuItem.action = (int)item.action;
 		if (item.action == OnlineLobbyData::PLAYERMENU_TOGGLE_IGNORE)
-			menuItem.label = unicodeToUtf8(TheGameText->fetch(m_menuTarget.isIgnored ? "GUI:GODockUnblock" : "GUI:GOBlock"));
+			menuItem.label = unicodeToUtf8(TheGameText->fetch(m_menuTarget.isIgnored ? "GO:GUI:DockUnblock" : "GO:GUI:Block"));
 		else
 			menuItem.label = fetchUtf8(item.labelKey.c_str());
 	}

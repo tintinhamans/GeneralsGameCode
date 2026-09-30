@@ -355,146 +355,146 @@ GO:GUI:HudReplay
 "REPLAY"
 END
 
-GUI:GOLanguage
+GO:GUI:Language
 "Game language"
 END
 
-GUI:GOLanguageInstalled
+GO:GUI:LanguageInstalled
 "Installed language"
 END
 
-GUI:GOLanguageRestart
+GO:GUI:LanguageRestart
 "Takes effect the next time you start the game."
 END
 
-GUI:GOMSAA2
+GO:GUI:MSAA2
 "2x MSAA"
 END
 
-GUI:GOMSAA4
+GO:GUI:MSAA4
 "4x MSAA"
 END
 
-GUI:GOMSAA8
+GO:GUI:MSAA8
 "8x MSAA"
 END
 
-GUI:GOBilinear
+GO:GUI:Bilinear
 "Bilinear"
 END
 
-GUI:GOTrilinear
+GO:GUI:Trilinear
 "Trilinear"
 END
 
-GUI:GOAnisotropic
+GO:GUI:Anisotropic
 "Anisotropic"
 END
 
-GUI:GOVeryHigh
+GO:GUI:VeryHigh
 "Very High"
 END
 
-GUI:GOFilter1v1
+GO:GUI:Filter1v1
 "1v1"
 END
 
-GUI:GOFilterFFA
+GO:GUI:FilterFFA
 "FFA"
 END
 
-GUI:GOFilterAOD
+GO:GUI:FilterAOD
 "AOD"
 END
 
-GUI:GOMs
+GO:GUI:Ms
 "ms"
 END
 
-GUI:GOLogout
+GO:GUI:Logout
 "LOG OUT"
 END
 
-GUI:GOLogoutTitle
+GO:GUI:LogoutTitle
 "Log Out"
 END
 
-GUI:GOLogoutConfirm
+GO:GUI:LogoutConfirm
 "Are you sure you want to log out?"
 END
 
-GUI:GOStartMatchmaking
+GO:GUI:StartMatchmaking
 "START MATCHMAKING"
 END
 
-GUI:GOCancelMatchmaking
+GO:GUI:CancelMatchmaking
 "CANCEL MATCHMAKING"
 END
 
-GUI:GOQMWelcome
+GO:GUI:QMWelcome
 "Welcome to QuickMatch. Choose Setup to select playlists and maps."
 END
 
-GUI:GOQMThanks
+GO:GUI:QMThanks
 "Special thanks to map makers Tanso, ReLaX, cncHD, Specovik, Mp3, Jundiyy & Bamovich for making quickmatch possible."
 END
 
-GUI:GOQMMinMaps
+GO:GUI:QMMinMaps
 "You must select at least %d maps."
 END
 
-GUI:GOQMStartFailed
+GO:GUI:QMStartFailed
 "Failed to start matchmaking."
 END
 
-GUI:GOBlock
+GO:GUI:Block
 "Block"
 END
 
-GUI:GOPingQuality
+GO:GUI:PingQuality
 "Ping: %d ms - Quality: %d%%"
 END
 
-GUI:GONoRooms
+GO:GUI:NoRooms
 "ERROR: No rooms are available. Try logging in again."
 END
 
-GUI:GOBuddySelectFriend
+GO:GUI:BuddySelectFriend
 "Select a friend to start chatting"
 END
 
-GUI:GOBuddyNotFriend
+GO:GUI:BuddyNotFriend
 "This person is in your lobby or recently played with you but is not a friend yet and cannot be chatted with. You can right click them to add or block them."
 END
 
-GUI:GOBuddyPending
+GO:GUI:BuddyPending
 "This is a pending friend request. You cannot chat with the player until you accept it."
 END
 
-GUI:GOBuddyEmpty
+GO:GUI:BuddyEmpty
 "This chat is empty. Send a message to start a conversation"
 END
 
-GUI:GOWelcomeName
+GO:GUI:WelcomeName
 "Welcome to Generals Online, %s"
 END
 
-GUI:GOWinRateOf
+GO:GUI:WinRateOf
 "%d%% (%d of %d)"
 END
 
-GUI:GOGamesQM
+GO:GUI:GamesQM
 "%d (%d QM)"
 END
 
-GUI:GOWinsElo
+GO:GUI:WinsElo
 "%d (Elo: %d)"
 END
 
-GUI:GOWorldSeriesElo
+GO:GUI:WorldSeriesElo
 "World Series Elo:"
 END
 
-GUI:GOAutoLadder
+GO:GUI:AutoLadder
 "Automatic Ladder"
 END
