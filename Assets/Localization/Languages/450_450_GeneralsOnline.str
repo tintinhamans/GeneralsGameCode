@@ -8,6 +8,11 @@
 // These are MACHINE TRANSLATIONS, not yet reviewed by native speakers. Corrections from the
 // community are welcome; keep each label's placeholders (%d, %s) as they are.
 
+// The main menu's label width: the Generals Game Patch Ukrainian "Multiplayer" is 23 letters.
+GUI:Multiplayer
+UK: "МЕРЕЖЕВА ГРА"
+END
+
 GO:GUI:NoMapsForFilter
 DE: "Keine Karten für diese Spielerzahl"
 FR: "Aucune carte pour ce nombre de joueurs"
