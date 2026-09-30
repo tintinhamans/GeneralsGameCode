@@ -26,7 +26,7 @@
 
 		<!-- Money, power, the buttons round the bar and the command grid, bottom centre -->
 		<div class="cb-centre">
-		<div class="cb-notch-row"><div class="cb-money" data-cb="i0" data-if="money_shown">{{money}}</div><div class="cb-money cb-money-none" data-if="!money_shown"></div></div>
+		<div class="cb-notch-row"><div class="cb-money" data-cb="i0" data-if="money_shown">{{money}}</div></div>
 		<div class="cb-panel cb-main">
 			<div class="cb-strip">
 				<div class="cb-power" data-cb="i1" data-if="power_shown" data-class-low-power="power_state == 1" data-class-no-power="power_state == 2">
@@ -123,7 +123,7 @@
 		<!-- The selection: name, portrait, veterancy and upgrades, or the build queue, and the general's experience, bottom right -->
 		<div class="cb-panel cb-unit">
 			<div class="cb-unit-head">
-				<div class="cb-tag"></div>
+				<div class="cb-tag" data-if="portrait_shown || queue_shown"></div>
 				<div class="cb-name" data-if="portrait_shown || queue_shown">{{name}}</div>
 				<div class="cb-count" data-if="select_count &gt; 1 &amp;&amp; (portrait_shown || queue_shown)">&#215;{{select_count}}</div>
 			</div>
