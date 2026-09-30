@@ -210,3 +210,11 @@ END
 GUI:GODownloadingUpdate
 "Downloading Update"
 END
+
+GUI:GOVotes
+"Votes"
+END
+
+GUI:GOTimeout
+"Timeout"
+END
