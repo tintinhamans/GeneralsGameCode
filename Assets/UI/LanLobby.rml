@@ -83,7 +83,7 @@
 					<div class="detail-body" data-if="details_valid">
 						<div class="detail-top">
 							<div class="map-frame detail-map">
-								<mappreview class="map-image" data-attr-map="details_map_path"/>
+								<mappreview class="map-image" sites="12" data-attr-map="details_map_path"/>
 							</div>
 							<div class="detail-text">
 								<div class="detail-name">{{details_game_name}}</div>

@@ -33,7 +33,9 @@
 //    positionStartSpots(). Start-position markers are NOT drawn by this
 //    element; they come from GameSetupData::m_options.m_startPositionMarkers,
 //    laid out by the screen's own data-for markup over this element (see
-//    Assets/UI/GameSetup.rcss).
+//    Assets/UI/GameSetup.rcss). With sites="<size in dp>" it also draws the
+//    map's supply docks and tech buildings, as W3DDrawMapPreview() does, under
+//    those markers.
 //  - <scrolllog>                  a scrolling text pane that follows its newest line (chat, status
 //    feed) -- see RmlScrollLogElement.
 //  - <video source="Name" fit="contain"/>  draws a movie the game decodes into a VideoBuffer and
@@ -46,6 +48,7 @@
 #include <RmlUi/Core/Element.h>
 #include <RmlUi/Core/Geometry.h>
 
+class MapMetaData;
 class VideoBuffer;
 struct IDirect3DTexture8;
 
@@ -102,6 +105,7 @@ protected:
 private:
 	void refresh();
 	void fitToAspect(float aspect);
+	void refreshSites(const MapMetaData *md);
 
 	// Rebuilt on update, after the parser has added any children (e.g. a <select> copying an option).
 	bool m_dirty = false;

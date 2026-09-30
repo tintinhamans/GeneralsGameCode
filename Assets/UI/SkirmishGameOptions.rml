@@ -25,7 +25,7 @@
 				<div class="hq-card su-hero">
 					<div class="hq-section"><span class="hq-index">01</span><gametext key="GUI:GOMap"/></div>
 					<div class="map-frame">
-						<mappreview class="map-image" fit="width" data-attr-map="map_name" data-if="map_found">
+						<mappreview class="map-image" fit="width" sites="16" data-attr-map="map_name" data-if="map_found">
 							<div data-for="marker : start_markers">
 								<div class="marker" data-if="marker.used" data-class-occupied="marker.is_occupied"
 									data-style-left="marker.x_style" data-style-top="marker.y_style" data-attr-data-tooltip-text="marker.tooltip"

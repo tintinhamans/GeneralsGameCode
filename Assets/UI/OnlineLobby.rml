@@ -97,7 +97,7 @@
 						<!-- The map beside the facts, so the member list keeps most of the card. -->
 						<div class="detail-head">
 							<div class="map-frame detail-map">
-								<mappreview class="map-image" data-attr-map="detail_map_path"/>
+								<mappreview class="map-image" sites="12" data-attr-map="detail_map_path"/>
 							</div>
 							<div class="facts">
 								<div class="fact"><div class="stat-label"><gametext key="GUI:Players"/></div><div class="fact-value">{{detail_players}}</div></div>

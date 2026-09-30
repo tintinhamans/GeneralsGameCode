@@ -37,6 +37,7 @@
 #include <RmlUi/Core/RenderManager.h>
 #include <RmlUi/Core/Variant.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <map>
 #include <windows.h>
@@ -79,6 +80,27 @@ void RmlGameTextElement::refresh()
 }
 
 //-------------------------------------------------------------------------------------------------
+// An <img> src/rect pair showing just this MappedImage's region of its atlas page.
+static void mappedImageSource(const Image *image, Rml::String &src, Rml::String &rect)
+{
+	// UV coords are normalized [0,1] over the atlas page; <img rect="..."> wants pixel
+	// coordinates (x y width height) in the fixed space LoadTexture reports for engine textures.
+	const Region2D *uv = image->getUV();
+	const float space = (float)RmlEngineTextureSpace;
+	int left = (int)(uv->lo.x * space + 0.5f);
+	int top = (int)(uv->lo.y * space + 0.5f);
+	int right = (int)(uv->hi.x * space + 0.5f);
+	int bottom = (int)(uv->hi.y * space + 0.5f);
+	RmlInsetTexelRect(left, top, right, bottom, image->getTextureSize()->x, image->getTextureSize()->y);
+
+	char buffer[64];
+	_snprintf_s(buffer, sizeof(buffer), _TRUNCATE, "%d %d %d %d", left, top, right - left, bottom - top);
+	// Leading '/' stops RmlUi from resolving the texture name against the document folder.
+	src = Rml::String("/") + image->getFilename().str();
+	rect = buffer;
+}
+
+//-------------------------------------------------------------------------------------------------
 RmlMappedImageElement::RmlMappedImageElement(const Rml::String &tag) : Rml::Element(tag)
 {
 }
@@ -114,23 +136,9 @@ void RmlMappedImageElement::refresh()
 	if (!image)
 		return;
 
-	// UV coords are normalized [0,1] over the atlas page; <img rect="..."> wants pixel
-	// coordinates (x y width height) in the fixed space LoadTexture reports for engine textures.
-	const Region2D *uv = image->getUV();
-	const float space = (float)RmlEngineTextureSpace;
-	int left = (int)(uv->lo.x * space + 0.5f);
-	int top = (int)(uv->lo.y * space + 0.5f);
-	int right = (int)(uv->hi.x * space + 0.5f);
-	int bottom = (int)(uv->hi.y * space + 0.5f);
-	RmlInsetTexelRect(left, top, right, bottom, image->getTextureSize()->x, image->getTextureSize()->y);
-
-	// Leading '/' stops RmlUi from resolving the texture name against the document folder.
-	char rml[512];
-	_snprintf_s(rml, sizeof(rml), _TRUNCATE,
-		"<img style=\"width:100%%;height:100%%;\" src=\"/%s\" rect=\"%d %d %d %d\"/>",
-		image->getFilename().str(), left, top, right - left, bottom - top);
-
-	SetInnerRML(rml);
+	Rml::String src, rect;
+	mappedImageSource(image, src, rect);
+	SetInnerRML("<img style=\"width:100%;height:100%;\" src=\"" + src + "\" rect=\"" + rect + "\"/>");
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -145,7 +153,7 @@ RmlMapPreviewElement::~RmlMapPreviewElement()
 void RmlMapPreviewElement::OnAttributeChange(const Rml::ElementAttributes &changed_attributes)
 {
 	Rml::Element::OnAttributeChange(changed_attributes);
-	if (changed_attributes.find("map") != changed_attributes.end())
+	if (changed_attributes.find("map") != changed_attributes.end() || changed_attributes.find("sites") != changed_attributes.end())
 		m_dirty = true;
 }
 
@@ -176,6 +184,7 @@ void RmlMapPreviewElement::refresh()
 	{
 		if (art)
 			RemoveChild(art);
+		refreshSites(nullptr);
 		fitToAspect(0.0f);
 		return;
 	}
@@ -200,9 +209,94 @@ void RmlMapPreviewElement::refresh()
 	art->SetAttribute("src", Rml::String("/") + image->getFilename().str());
 	art->SetAttribute("rect", Rml::String(rect));
 
+	refreshSites(TheMapCache ? TheMapCache->findMap(AsciiString(mapName.c_str())) : nullptr);
+
 	const float width = (uv->hi.x - uv->lo.x) * (float)image->getTextureSize()->x;
 	const float height = (uv->hi.y - uv->lo.y) * (float)image->getTextureSize()->y;
 	fitToAspect(height > 0.0f ? width / height : 0.0f);
+}
+
+// The supply docks and tech buildings W3DDrawMapPreview() draws over the map, placed as
+// positionAdditionalImages() places them: the start markers' world-to-preview fractions, the icon
+// shifted by the same fraction of its size, so it is centred mid-map and stays on the art at its edges
+// instead of hanging off. Tech buildings first and supplies over them, all before the markup's own
+// children so the start markers stay on top. Only with sites="<icon size in dp>".
+void RmlMapPreviewElement::refreshSites(const MapMetaData *md)
+{
+	for (Rml::Element *child = GetFirstChild(); child;)
+	{
+		Rml::Element *next = child->GetNextSibling();
+		if (child->IsClassSet("mp-site"))
+			RemoveChild(child);
+		child = next;
+	}
+
+	const float size = GetAttribute<float>("sites", 0.0f);
+	if (!md || size <= 0.0f || !TheMappedImageCollection)
+		return;
+
+	const float extentW = md->m_extent.hi.x - md->m_extent.lo.x;
+	const float extentH = md->m_extent.hi.y - md->m_extent.lo.y;
+	if (extentW <= 0.0f || extentH <= 0.0f)
+		return;
+
+	Rml::Element *before = GetFirstChild();
+	if (before && before->IsClassSet("mp-art"))
+		before = before->GetNextSibling();
+
+	char sizeValue[32];
+	_snprintf_s(sizeValue, sizeof(sizeValue), _TRUNCATE, "%.1fdp", size);
+
+	struct SiteKind
+	{
+		const Coord3DList *positions;
+		const char *image;
+		const char *className;
+		const char *tooltip; // MapSelectorTooltip()'s
+	};
+	const SiteKind kinds[] =
+	{
+		{ &md->m_techPositions, "TecBuilding", "mp-tech", "TOOLTIP:TechBuilding" },
+		{ &md->m_supplyPositions, "Cash", "mp-supply", "TOOLTIP:SupplyDock" },
+	};
+
+	for (const SiteKind &kind : kinds)
+	{
+		const Image *image = TheMappedImageCollection->findImageByName(kind.image);
+		if (!image)
+			continue;
+
+		Rml::String src, rect;
+		mappedImageSource(image, src, rect);
+		for (Coord3DList::const_iterator it = kind.positions->begin(); it != kind.positions->end(); ++it)
+		{
+			const float x = std::clamp((it->x - md->m_extent.lo.x) / extentW, 0.0f, 1.0f);
+			const float y = std::clamp(1.0f - (it->y - md->m_extent.lo.y) / extentH, 0.0f, 1.0f);
+			char left[32], top[32], marginLeft[32], marginTop[32];
+			_snprintf_s(left, sizeof(left), _TRUNCATE, "%.3f%%", x * 100.0f);
+			_snprintf_s(top, sizeof(top), _TRUNCATE, "%.3f%%", y * 100.0f);
+			_snprintf_s(marginLeft, sizeof(marginLeft), _TRUNCATE, "%.1fdp", -x * size);
+			_snprintf_s(marginTop, sizeof(marginTop), _TRUNCATE, "%.1fdp", -y * size);
+
+			Rml::ElementPtr site = GetOwnerDocument()->CreateElement("img");
+			site->SetClass("mp-site", true);
+			site->SetClass(kind.className, true);
+			site->SetAttribute("src", src);
+			site->SetAttribute("rect", rect);
+			site->SetAttribute("data-tooltip", Rml::String(kind.tooltip));
+			site->SetProperty("position", "absolute");
+			site->SetProperty("left", left);
+			site->SetProperty("top", top);
+			site->SetProperty("width", sizeValue);
+			site->SetProperty("height", sizeValue);
+			site->SetProperty("margin-left", marginLeft);
+			site->SetProperty("margin-top", marginTop);
+			if (before)
+				InsertBefore(std::move(site), before);
+			else
+				AppendChild(std::move(site));
+		}
+	}
 }
 
 // A map's own preview can have any shape and is never stretched. By default it is letterboxed,
