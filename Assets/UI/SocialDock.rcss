@@ -614,5 +614,7 @@ body
    (Spanish, Polish, Portuguese "Blocked"). */
 .screen .dock-tabs button.seg-item
 {
-	padding: 0 8dp;
+	padding: 0 6dp;
+	font-size: 17dp;
+	letter-spacing: 0;
 }

@@ -1184,7 +1184,13 @@
 /* German's one-word "Herausforderung" is wider than a narrow card at the full title size. */
 body[lang=de] .d-solo .hq-card-title
 {
-	font-size: 21dp;
+	font-size: 19dp;
+	letter-spacing: 0;
+}
+
+body[lang=de] .d-pick .hq-card-title
+{
+	font-size: 22dp;
 	letter-spacing: 0;
 }
 
