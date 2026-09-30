@@ -188,6 +188,7 @@ void RmlLanGameSetupScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("slot_color_picked", &RmlLanGameSetupScreen::onSlotColorPicked, this);
 		constructor.BindEventCallback("slot_team_picked", &RmlLanGameSetupScreen::onSlotTeamPicked, this);
 		constructor.BindEventCallback("starting_cash_picked", &RmlLanGameSetupScreen::onStartingCashPicked, this);
+		constructor.BindEventCallback("starting_cash_selected", &RmlLanGameSetupScreen::onStartingCashSelected, this);
 		constructor.BindEventCallback("slot_faction_changed", &RmlLanGameSetupScreen::onSlotFactionChanged, this);
 		constructor.BindEventCallback("slot_color_changed", &RmlLanGameSetupScreen::onSlotColorChanged, this);
 		constructor.BindEventCallback("slot_team_changed", &RmlLanGameSetupScreen::onSlotTeamChanged, this);
@@ -494,6 +495,18 @@ void RmlLanGameSetupScreen::onStartingCashPicked(Rml::DataModelHandle handle, Rm
 		return;
 	m_model.startingCash = args[0].Get<int>();
 	onStartingCashChanged(handle, ev, args);
+}
+
+// The dropdown for a long cash list. It also reports the value it is handed, so only a different
+// amount counts as a pick.
+void RmlLanGameSetupScreen::onStartingCashSelected(Rml::DataModelHandle handle, Rml::Event &ev, const Rml::VariantList &)
+{
+	const int amount = atoi(ev.GetParameter<Rml::String>("value", "").c_str());
+	if (amount <= 0 || amount == m_model.startingCash)
+		return;
+	Rml::VariantList args;
+	args.push_back(Rml::Variant(amount));
+	onStartingCashPicked(handle, ev, args);
 }
 
 void RmlLanGameSetupScreen::onSlotFactionChanged(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &args)

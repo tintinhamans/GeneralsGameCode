@@ -191,6 +191,17 @@ GameSetupData GameSetupData::build( GameInfo *game, Bool allowObservers )
 			option.m_label = FormatStartingCashLabel( *it );
 			options.m_startingCashOptions.push_back( option );
 		}
+
+		Bool listed = FALSE;
+		for( size_t i = 0; i < options.m_startingCashOptions.size() && !listed; ++i )
+			listed = options.m_startingCashOptions[i].m_amount == options.m_startingCash.countMoney();
+		if( !listed && options.m_startingCash.countMoney() > 0 )
+		{
+			GameSetupStartingCashOption option;
+			option.m_amount = options.m_startingCash.countMoney();
+			option.m_label = FormatStartingCashLabel( options.m_startingCash );
+			options.m_startingCashOptions.push_back( option );
+		}
 	}
 
 	return data;

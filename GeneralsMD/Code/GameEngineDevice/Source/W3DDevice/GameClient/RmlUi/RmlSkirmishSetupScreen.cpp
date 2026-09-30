@@ -145,6 +145,7 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 		constructor.BindEventCallback("slot_color_picked", &RmlSkirmishSetupScreen::onSlotColorPicked, this);
 		constructor.BindEventCallback("slot_team_picked", &RmlSkirmishSetupScreen::onSlotTeamPicked, this);
 		constructor.BindEventCallback("starting_cash_picked", &RmlSkirmishSetupScreen::onStartingCashPicked, this);
+		constructor.BindEventCallback("starting_cash_selected", &RmlSkirmishSetupScreen::onStartingCashSelected, this);
 		constructor.BindEventCallback("start_marker_clicked", &RmlSkirmishSetupScreen::onStartPositionMarkerClick, this);
 		constructor.BindEventCallback("start_marker_mousedown", &RmlSkirmishSetupScreen::onStartPositionMarkerMouseDown, this);
 		constructor.BindEventCallback("starting_cash_changed", &RmlSkirmishSetupScreen::onStartingCashChanged, this);
@@ -418,6 +419,18 @@ void RmlSkirmishSetupScreen::onStartingCashPicked(Rml::DataModelHandle, Rml::Eve
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("starting_cash");
 	onStartingCashChanged(m_modelHandle, ev, args);
+}
+
+// The dropdown for a long cash list. It also reports the value it is handed, so only a different
+// amount counts as a pick.
+void RmlSkirmishSetupScreen::onStartingCashSelected(Rml::DataModelHandle handle, Rml::Event &ev, const Rml::VariantList &)
+{
+	const int amount = atoi(ev.GetParameter<Rml::String>("value", "").c_str());
+	if (amount <= 0 || amount == m_model.startingCash)
+		return;
+	Rml::VariantList args;
+	args.push_back(Rml::Variant(amount));
+	onStartingCashPicked(handle, ev, args);
 }
 
 void RmlSkirmishSetupScreen::onStartPositionMarkerClick(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)

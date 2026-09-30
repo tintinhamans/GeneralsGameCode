@@ -78,6 +78,7 @@ private:
 	void onSlotColorPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (slot, color): a swatch
 	void onSlotTeamPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (slot, team): a team segment
 	void onStartingCashPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (amount): a cash segment
+	void onStartingCashSelected(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // cash dropdown: same as a segment, ignores its value echo
 	void onSlotFactionChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotColorChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotTeamChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);

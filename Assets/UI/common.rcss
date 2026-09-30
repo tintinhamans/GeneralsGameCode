@@ -1405,7 +1405,10 @@ body.screen
 }
 
 /* ---- Segmented control: a small set of choices, one on --------------------------------------
-	<div class="seg"><button class="seg-item" data-class-on="...">1</button>...</div> */
+	<div class="seg"><button class="seg-item" data-class-on="...">1</button>...</div>
+	Only for a fixed set of up to four short labels. A list fed by data (starting cash: mods and
+	Generals Online add amounts) switches to a select past four entries:
+	<div class="seg" data-if="list.size &lt;= 4">..</div><select class="seg-overflow" data-if="list.size &gt; 4">..</select> */
 .seg
 {
 	display: flex;
@@ -1458,6 +1461,18 @@ body.screen
 {
 	color: #A9B1CF;
 	background-color: #2F37A850;
+}
+
+.screen select.seg-overflow
+{
+	display: block;
+	width: 100%;
+	margin-bottom: 14dp;
+}
+
+.screen select.seg-overflow selectbox
+{
+	max-height: 250dp;
 }
 
 /* ---- Colour swatches -----------------------------------------------------------------------

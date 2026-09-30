@@ -99,10 +99,14 @@
 				<div class="surface options">
 					<div class="overline group-title"><gametext key="GUI:GameOptions"/></div>
 					<div class="opt-label"><gametext key="GUI:StartingMoney"/></div>
-					<div class="seg cash-seg" data-tooltip="TOOLTIP:StartingMoney">
+					<div class="seg cash-seg" data-if="starting_cash_options.size &lt;= 4" data-tooltip="TOOLTIP:StartingMoney">
 						<button class="seg-item" data-for="opt : starting_cash_options" data-class-on="opt.value == starting_cash"
 							data-event-click="starting_cash_picked(opt.value)">{{opt.label}}</button>
 					</div>
+					<select class="seg-overflow" data-if="starting_cash_options.size &gt; 4" data-attr-value="starting_cash"
+						data-event-change="starting_cash_selected" data-tooltip="TOOLTIP:StartingMoney">
+						<option data-for="opt : starting_cash_options" data-attr-value="opt.value">{{opt.label}}</option>
+					</select>
 					<div class="speed-row">
 						<div class="opt-label"><gametext key="GUI:GameSpeed"/></div>
 						<input class="range speed" type="range" min="15" max="61" step="1" data-value="game_speed_slider_pos" data-event-change="game_speed_changed" data-tooltip="GUI:AdjustGameSpeed"/>
