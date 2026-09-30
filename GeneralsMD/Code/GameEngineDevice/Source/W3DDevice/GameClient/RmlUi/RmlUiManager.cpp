@@ -17,6 +17,7 @@
 */
 
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
+#include "W3DDevice/GameClient/RmlUi/RmlChatInput.h"
 
 #include "Common/AsciiString.h"
 #include "Common/AudioEventRTS.h"
@@ -473,6 +474,7 @@ void RmlUiManager::onDeviceReset()
 
 void RmlUiManager::update()
 {
+	RmlFlushChatClears();
 	TransitionSounds::update();
 	if (m_currentScreen)
 		m_currentScreen->update();

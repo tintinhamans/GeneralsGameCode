@@ -26,12 +26,29 @@
 #include <RmlUi/Core/ElementDocument.h>
 #include <RmlUi/Core/Elements/ElementFormControl.h>
 #include <RmlUi/Core/Event.h>
+#include <RmlUi/Core/ObserverPtr.h>
+
+#include <vector>
+
+// Chat entries cleared this frame, cleared again once the commit event has finished (see below).
+inline std::vector<Rml::ObserverPtr<Rml::Element>> &RmlPendingChatClears()
+{
+	static std::vector<Rml::ObserverPtr<Rml::Element>> s_pending;
+	return s_pending;
+}
 
 // Empties the chat entry now instead of leaving it to the data model. The data view only writes a
 // cleared model back to the element on the next update, so a second commit event in the same frame
 // would read the old text out of the element again and send the line twice. Works from the
 // entry's own "change" event or from a sibling send button's click (the entry is the document's
 // input.chat-input).
+//
+// The entry's data-value controller listens to the same "change" event, and RmlUi runs an
+// element's data controllers in attribute-hash order: when it runs after the commit handler it
+// writes the event's old "value" back into the model, and the view then puts the sent text back
+// into the entry. So the clear is repeated after the event (RmlFlushChatClears(), next frame),
+// with a "change" that carries the empty value to the controller; its linebreak is false, so no
+// commit handler takes it for Enter.
 inline void RmlClearChatInput(Rml::Event &ev)
 {
 	Rml::Element *element = ev.GetCurrentElement();
@@ -41,5 +58,26 @@ inline void RmlClearChatInput(Rml::Event &ev)
 		element = document ? document->QuerySelector("input.chat-input") : nullptr;
 	}
 	if (Rml::ElementFormControl *control = rmlui_dynamic_cast<Rml::ElementFormControl *>(element))
+	{
 		control->SetValue(Rml::String());
+		RmlPendingChatClears().push_back(control->GetObserverPtr());
+	}
+}
+
+// Once per frame from RmlUiManager::update(), so after the commit event has run to its end.
+inline void RmlFlushChatClears()
+{
+	std::vector<Rml::ObserverPtr<Rml::Element>> pending;
+	pending.swap(RmlPendingChatClears());
+	for (Rml::ObserverPtr<Rml::Element> &observer : pending)
+	{
+		Rml::ElementFormControl *control = rmlui_dynamic_cast<Rml::ElementFormControl *>(observer.get());
+		if (!control)
+			continue;
+		control->SetValue(Rml::String());
+		Rml::Dictionary parameters;
+		parameters["value"] = Rml::String();
+		parameters["linebreak"] = false;
+		control->DispatchEvent(Rml::EventId::Change, parameters);
+	}
 }
