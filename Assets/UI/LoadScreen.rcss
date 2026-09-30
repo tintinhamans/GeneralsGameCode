@@ -473,6 +473,17 @@ body.ld
 	.ld-rank, .ld-medal { margin-right: 6dp; }
 }
 
+/* 16:10 is narrower than 16:9 in dp, so eight cards no longer fit the full-size top row (badge, rank,
+   medal); use the compact card metrics there too. */
+@media (min-aspect-ratio: 3/2) and (max-aspect-ratio: 8/5)
+{
+	.ld-card { padding: 12dp 10dp 12dp 10dp; margin-right: 8dp; }
+	.ld-badge { flex-basis: 44dp; width: 44dp; height: 44dp; line-height: 42dp; margin-right: 8dp; }
+	.ld-badge mappedimage { width: 36dp; height: 36dp; }
+	.ld-rank, .ld-medal, .ld-rank mappedimage, .ld-medal mappedimage { width: 30dp; height: 30dp; }
+	.ld-rank, .ld-medal { margin-right: 6dp; }
+}
+
 .ld-bottom-mode
 {
 	flex: 0 0 auto;

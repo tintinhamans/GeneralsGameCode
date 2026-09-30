@@ -545,6 +545,12 @@
 	.screen.mm-c button.mm-item, .screen.mm-c button.mm-item:hover, .screen.mm-c button.mm-item:active { padding: 0 18dp; font-size: 22dp; letter-spacing: 2dp; }
 }
 
+/* 16:10: the A emblem slot is 242dp wide, so the 260dp emblem would spill out of it. */
+@media (min-aspect-ratio: 3/2) and (max-aspect-ratio: 8/5)
+{
+	.mm-hero mappedimage { width: 230dp; height: 230dp; margin-left: -115dp; }
+}
+
 /* ==== D: HQ command terminal =====================================================================
    The front door as a command post: the shell map stays the picture, and only three things darken
    it -- the header strip and the news ticker (common.rcss's .hq-header and .hq-ticker bands), and a
