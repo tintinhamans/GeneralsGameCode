@@ -1805,11 +1805,12 @@ label.check:hover
 	<div class="chat-entry send-row"><input type="text" class="chat-input"/>
 		<button class="chat-send" data-event-click="send_chat"><span class="send-arrow"></span></button>
 		<button class="chat-send emote" data-event-click="send_emote"><span class="send-emote">*</span></button></div>
-	The row's own class keeps its spacing; send-row joins the input and the button(s) into one control
+	The row's own class keeps its spacing; send-row joins the input and the button(s) into one control (no overlap: the input drops its right border and the button's left border is the seam)
 	of the input's height. The arrow is the accent, drawn with borders (no glyph needed). */
 .screen .send-row .chat-input
 {
 	margin-right: 0;
+	border-right-width: 0;
 }
 
 .screen .send-row button.chat-send
@@ -1823,7 +1824,7 @@ label.check:hover
 	height: auto;
 	min-width: 0;
 	padding: 0;
-	margin-left: -1dp;
+	margin-left: 0;
 	line-height: 1;
 	background-color: #0B1030E6;
 	border: 1dp #8080FF3C;
