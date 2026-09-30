@@ -82,7 +82,7 @@
 						<mappreview class="map-image" data-attr-map="selected_map_name">
 							<div data-for="marker : start_markers">
 								<div class="marker" data-if="marker.used" data-style-left="marker.x_style" data-style-top="marker.y_style">
-									<div class="marker-dot">{{marker.position + 1}}</div>
+									<div class="marker-dot"></div>
 								</div>
 							</div>
 						</mappreview>

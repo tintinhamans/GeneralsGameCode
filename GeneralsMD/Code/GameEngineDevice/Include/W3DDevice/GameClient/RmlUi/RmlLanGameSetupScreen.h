@@ -164,8 +164,9 @@ private:
 		Rml::String xStyle;
 		Rml::String yStyle;
 		bool isOccupied = false;
-		Rml::String occupantLabel;
+		int slotNumber = 0;
 		Rml::String colorHex;
+		Rml::String tooltip;
 		bool used = false;
 	};
 

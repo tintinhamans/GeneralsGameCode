@@ -52,7 +52,7 @@ static Rml::String rgbToHex(UnsignedInt rgb)
 	return Rml::String(hex);
 }
 
-// Fallback for an unset/unmatched color (row.m_color == -1, or a marker with no occupant): a
+// Fallback for an unset/unmatched color (row.m_color == -1): a
 // CSS-legal "no color assigned yet" swatch, since data-style-background-color can't bind to an
 // empty string (RmlUi logs a syntax-error warning and leaves the previous value in place).
 static const char *const kNoColorHex = "transparent";
@@ -120,7 +120,8 @@ void RmlSkirmishSetupScreen::load(Rml::Context *context)
 			markerHandle.RegisterMember("x_style", &StartMarkerModel::xStyle);
 			markerHandle.RegisterMember("y_style", &StartMarkerModel::yStyle);
 			markerHandle.RegisterMember("is_occupied", &StartMarkerModel::isOccupied);
-			markerHandle.RegisterMember("occupant_label", &StartMarkerModel::occupantLabel);
+			markerHandle.RegisterMember("slot_number", &StartMarkerModel::slotNumber);
+			markerHandle.RegisterMember("tooltip", &StartMarkerModel::tooltip);
 			markerHandle.RegisterMember("color_hex", &StartMarkerModel::colorHex);
 			markerHandle.RegisterMember("used", &StartMarkerModel::used);
 		}
@@ -264,25 +265,10 @@ void RmlSkirmishSetupScreen::refreshFromGameState()
 		_snprintf_s(yBuf, sizeof(yBuf), _TRUNCATE, "%.3f%%", marker.m_yFraction * 100.0f);
 		markerModel.xStyle = xBuf;
 		markerModel.yStyle = yBuf;
-		markerModel.colorHex = kNoColorHex;
-
-		for (const GameSetupSlotRow &src : data.m_slots)
-		{
-			if (markerModel.used && src.m_startPosition == marker.m_position)
-			{
-				markerModel.isOccupied = true;
-				markerModel.occupantLabel = unicodeToUtf8(src.m_name);
-				for (const GameSetupColorOption &color : data.m_options.m_colorOptions)
-				{
-					if (color.m_color >= 0 && color.m_color == src.m_color)
-					{
-						markerModel.colorHex = rgbToHex(color.m_rgb);
-						break;
-					}
-				}
-				break;
-			}
-		}
+		markerModel.isOccupied = markerModel.used && marker.m_occupantSlot >= 0;
+		markerModel.slotNumber = markerModel.isOccupied ? marker.m_occupantSlot + 1 : 0;
+		markerModel.colorHex = rgbToHex(markerModel.isOccupied ? marker.m_occupantColor : 0xFFFFFF);
+		markerModel.tooltip = unicodeToUtf8(GameSetupData::startPositionTooltip(marker));
 
 		m_model.startMarkers.push_back(markerModel);
 	}

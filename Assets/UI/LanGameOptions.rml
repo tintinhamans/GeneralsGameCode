@@ -30,11 +30,10 @@
 						<mappreview class="map-image" fit="width" data-attr-map="map_name" data-if="map_found">
 							<div data-for="marker : start_markers">
 								<div class="marker" data-if="marker.used" data-class-occupied="marker.is_occupied"
-									data-style-left="marker.x_style" data-style-top="marker.y_style"
+									data-style-left="marker.x_style" data-style-top="marker.y_style" data-attr-data-tooltip-text="marker.tooltip"
 									data-event-click="start_marker_clicked(marker.position)"
 									data-event-mousedown="start_marker_mousedown(marker.position)">
-									<div class="marker-dot" data-style-background-color="marker.color_hex">{{marker.position + 1}}</div>
-									<div class="marker-label" data-if="marker.is_occupied"><span>{{marker.occupant_label}}</span></div>
+									<div class="marker-dot" data-style-color="marker.color_hex">{{marker.is_occupied ? marker.slot_number : ''}}</div>
 								</div>
 							</div>
 						</mappreview>

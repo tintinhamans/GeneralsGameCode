@@ -143,8 +143,9 @@ private:
 		Rml::String xStyle; // e.g. "12.500%", bound via data-style-left
 		Rml::String yStyle; // e.g. "34.200%", bound via data-style-top
 		bool isOccupied = false;
-		Rml::String occupantLabel;
-		Rml::String colorHex;
+		int slotNumber = 0; // the label, as updateMapStartSpots() sets it: the occupant's slot + 1
+		Rml::String colorHex; // the label's color: the occupant's team UI color, white without a team
+		Rml::String tooltip; // GameSetupData::startPositionTooltip()
 
 		// Mirrors GameSetupStartPositionMarker::m_used: the array is always MAX_SLOTS long (see
 		// GameSetupData.h), and the .rml hides an unused entry with data-if instead of the array

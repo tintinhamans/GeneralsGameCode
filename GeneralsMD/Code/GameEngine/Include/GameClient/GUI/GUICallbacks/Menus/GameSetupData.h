@@ -78,6 +78,12 @@ struct GameSetupStartPositionMarker
 	// The entry still exists -- see GameSetupOptionsData::m_startPositionMarkers -- so a renderer
 	// hides it (data-if) instead of the array changing size when the map changes.
 	Bool m_used = FALSE;
+
+	// Who starts here, as updateMapStartSpots() labels the spot: that player's slot (the marker
+	// shows m_occupantSlot + 1) and its team UI color, white without a team. -1 for an empty spot,
+	// and always -1 from computeStartPositionMarkers(), which knows no players.
+	Int m_occupantSlot = -1;
+	UnsignedInt m_occupantColor = 0xFFFFFF; // 0x00RRGGBB
 };
 
 // One selectable faction entry, for the faction dropdown every slot row shares. Same entries and
@@ -166,6 +172,10 @@ struct GameSetupData
 	// GameSetupStartPositionMarker::m_used); every entry unused if the map isn't found or isn't
 	// multiplayer. Shared by GameSetupData::build() so the two call sites can't drift apart.
 	static std::vector<GameSetupStartPositionMarker> computeStartPositionMarkers( AsciiString mapName );
+
+	// The start spot button's tooltip, as updateMapStartSpots() sets it: TOOLTIP:StartPositionN with
+	// the occupant's slot number, TOOLTIP:StartPosition for an empty spot.
+	static UnicodeString startPositionTooltip( const GameSetupStartPositionMarker &marker );
 
 	// Presentation only, from a build() snapshot (or LAN/online's m_base rows): the slots in the
 	// order a player list shows them. Slots the map has no room for (index past its player count,

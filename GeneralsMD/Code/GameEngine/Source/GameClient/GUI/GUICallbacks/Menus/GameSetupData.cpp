@@ -35,6 +35,8 @@
 #include <algorithm>
 #include <set>
 
+UnsignedInt GetTeamUiColor(Int teamNumber);
+
 GameSetupData GameSetupData::build( GameInfo *game, Bool allowObservers )
 {
 	GameSetupData data;
@@ -92,6 +94,24 @@ GameSetupData GameSetupData::build( GameInfo *game, Bool allowObservers )
 	options.m_startPositionMarkers = computeStartPositionMarkers( game->getMap() );
 
 	const MapMetaData *md = TheMapCache ? TheMapCache->findMap( game->getMap() ) : nullptr;
+
+	// Same rule as updateMapStartSpots(): a spot shows the slot starting there, observers excepted,
+	// tinted by team. A later slot on the same spot wins, as it overwrites the button text there.
+	for( Int i = 0; md && i < MAX_SLOTS; ++i )
+	{
+		const GameSlot *slot = game->getConstSlot( i );
+		if( !slot )
+			continue;
+
+		const Int startPos = slot->getStartPos();
+		if( startPos < 0 || startPos >= md->m_numPlayers || startPos >= MAX_SLOTS || slot->getPlayerTemplate() <= PLAYERTEMPLATE_MIN )
+			continue;
+
+		GameSetupStartPositionMarker &marker = options.m_startPositionMarkers[startPos];
+		marker.m_occupantSlot = i;
+		marker.m_occupantColor = ( slot->getTeamNumber() >= 0 ? GetTeamUiColor( slot->getTeamNumber() ) : 0xFFFFFF ) & 0xFFFFFF;
+	}
+
 	if( md )
 	{
 		options.m_mapFound = TRUE;
@@ -238,6 +258,20 @@ std::vector<GameSetupStartPositionMarker> GameSetupData::computeStartPositionMar
 	}
 
 	return markers;
+}
+
+//-------------------------------------------------------------------------------------------------
+UnicodeString GameSetupData::startPositionTooltip( const GameSetupStartPositionMarker &marker )
+{
+	UnicodeString tooltip;
+	if( !TheGameText )
+		return tooltip;
+
+	if( marker.m_occupantSlot < 0 )
+		return TheGameText->fetch( "TOOLTIP:StartPosition" );
+
+	tooltip.format( TheGameText->fetch( "TOOLTIP:StartPositionN" ), marker.m_occupantSlot + 1 );
+	return tooltip;
 }
 
 //-------------------------------------------------------------------------------------------------
