@@ -137,7 +137,17 @@ void RmlMainMenuScreen::show()
 	m_model.selectedFaction = "";
 	m_model.hoverFaction = "";
 	m_challengePending = false;
-	m_model.version = TheVersion ? unicodeToUtf8(TheVersion->getUnicodeProductVersionHashString()) : Rml::String();
+	// One short line: the Generals Online build and the game version.
+	m_model.version.clear();
+	if (TheVersion)
+	{
+		UnicodeString build = TheVersion->getUnicodeProductTitle();
+		build.concat(L" ");
+		build.concat(TheVersion->getUnicodeProductVersion());
+		build.concat(L"  ·  ");
+		build.concat(TheVersion->getUnicodeVersion());
+		m_model.version = unicodeToUtf8(build);
+	}
 	refreshNews();
 
 	if (m_modelHandle)
@@ -328,6 +338,13 @@ void RmlMainMenuScreen::setHoverFaction(const Rml::String &faction)
 void RmlMainMenuScreen::refreshNews()
 {
 	m_model.newsLines.clear();
+	m_model.hasNews = false;
+	m_model.playersOnlineText.clear();
+
+	// News and the player count only while logged in; a logged-out client may still hold the last ones.
+	if (!OnlineWelcomeData::isLoggedIn())
+		return;
+
 	for (const OnlineWelcomeMotdLine &line : OnlineWelcomeData::buildMotdLines())
 	{
 		if (!line.isHeading)

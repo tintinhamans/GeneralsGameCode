@@ -4,12 +4,13 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="MainMenu.rcss"/>
 </head>
-<body class="screen" data-model="mainmenu">
+<!-- Layout variant: mm-a (floating menu), mm-b (command rail) or mm-c (bottom bar). See MainMenu.rcss. -->
+<body class="screen mm-a" data-model="mainmenu">
 	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
 	<div class="screen-frame mm-frame">
-		<!-- Faction emblem over the shell map, beside the menus: the solo panel's hover preview
-		     (MainMenu.cpp's GBM_MOUSE_ENTERING/LEAVING art) and the difficulty panel's chosen side. -->
+		<!-- Faction emblem over the shell map: the solo panel's hover preview (MainMenu.cpp's
+		     GBM_MOUSE_ENTERING/LEAVING art) and the difficulty panel's chosen side. -->
 		<div class="mm-hero">
 			<mappedimage name="SAFactionLogo144_US" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'USA') || (panel == 'difficulty' &amp;&amp; selected_faction == 'USA')"/>
 			<mappedimage name="SUFactionLogo144_GLA" data-class-visible="(panel == 'single' &amp;&amp; hover_faction == 'GLA') || (panel == 'difficulty' &amp;&amp; selected_faction == 'GLA')"/>
@@ -17,7 +18,7 @@
 			<mappedimage name="Training144" data-class-visible="panel == 'single' &amp;&amp; hover_faction == 'Training'"/>
 		</div>
 
-		<!-- Logo and the root menu down the left; it stays up while a sub-panel is open beside it. -->
+		<!-- Logo and the root menu; the root stays up while a sub-panel is open beside it. -->
 		<div class="mm-left">
 			<mappedimage name="GeneralsLogo" class="mm-logo"/>
 
@@ -32,7 +33,7 @@
 			</div>
 		</div>
 
-		<!-- Sub-panels slide in beside the menu; only the active one is laid out. -->
+		<!-- Sub-panels open beside (or above) the menu; only the active one is laid out. -->
 		<div class="mm-sub" data-class-open="panel != 'main'">
 			<!-- Single player: skirmish, campaign faction pick, Generals Challenge -->
 			<div class="panel" data-class-active="panel == 'single'">
@@ -75,25 +76,20 @@
 			</div>
 		</div>
 
-		<!-- News and status down the right: Generals Online's player count and message of the day
-		     while the client has them, otherwise how to get them; the build version always. -->
-		<div class="mm-strip" data-class-covered="panel != 'main'">
-			<div class="surface mm-news">
-				<div class="overline accent-overline"><gametext key="GUI:GOStatusTitle"/></div>
+		<!-- Generals Online: who is online and the message of the day. The client has them only while
+		     logged in, so the card is only there then. -->
+		<div class="mm-news" data-if="has_news || players_online_text != ''" data-class-covered="panel != 'main'">
+			<div class="mm-news-head">
+				<div class="mm-news-title"><gametext key="GUI:GOStatusTitle"/></div>
 				<div class="mm-online" data-if="players_online_text != ''"><span class="dot"></span>{{players_online_text}}</div>
-				<div class="mm-motd" data-if="has_news">
-					<div class="overline mm-sub-overline"><gametext key="GUI:MOTD"/></div>
-					<div class="mm-motd-lines">
-						<div class="mm-motd-line" data-for="line : news_lines">{{line}}</div>
-					</div>
-				</div>
-				<div class="mm-offline muted" data-if="!has_news &amp;&amp; players_online_text == ''"><gametext key="GUI:GOMenuOffline"/></div>
 			</div>
-			<div class="surface mm-version">
-				<div class="overline"><gametext key="GUI:GOVersion"/></div>
-				<div class="mm-version-value">{{ version }}</div>
+			<div class="mm-motd" data-if="has_news">
+				<div class="mm-motd-line" data-for="line : news_lines">{{line}}</div>
 			</div>
 		</div>
+
+		<!-- Build: one small line. -->
+		<div class="mm-build">{{ version }}</div>
 	</div>
 </body>
 </rml>

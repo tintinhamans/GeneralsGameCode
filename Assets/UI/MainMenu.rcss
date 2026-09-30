@@ -2,57 +2,48 @@
 	MainMenu.rcss -- the main menu. Palette, type and motion tokens come from the screen template
 	in common.rcss.
 
-	The shell map is the main menu's picture. The logo sits top-left with the root menu under it
-	down the left edge; a sub-panel (solo, multiplayer, load/replay, difficulty) slides in beside the
-	menu while the root stays up with its item marked. The faction emblem of the solo and
-	difficulty panels floats over the map between the menus and the news strip on the right, which
-	holds Generals Online's player count and message of the day when the client has them and the
-	build version always. Every panel is always in .mm-sub; the "panel" data model variable marks
-	one .active, the only one laid out, and it slides in as it fades up (opacity and margin-left:
-	the renderer has no transforms).
+	The shell map is the main menu's picture, so the menu takes as little of it as it can. One
+	document, three layouts, picked by a class on <body> in MainMenu.rml:
+
+		mm-a   floating menu (default): the logo and the root items float on the map top-left
+		       over a soft fade, the sub-panel on a light plate beside them.
+		mm-b   command rail: a full-height panel down the left holds the logo, the root items
+		       and Exit at its foot; the sub-panel docks against its edge.
+		mm-c   bottom bar: the root items run along a bar at the foot of the frame, a sub-panel
+		       opens as a second bar above it; the logo sits top-left.
+
+	In every layout: a sub-panel (solo, multiplayer, load/replay, difficulty) opens while the root
+	stays up with its item marked; the faction emblem of the solo and difficulty panels floats over
+	the open map; Generals Online's card (player count, message of the day) is top-right and only
+	there while logged in; the build is one small line. Every panel is always in .mm-sub; the
+	"panel" data model variable marks one .active, the only one laid out, and it slides in as it
+	fades up (opacity and margins: the renderer has no transforms).
 */
 
-/* ---- Layout -------------------------------------------------------------------------------- */
+/* ==== Shared ================================================================================== */
 .mm-frame
 {
 	display: block;
 }
 
-.mm-left
+.mm-left, .mm-sub, .mm-news, .mm-build, .mm-hero
 {
 	display: block;
 	position: absolute;
-	left: 0;
-	top: 0;
-	width: 540dp;
 }
 
 /* The logo is fixed dp: mappedimage ignores percentage sizes. 370x120 art. */
 .mm-logo
 {
 	display: block;
-	width: 463dp;
-	height: 150dp;
-	margin: 6dp 0 34dp 4dp;
-}
-
-.mm-menu, .mm-sub
-{
-	display: block;
-	box-sizing: border-box;
-	padding: 18dp 20dp;
-	background-color: #070A1AE0;
-	border-top: 2dp #D1FD04;
+	width: 401dp;
+	height: 130dp;
 }
 
 .mm-sub
 {
 	display: none;
-	position: absolute;
-	left: 560dp;
-	top: 190dp;
-	width: 450dp;
-	border-top-color: #8080FF46;
+	box-sizing: border-box;
 }
 
 .mm-sub.open
@@ -63,11 +54,11 @@
 
 @keyframes sub-in
 {
-	from { opacity: 0; margin-left: -40dp; }
+	from { opacity: 0; margin-left: -30dp; }
 	to { opacity: 1; margin-left: 0dp; }
 }
 
-/* Only the active panel is laid out; it slides in from the right as it fades up. */
+/* Only the active panel is laid out; it slides in as it fades up. */
 .panel
 {
 	display: none;
@@ -81,38 +72,36 @@
 
 @keyframes panel-in
 {
-	from { opacity: 0; margin-left: 60dp; }
+	from { opacity: 0; margin-left: 40dp; }
 	to { opacity: 1; margin-left: 0dp; }
 }
 
-/* Sub-panel title, same accent tick as a screen title. */
+/* Sub-panel title: small tracked caps. */
 .mm-heading
 {
 	display: block;
-	font-size: 16dp;
+	font-size: 15dp;
 	font-weight: bold;
 	letter-spacing: 3dp;
 	text-transform: uppercase;
-	color: #7079A0;
-	padding-left: 20dp;
-	margin-bottom: 15dp;
+	color: #8089B0;
 	white-space: nowrap;
 }
 
-/* ---- Menu items: big tracked caps, lit bar on hover ------------------------------------------ */
+/* ---- Menu items: tracked caps, a lit bar with the green hilite on hover ----------------------- */
 .screen button.mm-item
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 	width: 100%;
-	height: 73dp;
-	line-height: 73dp;
-	padding: 0 25dp 0 20dp;
+	height: 62dp;
+	line-height: 62dp;
+	padding: 0 22dp 0 20dp;
 	text-align: left;
-	font-size: 31dp;
+	font-size: 28dp;
 	letter-spacing: 3dp;
-	color: #D7DCF0;
+	color: #E4E8F6;
 	background-color: transparent;
 	border-width: 0;
 	border-left: 4dp transparent;
@@ -122,16 +111,16 @@
 .screen button.mm-item:hover
 {
 	color: #D1FD04;
-	padding-left: 30dp;
+	padding-left: 28dp;
 	border-left-color: #D1FD04;
 	background-color: transparent;
-	decorator: horizontal-gradient(#2F37A8D2 #2F37A800);
+	decorator: horizontal-gradient(#2F37A8DC #2F37A800);
 }
 
 .screen button.mm-item:active
 {
 	color: #D1FD04;
-	border-left-color: #D1FD04;
+	border-left-color: #A8CC00;
 	background-color: transparent;
 	decorator: horizontal-gradient(#1E246EE6 #1E246E00);
 }
@@ -141,7 +130,7 @@
 	border-left-color: #D1FD04;
 }
 
-/* The root item whose panel is open beside the menu. */
+/* The root item whose panel is open. */
 .screen button.mm-item.current, .screen button.mm-item.current:hover
 {
 	color: #FFFFFF;
@@ -149,27 +138,21 @@
 	decorator: horizontal-gradient(#2F37A8F0 #2F37A840);
 }
 
-.mm-item.current .mm-more
-{
-	opacity: 1;
-	color: #D1FD04;
-}
-
-/* Right-hand chevron on items that open another panel. */
 .mm-item gametext
 {
 	flex: 1 1 auto;
 }
 
+/* Right-hand chevron on items that open another panel. */
 .mm-more
 {
 	flex: 0 0 auto;
-	font-size: 38dp;
+	font-size: 34dp;
 	color: #8080FF;
 	opacity: 0.6;
 }
 
-.mm-item:hover .mm-more
+.mm-item:hover .mm-more, .mm-item.current .mm-more
 {
 	opacity: 1;
 	color: #D1FD04;
@@ -177,97 +160,104 @@
 
 .screen button.mm-quiet, .screen button.mm-back
 {
-	height: 63dp;
-	line-height: 63dp;
-	font-size: 24dp;
+	height: 54dp;
+	line-height: 54dp;
+	font-size: 21dp;
 	color: #A9B1CF;
 }
 
 .mm-back .chevron
 {
-	font-size: 35dp;
-	margin-right: 15dp;
+	font-size: 31dp;
+	margin-right: 12dp;
 }
 
 .mm-rule
 {
+	display: block;
 	height: 1dp;
-	margin: 15dp 0 15dp 20dp;
-	background-color: #8080FF28;
+	margin: 10dp 0 10dp 20dp;
+	background-color: #8080FF30;
 }
 
-/* ---- News strip ------------------------------------------------------------------------------ */
-.mm-strip
+/* ---- Generals Online card --------------------------------------------------------------------- */
+.mm-news
+{
+	top: 0;
+	right: 0;
+	width: 390dp;
+	box-sizing: border-box;
+	padding: 16dp 20dp 18dp 20dp;
+	background-color: #070A1AD8;
+	border-top: 2dp #2F37A8;
+}
+
+.mm-news-head
 {
 	display: block;
-	position: absolute;
-	right: 0;
-	top: 0;
-	width: 400dp;
+}
+
+.mm-news-title
+{
+	display: block;
+	font-size: 15dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #D1FD04;
+	white-space: nowrap;
 }
 
 .mm-online
 {
 	display: block;
-	margin-top: 14dp;
-	font-size: 22dp;
+	margin-top: 8dp;
+	font-size: 20dp;
 	font-weight: bold;
 	color: #EEF1FA;
+	white-space: nowrap;
 }
 
 .mm-online .dot
 {
-	margin-right: 12dp;
+	margin-right: 10dp;
 	vertical-align: middle;
 }
 
-.mm-sub-overline
-{
-	margin-top: 22dp;
-	padding-top: 16dp;
-	border-top: 1dp #8080FF28;
-}
-
-.mm-motd-lines
+.mm-motd
 {
 	display: block;
-	margin-top: 10dp;
-	max-height: 460dp;
+	margin-top: 12dp;
+	padding-top: 12dp;
+	border-top: 1dp #8080FF28;
+	max-height: 280dp;
 	overflow: hidden;
 }
 
 .mm-motd-line
 {
 	display: block;
-	font-size: 18dp;
-	line-height: 25dp;
-	color: #D7DCF0;
+	font-size: 17dp;
+	line-height: 23dp;
+	color: #C4CAE4;
 }
 
-.mm-offline
+/* ---- Build line ------------------------------------------------------------------------------- */
+.mm-build
 {
-	display: block;
-	margin-top: 12dp;
-	font-size: 18dp;
-	line-height: 25dp;
+	left: 0;
+	bottom: 0;
+	font-size: 15dp;
+	letter-spacing: 1dp;
+	color: #9AA2C4;
+	white-space: nowrap;
+	font-effect: glow(1dp 6dp 0dp 1dp #000000E0);
 }
 
-.mm-version-value
-{
-	display: block;
-	margin-top: 6dp;
-	font-size: 18dp;
-	color: #D7DCF0;
-}
-
-/* ---- Faction emblem over the map, between the menus and the strip ----------------------------- */
+/* ---- Faction emblem over the open map --------------------------------------------------------- */
 .mm-hero
 {
-	display: block;
-	position: absolute;
-	left: 1030dp;
-	right: 420dp;
-	top: 250dp;
+	top: 230dp;
 	height: 280dp;
 }
 
@@ -288,14 +278,265 @@
 	opacity: 1;
 }
 
-/* Narrow (5:4, 4:3) screens: no room for the emblem, and the strip gives way to an open sub-panel. */
+/* ==== A: floating menu ========================================================================= */
+.mm-a .mm-left
+{
+	left: 0;
+	top: 0;
+	width: 440dp;
+}
+
+.mm-a .mm-logo
+{
+	margin: 4dp 0 30dp 6dp;
+}
+
+/* No block: the items float on the map over a fade that is darkest at the frame edge. */
+.mm-a .mm-menu
+{
+	display: block;
+	padding: 12dp 0 14dp 0;
+	decorator: horizontal-gradient(#070A1AB4 #070A1A00);
+}
+
+.mm-a .mm-item
+{
+	font-effect: glow(1dp 8dp 0dp 1dp #000000E6);
+}
+
+.mm-a .mm-sub
+{
+	left: 460dp;
+	top: 160dp;
+	width: 420dp;
+	padding: 16dp 0 14dp 0;
+	background-color: #070A1AC8;
+	border-left: 1dp #8080FF3C;
+}
+
+.mm-a .mm-heading
+{
+	padding-left: 24dp;
+	margin-bottom: 8dp;
+}
+
+.mm-a .mm-hero
+{
+	left: 900dp;
+	right: 410dp;
+}
+
+/* ==== B: command rail ========================================================================== */
+.mm-b .mm-left
+{
+	display: flex;
+	flex-direction: column;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 440dp;
+	box-sizing: border-box;
+	padding: 26dp 0 44dp 0;
+	background-color: #070A1AE0;
+	border-right: 1dp #8080FF3C;
+}
+
+.mm-b .mm-logo
+{
+	flex: 0 0 auto;
+	width: 370dp;
+	height: 120dp;
+	margin: 0 0 40dp 35dp;
+}
+
+.mm-b .mm-menu
+{
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+}
+
+/* Exit at the foot of the rail. */
+.mm-b .mm-menu .mm-rule
+{
+	margin-top: auto;
+}
+
+.mm-b .mm-build
+{
+	left: 24dp;
+	bottom: 14dp;
+	font-effect: none;
+	color: #7079A0;
+}
+
+.mm-b .mm-sub
+{
+	left: 440dp;
+	top: 186dp;
+	width: 400dp;
+	padding: 16dp 0 14dp 0;
+	background-color: #0B1030E6;
+	border-top: 2dp #2F37A8;
+}
+
+.mm-b .mm-heading
+{
+	padding-left: 24dp;
+	margin-bottom: 8dp;
+}
+
+.mm-b .mm-hero
+{
+	left: 860dp;
+	right: 410dp;
+}
+
+/* ==== C: bottom bar ============================================================================ */
+.mm-c .mm-left
+{
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	pointer-events: none;
+}
+
+.mm-c .mm-logo, .mm-c .mm-menu
+{
+	pointer-events: auto;
+}
+
+.mm-c .mm-logo
+{
+	position: absolute;
+	left: 6dp;
+	top: 4dp;
+}
+
+.mm-c .mm-menu
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 34dp;
+	height: 76dp;
+	padding: 0 12dp;
+	background-color: #070A1AE0;
+	border-top: 2dp #2F37A8;
+}
+
+.mm-c .mm-sub .panel.active
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 64dp;
+	padding: 0 12dp 0 0;
+}
+
+.screen.mm-c button.mm-item
+{
+	width: auto;
+	flex: 0 0 auto;
+	height: 76dp;
+	line-height: 72dp;
+	padding: 0 30dp;
+	font-size: 25dp;
+	border-left-width: 0;
+	border-bottom: 4dp transparent;
+}
+
+.screen.mm-c button.mm-item:hover, .screen.mm-c button.mm-item:active
+{
+	padding-left: 30dp;
+	border-bottom-color: #D1FD04;
+	decorator: vertical-gradient(#2F37A800 #2F37A8DC);
+}
+
+.screen.mm-c button.mm-item.current, .screen.mm-c button.mm-item.current:hover
+{
+	border-bottom-color: #D1FD04;
+	decorator: vertical-gradient(#2F37A840 #2F37A8F0);
+}
+
+.screen.mm-c button.mm-item:focus-visible
+{
+	border-bottom-color: #D1FD04;
+}
+
+.mm-c .mm-more
+{
+	display: none;
+}
+
+.screen.mm-c button.mm-quiet, .screen.mm-c button.mm-back
+{
+	font-size: 21dp;
+}
+
+/* Divider in a bar: Exit goes to the far right of the root bar, Back after the sub-items. */
+.mm-c .mm-rule
+{
+	width: 1dp;
+	height: 34dp;
+	margin: 0 10dp;
+}
+
+.mm-c .mm-menu .mm-rule
+{
+	margin-left: auto;
+}
+
+.mm-c .mm-sub
+{
+	left: 0;
+	bottom: 124dp;
+	background-color: #0B1030E6;
+	border-top: 2dp #2F37A8;
+}
+
+.screen.mm-c .mm-sub button.mm-item
+{
+	height: 64dp;
+	line-height: 60dp;
+	font-size: 22dp;
+}
+
+.mm-c .mm-heading
+{
+	padding: 0 22dp 0 24dp;
+	line-height: 64dp;
+	color: #D1FD04;
+}
+
+.mm-c .mm-build
+{
+	left: auto;
+	right: 0;
+	bottom: 4dp;
+}
+
+.mm-c .mm-hero
+{
+	left: 0;
+	right: 0;
+	top: 200dp;
+}
+
+/* ==== Narrow (5:4, 4:3) screens ================================================================
+   No room for the emblem, and the Generals Online card gives way to an open sub-panel. */
 @media (max-aspect-ratio: 3/2)
 {
-	.mm-left { width: 470dp; }
-	.mm-sub { left: 490dp; width: 420dp; }
-	.mm-logo { width: 432dp; height: 140dp; }
-	.mm-sub { top: 180dp; }
 	.mm-hero { display: none; }
-	.mm-strip { width: 330dp; }
-	.mm-strip.covered { display: none; }
+	.mm-news { width: 340dp; }
+	.mm-news.covered { display: none; }
+	.mm-a .mm-left { width: 420dp; }
+	.mm-a .mm-sub { left: 440dp; width: 400dp; }
+	.mm-b .mm-left { width: 420dp; }
+	.mm-b .mm-sub { left: 420dp; width: 380dp; }
+	.screen.mm-c button.mm-item, .screen.mm-c button.mm-item:hover, .screen.mm-c button.mm-item:active { padding: 0 18dp; font-size: 22dp; letter-spacing: 2dp; }
 }

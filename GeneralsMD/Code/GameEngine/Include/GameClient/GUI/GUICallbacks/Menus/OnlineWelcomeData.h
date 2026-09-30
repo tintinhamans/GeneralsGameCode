@@ -82,6 +82,9 @@ namespace OnlineWelcomeData
 	// installed), else the count the server states in the MOTD, else 0.
 	Int currentNumPlayersOnline();
 
+	// Whether the client is logged in to Generals Online (news and the player count are only current then).
+	Bool isLoggedIn();
+
 	// Mirrors WOLWelcomeMenu.wnd's "SIDE:<side>" TOOLTIPTEXT for a PercentXxx checkbox, given the same
 	// side string buildMotdLines()/requestFactionWinStats() key off. Index 0 ("USA") is the one
 	// mismatch between the control-name suffix and the tooltip's side literal (control is PercentUSA,

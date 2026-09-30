@@ -137,6 +137,13 @@ UnicodeString buildNumPlayersOnlineText(Int numPlayersOnline)
 }
 
 //-------------------------------------------------------------------------------------------------
+Bool isLoggedIn()
+{
+	NGMP_OnlineServices_AuthInterface *auth = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	return auth != nullptr && auth->IsLoggedIn();
+}
+
+//-------------------------------------------------------------------------------------------------
 Int currentNumPlayersOnline()
 {
 	Int last = GetLastNumPlayersOnline();
