@@ -698,7 +698,7 @@ UnicodeString GameTextManager::toLegacyDisplay( const UnicodeString &text )
 //============================================================================
 // GameTextManager::parseMultiLanguageStringFile
 //============================================================================
-// Reads a UTF-8 multi-language .str (Patch104p's generals.str, the game's Assets/Localization/Languages):
+// Reads a UTF-8 multi-language .str (Patch104p's generals.str, the game's Assets/Localization/English/450_450_GeneralsOnline.str):
 //   LABEL
 //   US: "text"
 //   DE: "Text"

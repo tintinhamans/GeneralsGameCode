@@ -7,6 +7,9 @@
 #
 # Mapping from Assets/<TopFolder>/... to OUTPUT_DIR/...:
 #   Localization/<Language>/<name>.str  -> Data/<Language>/<name>.csf  (compiled via str2csf)
+#   Localization/<Language>/<name>.str with 'XX: "text"' lines (multi-language; the US column is the
+#                                       <Language> table) -> Data/<Language>/<name>.csf plus
+#                                          Data/Languages/<code>/<name>.csf per other column
 #   Localization/Languages/<name>.str   -> Data/Languages/<code>/<name>.csf, one per column of the
 #   Localization/Languages/<pack>/<name>.str  multi-language file (str2csf --column; see GameText.cpp's
 #                                          GameTextLanguages for the codes)
@@ -89,8 +92,7 @@ endif()
 
 set(staged_count 0)
 
-# The text languages a multi-language .str under Localization/Languages/ can carry (besides US,
-# which the Localization/English/ table provides).
+# The text languages a multi-language .str can carry besides US.
 set(RTS_TEXT_LANGUAGE_COLUMNS de fr es it ko zh bp pl ru ar uk)
 
 foreach(asset_file ${RTS_ASSET_FILES})
@@ -130,6 +132,16 @@ foreach(asset_file ${RTS_ASSET_FILES})
             continue()
         endif()
         if(lang_name STREQUAL "Languages" OR lang_name MATCHES "^Languages/[^/]+$")
+            foreach(column ${RTS_TEXT_LANGUAGE_COLUMNS})
+                rts_compile_column("${asset_file}" "${OUTPUT_DIR}/Data/Languages/${column}/${base_stem}.csf" "${column}" "${rel_path}")
+            endforeach()
+            math(EXPR staged_count "${staged_count} + 1")
+            continue()
+        endif()
+        file(READ "${asset_file}" str_content)
+        if(str_content MATCHES "\n[A-Z][A-Z]: \"")
+            # Multi-language: the US column is this language's table, the others go to Data/Languages.
+            rts_compile_column("${asset_file}" "${OUTPUT_DIR}/Data/${lang_name}/${base_stem}.csf" us "${rel_path}")
             foreach(column ${RTS_TEXT_LANGUAGE_COLUMNS})
                 rts_compile_column("${asset_file}" "${OUTPUT_DIR}/Data/Languages/${column}/${base_stem}.csf" "${column}" "${rel_path}")
             endforeach()

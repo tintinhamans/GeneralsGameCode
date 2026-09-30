@@ -17,7 +17,7 @@
 //   str2csf --csf2str <input.csf> <output.str>
 //
 // --column reads a UTF-8 multi-language .str instead (the format of Patch104p's generals.str and
-// Assets/Localization/Languages), where each label has one 'XX: "text"' line per language, and
+// Assets/Localization/English/450_450_GeneralsOnline.str), where each label has one 'XX: "text"' line per language, and
 // compiles the XX lines only: labels without one are left out, so the game falls back to the
 // tables loaded before it. Nothing is written when the column has no text at all.
 
