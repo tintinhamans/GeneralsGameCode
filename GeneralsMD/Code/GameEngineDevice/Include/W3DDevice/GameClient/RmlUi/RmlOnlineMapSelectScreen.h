@@ -59,9 +59,12 @@ private:
 
 	void load(Rml::Context *context);
 	void refreshMapList(); // rebuilds m_model.maps (buildFilteredMapList()) for the current filter
+	void refreshStartMarkers(); // rebuilds m_model.startMarkers for m_model.selectedMapName
 	void selectMap(const Rml::String &mapName); // OK/double-click: write back + return to setup
 
 	void onFilterChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onPlayerFilterChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (players), 0 = any
+	void refreshVisibleCount();
 	void onMapSelected(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onMapActivated(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // double-click: select + OK
 	void onOk(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -83,6 +86,16 @@ private:
 		bool used = true; // grow-only storage, see RmlGrowOnlyList.h; hidden via data-if when false
 	};
 
+	// One start-position marker on the preview (see GameSetupStartPositionMarker): the same plain
+	// numbered marker for every start spot, like the LAN and skirmish map selects.
+	struct StartMarkerModel
+	{
+		int position = 0;
+		Rml::String xStyle; // e.g. "12.500%", bound via data-style-left
+		Rml::String yStyle; // e.g. "34.200%", bound via data-style-top
+		bool used = false; // MAX_SLOTS entries always; see GameSetupStartPositionMarker::m_used
+	};
+
 	struct Model
 	{
 		Rml::Vector<MapEntryModel> maps;
@@ -92,6 +105,10 @@ private:
 		Rml::String selectedDisplayName;
 		bool hasSelection = false;
 		int selectedNumPlayers = 0;
+
+		Rml::Vector<StartMarkerModel> startMarkers;
+		int playerFilter = 0; // show only maps for this many players; 0 = any
+		int visibleCount = 0; // live maps that pass playerFilter, for the empty state
 	} m_model;
 
 	// Grow-only wrapper around m_model.maps (see RmlGrowOnlyList.h): the filter toggle can rebuild

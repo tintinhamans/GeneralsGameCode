@@ -22,6 +22,7 @@
 #include "Common/SkirmishBattleHonors.h"
 #include "Common/UnicodeString.h"
 #include "Common/UnicodeUtf8.h"
+#include "GameClient/GUI/GUICallbacks/Menus/GameSetupData.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineGameSetupSession.h"
 #include "GameClient/MapUtil.h"
@@ -65,7 +66,17 @@ void RmlOnlineMapSelectScreen::load(Rml::Context *context)
 			entryHandle.RegisterMember("used", &MapEntryModel::used);
 		}
 
+		Rml::StructHandle<StartMarkerModel> markerHandle = constructor.RegisterStruct<StartMarkerModel>();
+		if (markerHandle)
+		{
+			markerHandle.RegisterMember("position", &StartMarkerModel::position);
+			markerHandle.RegisterMember("x_style", &StartMarkerModel::xStyle);
+			markerHandle.RegisterMember("y_style", &StartMarkerModel::yStyle);
+			markerHandle.RegisterMember("used", &StartMarkerModel::used);
+		}
+
 		constructor.RegisterArray<Rml::Vector<MapEntryModel>>();
+		constructor.RegisterArray<Rml::Vector<StartMarkerModel>>();
 
 		constructor.Bind("maps", &m_model.maps);
 		constructor.Bind("use_system_maps", &m_model.useSystemMaps);
@@ -73,8 +84,12 @@ void RmlOnlineMapSelectScreen::load(Rml::Context *context)
 		constructor.Bind("selected_display_name", &m_model.selectedDisplayName);
 		constructor.Bind("has_selection", &m_model.hasSelection);
 		constructor.Bind("selected_num_players", &m_model.selectedNumPlayers);
+		constructor.Bind("start_markers", &m_model.startMarkers);
+		constructor.Bind("player_filter", &m_model.playerFilter);
+		constructor.Bind("visible_count", &m_model.visibleCount);
 
 		constructor.BindEventCallback("filter_changed", &RmlOnlineMapSelectScreen::onFilterChanged, this);
+		constructor.BindEventCallback("player_filter_changed", &RmlOnlineMapSelectScreen::onPlayerFilterChanged, this);
 		constructor.BindEventCallback("map_selected", &RmlOnlineMapSelectScreen::onMapSelected, this);
 		constructor.BindEventCallback("map_activated", &RmlOnlineMapSelectScreen::onMapActivated, this);
 		constructor.BindEventCallback("ok", &RmlOnlineMapSelectScreen::onOk, this);
@@ -141,6 +156,8 @@ void RmlOnlineMapSelectScreen::refreshMapList()
 	if (!m_model.hasSelection)
 		m_model.selectedMapName.clear();
 
+	refreshVisibleCount();
+
 	if (m_modelHandle)
 	{
 		m_modelHandle.DirtyVariable("maps");
@@ -149,6 +166,32 @@ void RmlOnlineMapSelectScreen::refreshMapList()
 		m_modelHandle.DirtyVariable("has_selection");
 		m_modelHandle.DirtyVariable("selected_num_players");
 	}
+}
+
+//-------------------------------------------------------------------------------------------------
+// Rebuilds m_model.startMarkers for m_model.selectedMapName: plain numbered start spots on the
+// preview, the same as RmlLanMapSelectScreen::refreshStartMarkers().
+void RmlOnlineMapSelectScreen::refreshStartMarkers()
+{
+	AsciiString mapName( m_model.hasSelection ? m_model.selectedMapName.c_str() : "" );
+	std::vector<GameSetupStartPositionMarker> markers = GameSetupData::computeStartPositionMarkers( mapName );
+
+	m_model.startMarkers.clear();
+	for (const GameSetupStartPositionMarker &marker : markers)
+	{
+		StartMarkerModel markerModel;
+		markerModel.position = marker.m_position;
+		char xBuf[16], yBuf[16];
+		_snprintf_s(xBuf, sizeof(xBuf), _TRUNCATE, "%.3f%%", marker.m_xFraction * 100.0f);
+		_snprintf_s(yBuf, sizeof(yBuf), _TRUNCATE, "%.3f%%", marker.m_yFraction * 100.0f);
+		markerModel.xStyle = xBuf;
+		markerModel.yStyle = yBuf;
+		markerModel.used = marker.m_used == TRUE;
+		m_model.startMarkers.push_back(markerModel);
+	}
+
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("start_markers");
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -182,6 +225,7 @@ void RmlOnlineMapSelectScreen::open()
 		TheMapCache->updateCache();
 
 	refreshMapList();
+	refreshStartMarkers();
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("use_system_maps");
@@ -220,9 +264,32 @@ void RmlOnlineMapSelectScreen::onFilterChanged(Rml::DataModelHandle, Rml::Event 
 	if (TheMapCache)
 		TheMapCache->updateCache();
 	refreshMapList();
+	refreshStartMarkers();
 
 	if (m_modelHandle)
 		m_modelHandle.DirtyVariable("use_system_maps");
+}
+
+void RmlOnlineMapSelectScreen::onPlayerFilterChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.empty())
+		return;
+	m_model.playerFilter = args[0].Get<int>();
+	refreshVisibleCount();
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("player_filter");
+}
+
+void RmlOnlineMapSelectScreen::refreshVisibleCount()
+{
+	m_model.visibleCount = 0;
+	for (const MapEntryModel &entry : m_model.maps)
+	{
+		if (entry.used && (m_model.playerFilter == 0 || entry.numPlayers == m_model.playerFilter))
+			++m_model.visibleCount;
+	}
+	if (m_modelHandle)
+		m_modelHandle.DirtyVariable("visible_count");
 }
 
 void RmlOnlineMapSelectScreen::onMapSelected(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
@@ -247,6 +314,8 @@ void RmlOnlineMapSelectScreen::onMapSelected(Rml::DataModelHandle, Rml::Event &,
 			m_model.selectedNumPlayers = entry.numPlayers;
 		}
 	}
+
+	refreshStartMarkers();
 
 	if (m_modelHandle)
 	{
