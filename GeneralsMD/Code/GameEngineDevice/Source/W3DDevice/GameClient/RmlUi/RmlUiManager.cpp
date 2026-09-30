@@ -256,6 +256,16 @@ void RmlUiManager::init(int width, int height)
 
 	Rml::LoadFontFace("UI/Fonts/NotoColorEmoji-Subset.ttf", true);
 
+	// Segoe UI Symbol from the Windows fonts folder (not bundled), for the symbols players put in
+	// their names (U+26CA and the like) that none of the faces above have. It also has monochrome
+	// emoji, so it comes after the colour subset; a missing file is skipped.
+	if (winDir[0] != 0)
+	{
+		const Rml::String symbolPath = Rml::String(winDir) + "\\Fonts\\seguisym.ttf";
+		if (::GetFileAttributesA(symbolPath.c_str()) != INVALID_FILE_ATTRIBUTES)
+			Rml::LoadFontFace(symbolPath, true);
+	}
+
 	m_context = Rml::CreateContext("main", Rml::Vector2i(width, height));
 
 	// dp units scale off a 1080p baseline so common.rcss's spacing/sizes stay consistent
