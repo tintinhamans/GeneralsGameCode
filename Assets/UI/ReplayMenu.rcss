@@ -233,18 +233,6 @@
 	min-width: 0;
 }
 
-.detail-kind
-{
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-}
-
-.detail-kind .chip-label
-{
-	margin: 0 8dp 4dp 0;
-}
-
 .detail-name
 {
 	display: block;
@@ -307,26 +295,12 @@
 
 .fact
 {
-	display: block;
 	flex: 1 1 0%;
-	min-width: 0;
 }
 
-.fact .stat-label, .players-label
+.players-label
 {
 	letter-spacing: 0;
-}
-
-.fact-value
-{
-	display: block;
-	margin-top: 2dp;
-	font-size: 20dp;
-	font-weight: bold;
-	color: #EEF1FA;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
 }
 
 .version-fact

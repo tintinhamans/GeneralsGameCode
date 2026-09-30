@@ -2637,6 +2637,45 @@ label.check:hover
 	letter-spacing: 0.5dp;
 }
 
+/* ---- Facts: a detail card's label over value pairs ------------------------------------------------
+	<div class="detail-kind"><span class="chip-label">..</span>..</div>   chips naming what it is
+	<div class="fact"><div class="stat-label">Map</div><div class="fact-value">..</div></div>
+   The screen lays the facts out (a column, a row, a grid); this is how one reads. */
+.fact
+{
+	display: block;
+	min-width: 0;
+}
+
+.fact .stat-label
+{
+	letter-spacing: 0;
+}
+
+.fact-value
+{
+	display: block;
+	margin-top: 2dp;
+	font-size: 21dp;
+	font-weight: bold;
+	color: #EEF1FA;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.detail-kind
+{
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+}
+
+.detail-kind .chip-label
+{
+	margin: 0 8dp 4dp 0;
+}
+
 /* ---- Right-click menu on the template palette ------------------------------------------------- */
 .screen .context-menu
 {
