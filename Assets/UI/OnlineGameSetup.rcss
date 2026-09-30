@@ -1,8 +1,7 @@
 /*
 	OnlineGameSetup.rcss -- online-only pieces of the Generals Online game setup screen, on top of
 	NetworkGameSetup.rcss: each remote player's connection under their name, the host's read-only
-	rules (Limit Armies, Record Stats) as status chips under the rules, the Communicator in the
-	action bar, and room for the social dock (body.dock-host; RmlSocialDock sets .dock-open).
+	rules (Limit Armies, Record Stats) as status chips under the rules, and room for the social dock (body.dock-host; RmlSocialDock sets .dock-open).
 */
 
 /* ---- Connection: a status dot and the round trip, details in the tooltip ------------------------ */
@@ -38,11 +37,6 @@
 	font-weight: bold;
 	color: #A9B1CF;
 	white-space: nowrap;
-}
-
-.screen .action-bar button.ns-comm
-{
-	margin-right: 15dp;
 }
 
 /* ---- Beside the open social dock: the 5:4 layout of the setup flow --------------------------------- */

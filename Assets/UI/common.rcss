@@ -1348,8 +1348,12 @@ body.screen
 /* Back/cancel: quiet text button with a chevron, always at the left end of the action bar. */
 .screen button.btn-back
 {
-	height: 55dp;
-	line-height: 55dp;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+	height: 50dp;
+	line-height: 25dp;
 	padding: 0 23dp 0 15dp;
 	font-size: 21dp;
 	color: #C4CAE4;
@@ -1386,6 +1390,14 @@ body.screen
 	font-size: 33dp;
 	margin-right: 10dp;
 	color: #8080FF;
+}
+
+/* In a back button the chevron is its own flex item, centred on the label's line. */
+.btn-back .chevron
+{
+	flex: 0 0 auto;
+	line-height: 33dp;
+	margin-top: -5dp;
 }
 
 .screen button.btn-small
@@ -3096,7 +3108,7 @@ body.modal.over-game
 .screen .modal-actions button.btn-back
 {
 	height: 50dp;
-	line-height: 50dp;
+	line-height: 25dp;
 	font-size: 19dp;
 	background-color: transparent;
 }
@@ -3325,7 +3337,7 @@ body.hq .screen-frame
 	padding-left: 14dp;
 }
 
-/* Small controls a screen keeps in the strip (Communicator, Options): quiet until hovered. */
+/* Small controls a screen keeps in the strip (Options, the match summary): quiet until hovered. */
 .hq-aside
 {
 	display: flex;

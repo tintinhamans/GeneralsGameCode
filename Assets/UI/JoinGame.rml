@@ -13,8 +13,6 @@
 				<div class="overline"><gametext key="GUI:Join"/></div>
 				<div class="modal-title">{{lobby_name}}</div>
 			</div>
-			<!-- ButtonCancel: the .wnd's close button in the top-right corner. -->
-			<button class="modal-close" data-event-click="cancel" data-tooltip="GUI:Close">&#215;</button>
 		</div>
 
 		<div class="modal-body">

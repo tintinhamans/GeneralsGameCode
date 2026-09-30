@@ -133,7 +133,6 @@
 		<div class="action-bar">
 			<button class="btn-back" data-attrif-disabled="!back_enabled" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
 			<div class="spacer"></div>
-			<button data-attrif-disabled="!communicator_enabled" data-event-click="buddies">{{communicator_label}}</button>
 			<!-- WOLQuickMatchMenu.cpp:1114-1115 relabels these to hardcoded English literals at Init
 			     (not GameText keys), kept verbatim. -->
 			<button class="btn-cta" data-if="start_visible" data-attrif-disabled="!start_enabled" data-event-click="start">START MATCHMAKING</button>

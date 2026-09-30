@@ -192,7 +192,6 @@
 				<div class="ns-state-text"><gametext key="GUI:GOWaitingForHost"/></div>
 			</div>
 			<div class="spacer"></div>
-			<button class="ns-comm" data-attrif-disabled="!communicator_enabled" data-event-click="communicator_clicked">{{communicator_label}}</button>
 			<!-- What the host's Start would refuse (GameSetupData::startBlockers()), or ready. -->
 			<div class="su-ready" data-if="is_host &amp;&amp; countdown_seconds &lt; 0 &amp;&amp; start_blockers.size == 0"><span class="dot"></span><gametext key="GUI:GOReadyToStart"/></div>
 			<div class="su-ready blocked" data-if="is_host &amp;&amp; countdown_seconds &lt; 0 &amp;&amp; start_blockers.size &gt; 0">

@@ -120,7 +120,7 @@
 		<!-- Sub-panels: a row of cards beside the menu; only the active row is laid out. -->
 		<div class="d-cards" data-class-open="panel != 'main'">
 			<div class="d-row" data-class-active="panel == 'single'">
-				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:SinglePlayer"/></div><button class="d-back" data-event-click="back_main"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button></div>
+				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:SinglePlayer"/></div></div>
 				<div class="d-deck">
 				<div class="d-group">
 				<div class="d-group-head"><gametext key="GUI:Campaign"/></div>
@@ -136,7 +136,7 @@
 			</div>
 
 			<div class="d-row" data-class-active="panel == 'multi'">
-				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:Multiplayer"/></div><button class="d-back" data-event-click="back_main"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button></div>
+				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:Multiplayer"/></div></div>
 				<div class="d-deck">
 				<button class="hq-card d-card d-wide" data-hook="online" data-event-click="go_online" data-tooltip="TOOLTIP:Online"><div class="hq-art d-art"><mappedimage class="d-bg" name="GCBackgroundMinSpec"/><div class="d-tint"></div><mappedimage class="d-medal" name="GlobalGen"/></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:GeneralsOnline"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuOnlineDesc"/></div></div><span class="hq-edge"></span></button>
 				<button class="hq-card d-card d-wide" data-hook="network" data-event-click="go_network" data-tooltip="TOOLTIP:Network"><div class="hq-art d-art"><mappedimage class="d-bg" name="EarthMap"/><div class="d-tint"></div><div class="d-glyph g-net"><span class="l l1"></span><span class="l l2"></span><span class="l l3"></span><span class="n n0"></span><span class="n n1"></span><span class="n n2"></span><span class="n n3"></span></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:Network"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuNetworkDesc"/></div></div><span class="hq-edge"></span></button>
@@ -144,7 +144,7 @@
 			</div>
 
 			<div class="d-row" data-class-active="panel == 'loadreplay'">
-				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:ReplayMenu"/></div><button class="d-back" data-event-click="back_main"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button></div>
+				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:ReplayMenu"/></div></div>
 				<div class="d-deck">
 				<button class="hq-card d-card d-wide" data-event-click="go_load_game"><div class="hq-art d-art"><mappedimage class="d-bg" name="EarthMap"/><div class="d-tint"></div><div class="d-glyph g-save"><span class="s s1"></span><span class="s s2"></span><span class="s s3"></span></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:MainMenuLoadGame"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuLoadGameDesc"/></div></div><span class="hq-edge"></span></button>
 				<button class="hq-card d-card d-wide" data-event-click="go_replay"><div class="hq-art d-art"><mappedimage class="d-bg" name="EarthMap"/><div class="d-tint"></div><div class="d-glyph g-rec"><mappedimage class="ring" name="Circle_Mid"/><mappedimage class="ring ring-in" name="Circle_Mid"/><span class="tick t-n"></span><span class="tick t-s"></span><span class="tick t-w"></span><span class="tick t-e"></span><span class="core"></span></div></div><div class="hq-card-text d-card-text"><div class="hq-card-title"><gametext key="GUI:MainMenuLoadReplay"/></div><div class="hq-card-desc"><gametext key="GUI:GOMenuReplayDesc"/></div></div><span class="hq-edge"></span></button>
@@ -153,7 +153,7 @@
 
 			<!-- Campaign difficulty: the chosen side, then three levels. -->
 			<div class="d-row" data-class-active="panel == 'difficulty'">
-				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:SelectDifficulty"/></div><button class="d-back" data-event-click="diff_back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button></div>
+				<div class="d-row-head"><div class="d-row-title"><gametext key="GUI:SelectDifficulty"/></div></div>
 				<div class="d-deck">
 				<div class="hq-card d-card d-pick">
 					<div class="hq-art d-art">

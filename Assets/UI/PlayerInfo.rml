@@ -13,7 +13,6 @@
 				<div class="overline"><gametext key="GUI:Persona"/></div>
 				<div class="modal-title">{{title}}</div>
 			</div>
-			<button class="modal-close" data-event-click="close" data-tooltip="GUI:Close">&#215;</button>
 		</div>
 
 		<div class="modal-body pi-loading" data-if="stats_loading">

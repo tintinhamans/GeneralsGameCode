@@ -11,7 +11,6 @@
 			<mappedimage name="GeneralsLogo" class="hq-logo"/>
 			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:Multiplayer"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:GOStatusTitle"/></div></div>
 			<div class="hq-aside wc-header-actions">
-				<button data-event-click="buddies" data-tooltip="TOOLTIP:CommunicatorButton">{{buddies_button_text}}</button>
 				<button data-event-click="options" data-tooltip="TOOLTIP:Options"><gametext key="GUI:Options"/></button>
 			</div>
 			<div class="hq-status">

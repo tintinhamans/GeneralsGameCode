@@ -126,7 +126,6 @@
 		<div class="action-bar">
 			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
 			<div class="spacer"></div>
-			<button data-event-click="buddy_overlay"><gametext key="GUI:Buddies"/></button>
 			<button data-event-click="host_game"><gametext key="GUI:Host"/></button>
 			<button class="btn-cta" data-event-click="join_selected"><gametext key="GUI:Join"/></button>
 		</div>

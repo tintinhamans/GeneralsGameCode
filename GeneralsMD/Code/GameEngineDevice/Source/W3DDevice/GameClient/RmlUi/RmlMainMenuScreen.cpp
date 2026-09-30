@@ -380,7 +380,12 @@ void RmlMainMenuScreen::openFromRoot(const Rml::String &panel)
 		if (panel == "single")
 			return;
 	}
-	if (m_model.panel != "main" && m_model.panel != panel)
+	if (m_model.panel == panel)
+	{
+		setPanel("main"); // the open root item again closes its panel, as the removed Back button did
+		return;
+	}
+	if (m_model.panel != "main")
 		setPanel("main"); // plays the leaving panel's back group and the root's, as its Back button would
 	setPanel(panel);
 }
