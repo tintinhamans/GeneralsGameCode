@@ -259,7 +259,7 @@
 	.pc-state { font-size: 18dp; }
 	.pc-status { margin-left: 6dp; min-width: 120dp; }
 	.screen .cash-seg button.seg-item { padding: 0 2dp; font-size: 15dp; letter-spacing: 0; }
-	.pc-status .chip-label { margin-left: 5dp; padding: 3dp 6dp; font-size: 12dp; letter-spacing: 0; }
+	.pc-status .chip-label { margin-left: 5dp; padding: 3dp 7dp; font-size: 13dp; letter-spacing: 0.5dp; }
 	.screen .team-seg button.seg-item { flex-basis: 28dp; width: 28dp; font-size: 15dp; }
 	.screen .team-seg button.seg-item:first-child { flex-basis: 48dp; width: 48dp; }
 	.screen .swatches button.swatch { width: 26dp; height: 26dp; margin-right: 1dp; }

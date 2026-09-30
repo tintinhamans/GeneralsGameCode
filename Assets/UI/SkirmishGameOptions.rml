@@ -52,7 +52,7 @@
 						<div class="pc-line" data-if="row.is_occupied">
 							<select class="army-select" data-value="row.player_template" data-attrif-disabled="!row.can_edit"
 								data-event-change="slot_faction_changed(row.slot_index)">
-								<option data-for="opt : faction_options" data-attr-value="opt.value"><mappedimage class="army-icon" data-if="opt.icon != ''" data-attr-name="opt.icon"/><span class="army-icon army-random" data-if="opt.icon == ''">?</span>{{opt.label}}</option>
+								<option data-for="opt : faction_options" data-attr-value="opt.value"><mappedimage class="army-icon" data-if="opt.icon != ''" data-attr-name="opt.icon"/><span class="army-icon army-random" data-if="opt.icon == ''">?</span><span class="army-name">{{opt.label}}</span></option>
 							</select>
 							<div class="seg team-seg">
 								<button class="seg-item" data-class-on="row.team_number == -1" data-attrif-disabled="!row.can_edit" data-event-click="slot_team_picked(row.slot_index, -1)"><gametext key="Team:0"/></button>

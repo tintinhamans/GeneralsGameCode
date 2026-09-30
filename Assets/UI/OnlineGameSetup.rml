@@ -68,7 +68,7 @@
 						<div class="pc-line" data-if="row.is_occupied">
 							<select class="army-select" data-if="row.can_edit" data-value="row.player_template" data-attr-data-tooltip-text="row.faction_tooltip" data-attrif-disabled="settings_locked"
 								data-event-change="slot_faction_changed(row.slot_index)">
-								<option data-for="opt : faction_options" data-attr-value="opt.value"><mappedimage class="army-icon" data-if="opt.icon != ''" data-attr-name="opt.icon"/><span class="army-icon army-random" data-if="opt.icon == ''">?</span>{{opt.label}}</option>
+								<option data-for="opt : faction_options" data-attr-value="opt.value"><mappedimage class="army-icon" data-if="opt.icon != ''" data-attr-name="opt.icon"/><span class="army-icon army-random" data-if="opt.icon == ''">?</span><span class="army-name">{{opt.label}}</span></option>
 							</select>
 							<div class="army-ro" data-if="!row.can_edit" data-attr-data-tooltip-text="row.faction_tooltip"><div data-for="opt : faction_options"><mappedimage class="army-icon" data-if="opt.value == row.player_template &amp;&amp; opt.icon != ''" data-attr-name="opt.icon"/><span class="army-icon army-random" data-if="opt.value == row.player_template &amp;&amp; opt.icon == ''">?</span></div><span class="army-ro-label">{{row.faction_label}}</span></div>
 							<div class="seg team-seg">

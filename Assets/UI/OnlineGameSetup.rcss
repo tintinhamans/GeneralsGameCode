@@ -7,6 +7,7 @@
 /* ---- Header: the rules the host set, read-only ------------------------------------------------- */
 .ns-rules .rule
 {
+	white-space: nowrap;
 	display: flex;
 	flex-direction: row;
 	align-items: center;
@@ -89,7 +90,7 @@
 .dock-open .pc-state { font-size: 18dp; }
 .dock-open .pc-status { margin-left: 6dp; min-width: 120dp; }
 .screen.dock-open .cash-seg button.seg-item { padding: 0 2dp; font-size: 15dp; letter-spacing: 0; }
-.dock-open .pc-status .chip-label { margin-left: 5dp; padding: 3dp 6dp; font-size: 12dp; letter-spacing: 0; }
+.dock-open .pc-status .chip-label { margin-left: 5dp; padding: 3dp 7dp; font-size: 13dp; letter-spacing: 0.5dp; }
 .screen.dock-open .team-seg button.seg-item { flex-basis: 28dp; width: 28dp; font-size: 15dp; }
 .screen.dock-open .team-seg button.seg-item:first-child { flex-basis: 48dp; width: 48dp; }
 .screen.dock-open .swatches button.swatch { width: 26dp; height: 26dp; margin-right: 1dp; }
@@ -106,7 +107,7 @@
 
 @media (max-aspect-ratio: 3/2)
 {
-	.ns-rules .rule { margin-left: 8dp; padding: 0 10dp 0 8dp; font-size: 13dp; letter-spacing: 0; }
+	.ns-rules .rule { height: 38dp; margin-left: 8dp; padding: 0 12dp 0 10dp; font-size: 15dp; letter-spacing: 1dp; }
 	.rule-box { width: 14dp; height: 14dp; margin-right: 6dp; }
 	.conn { padding: 0 5dp; }
 	.conn-ms { margin-left: 5dp; font-size: 13dp; }

@@ -1641,6 +1641,7 @@ label.check:hover
 	line-height: 43dp;
 	margin-right: 35dp;
 	padding: 0 13dp;
+	text-overflow: ellipsis;
 }
 
 /* A small down triangle drawn with borders (no such glyph in Barlow, no rotation in the renderer). */
@@ -2035,7 +2036,8 @@ label.check:hover
 	Tile          button.tile > .tile-title + .tile-caption: a big clickable choice.
 	Tab rail      .tab-rail > button.rail-item(.on): categories down the side of a screen.
 	Progress      .progress > .progress-fill (width set inline): the one progress bar look.
-	Chip          .chip-label(.good/.accent): small tracked caps on a tinted plate (ready, host).
+	Chip          .chip-label(.good/.accent/.warn): small tracked caps on a tinted plate (ready, host,
+	              no map); never shrinks in a flex row.
 	Load layout   see LoadScreen.rcss: every load screen is full-bleed art under the ruler with
 	              .ld-card player cards along the bottom.
    ========================================================================================= */
@@ -2201,6 +2203,32 @@ label.check:hover
 .army-select selectbox
 {
 	min-width: 340dp;
+}
+
+/* The closed select lays the badge and the name out in a row, so a long name ends in an ellipsis. */
+.army-select selectvalue
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+}
+
+.army-select selectvalue .army-icon
+{
+	flex: 0 0 auto;
+}
+
+.army-name
+{
+	white-space: nowrap;
+}
+
+.army-select selectvalue .army-name
+{
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 /* A slot's army when this machine cannot change it: the closed select's look, no arrow. */
@@ -2478,6 +2506,8 @@ label.check:hover
 	text-transform: uppercase;
 	color: #D7DCF0;
 	background-color: #2F37A878;
+	flex: 0 0 auto;
+	white-space: nowrap;
 }
 
 .chip-label.good { color: #04140C; background-color: #3CD28C; }
