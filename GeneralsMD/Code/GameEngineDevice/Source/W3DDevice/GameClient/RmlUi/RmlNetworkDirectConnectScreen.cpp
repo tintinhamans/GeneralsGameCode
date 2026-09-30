@@ -53,6 +53,7 @@ void RmlNetworkDirectConnectScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("networkdirectconnect");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
 		Rml::StructHandle<RemoteIpRowModel> rowHandle = constructor.RegisterStruct<RemoteIpRowModel>();
 		if (rowHandle)
 		{
@@ -63,7 +64,7 @@ void RmlNetworkDirectConnectScreen::load(Rml::Context *context)
 		}
 		constructor.RegisterArray<Rml::Vector<RemoteIpRowModel>>();
 
-		constructor.Bind("player_name", &m_model.playerName);
+		constructor.Bind("lan_name", &m_model.playerName);
 		constructor.Bind("local_ip", &m_model.localIp);
 		constructor.Bind("remote_ip_text", &m_model.remoteIpText);
 		constructor.Bind("selected_history_index", &m_model.selectedHistoryIndex);
@@ -94,6 +95,7 @@ void RmlNetworkDirectConnectScreen::show()
 	if (m_modelHandle)
 		m_modelHandle.DirtyAllVariables();
 
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
 
 	// NetworkDirectConnectInit()'s entrance group, and NetworkDirectConnectShutdown()'s reverse in hide().
@@ -245,4 +247,10 @@ void CloseRmlNetworkDirectConnectScreen()
 {
 	if (TheRmlUiManager && TheRmlUiManager->getCurrentScreen() == &RmlNetworkDirectConnectScreen::instance())
 		TheRmlUiManager->hideCurrentScreen();
+}
+
+//-------------------------------------------------------------------------------------------------
+void RmlNetworkDirectConnectScreen::update()
+{
+	m_hq.refresh(m_modelHandle);
 }

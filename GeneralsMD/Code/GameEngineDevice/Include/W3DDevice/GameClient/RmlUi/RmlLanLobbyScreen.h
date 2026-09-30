@@ -38,6 +38,7 @@
 #include "GameClient/GUI/GUICallbacks/Menus/LanLobbyData.h"
 #include "Common/Signal.h"
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -88,6 +89,7 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	SignalConnections m_connections; // LanLobbySignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 	UnicodeString m_defaultName;
 
 	// One row of the player list (see LanLobbyData::buildPlayerRows()).

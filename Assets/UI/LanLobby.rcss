@@ -1,29 +1,30 @@
 /*
 	LanLobby.rcss -- the LAN lobby on the screen template (common.rcss), laid out like the online
 	lobby (OnlineLobby.rcss): the network's games over the chat in the main column, the players on
-	the network beside the chat (LAN has no social dock), the selected game's card down the right
-	and the player name in the header.
+	the network beside the chat (LAN has no social dock), and down the right the player name over
+	the selected game's card; the .hq-header strip on top.
 	A game already under way is dimmed with an "in progress" chip, like the .wnd's grey row.
 */
 
-/* ---- Header: player name ------------------------------------------------------------------ */
-.name-plate
+/* ---- Side: player name ------------------------------------------------------------------- */
+.surface.name-plate
+{
+	flex: 0 0 auto;
+	padding: 16dp 20dp 18dp 20dp;
+}
+
+.name-row
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	padding: 8dp 8dp 8dp 20dp;
-	background-color: #070A1AD9;
+	margin-top: 10dp;
 }
 
-.name-label
+.screen .name-input
 {
-	margin-right: 14dp;
-}
-
-.name-input
-{
-	width: 260dp;
+	flex: 1 1 0%;
+	min-width: 0;
 	margin-right: 8dp;
 }
 
@@ -373,6 +374,5 @@
 	.detail-map { width: 110dp; height: 110dp; margin-right: 14dp; }
 	.head-map, .game-map { flex-basis: 190dp; }
 	.head-players, .game-players { flex-basis: 70dp; }
-	.name-input { width: 200dp; }
 	.roster { flex-basis: 220dp; }
 }

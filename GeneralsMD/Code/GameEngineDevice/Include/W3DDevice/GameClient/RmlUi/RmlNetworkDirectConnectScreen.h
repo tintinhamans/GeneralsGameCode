@@ -46,6 +46,7 @@
 #pragma once
 
 #include "W3DDevice/GameClient/RmlUi/RmlGrowOnlyList.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -65,6 +66,7 @@ public:
 	virtual void hide() override;
 	virtual bool isVisible() const override;
 	virtual void onBack() override; // same as ButtonBack (see NetworkDirectConnect.cpp's GBM_SELECTED)
+	virtual void update() override; // ticks the .hq-header status
 
 private:
 	RmlNetworkDirectConnectScreen() : m_historyRows(m_model.remoteIpHistory) {}
@@ -80,6 +82,7 @@ private:
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 
 	// One row of the remote-IP history list (see refreshHistory()).
 	struct RemoteIpRowModel

@@ -4,24 +4,27 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="NetworkDirectConnect.rcss"/>
 </head>
-<body class="screen" data-model="networkdirectconnect">
+<body class="screen hq" data-model="networkdirectconnect">
 	<div class="screen-ruler"><div class="rs rs-top"><div></div><div></div><div></div><div></div></div><div class="rs rs-bottom"><div></div><div></div><div></div><div></div></div><div class="rs rs-left"><div></div><div></div></div><div class="rs rs-right"><div></div><div></div></div><div class="rc rc-tl"><div></div></div><div class="rc rc-tr"><div></div></div><div class="rc rc-bl"><div></div></div><div class="rc rc-br"><div></div></div></div>
 
-	<div class="screen-frame">
-		<div class="screen-header">
-			<div class="screen-heading">
-				<div class="screen-crumb"><gametext key="GUI:LANLobby"/><span class="crumb-sep">&#8250;</span></div>
-				<div class="screen-title"><gametext key="GUI:DirectConnect"/></div>
+	<div class="hq-band hq-header"><div class="hq-band-in">
+			<mappedimage name="GeneralsLogo" class="hq-logo"/>
+			<div class="hq-heading"><div class="hq-crumb"><gametext key="GUI:LANLobby"/><span class="crumb-sep">&#8250;</span></div><div class="hq-title"><gametext key="GUI:DirectConnect"/></div></div>
+			<div class="hq-status">
+				<div class="hq-pill" data-if="logged_in"><span class="hq-dot"></span><span class="hq-count" data-if="online_count_text != ''">{{online_count_text}}</span><span class="hq-sep" data-if="online_count_text != '' &amp;&amp; player_name != ''"></span><span class="hq-name" data-if="player_name != ''">{{player_name}}</span></div>
+				<div class="hq-pill hq-off" data-if="!logged_in"><span class="hq-dot"></span><gametext key="GUI:GOMenuOffline"/></div>
+				<div class="hq-clock" data-if="clock_text != ''">{{clock_text}}</div>
 			</div>
-		</div>
+	</div></div>
 
+	<div class="screen-frame">
 		<!-- One card in the middle of the map: who you are, the address others join you on, and the
 		     address to join, with the addresses joined before under it. -->
 		<div class="screen-body dc-body">
 			<div class="surface dc-card">
 				<div class="dc-field">
 					<div class="overline dc-label"><gametext key="GUI:PlayerName"/></div>
-					<input type="text" class="text-input dc-input" data-value="player_name"/>
+					<input type="text" class="text-input dc-input" data-value="lan_name"/>
 				</div>
 
 				<div class="dc-local">

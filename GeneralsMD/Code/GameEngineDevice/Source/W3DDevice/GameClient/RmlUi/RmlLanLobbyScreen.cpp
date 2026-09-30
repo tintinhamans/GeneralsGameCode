@@ -82,6 +82,7 @@ void RmlLanLobbyScreen::load(Rml::Context *context)
 	Rml::DataModelConstructor constructor = context->CreateDataModel("lanlobby");
 	if (constructor)
 	{
+		m_hq.bind(constructor);
 		Rml::StructHandle<PlayerRowModel> playerHandle = constructor.RegisterStruct<PlayerRowModel>();
 		if (playerHandle)
 		{
@@ -131,7 +132,7 @@ void RmlLanLobbyScreen::load(Rml::Context *context)
 		constructor.Bind("details_players_text", &m_model.detailsPlayersText);
 		constructor.Bind("details_in_progress", &m_model.detailsInProgress);
 		constructor.Bind("detail_slots", &m_model.detailSlots);
-		constructor.Bind("player_name", &m_model.playerName);
+		constructor.Bind("lan_name", &m_model.playerName);
 		constructor.Bind("chat_entry_text", &m_model.chatEntryText);
 		constructor.Bind("chat_lines", &m_model.chatLines);
 
@@ -183,6 +184,7 @@ void RmlLanLobbyScreen::show()
 	m_connections.add(LanLobbySignals::gameList().connect([this](LANGameInfo *gameList) { onGameListChanged(gameList); }));
 	m_connections.add(LanLobbySignals::chatLine().connect([this](const UnicodeString &line, Color) { onChatLine(unicodeToUtf8(line)); }));
 
+	m_hq.refresh(m_modelHandle, true);
 	m_document->Show();
 
 	// LanLobbyMenuUpdate()'s entrance group, and LanLobbyMenuShutdown()'s reverse in hide().
@@ -225,6 +227,7 @@ void RmlLanLobbyScreen::onBack()
 
 void RmlLanLobbyScreen::update()
 {
+	m_hq.refresh(m_modelHandle);
 	// LanLobbyMenuUpdate() never runs for a registry-routed screen (see header comment); this is
 	// its replacement for the two things that matter once the transition is already resolved (this
 	// screen has no .wnd-style fade to gate on).
@@ -460,7 +463,7 @@ void RmlLanLobbyScreen::onNameChanged(Rml::DataModelHandle, Rml::Event &, const 
 	LanLobbyActions::setName(sanitized, m_defaultName);
 	m_model.playerName = unicodeToUtf8(sanitized);
 	if (m_modelHandle)
-		m_modelHandle.DirtyVariable("player_name");
+		m_modelHandle.DirtyVariable("lan_name");
 }
 
 void RmlLanLobbyScreen::onClearName(Rml::DataModelHandle handle, Rml::Event &event, const Rml::VariantList &args)
