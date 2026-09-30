@@ -39,6 +39,7 @@
 #pragma once
 
 #include "Common/Signal.h"
+#include "W3DDevice/GameClient/RmlUi/RmlHqStatus.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
 #include <RmlUi/Core/DataModelHandle.h>
@@ -60,6 +61,7 @@ public:
 	virtual void hide() override;
 	virtual bool isVisible() const override;
 	virtual void onBack() override; // same as ButtonBack
+	virtual void update() override; // ticks the .hq-header status
 
 private:
 	RmlLanGameSetupScreen() {}
@@ -87,6 +89,7 @@ private:
 	void onStartingCashChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSuperweaponsChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSelectMap(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onFillAI(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // "Fill with AI" (host): (occupant state)
 	void onStart(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onBackPressed(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onChatEntryCommitted(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // Enter, mirrors GEM_EDIT_DONE (LANCHAT_NORMAL)
@@ -102,6 +105,7 @@ private:
 	Rml::ElementDocument *m_document = nullptr;
 	SignalConnections m_connections; // LanGameSetupSignals, connected while showing
 	Rml::DataModelHandle m_modelHandle;
+	RmlHqStatus m_hq; // .hq-header status
 
 	struct OptionModel
 	{
@@ -141,6 +145,12 @@ private:
 		bool isHostSlot = false; // slot 0, where the LAN host always sits
 		bool isLocal = false;    // GameSetupSlotRow::m_isLocalSlot
 		Rml::String playerTooltip; // LAN identity tooltip (login/host), mirrors playerTooltip(), empty if none
+
+		// Where the row sits in the list: see RmlSkirmishSetupScreen::SlotRowModel.
+		bool unused = false;
+		bool groupHead = false;
+		int groupTeam = -1;
+		bool foldHead = false;
 	};
 
 	// One start-position marker on the map preview -- identical shape to
@@ -178,6 +188,14 @@ private:
 
 		Rml::Vector<Rml::String> chatLines; // append-only while the document is open, see onChatLine()
 		Rml::String chatEntryText;
+
+		// Presentation: see RmlSkirmishSetupScreen's Model.
+		int mapNumPlayers = 0;
+		bool teamMode = false;
+		int unusedCount = 0;
+		bool showUnused = false;
+		int colorPopoverSlot = -1;
+		Rml::Vector<Rml::String> startBlockers;
 	} m_model;
 };
 

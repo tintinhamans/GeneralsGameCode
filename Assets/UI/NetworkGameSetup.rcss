@@ -1,10 +1,11 @@
 /*
-	NetworkGameSetup.rcss -- the LAN and online game setup screens on the screen template
-	(common.rcss), siblings of the skirmish setup: a player card per slot, two across, in the main
-	column; the map card with the host's options over the chat in the side column; Back, the start
-	state and Start or Accept in the action bar. OnlineGameSetup.rcss adds the online-only pieces.
+	NetworkGameSetup.rcss -- the LAN and online game setup screens: the game setup flow of
+	common.rcss (01 map, 02 players, 03 rules, readiness by Start) under the .hq-header strip, plus
+	what a networked game adds: each human row's status chips (no map, host, ready), the chat under
+	the rules in the side column, and the start state (countdown, or a client waiting on the host)
+	in the action bar. OnlineGameSetup.rcss adds the online-only pieces.
 
-	What this machine cannot edit reads as text (.pc-state, .army-ro) instead of a disabled select.
+	What this machine cannot edit reads as text (.prow-state, .army-ro) instead of a disabled select.
 	Every select keeps an option matching its bound value (the hidden SLOT_PLAYER occupant on player
 	slots, every army in the army list): RmlUi fires a phantom "change" for an unmatched value, which
 	on these screens kicks a player or resets a slot.
@@ -14,133 +15,20 @@
 .ns-title
 {
 	max-width: 900dp;
-	overflow: hidden;
-	text-overflow: ellipsis;
 }
 
-/* ---- Player cards ------------------------------------------------------------------------------ */
-.ns-cards
-{
-	flex: 1 1 0%;
-	min-height: 0;
-}
-
-/* An AI, open or closed slot someone else controls: its occupant as plain text. */
-.pc-state
-{
-	display: block;
-	font-size: 21dp;
-	line-height: 45dp;
-	color: #D7DCF0;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.pc-compact .pc-state
-{
-	line-height: 40dp;
-	color: #A9B1CF;
-}
-
-.player-card .pc-name
-{
-	line-height: 45dp;
-}
-
-/* Right of the name: the player's connection, then who lacks the map, hosts, is ready. A fixed
-   minimum width, so the name beside it keeps its size as a player readies. */
-.pc-status
+/* ---- Side column: the rules over the chat -------------------------------------------------------- */
+.su-side
 {
 	display: flex;
-	flex-direction: row;
-	align-items: center;
-	justify-content: flex-end;
-	flex: 0 0 auto;
-	min-width: 176dp;
-	margin-left: 10dp;
+	flex-direction: column;
 }
 
-.pc-status .chip-label
-{
-	margin-left: 8dp;
-	padding: 3dp 10dp;
-}
-
-/* ---- Side column: map card and options --------------------------------------------------------- */
-.col-side
-{
-	width: 440dp;
-}
-
-.map-card
-{
-	display: block;
-	flex: 0 0 auto;
-}
-
-.map-card .map-frame
-{
-	width: 220dp;
-	height: auto; /* follows the preview: <mappreview fit="width"> */
-	margin: 0 auto;
-}
-
-.map-row
-{
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	align-items: center;
-	margin-top: 12dp;
-}
-
-/* The whole name, never cut: a short one keeps Select Map beside it, a long one takes its own
-   line and wraps, and Select Map moves under it. */
-.map-row .map-name
-{
-	flex: 1 1 auto;
-	min-width: 0;
-	margin: 4dp 12dp 4dp 0;
-	font-size: 23dp;
-	line-height: 1.2;
-	white-space: normal;
-}
-
-.map-row button
+.su-side .surface.su-rules
 {
 	flex: 0 0 auto;
 }
 
-.ns-options
-{
-	display: block;
-	margin-top: 14dp;
-	padding-top: 14dp;
-	border-top: 1dp #8080FF28;
-}
-
-.ns-options .opt-label
-{
-	display: block;
-	margin: 0 0 8dp 0;
-	font-size: 17dp;
-	color: #A9B1CF;
-}
-
-.ns-options .cash-seg
-{
-	margin-bottom: 12dp;
-}
-
-.screen .cash-seg button.seg-item
-{
-	flex: 1 1 0%;
-	padding: 0 6dp;
-	font-size: 17dp;
-}
-
-/* ---- Side column: chat, filling what the map card leaves ----------------------------------------- */
 .surface.chat-card
 {
 	display: flex;
@@ -229,33 +117,12 @@
 	color: #FFFFFF;
 }
 
-/* ---- 5:4 and 4:3, and beside the open social dock: a narrower side column, tighter cards -------- */
+/* ---- 5:4 and 4:3 ------------------------------------------------------------------------------- */
 @media (max-aspect-ratio: 3/2)
 {
-	.col-side { width: 330dp; }
-	.map-card .map-frame { width: 200dp; }
-	.map-row .map-name { font-size: 20dp; }
-	.player-card { padding: 10dp 10dp; }
-	.pc-badge { flex-basis: 46dp; width: 46dp; height: 46dp; margin-right: 10dp; }
-	.pc-badge mappedimage { width: 38dp; height: 38dp; }
-	.pc-name { font-size: 20dp; }
-	.pc-state { font-size: 18dp; }
-	.pc-status { margin-left: 6dp; min-width: 120dp; }
-	.screen .cash-seg button.seg-item { padding: 0 2dp; font-size: 15dp; letter-spacing: 0; }
-	.pc-status .chip-label { margin-left: 5dp; padding: 3dp 7dp; font-size: 13dp; letter-spacing: 0.5dp; }
-	.screen .team-seg button.seg-item { flex-basis: 28dp; width: 28dp; font-size: 15dp; }
-	.screen .team-seg button.seg-item:first-child { flex-basis: 48dp; width: 48dp; }
-	.screen .swatches button.swatch { width: 26dp; height: 26dp; margin-right: 1dp; }
-	.swatch .chip { line-height: 18dp; font-size: 13dp; }
-	.swatch.random .chip { line-height: 16dp; }
-	.pc-spot { height: 28dp; margin-left: 8dp; padding: 0 7dp 0 6dp; }
-	.pc-spot-cap { display: none; } /* the number alone; its tooltip names it */
-	.pc-spot-no { font-size: 16dp; }
+	.screen .su-rules .cash-seg button.seg-item { padding: 0 2dp; font-size: 15dp; letter-spacing: 0; }
 	.army-ro { font-size: 17dp; padding: 0 8dp; }
 	.army-ro .army-icon { margin-right: 8dp; }
-	.pc-compact .pc-who { flex-basis: 110dp; }
-	.screen .pc-add button { padding: 0 7dp; margin-left: 4dp; font-size: 14dp; }
-	.pc-add-label { display: none; }
 	.ns-state { margin-left: 16dp; padding: 0 14dp; }
 	.ns-state-text { font-size: 16dp; margin-left: 10dp; }
 }

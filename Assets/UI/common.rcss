@@ -4225,18 +4225,33 @@ button.hq-card:hover .hq-card-title
 	margin-right: 4dp;
 }
 
-/* Status chips on a network slot (connection, host, ready, no map). */
-.prow-status
+/* Status on a network slot, a small line under the name: connection, no map, host, ready. */
+.prow-sub
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	margin-left: 8dp;
+	margin-top: 3dp;
 }
 
-.prow-status > *
+.prow-sub > *
 {
-	margin-left: 6dp;
+	margin-right: 6dp;
+}
+
+.prow-sub .chip-label
+{
+	padding: 1dp 7dp;
+	font-size: 12dp;
+	letter-spacing: 1dp;
+}
+
+.prow.human.net
+{
+	height: auto;
+	min-height: 58dp;
+	padding-top: 6dp;
+	padding-bottom: 6dp;
 }
 
 /* The colour popover: opens under its row from the chip, the whole palette in a fixed order. */
