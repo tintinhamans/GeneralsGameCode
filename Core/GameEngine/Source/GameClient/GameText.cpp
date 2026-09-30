@@ -267,6 +267,11 @@ AsciiString GetGameTextLanguage()
 	return s_loadedTextLanguage;
 }
 
+AsciiString GetGameTextLanguagesDir()
+{
+	return s_textLanguagesDir;
+}
+
 Bool IsGameTextRightToLeft()
 {
 	for ( Int i = 0; i < GameTextLanguageCount; ++i )

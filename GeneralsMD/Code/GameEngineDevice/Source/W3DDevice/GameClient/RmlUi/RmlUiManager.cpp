@@ -67,6 +67,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlSocialDock.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlRulerDecorator.h"
+#include "W3DDevice/GameClient/RmlUi/RmlTextShaping.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
 
 #include <RmlUi/Core/Context.h>
@@ -265,49 +266,33 @@ void RmlUiManager::init(int width, int height)
 	Rml::SetSystemInterface(&m_systemInterface);
 	Rml::SetFileInterface(&m_fileInterface);
 	Rml::SetRenderInterface(&m_renderInterface);
+	// HarfBuzz shaping and bidi, for Arabic above all (see RmlTextShaping.h).
+	Rml::SetFontEngineInterface(RmlTextShaping::createFontEngine());
 
 	if (!Rml::Initialise())
 		return;
 
 	m_renderInterface.onDeviceCreated();
 
-	// SIL OFL-licensed Barlow (see Data/UI/Fonts/OFL.txt), the bundled default UI font.
-	// LoadFontFace reads family/style/weight straight from the font, so both weights
-	// register under the "Barlow" family; common.rcss picks weight via font-weight.
-	Rml::LoadFontFace("UI/Fonts/Barlow-Regular.ttf", true);
-	Rml::LoadFontFace("UI/Fonts/Barlow-Bold.ttf");
-
-	// SIL OFL-licensed Noto Color Emoji (see Data/UI/Fonts/OFL-NotoColorEmoji.txt), a subset of about
-	// 1,400 common emoji (CBDT colour bitmaps), is the last fallback face so chat can show them.
-	// RmlUi does no OpenType shaping, so a sequence (flag, skin tone, ZWJ family) is drawn as its
-	// parts. The blank face maps the invisible parts of those sequences to a zero-width glyph and
-	// has to come before Arial, whose own ZWJ glyph is visible.
-	Rml::LoadFontFace("UI/Fonts/NotoColorEmoji-Blank.ttf", true);
-
-	// Arial, if present in the Windows fonts folder, is loaded only as a fallback face (not
-	// bundled) so glyphs Barlow lacks -- other scripts in player names/translations -- still
-	// render. Missing files are not an error: Barlow alone remains fully usable.
-	char winDir[MAX_PATH] = {};
-	if (::GetEnvironmentVariableA("WINDIR", winDir, MAX_PATH) > 0)
+	// The UI fonts of the text language (Options > Game language): the bundled UI/Fonts, then the
+	// language's font pack in the Languages folder, then Windows' own fonts as fallbacks.
 	{
-		Rml::String regularPath = Rml::String(winDir) + "\\Fonts\\arial.ttf";
-		Rml::String boldPath = Rml::String(winDir) + "\\Fonts\\arialbd.ttf";
-		bool regularOk = Rml::LoadFontFace(regularPath, true);
-		bool boldOk = Rml::LoadFontFace(boldPath, true);
-		if (!regularOk && !boldOk)
-			Rml::Log::Message(Rml::Log::LT_INFO, "Arial not found under %%WINDIR%%\\Fonts; falling back to Barlow only.");
-	}
-
-	Rml::LoadFontFace("UI/Fonts/NotoColorEmoji-Subset.ttf", true);
-
-	// Segoe UI Symbol from the Windows fonts folder (not bundled), for the symbols players put in
-	// their names (U+26CA and the like) that none of the faces above have. It also has monochrome
-	// emoji, so it comes after the colour subset; a missing file is skipped.
-	if (winDir[0] != 0)
-	{
-		const Rml::String symbolPath = Rml::String(winDir) + "\\Fonts\\seguisym.ttf";
-		if (::GetFileAttributesA(symbolPath.c_str()) != INVALID_FILE_ATTRIBUTES)
-			Rml::LoadFontFace(symbolPath, true);
+		const AsciiString language = GetGameTextLanguage();
+		const AsciiString languagesDir = GetGameTextLanguagesDir();
+		RmlTextShaping::FontSetup fonts;
+		fonts.language = language.str();
+		fonts.fontDirs.push_back("UI/Fonts/");
+		if (!languagesDir.isEmpty())
+		{
+			if (!language.isEmpty())
+				fonts.fontDirs.push_back(std::string(languagesDir.str()) + language.str() + "\\fonts\\");
+			fonts.fontDirs.push_back(std::string(languagesDir.str()) + "fonts\\");
+		}
+		char winDir[MAX_PATH] = {};
+		if (::GetEnvironmentVariableA("WINDIR", winDir, MAX_PATH) > 0)
+			fonts.windowsFontsDir = std::string(winDir) + "\\Fonts\\";
+		RmlTextShaping::loadFonts(fonts);
+		RmlTextShaping::tagDocuments(language.str());
 	}
 
 	Rml::SetTextInputHandler(&m_ime);
@@ -510,6 +495,7 @@ void RmlUiManager::shutdown()
 	}
 
 	Rml::Shutdown();
+	RmlTextShaping::destroyFontEngine();
 	m_systemInterface.setIme(nullptr);
 
 	// Rml::Shutdown() does not take ownership of instancers registered via Factory; free them now.

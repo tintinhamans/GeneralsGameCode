@@ -60,6 +60,7 @@ set(GAMEENGINEDEVICE_SRC
 #    Include/W3DDevice/GameClient/W3DPropBuffer.h
     Include/W3DDevice/GameClient/RmlUi/RmlBuddyOverlayScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlChatInput.h
+    Include/W3DDevice/GameClient/RmlUi/RmlTextShaping.h
     Include/W3DDevice/GameClient/RmlUi/RmlChallengeMenuScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlControlBarScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlDisconnectScreen.h
@@ -255,6 +256,32 @@ set(GAMEENGINEDEVICE_SRC
     Source/W3DDevice/GameClient/RmlUi/RmlUiElements.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiFileInterface.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiIme.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontEngineInterfaceHarfBuzz.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontEngineInterfaceHarfBuzz.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontFace.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontFace.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontFaceHandleHarfBuzz.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontFaceHandleHarfBuzz.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontFaceLayer.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontFaceLayer.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontFamily.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontFamily.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontProvider.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontProvider.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FreeTypeInterface.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FreeTypeInterface.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/TextureLayout.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/TextureLayout.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/TextureLayoutRectangle.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/TextureLayoutRectangle.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/TextureLayoutRow.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/TextureLayoutRow.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/TextureLayoutTexture.cpp
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/TextureLayoutTexture.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontGlyph.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/FontTypes.h
+    Source/W3DDevice/GameClient/RmlUi/HarfBuzz/LanguageData.h
+    Source/W3DDevice/GameClient/RmlUi/RmlTextShaping.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiManager.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiRenderInterface.cpp
     Source/W3DDevice/GameClient/RmlUi/RmlUiSystemInterface.cpp
@@ -286,6 +313,9 @@ target_include_directories(z_gameenginedevice PUBLIC
 )
 
 find_package(RmlUi CONFIG REQUIRED)
+# HarfBuzz shapes RmlUi text (RmlUi/HarfBuzz, see RmlTextShaping.h); it and FreeType come from vcpkg.
+find_package(harfbuzz CONFIG REQUIRED)
+find_package(Freetype REQUIRED)
 
 target_precompile_headers(z_gameenginedevice PRIVATE
     [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
@@ -302,6 +332,8 @@ target_link_libraries(z_gameenginedevice PRIVATE
     zi_main
     stb
     RmlUi::RmlUi
+    harfbuzz::harfbuzz
+    Freetype::Freetype
 )
 
 target_link_libraries(z_gameenginedevice PUBLIC

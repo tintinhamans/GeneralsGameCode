@@ -125,6 +125,8 @@ void SetGameTextOptions( const AsciiString &languageCode, const AsciiString &lan
 // The text language that was loaded: the chosen code, or "" for the installed language (also when the
 // chosen one's files were missing).
 AsciiString GetGameTextLanguage();
+// The languages directory SetGameTextOptions() was given (it also holds the languages' font packs).
+AsciiString GetGameTextLanguagesDir();
 Bool IsGameTextRightToLeft();
 
 //----------------------------------------------------------------------------
