@@ -91,6 +91,10 @@ struct OnlineGameSetupData
 	// enabled state is simply "am I the host".
 	Bool m_cashAndSuperweaponsEnabled = FALSE;
 
+	// Seconds left on the host's match-start countdown (NGMPGame::IsCountdownStarted()), -1 when none
+	// is running. Only the host runs it; clients see its chat announcements.
+	Int m_countdownSecondsRemaining = -1;
+
 	// Snapshot the current slots, map/options state, and live mesh connection info out of the
 	// current NGMP lobby game.
 	static OnlineGameSetupData build( NGMPGame *game );

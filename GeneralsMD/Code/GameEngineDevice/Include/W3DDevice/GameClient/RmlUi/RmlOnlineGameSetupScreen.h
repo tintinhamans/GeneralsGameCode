@@ -72,6 +72,10 @@ private:
 	RmlOnlineGameSetupScreen() {}
 
 	void onSlotOccupantChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
+	void onSlotOccupantPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (slot, state): an open slot's Add AI buttons
+	void onSlotColorPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (slot, color): a swatch
+	void onSlotTeamPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (slot, team): a team segment
+	void onStartingCashPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // (amount): a cash segment
 	void onSlotFactionChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotColorChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
 	void onSlotTeamChanged(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &);
@@ -117,6 +121,8 @@ private:
 		int value = 0;
 		Rml::String label;
 		Rml::String swatch; // color options only: "#RRGGBB", "transparent" for random
+		Rml::String icon; // faction options only: the army's mapped image, empty for random
+		bool taken = false; // color options only: another slot holds it
 	};
 
 	// One slot row's worth of fields for the data-for-bound slot table (see load()). Same shape as
@@ -138,7 +144,7 @@ private:
 		int color = -1;
 		Rml::String colorHex;
 		Rml::String colorName;
-		Rml::Vector<OptionModel> colorOptions; // GameSetupSlotRow::m_colorChoices
+		Rml::Vector<OptionModel> colorOptions; // the whole palette, taken = not in GameSetupSlotRow::m_colorChoices
 		int teamNumber = -1;
 		int startPosition = -1;
 
@@ -146,11 +152,14 @@ private:
 		bool hasMap = true;    // GameSlot::hasMap(), human slots only
 		bool showAccept = false; // true only for slot 0 -- Generals Online has a single local-player
 		                          // accept indicator, not one per row (buttonAccept[1..7] stay hidden)
+		bool isHostSlot = false; // OnlineGameSetupSlotRow::m_isHostSlot
+		bool isLocal = false;    // GameSetupSlotRow::m_isLocalSlot: no connection to show
 
 		// Live mesh connection info (human, non-local slots only -- see OnlineGameSetupConnectionInfo).
 		// is_connected drives the indicator's CSS (.conn-indicator.connected, see OnlineGameSetup.rcss).
 		bool isConnected = false;
 		Rml::String connectionTooltip; // formatted from region/latency/jitter/quality/score, empty if none
+		int latencyMs = -1; // OnlineGameSetupConnectionInfo::m_latencyMs, -1 if unknown
 	};
 
 	// One start-position marker on the map preview -- identical shape to
@@ -198,6 +207,8 @@ private:
 		bool startEnabled = true;
 		bool backEnabled = true;
 		bool settingsLocked = false; // WOLLockSettings(): last second of the match-start countdown
+		int countdownSeconds = -1; // OnlineGameSetupData::m_countdownSecondsRemaining
+		bool localAccepted = false; // the local slot's accepted flag, for the client's waiting state
 
 		bool communicatorEnabled = true;
 		Rml::String communicatorLabel; // "GUI:Buddies" [+ " [n]"], formatted like the .wnd's buttonBuddy text

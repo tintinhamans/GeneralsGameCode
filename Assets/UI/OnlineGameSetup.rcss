@@ -1,37 +1,117 @@
 /*
-	OnlineGameSetup.rcss -- online-only pieces of the Generals Online game setup screen
-	(GameSpyGameOptionsMenu.wnd): the occupant cell and its connection indicator.
-	The layout, slot rows and map preview are shared, see GameSetup.rcss; chat is in common.rcss.
+	OnlineGameSetup.rcss -- online-only pieces of the Generals Online game setup screen, on top of
+	NetworkGameSetup.rcss: the game's rules in the header, each remote player's connection on their
+	card, and room for the social dock (body.dock-host; RmlSocialDock sets .dock-open).
 */
 
-/* ---- Occupant cell: the state select + connection dot + (client-only) name label share the
-   .slot-occupant column ------------------------------------------------------------------- */
-.occupant-cell
+/* ---- Header: the rules the host set, read-only ------------------------------------------------- */
+.ns-rules .rule
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
+	flex: 0 0 auto;
+	height: 40dp;
+	margin-left: 12dp;
+	padding: 0 16dp 0 12dp;
+	font-size: 16dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #7079A0;
+	background-color: #070A1AC8;
 }
 
-.occupant-cell select, .occupant-cell .slot-name
+.ns-rules .rule.on
 {
-	flex: 1 1 0%;
-	min-width: 0;
+	color: #D7DCF0;
 }
 
-/* Live mesh connection indicator, one per occupied human slot (GenericPing0..7 /
-   WOLConnectionIndicatorDraw). Default (data-class-connected unset) reads as not-yet-connected. */
-.conn-indicator
+.rule-box
 {
-	width: 12dp;
-	height: 12dp;
-	margin-left: 8dp;
-	border-radius: 6dp;
-	background-color: #C0C000;
-	flex-shrink: 0;
+	display: block;
+	box-sizing: border-box;
+	width: 16dp;
+	height: 16dp;
+	margin-right: 10dp;
+	border: 2dp #8080FF46;
 }
 
-.conn-indicator.connected
+.rule.on .rule-box
 {
-	background-color: #40C040;
+	background-color: #F07A1A;
+	border: 4dp #0B1030;
+}
+
+/* ---- Connection: a status dot and the round trip, details in the tooltip ------------------------ */
+.conn
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 28dp;
+	padding: 0 8dp;
+	background-color: #05070FB4;
+}
+
+.conn-dot
+{
+	display: block;
+	width: 10dp;
+	height: 10dp;
+	border-radius: 5dp;
+	background-color: #E8D440;
+}
+
+.conn.connected .conn-dot
+{
+	background-color: #3CD28C;
+}
+
+.conn-ms
+{
+	margin-left: 7dp;
+	font-size: 15dp;
+	font-weight: bold;
+	color: #A9B1CF;
+	white-space: nowrap;
+}
+
+/* ---- Beside the open social dock: the 5:4 layout of NetworkGameSetup.rcss ------------------------ */
+.dock-open .col-side { width: 330dp; }
+.dock-open .map-card .map-frame { width: 230dp; height: 230dp; }
+.dock-open .map-row .map-name { font-size: 20dp; }
+.dock-open .player-card { padding: 10dp 10dp; }
+.dock-open .pc-badge { flex-basis: 46dp; width: 46dp; height: 46dp; margin-right: 10dp; }
+.dock-open .pc-badge mappedimage { width: 38dp; height: 38dp; }
+.dock-open .pc-name { font-size: 20dp; }
+.dock-open .pc-state { font-size: 18dp; }
+.dock-open .pc-status { margin-left: 6dp; min-width: 120dp; }
+.screen.dock-open .cash-seg button.seg-item { padding: 0 2dp; font-size: 15dp; letter-spacing: 0; }
+.dock-open .pc-status .chip-label { margin-left: 5dp; padding: 3dp 6dp; font-size: 12dp; letter-spacing: 0; }
+.screen.dock-open .team-seg button.seg-item { flex-basis: 28dp; width: 28dp; font-size: 15dp; }
+.screen.dock-open .team-seg button.seg-item:first-child { flex-basis: 48dp; width: 48dp; }
+.screen.dock-open .swatches button.swatch { width: 26dp; height: 26dp; margin-right: 1dp; }
+.dock-open .swatch .chip { line-height: 18dp; font-size: 13dp; }
+.dock-open .swatch.random .chip { line-height: 16dp; }
+.dock-open .pc-spot { width: 32dp; height: 32dp; line-height: 28dp; margin-left: 8dp; font-size: 16dp; }
+.dock-open .army-ro { font-size: 17dp; padding: 0 8dp; }
+.dock-open .pc-compact .pc-who { flex-basis: 110dp; }
+.screen.dock-open .pc-add button { padding: 0 7dp; margin-left: 4dp; font-size: 14dp; }
+.dock-open .pc-add-label { display: none; }
+.dock-open .ns-rules { display: none; }
+.dock-open .ns-state { margin-left: 16dp; padding: 0 14dp; }
+.dock-open .ns-state-text { display: none; }
+
+@media (max-aspect-ratio: 3/2)
+{
+	.ns-rules .rule { margin-left: 8dp; padding: 0 10dp 0 8dp; font-size: 13dp; letter-spacing: 0; }
+	.rule-box { width: 14dp; height: 14dp; margin-right: 6dp; }
+	.conn { padding: 0 5dp; }
+	.conn-ms { margin-left: 5dp; font-size: 13dp; }
+	.dock-open .col-side { width: 290dp; }
+	.dock-open .map-card .map-frame { width: 210dp; height: 210dp; }
+	/* Too narrow for two cards across: one, scrolling. */
+	.dock-open .player-card { width: 100%; }
 }

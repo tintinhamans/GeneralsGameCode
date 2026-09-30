@@ -62,3 +62,23 @@ END
 GUI:GODockRoom
 "Lobby"
 END
+
+GUI:GOHost
+"Host"
+END
+
+GUI:GOReady
+"Ready"
+END
+
+GUI:GONoMap
+"No map"
+END
+
+GUI:GOStartingIn
+"Starting in"
+END
+
+GUI:GOWaitingForHost
+"Waiting for the host to start"
+END

@@ -32,6 +32,7 @@
 #include "GameClient/GUI/GUICallbacks/Menus/OnlineSessionExit.h"
 #include "GameClient/RmlUiScreenRegistry.h"
 #include "GameClient/Shell.h"
+#include "GameClient/TransitionSounds.h"
 #include "GameNetwork/GeneralsOnline/NGMPGame.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
@@ -134,6 +135,8 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 			optionHandle.RegisterMember("value", &OptionModel::value);
 			optionHandle.RegisterMember("label", &OptionModel::label);
 			optionHandle.RegisterMember("swatch", &OptionModel::swatch);
+			optionHandle.RegisterMember("icon", &OptionModel::icon);
+			optionHandle.RegisterMember("taken", &OptionModel::taken);
 		}
 		constructor.RegisterArray<Rml::Vector<OptionModel>>();
 
@@ -160,6 +163,9 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 			rowHandle.RegisterMember("accepted", &SlotRowModel::accepted);
 			rowHandle.RegisterMember("has_map", &SlotRowModel::hasMap);
 			rowHandle.RegisterMember("show_accept", &SlotRowModel::showAccept);
+			rowHandle.RegisterMember("is_host_slot", &SlotRowModel::isHostSlot);
+			rowHandle.RegisterMember("is_local", &SlotRowModel::isLocal);
+			rowHandle.RegisterMember("latency_ms", &SlotRowModel::latencyMs);
 			rowHandle.RegisterMember("is_connected", &SlotRowModel::isConnected);
 			rowHandle.RegisterMember("connection_tooltip", &SlotRowModel::connectionTooltip);
 		}
@@ -204,12 +210,18 @@ void RmlOnlineGameSetupScreen::load(Rml::Context *context)
 		constructor.Bind("start_enabled", &m_model.startEnabled);
 		constructor.Bind("back_enabled", &m_model.backEnabled);
 		constructor.Bind("settings_locked", &m_model.settingsLocked);
+		constructor.Bind("countdown_seconds", &m_model.countdownSeconds);
+		constructor.Bind("local_accepted", &m_model.localAccepted);
 		constructor.Bind("communicator_enabled", &m_model.communicatorEnabled);
 		constructor.Bind("communicator_label", &m_model.communicatorLabel);
 		constructor.Bind("chat_lines", &m_model.chatLines);
 		constructor.Bind("chat_entry_text", &m_model.chatEntryText);
 
 		constructor.BindEventCallback("slot_occupant_changed", &RmlOnlineGameSetupScreen::onSlotOccupantChanged, this);
+		constructor.BindEventCallback("slot_occupant_picked", &RmlOnlineGameSetupScreen::onSlotOccupantPicked, this);
+		constructor.BindEventCallback("slot_color_picked", &RmlOnlineGameSetupScreen::onSlotColorPicked, this);
+		constructor.BindEventCallback("slot_team_picked", &RmlOnlineGameSetupScreen::onSlotTeamPicked, this);
+		constructor.BindEventCallback("starting_cash_picked", &RmlOnlineGameSetupScreen::onStartingCashPicked, this);
 		constructor.BindEventCallback("slot_faction_changed", &RmlOnlineGameSetupScreen::onSlotFactionChanged, this);
 		constructor.BindEventCallback("slot_color_changed", &RmlOnlineGameSetupScreen::onSlotColorChanged, this);
 		constructor.BindEventCallback("slot_team_changed", &RmlOnlineGameSetupScreen::onSlotTeamChanged, this);
@@ -243,6 +255,8 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 	m_model.mapDisplayText = unicodeToUtf8(data.m_mapDisplayText);
 	m_model.useStats = data.m_useStats == TRUE;
 	m_model.limitArmies = data.m_limitArmies == TRUE;
+	m_model.countdownSeconds = data.m_countdownSecondsRemaining;
+	m_model.localAccepted = false;
 
 	m_model.slots.clear();
 	for (size_t i = 0; i < data.m_slots.size(); ++i)
@@ -270,6 +284,11 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 		row.factionTooltip = factionTooltipFor(base.m_playerTemplate);
 		row.isConnected = src.m_connection.m_isConnected == TRUE;
 		row.connectionTooltip = connectionTooltipFor(src.m_connection);
+		row.latencyMs = src.m_connection.m_isLocalPlayer ? -1 : src.m_connection.m_latencyMs;
+		row.isHostSlot = src.m_isHostSlot == TRUE;
+		row.isLocal = base.m_isLocalSlot == TRUE;
+		if (row.isLocal)
+			m_model.localAccepted = row.accepted;
 
 		for (const GameSetupFactionOption &faction : data.m_options.m_factionOptions)
 		{
@@ -287,11 +306,14 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 				if (color.m_color >= 0)
 					row.colorHex = rgbToHex(color.m_rgb);
 			}
+			// Every row lists the whole palette in the same order so the swatches never move; a
+			// color missing from m_colorChoices (PopulateColorComboBox()'s filter) is shown taken.
+			bool offered = false;
 			for (Int choice : base.m_colorChoices)
-			{
-				if (choice == color.m_color)
-					row.colorOptions.push_back(OptionModel{ color.m_color, unicodeToUtf8(color.m_name), color.m_color >= 0 ? rgbToHex(color.m_rgb) : Rml::String(kNoColorHex) });
-			}
+				offered = offered || choice == color.m_color;
+			OptionModel option{ color.m_color, unicodeToUtf8(color.m_name), color.m_color >= 0 ? rgbToHex(color.m_rgb) : Rml::String(kNoColorHex) };
+			option.taken = !offered;
+			row.colorOptions.push_back(option);
 		}
 
 		m_model.slots.push_back(row);
@@ -334,7 +356,7 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 
 	m_model.factionOptions.clear();
 	for (const GameSetupFactionOption &faction : data.m_options.m_factionOptions)
-		m_model.factionOptions.push_back(OptionModel{ faction.m_playerTemplate, unicodeToUtf8(faction.m_displayName) });
+		m_model.factionOptions.push_back(OptionModel{ faction.m_playerTemplate, unicodeToUtf8(faction.m_displayName), Rml::String(), faction.m_iconImage.str() });
 
 	m_model.startingCashOptions.clear();
 	for (const GameSetupStartingCashOption &cash : data.m_options.m_startingCashOptions)
@@ -362,6 +384,8 @@ void RmlOnlineGameSetupScreen::refreshFromGameState()
 		m_modelHandle.DirtyVariable("limit_armies");
 		m_modelHandle.DirtyVariable("is_host");
 		m_modelHandle.DirtyVariable("cash_and_sw_enabled");
+		m_modelHandle.DirtyVariable("countdown_seconds");
+		m_modelHandle.DirtyVariable("local_accepted");
 	}
 }
 
@@ -418,10 +442,15 @@ void RmlOnlineGameSetupScreen::show()
 	OnlineGameSetupSession::enter();
 
 	m_document->Show();
+
+	// WOLGameSetupMenuInit()'s entrance group, and WOLGameSetupMenuShutdown()'s reverse below.
+	TransitionSounds::play("GameSpyGameOptionsMenuFade");
 }
 
 void RmlOnlineGameSetupScreen::hide()
 {
+	if (m_document && m_document->IsVisible())
+		TransitionSounds::play("GameSpyGameOptionsMenuFade", TRUE);
 	if (m_document)
 		m_document->Hide();
 
@@ -474,6 +503,49 @@ void RmlOnlineGameSetupScreen::onSlotOccupantChanged(Rml::DataModelHandle, Rml::
 	refreshFromGameState();
 }
 
+// An open slot's Add AI buttons: the same path as its occupant select.
+void RmlOnlineGameSetupScreen::onSlotOccupantPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.size() < 2 || m_model.settingsLocked)
+		return;
+	NGMPGame *game = OnlineGameSetupSession::getCurrentGame();
+	if (!game)
+		return;
+	Bool isAIChanged = FALSE;
+	OnlineGameSetupActions::selectSlotState(game, args[0].Get<int>(), (SlotState)args[1].Get<int>(), &isAIChanged);
+	refreshFromGameState();
+}
+
+void RmlOnlineGameSetupScreen::onSlotColorPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.size() < 2 || m_model.settingsLocked)
+		return;
+	NGMPGame *game = OnlineGameSetupSession::getCurrentGame();
+	if (!game)
+		return;
+	OnlineGameSetupActions::selectColor(game, args[0].Get<int>(), args[1].Get<int>());
+	refreshFromGameState();
+}
+
+void RmlOnlineGameSetupScreen::onSlotTeamPicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
+{
+	if (args.size() < 2 || m_model.settingsLocked)
+		return;
+	NGMPGame *game = OnlineGameSetupSession::getCurrentGame();
+	if (!game)
+		return;
+	OnlineGameSetupActions::selectTeam(game, args[0].Get<int>(), args[1].Get<int>());
+	refreshFromGameState();
+}
+
+void RmlOnlineGameSetupScreen::onStartingCashPicked(Rml::DataModelHandle handle, Rml::Event &ev, const Rml::VariantList &args)
+{
+	if (args.empty() || !m_model.cashAndSuperweaponsEnabled || m_model.settingsLocked)
+		return;
+	m_model.startingCash = args[0].Get<int>();
+	onStartingCashChanged(handle, ev, args);
+}
+
 void RmlOnlineGameSetupScreen::onSlotFactionChanged(Rml::DataModelHandle, Rml::Event &ev, const Rml::VariantList &args)
 {
 	if (args.empty())
@@ -515,7 +587,8 @@ void RmlOnlineGameSetupScreen::onSlotTeamChanged(Rml::DataModelHandle, Rml::Even
 
 void RmlOnlineGameSetupScreen::onStartPositionMarkerClick(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &args)
 {
-	if (args.empty())
+	// WOLLockSettings() disables the start position buttons for the countdown's last second.
+	if (args.empty() || m_model.settingsLocked)
 		return;
 	NGMPGame *game = OnlineGameSetupSession::getCurrentGame();
 	if (!game)
@@ -529,7 +602,7 @@ void RmlOnlineGameSetupScreen::onStartPositionMarkerMouseDown(Rml::DataModelHand
 {
 	// GBM_SELECTED_RIGHT equivalent: RmlUi only synthesizes "click" for the left button,
 	// so the right-click marker clear has to be caught on the raw mousedown (button 1).
-	if (args.empty() || ev.GetParameter<int>("button", 0) != 1)
+	if (args.empty() || m_model.settingsLocked || ev.GetParameter<int>("button", 0) != 1)
 		return;
 	NGMPGame *game = OnlineGameSetupSession::getCurrentGame();
 	if (!game)

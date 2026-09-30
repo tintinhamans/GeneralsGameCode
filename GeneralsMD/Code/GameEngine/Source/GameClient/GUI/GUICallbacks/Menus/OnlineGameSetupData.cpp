@@ -99,6 +99,16 @@ OnlineGameSetupData OnlineGameSetupData::build( NGMPGame *game )
 		data.m_mapDisplayText.translate( s );
 	}
 
+#if defined(GENERALS_ONLINE_ENABLE_MATCH_START_COUNTDOWN)
+	// Same arithmetic as OnlineGameSetupSession::update()'s countdown tick.
+	if( game->IsCountdownStarted() )
+	{
+		int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::utc_clock::now().time_since_epoch() ).count();
+		Int secondsRemaining = game->GetTotalCountdownDuration() - (Int)( ( now - game->GetCountdownStartTime() ) / 1000 );
+		data.m_countdownSecondsRemaining = max( 0, secondsRemaining );
+	}
+#endif
+
 	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 
 	data.m_slots.resize( MAX_SLOTS );
