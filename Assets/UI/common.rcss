@@ -2674,7 +2674,9 @@ label.check:hover
 					<button class="btn-cta">..</button></div>
 			</div>
 		</body>
-	.modal.over-game keeps the scrim light, so live gameplay stays readable around a compact card. */
+	.modal.over-game keeps the scrim light, so live gameplay stays readable around a compact card.
+	A confirmation over its own screen uses <div class="modal-scrim"> instead (below); .danger on the
+	card marks a destructive one. */
 body.modal
 {
 	display: flex;
@@ -2687,6 +2689,24 @@ body.modal
 body.modal.over-game
 {
 	background-color: #02030A5A;
+}
+
+/* In-document variant: a confirmation over its own screen. The scrim is a direct child of <body>
+   (after the frame) and covers the viewport; show it with data-if.
+	<div class="modal-scrim" data-if="..."><div class="modal-card(.danger)">head, body, actions</div></div> */
+.modal-scrim
+{
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 10;
+	background-color: #02030AB4;
 }
 
 .modal-card
@@ -2818,6 +2838,35 @@ body.modal.over-game
 .screen .modal-actions button.btn-back:hover
 {
 	background-color: #1E246EE6;
+}
+
+/* Danger: a destructive confirmation (delete). Red edge, red tick, red primary. */
+.modal-card.danger
+{
+	border-top-color: #FF5050;
+}
+
+.modal-card.danger .modal-title
+{
+	border-left-color: #FF5050;
+}
+
+.screen .modal-card.danger .modal-actions button.btn-cta
+{
+	color: #FFFFFF;
+	decorator: vertical-gradient(#E04848 #B82E2E);
+}
+
+.screen .modal-card.danger .modal-actions button.btn-cta:hover
+{
+	color: #FFFFFF;
+	decorator: vertical-gradient(#F05A5A #C83838);
+}
+
+.screen .modal-card.danger .modal-actions button.btn-cta:active
+{
+	color: #FFFFFF;
+	decorator: vertical-gradient(#A82828 #C03434);
 }
 
 /* A labelled field: an overline over its control. */

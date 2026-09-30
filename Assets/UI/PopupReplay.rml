@@ -6,38 +6,42 @@
 </head>
 <!-- The score screen's Save Replay: a modal card on a scrim. The replays already saved are listed so
      one can be picked to overwrite; the name entry saves on Enter like the .wnd. -->
-<body class="screen" data-model="popupreplay">
-	<div class="pr-card">
-		<div class="pr-title"><gametext key="GUI:SaveReplay"/></div>
+<body class="screen modal" data-model="popupreplay">
+	<div class="modal-card pr-card">
+		<div class="modal-head"><div class="modal-heading"><div class="modal-title"><gametext key="GUI:SaveReplay"/></div></div></div>
 
-		<div class="pr-list-wrap">
-			<div class="list-head">
-				<div class="head-name overline"><gametext key="GUI:GOReplay"/></div>
-				<div class="head-map overline"><gametext key="GUI:GOMap"/></div>
-				<div class="head-when overline"><gametext key="GUI:SaveDate"/></div>
-			</div>
-			<div class="pr-list">
-				<div data-for="row : rows">
-					<div class="row-item pr-row" data-class-selected="row.selected" data-event-click="select_row(row.index)">
-						<div class="pr-name" data-style-color="row.color_hex">{{row.name}}</div>
-						<div class="pr-map" data-style-color="row.map_color_hex">{{row.map}}</div>
-						<div class="pr-when">{{row.date_time}}</div>
-					</div>
+		<div class="modal-body pr-body">
+			<div class="pr-list-wrap">
+				<div class="list-head">
+					<div class="head-name overline"><gametext key="GUI:GOReplay"/></div>
+					<div class="head-map overline"><gametext key="GUI:GOMap"/></div>
+					<div class="head-when overline"><gametext key="GUI:SaveDate"/></div>
 				</div>
-				<div class="empty-state" data-if="rows.size == 0"><gametext key="GUI:GONoReplays"/></div>
+				<div class="pr-list">
+					<div data-for="row : rows">
+						<div class="row-item pr-row" data-class-selected="row.selected" data-event-click="select_row(row.index)">
+							<div class="pr-name" data-style-color="row.color_hex">{{row.name}}</div>
+							<div class="pr-map" data-style-color="row.map_color_hex">{{row.map}}</div>
+							<div class="pr-when">{{row.date_time}}</div>
+						</div>
+					</div>
+					<div class="empty-state" data-if="rows.size == 0"><gametext key="GUI:GONoReplays"/></div>
+				</div>
+
+				<!-- Up for a second once saved, over the list, before the popup closes (the .wnd's notice). -->
+				<div class="pr-saved" data-if="show_saved">
+					<div class="pr-saved-mark">&#10003;</div>
+					<div class="pr-saved-text"><gametext key="GUI:ReplaySaved"/></div>
+				</div>
 			</div>
 
-			<!-- Up for a second once saved, over the list, before the popup closes (the .wnd's notice). -->
-			<div class="pr-saved" data-if="show_saved">
-				<div class="pr-saved-mark">&#10003;</div>
-				<div class="pr-saved-text"><gametext key="GUI:ReplaySaved"/></div>
+			<div class="field pr-field">
+				<div class="overline"><gametext key="GUI:GOReplayName"/></div>
+				<input type="text" id="name-input" class="text-input" data-value="name" data-attr-maxlength="name_max" data-event-change="name_changed"/>
 			</div>
 		</div>
 
-		<div class="overline pr-label"><gametext key="GUI:GOReplayName"/></div>
-		<input type="text" id="name-input" class="text-input pr-input" data-value="name" data-attr-maxlength="name_max" data-event-change="name_changed"/>
-
-		<div class="pr-actions">
+		<div class="modal-actions">
 			<button class="btn-back" data-event-click="back"><span class="chevron">&#8249;</span><gametext key="GUI:Back"/></button>
 			<div class="spacer"></div>
 			<button class="btn-cta" data-attrif-disabled="save_disabled" data-event-click="save"><gametext key="GUI:SaveReplay"/></button>

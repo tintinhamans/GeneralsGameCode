@@ -2,7 +2,8 @@
 	SaveLoad.rcss -- SaveLoad.wnd (the main menu's Load Game) and PopupSaveLoad.wnd (the in-game
 	Save/Load, body.popup) on the screen template (common.rcss): a rich list of the saves in the
 	main column (name, campaign and mission or map, date and time), the selected save's card on the
-	right, and the load / overwrite / save name / delete confirmations as modal cards on a scrim.
+	right, and the load / overwrite / save name / delete confirmations as the shared in-document modal
+	(.modal-scrim, common.rcss); delete is its .danger variant.
 
 	Over the game (body.popup) the page sits on a scrim that dims the game, like the options.
 	A save game keeps no map picture the list can show (the save list only reads the save's header),
@@ -260,97 +261,6 @@ body.popup
 	display: block;
 	margin-top: 8dp;
 	color: #A9B1CF;
-}
-
-/* ---- Modal cards ------------------------------------------------------------------------------- */
-.modal-scrim
-{
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	position: absolute;
-	left: 0;
-	top: 0;
-	width: 100%;
-	height: 100%;
-	z-index: 10;
-	background-color: #03050CB4;
-}
-
-.modal-card
-{
-	display: flex;
-	flex-direction: column;
-	box-sizing: border-box;
-	width: 680dp;
-	padding: 28dp 32dp 28dp 32dp;
-	background-color: #070A1AF0;
-	border-top: 4dp #F07A1A;
-}
-
-.modal-card.danger
-{
-	border-top-color: #FF5050;
-}
-
-.modal-title
-{
-	display: block;
-	font-size: 30dp;
-	line-height: 36dp;
-	font-weight: bold;
-	letter-spacing: 1dp;
-	text-transform: uppercase;
-	color: #FFFFFF;
-}
-
-.modal-message
-{
-	display: block;
-	margin-top: 16dp;
-	color: #D7DCF0;
-}
-
-.modal-label
-{
-	margin-top: 20dp;
-	margin-bottom: 10dp;
-}
-
-.modal-input
-{
-	display: block;
-	box-sizing: border-box;
-	width: 100%;
-}
-
-.modal-actions
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	margin-top: 30dp;
-}
-
-.screen .modal-actions button.btn-cta
-{
-	height: 55dp;
-	line-height: 55dp;
-	min-width: 220dp;
-	padding: 0 34dp;
-	font-size: 21dp;
-}
-
-.screen .modal-card.danger button.btn-cta
-{
-	color: #FFFFFF;
-	decorator: vertical-gradient(#E04848 #B82E2E);
-}
-
-.screen .modal-card.danger button.btn-cta:hover
-{
-	decorator: vertical-gradient(#F05A5A #C83838);
 }
 
 /* ---- 5:4 and 4:3 ------------------------------------------------------------------------------ */

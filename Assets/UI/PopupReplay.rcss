@@ -1,45 +1,24 @@
 /*
-	PopupReplay.rcss -- the score screen's Save Replay popup (PopupReplay.wnd) as a modal card on a
-	scrim, in the screen template's language (common.rcss): the title behind the accent tick, the saved
+	PopupReplay.rcss -- the score screen's Save Replay popup (PopupReplay.wnd) on the shared modal card
+	(body.modal, common.rcss): the title behind the accent tick, the saved
 	replays as list rows (the .wnd's colours: a replay from another version grey, a missing map red), the
 	name entry, and Back / Save Replay along the bottom. "Replay Saved" covers the list for a second.
 */
 
-body.screen
-{
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	background-color: #03050CB4;
-}
-
+/* The shared modal card (common.rcss), sized for the list. */
 .pr-card
 {
-	display: flex;
-	flex-direction: column;
-	position: relative;
-	box-sizing: border-box;
 	width: 1100dp;
 	height: 780dp;
-	padding: 28dp 32dp 28dp 32dp;
-	background-color: #070A1AF0;
-	border-top: 4dp #F07A1A;
 }
 
-.pr-title
+.pr-body
 {
-	display: block;
-	flex: 0 0 auto;
-	margin-bottom: 18dp;
-	padding-left: 15dp;
-	font-size: 34dp;
-	line-height: 42dp;
-	font-weight: bold;
-	letter-spacing: 1dp;
-	text-transform: uppercase;
-	color: #FFFFFF;
-	border-left: 4dp #F07A1A;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	padding-bottom: 22dp;
+	line-height: 1.2;
 }
 
 /* ---- Saved replays ---------------------------------------------------------------------------- */
@@ -104,29 +83,11 @@ body.screen
 	color: #A9B1CF;
 }
 
-/* ---- Name and actions -------------------------------------------------------------------------- */
-.pr-label
+/* ---- Name --------------------------------------------------------------------------------------- */
+.pr-field
 {
 	flex: 0 0 auto;
 	margin-top: 20dp;
-	margin-bottom: 10dp;
-}
-
-.pr-input
-{
-	display: block;
-	flex: 0 0 auto;
-	box-sizing: border-box;
-	width: 100%;
-}
-
-.pr-actions
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	flex: 0 0 auto;
-	margin-top: 26dp;
 }
 
 /* ---- Saved ------------------------------------------------------------------------------------- */

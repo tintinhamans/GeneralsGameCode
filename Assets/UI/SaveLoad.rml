@@ -95,10 +95,10 @@
 	<!-- Confirmations and the save name: modal cards on a scrim over the whole screen. -->
 	<div class="modal-scrim" data-if="show_load_confirm">
 		<div class="modal-card">
-			<div class="modal-title"><gametext key="GUI:LoadGame"/></div>
-			<div class="modal-message"><gametext key="GUI:LoadGameConfirmation"/></div>
+			<div class="modal-head"><div class="modal-heading"><div class="modal-title"><gametext key="GUI:LoadGame"/></div></div></div>
+			<div class="modal-body"><gametext key="GUI:LoadGameConfirmation"/></div>
 			<div class="modal-actions">
-				<button class="btn-back" data-event-click="cancel_load"><gametext key="GUI:Cancel"/></button>
+				<button class="btn-back" data-event-click="cancel_load"><span class="chevron">&#8249;</span><gametext key="GUI:Cancel"/></button>
 				<div class="spacer"></div>
 				<button class="btn-cta" data-event-click="confirm_load"><gametext key="GUI:LoadGame"/></button>
 			</div>
@@ -107,10 +107,10 @@
 
 	<div class="modal-scrim" data-if="show_overwrite_confirm">
 		<div class="modal-card">
-			<div class="modal-title"><gametext key="GUI:SaveGame"/></div>
-			<div class="modal-message"><gametext key="GUI:OverwriteSaveConfirmation"/></div>
+			<div class="modal-head"><div class="modal-heading"><div class="modal-title"><gametext key="GUI:SaveGame"/></div></div></div>
+			<div class="modal-body"><gametext key="GUI:OverwriteSaveConfirmation"/></div>
 			<div class="modal-actions">
-				<button class="btn-back" data-event-click="cancel_overwrite"><gametext key="GUI:Cancel"/></button>
+				<button class="btn-back" data-event-click="cancel_overwrite"><span class="chevron">&#8249;</span><gametext key="GUI:Cancel"/></button>
 				<div class="spacer"></div>
 				<button class="btn-cta" data-event-click="confirm_overwrite"><gametext key="GUI:SaveGame"/></button>
 			</div>
@@ -119,11 +119,13 @@
 
 	<div class="modal-scrim" data-if="show_save_desc">
 		<div class="modal-card">
-			<div class="modal-title"><gametext key="GUI:SaveGame"/></div>
-			<div class="overline modal-label"><gametext key="GUI:EnterSaveDesc"/></div>
-			<input type="text" class="text-input modal-input" data-value="description" data-attr-maxlength="description_max"/>
+			<div class="modal-head"><div class="modal-heading"><div class="modal-title"><gametext key="GUI:SaveGame"/></div></div></div>
+			<div class="modal-body"><div class="field">
+				<div class="overline"><gametext key="GUI:EnterSaveDesc"/></div>
+				<input type="text" class="text-input" data-value="description" data-attr-maxlength="description_max"/>
+			</div></div>
 			<div class="modal-actions">
-				<button class="btn-back" data-event-click="cancel_save_desc"><gametext key="GUI:Cancel"/></button>
+				<button class="btn-back" data-event-click="cancel_save_desc"><span class="chevron">&#8249;</span><gametext key="GUI:Cancel"/></button>
 				<div class="spacer"></div>
 				<button class="btn-cta" data-event-click="confirm_save_desc"><gametext key="GUI:SaveGame"/></button>
 			</div>
@@ -132,10 +134,10 @@
 
 	<div class="modal-scrim" data-if="show_delete_confirm">
 		<div class="modal-card danger">
-			<div class="modal-title"><gametext key="GUI:DeleteGame"/></div>
-			<div class="modal-message"><gametext key="GUI:ConfirmDelete"/></div>
+			<div class="modal-head"><div class="modal-heading"><div class="modal-title"><gametext key="GUI:DeleteGame"/></div></div></div>
+			<div class="modal-body"><gametext key="GUI:ConfirmDelete"/></div>
 			<div class="modal-actions">
-				<button class="btn-back" data-event-click="cancel_delete"><gametext key="GUI:No"/></button>
+				<button class="btn-back" data-event-click="cancel_delete"><span class="chevron">&#8249;</span><gametext key="GUI:No"/></button>
 				<div class="spacer"></div>
 				<button class="btn-cta" data-event-click="confirm_delete"><gametext key="GUI:Yes"/></button>
 			</div>

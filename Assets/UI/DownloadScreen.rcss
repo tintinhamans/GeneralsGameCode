@@ -1,63 +1,13 @@
 /*
-	DownloadScreen.rcss -- the Generals Online update download (DownloadMenu.wnd) over the main menu:
-	a card centred on a dim scrim, in the header and action bar language of the screen template. The
-	file being fetched, the shared progress bar, bytes and time left under it, the download state,
-	and Cancel (the only way out, as in the .wnd; Escape does the same).
+	DownloadScreen.rcss -- the Generals Online update download (DownloadMenu.wnd) over the main menu, on
+	the shared modal card (body.modal, common.rcss): the file being fetched, the shared progress bar,
+	bytes and time left under it, the download state where the primary would sit, and Cancel (the only
+	way out, as in the .wnd; Escape does the same).
 */
-
-body.dl
-{
-	background-color: transparent;
-}
-
-.dl-scrim
-{
-	display: block;
-	position: absolute;
-	left: 0;
-	top: 0;
-	width: 100%;
-	height: 100%;
-	background-color: #05070FB4;
-}
 
 .dl-card
 {
-	display: block;
-	position: absolute;
-	left: 50%;
-	top: 50%;
-	box-sizing: border-box;
 	width: 780dp;
-	margin-left: -390dp;
-	margin-top: -170dp;
-	background-color: #070A1AF0;
-	border-top: 4dp #F07A1A;
-}
-
-.dl-head
-{
-	display: block;
-	padding: 24dp 30dp 16dp 30dp;
-	border-bottom: 1dp #8080FF28;
-}
-
-.dl-title
-{
-	display: block;
-	margin-top: 4dp;
-	font-size: 34dp;
-	line-height: 42dp;
-	font-weight: bold;
-	letter-spacing: 1dp;
-	text-transform: uppercase;
-	color: #FFFFFF;
-}
-
-.dl-body
-{
-	display: block;
-	padding: 22dp 30dp 20dp 30dp;
 }
 
 /* The file name wraps rather than running past the card. */
@@ -89,19 +39,13 @@ body.dl
 	color: #A9B1CF;
 }
 
-.dl-actions
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	padding: 0 30dp 24dp 30dp;
-}
-
+/* The state, in the primary's place: one line of tracked caps behind a pulsing dot. */
 .dl-status
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
+	height: 54dp;
 	font-size: 17dp;
 	font-weight: bold;
 	letter-spacing: 1dp;
@@ -113,11 +57,4 @@ body.dl
 {
 	margin-right: 10dp;
 	background-color: #F07A1A;
-}
-
-/* Back-style Cancel: its chevron lines up with the card text. */
-.screen .dl-actions button.btn-back
-{
-	margin-left: -15dp;
-	background-color: transparent;
 }
