@@ -1860,21 +1860,76 @@ UK: "МЕРЕЖЕВА ГРА"
 END
 
 GO:GUI:InterfaceWidth
-"Interface Width"
+US: "Interface Width"
+DE: "Oberflächenbreite"
+FR: "Largeur de l'interface"
+ES: "Ancho de la interfaz"
+IT: "Larghezza dell'interfaccia"
+KO: "인터페이스 너비"
+ZH: "介面寬度"
+BP: "Largura da interface"
+PL: "Szerokość interfejsu"
+RU: "Ширина интерфейса"
+AR: "عرض الواجهة"
+UK: "Ширина інтерфейсу"
 END
 
 GO:GUI:InterfaceWidthDesc
-"On wide screens, keeps the menus and the control bar in a centred area."
+US: "On wide screens, keeps the menus and the control bar in a centred area."
+DE: "Hält auf breiten Bildschirmen die Menüs und die Steuerleiste in einem zentrierten Bereich."
+FR: "Sur les écrans larges, garde les menus et la barre de commandes dans une zone centrée."
+ES: "En pantallas anchas, mantiene los menús y la barra de control en un área centrada."
+IT: "Sugli schermi ampi mantiene i menu e la barra di controllo in un'area centrale."
+KO: "와이드 화면에서 메뉴와 컨트롤 바를 중앙 영역에 유지합니다."
+ZH: "在寬螢幕上，將選單和控制列保持在置中區域。"
+BP: "Em telas largas, mantém os menus e a barra de controle numa área centralizada."
+PL: "Na szerokich ekranach utrzymuje menu i pasek sterowania w wyśrodkowanym obszarze."
+RU: "На широких экранах удерживает меню и панель управления в центральной области."
+AR: "على الشاشات العريضة، يبقي القوائم وشريط التحكم في منطقة مركزية."
+UK: "На широких екранах утримує меню та панель керування в центральній області."
 END
 
 GO:GUI:InterfaceWidthFull
-"Full width"
+US: "Full width"
+DE: "Volle Breite"
+FR: "Pleine largeur"
+ES: "Ancho completo"
+IT: "Larghezza piena"
+KO: "전체 너비"
+ZH: "全寬"
+BP: "Largura total"
+PL: "Pełna szerokość"
+RU: "Во всю ширину"
+AR: "العرض الكامل"
+UK: "Повна ширина"
 END
 
 GO:GUI:InterfaceWidth21x9
-"21:9"
+US: "21:9"
+DE: "21:9"
+FR: "21:9"
+ES: "21:9"
+IT: "21:9"
+KO: "21:9"
+ZH: "21:9"
+BP: "21:9"
+PL: "21:9"
+RU: "21:9"
+AR: "21:9"
+UK: "21:9"
 END
 
 GO:GUI:InterfaceWidth16x9
-"16:9 (centred)"
+US: "16:9 (centred)"
+DE: "16:9 (zentriert)"
+FR: "16:9 (centré)"
+ES: "16:9 (centrado)"
+IT: "16:9 (centrato)"
+KO: "16:9 (가운데)"
+ZH: "16:9（置中）"
+BP: "16:9 (centralizado)"
+PL: "16:9 (wyśrodkowane)"
+RU: "16:9 (по центру)"
+AR: "16:9 (في الوسط)"
+UK: "16:9 (по центру)"
 END
