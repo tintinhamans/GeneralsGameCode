@@ -18,7 +18,7 @@ body.cb
 	height: 100%;
 	pointer-events: none;
 	z-index: -1; /* under every other in-game document (menus, popups) */
-	font-family: Barlow;
+	font-family: "Noto Sans";
 	font-size: 16dp;
 	color: #EEF1FA;
 }
