@@ -189,6 +189,7 @@ static void releaseRmlScreens()
 {
 	RmlBuddyOverlayScreen::instance().releaseRml();
 	RmlChallengeMenuScreen::instance().releaseRml();
+	RmlControlBarScreen::instance().releaseRml();
 	RmlCreditsScreen::instance().releaseRml();
 	RmlDisconnectScreen::instance().releaseRml();
 	RmlDownloadScreen::instance().releaseRml();

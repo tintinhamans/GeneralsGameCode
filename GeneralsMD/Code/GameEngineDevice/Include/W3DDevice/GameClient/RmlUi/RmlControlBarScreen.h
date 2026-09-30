@@ -58,6 +58,7 @@ public:
 
 	static void tick(); ///< RmlUiManager::update(), before the context updates
 	void shutdown();	///< RmlUiManager::shutdown(): the context and the document go away
+	void releaseRml() { m_document = nullptr; m_context = nullptr; m_modelHandle = Rml::DataModelHandle(); } ///< after Rml::Shutdown() freed them
 
 	bool isVisible() const;
 	bool onKey(unsigned char key, unsigned short state); ///< Escape in the beacon's text; see RmlUiManager::init()

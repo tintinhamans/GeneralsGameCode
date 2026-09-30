@@ -404,9 +404,14 @@ void RmlUiRenderInterface::drawEngine(void (*draw)(void *), void *context)
 {
 	const bool scissorEnabled = m_scissorEnabled;
 	const Rml::Rectanglei scissorRegion = m_scissorRegion;
+	const bool hasTransform = m_hasTransform;
+	const D3DMATRIX transform = m_transform;
 	endFrame();
 	draw(context);
 	beginFrame(m_contextWidth, m_contextHeight);
+	// beginFrame() cleared the element's transform; the rest of its draws still need it.
+	m_hasTransform = hasTransform;
+	m_transform = transform;
 	if (scissorEnabled)
 	{
 		EnableScissorRegion(true);
