@@ -59,6 +59,7 @@
 #include "Common/OptionPreferences.h"
 
 #include "GameClient/Display.h"
+#include "GameClient/GameText.h"
 #include "GameClient/GlobalLanguage.h"
 
 //-----------------------------------------------------------------------------
@@ -154,6 +155,19 @@ void GlobalLanguage::init()
 
 		INI ini;
 		ini.loadFileDirectory( fname, INI_LOAD_OVERWRITE, nullptr );
+	}
+
+	// The fonts of the chosen text language (Options > Game language), over the installed language's.
+	// The game text is initialized before this, so GetGameTextLanguage() is known here.
+	{
+		const AsciiString textLanguage = GetGameTextLanguage();
+		AsciiString chosen;
+		chosen.format("Data\\Languages\\%s\\Language.ini", textLanguage.str());
+		if (textLanguage.isNotEmpty() && TheFileSystem->doesFileExist(chosen.str()))
+		{
+			INI ini;
+			ini.load( chosen, INI_LOAD_OVERWRITE, nullptr );
+		}
 	}
 
 	StringList::iterator it = m_localFonts.begin();
