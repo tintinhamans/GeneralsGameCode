@@ -10,7 +10,7 @@
 	             Views: friends and requests, the custom lobby's room (its Lobby tab, while the
 	             lobby is up), the block list, one conversation.
 
-	Presence: online #3CD28C, in a lobby #14B1FF, in a game #E8D440, offline grey. The unread badge
+	Presence: online #36D8B2, in a lobby #14B1FF, in a game #E8D440, offline grey. The unread badge
 	uses the accent. .template/.shell (from the host screen) line the panel up with its frame.
 */
 
@@ -43,7 +43,7 @@ body
 {
 	background-color: #1E246EE6;
 	border-color: #8080FF;
-	border-left-color: #F07A1A;
+	border-left-color: #D1FD04;
 }
 
 .screen button.dock-tab[disabled], .screen button.dock-tab[disabled]:hover
@@ -124,8 +124,8 @@ body
 	text-align: center;
 	font-size: 16dp;
 	font-weight: bold;
-	color: #1A0C02;
-	background-color: #F07A1A;
+	color: #0E1400;
+	background-color: #D1FD04;
 }
 
 .tab-chevron
@@ -358,7 +358,7 @@ body
 .person.friend.selected, .person.friend.selected:hover
 {
 	background-color: #2F37A880;
-	border-left-color: #F07A1A;
+	border-left-color: #D1FD04;
 }
 
 .avatar
@@ -391,7 +391,7 @@ body
 	background-color: #4A5070;
 }
 
-.presence.online { background-color: #3CD28C; }
+.presence.online { background-color: #36D8B2; }
 .presence.lobby { background-color: #14B1FF; }
 .presence.game { background-color: #E8D440; }
 
@@ -443,8 +443,8 @@ body
 	text-align: center;
 	font-size: 16dp;
 	font-weight: bold;
-	color: #1A0C02;
-	background-color: #F07A1A;
+	color: #0E1400;
+	background-color: #D1FD04;
 }
 
 /* Requests: two lines of who, the answer buttons under them. */
@@ -475,15 +475,15 @@ body
 
 .screen .person button.accept
 {
-	color: #1A0C02;
-	background-color: #F07A1A;
-	border-color: #F07A1A;
+	color: #0E1400;
+	background-color: #D1FD04;
+	border-color: #D1FD04;
 }
 
 .screen .person button.accept:hover
 {
-	background-color: #F79A34;
-	border-color: #F79A34;
+	background-color: #C8F000;
+	border-color: #C8F000;
 }
 
 .screen .person button.quiet

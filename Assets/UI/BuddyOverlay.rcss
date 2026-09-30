@@ -106,8 +106,8 @@
 /* A friend request waits on an answer (right click): the accent bar. */
 .bo-person.request
 {
-	border-left-color: #F07A1A;
-	background-color: #F07A1A14;
+	border-left-color: #D1FD04;
+	background-color: #D1FD0414;
 }
 
 .bo-presence
@@ -121,7 +121,7 @@
 	background-color: #4A5070;
 }
 
-.bo-person.friend.online .bo-presence { background-color: #3CD28C; }
+.bo-person.friend.online .bo-presence { background-color: #36D8B2; }
 .bo-person.lobby .bo-presence { background-color: #14B1FF; }
 .bo-person.recent .bo-presence, .bo-person.request .bo-presence { background-color: #7079A0; }
 .bo-person.blocked .bo-presence { background-color: #FF5050; }
@@ -172,8 +172,8 @@
 	text-align: center;
 	font-size: 16dp;
 	font-weight: bold;
-	color: #1A0C02;
-	background-color: #F07A1A;
+	color: #0E1400;
+	background-color: #D1FD04;
 }
 
 /* ---- Conversation ---------------------------------------------------------------------------- */

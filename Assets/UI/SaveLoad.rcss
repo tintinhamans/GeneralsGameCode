@@ -67,8 +67,8 @@ body.popup
 	text-align: center;
 	font-size: 28dp;
 	font-weight: bold;
-	color: #FF9A3D;
-	border: 2dp #F07A1A;
+	color: #D1FD04;
+	border: 2dp #D1FD04;
 }
 
 .save-main
@@ -92,7 +92,7 @@ body.popup
 
 .save-row.new .save-name
 {
-	color: #FF9A3D;
+	color: #D1FD04;
 }
 
 .save-sub
@@ -221,8 +221,8 @@ body.popup
 	text-align: center;
 	font-size: 44dp;
 	font-weight: bold;
-	color: #FF9A3D;
-	border: 3dp #F07A1A;
+	color: #D1FD04;
+	border: 3dp #D1FD04;
 }
 
 .detail-hint

@@ -116,8 +116,8 @@
 	text-align: center;
 	font-size: 56dp;
 	font-weight: bold;
-	color: #3CD28C;
-	border: 3dp #3CD28C;
+	color: #36D8B2;
+	border: 3dp #36D8B2;
 }
 
 .pr-saved-text

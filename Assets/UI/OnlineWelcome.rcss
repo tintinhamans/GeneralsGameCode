@@ -45,7 +45,7 @@
 /* Quick Match is the one-click way in: it carries the accent. */
 .screen button.wc-tile-qm
 {
-	border-bottom-color: #F07A1A;
+	border-bottom-color: #D1FD04;
 }
 
 .wc-tile .tile-title
@@ -76,7 +76,7 @@
 
 .wc-tile-qm .wc-tile-go, .wc-tile:hover .wc-tile-go
 {
-	color: #F07A1A;
+	color: #D1FD04;
 }
 
 /* ---- News and win rates ------------------------------------------------------------------------ */
@@ -210,7 +210,7 @@
 
 .wc-army:hover .wc-army-fill
 {
-	background-color: #F07A1A;
+	background-color: #D1FD04;
 }
 
 /* ---- Player card ------------------------------------------------------------------------------- */
@@ -275,8 +275,8 @@
 	width: 58dp;
 	height: 58dp;
 	background-color: #070A1AF0;
-	border-top: 1dp #F07A1A;
-	border-left: 1dp #F07A1A;
+	border-top: 1dp #D1FD04;
+	border-left: 1dp #D1FD04;
 }
 
 .wc-badge mappedimage

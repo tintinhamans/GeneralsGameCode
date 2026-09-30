@@ -33,7 +33,7 @@
 
 .conn.connected .conn-dot
 {
-	background-color: #3CD28C;
+	background-color: #36D8B2;
 }
 
 .conn-ms

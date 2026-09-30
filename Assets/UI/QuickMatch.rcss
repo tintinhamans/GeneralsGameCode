@@ -55,7 +55,7 @@
 	color: #FFFFFF;
 	background-color: #141A3EF0;
 	border-color: #8080FF;
-	border-bottom-color: #F07A1A;
+	border-bottom-color: #D1FD04;
 }
 
 .screen button.qm-pl.on, .screen button.qm-pl.on:hover
@@ -63,7 +63,7 @@
 	color: #FFFFFF;
 	background-color: #2F37A8C8;
 	border-color: #8080FF;
-	border-bottom-color: #F07A1A;
+	border-bottom-color: #D1FD04;
 }
 
 /* ---- Map pool: a grid of toggles ------------------------------------------------------------------- */
@@ -115,7 +115,7 @@
 	color: #FFFFFF;
 	background-color: #1E246ED2;
 	border-color: #8080FF46;
-	border-left-color: #F07A1A;
+	border-left-color: #D1FD04;
 }
 
 .qm-thumb
@@ -170,7 +170,7 @@
 
 .qm-map.on .qm-check
 {
-	background-color: #F07A1A;
+	background-color: #D1FD04;
 	border: 6dp #0B1030;
 }
 
@@ -197,7 +197,7 @@
 
 .qm-search.searching
 {
-	border-top-color: #F07A1A;
+	border-top-color: #D1FD04;
 }
 
 .qm-state
@@ -229,7 +229,7 @@
 
 .qm-accent
 {
-	color: #FF9A3D;
+	color: #D1FD04;
 	font-size: 19dp;
 	line-height: 24dp;
 	letter-spacing: 1dp;
@@ -265,8 +265,8 @@
 	width: 104dp;
 	height: 104dp;
 	border-radius: 52dp;
-	border: 3dp #F07A1A;
-	background-color: #F07A1A1E;
+	border: 3dp #D1FD04;
+	background-color: #D1FD041E;
 }
 
 .qm-core
@@ -278,7 +278,7 @@
 	width: 32dp;
 	height: 32dp;
 	border-radius: 16dp;
-	background-color: #F07A1A;
+	background-color: #D1FD04;
 }
 
 .qm-searching
@@ -434,7 +434,7 @@
 	pointer-events: none;
 	background-color: #070A1AF0;
 	border: 1dp #8080FF;
-	border-top: 3dp #F07A1A;
+	border-top: 3dp #D1FD04;
 }
 
 /* <mappreview> is a custom element (RmlUiElements.cpp) with no default display. */

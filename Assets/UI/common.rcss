@@ -767,9 +767,9 @@ scrolllog
 	display: block;
 	box-sizing: border-box;
 	height: 100%;
-	background-color: #F07A1A;
-	decorator: vertical-gradient(#F5A93A #C9540F);
-	border-right: 2dp #FFE2B8;
+	background-color: #D1FD04;
+	decorator: vertical-gradient(#E6FF6A #8FB000);
+	border-right: 2dp #F4FFC0;
 }
 
 .rank-label
@@ -929,15 +929,18 @@ body.shell
 	                                         a #070A1AC8-D9 plate (heading, back) or .map-glow
 	            raised    #141A3ED7          controls, hovered rows
 	            line      #8080FF28          hairline separators; borders only where needed
-	            blue      #2F37A8 / #3A46D0 / #8080FF   brand, selected, hover/focus
+	            blue      #2F37A8 / #3A46D0 / #8080FF   brand, selected, hover/focus; the retail
+	                                         push buttons' blues (47 55 168 pushed, 0 0 255 lit)
 	            text      #EEF1FA  text-2 #A9B1CF  text-3 #7079A0 (labels, overlines)
-	            accent    #F07A1A            Zero Hour orange, the one "act here" colour: title
-	                                         tick, focus ring, selected-row bar, checks, badges
-	                      #FF9A3D            accent as text on dark (pressed, checked option)
-	                      #F5A93A            gold: only the highlight atop the hovered primary
-	                      #C9540F            pressed primary; #1A0C02 text on the accent
+	            accent    #D1FD04            the .wnd push button HILITE green (209 253 4), the one
+	                                         "act here" colour: hover and pressed text, title tick,
+	                                         focus ring, selected-row bar, checks, badges
+	                      #E6FF6A / #A8CC00 / #8FB000   light / dark / pressed green, for fills
+	                                         (progress, rank); #0E1400 text on a green fill
+	            primary   blue plate #3F4CD8-#252E96, 2dp #6170FA edge, white text; on hover and
+	                                         focus the edge and text go green (.btn-cta)
 	                                         Selection fills and "on" segments stay blue.
-	            status    good #3CD28C  warn #E8D440 (yellow, clear of the accent)  bad #FF5050
+	            status    good #36D8B2 (teal, clear of the lime accent)  warn #E8D440  bad #FF5050
 	                      buddy #14B1FF
 	  Type      Barlow Regular/Bold. Title 40dp bold caps behind an accent tick; crumb and
 	            overline 15-16dp bold caps tracked 2dp; body 20dp (the .wnd Arial 12 at 800x600);
@@ -1180,7 +1183,7 @@ body.screen
 	letter-spacing: 1dp;
 	text-transform: uppercase;
 	color: #FFFFFF;
-	border-left: 4dp #F07A1A;
+	border-left: 4dp #D1FD04;
 	padding-left: 15dp;
 	white-space: nowrap;
 }
@@ -1293,7 +1296,7 @@ body.screen
 .screen button:hover, .screen .button:hover
 {
 	decorator: none;
-	color: #FFFFFF;
+	color: #D1FD04;
 	background-color: #2F37A8D2;
 	border-color: #8080FF;
 }
@@ -1301,14 +1304,14 @@ body.screen
 .screen button:active, .screen .button:active
 {
 	decorator: none;
-	color: #FF9A3D;
+	color: #D1FD04;
 	background-color: #1E246EE6;
 	border-color: #8080FF;
 }
 
 .screen button:focus-visible
 {
-	border-color: #F07A1A;
+	border-color: #D1FD04;
 }
 
 .screen button[disabled], .screen button.disabled,
@@ -1322,30 +1325,34 @@ body.screen
 	border-color: #8080FF1E;
 }
 
-/* Primary action: the accent. One per screen, always at the right end of the action bar. */
+/* Primary action: the retail push button made bold. A lit blue plate with a bright blue edge; on
+   hover and focus the edge and the text turn the .wnd hilite green. One per screen, always at the right
+   end of the action bar. */
 .screen button.btn-cta
 {
 	height: 65dp;
-	line-height: 65dp;
+	line-height: 61dp;
 	min-width: 300dp;
 	padding: 0 50dp;
 	font-size: 24dp;
 	letter-spacing: 2dp;
-	color: #1A0C02;
-	border-width: 0;
-	decorator: vertical-gradient(#F79A34 #E0661A);
+	color: #FFFFFF;
+	border: 2dp #6170FA;
+	decorator: vertical-gradient(#3F4CD8 #252E96);
 }
 
-.screen button.btn-cta:hover
+.screen button.btn-cta:hover, .screen button.btn-cta:focus-visible
 {
-	color: #120800;
-	decorator: vertical-gradient(#F5A93A #F07A1A);
+	color: #D1FD04;
+	border-color: #D1FD04;
+	decorator: vertical-gradient(#4A58EA #2F37A8);
 }
 
 .screen button.btn-cta:active
 {
-	color: #120800;
-	decorator: vertical-gradient(#C9540F #D8601A);
+	color: #D1FD04;
+	border-color: #A8CC00;
+	decorator: vertical-gradient(#1E246E #2A3290);
 }
 
 .screen button.btn-cta[disabled], .screen button.btn-cta[disabled]:hover, .screen button.btn-cta[disabled]:active
@@ -1353,6 +1360,7 @@ body.screen
 	decorator: none;
 	color: #4A5070;
 	background-color: #1A2040C8;
+	border-color: #8080FF1E;
 }
 
 /* Back/cancel: quiet text button with a chevron, always at the left end of the action bar. */
@@ -1376,7 +1384,7 @@ body.screen
 
 .screen button.btn-back:active
 {
-	color: #FF9A3D;
+	color: #D1FD04;
 }
 
 .screen button.btn-back[disabled], .screen button.btn-back[disabled]:hover, .screen button.btn-back[disabled]:active
@@ -1608,7 +1616,7 @@ label.check:hover
 .screen input.checkbox:checked, .screen input.checkbox:checked:hover
 {
 	decorator: none;
-	background-color: #F07A1A;
+	background-color: #D1FD04;
 	border: 6dp #0B1030;
 }
 
@@ -1643,7 +1651,7 @@ label.check:hover
 
 .screen input.range sliderbar:hover, .screen input.range sliderbar:active
 {
-	background-color: #F07A1A;
+	background-color: #D1FD04;
 }
 
 /* ---- Dropdown ----------------------------------------------------------------------------- */
@@ -1728,7 +1736,7 @@ label.check:hover
 
 .screen select selectbox option:checked
 {
-	color: #FF9A3D;
+	color: #D1FD04;
 }
 
 /* An occupant select's SLOT_PLAYER entry: it only keeps a player's value matched, so it is disabled
@@ -1796,13 +1804,13 @@ label.check:hover
 .screen .send-row button.chat-send:hover
 {
 	background-color: #2F37A8D2;
-	border-color: #F07A1A;
+	border-color: #D1FD04;
 }
 
 .screen .send-row button.chat-send:active
 {
 	background-color: #1E246EE6;
-	border-color: #F07A1A;
+	border-color: #D1FD04;
 }
 
 .chat-send .send-arrow
@@ -1811,14 +1819,14 @@ label.check:hover
 	width: 0;
 	height: 0;
 	margin-left: 4dp;
-	border-left: 16dp #F07A1A;
+	border-left: 16dp #D1FD04;
 	border-top: 10dp transparent;
 	border-bottom: 10dp transparent;
 }
 
 .chat-send:hover .send-arrow
 {
-	border-left-color: #FF9A3D;
+	border-left-color: #D1FD04;
 }
 
 .chat-send .send-emote
@@ -1828,12 +1836,12 @@ label.check:hover
 	font-size: 44dp;
 	line-height: 44dp;
 	font-weight: bold;
-	color: #F07A1A;
+	color: #D1FD04;
 }
 
 .chat-send:hover .send-emote
 {
-	color: #FF9A3D;
+	color: #D1FD04;
 }
 
 /* ---- Scrollbar: slim, lit on hover -------------------------------------------------------- */
@@ -1874,11 +1882,11 @@ label.check:hover
 
 .screen scrollbarvertical sliderbar:active
 {
-	border-top-color: #F5A93A;
-	border-left-color: #F79A34;
-	border-right-color: #C9540F;
-	border-bottom-color: #7A3208;
-	decorator: horizontal-gradient(#F07A1A #D8601A);
+	border-top-color: #E6FF6A;
+	border-left-color: #C8F000;
+	border-right-color: #8FB000;
+	border-bottom-color: #4A5C00;
+	decorator: horizontal-gradient(#D1FD04 #A8CC00);
 }
 
 /* ---- List rows ---------------------------------------------------------------------------
@@ -1905,7 +1913,7 @@ label.check:hover
 .row-item.selected, .row-item.selected:hover
 {
 	background-color: #2F37A8A0;
-	border-left-color: #F07A1A;
+	border-left-color: #D1FD04;
 }
 
 /* Column caption row over a list. */
@@ -1984,7 +1992,7 @@ label.check:hover
 	width: 10dp;
 	height: 10dp;
 	border-radius: 4dp;
-	background-color: #3CD28C;
+	background-color: #36D8B2;
 }
 
 /* ---- Map card: a map preview with numbered start positions, its name under it ---------------
@@ -2096,7 +2104,7 @@ mappreview .mp-art
 
 .marker:hover .marker-dot
 {
-	border-color: #F07A1A;
+	border-color: #D1FD04;
 }
 
 .marker.occupied .marker-dot
@@ -2495,7 +2503,7 @@ mappreview .mp-art
 .screen .pc-add button:hover
 {
 	color: #FFFFFF;
-	border-color: #F07A1A;
+	border-color: #D1FD04;
 	background-color: #2F37A878;
 }
 
@@ -2521,7 +2529,7 @@ mappreview .mp-art
 
 .pc-plus
 {
-	color: #FF9A3D;
+	color: #D1FD04;
 	margin-right: 4dp;
 }
 
@@ -2566,7 +2574,7 @@ mappreview .mp-art
 {
 	background-color: #141A3EF0;
 	border-color: #8080FF;
-	border-bottom-color: #F07A1A;
+	border-bottom-color: #D1FD04;
 }
 
 .screen button.tile:active
@@ -2601,7 +2609,7 @@ mappreview .mp-art
 
 .tile:hover .tile-title
 {
-	color: #FF9A3D;
+	color: #D1FD04;
 }
 
 /* ---- Tab rail: categories down the side of a screen ------------------------------------------ */
@@ -2639,7 +2647,7 @@ mappreview .mp-art
 .screen .tab-rail button.rail-item.on, .screen .tab-rail button.rail-item.on:hover
 {
 	color: #FFFFFF;
-	border-left-color: #F07A1A;
+	border-left-color: #D1FD04;
 	decorator: horizontal-gradient(#2F37A8F0 #2F37A840);
 }
 
@@ -2660,8 +2668,8 @@ mappreview .mp-art
 	display: block;
 	box-sizing: border-box;
 	height: 100%;
-	decorator: vertical-gradient(#F5A93A #C9540F);
-	border-right: 2dp #FFE2B8;
+	decorator: vertical-gradient(#E6FF6A #8FB000);
+	border-right: 2dp #F4FFC0;
 }
 
 /* ---- Chips ------------------------------------------------------------------------------------ */
@@ -2679,8 +2687,8 @@ mappreview .mp-art
 	white-space: nowrap;
 }
 
-.chip-label.good { color: #04140C; background-color: #3CD28C; }
-.chip-label.accent { color: #1A0C02; background-color: #F07A1A; }
+.chip-label.good { color: #041410; background-color: #36D8B2; }
+.chip-label.accent { color: #0E1400; background-color: #D1FD04; }
 .chip-label.warn { color: #1A1604; background-color: #E8D440; }
 
 /* Status chip: a setting shown, not edited. On: a filled green dot on a green tint. Off: a hollow
@@ -2724,7 +2732,7 @@ mappreview .mp-art
 {
 	color: #E4F8EE;
 	background-color: #0E2A22D8;
-	border-color: #3CD28C8C;
+	border-color: #36D8B28C;
 }
 
 .chip-status.on gametext
@@ -2734,13 +2742,13 @@ mappreview .mp-art
 
 .chip-status.on .chip-dot
 {
-	background-color: #3CD28C;
-	border-color: #3CD28C;
+	background-color: #36D8B2;
+	border-color: #36D8B2;
 }
 
 .accent-overline
 {
-	color: #FF9A3D;
+	color: #D1FD04;
 }
 
 /* ---- Persona: a player's rank header and career record ---------------------------------------
@@ -2786,8 +2794,8 @@ mappreview .mp-art
 	width: 54dp;
 	height: 54dp;
 	background-color: #070A1AF0;
-	border-top: 1dp #F07A1A;
-	border-left: 1dp #F07A1A;
+	border-top: 1dp #D1FD04;
+	border-left: 1dp #D1FD04;
 }
 
 .persona-badge mappedimage
@@ -2980,7 +2988,7 @@ body.modal.over-game
 	width: 640dp;
 	max-height: 90%;
 	background-color: #070A1AF2;
-	border-top: 3dp #F07A1A;
+	border-top: 3dp #D1FD04;
 	animation: 0.18s cubic-out modal-in;
 }
 
@@ -3020,7 +3028,7 @@ body.modal.over-game
 	letter-spacing: 1dp;
 	text-transform: uppercase;
 	color: #FFFFFF;
-	border-left: 4dp #F07A1A;
+	border-left: 4dp #D1FD04;
 	padding-left: 15dp;
 	white-space: nowrap;
 	overflow: hidden;

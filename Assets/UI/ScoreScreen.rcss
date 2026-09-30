@@ -58,7 +58,7 @@ body.ss
 
 .ss-heading.victory .screen-title
 {
-	color: #3CD28C;
+	color: #36D8B2;
 }
 
 .ss-heading.defeat .screen-title
@@ -146,7 +146,7 @@ body.ss
 	font-size: 40dp;
 	line-height: 46dp;
 	font-weight: bold;
-	color: #FF9A3D;
+	color: #D1FD04;
 }
 
 .ss-hl-name
@@ -351,7 +351,7 @@ body.ss
 /* The game's best in this stat. */
 .ss-cell.best
 {
-	color: #FF9A3D;
+	color: #D1FD04;
 }
 
 /* ---- Challenge splash ------------------------------------------------------------------------------ */
@@ -362,7 +362,7 @@ body.ss
 	align-items: center;
 	flex: 0 0 auto;
 	padding: 30dp;
-	border-left: 4dp #F07A1A;
+	border-left: 4dp #D1FD04;
 }
 
 .ss-challenge-portrait
@@ -422,7 +422,7 @@ body.ss
 	flex: 0 1 auto;
 	min-height: 0;
 	max-height: 280dp;
-	border-left: 4dp #F07A1A;
+	border-left: 4dp #D1FD04;
 }
 
 .ss-academy-body

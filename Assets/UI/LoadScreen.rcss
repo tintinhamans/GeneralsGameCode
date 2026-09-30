@@ -127,7 +127,7 @@ body.ld
 	min-width: 0;
 	padding: 14dp 30dp 16dp 22dp;
 	background-color: #070A1AD9;
-	border-left: 4dp #F07A1A;
+	border-left: 4dp #D1FD04;
 }
 
 .ld-mode
@@ -173,7 +173,7 @@ body.ld
 	padding: 10dp 20dp;
 	font-size: 24dp;
 	font-weight: bold;
-	color: #FF9A3D;
+	color: #D1FD04;
 	background-color: #070A1AD9;
 }
 

@@ -42,7 +42,7 @@
 	box-sizing: border-box;
 	padding: 18dp 20dp;
 	background-color: #070A1AE0;
-	border-top: 2dp #F07A1A;
+	border-top: 2dp #D1FD04;
 }
 
 .mm-sub
@@ -121,38 +121,38 @@
 
 .screen button.mm-item:hover
 {
-	color: #FFFFFF;
+	color: #D1FD04;
 	padding-left: 30dp;
-	border-left-color: #F07A1A;
+	border-left-color: #D1FD04;
 	background-color: transparent;
 	decorator: horizontal-gradient(#2F37A8D2 #2F37A800);
 }
 
 .screen button.mm-item:active
 {
-	color: #FF9A3D;
-	border-left-color: #F07A1A;
+	color: #D1FD04;
+	border-left-color: #D1FD04;
 	background-color: transparent;
 	decorator: horizontal-gradient(#1E246EE6 #1E246E00);
 }
 
 .screen button.mm-item:focus-visible
 {
-	border-left-color: #F07A1A;
+	border-left-color: #D1FD04;
 }
 
 /* The root item whose panel is open beside the menu. */
 .screen button.mm-item.current, .screen button.mm-item.current:hover
 {
 	color: #FFFFFF;
-	border-left-color: #F07A1A;
+	border-left-color: #D1FD04;
 	decorator: horizontal-gradient(#2F37A8F0 #2F37A840);
 }
 
 .mm-item.current .mm-more
 {
 	opacity: 1;
-	color: #FF9A3D;
+	color: #D1FD04;
 }
 
 /* Right-hand chevron on items that open another panel. */
@@ -172,7 +172,7 @@
 .mm-item:hover .mm-more
 {
 	opacity: 1;
-	color: #FF9A3D;
+	color: #D1FD04;
 }
 
 .screen button.mm-quiet, .screen button.mm-back

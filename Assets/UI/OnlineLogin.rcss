@@ -23,5 +23,5 @@
 .login-status .dot
 {
 	margin-right: 14dp;
-	background-color: #F07A1A;
+	background-color: #D1FD04;
 }

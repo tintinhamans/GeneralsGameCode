@@ -173,7 +173,7 @@
 
 .game-players.almost-full
 {
-	color: #3CD28C;
+	color: #36D8B2;
 }
 
 .game-players.full
@@ -196,7 +196,7 @@
 {
 	width: 4dp;
 	margin-left: 2dp;
-	background-color: #3CD28C;
+	background-color: #36D8B2;
 }
 
 .b1 { height: 8dp; }
@@ -397,7 +397,7 @@
 
 .member.host
 {
-	border-left-color: #F07A1A;
+	border-left-color: #D1FD04;
 	font-weight: bold;
 	color: #FFFFFF;
 }

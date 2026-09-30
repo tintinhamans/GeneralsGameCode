@@ -209,15 +209,15 @@
 {
 	height: 65dp;
 	padding: 0 26dp 0 22dp;
-	background-color: #2A1404E6;
-	border: 1dp #F07A1A;
-	border-left: 5dp #F07A1A;
+	background-color: #151C04E6;
+	border: 1dp #D1FD04;
+	border-left: 5dp #D1FD04;
 }
 
 .ns-state.countdown .overline
 {
 	font-size: 17dp;
-	color: #FF9A3D;
+	color: #D1FD04;
 }
 
 .ns-count

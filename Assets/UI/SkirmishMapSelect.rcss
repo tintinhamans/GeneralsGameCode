@@ -68,7 +68,7 @@
 .map-tile.selected, .map-tile.selected:hover
 {
 	background-color: #2F37A8B4;
-	border-color: #F07A1A;
+	border-color: #D1FD04;
 }
 
 .thumb
@@ -159,7 +159,7 @@
 
 .detail
 {
-	border-top: 2dp #F07A1A;
+	border-top: 2dp #D1FD04;
 }
 
 .detail .map-frame
