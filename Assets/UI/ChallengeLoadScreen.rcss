@@ -1,43 +1,199 @@
 /*
-	ChallengeLoadScreen.rcss -- ChallengeLoadScreen.wnd: the mission's backdrop movie full-bleed under
-	the ruler frame, the two generals' portrait movies (stills on min spec) with their typed out names
-	and bios, the reticle circles and the "vs" movie between them on the 4:3 stage, and the shared
-	load bar (LoadScreen.rcss). The bios get a dark panel so they read over the movie.
+	ChallengeLoadScreen.rcss -- ChallengeLoadScreen.wnd, in the challenge menu's command room
+	(ChallengeMap.rcss): the backdrop movie in the world map's place, general against general in the
+	middle of the frame and the shared load bar (LoadScreen.rcss) along the bottom.
+
+	Each side is the general's portrait movie (the large portrait still on min spec) over a card with
+	the typed out name, rank and tactics; the player's general on the left, the opponent on the right.
+	The reticle circles and the "vs" movie of the .wnd sit in the gap between the portraits, centred
+	on them, so they never cover a face. Every piece keeps the .wnd's timing from LoadScreenData.
 */
 
-/* BigNameEntryLeft/Right (63,52)-(394,102), (406,52)-(737,102) */
-.cl-big-name
+.cl-versus-row
 {
-	position: absolute;
-	top: 8.667%;
-	width: 41.375%;
-	height: 8.333%;
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	text-align: center;
-	font-size: 40dp;
-	font-weight: bold;
-	color: #FEFEFE;
-	white-space: nowrap;
+	align-items: center;
+	flex: 1 1 0%;
+	min-height: 0;
+	padding-bottom: 20dp;
 }
 
-.cl-big-name.left { left: 7.875%; }
-.cl-big-name.right { left: 50.75%; }
+.cl-versus-group
+{
+	display: flex;
+	flex-direction: row;
+	align-items: flex-start;
+	flex: 0 0 auto;
+}
 
-/* PortraitMovieLeft/Right (4,105)-(398,434), (404,105)-(798,434) */
+.cl-side
+{
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 auto;
+	width: 540dp;
+}
+
+/* PortraitMovieLeft/Right are 394x329: the box keeps their shape. */
+.cl-portrait-box
+{
+	display: block;
+	position: relative;
+	box-sizing: border-box;
+	width: 540dp;
+	height: 450dp;
+	background-color: #05070FD9;
+	border: 1dp #8080FF46;
+	overflow: hidden;
+	clip: always;
+}
+
 .cl-portrait-movie
 {
+	display: block;
 	position: absolute;
-	top: 17.5%;
-	width: 49.25%;
-	height: 54.833%;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
 }
 
-.cl-portrait-movie.left { left: 0.5%; }
-.cl-portrait-movie.right { left: 50.5%; }
+.cl-portrait-movie video
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+}
 
-.cl-portrait-movie video,
+/* The large portrait still (about 331x327) centred in the box at its own shape. */
+.cl-portrait
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.cl-portrait mappedimage
+{
+	display: block;
+	width: 450dp;
+	height: 445dp;
+	margin: 2dp auto 0 auto;
+}
+
+/* ---- Card: name, rank and tactics ---------------------------------------------------------- */
+.cl-card
+{
+	display: block;
+	min-height: 150dp;
+	padding: 16dp 22dp 18dp 22dp;
+	background-color: #070A1AE6;
+	border-top: 3dp #3A46D0;
+}
+
+.cl-card.cl-opponent
+{
+	text-align: right;
+	border-top-color: #FF5050B4;
+}
+
+.cl-enemy-overline
+{
+	color: #FF5A5A;
+}
+
+.cl-name
+{
+	display: block;
+	min-height: 48dp;
+	margin-top: 4dp;
+	font-size: 40dp;
+	line-height: 48dp;
+	font-weight: bold;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cl-facts
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 10dp;
+	padding-top: 10dp;
+	border-top: 1dp #8080FF28;
+}
+
+.cl-opponent .cl-facts
+{
+	flex-direction: row-reverse;
+}
+
+.cl-fact-rank
+{
+	flex: 0 0 40%;
+}
+
+.cl-fact-tactics
+{
+	flex: 1 1 0%;
+}
+
+.cl-opponent .cl-fact-rank
+{
+	margin-left: 20dp;
+}
+
+.cl-you .cl-fact-rank
+{
+	margin-right: 20dp;
+}
+
+.cl-card .fact-value
+{
+	min-height: 28dp;
+	line-height: 28dp;
+}
+
+/* ---- Reticle and "vs" between the portraits ------------------------------------------------- */
+/* Centred on the portraits: the column is as tall as a portrait and sits at the row's top. */
+.cl-centre
+{
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	flex: 0 0 360dp;
+	height: 450dp;
+}
+
+/* CircleAlphaOuter 367px, CircleAlphaInner 251, VersusBackdrop 171, OverlayVs 104x119 of the .wnd,
+   scaled to fit the gap. */
+.cl-reticle
+{
+	display: block;
+	position: relative;
+	width: 320dp;
+	height: 320dp;
+}
+
+.cl-outer-circle, .cl-inner-circle, .cl-versus-backdrop, .cl-versus
+{
+	display: block;
+	position: absolute;
+}
+
+.cl-outer-circle { left: 0; top: 0; width: 320dp; height: 320dp; }
+.cl-inner-circle { left: 51dp; top: 51dp; width: 218dp; height: 218dp; }
+.cl-versus-backdrop { left: 85dp; top: 85dp; width: 150dp; height: 150dp; }
+.cl-versus { left: 115dp; top: 108dp; width: 90dp; height: 104dp; }
+
 .cl-versus video
 {
 	display: block;
@@ -45,94 +201,18 @@
 	height: 100%;
 }
 
-/* PortraitLeft/Right (63,105)-(394,434), (406,105)-(739,434): the stills on min spec */
-.cl-portrait
-{
-	position: absolute;
-	top: 17.5%;
-	width: 41.5%;
-	height: 54.833%;
-	display: flex;
-}
-
-.cl-portrait.left { left: 7.875%; }
-.cl-portrait.right { left: 50.75%; }
-
-.cl-portrait mappedimage
-{
-	display: block;
-	width: 100%;
-	height: 100%;
-}
-
-/* BioName/BioBirthplace/BioStrategy labels and entries: (59,453)-(396,508), (406,452)-(745,508) */
-.cl-bio
-{
-	position: absolute;
-	top: 75.333%;
-	width: 42.25%;
-	height: 9.5%;
-	display: flex;
-	flex-direction: column;
-	box-sizing: border-box;
-	padding: 0 6dp;
-	background-color: #070A1AD9;
-	font-size: 18dp;
-	font-weight: bold;
-	color: #FEFEFE;
-}
-
-.cl-bio.left { left: 7.375%; }
-.cl-bio.right { left: 50.75%; }
-
-.cl-bio-row
-{
-	flex: 1 1 0;
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	white-space: nowrap;
-}
-
-.cl-bio-label
-{
-	flex: 0 0 27.6%;
-}
-
-.cl-bio-entry
-{
-	flex: 1 1 auto;
-	min-width: 0;
-	overflow: hidden;
-}
-
-/* CircleAlphaOuter (218,84)-(585,452), CircleAlphaInner (275,140)-(526,396),
-   VersusBackdrop (315,178)-(486,355), OverlayVs (351,206)-(455,325) */
-.cl-outer-circle,
-.cl-inner-circle,
-.cl-versus-backdrop,
-.cl-versus
-{
-	display: block;
-	position: absolute;
-}
-
-.cl-outer-circle { left: 27.25%; top: 14%; width: 45.875%; height: 61.333%; }
-.cl-inner-circle { left: 34.375%; top: 23.333%; width: 31.375%; height: 42.667%; }
-.cl-versus-backdrop { left: 39.375%; top: 29.667%; width: 21.375%; height: 29.5%; }
-.cl-versus { left: 43.875%; top: 34.333%; width: 13%; height: 19.833%; }
-
-/* The movie keeps most of its strength: the stage carries the scene, the bar sits on its own plate. */
-.cl-scrim
-{
-	decorator: vertical-gradient(#05070F00 #05070F8C);
-}
-
-/* ---- 5:4 and 4:3 ---------------------------------------------------------------------------------- */
-/* The portraits span the whole 4:3 stage, so there it fits inside the ruler (1174dp is the frame's
-   width at 5:4) and stays 4:3, centred, instead of stretching edge to edge under the frame. */
+/* ---- 5:4 and 4:3 ----------------------------------------------------------------------------- */
 @media (max-aspect-ratio: 3/2)
 {
-	.ls-stage-wrap { align-items: center; }
-	.ls-stage { width: 1174dp; height: 880dp; max-width: none; }
+	.cl-side { width: 430dp; }
+	.cl-portrait-box { width: 430dp; height: 358dp; }
+	.cl-portrait mappedimage { width: 358dp; height: 354dp; }
+	.cl-name { font-size: 32dp; line-height: 40dp; min-height: 40dp; }
+	.cl-card { padding: 14dp 18dp 16dp 18dp; }
+	.cl-centre { flex-basis: 290dp; height: 358dp; }
+	.cl-reticle { width: 260dp; height: 260dp; }
+	.cl-outer-circle { width: 260dp; height: 260dp; }
+	.cl-inner-circle { left: 41dp; top: 41dp; width: 178dp; height: 178dp; }
+	.cl-versus-backdrop { left: 69dp; top: 69dp; width: 122dp; height: 122dp; }
+	.cl-versus { left: 93dp; top: 88dp; width: 74dp; height: 85dp; }
 }
