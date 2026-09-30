@@ -90,6 +90,11 @@ void RmlCreditsScreen::load(Rml::Context *context)
 		return; // already loaded
 
 	m_context = context;
+
+	Rml::DataModelConstructor constructor = context->CreateDataModel("credits");
+	if (constructor)
+		constructor.BindEventCallback("back", &RmlCreditsScreen::onBackClicked, this);
+
 	m_document = context->LoadDocument("UI/CreditsMenu.rml");
 }
 
@@ -153,6 +158,11 @@ void RmlCreditsScreen::onBack()
 		TheShell->pop();
 }
 
+void RmlCreditsScreen::onBackClicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &)
+{
+	onBack();
+}
+
 void RmlCreditsScreen::update()
 {
 	if (!TheCredits)
@@ -189,8 +199,9 @@ void RmlCreditsScreen::syncDisplayedLines()
 		UnsignedByte r, g, b, a;
 		GameGetColorComponents(line.m_color, &r, &g, &b, &a);
 		float alpha = (a / 255.0f) * fadeAlphaForY(line.m_y, displayHeight);
+		// RCSS rgba() takes the alpha as 0-255, not 0-1.
 		char rgba[64];
-		std::snprintf(rgba, sizeof(rgba), "rgba(%d,%d,%d,%.3f)", (int)r, (int)g, (int)b, alpha);
+		std::snprintf(rgba, sizeof(rgba), "rgba(%d,%d,%d,%d)", (int)r, (int)g, (int)b, (int)(alpha * 255.0f + 0.5f));
 
 		const char *styleClass = "normal";
 		if (line.m_style == CREDIT_STYLE_TITLE) styleClass = "title";

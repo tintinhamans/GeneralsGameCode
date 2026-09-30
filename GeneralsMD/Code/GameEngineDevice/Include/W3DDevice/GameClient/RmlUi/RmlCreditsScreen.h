@@ -31,7 +31,10 @@
 
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
 
-namespace Rml { class Context; class ElementDocument; }
+#include <RmlUi/Core/DataModelHandle.h>
+#include <RmlUi/Core/Types.h>
+
+namespace Rml { class Context; class ElementDocument; class Event; }
 
 //-------------------------------------------------------------------------------------------------
 class RmlCreditsScreen : public RmlScreen
@@ -52,6 +55,7 @@ public:
 
 private:
 	void syncDisplayedLines();
+	void onBackClicked(Rml::DataModelHandle, Rml::Event &, const Rml::VariantList &); // the Back button: same as Escape
 
 	Rml::Context *m_context = nullptr;
 	Rml::ElementDocument *m_document = nullptr;

@@ -1,22 +1,68 @@
 /*
-	CreditsMenu.rcss -- CreditsScreen background plus the scrolling lines RmlCreditsScreen injects
-	into #credits_lines every frame. Positions are raw "px" (not "dp"): CreditsManager computes
-	them against TheDisplay's actual pixel size, which is what the RmlUi context is created at
-	(see RmlUiManager::init()), so px lines up 1:1 with no extra scaling.
+	CreditsMenu.rcss -- the credits (CreditsMenu.wnd) on the screen template of common.rcss: the
+	credits art darkened under the ruler, a dark band down the middle behind the scrolling lines,
+	the title top left and Back bottom left.
+
+	The lines are the ones RmlCreditsScreen injects into #credits_lines every frame. Positions are raw
+	"px" (not "dp"): CreditsManager computes them against TheDisplay's actual pixel size, which is what
+	the RmlUi context is created at (see RmlUiManager::init()), so #credits_lines covers the whole
+	screen and px lines up 1:1 with no extra scaling. CreditsManager also fades them out towards the
+	top and bottom, so they never run into the header or the ruler.
 */
 
-body { width: 100%; height: 100%; }
-
-.credits-bg
+body.cr
 {
-	position: absolute;
-	top: 0;
-	left: 0;
-	width: 100%;
-	height: 100%;
+	background-color: #05070F;
 }
 
-.credits-lines
+.cr-art
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	clip: always;
+}
+
+.cr-art-image
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100vw;
+	height: 100vh;
+}
+
+.cr-scrim
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	background-color: #05070FA0;
+}
+
+/* The band the lines scroll in: the width of CreditsManager's two column bands, inside the ruler. */
+.cr-band
+{
+	display: block;
+	position: absolute;
+	left: 16.667%;
+	width: 66.667%;
+	top: 78dp;
+	bottom: 78dp;
+	background-color: #070A1AB4;
+	border-left: 1dp #8080FF28;
+	border-right: 1dp #8080FF28;
+}
+
+.cr-lines
 {
 	position: absolute;
 	top: 0;
@@ -24,8 +70,21 @@ body { width: 100%; height: 100%; }
 	width: 100%;
 	height: 100%;
 	overflow: hidden;
+	pointer-events: none;
 }
 
+/* The template's frame only carries the title and Back here; the lines show through it. */
+.cr-frame
+{
+	pointer-events: none;
+}
+
+.cr-frame .screen-heading, .cr-frame .action-bar button
+{
+	pointer-events: auto;
+}
+
+/* ---- Lines ------------------------------------------------------------------------------------ */
 .credit-line
 {
 	position: absolute;
@@ -33,17 +92,21 @@ body { width: 100%; height: 100%; }
 	width: 100%;
 	text-align: center;
 	white-space: nowrap;
+	font-effect: glow(1dp 4dp 0dp 1dp #000000C8);
 }
 
 .credit-line.title
 {
 	font-weight: bold;
 	font-size: 20dp;
+	letter-spacing: 1dp;
 }
 
 .credit-line.position
 {
 	font-size: 14dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
 }
 
 .credit-line.normal
