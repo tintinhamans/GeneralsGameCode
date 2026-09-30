@@ -17,11 +17,13 @@
 */
 
 // FILE: RmlRulerDecorator.h /////////////////////////////////////////////////////
-// The screen frame's tick scale, drawn as geometry: decorator: ruler-ticks(<edge> <color>).
+// The screen frame's tick scale, drawn as geometry: decorator: ruler-ticks(<edge> <color> [fade|none]).
 // Ticks stand on <edge> of the element and point into it: a minor tick every 4dp, a longer one
-// every 5th and the longest every 10th, over a faint scrim that fades out towards the far side.
-// The scale fills whatever box it is given, so it reaches both ends of an edge at any resolution
-// and aspect ratio, and every tick snaps to whole pixels so it stays crisp at any dp ratio. No
+// every 5th and the longest every 10th, optionally over a faint scrim that fades out towards the
+// far side (fade, the default). The scale counts from both ends of the box towards its middle,
+// which carries a wider index mark, so both ends start on a long tick and the scales of a frame
+// meet the same way at every corner. It fills whatever box it is given at any resolution and
+// aspect ratio, and every tick snaps to whole pixels so it stays crisp at any dp ratio. No
 // texture is involved (the engine's RmlUi textures are clamped, so nothing could repeat).
 // Header-only so the rmlui_render harness registers the very same decorator.
 
@@ -46,7 +48,7 @@ class RmlRulerTicksDecorator : public Rml::Decorator
 public:
 	enum class Edge { Top, Bottom, Left, Right };
 
-	RmlRulerTicksDecorator(Edge edge, Rml::Colourb tick) : m_edge(edge), m_tick(tick) {}
+	RmlRulerTicksDecorator(Edge edge, Rml::Colourb tick, bool scrim) : m_edge(edge), m_tick(tick), m_scrim(scrim) {}
 
 	Rml::DecoratorDataHandle GenerateElementData(Rml::Element *element, Rml::BoxArea paintArea) const override
 	{
@@ -72,6 +74,7 @@ public:
 
 		// Scrim: darkest on the edge, gone at the far side of the box, and faded in over the first and
 		// last `depth` of the run so a scale that ends short of a corner leaves no hard step.
+		if (m_scrim)
 		{
 			const float ramp = (std::min)(depth, along * 0.5f);
 			const float alongStops[4] = {0.0f, ramp, along - ramp, along};
@@ -100,16 +103,11 @@ public:
 		}
 
 		const Rml::ColourbPremultiplied tickColour = m_tick.ToPremultiplied(opacity);
-		const float unit = kUnitDp * dp;
-		for (int i = 0;; ++i)
-		{
-			const float pos = std::floor(i * unit + 0.5f);
-			if (pos >= along)
-				break;
-			const float lenDp = i % 10 == 0 ? kMajorDp : (i % 5 == 0 ? kMidDp : kMinorDp);
+		auto addTick = [&](float pos, float lenDp, float width) {
 			const float len = (std::min)(depth, std::floor(lenDp * dp + 0.5f));
-			const float across = (std::min)(thickness, along - pos);
-
+			const float across = (std::min)(width, along - pos);
+			if (across <= 0.0f)
+				return;
 			Rml::Vector2f tickOrigin, tickSize;
 			if (horizontal)
 			{
@@ -122,7 +120,22 @@ public:
 				tickSize = Rml::Vector2f(len, across);
 			}
 			Rml::MeshUtilities::GenerateQuad(mesh, tickOrigin, tickSize, tickColour);
+		};
+
+		// Counted from both ends; the two runs stop a unit short of the middle mark.
+		const float unit = kUnitDp * dp;
+		const float middle = std::floor(along * 0.5f + 0.5f);
+		const float markWidth = 3.0f * thickness;
+		for (int i = 0;; ++i)
+		{
+			const float pos = std::floor(i * unit + 0.5f);
+			if (pos + unit * 0.75f >= middle - markWidth * 0.5f)
+				break;
+			const float lenDp = i % 10 == 0 ? kMajorDp : (i % 5 == 0 ? kMidDp : kMinorDp);
+			addTick(pos, lenDp, thickness);
+			addTick(along - thickness - pos, lenDp, thickness);
 		}
+		addTick(std::floor(middle - markWidth * 0.5f), kMajorDp, markWidth);
 
 		Rml::Geometry *geometry = new Rml::Geometry(renderManager->MakeGeometry(std::move(mesh)));
 		return reinterpret_cast<Rml::DecoratorDataHandle>(geometry);
@@ -144,6 +157,7 @@ private:
 
 	Edge m_edge;
 	Rml::Colourb m_tick;
+	bool m_scrim;
 };
 
 class RmlRulerTicksInstancer : public Rml::DecoratorInstancer
@@ -153,7 +167,8 @@ public:
 	{
 		m_edgeId = RegisterProperty("edge", "top").AddParser("keyword", "top, bottom, left, right").GetId();
 		m_colorId = RegisterProperty("color", "#8E97F8").AddParser("color").GetId();
-		RegisterShorthand("decorator", "edge, color", Rml::ShorthandType::FallThrough);
+		m_scrimId = RegisterProperty("scrim", "fade").AddParser("keyword", "fade, none").GetId();
+		RegisterShorthand("decorator", "edge, color, scrim", Rml::ShorthandType::FallThrough);
 	}
 
 	Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String &, const Rml::PropertyDictionary &properties,
@@ -161,9 +176,11 @@ public:
 	{
 		const Rml::Property *edge = properties.GetProperty(m_edgeId);
 		const Rml::Property *color = properties.GetProperty(m_colorId);
+		const Rml::Property *scrim = properties.GetProperty(m_scrimId);
 		if (!edge || !color)
 			return nullptr;
-		return Rml::MakeShared<RmlRulerTicksDecorator>(static_cast<RmlRulerTicksDecorator::Edge>(edge->Get<int>()), color->Get<Rml::Colourb>());
+		return Rml::MakeShared<RmlRulerTicksDecorator>(static_cast<RmlRulerTicksDecorator::Edge>(edge->Get<int>()), color->Get<Rml::Colourb>(),
+			!scrim || scrim->Get<int>() == 0);
 	}
 
 	// Registers "ruler-ticks"; the instancer must outlive the RmlUi core.
@@ -176,4 +193,5 @@ public:
 private:
 	Rml::PropertyId m_edgeId;
 	Rml::PropertyId m_colorId;
+	Rml::PropertyId m_scrimId;
 };
