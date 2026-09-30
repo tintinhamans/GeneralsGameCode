@@ -234,10 +234,26 @@ void FontEngineInterfaceHarfBuzz::SplitRuns(FontFaceHandleHarfBuzz* primary, Str
 		return;
 	}
 
-	bool rtl_base = text_shaping_context.text_direction == Style::Direction::Rtl;
-	if (text_shaping_context.text_direction == Style::Direction::Auto)
+	// The line's direction. In a right-to-left element a line with left-to-right letters and no
+	// right-to-left ones (a player or map name, English chat) still reads left to right, so its
+	// trailing punctuation and brackets stay where they belong; one with no letters at all (a
+	// chevron, a number) takes the element's direction. Elsewhere the first strong character
+	// decides (UAX #9 P2/P3), so Arabic in a left-to-right document reads right to left.
+	bool rtl_base = false;
+	if (text_shaping_context.text_direction == Style::Direction::Rtl)
 	{
-		// UAX #9 P2/P3: the first strong character sets the direction.
+		bool any_rtl = false;
+		bool any_ltr = false;
+		for (unsigned int c : codepoints)
+		{
+			const RtlText::BidiType type = RtlText::bidiType(c);
+			any_rtl = any_rtl || type == RtlText::BIDI_R;
+			any_ltr = any_ltr || type == RtlText::BIDI_L;
+		}
+		rtl_base = any_rtl || !any_ltr;
+	}
+	else if (text_shaping_context.text_direction == Style::Direction::Auto)
+	{
 		for (unsigned int c : codepoints)
 		{
 			const RtlText::BidiType type = RtlText::bidiType(c);
