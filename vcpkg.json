@@ -37,6 +37,11 @@
         "name": "rmlui",
         "default-features": false,
         "features": [ "freetype" ]
+      },
+      {
+        "name": "harfbuzz",
+        "default-features": false,
+        "features": [ "freetype" ]
       }
     ]
   }
