@@ -156,7 +156,7 @@ std::vector<BuddyRow> collectBuddyRows()
 		if ( friendsEntry.online )
 		{
 			UnicodeString formatStr;
-			formatStr.format( L"%s - %hs", onlineStatus.str(), friendsEntry.presence.c_str() );
+			formatStr.format( L"%s - %s", onlineStatus.str(), utf8ToWide( friendsEntry.presence ).c_str() );
 			row.statusText = unicodeToUtf8( formatStr );
 		}
 		else

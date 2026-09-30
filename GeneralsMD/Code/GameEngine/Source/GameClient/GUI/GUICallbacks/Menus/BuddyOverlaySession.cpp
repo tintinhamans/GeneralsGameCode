@@ -148,8 +148,9 @@ void setVisible( bool visible )
 //-------------------------------------------------------------------------------------------------
 void showToast( const AsciiString &nick, UnicodeString message, bool bPlaySound )
 {
+	// Generals Online nicks are UTF-8 display names
 	if ( nick.isNotEmpty() )
-		message.format( message, nick.str() );
+		message.format( WidenFormatSpecifiers( message.str() ).c_str(), from_utf8( nick.str() ).c_str() );
 
 	s_noticeExpires = timeGetTime() + NOTIFICATION_EXPIRES;
 	s_toastActive = true;

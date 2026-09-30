@@ -1632,14 +1632,8 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void WOLGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 {
+	// also drops any in-flight mesh connectivity check
 	OnlineGameSetupSession::leave();
-
-	// drop any in-flight mesh connectivity check so a late reply never fires into this now-dead menu
-	std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
-	if (pWS != nullptr)
-	{
-		pWS->ClearConnectivityCheckCallback();
-	}
 
 	//TheGameSpyInfo->unregisterTextWindow(listboxGameSetupChat);
 

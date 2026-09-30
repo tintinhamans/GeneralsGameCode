@@ -53,7 +53,7 @@ UnicodeString buildTitle()
 
 	NGMP_OnlineServices_AuthInterface *pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
 	if( pAuthInterface != nullptr )
-		title.format( TheGameText->fetch( "GUI:QuickMatchTitle" ), pAuthInterface->GetDisplayName().c_str() );
+		title.format( WidenFormatSpecifiers( TheGameText->fetch( "GUI:QuickMatchTitle" ).str() ).c_str(), pAuthInterface->GetDisplayNameW().c_str() );
 
 	return title;
 }

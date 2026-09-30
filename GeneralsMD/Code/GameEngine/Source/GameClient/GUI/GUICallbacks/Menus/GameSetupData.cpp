@@ -391,7 +391,7 @@ std::vector<UnicodeString> GameSetupData::startBlockers( GameInfo *game, Bool is
 	}
 	else
 	{
-		mapDisplayName.format( L"%hs", game->getMap().str() );
+		mapDisplayName.translate( game->getMap().str() );
 		willTransfer = WouldMapTransfer( game->getMap() );
 	}
 

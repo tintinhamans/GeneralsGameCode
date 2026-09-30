@@ -1054,14 +1054,7 @@ void showNotificationBox(AsciiString nick, UnicodeString message)
 	}
 
 	if (nick.isNotEmpty())
-	{
-#if defined(GENERALS_ONLINE)
-		// Generals Online nicks are UTF-8 display names
-		message.format(WidenFormatSpecifiers(message.str()).c_str(), from_utf8(nick.str()).c_str());
-#else
 		message.format(message, nick.str());
-#endif
-	}
 	GadgetButtonSetText(win, message);
 	//GadgetStaticTextSetText(win, message);
 	noticeExpires = timeGetTime() + NOTIFICATION_EXPIRES;

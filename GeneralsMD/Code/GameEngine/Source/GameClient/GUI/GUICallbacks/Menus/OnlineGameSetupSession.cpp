@@ -372,6 +372,12 @@ void leave()
 		pMesh->DeregisterForConnectionEvents();
 	}
 
+	// drop any in-flight mesh connectivity check so a late reply never fires into a dead screen
+	std::shared_ptr<WebSocket> pWS = NGMP_OnlineServicesManager::GetWebSocket();
+	if( pWS != nullptr )
+	{
+		pWS->ClearConnectivityCheckCallback();
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
