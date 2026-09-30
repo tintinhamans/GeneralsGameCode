@@ -28,6 +28,7 @@
 #include "Common/GlobalData.h"
 #include "Common/OptionPreferences.h"
 #include "GameClient/Display.h"
+#include "GameClient/GameText.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/HeaderTemplate.h"
 #include "GameClient/InGameUI.h"
@@ -508,6 +509,39 @@ void ApplyHTTPProxy(const AsciiString &proxy)
 {
 	SetStringInRegistry("", "Proxy", proxy.str());
 	ghttpSetProxy(proxy.str());
+}
+
+Int GetTextLanguageChoiceCount()
+{
+	return GameTextLanguageCount + 1;
+}
+
+UnicodeString GetTextLanguageChoiceName(Int index)
+{
+	if (index <= 0 || index > GameTextLanguageCount)
+		return UnicodeString::TheEmptyString;
+	return UnicodeString(GameTextLanguages[index - 1].nativeName);
+}
+
+Int GetCurrentTextLanguageChoice()
+{
+	// What settings.json asks for, which is what the next start loads (not necessarily what this
+	// session loaded, if it was changed since or its files were missing).
+	const std::string &code = NGMP_OnlineServicesManager::Settings.UI_GetLanguage();
+	for (Int i = 0; i < GameTextLanguageCount; ++i)
+	{
+		if (stricmp(code.c_str(), GameTextLanguages[i].code) == 0)
+			return i + 1;
+	}
+	return 0;
+}
+
+void ApplyTextLanguageChoice(Int index)
+{
+	if (index == GetCurrentTextLanguageChoice())
+		return;
+	const bool known = index > 0 && index <= GameTextLanguageCount;
+	NGMP_OnlineServicesManager::Settings.UI_SetLanguage(known ? GameTextLanguages[index - 1].code : "");
 }
 
 Int GetCurrentFirewallPortOverride() { return TheGlobalData->m_firewallPortOverride; }

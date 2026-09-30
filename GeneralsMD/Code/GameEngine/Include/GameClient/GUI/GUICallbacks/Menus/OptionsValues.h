@@ -27,6 +27,7 @@
 #pragma once
 
 #include "Common/AsciiString.h"
+#include "Common/UnicodeString.h"
 #include "Lib/BaseType.h"
 
 class OptionPreferences;
@@ -88,6 +89,13 @@ namespace OptionsValues
 
 	AsciiString GetCurrentHTTPProxy();
 	void ApplyHTTPProxy(const AsciiString &proxy);
+
+	// -- Game language (Generals Online settings.json, read at startup: applies on restart) --
+	// Choice 0 is the installed language, then GameTextLanguages (GameText.h) in order.
+	Int GetTextLanguageChoiceCount();
+	UnicodeString GetTextLanguageChoiceName(Int index); ///< the language's own name; empty for choice 0
+	Int GetCurrentTextLanguageChoice();
+	void ApplyTextLanguageChoice(Int index);
 
 	Int GetCurrentFirewallPortOverride();          ///< 0 if unset
 	void ApplyFirewallPortOverride(OptionPreferences &pref, Int port);

@@ -106,6 +106,7 @@ private:
 		bool retaliation = true;
 		bool doubleClickAttackMove = false;
 
+		int textLanguage = 0; // OptionsValues::GetTextLanguageChoice*: 0 = the installed language
 		int antiAliasing = 0;
 		int textureFilter = 0;
 		int anisotropy = 0;

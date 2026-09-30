@@ -19,6 +19,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlOptionsScreen.h"
 
 #include "Common/OptionPreferences.h"
+#include "Common/UnicodeUtf8.h"
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/ShellHooks.h"
 #include "GameClient/Shell.h"
@@ -69,6 +70,7 @@ void RmlOptionsScreen::load(Rml::Context *context)
 		constructor.Bind("alternate_mouse", &m_model.alternateMouse);
 		constructor.Bind("retaliation", &m_model.retaliation);
 		constructor.Bind("double_click_attack_move", &m_model.doubleClickAttackMove);
+		constructor.Bind("text_language", &m_model.textLanguage);
 		constructor.Bind("anti_aliasing", &m_model.antiAliasing);
 		constructor.Bind("texture_filter", &m_model.textureFilter);
 		constructor.Bind("anisotropy", &m_model.anisotropy);
@@ -190,6 +192,7 @@ void RmlOptionsScreen::loadCurrentValues()
 	m_model.alternateMouse = OptionsValues::GetCurrentAlternateMouse();
 	m_model.retaliation = OptionsValues::GetCurrentRetaliation();
 	m_model.doubleClickAttackMove = OptionsValues::GetCurrentDoubleClickAttackMove();
+	m_model.textLanguage = OptionsValues::GetCurrentTextLanguageChoice();
 	m_model.antiAliasing = OptionsValues::GetCurrentAntiAliasingIndex();
 	m_model.textureFilter = OptionsValues::GetCurrentTextureFilterIndex();
 	m_model.anisotropy = OptionsValues::GetCurrentAnisotropyIndex();
@@ -251,6 +254,7 @@ bool RmlOptionsScreen::applyAndSave()
 	OptionsValues::ApplySFXVolumePercent(*m_pref, m_model.sfxVolume);
 	OptionsValues::ApplyVoiceVolumePercent(*m_pref, m_model.voiceVolume);
 	OptionsValues::ApplyMouseOptions(*m_pref, m_model.alternateMouse, m_model.retaliation, m_model.doubleClickAttackMove);
+	OptionsValues::ApplyTextLanguageChoice(m_model.textLanguage);
 	OptionsValues::ApplyAntiAliasing(*m_pref, m_model.antiAliasing);
 	OptionsValues::ApplyTextureFilter(*m_pref, m_model.textureFilter);
 	OptionsValues::ApplyAnisotropy(*m_pref, m_model.anisotropy);
@@ -328,7 +332,22 @@ void RmlOptionsScreen::populateSelectOptions()
 	fillSelect("select_detail", customLevel + 1, m_model.detailLevel,
 		[customLevel](int i)
 		{
-			return i == customLevel ? Rml::String("Custom") : Rml::String(OptionsValues::GetDetailLevelName(i).str());
+			// The .wnd's comboBoxDetail labels (OptionsMenu.cpp), which the LOD names only stand in for.
+			static const char *const levelKeys[] = { "GUI:Low", "GUI:Medium", "GUI:High", "GUI:GOVeryHigh" };
+			if (i == customLevel)
+				return Rml::String("<gametext key=\"GUI:Custom\"/>");
+			if (i >= 0 && i < (int)(sizeof(levelKeys) / sizeof(levelKeys[0])))
+				return Rml::String("<gametext key=\"") + levelKeys[i] + "\"/>";
+			return Rml::String(OptionsValues::GetDetailLevelName(i).str());
+		});
+
+	// The installed language, then each language by its own name (Arabic in its own direction).
+	fillSelect("select_language", OptionsValues::GetTextLanguageChoiceCount(), m_model.textLanguage,
+		[](int i)
+		{
+			if (i == 0)
+				return Rml::String("<gametext key=\"GUI:GOLanguageInstalled\"/>");
+			return unicodeToUtf8(OptionsValues::GetTextLanguageChoiceName(i));
 		});
 
 	fillSelect("select_lan_ip", OptionsValues::GetIPChoiceCount(), m_model.lanIPIndex,
