@@ -145,10 +145,11 @@ void RmlUiRenderInterface::setOrthoProjection(int left, int right, int top, int 
 	ZeroMemory(&m, sizeof(m));
 	m._11 = 2.0f / (r - l);
 	m._22 = 2.0f / (t - b);
-	m._33 = 1.0f;
+	// z = 0 lands mid depth range; a 3D transform (rotateX, perspective) keeps z within +-10000 unclipped.
+	m._33 = 1.0f / 20000.0f;
 	m._41 = (l + r) / (l - r);
 	m._42 = (t + b) / (b - t);
-	m._43 = 0.0f;
+	m._43 = 0.5f;
 	m._44 = 1.0f;
 	DX8Wrapper::_Get_D3D_Device8()->SetTransform(D3DTS_PROJECTION, &m);
 }
@@ -165,6 +166,7 @@ void RmlUiRenderInterface::beginFrame(int contextWidth, int contextHeight)
 	m_contextWidth = contextWidth;
 	m_contextHeight = contextHeight;
 	m_scissorEnabled = false;
+	m_hasTransform = false;
 
 	IDirect3DDevice8 *dev = DX8Wrapper::_Get_D3D_Device8();
 
@@ -314,13 +316,25 @@ void RmlUiRenderInterface::RenderGeometry(Rml::CompiledGeometryHandle geometry, 
 
 	IDirect3DDevice8 *dev = DX8Wrapper::_Get_D3D_Device8();
 
-	// Translation rides on D3DTS_WORLD; beginFrame() already set up the projection/viewport
-	// (full context, or the scissor rect via SetScissorRegion) and every other piece of state.
+	// Translation, then the element's transform, ride on D3DTS_WORLD, rebuilt for every draw; beginFrame()
+	// already set up the projection/viewport (full context, or the scissor rect via SetScissorRegion)
+	// and every other piece of state. The scissor emulation works on the projected (window) position,
+	// so it clips transformed geometry in window pixels too.
 	D3DMATRIX world;
-	ZeroMemory(&world, sizeof(world));
-	world._11 = world._22 = world._33 = world._44 = 1.0f;
-	world._41 = translation.x;
-	world._42 = translation.y;
+	if (m_hasTransform)
+	{
+		// Row vectors: v * translate(t) * M. Only the last row picks up the translation.
+		world = m_transform;
+		for (int c = 0; c < 4; ++c)
+			world.m[3][c] = translation.x * m_transform.m[0][c] + translation.y * m_transform.m[1][c] + m_transform.m[3][c];
+	}
+	else
+	{
+		ZeroMemory(&world, sizeof(world));
+		world._11 = world._22 = world._33 = world._44 = 1.0f;
+		world._41 = translation.x;
+		world._42 = translation.y;
+	}
 	dev->SetTransform(D3DTS_WORLD, &world);
 
 	if (texture != 0)
@@ -579,4 +593,16 @@ void RmlUiRenderInterface::SetScissorRegion(Rml::Rectanglei region)
 	D3DVIEWPORT8 vp = { (DWORD)left, (DWORD)top, (DWORD)(right - left), (DWORD)(bottom - top), 0.0f, 1.0f };
 	dev->SetViewport(&vp);
 	setOrthoProjection(left, right, top, bottom);
+}
+
+// RmlUi's matrices act on column vectors and D3D's on row vectors, so D3D's row i is RmlUi's column i.
+// Reading columns keeps this right whichever storage order RmlUi was built with.
+void RmlUiRenderInterface::SetTransform(const Rml::Matrix4f *transform)
+{
+	m_hasTransform = transform != nullptr;
+	if (!transform)
+		return;
+	for (int i = 0; i < 4; ++i)
+		for (int j = 0; j < 4; ++j)
+			m_transform.m[i][j] = transform->GetColumn(i)[j];
 }

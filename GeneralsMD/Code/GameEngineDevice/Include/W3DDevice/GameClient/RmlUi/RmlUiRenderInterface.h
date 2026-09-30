@@ -86,6 +86,12 @@ public:
 	virtual void EnableScissorRegion(bool enable) override;
 	virtual void SetScissorRegion(Rml::Rectanglei region) override;
 
+	// The CSS transform of the element being drawn, or null for none. It maps (vertex + translation) in
+	// window pixels and rides on D3DTS_WORLD with the translation. Scissoring stays in window pixels, as
+	// RmlUi expects; RmlUi drops a transformed element from the scissor and asks for a clip mask instead,
+	// which this renderer does not implement, so content inside a transformed clipping element is not clipped.
+	virtual void SetTransform(const Rml::Matrix4f *transform) override;
+
 	// A texture the engine keeps writing to (a movie's video buffer), drawn as is: video formats have no alpha
 	// channel, so it samples opaque and needs no premultiply pass. Takes its own reference.
 	Rml::TextureHandle registerVideoTexture(IDirect3DTexture8 *tex);
@@ -122,6 +128,9 @@ private:
 	TextureMap m_textures;
 	Rml::CompiledGeometryHandle m_nextGeometryHandle = 1;
 	Rml::TextureHandle m_nextTextureHandle = 1;
+
+	bool m_hasTransform = false;
+	D3DMATRIX m_transform; ///< the current transform, transposed for D3D's row vectors; valid while m_hasTransform
 
 	bool m_scissorEnabled = false;
 	bool m_scissorEmpty = false; // the scissor region has no on-screen part; draws are skipped
