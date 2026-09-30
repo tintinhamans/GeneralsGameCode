@@ -475,15 +475,16 @@ body
 
 .screen .person button.accept
 {
-	color: #0E1400;
-	background-color: #D1FD04;
-	border-color: #D1FD04;
+	color: #FFFFFF;
+	background-color: #2F37A8;
+	border-color: #6170FA;
 }
 
 .screen .person button.accept:hover
 {
-	background-color: #C8F000;
-	border-color: #C8F000;
+	color: #D1FD04;
+	background-color: #3A46D0;
+	border-color: #D1FD04;
 }
 
 .screen .person button.quiet

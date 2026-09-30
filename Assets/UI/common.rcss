@@ -3004,7 +3004,7 @@ body.modal.over-game
 	width: 640dp;
 	max-height: 90%;
 	background-color: #070A1AF2;
-	border-top: 3dp #D1FD04;
+	border-top: 3dp #6170FA;
 	animation: 0.18s cubic-out modal-in;
 }
 
@@ -3108,7 +3108,7 @@ body.modal.over-game
 .screen .modal-actions button.btn-cta
 {
 	height: 54dp;
-	line-height: 54dp;
+	line-height: 50dp;
 	min-width: 200dp;
 	padding: 0 36dp;
 	font-size: 21dp;
@@ -3141,18 +3141,21 @@ body.modal.over-game
 .screen .modal-card.danger .modal-actions button.btn-cta
 {
 	color: #FFFFFF;
+	border-color: #F07878;
 	decorator: vertical-gradient(#E04848 #B82E2E);
 }
 
 .screen .modal-card.danger .modal-actions button.btn-cta:hover
 {
 	color: #FFFFFF;
+	border-color: #FFA0A0;
 	decorator: vertical-gradient(#F05A5A #C83838);
 }
 
 .screen .modal-card.danger .modal-actions button.btn-cta:active
 {
 	color: #FFFFFF;
+	border-color: #E04848;
 	decorator: vertical-gradient(#A82828 #C03434);
 }
 

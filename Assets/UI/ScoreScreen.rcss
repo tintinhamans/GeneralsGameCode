@@ -58,7 +58,7 @@ body.ss
 
 .ss-heading.victory .screen-title
 {
-	color: #36D8B2;
+	color: #D1FD04;
 }
 
 .ss-heading.defeat .screen-title

@@ -20,7 +20,7 @@ body.dc
 {
 	display: block;
 	background-color: #070A1AEB;
-	border-top: 4dp #D1FD04;
+	border-top: 4dp #6170FA;
 }
 
 /* ---- Header ---------------------------------------------------------------------------------- */

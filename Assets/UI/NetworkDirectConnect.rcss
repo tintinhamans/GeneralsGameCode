@@ -21,7 +21,7 @@
 	width: 760dp;
 	min-height: 0;
 	padding: 30dp 40dp 34dp 40dp;
-	border-top: 4dp #D1FD04;
+	border-top: 4dp #6170FA;
 }
 
 .dc-field

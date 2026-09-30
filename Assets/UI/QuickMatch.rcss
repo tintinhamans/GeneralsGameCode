@@ -406,17 +406,21 @@
 .screen button.btn-cta.qm-stop
 {
 	color: #FFFFFF;
+	border-color: #E86A6A;
 	decorator: vertical-gradient(#C23A3A #8E1E24);
 }
 
 .screen button.btn-cta.qm-stop:hover
 {
 	color: #FFFFFF;
+	border-color: #FF9A9A;
 	decorator: vertical-gradient(#E04848 #A8262C);
 }
 
 .screen button.btn-cta.qm-stop:active
 {
+	color: #FFFFFF;
+	border-color: #C23A3A;
 	decorator: vertical-gradient(#7A1A1E #9A2228);
 }
 
@@ -434,7 +438,7 @@
 	pointer-events: none;
 	background-color: #070A1AF0;
 	border: 1dp #8080FF;
-	border-top: 3dp #D1FD04;
+	border-top: 3dp #6170FA;
 }
 
 /* <mappreview> is a custom element (RmlUiElements.cpp) with no default display. */

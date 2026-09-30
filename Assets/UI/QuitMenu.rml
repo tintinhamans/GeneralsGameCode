@@ -8,7 +8,7 @@
 		.quit-card { width: 440dp; }
 		.quit-list { display: flex; flex-direction: column; padding: 20dp 28dp 24dp 28dp; }
 		.screen .quit-list button { display: block; width: 100%; margin-top: 10dp; text-align: left; padding: 0 22dp; }
-		.screen .quit-list button.btn-cta { margin-top: 0; margin-bottom: 8dp; height: 60dp; line-height: 60dp; min-width: 0; text-align: center; font-size: 22dp; }
+		.screen .quit-list button.btn-cta { margin-top: 0; margin-bottom: 8dp; height: 60dp; line-height: 56dp; min-width: 0; text-align: center; font-size: 22dp; }
 		.screen .quit-list button.quit-exit { margin-top: 18dp; color: #FF8C8C; border-color: #FF505046; background-color: #2A0A0ED2; }
 		.screen .quit-list button.quit-exit:hover { color: #FFFFFF; background-color: #7A1A22E6; border-color: #FF5050; }
 		.quit-sep { display: block; height: 1dp; margin-top: 18dp; background-color: #8080FF1E; }

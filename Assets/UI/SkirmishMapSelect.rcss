@@ -159,7 +159,7 @@
 
 .detail
 {
-	border-top: 2dp #D1FD04;
+	border-top: 2dp #6170FA;
 }
 
 .detail .map-frame
