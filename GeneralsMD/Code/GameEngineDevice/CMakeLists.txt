@@ -95,6 +95,7 @@ set(GAMEENGINEDEVICE_SRC
     Include/W3DDevice/GameClient/RmlUi/RmlSkirmishMapSelectScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.h
     Include/W3DDevice/GameClient/RmlUi/RmlSocialDock.h
+    Include/W3DDevice/GameClient/RmlUi/RmlRulerDecorator.h
     Include/W3DDevice/GameClient/RmlUi/RmlUiElements.h
     Include/W3DDevice/GameClient/RmlUi/RmlUiFileInterface.h
     Include/W3DDevice/GameClient/RmlUi/RmlUiIme.h

@@ -65,6 +65,7 @@
 #include "W3DDevice/GameClient/RmlUi/RmlSkirmishSetupScreen.h"
 #include "W3DDevice/GameClient/RmlUi/RmlSocialDock.h"
 #include "W3DDevice/GameClient/RmlUi/RmlScreen.h"
+#include "W3DDevice/GameClient/RmlUi/RmlRulerDecorator.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiElements.h"
 
 #include <RmlUi/Core/Context.h>
@@ -462,6 +463,8 @@ void RmlUiManager::registerCustomElements()
 
 	m_videoInstancer = new Rml::ElementInstancerGeneric<RmlVideoElement>();
 	Rml::Factory::RegisterElementInstancer("video", m_videoInstancer);
+
+	RmlRulerTicksInstancer::registerWithRml();
 }
 
 void RmlUiManager::shutdown()
