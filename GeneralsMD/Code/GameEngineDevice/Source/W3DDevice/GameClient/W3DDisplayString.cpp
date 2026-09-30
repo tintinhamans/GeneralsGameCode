@@ -54,6 +54,7 @@
 #include "W3DDevice/GameClient/W3DDisplayString.h"
 #include "GameClient/HotKey.h"
 #include "GameClient/GameFont.h"
+#include "GameClient/GameText.h"
 #include "GameClient/GlobalLanguage.h"
 
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -116,6 +117,11 @@ void W3DDisplayString::notifyTextChanged()
 
 	// extend functionality
 	DisplayString::notifyTextChanged();
+
+	// GameFont draws code units left to right unshaped, so right-to-left text the string table keeps in
+	// logical order for RmlUi goes back to pre-shaped visual order here.
+	m_renderText = TheGameText ? TheGameText->toLegacyDisplay( getText() ) : getText();
+
 	if(TheGlobalLanguageData)
 	{
 		if(TheGlobalLanguageData->m_useHardWrap == TRUE)
@@ -171,7 +177,7 @@ void W3DDisplayString::draw( Int x, Int y, Color color, Color dropColor, Int xDr
 		if(m_useHotKey)
 		{
 			m_textRenderer.Set_Hot_Key_Parse(TRUE);
-			m_textRenderer.Build_Sentence( getText().str(), &m_hotKeyPos.x, &m_hotKeyPos.y );
+			m_textRenderer.Build_Sentence( m_renderText.str(), &m_hotKeyPos.x, &m_hotKeyPos.y );
 			m_hotkey.translate(TheHotKeyManager->searchHotKey(getText()));
 			if(!m_hotkey.isEmpty())
 				m_textRendererHotKey.Build_Sentence(m_hotkey.str(), nullptr, nullptr);
@@ -182,7 +188,7 @@ void W3DDisplayString::draw( Int x, Int y, Color color, Color dropColor, Int xDr
 			}
 		}
 		else
-			m_textRenderer.Build_Sentence( getText().str(), nullptr, nullptr );
+			m_textRenderer.Build_Sentence( m_renderText.str(), nullptr, nullptr );
 		m_fontChanged = FALSE;
 		m_textChanged = FALSE;
 		needNewPolys = TRUE;
@@ -372,7 +378,7 @@ void W3DDisplayString::computeExtents()
 	else
 	{
 
-		Vector2 extents = m_textRenderer.Get_Formatted_Text_Extents(getText().str()); //Get_Text_Extents( getText().str() );
+		Vector2 extents = m_textRenderer.Get_Formatted_Text_Extents(m_renderText.str()); //Get_Text_Extents( getText().str() );
 		m_size.x = extents.X;
 		m_size.y = extents.Y;
 

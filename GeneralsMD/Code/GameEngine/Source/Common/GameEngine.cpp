@@ -573,7 +573,24 @@ void GameEngine::init()
 #ifdef DEBUG_CRC
 		initSubsystem(TheDeepCRCSanityCheck, "TheDeepCRCSanityCheck", MSGNEW("GameEngineSubystem") DeepCRCSanityCheck, nullptr);
 #endif // DEBUG_CRC
+		// NGMP_CHANGE: The UI text language (Options > Game language) loads over the installed one, its base
+		// game text from the Languages folder beside the community patch data. RmlUi shapes right-to-left
+		// text itself, so the table keeps it in logical order; W3DDisplayString turns it back for GameFont.
+		{
+			const std::string &language = NGMP_OnlineServicesManager::Settings.UI_GetLanguage();
+			AsciiString languagesDir(NGMP_OnlineServicesManager::Settings.UI_GetLanguagesDir().c_str());
+			if (languagesDir.isEmpty())
+				languagesDir.format("%sGeneralsOnlineGameData\\Languages\\", TheGlobalData->getPath_UserData().str());
+			else if (!languagesDir.endsWith("\\") && !languagesDir.endsWith("/"))
+				languagesDir.concat('\\');
+			SetGameTextOptions(AsciiString(language.c_str()), languagesDir, TRUE);
+		}
 		initSubsystem(TheGameText, "TheGameText", CreateGameTextInterface(), nullptr);
+		if (!NGMP_OnlineServicesManager::Settings.UI_GetLanguage().empty() && GetGameTextLanguage().isEmpty())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "Game language '%s' has no text files, using the installed language",
+				NGMP_OnlineServicesManager::Settings.UI_GetLanguage().c_str());
+		}
 		updateWindowTitle();
 
 #ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////

@@ -55,7 +55,11 @@
 #include "Common/GlobalData.h"
 #include "Common/file.h"
 #include "Common/FileSystem.h"
+#include "Common/RtlText.h"
+#include "Common/UnicodeUtf8.h"
 #include "Common/version.h"
+
+#include <unordered_map>
 
 
 
@@ -157,6 +161,8 @@ class GameTextManager : public GameTextInterface
 
 		virtual void					initMapStringFile( const AsciiString& filename ) override;
 
+		virtual UnicodeString toLegacyDisplay( const UnicodeString &text ) override;
+
 	protected:
 
 		Int							m_textCount;
@@ -186,6 +192,9 @@ class GameTextManager : public GameTextInterface
 		/// so don't simply store a pointer to it.
 		AsciiStringVec			m_asciiStringVec;
 
+		/// Logical text -> the legacy visual-order original it was converted from (see toLegacyDisplay()).
+		std::unordered_map<std::wstring, std::wstring> m_legacyVisual;
+
 		void						stripSpaces ( WideChar *string );
 		void						removeLeadingAndTrailing ( Char *m_buffer );
 		void						readToEndOfQuote( File *file, Char *in, Char *out, Char *wavefile, Int maxBufLen );
@@ -201,7 +210,11 @@ class GameTextManager : public GameTextInterface
 
 		Bool						determineBaseFile( const AsciiString& csfFile, AsciiString& baseFile, Bool& baseIsStr );
 		void						collectStringFiles( FilenameList& files );
-		void						mergeStringFile( const AsciiString& filename, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex );
+		Bool						mergeStringFile( const AsciiString& filename, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex );
+		void						mergeEntries( const StringInfo *entries, Int count, const char *source, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex );
+		Bool						parseMultiLanguageStringFile( const char *filename, const char *column, std::vector<StringInfo>& out );
+		void						mergeTextLanguage( std::vector<StringInfo>& merged, LabelIndexMap& labelIndex );
+		void						convertLegacyVisualText( std::vector<StringInfo>& merged );
 };
 
 static int __cdecl			compareLUT ( const void *,  const void*);
@@ -218,6 +231,51 @@ static bool						basenameLess( const AsciiString& a, const AsciiString& b );
 //----------------------------------------------------------------------------
 
 GameTextInterface *TheGameText = nullptr;
+
+// Patch104p's column codes; the native names are escaped so the source stays ASCII.
+const GameTextLanguage GameTextLanguages[] =
+{
+	{ "us", L"English", FALSE },
+	{ "de", L"Deutsch", FALSE },
+	{ "fr", L"Fran\x00E7" L"ais", FALSE },
+	{ "es", L"Espa\x00F1" L"ol", FALSE },
+	{ "it", L"Italiano", FALSE },
+	{ "ko", L"\xD55C\xAD6D\xC5B4", FALSE },
+	{ "zh", L"\x7E41\x9AD4\x4E2D\x6587", FALSE },
+	{ "bp", L"Portugu\x00EAs (Brasil)", FALSE },
+	{ "pl", L"Polski", FALSE },
+	{ "ru", L"\x0420\x0443\x0441\x0441\x043A\x0438\x0439", FALSE },
+	{ "ar", L"\x0627\x0644\x0639\x0631\x0628\x064A\x0629", TRUE },
+};
+const Int GameTextLanguageCount = ARRAY_SIZE( GameTextLanguages );
+
+static AsciiString s_textLanguageCode;
+static AsciiString s_textLanguagesDir;
+static Bool s_textLogicalRtl = FALSE;
+static AsciiString s_loadedTextLanguage;
+
+void SetGameTextOptions( const AsciiString &languageCode, const AsciiString &languagesDir, Bool logicalRtl )
+{
+	s_textLanguageCode = languageCode;
+	s_textLanguageCode.toLower();
+	s_textLanguagesDir = languagesDir;
+	s_textLogicalRtl = logicalRtl;
+}
+
+AsciiString GetGameTextLanguage()
+{
+	return s_loadedTextLanguage;
+}
+
+Bool IsGameTextRightToLeft()
+{
+	for ( Int i = 0; i < GameTextLanguageCount; ++i )
+	{
+		if ( s_loadedTextLanguage.compareNoCase( GameTextLanguages[i].code ) == 0 )
+			return GameTextLanguages[i].rightToLeft;
+	}
+	return FALSE;
+}
 
 //----------------------------------------------------------------------------
 //         Private Prototypes
@@ -343,6 +401,14 @@ void GameTextManager::init()
 		mergeStringFile( sortedFiles[i], merged, labelIndex );
 	}
 
+	// The chosen text language goes over everything the installed language provided.
+	mergeTextLanguage( merged, labelIndex );
+
+	if ( s_textLogicalRtl )
+	{
+		convertLegacyVisualText( merged );
+	}
+
 	m_textCount = (Int)merged.size();
 
 	if( m_textCount == 0 )
@@ -434,7 +500,7 @@ void GameTextManager::collectStringFiles( FilenameList& files )
 // Parses one overlay (or the base) file and layers it into the merged table:
 // new labels are added, labels that already exist are overwritten.
 
-void GameTextManager::mergeStringFile( const AsciiString& filename, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex )
+Bool GameTextManager::mergeStringFile( const AsciiString& filename, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex )
 {
 	const char *ext = filename.reverseFind('.');
 	Bool isStr = ext && stricmp( ext, ".str" ) == 0;
@@ -443,12 +509,12 @@ void GameTextManager::mergeStringFile( const AsciiString& filename, std::vector<
 	if ( isStr )
 	{
 		if ( !getStringCount( filename.str(), capacity ) || capacity == 0 )
-			return;
+			return FALSE;
 	}
 	else
 	{
 		if ( !getCSFInfo( filename.str() ) || m_textCount == 0 )
-			return;
+			return FALSE;
 		capacity = m_textCount;
 	}
 
@@ -461,28 +527,321 @@ void GameTextManager::mergeStringFile( const AsciiString& filename, std::vector<
 	{
 		DEBUG_LOG(("GameText: Failed to parse string file '%s', skipping", filename.str()));
 		delete [] tempInfo;
-		return;
+		return FALSE;
 	}
 
+	mergeEntries( tempInfo, actualCount, filename.str(), merged, labelIndex );
+
+	delete [] tempInfo;
+	return TRUE;
+}
+
+//============================================================================
+// GameTextManager::mergeEntries
+//============================================================================
+// Layers parsed entries into the merged table: new labels are added, existing ones overwritten.
+
+void GameTextManager::mergeEntries( const StringInfo *entries, Int count, const char *source, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex )
+{
 	Int overrideCount = 0;
-	for ( Int i = 0; i < actualCount; i++ )
+	for ( Int i = 0; i < count; i++ )
 	{
-		LabelIndexMap::iterator it = labelIndex.find( tempInfo[i].label );
+		LabelIndexMap::iterator it = labelIndex.find( entries[i].label );
 		if ( it != labelIndex.end() )
 		{
-			merged[it->second] = tempInfo[i];
+			merged[it->second] = entries[i];
 			overrideCount++;
 		}
 		else
 		{
-			labelIndex[tempInfo[i].label] = (Int)merged.size();
-			merged.push_back( tempInfo[i] );
+			labelIndex[entries[i].label] = (Int)merged.size();
+			merged.push_back( entries[i] );
 		}
 	}
 
-	DEBUG_LOG(("GameText: Loaded string file '%s' (%d entries, %d overridden)", filename.str(), actualCount, overrideCount));
+	DEBUG_LOG(("GameText: Loaded string file '%s' (%d entries, %d overridden)", source, count, overrideCount));
+}
 
-	delete [] tempInfo;
+//============================================================================
+// GameTextManager::mergeTextLanguage
+//============================================================================
+// Layers the chosen text language (SetGameTextOptions()) over the installed one. The base game's text
+// comes from the languages directory, which Generals Online ships separately:
+//   <languagesDir><code>\generals.csf   a compiled table for that language, else
+//   <languagesDir>generals.str          Patch104p's multi-language table, reading the <CODE>: lines
+//                                       and falling back to US: for labels without one.
+// The game's own strings then come from data\Languages\<code>\ (the embedded archive, loose files or
+// a .big). With no base game text the installed language stays and the language counts as not loaded.
+
+void GameTextManager::mergeTextLanguage( std::vector<StringInfo>& merged, LabelIndexMap& labelIndex )
+{
+	s_loadedTextLanguage.clear();
+	if ( s_textLanguageCode.isEmpty() )
+		return;
+
+	Bool known = FALSE;
+	for ( Int i = 0; i < GameTextLanguageCount; ++i )
+		known = known || s_textLanguageCode.compare( GameTextLanguages[i].code ) == 0;
+	if ( !known )
+	{
+		DEBUG_LOG(("GameText: Unknown text language '%s', keeping the installed language", s_textLanguageCode.str()));
+		return;
+	}
+
+	Bool loaded = FALSE;
+	if ( !s_textLanguagesDir.isEmpty() )
+	{
+		AsciiString csfFile;
+		csfFile.format( "%s%s\\generals.csf", s_textLanguagesDir.str(), s_textLanguageCode.str() );
+		loaded = mergeStringFile( csfFile, merged, labelIndex );
+
+		if ( !loaded )
+		{
+			AsciiString strFile;
+			strFile.format( "%sgenerals.str", s_textLanguagesDir.str() );
+			AsciiString column = s_textLanguageCode;
+			column.toUpper();
+			std::vector<StringInfo> entries;
+			if ( parseMultiLanguageStringFile( strFile.str(), column.str(), entries ) && !entries.empty() )
+			{
+				mergeEntries( &entries[0], (Int)entries.size(), strFile.str(), merged, labelIndex );
+				loaded = TRUE;
+			}
+		}
+	}
+
+	if ( !loaded )
+	{
+		DEBUG_LOG(("GameText: No '%s' text in '%s', keeping the installed language", s_textLanguageCode.str(), s_textLanguagesDir.str()));
+		return;
+	}
+
+	AsciiString gameDir;
+	gameDir.format( "data\\Languages\\%s\\", s_textLanguageCode.str() );
+	FilenameList files;
+	TheFileSystem->getFileListInDirectory( gameDir, "*.csf", files, FALSE );
+	TheFileSystem->getFileListInDirectory( gameDir, "*.str", files, FALSE );
+	std::vector<AsciiString> sortedFiles( files.begin(), files.end() );
+	std::stable_sort( sortedFiles.begin(), sortedFiles.end(), basenameLess );
+	for ( Int i = (Int)sortedFiles.size() - 1; i >= 0; i-- )
+	{
+		mergeStringFile( sortedFiles[i], merged, labelIndex );
+	}
+
+	s_loadedTextLanguage = s_textLanguageCode;
+}
+
+//============================================================================
+// GameTextManager::convertLegacyVisualText
+//============================================================================
+// Right-to-left text that a table stores for GameFont (pre-shaped, in visual order) goes to logical
+// order for RmlUi; toLegacyDisplay() turns it back, exactly, through m_legacyVisual.
+
+void GameTextManager::convertLegacyVisualText( std::vector<StringInfo>& merged )
+{
+	m_legacyVisual.clear();
+	for ( size_t i = 0; i < merged.size(); ++i )
+	{
+		const std::wstring visual( merged[i].text.str() );
+		if ( !RtlText::looksLegacyVisual( visual ) )
+			continue;
+		const std::wstring logical = RtlText::legacyVisualToLogical( visual );
+		m_legacyVisual[logical] = visual;
+		merged[i].text = logical.c_str();
+	}
+	DEBUG_LOG(("GameText: Converted %d legacy visual-order strings to logical order", (Int)m_legacyVisual.size()));
+}
+
+//============================================================================
+// GameTextManager::toLegacyDisplay
+//============================================================================
+
+UnicodeString GameTextManager::toLegacyDisplay( const UnicodeString &text )
+{
+	if ( !s_textLogicalRtl || text.isEmpty() )
+		return text;
+
+	Bool rtl = FALSE;
+	for ( const WideChar *c = text.str(); *c && !rtl; ++c )
+		rtl = RtlText::isRtl( *c );
+	if ( !rtl )
+		return text;
+
+	const std::wstring logical( text.str() );
+	std::unordered_map<std::wstring, std::wstring>::const_iterator it = m_legacyVisual.find( logical );
+	if ( it != m_legacyVisual.end() )
+		return UnicodeString( it->second.c_str() );
+
+	return UnicodeString( RtlText::logicalToLegacyVisual( logical, IsGameTextRightToLeft() ).c_str() );
+}
+
+//============================================================================
+// GameTextManager::parseMultiLanguageStringFile
+//============================================================================
+// Reads a UTF-8 multi-language .str (Patch104p's generals.str, the game's Assets/Localization/Languages):
+//   LABEL
+//   US: "text"
+//   DE: "Text"
+//   END
+// For each label it keeps the given column's line, else the US: one (or a plain "text" line). Escapes
+// and whitespace follow the classic .str rules (readToEndOfQuote/translateCopy/stripSpaces).
+
+Bool GameTextManager::parseMultiLanguageStringFile( const char *filename, const char *column, std::vector<StringInfo>& out )
+{
+	File *file = TheFileSystem->openFile( filename, File::READ | File::BINARY );
+	if ( file == nullptr )
+		return FALSE;
+
+	const Int size = file->size();
+	std::string data;
+	if ( size > 0 )
+	{
+		data.resize( size );
+		if ( file->read( &data[0], size ) != size )
+			data.clear();
+	}
+	file->close();
+	file = nullptr;
+
+	if ( data.size() >= 3 && (unsigned char)data[0] == 0xEF && (unsigned char)data[1] == 0xBB && (unsigned char)data[2] == 0xBF )
+		data.erase( 0, 3 );
+
+	AsciiString label;
+	std::string chosen;
+	std::string fallback;
+	Bool haveChosen = FALSE;
+	Bool haveFallback = FALSE;
+	Bool inEntry = FALSE;
+
+	size_t pos = 0;
+	while ( pos < data.size() )
+	{
+		size_t end = data.find( '\n', pos );
+		if ( end == std::string::npos )
+			end = data.size();
+		std::string line = data.substr( pos, end - pos );
+		pos = end + 1;
+
+		const size_t first = line.find_first_not_of( " \t\r" );
+		if ( first == std::string::npos )
+			continue;
+		const size_t last = line.find_last_not_of( " \t\r" );
+		line = line.substr( first, last - first + 1 );
+		if ( line.compare( 0, 2, "//" ) == 0 )
+			continue;
+
+		if ( !inEntry )
+		{
+			label = line.c_str();
+			chosen.clear();
+			fallback.clear();
+			haveChosen = FALSE;
+			haveFallback = FALSE;
+			inEntry = TRUE;
+			continue;
+		}
+
+		if ( stricmp( line.c_str(), "END" ) == 0 )
+		{
+			if ( haveChosen || haveFallback )
+			{
+				const std::string &raw = haveChosen ? chosen : fallback;
+				// translateCopy()'s escapes, on UTF-8 rather than single bytes.
+				std::string unescaped;
+				unescaped.reserve( raw.size() );
+				for ( size_t k = 0; k < raw.size(); ++k )
+				{
+					const char c = raw[k];
+					if ( c == '\\' && k + 1 < raw.size() )
+					{
+						const char e = raw[++k];
+						if ( e == 'n' )
+							unescaped.push_back( '\n' );
+						else if ( e == 't' )
+							unescaped.push_back( '\t' );
+						else
+							unescaped.push_back( e );
+					}
+					else
+					{
+						unescaped.push_back( (c == '\t' || c == '\r') ? ' ' : c );
+					}
+				}
+
+				const UnicodeString text = utf8ToUnicode( unescaped );
+				std::vector<WideChar> buffer( text.getLength() + 1, 0 );
+				if ( text.getLength() > 0 )
+					memcpy( &buffer[0], text.str(), text.getLength() * sizeof( WideChar ) );
+				stripSpaces( &buffer[0] );
+
+				StringInfo info;
+				info.label = label;
+				info.text = &buffer[0];
+				out.push_back( info );
+			}
+			inEntry = FALSE;
+			continue;
+		}
+
+		// Either 'XX: "text"' or a plain '"text"', which counts as US.
+		std::string key;
+		size_t quote = std::string::npos;
+		if ( line[0] == '"' )
+		{
+			key = "US";
+			quote = 0;
+		}
+		else if ( line.size() > 3 && isalpha( (unsigned char)line[0] ) && isalpha( (unsigned char)line[1] ) && line[2] == ':' )
+		{
+			key = line.substr( 0, 2 );
+			key[0] = (char)toupper( (unsigned char)key[0] );
+			key[1] = (char)toupper( (unsigned char)key[1] );
+			quote = line.find( '"', 3 );
+		}
+		if ( quote == std::string::npos )
+			continue;
+
+		// The text runs to the next unescaped quote, over more lines if need be (a line break is a space).
+		std::string text;
+		std::string rest = line.substr( quote + 1 );
+		Bool closed = FALSE;
+		for ( ;; )
+		{
+			Bool slash = FALSE;
+			for ( size_t k = 0; k < rest.size(); ++k )
+			{
+				const char c = rest[k];
+				if ( c == '"' && !slash )
+				{
+					closed = TRUE;
+					break;
+				}
+				slash = ( c == '\\' && !slash );
+				text.push_back( c );
+			}
+			if ( closed || pos >= data.size() )
+				break;
+			size_t next = data.find( '\n', pos );
+			if ( next == std::string::npos )
+				next = data.size();
+			rest = data.substr( pos, next - pos );
+			pos = next + 1;
+			text.push_back( ' ' );
+		}
+
+		if ( key == column )
+		{
+			chosen = text;
+			haveChosen = TRUE;
+		}
+		else if ( key == "US" )
+		{
+			fallback = text;
+			haveFallback = TRUE;
+		}
+	}
+
+	return TRUE;
 }
 
 //============================================================================

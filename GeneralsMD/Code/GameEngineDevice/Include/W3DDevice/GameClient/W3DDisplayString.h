@@ -98,6 +98,7 @@ protected:
 	Bool m_textChanged;  ///< when contents of string change this is TRUE
 	Bool m_fontChanged;  ///< when font has changed this is TRUE
 	UnicodeString m_hotkey;		///< holds the current hotkey marker.
+	UnicodeString m_renderText;	///< the text as GameFont draws it (see GameTextInterface::toLegacyDisplay())
 	Bool m_useHotKey;
 	ICoord2D m_hotKeyPos;
 	Color m_hotKeyColor;

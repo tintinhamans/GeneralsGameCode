@@ -86,6 +86,11 @@ class GameTextInterface : public SubsystemInterface
 
 		virtual void					initMapStringFile( const AsciiString& filename ) = 0;
 
+		// Text as the GameFont renderer has to draw it. With SetGameTextOptions()'s logicalRtl, right-to-left
+		// text is kept in logical order for RmlUi, which shapes it; this shapes and reorders it back to the
+		// visual order GameFont needs, giving table strings back exactly as their file had them.
+		virtual UnicodeString toLegacyDisplay( const UnicodeString &text ) = 0;
+
 #if __cplusplus < 201103L // TheSuperHackers @todo Remove function when abandoning VC6
 		inline UnicodeString FETCH_OR_SUBSTITUTE_FORMAT( const Char *label, const WideChar *substituteFormat, ... )
 		{
@@ -101,6 +106,26 @@ class GameTextInterface : public SubsystemInterface
 
 extern GameTextInterface *TheGameText;
 extern GameTextInterface* CreateGameTextInterface();
+
+// A language the text can be switched to independently of the installed game. code names its folder under
+// the languages directory and, upper-cased, its column in a multi-language generals.str (Patch104p's codes).
+struct GameTextLanguage
+{
+	const char *code;
+	const WideChar *nativeName;	///< the language's name in its own script
+	Bool rightToLeft;
+};
+extern const GameTextLanguage GameTextLanguages[];
+extern const Int GameTextLanguageCount;
+
+// Call before TheGameText->init(). languageCode picks the text language ("" keeps the installed one) and
+// languagesDir is where its files are (see GameTextManager::mergeTextLanguage()). logicalRtl keeps
+// right-to-left text in logical order for a renderer that shapes it; see toLegacyDisplay().
+void SetGameTextOptions( const AsciiString &languageCode, const AsciiString &languagesDir, Bool logicalRtl );
+// The text language that was loaded: the chosen code, or "" for the installed language (also when the
+// chosen one's files were missing).
+AsciiString GetGameTextLanguage();
+Bool IsGameTextRightToLeft();
 
 //----------------------------------------------------------------------------
 //           Inlining

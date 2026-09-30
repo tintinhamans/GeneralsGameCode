@@ -39,6 +39,10 @@
 #define SETTINGS_KEY_DATAPACKS "data_packs"
 #define SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH "use_community_data_patch"
 
+#define SETTINGS_KEY_UI "ui"
+#define SETTINGS_KEY_UI_LANGUAGE "language"
+#define SETTINGS_KEY_UI_LANGUAGES_DIR "languages_dir"
+
 #define SETTINGS_FILENAME_LEGACY "GeneralsOnline_settings.json"
 #define SETTINGS_FILENAME "settings.json"
 
@@ -294,6 +298,21 @@ void GenOnlineSettings::Load(void)
                     m_DataPacks_UseCommunityPatch = datapackSettings[SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH];
                 }
             }
+
+			if (jsonSettings.contains(SETTINGS_KEY_UI))
+			{
+				auto uiSettings = jsonSettings[SETTINGS_KEY_UI];
+
+				if (uiSettings.contains(SETTINGS_KEY_UI_LANGUAGE) && uiSettings[SETTINGS_KEY_UI_LANGUAGE].is_string())
+				{
+					m_UI_Language = uiSettings[SETTINGS_KEY_UI_LANGUAGE];
+				}
+
+				if (uiSettings.contains(SETTINGS_KEY_UI_LANGUAGES_DIR) && uiSettings[SETTINGS_KEY_UI_LANGUAGES_DIR].is_string())
+				{
+					m_UI_LanguagesDir = uiSettings[SETTINGS_KEY_UI_LANGUAGES_DIR];
+				}
+			}
 		}
 		catch (...)
 		{
@@ -415,7 +434,15 @@ void GenOnlineSettings::Save()
                 {
                     {SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH, m_DataPacks_UseCommunityPatch}
                 }
-        }
+        },
+
+		{
+			SETTINGS_KEY_UI,
+				{
+					{SETTINGS_KEY_UI_LANGUAGE, m_UI_Language},
+					{SETTINGS_KEY_UI_LANGUAGES_DIR, m_UI_LanguagesDir}
+				}
+		}
     };
 	
 	std::string strData = root.dump(1);

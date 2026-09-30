@@ -73,6 +73,16 @@ public:
 
 	bool DataPacks_UseCommunityPatch() const { return m_DataPacks_UseCommunityPatch; }
 
+	// The UI text language (a GameTextLanguages code, "" = the installed language); applies on restart.
+	const std::string &UI_GetLanguage() const { return m_UI_Language; }
+	void UI_SetLanguage(const std::string &code)
+	{
+		m_UI_Language = code;
+		Save();
+	}
+	// Where the languages' base game text is; "" = <user data>/GeneralsOnlineGameData/Languages/.
+	const std::string &UI_GetLanguagesDir() const { return m_UI_LanguagesDir; }
+
 	bool Network_UseAlternativeEndpoint() const { return m_Network_UseAlternativeEndpoint; }
 	EHTTPVersion Network_GetHTTPVersion() const { return m_Network_HTTPVersion; }
 	int Network_GetHTTPVersionForCurl() const
@@ -141,6 +151,9 @@ private:
 	bool m_Social_Notification_PlayerSendsRequest_Gameplay = true;
 
 	bool m_DataPacks_UseCommunityPatch = true;
+
+	std::string m_UI_Language = std::string();
+	std::string m_UI_LanguagesDir = std::string();
 
 	std::string m_Plugins_Anticheat = std::string();
 
