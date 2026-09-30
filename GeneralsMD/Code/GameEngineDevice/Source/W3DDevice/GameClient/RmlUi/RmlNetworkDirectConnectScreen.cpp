@@ -24,6 +24,7 @@
 #include "GameClient/GUI/GUICallbacks/Menus/DirectConnectActions.h"
 #include "GameClient/GUI/GUICallbacks/Menus/DirectConnectData.h"
 #include "GameClient/Shell.h"
+#include "GameClient/TransitionSounds.h"
 #include "W3DDevice/GameClient/RmlUi/RmlUiManager.h"
 
 #include <RmlUi/Core/Context.h>
@@ -94,10 +95,15 @@ void RmlNetworkDirectConnectScreen::show()
 		m_modelHandle.DirtyAllVariables();
 
 	m_document->Show();
+
+	// NetworkDirectConnectInit()'s entrance group, and NetworkDirectConnectShutdown()'s reverse in hide().
+	TransitionSounds::play("NetworkDirectConnectFade");
 }
 
 void RmlNetworkDirectConnectScreen::hide()
 {
+	if (m_document && m_document->IsVisible())
+		TransitionSounds::play("NetworkDirectConnectFade", TRUE);
 	if (m_document)
 		m_document->Hide();
 
