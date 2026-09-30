@@ -165,6 +165,7 @@
 	font-size: 18dp;
 	line-height: 23dp;
 	color: #D7DCF0;
+	font-effect: shadow(1dp 1dp #000000E0);
 }
 
 .chat-card .chat-entry
@@ -247,7 +248,9 @@
 	.screen .swatches button.swatch { width: 26dp; height: 26dp; margin-right: 1dp; }
 	.swatch .chip { line-height: 18dp; font-size: 13dp; }
 	.swatch.random .chip { line-height: 16dp; }
-	.pc-spot { width: 32dp; height: 32dp; line-height: 28dp; margin-left: 8dp; font-size: 16dp; }
+	.pc-spot { height: 28dp; margin-left: 8dp; padding: 0 7dp 0 6dp; }
+	.pc-spot-cap { display: none; } /* the number alone; its tooltip names it */
+	.pc-spot-no { font-size: 16dp; }
 	.army-ro { font-size: 17dp; padding: 0 8dp; }
 	.army-ro .army-icon { margin-right: 8dp; }
 	.pc-compact .pc-who { flex-basis: 110dp; }

@@ -63,7 +63,7 @@
 								<button data-attrif-disabled="settings_locked" data-event-click="slot_occupant_picked(row.slot_index, 3)" data-tooltip="GUI:MediumAI"><span class="pc-plus">+</span><gametext key="GUI:MediumDifficultyCaps"/></button>
 								<button data-attrif-disabled="settings_locked" data-event-click="slot_occupant_picked(row.slot_index, 4)" data-tooltip="GUI:HardAI"><span class="pc-plus">+</span><gametext key="GUI:HardCaps"/></button>
 							</div>
-							<div class="pc-spot" data-if="row.is_occupied" data-class-random="row.start_position &lt; 0" data-style-border-color="row.start_position &lt; 0 ? '#8080FF46' : (row.color &lt; 0 ? '#A9B1CF' : row.color_hex)">{{row.start_position &lt; 0 ? '?' : row.start_position + 1}}</div>
+							<div class="pc-spot" data-if="row.is_occupied" data-class-random="row.start_position &lt; 0" data-style-border-left-color="row.start_position &lt; 0 ? '#8080FF46' : (row.color &lt; 0 ? '#A9B1CF' : row.color_hex)" data-tooltip="TOOLTIP:StartPosition"><span class="pc-spot-cap"><gametext key="GUI:GOStartSpot"/></span><span class="pc-spot-no">{{row.start_position &lt; 0 ? '?' : row.start_position + 1}}</span></div>
 						</div>
 						<div class="pc-line" data-if="row.is_occupied">
 							<select class="army-select" data-if="row.can_edit" data-value="row.player_template" data-attr-data-tooltip-text="row.faction_tooltip" data-attrif-disabled="settings_locked"

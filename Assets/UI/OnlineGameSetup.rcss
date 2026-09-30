@@ -62,7 +62,9 @@
 .screen.dock-open .swatches button.swatch { width: 26dp; height: 26dp; margin-right: 1dp; }
 .dock-open .swatch .chip { line-height: 18dp; font-size: 13dp; }
 .dock-open .swatch.random .chip { line-height: 16dp; }
-.dock-open .pc-spot { width: 32dp; height: 32dp; line-height: 28dp; margin-left: 8dp; font-size: 16dp; }
+.dock-open .pc-spot { height: 28dp; margin-left: 8dp; padding: 0 7dp 0 6dp; }
+.dock-open .pc-spot-cap { display: none; }
+.dock-open .pc-spot-no { font-size: 16dp; }
 .dock-open .army-ro { font-size: 17dp; padding: 0 8dp; }
 .dock-open .pc-compact .pc-who { flex-basis: 110dp; }
 .screen.dock-open .pc-add button { padding: 0 7dp; margin-left: 4dp; font-size: 14dp; }

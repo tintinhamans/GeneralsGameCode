@@ -2273,6 +2273,7 @@ mappreview .mp-art
 .pc-who select
 {
 	width: 100%;
+	max-width: 270dp;
 }
 
 .pc-name
@@ -2297,28 +2298,42 @@ mappreview .mp-art
 	text-overflow: ellipsis;
 }
 
-/* Start spot: the numbered square of the map preview, or ? when the game picks it. */
+/* Start spot: a flat status chip, "START 3" (the map's numbered square) or "START ?" when the game
+   picks it, edged in the player's colour. Picked on the map, so it never looks like a button. */
 .pc-spot
 {
-	display: block;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
 	flex: 0 0 auto;
-	box-sizing: border-box;
-	width: 38dp;
-	height: 38dp;
+	height: 30dp;
 	margin-left: 12dp;
-	line-height: 34dp;
-	text-align: center;
+	padding: 0 10dp 0 8dp;
+	background-color: #05070FC8;
+	border-left: 3dp #A9B1CF;
+	white-space: nowrap;
+}
+
+.pc-spot-cap
+{
+	margin-right: 7dp;
+	font-size: 13dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	color: #8089B0;
+}
+
+.pc-spot-no
+{
 	font-size: 18dp;
 	font-weight: bold;
 	color: #FFFFFF;
-	background-color: #05070FC8;
-	border: 2dp #FFFFFF78;
 }
 
-.pc-spot.random
+.pc-spot.random .pc-spot-no
 {
 	color: #7079A0;
-	border-color: #8080FF46;
 }
 
 .pc-line select
