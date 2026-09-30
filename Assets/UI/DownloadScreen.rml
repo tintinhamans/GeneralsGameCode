@@ -4,24 +4,31 @@
 	<link type="text/rcss" href="common.rcss"/>
 	<link type="text/rcss" href="DownloadScreen.rcss"/>
 </head>
-<body data-model="downloadscreen">
-	<div class="dl-panel">
-		<div class="dl-text dl-file"><span>{{file_text}}</span></div>
-		<div class="dl-text dl-size"><span>{{size_text}}</span></div>
-		<div class="dl-text dl-time"><span>{{time_text}}</span></div>
+<body class="screen dl" data-model="downloadscreen">
+	<!-- A card centred on a dim scrim over the main menu: the file, the shared progress bar, how much
+	     has arrived and how long is left, the state, and Cancel. -->
+	<div class="dl-scrim"></div>
+	<div class="dl-card">
+		<div class="dl-head">
+			<div class="overline accent-overline"><gametext key="TOOLTIP:DownloadProgress"/></div>
+			<div class="dl-title"><gametext key="GUI:GODownloadingUpdate"/></div>
+		</div>
 
-		<div class="dl-bar" data-tooltip="Tooltip:DownloadProgress">
-			<mappedimage class="dl-bar-l" name="LoadingBar_L"/>
-			<div class="dl-bar-c"></div>
-			<mappedimage class="dl-bar-r" name="LoadingBar_R"/>
-			<div class="dl-bar-track">
-				<div class="dl-bar-rows dl-bar-rest"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
-				<div class="dl-bar-fill" data-style-width="progress_style"><div class="dl-bar-rows dl-bar-done"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>
+		<div class="dl-body">
+			<div class="dl-file">{{file_text}}</div>
+			<div class="progress dl-bar" data-tooltip="Tooltip:DownloadProgress"><div class="progress-fill" data-style-width="progress_style"></div></div>
+			<div class="dl-meta">
+				<div class="dl-size">{{size_text}}</div>
+				<div class="spacer"></div>
+				<div class="dl-time">{{time_text}}</div>
 			</div>
 		</div>
 
-		<div class="dl-text dl-status"><span>{{status_text}}</span></div>
-		<button class="dl-cancel" data-event-click="cancel"><gametext key="GUI:Cancel"/></button>
+		<div class="dl-actions">
+			<button class="btn-back" data-event-click="cancel"><span class="chevron">&#8249;</span><gametext key="GUI:Cancel"/></button>
+			<div class="spacer"></div>
+			<div class="dl-status" data-if="status_text != ''"><span class="dot pulse"></span><span>{{status_text}}</span></div>
+		</div>
 	</div>
 </body>
 </rml>

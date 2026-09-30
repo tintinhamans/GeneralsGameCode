@@ -206,3 +206,7 @@ END
 GUI:GOChallengeHint
 "Pick a general to read their dossier, then press Play Game to lead them through the challenge."
 END
+
+GUI:GODownloadingUpdate
+"Downloading Update"
+END
