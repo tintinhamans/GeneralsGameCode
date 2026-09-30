@@ -309,18 +309,37 @@ std::string mirrorValue(const std::string &property, const std::string &value)
 
 std::string mirrorDeclarations(const std::string &body)
 {
-	std::string out;
+	std::vector<std::pair<std::string, std::string>> declarations;
+	bool placed = false;
+	bool leftOrRight = false;
 	for (const std::string &declaration : splitTopLevel(body, ';'))
 	{
 		const std::string d = trim(declaration);
-		if (d.empty())
-			continue;
 		const size_t colon = d.find(':');
-		if (colon == std::string::npos)
+		if (d.empty() || colon == std::string::npos)
 			continue;
-		const std::string property = lower(trim(d.substr(0, colon)));
-		const std::string value = trim(d.substr(colon + 1));
-		out += "\n\t" + mirrorProperty(property) + ": " + mirrorValue(property, value) + ";";
+		declarations.push_back({ lower(trim(d.substr(0, colon))), trim(d.substr(colon + 1)) });
+		const std::string &property = declarations.back().first;
+		const std::string value = lower(declarations.back().second);
+		placed = placed || (property == "position" && (value == "absolute" || value == "fixed"));
+		leftOrRight = leftOrRight || property == "left" || property == "right";
+	}
+
+	// An absolutely placed box whose rule sets no left or right sits where its inline style (a map
+	// marker, a pin) or its static position puts it, and neither is mirrored: its horizontal
+	// margins centre it on that spot, so they stay as they are.
+	const bool physicalMargins = placed && !leftOrRight;
+
+	std::string out;
+	for (const auto &declaration : declarations)
+	{
+		const std::string &property = declaration.first;
+		const std::string &value = declaration.second;
+		const bool margin = property == "margin" || property == "margin-left" || property == "margin-right";
+		if (physicalMargins && margin)
+			out += "\n\t" + property + ": " + value + ";";
+		else
+			out += "\n\t" + mirrorProperty(property) + ": " + mirrorValue(property, value) + ";";
 	}
 	return out + "\n";
 }
