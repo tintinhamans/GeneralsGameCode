@@ -63,6 +63,11 @@ const Rml::Style::FontWeight BLACK = (Rml::Style::FontWeight)900;
 
 const FontRole NOTO_SANS = { "Noto Sans", REGULAR, { "NotoSans-Regular.ttf", "NotoSans-VF.ttf", nullptr } };
 const FontRole EXO2_BOLD = { "Exo 2", BOLD, { "Exo2-Bold.ttf", "Exo2-VF.ttf", nullptr } };
+// Glyph subsets of just the Language dropdown's names (Korean, Traditional Chinese, Arabic), so each shows in
+// its own script whatever the UI language. Distinct families, so they never clash with the full faces.
+const FontRole NAMES_KOREAN = { "Noto Sans KR Names", REGULAR, { "NotoSansKR-Names.ttf", nullptr, nullptr } };
+const FontRole NAMES_CHINESE = { "Noto Sans TC Names", REGULAR, { "NotoSansTC-Names.ttf", nullptr, nullptr } };
+const FontRole NAMES_ARABIC = { "Noto Sans Arabic Names", REGULAR, { "NotoSansArabic-Names.ttf", nullptr, nullptr } };
 const FontRole OSWALD_BOLD = { "Oswald", BOLD, { "Oswald-Bold.ttf", "Oswald-VF.ttf", nullptr } };
 const FontRole ARABIC_BODY = { "Noto Sans Arabic", REGULAR, { "NotoSansArabic-Regular.ttf", "NotoSansArabic-VF.ttf", nullptr } };
 const FontRole ARABIC_HEADING = { "Noto Kufi Arabic", BOLD, { "NotoKufiArabic-Bold.ttf", "NotoKufiArabic-VF.ttf", nullptr } };
@@ -611,6 +616,11 @@ void loadFonts(const FontSetup &setup)
 			headingFamily = EXO2_BOLD.family;
 		substitute(nullptr, REGULAR, headingFamily, BOLD);
 	}
+
+	// The language names' glyph subsets (see above), before the system fallbacks.
+	loadRole(NAMES_KOREAN, dirs, true);
+	loadRole(NAMES_CHINESE, dirs, true);
+	loadRole(NAMES_ARABIC, dirs, true);
 
 	// SIL OFL-licensed Noto Color Emoji (see Data/UI/Fonts/OFL-NotoColorEmoji.txt), a subset of about
 	// 1,400 common emoji (CBDT colour bitmaps), is the last fallback face so chat can show them.
