@@ -494,10 +494,19 @@ void GameTextManager::collectStringFiles( FilenameList& files )
 	AsciiString languageDir;
 	languageDir.format( "data\\%s\\", GetRegistryLanguage().str() );
 
-	TheFileSystem->getFileListInDirectory( neutralDir, "*.str", files, FALSE );
-	TheFileSystem->getFileListInDirectory( neutralDir, "*.csf", files, FALSE );
-	TheFileSystem->getFileListInDirectory( languageDir, "*.str", files, FALSE );
-	TheFileSystem->getFileListInDirectory( languageDir, "*.csf", files, FALSE );
+	FilenameList found;
+	TheFileSystem->getFileListInDirectory( neutralDir, "*.str", found, FALSE );
+	TheFileSystem->getFileListInDirectory( neutralDir, "*.csf", found, FALSE );
+	TheFileSystem->getFileListInDirectory( languageDir, "*.str", found, FALSE );
+	TheFileSystem->getFileListInDirectory( languageDir, "*.csf", found, FALSE );
+
+	// Archives list subdirectories regardless of the flag; keep data\Languages\<code>\ and the like out.
+	for ( FilenameListIter it = found.begin(); it != found.end(); ++it )
+	{
+		const AsciiString& dir = it->startsWithNoCase( languageDir ) ? languageDir : neutralDir;
+		if ( !it->startsWithNoCase( dir ) || strpbrk( it->str() + dir.getLength(), "\\/" ) == nullptr )
+			files.insert( *it );
+	}
 }
 
 //============================================================================
