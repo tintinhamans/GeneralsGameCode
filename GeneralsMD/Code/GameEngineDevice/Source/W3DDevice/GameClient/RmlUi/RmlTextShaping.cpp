@@ -482,11 +482,20 @@ public:
 		if (rightToLeft)
 		{
 			document->SetAttribute("dir", "rtl");
-			mirror(document);
+			// The in-game HUD keeps its layout (radar bottom left, selection bottom right): only its
+			// text is right to left.
+			if (!isHud(document->GetSourceURL()))
+				mirror(document);
 		}
 	}
 
 private:
+	static bool isHud(const std::string &url)
+	{
+		static const char kHud[] = "ControlBar.rml";
+		return url.size() >= sizeof(kHud) - 1 && url.compare(url.size() - (sizeof(kHud) - 1), std::string::npos, kHud) == 0;
+	}
+
 	// Right-to-left documents get their style sheets replaced by mirrored ones (mirrorStyleSheet()).
 	void mirror(Rml::ElementDocument *document)
 	{

@@ -66,7 +66,8 @@ std::vector<std::string> fontFilesFor(const std::string &language);
 bool isRightToLeft(const std::string &language);
 
 /// Gives every document loaded from now on lang (BCP 47) and, for right-to-left languages,
-/// dir="rtl", which the shaper reads, plus mirrored style sheets (see mirrorStyleSheet()).
+/// dir="rtl", which the shaper reads, plus mirrored style sheets (see mirrorStyleSheet()), except the
+/// in-game HUD (ControlBar.rml), which keeps its layout and only its text is right to left.
 void tagDocuments(const std::string &language);
 
 /// A right-to-left copy of an RCSS sheet, the way rtlcss mirrors CSS: left and right swap in
