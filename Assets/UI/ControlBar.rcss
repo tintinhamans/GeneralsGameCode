@@ -9,12 +9,12 @@
 	The look is a vehicle console: matte gunmetal with thin, low-contrast edges, straight 45 degree chamfers and
 	no coloured trim. The side shows only in the metal's tone: cool grey steel for the USA, dark iron with a
 	hint of oxide for China, worn sand with rust for the GLA, neutral grey for observers (and any other side).
-	Every panel is three layers:
-	  .cb-skin   the plate behind everything, baked at the panel's size (a faint scanline field)
-	  content    the bezelled radar screen, the funds readout inset in the command panel's top, recessed slot
-	             wells, the segmented power and experience meters, buttons in metal bezels
-	  .cb-frame  the two-layer bezel (dark housing, matte metal face with a groove) over the edges
-	The art is generated (Textures/ControlBar/cb_<faction>.png, 2 px per dp for the ninepatch pieces, 1 px per dp
+	Every panel draws two decorators of its own: the two-layer bezel (dark housing, matte metal face with a
+	groove) over the plate baked at the panel's size (a faint scanline field, the bezel's corner cuts left
+	out). Its content sits on top: the bezelled radar screen, the funds readout inset in the command panel's
+	top, recessed slot wells, the segmented power and experience meters, buttons in metal bezels. Nothing
+	here sets a z-index: the panels, the tower and their pieces stack in document order, the order the
+	control bar has drawn reliably in the game since its first version. The art is generated (Textures/ControlBar/cb_<faction>.png, 2 px per dp for the ninepatch pieces, 1 px per dp
 	for the skins).
 
 	Wide screens: the dock spans the screen up to 21:9 and is centred beyond it, the wings and the rail carrying
@@ -85,18 +85,7 @@ body.cb
 	bottom: 0;
 	box-sizing: border-box;
 	pointer-events: auto;
-	z-index: 0; /* its own stack: the skin under the content, the frame over it */
 }
-
-.cb-skin, .cb-frame
-{
-	display: block;
-	position: absolute;
-	pointer-events: none;
-}
-
-.cb-skin { left: 6dp; top: 6dp; right: 6dp; bottom: 0; z-index: -1; }
-.cb-frame { left: 0; top: 0; right: 0; bottom: 0; }
 
 /* small caps labels */
 .cb-sci-tier, .cb-beacon-label, .cb-obs-label
@@ -117,8 +106,6 @@ body.cb
 	height: 332dp;
 	padding: 14dp 21dp 8dp 8dp;
 }
-
-.cb-radar .cb-skin { left: 0; }
 
 .cb-radar-well
 {
@@ -175,7 +162,7 @@ body.cb
 	padding: 34dp 22dp 6dp 22dp;
 }
 
-/* the funds: a flush readout inset in the frame's top */
+/* the funds: a flush readout inset in the frame's top (drawn after the panel's own frame) */
 .cb-money
 {
 	display: block;
@@ -192,7 +179,6 @@ body.cb
 	text-align: center;
 	white-space: nowrap;
 	color: #B4C8A0;
-	z-index: 1; /* over the frame */
 }
 
 /* the power meter, segmented, and its value */
@@ -586,7 +572,6 @@ input.cb-input:focus { border-color: #D1FD04; }
 	width: 108dp;
 	box-sizing: border-box;
 	padding: 14dp 6dp 4dp 14dp;
-	z-index: 1;
 	pointer-events: auto;
 }
 
@@ -654,7 +639,6 @@ input.cb-input:focus { border-color: #D1FD04; }
 	padding: 28dp 16dp 6dp 22dp;
 }
 
-.cb-unit .cb-skin { right: 0; }
 .cb-unit-head
 {
 	display: flex;
@@ -1186,8 +1170,6 @@ body.low .cb-science { bottom: 140dp; }
 	.cb-dock { left: 50%; right: auto; width: 2580dp; margin-left: -1290dp; }
 	.cb-wing { display: block; }
 	.cb-radar { padding-left: 16dp; }
-	.cb-radar .cb-skin { left: 6dp; }
-	.cb-unit .cb-skin { right: 6dp; }
 	.cb-tower { right: 8dp; }
 }
 
@@ -1198,8 +1180,6 @@ body.low .cb-science { bottom: 140dp; }
 	body.iw-169 .cb-wing-l { margin-right: 936dp; }
 	body.iw-169 .cb-wing-r { margin-left: 936dp; }
 	body.iw-169 .cb-radar { padding-left: 16dp; }
-	body.iw-169 .cb-radar .cb-skin { left: 6dp; }
-	body.iw-169 .cb-unit .cb-skin { right: 6dp; }
 	body.iw-169 .cb-tower { right: 8dp; }
 }
 
@@ -1208,197 +1188,194 @@ body.low .cb-science { bottom: 140dp; }
 {
 	src: Textures/ControlBar/cb_usa.png;
 	resolution: 2x;
-	cb-usa-body-radar-l: 0px 0px 326px 326px;
-	cb-usa-body-radar-c: 328px 0px 320px 326px;
-	cb-usa-body-unit-r: 650px 0px 302px 242px;
-	cb-usa-body-unit-c: 0px 328px 296px 242px;
-	cb-usa-body-main: 0px 572px 736px 204px;
-	cb-usa-seg-v: 738px 572px 12px 188px;
-	cb-usa-frame-c: 752px 572px 200px 140px;
-	cb-usa-frame-c-in: 816px 636px 72px 56px;
-	cb-usa-frame-l: 0px 778px 200px 140px;
-	cb-usa-frame-l-in: 6px 842px 130px 56px;
-	cb-usa-frame-r: 202px 778px 200px 140px;
-	cb-usa-frame-r-in: 266px 842px 130px 56px;
-	cb-usa-box: 404px 778px 140px 140px;
-	cb-usa-box-in: 454px 828px 40px 40px;
-	cb-usa-tower-r: 546px 778px 160px 120px;
-	cb-usa-tower-r-in: 596px 828px 104px 58px;
-	cb-usa-tower-c: 708px 778px 160px 120px;
-	cb-usa-tower-c-in: 758px 828px 60px 58px;
-	cb-usa-bezel: 870px 778px 64px 64px;
-	cb-usa-bezel-in: 896px 804px 12px 12px;
-	cb-usa-btn-normal: 936px 778px 52px 52px;
-	cb-usa-btn-normal-in: 954px 796px 16px 16px;
-	cb-usa-btn-hover: 0px 920px 52px 52px;
-	cb-usa-btn-hover-in: 18px 938px 16px 16px;
-	cb-usa-btn-pressed: 54px 920px 52px 52px;
-	cb-usa-btn-pressed-in: 72px 938px 16px 16px;
-	cb-usa-btn-checked: 108px 920px 52px 52px;
-	cb-usa-btn-checked-in: 126px 938px 16px 16px;
-	cb-usa-btn-disabled: 162px 920px 52px 52px;
-	cb-usa-btn-disabled-in: 180px 938px 16px 16px;
-	cb-usa-wing-l: 216px 920px 140px 52px;
-	cb-usa-wing-l-in: 220px 950px 68px 18px;
-	cb-usa-wing-r: 358px 920px 140px 52px;
-	cb-usa-wing-r-in: 426px 950px 68px 18px;
-	cb-usa-slot: 500px 920px 48px 48px;
-	cb-usa-slot-in: 514px 934px 20px 20px;
-	cb-usa-inset: 550px 920px 48px 48px;
-	cb-usa-inset-in: 558px 928px 32px 32px;
-	cb-usa-screw: 600px 920px 16px 16px;
-	cb-usa-seg-h: 618px 920px 320px 16px;
+	cb-usa-body-radar-l: 0px 0px 332px 332px;
+	cb-usa-body-radar-c: 334px 0px 332px 332px;
+	cb-usa-body-unit-r: 668px 0px 308px 250px;
+	cb-usa-body-unit-c: 0px 334px 308px 250px;
+	cb-usa-body-main: 0px 586px 752px 212px;
+	cb-usa-seg-v: 754px 586px 12px 188px;
+	cb-usa-frame-c: 768px 586px 200px 140px;
+	cb-usa-frame-c-in: 832px 650px 72px 56px;
+	cb-usa-frame-l: 0px 800px 200px 140px;
+	cb-usa-frame-l-in: 6px 864px 130px 56px;
+	cb-usa-frame-r: 202px 800px 200px 140px;
+	cb-usa-frame-r-in: 266px 864px 130px 56px;
+	cb-usa-box: 404px 800px 140px 140px;
+	cb-usa-box-in: 454px 850px 40px 40px;
+	cb-usa-tower-r: 546px 800px 160px 120px;
+	cb-usa-tower-r-in: 596px 850px 104px 58px;
+	cb-usa-tower-c: 708px 800px 160px 120px;
+	cb-usa-tower-c-in: 758px 850px 60px 58px;
+	cb-usa-bezel: 870px 800px 64px 64px;
+	cb-usa-bezel-in: 896px 826px 12px 12px;
+	cb-usa-btn-normal: 936px 800px 52px 52px;
+	cb-usa-btn-normal-in: 954px 818px 16px 16px;
+	cb-usa-btn-hover: 0px 942px 52px 52px;
+	cb-usa-btn-hover-in: 18px 960px 16px 16px;
+	cb-usa-btn-pressed: 54px 942px 52px 52px;
+	cb-usa-btn-pressed-in: 72px 960px 16px 16px;
+	cb-usa-btn-checked: 108px 942px 52px 52px;
+	cb-usa-btn-checked-in: 126px 960px 16px 16px;
+	cb-usa-btn-disabled: 162px 942px 52px 52px;
+	cb-usa-btn-disabled-in: 180px 960px 16px 16px;
+	cb-usa-wing-l: 216px 942px 140px 52px;
+	cb-usa-wing-l-in: 220px 972px 68px 18px;
+	cb-usa-wing-r: 358px 942px 140px 52px;
+	cb-usa-wing-r-in: 426px 972px 68px 18px;
+	cb-usa-slot: 500px 942px 48px 48px;
+	cb-usa-slot-in: 514px 956px 20px 20px;
+	cb-usa-inset: 550px 942px 48px 48px;
+	cb-usa-inset-in: 558px 950px 32px 32px;
+	cb-usa-screw: 600px 942px 16px 16px;
+	cb-usa-seg-h: 618px 942px 320px 16px;
 }
 
 @spritesheet cb-china
 {
 	src: Textures/ControlBar/cb_china.png;
 	resolution: 2x;
-	cb-china-body-radar-l: 0px 0px 326px 326px;
-	cb-china-body-radar-c: 328px 0px 320px 326px;
-	cb-china-body-unit-r: 650px 0px 302px 242px;
-	cb-china-body-unit-c: 0px 328px 296px 242px;
-	cb-china-body-main: 0px 572px 736px 204px;
-	cb-china-seg-v: 738px 572px 12px 188px;
-	cb-china-frame-c: 752px 572px 200px 140px;
-	cb-china-frame-c-in: 816px 636px 72px 56px;
-	cb-china-frame-l: 0px 778px 200px 140px;
-	cb-china-frame-l-in: 6px 842px 130px 56px;
-	cb-china-frame-r: 202px 778px 200px 140px;
-	cb-china-frame-r-in: 266px 842px 130px 56px;
-	cb-china-box: 404px 778px 140px 140px;
-	cb-china-box-in: 454px 828px 40px 40px;
-	cb-china-tower-r: 546px 778px 160px 120px;
-	cb-china-tower-r-in: 596px 828px 104px 58px;
-	cb-china-tower-c: 708px 778px 160px 120px;
-	cb-china-tower-c-in: 758px 828px 60px 58px;
-	cb-china-bezel: 870px 778px 64px 64px;
-	cb-china-bezel-in: 896px 804px 12px 12px;
-	cb-china-btn-normal: 936px 778px 52px 52px;
-	cb-china-btn-normal-in: 954px 796px 16px 16px;
-	cb-china-btn-hover: 0px 920px 52px 52px;
-	cb-china-btn-hover-in: 18px 938px 16px 16px;
-	cb-china-btn-pressed: 54px 920px 52px 52px;
-	cb-china-btn-pressed-in: 72px 938px 16px 16px;
-	cb-china-btn-checked: 108px 920px 52px 52px;
-	cb-china-btn-checked-in: 126px 938px 16px 16px;
-	cb-china-btn-disabled: 162px 920px 52px 52px;
-	cb-china-btn-disabled-in: 180px 938px 16px 16px;
-	cb-china-wing-l: 216px 920px 140px 52px;
-	cb-china-wing-l-in: 220px 950px 68px 18px;
-	cb-china-wing-r: 358px 920px 140px 52px;
-	cb-china-wing-r-in: 426px 950px 68px 18px;
-	cb-china-slot: 500px 920px 48px 48px;
-	cb-china-slot-in: 514px 934px 20px 20px;
-	cb-china-inset: 550px 920px 48px 48px;
-	cb-china-inset-in: 558px 928px 32px 32px;
-	cb-china-screw: 600px 920px 16px 16px;
-	cb-china-seg-h: 618px 920px 320px 16px;
+	cb-china-body-radar-l: 0px 0px 332px 332px;
+	cb-china-body-radar-c: 334px 0px 332px 332px;
+	cb-china-body-unit-r: 668px 0px 308px 250px;
+	cb-china-body-unit-c: 0px 334px 308px 250px;
+	cb-china-body-main: 0px 586px 752px 212px;
+	cb-china-seg-v: 754px 586px 12px 188px;
+	cb-china-frame-c: 768px 586px 200px 140px;
+	cb-china-frame-c-in: 832px 650px 72px 56px;
+	cb-china-frame-l: 0px 800px 200px 140px;
+	cb-china-frame-l-in: 6px 864px 130px 56px;
+	cb-china-frame-r: 202px 800px 200px 140px;
+	cb-china-frame-r-in: 266px 864px 130px 56px;
+	cb-china-box: 404px 800px 140px 140px;
+	cb-china-box-in: 454px 850px 40px 40px;
+	cb-china-tower-r: 546px 800px 160px 120px;
+	cb-china-tower-r-in: 596px 850px 104px 58px;
+	cb-china-tower-c: 708px 800px 160px 120px;
+	cb-china-tower-c-in: 758px 850px 60px 58px;
+	cb-china-bezel: 870px 800px 64px 64px;
+	cb-china-bezel-in: 896px 826px 12px 12px;
+	cb-china-btn-normal: 936px 800px 52px 52px;
+	cb-china-btn-normal-in: 954px 818px 16px 16px;
+	cb-china-btn-hover: 0px 942px 52px 52px;
+	cb-china-btn-hover-in: 18px 960px 16px 16px;
+	cb-china-btn-pressed: 54px 942px 52px 52px;
+	cb-china-btn-pressed-in: 72px 960px 16px 16px;
+	cb-china-btn-checked: 108px 942px 52px 52px;
+	cb-china-btn-checked-in: 126px 960px 16px 16px;
+	cb-china-btn-disabled: 162px 942px 52px 52px;
+	cb-china-btn-disabled-in: 180px 960px 16px 16px;
+	cb-china-wing-l: 216px 942px 140px 52px;
+	cb-china-wing-l-in: 220px 972px 68px 18px;
+	cb-china-wing-r: 358px 942px 140px 52px;
+	cb-china-wing-r-in: 426px 972px 68px 18px;
+	cb-china-slot: 500px 942px 48px 48px;
+	cb-china-slot-in: 514px 956px 20px 20px;
+	cb-china-inset: 550px 942px 48px 48px;
+	cb-china-inset-in: 558px 950px 32px 32px;
+	cb-china-screw: 600px 942px 16px 16px;
+	cb-china-seg-h: 618px 942px 320px 16px;
 }
 
 @spritesheet cb-gla
 {
 	src: Textures/ControlBar/cb_gla.png;
 	resolution: 2x;
-	cb-gla-body-radar-l: 0px 0px 326px 326px;
-	cb-gla-body-radar-c: 328px 0px 320px 326px;
-	cb-gla-body-unit-r: 650px 0px 302px 242px;
-	cb-gla-body-unit-c: 0px 328px 296px 242px;
-	cb-gla-body-main: 0px 572px 736px 204px;
-	cb-gla-seg-v: 738px 572px 12px 188px;
-	cb-gla-frame-c: 752px 572px 200px 140px;
-	cb-gla-frame-c-in: 816px 636px 72px 56px;
-	cb-gla-frame-l: 0px 778px 200px 140px;
-	cb-gla-frame-l-in: 6px 842px 130px 56px;
-	cb-gla-frame-r: 202px 778px 200px 140px;
-	cb-gla-frame-r-in: 266px 842px 130px 56px;
-	cb-gla-box: 404px 778px 140px 140px;
-	cb-gla-box-in: 454px 828px 40px 40px;
-	cb-gla-tower-r: 546px 778px 160px 120px;
-	cb-gla-tower-r-in: 596px 828px 104px 58px;
-	cb-gla-tower-c: 708px 778px 160px 120px;
-	cb-gla-tower-c-in: 758px 828px 60px 58px;
-	cb-gla-bezel: 870px 778px 64px 64px;
-	cb-gla-bezel-in: 896px 804px 12px 12px;
-	cb-gla-btn-normal: 936px 778px 52px 52px;
-	cb-gla-btn-normal-in: 954px 796px 16px 16px;
-	cb-gla-btn-hover: 0px 920px 52px 52px;
-	cb-gla-btn-hover-in: 18px 938px 16px 16px;
-	cb-gla-btn-pressed: 54px 920px 52px 52px;
-	cb-gla-btn-pressed-in: 72px 938px 16px 16px;
-	cb-gla-btn-checked: 108px 920px 52px 52px;
-	cb-gla-btn-checked-in: 126px 938px 16px 16px;
-	cb-gla-btn-disabled: 162px 920px 52px 52px;
-	cb-gla-btn-disabled-in: 180px 938px 16px 16px;
-	cb-gla-wing-l: 216px 920px 140px 52px;
-	cb-gla-wing-l-in: 220px 950px 68px 18px;
-	cb-gla-wing-r: 358px 920px 140px 52px;
-	cb-gla-wing-r-in: 426px 950px 68px 18px;
-	cb-gla-slot: 500px 920px 48px 48px;
-	cb-gla-slot-in: 514px 934px 20px 20px;
-	cb-gla-inset: 550px 920px 48px 48px;
-	cb-gla-inset-in: 558px 928px 32px 32px;
-	cb-gla-screw: 600px 920px 16px 16px;
-	cb-gla-seg-h: 618px 920px 320px 16px;
+	cb-gla-body-radar-l: 0px 0px 332px 332px;
+	cb-gla-body-radar-c: 334px 0px 332px 332px;
+	cb-gla-body-unit-r: 668px 0px 308px 250px;
+	cb-gla-body-unit-c: 0px 334px 308px 250px;
+	cb-gla-body-main: 0px 586px 752px 212px;
+	cb-gla-seg-v: 754px 586px 12px 188px;
+	cb-gla-frame-c: 768px 586px 200px 140px;
+	cb-gla-frame-c-in: 832px 650px 72px 56px;
+	cb-gla-frame-l: 0px 800px 200px 140px;
+	cb-gla-frame-l-in: 6px 864px 130px 56px;
+	cb-gla-frame-r: 202px 800px 200px 140px;
+	cb-gla-frame-r-in: 266px 864px 130px 56px;
+	cb-gla-box: 404px 800px 140px 140px;
+	cb-gla-box-in: 454px 850px 40px 40px;
+	cb-gla-tower-r: 546px 800px 160px 120px;
+	cb-gla-tower-r-in: 596px 850px 104px 58px;
+	cb-gla-tower-c: 708px 800px 160px 120px;
+	cb-gla-tower-c-in: 758px 850px 60px 58px;
+	cb-gla-bezel: 870px 800px 64px 64px;
+	cb-gla-bezel-in: 896px 826px 12px 12px;
+	cb-gla-btn-normal: 936px 800px 52px 52px;
+	cb-gla-btn-normal-in: 954px 818px 16px 16px;
+	cb-gla-btn-hover: 0px 942px 52px 52px;
+	cb-gla-btn-hover-in: 18px 960px 16px 16px;
+	cb-gla-btn-pressed: 54px 942px 52px 52px;
+	cb-gla-btn-pressed-in: 72px 960px 16px 16px;
+	cb-gla-btn-checked: 108px 942px 52px 52px;
+	cb-gla-btn-checked-in: 126px 960px 16px 16px;
+	cb-gla-btn-disabled: 162px 942px 52px 52px;
+	cb-gla-btn-disabled-in: 180px 960px 16px 16px;
+	cb-gla-wing-l: 216px 942px 140px 52px;
+	cb-gla-wing-l-in: 220px 972px 68px 18px;
+	cb-gla-wing-r: 358px 942px 140px 52px;
+	cb-gla-wing-r-in: 426px 972px 68px 18px;
+	cb-gla-slot: 500px 942px 48px 48px;
+	cb-gla-slot-in: 514px 956px 20px 20px;
+	cb-gla-inset: 550px 942px 48px 48px;
+	cb-gla-inset-in: 558px 950px 32px 32px;
+	cb-gla-screw: 600px 942px 16px 16px;
+	cb-gla-seg-h: 618px 942px 320px 16px;
 }
 
 @spritesheet cb-neutral
 {
 	src: Textures/ControlBar/cb_neutral.png;
 	resolution: 2x;
-	cb-neutral-body-radar-l: 0px 0px 326px 326px;
-	cb-neutral-body-radar-c: 328px 0px 320px 326px;
-	cb-neutral-body-unit-r: 650px 0px 302px 242px;
-	cb-neutral-body-unit-c: 0px 328px 296px 242px;
-	cb-neutral-body-main: 0px 572px 736px 204px;
-	cb-neutral-seg-v: 738px 572px 12px 188px;
-	cb-neutral-frame-c: 752px 572px 200px 140px;
-	cb-neutral-frame-c-in: 816px 636px 72px 56px;
-	cb-neutral-frame-l: 0px 778px 200px 140px;
-	cb-neutral-frame-l-in: 6px 842px 130px 56px;
-	cb-neutral-frame-r: 202px 778px 200px 140px;
-	cb-neutral-frame-r-in: 266px 842px 130px 56px;
-	cb-neutral-box: 404px 778px 140px 140px;
-	cb-neutral-box-in: 454px 828px 40px 40px;
-	cb-neutral-tower-r: 546px 778px 160px 120px;
-	cb-neutral-tower-r-in: 596px 828px 104px 58px;
-	cb-neutral-tower-c: 708px 778px 160px 120px;
-	cb-neutral-tower-c-in: 758px 828px 60px 58px;
-	cb-neutral-bezel: 870px 778px 64px 64px;
-	cb-neutral-bezel-in: 896px 804px 12px 12px;
-	cb-neutral-btn-normal: 936px 778px 52px 52px;
-	cb-neutral-btn-normal-in: 954px 796px 16px 16px;
-	cb-neutral-btn-hover: 0px 920px 52px 52px;
-	cb-neutral-btn-hover-in: 18px 938px 16px 16px;
-	cb-neutral-btn-pressed: 54px 920px 52px 52px;
-	cb-neutral-btn-pressed-in: 72px 938px 16px 16px;
-	cb-neutral-btn-checked: 108px 920px 52px 52px;
-	cb-neutral-btn-checked-in: 126px 938px 16px 16px;
-	cb-neutral-btn-disabled: 162px 920px 52px 52px;
-	cb-neutral-btn-disabled-in: 180px 938px 16px 16px;
-	cb-neutral-wing-l: 216px 920px 140px 52px;
-	cb-neutral-wing-l-in: 220px 950px 68px 18px;
-	cb-neutral-wing-r: 358px 920px 140px 52px;
-	cb-neutral-wing-r-in: 426px 950px 68px 18px;
-	cb-neutral-slot: 500px 920px 48px 48px;
-	cb-neutral-slot-in: 514px 934px 20px 20px;
-	cb-neutral-inset: 550px 920px 48px 48px;
-	cb-neutral-inset-in: 558px 928px 32px 32px;
-	cb-neutral-screw: 600px 920px 16px 16px;
-	cb-neutral-seg-h: 618px 920px 320px 16px;
+	cb-neutral-body-radar-l: 0px 0px 332px 332px;
+	cb-neutral-body-radar-c: 334px 0px 332px 332px;
+	cb-neutral-body-unit-r: 668px 0px 308px 250px;
+	cb-neutral-body-unit-c: 0px 334px 308px 250px;
+	cb-neutral-body-main: 0px 586px 752px 212px;
+	cb-neutral-seg-v: 754px 586px 12px 188px;
+	cb-neutral-frame-c: 768px 586px 200px 140px;
+	cb-neutral-frame-c-in: 832px 650px 72px 56px;
+	cb-neutral-frame-l: 0px 800px 200px 140px;
+	cb-neutral-frame-l-in: 6px 864px 130px 56px;
+	cb-neutral-frame-r: 202px 800px 200px 140px;
+	cb-neutral-frame-r-in: 266px 864px 130px 56px;
+	cb-neutral-box: 404px 800px 140px 140px;
+	cb-neutral-box-in: 454px 850px 40px 40px;
+	cb-neutral-tower-r: 546px 800px 160px 120px;
+	cb-neutral-tower-r-in: 596px 850px 104px 58px;
+	cb-neutral-tower-c: 708px 800px 160px 120px;
+	cb-neutral-tower-c-in: 758px 850px 60px 58px;
+	cb-neutral-bezel: 870px 800px 64px 64px;
+	cb-neutral-bezel-in: 896px 826px 12px 12px;
+	cb-neutral-btn-normal: 936px 800px 52px 52px;
+	cb-neutral-btn-normal-in: 954px 818px 16px 16px;
+	cb-neutral-btn-hover: 0px 942px 52px 52px;
+	cb-neutral-btn-hover-in: 18px 960px 16px 16px;
+	cb-neutral-btn-pressed: 54px 942px 52px 52px;
+	cb-neutral-btn-pressed-in: 72px 960px 16px 16px;
+	cb-neutral-btn-checked: 108px 942px 52px 52px;
+	cb-neutral-btn-checked-in: 126px 960px 16px 16px;
+	cb-neutral-btn-disabled: 162px 942px 52px 52px;
+	cb-neutral-btn-disabled-in: 180px 960px 16px 16px;
+	cb-neutral-wing-l: 216px 942px 140px 52px;
+	cb-neutral-wing-l-in: 220px 972px 68px 18px;
+	cb-neutral-wing-r: 358px 942px 140px 52px;
+	cb-neutral-wing-r-in: 426px 972px 68px 18px;
+	cb-neutral-slot: 500px 942px 48px 48px;
+	cb-neutral-slot-in: 514px 956px 20px 20px;
+	cb-neutral-inset: 550px 942px 48px 48px;
+	cb-neutral-inset-in: 558px 950px 32px 32px;
+	cb-neutral-screw: 600px 942px 16px 16px;
+	cb-neutral-seg-h: 618px 942px 320px 16px;
 }
 
 /* ---- Skins: which sprite draws what, per faction ---------------------------------------------------- */
 /* ---- usa ---- */
 body.usa .cb-wing-l { decorator: ninepatch(cb-usa-wing-l, cb-usa-wing-l-in, 1); }
 body.usa .cb-wing-r { decorator: ninepatch(cb-usa-wing-r, cb-usa-wing-r-in, 1); }
-body.usa .cb-radar .cb-skin { decorator: image(cb-usa-body-radar-l fill); }
-body.usa .cb-radar .cb-frame { decorator: ninepatch(cb-usa-frame-l, cb-usa-frame-l-in, 1); }
+body.usa .cb-radar { decorator: ninepatch(cb-usa-frame-l, cb-usa-frame-l-in, 1), image(cb-usa-body-radar-l fill); }
 body.usa .cb-radar-bezel { decorator: ninepatch(cb-usa-bezel, cb-usa-bezel-in, 1); }
-body.usa .cb-main .cb-skin { decorator: image(cb-usa-body-main fill); }
-body.usa .cb-main .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
-body.usa .cb-unit .cb-skin { decorator: image(cb-usa-body-unit-r fill); }
-body.usa .cb-unit .cb-frame { decorator: ninepatch(cb-usa-frame-r, cb-usa-frame-r-in, 1); }
+body.usa .cb-main { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1), image(cb-usa-body-main fill); }
+body.usa .cb-unit { decorator: ninepatch(cb-usa-frame-r, cb-usa-frame-r-in, 1), image(cb-usa-body-unit-r fill); }
 body.usa .cb-tower { decorator: ninepatch(cb-usa-tower-r, cb-usa-tower-r-in, 1); }
 body.usa .cb-money { decorator: ninepatch(cb-usa-inset, cb-usa-inset-in, 1); }
 body.usa .cb-science, body.usa .cb-tip { decorator: ninepatch(cb-usa-box, cb-usa-box-in, 1); }
@@ -1414,31 +1391,24 @@ body.usa .cb-slot.live.checked { decorator: ninepatch(cb-usa-btn-checked, cb-usa
 body.usa .cb-slot.cb-sci.buy, body.usa .cb-general.lit { decorator: ninepatch(cb-usa-btn-hover, cb-usa-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
-	body.usa .cb-radar .cb-skin { decorator: image(cb-usa-body-radar-c fill); }
-	body.usa .cb-radar .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
-	body.usa .cb-unit .cb-skin { decorator: image(cb-usa-body-unit-c fill); }
-	body.usa .cb-unit .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
+	body.usa .cb-radar { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1), image(cb-usa-body-radar-c fill); }
+	body.usa .cb-unit { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1), image(cb-usa-body-unit-c fill); }
 	body.usa .cb-tower { decorator: ninepatch(cb-usa-tower-c, cb-usa-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
-	body.usa.iw-169 .cb-radar .cb-skin { decorator: image(cb-usa-body-radar-c fill); }
-	body.usa.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
-	body.usa.iw-169 .cb-unit .cb-skin { decorator: image(cb-usa-body-unit-c fill); }
-	body.usa.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
+	body.usa.iw-169 .cb-radar { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1), image(cb-usa-body-radar-c fill); }
+	body.usa.iw-169 .cb-unit { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1), image(cb-usa-body-unit-c fill); }
 	body.usa.iw-169 .cb-tower { decorator: ninepatch(cb-usa-tower-c, cb-usa-tower-c-in, 1); }
 }
 
 /* ---- china ---- */
 body.china .cb-wing-l { decorator: ninepatch(cb-china-wing-l, cb-china-wing-l-in, 1); }
 body.china .cb-wing-r { decorator: ninepatch(cb-china-wing-r, cb-china-wing-r-in, 1); }
-body.china .cb-radar .cb-skin { decorator: image(cb-china-body-radar-l fill); }
-body.china .cb-radar .cb-frame { decorator: ninepatch(cb-china-frame-l, cb-china-frame-l-in, 1); }
+body.china .cb-radar { decorator: ninepatch(cb-china-frame-l, cb-china-frame-l-in, 1), image(cb-china-body-radar-l fill); }
 body.china .cb-radar-bezel { decorator: ninepatch(cb-china-bezel, cb-china-bezel-in, 1); }
-body.china .cb-main .cb-skin { decorator: image(cb-china-body-main fill); }
-body.china .cb-main .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
-body.china .cb-unit .cb-skin { decorator: image(cb-china-body-unit-r fill); }
-body.china .cb-unit .cb-frame { decorator: ninepatch(cb-china-frame-r, cb-china-frame-r-in, 1); }
+body.china .cb-main { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1), image(cb-china-body-main fill); }
+body.china .cb-unit { decorator: ninepatch(cb-china-frame-r, cb-china-frame-r-in, 1), image(cb-china-body-unit-r fill); }
 body.china .cb-tower { decorator: ninepatch(cb-china-tower-r, cb-china-tower-r-in, 1); }
 body.china .cb-money { decorator: ninepatch(cb-china-inset, cb-china-inset-in, 1); }
 body.china .cb-science, body.china .cb-tip { decorator: ninepatch(cb-china-box, cb-china-box-in, 1); }
@@ -1454,31 +1424,24 @@ body.china .cb-slot.live.checked { decorator: ninepatch(cb-china-btn-checked, cb
 body.china .cb-slot.cb-sci.buy, body.china .cb-general.lit { decorator: ninepatch(cb-china-btn-hover, cb-china-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
-	body.china .cb-radar .cb-skin { decorator: image(cb-china-body-radar-c fill); }
-	body.china .cb-radar .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
-	body.china .cb-unit .cb-skin { decorator: image(cb-china-body-unit-c fill); }
-	body.china .cb-unit .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
+	body.china .cb-radar { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1), image(cb-china-body-radar-c fill); }
+	body.china .cb-unit { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1), image(cb-china-body-unit-c fill); }
 	body.china .cb-tower { decorator: ninepatch(cb-china-tower-c, cb-china-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
-	body.china.iw-169 .cb-radar .cb-skin { decorator: image(cb-china-body-radar-c fill); }
-	body.china.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
-	body.china.iw-169 .cb-unit .cb-skin { decorator: image(cb-china-body-unit-c fill); }
-	body.china.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
+	body.china.iw-169 .cb-radar { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1), image(cb-china-body-radar-c fill); }
+	body.china.iw-169 .cb-unit { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1), image(cb-china-body-unit-c fill); }
 	body.china.iw-169 .cb-tower { decorator: ninepatch(cb-china-tower-c, cb-china-tower-c-in, 1); }
 }
 
 /* ---- gla ---- */
 body.gla .cb-wing-l { decorator: ninepatch(cb-gla-wing-l, cb-gla-wing-l-in, 1); }
 body.gla .cb-wing-r { decorator: ninepatch(cb-gla-wing-r, cb-gla-wing-r-in, 1); }
-body.gla .cb-radar .cb-skin { decorator: image(cb-gla-body-radar-l fill); }
-body.gla .cb-radar .cb-frame { decorator: ninepatch(cb-gla-frame-l, cb-gla-frame-l-in, 1); }
+body.gla .cb-radar { decorator: ninepatch(cb-gla-frame-l, cb-gla-frame-l-in, 1), image(cb-gla-body-radar-l fill); }
 body.gla .cb-radar-bezel { decorator: ninepatch(cb-gla-bezel, cb-gla-bezel-in, 1); }
-body.gla .cb-main .cb-skin { decorator: image(cb-gla-body-main fill); }
-body.gla .cb-main .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
-body.gla .cb-unit .cb-skin { decorator: image(cb-gla-body-unit-r fill); }
-body.gla .cb-unit .cb-frame { decorator: ninepatch(cb-gla-frame-r, cb-gla-frame-r-in, 1); }
+body.gla .cb-main { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1), image(cb-gla-body-main fill); }
+body.gla .cb-unit { decorator: ninepatch(cb-gla-frame-r, cb-gla-frame-r-in, 1), image(cb-gla-body-unit-r fill); }
 body.gla .cb-tower { decorator: ninepatch(cb-gla-tower-r, cb-gla-tower-r-in, 1); }
 body.gla .cb-money { decorator: ninepatch(cb-gla-inset, cb-gla-inset-in, 1); }
 body.gla .cb-science, body.gla .cb-tip { decorator: ninepatch(cb-gla-box, cb-gla-box-in, 1); }
@@ -1494,31 +1457,24 @@ body.gla .cb-slot.live.checked { decorator: ninepatch(cb-gla-btn-checked, cb-gla
 body.gla .cb-slot.cb-sci.buy, body.gla .cb-general.lit { decorator: ninepatch(cb-gla-btn-hover, cb-gla-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
-	body.gla .cb-radar .cb-skin { decorator: image(cb-gla-body-radar-c fill); }
-	body.gla .cb-radar .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
-	body.gla .cb-unit .cb-skin { decorator: image(cb-gla-body-unit-c fill); }
-	body.gla .cb-unit .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
+	body.gla .cb-radar { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1), image(cb-gla-body-radar-c fill); }
+	body.gla .cb-unit { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1), image(cb-gla-body-unit-c fill); }
 	body.gla .cb-tower { decorator: ninepatch(cb-gla-tower-c, cb-gla-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
-	body.gla.iw-169 .cb-radar .cb-skin { decorator: image(cb-gla-body-radar-c fill); }
-	body.gla.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
-	body.gla.iw-169 .cb-unit .cb-skin { decorator: image(cb-gla-body-unit-c fill); }
-	body.gla.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
+	body.gla.iw-169 .cb-radar { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1), image(cb-gla-body-radar-c fill); }
+	body.gla.iw-169 .cb-unit { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1), image(cb-gla-body-unit-c fill); }
 	body.gla.iw-169 .cb-tower { decorator: ninepatch(cb-gla-tower-c, cb-gla-tower-c-in, 1); }
 }
 
 /* ---- neutral ---- */
 body.neutral .cb-wing-l { decorator: ninepatch(cb-neutral-wing-l, cb-neutral-wing-l-in, 1); }
 body.neutral .cb-wing-r { decorator: ninepatch(cb-neutral-wing-r, cb-neutral-wing-r-in, 1); }
-body.neutral .cb-radar .cb-skin { decorator: image(cb-neutral-body-radar-l fill); }
-body.neutral .cb-radar .cb-frame { decorator: ninepatch(cb-neutral-frame-l, cb-neutral-frame-l-in, 1); }
+body.neutral .cb-radar { decorator: ninepatch(cb-neutral-frame-l, cb-neutral-frame-l-in, 1), image(cb-neutral-body-radar-l fill); }
 body.neutral .cb-radar-bezel { decorator: ninepatch(cb-neutral-bezel, cb-neutral-bezel-in, 1); }
-body.neutral .cb-main .cb-skin { decorator: image(cb-neutral-body-main fill); }
-body.neutral .cb-main .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
-body.neutral .cb-unit .cb-skin { decorator: image(cb-neutral-body-unit-r fill); }
-body.neutral .cb-unit .cb-frame { decorator: ninepatch(cb-neutral-frame-r, cb-neutral-frame-r-in, 1); }
+body.neutral .cb-main { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1), image(cb-neutral-body-main fill); }
+body.neutral .cb-unit { decorator: ninepatch(cb-neutral-frame-r, cb-neutral-frame-r-in, 1), image(cb-neutral-body-unit-r fill); }
 body.neutral .cb-tower { decorator: ninepatch(cb-neutral-tower-r, cb-neutral-tower-r-in, 1); }
 body.neutral .cb-money { decorator: ninepatch(cb-neutral-inset, cb-neutral-inset-in, 1); }
 body.neutral .cb-science, body.neutral .cb-tip { decorator: ninepatch(cb-neutral-box, cb-neutral-box-in, 1); }
@@ -1534,17 +1490,13 @@ body.neutral .cb-slot.live.checked { decorator: ninepatch(cb-neutral-btn-checked
 body.neutral .cb-slot.cb-sci.buy, body.neutral .cb-general.lit { decorator: ninepatch(cb-neutral-btn-hover, cb-neutral-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
-	body.neutral .cb-radar .cb-skin { decorator: image(cb-neutral-body-radar-c fill); }
-	body.neutral .cb-radar .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
-	body.neutral .cb-unit .cb-skin { decorator: image(cb-neutral-body-unit-c fill); }
-	body.neutral .cb-unit .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
+	body.neutral .cb-radar { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1), image(cb-neutral-body-radar-c fill); }
+	body.neutral .cb-unit { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1), image(cb-neutral-body-unit-c fill); }
 	body.neutral .cb-tower { decorator: ninepatch(cb-neutral-tower-c, cb-neutral-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
-	body.neutral.iw-169 .cb-radar .cb-skin { decorator: image(cb-neutral-body-radar-c fill); }
-	body.neutral.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
-	body.neutral.iw-169 .cb-unit .cb-skin { decorator: image(cb-neutral-body-unit-c fill); }
-	body.neutral.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
+	body.neutral.iw-169 .cb-radar { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1), image(cb-neutral-body-radar-c fill); }
+	body.neutral.iw-169 .cb-unit { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1), image(cb-neutral-body-unit-c fill); }
 	body.neutral.iw-169 .cb-tower { decorator: ninepatch(cb-neutral-tower-c, cb-neutral-tower-c-in, 1); }
 }
