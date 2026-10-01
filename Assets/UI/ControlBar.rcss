@@ -1,30 +1,22 @@
 /*
-	ControlBar.rcss -- the in-game control bar (ControlBar.rml, RmlControlBarScreen), laid out after Control Bar
-	Pro (TheSuperHackers, MIT): a radar panel bottom left, the command panel bottom centre with the money on a
-	readout inset in its top and the buttons round the bar down its left side, the selection bottom right with
-	one housing over its right end (the general's powers above the rank and min/max); the tooltip over the radar, the
-	promotions over the grid. Sizes follow Pro's at 1080 lines and are in dp, so they keep the same share of
-	the screen height at every resolution.
+	ControlBar.rcss -- the in-game control bar (ControlBar.rml, RmlControlBarScreen) in Control Bar Pro's art and
+	layout (TheSuperHackers/GeneralsControlBar, MIT; see Textures/ControlBar/README.md): the radar bottom left, the
+	production panel bottom centre (the funds in its notch, the power meter, the buttons down its left side and
+	the command grid in its wells), the selection bottom right under the general's tab, the general's powers in
+	trays up the right edge, the promotions window over the grid and the help box over the radar. Observers get
+	Pro's observer bar: a wider radar with a button column and the player window beside it.
 
-	The look is a vehicle console: matte gunmetal with thin, low-contrast edges, straight 45 degree chamfers and
-	no coloured trim. The side shows only in the metal's tone: cool grey steel for the USA, dark iron with a
-	hint of oxide for China, worn sand with rust for the GLA, neutral grey for observers (and any other side).
-	Every panel draws two decorators of its own: the two-layer bezel (dark housing, matte metal face with a
-	groove) over the plate baked at the panel's size (a faint scanline field, the bezel's corner cuts left
-	out). Its content sits on top: the bezelled radar screen, the funds readout inset in the command panel's
-	top, recessed slot wells, the segmented power and experience meters, buttons in metal bezels. Nothing
-	here sets a z-index: the panels, the tower and their pieces stack in document order, the order the
-	control bar has drawn reliably in the game since its first version. The art is generated (Textures/ControlBar/cb_<faction>.png, 2 px per dp for the ninepatch pieces, 1 px per dp
-	for the skins).
+	Every piece is one image at Pro's size (its 3840x2160 art at 2 px per dp), and everything on it sits where
+	Pro's .wnd and ControlBarScheme.ini put it, in dp from the piece's top left. Nothing here sets a z-index:
+	the pieces and what is on them stack in document order.
 
-	Wide screens: the dock spans the screen up to 21:9 and is centred beyond it, the wings and the rail carrying
-	the bar out to the edges. The interface width option narrows it further (body.iw-169, RmlInterfaceArea.h).
-	5:4 and 4:3 move the command panel right next to a slightly smaller radar.
+	Wide screens: the dock spans the screen up to 21:9 and is centred beyond it; the interface width option's
+	16:9 narrows it further (body.iw-169, RmlInterfaceArea.h). 5:4 and 4:3 move the production panel right next
+	to a slightly smaller radar.
 
-	Buttons (.cb-slot) are 5:4 like the cameo art: an empty slot is a recessed well with corner marks; a live
-	one has the cameo in a metal bezel, the veterancy art, the clock darkening what is still to go, the hotkey
-	on a small dark badge bottom left, a count top right, and the command's border kind as a hairline along the top of
-	the cameo (build blue, upgrade orange, action teal, system yellow, as the .wnd borders).
+	Buttons (.cb-slot): the cameo with a hairline in the command's border kind (Pro's scheme colours: build
+	blue, upgrade orange, action green, system yellow), the veterancy art, the clock darkening what is still to
+	go, the hotkey on a small dark plate bottom left and a count top right.
 */
 
 body.cb
@@ -35,21 +27,7 @@ body.cb
 	z-index: -1; /* under every other in-game document (menus, popups) */
 	font-family: "Noto Sans";
 	font-size: 15dp;
-	color: #D8DDE4;
-}
-
-/* ---- The rail, the wings and the dock ------------------------------------------------------------ */
-.cb-rail
-{
-	display: block;
-	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	height: 8dp;
-	pointer-events: none;
-	decorator: vertical-gradient(#3A3F46 #121418);
-	border-top: 1dp #06070A;
+	color: #E6E8EA;
 }
 
 .cb-dock
@@ -63,21 +41,6 @@ body.cb
 	pointer-events: none;
 }
 
-/* Wings: the bar's extension from the screen edges to the dock's ends, shown when the dock is narrower
-   than the screen. Each runs from its edge to the middle less half the dock (plus 24dp under the panel). */
-.cb-wing
-{
-	display: none;
-	position: absolute;
-	bottom: 0;
-	height: 26dp;
-	pointer-events: none;
-}
-
-.cb-wing-l { left: 0; right: 50%; margin-right: 1266dp; }
-.cb-wing-r { left: 50%; right: 0; margin-left: 1266dp; }
-
-/* ---- Panels: skin under, frame over ------------------------------------------------------------------ */
 .cb-panel
 {
 	display: block;
@@ -87,159 +50,96 @@ body.cb
 	pointer-events: auto;
 }
 
-/* small caps labels */
-.cb-sci-tier, .cb-beacon-label, .cb-obs-label
-{
-	font-size: 11dp;
-	line-height: 14dp;
-	font-weight: bold;
-	letter-spacing: 3dp;
-	text-transform: uppercase;
-	color: #8A9098;
-}
-
 /* ---- Radar ------------------------------------------------------------------------------------------ */
 .cb-radar
 {
 	left: 0;
-	width: 332dp;
-	height: 332dp;
-	padding: 14dp 21dp 8dp 8dp;
+	width: 340dp;
+	height: 340dp;
 }
 
-.cb-radar-well
-{
-	display: block;
-	position: relative;
-	height: 310dp;
-	box-sizing: border-box;
-	background-color: #030405;
-}
-
-/* the engine draws the radar here (RmlRadarElement); the bezel's ring lies over the screen's edge */
+/* the engine draws the radar here (RmlRadarElement): Pro's LeftHUD */
 .cb-radar-map
 {
 	display: block;
 	position: absolute;
-	left: 7dp;
-	top: 7dp;
-	right: 7dp;
-	bottom: 7dp;
+	left: 5dp;
+	top: 13dp;
+	width: 322dp;
+	height: 322dp;
 }
 
-.cb-radar-bezel
+/* under attack: Pro's corner light */
+.cb-alarm
 {
 	display: block;
 	position: absolute;
-	left: 0;
+	left: 276dp;
 	top: 0;
-	right: 0;
-	bottom: 0;
+	width: 64dp;
+	height: 64dp;
 	pointer-events: none;
 }
 
-/* under attack: the screen's edge blinks red with the .wnd's WinUAttack light */
-.cb-radar.alert .cb-radar-map { border: 1dp #C84040; }
-
-/* ---- Centre: the funds readout, the power meter, the side buttons and the grid --------------------- */
-.cb-centre
-{
-	display: block;
-	position: absolute;
-	left: 50%;
-	bottom: 0;
-	width: 752dp;
-	margin-left: -376dp;
-	height: 212dp;
-	pointer-events: none;
-}
-
+/* ---- Production: the funds, the power meter, the side buttons and the grid ------------------------------ */
 .cb-main
 {
-	left: 0;
-	width: 752dp;
-	height: 212dp;
-	padding: 34dp 22dp 6dp 22dp;
+	left: 50%;
+	width: 734dp;
+	height: 210dp;
+	margin-left: -367dp;
+	pointer-events: none;
 }
 
-/* the funds: a flush readout inset in the frame's top (drawn after the panel's own frame) */
 .cb-money
 {
 	display: block;
 	position: absolute;
-	left: 50%;
-	top: 4dp;
-	width: 220dp;
-	margin-left: -110dp;
-	box-sizing: border-box;
-	height: 26dp;
-	font-size: 18dp;
-	line-height: 26dp;
-	letter-spacing: 2dp;
+	left: 302dp;
+	top: 9dp;
+	width: 132dp;
+	height: 25dp;
+	font-size: 17dp;
+	line-height: 25dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
 	text-align: center;
 	white-space: nowrap;
-	color: #B4C8A0;
+	color: #F2F2E8;
+	pointer-events: auto;
 }
 
-/* the power meter, segmented, and its value */
-.cb-strip
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	height: 16dp;
-	margin-bottom: 8dp;
-}
-
-.cb-strip-fill { flex: 1 1 auto; }
-
+/* the power meter: what is made, and the needle at what is used */
 .cb-power
 {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	flex: 1 1 auto;
-	white-space: nowrap;
-}
-
-.cb-power-bar
-{
 	display: block;
-	position: relative;
-	flex: 1 1 auto;
+	position: absolute;
+	left: 13dp;
+	top: 34dp;
+	width: 708dp;
 	height: 14dp;
+	pointer-events: auto;
 }
 
 .cb-power-fill
 {
 	display: block;
 	position: absolute;
-	left: 2dp;
+	left: 0;
 	top: 2dp;
 	height: 10dp;
 	max-width: 100%;
-	decorator: vertical-gradient(#7E9858 #56703A);
+	decorator: vertical-gradient(#7CDA5C #2F8A2C);
 }
 
-.cb-power.low-power .cb-power-fill { decorator: vertical-gradient(#B8A050 #85722E); }
-.cb-power.no-power .cb-power-fill { decorator: vertical-gradient(#B05448 #7C3028); }
+.cb-power.low-power .cb-power-fill { decorator: vertical-gradient(#F0D458 #A88A1C); }
+.cb-power.no-power .cb-power-fill { decorator: vertical-gradient(#F06A50 #9A2A1C); }
 
-.cb-power-seg
-{
-	display: block;
-	position: absolute;
-	left: 2dp;
-	right: 2dp;
-	top: 2dp;
-	height: 10dp;
-}
-
-/* the needle stands at the end of a track as long as the consumption */
 .cb-power-rail
 {
 	display: block;
 	position: absolute;
-	left: 2dp;
+	left: 0;
 	top: 0;
 	bottom: 0;
 	max-width: 100%;
@@ -249,7 +149,7 @@ body.cb
 {
 	display: block;
 	position: absolute;
-	right: 0;
+	right: -1dp;
 	top: 0;
 	width: 3dp;
 	height: 14dp;
@@ -258,101 +158,92 @@ body.cb
 	border: 1dp #000000;
 }
 
+/* the figures, over the battlefield left of the notch */
 .cb-power-value
 {
-	flex: 0 0 auto;
-	min-width: 72dp;
-	font-size: 14dp;
+	display: block;
+	position: absolute;
+	left: 13dp;
+	top: 4dp;
+	width: 272dp;
+	height: 22dp;
+	font-size: 13dp;
+	line-height: 22dp;
+	font-weight: bold;
 	text-align: right;
-	margin-left: 10dp;
-	color: #C0C6CE;
+	white-space: nowrap;
+	color: #D8DCD0;
+	font-effect: outline(1dp #000000E0);
 }
 
-.cb-power.no-power .cb-power-value { color: #D07868; }
-.cb-power.low-power .cb-power-value { color: #CDBA72; }
+.cb-power-value.low-power { color: #F0D458; }
+.cb-power-value.no-power { color: #F07A60; }
 
-/* a replay plays */
+/* a replay plays: right of the notch */
 .cb-replay
 {
-	flex: 0 0 auto;
-	height: 16dp;
+	display: block;
+	position: absolute;
+	left: 450dp;
+	top: 6dp;
+	height: 18dp;
 	padding: 0 6dp;
-	margin-left: 12dp;
 	font-size: 11dp;
-	line-height: 16dp;
+	line-height: 18dp;
 	font-weight: bold;
 	letter-spacing: 2dp;
-	color: #B4C8A0;
-	border: 1dp #5A6050;
+	text-transform: uppercase;
+	color: #F2F2E8;
+	background-color: #0C0E10D0;
+	border: 1dp #7D8C99;
 }
 
-.cb-body
-{
-	display: flex;
-	flex-direction: row;
-	height: 148dp;
-}
-
-/* Round the bar: Pro's column left of the grid. */
-.cb-side
-{
-	display: flex;
-	flex-direction: column;
-	flex: 0 0 auto;
-	width: 60dp;
-	height: 148dp;
-	margin-right: 4dp;
-}
-
+/* Options, idle workers, beacon, diplomacy: Pro's buttons down the panel's left side */
 .cb-side-btn
 {
 	display: block;
-	position: relative;
-	box-sizing: border-box;
-	width: 60dp;
-	height: 34dp;
-	margin-bottom: 4dp;
-	text-align: center;
-	background-color: #0A0C0F;
-	color: #B8C0CA;
+	position: absolute;
+	width: 54dp;
+	height: 35dp;
+	pointer-events: auto;
 }
 
-.cb-glyph
-{
-	display: block;
-	font-size: 16dp;
-	line-height: 34dp;
-}
-
-.cb-side-btn:hover { color: #D1FD04; }
-.cb-side-btn.off { color: #4A4E55; }
+.cb-options { left: 17dp; top: 55dp; }
+.cb-worker { left: 17dp; top: 92dp; }
+.cb-beacon-btn { left: 17dp; top: 129dp; }
+.cb-chat { left: 17dp; top: 166dp; }
 
 .cb-badge
 {
 	display: block;
 	position: absolute;
-	right: 4dp;
-	top: 4dp;
+	right: 2dp;
+	top: 2dp;
 	min-width: 8dp;
 	height: 14dp;
 	padding: 0 3dp;
 	font-size: 11dp;
 	line-height: 14dp;
 	font-weight: bold;
-	color: #D8E0C8;
-	background-color: #1C1F23;
-	border: 1dp #4A5058;
+	text-align: center;
+	color: #FFFFFF;
+	background-color: #0C0E10E6;
+	border: 1dp #7D8C99;
 }
 
-/* ButtonCommand01..14: two rows, filled a column at a time. */
+/* ButtonCommand01..14: two rows in the panel's wells, filled a column at a time */
 .cb-grid
 {
 	display: flex;
 	flex-direction: column;
 	flex-wrap: wrap;
 	align-content: flex-start;
+	position: absolute;
+	left: 76dp;
+	top: 56dp;
 	width: 644dp;
 	height: 148dp;
+	pointer-events: auto;
 }
 
 .cb-slot
@@ -365,29 +256,26 @@ body.cb
 	margin: 0 4dp 4dp 0;
 }
 
-.cb-slot.live { background-color: #0A0C0F; }
-.cb-slot.live.flash { background-color: #2C3220; }
-
-/* the bezel's window */
+/* the cameo's window; its hairline is the command's border kind */
 .cb-win
 {
 	display: block;
 	position: absolute;
-	left: 4dp;
-	top: 4dp;
-	right: 4dp;
-	bottom: 4dp;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
 	overflow: hidden;
 	clip: always;
 }
 
-/* the command's border kind along the top of the cameo */
-.cb-slot.live.b1 .cb-win { border-top: 1dp #6C7CB0; }
-.cb-slot.live.b2 .cb-win { border-top: 1dp #B07C48; }
-.cb-slot.live.b3 .cb-win { border-top: 1dp #5A9C88; }
-.cb-slot.live.b4 .cb-win { border-top: 1dp #A89C58; }
+.cb-slot.live .cb-win { border: 1dp #000000; }
+.cb-slot.live.b1 .cb-win { border-color: #5B92FF; }
+.cb-slot.live.b2 .cb-win { border-color: #D06C00; }
+.cb-slot.live.b3 .cb-win { border-color: #00DE01; }
+.cb-slot.live.b4 .cb-win { border-color: #FFF005; }
 
-.cb-art, .cb-vet
+.cb-art, .cb-vet, .cb-hl
 {
 	display: block;
 	position: absolute;
@@ -404,10 +292,10 @@ body.cb
 	height: 100%;
 }
 
-.cb-slot.off .cb-art img { image-color: #4E525C; }
+.cb-slot.off .cb-art img { image-color: #50545C; }
 .cb-slot.poor .cb-art img { image-color: #8E8E8E; }
 
-/* the clock: what is still to go darkens from the top, a lit edge */
+/* the clock: what is still to go darkens from the top */
 .cb-clock
 {
 	display: block;
@@ -415,53 +303,67 @@ body.cb
 	left: 0;
 	right: 0;
 	top: 0;
-	background-color: #000000A8;
+	background-color: #000000A0;
 	border-bottom: 1dp #FFFFFF60;
 }
 
-/* the hotkey: a small dark stamped badge bottom left, as Pro's */
+/* the light over the cameo: hover, pressed, flashing, checked */
+.cb-slot.live:hover .cb-hl { background-color: #FFFFFF2C; }
+.cb-slot.live:active .cb-hl { background-color: #00000060; }
+.cb-slot.live.flash .cb-hl { background-color: #FFFFFF40; }
+.cb-slot.live.checked .cb-hl { border: 2dp #FFF005; }
+.cb-slot.live.off:hover .cb-hl { background-color: transparent; }
+
+/* the hotkey: a small dark plate with a steel edge, bottom left */
 .cb-key
 {
 	display: block;
 	position: absolute;
-	left: 4dp;
-	bottom: 4dp;
-	min-width: 10dp;
-	height: 16dp;
-	padding: 0 4dp;
-	font-size: 13dp;
-	line-height: 16dp;
+	left: 3dp;
+	bottom: 3dp;
+	min-width: 9dp;
+	height: 15dp;
+	padding: 0 3dp;
+	font-size: 12dp;
+	line-height: 15dp;
 	font-weight: bold;
 	text-align: center;
-	color: #E6E9ED;
-	background-color: #0B0C0EE6;
-	border: 1dp #3C4148;
+	color: #F2F2E8;
+	background-color: #0C0E10E0;
+	border: 1dp #7D8C99;
 }
 
-.cb-slot.live:hover .cb-key { border-color: #D1FD04; }
-.cb-slot.off .cb-key { color: #7A808A; }
+.cb-slot.live:hover .cb-key { border-color: #E6EAEE; }
+.cb-slot.off .cb-key { color: #8A9098; border-color: #4A525A; }
 
 .cb-text
 {
 	display: block;
 	position: absolute;
-	right: 6dp;
-	top: 5dp;
+	right: 5dp;
+	top: 4dp;
 	font-size: 15dp;
 	line-height: 16dp;
 	font-weight: bold;
-	color: #F2F4F7;
+	color: #FFFFFF;
 	font-effect: outline(1dp #000000E0);
 }
 
-/* Under construction and OCL timers */
+/* Under construction, OCL timers and beacons: Pro's dark overlay over the grid (the side buttons stay usable) */
 .cb-task
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	width: 644dp;
-	height: 148dp;
+	position: absolute;
+	left: 74dp;
+	top: 51dp;
+	width: 647dp;
+	height: 154dp;
+	box-sizing: border-box;
+	padding: 0 32dp 0 40dp;
+	background-color: #0A0C0EB8;
+	pointer-events: auto;
 }
 
 .cb-slot.cb-task-slot { flex: 0 0 auto; margin: 0 20dp 0 0; }
@@ -471,7 +373,6 @@ body.cb
 	display: block;
 	flex: 1 1 0%;
 	min-width: 0;
-	margin-right: 12dp;
 }
 
 .cb-task-text
@@ -479,48 +380,49 @@ body.cb
 	display: block;
 	font-size: 17dp;
 	line-height: 24dp;
-	color: #E4E8EE;
+	color: #E6E8EA;
 }
 
 .cb-task-bar
 {
 	display: block;
 	position: relative;
-	height: 14dp;
+	height: 15dp;
 	margin-top: 10dp;
 	box-sizing: border-box;
 	padding: 2dp;
+	background-color: #000000;
+	border: 1dp #5A6670;
 }
 
 .cb-task-fill
 {
 	display: block;
 	height: 100%;
-	decorator: vertical-gradient(#7E9858 #56703A);
+	decorator: vertical-gradient(#7CDA5C #2F8A2C);
 }
-
-/* A beacon: the delete button and the message entry. */
-.cb-beacon { align-items: center; }
 
 .cb-text-btn
 {
 	display: block;
 	flex: 0 0 auto;
 	box-sizing: border-box;
-	height: 34dp;
+	height: 35dp;
 	padding: 0 16dp;
 	font-size: 13dp;
-	line-height: 34dp;
+	line-height: 33dp;
 	font-weight: bold;
-	letter-spacing: 2dp;
+	letter-spacing: 1dp;
 	text-transform: uppercase;
 	white-space: nowrap;
-	color: #C8CED6;
-	background-color: #0A0C0F;
+	color: #E6E8EA;
+	decorator: vertical-gradient(#4A5660 #262E34);
+	border: 1dp #8A98A4;
 }
 
-.cb-text-btn:hover { color: #D1FD04; }
-.cb-text-btn.off { color: #4A4E55; }
+.cb-text-btn:hover { decorator: vertical-gradient(#5E6C78 #323C44); color: #FFFFFF; }
+.cb-text-btn:active { decorator: vertical-gradient(#1E2428 #343E46); }
+.cb-text-btn.off { color: #6A7078; border-color: #4A525A; }
 
 .cb-beacon-delete { margin-right: 20dp; }
 
@@ -529,10 +431,19 @@ body.cb
 	display: block;
 	flex: 1 1 0%;
 	min-width: 0;
-	margin-right: 12dp;
 }
 
-.cb-beacon-label { display: block; margin-bottom: 6dp; }
+.cb-beacon-label
+{
+	display: block;
+	margin-bottom: 6dp;
+	font-size: 12dp;
+	line-height: 14dp;
+	font-weight: bold;
+	letter-spacing: 2dp;
+	text-transform: uppercase;
+	color: #AEB6BE;
+}
 
 .cb-beacon-row
 {
@@ -547,177 +458,262 @@ input.cb-input
 	flex: 1 1 0%;
 	min-width: 0;
 	box-sizing: border-box;
-	height: 34dp;
+	height: 35dp;
 	padding: 0 10dp;
 	margin-right: 8dp;
 	font-size: 16dp;
-	line-height: 32dp;
-	color: #E4E8EE;
+	line-height: 33dp;
+	color: #E6E8EA;
 	background-color: #050607;
-	border: 1dp #3A3F46;
+	border: 1dp #5A6670;
 }
 
-input.cb-input:focus { border-color: #D1FD04; }
+input.cb-input:focus { border-color: #C8D4DE; }
 
-/* ---- The tower: one housing over the selection's right end, the general's powers above the rank and
-   the promotions and min/max buttons ------------------------------------------------------------------- */
-.cb-tower
+/* ---- Observing: Pro's player window beside the radar ----------------------------------------------------- */
+.cb-observers
 {
 	display: flex;
 	flex-direction: column;
-	justify-content: flex-end;
+	flex-wrap: wrap;
+	align-content: flex-start;
 	position: absolute;
-	right: 0;
-	bottom: 240dp;
-	width: 108dp;
-	box-sizing: border-box;
-	padding: 14dp 6dp 4dp 14dp;
+	left: 7dp;
+	top: 48dp;
+	width: 488dp;
+	height: 122dp;
 	pointer-events: auto;
 }
 
-.cb-tab
+.cb-obs-player
 {
 	display: flex;
 	flex-direction: row;
-	flex-wrap: wrap;
-	align-content: flex-start;
-	flex: 0 0 auto;
-	height: 54dp;
-}
-
-.cb-rank
-{
-	display: block;
-	width: 86dp;
-	height: 22dp;
-	font-size: 15dp;
-	line-height: 20dp;
-	letter-spacing: 2dp;
-	text-align: center;
-	white-space: nowrap;
-	color: #FFFFFF18;
-}
-
-.cb-star.on { color: #B8AE88; }
-
-.cb-side-btn.cb-general, .cb-side-btn.cb-minmax
-{
-	flex: 0 0 auto;
-	height: 30dp;
-	margin: 2dp 0 0 0;
-}
-
-.cb-side-btn.cb-general { width: 50dp; margin-right: 4dp; }
-.cb-side-btn.cb-minmax { width: 32dp; }
-.cb-tab-row { display: block; flex: 0 0 auto; }
-.cb-general .cb-glyph, .cb-minmax .cb-glyph { font-size: 15dp; line-height: 30dp; }
-.cb-general.lit { color: #D8E0C8; }
-
-.cb-powers
-{
-	display: block;
-	flex: 0 0 auto;
+	align-items: center;
 	box-sizing: border-box;
-	margin-bottom: 4dp;
-	padding: 0 2dp 2dp 2dp;
-	border-bottom: 1dp #FFFFFF10;
+	width: 242dp;
+	height: 29dp;
+	margin: 0 2dp 1dp 0;
+	padding: 0 6dp 0 3dp;
 }
 
-.cb-slot.cb-pslot
+.cb-obs-player:hover { background-color: #FFFFFF18; }
+
+.cb-obs-side
 {
-	width: 78dp;
-	height: 62dp;
-	margin: 0 0 4dp 0;
+	display: block;
+	flex: 0 0 auto;
+	width: 34dp;
+	height: 23dp;
+	margin-right: 8dp;
+}
+
+.cb-obs-side mappedimage, .cb-obs-flag mappedimage { display: block; width: 100%; height: 100%; }
+
+.cb-obs-name
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	font-size: 15dp;
+	line-height: 22dp;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cb-observed
+{
+	display: block;
+	position: absolute;
+	left: 7dp;
+	top: 48dp;
+	width: 488dp;
+	height: 122dp;
+}
+
+.cb-obs-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	width: 362dp;
+	height: 34dp;
+}
+
+.cb-obs-flag
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 40dp;
+	height: 26dp;
+	margin: 0 8dp 0 2dp;
+}
+
+.cb-obs-title
+{
+	flex: 1 1 0%;
+	min-width: 0;
+	font-size: 17dp;
+	line-height: 24dp;
+	font-weight: bold;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cb-obs-stats
+{
+	display: flex;
+	flex-direction: row;
+	margin-top: 2dp;
+}
+
+.cb-obs-stat
+{
+	display: block;
+	width: 120dp;
+	margin-right: 2dp;
+	text-align: center;
+}
+
+.cb-obs-label
+{
+	display: block;
+	height: 50dp;
+	font-size: 12dp;
+	line-height: 16dp;
+	font-weight: bold;
+	letter-spacing: 1dp;
+	text-transform: uppercase;
+	white-space: pre-line;
+	color: #AEB6BE;
+	padding-top: 8dp;
+	box-sizing: border-box;
+}
+
+.cb-obs-value
+{
+	display: block;
+	height: 34dp;
+	font-size: 22dp;
+	line-height: 34dp;
+	color: #F2F2E8;
 }
 
 /* ---- The selection ------------------------------------------------------------------------------------ */
 .cb-unit
 {
 	right: 0;
-	width: 308dp;
-	height: 250dp;
-	padding: 28dp 16dp 6dp 22dp;
+	width: 295dp;
+	height: 286dp;
+	pointer-events: none;
 }
 
+/* name and rank, over the battlefield left of the general's tab */
 .cb-unit-head
 {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	height: 22dp;
-	margin: 0 0 6dp 0;
-	padding: 0 26dp 0 2dp;
-	border-bottom: 1dp #FFFFFF12;
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 6dp;
+	width: 196dp;
+	height: 68dp;
+	font-effect: outline(1dp #000000E0);
 }
 
 .cb-name
 {
-	flex: 1 1 0%;
-	min-width: 0;
-	font-size: 13dp;
-	line-height: 22dp;
+	display: block;
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 4dp;
+	height: 24dp;
+	font-size: 14dp;
+	line-height: 24dp;
 	font-weight: bold;
-	letter-spacing: 2dp;
+	letter-spacing: 1dp;
 	text-transform: uppercase;
+	text-align: right;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	color: #E4E8EE;
+	color: #F2F2E8;
 }
 
-.cb-count
-{
-	flex: 0 0 auto;
-	font-size: 14dp;
-	color: #C0C6CE;
-	margin-left: 8dp;
-}
+.cb-count { margin-left: 8dp; color: #C8CED6; }
 
-.cb-unit-body
-{
-	display: flex;
-	flex-direction: row;
-	height: 188dp;
-}
-
-/* Pro's 3 x 3 cells, every one a well: the portrait takes four, the upgrades the right column and the bottom row */
-.cb-cells
-{
-	display: block;
-	position: relative;
-	flex: 0 0 auto;
-	width: 243dp;
-	height: 188dp;
-}
-
-.cb-cell
+.cb-rank
 {
 	display: block;
 	position: absolute;
-	width: 78dp;
-	height: 62dp;
+	right: 0;
+	top: 40dp;
+	height: 22dp;
+	font-size: 16dp;
+	line-height: 22dp;
+	letter-spacing: 2dp;
+	white-space: nowrap;
+	color: #FFFFFF38;
+	pointer-events: auto;
 }
 
-.cb-cell0 { left: 0; top: 0; }
-.cb-cell1 { left: 81dp; top: 0; }
-.cb-cell2 { left: 162dp; top: 0; }
-.cb-cell3 { left: 0; top: 63dp; }
-.cb-cell4 { left: 81dp; top: 63dp; }
-.cb-cell5 { left: 162dp; top: 63dp; }
-.cb-cell6 { left: 0; top: 126dp; }
-.cb-cell7 { left: 81dp; top: 126dp; }
-.cb-cell8 { left: 162dp; top: 126dp; }
+.cb-star.on { color: #FFD84A; }
+
+/* the general's tab: min/max and the promotions */
+.cb-side-btn.cb-minmax { left: 204dp; top: 8dp; width: 91dp; height: 31dp; }
+.cb-side-btn.cb-general { left: 204dp; top: 46dp; width: 91dp; height: 31dp; }
+
+.cb-unit-box
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 76dp;
+	width: 295dp;
+	height: 210dp;
+	pointer-events: auto;
+}
+
+/* Nothing selected: the side's logo (Pro's RightHUDImage) */
+.cb-emblem
+{
+	display: block;
+	position: absolute;
+	left: 17dp;
+	top: 17dp;
+	width: 229dp;
+	height: 184dp;
+}
+
+/* Several things selected: how many, on the portrait's place */
+.cb-multi
+{
+	display: block;
+	position: absolute;
+	left: 18dp;
+	top: 18dp;
+	width: 151dp;
+	height: 121dp;
+	font-size: 44dp;
+	line-height: 121dp;
+	text-align: center;
+	color: #F2F2E8;
+}
+
+.cb-multi-x { font-size: 26dp; color: #9AA2AC; margin-right: 4dp; }
 
 .cb-portrait
 {
 	display: block;
 	position: absolute;
-	left: 0;
-	top: 0;
-	width: 159dp;
-	height: 125dp;
-	background-color: #0A0C0F;
+	left: 18dp;
+	top: 18dp;
+	width: 151dp;
+	height: 121dp;
 }
+
+.cb-portrait .cb-win { border: 1dp #000000; }
 
 .cb-portrait-vet
 {
@@ -743,202 +739,214 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	display: block;
 	position: absolute;
-	box-sizing: border-box;
-	width: 78dp;
-	height: 62dp;
-	background-color: #0A0C0F;
+	width: 75dp;
+	height: 60dp;
 }
 
-.cb-up0 { left: 162dp; top: 0; }
-.cb-up1 { left: 162dp; top: 63dp; }
-.cb-up2 { left: 162dp; top: 126dp; }
-.cb-up3 { left: 81dp; top: 126dp; }
-.cb-up4 { left: 0; top: 126dp; }
+.cb-upgrade .cb-win { border: 1dp #000000; }
+.cb-up0 { left: 170dp; top: 18dp; }
+.cb-up1 { left: 170dp; top: 79dp; }
+.cb-up2 { left: 170dp; top: 140dp; }
+.cb-up3 { left: 94dp; top: 140dp; }
+.cb-up4 { left: 18dp; top: 140dp; }
 
-.cb-upgrade img { image-color: #464A52; }
+.cb-upgrade img { image-color: #4A4E56; }
 .cb-upgrade.owned img { image-color: #FFFFFF; }
 
-/* the build queue: nine cells, three by three */
+/* the build queue: Pro's nine cells, three by three */
 .cb-queue
 {
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	align-content: flex-start;
+	display: block;
 	position: absolute;
 	left: 0;
 	top: 0;
-	width: 243dp;
-	height: 188dp;
+	right: 0;
+	bottom: 0;
 }
 
 .cb-slot.cb-qslot
 {
-	width: 78dp;
-	height: 62dp;
-	margin: 0 3dp 1dp 0;
+	position: absolute;
+	width: 75dp;
+	height: 60dp;
+	margin: 0;
 }
 
-/* a movie a script plays in the portrait, over the selection */
+.cb-cell0 { left: 18dp; top: 18dp; }
+.cb-cell1 { left: 94dp; top: 18dp; }
+.cb-cell2 { left: 170dp; top: 18dp; }
+.cb-cell3 { left: 18dp; top: 79dp; }
+.cb-cell4 { left: 94dp; top: 79dp; }
+.cb-cell5 { left: 170dp; top: 79dp; }
+.cb-cell6 { left: 18dp; top: 140dp; }
+.cb-cell7 { left: 94dp; top: 140dp; }
+.cb-cell8 { left: 170dp; top: 140dp; }
+
+/* a movie a script plays in the portrait */
 .cb-cameo-movie
 {
 	display: block;
 	position: absolute;
-	left: 4dp;
-	top: 4dp;
+	left: 18dp;
+	top: 18dp;
 	width: 151dp;
-	height: 117dp;
+	height: 121dp;
 	background-color: #000000;
 }
 
-/* Several things selected: how many, on the portrait's place. */
-.cb-multi
-{
-	display: block;
-	position: absolute;
-	left: 0;
-	top: 0;
-	width: 159dp;
-	height: 125dp;
-	font-size: 44dp;
-	line-height: 125dp;
-	text-align: center;
-	color: #E4E8EE;
-	background-color: #0A0C0FC0;
-}
-
-.cb-multi-x { font-size: 26dp; color: #8A929C; margin-right: 4dp; }
-
-/* Nothing selected: the side's emblem, faint and grey, on the portrait's place. */
-.cb-emblem
-{
-	display: block;
-	position: absolute;
-	left: 22dp;
-	top: 6dp;
-	width: 114dp;
-	height: 114dp;
-	opacity: 0.10;
-}
-
-.cb-emblem-img { display: block; width: 114dp; height: 114dp; }
-.cb-emblem img { image-color: #B0B0B0; }
-
-/* the general's experience: Pro's upright gauge at the right edge, segmented */
+/* the general's experience: Pro's gauge, filling from the bottom under its frame */
 .cb-exp
 {
 	display: block;
-	position: relative;
-	flex: 0 0 auto;
-	width: 14dp;
-	height: 188dp;
-	margin-left: 13dp;
-	box-sizing: border-box;
+	position: absolute;
+	left: 250dp;
+	top: 17dp;
+	width: 36dp;
+	height: 184dp;
+}
+
+.cb-exp-well
+{
+	display: block;
+	position: absolute;
+	left: 5dp;
+	top: 36dp;
+	width: 26dp;
+	height: 140dp;
 }
 
 .cb-exp-fill
 {
 	display: block;
 	position: absolute;
-	left: 2dp;
-	right: 2dp;
-	bottom: 2dp;
-	max-height: 184dp;
-	decorator: horizontal-gradient(#A89868 #7A6C44);
+	left: 0;
+	right: 0;
+	bottom: 0;
+	max-height: 100%;
 }
 
-.cb-exp-seg
+.cb-exp-fg
 {
 	display: block;
 	position: absolute;
-	left: 2dp;
-	right: 2dp;
-	top: 2dp;
-	bottom: 2dp;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
 }
 
-/* ---- The promotions panel: over the grid, the tiers of the side's sciences ---------------------------- */
+/* ---- The general's powers: Pro's trays up the right edge, the lowest the largest ------------------------- */
+.cb-powers
+{
+	display: block;
+	position: absolute;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	width: 119dp;
+	pointer-events: none;
+}
+
+.cb-tray
+{
+	display: block;
+	position: absolute;
+	right: 0;
+	width: 119dp;
+	height: 92dp;
+	pointer-events: auto;
+}
+
+.cb-tray0 { bottom: 292dp; height: 110dp; }
+.cb-tray1 { bottom: 379dp; }
+.cb-tray2 { bottom: 448dp; }
+.cb-tray3 { bottom: 517dp; }
+.cb-tray4 { bottom: 586dp; }
+.cb-tray5 { bottom: 655dp; }
+.cb-tray6 { bottom: 724dp; }
+.cb-tray7 { bottom: 793dp; }
+.cb-tray8 { bottom: 862dp; }
+.cb-tray9 { bottom: 931dp; }
+.cb-tray10 { bottom: 1000dp; }
+
+.cb-slot.cb-pslot
+{
+	position: absolute;
+	left: 35dp;
+	top: 25dp;
+	width: 75dp;
+	height: 60dp;
+	margin: 0;
+}
+
+/* ---- The promotions: Pro's window over the grid --------------------------------------------------------- */
 .cb-science
 {
 	left: 50%;
-	margin-left: -268dp;
-	bottom: 224dp;
-	width: 536dp;
-	padding: 18dp 24dp 20dp 24dp;
+	margin-left: -271dp;
+	bottom: 302dp;
+	width: 542dp;
+	height: 598dp;
 }
 
-.cb-sci-head
+.cb-sci-tier, .cb-sci-title
 {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-}
-
-.cb-sci-title
-{
-	flex: 1 1 0%;
-	min-width: 0;
-	font-size: 17dp;
-	line-height: 26dp;
+	display: block;
+	position: absolute;
+	height: 28dp;
+	font-size: 13dp;
+	line-height: 28dp;
 	font-weight: bold;
-	letter-spacing: 3dp;
+	letter-spacing: 2dp;
 	text-transform: uppercase;
-	color: #E4E8EE;
+	text-align: center;
+	white-space: nowrap;
+	color: #C8D0D8;
 }
+
+.cb-sci-t1 { left: 13dp; top: 17dp; width: 516dp; }
+.cb-sci-t3 { left: 17dp; top: 141dp; width: 508dp; }
+.cb-sci-t8 { left: 17dp; top: 429dp; width: 508dp; }
+.cb-sci-title { left: 13dp; top: 553dp; width: 516dp; font-size: 15dp; color: #F2F2E8; }
 
 .cb-sci-points
 {
-	flex: 0 0 auto;
-	height: 22dp;
-	padding: 0 8dp;
-	font-size: 14dp;
-	line-height: 22dp;
+	display: block;
+	position: absolute;
+	left: 450dp;
+	top: 68dp;
+	width: 60dp;
+	height: 50dp;
+	font-size: 24dp;
+	line-height: 50dp;
 	font-weight: bold;
-	color: #D8E0C8;
-	border: 1dp #4A5058;
+	text-align: center;
+	color: #FFD84A;
 }
 
-.cb-sci-star { margin-right: 4dp; }
-
-.cb-sci-exp
+.cb-slot.cb-sci
 {
-	display: block;
-	position: relative;
-	height: 10dp;
-	margin: 10dp 0 4dp 0;
-	box-sizing: border-box;
-	padding: 2dp;
+	position: absolute;
+	width: 98dp;
+	height: 78dp;
+	margin: 0;
 }
 
-.cb-sci-exp-fill
-{
-	display: block;
-	height: 100%;
-	decorator: vertical-gradient(#A89868 #7A6C44);
-}
+.cb-slot.cb-sci .cb-win { border: 1dp #000000; }
+.cb-slot.cb-sci.buy .cb-win { border-color: #FFF005; }
+.cb-slot.cb-sci.buy:hover .cb-hl { background-color: #FFFFFF2C; }
+.cb-slot.cb-sci.off .cb-art img { image-color: #50545C; }
 
-.cb-sci-tier
-{
-	display: block;
-	margin: 12dp 0 6dp 0;
-}
-
-.cb-sci-row
-{
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-}
-
-/* the rank 3 tier: five columns of three, filled a column at a time like the .wnd */
-.cb-sci-rank3
-{
-	flex-direction: column;
-	height: 222dp;
-	align-content: flex-start;
-}
-
-.cb-slot.cb-sci { margin: 0 6dp 4dp 0; }
+.cb-c0 { left: 18dp; }
+.cb-c1 { left: 120dp; }
+.cb-c2 { left: 222dp; }
+.cb-c3 { left: 324dp; }
+.cb-c4 { left: 426dp; }
+.cb-r1 { top: 54dp; }
+.cb-r30 { top: 178dp; }
+.cb-r31 { top: 260dp; }
+.cb-r32 { top: 342dp; }
+.cb-r8 { top: 466dp; }
 
 .cb-owned
 {
@@ -946,28 +954,31 @@ input.cb-input:focus { border-color: #D1FD04; }
 	position: absolute;
 	right: 5dp;
 	bottom: 4dp;
-	font-size: 14dp;
-	line-height: 14dp;
+	font-size: 16dp;
+	line-height: 16dp;
 	font-weight: bold;
-	color: #6CD0B0;
+	color: #7CDA5C;
 	font-effect: outline(1dp #000000D0);
 }
 
-.cb-sci-foot
+.cb-sci-close
 {
-	display: flex;
-	flex-direction: row;
-	justify-content: flex-end;
-	margin-top: 10dp;
+	display: block;
+	position: absolute;
+	left: 450dp;
+	top: 480dp;
+	width: 60dp;
+	height: 50dp;
 }
 
-/* ---- Build tooltip: over the radar, where Pro puts it; it never takes the mouse ------------------------ */
+/* ---- The help box: Pro's, over the radar; it never takes the mouse ------------------------------------- */
 .cb-tip
 {
-	left: 8dp;
-	bottom: 344dp;
-	width: 420dp;
-	padding: 16dp 20dp 18dp 20dp;
+	left: 0;
+	bottom: 360dp;
+	width: 512dp;
+	min-height: 90dp;
+	padding: 8dp 16dp 12dp 16dp;
 	pointer-events: none;
 }
 
@@ -982,12 +993,10 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	flex: 1 1 0%;
 	min-width: 0;
-	font-size: 15dp;
-	line-height: 22dp;
+	font-size: 16dp;
+	line-height: 24dp;
 	font-weight: bold;
-	letter-spacing: 2dp;
-	text-transform: uppercase;
-	color: #E4E8EE;
+	color: #FFFFFF;
 }
 
 .cb-tip-key
@@ -1001,9 +1010,9 @@ input.cb-input:focus { border-color: #D1FD04; }
 	line-height: 18dp;
 	font-weight: bold;
 	text-align: center;
-	color: #E6E9ED;
-	background-color: #0B0C0EE6;
-	border: 1dp #3C4148;
+	color: #F2F2E8;
+	background-color: #0C0E10E0;
+	border: 1dp #7D8C99;
 }
 
 .cb-tip-cost
@@ -1012,491 +1021,488 @@ input.cb-input:focus { border-color: #D1FD04; }
 	margin-top: 4dp;
 	font-size: 15dp;
 	line-height: 20dp;
-	color: #B4C8A0;
+	color: #F0D458;
 }
 
 .cb-tip-desc
 {
 	display: block;
-	margin-top: 8dp;
-	padding-top: 8dp;
-	border-top: 1dp #FFFFFF18;
+	margin-top: 6dp;
 	font-size: 14dp;
 	line-height: 20dp;
 	white-space: pre-line;
-	color: #AEB6C0;
+	color: #D0D6DC;
 }
 
-/* ---- Observing ------------------------------------------------------------------------------------ */
-.cb-observers
+/* ---- Observers: Pro's observer bar ----------------------------------------------------------------------- */
+body.neutral .cb-radar { width: 394dp; }
+
+body.neutral .cb-main
 {
-	display: flex;
-	flex-direction: column;
-	flex-wrap: wrap;
-	align-content: flex-start;
-	width: 644dp;
-	height: 148dp;
+	left: 327dp;
+	width: 508dp;
+	height: 340dp;
+	margin-left: 0;
 }
 
-.cb-obs-player
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	box-sizing: border-box;
-	width: 314dp;
-	height: 34dp;
-	margin: 0 8dp 3dp 0;
-	padding: 0 8dp 0 3dp;
-	background-color: #0A0C0FE6;
-	border-left: 2dp #FFFFFF22;
-}
+/* the player window is the bottom 216dp; above it the box covers the radar's button column */
+body.neutral .cb-money { left: 233dp; top: 172dp; width: 260dp; height: 34dp; line-height: 34dp; text-align: right; padding-right: 4dp; box-sizing: border-box; }
+body.neutral .cb-power { left: 5dp; top: 153dp; width: 490dp; }
+body.neutral .cb-power-value, body.neutral .cb-replay { display: none; }
+body.neutral .cb-grid, body.neutral .cb-task { display: none; }
+body.neutral .cb-observers, body.neutral .cb-observed { top: 172dp; }
+body.neutral .cb-obs-head { width: 228dp; }
 
-.cb-obs-player:hover { border-left-color: #D1FD04; background-color: #16181C; }
+/* the buttons in the radar's column (Pro's ButtonPlayer places), Back in the window's foot */
+body.neutral .cb-side-btn { left: 7dp; width: 45dp; height: 30dp; }
+body.neutral .cb-options { top: 15dp; }
+body.neutral .cb-chat { top: 47dp; }
+body.neutral .cb-worker { top: 79dp; }
+body.neutral .cb-beacon-btn { top: 111dp; }
+body.neutral .cb-back { top: 303dp; }
+body.neutral .cb-side-btn.cb-minmax { left: 204dp; top: 8dp; width: 91dp; height: 31dp; }
+body.neutral .cb-side-btn.cb-general { left: 204dp; top: 46dp; width: 91dp; height: 31dp; }
 
-.cb-obs-side
-{
-	display: block;
-	flex: 0 0 auto;
-	width: 32dp;
-	height: 26dp;
-	margin-right: 8dp;
-}
-
-.cb-obs-side mappedimage { display: block; width: 100%; height: 100%; }
-
-.cb-obs-name
-{
-	flex: 1 1 0%;
-	min-width: 0;
-	font-size: 15dp;
-	line-height: 22dp;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-
-.cb-observed
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	width: 644dp;
-	height: 148dp;
-}
-
-.cb-obs-flag
-{
-	display: block;
-	flex: 0 0 auto;
-	width: 64dp;
-	height: 106dp;
-	margin-right: 16dp;
-}
-
-.cb-obs-flag mappedimage { display: block; width: 100%; height: 100%; }
-
-.cb-obs-main
-{
-	display: block;
-	flex: 1 1 0%;
-	min-width: 0;
-}
-
-.cb-obs-title
-{
-	display: block;
-	font-size: 17dp;
-	line-height: 24dp;
-	font-weight: bold;
-	letter-spacing: 1dp;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	margin-bottom: 10dp;
-}
-
-.cb-obs-stats
-{
-	display: flex;
-	flex-direction: row;
-}
-
-.cb-obs-stat
-{
-	display: block;
-	flex: 1 1 0%;
-	min-width: 0;
-}
-
-.cb-obs-value
-{
-	display: block;
-	font-size: 24dp;
-	line-height: 30dp;
-	color: #E4E8EE;
-}
-
-.cb-obs-label { display: block; white-space: pre-line; }
-
-.cb-obs-back { margin: 0 4dp 0 12dp; }
-
-/* ---- Collapsed (the min/max button, CONTROL_BAR_STAGE_LOW): the funds, the power meter, the buttons -- */
-body.low .cb-radar, body.low .cb-unit, body.low .cb-powers { display: none; }
-body.low .cb-main { height: 104dp; }
+/* ---- Collapsed (the min/max button, CONTROL_BAR_STAGE_LOW): the panels sink into the screen's edge, leaving
+   the top of the production panel (the funds, the power meter, the side buttons in a row) and the general's
+   tab; their art is drawn from the top and cut at the screen's edge ------------------------------------- */
+body.low .cb-radar, body.low .cb-powers, body.low .cb-unit-box { display: none; }
+body.low .cb-main { height: 92dp; }
 body.low .cb-grid, body.low .cb-task, body.low .cb-observers, body.low .cb-observed { display: none; }
-body.low .cb-body { height: 40dp; }
-body.low .cb-side { flex-direction: row; width: auto; height: 40dp; }
-body.low .cb-side .cb-side-btn { margin: 0 6dp 0 0; }
-body.low .cb-tower { bottom: 0; }
-body.low .cb-tip { bottom: 140dp; }
-body.low .cb-science { bottom: 140dp; }
+body.low .cb-worker { left: 75dp; top: 55dp; }
+body.low .cb-beacon-btn { left: 133dp; top: 55dp; }
+body.low .cb-chat { left: 191dp; top: 55dp; }
+body.low .cb-unit { height: 78dp; }
+body.low .cb-tip { bottom: 110dp; }
+body.low .cb-science { bottom: 110dp; }
+body.low.neutral .cb-radar { display: block; }
+body.low.neutral .cb-main { height: 340dp; }
+body.low.neutral .cb-worker { left: 7dp; top: 79dp; }
+body.low.neutral .cb-beacon-btn { left: 7dp; top: 111dp; }
+body.low.neutral .cb-chat { left: 7dp; top: 47dp; }
+body.low.neutral .cb-tip { bottom: 360dp; }
 
-/* ---- 5:4 and 4:3: the command panel next to the radar, which gets a little smaller ------------------- */
+/* ---- 5:4 and 4:3: the production panel next to a slightly smaller radar --------------------------------- */
 @media (max-aspect-ratio: 29/20)
 {
-	.cb-radar { width: 280dp; height: 280dp; }
-	.cb-radar-well { height: 258dp; }
-	.cb-centre { left: 284dp; margin-left: 0; }
-	.cb-science { left: 390dp; margin-left: 0; }
-	.cb-tip { bottom: 292dp; }
+	.cb-radar { width: 316dp; height: 316dp; }
+	.cb-radar-map { left: 5dp; top: 12dp; width: 299dp; height: 299dp; }
+	.cb-alarm { left: 256dp; width: 60dp; height: 60dp; }
+	.cb-main { left: 316dp; margin-left: 0; }
+	.cb-science { left: 412dp; margin-left: 0; }
+	.cb-tip { bottom: 336dp; }
+	/* the observer bar fits as it is */
+	body.neutral .cb-radar { width: 394dp; height: 340dp; }
+	body.neutral .cb-radar-map { left: 5dp; top: 13dp; width: 322dp; height: 322dp; }
+	body.neutral .cb-main { left: 327dp; }
+	body.neutral .cb-tip { bottom: 360dp; }
 }
 
-/* ---- Wide screens: past 21:9 (43:18, 3440x1440) the dock stops and centres; the wings carry the bar out to
-   the edges. The interface width option's 21:9 is the same band, so only its 16:9 needs its own rule
-   (RmlInterfaceArea.h sets body.iw-169). The radar and the selection then close their outer sides. -------- */
+/* ---- Wide screens: past 21:9 (43:18, 3440x1440) the dock stops and centres. The interface width option's
+   21:9 is the same band, so only its 16:9 needs its own rule (RmlInterfaceArea.h sets body.iw-169). ------- */
 @media (min-aspect-ratio: 12/5)
 {
 	.cb-dock { left: 50%; right: auto; width: 2580dp; margin-left: -1290dp; }
-	.cb-wing { display: block; }
-	.cb-radar { padding-left: 16dp; }
-	.cb-tower { right: 8dp; }
 }
 
 @media (min-aspect-ratio: 161/90)
 {
 	body.iw-169 .cb-dock { left: 50%; right: auto; width: 1920dp; margin-left: -960dp; }
-	body.iw-169 .cb-wing { display: block; }
-	body.iw-169 .cb-wing-l { margin-right: 936dp; }
-	body.iw-169 .cb-wing-r { margin-left: 936dp; }
-	body.iw-169 .cb-radar { padding-left: 16dp; }
-	body.iw-169 .cb-tower { right: 8dp; }
 }
 
-/* ---- Art: the faction sheets (Textures/ControlBar, generated) ------------------------------------ */
+/* ---- Art: Control Bar Pro's, one sheet per look (Textures/ControlBar, build_sheets.py) -------------- */
 @spritesheet cb-usa
 {
 	src: Textures/ControlBar/cb_usa.png;
 	resolution: 2x;
-	cb-usa-body-radar-l: 0px 0px 332px 332px;
-	cb-usa-body-radar-c: 334px 0px 332px 332px;
-	cb-usa-body-unit-r: 668px 0px 308px 250px;
-	cb-usa-body-unit-c: 0px 334px 308px 250px;
-	cb-usa-body-main: 0px 586px 752px 212px;
-	cb-usa-seg-v: 754px 586px 12px 188px;
-	cb-usa-frame-c: 768px 586px 200px 140px;
-	cb-usa-frame-c-in: 832px 650px 72px 56px;
-	cb-usa-frame-l: 0px 800px 200px 140px;
-	cb-usa-frame-l-in: 6px 864px 130px 56px;
-	cb-usa-frame-r: 202px 800px 200px 140px;
-	cb-usa-frame-r-in: 266px 864px 130px 56px;
-	cb-usa-box: 404px 800px 140px 140px;
-	cb-usa-box-in: 454px 850px 40px 40px;
-	cb-usa-tower-r: 546px 800px 160px 120px;
-	cb-usa-tower-r-in: 596px 850px 104px 58px;
-	cb-usa-tower-c: 708px 800px 160px 120px;
-	cb-usa-tower-c-in: 758px 850px 60px 58px;
-	cb-usa-bezel: 870px 800px 64px 64px;
-	cb-usa-bezel-in: 896px 826px 12px 12px;
-	cb-usa-btn-normal: 936px 800px 52px 52px;
-	cb-usa-btn-normal-in: 954px 818px 16px 16px;
-	cb-usa-btn-hover: 0px 942px 52px 52px;
-	cb-usa-btn-hover-in: 18px 960px 16px 16px;
-	cb-usa-btn-pressed: 54px 942px 52px 52px;
-	cb-usa-btn-pressed-in: 72px 960px 16px 16px;
-	cb-usa-btn-checked: 108px 942px 52px 52px;
-	cb-usa-btn-checked-in: 126px 960px 16px 16px;
-	cb-usa-btn-disabled: 162px 942px 52px 52px;
-	cb-usa-btn-disabled-in: 180px 960px 16px 16px;
-	cb-usa-wing-l: 216px 942px 140px 52px;
-	cb-usa-wing-l-in: 220px 972px 68px 18px;
-	cb-usa-wing-r: 358px 942px 140px 52px;
-	cb-usa-wing-r-in: 426px 972px 68px 18px;
-	cb-usa-slot: 500px 942px 48px 48px;
-	cb-usa-slot-in: 514px 956px 20px 20px;
-	cb-usa-inset: 550px 942px 48px 48px;
-	cb-usa-inset-in: 558px 950px 32px 32px;
-	cb-usa-screw: 600px 942px 16px 16px;
-	cb-usa-seg-h: 618px 942px 320px 16px;
+	cb-usa-production: 0px 0px 1468px 420px;
+	cb-usa-radar: 0px 422px 680px 680px;
+	cb-usa-upgrades: 682px 422px 590px 572px;
+	cb-usa-genbtns: 682px 996px 776px 226px;
+	cb-usa-maximize: 682px 996px 182px 62px;
+	cb-usa-maximize-h: 880px 996px 182px 62px;
+	cb-usa-maximize-p: 1078px 996px 182px 62px;
+	cb-usa-maximize-i: 1276px 996px 182px 62px;
+	cb-usa-minimize: 682px 1078px 182px 62px;
+	cb-usa-minimize-h: 880px 1078px 182px 62px;
+	cb-usa-minimize-p: 1078px 1078px 182px 62px;
+	cb-usa-minimize-i: 1276px 1078px 182px 62px;
+	cb-usa-general: 682px 1160px 182px 62px;
+	cb-usa-general-h: 880px 1160px 182px 62px;
+	cb-usa-general-p: 1078px 1160px 182px 62px;
+	cb-usa-general-i: 1276px 1160px 182px 62px;
+	cb-usa-logo: 1470px 0px 458px 368px;
+	cb-usa-sidebtns: 1470px 370px 492px 340px;
+	cb-usa-chat: 1470px 370px 108px 70px;
+	cb-usa-chat-h: 1598px 370px 108px 70px;
+	cb-usa-chat-p: 1726px 370px 108px 70px;
+	cb-usa-chat-i: 1854px 370px 108px 70px;
+	cb-usa-options: 1470px 460px 108px 70px;
+	cb-usa-options-h: 1598px 460px 108px 70px;
+	cb-usa-options-p: 1726px 460px 108px 70px;
+	cb-usa-options-i: 1854px 460px 108px 70px;
+	cb-usa-worker: 1470px 550px 108px 70px;
+	cb-usa-worker-h: 1598px 550px 108px 70px;
+	cb-usa-worker-p: 1726px 550px 108px 70px;
+	cb-usa-worker-i: 1854px 550px 108px 70px;
+	cb-usa-beacon: 1470px 640px 108px 70px;
+	cb-usa-beacon-h: 1598px 640px 108px 70px;
+	cb-usa-beacon-p: 1726px 640px 108px 70px;
+	cb-usa-beacon-i: 1854px 640px 108px 70px;
+	cb-usa-tray: 1460px 712px 238px 220px;
+	cb-usa-tray-top: 1460px 712px 238px 184px;
+	cb-usa-expbar: 1964px 0px 72px 368px;
+	cb-usa-alarm: 1700px 712px 128px 128px;
 }
 
 @spritesheet cb-china
 {
 	src: Textures/ControlBar/cb_china.png;
 	resolution: 2x;
-	cb-china-body-radar-l: 0px 0px 332px 332px;
-	cb-china-body-radar-c: 334px 0px 332px 332px;
-	cb-china-body-unit-r: 668px 0px 308px 250px;
-	cb-china-body-unit-c: 0px 334px 308px 250px;
-	cb-china-body-main: 0px 586px 752px 212px;
-	cb-china-seg-v: 754px 586px 12px 188px;
-	cb-china-frame-c: 768px 586px 200px 140px;
-	cb-china-frame-c-in: 832px 650px 72px 56px;
-	cb-china-frame-l: 0px 800px 200px 140px;
-	cb-china-frame-l-in: 6px 864px 130px 56px;
-	cb-china-frame-r: 202px 800px 200px 140px;
-	cb-china-frame-r-in: 266px 864px 130px 56px;
-	cb-china-box: 404px 800px 140px 140px;
-	cb-china-box-in: 454px 850px 40px 40px;
-	cb-china-tower-r: 546px 800px 160px 120px;
-	cb-china-tower-r-in: 596px 850px 104px 58px;
-	cb-china-tower-c: 708px 800px 160px 120px;
-	cb-china-tower-c-in: 758px 850px 60px 58px;
-	cb-china-bezel: 870px 800px 64px 64px;
-	cb-china-bezel-in: 896px 826px 12px 12px;
-	cb-china-btn-normal: 936px 800px 52px 52px;
-	cb-china-btn-normal-in: 954px 818px 16px 16px;
-	cb-china-btn-hover: 0px 942px 52px 52px;
-	cb-china-btn-hover-in: 18px 960px 16px 16px;
-	cb-china-btn-pressed: 54px 942px 52px 52px;
-	cb-china-btn-pressed-in: 72px 960px 16px 16px;
-	cb-china-btn-checked: 108px 942px 52px 52px;
-	cb-china-btn-checked-in: 126px 960px 16px 16px;
-	cb-china-btn-disabled: 162px 942px 52px 52px;
-	cb-china-btn-disabled-in: 180px 960px 16px 16px;
-	cb-china-wing-l: 216px 942px 140px 52px;
-	cb-china-wing-l-in: 220px 972px 68px 18px;
-	cb-china-wing-r: 358px 942px 140px 52px;
-	cb-china-wing-r-in: 426px 972px 68px 18px;
-	cb-china-slot: 500px 942px 48px 48px;
-	cb-china-slot-in: 514px 956px 20px 20px;
-	cb-china-inset: 550px 942px 48px 48px;
-	cb-china-inset-in: 558px 950px 32px 32px;
-	cb-china-screw: 600px 942px 16px 16px;
-	cb-china-seg-h: 618px 942px 320px 16px;
+	cb-china-production: 0px 0px 1468px 420px;
+	cb-china-radar: 0px 422px 680px 680px;
+	cb-china-upgrades: 682px 422px 590px 572px;
+	cb-china-genbtns: 682px 996px 776px 226px;
+	cb-china-maximize: 682px 996px 182px 62px;
+	cb-china-maximize-h: 880px 996px 182px 62px;
+	cb-china-maximize-p: 1078px 996px 182px 62px;
+	cb-china-maximize-i: 1276px 996px 182px 62px;
+	cb-china-minimize: 682px 1078px 182px 62px;
+	cb-china-minimize-h: 880px 1078px 182px 62px;
+	cb-china-minimize-p: 1078px 1078px 182px 62px;
+	cb-china-minimize-i: 1276px 1078px 182px 62px;
+	cb-china-general: 682px 1160px 182px 62px;
+	cb-china-general-h: 880px 1160px 182px 62px;
+	cb-china-general-p: 1078px 1160px 182px 62px;
+	cb-china-general-i: 1276px 1160px 182px 62px;
+	cb-china-logo: 1470px 0px 458px 368px;
+	cb-china-sidebtns: 1470px 370px 492px 340px;
+	cb-china-chat: 1470px 370px 108px 70px;
+	cb-china-chat-h: 1598px 370px 108px 70px;
+	cb-china-chat-p: 1726px 370px 108px 70px;
+	cb-china-chat-i: 1854px 370px 108px 70px;
+	cb-china-options: 1470px 460px 108px 70px;
+	cb-china-options-h: 1598px 460px 108px 70px;
+	cb-china-options-p: 1726px 460px 108px 70px;
+	cb-china-options-i: 1854px 460px 108px 70px;
+	cb-china-worker: 1470px 550px 108px 70px;
+	cb-china-worker-h: 1598px 550px 108px 70px;
+	cb-china-worker-p: 1726px 550px 108px 70px;
+	cb-china-worker-i: 1854px 550px 108px 70px;
+	cb-china-beacon: 1470px 640px 108px 70px;
+	cb-china-beacon-h: 1598px 640px 108px 70px;
+	cb-china-beacon-p: 1726px 640px 108px 70px;
+	cb-china-beacon-i: 1854px 640px 108px 70px;
+	cb-china-tray: 1460px 712px 238px 220px;
+	cb-china-tray-top: 1460px 712px 238px 184px;
+	cb-china-expbar: 1964px 0px 72px 368px;
+	cb-china-alarm: 1700px 712px 128px 128px;
 }
 
 @spritesheet cb-gla
 {
 	src: Textures/ControlBar/cb_gla.png;
 	resolution: 2x;
-	cb-gla-body-radar-l: 0px 0px 332px 332px;
-	cb-gla-body-radar-c: 334px 0px 332px 332px;
-	cb-gla-body-unit-r: 668px 0px 308px 250px;
-	cb-gla-body-unit-c: 0px 334px 308px 250px;
-	cb-gla-body-main: 0px 586px 752px 212px;
-	cb-gla-seg-v: 754px 586px 12px 188px;
-	cb-gla-frame-c: 768px 586px 200px 140px;
-	cb-gla-frame-c-in: 832px 650px 72px 56px;
-	cb-gla-frame-l: 0px 800px 200px 140px;
-	cb-gla-frame-l-in: 6px 864px 130px 56px;
-	cb-gla-frame-r: 202px 800px 200px 140px;
-	cb-gla-frame-r-in: 266px 864px 130px 56px;
-	cb-gla-box: 404px 800px 140px 140px;
-	cb-gla-box-in: 454px 850px 40px 40px;
-	cb-gla-tower-r: 546px 800px 160px 120px;
-	cb-gla-tower-r-in: 596px 850px 104px 58px;
-	cb-gla-tower-c: 708px 800px 160px 120px;
-	cb-gla-tower-c-in: 758px 850px 60px 58px;
-	cb-gla-bezel: 870px 800px 64px 64px;
-	cb-gla-bezel-in: 896px 826px 12px 12px;
-	cb-gla-btn-normal: 936px 800px 52px 52px;
-	cb-gla-btn-normal-in: 954px 818px 16px 16px;
-	cb-gla-btn-hover: 0px 942px 52px 52px;
-	cb-gla-btn-hover-in: 18px 960px 16px 16px;
-	cb-gla-btn-pressed: 54px 942px 52px 52px;
-	cb-gla-btn-pressed-in: 72px 960px 16px 16px;
-	cb-gla-btn-checked: 108px 942px 52px 52px;
-	cb-gla-btn-checked-in: 126px 960px 16px 16px;
-	cb-gla-btn-disabled: 162px 942px 52px 52px;
-	cb-gla-btn-disabled-in: 180px 960px 16px 16px;
-	cb-gla-wing-l: 216px 942px 140px 52px;
-	cb-gla-wing-l-in: 220px 972px 68px 18px;
-	cb-gla-wing-r: 358px 942px 140px 52px;
-	cb-gla-wing-r-in: 426px 972px 68px 18px;
-	cb-gla-slot: 500px 942px 48px 48px;
-	cb-gla-slot-in: 514px 956px 20px 20px;
-	cb-gla-inset: 550px 942px 48px 48px;
-	cb-gla-inset-in: 558px 950px 32px 32px;
-	cb-gla-screw: 600px 942px 16px 16px;
-	cb-gla-seg-h: 618px 942px 320px 16px;
+	cb-gla-production: 0px 0px 1468px 420px;
+	cb-gla-radar: 0px 422px 680px 680px;
+	cb-gla-upgrades: 682px 422px 590px 572px;
+	cb-gla-genbtns: 682px 996px 776px 226px;
+	cb-gla-maximize: 682px 996px 182px 62px;
+	cb-gla-maximize-h: 880px 996px 182px 62px;
+	cb-gla-maximize-p: 1078px 996px 182px 62px;
+	cb-gla-maximize-i: 1276px 996px 182px 62px;
+	cb-gla-minimize: 682px 1078px 182px 62px;
+	cb-gla-minimize-h: 880px 1078px 182px 62px;
+	cb-gla-minimize-p: 1078px 1078px 182px 62px;
+	cb-gla-minimize-i: 1276px 1078px 182px 62px;
+	cb-gla-general: 682px 1160px 182px 62px;
+	cb-gla-general-h: 880px 1160px 182px 62px;
+	cb-gla-general-p: 1078px 1160px 182px 62px;
+	cb-gla-general-i: 1276px 1160px 182px 62px;
+	cb-gla-logo: 1470px 0px 458px 368px;
+	cb-gla-sidebtns: 1470px 370px 492px 340px;
+	cb-gla-chat: 1470px 370px 108px 70px;
+	cb-gla-chat-h: 1598px 370px 108px 70px;
+	cb-gla-chat-p: 1726px 370px 108px 70px;
+	cb-gla-chat-i: 1854px 370px 108px 70px;
+	cb-gla-options: 1470px 460px 108px 70px;
+	cb-gla-options-h: 1598px 460px 108px 70px;
+	cb-gla-options-p: 1726px 460px 108px 70px;
+	cb-gla-options-i: 1854px 460px 108px 70px;
+	cb-gla-worker: 1470px 550px 108px 70px;
+	cb-gla-worker-h: 1598px 550px 108px 70px;
+	cb-gla-worker-p: 1726px 550px 108px 70px;
+	cb-gla-worker-i: 1854px 550px 108px 70px;
+	cb-gla-beacon: 1470px 640px 108px 70px;
+	cb-gla-beacon-h: 1598px 640px 108px 70px;
+	cb-gla-beacon-p: 1726px 640px 108px 70px;
+	cb-gla-beacon-i: 1854px 640px 108px 70px;
+	cb-gla-tray: 1460px 712px 238px 220px;
+	cb-gla-tray-top: 1460px 712px 238px 184px;
+	cb-gla-expbar: 1964px 0px 72px 368px;
+	cb-gla-alarm: 1700px 712px 128px 128px;
 }
 
 @spritesheet cb-neutral
 {
 	src: Textures/ControlBar/cb_neutral.png;
 	resolution: 2x;
-	cb-neutral-body-radar-l: 0px 0px 332px 332px;
-	cb-neutral-body-radar-c: 334px 0px 332px 332px;
-	cb-neutral-body-unit-r: 668px 0px 308px 250px;
-	cb-neutral-body-unit-c: 0px 334px 308px 250px;
-	cb-neutral-body-main: 0px 586px 752px 212px;
-	cb-neutral-seg-v: 754px 586px 12px 188px;
-	cb-neutral-frame-c: 768px 586px 200px 140px;
-	cb-neutral-frame-c-in: 832px 650px 72px 56px;
-	cb-neutral-frame-l: 0px 800px 200px 140px;
-	cb-neutral-frame-l-in: 6px 864px 130px 56px;
-	cb-neutral-frame-r: 202px 800px 200px 140px;
-	cb-neutral-frame-r-in: 266px 864px 130px 56px;
-	cb-neutral-box: 404px 800px 140px 140px;
-	cb-neutral-box-in: 454px 850px 40px 40px;
-	cb-neutral-tower-r: 546px 800px 160px 120px;
-	cb-neutral-tower-r-in: 596px 850px 104px 58px;
-	cb-neutral-tower-c: 708px 800px 160px 120px;
-	cb-neutral-tower-c-in: 758px 850px 60px 58px;
-	cb-neutral-bezel: 870px 800px 64px 64px;
-	cb-neutral-bezel-in: 896px 826px 12px 12px;
-	cb-neutral-btn-normal: 936px 800px 52px 52px;
-	cb-neutral-btn-normal-in: 954px 818px 16px 16px;
-	cb-neutral-btn-hover: 0px 942px 52px 52px;
-	cb-neutral-btn-hover-in: 18px 960px 16px 16px;
-	cb-neutral-btn-pressed: 54px 942px 52px 52px;
-	cb-neutral-btn-pressed-in: 72px 960px 16px 16px;
-	cb-neutral-btn-checked: 108px 942px 52px 52px;
-	cb-neutral-btn-checked-in: 126px 960px 16px 16px;
-	cb-neutral-btn-disabled: 162px 942px 52px 52px;
-	cb-neutral-btn-disabled-in: 180px 960px 16px 16px;
-	cb-neutral-wing-l: 216px 942px 140px 52px;
-	cb-neutral-wing-l-in: 220px 972px 68px 18px;
-	cb-neutral-wing-r: 358px 942px 140px 52px;
-	cb-neutral-wing-r-in: 426px 972px 68px 18px;
-	cb-neutral-slot: 500px 942px 48px 48px;
-	cb-neutral-slot-in: 514px 956px 20px 20px;
-	cb-neutral-inset: 550px 942px 48px 48px;
-	cb-neutral-inset-in: 558px 950px 32px 32px;
-	cb-neutral-screw: 600px 942px 16px 16px;
-	cb-neutral-seg-h: 618px 942px 320px 16px;
+	cb-neutral-radar: 0px 0px 788px 680px;
+	cb-neutral-production: 790px 0px 1016px 432px;
+	cb-neutral-upgrades: 790px 434px 590px 420px;
+	cb-neutral-genbtns: 0px 682px 776px 226px;
+	cb-neutral-maximize: 0px 682px 182px 62px;
+	cb-neutral-maximize-h: 198px 682px 182px 62px;
+	cb-neutral-maximize-p: 396px 682px 182px 62px;
+	cb-neutral-maximize-i: 594px 682px 182px 62px;
+	cb-neutral-minimize: 0px 764px 182px 62px;
+	cb-neutral-minimize-h: 198px 764px 182px 62px;
+	cb-neutral-minimize-p: 396px 764px 182px 62px;
+	cb-neutral-minimize-i: 594px 764px 182px 62px;
+	cb-neutral-general: 0px 846px 182px 62px;
+	cb-neutral-general-h: 198px 846px 182px 62px;
+	cb-neutral-general-p: 396px 846px 182px 62px;
+	cb-neutral-general-i: 594px 846px 182px 62px;
+	cb-neutral-sidebtns: 1382px 434px 492px 340px;
+	cb-neutral-chat: 1382px 434px 108px 70px;
+	cb-neutral-chat-h: 1510px 434px 108px 70px;
+	cb-neutral-chat-p: 1638px 434px 108px 70px;
+	cb-neutral-chat-i: 1766px 434px 108px 70px;
+	cb-neutral-options: 1382px 524px 108px 70px;
+	cb-neutral-options-h: 1510px 524px 108px 70px;
+	cb-neutral-options-p: 1638px 524px 108px 70px;
+	cb-neutral-options-i: 1766px 524px 108px 70px;
+	cb-neutral-worker: 1382px 614px 108px 70px;
+	cb-neutral-worker-h: 1510px 614px 108px 70px;
+	cb-neutral-worker-p: 1638px 614px 108px 70px;
+	cb-neutral-worker-i: 1766px 614px 108px 70px;
+	cb-neutral-beacon: 1382px 704px 108px 70px;
+	cb-neutral-beacon-h: 1510px 704px 108px 70px;
+	cb-neutral-beacon-p: 1638px 704px 108px 70px;
+	cb-neutral-beacon-i: 1766px 704px 108px 70px;
+	cb-neutral-obsbtns: 1382px 776px 366px 184px;
+	cb-neutral-obs-chat: 1382px 776px 90px 60px;
+	cb-neutral-obs-chat-h: 1474px 776px 90px 60px;
+	cb-neutral-obs-chat-p: 1566px 776px 90px 60px;
+	cb-neutral-obs-chat-i: 1658px 776px 90px 60px;
+	cb-neutral-obs-options: 1382px 838px 90px 60px;
+	cb-neutral-obs-options-h: 1474px 838px 90px 60px;
+	cb-neutral-obs-options-p: 1566px 838px 90px 60px;
+	cb-neutral-obs-options-i: 1658px 838px 90px 60px;
+	cb-neutral-obs-back: 1382px 900px 90px 60px;
+	cb-neutral-obs-back-h: 1474px 900px 90px 60px;
+	cb-neutral-obs-back-p: 1566px 900px 90px 60px;
+	cb-neutral-obs-back-i: 1658px 900px 90px 60px;
+	cb-neutral-expbar: 1876px 0px 72px 368px;
 }
 
-/* ---- Skins: which sprite draws what, per faction ---------------------------------------------------- */
+@spritesheet cb-usa-power
+{
+	src: Textures/ControlBar/cb_usa_power.png;
+	resolution: 2x;
+	cb-usa-power-power: 0px 0px 1084px 1196px;
+}
+
+@spritesheet cb-china-power
+{
+	src: Textures/ControlBar/cb_china_power.png;
+	resolution: 2x;
+	cb-china-power-power: 0px 0px 1084px 1196px;
+}
+
+@spritesheet cb-gla-power
+{
+	src: Textures/ControlBar/cb_gla_power.png;
+	resolution: 2x;
+	cb-gla-power-power: 0px 0px 1084px 1196px;
+}
+
+@spritesheet cb-common
+{
+	src: Textures/ControlBar/cb_common.png;
+	resolution: 2x;
+	cb-common-help: 0px 0px 1024px 1140px;
+	cb-common-help-foot: 0px 1142px 1024px 60px;
+	cb-common-closebtns: 1026px 0px 486px 100px;
+	cb-common-close: 1026px 0px 120px 100px;
+	cb-common-close-h: 1148px 0px 120px 100px;
+	cb-common-close-p: 1270px 0px 120px 100px;
+	cb-common-close-i: 1392px 0px 120px 100px;
+}
+
+/* ---- Which sprite draws what ---------------------------------------------------------------------- */
 /* ---- usa ---- */
-body.usa .cb-wing-l { decorator: ninepatch(cb-usa-wing-l, cb-usa-wing-l-in, 1); }
-body.usa .cb-wing-r { decorator: ninepatch(cb-usa-wing-r, cb-usa-wing-r-in, 1); }
-body.usa .cb-radar { decorator: ninepatch(cb-usa-frame-l, cb-usa-frame-l-in, 1), image(cb-usa-body-radar-l fill); }
-body.usa .cb-radar-bezel { decorator: ninepatch(cb-usa-bezel, cb-usa-bezel-in, 1); }
-body.usa .cb-main { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1), image(cb-usa-body-main fill); }
-body.usa .cb-unit { decorator: ninepatch(cb-usa-frame-r, cb-usa-frame-r-in, 1), image(cb-usa-body-unit-r fill); }
-body.usa .cb-tower { decorator: ninepatch(cb-usa-tower-r, cb-usa-tower-r-in, 1); }
-body.usa .cb-money { decorator: ninepatch(cb-usa-inset, cb-usa-inset-in, 1); }
-body.usa .cb-science, body.usa .cb-tip { decorator: ninepatch(cb-usa-box, cb-usa-box-in, 1); }
-body.usa .cb-power-bar, body.usa .cb-task-bar, body.usa .cb-exp, body.usa .cb-sci-exp, body.usa .cb-slot, body.usa .cb-cell { decorator: ninepatch(cb-usa-slot, cb-usa-slot-in, 1); }
-body.usa .cb-power-seg { decorator: image(cb-usa-seg-h fill); }
-body.usa .cb-exp-seg { decorator: image(cb-usa-seg-v fill); }
-body.usa .cb-slot.live, body.usa .cb-side-btn, body.usa .cb-text-btn, body.usa .cb-portrait, body.usa .cb-upgrade.owned { decorator: ninepatch(cb-usa-btn-normal, cb-usa-btn-normal-in, 1); }
-body.usa .cb-upgrade { decorator: ninepatch(cb-usa-btn-disabled, cb-usa-btn-disabled-in, 1); }
-body.usa .cb-slot.live:hover, body.usa .cb-slot.live.flash, body.usa .cb-side-btn:hover, body.usa .cb-text-btn:hover { decorator: ninepatch(cb-usa-btn-hover, cb-usa-btn-hover-in, 1); }
-body.usa .cb-slot.live:active, body.usa .cb-side-btn:active, body.usa .cb-text-btn:active { decorator: ninepatch(cb-usa-btn-pressed, cb-usa-btn-pressed-in, 1); }
-body.usa .cb-slot.live.off, body.usa .cb-side-btn.off, body.usa .cb-text-btn.off { decorator: ninepatch(cb-usa-btn-disabled, cb-usa-btn-disabled-in, 1); }
-body.usa .cb-slot.live.checked { decorator: ninepatch(cb-usa-btn-checked, cb-usa-btn-checked-in, 1); }
-body.usa .cb-slot.cb-sci.buy, body.usa .cb-general.lit { decorator: ninepatch(cb-usa-btn-hover, cb-usa-btn-hover-in, 1); }
-@media (min-aspect-ratio: 12/5)
-{
-	body.usa .cb-radar { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1), image(cb-usa-body-radar-c fill); }
-	body.usa .cb-unit { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1), image(cb-usa-body-unit-c fill); }
-	body.usa .cb-tower { decorator: ninepatch(cb-usa-tower-c, cb-usa-tower-c-in, 1); }
-}
-@media (min-aspect-ratio: 161/90)
-{
-	body.usa.iw-169 .cb-radar { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1), image(cb-usa-body-radar-c fill); }
-	body.usa.iw-169 .cb-unit { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1), image(cb-usa-body-unit-c fill); }
-	body.usa.iw-169 .cb-tower { decorator: ninepatch(cb-usa-tower-c, cb-usa-tower-c-in, 1); }
-}
+body.usa .cb-radar { decorator: image(cb-usa-radar fill); }
+body.usa .cb-alarm { decorator: image(cb-usa-alarm fill); }
+body.usa .cb-main { decorator: image(cb-usa-production fill); }
+body.usa .cb-unit { decorator: image(cb-usa-upgrades fill); }
+body.usa .cb-emblem { decorator: image(cb-usa-logo fill); }
+body.usa .cb-tray { decorator: image(cb-usa-tray-top fill); }
+body.usa .cb-tray0 { decorator: image(cb-usa-tray fill); }
+body.usa .cb-science { decorator: image(cb-usa-power-power fill); }
+body.usa.low .cb-main { decorator: image(cb-usa-production scale-none left top); }
+body.usa.low .cb-unit { decorator: image(cb-usa-upgrades scale-none left top); }
+body.usa .cb-options { decorator: image(cb-usa-options fill); }
+body.usa .cb-options:hover { decorator: image(cb-usa-options-h fill); }
+body.usa .cb-options:active { decorator: image(cb-usa-options-p fill); }
+body.usa .cb-options.off { decorator: image(cb-usa-options-i fill); }
+body.usa .cb-chat { decorator: image(cb-usa-chat fill); }
+body.usa .cb-chat:hover { decorator: image(cb-usa-chat-h fill); }
+body.usa .cb-chat:active { decorator: image(cb-usa-chat-p fill); }
+body.usa .cb-chat.off { decorator: image(cb-usa-chat-i fill); }
+body.usa .cb-worker { decorator: image(cb-usa-worker fill); }
+body.usa .cb-worker:hover { decorator: image(cb-usa-worker-h fill); }
+body.usa .cb-worker:active { decorator: image(cb-usa-worker-p fill); }
+body.usa .cb-worker.off { decorator: image(cb-usa-worker-i fill); }
+body.usa .cb-beacon-btn { decorator: image(cb-usa-beacon fill); }
+body.usa .cb-beacon-btn:hover { decorator: image(cb-usa-beacon-h fill); }
+body.usa .cb-beacon-btn:active { decorator: image(cb-usa-beacon-p fill); }
+body.usa .cb-beacon-btn.off { decorator: image(cb-usa-beacon-i fill); }
+body.usa .cb-exp-fg { decorator: image(cb-usa-expbar fill); }
+body.usa .cb-general { decorator: image(cb-usa-general fill); }
+body.usa .cb-general:hover { decorator: image(cb-usa-general-h fill); }
+body.usa .cb-general:active { decorator: image(cb-usa-general-p fill); }
+body.usa .cb-general.off { decorator: image(cb-usa-general-i fill); }
+body.usa .cb-general.lit { decorator: image(cb-usa-general-h fill); }
+body.usa .cb-minmax { decorator: image(cb-usa-minimize fill); }
+body.usa .cb-minmax:hover { decorator: image(cb-usa-minimize-h fill); }
+body.usa .cb-minmax:active { decorator: image(cb-usa-minimize-p fill); }
+body.usa .cb-minmax.off { decorator: image(cb-usa-minimize-i fill); }
+body.usa.low .cb-minmax { decorator: image(cb-usa-maximize fill); }
+body.usa.low .cb-minmax:hover { decorator: image(cb-usa-maximize-h fill); }
+body.usa.low .cb-minmax:active { decorator: image(cb-usa-maximize-p fill); }
+body.usa.low .cb-minmax.off { decorator: image(cb-usa-maximize-i fill); }
 
 /* ---- china ---- */
-body.china .cb-wing-l { decorator: ninepatch(cb-china-wing-l, cb-china-wing-l-in, 1); }
-body.china .cb-wing-r { decorator: ninepatch(cb-china-wing-r, cb-china-wing-r-in, 1); }
-body.china .cb-radar { decorator: ninepatch(cb-china-frame-l, cb-china-frame-l-in, 1), image(cb-china-body-radar-l fill); }
-body.china .cb-radar-bezel { decorator: ninepatch(cb-china-bezel, cb-china-bezel-in, 1); }
-body.china .cb-main { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1), image(cb-china-body-main fill); }
-body.china .cb-unit { decorator: ninepatch(cb-china-frame-r, cb-china-frame-r-in, 1), image(cb-china-body-unit-r fill); }
-body.china .cb-tower { decorator: ninepatch(cb-china-tower-r, cb-china-tower-r-in, 1); }
-body.china .cb-money { decorator: ninepatch(cb-china-inset, cb-china-inset-in, 1); }
-body.china .cb-science, body.china .cb-tip { decorator: ninepatch(cb-china-box, cb-china-box-in, 1); }
-body.china .cb-power-bar, body.china .cb-task-bar, body.china .cb-exp, body.china .cb-sci-exp, body.china .cb-slot, body.china .cb-cell { decorator: ninepatch(cb-china-slot, cb-china-slot-in, 1); }
-body.china .cb-power-seg { decorator: image(cb-china-seg-h fill); }
-body.china .cb-exp-seg { decorator: image(cb-china-seg-v fill); }
-body.china .cb-slot.live, body.china .cb-side-btn, body.china .cb-text-btn, body.china .cb-portrait, body.china .cb-upgrade.owned { decorator: ninepatch(cb-china-btn-normal, cb-china-btn-normal-in, 1); }
-body.china .cb-upgrade { decorator: ninepatch(cb-china-btn-disabled, cb-china-btn-disabled-in, 1); }
-body.china .cb-slot.live:hover, body.china .cb-slot.live.flash, body.china .cb-side-btn:hover, body.china .cb-text-btn:hover { decorator: ninepatch(cb-china-btn-hover, cb-china-btn-hover-in, 1); }
-body.china .cb-slot.live:active, body.china .cb-side-btn:active, body.china .cb-text-btn:active { decorator: ninepatch(cb-china-btn-pressed, cb-china-btn-pressed-in, 1); }
-body.china .cb-slot.live.off, body.china .cb-side-btn.off, body.china .cb-text-btn.off { decorator: ninepatch(cb-china-btn-disabled, cb-china-btn-disabled-in, 1); }
-body.china .cb-slot.live.checked { decorator: ninepatch(cb-china-btn-checked, cb-china-btn-checked-in, 1); }
-body.china .cb-slot.cb-sci.buy, body.china .cb-general.lit { decorator: ninepatch(cb-china-btn-hover, cb-china-btn-hover-in, 1); }
-@media (min-aspect-ratio: 12/5)
-{
-	body.china .cb-radar { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1), image(cb-china-body-radar-c fill); }
-	body.china .cb-unit { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1), image(cb-china-body-unit-c fill); }
-	body.china .cb-tower { decorator: ninepatch(cb-china-tower-c, cb-china-tower-c-in, 1); }
-}
-@media (min-aspect-ratio: 161/90)
-{
-	body.china.iw-169 .cb-radar { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1), image(cb-china-body-radar-c fill); }
-	body.china.iw-169 .cb-unit { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1), image(cb-china-body-unit-c fill); }
-	body.china.iw-169 .cb-tower { decorator: ninepatch(cb-china-tower-c, cb-china-tower-c-in, 1); }
-}
+body.china .cb-radar { decorator: image(cb-china-radar fill); }
+body.china .cb-alarm { decorator: image(cb-china-alarm fill); }
+body.china .cb-main { decorator: image(cb-china-production fill); }
+body.china .cb-unit { decorator: image(cb-china-upgrades fill); }
+body.china .cb-emblem { decorator: image(cb-china-logo fill); }
+body.china .cb-tray { decorator: image(cb-china-tray-top fill); }
+body.china .cb-tray0 { decorator: image(cb-china-tray fill); }
+body.china .cb-science { decorator: image(cb-china-power-power fill); }
+body.china.low .cb-main { decorator: image(cb-china-production scale-none left top); }
+body.china.low .cb-unit { decorator: image(cb-china-upgrades scale-none left top); }
+body.china .cb-options { decorator: image(cb-china-options fill); }
+body.china .cb-options:hover { decorator: image(cb-china-options-h fill); }
+body.china .cb-options:active { decorator: image(cb-china-options-p fill); }
+body.china .cb-options.off { decorator: image(cb-china-options-i fill); }
+body.china .cb-chat { decorator: image(cb-china-chat fill); }
+body.china .cb-chat:hover { decorator: image(cb-china-chat-h fill); }
+body.china .cb-chat:active { decorator: image(cb-china-chat-p fill); }
+body.china .cb-chat.off { decorator: image(cb-china-chat-i fill); }
+body.china .cb-worker { decorator: image(cb-china-worker fill); }
+body.china .cb-worker:hover { decorator: image(cb-china-worker-h fill); }
+body.china .cb-worker:active { decorator: image(cb-china-worker-p fill); }
+body.china .cb-worker.off { decorator: image(cb-china-worker-i fill); }
+body.china .cb-beacon-btn { decorator: image(cb-china-beacon fill); }
+body.china .cb-beacon-btn:hover { decorator: image(cb-china-beacon-h fill); }
+body.china .cb-beacon-btn:active { decorator: image(cb-china-beacon-p fill); }
+body.china .cb-beacon-btn.off { decorator: image(cb-china-beacon-i fill); }
+body.china .cb-exp-fg { decorator: image(cb-china-expbar fill); }
+body.china .cb-general { decorator: image(cb-china-general fill); }
+body.china .cb-general:hover { decorator: image(cb-china-general-h fill); }
+body.china .cb-general:active { decorator: image(cb-china-general-p fill); }
+body.china .cb-general.off { decorator: image(cb-china-general-i fill); }
+body.china .cb-general.lit { decorator: image(cb-china-general-h fill); }
+body.china .cb-minmax { decorator: image(cb-china-minimize fill); }
+body.china .cb-minmax:hover { decorator: image(cb-china-minimize-h fill); }
+body.china .cb-minmax:active { decorator: image(cb-china-minimize-p fill); }
+body.china .cb-minmax.off { decorator: image(cb-china-minimize-i fill); }
+body.china.low .cb-minmax { decorator: image(cb-china-maximize fill); }
+body.china.low .cb-minmax:hover { decorator: image(cb-china-maximize-h fill); }
+body.china.low .cb-minmax:active { decorator: image(cb-china-maximize-p fill); }
+body.china.low .cb-minmax.off { decorator: image(cb-china-maximize-i fill); }
 
 /* ---- gla ---- */
-body.gla .cb-wing-l { decorator: ninepatch(cb-gla-wing-l, cb-gla-wing-l-in, 1); }
-body.gla .cb-wing-r { decorator: ninepatch(cb-gla-wing-r, cb-gla-wing-r-in, 1); }
-body.gla .cb-radar { decorator: ninepatch(cb-gla-frame-l, cb-gla-frame-l-in, 1), image(cb-gla-body-radar-l fill); }
-body.gla .cb-radar-bezel { decorator: ninepatch(cb-gla-bezel, cb-gla-bezel-in, 1); }
-body.gla .cb-main { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1), image(cb-gla-body-main fill); }
-body.gla .cb-unit { decorator: ninepatch(cb-gla-frame-r, cb-gla-frame-r-in, 1), image(cb-gla-body-unit-r fill); }
-body.gla .cb-tower { decorator: ninepatch(cb-gla-tower-r, cb-gla-tower-r-in, 1); }
-body.gla .cb-money { decorator: ninepatch(cb-gla-inset, cb-gla-inset-in, 1); }
-body.gla .cb-science, body.gla .cb-tip { decorator: ninepatch(cb-gla-box, cb-gla-box-in, 1); }
-body.gla .cb-power-bar, body.gla .cb-task-bar, body.gla .cb-exp, body.gla .cb-sci-exp, body.gla .cb-slot, body.gla .cb-cell { decorator: ninepatch(cb-gla-slot, cb-gla-slot-in, 1); }
-body.gla .cb-power-seg { decorator: image(cb-gla-seg-h fill); }
-body.gla .cb-exp-seg { decorator: image(cb-gla-seg-v fill); }
-body.gla .cb-slot.live, body.gla .cb-side-btn, body.gla .cb-text-btn, body.gla .cb-portrait, body.gla .cb-upgrade.owned { decorator: ninepatch(cb-gla-btn-normal, cb-gla-btn-normal-in, 1); }
-body.gla .cb-upgrade { decorator: ninepatch(cb-gla-btn-disabled, cb-gla-btn-disabled-in, 1); }
-body.gla .cb-slot.live:hover, body.gla .cb-slot.live.flash, body.gla .cb-side-btn:hover, body.gla .cb-text-btn:hover { decorator: ninepatch(cb-gla-btn-hover, cb-gla-btn-hover-in, 1); }
-body.gla .cb-slot.live:active, body.gla .cb-side-btn:active, body.gla .cb-text-btn:active { decorator: ninepatch(cb-gla-btn-pressed, cb-gla-btn-pressed-in, 1); }
-body.gla .cb-slot.live.off, body.gla .cb-side-btn.off, body.gla .cb-text-btn.off { decorator: ninepatch(cb-gla-btn-disabled, cb-gla-btn-disabled-in, 1); }
-body.gla .cb-slot.live.checked { decorator: ninepatch(cb-gla-btn-checked, cb-gla-btn-checked-in, 1); }
-body.gla .cb-slot.cb-sci.buy, body.gla .cb-general.lit { decorator: ninepatch(cb-gla-btn-hover, cb-gla-btn-hover-in, 1); }
-@media (min-aspect-ratio: 12/5)
-{
-	body.gla .cb-radar { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1), image(cb-gla-body-radar-c fill); }
-	body.gla .cb-unit { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1), image(cb-gla-body-unit-c fill); }
-	body.gla .cb-tower { decorator: ninepatch(cb-gla-tower-c, cb-gla-tower-c-in, 1); }
-}
-@media (min-aspect-ratio: 161/90)
-{
-	body.gla.iw-169 .cb-radar { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1), image(cb-gla-body-radar-c fill); }
-	body.gla.iw-169 .cb-unit { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1), image(cb-gla-body-unit-c fill); }
-	body.gla.iw-169 .cb-tower { decorator: ninepatch(cb-gla-tower-c, cb-gla-tower-c-in, 1); }
-}
+body.gla .cb-radar { decorator: image(cb-gla-radar fill); }
+body.gla .cb-alarm { decorator: image(cb-gla-alarm fill); }
+body.gla .cb-main { decorator: image(cb-gla-production fill); }
+body.gla .cb-unit { decorator: image(cb-gla-upgrades fill); }
+body.gla .cb-emblem { decorator: image(cb-gla-logo fill); }
+body.gla .cb-tray { decorator: image(cb-gla-tray-top fill); }
+body.gla .cb-tray0 { decorator: image(cb-gla-tray fill); }
+body.gla .cb-science { decorator: image(cb-gla-power-power fill); }
+body.gla.low .cb-main { decorator: image(cb-gla-production scale-none left top); }
+body.gla.low .cb-unit { decorator: image(cb-gla-upgrades scale-none left top); }
+body.gla .cb-options { decorator: image(cb-gla-options fill); }
+body.gla .cb-options:hover { decorator: image(cb-gla-options-h fill); }
+body.gla .cb-options:active { decorator: image(cb-gla-options-p fill); }
+body.gla .cb-options.off { decorator: image(cb-gla-options-i fill); }
+body.gla .cb-chat { decorator: image(cb-gla-chat fill); }
+body.gla .cb-chat:hover { decorator: image(cb-gla-chat-h fill); }
+body.gla .cb-chat:active { decorator: image(cb-gla-chat-p fill); }
+body.gla .cb-chat.off { decorator: image(cb-gla-chat-i fill); }
+body.gla .cb-worker { decorator: image(cb-gla-worker fill); }
+body.gla .cb-worker:hover { decorator: image(cb-gla-worker-h fill); }
+body.gla .cb-worker:active { decorator: image(cb-gla-worker-p fill); }
+body.gla .cb-worker.off { decorator: image(cb-gla-worker-i fill); }
+body.gla .cb-beacon-btn { decorator: image(cb-gla-beacon fill); }
+body.gla .cb-beacon-btn:hover { decorator: image(cb-gla-beacon-h fill); }
+body.gla .cb-beacon-btn:active { decorator: image(cb-gla-beacon-p fill); }
+body.gla .cb-beacon-btn.off { decorator: image(cb-gla-beacon-i fill); }
+body.gla .cb-exp-fg { decorator: image(cb-gla-expbar fill); }
+body.gla .cb-general { decorator: image(cb-gla-general fill); }
+body.gla .cb-general:hover { decorator: image(cb-gla-general-h fill); }
+body.gla .cb-general:active { decorator: image(cb-gla-general-p fill); }
+body.gla .cb-general.off { decorator: image(cb-gla-general-i fill); }
+body.gla .cb-general.lit { decorator: image(cb-gla-general-h fill); }
+body.gla .cb-minmax { decorator: image(cb-gla-minimize fill); }
+body.gla .cb-minmax:hover { decorator: image(cb-gla-minimize-h fill); }
+body.gla .cb-minmax:active { decorator: image(cb-gla-minimize-p fill); }
+body.gla .cb-minmax.off { decorator: image(cb-gla-minimize-i fill); }
+body.gla.low .cb-minmax { decorator: image(cb-gla-maximize fill); }
+body.gla.low .cb-minmax:hover { decorator: image(cb-gla-maximize-h fill); }
+body.gla.low .cb-minmax:active { decorator: image(cb-gla-maximize-p fill); }
+body.gla.low .cb-minmax.off { decorator: image(cb-gla-maximize-i fill); }
 
 /* ---- neutral ---- */
-body.neutral .cb-wing-l { decorator: ninepatch(cb-neutral-wing-l, cb-neutral-wing-l-in, 1); }
-body.neutral .cb-wing-r { decorator: ninepatch(cb-neutral-wing-r, cb-neutral-wing-r-in, 1); }
-body.neutral .cb-radar { decorator: ninepatch(cb-neutral-frame-l, cb-neutral-frame-l-in, 1), image(cb-neutral-body-radar-l fill); }
-body.neutral .cb-radar-bezel { decorator: ninepatch(cb-neutral-bezel, cb-neutral-bezel-in, 1); }
-body.neutral .cb-main { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1), image(cb-neutral-body-main fill); }
-body.neutral .cb-unit { decorator: ninepatch(cb-neutral-frame-r, cb-neutral-frame-r-in, 1), image(cb-neutral-body-unit-r fill); }
-body.neutral .cb-tower { decorator: ninepatch(cb-neutral-tower-r, cb-neutral-tower-r-in, 1); }
-body.neutral .cb-money { decorator: ninepatch(cb-neutral-inset, cb-neutral-inset-in, 1); }
-body.neutral .cb-science, body.neutral .cb-tip { decorator: ninepatch(cb-neutral-box, cb-neutral-box-in, 1); }
-body.neutral .cb-power-bar, body.neutral .cb-task-bar, body.neutral .cb-exp, body.neutral .cb-sci-exp, body.neutral .cb-slot, body.neutral .cb-cell { decorator: ninepatch(cb-neutral-slot, cb-neutral-slot-in, 1); }
-body.neutral .cb-power-seg { decorator: image(cb-neutral-seg-h fill); }
-body.neutral .cb-exp-seg { decorator: image(cb-neutral-seg-v fill); }
-body.neutral .cb-slot.live, body.neutral .cb-side-btn, body.neutral .cb-text-btn, body.neutral .cb-portrait, body.neutral .cb-upgrade.owned { decorator: ninepatch(cb-neutral-btn-normal, cb-neutral-btn-normal-in, 1); }
-body.neutral .cb-upgrade { decorator: ninepatch(cb-neutral-btn-disabled, cb-neutral-btn-disabled-in, 1); }
-body.neutral .cb-slot.live:hover, body.neutral .cb-slot.live.flash, body.neutral .cb-side-btn:hover, body.neutral .cb-text-btn:hover { decorator: ninepatch(cb-neutral-btn-hover, cb-neutral-btn-hover-in, 1); }
-body.neutral .cb-slot.live:active, body.neutral .cb-side-btn:active, body.neutral .cb-text-btn:active { decorator: ninepatch(cb-neutral-btn-pressed, cb-neutral-btn-pressed-in, 1); }
-body.neutral .cb-slot.live.off, body.neutral .cb-side-btn.off, body.neutral .cb-text-btn.off { decorator: ninepatch(cb-neutral-btn-disabled, cb-neutral-btn-disabled-in, 1); }
-body.neutral .cb-slot.live.checked { decorator: ninepatch(cb-neutral-btn-checked, cb-neutral-btn-checked-in, 1); }
-body.neutral .cb-slot.cb-sci.buy, body.neutral .cb-general.lit { decorator: ninepatch(cb-neutral-btn-hover, cb-neutral-btn-hover-in, 1); }
-@media (min-aspect-ratio: 12/5)
-{
-	body.neutral .cb-radar { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1), image(cb-neutral-body-radar-c fill); }
-	body.neutral .cb-unit { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1), image(cb-neutral-body-unit-c fill); }
-	body.neutral .cb-tower { decorator: ninepatch(cb-neutral-tower-c, cb-neutral-tower-c-in, 1); }
-}
-@media (min-aspect-ratio: 161/90)
-{
-	body.neutral.iw-169 .cb-radar { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1), image(cb-neutral-body-radar-c fill); }
-	body.neutral.iw-169 .cb-unit { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1), image(cb-neutral-body-unit-c fill); }
-	body.neutral.iw-169 .cb-tower { decorator: ninepatch(cb-neutral-tower-c, cb-neutral-tower-c-in, 1); }
-}
+body.neutral .cb-radar { decorator: image(cb-neutral-radar fill); }
+body.neutral .cb-main { decorator: image(cb-neutral-production scale-none left bottom); }
+body.neutral .cb-unit { decorator: image(cb-neutral-upgrades scale-none left bottom); }
+body.neutral.low .cb-unit { decorator: none; }
+body.neutral .cb-options { decorator: image(cb-neutral-obs-options fill); }
+body.neutral .cb-options:hover { decorator: image(cb-neutral-obs-options-h fill); }
+body.neutral .cb-options:active { decorator: image(cb-neutral-obs-options-p fill); }
+body.neutral .cb-options.off { decorator: image(cb-neutral-obs-options-i fill); }
+body.neutral .cb-chat { decorator: image(cb-neutral-obs-chat fill); }
+body.neutral .cb-chat:hover { decorator: image(cb-neutral-obs-chat-h fill); }
+body.neutral .cb-chat:active { decorator: image(cb-neutral-obs-chat-p fill); }
+body.neutral .cb-chat.off { decorator: image(cb-neutral-obs-chat-i fill); }
+body.neutral .cb-back { decorator: image(cb-neutral-obs-back fill); }
+body.neutral .cb-back:hover { decorator: image(cb-neutral-obs-back-h fill); }
+body.neutral .cb-back:active { decorator: image(cb-neutral-obs-back-p fill); }
+body.neutral .cb-back.off { decorator: image(cb-neutral-obs-back-i fill); }
+body.neutral .cb-worker { decorator: image(cb-neutral-worker fill); }
+body.neutral .cb-worker:hover { decorator: image(cb-neutral-worker-h fill); }
+body.neutral .cb-worker:active { decorator: image(cb-neutral-worker-p fill); }
+body.neutral .cb-worker.off { decorator: image(cb-neutral-worker-i fill); }
+body.neutral .cb-beacon-btn { decorator: image(cb-neutral-beacon fill); }
+body.neutral .cb-beacon-btn:hover { decorator: image(cb-neutral-beacon-h fill); }
+body.neutral .cb-beacon-btn:active { decorator: image(cb-neutral-beacon-p fill); }
+body.neutral .cb-beacon-btn.off { decorator: image(cb-neutral-beacon-i fill); }
+body.neutral .cb-exp-fg { decorator: image(cb-neutral-expbar fill); }
+body.neutral .cb-general { decorator: image(cb-neutral-general fill); }
+body.neutral .cb-general:hover { decorator: image(cb-neutral-general-h fill); }
+body.neutral .cb-general:active { decorator: image(cb-neutral-general-p fill); }
+body.neutral .cb-general.off { decorator: image(cb-neutral-general-i fill); }
+body.neutral .cb-general.lit { decorator: image(cb-neutral-general-h fill); }
+body.neutral .cb-minmax { decorator: image(cb-neutral-minimize fill); }
+body.neutral .cb-minmax:hover { decorator: image(cb-neutral-minimize-h fill); }
+body.neutral .cb-minmax:active { decorator: image(cb-neutral-minimize-p fill); }
+body.neutral .cb-minmax.off { decorator: image(cb-neutral-minimize-i fill); }
+body.neutral.low .cb-minmax { decorator: image(cb-neutral-maximize fill); }
+body.neutral.low .cb-minmax:hover { decorator: image(cb-neutral-maximize-h fill); }
+body.neutral.low .cb-minmax:active { decorator: image(cb-neutral-maximize-p fill); }
+body.neutral.low .cb-minmax.off { decorator: image(cb-neutral-maximize-i fill); }
+
+/* ---- every look ---- */
+.cb-tip { decorator: image(cb-common-help-foot scale-none left bottom), image(cb-common-help scale-none left top); }
+.cb-sci-close { decorator: image(cb-common-close fill); }
+.cb-sci-close:hover { decorator: image(cb-common-close-h fill); }
+.cb-sci-close:active { decorator: image(cb-common-close-p fill); }
+body.usa .cb-exp-fill { background-color: #2C8B65; }
+body.china .cb-exp-fill { background-color: #716E66; }
+body.gla .cb-exp-fill { background-color: #7C3E00; }
+body.neutral .cb-exp-fill { background-color: #2C8B65; }
