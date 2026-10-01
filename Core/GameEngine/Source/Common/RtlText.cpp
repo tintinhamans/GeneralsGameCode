@@ -392,6 +392,116 @@ bool lineLooksVisual(const wchar_t *text, size_t count)
 	return arabic && visual > logical;
 }
 
+// printf conversions (%d, %.0f, %ls, %hs, %1$s, %%) are atomic: reordering and mirroring must not
+// split or reverse them, or "Building: %.0f%%" reaches sprintf as "%0f". For the line's processing each
+// one is a single private-use stand-in of the bidi type it acts as once filled in (a number, text or
+// a percent sign), swapped back afterwards.
+const unsigned int kTokenNumber = 0xE100;
+const unsigned int kTokenText = 0xE200;
+const unsigned int kTokenPercent = 0xE300;
+const size_t kTokenMax = 0x100;
+
+// Length of the printf conversion that starts at text[0] == '%' (0 if it is not one) and what it prints.
+size_t formatLength(const wchar_t *text, size_t count, BidiType &type)
+{
+	size_t i = 1;
+	if (i < count && text[i] == L'%')
+	{
+		type = BIDI_ET;
+		return 2;
+	}
+	size_t digits = i;
+	while (digits < count && text[digits] >= L'0' && text[digits] <= L'9')
+		++digits;
+	if (digits > i && digits < count && text[digits] == L'$')
+		i = digits + 1;
+	while (i < count && (text[i] == L'-' || text[i] == L'+' || text[i] == L'#' || text[i] == L'0'))
+		++i;
+	if (i < count && text[i] == L'*')
+		++i;
+	else
+		while (i < count && text[i] >= L'0' && text[i] <= L'9')
+			++i;
+	if (i < count && text[i] == L'.')
+	{
+		++i;
+		if (i < count && text[i] == L'*')
+			++i;
+		else
+			while (i < count && text[i] >= L'0' && text[i] <= L'9')
+				++i;
+	}
+	while (i < count && (text[i] == L'h' || text[i] == L'l' || text[i] == L'L' || text[i] == L'z' || text[i] == L'j' || text[i] == L't'))
+		++i;
+	if (i >= count)
+		return 0;
+	switch (text[i])
+	{
+		case L'd': case L'i': case L'u': case L'o': case L'x': case L'X':
+		case L'e': case L'E': case L'f': case L'F': case L'g': case L'G': case L'a': case L'A':
+			type = BIDI_EN;
+			return i + 1;
+		case L's': case L'S': case L'c': case L'C': case L'p':
+			type = BIDI_L;
+			return i + 1;
+		default:
+			return 0;
+	}
+}
+
+struct FormatTokens
+{
+	std::vector<std::wstring> text;
+	std::vector<std::wstring> arguments; ///< the conversions that take an argument, in the line's own order
+
+	// text with each format replaced by its stand-in; unchanged (and no tokens) if there are none.
+	std::wstring protect(const wchar_t *source, size_t count)
+	{
+		std::wstring out;
+		out.reserve(count);
+		for (size_t i = 0; i < count; ++i)
+		{
+			BidiType type = BIDI_N;
+			const size_t length = source[i] == L'%' ? formatLength(source + i, count - i, type) : 0;
+			if (length == 0 || text.size() >= kTokenMax)
+			{
+				out.push_back(source[i]);
+				continue;
+			}
+			const unsigned int base = type == BIDI_EN ? kTokenNumber : type == BIDI_L ? kTokenText : kTokenPercent;
+			out.push_back((wchar_t)(base + text.size()));
+			text.push_back(std::wstring(source + i, length));
+			if (type != BIDI_ET)
+				arguments.push_back(text.back());
+			i += length - 1;
+		}
+		return out;
+	}
+
+	// Puts the formats back in out[from..]. Reordering moves the stand-ins, but sprintf takes its
+	// arguments in the order the line gave them, so the conversions that take one are put back in that
+	// order (at the places the reordering gave them); a "%%" stays where it went.
+	void restore(std::wstring &out, size_t from) const
+	{
+		if (text.empty())
+			return;
+		std::wstring tail;
+		size_t nextArgument = 0;
+		for (size_t i = from; i < out.size(); ++i)
+		{
+			const unsigned int c = out[i];
+			if (c < kTokenNumber || c >= kTokenPercent + kTokenMax || (c & 0xFF) >= text.size())
+				tail.push_back(out[i]);
+			else if (c >= kTokenPercent)
+				tail += text[c & 0xFF];
+			else
+				tail += arguments[nextArgument++];
+		}
+		out.resize(from);
+		out += tail;
+	}
+};
+
 void appendLogicalLine(std::wstring &out, const wchar_t *text, size_t count)
 {
 	if (!lineLooksVisual(text, count))
@@ -400,7 +510,11 @@ void appendLogicalLine(std::wstring &out, const wchar_t *text, size_t count)
 		return;
 	}
 
-	std::vector<unsigned int> codepoints(text, text + count);
+	FormatTokens formats;
+	const std::wstring protectedText = formats.protect(text, count);
+	const size_t outFrom = out.size();
+	count = protectedText.size();
+	std::vector<unsigned int> codepoints(protectedText.begin(), protectedText.end());
 	std::vector<unsigned char> levels(count);
 	std::vector<int> order(count);
 	resolveLevels(codepoints.data(), count, true, levels.data());
@@ -427,6 +541,7 @@ void appendLogicalLine(std::wstring &out, const wchar_t *text, size_t count)
 		else
 			out.push_back((wchar_t)c);
 	}
+	formats.restore(out, outFrom);
 }
 
 const ArabicForms *findArabicForms(unsigned int c)
@@ -496,6 +611,11 @@ void appendLegacyVisualLine(std::wstring &out, const wchar_t *text, size_t count
 		}
 	}
 
+	FormatTokens formats;
+	const std::wstring protectedText = formats.protect(text, count);
+	const size_t outFrom = out.size();
+	text = protectedText.c_str();
+	count = protectedText.size();
 	std::vector<unsigned int> logical(text, text + count);
 	std::vector<unsigned char> logicalLevels(count);
 	resolveLevels(logical.data(), count, rtlBase, logicalLevels.data());
@@ -565,12 +685,15 @@ void appendLegacyVisualLine(std::wstring &out, const wchar_t *text, size_t count
 		}
 		out.push_back((wchar_t)c);
 	}
+	formats.restore(out, outFrom);
 }
 
 } // namespace
 
 BidiType bidiType(unsigned int c)
 {
+	if (c >= kTokenNumber && c < kTokenPercent + kTokenMax)
+		return (c >> 8) == 0xE1 ? BIDI_EN : (c >> 8) == 0xE2 ? BIDI_L : BIDI_ET; // a printf conversion's stand-in
 	if (c >= 0x10000)
 	{
 		if (c >= 0x1F000 && c <= 0x1FFFF)
