@@ -1344,6 +1344,21 @@ AR: "اللغة المثبتة"
 UK: "Мова встановлення"
 END
 
+GO:GUI:LanguageNameInstalled
+US: "%s (installed)"
+DE: "%s (installiert)"
+FR: "%s (installée)"
+ES: "%s (instalado)"
+IT: "%s (installata)"
+KO: "%s (설치됨)"
+ZH: "%s (已安裝)"
+BP: "%s (instalado)"
+PL: "%s (zainstalowany)"
+RU: "%s (установлен)"
+AR: "%s (مثبتة)"
+UK: "%s (встановлена)"
+END
+
 GO:GUI:LanguageRestart
 US: "Takes effect the next time you start the game."
 DE: "Wird beim nächsten Spielstart wirksam."

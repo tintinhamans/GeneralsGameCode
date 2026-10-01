@@ -27,6 +27,7 @@
 #include "Common/GameLOD.h"
 #include "Common/GlobalData.h"
 #include "Common/OptionPreferences.h"
+#include "Common/Registry.h"
 #include "GameClient/Display.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GameClient.h"
@@ -511,6 +512,35 @@ void ApplyHTTPProxy(const AsciiString &proxy)
 	ghttpSetProxy(proxy.str());
 }
 
+// The GameTextLanguages code of the installed game (its registry language), or null if it has none.
+static const char *GetInstalledTextLanguageCode()
+{
+	static const struct { const char *registry; const char *code; } installed[] =
+	{
+		{ "english", "us" }, { "german", "de" }, { "french", "fr" }, { "spanish", "es" }, { "italian", "it" },
+		{ "korean", "ko" }, { "chinese", "zh" }, { "brazilian", "bp" }, { "polish", "pl" },
+		{ "russian", "ru" }, { "ukrainian", "uk" }, { "arabic", "ar" },
+	};
+	const AsciiString registry = GetRegistryLanguage();
+	for (size_t i = 0; i < ARRAY_SIZE(installed); ++i)
+	{
+		if (registry.compareNoCase(installed[i].registry) == 0)
+			return installed[i].code;
+	}
+	return nullptr;
+}
+
+Int GetInstalledTextLanguageChoice()
+{
+	const char *code = GetInstalledTextLanguageCode();
+	for (Int i = 0; code && i < GameTextLanguageCount; ++i)
+	{
+		if (stricmp(code, GameTextLanguages[i].code) == 0)
+			return i + 1;
+	}
+	return 0;
+}
+
 Int GetTextLanguageChoiceCount()
 {
 	return GameTextLanguageCount + 1;
@@ -520,27 +550,44 @@ UnicodeString GetTextLanguageChoiceName(Int index)
 {
 	if (index <= 0 || index > GameTextLanguageCount)
 		return UnicodeString::TheEmptyString;
-	return UnicodeString(GameTextLanguages[index - 1].nativeName);
+	UnicodeString name(GameTextLanguages[index - 1].nativeName);
+	if (index != GetInstalledTextLanguageChoice())
+		return name;
+	// "<name> (installed)": the installed language's entry, which follows the installed game.
+	UnicodeString label = TheGameText->fetch("GO:GUI:LanguageNameInstalled");
+	const WideChar *marker = wcsstr(label.str(), L"%s");
+	if (!marker)
+		return name;
+	UnicodeString result;
+	result.set(label.str(), (Int)(marker - label.str()));
+	result.concat(name);
+	result.concat(marker + 2);
+	return result;
 }
 
 Int GetCurrentTextLanguageChoice()
 {
 	// What settings.json asks for, which is what the next start loads (not necessarily what this
-	// session loaded, if it was changed since or its files were missing).
+	// session loaded, if it was changed since or its files were missing). Empty or the installed
+	// language's own code is the installed language.
 	const std::string &code = NGMP_OnlineServicesManager::Settings.UI_GetLanguage();
 	for (Int i = 0; i < GameTextLanguageCount; ++i)
 	{
 		if (stricmp(code.c_str(), GameTextLanguages[i].code) == 0)
-			return i + 1;
+		{
+			const Int choice = i + 1;
+			return choice == GetInstalledTextLanguageChoice() ? GetInstalledTextLanguageChoice() : choice;
+		}
 	}
-	return 0;
+	return GetInstalledTextLanguageChoice();
 }
 
 void ApplyTextLanguageChoice(Int index)
 {
 	if (index == GetCurrentTextLanguageChoice())
 		return;
-	const bool known = index > 0 && index <= GameTextLanguageCount;
+	// The installed language (or the entry for an unknown one) stores nothing: it follows the install.
+	const bool known = index > 0 && index <= GameTextLanguageCount && index != GetInstalledTextLanguageChoice();
 	NGMP_OnlineServicesManager::Settings.UI_SetLanguage(known ? GameTextLanguages[index - 1].code : "");
 }
 

@@ -91,9 +91,11 @@ namespace OptionsValues
 	void ApplyHTTPProxy(const AsciiString &proxy);
 
 	// -- Game language (Generals Online settings.json, read at startup: applies on restart) --
-	// Choice 0 is the installed language, then GameTextLanguages (GameText.h) in order.
+	// Choices 1.. are GameTextLanguages (GameText.h) in order; the installed language's entry follows the
+	// install (stores nothing). Choice 0 stands in for an installed language that has no entry.
+	Int GetInstalledTextLanguageChoice(); ///< the installed language's choice, or 0 if it has none
 	Int GetTextLanguageChoiceCount();
-	UnicodeString GetTextLanguageChoiceName(Int index); ///< the language's own name; empty for choice 0
+	UnicodeString GetTextLanguageChoiceName(Int index); ///< the language's own name (marked if installed); empty for choice 0
 	Int GetCurrentTextLanguageChoice();
 	void ApplyTextLanguageChoice(Int index);
 

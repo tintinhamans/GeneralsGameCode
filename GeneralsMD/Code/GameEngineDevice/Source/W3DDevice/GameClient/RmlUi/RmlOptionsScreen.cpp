@@ -319,7 +319,10 @@ void RmlOptionsScreen::populateSelectOptions()
 		Rml::String html;
 		for (int i = 0; i < count; ++i)
 		{
-			html += "<option value=\"" + std::to_string(i) + "\">" + label(i) + "</option>";
+			// An empty label leaves the choice out.
+			const Rml::String text = label(i);
+			if (!text.empty())
+				html += "<option value=\"" + std::to_string(i) + "\">" + text + "</option>";
 		}
 		element->SetInnerRML(html);
 	};
@@ -344,12 +347,13 @@ void RmlOptionsScreen::populateSelectOptions()
 			return Rml::String(OptionsValues::GetDetailLevelName(i).str());
 		});
 
-	// The installed language, then each language by its own name (Arabic in its own direction).
+	// Each language by its own name (Arabic in its own direction), the installed one marked; choice 0, for an
+	// installed language without an entry, is only listed then.
 	fillSelect("select_language", OptionsValues::GetTextLanguageChoiceCount(), m_model.textLanguage,
 		[](int i)
 		{
 			if (i == 0)
-				return Rml::String("<gametext key=\"GO:GUI:LanguageInstalled\"/>");
+				return OptionsValues::GetInstalledTextLanguageChoice() ? Rml::String() : Rml::String("<gametext key=\"GO:GUI:LanguageInstalled\"/>");
 			return unicodeToUtf8(OptionsValues::GetTextLanguageChoiceName(i));
 		});
 
