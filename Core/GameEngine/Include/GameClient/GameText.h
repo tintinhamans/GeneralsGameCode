@@ -128,6 +128,10 @@ AsciiString GetGameTextLanguage();
 // The languages directory SetGameTextOptions() was given (it also holds the languages' font packs).
 AsciiString GetGameTextLanguagesDir();
 Bool IsGameTextRightToLeft();
+// The GameTextLanguages code of the installed game's language (its registry language), or null if it has none.
+const char *GetInstalledGameTextLanguage();
+// The string tables init() layered, lowest priority first, for the log.
+AsciiString GetGameTextLayers();
 
 //----------------------------------------------------------------------------
 //           Inlining

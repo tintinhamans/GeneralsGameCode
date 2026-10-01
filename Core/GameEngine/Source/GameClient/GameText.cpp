@@ -213,6 +213,7 @@ class GameTextManager : public GameTextInterface
 		Bool						mergeStringFile( const AsciiString& filename, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex );
 		void						mergeEntries( const StringInfo *entries, Int count, const char *source, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex );
 		Bool						parseMultiLanguageStringFile( const char *filename, const char *column, std::vector<StringInfo>& out );
+		void						mergeOwnStringFiles( const AsciiString& dir, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex );
 		void						mergeTextLanguage( std::vector<StringInfo>& merged, LabelIndexMap& labelIndex );
 		void						convertLegacyVisualText( std::vector<StringInfo>& merged );
 };
@@ -254,6 +255,16 @@ static AsciiString s_textLanguageCode;
 static AsciiString s_textLanguagesDir;
 static Bool s_textLogicalRtl = FALSE;
 static AsciiString s_loadedTextLanguage;
+static AsciiString s_textLayers;
+
+// Registry language names (the retail SKUs' and known variants) -> GameTextLanguages codes.
+static const struct { const char *registry; const char *code; } InstalledTextLanguages[] =
+{
+	{ "english", "us" }, { "german", "de" }, { "german2", "de" }, { "french", "fr" }, { "spanish", "es" },
+	{ "italian", "it" }, { "korean", "ko" }, { "chinese", "zh" }, { "chinesetraditional", "zh" },
+	{ "traditionalchinese", "zh" }, { "brazilian", "bp" }, { "portuguese", "bp" }, { "polish", "pl" },
+	{ "russian", "ru" }, { "ukrainian", "uk" }, { "arabic", "ar" },
+};
 
 void SetGameTextOptions( const AsciiString &languageCode, const AsciiString &languagesDir, Bool logicalRtl )
 {
@@ -281,6 +292,22 @@ Bool IsGameTextRightToLeft()
 			return GameTextLanguages[i].rightToLeft;
 	}
 	return FALSE;
+}
+
+const char *GetInstalledGameTextLanguage()
+{
+	const AsciiString registry = GetRegistryLanguage();
+	for ( Int i = 0; i < (Int)ARRAY_SIZE( InstalledTextLanguages ); ++i )
+	{
+		if ( registry.compareNoCase( InstalledTextLanguages[i].registry ) == 0 )
+			return InstalledTextLanguages[i].code;
+	}
+	return nullptr;
+}
+
+AsciiString GetGameTextLayers()
+{
+	return s_textLayers;
 }
 
 //----------------------------------------------------------------------------
@@ -401,6 +428,11 @@ void GameTextManager::init()
 	// Apply lowest priority (last alphabetically) first, so higher priority files overwrite it last.
 	std::vector<StringInfo> merged;
 	LabelIndexMap labelIndex;
+	s_textLayers.clear();
+
+	// Generals Online's English strings go under everything, so a label without a translation shows English.
+	if ( GetRegistryLanguage().compareNoCase( "english" ) != 0 )
+		mergeOwnStringFiles( "data\\English\\", merged, labelIndex );
 
 	for ( Int i = (Int)sortedFiles.size() - 1; i >= 0; i-- )
 	{
@@ -409,6 +441,18 @@ void GameTextManager::init()
 
 	// The chosen text language goes over everything the installed language provided.
 	mergeTextLanguage( merged, labelIndex );
+
+	// Generals Online's strings in the chosen language, else the installed one, over everything.
+	Bool chosenKnown = FALSE;
+	for ( Int i = 0; i < GameTextLanguageCount; ++i )
+		chosenKnown = chosenKnown || s_textLanguageCode.compare( GameTextLanguages[i].code ) == 0;
+	const char *ownCode = chosenKnown ? s_textLanguageCode.str() : GetInstalledGameTextLanguage();
+	if ( ownCode != nullptr && strcmp( ownCode, "us" ) != 0 )
+	{
+		AsciiString ownDir;
+		ownDir.format( "data\\Languages\\%s\\", ownCode );
+		mergeOwnStringFiles( ownDir, merged, labelIndex );
+	}
 
 	if ( s_textLogicalRtl )
 	{
@@ -483,29 +527,55 @@ Bool GameTextManager::determineBaseFile( const AsciiString& csfFile, AsciiString
 }
 
 //============================================================================
-// GameTextManager::collectStringFiles
+// listStringFiles
 //============================================================================
-// Scans data\ and data\<Language>\ (non-recursive, loose + every .big + embedded
-// archive) for *.str and *.csf files that may layer over the base table.
+// The *.str and *.csf files directly in dir (loose + every .big + embedded archive).
 
-void GameTextManager::collectStringFiles( FilenameList& files )
+static void listStringFiles( const AsciiString& dir, FilenameList& files )
 {
-	AsciiString neutralDir( "data\\" );
-	AsciiString languageDir;
-	languageDir.format( "data\\%s\\", GetRegistryLanguage().str() );
-
 	FilenameList found;
-	TheFileSystem->getFileListInDirectory( neutralDir, "*.str", found, FALSE );
-	TheFileSystem->getFileListInDirectory( neutralDir, "*.csf", found, FALSE );
-	TheFileSystem->getFileListInDirectory( languageDir, "*.str", found, FALSE );
-	TheFileSystem->getFileListInDirectory( languageDir, "*.csf", found, FALSE );
+	TheFileSystem->getFileListInDirectory( dir, "*.str", found, FALSE );
+	TheFileSystem->getFileListInDirectory( dir, "*.csf", found, FALSE );
 
 	// Archives list subdirectories regardless of the flag; keep data\Languages\<code>\ and the like out.
 	for ( FilenameListIter it = found.begin(); it != found.end(); ++it )
 	{
-		const AsciiString& dir = it->startsWithNoCase( languageDir ) ? languageDir : neutralDir;
 		if ( !it->startsWithNoCase( dir ) || strpbrk( it->str() + dir.getLength(), "\\/" ) == nullptr )
 			files.insert( *it );
+	}
+}
+
+//============================================================================
+// GameTextManager::collectStringFiles
+//============================================================================
+// Scans data\ and data\<Language>\ for *.str and *.csf files that may layer over the base table.
+
+void GameTextManager::collectStringFiles( FilenameList& files )
+{
+	AsciiString languageDir;
+	languageDir.format( "data\\%s\\", GetRegistryLanguage().str() );
+
+	listStringFiles( "data\\", files );
+	listStringFiles( languageDir, files );
+}
+
+//============================================================================
+// GameTextManager::mergeOwnStringFiles
+//============================================================================
+// Layers dir's tables other than the base game's generals.csf/.str, alphabetically first winning.
+
+void GameTextManager::mergeOwnStringFiles( const AsciiString& dir, std::vector<StringInfo>& merged, LabelIndexMap& labelIndex )
+{
+	FilenameList files;
+	listStringFiles( dir, files );
+	std::vector<AsciiString> sortedFiles( files.begin(), files.end() );
+	std::stable_sort( sortedFiles.begin(), sortedFiles.end(), basenameLess );
+	for ( Int i = (Int)sortedFiles.size() - 1; i >= 0; i-- )
+	{
+		const char *name = getFileBaseName( sortedFiles[i] );
+		if ( stricmp( name, "generals.csf" ) == 0 || stricmp( name, "generals.str" ) == 0 )
+			continue;
+		mergeStringFile( sortedFiles[i], merged, labelIndex );
 	}
 }
 
@@ -575,6 +645,10 @@ void GameTextManager::mergeEntries( const StringInfo *entries, Int count, const 
 	}
 
 	DEBUG_LOG(("GameText: Loaded string file '%s' (%d entries, %d overridden)", source, count, overrideCount));
+
+	AsciiString layer;
+	layer.format( "%s%s (%d)", s_textLayers.isEmpty() ? "" : ", ", source, count );
+	s_textLayers.concat( layer );
 }
 
 //============================================================================
@@ -587,8 +661,7 @@ void GameTextManager::mergeEntries( const StringInfo *entries, Int count, const 
 //                                          <CODE>: lines and falling back to US: for labels without one
 //   2. data\Languages\<code>\generals.csf  the Generals Game Patch text bundled in the embedded archive
 //   3. the installed language               (the language then counts as not loaded)
-// The game's own strings then come from the other files in data\Languages\<code>\ (the embedded
-// archive, loose files or a .big), over whichever base was used.
+// init() then layers the game's own strings for the language (mergeOwnStringFiles()).
 
 void GameTextManager::mergeTextLanguage( std::vector<StringInfo>& merged, LabelIndexMap& labelIndex )
 {
@@ -642,19 +715,6 @@ void GameTextManager::mergeTextLanguage( std::vector<StringInfo>& merged, LabelI
 	{
 		DEBUG_LOG(("GameText: No '%s' text in '%s' or the bundled files, keeping the installed language", s_textLanguageCode.str(), s_textLanguagesDir.str()));
 		return;
-	}
-
-	FilenameList files;
-	TheFileSystem->getFileListInDirectory( gameDir, "*.csf", files, FALSE );
-	TheFileSystem->getFileListInDirectory( gameDir, "*.str", files, FALSE );
-	std::vector<AsciiString> sortedFiles( files.begin(), files.end() );
-	std::stable_sort( sortedFiles.begin(), sortedFiles.end(), basenameLess );
-	for ( Int i = (Int)sortedFiles.size() - 1; i >= 0; i-- )
-	{
-		// The bundled base table was either merged above or is shadowed by the user's override.
-		if ( stricmp( getFileBaseName( sortedFiles[i] ), "generals.csf" ) == 0 )
-			continue;
-		mergeStringFile( sortedFiles[i], merged, labelIndex );
 	}
 
 	s_loadedTextLanguage = s_textLanguageCode;

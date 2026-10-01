@@ -230,6 +230,11 @@ AsciiString GetRegistryLanguage()
 #else
 	GetStringFromRegistry("", "Language", val);
 #endif
+#if defined(RTS_DEBUG)
+	// Simulates another install language for testing (its data\<Language>\ text must be present).
+	if (const char *simulated = getenv("GO_INSTALL_LANGUAGE"))
+		val = simulated;
+#endif
 	return val;
 }
 

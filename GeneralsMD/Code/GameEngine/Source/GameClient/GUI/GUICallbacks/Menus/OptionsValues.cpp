@@ -27,7 +27,6 @@
 #include "Common/GameLOD.h"
 #include "Common/GlobalData.h"
 #include "Common/OptionPreferences.h"
-#include "Common/Registry.h"
 #include "GameClient/Display.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GameClient.h"
@@ -512,27 +511,9 @@ void ApplyHTTPProxy(const AsciiString &proxy)
 	ghttpSetProxy(proxy.str());
 }
 
-// The GameTextLanguages code of the installed game (its registry language), or null if it has none.
-static const char *GetInstalledTextLanguageCode()
-{
-	static const struct { const char *registry; const char *code; } installed[] =
-	{
-		{ "english", "us" }, { "german", "de" }, { "french", "fr" }, { "spanish", "es" }, { "italian", "it" },
-		{ "korean", "ko" }, { "chinese", "zh" }, { "brazilian", "bp" }, { "polish", "pl" },
-		{ "russian", "ru" }, { "ukrainian", "uk" }, { "arabic", "ar" },
-	};
-	const AsciiString registry = GetRegistryLanguage();
-	for (size_t i = 0; i < ARRAY_SIZE(installed); ++i)
-	{
-		if (registry.compareNoCase(installed[i].registry) == 0)
-			return installed[i].code;
-	}
-	return nullptr;
-}
-
 Int GetInstalledTextLanguageChoice()
 {
-	const char *code = GetInstalledTextLanguageCode();
+	const char *code = GetInstalledGameTextLanguage();
 	for (Int i = 0; code && i < GameTextLanguageCount; ++i)
 	{
 		if (stricmp(code, GameTextLanguages[i].code) == 0)

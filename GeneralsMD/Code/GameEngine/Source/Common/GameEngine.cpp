@@ -587,6 +587,8 @@ void GameEngine::init()
 			SetGameTextOptions(AsciiString(language.c_str()), languagesDir, TRUE);
 		}
 		initSubsystem(TheGameText, "TheGameText", CreateGameTextInterface(), nullptr);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "GameText: installed '%s', language '%s', tables (lowest first): %s",
+			GetRegistryLanguage().str(), GetGameTextLanguage().str(), GetGameTextLayers().str());
 		if (!NGMP_OnlineServicesManager::Settings.UI_GetLanguage().empty() && GetGameTextLanguage().isEmpty())
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Game language '%s' has no text files, using the installed language",
