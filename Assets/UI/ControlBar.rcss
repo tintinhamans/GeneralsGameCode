@@ -1,26 +1,29 @@
 /*
 	ControlBar.rcss -- the in-game control bar (ControlBar.rml, RmlControlBarScreen), laid out after Control Bar
 	Pro (TheSuperHackers, MIT): a radar panel bottom left, the command panel bottom centre with the money on a
-	notch above it and the buttons round the bar down its left side, the selection bottom right with the
-	general's tab over it and the powers column above that; the tooltip over the radar, the promotions over the
-	grid. Sizes follow Pro's at 1080 lines and are in dp, so they keep the same share of the screen height at
-	every resolution.
+	notch above it and the buttons round the bar down its left side, the selection bottom right with a tower
+	over its right end (the general's tab, the powers column standing on it); the tooltip over the radar, the
+	promotions over the grid. Sizes follow Pro's at 1080 lines and are in dp, so they keep the same share of
+	the screen height at every resolution.
 
-	The look is an instrument panel: graphite plates with a restrained bevel and precise corner cuts, recessed
-	wells, hairline button frames, small caps labels and plain numerals (Noto Sans figures are tabular). The
-	side shows only as a muted line inside each plate's top edge and a small tag by the selection's name:
-	steel blue for the USA, red for China, tan for the GLA, blue-grey for observers (and any other side). The
-	plates, wells, frames, notch, tab and wings are ninepatch sprites from Textures/ControlBar/cb_<faction>.png
-	(generated art, 2 px per dp).
+	The look is a military instrument panel in the side's metal: clean steel blue for the USA, heavy dark iron
+	with red plates for China, worn tan with rust and weld wear for the GLA, blue-grey for observers (and any
+	other side). Every panel is three layers:
+	  .cb-skin   the plate behind everything, baked at the panel's size (scanline field, mottling, vignette)
+	  content    header channels with small caps labels, the bezelled radar screen, recessed slot wells, the
+	             segmented power and experience meters, buttons in metal bezels
+	  .cb-frame  the two-layer bezel (dark housing, textured metal face with a groove) over the edges
+	plus the side's accent plates on the rims and fins on the command panel's sides. The art is generated
+	(Textures/ControlBar/cb_<faction>.png, 2 px per dp for the ninepatch pieces, 1 px per dp for the skins).
 
-	Wide screens: the dock (everything but the rail and the wings) spans the screen up to 21:9 and is centred
-	beyond it, the wings and the rail carrying the bar out to the edges. The interface width option narrows it
-	further (body.iw-169, RmlInterfaceArea.h). 5:4 and 4:3 move the command panel right next to the radar.
+	Wide screens: the dock spans the screen up to 21:9 and is centred beyond it, the wings and the rail carrying
+	the bar out to the edges. The interface width option narrows it further (body.iw-169, RmlInterfaceArea.h).
+	5:4 and 4:3 move the command panel right next to a slightly smaller radar.
 
-	Buttons (.cb-slot) are 5:4 like the cameo art: a recess, the cameo in the frame's window, the veterancy art
-	on it, the clock darkening what is still to go from the top, the hotkey small bottom left, a count top right,
-	and the command's border kind as a hairline along the window's top (build blue, upgrade orange, action teal,
-	system yellow, as the .wnd borders, muted).
+	Buttons (.cb-slot) are 5:4 like the cameo art: an empty slot is a recessed well with corner marks; a live
+	one has the cameo in a metal bezel, the veterancy art, the clock darkening what is still to go, the hotkey
+	on a badge bottom left, a count top right, and the command's border kind as a hairline along the top of
+	the cameo (build blue, upgrade orange, action teal, system yellow, as the .wnd borders).
 */
 
 body.cb
@@ -44,7 +47,7 @@ body.cb
 	bottom: 0;
 	height: 8dp;
 	pointer-events: none;
-	decorator: vertical-gradient(#2C3036 #131519);
+	decorator: vertical-gradient(#3A3F46 #121418);
 	border-top: 1dp #06070A;
 }
 
@@ -66,14 +69,14 @@ body.cb
 	display: none;
 	position: absolute;
 	bottom: 0;
-	height: 36dp;
+	height: 26dp;
 	pointer-events: none;
 }
 
 .cb-wing-l { left: 0; right: 50%; margin-right: 1266dp; }
 .cb-wing-r { left: 50%; right: 0; margin-left: 1266dp; }
 
-/* ---- Panels ----------------------------------------------------------------------------------------- */
+/* ---- Panels: skin under, frame over ------------------------------------------------------------------ */
 .cb-panel
 {
 	display: block;
@@ -81,16 +84,60 @@ body.cb
 	bottom: 0;
 	box-sizing: border-box;
 	pointer-events: auto;
+	z-index: 0; /* its own stack: the skin under the content, the frame over it */
 }
 
-/* small caps labels */
-.cb-power-label, .cb-sci-tier, .cb-beacon-label, .cb-obs-label
+.cb-skin, .cb-frame
 {
-	font-size: 12dp;
-	line-height: 16dp;
-	letter-spacing: 2dp;
+	display: block;
+	position: absolute;
+	pointer-events: none;
+}
+
+.cb-skin { left: 6dp; top: 6dp; right: 6dp; bottom: 0; z-index: -1; }
+.cb-frame { left: 0; top: 0; right: 0; bottom: 0; }
+
+/* the side's stepped accent plates on a rim */
+.cb-plate
+{
+	display: block;
+	position: absolute;
+	top: 0;
+	width: 60dp;
+	height: 7dp;
+	pointer-events: none;
+	z-index: 1; /* over the frame */
+}
+
+/* a recessed header channel and its small caps label */
+.cb-head
+{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	position: relative;
+	height: 20dp;
+	margin-bottom: 6dp;
+	padding: 0 22dp 0 20dp;
+}
+
+.cb-head-label, .cb-power-label, .cb-sci-tier, .cb-beacon-label, .cb-obs-label
+{
+	font-size: 11dp;
+	line-height: 14dp;
+	font-weight: bold;
+	letter-spacing: 3dp;
 	text-transform: uppercase;
-	color: #8A929C;
+}
+
+.cb-head-label { flex: 1 1 auto; }
+
+.cb-head-vent, .cb-vent
+{
+	display: block;
+	flex: 0 0 auto;
+	width: 20dp;
+	height: 11dp;
 }
 
 /* ---- Radar ------------------------------------------------------------------------------------------ */
@@ -99,52 +146,84 @@ body.cb
 	left: 0;
 	width: 332dp;
 	height: 332dp;
-	padding: 18dp 14dp 6dp 6dp;
+	padding: 28dp 21dp 8dp 8dp;
 }
+
+.cb-radar .cb-skin { left: 0; }
 
 .cb-radar-well
 {
 	display: block;
 	position: relative;
-	width: 100%;
-	height: 100%;
+	height: 270dp;
 	box-sizing: border-box;
+	background-color: #030405;
 }
 
-/* the engine draws the radar here (RmlRadarElement) */
+/* the engine draws the radar here (RmlRadarElement); the bezel's ring lies over the screen's edge */
 .cb-radar-map
 {
 	display: block;
 	position: absolute;
-	left: 3dp;
-	top: 3dp;
-	right: 3dp;
-	bottom: 3dp;
+	left: 7dp;
+	top: 7dp;
+	right: 7dp;
+	bottom: 7dp;
 }
 
-/* under attack: a red hairline inside the well, blinking with the .wnd's WinUAttack light */
-.cb-radar.alert .cb-radar-well { border: 1dp #D04848; }
+.cb-radar-bezel
+{
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	pointer-events: none;
+}
 
-/* ---- Centre: the notch, the power strip, the side buttons and the grid ---------------------------- */
+.cb-plate-radar { left: 110dp; }
+
+/* under attack: the screen's edge blinks red with the .wnd's WinUAttack light */
+.cb-radar.alert .cb-radar-map { border: 1dp #E04848; }
+.cb-radar.alert .cb-head-label { color: #FF7060; }
+
+/* ---- Centre: the money notch, the power channel, the side buttons and the grid ---------------------- */
 .cb-centre
 {
 	display: block;
 	position: absolute;
 	left: 50%;
 	bottom: 0;
-	width: 768dp;
-	margin-left: -384dp;
-	height: 240dp;
+	width: 772dp;
+	margin-left: -386dp;
+	height: 246dp;
 	pointer-events: none;
 }
+
+.cb-fin
+{
+	display: block;
+	position: absolute;
+	bottom: 70dp;
+	width: 6dp;
+	height: 60dp;
+	pointer-events: none;
+}
+
+.cb-fin-l { left: 5dp; }
+.cb-fin-r { right: 5dp; }
 
 .cb-main
 {
 	left: 10dp;
-	width: 748dp;
-	height: 208dp;
-	padding: 18dp 18dp 6dp 18dp;
+	width: 752dp;
+	height: 212dp;
+	padding: 27dp 22dp 6dp 22dp;
 }
+
+.cb-plate-ml { left: 130dp; }
+.cb-plate-mr { right: 130dp; }
 
 .cb-notch-row
 {
@@ -155,27 +234,30 @@ body.cb
 	left: 0;
 	right: 0;
 	top: 0;
-	height: 40dp;
+	height: 44dp;
 	pointer-events: none;
 }
 
+/* the funds on a glass readout */
 .cb-money
 {
 	display: block;
 	flex: 0 0 auto;
 	box-sizing: border-box;
-	min-width: 200dp;
-	height: 40dp;
-	padding: 6dp 32dp 0 32dp;
+	min-width: 220dp;
+	height: 44dp;
+	padding: 8dp 38dp 0 38dp;
 	font-size: 22dp;
-	line-height: 30dp;
-	letter-spacing: 1dp;
+	line-height: 28dp;
+	letter-spacing: 2dp;
 	text-align: center;
 	white-space: nowrap;
-	color: #E4E8EE;
+	color: #C8F060;
+	font-effect: glow(0dp 4dp 0dp 0dp #9CD01C40);
 	pointer-events: auto;
 }
 
+/* the power channel: label, segmented meter, value */
 .cb-strip
 {
 	display: flex;
@@ -183,6 +265,7 @@ body.cb
 	align-items: center;
 	height: 22dp;
 	margin-bottom: 8dp;
+	padding: 0 12dp 0 12dp;
 }
 
 .cb-strip-fill { flex: 1 1 auto; }
@@ -198,7 +281,6 @@ body.cb
 
 .cb-power-label { flex: 0 0 auto; margin-right: 10dp; }
 
-/* the gauge: a recess, the supply fill, the scale's ticks and the consumption needle */
 .cb-power-bar
 {
 	display: block;
@@ -215,13 +297,13 @@ body.cb
 	top: 2dp;
 	height: 10dp;
 	max-width: 100%;
-	background-color: #7C9C48;
+	decorator: vertical-gradient(#9CC850 #5A8A26);
 }
 
-.cb-power.low-power .cb-power-fill { background-color: #B89A3C; }
-.cb-power.no-power .cb-power-fill { background-color: #A8463E; }
+.cb-power.low-power .cb-power-fill { decorator: vertical-gradient(#E0C050 #A07E18); }
+.cb-power.no-power .cb-power-fill { decorator: vertical-gradient(#E06050 #9A2418); }
 
-.cb-power-ticks
+.cb-power-seg
 {
 	display: block;
 	position: absolute;
@@ -248,9 +330,11 @@ body.cb
 	position: absolute;
 	right: 0;
 	top: 0;
-	width: 2dp;
+	width: 3dp;
 	height: 14dp;
+	box-sizing: border-box;
 	background-color: #F2F4F7;
+	border: 1dp #000000;
 }
 
 .cb-power-value
@@ -260,11 +344,11 @@ body.cb
 	font-size: 15dp;
 	text-align: right;
 	margin-left: 10dp;
-	color: #C8CED6;
+	color: #D8DDE4;
 }
 
-.cb-power.no-power .cb-power-value { color: #D87068; }
-.cb-power.low-power .cb-power-value { color: #D8C070; }
+.cb-power.no-power .cb-power-value { color: #F07868; }
+.cb-power.low-power .cb-power-value { color: #E8D070; }
 
 /* a replay plays */
 .cb-replay
@@ -275,6 +359,7 @@ body.cb
 	margin-left: 12dp;
 	font-size: 11dp;
 	line-height: 16dp;
+	font-weight: bold;
 	letter-spacing: 2dp;
 	color: #D1FD04;
 	border: 1dp #D1FD0480;
@@ -307,8 +392,8 @@ body.cb
 	height: 34dp;
 	margin-bottom: 4dp;
 	text-align: center;
-	background-color: #0C0D10;
-	color: #A8AFB8;
+	background-color: #0A0C0F;
+	color: #B8C0CA;
 }
 
 .cb-glyph
@@ -325,16 +410,16 @@ body.cb
 {
 	display: block;
 	position: absolute;
-	right: 3dp;
-	top: 3dp;
+	right: 4dp;
+	top: 4dp;
 	min-width: 8dp;
-	height: 13dp;
+	height: 14dp;
 	padding: 0 3dp;
 	font-size: 11dp;
-	line-height: 13dp;
-	color: #D1FD04;
-	background-color: #0C0D10E6;
-	border: 1dp #D1FD0470;
+	line-height: 14dp;
+	font-weight: bold;
+	color: #0E1400;
+	background-color: #C8F060;
 }
 
 /* ButtonCommand01..14: two rows, filled a column at a time. */
@@ -358,27 +443,27 @@ body.cb
 	margin: 0 4dp 4dp 0;
 }
 
-.cb-slot.live { background-color: #0C0D10; }
-.cb-slot.live.flash { background-color: #2A3212; }
+.cb-slot.live { background-color: #0A0C0F; }
+.cb-slot.live.flash { background-color: #34400E; }
 
-/* the frame's window */
+/* the bezel's window */
 .cb-win
 {
 	display: block;
 	position: absolute;
-	left: 2dp;
-	top: 2dp;
-	right: 2dp;
-	bottom: 2dp;
+	left: 4dp;
+	top: 4dp;
+	right: 4dp;
+	bottom: 4dp;
 	overflow: hidden;
 	clip: always;
 }
 
-/* the command's border kind along the window's top */
-.cb-slot.live.b1 .cb-win { border-top: 1dp #6A7CC8; }
-.cb-slot.live.b2 .cb-win { border-top: 1dp #C0773A; }
-.cb-slot.live.b3 .cb-win { border-top: 1dp #4AA890; }
-.cb-slot.live.b4 .cb-win { border-top: 1dp #B8A850; }
+/* the command's border kind along the top of the cameo */
+.cb-slot.live.b1 .cb-win { border-top: 2dp #7088E0; }
+.cb-slot.live.b2 .cb-win { border-top: 2dp #E0883A; }
+.cb-slot.live.b3 .cb-win { border-top: 2dp #48C0A0; }
+.cb-slot.live.b4 .cb-win { border-top: 2dp #D8C850; }
 
 .cb-art, .cb-vet
 {
@@ -400,7 +485,7 @@ body.cb
 .cb-slot.off .cb-art img { image-color: #4E525C; }
 .cb-slot.poor .cb-art img { image-color: #8E8E8E; }
 
-/* the clock: what is still to go darkens from the top, a hairline at its edge */
+/* the clock: what is still to go darkens from the top, a lit edge */
 .cb-clock
 {
 	display: block;
@@ -408,36 +493,44 @@ body.cb
 	left: 0;
 	right: 0;
 	top: 0;
-	background-color: #000000A6;
-	border-bottom: 1dp #FFFFFF70;
+	background-color: #000000A8;
+	border-bottom: 1dp #C8F060B0;
 }
 
+/* the hotkey: a small dark badge bottom left, as Pro's */
 .cb-key
 {
 	display: block;
 	position: absolute;
 	left: 4dp;
-	bottom: 3dp;
-	font-size: 12dp;
-	line-height: 14dp;
-	letter-spacing: 1dp;
-	color: #E4E8EE;
-	font-effect: outline(1dp #000000D0);
+	bottom: 4dp;
+	min-width: 11dp;
+	height: 18dp;
+	padding: 0 4dp;
+	font-size: 15dp;
+	line-height: 18dp;
+	font-weight: bold;
+	text-align: center;
+	color: #F2F4F7;
+	background-color: #05070ADC;
+	border-top: 1dp #FFFFFF38;
+	border-right: 1dp #FFFFFF38;
 }
 
-.cb-slot.live:hover .cb-key { color: #D1FD04; }
+.cb-slot.live:hover .cb-key { color: #0E1400; background-color: #D1FD04; }
 .cb-slot.off .cb-key { color: #7A808A; }
 
 .cb-text
 {
 	display: block;
 	position: absolute;
-	right: 5dp;
-	top: 3dp;
-	font-size: 14dp;
+	right: 6dp;
+	top: 5dp;
+	font-size: 15dp;
 	line-height: 16dp;
+	font-weight: bold;
 	color: #F2F4F7;
-	font-effect: outline(1dp #000000D0);
+	font-effect: outline(1dp #000000E0);
 }
 
 /* Under construction and OCL timers */
@@ -472,7 +565,7 @@ body.cb
 {
 	display: block;
 	position: relative;
-	height: 12dp;
+	height: 14dp;
 	margin-top: 10dp;
 	box-sizing: border-box;
 	padding: 2dp;
@@ -482,7 +575,7 @@ body.cb
 {
 	display: block;
 	height: 100%;
-	background-color: #7C9C48;
+	decorator: vertical-gradient(#9CC850 #5A8A26);
 }
 
 /* A beacon: the delete button and the message entry. */
@@ -494,14 +587,15 @@ body.cb
 	flex: 0 0 auto;
 	box-sizing: border-box;
 	height: 34dp;
-	padding: 0 14dp;
+	padding: 0 16dp;
 	font-size: 13dp;
 	line-height: 34dp;
+	font-weight: bold;
 	letter-spacing: 2dp;
 	text-transform: uppercase;
 	white-space: nowrap;
 	color: #C8CED6;
-	background-color: #0C0D10;
+	background-color: #0A0C0F;
 }
 
 .cb-text-btn:hover { color: #D1FD04; }
@@ -538,72 +632,101 @@ input.cb-input
 	font-size: 16dp;
 	line-height: 32dp;
 	color: #E4E8EE;
-	background-color: #08090B;
+	background-color: #050607;
 	border: 1dp #3A3F46;
 }
 
 input.cb-input:focus { border-color: #D1FD04; }
 
-/* ---- The general's tab over the selection: rank, promotions, min/max ----------------------------- */
+/* ---- The tower: the powers column standing on the general's tab, over the selection's right end -------- */
+.cb-tower
+{
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	position: absolute;
+	right: 0;
+	bottom: 238dp;
+	width: 108dp;
+	z-index: 1;
+	pointer-events: none;
+}
+
 .cb-tab
 {
 	display: flex;
 	flex-direction: row;
-	align-items: center;
-	position: absolute;
-	right: 0;
-	bottom: 240dp;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	flex: 0 0 auto;
 	box-sizing: border-box;
-	height: 40dp;
-	padding: 6dp 8dp 0 42dp;
+	height: 76dp;
+	padding: 14dp 6dp 0 14dp;
 	pointer-events: auto;
 }
+
+.cb-tab .cb-vent { display: none; }
 
 .cb-rank
 {
 	display: block;
-	flex: 0 0 auto;
-	width: 84dp;
-	margin-right: 6dp;
-	font-size: 14dp;
+	width: 86dp;
+	height: 22dp;
+	font-size: 15dp;
 	line-height: 20dp;
 	letter-spacing: 2dp;
+	text-align: center;
 	white-space: nowrap;
-	color: #FFFFFF1C;
+	color: #FFFFFF1E;
 }
 
-.cb-star.on { color: #C8D0DA; }
+.cb-star.on { color: #E8C860; font-effect: glow(0dp 3dp 0dp 0dp #E8C86040); }
 
 .cb-side-btn.cb-general, .cb-side-btn.cb-minmax
 {
 	flex: 0 0 auto;
-	width: 46dp;
-	height: 26dp;
-	margin: 0 0 0 4dp;
+	height: 30dp;
+	margin: 2dp 0 0 0;
 }
 
-.cb-side-btn.cb-minmax { width: 34dp; }
-.cb-general .cb-glyph, .cb-minmax .cb-glyph { font-size: 14dp; line-height: 26dp; }
+.cb-side-btn.cb-general { width: 50dp; margin-right: 4dp; }
+.cb-side-btn.cb-minmax { width: 32dp; }
+.cb-tab-row { display: block; flex: 0 0 auto; }
+.cb-general .cb-glyph, .cb-minmax .cb-glyph { font-size: 15dp; line-height: 30dp; }
 .cb-general.lit { color: #D1FD04; }
-.cb-general .cb-badge { right: 2dp; top: 2dp; }
+
+.cb-powers
+{
+	display: block;
+	flex: 0 0 auto;
+	box-sizing: border-box;
+	margin-bottom: 0;
+	padding: 14dp 8dp 6dp 16dp;
+	pointer-events: auto;
+}
+
+.cb-powers-vent { width: 78dp; height: 8dp; margin: 0 0 6dp 0; display: block; }
+
+.cb-slot.cb-pslot
+{
+	width: 78dp;
+	height: 62dp;
+	margin: 0 0 4dp 0;
+}
 
 /* ---- The selection ------------------------------------------------------------------------------------ */
 .cb-unit
 {
 	right: 0;
 	width: 308dp;
-	height: 248dp;
-	padding: 18dp 14dp 6dp 18dp;
+	height: 250dp;
+	padding: 28dp 16dp 6dp 22dp;
 }
 
-.cb-unit-head
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	height: 22dp;
-	margin-bottom: 8dp;
-}
+.cb-unit .cb-skin { right: 0; }
+.cb-plate-unit { left: 70dp; }
+
+.cb-unit-head { padding: 0 20dp 0 12dp; margin-bottom: 6dp; height: 22dp; }
 
 /* the side's small tag by the name */
 .cb-tag
@@ -611,7 +734,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 	display: block;
 	flex: 0 0 auto;
 	width: 3dp;
-	height: 14dp;
+	height: 12dp;
 	margin-right: 8dp;
 }
 
@@ -619,7 +742,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	flex: 1 1 0%;
 	min-width: 0;
-	font-size: 14dp;
+	font-size: 13dp;
 	line-height: 22dp;
 	font-weight: bold;
 	letter-spacing: 2dp;
@@ -633,8 +756,9 @@ input.cb-input:focus { border-color: #D1FD04; }
 .cb-count
 {
 	flex: 0 0 auto;
-	font-size: 15dp;
-	color: #C8CED6;
+	font-size: 14dp;
+	font-weight: bold;
+	color: #C8F060;
 	margin-left: 8dp;
 }
 
@@ -645,7 +769,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 	height: 188dp;
 }
 
-/* Pro's 3 x 3 cells: the portrait takes four, the upgrades the right column and the bottom row */
+/* Pro's 3 x 3 cells, every one a well: the portrait takes four, the upgrades the right column and the bottom row */
 .cb-cells
 {
 	display: block;
@@ -655,18 +779,34 @@ input.cb-input:focus { border-color: #D1FD04; }
 	height: 188dp;
 }
 
+.cb-cell
+{
+	display: block;
+	position: absolute;
+	width: 78dp;
+	height: 62dp;
+}
+
+.cb-cell0 { left: 0; top: 0; }
+.cb-cell1 { left: 81dp; top: 0; }
+.cb-cell2 { left: 162dp; top: 0; }
+.cb-cell3 { left: 0; top: 63dp; }
+.cb-cell4 { left: 81dp; top: 63dp; }
+.cb-cell5 { left: 162dp; top: 63dp; }
+.cb-cell6 { left: 0; top: 126dp; }
+.cb-cell7 { left: 81dp; top: 126dp; }
+.cb-cell8 { left: 162dp; top: 126dp; }
+
 .cb-portrait
 {
 	display: block;
 	position: absolute;
 	left: 0;
 	top: 0;
-	width: 158dp;
-	height: 124dp;
-	background-color: #0C0D10;
+	width: 159dp;
+	height: 125dp;
+	background-color: #0A0C0F;
 }
-
-.cb-portrait .cb-win { left: 2dp; top: 2dp; right: 2dp; bottom: 2dp; }
 
 .cb-portrait-vet
 {
@@ -695,7 +835,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 	box-sizing: border-box;
 	width: 78dp;
 	height: 62dp;
-	background-color: #0C0D10;
+	background-color: #0A0C0F;
 }
 
 .cb-up0 { left: 162dp; top: 0; }
@@ -733,55 +873,56 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	display: block;
 	position: absolute;
-	left: 2dp;
-	top: 2dp;
-	width: 154dp;
-	height: 120dp;
+	left: 4dp;
+	top: 4dp;
+	width: 151dp;
+	height: 117dp;
 	background-color: #000000;
 }
 
-/* Several things selected: how many. */
+/* Several things selected: how many, on the portrait's place. */
 .cb-multi
 {
 	display: block;
 	position: absolute;
 	left: 0;
-	top: 30dp;
-	width: 243dp;
-	font-size: 48dp;
-	line-height: 100dp;
+	top: 0;
+	width: 159dp;
+	height: 125dp;
+	font-size: 44dp;
+	line-height: 125dp;
 	text-align: center;
 	color: #E4E8EE;
+	background-color: #0A0C0FC0;
 }
 
-.cb-multi-x { font-size: 30dp; color: #8A929C; margin-right: 6dp; }
+.cb-multi-x { font-size: 26dp; color: #8A929C; margin-right: 4dp; }
 
-/* Nothing selected: the side's emblem, faint and grey. */
+/* Nothing selected: the side's emblem, faint and grey, on the portrait's place. */
 .cb-emblem
 {
 	display: block;
 	position: absolute;
-	left: 60dp;
-	top: 30dp;
-	width: 120dp;
-	height: 120dp;
-	opacity: 0.08;
+	left: 22dp;
+	top: 6dp;
+	width: 114dp;
+	height: 114dp;
+	opacity: 0.10;
 }
 
-.cb-emblem-img { display: block; width: 120dp; height: 120dp; }
+.cb-emblem-img { display: block; width: 114dp; height: 114dp; }
 .cb-emblem img { image-color: #B0B0B0; }
 
-/* the general's experience: Pro's upright gauge at the right edge */
+/* the general's experience: Pro's upright gauge at the right edge, segmented */
 .cb-exp
 {
 	display: block;
 	position: relative;
 	flex: 0 0 auto;
-	width: 12dp;
+	width: 14dp;
 	height: 188dp;
-	margin-left: 15dp;
+	margin-left: 13dp;
 	box-sizing: border-box;
-	padding: 2dp;
 }
 
 .cb-exp-fill
@@ -792,10 +933,10 @@ input.cb-input:focus { border-color: #D1FD04; }
 	right: 2dp;
 	bottom: 2dp;
 	max-height: 184dp;
-	background-color: #8C9A6A;
+	decorator: horizontal-gradient(#E8C860 #A8882C);
 }
 
-.cb-exp-marks
+.cb-exp-seg
 {
 	display: block;
 	position: absolute;
@@ -805,30 +946,14 @@ input.cb-input:focus { border-color: #D1FD04; }
 	bottom: 2dp;
 }
 
-/* ---- The general's powers: a column at the right edge above the tab ------------------------------------ */
-.cb-powers
-{
-	right: 0;
-	bottom: 290dp;
-	width: 100dp;
-	padding: 14dp 10dp 8dp 12dp;
-}
-
-.cb-slot.cb-pslot
-{
-	width: 78dp;
-	height: 62dp;
-	margin: 0 0 4dp 0;
-}
-
 /* ---- The promotions panel: over the grid, the tiers of the side's sciences ---------------------------- */
 .cb-science
 {
 	left: 50%;
 	margin-left: -268dp;
-	bottom: 252dp;
+	bottom: 258dp;
 	width: 536dp;
-	padding: 16dp 22dp 18dp 22dp;
+	padding: 18dp 24dp 20dp 24dp;
 }
 
 .cb-sci-head
@@ -857,8 +982,9 @@ input.cb-input:focus { border-color: #D1FD04; }
 	padding: 0 8dp;
 	font-size: 14dp;
 	line-height: 22dp;
-	color: #D1FD04;
-	border: 1dp #D1FD0480;
+	font-weight: bold;
+	color: #0E1400;
+	background-color: #C8F060;
 }
 
 .cb-sci-star { margin-right: 4dp; }
@@ -866,7 +992,8 @@ input.cb-input:focus { border-color: #D1FD04; }
 .cb-sci-exp
 {
 	display: block;
-	height: 8dp;
+	position: relative;
+	height: 10dp;
 	margin: 10dp 0 4dp 0;
 	box-sizing: border-box;
 	padding: 2dp;
@@ -876,7 +1003,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	display: block;
 	height: 100%;
-	background-color: #8C9A6A;
+	decorator: vertical-gradient(#E8C860 #A8882C);
 }
 
 .cb-sci-tier
@@ -906,11 +1033,12 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	display: block;
 	position: absolute;
-	right: 4dp;
-	bottom: 3dp;
-	font-size: 13dp;
+	right: 5dp;
+	bottom: 4dp;
+	font-size: 14dp;
 	line-height: 14dp;
-	color: #6CC0A8;
+	font-weight: bold;
+	color: #6CD0B0;
 	font-effect: outline(1dp #000000D0);
 }
 
@@ -928,7 +1056,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 	left: 8dp;
 	bottom: 344dp;
 	width: 420dp;
-	padding: 14dp 18dp 16dp 18dp;
+	padding: 16dp 20dp 18dp 20dp;
 	pointer-events: none;
 }
 
@@ -956,13 +1084,15 @@ input.cb-input:focus { border-color: #D1FD04; }
 	flex: 0 0 auto;
 	min-width: 12dp;
 	height: 18dp;
-	padding: 0 4dp;
+	padding: 0 5dp;
 	margin-left: 10dp;
 	font-size: 12dp;
 	line-height: 18dp;
+	font-weight: bold;
 	text-align: center;
-	color: #C8CED6;
-	border: 1dp #4A5058;
+	color: #F2F4F7;
+	background-color: #05070AE0;
+	border: 1dp #FFFFFF40;
 }
 
 .cb-tip-cost
@@ -971,7 +1101,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 	margin-top: 4dp;
 	font-size: 15dp;
 	line-height: 20dp;
-	color: #C8D6A0;
+	color: #C8F060;
 }
 
 .cb-tip-desc
@@ -983,7 +1113,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 	font-size: 14dp;
 	line-height: 20dp;
 	white-space: pre-line;
-	color: #A6AEB8;
+	color: #AEB6C0;
 }
 
 /* ---- Observing ------------------------------------------------------------------------------------ */
@@ -1007,7 +1137,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 	height: 34dp;
 	margin: 0 8dp 3dp 0;
 	padding: 0 8dp 0 3dp;
-	background-color: #0C0D10E6;
+	background-color: #0A0C0FE6;
 	border-left: 2dp #FFFFFF22;
 }
 
@@ -1100,14 +1230,15 @@ input.cb-input:focus { border-color: #D1FD04; }
 
 .cb-obs-back { margin: 0 4dp 0 12dp; }
 
-/* ---- Collapsed (the min/max button, CONTROL_BAR_STAGE_LOW): the notch, the power strip, the buttons ---- */
+/* ---- Collapsed (the min/max button, CONTROL_BAR_STAGE_LOW): the notch, the power channel, the buttons -- */
 body.low .cb-radar, body.low .cb-unit, body.low .cb-powers { display: none; }
-body.low .cb-main { height: 94dp; }
+body.low .cb-main { height: 98dp; }
 body.low .cb-grid, body.low .cb-task, body.low .cb-observers, body.low .cb-observed { display: none; }
 body.low .cb-body { height: 40dp; }
 body.low .cb-side { flex-direction: row; width: auto; height: 40dp; }
-body.low .cb-side-btn { margin: 0 6dp 0 0; }
-body.low .cb-tab { bottom: 0; }
+body.low .cb-side .cb-side-btn { margin: 0 6dp 0 0; }
+body.low .cb-tower { bottom: 0; }
+body.low .cb-fin { display: none; }
 body.low .cb-tip { bottom: 140dp; }
 body.low .cb-science { bottom: 140dp; }
 
@@ -1115,18 +1246,24 @@ body.low .cb-science { bottom: 140dp; }
 @media (max-aspect-ratio: 29/20)
 {
 	.cb-radar { width: 280dp; height: 280dp; }
+	.cb-radar-well { height: 218dp; }
 	.cb-centre { left: 274dp; margin-left: 0; }
+	.cb-fin { display: none; }
 	.cb-science { left: 390dp; margin-left: 0; }
 	.cb-tip { bottom: 292dp; }
 }
 
 /* ---- Wide screens: past 21:9 (43:18, 3440x1440) the dock stops and centres; the wings carry the bar out to
    the edges. The interface width option's 21:9 is the same band, so only its 16:9 needs its own rule
-   (RmlInterfaceArea.h sets body.iw-169). ------------------------------------------------------------------ */
+   (RmlInterfaceArea.h sets body.iw-169). The radar and the selection then close their outer sides. -------- */
 @media (min-aspect-ratio: 12/5)
 {
 	.cb-dock { left: 50%; right: auto; width: 2580dp; margin-left: -1290dp; }
 	.cb-wing { display: block; }
+	.cb-radar { padding-left: 16dp; }
+	.cb-radar .cb-skin { left: 6dp; }
+	.cb-unit .cb-skin { right: 6dp; }
+	.cb-tower { right: 8dp; }
 }
 
 @media (min-aspect-ratio: 161/90)
@@ -1135,6 +1272,10 @@ body.low .cb-science { bottom: 140dp; }
 	body.iw-169 .cb-wing { display: block; }
 	body.iw-169 .cb-wing-l { margin-right: 936dp; }
 	body.iw-169 .cb-wing-r { margin-left: 936dp; }
+	body.iw-169 .cb-radar { padding-left: 16dp; }
+	body.iw-169 .cb-radar .cb-skin { left: 6dp; }
+	body.iw-169 .cb-unit .cb-skin { right: 6dp; }
+	body.iw-169 .cb-tower { right: 8dp; }
 }
 
 /* ---- Art: the faction sheets (Textures/ControlBar, generated) ------------------------------------ */
@@ -1142,147 +1283,237 @@ body.low .cb-science { bottom: 140dp; }
 {
 	src: Textures/ControlBar/cb_usa.png;
 	resolution: 2x;
-	cb-usa-frame-c: 0px 0px 128px 96px;
-	cb-usa-frame-c-in: 40px 36px 48px 40px;
-	cb-usa-frame-l: 130px 0px 128px 96px;
-	cb-usa-frame-l-in: 134px 36px 84px 40px;
-	cb-usa-frame-r: 260px 0px 128px 96px;
-	cb-usa-frame-r-in: 300px 36px 84px 40px;
-	cb-usa-box: 390px 0px 96px 96px;
-	cb-usa-box-in: 424px 34px 28px 28px;
-	cb-usa-well: 488px 0px 24px 24px;
-	cb-usa-well-in: 494px 6px 12px 12px;
-	cb-usa-btn-normal: 0px 98px 40px 40px;
-	cb-usa-btn-normal-in: 14px 112px 12px 12px;
-	cb-usa-btn-hover: 42px 98px 40px 40px;
-	cb-usa-btn-hover-in: 56px 112px 12px 12px;
-	cb-usa-btn-pressed: 84px 98px 40px 40px;
-	cb-usa-btn-pressed-in: 98px 112px 12px 12px;
-	cb-usa-btn-checked: 126px 98px 40px 40px;
-	cb-usa-btn-checked-in: 140px 112px 12px 12px;
-	cb-usa-btn-disabled: 168px 98px 40px 40px;
-	cb-usa-btn-disabled-in: 182px 112px 12px 12px;
-	cb-usa-notch: 210px 98px 144px 40px;
-	cb-usa-notch-in: 258px 128px 48px 8px;
-	cb-usa-tab: 356px 98px 104px 40px;
-	cb-usa-tab-in: 404px 128px 54px 8px;
-	cb-usa-wing-l: 0px 140px 104px 40px;
-	cb-usa-wing-l-in: 2px 170px 54px 8px;
-	cb-usa-ticks: 106px 140px 256px 16px;
+	cb-usa-body-radar-l: 0px 0px 326px 326px;
+	cb-usa-body-radar-c: 328px 0px 320px 326px;
+	cb-usa-body-unit-r: 650px 0px 302px 242px;
+	cb-usa-body-unit-c: 0px 328px 296px 242px;
+	cb-usa-body-main: 0px 572px 736px 204px;
+	cb-usa-seg-v: 738px 572px 12px 188px;
+	cb-usa-frame-c: 752px 572px 200px 140px;
+	cb-usa-frame-c-in: 816px 636px 72px 56px;
+	cb-usa-frame-l: 0px 778px 200px 140px;
+	cb-usa-frame-l-in: 6px 842px 130px 56px;
+	cb-usa-frame-r: 202px 778px 200px 140px;
+	cb-usa-frame-r-in: 266px 842px 130px 56px;
+	cb-usa-box: 404px 778px 140px 140px;
+	cb-usa-box-in: 454px 828px 40px 40px;
+	cb-usa-tower-r: 546px 778px 160px 120px;
+	cb-usa-tower-r-in: 596px 828px 104px 58px;
+	cb-usa-tower-c: 708px 778px 160px 120px;
+	cb-usa-tower-c-in: 758px 828px 60px 58px;
+	cb-usa-fin: 870px 778px 12px 120px;
+	cb-usa-fin-in: 872px 798px 8px 80px;
+	cb-usa-bezel: 884px 778px 64px 64px;
+	cb-usa-bezel-in: 910px 804px 12px 12px;
+	cb-usa-btn-normal: 950px 778px 52px 52px;
+	cb-usa-btn-normal-in: 968px 796px 16px 16px;
+	cb-usa-btn-hover: 0px 920px 52px 52px;
+	cb-usa-btn-hover-in: 18px 938px 16px 16px;
+	cb-usa-btn-pressed: 54px 920px 52px 52px;
+	cb-usa-btn-pressed-in: 72px 938px 16px 16px;
+	cb-usa-btn-checked: 108px 920px 52px 52px;
+	cb-usa-btn-checked-in: 126px 938px 16px 16px;
+	cb-usa-btn-disabled: 162px 920px 52px 52px;
+	cb-usa-btn-disabled-in: 180px 938px 16px 16px;
+	cb-usa-notch: 216px 920px 200px 52px;
+	cb-usa-notch-in: 284px 950px 64px 18px;
+	cb-usa-wing-l: 418px 920px 140px 52px;
+	cb-usa-wing-l-in: 422px 950px 68px 18px;
+	cb-usa-wing-r: 560px 920px 140px 52px;
+	cb-usa-wing-r-in: 628px 950px 68px 18px;
+	cb-usa-slot: 702px 920px 48px 48px;
+	cb-usa-slot-in: 716px 934px 20px 20px;
+	cb-usa-channel: 752px 920px 96px 28px;
+	cb-usa-channel-in: 788px 928px 24px 12px;
+	cb-usa-vent: 850px 920px 40px 22px;
+	cb-usa-screw: 892px 920px 16px 16px;
+	cb-usa-seg-h: 0px 974px 320px 16px;
+	cb-usa-plate: 322px 974px 120px 14px;
+	cb-usa-plate-in: 342px 978px 80px 6px;
 }
 
 @spritesheet cb-china
 {
 	src: Textures/ControlBar/cb_china.png;
 	resolution: 2x;
-	cb-china-frame-c: 0px 0px 128px 96px;
-	cb-china-frame-c-in: 40px 36px 48px 40px;
-	cb-china-frame-l: 130px 0px 128px 96px;
-	cb-china-frame-l-in: 134px 36px 84px 40px;
-	cb-china-frame-r: 260px 0px 128px 96px;
-	cb-china-frame-r-in: 300px 36px 84px 40px;
-	cb-china-box: 390px 0px 96px 96px;
-	cb-china-box-in: 424px 34px 28px 28px;
-	cb-china-well: 488px 0px 24px 24px;
-	cb-china-well-in: 494px 6px 12px 12px;
-	cb-china-btn-normal: 0px 98px 40px 40px;
-	cb-china-btn-normal-in: 14px 112px 12px 12px;
-	cb-china-btn-hover: 42px 98px 40px 40px;
-	cb-china-btn-hover-in: 56px 112px 12px 12px;
-	cb-china-btn-pressed: 84px 98px 40px 40px;
-	cb-china-btn-pressed-in: 98px 112px 12px 12px;
-	cb-china-btn-checked: 126px 98px 40px 40px;
-	cb-china-btn-checked-in: 140px 112px 12px 12px;
-	cb-china-btn-disabled: 168px 98px 40px 40px;
-	cb-china-btn-disabled-in: 182px 112px 12px 12px;
-	cb-china-notch: 210px 98px 144px 40px;
-	cb-china-notch-in: 258px 128px 48px 8px;
-	cb-china-tab: 356px 98px 104px 40px;
-	cb-china-tab-in: 404px 128px 54px 8px;
-	cb-china-wing-l: 0px 140px 104px 40px;
-	cb-china-wing-l-in: 2px 170px 54px 8px;
-	cb-china-ticks: 106px 140px 256px 16px;
+	cb-china-body-radar-l: 0px 0px 326px 326px;
+	cb-china-body-radar-c: 328px 0px 320px 326px;
+	cb-china-body-unit-r: 650px 0px 302px 242px;
+	cb-china-body-unit-c: 0px 328px 296px 242px;
+	cb-china-body-main: 0px 572px 736px 204px;
+	cb-china-seg-v: 738px 572px 12px 188px;
+	cb-china-frame-c: 752px 572px 200px 140px;
+	cb-china-frame-c-in: 816px 636px 72px 56px;
+	cb-china-frame-l: 0px 778px 200px 140px;
+	cb-china-frame-l-in: 6px 842px 130px 56px;
+	cb-china-frame-r: 202px 778px 200px 140px;
+	cb-china-frame-r-in: 266px 842px 130px 56px;
+	cb-china-box: 404px 778px 140px 140px;
+	cb-china-box-in: 454px 828px 40px 40px;
+	cb-china-tower-r: 546px 778px 160px 120px;
+	cb-china-tower-r-in: 596px 828px 104px 58px;
+	cb-china-tower-c: 708px 778px 160px 120px;
+	cb-china-tower-c-in: 758px 828px 60px 58px;
+	cb-china-fin: 870px 778px 12px 120px;
+	cb-china-fin-in: 872px 798px 8px 80px;
+	cb-china-bezel: 884px 778px 64px 64px;
+	cb-china-bezel-in: 910px 804px 12px 12px;
+	cb-china-btn-normal: 950px 778px 52px 52px;
+	cb-china-btn-normal-in: 968px 796px 16px 16px;
+	cb-china-btn-hover: 0px 920px 52px 52px;
+	cb-china-btn-hover-in: 18px 938px 16px 16px;
+	cb-china-btn-pressed: 54px 920px 52px 52px;
+	cb-china-btn-pressed-in: 72px 938px 16px 16px;
+	cb-china-btn-checked: 108px 920px 52px 52px;
+	cb-china-btn-checked-in: 126px 938px 16px 16px;
+	cb-china-btn-disabled: 162px 920px 52px 52px;
+	cb-china-btn-disabled-in: 180px 938px 16px 16px;
+	cb-china-notch: 216px 920px 200px 52px;
+	cb-china-notch-in: 284px 950px 64px 18px;
+	cb-china-wing-l: 418px 920px 140px 52px;
+	cb-china-wing-l-in: 422px 950px 68px 18px;
+	cb-china-wing-r: 560px 920px 140px 52px;
+	cb-china-wing-r-in: 628px 950px 68px 18px;
+	cb-china-slot: 702px 920px 48px 48px;
+	cb-china-slot-in: 716px 934px 20px 20px;
+	cb-china-channel: 752px 920px 96px 28px;
+	cb-china-channel-in: 788px 928px 24px 12px;
+	cb-china-vent: 850px 920px 40px 22px;
+	cb-china-screw: 892px 920px 16px 16px;
+	cb-china-seg-h: 0px 974px 320px 16px;
+	cb-china-plate: 322px 974px 120px 14px;
+	cb-china-plate-in: 342px 978px 80px 6px;
 }
 
 @spritesheet cb-gla
 {
 	src: Textures/ControlBar/cb_gla.png;
 	resolution: 2x;
-	cb-gla-frame-c: 0px 0px 128px 96px;
-	cb-gla-frame-c-in: 40px 36px 48px 40px;
-	cb-gla-frame-l: 130px 0px 128px 96px;
-	cb-gla-frame-l-in: 134px 36px 84px 40px;
-	cb-gla-frame-r: 260px 0px 128px 96px;
-	cb-gla-frame-r-in: 300px 36px 84px 40px;
-	cb-gla-box: 390px 0px 96px 96px;
-	cb-gla-box-in: 424px 34px 28px 28px;
-	cb-gla-well: 488px 0px 24px 24px;
-	cb-gla-well-in: 494px 6px 12px 12px;
-	cb-gla-btn-normal: 0px 98px 40px 40px;
-	cb-gla-btn-normal-in: 14px 112px 12px 12px;
-	cb-gla-btn-hover: 42px 98px 40px 40px;
-	cb-gla-btn-hover-in: 56px 112px 12px 12px;
-	cb-gla-btn-pressed: 84px 98px 40px 40px;
-	cb-gla-btn-pressed-in: 98px 112px 12px 12px;
-	cb-gla-btn-checked: 126px 98px 40px 40px;
-	cb-gla-btn-checked-in: 140px 112px 12px 12px;
-	cb-gla-btn-disabled: 168px 98px 40px 40px;
-	cb-gla-btn-disabled-in: 182px 112px 12px 12px;
-	cb-gla-notch: 210px 98px 144px 40px;
-	cb-gla-notch-in: 258px 128px 48px 8px;
-	cb-gla-tab: 356px 98px 104px 40px;
-	cb-gla-tab-in: 404px 128px 54px 8px;
-	cb-gla-wing-l: 0px 140px 104px 40px;
-	cb-gla-wing-l-in: 2px 170px 54px 8px;
-	cb-gla-ticks: 106px 140px 256px 16px;
+	cb-gla-body-radar-l: 0px 0px 326px 326px;
+	cb-gla-body-radar-c: 328px 0px 320px 326px;
+	cb-gla-body-unit-r: 650px 0px 302px 242px;
+	cb-gla-body-unit-c: 0px 328px 296px 242px;
+	cb-gla-body-main: 0px 572px 736px 204px;
+	cb-gla-seg-v: 738px 572px 12px 188px;
+	cb-gla-frame-c: 752px 572px 200px 140px;
+	cb-gla-frame-c-in: 816px 636px 72px 56px;
+	cb-gla-frame-l: 0px 778px 200px 140px;
+	cb-gla-frame-l-in: 6px 842px 130px 56px;
+	cb-gla-frame-r: 202px 778px 200px 140px;
+	cb-gla-frame-r-in: 266px 842px 130px 56px;
+	cb-gla-box: 404px 778px 140px 140px;
+	cb-gla-box-in: 454px 828px 40px 40px;
+	cb-gla-tower-r: 546px 778px 160px 120px;
+	cb-gla-tower-r-in: 596px 828px 104px 58px;
+	cb-gla-tower-c: 708px 778px 160px 120px;
+	cb-gla-tower-c-in: 758px 828px 60px 58px;
+	cb-gla-fin: 870px 778px 12px 120px;
+	cb-gla-fin-in: 872px 798px 8px 80px;
+	cb-gla-bezel: 884px 778px 64px 64px;
+	cb-gla-bezel-in: 910px 804px 12px 12px;
+	cb-gla-btn-normal: 950px 778px 52px 52px;
+	cb-gla-btn-normal-in: 968px 796px 16px 16px;
+	cb-gla-btn-hover: 0px 920px 52px 52px;
+	cb-gla-btn-hover-in: 18px 938px 16px 16px;
+	cb-gla-btn-pressed: 54px 920px 52px 52px;
+	cb-gla-btn-pressed-in: 72px 938px 16px 16px;
+	cb-gla-btn-checked: 108px 920px 52px 52px;
+	cb-gla-btn-checked-in: 126px 938px 16px 16px;
+	cb-gla-btn-disabled: 162px 920px 52px 52px;
+	cb-gla-btn-disabled-in: 180px 938px 16px 16px;
+	cb-gla-notch: 216px 920px 200px 52px;
+	cb-gla-notch-in: 284px 950px 64px 18px;
+	cb-gla-wing-l: 418px 920px 140px 52px;
+	cb-gla-wing-l-in: 422px 950px 68px 18px;
+	cb-gla-wing-r: 560px 920px 140px 52px;
+	cb-gla-wing-r-in: 628px 950px 68px 18px;
+	cb-gla-slot: 702px 920px 48px 48px;
+	cb-gla-slot-in: 716px 934px 20px 20px;
+	cb-gla-channel: 752px 920px 96px 28px;
+	cb-gla-channel-in: 788px 928px 24px 12px;
+	cb-gla-vent: 850px 920px 40px 22px;
+	cb-gla-screw: 892px 920px 16px 16px;
+	cb-gla-seg-h: 0px 974px 320px 16px;
+	cb-gla-plate: 322px 974px 120px 14px;
+	cb-gla-plate-in: 342px 978px 80px 6px;
 }
 
 @spritesheet cb-neutral
 {
 	src: Textures/ControlBar/cb_neutral.png;
 	resolution: 2x;
-	cb-neutral-frame-c: 0px 0px 128px 96px;
-	cb-neutral-frame-c-in: 40px 36px 48px 40px;
-	cb-neutral-frame-l: 130px 0px 128px 96px;
-	cb-neutral-frame-l-in: 134px 36px 84px 40px;
-	cb-neutral-frame-r: 260px 0px 128px 96px;
-	cb-neutral-frame-r-in: 300px 36px 84px 40px;
-	cb-neutral-box: 390px 0px 96px 96px;
-	cb-neutral-box-in: 424px 34px 28px 28px;
-	cb-neutral-well: 488px 0px 24px 24px;
-	cb-neutral-well-in: 494px 6px 12px 12px;
-	cb-neutral-btn-normal: 0px 98px 40px 40px;
-	cb-neutral-btn-normal-in: 14px 112px 12px 12px;
-	cb-neutral-btn-hover: 42px 98px 40px 40px;
-	cb-neutral-btn-hover-in: 56px 112px 12px 12px;
-	cb-neutral-btn-pressed: 84px 98px 40px 40px;
-	cb-neutral-btn-pressed-in: 98px 112px 12px 12px;
-	cb-neutral-btn-checked: 126px 98px 40px 40px;
-	cb-neutral-btn-checked-in: 140px 112px 12px 12px;
-	cb-neutral-btn-disabled: 168px 98px 40px 40px;
-	cb-neutral-btn-disabled-in: 182px 112px 12px 12px;
-	cb-neutral-notch: 210px 98px 144px 40px;
-	cb-neutral-notch-in: 258px 128px 48px 8px;
-	cb-neutral-tab: 356px 98px 104px 40px;
-	cb-neutral-tab-in: 404px 128px 54px 8px;
-	cb-neutral-wing-l: 0px 140px 104px 40px;
-	cb-neutral-wing-l-in: 2px 170px 54px 8px;
-	cb-neutral-ticks: 106px 140px 256px 16px;
+	cb-neutral-body-radar-l: 0px 0px 326px 326px;
+	cb-neutral-body-radar-c: 328px 0px 320px 326px;
+	cb-neutral-body-unit-r: 650px 0px 302px 242px;
+	cb-neutral-body-unit-c: 0px 328px 296px 242px;
+	cb-neutral-body-main: 0px 572px 736px 204px;
+	cb-neutral-seg-v: 738px 572px 12px 188px;
+	cb-neutral-frame-c: 752px 572px 200px 140px;
+	cb-neutral-frame-c-in: 816px 636px 72px 56px;
+	cb-neutral-frame-l: 0px 778px 200px 140px;
+	cb-neutral-frame-l-in: 6px 842px 130px 56px;
+	cb-neutral-frame-r: 202px 778px 200px 140px;
+	cb-neutral-frame-r-in: 266px 842px 130px 56px;
+	cb-neutral-box: 404px 778px 140px 140px;
+	cb-neutral-box-in: 454px 828px 40px 40px;
+	cb-neutral-tower-r: 546px 778px 160px 120px;
+	cb-neutral-tower-r-in: 596px 828px 104px 58px;
+	cb-neutral-tower-c: 708px 778px 160px 120px;
+	cb-neutral-tower-c-in: 758px 828px 60px 58px;
+	cb-neutral-fin: 870px 778px 12px 120px;
+	cb-neutral-fin-in: 872px 798px 8px 80px;
+	cb-neutral-bezel: 884px 778px 64px 64px;
+	cb-neutral-bezel-in: 910px 804px 12px 12px;
+	cb-neutral-btn-normal: 950px 778px 52px 52px;
+	cb-neutral-btn-normal-in: 968px 796px 16px 16px;
+	cb-neutral-btn-hover: 0px 920px 52px 52px;
+	cb-neutral-btn-hover-in: 18px 938px 16px 16px;
+	cb-neutral-btn-pressed: 54px 920px 52px 52px;
+	cb-neutral-btn-pressed-in: 72px 938px 16px 16px;
+	cb-neutral-btn-checked: 108px 920px 52px 52px;
+	cb-neutral-btn-checked-in: 126px 938px 16px 16px;
+	cb-neutral-btn-disabled: 162px 920px 52px 52px;
+	cb-neutral-btn-disabled-in: 180px 938px 16px 16px;
+	cb-neutral-notch: 216px 920px 200px 52px;
+	cb-neutral-notch-in: 284px 950px 64px 18px;
+	cb-neutral-wing-l: 418px 920px 140px 52px;
+	cb-neutral-wing-l-in: 422px 950px 68px 18px;
+	cb-neutral-wing-r: 560px 920px 140px 52px;
+	cb-neutral-wing-r-in: 628px 950px 68px 18px;
+	cb-neutral-slot: 702px 920px 48px 48px;
+	cb-neutral-slot-in: 716px 934px 20px 20px;
+	cb-neutral-channel: 752px 920px 96px 28px;
+	cb-neutral-channel-in: 788px 928px 24px 12px;
+	cb-neutral-vent: 850px 920px 40px 22px;
+	cb-neutral-screw: 892px 920px 16px 16px;
+	cb-neutral-seg-h: 0px 974px 320px 16px;
+	cb-neutral-plate: 322px 974px 120px 14px;
+	cb-neutral-plate-in: 342px 978px 80px 6px;
 }
 
 /* ---- Skins: which sprite draws what, per faction ---------------------------------------------------- */
 /* ---- usa ---- */
 body.usa .cb-wing-l { decorator: ninepatch(cb-usa-wing-l, cb-usa-wing-l-in, 1); }
-body.usa .cb-wing-r { decorator: ninepatch(cb-usa-tab, cb-usa-tab-in, 1); }
-body.usa .cb-radar { decorator: ninepatch(cb-usa-frame-l, cb-usa-frame-l-in, 1); }
-body.usa .cb-main { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
-body.usa .cb-unit { decorator: ninepatch(cb-usa-frame-r, cb-usa-frame-r-in, 1); }
-body.usa .cb-tab { decorator: ninepatch(cb-usa-tab, cb-usa-tab-in, 1); }
+body.usa .cb-wing-r { decorator: ninepatch(cb-usa-wing-r, cb-usa-wing-r-in, 1); }
+body.usa .cb-radar .cb-skin { decorator: image(cb-usa-body-radar-l fill); }
+body.usa .cb-radar .cb-frame { decorator: ninepatch(cb-usa-frame-l, cb-usa-frame-l-in, 1); }
+body.usa .cb-radar-bezel { decorator: ninepatch(cb-usa-bezel, cb-usa-bezel-in, 1); }
+body.usa .cb-main .cb-skin { decorator: image(cb-usa-body-main fill); }
+body.usa .cb-main .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
+body.usa .cb-unit .cb-skin { decorator: image(cb-usa-body-unit-r fill); }
+body.usa .cb-unit .cb-frame { decorator: ninepatch(cb-usa-frame-r, cb-usa-frame-r-in, 1); }
+body.usa .cb-tab, body.usa .cb-powers { decorator: ninepatch(cb-usa-tower-r, cb-usa-tower-r-in, 1); }
 body.usa .cb-money { decorator: ninepatch(cb-usa-notch, cb-usa-notch-in, 1); }
-body.usa .cb-powers, body.usa .cb-science, body.usa .cb-tip { decorator: ninepatch(cb-usa-box, cb-usa-box-in, 1); }
-body.usa .cb-tag { background-color: #6886A4; }
-body.usa .cb-radar-well, body.usa .cb-power-bar, body.usa .cb-task-bar, body.usa .cb-exp, body.usa .cb-sci-exp, body.usa .cb-slot { decorator: ninepatch(cb-usa-well, cb-usa-well-in, 1); }
-body.usa .cb-power-ticks { decorator: image(cb-usa-ticks fill); }
+body.usa .cb-science, body.usa .cb-tip { decorator: ninepatch(cb-usa-box, cb-usa-box-in, 1); }
+body.usa .cb-plate { decorator: ninepatch(cb-usa-plate, cb-usa-plate-in, 1); }
+body.usa .cb-fin { decorator: ninepatch(cb-usa-fin, cb-usa-fin-in, 1); }
+body.usa .cb-head, body.usa .cb-strip { decorator: ninepatch(cb-usa-channel, cb-usa-channel-in, 1); }
+body.usa .cb-head-vent, body.usa .cb-vent { decorator: image(cb-usa-vent fill); }
+body.usa .cb-tag { background-color: #96B8D8; }
+body.usa .cb-head-label, body.usa .cb-power-label, body.usa .cb-sci-tier, body.usa .cb-beacon-label, body.usa .cb-obs-label { color: #8EB2CE; }
+body.usa .cb-power-bar, body.usa .cb-task-bar, body.usa .cb-exp, body.usa .cb-sci-exp, body.usa .cb-slot, body.usa .cb-cell { decorator: ninepatch(cb-usa-slot, cb-usa-slot-in, 1); }
+body.usa .cb-power-seg { decorator: image(cb-usa-seg-h fill); }
+body.usa .cb-exp-seg { decorator: image(cb-usa-seg-v fill); }
 body.usa .cb-slot.live, body.usa .cb-side-btn, body.usa .cb-text-btn, body.usa .cb-portrait, body.usa .cb-upgrade.owned { decorator: ninepatch(cb-usa-btn-normal, cb-usa-btn-normal-in, 1); }
 body.usa .cb-upgrade { decorator: ninepatch(cb-usa-btn-disabled, cb-usa-btn-disabled-in, 1); }
 body.usa .cb-slot.live:hover, body.usa .cb-slot.live.flash, body.usa .cb-side-btn:hover, body.usa .cb-text-btn:hover { decorator: ninepatch(cb-usa-btn-hover, cb-usa-btn-hover-in, 1); }
@@ -1292,29 +1523,43 @@ body.usa .cb-slot.live.checked { decorator: ninepatch(cb-usa-btn-checked, cb-usa
 body.usa .cb-slot.cb-sci.buy, body.usa .cb-general.lit { decorator: ninepatch(cb-usa-btn-hover, cb-usa-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
-	body.usa .cb-radar { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
-	body.usa .cb-unit { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
-	body.usa .cb-tab { decorator: ninepatch(cb-usa-notch, cb-usa-notch-in, 1); }
+	body.usa .cb-radar .cb-skin { decorator: image(cb-usa-body-radar-c fill); }
+	body.usa .cb-radar .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
+	body.usa .cb-unit .cb-skin { decorator: image(cb-usa-body-unit-c fill); }
+	body.usa .cb-unit .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
+	body.usa .cb-tab, body.usa .cb-powers { decorator: ninepatch(cb-usa-tower-c, cb-usa-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
-	body.usa.iw-169 .cb-radar { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
-	body.usa.iw-169 .cb-unit { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
-	body.usa.iw-169 .cb-tab { decorator: ninepatch(cb-usa-notch, cb-usa-notch-in, 1); }
+	body.usa.iw-169 .cb-radar .cb-skin { decorator: image(cb-usa-body-radar-c fill); }
+	body.usa.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
+	body.usa.iw-169 .cb-unit .cb-skin { decorator: image(cb-usa-body-unit-c fill); }
+	body.usa.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
+	body.usa.iw-169 .cb-tab, body.usa.iw-169 .cb-powers { decorator: ninepatch(cb-usa-tower-c, cb-usa-tower-c-in, 1); }
 }
 
 /* ---- china ---- */
 body.china .cb-wing-l { decorator: ninepatch(cb-china-wing-l, cb-china-wing-l-in, 1); }
-body.china .cb-wing-r { decorator: ninepatch(cb-china-tab, cb-china-tab-in, 1); }
-body.china .cb-radar { decorator: ninepatch(cb-china-frame-l, cb-china-frame-l-in, 1); }
-body.china .cb-main { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
-body.china .cb-unit { decorator: ninepatch(cb-china-frame-r, cb-china-frame-r-in, 1); }
-body.china .cb-tab { decorator: ninepatch(cb-china-tab, cb-china-tab-in, 1); }
+body.china .cb-wing-r { decorator: ninepatch(cb-china-wing-r, cb-china-wing-r-in, 1); }
+body.china .cb-radar .cb-skin { decorator: image(cb-china-body-radar-l fill); }
+body.china .cb-radar .cb-frame { decorator: ninepatch(cb-china-frame-l, cb-china-frame-l-in, 1); }
+body.china .cb-radar-bezel { decorator: ninepatch(cb-china-bezel, cb-china-bezel-in, 1); }
+body.china .cb-main .cb-skin { decorator: image(cb-china-body-main fill); }
+body.china .cb-main .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
+body.china .cb-unit .cb-skin { decorator: image(cb-china-body-unit-r fill); }
+body.china .cb-unit .cb-frame { decorator: ninepatch(cb-china-frame-r, cb-china-frame-r-in, 1); }
+body.china .cb-tab, body.china .cb-powers { decorator: ninepatch(cb-china-tower-r, cb-china-tower-r-in, 1); }
 body.china .cb-money { decorator: ninepatch(cb-china-notch, cb-china-notch-in, 1); }
-body.china .cb-powers, body.china .cb-science, body.china .cb-tip { decorator: ninepatch(cb-china-box, cb-china-box-in, 1); }
-body.china .cb-tag { background-color: #9C4640; }
-body.china .cb-radar-well, body.china .cb-power-bar, body.china .cb-task-bar, body.china .cb-exp, body.china .cb-sci-exp, body.china .cb-slot { decorator: ninepatch(cb-china-well, cb-china-well-in, 1); }
-body.china .cb-power-ticks { decorator: image(cb-china-ticks fill); }
+body.china .cb-science, body.china .cb-tip { decorator: ninepatch(cb-china-box, cb-china-box-in, 1); }
+body.china .cb-plate { decorator: ninepatch(cb-china-plate, cb-china-plate-in, 1); }
+body.china .cb-fin { decorator: ninepatch(cb-china-fin, cb-china-fin-in, 1); }
+body.china .cb-head, body.china .cb-strip { decorator: ninepatch(cb-china-channel, cb-china-channel-in, 1); }
+body.china .cb-head-vent, body.china .cb-vent { decorator: image(cb-china-vent fill); }
+body.china .cb-tag { background-color: #C8302A; }
+body.china .cb-head-label, body.china .cb-power-label, body.china .cb-sci-tier, body.china .cb-beacon-label, body.china .cb-obs-label { color: #D09A86; }
+body.china .cb-power-bar, body.china .cb-task-bar, body.china .cb-exp, body.china .cb-sci-exp, body.china .cb-slot, body.china .cb-cell { decorator: ninepatch(cb-china-slot, cb-china-slot-in, 1); }
+body.china .cb-power-seg { decorator: image(cb-china-seg-h fill); }
+body.china .cb-exp-seg { decorator: image(cb-china-seg-v fill); }
 body.china .cb-slot.live, body.china .cb-side-btn, body.china .cb-text-btn, body.china .cb-portrait, body.china .cb-upgrade.owned { decorator: ninepatch(cb-china-btn-normal, cb-china-btn-normal-in, 1); }
 body.china .cb-upgrade { decorator: ninepatch(cb-china-btn-disabled, cb-china-btn-disabled-in, 1); }
 body.china .cb-slot.live:hover, body.china .cb-slot.live.flash, body.china .cb-side-btn:hover, body.china .cb-text-btn:hover { decorator: ninepatch(cb-china-btn-hover, cb-china-btn-hover-in, 1); }
@@ -1324,29 +1569,43 @@ body.china .cb-slot.live.checked { decorator: ninepatch(cb-china-btn-checked, cb
 body.china .cb-slot.cb-sci.buy, body.china .cb-general.lit { decorator: ninepatch(cb-china-btn-hover, cb-china-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
-	body.china .cb-radar { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
-	body.china .cb-unit { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
-	body.china .cb-tab { decorator: ninepatch(cb-china-notch, cb-china-notch-in, 1); }
+	body.china .cb-radar .cb-skin { decorator: image(cb-china-body-radar-c fill); }
+	body.china .cb-radar .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
+	body.china .cb-unit .cb-skin { decorator: image(cb-china-body-unit-c fill); }
+	body.china .cb-unit .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
+	body.china .cb-tab, body.china .cb-powers { decorator: ninepatch(cb-china-tower-c, cb-china-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
-	body.china.iw-169 .cb-radar { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
-	body.china.iw-169 .cb-unit { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
-	body.china.iw-169 .cb-tab { decorator: ninepatch(cb-china-notch, cb-china-notch-in, 1); }
+	body.china.iw-169 .cb-radar .cb-skin { decorator: image(cb-china-body-radar-c fill); }
+	body.china.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
+	body.china.iw-169 .cb-unit .cb-skin { decorator: image(cb-china-body-unit-c fill); }
+	body.china.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
+	body.china.iw-169 .cb-tab, body.china.iw-169 .cb-powers { decorator: ninepatch(cb-china-tower-c, cb-china-tower-c-in, 1); }
 }
 
 /* ---- gla ---- */
 body.gla .cb-wing-l { decorator: ninepatch(cb-gla-wing-l, cb-gla-wing-l-in, 1); }
-body.gla .cb-wing-r { decorator: ninepatch(cb-gla-tab, cb-gla-tab-in, 1); }
-body.gla .cb-radar { decorator: ninepatch(cb-gla-frame-l, cb-gla-frame-l-in, 1); }
-body.gla .cb-main { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
-body.gla .cb-unit { decorator: ninepatch(cb-gla-frame-r, cb-gla-frame-r-in, 1); }
-body.gla .cb-tab { decorator: ninepatch(cb-gla-tab, cb-gla-tab-in, 1); }
+body.gla .cb-wing-r { decorator: ninepatch(cb-gla-wing-r, cb-gla-wing-r-in, 1); }
+body.gla .cb-radar .cb-skin { decorator: image(cb-gla-body-radar-l fill); }
+body.gla .cb-radar .cb-frame { decorator: ninepatch(cb-gla-frame-l, cb-gla-frame-l-in, 1); }
+body.gla .cb-radar-bezel { decorator: ninepatch(cb-gla-bezel, cb-gla-bezel-in, 1); }
+body.gla .cb-main .cb-skin { decorator: image(cb-gla-body-main fill); }
+body.gla .cb-main .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
+body.gla .cb-unit .cb-skin { decorator: image(cb-gla-body-unit-r fill); }
+body.gla .cb-unit .cb-frame { decorator: ninepatch(cb-gla-frame-r, cb-gla-frame-r-in, 1); }
+body.gla .cb-tab, body.gla .cb-powers { decorator: ninepatch(cb-gla-tower-r, cb-gla-tower-r-in, 1); }
 body.gla .cb-money { decorator: ninepatch(cb-gla-notch, cb-gla-notch-in, 1); }
-body.gla .cb-powers, body.gla .cb-science, body.gla .cb-tip { decorator: ninepatch(cb-gla-box, cb-gla-box-in, 1); }
-body.gla .cb-tag { background-color: #A08862; }
-body.gla .cb-radar-well, body.gla .cb-power-bar, body.gla .cb-task-bar, body.gla .cb-exp, body.gla .cb-sci-exp, body.gla .cb-slot { decorator: ninepatch(cb-gla-well, cb-gla-well-in, 1); }
-body.gla .cb-power-ticks { decorator: image(cb-gla-ticks fill); }
+body.gla .cb-science, body.gla .cb-tip { decorator: ninepatch(cb-gla-box, cb-gla-box-in, 1); }
+body.gla .cb-plate { decorator: ninepatch(cb-gla-plate, cb-gla-plate-in, 1); }
+body.gla .cb-fin { decorator: ninepatch(cb-gla-fin, cb-gla-fin-in, 1); }
+body.gla .cb-head, body.gla .cb-strip { decorator: ninepatch(cb-gla-channel, cb-gla-channel-in, 1); }
+body.gla .cb-head-vent, body.gla .cb-vent { decorator: image(cb-gla-vent fill); }
+body.gla .cb-tag { background-color: #B88A50; }
+body.gla .cb-head-label, body.gla .cb-power-label, body.gla .cb-sci-tier, body.gla .cb-beacon-label, body.gla .cb-obs-label { color: #CDB48A; }
+body.gla .cb-power-bar, body.gla .cb-task-bar, body.gla .cb-exp, body.gla .cb-sci-exp, body.gla .cb-slot, body.gla .cb-cell { decorator: ninepatch(cb-gla-slot, cb-gla-slot-in, 1); }
+body.gla .cb-power-seg { decorator: image(cb-gla-seg-h fill); }
+body.gla .cb-exp-seg { decorator: image(cb-gla-seg-v fill); }
 body.gla .cb-slot.live, body.gla .cb-side-btn, body.gla .cb-text-btn, body.gla .cb-portrait, body.gla .cb-upgrade.owned { decorator: ninepatch(cb-gla-btn-normal, cb-gla-btn-normal-in, 1); }
 body.gla .cb-upgrade { decorator: ninepatch(cb-gla-btn-disabled, cb-gla-btn-disabled-in, 1); }
 body.gla .cb-slot.live:hover, body.gla .cb-slot.live.flash, body.gla .cb-side-btn:hover, body.gla .cb-text-btn:hover { decorator: ninepatch(cb-gla-btn-hover, cb-gla-btn-hover-in, 1); }
@@ -1356,29 +1615,43 @@ body.gla .cb-slot.live.checked { decorator: ninepatch(cb-gla-btn-checked, cb-gla
 body.gla .cb-slot.cb-sci.buy, body.gla .cb-general.lit { decorator: ninepatch(cb-gla-btn-hover, cb-gla-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
-	body.gla .cb-radar { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
-	body.gla .cb-unit { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
-	body.gla .cb-tab { decorator: ninepatch(cb-gla-notch, cb-gla-notch-in, 1); }
+	body.gla .cb-radar .cb-skin { decorator: image(cb-gla-body-radar-c fill); }
+	body.gla .cb-radar .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
+	body.gla .cb-unit .cb-skin { decorator: image(cb-gla-body-unit-c fill); }
+	body.gla .cb-unit .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
+	body.gla .cb-tab, body.gla .cb-powers { decorator: ninepatch(cb-gla-tower-c, cb-gla-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
-	body.gla.iw-169 .cb-radar { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
-	body.gla.iw-169 .cb-unit { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
-	body.gla.iw-169 .cb-tab { decorator: ninepatch(cb-gla-notch, cb-gla-notch-in, 1); }
+	body.gla.iw-169 .cb-radar .cb-skin { decorator: image(cb-gla-body-radar-c fill); }
+	body.gla.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
+	body.gla.iw-169 .cb-unit .cb-skin { decorator: image(cb-gla-body-unit-c fill); }
+	body.gla.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
+	body.gla.iw-169 .cb-tab, body.gla.iw-169 .cb-powers { decorator: ninepatch(cb-gla-tower-c, cb-gla-tower-c-in, 1); }
 }
 
 /* ---- neutral ---- */
 body.neutral .cb-wing-l { decorator: ninepatch(cb-neutral-wing-l, cb-neutral-wing-l-in, 1); }
-body.neutral .cb-wing-r { decorator: ninepatch(cb-neutral-tab, cb-neutral-tab-in, 1); }
-body.neutral .cb-radar { decorator: ninepatch(cb-neutral-frame-l, cb-neutral-frame-l-in, 1); }
-body.neutral .cb-main { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
-body.neutral .cb-unit { decorator: ninepatch(cb-neutral-frame-r, cb-neutral-frame-r-in, 1); }
-body.neutral .cb-tab { decorator: ninepatch(cb-neutral-tab, cb-neutral-tab-in, 1); }
+body.neutral .cb-wing-r { decorator: ninepatch(cb-neutral-wing-r, cb-neutral-wing-r-in, 1); }
+body.neutral .cb-radar .cb-skin { decorator: image(cb-neutral-body-radar-l fill); }
+body.neutral .cb-radar .cb-frame { decorator: ninepatch(cb-neutral-frame-l, cb-neutral-frame-l-in, 1); }
+body.neutral .cb-radar-bezel { decorator: ninepatch(cb-neutral-bezel, cb-neutral-bezel-in, 1); }
+body.neutral .cb-main .cb-skin { decorator: image(cb-neutral-body-main fill); }
+body.neutral .cb-main .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
+body.neutral .cb-unit .cb-skin { decorator: image(cb-neutral-body-unit-r fill); }
+body.neutral .cb-unit .cb-frame { decorator: ninepatch(cb-neutral-frame-r, cb-neutral-frame-r-in, 1); }
+body.neutral .cb-tab, body.neutral .cb-powers { decorator: ninepatch(cb-neutral-tower-r, cb-neutral-tower-r-in, 1); }
 body.neutral .cb-money { decorator: ninepatch(cb-neutral-notch, cb-neutral-notch-in, 1); }
-body.neutral .cb-powers, body.neutral .cb-science, body.neutral .cb-tip { decorator: ninepatch(cb-neutral-box, cb-neutral-box-in, 1); }
-body.neutral .cb-tag { background-color: #7076B0; }
-body.neutral .cb-radar-well, body.neutral .cb-power-bar, body.neutral .cb-task-bar, body.neutral .cb-exp, body.neutral .cb-sci-exp, body.neutral .cb-slot { decorator: ninepatch(cb-neutral-well, cb-neutral-well-in, 1); }
-body.neutral .cb-power-ticks { decorator: image(cb-neutral-ticks fill); }
+body.neutral .cb-science, body.neutral .cb-tip { decorator: ninepatch(cb-neutral-box, cb-neutral-box-in, 1); }
+body.neutral .cb-plate { decorator: ninepatch(cb-neutral-plate, cb-neutral-plate-in, 1); }
+body.neutral .cb-fin { decorator: ninepatch(cb-neutral-fin, cb-neutral-fin-in, 1); }
+body.neutral .cb-head, body.neutral .cb-strip { decorator: ninepatch(cb-neutral-channel, cb-neutral-channel-in, 1); }
+body.neutral .cb-head-vent, body.neutral .cb-vent { decorator: image(cb-neutral-vent fill); }
+body.neutral .cb-tag { background-color: #7A84D8; }
+body.neutral .cb-head-label, body.neutral .cb-power-label, body.neutral .cb-sci-tier, body.neutral .cb-beacon-label, body.neutral .cb-obs-label { color: #9AA2DC; }
+body.neutral .cb-power-bar, body.neutral .cb-task-bar, body.neutral .cb-exp, body.neutral .cb-sci-exp, body.neutral .cb-slot, body.neutral .cb-cell { decorator: ninepatch(cb-neutral-slot, cb-neutral-slot-in, 1); }
+body.neutral .cb-power-seg { decorator: image(cb-neutral-seg-h fill); }
+body.neutral .cb-exp-seg { decorator: image(cb-neutral-seg-v fill); }
 body.neutral .cb-slot.live, body.neutral .cb-side-btn, body.neutral .cb-text-btn, body.neutral .cb-portrait, body.neutral .cb-upgrade.owned { decorator: ninepatch(cb-neutral-btn-normal, cb-neutral-btn-normal-in, 1); }
 body.neutral .cb-upgrade { decorator: ninepatch(cb-neutral-btn-disabled, cb-neutral-btn-disabled-in, 1); }
 body.neutral .cb-slot.live:hover, body.neutral .cb-slot.live.flash, body.neutral .cb-side-btn:hover, body.neutral .cb-text-btn:hover { decorator: ninepatch(cb-neutral-btn-hover, cb-neutral-btn-hover-in, 1); }
@@ -1388,13 +1661,17 @@ body.neutral .cb-slot.live.checked { decorator: ninepatch(cb-neutral-btn-checked
 body.neutral .cb-slot.cb-sci.buy, body.neutral .cb-general.lit { decorator: ninepatch(cb-neutral-btn-hover, cb-neutral-btn-hover-in, 1); }
 @media (min-aspect-ratio: 12/5)
 {
-	body.neutral .cb-radar { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
-	body.neutral .cb-unit { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
-	body.neutral .cb-tab { decorator: ninepatch(cb-neutral-notch, cb-neutral-notch-in, 1); }
+	body.neutral .cb-radar .cb-skin { decorator: image(cb-neutral-body-radar-c fill); }
+	body.neutral .cb-radar .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
+	body.neutral .cb-unit .cb-skin { decorator: image(cb-neutral-body-unit-c fill); }
+	body.neutral .cb-unit .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
+	body.neutral .cb-tab, body.neutral .cb-powers { decorator: ninepatch(cb-neutral-tower-c, cb-neutral-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
-	body.neutral.iw-169 .cb-radar { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
-	body.neutral.iw-169 .cb-unit { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
-	body.neutral.iw-169 .cb-tab { decorator: ninepatch(cb-neutral-notch, cb-neutral-notch-in, 1); }
+	body.neutral.iw-169 .cb-radar .cb-skin { decorator: image(cb-neutral-body-radar-c fill); }
+	body.neutral.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
+	body.neutral.iw-169 .cb-unit .cb-skin { decorator: image(cb-neutral-body-unit-c fill); }
+	body.neutral.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
+	body.neutral.iw-169 .cb-tab, body.neutral.iw-169 .cb-powers { decorator: ninepatch(cb-neutral-tower-c, cb-neutral-tower-c-in, 1); }
 }
