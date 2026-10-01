@@ -22,22 +22,17 @@
 		<!-- Radar, bottom left -->
 		<div class="cb-panel cb-radar" data-class-alert="radar_alert">
 			<div class="cb-skin"></div>
-			<div class="cb-head"><span class="cb-head-label"><gametext key="GO:GUI:HudRadar"/></span><div class="cb-head-vent"></div></div>
 			<div class="cb-radar-well" data-class-dark="!has_radar"><radar class="cb-radar-map" data-world-middle="1"></radar><div class="cb-radar-bezel"></div></div>
 			<div class="cb-frame"></div>
-			<div class="cb-plate cb-plate-radar"></div>
 		</div>
 
 		<!-- Money, power, the buttons round the bar and the command grid, bottom centre -->
 		<div class="cb-centre">
-		<div class="cb-fin cb-fin-l"></div><div class="cb-fin cb-fin-r"></div>
-		<div class="cb-notch-row"><div class="cb-money" data-cb="i0" data-if="money_shown">{{money}}</div></div>
 		<div class="cb-panel cb-main">
 			<div class="cb-skin"></div>
-			<div class="cb-plate cb-plate-ml"></div><div class="cb-plate cb-plate-mr"></div>
+			<div class="cb-money" data-cb="i0" data-if="money_shown">{{money}}</div>
 			<div class="cb-strip">
 				<div class="cb-power" data-cb="i1" data-if="power_shown" data-class-low-power="power_state == 1" data-class-no-power="power_state == 2">
-					<div class="cb-power-label"><gametext key="CONTROLBAR:Power"/></div>
 					<div class="cb-power-bar"><div class="cb-power-fill" data-style-width="power_fill"></div><div class="cb-power-seg"></div><div class="cb-power-rail" data-style-width="power_needle"><div class="cb-power-needle"></div></div></div>
 					<div class="cb-power-value">{{power_text}}</div>
 				</div>
@@ -124,7 +119,6 @@
 		     standing on the general's tab (rank, promotions, min/max) -->
 		<div class="cb-tower">
 		<div class="cb-powers" data-if="shortcuts_shown">
-			<div class="cb-vent cb-powers-vent"></div>
 			<div class="cb-slot cb-pslot" data-cb="p0" data-alias-s="shortcuts[0]" data-if="s.shown" data-class-live="s.shown" data-class-off="!s.enabled &amp;&amp; !s.not_ready" data-class-poor="s.poor" data-class-checked="s.checked" data-class-flash="s.flash"><div class="cb-win"><div class="cb-art" data-if="s.icon != ''"><mappedimage data-attr-name="s.icon"/></div><div class="cb-clock" data-if="s.has_clock" data-style-height="s.clock"></div></div><span class="cb-key" data-if="s.key != ''">{{s.key}}</span><span class="cb-text" data-if="s.text != ''">{{s.text}}</span></div>
 			<div class="cb-slot cb-pslot" data-cb="p1" data-alias-s="shortcuts[1]" data-if="s.shown" data-class-live="s.shown" data-class-off="!s.enabled &amp;&amp; !s.not_ready" data-class-poor="s.poor" data-class-checked="s.checked" data-class-flash="s.flash"><div class="cb-win"><div class="cb-art" data-if="s.icon != ''"><mappedimage data-attr-name="s.icon"/></div><div class="cb-clock" data-if="s.has_clock" data-style-height="s.clock"></div></div><span class="cb-key" data-if="s.key != ''">{{s.key}}</span><span class="cb-text" data-if="s.text != ''">{{s.text}}</span></div>
 			<div class="cb-slot cb-pslot" data-cb="p2" data-alias-s="shortcuts[2]" data-if="s.shown" data-class-live="s.shown" data-class-off="!s.enabled &amp;&amp; !s.not_ready" data-class-poor="s.poor" data-class-checked="s.checked" data-class-flash="s.flash"><div class="cb-win"><div class="cb-art" data-if="s.icon != ''"><mappedimage data-attr-name="s.icon"/></div><div class="cb-clock" data-if="s.has_clock" data-style-height="s.clock"></div></div><span class="cb-key" data-if="s.key != ''">{{s.key}}</span><span class="cb-text" data-if="s.text != ''">{{s.text}}</span></div>
@@ -140,7 +134,6 @@
 		<div class="cb-tab">
 			<div class="cb-rank" data-cb="i2" data-if="!observer_list_shown &amp;&amp; !observer_info_shown"><span class="cb-star" data-class-on="rank &gt;= 1">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 2">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 3">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 4">&#9733;</span><span class="cb-star" data-class-on="rank &gt;= 5">&#9733;</span></div>
 			<div class="cb-rank" data-if="observer_list_shown || observer_info_shown"></div>
-			<div class="cb-vent"></div>
 			<div class="cb-side-btn cb-general" data-cb="s4" data-alias-s="side_buttons[4]" data-if="s.shown" data-class-off="!s.enabled" data-class-lit="general_lit"><span class="cb-glyph">&#9733;</span><span class="cb-badge" data-if="science_points &gt; 0">{{science_points}}</span></div>
 			<div class="cb-tab-row">
 			<div class="cb-side-btn cb-minmax" data-cb="s5" data-alias-s="side_buttons[5]" data-if="s.shown" data-class-off="!s.enabled"><span class="cb-glyph" data-if="!low">&#9662;</span><span class="cb-glyph" data-if="low">&#9652;</span></div>
@@ -151,9 +144,7 @@
 		<!-- The selection: name, portrait, veterancy and upgrades, or the build queue, and the general's experience, bottom right -->
 		<div class="cb-panel cb-unit">
 			<div class="cb-skin"></div>
-			<div class="cb-plate cb-plate-unit"></div>
-			<div class="cb-head cb-unit-head">
-				<div class="cb-tag" data-if="portrait_shown || queue_shown"></div>
+			<div class="cb-unit-head">
 				<div class="cb-name" data-if="portrait_shown || queue_shown">{{name}}</div>
 				<div class="cb-count" data-if="select_count &gt; 1 &amp;&amp; (portrait_shown || queue_shown)">&#215;{{select_count}}</div>
 			</div>

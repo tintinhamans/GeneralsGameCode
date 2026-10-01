@@ -1948,18 +1948,3 @@ RU: "16:9 (по центру)"
 AR: "16:9 (في الوسط)"
 UK: "16:9 (по центру)"
 END
-
-GO:GUI:HudRadar
-US: "Radar"
-DE: "Radar"
-FR: "Radar"
-ES: "Radar"
-IT: "Radar"
-KO: "레이더"
-ZH: "雷達"
-BP: "Radar"
-PL: "Radar"
-RU: "Радар"
-AR: "الرادار"
-UK: "Радар"
-END

@@ -1,20 +1,21 @@
 /*
 	ControlBar.rcss -- the in-game control bar (ControlBar.rml, RmlControlBarScreen), laid out after Control Bar
 	Pro (TheSuperHackers, MIT): a radar panel bottom left, the command panel bottom centre with the money on a
-	notch above it and the buttons round the bar down its left side, the selection bottom right with a tower
-	over its right end (the general's tab, the powers column standing on it); the tooltip over the radar, the
+	readout inset in its top and the buttons round the bar down its left side, the selection bottom right with
+	one housing over its right end (the general's powers above the rank and min/max); the tooltip over the radar, the
 	promotions over the grid. Sizes follow Pro's at 1080 lines and are in dp, so they keep the same share of
 	the screen height at every resolution.
 
-	The look is a military instrument panel in the side's metal: clean steel blue for the USA, heavy dark iron
-	with red plates for China, worn tan with rust and weld wear for the GLA, blue-grey for observers (and any
-	other side). Every panel is three layers:
-	  .cb-skin   the plate behind everything, baked at the panel's size (scanline field, mottling, vignette)
-	  content    header channels with small caps labels, the bezelled radar screen, recessed slot wells, the
-	             segmented power and experience meters, buttons in metal bezels
-	  .cb-frame  the two-layer bezel (dark housing, textured metal face with a groove) over the edges
-	plus the side's accent plates on the rims and fins on the command panel's sides. The art is generated
-	(Textures/ControlBar/cb_<faction>.png, 2 px per dp for the ninepatch pieces, 1 px per dp for the skins).
+	The look is a vehicle console: matte gunmetal with thin, low-contrast edges, straight 45 degree chamfers and
+	no coloured trim. The side shows only in the metal's tone: cool grey steel for the USA, dark iron with a
+	hint of oxide for China, worn sand with rust for the GLA, neutral grey for observers (and any other side).
+	Every panel is three layers:
+	  .cb-skin   the plate behind everything, baked at the panel's size (a faint scanline field)
+	  content    the bezelled radar screen, the funds readout inset in the command panel's top, recessed slot
+	             wells, the segmented power and experience meters, buttons in metal bezels
+	  .cb-frame  the two-layer bezel (dark housing, matte metal face with a groove) over the edges
+	The art is generated (Textures/ControlBar/cb_<faction>.png, 2 px per dp for the ninepatch pieces, 1 px per dp
+	for the skins).
 
 	Wide screens: the dock spans the screen up to 21:9 and is centred beyond it, the wings and the rail carrying
 	the bar out to the edges. The interface width option narrows it further (body.iw-169, RmlInterfaceArea.h).
@@ -22,7 +23,7 @@
 
 	Buttons (.cb-slot) are 5:4 like the cameo art: an empty slot is a recessed well with corner marks; a live
 	one has the cameo in a metal bezel, the veterancy art, the clock darkening what is still to go, the hotkey
-	on a badge bottom left, a count top right, and the command's border kind as a hairline along the top of
+	on a small dark badge bottom left, a count top right, and the command's border kind as a hairline along the top of
 	the cameo (build blue, upgrade orange, action teal, system yellow, as the .wnd borders).
 */
 
@@ -97,47 +98,15 @@ body.cb
 .cb-skin { left: 6dp; top: 6dp; right: 6dp; bottom: 0; z-index: -1; }
 .cb-frame { left: 0; top: 0; right: 0; bottom: 0; }
 
-/* the side's stepped accent plates on a rim */
-.cb-plate
-{
-	display: block;
-	position: absolute;
-	top: 0;
-	width: 60dp;
-	height: 7dp;
-	pointer-events: none;
-	z-index: 1; /* over the frame */
-}
-
-/* a recessed header channel and its small caps label */
-.cb-head
-{
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	position: relative;
-	height: 20dp;
-	margin-bottom: 6dp;
-	padding: 0 22dp 0 20dp;
-}
-
-.cb-head-label, .cb-power-label, .cb-sci-tier, .cb-beacon-label, .cb-obs-label
+/* small caps labels */
+.cb-sci-tier, .cb-beacon-label, .cb-obs-label
 {
 	font-size: 11dp;
 	line-height: 14dp;
 	font-weight: bold;
 	letter-spacing: 3dp;
 	text-transform: uppercase;
-}
-
-.cb-head-label { flex: 1 1 auto; }
-
-.cb-head-vent, .cb-vent
-{
-	display: block;
-	flex: 0 0 auto;
-	width: 20dp;
-	height: 11dp;
+	color: #8A9098;
 }
 
 /* ---- Radar ------------------------------------------------------------------------------------------ */
@@ -146,7 +115,7 @@ body.cb
 	left: 0;
 	width: 332dp;
 	height: 332dp;
-	padding: 28dp 21dp 8dp 8dp;
+	padding: 14dp 21dp 8dp 8dp;
 }
 
 .cb-radar .cb-skin { left: 0; }
@@ -155,7 +124,7 @@ body.cb
 {
 	display: block;
 	position: relative;
-	height: 270dp;
+	height: 310dp;
 	box-sizing: border-box;
 	background-color: #030405;
 }
@@ -182,90 +151,58 @@ body.cb
 	pointer-events: none;
 }
 
-.cb-plate-radar { left: 110dp; }
-
 /* under attack: the screen's edge blinks red with the .wnd's WinUAttack light */
-.cb-radar.alert .cb-radar-map { border: 1dp #E04848; }
-.cb-radar.alert .cb-head-label { color: #FF7060; }
+.cb-radar.alert .cb-radar-map { border: 1dp #C84040; }
 
-/* ---- Centre: the money notch, the power channel, the side buttons and the grid ---------------------- */
+/* ---- Centre: the funds readout, the power meter, the side buttons and the grid --------------------- */
 .cb-centre
 {
 	display: block;
 	position: absolute;
 	left: 50%;
 	bottom: 0;
-	width: 772dp;
-	margin-left: -386dp;
-	height: 246dp;
+	width: 752dp;
+	margin-left: -376dp;
+	height: 212dp;
 	pointer-events: none;
 }
-
-.cb-fin
-{
-	display: block;
-	position: absolute;
-	bottom: 70dp;
-	width: 6dp;
-	height: 60dp;
-	pointer-events: none;
-}
-
-.cb-fin-l { left: 5dp; }
-.cb-fin-r { right: 5dp; }
 
 .cb-main
 {
-	left: 10dp;
+	left: 0;
 	width: 752dp;
 	height: 212dp;
-	padding: 27dp 22dp 6dp 22dp;
+	padding: 34dp 22dp 6dp 22dp;
 }
 
-.cb-plate-ml { left: 130dp; }
-.cb-plate-mr { right: 130dp; }
-
-.cb-notch-row
-{
-	display: flex;
-	flex-direction: row;
-	justify-content: center;
-	position: absolute;
-	left: 0;
-	right: 0;
-	top: 0;
-	height: 44dp;
-	pointer-events: none;
-}
-
-/* the funds on a glass readout */
+/* the funds: a flush readout inset in the frame's top */
 .cb-money
 {
 	display: block;
-	flex: 0 0 auto;
+	position: absolute;
+	left: 50%;
+	top: 4dp;
+	width: 220dp;
+	margin-left: -110dp;
 	box-sizing: border-box;
-	min-width: 220dp;
-	height: 44dp;
-	padding: 8dp 38dp 0 38dp;
-	font-size: 22dp;
-	line-height: 28dp;
+	height: 26dp;
+	font-size: 18dp;
+	line-height: 26dp;
 	letter-spacing: 2dp;
 	text-align: center;
 	white-space: nowrap;
-	color: #C8F060;
-	font-effect: glow(0dp 4dp 0dp 0dp #9CD01C40);
-	pointer-events: auto;
+	color: #B4C8A0;
+	z-index: 1; /* over the frame */
 }
 
-/* the power channel: label, segmented meter, value */
+/* the power meter, segmented, and its value */
 .cb-strip
 {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	height: 22dp;
+	height: 16dp;
 	margin-bottom: 8dp;
-	padding: 0 12dp 0 12dp;
 }
 
 .cb-strip-fill { flex: 1 1 auto; }
@@ -278,8 +215,6 @@ body.cb
 	flex: 1 1 auto;
 	white-space: nowrap;
 }
-
-.cb-power-label { flex: 0 0 auto; margin-right: 10dp; }
 
 .cb-power-bar
 {
@@ -297,11 +232,11 @@ body.cb
 	top: 2dp;
 	height: 10dp;
 	max-width: 100%;
-	decorator: vertical-gradient(#9CC850 #5A8A26);
+	decorator: vertical-gradient(#7E9858 #56703A);
 }
 
-.cb-power.low-power .cb-power-fill { decorator: vertical-gradient(#E0C050 #A07E18); }
-.cb-power.no-power .cb-power-fill { decorator: vertical-gradient(#E06050 #9A2418); }
+.cb-power.low-power .cb-power-fill { decorator: vertical-gradient(#B8A050 #85722E); }
+.cb-power.no-power .cb-power-fill { decorator: vertical-gradient(#B05448 #7C3028); }
 
 .cb-power-seg
 {
@@ -341,14 +276,14 @@ body.cb
 {
 	flex: 0 0 auto;
 	min-width: 72dp;
-	font-size: 15dp;
+	font-size: 14dp;
 	text-align: right;
 	margin-left: 10dp;
-	color: #D8DDE4;
+	color: #C0C6CE;
 }
 
-.cb-power.no-power .cb-power-value { color: #F07868; }
-.cb-power.low-power .cb-power-value { color: #E8D070; }
+.cb-power.no-power .cb-power-value { color: #D07868; }
+.cb-power.low-power .cb-power-value { color: #CDBA72; }
 
 /* a replay plays */
 .cb-replay
@@ -361,8 +296,8 @@ body.cb
 	line-height: 16dp;
 	font-weight: bold;
 	letter-spacing: 2dp;
-	color: #D1FD04;
-	border: 1dp #D1FD0480;
+	color: #B4C8A0;
+	border: 1dp #5A6050;
 }
 
 .cb-body
@@ -418,8 +353,9 @@ body.cb
 	font-size: 11dp;
 	line-height: 14dp;
 	font-weight: bold;
-	color: #0E1400;
-	background-color: #C8F060;
+	color: #D8E0C8;
+	background-color: #1C1F23;
+	border: 1dp #4A5058;
 }
 
 /* ButtonCommand01..14: two rows, filled a column at a time. */
@@ -444,7 +380,7 @@ body.cb
 }
 
 .cb-slot.live { background-color: #0A0C0F; }
-.cb-slot.live.flash { background-color: #34400E; }
+.cb-slot.live.flash { background-color: #2C3220; }
 
 /* the bezel's window */
 .cb-win
@@ -460,10 +396,10 @@ body.cb
 }
 
 /* the command's border kind along the top of the cameo */
-.cb-slot.live.b1 .cb-win { border-top: 2dp #7088E0; }
-.cb-slot.live.b2 .cb-win { border-top: 2dp #E0883A; }
-.cb-slot.live.b3 .cb-win { border-top: 2dp #48C0A0; }
-.cb-slot.live.b4 .cb-win { border-top: 2dp #D8C850; }
+.cb-slot.live.b1 .cb-win { border-top: 1dp #6C7CB0; }
+.cb-slot.live.b2 .cb-win { border-top: 1dp #B07C48; }
+.cb-slot.live.b3 .cb-win { border-top: 1dp #5A9C88; }
+.cb-slot.live.b4 .cb-win { border-top: 1dp #A89C58; }
 
 .cb-art, .cb-vet
 {
@@ -494,30 +430,29 @@ body.cb
 	right: 0;
 	top: 0;
 	background-color: #000000A8;
-	border-bottom: 1dp #C8F060B0;
+	border-bottom: 1dp #FFFFFF60;
 }
 
-/* the hotkey: a small dark badge bottom left, as Pro's */
+/* the hotkey: a small dark stamped badge bottom left, as Pro's */
 .cb-key
 {
 	display: block;
 	position: absolute;
 	left: 4dp;
 	bottom: 4dp;
-	min-width: 11dp;
-	height: 18dp;
+	min-width: 10dp;
+	height: 16dp;
 	padding: 0 4dp;
-	font-size: 15dp;
-	line-height: 18dp;
+	font-size: 13dp;
+	line-height: 16dp;
 	font-weight: bold;
 	text-align: center;
-	color: #F2F4F7;
-	background-color: #05070ADC;
-	border-top: 1dp #FFFFFF38;
-	border-right: 1dp #FFFFFF38;
+	color: #E6E9ED;
+	background-color: #0B0C0EE6;
+	border: 1dp #3C4148;
 }
 
-.cb-slot.live:hover .cb-key { color: #0E1400; background-color: #D1FD04; }
+.cb-slot.live:hover .cb-key { border-color: #D1FD04; }
 .cb-slot.off .cb-key { color: #7A808A; }
 
 .cb-text
@@ -575,7 +510,7 @@ body.cb
 {
 	display: block;
 	height: 100%;
-	decorator: vertical-gradient(#9CC850 #5A8A26);
+	decorator: vertical-gradient(#7E9858 #56703A);
 }
 
 /* A beacon: the delete button and the message entry. */
@@ -638,7 +573,8 @@ input.cb-input
 
 input.cb-input:focus { border-color: #D1FD04; }
 
-/* ---- The tower: the powers column standing on the general's tab, over the selection's right end -------- */
+/* ---- The tower: one housing over the selection's right end, the general's powers above the rank and
+   the promotions and min/max buttons ------------------------------------------------------------------- */
 .cb-tower
 {
 	display: flex;
@@ -646,10 +582,12 @@ input.cb-input:focus { border-color: #D1FD04; }
 	justify-content: flex-end;
 	position: absolute;
 	right: 0;
-	bottom: 238dp;
+	bottom: 240dp;
 	width: 108dp;
+	box-sizing: border-box;
+	padding: 14dp 6dp 4dp 14dp;
 	z-index: 1;
-	pointer-events: none;
+	pointer-events: auto;
 }
 
 .cb-tab
@@ -659,13 +597,8 @@ input.cb-input:focus { border-color: #D1FD04; }
 	flex-wrap: wrap;
 	align-content: flex-start;
 	flex: 0 0 auto;
-	box-sizing: border-box;
-	height: 76dp;
-	padding: 14dp 6dp 0 14dp;
-	pointer-events: auto;
+	height: 54dp;
 }
-
-.cb-tab .cb-vent { display: none; }
 
 .cb-rank
 {
@@ -677,10 +610,10 @@ input.cb-input:focus { border-color: #D1FD04; }
 	letter-spacing: 2dp;
 	text-align: center;
 	white-space: nowrap;
-	color: #FFFFFF1E;
+	color: #FFFFFF18;
 }
 
-.cb-star.on { color: #E8C860; font-effect: glow(0dp 3dp 0dp 0dp #E8C86040); }
+.cb-star.on { color: #B8AE88; }
 
 .cb-side-btn.cb-general, .cb-side-btn.cb-minmax
 {
@@ -693,19 +626,17 @@ input.cb-input:focus { border-color: #D1FD04; }
 .cb-side-btn.cb-minmax { width: 32dp; }
 .cb-tab-row { display: block; flex: 0 0 auto; }
 .cb-general .cb-glyph, .cb-minmax .cb-glyph { font-size: 15dp; line-height: 30dp; }
-.cb-general.lit { color: #D1FD04; }
+.cb-general.lit { color: #D8E0C8; }
 
 .cb-powers
 {
 	display: block;
 	flex: 0 0 auto;
 	box-sizing: border-box;
-	margin-bottom: 0;
-	padding: 14dp 8dp 6dp 16dp;
-	pointer-events: auto;
+	margin-bottom: 4dp;
+	padding: 0 2dp 2dp 2dp;
+	border-bottom: 1dp #FFFFFF10;
 }
-
-.cb-powers-vent { width: 78dp; height: 8dp; margin: 0 0 6dp 0; display: block; }
 
 .cb-slot.cb-pslot
 {
@@ -724,18 +655,15 @@ input.cb-input:focus { border-color: #D1FD04; }
 }
 
 .cb-unit .cb-skin { right: 0; }
-.cb-plate-unit { left: 70dp; }
-
-.cb-unit-head { padding: 0 20dp 0 12dp; margin-bottom: 6dp; height: 22dp; }
-
-/* the side's small tag by the name */
-.cb-tag
+.cb-unit-head
 {
-	display: block;
-	flex: 0 0 auto;
-	width: 3dp;
-	height: 12dp;
-	margin-right: 8dp;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	height: 22dp;
+	margin: 0 0 6dp 0;
+	padding: 0 26dp 0 2dp;
+	border-bottom: 1dp #FFFFFF12;
 }
 
 .cb-name
@@ -757,8 +685,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	flex: 0 0 auto;
 	font-size: 14dp;
-	font-weight: bold;
-	color: #C8F060;
+	color: #C0C6CE;
 	margin-left: 8dp;
 }
 
@@ -933,7 +860,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 	right: 2dp;
 	bottom: 2dp;
 	max-height: 184dp;
-	decorator: horizontal-gradient(#E8C860 #A8882C);
+	decorator: horizontal-gradient(#A89868 #7A6C44);
 }
 
 .cb-exp-seg
@@ -951,7 +878,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	left: 50%;
 	margin-left: -268dp;
-	bottom: 258dp;
+	bottom: 224dp;
 	width: 536dp;
 	padding: 18dp 24dp 20dp 24dp;
 }
@@ -983,8 +910,8 @@ input.cb-input:focus { border-color: #D1FD04; }
 	font-size: 14dp;
 	line-height: 22dp;
 	font-weight: bold;
-	color: #0E1400;
-	background-color: #C8F060;
+	color: #D8E0C8;
+	border: 1dp #4A5058;
 }
 
 .cb-sci-star { margin-right: 4dp; }
@@ -1003,7 +930,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 {
 	display: block;
 	height: 100%;
-	decorator: vertical-gradient(#E8C860 #A8882C);
+	decorator: vertical-gradient(#A89868 #7A6C44);
 }
 
 .cb-sci-tier
@@ -1090,9 +1017,9 @@ input.cb-input:focus { border-color: #D1FD04; }
 	line-height: 18dp;
 	font-weight: bold;
 	text-align: center;
-	color: #F2F4F7;
-	background-color: #05070AE0;
-	border: 1dp #FFFFFF40;
+	color: #E6E9ED;
+	background-color: #0B0C0EE6;
+	border: 1dp #3C4148;
 }
 
 .cb-tip-cost
@@ -1101,7 +1028,7 @@ input.cb-input:focus { border-color: #D1FD04; }
 	margin-top: 4dp;
 	font-size: 15dp;
 	line-height: 20dp;
-	color: #C8F060;
+	color: #B4C8A0;
 }
 
 .cb-tip-desc
@@ -1230,15 +1157,14 @@ input.cb-input:focus { border-color: #D1FD04; }
 
 .cb-obs-back { margin: 0 4dp 0 12dp; }
 
-/* ---- Collapsed (the min/max button, CONTROL_BAR_STAGE_LOW): the notch, the power channel, the buttons -- */
+/* ---- Collapsed (the min/max button, CONTROL_BAR_STAGE_LOW): the funds, the power meter, the buttons -- */
 body.low .cb-radar, body.low .cb-unit, body.low .cb-powers { display: none; }
-body.low .cb-main { height: 98dp; }
+body.low .cb-main { height: 104dp; }
 body.low .cb-grid, body.low .cb-task, body.low .cb-observers, body.low .cb-observed { display: none; }
 body.low .cb-body { height: 40dp; }
 body.low .cb-side { flex-direction: row; width: auto; height: 40dp; }
 body.low .cb-side .cb-side-btn { margin: 0 6dp 0 0; }
 body.low .cb-tower { bottom: 0; }
-body.low .cb-fin { display: none; }
 body.low .cb-tip { bottom: 140dp; }
 body.low .cb-science { bottom: 140dp; }
 
@@ -1246,9 +1172,8 @@ body.low .cb-science { bottom: 140dp; }
 @media (max-aspect-ratio: 29/20)
 {
 	.cb-radar { width: 280dp; height: 280dp; }
-	.cb-radar-well { height: 218dp; }
-	.cb-centre { left: 274dp; margin-left: 0; }
-	.cb-fin { display: none; }
+	.cb-radar-well { height: 258dp; }
+	.cb-centre { left: 284dp; margin-left: 0; }
 	.cb-science { left: 390dp; margin-left: 0; }
 	.cb-tip { bottom: 292dp; }
 }
@@ -1301,12 +1226,10 @@ body.low .cb-science { bottom: 140dp; }
 	cb-usa-tower-r-in: 596px 828px 104px 58px;
 	cb-usa-tower-c: 708px 778px 160px 120px;
 	cb-usa-tower-c-in: 758px 828px 60px 58px;
-	cb-usa-fin: 870px 778px 12px 120px;
-	cb-usa-fin-in: 872px 798px 8px 80px;
-	cb-usa-bezel: 884px 778px 64px 64px;
-	cb-usa-bezel-in: 910px 804px 12px 12px;
-	cb-usa-btn-normal: 950px 778px 52px 52px;
-	cb-usa-btn-normal-in: 968px 796px 16px 16px;
+	cb-usa-bezel: 870px 778px 64px 64px;
+	cb-usa-bezel-in: 896px 804px 12px 12px;
+	cb-usa-btn-normal: 936px 778px 52px 52px;
+	cb-usa-btn-normal-in: 954px 796px 16px 16px;
 	cb-usa-btn-hover: 0px 920px 52px 52px;
 	cb-usa-btn-hover-in: 18px 938px 16px 16px;
 	cb-usa-btn-pressed: 54px 920px 52px 52px;
@@ -1315,21 +1238,16 @@ body.low .cb-science { bottom: 140dp; }
 	cb-usa-btn-checked-in: 126px 938px 16px 16px;
 	cb-usa-btn-disabled: 162px 920px 52px 52px;
 	cb-usa-btn-disabled-in: 180px 938px 16px 16px;
-	cb-usa-notch: 216px 920px 200px 52px;
-	cb-usa-notch-in: 284px 950px 64px 18px;
-	cb-usa-wing-l: 418px 920px 140px 52px;
-	cb-usa-wing-l-in: 422px 950px 68px 18px;
-	cb-usa-wing-r: 560px 920px 140px 52px;
-	cb-usa-wing-r-in: 628px 950px 68px 18px;
-	cb-usa-slot: 702px 920px 48px 48px;
-	cb-usa-slot-in: 716px 934px 20px 20px;
-	cb-usa-channel: 752px 920px 96px 28px;
-	cb-usa-channel-in: 788px 928px 24px 12px;
-	cb-usa-vent: 850px 920px 40px 22px;
-	cb-usa-screw: 892px 920px 16px 16px;
-	cb-usa-seg-h: 0px 974px 320px 16px;
-	cb-usa-plate: 322px 974px 120px 14px;
-	cb-usa-plate-in: 342px 978px 80px 6px;
+	cb-usa-wing-l: 216px 920px 140px 52px;
+	cb-usa-wing-l-in: 220px 950px 68px 18px;
+	cb-usa-wing-r: 358px 920px 140px 52px;
+	cb-usa-wing-r-in: 426px 950px 68px 18px;
+	cb-usa-slot: 500px 920px 48px 48px;
+	cb-usa-slot-in: 514px 934px 20px 20px;
+	cb-usa-inset: 550px 920px 48px 48px;
+	cb-usa-inset-in: 558px 928px 32px 32px;
+	cb-usa-screw: 600px 920px 16px 16px;
+	cb-usa-seg-h: 618px 920px 320px 16px;
 }
 
 @spritesheet cb-china
@@ -1354,12 +1272,10 @@ body.low .cb-science { bottom: 140dp; }
 	cb-china-tower-r-in: 596px 828px 104px 58px;
 	cb-china-tower-c: 708px 778px 160px 120px;
 	cb-china-tower-c-in: 758px 828px 60px 58px;
-	cb-china-fin: 870px 778px 12px 120px;
-	cb-china-fin-in: 872px 798px 8px 80px;
-	cb-china-bezel: 884px 778px 64px 64px;
-	cb-china-bezel-in: 910px 804px 12px 12px;
-	cb-china-btn-normal: 950px 778px 52px 52px;
-	cb-china-btn-normal-in: 968px 796px 16px 16px;
+	cb-china-bezel: 870px 778px 64px 64px;
+	cb-china-bezel-in: 896px 804px 12px 12px;
+	cb-china-btn-normal: 936px 778px 52px 52px;
+	cb-china-btn-normal-in: 954px 796px 16px 16px;
 	cb-china-btn-hover: 0px 920px 52px 52px;
 	cb-china-btn-hover-in: 18px 938px 16px 16px;
 	cb-china-btn-pressed: 54px 920px 52px 52px;
@@ -1368,21 +1284,16 @@ body.low .cb-science { bottom: 140dp; }
 	cb-china-btn-checked-in: 126px 938px 16px 16px;
 	cb-china-btn-disabled: 162px 920px 52px 52px;
 	cb-china-btn-disabled-in: 180px 938px 16px 16px;
-	cb-china-notch: 216px 920px 200px 52px;
-	cb-china-notch-in: 284px 950px 64px 18px;
-	cb-china-wing-l: 418px 920px 140px 52px;
-	cb-china-wing-l-in: 422px 950px 68px 18px;
-	cb-china-wing-r: 560px 920px 140px 52px;
-	cb-china-wing-r-in: 628px 950px 68px 18px;
-	cb-china-slot: 702px 920px 48px 48px;
-	cb-china-slot-in: 716px 934px 20px 20px;
-	cb-china-channel: 752px 920px 96px 28px;
-	cb-china-channel-in: 788px 928px 24px 12px;
-	cb-china-vent: 850px 920px 40px 22px;
-	cb-china-screw: 892px 920px 16px 16px;
-	cb-china-seg-h: 0px 974px 320px 16px;
-	cb-china-plate: 322px 974px 120px 14px;
-	cb-china-plate-in: 342px 978px 80px 6px;
+	cb-china-wing-l: 216px 920px 140px 52px;
+	cb-china-wing-l-in: 220px 950px 68px 18px;
+	cb-china-wing-r: 358px 920px 140px 52px;
+	cb-china-wing-r-in: 426px 950px 68px 18px;
+	cb-china-slot: 500px 920px 48px 48px;
+	cb-china-slot-in: 514px 934px 20px 20px;
+	cb-china-inset: 550px 920px 48px 48px;
+	cb-china-inset-in: 558px 928px 32px 32px;
+	cb-china-screw: 600px 920px 16px 16px;
+	cb-china-seg-h: 618px 920px 320px 16px;
 }
 
 @spritesheet cb-gla
@@ -1407,12 +1318,10 @@ body.low .cb-science { bottom: 140dp; }
 	cb-gla-tower-r-in: 596px 828px 104px 58px;
 	cb-gla-tower-c: 708px 778px 160px 120px;
 	cb-gla-tower-c-in: 758px 828px 60px 58px;
-	cb-gla-fin: 870px 778px 12px 120px;
-	cb-gla-fin-in: 872px 798px 8px 80px;
-	cb-gla-bezel: 884px 778px 64px 64px;
-	cb-gla-bezel-in: 910px 804px 12px 12px;
-	cb-gla-btn-normal: 950px 778px 52px 52px;
-	cb-gla-btn-normal-in: 968px 796px 16px 16px;
+	cb-gla-bezel: 870px 778px 64px 64px;
+	cb-gla-bezel-in: 896px 804px 12px 12px;
+	cb-gla-btn-normal: 936px 778px 52px 52px;
+	cb-gla-btn-normal-in: 954px 796px 16px 16px;
 	cb-gla-btn-hover: 0px 920px 52px 52px;
 	cb-gla-btn-hover-in: 18px 938px 16px 16px;
 	cb-gla-btn-pressed: 54px 920px 52px 52px;
@@ -1421,21 +1330,16 @@ body.low .cb-science { bottom: 140dp; }
 	cb-gla-btn-checked-in: 126px 938px 16px 16px;
 	cb-gla-btn-disabled: 162px 920px 52px 52px;
 	cb-gla-btn-disabled-in: 180px 938px 16px 16px;
-	cb-gla-notch: 216px 920px 200px 52px;
-	cb-gla-notch-in: 284px 950px 64px 18px;
-	cb-gla-wing-l: 418px 920px 140px 52px;
-	cb-gla-wing-l-in: 422px 950px 68px 18px;
-	cb-gla-wing-r: 560px 920px 140px 52px;
-	cb-gla-wing-r-in: 628px 950px 68px 18px;
-	cb-gla-slot: 702px 920px 48px 48px;
-	cb-gla-slot-in: 716px 934px 20px 20px;
-	cb-gla-channel: 752px 920px 96px 28px;
-	cb-gla-channel-in: 788px 928px 24px 12px;
-	cb-gla-vent: 850px 920px 40px 22px;
-	cb-gla-screw: 892px 920px 16px 16px;
-	cb-gla-seg-h: 0px 974px 320px 16px;
-	cb-gla-plate: 322px 974px 120px 14px;
-	cb-gla-plate-in: 342px 978px 80px 6px;
+	cb-gla-wing-l: 216px 920px 140px 52px;
+	cb-gla-wing-l-in: 220px 950px 68px 18px;
+	cb-gla-wing-r: 358px 920px 140px 52px;
+	cb-gla-wing-r-in: 426px 950px 68px 18px;
+	cb-gla-slot: 500px 920px 48px 48px;
+	cb-gla-slot-in: 514px 934px 20px 20px;
+	cb-gla-inset: 550px 920px 48px 48px;
+	cb-gla-inset-in: 558px 928px 32px 32px;
+	cb-gla-screw: 600px 920px 16px 16px;
+	cb-gla-seg-h: 618px 920px 320px 16px;
 }
 
 @spritesheet cb-neutral
@@ -1460,12 +1364,10 @@ body.low .cb-science { bottom: 140dp; }
 	cb-neutral-tower-r-in: 596px 828px 104px 58px;
 	cb-neutral-tower-c: 708px 778px 160px 120px;
 	cb-neutral-tower-c-in: 758px 828px 60px 58px;
-	cb-neutral-fin: 870px 778px 12px 120px;
-	cb-neutral-fin-in: 872px 798px 8px 80px;
-	cb-neutral-bezel: 884px 778px 64px 64px;
-	cb-neutral-bezel-in: 910px 804px 12px 12px;
-	cb-neutral-btn-normal: 950px 778px 52px 52px;
-	cb-neutral-btn-normal-in: 968px 796px 16px 16px;
+	cb-neutral-bezel: 870px 778px 64px 64px;
+	cb-neutral-bezel-in: 896px 804px 12px 12px;
+	cb-neutral-btn-normal: 936px 778px 52px 52px;
+	cb-neutral-btn-normal-in: 954px 796px 16px 16px;
 	cb-neutral-btn-hover: 0px 920px 52px 52px;
 	cb-neutral-btn-hover-in: 18px 938px 16px 16px;
 	cb-neutral-btn-pressed: 54px 920px 52px 52px;
@@ -1474,21 +1376,16 @@ body.low .cb-science { bottom: 140dp; }
 	cb-neutral-btn-checked-in: 126px 938px 16px 16px;
 	cb-neutral-btn-disabled: 162px 920px 52px 52px;
 	cb-neutral-btn-disabled-in: 180px 938px 16px 16px;
-	cb-neutral-notch: 216px 920px 200px 52px;
-	cb-neutral-notch-in: 284px 950px 64px 18px;
-	cb-neutral-wing-l: 418px 920px 140px 52px;
-	cb-neutral-wing-l-in: 422px 950px 68px 18px;
-	cb-neutral-wing-r: 560px 920px 140px 52px;
-	cb-neutral-wing-r-in: 628px 950px 68px 18px;
-	cb-neutral-slot: 702px 920px 48px 48px;
-	cb-neutral-slot-in: 716px 934px 20px 20px;
-	cb-neutral-channel: 752px 920px 96px 28px;
-	cb-neutral-channel-in: 788px 928px 24px 12px;
-	cb-neutral-vent: 850px 920px 40px 22px;
-	cb-neutral-screw: 892px 920px 16px 16px;
-	cb-neutral-seg-h: 0px 974px 320px 16px;
-	cb-neutral-plate: 322px 974px 120px 14px;
-	cb-neutral-plate-in: 342px 978px 80px 6px;
+	cb-neutral-wing-l: 216px 920px 140px 52px;
+	cb-neutral-wing-l-in: 220px 950px 68px 18px;
+	cb-neutral-wing-r: 358px 920px 140px 52px;
+	cb-neutral-wing-r-in: 426px 950px 68px 18px;
+	cb-neutral-slot: 500px 920px 48px 48px;
+	cb-neutral-slot-in: 514px 934px 20px 20px;
+	cb-neutral-inset: 550px 920px 48px 48px;
+	cb-neutral-inset-in: 558px 928px 32px 32px;
+	cb-neutral-screw: 600px 920px 16px 16px;
+	cb-neutral-seg-h: 618px 920px 320px 16px;
 }
 
 /* ---- Skins: which sprite draws what, per faction ---------------------------------------------------- */
@@ -1502,15 +1399,9 @@ body.usa .cb-main .cb-skin { decorator: image(cb-usa-body-main fill); }
 body.usa .cb-main .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
 body.usa .cb-unit .cb-skin { decorator: image(cb-usa-body-unit-r fill); }
 body.usa .cb-unit .cb-frame { decorator: ninepatch(cb-usa-frame-r, cb-usa-frame-r-in, 1); }
-body.usa .cb-tab, body.usa .cb-powers { decorator: ninepatch(cb-usa-tower-r, cb-usa-tower-r-in, 1); }
-body.usa .cb-money { decorator: ninepatch(cb-usa-notch, cb-usa-notch-in, 1); }
+body.usa .cb-tower { decorator: ninepatch(cb-usa-tower-r, cb-usa-tower-r-in, 1); }
+body.usa .cb-money { decorator: ninepatch(cb-usa-inset, cb-usa-inset-in, 1); }
 body.usa .cb-science, body.usa .cb-tip { decorator: ninepatch(cb-usa-box, cb-usa-box-in, 1); }
-body.usa .cb-plate { decorator: ninepatch(cb-usa-plate, cb-usa-plate-in, 1); }
-body.usa .cb-fin { decorator: ninepatch(cb-usa-fin, cb-usa-fin-in, 1); }
-body.usa .cb-head, body.usa .cb-strip { decorator: ninepatch(cb-usa-channel, cb-usa-channel-in, 1); }
-body.usa .cb-head-vent, body.usa .cb-vent { decorator: image(cb-usa-vent fill); }
-body.usa .cb-tag { background-color: #96B8D8; }
-body.usa .cb-head-label, body.usa .cb-power-label, body.usa .cb-sci-tier, body.usa .cb-beacon-label, body.usa .cb-obs-label { color: #8EB2CE; }
 body.usa .cb-power-bar, body.usa .cb-task-bar, body.usa .cb-exp, body.usa .cb-sci-exp, body.usa .cb-slot, body.usa .cb-cell { decorator: ninepatch(cb-usa-slot, cb-usa-slot-in, 1); }
 body.usa .cb-power-seg { decorator: image(cb-usa-seg-h fill); }
 body.usa .cb-exp-seg { decorator: image(cb-usa-seg-v fill); }
@@ -1527,7 +1418,7 @@ body.usa .cb-slot.cb-sci.buy, body.usa .cb-general.lit { decorator: ninepatch(cb
 	body.usa .cb-radar .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
 	body.usa .cb-unit .cb-skin { decorator: image(cb-usa-body-unit-c fill); }
 	body.usa .cb-unit .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
-	body.usa .cb-tab, body.usa .cb-powers { decorator: ninepatch(cb-usa-tower-c, cb-usa-tower-c-in, 1); }
+	body.usa .cb-tower { decorator: ninepatch(cb-usa-tower-c, cb-usa-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
@@ -1535,7 +1426,7 @@ body.usa .cb-slot.cb-sci.buy, body.usa .cb-general.lit { decorator: ninepatch(cb
 	body.usa.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
 	body.usa.iw-169 .cb-unit .cb-skin { decorator: image(cb-usa-body-unit-c fill); }
 	body.usa.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-usa-frame-c, cb-usa-frame-c-in, 1); }
-	body.usa.iw-169 .cb-tab, body.usa.iw-169 .cb-powers { decorator: ninepatch(cb-usa-tower-c, cb-usa-tower-c-in, 1); }
+	body.usa.iw-169 .cb-tower { decorator: ninepatch(cb-usa-tower-c, cb-usa-tower-c-in, 1); }
 }
 
 /* ---- china ---- */
@@ -1548,15 +1439,9 @@ body.china .cb-main .cb-skin { decorator: image(cb-china-body-main fill); }
 body.china .cb-main .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
 body.china .cb-unit .cb-skin { decorator: image(cb-china-body-unit-r fill); }
 body.china .cb-unit .cb-frame { decorator: ninepatch(cb-china-frame-r, cb-china-frame-r-in, 1); }
-body.china .cb-tab, body.china .cb-powers { decorator: ninepatch(cb-china-tower-r, cb-china-tower-r-in, 1); }
-body.china .cb-money { decorator: ninepatch(cb-china-notch, cb-china-notch-in, 1); }
+body.china .cb-tower { decorator: ninepatch(cb-china-tower-r, cb-china-tower-r-in, 1); }
+body.china .cb-money { decorator: ninepatch(cb-china-inset, cb-china-inset-in, 1); }
 body.china .cb-science, body.china .cb-tip { decorator: ninepatch(cb-china-box, cb-china-box-in, 1); }
-body.china .cb-plate { decorator: ninepatch(cb-china-plate, cb-china-plate-in, 1); }
-body.china .cb-fin { decorator: ninepatch(cb-china-fin, cb-china-fin-in, 1); }
-body.china .cb-head, body.china .cb-strip { decorator: ninepatch(cb-china-channel, cb-china-channel-in, 1); }
-body.china .cb-head-vent, body.china .cb-vent { decorator: image(cb-china-vent fill); }
-body.china .cb-tag { background-color: #C8302A; }
-body.china .cb-head-label, body.china .cb-power-label, body.china .cb-sci-tier, body.china .cb-beacon-label, body.china .cb-obs-label { color: #D09A86; }
 body.china .cb-power-bar, body.china .cb-task-bar, body.china .cb-exp, body.china .cb-sci-exp, body.china .cb-slot, body.china .cb-cell { decorator: ninepatch(cb-china-slot, cb-china-slot-in, 1); }
 body.china .cb-power-seg { decorator: image(cb-china-seg-h fill); }
 body.china .cb-exp-seg { decorator: image(cb-china-seg-v fill); }
@@ -1573,7 +1458,7 @@ body.china .cb-slot.cb-sci.buy, body.china .cb-general.lit { decorator: ninepatc
 	body.china .cb-radar .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
 	body.china .cb-unit .cb-skin { decorator: image(cb-china-body-unit-c fill); }
 	body.china .cb-unit .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
-	body.china .cb-tab, body.china .cb-powers { decorator: ninepatch(cb-china-tower-c, cb-china-tower-c-in, 1); }
+	body.china .cb-tower { decorator: ninepatch(cb-china-tower-c, cb-china-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
@@ -1581,7 +1466,7 @@ body.china .cb-slot.cb-sci.buy, body.china .cb-general.lit { decorator: ninepatc
 	body.china.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
 	body.china.iw-169 .cb-unit .cb-skin { decorator: image(cb-china-body-unit-c fill); }
 	body.china.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-china-frame-c, cb-china-frame-c-in, 1); }
-	body.china.iw-169 .cb-tab, body.china.iw-169 .cb-powers { decorator: ninepatch(cb-china-tower-c, cb-china-tower-c-in, 1); }
+	body.china.iw-169 .cb-tower { decorator: ninepatch(cb-china-tower-c, cb-china-tower-c-in, 1); }
 }
 
 /* ---- gla ---- */
@@ -1594,15 +1479,9 @@ body.gla .cb-main .cb-skin { decorator: image(cb-gla-body-main fill); }
 body.gla .cb-main .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
 body.gla .cb-unit .cb-skin { decorator: image(cb-gla-body-unit-r fill); }
 body.gla .cb-unit .cb-frame { decorator: ninepatch(cb-gla-frame-r, cb-gla-frame-r-in, 1); }
-body.gla .cb-tab, body.gla .cb-powers { decorator: ninepatch(cb-gla-tower-r, cb-gla-tower-r-in, 1); }
-body.gla .cb-money { decorator: ninepatch(cb-gla-notch, cb-gla-notch-in, 1); }
+body.gla .cb-tower { decorator: ninepatch(cb-gla-tower-r, cb-gla-tower-r-in, 1); }
+body.gla .cb-money { decorator: ninepatch(cb-gla-inset, cb-gla-inset-in, 1); }
 body.gla .cb-science, body.gla .cb-tip { decorator: ninepatch(cb-gla-box, cb-gla-box-in, 1); }
-body.gla .cb-plate { decorator: ninepatch(cb-gla-plate, cb-gla-plate-in, 1); }
-body.gla .cb-fin { decorator: ninepatch(cb-gla-fin, cb-gla-fin-in, 1); }
-body.gla .cb-head, body.gla .cb-strip { decorator: ninepatch(cb-gla-channel, cb-gla-channel-in, 1); }
-body.gla .cb-head-vent, body.gla .cb-vent { decorator: image(cb-gla-vent fill); }
-body.gla .cb-tag { background-color: #B88A50; }
-body.gla .cb-head-label, body.gla .cb-power-label, body.gla .cb-sci-tier, body.gla .cb-beacon-label, body.gla .cb-obs-label { color: #CDB48A; }
 body.gla .cb-power-bar, body.gla .cb-task-bar, body.gla .cb-exp, body.gla .cb-sci-exp, body.gla .cb-slot, body.gla .cb-cell { decorator: ninepatch(cb-gla-slot, cb-gla-slot-in, 1); }
 body.gla .cb-power-seg { decorator: image(cb-gla-seg-h fill); }
 body.gla .cb-exp-seg { decorator: image(cb-gla-seg-v fill); }
@@ -1619,7 +1498,7 @@ body.gla .cb-slot.cb-sci.buy, body.gla .cb-general.lit { decorator: ninepatch(cb
 	body.gla .cb-radar .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
 	body.gla .cb-unit .cb-skin { decorator: image(cb-gla-body-unit-c fill); }
 	body.gla .cb-unit .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
-	body.gla .cb-tab, body.gla .cb-powers { decorator: ninepatch(cb-gla-tower-c, cb-gla-tower-c-in, 1); }
+	body.gla .cb-tower { decorator: ninepatch(cb-gla-tower-c, cb-gla-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
@@ -1627,7 +1506,7 @@ body.gla .cb-slot.cb-sci.buy, body.gla .cb-general.lit { decorator: ninepatch(cb
 	body.gla.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
 	body.gla.iw-169 .cb-unit .cb-skin { decorator: image(cb-gla-body-unit-c fill); }
 	body.gla.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-gla-frame-c, cb-gla-frame-c-in, 1); }
-	body.gla.iw-169 .cb-tab, body.gla.iw-169 .cb-powers { decorator: ninepatch(cb-gla-tower-c, cb-gla-tower-c-in, 1); }
+	body.gla.iw-169 .cb-tower { decorator: ninepatch(cb-gla-tower-c, cb-gla-tower-c-in, 1); }
 }
 
 /* ---- neutral ---- */
@@ -1640,15 +1519,9 @@ body.neutral .cb-main .cb-skin { decorator: image(cb-neutral-body-main fill); }
 body.neutral .cb-main .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
 body.neutral .cb-unit .cb-skin { decorator: image(cb-neutral-body-unit-r fill); }
 body.neutral .cb-unit .cb-frame { decorator: ninepatch(cb-neutral-frame-r, cb-neutral-frame-r-in, 1); }
-body.neutral .cb-tab, body.neutral .cb-powers { decorator: ninepatch(cb-neutral-tower-r, cb-neutral-tower-r-in, 1); }
-body.neutral .cb-money { decorator: ninepatch(cb-neutral-notch, cb-neutral-notch-in, 1); }
+body.neutral .cb-tower { decorator: ninepatch(cb-neutral-tower-r, cb-neutral-tower-r-in, 1); }
+body.neutral .cb-money { decorator: ninepatch(cb-neutral-inset, cb-neutral-inset-in, 1); }
 body.neutral .cb-science, body.neutral .cb-tip { decorator: ninepatch(cb-neutral-box, cb-neutral-box-in, 1); }
-body.neutral .cb-plate { decorator: ninepatch(cb-neutral-plate, cb-neutral-plate-in, 1); }
-body.neutral .cb-fin { decorator: ninepatch(cb-neutral-fin, cb-neutral-fin-in, 1); }
-body.neutral .cb-head, body.neutral .cb-strip { decorator: ninepatch(cb-neutral-channel, cb-neutral-channel-in, 1); }
-body.neutral .cb-head-vent, body.neutral .cb-vent { decorator: image(cb-neutral-vent fill); }
-body.neutral .cb-tag { background-color: #7A84D8; }
-body.neutral .cb-head-label, body.neutral .cb-power-label, body.neutral .cb-sci-tier, body.neutral .cb-beacon-label, body.neutral .cb-obs-label { color: #9AA2DC; }
 body.neutral .cb-power-bar, body.neutral .cb-task-bar, body.neutral .cb-exp, body.neutral .cb-sci-exp, body.neutral .cb-slot, body.neutral .cb-cell { decorator: ninepatch(cb-neutral-slot, cb-neutral-slot-in, 1); }
 body.neutral .cb-power-seg { decorator: image(cb-neutral-seg-h fill); }
 body.neutral .cb-exp-seg { decorator: image(cb-neutral-seg-v fill); }
@@ -1665,7 +1538,7 @@ body.neutral .cb-slot.cb-sci.buy, body.neutral .cb-general.lit { decorator: nine
 	body.neutral .cb-radar .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
 	body.neutral .cb-unit .cb-skin { decorator: image(cb-neutral-body-unit-c fill); }
 	body.neutral .cb-unit .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
-	body.neutral .cb-tab, body.neutral .cb-powers { decorator: ninepatch(cb-neutral-tower-c, cb-neutral-tower-c-in, 1); }
+	body.neutral .cb-tower { decorator: ninepatch(cb-neutral-tower-c, cb-neutral-tower-c-in, 1); }
 }
 @media (min-aspect-ratio: 161/90)
 {
@@ -1673,5 +1546,5 @@ body.neutral .cb-slot.cb-sci.buy, body.neutral .cb-general.lit { decorator: nine
 	body.neutral.iw-169 .cb-radar .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
 	body.neutral.iw-169 .cb-unit .cb-skin { decorator: image(cb-neutral-body-unit-c fill); }
 	body.neutral.iw-169 .cb-unit .cb-frame { decorator: ninepatch(cb-neutral-frame-c, cb-neutral-frame-c-in, 1); }
-	body.neutral.iw-169 .cb-tab, body.neutral.iw-169 .cb-powers { decorator: ninepatch(cb-neutral-tower-c, cb-neutral-tower-c-in, 1); }
+	body.neutral.iw-169 .cb-tower { decorator: ninepatch(cb-neutral-tower-c, cb-neutral-tower-c-in, 1); }
 }
