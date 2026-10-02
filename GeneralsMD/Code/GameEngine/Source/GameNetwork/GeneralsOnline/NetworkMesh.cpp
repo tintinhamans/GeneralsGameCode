@@ -731,6 +731,16 @@ NetworkMesh::NetworkMesh()
 		return;
 	}
 
+	// When the anti-cheat plugin owns the transport, no Steam connection is ever
+	// created or accepted by this mesh - StartConnectionSignalling() goes
+	// straight to the plugin. Taking a Steam listen socket we never use only
+	// risks colliding with a previous mesh on P2P vport 0, so skip it.
+	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+	{
+		m_bInitialized = true;
+		return;
+	}
+
 	std::vector<SteamNetworkingConfigValue_t> vecListenOpts;
 	SteamNetworkingConfigValue_t opt;
 	opt.SetInt32(k_ESteamNetworkingConfig_SymmetricConnect, 1);
@@ -1124,15 +1134,18 @@ void NetworkMesh::Disconnect()
 	{
 		AnticheatPlugInterface::DisconnectAll();
 	}
-	else
-	{
-		if (SteamNetworkingSockets() && m_hListenSock != k_HSteamListenSocket_Invalid)
-		{
-			SteamNetworkingSockets()->CloseListenSocket(m_hListenSock);
-		}
 
-		m_hListenSock = k_HSteamListenSocket_Invalid;
+	// The listen socket is created unconditionally in the constructor, so it must
+	// be released unconditionally too. Skipping this when the anti-cheat plugin
+	// owns the transport leaks the socket, and the next NetworkMesh then fails
+	// with "Already have a listen socket on P2P vport 0" - which makes
+	// IsInitialized() false and aborts the second lobby join.
+	if (SteamNetworkingSockets() && m_hListenSock != k_HSteamListenSocket_Invalid)
+	{
+		SteamNetworkingSockets()->CloseListenSocket(m_hListenSock);
 	}
+
+	m_hListenSock = k_HSteamListenSocket_Invalid;
 }
 
 void NetworkMesh::Tick()

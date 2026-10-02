@@ -13,7 +13,7 @@
 //#define USE_MAULLER_ONEDRIVE_FIX 1
 //#define USE_STUBBJAX_TRANSPORT_CONTAIN_FIX 1
 
-#define GENERALS_ONLINE_VERSION_STRING "100126" // NOTE: Format is critical here for Sentry to work
+#define GENERALS_ONLINE_VERSION_STRING "100126_QFE2" // NOTE: Format is critical here for Sentry to work
 
 #define GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA 1
 
