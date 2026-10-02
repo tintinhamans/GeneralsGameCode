@@ -1174,7 +1174,11 @@ void WOLQuickMatchMenuInit( WindowLayout *layout, void *userData )
 				if (bSuccess)
 				{
 					UnicodeString eloStr;
+#if defined(WORLD_SERIES_CLIENT)
 					eloStr.format(L"Your current Elo rating is %d (World Series: %d) after %d match(es)", stats.elo_rating, stats.monthly_elo_rating, stats.elo_num_matches);
+#else
+					eloStr.format(L"Your current Elo rating is %d (monthly: %d) after %d match(es)", stats.elo_rating, stats.monthly_elo_rating, stats.elo_num_matches);
+#endif
 					GadgetListBoxAddEntryText(quickmatchTextWindow, eloStr, GameMakeColor(255, 194, 25, 255), -1, -1);
 				}
 			}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
