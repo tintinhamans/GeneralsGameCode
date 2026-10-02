@@ -345,11 +345,13 @@ struct ServiceConfig
 	// ICE client used for P2P NAT traversal: 0 = library default, 1 = native, 2 = WebRTC.
 	int ice_implementation = 2;
 
+	bool use_new_networking = false;
+
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ServiceConfig, retry_signalling, use_mapped_port, min_run_ahead_frames, ra_update_frequency_frames, relay_all_traffic,
 		ra_slack_percent, frame_grouping_frames, enable_host_migration, network_do_immediate_flush_per_frame, network_send_flags, network_latency_logic_model,
 		use_default_config, ra_slack_override_percent_in_default, do_probes, do_replay_upload, network_mesh_histogram_duration,
 		ibra_ra_tweaks, ibra_minslack_default, ibra_maxslack_default, ibra_minslack_greaterthan300ms, ibra_maxslack_greaterthan300ms, ibra_minslack_greaterthan200ms, ibra_maxslack_greaterthan200ms,
-		screenshot_width, screenshot_height, ice_implementation)
+		screenshot_width, screenshot_height, ice_implementation, use_new_networking)
 };
 
 class NGMP_OnlineServicesManager

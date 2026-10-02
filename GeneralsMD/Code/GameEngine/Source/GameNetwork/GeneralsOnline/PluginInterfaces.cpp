@@ -494,6 +494,12 @@ void AnticheatPlugInterface::EndSession()
 bool AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport()
 {
 #if defined(AC_ENABLED)
+    ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+    if (!serviceConf.use_new_networking)
+    {
+        return false;
+    }
+
     if (IsPluginLoaded() && Functions.fnDoesACPluginProvideSecureGameTransport != nullptr)
     {
         return Functions.fnDoesACPluginProvideSecureGameTransport();
