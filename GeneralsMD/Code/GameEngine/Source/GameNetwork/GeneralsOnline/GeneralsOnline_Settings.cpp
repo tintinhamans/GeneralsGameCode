@@ -64,6 +64,36 @@ float GenOnlineSettings::DetermineCameraMaxHeight()
 	return (float)GENERALS_ONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
 }
 
+std::string GenOnlineSettings::GetAnticheatPlugin() const
+{
+    // if empty, default to whatever official plugin is available
+    if (m_Plugins_Anticheat.empty())
+    {
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] AntiCheat name was empty, doing fallback flow");
+        std::string pluginPath1 = "plugins/easyanticheat/easyanticheat.dll";
+        std::string pluginPath2 = "plugins/goanticheat/goanticheat.dll";
+
+        // prefer EAC
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback flow: Testing EAC");
+        if (std::filesystem::exists(pluginPath2.c_str()))
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback flow: EAC Found.");
+            return std::string("easyanticheat");
+        }
+
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback flow: Testing GOAC");
+        if (std::filesystem::exists(pluginPath2.c_str()))
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback flow: GOAC Found.");
+            return std::string("goanticheat");
+        }
+
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Fallback failed.");
+    }
+
+    return m_Plugins_Anticheat;
+}
+
 void GenOnlineSettings::Load(void)
 {
 	char GameDir[MAX_PATH + 1] = {};

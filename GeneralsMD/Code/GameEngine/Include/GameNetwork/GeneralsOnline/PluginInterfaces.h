@@ -104,6 +104,7 @@ public:
     typedef void (*FuncDefStartSignalling)(const char* szMiddlewareUserID, uint64_t goUserID);
     typedef void (*FuncDefSendPacket)(const char* szMiddlewareUserID, uint64_t targetGoUserID, void* pData, int numBytes, ENetworkChannels channel, EPacketReliability reliability);
     typedef bool (*FuncDefDoesACPluginProvideSecureGameTransport)(void);
+    typedef void (*FuncDefSetSecureGameTransportEnabled)(bool bEnabled);
     typedef int (*FuncDefGetNextRecvPacketSize)(uint8_t channelToReceiveOn);
     typedef bool (*FuncDefRecvPacket)(uint8_t** pOutData, uint8_t channelToReceiveOn);
     typedef void (*FuncDefFreePacket)(void* pPacketData);
@@ -171,6 +172,7 @@ public:
 
         // transport related
         FuncDefDoesACPluginProvideSecureGameTransport fnDoesACPluginProvideSecureGameTransport = nullptr;
+        FuncDefSetSecureGameTransportEnabled fnSetSecureGameTransportEnabled = nullptr;
         FuncDefStartSignalling fnStartSignalling = nullptr;
         FuncDefSendPacket fnSendPacket = nullptr;
         FuncDefGetNextRecvPacketSize fnGetNextRecvPacketSize = nullptr;

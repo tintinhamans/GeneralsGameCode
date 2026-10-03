@@ -49,8 +49,7 @@ public:
 		return m_Render_FramerateLimit_FPSVal;
 	}
 
-    std::string GetAnticheatPlugin() const { return m_Plugins_Anticheat; }
-
+	std::string GetAnticheatPlugin() const;
 	bool Social_Notifications_FriendComesOnline_Menus() { return m_Social_Notification_FriendComesOnline_Menus; }
 	bool Social_Notifications_FriendComesOnline_Gameplay() { return m_Social_Notification_FriendComesOnline_Gameplay; }
 	bool Social_Notifications_FriendGoesOffline_Menus() { return m_Social_Notification_FriendGoesOffline_Menus; }

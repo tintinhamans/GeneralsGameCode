@@ -155,6 +155,17 @@ void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
 
         int result = Functions.fnInitialize([](const char* szMiddlewareID, uint64_t goUserID, EConnectionState newState) // on connection state changed callback
             {
+                // These states describe the plugin's own EOS P2P connections. When the
+                // plugin does not own the transport the mesh is driven by GameNetworkingSockets,
+                // and writing EOS states into it stamps "not connected" over healthy
+                // connections - which the full mesh connectivity check then reports as
+                // missing links. Also guards against an older plugin that predates
+                // SetSecureGameTransportEnabled() and so stays in EOS mode.
+                if (!AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
+                {
+                    return;
+                }
+
                 // this can arrive on a plugin owned thread, the mesh locks internally
                 NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
                 if (pMesh != nullptr)
@@ -330,6 +341,7 @@ void AnticheatPlugInterface::LoadPlugin(const char* szPluginName)
 
         // transport funcs
         AC_PLUGIN_LOAD_FUNCTION(DoesACPluginProvideSecureGameTransport);
+        AC_PLUGIN_LOAD_FUNCTION_OPTIONAL(SetSecureGameTransportEnabled);
         AC_PLUGIN_LOAD_FUNCTION(StartSignalling);
         AC_PLUGIN_LOAD_FUNCTION(SendPacket);
         AC_PLUGIN_LOAD_FUNCTION(GetNextRecvPacketSize);
@@ -495,7 +507,26 @@ bool AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport()
 {
 #if defined(AC_ENABLED)
     ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
-    if (!serviceConf.use_new_networking)
+    const bool bEnabledByConfig = serviceConf.use_new_networking;
+
+    // The plugin makes this same decision internally in places the game cannot
+    // reach - notably inside the EOS anti-cheat OnMessageToPeer callback, which
+    // picks between EOS P2P and handing the message back to us - so it needs its
+    // own copy of the flag. Push it whenever it changes: the service config is
+    // re-fetched per lobby, so this can flip between lobbies.
+    static bool s_bPushedValue = false;
+    static bool s_bEverPushed = false;
+    if ((!s_bEverPushed || s_bPushedValue != bEnabledByConfig)
+        && IsPluginLoaded() && Functions.fnSetSecureGameTransportEnabled != nullptr)
+    {
+        NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Secure game transport: telling plugin use_new_networking=%s",
+            bEnabledByConfig ? "true" : "false");
+        Functions.fnSetSecureGameTransportEnabled(bEnabledByConfig);
+        s_bPushedValue = bEnabledByConfig;
+        s_bEverPushed = true;
+    }
+
+    if (!bEnabledByConfig)
     {
         return false;
     }
