@@ -42,6 +42,8 @@
 #endif
 
 #include "Utility/endian_compat.h"
+#include "../NGMP_include.h"
+#include "../OnlineServices_Init.h"
 
 
 static const char *BIGFileIdentifier = "BIGF";
@@ -58,7 +60,7 @@ void BIGFileSystem::init() {
 		return;
 	}
 
-	loadBigFilesFromDirectory("", "*.big");
+	loadArchiveFilesFromDirectory("", "*.big");
 
 #if RTS_ZEROHOUR
     // load original Generals assets
@@ -67,7 +69,7 @@ void BIGFileSystem::init() {
     //@todo this will need to be ramped up to a crash for release
     DEBUG_ASSERTCRASH(!installPath.isEmpty(), ("Be 1337! Go install Generals!"));
     if (!installPath.isEmpty())
-      loadBigFilesFromDirectory(installPath, "*.big");
+      loadArchiveFilesFromDirectory(installPath, "*.big");
 #endif
 }
 
@@ -236,7 +238,7 @@ void BIGFileSystem::closeAllArchiveFiles() {
 void BIGFileSystem::closeAllFiles() {
 }
 
-Bool BIGFileSystem::loadBigFilesFromDirectory(AsciiString dir, AsciiString fileMask, Bool overwrite) {
+Bool BIGFileSystem::loadArchiveFilesFromDirectory(AsciiString dir, AsciiString fileMask, Bool overwrite) {
 
 	FilenameList filenameList;
 	TheLocalFileSystem->getFileListInDirectory(dir, "", fileMask, filenameList, TRUE);
@@ -257,10 +259,10 @@ Bool BIGFileSystem::loadBigFilesFromDirectory(AsciiString dir, AsciiString fileM
 		ArchiveFile *archiveFile = openArchiveFile((*it).str());
 
 		if (archiveFile != nullptr) {
-			DEBUG_LOG(("BIGFileSystem::loadBigFilesFromDirectory - loading %s into the directory tree.", (*it).str()));
+			DEBUG_LOG(("BIGFileSystem::loadArchiveFilesFromDirectory - loading %s into the directory tree.", (*it).str()));
 			loadIntoDirectoryTree(archiveFile, overwrite);
 			m_archiveFileMap[(*it)] = archiveFile;
-			DEBUG_LOG(("BIGFileSystem::loadBigFilesFromDirectory - %s inserted into the archive file map.", (*it).str()));
+			DEBUG_LOG(("BIGFileSystem::loadArchiveFilesFromDirectory - %s inserted into the archive file map.", (*it).str()));
 			actuallyAdded = TRUE;
 		}
 
@@ -268,4 +270,52 @@ Bool BIGFileSystem::loadBigFilesFromDirectory(AsciiString dir, AsciiString fileM
 	}
 
 	return actuallyAdded;
+}
+
+void BIGFileSystem::loadMods()
+{
+#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES)
+	// load community data patch BIG
+	if (NGMP_OnlineServicesManager::Settings.DataPacks_UseCommunityPatch()
+		&& !TheGlobalData->m_commandLineData.isCommunityDataPatchDisabled())
+	{
+		std::string strBigPath = std::format("{}GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big", TheGlobalData->getPath_UserData().str());
+		bool bLoaded = false;
+		if (TheLocalFileSystem->doesFileExist(strBigPath.c_str()))
+		{
+			ArchiveFile* archiveFile = openArchiveFile(strBigPath.c_str());
+			if (archiveFile != nullptr)
+			{
+				// Sorted by filename so the patch respects the addon number order of BIGs in the game folder.
+				loadIntoDirectoryTree(archiveFile, FALSE, TRUE);
+				m_archiveFileMap[AsciiString(strBigPath.c_str())] = archiveFile;
+				bLoaded = true;
+			}
+		}
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Loaded community patch (%s): %d", strBigPath.c_str(), bLoaded);
+	}
+#endif
+
+	if (TheGlobalData->m_modBIG.isNotEmpty())
+	{
+		ArchiveFile *archiveFile = openArchiveFile(TheGlobalData->m_modBIG.str());
+
+		if (archiveFile != nullptr) {
+			DEBUG_LOG(("BIGFileSystem::loadMods - loading %s into the directory tree.", TheGlobalData->m_modBIG.str()));
+			loadIntoDirectoryTree(archiveFile, TRUE);
+			m_archiveFileMap[TheGlobalData->m_modBIG] = archiveFile;
+			DEBUG_LOG(("BIGFileSystem::loadMods - %s inserted into the archive file map.", TheGlobalData->m_modBIG.str()));
+		}
+		else
+		{
+			DEBUG_LOG(("BIGFileSystem::loadMods - could not openArchiveFile(%s)", TheGlobalData->m_modBIG.str()));
+		}
+	}
+
+	if (TheGlobalData->m_modDir.isNotEmpty())
+	{
+		MAYBE_UNUSED Bool ret = loadArchiveFilesFromDirectory(TheGlobalData->m_modDir, "*.big", TRUE);
+		(void)ret;
+		DEBUG_ASSERTLOG(ret, ("loadArchiveFilesFromDirectory(%s) returned FALSE!", TheGlobalData->m_modDir.str()));
+	}
 }
