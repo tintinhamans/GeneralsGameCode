@@ -49,7 +49,7 @@ void HTTPManager::SendS3PUTRequest(const char* szURI, EIPProtocolVersion protove
 
     HTTPRequest* pRequest = PlatformCreateRequest(EHTTPVerb::HTTP_VERB_PUT, protover, szURI, inHeaders, completionCallback, progressCallback, timeoutMS);
 	pRequest->DisableServiceAuth();
-    pRequest->SetPostDataBuffer(vecBuffer);
+    pRequest->SetPostDataBuffer(std::move(vecBuffer));
 
     m_vecRequestsPendingStart.push_back(pRequest);
 }

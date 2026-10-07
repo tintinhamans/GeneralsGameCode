@@ -586,10 +586,10 @@ public:
 	ServiceConfig& GetServiceConfig() { return m_ServiceConfig; }
 
 public:
-	void CacheScreenshotBytes_StartMatch(std::vector<uint8_t>& vecData)
+	void CacheScreenshotBytes_StartMatch(std::vector<uint8_t> vecData)
 	{
 		std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
-        m_vecCachedScreenshotBytes_MatchStart = vecData;
+        m_vecCachedScreenshotBytes_MatchStart = std::move(vecData);
 	}
 
 	void CacheScreenshotBytes_EndMatch(uint64_t matchID, std::vector<uint8_t> data);
