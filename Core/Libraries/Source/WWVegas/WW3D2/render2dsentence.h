@@ -197,8 +197,6 @@ public:
 	void	Set_Texture_Size_Hint( int hint )				{ TextureSizeHint = hint; }
 	int	Get_Texture_Size_Hint() const				{ return TextureSizeHint; }
 
-	void	Set_Mono_Spaced( bool onoff )						{ MonoSpaced = onoff; }
-
 private:
 
 	//
@@ -254,7 +252,6 @@ private:
 	int													CurrTextureSize;
 	int													TextureSizeHint;
 	SurfaceClass *							CurSurface;
-	bool												MonoSpaced;
 	float												WrapWidth;
 	bool												Centered;			// Determines whether or not to center each line
 	RectClass										ClipRect;
