@@ -630,9 +630,20 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 
 		HRESULT hr=_Get_D3D_Device8()->TestCooperativeLevel();
 		if (hr != D3DERR_DEVICELOST )
-		{	DX8CALL_HRES(Reset(&_PresentParameters),hr)
+		{
+			// TheSuperHackers @bugfix arcticdolphin 09/10/2026 Reset() fails while resources are still bound
+			Unbind_Device_Resources();
+			Invalidate_Cached_Render_States();
+			Set_Render_Target((IDirect3DSurface8*)nullptr);
+
+			// Retried next frame
+			hr = _Get_D3D_Device8()->Reset(&_PresentParameters);
+			Increment_DX8_CallCount();
 			if (hr != D3D_OK)
+			{
+				Non_Fatal_Log_DX8_ErrorCode(hr,__FILE__,__LINE__);
 				return false;	//reset failed.
+			}
 		}
 		else
 			return false;	//device is lost and can't be reset.
@@ -644,7 +655,7 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 				m_pCleanupHook->ReAcquireResources();
 			}
 		}
-		Invalidate_Cached_Render_States();
+			Invalidate_Cached_Render_States();
 		Set_Default_Global_Render_States();
 		SHD_INIT_SHADERS;
 		WWDEBUG_SAY(("Device reset completed"));
@@ -654,18 +665,25 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 	return false;
 }
 
+// Set_Vertex_Buffer and Set_Index_Buffer are deferred
+void DX8Wrapper::Unbind_Device_Resources()
+{
+	for (unsigned stage = 0; stage < MAX_TEXTURE_STAGES; ++stage)
+	{
+		DX8CALL(SetTexture(stage, nullptr));
+	}
+	for (unsigned stream = 0; stream < MAX_VERTEX_STREAMS; ++stream)
+	{
+		DX8CALL(SetStreamSource(stream, nullptr, 0));
+	}
+	DX8CALL(SetIndices(nullptr, 0));
+}
+
 void DX8Wrapper::Release_Device()
 {
 	if (D3DDevice) {
 
-		for (int a=0;a<MAX_TEXTURE_STAGES;++a)
-		{
-			//release references to any textures that were used in last rendering call
-			DX8CALL(SetTexture(a,nullptr));
-		}
-
-		DX8CALL(SetStreamSource(0, nullptr, 0));	//release reference count on last rendered vertex buffer
-		DX8CALL(SetIndices(nullptr,0));	//release reference count on last rendered index buffer
+		Unbind_Device_Resources();
 
 
 		/*
