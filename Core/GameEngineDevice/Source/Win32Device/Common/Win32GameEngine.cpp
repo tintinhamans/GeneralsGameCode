@@ -32,6 +32,8 @@
 #include <windows.h>
 
 #include "Win32Device/Common/Win32GameEngine.h"
+#include "Common/GlobalData.h"
+#include "WW3D2/dx8wrapper.h"
 #include "Common/PerfTimer.h"
 
 #include "GameNetwork/LANAPICallbacks.h"
@@ -43,6 +45,8 @@ extern DWORD TheMessageTime;
 //-------------------------------------------------------------------------------------------------
 Win32GameEngine::Win32GameEngine()
 {
+	m_activationStuckSince = 0;
+	m_lastActivationRecovery = 0;
 	// Stop blue screen
 	m_previousErrorMode = SetErrorMode( SEM_FAILCRITICALERRORS );
 }
@@ -91,12 +95,14 @@ void Win32GameEngine::update()
 	GameEngine::update();
 
 	extern HWND ApplicationHWnd;
+	recoverFullscreenActivation();
 	if (ApplicationHWnd && ::IsIconic(ApplicationHWnd)) {
 		while (ApplicationHWnd && ::IsIconic(ApplicationHWnd)) {
 			// We are alt-tabbed out here.  Sleep a bit, & process windows
 			// so that we can become un-alt-tabbed out.
 			Sleep(5);
 			serviceWindowsOS();
+			recoverFullscreenActivation();
 
 			if (TheLAN != nullptr) {
 				// BGC - need to update TheLAN so we can process and respond to other
@@ -123,6 +129,45 @@ void Win32GameEngine::update()
 	// allow windows to perform regular windows maintenance stuff like msgs
 	serviceWindowsOS();
 
+}
+
+// TheSuperHackers @bugfix arcticdolphin 09/10/2026 Restore the fullscreen window when it is in front but stuck deactivated.
+void Win32GameEngine::recoverFullscreenActivation()
+{
+	extern HWND ApplicationHWnd;
+	if (ApplicationHWnd == nullptr || TheGlobalData->m_windowed || GetForegroundWindow() != ApplicationHWnd)
+	{
+		m_activationStuckSince = 0;
+		return;
+	}
+
+	const Bool iconic = IsIconic(ApplicationHWnd) != FALSE;
+	const Bool deactivated = iconic || !isActive();
+	if (!deactivated && !DX8Wrapper::Is_Device_Lost())
+	{
+		m_activationStuckSince = 0;
+		return;
+	}
+
+	const UnsignedInt now = GetTickCount();
+	if (m_activationStuckSince == 0)
+	{
+		m_activationStuckSince = now;
+		return;
+	}
+
+	// A reset in progress also reads as lost, so wait longer for that.
+	const UnsignedInt limit = deactivated ? 1000 : 5000;
+	if (now - m_activationStuckSince < limit || now - m_lastActivationRecovery < 5000)
+		return;
+
+	m_lastActivationRecovery = now;
+	m_activationStuckSince = 0;
+
+	// Minimize first when not iconic, so the restore re-activates.
+	if (!iconic)
+		ShowWindow(ApplicationHWnd, SW_MINIMIZE);
+	ShowWindow(ApplicationHWnd, SW_RESTORE);
 }
 
 //-------------------------------------------------------------------------------------------------

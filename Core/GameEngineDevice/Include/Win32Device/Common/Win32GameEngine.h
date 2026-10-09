@@ -84,6 +84,10 @@ protected:
 
 protected:
 	UINT m_previousErrorMode;
+
+	void recoverFullscreenActivation();
+	UnsignedInt m_activationStuckSince;				///< tick count since the fullscreen window was found stuck, 0 if not
+	UnsignedInt m_lastActivationRecovery;			///< tick count of the last forced re-activation
 };
 
 // INLINE -----------------------------------------------------------------------------------------
