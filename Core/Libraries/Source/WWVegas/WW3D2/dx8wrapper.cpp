@@ -156,6 +156,9 @@ bool								DX8Wrapper::IsRenderToTexture							= false;
 unsigned							DX8Wrapper::_MainThreadID								= 0;
 bool								DX8Wrapper::CurrentDX8LightEnables[4];
 bool								DX8Wrapper::IsDeviceLost;
+bool								DX8Wrapper::HasResetLostDevice = false;
+unsigned							DX8Wrapper::LastLostDeviceReset = 0;
+unsigned							DX8Wrapper::LostDeviceResetDelay = 0;
 int								DX8Wrapper::ZBias;
 float								DX8Wrapper::ZNear;
 float								DX8Wrapper::ZFar;
@@ -652,6 +655,23 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 	}
 	WWDEBUG_SAY(("Device reset failed"));
 	return false;
+}
+
+// TheSuperHackers @bugfix arcticdolphin 09/10/2026 Back off repeated resets, some displays need seconds for the mode switch.
+bool DX8Wrapper::Reset_Lost_Device()
+{
+	const unsigned now = GetTickCount();
+	const unsigned sinceLastReset = now - LastLostDeviceReset;
+	if (HasResetLostDevice && sinceLastReset < LostDeviceResetDelay) {
+		ThreadClass::Sleep_Ms(50);
+		return false;
+	}
+	// Each reset within three seconds of the previous one waits longer before the next, up to two seconds.
+	const bool repeat = HasResetLostDevice && sinceLastReset < LostDeviceResetDelay + 3000;
+	LostDeviceResetDelay = repeat ? min(LostDeviceResetDelay * 2 + 250, 2000u) : 0;
+	LastLostDeviceReset = now;
+	HasResetLostDevice = true;
+	return Reset_Device();
 }
 
 void DX8Wrapper::Release_Device()
@@ -1701,7 +1721,7 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 			hr=_Get_D3D_Device8()->TestCooperativeLevel();
 			if (hr==D3DERR_DEVICENOTRESET) {
 				WWDEBUG_SAY(("DX8Wrapper::End_Scene is resetting the device."));
-				Reset_Device();
+				Reset_Lost_Device();
 			}
 			else {
 				// Sleep it not active
@@ -1749,7 +1769,7 @@ void DX8Wrapper::Flip_To_Primary()
 
 				if (D3DERR_DEVICENOTRESET == hr) {
 					WWDEBUG_SAY(("DEVICENOTRESET"));
-					Reset_Device();
+					Reset_Lost_Device();
 					resetAttempts++;
 				}
 			} else {

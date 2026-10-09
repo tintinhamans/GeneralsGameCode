@@ -531,6 +531,7 @@ public:
 	/// Returns the display format - added by TR for video playback - not part of W3D
 	static WW3DFormat	getBackBufferFormat();
 	static bool Reset_Device(bool reload_assets=true);
+	static bool Reset_Lost_Device();
 
 	static const DX8Caps*	Get_Current_Caps() { WWASSERT(CurrentCaps); return CurrentCaps; }
 
@@ -634,6 +635,9 @@ protected:
 
 	static bool								IsInitted;
 	static bool								IsDeviceLost;
+	static bool								HasResetLostDevice;	///< a lost device was reset at least once
+	static unsigned							LastLostDeviceReset;	///< tick count of the last reset of a lost device
+	static unsigned							LostDeviceResetDelay;	///< ms to wait before the next one when losses repeat
 	static void *							Hwnd;
 	static unsigned						_MainThreadID;
 
