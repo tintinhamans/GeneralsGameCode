@@ -100,6 +100,7 @@ public:
 
 	virtual void setInitialHealth(Int initialPercent) override; ///< Sets the initial load health %.
 	virtual void setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override; ///< Sets the initial max health
+	virtual void addMaxHealth( Real addMaxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override; ///< Adds to the max health, scaled like the max health already is
 
 	virtual Bool getFrontCrushed() const override { return m_frontCrushed; }
 	virtual Bool getBackCrushed() const override { return m_backCrushed; }

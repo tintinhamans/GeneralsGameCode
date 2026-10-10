@@ -954,6 +954,16 @@ void ActiveBody::setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeT
 }
 
 // ------------------------------------------------------------------------------------------------
+void ActiveBody::addMaxHealth( Real addMaxHealth, MaxHealthChangeType healthChangeType )
+{
+#if !RETAIL_COMPATIBLE_CRC
+	// TheSuperHackers @bugfix arcticdolphin 13/09/2026 Scale the addition by the veterancy bonus the max health already carries, so the result does not depend on the order of upgrades and promotions.
+	addMaxHealth *= TheGlobalData->m_healthBonus[getObject()->getVeterancyLevel()];
+#endif
+	setMaxHealth( m_maxHealth + addMaxHealth, healthChangeType );
+}
+
+// ------------------------------------------------------------------------------------------------
 /** Given the current damage state of the object, evaluate the visual model conditions
 	* that have a visual impact on the object */
 // ------------------------------------------------------------------------------------------------
