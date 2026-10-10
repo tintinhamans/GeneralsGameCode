@@ -311,6 +311,9 @@ void GameLogic::destroyAllObjectsImmediate()
 	processDestroyList();
 	DEBUG_ASSERTCRASH( m_objList == nullptr, ("destroyAllObjectsImmediate: Object list not cleared") );
 
+//	m_objHash.clear();
+	m_objVector.clear();
+
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -404,12 +407,6 @@ void GameLogic::reset()
 	m_thingTemplateBuildableOverrides.clear();
 	m_controlBarOverrides.clear();
 
-	// set the hash to be rather large. We need to optimize this value later.
-//	m_objHash.clear();
-//	m_objHash.resize(OBJ_HASH_SIZE);
-	m_objVector.clear();
-	m_objVector.resize(OBJ_HASH_SIZE, nullptr);
-
 	m_pauseFrame = 0;
 	m_pauseSound = FALSE;
 	m_pauseMusic = FALSE;
@@ -423,6 +420,10 @@ void GameLogic::reset()
 
 	// destroy all objects
 	destroyAllObjectsImmediate();
+
+	// set the hash to be rather large. We need to optimize this value later.
+//	m_objHash.resize(OBJ_HASH_SIZE);
+	m_objVector.resize(OBJ_HASH_SIZE, nullptr);
 
 	m_nextObjID = (ObjectID)1;
 
