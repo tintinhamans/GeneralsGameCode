@@ -295,6 +295,15 @@ GameInfo::GameInfo()
 	reset();
 }
 
+// TheSuperHackers @fix arcticdolphin 10/10/2026 Do not leave TheGameInfo pointing at a destroyed game info.
+GameInfo::~GameInfo()
+{
+	if (TheGameInfo == this)
+	{
+		TheGameInfo = nullptr;
+	}
+}
+
 void GameInfo::init()
 {
 	reset();
