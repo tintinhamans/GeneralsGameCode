@@ -40,6 +40,12 @@ public:
 	bool send(unsigned int ip, unsigned short port, const unsigned char *data, int len, int channel = 0);
 
 	void service();
+
+	/// Receives and dispatches without sending anything, so that acks wait for the next transmit.
+	void receive();
+
+	/// Sends at once when data is queued or a connection is being set up, otherwise acks and retransmits wait up to holdMs.
+	void transmit(unsigned int holdMs);
 	void flush();
 
 	/// The data stays valid until pop().
@@ -53,9 +59,6 @@ public:
 
 	/// Closes the connection and does not reopen it; the reason reaches the peer.
 	void disconnect(unsigned int ip, unsigned short port, unsigned int reason);
-
-	/// Round trip time plus four times its variance for the worst connected peer, in milliseconds.
-	unsigned int getRoundTripEstimateMs() const;
 
 	/// Percent received of the fragmented packet that is arriving on the channel, or -1 if there is none.
 	int getIncomingFragmentPercent(unsigned int ip, unsigned short port, int channel) const;

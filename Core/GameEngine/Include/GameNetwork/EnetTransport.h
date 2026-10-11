@@ -44,7 +44,7 @@ public:
 	void disconnect( UnsignedInt addr, UnsignedShort port, UnsignedInt reason ) { m_link.disconnect(addr, port, reason); }
 
 	Int getIncomingFragmentPercent( UnsignedInt addr, UnsignedShort port, Int channel ) { return m_link.getIncomingFragmentPercent(addr, port, channel); }
-	UnsignedInt getRoundTripEstimateMs() { return m_link.getRoundTripEstimateMs(); }
+	void setAckHoldMs( UnsignedInt ms ) { m_ackHoldMs = ms; }
 	Bool isIdle() { return m_link.isIdle() ? TRUE : FALSE; }
 
 	Bool peekReceived( UnsignedInt *addr, UnsignedShort *port, const UnsignedByte **data, Int *len );
@@ -64,6 +64,7 @@ private:
 	Real average( const UnsignedInt *values );
 
 	EnetLink m_link;
+	UnsignedInt m_ackHoldMs;
 	UnsignedInt m_incomingBytes[MAX_TRANSPORT_STATISTICS_SECONDS];
 	UnsignedInt m_outgoingBytes[MAX_TRANSPORT_STATISTICS_SECONDS];
 	UnsignedInt m_incomingPackets[MAX_TRANSPORT_STATISTICS_SECONDS];

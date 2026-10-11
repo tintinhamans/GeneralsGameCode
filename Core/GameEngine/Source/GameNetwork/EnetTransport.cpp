@@ -25,6 +25,7 @@
 EnetTransport::EnetTransport()
 {
 	m_port = 0;
+	m_ackHoldMs = 0;
 	m_statisticsSlot = 0;
 	m_lastSecond = 0;
 	m_lastBytesIn = m_lastBytesOut = m_lastPacketsIn = m_lastPacketsOut = 0;
@@ -75,7 +76,7 @@ Bool EnetTransport::doRecv()
 	if (!m_link.isOpen())
 		return FALSE;
 
-	m_link.service();
+	m_link.receive();
 	return TRUE;
 }
 
@@ -84,8 +85,7 @@ Bool EnetTransport::doSend()
 	if (!m_link.isOpen())
 		return FALSE;
 
-	m_link.service();
-	m_link.flush();
+	m_link.transmit(m_ackHoldMs);
 	updateStatistics();
 	return TRUE;
 }

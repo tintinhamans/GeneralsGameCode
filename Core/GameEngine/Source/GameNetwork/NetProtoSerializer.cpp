@@ -723,7 +723,7 @@ UnsignedInt getSession()
 	return s_session;
 }
 
-UnsignedInt encodeEnvelope(const Hello *hello, NetCommandRef *const *refs, Int count, UnsignedByte *buf, UnsignedInt bufSize)
+UnsignedInt encodeEnvelope(const Hello *hello, const Timing *timing, NetCommandRef *const *refs, Int count, UnsignedByte *buf, UnsignedInt bufSize)
 {
 	CommandSource source;
 	source.refs = refs;
@@ -738,6 +738,12 @@ UnsignedInt encodeEnvelope(const Hello *hello, NetCommandRef *const *refs, Int c
 		env.hello.session = hello->session;
 		env.hello.slot = hello->slot;
 	}
+	if (timing != nullptr)
+	{
+		env.stamp = timing->stamp;
+		env.echo_stamp = timing->echoStamp;
+		env.echo_hold = timing->echoHold;
+	}
 	env.commands.funcs.encode = encodeCommands;
 	env.commands.arg = &source;
 
@@ -748,7 +754,7 @@ UnsignedInt encodeEnvelope(const Hello *hello, NetCommandRef *const *refs, Int c
 	return (UnsignedInt)stream.bytes_written;
 }
 
-NetCommandList *decodeEnvelope(const UnsignedByte *data, UnsignedInt size, Hello *hello, Bool *hasHello)
+NetCommandList *decodeEnvelope(const UnsignedByte *data, UnsignedInt size, Hello *hello, Bool *hasHello, Timing *timing)
 {
 	NetCommandList *list = newInstance(NetCommandList);
 	list->init();
@@ -768,6 +774,12 @@ NetCommandList *decodeEnvelope(const UnsignedByte *data, UnsignedInt size, Hello
 		return nullptr;
 	}
 
+	if (timing != nullptr)
+	{
+		timing->stamp = env.stamp;
+		timing->echoStamp = env.echo_stamp;
+		timing->echoHold = env.echo_hold;
+	}
 	if (hasHello != nullptr)
 		*hasHello = env.has_hello ? TRUE : FALSE;
 	if (hello != nullptr && env.has_hello)

@@ -572,7 +572,9 @@ void ConnectionManager::doRelayEnet() {
 	while (m_enetTransport->peekReceived(&addr, &port, &data, &length)) {
 		NetProto::Hello hello;
 		Bool hasHello = FALSE;
-		NetCommandList *cmdList = NetProto::decodeEnvelope(data, length, &hello, &hasHello);
+		NetProto::Timing timing;
+		NetCommandList *cmdList = NetProto::decodeEnvelope(data, length, &hello, &hasHello, &timing);
+		const UnsignedInt now = timeGetTime();
 		m_enetTransport->popReceived();
 
 		Int linkSlot = -1;
@@ -580,6 +582,10 @@ void ConnectionManager::doRelayEnet() {
 			if (m_connections[n] != nullptr && m_connections[n]->getUser() != nullptr && m_connections[n]->getUser()->GetIPAddr() == addr) {
 				linkSlot = n;
 			}
+		}
+
+		if (cmdList != nullptr && linkSlot >= 0) {
+			m_connections[linkSlot]->onTiming(timing, now);
 		}
 
 		// Channels are ordered independently: a command may arrive before the envelope with the hello.
@@ -1434,7 +1440,16 @@ void ConnectionManager::update(Bool isInGame) {
 	if (usesEnet()) {
 		m_enetTransport->doRecv();
 		updateFileProgress();
-		m_frameMetrics.updateLatency((Real)m_enetTransport->getRoundTripEstimateMs() / 1000.0f);
+
+		Real worst = 0.0f;
+		for (Int n = 0; n < MAX_SLOTS; ++n) {
+			if (m_connections[n] != nullptr && m_connections[n]->getLatencyEstimate() > worst) {
+				worst = m_connections[n]->getLatencyEstimate();
+			}
+		}
+		if (worst > 0.0f) {
+			m_frameMetrics.updateLatency(worst);
+		}
 	} else
 #endif
 	{
@@ -2058,6 +2073,13 @@ void ConnectionManager::setFrameGrouping(time_t frameGrouping) {
 	if (!usesEnet() && m_localSlot == m_packetRouterSlot) {
 		frameGrouping = frameGrouping / 2;
 	}
+
+#if defined(RTS_NETWORK_ENET)
+	if (usesEnet()) {
+		// Acks wait for data to share a datagram with, but no longer than a group.
+		m_enetTransport->setAckHoldMs((UnsignedInt)frameGrouping);
+	}
+#endif
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		if (m_connections[i] != nullptr) {
 			m_connections[i]->setFrameGrouping(frameGrouping);

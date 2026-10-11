@@ -65,13 +65,18 @@ struct EnetLink::Impl
 		unsigned short port;
 	};
 
-	Impl() : host(0), localIp(0), localPort(0), inHead(0), inCount(0)
+	Impl() : host(0), localIp(0), localPort(0), lastTransmit(0), inHead(0), inCount(0)
 	{
 	}
+
+	void handleEvent(ENetEvent &event);
+	bool hasQueuedData() const;
+	void retryConnects();
 
 	ENetHost *host;
 	unsigned int localIp;
 	unsigned short localPort;
+	unsigned int lastTransmit;
 	Remote remotes[MAX_REMOTES];
 	Inbound inbound[MAX_INBOUND];
 	int inHead;
@@ -351,32 +356,84 @@ void EnetLink::service()
 
 	ENetEvent event;
 	while (impl->inCount < MAX_INBOUND && enet_host_service(impl->host, &event, 0) > 0)
-	{
-		switch (event.type)
-		{
-			case ENET_EVENT_TYPE_CONNECT:
-				impl->onConnect(event.peer);
-				break;
-			case ENET_EVENT_TYPE_DISCONNECT:
-				impl->onDisconnect(event.peer, event.data);
-				break;
-			case ENET_EVENT_TYPE_RECEIVE:
-				impl->onReceive(event.peer, event.packet);
-				break;
-			default:
-				break;
-		}
-	}
+		impl->handleEvent(event);
 
+	impl->retryConnects();
+}
+
+void EnetLink::receive()
+{
+	Impl *impl = m_impl;
+	if (!impl->host)
+		return;
+
+	ENetEvent event;
+	while (impl->inCount < MAX_INBOUND && enet_host_receive(impl->host, &event) > 0)
+		impl->handleEvent(event);
+
+	impl->retryConnects();
+}
+
+void EnetLink::transmit(unsigned int holdMs)
+{
+	Impl *impl = m_impl;
+	if (!impl->host)
+		return;
+
+	const unsigned int now = enet_time_get();
+	if (!impl->hasQueuedData() && now - impl->lastTransmit < holdMs)
+		return;
+
+	impl->lastTransmit = now;
+	service();
+	enet_host_flush(impl->host);
+}
+
+void EnetLink::Impl::handleEvent(ENetEvent &event)
+{
+	switch (event.type)
+	{
+		case ENET_EVENT_TYPE_CONNECT:
+			onConnect(event.peer);
+			break;
+		case ENET_EVENT_TYPE_DISCONNECT:
+			onDisconnect(event.peer, event.data);
+			break;
+		case ENET_EVENT_TYPE_RECEIVE:
+			onReceive(event.peer, event.packet);
+			break;
+		default:
+			break;
+	}
+}
+
+bool EnetLink::Impl::hasQueuedData() const
+{
+	for (int i = 0; i < MAX_REMOTES; ++i)
+	{
+		const Remote &remote = remotes[i];
+		if (!remote.used)
+			continue;
+		if (remote.count > 0)
+			return true;
+		if (remote.peer && (remote.peer->state != ENET_PEER_STATE_CONNECTED || !enet_list_empty(&remote.peer->outgoingCommands)
+			|| !enet_list_empty(&remote.peer->outgoingSendReliableCommands)))
+			return true;
+	}
+	return false;
+}
+
+void EnetLink::Impl::retryConnects()
+{
 	// A connect that timed out keeps its queued packets and is tried again.
 	const unsigned int now = enet_time_get();
 	for (int i = 0; i < MAX_REMOTES; ++i)
 	{
-		Impl::Remote &remote = impl->remotes[i];
+		Remote &remote = remotes[i];
 		if (remote.used && !remote.peer && (remote.count > 0 || remote.wanted)
-			&& impl->isInitiator(remote.ip, remote.port) && now - remote.lastAttempt >= RECONNECT_MS)
+			&& isInitiator(remote.ip, remote.port) && now - remote.lastAttempt >= RECONNECT_MS)
 		{
-			impl->startConnect(&remote);
+			startConnect(&remote);
 		}
 	}
 }
@@ -451,23 +508,6 @@ int EnetLink::getIncomingFragmentPercent(unsigned int ip, unsigned short port, i
 			return (int)((command->fragmentCount - command->fragmentsRemaining) * 100u / command->fragmentCount);
 	}
 	return -1;
-}
-
-unsigned int EnetLink::getRoundTripEstimateMs() const
-{
-	unsigned int estimate = 0;
-	for (int i = 0; i < MAX_REMOTES; ++i)
-	{
-		const Impl::Remote &remote = m_impl->remotes[i];
-		if (!remote.used || !remote.connected || !remote.peer)
-			continue;
-
-		// ENet derives its own retransmit timeout the same way.
-		const unsigned int peerEstimate = remote.peer->roundTripTime + 4 * remote.peer->roundTripTimeVariance;
-		if (peerEstimate > estimate)
-			estimate = peerEstimate;
-	}
-	return estimate;
 }
 
 bool EnetLink::isIdle() const

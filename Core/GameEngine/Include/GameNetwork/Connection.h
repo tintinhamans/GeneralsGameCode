@@ -38,6 +38,9 @@
 #include "GameNetwork/NetCommandList.h"
 #include "GameNetwork/User.h"
 #include "GameNetwork/Transport.h"
+#if defined(RTS_NETWORK_ENET)
+#include "GameNetwork/NetProtoSerializer.h"
+#endif
 #include "GameNetwork/NetPacket.h"
 
 #define CONNECTION_LATENCY_HISTORY_LENGTH 200
@@ -67,6 +70,10 @@ public:
 	void setFrameGrouping(time_t frameGrouping);
 #if defined(RTS_NETWORK_ENET)
 	void setLocalSlot(UnsignedByte slot) { m_localSlot = slot; }
+	void onTiming(const NetProto::Timing &timing, UnsignedInt now);
+
+	/// Round trip time plus four times its variance in seconds, from the stamps the peer echoes. Zero until measured.
+	Real getLatencyEstimate() const { return m_hasRtt ? (m_srtt + 4.0f * m_rttvar) / 1000.0f : 0.0f; }
 #endif
 
 	void sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay);
@@ -93,6 +100,12 @@ protected:
 	void sendBatch(Int channel, NetCommandRef **batch, Int count, UnsignedInt bytes, time_t curtime);
 	UnsignedByte m_localSlot;
 	Bool m_helloSent;
+	UnsignedInt m_peerStamp;			///< Last stamp received, echoed back with the time it was held.
+	UnsignedInt m_peerStampTime;
+	UnsignedInt m_lastEcho;
+	Bool m_hasRtt;
+	Real m_srtt;						///< Milliseconds.
+	Real m_rttvar;
 #endif
 
 	Bool m_isQuitting;

@@ -52,6 +52,12 @@ Connection::Connection() {
 #if defined(RTS_NETWORK_ENET)
 	m_localSlot = 0;
 	m_helloSent = FALSE;
+	m_peerStamp = 0;
+	m_peerStampTime = 0;
+	m_lastEcho = 0;
+	m_hasRtt = FALSE;
+	m_srtt = 0.0f;
+	m_rttvar = 0.0f;
 #endif
 	m_averageLatency = 0.0f;
 	Int i;
@@ -103,6 +109,10 @@ void Connection::init() {
 	m_quitTime = 0;
 #if defined(RTS_NETWORK_ENET)
 	m_helloSent = FALSE;
+	m_peerStamp = 0;
+	m_peerStampTime = 0;
+	m_lastEcho = 0;
+	m_hasRtt = FALSE;
 #endif
 }
 
@@ -330,14 +340,49 @@ UnsignedInt Connection::doSendEnet() {
 	return numpackets;
 }
 
+// The round trip is what the stamp took to come back, less the time the peer held it; acks play no part.
+void Connection::onTiming(const NetProto::Timing &timing, UnsignedInt now) {
+	if (timing.stamp != 0) {
+		m_peerStamp = timing.stamp;
+		m_peerStampTime = now;
+	}
+
+	if (timing.echoStamp == 0 || timing.echoStamp == m_lastEcho) {
+		return;
+	}
+	m_lastEcho = timing.echoStamp;
+
+	const Int rtt = (Int)(now - timing.echoStamp) - (Int)timing.echoHold;
+	if (rtt < 0 || rtt > 60000) {
+		return;
+	}
+
+	if (!m_hasRtt) {
+		m_hasRtt = TRUE;
+		m_srtt = (Real)rtt;
+		m_rttvar = (Real)rtt / 2.0f;
+	} else {
+		const Real error = (Real)rtt - m_srtt;
+		m_rttvar += ((error < 0.0f ? -error : error) - m_rttvar) / 4.0f;
+		m_srtt += error / 8.0f;
+	}
+}
+
 void Connection::sendBatch(Int channel, NetCommandRef **batch, Int count, UnsignedInt bytes, time_t curtime) {
 	NetProto::Hello hello;
 	hello.version = NetProto::VERSION;
 	hello.session = NetProto::getSession();
 	hello.slot = m_localSlot;
-	const UnsignedInt capacity = bytes + 32;
+
+	// Zero means no stamp, so the stamp is never zero.
+	NetProto::Timing timing;
+	timing.stamp = (UnsignedInt)curtime != 0 ? (UnsignedInt)curtime : 1;
+	timing.echoStamp = m_peerStamp;
+	timing.echoHold = m_peerStamp != 0 ? (UnsignedInt)curtime - m_peerStampTime : 0;
+
+	const UnsignedInt capacity = bytes + 64;
 	UnsignedByte *buffer = NEW UnsignedByte[capacity];
-	const UnsignedInt length = NetProto::encodeEnvelope(m_helloSent ? nullptr : &hello, batch, count, buffer, capacity);
+	const UnsignedInt length = NetProto::encodeEnvelope(m_helloSent ? nullptr : &hello, &timing, batch, count, buffer, capacity);
 	Bool sent = FALSE;
 	if (length > 0) {
 		sent = m_enetTransport->queueSend(m_user->GetIPAddr(), m_user->GetPort(), buffer, length, channel);

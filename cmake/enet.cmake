@@ -21,6 +21,55 @@ endif()
 unset(_enet_protocol)
 unset(_enet_protocol_new)
 
+# enet_host_receive: dispatches and receives like enet_host_service but sends nothing, so acks can wait for data.
+file(READ ${enet_SOURCE_DIR}/protocol.c _enet_protocol)
+if(NOT _enet_protocol MATCHES "enet_host_receive")
+	file(APPEND ${enet_SOURCE_DIR}/protocol.c [=[
+
+int
+enet_host_receive (ENetHost * host, ENetEvent * event)
+{
+    event -> type = ENET_EVENT_TYPE_NONE;
+    event -> peer = NULL;
+    event -> packet = NULL;
+
+    switch (enet_protocol_dispatch_incoming_commands (host, event))
+    {
+    case 1:
+        return 1;
+
+    case -1:
+        return -1;
+
+    default:
+        break;
+    }
+
+    host -> serviceTime = enet_time_get ();
+
+    switch (enet_protocol_receive_incoming_commands (host, event))
+    {
+    case 1:
+        return 1;
+
+    case -1:
+        return -1;
+
+    default:
+        break;
+    }
+
+    return enet_protocol_dispatch_incoming_commands (host, event);
+}
+]=])
+	file(READ ${enet_SOURCE_DIR}/include/enet/enet.h _enet_header)
+	string(REPLACE "ENET_API int        enet_host_service (ENetHost *, ENetEvent *, enet_uint32);" "ENET_API int        enet_host_service (ENetHost *, ENetEvent *, enet_uint32);
+ENET_API int        enet_host_receive (ENetHost *, ENetEvent *);" _enet_header "${_enet_header}")
+	file(WRITE ${enet_SOURCE_DIR}/include/enet/enet.h "${_enet_header}")
+	unset(_enet_header)
+endif()
+unset(_enet_protocol)
+
 add_library(enet STATIC
 	${enet_SOURCE_DIR}/callbacks.c
 	${enet_SOURCE_DIR}/compress.c

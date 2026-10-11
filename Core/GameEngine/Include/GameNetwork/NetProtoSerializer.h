@@ -49,14 +49,22 @@ namespace NetProto
 		UnsignedInt slot;
 	};
 
+	/// Round trip measurement of a link that does not depend on when acks are sent. Times are local, in milliseconds.
+	struct Timing
+	{
+		UnsignedInt stamp;
+		UnsignedInt echoStamp;
+		UnsignedInt echoHold;
+	};
+
 	/// Zero if the command type cannot be sent.
 	UnsignedInt getCommandSize(const NetCommandRef *ref);
 
 	/// Zero if it does not fit or a command cannot be sent.
-	UnsignedInt encodeEnvelope(const Hello *hello, NetCommandRef *const *refs, Int count, UnsignedByte *buf, UnsignedInt bufSize);
+	UnsignedInt encodeEnvelope(const Hello *hello, const Timing *timing, NetCommandRef *const *refs, Int count, UnsignedByte *buf, UnsignedInt bufSize);
 
 	/// The caller owns the list; nullptr if malformed.
-	NetCommandList *decodeEnvelope(const UnsignedByte *data, UnsignedInt size, Hello *hello, Bool *hasHello);
+	NetCommandList *decodeEnvelope(const UnsignedByte *data, UnsignedInt size, Hello *hello, Bool *hasHello, Timing *timing);
 }
 
 #endif

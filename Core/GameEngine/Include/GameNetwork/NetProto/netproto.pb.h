@@ -164,6 +164,10 @@ typedef struct _netproto_Envelope {
     pb_callback_t commands;
     bool has_hello;
     netproto_Hello hello; /* first envelope of a link only */
+    /* Round trip measurement that does not depend on when acks are sent; clocks are local, in milliseconds. */
+    uint32_t stamp; /* local time of sending */
+    uint32_t echo_stamp; /* last stamp received from the peer */
+    uint32_t echo_hold; /* time between receiving it and sending this envelope */
 } netproto_Envelope;
 
 typedef struct _netproto_LanStartTimer {
@@ -370,7 +374,7 @@ extern "C" {
 #define netproto_FrameInfoBody_init_default      {0, 0}
 #define netproto_Command_init_default            {0, 0, 0, 0, {{NULL}, NULL}, {{NULL}, NULL}, 0, {netproto_PlayerLeaveBody_init_default}}
 #define netproto_Hello_init_default              {0, 0, 0}
-#define netproto_Envelope_init_default           {{{NULL}, NULL}, false, netproto_Hello_init_default}
+#define netproto_Envelope_init_default           {{{NULL}, NULL}, false, netproto_Hello_init_default, 0, 0, 0}
 #define netproto_LanStartTimer_init_default      {0}
 #define netproto_LanGameName_init_default        {0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
 #define netproto_LanSlot_init_default            {0, "", 0, 0, 0, 0, 0, 0, 0, 0, 0}
@@ -406,7 +410,7 @@ extern "C" {
 #define netproto_FrameInfoBody_init_zero         {0, 0}
 #define netproto_Command_init_zero               {0, 0, 0, 0, {{NULL}, NULL}, {{NULL}, NULL}, 0, {netproto_PlayerLeaveBody_init_zero}}
 #define netproto_Hello_init_zero                 {0, 0, 0}
-#define netproto_Envelope_init_zero              {{{NULL}, NULL}, false, netproto_Hello_init_zero}
+#define netproto_Envelope_init_zero              {{{NULL}, NULL}, false, netproto_Hello_init_zero, 0, 0, 0}
 #define netproto_LanStartTimer_init_zero         {0}
 #define netproto_LanGameName_init_zero           {0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}
 #define netproto_LanSlot_init_zero               {0, "", 0, 0, 0, 0, 0, 0, 0, 0, 0}
@@ -491,6 +495,9 @@ extern "C" {
 #define netproto_Hello_slot_tag                  3
 #define netproto_Envelope_commands_tag           3
 #define netproto_Envelope_hello_tag              5
+#define netproto_Envelope_stamp_tag              6
+#define netproto_Envelope_echo_stamp_tag         7
+#define netproto_Envelope_echo_hold_tag          8
 #define netproto_LanStartTimer_seconds_tag       1
 #define netproto_LanGameName_game_name_tag       1
 #define netproto_LanSlot_kind_tag                1
@@ -738,7 +745,10 @@ X(a, STATIC,   SINGULAR, UINT32,   slot,              3)
 
 #define netproto_Envelope_FIELDLIST(X, a) \
 X(a, CALLBACK, REPEATED, MESSAGE,  commands,          3) \
-X(a, STATIC,   OPTIONAL, MESSAGE,  hello,             5)
+X(a, STATIC,   OPTIONAL, MESSAGE,  hello,             5) \
+X(a, STATIC,   SINGULAR, UINT32,   stamp,             6) \
+X(a, STATIC,   SINGULAR, UINT32,   echo_stamp,        7) \
+X(a, STATIC,   SINGULAR, UINT32,   echo_hold,         8)
 #define netproto_Envelope_CALLBACK pb_default_field_callback
 #define netproto_Envelope_DEFAULT NULL
 #define netproto_Envelope_commands_MSGTYPE netproto_Command

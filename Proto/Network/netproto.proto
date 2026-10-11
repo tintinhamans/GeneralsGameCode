@@ -184,6 +184,11 @@ message Envelope
 	reserved 1, 2, 4;		// version, sender and session now travel in Hello
 	repeated Command commands = 3;
 	Hello hello = 5;		// first envelope of a link only
+
+	// Round trip measurement that does not depend on when acks are sent; clocks are local, in milliseconds.
+	uint32 stamp = 6;		// local time of sending
+	uint32 echo_stamp = 7;	// last stamp received from the peer
+	uint32 echo_hold = 8;	// time between receiving it and sending this envelope
 }
 
 
