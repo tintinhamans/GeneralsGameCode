@@ -120,7 +120,9 @@ void FrameMetrics::processLatencyResponse(UnsignedInt frame) {
 void FrameMetrics::updateLatency(Real roundTripSeconds) {
 	// The frame ack timing included one frame time.
 	const Real frameTime = m_averageFps > 1.0f ? 1.0f / m_averageFps : 1.0f;
-	m_averageLatency += ((roundTripSeconds + frameTime) - m_averageLatency) * 0.02f;
+	// A rise is followed quickly so that jitter does not stall the lockstep; a fall slowly so that the run-ahead does not oscillate.
+	const Real target = roundTripSeconds + frameTime;
+	m_averageLatency += (target - m_averageLatency) * (target > m_averageLatency ? 0.5f : 0.02f);
 }
 #endif
 

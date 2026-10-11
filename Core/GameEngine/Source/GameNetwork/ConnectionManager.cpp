@@ -1421,7 +1421,7 @@ void ConnectionManager::update(Bool isInGame) {
 
 	m_transport->doRecv();
 #if defined(RTS_NETWORK_ENET)
-	m_frameMetrics.updateLatency((Real)m_transport->getMaxRoundTripMs() / 1000.0f);
+	m_frameMetrics.updateLatency((Real)m_transport->getRoundTripEstimateMs() / 1000.0f);
 #endif
 
 #if defined(RTS_NETWORK_ENET)

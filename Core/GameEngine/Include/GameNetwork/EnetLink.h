@@ -54,8 +54,8 @@ public:
 	/// Closes the connection and does not reopen it; the reason reaches the peer.
 	void disconnect(unsigned int ip, unsigned short port, unsigned int reason);
 
-	/// Slowest connected peer, in milliseconds.
-	unsigned int getMaxRoundTripMs() const;
+	/// Round trip time plus four times its variance for the worst connected peer, in milliseconds.
+	unsigned int getRoundTripEstimateMs() const;
 
 	bool isIdle() const;
 

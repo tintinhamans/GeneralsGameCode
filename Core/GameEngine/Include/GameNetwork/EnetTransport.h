@@ -43,7 +43,7 @@ public:
 	Bool isLost( UnsignedInt addr, UnsignedShort port ) const { return m_link.isLost(addr, port); }
 	void disconnect( UnsignedInt addr, UnsignedShort port, UnsignedInt reason ) { m_link.disconnect(addr, port, reason); }
 
-	UnsignedInt getMaxRoundTripMs() { return m_link.getMaxRoundTripMs(); }
+	UnsignedInt getRoundTripEstimateMs() { return m_link.getRoundTripEstimateMs(); }
 	Bool isIdle() { return m_link.isIdle() ? TRUE : FALSE; }
 
 	Bool peekReceived( UnsignedInt *addr, UnsignedShort *port, const UnsignedByte **data, Int *len );

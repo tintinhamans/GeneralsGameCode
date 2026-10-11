@@ -437,16 +437,21 @@ void EnetLink::disconnect(unsigned int ip, unsigned short port, unsigned int rea
 		enet_peer_disconnect(remote->peer, reason);
 }
 
-unsigned int EnetLink::getMaxRoundTripMs() const
+unsigned int EnetLink::getRoundTripEstimateMs() const
 {
-	unsigned int rtt = 0;
+	unsigned int estimate = 0;
 	for (int i = 0; i < MAX_REMOTES; ++i)
 	{
 		const Impl::Remote &remote = m_impl->remotes[i];
-		if (remote.used && remote.connected && remote.peer && remote.peer->roundTripTime > rtt)
-			rtt = remote.peer->roundTripTime;
+		if (!remote.used || !remote.connected || !remote.peer)
+			continue;
+
+		// ENet derives its own retransmit timeout the same way.
+		const unsigned int peerEstimate = remote.peer->roundTripTime + 4 * remote.peer->roundTripTimeVariance;
+		if (peerEstimate > estimate)
+			estimate = peerEstimate;
 	}
-	return rtt;
+	return estimate;
 }
 
 bool EnetLink::isIdle() const
