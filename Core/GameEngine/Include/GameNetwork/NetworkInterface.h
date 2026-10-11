@@ -102,7 +102,8 @@ public:
 	virtual Int getSlotAverageFPS(Int slot) = 0;
 
 	virtual void attachTransport(Transport *transport) = 0;
-	virtual void initTransport() = 0;
+	/// nativeProtocol selects ENet with the native protocol; it is ignored in builds without RTS_NETWORK_ENET.
+	virtual void initTransport(Bool nativeProtocol = FALSE) = 0;
 	virtual Bool sawCRCMismatch() = 0;
 	virtual void setSawCRCMismatch() = 0;
 

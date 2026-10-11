@@ -39,6 +39,9 @@ enum { MaxQuitFlushTime = 30000 }; // wait this many milliseconds at most to ret
  */
 Connection::Connection() {
 	m_transport = nullptr;
+#if defined(RTS_NETWORK_ENET)
+	m_enetTransport = nullptr;
+#endif
 	m_user = nullptr;
 	m_netCommandList = nullptr;
 	m_retryTime = 2000; // set retry time to 2 seconds.
@@ -74,6 +77,9 @@ Connection::~Connection() {
  */
 void Connection::init() {
 	m_transport = nullptr;
+#if defined(RTS_NETWORK_ENET)
+	m_enetTransport = nullptr;
+#endif
 
 	deleteInstance(m_user);
 	m_user = nullptr;
@@ -116,9 +122,15 @@ void Connection::update() {
 /**
  * Attach the transport object that this connection should use.
  */
-void Connection::attachTransport(InGameTransport *transport) {
+void Connection::attachTransport(Transport *transport) {
 	m_transport = transport;
 }
+
+#if defined(RTS_NETWORK_ENET)
+void Connection::attachEnetTransport(EnetTransport *transport) {
+	m_enetTransport = transport;
+}
+#endif
 
 /**
  * Assign this connection a user.  This is the user to whome we send all our packetized goodies.
@@ -127,8 +139,8 @@ void Connection::setUser(User *user) {
 	deleteInstance(m_user);
 	m_user = user;
 #if defined(RTS_NETWORK_ENET)
-	if (m_transport != nullptr && m_user != nullptr) {
-		m_transport->addRemote(m_user->GetIPAddr(), m_user->GetPort());
+	if (m_enetTransport != nullptr && m_user != nullptr) {
+		m_enetTransport->addRemote(m_user->GetIPAddr(), m_user->GetPort());
 	}
 #endif
 }
@@ -150,13 +162,15 @@ void Connection::sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay) {
 		return;
 
 #if defined(RTS_NETWORK_ENET)
-	if (m_netCommandList != nullptr) {
-		NetCommandRef *ref = m_netCommandList->addMessage(msg);
-		if (ref != nullptr) {
-			ref->setRelay(relay);
+	if (m_enetTransport != nullptr) {
+		if (m_netCommandList != nullptr) {
+			NetCommandRef *ref = m_netCommandList->addMessage(msg);
+			if (ref != nullptr) {
+				ref->setRelay(relay);
+			}
 		}
+		return;
 	}
-	return;
 #endif
 
 	if (m_netCommandList != nullptr) {
@@ -256,7 +270,7 @@ void Connection::setQuitting()
 
 static const Int MaxCommandsPerEnvelope = 64;
 
-UnsignedInt Connection::doSend() {
+UnsignedInt Connection::doSendEnet() {
 	Int numpackets = 0;
 	time_t curtime = timeGetTime();
 
@@ -326,7 +340,7 @@ void Connection::sendBatch(Int channel, NetCommandRef **batch, Int count, Unsign
 	const UnsignedInt length = NetProto::encodeEnvelope(m_helloSent ? nullptr : &hello, batch, count, buffer, capacity);
 	Bool sent = FALSE;
 	if (length > 0) {
-		sent = m_transport->queueSend(m_user->GetIPAddr(), m_user->GetPort(), buffer, length, channel);
+		sent = m_enetTransport->queueSend(m_user->GetIPAddr(), m_user->GetPort(), buffer, length, channel);
 	}
 	delete[] buffer;
 
@@ -344,9 +358,14 @@ void Connection::sendBatch(Int channel, NetCommandRef **batch, Int count, Unsign
 	}
 }
 
-#else
+#endif
 
 UnsignedInt Connection::doSend() {
+#if defined(RTS_NETWORK_ENET)
+	if (m_enetTransport != nullptr) {
+		return doSendEnet();
+	}
+#endif
 	Int numpackets = 0;
 	time_t curtime = timeGetTime();
 	Bool couldQueue = TRUE;
@@ -416,9 +435,6 @@ UnsignedInt Connection::doSend() {
 	return numpackets;
 }
 
-#endif
-
-#if !defined(RTS_NETWORK_ENET)
 NetCommandRef * Connection::processAck(NetAckStage1CommandMsg *msg) {
 	return processAck(msg->getCommandID(), msg->getOriginalPlayerID());
 }
@@ -478,7 +494,6 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 	m_netCommandList->removeMessage(temp);
 	return temp;
 }
-#endif
 
 void Connection::setFrameGrouping(time_t frameGrouping) {
 	m_frameGrouping = frameGrouping;

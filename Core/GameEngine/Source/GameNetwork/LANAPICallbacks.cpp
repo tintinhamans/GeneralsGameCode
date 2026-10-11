@@ -229,7 +229,7 @@ void LANAPI::OnGameStart()
 		TheNetwork = NetworkInterface::createNetwork();
 		TheNetwork->init();
 		TheNetwork->setLocalAddress(m_localIP, 8088);
-		TheNetwork->initTransport();
+		TheNetwork->initTransport(TRUE);
 
 		TheNetwork->parseUserList(m_currentGame);
 

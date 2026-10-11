@@ -53,6 +53,7 @@ public:
 	void zeroFrame();
 #if defined(RTS_NETWORK_ENET)
 	void setFrameComplete() { m_frameComplete = true; }
+	void setNativeProtocol(Bool native) { m_nativeProtocol = native; }
 #endif
 	void destroyGameMessages();
 
@@ -65,5 +66,6 @@ protected:
 	UnsignedInt m_lastFailedFrameCC;
 #if defined(RTS_NETWORK_ENET)
 	Bool m_frameComplete;
+	Bool m_nativeProtocol;
 #endif
 };

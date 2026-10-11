@@ -46,6 +46,7 @@ public:
 	void setFrameCommandCount(UnsignedInt frame, UnsignedInt commandCount);
 #if defined(RTS_NETWORK_ENET)
 	void setFrameComplete(UnsignedInt frame);
+	void setNativeProtocol(Bool native);
 #endif
 	UnsignedInt getFrameCommandCount(UnsignedInt frame);
 	void zeroFrames(UnsignedInt startingFrame, UnsignedInt numFrames);

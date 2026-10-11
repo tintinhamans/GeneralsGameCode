@@ -41,6 +41,7 @@ FrameData::FrameData()
 	m_lastFailedFrameCC = 0;
 #if defined(RTS_NETWORK_ENET)
 	m_frameComplete = false;
+	m_nativeProtocol = false;
 #endif
 }
 
@@ -107,12 +108,14 @@ void FrameData::setFrame(UnsignedInt frame) {
  */
 FrameDataReturnType FrameData::allCommandsReady(Bool debugSpewage) {
 #if defined(RTS_NETWORK_ENET)
-	// The local frame is ready by itself; a remote one when its frame info has arrived.
-	if (m_frameComplete || m_frameCommandCount == m_commandCount) {
-		return FRAMEDATA_READY;
+	if (m_nativeProtocol) {
+		// The local frame is ready by itself; a remote one when its frame info has arrived.
+		if (m_frameComplete || m_frameCommandCount == m_commandCount) {
+			return FRAMEDATA_READY;
+		}
+		return FRAMEDATA_NOTREADY;
 	}
-	return FRAMEDATA_NOTREADY;
-#else
+#endif
 	if (m_frameCommandCount == m_commandCount) {
 		m_lastFailedFrameCC = -2;
 		m_lastFailedCC = -2;
@@ -141,7 +144,6 @@ FrameDataReturnType FrameData::allCommandsReady(Bool debugSpewage) {
 		return FRAMEDATA_RESEND;
 	}
 	return FRAMEDATA_NOTREADY;
-#endif
 }
 
 /**

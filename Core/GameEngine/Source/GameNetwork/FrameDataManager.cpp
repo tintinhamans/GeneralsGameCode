@@ -135,6 +135,12 @@ void FrameDataManager::resetFrame(UnsignedInt frame, Bool isAdvancing) {
 void FrameDataManager::setFrameComplete(UnsignedInt frame) {
 	m_frameData[frame % FRAME_DATA_LENGTH].setFrameComplete();
 }
+
+void FrameDataManager::setNativeProtocol(Bool native) {
+	for (Int i = 0; i < FRAME_DATA_LENGTH; ++i) {
+		m_frameData[i].setNativeProtocol(native);
+	}
+}
 #endif
 
 /**
