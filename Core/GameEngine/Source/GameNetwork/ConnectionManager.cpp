@@ -535,6 +535,35 @@ void ConnectionManager::doRelay() {
 }
 
 #if defined(RTS_NETWORK_ENET)
+// A file arrives as one fragmented packet, so ENet knows how far it is before the packet is complete.
+void ConnectionManager::updateFileProgress() {
+	for (FileCommandMap::iterator it = s_fileCommandMap.begin(); it != s_fileCommandMap.end(); ++it) {
+		const UnsignedShort fileID = it->first;
+		FileMaskMap::iterator recipients = s_fileRecipientMaskMap.find(fileID);
+		if (recipients == s_fileRecipientMaskMap.end() || (recipients->second & (1 << m_localSlot)) == 0) {
+			continue;
+		}
+
+		for (Int n = 0; n < MAX_SLOTS; ++n) {
+			if (m_connections[n] == nullptr || m_connections[n]->getUser() == nullptr) {
+				continue;
+			}
+
+			const Int percent = m_enetTransport->getIncomingFragmentPercent(m_connections[n]->getUser()->GetIPAddr(), m_connections[n]->getUser()->GetPort(), NetProto::CHANNEL_FILES);
+			if (percent > s_fileProgressMap[m_localSlot][fileID] && percent < 100) {
+				NetFileProgressCommandMsg *msg = newInstance(NetFileProgressCommandMsg);
+				msg->setPlayerID(m_localSlot);
+				msg->setID(GenerateNextCommandID());
+				msg->setFileID(fileID);
+				msg->setProgress(percent);
+				sendLocalCommand(msg, 0xff ^ (1 << m_localSlot));
+				processFileProgress(msg);
+				msg->detach();
+			}
+		}
+	}
+}
+
 void ConnectionManager::doRelayEnet() {
 	UnsignedInt addr;
 	UnsignedShort port;
@@ -1401,6 +1430,7 @@ void ConnectionManager::update(Bool isInGame) {
 #if defined(RTS_NETWORK_ENET)
 	if (usesEnet()) {
 		m_enetTransport->doRecv();
+		updateFileProgress();
 		m_frameMetrics.updateLatency((Real)m_enetTransport->getRoundTripEstimateMs() / 1000.0f);
 	} else
 #endif

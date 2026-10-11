@@ -43,6 +43,7 @@ public:
 	Bool isLost( UnsignedInt addr, UnsignedShort port ) const { return m_link.isLost(addr, port); }
 	void disconnect( UnsignedInt addr, UnsignedShort port, UnsignedInt reason ) { m_link.disconnect(addr, port, reason); }
 
+	Int getIncomingFragmentPercent( UnsignedInt addr, UnsignedShort port, Int channel ) { return m_link.getIncomingFragmentPercent(addr, port, channel); }
 	UnsignedInt getRoundTripEstimateMs() { return m_link.getRoundTripEstimateMs(); }
 	Bool isIdle() { return m_link.isIdle() ? TRUE : FALSE; }
 

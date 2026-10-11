@@ -153,6 +153,7 @@ private:
 	void doRelay();
 #if defined(RTS_NETWORK_ENET)
 	void doRelayEnet();
+	void updateFileProgress();
 #endif
 
 	/// True when the game runs on ENet with the native protocol; the legacy path is used otherwise.

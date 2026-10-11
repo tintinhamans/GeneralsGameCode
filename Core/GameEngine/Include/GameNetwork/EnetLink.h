@@ -57,6 +57,9 @@ public:
 	/// Round trip time plus four times its variance for the worst connected peer, in milliseconds.
 	unsigned int getRoundTripEstimateMs() const;
 
+	/// Percent received of the fragmented packet that is arriving on the channel, or -1 if there is none.
+	int getIncomingFragmentPercent(unsigned int ip, unsigned short port, int channel) const;
+
 	bool isIdle() const;
 
 	unsigned int getBytesSent() const;

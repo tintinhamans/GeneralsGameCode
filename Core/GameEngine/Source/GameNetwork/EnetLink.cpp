@@ -437,6 +437,22 @@ void EnetLink::disconnect(unsigned int ip, unsigned short port, unsigned int rea
 		enet_peer_disconnect(remote->peer, reason);
 }
 
+int EnetLink::getIncomingFragmentPercent(unsigned int ip, unsigned short port, int channelId) const
+{
+	const Impl::Remote *remote = const_cast<Impl *>(m_impl)->find(ip, port);
+	if (!remote || !remote->peer || channelId < 0 || (size_t)channelId >= remote->peer->channelCount)
+		return -1;
+
+	ENetList *commands = &remote->peer->channels[channelId].incomingReliableCommands;
+	for (ENetListIterator it = enet_list_begin(commands); it != enet_list_end(commands); it = enet_list_next(it))
+	{
+		const ENetIncomingCommand *command = (const ENetIncomingCommand *)it;
+		if (command->fragmentCount > 1 && command->fragmentsRemaining > 0)
+			return (int)((command->fragmentCount - command->fragmentsRemaining) * 100u / command->fragmentCount);
+	}
+	return -1;
+}
+
 unsigned int EnetLink::getRoundTripEstimateMs() const
 {
 	unsigned int estimate = 0;
