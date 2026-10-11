@@ -694,6 +694,16 @@ Bool DisconnectManager::allOnSameFrame(ConnectionManager *conMgr) {
 
 Bool DisconnectManager::isLocalPlayerNextPacketRouter(ConnectionManager *conMgr) {
 	UnsignedInt localSlot = conMgr->getLocalPlayerID();
+	if (conMgr->usesEnet()) {
+		// No router: the lowest slot that is still in the game removes the player.
+		for (UnsignedInt i = 0; i < localSlot; ++i) {
+			Int lowerSlot = translatedSlotPosition(i, localSlot);
+			if (lowerSlot != -1 && conMgr->isPlayerConnected(i) && isPlayerInGame(lowerSlot, conMgr)) {
+				return FALSE;
+			}
+		}
+		return TRUE;
+	}
 	UnsignedInt packetRouterSlot = conMgr->getPacketRouterSlot();
 	Int transSlot = translatedSlotPosition(packetRouterSlot, localSlot);
 

@@ -129,6 +129,13 @@ message ScreenOffBody
 	uint32 new_frame = 1;
 }
 
+// Metrics of the sender on the frames of the run-ahead schedule, in whole milliseconds and frames per second.
+message FrameInfoBody
+{
+	uint32 latency_ms = 1;
+	uint32 fps = 2;
+}
+
 // Command types without data (keep-alives, router query/ack, load complete, timeout start) set no body.
 message Command
 {
@@ -160,6 +167,7 @@ message Command
 		FileProgressBody file_progress = 24;
 		DisconnectFrameBody disconnect_frame = 25;
 		ScreenOffBody screen_off = 26;
+		FrameInfoBody frame_info = 28;
 	}
 }
 

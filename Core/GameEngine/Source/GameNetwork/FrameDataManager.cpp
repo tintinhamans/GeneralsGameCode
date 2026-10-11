@@ -136,6 +136,20 @@ void FrameDataManager::setFrameComplete(UnsignedInt frame) {
 	m_frameData[frame % FRAME_DATA_LENGTH].setFrameComplete();
 }
 
+void FrameDataManager::setFrameMetrics(UnsignedInt frame, UnsignedInt latencyMs, UnsignedInt fps) {
+	m_frameData[frame % FRAME_DATA_LENGTH].setMetrics(latencyMs, fps);
+}
+
+Bool FrameDataManager::getFrameMetrics(UnsignedInt frame, UnsignedInt *latencyMs, UnsignedInt *fps) {
+	const FrameData &data = m_frameData[frame % FRAME_DATA_LENGTH];
+	if (!data.hasMetrics()) {
+		return FALSE;
+	}
+	*latencyMs = data.getLatencyMs();
+	*fps = data.getFps();
+	return TRUE;
+}
+
 void FrameDataManager::setNativeProtocol(Bool native) {
 	for (Int i = 0; i < FRAME_DATA_LENGTH; ++i) {
 		m_frameData[i].setNativeProtocol(native);

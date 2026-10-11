@@ -60,6 +60,9 @@ PB_BIND(netproto_DisconnectFrameBody, netproto_DisconnectFrameBody, AUTO)
 PB_BIND(netproto_ScreenOffBody, netproto_ScreenOffBody, AUTO)
 
 
+PB_BIND(netproto_FrameInfoBody, netproto_FrameInfoBody, AUTO)
+
+
 PB_BIND(netproto_Command, netproto_Command, 2)
 
 

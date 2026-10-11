@@ -42,6 +42,9 @@ FrameData::FrameData()
 #if defined(RTS_NETWORK_ENET)
 	m_frameComplete = false;
 	m_nativeProtocol = false;
+	m_hasMetrics = false;
+	m_latencyMs = 0;
+	m_fps = 0;
 #endif
 }
 
@@ -73,6 +76,7 @@ void FrameData::init()
 	m_lastFailedFrameCC = -2;
 #if defined(RTS_NETWORK_ENET)
 	m_frameComplete = false;
+	m_hasMetrics = false;
 #endif
 }
 

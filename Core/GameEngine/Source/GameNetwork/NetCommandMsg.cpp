@@ -343,6 +343,11 @@ NetAckStage2CommandMsg::~NetAckStage2CommandMsg() {
 NetFrameCommandMsg::NetFrameCommandMsg() {
 	m_commandCount = 0;
 	m_commandType = NETCOMMANDTYPE_FRAMEINFO;
+#if defined(RTS_NETWORK_ENET)
+	m_hasMetrics = FALSE;
+	m_latencyMs = 0;
+	m_fps = 0;
+#endif
 }
 
 /**

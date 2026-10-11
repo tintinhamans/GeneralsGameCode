@@ -38,6 +38,9 @@ static constexpr const Int MIN_LOGIC_FRAMES = 5;
 static constexpr const Int MAX_FRAMES_AHEAD = 128;
 static constexpr const Int MIN_RUNAHEAD = 4;
 
+// Frames between the samples that the native protocol takes for the run-ahead, about half a second.
+static constexpr const Int RUNAHEAD_SAMPLE_INTERVAL = 15;
+
 // FRAME_DATA_LENGTH needs to be MAX_FRAMES_AHEAD+1 because a player on a different
 // computer can send commands for a frame that is one beyond twice the max runahead.
 static constexpr const Int FRAME_DATA_LENGTH = (MAX_FRAMES_AHEAD + 1) * 2;

@@ -207,6 +207,12 @@ namespace
 			c.id = 0;
 			c.bundled.funcs.encode = encodeBundled;
 			c.bundled.arg = const_cast<NetCommandMsg *>(msg);
+			if (static_cast<const NetFrameCommandMsg *>(msg)->hasMetrics())
+			{
+				c.which_body = netproto_Command_frame_info_tag;
+				c.frame_info.latency_ms = static_cast<const NetFrameCommandMsg *>(msg)->getLatencyMs();
+				c.frame_info.fps = static_cast<const NetFrameCommandMsg *>(msg)->getFps();
+			}
 			break;
 		}
 		case NETCOMMANDTYPE_PLAYERLEAVE:
@@ -529,6 +535,8 @@ namespace
 		{
 			NetFrameCommandMsg *m = static_cast<NetFrameCommandMsg *>(msg);
 			m->setID((UnsignedShort)(c.frame & 0xFFFF));
+			if (c.which_body == netproto_Command_frame_info_tag)
+				m->setMetrics(c.frame_info.latency_ms, c.frame_info.fps);
 			// Position in the bundle is the order of the commands within the frame.
 			for (size_t i = 0; i < state.bundled.size(); ++i)
 			{

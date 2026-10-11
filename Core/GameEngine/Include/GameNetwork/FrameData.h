@@ -54,6 +54,10 @@ public:
 #if defined(RTS_NETWORK_ENET)
 	void setFrameComplete() { m_frameComplete = true; }
 	void setNativeProtocol(Bool native) { m_nativeProtocol = native; }
+	void setMetrics(UnsignedInt latencyMs, UnsignedInt fps) { m_hasMetrics = true; m_latencyMs = latencyMs; m_fps = fps; }
+	Bool hasMetrics() const { return m_hasMetrics; }
+	UnsignedInt getLatencyMs() const { return m_latencyMs; }
+	UnsignedInt getFps() const { return m_fps; }
 #endif
 	void destroyGameMessages();
 
@@ -67,5 +71,8 @@ protected:
 #if defined(RTS_NETWORK_ENET)
 	Bool m_frameComplete;
 	Bool m_nativeProtocol;
+	Bool m_hasMetrics;
+	UnsignedInt m_latencyMs;
+	UnsignedInt m_fps;
 #endif
 };

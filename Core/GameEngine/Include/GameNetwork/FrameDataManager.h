@@ -47,6 +47,8 @@ public:
 #if defined(RTS_NETWORK_ENET)
 	void setFrameComplete(UnsignedInt frame);
 	void setNativeProtocol(Bool native);
+	void setFrameMetrics(UnsignedInt frame, UnsignedInt latencyMs, UnsignedInt fps);
+	Bool getFrameMetrics(UnsignedInt frame, UnsignedInt *latencyMs, UnsignedInt *fps);
 #endif
 	UnsignedInt getFrameCommandCount(UnsignedInt frame);
 	void zeroFrames(UnsignedInt startingFrame, UnsignedInt numFrames);

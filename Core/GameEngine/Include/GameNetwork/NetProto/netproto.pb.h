@@ -119,6 +119,12 @@ typedef struct _netproto_ScreenOffBody {
     uint32_t new_frame;
 } netproto_ScreenOffBody;
 
+/* Metrics of the sender on the frames of the run-ahead schedule, in whole milliseconds and frames per second. */
+typedef struct _netproto_FrameInfoBody {
+    uint32_t latency_ms;
+    uint32_t fps;
+} netproto_FrameInfoBody;
+
 /* Command types without data (keep-alives, router query/ack, load complete, timeout start) set no body. */
 typedef struct _netproto_Command {
     uint32_t type;
@@ -143,6 +149,7 @@ typedef struct _netproto_Command {
         netproto_FileProgressBody file_progress;
         netproto_DisconnectFrameBody disconnect_frame;
         netproto_ScreenOffBody screen_off;
+        netproto_FrameInfoBody frame_info;
     };
 } netproto_Command;
 
@@ -340,6 +347,7 @@ extern "C" {
 
 
 
+
 /* Initializer values for message structs */
 #define netproto_Coord3_init_default             {0, 0, 0}
 #define netproto_Pixel_init_default              {0, 0}
@@ -359,6 +367,7 @@ extern "C" {
 #define netproto_FileProgressBody_init_default   {0, 0}
 #define netproto_DisconnectFrameBody_init_default {0}
 #define netproto_ScreenOffBody_init_default      {0}
+#define netproto_FrameInfoBody_init_default      {0, 0}
 #define netproto_Command_init_default            {0, 0, 0, 0, {{NULL}, NULL}, {{NULL}, NULL}, 0, {netproto_PlayerLeaveBody_init_default}}
 #define netproto_Hello_init_default              {0, 0, 0}
 #define netproto_Envelope_init_default           {{{NULL}, NULL}, false, netproto_Hello_init_default}
@@ -394,6 +403,7 @@ extern "C" {
 #define netproto_FileProgressBody_init_zero      {0, 0}
 #define netproto_DisconnectFrameBody_init_zero   {0}
 #define netproto_ScreenOffBody_init_zero         {0}
+#define netproto_FrameInfoBody_init_zero         {0, 0}
 #define netproto_Command_init_zero               {0, 0, 0, 0, {{NULL}, NULL}, {{NULL}, NULL}, 0, {netproto_PlayerLeaveBody_init_zero}}
 #define netproto_Hello_init_zero                 {0, 0, 0}
 #define netproto_Envelope_init_zero              {{{NULL}, NULL}, false, netproto_Hello_init_zero}
@@ -454,6 +464,8 @@ extern "C" {
 #define netproto_FileProgressBody_progress_tag   2
 #define netproto_DisconnectFrameBody_disconnect_frame_tag 1
 #define netproto_ScreenOffBody_new_frame_tag     1
+#define netproto_FrameInfoBody_latency_ms_tag    1
+#define netproto_FrameInfoBody_fps_tag           2
 #define netproto_Command_type_tag                1
 #define netproto_Command_frame_tag               2
 #define netproto_Command_player_tag              3
@@ -473,6 +485,7 @@ extern "C" {
 #define netproto_Command_file_progress_tag       24
 #define netproto_Command_disconnect_frame_tag    25
 #define netproto_Command_screen_off_tag          26
+#define netproto_Command_frame_info_tag          28
 #define netproto_Hello_version_tag               1
 #define netproto_Hello_session_tag               2
 #define netproto_Hello_slot_tag                  3
@@ -671,6 +684,12 @@ X(a, STATIC,   SINGULAR, UINT32,   new_frame,         1)
 #define netproto_ScreenOffBody_CALLBACK NULL
 #define netproto_ScreenOffBody_DEFAULT NULL
 
+#define netproto_FrameInfoBody_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, UINT32,   latency_ms,        1) \
+X(a, STATIC,   SINGULAR, UINT32,   fps,               2)
+#define netproto_FrameInfoBody_CALLBACK NULL
+#define netproto_FrameInfoBody_DEFAULT NULL
+
 #define netproto_Command_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, UINT32,   type,              1) \
 X(a, STATIC,   SINGULAR, UINT32,   frame,             2) \
@@ -690,7 +709,8 @@ X(a, STATIC,   ONEOF,    MESSAGE,  (body,file,file),  22) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (body,file_announce,file_announce),  23) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (body,file_progress,file_progress),  24) \
 X(a, STATIC,   ONEOF,    MESSAGE,  (body,disconnect_frame,disconnect_frame),  25) \
-X(a, STATIC,   ONEOF,    MESSAGE,  (body,screen_off,screen_off),  26)
+X(a, STATIC,   ONEOF,    MESSAGE,  (body,screen_off,screen_off),  26) \
+X(a, STATIC,   ONEOF,    MESSAGE,  (body,frame_info,frame_info),  28)
 #define netproto_Command_CALLBACK pb_default_field_callback
 #define netproto_Command_DEFAULT NULL
 #define netproto_Command_bundled_MSGTYPE netproto_BundledGameCommand
@@ -707,6 +727,7 @@ X(a, STATIC,   ONEOF,    MESSAGE,  (body,screen_off,screen_off),  26)
 #define netproto_Command_body_file_progress_MSGTYPE netproto_FileProgressBody
 #define netproto_Command_body_disconnect_frame_MSGTYPE netproto_DisconnectFrameBody
 #define netproto_Command_body_screen_off_MSGTYPE netproto_ScreenOffBody
+#define netproto_Command_body_frame_info_MSGTYPE netproto_FrameInfoBody
 
 #define netproto_Hello_FIELDLIST(X, a) \
 X(a, STATIC,   SINGULAR, UINT32,   version,           1) \
@@ -883,6 +904,7 @@ extern const pb_msgdesc_t netproto_FileAnnounceBody_msg;
 extern const pb_msgdesc_t netproto_FileProgressBody_msg;
 extern const pb_msgdesc_t netproto_DisconnectFrameBody_msg;
 extern const pb_msgdesc_t netproto_ScreenOffBody_msg;
+extern const pb_msgdesc_t netproto_FrameInfoBody_msg;
 extern const pb_msgdesc_t netproto_Command_msg;
 extern const pb_msgdesc_t netproto_Hello_msg;
 extern const pb_msgdesc_t netproto_Envelope_msg;
@@ -920,6 +942,7 @@ extern const pb_msgdesc_t netproto_LanMessage_msg;
 #define netproto_FileProgressBody_fields &netproto_FileProgressBody_msg
 #define netproto_DisconnectFrameBody_fields &netproto_DisconnectFrameBody_msg
 #define netproto_ScreenOffBody_fields &netproto_ScreenOffBody_msg
+#define netproto_FrameInfoBody_fields &netproto_FrameInfoBody_msg
 #define netproto_Command_fields &netproto_Command_msg
 #define netproto_Hello_fields &netproto_Hello_msg
 #define netproto_Envelope_fields &netproto_Envelope_msg
@@ -953,6 +976,7 @@ extern const pb_msgdesc_t netproto_LanMessage_msg;
 #define netproto_FileAnnounceBody_size           274
 #define netproto_FileBody_size                   262
 #define netproto_FileProgressBody_size           12
+#define netproto_FrameInfoBody_size              12
 #define netproto_Hello_size                      18
 #define netproto_LanAccept_size                  98
 #define netproto_LanChat_size                    702

@@ -278,6 +278,12 @@ public:
 	void addBundled(NetGameCommandMsg *msg);
 	Int getBundledCount() const { return (Int)m_bundled.size(); }
 	NetGameCommandMsg *getBundled(Int index) const { return m_bundled[index]; }
+
+	/// Metrics of the sender for the run-ahead schedule; only some frames carry them.
+	void setMetrics(UnsignedInt latencyMs, UnsignedInt fps) { m_hasMetrics = TRUE; m_latencyMs = latencyMs; m_fps = fps; }
+	Bool hasMetrics() const { return m_hasMetrics; }
+	UnsignedInt getLatencyMs() const { return m_latencyMs; }
+	UnsignedInt getFps() const { return m_fps; }
 #endif
 
 	virtual Select getSmallNetPacketSelect() const override;
@@ -286,6 +292,9 @@ protected:
 	UnsignedShort m_commandCount;
 #if defined(RTS_NETWORK_ENET)
 	std::vector<NetGameCommandMsg*> m_bundled;
+	Bool m_hasMetrics;
+	UnsignedInt m_latencyMs;
+	UnsignedInt m_fps;
 #endif
 };
 

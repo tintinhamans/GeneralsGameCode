@@ -125,6 +125,18 @@ public:
 
 	Bool isPacketRouter();
 
+	/// True when the game runs on ENet with the native protocol; the legacy path is used otherwise.
+#if defined(RTS_NETWORK_ENET)
+	Bool usesEnet() const { return m_enetTransport != nullptr; }
+#else
+	Bool usesEnet() const { return FALSE; }
+#endif
+
+#if defined(RTS_NETWORK_ENET)
+	/// Run-ahead and frame rate from the metrics that all players sent for the frame; false without samples.
+	Bool evaluateRunAhead(UnsignedInt frame, Int runAhead, Int frameRate, Int *newRunAhead, Int *newFrameRate);
+#endif
+
 	Bool isPlayerConnected( Int playerID );
 
 	void notifyOthersOfCurrentFrame(Int frame);
@@ -154,13 +166,6 @@ private:
 #if defined(RTS_NETWORK_ENET)
 	void doRelayEnet();
 	void updateFileProgress();
-#endif
-
-	/// True when the game runs on ENet with the native protocol; the legacy path is used otherwise.
-#if defined(RTS_NETWORK_ENET)
-	Bool usesEnet() const { return m_enetTransport != nullptr; }
-#else
-	Bool usesEnet() const { return FALSE; }
 #endif
 	void doKeepAlive();
 	void sendRemoteCommand(NetCommandRef *msg);

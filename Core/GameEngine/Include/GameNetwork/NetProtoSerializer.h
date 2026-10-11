@@ -25,7 +25,7 @@
 namespace NetProto
 {
 	// Bump on any incompatible schema change.
-	static constexpr const UnsignedInt VERSION = 5;
+	static constexpr const UnsignedInt VERSION = 6;
 
 	// A single command larger than this is sent alone.
 	static constexpr const UnsignedInt MAX_ENVELOPE_BYTES = 8192;

@@ -1056,6 +1056,9 @@ void ConnectionManager::processFrameInfo(NetFrameCommandMsg *msg) {
 			for (Int n = 0; n < msg->getBundledCount(); ++n) {
 				m_frameData[playerID]->addNetCommandMsg(msg->getBundled(n));
 			}
+			if (msg->hasMetrics()) {
+				m_frameData[playerID]->setFrameMetrics(msg->getExecutionFrame(), msg->getLatencyMs(), msg->getFps());
+			}
 			m_frameData[playerID]->setFrameComplete(msg->getExecutionFrame());
 		}
 		return;
@@ -1498,6 +1501,11 @@ void ConnectionManager::update(Bool isInGame) {
 }
 
 void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didSelfSlug, Int nextExecutionFrame) {
+	if (usesEnet()) {
+		// The native protocol has no owner: every client evaluates the samples of the frame bundles.
+		return;
+	}
+
 	static time_t lasttimesent = 0;
 	time_t curTime = timeGetTime();
 
@@ -1638,6 +1646,60 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 	}
 }
 
+#if defined(RTS_NETWORK_ENET)
+// Integer math only, so that every client gets the same result from the same samples.
+Bool ConnectionManager::evaluateRunAhead(UnsignedInt frame, Int runAhead, Int frameRate, Int *newRunAhead, Int *newFrameRate) {
+	UnsignedInt latency1 = 0;
+	UnsignedInt latency2 = 0;
+	Int minFps = -1;
+	Int minFpsPlayer = -1;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		UnsignedInt latencyMs;
+		UnsignedInt fps;
+		if (m_frameData[i] == nullptr || !m_frameData[i]->getFrameMetrics(frame, &latencyMs, &fps)) {
+			continue;
+		}
+		m_fpsAverages[i] = (Int)fps;
+		m_latencyAverages[i] = (Real)latencyMs / 1000.0f;
+		if (latencyMs > latency1) {
+			latency2 = latency1;
+			latency1 = latencyMs;
+		} else if (latencyMs > latency2) {
+			latency2 = latencyMs;
+		}
+		if (minFps == -1 || (Int)fps < minFps) {
+			minFps = (Int)fps;
+			minFpsPlayer = i;
+		}
+	}
+	if (minFps == -1) {
+		return FALSE;
+	}
+
+	if (minFps >= ((frameRate * 9) / 10) && minFps < frameRate) {
+		// within 10% of the current rate, so keep it.
+		minFps = frameRate;
+	}
+	minFps = max<Int>(minFps, MIN_LOGIC_FRAMES);
+
+	// ceil(1.1 x the average of the two highest latencies x the lowest frame rate), the legacy formula in milliseconds.
+	const UnsignedInt maxLatencyMs = min<UnsignedInt>((latency1 + latency2) / 2, 10000);
+	Int newValue = (Int)((maxLatencyMs * (UnsignedInt)(100 + TheGlobalData->m_networkRunAheadSlack) * (UnsignedInt)minFps + 99999) / 100000);
+	*newRunAhead = clamp<Int>(MIN_RUNAHEAD, newValue, MAX_FRAMES_AHEAD / 2);
+
+	*newFrameRate = minFps;
+	if (minFpsPlayer == (Int)m_localSlot) {
+		// The slowest player runs a little faster than the others, in case it can.
+		Int faster = (minFps * 11) / 10;
+		if (faster == minFps) {
+			faster = minFps + 1;
+		}
+		*newFrameRate = min<Int>(faster, 30);
+	}
+	return TRUE;
+}
+#endif
+
 Real ConnectionManager::getMaximumLatency() {
 
 	Real lat1 = 0.0f;
@@ -1698,6 +1760,20 @@ void ConnectionManager::sendFrameInfo(UnsignedInt sourceSlot, UnsignedInt frame,
 	for (NetCommandRef *ref = list->getFirstMessage(); ref != nullptr; ref = ref->getNext()) {
 		if (ref->getCommand()->getNetCommandType() == NETCOMMANDTYPE_GAMECOMMAND) {
 			msg->addBundled(static_cast<NetGameCommandMsg *>(ref->getCommand()));
+		}
+	}
+
+	if (frame > 0 && frame % RUNAHEAD_SAMPLE_INTERVAL == 0) {
+		UnsignedInt latencyMs = 0;
+		UnsignedInt fps = 0;
+		if (!m_frameData[sourceSlot]->getFrameMetrics(frame, &latencyMs, &fps) && sourceSlot == m_localSlot) {
+			latencyMs = (UnsignedInt)(m_frameMetrics.getAverageLatency() * 1000.0f + 0.5f);
+			// The limit of the local frame rate caps the sample, so the lowest sample never exceeds any limit.
+			fps = (UnsignedInt)min<Int>(min<Int>(m_frameMetrics.getAverageFPS(), 100), TheGlobalData->m_framesPerSecondLimit);
+			m_frameData[sourceSlot]->setFrameMetrics(frame, latencyMs, fps);
+		}
+		if (m_frameData[sourceSlot]->getFrameMetrics(frame, &latencyMs, &fps)) {
+			msg->setMetrics(latencyMs, fps);
 		}
 	}
 
@@ -1979,7 +2055,7 @@ void ConnectionManager::setFrameGrouping(time_t frameGrouping) {
 	// may become the latency bottleneck for sending packets from one player to the next.
 	// This is probably ok since the packet router should have the fastest connection of all
 	// the players in the game.
-	if (m_localSlot == m_packetRouterSlot) {
+	if (!usesEnet() && m_localSlot == m_packetRouterSlot) {
 		frameGrouping = frameGrouping / 2;
 	}
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
@@ -2084,7 +2160,7 @@ PlayerLeaveCode ConnectionManager::disconnectPlayer(Int slot) {
 //		TheMessageStream->appendMessage(GameMessage::MSG_CLEAR_GAME_DATA);
 //	}
 
-	if (slot == m_packetRouterSlot) {
+	if (!usesEnet() && slot == m_packetRouterSlot) {
 		Int index = 0;
 		while ((index < (MAX_SLOTS-1)) && (m_packetRouterFallback[index] != m_packetRouterSlot)) {
 			++index;
@@ -2687,6 +2763,15 @@ void ConnectionManager::sendTimeOutGameStart()
 
 Bool ConnectionManager::isPacketRouter()
 {
+	if (usesEnet()) {
+		// No router: the lowest slot in the game answers for the game.
+		for (UnsignedInt i = 0; i < m_localSlot; ++i) {
+			if (m_connections[i] != nullptr && !m_connections[i]->isQuitting()) {
+				return FALSE;
+			}
+		}
+		return TRUE;
+	}
 	return m_localSlot == m_packetRouterSlot;
 }
 
@@ -2699,7 +2784,7 @@ Int ConnectionManager::getSlotAverageFPS(Int slot) {
 	if ((slot < 0) || (slot >= MAX_SLOTS)) {
 		return -1;
 	}
-	if ((m_packetRouterSlot != m_localSlot) && (slot == m_localSlot)) {
+	if (!usesEnet() && (m_packetRouterSlot != m_localSlot) && (slot == m_localSlot)) {
 		// our framerate data isn't valid for other players unless we are the
 		// packet router, so don't fake someone out.
 		return -1;

@@ -187,6 +187,7 @@ protected:
 	Bool processCommand(GameMessage *msg);												///< Whatever needs to be done as a result of this command, do it now.
 	void processFrameSynchronizedNetCommand(NetCommandRef *msg);	///< If there is a network command that needs to be executed at the same frame number on all clients, it happens here.
 	void processRunAheadCommand(NetRunAheadCommandMsg *msg);			///< Do what needs to be done when we get a new run ahead command.
+	void applyRunAhead(Int runAhead, Int frameRate);
 	void processDestroyPlayerCommand(NetDestroyPlayerCommandMsg *msg);	///< Do what needs to be done when we need to destroy a player.
 	void endOfGameCheck();																				///< Checks to see if its ok to leave this game.  If it is, send the apropriate command to the game logic.
 	Bool timeForNewFrame();
@@ -197,6 +198,13 @@ protected:
 
 	NetLocalStatus m_localStatus;															///< My local status as a player in this game.
 
+#if defined(RTS_NETWORK_ENET)
+	enum { MAX_PENDING_RUNAHEAD = 8 };
+	Int m_pendingCount;														///< Switches of the sample frames that have not taken effect yet.
+	Int m_pendingFrame[MAX_PENDING_RUNAHEAD];
+	Int m_pendingRunAhead[MAX_PENDING_RUNAHEAD];
+	Int m_pendingFrameRate[MAX_PENDING_RUNAHEAD];
+#endif
 	Int m_runAhead;																						///< The current run ahead of the game.
 	Int m_frameRate;
 	Int m_lastExecutionFrame;																	///< The highest frame number that a command could have been executed on.
@@ -329,6 +337,9 @@ void Network::init()
 	m_lastFrame = 0;
 	m_runAhead = min(max(30, MIN_RUNAHEAD), MAX_FRAMES_AHEAD/2); ///< @todo: don't hard-code the run-ahead.
 	m_frameRate = 30;
+#if defined(RTS_NETWORK_ENET)
+	m_pendingCount = 0;
+#endif
 	m_lastExecutionFrame = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_lastFrameCompleted = m_runAhead - 1; // subtract 1 since we're starting on frame 0
 	m_frameDataReady = FALSE;
@@ -575,6 +586,38 @@ void Network::RelayCommandsToCommandList(UnsignedInt frame) {
 		return;
 	}
 	m_checkCRCsThisFrame = FALSE;
+
+#if defined(RTS_NETWORK_ENET)
+	if (m_conMgr->usesEnet()) {
+		// Every client takes the same samples at the same frame and arms the same switch, so no owner is needed.
+		for (Int i = 0; i < m_pendingCount; ++i) {
+			if ((Int)frame == m_pendingFrame[i]) {
+				applyRunAhead(m_pendingRunAhead[i], m_pendingFrameRate[i]);
+			}
+		}
+
+		Int runAhead;
+		Int frameRate;
+		if (frame > 0 && frame % RUNAHEAD_SAMPLE_INTERVAL == 0 && m_conMgr->evaluateRunAhead(frame, m_runAhead, m_frameRate, &runAhead, &frameRate)) {
+			const Int applyFrame = frame + m_runAhead;
+			// A later sample replaces the switches that would take effect after it.
+			Int kept = 0;
+			for (Int i = 0; i < m_pendingCount; ++i) {
+				if (m_pendingFrame[i] > (Int)frame && m_pendingFrame[i] < applyFrame) {
+					m_pendingFrame[kept] = m_pendingFrame[i];
+					m_pendingRunAhead[kept] = m_pendingRunAhead[i];
+					m_pendingFrameRate[kept] = m_pendingFrameRate[i];
+					++kept;
+				}
+			}
+			m_pendingFrame[kept] = applyFrame;
+			m_pendingRunAhead[kept] = runAhead;
+			m_pendingFrameRate[kept] = frameRate;
+			m_pendingCount = kept + 1;
+		}
+	}
+#endif
+
 	NetCommandList *netcmdlist = m_conMgr->getFrameCommandList(frame);
 	NetCommandRef *msg = netcmdlist->getFirstMessage();
 	while (msg != nullptr) {
@@ -641,8 +684,12 @@ void Network::processFrameSynchronizedNetCommand(NetCommandRef *msg) {
 }
 
 void Network::processRunAheadCommand(NetRunAheadCommandMsg *msg) {
-	m_runAhead = msg->getRunAhead();
-	m_frameRate = msg->getFrameRate();
+	applyRunAhead(msg->getRunAhead(), msg->getFrameRate());
+}
+
+void Network::applyRunAhead(Int runAhead, Int frameRate) {
+	m_runAhead = runAhead;
+	m_frameRate = frameRate;
 	time_t frameGrouping = (1000 * m_runAhead) / m_frameRate; // number of miliseconds between packet sends
 	frameGrouping = frameGrouping / 2; // since we only want the latency for one way to be a factor.
 //	DEBUG_LOG(("Network::processRunAheadCommand - trying to set frame grouping to %d.  run ahead = %d, m_frameRate = %d", frameGrouping, m_runAhead, m_frameRate));
