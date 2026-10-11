@@ -28,6 +28,9 @@
 #include "GameNetwork/Connection.h"
 #include "GameNetwork/networkutil.h"
 #include "GameLogic/GameLogic.h"
+#if defined(RTS_NETWORK_ENET)
+#include "GameNetwork/NetProtoSerializer.h"
+#endif
 
 enum { MaxQuitFlushTime = 30000 }; // wait this many milliseconds at most to retry things before quitting
 
@@ -43,6 +46,10 @@ Connection::Connection() {
 	m_frameGrouping = 1;
 	m_isQuitting = false;
 	m_quitTime = 0;
+#if defined(RTS_NETWORK_ENET)
+	m_localSlot = 0;
+	m_helloSent = FALSE;
+#endif
 	m_averageLatency = 0.0f;
 	Int i;
 	for(i = 0; i < CONNECTION_LATENCY_HISTORY_LENGTH; i++)
@@ -88,6 +95,9 @@ void Connection::init() {
 	m_averageLatency = 0;
 	m_isQuitting = FALSE;
 	m_quitTime = 0;
+#if defined(RTS_NETWORK_ENET)
+	m_helloSent = FALSE;
+#endif
 }
 
 /**
@@ -106,7 +116,7 @@ void Connection::update() {
 /**
  * Attach the transport object that this connection should use.
  */
-void Connection::attachTransport(Transport *transport) {
+void Connection::attachTransport(InGameTransport *transport) {
 	m_transport = transport;
 }
 
@@ -116,6 +126,11 @@ void Connection::attachTransport(Transport *transport) {
 void Connection::setUser(User *user) {
 	deleteInstance(m_user);
 	m_user = user;
+#if defined(RTS_NETWORK_ENET)
+	if (m_transport != nullptr && m_user != nullptr) {
+		m_transport->addRemote(m_user->GetIPAddr(), m_user->GetPort());
+	}
+#endif
 }
 
 /**
@@ -133,6 +148,16 @@ User * Connection::getUser() {
 void Connection::sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay) {
 	if (m_isQuitting)
 		return;
+
+#if defined(RTS_NETWORK_ENET)
+	if (m_netCommandList != nullptr) {
+		NetCommandRef *ref = m_netCommandList->addMessage(msg);
+		if (ref != nullptr) {
+			ref->setRelay(relay);
+		}
+	}
+	return;
+#endif
 
 	if (m_netCommandList != nullptr) {
 		NetPacket packet;
@@ -227,6 +252,100 @@ void Connection::setQuitting()
  * This is the good part. We take all the network commands queued up for this connection,
  * packetize them and put them on the transport's send queue for actual sending.
  */
+#if defined(RTS_NETWORK_ENET)
+
+static const Int MaxCommandsPerEnvelope = 64;
+
+UnsignedInt Connection::doSend() {
+	Int numpackets = 0;
+	time_t curtime = timeGetTime();
+
+	if (m_isQuitting && curtime > m_quitTime + MaxQuitFlushTime)
+	{
+		DEBUG_LOG(("Timed out a quitting connection.  Deleting all %d messages", m_netCommandList->length()));
+		m_netCommandList->reset();
+		return 0;
+	}
+
+	if ((curtime - m_lastTimeSent) < m_frameGrouping) {
+		return 0;
+	}
+
+	NetCommandRef *batch[NetProto::CHANNEL_COUNT][MaxCommandsPerEnvelope];
+	Int count[NetProto::CHANNEL_COUNT] = { 0, 0, 0 };
+	UnsignedInt bytes[NetProto::CHANNEL_COUNT] = { 0, 0, 0 };
+
+	// The frame info of a frame completes it at the receiver, so it must go out after the other commands queued with it.
+	NetCommandRef *msg = m_netCommandList->getFirstMessage();
+	for (Int pass = 0; pass < 2; ++pass) {
+	msg = m_netCommandList->getFirstMessage();
+	while (msg != nullptr) {
+		NetCommandRef *next = msg->getNext();
+		time_t timeLastSent = msg->getTimeLastSent();
+		const Bool isFrameInfo = msg->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO;
+
+		if (timeLastSent == -1 && isFrameInfo == (pass == 1)) {
+			const UnsignedInt size = NetProto::getCommandSize(msg);
+			if (size == 0) {
+				DEBUG_LOG(("Connection::doSend - dropping a command that cannot be serialized"));
+				m_netCommandList->removeMessage(msg);
+				deleteInstance(msg);
+			} else {
+				const Int channel = NetProto::getChannel(msg->getCommand()->getNetCommandType());
+				if (count[channel] > 0 && (count[channel] == MaxCommandsPerEnvelope || bytes[channel] + size > NetProto::MAX_ENVELOPE_BYTES)) {
+					sendBatch(channel, batch[channel], count[channel], bytes[channel], curtime);
+					++numpackets;
+					count[channel] = 0;
+					bytes[channel] = 0;
+				}
+				batch[channel][count[channel]++] = msg;
+				bytes[channel] += size;
+			}
+		}
+		msg = next;
+	}
+	}
+
+	for (Int channel = 0; channel < NetProto::CHANNEL_COUNT; ++channel) {
+		if (count[channel] > 0) {
+			sendBatch(channel, batch[channel], count[channel], bytes[channel], curtime);
+			++numpackets;
+		}
+	}
+
+	return numpackets;
+}
+
+void Connection::sendBatch(Int channel, NetCommandRef **batch, Int count, UnsignedInt bytes, time_t curtime) {
+	NetProto::Hello hello;
+	hello.version = NetProto::VERSION;
+	hello.session = NetProto::getSession();
+	hello.slot = m_localSlot;
+	const UnsignedInt capacity = bytes + 32;
+	UnsignedByte *buffer = NEW UnsignedByte[capacity];
+	const UnsignedInt length = NetProto::encodeEnvelope(m_helloSent ? nullptr : &hello, batch, count, buffer, capacity);
+	Bool sent = FALSE;
+	if (length > 0) {
+		sent = m_transport->queueSend(m_user->GetIPAddr(), m_user->GetPort(), buffer, length, channel);
+	}
+	delete[] buffer;
+
+	if (!sent) {
+		return;
+	}
+
+	m_helloSent = TRUE;
+
+	m_lastTimeSent = curtime;
+	for (Int i = 0; i < count; ++i) {
+		NetCommandRef *ref = batch[i];
+		m_netCommandList->removeMessage(ref);
+		deleteInstance(ref);
+	}
+}
+
+#else
+
 UnsignedInt Connection::doSend() {
 	Int numpackets = 0;
 	time_t curtime = timeGetTime();
@@ -297,6 +416,9 @@ UnsignedInt Connection::doSend() {
 	return numpackets;
 }
 
+#endif
+
+#if !defined(RTS_NETWORK_ENET)
 NetCommandRef * Connection::processAck(NetAckStage1CommandMsg *msg) {
 	return processAck(msg->getCommandID(), msg->getOriginalPlayerID());
 }
@@ -356,6 +478,7 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 	m_netCommandList->removeMessage(temp);
 	return temp;
 }
+#endif
 
 void Connection::setFrameGrouping(time_t frameGrouping) {
 	m_frameGrouping = frameGrouping;

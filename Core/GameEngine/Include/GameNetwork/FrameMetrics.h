@@ -39,6 +39,9 @@ public:
 
 	void doPerFrameMetrics(UnsignedInt frame);
 	void processLatencyResponse(UnsignedInt frame);
+#if defined(RTS_NETWORK_ENET)
+	void updateLatency(Real roundTripSeconds);	///< Replaces the frame ack timing with what the transport measures.
+#endif
 	void addCushion(Int cushion);
 
 	Real getAverageLatency();

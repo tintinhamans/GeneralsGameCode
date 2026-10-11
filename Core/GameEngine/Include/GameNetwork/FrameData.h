@@ -51,6 +51,9 @@ public:
 	void addCommand(NetCommandMsg *msg);
 	UnsignedInt getCommandCount();
 	void zeroFrame();
+#if defined(RTS_NETWORK_ENET)
+	void setFrameComplete() { m_frameComplete = true; }
+#endif
 	void destroyGameMessages();
 
 protected:
@@ -60,4 +63,7 @@ protected:
 	NetCommandList *m_commandList;
 	UnsignedInt m_lastFailedCC;
 	UnsignedInt m_lastFailedFrameCC;
+#if defined(RTS_NETWORK_ENET)
+	Bool m_frameComplete;
+#endif
 };

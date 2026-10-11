@@ -116,6 +116,14 @@ void FrameMetrics::processLatencyResponse(UnsignedInt frame) {
 	}
 }
 
+#if defined(RTS_NETWORK_ENET)
+void FrameMetrics::updateLatency(Real roundTripSeconds) {
+	// The frame ack timing included one frame time.
+	const Real frameTime = m_averageFps > 1.0f ? 1.0f / m_averageFps : 1.0f;
+	m_averageLatency += ((roundTripSeconds + frameTime) - m_averageLatency) * 0.02f;
+}
+#endif
+
 void FrameMetrics::addCushion(Int cushion) {
 	++m_cushionIndex;
 	m_cushionIndex %= TheGlobalData->m_networkCushionHistoryLength;

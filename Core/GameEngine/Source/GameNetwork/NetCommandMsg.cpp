@@ -349,7 +349,19 @@ NetFrameCommandMsg::NetFrameCommandMsg() {
  * Destructor
  */
 NetFrameCommandMsg::~NetFrameCommandMsg() {
+#if defined(RTS_NETWORK_ENET)
+	for (size_t i = 0; i < m_bundled.size(); ++i) {
+		m_bundled[i]->detach();
+	}
+#endif
 }
+
+#if defined(RTS_NETWORK_ENET)
+void NetFrameCommandMsg::addBundled(NetGameCommandMsg *msg) {
+	msg->attach();
+	m_bundled.push_back(msg);
+}
+#endif
 
 /**
  * Set the command count of this frame.

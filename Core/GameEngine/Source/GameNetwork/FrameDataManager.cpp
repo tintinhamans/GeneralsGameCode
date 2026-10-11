@@ -131,6 +131,12 @@ void FrameDataManager::resetFrame(UnsignedInt frame, Bool isAdvancing) {
 	DEBUG_ASSERTCRASH(m_frameData[frameindex].getCommandCount() == 0, ("we just reset the frame data and the command count is not zero, huh?"));
 }
 
+#if defined(RTS_NETWORK_ENET)
+void FrameDataManager::setFrameComplete(UnsignedInt frame) {
+	m_frameData[frame % FRAME_DATA_LENGTH].setFrameComplete();
+}
+#endif
+
 /**
  * Returns the command count for the given frame.
  */

@@ -543,6 +543,15 @@ void DisconnectManager::resetPlayerTimeout(Int slot) {
 	m_playerTimeouts[slot] = timeGetTime();
 }
 
+// The transport knows the player is gone; there is no point in waiting for the timeout.
+void DisconnectManager::expirePlayerTimeout(Int playerID, ConnectionManager *conMgr) {
+	Int slot = translatedSlotPosition(playerID, conMgr->getLocalPlayerID());
+	if (slot != -1 && !hasPlayerTimedOut(slot)) {
+		DEBUG_LOG(("DisconnectManager::expirePlayerTimeout - the link to player %d was lost", playerID));
+		m_playerTimeouts[slot] = timeGetTime() - TheGlobalData->m_networkPlayerTimeoutTime - 1;
+	}
+}
+
 void DisconnectManager::resetPacketRouterTimeout() {
 	m_packetRouterTimeout = timeGetTime();
 }

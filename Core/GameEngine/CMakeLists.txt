@@ -1171,6 +1171,14 @@ else()
     )
 endif()
 
+if(RTS_NETWORK_ENET)
+    list(APPEND GAMEENGINE_SRC
+        Include/GameNetwork/NetProtoSerializer.h
+        Source/GameNetwork/NetProtoSerializer.cpp
+        Include/GameNetwork/EnetTransport.h
+        Source/GameNetwork/EnetTransport.cpp
+    )
+endif()
 
 add_library(corei_gameengine_private INTERFACE)
 add_library(corei_gameengine_public INTERFACE)
@@ -1207,6 +1215,10 @@ target_link_libraries(corei_gameengine_public INTERFACE
     gamespy::gamespy
     stlport
 )
+
+if(RTS_NETWORK_ENET)
+    target_link_libraries(corei_gameengine_public INTERFACE nanopb enetlink)
+endif()
 
 # ReactOS ATL for MinGW-w64 only (MSVC uses native ATL)
 if(MINGW)

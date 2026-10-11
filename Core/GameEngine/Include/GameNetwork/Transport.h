@@ -98,3 +98,10 @@ private:
 
 	Bool isGeneralsPacket( TransportMessage *msg );
 };
+
+#if defined(RTS_NETWORK_ENET)
+#include "GameNetwork/EnetTransport.h"
+typedef EnetTransport InGameTransport;
+#else
+typedef Transport InGameTransport;
+#endif

@@ -37,3 +37,11 @@ if(MSVC)
 	# VC6 warns C4761 on every size_t/int argument.
 	target_compile_options(enet PRIVATE /w)
 endif()
+
+# Separate from corei_gameengine: winsock2.h (ENet) must not meet the winsock.h of PreRTS.h.
+add_library(enetlink STATIC
+	${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/EnetLink.cpp
+	${CMAKE_SOURCE_DIR}/Core/GameEngine/Include/GameNetwork/EnetLink.h
+)
+target_include_directories(enetlink PUBLIC ${CMAKE_SOURCE_DIR}/Core/GameEngine/Include)
+target_link_libraries(enetlink PUBLIC enet nanopb)

@@ -130,6 +130,9 @@ public:
 	void notifyOthersOfCurrentFrame(Int frame);
 	void sendFrameDataToPlayer(UnsignedInt playerID, UnsignedInt startingFrame);
 	void sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedInt frame);
+#if defined(RTS_NETWORK_ENET)
+	void sendFrameInfo(UnsignedInt sourceSlot, UnsignedInt frame, UnsignedByte relay);
+#endif
 	void notifyOthersOfNewFrame(UnsignedInt frame);
 
 	UnsignedInt getNextPacketRouterSlot(UnsignedInt playerID); ///< returns the packet router player that comes after the given player.
@@ -150,20 +153,28 @@ private:
 	void doRelay();
 	void doKeepAlive();
 	void sendRemoteCommand(NetCommandRef *msg);
+#if !defined(RTS_NETWORK_ENET)
 	void ackCommand(NetCommandRef *ref, UnsignedInt localSlot);
+#endif
 
 	Bool processNetCommand(NetCommandRef *ref);
+#if !defined(RTS_NETWORK_ENET)
 	void processAckStage1(NetCommandMsg *msg);
 	void processAckStage2(NetCommandMsg *msg);
 	void processAck(NetCommandMsg *msg);
+#endif
 	void processFrameInfo(NetFrameCommandMsg *msg);
 	void processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg);
 	void processDisconnectChat(NetDisconnectChatCommandMsg *msg);
 	void processProgress( NetProgressCommandMsg *msg );
 	void processLoadComplete( NetCommandMsg *msg );
 	void processTimeOutGameStart( NetCommandMsg *msg );
+#if !defined(RTS_NETWORK_ENET)
 	void processWrapper(NetCommandRef *ref);
+#endif
+#if !defined(RTS_NETWORK_ENET)
 	void processFrameResendRequest(NetFrameResendRequestCommandMsg *msg);
+#endif
 
 	void processFile(NetFileCommandMsg *ref);
 	void processFileAnnounce(NetFileAnnounceCommandMsg *ref);
@@ -173,14 +184,16 @@ private:
 	void getMinimumFps(Int &minFps, Int &minFpsPlayer);			///< Returns the smallest FPS in the m_fpsAverages list.
 	Real getMaximumLatency(); ///< Returns the average of the two highest average latencies between players.
 
+#if !defined(RTS_NETWORK_ENET)
 	void requestFrameDataResend(Int playerID, UnsignedInt frame); ///< request of this player that he send the specified frame's data.
+#endif
 
 	// The connections are set up like the slot list. The connection corresponding to the local
 	// player's position in the slot list will be null.  Connections corresponding to slots that
 	// do not have a player will also be null.
 	Connection *m_connections[MAX_SLOTS];
 
-	Transport *m_transport;
+	InGameTransport *m_transport;
 	UnsignedInt m_localSlot;
 	UnsignedInt m_packetRouterSlot;
 	UnsignedInt m_packetRouterFallback[MAX_SLOTS];
@@ -192,12 +205,16 @@ private:
 
 	FrameDataManager *m_frameData[MAX_SLOTS];
 
+#if !defined(RTS_NETWORK_ENET)
 	NetCommandList *m_pendingCommands;
 	NetCommandList *m_relayedCommands;
+#endif
 
 	FrameMetrics m_frameMetrics;
 
+#if !defined(RTS_NETWORK_ENET)
 	NetCommandWrapperList *m_netCommandWrapperList;
+#endif
 
 	// These variables are used to keep track of the other players' average fps and latency.
 	// yup.

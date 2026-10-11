@@ -39,6 +39,9 @@ FrameData::FrameData()
 	m_frameCommandCount = -1;
 	m_lastFailedCC = 0;
 	m_lastFailedFrameCC = 0;
+#if defined(RTS_NETWORK_ENET)
+	m_frameComplete = false;
+#endif
 }
 
 /**
@@ -67,6 +70,9 @@ void FrameData::init()
 	m_commandCount = 0;
 	m_lastFailedCC = -2;
 	m_lastFailedFrameCC = -2;
+#if defined(RTS_NETWORK_ENET)
+	m_frameComplete = false;
+#endif
 }
 
 /**
@@ -100,6 +106,13 @@ void FrameData::setFrame(UnsignedInt frame) {
  * Returns true if all the frame command count is equal to the number of commands that have been received.
  */
 FrameDataReturnType FrameData::allCommandsReady(Bool debugSpewage) {
+#if defined(RTS_NETWORK_ENET)
+	// The local frame is ready by itself; a remote one when its frame info has arrived.
+	if (m_frameComplete || m_frameCommandCount == m_commandCount) {
+		return FRAMEDATA_READY;
+	}
+	return FRAMEDATA_NOTREADY;
+#else
 	if (m_frameCommandCount == m_commandCount) {
 		m_lastFailedFrameCC = -2;
 		m_lastFailedCC = -2;
@@ -128,6 +141,7 @@ FrameDataReturnType FrameData::allCommandsReady(Bool debugSpewage) {
 		return FRAMEDATA_RESEND;
 	}
 	return FRAMEDATA_NOTREADY;
+#endif
 }
 
 /**
@@ -185,6 +199,9 @@ NetCommandList * FrameData::getCommandList() {
 void FrameData::zeroFrame() {
 	m_commandCount = 0;
 	m_frameCommandCount = 0;
+#if defined(RTS_NETWORK_ENET)
+	m_frameComplete = true;
+#endif
 }
 
 /**

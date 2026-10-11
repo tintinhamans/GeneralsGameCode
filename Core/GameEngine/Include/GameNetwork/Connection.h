@@ -58,18 +58,23 @@ public:
 
 	Bool allCommandsReady(UnsignedInt frame);
 	Bool isQueueEmpty();
-	void attachTransport(Transport *transport);
+	void attachTransport(InGameTransport *transport);
 	void setUser(User *user);
 	User *getUser();
 	void setFrameGrouping(time_t frameGrouping);
+#if defined(RTS_NETWORK_ENET)
+	void setLocalSlot(UnsignedByte slot) { m_localSlot = slot; }
+#endif
 
 	void sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay);
 
 	// These two processAck calls do the same thing, just take different types of ACK commands.
+#if !defined(RTS_NETWORK_ENET)
 	NetCommandRef * processAck(NetAckBothCommandMsg *msg);
 	NetCommandRef * processAck(NetAckStage1CommandMsg *msg);
 	NetCommandRef * processAck(NetCommandMsg *msg);
 	NetCommandRef * processAck(UnsignedShort commandID, UnsignedByte originalPlayerID);
+#endif
 
 	void clearCommandsExceptFrom( Int playerIndex );
 
@@ -82,11 +87,16 @@ public:
 
 protected:
 	void doRetryMetrics();
+#if defined(RTS_NETWORK_ENET)
+	void sendBatch(Int channel, NetCommandRef **batch, Int count, UnsignedInt bytes, time_t curtime);
+	UnsignedByte m_localSlot;
+	Bool m_helloSent;
+#endif
 
 	Bool m_isQuitting;
 	UnsignedInt m_quitTime;
 
-	Transport *m_transport;
+	InGameTransport *m_transport;
 	User *m_user;
 
 	NetCommandList *m_netCommandList;

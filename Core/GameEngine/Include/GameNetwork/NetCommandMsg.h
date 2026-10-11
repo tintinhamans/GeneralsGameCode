@@ -177,6 +177,10 @@ public:
 	void addArgument(const GameMessageArgumentDataType type, GameMessageArgumentType arg);
 	void setGameMessageType(GameMessage::Type type);
 	GameMessage::Type getGameMessageType() const;
+#if defined(RTS_NETWORK_ENET)
+	Int getArgumentCount() const { return (Int)m_argList.size(); }
+	const GameMessageArgument *getArgument(Int index) const { return m_argList[index]; }
+#endif
 
 	virtual Select getSmallNetPacketSelect() const override;
 
@@ -269,11 +273,20 @@ public:
 
 	void setCommandCount(UnsignedShort commandCount);
 	UnsignedShort getCommandCount() const;
+#if defined(RTS_NETWORK_ENET)
+	// Holds a reference on each command.
+	void addBundled(NetGameCommandMsg *msg);
+	Int getBundledCount() const { return (Int)m_bundled.size(); }
+	NetGameCommandMsg *getBundled(Int index) const { return m_bundled[index]; }
+#endif
 
 	virtual Select getSmallNetPacketSelect() const override;
 
 protected:
 	UnsignedShort m_commandCount;
+#if defined(RTS_NETWORK_ENET)
+	std::vector<NetGameCommandMsg*> m_bundled;
+#endif
 };
 
 //-----------------------------------------------------------------------------

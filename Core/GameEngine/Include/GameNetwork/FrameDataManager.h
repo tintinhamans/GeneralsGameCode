@@ -44,6 +44,9 @@ public:
 	NetCommandList * getFrameCommandList(UnsignedInt frame);
 	UnsignedInt getCommandCount(UnsignedInt frame);
 	void setFrameCommandCount(UnsignedInt frame, UnsignedInt commandCount);
+#if defined(RTS_NETWORK_ENET)
+	void setFrameComplete(UnsignedInt frame);
+#endif
 	UnsignedInt getFrameCommandCount(UnsignedInt frame);
 	void zeroFrames(UnsignedInt startingFrame, UnsignedInt numFrames);
 	void destroyGameMessages();

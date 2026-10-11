@@ -63,6 +63,8 @@ public:
 	Int getPingsSent();
 	Int getPingsReceived();
 
+	void expirePlayerTimeout(Int playerID, ConnectionManager *conMgr);
+
 protected:
 	void sendKeepAlive(ConnectionManager *conMgr);
 	void populateDisconnectScreen(ConnectionManager *conMgr);
