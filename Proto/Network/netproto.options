@@ -1,0 +1,35 @@
+# Streamed through callbacks: no useful static bound.
+netproto.Envelope.commands   type:FT_CALLBACK
+netproto.Command.bundled     type:FT_CALLBACK
+netproto.BundledGameCommand.args type:FT_CALLBACK
+netproto.Command.payload     type:FT_CALLBACK
+
+# Retail limits.
+netproto.ChatBody.text             max_count:255
+netproto.FileBody.filename         max_size:260
+netproto.FileAnnounceBody.filename max_size:260
+
+# VC6 cannot fold the address of a nested union member in a constant initializer.
+netproto.Arg      anonymous_oneof:true
+netproto.Command  anonymous_oneof:true
+
+# Lobby limits mirror LANAPI.h.
+netproto.LanMessage.name               max_count:12
+netproto.LanMessage.user_name          max_size:17
+netproto.LanMessage.host_name          max_size:17
+netproto.LanMessage                    anonymous_oneof:true
+netproto.LanGameName.game_name         max_count:16
+netproto.LanGameInfo.game_name         max_count:16
+netproto.LanGameInfo.options           max_size:401
+netproto.LanPlayerInfo.player_name     max_count:12
+netproto.LanGameToJoin.serial          max_size:24
+netproto.LanGameJoined.game_name       max_count:16
+netproto.LanGameNotJoined.game_name    max_count:16
+netproto.LanAccept.game_name           max_count:16
+netproto.LanMapStatus.game_name        max_count:16
+netproto.LanChat.game_name             max_count:16
+netproto.LanChat.message               max_count:100
+netproto.LanGameOptions.options        max_size:401
+netproto.LanSlot.name                  max_size:72
+netproto.LanOptions.map_path           max_size:200
+netproto.LanOptions.slots              max_count:8

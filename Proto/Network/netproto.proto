@@ -1,0 +1,316 @@
+// Regenerate with nanopb 0.4.9.1 and copy netproto.pb.[ch] to GameNetwork/NetProto/:
+//   python -m grpc_tools.protoc -I. --plugin=protoc-gen-nanopb=<path> --nanopb_out=<outdir> --nanopb_opt="-Q#include \"GameNetwork/NetProto/%s\"" netproto.proto
+syntax = "proto3";
+
+package netproto;
+
+
+message Coord3
+{
+	float x = 1;
+	float y = 2;
+	float z = 3;
+}
+
+message Pixel
+{
+	sint32 x = 1;
+	sint32 y = 2;
+}
+
+message PixelRegion
+{
+	Pixel lo = 1;
+	Pixel hi = 2;
+}
+
+message Arg
+{
+	oneof value
+	{
+		sint32 integer = 1;
+		float real = 2;
+		bool boolean = 3;
+		uint32 object_id = 4;
+		uint32 drawable_id = 5;
+		uint32 team_id = 6;
+		Coord3 location = 7;
+		Pixel pixel = 8;
+		PixelRegion pixel_region = 9;
+		uint32 timestamp = 10;
+		uint32 wide_char = 11;
+	}
+}
+
+// Values are GameMessage::Type ids; not listed because the set changes with the game version.
+enum GameMessageType
+{
+	GAME_MESSAGE_TYPE_UNSPECIFIED = 0;
+}
+
+message BundledGameCommand
+{
+	GameMessageType message_type = 1;
+	repeated Arg args = 2;
+}
+
+message PlayerLeaveBody
+{
+	uint32 leaving_player = 1;
+}
+
+message RunAheadMetricsBody
+{
+	float average_latency = 1;
+	sint32 average_fps = 2;
+}
+
+message RunAheadBody
+{
+	uint32 run_ahead = 1;
+	uint32 frame_rate = 2;
+}
+
+message DestroyPlayerBody
+{
+	uint32 player_index = 1;
+}
+
+message DisconnectPlayerBody
+{
+	uint32 slot = 1;
+	uint32 disconnect_frame = 2;
+}
+
+// text: UTF-16 code units, at most 255 (retail limit).
+message ChatBody
+{
+	repeated uint32 text = 1 [packed = true];
+	sint32 player_mask = 2;
+}
+
+message DisconnectVoteBody
+{
+	uint32 slot = 1;
+	uint32 vote_frame = 2;
+}
+
+message ProgressBody
+{
+	uint32 percentage = 1;
+}
+
+// File bytes are Command.payload.
+message FileBody
+{
+	string filename = 1;
+}
+
+message FileAnnounceBody
+{
+	string filename = 1;
+	uint32 file_id = 2;
+	uint32 player_mask = 3;
+}
+
+message FileProgressBody
+{
+	uint32 file_id = 1;
+	sint32 progress = 2;
+}
+
+message DisconnectFrameBody
+{
+	uint32 disconnect_frame = 1;
+}
+
+message ScreenOffBody
+{
+	uint32 new_frame = 1;
+}
+
+// Command types without data (keep-alives, router query/ack, load complete, timeout start) set no body.
+message Command
+{
+	uint32 type = 1;
+	uint32 frame = 2;
+	uint32 player = 3;
+	uint32 id = 4;
+	// FRAMEINFO: the synchronized game commands of the player for the frame; its arrival marks the frame complete.
+	repeated BundledGameCommand bundled = 8;
+	bytes payload = 7;
+
+	reserved 6, 10, 12, 27;
+	reserved 5;
+	reserved 11;
+	reserved 21;
+
+	oneof body
+	{
+		PlayerLeaveBody player_leave = 13;
+		RunAheadMetricsBody run_ahead_metrics = 14;
+		RunAheadBody run_ahead = 15;
+		DestroyPlayerBody destroy_player = 16;
+		DisconnectPlayerBody disconnect_player = 17;
+		ChatBody chat = 18;
+		DisconnectVoteBody disconnect_vote = 19;
+		ProgressBody progress = 20;
+		FileBody file = 22;
+		FileAnnounceBody file_announce = 23;
+		FileProgressBody file_progress = 24;
+		DisconnectFrameBody disconnect_frame = 25;
+		ScreenOffBody screen_off = 26;
+	}
+}
+
+// First envelope of a link; a receiver that disagrees on protocol or game closes the link.
+message Hello
+{
+	uint32 version = 1;
+	uint32 session = 2;		// seed and map
+	uint32 slot = 3;
+}
+
+message Envelope
+{
+	reserved 1, 2, 4;		// version, sender and session now travel in Hello
+	repeated Command commands = 3;
+	Hello hello = 5;		// first envelope of a link only
+}
+
+
+message LanStartTimer
+{
+	sint32 seconds = 1;
+}
+
+message LanGameName
+{
+	repeated uint32 game_name = 1 [packed = true];
+}
+
+// kind: 0 open, 1 closed, 2 human, 3 easy AI, 4 medium AI, 5 brutal AI.
+message LanSlot
+{
+	uint32 kind = 1;
+	string name = 2;			// human only, UTF-8 as in the options string
+	fixed32 ip = 3;
+	uint32 port = 4;
+	bool accepted = 5;
+	bool has_map = 6;
+	sint32 color = 7;
+	sint32 player_template = 8;
+	sint32 start_pos = 9;
+	sint32 team = 10;
+	sint32 nat = 11;
+}
+
+// GameInfoToAsciiString as fields; only set when the string is reproduced byte for byte.
+message LanOptions
+{
+	bool has_stats = 1;
+	sint32 use_stats = 2;
+	uint32 map_mask = 3;
+	string map_path = 4;
+	fixed32 map_crc = 5;
+	sint32 map_size = 6;
+	sint32 seed = 7;
+	sint32 crc_interval = 8;
+	bool has_extras = 9;				// superweapon restriction, starting cash and factions
+	uint32 superweapon_restriction = 10;
+	uint32 starting_cash = 11;
+	bool old_factions = 12;
+	repeated LanSlot slots = 13;
+}
+
+// enet_port is where the host accepts lobby connections.
+message LanGameInfo
+{
+	repeated uint32 game_name = 1 [packed = true];
+	bool in_progress = 2;
+	string options = 3;
+	bool is_direct_connect = 4;
+	uint32 enet_port = 5;
+	LanOptions packed_options = 6;	// instead of options when it is exact
+}
+
+message LanPlayerInfo
+{
+	uint32 ip = 1;
+	repeated uint32 player_name = 2 [packed = true];
+}
+
+message LanGameToJoin
+{
+	uint32 game_ip = 1;
+	uint32 exe_crc = 2;
+	uint32 ini_crc = 3;
+	string serial = 4;
+}
+
+message LanGameJoined
+{
+	repeated uint32 game_name = 1 [packed = true];
+	uint32 game_ip = 2;
+	uint32 player_ip = 3;
+	sint32 slot_position = 4;
+}
+
+message LanGameNotJoined
+{
+	repeated uint32 game_name = 1 [packed = true];
+	uint32 game_ip = 2;
+	uint32 player_ip = 3;
+	sint32 reason = 4;
+}
+
+message LanAccept
+{
+	repeated uint32 game_name = 1 [packed = true];
+	bool is_accepted = 2;
+}
+
+message LanMapStatus
+{
+	repeated uint32 game_name = 1 [packed = true];
+	uint32 map_crc = 2;
+	bool has_map = 3;
+}
+
+message LanChat
+{
+	repeated uint32 game_name = 1 [packed = true];
+	sint32 chat_type = 2;
+	repeated uint32 message = 3 [packed = true];
+}
+
+message LanGameOptions
+{
+	string options = 1;
+	LanOptions packed_options = 2;	// instead of options when it is exact
+}
+
+// Bodyless: REQUEST_LOCATIONS, LOBBY_ANNOUNCE, REQUEST_LOBBY_LEAVE, GAME_START, INACTIVE. Text fields are UTF-16 code units.
+message LanMessage
+{
+	uint32 version = 1;
+	uint32 type = 2;
+	repeated uint32 name = 3 [packed = true];
+	string user_name = 4;
+	string host_name = 5;
+
+	oneof body
+	{
+		LanStartTimer start_timer = 10;
+		LanGameName game_to_leave = 11;
+		LanGameInfo game_info = 12;
+		LanPlayerInfo player_info = 13;
+		LanGameToJoin game_to_join = 14;
+		LanGameJoined game_joined = 15;
+		LanGameNotJoined game_not_joined = 16;
+		LanAccept accept = 17;
+		LanMapStatus map_status = 18;
+		LanChat chat = 19;
+		LanGameOptions game_options = 20;
+	}
+}

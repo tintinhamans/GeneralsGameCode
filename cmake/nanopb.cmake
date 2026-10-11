@@ -15,6 +15,8 @@ add_library(nanopb STATIC
 	${nanopb_SOURCE_DIR}/pb_common.c
 	${nanopb_SOURCE_DIR}/pb_encode.c
 	${nanopb_SOURCE_DIR}/pb_decode.c
+	# Built here because the precompiled header chain of corei_gameengine is C++-only.
+	${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/NetProto/netproto.pb.c
 )
 target_include_directories(nanopb PUBLIC ${nanopb_SOURCE_DIR})
 target_include_directories(nanopb PRIVATE ${CMAKE_SOURCE_DIR}/Core/GameEngine/Include)
