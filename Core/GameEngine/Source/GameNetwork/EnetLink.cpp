@@ -479,7 +479,8 @@ bool EnetLink::isIdle() const
 			continue;
 		if (remote.count > 0)
 			return false;
-		if (remote.peer && remote.connected && (!enet_list_empty(&remote.peer->outgoingCommands) || !enet_list_empty(&remote.peer->sentReliableCommands)))
+		if (remote.peer && remote.connected && (!enet_list_empty(&remote.peer->outgoingCommands) || !enet_list_empty(&remote.peer->outgoingSendReliableCommands)
+			|| !enet_list_empty(&remote.peer->sentReliableCommands)))
 			return false;
 	}
 	return true;
