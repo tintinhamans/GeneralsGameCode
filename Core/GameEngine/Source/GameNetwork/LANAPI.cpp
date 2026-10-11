@@ -39,7 +39,11 @@
 #include "GameLogic/GameLogic.h"
 
 
+#if defined(RTS_NETWORK_ENET)
+static const UnsignedShort lobbyPort = 8186; ///< A different port keeps these builds and retail out of each other's lobbies
+#else
 static const UnsignedShort lobbyPort = 8086; ///< This is the UDP port used by all LANAPI communication
+#endif
 
 AsciiString GetMessageTypeString(UnsignedInt type);
 
@@ -85,7 +89,7 @@ LANAPI::LANAPI() : m_transport(nullptr)
 	m_directConnectRemoteIP = 0;
 	m_actionTimeout = 5000; // ms
 	m_lastUpdate = 0;
-	m_transport = new Transport;
+	m_transport = new LobbyTransport;
 	m_isActive = TRUE;
 }
 
@@ -185,7 +189,12 @@ void LANAPI::sendMessage(LANMessage *msg, UnsignedInt ip /* = 0 */)
 	{
 		m_transport->queueSend(ip, lobbyPort, (unsigned char *)msg, sizeof(LANMessage) /*, 0, 0 */);
 	}
+#if defined(RTS_NETWORK_ENET)
+	// Messages between the members of a game go to each member over ENet instead of to the subnet.
+	else if ((m_currentGame != nullptr) && (msg->messageType != LANMessage::MSG_GAME_ANNOUNCE))
+#else
 	else if ((m_currentGame != nullptr) && (m_currentGame->getIsDirectConnect()))
+#endif
 	{
 		Int localSlot = m_currentGame->getLocalSlotNum();
 		for (Int i = 0; i < MAX_SLOTS; ++i)

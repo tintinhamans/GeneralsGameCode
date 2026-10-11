@@ -1177,6 +1177,8 @@ if(RTS_NETWORK_ENET)
         Source/GameNetwork/NetProtoSerializer.cpp
         Include/GameNetwork/EnetTransport.h
         Source/GameNetwork/EnetTransport.cpp
+        Include/GameNetwork/LanTransport.h
+        Source/GameNetwork/LanTransport.cpp
     )
 endif()
 

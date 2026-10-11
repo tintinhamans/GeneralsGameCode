@@ -29,6 +29,12 @@
 #pragma once
 
 #include "GameNetwork/Transport.h"
+#if defined(RTS_NETWORK_ENET)
+#include "GameNetwork/LanTransport.h"
+typedef LanTransport LobbyTransport;
+#else
+typedef Transport LobbyTransport;
+#endif
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/LANPlayer.h"
@@ -376,7 +382,7 @@ protected:
 	//LANGameInfo *m_currentGameInfo;			///< Pointer to game setup info we are currently in.
 
 	UnsignedInt					m_localIP;
-	Transport*					m_transport;
+	LobbyTransport*			m_transport;
 
 	UnsignedInt					m_broadcastAddr;
 

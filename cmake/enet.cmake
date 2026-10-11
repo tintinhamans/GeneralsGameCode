@@ -42,6 +42,10 @@ endif()
 add_library(enetlink STATIC
 	${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/EnetLink.cpp
 	${CMAKE_SOURCE_DIR}/Core/GameEngine/Include/GameNetwork/EnetLink.h
+	${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/LobbyLink.cpp
+	${CMAKE_SOURCE_DIR}/Core/GameEngine/Include/GameNetwork/LobbyLink.h
+	${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/LobbyOptions.cpp
+	${CMAKE_SOURCE_DIR}/Core/GameEngine/Include/GameNetwork/LobbyOptions.h
 )
 target_include_directories(enetlink PUBLIC ${CMAKE_SOURCE_DIR}/Core/GameEngine/Include)
 target_link_libraries(enetlink PUBLIC enet nanopb)
