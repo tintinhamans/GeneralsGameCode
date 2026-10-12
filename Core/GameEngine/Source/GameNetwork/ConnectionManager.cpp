@@ -1452,6 +1452,12 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 
                                 for (int l : conn.m_vecLatencyHistory)
                                 {
+                                    // negative samples are unmeasured or disconnected
+                                    if (l < 0)
+                                    {
+                                        continue;
+                                    }
+
                                     if (l < minL) minL = l;
                                     if (l > maxL) maxL = l;
                                 }
