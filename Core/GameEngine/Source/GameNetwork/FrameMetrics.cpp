@@ -280,4 +280,16 @@ void FrameMetrics::SeedLatencyData(int latency)
 {
 	m_averageFps = GENERALS_ONLINE_HIGH_FPS_LIMIT;
 	m_averageLatency = latency / 1000.f;
+
+#if defined(USE_NEW_FRAMEMETRIC_LOGIC)
+	// the next response recomputes the average from these maps, so they must carry the seed too
+	for (std::unordered_map<UnsignedInt, Real>::iterator it = m_mapLatenciesLookup.begin(); it != m_mapLatenciesLookup.end(); ++it)
+	{
+		it->second = m_averageLatency;
+	}
+	for (std::map<UnsignedInt, Real>::iterator it = m_mapLatenciesSorted.begin(); it != m_mapLatenciesSorted.end(); ++it)
+	{
+		it->second = m_averageLatency;
+	}
+#endif
 }
