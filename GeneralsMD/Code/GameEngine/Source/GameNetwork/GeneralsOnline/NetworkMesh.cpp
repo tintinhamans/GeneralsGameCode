@@ -3,6 +3,7 @@
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 
 #include <ws2ipdef.h>
+#include <charconv>
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameLogic/GameLogic.h"
@@ -479,9 +480,29 @@ public:
 		// identity does not have spaces, since our protocol doesn't permit it.
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Creating signaling session for peer '%s'\n", sIdentityPeer.c_str());
 
-		// Silence warnings
-		(void)errMsg;
-		int64_t user_id = std::stoll(identityPeer.GetGenericString());
+		// The identity comes from the remote peer, so only accept a plain integer user id
+		const char* szIdentity = identityPeer.GetGenericString();
+		int64_t user_id = 0;
+		bool bValidIdentity = false;
+		if (szIdentity != nullptr)
+		{
+			const size_t identityLen = strlen(szIdentity);
+			const char* szDigits = (szIdentity[0] == '-') ? szIdentity + 1 : szIdentity;
+			const size_t numDigits = identityLen - (szDigits - szIdentity);
+			if (numDigits > 0 && numDigits <= 19 && strspn(szDigits, "0123456789") == numDigits)
+			{
+				const std::from_chars_result parseResult = std::from_chars(szIdentity, szIdentity + identityLen, user_id);
+				bValidIdentity = (parseResult.ec == std::errc() && parseResult.ptr == szIdentity + identityLen);
+			}
+		}
+
+		if (!bValidIdentity)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[SIGNAL] Rejecting connection, peer identity '%s' is not a valid user id", sIdentityPeer.c_str());
+			snprintf(errMsg, sizeof(errMsg), "Invalid peer identity");
+			return nullptr;
+		}
+
 		return new ConnectionSignaling(this, user_id);
 	}
 
