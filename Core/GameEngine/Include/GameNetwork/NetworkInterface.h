@@ -62,6 +62,7 @@ public:
 	virtual Bool isFrameDataReady() = 0;												///< Are the commands for the next frame available?
 #if defined(GENONLINE)
 	virtual Bool isGameExitPending() const { return FALSE; }
+	virtual UnsignedInt getMeasuredLogicRate() = 0;	///< Logic frames executed per second, over about a second
 #endif
 	virtual Bool isStalling() = 0;
 	virtual void parseUserList(const GameInfo* game) = 0;						///< Parse a userlist, creating connections
@@ -110,6 +111,8 @@ public:
 	virtual void SeedLatencyData(int highestLatency) = 0;
 	virtual void requireMatchKeys() {}
 	virtual Bool matchKeysRequired() const { return FALSE; }
+	virtual void setStartRunAheadRequired(Bool required) {}	///< The load complete waits for the router's start run ahead.
+	virtual void applyStartRunAhead(Int runAhead, Int maxRttMs, Int pairs) {}	///< Sets the run ahead of frame 1, before any peer runs a frame.
 	virtual bool IsSlugging() = 0;
 #endif
 

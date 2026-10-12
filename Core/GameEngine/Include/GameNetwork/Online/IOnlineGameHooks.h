@@ -47,6 +47,10 @@ public:
 	virtual Bool shouldLeaveGame() = 0;			///< True when the provider ends the match for the local player.
 	virtual void onReplayWritten( const AsciiString &replayPath ) = 0;
 
+	// The synced start holds every player on the load screen until all of them reach the given phase.
+	virtual Bool beginSyncedStart( Int phase ) = 0;	///< Returns TRUE when the provider runs this phase.
+	virtual Bool isSyncedStartDone( Int phase ) = 0;
+
 	virtual Int getChatMessageLifeSeconds() = 0;	///< Seconds a chat line stays up, or -1 for the standard message time.
 	virtual void drawNetworkOverlay( DisplayString *text, Int dropColor ) = 0;
 	virtual void releaseNetworkOverlay() = 0;	///< Frees what the overlay keeps between frames.
