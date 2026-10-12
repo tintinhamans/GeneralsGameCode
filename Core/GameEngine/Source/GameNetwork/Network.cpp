@@ -840,10 +840,11 @@ Bool Network::timeForNewFrame() {
 	 */
 	if (m_conMgr != NULL) {
 		Real cushion = m_conMgr->getMinimumCushion();
-		Real runAheadPercentage = m_runAhead * (TheGlobalData->m_networkRunAheadSlack / (Real)100.0); // If we are at least 50% into our slack, we need to slow down.
+		static const Int RUN_AHEAD_SLUG_PERCENT = 10; // Retail's effective threshold, independent of the run ahead slack tuning.
+		Real runAheadPercentage = m_runAhead * (RUN_AHEAD_SLUG_PERCENT / (Real)100.0); // If the cushion drops below this share of the run ahead, we need to slow down.
 		if (cushion < runAheadPercentage) {
 			__int64 oldFrameDelay = frameDelay;
-			frameDelay += oldFrameDelay / 10; // temporarily decrease the frame rate by 20%.
+			frameDelay += oldFrameDelay / 10; // temporarily decrease the frame rate by 10%.
 			NetworkLog(ELogVerbosity::LOG_DEBUG, "Average cushion = %f, run ahead percentage = %f.  Adjusting frameDelay from %I64d to %I64d", cushion, runAheadPercentage, oldFrameDelay, frameDelay);
 			m_didSelfSlug = TRUE;
 //		} else {
