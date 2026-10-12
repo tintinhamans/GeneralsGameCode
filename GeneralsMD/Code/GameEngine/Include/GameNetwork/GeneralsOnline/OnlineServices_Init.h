@@ -2,6 +2,7 @@
 
 #include "NGMP_include.h"
 
+#include <algorithm>
 #include <thread>
 #include <memory>
 
@@ -381,7 +382,7 @@ inline void ReadServiceConfigValue(const nlohmann::json& j, const char* key, T& 
 	}
 }
 
-inline void from_json(const nlohmann::json& j, ServiceConfig& c)
+inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 {
 	if (j.contains("mesh") || j.contains("run_ahead"))
 	{
@@ -481,6 +482,36 @@ inline void from_json(const nlohmann::json& j, ServiceConfig& c)
 	ReadServiceConfigValue(j, "do_replay_upload", c.telemetry.do_replay_upload);
 	ReadServiceConfigValue(j, "screenshot_width", c.telemetry.screenshot_width);
 	ReadServiceConfigValue(j, "screenshot_height", c.telemetry.screenshot_height);
+}
+
+// Keeps values from the service inside the ranges the game can run with
+inline void ClampServiceConfig(ServiceConfig& c)
+{
+	c.mesh.latency_history_ms = (std::max)(c.mesh.latency_history_ms, 1000);
+
+	c.run_ahead.min_frames = std::clamp(c.run_ahead.min_frames, 1, 64);
+	c.run_ahead.slack_percent = std::clamp(c.run_ahead.slack_percent, 0, 200);
+	c.run_ahead.update_interval_ms = (std::max)(c.run_ahead.update_interval_ms, 100);
+	c.run_ahead.fps_history = (std::max)(c.run_ahead.fps_history, 1);
+	c.run_ahead.latency_history = (std::max)(c.run_ahead.latency_history, 128); // FrameMetrics drops pending acks when the window is smaller than the frames in flight
+	c.run_ahead.frame_grouping_frames = (std::max)(c.run_ahead.frame_grouping_frames, 1);
+
+	ServiceConfig::RunAhead::JitterSlack& js = c.run_ahead.jitter_slack;
+	js.min_slack = std::clamp(js.min_slack, 0.0f, 2.0f);
+	js.max_slack = std::clamp(js.max_slack, 0.0f, 2.0f);
+	js.min_slack_over_200ms = std::clamp(js.min_slack_over_200ms, 0.0f, 2.0f);
+	js.max_slack_over_200ms = std::clamp(js.max_slack_over_200ms, 0.0f, 2.0f);
+	js.min_slack_over_300ms = std::clamp(js.min_slack_over_300ms, 0.0f, 2.0f);
+	js.max_slack_over_300ms = std::clamp(js.max_slack_over_300ms, 0.0f, 2.0f);
+
+	c.telemetry.screenshot_width = (std::max)(c.telemetry.screenshot_width, 16);
+	c.telemetry.screenshot_height = (std::max)(c.telemetry.screenshot_height, 16);
+}
+
+inline void from_json(const nlohmann::json& j, ServiceConfig& c)
+{
+	ReadServiceConfig(j, c);
+	ClampServiceConfig(c);
 }
 
 class NGMP_OnlineServicesManager
