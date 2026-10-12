@@ -1971,7 +1971,7 @@ void ConnectionManager::setFrameGrouping(time_t frameGrouping) {
 	// This is probably ok since the packet router should have the fastest connection of all
 	// the players in the game.
 
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "ConnectionManager::setFrameGrouping Frame grouping is %d, is packet router %d", frameGrouping, m_localSlot == m_packetRouterSlot);
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "ConnectionManager::setFrameGrouping Frame grouping is %I64d, is packet router %d", (Int64)frameGrouping, m_localSlot == m_packetRouterSlot);
 
 	if (m_localSlot == m_packetRouterSlot) {
 		frameGrouping = frameGrouping / 2;
