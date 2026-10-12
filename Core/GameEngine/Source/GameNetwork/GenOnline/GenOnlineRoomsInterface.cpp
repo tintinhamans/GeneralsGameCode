@@ -592,7 +592,7 @@ public:
 	int64_t source_user_id;
 	int64_t target_user_id;
 	std::string message;
-	
+
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(WebSocketMessage_Social_FriendChatMessage_Incoming, msg_id, source_user_id, target_user_id, message)
 };
 
@@ -1035,6 +1035,13 @@ void WebSocket::Tick()
                         if (m_bReconnecting)
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Re-Connected");
+
+                            GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+                            if (pLobbyInterface != nullptr && pLobbyInterface->IsInLobby())
+                            {
+                                NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Reconnected while in a lobby, refreshing it");
+                                pLobbyInterface->UpdateRoomDataCache(nullptr);
+                            }
                         }
                         else
                         {
@@ -1172,7 +1179,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 					m_vecWSPartialBuffer.clear();
 					return CURL_LAST;
 				}
-				
+
 				// SECURITY FIX: Store old size BEFORE resize to avoid off-by-one error in memcpy
 				size_t oldSize = m_vecWSPartialBuffer.size();
 				m_vecWSPartialBuffer.resize(oldSize + rlen);
