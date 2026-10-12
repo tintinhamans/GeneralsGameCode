@@ -1647,16 +1647,14 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 
 Real ConnectionManager::getMaximumLatency()
 {
-	// The run ahead has to cover the two farthest hops through the packet router, so the
-	// retail game averages the two highest round trips; with one remote player that is the
-	// one-way delay to them. Models 10 and up take the single highest round trip instead.
-	int latencyModel = 0;
+	// The retail game averages the two highest in-band round trips. Our own slot carries the
+	// round trip to our slowest peer, so in practice this is the highest round trip in the game.
+	// The mesh has no entry for our own slot, so it takes the highest connection directly.
+	int source = 0;
 	if (TheNGMPGame != nullptr)
 	{
-		latencyModel = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig().run_ahead.latency_model;
+		source = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig().run_ahead.latency_model;
 	}
-	const Bool singleHighest = latencyModel >= 10;
-	const int source = latencyModel % 10;
 
 	Real lat1 = 0.0f;
 	Real lat2 = 0.0f;
@@ -1672,7 +1670,7 @@ Real ConnectionManager::getMaximumLatency()
 			lat2 = m_latencyAverages[i];
 		}
 	}
-	const Real inBand = singleHighest ? lat1 : (lat1 + lat2) / 2.0f;
+	const Real inBand = (lat1 + lat2) / 2.0f;
 
 	NetworkMesh* pMesh = (source != 0) ? NGMP_OnlineServicesManager::GetNetworkMesh() : nullptr;
 	if (pMesh == nullptr)
@@ -1680,8 +1678,8 @@ Real ConnectionManager::getMaximumLatency()
 		return inBand;
 	}
 
-	const Real meshCurrent = (singleHighest ? pMesh->getMaximumLatency() : pMesh->getTwoHighestLatencyAverage()) / 1000.0f;
-	const Real meshPeak = (singleHighest ? pMesh->getMaximumHistoricalLatency() : pMesh->getTwoHighestHistoricalLatencyAverage()) / 1000.0f;
+	const Real meshCurrent = pMesh->getMaximumLatency() / 1000.0f;
+	const Real meshPeak = pMesh->getMaximumHistoricalLatency() / 1000.0f;
 	switch (source)
 	{
 	case 1:
