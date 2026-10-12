@@ -59,6 +59,10 @@
 #include "../NetworkMesh.h"
 #include "../ngmp_interfaces.h"
 
+#if defined(GENERALS_ONLINE)
+Int MIN_RUNAHEAD = 6;
+#endif
+
 static Bool hasValidTransferFileExtension(const AsciiString& filePath)
 {
 	static const char* const validExtensions[] = {

@@ -13,6 +13,12 @@
 #include "GameClient/View.h"
 #include "../NextGenMP_defines.h"
 
+#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+int FRAME_GROUPING_CAP = 32;
+#else
+int FRAME_GROUPING_CAP = 64;
+#endif
+
 NGMPGameSlot::NGMPGameSlot()
 {
 	GameSlot();
