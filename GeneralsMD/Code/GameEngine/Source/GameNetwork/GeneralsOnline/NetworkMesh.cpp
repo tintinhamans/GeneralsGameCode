@@ -1508,12 +1508,12 @@ bool PlayerConnection::IsIPV4()
 	return info.m_addrRemote.IsIPv4();
 }
 
-int PlayerConnection::Recv(SteamNetworkingMessage_t** pMsg)
+int PlayerConnection::Recv(SteamNetworkingMessage_t** pMsg, int maxMessages)
 {
 	int r = -1;
 	if (m_hSteamConnection != k_HSteamNetConnection_Invalid)
 	{
-		r = SteamNetworkingSockets()->ReceiveMessagesOnConnection(m_hSteamConnection, pMsg, 255);
+		r = SteamNetworkingSockets()->ReceiveMessagesOnConnection(m_hSteamConnection, pMsg, maxMessages);
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "[DISC] Recv Result %d from user %lld", r, m_userID);
 	}
 	else

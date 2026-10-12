@@ -66,7 +66,7 @@ public:
 		       m_State != EConnectionState::CONNECTION_DISCONNECTED;
 	}
 
-	int Recv(SteamNetworkingMessage_t** pMsg);
+	int Recv(SteamNetworkingMessage_t** pMsg, int maxMessages = 255);
 
 	int GetHighestHistoricalLatency()
 	{
