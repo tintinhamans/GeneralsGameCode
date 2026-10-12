@@ -1637,88 +1637,54 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 
 Real ConnectionManager::getMaximumLatency()
 {
-	int latencyLogicModel = 0;
-
+	// The run ahead has to cover the two farthest hops through the packet router, so the
+	// retail game averages the two highest round trips; with one remote player that is the
+	// one-way delay to them. Models 10 and up take the single highest round trip instead.
+	int latencyModel = 0;
 	if (TheNGMPGame != nullptr)
 	{
-		ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
-		latencyLogicModel = serviceConf.network_latency_logic_model;
-		// 0 = original
-		// 1 = pick highest between original and Valve latency (current)
-		// 2 = pick highest between original and Valve latency (historic)
-		// 3 = use Valve latency (current)
-		// 4 = use Valve latency (historic)
+		latencyModel = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig().network_latency_logic_model;
 	}
+	const Bool singleHighest = latencyModel >= 10;
+	const int source = latencyModel % 10;
 
-	Real maxLatency = 0.0f;
-
-	for (Int i = 0; i < MAX_SLOTS; ++i) {
-		if (isPlayerConnected(i) && m_latencyAverages[i] > maxLatency) {
-			maxLatency = m_latencyAverages[i];
-		}
-	}
-
-
-	if (latencyLogicModel == 0)
+	Real lat1 = 0.0f;
+	Real lat2 = 0.0f;
+	for (Int i = 0; i < MAX_SLOTS; ++i)
 	{
-		return maxLatency;
+		if (isPlayerConnected(i) && m_latencyAverages[i] > lat1)
+		{
+			lat2 = lat1;
+			lat1 = m_latencyAverages[i];
+		}
+		else if (isPlayerConnected(i) && m_latencyAverages[i] > lat2)
+		{
+			lat2 = m_latencyAverages[i];
+		}
 	}
-	else if (latencyLogicModel == 1)
-	{
-		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+	const Real inBand = singleHighest ? lat1 : (lat1 + lat2) / 2.0f;
 
-		if (pMesh != nullptr)
-		{
-			Real maxGOLatency = (pMesh->getMaximumLatency() / 1000.f);
-			return maxLatency > maxGOLatency ? maxLatency : maxGOLatency;
-		}
-		else
-		{
-			return maxLatency;
-		}
-	}
-	else if (latencyLogicModel == 2)
+	NetworkMesh* pMesh = (source != 0) ? NGMP_OnlineServicesManager::GetNetworkMesh() : nullptr;
+	if (pMesh == nullptr)
 	{
-		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-		if (pMesh != nullptr)
-		{
-			Real maxGOLatency = (pMesh->getMaximumHistoricalLatency() / 1000.f);
-			return maxLatency > maxGOLatency ? maxLatency : maxGOLatency;
-		}
-		else
-		{
-			return maxLatency;
-		}
-	}
-	else if (latencyLogicModel == 3)
-	{
-		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-
-		if (pMesh != nullptr)
-		{
-			Real maxGOLatency = (pMesh->getMaximumLatency() / 1000.f);
-			return maxGOLatency;
-		}
-		else
-		{
-			return maxLatency;
-		}
-	}
-	else if (latencyLogicModel == 4)
-	{
-		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-		if (pMesh != nullptr)
-		{
-			Real maxGOLatency = (pMesh->getMaximumHistoricalLatency() / 1000.f);
-			return maxGOLatency;
-		}
-		else
-		{
-			return maxLatency;
-		}
+		return inBand;
 	}
 
-	return maxLatency;
+	const Real meshCurrent = (singleHighest ? pMesh->getMaximumLatency() : pMesh->getTwoHighestLatencyAverage()) / 1000.0f;
+	const Real meshPeak = (singleHighest ? pMesh->getMaximumHistoricalLatency() : pMesh->getTwoHighestHistoricalLatencyAverage()) / 1000.0f;
+	switch (source)
+	{
+	case 1:
+		return max(inBand, meshCurrent);
+	case 2:
+		return max(inBand, meshPeak);
+	case 3:
+		return meshCurrent;
+	case 4:
+		return meshPeak;
+	default:
+		return inBand;
+	}
 }
 
 void ConnectionManager::getMinimumFps(Int &minFps, Int &minFpsPlayer) {

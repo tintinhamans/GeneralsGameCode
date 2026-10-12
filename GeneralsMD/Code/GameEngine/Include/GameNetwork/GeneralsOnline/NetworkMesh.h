@@ -180,6 +180,19 @@ public:
 		m_cbOnConnected = nullptr;
 	}
 
+	static void noteTwoHighest(int value, int& first, int& second)
+	{
+		if (value > first)
+		{
+			second = first;
+			first = value;
+		}
+		else if (value > second)
+		{
+			second = value;
+		}
+	}
+
 	int getMaximumLatency()
 	{
 		int highestLatency = 0;
@@ -210,6 +223,30 @@ public:
 		}
 
 		return Real(highestLatency);
+	}
+
+	// Average of the two highest current pings; our own link counts as zero, so with one
+	// connection this is half its round trip
+	Real getTwoHighestLatencyAverage()
+	{
+		int first = 0;
+		int second = 0;
+		for (auto& kvPair : m_mapConnections)
+		{
+			noteTwoHighest(kvPair.second.GetLatency(), first, second);
+		}
+		return Real(first + second) / 2.0f;
+	}
+
+	Real getTwoHighestHistoricalLatencyAverage()
+	{
+		int first = 0;
+		int second = 0;
+		for (auto& kvPair : m_mapConnections)
+		{
+			noteTwoHighest(kvPair.second.GetHighestHistoricalLatency(), first, second);
+		}
+		return Real(first + second) / 2.0f;
 	}
 
 
