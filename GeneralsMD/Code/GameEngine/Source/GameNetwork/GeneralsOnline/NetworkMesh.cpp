@@ -4,6 +4,7 @@
 
 #include <ws2ipdef.h>
 #include <charconv>
+#include <chrono>
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameLogic/GameLogic.h"
@@ -1437,6 +1438,23 @@ void PlayerConnection::SendACPacket(const void* pData, uint32_t dataLen)
 	}
 }
 
+// Drops the samples older than cutoffMs from the front of a history and its timestamps
+template <typename T>
+static void PruneHistoryByAge(std::vector<T>& values, std::vector<int64_t>& times, int64_t cutoffMs)
+{
+	size_t numExpired = 0;
+	while (numExpired < times.size() && times[numExpired] < cutoffMs)
+	{
+		++numExpired;
+	}
+
+	if (numExpired > 0)
+	{
+		values.erase(values.begin(), values.begin() + numExpired);
+		times.erase(times.begin(), times.begin() + numExpired);
+	}
+}
+
 void PlayerConnection::UpdateLatencyHistogram()
 {
 	int histogram_duration = 20000;
@@ -1447,20 +1465,20 @@ void PlayerConnection::UpdateLatencyHistogram()
 		histogram_duration = serviceConf.mesh.latency_history_ms;
 	}
 
+	if (histogram_duration <= 0)
+	{
+		histogram_duration = 1000;
+	}
+
+	// this runs once per engine update, so the window is kept by age rather than by sample count
+	const int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	const int64_t cutoffMs = nowMs - histogram_duration;
 
 	// update latency history
 	int currLatency = GetLatency();
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-	const int connectionHistoryLength = histogram_duration / 16; // ~20 sec worth of frames at 60fps (default)
-#else
-	const int connectionHistoryLength = histogram_duration / 33; // ~20 sec worth of frames at 30fps (default)
-#endif
-
-	if (m_vecLatencyHistory.size() >= connectionHistoryLength)
-	{
-		m_vecLatencyHistory.erase(m_vecLatencyHistory.begin());
-	}
 	m_vecLatencyHistory.push_back(currLatency);
+	m_vecLatencyHistoryTimes.push_back(nowMs);
+	PruneHistoryByAge(m_vecLatencyHistory, m_vecLatencyHistoryTimes, cutoffMs);
 
 	// Sample connection quality into rolling history.
 	// Prefer SNS local quality, then remote quality, then fall back to manual in/out packet rate ratio.
@@ -1487,12 +1505,13 @@ void PlayerConnection::UpdateLatencyHistogram()
 
 			if (sample >= 0.0f)
 			{
-				if (m_vecQualityHistory.size() >= connectionHistoryLength)
-					m_vecQualityHistory.erase(m_vecQualityHistory.begin());
 				m_vecQualityHistory.push_back(sample);
+				m_vecQualityHistoryTimes.push_back(nowMs);
 			}
 		}
 	}
+
+	PruneHistoryByAge(m_vecQualityHistory, m_vecQualityHistoryTimes, cutoffMs);
 }
 
 void PlayerConnection::Close()

@@ -82,8 +82,11 @@ public:
 		return highestLatency;
 	}
 
+	// the *Times vectors hold the steady_clock ms of each sample at the same index
 	std::vector<int> m_vecLatencyHistory;
+	std::vector<int64_t> m_vecLatencyHistoryTimes;
 	std::vector<float> m_vecQualityHistory;
+	std::vector<int64_t> m_vecQualityHistoryTimes;
 	std::string GetStats();
 
 	std::string GetConnectionType();
