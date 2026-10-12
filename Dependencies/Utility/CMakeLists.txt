@@ -3,12 +3,15 @@ set(UTILITY_SRC
     Utility/aligned_pod.h
     Utility/array_adapter.h
     Utility/atl_compat.h
+    Utility/atomic_adapter.h
+    Utility/atomic_x86interlocked.inl
     Utility/compat.h
     Utility/comsupp_compat.h
     Utility/endian_compat.h
     Utility/fstream_adapter.h
     Utility/hash_map_adapter.h
     Utility/interlocked_adapter.h
+    Utility/interlocked_x86asm.inl
     Utility/intrin_compat.h
     Utility/iostream_adapter.h
     Utility/lazy_static.h
