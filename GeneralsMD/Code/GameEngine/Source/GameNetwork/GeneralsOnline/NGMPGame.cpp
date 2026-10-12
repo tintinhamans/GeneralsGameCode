@@ -415,27 +415,14 @@ void NGMPGame::launchGame(void)
 	NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
 	if (pOnlineServicesMgr != nullptr)
 	{
-		ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
+		const ServiceConfig::RunAhead& runAhead = pOnlineServicesMgr->GetServiceConfig().run_ahead;
 
-		if (serviceConf.use_default_config)
-		{
-			TheWritableGlobalData->m_networkFPSHistoryLength = 30;
-			TheWritableGlobalData->m_networkLatencyHistoryLength = 200;
-			TheWritableGlobalData->m_networkRunAheadSlack = serviceConf.ra_slack_override_percent_in_default; // normally 10
-			TheWritableGlobalData->m_networkRunAheadMetricsTime = 5000;
-		}
-		else
-		{
-			TheWritableGlobalData->m_networkFPSHistoryLength = 10;
-			TheWritableGlobalData->m_networkLatencyHistoryLength = 10;
-
-			MIN_RUNAHEAD = serviceConf.min_run_ahead_frames;
-
-			TheWritableGlobalData->m_networkRunAheadSlack = serviceConf.ra_slack_percent;
-			TheWritableGlobalData->m_networkRunAheadMetricsTime = serviceConf.ra_update_frequency_frames * (float)(1000.f / GENERALS_ONLINE_HIGH_FPS_LIMIT);
-
-			FRAME_GROUPING_CAP = serviceConf.frame_grouping_frames * (float)(1000.f / GENERALS_ONLINE_HIGH_FPS_LIMIT);
-		}
+		TheWritableGlobalData->m_networkFPSHistoryLength = max(1, runAhead.fps_history);
+		TheWritableGlobalData->m_networkLatencyHistoryLength = max(1, runAhead.latency_history);
+		TheWritableGlobalData->m_networkRunAheadSlack = runAhead.slack_percent;
+		TheWritableGlobalData->m_networkRunAheadMetricsTime = runAhead.update_interval_ms;
+		MIN_RUNAHEAD = runAhead.min_frames;
+		FRAME_GROUPING_CAP = runAhead.frame_grouping_frames * (float)(1000.f / GENERALS_ONLINE_HIGH_FPS_LIMIT);
 	}
 	
 

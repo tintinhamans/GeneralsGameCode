@@ -306,53 +306,182 @@ struct RegionResponse
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(RegionResponse, countryCode)
 };
 
+// Settings the service pushes to every client, grouped by what they affect. Defaults match
+// what the service has been sending. The flat layout older services send is still read.
 struct ServiceConfig
 {
-	bool retry_signalling = false;
-	bool use_mapped_port = true;
-	int min_run_ahead_frames = 4;
-	int ra_update_frequency_frames = 10;
-	bool relay_all_traffic = false;
-	int ra_slack_percent = 20;
-	int frame_grouping_frames = 2;
-	bool enable_host_migration = true;
+	// Peer mesh: signalling, NAT traversal, and the per-connection ping history
+	struct Mesh
+	{
+		bool retry_signalling = true;
+		bool use_mapped_port = true;
+		bool relay_all_traffic = false;
+		int ice_implementation = 2;       // 0 = library default, 1 = native, 2 = WebRTC
+		bool use_new_networking = false;  // game traffic through the anticheat plugin's transport
+		int latency_history_ms = 20000;   // window of ping samples kept per connection
+	} mesh;
 
-	bool network_do_immediate_flush_per_frame = true;
-	int network_send_flags = -1;
+	// Game packets over the mesh
+	struct Transport
+	{
+		bool flush_per_frame = true;
+		int send_flags = -1;              // GNS send mode tried after a failed reliable send; -1 = none
+	} transport;
 
-	int network_latency_logic_model = 0;
+	// Input delay, computed by the packet router from the latencies it sees
+	struct RunAhead
+	{
+		// Every model averages the two highest latencies, the one-way delay of the two farthest
+		// hops. 0 = in-band ping; 1 = higher of in-band and current mesh ping; 2 = higher of
+		// in-band and the peak mesh ping in the history window; 3 = current mesh ping; 4 = peak
+		// mesh ping. 10 + model takes the single highest round trip instead, as before.
+		int latency_model = 2;
+		int slack_percent = 30;
+		int min_frames = 6;
+		int update_interval_ms = 5000;
+		int fps_history = 30;             // per-second FPS samples averaged
+		int latency_history = 200;        // in-band ping samples averaged
+		int frame_grouping_frames = 2;
 
-	bool use_default_config = false;
-	int ra_slack_override_percent_in_default = 10;
-	bool do_probes = true;
-	bool do_replay_upload = true;
+		// Replaces slack_percent with a value that grows with the measured jitter
+		struct JitterSlack
+		{
+			bool enabled = false;
+			float min_slack = 0.35f;
+			float max_slack = 1.0f;
+			float min_slack_over_200ms = 0.4f;
+			float max_slack_over_200ms = 1.0f;
+			float min_slack_over_300ms = 0.4f;
+			float max_slack_over_300ms = 1.0f;
+		} jitter_slack;
+	} run_ahead;
 
-	int network_mesh_histogram_duration = 20000;
+	struct Lobby
+	{
+		bool enable_host_migration = false;
+	} lobby;
 
-	bool ibra_ra_tweaks = false;
-	float ibra_minslack_default = 0.25f;
-	float ibra_maxslack_default = 1.f;
-
-    float ibra_minslack_greaterthan300ms = 0.35f;
-    float ibra_maxslack_greaterthan300ms = 1.f;
-
-    float ibra_minslack_greaterthan200ms = 0.3f;
-    float ibra_maxslack_greaterthan200ms = 1.f;
-
-	int screenshot_width = 557;
-	int screenshot_height = 333;
-
-	// ICE client used for P2P NAT traversal: 0 = library default, 1 = native, 2 = WebRTC.
-	int ice_implementation = 2;
-
-	bool use_new_networking = false;
-
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ServiceConfig, retry_signalling, use_mapped_port, min_run_ahead_frames, ra_update_frequency_frames, relay_all_traffic,
-		ra_slack_percent, frame_grouping_frames, enable_host_migration, network_do_immediate_flush_per_frame, network_send_flags, network_latency_logic_model,
-		use_default_config, ra_slack_override_percent_in_default, do_probes, do_replay_upload, network_mesh_histogram_duration,
-		ibra_ra_tweaks, ibra_minslack_default, ibra_maxslack_default, ibra_minslack_greaterthan300ms, ibra_maxslack_greaterthan300ms, ibra_minslack_greaterthan200ms, ibra_maxslack_greaterthan200ms,
-		screenshot_width, screenshot_height, ice_implementation, use_new_networking)
+	struct Telemetry
+	{
+		bool do_probes = true;
+		bool do_replay_upload = true;
+		int screenshot_width = 960;
+		int screenshot_height = 600;
+	} telemetry;
 };
+
+// Reads key into value when present; a missing key keeps the default
+template <typename T>
+inline void ReadServiceConfigValue(const nlohmann::json& j, const char* key, T& value)
+{
+	const auto it = j.find(key);
+	if (it != j.end() && !it->is_null())
+	{
+		value = it->get<T>();
+	}
+}
+
+inline void from_json(const nlohmann::json& j, ServiceConfig& c)
+{
+	if (j.contains("mesh") || j.contains("run_ahead"))
+	{
+		if (j.contains("mesh"))
+		{
+			const nlohmann::json& m = j["mesh"];
+			ReadServiceConfigValue(m, "retry_signalling", c.mesh.retry_signalling);
+			ReadServiceConfigValue(m, "use_mapped_port", c.mesh.use_mapped_port);
+			ReadServiceConfigValue(m, "relay_all_traffic", c.mesh.relay_all_traffic);
+			ReadServiceConfigValue(m, "ice_implementation", c.mesh.ice_implementation);
+			ReadServiceConfigValue(m, "use_new_networking", c.mesh.use_new_networking);
+			ReadServiceConfigValue(m, "latency_history_ms", c.mesh.latency_history_ms);
+		}
+		if (j.contains("transport"))
+		{
+			const nlohmann::json& t = j["transport"];
+			ReadServiceConfigValue(t, "flush_per_frame", c.transport.flush_per_frame);
+			ReadServiceConfigValue(t, "send_flags", c.transport.send_flags);
+		}
+		if (j.contains("run_ahead"))
+		{
+			const nlohmann::json& r = j["run_ahead"];
+			ReadServiceConfigValue(r, "latency_model", c.run_ahead.latency_model);
+			ReadServiceConfigValue(r, "slack_percent", c.run_ahead.slack_percent);
+			ReadServiceConfigValue(r, "min_frames", c.run_ahead.min_frames);
+			ReadServiceConfigValue(r, "update_interval_ms", c.run_ahead.update_interval_ms);
+			ReadServiceConfigValue(r, "fps_history", c.run_ahead.fps_history);
+			ReadServiceConfigValue(r, "latency_history", c.run_ahead.latency_history);
+			ReadServiceConfigValue(r, "frame_grouping_frames", c.run_ahead.frame_grouping_frames);
+			if (r.contains("jitter_slack"))
+			{
+				const nlohmann::json& s = r["jitter_slack"];
+				ReadServiceConfigValue(s, "enabled", c.run_ahead.jitter_slack.enabled);
+				ReadServiceConfigValue(s, "min_slack", c.run_ahead.jitter_slack.min_slack);
+				ReadServiceConfigValue(s, "max_slack", c.run_ahead.jitter_slack.max_slack);
+				ReadServiceConfigValue(s, "min_slack_over_200ms", c.run_ahead.jitter_slack.min_slack_over_200ms);
+				ReadServiceConfigValue(s, "max_slack_over_200ms", c.run_ahead.jitter_slack.max_slack_over_200ms);
+				ReadServiceConfigValue(s, "min_slack_over_300ms", c.run_ahead.jitter_slack.min_slack_over_300ms);
+				ReadServiceConfigValue(s, "max_slack_over_300ms", c.run_ahead.jitter_slack.max_slack_over_300ms);
+			}
+		}
+		if (j.contains("lobby"))
+		{
+			ReadServiceConfigValue(j["lobby"], "enable_host_migration", c.lobby.enable_host_migration);
+		}
+		if (j.contains("telemetry"))
+		{
+			const nlohmann::json& t = j["telemetry"];
+			ReadServiceConfigValue(t, "do_probes", c.telemetry.do_probes);
+			ReadServiceConfigValue(t, "do_replay_upload", c.telemetry.do_replay_upload);
+			ReadServiceConfigValue(t, "screenshot_width", c.telemetry.screenshot_width);
+			ReadServiceConfigValue(t, "screenshot_height", c.telemetry.screenshot_height);
+		}
+		return;
+	}
+
+	// Flat layout from older services. use_default_config chose between the retail run ahead
+	// profile and a custom one; map whichever was active onto the explicit settings.
+	ReadServiceConfigValue(j, "retry_signalling", c.mesh.retry_signalling);
+	ReadServiceConfigValue(j, "use_mapped_port", c.mesh.use_mapped_port);
+	ReadServiceConfigValue(j, "relay_all_traffic", c.mesh.relay_all_traffic);
+	ReadServiceConfigValue(j, "ice_implementation", c.mesh.ice_implementation);
+	ReadServiceConfigValue(j, "use_new_networking", c.mesh.use_new_networking);
+	ReadServiceConfigValue(j, "network_mesh_histogram_duration", c.mesh.latency_history_ms);
+	ReadServiceConfigValue(j, "network_do_immediate_flush_per_frame", c.transport.flush_per_frame);
+	ReadServiceConfigValue(j, "network_send_flags", c.transport.send_flags);
+	ReadServiceConfigValue(j, "network_latency_logic_model", c.run_ahead.latency_model);
+
+	bool useRetailProfile = true;
+	ReadServiceConfigValue(j, "use_default_config", useRetailProfile);
+	if (useRetailProfile)
+	{
+		ReadServiceConfigValue(j, "ra_slack_override_percent_in_default", c.run_ahead.slack_percent);
+	}
+	else
+	{
+		int updateFrames = 10;
+		ReadServiceConfigValue(j, "ra_slack_percent", c.run_ahead.slack_percent);
+		ReadServiceConfigValue(j, "min_run_ahead_frames", c.run_ahead.min_frames);
+		ReadServiceConfigValue(j, "ra_update_frequency_frames", updateFrames);
+		ReadServiceConfigValue(j, "frame_grouping_frames", c.run_ahead.frame_grouping_frames);
+		c.run_ahead.update_interval_ms = updateFrames * 1000 / GENERALS_ONLINE_HIGH_FPS_LIMIT;
+		c.run_ahead.fps_history = 10;
+		c.run_ahead.latency_history = 10;
+	}
+
+	ReadServiceConfigValue(j, "ibra_ra_tweaks", c.run_ahead.jitter_slack.enabled);
+	ReadServiceConfigValue(j, "ibra_minslack_default", c.run_ahead.jitter_slack.min_slack);
+	ReadServiceConfigValue(j, "ibra_maxslack_default", c.run_ahead.jitter_slack.max_slack);
+	ReadServiceConfigValue(j, "ibra_minslack_greaterthan200ms", c.run_ahead.jitter_slack.min_slack_over_200ms);
+	ReadServiceConfigValue(j, "ibra_maxslack_greaterthan200ms", c.run_ahead.jitter_slack.max_slack_over_200ms);
+	ReadServiceConfigValue(j, "ibra_minslack_greaterthan300ms", c.run_ahead.jitter_slack.min_slack_over_300ms);
+	ReadServiceConfigValue(j, "ibra_maxslack_greaterthan300ms", c.run_ahead.jitter_slack.max_slack_over_300ms);
+
+	ReadServiceConfigValue(j, "enable_host_migration", c.lobby.enable_host_migration);
+	ReadServiceConfigValue(j, "do_probes", c.telemetry.do_probes);
+	ReadServiceConfigValue(j, "do_replay_upload", c.telemetry.do_replay_upload);
+	ReadServiceConfigValue(j, "screenshot_width", c.telemetry.screenshot_width);
+	ReadServiceConfigValue(j, "screenshot_height", c.telemetry.screenshot_height);
+}
 
 class NGMP_OnlineServicesManager
 {

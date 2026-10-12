@@ -1423,8 +1423,8 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 #if defined(GENERALS_ONLINE)
 			if (TheNGMPGame != nullptr)
 			{
-				ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
-				if (serviceConf.ibra_ra_tweaks)
+				const ServiceConfig::RunAhead::JitterSlack& jitterSlack = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig().run_ahead.jitter_slack;
+				if (jitterSlack.enabled)
 				{
                     // dynamic slack based on jitter
                     NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
@@ -1470,20 +1470,20 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
                         // 4) Map jitter ratio into a slack range based on latency
                         //    Lower latency: tighter slack
                         //    Higher latency: allow more slack to hide jitter
-                        Real minSlack = serviceConf.ibra_minslack_default;
-                        Real maxSlack = serviceConf.ibra_maxslack_default;
+                        Real minSlack = jitterSlack.min_slack;
+                        Real maxSlack = jitterSlack.max_slack;
 
                         if (maxLatMs > 300)
                         {
                             // At high RTT, allow more headroom
-                            minSlack = serviceConf.ibra_minslack_greaterthan300ms;
-                            maxSlack = serviceConf.ibra_maxslack_greaterthan300ms;
+                            minSlack = jitterSlack.min_slack_over_300ms;
+                            maxSlack = jitterSlack.max_slack_over_300ms;
                         }
                         else if (maxLatMs > 200)
                         {
                             // Medium-high latency (200?300 ms)
-                            minSlack = serviceConf.ibra_minslack_greaterthan200ms;
-                            maxSlack = serviceConf.ibra_maxslack_greaterthan200ms;
+                            minSlack = jitterSlack.min_slack_over_200ms;
+                            maxSlack = jitterSlack.max_slack_over_200ms;
                         }
 
                         // Clamp jitterRatio to [0,1] when mapping
@@ -1643,7 +1643,7 @@ Real ConnectionManager::getMaximumLatency()
 	int latencyModel = 0;
 	if (TheNGMPGame != nullptr)
 	{
-		latencyModel = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig().network_latency_logic_model;
+		latencyModel = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig().run_ahead.latency_model;
 	}
 	const Bool singleHighest = latencyModel >= 10;
 	const int source = latencyModel % 10;
