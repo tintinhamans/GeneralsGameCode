@@ -1305,13 +1305,13 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
     if (totalDataSize == 0)
     {
         NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send empty game packet to user %lld", m_userID);
-        return (int)k_EResultFail;
+        return -(int)k_EResultFail;
     }
 
     if (pBuffer == nullptr)
     {
         NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet with null buffer to user %lld", m_userID);
-        return (int)k_EResultFail;
+        return -(int)k_EResultFail;
     }
 
 	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
@@ -1324,7 +1324,7 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 		if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
-			return (int)k_EResultFail;
+			return -(int)k_EResultFail;
 		}
 
 		ENetworkChannel netChannel = ENetworkChannel::NETWORK_CHANNEL_GAME;
@@ -1369,19 +1369,18 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 			}
 
 			NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
-			EResult r = SteamNetworkingSockets()->SendMessageToConnection(
-				m_hSteamConnection, pBuffer, (int)totalDataSize, sendFlags, nullptr);
+			r = SteamNetworkingSockets()->SendMessageToConnection(
+				m_hSteamConnection, vecData.data(), vecData.size(), sendFlags, nullptr);
 
 			if (r != k_EResultOK)
 			{
 				NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Failed to send, err code was %d", r);
+				return -(int)r;
 			}
-
-			return (int)r;
 		}
 	}
 
-	return (int)k_EResultFail;
+	return 0;
 
 }
 
