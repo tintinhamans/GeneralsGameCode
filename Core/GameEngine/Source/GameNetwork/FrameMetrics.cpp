@@ -64,11 +64,11 @@ FrameMetrics::FrameMetrics()
 }
 
 FrameMetrics::~FrameMetrics() {
-	delete m_fpsList;
+	delete[] m_fpsList;
 	m_fpsList = NULL;
 
 #if !defined(USE_NEW_FRAMEMETRIC_LOGIC)
-    delete m_latencyList;
+    delete[] m_latencyList;
     m_latencyList = NULL;
 
     delete[] m_pendingLatencies;
