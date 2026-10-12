@@ -219,6 +219,18 @@ void GenOnlineGameHooks::onReplayWritten( const AsciiString &absoluteReplayPath 
 	}
 }
 
+Bool GenOnlineGameHooks::beginSyncedStart( Int phase )
+{
+	NetworkMesh* pStartMesh = GenOnlineServicesManager::GetNetworkMesh();
+	return pStartMesh != nullptr && pStartMesh->BeginSyncedStart(phase);
+}
+
+Bool GenOnlineGameHooks::isSyncedStartDone( Int phase )
+{
+	NetworkMesh* pStartMesh = GenOnlineServicesManager::GetNetworkMesh();
+	return pStartMesh == nullptr || pStartMesh->SyncedStartDone(phase);
+}
+
 Int GenOnlineGameHooks::getChatMessageLifeSeconds()
 {
 	return GenOnlineServicesManager::Settings.GetChatLifeSeconds();

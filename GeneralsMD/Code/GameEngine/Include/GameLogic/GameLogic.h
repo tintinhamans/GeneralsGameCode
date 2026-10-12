@@ -158,6 +158,7 @@ public:
 
 	void updateLoadProgress( Int progress );
 	void deleteLoadScreen();
+	void revealFromLoadScreen(Bool loadingSaveGame);	///< Fades the load screen out and deletes it.
 
 	//Kris: Cut setGameLoading() and replaced with setLoadingMap() and setLoadingSave() -- reason: nomenclature
 	//void setGameLoading( Bool loading ) { m_loadingScene = loading; }

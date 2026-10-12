@@ -66,6 +66,17 @@
 Int MIN_RUNAHEAD = 4;
 #endif
 
+#if defined(GENONLINE)
+static const Int FAST_DROP_DEAD_MS = 1000;	// dead time between steps of a fast drop
+static const Int SLOW_PRODUCER_FPS = LOGICFRAMES_PER_SECOND * 3 / 4;	// a player that renders slower than this cannot keep the others fed
+static const Int SLOW_PRODUCER_MIN_LAG_FRAMES = 2;	// its own cushion above the run ahead by this, or a quarter of it, means the others wait for it
+
+static Int runAheadCap(const NetworkSettings &settings)
+{
+	return settings.input_delay.max_frames;
+}
+#endif
+
 static Bool hasValidTransferFileExtension(const AsciiString& filePath)
 {
 	static const char* const validExtensions[] = {
@@ -301,7 +312,7 @@ void ConnectionManager::init()
 	}
 	const NetworkSettings::InputDelay &runAhead = m_networkSettings.input_delay;
 	TheWritableGlobalData->m_networkFPSHistoryLength = (std::max)(1, runAhead.fps_history_samples);
-	TheWritableGlobalData->m_networkLatencyHistoryLength = (std::max)(1, runAhead.formula.latency_history_samples);
+	TheWritableGlobalData->m_networkLatencyHistoryLength = (std::max)(30, (runAhead.formula.latency_window_ms > 0 ? runAhead.formula.latency_window_ms : runAhead.decision_interval_ms) * LOGICFRAMES_PER_SECOND / 1000);
 	TheWritableGlobalData->m_networkRunAheadSlack = runAhead.slack_percent;
 	TheWritableGlobalData->m_networkRunAheadMetricsTime = runAhead.decision_interval_ms;
 	MIN_RUNAHEAD = runAhead.min_frames;
@@ -365,11 +376,48 @@ void ConnectionManager::init()
 	m_outFrameAskedFrame = 0;
 	m_outFrameAskedTime = 0;
 #endif
+	m_lastRunAheadDecisionTime = 0;
 #if defined(GENONLINE)
+	m_fastDropStep = FALSE;
 	m_stallActive = FALSE;
 	m_stallStartTime = 0;
 	m_stallMissingMask = 0;
+	m_stallWaitedOnRemote = FALSE;
 	m_lastKnownRunAhead = 0;
+	m_runAheadLowerCount = 0;
+	m_runAheadLowerPeak = 0;
+	m_ctlStallMs = 0;
+	m_ctlStallMark = 0;
+	m_ctlScreenshotUntil = 0;
+	m_screenshotStallUntil = 0;
+	m_ctlScreenshotSeen = FALSE;
+	m_ctlSeeded = FALSE;
+	m_ctlSeedWait = 0;
+	m_ctlIgnoreUntil = 0;
+	m_ctlChangeTime = 0;
+	m_ctlLastPairTime = 0;
+	m_ctlLastWindowTime = 0;
+	m_spikeController.reset();
+	m_ctlOutageSince = 0;
+	m_ctlSlowSlot = -1;
+	m_runAheadStillInitial = TRUE;
+	m_pendingRunAhead = 0;
+	m_pendingExecFrame = 0;
+	for (Int ctl = 0; ctl < MAX_SLOTS; ++ctl) {
+		m_ctlValidFromExec[ctl] = 0;
+		m_ctlWindowMin[ctl] = NetRunAheadMetricsCommandMsg::NO_CUSHION;
+		m_ctlLateCount[ctl] = 0;
+		m_ctlReportLate[ctl] = 0;
+		m_ctlReportStall[ctl] = 0;
+		m_ctlReportTime[ctl] = 0;
+		m_lastHeardMs[ctl] = 0;
+		m_paceLastFreshMs[ctl] = 0;
+		m_paceGapAvgMs[ctl] = 0.0f;
+		m_paceGapDevMs[ctl] = 0.0f;
+		for (Int ctlSender = 0; ctlSender < MAX_SLOTS; ++ctlSender) {
+			m_ctlMin[ctl][ctlSender] = NetRunAheadMetricsCommandMsg::NO_CUSHION;
+		}
+	}
 	m_loggedSenderUnavailable = FALSE;
 	m_securityDrops = 0;
 	m_directSendActive = FALSE;
@@ -377,6 +425,19 @@ void ConnectionManager::init()
 	m_formerRouterMask = 0;
 	m_directSendCheckedAt = 0;
 	clearSignatureState(TRUE);
+	m_shortGrouping = FALSE;
+	m_ctlLastReason = NetworkOverlayInfo::CTL_NONE;
+	m_ctlLastMinSum = NetworkOverlayInfo::NO_PAIR_SUM;
+	m_ctlLastPairA = -1;
+	m_ctlLastPairB = -1;
+	m_ctlLastBase = 0;
+	m_ctlLastCover = 0;
+	m_ctlLastSpikesPerMin10 = 0;
+	m_ctlLastSpikeSizeMs = 0;
+	m_ctlLastInSpike = FALSE;
+	m_changeDir = 0;
+	m_changeReason = NetworkOverlayInfo::CHANGE_NONE;
+	m_changeAppliedTime = 0;
 	m_frameGroupingMs = 0;
 #endif
 
@@ -604,6 +665,104 @@ void ConnectionManager::onDirectFrameAck(UnsignedInt frame, Int peerSlot) {
 	}
 }
 
+Bool ConnectionManager::usesOneWayRunAhead(Bool atStart) {
+	return TheLAN == nullptr && TheGenOnlineGame != nullptr && m_networkSettings.input_delay.controller && isDirectSendActive(atStart);
+}
+
+Bool ConnectionManager::usesOneWayRunAheadForUser(Int64 userID) {
+	const Int slot = slotForUserID(userID);
+	return TheLAN == nullptr && TheGenOnlineGame != nullptr && m_networkSettings.input_delay.controller && m_networkSettings.send.direct && slot >= 0 && isLinkUp(slot);
+}
+
+// Through the router the delay is round trip x (1 + slack). Sent directly it is one way x (1 + slack) + send interval + margin.
+Real ConnectionManager::estimateRunAheadMs(Real roundTripMs, const NetworkSettings::Send &sendSettings, const NetworkSettings::InputDelay &inputDelay, Bool oneWay) {
+	const Real slackScale = 1.0f + (Real)inputDelay.slack_percent / 100.0f;
+	if (!oneWay) {
+		return roundTripMs * slackScale;
+	}
+	const Real frameMs = 1000.0f / (Real)LOGICFRAMES_PER_SECOND;
+	return roundTripMs * 0.5f * slackScale + (Real)sendSettings.frames_per_packet * frameMs + (Real)inputDelay.margin_frames * frameMs;
+}
+
+Int ConnectionManager::getRunAheadCap() const {
+	return runAheadCap(m_networkSettings);
+}
+
+Bool ConnectionManager::acceptsRunAhead(Int runAhead) const {
+	if (TheLAN != nullptr || TheGenOnlineGame == nullptr) {
+		return TRUE;
+	}
+	if (runAhead == 0) {
+		// the router runs a match without remote players at no run ahead
+		for (Int i = 0; i < MAX_SLOTS; ++i) {
+			if (i != m_localSlot && m_connections[i] != nullptr) {
+				return FALSE;
+			}
+		}
+		return TRUE;
+	}
+	return runAhead >= getRunAheadFloor() && runAhead <= getRunAheadCap();
+}
+
+Int ConnectionManager::computeStartRunAhead(Real roundTripMs, Bool oneWay) const {
+	const Int runAhead = (Int)ceilf(estimateRunAheadMs(roundTripMs, m_networkSettings.send, m_networkSettings.input_delay, oneWay) * (Real)LOGICFRAMES_PER_SECOND / 1000.0f);
+	return clamp<Int>(getRunAheadFloor(), runAhead, getRunAheadCap());
+}
+
+void ConnectionManager::applyStartRunAhead(Int oldRunAhead, Int newRunAhead) {
+	if (newRunAhead < oldRunAhead) {
+		for (Int frame = newRunAhead; frame < oldRunAhead; ++frame) {
+			for (Int i = 0; i < MAX_SLOTS; ++i) {
+				if (m_frameData[i] != nullptr) {
+					m_frameData[i]->resetFrame((UnsignedInt)frame, FALSE);
+				}
+			}
+		}
+	} else if (newRunAhead > oldRunAhead) {
+		zeroFrames((UnsignedInt)oldRunAhead, (UnsignedInt)(newRunAhead - oldRunAhead));
+	}
+}
+
+Int ConnectionManager::getRunAheadFloor() const {
+	const NetworkSettings::InputDelay &runAhead = m_networkSettings.input_delay;
+	if (runAhead.min_frames > 0) {
+		return runAhead.min_frames;
+	}
+	// send interval + receive + execute + margin frame
+	return (m_shortGrouping ? 1 : m_networkSettings.send.frames_per_packet) + 3;
+}
+
+time_t ConnectionManager::getEffectiveDecisionIntervalMs(Int runAhead) const {
+	time_t interval = TheGlobalData->m_networkRunAheadMetricsTime; // the floor
+	const time_t twiceRunAhead = (time_t)(2 * runAhead * 1000 / LOGICFRAMES_PER_SECOND);
+	if (twiceRunAhead > interval) {
+		interval = twiceRunAhead;
+	}
+	return interval;
+}
+
+// leaving the one frame sends needs 2 frames more than entering them
+void ConnectionManager::updateShortGrouping() {
+	if (TheNetwork == nullptr) {
+		return;
+	}
+
+	const Int runAhead = (Int)TheNetwork->getRunAhead();
+	const NetworkSettings::InputDelay &config = m_networkSettings.input_delay;
+	const Int floorOneFrame = (config.min_frames > 0) ? config.min_frames : 4;
+	if (!m_shortGrouping && runAhead <= floorOneFrame + 2) {
+		m_shortGrouping = TRUE;
+	} else if (m_shortGrouping && runAhead > floorOneFrame + 4) {
+		m_shortGrouping = FALSE;
+	}
+
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		if (m_connections[i] != nullptr) {
+			m_connections[i]->setShortGrouping(m_shortGrouping);
+		}
+	}
+}
+
 Int ConnectionManager::slotForUserID(Int64 userID) const {
 	return (TheGenOnlineGame != nullptr) ? TheGenOnlineGame->getSlotOfUser(userID) : -1;
 }
@@ -638,32 +797,39 @@ static Int relayClass(NetCommandType type) {
 	}
 }
 
-Bool ConnectionManager::isDirectSendActive() {
+Bool ConnectionManager::isLinkUp(Int slot) {
+	if (TheGenOnlineGame == nullptr || slot < 0 || slot >= MAX_SLOTS) {
+		return FALSE;
+	}
+	NetworkMesh *mesh = GenOnlineServicesManager::GetNetworkMesh();
+	const GenOnlineGameSlot *gameSlot = (const GenOnlineGameSlot *)TheGenOnlineGame->getConstSlot(slot);
+	PlayerConnection *connection = (mesh != nullptr && gameSlot != nullptr) ? mesh->GetConnectionForUser(gameSlot->m_userID) : nullptr;
+	return connection != nullptr && connection->GetState() == EConnectionState::CONNECTED_DIRECT;
+}
+
+Bool ConnectionManager::isDirectSendActive(Bool atStart) {
 	if (TheGenOnlineGame == nullptr || !m_networkSettings.send.direct) {
 		return FALSE;
 	}
 
 	const time_t now = timeGetTime();
-	if (m_directSendCheckedAt != 0 && (now - m_directSendCheckedAt) < DIRECT_RECHECK_MS) {
+	if (!atStart && m_directSendCheckedAt != 0 && (now - m_directSendCheckedAt) < DIRECT_RECHECK_MS) {
 		return m_directSendActive;
 	}
 	m_directSendCheckedAt = now;
 
 	Bool meshUp = TRUE;
-	NetworkMesh *mesh = GenOnlineServicesManager::GetNetworkMesh();
 	for (Int slot = 0; slot < MAX_SLOTS && meshUp; ++slot) {
 		if (slot == m_localSlot || !isPeerActive(slot)) {
 			continue;
 		}
 #if !RETAIL_COMPATIBLE_NETWORKING
-		// a player that is out needs no commands
-		if (m_disconnectManager != nullptr && m_disconnectManager->isPlayerOutOfGame(slot, this)) {
+		// a player that is out needs no commands, before the match runs nobody is out
+		if (!atStart && m_disconnectManager != nullptr && m_disconnectManager->isPlayerOutOfGame(slot, this)) {
 			continue;
 		}
 #endif
-		const GenOnlineGameSlot *gameSlot = (const GenOnlineGameSlot *)TheGenOnlineGame->getConstSlot(slot);
-		PlayerConnection *connection = (mesh != nullptr && gameSlot != nullptr) ? mesh->GetConnectionForUser(gameSlot->m_userID) : nullptr;
-		if (connection == nullptr || connection->GetState() != EConnectionState::CONNECTED_DIRECT) {
+		if (!isLinkUp(slot)) {
 			meshUp = FALSE;
 		}
 	}
@@ -1215,6 +1381,9 @@ void ConnectionManager::doRelay() {
 			Int senderSlot = -2;
 			if (m_transport->m_inBuffer[i].senderKnown) {
 				senderSlot = slotForUserID(m_transport->m_inBuffer[i].senderUserID);
+				if (senderSlot >= 0) {
+					m_lastHeardMs[senderSlot] = timeGetTime();
+				}
 				if (senderSlot < 0) {
 					NetworkLog(ELogVerbosity::LOG_RELEASE, "[SECURITY] dropped a packet of %d commands from user %lld, who is not in this game", (Int)packet.getNumCommands(), (long long)m_transport->m_inBuffer[i].senderUserID);
 				}
@@ -1525,6 +1694,20 @@ void ConnectionManager::processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg
 	if (isPlayerConnected(playerID)) {
 		m_latencyAverages[playerID] = msg->getAverageLatency();
 		m_fpsAverages[playerID] = msg->getAverageFps();
+#if defined(GENONLINE)
+		if (timeGetTime() >= m_ctlIgnoreUntil) {
+			for (Int sender = 0; sender < MAX_SLOTS; ++sender) {
+				// NO_CUSHION is above any cushion, the lowest report of the window wins
+				m_ctlMin[playerID][sender] = min(m_ctlMin[playerID][sender], msg->getCushionMin(sender));
+				m_ctlReportLate[playerID] += msg->getLate(sender);
+			}
+			m_ctlReportStall[playerID] += msg->getStallMs();
+			m_ctlReportTime[playerID] = timeGetTime();
+			if (msg->getScreenshot()) {
+				m_ctlScreenshotSeen = TRUE;
+			}
+		}
+#endif
 		//DEBUG_LOG(("ConnectionManager::processRunAheadMetrics - player %d, fps = %d, latency = %f", playerID, msg->getAverageFps(), msg->getAverageLatency()));
 
 		// GENONLINE_CHANGE: Modern machines render well above 100 fps even in the foreground.
@@ -1798,7 +1981,29 @@ void ConnectionManager::processFrameInfo(NetFrameCommandMsg *msg) {
 			m_frameData[playerID]->setFrameCommandCount(msg->getExecutionFrame(), msg->getCommandCount());
 #if defined(GENONLINE)
 			if (!isCopy && (playerID != (UnsignedInt)m_localSlot) && (TheGameLogic != nullptr)) {
-				m_cushionStats[playerID].note((Int)msg->getExecutionFrame() - (Int)TheGameLogic->getFrame(), timeGetTime());
+				const Int cushion = (Int)msg->getExecutionFrame() - (Int)TheGameLogic->getFrame();
+				const time_t cushionTime = timeGetTime();
+				m_cushionStats[playerID].note(cushion, cushionTime);
+				// frame infos of one packet share the ms
+				enum { PACE_SAME_BURST_MS = 2, PACE_GAP_SAMPLE_CAP_MS = 100 };	// caps the gap sample
+				if (m_paceLastFreshMs[playerID] != 0 && (cushionTime - m_paceLastFreshMs[playerID]) >= PACE_SAME_BURST_MS) {
+					const Real gap = (Real)min<time_t>(cushionTime - m_paceLastFreshMs[playerID], PACE_GAP_SAMPLE_CAP_MS);
+					if (m_paceGapAvgMs[playerID] <= 0.0f) {
+						m_paceGapAvgMs[playerID] = gap;
+						m_paceGapDevMs[playerID] = gap * 0.5f;
+					} else {
+						const Real deviation = (gap > m_paceGapAvgMs[playerID]) ? (gap - m_paceGapAvgMs[playerID]) : (m_paceGapAvgMs[playerID] - gap);
+						m_paceGapDevMs[playerID] += (deviation - m_paceGapDevMs[playerID]) * 0.25f;
+						m_paceGapAvgMs[playerID] += (gap - m_paceGapAvgMs[playerID]) * 0.125f;
+					}
+				}
+				m_paceLastFreshMs[playerID] = cushionTime;
+				if (msg->getExecutionFrame() >= m_ctlValidFromExec[playerID]) {
+					m_ctlWindowMin[playerID] = min(m_ctlWindowMin[playerID], cushion);
+					if (cushion <= 0) {
+						++m_ctlLateCount[playerID];
+					}
+				}
 			}
 #endif
 		}
@@ -2231,18 +2436,42 @@ void ConnectionManager::update(Bool isInGame) {
 		}
 	}
 
+#if defined(GENONLINE)
+	updateShortGrouping();
+#endif
 	m_transport->doSend();
 }
 
 void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didSelfSlug, Int nextExecutionFrame) {
-	static time_t lasttimesent = 0;
 	time_t curTime = timeGetTime();
 
 #if defined(GENONLINE)
 	m_lastKnownRunAhead = oldRunAhead;
+	if (m_localSlot == m_packetRouterSlot) {
+		updateControllerOutage(curTime);
+	} else {
+		m_fastDropStep = FALSE;
+	}
 #endif
 
-	if ((lasttimesent == 0) || ((curTime - lasttimesent) > TheGlobalData->m_networkRunAheadMetricsTime)) {
+#if defined(GENONLINE)
+	const time_t decisionInterval = getEffectiveDecisionIntervalMs(oldRunAhead);
+#else
+	const time_t decisionInterval = TheGlobalData->m_networkRunAheadMetricsTime;
+#endif
+#if defined(GENONLINE)
+	const time_t gateInterval = (m_fastDropStep && FAST_DROP_DEAD_MS < decisionInterval) ? (time_t)FAST_DROP_DEAD_MS : decisionInterval;
+#else
+	const time_t gateInterval = decisionInterval;
+#endif
+	if ((m_lastRunAheadDecisionTime == 0) || ((curTime - m_lastRunAheadDecisionTime) > gateInterval)) {
+#if defined(GENONLINE)
+		if (m_networkSettings.input_delay.formula.latency_window_ms <= 0) {
+			// the in-band latency is averaged over the samples since the previous decision
+			const UnsignedInt samples = (UnsignedInt)(decisionInterval * LOGICFRAMES_PER_SECOND / 1000);
+			TheWritableGlobalData->m_networkLatencyHistoryLength = (samples > 30) ? samples : 30;
+		}
+#endif
 		if (m_localSlot == m_packetRouterSlot) {
 			// We are the packet router, time to compute a new run ahead for this game.
 			m_latencyAverages[m_localSlot] = m_frameMetrics.getAverageLatency();
@@ -2277,99 +2506,51 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			// The runahead should always be rounded up to the next integer value to prevent variations in latency from causing stutter
 			// The network slack pushes the runahead up to the next value when the latency is within the slack percentage of the current runahead
 
-			Real configuredSlack = (Real)TheGlobalData->m_networkRunAheadSlack / 100.0f;
+			const Real runAheadSlackScale = 1.0f + (Real)TheGlobalData->m_networkRunAheadSlack / 100.0f;
 
-			Real effectiveSlack = configuredSlack;
-
-#if defined(GENONLINE)
-			if (TheGenOnlineGame != nullptr)
-			{
-				ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
-				if (serviceConf.ibra_ra_tweaks)
-				{
-                    // dynamic slack based on jitter
-                    NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-                    if (pMesh != nullptr)
-                    {
-                        // 1) Current max latency (RTT)
-                        int maxLatMs = pMesh->getMaximumLatency();
-
-                        // 2) Compute worst-case jitter (max - min) across recent history
-                        int jitterMs = 0;
-
-                        auto& connections = pMesh->GetAllConnections();
-                        for (auto& kvPair : connections)
-                        {
-                            PlayerConnection& conn = kvPair.second;
-
-                            if (conn.m_vecLatencyHistory.size() > 1)
-                            {
-                                int minL = INT_MAX;
-                                int maxL = 0;
-
-                                for (int l : conn.m_vecLatencyHistory)
-                                {
-                                    if (l < minL) minL = l;
-                                    if (l > maxL) maxL = l;
-                                }
-
-                                int span = maxL - minL;
-                                if (span > jitterMs)
-                                {
-                                    jitterMs = span;
-                                }
-                            }
-                        }
-
-                        // 3) Convert jitter to a 0?1+ ratio relative to latency
-                        Real jitterRatio = 0.0f;
-                        if (maxLatMs > 0)
-                        {
-                            jitterRatio = (Real)jitterMs / (Real)maxLatMs;
-                        }
-
-                        // 4) Map jitter ratio into a slack range based on latency
-                        //    Lower latency: tighter slack
-                        //    Higher latency: allow more slack to hide jitter
-                        Real minSlack = serviceConf.ibra_minslack_default;
-                        Real maxSlack = serviceConf.ibra_maxslack_default;
-
-                        if (maxLatMs > 300)
-                        {
-                            // At high RTT, allow more headroom
-                            minSlack = serviceConf.ibra_minslack_greaterthan300ms;
-                            maxSlack = serviceConf.ibra_maxslack_greaterthan300ms;
-                        }
-                        else if (maxLatMs > 200)
-                        {
-                            // Medium-high latency (200?300 ms)
-                            minSlack = serviceConf.ibra_minslack_greaterthan200ms;
-                            maxSlack = serviceConf.ibra_maxslack_greaterthan200ms;
-                        }
-
-                        // Clamp jitterRatio to [0,1] when mapping
-                        if (jitterRatio < 0.0f) jitterRatio = 0.0f;
-                        if (jitterRatio > 1.0f) jitterRatio = 1.0f;
-
-                        Real dynamicSlack = minSlack + (maxSlack - minSlack) * jitterRatio;
-
-                        // ignore service slack and use our own dynamic slack
-                        effectiveSlack = dynamicSlack;
-                    }
-				}
-			}
-#endif
-
-			const Real runAheadSlackScale = 1.0f + effectiveSlack;
-
-			//NetworkLog(ELogVerbosity::LOG_DEBUG, "RA CALC: %f * %f * %f = %d", getMaximumLatency(), runAheadSlackScale, (Real)minFps, (int)ceilf(getMaximumLatency() * runAheadSlackScale * (Real)minFps));
 			Int newRunAhead = ceilf(getMaximumLatency() * runAheadSlackScale * (Real)minFps);
 
 			// TheSuperHackers @info if the runahead goes below 3 logic frames it can start to introduce stutter
 			// We also limit the upper range of the runahead to prevent it getting out of hand
 			Int minRunAheadForClamp = MIN_RUNAHEAD;
+#if defined(GENONLINE)
+			minRunAheadForClamp = getRunAheadFloor();
+#endif
 
+#if defined(GENONLINE)
+			// a lost packet is repaired by the copy in the next one, a send interval later: budget for it
+			Int repairFrames = 0;
+			if (m_networkSettings.input_delay.formula.repair_budget) {
+				time_t repairInterval = 0;
+				for (Int repairSlot = 0; repairSlot < MAX_SLOTS; ++repairSlot) {
+					if (m_connections[repairSlot] != nullptr && m_connections[repairSlot]->getRedundancyDepth() > 0 && m_connections[repairSlot]->getFrameGrouping() > repairInterval) {
+						repairInterval = m_connections[repairSlot]->getFrameGrouping();
+					}
+				}
+				repairFrames = (Int)((repairInterval * LOGICFRAMES_PER_SECOND + 999) / 1000);
+			}
+			newRunAhead += repairFrames;
+#endif
+#if defined(GENONLINE)
+			newRunAhead = clamp<Int>(minRunAheadForClamp, newRunAhead, runAheadCap(m_networkSettings));
+#else
 			newRunAhead = clamp<Int>(minRunAheadForClamp, newRunAhead, MAX_FRAMES_AHEAD / 2);
+#endif
+
+#if defined(GENONLINE)
+			const Bool controllerOn = m_networkSettings.input_delay.controller;
+			const Int decreaseAfter = m_networkSettings.input_delay.formula.decrease_after_decisions;
+			// a command that was issued but has not taken effect yet is the run ahead to decide from, not the one still running
+			const Int baseRunAhead = (m_pendingExecFrame != 0 && oldRunAhead != m_pendingRunAhead && TheGameLogic->getFrame() <= m_pendingExecFrame + 2) ? m_pendingRunAhead : oldRunAhead;
+			if (controllerOn)
+			{
+				newRunAhead = decideControllerRunAhead(baseRunAhead, newRunAhead, minRunAheadForClamp, curTime, decreaseAfter);
+			}
+			else
+			{
+				newRunAhead = applyDecreaseHold(baseRunAhead, newRunAhead, decreaseAfter);
+			}
+#endif
 
 			NetRunAheadCommandMsg* msg = newInstance(NetRunAheadCommandMsg);
 			msg->setPlayerID(m_localSlot);
@@ -2410,6 +2591,11 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 
 			msg->setRunAhead(newRunAhead);
 			msg->setFrameRate(minFps);
+#if defined(GENONLINE)
+			m_pendingRunAhead = newRunAhead;
+			m_pendingExecFrame = msg->getExecutionFrame();
+#endif
+
 			//DEBUG_LOG(("ConnectionManager::updateRunAhead - new run ahead = %d, new frame rate = %d, execution frame %d", newRunAhead, minFps, msg->getExecutionFrame()));
 			sendLocalCommand(msg, 0xff ^ (1 << minFpsPlayer)); // Send the packet to everyone but the lowest FPS player.
 
@@ -2468,6 +2654,21 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 				msg->setID(GenerateNextCommandID());
 			}
 			msg->setAverageLatency(m_frameMetrics.getAverageLatency());
+#if defined(GENONLINE)
+			{
+				Int lowest[MAX_SLOTS];
+				Int late[MAX_SLOTS];
+				Int stallMs;
+				Bool screenshot;
+				collectControllerReport(lowest, late, stallMs, screenshot);
+				for (Int sender = 0; sender < MAX_SLOTS; ++sender) {
+					msg->setCushionMin(sender, lowest[sender]);
+					msg->setLate(sender, late[sender]);
+				}
+				msg->setStallMs(stallMs);
+				msg->setScreenshot(screenshot);
+			}
+#endif
 
 			// see above for explanation.
 //			if (didSelfSlug) {
@@ -2492,94 +2693,418 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 			}
 			msg->detach();
 		}
-		lasttimesent = curTime;
+		m_lastRunAheadDecisionTime = curTime;
 	}
 }
 
+#if defined(GENONLINE)
+static Int framesToMs(Int frames) {
+	return (frames * 1000 + LOGICFRAMES_PER_SECOND - 1) / LOGICFRAMES_PER_SECOND;
+}
+
+// The run ahead goes up at once and falls only after decreaseAfter asks for less in a row, then to the highest of them.
+Int ConnectionManager::applyDecreaseHold(Int oldRunAhead, Int askedRunAhead, Int decreaseAfter) {
+	if (m_runAheadStillInitial) {
+		m_runAheadLowerCount = 0;
+		return askedRunAhead;
+	}
+	if (decreaseAfter > 0 && askedRunAhead < oldRunAhead) {
+		m_runAheadLowerPeak = (m_runAheadLowerCount == 0) ? askedRunAhead : max(m_runAheadLowerPeak, askedRunAhead);
+		++m_runAheadLowerCount;
+		if (m_runAheadLowerCount >= decreaseAfter) {
+			m_runAheadLowerCount = 0;
+			return m_runAheadLowerPeak;
+		}
+		return oldRunAhead;
+	}
+	m_runAheadLowerCount = 0;
+	return askedRunAhead;
+}
+
+void ConnectionManager::resetControllerWindow(Bool sinceChange) {
+	m_ctlScreenshotSeen = FALSE;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		m_ctlReportLate[i] = 0;
+		m_ctlReportStall[i] = 0;
+		if (sinceChange) {
+			m_ctlReportTime[i] = 0;
+		}
+		for (Int sender = 0; sender < MAX_SLOTS; ++sender) {
+			m_ctlMin[i][sender] = NetRunAheadMetricsCommandMsg::NO_CUSHION;
+		}
+	}
+}
+
+void ConnectionManager::noteRunAheadApplied(Int oldRunAhead, Int newRunAhead) {
+	if (oldRunAhead == newRunAhead) {
+		return;
+	}
+	// what the overlay says about this change: the router knows the reason of the controller, the others infer it from the direction and their own stalls
+	{
+		const time_t appliedNow = timeGetTime();
+		Int changeReason = NetworkOverlayInfo::CHANGE_CLEAN;
+		if (m_runAheadStillInitial) {
+			changeReason = NetworkOverlayInfo::CHANGE_START;
+		} else if (newRunAhead > oldRunAhead) {
+			m_stallStats.update(appliedNow);
+			const Bool router = (m_localSlot == m_packetRouterSlot);
+			const Bool stalled = router ? (m_ctlLastReason == NetworkOverlayInfo::CTL_CONGESTION) : (m_stallStats.getCount(appliedNow, NETWORK_STATS_WINDOW_MS) > 0);
+			changeReason = stalled ? NetworkOverlayInfo::CHANGE_STALL : NetworkOverlayInfo::CHANGE_LAG_SPIKE;
+		}
+		m_changeDir = (newRunAhead > oldRunAhead) ? 1 : -1;
+		m_changeReason = changeReason;
+		m_changeAppliedTime = appliedNow;
+		static const char *const s_changeNames[] = { "none", "start", "lag spike", "stall", "clean" };
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[RUNAHEAD] input delay %d->%d ms (%s) reason=%s", framesToMs(oldRunAhead), framesToMs(newRunAhead), (m_changeDir > 0) ? "rising" : "lowering", s_changeNames[changeReason]);
+	}
+	m_runAheadStillInitial = FALSE;
+	if (TheGameLogic == nullptr) {
+		return;
+	}
+	// commands issued from this frame on carry an execution frame of at least this + the new run ahead
+	const UnsignedInt validFrom = TheGameLogic->getFrame() + newRunAhead;
+	for (Int sender = 0; sender < MAX_SLOTS; ++sender) {
+		m_ctlValidFromExec[sender] = validFrom;
+		m_ctlWindowMin[sender] = NetRunAheadMetricsCommandMsg::NO_CUSHION;
+		m_ctlLateCount[sender] = 0;
+	}
+	m_ctlStallMs = 0;
+	m_ctlStallMark = timeGetTime();
+}
+
+void ConnectionManager::noteScreenshotCapture(Bool uploadFollows) {
+	// the capture blocks this frame, and the upload competes with the game traffic until it is done, a lost one times out
+	const time_t holdMs = uploadFollows ? 15000 : 3000;
+	m_ctlScreenshotUntil = timeGetTime() + holdMs;
+	m_screenshotStallUntil = m_ctlScreenshotUntil;
+}
+
+void ConnectionManager::noteScreenshotDone() {
+	// the waits the upload left can end after it
+	m_ctlScreenshotUntil = timeGetTime() + 2000;
+	m_screenshotStallUntil = m_ctlScreenshotUntil;
+}
+
+void ConnectionManager::collectControllerReport(Int *lowest, Int *late, Int &stallMs, Bool &screenshot) {
+	const time_t now = timeGetTime();
+	for (Int sender = 0; sender < MAX_SLOTS; ++sender) {
+		lowest[sender] = m_ctlWindowMin[sender];
+		m_ctlWindowMin[sender] = NetRunAheadMetricsCommandMsg::NO_CUSHION;
+		late[sender] = m_ctlLateCount[sender];
+		m_ctlLateCount[sender] = 0;
+	}
+	if (m_stallActive && m_stallWaitedOnRemote && (now - m_stallStartTime) >= framesToMs(1)) {
+		m_ctlStallMs += (Int)(now - ((m_stallStartTime > m_ctlStallMark) ? m_stallStartTime : m_ctlStallMark));
+	}
+	stallMs = m_ctlStallMs;
+	m_ctlStallMs = 0;
+	m_ctlStallMark = now;
+	// the report that ends the hold is still flagged
+	screenshot = m_ctlScreenshotUntil != 0;
+	if (screenshot && now >= m_ctlScreenshotUntil) {
+		m_ctlScreenshotUntil = 0;
+	}
+}
+
+/** Takes the own report of the window and drops it, returns its stall ms. */
+Int ConnectionManager::discardControllerReport() {
+	Int lowest[MAX_SLOTS];
+	Int late[MAX_SLOTS];
+	Int stallMs;
+	Bool screenshot;
+	collectControllerReport(lowest, late, stallMs, screenshot);
+	return stallMs;
+}
+
+/** A player silent for 1 s is an outage: the controller holds, drops its stalls and the open episode. */
+void ConnectionManager::updateControllerOutage(time_t now) {
+	enum { OUTAGE_MS = 1000 };
+	Int silentSlot = -1;
+	time_t silentMs = 0;
+	for (Int slot = 0; slot < MAX_SLOTS; ++slot) {
+		if (slot != m_localSlot && isPlayerConnected(slot) && m_lastHeardMs[slot] != 0 && (now - m_lastHeardMs[slot]) >= OUTAGE_MS) {
+			if ((now - m_lastHeardMs[slot]) > silentMs) {
+				silentMs = now - m_lastHeardMs[slot];
+				silentSlot = slot;
+			}
+		}
+	}
+
+	if (silentSlot >= 0) {
+		if (m_ctlOutageSince == 0) {
+			m_ctlOutageSince = now - silentMs;
+			m_spikeController.dropEpisode();
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[CONTROLLER] outage slot=%d silent for %dms, holding R %d", silentSlot, (Int)silentMs, m_lastKnownRunAhead);
+		}
+		return;
+	}
+
+	if (m_ctlOutageSince != 0) {
+		const time_t outageMs = now - m_ctlOutageSince;
+		m_ctlOutageSince = 0;
+		const Int stallMs = discardControllerReport();
+		resetControllerWindow(TRUE);
+		m_spikeController.dropEpisode();
+		// reports still on their way cover the outage
+		const time_t ignoreUntil = now + getEffectiveDecisionIntervalMs(m_lastKnownRunAhead);
+		if (ignoreUntil > m_ctlIgnoreUntil) {
+			m_ctlIgnoreUntil = ignoreUntil;
+		}
+		m_ctlLastWindowTime = m_ctlIgnoreUntil;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[CONTROLLER] outage over after %dms, dropped its stalls (own %dms), the controller resumes", (Int)outageMs, stallMs);
+	}
+}
+
+/** Router: run ahead from the lowest cushion sum of the pairs (plus margin) and the stalls, via RunAheadSpikeController. */
+Int ConnectionManager::decideControllerRunAhead(Int oldRunAhead, Int formulaRunAhead, Int floorRunAhead, time_t now, Int decreaseAfter) {
+	const NetworkSettings::InputDelay &config = m_networkSettings.input_delay;
+	const Int cap = runAheadCap(m_networkSettings);
+	m_fastDropStep = FALSE;
+	const Int margin = config.margin_frames;
+	const Int noCushion = NetRunAheadMetricsCommandMsg::NO_CUSHION;
+	const Real frameMs = 1000.0f / (Real)LOGICFRAMES_PER_SECOND;
+	const time_t formulaAfterMs = 2 * NETWORK_STATS_WINDOW_MS;	// no complete pair for this long, the latency formula takes over
+
+	if (!m_ctlSeeded) {
+		if (getMaximumLatency() <= 0.0f && ++m_ctlSeedWait < 3) {
+			return oldRunAhead;
+		}
+		m_ctlSeeded = TRUE;
+		m_ctlLastPairTime = now;
+		m_spikeController.reset();
+		resetControllerWindow(TRUE);
+		// sent directly the seed is the one way run ahead the controller settles at, the same estimate the start run ahead used
+		const Bool oneWay = usesOneWayRunAhead();
+		// the probes of the players still here: the averaged latencies still hold the samples of a player that just left
+		const Real liveLatency = getLiveProbeLatency();
+		const Real seedLatency = (liveLatency > 0.0f) ? liveLatency : getMaximumLatency();
+		const Int seedRunAhead = oneWay ? computeStartRunAhead(seedLatency * 1000.0f, TRUE) : formulaRunAhead;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[CONTROLLER] R %d->%d reason=seed rtt_used=%.0fms one_way=%d", oldRunAhead, seedRunAhead, seedLatency * 1000.0f, (Int)oneWay);
+		m_ctlLastReason = NetworkOverlayInfo::CTL_SEED;
+		m_ctlChangeTime = now;
+		m_ctlIgnoreUntil = now + getEffectiveDecisionIntervalMs(seedRunAhead);
+		m_ctlLastWindowTime = m_ctlIgnoreUntil;
+		return seedRunAhead;
+	}
+
+	// dead time: reports of the last change are still arriving
+	if (now < m_ctlIgnoreUntil) {
+		return oldRunAhead;
+	}
+
+	// an outage is no reason to raise, the waits it causes are not the trend of the network
+	if (m_ctlOutageSince != 0) {
+		const Int stallMs = discardControllerReport();
+		resetControllerWindow(FALSE);
+		m_spikeController.dropEpisode();
+		m_ctlLastWindowTime = now;
+		m_ctlLastReason = NetworkOverlayInfo::CTL_OUTAGE;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[CONTROLLER] R %d->%d reason=outage silent_for=%dms stallms_dropped=%d", oldRunAhead, oldRunAhead, (Int)(now - m_ctlOutageSince), stallMs);
+		return oldRunAhead;
+	}
+
+	{
+		Int ownLowest[MAX_SLOTS];
+		Int ownLate[MAX_SLOTS];
+		Int ownStallMs;
+		Bool ownScreenshot;
+		collectControllerReport(ownLowest, ownLate, ownStallMs, ownScreenshot);
+		if (ownScreenshot) {
+			m_ctlScreenshotSeen = TRUE;
+		}
+		for (Int sender = 0; sender < MAX_SLOTS; ++sender) {
+			m_ctlMin[m_localSlot][sender] = min(m_ctlMin[m_localSlot][sender], ownLowest[sender]);
+			m_ctlReportLate[m_localSlot] += ownLate[sender];
+		}
+		m_ctlReportStall[m_localSlot] += ownStallMs;
+	}
+
+	// wait for the first report of every player since the change, 2 D at most
+	{
+		Bool allReported = TRUE;
+		for (Int a = 0; a < MAX_SLOTS; ++a) {
+			if (a != m_localSlot && isPlayerConnected(a) && m_ctlReportTime[a] == 0) {
+				allReported = FALSE;
+			}
+		}
+		if (!allReported && (now - m_ctlChangeTime) < 2 * getEffectiveDecisionIntervalMs(oldRunAhead)) {
+			return oldRunAhead;
+		}
+	}
+
+	// the need of the window: the pair with the lowest sum of its two directions sets it
+	Int minSum = noCushion;
+	Int pairA = -1;
+	Int pairB = -1;
+	Int pairCount = 0;
+	Int late = 0;
+	Int stallMs = 0;
+	for (Int a = 0; a < MAX_SLOTS; ++a) {
+		if (a != m_localSlot && !isPlayerConnected(a)) {
+			continue;
+		}
+		late += m_ctlReportLate[a];
+		stallMs = max(stallMs, m_ctlReportStall[a]);
+		for (Int b = a + 1; b < MAX_SLOTS; ++b) {
+			if (b != m_localSlot && !isPlayerConnected(b)) {
+				continue;
+			}
+			if (m_ctlMin[a][b] == noCushion || m_ctlMin[b][a] == noCushion) {
+				continue;
+			}
+			++pairCount;
+			const Int sum = m_ctlMin[a][b] + m_ctlMin[b][a];
+			if (sum < minSum) {
+				minSum = sum;
+				pairA = a;
+				pairB = b;
+			}
+		}
+	}
+	// a slow producer feeds every other player late at any run ahead, its own cushion piles up while the others wait for it
+	Int slowSlot = -1;
+	Int slowFps = 0;
+	Int slowCushion = noCushion;
+	{
+		const Int lagFrames = max<Int>(SLOW_PRODUCER_MIN_LAG_FRAMES, oldRunAhead / 4);
+		for (Int p = 0; p < MAX_SLOTS && slowSlot < 0; ++p) {
+			if (p != m_localSlot && !isPlayerConnected(p)) {
+				continue;
+			}
+			Int ownCushion = noCushion;
+			for (Int sender = 0; sender < MAX_SLOTS; ++sender) {
+				if (sender != p) {
+					ownCushion = min(ownCushion, m_ctlMin[p][sender]);
+				}
+			}
+			const Bool lowFps = m_fpsAverages[p] > 0 && m_fpsAverages[p] < SLOW_PRODUCER_FPS;
+			const Bool piledUp = ownCushion != noCushion && ownCushion > oldRunAhead + lagFrames;
+			if (lowFps || piledUp) {
+				slowSlot = p;
+				slowFps = m_fpsAverages[p];
+				slowCushion = ownCushion;
+			}
+		}
+	}
+	const Bool screenshotInterval = m_ctlScreenshotSeen;
+	const Int windowMs = (Int)(now - m_ctlLastWindowTime);
+	m_ctlLastWindowTime = now;
+	resetControllerWindow(FALSE);
+
+	if (slowSlot != m_ctlSlowSlot) {
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[CONTROLLER] slow producer slot=%d (was %d) fps=%d own_cushion=%d R=%d, the stalls waiting for it (%dms) do not raise R", slowSlot, m_ctlSlowSlot, slowFps, (slowCushion == noCushion) ? -1 : slowCushion, oldRunAhead, stallMs);
+		m_ctlSlowSlot = slowSlot;
+	}
+	// no run ahead can buy back the wait for a player that is slower than the game
+	if (slowSlot >= 0) {
+		stallMs = 0;
+	}
+
+	const Bool havePair = pairCount > 0;
+	const Int stallGateMs = framesToMs(3);	// a wait of less than 3 F is not seen and one more frame of run ahead would not fix it
+	const Bool stalled = !screenshotInterval && stallMs >= stallGateMs;
+	// 2 R minus the sum of frames are missing over the pair, half of it per direction, plus the margin each direction keeps
+	const Int twiceShort = 2 * oldRunAhead - minSum;
+	Int need = havePair ? (((twiceShort >= 0) ? ((twiceShort + 1) / 2) : -((-twiceShort) / 2)) + margin) : 0;
+	if (stalled) {
+		need = max(need, oldRunAhead + (Int)ceil(stallMs / frameMs) + margin);
+	}
+	if (havePair) {
+		m_ctlLastPairTime = now;
+	}
+	m_ctlLastMinSum = havePair ? minSum : NetworkOverlayInfo::NO_PAIR_SUM;
+	m_ctlLastPairA = pairA;
+	m_ctlLastPairB = pairB;
+
+	Int newRunAhead = oldRunAhead;
+	const char *reason = "hold";
+	Int reasonCode = NetworkOverlayInfo::CTL_HOLD;
+	Bool fastDrop = FALSE;
+	if (screenshotInterval) {
+		// every client captures at the same second, the window says nothing about the network
+	} else if (!havePair && !stalled) {
+		if ((now - m_ctlLastPairTime) >= formulaAfterMs) {
+			newRunAhead = applyDecreaseHold(oldRunAhead, formulaRunAhead, decreaseAfter);
+			reason = "formula";
+			reasonCode = NetworkOverlayInfo::CTL_FORMULA;
+		}
+	} else {
+		// the largest round trip jitter of the mesh probes widens what counts as a spike
+		Real jitterMs = 0.0f;
+		NetworkMesh *pMesh = GenOnlineServicesManager::GetNetworkMesh();
+		if (pMesh != nullptr) {
+			for (auto &kvPair : pMesh->GetAllConnections()) {
+				jitterMs = max(jitterMs, kvPair.second.m_probeStats.getJitter());
+			}
+		}
+		const RunAheadSpikeController::Decision d = m_spikeController.onWindow(now, windowMs, need, stalled, stalled ? stallMs : 0, jitterMs, oldRunAhead, margin, frameMs, floorRunAhead, cap, config.fast_recovery, slowSlot >= 0);
+		static const char *const s_reasonNames[] = { "hold", "baseline", "cover", "uncover", "congestion" };
+		static const Int s_reasonCodes[] = { NetworkOverlayInfo::CTL_HOLD, NetworkOverlayInfo::CTL_BASELINE, NetworkOverlayInfo::CTL_COVER, NetworkOverlayInfo::CTL_UNCOVER, NetworkOverlayInfo::CTL_CONGESTION };
+		newRunAhead = d.runAhead;
+		fastDrop = d.fastDrop;
+		reason = s_reasonNames[d.reason];
+		reasonCode = s_reasonCodes[d.reason];
+		m_ctlLastBase = d.base;
+		m_ctlLastCover = d.cover;
+		m_ctlLastSpikesPerMin10 = d.spikesPerMin10;
+		m_ctlLastSpikeSizeMs = d.spikeSizeMs;
+		m_ctlLastInSpike = d.inSpike;
+	}
+	newRunAhead = clamp<Int>(floorRunAhead, newRunAhead, cap);
+	m_ctlLastReason = reasonCode;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[CONTROLLER] R %d->%d reason=%s need=%d minS=%d pair=%d-%d late=%d stallms=%d",
+		oldRunAhead, newRunAhead, reason, need, havePair ? minSum : (Int)NetworkOverlayInfo::NO_PAIR_SUM, pairA, pairB, late, stallMs);
+
+	if (newRunAhead != oldRunAhead) {
+		resetControllerWindow(TRUE);
+		m_ctlChangeTime = now;
+		m_fastDropStep = fastDrop && newRunAhead < oldRunAhead;
+		m_ctlIgnoreUntil = now + (m_fastDropStep ? FAST_DROP_DEAD_MS : getEffectiveDecisionIntervalMs(newRunAhead));
+		m_ctlLastWindowTime = m_ctlIgnoreUntil;
+	}
+	return newRunAhead;
+}
+#endif
+
+Real ConnectionManager::getLiveProbeLatency()
+{
+	NetworkMesh *pMesh = GenOnlineServicesManager::GetNetworkMesh();
+	if (pMesh == nullptr) {
+		return 0.0f;
+	}
+	Int highestMs = 0;
+	for (auto &kvPair : pMesh->GetAllConnections()) {
+		const Int slot = slotForUserID(kvPair.first);
+		if (slot < 0 || slot == m_localSlot || !isPlayerConnected(slot)) {
+			continue;
+		}
+		highestMs = max(highestMs, kvPair.second.GetSeedLatency());
+	}
+	return (Real)highestMs / 1000.0f;
+}
+
+// The average of the two highest in-band round trips, the own slot carries the one to the slowest peer.
 Real ConnectionManager::getMaximumLatency()
 {
-	int latencyLogicModel = 0;
-
-	if (TheGenOnlineGame != nullptr)
+	Real lat1 = 0.0f;
+	Real lat2 = 0.0f;
+	for (Int i = 0; i < MAX_SLOTS; ++i)
 	{
-		ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
-		latencyLogicModel = serviceConf.network_latency_logic_model;
-		// 0 = original
-		// 1 = pick highest between original and Valve latency (current)
-		// 2 = pick highest between original and Valve latency (historic)
-		// 3 = use Valve latency (current)
-		// 4 = use Valve latency (historic)
-	}
-
-	Real maxLatency = 0.0f;
-
-	for (Int i = 0; i < MAX_SLOTS; ++i) {
-		if (isPlayerConnected(i) && m_latencyAverages[i] > maxLatency) {
-			maxLatency = m_latencyAverages[i];
+		if (!isPlayerConnected(i))
+		{
+			continue;
+		}
+		if (m_latencyAverages[i] > lat1)
+		{
+			lat2 = lat1;
+			lat1 = m_latencyAverages[i];
+		}
+		else if (m_latencyAverages[i] > lat2)
+		{
+			lat2 = m_latencyAverages[i];
 		}
 	}
-
-
-	if (latencyLogicModel == 0)
-	{
-		return maxLatency;
-	}
-	else if (latencyLogicModel == 1)
-	{
-		NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-
-		if (pMesh != nullptr)
-		{
-			Real maxGOLatency = (pMesh->getMaximumLatency() / 1000.f);
-			return maxLatency > maxGOLatency ? maxLatency : maxGOLatency;
-		}
-		else
-		{
-			return maxLatency;
-		}
-	}
-	else if (latencyLogicModel == 2)
-	{
-		NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-		if (pMesh != nullptr)
-		{
-			Real maxGOLatency = (pMesh->getMaximumHistoricalLatency() / 1000.f);
-			return maxLatency > maxGOLatency ? maxLatency : maxGOLatency;
-		}
-		else
-		{
-			return maxLatency;
-		}
-	}
-	else if (latencyLogicModel == 3)
-	{
-		NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-
-		if (pMesh != nullptr)
-		{
-			Real maxGOLatency = (pMesh->getMaximumLatency() / 1000.f);
-			return maxGOLatency;
-		}
-		else
-		{
-			return maxLatency;
-		}
-	}
-	else if (latencyLogicModel == 4)
-	{
-		NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-		if (pMesh != nullptr)
-		{
-			Real maxGOLatency = (pMesh->getMaximumHistoricalLatency() / 1000.f);
-			return maxGOLatency;
-		}
-		else
-		{
-			return maxLatency;
-		}
-	}
-
-	return maxLatency;
+	return (lat1 + lat2) / 2.0f;
 }
 
 void ConnectionManager::getMinimumFps(Int &minFps, Int &minFpsPlayer) {
@@ -3833,10 +4358,59 @@ void ConnectionManager::noteStalling(Bool stalling, UnsignedInt frame) {
 		}
 		m_stallActive = TRUE;
 		m_stallStartTime = now;
-	} else if (!stalling && m_stallActive) {
-		m_stallActive = FALSE;
-		m_stallStats.note((Int)(now - m_stallStartTime), m_stallMissingMask, now);
+		m_stallWaitedOnRemote = FALSE;
 	}
+	if (stalling) {
+		// only missing commands of a remote player are a network stall, a missing local slot or the disconnect manager holding the frame is not
+		for (Int i = 0; i < MAX_SLOTS && !m_stallWaitedOnRemote; ++i) {
+			if ((i != m_localSlot) && (m_frameData[i] != nullptr) && (m_frameData[i]->getIsQuitting() == FALSE)
+				&& (m_frameData[i]->getFrameCommandCount(frame) != m_frameData[i]->getCommandCount(frame))) {
+				m_stallWaitedOnRemote = TRUE;
+			}
+		}
+	} else if (m_stallActive) {
+		m_stallActive = FALSE;
+		// a wait shorter than a frame is scheduler jitter, a frame is the least a larger run ahead could buy back
+		if (m_stallWaitedOnRemote && (now - m_stallStartTime) >= framesToMs(1)) {
+			m_ctlStallMs += (Int)(now - ((m_stallStartTime > m_ctlStallMark) ? m_stallStartTime : m_ctlStallMark));
+		}
+		// the overlay, the rating and the logs count the stalls the controller counts: a wait of a frame or more for a
+		// commands of a remote player, not one a local screenshot capture caused
+		const Bool screenshotStall = (m_screenshotStallUntil != 0 && m_stallStartTime < m_screenshotStallUntil);
+		if (m_stallWaitedOnRemote && (now - m_stallStartTime) >= framesToMs(1) && !screenshotStall) {
+			m_stallStats.note((Int)(now - m_stallStartTime), m_stallMissingMask, now);
+		}
+	}
+}
+
+/** Frames after this one that the commands of every remote player are complete for (lowest, up to maxFrames), where overdue means its next frame info is later than its usual gap. */
+Int ConnectionManager::getRemoteLookAhead(UnsignedInt frame, Int maxFrames, Bool &overdue) {
+	const time_t now = timeGetTime();
+	Int lowest = -1;
+	overdue = FALSE;
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		if ((i == m_localSlot) || (m_frameData[i] == nullptr) || m_frameData[i]->getIsQuitting()) {
+			continue;
+		}
+		Int ahead = 0;
+		while ((ahead < maxFrames) && (m_frameData[i]->getFrameCommandCount(frame + 1 + ahead) == m_frameData[i]->getCommandCount(frame + 1 + ahead))) {
+			++ahead;
+		}
+		// a usual gap plus twice its deviation, never less than a frame
+		Bool late = FALSE;
+		if (m_paceLastFreshMs[i] != 0 && m_paceGapAvgMs[i] > 0.0f) {
+			Real limitMs = m_paceGapAvgMs[i] + 2.0f * m_paceGapDevMs[i];
+			if (limitMs < (Real)framesToMs(1)) {
+				limitMs = (Real)framesToMs(1);
+			}
+			late = (Real)(now - m_paceLastFreshMs[i]) > limitMs;
+		}
+		if ((lowest < 0) || (ahead < lowest) || ((ahead == lowest) && late && !overdue)) {
+			lowest = ahead;
+			overdue = late;
+		}
+	}
+	return lowest;
 }
 
 Bool ConnectionManager::getOverlayInfo(Int slot, NetworkOverlayInfo &info) {
@@ -3847,14 +4421,28 @@ Bool ConnectionManager::getOverlayInfo(Int slot, NetworkOverlayInfo &info) {
 	info.stalledNow = m_stallActive;
 	info.runAhead = m_lastKnownRunAhead;
 	info.frameGroupingMs = m_frameGroupingMs;
+	const NetworkSettings::InputDelay &runAheadConfig = m_networkSettings.input_delay;
+	info.controllerOn = runAheadConfig.controller;
+	info.marginFrames = runAheadConfig.margin_frames;
+	info.isRouter = (m_localSlot == m_packetRouterSlot);
+	info.changeDir = m_changeDir;
+	info.changeReason = m_changeReason;
+	info.changeAgoMs = (m_changeAppliedTime != 0) ? (Int)(now - m_changeAppliedTime) : -1;
+	info.ctlReason = m_ctlLastReason;
+	info.ctlMinSum = m_ctlLastMinSum;
+	info.ctlPairA = m_ctlLastPairA;
+	info.ctlPairB = m_ctlLastPairB;
+	info.ctlBase = m_ctlLastBase;
+	info.ctlCover = m_ctlLastCover;
+	info.ctlSpikesPerMin10 = m_ctlLastSpikesPerMin10;
+	info.ctlSpikeSizeMs = m_ctlLastSpikeSizeMs;
+	info.ctlInSpike = m_ctlLastInSpike;
+	info.ctlSinceChangeMs = (m_ctlChangeTime != 0) ? (Int)(now - m_ctlChangeTime) : 0;
 
 	if (slot >= 0 && slot < MAX_SLOTS) {
 		info.stallsWindow = m_stallStats.getCountForSlot(slot, now, NETWORK_STATS_WINDOW_MS);
 		info.stallsMinute = m_stallStats.getCountForSlot(slot, now, 60000);
 		info.waitingOnSlot = m_stallActive && ((m_stallMissingMask & (1u << slot)) != 0);
-		if (isPlayerConnected(slot)) {
-			info.slotInBandMs = (Int)(m_latencyAverages[slot] * 1000.0f);
-		}
 		m_cushionStats[slot].update(now);
 		info.cushionSamples = m_cushionStats[slot].getSampleCount();
 		info.cushionP5 = m_cushionStats[slot].getPercentile(5);

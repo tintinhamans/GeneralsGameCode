@@ -47,6 +47,8 @@ public:
 	virtual void onCRCMismatch( const UnicodeString &details ) override;
 	virtual Bool shouldLeaveGame() override;
 	virtual void onReplayWritten( const AsciiString &replayPath ) override;
+	virtual Bool beginSyncedStart( Int phase ) override;
+	virtual Bool isSyncedStartDone( Int phase ) override;
 
 	virtual Int getChatMessageLifeSeconds() override;
 	virtual void drawNetworkOverlay( DisplayString *text, Int dropColor ) override;

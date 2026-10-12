@@ -446,7 +446,8 @@ void GenOnlineGame::launchGame(void)
 		PopBackToLobby();
 		return;
 	}
-	TheNetwork->SeedLatencyData(pMesh->getMaximumHistoricalLatency());
+	// One spike or lossy spell must not start the match at a huge run ahead.
+	TheNetwork->SeedLatencyData(pMesh->getSeedProbeLatency());
 
 	// TODO_GENONLINE: Check whether these values still matter.
 	TheNetwork->setLocalAddress(getLocalIP(), 8888);
@@ -455,6 +456,12 @@ void GenOnlineGame::launchGame(void)
 	TheNetwork->initTransport(GENONLINE_TRANSPORT_NAME);
 
 	TheNetwork->parseUserList(this);
+
+	if (pMesh != nullptr && TheNetwork->GetConnectionManager() != nullptr)
+	{
+		// the run ahead of frame 1, decided by the packet router from the lobby round trips
+		pMesh->BeginStartRunAhead((int)TheNetwork->GetConnectionManager()->getPacketRouterSlot());
+	}
 
 	if (TheGameLogic->isInGame()) {
 		TheGameLogic->clearGameData();

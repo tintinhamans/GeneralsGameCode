@@ -26,6 +26,7 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include <algorithm>
 #include <numeric>
 
 #include "GameNetwork/FrameMetrics.h"
@@ -95,15 +96,21 @@ void FrameMetrics::init() {
 	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 	if (TheGenOnlineGame != nullptr && pMesh != nullptr)
 	{
+		// average ping of the connections that have one, else the retail 200 ms
 		int totalLatency = 0;
+		int latencyCount = 0;
 		std::map<int64_t, PlayerConnection>& connections = pMesh->GetAllConnections();
 		for (auto& kvPair : connections)
 		{
-			PlayerConnection& conn = kvPair.second;
-			totalLatency += conn.GetLatency();
+			const int latency = kvPair.second.GetLatency();
+			if (latency >= 0)
+			{
+				totalLatency += latency;
+				++latencyCount;
+			}
 		}
 
-		m_averageLatency = (Real)((Real)totalLatency / 1000.f) / (Real)connections.size();
+		m_averageLatency = (latencyCount > 0) ? (Real)totalLatency / 1000.f / (Real)latencyCount : (Real)0.2;
 	}
 	else
 	{
@@ -175,7 +182,9 @@ void FrameMetrics::doPerFrameMetrics(UnsignedInt frame) {
 
 	// beyond size limit? remove the oldest
 	//NetworkLog(ELogVerbosity::LOG_DEBUG, "SIZE of pending latencies: %ld and %ld", m_mapPendingLatenciesSorted.size(), m_mapPendingLatenciesLookup.size());
-	if (m_mapPendingLatenciesSorted.size() > TheGlobalData->m_networkLatencyHistoryLength)
+	// the table holds the frame infos in the air, which is independent of how many samples are averaged
+	const UnsignedInt pendingCapacity = (std::max)(TheGlobalData->m_networkLatencyHistoryLength, (UnsignedInt)(MAX_FRAMES_AHEAD * 2));
+	if (m_mapPendingLatenciesSorted.size() > pendingCapacity)
 	{
         // remove oldest frame
         UnsignedInt oldestFrame = m_mapPendingLatenciesSorted.begin()->first;
@@ -213,7 +222,7 @@ void FrameMetrics::processLatencyResponse(UnsignedInt frame)
 
     // beyond size limit? remove the oldest
     //NetworkLog(ELogVerbosity::LOG_DEBUG, "SIZE of actual latencies: %ld and %ld/%ld", m_mapLatenciesLookup.size(), m_mapLatenciesSorted.size(), TheGlobalData->m_networkLatencyHistoryLength);
-    if (m_mapLatenciesLookup.size() > TheGlobalData->m_networkLatencyHistoryLength)
+    while (!m_mapLatenciesSorted.empty() && m_mapLatenciesLookup.size() > TheGlobalData->m_networkLatencyHistoryLength) // more than one when the window shrank
     {
         // remove oldest frame
         UnsignedInt oldestFrame = m_mapLatenciesSorted.begin()->first;
@@ -270,7 +279,25 @@ void FrameMetrics::addCushion(Int cushion) {
 }
 
 Int FrameMetrics::getAverageFPS() {
+#if defined(GENONLINE)
+	enum { MAX_MEDIAN_SAMPLES = 128 };
+	Real sorted[MAX_MEDIAN_SAMPLES];
+	UnsignedInt count = TheGlobalData->m_networkFPSHistoryLength;
+	if (count > MAX_MEDIAN_SAMPLES) {
+		count = MAX_MEDIAN_SAMPLES;
+	}
+	if (count == 0) {
+		return (Int)m_averageFps;
+	}
+
+	for (UnsignedInt i = 0; i < count; ++i) {
+		sorted[i] = m_fpsList[i];
+	}
+	std::nth_element(sorted, sorted + count / 2, sorted + count);
+	return (Int)sorted[count / 2];
+#else
 	return (Int)m_averageFps;
+#endif
 }
 
 Real FrameMetrics::getAverageLatency() {
