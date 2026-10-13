@@ -53,6 +53,7 @@
 #include "Common/XferCRC.h"
 #include "Common/PerfTimer.h"
 #include "Common/StatsExporter.h"
+#include "Common/StatsExporterLive.h"
 
 #include "GameClient/Anim2D.h"
 #include "GameClient/ControlBar.h"
@@ -3023,6 +3024,7 @@ void Object::scoreTheKill( const Object *victim )
 	if (victimController)
 	{
 		victimController->getScoreKeeper()->addObjectLost(victim);
+		StatsExporterLiveLoss(victimController->getPlayerIndex(), victim->getTemplate());
 	}
 
 	Relationship r = getRelationship(victim);
@@ -3041,11 +3043,9 @@ void Object::scoreTheKill( const Object *victim )
 		controller->addSkillPointsForKill(this, victim);
 		controller->doBountyForKill(this, victim);
 
-		if (TheGlobalData->m_exportStats)
-		{
-			const DamageInfo *damageInfo = victim->getBodyModule() ? victim->getBodyModule()->getLastDamageInfo() : nullptr;
-			StatsExporterRecordKill(this, victim, damageInfo);
-		}
+		// one entry point feeds the live pipe and the JSON export, each under its own gate
+		const DamageInfo *damageInfo = (TheGlobalData->m_exportStats && victim->getBodyModule()) ? victim->getBodyModule()->getLastDamageInfo() : nullptr;
+		StatsExporterRecordKill(this, victim, damageInfo);
 	}
 
 	// Now handle experience, if we can gain any
@@ -3243,6 +3243,14 @@ void Object::onVeterancyLevelChanged( VeterancyLevel oldLevel, VeterancyLevel ne
 
 	if (doAnimation)
 		createVeterancyLevelFX(oldLevel, newLevel);
+
+	Player* statsController = getControllingPlayer();
+	if (statsController != nullptr)
+	{
+		StatsExporterLiveVeterancyChange(
+			statsController->getPlayerIndex(), getTemplate(), getID(),
+			static_cast<Int>(oldLevel), static_cast<Int>(newLevel));
+	}
 }
 
 void Object::createVeterancyLevelFX(VeterancyLevel oldLevel, VeterancyLevel newLevel)

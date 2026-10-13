@@ -49,6 +49,7 @@
 #include "Common/ActionManager.h"
 #include "Common/BuildAssistant.h"
 #include "Common/StatsExporter.h"
+#include "Common/StatsExporterLive.h"
 #include "Common/CRCDebug.h"
 #include "Common/DisabledTypes.h"
 #include "Common/GameState.h"
@@ -1556,7 +1557,9 @@ void Player::onUnitCreated( Object *factory, Object *unit )
 
 	// increment our scorekeeper
 	m_scoreKeeper.addObjectBuilt(unit);
-	m_scoreKeeper.addMoneySpent(unit->getTemplate()->calcCostToBuild(this));
+	const Int unitCost = unit->getTemplate()->calcCostToBuild(this);
+	m_scoreKeeper.addMoneySpent(unitCost);
+	StatsExporterLiveSpend(getPlayerIndex(), STATS_EXPORTER_SPEND_UNITS, unitCost);
 
 	if (TheGlobalData->m_exportStats)
 		StatsExporterRecordBuild(factory, unit);
@@ -1648,7 +1651,9 @@ void Player::onStructureConstructionComplete( Object *builder, Object *structure
 	// increment our scorekeeper
 	if (isRebuild == FALSE) {
 		m_scoreKeeper.addObjectBuilt(structure);
-		m_scoreKeeper.addMoneySpent(structure->getTemplate()->calcCostToBuild(this));
+		const Int structureCost = structure->getTemplate()->calcCostToBuild(this);
+		m_scoreKeeper.addMoneySpent(structureCost);
+		StatsExporterLiveSpend(getPlayerIndex(), STATS_EXPORTER_SPEND_STRUCTURES, structureCost);
 		if (TheGlobalData->m_exportStats)
 			StatsExporterRecordBuild(builder, structure);
 	}
@@ -2647,7 +2652,14 @@ Bool Player::attemptToPurchaseScience(ScienceType science)
 
 	Int cost = TheScienceStore->getSciencePurchaseCost(science);
 	addSciencePurchasePoints(-cost);
-	addScience(science);
+	StatsExporterLiveSpend(getPlayerIndex(), STATS_EXPORTER_SPEND_SCIENCES, cost);
+	if (addScience(science))
+	{
+		// only purchases are events; rank grants and setup grants go through addScience too
+		StatsExporterLiveScienceAcquired(
+			getPlayerIndex(), getRankLevel(), getSciencePurchasePoints(),
+			TheScienceStore->getInternalNameForScience(science).str());
+	}
 
 	getAcademyStats()->recordGeneralsPointsSpent( cost );
 

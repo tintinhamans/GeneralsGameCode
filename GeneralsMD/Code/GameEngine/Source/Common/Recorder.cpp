@@ -48,6 +48,7 @@
 #include "Common/RandomValue.h"
 #include "Common/CRCDebug.h"
 #include "Common/OptionPreferences.h"
+#include "Common/StatsExporterLive.h"
 #include "Common/version.h"
 #include "GameNetwork/Online/IOnlineGameHooks.h"
 #include <Utility/bit_adapter.h>
@@ -470,11 +471,17 @@ void RecorderClass::updatePlayback() {
  * reaching the end of the playback file.
  */
 void RecorderClass::stopPlayback() {
+	// playback files live in the replay dir and m_currentReplayFilename is a bare name
+	AsciiString finishedReplayPath = getReplayDir();
+	finishedReplayPath.concat(m_currentReplayFilename);
+
 	if (m_file != nullptr) {
 		m_file->close();
 		m_file = nullptr;
 	}
 	m_fileName.clear();
+
+	StatsExporterLiveMatchEnded(finishedReplayPath, TRUE);
 
 	if (!m_doingAnalysis)
 	{
@@ -518,6 +525,8 @@ void RecorderClass::updateRecord()
 				stopRecording();
 				needFlush = FALSE;
 			}
+			// single player is never recorded; a no-op if stopRecording() already sent ENDED
+			StatsExporterLiveMatchEnded(AsciiString::TheEmptyString, FALSE);
 			m_fileName.clear();
 		}
 		else {
@@ -731,16 +740,18 @@ void RecorderClass::stopRecording() {
 		}
 	}
 	if (m_file != nullptr) {
+		AsciiString finishedReplayPath = getReplayDir();
+		finishedReplayPath.concat(m_fileName);
+
 		m_file->close();
 		m_file = nullptr;
 
 		if (m_archiveReplays)
 			archiveReplay(m_fileName);
 		// upload
-		AsciiString absoluteReplayPath = getReplayDir();
-		absoluteReplayPath.concat(m_fileName);
+		GetOnlineGameHooks()->onReplayWritten(finishedReplayPath);
 
-		GetOnlineGameHooks()->onReplayWritten(absoluteReplayPath);
+		StatsExporterLiveMatchEnded(finishedReplayPath, FALSE);
 	}
 	m_fileName.clear();
 }
