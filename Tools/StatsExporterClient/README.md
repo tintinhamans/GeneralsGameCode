@@ -24,6 +24,7 @@ Run with `gradlew run --args="<command> ..."` or the installed script. `--pid N`
 | `dump <file>` | Same as `watch`, and record the raw frames to a file. |
 | `replay <file>` | Print a recorded dump without a game. |
 | `chat <channel> <text>` | Send one chat line; channels: `match game-lobby room lan-lobby lan-game`; `--audience everyone\|allies\|observers`. |
+| `gui` | Show the feed live in a window (see below). Options: `--pid N`, `--pipe PATH`, or `--replay FILE [--speed N]`. |
 | `schema` | Print the frame table and every message and field. |
 
 ```
@@ -32,6 +33,32 @@ stats-exporter-client dump match.dump
 stats-exporter-client replay match.dump
 stats-exporter-client chat match "gg wp" --audience allies
 ```
+
+## GUI
+
+`gui` opens a Swing window (JDK only, no extra dependency) that shows the feed as tables, for watching a match without a console:
+
+```
+stats-exporter-client gui                          # connect to the running game, reconnect if it restarts
+stats-exporter-client gui --pid 1234               # a specific game process
+stats-exporter-client gui --replay match.dump      # play a recorded dump, as fast as possible
+stats-exporter-client gui --replay match.dump --speed 20   # about 20 frames per second
+```
+
+A status bar shows the connection, the screen, the match, the frame and game time, the game speed ("uncapped" and "paused/halted" for -1 and 0), the network stall flag and the snapshot count. The tabs are:
+
+| Tab | Content |
+|---|---|
+| Players | One row per player from the latest snapshot, joined with the MatchInfo player (name, side, color, team) by `player_index`. Rows update in place; columns sort. |
+| Events | Append-only list of the snapshot events (newest at the bottom, follows new rows until you scroll up, last 3000 kept). |
+| Chat | Every chat line received, with channel, sender, audience and flags. |
+| Lobby | The latest LobbyState: slots with the predicted side, color and start position; after LOADING, a green or red label for the prediction check. |
+| Match | The latest MatchInfo as key/value rows, and the MatchSummary rows when one arrives. |
+| Frames | Raw log of every frame with type, size and a one-line summary. |
+
+The footer shows the frames and bytes received per second. Stall snapshots (no players) never clear the Players table. A reconnect keeps the tables and only changes the status; a new match (a LOADING frame, or a STARTED frame with a different match id) clears Players and Events.
+
+The code is meant to be read: `StatsGui` is the window and the thread hand-over (the reader thread decodes, `SwingUtilities.invokeLater` delivers each frame to the event thread), `GuiModel` holds all state and table models without any Swing component, and `RowTableModel` is the small table model they share.
 
 ## Library use
 
