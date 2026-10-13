@@ -43,6 +43,7 @@
 #include "GameClient/InGameUI.h"
 #include "GameLogic/ExperienceTracker.h"
 #include "GameLogic/Object.h"
+#include "Common/StatsExporterLive.h"
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -197,32 +198,52 @@ Bool SalvageCrateCollide::testLevelChance()
 // ------------------------------------------------------------------------------------------------
 void SalvageCrateCollide::doWeaponSet( Object *other )
 {
+	Int reachedTier;
 	if( other->testWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE ) )
 	{
 		other->clearWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE );
 		other->setWeaponSetFlag( WEAPONSET_CRATEUPGRADE_TWO );
+		reachedTier = 2;
 	}
 	else
 	{
 		other->setWeaponSetFlag( WEAPONSET_CRATEUPGRADE_ONE );
+		reachedTier = 1;
+	}
+
+	Player* statsController = other->getControllingPlayer();
+	if( statsController != nullptr )
+	{
+		StatsExporterLiveSalvageUpgrade(
+			statsController->getPlayerIndex(), other->getTemplate(), "WEAPON", reachedTier );
 	}
 }
 
 // ------------------------------------------------------------------------------------------------
 void SalvageCrateCollide::doArmorSet( Object *other )
 {
+	Int reachedTier;
 	if( other->testArmorSetFlag( ARMORSET_CRATE_UPGRADE_ONE ) )
 	{
 		other->clearArmorSetFlag( ARMORSET_CRATE_UPGRADE_ONE );
 		other->setArmorSetFlag( ARMORSET_CRATE_UPGRADE_TWO );
 
 		other->clearAndSetModelConditionState(MODELCONDITION_ARMORSET_CRATEUPGRADE_ONE, MODELCONDITION_ARMORSET_CRATEUPGRADE_TWO);
+		reachedTier = 2;
 	}
 	else
 	{
 		other->setArmorSetFlag( ARMORSET_CRATE_UPGRADE_ONE );
 
 		other->setModelConditionState(MODELCONDITION_ARMORSET_CRATEUPGRADE_ONE);
+		reachedTier = 1;
+	}
+
+	Player* statsController = other->getControllingPlayer();
+	if( statsController != nullptr )
+	{
+		StatsExporterLiveSalvageUpgrade(
+			statsController->getPlayerIndex(), other->getTemplate(), "ARMOR", reachedTier );
 	}
 }
 

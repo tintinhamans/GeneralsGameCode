@@ -52,6 +52,9 @@
 
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/GameLogic.h"
+#if defined(GENONLINE) && RTS_ZEROHOUR
+#include "Common/StatsExporterLive.h"
+#endif
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/ObjectCreationList.h"
@@ -401,6 +404,11 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 
 				if(TheStatsCollector)
 					TheStatsCollector->collectMsgStats(msg);
+
+#if defined(GENONLINE) && RTS_ZEROHOUR
+				// counts executed commands per player for the live feed's APM; read-only
+				StatsExporterLiveCommand(msgPlayer->getPlayerIndex(), msg->getType());
+#endif
 			}
 		}
 	}
@@ -2129,6 +2137,9 @@ bool GameLogic::onPlaceBeacon(MAYBE_UNUSED GameMessage *msg)
 		Object *object = TheThingFactory->newObject( thing, msgPlayer->getDefaultTeam() );
 		object->setPosition( &pos );
 		object->setProducer(nullptr);
+#if defined(GENONLINE) && RTS_ZEROHOUR
+		StatsExporterLiveBeacon(msgPlayer->getPlayerIndex(), &pos);
+#endif
 
 		if (msgPlayer->getRelationship( ThePlayerList->getLocalPlayer()->getDefaultTeam() ) == ALLIES || ThePlayerList->getLocalPlayer()->isPlayerObserver())
 		{
@@ -2289,6 +2300,9 @@ bool GameLogic::onSetBeaconText(MAYBE_UNUSED GameMessage *msg, AIGroupPtr &curre
 bool GameLogic::onSelfDestruct(MAYBE_UNUSED GameMessage *msg)
 {
 	Player *msgPlayer = getMessagePlayer(msg);
+#if defined(GENONLINE) && RTS_ZEROHOUR
+	StatsExporterLivePlayerLeft(msgPlayer->getPlayerIndex(), "self_destruct");
+#endif
 
 	if (msg->getArgument(0)->boolean)
 	{

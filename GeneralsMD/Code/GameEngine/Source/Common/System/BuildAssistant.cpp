@@ -32,6 +32,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/BuildAssistant.h"
+#include "Common/StatsExporterLive.h"
 #include "Common/GlobalData.h"
 #include "Common/Player.h"
 #include "Common/ThingTemplate.h"
@@ -250,6 +251,7 @@ void BuildAssistant::update()
 																										 TheGlobalData->m_sellPercentage );
 
 				player->getMoney()->deposit( sellValue, TRUE, FALSE );
+				StatsExporterLiveSell(player->getPlayerIndex(), obj->getTemplate(), sellValue);
 				// this money shouldn't be scored since it wasn't really "earned."
 //				player->getScoreKeeper()->addMoneyEarned( sellValue );
 

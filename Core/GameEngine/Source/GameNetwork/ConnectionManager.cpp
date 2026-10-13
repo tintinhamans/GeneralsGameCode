@@ -58,6 +58,9 @@
 
 #include "../GenOnlineTransport.h"
 #include "../NetworkMesh.h"
+#if defined(GENONLINE) && RTS_ZEROHOUR
+#include "Common/StatsExporterLive.h"
+#endif
 #include "../GenOnlineInterfaces.h"
 
 #include <algorithm>
@@ -1774,6 +1777,9 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 	if (!player)
 	{
 		TheInGameUI->message(L"%ls", unitext.str());
+#if defined(GENONLINE) && RTS_ZEROHOUR
+		StatsExporterLiveChatInGame((Int)playerID, name, msg->getText(), msg->getPlayerMask(), playerID == m_localSlot);
+#endif
 		return;
 	}
 
@@ -1787,6 +1793,9 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 		rgb.setFromInt(player->getPlayerColor());
 #if defined(GENONLINE)
 		TheInGameUI->messageColor(true, &rgb, UnicodeString(L"%ls"), unitext.str());
+#if RTS_ZEROHOUR
+		StatsExporterLiveChatInGame((Int)playerID, name, msg->getText(), msg->getPlayerMask(), playerID == m_localSlot);
+#endif
 #else
 		TheInGameUI->messageColor(&rgb, L"%ls", unitext.str());
 #endif
@@ -2135,6 +2144,10 @@ void ConnectionManager::processAck(NetCommandMsg *msg) {
  */
 PlayerLeaveCode ConnectionManager::processPlayerLeave(NetPlayerLeaveCommandMsg *msg) {
 	UnsignedByte playerID = msg->getLeavingPlayerID();
+#if defined(GENONLINE) && RTS_ZEROHOUR
+	// the network layer carries quit and disconnect as the same synchronized leave command
+	StatsExporterLivePlayerLeftSlot(playerID, "left");
+#endif
 	if ((playerID != m_localSlot) && (m_connections[playerID] != nullptr)) {
 		DEBUG_LOG(("ConnectionManager::processPlayerLeave() - setQuitting() on player %d on frame %d", playerID, TheGameLogic->getFrame()));
 		m_connections[playerID]->setQuitting();

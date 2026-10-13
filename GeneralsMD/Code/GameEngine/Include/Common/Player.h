@@ -299,6 +299,7 @@ public:
 
 	/// return t if the player has the given science, either intrinsically, via specialization, or via capture.
 	Bool hasScience(ScienceType t) const;
+	const ScienceVec& getSciences() const { return m_sciences; }	///< read-only view of the purchased and intrinsic sciences
 	Bool isScienceDisabled( ScienceType t ) const;	///< Can't purchase this science because of script reasons.
 	Bool isScienceHidden( ScienceType t ) const;		///< This science is effectively hidden due to  script reasons.
 

@@ -65,6 +65,7 @@
 
 #include "GameLogic/Object.h"
 #include "GameLogic/GameLogic.h"
+#include "Common/StatsExporterLive.h"
 
 //-----------------------------------------------------------------------------
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -149,6 +150,12 @@ void ScoreKeeper::addObjectBuilt( const Object *o)
 		if (it != m_objectsBuilt.end())
 			existingCount = it->second;
 		m_objectsBuilt[o->getTemplate()] = existingCount + 1;
+
+		// authoritative build outcome for both units and structures
+		if (o->getControllingPlayer() != nullptr)
+		{
+			StatsExporterLiveBuild(o->getControllingPlayer()->getPlayerIndex(), o->getTemplate());
+		}
 	}
 }
 
