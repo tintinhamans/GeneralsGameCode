@@ -1,0 +1,70 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'com.google.protobuf' version '0.9.5'
+}
+
+group = 'com.generalsonline'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+// protobuf-java 4.33.x pairs with the engine's protobuf 6.33.x (vcpkg): Java major 4 = C++ major 6, same minor line.
+def protobufVersion = '4.33.4'
+
+dependencies {
+    implementation "com.google.protobuf:protobuf-java:${protobufVersion}"
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 17
+    options.encoding = 'UTF-8'
+}
+
+application {
+    mainClass = 'com.generalsonline.stats.Main'
+}
+
+// The engine's proto is the only copy. It declares optimize_for = LITE_RUNTIME, which would make the Java classes lite
+// (no descriptors, no TextFormat). The wire format is identical, so the build generates from a filtered copy with that
+// option dropped and Java options added; the engine's file is never modified.
+def engineProto = file('../../GeneralsMD/Code/GameEngine/Source/Common/StatsExporter.proto')
+
+tasks.register('prepareProto', Copy) {
+    from engineProto
+    into layout.buildDirectory.dir('filtered-proto')
+    filter { String line ->
+        if (line.contains('optimize_for')) {
+            return '// (optimize_for removed for the Java build)'
+        }
+        if (line.startsWith('package statsexporter;')) {
+            return line + '\noption java_multiple_files = true;\noption java_package = "com.generalsonline.stats.proto";'
+        }
+        return line
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${protobufVersion}"
+    }
+}
+
+// The task itself is the source dir, so every consumer (generateProto, processResources) depends on it.
+sourceSets {
+    main {
+        proto {
+            srcDir tasks.named('prepareProto')
+        }
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
