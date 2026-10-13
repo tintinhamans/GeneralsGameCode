@@ -826,8 +826,22 @@ void DeinitLanGameGadgets()
 //-------------------------------------------------------------------------------------------------
 /** Initialize the Lan Game Options Menu */
 //-------------------------------------------------------------------------------------------------
+static Bool s_lanGameOptionsMenuOpen = FALSE;
+
+// Handles a line as the LAN game setup's typed-line path does (it has no commands: a trimmed, non-empty line is sent).
+Bool LanGameOptionsMenuSubmitChatLine( UnicodeString text )
+{
+	text.trim();
+	if (!s_lanGameOptionsMenuOpen || TheLAN == nullptr || text.isEmpty())
+		return FALSE;
+
+	TheLAN->RequestChat(text, LANAPIInterface::LANCHAT_NORMAL);
+	return TRUE;
+}
+
 void LanGameOptionsMenuInit( WindowLayout *layout, void *userData )
 {
+	s_lanGameOptionsMenuOpen = TRUE;
 	if (TheLAN->GetMyGame() && TheLAN->GetMyGame()->isGameInProgress())
 	{
 		// If we init while the game is in progress, we are really returning to the menu
@@ -1035,6 +1049,7 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void LanGameOptionsMenuShutdown( WindowLayout *layout, void *userData )
 {
+	s_lanGameOptionsMenuOpen = FALSE;
 	TheMouse->setCursor(Mouse::ARROW);
 	TheMouse->setMouseText(UnicodeString::TheEmptyString,nullptr,nullptr);
 	EnableSlotListUpdates(FALSE);

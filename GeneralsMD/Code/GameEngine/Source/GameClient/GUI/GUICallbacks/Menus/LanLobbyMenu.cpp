@@ -359,8 +359,22 @@ static void playerTooltip(GameWindow *window,
 //-------------------------------------------------------------------------------------------------
 /** Initialize the Lan Lobby Menu */
 //-------------------------------------------------------------------------------------------------
+static Bool s_lanLobbyMenuOpen = FALSE;
+
+// Handles a line as the LAN lobby's typed-line path does (it has no commands: a trimmed, non-empty line is sent).
+Bool LanLobbyMenuSubmitChatLine( UnicodeString text )
+{
+	text.trim();
+	if (!s_lanLobbyMenuOpen || TheLAN == nullptr || text.isEmpty())
+		return FALSE;
+
+	TheLAN->RequestChat(text, LANAPIInterface::LANCHAT_NORMAL);
+	return TRUE;
+}
+
 void LanLobbyMenuInit( WindowLayout *layout, void *userData )
 {
+	s_lanLobbyMenuOpen = TRUE;
 	LANnextScreen = nullptr;
 	LANbuttonPushed = false;
 	LANisShuttingDown = false;
@@ -545,6 +559,7 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void LanLobbyMenuShutdown( WindowLayout *layout, void *userData )
 {
+	s_lanLobbyMenuOpen = FALSE;
 	LANPreferences prefs;
 	prefs["UserName"] = UnicodeStringToQuotedPrintable(GadgetTextEntryGetText( textEntryPlayerName ));
 	prefs.write();
