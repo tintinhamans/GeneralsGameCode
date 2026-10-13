@@ -140,6 +140,8 @@ static Bool justEntered = FALSE;
 // Preserve rejected messages while the server enforces the limit.
 static std::deque<std::chrono::steady_clock::time_point> s_lobbyChatMessageTimes;
 
+static Bool s_lobbyMenuOpen = FALSE;
+
 static bool LobbyChatRateLimitAllowsSend()
 {
 	using namespace std::chrono;
@@ -359,6 +361,30 @@ void handleNetSlashCommand(AsciiString subcommand, AsciiString value, GameWindow
 	}
 
 	GadgetListBoxAddEntryText(listbox, UnicodeString(L"Change with /net relay force | auto and /net engine native | webrtc | auto. /net reset clears both overrides."), netColor, -1, -1);
+}
+
+Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited);
+
+// Handles a line as the chat room's typed-line path does: slash commands first, else the rate limit and a plain send.
+Bool WOLLobbyMenuSubmitChatLine( UnicodeString text )
+{
+	text.trim();
+	if (!s_lobbyMenuOpen || text.isEmpty())
+		return FALSE;
+
+	Bool wasRateLimited = FALSE;
+	if (handleLobbySlashCommands(text, &wasRateLimited))
+		return !wasRateLimited;
+
+	if (!LobbyChatRateLimitAllowsSend())
+		return FALSE;
+
+	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
+	if (pRoomsInterface == nullptr)
+		return FALSE;
+
+	pRoomsInterface->SendChatMessageToCurrentRoom(text, false);
+	return TRUE;
 }
 
 Bool handleLobbySlashCommands(UnicodeString uText, Bool *wasRateLimited)
@@ -1462,6 +1488,7 @@ void GenOnline_WOLLobbyMenu_JoinLobbyCallback(EJoinLobbyResult result)
 //-------------------------------------------------------------------------------------------------
 void WOLLobbyMenuInit( WindowLayout *layout, void *userData )
 {
+	s_lobbyMenuOpen = TRUE;
 	const UnsignedInt lobbyMenuGeneration = ++s_lobbyMenuGeneration;
 
 	// for safety (and sanity)
@@ -1730,6 +1757,7 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void WOLLobbyMenuShutdown( WindowLayout *layout, void *userData )
 {
+	s_lobbyMenuOpen = FALSE;
 	++s_lobbyMenuGeneration;
 
 	GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();

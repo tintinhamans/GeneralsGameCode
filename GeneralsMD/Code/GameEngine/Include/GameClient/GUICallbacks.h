@@ -342,6 +342,13 @@ extern void ShowInGameChat( Bool immediate = TRUE );
 void ResetInGameChat();
 void SetInGameChatType( InGameChatType chatType );
 Bool IsInGameChatActive();
+/// Handles a line of in-match chat as if it was typed into the chat box (slash command, else recipient mask, mute, language filter).
+Bool SubmitInGameChatLine( const UnicodeString& text, InGameChatType chatType );
+/// Handles a line as if it was typed into that menu's chat box (slash commands included); FALSE if the menu is not open.
+Bool WOLGameSetupMenuSubmitChatLine( UnicodeString text );
+Bool WOLLobbyMenuSubmitChatLine( UnicodeString text );
+Bool LanLobbyMenuSubmitChatLine( UnicodeString text );
+Bool LanGameOptionsMenuSubmitChatLine( UnicodeString text );
 
 
 // Diplomacy Controls --------------------------------------------------------------------------------

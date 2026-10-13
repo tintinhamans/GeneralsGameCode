@@ -342,6 +342,8 @@ extern void ShowInGameChat( Bool immediate = TRUE );
 void ResetInGameChat();
 void SetInGameChatType( InGameChatType chatType );
 Bool IsInGameChatActive();
+/// Handles a line of in-match chat as if it was typed into the chat box (slash command, else recipient mask, mute, language filter).
+Bool SubmitInGameChatLine( const UnicodeString& text, InGameChatType chatType );
 
 
 // Diplomacy Controls --------------------------------------------------------------------------------

@@ -189,6 +189,64 @@ Bool handleInGameSlashCommands(UnicodeString uText)
 }
 
 // ------------------------------------------------------------------------------------------------
+// Builds the recipient mask for the chat type, filters the line and sends it to the other players.
+// ------------------------------------------------------------------------------------------------
+static void SendInGameChatLine( UnicodeString msg, InGameChatType chatType )
+{
+	const Player *localPlayer = ThePlayerList->getLocalPlayer();
+	Int playerMask = 0;
+
+	for (Int i=0; i<MAX_SLOTS; ++i)
+	{
+		const Player *player = ThePlayerList->getPlayerFromSlotIndex(i);
+		if (player && localPlayer)
+		{
+			switch (chatType)
+			{
+			case INGAME_CHAT_EVERYONE:
+				if (!TheGameInfo->getConstSlot(i)->isMuted())
+					playerMask |= (1<<i);
+				break;
+			case INGAME_CHAT_ALLIES:
+				if ( (player->getRelationship(localPlayer->getDefaultTeam()) == ALLIES &&
+					localPlayer->getRelationship(player->getDefaultTeam()) == ALLIES) || player==localPlayer )
+					playerMask |= (1<<i);
+				break;
+			case INGAME_CHAT_PLAYERS:
+				if ( player == localPlayer )
+					playerMask |= (1<<i);
+				break;
+			}
+		}
+	}
+	TheLanguageFilter->filterLine(msg);
+	TheNetwork->sendChat(msg, playerMask);
+}
+
+// ------------------------------------------------------------------------------------------------
+// Entry point for handling a line from outside the chat window; the same path as a typed line.
+// ------------------------------------------------------------------------------------------------
+Bool SubmitInGameChatLine( const UnicodeString& text, InGameChatType chatType )
+{
+	if (TheGameLogic == nullptr || TheGameLogic->isInReplayGame() || !TheGameLogic->isInMultiplayerGame())
+		return FALSE;
+	if (TheGenOnlineGame == nullptr || TheNetwork == nullptr || ThePlayerList == nullptr || ThePlayerList->getLocalPlayer() == nullptr)
+		return FALSE;
+
+	UnicodeString msg = text;
+	msg.trim();
+	if (msg.isEmpty())
+		return FALSE;
+
+	// same order as the typed line: slash commands first
+	if (handleInGameSlashCommands(msg))
+		return TRUE;
+
+	SendInGameChatLine( msg, chatType );
+	return TRUE;
+}
+
+// ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 void ToggleInGameChat( Bool immediate )
 {
@@ -223,34 +281,7 @@ void ToggleInGameChat( Bool immediate )
 				msg.trim();
 				if (!msg.isEmpty() && !handleInGameSlashCommands(msg))
 				{
-					const Player *localPlayer = ThePlayerList->getLocalPlayer();
-					Int playerMask = 0;
-
-					for (Int i=0; i<MAX_SLOTS; ++i)
-					{
-						const Player *player = ThePlayerList->getPlayerFromSlotIndex(i);
-						if (player && localPlayer)
-						{
-							switch (inGameChatType)
-							{
-							case INGAME_CHAT_EVERYONE:
-								if (!TheGameInfo->getConstSlot(i)->isMuted())
-									playerMask |= (1<<i);
-								break;
-							case INGAME_CHAT_ALLIES:
-								if ( (player->getRelationship(localPlayer->getDefaultTeam()) == ALLIES &&
-									localPlayer->getRelationship(player->getDefaultTeam()) == ALLIES) || player==localPlayer )
-									playerMask |= (1<<i);
-								break;
-							case INGAME_CHAT_PLAYERS:
-								if ( player == localPlayer )
-									playerMask |= (1<<i);
-								break;
-							}
-						}
-					}
-					TheLanguageFilter->filterLine(msg);
-					TheNetwork->sendChat(msg, playerMask);
+					SendInGameChatLine( msg, inGameChatType );
 				}
 				GadgetTextEntrySetText( chatTextEntry, UnicodeString::TheEmptyString );
 				HideInGameChat( immediate );

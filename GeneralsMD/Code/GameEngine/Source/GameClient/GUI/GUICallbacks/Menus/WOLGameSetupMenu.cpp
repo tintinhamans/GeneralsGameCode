@@ -2023,8 +2023,11 @@ Bool initialAcceptEnable = FALSE;
 //-------------------------------------------------------------------------------------------------
 /** Initialize the Lan Game Options Menu */
 //-------------------------------------------------------------------------------------------------
+static Bool s_gameSetupMenuOpen = FALSE;
+
 void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 {
+	s_gameSetupMenuOpen = TRUE;
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	if (pLobbyInterface == nullptr)
 	{
@@ -2554,6 +2557,7 @@ static void shutdownComplete( WindowLayout *layout )
 //-------------------------------------------------------------------------------------------------
 void WOLGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 {
+	s_gameSetupMenuOpen = FALSE;
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
 	if (pLobbyInterface != nullptr)
@@ -3787,6 +3791,26 @@ extern "C" {
 int getQR2HostingStatus();
 }
 extern int isThreadHosting;
+
+Bool handleGameSetupSlashCommands(UnicodeString uText);
+
+// Handles a line as the game lobby's typed-line path does: slash commands first, else a plain send.
+Bool WOLGameSetupMenuSubmitChatLine( UnicodeString text )
+{
+	text.trim();
+	if (!s_gameSetupMenuOpen || text.isEmpty())
+		return FALSE;
+
+	if (handleGameSetupSlashCommands(text))
+		return TRUE;
+
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface == nullptr)
+		return FALSE;
+
+	pLobbyInterface->SendChatMessageToCurrentLobby(text, false);
+	return TRUE;
+}
 
 Bool handleGameSetupSlashCommands(UnicodeString uText)
 {
