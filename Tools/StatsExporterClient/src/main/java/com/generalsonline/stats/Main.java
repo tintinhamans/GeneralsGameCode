@@ -30,12 +30,16 @@ public final class Main {
         int pid = -1;
         String pipe = null;
         String audienceName = "everyone";
+        String replayFile = null;
+        int speed = 0;
         List<String> rest = new ArrayList<>();
         for (int i = 1; i < args.length; i++) {
             switch (args[i]) {
                 case "--pid" -> pid = Integer.parseInt(args[++i]);
                 case "--pipe" -> pipe = args[++i];
                 case "--audience" -> audienceName = args[++i];
+                case "--replay" -> replayFile = args[++i];
+                case "--speed" -> speed = Integer.parseInt(args[++i]);
                 default -> rest.add(args[i]);
             }
         }
@@ -55,6 +59,7 @@ public final class Main {
                 requireArgs(rest, 2, "chat <channel> <text>");
                 chat(pid, pipe, ChatNames.channel(rest.get(0)), String.join(" ", rest.subList(1, rest.size())), ChatNames.audience(audienceName));
             }
+            case "gui" -> StatsGui.run(pid, pipe, replayFile == null ? null : Paths.get(replayFile), speed);
             case "schema" -> Schema.print(System.out);
             default -> {
                 usage();
@@ -70,6 +75,7 @@ public final class Main {
         System.err.println("  replay <file>                             print a recorded dump");
         System.err.println("  chat   <channel> <text> [--audience A] [--pid N | --pipe PATH]");
         System.err.println("         channels: match game-lobby room lan-lobby lan-game; audiences: everyone allies observers");
+        System.err.println("  gui    [--pid N | --pipe PATH | --replay FILE [--speed FRAMES_PER_SECOND]]   show the feed in a window");
         System.err.println("  schema                                    print the frame table and messages");
     }
 

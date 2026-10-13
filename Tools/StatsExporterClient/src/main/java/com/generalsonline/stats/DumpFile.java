@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.function.Consumer;
 
 /** A dump file is the raw pipe stream: the same envelope, frame after frame, so it can be replayed. */
 public final class DumpFile {
@@ -37,6 +38,11 @@ public final class DumpFile {
 
     /** Feeds every frame of a dump through the same dispatcher a live client uses; returns the frame count. */
     public static int replay(Path file, FrameListener listener) throws IOException {
+        return readFrames(file, frame -> FrameDispatcher.dispatch(frame, listener));
+    }
+
+    /** Hands every raw frame of a dump to the consumer, in order; returns the frame count. */
+    public static int readFrames(Path file, Consumer<RawFrame> consumer) throws IOException {
         int count = 0;
         FrameCodec.Decoder decoder = new FrameCodec.Decoder();
         byte[] chunk = new byte[16384];
@@ -44,7 +50,7 @@ public final class DumpFile {
             int read;
             while ((read = in.read(chunk)) >= 0) {
                 for (RawFrame frame : decoder.push(chunk, 0, read)) {
-                    FrameDispatcher.dispatch(frame, listener);
+                    consumer.accept(frame);
                     ++count;
                 }
             }
