@@ -25,7 +25,7 @@
 #include "WHeightMapEdit.h"
 #include "Common/MapReaderWriterInfo.h"
 
-static const Int LARGE_MAP_SIDE = 1024; ///< Memory warning above this squared
+static const Int LARGE_MAP_SIDE = 2048; ///< Memory warning above this squared
 
 /////////////////////////////////////////////////////////////////////////////
 // CNewHeightMap dialog
