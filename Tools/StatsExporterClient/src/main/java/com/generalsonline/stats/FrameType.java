@@ -8,6 +8,8 @@ public enum FrameType {
     CHAT_MESSAGE(0x04, false),
     UI_STATE(0x05, false),
     LOBBY_STATE(0x06, false),
+    EVENTS(0x07, false),
+    CAMERA(0x08, false),
     CHAT_SEND(0x10, true);
 
     private final int id;

@@ -1,6 +1,8 @@
 package com.generalsonline.stats;
 
+import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
+import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
@@ -15,6 +17,16 @@ final class RecordingListener implements FrameListener {
     final List<Object> messages = new ArrayList<>();
     final List<Integer> unknownTypes = new ArrayList<>();
     final List<Integer> decodeErrors = new ArrayList<>();
+
+    @Override
+    public void onEvents(Events message) {
+        messages.add(message);
+    }
+
+    @Override
+    public void onCamera(Camera message) {
+        messages.add(message);
+    }
 
     @Override
     public void onMatchInfo(MatchInfo message) {

@@ -1,6 +1,8 @@
 package com.generalsonline.stats;
 
+import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
+import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
@@ -46,6 +48,14 @@ public final class FrameDispatcher {
                 case LOBBY_STATE -> {
                     LobbyState message = LobbyState.parseFrom(frame.body());
                     listener.onLobbyState(message);
+                }
+                case EVENTS -> {
+                    Events message = Events.parseFrom(frame.body());
+                    listener.onEvents(message);
+                }
+                case CAMERA -> {
+                    Camera message = Camera.parseFrom(frame.body());
+                    listener.onCamera(message);
                 }
                 default -> listener.unknownFrame(frame.type(), frame.body());
             }

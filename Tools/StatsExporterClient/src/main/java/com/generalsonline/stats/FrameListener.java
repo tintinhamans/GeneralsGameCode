@@ -1,6 +1,8 @@
 package com.generalsonline.stats;
 
+import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
+import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
@@ -34,6 +36,14 @@ public interface FrameListener {
     }
 
     default void onLobbyState(LobbyState message) {
+    }
+
+    /** The discrete events of one logic frame. */
+    default void onEvents(Events message) {
+    }
+
+    /** The local camera and minimap view box; sent up to about 120 times a second while the camera moves. */
+    default void onCamera(Camera message) {
     }
 
     /** A frame type this client does not know; skipped, the stream continues. */
