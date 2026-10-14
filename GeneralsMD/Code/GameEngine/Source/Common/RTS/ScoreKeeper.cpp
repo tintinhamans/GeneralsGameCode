@@ -154,7 +154,7 @@ void ScoreKeeper::addObjectBuilt( const Object *o)
 		// authoritative build outcome for both units and structures
 		if (o->getControllingPlayer() != nullptr)
 		{
-			StatsExporterLiveBuild(o->getControllingPlayer()->getPlayerIndex(), o->getTemplate());
+			StatsExporterLiveBuild(o->getControllingPlayer()->getPlayerIndex(), o->getTemplate(), static_cast<Int>(o->getVeterancyLevel()));
 		}
 	}
 }

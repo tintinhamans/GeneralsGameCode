@@ -3092,6 +3092,7 @@ Bool Player::hasUpgradeInProduction( const UpgradeTemplate *upgradeTemplate )
 Upgrade *Player::addUpgrade( const UpgradeTemplate *upgradeTemplate, UpgradeStatusType status )
 {
 	Upgrade *u = findUpgrade( upgradeTemplate );
+	const Bool wasComplete = ( u != nullptr && u->getStatus() == UPGRADE_STATUS_COMPLETE );
 
 	// if no upgrade instance found, make a new one
 	if( u == nullptr )
@@ -3123,6 +3124,10 @@ Upgrade *Player::addUpgrade( const UpgradeTemplate *upgradeTemplate, UpgradeStat
 		m_upgradesInProgress.clear( newMask );
 		m_upgradesCompleted.set( newMask );
 		onUpgradeCompleted( upgradeTemplate );
+		if( !wasComplete )
+		{
+			StatsExporterLiveUpgradeComplete( getPlayerIndex(), upgradeTemplate->getUpgradeName().str(), upgradeTemplate->calcCostToBuild( this ), FALSE );
+		}
 	}
 
 	if( ThePlayerList->getLocalPlayer() == this )
@@ -3219,6 +3224,7 @@ Bool Player::okToPlayRadarEdgeSound()
 void Player::addRadar( Bool disableProof )
 {
 	Bool hadRadar = hasRadar();
+	const Int radarStateBefore = getRadarStateForStats();
 
 	// increment count
 	++m_radarCount;
@@ -3233,6 +3239,8 @@ void Player::addRadar( Bool disableProof )
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+
+	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3241,6 +3249,7 @@ void Player::addRadar( Bool disableProof )
 void Player::removeRadar( Bool disableProof )
 {
 	Bool hadRadar = hasRadar();
+	const Int radarStateBefore = getRadarStateForStats();
 
 	// decrement count
 	DEBUG_ASSERTCRASH( m_radarCount > 0, ("removeRadar: An Object is taking its radar away, but the player radar count says they don't have radar!") );
@@ -3256,12 +3265,15 @@ void Player::removeRadar( Bool disableProof )
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+
+	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
 void Player::disableRadar()
 {
 	Bool hadRadar = hasRadar();
+	const Int radarStateBefore = getRadarStateForStats();
 	m_radarDisabled = TRUE;
 
 	if( hadRadar &&
@@ -3272,12 +3284,15 @@ void Player::disableRadar()
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+
+	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
 void Player::enableRadar()
 {
 	Bool hadRadar = hasRadar();
+	const Int radarStateBefore = getRadarStateForStats();
 	m_radarDisabled = FALSE;
 
 	if( !hadRadar && hasRadar() && okToPlayRadarEdgeSound() )
@@ -3287,6 +3302,8 @@ void Player::enableRadar()
 		soundToPlay.setPlayerIndex(getPlayerIndex());
 		TheAudio->addAudioEvent(&soundToPlay);
 	}
+
+	StatsExporterLiveRadarChanged(getPlayerIndex(), radarStateBefore, getRadarStateForStats());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3298,6 +3315,34 @@ Bool Player::hasRadar() const
 
 	// Otherwise, check if I actually do have it.
 	return m_radarCount > 0;
+}
+
+//-------------------------------------------------------------------------------------------------
+Int Player::getRadarStateForStats() const
+{
+	if( m_radarCount <= 0 )
+	{
+		return 0;
+	}
+	return hasRadar() ? 2 : 1;
+}
+
+//-------------------------------------------------------------------------------------------------
+Int Player::getActiveBattlePlan() const
+{
+	if( m_bombardBattlePlans > 0 )
+	{
+		return PLANSTATUS_BOMBARDMENT;
+	}
+	if( m_holdTheLineBattlePlans > 0 )
+	{
+		return PLANSTATUS_HOLDTHELINE;
+	}
+	if( m_searchAndDestroyBattlePlans > 0 )
+	{
+		return PLANSTATUS_SEARCHANDDESTROY;
+	}
+	return PLANSTATUS_NONE;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3476,6 +3521,7 @@ Bool Player::doesObjectQualifyForBattlePlan( Object *obj ) const
 //-------------------------------------------------------------------------------------------------
 void Player::changeBattlePlan( BattlePlanStatus plan, Int delta, const BattlePlanBonusesData *bonus )
 {
+	const Int battlePlanBefore = getActiveBattlePlan();
 	DUMPBATTLEPLANBONUSES(bonus, this, nullptr);
 	Bool addBonus = false;
 	Bool removeBonus = false;
@@ -3547,6 +3593,8 @@ void Player::changeBattlePlan( BattlePlanStatus plan, Int delta, const BattlePla
 
 		applyBattlePlanBonusesForPlayerObjects(&invertedBonus);
 	}
+
+	StatsExporterLiveBattlePlanChanged(getPlayerIndex(), battlePlanBefore, getActiveBattlePlan());
 }
 
 //-------------------------------------------------------------------------------------------------

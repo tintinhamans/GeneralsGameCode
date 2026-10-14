@@ -909,7 +909,7 @@ void GameEngine::update()
 {
 	USE_PERF_TIMER(GameEngine_update)
 	{
-		// keeps the stats pipe listener up so a client can connect from the shell; an early-out while disabled
+		// keeps the stats pipe listener up so a client can connect from the shell
 		StatsExporterPipeStart();
 		StatsExporterLiveTick();
 
@@ -941,6 +941,7 @@ void GameEngine::update()
 				TheGameClient->UPDATE();
 				AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqClientStart);
 			}
+			StatsExporterLiveCamera();
 			TheMessageStream->propagateMessages();
 
             if (TheNetwork != nullptr)

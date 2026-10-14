@@ -908,6 +908,7 @@ UpdateSleepTime ProductionUpdate::update()
 			else
 			{
 				us->giveUpgrade( upgrade );
+				StatsExporterLiveUpgradeComplete( player->getPlayerIndex(), upgrade->getUpgradeName().str(), upgrade->calcCostToBuild( player ), TRUE );
 			}
 
 			player->getAcademyStats()->recordUpgrade( upgrade, FALSE );

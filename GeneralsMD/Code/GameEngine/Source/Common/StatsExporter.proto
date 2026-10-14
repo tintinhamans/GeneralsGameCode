@@ -2,8 +2,10 @@
 // Wire schema for the live stats named pipe (\\.\pipe\generalsonline-stats-<pid>).
 // Bodies are framed as: u32 little-endian body length + u8 type.
 //   outbound (game -> reader), while a reader is connected:
-//     0x01 MatchInfo      match loading/start/end and the players; sent on connect for a running match, before any stats
-//     0x02 StatsSnapshot  periodic live stats
+//     0x01 MatchInfo      match loading/start/end and the players; on connect: LOADING only while the match is loading, else STARTED
+//     0x02 StatsSnapshot  periodic live stats: light ones every 100 ms of game time, full ones every 250 ms; waits for STARTED
+//     0x07 Events         the discrete events of one logic frame, sent at the end of that frame; waits for STARTED
+//     0x08 Camera         the local tactical camera and the minimap view box, sent from the render loop whenever it changed; waits for STARTED
 //     0x03 MatchSummary   end-of-match scores
 //     0x04 ChatMessage    a chat line as shown to the local player (in-match, game lobby or room)
 //     0x05 UiState        the screen the game is on; the first frame sent to a new reader
@@ -29,28 +31,35 @@ message TemplateCount
 message ReadinessSample
 {
 	string power_name = 1;
-	uint32 ready_frame = 2;
+	uint32 ready_frame = 2;	// absolute logic frame at which the power is ready (not a duration)
 	float percent_ready = 3;	// 1.0 = ready now
 }
 
 enum StatEventKind
 {
-	STATEVENT_ABILITY_USE = 0;
-	STATEVENT_SCIENCE_PURCHASE = 1;
-	STATEVENT_KILL = 2;
-	STATEVENT_LOSS = 3;
-	STATEVENT_BUILD = 4;
-	STATEVENT_EVACUATE = 5;
-	STATEVENT_VETERANCY_CHANGE = 6;
-	STATEVENT_SALVAGE_UPGRADE = 7;
+	STATEVENT_ABILITY_USE = 0;		// player = the user; primary_name = the special power; secondary_name = the source unit template, or the target template for building captures (variant then "source=<unit template>")
+	STATEVENT_SCIENCE_PURCHASE = 1;	// primary_name = the science; int_value1 = the player's rank level, int_value2 = the science purchase points left
+	STATEVENT_KILL = 2;				// player = the killer; the victim's template and category; cost = its build cost
+	STATEVENT_LOSS = 3;				// player = the owner of the lost object; template, category and cost of what was lost
+	STATEVENT_BUILD = 4;			// player = the owner; the new object's template and category; int_value1 = the veterancy level it starts with (0 regular .. 3 heroic)
+	STATEVENT_EVACUATE = 5;			// player = the owner; primary_name = the transport or garrison template; variant "count=<n>"
+	STATEVENT_VETERANCY_CHANGE = 6;	// a promotion earned from experience (never a level given at creation); int_value1 = old level, int_value2 = new level
+	STATEVENT_SALVAGE_UPGRADE = 7;	// category WEAPON or ARMOR; primary_name = the unit template; int_value1 = the new tier
 	STATEVENT_BEACON = 8;			// location set; category is the player's beacon
-	STATEVENT_PLAYER_LEFT = 9;		// variant: "left" (quit or disconnect, from the network leave command) or "self_destruct"
+	STATEVENT_PLAYER_LEFT = 9;		// once per player and match, the first cause wins; variant: "left" (quit or disconnect, from the network leave command) or "self_destruct" (surrender)
 	STATEVENT_PLAYER_DEFEATED = 10;	// the engine marked the player defeated
 	STATEVENT_SELL = 11;			// a structure finished selling; primary_name is its template, cost the refund
+	STATEVENT_RADAR_CHANGED = 12;	// int_value1 = old RadarState, int_value2 = new RadarState
+	STATEVENT_BATTLE_PLAN_CHANGED = 13;	// int_value1 = old BattlePlan, int_value2 = new BattlePlan (the plan affecting the player's troops)
+	STATEVENT_UPGRADE_COMPLETE = 14;	// primary_name = upgrade internal name, cost = its build cost; variant "object" for a per-object upgrade
+	STATEVENT_CAPTURE = 15;		// a structure changed owner by capture: player = new owner, int_value1 = old owner player index, variant "tech" for a tech building, cost = the one-time cash bonus the capture paid (0 if none)
+	STATEVENT_POWER_SABOTAGED = 16;	// player = the victim, int_value1 = how many logic frames the sabotage lasts
 }
 
-// A discrete gameplay-outcome event, drained into the next StatsSnapshot.
-// category is a coarse bucket (SUPERWEAPON/STRUCTURE/INFANTRY/VEHICLE/ABILITY/SCIENCE/WEAPON/ARMOR/OTHER).
+// A discrete gameplay-outcome event; frame is the logic frame it happened in. player_index is the acting player (the killer, the owner, the new
+// owner for captures; see StatEventKind). category is a coarse bucket: SUPERWEAPON/STRUCTURE/INFANTRY/VEHICLE/OTHER from the template
+// (kill, loss, build, sell, capture, evacuate, veterancy), ABILITY or SUPERWEAPON for abilities, SCIENCE, WEAPON/ARMOR for salvage upgrades,
+// UPGRADE, BEACON, and PLAYER for the player-state kinds (left, defeated, radar, battle plan, power sabotage).
 message StatEvent
 {
 	uint32 frame = 1;
@@ -68,23 +77,44 @@ message StatEvent
 	uint32 cost = 13;			// kill and loss events: the victim template's build cost
 }
 
-// One periodic sample, one entry per exported player.
+// The discrete events produced during one logic frame, sent at the end of that frame (never with a snapshot), so frame equals every
+// StatEvent.frame in it. Events are dropped only when 512 are already pending, or the outbound queue is full.
+message Events
+{
+	uint32 frame = 1;
+	repeated StatEvent events = 2;
+}
+
+// One periodic sample, one entry per non-observer player of the match (defeated and departed ones stay, see PlayerStats.state;
+// campaign and solo games have no per-player entries). frame is the logic frame about to be simulated: the sample is taken at the start
+// of that frame, so it shows the state at the end of frame - 1, and the Events up to frame - 1 have already been sent.
+// A light snapshot (full = false) carries only the cheap per-player
+// numbers; a full one also carries everything that needs a walk over the live objects. Readers keep the last full
+// values of the heavy fields and overwrite the light ones: heavy = army_value, live_superweapon_structure_count,
+// live_template_counts, readiness, sciences, upgrades, production, workers, harvesters, idle_workers, heroes,
+// superweapons, army_value_by_class, army_count_by_class, tech_structures, battle_plan_transition (per player) and
+// grids, supply, tech, connections (per snapshot).
+// Stall marker: while the logic waits on a peer a snapshot with no players and full = false is sent about every 250 ms of wall-clock time.
+// It carries frame, network_stalled, stalled_frames, game_speed_fps / game_speed_ratio and local_render_fps (all current values);
+// local_logic_fps is 0 and everything else is absent. No snapshots or Events are produced while the logic is stalled or paused.
 message StatsSnapshot
 {
 	uint32 frame = 1;
 	repeated PlayerStats players = 2;
-	repeated StatEvent events = 3;
 	repeated OnlineConnection connections = 4;	// the local client's own peer connections
 	repeated PlayerGrid grids = 5;	// one per exported player
 	repeated SupplySource supply = 6;	// supply sources on the map, capped, non-empty first
 	uint32 replay_total_frames = 7;	// frames in the replay being played back, 0 otherwise
-	int32 game_speed_fps = 8;	// FramePacer's actual logic time scale in frames per second (30 is normal speed); 0 = frozen or halted, -1 = uncapped
+	int32 game_speed_fps = 8;	// FramePacer's actual logic time scale in frames per second (equals logic_frames_per_second at normal speed); 0 = frozen or halted, -1 = uncapped
 	float game_speed_ratio = 9;	// the same as a ratio of normal speed
 	repeated TechStructure tech = 10;	// neutral and captured tech structures on the map, capped
-	LocalCamera camera = 11;	// this client's own camera: client-side state, differs per client
 	repeated uint32 selected_object_ids = 12;	// this client's current selection, capped; client-side like the camera
 	bool network_stalled = 13;	// the logic is waiting on a peer (Network::isStalling)
 	uint32 stalled_frames = 14;	// how long, in logic frames at the nominal rate, derived from wall-clock time
+	// Local client only, differs per client: how fast THIS machine is running.
+	float local_render_fps = 15;	// the display's average rendered frames per second (Display::getAverageFPS), 0 when unknown
+	float local_logic_fps = 16;	// logic frames per wall-clock second measured between this and the previous snapshot, 0 on the first
+	bool full = 17;			// true: carries the heavy fields too; false: light snapshot, heavy fields absent (keep the last full values)
 }
 
 message TechStructure
@@ -96,15 +126,29 @@ message TechStructure
 	int32 owner_player_index = 5;	// -1 when neutral
 }
 
-// The local tactical view. Per client: not part of the synchronized game state.
-message LocalCamera
+// The local tactical view. Per client: not part of the synchronized game state. Sent from the render loop (once per
+// rendered frame at most, 120 per second at most, only when something changed), so it is as current as the picture.
+message Camera
 {
-	float x = 1;				// world position the camera looks at
-	float y = 2;
-	float zoom = 3;
-	float angle = 4;
-	float pitch = 5;
-	float height_above_ground = 6;
+	uint64 timestamp_us = 1;	// QueryPerformanceCounter in microseconds: monotonic, only differences are meaningful
+	uint32 logic_frame = 2;
+	float x = 3;				// world position the camera looks at
+	float y = 4;
+	float zoom = 5;				// the view's zoom factor (1.0 = default)
+	float angle = 6;			// radians
+	float pitch = 7;			// radians
+	float height_above_ground = 8;	// world units
+	// The minimap view box: the world-space ground points where the four screen corners land, at the map's average
+	// terrain height, in the order the game's own minimap box uses: top left, top right, bottom right, bottom left.
+	bool has_view_box = 9;
+	float view_tl_x = 10;
+	float view_tl_y = 11;
+	float view_tr_x = 12;
+	float view_tr_y = 13;
+	float view_br_x = 14;
+	float view_br_y = 15;
+	float view_bl_x = 16;
+	float view_bl_y = 17;
 }
 
 // Unit and structure counts per cell over the map's playable extent (MatchInfo world_*), row-major from the min corner.
@@ -130,6 +174,44 @@ message SupplySource
 	uint32 remaining_boxes = 6;
 }
 
+// Whether a player's radar works. NONE: no radar structure or ability. UNPOWERED: radar producers exist but the player's
+// radar is switched off (brown-out: Player::onPowerBrownOutChange, which a power plant sabotage also causes).
+// ACTIVE: Player::hasRadar(). Derived from the engine's own radar counters.
+enum RadarState
+{
+	RADAR_NONE = 0;
+	RADAR_UNPOWERED = 1;
+	RADAR_ACTIVE = 2;
+}
+
+enum BattlePlan
+{
+	BATTLE_PLAN_NONE = 0;
+	BATTLE_PLAN_BOMBARDMENT = 1;
+	BATTLE_PLAN_HOLD_THE_LINE = 2;
+	BATTLE_PLAN_SEARCH_AND_DESTROY = 3;
+}
+
+// What the player's Strategy Centers are doing. DEPLOYING: at least one is unpacking; PACKING: at least one is packing
+// (DEPLOYING wins if both); ACTIVE: a plan is deployed; IDLE: none.
+enum BattlePlanTransition
+{
+	BATTLE_PLAN_IDLE = 0;
+	BATTLE_PLAN_DEPLOYING = 1;
+	BATTLE_PLAN_ACTIVE = 2;
+	BATTLE_PLAN_PACKING = 3;
+}
+
+// Network numbers for one human player. Every field is -1 when this client does not know it.
+message NetworkStats
+{
+	bool is_local = 1;			// this player is the local client
+	int32 reported_fps = 2;		// the player's own average DISPLAY frames per second (ConnectionManager run-ahead metrics), -1 if unknown
+	int32 latency_ms = 3;		// the player's own average frame round-trip latency in milliseconds (FrameMetrics, converted from seconds), -1 if unknown
+	int32 ping_ms = 4;			// Generals Online mesh round-trip time between the local client and this player in milliseconds, -1 for the local player or no connection
+	bool relayed = 5;			// the mesh connection to this player goes through a relay (only meaningful when ping_ms >= 0)
+}
+
 message PlayerStats
 {
 	int32 player_index = 1;
@@ -144,10 +226,10 @@ message PlayerStats
 	uint32 buildings_lost = 10;
 	uint32 buildings_destroyed = 11;
 	int32 score = 12;
-	int32 army_value = 13;		// sum of build costs over the live objects
-	uint32 live_superweapon_structure_count = 14;
+	int32 army_value = 13;		// sum of build costs over the live objects: not effectively dead; a structure under construction counts
+	uint32 live_superweapon_structure_count = 14;	// live superweapon structures, under construction included
 	repeated TemplateCount live_template_counts = 15;
-	repeated ReadinessSample readiness = 16;
+	repeated ReadinessSample readiness = 16;	// powers the player can fire, from live structures that are complete
 	int32 rank_level = 17;
 	int32 skill_points = 18;	// unspent science purchase points
 	repeated string sciences = 19;	// purchased sciences, internal names, sent in full every sample
@@ -175,6 +257,21 @@ message PlayerStats
 	CategoryValue army_value_by_class = 38;	// build cost of live objects by the same classification as kills
 	CategoryCounts army_count_by_class = 39;
 	repeated string tech_structures = 40;	// template names of tech structures this player owns (KINDOF_TECH_BUILDING, KINDOF_TECH_BASE_DEFENSE)
+	RadarState radar = 41;
+	BattlePlan battle_plan = 42;				// the plan affecting this player's troops (Player battle plan counters); first non-zero of bombardment, hold the line, search and destroy
+	BattlePlanTransition battle_plan_transition = 43;	// state of this player's Strategy Centers
+	bool power_sabotaged = 44;				// the player's power is currently sabotaged (Energy sabotaged-until frame is in the future)
+	uint32 power_sabotage_frames_left = 45;	// logic frames until the sabotage ends
+	NetworkStats network = 46;				// set only for human players of a network match
+	PlayerState state = 47;					// active, defeated or departed; the numbers of a non-active player stay and stop changing
+}
+
+// Why a player is listed in StatsSnapshot.players. Observers are never listed.
+enum PlayerState
+{
+	PLAYER_STATE_ACTIVE = 0;
+	PLAYER_STATE_DEFEATED = 1;	// the engine's defeat state: killed, or nothing left that counts for victory
+	PLAYER_STATE_LEFT = 2;		// quit, disconnected or surrendered (a PLAYER_LEFT event was emitted)
 }
 
 message CategoryValue
@@ -211,8 +308,8 @@ message SuperweaponTimer
 	uint32 object_id = 1;
 	string template_name = 2;
 	string power_name = 3;
-	uint32 ready_frame = 4;
-	float percent_ready = 5;	// 1.0 = ready
+	uint32 ready_frame = 4;		// absolute logic frame at which it is ready
+	float percent_ready = 5;	// 0-1 (not 0-100), 1.0 = ready
 	SuperweaponState state = 6;
 }
 
@@ -227,7 +324,7 @@ message ProductionItem
 {
 	ProductionKind kind = 1;
 	string name = 2;			// unit template or upgrade name
-	float percent_complete = 3;	// 0-100, the front entry only
+	float percent_complete = 3;	// 0-100 (not 0-1), the front entry only; 0 for the others
 	uint32 quantity = 4;		// units still to come out of this entry
 }
 
@@ -239,7 +336,7 @@ message ProductionQueue
 	repeated ProductionItem entries = 3;
 }
 
-// Sent once from the score screen, before the game data is cleared.
+// Sent once from the score screen, after the ENDED MatchInfo and before the game data is cleared, only to a connected reader.
 message MatchSummary
 {
 	uint32 frame = 1;
@@ -254,7 +351,7 @@ message MatchSummaryPlayer
 	string player_name = 3;
 	string side = 4;
 	int32 score = 5;
-	bool is_winner = 6;
+	bool is_winner = 6;		// the player is in the victorious alliance of a decisive result (as this client sees it); false for everyone when there is none, and for observers
 	bool is_observer = 7;
 	uint32 units_built = 8;
 	uint32 units_lost = 9;
@@ -282,7 +379,9 @@ enum MatchMode
 	MATCH_MODE_REPLAY = 5;		// offline .rep file played back locally
 }
 
-// A slot's outcome as of the ENDED frame.
+// A slot's outcome as of the ENDED frame; UNKNOWN (OBSERVER for observers) on LOADING and STARTED. On ENDED a decisive result (MatchInfo.completed)
+// gives the victorious alliance WON (defeated allies included, as the game counts them) and everyone else LOST; without one a player who left is
+// LEFT, a defeated player LOST and the rest UNKNOWN.
 enum PlayerResult
 {
 	PLAYER_RESULT_UNKNOWN = 0;
@@ -299,7 +398,7 @@ message MatchPlayer
 	int32 player_index = 2;
 	string name = 3;
 	string side = 4;			// raw faction name
-	uint32 color = 5;			// packed 0xAARRGGBB
+	uint32 color = 5;			// packed 0xAARRGGBB; 0 when the colour is still Random (in a lobby)
 	int32 team = 6;				// lobby alliance team; -1 when unknown
 	bool is_human = 7;
 	bool is_observer = 8;
@@ -329,18 +428,18 @@ message MatchInfo
 	MatchPhase phase = 1;
 	string match_id = 2;		// opaque; stable across STARTED and ENDED
 	MatchMode mode = 3;
-	string map_name = 4;
-	uint64 start_unix_time = 5;
-	uint32 duration_frames = 6;	// only meaningful on ENDED
+	string map_name = 4;		// relative to the game or user data folder, e.g. "maps\alpine assault\alpine assault.map"; UTF-8, never an absolute path
+	uint64 start_unix_time = 5;	// seconds since the Unix epoch, taken when the match entered LOADING (kept for STARTED and ENDED)
+	uint32 duration_frames = 6;	// logic frames from the start to ENDED; 0 on LOADING and STARTED
 	repeated MatchPlayer players = 7;
-	string replay_path = 8;		// absolute, closed and flushed on ENDED; empty when no replay exists
+	string replay_path = 8;		// absolute (it contains the Windows user name), UTF-8, closed and flushed on ENDED; empty when no replay exists
 	bool replay_is_playback = 9;	// true when replay_path is an existing file being watched
-	bool completed = 10;		// a decisive result was reached; always false on STARTED
+	bool completed = 10;		// a decisive result was reached (this client's victory conditions); always false on STARTED
 	int32 local_player_index = 11;	// the player at this PC, -1 when none
 	OnlineMatch online = 12;		// online matches only
 	ObserverCamera observer_camera = 13;	// set only when the local player is an observer or this is a replay
 	// LOADING only: the lobby prediction the user saw against the engine's resolved values.
-	bool has_prediction_check = 14;
+	bool has_prediction_check = 14;	// only true if this reader saw the lobby (the prediction is made from LobbyState)
 	bool prediction_matched = 15;	// every predicted side, color, start position and the observer camera were right
 	bool random_state_clean = 16;	// the logic generator was untouched between the lobby seed and the resolution
 	// The playable map extent, for mapping PlayerGrid cells to minimap pixels. Unset at LOADING: the map is not loaded yet.
@@ -349,6 +448,8 @@ message MatchInfo
 	float world_min_y = 19;
 	float world_max_x = 20;
 	float world_max_y = 21;
+	bool map_is_user_map = 22;	// the map comes from the user data folder, not the game install
+	uint32 logic_frames_per_second = 23;	// the build's logic rate (30, or 60 for the high-fps server build); frame / this = game seconds
 }
 
 // A network endpoint the client already holds. Never a relay address presented as the peer's.
@@ -369,7 +470,7 @@ enum OnlineLobbyType
 // Generals Online lobby data the client holds for the current match.
 message OnlineMatch
 {
-	uint64 match_id = 1;		// the Generals Online match id
+	uint64 match_id = 1;		// the Generals Online match id; 0 until the lobby holds it, then sent in a later STARTED resend
 	int64 lobby_id = 2;
 	string lobby_name = 3;
 	OnlineLobbyType lobby_type = 4;
@@ -404,7 +505,7 @@ message OnlineConnection
 	int64 user_id = 1;
 	int32 latency_ms = 2;
 	bool relayed = 3;
-	Endpoint endpoint = 4;		// unset when relayed or not known
+	Endpoint endpoint = 4;		// relayed: set with relayed = true and no ip; direct: the peer address; unset when the address is not known
 }
 
 enum ChatChannel
@@ -530,4 +631,5 @@ message LobbyState
 	bool prediction_valid = 8;	// sides and colors are predicted
 	bool prediction_start_positions_valid = 9;	// start positions (and the observer camera) are predicted; false when the map is not in the map cache
 	ObserverCamera predicted_observer_camera = 10;	// set only when the local slot is an observer and the start positions are predicted
+	string map_display_name = 11;	// online lobbies only: the lobby's map display name; map_name is the normalised path, as in MatchInfo
 }
