@@ -1,6 +1,8 @@
 package com.generalsonline.stats;
 
+import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.CategoryCounts;
+import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.ChatAudience;
 import com.generalsonline.stats.proto.ChatChannel;
 import com.generalsonline.stats.proto.ChatMessage;
@@ -49,11 +51,24 @@ final class TestMessages {
                 .setPlayerIndex(2).setMoney(1500).setMoneyPerMinute(900).setArmyValue(4200).setApmCurrent(120)
                 .addSciences("SCIENCE_Paladin").addUpgrades("Upgrade_AmericaRadar")
                 .setKills(CategoryCounts.newBuilder().setInfantry(3).setVehicle(1)))
-            .addEvents(StatEvent.newBuilder().setFrame(880).setPlayerIndex(2).setKind(StatEventKind.STATEVENT_KILL).setPrimaryName("ChinaTankGattling").setCost(800))
             .addGrids(PlayerGrid.newBuilder().setPlayerIndex(2).setWidth(32).setHeight(32).setCellWidth(10.0f).setCellHeight(10.0f).addCells(1).addCells(0))
+            .setFull(true)
             .setGameSpeedFps(30)
             .setNetworkStalled(true)
             .setStalledFrames(45)
+            .build();
+    }
+
+    static Events events() {
+        return Events.newBuilder().setFrame(880)
+            .addEvents(StatEvent.newBuilder().setFrame(880).setPlayerIndex(2).setKind(StatEventKind.STATEVENT_KILL).setPrimaryName("ChinaTankGattling").setCost(800))
+            .addEvents(StatEvent.newBuilder().setFrame(880).setPlayerIndex(2).setKind(StatEventKind.STATEVENT_RADAR_CHANGED).setIntValue1(2).setIntValue2(1))
+            .build();
+    }
+
+    static Camera camera() {
+        return Camera.newBuilder().setTimestampUs(123456789L).setLogicFrame(900).setX(100.5f).setY(200.25f).setZoom(1.5f).setAngle(0.25f).setPitch(0.75f)
+            .setHeightAboveGround(300f).setHasViewBox(true).setViewTlX(1).setViewTlY(2).setViewTrX(3).setViewTrY(4).setViewBrX(5).setViewBrY(6).setViewBlX(7).setViewBlY(8)
             .build();
     }
 
@@ -116,10 +131,16 @@ final class TestMessages {
         if (message instanceof LobbyState) {
             return FrameType.LOBBY_STATE.id();
         }
+        if (message instanceof Events) {
+            return FrameType.EVENTS.id();
+        }
+        if (message instanceof Camera) {
+            return FrameType.CAMERA.id();
+        }
         throw new IllegalArgumentException(message.getClass().getName());
     }
 
     static Message[] all() {
-        return new Message[] {matchInfo(), statsSnapshot(), matchSummary(), chatMessage(), uiState(), lobbyState()};
+        return new Message[] {matchInfo(), statsSnapshot(), matchSummary(), chatMessage(), uiState(), lobbyState(), events(), camera()};
     }
 }

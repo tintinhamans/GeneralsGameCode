@@ -81,7 +81,10 @@ class MessageRoundTripTest {
         }
         String text = captured.toString("UTF-8");
         assertTrue(text.contains("MATCH LOADING"));
-        assertTrue(text.contains("SNAPSHOT frame=900"));
+        assertTrue(text.contains("SNAPSHOT full frame=900"));
+        assertTrue(text.contains("EVENT frame=880 KILL P2 ChinaTankGattling cost=800"));
+        assertTrue(text.contains("EVENT frame=880 RADAR_CHANGED P2"));
+        assertTrue(text.contains("CAMERA at=101,200 zoom=1.5"));
         assertTrue(text.contains("STALLED 45f"));
         assertTrue(text.contains("CHAT [ROOM]"));
         assertTrue(text.contains("UI ONLINE_GAME_SETUP"));

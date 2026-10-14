@@ -1,6 +1,8 @@
 package com.generalsonline.stats;
 
+import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
+import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.LobbySlot;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
@@ -20,6 +22,7 @@ public final class FramePrinter implements FrameListener {
     private final PrintStream out;
     private String lastUi = "";
     private String lastLobby = "";
+    private long lastCameraPrint;
 
     public FramePrinter(PrintStream out) {
         this.out = out;
@@ -56,8 +59,8 @@ public final class FramePrinter implements FrameListener {
 
     @Override
     public void onStatsSnapshot(StatsSnapshot s) {
-        StringBuilder head = new StringBuilder("SNAPSHOT frame=").append(s.getFrame()).append(" players=").append(s.getPlayersCount())
-            .append(" events=").append(s.getEventsCount());
+        StringBuilder head = new StringBuilder("SNAPSHOT ").append(s.getFull() ? "full" : "light").append(" frame=").append(s.getFrame())
+            .append(" players=").append(s.getPlayersCount());
         if (s.getNetworkStalled()) {
             head.append(" STALLED ").append(s.getStalledFrames()).append("f");
         }
@@ -72,10 +75,28 @@ public final class FramePrinter implements FrameListener {
                 + " prod=" + p.getProductionCount() + " heroes=" + p.getHeroesCount()
                 + " destroyed=" + p.getValueDestroyed() + " lost=" + p.getValueLost());
         }
-        for (StatEvent e : s.getEventsList()) {
-            out.println("  EVENT " + e.getKind().name().replace("STATEVENT_", "") + " P" + e.getPlayerIndex() + " "
-                + e.getPrimaryName() + (e.getCost() > 0 ? " cost=" + e.getCost() : "") + (e.getVariant().isEmpty() ? "" : " " + e.getVariant()));
+    }
+
+    @Override
+    public void onEvents(Events events) {
+        for (StatEvent e : events.getEventsList()) {
+            out.println("EVENT frame=" + e.getFrame() + " " + e.getKind().name().replace("STATEVENT_", "") + " P" + e.getPlayerIndex() + " "
+                + e.getPrimaryName() + (e.getCost() > 0 ? " cost=" + e.getCost() : "") + (e.getVariant().isEmpty() ? "" : " " + e.getVariant())
+                + (e.getIntValue1() != 0 || e.getIntValue2() != 0 ? " values=" + e.getIntValue1() + "," + e.getIntValue2() : ""));
         }
+    }
+
+    /** One line per camera frame would flood a console (up to 120 a second), so at most one is printed every half second. */
+    @Override
+    public void onCamera(Camera c) {
+        long now = System.nanoTime();
+        if (now - lastCameraPrint < 500_000_000L) {
+            return;
+        }
+        lastCameraPrint = now;
+        out.println("CAMERA at=" + Math.round(c.getX()) + "," + Math.round(c.getY()) + " zoom=" + c.getZoom() + " angle=" + c.getAngle()
+            + " pitch=" + c.getPitch() + (c.getHasViewBox() ? " box=" + Math.round(c.getViewTlX()) + "," + Math.round(c.getViewTlY()) + " "
+            + Math.round(c.getViewBrX()) + "," + Math.round(c.getViewBrY()) : ""));
     }
 
     @Override

@@ -54,6 +54,16 @@ final class RowTableModel<T> extends AbstractTableModel {
         return rows.get(row);
     }
 
+    /** The index of this very row object, searching from the newest end, or -1 if it was dropped. */
+    int indexOfRow(T row) {
+        for (int i = rows.size() - 1; i >= 0; i--) {
+            if (rows.get(i) == row) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     void add(T row) {
         rows.add(row);
         fireTableRowsInserted(rows.size() - 1, rows.size() - 1);

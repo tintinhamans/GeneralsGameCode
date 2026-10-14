@@ -45,18 +45,18 @@ stats-exporter-client gui --replay match.dump      # play a recorded dump, as fa
 stats-exporter-client gui --replay match.dump --speed 20   # about 20 frames per second
 ```
 
-A status bar shows the connection, the screen, the match, the frame and game time, the game speed ("uncapped" and "paused/halted" for -1 and 0), the network stall flag and the snapshot count. The tabs are:
+A status bar shows the connection, the screen, the match, the frame and game time (frames divided by the build's logic rate from MatchInfo, 30 or 60 per second), the game speed as a ratio such as `1.00x` ("uncapped" and "paused/halted" for -1 and 0), the network stall flag and the snapshot count. The tabs are:
 
 | Tab | Content |
 |---|---|
-| Players | One row per player from the latest snapshot, joined with the MatchInfo player (name, side, color, team) by `player_index`. Rows update in place; columns sort. |
-| Events | Append-only list of the snapshot events (newest at the bottom, follows new rows until you scroll up, last 3000 kept). |
+| Players | One row per player from the latest snapshot, joined with the MatchInfo player (name, side, color, team) by `player_index`. Also radar state, battle plan, power sabotage and network numbers (latency / fps / ping). Light snapshots (every 100 ms of game time) update the cheap columns and keep the heavy ones (production, superweapons, heroes, workers) from the last full snapshot (every 250 ms). Rows update in place; columns sort. Production is a per-player summary such as `4 · Crusader 92%, Ranger 40%, +2` (items queued, then the most complete front items) and Superweapons lists `Name 1:23` or `Name READY`; names are shortened for display and the cell tooltip shows the raw ones. |
+| Events | Append-only list of the events frames (kills, builds, upgrades, captures, radar and battle plan changes, power sabotage; newest at the bottom, follows new rows until you scroll up, last 3000 kept). |
 | Chat | Every chat line received, with channel, sender, audience and flags. |
 | Lobby | The latest LobbyState: slots with the predicted side, color and start position; after LOADING, a green or red label for the prediction check. |
 | Match | The latest MatchInfo as key/value rows, and the MatchSummary rows when one arrives. |
-| Frames | Raw log of every frame with type, size and a one-line summary. |
+| Frames | Raw log of every frame with type, size and a one-line summary. Camera frames (up to 120 a second) are collapsed into one refreshing row. |
 
-The footer shows the frames and bytes received per second. Stall snapshots (no players) never clear the Players table. A reconnect keeps the tables and only changes the status; a new match (a LOADING frame, or a STARTED frame with a different match id) clears Players and Events.
+The status bar also shows the camera from the Camera frame, and the local render and logic FPS. A table that has nothing to show says why in gray text (for example the match summary: "Filled at the score screen when the match ends"). The footer shows the frames and bytes received per second. Stall snapshots (no players) never clear the Players table. A reconnect keeps the tables and only changes the status; a new match (a LOADING frame, or a STARTED frame with a different match id) clears Players and Events.
 
 The code is meant to be read: `StatsGui` is the window and the thread hand-over (the reader thread decodes, `SwingUtilities.invokeLater` delivers each frame to the event thread), `GuiModel` holds all state and table models without any Swing component, and `RowTableModel` is the small table model they share.
 

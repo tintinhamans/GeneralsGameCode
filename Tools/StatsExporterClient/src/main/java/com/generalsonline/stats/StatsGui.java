@@ -4,6 +4,7 @@ import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
+import com.generalsonline.stats.proto.PlayerStats;
 import com.generalsonline.stats.proto.StatsSnapshot;
 import com.generalsonline.stats.proto.UiState;
 
@@ -20,6 +21,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
 import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -29,11 +31,16 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
 import java.awt.HeadlessException;
+import java.awt.Rectangle;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.function.BiFunction;
 
 /**
  * The {@code gui} command: a window that shows the stats feed as tables.
@@ -50,6 +57,7 @@ public final class StatsGui {
     private final JLabel connectionLabel = new JLabel();
     private final JLabel matchLabel = new JLabel();
     private final JLabel progressLabel = new JLabel();
+    private final JLabel cameraLabel = new JLabel();
     private final JLabel footerLabel = new JLabel(" ");
     private final JLabel lobbyHeaderLabel = new JLabel();
     private final JLabel predictionLabel = new JLabel(" ");
@@ -95,16 +103,19 @@ public final class StatsGui {
         status.add(matchLabel);
         status.add(Box.createVerticalStrut(2));
         status.add(progressLabel);
+        status.add(Box.createVerticalStrut(2));
+        status.add(cameraLabel);
 
         footerLabel.setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
 
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Players", playersTab());
-        tabs.addTab("Events", logTab(model.events, 60, 70, 110, 150, 90, 160, 130, 60, 90, 120));
-        tabs.addTab("Chat", logTab(model.chat, 80, 100, 130, 90, 500, 120));
+        tabs.addTab("Events", logTab(model.events, "No events yet. Kills, losses, builds and ability uses appear here as they happen.",
+            60, 70, 110, 150, 90, 160, 130, 60, 90, 120));
+        tabs.addTab("Chat", logTab(model.chat, "No chat lines received yet.", 80, 100, 130, 90, 500, 120));
         tabs.addTab("Lobby", lobbyTab());
         tabs.addTab("Match", matchTab());
-        tabs.addTab("Frames", logTab(model.frames, 100, 150, 60, 800));
+        tabs.addTab("Frames", logTab(model.frames, "No frames received yet.", 100, 150, 60, 800));
 
         frame.add(status, BorderLayout.NORTH);
         frame.add(tabs, BorderLayout.CENTER);
@@ -223,14 +234,27 @@ public final class StatsGui {
     // -- Tabs.
 
     private JScrollPane playersTab() {
-        JTable table = table(model.players, 55, 130, 90, 45, 70, 80, 85, 50, 60, 45, 70, 85, 55, 55, 70, 100, 85, 65, 45, 230, 110, 200);
+        HintTable table = table(model.players, "Waiting for the first snapshot. Snapshots start once a match has started.",
+            55, 130, 90, 45, 70, 80, 85, 50, 60, 45, 70, 85, 110, 80, 55, 55, 70, 100, 85, 65, 45, 100, 230, 110, 200, 230);
         swatchColumn(table, "Color");
+        blankColumn(table, "Team", false);
+        // The cells show shortened names; the tooltip has the raw ones.
+        table.setTooltips((row, column) -> {
+            PlayerStats stats = model.players.get(row).stats();
+            return switch (model.players.getColumnName(column)) {
+                case "Production" -> GuiModel.productionDetail(stats);
+                case "Superweapons" -> GuiModel.superweaponDetail(stats);
+                case "Net (latency / fps / ping)" -> "latency: this player's average frame round trip, FPS: this player's display FPS (both as the engine measures them; known for all players only on the packet router),\nping: Generals Online mesh round trip from this PC";
+                default -> null;
+            };
+        });
         return new JScrollPane(table);
     }
 
     /** An append-only table that follows new rows until the user scrolls up. */
-    private static JScrollPane logTab(TableModel model, int... widths) {
-        JTable table = table(model, widths);
+    private static JScrollPane logTab(TableModel model, String hint, int... widths) {
+        HintTable table = table(model, hint, widths);
+        blankColumn(table, "Cost", true);
         JScrollPane scroll = new JScrollPane(table);
         model.addTableModelListener(e -> {
             if (e.getType() != TableModelEvent.INSERT) {
@@ -252,9 +276,13 @@ public final class StatsGui {
     }
 
     private JPanel lobbyTab() {
-        JTable table = table(model.lobbySlots, 45, 80, 130, 90, 55, 45, 70, 50, 65, 110, 100, 100);
+        HintTable table = table(model.lobbySlots, "Not in a game lobby. The slots appear when you join or host one.",
+            45, 80, 130, 90, 55, 45, 70, 50, 65, 110, 100, 100);
         swatchColumn(table, "Color");
         swatchColumn(table, "Predicted color");
+        blankColumn(table, "Team", false);
+        blankColumn(table, "Start pos", false);
+        blankColumn(table, "Predicted start", false);
 
         predictionLabel.setOpaque(true);
         predictionLabel.setFont(predictionLabel.getFont().deriveFont(java.awt.Font.BOLD, 14f));
@@ -274,19 +302,23 @@ public final class StatsGui {
     }
 
     private JSplitPane matchTab() {
-        JTable info = table(model.matchInfo, 200, 700);
-        JTable summary = table(model.summary, 130, 90, 60, 60, 65, 80, 80, 100, 100, 100, 120, 100);
+        HintTable info = table(model.matchInfo, "Waiting for a MatchInfo frame.", 200, 700);
+        HintTable summary = table(model.summary, "Filled at the score screen when the match ends.",
+            130, 90, 60, 60, 65, 80, 80, 100, 100, 100, 120, 100);
         JScrollPane top = new JScrollPane(info);
+        top.setBorder(BorderFactory.createTitledBorder("Match info"));
         top.setPreferredSize(new Dimension(400, 300));
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, top, new JScrollPane(summary));
+        JScrollPane bottom = new JScrollPane(summary);
+        bottom.setBorder(BorderFactory.createTitledBorder("Match summary (sent when the match ends)"));
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, top, bottom);
         split.setResizeWeight(0.6);
         return split;
     }
 
     // -- Table helpers.
 
-    private static JTable table(TableModel model, int... widths) {
-        JTable table = new JTable(model);
+    private static HintTable table(TableModel model, String hint, int... widths) {
+        HintTable table = new HintTable(model, hint);
         table.setAutoCreateRowSorter(true);
         table.setFillsViewportHeight(true);
         table.setRowHeight(table.getRowHeight() + 2);
@@ -297,6 +329,72 @@ public final class StatsGui {
             }
         }
         return table;
+    }
+
+    private static void blankColumn(JTable table, String columnName, boolean zeroToo) {
+        for (int i = 0; i < table.getColumnCount(); i++) {
+            TableColumn column = table.getColumnModel().getColumn(i);
+            if (columnName.equals(column.getHeaderValue())) {
+                column.setCellRenderer(new BlankRenderer(zeroToo));
+            }
+        }
+    }
+
+    /** A table that explains itself while it is empty, and can show a tooltip per cell. */
+    @SuppressWarnings("serial")
+    private static final class HintTable extends JTable {
+        private final String hint;
+        private BiFunction<Integer, Integer, String> tooltips;
+
+        HintTable(TableModel model, String hint) {
+            super(model);
+            this.hint = hint;
+            ToolTipManager.sharedInstance().registerComponent(this);
+        }
+
+        /** @param tooltips given a model row and model column, returns the tooltip text or null */
+        void setTooltips(BiFunction<Integer, Integer, String> tooltips) {
+            this.tooltips = tooltips;
+        }
+
+        @Override
+        public String getToolTipText(MouseEvent event) {
+            int row = rowAtPoint(event.getPoint());
+            int column = columnAtPoint(event.getPoint());
+            if (tooltips == null || row < 0 || column < 0) {
+                return super.getToolTipText(event);
+            }
+            String text = tooltips.apply(convertRowIndexToModel(row), convertColumnIndexToModel(column));
+            return text == null || text.isEmpty() ? null : "<html>" + text.trim().replace("\n", "<br>") + "</html>";
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            if (getRowCount() == 0) {
+                Rectangle area = getVisibleRect();
+                g.setColor(Color.GRAY);
+                FontMetrics metrics = g.getFontMetrics();
+                g.drawString(hint, area.x + Math.max(8, (area.width - metrics.stringWidth(hint)) / 2), area.y + area.height / 2);
+            }
+        }
+    }
+
+    /** Shows a number as an empty cell when it means "none" (negative, and optionally zero). */
+    @SuppressWarnings("serial")
+    private static final class BlankRenderer extends DefaultTableCellRenderer {
+        private final boolean zeroToo;
+
+        BlankRenderer(boolean zeroToo) {
+            this.zeroToo = zeroToo;
+            setHorizontalAlignment(RIGHT);
+        }
+
+        @Override
+        protected void setValue(Object value) {
+            boolean none = value instanceof Number number && (number.doubleValue() < 0 || (zeroToo && number.doubleValue() == 0));
+            setText(none || value == null ? "" : value.toString());
+        }
     }
 
     private static void swatchColumn(JTable table, String columnName) {
@@ -328,6 +426,7 @@ public final class StatsGui {
         connectionLabel.setText(model.connectionLine());
         matchLabel.setText(model.matchLine());
         progressLabel.setText(model.progressLine());
+        cameraLabel.setText(model.cameraLine());
         lobbyHeaderLabel.setText(model.lobbyHeader());
 
         Boolean ok = model.predictionCheckOk();
