@@ -4709,6 +4709,7 @@ void Object::onCapture( Player *oldOwner, Player *newOwner )
 
 	if (TheGlobalData->m_exportStats)
 		StatsExporterRecordCapture(this, oldOwner, newOwner);
+	StatsExporterLiveCapture(this, oldOwner, newOwner);
 
 	// rip through the behavior modules and call the onCapture for any modules that care
 	for( BehaviorModule **module = m_behaviors; *module; ++module )

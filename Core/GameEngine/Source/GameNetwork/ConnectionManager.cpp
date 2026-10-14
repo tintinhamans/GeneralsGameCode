@@ -4169,6 +4169,24 @@ Int ConnectionManager::getAverageFPS()
 	return m_frameMetrics.getAverageFPS();
 }
 
+Real ConnectionManager::getSlotAverageLatency(Int slot) {
+	if ((slot < 0) || (slot >= MAX_SLOTS)) {
+		return -1.0f;
+	}
+	if (slot == m_localSlot) {
+		return m_frameMetrics.getAverageLatency();
+	}
+	if (m_packetRouterSlot != m_localSlot) {
+		// run ahead metrics are only sent to the packet router, so other clients never learn them
+		return -1.0f;
+	}
+	return m_latencyAverages[slot];
+}
+
+Real ConnectionManager::getLocalAverageLatency() {
+	return m_frameMetrics.getAverageLatency();
+}
+
 Int ConnectionManager::getSlotAverageFPS(Int slot) {
 	if ((slot < 0) || (slot >= MAX_SLOTS)) {
 		return -1;

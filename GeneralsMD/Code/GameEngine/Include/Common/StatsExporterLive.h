@@ -24,6 +24,8 @@
 #include "Common/GameType.h"	// ObjectID
 #include "Common/UnicodeString.h"
 
+class Object;
+class Player;
 class ThingTemplate;
 class SpecialPowerTemplate;
 class AsciiString;
@@ -54,6 +56,10 @@ void StatsExporterLiveChatLan(Int channel, const UnicodeString& senderName, cons
 /// One command executed for `playerIndex` (a GameMessage type), counted for the player's actions per minute.
 /// Called from GameLogic::logicMessageDispatcher, where every client sees the same synchronized commands.
 void StatsExporterLiveCommand(Int playerIndex, Int messageType);
+
+/// Once per rendered frame, after the client update has moved the views (also while paused and in replays). Sends the Camera
+/// frame when the tactical view changed. Reads only.
+void StatsExporterLiveCamera();
 
 /// Once per GameLogic::update() tick. Sends the MatchInfo STARTED on (re)connect and, at the configured interval, the StatsSnapshot.
 void StatsExporterLiveUpdate();
@@ -112,5 +118,23 @@ void StatsExporterLivePlayerLeft(Int playerIndex, const char* variant);
 
 /// The engine marked the player defeated.
 void StatsExporterLivePlayerDefeated(Int playerIndex);
+
+/// A player's radar state changed (RadarState values: 0 none, 1 unpowered, 2 active). No event if old == new.
+void StatsExporterLiveRadarChanged(Int playerIndex, Int oldState, Int newState);
+
+/// The battle plan affecting a player's troops changed (BattlePlanStatus values). No event if old == new.
+void StatsExporterLiveBattlePlanChanged(Int playerIndex, Int oldPlan, Int newPlan);
+
+/// A player-level upgrade completed (isObjectUpgrade FALSE), or an object-level one (TRUE).
+void StatsExporterLiveUpgradeComplete(Int playerIndex, const char* upgradeName, UnsignedInt cost, Bool isObjectUpgrade);
+
+/// A structure changed owner by capture. Reads only.
+void StatsExporterLiveCapture(const Object* captured, const Player* oldOwner, const Player* newOwner);
+
+/// The initial capture bonus a capture just paid; attached to the capture event that follows in the same call.
+void StatsExporterLiveNoteCaptureBonus(Int amount);
+
+/// A player's power was sabotaged for `durationFrames` logic frames.
+void StatsExporterLivePowerSabotaged(Int playerIndex, UnsignedInt durationFrames);
 
 void StatsExporterLiveSalvageUpgrade(Int playerIndex, const ThingTemplate* tmpl, const char* upgradeKind, Int tier);

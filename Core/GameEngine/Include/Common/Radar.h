@@ -225,6 +225,8 @@ public:
 
 	virtual void notifyViewChanged() {} ///< signals that the camera view has changed
 
+	Real getTerrainAverageZForStats() const { return m_terrainAverageZ; } ///< the height the minimap view box is projected at; read-only
+
 protected:
 
 	// snapshot methods

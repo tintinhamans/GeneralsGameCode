@@ -941,6 +941,7 @@ void GameEngine::update()
 				TheGameClient->UPDATE();
 				AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqClientStart);
 			}
+			StatsExporterLiveCamera();
 			TheMessageStream->propagateMessages();
 
             if (TheNetwork != nullptr)

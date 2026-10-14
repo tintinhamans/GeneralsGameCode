@@ -167,6 +167,8 @@ public:
 	Int getRemoteLookAhead(UnsignedInt frame, Int maxFrames, Bool &overdue);	///< Fewest frames after this one a remote player's commands are complete for, -1 without a remote player.
 #endif
 	const ConnectionStats* getConnectionStats(Int slot) const;	///< Returns nullptr when there is no connection for the slot.
+	Real getSlotAverageLatency(Int slot);///< average frame round-trip latency in seconds, or -1 when this client does not know it
+	Real getLocalAverageLatency();///< this client's own average frame round-trip latency in seconds
 
 #if defined(RTS_DEBUG)
 	void debugPrintConnectionCommands();

@@ -365,6 +365,9 @@ public:
 	void disableRadar();	///< No matter how many radar producers I have, I do not have radar
 	void enableRadar();	///< remove the restriction imposed by disableRadar
 	Bool hasRadar() const;///< A positive number of radar producers, plus my radar is not disabled
+	Int getRadarCount() const { return m_radarCount; }///< radar producers owned, whether or not the radar is powered
+	Int getRadarStateForStats() const;///< 0 none, 1 producers exist but the radar is off, 2 active; read-only
+	Int getActiveBattlePlan() const;///< the BattlePlanStatus affecting my troops: first of bombardment, hold the line, search and destroy with a non-zero count
 	Bool okToPlayRadarEdgeSound();///< just like it "sounds"
 	//Battle plans effect the players abilities... so may as well add it here. Also
 	//it's possible for multiple strategy centers to have the same plan, so we need

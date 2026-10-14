@@ -3,7 +3,9 @@
 // Bodies are framed as: u32 little-endian body length + u8 type.
 //   outbound (game -> reader), while a reader is connected:
 //     0x01 MatchInfo      match loading/start/end and the players; sent on connect for a running match, before any stats
-//     0x02 StatsSnapshot  periodic live stats
+//     0x02 StatsSnapshot  periodic live stats: light ones every 100 ms of game time, full ones every 250 ms
+//     0x07 Events         the discrete events of one logic frame, sent in that frame
+//     0x08 Camera         the local tactical camera and the minimap view box, sent from the render loop whenever it changed
 //     0x03 MatchSummary   end-of-match scores
 //     0x04 ChatMessage    a chat line as shown to the local player (in-match, game lobby or room)
 //     0x05 UiState        the screen the game is on; the first frame sent to a new reader
@@ -47,6 +49,11 @@ enum StatEventKind
 	STATEVENT_PLAYER_LEFT = 9;		// variant: "left" (quit or disconnect, from the network leave command) or "self_destruct"
 	STATEVENT_PLAYER_DEFEATED = 10;	// the engine marked the player defeated
 	STATEVENT_SELL = 11;			// a structure finished selling; primary_name is its template, cost the refund
+	STATEVENT_RADAR_CHANGED = 12;	// int_value1 = old RadarState, int_value2 = new RadarState
+	STATEVENT_BATTLE_PLAN_CHANGED = 13;	// int_value1 = old BattlePlan, int_value2 = new BattlePlan (the plan affecting the player's troops)
+	STATEVENT_UPGRADE_COMPLETE = 14;	// primary_name = upgrade internal name, cost = its build cost; variant "object" for a per-object upgrade
+	STATEVENT_CAPTURE = 15;		// a structure changed owner by capture: player = new owner, int_value1 = old owner player index, variant "tech" for a tech building, cost = the one-time cash bonus the capture paid (0 if none)
+	STATEVENT_POWER_SABOTAGED = 16;	// player = the victim, int_value1 = how many logic frames the sabotage lasts
 }
 
 // A discrete gameplay-outcome event, drained into the next StatsSnapshot.
@@ -68,23 +75,37 @@ message StatEvent
 	uint32 cost = 13;			// kill and loss events: the victim template's build cost
 }
 
-// One periodic sample, one entry per exported player.
+// The discrete events produced during one logic frame, sent at the end of that frame (never with a snapshot).
+message Events
+{
+	uint32 frame = 1;
+	repeated StatEvent events = 2;
+}
+
+// One periodic sample, one entry per exported player. A light snapshot (full = false) carries only the cheap per-player
+// numbers; a full one also carries everything that needs a walk over the live objects. Readers keep the last full
+// values of the heavy fields and overwrite the light ones: heavy = army_value, live_superweapon_structure_count,
+// live_template_counts, readiness, sciences, upgrades, production, workers, harvesters, idle_workers, heroes,
+// superweapons, army_value_by_class, army_count_by_class, tech_structures, battle_plan_transition (per player) and
+// grids, supply, tech, connections (per snapshot).
 message StatsSnapshot
 {
 	uint32 frame = 1;
 	repeated PlayerStats players = 2;
-	repeated StatEvent events = 3;
 	repeated OnlineConnection connections = 4;	// the local client's own peer connections
 	repeated PlayerGrid grids = 5;	// one per exported player
 	repeated SupplySource supply = 6;	// supply sources on the map, capped, non-empty first
 	uint32 replay_total_frames = 7;	// frames in the replay being played back, 0 otherwise
-	int32 game_speed_fps = 8;	// FramePacer's actual logic time scale in frames per second (30 is normal speed); 0 = frozen or halted, -1 = uncapped
+	int32 game_speed_fps = 8;	// FramePacer's actual logic time scale in frames per second (equals logic_frames_per_second at normal speed); 0 = frozen or halted, -1 = uncapped
 	float game_speed_ratio = 9;	// the same as a ratio of normal speed
 	repeated TechStructure tech = 10;	// neutral and captured tech structures on the map, capped
-	LocalCamera camera = 11;	// this client's own camera: client-side state, differs per client
 	repeated uint32 selected_object_ids = 12;	// this client's current selection, capped; client-side like the camera
 	bool network_stalled = 13;	// the logic is waiting on a peer (Network::isStalling)
 	uint32 stalled_frames = 14;	// how long, in logic frames at the nominal rate, derived from wall-clock time
+	// Local client only, differs per client: how fast THIS machine is running.
+	float local_render_fps = 15;	// the display's average rendered frames per second (Display::getAverageFPS), 0 when unknown
+	float local_logic_fps = 16;	// logic frames per wall-clock second measured between this and the previous snapshot, 0 on the first
+	bool full = 17;			// true: carries the heavy fields too; false: light snapshot, heavy fields absent (keep the last full values)
 }
 
 message TechStructure
@@ -96,15 +117,29 @@ message TechStructure
 	int32 owner_player_index = 5;	// -1 when neutral
 }
 
-// The local tactical view. Per client: not part of the synchronized game state.
-message LocalCamera
+// The local tactical view. Per client: not part of the synchronized game state. Sent from the render loop (once per
+// rendered frame at most, 120 per second at most, only when something changed), so it is as current as the picture.
+message Camera
 {
-	float x = 1;				// world position the camera looks at
-	float y = 2;
-	float zoom = 3;
-	float angle = 4;
-	float pitch = 5;
-	float height_above_ground = 6;
+	uint64 timestamp_us = 1;	// QueryPerformanceCounter in microseconds: monotonic, only differences are meaningful
+	uint32 logic_frame = 2;
+	float x = 3;				// world position the camera looks at
+	float y = 4;
+	float zoom = 5;
+	float angle = 6;
+	float pitch = 7;
+	float height_above_ground = 8;
+	// The minimap view box: the world-space ground points where the four screen corners land, at the map's average
+	// terrain height, in the order the game's own minimap box uses: top left, top right, bottom right, bottom left.
+	bool has_view_box = 9;
+	float view_tl_x = 10;
+	float view_tl_y = 11;
+	float view_tr_x = 12;
+	float view_tr_y = 13;
+	float view_br_x = 14;
+	float view_br_y = 15;
+	float view_bl_x = 16;
+	float view_bl_y = 17;
 }
 
 // Unit and structure counts per cell over the map's playable extent (MatchInfo world_*), row-major from the min corner.
@@ -128,6 +163,44 @@ message SupplySource
 	float y = 4;
 	uint32 remaining_value = 5;	// cash: boxes stored times ValuePerSupplyBox
 	uint32 remaining_boxes = 6;
+}
+
+// Whether a player's radar works. NONE: no radar structure or ability. UNPOWERED: radar producers exist but the player's
+// radar is switched off (brown-out: Player::onPowerBrownOutChange, which a power plant sabotage also causes).
+// ACTIVE: Player::hasRadar(). Derived from the engine's own radar counters.
+enum RadarState
+{
+	RADAR_NONE = 0;
+	RADAR_UNPOWERED = 1;
+	RADAR_ACTIVE = 2;
+}
+
+enum BattlePlan
+{
+	BATTLE_PLAN_NONE = 0;
+	BATTLE_PLAN_BOMBARDMENT = 1;
+	BATTLE_PLAN_HOLD_THE_LINE = 2;
+	BATTLE_PLAN_SEARCH_AND_DESTROY = 3;
+}
+
+// What the player's Strategy Centers are doing. DEPLOYING: at least one is unpacking; PACKING: at least one is packing
+// (DEPLOYING wins if both); ACTIVE: a plan is deployed; IDLE: none.
+enum BattlePlanTransition
+{
+	BATTLE_PLAN_IDLE = 0;
+	BATTLE_PLAN_DEPLOYING = 1;
+	BATTLE_PLAN_ACTIVE = 2;
+	BATTLE_PLAN_PACKING = 3;
+}
+
+// Network numbers for one human player. Every field is -1 when this client does not know it.
+message NetworkStats
+{
+	bool is_local = 1;			// this player is the local client
+	int32 reported_fps = 2;		// the player's own average DISPLAY frames per second (ConnectionManager run-ahead metrics), -1 if unknown
+	int32 latency_ms = 3;		// the player's own average frame round-trip latency in milliseconds (FrameMetrics, converted from seconds), -1 if unknown
+	int32 ping_ms = 4;			// Generals Online mesh round-trip time between the local client and this player in milliseconds, -1 for the local player or no connection
+	bool relayed = 5;			// the mesh connection to this player goes through a relay (only meaningful when ping_ms >= 0)
 }
 
 message PlayerStats
@@ -175,6 +248,12 @@ message PlayerStats
 	CategoryValue army_value_by_class = 38;	// build cost of live objects by the same classification as kills
 	CategoryCounts army_count_by_class = 39;
 	repeated string tech_structures = 40;	// template names of tech structures this player owns (KINDOF_TECH_BUILDING, KINDOF_TECH_BASE_DEFENSE)
+	RadarState radar = 41;
+	BattlePlan battle_plan = 42;				// the plan affecting this player's troops (Player battle plan counters); first non-zero of bombardment, hold the line, search and destroy
+	BattlePlanTransition battle_plan_transition = 43;	// state of this player's Strategy Centers
+	bool power_sabotaged = 44;				// the player's power is currently sabotaged (Energy sabotaged-until frame is in the future)
+	uint32 power_sabotage_frames_left = 45;
+	NetworkStats network = 46;				// set only for human players of a network match
 }
 
 message CategoryValue
@@ -329,7 +408,7 @@ message MatchInfo
 	MatchPhase phase = 1;
 	string match_id = 2;		// opaque; stable across STARTED and ENDED
 	MatchMode mode = 3;
-	string map_name = 4;
+	string map_name = 4;		// relative to the game or user data folder, e.g. "maps\alpine assault\alpine assault.map"; never an absolute path
 	uint64 start_unix_time = 5;
 	uint32 duration_frames = 6;	// only meaningful on ENDED
 	repeated MatchPlayer players = 7;
@@ -349,6 +428,8 @@ message MatchInfo
 	float world_min_y = 19;
 	float world_max_x = 20;
 	float world_max_y = 21;
+	bool map_is_user_map = 22;	// the map comes from the user data folder, not the game install
+	uint32 logic_frames_per_second = 23;	// the build's logic rate (30, or 60 for the high-fps server build); frame / this = game seconds
 }
 
 // A network endpoint the client already holds. Never a relay address presented as the peer's.
@@ -369,7 +450,7 @@ enum OnlineLobbyType
 // Generals Online lobby data the client holds for the current match.
 message OnlineMatch
 {
-	uint64 match_id = 1;		// the Generals Online match id
+	uint64 match_id = 1;		// the Generals Online match id; 0 until the lobby holds it, then sent in a later STARTED resend
 	int64 lobby_id = 2;
 	string lobby_name = 3;
 	OnlineLobbyType lobby_type = 4;

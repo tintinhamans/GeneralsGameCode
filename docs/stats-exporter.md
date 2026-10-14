@@ -21,16 +21,20 @@ Both directions use the same envelope:
 
 The length does not include the 5 header bytes. A body length of 0 or over the cap is a framing error: the game drops the reader (inbound), and a reader must treat it as a broken stream (outbound). Caps: outbound 262144 bytes, inbound 4096 bytes.
 
+A protobuf message whose fields all hold their default values encodes to zero bytes, which this framing cannot carry. The game therefore never sends an empty body: where a frame can be all defaults (`LobbyState` with `in_lobby = false`, `UiState` with screen UNKNOWN) it writes field 1 explicitly, giving the 2-byte body `08 00`. Every protobuf library decodes that as the default value. Readers sending `ChatSend` must likewise never send an empty body; a `ChatSend` always has non-empty text, so this cannot happen for a valid line.
+
 ### Frame types
 
 | Type | Direction | Message | When |
 |---|---|---|---|
 | 0x01 | game to reader | `MatchInfo` | match phase changes (LOADING, STARTED, ENDED) and on connect for a running match |
-| 0x02 | game to reader | `StatsSnapshot` | periodic during a match |
+| 0x02 | game to reader | `StatsSnapshot` | light every 100 ms of game time, full every 250 ms, during a match |
 | 0x03 | game to reader | `MatchSummary` | end of match, scores |
 | 0x04 | game to reader | `ChatMessage` | each chat line shown to the local player |
 | 0x05 | game to reader | `UiState` | the screen the game is on; first frame to a new reader |
 | 0x06 | game to reader | `LobbyState` | game setup lobby changes; `in_lobby = false` on leaving |
+| 0x07 | game to reader | `Events` | the discrete events of one logic frame, sent at the end of that frame |
+| 0x08 | game to reader | `Camera` | the local camera and minimap view box, from the render loop whenever it changed |
 | 0x10 | reader to game | `ChatSend` | send a chat line |
 
 Unknown frame types must be skipped by length, so the protocol can grow. Inbound types other than 0x10 are skipped by the game.
@@ -40,16 +44,22 @@ Unknown frame types must be skipped by length, so the protocol can grow. Inbound
 On connect the game sends, in order: `UiState`, then `MatchInfo` (phase LOADING from the cached loading data, or STARTED for a running match), then `LobbyState` if the user sits in a lobby. After that frames flow as events happen.
 
 - `StatsSnapshot` is gated: none is sent until a STARTED `MatchInfo` has been sent on that connection. A reader connecting mid-match gets STARTED first, then snapshots.
-- Snapshots are sampled every 15 logic frames (half a second at 30 fps). While the game is stalled (waiting for network players) a snapshot with no players is sent about every 250 ms so the reader can see the stall; like normal snapshots, these wait until STARTED `MatchInfo` has been queued for that connection.
+- Snapshot cadence is defined in game time, so it is the same on the 30 and 60 logic-frames-per-second builds (`MatchInfo.logic_frames_per_second` says which; game seconds are frame / that value). A **light** snapshot (`full = false`) every 100 ms carries the cheap per-player numbers: money, income, power, score, APM, rank, skill points, counters, spend, value destroyed/lost, radar, battle plan, sabotage, network, the selection and the speed fields. A **full** snapshot (`full = true`) every 250 ms also carries everything that needs a walk over the live objects: army value, template counts, production, superweapons, readiness, heroes, worker counts, class composition, grids, supply, tech and the online connections. The first snapshot of every connection is a full one. Readers keep the last full values of the heavy fields and overwrite the light ones (the list of heavy fields is the comment on `StatsSnapshot` in the proto). While the game is stalled (waiting for network players) a snapshot with no players is sent about every 250 ms so the reader can see the stall; like normal snapshots, these wait until STARTED `MatchInfo` has been queued for that connection.
+- `Events` carries the discrete events (kills, builds, upgrades, captures, radar and battle plan changes, power sabotage and so on) of one logic frame and is sent at the end of that frame, only to a connection that already has STARTED, so an event reaches the reader within the frame it happened in instead of waiting for the next snapshot. Events produced before the first logic frame are not sent.
+- `Camera` is sent from the render loop, once per rendered frame at most and 120 per second at most, only when the camera moved by more than a hair, while a match or replay is running (also while paused). `timestamp_us` is a monotonic microsecond clock (QueryPerformanceCounter) for ordering and interpolation. The view box is the four ground points where the screen corners land at the map's average terrain height, in the order the minimap draws them (top left, top right, bottom right, bottom left), computed the way the game's own minimap box is (`W3DRadar::reconstructViewBox`).
 - Nothing is built or queued while no reader is connected, and the outbound queue is cleared when a new reader connects, so a reader only sees frames produced after it connected (plus the connect-time sequence above).
 - `MatchSummary` follows the ENDED `MatchInfo`.
+- `MatchInfo.online.match_id` (the Generals Online match id) can still be 0 when STARTED is built, because the lobby assigns it a little later. `match_id` itself never changes; once the online id is known, STARTED is sent once more with `online.match_id` set, and every later resend and the ENDED frame carry it.
+- `map_name` (MatchInfo, MatchSummary, LobbyState) is relative to the game or user data folder, for example `maps\alpine assault\alpine assault.map`; the Windows user name is never exported. `MatchInfo.map_is_user_map` tells a map from the user data folder from a built-in one.
+- A superweapon or special power is reported when the player owns the required science, or when the power requires none; a structure still under construction is not reported until it is complete.
 - Chat is independent of the match phase and flows in menus, lobbies and rooms.
 
 ## Backpressure and limits
 
+- Latency: enqueueing signals the pipe worker, which writes immediately and keeps writing until the queue is empty (a short write loops instead of waiting for the next wake), so the transport adds well under a millisecond; the delay a reader sees is the sampling cadence above.
 - Enqueueing never blocks the game. Frames go into a 1 MiB ring of whole frames; a frame that does not fit is dropped (the new one, never a partial). A slow reader therefore misses frames but never corrupts the stream. Drain the pipe promptly.
 - A single frame is capped at 256 KiB (the pipe cap is 262144 bytes).
-- Per snapshot: at most 128 events (events pending between snapshots are capped at 512; once full, new events are dropped); production queues cover at most 16 structures with 6 entries each; at most 64 sciences, 64 upgrades, 32 tech structures per player, 64 map tech structures, 64 supply sources, 64 selected object ids; grids are 32 by 32 cells.
+- Events: at most 512 per frame (events pending between sends are capped at 512; once full, new events are dropped). Per snapshot: production queues cover at most 16 structures with 6 entries each; at most 64 sciences, 64 upgrades, 32 tech structures per player, 64 map tech structures, 64 supply sources, 64 selected object ids; grids are 32 by 32 cells.
 - Inbound `ChatSend` text is capped at 1024 bytes; the game keeps a mailbox of 8 pending sends and drops more.
 
 ## Inbound chat (ChatSend)
@@ -75,6 +85,15 @@ On connect the game sends, in order: `UiState`, then `MatchInfo` (phase LOADING 
 `LobbyState` mirrors the game setup lobby (online, LAN or skirmish): kind, map, slots, online lobby data and the local client's peer connections. It is sent on every change and with `in_lobby = false` when the user leaves.
 
 Random choices (random side, random color, random start position) are not decided until the match loads. While in the lobby the exporter predicts them on a private mirror of the game's random generator; `LobbyState.prediction_valid` and `prediction_start_positions_valid` say which predicted fields (`predicted_side`, `predicted_color`, `predicted_start_position`, `predicted_observer_camera`) can be trusted. On entering LOADING the exporter compares the last prediction with the values the engine actually resolved; the LOADING `MatchInfo` carries the resolved values plus `has_prediction_check` and `prediction_matched`. Treat lobby predictions as a preview, and the LOADING `MatchInfo` as the truth.
+
+## Per-player state added for overlays
+
+- **Radar** (`PlayerStats.radar`, event `STATEVENT_RADAR_CHANGED`, `int_value1` old and `int_value2` new `RadarState`): NONE means the player owns no radar structure or ability (the engine's `m_radarCount` is 0). UNPOWERED means radar producers exist but the radar is switched off: the player's power is in brown-out (`Player::onPowerBrownOutChange`, which also a power plant sabotage causes) so `Player::hasRadar()` is false. ACTIVE is `hasRadar()`. Disable-proof radars stay active in a brown-out. An EMP or disabled radar building does not change the player's radar counters in this engine, so it is not shown as UNPOWERED.
+- **Battle plan** (`battle_plan`, `battle_plan_transition`, event `STATEVENT_BATTLE_PLAN_CHANGED`): `battle_plan` is the plan affecting the player's troops, from the player's battle plan counters (first of bombardment, hold the line, search and destroy with a non-zero count). `battle_plan_transition` comes from the Strategy Centers' `BattlePlanUpdate`: DEPLOYING while one is unpacking, PACKING while one is packing, ACTIVE when a plan is deployed, else IDLE. It is a full-snapshot field.
+- **Power sabotage** (`power_sabotaged`, `power_sabotage_frames_left`, event `STATEVENT_POWER_SABOTAGED` with `int_value1` the duration in logic frames): from the player's Energy sabotaged-until frame, set by the saboteur's power plant attack.
+- **Network** (`PlayerStats.network`, human players of a network match only; every number is -1 when this client does not know it): `reported_fps` is that player's average display (render) frames per second as measured by that player's own client, `latency_ms` is that client's average frame round-trip latency in milliseconds (the engine's run-ahead metric, converted from seconds). The engine sends these metrics only to the packet router, so a client that is not the packet router knows them only for itself; the router knows them for everyone. `ping_ms` and `relayed` are the Generals Online mesh round trip between this PC and that player (not set for the local player). `StatsSnapshot.local_render_fps` is this PC's average display FPS and `local_logic_fps` the logic frames this PC actually advanced per wall-clock second since the previous snapshot; both describe the local client only.
+- **Upgrades** (`STATEVENT_UPGRADE_COMPLETE`, `primary_name` = upgrade internal name, `cost` its build cost): emitted in `Player::addUpgrade` when a player-level upgrade completes, which covers researching it in a production queue and upgrades granted on object creation (`GrantUpgradeCreate`); an upgrade that was already complete is not repeated. Per-object upgrades from a production queue are emitted with variant `object`.
+- **Capture** (`STATEVENT_CAPTURE`): a structure changed owner by capture (`Object::onCapture`, next to the JSON exporter's capture record). The event player is the new owner, `int_value1` the old owner's player index, `variant` is `tech` for a tech building. `cost` is the one-time cash bonus the capture paid (the oil derrick's `InitialCaptureBonus`, paid by `AutoDepositUpdate::awardInitialCaptureBonus`); it is 0 when no bonus was paid.
 
 ## Scope and known limitations
 
@@ -124,6 +143,11 @@ One special power's cooldown state; not deduped by power name.
 | 9 | `STATEVENT_PLAYER_LEFT` | variant: "left" (quit or disconnect, from the network leave command) or "self_destruct" |
 | 10 | `STATEVENT_PLAYER_DEFEATED` | the engine marked the player defeated |
 | 11 | `STATEVENT_SELL` | a structure finished selling; primary_name is its template, cost the refund |
+| 12 | `STATEVENT_RADAR_CHANGED` | int_value1 = old RadarState, int_value2 = new RadarState |
+| 13 | `STATEVENT_BATTLE_PLAN_CHANGED` | int_value1 = old BattlePlan, int_value2 = new BattlePlan (the plan affecting the player's troops) |
+| 14 | `STATEVENT_UPGRADE_COMPLETE` | primary_name = upgrade internal name, cost = its build cost; variant "object" for a per-object upgrade |
+| 15 | `STATEVENT_CAPTURE` | a structure changed owner by capture: player = new owner, int_value1 = old owner player index, variant "tech" for a tech building, cost = the one-time cash bonus the capture paid (0 if none) |
+| 16 | `STATEVENT_POWER_SABOTAGED` | player = the victim, int_value1 = how many logic frames the sabotage lasts |
 
 #### `StatEvent`
 
@@ -145,26 +169,36 @@ A discrete gameplay-outcome event, drained into the next StatsSnapshot. category
 | 12 | `int_value2` | int32 | e.g. veterancy newLevel |
 | 13 | `cost` | uint32 | kill and loss events: the victim template's build cost |
 
+#### `Events`
+
+The discrete events produced during one logic frame, sent at the end of that frame (never with a snapshot).
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `frame` | uint32 |  |
+| 2 | `events` | repeated StatEvent |  |
+
 #### `StatsSnapshot`
 
-One periodic sample, one entry per exported player.
+One periodic sample, one entry per exported player. A light snapshot (full = false) carries only the cheap per-player numbers; a full one also carries everything that needs a walk over the live objects. Readers keep the last full values of the heavy fields and overwrite the light ones: heavy = army_value, live_superweapon_structure_count, live_template_counts, readiness, sciences, upgrades, production, workers, harvesters, idle_workers, heroes, superweapons, army_value_by_class, army_count_by_class, tech_structures, battle_plan_transition (per player) and grids, supply, tech, connections (per snapshot).
 
 | # | Field | Type | Meaning |
 |---|---|---|---|
 | 1 | `frame` | uint32 |  |
 | 2 | `players` | repeated PlayerStats |  |
-| 3 | `events` | repeated StatEvent |  |
 | 4 | `connections` | repeated OnlineConnection | the local client's own peer connections |
 | 5 | `grids` | repeated PlayerGrid | one per exported player |
 | 6 | `supply` | repeated SupplySource | supply sources on the map, capped, non-empty first |
 | 7 | `replay_total_frames` | uint32 | frames in the replay being played back, 0 otherwise |
-| 8 | `game_speed_fps` | int32 | FramePacer's actual logic time scale in frames per second (30 is normal speed); 0 = frozen or halted, -1 = uncapped |
+| 8 | `game_speed_fps` | int32 | FramePacer's actual logic time scale in frames per second (equals logic_frames_per_second at normal speed); 0 = frozen or halted, -1 = uncapped |
 | 9 | `game_speed_ratio` | float | the same as a ratio of normal speed |
 | 10 | `tech` | repeated TechStructure | neutral and captured tech structures on the map, capped |
-| 11 | `camera` | LocalCamera | this client's own camera: client-side state, differs per client |
 | 12 | `selected_object_ids` | repeated uint32 | this client's current selection, capped; client-side like the camera |
 | 13 | `network_stalled` | bool | the logic is waiting on a peer (Network::isStalling) |
 | 14 | `stalled_frames` | uint32 | how long, in logic frames at the nominal rate, derived from wall-clock time |
+| 15 | `local_render_fps` | float | the display's average rendered frames per second (Display::getAverageFPS), 0 when unknown |
+| 16 | `local_logic_fps` | float | logic frames per wall-clock second measured between this and the previous snapshot, 0 on the first |
+| 17 | `full` | bool | true: carries the heavy fields too; false: light snapshot, heavy fields absent (keep the last full values) |
 
 #### `TechStructure`
 
@@ -176,18 +210,29 @@ One periodic sample, one entry per exported player.
 | 4 | `y` | float |  |
 | 5 | `owner_player_index` | int32 | -1 when neutral |
 
-#### `LocalCamera`
+#### `Camera`
 
-The local tactical view. Per client: not part of the synchronized game state.
+The local tactical view. Per client: not part of the synchronized game state. Sent from the render loop (once per rendered frame at most, 120 per second at most, only when something changed), so it is as current as the picture.
 
 | # | Field | Type | Meaning |
 |---|---|---|---|
-| 1 | `x` | float | world position the camera looks at |
-| 2 | `y` | float |  |
-| 3 | `zoom` | float |  |
-| 4 | `angle` | float |  |
-| 5 | `pitch` | float |  |
-| 6 | `height_above_ground` | float |  |
+| 1 | `timestamp_us` | uint64 | QueryPerformanceCounter in microseconds: monotonic, only differences are meaningful |
+| 2 | `logic_frame` | uint32 |  |
+| 3 | `x` | float | world position the camera looks at |
+| 4 | `y` | float |  |
+| 5 | `zoom` | float |  |
+| 6 | `angle` | float |  |
+| 7 | `pitch` | float |  |
+| 8 | `height_above_ground` | float |  |
+| 9 | `has_view_box` | bool |  |
+| 10 | `view_tl_x` | float |  |
+| 11 | `view_tl_y` | float |  |
+| 12 | `view_tr_x` | float |  |
+| 13 | `view_tr_y` | float |  |
+| 14 | `view_br_x` | float |  |
+| 15 | `view_br_y` | float |  |
+| 16 | `view_bl_x` | float |  |
+| 17 | `view_bl_y` | float |  |
 
 #### `PlayerGrid`
 
@@ -214,6 +259,48 @@ A supply source (warehouse) on the map.
 | 4 | `y` | float |  |
 | 5 | `remaining_value` | uint32 | cash: boxes stored times ValuePerSupplyBox |
 | 6 | `remaining_boxes` | uint32 |  |
+
+#### enum `RadarState`
+
+Whether a player's radar works. NONE: no radar structure or ability. UNPOWERED: radar producers exist but the player's radar is switched off (brown-out: Player::onPowerBrownOutChange, which a power plant sabotage also causes). ACTIVE: Player::hasRadar(). Derived from the engine's own radar counters.
+
+| Value | Name | Meaning |
+|---|---|---|
+| 0 | `RADAR_NONE` |  |
+| 1 | `RADAR_UNPOWERED` |  |
+| 2 | `RADAR_ACTIVE` |  |
+
+#### enum `BattlePlan`
+
+| Value | Name | Meaning |
+|---|---|---|
+| 0 | `BATTLE_PLAN_NONE` |  |
+| 1 | `BATTLE_PLAN_BOMBARDMENT` |  |
+| 2 | `BATTLE_PLAN_HOLD_THE_LINE` |  |
+| 3 | `BATTLE_PLAN_SEARCH_AND_DESTROY` |  |
+
+#### enum `BattlePlanTransition`
+
+What the player's Strategy Centers are doing. DEPLOYING: at least one is unpacking; PACKING: at least one is packing (DEPLOYING wins if both); ACTIVE: a plan is deployed; IDLE: none.
+
+| Value | Name | Meaning |
+|---|---|---|
+| 0 | `BATTLE_PLAN_IDLE` |  |
+| 1 | `BATTLE_PLAN_DEPLOYING` |  |
+| 2 | `BATTLE_PLAN_ACTIVE` |  |
+| 3 | `BATTLE_PLAN_PACKING` |  |
+
+#### `NetworkStats`
+
+Network numbers for one human player. Every field is -1 when this client does not know it.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `is_local` | bool | this player is the local client |
+| 2 | `reported_fps` | int32 | the player's own average DISPLAY frames per second (ConnectionManager run-ahead metrics), -1 if unknown |
+| 3 | `latency_ms` | int32 | the player's own average frame round-trip latency in milliseconds (FrameMetrics, converted from seconds), -1 if unknown |
+| 4 | `ping_ms` | int32 | Generals Online mesh round-trip time between the local client and this player in milliseconds, -1 for the local player or no connection |
+| 5 | `relayed` | bool | the mesh connection to this player goes through a relay (only meaningful when ping_ms >= 0) |
 
 #### `PlayerStats`
 
@@ -259,6 +346,12 @@ A supply source (warehouse) on the map.
 | 38 | `army_value_by_class` | CategoryValue | build cost of live objects by the same classification as kills |
 | 39 | `army_count_by_class` | CategoryCounts |  |
 | 40 | `tech_structures` | repeated string | template names of tech structures this player owns (KINDOF_TECH_BUILDING, KINDOF_TECH_BASE_DEFENSE) |
+| 41 | `radar` | RadarState |  |
+| 42 | `battle_plan` | BattlePlan | the plan affecting this player's troops (Player battle plan counters); first non-zero of bombardment, hold the line, search and destroy |
+| 43 | `battle_plan_transition` | BattlePlanTransition | state of this player's Strategy Centers |
+| 44 | `power_sabotaged` | bool | the player's power is currently sabotaged (Energy sabotaged-until frame is in the future) |
+| 45 | `power_sabotage_frames_left` | uint32 |  |
+| 46 | `network` | NetworkStats | set only for human players of a network match |
 
 #### `CategoryValue`
 
@@ -435,7 +528,7 @@ Announces that a real (non-shell) match started or ended. Sent per phase while a
 | 1 | `phase` | MatchPhase |  |
 | 2 | `match_id` | string | opaque; stable across STARTED and ENDED |
 | 3 | `mode` | MatchMode |  |
-| 4 | `map_name` | string |  |
+| 4 | `map_name` | string | relative to the game or user data folder, e.g. "maps\alpine assault\alpine assault.map"; never an absolute path |
 | 5 | `start_unix_time` | uint64 |  |
 | 6 | `duration_frames` | uint32 | only meaningful on ENDED |
 | 7 | `players` | repeated MatchPlayer |  |
@@ -453,6 +546,8 @@ Announces that a real (non-shell) match started or ended. Sent per phase while a
 | 19 | `world_min_y` | float |  |
 | 20 | `world_max_x` | float |  |
 | 21 | `world_max_y` | float |  |
+| 22 | `map_is_user_map` | bool | the map comes from the user data folder, not the game install |
+| 23 | `logic_frames_per_second` | uint32 | the build's logic rate (30, or 60 for the high-fps server build); frame / this = game seconds |
 
 #### `Endpoint`
 
@@ -478,7 +573,7 @@ Generals Online lobby data the client holds for the current match.
 
 | # | Field | Type | Meaning |
 |---|---|---|---|
-| 1 | `match_id` | uint64 | the Generals Online match id |
+| 1 | `match_id` | uint64 | the Generals Online match id; 0 until the lobby holds it, then sent in a later STARTED resend |
 | 2 | `lobby_id` | int64 |  |
 | 3 | `lobby_name` | string |  |
 | 4 | `lobby_type` | OnlineLobbyType |  |

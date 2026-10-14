@@ -557,11 +557,7 @@ Bool StatsExporterPipeServer::flushQueue()
 		m_queue.consume((UnsignedInt)written);
 		LeaveCriticalSection(&m_queueLock);
 
-		if (written < available)
-		{
-			// Short write: let the next wake pick up the remainder rather than spinning here.
-			break;
-		}
+		// A short write just loops: the remainder is peeked again, so nothing waits for the next wake.
 	}
 
 	CloseHandle(writeEvent);
