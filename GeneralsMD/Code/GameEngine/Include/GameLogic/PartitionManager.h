@@ -392,6 +392,8 @@ private:
 	CellAndObjectIntersection		*m_coiArray;							///< The array of COIs
 	Int													m_doneFlag;
 	Int													m_slot;										///< index into the partition manager's slot tables, -1 if none
+	Int													m_queryCell;							///< query grid cell, -1 if not in the query grid
+	Int													m_queryIndex;							///< index within the query grid cell
 	DirtyStatus									m_dirtyStatus;
 	ObjectShroudStatus					m_shroudedness[MAX_PLAYER_COUNT];
 	ObjectShroudStatus					m_shroudednessPrevious[MAX_PLAYER_COUNT];	///<previous frames value of m_shroudedness
@@ -556,6 +558,9 @@ public:
 	Int friend_getDoneFlag() { return m_doneFlag; }
 	void friend_setDoneFlag(Int i) { m_doneFlag = i; }
 	Int friend_getSlot();	///< allocated on first use.
+	Int friend_getQueryCell() const { return m_queryCell; }
+	Int friend_getQueryIndex() const { return m_queryIndex; }
+	void friend_setQueryCell(Int cell, Int index) { m_queryCell = cell; m_queryIndex = index; }
 
 	Bool isInListDirtyModules(PartitionData* const* pListHead) const
 	{
@@ -1274,6 +1279,22 @@ private:
 	std::vector<PartitionData*>	m_slotModule;		///< module owning each slot, null if free
 	std::vector<Int>						m_slotDoneFlag;	///< per-slot visited marker for getClosestObjects
 	std::vector<Int>						m_freeSlots;
+
+	// Every object once, by its center, on a grid coarser than m_cells. Used by getClosestObjects in non retail builds.
+	struct QueryCell
+	{
+		PartitionData** entries;
+		UnsignedShort count;
+		UnsignedShort capacity;
+		Real maxRadius;		///< largest bounding radius added since the cell was last empty
+	};
+	std::vector<QueryCell>	m_queryCells;
+	Int											m_queryCellCountX;
+	Int											m_queryCellCountY;
+	Real										m_queryCellSize;
+	Real										m_queryCellSizeInv;
+	Real										m_queryMaxRadius;	///< largest bounding radius ever added
+
 	PartitionData*	m_dirtyModules;
 	Bool						m_updatedSinceLastReset;	///< Used to force a return of OBJECTSHROUD_INVALID before update has been called.
 
@@ -1297,6 +1318,28 @@ protected:
 		DistanceCalculationType dc,
 		PartitionFilter **filters,
 		SimpleObjectIterator *iter,	// if nonnull, append ALL satisfactory objects to the iterator (not just the single closest)
+		Real *closestDistArg,
+		Coord3D *closestVecArg
+	);
+
+	Object *getClosestObjectsCells(
+		const Object *obj,
+		const Coord3D *pos,
+		Real maxDist,
+		DistanceCalculationType dc,
+		PartitionFilter **filters,
+		SimpleObjectIterator *iter,
+		Real *closestDistArg,
+		Coord3D *closestVecArg
+	);
+
+	Object *getClosestObjectsGrid(
+		const Object *obj,
+		const Coord3D *pos,
+		Real maxDist,
+		DistanceCalculationType dc,
+		PartitionFilter **filters,
+		SimpleObjectIterator *iter,
 		Real *closestDistArg,
 		Coord3D *closestVecArg
 	);
@@ -1378,6 +1421,10 @@ public:
 	/// to be used only by PartitionData.
 	Int friend_allocModuleSlot(PartitionData* module);
 	void friend_releaseModuleSlot(Int slot);
+
+	/// to be used only by PartitionData.
+	void friend_addToQueryGrid(PartitionData* module, const Coord3D& pos, Real radius);
+	void friend_removeFromQueryGrid(PartitionData* module);
 
 	/// A convenience function to reveal shroud at some location
 	// Queuing does not give you control of the timestamp to enforce the queue.  I own the delay, you don't.

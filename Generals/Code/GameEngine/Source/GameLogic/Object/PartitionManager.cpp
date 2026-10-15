@@ -97,6 +97,21 @@ extern void addIcon(const Coord3D *pos, Real width, Int numFramesDuration, RGBCo
 
 const Real HUGE_DIST_SQR = (HUGE_DIST*HUGE_DIST);
 
+// TheSuperHackers @performance arcticdolphin 15/10/2026 Non retail builds answer getClosestObjects from a coarser grid that holds every object once.
+#if RETAIL_COMPATIBLE_CRC
+#define PARTITION_QUERY_GRID 0
+#else
+#define PARTITION_QUERY_GRID 1
+#endif
+
+// checks the query grid against the cell walk on every call.
+#ifndef PARTITION_QUERY_GRID_VALIDATE
+#define PARTITION_QUERY_GRID_VALIDATE 0
+#endif
+
+static const Int QUERY_GRID_CELL_FACTOR = 6;	///< query cell size in partition cells
+static const Real QUERY_GRID_SLACK = 20.0f;		///< objects can move between their cell updates
+
 #define DISABLE_INVALID_PREVENTION	//Steven, I had to turn this off because it was causing problem with map border resizing (USA04). -MW
 
 //------------------------------------------------------------------------------ Performance Timers
@@ -1554,6 +1569,8 @@ PartitionData::PartitionData()
 	m_coiInUseCount = 0;
 	m_doneFlag = 0;
 	m_slot = -1;
+	m_queryCell = -1;
+	m_queryIndex = -1;
 	m_dirtyStatus = NOT_DIRTY;
 	m_lastCell = nullptr;
 	for (int i = 0; i < MAX_PLAYER_COUNT; ++i)
@@ -1746,6 +1763,11 @@ ObjectShroudStatus PartitionData::getShroudedStatus(Int playerIndex)
 //-----------------------------------------------------------------------------
 void PartitionData::removeAllTouchedCells()
 {
+#if PARTITION_QUERY_GRID
+	if (m_queryCell >= 0 && ThePartitionManager)
+		ThePartitionManager->friend_removeFromQueryGrid(this);
+#endif
+
 	CellAndObjectIntersection *coi = m_coiArray;
 	for (Int i = m_coiArrayCount; i > 0; --i, ++coi)
 	{
@@ -2160,6 +2182,16 @@ void PartitionData::updateCellsTouched()
 			}
 		};
 	}
+
+#if PARTITION_QUERY_GRID
+	if (obj)
+	{
+		const GeometryInfo& geomInfo = obj->getGeometryInfo();
+		const Real circleRadius = geomInfo.getBoundingCircleRadius();
+		const Real sphereRadius = geomInfo.getBoundingSphereRadius();
+		ThePartitionManager->friend_addToQueryGrid(this, pos, circleRadius > sphereRadius ? circleRadius : sphereRadius);
+	}
+#endif
 
 	Int currentCellIndexX, currentCellIndexY;
 	ThePartitionManager->worldToCell( pos.x, pos.y, &currentCellIndexX, &currentCellIndexY );
@@ -2631,6 +2663,10 @@ void PartitionContactList::processContactList()
 PartitionManager::PartitionManager()
 {
 	m_moduleList = nullptr;
+	m_queryCellCountX = 0;
+	m_queryCellCountY = 0;
+	m_queryCellSize = m_queryCellSizeInv = 0.0f;
+	m_queryMaxRadius = 0.0f;
 	m_cellSize = m_cellSizeInv = 0.0f;
 	m_cellCountX = 0;
 	m_cellCountY = 0;
@@ -2708,6 +2744,19 @@ void PartitionManager::init()
 		emptyEntryList.count = 0;
 		emptyEntryList.capacity = 0;
 		m_cellEntries.assign(m_totalCellCount, emptyEntryList);
+#if PARTITION_QUERY_GRID
+		m_queryCellSize = m_cellSize * QUERY_GRID_CELL_FACTOR;
+		m_queryCellSizeInv = 1.0f / m_queryCellSize;
+		m_queryCellCountX = REAL_TO_INT_CEIL(m_worldExtents.width() * m_queryCellSizeInv);
+		m_queryCellCountY = REAL_TO_INT_CEIL(m_worldExtents.height() * m_queryCellSizeInv);
+		m_queryMaxRadius = 0.0f;
+		QueryCell emptyQueryCell;
+		emptyQueryCell.entries = nullptr;
+		emptyQueryCell.count = 0;
+		emptyQueryCell.capacity = 0;
+		emptyQueryCell.maxRadius = 0.0f;
+		m_queryCells.assign(m_queryCellCountX * m_queryCellCountY, emptyQueryCell);
+#endif
 		for (Int x = 0; x < m_cellCountX; x++)
 		{
 			for (Int y = 0; y < m_cellCountY; y++)
@@ -2834,6 +2883,62 @@ Int PartitionManager::friend_allocModuleSlot(PartitionData* module)
 }
 
 //-----------------------------------------------------------------------------
+void PartitionManager::friend_addToQueryGrid(PartitionData* module, const Coord3D& pos, Real radius)
+{
+	if (m_queryCells.empty())
+		return;
+
+	Int queryX = REAL_TO_INT_FLOOR((pos.x - m_worldExtents.lo.x) * m_queryCellSizeInv);
+	Int queryY = REAL_TO_INT_FLOOR((pos.y - m_worldExtents.lo.y) * m_queryCellSizeInv);
+	queryX = clamp(0, queryX, m_queryCellCountX - 1);
+	queryY = clamp(0, queryY, m_queryCellCountY - 1);
+	const Int cellIndex = queryY * m_queryCellCountX + queryX;
+
+	QueryCell& cell = m_queryCells[cellIndex];
+	if (cell.count == cell.capacity)
+	{
+		const Int newCapacity = cell.capacity == 0 ? 8 : cell.capacity * 2;
+		PartitionData** newEntries = MSGNEW("PartitionManager_QueryCell") PartitionData*[newCapacity];
+		for (Int i = 0; i < cell.count; ++i)
+		{
+			newEntries[i] = cell.entries[i];
+		}
+		delete [] cell.entries;
+		cell.entries = newEntries;
+		cell.capacity = (UnsignedShort)newCapacity;
+	}
+	cell.entries[cell.count] = module;
+	module->friend_setQueryCell(cellIndex, cell.count);
+	++cell.count;
+
+	if (radius > cell.maxRadius)
+		cell.maxRadius = radius;
+	if (radius > m_queryMaxRadius)
+		m_queryMaxRadius = radius;
+}
+
+//-----------------------------------------------------------------------------
+void PartitionManager::friend_removeFromQueryGrid(PartitionData* module)
+{
+	const Int cellIndex = module->friend_getQueryCell();
+	if (cellIndex >= 0 && cellIndex < (Int)m_queryCells.size())
+	{
+		QueryCell& cell = m_queryCells[cellIndex];
+		const Int index = module->friend_getQueryIndex();
+		DEBUG_ASSERTCRASH(index >= 0 && index < cell.count && cell.entries[index] == module, ("query grid entry mismatch"));
+
+		// order does not matter here, so the last entry fills the gap.
+		PartitionData* last = cell.entries[cell.count - 1];
+		cell.entries[index] = last;
+		last->friend_setQueryCell(cellIndex, index);
+		--cell.count;
+		if (cell.count == 0)
+			cell.maxRadius = 0.0f;
+	}
+	module->friend_setQueryCell(-1, -1);
+}
+
+//-----------------------------------------------------------------------------
 void PartitionManager::friend_releaseModuleSlot(Int slot)
 {
 	m_slotModule[slot] = nullptr;
@@ -2871,6 +2976,14 @@ void PartitionManager::shutdown()
 		delete [] entryList->entries;
 	}
 	m_cellEntries.clear();
+	for (std::vector<QueryCell>::iterator queryCell = m_queryCells.begin(); queryCell != m_queryCells.end(); ++queryCell)
+	{
+		delete [] queryCell->entries;
+	}
+	m_queryCells.clear();
+	m_queryCellCountX = 0;
+	m_queryCellCountY = 0;
+	m_queryMaxRadius = 0.0f;
 
 	m_cellSize = m_cellSizeInv = 0.0f;
 	m_cellCountX = 0;
@@ -3385,8 +3498,230 @@ void PartitionManager::calcRadiusVec()
 #endif
 
 //-----------------------------------------------------------------------------
-//DECLARE_PERF_TIMER(getClosestObjects)
+#if PARTITION_QUERY_GRID_VALIDATE
+static void qgCollectIds(SimpleObjectIterator* iter, std::vector<ObjectID>& ids)
+{
+	for (Object* o = iter->first(); o; o = iter->next())
+	{
+		ids.push_back(o->getID());
+	}
+	std::sort(ids.begin(), ids.end());
+}
+#endif
+
+//-----------------------------------------------------------------------------
 Object *PartitionManager::getClosestObjects(
+	const Object *obj,
+	const Coord3D *pos,
+	Real maxDist,
+	DistanceCalculationType dc,
+	PartitionFilter **filters,
+	SimpleObjectIterator *iterArg,
+	Real *closestDistArg,
+	Coord3D *closestVecArg
+)
+{
+#if PARTITION_QUERY_GRID && PARTITION_QUERY_GRID_VALIDATE
+	// the grid must return everything the cell walk returns, and never a farther closest object.
+	SimpleObjectIterator* cellsIter = iterArg ? newInstance(SimpleObjectIterator) : nullptr;
+	Real cellsDist = 0.0f;
+	Object* cellsObj = getClosestObjectsCells(obj, pos, maxDist, dc, filters, cellsIter, &cellsDist, nullptr);
+	Real gridDist = 0.0f;
+	Object* gridObj = getClosestObjectsGrid(obj, pos, maxDist, dc, filters, iterArg, &gridDist, closestVecArg);
+	if (iterArg)
+	{
+		std::vector<ObjectID> cellsIds;
+		std::vector<ObjectID> gridIds;
+		qgCollectIds(cellsIter, cellsIds);
+		qgCollectIds(iterArg, gridIds);
+		deleteInstance(cellsIter);
+		if (!std::includes(gridIds.begin(), gridIds.end(), cellsIds.begin(), cellsIds.end()))
+		{
+			DEBUG_LOG(("Query grid missed an object, frame %u, dc %d, maxDist %f", TheGameLogic->getFrame(), (Int)dc, maxDist));
+			DEBUG_CRASH(("Query grid missed an object"));
+		}
+	}
+	else if (cellsObj != nullptr && (gridObj == nullptr || gridDist > cellsDist))
+	{
+		DEBUG_LOG(("Query grid returned a farther object, frame %u, dc %d, maxDist %f", TheGameLogic->getFrame(), (Int)dc, maxDist));
+		DEBUG_CRASH(("Query grid returned a farther object"));
+	}
+	if (closestDistArg)
+	{
+		*closestDistArg = gridDist;
+	}
+	return gridObj;
+#elif PARTITION_QUERY_GRID
+	return getClosestObjectsGrid(obj, pos, maxDist, dc, filters, iterArg, closestDistArg, closestVecArg);
+#else
+	return getClosestObjectsCells(obj, pos, maxDist, dc, filters, iterArg, closestDistArg, closestVecArg);
+#endif
+}
+
+#if PARTITION_QUERY_GRID
+//-----------------------------------------------------------------------------
+Object *PartitionManager::getClosestObjectsGrid(
+	const Object *obj,
+	const Coord3D *pos,
+	Real maxDist,
+	DistanceCalculationType dc,
+	PartitionFilter **filters,
+	SimpleObjectIterator *iterArg,
+	Real *closestDistArg,
+	Coord3D *closestVecArg
+)
+{
+	DEBUG_ASSERTCRASH((obj==nullptr) != (pos == nullptr), ("either obj or pos must be null"));
+
+	DistCalcProc distProc = theDistCalcProcs[dc];
+	const Coord3D *objPos = pos ? pos : obj->getPosition();
+	const Object *objToUse = pos ? nullptr : obj;
+
+	const Bool isCenter2D = (dc == FROM_CENTER_2D);
+	const Bool isCenter3D = (dc == FROM_CENTER_3D);
+	const Bool isBoundary = !isCenter2D && !isCenter3D;
+
+	// boundary distances subtract both bounding radii, so the search has to reach that much further.
+	Real selfRadius = 0.0f;
+	if (isBoundary && objToUse)
+	{
+		const GeometryInfo& geomInfo = objToUse->getGeometryInfo();
+		const Real circleRadius = geomInfo.getBoundingCircleRadius();
+		const Real sphereRadius = geomInfo.getBoundingSphereRadius();
+		selfRadius = circleRadius > sphereRadius ? circleRadius : sphereRadius;
+	}
+
+	Object* closestObj = nullptr;
+	Real closestDistSqr = maxDist * maxDist;
+	Coord3D closestVec;
+	closestVec.x = maxDist;
+	closestVec.y = maxDist;
+	closestVec.z = maxDist;
+
+	if (!m_queryCells.empty())
+	{
+		Int centerX = REAL_TO_INT_FLOOR((objPos->x - m_worldExtents.lo.x) * m_queryCellSizeInv);
+		Int centerY = REAL_TO_INT_FLOOR((objPos->y - m_worldExtents.lo.y) * m_queryCellSizeInv);
+		centerX = clamp(0, centerX, m_queryCellCountX - 1);
+		centerY = clamp(0, centerY, m_queryCellCountY - 1);
+
+		Int maxRing = centerX;
+		if (m_queryCellCountX - 1 - centerX > maxRing)
+			maxRing = m_queryCellCountX - 1 - centerX;
+		if (centerY > maxRing)
+			maxRing = centerY;
+		if (m_queryCellCountY - 1 - centerY > maxRing)
+			maxRing = m_queryCellCountY - 1 - centerY;
+
+		for (Int ring = 0; ring <= maxRing; ++ring)
+		{
+			const Real reach = sqrtf(closestDistSqr) + selfRadius + QUERY_GRID_SLACK;
+
+			// the query point lies in the center cell, so every cell of this ring is at least ring - 1 cells away.
+			if (ring > 1 && (Real)(ring - 1) * m_queryCellSize > reach + (isBoundary ? m_queryMaxRadius : 0.0f))
+				break;
+
+			for (Int dy = -ring; dy <= ring; ++dy)
+			{
+				const Int cellY = centerY + dy;
+				if (cellY < 0 || cellY >= m_queryCellCountY)
+					continue;
+
+				const Int step = (ring == 0 || dy == -ring || dy == ring) ? 1 : 2 * ring;
+				for (Int dx = -ring; dx <= ring; dx += step)
+				{
+					const Int cellX = centerX + dx;
+					if (cellX < 0 || cellX >= m_queryCellCountX)
+						continue;
+
+					const QueryCell& cell = m_queryCells[cellY * m_queryCellCountX + cellX];
+					if (cell.count == 0)
+						continue;
+
+					// skip the cell when nothing in it can be in range.
+					const Real cellLoX = m_worldExtents.lo.x + cellX * m_queryCellSize;
+					const Real cellLoY = m_worldExtents.lo.y + cellY * m_queryCellSize;
+					Real gapX = cellLoX - objPos->x;
+					if (objPos->x - (cellLoX + m_queryCellSize) > gapX)
+						gapX = objPos->x - (cellLoX + m_queryCellSize);
+					if (gapX < 0.0f)
+						gapX = 0.0f;
+					Real gapY = cellLoY - objPos->y;
+					if (objPos->y - (cellLoY + m_queryCellSize) > gapY)
+						gapY = objPos->y - (cellLoY + m_queryCellSize);
+					if (gapY < 0.0f)
+						gapY = 0.0f;
+					const Real cellReach = sqrtf(closestDistSqr) + selfRadius + QUERY_GRID_SLACK + (isBoundary ? cell.maxRadius : 0.0f);
+					if (sqr(gapX) + sqr(gapY) > sqr(cellReach))
+						continue;
+
+					for (Int i = 0; i < cell.count; ++i)
+					{
+						Object *thisObj = cell.entries[i]->getObject();
+						if (thisObj == obj || thisObj == nullptr)
+							continue;
+
+						Real thisDistSqr;
+						Coord3D distVec;
+						if (isCenter2D)
+						{
+							const Coord3D* thisPos = thisObj->getPosition();
+							distVec.x = thisPos->x - objPos->x;
+							distVec.y = thisPos->y - objPos->y;
+							distVec.z = 0.0f;
+							thisDistSqr = sqr(distVec.x) + sqr(distVec.y);
+							if (!(thisDistSqr < closestDistSqr))
+								continue;
+						}
+						else if (isCenter3D)
+						{
+							const Coord3D* thisPos = thisObj->getPosition();
+							distVec.x = thisPos->x - objPos->x;
+							distVec.y = thisPos->y - objPos->y;
+							distVec.z = thisPos->z - objPos->z;
+							thisDistSqr = sqr(distVec.x) + sqr(distVec.y) + sqr(distVec.z);
+							if (!(thisDistSqr < closestDistSqr))
+								continue;
+						}
+						else if (!(*distProc)(objPos, objToUse, thisObj->getPosition(), thisObj, thisDistSqr, distVec, closestDistSqr))
+						{
+							continue;
+						}
+
+						if (!filtersAllow(filters, thisObj))
+							continue;
+
+						if (iterArg)
+						{
+							iterArg->insert(thisObj, thisDistSqr);
+						}
+						else
+						{
+							closestObj = thisObj;
+							closestDistSqr = thisDistSqr;
+							closestVec = distVec;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (closestVecArg)
+	{
+		*closestVecArg = closestVec;
+	}
+	if (closestDistArg)
+	{
+		*closestDistArg = (Real)sqrtf(closestDistSqr);
+	}
+	return closestObj;
+}
+#endif
+
+//-----------------------------------------------------------------------------
+//DECLARE_PERF_TIMER(getClosestObjects)
+Object *PartitionManager::getClosestObjectsCells(
 	const Object *obj,
 	const Coord3D *pos,
 	Real maxDist,
