@@ -1,0 +1,26 @@
+// The test client: command line (watch, dump, replay, chat, schema, example) and a Swing GUI, written against the
+// library's public API only (the ArchitectureTest fails on an import of the internal package).
+//
+//   ./gradlew :app:run --args="watch"
+//   ./gradlew :app:installDist           script in app/build/install/stats-exporter-client/bin
+plugins {
+    id 'application'
+}
+
+dependencies {
+    implementation project(':lib')
+
+    testImplementation platform(junitBom)
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+application {
+    mainClass = 'com.generalsonline.stats.app.Main'
+    applicationName = 'stats-exporter-client'
+}
+
+// The tests compare the generated example programs with the files of the examples project, which sits next to this one.
+tasks.named('test') {
+    systemProperty 'examples.dir', project(':examples').file('src/main/java').absolutePath
+}
