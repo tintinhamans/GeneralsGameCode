@@ -1,7 +1,7 @@
 // Connects to a running Generals Online game and prints one line for every frame type.
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar PrintEveryFrame.java
+//   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar PrintEveryFrame.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.StatsListener;
 import com.generalsonline.stats.StatsPipe;

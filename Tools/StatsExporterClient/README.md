@@ -1,11 +1,11 @@
 # Generals Online stats pipe client
 
-A Java 17 library for the live stats pipe of a Generals Online game, a test client that shows everything the pipe delivers, and example programs. Protocol reference: [docs/stats-exporter.md](../../docs/stats-exporter.md). This is version 2.1.0, for **protocol version 2** (a 17 byte frame header with a sequence number and a timestamp, a Hello handshake, requests and responses); it cannot talk to a game of protocol version 1, see the [CHANGELOG](CHANGELOG.md).
+A Java 17 library for the live stats pipe of a Generals Online game, a test client that shows everything the pipe delivers, and example programs. Protocol reference: [docs/stats-exporter.md](../../docs/stats-exporter.md). This is version 2.2.0, for **protocol version 2** (a 17 byte frame header with a sequence number and a timestamp, a Hello handshake, requests and responses); it cannot talk to a game of protocol version 1, see the [CHANGELOG](CHANGELOG.md).
 
 | Project | What it is |
 |---|---|
-| [`lib/`](lib) | `com.generalsonline:stats-pipe-client:2.1.0`. The library other people depend on: the generated protobuf classes, the transport, a thread safe match state, dump files and helpers. protobuf-java is its only dependency. |
-| [`app/`](app) | The test client: the commands `watch`, `dump`, `replay`, `chat`, `gui`, `schema`, `example` and a Swing GUI. It uses the library through its public API only. |
+| [`lib/`](lib) | `com.generalsonline:stats-pipe-client:2.2.0`. The library other people depend on: the generated protobuf classes, the transport, a thread safe match state, dump files and helpers. protobuf-java is its only dependency. |
+| [`app/`](app) | The test client: the commands `watch`, `dump`, `replay`, `chat`, `gui`, `serve`, `schema`, `example` and a Swing GUI. It uses the library through its public API only. |
 | [`examples/`](examples) | One runnable program per scenario of the GUI's Code tab, compiled against the library in every build. |
 
 ## Use the library
@@ -24,18 +24,18 @@ Then, in another project:
 
 ```groovy
 repositories { mavenLocal() }
-dependencies { implementation 'com.generalsonline:stats-pipe-client:2.1.0' }   // brings protobuf-java 4.33.4
+dependencies { implementation 'com.generalsonline:stats-pipe-client:2.2.0' }   // brings protobuf-java 4.33.4
 ```
 
 ```xml
 <dependency>
   <groupId>com.generalsonline</groupId>
   <artifactId>stats-pipe-client</artifactId>
-  <version>2.1.0</version>
+  <version>2.2.0</version>
 </dependency>
 ```
 
-Without a build tool: `lib/build/libs/stats-pipe-client-2.1.0.jar` plus `protobuf-java-4.33.4.jar` on the class path. The jar is an automatic module named `com.generalsonline.stats`. The packages are `com.generalsonline.stats` (the API), `com.generalsonline.stats.proto` (the generated messages) and `com.generalsonline.stats.internal` (not for users).
+Without a build tool: `lib/build/libs/stats-pipe-client-2.2.0.jar` plus `protobuf-java-4.33.4.jar` on the class path. The jar is an automatic module named `com.generalsonline.stats`. The packages are `com.generalsonline.stats` (the API), `com.generalsonline.stats.proto` (the generated messages) and `com.generalsonline.stats.internal` (not for users).
 
 The message classes are generated from the game's own `StatsExporter.proto` (a filtered copy with `optimize_for = LITE_RUNTIME` removed, so the classes have descriptors and text printing). There is one copy of the schema; the build never modifies it. `protobuf-java` 4.33.4 pairs with the engine's protobuf 6.33.4 (Java 4.x corresponds to C++ 6.x); the wire format is stable across versions.
 
@@ -63,7 +63,7 @@ public class QuickStart {
 }
 ```
 
-Run it with the two jars on the class path, for example `java -cp stats-pipe-client-2.1.0.jar;protobuf-java-4.33.4.jar QuickStart.java` (`:` instead of `;` outside Windows).
+Run it with the two jars on the class path, for example `java -cp stats-pipe-client-2.2.0.jar;protobuf-java-4.33.4.jar QuickStart.java` (`:` instead of `;` outside Windows).
 
 ### The public API
 
@@ -77,10 +77,11 @@ Run it with the two jars on the class path, for example `java -cp stats-pipe-cli
 | `ProtocolVersionException`, `HelloTimeoutException`, `RequestFailedException`, `RequestTimeoutException`, `PageLimitException` | What the handshake and the request API fail with, see below. |
 | `NotAllowedException` | A `RequestFailedException` for the status `NOT_ALLOWED`: the game refused a camera, replay or observer command because of its situation (the local player plays, or no replay is running). `reason()` is the game's explanation. |
 | `CameraMove` | An immutable absolute camera command: position, zoom, angle, pitch, an optional transition with easing, or a reset. See "Camera, replay and the director". |
-| `Director`, `DirectorLogic`, `DirectorConfig`, `DirectorMode`, `DirectorMove`, `DirectorClock` | The automatic camera director: `DirectorLogic` decides (pure, with an injectable clock), `Director` connects it to a `MatchState` and a pipe. See below. |
+| `Director`, `DirectorLogic`, `DirectorConfig`, `DirectorMode`, `DirectorMove`, `DirectorClock` | The automatic camera director: `DirectorLogic` decides (pure, with an injectable clock), `Director` connects it to a `MatchState` and a pipe (`status()` says what it does, `lastMove()` where it went last and why). See below. |
 | `PlayerView` | One player: `info()` (the MatchInfo entry), `stats()` (merged `PlayerStats`), `frame()`, `life()` (`ALIVE`, `DEFEATED`, `LEFT`), and `name()`, `side()`, `color()`, `team()`, `elo()`, `stateText()`. |
 | `Format` | The helpers every reader writes: `gameTime(frames, fps)`, `u(int)` (unsigned reads of uint32 fields), `colorHex(argb)` / `rgb(argb)`, `shortName`, `shortUpgradeName`, `shortPowerName`, `mapDisplayName`, `eventDetail(event, names, fps)`, `viewBox(camera)`, `cause(throwable)`. |
 | `DumpWriter`, `DumpReader` | Record the raw frames of a game (with their sequence numbers and timestamps, the Hello included) and replay them without one: `DumpReader.replay(file, listener)` as fast as possible, or `replay(file, listener, speed)` paced by game time (1.0 is real time, 2.0 twice as fast). A dump goes through the same dispatcher as a live pipe, gaps in its sequence come out as `onFramesDropped`. The file starts with the magic `GOSD` and a format version (2); dumps of protocol version 1 (no header) are still read, with sequence numbers made up. |
+| `FakeGame` | A stand-in for a running game: serves a dump over a real named pipe or in memory and answers requests and control commands from a model built from the dump. See "The fake game". |
 | `FrameDispatcher`, `FrameType`, `DecodedFrame`, `RawFrame`, `PipeDiscovery` | Decoding and delivery, for building your own pipeline, and the discovery of running games. |
 
 `MatchState` holds: the game's `hello()` and `droppedFrames()`; the current screen (`ui()`), game lobby (`lobby()`) and match (`match()`, `phase()`, `matchId()`); the players (`players()`, `playersByIndex()`, `player(index)`, `playerName(index)`), each joined with its MatchInfo entry; the latest camera (`camera()`), the world extent (`worldExtent()`) and the map-level heavy data of the last full snapshot (`grids()`, `supply()`, `tech()`, `connections()`); a ring buffer of recent events (`events()`) and chat lines (`chat()`); and frame, speed and stall values (`frame()`, `gameSpeedFps()`, `networkStalled()`, ...). Its lifecycle rules: a LOADING `MatchInfo`, or a STARTED one with another match id, begins a new match and clears the old one; a repeated STARTED of the same match changes nothing; ENDED keeps the tables so the result stays readable; a reconnect keeps everything. A light snapshot overwrites the cheap per-player numbers and keeps the heavy fields (army value, production, superweapons, ...) of the last full one.
@@ -163,6 +164,27 @@ Director director = Director.start(pipe, state, config);     // switches the int
 
 The director pauses when a `Camera` frame says a human moved the camera (`change_source` `USER`, or the user action count grew) and takes over again after `resumeDelay` (10 s) without input, or at once with `resume()`. When the game refuses (`NotAllowedException`) it pauses itself and `lastError()` holds the exception. `DirectorLogic` is the pure decision part: it takes interest maps and camera frames and the time of each call, and `poll(now)` returns the moves; with a manual `DirectorClock` it is deterministic, which is how it is tested. `DirectorConfig` is immutable (`defaults().toBuilder()...build()`).
 
+### The fake game
+
+New in 2.2.0. `FakeGame` plays a recorded dump back **as a game**, so a tool, an overlay or a director can be written and tested without one running. It speaks protocol 2 like the real thing: a `Hello` with a reader slot and the game's limits, frames with fresh sequence numbers and timestamps, up to four readers, and answers to requests.
+
+```java
+try (FakeGame game = FakeGame.builder(Path.of("match.dump")).speed(2).loop(true).build().start()) {
+    // a real Windows named pipe now exists: game.pipePath(), \\.\pipe\generalsonline-stats-41937; StatsPipe.builder().pid(game.pid()) finds it
+    StatsPipe pipe = game.connect(StatsPipe.builder().state(state)).build().start();   // or connect in memory, no pipe needed
+}
+```
+
+The same from the test client: `stats-exporter-client serve match.dump --speed 2 --loop`, then `watch`, `gui` or your own program in another process.
+
+- **Transports.** `start()` opens the named pipe `\\.\pipe\generalsonline-stats-<pid>` (the default pid is `FakeGame.DEFAULT_PID`, 41937; `pid(n)` or `pipe(name)` change it) unless `namedPipe(false)`. Java cannot create a named pipe, so a hidden Windows PowerShell process hosts it (a few lines of C# compiled by `Add-Type`) and relays the bytes; it exits when the Java process does. `game.connect(StatsPipe.builder())` connects through memory instead, on any system, with the same protocol and limits; the tests of this repository use it, plus a few that go through the real pipe on Windows. The named pipe needs Windows and `powershell.exe`; `start()` says so when it cannot.
+- **The stream.** One clock drives the game, paced by game time at `speed(x)` times the replay speed (1 is real time, 0 as fast as the readers keep up). A reader **joins live**: it gets the Hello, then what a reader connecting to a running game gets (the latest screen, lobby, match and a full snapshot), then the frames as the game reaches them; `holdForReader(true)` keeps the dump from starting until the first reader is there, so that reader sees it from the first frame (the `serve` command does that unless `--no-wait`). Every reader has its own sequence numbers, feed configuration and queue (`queueCapacityBytes`); one that falls behind loses frames and sees the gap. At the end of the dump the stream stops, or starts again with `loop(true)` (a new `LOADING` MatchInfo begins the next round). The dump's own Hello and responses are not forwarded.
+- **The feed configuration** is honored per reader: the light and full snapshot cadences (a cadence slower than the dump's is applied by thinning; a faster one is not invented), events, chat, camera, view statistics and the interest map (on or off, their intervals) and the grid, supply, tech and production parts of full snapshots. Out-of-range values answer `BAD_REQUEST` like the game's. `grid_resolution` is accepted and echoed, but the grids are the dump's.
+- **Requests** are answered from what the dump contains. The catalog lists the templates the dump mentions, with the cost, side and kind its events reveal (paged like the game's: `max_page_size` 200). Objects are those that events and view statistics named (a destroyed object is gone, so `object` answers `NOT_FOUND`); `objects` filters by area, player and kind. A player comes from the latest snapshot. The map comes from the match info (start positions as waypoints `Player_n_Start`) with a **generated** terrain image as the minimap, since a dump holds none. What the dump cannot say gets `NOT_FOUND` or `UNAVAILABLE`. The rate limit (20 a second, bursts of 40, `requestsPerSecond(n)`) is enforced with `RATE_LIMITED`. A chat line a reader sends comes back as a `ChatMessage` to every reader.
+- **Control.** Camera, follow, observe and replay commands follow the game's rules for the chosen `Situation`: `REPLAY` (the default, everything is accepted), `OBSERVER` (camera and observer yes, replay commands `NOT_ALLOWED`) and `PLAYER` (everything `NOT_ALLOWED`, to test how a tool shows a refusal); with no match running the answer is `UNAVAILABLE`. A camera command moves a camera model (one for the whole game, as a game has one camera): a transition on wall-clock time with `ease in out`, angles turning the short way, a lock on a unit that follows the positions the dump gives (and ends with `OBJECT_GONE` when the unit dies), and `Camera` frames with change source `PIPE`. From the first command on, the dump's recorded camera frames are no longer forwarded. `game.simulateUserCameraInput()` plays a human taking the camera (change source `USER`, a lock ends with `USER`), which is how a director's stepping back is tried. Replay pause, speed and fast forward change the pace of the whole stream and the speed fields of the snapshots; the speed is capped at 1 like the game's replay (`replaySpeedCap(x)` changes the cap) and the answer says `speed_capped`.
+- **Approximations.** A dump recorded without the view or interest feeds has no `ViewStats` or `InterestMap` frames; the fake computes stand-ins from the snapshots and events: the interest score is the decayed kill value per cell (half life 6 s of game time) plus the armies of enemy players close together, with highlights for superweapon launches (impact time estimated), hero deaths and structures worth 1000 or more lost; the view statistics apportion each player's army by the player grid cells inside the camera's view box, list heroes and expensive units the events placed inside it, and roll kills and losses over the trade window. They are plausible, not exact. A dump that has those frames (recorded with the feeds on) has them forwarded as recorded, filtered by the configuration. The camera's view box is a fixed trapezoid scaled by the zoom, not a projection of terrain.
+- **Limits.** The game's object model is only what the dump shows: no health beyond what a notable unit reports, no production queues behind `object`, no sciences to buy (`purchasable` and `locked` are empty). Object ids of the dump are the real ones, so they mean the same in a later live run of the same match only if the same game produced both.
+
 ### Threading
 
 - A pipe has one daemon reader thread that connects, reads and decodes. By default the listener and the state are called on that thread, so keep callbacks short.
@@ -174,7 +196,7 @@ The director pauses when a `Camera` frame says a human moved the camera (`change
 
 ### Example programs
 
-[`examples/src/main/java`](examples/src/main/java) has one complete program per scenario, compiled against the library on every build. Each can also be run on its own: `java -cp stats-pipe-client-2.1.0.jar;protobuf-java-4.33.4.jar PrintEveryFrame.java`.
+[`examples/src/main/java`](examples/src/main/java) has one complete program per scenario, compiled against the library on every build. Each can also be run on its own: `java -cp stats-pipe-client-2.2.0.jar;protobuf-java-4.33.4.jar PrintEveryFrame.java`.
 
 | Program | Shows |
 |---|---|
@@ -186,6 +208,13 @@ The director pauses when a `Camera` frame says a human moved the camera (`change
 | [`SendChat`](examples/src/main/java/SendChat.java) | Send a chat line, with the limits and the one-reader caveat. |
 | [`RecordAndReplay`](examples/src/main/java/RecordAndReplay.java) | Record a dump, replay it at 2x into the same listener. |
 | [`UiThreadState`](examples/src/main/java/UiThreadState.java) | Use `MatchState` from a UI thread with an executor. |
+| [`QueryCatalog`](examples/src/main/java/QueryCatalog.java) | Page through the object catalog and look a template up by name. |
+| [`InspectObject`](examples/src/main/java/InspectObject.java) | Look a live object up by id and handle `NOT_FOUND`. |
+| [`CameraControl`](examples/src/main/java/CameraControl.java) | Pan the camera with a transition, follow a unit, release and reset; handles `NOT_ALLOWED`. |
+| [`ReplayControl`](examples/src/main/java/ReplayControl.java) | Pause, resume, set a speed (and see it capped) and fast forward a replay. |
+| [`ViewStatsShare`](examples/src/main/java/ViewStatsShare.java) | Print each player's share of the value in view from the view statistics. |
+| [`RunDirector`](examples/src/main/java/RunDirector.java) | Run the `Director` in a mode and print what it does. |
+| [`FakeServer`](examples/src/main/java/FakeServer.java) | Serve a dump as a fake game and connect to it in the same process. |
 
 These files are the output of the test client's code generator for its default selection (`example <name>`), and a test fails when one is out of date. The GUI's **Code** tab and the `example` command fill the same templates with what you selected, for example the Players column or the event kind.
 
@@ -198,12 +227,13 @@ Run with `gradlew :app:run --args="<command> ..."` or the installed script (`gra
 | Command | What it does |
 |---|---|
 | `watch [--only KINDS]` | Connect (waiting for the game if needed), reconnect on loss, print the feed. |
+| `serve <dump> [--speed x] [--loop] [--no-wait] [--pid n \| --pipe name] [--situation s]` | Play a dump as a fake game on a real named pipe, for the other commands and your own programs (see "The fake game"). |
 | `dump [--overwrite] [--no-camera] <file>` | Record the raw frames to a file and print one status line per second. |
 | `replay <file>` | Print a recorded dump without a game, every frame. |
 | `chat [--audience A] <channel> <text...>` | Send one chat line. |
-| `gui [--replay FILE [--speed X]]` | Show the feed in a window (see below). |
+| `gui [--replay FILE [--speed X] \| --fake FILE [--speed X]]` | Show the feed in a window (see below). `--fake` serves the dump as a fake game inside the process, so every panel that asks the game things works offline. |
 | `schema` | Print the frame table and every message and field. |
-| `example [<name>] [--player P] [--column C] [--kind K] [--channel CH] [--audience A] [--text T]` | Print a complete example program for a scenario (no name lists them). |
+| `example [<name>] [--player P] [--column C] [--kind K] [--channel CH] [--audience A] [--text T] [--template N] [--side S] [--object ID] [--x X] [--y Y] [--zoom Z] [--speed R] [--mode M] [--dump FILE]` | Print a complete example program for a scenario (no name lists them). |
 
 ```
 stats-exporter-client watch --only events,chat
@@ -212,6 +242,9 @@ stats-exporter-client replay match.dump
 stats-exporter-client chat --audience allies match "gg wp"
 stats-exporter-client example track-player --column "Income/min" --player Alice > TrackPlayerStat.java
 stats-exporter-client example react-to-event --kind capture
+stats-exporter-client serve match.dump --speed 2 --loop          # a fake game; connect watch, gui or your own tool
+stats-exporter-client gui --fake match.dump                      # the GUI with a fake game inside, queries and control work
+stats-exporter-client example camera-control --x 900 --y 1200 --object 77 > CameraControl.java
 ```
 
 ### watch
@@ -231,9 +264,13 @@ The file is a `GOSD` header (format version 2) followed by the raw frames with t
 - The game sends no reply. "wrote to ..." only means the bytes went into the pipe; the game ignores the line unless that channel's screen or match is active.
 - Chat needs a free reader slot of the pipe (the game serves up to four): it fails with an explanation while every slot is held by other clients, for example several `gui`, `watch` or `dump` processes. Close one first.
 
+### serve
+
+`serve <dump>` starts a `FakeGame` on the dump and keeps it up until the process is stopped. It prints the pipe it serves (for example `\\.\pipe\generalsonline-stats-41937`), waits for the first reader before the dump starts (`--no-wait` starts at once) and prints a line when the number of readers changes. `--speed` is the pace of game time (1, the default, is real time; 0 as fast as possible), `--loop` plays the dump over and over, `--pid` or `--pipe` name the pipe (`--pipe` is found by an explicit `--pipe` only, not by discovery), `--situation replay|observer|player` chooses which control commands the game refuses. It needs Windows for the pipe; elsewhere use `FakeGame.connect` from a program, or `gui --fake`.
+
 ### example
 
-`example` lists the scenarios; `example <name>` prints the program, which compiles against the library as it is. `--player` and `--column` fill `track-player` (the column is any column of the Players table, mapped to its accessor, for example `Money` to `player.stats().getMoney()`), `--kind` fills `react-to-event` (`KILL`, `CAPTURE`, ... or the full `STATEVENT_` name), `--channel`, `--audience` and `--text` fill `send-chat`.
+`example` lists the scenarios; `example <name>` prints the program, which compiles against the library as it is. `--player` and `--column` fill `track-player` (the column is any column of the Players table, mapped to its accessor, for example `Money` to `player.stats().getMoney()`), `--kind` fills `react-to-event` (`KILL`, `CAPTURE`, ... or the full `STATEVENT_` name), `--channel`, `--audience` and `--text` fill `send-chat`, `--template` and `--side` fill `query-catalog`, `--object` fills `inspect-object` and `camera-control`, `--x`, `--y` and `--zoom` fill `camera-control`, `--speed` fills `replay-control`, `--mode` (`hotspot`, `highlights`, `overview`, `director`) fills `director` and `--dump` fills `fake-server`.
 
 ## GUI
 
@@ -245,6 +282,7 @@ stats-exporter-client gui --pid 1234               # a specific game process
 stats-exporter-client gui --replay match.dump      # play a recorded dump, as fast as possible
 stats-exporter-client gui --replay match.dump --speed 1   # real time (game time / MatchInfo logic rate)
 stats-exporter-client gui --replay match.dump --speed 4   # four times real time
+stats-exporter-client gui --fake match.dump --speed 1     # a fake game inside the window: queries, camera and director work offline
 ```
 
 `--speed` is a multiplier of game time: 1 is real time, 2 twice as fast, 0 or no option as fast as possible. A replay sleeps only when it is ahead of the schedule given by the snapshot and event frames and the logic rate from MatchInfo (60 on the high-fps build), so a slow window is never slowed further.
@@ -254,31 +292,36 @@ stats-exporter-client gui --replay match.dump --speed 4   # four times real time
 | Tab | Content |
 |---|---|
 | Players | One row per player, joined with the MatchInfo player by `player_index`, a colour swatch next to the name, `[AI]` marking computer players, teams shown from 1, rows sorted by team then lobby slot. The **Columns** selector chooses a view: Overview (state, team, side, ELO, money, income, army, APM, score, rank; the default), Combat, Economy & tech, Production & powers, Network. The sort survives live updates, rows update in place and the selection is kept. The State column is the engine's player state (alive, defeated, left), won/lost once the match ended. **Double-click a row** for the stat card: every field of that player's MatchPlayer (including the online rating data) and latest PlayerStats as protobuf text. Light snapshots update the cheap columns and keep the heavy ones from the last full snapshot. |
-| Minimap | The map drawn at its real aspect ratio from the MatchInfo world extent: each player's grid cells as translucent squares in the player's colour (more objects, more opaque), supply sources as gold circles (bigger when richer), tech structures as diamonds (owner colour, gray when neutral), start positions as numbered rings, the camera view box as a white polygon through all four corners, and recent kills (red), captures (yellow) and beacons (cyan) as dots that fade over 8 game seconds. Redrawn about 30 times a second from a timer; the grids, supply and tech are kept from the last full snapshot. |
+| Minimap | The map drawn at its real aspect ratio from the MatchInfo world extent: each player's grid cells as translucent squares in the player's colour (more objects, more opaque), supply sources as gold circles (bigger when richer), tech structures as diamonds (owner colour, gray when neutral), start positions as numbered rings, the camera view box as a white polygon through all four corners, and recent kills (red), captures (yellow) and beacons (cyan) as dots that fade over 8 game seconds. Redrawn about 30 times a second from a timer; the grids, supply and tech are kept from the last full snapshot. The **Interest map** switch turns the interest feed on for this connection and draws the heat map (yellow to red by score) and a marker for each pending highlight (a superweapon launch as two red rings with the time to the impact, a hero death as a white cross, a lost structure as an orange square); below the map a list of the pending highlights with their impact time and how long they stay. Without a game (a replay file) the switch only shows or hides frames the dump holds. |
+| In view | What the camera sees, per player, from the `ViewStats` frames: value, health weighted value, value by class, veterancy counts, value killed and lost and damage per second over their windows, with a **bar for each player's share of the value in view**; the **fight intensity** (quiet, light fighting, a skirmish, heavy fighting by the total damage per second); a table of the **notable units** (heroes and expensive units, with health, veterancy and the portable structure they carry; right-click: **Inspect object**, **Show code for this**) and of the **superweapon structures in view** with charge and time to ready. |
 | Events | Append-only list of the events frames, newest at the bottom, follows new rows until you scroll up, last 3000 kept; header clicks do not sort it. Filter by kind, by player and by text. Rows from the last 6 game seconds are highlighted and the Player cell is tinted with the player's colour. The Detail column decodes the state changes: radar and battle plan changes, veterancy (`Regular -> Veteran`), salvage tier, science rank and points, the old owner of a capture, a starting veterancy of a built unit. **Double-click a row** for the raw StatEvent. |
 | Chat | Every chat line received, with channel, sender, audience (match channel only) and flags. |
 | Lobby | The latest LobbyState: one Side cell such as `Random -> GLA` (the prediction, only while the lobby says it is valid; `Random` otherwise), the random flags, colour swatches (a `?` while a colour is random), predicted colour and start position (blank when not predicted). After LOADING the check result is shown as a green or red label, and random slots are marked `(check failed)` when the prediction did not match. |
-| Match | The latest MatchInfo as key/value rows, the observers (from MatchInfo), and the MatchSummary rows when one arrives. |
+| Match | The latest MatchInfo as key/value rows next to **the game's Hello** (version, build, pid, reader slot, limits, capabilities), the observers (from MatchInfo), and the MatchSummary rows when one arrives. |
+| Query | The questions a reader can ask, in five sections. **Catalog**: the game's object templates with name, side, kind and buildable filters and **paging** (rows per page, Previous and Next; right-click a row: **Look up this name**, **Show code for this**). **Object**: an inspector by object id (also from **Inspect object** in the right-click menu of an Events row, for the object or the killer, and of a notable unit), with **Follow in the camera**. **Player**: money, rank, sciences, upgrades, powers and what the player can build. **Map**: extent, start positions and waypoints, and the **minimap image** drawn with the start positions. **Feed**: this reader's feed configuration as controls (frames, cadences, grid resolution, view statistics windows), **Apply**, **Reset to defaults**, **Read from the game**, and **Resync**. Every answer shows its status; a failure says why. |
+| Camera | **Camera**: position, zoom, angle and pitch (degrees) with a transition and its easing, Move, Reset camera, Cancel transition, Use the current camera. **Follow a unit**: object id, follow or tether (with its distance), jump to the unit, Follow, Unfollow, Use the inspected object. **Replay**: Pause, Resume, a speed, Set speed, fast forward. **Observer view**: pick a player or Nobody. The game accepts these only for an observer or a replay: its refusal (**NOT ALLOWED**) is shown in bold orange with the reason, apart from your own mistakes in red. A line at the bottom shows the camera frames: where it looks, who moved it (the game, a command or a human), the user action count, the lock and a running transition. |
+| Director | Runs the library's `Director` against the connection: the mode, Start and Stop, Pause and Resume now, and every tunable (dwell, switch ratio, minimum and fight score, quiet delay, pan limit, lead and hold, overview dwell, resume delay) applied while it runs. It shows the state, the place it went to last and why, the highlights pending, an orange **PAUSED BY A HUMAN** banner when someone moved the camera, and the problem when the game refused. |
 | Frames | Raw log of every frame except camera frames (those are counted in the footer) with type, size and a one-line summary. |
 | Code | The example-code generator, see below. |
 
-A table with nothing to show says why in gray text. Stall snapshots never clear the Players table and show `network stall (Ns)` in the status bar with the last known speed.
+The status area is a **Status** of the game too: the Hello (game version, protocol, reader slot of the maximum, logic rate; its build and capabilities in the tooltip and the Match tab) and the dropped frames in red. A table with nothing to show says why in gray text. Stall snapshots never clear the Players table and show `network stall (Ns)` in the status bar with the last known speed.
 
 ### The Code tab
 
-Pick what you want to do from the list on the left (the eight scenarios of [`examples/`](examples/src/main/java)), or right-click a Players cell or row, an Events row, a Chat row, a Lobby row, a Frames row or the Minimap and choose **Show code for this**. The tab then shows a complete, minimal, runnable Java program that does exactly that with the library, filled in with what you selected:
+Pick what you want to do from the list on the left (the fifteen scenarios of [`examples/`](examples/src/main/java)), or right-click a Players cell or row, an Events row, a Chat row, a Lobby row, a Frames row, the Minimap, a catalog row, the object text, a notable unit or an In view row, the camera or replay section of the Camera tab, the Director tab or the status area and choose **Show code for this**. The tab then shows a complete, minimal, runnable Java program that does exactly that with the library, filled in with what you selected:
 
 - a Players cell fills `track-player` with that player and that column's accessor (the Money column becomes `Format.u(player.stats().getMoney())`, Income/min `getMoneyPerMinute()`, Network columns `player.stats().getNetwork()...`);
 - an Events row fills `react-to-event` with its kind (`StatEventKind.STATEVENT_CAPTURE`) and prints the detail fields of that kind (the old owner and cash bonus of a capture, the cost of a kill, the levels of a promotion, ...);
 - a Chat row fills `send-chat` with its channel;
-- the controls above the code (player, stat, event kind, chat channel, audience, text) change the selection at any time.
+- a catalog row fills `query-catalog` with its name and side; the object text and a notable unit fill `inspect-object` with the id; the camera section fills `camera-control` with the position, zoom and unit of its fields, the replay section `replay-control` with its speed, the Director tab `director` with its mode and the status area `fake-server`;
+- the controls above the code (player, stat, event kind, chat channel, audience, text, template, side, object id, camera position and zoom, replay speed, director mode, dump file) change the selection at any time.
 
 **Copy** puts the program on the clipboard and **Save as .java...** writes it to a file named like its class, ready for `java -cp <jars> Name.java`. Every template is compile-checked by a test (all Players columns, all event kinds, all channels and audiences) with `-Xlint:all`, and the files in `examples/` are the generator's output.
 
 ## How the code is organised
 
-- `lib`: `StatsPipe` is the connection (candidates, reconnect with backoff, executor, the Hello handshake, sequence gap detection, `sendChat`, the request API); `FrameDispatcher` decodes a frame once (`decode`) and calls the matching `StatsListener` method (`deliver`), both exhaustive switches over `FrameType`, so a new frame type does not compile until handled; `MatchState` is the state layer; `DumpWriter`/`DumpReader` are the dump files. `internal` holds the envelope codec, the sequence tracker, the request limiter, the replay pacer and the Windows pipe link.
-- `app`: `GuiModel` turns the library's `MatchState` into table rows and status texts without any Swing; `EdtFeed` is the reader thread to event thread hand-over (one task per burst, camera frames coalesced); `StatsGui`, `GuiTables`, `Minimap` and `CodeTab` are the Swing parts; `Examples` and `ExampleTemplates` are the generator; `FramePrinter` and `DumpStatus` are the console output.
+- `lib`: `StatsPipe` is the connection (candidates, reconnect with backoff, executor, the Hello handshake, sequence gap detection, `sendChat`, the request API); `FrameDispatcher` decodes a frame once (`decode`) and calls the matching `StatsListener` method (`deliver`), both exhaustive switches over `FrameType`, so a new frame type does not compile until handled; `MatchState` is the state layer; `DumpWriter`/`DumpReader` are the dump files. `FakeGame` is the fake game (`FakeDump` the loaded dump on its game time line, `FakeFeed` a reader's feed configuration, `FakeWorld` the object, player, catalog and map model, `FakeCamera` the camera, `FakeSynth` the stand-in view and interest frames). `internal` holds the envelope codec, the sequence tracker, the request limiter, the replay pacer, the Windows pipe link, the in-memory link and the PowerShell-hosted pipe server.
+- `app`: `GuiModel` turns the library's `MatchState` into table rows and status texts without any Swing; `EdtFeed` is the reader thread to event thread hand-over (one task per burst, camera frames coalesced); `StatsGui`, `GuiTables`, `Minimap` and `CodeTab` are the Swing parts, with `MinimapTab`, `QueryTab`, `CameraTab`, `ViewStatsTab` and `DirectorTab` for the panels that read or steer the game (`PipeCommands` sends their requests and turns a failure into a sentence; `QueryText`, `CatalogPager`, `ViewStatsModel` and `DirectorModel` are their parts without Swing); `Examples` and `ExampleTemplates` are the generator; `FramePrinter` and `DumpStatus` are the console output.
 
 ## Changing the proto
 

@@ -1,9 +1,11 @@
 package com.generalsonline.stats.app;
 
 import com.generalsonline.stats.DumpReader;
+import com.generalsonline.stats.FakeGame;
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.PlayerView;
 import com.generalsonline.stats.StatsPipe;
+import com.generalsonline.stats.proto.CatalogEntry;
 import com.generalsonline.stats.proto.ChatChannel;
 import com.generalsonline.stats.proto.MatchPlayer;
 import com.generalsonline.stats.proto.StatEventKind;
@@ -50,7 +52,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
@@ -81,6 +85,15 @@ public final class StatsGui {
     private final JLabel lobbyHeaderLabel = new JLabel();
     private final JLabel predictionLabel = new JLabel(" ");
     private final Minimap minimap = new Minimap(model);
+    private volatile StatsPipe pipe;
+    private FakeGame fakeGame;
+    private final PipeCommands commands = new PipeCommands(() -> pipe, SwingUtilities::invokeLater);
+    private final MinimapTab minimapTab = new MinimapTab(model, minimap, commands);
+    private final QueryTab queryTab = new QueryTab(commands, model);
+    private final CameraTab cameraTab = new CameraTab(commands, model);
+    private final ViewStatsTab viewTab = new ViewStatsTab(model);
+    private final DirectorModel directorModel = new DirectorModel(model.state(), () -> pipe);
+    private final DirectorTab directorTab = new DirectorTab(directorModel);
     private final CodeTab codeTab = new CodeTab();
     private JTabbedPane tabs;
     private JFrame frame;
@@ -97,10 +110,13 @@ public final class StatsGui {
     /**
      * Opens the window and returns; the JVM then lives until the window is closed.
      *
+     * @param pid the game process to connect to, or a negative number for any game
+     * @param pipe an explicit pipe path, or null
      * @param replayFile if not null, feed this recorded dump instead of connecting to a game
-     * @param replaySpeed pace for a replay as a multiplier of game time (1.0 is real time); 0 plays as fast as possible
+     * @param fakeFile if not null, serve this dump as a fake game in this process and connect to it, so the panels that ask the game work offline
+     * @param replaySpeed pace for a replay or a fake game as a multiplier of game time (1.0 is real time); 0 plays as fast as possible
      */
-    public static void run(int pid, String pipe, Path replayFile, double replaySpeed) {
+    public static void run(int pid, String pipe, Path replayFile, Path fakeFile, double replaySpeed) {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception e) {
@@ -108,7 +124,7 @@ public final class StatsGui {
         }
         SwingUtilities.invokeLater(() -> {
             try {
-                new StatsGui().open(pid, pipe, replayFile, replaySpeed);
+                new StatsGui().open(pid, pipe, replayFile, fakeFile, replaySpeed);
             } catch (HeadlessException e) {
                 System.err.println("the gui command needs a display");
                 System.exit(1);
@@ -116,7 +132,7 @@ public final class StatsGui {
         });
     }
 
-    private void open(int pid, String pipe, Path replayFile, double replaySpeed) {
+    private void open(int pid, String pipe, Path replayFile, Path fakeFile, double replaySpeed) {
         frame = new JFrame(model.windowTitle());
         frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         frame.setSize(1280, 780);
@@ -127,6 +143,16 @@ public final class StatsGui {
         StatsPipe client = null;
         if (replayFile != null) {
             startReplay(replayFile, replaySpeed);
+        } else if (fakeFile != null) {
+            try {
+                fakeGame = FakeGame.builder(fakeFile).speed(replaySpeed).holdForReader(true).namedPipe(false).build().start();
+            } catch (java.io.IOException e) {
+                model.setConnection("fake game failed: " + Format.cause(e));
+                fakeGame = null;
+            }
+            if (fakeGame != null) {
+                client = fakeGame.connect(StatsPipe.builder().listener(feed)).build().start();
+            }
         } else {
             // Several games may run; the pipe tries the highest pid first and moves on when a pipe is busy.
             StatsPipe.Builder builder = StatsPipe.builder().listener(feed);
@@ -137,13 +163,18 @@ public final class StatsGui {
             }
             client = builder.build().start();
         }
+        this.pipe = client;
 
         final StatsPipe closing = client;
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                directorModel.stop();
                 if (closing != null) {
                     closing.close();
+                }
+                if (fakeGame != null) {
+                    fakeGame.close();
                 }
                 frame.dispose();
                 System.exit(0);
@@ -183,12 +214,18 @@ public final class StatsGui {
         JTabbedPane tabs = new JTabbedPane();
         this.tabs = tabs;
         attachShowCode(minimap, () -> new CodeTab.Request(Examples.Scenario.CAMERA_BOX, Examples.Selection.defaults()));
+        attachShowCode(status, () -> new CodeTab.Request(Examples.Scenario.FAKE_SERVER, Examples.Selection.defaults()));
+        wireControlPanels();
         tabs.addTab("Players", playersTab());
-        tabs.addTab("Minimap", minimap);
+        tabs.addTab("Minimap", minimapTab);
+        tabs.addTab("In view", viewTab);
         tabs.addTab("Events", eventsTab());
         tabs.addTab("Chat", chatTab());
         tabs.addTab("Lobby", lobbyTab());
         tabs.addTab("Match", matchTab());
+        tabs.addTab("Query", queryTab);
+        tabs.addTab("Camera", cameraTab);
+        tabs.addTab("Director", directorTab);
         tabs.addTab("Frames", framesTab());
         tabs.addTab("Code", codeTab);
 
@@ -208,7 +245,10 @@ public final class StatsGui {
                 minimap.repaint();
             }
         }).start();
-        new Timer(200, e -> refreshLabels()).start();
+        new Timer(200, e -> {
+            refreshLabels();
+            refreshPanels();
+        }).start();
         new Timer(1000, e -> refreshFeedHealth()).start();
     }
 
@@ -299,11 +339,14 @@ public final class StatsGui {
             GuiModel.EventRow event = model.events.get(row);
             return new String[] {event.kind() + " " + event.player(), StatCard.forEvent(event)};
         });
-        attachShowCode(eventsTable, (row, column) -> {
-            GuiModel.EventRow event = model.events.get(row);
-            StatEventKind kind = event.event().getKind() == StatEventKind.UNRECOGNIZED ? Examples.Selection.defaults().eventKind() : event.event().getKind();
-            return new CodeTab.Request(Examples.Scenario.REACT_TO_EVENT, Examples.Selection.defaults().withEventKind(kind).withPlayer(event.player()));
-        });
+        attachMenu(eventsTable, List.of(
+            new MenuEntry("Show code for this", (row, column) -> {
+                GuiModel.EventRow event = model.events.get(row);
+                StatEventKind kind = event.event().getKind() == StatEventKind.UNRECOGNIZED ? Examples.Selection.defaults().eventKind() : event.event().getKind();
+                showCode(new CodeTab.Request(Examples.Scenario.REACT_TO_EVENT, Examples.Selection.defaults().withEventKind(kind).withPlayer(event.player())));
+            }, (row, column) -> true),
+            new MenuEntry("Inspect object", (row, column) -> inspect(model.events.get(row).event().getObjectId()), (row, column) -> model.events.get(row).event().getObjectId() != 0),
+            new MenuEntry("Inspect killer", (row, column) -> inspect(model.events.get(row).event().getKillerObjectId()), (row, column) -> model.events.get(row).event().getKillerObjectId() != 0)));
         // The filter object holds the three criteria; the controls below update it and ask the sorter to refilter.
         @SuppressWarnings("unchecked")
         TableRowSorter<TableModel> sorter = (TableRowSorter<TableModel>) eventsTable.getRowSorter();
@@ -422,8 +465,13 @@ public final class StatsGui {
         GuiTables.HintTable summary = GuiTables.table(model.summary, "Filled at the score screen when the match ends.",
             Map.of("Player", 130, "Side", 90, "Buildings destroyed", 120), GuiTables.Sorting.BY_HEADER);
         GuiTables.useRenderer(observers, "ELO", new GuiTables.BlankRenderer(false));
-        JScrollPane top = new JScrollPane(info);
-        top.setBorder(BorderFactory.createTitledBorder("Match info"));
+        GuiTables.HintTable hello = GuiTables.table(model.helloInfo, "Waiting for the Hello of the game.", Map.of("Key", 130, "Value", 420), GuiTables.Sorting.NONE);
+        JScrollPane infoScroll = new JScrollPane(info);
+        infoScroll.setBorder(BorderFactory.createTitledBorder("Match info"));
+        JScrollPane helloScroll = new JScrollPane(hello);
+        helloScroll.setBorder(BorderFactory.createTitledBorder("The game (its Hello)"));
+        JSplitPane top = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, infoScroll, helloScroll);
+        top.setResizeWeight(0.55);
         top.setPreferredSize(new Dimension(400, 280));
         JScrollPane middle = new JScrollPane(observers);
         middle.setBorder(BorderFactory.createTitledBorder("Observers"));
@@ -465,15 +513,49 @@ public final class StatsGui {
 
     /** Adds a context menu item "Show code for this" to a table; the function maps the clicked model row and column to a request. */
     private void attachShowCode(JTable table, BiFunction<Integer, Integer, CodeTab.Request> request) {
-        JPopupMenu menu = new JPopupMenu();
-        JMenuItem item = new JMenuItem("Show code for this");
-        menu.add(item);
-        int[] target = {-1, -1};
-        item.addActionListener(e -> {
-            if (target[0] >= 0 && target[0] < table.getModel().getRowCount()) {
-                showCode(request.apply(target[0], target[1]));
+        attachMenu(table, List.of(new MenuEntry("Show code for this", (row, column) -> showCode(request.apply(row, column)), (row, column) -> true)));
+    }
+
+    private record TableMenu(int[] target, List<JMenuItem> items, List<MenuEntry> entries) {
+    }
+
+    private final Map<JTable, TableMenu> menus = new java.util.HashMap<>();
+
+    /** For the tests: points the menu of a table at a model row, as a right click would, and returns the item with this label (enabled or not as the row decides). */
+    JMenuItem popupItem(JTable table, int modelRow, String label) {
+        TableMenu menu = menus.get(table);
+        menu.target()[0] = modelRow;
+        menu.target()[1] = 0;
+        JMenuItem found = null;
+        for (int i = 0; i < menu.entries().size(); i++) {
+            menu.items().get(i).setEnabled(menu.entries().get(i).enabled().test(modelRow, 0));
+            if (menu.entries().get(i).label().equals(label)) {
+                found = menu.items().get(i);
             }
-        });
+        }
+        return found;
+    }
+
+    /** One entry of a table's context menu: it acts on the clicked model row and column, and is greyed out where {@code enabled} says no. */
+    private record MenuEntry(String label, BiConsumer<Integer, Integer> action, BiPredicate<Integer, Integer> enabled) {
+    }
+
+    /** Adds a context menu to a table; the entries get the clicked model row and column. */
+    private void attachMenu(JTable table, List<MenuEntry> entries) {
+        JPopupMenu menu = new JPopupMenu();
+        int[] target = {-1, -1};
+        List<JMenuItem> items = new ArrayList<>();
+        menus.put(table, new TableMenu(target, items, entries));
+        for (MenuEntry entry : entries) {
+            JMenuItem item = new JMenuItem(entry.label());
+            item.addActionListener(e -> {
+                if (target[0] >= 0 && target[0] < table.getModel().getRowCount()) {
+                    entry.action().accept(target[0], target[1]);
+                }
+            });
+            menu.add(item);
+            items.add(item);
+        }
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -497,6 +579,9 @@ public final class StatsGui {
                 table.setRowSelectionInterval(viewRow, viewRow);
                 target[0] = table.convertRowIndexToModel(viewRow);
                 target[1] = viewColumn < 0 ? 0 : table.convertColumnIndexToModel(viewColumn);
+                for (int i = 0; i < entries.size(); i++) {
+                    items.get(i).setEnabled(entries.get(i).enabled().test(target[0], target[1]));
+                }
                 menu.show(table, e.getX(), e.getY());
             }
         });
@@ -530,6 +615,106 @@ public final class StatsGui {
     private void showCode(CodeTab.Request request) {
         codeTab.show(request);
         tabs.setSelectedComponent(codeTab);
+    }
+
+    // -- The panels that ask the game.
+
+    /** Connects the menus and buttons of the Query, Camera, In view and Director tabs to each other and to the code generator. */
+    private void wireControlPanels() {
+        queryTab.onFollow(id -> {
+            tabs.setSelectedComponent(cameraTab);
+            cameraTab.followObject(id);
+        });
+        cameraTab.inspectedObject(queryTab::lastObjectId);
+        minimapTab.onFeedConfig(queryTab::showFeed);
+        attachMenu(queryTab.catalogTable(), List.of(
+            new MenuEntry("Show code for this", (row, column) -> {
+                CatalogEntry entry = queryTab.catalogEntry(row);
+                showCode(new CodeTab.Request(Examples.Scenario.QUERY_CATALOG, Examples.Selection.defaults().withTemplate(entry.getName(), entry.getSide())));
+            }, (row, column) -> true),
+            new MenuEntry("Look up this name", (row, column) -> queryTab.lookUp(queryTab.catalogEntry(row).getName(), ""), (row, column) -> true)));
+        attachShowCode(queryTab.objectArea(), () -> new CodeTab.Request(Examples.Scenario.INSPECT_OBJECT,
+            Examples.Selection.defaults().withObjectId(queryTab.lastObjectId() != 0 ? queryTab.lastObjectId() : Examples.Selection.defaults().objectId())));
+        attachMenu(viewTab.notableTable(), List.of(
+            new MenuEntry("Inspect object", (row, column) -> inspect(viewTab.rows().notableRow(row).objectId()), (row, column) -> true),
+            new MenuEntry("Show code for this", (row, column) -> showCode(new CodeTab.Request(Examples.Scenario.INSPECT_OBJECT,
+                Examples.Selection.defaults().withObjectId(viewTab.rows().notableRow(row).objectId()))), (row, column) -> true)));
+        attachShowCode(viewTab.playersTable(), (row, column) -> new CodeTab.Request(Examples.Scenario.VIEW_STATS, Examples.Selection.defaults()));
+        attachShowCode(viewTab.weaponsTable(), (row, column) -> new CodeTab.Request(Examples.Scenario.VIEW_STATS, Examples.Selection.defaults()));
+        attachShowCode(cameraTab.cameraSection(), () -> new CodeTab.Request(Examples.Scenario.CAMERA_CONTROL, cameraTab.cameraSelection()));
+        attachShowCode(cameraTab.replaySection(), () -> new CodeTab.Request(Examples.Scenario.REPLAY_CONTROL, cameraTab.replaySelection()));
+        attachShowCode(directorTab, () -> new CodeTab.Request(Examples.Scenario.DIRECTOR, directorTab.selection()));
+    }
+
+    /** Shows the Query tab and asks the game about an object; 0 is no object and does nothing. */
+    private void inspect(int objectId) {
+        if (objectId != 0) {
+            tabs.setSelectedComponent(queryTab);
+            queryTab.inspect(objectId);
+        }
+    }
+
+    /** The panels that read the library state (view statistics, camera, interest, director) refresh from the same timer as the labels. */
+    private void refreshPanels() {
+        queryTab.refreshPlayers();
+        cameraTab.refresh();
+        viewTab.refresh();
+        minimapTab.refresh();
+        directorTab.refresh();
+    }
+
+    // -- For the tests: the pieces, and a way to attach a connection without opening a window.
+
+    EdtFeed feed() {
+        return feed;
+    }
+
+    /** Uses this connection for the panels' requests; the caller builds it with {@link #feed()} as its listener. */
+    void connectTo(StatsPipe connection) {
+        this.pipe = connection;
+    }
+
+    QueryTab queryTab() {
+        return queryTab;
+    }
+
+    CameraTab cameraTab() {
+        return cameraTab;
+    }
+
+    ViewStatsTab viewTab() {
+        return viewTab;
+    }
+
+    MinimapTab minimapTab() {
+        return minimapTab;
+    }
+
+    DirectorTab directorTab() {
+        return directorTab;
+    }
+
+    DirectorModel directorModel() {
+        return directorModel;
+    }
+
+    CodeTab codeTab() {
+        return codeTab;
+    }
+
+    JTabbedPane tabs() {
+        return tabs;
+    }
+
+    GuiTables.HintTable eventsTable() {
+        return eventsTable;
+    }
+
+    /** Runs the timers' work once; tests call it instead of waiting for the timers. */
+    void refreshAll() {
+        feed.applyCamera();
+        refreshLabels();
+        refreshPanels();
     }
 
     // -- Stat cards.
@@ -593,6 +778,7 @@ public final class StatsGui {
             eventsTable.repaint(); // the "recent" highlight moves with game time
         }
         refreshPlayerChoices();
+        gameLabel.setToolTipText(model.state().hello().map(h -> "<html>" + h.getGameBuild() + "<br>" + h.getCapabilitiesCount() + " capabilities: " + String.join(", ", h.getCapabilitiesList()) + "</html>").orElse(null));
 
         Boolean ok = model.predictionCheckOk();
         predictionLabel.setText(ok == null ? " " : model.predictionCheckText());

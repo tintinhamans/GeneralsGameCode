@@ -47,7 +47,7 @@ class GuiRenderTest {
         for (int i = 0; i < tabs.getTabCount(); i++) {
             titles.add(tabs.getTitleAt(i));
         }
-        assertEquals(Set.of("Players", "Minimap", "Events", "Chat", "Lobby", "Match", "Frames", "Code"), titles);
+        assertEquals(Set.of("Players", "Minimap", "In view", "Events", "Chat", "Lobby", "Match", "Query", "Camera", "Director", "Frames", "Code"), titles);
 
         content.setSize(1200, 700);
         content.doLayout();

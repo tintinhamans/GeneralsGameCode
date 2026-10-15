@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.generalsonline.stats.DirectorMode;
 import com.generalsonline.stats.StatsPipe;
 import com.generalsonline.stats.proto.ChatAudience;
 import com.generalsonline.stats.proto.ChatChannel;
@@ -103,7 +104,7 @@ class ExamplesTest {
             programs.add(Examples.generate(scenario, DEFAULTS));
             scenarios.add(scenario);
         }
-        assertEquals(8, programs.size(), "the eight scenarios of the brief");
+        assertEquals(15, programs.size(), "the eight scenarios of the first version and the seven of the control features");
         assertCompiles(output, programs, scenarios);
     }
 
@@ -232,6 +233,94 @@ class ExamplesTest {
             assertFalse(program.startsWith("package "), "default package, so the single file runs: " + scenario.id());
             assertEquals(scenario.className() + ".java", scenario.fileName());
         }
+    }
+
+    // -- The scenarios of the query, control, director and fake game features.
+
+    @Test
+    void theControlScenariosCompileForAwkwardSelections(@TempDir Path output) throws Exception {
+        List<String> programs = new ArrayList<>();
+        List<Examples.Scenario> scenarios = new ArrayList<>();
+        String awkward = "A\"b\\c \u4e2d";
+        programs.add(Examples.generate(Examples.Scenario.QUERY_CATALOG, DEFAULTS.withTemplate(awkward, awkward)));
+        scenarios.add(Examples.Scenario.QUERY_CATALOG);
+        programs.add(Examples.generate(Examples.Scenario.INSPECT_OBJECT, DEFAULTS.withObjectId(Integer.MAX_VALUE)));
+        scenarios.add(Examples.Scenario.INSPECT_OBJECT);
+        programs.add(Examples.generate(Examples.Scenario.CAMERA_CONTROL, DEFAULTS.withCamera(-1.5e7, 1e-3, 19.5).withObjectId(7)));
+        scenarios.add(Examples.Scenario.CAMERA_CONTROL);
+        programs.add(Examples.generate(Examples.Scenario.REPLAY_CONTROL, DEFAULTS.withReplaySpeed(16)));
+        scenarios.add(Examples.Scenario.REPLAY_CONTROL);
+        programs.add(Examples.generate(Examples.Scenario.VIEW_STATS, DEFAULTS));
+        scenarios.add(Examples.Scenario.VIEW_STATS);
+        for (DirectorMode mode : DirectorMode.values()) {
+            programs.add(Examples.generate(Examples.Scenario.DIRECTOR, DEFAULTS.withDirectorMode(mode)));
+            scenarios.add(Examples.Scenario.DIRECTOR);
+        }
+        programs.add(Examples.generate(Examples.Scenario.FAKE_SERVER, DEFAULTS.withDumpFile("C:\\dumps\\a \"b\".dump")));
+        scenarios.add(Examples.Scenario.FAKE_SERVER);
+        assertCompiles(output, programs, scenarios);
+    }
+
+    @Test
+    void theControlScenariosShowTheirSelectionAndTheirApi() {
+        String catalog = Examples.generate(Examples.Scenario.QUERY_CATALOG, DEFAULTS.withTemplate("ChinaTankOverlord", "China"));
+        assertTrue(catalog.contains("SIDE = \"China\"") && catalog.contains("NAME = \"ChinaTankOverlord\""), catalog);
+        assertTrue(catalog.contains("PageRequest.newBuilder().setCursor(cursor)") && catalog.contains("catalogAll"), catalog);
+
+        String inspect = Examples.generate(Examples.Scenario.INSPECT_OBJECT, DEFAULTS.withObjectId(77));
+        assertTrue(inspect.contains("DEFAULT_ID = 77;") && inspect.contains("pipe.object(id)") && inspect.contains("RequestFailedException"), inspect);
+
+        String camera = Examples.generate(Examples.Scenario.CAMERA_CONTROL, DEFAULTS.withCamera(10, 20.5, 2).withObjectId(9));
+        assertTrue(camera.contains("CameraMove.to(10.0, 20.5).zoom(2.0)") && camera.contains("followUnit(9)") && camera.contains("NotAllowedException"), camera);
+        assertTrue(camera.contains("easeInOut()") && camera.contains("resetCamera()") && camera.contains("unfollowUnit()"), camera);
+
+        String replay = Examples.generate(Examples.Scenario.REPLAY_CONTROL, DEFAULTS.withReplaySpeed(0.25));
+        assertTrue(replay.contains("setReplaySpeed(0.25)") && replay.contains("getSpeedCapped()") && replay.contains("setReplayFastForward(true)"), replay);
+
+        String view = Examples.generate(Examples.Scenario.VIEW_STATS, DEFAULTS);
+        assertTrue(view.contains("viewStatsChanged(ViewStats view)") && view.contains("getValueInView()") && view.contains("100.0 * value / total"), view);
+
+        String director = Examples.generate(Examples.Scenario.DIRECTOR, DEFAULTS.withDirectorMode(DirectorMode.HIGHLIGHTS));
+        assertTrue(director.contains("DirectorMode.HIGHLIGHTS") && director.contains("Director.start(pipe, state, config)") && director.contains("director.lastMove()"), director);
+        assertTrue(director.contains("a superweapon launch, a hero death"), director);
+
+        String fake = Examples.generate(Examples.Scenario.FAKE_SERVER, DEFAULTS.withDumpFile("x.dump"));
+        assertTrue(fake.contains("\"x.dump\"") && fake.contains("game.connect(StatsPipe.builder()") && fake.contains("namedPipe(false)") && fake.contains("holdForReader(true)"), fake);
+        assertFalse(fake.contains("\\\\.\\pipe"), "no backslash path in a template: " + fake);
+    }
+
+    @Test
+    void aNumberThatIsNotFiniteIsRefusedNotWrittenIntoTheProgram() {
+        assertThrows(IllegalArgumentException.class, () -> Examples.generate(Examples.Scenario.CAMERA_CONTROL, DEFAULTS.withCamera(Double.NaN, 0, 1)));
+        assertThrows(IllegalArgumentException.class, () -> Examples.generate(Examples.Scenario.REPLAY_CONTROL, DEFAULTS.withReplaySpeed(Double.POSITIVE_INFINITY)));
+    }
+
+    @Test
+    void theExampleCommandFillsTheNewScenarios() {
+        assertEquals(Examples.generate(Examples.Scenario.QUERY_CATALOG, DEFAULTS.withTemplate("GLATankScorpion", "GLA")), run("--template", "GLATankScorpion", "--side", "GLA", "query-catalog"));
+        assertEquals(Examples.generate(Examples.Scenario.INSPECT_OBJECT, DEFAULTS.withObjectId(55)), run("--object", "55", "inspect-object"));
+        assertEquals(Examples.generate(Examples.Scenario.CAMERA_CONTROL, DEFAULTS.withCamera(5, 6, 0.5).withObjectId(8)), run("--x", "5", "--y", "6", "--zoom", "0.5", "--object", "8", "camera-control"));
+        assertEquals(Examples.generate(Examples.Scenario.REPLAY_CONTROL, DEFAULTS.withReplaySpeed(4)), run("--speed", "4", "replay-control"));
+        assertEquals(Examples.generate(Examples.Scenario.DIRECTOR, DEFAULTS.withDirectorMode(DirectorMode.OVERVIEW)), run("--mode", "Overview", "director"));
+        assertEquals(Examples.generate(Examples.Scenario.FAKE_SERVER, DEFAULTS.withDumpFile("a.dump")), run("--dump", "a.dump", "fake-server"));
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> run("--mode", "nope", "director")).getMessage().contains("hotspot"));
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> run("--x", "abc", "camera-control")).getMessage().contains("--x needs a number"));
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> run("--object", "1.5", "inspect-object")).getMessage().contains("whole number"));
+    }
+
+    @Test
+    void theCodeTabFillsAndReadsTheNewControls() {
+        CodeTab tab = new CodeTab();
+        tab.show(new CodeTab.Request(Examples.Scenario.CAMERA_CONTROL, DEFAULTS.withCamera(11, 22, 3).withObjectId(33)));
+        assertTrue(tab.code().contains("CameraMove.to(11.0, 22.0).zoom(3.0)") && tab.code().contains("followUnit(33)"), tab.code());
+        assertEquals(11.0, tab.selection().cameraX());
+        assertEquals(33, tab.selection().objectId());
+        tab.show(new CodeTab.Request(Examples.Scenario.DIRECTOR, DEFAULTS.withDirectorMode(DirectorMode.HOTSPOT)));
+        assertTrue(tab.code().contains("DirectorMode.HOTSPOT"), tab.code());
+        tab.show(new CodeTab.Request(Examples.Scenario.QUERY_CATALOG, DEFAULTS.withTemplate("Foo", "Bar")));
+        assertTrue(tab.code().contains("\"Foo\"") && tab.code().contains("\"Bar\""), tab.code());
+        tab.show(new CodeTab.Request(Examples.Scenario.FAKE_SERVER, DEFAULTS.withDumpFile("zz.dump")));
+        assertTrue(tab.code().contains("\"zz.dump\""), tab.code());
     }
 
     // -- The catalogues stay complete.

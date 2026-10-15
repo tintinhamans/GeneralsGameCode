@@ -202,6 +202,15 @@ final class CellText {
         return text.toString();
     }
 
+    /** Who moved the camera since the previous camera frame, as a short phrase. */
+    static String cameraSourceText(Camera c) {
+        return switch (c.getChangeSource()) {
+            case CAMERA_CHANGE_USER -> "a human";
+            case CAMERA_CHANGE_PIPE -> "a command";
+            default -> "the game";
+        };
+    }
+
     static String cameraText(Camera c) {
         Format.ViewBox box = Format.viewBox(c);
         String view = box == null ? "" : String.format("    view centre %.0f, %.0f  size %.0f x %.0f  turned %.0f deg", box.centerX(), box.centerY(), box.width(), box.height(), box.rotationDegrees());

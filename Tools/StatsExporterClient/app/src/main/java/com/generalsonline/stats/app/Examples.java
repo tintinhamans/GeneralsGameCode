@@ -1,5 +1,6 @@
 package com.generalsonline.stats.app;
 
+import com.generalsonline.stats.DirectorMode;
 import com.generalsonline.stats.proto.ChatAudience;
 import com.generalsonline.stats.proto.ChatChannel;
 import com.generalsonline.stats.proto.StatEventKind;
@@ -34,7 +35,21 @@ final class Examples {
         RECORD_REPLAY("record-replay", "RecordAndReplay", "Record a dump and replay it at 2x",
             "Write the raw frames to a file, then replay the file into the same listener at twice real time."),
         UI_THREAD("ui-thread", "UiThreadState", "Use MatchState from a UI thread",
-            "Receive callbacks on the Swing event thread (or JavaFX) with an executor, and read the state from anywhere.");
+            "Receive callbacks on the Swing event thread (or JavaFX) with an executor, and read the state from anywhere."),
+        QUERY_CATALOG("query-catalog", "QueryCatalog", "Page through the catalog and look up a template",
+            "Ask the game for its object templates a page at a time, filtered by side, and find one by its internal name."),
+        INSPECT_OBJECT("inspect-object", "InspectObject", "Inspect one object by id",
+            "Look a live object up by the id an event, a selection or a view statistic gave: template, owner, place, health, veterancy."),
+        CAMERA_CONTROL("camera-control", "CameraControl", "Move the camera and follow a unit",
+            "Pan the game's camera with a transition, then lock it on a unit. Needs an observer or a replay; an active player gets NOT_ALLOWED."),
+        REPLAY_CONTROL("replay-control", "ReplayControl", "Pause, resume and change the speed of a replay",
+            "Steer a replay playback: pause, resume, a speed ratio (capped by the game) and fast forward."),
+        VIEW_STATS("view-stats", "ViewStatsShare", "Print each player's share of the value in view",
+            "Read the ViewStats frames and print what share of the value inside the camera's view each player holds."),
+        DIRECTOR("director", "RunDirector", "Run the automatic camera director",
+            "Let the Director steer the camera in a mode (hotspot, highlights, overview or all three) and print what it does."),
+        FAKE_SERVER("fake-server", "FakeServer", "Serve a dump as a fake game and connect to it",
+            "Play a recorded dump back as a game, in this process, and read it with the same code that reads a live game.");
 
         private final String id;
         private final String className;
@@ -96,34 +111,76 @@ final class Examples {
      * @param channel the chat channel to send to
      * @param audience the in-match chat audience
      * @param chatText the line to send
+     * @param templateName the object template to look up in the catalog
+     * @param side the side to list templates of
+     * @param objectId the object to inspect or follow
+     * @param cameraX the world x to move the camera to
+     * @param cameraY the world y to move the camera to
+     * @param zoom the camera zoom
+     * @param replaySpeed the replay speed ratio
+     * @param directorMode the mode of the director
+     * @param dumpFile the dump file the fake game plays
      */
-    record Selection(String playerName, String column, StatEventKind eventKind, ChatChannel channel, ChatAudience audience, String chatText) {
+    record Selection(String playerName, String column, StatEventKind eventKind, ChatChannel channel, ChatAudience audience, String chatText,
+                     String templateName, String side, int objectId, double cameraX, double cameraY, double zoom, double replaySpeed, DirectorMode directorMode,
+                     String dumpFile) {
         static Selection defaults() {
-            return new Selection("Alice", "Money", StatEventKind.STATEVENT_KILL, ChatChannel.CHAT_CHANNEL_MATCH, ChatAudience.CHAT_AUDIENCE_EVERYONE, "gg wp");
+            return new Selection("Alice", "Money", StatEventKind.STATEVENT_KILL, ChatChannel.CHAT_CHANNEL_MATCH, ChatAudience.CHAT_AUDIENCE_EVERYONE, "gg wp",
+                "AmericaTankCrusader", "America", 1234, 1800.0, 2400.0, 1.2, 0.5, DirectorMode.DIRECTOR, "match.dump");
+        }
+
+        private static String orElse(String value, String fallback) {
+            return value == null || value.isBlank() ? fallback : value;
         }
 
         Selection withPlayer(String name) {
-            return new Selection(name == null || name.isBlank() ? playerName : name, column, eventKind, channel, audience, chatText);
+            return new Selection(orElse(name, playerName), column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
         }
 
         Selection withColumn(String name) {
-            return new Selection(playerName, name, eventKind, channel, audience, chatText);
+            return new Selection(playerName, name, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
         }
 
         Selection withEventKind(StatEventKind kind) {
-            return new Selection(playerName, column, kind, channel, audience, chatText);
+            return new Selection(playerName, column, kind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
         }
 
         Selection withChannel(ChatChannel next) {
-            return new Selection(playerName, column, eventKind, next, audience, chatText);
+            return new Selection(playerName, column, eventKind, next, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
         }
 
         Selection withAudience(ChatAudience next) {
-            return new Selection(playerName, column, eventKind, channel, next, chatText);
+            return new Selection(playerName, column, eventKind, channel, next, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
         }
 
         Selection withChatText(String text) {
-            return new Selection(playerName, column, eventKind, channel, audience, text);
+            return new Selection(playerName, column, eventKind, channel, audience, text, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
+        }
+
+        /** The template to look up and the side to list (a blank one keeps the current value). */
+        Selection withTemplate(String name, String forSide) {
+            return new Selection(playerName, column, eventKind, channel, audience, chatText, orElse(name, templateName), orElse(forSide, side), objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
+        }
+
+        Selection withObjectId(int id) {
+            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, id, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
+        }
+
+        /** Where the camera goes, and at what zoom. */
+        Selection withCamera(double x, double y, double nextZoom) {
+            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, x, y, nextZoom, replaySpeed, directorMode, dumpFile);
+        }
+
+        Selection withReplaySpeed(double speed) {
+            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, speed, directorMode, dumpFile);
+        }
+
+        Selection withDirectorMode(DirectorMode mode) {
+            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, mode, dumpFile);
+        }
+
+        Selection withDumpFile(String file) {
+            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, orElse(file, dumpFile));
         }
     }
 
@@ -341,6 +398,36 @@ final class Examples {
             }
             case RECORD_REPLAY -> template = ExampleTemplates.RECORD_REPLAY;
             case UI_THREAD -> template = ExampleTemplates.UI_THREAD;
+            case QUERY_CATALOG -> {
+                values.put("SIDE", javaString(selection.side()));
+                values.put("NAME", javaString(selection.templateName()));
+                template = ExampleTemplates.QUERY_CATALOG;
+            }
+            case INSPECT_OBJECT -> {
+                values.put("OBJECT_ID", Integer.toString(selection.objectId()));
+                template = ExampleTemplates.INSPECT_OBJECT;
+            }
+            case CAMERA_CONTROL -> {
+                values.put("X", number(selection.cameraX()));
+                values.put("Y", number(selection.cameraY()));
+                values.put("ZOOM", number(selection.zoom()));
+                values.put("OBJECT_ID", Integer.toString(selection.objectId()));
+                template = ExampleTemplates.CAMERA_CONTROL;
+            }
+            case REPLAY_CONTROL -> {
+                values.put("SPEED", number(selection.replaySpeed()));
+                template = ExampleTemplates.REPLAY_CONTROL;
+            }
+            case VIEW_STATS -> template = ExampleTemplates.VIEW_STATS;
+            case DIRECTOR -> {
+                values.put("MODE", selection.directorMode().name());
+                values.put("MODE_DESCRIPTION", modeDescription(selection.directorMode()));
+                template = ExampleTemplates.DIRECTOR;
+            }
+            case FAKE_SERVER -> {
+                values.put("DUMP", javaString(selection.dumpFile()));
+                template = ExampleTemplates.FAKE_SERVER;
+            }
             default -> throw new IllegalArgumentException("unknown scenario " + scenario);
         }
         return fill(template, values);
@@ -389,6 +476,23 @@ final class Examples {
     /** A conditional expression needs parentheses to stay one operand of the string concatenation. */
     private static String wrap(String expression) {
         return expression.contains(" ? ") ? "(" + expression + ")" : expression;
+    }
+
+    /** A finite number as a Java double literal ("1800.0"). */
+    private static String number(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException("a number is needed here, got " + value);
+        }
+        return Double.toString(value);
+    }
+
+    private static String modeDescription(DirectorMode mode) {
+        return switch (mode) {
+            case HOTSPOT -> "it goes to the place with the most going on and stays until something clearly better appears";
+            case HIGHLIGHTS -> "it waits for a superweapon launch, a hero death or a big structure loss, shows it and returns";
+            case OVERVIEW -> "it tours every player's base and army while it is quiet, and hands over to hotspots in a fight";
+            case DIRECTOR -> "highlights interrupt, hotspots are followed and the overview fills the quiet";
+        };
     }
 
     private static String channelDescription(ChatChannel channel, ChatAudience audience) {

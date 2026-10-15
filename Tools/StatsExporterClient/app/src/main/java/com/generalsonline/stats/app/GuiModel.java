@@ -170,6 +170,11 @@ final class GuiModel implements StatsListener {
         column("Key", String.class, (String[] r) -> r[0]),
         column("Value", String.class, (String[] r) -> r[1])));
 
+    /** The game's Hello as key/value rows: version, build, pid, reader slot, limits and the capabilities. */
+    final RowTableModel<String[]> helloInfo = new RowTableModel<>(40, List.of(
+        column("Key", String.class, (String[] r) -> r[0]),
+        column("Value", String.class, (String[] r) -> r[1])));
+
     final RowTableModel<MatchPlayer> observers = new RowTableModel<>(64, List.of(
         column("Name", String.class, MatchPlayer::getName),
         column("Slot", Integer.class, (MatchPlayer r) -> r.getLobbySlot() + 1),
@@ -474,6 +479,7 @@ final class GuiModel implements StatsListener {
     @Override
     public void onHello(Hello message) {
         state.onHello(message);
+        helloInfo.replaceAll(helloRows(message));
     }
 
     @Override
@@ -679,6 +685,22 @@ final class GuiModel implements StatsListener {
         return new EventRow(e, u(e.getFrame()), Format.gameTime(u(e.getFrame()), logicFps), state.playerName(e.getPlayerIndex()), e.getPlayerIndex(),
             strip(e.getKind().name(), "STATEVENT_"), e.getCategory(), e.getPrimaryName(), e.getSecondaryName(), u(e.getCost()),
             Format.eventLocation(e), state.eventDetail(e));
+    }
+
+    private static List<String[]> helloRows(Hello h) {
+        List<String[]> rows = new ArrayList<>();
+        rows.add(new String[] {"Game version", h.getGameVersion()});
+        rows.add(new String[] {"Game build", h.getGameBuild()});
+        rows.add(new String[] {"Process id", Long.toString(u(h.getProcessId()))});
+        rows.add(new String[] {"Protocol version", Long.toString(u(h.getProtocolVersion()))});
+        rows.add(new String[] {"Logic rate", u(h.getLogicFramesPerSecond()) + " frames per second"});
+        rows.add(new String[] {"Reader slot", (h.getReaderSlot() + 1) + " of " + h.getMaxReaders() + " readers"});
+        rows.add(new String[] {"Game clock zero", h.getEpochUnixMs() == 0 ? "" : DATE_TIME.format(Instant.ofEpochMilli(h.getEpochUnixMs()).atZone(ZoneId.systemDefault()))});
+        rows.add(new String[] {"Request rate", h.getMaxRequestsPerSecond() + " per second, bursts of " + h.getMaxRequestBurst()});
+        rows.add(new String[] {"Page size limit", Long.toString(u(h.getMaxPageSize()))});
+        rows.add(new String[] {"Outbound queue", u(h.getQueueCapacityBytes()) / 1024 + " KB per reader; further behind loses frames"});
+        rows.add(new String[] {"Capabilities", String.join(", ", h.getCapabilitiesList())});
+        return rows;
     }
 
     private static List<String[]> matchRows(MatchInfo m, int logicFps) {
