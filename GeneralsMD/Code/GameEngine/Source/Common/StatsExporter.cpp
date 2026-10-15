@@ -420,7 +420,7 @@ void StatsExporterBeginRecording()
 
 void StatsExporterRecordKill(const Object *killer, const Object *victim, const DamageInfo *damageInfo)
 {
-	// live pipe feed, gated inside by the stats pipe setting
+	// live pipe feed; a cheap early-out while no reader is connected
 	if (killer != nullptr && victim != nullptr && killer->getControllingPlayer() != nullptr)
 	{
 		StatsExporterLiveKill(killer->getControllingPlayer()->getPlayerIndex(), victim->getTemplate());

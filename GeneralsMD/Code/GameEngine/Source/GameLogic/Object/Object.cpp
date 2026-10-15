@@ -3243,14 +3243,6 @@ void Object::onVeterancyLevelChanged( VeterancyLevel oldLevel, VeterancyLevel ne
 
 	if (doAnimation)
 		createVeterancyLevelFX(oldLevel, newLevel);
-
-	Player* statsController = getControllingPlayer();
-	if (statsController != nullptr)
-	{
-		StatsExporterLiveVeterancyChange(
-			statsController->getPlayerIndex(), getTemplate(), getID(),
-			static_cast<Int>(oldLevel), static_cast<Int>(newLevel));
-	}
 }
 
 void Object::createVeterancyLevelFX(VeterancyLevel oldLevel, VeterancyLevel newLevel)

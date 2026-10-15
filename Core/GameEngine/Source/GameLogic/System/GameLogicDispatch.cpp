@@ -260,6 +260,11 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 		return;
 	}
 
+#if defined(GENONLINE) && RTS_ZEROHOUR
+	// the live stats feed: every way a match ends (quit, replay left early, disconnect) passes here; a no-op if ENDED went out already
+	StatsExporterLiveGameDataCleared();
+#endif
+
 	setClearingGameData( TRUE );
 
 //	m_background = TheWindowManager->winCreateLayout("Menus/BlankWindow.wnd");

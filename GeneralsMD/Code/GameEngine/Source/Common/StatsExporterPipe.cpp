@@ -37,6 +37,59 @@ namespace
 	const DWORD STATS_PIPE_IDLE_WAIT_MS = 250;	///< periodic wake so shutdown is never stuck longer than this
 
 	volatile LONG s_statsPipeUsed = 0;
+
+#ifndef PIPE_REJECT_REMOTE_CLIENTS
+	#define PIPE_REJECT_REMOTE_CLIENTS 0x00000008
+#endif
+
+	// A security descriptor whose only access control entry grants the current user full access to the pipe.
+	struct PipeSecurity
+	{
+		SECURITY_ATTRIBUTES attributes;
+		SECURITY_DESCRIPTOR descriptor;
+		DWORD tokenBuffer[128];	// DWORD arrays keep the SID and the ACL aligned
+		DWORD aclBuffer[128];
+	};
+
+	Bool buildPipeSecurity(PipeSecurity& security)
+	{
+		HANDLE token = NULL;
+		DWORD needed = 0;
+		BOOL haveUser;
+
+		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
+		{
+			return FALSE;
+		}
+		haveUser = GetTokenInformation(token, TokenUser, security.tokenBuffer, sizeof(security.tokenBuffer), &needed);
+		CloseHandle(token);
+		if (!haveUser)
+		{
+			return FALSE;
+		}
+
+		PSID userSid = ((TOKEN_USER*)security.tokenBuffer)->User.Sid;
+		ACL* acl = (ACL*)security.aclBuffer;
+		const DWORD aclLength = (DWORD)((sizeof(ACL) + sizeof(ACCESS_ALLOWED_ACE) - sizeof(DWORD) + GetLengthSid(userSid) + 3) & ~3);
+		if (aclLength > sizeof(security.aclBuffer))
+		{
+			SetLastError(ERROR_INSUFFICIENT_BUFFER);
+			return FALSE;
+		}
+
+		if (!InitializeAcl(acl, aclLength, ACL_REVISION)
+			|| !AddAccessAllowedAce(acl, ACL_REVISION, GENERIC_ALL, userSid)
+			|| !InitializeSecurityDescriptor(&security.descriptor, SECURITY_DESCRIPTOR_REVISION)
+			|| !SetSecurityDescriptorDacl(&security.descriptor, TRUE, acl, FALSE))
+		{
+			return FALSE;
+		}
+
+		security.attributes.nLength = sizeof(security.attributes);
+		security.attributes.lpSecurityDescriptor = &security.descriptor;
+		security.attributes.bInheritHandle = FALSE;
+		return TRUE;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +174,12 @@ void StatsExporterPipeServer::FrameQueue::write(UnsignedInt offset, const Unsign
 	}
 }
 
-Bool StatsExporterPipeServer::FrameQueue::push(const UnsignedByte* header, UnsignedInt headerLength, const UnsignedByte* body, UnsignedInt bodyLength)
+UnsignedInt StatsExporterPipeServer::FrameQueue::freeBytes() const
+{
+	return STATS_QUEUE_CAPACITY_BYTES - m_count;
+}
+
+Bool StatsExporterPipeServer::FrameQueue::push(const UnsignedByte* header, UnsignedInt headerLength, const UnsignedByte* body, UnsignedInt bodyLength, UnsignedInt reserve)
 {
 	const UnsignedInt length = headerLength + bodyLength;
 
@@ -129,7 +187,7 @@ Bool StatsExporterPipeServer::FrameQueue::push(const UnsignedByte* header, Unsig
 	{
 		return FALSE;
 	}
-	if (length > STATS_QUEUE_CAPACITY_BYTES - m_count)
+	if (length + reserve > STATS_QUEUE_CAPACITY_BYTES - m_count)
 	{
 		// Overflow contract: drop the new frame, never block, never split.
 		return FALSE;
@@ -208,6 +266,7 @@ StatsExporterPipeServer::StatsExporterPipeServer()
 	, m_shuttingDown(0)
 	, m_connected(0)
 	, m_connectionGeneration(0)
+	, m_resyncNeeded(0)
 	, m_readEvent(NULL)
 	, m_readPending(FALSE)
 	, m_inboundLen(0)
@@ -287,14 +346,18 @@ void StatsExporterPipeServer::shutdown()
 	m_shuttingDown = 0;
 }
 
-void StatsExporterPipeServer::enqueueFrame(UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength)
+Bool StatsExporterPipeServer::enqueueFrame(UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength, UnsignedInt generation)
 {
 	UnsignedByte header[FRAME_HEADER_BYTES];
-	Bool pushed;
+	Bool pushed = FALSE;
+	const Bool periodic = (frameType == STATS_EXPORTER_FRAME_STATS_SNAPSHOT || frameType == STATS_EXPORTER_FRAME_EVENTS || frameType == STATS_EXPORTER_FRAME_CAMERA);
+	// the one-shot frames a reader cannot do without; a dropped chat line is just lost
+	const Bool lifecycle = (frameType == STATS_EXPORTER_FRAME_MATCH_INFO || frameType == STATS_EXPORTER_FRAME_MATCH_SUMMARY
+		|| frameType == STATS_EXPORTER_FRAME_UI_STATE || frameType == STATS_EXPORTER_FRAME_LOBBY_STATE);
 
 	if (body == NULL || bodyLength == 0 || bodyLength > STATS_EXPORTER_MAX_BODY_BYTES)
 	{
-		return;
+		return FALSE;
 	}
 
 	header[0] = (UnsignedByte)(bodyLength & 0xFF);
@@ -305,14 +368,44 @@ void StatsExporterPipeServer::enqueueFrame(UnsignedByte frameType, const Unsigne
 
 	ensureStarted();
 
+	// The connection state is checked under the same lock that a new connection clears the queue under, so a frame produced
+	// for the previous reader can never land in the new reader's stream.
 	EnterCriticalSection(&m_queueLock);
-	pushed = m_queue.push(header, FRAME_HEADER_BYTES, body, bodyLength);
+	if (m_connected != 0 && generation == (UnsignedInt)m_connectionGeneration)
+	{
+		pushed = m_queue.push(header, FRAME_HEADER_BYTES, body, bodyLength, periodic ? STATS_EXPORTER_PERIODIC_RESERVE_BYTES : 0);
+		if (!pushed && lifecycle)
+		{
+			InterlockedExchange((LONG*)&m_resyncNeeded, 1);
+		}
+	}
 	LeaveCriticalSection(&m_queueLock);
 
 	if (pushed && m_wakeEvent != NULL)
 	{
 		SetEvent(m_wakeEvent);
 	}
+	return pushed;
+}
+
+Bool StatsExporterPipeServer::takeResyncRequest()
+{
+	Bool roomAgain;
+
+	if (m_resyncNeeded == 0)
+	{
+		return FALSE;
+	}
+
+	// Only once the reader has drained at least half the ring, so the frames that are sent again fit.
+	EnterCriticalSection(&m_queueLock);
+	roomAgain = m_queue.freeBytes() >= STATS_QUEUE_CAPACITY_BYTES / 2;
+	LeaveCriticalSection(&m_queueLock);
+	if (!roomAgain)
+	{
+		return FALSE;
+	}
+	return InterlockedExchange((LONG*)&m_resyncNeeded, 0) != 0;
 }
 
 Bool StatsExporterPipeServer::takeChatSend(StatsExporterChatSend& out)
@@ -415,14 +508,23 @@ Bool StatsExporterPipeServer::openPipeInstance(DWORD* createError)
 	*createError = 0;
 	wsprintfA(pipeName, "\\\\.\\pipe\\generalsonline-stats-%lu", GetCurrentProcessId());
 
+	// Only the user the game runs as may open the pipe, and never over the network. If that user cannot be determined the
+	// pipe is not created at all rather than falling back to the default (wider) access.
+	PipeSecurity security;
+	if (!buildPipeSecurity(security))
+	{
+		*createError = GetLastError();
+		return FALSE;
+	}
+
 	m_pipe = CreateNamedPipeA(
 		pipeName,
 		PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
-		PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+		PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
 		1,	// single instance: one exporter at a time
 		STATS_PIPE_BUFFER_BYTES, STATS_PIPE_BUFFER_BYTES,
 		0,
-		NULL);
+		&security.attributes);
 	if (m_pipe == INVALID_HANDLE_VALUE)
 	{
 		*createError = GetLastError();
@@ -489,10 +591,10 @@ void StatsExporterPipeServer::closePipeInstance()
 		CloseHandle(m_pipe);
 		m_pipe = INVALID_HANDLE_VALUE;
 	}
-	m_connected = 0;
 	m_inboundLen = 0;
 
 	EnterCriticalSection(&m_queueLock);
+	m_connected = 0;
 	m_queue.clear();
 	LeaveCriticalSection(&m_queueLock);
 }
@@ -638,13 +740,14 @@ void StatsExporterPipeServer::workerProc()
 			}
 			continue;
 		}
-		// A frame queued while no reader was connected must never reach this one.
+		// Clearing the queue, the new generation and the connected flag change together under the queue lock, so no frame
+		// produced for an earlier reader can slip into this one's stream.
 		EnterCriticalSection(&m_queueLock);
 		m_queue.clear();
-		LeaveCriticalSection(&m_queueLock);
-		// Generation first, so a main thread that sees connected also sees this connection's generation.
+		InterlockedExchange((LONG*)&m_resyncNeeded, 0);
 		InterlockedIncrement((LONG*)&m_connectionGeneration);
 		InterlockedExchange((LONG*)&m_connected, 1);
+		LeaveCriticalSection(&m_queueLock);
 
 		if (!beginRead())
 		{

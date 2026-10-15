@@ -371,6 +371,7 @@ void ConnectionManager::init()
 	}
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_latencyAverages[i] = 0.0; // using zero since all floating point standards should be able to specify 0.0 accurately.
+		m_runAheadMetricsReceived[i] = FALSE;
 	}
 	m_smallestPacketArrivalCushion = -1;
 #if !RETAIL_COMPATIBLE_NETWORKING
@@ -526,6 +527,9 @@ void ConnectionManager::reset()
 	}
 	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
 		m_latencyAverages[i] = 0.0;
+	}
+	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
+		m_runAheadMetricsReceived[i] = FALSE;
 	}
 
 	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
@@ -1704,6 +1708,7 @@ void ConnectionManager::processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg
 	if (isPlayerConnected(playerID)) {
 		m_latencyAverages[playerID] = msg->getAverageLatency();
 		m_fpsAverages[playerID] = msg->getAverageFps();
+		m_runAheadMetricsReceived[playerID] = TRUE;
 #if defined(GENONLINE)
 		if (timeGetTime() >= m_ctlIgnoreUntil) {
 			for (Int sender = 0; sender < MAX_SLOTS; ++sender) {
@@ -4185,6 +4190,10 @@ Real ConnectionManager::getSlotAverageLatency(Int slot) {
 
 Real ConnectionManager::getLocalAverageLatency() {
 	return m_frameMetrics.getAverageLatency();
+}
+
+Bool ConnectionManager::hasRunAheadMetrics(Int slot) const {
+	return (slot >= 0) && (slot < MAX_SLOTS) && m_runAheadMetricsReceived[slot];
 }
 
 Int ConnectionManager::getSlotAverageFPS(Int slot) {

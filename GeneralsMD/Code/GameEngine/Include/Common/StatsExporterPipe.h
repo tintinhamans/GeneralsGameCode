@@ -59,6 +59,9 @@ struct StatsExporterChatSend
 /// Largest frame body that is queued; bigger messages are dropped by the producer.
 const UnsignedInt STATS_EXPORTER_MAX_BODY_BYTES = 262144;
 
+/// Queue space only the non-periodic frames (MatchInfo, MatchSummary, UiState, LobbyState, ChatMessage) may use.
+const UnsignedInt STATS_EXPORTER_PERIODIC_RESERVE_BYTES = 65536;
+
 /// The seam between the sampler (builds messages) and the transport that carries them.
 class StatsExporterSink
 {
@@ -70,8 +73,16 @@ public:
 	/// Increments once per completed reader handshake; 0 before the first.
 	virtual UnsignedInt getConnectionGeneration() const = 0;
 
-	/// Queues one already-encoded frame body. Never blocks; a dropped frame is not an error. Callable from any thread.
-	virtual void enqueueFrame(UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength) = 0;
+	/// Queues one already-encoded frame body for the connection `generation` (a value from getConnectionGeneration(), read
+	/// before the isConnected() check that let the frame be produced). A frame for any other connection, or while nobody is
+	/// connected, is dropped. Never blocks; a dropped frame is not an error. Callable from any thread. Periodic frames
+	/// (snapshots, events, camera) leave the last STATS_EXPORTER_PERIODIC_RESERVE_BYTES of the queue free; a lifecycle frame
+	/// that still finds no room marks the connection for a resync. Returns TRUE if the frame was queued.
+	virtual Bool enqueueFrame(UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength, UnsignedInt generation) = 0;
+
+	/// Main thread: TRUE once after a lifecycle frame was dropped and the queue has room again. The caller then sends
+	/// UiState, STARTED and LobbyState again.
+	virtual Bool takeResyncRequest() = 0;
 
 	/// Main thread: pops the oldest pending ChatSend request, FALSE if none.
 	virtual Bool takeChatSend(StatsExporterChatSend& out) = 0;
@@ -98,7 +109,8 @@ public:
 
 	virtual Bool isConnected() const;
 	virtual UnsignedInt getConnectionGeneration() const { return (UnsignedInt)m_connectionGeneration; }
-	virtual void enqueueFrame(UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength);
+	virtual Bool enqueueFrame(UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength, UnsignedInt generation);
+	virtual Bool takeResyncRequest();
 	virtual Bool takeChatSend(StatsExporterChatSend& out);
 
 	/// Stops the worker thread and closes the pipe. Safe to call more than once and when never started.
@@ -133,7 +145,9 @@ private:
 		FrameQueue();
 		~FrameQueue();
 
-		Bool push(const UnsignedByte* header, UnsignedInt headerLength, const UnsignedByte* body, UnsignedInt bodyLength);
+		/// `reserve` bytes of the capacity stay free for the caller's priority class: the frame is dropped if it would eat into them.
+		Bool push(const UnsignedByte* header, UnsignedInt headerLength, const UnsignedByte* body, UnsignedInt bodyLength, UnsignedInt reserve);
+		UnsignedInt freeBytes() const;
 		UnsignedInt peek(UnsignedByte* dest, UnsignedInt capacity) const;
 		void consume(UnsignedInt length);
 		void clear();
@@ -158,7 +172,8 @@ private:
 	volatile LONG m_stopped;	///< set by shutdown(), never cleared: no restart during engine teardown
 	volatile LONG m_shuttingDown;
 	volatile LONG m_connected;
-	volatile LONG m_connectionGeneration;
+	volatile LONG m_connectionGeneration;	///< changed only under m_queueLock, together with m_connected
+	volatile LONG m_resyncNeeded;			///< a lifecycle frame was dropped on the current connection
 	CRITICAL_SECTION m_queueLock;
 	FrameQueue m_queue;
 

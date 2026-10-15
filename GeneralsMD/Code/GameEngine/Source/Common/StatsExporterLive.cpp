@@ -116,7 +116,7 @@ namespace
 	// Players the per-player counters track.
 	const Int kMaxCounterPlayers = 16;
 
-	// Per-snapshot event cap; events beyond it stay pending for the next snapshot.
+	// Events per Events frame; equal to the pending cap, so one flush always empties the queue.
 	const size_t kMaxEventsPerFrame = 512;
 
 	// Pending-event cap; once full, new events are dropped.
@@ -163,7 +163,26 @@ namespace
 		return (tmpl != NULL) ? tmpl->getName().str() : "";
 	}
 
-	// -- Pending discrete-event queue: bounded, best-effort, drained by StatsExporterLiveUpdate().
+	std::string toUtf8(const UnicodeString& text)
+	{
+		return to_utf8(std::wstring(text.str()));
+	}
+
+	// AsciiString text (paths) is in the process code page.
+	std::string localToUtf8(const char* text)
+	{
+		return local_to_utf8(std::string((text != NULL) ? text : ""));
+	}
+
+	// The connection generation while a reader is connected, else 0. Generation is read first, so a frame tagged with it
+	// can only be dropped, never delivered to a newer reader than the one that was checked.
+	UnsignedInt connectedGeneration(StatsExporterSink* sink)
+	{
+		const UnsignedInt generation = sink->getConnectionGeneration();
+		return sink->isConnected() ? generation : 0;
+	}
+
+	// -- Pending discrete-event queue: bounded, best-effort, drained at the end of each logic frame.
 	struct PendingEvent
 	{
 		UnsignedInt frame;		///< logic frame at enqueue time, not drain time
@@ -270,6 +289,7 @@ namespace
 	// -- MatchInfo state: one match at a time, cached at STARTED and reused by ENDED.
 	Bool s_matchActive = FALSE;
 	Bool s_matchEndedSent = FALSE;
+	UnsignedInt s_matchSerial = 0;	// counts matches in this process, so per-match caches know when to start over
 	std::string s_matchId;
 	statsexporter::MatchMode s_matchMode = statsexporter::MATCH_MODE_UNKNOWN;
 	std::string s_matchMapName;
@@ -278,6 +298,16 @@ namespace
 	UnsignedInt s_matchStartFrame = 0;
 	// Connection generation a MatchInfo STARTED was last sent under; a different one means a (re)connect.
 	UnsignedInt s_matchInfoConnectionGen = 0;
+
+	// Players that left (quit, disconnect or surrender) this match; PLAYER_LEFT is emitted once per player.
+	Bool s_playerLeft[16];
+
+	// The last Generals Online match id that was exported; the lobby keeps the previous id until the next one is assigned.
+	uint64_t s_lastExportedOnlineMatchId = 0;
+
+	// Set when a lifecycle frame was dropped to backpressure: UiState and LobbyState are sent again, STARTED is resent.
+	Bool s_forceUiResend = FALSE;
+	Bool s_forceLobbyResend = FALSE;
 
 	Bool s_loggedOversizedFrame = FALSE;
 
@@ -381,6 +411,7 @@ namespace
 		memset(s_kills, 0, sizeof(s_kills));
 		memset(s_losses, 0, sizeof(s_losses));
 		memset(s_spent, 0, sizeof(s_spent));
+		memset(s_playerLeft, 0, sizeof(s_playerLeft));
 		heroRecords().clear();
 	}
 
@@ -497,13 +528,6 @@ namespace
 		return id;
 	}
 
-	std::string narrow(const UnicodeString& src)
-	{
-		AsciiString ascii;
-		ascii.translate(src);
-		return ascii.str();
-	}
-
 	/// The player seated at the given lobby slot, or NULL.
 	Player* playerFromSlot(Int slot)
 	{
@@ -546,7 +570,7 @@ namespace
 	}
 
 	// A map path with the user data folder stripped, so it never carries the Windows user name; sets isUserMap when it did.
-	std::string exportedMapName(const char* raw, Bool* isUserMap)
+	std::string exportedMapNameLocal(const char* raw, Bool* isUserMap)
 	{
 		std::string name = (raw != NULL) ? raw : "";
 		if (isUserMap != NULL)
@@ -588,11 +612,19 @@ namespace
 		return name;
 	}
 
-	// The Generals Online match id, 0 if the lobby does not hold one (yet).
+	// The same, as UTF-8 for the wire (the raw path is in the process code page).
+	std::string exportedMapName(const char* raw, Bool* isUserMap)
+	{
+		return localToUtf8(exportedMapNameLocal(raw, isUserMap).c_str());
+	}
+
+	// The Generals Online match id the lobby holds, 0 if it holds none (yet). The lobby keeps the previous match's id until the
+	// next one is assigned, so the id that was last exported counts as unknown until it changes.
 	uint64_t currentOnlineMatchId()
 	{
 		GenOnlineLobbyInterface* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-		return (lobby != nullptr) ? lobby->GetCurrentMatchID() : 0;
+		const uint64_t id = (lobby != nullptr) ? lobby->GetCurrentMatchID() : 0;
+		return (id != s_lastExportedOnlineMatchId) ? id : 0;
 	}
 
 	UnsignedInt sumPerGeneral(const PerGeneralMap& map)
@@ -730,8 +762,10 @@ namespace
 		ConnectionManager* connections = TheNetwork->GetConnectionManager();
 		if (connections != NULL)
 		{
-			const Int fps = isLocal ? connections->getAverageFPS() : connections->getSlotAverageFPS(slot);
-			const Real latencySeconds = isLocal ? connections->getLocalAverageLatency() : connections->getSlotAverageLatency(slot);
+			// Another player's numbers count only once their run ahead metrics have arrived; before that the engine holds seeds or zeros.
+			const Bool known = isLocal || connections->hasRunAheadMetrics(slot);
+			const Int fps = isLocal ? connections->getAverageFPS() : (known ? connections->getSlotAverageFPS(slot) : -1);
+			const Real latencySeconds = isLocal ? connections->getLocalAverageLatency() : (known ? connections->getSlotAverageLatency(slot) : -1.0f);
 			network->set_reported_fps(fps >= 0 ? fps : -1);
 			network->set_latency_ms(latencySeconds >= 0.0f ? (Int)(latencySeconds * 1000.0f + 0.5f) : -1);
 		}
@@ -821,6 +855,7 @@ namespace
 	{
 		s_matchActive = TRUE;
 		s_matchEndedSent = FALSE;
+		++s_matchSerial;
 		s_matchMode = mapMatchMode();
 		captureOnlineMatch();
 		captureObserverCamera(game);
@@ -829,6 +864,7 @@ namespace
 		const uint64_t onlineMatchId = s_hasOnlineMatch ? onlineMatchMessage().match_id() : 0;
 		if (onlineMatchId != 0)
 		{
+			s_lastExportedOnlineMatchId = onlineMatchId;
 			char idText[32];
 			sprintf(idText, "%I64u", onlineMatchId);
 			s_matchId = idText;
@@ -843,7 +879,7 @@ namespace
 	}
 
 	// Serializes into the reused buffer and queues the frame; an oversized message is dropped, never sent partially.
-	void sendMessage(StatsExporterSink* sink, UnsignedByte frameType, const google::protobuf::MessageLite& message)
+	void sendMessage(StatsExporterSink* sink, UnsignedByte frameType, const google::protobuf::MessageLite& message, UnsignedInt generation)
 	{
 		const size_t size = message.ByteSizeLong();
 		if (size == 0)
@@ -866,16 +902,26 @@ namespace
 		{
 			return;
 		}
-		sink->enqueueFrame(frameType, (const UnsignedByte*)buffer.data(), (UnsignedInt)size);
+		sink->enqueueFrame(frameType, (const UnsignedByte*)buffer.data(), (UnsignedInt)size, generation);
 	}
 
-	// Per-slot MatchPlayer builder for STARTED (results unknown) and ENDED (`completed` decides results).
-	void buildMatchPlayers(statsexporter::MatchInfo& info, Bool completed)
+	// The engine's defeat state: killed (surrender, elimination) or nothing left that counts for victory.
+	Bool isPlayerDefeated(Player* player)
 	{
-		Player* localPlayer = ThePlayerList->getLocalPlayer();
-		Bool localVictory = completed && TheVictoryConditions != NULL && TheVictoryConditions->isLocalAlliedVictory();
-		Bool localDefeat = completed && TheVictoryConditions != NULL && TheVictoryConditions->isLocalAlliedDefeat();
+		return player->isPlayerDead() || (TheVictoryConditions != NULL && TheVictoryConditions->hasSinglePlayerBeenDefeated(player));
+	}
 
+	Bool hasPlayerLeft(const Player* player)
+	{
+		const Int index = player->getPlayerIndex();
+		return index >= 0 && index < kMaxCounterPlayers && s_playerLeft[index];
+	}
+
+	// Per-slot MatchPlayer builder. Results are UNKNOWN (OBSERVER for observers) until `ended`. On ENDED a decisive result
+	// (`completed`) gives the victorious alliance WON and everyone else LOST; without one, a player who left is LEFT, a defeated
+	// player LOST and any other UNKNOWN.
+	void buildMatchPlayers(statsexporter::MatchInfo& info, Bool ended, Bool completed)
+	{
 		for (Int slot = 0; slot < MAX_SLOTS; ++slot)
 		{
 			Player* player = playerFromSlot(slot);
@@ -887,7 +933,7 @@ namespace
 			statsexporter::MatchPlayer* p = info.add_players();
 			p->set_lobby_slot((uint32_t)slot);
 			p->set_player_index(player->getPlayerIndex());
-			p->set_name(narrow(player->getPlayerDisplayName()));
+			p->set_name(toUtf8(player->getPlayerDisplayName()));
 			p->set_side(player->getSide().str());
 			p->set_color((uint32_t)player->getPlayerColor());
 			p->set_is_human(player->getPlayerType() == PLAYER_HUMAN);
@@ -933,19 +979,21 @@ namespace
 			{
 				p->set_result(statsexporter::PLAYER_RESULT_OBSERVER);
 			}
-			else if (!completed)
+			else if (!ended)
 			{
-				// No decisive result: a still-active slot left, anything else is unknown.
-				p->set_result(player->isPlayerActive()
-					? statsexporter::PLAYER_RESULT_LEFT
-					: statsexporter::PLAYER_RESULT_UNKNOWN);
+				p->set_result(statsexporter::PLAYER_RESULT_UNKNOWN);
 			}
-			else if ((localVictory || localDefeat) && localPlayer != NULL)
+			else if (completed && TheVictoryConditions != NULL)
 			{
-				// Local-player-relative, as in StatsExporterLiveMatchSummary().
-				Relationship rel = (player == localPlayer) ? ALLIES : localPlayer->getRelationship(player->getDefaultTeam());
-				Bool isWinner = localVictory ? (rel == ALLIES) : (rel == ENEMIES);
-				p->set_result(isWinner ? statsexporter::PLAYER_RESULT_WON : statsexporter::PLAYER_RESULT_LOST);
+				p->set_result(TheVictoryConditions->hasAchievedVictory(player) ? statsexporter::PLAYER_RESULT_WON : statsexporter::PLAYER_RESULT_LOST);
+			}
+			else if (hasPlayerLeft(player))
+			{
+				p->set_result(statsexporter::PLAYER_RESULT_LEFT);
+			}
+			else if (isPlayerDefeated(player))
+			{
+				p->set_result(statsexporter::PLAYER_RESULT_LOST);
 			}
 			else
 			{
@@ -966,11 +1014,11 @@ namespace
 		info.set_logic_frames_per_second(LOGICFRAMES_PER_SECOND);
 		info.set_start_unix_time(s_matchStartUnixTime);
 		info.set_duration_frames(durationFrames);
-		info.set_replay_path(replayPath.str());
+		info.set_replay_path(localToUtf8(replayPath.str()));
 		info.set_replay_is_playback(replayIsPlayback);
 		info.set_completed(completed);
 		info.set_local_player_index(localPlayerIndex());
-		buildMatchPlayers(info, completed);
+		buildMatchPlayers(info, phase == statsexporter::MATCH_PHASE_ENDED, completed);
 
 		if (TheTerrainLogic != NULL && TheGameLogic != NULL && !TheGameLogic->isLoadingMap())
 		{
@@ -1021,7 +1069,7 @@ namespace
 
 	void pushPendingEvent(PendingEvent& event)
 	{
-		// Single choke point for every event hook: nothing accumulates unless a snapshot could be sent.
+		// Single choke point for every event hook: nothing accumulates while no reader is connected.
 		StatsExporterSink* sink = StatsExporterPipeGetSink();
 		if (sink == NULL || !sink->isConnected())
 		{
@@ -1034,6 +1082,12 @@ namespace
 			return;
 		}
 
+		// Nothing before the first logic frame: the map load places the starting buildings and units, and grants radar and upgrades.
+		if (TheGameLogic->getFrame() == 0)
+		{
+			return;
+		}
+
 		std::vector<PendingEvent>& events = pendingEvents();
 		if (events.size() >= kMaxPendingEvents)
 		{
@@ -1041,6 +1095,79 @@ namespace
 		}
 		event.frame = TheGameLogic->getFrame();
 		events.push_back(event);
+	}
+
+	// The game speed and the local client's display FPS, on snapshots and stall markers alike.
+	void fillSpeedFields(statsexporter::StatsSnapshot& snapshot)
+	{
+		if (TheFramePacer != NULL)
+		{
+			const Int speedFps = TheFramePacer->getActualLogicTimeScaleFps();
+			// -1 marks an uncapped logic rate; 0 stays reserved for a frozen or halted game
+			snapshot.set_game_speed_fps(speedFps >= (Int)RenderFpsPreset::UncappedFpsValue ? -1 : speedFps);
+			snapshot.set_game_speed_ratio(TheFramePacer->getActualLogicTimeScaleRatio());
+		}
+		if (TheDisplay != NULL)
+		{
+			snapshot.set_local_render_fps(TheDisplay->getAverageFPS());
+		}
+	}
+
+	// True when this connection already has STARTED, which snapshots, Events and Camera wait for.
+	Bool connectionHasStarted(StatsExporterSink* sink, UnsignedInt generation)
+	{
+		return generation != 0 && s_matchActive && s_matchInfoConnectionGen == generation;
+	}
+
+	// A lifecycle frame was dropped to backpressure and the ring has room again: UiState and LobbyState go out again and
+	// STARTED is resent (the Update tick does that when it sees the connection without one).
+	void applyResyncRequest(StatsExporterSink* sink)
+	{
+		if (sink->takeResyncRequest())
+		{
+			s_forceUiResend = TRUE;
+			s_forceLobbyResend = TRUE;
+			s_matchInfoConnectionGen = 0;
+		}
+	}
+
+	// Sends the pending events, one Events frame per logic frame they happened in, and empties the queue.
+	void flushPendingEvents(StatsExporterSink* sink, UnsignedInt generation)
+	{
+		std::vector<PendingEvent>& events = pendingEvents();
+		while (!events.empty())
+		{
+			const UnsignedInt frame = events[0].frame;
+			size_t count = 0;
+			while (count < events.size() && count < kMaxEventsPerFrame && events[count].frame == frame)
+			{
+				++count;
+			}
+
+			statsexporter::Events& message = eventsMessage();
+			message.Clear();
+			message.set_frame(frame);
+			for (size_t i = 0; i < count; ++i)
+			{
+				const PendingEvent& src = events[i];
+				statsexporter::StatEvent* dst = message.add_events();
+				dst->set_frame(src.frame);
+				dst->set_player_index(src.playerIndex);
+				dst->set_kind(src.kind);
+				dst->set_category(src.category);
+				dst->set_primary_name(src.primaryName);
+				dst->set_secondary_name(src.secondaryName);
+				dst->set_has_location(src.hasLocation);
+				dst->set_x(src.x);
+				dst->set_y(src.y);
+				dst->set_variant(src.variant);
+				dst->set_int_value1(src.intValue1);
+				dst->set_int_value2(src.intValue2);
+				dst->set_cost(src.cost);
+			}
+			events.erase(events.begin(), events.begin() + count);
+			sendMessage(sink, STATS_EXPORTER_FRAME_EVENTS, message, generation);
+		}
 	}
 
 	// One (player, template) live-count entry, found by pointer during the object walk.
@@ -1072,7 +1199,8 @@ void StatsExporterLiveAbilityUse(Int playerIndex, const SpecialPowerTemplate* po
 	event.kind = statsexporter::STATEVENT_ABILITY_USE;
 	event.category = isSuperweaponPower(power) ? "SUPERWEAPON" : "ABILITY";
 	event.primaryName = (power != NULL) ? power->getName().str() : "";
-	event.secondaryName = (sourceTmpl != NULL) ? templateName(sourceTmpl) : templateName(targetTmpl);
+	// With a target (building capture) secondary_name is the target and the acting unit moves to the variant; else it is the source.
+	event.secondaryName = (targetTmpl != NULL) ? templateName(targetTmpl) : templateName(sourceTmpl);
 	if (location != NULL)
 	{
 		event.hasLocation = TRUE;
@@ -1082,6 +1210,10 @@ void StatsExporterLiveAbilityUse(Int playerIndex, const SpecialPowerTemplate* po
 	if (variant != NULL)
 	{
 		event.variant = variant;
+	}
+	else if (targetTmpl != NULL && sourceTmpl != NULL)
+	{
+		event.variant = std::string("source=") + templateName(sourceTmpl);
 	}
 	pushPendingEvent(event);
 }
@@ -1103,7 +1235,7 @@ void StatsExporterLiveScienceAcquired(Int playerIndex, Int rankLevel, Int scienc
 	pushPendingEvent(event);
 }
 
-void StatsExporterLiveBuild(Int playerIndex, const ThingTemplate* tmpl)
+void StatsExporterLiveBuild(Int playerIndex, const ThingTemplate* tmpl, Int veterancyLevel)
 {
 	if (StatsExporterPipeGetSink() == NULL)
 	{
@@ -1115,6 +1247,7 @@ void StatsExporterLiveBuild(Int playerIndex, const ThingTemplate* tmpl)
 	event.kind = statsexporter::STATEVENT_BUILD;
 	event.category = classifyThingTemplateCategory(tmpl);
 	event.primaryName = templateName(tmpl);
+	event.intValue1 = veterancyLevel;	// the level the object starts with, not a promotion
 	pushPendingEvent(event);
 }
 
@@ -1194,13 +1327,8 @@ void StatsExporterLiveVeterancyChange(Int playerIndex, const ThingTemplate* tmpl
 		return;
 	}
 
-	// Production veterancy is granted before registerObject() in Object's constructor, so a lookup
-	// miss means birth time and must not report a veterancy change.
-	if ((TheGameLogic == NULL) || (TheGameLogic->findObjectByID(objectId) == NULL))
-	{
-		return;
-	}
-
+	// Only called for promotions earned from experience (ExperienceTracker::addExperiencePoints); levels assigned at creation
+	// (production veterancy, VeterancyGainCreate, spawns) never come through here.
 	PendingEvent event;
 	event.playerIndex = playerIndex;
 	event.kind = statsexporter::STATEVENT_VETERANCY_CHANGE;
@@ -1229,8 +1357,8 @@ void StatsExporterLiveSalvageUpgrade(Int playerIndex, const ThingTemplate* tmpl,
 
 void StatsExporterLiveUpdate()
 {
-	static UnsignedInt s_lastSampleFrame = 0;
-	static Bool s_hasSampled = FALSE;
+	static UnsignedInt s_lastLightFrame = 0;
+	static Bool s_hasLight = FALSE;
 	static UnsignedInt s_lastFullFrame = 0;
 	static Bool s_hasFull = FALSE;
 	static UnsignedInt s_fullConnectionGen = 0;
@@ -1249,35 +1377,42 @@ void StatsExporterLiveUpdate()
 	if (!TheGameLogic->isInInteractiveGame())
 	{
 		pendingEvents().clear();
-		s_lastSampleFrame = 0;	// the next match starts again at frame 0
-		s_hasSampled = FALSE;
+		s_hasLight = FALSE;	// the next match starts again at frame 0
 		s_hasFull = FALSE;
 		return;
 	}
 
 	const UnsignedInt logicFrame = TheGameLogic->getFrame();
+	const UnsignedInt generation = connectedGeneration(sink);
+	if (generation == 0)
+	{
+		pendingEvents().clear();	// nothing is kept for a reader that is gone
+	}
 
 	// UiState goes first to a new reader, ahead of MatchInfo.
+	applyResyncRequest(sink);
 	syncUiState(sink);
 
 	// MatchInfo STARTED, resent on every (re)connect, before any snapshot of that connection.
 	if (s_matchActive)
 	{
-		UnsignedInt connGen = sink->getConnectionGeneration();
-		if (sink->isConnected() && connGen != s_matchInfoConnectionGen)
+		if (generation != 0 && generation != s_matchInfoConnectionGen)
 		{
 			// A reader that connected during the load gets LOADING now, ahead of STARTED.
-			if (s_hasLoadingBody && s_loadingSentGeneration != connGen)
+			if (s_hasLoadingBody && s_loadingSentGeneration != generation)
 			{
-				sink->enqueueFrame(STATS_EXPORTER_FRAME_MATCH_INFO, (const UnsignedByte*)s_loadingBody.data(), (UnsignedInt)s_loadingBody.size());
-				s_loadingSentGeneration = connGen;
+				sink->enqueueFrame(STATS_EXPORTER_FRAME_MATCH_INFO, (const UnsignedByte*)s_loadingBody.data(), (UnsignedInt)s_loadingBody.size(), generation);
+				s_loadingSentGeneration = generation;
 			}
 
 			statsexporter::MatchInfo& info = matchInfoMessage();
 			fillMatchInfo(info, statsexporter::MATCH_PHASE_STARTED, 0, AsciiString::TheEmptyString, FALSE, FALSE);
-			sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_INFO, info);
-			s_matchInfoConnectionGen = connGen;
+			sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_INFO, info, generation);
+			s_matchInfoConnectionGen = generation;
 		}
+
+		// LOADING is only for readers that connect while the match is loading; STARTED has been handled now.
+		s_hasLoadingBody = FALSE;
 	}
 
 	// The Generals Online match id can be assigned after the match started; once it appears, STARTED is resent once with it.
@@ -1287,76 +1422,49 @@ void StatsExporterLiveUpdate()
 		if (onlineMatchId != 0)
 		{
 			onlineMatchMessage().set_match_id(onlineMatchId);
-			if (sink->isConnected() && s_matchInfoConnectionGen == sink->getConnectionGeneration())
+			s_lastExportedOnlineMatchId = onlineMatchId;
+			if (connectionHasStarted(sink, generation))
 			{
 				statsexporter::MatchInfo& info = matchInfoMessage();
 				fillMatchInfo(info, statsexporter::MATCH_PHASE_STARTED, 0, AsciiString::TheEmptyString, FALSE, FALSE);
-				sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_INFO, info);
+				sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_INFO, info, generation);
 			}
 		}
 	}
 
 	// Static player data lives only in MatchInfo, so a connection's snapshots wait until its STARTED has been queued.
-	if (!sink->isConnected() || !s_matchActive || s_matchInfoConnectionGen != sink->getConnectionGeneration())
+	if (!connectionHasStarted(sink, generation))
 	{
 		return;
 	}
 
 	const UnsignedInt now = logicFrame;
 
-	// Discrete events leave in their own frame at the end of the logic frame that produced them, ahead of any snapshot.
-	{
-		std::vector<PendingEvent>& events = pendingEvents();
-		if (!events.empty())
-		{
-			statsexporter::Events& message = eventsMessage();
-			message.Clear();
-			message.set_frame(now);
-			const size_t sent = (events.size() < kMaxEventsPerFrame) ? events.size() : kMaxEventsPerFrame;
-			for (size_t i = 0; i < sent; ++i)
-			{
-				const PendingEvent& src = events[i];
-				statsexporter::StatEvent* dst = message.add_events();
-				dst->set_frame(src.frame);
-				dst->set_player_index(src.playerIndex);
-				dst->set_kind(src.kind);
-				dst->set_category(src.category);
-				dst->set_primary_name(src.primaryName);
-				dst->set_secondary_name(src.secondaryName);
-				dst->set_has_location(src.hasLocation);
-				dst->set_x(src.x);
-				dst->set_y(src.y);
-				dst->set_variant(src.variant);
-				dst->set_int_value1(src.intValue1);
-				dst->set_int_value2(src.intValue2);
-				dst->set_cost(src.cost);
-			}
-			events.erase(events.begin(), events.begin() + sent);
-			sendMessage(sink, STATS_EXPORTER_FRAME_EVENTS, message);
-		}
-	}
+	// Events leave from StatsExporterLiveFrameEnd(), in the frame they happened in. This sample is taken before the frame's
+	// commands and updates run, so it shows the state at the end of the previous frame (snapshot frame N: Events up to N - 1 are sent).
 
 	// A new match restarts the frame counter below the last sample frame.
-	if (s_hasSampled && now < s_lastSampleFrame)
+	if ((s_hasLight && now < s_lastLightFrame) || (s_hasFull && now < s_lastFullFrame))
 	{
-		s_hasSampled = FALSE;
+		s_hasLight = FALSE;
 		s_hasFull = FALSE;
 	}
-	if (s_hasSampled && s_lastSampleFrame + kLightIntervalFrames > now)
+
+	// Light and full run on their own clocks (100 ms and 250 ms of game time); a sample that is due for both is one full snapshot.
+	const Bool lightDue = !s_hasLight || s_lastLightFrame + kLightIntervalFrames <= now;
+	const Bool fullTimerDue = s_hasFull && s_lastFullFrame + kFullIntervalFrames <= now;
+	if (!lightDue && !fullTimerDue)
 	{
 		return;
 	}
-	s_lastSampleFrame = now;
-	s_hasSampled = TRUE;
+	if (lightDue)
+	{
+		s_lastLightFrame = now;
+		s_hasLight = TRUE;
+	}
 
 	// The first snapshot of every connection is a full one.
-	const Bool full = !s_hasFull || s_lastFullFrame + kFullIntervalFrames <= now || s_fullConnectionGen != sink->getConnectionGeneration();
-	if (full)
-	{
-		s_lastFullFrame = now;
-		s_hasFull = TRUE;
-		s_fullConnectionGen = sink->getConnectionGeneration();
-	}
+	const Bool full = !s_hasFull || fullTimerDue || s_fullConnectionGen != generation;
 
 	statsexporter::StatsSnapshot& snapshot = snapshotMessage();
 	snapshot.Clear();
@@ -1369,13 +1477,7 @@ void StatsExporterLiveUpdate()
 	{
 		snapshot.set_replay_total_frames(TheRecorder->getPlaybackFrameCount());
 	}
-	if (TheFramePacer != NULL)
-	{
-		const Int speedFps = TheFramePacer->getActualLogicTimeScaleFps();
-		// -1 marks an uncapped logic rate; 0 stays reserved for a frozen or halted game
-		snapshot.set_game_speed_fps(speedFps >= (Int)RenderFpsPreset::UncappedFpsValue ? -1 : speedFps);
-		snapshot.set_game_speed_ratio(TheFramePacer->getActualLogicTimeScaleRatio());
-	}
+	fillSpeedFields(snapshot);
 
 	// The playable extent the grids cover; no grids if the map extent is not available.
 	static UnsignedInt s_gridCells[MAX_SLOTS][32 * 32];
@@ -1399,11 +1501,11 @@ void StatsExporterLiveUpdate()
 		heroes[h].seen = FALSE;
 	}
 
-	// -- Economy/score fields, one entry per active slot -----------------
+	// -- Economy/score fields, one entry per non-observer slot player (defeated and departed ones stay, with their state) ----
 	for (Int slot = 0; slot < MAX_SLOTS; ++slot)
 	{
 		Player* player = playerFromSlot(slot);
-		if (player == NULL || !player->isPlayerActive())
+		if (player == NULL || player->isPlayerObserver())
 		{
 			continue;
 		}
@@ -1415,6 +1517,8 @@ void StatsExporterLiveUpdate()
 
 		statsexporter::PlayerStats* p = snapshot.add_players();
 		p->set_player_index(player->getPlayerIndex());
+		p->set_state(hasPlayerLeft(player) ? statsexporter::PLAYER_STATE_LEFT
+			: (isPlayerDefeated(player) ? statsexporter::PLAYER_STATE_DEFEATED : statsexporter::PLAYER_STATE_ACTIVE));
 		p->set_money(player->getMoney()->countMoney());
 		p->set_energy_production(player->getEnergy()->getProduction());
 		p->set_energy_consumption(player->getEnergy()->getConsumption());
@@ -1495,10 +1599,17 @@ void StatsExporterLiveUpdate()
 		}
 	}
 
+	// Campaign and solo games have no lobby slots to map players to, so they get no per-player snapshots.
 	if (snapshot.players_size() == 0)
 	{
-		pendingEvents().clear();
 		return;
+	}
+
+	if (full)
+	{
+		s_lastFullFrame = now;
+		s_hasFull = TRUE;
+		s_fullConnectionGen = generation;
 	}
 
 	if (full)
@@ -1561,7 +1672,14 @@ void StatsExporterLiveUpdate()
 			}
 			if (accumulator == NULL)
 			{
-				continue;	// e.g. an eliminated/observer player with stray objects
+				continue;	// e.g. an observer's stray objects
+			}
+
+			// Effectively dead objects (destroyed, waiting for removal) are not live: they count nowhere below.
+			// Objects still under construction are live: they count in army value, class and template counts, but not in readiness.
+			if (obj->isEffectivelyDead())
+			{
+				continue;
 			}
 
 			// Strategy Centers: deploying (unpacking) or packing a plan.
@@ -1615,8 +1733,6 @@ void StatsExporterLiveUpdate()
 				accumulator->add_tech_structures(tmpl->getName().str());
 			}
 
-			const Bool objectIsDead = obj->isEffectivelyDead();
-			if (!objectIsDead)
 			{
 				// Workers, harvesters and idle workers: the idle test is the one Player uses for the idle worker button.
 				if (obj->isKindOf(KINDOF_DOZER))
@@ -1843,11 +1959,7 @@ void StatsExporterLiveUpdate()
 	}
 	snapshot.set_network_stalled(s_stallStartMs != 0);
 
-	// Local client only: the display's average FPS, and the logic frames achieved per wall-clock second since the last snapshot.
-	if (TheDisplay != NULL)
-	{
-		snapshot.set_local_render_fps(TheDisplay->getAverageFPS());
-	}
+	// Local client only: the logic frames achieved per wall-clock second since the last snapshot (the display FPS is set above).
 	{
 		static UnsignedInt s_previousFrame = 0;
 		static ULONGLONG s_previousMs = 0;
@@ -1888,7 +2000,22 @@ void StatsExporterLiveUpdate()
 		}
 	}
 
-	sendMessage(sink, STATS_EXPORTER_FRAME_STATS_SNAPSHOT, snapshot);
+	sendMessage(sink, STATS_EXPORTER_FRAME_STATS_SNAPSHOT, snapshot, generation);
+}
+
+void StatsExporterLiveFrameEnd()
+{
+	StatsExporterSink* sink = StatsExporterPipeGetSink();
+	if (sink == NULL || TheGameLogic == NULL || !TheGameLogic->isInInteractiveGame())
+	{
+		return;
+	}
+
+	const UnsignedInt generation = connectedGeneration(sink);
+	if (connectionHasStarted(sink, generation))
+	{
+		flushPendingEvents(sink, generation);
+	}
 }
 
 void StatsExporterLiveMatchSummary()
@@ -1906,7 +2033,8 @@ void StatsExporterLiveMatchSummary()
 
 	// Don't build a summary nobody will read.
 	StatsExporterSink* sink = StatsExporterPipeGetSink();
-	if (sink == NULL || !sink->isConnected())
+	const UnsignedInt generation = (sink != NULL) ? connectedGeneration(sink) : 0;
+	if (generation == 0)
 	{
 		return;
 	}
@@ -1918,11 +2046,10 @@ void StatsExporterLiveMatchSummary()
 		summary.set_map_name(exportedMapName(TheWritableGlobalData->m_mapName.str(), NULL));
 	}
 
-	Player* localPlayer = ThePlayerList->getLocalPlayer();
-
-	// Victory conditions are local-player-relative: allies of the local player share its result, enemies the opposite.
-	Bool localVictory = (TheVictoryConditions != NULL) && TheVictoryConditions->isLocalAlliedVictory();
-	Bool localDefeat = (TheVictoryConditions != NULL) && TheVictoryConditions->isLocalAlliedDefeat();
+	// A decisive result is one this client's victory conditions have reached (the same test as MatchInfo.completed);
+	// is_winner is then true for the players of the victorious alliance, and always false without one.
+	const Bool decisive = (TheVictoryConditions != NULL)
+		&& (TheVictoryConditions->isLocalAlliedVictory() || TheVictoryConditions->isLocalAlliedDefeat());
 
 	for (Int slot = 0; slot < MAX_SLOTS; ++slot)
 	{
@@ -1937,24 +2064,12 @@ void StatsExporterLiveMatchSummary()
 			continue;
 		}
 
-		Bool isWinner = FALSE;
-		if ((localVictory || localDefeat) && localPlayer != NULL)
-		{
-			Relationship rel = (player == localPlayer) ? ALLIES : localPlayer->getRelationship(player->getDefaultTeam());
-			if (localVictory)
-			{
-				isWinner = (rel == ALLIES);
-			}
-			else
-			{
-				isWinner = (rel == ENEMIES);
-			}
-		}
+		const Bool isWinner = decisive && !player->isPlayerObserver() && TheVictoryConditions->hasAchievedVictory(player);
 
 		statsexporter::MatchSummaryPlayer* p = summary.add_players();
 		p->set_lobby_slot(slot);
 		p->set_player_index(player->getPlayerIndex());
-		p->set_player_name(narrow(player->getPlayerDisplayName()));
+		p->set_player_name(toUtf8(player->getPlayerDisplayName()));
 		p->set_side(player->getSide().str());
 		p->set_score(scoreKeeper->calculateScore());
 		p->set_is_winner(isWinner);
@@ -1973,7 +2088,7 @@ void StatsExporterLiveMatchSummary()
 		return;
 	}
 
-	sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_SUMMARY, summary);
+	sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_SUMMARY, summary, generation);
 }
 
 void StatsExporterLiveMatchStarted()
@@ -2002,6 +2117,25 @@ void StatsExporterLiveMatchStarted()
 	s_matchInfoConnectionGen = 0;
 }
 
+void StatsExporterLiveGameDataCleared()
+{
+	if (!s_matchActive || s_matchEndedSent)
+	{
+		return;
+	}
+
+	// A replay that is left before its end never reaches the recorder's own hook, so the replay path is taken here.
+	AsciiString replayPath;
+	Bool replayIsPlayback = FALSE;
+	if (TheRecorder != NULL && TheRecorder->isPlaybackMode())
+	{
+		replayPath = RecorderClass::getReplayDir();
+		replayPath.concat(TheRecorder->getCurrentReplayFilename());
+		replayIsPlayback = TRUE;
+	}
+	StatsExporterLiveMatchEnded(replayPath, replayIsPlayback);
+}
+
 void StatsExporterLiveMatchEnded(const AsciiString& replayPath, Bool replayIsPlayback)
 {
 	if (!s_matchActive || s_matchEndedSent)
@@ -2021,12 +2155,20 @@ void StatsExporterLiveMatchEnded(const AsciiString& replayPath, Bool replayIsPla
 
 	// ENDED is a true one-shot: sent only if a reader is connected right now.
 	StatsExporterSink* sink = StatsExporterPipeGetSink();
-	if (sink != NULL && sink->isConnected())
+	const UnsignedInt generation = (sink != NULL) ? connectedGeneration(sink) : 0;
+	if (generation != 0)
 	{
+		// the events of the last frame go out ahead of ENDED
+		if (connectionHasStarted(sink, generation))
+		{
+			flushPendingEvents(sink, generation);
+		}
+
 		statsexporter::MatchInfo& info = matchInfoMessage();
 		fillMatchInfo(info, statsexporter::MATCH_PHASE_ENDED, TheGameLogic->getFrame() - s_matchStartFrame, replayPath, replayIsPlayback, completed);
-		sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_INFO, info);
+		sendMessage(sink, STATS_EXPORTER_FRAME_MATCH_INFO, info, generation);
 	}
+	pendingEvents().clear();
 
 	s_matchActive = FALSE;
 	s_hasLoadingBody = FALSE;
@@ -2038,11 +2180,6 @@ namespace
 	const size_t kMaxChatSendBytes = 1024;
 
 	DWORD s_mainThreadId = 0;
-
-	std::string toUtf8(const UnicodeString& text)
-	{
-		return to_utf8(std::wstring(text.str()));
-	}
 
 	// Who the line was addressed to, from its recipient mask.
 	statsexporter::ChatAudience chatAudience(const Player* sender, Int senderSlot, Int playerMask)
@@ -2100,13 +2237,13 @@ namespace
 		return statsexporter::CHAT_AUDIENCE_EVERYONE;
 	}
 
-	void sendChatMessage(StatsExporterSink* sink, const statsexporter::ChatMessage& message)
+	void sendChatMessage(StatsExporterSink* sink, const statsexporter::ChatMessage& message, UnsignedInt generation)
 	{
 		// May run off the main thread, so it keeps its own buffer instead of the shared one.
 		std::string body;
 		if (message.SerializeToString(&body) && !body.empty() && body.size() <= STATS_EXPORTER_MAX_BODY_BYTES)
 		{
-			sink->enqueueFrame(STATS_EXPORTER_FRAME_CHAT_MESSAGE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size());
+			sink->enqueueFrame(STATS_EXPORTER_FRAME_CHAT_MESSAGE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), generation);
 		}
 	}
 
@@ -2173,28 +2310,77 @@ namespace
 		bool paused;
 	};
 
-	UiSnapshot currentUiState()
+	// Everything the screen is derived from, read without building a string.
+	struct UiInputs
+	{
+		const char* layout;
+		Bool loading;
+		Bool interactive;
+		Bool shellActive;
+		Bool quitMenu;
+		Bool paused;
+		Int gameMode;
+	};
+
+	struct UiInputsCopy
+	{
+		std::string layout;
+		Bool loading;
+		Bool interactive;
+		Bool shellActive;
+		Bool quitMenu;
+		Bool paused;
+		Int gameMode;
+	};
+
+	UiInputs readUiInputs()
+	{
+		UiInputs in;
+		in.layout = (TheShell != NULL && TheShell->top() != NULL) ? TheShell->top()->getFilename().str() : "";
+		in.shellActive = (TheShell != NULL) && TheShell->isShellActive();
+		in.loading = (TheGameLogic != NULL) && (TheGameLogic->isLoadingMap() || TheGameLogic->isLoadingSave());
+		in.interactive = (TheGameLogic != NULL) && TheGameLogic->isInInteractiveGame();
+		in.quitMenu = (TheInGameUI != NULL) && TheInGameUI->isQuitMenuVisible();
+		in.paused = (TheGameLogic != NULL) && TheGameLogic->isGamePaused();
+		in.gameMode = (TheGameLogic != NULL) ? (Int)TheGameLogic->getGameMode() : 0;
+		return in;
+	}
+
+	Bool uiInputsSame(const UiInputs& in, const UiInputsCopy& copy)
+	{
+		return in.loading == copy.loading && in.interactive == copy.interactive && in.shellActive == copy.shellActive
+			&& in.quitMenu == copy.quitMenu && in.paused == copy.paused && in.gameMode == copy.gameMode
+			&& strcmp(in.layout, copy.layout.c_str()) == 0;
+	}
+
+	void copyUiInputs(const UiInputs& in, UiInputsCopy& copy)
+	{
+		copy.layout = in.layout;
+		copy.loading = in.loading;
+		copy.interactive = in.interactive;
+		copy.shellActive = in.shellActive;
+		copy.quitMenu = in.quitMenu;
+		copy.paused = in.paused;
+		copy.gameMode = in.gameMode;
+	}
+
+	UiSnapshot buildUiState(const UiInputs& in)
 	{
 		UiSnapshot state;
 		state.screen = statsexporter::UI_SCREEN_UNKNOWN;
 		state.gameMode = statsexporter::MATCH_MODE_UNKNOWN;
 		state.paused = false;
+		state.layout = in.layout;
 
-		if (TheShell != NULL && TheShell->top() != NULL)
-		{
-			state.layout = TheShell->top()->getFilename().str();
-		}
-
-		const Bool shellActive = (TheShell != NULL) && TheShell->isShellActive();
-		if (TheGameLogic != NULL && (TheGameLogic->isLoadingMap() || TheGameLogic->isLoadingSave()))
+		if (in.loading)
 		{
 			state.screen = statsexporter::UI_SCREEN_LOADING;
 		}
-		else if (TheGameLogic != NULL && TheGameLogic->isInInteractiveGame() && !shellActive)
+		else if (in.interactive && !in.shellActive)
 		{
-			state.screen = (TheInGameUI != NULL && TheInGameUI->isQuitMenuVisible()) ? statsexporter::UI_SCREEN_IN_GAME_MENU : statsexporter::UI_SCREEN_IN_GAME;
+			state.screen = in.quitMenu ? statsexporter::UI_SCREEN_IN_GAME_MENU : statsexporter::UI_SCREEN_IN_GAME;
 			state.gameMode = mapMatchMode();
-			state.paused = TheGameLogic->isGamePaused();
+			state.paused = in.paused;
 		}
 		else
 		{
@@ -2203,25 +2389,41 @@ namespace
 		return state;
 	}
 
+	UiSnapshot currentUiState()
+	{
+		return buildUiState(readUiInputs());
+	}
+
 	// Sends the current screen when it changed, and once to every new reader (by connection generation).
 	void syncUiState(StatsExporterSink* sink)
 	{
 		static Bool s_hasSent = FALSE;
 		static UnsignedInt s_sentGeneration = 0;
 		static UiSnapshot s_sent;
+		static UiInputsCopy s_inputs;
 
-		if (!sink->isConnected())
+		const UnsignedInt generation = connectedGeneration(sink);
+		if (generation == 0)
 		{
 			return;
 		}
 
-		const UnsignedInt generation = sink->getConnectionGeneration();
-		const UiSnapshot state = currentUiState();
-		if (s_hasSent && s_sentGeneration == generation && s_sent.screen == state.screen && s_sent.layout == state.layout
+		// Called every render frame while connected: unchanged inputs are detected without building any string.
+		const UiInputs inputs = readUiInputs();
+		const Bool sameConnection = s_hasSent && s_sentGeneration == generation && !s_forceUiResend;
+		if (sameConnection && uiInputsSame(inputs, s_inputs))
+		{
+			return;
+		}
+
+		const UiSnapshot state = buildUiState(inputs);
+		copyUiInputs(inputs, s_inputs);
+		if (sameConnection && s_sent.screen == state.screen && s_sent.layout == state.layout
 			&& s_sent.gameMode == state.gameMode && s_sent.paused == state.paused)
 		{
 			return;
 		}
+		s_forceUiResend = FALSE;
 
 		statsexporter::UiState message;
 		message.set_screen(state.screen);
@@ -2236,7 +2438,7 @@ namespace
 				body.push_back(0x08);	// field 1 (screen) = UNKNOWN written out so the frame is never empty
 				body.push_back(0x00);
 			}
-			sink->enqueueFrame(STATS_EXPORTER_FRAME_UI_STATE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size());
+			sink->enqueueFrame(STATS_EXPORTER_FRAME_UI_STATE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), generation);
 		}
 		s_hasSent = TRUE;
 		s_sentGeneration = generation;
@@ -2738,7 +2940,9 @@ namespace
 		out.set_kind(kind);
 		if (entry != NULL)
 		{
-			out.set_map_name(exportedMapName(entry->map_name.c_str(), NULL));
+			// the normalised path, as in MatchInfo.map_name; the lobby's display name is a separate field
+			out.set_map_name(exportedMapName(entry->map_path.c_str(), NULL));
+			out.set_map_display_name(entry->map_name);
 			fillOnlineMatch(*out.mutable_online(), *entry);
 			out.set_host_user_id(entry->owner);
 		}
@@ -2847,7 +3051,12 @@ namespace
 			p->set_lobby_slot((uint32_t)i);
 			p->set_player_index(-1);
 			p->set_name(toUtf8(slot->getName()));
-			p->set_color((uint32_t)slot->getColor());
+			// packed ARGB like MatchPlayer.color; left unset (0) while the colour is still Random
+			const Int slotColor = slot->getColor();
+			if (TheMultiplayerSettings != NULL && slotColor >= 0 && slotColor < TheMultiplayerSettings->getNumColors())
+			{
+				p->set_color((uint32_t)TheMultiplayerSettings->getColor(slotColor)->getColor());
+			}
 			p->set_team(slot->getTeamNumber());
 			p->set_is_human(slot->isHuman());
 			p->set_is_color_random(slot->getOriginalColor() < 0);
@@ -2907,19 +3116,24 @@ namespace
 		static std::string s_lastBody;
 		static ULONGLONG s_lastCheckMs = 0;
 
-		if (!sink->isConnected())
+		const UnsignedInt generation = connectedGeneration(sink);
+		if (generation == 0)
 		{
 			return;
 		}
 
-		const UnsignedInt generation = sink->getConnectionGeneration();
 		const ULONGLONG nowMs = GetTickCount64();
-		const Bool newReader = (generation != s_sentGeneration);
+		const Bool newReader = (generation != s_sentGeneration) || s_forceLobbyResend;
 		if (!newReader && nowMs - s_lastCheckMs < 250)
 		{
 			return;
 		}
 		s_lastCheckMs = nowMs;
+		s_forceLobbyResend = FALSE;
+		if (newReader)
+		{
+			s_wasInLobby = FALSE;	// a reader that was never in a lobby gets no "left" marker
+		}
 
 		statsexporter::LobbyState state;
 		const bool inLobby = buildLobbyState(state);
@@ -2962,7 +3176,7 @@ namespace
 			body.push_back(0x08);	// field 1 (in_lobby) = false written out so the frame is never empty
 			body.push_back(0x00);
 		}
-		sink->enqueueFrame(STATS_EXPORTER_FRAME_LOBBY_STATE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size());
+		sink->enqueueFrame(STATS_EXPORTER_FRAME_LOBBY_STATE, (const UnsignedByte*)body.data(), (UnsignedInt)body.size(), generation);
 	}
 
 	// Runs one ChatSend request through the same function the matching chat box uses when the player types a line.
@@ -3043,15 +3257,23 @@ void StatsExporterLiveCamera()
 	static const Real kEpsilon = 0.01f;
 	static Bool s_hasSent = FALSE;
 	static UnsignedInt s_sentGeneration = 0;
+	static UnsignedInt s_sentSerial = 0;
 	static ULONGLONG s_lastMicros = 0;
 	static Real s_last[14];
 
 	StatsExporterSink* sink = StatsExporterPipeGetSink();
-	if (sink == NULL || !sink->isConnected() || TheTacticalView == NULL || TheGameLogic == NULL || TheRadar == NULL)
+	if (sink == NULL || TheTacticalView == NULL || TheGameLogic == NULL || TheRadar == NULL)
 	{
 		return;
 	}
 	if (!TheGameLogic->isInInteractiveGame())
+	{
+		return;
+	}
+
+	// Only during a match the reader has STARTED for: not the shell map camera before LOADING, nor anything after ENDED.
+	const UnsignedInt generation = connectedGeneration(sink);
+	if (!connectionHasStarted(sink, generation))
 	{
 		return;
 	}
@@ -3067,8 +3289,7 @@ void StatsExporterLiveCamera()
 	const ULONGLONG micros = (ULONGLONG)(counter.QuadPart / frequency.QuadPart) * 1000000ULL
 		+ (ULONGLONG)(counter.QuadPart % frequency.QuadPart) * 1000000ULL / (ULONGLONG)frequency.QuadPart;
 
-	const UnsignedInt generation = sink->getConnectionGeneration();
-	const Bool sameConnection = s_hasSent && s_sentGeneration == generation;
+	const Bool sameConnection = s_hasSent && s_sentGeneration == generation && s_sentSerial == s_matchSerial;
 	if (sameConnection && micros - s_lastMicros < kMinIntervalMicros)
 	{
 		return;
@@ -3129,12 +3350,13 @@ void StatsExporterLiveCamera()
 		message.set_view_bl_x(values[12]);
 		message.set_view_bl_y(values[13]);
 	}
-	sendMessage(sink, STATS_EXPORTER_FRAME_CAMERA, message);
+	sendMessage(sink, STATS_EXPORTER_FRAME_CAMERA, message, generation);
 
 	memcpy(s_last, values, sizeof(s_last));
 	s_lastMicros = micros;
 	s_hasSent = TRUE;
 	s_sentGeneration = generation;
+	s_sentSerial = s_matchSerial;
 }
 
 void StatsExporterLiveTick()
@@ -3150,6 +3372,7 @@ void StatsExporterLiveTick()
 		return;
 	}
 
+	applyResyncRequest(sink);
 	syncUiState(sink);
 	syncLobbyState(sink);
 
@@ -3161,15 +3384,19 @@ void StatsExporterLiveTick()
 		{
 			s_stallStartMs = nowMs;
 		}
-		if (sink->isConnected() && s_matchActive && s_matchInfoConnectionGen == sink->getConnectionGeneration() && nowMs - s_lastStallSendMs >= 250)
+		const UnsignedInt generation = connectedGeneration(sink);
+		if (connectionHasStarted(sink, generation) && nowMs - s_lastStallSendMs >= 250)
 		{
+			// A marker, not a sample: no players, full = false. It carries the stall, the game speed and this PC's display FPS;
+			// the logic is not advancing, so local_logic_fps stays 0.
 			s_lastStallSendMs = nowMs;
 			statsexporter::StatsSnapshot& stalled = stallMessage();
 			stalled.Clear();
 			stalled.set_frame(TheGameLogic->getFrame());
 			stalled.set_network_stalled(true);
 			stalled.set_stalled_frames((UnsignedInt)((nowMs - s_stallStartMs) * LOGICFRAMES_PER_SECOND / 1000));
-			sendMessage(sink, STATS_EXPORTER_FRAME_STATS_SNAPSHOT, stalled);
+			fillSpeedFields(stalled);
+			sendMessage(sink, STATS_EXPORTER_FRAME_STATS_SNAPSHOT, stalled, generation);
 		}
 	}
 	else
@@ -3187,7 +3414,8 @@ void StatsExporterLiveTick()
 void StatsExporterLiveChatInGame(Int senderSlot, const UnicodeString& senderName, const UnicodeString& text, Int playerMask, Bool isLocal)
 {
 	StatsExporterSink* sink = StatsExporterPipeGetSink();
-	if (sink == NULL || !sink->isConnected())
+	const UnsignedInt generation = (sink != NULL) ? connectedGeneration(sink) : 0;
+	if (generation == 0)
 	{
 		return;
 	}
@@ -3213,13 +3441,14 @@ void StatsExporterLiveChatInGame(Int senderSlot, const UnicodeString& senderName
 	message.set_text(toUtf8(text));
 	message.set_audience(chatAudience(sender, senderSlot, playerMask));
 	message.set_is_local(isLocal);
-	sendChatMessage(sink, message);
+	sendChatMessage(sink, message, generation);
 }
 
 void StatsExporterLiveChatOnline(Int channel, Int64 userId, const char* senderName, const char* utf8Text, Bool isAction, Bool isSystem, Bool isLocal)
 {
 	StatsExporterSink* sink = StatsExporterPipeGetSink();
-	if (sink == NULL || !sink->isConnected() || utf8Text == NULL)
+	const UnsignedInt generation = (sink != NULL) ? connectedGeneration(sink) : 0;
+	if (generation == 0 || utf8Text == NULL)
 	{
 		return;
 	}
@@ -3242,7 +3471,7 @@ void StatsExporterLiveChatOnline(Int channel, Int64 userId, const char* senderNa
 		GenOnlineLobbyInterface* lobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 		message.set_lobby_id((lobby != nullptr) ? lobby->GetCurrentLobby().lobbyID : 0);
 	}
-	sendChatMessage(sink, message);
+	sendChatMessage(sink, message, generation);
 }
 
 namespace
@@ -3330,14 +3559,23 @@ namespace
 	}
 }
 
-void StatsExporterLiveMatchLoading(GameInfo* game, UnsignedInt randomCrcBeforeResolve)
+void StatsExporterLiveMatchLoading(GameInfo* game, UnsignedInt randomCrcBeforeResolve, Bool loadingSaveGame)
 {
+	// Whatever happens below, a stale LOADING identity must not survive into STARTED.
+	s_loadingPrepared = FALSE;
+	s_hasLoadingBody = FALSE;
+
 	StatsExporterSink* sink = StatsExporterPipeGetSink();
 	if (sink == NULL || game == NULL || TheGameLogic == NULL || ThePlayerList == NULL)
 	{
 		return;
 	}
 	if (!TheGameLogic->isInInteractiveGame())
+	{
+		return;
+	}
+	// A saved game being loaded is not exported: it never reaches StatsExporterLiveMatchStarted().
+	if (loadingSaveGame)
 	{
 		return;
 	}
@@ -3351,11 +3589,6 @@ void StatsExporterLiveMatchLoading(GameInfo* game, UnsignedInt randomCrcBeforeRe
 	// Whether the logic generator was untouched between the seed being applied and the resolution. Read-only.
 	const Bool randomClean = (randomCrcBeforeResolve == ComputeFreshGameLogicRandomSeedCRC((UnsignedInt)game->getSeed()));
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[StatsExporter] Loading: logic random state before resolution %s the fresh seed state", randomClean ? "equals" : "DIFFERS from");
-	if (TheGlobalData != NULL && TheGlobalData->m_headless)
-	{
-		printf("StatsExporter loading: logic random state before resolution %s the fresh seed state\n", randomClean ? "equals" : "DIFFERS from");
-		fflush(stdout);
-	}
 
 	// Compare the lobby prediction with what the engine resolved. Read-only.
 	if (s_predictionValid && s_predictionSeed == game->getSeed())
@@ -3393,17 +3626,20 @@ void StatsExporterLiveMatchLoading(GameInfo* game, UnsignedInt randomCrcBeforeRe
 	s_loadingSentGeneration = 0;
 
 	// The load blocks the main thread and no tick runs during it, so a connected reader gets LOADING right here.
-	if (s_hasLoadingBody && sink->isConnected())
+	const UnsignedInt generation = connectedGeneration(sink);
+	if (s_hasLoadingBody && generation != 0)
 	{
 		syncUiState(sink);
-		sink->enqueueFrame(STATS_EXPORTER_FRAME_MATCH_INFO, (const UnsignedByte*)s_loadingBody.data(), (UnsignedInt)s_loadingBody.size());
-		s_loadingSentGeneration = sink->getConnectionGeneration();
+		sink->enqueueFrame(STATS_EXPORTER_FRAME_MATCH_INFO, (const UnsignedByte*)s_loadingBody.data(), (UnsignedInt)s_loadingBody.size(), generation);
+		s_loadingSentGeneration = generation;
 	}
 }
 
 void StatsExporterLiveChatLan(Int channel, const UnicodeString& senderName, const UnicodeString& text, Bool isAction, Bool isSystem, Bool isLocal)
 {
-	StatsExporterLiveChatOnline(channel, 0, toUtf8(senderName).c_str(), toUtf8(text).c_str(), isAction, isSystem, isLocal);
+	// The LAN API tells local from remote by IP only, which two instances on one PC share; the name has to match as well.
+	const Bool sameName = (TheLAN == NULL) || (TheLAN->GetMyName().compare(senderName) == 0);
+	StatsExporterLiveChatOnline(channel, 0, toUtf8(senderName).c_str(), toUtf8(text).c_str(), isAction, isSystem, isLocal && sameName);
 }
 
 void StatsExporterLiveSpend(Int playerIndex, Int category, Int amount)
@@ -3413,6 +3649,11 @@ void StatsExporterLiveSpend(Int playerIndex, Int category, Int amount)
 		return;
 	}
 	if (StatsExporterPipeGetSink() == NULL)
+	{
+		return;
+	}
+	// Starting buildings and units are placed during the map load, on frame 0; they are not spend.
+	if (TheGameLogic == NULL || TheGameLogic->getFrame() == 0)
 	{
 		return;
 	}
@@ -3500,6 +3741,12 @@ void StatsExporterLiveCapture(const Object* captured, const Player* oldOwner, co
 		return;
 	}
 	if (!captured->isKindOf(KINDOF_STRUCTURE) || captured->getTemplate() == NULL)
+	{
+		return;
+	}
+	// Allies handing structures over (a surrender's asset transfer, script team changes) is not a capture:
+	// no event when each owner counts the other as an ally.
+	if (oldOwner->getRelationship(newOwner->getDefaultTeam()) == ALLIES && newOwner->getRelationship(oldOwner->getDefaultTeam()) == ALLIES)
 	{
 		return;
 	}
@@ -3599,6 +3846,16 @@ void StatsExporterLivePlayerLeft(Int playerIndex, const char* variant)
 	if (StatsExporterPipeGetSink() == NULL)
 	{
 		return;
+	}
+
+	// One event per player and match: a quit sends both the self destruct command and the network leave; the first one wins.
+	if (playerIndex >= 0 && playerIndex < kMaxCounterPlayers)
+	{
+		if (s_playerLeft[playerIndex])
+		{
+			return;
+		}
+		s_playerLeft[playerIndex] = TRUE;
 	}
 
 	PendingEvent event;

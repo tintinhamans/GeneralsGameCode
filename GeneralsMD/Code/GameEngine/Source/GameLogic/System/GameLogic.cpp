@@ -1467,7 +1467,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	populateRandomStartPosition(game);
 
 	// The resolved sides, colors and start positions are in the slots now; the exporter only reads them.
-	StatsExporterLiveMatchLoading(game, randomCrcBeforeResolve);
+	StatsExporterLiveMatchLoading(game, randomCrcBeforeResolve, loadingSaveGame);
 
 	//****************************//
 	// Start the LoadScreen Now!	//
@@ -4062,7 +4062,7 @@ void GameLogic::update()
 		TheStatsCollector->update();
 	}
 
-	// live stats pipe sample; an early-out unless the pipe is enabled
+	// live stats pipe sample (state at the end of the previous frame); an early-out while no reader is connected
 	StatsExporterLiveUpdate();
 
 	// Update the Recorder
@@ -4205,6 +4205,9 @@ void GameLogic::update()
 	{
 		TheGameLogic->exitGame();
 	}
+
+	// live stats pipe: the discrete events of this logic frame
+	StatsExporterLiveFrameEnd();
 
 	// increment world time
 	if (!m_startNewGame)
