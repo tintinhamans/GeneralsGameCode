@@ -7,6 +7,10 @@ import com.generalsonline.stats.internal.RequestLimiter;
 import com.generalsonline.stats.internal.SequenceTracker;
 import com.generalsonline.stats.proto.CatalogEntry;
 import com.generalsonline.stats.proto.CatalogQuery;
+import com.generalsonline.stats.proto.CameraControlQuery;
+import com.generalsonline.stats.proto.CameraFollowMode;
+import com.generalsonline.stats.proto.CameraFollowQuery;
+import com.generalsonline.stats.proto.CameraState;
 import com.generalsonline.stats.proto.CatalogResult;
 import com.generalsonline.stats.proto.ChatAudience;
 import com.generalsonline.stats.proto.ChatChannel;
@@ -18,11 +22,15 @@ import com.generalsonline.stats.proto.MapDetail;
 import com.generalsonline.stats.proto.MapQuery;
 import com.generalsonline.stats.proto.ObjectDetail;
 import com.generalsonline.stats.proto.ObjectQuery;
+import com.generalsonline.stats.proto.ObserveQuery;
+import com.generalsonline.stats.proto.ObserveState;
 import com.generalsonline.stats.proto.ObjectsQuery;
 import com.generalsonline.stats.proto.ObjectsResult;
 import com.generalsonline.stats.proto.PageInfo;
 import com.generalsonline.stats.proto.PlayerDetail;
 import com.generalsonline.stats.proto.PlayerQuery;
+import com.generalsonline.stats.proto.ReplayControlQuery;
+import com.generalsonline.stats.proto.ReplayState;
 import com.generalsonline.stats.proto.Request;
 import com.generalsonline.stats.proto.ResyncQuery;
 import com.generalsonline.stats.proto.ResyncResult;
@@ -102,6 +110,10 @@ import java.util.function.Supplier;
  * ({@code Hello.max_requests_per_second} sustained, {@code Hello.max_request_burst} at once) and answers an excess
  * request with {@code RATE_LIMITED}; {@link Builder#limitRequests} makes the library apply the same limit itself.
  * Requests can only be sent once the Hello arrived.
+ *
+ * <p><b>Control.</b> The camera, replay and observer methods ({@link #moveCamera}, {@link #followUnit}, {@link #pauseReplay},
+ * {@link #observePlayer}, ...) are requests too. The game answers {@code NOT_ALLOWED}, which these methods turn into a
+ * {@link NotAllowedException}, when its situation forbids the command: only observers and replay playback may be steered.
  *
  * <p><b>Errors.</b> A listener, state listener or executor task that throws costs only its frame: the exception goes to
  * {@link StatsListener#onError} and reading continues. Only a pipe or framing failure disconnects, and its real cause
@@ -720,6 +732,9 @@ public final class StatsPipe implements AutoCloseable {
      */
     private <T> CompletableFuture<T> typed(Request.Builder query, Response.ResultCase expected, Function<Response, T> result) {
         return request(query, requestTimeout).thenCompose(response -> {
+            if (response.getStatus() == ResponseStatus.RESPONSE_STATUS_NOT_ALLOWED) {
+                return CompletableFuture.failedFuture(new NotAllowedException(response.getMessage()));
+            }
             if (response.getStatus() != ResponseStatus.RESPONSE_STATUS_OK) {
                 return CompletableFuture.failedFuture(new RequestFailedException(response.getStatus(), response.getMessage()));
             }
@@ -809,6 +824,193 @@ public final class StatsPipe implements AutoCloseable {
      */
     public CompletableFuture<FeedConfig> setFeedConfig(FeedConfigQuery query) {
         return typed(Request.newBuilder().setFeedConfig(query), Response.ResultCase.FEED_CONFIG, Response::getFeedConfig);
+    }
+
+    // -- Camera, replay and observer control. Every command below fails with a NotAllowedException when the game's
+    // situation does not allow it, and with a RequestFailedException for any other status.
+
+    /**
+     * Moves or sets the camera, at once or over a transition. The game accepts this only while the local player is an
+     * observer of a match or a replay plays back, so a tool never moves the camera of someone who plays.
+     *
+     * @param move the target values and the transition
+     * @return the camera as the command left it; fails with a {@link NotAllowedException} when the local player plays,
+     *         with BAD_REQUEST when the move is empty or a value is out of range, and with UNAVAILABLE when no match runs
+     * @throws IllegalArgumentException when the move changes nothing
+     */
+    public CompletableFuture<CameraState> moveCamera(CameraMove move) {
+        Objects.requireNonNull(move, "move");
+        if (move.isEmpty()) {
+            throw new IllegalArgumentException("the move changes nothing");
+        }
+        return cameraControl(move.toQuery());
+    }
+
+    /**
+     * Sends a camera command in its wire form, for options {@link CameraMove} does not cover, such as
+     * {@code cancel_transition}.
+     *
+     * @param query the command
+     * @return the camera as the command left it
+     */
+    public CompletableFuture<CameraState> cameraControl(CameraControlQuery query) {
+        return typed(Request.newBuilder().setCameraControl(query), Response.ResultCase.CAMERA_CONTROL, Response::getCameraControl);
+    }
+
+    /**
+     * Puts the camera's angle, pitch and zoom back to the game's defaults, like the reset camera key. The position stays.
+     *
+     * @return the camera as the command left it
+     */
+    public CompletableFuture<CameraState> resetCamera() {
+        return moveCamera(CameraMove.reset());
+    }
+
+    /**
+     * Stops a running camera transition where it is.
+     *
+     * @return the camera as the command left it
+     */
+    public CompletableFuture<CameraState> cancelCameraTransition() {
+        return cameraControl(CameraControlQuery.newBuilder().setCancelTransition(true).build());
+    }
+
+    /**
+     * Locks the camera on a unit, centered on it; the camera glides to the unit.
+     *
+     * @param objectId the unit, for example from an event, a selection or a {@code NotableUnit}
+     * @return the camera as the command left it; fails with NOT_FOUND when the unit does not exist or is dead
+     */
+    public CompletableFuture<CameraState> followUnit(int objectId) {
+        return followUnit(objectId, false);
+    }
+
+    /**
+     * Locks the camera on a unit, centered on it.
+     *
+     * @param objectId the unit
+     * @param snap true to jump to the unit instead of gliding to it
+     * @return the camera as the command left it
+     */
+    public CompletableFuture<CameraState> followUnit(int objectId, boolean snap) {
+        requireObject(objectId);
+        return cameraFollow(CameraFollowQuery.newBuilder().setObjectId(objectId).setMode(CameraFollowMode.CAMERA_FOLLOW_FOLLOW).setSnap(snap).build());
+    }
+
+    /**
+     * Locks the camera on a unit in tether mode: the camera trails the unit and lets it move around inside a slack area.
+     *
+     * @param objectId the unit
+     * @param distance the game's tether strength, above 0 and at most 100 (the camera creeps toward the unit by 1% of
+     *        it per frame inside the slack area)
+     * @return the camera as the command left it
+     */
+    public CompletableFuture<CameraState> tetherUnit(int objectId, double distance) {
+        requireObject(objectId);
+        if (!(distance > 0.0 && distance <= 100.0)) {
+            throw new IllegalArgumentException("the tether distance is above 0 and at most 100");
+        }
+        return cameraFollow(CameraFollowQuery.newBuilder().setObjectId(objectId).setMode(CameraFollowMode.CAMERA_FOLLOW_TETHER).setTetherDistance((float) distance).build());
+    }
+
+    /**
+     * Releases the camera lock. The game reports the end in the next {@code Camera} frame ({@code follow_ended}).
+     *
+     * @return the camera as the command left it
+     */
+    public CompletableFuture<CameraState> unfollowUnit() {
+        return cameraFollow(CameraFollowQuery.getDefaultInstance());
+    }
+
+    /**
+     * Sends a follow command in its wire form.
+     *
+     * @param query the command; object id 0 releases the lock
+     * @return the camera as the command left it
+     */
+    public CompletableFuture<CameraState> cameraFollow(CameraFollowQuery query) {
+        return typed(Request.newBuilder().setCameraFollow(query), Response.ResultCase.CAMERA_FOLLOW, Response::getCameraFollow);
+    }
+
+    private static void requireObject(int objectId) {
+        if (objectId == 0) {
+            throw new IllegalArgumentException("object id 0 means no object; use unfollowUnit()");
+        }
+    }
+
+    /**
+     * Pauses a replay playback. Only a replay can be paused: pausing a live game would break it.
+     *
+     * @return the replay state; fails with a {@link NotAllowedException} when no replay plays back
+     */
+    public CompletableFuture<ReplayState> pauseReplay() {
+        return replayControl(ReplayControlQuery.newBuilder().setPaused(true).build());
+    }
+
+    /**
+     * Resumes a paused replay playback.
+     *
+     * @return the replay state
+     */
+    public CompletableFuture<ReplayState> resumeReplay() {
+        return replayControl(ReplayControlQuery.newBuilder().setPaused(false).build());
+    }
+
+    /**
+     * Sets the pace of a replay playback and leaves fast forward mode.
+     *
+     * @param ratio the pace as a multiple of normal speed, 0.1 to 16; the game caps it at what the display frame rate
+     *        limit allows, and the returned state says what it got
+     * @return the replay state
+     */
+    public CompletableFuture<ReplayState> setReplaySpeed(double ratio) {
+        if (!(ratio >= 0.1 && ratio <= 16.0)) {
+            throw new IllegalArgumentException("the speed ratio is 0.1 to 16");
+        }
+        return replayControl(ReplayControlQuery.newBuilder().setSpeedRatio((float) ratio).build());
+    }
+
+    /**
+     * Switches the game's fast forward mode of a replay on or off. Fast forward runs as fast as the machine allows.
+     *
+     * @param on true for fast forward
+     * @return the replay state
+     */
+    public CompletableFuture<ReplayState> setReplayFastForward(boolean on) {
+        return replayControl(ReplayControlQuery.newBuilder().setFastForward(on).build());
+    }
+
+    /**
+     * Sends a replay command in its wire form; any combination of pause, speed and fast forward.
+     *
+     * @param query the command
+     * @return the replay state after the command
+     */
+    public CompletableFuture<ReplayState> replayControl(ReplayControlQuery query) {
+        return typed(Request.newBuilder().setReplayControl(query), Response.ResultCase.REPLAY_CONTROL, Response::getReplayControl);
+    }
+
+    /**
+     * Changes the observer's point of view to a player: whose units, shroud and radar the view shows. Observers and
+     * replay playback only.
+     *
+     * @param playerIndex the engine's player index of a player of the match
+     * @return the new point of view; fails with a {@link NotAllowedException} for an active player and NOT_FOUND for an unknown index
+     */
+    public CompletableFuture<ObserveState> observePlayer(int playerIndex) {
+        if (playerIndex < 0) {
+            throw new IllegalArgumentException("a player index is not negative; use observeNobody()");
+        }
+        return typed(Request.newBuilder().setObserve(ObserveQuery.newBuilder().setPlayerIndex(playerIndex)), Response.ResultCase.OBSERVE, Response::getObserve);
+    }
+
+    /**
+     * Returns the observer's point of view to the all-seeing observer.
+     *
+     * @return the new point of view
+     */
+    public CompletableFuture<ObserveState> observeNobody() {
+        return typed(Request.newBuilder().setObserve(ObserveQuery.newBuilder().setPlayerIndex(-1)), Response.ResultCase.OBSERVE, Response::getObserve);
     }
 
     /**

@@ -4,6 +4,8 @@ import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.Hello;
+import com.generalsonline.stats.proto.InterestMap;
+import com.generalsonline.stats.proto.ViewStats;
 import com.generalsonline.stats.proto.Response;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
@@ -55,6 +57,16 @@ class RecordingListener implements StatsListener {
 
     @Override
     public void onResponse(Response message) {
+        note(message);
+    }
+
+    @Override
+    public void onViewStats(ViewStats message) {
+        note(message);
+    }
+
+    @Override
+    public void onInterestMap(InterestMap message) {
         note(message);
     }
 

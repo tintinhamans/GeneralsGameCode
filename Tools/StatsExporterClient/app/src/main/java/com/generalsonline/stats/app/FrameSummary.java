@@ -6,12 +6,14 @@ import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.Hello;
+import com.generalsonline.stats.proto.InterestMap;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
 import com.generalsonline.stats.proto.Response;
 import com.generalsonline.stats.proto.StatsSnapshot;
 import com.generalsonline.stats.proto.UiState;
+import com.generalsonline.stats.proto.ViewStats;
 
 import static com.generalsonline.stats.Format.strip;
 
@@ -52,6 +54,12 @@ final class FrameSummary {
         }
         if (message instanceof Camera c) {
             return String.format("at %.0f, %.0f zoom %.2f angle %.2f pitch %.2f", c.getX(), c.getY(), c.getZoom(), c.getAngle(), c.getPitch());
+        }
+        if (message instanceof ViewStats v) {
+            return "frame " + v.getFrame() + (v.getHasView() ? "" : " (no view)") + ", " + v.getPlayersCount() + " players";
+        }
+        if (message instanceof InterestMap i) {
+            return "frame " + i.getFrame() + " " + i.getWidth() + "x" + i.getHeight() + " cells, " + i.getHighlightsCount() + " highlights";
         }
         if (message instanceof MatchSummary m) {
             return "frame " + m.getFrame() + " map=" + m.getMapName() + " players=" + m.getPlayersCount();

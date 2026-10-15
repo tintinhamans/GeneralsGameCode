@@ -277,11 +277,12 @@ class ExamplesTest {
         Path folder = Path.of(System.getProperty("examples.dir", "../examples/src/main/java"));
         assertTrue(Files.isDirectory(folder), "the examples project is next to the app project: " + folder.toAbsolutePath());
         Set<String> expected = new HashSet<>();
+        // git may check the files out with CRLF (core.autocrlf); the generator emits LF, so only the text is compared
         for (Examples.Scenario scenario : Examples.Scenario.values()) {
             expected.add(scenario.fileName());
             Path file = folder.resolve(scenario.fileName());
             assertTrue(Files.isRegularFile(file), "missing " + file);
-            assertEquals(Examples.generate(scenario, DEFAULTS), Files.readString(file, StandardCharsets.UTF_8),
+            assertEquals(Examples.generate(scenario, DEFAULTS), Files.readString(file, StandardCharsets.UTF_8).replace("\r\n", "\n"),
                 file.getFileName() + " is out of date: regenerate it with  example " + scenario.id() + " > " + scenario.fileName());
         }
         Set<String> found = new HashSet<>();

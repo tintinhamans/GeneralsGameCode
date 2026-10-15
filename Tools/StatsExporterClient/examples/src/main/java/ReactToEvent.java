@@ -1,7 +1,7 @@
 // Reacts to KILL events: a player destroyed an object (player = the killer).
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar ReactToEvent.java
+//   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar ReactToEvent.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.MatchState;

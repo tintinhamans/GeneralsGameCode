@@ -3,6 +3,9 @@ package com.generalsonline.stats.app;
 import com.generalsonline.stats.FrameType;
 
 import com.generalsonline.stats.proto.Camera;
+import com.generalsonline.stats.proto.InterestMap;
+import com.generalsonline.stats.proto.PlayerViewStats;
+import com.generalsonline.stats.proto.ViewStats;
 import com.generalsonline.stats.proto.CategoryCounts;
 import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.Hello;
@@ -157,10 +160,24 @@ final class TestMessages {
         if (message instanceof Camera) {
             return FrameType.CAMERA.id();
         }
+        if (message instanceof ViewStats) {
+            return FrameType.VIEW_STATS.id();
+        }
+        if (message instanceof InterestMap) {
+            return FrameType.INTEREST_MAP.id();
+        }
         throw new IllegalArgumentException(message.getClass().getName());
     }
 
+    static ViewStats viewStats() {
+        return ViewStats.newBuilder().setFrame(901).setHasView(true).addPlayers(PlayerViewStats.newBuilder().setPlayerIndex(2).setValueInView(4200)).build();
+    }
+
+    static InterestMap interestMap() {
+        return InterestMap.newBuilder().setFrame(902).setWidth(2).setHeight(2).addScores(0).addScores(5).addScores(9).addScores(1).build();
+    }
+
     static Message[] all() {
-        return new Message[] {hello(), matchInfo(), statsSnapshot(), matchSummary(), chatMessage(), uiState(), lobbyState(), events(), camera(), response()};
+        return new Message[] {hello(), matchInfo(), statsSnapshot(), matchSummary(), chatMessage(), uiState(), lobbyState(), events(), camera(), response(), viewStats(), interestMap()};
     }
 }

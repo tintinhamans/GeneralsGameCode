@@ -1,10 +1,10 @@
 # Generals Online stats pipe client
 
-A Java 17 library for the live stats pipe of a Generals Online game, a test client that shows everything the pipe delivers, and example programs. Protocol reference: [docs/stats-exporter.md](../../docs/stats-exporter.md). This is version 2.0.0, for **protocol version 2** (a 17 byte frame header with a sequence number and a timestamp, a Hello handshake, requests and responses); it cannot talk to a game of protocol version 1, see the [CHANGELOG](CHANGELOG.md).
+A Java 17 library for the live stats pipe of a Generals Online game, a test client that shows everything the pipe delivers, and example programs. Protocol reference: [docs/stats-exporter.md](../../docs/stats-exporter.md). This is version 2.1.0, for **protocol version 2** (a 17 byte frame header with a sequence number and a timestamp, a Hello handshake, requests and responses); it cannot talk to a game of protocol version 1, see the [CHANGELOG](CHANGELOG.md).
 
 | Project | What it is |
 |---|---|
-| [`lib/`](lib) | `com.generalsonline:stats-pipe-client:2.0.0`. The library other people depend on: the generated protobuf classes, the transport, a thread safe match state, dump files and helpers. protobuf-java is its only dependency. |
+| [`lib/`](lib) | `com.generalsonline:stats-pipe-client:2.1.0`. The library other people depend on: the generated protobuf classes, the transport, a thread safe match state, dump files and helpers. protobuf-java is its only dependency. |
 | [`app/`](app) | The test client: the commands `watch`, `dump`, `replay`, `chat`, `gui`, `schema`, `example` and a Swing GUI. It uses the library through its public API only. |
 | [`examples/`](examples) | One runnable program per scenario of the GUI's Code tab, compiled against the library in every build. |
 
@@ -24,18 +24,18 @@ Then, in another project:
 
 ```groovy
 repositories { mavenLocal() }
-dependencies { implementation 'com.generalsonline:stats-pipe-client:2.0.0' }   // brings protobuf-java 4.33.4
+dependencies { implementation 'com.generalsonline:stats-pipe-client:2.1.0' }   // brings protobuf-java 4.33.4
 ```
 
 ```xml
 <dependency>
   <groupId>com.generalsonline</groupId>
   <artifactId>stats-pipe-client</artifactId>
-  <version>2.0.0</version>
+  <version>2.1.0</version>
 </dependency>
 ```
 
-Without a build tool: `lib/build/libs/stats-pipe-client-2.0.0.jar` plus `protobuf-java-4.33.4.jar` on the class path. The jar is an automatic module named `com.generalsonline.stats`. The packages are `com.generalsonline.stats` (the API), `com.generalsonline.stats.proto` (the generated messages) and `com.generalsonline.stats.internal` (not for users).
+Without a build tool: `lib/build/libs/stats-pipe-client-2.1.0.jar` plus `protobuf-java-4.33.4.jar` on the class path. The jar is an automatic module named `com.generalsonline.stats`. The packages are `com.generalsonline.stats` (the API), `com.generalsonline.stats.proto` (the generated messages) and `com.generalsonline.stats.internal` (not for users).
 
 The message classes are generated from the game's own `StatsExporter.proto` (a filtered copy with `optimize_for = LITE_RUNTIME` removed, so the classes have descriptors and text printing). There is one copy of the schema; the build never modifies it. `protobuf-java` 4.33.4 pairs with the engine's protobuf 6.33.4 (Java 4.x corresponds to C++ 6.x); the wire format is stable across versions.
 
@@ -63,18 +63,21 @@ public class QuickStart {
 }
 ```
 
-Run it with the two jars on the class path, for example `java -cp stats-pipe-client-2.0.0.jar;protobuf-java-4.33.4.jar QuickStart.java` (`:` instead of `;` outside Windows).
+Run it with the two jars on the class path, for example `java -cp stats-pipe-client-2.1.0.jar;protobuf-java-4.33.4.jar QuickStart.java` (`:` instead of `;` outside Windows).
 
 ### The public API
 
 | Type | What it does |
 |---|---|
 | `StatsPipe` | The connection. `StatsPipe.builder()` with `.pid(int)` or `.pipe(String)` (otherwise every running game is tried, highest pid first, and a game without a free reader slot is skipped), `.listener(StatsListener)`, `.state(MatchState)`, `.executor(Executor)`, `.reconnect(boolean)`, `.reconnectBackoff(min, max)`, `.helloTimeout(Duration)` (default 10 s), `.requestTimeout(Duration)` (default 5 s), `.limitRequests(boolean)` (default off), `.build()`. Then `start()`, `close()` (it is `AutoCloseable`), `isConnected()`, `connectedPid()`, `connectedPipe()`, `hello()` / `awaitHello(Duration)` / `hasCapability(String)`, `droppedFrames()`, `clockSync()`, `sendChat(...)` and the request methods (`request`, `catalog`, `object`, `objects`, `player`, `map`, `resync`, `feedConfig`, `setFeedConfig`, `catalogAll`, `objectsAll`), see below. The builder rejects bad values (a negative pid, a blank pipe, both a pid and a pipe, a timeout under 1 ms) at once; `sendChat` rejects an empty line, a line over 1024 UTF-8 bytes and an audience the game cannot take. |
-| `StatsListener` | One method per frame type (`onHello`, `onMatchInfo`, `onStatsSnapshot`, `onMatchSummary`, `onChatMessage`, `onUiState`, `onLobbyState`, `onEvents`, `onCamera`, `onResponse`), `onFramesDropped(count)`, the lifecycle (`onConnected`, `onDisconnected(cause)`), `onFrame` for every raw frame (recorders; `DecodedFrame` has `sequence()` and `timestampMicros()`), `unknownFrame`, `decodeError` and `onError`. All have empty defaults. |
+| `StatsListener` | One method per frame type (`onHello`, `onMatchInfo`, `onStatsSnapshot`, `onMatchSummary`, `onChatMessage`, `onUiState`, `onLobbyState`, `onEvents`, `onCamera`, `onViewStats`, `onInterestMap`, `onResponse`), `onFramesDropped(count)`, the lifecycle (`onConnected`, `onDisconnected(cause)`), `onFrame` for every raw frame (recorders; `DecodedFrame` has `sequence()` and `timestampMicros()`), `unknownFrame`, `decodeError` and `onError`. All have empty defaults. |
 | `MatchState` | The state the library maintains for you, safe to read from any thread, see below. Feed it through `StatsPipe.Builder.state(...)` or use it as a `StatsListener` yourself. |
-| `StateListener` | Change callbacks of a `MatchState`: `matchChanged`, `matchReset`, `playersChanged`, `snapshotApplied`, `eventsAdded`, `cameraChanged`, `worldChanged`, `chatAdded`, `lobbyChanged`, `uiChanged`, `summaryChanged`, `helloReceived`, `framesDropped`. An overlay redraws from these instead of diffing. |
+| `StateListener` | Change callbacks of a `MatchState`: `matchChanged`, `matchReset`, `playersChanged`, `snapshotApplied`, `eventsAdded`, `cameraChanged`, `viewStatsChanged`, `interestMapChanged`, `worldChanged`, `chatAdded`, `lobbyChanged`, `uiChanged`, `summaryChanged`, `helloReceived`, `framesDropped`. An overlay redraws from these instead of diffing. |
 | `Handshake`, `ClockSync` | Helpers for the Hello (`PROTOCOL_VERSION`, `hasCapability`, `requireSupported`, `wallClockMillis(hello, timestampMicros)`, `summary`) and the estimate of the offset between the game's frame clock and yours. |
 | `ProtocolVersionException`, `HelloTimeoutException`, `RequestFailedException`, `RequestTimeoutException`, `PageLimitException` | What the handshake and the request API fail with, see below. |
+| `NotAllowedException` | A `RequestFailedException` for the status `NOT_ALLOWED`: the game refused a camera, replay or observer command because of its situation (the local player plays, or no replay is running). `reason()` is the game's explanation. |
+| `CameraMove` | An immutable absolute camera command: position, zoom, angle, pitch, an optional transition with easing, or a reset. See "Camera, replay and the director". |
+| `Director`, `DirectorLogic`, `DirectorConfig`, `DirectorMode`, `DirectorMove`, `DirectorClock` | The automatic camera director: `DirectorLogic` decides (pure, with an injectable clock), `Director` connects it to a `MatchState` and a pipe. See below. |
 | `PlayerView` | One player: `info()` (the MatchInfo entry), `stats()` (merged `PlayerStats`), `frame()`, `life()` (`ALIVE`, `DEFEATED`, `LEFT`), and `name()`, `side()`, `color()`, `team()`, `elo()`, `stateText()`. |
 | `Format` | The helpers every reader writes: `gameTime(frames, fps)`, `u(int)` (unsigned reads of uint32 fields), `colorHex(argb)` / `rgb(argb)`, `shortName`, `shortUpgradeName`, `shortPowerName`, `mapDisplayName`, `eventDetail(event, names, fps)`, `viewBox(camera)`, `cause(throwable)`. |
 | `DumpWriter`, `DumpReader` | Record the raw frames of a game (with their sequence numbers and timestamps, the Hello included) and replay them without one: `DumpReader.replay(file, listener)` as fast as possible, or `replay(file, listener, speed)` paced by game time (1.0 is real time, 2.0 twice as fast). A dump goes through the same dispatcher as a live pipe, gaps in its sequence come out as `onFramesDropped`. The file starts with the magic `GOSD` and a format version (2); dumps of protocol version 1 (no header) are still read, with sequence numbers made up. |
@@ -119,6 +122,47 @@ unit.thenAccept(u -> System.out.println(u.getTemplateName() + " " + u.getHealth(
 - A request body is at most 4096 bytes (`IllegalArgumentException` otherwise).
 - **Events** carry more since protocol version 2: `StatEvent.getObjectId()` (the victim, new, captured or promoted object), and for kills and losses `getKillerObjectId()`, `getKillerTemplate()` and `getWeapon()` (also in `Format.eventDetail`: "by ChinaTankGattling with GattlingTankGun"). They are plain fields of the generated classes; use `pipe.object(id)` to look an object up while it lives.
 
+### Camera, replay and the director
+
+New in 2.1.0 (still protocol version 2: the new messages are additive and announced as capabilities in the Hello). A tournament caster's tool can move the game's camera, control a replay and let an automatic director follow the action.
+
+**Rules of the game side.** Camera and observer commands are accepted only while the local player is an **observer** of a match or a **replay plays back**; an active player's camera is never touched, the game answers `NOT_ALLOWED` and the future fails with a `NotAllowedException`. Replay commands (pause, speed, fast forward) work during a **replay playback** only: pausing or slowing a live network game would desynchronize it, so the game refuses. Nothing here touches the simulation; the camera and the pace of a replay are client side. Check `pipe.hasCapability("camera.control")` (also `camera.follow`, `camera.source`, `replay.control`, `observe.player`, `view_stats`, `interest_map`, `status.not_allowed`).
+
+```java
+pipe.moveCamera(CameraMove.to(1800, 2400).zoom(1.2).over(Duration.ofSeconds(2)).easeInOut());   // pan with a transition
+pipe.moveCamera(CameraMove.set().angle(0.5).pitch(0.9));                                          // any subset, at once
+pipe.resetCamera();                                                                                // the game's default angle, pitch and zoom
+pipe.followUnit(unitId);                 pipe.tetherUnit(unitId, 20);        pipe.unfollowUnit();
+pipe.pauseReplay();  pipe.resumeReplay();  pipe.setReplaySpeed(0.5);  pipe.setReplayFastForward(true);
+pipe.observePlayer(3);                   pipe.observeNobody();               // whose units, shroud and radar the view shows
+```
+
+- A transition runs on wall-clock time (a paused game still pans). A position command ends a lock on a unit. The `Camera` frame says what moved the camera since the previous frame (`change_source`: `OTHER` the game, `USER` a human, `PIPE` a command), carries a running count of user camera actions (`user_input_count`), the lock in force (`follow_mode`, `follow_object_id`) and, for a lock a command made, why it ended (`follow_ended`: `OBJECT_GONE`, `USER`, `COMMAND`). That is how a tool notices a caster taking the camera by hand, and a unit dying under a follow.
+- Replay speed: the game runs one logic frame per displayed frame at most, so `setReplaySpeed` can slow a replay down or keep it at normal speed, and the answer's `speed_capped` says when the display frame rate limit kept it lower; `setReplayFastForward(true)` is the game's own fast forward (as fast as the machine runs) for anything faster.
+- With the replay camera option on, a camera recorded in the replay file overrides camera commands.
+
+**What is in view.** `ViewStats` frames (`StatsListener.onViewStats`, `MatchState.viewStats()`; about four a second, `FeedConfig.view_stats_interval_ms`, 0 turns them off) describe per player what is inside the four ground corners of the local camera: the value (sum of build costs) and the effective value (cost times health fraction), the value and count by class (infantry, vehicles, aircraft, structures), veterancy counts, **notable units** (heroes and anything costing at least `notable_cost`, 2000 by default; with health, veterancy and the portable structure an Overlord or Helix carries), superweapon structures with their timers, and, over rolling windows of game time, the value killed and lost (`trade_window_ms`, 15 s) and the damage dealt per second (`intensity_window_ms`, 5 s), counting only what happened inside the view.
+
+**The interest map.** Off by default; `setFeedConfig(FeedConfigQuery.newBuilder().setInterest(true).build())` turns on `InterestMap` frames (`onInterestMap`, `MatchState.interestMap()`, about twice a second): a grid over the playable extent (`grid_resolution`) with a score per cell from the damage dealt there and the value destroyed there (both decaying with a 6 s half life) and from opposing armies standing close together, plus the **pending highlights**: superweapon launches with the target and, where the game knows it, the impact frame (a particle cannon keeps a schedule; a neutron missile's flight time is an estimate, flagged `impact_estimated`), hero deaths and the loss of structures that cost 1000 or more. Every highlight has an id and an expiry frame.
+
+**The director.** `Director` watches a `MatchState` and moves the camera:
+
+```java
+MatchState state = new MatchState();
+StatsPipe pipe = StatsPipe.builder().state(state).build().start();
+DirectorConfig config = DirectorConfig.defaults().toBuilder().mode(DirectorMode.DIRECTOR).minDwell(Duration.ofSeconds(6)).build();
+Director director = Director.start(pipe, state, config);     // switches the interest feed on and steers; close() it when done
+```
+
+| Mode | Behaviour |
+|---|---|
+| `HOTSPOT` | Goes to the best cell. Stays at least `minDwell` (5 s); switches only to a cell scoring `switchRatio` (1.5) times what the current place scores now. A short way is panned, a way over `panLimit` (1500 units) is a cut. |
+| `HIGHLIGHTS` | Idle until a highlight is pending; the camera is in place `highlightLead` (4 s) before a known impact, stays `highlightHold` (3 s) after it, then returns to where it was. |
+| `OVERVIEW` | When it has been quiet for `quietDelay` (4 s) it tours every active player's base and army (`overviewDwell`, 6 s each); a place scoring `fightScore` (400) hands over to hotspot following until it is quiet again. |
+| `DIRECTOR` | All three: highlights interrupt (a superweapon before a hero before a structure), hotspots are followed, the overview fills the quiet. |
+
+The director pauses when a `Camera` frame says a human moved the camera (`change_source` `USER`, or the user action count grew) and takes over again after `resumeDelay` (10 s) without input, or at once with `resume()`. When the game refuses (`NotAllowedException`) it pauses itself and `lastError()` holds the exception. `DirectorLogic` is the pure decision part: it takes interest maps and camera frames and the time of each call, and `poll(now)` returns the moves; with a manual `DirectorClock` it is deterministic, which is how it is tested. `DirectorConfig` is immutable (`defaults().toBuilder()...build()`).
+
 ### Threading
 
 - A pipe has one daemon reader thread that connects, reads and decodes. By default the listener and the state are called on that thread, so keep callbacks short.
@@ -130,7 +174,7 @@ unit.thenAccept(u -> System.out.println(u.getTemplateName() + " " + u.getHealth(
 
 ### Example programs
 
-[`examples/src/main/java`](examples/src/main/java) has one complete program per scenario, compiled against the library on every build. Each can also be run on its own: `java -cp stats-pipe-client-2.0.0.jar;protobuf-java-4.33.4.jar PrintEveryFrame.java`.
+[`examples/src/main/java`](examples/src/main/java) has one complete program per scenario, compiled against the library on every build. Each can also be run on its own: `java -cp stats-pipe-client-2.1.0.jar;protobuf-java-4.33.4.jar PrintEveryFrame.java`.
 
 | Program | Shows |
 |---|---|

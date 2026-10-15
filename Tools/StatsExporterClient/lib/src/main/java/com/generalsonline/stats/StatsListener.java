@@ -4,12 +4,14 @@ import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.Hello;
+import com.generalsonline.stats.proto.InterestMap;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
 import com.generalsonline.stats.proto.Response;
 import com.generalsonline.stats.proto.StatsSnapshot;
 import com.generalsonline.stats.proto.UiState;
+import com.generalsonline.stats.proto.ViewStats;
 
 /**
  * Receives what the stats pipe delivers: the connection lifecycle and one callback per frame type. Every method has an
@@ -141,6 +143,24 @@ public interface StatsListener {
      * @param message the camera
      */
     default void onCamera(Camera message) {
+    }
+
+    /**
+     * Called with what the local camera sees, per player. Sent about four times a second unless the feed configuration
+     * changed that.
+     *
+     * @param message the in-view statistics
+     */
+    default void onViewStats(ViewStats message) {
+    }
+
+    /**
+     * Called with the interest grid and the pending highlights. Sent only after the reader switched
+     * {@code FeedConfig.interest} on.
+     *
+     * @param message the interest map
+     */
+    default void onInterestMap(InterestMap message) {
     }
 
     /**

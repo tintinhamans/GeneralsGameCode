@@ -1,6 +1,15 @@
 package com.generalsonline.stats;
 
 import com.generalsonline.stats.proto.Camera;
+import com.generalsonline.stats.proto.CameraChangeSource;
+import com.generalsonline.stats.proto.CameraFollowMode;
+import com.generalsonline.stats.proto.CategoryValue;
+import com.generalsonline.stats.proto.HighlightKind;
+import com.generalsonline.stats.proto.InterestHighlight;
+import com.generalsonline.stats.proto.InterestMap;
+import com.generalsonline.stats.proto.NotableUnit;
+import com.generalsonline.stats.proto.PlayerViewStats;
+import com.generalsonline.stats.proto.ViewStats;
 import com.generalsonline.stats.proto.CategoryCounts;
 import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.ChatAudience;
@@ -78,6 +87,23 @@ public final class TestMessages {
     public static Camera camera() {
         return Camera.newBuilder().setTimestampUs(123456789L).setLogicFrame(900).setX(100.5f).setY(200.25f).setZoom(1.5f).setAngle(0.25f).setPitch(0.75f)
             .setHeightAboveGround(300f).setHasViewBox(true).setViewTlX(1).setViewTlY(2).setViewTrX(3).setViewTrY(4).setViewBrX(5).setViewBrY(6).setViewBlX(7).setViewBlY(8)
+            .setChangeSource(CameraChangeSource.CAMERA_CHANGE_PIPE).setUserInputCount(3).setFollowMode(CameraFollowMode.CAMERA_FOLLOW_FOLLOW).setFollowObjectId(55)
+            .build();
+    }
+
+    public static ViewStats viewStats() {
+        return ViewStats.newBuilder().setFrame(901).setHasView(true).setTradeWindowMs(15000).setIntensityWindowMs(5000)
+            .addPlayers(PlayerViewStats.newBuilder().setPlayerIndex(2).setValueInView(4200).setEffectiveValue(3900)
+                .setValueByClass(CategoryValue.newBuilder().setVehicle(4200)).setVeteran(2).setValueKilled(800).setDamagePerSecond(55.5f)
+                .addNotable(NotableUnit.newBuilder().setObjectId(77).setTemplateName("ChinaTankOverlord").setHealth(0.8f).setCost(2000).setAddon("OverlordGattlingCannon")))
+            .build();
+    }
+
+    public static InterestMap interestMap() {
+        return InterestMap.newBuilder().setFrame(902).setWidth(2).setHeight(2).setCellWidth(500f).setCellHeight(500f).setOriginX(0f).setOriginY(0f)
+            .addScores(0).addScores(120).addScores(900).addScores(30).setHalfLifeMs(6000)
+            .addHighlights(InterestHighlight.newBuilder().setId(4).setKind(HighlightKind.HIGHLIGHT_SUPERWEAPON_LAUNCH).setPlayerIndex(2).setX(750f).setY(250f)
+                .setStartFrame(900).setImpactFrame(1200).setImpactEstimated(true).setExpireFrame(1500))
             .build();
     }
 
@@ -178,10 +204,16 @@ public final class TestMessages {
         if (message instanceof Camera) {
             return FrameType.CAMERA.id();
         }
+        if (message instanceof ViewStats) {
+            return FrameType.VIEW_STATS.id();
+        }
+        if (message instanceof InterestMap) {
+            return FrameType.INTEREST_MAP.id();
+        }
         throw new IllegalArgumentException(message.getClass().getName());
     }
 
     public static Message[] all() {
-        return new Message[] {hello(), matchInfo(), statsSnapshot(), matchSummary(), chatMessage(), uiState(), lobbyState(), events(), camera(), response()};
+        return new Message[] {hello(), matchInfo(), statsSnapshot(), matchSummary(), chatMessage(), uiState(), lobbyState(), events(), camera(), response(), viewStats(), interestMap()};
     }
 }

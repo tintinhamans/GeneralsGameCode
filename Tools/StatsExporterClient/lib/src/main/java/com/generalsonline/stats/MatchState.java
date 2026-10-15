@@ -4,6 +4,7 @@ import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.Hello;
+import com.generalsonline.stats.proto.InterestMap;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchPhase;
@@ -18,6 +19,7 @@ import com.generalsonline.stats.proto.StatsSnapshot;
 import com.generalsonline.stats.proto.SupplySource;
 import com.generalsonline.stats.proto.TechStructure;
 import com.generalsonline.stats.proto.UiState;
+import com.generalsonline.stats.proto.ViewStats;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -99,6 +101,8 @@ public final class MatchState implements StatsListener {
     private float localLogicFps;
     private Camera camera;
     private long cameraFrames;
+    private ViewStats viewStats;
+    private InterestMap interestMap;
     private WorldExtent extent;
     private List<PlayerGrid> grids = List.of();
     private List<SupplySource> supply = List.of();
@@ -483,6 +487,28 @@ public final class MatchState implements StatsListener {
     }
 
     /**
+     * Returns the latest in-view statistics: what the local camera sees, per player.
+     *
+     * @return the latest {@code ViewStats} of the match, empty before the first one (and when the reader turned the feed off)
+     */
+    public Optional<ViewStats> viewStats() {
+        synchronized (lock) {
+            return Optional.ofNullable(viewStats);
+        }
+    }
+
+    /**
+     * Returns the latest interest map: where the action is, and the pending highlights.
+     *
+     * @return the latest {@code InterestMap} of the match, empty until the reader switched {@code FeedConfig.interest} on
+     */
+    public Optional<InterestMap> interestMap() {
+        synchronized (lock) {
+            return Optional.ofNullable(interestMap);
+        }
+    }
+
+    /**
      * Returns the playable map rectangle.
      *
      * @return the extent from {@code MatchInfo}, empty while the map is loading (a LOADING message has none)
@@ -642,6 +668,22 @@ public final class MatchState implements StatsListener {
             cameraFrames++;
         }
         publish(l -> l.cameraChanged(message));
+    }
+
+    @Override
+    public void onViewStats(ViewStats message) {
+        synchronized (lock) {
+            viewStats = message;
+        }
+        publish(l -> l.viewStatsChanged(message));
+    }
+
+    @Override
+    public void onInterestMap(InterestMap message) {
+        synchronized (lock) {
+            interestMap = message;
+        }
+        publish(l -> l.interestMapChanged(message));
     }
 
     @Override
@@ -817,6 +859,8 @@ public final class MatchState implements StatsListener {
         connections = List.of();
         camera = null;
         cameraFrames = 0;
+        viewStats = null;
+        interestMap = null;
         frame = -1;
         latestEventFrame = -1;
         stalled = false;

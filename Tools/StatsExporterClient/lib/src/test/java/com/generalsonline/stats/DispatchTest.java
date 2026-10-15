@@ -87,11 +87,21 @@ class DispatchTest {
             public void onCamera(com.generalsonline.stats.proto.Camera m) {
                 called.add("onCamera");
             }
+
+            @Override
+            public void onViewStats(com.generalsonline.stats.proto.ViewStats m) {
+                called.add("onViewStats");
+            }
+
+            @Override
+            public void onInterestMap(com.generalsonline.stats.proto.InterestMap m) {
+                called.add("onInterestMap");
+            }
         };
         for (Message message : TestMessages.all()) {
             FrameDispatcher.deliver(decode(message), byName);
         }
-        assertEquals(List.of("onHello", "onMatchInfo", "onStatsSnapshot", "onMatchSummary", "onChatMessage", "onUiState", "onLobbyState", "onEvents", "onCamera", "onResponse"), called);
+        assertEquals(List.of("onHello", "onMatchInfo", "onStatsSnapshot", "onMatchSummary", "onChatMessage", "onUiState", "onLobbyState", "onEvents", "onCamera", "onResponse", "onViewStats", "onInterestMap"), called);
     }
 
     @Test

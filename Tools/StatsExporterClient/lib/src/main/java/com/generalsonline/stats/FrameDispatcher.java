@@ -4,12 +4,14 @@ import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.Hello;
+import com.generalsonline.stats.proto.InterestMap;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
 import com.generalsonline.stats.proto.Response;
 import com.generalsonline.stats.proto.StatsSnapshot;
 import com.generalsonline.stats.proto.UiState;
+import com.generalsonline.stats.proto.ViewStats;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 
@@ -47,6 +49,8 @@ public final class FrameDispatcher {
                 case CAMERA -> Camera.parseFrom(body);
                 case HELLO -> Hello.parseFrom(body);
                 case RESPONSE -> Response.parseFrom(body);
+                case VIEW_STATS -> ViewStats.parseFrom(body);
+                case INTEREST_MAP -> InterestMap.parseFrom(body);
                 case CHAT_SEND, REQUEST -> null; // inbound only; outboundFromId never returns them
             };
             return new DecodedFrame(frame, message == null ? null : type, message, null);
@@ -116,6 +120,14 @@ public final class FrameDispatcher {
             }
             case RESPONSE -> {
                 listener.onResponse((Response) frame.message());
+                yield true;
+            }
+            case VIEW_STATS -> {
+                listener.onViewStats((ViewStats) frame.message());
+                yield true;
+            }
+            case INTEREST_MAP -> {
+                listener.onInterestMap((InterestMap) frame.message());
                 yield true;
             }
             case CHAT_SEND, REQUEST -> false;
