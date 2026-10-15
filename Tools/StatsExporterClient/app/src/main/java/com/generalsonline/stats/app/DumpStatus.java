@@ -3,8 +3,10 @@ package com.generalsonline.stats.app;
 import com.generalsonline.stats.DecodedFrame;
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.FrameType;
+import com.generalsonline.stats.Handshake;
 import com.generalsonline.stats.MatchState;
 import com.generalsonline.stats.StatsListener;
+import com.generalsonline.stats.proto.Hello;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.StatsSnapshot;
 
@@ -27,6 +29,7 @@ final class DumpStatus implements StatsListener {
     private final AtomicLong cameraFrames = new AtomicLong();
     private final AtomicLong bytes = new AtomicLong();
     private final AtomicLong errors = new AtomicLong();
+    private final AtomicLong dropped = new AtomicLong();
     private volatile long gameFrame = -1;
     private volatile int logicFps = MatchState.DEFAULT_LOGIC_FPS;
     private volatile String phase = "-";
@@ -66,8 +69,8 @@ final class DumpStatus implements StatsListener {
         long total = frames.get();
         long camera = cameraFrames.get();
         String game = gameFrame < 0 ? "-" : Format.gameTime(gameFrame, logicFps) + " (frame " + gameFrame + ")";
-        String line = String.format("frames %d (+%d/s, camera +%d/s)  %.1f KB  game time %s  match %s  errors %d",
-            total, total - previousFrames, camera - previousCamera, bytes.get() / 1024.0, game, phase, errors.get());
+        String line = String.format("frames %d (+%d/s, camera +%d/s)  %.1f KB  game time %s  match %s  errors %d  dropped %d",
+            total, total - previousFrames, camera - previousCamera, bytes.get() / 1024.0, game, phase, errors.get(), dropped.get());
         previousFrames = total;
         previousCamera = camera;
         return line;
@@ -90,6 +93,16 @@ final class DumpStatus implements StatsListener {
     @Override
     public void onError(int type, Throwable cause) {
         errors.incrementAndGet();
+    }
+
+    @Override
+    public void onHello(Hello hello) {
+        out.println("HELLO " + Handshake.summary(hello) + ", build " + hello.getGameBuild());
+    }
+
+    @Override
+    public void onFramesDropped(long count) {
+        dropped.addAndGet(count);
     }
 
     @Override

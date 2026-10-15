@@ -6,6 +6,11 @@ import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.ChatAudience;
 import com.generalsonline.stats.proto.ChatChannel;
 import com.generalsonline.stats.proto.ChatMessage;
+import com.generalsonline.stats.proto.Hello;
+import com.generalsonline.stats.proto.CatalogEntry;
+import com.generalsonline.stats.proto.CatalogResult;
+import com.generalsonline.stats.proto.Response;
+import com.generalsonline.stats.proto.ResponseStatus;
 import com.generalsonline.stats.proto.LobbyKind;
 import com.generalsonline.stats.proto.LobbySlot;
 import com.generalsonline.stats.proto.LobbySlotState;
@@ -23,7 +28,11 @@ import com.generalsonline.stats.proto.StatEventKind;
 import com.generalsonline.stats.proto.StatsSnapshot;
 import com.generalsonline.stats.proto.UiScreen;
 import com.generalsonline.stats.proto.UiState;
+import com.generalsonline.stats.internal.FrameCodec;
 import com.google.protobuf.Message;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 /** One filled-in message of every outbound frame type, built in code. Shared by the tests of this package and of the internal one. */
 public final class TestMessages {
@@ -111,8 +120,40 @@ public final class TestMessages {
             .build();
     }
 
+    public static Hello hello() {
+        return Hello.newBuilder().setProtocolVersion(Handshake.PROTOCOL_VERSION).setGameVersion("1.04").setGameBuild("abc123 2026-01-01").setProcessId(4242)
+            .setLogicFramesPerSecond(30).addCapabilities("requests").addCapabilities("events").setMaxRequestsPerSecond(20).setReaderSlot(1).setMaxReaders(4)
+            .setEpochUnixMs(1_700_000_000_000L).setMaxRequestBurst(5).setMaxPageSize(500).setQueueCapacityBytes(4_000_000).build();
+    }
+
+    public static Response response() {
+        return Response.newBuilder().setId(777).setStatus(ResponseStatus.RESPONSE_STATUS_OK)
+            .setCatalog(CatalogResult.newBuilder().addEntries(CatalogEntry.newBuilder().setTemplateId(1).setName("AmericaTankCrusader"))).build();
+    }
+
+    /** One outbound frame of the game: the envelope with a sequence number and a timestamp of 1000 us per sequence. */
+    public static byte[] outbound(Message message, long sequence) {
+        return FrameCodec.encodeOutbound(frameTypeOf(message), sequence, sequence * 1000, message.toByteArray());
+    }
+
+    /** Outbound frames with the sequence numbers 0, 1, 2, ..., as the game numbers them for a new reader. */
+    public static byte[] outboundStream(Message... messages) throws IOException {
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        long sequence = 0;
+        for (Message message : messages) {
+            stream.write(outbound(message, sequence++));
+        }
+        return stream.toByteArray();
+    }
+
     /** The frame type id each message type travels under. */
     public static int frameTypeOf(Message message) {
+        if (message instanceof Hello) {
+            return FrameType.HELLO.id();
+        }
+        if (message instanceof Response) {
+            return FrameType.RESPONSE.id();
+        }
         if (message instanceof MatchInfo) {
             return FrameType.MATCH_INFO.id();
         }
@@ -141,6 +182,6 @@ public final class TestMessages {
     }
 
     public static Message[] all() {
-        return new Message[] {matchInfo(), statsSnapshot(), matchSummary(), chatMessage(), uiState(), lobbyState(), events(), camera()};
+        return new Message[] {hello(), matchInfo(), statsSnapshot(), matchSummary(), chatMessage(), uiState(), lobbyState(), events(), camera(), response()};
     }
 }

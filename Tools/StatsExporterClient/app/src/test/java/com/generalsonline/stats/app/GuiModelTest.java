@@ -187,12 +187,13 @@ class GuiModelTest {
         accept(model, new RawFrame(0x7f, new byte[] {1, 2, 3}));
         accept(model, new RawFrame(FrameType.STATS_SNAPSHOT.id(), new byte[] {(byte) 0xff, (byte) 0xff}));
 
-        assertEquals(10, model.frames.getRowCount());
-        for (int i = 0; i < 8; i++) {
+        int known = TestMessages.all().length;
+        assertEquals(known + 2, model.frames.getRowCount());
+        for (int i = 0; i < known; i++) {
             assertFalse(((String) model.frames.getValueAt(i, 3)).isEmpty(), "summary of row " + i);
         }
-        assertTrue(((String) model.frames.getValueAt(8, 1)).startsWith("UNKNOWN"));
-        assertTrue(((String) model.frames.getValueAt(9, 3)).startsWith("DECODE ERROR"));
+        assertTrue(((String) model.frames.getValueAt(known, 1)).startsWith("UNKNOWN"));
+        assertTrue(((String) model.frames.getValueAt(known + 1, 3)).startsWith("DECODE ERROR"));
     }
 
     /** What the feed does on the event thread: summary built from the decoded frame, then the model's single entry. */

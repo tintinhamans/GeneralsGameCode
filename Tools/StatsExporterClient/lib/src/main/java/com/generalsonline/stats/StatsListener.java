@@ -3,9 +3,11 @@ package com.generalsonline.stats;
 import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
+import com.generalsonline.stats.proto.Hello;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
+import com.generalsonline.stats.proto.Response;
 import com.generalsonline.stats.proto.StatsSnapshot;
 import com.generalsonline.stats.proto.UiState;
 
@@ -36,6 +38,34 @@ public interface StatsListener {
      * @param cause the real cause of a lost connection (wrappers unwrapped by the library), or null for a clean close
      */
     default void onDisconnected(Throwable cause) {
+    }
+
+    /**
+     * Called with the Hello that opens every connection, after the library checked that its protocol version is
+     * supported. Frames that follow it can rely on {@link StatsPipe#hello()}.
+     *
+     * @param message the handshake: game build, capabilities and limits
+     */
+    default void onHello(Hello message) {
+    }
+
+    /**
+     * Called with every response the game sent on this connection, after a pending {@link StatsPipe#request} with the
+     * same id was completed. A response nobody waits for (late, or to a request made outside this library) arrives
+     * here too, and is otherwise ignored.
+     *
+     * @param message the response
+     */
+    default void onResponse(Response message) {
+    }
+
+    /**
+     * Called when frames were dropped: the game's queue for this reader overflowed and it skipped frames, which shows
+     * as a gap in the sequence numbers. Called before the frame that revealed the gap.
+     *
+     * @param count the number of frames missing in this gap
+     */
+    default void onFramesDropped(long count) {
     }
 
     /**

@@ -110,4 +110,9 @@ final class EdtFeed implements StatsListener {
     public void onError(int type, Throwable cause) {
         post(() -> model.onError(type, cause));
     }
+
+    @Override
+    public void onFramesDropped(long count) {
+        post(() -> model.onFramesDropped(count));
+    }
 }

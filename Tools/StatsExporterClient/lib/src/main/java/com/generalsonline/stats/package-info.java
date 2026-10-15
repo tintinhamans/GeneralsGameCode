@@ -1,12 +1,16 @@
 /**
  * A client for the live stats pipe of a Generals Online game: the frames the game sends while it runs (match data, live
- * statistics, events, the camera, the lobby, chat) and the one frame a reader may send back (a chat line).
+ * statistics, events, the camera, the lobby, chat), the handshake that opens every connection, and what a reader may
+ * send back: chat lines and requests (queries for templates, objects, players, the map, a resync, the feed configuration).
  *
  * <h2>Where to start</h2>
  *
  * <ul>
  * <li>{@link com.generalsonline.stats.StatsPipe} connects, decodes, reconnects and delivers. Build it with
  *     {@link com.generalsonline.stats.StatsPipe#builder()}.</li>
+ * <li>{@link com.generalsonline.stats.Handshake} and {@link com.generalsonline.stats.ClockSync} have the helpers for the
+ *     {@code Hello} (protocol version, capabilities, wall clock time of a timestamp) and for the offset between the
+ *     game's frame clock and yours. {@code StatsPipe} counts dropped frames and answers requests.</li>
  * <li>{@link com.generalsonline.stats.StatsListener} receives the frames, one method per frame type.</li>
  * <li>{@link com.generalsonline.stats.MatchState} keeps the game state for you (players joined with their match data,
  *     the light/full snapshot merge, the match lifecycle, the latest camera, recent events and chat) and calls a

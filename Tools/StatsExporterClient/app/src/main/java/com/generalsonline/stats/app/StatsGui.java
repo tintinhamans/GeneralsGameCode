@@ -71,6 +71,7 @@ public final class StatsGui {
     private final EdtFeed feed = new EdtFeed(model, health, SwingUtilities::invokeLater);
     private final EventFilter eventFilter = new EventFilter();
     private final JLabel connectionLabel = new JLabel();
+    private final JLabel gameLabel = new JLabel();
     private final JLabel matchLabel = new JLabel();
     private final JLabel progressLabel = new JLabel();
     private final JLabel cameraLabel = new JLabel();
@@ -161,6 +162,8 @@ public final class StatsGui {
         status.setLayout(new BoxLayout(status, BoxLayout.Y_AXIS));
         status.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
         status.add(connectionLabel);
+        status.add(Box.createVerticalStrut(2));
+        status.add(gameLabel);
         status.add(Box.createVerticalStrut(2));
         status.add(matchLabel);
         status.add(Box.createVerticalStrut(2));
@@ -564,6 +567,8 @@ public final class StatsGui {
 
     private void refreshLabels() {
         connectionLabel.setText(model.connectionLine());
+        gameLabel.setText(model.gameLine());
+        gameLabel.setForeground(model.droppedFrames() > 0 ? new Color(0xB71C1C) : null);
         matchLabel.setText(model.matchLine());
         progressLabel.setText(model.progressLine());
         cameraLabel.setText(model.cameraLine());

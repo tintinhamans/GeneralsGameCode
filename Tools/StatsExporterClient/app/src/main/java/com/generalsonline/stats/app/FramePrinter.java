@@ -1,11 +1,13 @@
 package com.generalsonline.stats.app;
 
 import com.generalsonline.stats.Format;
+import com.generalsonline.stats.Handshake;
 import com.generalsonline.stats.MatchState;
 import com.generalsonline.stats.StatsListener;
 import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
+import com.generalsonline.stats.proto.Hello;
 import com.generalsonline.stats.proto.LobbySlot;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
@@ -94,6 +96,25 @@ public final class FramePrinter implements StatsListener {
         out.println("DISCONNECTED " + (cause == null ? "" : Format.cause(cause)));
         lastUi = "";
         lastLobby = "";
+    }
+
+    /** Connection lines are always printed, like CONNECTED: the game's handshake. */
+    @Override
+    public void onHello(Hello hello) {
+        state.onHello(hello);
+        out.println("HELLO " + Handshake.summary(hello) + ", build " + hello.getGameBuild());
+    }
+
+    /** Dropped frames mean the printed feed has holes; always shown. */
+    @Override
+    public void onFramesDropped(long count) {
+        state.onFramesDropped(count);
+        out.println("DROPPED " + count + " frames (" + state.droppedFrames() + " in total)");
+    }
+
+    /** The frames the game dropped for this reader so far, from the sequence numbers. */
+    public long droppedFrames() {
+        return state.droppedFrames();
     }
 
     @Override

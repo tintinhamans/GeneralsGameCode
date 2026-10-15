@@ -2,6 +2,7 @@ package com.generalsonline.stats;
 
 import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
+import com.generalsonline.stats.proto.Hello;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
@@ -104,5 +105,22 @@ public interface StateListener {
      * @param summary the message
      */
     default void summaryChanged(MatchSummary summary) {
+    }
+
+    /**
+     * The game's Hello arrived (a new connection) and the state already holds it, see {@link MatchState#hello()}.
+     *
+     * @param hello the handshake
+     */
+    default void helloReceived(Hello hello) {
+    }
+
+    /**
+     * Frames were dropped on the way from the game, see {@link StatsListener#onFramesDropped}.
+     *
+     * @param count the frames missing in this gap
+     * @param total all dropped frames counted by the state so far, see {@link MatchState#droppedFrames()}
+     */
+    default void framesDropped(long count, long total) {
     }
 }

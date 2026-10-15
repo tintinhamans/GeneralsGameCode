@@ -3,9 +3,11 @@ package com.generalsonline.stats;
 import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
+import com.generalsonline.stats.proto.Hello;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
+import com.generalsonline.stats.proto.Response;
 import com.generalsonline.stats.proto.StatsSnapshot;
 import com.generalsonline.stats.proto.UiState;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -43,7 +45,9 @@ public final class FrameDispatcher {
                 case LOBBY_STATE -> LobbyState.parseFrom(body);
                 case EVENTS -> Events.parseFrom(body);
                 case CAMERA -> Camera.parseFrom(body);
-                case CHAT_SEND -> null; // inbound only; outboundFromId never returns it
+                case HELLO -> Hello.parseFrom(body);
+                case RESPONSE -> Response.parseFrom(body);
+                case CHAT_SEND, REQUEST -> null; // inbound only; outboundFromId never returns them
             };
             return new DecodedFrame(frame, message == null ? null : type, message, null);
         } catch (InvalidProtocolBufferException e) {
@@ -106,7 +110,15 @@ public final class FrameDispatcher {
                 listener.onCamera((Camera) frame.message());
                 yield true;
             }
-            case CHAT_SEND -> false;
+            case HELLO -> {
+                listener.onHello((Hello) frame.message());
+                yield true;
+            }
+            case RESPONSE -> {
+                listener.onResponse((Response) frame.message());
+                yield true;
+            }
+            case CHAT_SEND, REQUEST -> false;
         };
         if (!delivered) {
             listener.unknownFrame(frame.raw().type(), frame.raw().body());

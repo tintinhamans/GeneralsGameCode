@@ -12,10 +12,12 @@ import com.google.protobuf.Message;
  * @param error the parse failure, or null when the body parsed (or the type is unknown)
  */
 public record DecodedFrame(RawFrame raw, FrameType type, Message message, Exception error) {
+    private static final int WIRE_HEADER_BYTES = 17;
+
     /**
      * Returns the size of the body.
      *
-     * @return the body length in bytes, without the 5 byte header
+     * @return the body length in bytes, without the 17 byte header
      */
     public int bodyBytes() {
         return raw.body().length;
@@ -24,10 +26,28 @@ public record DecodedFrame(RawFrame raw, FrameType type, Message message, Except
     /**
      * Returns the size of the frame on the wire.
      *
-     * @return the body length plus the 5 byte header (4 byte length, 1 byte type)
+     * @return the body length plus the 17 byte header (4 byte length, 1 byte type, 4 byte sequence, 8 byte timestamp)
      */
     public int wireBytes() {
-        return raw.body().length + 5;
+        return raw.body().length + WIRE_HEADER_BYTES;
+    }
+
+    /**
+     * Returns the sequence number of the frame.
+     *
+     * @return the per-reader sequence number, 0 to 4294967295; see {@link RawFrame#sequence()}
+     */
+    public long sequence() {
+        return raw.sequence();
+    }
+
+    /**
+     * Returns the production time of the frame.
+     *
+     * @return microseconds on the game's monotonic exporter clock, unsigned; see {@link RawFrame#timestampMicros()}
+     */
+    public long timestampMicros() {
+        return raw.timestampMicros();
     }
 
     /**

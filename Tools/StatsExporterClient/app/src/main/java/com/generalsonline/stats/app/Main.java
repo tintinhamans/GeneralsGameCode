@@ -74,8 +74,9 @@ public final class Main {
             }
             case "dump" -> dump(pid, pipe, Paths.get(line.positional().get(0)), line.flag("overwrite"), line.flag("no-camera"));
             case "replay" -> {
-                int frames = DumpReader.replay(Paths.get(line.positional().get(0)), new FramePrinter(System.out));
-                System.out.println("replayed " + frames + " frames");
+                FramePrinter printer = new FramePrinter(System.out);
+                int frames = DumpReader.replay(Paths.get(line.positional().get(0)), printer);
+                System.out.println("replayed " + frames + " frames" + (printer.droppedFrames() > 0 ? ", " + printer.droppedFrames() + " dropped by the game" : ""));
             }
             case "chat" -> chat(pid, pipe, line);
             case "gui" -> StatsGui.run(pid, pipe, line.value("replay") == null ? null : Paths.get(line.value("replay")), line.speed());
@@ -169,7 +170,7 @@ public final class Main {
             String via = client.connectedPipe().orElse("the pipe");
             if (!up || !client.sendChat(channel, text, audience)) {
                 System.err.println("error: could not connect to a free game within 10 seconds.");
-                System.err.println("The game serves one reader per pipe, and chat needs that slot: close any gui, watch or dump connected to it first.");
+                System.err.println("The game serves a limited number of readers per pipe (see Hello.max_readers), and chat needs a free slot: close a gui, watch or dump connected to it first.");
                 System.exit(1);
             }
             System.out.println("wrote to " + via + " (" + channel.name() + (channel == ChatChannel.CHAT_CHANNEL_MATCH ? ", " + audience.name() : "") + "): " + text);

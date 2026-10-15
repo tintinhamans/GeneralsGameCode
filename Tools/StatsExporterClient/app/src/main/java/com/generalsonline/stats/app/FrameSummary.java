@@ -1,12 +1,15 @@
 package com.generalsonline.stats.app;
 
 import com.generalsonline.stats.DecodedFrame;
+import com.generalsonline.stats.Handshake;
 import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
+import com.generalsonline.stats.proto.Hello;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
+import com.generalsonline.stats.proto.Response;
 import com.generalsonline.stats.proto.StatsSnapshot;
 import com.generalsonline.stats.proto.UiState;
 
@@ -24,6 +27,12 @@ final class FrameSummary {
         Object message = frame.message();
         if (message == null) {
             return "unknown frame type";
+        }
+        if (message instanceof Hello h) {
+            return Handshake.summary(h);
+        }
+        if (message instanceof Response r) {
+            return "id " + Integer.toUnsignedString(r.getId()) + " " + strip(r.getStatus().name(), "RESPONSE_STATUS_") + (r.getMessage().isEmpty() ? "" : ": " + r.getMessage());
         }
         if (message instanceof MatchInfo m) {
             return strip(m.getPhase().name(), "MATCH_PHASE_") + " id=" + m.getMatchId() + " map=" + m.getMapName() + " players=" + m.getPlayersCount();

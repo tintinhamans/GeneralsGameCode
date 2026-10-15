@@ -3,6 +3,7 @@ package com.generalsonline.stats;
 import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
+import com.generalsonline.stats.proto.Hello;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchPhase;
@@ -43,7 +44,8 @@ import java.util.function.Consumer;
  *     values of the last full snapshot), and whether the player is alive, defeated or gone;</li>
  * <li>the latest camera, the world extent and the map-level heavy data (grids, supply sources, tech structures);</li>
  * <li>the most recent events and chat lines, in bounded ring buffers;</li>
- * <li>frame, speed and stall values.</li>
+ * <li>frame, speed and stall values;</li>
+ * <li>the connection: the game's {@link #hello() Hello} and how many frames were lost on the way ({@link #droppedFrames()}).</li>
  * </ul>
  *
  * <p>The match lifecycle is handled here: a LOADING {@code MatchInfo}, or a STARTED one with another match id, begins a
@@ -103,6 +105,8 @@ public final class MatchState implements StatsListener {
     private List<TechStructure> tech = List.of();
     private List<OnlineConnection> connections = List.of();
     private PredictionCheck predictionCheck;
+    private Hello hello;
+    private long droppedFrames;
     private final Deque<StatEvent> events = new ArrayDeque<>();
     private final Deque<ChatMessage> chat = new ArrayDeque<>();
 
@@ -146,6 +150,42 @@ public final class MatchState implements StatsListener {
     }
 
     // -- Reading.
+
+    /**
+     * Returns the game's handshake. It is kept across a disconnect, and replaced when the next connection's Hello arrives.
+     *
+     * @return the latest {@code Hello}, empty before the first one (and always empty when replaying a dump written
+     *         before a Hello was recorded)
+     */
+    public Optional<Hello> hello() {
+        synchronized (lock) {
+            return Optional.ofNullable(hello);
+        }
+    }
+
+    /**
+     * Tells whether the game announced a capability in its Hello.
+     *
+     * @param name a capability name, see {@code docs/stats-exporter.md}
+     * @return true when the latest Hello lists it; false when it does not or no Hello arrived
+     */
+    public boolean hasCapability(String name) {
+        synchronized (lock) {
+            return hello != null && Handshake.hasCapability(hello, name);
+        }
+    }
+
+    /**
+     * Counts the frames the game dropped for this reader (its queue overflowed), as seen in the sequence numbers. It is
+     * cumulative over all connections and not reset by a new match.
+     *
+     * @return the number of frames known to be lost
+     */
+    public long droppedFrames() {
+        synchronized (lock) {
+            return droppedFrames;
+        }
+    }
 
     /**
      * Returns the screen the game is on.
@@ -541,6 +581,24 @@ public final class MatchState implements StatsListener {
     }
 
     // -- Feeding.
+
+    @Override
+    public void onHello(Hello message) {
+        synchronized (lock) {
+            hello = message;
+        }
+        publish(l -> l.helloReceived(message));
+    }
+
+    @Override
+    public void onFramesDropped(long count) {
+        long total;
+        synchronized (lock) {
+            droppedFrames += count;
+            total = droppedFrames;
+        }
+        publish(l -> l.framesDropped(count, total));
+    }
 
     @Override
     public void onUiState(UiState message) {

@@ -1,5 +1,6 @@
 package com.generalsonline.stats;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -26,7 +27,7 @@ class DumpTest {
     @Test
     void everyMessageSurvivesEncodeFramingAndDecode() throws Exception {
         for (Message original : TestMessages.all()) {
-            byte[] frame = FrameCodec.encode(TestMessages.frameTypeOf(original), original.toByteArray());
+            byte[] frame = TestMessages.outbound(original, 3);
 
             RecordingListener listener = new RecordingListener();
             // Split in the middle so the decoder has to reassemble.
@@ -44,13 +45,8 @@ class DumpTest {
 
     @Test
     void aSequenceOfAllFramesArrivesInOrder() throws Exception {
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        for (Message message : TestMessages.all()) {
-            stream.write(FrameCodec.encode(TestMessages.frameTypeOf(message), message.toByteArray()));
-        }
-
         RecordingListener listener = new RecordingListener();
-        for (RawFrame raw : new FrameCodec.Decoder().push(stream.toByteArray())) {
+        for (RawFrame raw : new FrameCodec.Decoder().push(TestMessages.outboundStream(TestMessages.all()))) {
             FrameDispatcher.dispatch(raw, listener);
         }
         assertEquals(List.of(TestMessages.all()), listener.messages);
@@ -89,9 +85,121 @@ class DumpTest {
     @Test
     void aTruncatedDumpIsReported(@TempDir Path directory) throws Exception {
         Path dump = directory.resolve("truncated.dump");
-        byte[] frame = FrameCodec.encode(FrameType.UI_STATE.id(), TestMessages.uiState().toByteArray());
-        Files.write(dump, java.util.Arrays.copyOf(frame, frame.length - 1));
+        byte[] frame = TestMessages.outbound(TestMessages.uiState(), 0);
+        Files.write(dump, concat(header(2), java.util.Arrays.copyOf(frame, frame.length - 1)));
         assertThrows(FrameException.class, () -> DumpReader.replay(dump, new RecordingListener()));
+
+        // Cut inside the 17 byte envelope of the second frame.
+        Files.write(dump, concat(header(2), frame, java.util.Arrays.copyOf(frame, 10)));
+        String message = assertThrows(FrameException.class, () -> DumpReader.replay(dump, new RecordingListener())).getMessage();
+        assertTrue(message.contains("ends inside a frame"), message);
+    }
+
+    private static byte[] header(int version) {
+        return new byte[] {0x47, 0x4F, 0x53, 0x44, (byte) version, 0, 0, 0};
+    }
+
+    private static byte[] concat(byte[]... parts) throws java.io.IOException {
+        ByteArrayOutputStream joined = new ByteArrayOutputStream();
+        for (byte[] part : parts) {
+            joined.write(part);
+        }
+        return joined.toByteArray();
+    }
+
+    @Test
+    void theNewEnvelopeRoundTripsThroughAFile(@TempDir Path directory) throws Exception {
+        Path dump = directory.resolve("envelope.dump");
+        long[] sequences = {0, 1, 2, 0xFFFFFFFEL, 0xFFFFFFFFL};
+        long[] timestamps = {0, 1500, 33_000, Long.MAX_VALUE, -1L};
+        try (DumpWriter writer = new DumpWriter(dump)) {
+            writer.write(new RawFrame(FrameType.HELLO.id(), 0, 0, TestMessages.hello().toByteArray()));
+            for (int i = 1; i < sequences.length; i++) {
+                writer.write(new RawFrame(FrameType.UI_STATE.id(), sequences[i], timestamps[i], TestMessages.uiState().toByteArray()));
+            }
+        }
+        byte[] bytes = Files.readAllBytes(dump);
+        assertArrayEquals(header(DumpWriter.FORMAT_VERSION), java.util.Arrays.copyOf(bytes, 8), "the magic and the format version come first");
+
+        List<RawFrame> frames = new java.util.ArrayList<>();
+        assertEquals(5, DumpReader.readFrames(dump, frames::add));
+        assertEquals(FrameType.HELLO.id(), frames.get(0).type());
+        for (int i = 1; i < sequences.length; i++) {
+            assertEquals(sequences[i], frames.get(i).sequence());
+            assertEquals(timestamps[i], frames.get(i).timestampMicros());
+        }
+    }
+
+    @Test
+    void theHelloIsAnOrdinaryFrameOfTheDump(@TempDir Path directory) throws Exception {
+        Path dump = directory.resolve("hello.dump");
+        try (DumpWriter writer = new DumpWriter(dump)) {
+            for (Message message : TestMessages.all()) {
+                writer.write(new RawFrame(TestMessages.frameTypeOf(message), 0, 0, message.toByteArray()));
+            }
+        }
+        MatchState state = new MatchState();
+        assertEquals(TestMessages.all().length, DumpReader.replay(dump, state));
+        assertEquals(TestMessages.hello(), state.hello().orElseThrow());
+        assertTrue(state.hasCapability("requests"));
+        assertEquals(0, state.droppedFrames(), "frames that all say sequence 0 are no gap");
+    }
+
+    @Test
+    void aGapInTheSequenceOfADumpIsReportedAsDroppedFrames(@TempDir Path directory) throws Exception {
+        Path dump = directory.resolve("gap.dump");
+        try (DumpWriter writer = new DumpWriter(dump)) {
+            writer.write(new RawFrame(FrameType.HELLO.id(), 0, 0, TestMessages.hello().toByteArray()));
+            writer.write(new RawFrame(FrameType.UI_STATE.id(), 1, 10, TestMessages.uiState().toByteArray()));
+            writer.write(new RawFrame(FrameType.UI_STATE.id(), 4, 20, TestMessages.uiState().toByteArray()));
+            writer.write(new RawFrame(FrameType.UI_STATE.id(), 5, 30, TestMessages.uiState().toByteArray()));
+        }
+        RecordingListener listener = new RecordingListener();
+        assertEquals(4, DumpReader.replay(dump, listener));
+        assertEquals(List.of(2L), listener.dropped);
+        assertEquals(List.of(2L), replayPaced(dump).dropped, "the paced replay reports the same gaps");
+    }
+
+    private static RecordingListener replayPaced(Path dump) throws Exception {
+        RecordingListener listener = new RecordingListener();
+        DumpReader.replay(dump, listener, 0);
+        return listener;
+    }
+
+    @Test
+    void aVersionOneDumpIsStillReadWithSynthesizedSequenceNumbers(@TempDir Path directory) throws Exception {
+        Path dump = directory.resolve("old.dump");
+        Files.write(dump, concat(
+            FrameCodec.encodeInbound(FrameType.UI_STATE.id(), TestMessages.uiState().toByteArray()),
+            FrameCodec.encodeInbound(FrameType.MATCH_INFO.id(), TestMessages.matchInfo().toByteArray())));
+        List<RawFrame> frames = new java.util.ArrayList<>();
+        assertEquals(2, DumpReader.readFrames(dump, frames::add));
+        assertEquals(List.of(0L, 1L), List.of(frames.get(0).sequence(), frames.get(1).sequence()));
+        assertEquals(0, frames.get(1).timestampMicros());
+
+        RecordingListener listener = new RecordingListener();
+        assertEquals(2, DumpReader.replay(dump, listener));
+        assertEquals(List.of(TestMessages.uiState(), TestMessages.matchInfo()), listener.messages);
+        assertTrue(listener.dropped.isEmpty());
+    }
+
+    @Test
+    void anEmptyFileHasNoFrames(@TempDir Path directory) throws Exception {
+        Path dump = directory.resolve("empty.dump");
+        Files.write(dump, new byte[0]);
+        assertEquals(0, DumpReader.replay(dump, new RecordingListener()));
+    }
+
+    @Test
+    void aDumpOfAnUnknownVersionOrWithATruncatedHeaderIsRefusedClearly(@TempDir Path directory) throws Exception {
+        Path dump = directory.resolve("future.dump");
+        Files.write(dump, concat(header(3), TestMessages.outbound(TestMessages.uiState(), 0)));
+        String message = assertThrows(java.io.IOException.class, () -> DumpReader.replay(dump, new RecordingListener())).getMessage();
+        assertTrue(message.contains("unsupported dump format version 3"), message);
+
+        Files.write(dump, new byte[] {0x47, 0x4F, 0x53, 0x44, 2});
+        String truncated = assertThrows(FrameException.class, () -> DumpReader.replay(dump, new RecordingListener())).getMessage();
+        assertTrue(truncated.contains("header is truncated"), truncated);
     }
 
     @Test
@@ -108,7 +216,7 @@ class DumpTest {
         try (DumpWriter writer = new DumpWriter(file, true)) {
             writer.flush();
         }
-        assertEquals(0, Files.size(file), "overwrite truncates");
+        assertEquals(8, Files.size(file), "overwrite truncates: only the 8 byte header is left");
     }
 
     // -- Paced replay.

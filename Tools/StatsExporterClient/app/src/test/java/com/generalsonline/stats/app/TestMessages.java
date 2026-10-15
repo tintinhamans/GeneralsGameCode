@@ -5,6 +5,9 @@ import com.generalsonline.stats.FrameType;
 import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.CategoryCounts;
 import com.generalsonline.stats.proto.Events;
+import com.generalsonline.stats.proto.Hello;
+import com.generalsonline.stats.proto.Response;
+import com.generalsonline.stats.proto.ResponseStatus;
 import com.generalsonline.stats.proto.ChatAudience;
 import com.generalsonline.stats.proto.ChatChannel;
 import com.generalsonline.stats.proto.ChatMessage;
@@ -113,8 +116,23 @@ final class TestMessages {
             .build();
     }
 
+    static Hello hello() {
+        return Hello.newBuilder().setProtocolVersion(2).setGameVersion("1.04").setGameBuild("abc123").setProcessId(4242).setLogicFramesPerSecond(30)
+            .addCapabilities("requests").setReaderSlot(1).setMaxReaders(4).setEpochUnixMs(1_700_000_000_000L).build();
+    }
+
+    static Response response() {
+        return Response.newBuilder().setId(7).setStatus(ResponseStatus.RESPONSE_STATUS_NOT_FOUND).setMessage("no such object").build();
+    }
+
     /** The frame type id each message type travels under. */
     static int frameTypeOf(Message message) {
+        if (message instanceof Hello) {
+            return FrameType.HELLO.id();
+        }
+        if (message instanceof Response) {
+            return FrameType.RESPONSE.id();
+        }
         if (message instanceof MatchInfo) {
             return FrameType.MATCH_INFO.id();
         }
@@ -143,6 +161,6 @@ final class TestMessages {
     }
 
     static Message[] all() {
-        return new Message[] {matchInfo(), statsSnapshot(), matchSummary(), chatMessage(), uiState(), lobbyState(), events(), camera()};
+        return new Message[] {hello(), matchInfo(), statsSnapshot(), matchSummary(), chatMessage(), uiState(), lobbyState(), events(), camera(), response()};
     }
 }
