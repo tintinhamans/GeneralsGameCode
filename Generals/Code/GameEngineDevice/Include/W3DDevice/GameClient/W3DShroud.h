@@ -98,7 +98,7 @@ public:
 	Real	getDrawOriginX()	{return m_drawOriginX;}	///<returns ws origin of first pixel in shroud texture.
 	Real	getDrawOriginY()	{return m_drawOriginY;}	///<returns ws origin of first pixel in shroud texture.
 	void requestFogSnap()	{m_fogSnapRequested = TRUE;}	///<skip fading on the next update
-	Bool isFadingAt(Real worldX, Real worldY, Real radius) const;	///<any cell within radius of this position is still fading
+	Bool isClearAt(Real worldX, Real worldY, Real radius) const;	///<every cell within radius of this position is fully clear
 
 protected:
 	Int m_numCellsX;						///<number of cells covering entire map
