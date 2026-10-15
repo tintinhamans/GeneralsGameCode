@@ -3024,7 +3024,7 @@ void Object::scoreTheKill( const Object *victim )
 	if (victimController)
 	{
 		victimController->getScoreKeeper()->addObjectLost(victim);
-		StatsExporterLiveLoss(victimController->getPlayerIndex(), victim->getTemplate());
+		StatsExporterLiveLoss(victimController->getPlayerIndex(), victim, this);
 	}
 
 	Relationship r = getRelationship(victim);

@@ -113,6 +113,7 @@ set(GAMEENGINE_SRC
     Include/Common/StatsExporter.h
     Include/Common/StatsExporterLive.h
     Include/Common/StatsExporterPipe.h
+    Include/Common/StatsExporterQuery.h
     Include/Common/StatsUploader.h
 #    Include/Common/STLTypedefs.h
 #    Include/Common/StreamingArchiveFile.h
@@ -634,6 +635,7 @@ set(GAMEENGINE_SRC
     Source/Common/StatsExporter.cpp
     Source/Common/StatsExporterLive.cpp
     Source/Common/StatsExporterPipe.cpp
+    Source/Common/StatsExporterQuery.cpp
     Source/Common/StatsUploader.cpp
 #    Source/Common/System/ArchiveFile.cpp
 #    Source/Common/System/ArchiveFileSystem.cpp

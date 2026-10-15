@@ -1,17 +1,26 @@
 // Protocol reference: docs/stats-exporter.md
-// Wire schema for the live stats named pipe (\\.\pipe\generalsonline-stats-<pid>).
-// Bodies are framed as: u32 little-endian body length + u8 type.
-//   outbound (game -> reader), while a reader is connected:
+// Wire schema for the live stats named pipe (\\.\pipe\generalsonline-stats-<pid>), protocol version 2.
+// Up to 4 readers can be connected at once; each has its own queue, sequence numbers, resync and feed config.
+// Outbound frames (game -> reader) carry a 17 byte little-endian header, then the protobuf body:
+//     u32 body length | u8 type | u32 sequence | u64 timestamp_us
+//   sequence counts the frames queued for this reader since it connected (the Hello is 0); a frame dropped because the reader was too slow still
+//   uses its number, so a gap in the sequence is a dropped frame. timestamp_us is monotonic microseconds since the game's exporter clock started
+//   (Hello.epoch_unix_ms is the wall clock at timestamp 0), taken when the frame was produced.
+// Inbound frames (reader -> game) carry a 5 byte header: u32 little-endian body length | u8 type.
+//   outbound types, while a reader is connected:
+//     0x09 Hello          the first frame of every connection: protocol version, game build, capabilities, limits
 //     0x01 MatchInfo      match loading/start/end and the players; on connect: LOADING only while the match is loading, else STARTED
-//     0x02 StatsSnapshot  periodic live stats: light ones every 100 ms of game time, full ones every 250 ms; waits for STARTED
+//     0x02 StatsSnapshot  periodic live stats: light ones every 100 ms of game time, full ones every 250 ms (per reader, see FeedConfig); waits for STARTED
 //     0x07 Events         the discrete events of one logic frame, sent at the end of that frame; waits for STARTED
 //     0x08 Camera         the local tactical camera and the minimap view box, sent from the render loop whenever it changed; waits for STARTED
 //     0x03 MatchSummary   end-of-match scores
 //     0x04 ChatMessage    a chat line as shown to the local player (in-match, game lobby or room)
-//     0x05 UiState        the screen the game is on; the first frame sent to a new reader
+//     0x05 UiState        the screen the game is on; the first frame after the Hello
 //     0x06 LobbyState     the game setup lobby the local user sits in; sent on change, and with in_lobby = false on leaving
-//   inbound (reader -> game):
+//     0x0A Response       the answer to one Request, sent only to the reader that asked
+//   inbound types (reader -> game):
 //     0x10 ChatSend       send a chat line through the game's own typed-line path, commands included
+//     0x11 Request        a query; answered with a Response of the same id
 // Naming: player_index is the engine Player::getPlayerIndex(), lobby_slot is the 0-based lobby slot.
 syntax = "proto3";
 
@@ -75,6 +84,12 @@ message StatEvent
 	int32 int_value1 = 11;		// e.g. veterancy oldLevel, salvage tier
 	int32 int_value2 = 12;		// e.g. veterancy newLevel
 	uint32 cost = 13;			// kill and loss events: the victim template's build cost
+	uint32 object_id = 14;		// the subject object: the victim (kill, loss), the new object (build), the captured structure (capture), the promoted object (veterancy); 0 when not applicable
+	// Kill and loss events: who did it. The weapon is the killer's most recently fired weapon, so it can differ from the one that dealt the last blow
+	// when the killer carries several; empty when the killer never fired one (e.g. a crush or a special power).
+	uint32 killer_object_id = 15;
+	string killer_template = 16;
+	string weapon = 17;			// weapon template name
 }
 
 // The discrete events produced during one logic frame, sent at the end of that frame (never with a snapshot), so frame equals every
@@ -130,7 +145,7 @@ message TechStructure
 // rendered frame at most, 120 per second at most, only when something changed), so it is as current as the picture.
 message Camera
 {
-	uint64 timestamp_us = 1;	// QueryPerformanceCounter in microseconds: monotonic, only differences are meaningful
+	uint64 timestamp_us = 1;	// the envelope clock (microseconds since the exporter clock started, see the frame header): monotonic
 	uint32 logic_frame = 2;
 	float x = 3;				// world position the camera looks at
 	float y = 4;
@@ -156,8 +171,8 @@ message Camera
 message PlayerGrid
 {
 	int32 player_index = 1;
-	uint32 width = 2;			// always 32
-	uint32 height = 3;			// always 32
+	uint32 width = 2;			// FeedConfig.grid_resolution (default 32)
+	uint32 height = 3;			// the same
 	float cell_width = 4;		// world units
 	float cell_height = 5;
 	repeated uint32 cells = 6;	// width * height counts, zeros included
@@ -632,4 +647,345 @@ message LobbyState
 	bool prediction_start_positions_valid = 9;	// start positions (and the observer camera) are predicted; false when the map is not in the map cache
 	ObserverCamera predicted_observer_camera = 10;	// set only when the local slot is an observer and the start positions are predicted
 	string map_display_name = 11;	// online lobbies only: the lobby's map display name; map_name is the normalised path, as in MatchInfo
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Handshake
+// ---------------------------------------------------------------------------------------------------------------------
+
+// The first frame of every connection (sequence 0). Everything a reader needs to know about the game and the pipe before it sends anything.
+message Hello
+{
+	uint32 protocol_version = 1;	// 2 for this schema; readers refuse a version they do not know
+	string game_version = 2;		// the game's human-readable version, e.g. "1.04"
+	string game_build = 3;			// git version and build time, free-form, for logs and bug reports
+	uint32 process_id = 4;			// the game process, also the pipe name suffix
+	uint32 logic_frames_per_second = 5;	// the build's logic rate (30, or 60 for the high-fps server build); frame / this = game seconds
+	repeated string capabilities = 6;	// feature names, see docs/stats-exporter.md; unknown ones can be ignored
+	uint32 max_requests_per_second = 7;	// sustained Request rate per reader; faster requests get RATE_LIMITED
+	uint32 reader_slot = 8;			// this connection's slot, 0 .. max_readers - 1
+	uint32 max_readers = 9;			// simultaneous readers the pipe serves
+	uint64 epoch_unix_ms = 10;		// wall clock (ms since the Unix epoch) at frame timestamp 0
+	uint32 max_request_burst = 11;	// requests that may arrive at once before the rate limit bites
+	uint32 max_page_size = 12;		// the largest page_size a paged query honours
+	uint32 queue_capacity_bytes = 13;	// outbound queue per reader; a reader that falls this far behind loses frames (visible as sequence gaps)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Requests and responses
+// ---------------------------------------------------------------------------------------------------------------------
+
+enum ResponseStatus
+{
+	RESPONSE_STATUS_OK = 0;
+	RESPONSE_STATUS_BAD_REQUEST = 1;	// undecodable, no query set, or an argument out of range
+	RESPONSE_STATUS_NOT_FOUND = 2;		// the object, player or template asked for does not exist
+	RESPONSE_STATUS_RATE_LIMITED = 3;	// too many requests; nothing was done, retry later
+	RESPONSE_STATUS_UNAVAILABLE = 4;	// the data does not exist right now (no match running, no map loaded)
+	RESPONSE_STATUS_TOO_LARGE = 5;		// the result does not fit a frame; ask for a smaller page
+}
+
+// Paging for the queries that can return many rows. The cursor is opaque to the reader: pass the previous page's next_cursor back, 0 starts at the beginning.
+message PageRequest
+{
+	uint32 cursor = 1;
+	uint32 page_size = 2;		// 0 = the server default; larger than Hello.max_page_size is lowered to it
+}
+
+message PageInfo
+{
+	bool has_more = 1;
+	uint32 next_cursor = 2;		// only meaningful when has_more
+	uint32 total = 3;			// matching rows at the time of the query, when known (0 = not known)
+}
+
+message Request
+{
+	uint32 id = 1;				// chosen by the reader, echoed in the Response; ids of requests in flight should be distinct
+	oneof query
+	{
+		CatalogQuery catalog = 10;
+		ObjectQuery object = 11;
+		ObjectsQuery objects = 12;
+		PlayerQuery player = 13;
+		MapQuery map = 14;
+		ResyncQuery resync = 15;
+		FeedConfigQuery feed_config = 16;
+	}
+}
+
+message Response
+{
+	uint32 id = 1;
+	ResponseStatus status = 2;
+	string message = 3;			// short human-readable reason when status is not OK
+	oneof result
+	{
+		CatalogResult catalog = 10;
+		ObjectDetail object = 11;
+		ObjectsResult objects = 12;
+		PlayerDetail player = 13;
+		MapDetail map = 14;
+		ResyncResult resync = 15;
+		FeedConfig feed_config = 16;
+	}
+}
+
+// ---- Catalog: the game's object templates --------------------------------------------------------------------------
+
+// Lists templates in the engine's template order (stable during a session). All filters are optional and combine with AND.
+message CatalogQuery
+{
+	PageRequest page = 1;
+	string name = 2;			// exact internal template name; the result has at most one entry
+	string side = 3;			// default owning side, case-insensitive (e.g. "America", "China", "GLA")
+	string kind_of = 4;			// a KindOf name the template must have (e.g. "STRUCTURE", "INFANTRY", "HERO")
+	bool buildable_only = 5;	// only templates a player can build (not scripted-only or debris/effect templates)
+}
+
+// Where a button icon lives. The pixels are not sent: they are in the game's mapped image textures
+// (texture_file in Art/Textures, the UV rectangle selects the icon).
+message ButtonIcon
+{
+	string image_name = 1;		// the mapped image's name
+	string texture_file = 2;	// the texture page's file name
+	float u0 = 3;				// UV rectangle on the texture page, 0..1, origin top left
+	float v0 = 4;
+	float u1 = 5;
+	float v1 = 6;
+	uint32 width = 7;			// the icon's size in pixels
+	uint32 height = 8;
+	uint32 texture_width = 9;	// the texture page's size in pixels
+	uint32 texture_height = 10;
+}
+
+message CatalogEntry
+{
+	uint32 template_id = 1;		// the engine's template id; the key objects rows refer to
+	string name = 2;			// internal template name
+	string display_name = 3;	// localized, UTF-8; empty when the template has none
+	string side = 4;			// default owning side, empty when none
+	uint32 cost = 5;			// build cost in money
+	float build_time_seconds = 6;
+	repeated string kind_of = 7;	// the KindOf flags that matter for tooling: STRUCTURE, INFANTRY, VEHICLE, AIRCRAFT, HERO, DOZER, HARVESTER and the faction structure kinds
+	bool buildable = 8;
+	int32 energy = 9;			// energy produced (positive) or consumed (negative) by a structure
+	ButtonIcon icon = 10;		// the build button's icon; unset when no command button builds it
+}
+
+message CatalogResult
+{
+	repeated CatalogEntry entries = 1;
+	PageInfo page = 2;
+}
+
+// ---- Objects --------------------------------------------------------------------------------------------------------
+
+message ObjectQuery
+{
+	uint32 object_id = 1;
+}
+
+message ObjectDetail
+{
+	uint32 object_id = 1;
+	string template_name = 2;
+	string display_name = 3;
+	int32 owner_player_index = 4;	// -1 when neutral or unknown
+	float x = 5;
+	float y = 6;
+	float z = 7;
+	float angle = 8;			// radians
+	float health = 9;
+	float max_health = 10;
+	int32 veterancy = 11;		// 0 regular .. 3 heroic
+	repeated string status = 12;	// ObjectStatus flag names that are set, e.g. "UNDER_CONSTRUCTION", "IS_ATTACKING"
+	bool under_construction = 13;
+	float construction_percent = 14;	// 0-100, meaningful while under construction
+	repeated uint32 contained_ids = 15;	// objects inside this one (passengers, garrison)
+	uint32 contained_by_id = 16;	// the object this one is inside, 0 when none
+	uint32 producer_id = 17;	// the structure that produced it, 0 when none
+	repeated string upgrades = 18;	// completed object-level upgrades, internal names
+	string current_weapon = 19;	// weapon template name, empty when it has none
+	uint32 target_object_id = 20;	// what the AI is attacking or approaching, 0 when none
+	bool has_target_position = 21;
+	float target_x = 22;
+	float target_y = 23;
+	bool is_effectively_dead = 24;
+}
+
+// Objects in a world rectangle and/or owned by one player, in ascending object id order. The cursor is an object id: the page holds the matching
+// objects with an id >= cursor, so objects created or destroyed between pages never repeat or shift a page.
+message ObjectsQuery
+{
+	PageRequest page = 1;
+	bool has_area = 2;
+	float min_x = 3;
+	float min_y = 4;
+	float max_x = 5;
+	float max_y = 6;
+	bool filter_player = 7;
+	int32 player_index = 8;		// used when filter_player; -1 selects neutral objects
+	bool include_dead = 9;		// effectively dead objects are skipped by default
+	string kind_of = 10;		// a KindOf name the object must have
+}
+
+// A compact object row; the template is a template_id, named once in ObjectsResult.templates.
+message ObjectRow
+{
+	uint32 object_id = 1;
+	uint32 template_id = 2;
+	int32 owner_player_index = 3;
+	float x = 4;
+	float y = 5;
+	uint32 health_percent = 6;	// 0-100
+	int32 veterancy = 7;
+	bool under_construction = 8;
+	bool is_dead = 9;
+}
+
+message TemplateRef
+{
+	uint32 template_id = 1;
+	string name = 2;
+}
+
+message ObjectsResult
+{
+	repeated ObjectRow rows = 1;
+	repeated TemplateRef templates = 2;	// the templates the rows of this page use
+	PageInfo page = 3;
+}
+
+// ---- Players --------------------------------------------------------------------------------------------------------
+
+message PlayerQuery
+{
+	int32 player_index = 1;
+}
+
+message ScienceOption
+{
+	string name = 1;			// internal science name
+	string display_name = 2;	// localized, UTF-8
+	uint32 cost = 3;			// science purchase points
+}
+
+message PowerStatus
+{
+	string power_name = 1;
+	uint32 object_id = 2;		// the structure or unit that carries it
+	string template_name = 3;
+	uint32 ready_frame = 4;		// absolute logic frame at which it is ready
+	float percent_ready = 5;	// 0-1, 1.0 = ready
+	bool ready = 6;
+}
+
+message PlayerDetail
+{
+	int32 player_index = 1;
+	string name = 2;
+	string side = 3;
+	uint32 money = 4;
+	int32 rank_level = 5;
+	int32 rank_points = 6;			// experience points toward the next rank (Player::getSkillPoints)
+	int32 rank_points_next = 7;		// points at which the next rank is reached
+	int32 science_points = 8;		// unspent science purchase points
+	repeated string sciences = 9;	// owned sciences, internal names
+	repeated ScienceOption purchasable = 10;	// can be bought right now
+	repeated ScienceOption locked = 11;			// could be bought later: prerequisites or points are missing
+	repeated string upgrades = 12;	// completed player-level upgrades
+	repeated PowerStatus powers = 13;	// special powers the player can fire, from structures that are complete
+	repeated string buildable = 14;	// template names the player can build right now (prerequisites met), of the player's own side
+}
+
+// ---- Map ------------------------------------------------------------------------------------------------------------
+
+message MapQuery
+{
+	bool include_minimap = 1;	// the image is about 64 KiB; waypoints and positions are always returned
+}
+
+message WaypointInfo
+{
+	uint32 id = 1;
+	string name = 2;
+	float x = 3;
+	float y = 4;
+	float z = 5;
+}
+
+message StartPositionInfo
+{
+	int32 start_position = 1;	// 0-based, as the lobby numbers them
+	float x = 2;
+	float y = 3;
+}
+
+// The radar's terrain image. Pixel (px, py) of the image covers the world cell whose lower corner is
+// (origin_x + px * cell_width, origin_y + py * cell_height); y grows downward in the image the same way it does in the world.
+message Minimap
+{
+	uint32 width = 1;
+	uint32 height = 2;
+	bytes rgba = 3;				// width * height * 4 bytes, row-major, R G B A
+	float origin_x = 4;
+	float origin_y = 5;
+	float cell_width = 6;
+	float cell_height = 7;
+}
+
+message MapDetail
+{
+	string map_name = 1;		// as in MatchInfo.map_name
+	bool has_extent = 2;
+	float min_x = 3;
+	float min_y = 4;
+	float max_x = 5;
+	float max_y = 6;
+	repeated WaypointInfo waypoints = 7;
+	repeated StartPositionInfo start_positions = 8;
+	Minimap minimap = 9;		// only when requested and available
+}
+
+// ---- Resync and feed configuration ----------------------------------------------------------------------------------
+
+// Asks the game to send this reader the current UiState, LobbyState, MatchInfo (STARTED) and a full StatsSnapshot again. Other readers are not affected.
+message ResyncQuery
+{
+}
+
+message ResyncResult
+{
+}
+
+// Which frames this reader gets and how often. Defaults apply to every new connection.
+message FeedConfig
+{
+	uint32 light_interval_ms = 1;	// light StatsSnapshot cadence in game time, 0 = none; default 100, lowest 50
+	uint32 full_interval_ms = 2;	// full StatsSnapshot cadence, 0 = none (the heavy fields then never arrive); default 250, lowest 100
+	bool events = 3;				// default true
+	bool camera = 4;				// default true
+	bool chat = 5;					// ChatMessage frames, default true
+	bool grids = 6;					// PlayerGrid in full snapshots, default true
+	bool supply = 7;				// supply sources in full snapshots, default true
+	bool tech = 8;					// map-level tech structures in full snapshots, default true
+	bool production = 9;			// production queues in full snapshots, default true
+	uint32 grid_resolution = 10;	// cells per side of a PlayerGrid: 8, 16, 32 or 64; default 32
+}
+
+// Every field that is set changes that setting; the rest stay as they are. The Response carries the effective configuration.
+message FeedConfigQuery
+{
+	bool reset = 1;				// back to the defaults first, then apply the fields below
+	optional uint32 light_interval_ms = 2;
+	optional uint32 full_interval_ms = 3;
+	optional bool events = 4;
+	optional bool camera = 5;
+	optional bool chat = 6;
+	optional bool grids = 7;
+	optional bool supply = 8;
+	optional bool tech = 9;
+	optional bool production = 10;
+	optional uint32 grid_resolution = 11;
 }
