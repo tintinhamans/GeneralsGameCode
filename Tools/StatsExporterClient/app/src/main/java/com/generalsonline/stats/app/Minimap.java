@@ -4,6 +4,9 @@ import com.generalsonline.stats.Format;
 import com.generalsonline.stats.MatchState;
 import com.generalsonline.stats.WorldExtent;
 import com.generalsonline.stats.proto.Camera;
+import com.generalsonline.stats.proto.HighlightKind;
+import com.generalsonline.stats.proto.InterestHighlight;
+import com.generalsonline.stats.proto.InterestMap;
 import com.generalsonline.stats.proto.MatchPlayer;
 import com.generalsonline.stats.proto.PlayerGrid;
 import com.generalsonline.stats.proto.StatEvent;
@@ -20,7 +23,9 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntFunction;
 
 /**
  * The Minimap tab: one panel that draws what {@link MatchState} holds, with the map's real aspect ratio.
@@ -41,6 +46,7 @@ final class Minimap extends JPanel {
         new Color(0x8E24AA), new Color(0x00ACC1), new Color(0xFB8C00), new Color(0xEC407A)};
 
     private final GuiModel model;
+    private boolean showInterest;
 
     /** Event kinds that leave a mark on the minimap. */
     private static final List<StatEventKind> MARKED = List.of(StatEventKind.STATEVENT_KILL, StatEventKind.STATEVENT_CAPTURE, StatEventKind.STATEVENT_BEACON);
@@ -73,6 +79,59 @@ final class Minimap extends JPanel {
             return 0;
         }
         return Math.max(0.0, 1.0 - (double) Math.max(0, currentFrame - dotFrame) / maxAgeFrames);
+    }
+
+    /** Draws the interest map (where the action is) and the pending highlights under the units. */
+    void setShowInterest(boolean show) {
+        this.showInterest = show;
+        repaint();
+    }
+
+    boolean showsInterest() {
+        return showInterest;
+    }
+
+    /** The highlight colour of a score: transparent for 0, from yellow to red as it approaches the highest score. */
+    static Color interestColor(long score, long max) {
+        if (score <= 0 || max <= 0) {
+            return new Color(0, 0, 0, 0);
+        }
+        double level = Math.min(1.0, Math.sqrt((double) score / max));
+        int green = (int) Math.round(235 - 200 * level);
+        return new Color(255, Math.max(0, green), 30, (int) Math.round(45 + 175 * level));
+    }
+
+    /** The highlights of an interest map that have not expired at this frame, soonest impact first. */
+    static List<InterestHighlight> pendingHighlights(InterestMap map, long frame) {
+        List<InterestHighlight> pending = new ArrayList<>();
+        for (InterestHighlight h : map.getHighlightsList()) {
+            if (Format.u(h.getExpireFrame()) >= frame) {
+                pending.add(h);
+            }
+        }
+        pending.sort(java.util.Comparator.comparingLong((InterestHighlight h) -> h.getImpactFrame() != 0 ? Format.u(h.getImpactFrame()) : Format.u(h.getStartFrame())));
+        return pending;
+    }
+
+    /** One line about a highlight: what it is, whose, and the time to the impact when it is known. */
+    static String highlightText(InterestHighlight h, long frame, int fps, IntFunction<String> playerName) {
+        String who = playerName.apply(h.getPlayerIndex());
+        return switch (h.getKind()) {
+            case HIGHLIGHT_SUPERWEAPON_LAUNCH -> "Superweapon launch by " + who + " (" + Format.shortPowerName(h.getPowerName()) + ")" + impactText(h, frame, fps);
+            case HIGHLIGHT_HERO_DEATH -> "Hero lost by " + who + " (" + Format.shortName(h.getTemplateName()) + ")";
+            case HIGHLIGHT_STRUCTURE_LOST -> "Structure lost by " + who + " (" + Format.shortName(h.getTemplateName()) + ", worth " + Format.u(h.getValue()) + ")";
+            default -> "Highlight " + h.getId();
+        };
+    }
+
+    /** " impact in 4.0 s" (estimated ones say so), " impact now" after the impact frame, "" when the game does not know it. */
+    static String impactText(InterestHighlight h, long frame, int fps) {
+        if (h.getImpactFrame() == 0) {
+            return "";
+        }
+        long left = Format.u(h.getImpactFrame()) - frame;
+        String estimate = h.getImpactEstimated() ? " (estimated)" : "";
+        return left <= 0 ? " impact now" + estimate : String.format(" impact in %.1f s%s", left / (double) Math.max(1, fps), estimate);
     }
 
     Minimap(GuiModel model) {
@@ -141,6 +200,9 @@ final class Minimap extends JPanel {
             g.fill(new Rectangle2D.Double(view.left(), view.top(), view.width(), view.height()));
 
             drawGrids(g, view, world);
+            if (showInterest) {
+                drawInterest(g, view, world);
+            }
             drawSupply(g, view, world);
             drawTech(g, view, world);
             drawStartPositions(g, view, world);
@@ -172,6 +234,53 @@ final class Minimap extends JPanel {
                 g.setColor(withAlpha(color, Math.min(210, 70 + count * 25)));
                 // The cell's top edge is its far (larger y) side, which is what sy() maps highest.
                 g.fill(new Rectangle2D.Double(view.sx(worldX), view.sy(worldY + grid.getCellHeight()), grid.getCellWidth() * size, grid.getCellHeight() * size));
+            }
+        }
+    }
+
+    /** The cells of the interest map as a heat map, then a marker for each pending highlight with its countdown. */
+    private void drawInterest(Graphics2D g, View view, MatchState world) {
+        InterestMap map = world.interestMap().orElse(null);
+        if (map == null || map.getWidth() == 0) {
+            return;
+        }
+        long max = 100;
+        for (int score : map.getScoresList()) {
+            max = Math.max(max, Integer.toUnsignedLong(score));
+        }
+        int width = (int) Format.u(map.getWidth());
+        double size = view.scale();
+        for (int i = 0; i < map.getScoresCount(); i++) {
+            long score = Integer.toUnsignedLong(map.getScores(i));
+            if (score == 0) {
+                continue;
+            }
+            double worldX = map.getOriginX() + (i % width) * map.getCellWidth();
+            double worldY = map.getOriginY() + (i / width) * map.getCellHeight();
+            g.setColor(interestColor(score, max));
+            g.fill(new Rectangle2D.Double(view.sx(worldX), view.sy(worldY + map.getCellHeight()), map.getCellWidth() * size, map.getCellHeight() * size));
+        }
+        long now = model.currentFrame();
+        int fps = model.logicFps();
+        g.setFont(g.getFont().deriveFont(java.awt.Font.BOLD, 11f));
+        for (InterestHighlight h : pendingHighlights(map, now)) {
+            double x = view.sx(h.getX());
+            double y = view.sy(h.getY());
+            g.setStroke(new BasicStroke(2f));
+            if (h.getKind() == HighlightKind.HIGHLIGHT_SUPERWEAPON_LAUNCH) {
+                g.setColor(new Color(0xFF1744));
+                g.draw(new java.awt.geom.Ellipse2D.Double(x - 14, y - 14, 28, 28));
+                g.draw(new java.awt.geom.Ellipse2D.Double(x - 7, y - 7, 14, 14));
+                String text = impactText(h, now, fps).trim();
+                g.setColor(Color.WHITE);
+                g.drawString(text.isEmpty() ? "launch" : text.replace("impact ", ""), (float) x + 16, (float) y + 4);
+            } else if (h.getKind() == HighlightKind.HIGHLIGHT_HERO_DEATH) {
+                g.setColor(Color.WHITE);
+                g.draw(new java.awt.geom.Line2D.Double(x - 8, y - 8, x + 8, y + 8));
+                g.draw(new java.awt.geom.Line2D.Double(x - 8, y + 8, x + 8, y - 8));
+            } else {
+                g.setColor(new Color(0xFF9100));
+                g.draw(new Rectangle2D.Double(x - 8, y - 8, 16, 16));
             }
         }
     }

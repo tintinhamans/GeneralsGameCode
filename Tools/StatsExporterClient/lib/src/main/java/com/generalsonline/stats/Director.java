@@ -73,6 +73,7 @@ public final class Director implements AutoCloseable {
     private boolean closed;
     private boolean feedPending;
     private Throwable lastError;
+    private DirectorMove lastMove;
 
     /**
      * Creates a director on the real clock with its own timer. Nothing happens until {@link #start()}.
@@ -267,6 +268,17 @@ public final class Director implements AutoCloseable {
     }
 
     /**
+     * Returns the last move the director sent, with the reason for it.
+     *
+     * @return the move ({@link DirectorMove#reason()} says why it went there), empty before the first one
+     */
+    public Optional<DirectorMove> lastMove() {
+        synchronized (lock) {
+            return Optional.ofNullable(lastMove);
+        }
+    }
+
+    /**
      * Looks at the clock once and sends what is due. The timer does this four times a second; a host that created the
      * director without a timer calls it itself.
      */
@@ -324,6 +336,9 @@ public final class Director implements AutoCloseable {
     }
 
     private void send(DirectorMove move) {
+        synchronized (lock) {
+            lastMove = move;
+        }
         try {
             driver.move(move).whenComplete((ok, error) -> {
                 if (error != null) {

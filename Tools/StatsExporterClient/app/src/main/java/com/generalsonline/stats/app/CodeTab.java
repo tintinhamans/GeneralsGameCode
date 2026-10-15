@@ -1,5 +1,6 @@
 package com.generalsonline.stats.app;
 
+import com.generalsonline.stats.DirectorMode;
 import com.generalsonline.stats.proto.ChatAudience;
 import com.generalsonline.stats.proto.ChatChannel;
 import com.generalsonline.stats.proto.StatEventKind;
@@ -35,6 +36,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * The Code tab: pick what you want to do from the list, or choose "Show code for this" in another tab, and read a
@@ -56,6 +58,15 @@ final class CodeTab extends JPanel {
     private final JComboBox<ChatChannel> channelBox = new JComboBox<>();
     private final JComboBox<ChatAudience> audienceBox = new JComboBox<>();
     private final JTextField textField = new JTextField(18);
+    private final JTextField templateField = new JTextField(16);
+    private final JTextField sideField = new JTextField(8);
+    private final JTextField objectField = new JTextField(7);
+    private final JTextField xField = new JTextField(6);
+    private final JTextField yField = new JTextField(6);
+    private final JTextField zoomField = new JTextField(4);
+    private final JTextField speedField = new JTextField(4);
+    private final JComboBox<DirectorMode> modeBox = new JComboBox<>(DirectorMode.values());
+    private final JTextField dumpField = new JTextField(14);
     private final JTextArea codeArea = new JTextArea();
     private final JLabel statusLabel = new JLabel(" ");
     private final JButton copyButton = new JButton("Copy");
@@ -114,12 +125,12 @@ final class CodeTab extends JPanel {
         };
         playerField.getDocument().addDocumentListener(typing);
         textField.getDocument().addDocumentListener(typing);
+        for (JTextField field : List.of(templateField, sideField, objectField, xField, yField, zoomField, speedField, dumpField)) {
+            field.getDocument().addDocumentListener(typing);
+        }
+        modeBox.addActionListener(e -> change.run());
+        fill(Examples.Selection.defaults());
 
-        playerField.setText(Examples.Selection.defaults().playerName());
-        textField.setText(Examples.Selection.defaults().chatText());
-        columnBox.setSelectedItem(Examples.Selection.defaults().column());
-        kindBox.setSelectedItem(Examples.Selection.defaults().eventKind());
-        channelBox.setSelectedItem(Examples.Selection.defaults().channel());
 
         codeArea.setEditable(false);
         codeArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
@@ -198,10 +209,27 @@ final class CodeTab extends JPanel {
         c.gridx = 6;
         c.weightx = 1;
         panel.add(Box.createHorizontalGlue(), c);
+        c.weightx = 0;
+
+        c.gridy = 3;
+        c.gridx = 0;
+        c.gridwidth = 7;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        panel.add(flow(new JLabel("Template:"), templateField, new JLabel("Side:"), sideField, new JLabel("Object id:"), objectField, new JLabel("Dump file:"), dumpField), c);
+        c.gridy = 4;
+        panel.add(flow(new JLabel("Camera x, y, zoom:"), xField, yField, zoomField, new JLabel("Replay speed:"), speedField, new JLabel("Director mode:"), modeBox), c);
         return panel;
     }
 
-    /** What the controls say now. */
+    private static JPanel flow(Component... parts) {
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        for (Component part : parts) {
+            row.add(part);
+        }
+        return row;
+    }
+
+    /** What the controls say now; a field that is empty or not a number keeps its default. */
     Examples.Selection selection() {
         Examples.Selection defaults = Examples.Selection.defaults();
         String column = (String) columnBox.getSelectedItem();
@@ -210,8 +238,44 @@ final class CodeTab extends JPanel {
         ChatAudience audience = (ChatAudience) audienceBox.getSelectedItem();
         String player = playerField.getText().isBlank() ? defaults.playerName() : playerField.getText().trim();
         String text = textField.getText().isBlank() ? defaults.chatText() : textField.getText();
+        DirectorMode mode = (DirectorMode) modeBox.getSelectedItem();
         return new Examples.Selection(player, column == null ? defaults.column() : column, kind == null ? defaults.eventKind() : kind,
-            channel == null ? defaults.channel() : channel, audience == null ? defaults.audience() : audience, text);
+            channel == null ? defaults.channel() : channel, audience == null ? defaults.audience() : audience, text,
+            textOr(templateField, defaults.templateName()), textOr(sideField, defaults.side()), (int) number(objectField, defaults.objectId()),
+            number(xField, defaults.cameraX()), number(yField, defaults.cameraY()), number(zoomField, defaults.zoom()), number(speedField, defaults.replaySpeed()),
+            mode == null ? defaults.directorMode() : mode, textOr(dumpField, defaults.dumpFile()));
+    }
+
+    private static String textOr(JTextField field, String fallback) {
+        return field.getText().isBlank() ? fallback : field.getText().trim();
+    }
+
+    private static double number(JTextField field, double fallback) {
+        try {
+            double value = Double.parseDouble(field.getText().trim());
+            return Double.isFinite(value) ? value : fallback;
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    /** Puts a selection into the controls. */
+    private void fill(Examples.Selection selection) {
+        playerField.setText(selection.playerName());
+        columnBox.setSelectedItem(selection.column());
+        kindBox.setSelectedItem(selection.eventKind());
+        channelBox.setSelectedItem(selection.channel());
+        audienceBox.setSelectedItem(selection.audience());
+        textField.setText(selection.chatText());
+        templateField.setText(selection.templateName());
+        sideField.setText(selection.side());
+        objectField.setText(Integer.toString(selection.objectId()));
+        xField.setText(Double.toString(selection.cameraX()));
+        yField.setText(Double.toString(selection.cameraY()));
+        zoomField.setText(Double.toString(selection.zoom()));
+        speedField.setText(Double.toString(selection.replaySpeed()));
+        modeBox.setSelectedItem(selection.directorMode());
+        dumpField.setText(selection.dumpFile());
     }
 
     Examples.Scenario scenario() {
@@ -229,13 +293,7 @@ final class CodeTab extends JPanel {
         updating = true;
         try {
             scenarios.setSelectedValue(request.scenario(), true);
-            Examples.Selection selection = request.selection();
-            playerField.setText(selection.playerName());
-            columnBox.setSelectedItem(selection.column());
-            kindBox.setSelectedItem(selection.eventKind());
-            channelBox.setSelectedItem(selection.channel());
-            audienceBox.setSelectedItem(selection.audience());
-            textField.setText(selection.chatText());
+            fill(request.selection());
         } finally {
             updating = false;
         }
@@ -255,6 +313,16 @@ final class CodeTab extends JPanel {
         channelBox.setEnabled(chat);
         audienceBox.setEnabled(chat && channelBox.getSelectedItem() == ChatChannel.CHAT_CHANNEL_MATCH);
         textField.setEnabled(chat);
+        templateField.setEnabled(scenario == Examples.Scenario.QUERY_CATALOG);
+        sideField.setEnabled(scenario == Examples.Scenario.QUERY_CATALOG);
+        objectField.setEnabled(scenario == Examples.Scenario.INSPECT_OBJECT || scenario == Examples.Scenario.CAMERA_CONTROL);
+        boolean camera = scenario == Examples.Scenario.CAMERA_CONTROL;
+        xField.setEnabled(camera);
+        yField.setEnabled(camera);
+        zoomField.setEnabled(camera);
+        speedField.setEnabled(scenario == Examples.Scenario.REPLAY_CONTROL);
+        modeBox.setEnabled(scenario == Examples.Scenario.DIRECTOR);
+        dumpField.setEnabled(scenario == Examples.Scenario.FAKE_SERVER);
         try {
             codeArea.setText(Examples.generate(scenario, selection()));
             codeArea.setCaretPosition(0);

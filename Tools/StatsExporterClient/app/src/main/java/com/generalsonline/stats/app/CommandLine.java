@@ -45,10 +45,13 @@ final class CommandLine {
         SPECS.put("dump", new Spec("dump [--pid N | --pipe PATH] [--overwrite] [--no-camera] <file>", Set.of("pid", "pipe"), Set.of("overwrite", "no-camera"), 1, 1, -1));
         SPECS.put("replay", new Spec("replay <file>", Set.of(), Set.of(), 1, 1, -1));
         SPECS.put("chat", new Spec("chat [--audience A] [--pid N | --pipe PATH] [--] <channel> <text...>", Set.of("pid", "pipe", "audience"), Set.of(), 2, -1, 1));
-        SPECS.put("gui", new Spec("gui [--pid N | --pipe PATH | --replay FILE [--speed MULTIPLIER]]", Set.of("pid", "pipe", "replay", "speed"), Set.of(), 0, 0, -1));
+        SPECS.put("gui", new Spec("gui [--pid N | --pipe PATH | --replay FILE [--speed MULTIPLIER] | --fake FILE [--speed MULTIPLIER]]", Set.of("pid", "pipe", "replay", "fake", "speed"), Set.of(), 0, 0, -1));
+        SPECS.put("serve", new Spec("serve [--pid N | --pipe NAME] [--speed MULTIPLIER] [--loop] [--no-wait] [--situation replay|observer|player] <dump>",
+            Set.of("pid", "pipe", "speed", "situation"), Set.of("loop", "no-wait"), 1, 1, -1));
         SPECS.put("schema", new Spec("schema", Set.of(), Set.of(), 0, 0, -1));
-        SPECS.put("example", new Spec("example [--player NAME] [--column NAME] [--kind KIND] [--channel CH] [--audience A] [--text TEXT] [<name>]",
-            Set.of("player", "column", "kind", "channel", "audience", "text"), Set.of(), 0, 1, -1));
+        SPECS.put("example", new Spec("example [--player NAME] [--column NAME] [--kind KIND] [--channel CH] [--audience A] [--text TEXT] [--template NAME] [--side SIDE]"
+            + " [--object ID] [--x X] [--y Y] [--zoom Z] [--speed RATIO] [--mode MODE] [--dump FILE] [<name>]",
+            Set.of("player", "column", "kind", "channel", "audience", "text", "template", "side", "object", "x", "y", "zoom", "speed", "mode", "dump"), Set.of(), 0, 1, -1));
     }
 
     private final String command;
@@ -182,6 +185,11 @@ final class CommandLine {
         } catch (NumberFormatException e) {
             throw new UsageException("--speed needs a multiplier such as 1 (real time), 2.5 or 0 (as fast as possible), got '" + text + "'");
         }
+    }
+
+    /** Like {@link #speed()} but with a default for when the option was not given (a fake game runs in real time unless told otherwise). */
+    double speed(double fallback) {
+        return values.containsKey("speed") ? speed() : fallback;
     }
 
     static String usage() {

@@ -15,7 +15,7 @@ final class ExampleTemplates {
         // Connects to a running Generals Online game and prints one line for every frame type.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar PrintEveryFrame.java
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar PrintEveryFrame.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.StatsListener;
         import com.generalsonline.stats.StatsPipe;
@@ -112,7 +112,7 @@ final class ExampleTemplates {
         // The value is ${EXPRESSION}${NOTE}
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar TrackPlayerStat.java
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar TrackPlayerStat.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Format;
         import com.generalsonline.stats.MatchState;
@@ -160,7 +160,7 @@ final class ExampleTemplates {
         // Reacts to ${KIND} events: ${KIND_DESCRIPTION}
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar ReactToEvent.java
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar ReactToEvent.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Format;
         import com.generalsonline.stats.MatchState;
@@ -200,7 +200,7 @@ final class ExampleTemplates {
         // Maps the camera's view box onto a minimap image: the four ground corners of the screen, in pixels.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar DrawCameraBox.java
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar DrawCameraBox.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.MatchState;
         import com.generalsonline.stats.StateListener;
@@ -264,7 +264,7 @@ final class ExampleTemplates {
         // lobby state, so an overlay can show them before the match starts. A prediction is only valid when the lobby says so.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar ShowLobby.java
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar ShowLobby.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Format;
         import com.generalsonline.stats.StatsListener;
@@ -325,7 +325,7 @@ final class ExampleTemplates {
         //  * The audience matters for the match channel only: EVERYONE, ALLIES, or OBSERVERS (observers only).
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar SendChat.java "your text"
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar SendChat.java "your text"
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.StatsListener;
         import com.generalsonline.stats.StatsPipe;
@@ -368,8 +368,8 @@ final class ExampleTemplates {
         // same listener. Handler is an ordinary StatsListener: it does not know whether the frames come from a game or a file.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java record match.dump
-        //   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java replay match.dump
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java record match.dump
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java replay match.dump
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.DecodedFrame;
         import com.generalsonline.stats.DumpReader;
@@ -480,7 +480,7 @@ final class ExampleTemplates {
         // Camera frames arrive up to 120 times a second; if the UI only needs the latest one, do not repaint per frame.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar UiThreadState.java
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar UiThreadState.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.MatchState;
         import com.generalsonline.stats.PlayerView;
@@ -525,6 +525,402 @@ final class ExampleTemplates {
                 Executor uiThread = SwingUtilities::invokeLater; // JavaFX: Platform::runLater
                 StatsPipe pipe = StatsPipe.builder().state(state).executor(uiThread).build().start();
                 Runtime.getRuntime().addShutdownHook(new Thread(pipe::close));
+            }
+        }
+        """;
+
+    static final String QUERY_CATALOG = """
+        // Lists the game's object templates (the catalog) a page at a time, then looks one up by its internal name.
+        // The game answers from the templates it has loaded, so this also works outside a match.
+        //
+        // Run (Java 17+), with the library jar and protobuf-java on the class path:
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar QueryCatalog.java
+        // (use ; instead of : between the jars on Windows)
+        // No game at hand? Serve a recorded dump as one with the test client:  stats-exporter-client serve match.dump
+        import com.generalsonline.stats.Format;
+        import com.generalsonline.stats.StatsPipe;
+        import com.generalsonline.stats.proto.CatalogEntry;
+        import com.generalsonline.stats.proto.CatalogQuery;
+        import com.generalsonline.stats.proto.CatalogResult;
+        import com.generalsonline.stats.proto.PageRequest;
+
+        import java.time.Duration;
+        import java.util.List;
+        import java.util.concurrent.TimeUnit;
+
+        public class QueryCatalog {
+            // The side to list and the template to look up.
+            private static final String SIDE = "${SIDE}";
+            private static final String NAME = "${NAME}";
+
+            public static void main(String[] args) throws Exception {
+                try (StatsPipe pipe = StatsPipe.builder().reconnect(false).build().start()) {
+                    if (pipe.awaitHello(Duration.ofSeconds(10)).isEmpty()) {
+                        System.err.println("no game found within 10 seconds");
+                        return;
+                    }
+
+                    // One page at a time. page_size 0 is the game's default; a size over Hello.max_page_size is lowered to it.
+                    // PageInfo says whether there is more, where the next page starts and (when known) how many rows match.
+                    int cursor = 0;
+                    boolean more = true;
+                    while (more) {
+                        CatalogQuery query = CatalogQuery.newBuilder().setSide(SIDE).setBuildableOnly(true)
+                            .setPage(PageRequest.newBuilder().setCursor(cursor).setPageSize(25)).build();
+                        CatalogResult page = pipe.catalog(query).get(10, TimeUnit.SECONDS);
+                        for (CatalogEntry entry : page.getEntriesList()) {
+                            System.out.println(Format.u(entry.getTemplateId()) + "  " + entry.getName() + "  cost " + Format.u(entry.getCost())
+                                + "  " + String.join(",", entry.getKindOfList()));
+                        }
+                        System.out.println("-- " + page.getEntriesCount() + " templates of " + SIDE + ", " + Format.u(page.getPage().getTotal()) + " match");
+                        more = page.getPage().getHasMore();
+                        cursor = page.getPage().getNextCursor();
+                    }
+
+                    // catalogAll follows next_cursor for you (at most 100 pages), so a lookup by name is one call.
+                    List<CatalogEntry> byName = pipe.catalogAll(CatalogQuery.newBuilder().setName(NAME).build()).get(10, TimeUnit.SECONDS);
+                    if (byName.isEmpty()) {
+                        System.out.println(NAME + ": no such template");
+                    } else {
+                        CatalogEntry entry = byName.get(0);
+                        System.out.println(entry.getName() + ": " + entry.getDisplayName() + ", " + entry.getSide() + ", cost " + Format.u(entry.getCost())
+                            + ", " + entry.getBuildTimeSeconds() + " s to build, " + (entry.getBuildable() ? "buildable" : "not buildable"));
+                    }
+                }
+            }
+        }
+        """;
+
+    static final String INSPECT_OBJECT = """
+        // Looks one live object up by its id: template, owner, place, health and veterancy.
+        // Ids come from events (StatEvent.getObjectId, getKillerObjectId), from the notable units of the view statistics and
+        // from the units a camera lock follows. An object that was destroyed answers NOT_FOUND.
+        //
+        // Run (Java 17+), with the library jar and protobuf-java on the class path:
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar InspectObject.java [object id]
+        // (use ; instead of : between the jars on Windows)
+        import com.generalsonline.stats.Format;
+        import com.generalsonline.stats.RequestFailedException;
+        import com.generalsonline.stats.StatsPipe;
+        import com.generalsonline.stats.proto.ObjectDetail;
+
+        import java.time.Duration;
+        import java.util.concurrent.ExecutionException;
+        import java.util.concurrent.TimeUnit;
+
+        public class InspectObject {
+            private static final int DEFAULT_ID = ${OBJECT_ID};
+
+            public static void main(String[] args) throws Exception {
+                int id = args.length > 0 ? Integer.parseInt(args[0]) : DEFAULT_ID;
+                try (StatsPipe pipe = StatsPipe.builder().reconnect(false).build().start()) {
+                    if (pipe.awaitHello(Duration.ofSeconds(10)).isEmpty()) {
+                        System.err.println("no game found within 10 seconds");
+                        return;
+                    }
+                    try {
+                        ObjectDetail object = pipe.object(id).get(10, TimeUnit.SECONDS);
+                        System.out.println(object.getTemplateName() + " (object " + Format.u(object.getObjectId()) + ") of player " + object.getOwnerPlayerIndex()
+                            + (object.getOwnerPlayerIndex() < 0 ? " (neutral or unknown)" : ""));
+                        System.out.println("at " + object.getX() + ", " + object.getY() + ", health " + object.getHealth() + " of " + object.getMaxHealth()
+                            + ", " + Format.veterancyName(object.getVeterancy()));
+                        if (object.getUnderConstruction()) {
+                            System.out.println("under construction: " + object.getConstructionPercent() + " percent");
+                        }
+                        if (!object.getStatusList().isEmpty()) {
+                            System.out.println("status: " + String.join(", ", object.getStatusList()));
+                        }
+                        if (object.getTargetObjectId() != 0) {
+                            System.out.println("busy with object " + Format.u(object.getTargetObjectId()));
+                        }
+                    } catch (ExecutionException e) {
+                        // The typed request methods fail with a RequestFailedException carrying the status of the answer.
+                        if (e.getCause() instanceof RequestFailedException failed) {
+                            System.out.println("object " + id + ": " + failed.getMessage());
+                        } else {
+                            throw e;
+                        }
+                    }
+                }
+            }
+        }
+        """;
+
+    static final String CAMERA_CONTROL = """
+        // Moves the game's camera: a pan with a transition, then a lock on a unit, then back to the default view.
+        // The game accepts this only while its local player is an observer or a replay plays back; for an active player it
+        // answers NOT_ALLOWED, which arrives here as a NotAllowedException with the game's reason.
+        //
+        // Run (Java 17+), with the library jar and protobuf-java on the class path:
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar CameraControl.java
+        // (use ; instead of : between the jars on Windows)
+        import com.generalsonline.stats.CameraMove;
+        import com.generalsonline.stats.NotAllowedException;
+        import com.generalsonline.stats.RequestFailedException;
+        import com.generalsonline.stats.StatsPipe;
+        import com.generalsonline.stats.proto.CameraState;
+
+        import java.time.Duration;
+        import java.util.concurrent.ExecutionException;
+        import java.util.concurrent.TimeUnit;
+
+        public class CameraControl {
+            public static void main(String[] args) throws Exception {
+                try (StatsPipe pipe = StatsPipe.builder().reconnect(false).build().start()) {
+                    if (pipe.awaitHello(Duration.ofSeconds(10)).isEmpty()) {
+                        System.err.println("no game found within 10 seconds");
+                        return;
+                    }
+                    if (!pipe.hasCapability("camera.control")) {
+                        System.err.println("this game cannot be steered (no camera.control capability)");
+                        return;
+                    }
+                    try {
+                        // A pan over two seconds that starts and ends slowly; the zoom changes with it.
+                        // The transition runs on wall-clock time, so even a paused game pans.
+                        CameraState moved = pipe.moveCamera(CameraMove.to(${X}, ${Y}).zoom(${ZOOM}).over(Duration.ofSeconds(2)).easeInOut()).get(10, TimeUnit.SECONDS);
+                        System.out.println("moving, from " + moved.getX() + ", " + moved.getY() + " (a running transition shows its start)");
+                        Thread.sleep(2500);
+
+                        // Lock the camera on a unit by its object id. followUnit keeps it centred;
+                        // tetherUnit(id, 20) lets the unit move around inside a slack area first.
+                        CameraState locked = pipe.followUnit(${OBJECT_ID}).get(10, TimeUnit.SECONDS);
+                        System.out.println("following object " + locked.getFollowObjectId());
+                        Thread.sleep(5000);
+
+                        // Release the lock and put angle, pitch and zoom back to the game's defaults.
+                        pipe.unfollowUnit().get(10, TimeUnit.SECONDS);
+                        pipe.resetCamera().get(10, TimeUnit.SECONDS);
+                        System.out.println("camera released and reset");
+                    } catch (ExecutionException e) {
+                        if (e.getCause() instanceof NotAllowedException refused) {
+                            System.out.println("the game refused: " + refused.reason());
+                        } else if (e.getCause() instanceof RequestFailedException failed) {
+                            System.out.println("the request failed: " + failed.getMessage());
+                        } else {
+                            throw e;
+                        }
+                    }
+                }
+            }
+        }
+        """;
+
+    static final String REPLAY_CONTROL = """
+        // Steers a replay playback: pause, resume, a speed ratio and fast forward.
+        // Only a replay can be steered this way; pausing or slowing a live network game would desynchronize it, so the game
+        // answers NOT_ALLOWED there (a NotAllowedException). Nothing here touches the simulation, only the pace of the playback.
+        //
+        // Run (Java 17+), with the library jar and protobuf-java on the class path:
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar ReplayControl.java
+        // (use ; instead of : between the jars on Windows)
+        import com.generalsonline.stats.NotAllowedException;
+        import com.generalsonline.stats.RequestFailedException;
+        import com.generalsonline.stats.StatsPipe;
+        import com.generalsonline.stats.proto.ReplayState;
+
+        import java.time.Duration;
+        import java.util.concurrent.ExecutionException;
+        import java.util.concurrent.TimeUnit;
+
+        public class ReplayControl {
+            public static void main(String[] args) throws Exception {
+                try (StatsPipe pipe = StatsPipe.builder().reconnect(false).build().start()) {
+                    if (pipe.awaitHello(Duration.ofSeconds(10)).isEmpty()) {
+                        System.err.println("no game found within 10 seconds");
+                        return;
+                    }
+                    try {
+                        ReplayState paused = pipe.pauseReplay().get(10, TimeUnit.SECONDS);
+                        System.out.println("paused: " + paused.getPaused());
+                        Thread.sleep(2000);
+                        pipe.resumeReplay().get(10, TimeUnit.SECONDS);
+
+                        // The speed ratio is 0.1 to 16 (1 is normal). The game's replay runs one logic update per displayed frame at
+                        // most, so a ratio above what the frame rate limit allows is capped: the answer says what you got.
+                        ReplayState speed = pipe.setReplaySpeed(${SPEED}).get(10, TimeUnit.SECONDS);
+                        System.out.println("speed " + speed.getSpeedRatio() + (speed.getSpeedCapped() ? " (capped: use fast forward for more)" : ""));
+                        Thread.sleep(5000);
+
+                        // Fast forward is the game's own: as fast as the machine runs, whatever the ratio.
+                        ReplayState fast = pipe.setReplayFastForward(true).get(10, TimeUnit.SECONDS);
+                        System.out.println("fast forward: " + fast.getFastForward());
+                        Thread.sleep(3000);
+                        ReplayState normal = pipe.setReplaySpeed(1.0).get(10, TimeUnit.SECONDS);
+                        System.out.println("back to normal speed: " + normal.getSpeedRatio() + ", fast forward " + normal.getFastForward());
+                    } catch (ExecutionException e) {
+                        if (e.getCause() instanceof NotAllowedException refused) {
+                            System.out.println("the game refused: " + refused.reason());
+                        } else if (e.getCause() instanceof RequestFailedException failed) {
+                            System.out.println("the request failed: " + failed.getMessage());
+                        } else {
+                            throw e;
+                        }
+                    }
+                }
+            }
+        }
+        """;
+
+    static final String VIEW_STATS = """
+        // Prints what share of the value inside the camera's view each player holds, about once a second.
+        // ViewStats frames describe, per player, what lies inside the four ground corners of the local camera: the value (sum of
+        // build costs), the same weighted by health, the value by class, veterancy, notable units, superweapons in view, and the
+        // value killed and lost and the damage dealt over rolling windows.
+        //
+        // Run (Java 17+), with the library jar and protobuf-java on the class path:
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar ViewStatsShare.java
+        // (use ; instead of : between the jars on Windows)
+        import com.generalsonline.stats.Format;
+        import com.generalsonline.stats.MatchState;
+        import com.generalsonline.stats.StateListener;
+        import com.generalsonline.stats.StatsPipe;
+        import com.generalsonline.stats.proto.PlayerViewStats;
+        import com.generalsonline.stats.proto.ViewStats;
+
+        public class ViewStatsShare {
+            public static void main(String[] args) throws InterruptedException {
+                MatchState state = new MatchState();
+                state.addListener(new StateListener() {
+                    private long lastPrint;
+
+                    @Override
+                    public void viewStatsChanged(ViewStats view) {
+                        // About four a second (FeedConfig.view_stats_interval_ms); print once a second.
+                        long now = System.nanoTime();
+                        if (!view.getHasView() || now - lastPrint < 1_000_000_000L) {
+                            return;
+                        }
+                        long total = 0;
+                        for (PlayerViewStats player : view.getPlayersList()) {
+                            total += Format.u(player.getValueInView());
+                        }
+                        if (total == 0) {
+                            return; // nothing in view
+                        }
+                        lastPrint = now;
+                        StringBuilder line = new StringBuilder(state.gameTime(Format.u(view.getFrame()))).append(" in view:");
+                        for (PlayerViewStats player : view.getPlayersList()) {
+                            long value = Format.u(player.getValueInView());
+                            line.append("  ").append(state.playerName(player.getPlayerIndex())).append(' ').append(Math.round(100.0 * value / total)).append("% (").append(value).append(')');
+                        }
+                        System.out.println(line);
+                        // Also there: getEffectiveValue, getValueByClass, getNotableList (heroes and expensive units), getSuperweaponsList,
+                        // getValueKilled / getValueLost over the trade window and getDamagePerSecond over the intensity window.
+                    }
+                });
+
+                StatsPipe pipe = StatsPipe.builder().state(state).build().start();
+                Runtime.getRuntime().addShutdownHook(new Thread(pipe::close));
+                System.out.println("waiting for view statistics (Ctrl+C to stop)");
+                Thread.currentThread().join();
+            }
+        }
+        """;
+
+    static final String DIRECTOR = """
+        // Runs the automatic camera director in the mode ${MODE}: ${MODE_DESCRIPTION}.
+        // The director reads the interest map (it switches that feed on for this connection) and steers the camera with
+        // camera commands, so the game must be observed or a replay. A human moving the camera pauses it; it takes over again
+        // after the resume delay (10 s by default). When the game refuses (NOT_ALLOWED) it pauses itself and says why.
+        //
+        // Run (Java 17+), with the library jar and protobuf-java on the class path:
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar RunDirector.java
+        // (use ; instead of : between the jars on Windows)
+        import com.generalsonline.stats.Director;
+        import com.generalsonline.stats.DirectorConfig;
+        import com.generalsonline.stats.DirectorLogic;
+        import com.generalsonline.stats.DirectorMode;
+        import com.generalsonline.stats.DirectorMove;
+        import com.generalsonline.stats.Format;
+        import com.generalsonline.stats.MatchState;
+        import com.generalsonline.stats.StatsPipe;
+
+        import java.time.Duration;
+
+        public class RunDirector {
+            public static void main(String[] args) throws Exception {
+                MatchState state = new MatchState();
+                StatsPipe pipe = StatsPipe.builder().state(state).build().start();
+
+                // DirectorConfig is immutable: start from the defaults and change what you need.
+                DirectorConfig config = DirectorConfig.defaults().toBuilder().mode(DirectorMode.${MODE}).minDwell(Duration.ofSeconds(6)).build();
+                Director director = Director.start(pipe, state, config);
+                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                    director.close();
+                    pipe.close();
+                }));
+                System.out.println("directing in mode ${MODE} (Ctrl+C to stop)");
+
+                String last = "";
+                while (true) {
+                    Thread.sleep(2000);
+                    DirectorLogic.Status status = director.status();
+                    String report = status.state() + (status.hasTarget() ? " at " + Math.round(status.targetX()) + ", " + Math.round(status.targetY()) : "")
+                        + ", " + status.pendingHighlights() + " highlights pending";
+                    DirectorMove move = director.lastMove().orElse(null);
+                    if (move != null) {
+                        report += ", last move " + move.reason() + (move.cut() ? " (a cut)" : " (a pan)");
+                    }
+                    if (director.lastError().isPresent()) {
+                        report += ", problem: " + Format.cause(director.lastError().get());
+                    }
+                    if (!report.equals(last)) {
+                        last = report;
+                        System.out.println(report);
+                    }
+                }
+            }
+        }
+        """;
+
+    static final String FAKE_SERVER = """
+        // Plays a recorded dump back as a game, in this process, and reads it with a StatsPipe: the code that reads a live
+        // game also reads this, so a tool can be written and tested without a game running. The fake game sends a Hello,
+        // re-sequenced frames paced by game time, and answers requests (catalog, objects, players, the map, feed configuration,
+        // camera, replay and observer control) from what the dump contains.
+        //
+        // To serve other programs instead, leave out namedPipe(false): the fake game then opens a real Windows named pipe named
+        // like a game's (generalsonline-stats-<pid>), which any client finds. The test client does that with its serve command.
+        //
+        // Run (Java 17+), with the library jar and protobuf-java on the class path:
+        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar FakeServer.java match.dump
+        // (use ; instead of : between the jars on Windows)
+        import com.generalsonline.stats.FakeGame;
+        import com.generalsonline.stats.Format;
+        import com.generalsonline.stats.Handshake;
+        import com.generalsonline.stats.MatchState;
+        import com.generalsonline.stats.PlayerView;
+        import com.generalsonline.stats.StatsPipe;
+        import com.generalsonline.stats.proto.CatalogQuery;
+        import com.generalsonline.stats.proto.Hello;
+
+        import java.nio.file.Path;
+        import java.time.Duration;
+        import java.util.concurrent.TimeUnit;
+
+        public class FakeServer {
+            public static void main(String[] args) throws Exception {
+                Path dump = Path.of(args.length > 0 ? args[0] : "${DUMP}");
+
+                // Four times real time; holdForReader starts the dump when the first reader connects.
+                try (FakeGame game = FakeGame.builder(dump).speed(4).holdForReader(true).namedPipe(false).build().start()) {
+                    MatchState state = new MatchState();
+                    // connect(...) points the builder at the fake game, through memory; everything else is the usual StatsPipe.
+                    try (StatsPipe pipe = game.connect(StatsPipe.builder().state(state).reconnect(false)).build().start()) {
+                        Hello hello = pipe.awaitHello(Duration.ofSeconds(10)).orElseThrow();
+                        System.out.println("connected: " + Handshake.summary(hello));
+                        System.out.println("catalog: " + pipe.catalogAll(CatalogQuery.getDefaultInstance()).get(10, TimeUnit.SECONDS).size() + " templates in the dump");
+
+                        while (!game.awaitFinished(Duration.ofSeconds(2))) {
+                            System.out.println("game time " + state.gameTime(Math.max(0, state.frame())));
+                        }
+                        Thread.sleep(300); // let the last frames arrive
+                        for (PlayerView player : state.players()) {
+                            System.out.println(player.name() + " (" + player.side() + ") " + player.stateText() + ", money " + Format.u(player.stats().getMoney()));
+                        }
+                    }
+                }
             }
         }
         """;

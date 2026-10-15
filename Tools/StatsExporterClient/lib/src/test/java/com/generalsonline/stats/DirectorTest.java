@@ -89,9 +89,12 @@ class DirectorTest {
 
     @Test
     void anInterestMapMakesTheDirectorMoveTheCamera() {
-        director(DirectorMode.HOTSPOT);
+        Director director = director(DirectorMode.HOTSPOT);
+        assertTrue(director.lastMove().isEmpty(), "nothing sent yet");
         state.onInterestMap(hot(10, 6, 2, 900));
         assertEquals(1, driver.moves.size());
+        assertEquals(DirectorMove.Reason.HOTSPOT, director.lastMove().orElseThrow().reason());
+        assertEquals(driver.moves.get(0), director.lastMove().orElseThrow());
         assertEquals(6500.0, driver.moves.get(0).x(), 1.0);
         assertEquals(2500.0, driver.moves.get(0).y(), 1.0);
     }

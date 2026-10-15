@@ -21,6 +21,9 @@
  *     steer the game's view (observers and replay playback only; {@link com.generalsonline.stats.NotAllowedException}
  *     when the game refuses), and {@link com.generalsonline.stats.Director} drives the camera automatically from the
  *     interest map, with the decisions in {@link com.generalsonline.stats.DirectorLogic}.</li>
+ * <li>{@link com.generalsonline.stats.FakeGame} plays a dump back as a game, over a real Windows named pipe or in memory,
+ *     answering requests and accepting camera, replay and observer commands, so a tool can be written without a game
+ *     running.</li>
  * <li>{@link com.generalsonline.stats.Format} has the small helpers every reader writes: game time, colours, display
  *     names and the text of an event.</li>
  * </ul>

@@ -9,7 +9,7 @@
 //  * The audience matters for the match channel only: EVERYONE, ALLIES, or OBSERVERS (observers only).
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar SendChat.java "your text"
+//   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar SendChat.java "your text"
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.StatsListener;
 import com.generalsonline.stats.StatsPipe;
