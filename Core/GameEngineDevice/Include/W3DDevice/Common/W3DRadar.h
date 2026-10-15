@@ -73,6 +73,8 @@ public:
 
 	virtual void notifyViewChanged() override; ///< signals that the camera view has changed
 
+	virtual Bool getTerrainImageForStats( UnsignedByte *rgba, UnsignedInt capacity, Int *width, Int *height ) override;	///< the terrain texture as RGBA, read-only
+
 protected:
 
 	void drawSingleBeaconEvent( Int pixelX, Int pixelY, Int width, Int height, Int index );

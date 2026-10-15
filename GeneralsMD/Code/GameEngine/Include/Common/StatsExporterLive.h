@@ -41,7 +41,8 @@ enum StatsExporterChatChannel
 	STATS_EXPORTER_CHAT_LAN_GAME = 4
 };
 
-/// Main-thread tick that also runs in the shell: sends UiState changes and runs pending ChatSend requests.
+/// Main-thread tick that also runs in the shell: welcomes new readers (Hello), sends UiState and LobbyState changes, runs pending ChatSend
+/// requests and answers the queued Requests.
 void StatsExporterLiveTick();
 
 /// An in-match chat line that is being shown to the local player. `playerMask` is the line's recipient mask.
@@ -62,7 +63,7 @@ void StatsExporterLiveCommand(Int playerIndex, Int messageType);
 void StatsExporterLiveCamera();
 
 /// Once per GameLogic::update() tick, at its start. Sends the MatchInfo STARTED on (re)connect and the StatsSnapshots
-/// (light every 100 ms of game time, full every 250 ms).
+/// (light every 100 ms of game time, full every 250 ms by default; each reader can change that).
 void StatsExporterLiveUpdate();
 
 /// Once per GameLogic::update() tick, at its end (after the object updates). Sends the Events of that logic frame.
@@ -94,10 +95,12 @@ void StatsExporterLiveAbilityUse(Int playerIndex, const SpecialPowerTemplate* po
 	const ThingTemplate* sourceTmpl, const ThingTemplate* targetTmpl,
 	const Coord3D* location, const char* variant);
 void StatsExporterLiveScienceAcquired(Int playerIndex, Int rankLevel, Int sciencePurchasePoints, const char* scienceName);
-/// `veterancyLevel` is the level the new object starts with (a VeterancyLevel), reported in int_value1.
-void StatsExporterLiveBuild(Int playerIndex, const ThingTemplate* tmpl, Int veterancyLevel);
-void StatsExporterLiveKill(Int playerIndex, const ThingTemplate* victimTmpl);
-void StatsExporterLiveLoss(Int playerIndex, const ThingTemplate* victimTmpl);
+/// `objectId` is the new object; `veterancyLevel` is the level it starts with (a VeterancyLevel), reported in int_value1.
+void StatsExporterLiveBuild(Int playerIndex, const ThingTemplate* tmpl, ObjectID objectId, Int veterancyLevel);
+/// `killer` is the object that scored the kill (its id, template and last fired weapon are reported); `victim` is the object that died.
+void StatsExporterLiveKill(Int playerIndex, const Object* killer, const Object* victim);
+/// `playerIndex` owns the lost `victim`; `killer` may be NULL.
+void StatsExporterLiveLoss(Int playerIndex, const Object* victim, const Object* killer);
 void StatsExporterLiveEvacuate(Int playerIndex, const ThingTemplate* containerTmpl, UnsignedInt passengerCount);
 
 /// A promotion earned from experience (ExperienceTracker::addExperiencePoints); levels assigned at creation are not reported.

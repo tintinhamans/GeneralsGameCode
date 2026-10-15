@@ -423,7 +423,7 @@ void StatsExporterRecordKill(const Object *killer, const Object *victim, const D
 	// live pipe feed; a cheap early-out while no reader is connected
 	if (killer != nullptr && victim != nullptr && killer->getControllingPlayer() != nullptr)
 	{
-		StatsExporterLiveKill(killer->getControllingPlayer()->getPlayerIndex(), victim->getTemplate());
+		StatsExporterLiveKill(killer->getControllingPlayer()->getPlayerIndex(), killer, victim);
 	}
 
 	// JSON export, unchanged gating
