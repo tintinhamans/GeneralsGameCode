@@ -151,3 +151,14 @@ void StatsExporterLivePowerSabotaged(Int playerIndex, UnsignedInt durationFrames
 
 /// A salvage crate upgraded a unit. upgradeKind is "WEAPON" or "ARMOR".
 void StatsExporterLiveSalvageUpgrade(Int playerIndex, const ThingTemplate* tmpl, const char* upgradeKind, Int tier);
+
+// -- Read-only taps for the in-view statistics and the interest map. They record numbers and change nothing in the game. ----
+
+/// Health a body actually lost to damage (after armor and modifiers), from ActiveBody::attemptDamage. `attackerId` may be INVALID_ID.
+void StatsExporterLiveDamage(const Object* victim, ObjectID attackerId, Real healthRemoved);
+
+/// A superweapon was fired by `source` at `location` (NULL when the power has no target).
+void StatsExporterLiveSuperweaponFired(const Object* source, const SpecialPowerTemplate* power, const Coord3D* location);
+
+/// A neutron missile left its launcher toward `target`; `secondsToImpact` is the flight time the missile's own data predicts.
+void StatsExporterLiveMissileLaunched(const Object* missile, const Coord3D* target, Real secondsToImpact);

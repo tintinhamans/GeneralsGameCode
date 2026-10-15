@@ -44,6 +44,7 @@ View* TheTacticalView = nullptr;
 View::View()
 {
 	m_userControlLockedUntilFrame = 0u;
+	m_userActionCount = 0u;
 	m_isUserControlled = true;
 	m_currentHeightAboveGround = 0.0f;
 	m_defaultAngle = 0.0f;

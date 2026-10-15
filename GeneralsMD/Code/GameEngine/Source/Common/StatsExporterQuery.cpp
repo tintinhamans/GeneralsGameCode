@@ -18,6 +18,7 @@
 // Protocol reference: docs/stats-exporter.md
 #include "Common/StatsExporterQuery.h"
 #include "Common/StatsExporterPipe.h"
+#include "Common/StatsExporterControl.h"
 
 #include "Common/KindOf.h"
 #include "Common/Player.h"
@@ -74,6 +75,10 @@ namespace
 	const UnsignedInt kResultMap = 14;
 	const UnsignedInt kResultResync = 15;
 	const UnsignedInt kResultFeedConfig = 16;
+	const UnsignedInt kResultCameraControl = 17;
+	const UnsignedInt kResultCameraFollow = 18;
+	const UnsignedInt kResultReplayControl = 19;
+	const UnsignedInt kResultObserve = 20;
 
 	typedef statsexporter::ResponseStatus Status;
 
@@ -731,6 +736,12 @@ namespace
 		out.set_tech(config.tech != FALSE);
 		out.set_production(config.production != FALSE);
 		out.set_grid_resolution(config.gridResolution);
+		out.set_view_stats_interval_ms(config.viewStatsIntervalMs);
+		out.set_interest(config.interest != FALSE);
+		out.set_interest_interval_ms(config.interestIntervalMs);
+		out.set_notable_cost(config.notableCost);
+		out.set_trade_window_ms(config.tradeWindowMs);
+		out.set_intensity_window_ms(config.intensityWindowMs);
 	}
 
 	Status answerFeedConfig(StatsExporterSink* sink, Int slot, UnsignedInt epoch, const statsexporter::FeedConfigQuery& query, std::string& result, std::string& message)
@@ -783,6 +794,30 @@ namespace
 		{
 			config.gridResolution = query.grid_resolution();
 		}
+		if (query.has_view_stats_interval_ms())
+		{
+			config.viewStatsIntervalMs = query.view_stats_interval_ms();
+		}
+		if (query.has_interest())
+		{
+			config.interest = query.interest();
+		}
+		if (query.has_interest_interval_ms())
+		{
+			config.interestIntervalMs = query.interest_interval_ms();
+		}
+		if (query.has_notable_cost())
+		{
+			config.notableCost = query.notable_cost();
+		}
+		if (query.has_trade_window_ms())
+		{
+			config.tradeWindowMs = query.trade_window_ms();
+		}
+		if (query.has_intensity_window_ms())
+		{
+			config.intensityWindowMs = query.intensity_window_ms();
+		}
 
 		if (config.lightIntervalMs != 0 && (config.lightIntervalMs < 50 || config.lightIntervalMs > 60000))
 		{
@@ -797,6 +832,27 @@ namespace
 		if (config.gridResolution != 8 && config.gridResolution != 16 && config.gridResolution != 32 && config.gridResolution != 64)
 		{
 			message = "grid_resolution must be 8, 16, 32 or 64";
+			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+		}
+
+		if (config.viewStatsIntervalMs != 0 && (config.viewStatsIntervalMs < 100 || config.viewStatsIntervalMs > 60000))
+		{
+			message = "view_stats_interval_ms must be 0 or 100..60000";
+			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+		}
+		if (config.interestIntervalMs < 250 || config.interestIntervalMs > 60000)
+		{
+			message = "interest_interval_ms must be 250..60000";
+			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+		}
+		if (config.notableCost > 10000000)
+		{
+			message = "notable_cost must be 10000000 at most";
+			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
+		}
+		if (config.tradeWindowMs < 1000 || config.tradeWindowMs > 60000 || config.intensityWindowMs < 1000 || config.intensityWindowMs > 60000)
+		{
+			message = "trade_window_ms and intensity_window_ms must be 1000..60000";
 			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
 		}
 
@@ -912,6 +968,22 @@ namespace
 				case statsexporter::Request::kFeedConfig:
 					resultField = kResultFeedConfig;
 					status = answerFeedConfig(sink, slot, epoch, request.feed_config(), s_result, message);
+					break;
+				case statsexporter::Request::kCameraControl:
+					resultField = kResultCameraControl;
+					status = (Status)StatsExporterControlCamera(request.camera_control(), s_result, message);
+					break;
+				case statsexporter::Request::kCameraFollow:
+					resultField = kResultCameraFollow;
+					status = (Status)StatsExporterControlFollow(request.camera_follow(), s_result, message);
+					break;
+				case statsexporter::Request::kReplayControl:
+					resultField = kResultReplayControl;
+					status = (Status)StatsExporterControlReplay(request.replay_control(), s_result, message);
+					break;
+				case statsexporter::Request::kObserve:
+					resultField = kResultObserve;
+					status = (Status)StatsExporterControlObserve(request.observe(), s_result, message);
 					break;
 				default:
 					status = statsexporter::RESPONSE_STATUS_BAD_REQUEST;

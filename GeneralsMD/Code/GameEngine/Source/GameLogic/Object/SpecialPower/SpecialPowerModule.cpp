@@ -514,6 +514,7 @@ void SpecialPowerModule::triggerSpecialPower( const Coord3D *location )
 		  spTemplateForStats->getSpecialPowerType() == SPECIAL_INFANTRY_CAPTURE_BUILDING );
 	if( !isBuildingCapturePower )
 	{
+		StatsExporterLiveSuperweaponFired( getObject(), spTemplateForStats, location );
 		Player *statsPlayer = getObject()->getControllingPlayer();
 		if( statsPlayer != nullptr )
 		{
