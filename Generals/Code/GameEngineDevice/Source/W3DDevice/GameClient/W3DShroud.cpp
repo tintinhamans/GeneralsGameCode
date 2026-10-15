@@ -779,17 +779,14 @@ void W3DShroud::applyFogSnap()
 }
 
 //-----------------------------------------------------------------------------
-Bool W3DShroud::isFadingAt(Real worldX, Real worldY, Real radius) const
+Bool W3DShroud::isClearAt(Real worldX, Real worldY, Real radius) const
 {
-	if (!m_fogFading || !TheGlobalData->m_shroudInterpolation)
+	if (!m_currentFogData)
 	{
-		return FALSE;
+		return TRUE;
 	}
 
-	if (!m_finalFogData || !m_currentFogData)
-	{
-		return FALSE;
-	}
+	const W3DShroudLevel clearLevel = (W3DShroudLevel)TheGlobalData->m_clearAlpha;
 
 	Int minX = REAL_TO_INT_FLOOR((worldX - radius) / m_cellWidth);
 	Int minY = REAL_TO_INT_FLOOR((worldY - radius) / m_cellHeight);
@@ -809,13 +806,13 @@ Bool W3DShroud::isFadingAt(Real worldX, Real worldY, Real radius) const
 		const Int row = y*m_numCellsX;
 		for (Int x = minX; x <= maxX; ++x)
 		{
-			if (m_currentFogData[row + x] != m_finalFogData[row + x])
+			if (m_currentFogData[row + x] < clearLevel)
 			{
-				return TRUE;
+				return FALSE;
 			}
 		}
 	}
-	return FALSE;
+	return TRUE;
 }
 
 //-----------------------------------------------------------------------------

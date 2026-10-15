@@ -769,17 +769,18 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 
 			if (m_customPassMode == SCENE_PASS_DEFAULT)
 			{
-				Bool shroudFading = FALSE;
-				if (ss <= OBJECTSHROUD_CLEAR && m_shroudMaterialPass && TheGlobalData->m_shroudInterpolation && TheTerrainRenderObject)
+				// TheSuperHackers @bugfix arcticdolphin 15/10/2026 Clear objects that reach into shroud or fog keep the shroud pass
+				Bool partlyShrouded = FALSE;
+				if (ss <= OBJECTSHROUD_CLEAR && m_shroudMaterialPass && TheTerrainRenderObject)
 				{
 					const W3DShroud *shroud = TheTerrainRenderObject->getShroud();
 					if (shroud)
 					{
-						shroudFading = shroud->isFadingAt(sph.Center.X, sph.Center.Y, sph.Radius);
+						partlyShrouded = !shroud->isClearAt(sph.Center.X, sph.Center.Y, sph.Radius);
 					}
 				}
 
-				if (ss <= OBJECTSHROUD_CLEAR && !shroudFading)
+				if (ss <= OBJECTSHROUD_CLEAR && !partlyShrouded)
 				{
 					robj->Render(rinfo);
 				}
