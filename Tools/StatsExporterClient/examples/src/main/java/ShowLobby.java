@@ -3,7 +3,7 @@
 // lobby state, so an overlay can show them before the match starts. A prediction is only valid when the lobby says so.
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar ShowLobby.java
+//   java -cp stats-pipe-client-2.1.0.jar:protobuf-java-4.33.4.jar ShowLobby.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.StatsListener;

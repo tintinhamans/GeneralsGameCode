@@ -10,6 +10,8 @@ import com.generalsonline.stats.PredictionCheck;
 import com.generalsonline.stats.StateListener;
 import com.generalsonline.stats.StatsListener;
 import com.generalsonline.stats.proto.Camera;
+import com.generalsonline.stats.proto.InterestMap;
+import com.generalsonline.stats.proto.ViewStats;
 import com.generalsonline.stats.proto.ChatChannel;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
@@ -561,6 +563,16 @@ final class GuiModel implements StatsListener {
     void onCamera(Camera message, long frames) {
         state.onCamera(message);
         cameraFrames += frames;
+    }
+
+    @Override
+    public void onViewStats(ViewStats message) {
+        state.onViewStats(message);
+    }
+
+    @Override
+    public void onInterestMap(InterestMap message) {
+        state.onInterestMap(message);
     }
 
     @Override

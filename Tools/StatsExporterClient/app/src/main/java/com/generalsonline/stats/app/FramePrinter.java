@@ -5,6 +5,7 @@ import com.generalsonline.stats.Handshake;
 import com.generalsonline.stats.MatchState;
 import com.generalsonline.stats.StatsListener;
 import com.generalsonline.stats.proto.Camera;
+import com.generalsonline.stats.proto.CameraChangeSource;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.Hello;
@@ -197,7 +198,9 @@ public final class FramePrinter implements StatsListener {
         lastCameraPrint = now;
         out.println("CAMERA at=" + Math.round(c.getX()) + "," + Math.round(c.getY()) + " zoom=" + c.getZoom() + " angle=" + c.getAngle()
             + " pitch=" + c.getPitch() + (c.getHasViewBox() ? " box=" + Math.round(c.getViewTlX()) + "," + Math.round(c.getViewTlY()) + " "
-            + Math.round(c.getViewBrX()) + "," + Math.round(c.getViewBrY()) : ""));
+            + Math.round(c.getViewBrX()) + "," + Math.round(c.getViewBrY()) : "")
+            + (c.getChangeSource() != CameraChangeSource.CAMERA_CHANGE_OTHER ? " by=" + c.getChangeSource().name().replace("CAMERA_CHANGE_", "").toLowerCase(java.util.Locale.ROOT) : "")
+            + (c.getFollowObjectId() != 0 ? " following=" + Integer.toUnsignedString(c.getFollowObjectId()) : ""));
     }
 
     @Override

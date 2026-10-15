@@ -26,6 +26,10 @@ public enum FrameType {
     HELLO(0x09, false),
     /** 0x0A, {@code Response}: the answer to one {@code Request}, sent only to the reader that asked. */
     RESPONSE(0x0A, false),
+    /** 0x0B, {@code ViewStats}: what is inside the local camera's view, per player, about four times a second by default. */
+    VIEW_STATS(0x0B, false),
+    /** 0x0C, {@code InterestMap}: the interest grid and the pending highlights, only when the reader asked for them. */
+    INTEREST_MAP(0x0C, false),
     /** 0x10, {@code ChatSend}: a chat line a reader sends to the game. */
     CHAT_SEND(0x10, true),
     /** 0x11, {@code Request}: a query a reader sends to the game; answered with a {@code Response} of the same id. */

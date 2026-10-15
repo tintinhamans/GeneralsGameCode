@@ -3,6 +3,9 @@ package com.generalsonline.stats.app;
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.proto.BattlePlan;
 import com.generalsonline.stats.proto.Camera;
+import com.generalsonline.stats.proto.CameraChangeSource;
+import com.generalsonline.stats.proto.CameraFollowEnd;
+import com.generalsonline.stats.proto.CameraFollowMode;
 import com.generalsonline.stats.proto.CategoryCounts;
 import com.generalsonline.stats.proto.HeroStatus;
 import com.generalsonline.stats.proto.LobbySlot;
@@ -181,10 +184,28 @@ final class CellText {
         return info != null && info.hasOnline() && info.getOnline().getHasStats() ? info.getOnline().getEloRating() : -1;
     }
 
+    /** Who moved the camera and what it is locked on, empty while the game itself moves it and nothing is locked. */
+    static String cameraControlText(Camera c) {
+        StringBuilder text = new StringBuilder();
+        if (c.getChangeSource() == CameraChangeSource.CAMERA_CHANGE_USER) {
+            text.append("    moved by the user");
+        } else if (c.getChangeSource() == CameraChangeSource.CAMERA_CHANGE_PIPE) {
+            text.append("    moved by a command");
+        }
+        if (c.getFollowObjectId() != 0) {
+            text.append("    following object ").append(Integer.toUnsignedString(c.getFollowObjectId()))
+                .append(c.getFollowMode() == CameraFollowMode.CAMERA_FOLLOW_TETHER ? " (tether)" : "");
+        }
+        if (c.getFollowEnded() != CameraFollowEnd.CAMERA_FOLLOW_END_NONE) {
+            text.append("    follow ended: ").append(strip(c.getFollowEnded().name(), "CAMERA_FOLLOW_END_").toLowerCase(java.util.Locale.ROOT).replace('_', ' '));
+        }
+        return text.toString();
+    }
+
     static String cameraText(Camera c) {
         Format.ViewBox box = Format.viewBox(c);
         String view = box == null ? "" : String.format("    view centre %.0f, %.0f  size %.0f x %.0f  turned %.0f deg", box.centerX(), box.centerY(), box.width(), box.height(), box.rotationDegrees());
-        return String.format("looking at %.0f, %.0f    zoom %.2f    angle %.2f    pitch %.2f%s", c.getX(), c.getY(), c.getZoom(), c.getAngle(), c.getPitch(), view);
+        return String.format("looking at %.0f, %.0f    zoom %.2f    angle %.2f    pitch %.2f%s%s", c.getX(), c.getY(), c.getZoom(), c.getAngle(), c.getPitch(), view, cameraControlText(c));
     }
 
     /**

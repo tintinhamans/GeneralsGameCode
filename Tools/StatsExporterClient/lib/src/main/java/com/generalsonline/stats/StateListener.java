@@ -3,12 +3,14 @@ package com.generalsonline.stats;
 import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Hello;
+import com.generalsonline.stats.proto.InterestMap;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
 import com.generalsonline.stats.proto.StatEvent;
 import com.generalsonline.stats.proto.StatsSnapshot;
 import com.generalsonline.stats.proto.UiState;
+import com.generalsonline.stats.proto.ViewStats;
 
 import java.util.List;
 
@@ -66,6 +68,22 @@ public interface StateListener {
      * @param camera the message
      */
     default void cameraChanged(Camera camera) {
+    }
+
+    /**
+     * A {@code ViewStats} frame arrived and the state holds it, see {@link MatchState#viewStats()}.
+     *
+     * @param stats the message
+     */
+    default void viewStatsChanged(ViewStats stats) {
+    }
+
+    /**
+     * An {@code InterestMap} frame arrived and the state holds it, see {@link MatchState#interestMap()}.
+     *
+     * @param map the message
+     */
+    default void interestMapChanged(InterestMap map) {
     }
 
     /**

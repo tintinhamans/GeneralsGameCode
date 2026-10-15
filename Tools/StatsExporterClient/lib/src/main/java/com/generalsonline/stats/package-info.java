@@ -17,6 +17,10 @@
  *     {@link com.generalsonline.stats.StateListener} when something changes.</li>
  * <li>{@link com.generalsonline.stats.DumpWriter} and {@link com.generalsonline.stats.DumpReader} record the raw frames
  *     and replay them into the same listener, paced by game time.</li>
+ * <li>{@link com.generalsonline.stats.CameraMove} and the camera, replay and observer methods of {@code StatsPipe}
+ *     steer the game's view (observers and replay playback only; {@link com.generalsonline.stats.NotAllowedException}
+ *     when the game refuses), and {@link com.generalsonline.stats.Director} drives the camera automatically from the
+ *     interest map, with the decisions in {@link com.generalsonline.stats.DirectorLogic}.</li>
  * <li>{@link com.generalsonline.stats.Format} has the small helpers every reader writes: game time, colours, display
  *     names and the text of an event.</li>
  * </ul>
