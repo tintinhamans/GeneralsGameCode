@@ -239,8 +239,8 @@ public final class Format {
 
     /**
      * Describes the free-form part of an event: the old and new value of a state change, the old owner of a capture,
-     * the levels of a veterancy change, the tier of a salvage upgrade, the rank of a science purchase. Other kinds
-     * return their variant text.
+     * the levels of a veterancy change, the tier of a salvage upgrade, the rank of a science purchase, the killer and
+     * weapon of a kill or loss. Other kinds return their variant text.
      *
      * @param event the event
      * @param playerName maps a player index to a name; used for the old owner of a capture, see {@link MatchState#playerName}
@@ -270,9 +270,24 @@ public final class Format {
             }
             case STATEVENT_POWER_SABOTAGED:
                 return "for " + gameTime(event.getIntValue1(), logicFps);
+            case STATEVENT_KILL:
+            case STATEVENT_LOSS:
+                return killerDetail(event);
             default:
                 return event.getVariant();
         }
+    }
+
+    /** The variant, then who did it and with what: "by ChinaTankGattling with GattlingTankGun". */
+    private static String killerDetail(StatEvent event) {
+        StringBuilder text = new StringBuilder(event.getVariant());
+        if (!event.getKillerTemplate().isEmpty()) {
+            text.append(text.length() > 0 ? " " : "").append("by ").append(event.getKillerTemplate());
+        }
+        if (!event.getWeapon().isEmpty()) {
+            text.append(text.length() > 0 ? " " : "").append("with ").append(event.getWeapon());
+        }
+        return text.toString();
     }
 
     // -- Camera.

@@ -3,6 +3,8 @@ package com.generalsonline.stats;
 import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
+import com.generalsonline.stats.proto.Hello;
+import com.generalsonline.stats.proto.Response;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchSummary;
@@ -21,6 +23,7 @@ class RecordingListener implements StatsListener {
     final List<Throwable> errors = Collections.synchronizedList(new ArrayList<>());
     final List<String> lifecycle = Collections.synchronizedList(new ArrayList<>());
     final List<Integer> frameTypes = Collections.synchronizedList(new ArrayList<>());
+    final List<Long> dropped = Collections.synchronizedList(new ArrayList<>());
     final List<String> threads = Collections.synchronizedList(new ArrayList<>());
 
     private void note(Object message) {
@@ -43,6 +46,21 @@ class RecordingListener implements StatsListener {
     @Override
     public void onFrame(DecodedFrame frame) {
         frameTypes.add(frame.raw().type());
+    }
+
+    @Override
+    public void onHello(Hello message) {
+        note(message);
+    }
+
+    @Override
+    public void onResponse(Response message) {
+        note(message);
+    }
+
+    @Override
+    public void onFramesDropped(long count) {
+        dropped.add(count);
     }
 
     @Override

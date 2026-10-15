@@ -184,8 +184,8 @@ public final class PipeDiscovery {
     }
 
     /**
-     * Tries each path in turn and returns the first that opens. The game accepts one reader per pipe, so a pipe held
-     * by another client fails to open; trying the others finds a game that is free.
+     * Tries each path in turn and returns the first that opens. The game accepts a limited number of readers per pipe,
+     * so a pipe whose slots are all taken fails to open; trying the others finds a game that is free.
      *
      * @param <T> what an open pipe is represented by
      * @param paths the candidates, best first

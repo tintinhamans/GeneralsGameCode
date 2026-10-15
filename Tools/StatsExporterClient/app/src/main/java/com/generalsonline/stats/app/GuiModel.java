@@ -13,6 +13,7 @@ import com.generalsonline.stats.proto.Camera;
 import com.generalsonline.stats.proto.ChatChannel;
 import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
+import com.generalsonline.stats.proto.Hello;
 import com.generalsonline.stats.proto.LobbySlot;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
@@ -241,6 +242,20 @@ final class GuiModel implements StatsListener {
         return "Pipe: " + connection + "    Screen: " + ui + (lastError == null ? "" : "    Last error: " + lastError);
     }
 
+    /** The game's Hello (version, protocol, reader slot, logic rate) and the frames lost on the way. */
+    String gameLine() {
+        Hello hello = state.hello().orElse(null);
+        String game = hello == null ? "no Hello received"
+            : "version " + hello.getGameVersion() + "    Protocol: " + hello.getProtocolVersion()
+                + "    Reader: " + (hello.getReaderSlot() + 1) + " of " + hello.getMaxReaders() + "    Logic: " + hello.getLogicFramesPerSecond() + " fps";
+        return "Game: " + game + "    Dropped frames: " + state.droppedFrames();
+    }
+
+    /** The number of frames the game dropped for this reader, from the sequence numbers. */
+    long droppedFrames() {
+        return state.droppedFrames();
+    }
+
     String matchLine() {
         return "Match: " + match;
     }
@@ -453,6 +468,16 @@ final class GuiModel implements StatsListener {
     }
 
     // -- Frames.
+
+    @Override
+    public void onHello(Hello message) {
+        state.onHello(message);
+    }
+
+    @Override
+    public void onFramesDropped(long count) {
+        state.onFramesDropped(count);
+    }
 
     @Override
     public void onUiState(UiState message) {

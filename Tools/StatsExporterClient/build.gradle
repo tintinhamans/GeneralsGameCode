@@ -1,7 +1,7 @@
 // Settings shared by the three projects. What each project builds is in its own build.gradle.
 allprojects {
     group = 'com.generalsonline'
-    version = '1.0.0'
+    version = '2.0.0'
 
     repositories {
         mavenCentral()

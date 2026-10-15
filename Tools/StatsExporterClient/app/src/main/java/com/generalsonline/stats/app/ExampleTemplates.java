@@ -15,7 +15,7 @@ final class ExampleTemplates {
         // Connects to a running Generals Online game and prints one line for every frame type.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-1.0.0.jar:protobuf-java-4.33.4.jar PrintEveryFrame.java
+        //   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar PrintEveryFrame.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.StatsListener;
         import com.generalsonline.stats.StatsPipe;
@@ -112,7 +112,7 @@ final class ExampleTemplates {
         // The value is ${EXPRESSION}${NOTE}
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-1.0.0.jar:protobuf-java-4.33.4.jar TrackPlayerStat.java
+        //   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar TrackPlayerStat.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Format;
         import com.generalsonline.stats.MatchState;
@@ -160,7 +160,7 @@ final class ExampleTemplates {
         // Reacts to ${KIND} events: ${KIND_DESCRIPTION}
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-1.0.0.jar:protobuf-java-4.33.4.jar ReactToEvent.java
+        //   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar ReactToEvent.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Format;
         import com.generalsonline.stats.MatchState;
@@ -200,7 +200,7 @@ final class ExampleTemplates {
         // Maps the camera's view box onto a minimap image: the four ground corners of the screen, in pixels.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-1.0.0.jar:protobuf-java-4.33.4.jar DrawCameraBox.java
+        //   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar DrawCameraBox.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.MatchState;
         import com.generalsonline.stats.StateListener;
@@ -264,7 +264,7 @@ final class ExampleTemplates {
         // lobby state, so an overlay can show them before the match starts. A prediction is only valid when the lobby says so.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-1.0.0.jar:protobuf-java-4.33.4.jar ShowLobby.java
+        //   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar ShowLobby.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Format;
         import com.generalsonline.stats.StatsListener;
@@ -317,15 +317,15 @@ final class ExampleTemplates {
         // Sends one chat line to ${CHANNEL_DESCRIPTION}.
         //
         // Things to know before you rely on this:
-        //  * The game serves ONE reader per pipe. This program needs that slot, so it fails while another client (the test
-        //    client GUI, a watcher, an overlay) is connected to the same game: close it first.
+        //  * The game serves up to four readers per pipe (Hello.max_readers). This program needs a free slot, so it fails
+        //    while that many other clients (the test client GUI, a watcher, an overlay) are connected to the same game.
         //  * The text must not be empty and at most 1024 bytes in UTF-8; StatsPipe.requireSendable checks that.
         //  * There is no reply. A true result only means the bytes were written; the game drops the line unless that
         //    channel's screen or match is active. Slash commands are handled exactly as if you had typed them.
         //  * The audience matters for the match channel only: EVERYONE, ALLIES, or OBSERVERS (observers only).
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-1.0.0.jar:protobuf-java-4.33.4.jar SendChat.java "your text"
+        //   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar SendChat.java "your text"
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.StatsListener;
         import com.generalsonline.stats.StatsPipe;
@@ -368,8 +368,8 @@ final class ExampleTemplates {
         // same listener. Handler is an ordinary StatsListener: it does not know whether the frames come from a game or a file.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-1.0.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java record match.dump
-        //   java -cp stats-pipe-client-1.0.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java replay match.dump
+        //   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java record match.dump
+        //   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java replay match.dump
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.DecodedFrame;
         import com.generalsonline.stats.DumpReader;
@@ -480,7 +480,7 @@ final class ExampleTemplates {
         // Camera frames arrive up to 120 times a second; if the UI only needs the latest one, do not repaint per frame.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-1.0.0.jar:protobuf-java-4.33.4.jar UiThreadState.java
+        //   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar UiThreadState.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.MatchState;
         import com.generalsonline.stats.PlayerView;

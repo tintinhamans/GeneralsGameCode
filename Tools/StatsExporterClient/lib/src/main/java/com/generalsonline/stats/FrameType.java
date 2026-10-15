@@ -1,7 +1,7 @@
 package com.generalsonline.stats;
 
 /**
- * The frame types of the stats pipe. Each frame is a length, a one byte type and a protobuf body; this enum maps the
+ * The frame types of the stats pipe. Each frame is a header (a length and a one byte type, and for frames from the game a sequence number and a timestamp) and a protobuf body; this enum maps the
  * type byte to the message it carries. The protocol is described in {@code docs/stats-exporter.md} of the game
  * repository.
  */
@@ -22,8 +22,14 @@ public enum FrameType {
     EVENTS(0x07, false),
     /** 0x08, {@code Camera}: the local camera and minimap view box, up to about 120 times a second. */
     CAMERA(0x08, false),
-    /** 0x10, {@code ChatSend}: the only frame a reader sends to the game. */
-    CHAT_SEND(0x10, true);
+    /** 0x09, {@code Hello}: the first frame of every connection, with the protocol version, the game build and the limits. */
+    HELLO(0x09, false),
+    /** 0x0A, {@code Response}: the answer to one {@code Request}, sent only to the reader that asked. */
+    RESPONSE(0x0A, false),
+    /** 0x10, {@code ChatSend}: a chat line a reader sends to the game. */
+    CHAT_SEND(0x10, true),
+    /** 0x11, {@code Request}: a query a reader sends to the game; answered with a {@code Response} of the same id. */
+    REQUEST(0x11, true);
 
     private final int id;
     private final boolean inbound;

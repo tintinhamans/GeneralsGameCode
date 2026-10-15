@@ -39,6 +39,16 @@ class DispatchTest {
         List<String> called = new java.util.ArrayList<>();
         StatsListener byName = new StatsListener() {
             @Override
+            public void onHello(com.generalsonline.stats.proto.Hello m) {
+                called.add("onHello");
+            }
+
+            @Override
+            public void onResponse(com.generalsonline.stats.proto.Response m) {
+                called.add("onResponse");
+            }
+
+            @Override
             public void onMatchInfo(com.generalsonline.stats.proto.MatchInfo m) {
                 called.add("onMatchInfo");
             }
@@ -81,7 +91,7 @@ class DispatchTest {
         for (Message message : TestMessages.all()) {
             FrameDispatcher.deliver(decode(message), byName);
         }
-        assertEquals(List.of("onMatchInfo", "onStatsSnapshot", "onMatchSummary", "onChatMessage", "onUiState", "onLobbyState", "onEvents", "onCamera"), called);
+        assertEquals(List.of("onHello", "onMatchInfo", "onStatsSnapshot", "onMatchSummary", "onChatMessage", "onUiState", "onLobbyState", "onEvents", "onCamera", "onResponse"), called);
     }
 
     @Test
@@ -99,7 +109,8 @@ class DispatchTest {
     void anInboundTypeSentByTheGameIsUnknownToTheClient() {
         RecordingListener listener = new RecordingListener();
         FrameDispatcher.dispatch(new RawFrame(FrameType.CHAT_SEND.id(), new byte[] {1}), listener);
-        assertEquals(List.of(0x10), listener.unknownTypes);
+        FrameDispatcher.dispatch(new RawFrame(FrameType.REQUEST.id(), new byte[] {1}), listener);
+        assertEquals(List.of(0x10, 0x11), listener.unknownTypes);
     }
 
     @Test
@@ -112,6 +123,9 @@ class DispatchTest {
             }
         }
         org.junit.jupiter.api.Assertions.assertNull(FrameType.outboundFromId(FrameType.CHAT_SEND.id()));
+        org.junit.jupiter.api.Assertions.assertNull(FrameType.outboundFromId(FrameType.REQUEST.id()));
+        assertEquals(FrameType.HELLO, FrameType.outboundFromId(0x09));
+        assertEquals(FrameType.RESPONSE, FrameType.outboundFromId(0x0A));
         assertEquals("UNKNOWN 0x7f", FrameDispatcher.decode(new RawFrame(0x7F, new byte[] {1})).typeName());
         assertEquals("CAMERA", decode(TestMessages.camera()).typeName());
     }

@@ -1,15 +1,15 @@
 // Sends one chat line to the in-match chat (everyone).
 //
 // Things to know before you rely on this:
-//  * The game serves ONE reader per pipe. This program needs that slot, so it fails while another client (the test
-//    client GUI, a watcher, an overlay) is connected to the same game: close it first.
+//  * The game serves up to four readers per pipe (Hello.max_readers). This program needs a free slot, so it fails
+//    while that many other clients (the test client GUI, a watcher, an overlay) are connected to the same game.
 //  * The text must not be empty and at most 1024 bytes in UTF-8; StatsPipe.requireSendable checks that.
 //  * There is no reply. A true result only means the bytes were written; the game drops the line unless that
 //    channel's screen or match is active. Slash commands are handled exactly as if you had typed them.
 //  * The audience matters for the match channel only: EVERYONE, ALLIES, or OBSERVERS (observers only).
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-1.0.0.jar:protobuf-java-4.33.4.jar SendChat.java "your text"
+//   java -cp stats-pipe-client-2.0.0.jar:protobuf-java-4.33.4.jar SendChat.java "your text"
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.StatsListener;
 import com.generalsonline.stats.StatsPipe;

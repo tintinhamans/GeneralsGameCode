@@ -196,7 +196,7 @@ class ExamplesTest {
         String allies = Examples.generate(Examples.Scenario.SEND_CHAT, DEFAULTS.withChannel(ChatChannel.CHAT_CHANNEL_MATCH).withAudience(ChatAudience.CHAT_AUDIENCE_ALLIES).withChatText("push now"));
         assertTrue(allies.contains("ChatChannel.CHAT_CHANNEL_MATCH, text, ChatAudience.CHAT_AUDIENCE_ALLIES"), allies);
         assertTrue(allies.contains("\"push now\""), allies);
-        assertTrue(allies.contains("ONE reader per pipe"), "the one-reader caveat: " + allies);
+        assertTrue(allies.contains("readers per pipe"), "the reader slot caveat: " + allies);
         assertTrue(allies.contains("1024 bytes"), "the length limit: " + allies);
         assertTrue(allies.contains("There is no reply") || allies.contains("no reply"), "the no-feedback caveat: " + allies);
 

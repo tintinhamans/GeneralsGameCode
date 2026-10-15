@@ -85,6 +85,17 @@ class FormatTest {
     }
 
     @Test
+    void killAndLossDetailNamesTheKillerAndTheWeapon() {
+        java.util.function.IntFunction<String> names = i -> "P" + i;
+        StatEvent kill = StatEvent.newBuilder().setKind(StatEventKind.STATEVENT_KILL).setObjectId(10).setKillerObjectId(20)
+            .setKillerTemplate("AmericaTankCrusader").setWeapon("CrusaderTankGun").build();
+        assertEquals("by AmericaTankCrusader with CrusaderTankGun", Format.eventDetail(kill, names, 30));
+        assertEquals("by AmericaTankCrusader", Format.eventDetail(kill.toBuilder().clearWeapon().build(), names, 30));
+        assertEquals("", Format.eventDetail(StatEvent.newBuilder().setKind(StatEventKind.STATEVENT_LOSS).build(), names, 30), "a crush or a power has neither");
+        assertEquals("x by A", Format.eventDetail(kill.toBuilder().setVariant("x").clearWeapon().setKillerTemplate("A").build(), names, 30));
+    }
+
+    @Test
     void eventLocationOnlyWithALocation() {
         assertEquals("12, 35", Format.eventLocation(StatEvent.newBuilder().setHasLocation(true).setX(12.2f).setY(34.7f).build()));
         assertEquals("", Format.eventLocation(StatEvent.newBuilder().setX(1).build()));

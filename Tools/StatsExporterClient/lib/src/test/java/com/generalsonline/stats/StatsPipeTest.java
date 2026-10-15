@@ -7,110 +7,31 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.generalsonline.stats.internal.FrameCodec;
-import com.generalsonline.stats.internal.PipeLink;
 import com.generalsonline.stats.proto.ChatAudience;
 import com.generalsonline.stats.proto.ChatChannel;
 import com.generalsonline.stats.proto.ChatSend;
 import com.google.protobuf.Message;
 import org.junit.jupiter.api.Test;
 
-import java.io.ByteArrayOutputStream;
+import static com.generalsonline.stats.PipeTestSupport.await;
+import static com.generalsonline.stats.PipeTestSupport.fake;
+import static com.generalsonline.stats.PipeTestSupport.withHello;
+
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BooleanSupplier;
 
 /** The public API of StatsPipe: builder validation, chat limits, the connection loop on a fake link, executor and state wiring. */
 class StatsPipeTest {
-    private static final byte[] EOF = new byte[0];
-
-    /** A scripted pipe: the bytes it was given are read in order; after an EOF marker (or close) reads return -1. */
-    private static final class FakeLink implements PipeLink {
-        private final BlockingQueue<byte[]> incoming = new LinkedBlockingQueue<>();
-        final List<byte[]> written = Collections.synchronizedList(new ArrayList<>());
-        private volatile boolean closed;
-
-        void give(byte[] bytes) {
-            incoming.add(bytes);
-        }
-
-        void endOfStream() {
-            incoming.add(EOF);
-        }
-
-        @Override
-        public int read(ByteBuffer buffer) throws IOException {
-            while (true) {
-                if (closed) {
-                    throw new IOException("closed");
-                }
-                try {
-                    byte[] next = incoming.poll(20, TimeUnit.MILLISECONDS);
-                    if (next == null) {
-                        continue;
-                    }
-                    if (next == EOF) {
-                        return -1;
-                    }
-                    buffer.put(next);
-                    return next.length;
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("interrupted", e);
-                }
-            }
-        }
-
-        @Override
-        public void write(ByteBuffer buffer) {
-            byte[] copy = new byte[buffer.remaining()];
-            buffer.get(copy);
-            written.add(copy);
-        }
-
-        @Override
-        public void close() {
-            closed = true;
-        }
-    }
-
     private static byte[] allFrames() throws IOException {
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        for (Message message : TestMessages.all()) {
-            stream.write(FrameCodec.encode(TestMessages.frameTypeOf(message), message.toByteArray()));
-        }
-        return stream.toByteArray();
-    }
-
-    private static void await(String what, BooleanSupplier condition) throws InterruptedException {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-        while (!condition.getAsBoolean()) {
-            if (System.nanoTime() > deadline) {
-                throw new AssertionError("timed out waiting for " + what);
-            }
-            Thread.sleep(5);
-        }
-    }
-
-    private static StatsPipe.Builder fake(FakeLink... links) {
-        BlockingQueue<FakeLink> queue = new LinkedBlockingQueue<>(List.of(links));
-        return StatsPipe.builder().candidates(() -> List.of("fake-pipe-1")).opener(path -> {
-            FakeLink next = queue.poll();
-            if (next == null) {
-                throw new IOException("busy");
-            }
-            return next;
-        });
+        return TestMessages.outboundStream(TestMessages.all());
     }
 
     // -- Builder validation.
@@ -178,7 +99,7 @@ class StatsPipeTest {
 
     @Test
     void sendChatWritesAChatSendFrameWhileConnected() throws Exception {
-        FakeLink link = new FakeLink();
+        PipeTestSupport.FakeLink link = new PipeTestSupport.FakeLink();
         RecordingListener listener = new RecordingListener();
         try (StatsPipe pipe = fake(link).listener(listener).build().start()) {
             await("connection", pipe::isConnected);
@@ -186,13 +107,13 @@ class StatsPipeTest {
             assertTrue(pipe.sendChat(ChatChannel.CHAT_CHANNEL_ROOM, "hello"));
 
             assertEquals(2, link.written.size());
-            RawFrame first = new FrameCodec.Decoder(FrameCodec.MAX_INBOUND_BODY_BYTES).push(link.written.get(0)).get(0);
+            RawFrame first = FrameCodec.Decoder.inbound().push(link.written.get(0)).get(0);
             assertEquals(FrameType.CHAT_SEND.id(), first.type());
             ChatSend sent = ChatSend.parseFrom(first.body());
             assertEquals(ChatChannel.CHAT_CHANNEL_MATCH, sent.getChannel());
             assertEquals("gg wp 中", sent.getText());
             assertEquals(ChatAudience.CHAT_AUDIENCE_ALLIES, sent.getAudience());
-            ChatSend second = ChatSend.parseFrom(new FrameCodec.Decoder(FrameCodec.MAX_INBOUND_BODY_BYTES).push(link.written.get(1)).get(0).body());
+            ChatSend second = ChatSend.parseFrom(FrameCodec.Decoder.inbound().push(link.written.get(1)).get(0).body());
             assertEquals(ChatAudience.CHAT_AUDIENCE_EVERYONE, second.getAudience(), "the short form sends to everyone");
         }
     }
@@ -201,7 +122,7 @@ class StatsPipeTest {
 
     @Test
     void everyFrameTypeReachesTheListenerAndTheStateThroughTheRealLoop() throws Exception {
-        FakeLink link = new FakeLink();
+        PipeTestSupport.FakeLink link = new PipeTestSupport.FakeLink();
         link.give(allFrames());
         link.endOfStream();
         RecordingListener listener = new RecordingListener();
@@ -211,7 +132,7 @@ class StatsPipeTest {
         assertTrue(pipe.awaitStopped(10_000), "without reconnect the reader ends with the connection");
 
         assertEquals(List.of("connected fake-pipe-1", "disconnected"), listener.lifecycle);
-        assertEquals(List.of(TestMessages.all()), listener.messages, "all eight frame types, in order");
+        assertEquals(List.of(TestMessages.all()), listener.messages, "all ten frame types, in order, the Hello first");
         assertEquals(TestMessages.all().length, listener.frameTypes.size());
         assertEquals("123456789", state.matchId(), "the state was fed too");
         assertEquals(1, state.players().size());
@@ -223,8 +144,8 @@ class StatsPipeTest {
 
     @Test
     void theStateIsUpdatedBeforeTheListenerSeesTheSameFrame() throws Exception {
-        FakeLink link = new FakeLink();
-        link.give(FrameCodec.encode(FrameType.MATCH_INFO.id(), TestMessages.matchInfo().toByteArray()));
+        PipeTestSupport.FakeLink link = new PipeTestSupport.FakeLink();
+        link.give(withHello(TestMessages.matchInfo()));
         link.endOfStream();
         MatchState state = new MatchState();
         List<String> seen = Collections.synchronizedList(new ArrayList<>());
@@ -241,7 +162,7 @@ class StatsPipeTest {
 
     @Test
     void theFirstFreePipeWinsAndItsPidIsKnown() throws Exception {
-        FakeLink free = new FakeLink();
+        PipeTestSupport.FakeLink free = new PipeTestSupport.FakeLink();
         List<String> tried = Collections.synchronizedList(new ArrayList<>());
         RecordingListener listener = new RecordingListener();
         StatsPipe.Builder builder = StatsPipe.builder().listener(listener).reconnect(false)
@@ -263,13 +184,13 @@ class StatsPipeTest {
 
     @Test
     void withReconnectTheNextConnectionFollowsTheLostOne() throws Exception {
-        FakeLink first = new FakeLink();
-        FakeLink second = new FakeLink();
+        PipeTestSupport.FakeLink first = new PipeTestSupport.FakeLink();
+        PipeTestSupport.FakeLink second = new PipeTestSupport.FakeLink();
         first.endOfStream();
-        second.give(FrameCodec.encode(FrameType.UI_STATE.id(), TestMessages.uiState().toByteArray()));
+        second.give(withHello(TestMessages.uiState()));
         RecordingListener listener = new RecordingListener();
         try (StatsPipe pipe = fake(first, second).listener(listener).reconnectBackoff(Duration.ofMillis(1), Duration.ofMillis(5)).build().start()) {
-            await("the second connection's frame", () -> listener.messages.size() == 1);
+            await("the second connection's frames", () -> listener.messages.size() == 2);
             assertEquals(List.of("connected fake-pipe-1", "disconnected", "connected fake-pipe-1"), listener.lifecycle);
             assertTrue(pipe.isConnected());
         }
@@ -286,8 +207,8 @@ class StatsPipeTest {
 
     @Test
     void aBadLengthDisconnectsWithTheFramingErrorAsTheCause() throws Exception {
-        FakeLink link = new FakeLink();
-        link.give(new byte[] {0, 0, 0, 0, 1});
+        PipeTestSupport.FakeLink link = new PipeTestSupport.FakeLink();
+        link.give(new byte[17]);
         RecordingListener listener = new RecordingListener();
         StatsPipe pipe = fake(link).listener(listener).reconnect(false).build().start();
         assertTrue(pipe.awaitStopped(10_000));
@@ -296,7 +217,7 @@ class StatsPipeTest {
 
     @Test
     void aThrowingListenerCostsOnlyItsFrame() throws Exception {
-        FakeLink link = new FakeLink();
+        PipeTestSupport.FakeLink link = new PipeTestSupport.FakeLink();
         link.give(allFrames());
         link.endOfStream();
         RecordingListener listener = new RecordingListener() {
@@ -315,8 +236,8 @@ class StatsPipeTest {
 
     @Test
     void aThrowingStateListenerIsReportedToTheListener() throws Exception {
-        FakeLink link = new FakeLink();
-        link.give(FrameCodec.encode(FrameType.CAMERA.id(), TestMessages.camera().toByteArray()));
+        PipeTestSupport.FakeLink link = new PipeTestSupport.FakeLink();
+        link.give(withHello(TestMessages.camera()));
         link.endOfStream();
         MatchState state = new MatchState();
         state.addListener(new StateListener() {
@@ -330,14 +251,14 @@ class StatsPipeTest {
         assertTrue(pipe.awaitStopped(10_000));
         assertEquals(1, listener.errors.size());
         assertEquals("state listener bug", listener.errors.get(0).getMessage());
-        assertEquals(1, listener.messages.size(), "the listener still got the camera frame");
+        assertEquals(2, listener.messages.size(), "the listener still got the Hello and the camera frame");
     }
 
     // -- Executor.
 
     @Test
     void callbacksRunOnTheExecutorInOrderAndOffTheReaderThread() throws Exception {
-        FakeLink link = new FakeLink();
+        PipeTestSupport.FakeLink link = new PipeTestSupport.FakeLink();
         link.give(allFrames());
         link.endOfStream();
         ExecutorService ui = Executors.newSingleThreadExecutor(r -> new Thread(r, "ui-test"));
@@ -367,8 +288,8 @@ class StatsPipeTest {
 
     @Test
     void withoutAnExecutorCallbacksRunOnTheReaderThread() throws Exception {
-        FakeLink link = new FakeLink();
-        link.give(FrameCodec.encode(FrameType.UI_STATE.id(), TestMessages.uiState().toByteArray()));
+        PipeTestSupport.FakeLink link = new PipeTestSupport.FakeLink();
+        link.give(withHello(TestMessages.uiState()));
         link.endOfStream();
         RecordingListener listener = new RecordingListener();
         StatsPipe pipe = fake(link).listener(listener).reconnect(false).build().start();
@@ -378,7 +299,7 @@ class StatsPipeTest {
 
     @Test
     void aRejectingExecutorDropsTheTasksWithoutKillingTheReader() throws Exception {
-        FakeLink link = new FakeLink();
+        PipeTestSupport.FakeLink link = new PipeTestSupport.FakeLink();
         link.give(allFrames());
         link.endOfStream();
         RecordingListener listener = new RecordingListener();
