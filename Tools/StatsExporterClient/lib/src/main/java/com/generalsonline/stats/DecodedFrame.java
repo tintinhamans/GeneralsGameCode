@@ -1,0 +1,50 @@
+package com.generalsonline.stats;
+
+import com.google.protobuf.Message;
+
+/**
+ * One frame after parsing: the raw bytes, the frame type and the decoded message. Parsing happens once, on the reader
+ * thread, and everything after that (dump files, statistics, user interfaces) works from this object.
+ *
+ * @param raw the frame as received
+ * @param type the frame type, or null for a type byte this library does not know
+ * @param message the decoded message, or null when the type is unknown or the body did not parse
+ * @param error the parse failure, or null when the body parsed (or the type is unknown)
+ */
+public record DecodedFrame(RawFrame raw, FrameType type, Message message, Exception error) {
+    /**
+     * Returns the size of the body.
+     *
+     * @return the body length in bytes, without the 5 byte header
+     */
+    public int bodyBytes() {
+        return raw.body().length;
+    }
+
+    /**
+     * Returns the size of the frame on the wire.
+     *
+     * @return the body length plus the 5 byte header (4 byte length, 1 byte type)
+     */
+    public int wireBytes() {
+        return raw.body().length + 5;
+    }
+
+    /**
+     * Returns a printable name of the frame type.
+     *
+     * @return "MATCH_INFO", "CAMERA", ... or "UNKNOWN 0x7f" for an unknown type byte
+     */
+    public String typeName() {
+        return type != null ? type.name() : String.format("UNKNOWN 0x%02x", raw.type());
+    }
+
+    /**
+     * Tells whether the frame decoded to a message.
+     *
+     * @return true for a frame of a known type whose body parsed
+     */
+    public boolean isDecoded() {
+        return message != null;
+    }
+}
