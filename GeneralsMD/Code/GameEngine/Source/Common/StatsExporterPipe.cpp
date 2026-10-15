@@ -568,7 +568,8 @@ void StatsExporterPipeServer::markWelcomed(const StatsExporterReaders& readers)
 Bool StatsExporterPipeServer::pushLocked(ReaderSlot& slot, UnsignedByte frameType, const UnsignedByte* body, UnsignedInt bodyLength, UnsignedInt64 timestampMicros)
 {
 	UnsignedByte header[STATS_EXPORTER_OUT_HEADER_BYTES];
-	const Bool periodic = (frameType == STATS_EXPORTER_FRAME_STATS_SNAPSHOT || frameType == STATS_EXPORTER_FRAME_EVENTS || frameType == STATS_EXPORTER_FRAME_CAMERA);
+	const Bool periodic = (frameType == STATS_EXPORTER_FRAME_STATS_SNAPSHOT || frameType == STATS_EXPORTER_FRAME_EVENTS || frameType == STATS_EXPORTER_FRAME_CAMERA
+		|| frameType == STATS_EXPORTER_FRAME_VIEW_STATS || frameType == STATS_EXPORTER_FRAME_INTEREST_MAP);
 	// the one-shot frames a reader cannot do without; a dropped chat line or response is just lost
 	const Bool lifecycle = (frameType == STATS_EXPORTER_FRAME_MATCH_INFO || frameType == STATS_EXPORTER_FRAME_MATCH_SUMMARY
 		|| frameType == STATS_EXPORTER_FRAME_UI_STATE || frameType == STATS_EXPORTER_FRAME_LOBBY_STATE || frameType == STATS_EXPORTER_FRAME_HELLO);

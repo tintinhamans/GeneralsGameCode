@@ -18,6 +18,8 @@
 //     0x05 UiState        the screen the game is on; the first frame after the Hello
 //     0x06 LobbyState     the game setup lobby the local user sits in; sent on change, and with in_lobby = false on leaving
 //     0x0A Response       the answer to one Request, sent only to the reader that asked
+//     0x0B ViewStats      what is inside the local camera's view, per player, at the cadence of FeedConfig.view_stats_interval_ms; waits for STARTED
+//     0x0C InterestMap    the interest grid and the pending highlights for an automatic camera director, off unless FeedConfig.interest is set; waits for STARTED
 //   inbound types (reader -> game):
 //     0x10 ChatSend       send a chat line through the game's own typed-line path, commands included
 //     0x11 Request        a query; answered with a Response of the same id
@@ -164,6 +166,37 @@ message Camera
 	float view_br_y = 15;
 	float view_bl_x = 16;
 	float view_bl_y = 17;
+	// Who moved the camera, so a tool that drives it can tell when a human takes it over.
+	CameraChangeSource change_source = 18;	// what caused the change since the previous Camera frame sent to this reader
+	uint32 user_input_count = 19;			// user camera actions accepted since the game started (mouse, keys, minimap, selection jumps): a counter, so a dropped frame loses nothing
+	CameraFollowMode follow_mode = 20;		// the camera lock in force: the unit a command or the user locked it on
+	uint32 follow_object_id = 21;			// 0 when the camera is not locked on a unit
+	CameraFollowEnd follow_ended = 22;		// set only on the frame that reports the end of a lock a pipe command created
+	uint32 follow_ended_object_id = 23;		// the unit that lock was on
+	bool transition_active = 24;			// a camera transition started by a pipe command is still running
+}
+
+enum CameraChangeSource
+{
+	CAMERA_CHANGE_OTHER = 0;	// the game: a lock following a unit, a script, the replay camera, or the first frame of a connection
+	CAMERA_CHANGE_USER = 1;		// at least one user camera action since the previous frame
+	CAMERA_CHANGE_PIPE = 2;		// a pipe camera command or its transition, and no user action
+}
+
+enum CameraFollowMode
+{
+	CAMERA_FOLLOW_NONE = 0;
+	CAMERA_FOLLOW_FOLLOW = 1;	// the camera stays centered on the unit
+	CAMERA_FOLLOW_TETHER = 2;	// the camera trails the unit and lets it move around inside a slack area
+}
+
+// Why a pipe-created lock ended.
+enum CameraFollowEnd
+{
+	CAMERA_FOLLOW_END_NONE = 0;
+	CAMERA_FOLLOW_END_OBJECT_GONE = 1;	// the unit was destroyed or removed
+	CAMERA_FOLLOW_END_USER = 2;			// the user moved the camera or locked on something else
+	CAMERA_FOLLOW_END_COMMAND = 3;		// a later pipe command (unfollow, a position, another unit)
 }
 
 // Unit and structure counts per cell over the map's playable extent (MatchInfo world_*), row-major from the min corner.
@@ -683,6 +716,7 @@ enum ResponseStatus
 	RESPONSE_STATUS_RATE_LIMITED = 3;	// too many requests; nothing was done, retry later
 	RESPONSE_STATUS_UNAVAILABLE = 4;	// the data does not exist right now (no match running, no map loaded)
 	RESPONSE_STATUS_TOO_LARGE = 5;		// the result does not fit a frame; ask for a smaller page
+	RESPONSE_STATUS_NOT_ALLOWED = 6;	// the command is refused in this situation (an active player's camera, a live network game); the message says why
 }
 
 // Paging for the queries that can return many rows. The cursor is opaque to the reader: pass the previous page's next_cursor back, 0 starts at the beginning.
@@ -711,6 +745,10 @@ message Request
 		MapQuery map = 14;
 		ResyncQuery resync = 15;
 		FeedConfigQuery feed_config = 16;
+		CameraControlQuery camera_control = 17;
+		CameraFollowQuery camera_follow = 18;
+		ReplayControlQuery replay_control = 19;
+		ObserveQuery observe = 20;
 	}
 }
 
@@ -728,6 +766,10 @@ message Response
 		MapDetail map = 14;
 		ResyncResult resync = 15;
 		FeedConfig feed_config = 16;
+		CameraState camera_control = 17;
+		CameraState camera_follow = 18;
+		ReplayState replay_control = 19;
+		ObserveState observe = 20;
 	}
 }
 
@@ -971,7 +1013,13 @@ message FeedConfig
 	bool supply = 7;				// supply sources in full snapshots, default true
 	bool tech = 8;					// map-level tech structures in full snapshots, default true
 	bool production = 9;			// production queues in full snapshots, default true
-	uint32 grid_resolution = 10;	// cells per side of a PlayerGrid: 8, 16, 32 or 64; default 32
+	uint32 grid_resolution = 10;	// cells per side of a PlayerGrid and of the InterestMap: 8, 16, 32 or 64; default 32
+	uint32 view_stats_interval_ms = 11;	// ViewStats cadence in wall-clock time, 0 = none; default 250, lowest 100
+	bool interest = 12;				// InterestMap frames; default false
+	uint32 interest_interval_ms = 13;	// InterestMap cadence in wall-clock time; default 500, lowest 250; a new highlight sends one at once
+	uint32 notable_cost = 14;		// ViewStats: units that cost at least this much are listed as notable (heroes always are); default 2000, 0 = heroes only
+	uint32 trade_window_ms = 15;	// ViewStats: rolling window of value_killed and value_lost, in game time; default 15000, 1000..60000
+	uint32 intensity_window_ms = 16;	// ViewStats: rolling window of damage_per_second, in game time; default 5000, 1000..60000
 }
 
 // Every field that is set changes that setting; the rest stay as they are. The Response carries the effective configuration.
@@ -988,4 +1036,196 @@ message FeedConfigQuery
 	optional bool tech = 9;
 	optional bool production = 10;
 	optional uint32 grid_resolution = 11;
+	optional uint32 view_stats_interval_ms = 12;
+	optional bool interest = 13;
+	optional uint32 interest_interval_ms = 14;
+	optional uint32 notable_cost = 15;
+	optional uint32 trade_window_ms = 16;
+	optional uint32 intensity_window_ms = 17;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Camera, replay and observer control
+// ---------------------------------------------------------------------------------------------------------------------
+// Camera commands move this client's own view and nothing else. They are accepted only while the local player is an observer of a match
+// or the game plays back a replay; an active player's camera is never touched (RESPONSE_STATUS_NOT_ALLOWED). A replay with the
+// replay camera on (it follows the camera recorded in the file) refuses them too. Replay commands need a replay playback.
+
+enum CameraEasing
+{
+	CAMERA_EASING_NONE = 0;			// constant speed
+	CAMERA_EASING_EASE_IN_OUT = 1;	// slow start, slow end
+}
+
+// Sets any subset of the camera values. Unset fields stay as they are. A position is x and y together (both or neither).
+message CameraControlQuery
+{
+	bool reset = 1;				// first put angle, pitch and zoom back to the game's defaults (the position stays), like the reset camera key
+	optional float x = 2;			// world position the camera looks at
+	optional float y = 3;
+	optional float zoom = 4;		// as Camera.zoom
+	optional float angle = 5;		// radians, as Camera.angle
+	optional float pitch = 6;		// radians, as Camera.pitch; the game clamps it
+	uint32 duration_ms = 7;		// 0 = at once; else a transition of this length in wall-clock time (up to 60000)
+	CameraEasing easing = 8;
+	bool cancel_transition = 9;	// stop a running transition where it is, before anything else in this query
+}
+
+// Locks the camera on a unit, or releases it. A position in a CameraControlQuery also releases a lock.
+message CameraFollowQuery
+{
+	uint32 object_id = 1;		// 0 = release the lock
+	CameraFollowMode mode = 2;	// FOLLOW (default) or TETHER
+	float tether_distance = 3;	// TETHER only, 0 < d <= 100: the game's own tether strength (the camera creeps toward the unit by 1% of this per frame inside the slack area)
+	bool snap = 4;				// FOLLOW only: jump to the unit instead of gliding to it
+}
+
+// The camera as the command left it (a transition not finished yet shows its start; read the Camera frames for the live values).
+message CameraState
+{
+	float x = 1;
+	float y = 2;
+	float zoom = 3;
+	float angle = 4;
+	float pitch = 5;
+	CameraFollowMode follow_mode = 6;
+	uint32 follow_object_id = 7;
+	bool transition_active = 8;
+}
+
+// Replay playback only. Pausing and speed never reach the simulation: the replay is deterministic whatever the pace.
+message ReplayControlQuery
+{
+	optional bool paused = 1;
+	optional float speed_ratio = 2;	// 1 = normal speed, 0.1 .. 16; the game caps it at what the display frame rate limit allows (the response says what it got)
+	optional bool fast_forward = 3;	// the game's fast forward mode: as fast as the machine runs, ignores speed_ratio
+}
+
+message ReplayState
+{
+	bool paused = 1;
+	float speed_ratio = 2;		// the effective ratio of normal speed (StatsSnapshot.game_speed_ratio)
+	bool fast_forward = 3;
+	bool speed_capped = 4;		// the requested ratio was higher than the frame rate limit allows
+}
+
+// The observer's point of view: whose units, shroud and radar the local view shows. Observers and replay playback only.
+message ObserveQuery
+{
+	int32 player_index = 1;		// a player of the match; -1 = back to the all-seeing observer
+}
+
+message ObserveState
+{
+	int32 player_index = 1;		// the player looked at, -1 for none
+	bool full_view = 2;			// the view really switched to that player; false when the game only remembers the choice for its panels
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// In-view statistics
+// ---------------------------------------------------------------------------------------------------------------------
+
+// A unit worth the director's attention: a hero, or one that costs at least FeedConfig.notable_cost.
+message NotableUnit
+{
+	uint32 object_id = 1;
+	string template_name = 2;
+	float health = 3;			// 0..1
+	int32 veterancy = 4;		// 0 regular .. 3 heroic
+	uint32 cost = 5;
+	bool is_hero = 6;
+	string addon = 7;			// template of the portable structure it carries (Overlord and Helix gattling cannon, propaganda tower, bunker), empty when none
+	float x = 8;
+	float y = 9;
+}
+
+// A superweapon structure inside the view.
+message ViewSuperweapon
+{
+	uint32 object_id = 1;
+	string template_name = 2;
+	string power_name = 3;
+	uint32 ready_frame = 4;		// absolute logic frame
+	float percent_ready = 5;	// 0..1
+	SuperweaponState state = 6;
+	float x = 7;
+	float y = 8;
+}
+
+// One player's share of the local view. Objects count when their position is inside the four ground corners of the camera
+// (Camera.view_*); effectively dead objects and projectiles do not count. Structures under construction count.
+message PlayerViewStats
+{
+	int32 player_index = 1;
+	uint32 value_in_view = 2;		// sum of build costs
+	uint32 effective_value = 3;		// the same weighted by each object's health fraction
+	CategoryValue value_by_class = 4;
+	CategoryCounts count_by_class = 5;
+	uint32 veteran = 6;				// objects in view per veterancy level
+	uint32 elite = 7;
+	uint32 heroic = 8;
+	repeated NotableUnit notable = 9;	// capped, most expensive first
+	repeated ViewSuperweapon superweapons = 10;
+	// Rolling windows in game time, ending now. Events count when their position was inside the view when they happened.
+	uint32 value_killed = 11;		// build cost of enemy objects this player destroyed
+	uint32 value_lost = 12;			// build cost of this player's objects lost
+	float damage_per_second = 13;	// health points of damage this player dealt, per second
+}
+
+// What the local camera sees. When no view is available (has_view false) the in-view numbers are zero and only the rolling windows carry data.
+message ViewStats
+{
+	uint32 frame = 1;
+	bool has_view = 2;
+	repeated PlayerViewStats players = 3;	// one per exported player, as in StatsSnapshot
+	uint32 trade_window_ms = 4;				// the windows the rolling numbers cover
+	uint32 intensity_window_ms = 5;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Interest map
+// ---------------------------------------------------------------------------------------------------------------------
+
+enum HighlightKind
+{
+	HIGHLIGHT_SUPERWEAPON_LAUNCH = 0;	// a superweapon was fired; the target and, where the game tells it, the impact time are known
+	HIGHLIGHT_HERO_DEATH = 1;
+	HIGHLIGHT_STRUCTURE_LOST = 2;		// a structure that cost at least 1000 was lost
+}
+
+// Something about to happen or just happened that a camera director may want to be at. Listed in every InterestMap from its creation
+// until expire_frame; id is unique in the match, so a reader tells new ones from known ones by id.
+message InterestHighlight
+{
+	uint32 id = 1;
+	HighlightKind kind = 2;
+	int32 player_index = 3;		// the owner: of the superweapon, of the hero or structure lost
+	string template_name = 4;	// the superweapon structure, the hero or the structure
+	string power_name = 5;		// superweapon launches
+	float x = 6;				// where it happens: the target, or where the unit was
+	float y = 7;
+	uint32 start_frame = 8;		// when it was created
+	uint32 impact_frame = 9;	// absolute logic frame of the impact, 0 when not known
+	bool impact_estimated = 10;	// impact_frame is a model, not a countdown the game keeps
+	uint32 expire_frame = 11;
+	uint32 value = 12;			// build cost of what was lost
+	uint32 object_id = 13;
+}
+
+// Where the action is: a grid over the playable extent (MatchInfo world_*), row-major from the min corner, like PlayerGrid.
+// A cell's score is the decayed sum of damage dealt in it (1 per health point) and value destroyed in it (0.5 per cost unit), plus the
+// armies of opposing players standing close together there (0.05 per cost unit of the weaker side, structures at half).
+// Scores are in game units, comparable within a match; 0 = nothing happening.
+message InterestMap
+{
+	uint32 frame = 1;
+	uint32 width = 2;			// FeedConfig.grid_resolution
+	uint32 height = 3;
+	float cell_width = 4;
+	float cell_height = 5;
+	float origin_x = 6;			// world position of the lower corner of cell (0, 0)
+	float origin_y = 7;
+	repeated uint32 scores = 8;	// width * height
+	repeated InterestHighlight highlights = 9;
+	uint32 half_life_ms = 10;	// the decay of the event part of the score, in game time
 }

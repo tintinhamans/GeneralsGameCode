@@ -51,6 +51,8 @@
 #include "GameClient/Display.h"
 #include "GameLogic/Module/AIUpdate.h"
 #include "Common/FramePacer.h"
+#include "GameLogic/Module/BodyModule.h"
+#include "GameLogic/Module/ContainModule.h"
 #include "Common/version.h"
 #include "GameLogic/Weapon.h"
 #include "Common/Radar.h"	// TheRadar: terrain average Z for the view box
@@ -79,11 +81,15 @@
 #include "GameClient/InGameUI.h"
 #include "GameClient/Shell.h"
 #include "GameClient/WindowLayout.h"
+#include "Common/StatsExporterControl.h"
+#include "GameLogic/Module/ParticleUplinkCannonUpdate.h"
 
 #include <malloc.h>	// _aligned_malloc
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -405,8 +411,273 @@ namespace
 		return -1;
 	}
 
+	// -- In-view tracking for the ViewStats and InterestMap frames. The hooks that feed it run inside the logic and only read: nothing
+	// here draws a random number or changes an object.
+	const Int kBucketsPerSecond = 10;							// rolling windows are kept in 100 ms buckets of game time
+	const Int kWindowBuckets = kBucketsPerSecond * 60;			// the longest window is 60 s
+	const Int kInterestGrid = 64;								// the interest map is kept at the finest resolution and summed down for coarser readers
+	const size_t kMaxNotablePerPlayer = 8;
+	const size_t kMaxHighlights = 16;
+	const Real kInterestDamageWeight = 1.0f;					// per health point dealt
+	const Real kInterestKillWeight = 0.5f;						// per build cost unit destroyed
+	const Real kInterestContestWeight = 0.05f;					// per build cost unit of the weaker side where armies of enemies stand together
+	const Real kInterestStructureWeight = 0.5f;					// a structure counts this much of its cost in an army
+	const UnsignedInt kInterestHalfLifeMs = 6000;
+	const UnsignedInt kHighlightStructureCost = 1000;
+	const UnsignedInt kHighlightSeconds = 6;					// how long a hero death or a structure loss stays listed
+	const UnsignedInt kHighlightUnknownImpactSeconds = 45;		// how long a superweapon launch stays listed when the game gives no impact time
+
+	struct WindowBucket
+	{
+		UnsignedInt id;
+		UnsignedInt killed[16];
+		UnsignedInt lost[16];
+		Real damage[16];
+	};
+	WindowBucket s_window[kWindowBuckets];
+
+	struct ViewPolygon
+	{
+		Bool valid;
+		Real x[4];
+		Real y[4];
+		Real minX, maxX, minY, maxY;
+	};
+	ViewPolygon s_view;
+
+	Real s_interestEvents[kInterestGrid * kInterestGrid];
+	UnsignedInt s_interestDecayFrame = 0;
+	Region3D s_interestExtent;
+	Bool s_interestExtentValid = FALSE;
+
+	struct Highlight
+	{
+		UnsignedInt id;
+		int kind;				// statsexporter::HighlightKind
+		Int playerIndex;
+		std::string templateName;
+		std::string powerName;
+		Real x, y;
+		UnsignedInt startFrame;
+		UnsignedInt impactFrame;
+		Bool estimated;
+		UnsignedInt expireFrame;
+		UnsignedInt value;
+		UnsignedInt objectId;
+	};
+
+	std::vector<Highlight>& highlights()
+	{
+		static std::vector<Highlight> s_highlights;
+		return s_highlights;
+	}
+	UnsignedInt s_highlightSerial = 0;
+	Bool s_highlightsDirty = FALSE;
+
+	// BEGIN-PURE (copied into the test harness)
+	// A point in a four sided polygon, even-odd rule, either winding.
+	Bool pointInQuad(const Real* px, const Real* py, Real x, Real y)
+	{
+		Bool inside = FALSE;
+		Int j = 3;
+		for (Int i = 0; i < 4; ++i)
+		{
+			if (((py[i] > y) != (py[j] > y)) && (x < (px[j] - px[i]) * (y - py[i]) / (py[j] - py[i]) + px[i]))
+			{
+				inside = !inside;
+			}
+			j = i;
+		}
+		return inside;
+	}
+
+	// The factor an exponentially decaying score loses over `frames` logic frames.
+	Real halfLifeFactor(UnsignedInt frames, UnsignedInt halfLifeMs)
+	{
+		const Real seconds = (Real)frames / (Real)LOGICFRAMES_PER_SECOND;
+		return powf(0.5f, seconds * 1000.0f / (Real)halfLifeMs);
+	}
+
+	UnsignedInt bucketIdOf(UnsignedInt frame)
+	{
+		return (UnsignedInt)(((UnsignedInt64)frame * kBucketsPerSecond) / LOGICFRAMES_PER_SECOND);
+	}
+
+	WindowBucket& windowBucket(UnsignedInt frame)
+	{
+		const UnsignedInt id = bucketIdOf(frame);
+		WindowBucket& bucket = s_window[id % kWindowBuckets];
+		if (bucket.id != id)
+		{
+			memset(&bucket, 0, sizeof(bucket));
+			bucket.id = id;
+		}
+		return bucket;
+	}
+
+	// Adds up the buckets of the window of `windowMs` that ends at `frame`. Either output can be NULL.
+	void windowSums(UnsignedInt frame, UnsignedInt windowMs, UnsignedInt* killed, UnsignedInt* lost, Real* damage)
+	{
+		const UnsignedInt nowId = bucketIdOf(frame);
+		UnsignedInt count = (windowMs + 99) / 100;
+		if (count > (UnsignedInt)kWindowBuckets)
+		{
+			count = kWindowBuckets;
+		}
+		for (UnsignedInt back = 0; back < count && back <= nowId; ++back)
+		{
+			const WindowBucket& bucket = s_window[(nowId - back) % kWindowBuckets];
+			if (bucket.id != nowId - back)
+			{
+				continue;
+			}
+			for (Int p = 0; p < 16; ++p)
+			{
+				if (killed != NULL)
+				{
+					killed[p] += bucket.killed[p];
+				}
+				if (lost != NULL)
+				{
+					lost[p] += bucket.lost[p];
+				}
+				if (damage != NULL)
+				{
+					damage[p] += bucket.damage[p];
+				}
+			}
+		}
+	}
+
+	// The interest cell (at the finest grid) of a world position; FALSE outside the playable extent.
+	Bool interestCellOf(const Region3D& extent, Real x, Real y, Int* cell)
+	{
+		if (extent.width() <= 0.0f || extent.height() <= 0.0f || x < extent.lo.x || y < extent.lo.y || x > extent.hi.x || y > extent.hi.y)
+		{
+			return FALSE;
+		}
+		Int cellX = (Int)((x - extent.lo.x) / extent.width() * (Real)kInterestGrid);
+		Int cellY = (Int)((y - extent.lo.y) / extent.height() * (Real)kInterestGrid);
+		cellX = (cellX >= kInterestGrid) ? kInterestGrid - 1 : cellX;
+		cellY = (cellY >= kInterestGrid) ? kInterestGrid - 1 : cellY;
+		*cell = cellY * kInterestGrid + cellX;
+		return TRUE;
+	}
+	// END-PURE
+
+	Bool pointInView(Real x, Real y)
+	{
+		return s_view.valid && x >= s_view.minX && x <= s_view.maxX && y >= s_view.minY && y <= s_view.maxY && pointInQuad(s_view.x, s_view.y, x, y);
+	}
+
+	// Scores older than a moment fade; done lazily, in steps of at least 100 ms of game time.
+	void decayInterest(UnsignedInt now)
+	{
+		if (now < s_interestDecayFrame)
+		{
+			s_interestDecayFrame = now;
+			return;
+		}
+		const UnsignedInt elapsed = now - s_interestDecayFrame;
+		if (elapsed * 10 < (UnsignedInt)LOGICFRAMES_PER_SECOND)
+		{
+			return;
+		}
+		const Real factor = halfLifeFactor(elapsed, kInterestHalfLifeMs);
+		for (Int cell = 0; cell < kInterestGrid * kInterestGrid; ++cell)
+		{
+			s_interestEvents[cell] *= factor;
+		}
+		s_interestDecayFrame = now;
+	}
+
+	// The playable extent the interest grid covers, read once per match.
+	Bool ensureInterestExtent()
+	{
+		if (!s_interestExtentValid && TheTerrainLogic != NULL)
+		{
+			s_interestExtent.zero();
+			TheTerrainLogic->getExtent(&s_interestExtent);
+			s_interestExtentValid = s_interestExtent.width() > 0.0f && s_interestExtent.height() > 0.0f;
+		}
+		return s_interestExtentValid;
+	}
+
+	void addInterest(Real x, Real y, Real amount, UnsignedInt now)
+	{
+		Int cell = 0;
+		if (!ensureInterestExtent() || !interestCellOf(s_interestExtent, x, y, &cell))
+		{
+			return;
+		}
+		decayInterest(now);
+		s_interestEvents[cell] += amount;
+	}
+
+	void resetViewTracking()
+	{
+		memset(s_window, 0, sizeof(s_window));
+		memset(&s_view, 0, sizeof(s_view));
+		memset(s_interestEvents, 0, sizeof(s_interestEvents));
+		s_interestDecayFrame = 0;
+		s_interestExtentValid = FALSE;
+		highlights().clear();
+		s_highlightSerial = 0;
+		s_highlightsDirty = FALSE;
+	}
+
+	void addHighlight(int kind, Int playerIndex, const char* templateName, const char* powerName, Real x, Real y,
+		UnsignedInt now, UnsignedInt impactFrame, Bool estimated, UnsignedInt expireFrame, UnsignedInt value, UnsignedInt objectId)
+	{
+		std::vector<Highlight>& list = highlights();
+		if (list.size() >= kMaxHighlights)
+		{
+			list.erase(list.begin());
+		}
+		Highlight highlight;
+		highlight.id = ++s_highlightSerial;
+		highlight.kind = kind;
+		highlight.playerIndex = playerIndex;
+		highlight.templateName = templateName;
+		highlight.powerName = powerName;
+		highlight.x = x;
+		highlight.y = y;
+		highlight.startFrame = now;
+		highlight.impactFrame = impactFrame;
+		highlight.estimated = estimated;
+		highlight.expireFrame = expireFrame;
+		highlight.value = value;
+		highlight.objectId = objectId;
+		list.push_back(highlight);
+		s_highlightsDirty = TRUE;
+	}
+
+	// A superweapon launch of this player near this target that is still listed.
+	Highlight* findLaunchHighlight(Int playerIndex, Real x, Real y, UnsignedInt now)
+	{
+		std::vector<Highlight>& list = highlights();
+		for (size_t i = 0; i < list.size(); ++i)
+		{
+			Highlight& h = list[i];
+			if (h.kind == statsexporter::HIGHLIGHT_SUPERWEAPON_LAUNCH && h.playerIndex == playerIndex && h.expireFrame > now
+				&& fabsf(h.x - x) < 100.0f && fabsf(h.y - y) < 100.0f)
+			{
+				return &h;
+			}
+		}
+		return NULL;
+	}
+
+	// The hooks only record while a reader is connected and a match runs past its first frame.
+	Bool viewTrackingActive()
+	{
+		StatsExporterSink* sink = StatsExporterPipeGetSink();
+		return sink != NULL && sink->isConnected() && TheGameLogic != NULL && TheGameLogic->isInInteractiveGame() && TheGameLogic->getFrame() > 0;
+	}
+
 	void resetMatchCounters()
 	{
+		resetViewTracking();
 		memset(s_actionsTotal, 0, sizeof(s_actionsTotal));
 		memset(s_actionBucket, 0, sizeof(s_actionBucket));
 		memset(s_actionBucketSecond, 0, sizeof(s_actionBucketSecond));
@@ -922,7 +1193,8 @@ namespace
 		{
 			"frame.sequence", "frame.timestamp", "multi_reader", "chat.send",
 			"request.catalog", "request.object", "request.objects", "request.player", "request.map", "request.resync", "request.feed_config",
-			"map.minimap_rgba", "event.object_ids", "event.kill_detail", "feed.per_reader"
+			"map.minimap_rgba", "event.object_ids", "event.kill_detail", "feed.per_reader",
+			"camera.control", "camera.follow", "camera.source", "replay.control", "observe.player", "view_stats", "interest_map", "status.not_allowed"
 		};
 
 		statsexporter::Hello& hello = helloMessage();
@@ -1403,6 +1675,16 @@ void StatsExporterLiveKill(Int playerIndex, const Object* killer, const Object* 
 			++s_kills[playerIndex][category];
 		}
 	}
+	if (viewTrackingActive())
+	{
+		const Coord3D* where = victim->getPosition();
+		const UnsignedInt now = TheGameLogic->getFrame();
+		addInterest(where->x, where->y, (Real)event.cost * kInterestKillWeight, now);
+		if (playerIndex >= 0 && playerIndex < kMaxCounterPlayers && pointInView(where->x, where->y))
+		{
+			windowBucket(now).killed[playerIndex] += event.cost;
+		}
+	}
 	pushPendingEvent(event);
 }
 
@@ -1434,6 +1716,24 @@ void StatsExporterLiveLoss(Int playerIndex, const Object* victim, const Object* 
 		if (category >= 0)
 		{
 			++s_losses[playerIndex][category];
+		}
+	}
+	if (viewTrackingActive())
+	{
+		const Coord3D* where = victim->getPosition();
+		const UnsignedInt now = TheGameLogic->getFrame();
+		if (playerIndex >= 0 && playerIndex < kMaxCounterPlayers && pointInView(where->x, where->y))
+		{
+			windowBucket(now).lost[playerIndex] += event.cost;
+		}
+		const UnsignedInt expire = now + kHighlightSeconds * LOGICFRAMES_PER_SECOND;
+		if (victimTmpl != NULL && victimTmpl->isKindOf(KINDOF_HERO))
+		{
+			addHighlight(statsexporter::HIGHLIGHT_HERO_DEATH, playerIndex, templateName(victimTmpl), "", where->x, where->y, now, 0, FALSE, expire, event.cost, victim->getID());
+		}
+		else if (victimTmpl != NULL && victimTmpl->isKindOf(KINDOF_STRUCTURE) && event.cost >= kHighlightStructureCost)
+		{
+			addHighlight(statsexporter::HIGHLIGHT_STRUCTURE_LOST, playerIndex, templateName(victimTmpl), "", where->x, where->y, now, 0, FALSE, expire, event.cost, victim->getID());
 		}
 	}
 	pushPendingEvent(event);
@@ -1491,6 +1791,101 @@ void StatsExporterLiveSalvageUpgrade(Int playerIndex, const ThingTemplate* tmpl,
 	event.primaryName = templateName(tmpl);
 	event.intValue1 = tier;
 	pushPendingEvent(event);
+}
+
+void StatsExporterLiveDamage(const Object* victim, ObjectID attackerId, Real healthRemoved)
+{
+	if (victim == NULL || healthRemoved <= 0.0f || !viewTrackingActive() || killCategory(victim->getTemplate()) < 0)
+	{
+		return;
+	}
+
+	// Only damage between enemies is fighting; fire on neutral objects, friendly fire and damage nobody dealt are not.
+	const Object* attacker = TheGameLogic->findObjectByID(attackerId);
+	const Player* attackerOwner = (attacker != NULL) ? attacker->getControllingPlayer() : NULL;
+	if (attackerOwner == NULL || attackerOwner == ThePlayerList->getNeutralPlayer() || attackerOwner->getRelationship(victim->getTeam()) != ENEMIES)
+	{
+		return;
+	}
+
+	const Coord3D* where = victim->getPosition();
+	const UnsignedInt now = TheGameLogic->getFrame();
+	addInterest(where->x, where->y, healthRemoved * kInterestDamageWeight, now);
+	const Int attackerIndex = attackerOwner->getPlayerIndex();
+	if (attackerIndex >= 0 && attackerIndex < kMaxCounterPlayers && pointInView(where->x, where->y))
+	{
+		windowBucket(now).damage[attackerIndex] += healthRemoved;
+	}
+}
+
+void StatsExporterLiveSuperweaponFired(const Object* source, const SpecialPowerTemplate* power, const Coord3D* location)
+{
+	if (source == NULL || power == NULL || location == NULL || !isSuperweaponPower(power) || !viewTrackingActive())
+	{
+		return;
+	}
+	const Player* owner = source->getControllingPlayer();
+	if (owner == NULL)
+	{
+		return;
+	}
+
+	// A launch is listed once, whichever of the two hooks (this one, the missile's) sees it first.
+	const UnsignedInt now = TheGameLogic->getFrame();
+	if (findLaunchHighlight(owner->getPlayerIndex(), location->x, location->y, now) != NULL)
+	{
+		return;
+	}
+
+	UnsignedInt impact = 0;
+	UnsignedInt expire = now + kHighlightUnknownImpactSeconds * LOGICFRAMES_PER_SECOND;
+	const SpecialPowerType type = power->getSpecialPowerType();
+	if (type == SPECIAL_PARTICLE_UPLINK_CANNON || type == SUPW_SPECIAL_PARTICLE_UPLINK_CANNON || type == LAZR_SPECIAL_PARTICLE_UPLINK_CANNON)
+	{
+		// The cannon keeps a schedule: the beam is born beam_travel frames after the launch, and fires for the total firing time.
+		static const NameKeyType cannonKey = TheNameKeyGenerator->nameToKey("ParticleUplinkCannonUpdate");
+		const ParticleUplinkCannonUpdate* cannon = static_cast<const ParticleUplinkCannonUpdate*>(source->findUpdateModule(cannonKey));
+		if (cannon != NULL)
+		{
+			UnsignedInt beamTravel = 0;
+			UnsignedInt firing = 0;
+			UnsignedInt grow = 0;
+			cannon->getBeamScheduleForStats(beamTravel, firing, grow);
+			impact = now + beamTravel;
+			expire = impact + firing + grow + 2 * LOGICFRAMES_PER_SECOND;
+		}
+	}
+	addHighlight(statsexporter::HIGHLIGHT_SUPERWEAPON_LAUNCH, owner->getPlayerIndex(), templateName(source->getTemplate()), power->getName().str(),
+		location->x, location->y, now, impact, FALSE, expire, 0, source->getID());
+}
+
+void StatsExporterLiveMissileLaunched(const Object* missile, const Coord3D* target, Real secondsToImpact)
+{
+	if (missile == NULL || target == NULL || secondsToImpact <= 0.0f || !viewTrackingActive())
+	{
+		return;
+	}
+	const Player* owner = missile->getControllingPlayer();
+	if (owner == NULL)
+	{
+		return;
+	}
+
+	const UnsignedInt now = TheGameLogic->getFrame();
+	const UnsignedInt impact = now + (UnsignedInt)(secondsToImpact * (Real)LOGICFRAMES_PER_SECOND + 0.5f);
+	const UnsignedInt expire = impact + 5 * LOGICFRAMES_PER_SECOND;
+	Highlight* known = findLaunchHighlight(owner->getPlayerIndex(), target->x, target->y, now);
+	if (known != NULL)
+	{
+		// The flight model is an estimate built from the missile's data; the launch highlight made at the trigger gets its time now.
+		known->impactFrame = impact;
+		known->estimated = TRUE;
+		known->expireFrame = expire;
+		s_highlightsDirty = TRUE;
+		return;
+	}
+	addHighlight(statsexporter::HIGHLIGHT_SUPERWEAPON_LAUNCH, owner->getPlayerIndex(), templateName(missile->getTemplate()), "",
+		target->x, target->y, now, impact, TRUE, expire, 0, missile->getID());
 }
 
 namespace
@@ -2340,6 +2735,7 @@ void StatsExporterLiveMatchStarted()
 
 void StatsExporterLiveGameDataCleared()
 {
+	StatsExporterControlReset();
 	if (!s_matchActive || s_matchEndedSent)
 	{
 		return;
@@ -3477,6 +3873,503 @@ namespace
 	}
 }
 
+namespace
+{
+	statsexporter::ViewStats& viewStatsMessage()
+	{
+		static statsexporter::ViewStats* s_message = NULL;
+		return arenaMessage(s_message);
+	}
+
+	statsexporter::InterestMap& interestMessage()
+	{
+		static statsexporter::InterestMap* s_message = NULL;
+		return arenaMessage(s_message);
+	}
+
+	struct NotableRecord
+	{
+		ObjectID id;
+		const ThingTemplate* tmpl;
+		const ThingTemplate* addon;
+		Real health;
+		Int veterancy;
+		UnsignedInt cost;
+		Bool hero;
+		Real x, y;
+	};
+
+	// Heroes first, then the most expensive.
+	Bool notableBefore(const NotableRecord& a, const NotableRecord& b)
+	{
+		if (a.hero != b.hero)
+		{
+			return a.hero != FALSE;
+		}
+		return a.cost > b.cost;
+	}
+
+	// The portable structure a unit carries (an Overlord's gattling cannon, propaganda tower or bunker), NULL for none.
+	const ThingTemplate* carriedAddon(const Object* obj)
+	{
+		ContainModuleInterface* contain = obj->getContain();
+		const ContainedItemsList* items = (contain != NULL) ? contain->getContainedItemsList() : NULL;
+		if (items == NULL)
+		{
+			return NULL;
+		}
+		for (ContainedItemsList::const_iterator it = items->begin(); it != items->end(); ++it)
+		{
+			if (*it != NULL && (*it)->isKindOf(KINDOF_PORTABLE_STRUCTURE))
+			{
+				return (*it)->getTemplate();
+			}
+		}
+		return NULL;
+	}
+
+	// Everything the local camera sees, per player. Reads only.
+	void buildViewStats(UnsignedInt now, const StatsExporterFeedConfig& config)
+	{
+		statsexporter::ViewStats& message = viewStatsMessage();
+		message.Clear();
+		message.set_frame(now);
+		message.set_has_view(s_view.valid != FALSE);
+		message.set_trade_window_ms(config.tradeWindowMs);
+		message.set_intensity_window_ms(config.intensityWindowMs);
+
+		statsexporter::PlayerViewStats* players[kMaxCounterPlayers];
+		std::vector<NotableRecord> notable[kMaxCounterPlayers];
+		for (Int i = 0; i < kMaxCounterPlayers; ++i)
+		{
+			players[i] = NULL;
+		}
+		for (Int slot = 0; slot < MAX_SLOTS; ++slot)
+		{
+			Player* player = playerFromSlot(slot);
+			if (player == NULL || player->isPlayerObserver() || player->getScoreKeeper() == NULL)
+			{
+				continue;
+			}
+			const Int index = player->getPlayerIndex();
+			if (index >= 0 && index < kMaxCounterPlayers)
+			{
+				players[index] = message.add_players();
+				players[index]->set_player_index(index);
+			}
+		}
+
+		for (Object* obj = s_view.valid ? TheGameLogic->getFirstObject() : NULL; obj != NULL; obj = obj->getNextObject())
+		{
+			const ThingTemplate* tmpl = obj->getTemplate();
+			const Player* controller = obj->getControllingPlayer();
+			if (tmpl == NULL || controller == NULL || obj->isEffectivelyDead())
+			{
+				continue;
+			}
+			const Int index = controller->getPlayerIndex();
+			const Int armyClass = killCategory(tmpl);
+			if (armyClass < 0 || index < 0 || index >= kMaxCounterPlayers || players[index] == NULL)
+			{
+				continue;
+			}
+			const Coord3D* position = obj->getPosition();
+			if (!pointInView(position->x, position->y))
+			{
+				continue;
+			}
+
+			statsexporter::PlayerViewStats* p = players[index];
+			const UnsignedInt cost = (UnsignedInt)tmpl->friend_getBuildCost();
+			Real health = 1.0f;
+			const BodyModuleInterface* body = obj->getBodyModule();
+			if (body != NULL && body->getMaxHealth() > 0.0f)
+			{
+				health = body->getHealth() / body->getMaxHealth();
+				health = (health < 0.0f) ? 0.0f : ((health > 1.0f) ? 1.0f : health);
+			}
+			p->set_value_in_view(p->value_in_view() + cost);
+			p->set_effective_value(p->effective_value() + (UnsignedInt)((Real)cost * health + 0.5f));
+
+			statsexporter::CategoryValue* value = p->mutable_value_by_class();
+			statsexporter::CategoryCounts* count = p->mutable_count_by_class();
+			switch (armyClass)
+			{
+				case 0:
+					value->set_infantry(value->infantry() + cost);
+					count->set_infantry(count->infantry() + 1);
+					break;
+				case 1:
+					value->set_vehicle(value->vehicle() + cost);
+					count->set_vehicle(count->vehicle() + 1);
+					break;
+				case 2:
+					value->set_aircraft(value->aircraft() + cost);
+					count->set_aircraft(count->aircraft() + 1);
+					break;
+				default:
+					value->set_structure(value->structure() + cost);
+					count->set_structure(count->structure() + 1);
+					break;
+			}
+
+			const Int veterancy = (Int)obj->getVeterancyLevel();
+			if (veterancy == 1)
+			{
+				p->set_veteran(p->veteran() + 1);
+			}
+			else if (veterancy == 2)
+			{
+				p->set_elite(p->elite() + 1);
+			}
+			else if (veterancy >= 3)
+			{
+				p->set_heroic(p->heroic() + 1);
+			}
+
+			if (armyClass == 3)
+			{
+				if (isSuperweaponStructureTemplate(tmpl) && !obj->testStatus(OBJECT_STATUS_UNDER_CONSTRUCTION))
+				{
+					for (BehaviorModule** m = obj->getBehaviorModules(); *m; ++m)
+					{
+						SpecialPowerModuleInterface* spmi = (*m)->getSpecialPower();
+						if (spmi == NULL)
+						{
+							continue;
+						}
+						statsexporter::ViewSuperweapon* weapon = p->add_superweapons();
+						weapon->set_object_id(obj->getID());
+						weapon->set_template_name(tmpl->getName().str());
+						weapon->set_power_name(spmi->getPowerName().str());
+						weapon->set_ready_frame(spmi->getReadyFrame());
+						weapon->set_percent_ready(spmi->getPercentReady());
+						weapon->set_state(spmi->getPercentReady() >= 1.0f ? statsexporter::SUPERWEAPON_READY : statsexporter::SUPERWEAPON_CHARGING);
+						weapon->set_x(position->x);
+						weapon->set_y(position->y);
+						break;
+					}
+				}
+				continue;
+			}
+
+			const Bool hero = obj->isKindOf(KINDOF_HERO);
+			if (hero || (config.notableCost > 0 && cost >= config.notableCost))
+			{
+				NotableRecord record;
+				record.id = obj->getID();
+				record.tmpl = tmpl;
+				record.addon = carriedAddon(obj);
+				record.health = health;
+				record.veterancy = veterancy;
+				record.cost = cost;
+				record.hero = hero;
+				record.x = position->x;
+				record.y = position->y;
+				notable[index].push_back(record);
+			}
+		}
+
+		UnsignedInt killed[kMaxCounterPlayers];
+		UnsignedInt lost[kMaxCounterPlayers];
+		Real damage[kMaxCounterPlayers];
+		memset(killed, 0, sizeof(killed));
+		memset(lost, 0, sizeof(lost));
+		memset(damage, 0, sizeof(damage));
+		windowSums(now, config.tradeWindowMs, killed, lost, NULL);
+		windowSums(now, config.intensityWindowMs, NULL, NULL, damage);
+		for (Int index = 0; index < kMaxCounterPlayers; ++index)
+		{
+			statsexporter::PlayerViewStats* p = players[index];
+			if (p == NULL)
+			{
+				continue;
+			}
+			p->set_value_killed(killed[index]);
+			p->set_value_lost(lost[index]);
+			p->set_damage_per_second(damage[index] * 1000.0f / (Real)config.intensityWindowMs);
+
+			std::sort(notable[index].begin(), notable[index].end(), notableBefore);
+			for (size_t n = 0; n < notable[index].size() && n < kMaxNotablePerPlayer; ++n)
+			{
+				const NotableRecord& record = notable[index][n];
+				statsexporter::NotableUnit* unit = p->add_notable();
+				unit->set_object_id(record.id);
+				unit->set_template_name(templateName(record.tmpl));
+				unit->set_health(record.health);
+				unit->set_veterancy(record.veterancy);
+				unit->set_cost(record.cost);
+				unit->set_is_hero(record.hero != FALSE);
+				unit->set_addon(templateName(record.addon));
+				unit->set_x(record.x);
+				unit->set_y(record.y);
+			}
+		}
+	}
+
+	Real s_cellValue[kMaxCounterPlayers][kInterestGrid * kInterestGrid];
+	Real s_interestTotal[kInterestGrid * kInterestGrid];
+
+	// The interest score of every cell at the finest resolution: the decayed events plus the armies of enemies standing close together.
+	// FALSE when the playable extent is not known.
+	Bool computeInterest(UnsignedInt now)
+	{
+		if (!ensureInterestExtent())
+		{
+			return FALSE;
+		}
+		decayInterest(now);
+		memset(s_cellValue, 0, sizeof(s_cellValue));
+
+		Bool present[kMaxCounterPlayers];
+		for (Int i = 0; i < kMaxCounterPlayers; ++i)
+		{
+			present[i] = FALSE;
+		}
+		for (Object* obj = TheGameLogic->getFirstObject(); obj != NULL; obj = obj->getNextObject())
+		{
+			const ThingTemplate* tmpl = obj->getTemplate();
+			const Player* controller = obj->getControllingPlayer();
+			const Int armyClass = killCategory(tmpl);
+			if (armyClass < 0 || controller == NULL || obj->isEffectivelyDead())
+			{
+				continue;
+			}
+			const Int index = controller->getPlayerIndex();
+			Int cell = 0;
+			if (index < 0 || index >= kMaxCounterPlayers || controller->isPlayerObserver() || controller == ThePlayerList->getNeutralPlayer()
+				|| !interestCellOf(s_interestExtent, obj->getPosition()->x, obj->getPosition()->y, &cell))
+			{
+				continue;
+			}
+			s_cellValue[index][cell] += (Real)tmpl->friend_getBuildCost() * (armyClass == 3 ? kInterestStructureWeight : 1.0f);
+			present[index] = TRUE;
+		}
+
+		Bool enemies[kMaxCounterPlayers][kMaxCounterPlayers];
+		memset(enemies, 0, sizeof(enemies));
+		for (Int a = 0; a < ThePlayerList->getPlayerCount(); ++a)
+		{
+			const Player* first = ThePlayerList->getNthPlayer(a);
+			for (Int b = 0; b < ThePlayerList->getPlayerCount(); ++b)
+			{
+				const Player* second = ThePlayerList->getNthPlayer(b);
+				if (first != NULL && second != NULL && first != second && first->getPlayerIndex() < kMaxCounterPlayers && second->getPlayerIndex() < kMaxCounterPlayers
+					&& present[first->getPlayerIndex()] && present[second->getPlayerIndex()] && first->getRelationship(second->getDefaultTeam()) == ENEMIES)
+				{
+					enemies[first->getPlayerIndex()][second->getPlayerIndex()] = TRUE;
+				}
+			}
+		}
+
+		for (Int cellY = 0; cellY < kInterestGrid; ++cellY)
+		{
+			for (Int cellX = 0; cellX < kInterestGrid; ++cellX)
+			{
+				const Int cell = cellY * kInterestGrid + cellX;
+				Int nearby[kMaxCounterPlayers];
+				Real nearbyValue[kMaxCounterPlayers];
+				Int nearbyCount = 0;
+				for (Int p = 0; p < kMaxCounterPlayers; ++p)
+				{
+					if (!present[p])
+					{
+						continue;
+					}
+					Real sum = 0.0f;
+					for (Int dy = -1; dy <= 1; ++dy)
+					{
+						for (Int dx = -1; dx <= 1; ++dx)
+						{
+							const Int nx = cellX + dx;
+							const Int ny = cellY + dy;
+							if (nx >= 0 && nx < kInterestGrid && ny >= 0 && ny < kInterestGrid)
+							{
+								sum += s_cellValue[p][ny * kInterestGrid + nx];
+							}
+						}
+					}
+					if (sum > 0.0f)
+					{
+						nearby[nearbyCount] = p;
+						nearbyValue[nearbyCount] = sum;
+						++nearbyCount;
+					}
+				}
+
+				Real contested = 0.0f;
+				for (Int a = 0; a < nearbyCount; ++a)
+				{
+					for (Int b = a + 1; b < nearbyCount; ++b)
+					{
+						if (enemies[nearby[a]][nearby[b]])
+						{
+							contested += (nearbyValue[a] < nearbyValue[b]) ? nearbyValue[a] : nearbyValue[b];
+						}
+					}
+				}
+				s_interestTotal[cell] = s_interestEvents[cell] + kInterestContestWeight * contested;
+			}
+		}
+		return TRUE;
+	}
+
+	// The scores summed down to the reader's resolution, and the highlights that are still listed.
+	void fillInterestMessage(UnsignedInt now, UnsignedInt resolution)
+	{
+		std::vector<Highlight>& list = highlights();
+		for (size_t i = 0; i < list.size();)
+		{
+			if (list[i].expireFrame <= now)
+			{
+				list.erase(list.begin() + i);
+			}
+			else
+			{
+				++i;
+			}
+		}
+
+		statsexporter::InterestMap& message = interestMessage();
+		message.Clear();
+		message.set_frame(now);
+		message.set_width(resolution);
+		message.set_height(resolution);
+		message.set_cell_width(s_interestExtent.width() / (Real)resolution);
+		message.set_cell_height(s_interestExtent.height() / (Real)resolution);
+		message.set_origin_x(s_interestExtent.lo.x);
+		message.set_origin_y(s_interestExtent.lo.y);
+		message.set_half_life_ms(kInterestHalfLifeMs);
+		const Int factor = kInterestGrid / (Int)resolution;
+		for (Int cellY = 0; cellY < (Int)resolution; ++cellY)
+		{
+			for (Int cellX = 0; cellX < (Int)resolution; ++cellX)
+			{
+				Real sum = 0.0f;
+				for (Int dy = 0; dy < factor; ++dy)
+				{
+					for (Int dx = 0; dx < factor; ++dx)
+					{
+						sum += s_interestTotal[(cellY * factor + dy) * kInterestGrid + cellX * factor + dx];
+					}
+				}
+				message.add_scores((uint32_t)(sum + 0.5f));
+			}
+		}
+		for (size_t i = 0; i < list.size(); ++i)
+		{
+			const Highlight& source = list[i];
+			statsexporter::InterestHighlight* h = message.add_highlights();
+			h->set_id(source.id);
+			h->set_kind((statsexporter::HighlightKind)source.kind);
+			h->set_player_index(source.playerIndex);
+			h->set_template_name(source.templateName);
+			h->set_power_name(source.powerName);
+			h->set_x(source.x);
+			h->set_y(source.y);
+			h->set_start_frame(source.startFrame);
+			h->set_impact_frame(source.impactFrame);
+			h->set_impact_estimated(source.estimated != FALSE);
+			h->set_expire_frame(source.expireFrame);
+			h->set_value(source.value);
+			h->set_object_id(source.objectId);
+		}
+	}
+
+	// ViewStats and InterestMap, from the render loop: they describe the local view, which moves while the game is paused.
+	// The cadence is wall-clock time; the rolling windows and the decay count game time.
+	void emitViewFrames(StatsExporterSink* sink, const Readers& started, UnsignedInt now)
+	{
+		static ULONGLONG s_lastView[STATS_EXPORTER_MAX_READERS];
+		static UnsignedInt s_viewEpoch[STATS_EXPORTER_MAX_READERS];
+		static UnsignedInt s_viewSerial[STATS_EXPORTER_MAX_READERS];
+		static ULONGLONG s_lastInterest[STATS_EXPORTER_MAX_READERS];
+		static UnsignedInt s_interestEpoch[STATS_EXPORTER_MAX_READERS];
+		static UnsignedInt s_interestSerial[STATS_EXPORTER_MAX_READERS];
+
+		const ULONGLONG micros = StatsExporterNowMicros();
+		StatsExporterFeedConfig configs[STATS_EXPORTER_MAX_READERS];
+		Readers viewDue;
+		Readers interestDue;
+		for (Int slot = 0; slot < STATS_EXPORTER_MAX_READERS; ++slot)
+		{
+			if (!started.has(slot))
+			{
+				continue;
+			}
+			sink->getFeedConfig(slot, configs[slot]);
+			const StatsExporterFeedConfig& config = configs[slot];
+			const UnsignedInt epoch = started.epoch(slot);
+
+			const Bool viewFresh = s_viewEpoch[slot] != epoch || s_viewSerial[slot] != s_matchSerial;
+			if (config.viewStatsIntervalMs > 0 && (viewFresh || micros - s_lastView[slot] >= (ULONGLONG)config.viewStatsIntervalMs * 1000))
+			{
+				viewDue.add(slot, epoch);
+				s_lastView[slot] = micros;
+				s_viewEpoch[slot] = epoch;
+				s_viewSerial[slot] = s_matchSerial;
+			}
+
+			const Bool interestFresh = s_interestEpoch[slot] != epoch || s_interestSerial[slot] != s_matchSerial;
+			if (config.interest && (interestFresh || s_highlightsDirty || micros - s_lastInterest[slot] >= (ULONGLONG)config.interestIntervalMs * 1000))
+			{
+				interestDue.add(slot, epoch);
+				s_lastInterest[slot] = micros;
+				s_interestEpoch[slot] = epoch;
+				s_interestSerial[slot] = s_matchSerial;
+			}
+		}
+
+		// Readers with the same settings share one build.
+		Readers remaining = viewDue;
+		while (!remaining.empty())
+		{
+			Int first = 0;
+			while (!remaining.has(first))
+			{
+				++first;
+			}
+			Readers group;
+			for (Int slot = first; slot < STATS_EXPORTER_MAX_READERS; ++slot)
+			{
+				if (remaining.has(slot) && configs[slot].notableCost == configs[first].notableCost
+					&& configs[slot].tradeWindowMs == configs[first].tradeWindowMs && configs[slot].intensityWindowMs == configs[first].intensityWindowMs)
+				{
+					group.add(slot, remaining.epoch(slot));
+					remaining.remove(slot);
+				}
+			}
+			buildViewStats(now, configs[first]);
+			sendMessage(sink, STATS_EXPORTER_FRAME_VIEW_STATS, viewStatsMessage(), group);
+		}
+
+		if (!interestDue.empty() && computeInterest(now))
+		{
+			remaining = interestDue;
+			while (!remaining.empty())
+			{
+				Int first = 0;
+				while (!remaining.has(first))
+				{
+					++first;
+				}
+				Readers group;
+				for (Int slot = first; slot < STATS_EXPORTER_MAX_READERS; ++slot)
+				{
+					if (remaining.has(slot) && configs[slot].gridResolution == configs[first].gridResolution)
+					{
+						group.add(slot, remaining.epoch(slot));
+						remaining.remove(slot);
+					}
+				}
+				fillInterestMessage(now, configs[first].gridResolution);
+				sendMessage(sink, STATS_EXPORTER_FRAME_INTEREST_MAP, interestMessage(), group);
+			}
+		}
+		s_highlightsDirty = FALSE;
+	}
+}
+
 void StatsExporterLiveCamera()
 {
 	// Rendered frames are rate limited to about 120 per second, and only a changed camera is sent.
@@ -3487,6 +4380,7 @@ void StatsExporterLiveCamera()
 	static UnsignedInt s_sentSerial = 0;
 	static ULONGLONG s_lastMicros = 0;
 	static Real s_last[14];
+	static UnsignedInt s_lastExtra[4];
 
 	StatsExporterSink* sink = StatsExporterPipeGetSink();
 	if (sink == NULL || TheTacticalView == NULL || TheGameLogic == NULL || TheRadar == NULL)
@@ -3495,25 +4389,21 @@ void StatsExporterLiveCamera()
 	}
 	if (!TheGameLogic->isInInteractiveGame())
 	{
+		s_view.valid = FALSE;
 		return;
 	}
 
 	// Only during a match the reader has STARTED for: not the shell map camera before LOADING, nor anything after ENDED.
-	const Readers cameraReaders = feedFilter(sink, startedReaders(readyReaders(sink)), &StatsExporterFeedConfig::camera);
-	if (cameraReaders.empty())
+	const Readers started = startedReaders(readyReaders(sink));
+	if (started.empty())
 	{
+		s_view.valid = FALSE;
 		return;
 	}
 
-	const ULONGLONG micros = StatsExporterNowMicros();
-
-	// A reader that has not seen the camera of this match yet gets it at once, whatever the throttle and the change test say.
-	const Readers fresh = cameraReaders.minus(s_sentReaders);
-	const Bool sameMatch = s_hasSent && s_sentSerial == s_matchSerial;
-	if (sameMatch && fresh.empty() && micros - s_lastMicros < kMinIntervalMicros)
-	{
-		return;
-	}
+	// Pipe camera commands run their transitions here, ahead of the picture the frame describes.
+	StatsExporterCameraReport report;
+	StatsExporterControlCameraFrame(report);
 
 	// The view box is built the way W3DRadar::reconstructViewBox does it for the minimap.
 	Real values[14];
@@ -3532,47 +4422,98 @@ void StatsExporterLiveCamera()
 		values[7 + i * 2] = hasViewBox ? corners[i].y : 0.0f;
 	}
 
-	Bool changed = !sameMatch;
-	for (Int i = 0; i < 14 && !changed; ++i)
-	{
-		if (fabsf(values[i] - s_last[i]) > kEpsilon)
-		{
-			changed = TRUE;
-		}
-	}
-	if (!changed && fresh.empty())
-	{
-		return;
-	}
-
-	statsexporter::Camera message;
-	message.set_timestamp_us(micros);
-	message.set_logic_frame(TheGameLogic->getFrame());
-	message.set_x(values[0]);
-	message.set_y(values[1]);
-	message.set_zoom(values[2]);
-	message.set_angle(values[3]);
-	message.set_pitch(values[4]);
-	message.set_height_above_ground(values[5]);
+	// The same four ground points decide which objects and events are "in view".
+	s_view.valid = hasViewBox;
 	if (hasViewBox)
 	{
-		message.set_has_view_box(true);
-		message.set_view_tl_x(values[6]);
-		message.set_view_tl_y(values[7]);
-		message.set_view_tr_x(values[8]);
-		message.set_view_tr_y(values[9]);
-		message.set_view_br_x(values[10]);
-		message.set_view_br_y(values[11]);
-		message.set_view_bl_x(values[12]);
-		message.set_view_bl_y(values[13]);
+		s_view.minX = s_view.maxX = corners[0].x;
+		s_view.minY = s_view.maxY = corners[0].y;
+		for (Int i = 0; i < 4; ++i)
+		{
+			s_view.x[i] = corners[i].x;
+			s_view.y[i] = corners[i].y;
+			s_view.minX = (corners[i].x < s_view.minX) ? corners[i].x : s_view.minX;
+			s_view.maxX = (corners[i].x > s_view.maxX) ? corners[i].x : s_view.maxX;
+			s_view.minY = (corners[i].y < s_view.minY) ? corners[i].y : s_view.minY;
+			s_view.maxY = (corners[i].y > s_view.maxY) ? corners[i].y : s_view.maxY;
+		}
 	}
-	sendMessage(sink, STATS_EXPORTER_FRAME_CAMERA, message, changed ? cameraReaders : fresh);
 
-	memcpy(s_last, values, sizeof(s_last));
-	s_lastMicros = micros;
-	s_hasSent = TRUE;
-	s_sentReaders = cameraReaders;
-	s_sentSerial = s_matchSerial;
+	const ULONGLONG micros = StatsExporterNowMicros();
+	const Readers cameraReaders = feedFilter(sink, started, &StatsExporterFeedConfig::camera);
+	if (!cameraReaders.empty())
+	{
+		// A reader that has not seen the camera of this match yet gets it at once, whatever the throttle and the change test say.
+		const Readers fresh = cameraReaders.minus(s_sentReaders);
+		const Bool sameMatch = s_hasSent && s_sentSerial == s_matchSerial;
+		if (!sameMatch || !fresh.empty() || micros - s_lastMicros >= kMinIntervalMicros)
+		{
+			UnsignedInt extra[4];
+			extra[0] = report.userInputCount;
+			extra[1] = report.followObjectId;
+			extra[2] = (UnsignedInt)report.followMode;
+			extra[3] = report.transitionActive ? 1u : 0u;
+
+			Bool changed = !sameMatch || report.followEnded != statsexporter::CAMERA_FOLLOW_END_NONE;
+			for (Int i = 0; i < 14 && !changed; ++i)
+			{
+				if (fabsf(values[i] - s_last[i]) > kEpsilon)
+				{
+					changed = TRUE;
+				}
+			}
+			for (Int i = 0; i < 4 && !changed; ++i)
+			{
+				if (extra[i] != s_lastExtra[i])
+				{
+					changed = TRUE;
+				}
+			}
+
+			if (changed || !fresh.empty())
+			{
+				statsexporter::Camera message;
+				message.set_timestamp_us(micros);
+				message.set_logic_frame(TheGameLogic->getFrame());
+				message.set_x(values[0]);
+				message.set_y(values[1]);
+				message.set_zoom(values[2]);
+				message.set_angle(values[3]);
+				message.set_pitch(values[4]);
+				message.set_height_above_ground(values[5]);
+				if (hasViewBox)
+				{
+					message.set_has_view_box(true);
+					message.set_view_tl_x(values[6]);
+					message.set_view_tl_y(values[7]);
+					message.set_view_tr_x(values[8]);
+					message.set_view_tr_y(values[9]);
+					message.set_view_br_x(values[10]);
+					message.set_view_br_y(values[11]);
+					message.set_view_bl_x(values[12]);
+					message.set_view_bl_y(values[13]);
+				}
+				message.set_change_source((statsexporter::CameraChangeSource)report.changeSource);
+				message.set_user_input_count(report.userInputCount);
+				message.set_follow_mode((statsexporter::CameraFollowMode)report.followMode);
+				message.set_follow_object_id(report.followObjectId);
+				message.set_follow_ended((statsexporter::CameraFollowEnd)report.followEnded);
+				message.set_follow_ended_object_id(report.followEndedObjectId);
+				message.set_transition_active(report.transitionActive != FALSE);
+				sendMessage(sink, STATS_EXPORTER_FRAME_CAMERA, message, changed ? cameraReaders : fresh);
+				StatsExporterControlCameraSent(report);
+
+				memcpy(s_last, values, sizeof(s_last));
+				memcpy(s_lastExtra, extra, sizeof(s_lastExtra));
+				s_lastMicros = micros;
+				s_hasSent = TRUE;
+				s_sentReaders = cameraReaders;
+				s_sentSerial = s_matchSerial;
+			}
+		}
+	}
+
+	emitViewFrames(sink, started, TheGameLogic->getFrame());
 }
 
 void StatsExporterLiveTick()

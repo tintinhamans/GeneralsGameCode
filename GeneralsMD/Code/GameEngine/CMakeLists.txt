@@ -111,6 +111,7 @@ set(GAMEENGINE_SRC
     Include/Common/StateMachine.h
     Include/Common/StatsCollector.h
     Include/Common/StatsExporter.h
+    Include/Common/StatsExporterControl.h
     Include/Common/StatsExporterLive.h
     Include/Common/StatsExporterPipe.h
     Include/Common/StatsExporterQuery.h
@@ -633,6 +634,7 @@ set(GAMEENGINE_SRC
     Source/Common/StateMachine.cpp
     Source/Common/StatsCollector.cpp
     Source/Common/StatsExporter.cpp
+    Source/Common/StatsExporterControl.cpp
     Source/Common/StatsExporterLive.cpp
     Source/Common/StatsExporterPipe.cpp
     Source/Common/StatsExporterQuery.cpp

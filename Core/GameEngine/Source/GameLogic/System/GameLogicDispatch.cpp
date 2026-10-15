@@ -2362,6 +2362,7 @@ bool GameLogic::onSetReplayCamera(MAYBE_UNUSED GameMessage *msg)
 			const Real zoom = msg->getArgument( 3 )->real;
 			const Mouse::MouseCursor mouseCursor = static_cast<Mouse::MouseCursor>(msg->getArgument( 4 )->integer);
 			const ICoord2D mousePos = msg->getArgument( 5 )->pixel;
+			const UnsignedInt userActionCount = TheTacticalView->getUserActionCount();
 
 			// TheSuperHackers @info Definitely call in user mode to ensure the camera operates with auto-zoom
 			// over terrain elevations, because the Replay Camera does not store the absolute camera location,
@@ -2388,6 +2389,9 @@ bool GameLogic::onSetReplayCamera(MAYBE_UNUSED GameMessage *msg)
 				TheTacticalView->setUserControlled(false);
 				TheTacticalView->set3DCameraLookAt(camPos, camDir, 0.0f);
 			}
+
+			// The recorded camera is not the user at this PC: tools that watch for user camera input do not count it.
+			TheTacticalView->restoreUserActionCount( userActionCount );
 
 			// TheSuperHackers @fix Lock the new location to avoid user input from changing the camera in this frame.
 			TheTacticalView->lockUserControlUntilFrame( getFrame() + 1 );

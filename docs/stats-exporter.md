@@ -50,6 +50,8 @@ A protobuf message whose fields all hold their default values encodes to zero by
 | 0x07 | game to reader | `Events` | the discrete events of one logic frame, sent at the end of that frame (after STARTED) |
 | 0x08 | game to reader | `Camera` | the local camera and minimap view box, from the render loop whenever it changed (after STARTED) |
 | 0x0A | game to reader | `Response` | the answer to one `Request`, sent only to the reader that asked |
+| 0x0B | game to reader | `ViewStats` | what is inside the local camera's view, per player, about four times a second by default (after STARTED) |
+| 0x0C | game to reader | `InterestMap` | the interest grid and the pending highlights, only for readers that switched `interest` on (after STARTED) |
 | 0x10 | reader to game | `ChatSend` | send a chat line |
 | 0x11 | reader to game | `Request` | a query (see Requests and responses) |
 
@@ -72,7 +74,7 @@ The first frame on every connection is a `Hello` (type 0x09, sequence 0). The ga
 | `epoch_unix_ms` | the wall clock in milliseconds since the Unix epoch at frame timestamp 0, so a reader can turn frame timestamps into wall-clock times |
 | `queue_capacity_bytes` | the outbound queue of this reader (1 MiB); a reader that falls this far behind loses frames |
 
-Capabilities in this version: `frame.sequence`, `frame.timestamp`, `multi_reader`, `chat.send`, `request.catalog`, `request.object`, `request.objects`, `request.player`, `request.map`, `request.resync`, `request.feed_config`, `map.minimap_rgba`, `event.object_ids`, `event.kill_detail`, `feed.per_reader`. A capability is a promise that the matching frame, field or request exists; a later version can add names without changing `protocol_version`.
+Capabilities in this version: `frame.sequence`, `frame.timestamp`, `multi_reader`, `chat.send`, `request.catalog`, `request.object`, `request.objects`, `request.player`, `request.map`, `request.resync`, `request.feed_config`, `map.minimap_rgba`, `event.object_ids`, `event.kill_detail`, `feed.per_reader`, and, added without a protocol change, `camera.control`, `camera.follow`, `camera.source`, `replay.control`, `observe.player`, `view_stats`, `interest_map`, `status.not_allowed` (see Camera, replay and observer control, In-view statistics and Interest map). A capability is a promise that the matching frame, field or request exists; a later version can add names without changing `protocol_version`.
 
 ## Sequence numbers and timestamps
 
@@ -97,8 +99,8 @@ Frames that are the same for everyone are built once and queued for every reader
 
 A reader sends a `Request { id, query }` (inbound type 0x11) and receives a `Response { id, status, message, result }` (outbound type 0x0A) carrying the same `id`. The reader chooses the `id`; use a distinct one for every request in flight (0 is allowed but cannot be told apart from "unknown" when a request cannot be decoded).
 
-- **Threading.** The pipe thread only decodes the framing, rate limits and queues the request. The main thread answers it once per render frame (at most 4 per frame, the rest wait), reading game state and changing nothing: no random numbers are drawn, no commands are issued, no object is touched. Because of that, a query is answered also while the game is paused or in a menu, and the answer describes the state of the moment it ran.
-- **Statuses.** `OK`; `BAD_REQUEST` (undecodable, no query set, a value out of range); `NOT_FOUND` (no such object, player or template); `RATE_LIMITED` (the reader exceeded its rate or has 16 requests waiting; nothing was done, retry later); `UNAVAILABLE` (the data does not exist right now: no match running, no map loaded); `TOO_LARGE` (the result would not fit a frame: ask for a smaller page). `message` carries a short reason for any status other than OK. A request that cannot be decoded is answered with id 0.
+- **Threading.** The pipe thread only decodes the framing, rate limits and queues the request. The main thread answers it once per render frame (at most 4 per frame, the rest wait), reading game state and changing nothing (the control commands below change client-side state only, see there): no random numbers are drawn, no commands are issued, no object is touched. Because of that, a query is answered also while the game is paused or in a menu, and the answer describes the state of the moment it ran.
+- **Statuses.** `OK`; `BAD_REQUEST` (undecodable, no query set, a value out of range); `NOT_FOUND` (no such object, player or template); `RATE_LIMITED` (the reader exceeded its rate or has 16 requests waiting; nothing was done, retry later); `UNAVAILABLE` (the data does not exist right now: no match running, no map loaded); `TOO_LARGE` (the result would not fit a frame: ask for a smaller page); `NOT_ALLOWED` (the command is refused in the situation the game is in, see Camera, replay and observer control: nothing was changed). `message` carries a short reason for any status other than OK. A request that cannot be decoded is answered with id 0.
 - **Rate limit.** A token bucket per reader: 20 requests per second sustained, bursts up to 40. Requests are answered in arrival order per reader and in turn between readers. There is no answer to a request that arrives before the Hello was queued, and none when the reader's queue is full (the sequence shows the gap), so readers should time requests out.
 - **Paging.** Queries that can return many rows take a `PageRequest { cursor, page_size }` and answer with a `PageInfo { has_more, next_cursor, total }`. Start with cursor 0, pass `next_cursor` back while `has_more`. The cursor is opaque: a template index for the catalog, an object id for objects. `page_size` 0 means the default, anything above `Hello.max_page_size` is lowered to it.
 
@@ -111,6 +113,10 @@ A reader sends a `Request { id, query }` (inbound type 0x11) and receives a `Res
 | `MapQuery` | `MapDetail` | Map name, the playable extent, every waypoint (capped at 512), the start positions (the `Player_<n>_Start` waypoints, numbered from 0 like the lobby), and with `include_minimap` the radar's terrain image |
 | `ResyncQuery` | `ResyncResult` | The game sends this reader `UiState`, `LobbyState`, MatchInfo STARTED (if a match runs) and a full `StatsSnapshot` again, after the Response. Other readers are not affected. Use it after a sequence gap |
 | `FeedConfigQuery` | `FeedConfig` | Changes this reader's feed configuration; the result is the effective configuration (a query with nothing set only reads it) |
+| `CameraControlQuery` | `CameraState` | Sets any subset of the camera's position, zoom, angle and pitch, at once or over a transition; resets angle, pitch and zoom to the defaults. Observers and replay playback only, see Camera, replay and observer control |
+| `CameraFollowQuery` | `CameraState` | Locks the camera on a unit (centered, or tethered), or releases the lock. Observers and replay playback only |
+| `ReplayControlQuery` | `ReplayState` | Pauses or resumes a replay playback, sets its pace, switches fast forward. Replay playback only |
+| `ObserveQuery` | `ObserveState` | Changes the observer's point of view to a player, or back to the all-seeing observer. Observers and replay playback only |
 
 **Minimap.** `Minimap.rgba` is the radar's terrain image, read back from the game's radar texture: `width * height * 4` bytes, row-major, R G B A, 128 by 128 in this build (64 KiB). Pixel (px, py) covers the world cell with its lower corner at `(origin_x + px * cell_width, origin_y + py * cell_height)`; the cell size and origin come from the radar's own world conversion, so this is exactly the mapping the game's minimap uses. It shows the terrain, water and bridges as the radar draws them, not units or fog. When the image cannot be read the `minimap` field is simply absent and the status is still OK.
 
@@ -131,9 +137,47 @@ Every reader starts with the defaults below and changes its own feed with a `Fee
 | `supply` | true | the supply sources in full snapshots |
 | `tech` | true | the map-level tech structures in full snapshots |
 | `production` | true | the production queues in full snapshots |
-| `grid_resolution` | 32 | cells per side of a `PlayerGrid`: 8, 16, 32 or 64 |
+| `grid_resolution` | 32 | cells per side of a `PlayerGrid` and of the `InterestMap`: 8, 16, 32 or 64 |
+| `view_stats_interval_ms` | 250 | `ViewStats` cadence in wall-clock time; 0 = none, otherwise 100 to 60000 |
+| `interest` | false | `InterestMap` frames |
+| `interest_interval_ms` | 500 | `InterestMap` cadence in wall-clock time, 250 to 60000; a new highlight sends one at once |
+| `notable_cost` | 2000 | `ViewStats`: units that cost at least this are listed as notable (heroes always are); 0 = heroes only |
+| `trade_window_ms` | 15000 | `ViewStats`: the rolling window of `value_killed` and `value_lost`, in game time, 1000 to 60000 |
+| `intensity_window_ms` | 5000 | `ViewStats`: the rolling window of `damage_per_second`, in game time, 1000 to 60000 |
 
 Intervals are rounded to whole logic frames (at least 1). A setting out of range answers `BAD_REQUEST` and changes nothing. `UiState`, `LobbyState`, `MatchInfo`, `MatchSummary` and the Hello are not configurable. Turning `camera` or `events` off and on again resumes with the current state (the camera is sent at once).
+
+## Camera, replay and observer control
+
+A reader can steer the local client's view. These commands change **client-side state only**: the camera, the pacing of a replay playback and the observer's point of view. None of them is a game command, none reaches the simulation or another client, and none draws a random number, so a live game and a replay stay deterministic. They are answered on the main thread like every request.
+
+**When they are allowed.** Camera, follow and observe commands: the local player is an **observer** of a match, or the game is **playing back a replay**. An active player's camera is never touched; the answer is `NOT_ALLOWED` with a message. Replay commands (pause, speed, fast forward): a **replay playback** only; in a live network game pausing or changing the pace would break the synchronization, so they too answer `NOT_ALLOWED`. With no match running the answer is `UNAVAILABLE`.
+
+- **Camera** (`CameraControlQuery`). Any subset of `x`/`y` (both or neither), `zoom`, `angle` (radians), `pitch` (radians; the game clamps it to its own limits). `reset` first puts angle, pitch and zoom back to the game's defaults, as the reset camera key does; the position stays. `duration_ms` 0 applies everything at once; above 0 (up to 60000) the values move from where they are to the targets over that much wall-clock time, with `easing` NONE (constant speed) or EASE_IN_OUT, running from the render loop so a paused game still pans; angles turn the short way round. A new command replaces a running transition; `cancel_transition` stops it where it is. A user camera action also ends it. A position releases a lock on a unit. Values must be finite; `zoom` is 0.05 to 20, `x`/`y` within a million. The zoom is applied through the game's own zoom setter, which is relative to the terrain height under the camera, so the `zoom` in the next `Camera` frame can differ a little from the one asked for on uneven ground.
+- **Follow** (`CameraFollowQuery`). `object_id` locks the camera on a unit: mode FOLLOW keeps it centered (the camera glides to the unit, `snap` jumps), mode TETHER trails it and lets it move around inside a slack area; `tether_distance` (above 0, at most 100) is the game's own tether strength (the camera creeps toward the unit by 1% of it per frame inside the slack area, the slack area itself is one partition cell). `object_id` 0 releases the lock. `NOT_FOUND` for an unknown or dead object. The lock is the game's own camera lock, the one a user makes by selecting a unit and pressing the camera lock key.
+- **Replay** (`ReplayControlQuery`). `paused`; `speed_ratio` 0.1 to 16 (1 is normal speed); `fast_forward`. The engine paces a replay by one logic update per displayed frame at most, with an optional logic time scale below that rate, so a ratio above what the display frame rate limit allows is capped (the answer's `speed_capped` is true and `speed_ratio` is the effective one; in this build the limit during a replay is the logic rate, so 1.0 is the top without fast forward). `fast_forward` is the game's replay fast forward (as fast as the machine runs) and overrides `speed_ratio`; setting a `speed_ratio` without `fast_forward` turns it off. Whatever the pace, the replay computes the same game. The pace the command changed is put back when the replay is left.
+- **Observe** (`ObserveQuery`). `player_index` of a player of the match, or -1 for the all-seeing observer: whose units, shroud and radar the view shows, the call the observer panel's player buttons make. `full_view` in the answer is false when the game only remembered the choice for its panels (the player observer option is off).
+
+**Who moved the camera.** The `Camera` frame carries `change_source`: `USER` when at least one user camera action (mouse, keyboard, minimap click, selection jump, a lock toggle) was accepted since the previous Camera frame, `PIPE` for a pipe command or its transition, `OTHER` for the game itself (a lock following a unit, a script, the first frame of a connection). `user_input_count` is the running number of accepted user camera actions, so a dropped frame loses nothing; a tool that moves the camera watches it grow and steps back (this is what the library's `Director` does). Camera moves the game makes on the user's behalf (the recorded camera of a replay) are not counted. `follow_mode` and `follow_object_id` give the lock in force, whoever made it. For a lock a pipe command made, the Camera frame that follows its end has `follow_ended` (`OBJECT_GONE`: the unit died or was removed, the lock is released at once; `USER`: the user moved the camera or locked on something else; `COMMAND`: a later pipe command) and `follow_ended_object_id`; `transition_active` is true while a pipe transition runs.
+
+## In-view statistics
+
+`ViewStats` (frame type 0x0B) describes, per exported player, what is inside the **four ground corners of the local camera** (`Camera.view_*`, at the map's average terrain height). It is built in the render loop, on a wall-clock cadence (`view_stats_interval_ms`, default 250), read-only, from the live objects: infantry, vehicles, aircraft and structures that are not effectively dead; projectiles and other objects are ignored. A structure under construction counts.
+
+- `value_in_view`: the sum of build costs; `effective_value`: the same with each object's cost multiplied by its health fraction; `value_by_class` and `count_by_class` split them into infantry, vehicle, aircraft and structure (the classification of kills and `army_value_by_class`); `veteran`, `elite`, `heroic`: how many objects in view are at each level.
+- `notable`: the units (never structures) that are heroes (KINDOF_HERO) or cost at least `notable_cost`, heroes first and then by cost, at most 8 per player, each with id, template, health 0..1, veterancy, cost, position and `addon`: the template of the portable structure the unit carries (an Overlord's gattling cannon, propaganda tower or bunker, a Helix's). There are no superweapon-carrying units in Zero Hour; superweapons are structures.
+- `superweapons`: the superweapon structures in view with their power, ready frame, percent ready and state, as in `SuperweaponTimer`.
+- `value_killed`, `value_lost`, `damage_per_second`: rolling windows of game time that end now (`trade_window_ms`, `intensity_window_ms`; kept in 100 ms buckets, so a window is accurate to 100 ms). An event counts when its position was inside the view **at the time it happened** (the view of the last rendered frame): a kill adds the victim's build cost to the killer's `value_killed`, a loss to the owner's `value_lost`, and damage is the health points a hit actually removed (after armor and modifiers, not more than the victim had left; subdual and status damage excluded) attributed to the attacker's player, counting only damage between enemies. `damage_per_second` is the sum over the window divided by its length. These numbers have no view dependence once recorded: they keep rolling while the camera moves, and they are zero before the first Camera frame of the match.
+
+`has_view` is false when no view exists (no Camera frame was possible): the in-view numbers are zero and only the rolling windows carry data. The first `ViewStats` of a match or after a resync is sent at once.
+
+## Interest map
+
+For an automatic camera director. Off by default; a reader turns `interest` on in its `FeedConfig`. `InterestMap` (frame type 0x0C) is sent every `interest_interval_ms` of wall-clock time (default 500) and at once when a new highlight appears.
+
+- **The grid.** `width` x `height` cells (`grid_resolution`, the same 8/16/32/64 as `PlayerGrid`) over the playable extent, row-major from the min corner; `origin_x`/`origin_y` is the lower corner of cell (0, 0). A cell's `score` is `damage + kill + contest`: the health points of damage between enemies dealt in it and half a point per build cost unit destroyed in it, both decayed with a half life of `half_life_ms` (6000 ms of game time), plus 0.05 per cost unit of the weaker side wherever armies of enemy players stand within a cell of each other (the value of a unit, or half the value of a structure, summed over the cell and its eight neighbors per player; for every pair of enemy players the smaller of the two sums). The scores are integers in game units, comparable within a match; 0 means nothing is happening. The decay uses game time, so a paused game keeps its scores.
+- **Pending highlights.** `highlights` lists everything that is about to happen or just happened, from its creation until its `expire_frame`; `id` is unique in the match so a reader tells new from known. Kinds: `SUPERWEAPON_LAUNCH` (the owner, the structure's template, the power, the target; `impact_frame` where the game knows it), `HERO_DEATH` and `STRUCTURE_LOST` (a structure that cost 1000 or more; position, owner, cost; expires 6 s of game time later). A particle cannon keeps a schedule (the beam is born `BeamTravelTime` after the launch and fires for its total firing time), so its `impact_frame` is exact. A neutron missile's flight is computed from the missile's own data when it leaves the launcher (climb time, then the distance at the speed where its acceleration balances its damping, then the final dive at half speed), so its `impact_frame` arrives a moment after the launch highlight and has `impact_estimated` true; a scud storm has no impact time (0). A launch highlight without an impact time expires after 45 s.
+- The interest map reads the same live objects and hook points as the other frames and changes nothing. Accumulating starts when a reader is connected; a reader that connects mid-match sees the scores build up.
 
 ## Ordering and lifecycle
 
@@ -143,9 +187,9 @@ Which frames wait for STARTED:
 
 | Waits until STARTED has been queued on that connection | Not gated |
 |---|---|
-| `StatsSnapshot` (including the stall markers), `Events`, `Camera` | `Hello`, `UiState`, `LobbyState`, `ChatMessage`, `MatchInfo`, `MatchSummary`, `Response` |
+| `StatsSnapshot` (including the stall markers), `Events`, `Camera`, `ViewStats`, `InterestMap` | `Hello`, `UiState`, `LobbyState`, `ChatMessage`, `MatchInfo`, `MatchSummary`, `Response` |
 
-`Camera` additionally stops after ENDED: it is sent only while a match is active, so the shell map camera never leaks before LOADING or after ENDED. `UiState` and `Camera` keep flowing while the logic is paused; `StatsSnapshot` and `Events` do not (the logic frame does not advance), nor while the logic is stalled except for the stall marker.
+`Camera`, `ViewStats` and `InterestMap` additionally stop after ENDED: they are sent only while a match is active, so the shell map camera never leaks before LOADING or after ENDED. `UiState`, `Camera`, `ViewStats` and `InterestMap` keep flowing while the logic is paused (they come from the render loop); `StatsSnapshot` and `Events` do not (the logic frame does not advance), nor while the logic is stalled except for the stall marker.
 
 - **Cadence.** Snapshot cadence is defined in game time (the defaults below; each reader can change them with a `FeedConfigQuery`), so it is the same on the 30 and 60 logic-frames-per-second builds (`MatchInfo.logic_frames_per_second` says which; game seconds are frame / that value). A **light** snapshot (`full = false`) every 100 ms of game time (6 frames at 60 fps, 3 at 30) carries the cheap per-player numbers: money, income, power, score, APM, rank, skill points, counters, spend, value destroyed/lost, radar, battle plan, sabotage, network, the selection and the speed fields. A **full** snapshot (`full = true`) every 250 ms (15 frames at 60 fps, 8 at 30) also carries everything that needs a walk over the live objects: army value, template counts, production, superweapons, readiness, heroes, worker counts, class composition, grids, supply, tech and the online connections. The two clocks run independently; a sample that is due on both is one full snapshot, so a reader sees a snapshot every 100 ms and an extra full one in between at times. The first snapshot of every connection is a full one. Readers keep the last full values of the heavy fields and overwrite the light ones (the list of heavy fields is the comment on `StatsSnapshot` in the proto).
 - **Who is in `players`.** One entry per non-observer player of the match, for the whole match: a defeated or departed player stays, with `state` DEFEATED or LEFT, so a reader can show the final numbers; observers are never listed. Campaign and solo games have no lobby slots to map players to and get no per-player snapshots at all (no `StatsSnapshot` is sent; `Events` still flow).
@@ -160,7 +204,7 @@ Which frames wait for STARTED:
 - `MatchInfo.start_unix_time` is in seconds since the Unix epoch and is taken when the match enters LOADING (STARTED and ENDED repeat it). `duration_frames` is in logic frames and meaningful on ENDED only.
 - `map_name` (MatchInfo, MatchSummary, LobbyState) is relative to the game or user data folder, for example `maps\alpine assault\alpine assault.map`, and is UTF-8. For online lobbies `LobbyState.map_name` is the same normalised path as in `MatchInfo` (so readers can match them) and `LobbyState.map_display_name` is the lobby's display name. `MatchInfo.map_is_user_map` tells a map from the user data folder from a built-in one.
 - **Local paths.** Strings are UTF-8 throughout (player names, chat, map and replay paths are converted from the game's UTF-16 or code-page text). Only `MatchInfo.replay_path` is an absolute local path and so contains the Windows user name (the replay folder lives under the user's Documents folder); local tools need it to open the file. No other field carries an absolute path: map names have the user data folder stripped, and `layout` in `UiState` is a bare file name. Treat `replay_path` as private if you forward frames to other machines.
-- **Resync.** One-shot frames (`Hello`, `MatchInfo`, `MatchSummary`, `UiState`, `LobbyState`) and responses may use the whole outbound queue of a reader, periodic frames (snapshots, events, camera) may not use its last 64 KiB. If a one-shot frame is still dropped because a slow reader filled its queue, the game remembers it for that reader and, once the queue has drained to half empty, sends that reader `UiState` again, resends STARTED (a repeated STARTED for the running match; treat it as idempotent), sends `LobbyState` again if the user is in a lobby and a full snapshot. A reader can ask for the same with a `ResyncQuery`. A dropped `MatchSummary` or ENDED cannot be repeated.
+- **Resync.** One-shot frames (`Hello`, `MatchInfo`, `MatchSummary`, `UiState`, `LobbyState`) and responses may use the whole outbound queue of a reader, periodic frames (snapshots, events, camera, view statistics, interest map) may not use its last 64 KiB. If a one-shot frame is still dropped because a slow reader filled its queue, the game remembers it for that reader and, once the queue has drained to half empty, sends that reader `UiState` again, resends STARTED (a repeated STARTED for the running match; treat it as idempotent), sends `LobbyState` again if the user is in a lobby and a full snapshot. A reader can ask for the same with a `ResyncQuery`. A dropped `MatchSummary` or ENDED cannot be repeated.
 - A superweapon or special power is reported when the player owns the required science, or when the power requires none; a structure still under construction is not reported until it is complete.
 - **Live objects.** Everything that is computed from the object list (army value, class value and counts, live template counts, worker, harvester and idle worker counts, heroes, readiness, superweapons, production, the position grids) excludes objects that are effectively dead (destroyed and waiting for removal). A structure under construction counts as live for army value, class counts, template counts, the superweapon structure count and the grids, but not for readiness or superweapon timers.
 - **Omniscient.** The stats are not filtered by what the local player can see: they come from the simulation, which every client runs identically, so a snapshot shows every player's economy, army, production and positions regardless of fog of war. Only the local client's own selection, camera and speed numbers are client-side.
@@ -407,6 +451,40 @@ The local tactical view. Per client: not part of the synchronized game state. Se
 | 15 | `view_br_y` | float |  |
 | 16 | `view_bl_x` | float |  |
 | 17 | `view_bl_y` | float |  |
+| 18 | `change_source` | CameraChangeSource | what caused the change since the previous Camera frame sent to this reader |
+| 19 | `user_input_count` | uint32 | user camera actions accepted since the game started (mouse, keys, minimap, selection jumps): a counter, so a dropped frame loses nothing |
+| 20 | `follow_mode` | CameraFollowMode | the camera lock in force: the unit a command or the user locked it on |
+| 21 | `follow_object_id` | uint32 | 0 when the camera is not locked on a unit |
+| 22 | `follow_ended` | CameraFollowEnd | set only on the frame that reports the end of a lock a pipe command created |
+| 23 | `follow_ended_object_id` | uint32 | the unit that lock was on |
+| 24 | `transition_active` | bool | a camera transition started by a pipe command is still running |
+
+#### enum `CameraChangeSource`
+
+| Value | Name | Meaning |
+|---|---|---|
+| 0 | `CAMERA_CHANGE_OTHER` | the game: a lock following a unit, a script, the replay camera, or the first frame of a connection |
+| 1 | `CAMERA_CHANGE_USER` | at least one user camera action since the previous frame |
+| 2 | `CAMERA_CHANGE_PIPE` | a pipe camera command or its transition, and no user action |
+
+#### enum `CameraFollowMode`
+
+| Value | Name | Meaning |
+|---|---|---|
+| 0 | `CAMERA_FOLLOW_NONE` |  |
+| 1 | `CAMERA_FOLLOW_FOLLOW` | the camera stays centered on the unit |
+| 2 | `CAMERA_FOLLOW_TETHER` | the camera trails the unit and lets it move around inside a slack area |
+
+#### enum `CameraFollowEnd`
+
+Why a pipe-created lock ended.
+
+| Value | Name | Meaning |
+|---|---|---|
+| 0 | `CAMERA_FOLLOW_END_NONE` |  |
+| 1 | `CAMERA_FOLLOW_END_OBJECT_GONE` | the unit was destroyed or removed |
+| 2 | `CAMERA_FOLLOW_END_USER` | the user moved the camera or locked on something else |
+| 3 | `CAMERA_FOLLOW_END_COMMAND` | a later pipe command (unfollow, a position, another unit) |
 
 #### `PlayerGrid`
 
@@ -965,6 +1043,7 @@ The first frame of every connection (sequence 0). Everything a reader needs to k
 | 3 | `RESPONSE_STATUS_RATE_LIMITED` | too many requests; nothing was done, retry later |
 | 4 | `RESPONSE_STATUS_UNAVAILABLE` | the data does not exist right now (no match running, no map loaded) |
 | 5 | `RESPONSE_STATUS_TOO_LARGE` | the result does not fit a frame; ask for a smaller page |
+| 6 | `RESPONSE_STATUS_NOT_ALLOWED` | the command is refused in this situation (an active player's camera, a live network game); the message says why |
 
 #### `PageRequest`
 
@@ -995,6 +1074,10 @@ Paging for the queries that can return many rows. The cursor is opaque to the re
 | 14 | `map` | MapQuery | one of `query`.  |
 | 15 | `resync` | ResyncQuery | one of `query`.  |
 | 16 | `feed_config` | FeedConfigQuery | one of `query`.  |
+| 17 | `camera_control` | CameraControlQuery | one of `query`.  |
+| 18 | `camera_follow` | CameraFollowQuery | one of `query`.  |
+| 19 | `replay_control` | ReplayControlQuery | one of `query`.  |
+| 20 | `observe` | ObserveQuery | one of `query`.  |
 
 #### `Response`
 
@@ -1010,6 +1093,10 @@ Paging for the queries that can return many rows. The cursor is opaque to the re
 | 14 | `map` | MapDetail | one of `result`.  |
 | 15 | `resync` | ResyncResult | one of `result`.  |
 | 16 | `feed_config` | FeedConfig | one of `result`.  |
+| 17 | `camera_control` | CameraState | one of `result`.  |
+| 18 | `camera_follow` | CameraState | one of `result`.  |
+| 19 | `replay_control` | ReplayState | one of `result`.  |
+| 20 | `observe` | ObserveState | one of `result`.  |
 
 #### `CatalogQuery`
 
@@ -1268,7 +1355,13 @@ Which frames this reader gets and how often. Defaults apply to every new connect
 | 7 | `supply` | bool | supply sources in full snapshots, default true |
 | 8 | `tech` | bool | map-level tech structures in full snapshots, default true |
 | 9 | `production` | bool | production queues in full snapshots, default true |
-| 10 | `grid_resolution` | uint32 | cells per side of a PlayerGrid: 8, 16, 32 or 64; default 32 |
+| 10 | `grid_resolution` | uint32 | cells per side of a PlayerGrid and of the InterestMap: 8, 16, 32 or 64; default 32 |
+| 11 | `view_stats_interval_ms` | uint32 | ViewStats cadence in wall-clock time, 0 = none; default 250, lowest 100 |
+| 12 | `interest` | bool | InterestMap frames; default false |
+| 13 | `interest_interval_ms` | uint32 | InterestMap cadence in wall-clock time; default 500, lowest 250; a new highlight sends one at once |
+| 14 | `notable_cost` | uint32 | ViewStats: units that cost at least this much are listed as notable (heroes always are); default 2000, 0 = heroes only |
+| 15 | `trade_window_ms` | uint32 | ViewStats: rolling window of value_killed and value_lost, in game time; default 15000, 1000..60000 |
+| 16 | `intensity_window_ms` | uint32 | ViewStats: rolling window of damage_per_second, in game time; default 5000, 1000..60000 |
 
 #### `FeedConfigQuery`
 
@@ -1277,3 +1370,186 @@ Every field that is set changes that setting; the rest stay as they are. The Res
 | # | Field | Type | Meaning |
 |---|---|---|---|
 | 1 | `reset` | bool | back to the defaults first, then apply the fields below |
+
+#### enum `CameraEasing`
+
+| Value | Name | Meaning |
+|---|---|---|
+| 0 | `CAMERA_EASING_NONE` | constant speed |
+| 1 | `CAMERA_EASING_EASE_IN_OUT` | slow start, slow end |
+
+#### `CameraControlQuery`
+
+Sets any subset of the camera values. Unset fields stay as they are. A position is x and y together (both or neither).
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `reset` | bool | first put angle, pitch and zoom back to the game's defaults (the position stays), like the reset camera key |
+| 7 | `duration_ms` | uint32 | 0 = at once; else a transition of this length in wall-clock time (up to 60000) |
+| 8 | `easing` | CameraEasing |  |
+| 9 | `cancel_transition` | bool | stop a running transition where it is, before anything else in this query |
+
+#### `CameraFollowQuery`
+
+Locks the camera on a unit, or releases it. A position in a CameraControlQuery also releases a lock.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `object_id` | uint32 | 0 = release the lock |
+| 2 | `mode` | CameraFollowMode | FOLLOW (default) or TETHER |
+| 3 | `tether_distance` | float | TETHER only, 0 < d <= 100: the game's own tether strength (the camera creeps toward the unit by 1% of this per frame inside the slack area) |
+| 4 | `snap` | bool | FOLLOW only: jump to the unit instead of gliding to it |
+
+#### `CameraState`
+
+The camera as the command left it (a transition not finished yet shows its start; read the Camera frames for the live values).
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `x` | float |  |
+| 2 | `y` | float |  |
+| 3 | `zoom` | float |  |
+| 4 | `angle` | float |  |
+| 5 | `pitch` | float |  |
+| 6 | `follow_mode` | CameraFollowMode |  |
+| 7 | `follow_object_id` | uint32 |  |
+| 8 | `transition_active` | bool |  |
+
+#### `ReplayControlQuery`
+
+Replay playback only. Pausing and speed never reach the simulation: the replay is deterministic whatever the pace.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+
+#### `ReplayState`
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `paused` | bool |  |
+| 2 | `speed_ratio` | float | the effective ratio of normal speed (StatsSnapshot.game_speed_ratio) |
+| 3 | `fast_forward` | bool |  |
+| 4 | `speed_capped` | bool | the requested ratio was higher than the frame rate limit allows |
+
+#### `ObserveQuery`
+
+The observer's point of view: whose units, shroud and radar the local view shows. Observers and replay playback only.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `player_index` | int32 | a player of the match; -1 = back to the all-seeing observer |
+
+#### `ObserveState`
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `player_index` | int32 | the player looked at, -1 for none |
+| 2 | `full_view` | bool | the view really switched to that player; false when the game only remembers the choice for its panels |
+
+#### `NotableUnit`
+
+A unit worth the director's attention: a hero, or one that costs at least FeedConfig.notable_cost.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `object_id` | uint32 |  |
+| 2 | `template_name` | string |  |
+| 3 | `health` | float | 0..1 |
+| 4 | `veterancy` | int32 | 0 regular .. 3 heroic |
+| 5 | `cost` | uint32 |  |
+| 6 | `is_hero` | bool |  |
+| 7 | `addon` | string | template of the portable structure it carries (Overlord and Helix gattling cannon, propaganda tower, bunker), empty when none |
+| 8 | `x` | float |  |
+| 9 | `y` | float |  |
+
+#### `ViewSuperweapon`
+
+A superweapon structure inside the view.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `object_id` | uint32 |  |
+| 2 | `template_name` | string |  |
+| 3 | `power_name` | string |  |
+| 4 | `ready_frame` | uint32 | absolute logic frame |
+| 5 | `percent_ready` | float | 0..1 |
+| 6 | `state` | SuperweaponState |  |
+| 7 | `x` | float |  |
+| 8 | `y` | float |  |
+
+#### `PlayerViewStats`
+
+One player's share of the local view. Objects count when their position is inside the four ground corners of the camera (Camera.view_*); effectively dead objects and projectiles do not count. Structures under construction count.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `player_index` | int32 |  |
+| 2 | `value_in_view` | uint32 | sum of build costs |
+| 3 | `effective_value` | uint32 | the same weighted by each object's health fraction |
+| 4 | `value_by_class` | CategoryValue |  |
+| 5 | `count_by_class` | CategoryCounts |  |
+| 6 | `veteran` | uint32 | objects in view per veterancy level |
+| 7 | `elite` | uint32 |  |
+| 8 | `heroic` | uint32 |  |
+| 9 | `notable` | repeated NotableUnit | capped, most expensive first |
+| 10 | `superweapons` | repeated ViewSuperweapon |  |
+| 11 | `value_killed` | uint32 | build cost of enemy objects this player destroyed |
+| 12 | `value_lost` | uint32 | build cost of this player's objects lost |
+| 13 | `damage_per_second` | float | health points of damage this player dealt, per second |
+
+#### `ViewStats`
+
+What the local camera sees. When no view is available (has_view false) the in-view numbers are zero and only the rolling windows carry data.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `frame` | uint32 |  |
+| 2 | `has_view` | bool |  |
+| 3 | `players` | repeated PlayerViewStats | one per exported player, as in StatsSnapshot |
+| 4 | `trade_window_ms` | uint32 | the windows the rolling numbers cover |
+| 5 | `intensity_window_ms` | uint32 |  |
+
+#### enum `HighlightKind`
+
+| Value | Name | Meaning |
+|---|---|---|
+| 0 | `HIGHLIGHT_SUPERWEAPON_LAUNCH` | a superweapon was fired; the target and, where the game tells it, the impact time are known |
+| 1 | `HIGHLIGHT_HERO_DEATH` |  |
+| 2 | `HIGHLIGHT_STRUCTURE_LOST` | a structure that cost at least 1000 was lost |
+
+#### `InterestHighlight`
+
+Something about to happen or just happened that a camera director may want to be at. Listed in every InterestMap from its creation until expire_frame; id is unique in the match, so a reader tells new ones from known ones by id.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `id` | uint32 |  |
+| 2 | `kind` | HighlightKind |  |
+| 3 | `player_index` | int32 | the owner: of the superweapon, of the hero or structure lost |
+| 4 | `template_name` | string | the superweapon structure, the hero or the structure |
+| 5 | `power_name` | string | superweapon launches |
+| 6 | `x` | float | where it happens: the target, or where the unit was |
+| 7 | `y` | float |  |
+| 8 | `start_frame` | uint32 | when it was created |
+| 9 | `impact_frame` | uint32 | absolute logic frame of the impact, 0 when not known |
+| 10 | `impact_estimated` | bool | impact_frame is a model, not a countdown the game keeps |
+| 11 | `expire_frame` | uint32 |  |
+| 12 | `value` | uint32 | build cost of what was lost |
+| 13 | `object_id` | uint32 |  |
+
+#### `InterestMap`
+
+Where the action is: a grid over the playable extent (MatchInfo world_*), row-major from the min corner, like PlayerGrid. A cell's score is the decayed sum of damage dealt in it (1 per health point) and value destroyed in it (0.5 per cost unit), plus the armies of opposing players standing close together there (0.05 per cost unit of the weaker side, structures at half). Scores are in game units, comparable within a match; 0 = nothing happening.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `frame` | uint32 |  |
+| 2 | `width` | uint32 | FeedConfig.grid_resolution |
+| 3 | `height` | uint32 |  |
+| 4 | `cell_width` | float |  |
+| 5 | `cell_height` | float |  |
+| 6 | `origin_x` | float | world position of the lower corner of cell (0, 0) |
+| 7 | `origin_y` | float |  |
+| 8 | `scores` | repeated uint32 | width * height |
+| 9 | `highlights` | repeated InterestHighlight |  |
+| 10 | `half_life_ms` | uint32 | the decay of the event part of the score, in game time |

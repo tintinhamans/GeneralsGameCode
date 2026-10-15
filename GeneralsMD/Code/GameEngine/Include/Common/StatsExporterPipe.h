@@ -45,6 +45,8 @@ enum StatsExporterFrameType
 	STATS_EXPORTER_FRAME_CAMERA         = 0x08,
 	STATS_EXPORTER_FRAME_HELLO          = 0x09,
 	STATS_EXPORTER_FRAME_RESPONSE       = 0x0A,
+	STATS_EXPORTER_FRAME_VIEW_STATS     = 0x0B,
+	STATS_EXPORTER_FRAME_INTEREST_MAP   = 0x0C,
 };
 
 /// Inbound frame types.
@@ -107,6 +109,12 @@ struct StatsExporterFeedConfig
 	Bool tech;
 	Bool production;
 	UnsignedInt gridResolution;		///< 8, 16, 32 or 64 cells per side
+	UnsignedInt viewStatsIntervalMs;	///< ViewStats cadence in wall-clock time, 0 = none
+	Bool interest;					///< InterestMap frames
+	UnsignedInt interestIntervalMs;	///< InterestMap cadence in wall-clock time
+	UnsignedInt notableCost;		///< ViewStats: units at least this expensive are listed (heroes always), 0 = heroes only
+	UnsignedInt tradeWindowMs;		///< ViewStats: rolling window of killed and lost value, game time
+	UnsignedInt intensityWindowMs;	///< ViewStats: rolling window of damage per second, game time
 
 	StatsExporterFeedConfig() { setDefaults(); }
 
@@ -122,6 +130,12 @@ struct StatsExporterFeedConfig
 		tech = TRUE;
 		production = TRUE;
 		gridResolution = 32;
+		viewStatsIntervalMs = 250;
+		interest = FALSE;
+		interestIntervalMs = 500;
+		notableCost = 2000;
+		tradeWindowMs = 15000;
+		intensityWindowMs = 5000;
 	}
 
 	/// The part of the config that decides what a full snapshot contains; readers with the same signature share one build.
