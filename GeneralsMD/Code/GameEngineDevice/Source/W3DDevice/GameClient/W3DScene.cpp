@@ -807,7 +807,17 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 
 			if (m_customPassMode == SCENE_PASS_DEFAULT)
 			{
-				if (ss <= OBJECTSHROUD_CLEAR)
+				Bool shroudFading = FALSE;
+				if (ss <= OBJECTSHROUD_CLEAR && m_shroudMaterialPass && TheGlobalData->m_shroudInterpolation && TheTerrainRenderObject)
+				{
+					const W3DShroud *shroud = TheTerrainRenderObject->getShroud();
+					if (shroud)
+					{
+						shroudFading = shroud->isFadingAt(sph.Center.X, sph.Center.Y, sph.Radius);
+					}
+				}
+
+				if (ss <= OBJECTSHROUD_CLEAR && !shroudFading)
 				{
 					robj->Render(rinfo);
 				}
