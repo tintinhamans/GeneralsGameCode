@@ -8,6 +8,7 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "Common/RandomValue.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
+#include "GameNetwork/GenOnline/WifiLowLatency.h"
 #include "GameNetwork/NetworkInterface.h"
 #include "GameNetwork/GenOnline/GenOnlineTransport.h"
 #include "Common/GlobalData.h"
@@ -436,6 +437,12 @@ void GenOnlineGame::launchGame(void)
 	// Time to initialize TheNetwork for this game.
 	TheNetwork = NetworkInterface::createNetwork();
 	TheNetwork->init();
+
+	// Wi-Fi tuning for the match, released when TheNetwork is destroyed
+	if (GenOnlineServicesManager::GetInstance() != nullptr && GenOnlineServicesManager::GetInstance()->GetServiceConfig().connection.wifi_low_latency)
+	{
+		WifiLowLatency::Begin();
+	}
 	
 	TheNetwork->requireMatchKeys();
 	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
