@@ -53,6 +53,9 @@
 #include "GameClient/MessageBox.h"
 #include "../GenOnlineInclude.h"
 #include "../GenOnlineInterfaces.h"
+#if defined(GENONLINE)
+#include "GameNetwork/GenOnline/WifiLowLatency.h"
+#endif
 
 
 #if defined(DEBUG_CRC) && !RETAIL_COMPATIBLE_NETWORKING
@@ -337,6 +340,10 @@ Network::Network()
 Network::~Network()
 {
 	deinit();
+#if defined(GENONLINE)
+	// the match is over, release the Wi-Fi tuning
+	WifiLowLatency::End();
+#endif
 }
 
 /**
