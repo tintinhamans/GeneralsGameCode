@@ -224,6 +224,8 @@ public:
 	}
 
 private:
+	CURLcode ReceiveOneFrame();
+
 	CURL* m_pCurlWS = nullptr;
     CURLM* m_pMulti = nullptr;
 	struct curl_slist* m_pHeaders = nullptr;
@@ -259,7 +261,19 @@ private:
 
 	// Outbound messages queued for Tick() to flush.
 	std::mutex m_outboundQueueMutex;
-	std::vector<std::string> m_vecQueuedOutboungMsgs;
+	struct OutboundMessage
+	{
+		std::string payload;
+		bool heartbeat;
+	};
+	std::vector<OutboundMessage> m_vecQueuedOutboungMsgs;
+	size_t m_queuedOutboundBytes = 0;
+	size_t m_outboundOffset = 0;
+	bool m_heartbeatQueued = false;
+	bool m_acceptOutbound = true;
+	void QueueOutbound(std::string payload, bool heartbeat);
+	void ClearOutbound();
+	CURLcode FlushOutbound();
 
 	std::mutex m_pendingSignalsMutex;
 	std::queue<std::vector<uint8_t>> m_pendingSignals;
