@@ -12,10 +12,10 @@
 
 class HTTPManager;
 
-// one clock for every websocket timestamp; utc_clock also loads the time zone database on MSVC
+// steady clock, so deadlines do not move with system clock changes
 inline int64_t NowMs()
 {
-	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
 class GenOnlineAuthInterface;
@@ -232,6 +232,8 @@ public:
 	}
 
 private:
+	CURLcode ReceiveOneFrame();
+
 	CURL* m_pCurlWS = nullptr;
     CURLM* m_pMulti = nullptr;
 	struct curl_slist* m_pHeaders = nullptr;
@@ -267,7 +269,19 @@ private:
 
 	// Outbound messages queued for Tick() to flush.
 	std::mutex m_outboundQueueMutex;
-	std::vector<std::string> m_vecQueuedOutboungMsgs;
+	struct OutboundMessage
+	{
+		std::string payload;
+		bool heartbeat;
+	};
+	std::vector<OutboundMessage> m_vecQueuedOutboungMsgs;
+	size_t m_queuedOutboundBytes = 0;
+	size_t m_outboundOffset = 0;
+	bool m_heartbeatQueued = false;
+	bool m_acceptOutbound = true;
+	void QueueOutbound(std::string payload, bool heartbeat);
+	void ClearOutbound();
+	CURLcode FlushOutbound();
 
 	std::mutex m_pendingSignalsMutex;
 	std::queue<std::vector<uint8_t>> m_pendingSignals;
