@@ -76,6 +76,7 @@ private:
 	bool m_handleAdded = false;
 	std::shared_ptr<ServiceConnection::ProxyResolution> m_proxyResolution;
 	ServiceConnection::ResolvedProxyPolicy m_proxyPolicy;
+	std::string m_setupFailurePhase;
 	size_t m_proxyRoute = 0;
 	std::chrono::steady_clock::time_point m_setupStarted;
 

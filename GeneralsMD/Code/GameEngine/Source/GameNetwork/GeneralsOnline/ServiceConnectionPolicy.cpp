@@ -256,6 +256,8 @@ ResolvedProxyPolicy AutoProxy(const std::wstring& destination, WINHTTP_AUTOPROXY
 	HINTERNET session = WinHttpOpen(L"GeneralsOnline", WINHTTP_ACCESS_TYPE_NO_PROXY, nullptr, nullptr, WINHTTP_FLAG_ASYNC);
 	if (!session)
 	{
+		result.nativeError = GetLastError();
+		result.failurePhase = "proxy-discovery";
 		result.error = "Unable to initialize Windows proxy resolution.";
 		return result;
 	}
@@ -330,12 +332,43 @@ ResolvedProxyPolicy AutoProxy(const std::wstring& destination, WINHTTP_AUTOPROXY
 	WinHttpCloseHandle(session);
 	// the callback owns the second reference, so a late or missed callback never frees a live context
 	context->Release();
+	result.nativeError = status;
 	if (status)
 		result.error = "Windows proxy resolution failed (" + std::to_string(status) + "). Check system proxy settings.";
 	if (result.routes.empty() && result.error.empty())
 		result.error = "Windows returned no permitted proxy route.";
 	if (!result.error.empty())
+	{
 		result.routes.clear();
+		result.failurePhase = status == ERROR_TIMEOUT || status == ERROR_WINHTTP_TIMEOUT ? "proxy-timeout" :
+			(options.dwFlags & WINHTTP_AUTOPROXY_CONFIG_URL) ? "proxy-pac" : "proxy-discovery";
+	}
+	return result;
+}
+
+ResolvedProxyPolicy ApplyOptionalWpadFallback(ResolvedProxyPolicy result, bool autoDetect, bool explicitPac,
+	const std::wstring& proxy, const std::wstring& bypass, const std::string& destination)
+{
+	// No discovered WPAD script is different from failing to load or execute a configured script.
+	if (!autoDetect || explicitPac || result.nativeError != ERROR_WINHTTP_AUTODETECTION_FAILED || result.error.empty())
+		return result;
+	result.routes.clear();
+	result.error.clear();
+	result.failurePhase.clear();
+	if (!proxy.empty())
+	{
+		if (!StaticProxy(proxy, bypass, destination, result))
+		{
+			result.failurePhase = "proxy-configuration";
+			return result;
+		}
+		result.fallbackReason = "No WPAD configuration found; using the system static proxy policy.";
+	}
+	else
+	{
+		result.routes.push_back({});
+		result.fallbackReason = "No WPAD configuration or static proxy found; using direct access.";
+	}
 	return result;
 }
 }
@@ -355,11 +388,14 @@ ResolvedProxyPolicy ResolveProxyPolicy(const ServiceConnectionSettings& settings
 		std::string canonical;
 		if (CanonicalProxy(settings.proxyURL, canonical, result.error))
 			result.routes.push_back({canonical, false, settings.integratedProxyAuth && canonical.find("socks5h://") != 0});
+		else
+			result.failurePhase = "proxy-configuration";
 		return result;
 	}
 	if (settings.proxyMode != "system")
 	{
 		result.error = "Unknown proxy mode.";
+		result.failurePhase = "proxy-configuration";
 		return result;
 	}
 	std::string destination = destinationURL;
@@ -370,7 +406,9 @@ ResolvedProxyPolicy ResolveProxyPolicy(const ServiceConnectionSettings& settings
 	WINHTTP_CURRENT_USER_IE_PROXY_CONFIG config{};
 	if (!WinHttpGetIEProxyConfigForCurrentUser(&config))
 	{
-		result.error = "Unable to read Windows proxy settings (" + std::to_string(GetLastError()) + ").";
+		result.nativeError = GetLastError();
+		result.failurePhase = "proxy-settings";
+		result.error = "Unable to read Windows proxy settings (" + std::to_string(result.nativeError) + ").";
 		return result;
 	}
 	const std::wstring proxy = config.lpszProxy ? config.lpszProxy : L"";
@@ -392,10 +430,14 @@ ResolvedProxyPolicy ResolveProxyPolicy(const ServiceConnectionSettings& settings
 			options.dwAutoDetectFlags = WINHTTP_AUTO_DETECT_TYPE_DHCP | WINHTTP_AUTO_DETECT_TYPE_DNS_A;
 		}
 		options.fAutoLogonIfChallenged = FALSE;
-		return AutoProxy(Wide(destination), options);
+		return ApplyOptionalWpadFallback(AutoProxy(Wide(destination), options), autoDetect, !pac.empty(),
+			proxy, bypass, destination);
 	}
 	if (!proxy.empty())
-		StaticProxy(proxy, bypass, destination, result);
+	{
+		if (!StaticProxy(proxy, bypass, destination, result))
+			result.failurePhase = "proxy-configuration";
+	}
 	else
 		result.routes.push_back({});
 	return result;

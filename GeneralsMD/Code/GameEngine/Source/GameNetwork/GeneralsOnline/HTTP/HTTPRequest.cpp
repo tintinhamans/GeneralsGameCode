@@ -88,6 +88,7 @@ void HTTPRequest::PollConnectionSetup()
 	if (std::chrono::steady_clock::now() - m_setupStarted >= std::chrono::milliseconds(m_timeoutMS))
 	{
 		m_proxyResolution.reset();
+		m_setupFailurePhase = "proxy-timeout";
 		Threaded_SetComplete(CURLE_OPERATION_TIMEDOUT);
 		return;
 	}
@@ -97,10 +98,15 @@ void HTTPRequest::PollConnectionSetup()
 	m_proxyResolution.reset();
 	if (!m_proxyPolicy.error.empty() || m_proxyPolicy.routes.empty())
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Proxy policy: %s", m_proxyPolicy.error.c_str());
-		Threaded_SetComplete(CURLE_COULDNT_RESOLVE_PROXY);
+		m_setupFailurePhase = m_proxyPolicy.failurePhase.empty() ? "proxy-policy" : m_proxyPolicy.failurePhase;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Proxy policy failed: phase=%s native_code=%lu detail=%s",
+			m_setupFailurePhase.c_str(), m_proxyPolicy.nativeError, m_proxyPolicy.error.c_str());
+		Threaded_SetComplete(CURLE_FAILED_INIT);
 		return;
 	}
+	if (!m_proxyPolicy.fallbackReason.empty())
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Proxy policy fallback: native_code=%lu detail=%s",
+			m_proxyPolicy.nativeError, m_proxyPolicy.fallbackReason.c_str());
 	PlatformStartRequest();
 }
 
@@ -234,9 +240,13 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 
 	long protocol = 0;
 	curl_easy_getinfo(m_pCURL, CURLINFO_HTTP_VERSION, &protocol);
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Completed: phase=%s curl=%d status=%ld proxy_status=%ld protocol=%s bytes=%zu",
-		ServiceConnection::FailurePhase(result, m_responseCode, proxyStatus), result, m_responseCode, proxyStatus,
-		ServiceConnection::ProtocolName(protocol), m_currentBufSize_Used);
+	if (!m_setupFailurePhase.empty())
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Completed: source=proxy-policy phase=%s curl=not-started native_code=%lu",
+			m_setupFailurePhase.c_str(), m_proxyPolicy.nativeError);
+	else
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Completed: phase=%s curl=%d status=%ld proxy_status=%ld protocol=%s bytes=%zu",
+			ServiceConnection::FailurePhase(result, m_responseCode, proxyStatus), result, m_responseCode, proxyStatus,
+			ServiceConnection::ProtocolName(protocol), m_currentBufSize_Used);
 	if (NGMP_OnlineServicesManager::Settings.Debug_VerboseLogging())
 	{
 		const std::string strResponse(reinterpret_cast<const char*>(m_vecBuffer.data()), m_currentBufSize_Used);

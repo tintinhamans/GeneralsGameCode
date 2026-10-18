@@ -205,7 +205,7 @@ void WebSocket::PollConnectionSetup()
 		return;
 	if (NowMs() - m_proxySetupStarted >= m_reconnectAttemptTimeout)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy resolution timed out");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy policy failed: phase=proxy-timeout native_code=0");
 		FailConnectionSetup();
 		return;
 	}
@@ -215,10 +215,15 @@ void WebSocket::PollConnectionSetup()
 	m_proxyResolution.reset();
 	if (!m_proxyPolicy.error.empty() || m_proxyPolicy.routes.empty())
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy policy: %s", m_proxyPolicy.error.c_str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy policy failed: phase=%s native_code=%lu detail=%s",
+			m_proxyPolicy.failurePhase.empty() ? "proxy-policy" : m_proxyPolicy.failurePhase.c_str(),
+			m_proxyPolicy.nativeError, m_proxyPolicy.error.c_str());
 		FailConnectionSetup();
 		return;
 	}
+	if (!m_proxyPolicy.fallbackReason.empty())
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy policy fallback: native_code=%lu detail=%s",
+			m_proxyPolicy.nativeError, m_proxyPolicy.fallbackReason.c_str());
 	StartResolvedConnection();
 }
 

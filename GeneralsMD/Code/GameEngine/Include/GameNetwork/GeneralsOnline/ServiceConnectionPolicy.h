@@ -20,6 +20,9 @@ struct ResolvedProxyPolicy
 {
 	std::vector<ProxyRoute> routes;
 	std::string error;
+	unsigned long nativeError = 0;
+	std::string failurePhase;
+	std::string fallbackReason;
 };
 
 struct ProxyResolution
@@ -29,7 +32,7 @@ struct ProxyResolution
 };
 std::shared_ptr<ProxyResolution> StartProxyResolution(ServiceConnectionSettings settings, std::string destinationURL);
 
-// Worker-only: PAC/WPAD resolution can take up to five seconds. Errors never imply direct access.
+// Worker-only: PAC/WPAD resolution can take up to five seconds. Only absent optional WPAD permits system fallback.
 ResolvedProxyPolicy ResolveProxyPolicy(const ServiceConnectionSettings& settings, const std::string& destinationURL);
 bool ValidateProxyURL(const std::string& proxyURL, std::string& error);
 // Configures policy only. The caller owns URL, transfer deadlines and ordered route retries.
