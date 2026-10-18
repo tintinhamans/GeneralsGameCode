@@ -9,10 +9,10 @@
 #include "../HTTP/HTTPManager.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 
-// one clock for every websocket timestamp; utc_clock also loads the time zone database on MSVC
+// steady clock, so deadlines do not move with system clock changes
 static int64_t NowMs()
 {
-	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
 // -----------------------------
@@ -138,19 +138,17 @@ WebSocket::~WebSocket()
 
 int WebSocket::Ping()
 {
-	size_t sent;
-	CURLcode result = curl_ws_send(m_pCurlWS, "wsping", strlen("wsping"), &sent, 0,
-		CURLWS_PING);
+	if (!m_bConnected)
+	{
+		return CURLE_AGAIN;
+	}
 
+	// keep the app heartbeat for older services, no raw PING, at most one queued under backpressure
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::PING;
-	std::string strBody = j.dump();
-
-	Send(strBody.c_str());
-
-	return (int)result;
+	QueueOutbound(j.dump(), true);
+	return CURLE_OK;
 }
-
 
 void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback)
 {
@@ -275,33 +273,22 @@ void WebSocket::SendData_JoinNetworkRoom(int roomID, uint64_t requestID)
 
 void WebSocket::Disconnect()
 {
+	EndReconnect();
 	if (!m_bConnected)
 	{
+		ClearOutbound();
 		return;
 	}
 
 	if (m_pCurlWS != nullptr)
 	{
-		// best-effort flush of anything queued since the last Tick() before closing
-		std::vector<std::string> outboundBatch;
+		// best effort, never insert CLOSE into a partially sent frame
+		const CURLcode result = FlushOutbound();
+		if (result == CURLE_OK)
 		{
-			std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
-			outboundBatch.swap(m_vecQueuedOutboungMsgs);
+			size_t sent = 0;
+			(void)curl_ws_send(m_pCurlWS, "", 0, &sent, 0, CURLWS_CLOSE);
 		}
-
-		for (std::string& strPayload : outboundBatch)
-		{
-			size_t sentPayload;
-			CURLcode sendResult = curl_ws_send(m_pCurlWS, strPayload.c_str(), strPayload.length(), &sentPayload, 0, CURLWS_BINARY);
-			if (sendResult != CURLE_OK)
-			{
-				NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Disconnect: failed to flush queued message: %s", curl_easy_strerror(sendResult));
-			}
-		}
-
-		// send close
-		size_t sent;
-		(void)curl_ws_send(m_pCurlWS, "", 0, &sent, 0, CURLWS_CLOSE);
 
 		// release headers
 		if (m_pHeaders != nullptr)
@@ -323,23 +310,104 @@ void WebSocket::Disconnect()
 		m_pCurlWS = nullptr;
 	}
 
+	ClearOutbound();
 	m_vecWSPartialBuffer.clear();
 	m_bConnected = false;
 }
 
 void WebSocket::Send(const char* send_payload)
 {
-	// Thread-safe; always queues. Tick() flushes on the main thread.
-	std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
+	QueueOutbound(std::string(send_payload), false);
+}
 
-	static constexpr size_t kMaxQueuedOutboundMsgs = 256;
-	if (m_vecQueuedOutboungMsgs.size() >= kMaxQueuedOutboundMsgs)
+void WebSocket::QueueOutbound(std::string payload, bool heartbeat)
+{
+	std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
+	if (m_bShuttingDown || !m_acceptOutbound)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Outbound queue full (%zu), discarding oldest message", m_vecQueuedOutboungMsgs.size());
-		m_vecQueuedOutboungMsgs.erase(m_vecQueuedOutboungMsgs.begin());
+		if (!heartbeat && !m_bShuttingDown)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Rejecting message while disconnected; actions are not replayed after reconnect");
+		}
+		return;
+	}
+	if (heartbeat && m_heartbeatQueued)
+	{
+		return;
 	}
 
-	m_vecQueuedOutboungMsgs.push_back(std::string(send_payload));
+	static constexpr size_t kMaxQueuedOutboundMsgs = 256;
+	static constexpr size_t kMaxQueuedOutboundBytes = 2 * 1024 * 1024;
+	if (m_vecQueuedOutboungMsgs.size() >= kMaxQueuedOutboundMsgs ||
+		payload.size() > kMaxQueuedOutboundBytes - m_queuedOutboundBytes)
+	{
+		// the front may be partially transmitted, do not evict it
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Outbound queue full (%zu messages, %zu bytes), rejecting new message", m_vecQueuedOutboungMsgs.size(), m_queuedOutboundBytes);
+		return;
+	}
+
+	m_queuedOutboundBytes += payload.size();
+	m_vecQueuedOutboungMsgs.push_back({ std::move(payload), heartbeat });
+	m_heartbeatQueued |= heartbeat;
+}
+
+void WebSocket::ClearOutbound()
+{
+	std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
+	// delivery is ambiguous after a socket failure, so old actions are not replayed on a new socket
+	if (!m_vecQueuedOutboungMsgs.empty())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Discarding %zu messages from closed connection (%zu bytes, %zu bytes consumed from current message)", m_vecQueuedOutboungMsgs.size(), m_queuedOutboundBytes, m_outboundOffset);
+	}
+	m_vecQueuedOutboungMsgs.clear();
+	m_queuedOutboundBytes = 0;
+	m_outboundOffset = 0;
+	m_heartbeatQueued = false;
+	m_acceptOutbound = false;
+}
+
+CURLcode WebSocket::FlushOutbound()
+{
+	// bounded work on the game thread, each call passes the remaining payload of the same frame (curl_ws_send partial writes)
+	size_t bytesSent = 0;
+	for (int attempt = 0; attempt < 16; ++attempt)
+	{
+		std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
+		if (m_vecQueuedOutboungMsgs.empty())
+		{
+			return CURLE_OK;
+		}
+		const OutboundMessage& message = m_vecQueuedOutboungMsgs.front();
+		size_t sent = 0;
+		const size_t remaining = message.payload.size() - m_outboundOffset;
+		CURLcode result = curl_ws_send(m_pCurlWS, message.payload.data() + m_outboundOffset,
+			remaining, &sent, 0, CURLWS_BINARY);
+		if (sent > remaining)
+		{
+			return CURLE_SEND_ERROR;
+		}
+		m_outboundOffset += sent;
+		bytesSent += sent;
+		if (result != CURLE_OK && result != CURLE_AGAIN)
+		{
+			return result;
+		}
+		if (m_outboundOffset == message.payload.size())
+		{
+			m_queuedOutboundBytes -= message.payload.size();
+			if (message.heartbeat)
+			{
+				m_heartbeatQueued = false;
+			}
+			m_vecQueuedOutboungMsgs.erase(m_vecQueuedOutboungMsgs.begin());
+			m_outboundOffset = 0;
+		}
+		if (result == CURLE_AGAIN || sent == 0 || bytesSent >= 256 * 1024)
+		{
+			return CURLE_AGAIN;
+		}
+	}
+	return CURLE_AGAIN;
 }
 
 class WebSocketMessageBase
@@ -589,6 +657,7 @@ void WebSocket::BeginReconnect()
 		return;
 	}
 
+	ClearOutbound();
 	m_bReconnecting = true;
 	m_numReconnectAttempts = 0;
 	m_bFreshSession = false;
@@ -748,6 +817,10 @@ void WebSocket::UpdateReconnect()
 
 void WebSocket::Tick()
 {
+	if (m_bShuttingDown || m_pMulti == nullptr)
+	{
+		return;
+	}
 	// Main thread only; m_pCurlWS/m_vecWSPartialBuffer/m_bConnected are unlocked here.
 	UpdateReconnect();
 
@@ -781,13 +854,7 @@ void WebSocket::Tick()
 	pWS->SendData_Signalling(strSignal);
 	*/
 
-	// ping?
 	int64_t currTime = NowMs();
-	if ((currTime - m_lastPing) > m_timeBetweenUserPings)
-	{
-		m_lastPing = currTime;
-		Ping();
-	};
 
     int numReqs = 0;
     curl_multi_perform(m_pMulti, &numReqs);
@@ -853,6 +920,10 @@ void WebSocket::Tick()
 
                         /* connected and ready */
                         m_bConnected = true;
+                        {
+                            std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
+                            m_acceptOutbound = true;
+                        }
                         m_vecWSPartialBuffer.clear();
 
                         EndReconnect();
@@ -875,22 +946,20 @@ void WebSocket::Tick()
         return;
     }
 
-	// send anything we have queued (things sent while not connected, or from any other thread)
-	std::vector<std::string> outboundBatch;
+	if ((currTime - m_lastPing) > m_timeBetweenUserPings)
 	{
-		std::scoped_lock<std::mutex> lock(m_outboundQueueMutex);
-		outboundBatch.swap(m_vecQueuedOutboungMsgs);
+		m_lastPing = currTime;
+		Ping();
 	}
 
-	for (std::string& strPayload : outboundBatch)
+	const CURLcode sendResult = FlushOutbound();
+	if (sendResult != CURLE_OK && sendResult != CURLE_AGAIN)
 	{
-        size_t sent;
-        CURLcode result = curl_ws_send(m_pCurlWS, strPayload.c_str(), strPayload.length(), &sent, 0, CURLWS_BINARY);
-
-        if (result != CURLE_OK)
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "curl_ws_send() failed: %s\n", curl_easy_strerror(result));
-        }
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Send failed: %s, attempting reconnect", curl_easy_strerror(sendResult));
+		m_bConnected = false;
+		m_vecWSPartialBuffer.clear();
+		BeginReconnect();
+		return;
 	}
 
 	// drain what the server queued, a signalling burst shouldn't take one frame per tick
@@ -906,7 +975,7 @@ void WebSocket::Tick()
 	}
 
 	// time since last pong?
-	if (m_lastPong != -1 && (currTime - m_lastPong) >= m_timeForWSTimeout)
+	if (m_bConnected && m_lastPong != -1 && (currTime - m_lastPong) >= m_timeForWSTimeout)
 	{
         // send event to sentry
 #if defined(GENERALS_ONLINE_USE_SENTRY)
@@ -933,17 +1002,16 @@ CURLcode WebSocket::ReceiveOneFrame()
 	const struct curl_ws_frame* meta = nullptr;
 	char bufferThisRecv[8196 * 4] = { 0 };
 
-	CURLcode ret = CURL_LAST;
-	ret = curl_ws_recv(m_pCurlWS, bufferThisRecv, sizeof(bufferThisRecv), &rlen, &meta);
+	CURLcode ret = curl_ws_recv(m_pCurlWS, bufferThisRecv, sizeof(bufferThisRecv) - 1, &rlen, &meta);
 
 	// SECURITY FIX: Validate rlen is within buffer bounds
-	if (rlen > sizeof(bufferThisRecv))
+	if (rlen >= sizeof(bufferThisRecv))
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Received data size %zu exceeds buffer size %zu, discarding", rlen, sizeof(bufferThisRecv));
 		return CURL_LAST;
 	}
 
-	if (ret != CURLE_RECV_ERROR && ret != CURL_LAST && ret != CURLE_AGAIN && ret != CURLE_GOT_NOTHING)
+	if (ret == CURLE_OK)
 	{
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket msg: %s", bufferThisRecv);
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket len: %d", rlen);
@@ -1830,7 +1898,7 @@ CURLcode WebSocket::ReceiveOneFrame()
 			NetworkLog(ELogVerbosity::LOG_DEBUG, "websocket meta was null");
 		}
 	}
-	else if (ret == CURLE_RECV_ERROR)
+	else if (ret != CURLE_AGAIN)
 	{
 
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "Got websocket disconnect (ERROR: %s), Attempting reconnect", curl_easy_strerror(ret));
