@@ -3406,10 +3406,7 @@ void Player::friend_applyDifficultyBonusesForObject(Object* obj, Bool apply) con
 		if (healthFactor != 1.0f)
 		{
 			BodyModuleInterface* body = obj->getBodyModule();
-			if (apply)
-				body->setMaxHealth(body->getMaxHealth() * healthFactor, PRESERVE_RATIO);
-			else
-				body->setMaxHealth(body->getMaxHealth() / healthFactor, PRESERVE_RATIO);
+			body->scaleMaxHealth(healthFactor, apply, PRESERVE_RATIO);
 		}
 		static const WeaponBonusConditionType wbonus[PLAYERTYPE_COUNT][DIFFICULTY_COUNT] =
 		{

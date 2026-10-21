@@ -753,7 +753,7 @@ void BattlePlanUpdate::setBattlePlan( BattlePlanStatus plan )
 				if( data->m_strategyCenterHoldTheLineMaxHealthScalar != 1.0f )
 				{
 					BodyModuleInterface *body = obj->getBodyModule();
-					body->setMaxHealth( body->getMaxHealth() * 1.0f / data->m_strategyCenterHoldTheLineMaxHealthScalar, data->m_strategyCenterHoldTheLineMaxHealthChangeType );
+					body->scaleMaxHealth( data->m_strategyCenterHoldTheLineMaxHealthScalar, FALSE, data->m_strategyCenterHoldTheLineMaxHealthChangeType );
 				}
 				break;
 			}
@@ -812,7 +812,7 @@ void BattlePlanUpdate::setBattlePlan( BattlePlanStatus plan )
 				if( data->m_strategyCenterHoldTheLineMaxHealthScalar )
 				{
 					BodyModuleInterface *body = obj->getBodyModule();
-					body->setMaxHealth( body->getMaxHealth() * data->m_strategyCenterHoldTheLineMaxHealthScalar, data->m_strategyCenterHoldTheLineMaxHealthChangeType );
+					body->scaleMaxHealth( data->m_strategyCenterHoldTheLineMaxHealthScalar, TRUE, data->m_strategyCenterHoldTheLineMaxHealthChangeType );
 				}
 
 				//Set the hold-the-line bonuses

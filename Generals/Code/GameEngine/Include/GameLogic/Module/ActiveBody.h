@@ -90,7 +90,9 @@ public:
 	virtual void clearArmorSetFlag(ArmorSetType ast) override { m_curArmorSetFlags.set(ast, 0); }
 
 	virtual void setInitialHealth(Int initialPercent) override; ///< Sets the initial load health %.
-	virtual void setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override; ///< Sets the initial max health
+	virtual void setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override; ///< Sets the max health before upgrades and scalars
+	virtual void addMaxHealth( Real addMaxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override; ///< Adds to the max health
+	virtual void scaleMaxHealth( Real scalar, Bool apply, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override; ///< Applies or removes a max health scalar
 
 	virtual Bool getFrontCrushed() const override { return m_frontCrushed; }
 	virtual Bool getBackCrushed() const override { return m_backCrushed; }
@@ -119,6 +121,8 @@ protected:
 															Int maxSystems );
 	void deleteAllParticleSystems();
 	void setCorrectDamageState();
+	void applyMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType );
+	void updateMaxHealth( MaxHealthChangeType healthChangeType );
 
 private:
 
@@ -126,6 +130,10 @@ private:
 	Real									m_prevHealth;						///< previous health value before current health change op
   Real									m_maxHealth;						///< max health this object can have
   Real									m_initialHealth;				///< starting health for this object
+	Real									m_baseMaxHealth;				///< max health before upgrades and scalars
+	Real									m_addedMaxHealth;				///< max health added by upgrades
+	Real									m_maxHealthScalar;			///< applied max health scalars, veterancy excluded
+	Bool									m_rebuildMaxHealthInputs;	///< loaded from a save without the inputs, not saved
 
 	BodyDamageType				m_curDamageState;				///< last known damage state
 	UnsignedInt						m_nextDamageFXTime;

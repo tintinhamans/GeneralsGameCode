@@ -99,7 +99,9 @@ public:
 	virtual Bool testArmorSetFlag(ArmorSetType ast) override { return m_curArmorSetFlags.test(ast); }
 
 	virtual void setInitialHealth(Int initialPercent) override; ///< Sets the initial load health %.
-	virtual void setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override; ///< Sets the initial max health
+	virtual void setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override; ///< Sets the max health before upgrades and scalars
+	virtual void addMaxHealth( Real addMaxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override; ///< Adds to the max health
+	virtual void scaleMaxHealth( Real scalar, Bool apply, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override; ///< Applies or removes a max health scalar
 
 	virtual Bool getFrontCrushed() const override { return m_frontCrushed; }
 	virtual Bool getBackCrushed() const override { return m_backCrushed; }
@@ -135,6 +137,8 @@ protected:
 															Int maxSystems );
 	void deleteAllParticleSystems();
 	void setCorrectDamageState();
+	void applyMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType );
+	void updateMaxHealth( MaxHealthChangeType healthChangeType );
 
 	Bool shouldRetaliate(Object *obj);
 	Bool shouldRetaliateAgainstAggressor(Object *obj, Object *damager);
@@ -147,6 +151,10 @@ private:
 	Real									m_prevHealth;						///< previous health value before current health change op
   Real									m_maxHealth;						///< max health this object can have
   Real									m_initialHealth;				///< starting health for this object
+	Real									m_baseMaxHealth;				///< max health before upgrades and scalars
+	Real									m_addedMaxHealth;				///< max health added by upgrades
+	Real									m_maxHealthScalar;			///< applied max health scalars, veterancy excluded
+	Bool									m_rebuildMaxHealthInputs;	///< loaded from a save without the inputs, not saved
 	Real									m_currentSubdualDamage;	///< Starts at zero and goes up.  Inherited modules will do something when "subdued".
 
 	BodyDamageType				m_curDamageState;				///< last known damage state

@@ -167,6 +167,8 @@ public:
 
 	virtual void setInitialHealth(Int initialPercent)  = 0;
 	virtual void setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH )  = 0;
+	virtual void addMaxHealth( Real addMaxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH )  = 0;
+	virtual void scaleMaxHealth( Real scalar, Bool apply, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH )  = 0;
 
 	virtual void setFrontCrushed(Bool v) = 0;
 	virtual void setBackCrushed(Bool v) = 0;
@@ -237,6 +239,8 @@ public:
 
 	virtual void setInitialHealth(Int initialPercent) override  {  } ///< Sets the initial load health %.
 	virtual void setMaxHealth(Real maxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override  {  } ///< Sets the max health.
+	virtual void addMaxHealth(Real addMaxHealth, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override  {  } ///< Adds to the max health.
+	virtual void scaleMaxHealth(Real scalar, Bool apply, MaxHealthChangeType healthChangeType = SAME_CURRENTHEALTH ) override  {  } ///< Applies or removes a max health scalar.
 
 	virtual void setFrontCrushed(Bool v) override { DEBUG_CRASH(("you should never call this for generic Bodys")); }
 	virtual void setBackCrushed(Bool v) override { DEBUG_CRASH(("you should never call this for generic Bodys")); }

@@ -176,6 +176,10 @@ ActiveBody::ActiveBody( Thing *thing, const ModuleData* moduleData ) :
 	m_prevHealth = getActiveBodyModuleData()->m_initialHealth;
 	m_maxHealth = getActiveBodyModuleData()->m_maxHealth;
 	m_initialHealth = getActiveBodyModuleData()->m_initialHealth;
+	m_baseMaxHealth = getActiveBodyModuleData()->m_maxHealth;
+	m_addedMaxHealth = 0.0f;
+	m_maxHealthScalar = 1.0f;
+	m_rebuildMaxHealthInputs = FALSE;
 
 	// force an initially-valid armor setup
 	validateArmorAndDamageFX();
@@ -902,6 +906,53 @@ void ActiveBody::setInitialHealth(Int initialPercent)
 //-------------------------------------------------------------------------------------------------
 void ActiveBody::setMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType )
 {
+#if RETAIL_COMPATIBLE_CRC
+	applyMaxHealth( maxHealth, healthChangeType );
+#else
+	// TheSuperHackers @bugfix arcticdolphin 21/10/2026 Derive max health from its inputs so the order of upgrades and scalars does not matter.
+	m_baseMaxHealth = maxHealth;
+	updateMaxHealth( healthChangeType );
+#endif
+}
+
+// ------------------------------------------------------------------------------------------------
+void ActiveBody::addMaxHealth( Real addMaxHealth, MaxHealthChangeType healthChangeType )
+{
+#if RETAIL_COMPATIBLE_CRC
+	applyMaxHealth( m_maxHealth + addMaxHealth, healthChangeType );
+#else
+	m_addedMaxHealth += addMaxHealth;
+	updateMaxHealth( healthChangeType );
+#endif
+}
+
+// ------------------------------------------------------------------------------------------------
+void ActiveBody::scaleMaxHealth( Real scalar, Bool apply, MaxHealthChangeType healthChangeType )
+{
+#if RETAIL_COMPATIBLE_CRC
+	if( apply )
+		applyMaxHealth( m_maxHealth * scalar, healthChangeType );
+	else
+		applyMaxHealth( m_maxHealth / scalar, healthChangeType );
+#else
+	if( apply )
+		m_maxHealthScalar *= scalar;
+	else
+		m_maxHealthScalar /= scalar;
+	updateMaxHealth( healthChangeType );
+#endif
+}
+
+// ------------------------------------------------------------------------------------------------
+void ActiveBody::updateMaxHealth( MaxHealthChangeType healthChangeType )
+{
+	const Real veterancyBonus = TheGlobalData->m_healthBonus[getObject()->getVeterancyLevel()];
+	applyMaxHealth( (m_baseMaxHealth + m_addedMaxHealth) * m_maxHealthScalar * veterancyBonus, healthChangeType );
+}
+
+// ------------------------------------------------------------------------------------------------
+void ActiveBody::applyMaxHealth( Real maxHealth, MaxHealthChangeType healthChangeType )
+{
 	Real prevMaxHealth = m_maxHealth;
 	m_maxHealth = maxHealth;
 	m_initialHealth = maxHealth;
@@ -1509,6 +1560,7 @@ void ActiveBody::onVeterancyLevelChanged( VeterancyLevel oldLevel, VeterancyLeve
 		}
 	}
 
+#if RETAIL_COMPATIBLE_CRC
 	Real oldBonus = TheGlobalData->m_healthBonus[oldLevel];
 	Real newBonus = TheGlobalData->m_healthBonus[newLevel];
 	Real mult = newBonus / oldBonus;
@@ -1517,10 +1569,13 @@ void ActiveBody::onVeterancyLevelChanged( VeterancyLevel oldLevel, VeterancyLeve
 	//Real newHealth = m_currentHealth * mult;
 
 	// change the max
-	setMaxHealth(m_maxHealth * mult, PRESERVE_RATIO );
+	applyMaxHealth(m_maxHealth * mult, PRESERVE_RATIO );
 
 	// now change the cur (setMaxHealth now handles it)
 	//internalChangeHealth( newHealth - m_currentHealth );
+#else
+	updateMaxHealth( PRESERVE_RATIO );
+#endif
 
 	switch (newLevel)
 	{
@@ -1574,13 +1629,18 @@ void ActiveBody::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 2: TheSuperHackers @bugfix Save the max health inputs */
 // ------------------------------------------------------------------------------------------------
 void ActiveBody::xfer( Xfer *xfer )
 {
 
 	// version
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	XferVersion currentVersion = 1;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1600,6 +1660,17 @@ void ActiveBody::xfer( Xfer *xfer )
 
 	// initial health
 	xfer->xferReal( &m_initialHealth );
+
+	if( version >= 2 )
+	{
+		xfer->xferReal( &m_baseMaxHealth );
+		xfer->xferReal( &m_addedMaxHealth );
+		xfer->xferReal( &m_maxHealthScalar );
+	}
+	else if( xfer->getXferMode() == XFER_LOAD )
+	{
+		m_rebuildMaxHealthInputs = TRUE;
+	}
 
 	// current damage state
 	xfer->xferUser( &m_curDamageState, sizeof( BodyDamageType ) );
@@ -1696,5 +1767,14 @@ void ActiveBody::loadPostProcess()
 
 	// extend base class
 	BodyModule::loadPostProcess();
+
+	// Older saves only have the total, so it becomes the base
+	if( m_rebuildMaxHealthInputs )
+	{
+		m_baseMaxHealth = m_maxHealth / TheGlobalData->m_healthBonus[getObject()->getVeterancyLevel()];
+		m_addedMaxHealth = 0.0f;
+		m_maxHealthScalar = 1.0f;
+		m_rebuildMaxHealthInputs = FALSE;
+	}
 
 }
