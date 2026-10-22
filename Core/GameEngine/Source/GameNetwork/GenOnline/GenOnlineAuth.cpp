@@ -303,6 +303,32 @@ void GenOnlineAuthInterface::RefreshToken()
 
 void GenOnlineAuthInterface::BeginLogin()
 {
+	auto* manager = GenOnlineServicesManager::GetInstance();
+	if (!manager)
+	{
+		return;
+	}
+	manager->EnsureServiceRoute([](bool success)
+	{
+		auto* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+		if (!auth)
+		{
+			return;
+		}
+		if (success)
+		{
+			auth->BeginLoginOnSelectedRoute();
+		}
+		else
+		{
+			ClearGSMessageBoxes();
+			GSMessageBoxOk(UnicodeString(L"Connection failed"), UnicodeString(L"No trusted service route could be reached. Check your connection and try again."), []() { TheShell->pop(); });
+		}
+	});
+}
+
+void GenOnlineAuthInterface::BeginLoginOnSelectedRoute()
+{
 	m_tokenCreationTime = -1;
 
 	std::string strLoginURI = GenOnlineServicesManager::GetAPIEndpoint("LoginWithToken");
