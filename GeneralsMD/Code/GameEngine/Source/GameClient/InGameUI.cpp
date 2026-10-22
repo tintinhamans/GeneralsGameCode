@@ -7177,7 +7177,7 @@ namespace
 	enum OverlayColumn
 	{
 		COL_SLOT, COL_NAME, COL_BARS, COL_PATH, COL_PROBE, COL_CMD, COL_JIT, COL_LOST, COL_LATE,
-		COL_CUSHION, COL_SAMPLES, COL_STALLS, COL_OUT, COL_IN,
+		COL_CUSHION, COL_SAMPLES, COL_STALLS, COL_DEPTH, COL_OUT, COL_IN,
 		COL_COUNT
 	};
 
@@ -7190,7 +7190,7 @@ namespace
 	const wchar_t *const s_overlayHeaders[COL_COUNT] =
 	{
 		L"Slot", L"Player", L"Bars", L"Path", L"Probe", L"Cmd", L"Jit", L"Lost%", L"Late%",
-		L"Cush5/50", L"n", L"Stalls", L"OutL%", L"InL%"
+		L"Cush5/50", L"n", L"Stalls", L"Depth", L"OutL%", L"InL%"
 	};
 
 
@@ -7394,6 +7394,8 @@ void InGameUI::drawNetworkOverlay(Int mode)
 			sev[COL_LOST] = overlayPercentSeverity(pCmdStats->getLossPercent());
 			cell[COL_LATE].format(L"%.0f", pCmdStats->getLatePercent());
 			sev[COL_LATE] = overlayPercentSeverity(pCmdStats->getLatePercent());
+			cell[COL_DEPTH].format(L"%d/%d", pCmdStats->getRedundancyDepth(), pCmdStats->getRedundancyCap());
+			sev[COL_DEPTH] = (pCmdStats->getRedundancyCap() > 0 && pCmdStats->getRedundancyDepth() >= pCmdStats->getRedundancyCap()) ? ConnectionRating::SEVERITY_WARN : ConnectionRating::SEVERITY_OK;
 		}
 		else
 		{
@@ -7401,6 +7403,7 @@ void InGameUI::drawNetworkOverlay(Int mode)
 			cell[COL_JIT] = L"-";
 			cell[COL_LOST] = L"-";
 			cell[COL_LATE] = L"-";
+			cell[COL_DEPTH] = L"-";
 		}
 
 		if (row.info.cushionSamples > 0)

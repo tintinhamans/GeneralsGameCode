@@ -360,6 +360,9 @@ void ConnectionManager::init()
 
 	m_netCommandWrapperList = newInstance(NetCommandWrapperList);
 	m_netCommandWrapperList->init();
+#if defined(GENERALS_ONLINE)
+	resetRecentCommandIds();
+#endif
 
 	s_fileCommandMap.clear();
 	s_fileRecipientMaskMap.clear();
@@ -410,6 +413,9 @@ void ConnectionManager::reset()
 		m_netCommandWrapperList->init();
 	}
 	m_netCommandWrapperList->reset();
+#if defined(GENERALS_ONLINE)
+	resetRecentCommandIds();
+#endif
 
 	m_localSlot = -1;
 #ifdef MEMORYPOOL_DEBUG
@@ -484,6 +490,60 @@ void ConnectionManager::destroyGameMessages() {
 	}
 }
 
+#if defined(GENERALS_ONLINE)
+// TRUE if (sender, id) was seen in the last 256 ids, remembers it otherwise. Synchronized commands are deduplicated by the frame data.
+Bool ConnectionManager::isDuplicateCommand(NetCommandMsg *msg) {
+	if (IsCommandSynchronized(msg->getNetCommandType())) {
+		return FALSE;
+	}
+
+	const UnsignedInt playerID = msg->getPlayerID();
+	if (playerID >= MAX_SLOTS) {
+		return FALSE;
+	}
+
+	RecentCommandIds &recent = m_recentIds[playerID];
+	const UnsignedShort id = msg->getID();
+
+	if (!recent.valid) {
+		recent.valid = TRUE;
+		recent.highest = id;
+		for (Int i = 0; i < RECENT_ID_COUNT; ++i) {
+			recent.seen[i] = FALSE;
+		}
+		recent.seen[id % RECENT_ID_COUNT] = TRUE;
+		return FALSE;
+	}
+
+	const Int diff = (Int)(Short)(id - recent.highest);
+	if (diff > 0) {
+		// the window moves forward, the slots it moves over belong to ids not seen yet
+		for (Int step = 1; step <= diff && step <= RECENT_ID_COUNT; ++step) {
+			recent.seen[(recent.highest + step) % RECENT_ID_COUNT] = FALSE;
+		}
+		recent.highest = id;
+		recent.seen[id % RECENT_ID_COUNT] = TRUE;
+		return FALSE;
+	}
+
+	if (-diff >= RECENT_ID_COUNT) {
+		return FALSE;
+	}
+
+	if (recent.seen[id % RECENT_ID_COUNT]) {
+		return TRUE;
+	}
+	recent.seen[id % RECENT_ID_COUNT] = TRUE;
+	return FALSE;
+}
+
+void ConnectionManager::resetRecentCommandIds() {
+	for (Int i = 0; i < MAX_SLOTS; ++i) {
+		m_recentIds[i].valid = FALSE;
+	}
+}
+#endif
+
 /**
  * ConnectionManager::doRelay()
  * Queries the transport for commands that need to be relayed to another client.
@@ -513,6 +573,11 @@ void ConnectionManager::doRelay() {
 
 				if (CommandRequiresAck(cmd->getCommand())) {
 					ackCommand(cmd, m_localSlot);
+#if defined(GENERALS_ONLINE)
+					if (isDuplicateCommand(cmd->getCommand())) {
+						continue; // a redundant copy, acked again in case the first ack was lost
+					}
+#endif
 				}
 				if (!processNetCommand(cmd)) {
 					sendRemoteCommand(cmd);
@@ -537,6 +602,11 @@ void ConnectionManager::doRelay() {
 	for (NetCommandRef* cmd = cmdList->getFirstMessage(); cmd; cmd = cmd->getNext()) {
 		if (CommandRequiresAck(cmd->getCommand())) {
 			ackCommand(cmd, m_localSlot);
+#if defined(GENERALS_ONLINE)
+			if (isDuplicateCommand(cmd->getCommand())) {
+				continue;
+			}
+#endif
 		}
 		if (!processNetCommand(cmd)) {
 			sendRemoteCommand(cmd);
@@ -1008,9 +1078,14 @@ void ConnectionManager::processFrameInfo(NetFrameCommandMsg *msg) {
 	if (playerID < MAX_SLOTS) {
 		if (m_frameData[playerID] != nullptr) {
 //			DEBUG_LOG(("ConnectionManager::processFrameInfo - player %d, frame %d, command count %d, received on frame %d", playerID, msg->getExecutionFrame(), msg->getCommandCount(), TheGameLogic->getFrame()));
+#if defined(GENERALS_ONLINE)
+			// a redundant copy of a frame that was already seen says nothing about how early frames arrive
+			NetCommandList *frameCommands = m_frameData[playerID]->getFrameCommandList(msg->getExecutionFrame());
+			const Bool isCopy = (frameCommands != nullptr) && (frameCommands->findMessage(msg) != nullptr);
+#endif
 			m_frameData[playerID]->setFrameCommandCount(msg->getExecutionFrame(), msg->getCommandCount());
 #if defined(GENERALS_ONLINE)
-			if ((playerID != (UnsignedInt)m_localSlot) && (TheGameLogic != nullptr)) {
+			if (!isCopy && (playerID != (UnsignedInt)m_localSlot) && (TheGameLogic != nullptr)) {
 				m_cushionStats[playerID].note((Int)msg->getExecutionFrame() - (Int)TheGameLogic->getFrame(), timeGetTime());
 			}
 #endif
@@ -1311,12 +1386,19 @@ void ConnectionManager::sendRemoteCommand(NetCommandRef *msg) {
 	const UnsignedByte relay = msg->getRelay();
 	const UnsignedInt playerID = msg->getCommand()->getPlayerID();
 	FrameDataManager *frameDataMgr = playerID < MAX_SLOTS ? m_frameData[playerID] : nullptr;
+	Bool isNew = TRUE;
 	if ((relay & (1 << m_localSlot)) && (frameDataMgr != nullptr)) {
 		if (IsCommandSynchronized(msg->getCommand()->getNetCommandType())) {
 			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendRemoteCommand - adding net command of type %s to player %d for frame %d", GetNetCommandTypeAsString(msg->getCommand()->getNetCommandType()), msg->getCommand()->getPlayerID(), msg->getCommand()->getExecutionFrame()));
-			frameDataMgr->addNetCommandMsg(msg->getCommand());
+			isNew = frameDataMgr->addNetCommandMsg(msg->getCommand());
 		}
 	}
+
+#if defined(GENERALS_ONLINE)
+	if (!isNew) {
+		return; // a redundant copy, it was already relayed and counted
+	}
+#endif
 
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		if ((relay & (1 << i)) && ((m_connections[i] != nullptr) && (m_connections[i]->isQuitting() == FALSE))) {
@@ -1335,7 +1417,7 @@ void ConnectionManager::sendRemoteCommand(NetCommandRef *msg) {
 	}
 
 	// Do some metrics to find the minimum packet arrival cushion.
-	if (IsCommandSynchronized(msg->getCommand()->getNetCommandType())) {
+	if (isNew && IsCommandSynchronized(msg->getCommand()->getNetCommandType())) {
 //		DEBUG_LOG(("ConnectionManager::sendRemoteCommand - about to call allCommandsReady"));
 		if (allCommandsReady(msg->getCommand()->getExecutionFrame(), TRUE)) {
 			UnsignedInt cushion = msg->getCommand()->getExecutionFrame() - TheGameLogic->getFrame();
@@ -2323,6 +2405,10 @@ void ConnectionManager::parseUserList(const GameInfo *game)
 			{
 				m_connections[i] = newInstance(Connection)();
 				m_connections[i]->init();
+#if defined(GENERALS_ONLINE)
+				m_connections[i]->setNetworkSettings(m_networkSettings, TheLAN != nullptr || m_networkSettings.send.IsDatagram());
+#endif
+				m_connections[i]->setSlot(i);
 				m_connections[i]->attachTransport(m_transport);
 //				UnsignedShort port = (TheNAT)?TheNAT->getSlotPort(i):8088;
 				UnsignedShort port = slot->getPort();

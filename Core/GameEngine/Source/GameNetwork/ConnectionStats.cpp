@@ -37,6 +37,8 @@ void ConnectionStats::reset()
 	m_jitter = 0.0f;
 	m_previousRtt = 0.0f;
 	m_hasRtt = FALSE;
+	m_depth = 0;
+	m_depthCap = 0;
 }
 
 void ConnectionStats::noteAcked(Real rttMs, time_t now)
@@ -86,6 +88,21 @@ void ConnectionStats::noteLateAck(time_t now)
 	m_lateAcks.push(stamp);
 }
 
+void ConnectionStats::setRedundancyDepth(Int depth, Int cap)
+{
+	if (depth < 0)
+	{
+		depth = 0;
+	}
+	if (depth > MAX_REDUNDANCY_DEPTH)
+	{
+		depth = MAX_REDUNDANCY_DEPTH;
+	}
+
+	m_depth = depth;
+	m_depthCap = cap;
+}
+
 void ConnectionStats::update(time_t now)
 {
 	m_samples.prune(now, NETWORK_STATS_WINDOW_MS);
@@ -111,18 +128,21 @@ Real ConnectionStats::getMinLatency() const
 	return result;
 }
 
-Real ConnectionStats::getLatencyPercentile(Int percent) const
+Real ConnectionStats::getLatencyPercentile(Int percent, time_t since) const
 {
-	const Int count = m_samples.size();
+	Real sorted[MAX_SAMPLES];
+	Int count = 0;
+	for (Int i = 0; i < m_samples.size(); ++i)
+	{
+		if (m_samples[i].time >= since)
+		{
+			sorted[count] = m_samples[i].rtt;
+			++count;
+		}
+	}
 	if (count == 0)
 	{
 		return 0.0f;
-	}
-
-	Real sorted[MAX_SAMPLES];
-	for (Int i = 0; i < count; ++i)
-	{
-		sorted[i] = m_samples[i].rtt;
 	}
 	std::sort(sorted, sorted + count);
 
@@ -136,6 +156,20 @@ Real ConnectionStats::getLatencyPercentile(Int percent) const
 		index = count - 1;
 	}
 	return sorted[index];
+}
+
+Int ConnectionStats::getSampleCountSince(time_t since) const
+{
+	Int count = 0;
+	for (Int i = m_samples.size() - 1; i >= 0; --i)
+	{
+		if (m_samples[i].time < since)
+		{
+			break;
+		}
+		++count;
+	}
+	return count;
 }
 
 Real ConnectionStats::getRetryPercent() const

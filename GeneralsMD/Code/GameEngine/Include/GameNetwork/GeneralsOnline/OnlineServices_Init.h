@@ -415,8 +415,14 @@ inline void ReadGroupedServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 	if (j.contains("send"))
 	{
 		const nlohmann::json& s = j["send"];
+		ReadServiceConfigValue(s, "mode", c.send.mode);
 		ReadServiceConfigValue(s, "frames_per_packet", c.send.frames_per_packet);
+		ReadServiceConfigValue(s, "frames_per_packet_lossy", c.send.frames_per_packet_lossy);
 		ReadServiceConfigValue(s, "flush_every_frame", c.send.flush_every_frame);
+		ReadServiceConfigValue(s, "redundancy", c.send.redundancy);
+		ReadServiceConfigValue(s, "redundancy_window_ms", c.send.redundancy_window_ms);
+		ReadServiceConfigValue(s, "redundancy_burst_ms", c.send.redundancy_burst_ms);
+		ReadServiceConfigValue(s, "fast_resend", c.send.fast_resend);
 	}
 	if (j.contains("input_delay"))
 	{
@@ -506,6 +512,13 @@ inline void ClampServiceConfig(ServiceConfig& c)
 	c.connection.latency_history_ms = (std::max)(c.connection.latency_history_ms, 1000);
 	c.connection.probe_lobby_interval_ms = std::clamp(c.connection.probe_lobby_interval_ms, 50, 5000);
 	c.connection.probe_match_interval_ms = std::clamp(c.connection.probe_match_interval_ms, 50, 10000);
+	c.send.redundancy_window_ms = std::clamp(c.send.redundancy_window_ms, 0, 5000);
+	c.send.redundancy_burst_ms = std::clamp(c.send.redundancy_burst_ms, 0, 1000);
+	c.send.frames_per_packet_lossy = std::clamp(c.send.frames_per_packet_lossy, 0, 8);
+	if (c.send.mode == "unreliable")
+	{
+		c.send.mode = "datagram"; // the old name
+	}
 
 	c.input_delay.min_frames = std::clamp(c.input_delay.min_frames, 1, 64);
 	c.input_delay.slack_percent = std::clamp(c.input_delay.slack_percent, 0, 200);

@@ -9,8 +9,16 @@ struct NetworkSettings
 {
 	struct Send
 	{
+		std::string mode = "reliable";  // "reliable" = GNS retransmits, "datagram" = unreliable datagrams
 		int frames_per_packet = 2;      // send interval in frames
+		int frames_per_packet_lossy = 1; // send interval in frames while the redundancy depth is above 0, 0 = keep the configured one
 		bool flush_every_frame = true;  // flush GNS after each frame
+		bool redundancy = false;        // repeat un-acked commands in packets that go out anyway
+		int redundancy_window_ms = 0;   // wait before a command is repeated, 0 = max(2 x smoothed rtt, 100 ms)
+		int redundancy_burst_ms = 150;  // longest burst of lost packets repaired, caps the depth
+		bool fast_resend = false;       // resend after srtt + 2 x jitter (at most 400 ms) instead of 4 x jitter (at most 1 s)
+
+		bool IsDatagram() const { return mode == "datagram"; }
 	} send;
 	struct InputDelay
 	{
