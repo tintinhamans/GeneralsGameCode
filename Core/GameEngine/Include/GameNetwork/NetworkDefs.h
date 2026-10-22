@@ -56,6 +56,9 @@ enum ConnectionNumbers CPP_11(: Int)
 
 static constexpr const Int MAX_SLOTS = MAX_PLAYER + 1;
 
+// Sliding window over which connection latency, jitter, loss and cushion are evaluated.
+static constexpr const Int NETWORK_STATS_WINDOW_MS = 10000;
+
 #pragma pack(push, 1)
 struct TransportMessageHeader
 {
@@ -207,7 +210,12 @@ enum PlayerLeaveCode CPP_11(: Int) {
 };
 
 // Magic number for identifying a Generals packet.
+#if defined(GENERALS_ONLINE)
+// 0xF00E: packets carry the sequence envelope; builds without it fail on the magic number
+static constexpr const UnsignedShort GENERALS_MAGIC_NUMBER = 0xF00E;
+#else
 static constexpr const UnsignedShort GENERALS_MAGIC_NUMBER = 0xF00D;
+#endif
 
 // The number of fps history entries.
 //static constexpr const Int NETWORK_FPS_HISTORY_LENGTH = 30;

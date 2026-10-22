@@ -11,7 +11,6 @@ struct NetworkSettings
 	{
 		int frames_per_packet = 2;      // send interval in frames
 		bool flush_every_frame = true;  // flush GNS after each frame
-		int flags = -1;                 // GNS send flags tried after a failed reliable send, -1 = none
 	} send;
 	struct InputDelay
 	{
