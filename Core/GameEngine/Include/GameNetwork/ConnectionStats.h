@@ -134,7 +134,7 @@ private:
 	TimedRing<Sample, MAX_SAMPLES> m_samples;
 };
 
-// Frames the game wanted to advance but had to wait for commands, over the same sliding window.
+// Frames the game wanted to advance but had to wait for commands, kept for a minute and counted over a window.
 class StallStats
 {
 public:
@@ -144,12 +144,11 @@ public:
 	void note(Int durationMs, UnsignedInt missingSlotMask, time_t now);	///< One finished stall and the slots whose commands were missing when it began.
 	void update(time_t now);
 
-	Int getCount() const { return m_events.size(); }
-	Int getTotalMs() const;
-	Int getCountForSlot(Int slot) const;
+	Int getCount(time_t now, Int windowMs) const;
+	Int getCountForSlot(Int slot, time_t now, Int windowMs) const;
 
 private:
-	enum { MAX_EVENTS = 512 };
+	enum { MAX_EVENTS = 512, HISTORY_MS = 60000 };
 
 	struct Event
 	{
@@ -159,4 +158,25 @@ private:
 	};
 
 	TimedRing<Event, MAX_EVENTS> m_events;
+};
+
+// What the network overlay and the connection rating need to know about one slot beyond its ConnectionStats.
+struct NetworkOverlayInfo
+{
+	NetworkOverlayInfo()
+		: cushionSamples(0), cushionP5(0), cushionP50(0)
+		, stallsWindow(0), stallsMinute(0), stalledNow(FALSE), waitingOnSlot(FALSE)
+		, slotInBandMs(-1), runAhead(0), frameGroupingMs(0) {}
+
+	Int cushionSamples;		///< Frames before execution that the frame commands of this slot arrived, over the stats window.
+	Int cushionP5;
+	Int cushionP50;
+	Int stallsWindow;			///< Stalls the local game had to wait on this slot for, over the stats window.
+	Int stallsMinute;			///< The same over the last minute.
+	Bool stalledNow;			///< The local game is waiting for commands right now.
+	Bool waitingOnSlot;		///< ... and this slot is one it is waiting on.
+	Int slotInBandMs;			///< In-band round trip this slot contributes to the run ahead, -1 if unknown.
+
+	Int runAhead;				///< Frames.
+	Int frameGroupingMs;		///< The send interval.
 };

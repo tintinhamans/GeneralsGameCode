@@ -2250,6 +2250,7 @@ void InGameUI::freeMessageResources()
 
 void InGameUI::freeCustomUiResources()
 {
+	GetOnlineGameHooks()->releaseNetworkOverlay();
 	TheDisplayStringManager->freeDisplayString(m_networkLatencyString);
 	m_networkLatencyString = nullptr;
 	TheDisplayStringManager->freeDisplayString(m_renderFpsString);
