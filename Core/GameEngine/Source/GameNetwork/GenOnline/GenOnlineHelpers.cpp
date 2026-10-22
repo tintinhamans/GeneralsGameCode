@@ -335,11 +335,6 @@ int ConvertMSLatencyToFrames(int ms)
 	return (int)ceil((ms / (float)MSEC_PER_SECOND) * (float)LOGICFRAMES_PER_SECOND);
 }
 
-int ConvertMSLatencyToGenToolFrames(int ms)
-{
-	return (int)ceil((float)ConvertMSLatencyToFrames(ms) / (float)LOGICFRAMES_PER_BASEFRAME);
-}
-
 #include <windows.h>
 #include <iphlpapi.h>
 #include <iostream>

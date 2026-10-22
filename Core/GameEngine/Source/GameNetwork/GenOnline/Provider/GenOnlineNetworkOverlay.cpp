@@ -130,7 +130,7 @@ namespace
 
 	struct OverlayCache
 	{
-		OverlayCache() : valid(FALSE), mode(0), refreshedMs(0), lineH(12), rowCount(0)
+		OverlayCache() : valid(FALSE), mode(0), refreshedMs(0), lineH(12), logicRate(0), rowCount(0)
 		{
 			for (Int i = 0; i < k_strTotal; ++i)
 			{
@@ -146,6 +146,7 @@ namespace
 		Int mode;
 		UnsignedInt refreshedMs;
 		Int lineH;
+		UnsignedInt logicRate;
 		Int rowCount;
 		NetworkOverlayInfo header;
 		UnicodeString waitingOn;
@@ -264,6 +265,7 @@ void GenOnlineDrawNetworkOverlay(Int mode, DisplayString *fontSource, Color game
 		overlaySetText(pMeasure, UnicodeString(L"Wg"));
 		pMeasure->getSize(&lineW, &lineH);
 		cache.lineH = (std::max)(lineH, 12);
+		cache.logicRate = TheNetwork->getMeasuredLogicRate();
 		TheNetwork->getOverlayInfo(-1, cache.header);
 
 		for (Int slot = 0; slot < MAX_SLOTS; ++slot)
@@ -426,7 +428,7 @@ void GenOnlineDrawNetworkOverlay(Int mode, DisplayString *fontSource, Color game
 	{
 		Int x = left;
 		UnicodeString text;
-		text.format(L"Input delay %d ms", delayMs);
+		text.format(L"Input delay %d ms, logic rate %u Hz", delayMs, cache.logicRate);
 		x += overlayDrawText(k_strHeaderBase + 0, x, y, text, header.stalledNow ? overlayColor(ConnectionRating::SEVERITY_BAD) : neutral, dropColor) + segmentGap;
 
 		if (header.stalledNow && !waitingOn.isEmpty())

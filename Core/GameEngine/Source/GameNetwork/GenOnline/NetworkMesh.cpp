@@ -1546,12 +1546,11 @@ void NetworkMesh::Tick()
 
 	const int64_t nowMs = NowSteadyMs();
 
-	// update connection histograms
+	// probe every connection
 	for (auto& kvPair : m_mapConnections)
 	{
 		PlayerConnection& conn = kvPair.second;
 		conn.TickProbe(nowMs);
-		conn.UpdateLatencyHistogram();
 	}
 
 	TickLobbyKeys(nowMs);
@@ -1948,28 +1947,6 @@ void PlayerConnection::SendACPacket(const void* pData, uint32_t dataLen)
 	}
 }
 
-void PlayerConnection::UpdateLatencyHistogram()
-{
-	int histogram_duration = 20000;
-
-	if (GenOnlineServicesManager::GetInstance() != nullptr)
-	{
-		ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
-		histogram_duration = serviceConf.connection.latency_history_ms;
-	}
-
-
-	// update latency history, from the mesh probe once it has samples
-	int currLatency = (m_probeStats.getSampleCount() > 0) ? static_cast<int>(m_probeStats.getLatency()) : GetLatency();
-	const int connectionHistoryLength = histogram_duration / (MSEC_PER_SECOND / LOGICFRAMES_PER_SECOND); // ~20 sec worth of frames at 60fps (default)
-
-	if (m_vecLatencyHistory.size() >= connectionHistoryLength)
-	{
-		m_vecLatencyHistory.erase(m_vecLatencyHistory.begin());
-	}
-	m_vecLatencyHistory.push_back(currLatency);
-}
-
 void PlayerConnection::Close()
 {
 	if (m_ConnectionType == EConnectionType::BuiltIn_ValveSockets)
@@ -2258,30 +2235,13 @@ float PlayerConnection::GetSustainedLossPercent(int windowMs)
 
 int PlayerConnection::GetJitter()
 {
-	int sumDelta = 0;
-	int count = 0;
-	int prev = -1;
-	for (int sample : m_vecLatencyHistory)
+	// smoothed round trip variation of the probe over its stats window
+	if (m_probeStats.getSampleCount() < 10)
 	{
-		if (sample >= 0)
-		{
-			if (prev >= 0)
-			{
-				sumDelta += std::abs(sample - prev);
-				++count;
-			}
-			prev = sample;
-		}
-		else
-		{
-			prev = -1; // gap in valid data
-		}
+		return -1;
 	}
 
-	if (count < 10)
-		return -1;
-
-	return sumDelta / count;
+	return static_cast<int>(m_probeStats.getJitter());
 }
 
 int PlayerConnection::ComputeConnectionRating()
