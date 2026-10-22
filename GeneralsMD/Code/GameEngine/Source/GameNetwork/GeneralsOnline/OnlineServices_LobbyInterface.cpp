@@ -5,6 +5,7 @@
 #include "GameNetwork/GeneralsOnline/OnlineServices_Init.h"
 #include "GameClient/MapUtil.h"
 #include "GameLogic/GameLogic.h"
+#include "GameNetwork/GeneralsOnline/LobbyConnectionPolicy.h"
 
 extern void OnKickedFromLobby();
 
@@ -85,7 +86,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_Map(UnicodeString st
 	ClearAutoReadyCountdown();
 #endif
 
-	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+	if (TheNGMPGame)
 		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -121,7 +122,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_LimitSuperweapons(bo
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
 	ClearAutoReadyCountdown();
 #endif
-	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+	if (TheNGMPGame)
 		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -145,7 +146,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_StartingCash(Unsigne
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+	if (TheNGMPGame)
 		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -190,7 +191,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AISide(int slot, int
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+	if (TheNGMPGame)
 		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -216,7 +217,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AITeam(int slot, int
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+	if (TheNGMPGame)
 		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -241,7 +242,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AIStartPos(int slot,
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+	if (TheNGMPGame)
 		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -273,7 +274,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobbyMaxCameraHeight(uint1
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
         ClearAutoReadyCountdown();
 #endif
-		if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+		if (TheNGMPGame)
 			TheNGMPGame->StopCountdown();
 
 		std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -323,7 +324,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_AIColor(int slot, in
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+	if (TheNGMPGame)
 		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -349,7 +350,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MySide(int side, int
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+	if (TheNGMPGame)
 		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -374,7 +375,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MyColor(int color)
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+	if (TheNGMPGame)
 		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -398,7 +399,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MyStartPos(int start
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+	if (TheNGMPGame)
 		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -422,7 +423,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateCurrentLobby_MyTeam(int team)
 #if !defined(GENERALS_ONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+	if (TheNGMPGame)
 		TheNGMPGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -839,7 +840,7 @@ void NGMP_OnlineServices_LobbyInterface::Tick()
 					// TODO_NGMP: Don't do this clientside...
 					UpdateCurrentLobby_ForceReady();
 					ClearAutoReadyCountdown();
-					if (TheNGMPGame && TheNGMPGame->IsCountdownStarted())
+					if (TheNGMPGame)
 						TheNGMPGame->StopCountdown();
 				}
 			}
@@ -1457,6 +1458,139 @@ bool NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 		});
 
 	return true;
+}
+
+std::vector<int64_t> NGMP_OnlineServices_LobbyInterface::GetHumanLobbyMembers() const
+{
+	std::vector<int64_t> members;
+	for (const auto& member : m_CurrentLobby.members)
+	{
+		if (member.IsHuman())
+		{
+			members.push_back(member.user_id);
+		}
+	}
+	std::sort(members.begin(), members.end());
+	return members;
+}
+
+std::string NGMP_OnlineServices_LobbyInterface::GetLobbyStartSettings() const
+{
+	nlohmann::json settings = {m_CurrentLobby.owner, m_CurrentLobby.map_path, m_CurrentLobby.map_official,
+		m_CurrentLobby.starting_cash, m_CurrentLobby.limit_superweapons, m_CurrentLobby.max_cam_height,
+		m_CurrentLobby.vanilla_teams, m_CurrentLobby.track_stats, m_CurrentLobby.allow_observers, m_CurrentLobby.rng_seed};
+	auto members = m_CurrentLobby.members;
+	std::sort(members.begin(), members.end(), [](const auto& a, const auto& b) { return a.m_SlotIndex < b.m_SlotIndex; });
+	for (const auto& member : members)
+	{
+		if (member.m_SlotState == SlotState::SLOT_OPEN || member.m_SlotState == SlotState::SLOT_CLOSED)
+		{
+			continue;
+		}
+		settings.push_back({member.user_id, member.m_SlotIndex, member.m_SlotState, member.m_bIsReady,
+			member.side, member.color, member.team, member.startpos, member.has_map});
+	}
+	return settings.dump();
+}
+
+bool NGMP_OnlineServices_LobbyInterface::IsCurrentLobbyAttempt(int64_t lobbyID, uint64_t generation, const std::vector<int64_t>& members) const
+{
+	return LobbyConnectionPolicy::IsCurrentAttempt(lobbyID, generation, members, m_CurrentLobby.lobbyID,
+		GetLobbyGeneration(), GetHumanLobbyMembers());
+}
+
+bool NGMP_OnlineServices_LobbyInterface::AreLocalLobbyPeersConnected()
+{
+	auto* auth = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	if (!IsInLobby() || auth == nullptr || m_pLobbyMesh == nullptr)
+	{
+		return false;
+	}
+
+	bool foundSelf = false;
+	for (const auto& member : m_CurrentLobby.members)
+	{
+		if (!member.IsHuman())
+		{
+			continue;
+		}
+		if (member.user_id == auth->GetUserID())
+		{
+			foundSelf = true;
+			continue;
+		}
+		auto* connection = m_pLobbyMesh->GetConnectionForUser(member.user_id);
+		if (connection == nullptr || connection->GetState() != EConnectionState::CONNECTED_DIRECT)
+		{
+			return false;
+		}
+	}
+	return foundSelf;
+}
+
+bool NGMP_OnlineServices_LobbyInterface::HasFailedLobbyPeers()
+{
+	auto* auth = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	if (m_CurrentLobby.lobby_type != ELobbyType::CustomGame || auth == nullptr || !IsInLobby())
+	{
+		return false;
+	}
+
+	for (const auto& member : m_CurrentLobby.members)
+	{
+		if (!member.IsHuman() || member.user_id == auth->GetUserID())
+		{
+			continue;
+		}
+		auto* connection = m_pLobbyMesh != nullptr ? m_pLobbyMesh->GetConnectionForUser(member.user_id) : nullptr;
+		if (connection == nullptr || connection->GetState() == EConnectionState::NOT_CONNECTED
+			|| connection->GetState() == EConnectionState::CONNECTION_FAILED
+			|| connection->GetState() == EConnectionState::CONNECTION_DISCONNECTED)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+int NGMP_OnlineServices_LobbyInterface::RetryFailedLobbyPeers()
+{
+	auto* auth = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	auto ws = NGMP_OnlineServicesManager::GetWebSocket();
+	if (auth == nullptr || ws == nullptr || !ws->IsConnected() || m_pLobbyMesh == nullptr || !IsInLobby())
+	{
+		return 0;
+	}
+
+	const bool inMatch = TheNGMPGame != nullptr && TheNGMPGame->isGameInProgress();
+	const int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	int retries = 0;
+	for (const auto& member : m_CurrentLobby.members)
+	{
+		if (!member.IsHuman())
+		{
+			continue;
+		}
+		auto* connection = m_pLobbyMesh->GetConnectionForUser(member.user_id);
+		const auto state = connection != nullptr ? connection->GetState() : EConnectionState::NOT_CONNECTED;
+		if (!LobbyConnectionPolicy::CanRetry(m_CurrentLobby.lobby_type == ELobbyType::CustomGame, inMatch, true,
+			member.user_id == auth->GetUserID(), state == EConnectionState::CONNECTED_DIRECT,
+			state == EConnectionState::CONNECTING_DIRECT || state == EConnectionState::FINDING_ROUTE,
+			connection != nullptr ? now - connection->m_connectStartedMs : 1000))
+		{
+			continue;
+		}
+
+		auto& target = m_pLobbyMesh->GetAllConnections()[member.user_id];
+		target.m_userID = member.user_id;
+		target.m_SignallingAttempts = 0;
+		target.m_retryTimeout = true;
+		target.m_connectStartedMs = now;
+		ws->SendData_RequestSignalling(member.user_id);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Manual retry requested lobby=%lld peer=%lld", m_CurrentLobby.lobbyID, member.user_id);
+		++retries;
+	}
+	return retries;
 }
 
 void NGMP_OnlineServices_LobbyInterface::LeaveCurrentLobby()

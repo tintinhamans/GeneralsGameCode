@@ -280,6 +280,14 @@ public:
 	}
 
 
+	bool AreLocalLobbyPeersConnected();
+	bool HasFailedLobbyPeers();
+	int RetryFailedLobbyPeers();
+	std::vector<int64_t> GetHumanLobbyMembers() const;
+	std::string GetLobbyStartSettings() const;
+	uint64_t GetLobbyGeneration() const { return m_LobbyJoinGeneration.load(); }
+	bool IsCurrentLobbyAttempt(int64_t lobbyID, uint64_t generation, const std::vector<int64_t>& members) const;
+
 	LobbyEntry& GetCurrentLobby()
 	{
 		return m_CurrentLobby;

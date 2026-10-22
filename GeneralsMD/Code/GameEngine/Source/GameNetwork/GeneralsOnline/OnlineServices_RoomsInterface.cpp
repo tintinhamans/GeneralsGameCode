@@ -1156,6 +1156,14 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::START_GAME:
 									{
+										auto* startLobby = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+										if (startLobby != nullptr && startLobby->GetCurrentLobby().lobby_type == ELobbyType::CustomGame
+											&& !startLobby->AreLocalLobbyPeersConnected())
+										{
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Rejected start: required peer connection is missing");
+											startLobby->QueueCannotConnectToLobby();
+											break;
+										}
                                         WebSocketMessage_StartGameResponse startGameData;
                                         bool bParsed = JSONGetAsObject(jsonObject, &startGameData);
 
