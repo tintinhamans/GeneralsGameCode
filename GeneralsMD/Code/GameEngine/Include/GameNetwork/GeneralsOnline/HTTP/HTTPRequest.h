@@ -75,8 +75,10 @@ private:
 
 private:
 	CURL* m_pCURL = nullptr;
+	bool m_handleAdded = false;
 
-	int m_responseCode = -1;
+	long m_responseCode = 0;
+	CURLcode m_result = CURLE_OK;
 
 	EHTTPVerb m_httpVerb;
 
