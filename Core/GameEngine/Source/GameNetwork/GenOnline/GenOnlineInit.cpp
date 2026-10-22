@@ -121,7 +121,7 @@ static std::chrono::steady_clock::time_point GetScreenshotUploadTime()
 		}
 	}
 
-	const int slotOffsetMS = std::clamp(GenOnlineServicesManager::GetInstance()->GetServiceConfig().screenshot_slot_offset_ms, 0, 10000);
+	const int slotOffsetMS = std::clamp(GenOnlineServicesManager::GetInstance()->GetServiceConfig().telemetry.screenshot_slot_offset_ms, 0, 10000);
 
 	static std::mt19937 rng{ std::random_device{}() };
 	const int jitterMS = std::uniform_int_distribution<int>(0, 500)(rng);
@@ -136,7 +136,7 @@ void GenOnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screens
 	{
 		ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
 
-		if (serviceConf.do_probes)
+		if (serviceConf.telemetry.screenshot_probes)
 		{
 			CHECK_MAIN_THREAD;
 
@@ -274,7 +274,7 @@ void GenOnlineServicesManager::CommitReplay(AsciiString absoluteReplayPath)
 	{
 		ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
 
-		if (serviceConf.do_replay_upload)
+		if (serviceConf.telemetry.replay_upload)
 		{
 			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 			const uint64_t matchID = pLobbyInterface == nullptr ? 0 : pLobbyInterface->GetCurrentMatchID();
@@ -673,8 +673,8 @@ void GenOnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std::f
 							if (bResizeForTransmit)
 							{
 								ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
-								finalWidth = serviceConf.screenshot_width;
-								finalHeight = serviceConf.screenshot_height;
+								finalWidth = serviceConf.telemetry.screenshot_width;
+								finalHeight = serviceConf.telemetry.screenshot_height;
 								resized.resize(finalWidth * finalHeight * channels);
 
 								stbir_resize_uint8(pixels, width, height, 0,
@@ -948,7 +948,7 @@ void GenOnlineServicesManager::Tick()
 		std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
 
 
-		const int uploadBytesPerSec = std::clamp(m_ServiceConfig.screenshot_upload_bytes_per_sec, 16384, 10485760);
+		const int uploadBytesPerSec = std::clamp(m_ServiceConfig.telemetry.screenshot_upload_bytes_per_sec, 16384, 10485760);
 		const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 		const bool bMatchOver = TheGameLogic == nullptr || !TheGameLogic->isInMultiplayerGame(); // uploads no longer compete with game traffic
 

@@ -77,7 +77,7 @@ void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySoun
 
 #define GENONLINE_CLIENT_ID "gen_online_60hz"
 
-static int FRAME_GROUPING_CAP = 32;
+extern int FRAME_GROUPING_CAP;
 
 //#define GENONLINE_ENABLE_CONTROVERSIAL_NON_RETAIL_CHANGES 1
 
