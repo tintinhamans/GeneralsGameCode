@@ -96,12 +96,18 @@ public:
 		for (Int slotNum = 0; slotNum < MAX_SLOTS; ++slotNum)
 		{
 			const GenOnlineGameSlot* pSlot = (const GenOnlineGameSlot*)getConstSlot(slotNum);
-			if (pSlot != nullptr && pSlot->m_userID == userID)
+			if (pSlot != nullptr && pSlot->isHuman() && pSlot->m_userID == userID)
 			{
 				return slotNum;
 			}
 		}
 		return -1;
+	}
+
+	int64_t getUserOfSlot(Int slotNum) const
+	{
+		const GenOnlineGameSlot* pSlot = (slotNum >= 0 && slotNum < MAX_SLOTS) ? (const GenOnlineGameSlot*)getConstSlot(slotNum) : nullptr;
+		return (pSlot != nullptr && pSlot->isHuman()) ? pSlot->m_userID : -1;
 	}
 
 	bool HasCommittedOutcome() const { return m_bHasCommittedOutcome; }

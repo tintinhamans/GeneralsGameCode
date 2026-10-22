@@ -203,6 +203,9 @@ public:
 	UnsignedInt getFrameObjectsChangedTriggerAreas() {return m_frameObjectsChangedTriggerAreas;}
 
 	void exitGame();
+#if defined(GENONLINE)
+	void processPendingGameExit();
+#endif
 	void quit(Bool toDesktop);
 	void clearGameData(Bool showScoreScreen = TRUE);														///< Clear the game data
 	void closeWindows();

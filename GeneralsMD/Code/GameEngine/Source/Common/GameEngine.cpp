@@ -937,6 +937,14 @@ void GameEngine::update()
 			GetOnlineGameHooks()->onEngineUpdate();
 		}
 
+#if defined(GENONLINE)
+		if (TheNetwork != nullptr && TheNetwork->isGameExitPending()) {
+			// Teardown can delete Network and must not run another gameplay update.
+			TheGameLogic->processPendingGameExit();
+			return;
+		}
+#endif
+
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
 		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
 		{

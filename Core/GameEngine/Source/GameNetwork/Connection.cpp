@@ -149,6 +149,16 @@ void Connection::sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay) {
 	if (m_isQuitting)
 		return;
 
+#if defined(GENONLINE)
+	// a signed frame info goes out in its signed form
+	if (msg->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO && ((NetFrameCommandMsg *)msg)->hasSignature()) {
+		NetSignedFrameCommandMsg *signedMsg = newInstance(NetSignedFrameCommandMsg)((NetFrameCommandMsg *)msg);
+		sendNetCommandMsg(signedMsg, relay);
+		signedMsg->detach();
+		return;
+	}
+#endif
+
 	if (m_netCommandList != nullptr) {
 		NetPacket packet;
 

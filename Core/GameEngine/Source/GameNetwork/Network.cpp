@@ -52,6 +52,7 @@
 #include "Common/Recorder.h"
 #include "GameClient/MessageBox.h"
 #include "../GenOnlineInclude.h"
+#include "../GenOnlineInterfaces.h"
 
 
 #if defined(DEBUG_CRC) && !RETAIL_COMPATIBLE_NETWORKING
@@ -114,6 +115,8 @@ public:
 
 #if defined(GENONLINE)
 	virtual void SeedLatencyData(int latency);
+	virtual void requireMatchKeys() override { m_matchKeysRequired = TRUE; }
+	virtual Bool matchKeysRequired() const override { return m_matchKeysRequired; }
 #endif
 
 	void setLocalAddress(UnsignedInt ip, UnsignedInt port);
@@ -121,6 +124,9 @@ public:
 	UnsignedInt getFrameRate(void) { return m_frameRate; }
 	UnsignedInt getPacketArrivalCushion(void);								///< Returns the smallest packet arrival cushion since this was last called.
 	Bool isFrameDataReady(void);
+#if defined(GENONLINE)
+	virtual Bool isGameExitPending() const override { return m_localStatus == NETLOCALSTATUS_POSTGAME; }
+#endif
 	virtual Bool isStalling();
 	void parseUserList(const GameInfo* game);
 	void startGame(void);																			///< Sets the network game frame counter to -1
@@ -240,6 +246,13 @@ protected:
 #if defined(RTS_DEBUG)
 	Bool m_networkOn;
 #endif
+
+#if defined(GENONLINE)
+	Bool m_matchKeysRequired;
+	Bool m_matchStartFailed;
+	Bool startPrerequisitesReady() const;
+	void failMatchStart();		///< Leaves rather than starting without authentication.
+#endif
 };
 
 UnsignedInt Network::getPingFrame()
@@ -312,6 +325,15 @@ Network::~Network()
  */
 Bool Network::deinit()
 {
+#if defined(GENONLINE)
+	if (m_matchKeysRequired) {
+		NetworkMesh* mesh = GenOnlineServicesManager::GetNetworkMesh();
+		if (mesh != nullptr) {
+			mesh->EndMatchKeys();
+		}
+		m_matchKeysRequired = FALSE;
+	}
+#endif
 	if (m_conMgr)
 	{
 		m_conMgr->destroyGameMessages();
@@ -358,6 +380,11 @@ void Network::init()
 
 	m_localStatus = NETLOCALSTATUS_PREGAME;
 
+#if defined(GENONLINE)
+	m_matchKeysRequired = FALSE;
+	m_matchStartFailed = FALSE;
+#endif
+
 	QueryPerformanceFrequency((LARGE_INTEGER*)&m_perfCountFreq);
 	m_nextFrameTime = 0;
 	m_sawCRCMismatch = FALSE;
@@ -390,6 +417,7 @@ void Network::SeedLatencyData(int highestLatency)
 
 	m_conMgr->SeedLatencyData(highestLatency);
 }
+
 #endif
 
 #if defined(GENONLINE)
@@ -549,6 +577,13 @@ void Network::updateLogicFrame()
 			if (TheGameLogic->getFrame() == 1) {
 #else
 			if (TheGameLogic->getFrame() == 1) {
+#endif
+#if defined(GENONLINE)
+				// Pregame updates drive loading; only entering gameplay requires completed setup.
+				if (!startPrerequisitesReady()) {
+					failMatchStart();
+					return;
+				}
 #endif
 				m_localStatus = NETLOCALSTATUS_INGAME;
 				NetCommandList *netcmdlist = m_conMgr->getFrameCommandList(0); // clear out frame 0 since we skipped it
@@ -767,7 +802,20 @@ void Network::update()
 	}
 #endif
 
+#if defined(GENONLINE)
+	if (m_matchStartFailed) {
+		// Discard gameplay input, but leave the queued exit command for normal teardown.
+		GetCommandsFromCommandList();
+		return;
+	}
+#endif
+
 	GetCommandsFromCommandList(); // Remove commands from TheCommandList and send them to the connection manager.
+#if defined(GENONLINE)
+	if (m_matchStartFailed) {
+		return;
+	}
+#endif
 	if (m_conMgr != NULL) {
 		if (m_localStatus == NETLOCALSTATUS_INGAME) {
 #if defined(GENONLINE_RUN_FAST)
@@ -783,11 +831,24 @@ void Network::update()
 	}
 
 	liteupdate();
+#if defined(GENONLINE)
+	if (m_matchStartFailed) {
+		return;
+	}
+#endif
 
 	if (m_localStatus == NETLOCALSTATUS_LEFT) {
 		// || (m_localStatus == NETLOCALSTATUS_LEAVING)) {
 		endOfGameCheck();
+#if defined(GENONLINE)
+		return;
+#endif
 	}
+#if defined(GENONLINE)
+	if (m_localStatus == NETLOCALSTATUS_POSTGAME) {
+		return;
+	}
+#endif
 
 	if (AllCommandsReady(TheGameLogic->getFrame())) {
 		// If all the commands are ready for the next frame...
@@ -813,6 +874,11 @@ void Network::update()
 }
 
 void Network::liteupdate() {
+#if defined(GENONLINE)
+	if (m_matchStartFailed) {
+		return;
+	}
+#endif
 
 #if defined(RTS_DEBUG)
 	if (m_networkOn == FALSE) {
@@ -896,7 +962,11 @@ Bool Network::timeForNewFrame() {
  * Returns true if the game commands for the next frame have been put on the command list.
  */
 Bool Network::isFrameDataReady() {
+#if defined(GENONLINE)
+	return m_frameDataReady;
+#else
 	return (m_frameDataReady || (m_localStatus == NETLOCALSTATUS_LEFT));
+#endif
 }
 
 Bool Network::isStalling()
@@ -1064,8 +1134,43 @@ void Network::updateLoadProgress(Int percent)
 	}
 }
 
+#if defined(GENONLINE)
+Bool Network::startPrerequisitesReady() const
+{
+	if (m_matchStartFailed) {
+		return FALSE;
+	}
+	if (m_matchKeysRequired) {
+		NetworkMesh* mesh = GenOnlineServicesManager::GetNetworkMesh();
+		return mesh != nullptr && mesh->GetMatchKeys().IsReady();
+	}
+	return TRUE;
+}
+
+void Network::failMatchStart()
+{
+	if (m_matchStartFailed) {
+		return;
+	}
+	NetworkMesh* mesh = GenOnlineServicesManager::GetNetworkMesh();
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[START] Missing match keys, leaving (keys=%zu/%zu)",
+		mesh != nullptr ? mesh->GetMatchKeys().GetPeerKeyCount() : 0,
+		mesh != nullptr ? mesh->GetMatchKeys().GetExpectedPeers() : 0);
+	m_matchStartFailed = TRUE;
+	quitGame();
+	if (m_conMgr != nullptr) {
+		TheGameLogic->processProgressComplete((Int)m_conMgr->getLocalPlayerID());
+	}
+}
+#endif
+
 void Network::loadProgressComplete()
 {
+#if defined(GENONLINE)
+	if (m_matchStartFailed) {
+		return;
+	}
+#endif
 	if (m_conMgr != nullptr) {
 		m_conMgr->loadProgressComplete();
 	}

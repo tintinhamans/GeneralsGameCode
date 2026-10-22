@@ -133,6 +133,13 @@ Bool UDPTransport::init( UnsignedInt ip, UnsignedShort port )
 #if defined(RTS_DEBUG)
 		m_delayedInBuffer[i].message.length = 0;
 #endif
+#if defined(GENONLINE)
+		// this transport does not know the sending user
+		m_inBuffer[i].senderKnown = FALSE;
+#if defined(RTS_DEBUG)
+		m_delayedInBuffer[i].message.senderKnown = FALSE;
+#endif
+#endif
 	}
 	for (i=0; i<MAX_TRANSPORT_STATISTICS_SECONDS; ++i)
 	{
