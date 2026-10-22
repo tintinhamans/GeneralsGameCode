@@ -343,6 +343,8 @@ void ConnectionManager::init()
 	m_stallActive = FALSE;
 	m_stallStartTime = 0;
 	m_stallMissingMask = 0;
+	m_lastKnownRunAhead = 0;
+	m_frameGroupingMs = 0;
 #endif
 
 	m_frameMetrics.init();
@@ -1412,6 +1414,10 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 	static time_t lasttimesent = 0;
 	time_t curTime = timeGetTime();
 
+#if defined(GENERALS_ONLINE)
+	m_lastKnownRunAhead = oldRunAhead;
+#endif
+
 	if ((lasttimesent == 0) || ((curTime - lasttimesent) > TheGlobalData->m_networkRunAheadMetricsTime)) {
 		if (m_localSlot == m_packetRouterSlot) {
 			// We are the packet router, time to compute a new run ahead for this game.
@@ -2031,6 +2037,9 @@ void ConnectionManager::setFrameGrouping(time_t frameGrouping) {
 	if (m_localSlot == m_packetRouterSlot) {
 		frameGrouping = frameGrouping / 2;
 	}
+#if defined(GENERALS_ONLINE)
+	m_frameGroupingMs = (Int)frameGrouping;
+#endif
 	for (Int i = 0; i < MAX_SLOTS; ++i) {
 		if (m_connections[i] != nullptr) {
 			m_connections[i]->setFrameGrouping(frameGrouping);
@@ -2910,5 +2919,29 @@ void ConnectionManager::noteStalling(Bool stalling, UnsignedInt frame) {
 		m_stallActive = FALSE;
 		m_stallStats.note((Int)(now - m_stallStartTime), m_stallMissingMask, now);
 	}
+}
+
+Bool ConnectionManager::getOverlayInfo(Int slot, NetworkOverlayInfo &info) {
+	time_t now = timeGetTime();
+	m_stallStats.update(now);
+
+	info = NetworkOverlayInfo();
+	info.stalledNow = m_stallActive;
+	info.runAhead = m_lastKnownRunAhead;
+	info.frameGroupingMs = m_frameGroupingMs;
+
+	if (slot >= 0 && slot < MAX_SLOTS) {
+		info.stallsWindow = m_stallStats.getCountForSlot(slot, now, NETWORK_STATS_WINDOW_MS);
+		info.stallsMinute = m_stallStats.getCountForSlot(slot, now, 60000);
+		info.waitingOnSlot = m_stallActive && ((m_stallMissingMask & (1u << slot)) != 0);
+		if (isPlayerConnected(slot)) {
+			info.slotInBandMs = (Int)(m_latencyAverages[slot] * 1000.0f);
+		}
+		m_cushionStats[slot].update(now);
+		info.cushionSamples = m_cushionStats[slot].getSampleCount();
+		info.cushionP5 = m_cushionStats[slot].getPercentile(5);
+		info.cushionP50 = m_cushionStats[slot].getPercentile(50);
+	}
+	return TRUE;
 }
 #endif

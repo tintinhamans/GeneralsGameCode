@@ -289,25 +289,28 @@ void StallStats::note(Int durationMs, UnsignedInt missingSlotMask, time_t now)
 
 void StallStats::update(time_t now)
 {
-	m_events.prune(now, NETWORK_STATS_WINDOW_MS);
+	m_events.prune(now, HISTORY_MS);
 }
 
-Int StallStats::getTotalMs() const
-{
-	Int total = 0;
-	for (Int i = 0; i < m_events.size(); ++i)
-	{
-		total += m_events[i].ms;
-	}
-	return total;
-}
-
-Int StallStats::getCountForSlot(Int slot) const
+Int StallStats::getCount(time_t now, Int windowMs) const
 {
 	Int count = 0;
 	for (Int i = 0; i < m_events.size(); ++i)
 	{
-		if (m_events[i].slotMask & (1u << slot))
+		if (now - m_events[i].time <= windowMs)
+		{
+			++count;
+		}
+	}
+	return count;
+}
+
+Int StallStats::getCountForSlot(Int slot, time_t now, Int windowMs) const
+{
+	Int count = 0;
+	for (Int i = 0; i < m_events.size(); ++i)
+	{
+		if ((m_events[i].slotMask & (1u << slot)) && now - m_events[i].time <= windowMs)
 		{
 			++count;
 		}

@@ -6,6 +6,7 @@
 #include <ws2ipdef.h>
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/NetworkInterface.h"
+#include "Common/GlobalData.h"
 #include "GameLogic/GameLogic.h"
 #include "../OnlineServices_RoomsInterface.h"
 #include "../json.hpp"
@@ -1567,38 +1568,6 @@ void PlayerConnection::UpdateLatencyHistogram()
 		m_vecLatencyHistory.erase(m_vecLatencyHistory.begin());
 	}
 	m_vecLatencyHistory.push_back(currLatency);
-
-	// Sample connection quality into rolling history.
-	// Prefer SNS local quality, then remote quality, then fall back to manual in/out packet rate ratio.
-	if (m_hSteamConnection != k_HSteamNetConnection_Invalid)
-	{
-		SteamNetConnectionRealTimeStatus_t status;
-		if (SteamNetworkingSockets()->GetConnectionRealTimeStatus(m_hSteamConnection, &status, 0, nullptr) == k_EResultOK)
-		{
-			float sample = -1.0f;
-			if (status.m_flConnectionQualityLocal >= 0.0f)
-			{
-				sample = status.m_flConnectionQualityLocal;
-			}
-			else if (status.m_flConnectionQualityRemote >= 0.0f)
-			{
-				sample = status.m_flConnectionQualityRemote;
-			}
-			else if (status.m_flOutPacketsPerSec > 0.0f)
-			{
-				sample = status.m_flInPacketsPerSec / status.m_flOutPacketsPerSec;
-			}
-
-			if (sample > 1.0f) sample = 1.0f;
-
-			if (sample >= 0.0f)
-			{
-				if (m_vecQualityHistory.size() >= connectionHistoryLength)
-					m_vecQualityHistory.erase(m_vecQualityHistory.begin());
-				m_vecQualityHistory.push_back(sample);
-			}
-		}
-	}
 }
 
 void PlayerConnection::Close()
@@ -1714,7 +1683,8 @@ void PlayerConnection::UpdateState(EConnectionState newState, NetworkMesh* pOwni
 	if (newState == EConnectionState::CONNECTED_DIRECT && m_State != EConnectionState::CONNECTED_DIRECT)
 	{
 		m_connectedSinceTime = std::chrono::steady_clock::now();
-		m_smoothedScore = -1.0f;
+		m_rating = ConnectionRating::State();
+		m_nextRatingMs = 0;
 		ResetProbe();
 	}
 
@@ -1871,6 +1841,21 @@ bool PlayerConnection::GetIncomingLoss(int windowMs, PacketFeedback::Summary& su
 	return summary.samples > 0;
 }
 
+float PlayerConnection::GetSustainedLossPercent(int windowMs)
+{
+	// one report of a short window is no trend
+	static constexpr int k_minFeedbackReports = 3;
+	PacketFeedback::Summary outLoss;
+	PacketFeedback::Summary inLoss;
+	GetOutgoingLoss(windowMs, outLoss);
+	GetIncomingLoss(windowMs, inLoss);
+	if (outLoss.samples < k_minFeedbackReports && inLoss.samples < k_minFeedbackReports)
+	{
+		return -1.0f;
+	}
+	return (std::max)((outLoss.samples >= k_minFeedbackReports) ? outLoss.lossPercent : 0.0f, (inLoss.samples >= k_minFeedbackReports) ? inLoss.lossPercent : 0.0f);
+}
+
 int PlayerConnection::GetJitter()
 {
 	int sumDelta = 0;
@@ -1899,20 +1884,20 @@ int PlayerConnection::GetJitter()
 	return sumDelta / count;
 }
 
-float PlayerConnection::GetConnectionQuality()
+int PlayerConnection::ComputeConnectionRating()
 {
-	if (!m_vecQualityHistory.empty())
+	// the overlay and the lobby ask every frame, the percentile sorts inside do not change that fast
+	const int64_t ratingNowMs = NowSteadyMs();
+	if (ratingNowMs < m_nextRatingMs)
 	{
-		float sum = 0.0f;
-		for (float r : m_vecQualityHistory)
-			sum += r;
-		return sum / static_cast<float>(m_vecQualityHistory.size());
+		return m_ratingResult;
 	}
-
-	return -1.0f;
+	m_nextRatingMs = ratingNowMs + 250;
+	m_ratingResult = UpdateConnectionRating();
+	return m_ratingResult;
 }
 
-int PlayerConnection::ComputeConnectionScore()
+int PlayerConnection::UpdateConnectionRating()
 {
 	static constexpr std::chrono::milliseconds k_warmupDuration{ 1000 };
 	if (m_connectedSinceTime == (std::chrono::steady_clock::time_point::min)() ||
@@ -1921,65 +1906,71 @@ int PlayerConnection::ComputeConnectionScore()
 		return -1;
 	}
 
-	// TODO_EOS: need to impl jitter etc again
-	const int latency = GetLatency();
-	const int jitter = GetJitter();
-	const float quality = GetConnectionQuality();   // packet delivery ratio [0..1]
-
-	static constexpr float k_subScoreFloor = 0.3f;
-	static constexpr float k_latencyWeight = 0.30f;
-	static constexpr float k_jitterWeight = 0.25f;
-	static constexpr float k_reliabilityWeight = 0.45f;
-
-	float weightedLogSum = 0.0f;
-	float activeWeightSum = 0.0f;
-
-	if (latency >= 0)
-	{
-		// 10ms and below are treated as full score. Above that, roughly:
-		// 400ms -> composite 75, 800ms -> composite 50 when other metrics are perfect.
-		int effectiveLatency = (std::max)(latency - 10, 0);
-		float latFactor = std::clamp(1.0f - static_cast<float>(effectiveLatency) / 1590.0f, 0.0f, 1.0f);
-		float latencyScore = (std::max)(std::powf(latFactor, 4.545f), k_subScoreFloor);
-		weightedLogSum += k_latencyWeight * std::logf(latencyScore);
-		activeWeightSum += k_latencyWeight;
-	}
-
-	if (jitter >= 0)
-	{
-		// 50ms -> composite 75, 100ms -> composite 50 when other metrics are perfect.
-		float jitFactor = std::clamp(1.0f - static_cast<float>(jitter) / 200.0f, 0.0f, 1.0f);
-		float jitterScore = (std::max)(std::powf(jitFactor, 2.632f), k_subScoreFloor);
-		weightedLogSum += k_jitterWeight * std::logf(jitterScore);
-		activeWeightSum += k_jitterWeight;
-	}
-
-	if (quality >= 0.0f)
-	{
-		// 90% -> composite 75, 80% -> composite 50 when other metrics are perfect.
-		float relFactor = std::clamp(2.5f * quality - 1.5f, 0.0f, 1.0f);
-		float reliabilityScore = (std::max)(std::powf(relFactor, 2.5f), k_subScoreFloor);
-		weightedLogSum += k_reliabilityWeight * std::logf(reliabilityScore);
-		activeWeightSum += k_reliabilityWeight;
-	}
-
-	if (activeWeightSum <= 0.0f)
+	if (NGMP_OnlineServicesManager::GetInstance() == nullptr)
 	{
 		return -1;
 	}
+	const ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+	const int slackPercent = serviceConf.input_delay.slack_percent;
+	int sendIntervalMs = serviceConf.send.frames_per_packet * 1000 / GENERALS_ONLINE_HIGH_FPS_LIMIT;
 
-	float composite = std::expf(weightedLogSum / activeWeightSum);
-	float rawScore = composite * 100.0f;
-
-	static constexpr float k_scoreSmoothingAlpha = 0.15f;
-	if (m_smoothedScore < 0.0f)
+	// the command connections are indexed by game slot, find the slot of this user
+	int slot = -1;
+	const ConnectionStats* pCmd = nullptr;
+	if (TheNetwork != nullptr && TheNGMPGame != nullptr)
 	{
-		m_smoothedScore = rawScore;
+		slot = TheNGMPGame->getSlotOfUser(m_userID);
+		pCmd = TheNetwork->getConnectionStats(slot);
+	}
+
+	ConnectionRating::Inputs inputs;
+	NetworkOverlayInfo info;
+
+	float feedbackLoss = -1.0f;
+	static constexpr int k_minCmdSamples = 20;
+	const bool inMatch = (pCmd != nullptr && pCmd->getSampleCount() >= k_minCmdSamples);
+	const int feedbackWindowMs = inMatch ? NETWORK_STATS_WINDOW_MS : 60000;
+	PacketFeedback::Summary outLoss;
+	PacketFeedback::Summary inLoss;
+	const bool hasOut = GetOutgoingLoss(feedbackWindowMs, outLoss);
+	const bool hasIn = GetIncomingLoss(feedbackWindowMs, inLoss);
+	if (hasOut || hasIn)
+	{
+		feedbackLoss = (std::max)(hasOut ? outLoss.lossPercent : 0.0f, hasIn ? inLoss.lossPercent : 0.0f);
+	}
+	const float sustainedLoss = GetSustainedLossPercent(feedbackWindowMs);
+
+	if (inMatch && TheNetwork->getOverlayInfo(slot, info))
+	{
+		if (info.frameGroupingMs > 0)
+		{
+			sendIntervalMs = info.frameGroupingMs;
+		}
+		inputs = ConnectionRating::InputsFromMatch(*pCmd, info, slackPercent, sendIntervalMs, feedbackLoss);
+	}
+	else if (m_probeStats.getSampleCount() >= 10)
+	{
+		inputs = ConnectionRating::InputsFromProbe(m_probeStats, slackPercent, sendIntervalMs, feedbackLoss);
 	}
 	else
 	{
-		m_smoothedScore += k_scoreSmoothingAlpha * (rawScore - m_smoothedScore);
+		// a gap in the samples keeps the last rating, the indicator must not blink out
+		return (m_rating.bars > 0) ? m_rating.bars : -1;
 	}
 
-	return static_cast<int>(std::round(m_smoothedScore));
+	inputs.lossPercent = sustainedLoss;
+	if (m_lastPacketMs > 0)
+	{
+		const int64_t nowSteadyMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+		inputs.silentMs = static_cast<Int>((std::min)(nowSteadyMs - m_lastPacketMs, static_cast<int64_t>(3600000)));
+	}
+	{
+		// silence must outlast the probe interval of the current phase, probes may be the only traffic
+		const ServiceConfig::Connection& pingConfig = serviceConf.connection;
+		const int pingIntervalMs = (TheNetwork != nullptr) ? pingConfig.probe_match_interval_ms : pingConfig.probe_lobby_interval_ms;
+		inputs.silentLimitMs = (std::max)(inputs.silentLimitMs, pingIntervalMs * 5 / 2);
+	}
+
+	ConnectionRating::Update(m_rating, inputs, timeGetTime());
+	return m_rating.bars;
 }

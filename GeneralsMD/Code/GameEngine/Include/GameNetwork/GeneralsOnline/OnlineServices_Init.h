@@ -661,9 +661,10 @@ public:
 	static void CaptureScreenshot(bool bResizeForTransmit, std::function<void(std::vector<unsigned char>)> cbOnDataAvailable);
 	static void CaptureScreenshotForProbe(EScreenshotType screenshotType, std::string strURI);
 
-	static bool g_bAdvancedNetworkStats;
-	static void ToggleAdvancedNetworkStats() { g_bAdvancedNetworkStats = !g_bAdvancedNetworkStats; }
-	static bool IsAdvancedNetworkStatsEnabled() { return g_bAdvancedNetworkStats; }
+	// the network overlay: 0 off, 1 player view (F10), 2 dev view (Shift+F10)
+	static int g_networkOverlayMode;
+	static void ToggleNetworkOverlay(int mode) { g_networkOverlayMode = (g_networkOverlayMode == mode) ? 0 : mode; }
+	static int GetNetworkOverlayMode() { return g_networkOverlayMode; }
 
 	void OnLogin(ELoginResult loginResult, const char* szWSAddr, std::function<void(void)> fnWebsocketConnectedCallback);
 	
