@@ -10,6 +10,7 @@
 #include "GameNetwork/ConnectionStats.h"
 #include "GameNetwork/GeneralsOnline/ConnectionRating.h"
 #include "GameNetwork/GeneralsOnline/PacketFeedback.h"
+#include "GameNetwork/GeneralsOnline/MatchKeys.h"
 
 class NetRoom_ChatMessagePacket;
 
@@ -119,6 +120,9 @@ public:
 	int SendEnveloped(ENetworkChannel channel, const uint8_t* payload, size_t len, int sendFlags);	///< returns an EResult
 	bool GetOutgoingLoss(int windowMs, PacketFeedback::Summary& summary);	///< our packets to the peer, false without feedback
 	bool GetIncomingLoss(int windowMs, PacketFeedback::Summary& summary);	///< the peer's packets to us
+
+	void HandleKeyMessage(const uint8_t* data, size_t len);	///< A match key announcement arrived on this connection.
+
 	int GetJitter();
 	int ComputeConnectionRating();	///< 1..5 bars, -1 while it is not known yet; cached for 250 ms.
 	int UpdateConnectionRating();
@@ -202,6 +206,8 @@ public:
 	void RegisterConnectivity(int64_t userID);
 	void UpdateConnectivity(PlayerConnection* connection);
 
+	MatchKeys m_matchKeys;
+
 	std::function<void(int64_t, std::wstring, PlayerConnection*)> m_cbOnConnected = nullptr;
 	void RegisterForConnectionEvents(std::function<void(int64_t, std::wstring, PlayerConnection*)> cb)
 	{
@@ -228,6 +234,23 @@ public:
 
 		return highestLatency;
 	}
+
+	// The signing keys, see MatchKeys.h
+	bool BeginLobbyKeys();	///< Makes this client's key, call when it joins or creates a lobby.
+	void TickLobbyKeys(int64_t nowMs);	///< Announces the key to the peers that lack it and tells them which keys we hold.
+	bool BeginMatchKeys();	///< Binds the keys to the match that is starting, false when a key of the roster is missing.
+	void EndMatchKeys();	///< Unbinds from the match, the lobby keys stay.
+	void OnKeyAnnouncement(int64_t connectionUserID, const uint8_t* data, size_t len);
+
+	/// A lobby member the host has to wait for before it starts.
+	struct LobbyStartBlocker
+	{
+		int64_t userID;
+		bool notConnected;	///< Else the connection is up but the keys are not exchanged with everyone yet.
+	};
+	void GetLobbyStartBlockers(std::vector<LobbyStartBlocker>& blockers);
+	const MatchKeys& GetMatchKeys() const { return m_matchKeys; }
+	MatchKeys& GetMatchKeys() { return m_matchKeys; }
 
 	Real getMaximumHistoricalLatency()
 	{
@@ -303,6 +326,14 @@ private:
 	HSteamListenSocket m_hListenSock = k_HSteamListenSocket_Invalid;
 
 	bool m_bDisconnected = false;
+
+	struct KeySync
+	{
+		int64_t nextAnnounceMs = 0;
+		int64_t nextStatusMs = 0;
+		std::vector<uint8_t> lastStatus;
+	};
+	std::map<int64_t, KeySync> m_keySync;	///< Per peer, when the key and the held keys were last sent.
 
 	std::string m_strTurnUsername;
 	std::string m_strTurnToken;

@@ -982,6 +982,29 @@ static void WOLLockSettings()
 	}
 }
 
+// The host does not start while a member is not connected or has not exchanged keys with everyone.
+static Bool WOLLobbyReadyToStart(void)
+{
+	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+	if (pLobbyInterface == nullptr || pMesh == nullptr)
+	{
+		return TRUE;
+	}
+
+	std::vector<NetworkMesh::LobbyStartBlocker> blockers;
+	pMesh->GetLobbyStartBlockers(blockers);
+	for (const NetworkMesh::LobbyStartBlocker& blocker : blockers)
+	{
+		const LobbyMemberEntry member = pLobbyInterface->GetRoomMemberFromID(blocker.userID);
+		UnicodeString text;
+		text.format(blocker.notConnected ? L"Connections: Waiting for %s to connect." : L"Connections: Waiting for %s to exchange keys.", from_utf8(member.display_name).c_str());
+		GadgetListBoxAddEntryText(listboxGameSetupChat, text, GameMakeColor(255, 194, 15, 255), -1, -1);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[START] Not starting, waiting for user %lld to %s", static_cast<long long>(blocker.userID), blocker.notConnected ? "connect" : "exchange keys");
+	}
+	return blockers.empty();
+}
+
 static void StartPressed()
 {
 	Bool isReady = TRUE;
@@ -1041,6 +1064,11 @@ static void StartPressed()
 			}
 		}
 		
+		return;
+	}
+
+	if (!WOLLobbyReadyToStart())
+	{
 		return;
 	}
 
@@ -2600,15 +2628,20 @@ void WOLGameSetupMenuUpdate( WindowLayout * layout, void *userData)
 				// are we done?
 				if (secondsRemaining <= 0)
 				{
-					s_matchStartCountdownWasRunning = false;
 					// stop countdown
 					TheNGMPGame->StopCountdown();
 
-					// send start game packet
-					std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
-					if (pWS != nullptr)
+					// a member that joined during the countdown is not ready yet, the buttons come back with the stopped countdown
+					if (WOLLobbyReadyToStart())
 					{
-						pWS->SendData_StartGame();
+						s_matchStartCountdownWasRunning = false;
+
+						// send start game packet
+						std::shared_ptr<WebSocket>  pWS = NGMP_OnlineServicesManager::GetWebSocket();
+						if (pWS != nullptr)
+						{
+							pWS->SendData_StartGame();
+						}
 					}
 				}
 			}
