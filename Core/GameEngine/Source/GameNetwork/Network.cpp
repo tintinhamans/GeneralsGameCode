@@ -166,6 +166,9 @@ public:
 	virtual Int getAverageFPS() override { return m_conMgr->getAverageFPS(); }
 	virtual Int getSlotAverageFPS(Int slot) override;
 	virtual const ConnectionStats* getConnectionStats(Int slot) const override;
+#if defined(GENERALS_ONLINE)
+	virtual Bool getOverlayInfo(Int slot, NetworkOverlayInfo &info) override;
+#endif
 
 	virtual void attachTransport(Transport *transport) override;
 	virtual void initTransport() override;
@@ -1107,6 +1110,15 @@ const ConnectionStats* Network::getConnectionStats(Int slot) const {
 	}
 	return nullptr;
 }
+
+#if defined(GENERALS_ONLINE)
+Bool Network::getOverlayInfo(Int slot, NetworkOverlayInfo &info) {
+	if (m_conMgr != nullptr) {
+		return m_conMgr->getOverlayInfo(slot, info);
+	}
+	return FALSE;
+}
+#endif
 
 #if defined(RTS_DEBUG)
 void Network::toggleNetworkOn() {

@@ -244,6 +244,11 @@ private:
 	Bool m_stallActive;
 	time_t m_stallStartTime;
 	UnsignedInt m_stallMissingMask;
+	Int m_lastKnownRunAhead;
+	Int m_frameGroupingMs;
+public:
+	Bool getOverlayInfo(Int slot, NetworkOverlayInfo &info);	///< Fills what the overlay and the connection rating need about one slot.
+protected:
 #endif
 
 	// -----------------------------------------------------------------------------
