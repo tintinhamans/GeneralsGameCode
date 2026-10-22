@@ -1,5 +1,6 @@
 set(CORE_LIBRARIES_SRC
     Debug.cpp
+    Include/AdaptiveQualityLevels.h
     Include/Lib/BaseDefines.h
     Include/Lib/BaseFunctions.h
     Include/Lib/BaseType.h

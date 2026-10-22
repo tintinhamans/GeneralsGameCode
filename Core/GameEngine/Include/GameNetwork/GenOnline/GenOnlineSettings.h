@@ -38,6 +38,7 @@ public:
 	}
 
 	bool Graphics_LimitFramerate() const { return m_Render_LimitFramerate; }
+	bool Graphics_AdaptiveQuality() const { return m_Render_AdaptiveQuality; }
 	int Graphics_GetFPSLimit() const
 	{
 		if (!m_Render_LimitFramerate)
@@ -96,6 +97,7 @@ private:
 	bool m_bVerbose = false;
 
 	bool m_Render_LimitFramerate = true;
+	bool m_Render_AdaptiveQuality = true;
 	int m_Render_FramerateLimit_FPSVal = 60;
 	int m_Chat_LifeSeconds = 30;
 

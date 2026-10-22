@@ -1,5 +1,7 @@
 set(GAMEENGINE_SRC
     Include/Common/AcademyStats.h
+    Include/Common/AdaptiveQuality.h
+    Include/Common/AdaptiveQualityModel.h
 #    Include/Common/ActionManager.h
     Include/Common/AddonCompat.h
     Include/Common/ArchiveFile.h
@@ -589,6 +591,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/WOLBrowser/FEBDispatch.h
     Include/GameNetwork/WOLBrowser/WebBrowser.h
     Include/Precompiled/PreRTS.h
+    Source/Common/AdaptiveQuality.cpp
     Source/Common/AddonCompat.cpp
     Source/Common/Audio/AudioEventRTS.cpp
     Source/Common/Audio/AudioRequest.cpp
