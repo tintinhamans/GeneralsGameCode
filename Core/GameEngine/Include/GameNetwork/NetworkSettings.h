@@ -10,6 +10,7 @@ struct NetworkSettings
 	struct Send
 	{
 		std::string mode = "reliable";  // "reliable" = GNS retransmits, "datagram" = unreliable datagrams
+		bool direct = false;            // every player sends commands straight to each peer while the mesh is up
 		int frames_per_packet = 2;      // send interval in frames
 		int frames_per_packet_lossy = 1; // send interval in frames while the redundancy depth is above 0, 0 = keep the configured one
 		bool flush_every_frame = true;  // flush GNS after each frame
