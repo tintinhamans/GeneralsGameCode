@@ -50,6 +50,7 @@ public:
 	Real getAverageLatency();
 	Int getAverageFPS();
 	Int getMinimumCushion();
+	Bool isPending(UnsignedInt frame);
 
 	void SeedLatencyData(int latency);
 
