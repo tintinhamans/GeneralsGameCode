@@ -518,6 +518,7 @@ set(GAMEENGINE_SRC
 #    Include/GameLogic/WeaponStatus.h
     Include/GameNetwork/Connection.h
     Include/GameNetwork/ConnectionManager.h
+    Include/GameNetwork/ConnectionStats.h
     Include/GameNetwork/DisconnectManager.h
     Include/GameNetwork/DownloadManager.h
     Include/GameNetwork/FileTransfer.h
@@ -1146,6 +1147,7 @@ set(GAMEENGINE_SRC
     Source/GameLogic/System/RankInfo.cpp
     Source/GameNetwork/Connection.cpp
     Source/GameNetwork/ConnectionManager.cpp
+    Source/GameNetwork/ConnectionStats.cpp
     Source/GameNetwork/DisconnectManager.cpp
     Source/GameNetwork/DownloadManager.cpp
     Source/GameNetwork/FileTransfer.cpp
@@ -1204,6 +1206,8 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/Vendor/DiscordRPC/discord_rpc.h
     Include/GameNetwork/GenOnline/NetworkBitstream.h
     Include/GameNetwork/GenOnline/NetworkMesh.h
+    Include/GameNetwork/GenOnline/NetBytes.h
+    Include/GameNetwork/GenOnline/PacketFeedback.h
     Include/GameNetwork/GenOnline/NetworkPacket.h
     Include/GameNetwork/GenOnline/GenOnlineDefines.h
     Include/GameNetwork/GenOnline/GenOnlineGame.h
@@ -1238,6 +1242,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/HTTP/HTTPManager.cpp
     Source/GameNetwork/GenOnline/HTTP/HTTPRequest.cpp
     Source/GameNetwork/GenOnline/NetworkMesh.cpp
+    Source/GameNetwork/GenOnline/PacketFeedback.cpp
     Source/GameNetwork/GenOnline/GenOnlineInit.cpp
     Source/GameNetwork/GenOnline/GenOnlineAuth.cpp
     Source/GameNetwork/GenOnline/GenOnlineLobbyInterface.cpp

@@ -330,7 +330,7 @@ struct RegionResponse
 
 struct ServiceConfig
 {
-	// Peer connections: signalling, NAT traversal, and the per-connection ping history
+	// Peer connections: signalling, NAT traversal, latency probes, and the per-connection ping history
 	struct Connection
 	{
 		bool relay_only = false;
@@ -339,6 +339,8 @@ struct ServiceConfig
 		bool retry_signalling = true;
 		int reconnect_timeout_ms = MeshConnectionTimeoutPolicy::ReconnectTimeoutMs; // first negotiation keeps 10 s
 		bool anticheat_transport = false; // game traffic through the anticheat plugin's transport
+		int probe_lobby_interval_ms = 250; // time between latency probes sent to each peer while not in a match
+		int probe_match_interval_ms = 1000; // the same in a match, the command acks already measure the round trip
 		int latency_history_ms = 20000;
 	} connection;
 
@@ -431,6 +433,8 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadServiceConfigValue(s, "retry_signalling", c.connection.retry_signalling);
 		ReadServiceConfigValue(s, "reconnect_timeout_ms", c.connection.reconnect_timeout_ms);
 		ReadServiceConfigValue(s, "anticheat_transport", c.connection.anticheat_transport);
+		ReadServiceConfigValue(s, "probe_lobby_interval_ms", c.connection.probe_lobby_interval_ms);
+		ReadServiceConfigValue(s, "probe_match_interval_ms", c.connection.probe_match_interval_ms);
 		ReadServiceConfigValue(s, "latency_history_ms", c.connection.latency_history_ms);
 	}
 	if (j.contains("send"))
@@ -438,7 +442,6 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		const nlohmann::json& s = j["send"];
 		ReadServiceConfigValue(s, "frames_per_packet", c.send.frames_per_packet);
 		ReadServiceConfigValue(s, "flush_every_frame", c.send.flush_every_frame);
-		ReadServiceConfigValue(s, "flags", c.send.flags);
 	}
 	if (j.contains("input_delay"))
 	{
@@ -472,8 +475,10 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 // Keeps values from the service inside the ranges the game can run with
 inline void ClampServiceConfig(ServiceConfig& c)
 {
-	c.connection.latency_history_ms = std::clamp(c.connection.latency_history_ms, 1000, 120000);
+	c.connection.latency_history_ms = (std::max)(c.connection.latency_history_ms, 1000);
 	c.connection.reconnect_timeout_ms = MeshConnectionTimeoutPolicy::ClampReconnectTimeout(c.connection.reconnect_timeout_ms);
+	c.connection.probe_lobby_interval_ms = std::clamp(c.connection.probe_lobby_interval_ms, 50, 5000);
+	c.connection.probe_match_interval_ms = std::clamp(c.connection.probe_match_interval_ms, 50, 10000);
 
 	c.input_delay.min_frames = std::clamp(c.input_delay.min_frames, 1, 64);
 	c.input_delay.slack_percent = std::clamp(c.input_delay.slack_percent, 0, 200);
