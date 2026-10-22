@@ -6,6 +6,9 @@
 struct ServiceConnectionSettings
 {
 	std::string endpointMode = "automatic";
+	std::string proxyMode = "system";
+	std::string proxyURL;
+	bool integratedProxyAuth = false;
 };
 
 namespace ServiceConnection

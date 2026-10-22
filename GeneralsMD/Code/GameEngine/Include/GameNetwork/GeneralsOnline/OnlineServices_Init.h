@@ -1,4 +1,5 @@
 #pragma once
+#include "ServiceConnectionPolicy.h"
 
 #include "NGMP_include.h"
 
@@ -224,7 +225,14 @@ public:
 	}
 
 private:
+	void PollConnectionSetup();
+	void StartResolvedConnection();
 	void FailConnectionSetup();
+	std::shared_ptr<ServiceConnection::ProxyResolution> m_proxyResolution;
+	ServiceConnection::ResolvedProxyPolicy m_proxyPolicy;
+	size_t m_proxyRoute = 0;
+	int64_t m_proxySetupStarted = -1;
+	bool m_connectAsReconnect = false;
 	CURL* m_pCurlWS = nullptr;
     CURLM* m_pMulti = nullptr;
 	struct curl_slist* m_pHeaders = nullptr;
@@ -660,6 +668,7 @@ private:
 	size_t m_bootstrapIndex = 0;
 	std::vector<std::function<void(bool)>> m_routeCallbacks;
 	std::chrono::steady_clock::time_point m_routeValidatedAt{};
+	std::string m_routeSettingsKey;
 
 	ServiceConfig m_ServiceConfig;
 

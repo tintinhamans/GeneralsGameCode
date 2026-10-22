@@ -30,10 +30,13 @@
 #define SETTINGS_KEY_DEBUG_VERBOSE_LOGGING "verbose_logging"
 
 #define SETTINGS_KEY_NETWORK "network"
-#define SETTINGS_KEY_NETWORK_HTTP_VERSION "http_version"
 #define SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT "use_alternative_endpoint"
 #define SETTINGS_KEY_NETWORK_ENDPOINT_MODE "endpoint_mode"
 #define SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT "last_successful_endpoint"
+#define SETTINGS_KEY_NETWORK_PROXY_MODE "proxy_mode"
+#define SETTINGS_KEY_NETWORK_PROXY_URL "proxy_url"
+#define SETTINGS_KEY_NETWORK_INTEGRATED_PROXY_AUTH "integrated_proxy_auth"
+#define SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION "http_version"
 
 #define SETTINGS_KEY_PLUGINS "plugins"
 #define SETTINGS_KEY_PLUGINS_ANTICHEAT "anticheat"
@@ -224,21 +227,6 @@ void GenOnlineSettings::Load(void)
             {
                 const auto& networkSettings = jsonSettings[SETTINGS_KEY_NETWORK];
 
-                if (networkSettings.contains(SETTINGS_KEY_NETWORK_HTTP_VERSION))
-                {
-                   int httpVersion = networkSettings[SETTINGS_KEY_NETWORK_HTTP_VERSION];
-
-				   // clamp
-				   if (httpVersion < 0 || httpVersion > HTTP_VERSION_3_0)
-				   {
-					   m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_AUTO;
-				   }
-				   else
-				   {
-					   m_Network_HTTPVersion = (EHTTPVersion)httpVersion;
-				   }
-                }
-
                 if (networkSettings.contains(SETTINGS_KEY_NETWORK_ENDPOINT_MODE) && networkSettings[SETTINGS_KEY_NETWORK_ENDPOINT_MODE].is_string())
                 {
                     m_ConnectionSettings.endpointMode = networkSettings[SETTINGS_KEY_NETWORK_ENDPOINT_MODE].get<std::string>();
@@ -252,6 +240,31 @@ void GenOnlineSettings::Load(void)
                 if (m_ConnectionSettings.endpointMode != "automatic" && m_ConnectionSettings.endpointMode != "primary" && m_ConnectionSettings.endpointMode != "alternative")
                 {
                     m_ConnectionSettings.endpointMode = "automatic";
+                }
+
+                if (networkSettings.contains(SETTINGS_KEY_NETWORK_PROXY_MODE) && networkSettings[SETTINGS_KEY_NETWORK_PROXY_MODE].is_string())
+                {
+                    m_ConnectionSettings.proxyMode = networkSettings[SETTINGS_KEY_NETWORK_PROXY_MODE].get<std::string>();
+                }
+                if (m_ConnectionSettings.proxyMode != "system" && m_ConnectionSettings.proxyMode != "direct" && m_ConnectionSettings.proxyMode != "custom")
+                {
+                    m_ConnectionSettings.proxyMode = "system";
+                }
+
+                // an invalid custom proxy stays custom with no address, so it can never silently escape to direct
+                std::string proxyError;
+                if (networkSettings.contains(SETTINGS_KEY_NETWORK_PROXY_URL) && networkSettings[SETTINGS_KEY_NETWORK_PROXY_URL].is_string())
+                {
+                    m_ConnectionSettings.proxyURL = networkSettings[SETTINGS_KEY_NETWORK_PROXY_URL].get<std::string>();
+                }
+                if (!m_ConnectionSettings.proxyURL.empty() && !ServiceConnection::ValidateProxyURL(m_ConnectionSettings.proxyURL, proxyError))
+                {
+                    m_ConnectionSettings.proxyURL.clear();
+                }
+
+                if (networkSettings.contains(SETTINGS_KEY_NETWORK_INTEGRATED_PROXY_AUTH) && networkSettings[SETTINGS_KEY_NETWORK_INTEGRATED_PROXY_AUTH].is_boolean())
+                {
+                    m_ConnectionSettings.integratedProxyAuth = networkSettings[SETTINGS_KEY_NETWORK_INTEGRATED_PROXY_AUTH].get<bool>();
                 }
 
                 if (networkSettings.contains(SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT) && networkSettings[SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT].is_string())
@@ -436,8 +449,10 @@ bool GenOnlineSettings::Save()
         {
             SETTINGS_KEY_NETWORK,
                 {
-                    {SETTINGS_KEY_NETWORK_HTTP_VERSION, m_Network_HTTPVersion},
                     {SETTINGS_KEY_NETWORK_ENDPOINT_MODE, m_ConnectionSettings.endpointMode},
+                    {SETTINGS_KEY_NETWORK_PROXY_MODE, m_ConnectionSettings.proxyMode},
+                    {SETTINGS_KEY_NETWORK_PROXY_URL, m_ConnectionSettings.proxyURL},
+                    {SETTINGS_KEY_NETWORK_INTEGRATED_PROXY_AUTH, m_ConnectionSettings.integratedProxyAuth},
                     {SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT, m_LastSuccessfulEndpoint}
                 }
         },
@@ -487,6 +502,7 @@ bool GenOnlineSettings::Save()
 	
 	auto preserved = nlohmann::json::parse(m_PreservedJSON);
 	preserved.merge_patch(root);
+	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION);
 	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT);
 	std::string strData = preserved.dump(1);
 
@@ -517,6 +533,35 @@ bool GenOnlineSettings::Save()
 		m_PreservedJSON = strData;
 	}
 	return bSaved;
+}
+
+bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSettings& settings, std::string& error)
+{
+	error.clear();
+	if ((settings.endpointMode != "automatic" && settings.endpointMode != "primary" && settings.endpointMode != "alternative") ||
+		(settings.proxyMode != "system" && settings.proxyMode != "direct" && settings.proxyMode != "custom"))
+	{
+		error = "Choose a valid service and proxy mode.";
+		return false;
+	}
+	if ((settings.proxyMode == "custom" || !settings.proxyURL.empty()) && !ServiceConnection::ValidateProxyURL(settings.proxyURL, error))
+	{
+		return false;
+	}
+	if (!m_bInitialized)
+	{
+		Initialize();
+	}
+	std::lock_guard<std::mutex> lock(m_NetworkMutex);
+	const auto previous = m_ConnectionSettings;
+	m_ConnectionSettings = settings;
+	if (Save())
+	{
+		return true;
+	}
+	m_ConnectionSettings = previous;
+	error = "Could not save connection settings. Check the game user-data folder permissions.";
+	return false;
 }
 
 bool GenOnlineSettings::Network_SaveLastSuccessfulEndpoint(const std::string& endpoint)

@@ -1,17 +1,7 @@
 #pragma once
-#include <curl/curl.h>
 #include <mutex>
 #include <string>
 #include "GameNetwork/GeneralsOnline/ServiceEndpointPolicy.h"
-
-enum EHTTPVersion
-{
-    HTTP_VERSION_AUTO,
-    HTTP_VERSION_1_0,
-    HTTP_VERSION_1_1,
-    HTTP_VERSION_2_0,
-    HTTP_VERSION_3_0
-};
 
 class GenOnlineSettings
 {
@@ -78,39 +68,7 @@ public:
 	ServiceConnectionSettings Network_GetConnectionSettings() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_ConnectionSettings; }
 	std::string Network_GetLastSuccessfulEndpoint() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_LastSuccessfulEndpoint; }
 	bool Network_SaveLastSuccessfulEndpoint(const std::string& endpoint);
-	EHTTPVersion Network_GetHTTPVersion() const { return m_Network_HTTPVersion; }
-	int Network_GetHTTPVersionForCurl() const
-	{
-		switch (m_Network_HTTPVersion)
-		{
-			case HTTP_VERSION_AUTO:
-			{
-				return CURL_HTTP_VERSION_NONE;
-			}
-
-			case HTTP_VERSION_1_0:
-			{
-				return CURL_HTTP_VERSION_1_0;
-            }
-
-			case HTTP_VERSION_1_1:
-			{
-				return CURL_HTTP_VERSION_1_1;
-			}
-
-			case HTTP_VERSION_2_0:
-			{
-				return CURL_HTTP_VERSION_2_0;
-			}
-
-			case HTTP_VERSION_3_0:
-			{
-				return CURL_HTTP_VERSION_3;
-			}
-		}
-
-		return CURL_HTTP_VERSION_NONE;
-	}
+	bool Network_SaveConnectionSettings(const ServiceConnectionSettings& settings, std::string& error);
 
 private:
 	void Load(void);
@@ -148,7 +106,6 @@ private:
 
 	std::string m_Plugins_Anticheat = std::string();
 
-	EHTTPVersion m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_AUTO;
 	mutable std::mutex m_NetworkMutex;
 	ServiceConnectionSettings m_ConnectionSettings;
 	std::string m_LastSuccessfulEndpoint;

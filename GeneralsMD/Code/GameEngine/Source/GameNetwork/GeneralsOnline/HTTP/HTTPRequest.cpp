@@ -36,6 +36,7 @@ HTTPRequest::HTTPRequest(EHTTPVerb httpVerb, EIPProtocolVersion protover, const 
 
 HTTPRequest::~HTTPRequest()
 {
+	m_proxyResolution.reset();
 	NGMP_OnlineServicesManager* manager = NGMP_OnlineServicesManager::GetInstance();
 	if (m_handleAdded && manager != nullptr && manager->GetHTTPManager() != nullptr)
 	{
@@ -74,6 +75,31 @@ void HTTPRequest::StartRequest()
 	if (NGMP_OnlineServicesManager::Settings.Debug_VerboseLogging())
 	{
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "[%p|%s|Verb %d] Transfer is starting: Body is %s", this, m_strURI.c_str(), m_httpVerb, m_strPostData.c_str());
+	}
+	m_setupStarted = std::chrono::steady_clock::now();
+	m_proxyResolution = ServiceConnection::StartProxyResolution(
+		NGMP_OnlineServicesManager::Settings.Network_GetConnectionSettings(), m_strURI);
+}
+
+void HTTPRequest::PollConnectionSetup()
+{
+	if (!m_proxyResolution || m_bIsComplete)
+		return;
+	if (std::chrono::steady_clock::now() - m_setupStarted >= std::chrono::milliseconds(m_timeoutMS))
+	{
+		m_proxyResolution.reset();
+		Threaded_SetComplete(CURLE_OPERATION_TIMEDOUT);
+		return;
+	}
+	if (!m_proxyResolution->ready.load(std::memory_order_acquire))
+		return;
+	m_proxyPolicy = std::move(m_proxyResolution->result);
+	m_proxyResolution.reset();
+	if (!m_proxyPolicy.error.empty() || m_proxyPolicy.routes.empty())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Proxy policy: %s", m_proxyPolicy.error.c_str());
+		Threaded_SetComplete(CURLE_COULDNT_RESOLVE_PROXY);
+		return;
 	}
 	PlatformStartRequest();
 }
@@ -136,6 +162,7 @@ bool HTTPRequest::InvokeDelayAction()
 		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 		if (currTime - m_timeRequestComplete > 2000)
 		{
+			m_timeRequestComplete = -1;
 			Threaded_SetComplete(m_pendingCURLCode);
 			return true;
 		}
@@ -148,11 +175,31 @@ bool HTTPRequest::InvokeDelayAction()
 
 void HTTPRequest::Threaded_SetComplete(CURLcode result)
 {
-	// store response code
+	long proxyStatus = 0;
+	curl_easy_getinfo(m_pCURL, CURLINFO_HTTP_CONNECTCODE, &proxyStatus);
 	curl_easy_getinfo(m_pCURL, CURLINFO_RESPONSE_CODE, &m_responseCode);
+	// CONNECT authentication failures do not populate the origin response code.
+	if (proxyStatus == 407)
+		m_responseCode = 407;
+	if (proxyStatus != 407 && m_responseCode != 407 && (result == CURLE_COULDNT_CONNECT || result == CURLE_COULDNT_RESOLVE_PROXY || result == CURLE_COULDNT_RESOLVE_HOST)
+		&& m_proxyRoute + 1 < m_proxyPolicy.routes.size()
+		&& std::chrono::steady_clock::now() - m_setupStarted < std::chrono::milliseconds(m_timeoutMS))
+	{
+		NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->RemoveHandleFromMulti(m_pCURL);
+		m_handleAdded = false;
+		++m_proxyRoute;
+		curl_easy_reset(m_pCURL);
+		curl_slist_free_all(headers);
+		headers = nullptr;
+		m_currentBufSize_Used = 0;
+		m_vecBuffer.resize(g_initialBufSize);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Trying next policy route after pre-connection failure (%d)", result);
+		PlatformStartRequest();
+		return;
+	}
 	m_result = result;
 
-	if (result == CURLE_OK && NGMP_OnlineServicesManager::IsServiceURLTrusted(m_strURI))
+	if (result == CURLE_OK && m_proxyPolicy.routes[m_proxyRoute].direct && NGMP_OnlineServicesManager::IsServiceURLTrusted(m_strURI))
 	{
 		HTTPManager* pHTTPManager = static_cast<HTTPManager*>(NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager());
 		if (pHTTPManager != nullptr)
@@ -185,24 +232,15 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 	// finalize the size, so we can use .size etc
 	m_vecBuffer.resize(m_currentBufSize_Used);
 
-	std::string strURIRedacted = m_strURI;
-
-#if !_DEBUG
-	size_t tokenpos = strURIRedacted.find("token:");
-	if (tokenpos != -1)
-	{
-		std::string strReplace = "<redacted>";
-		const size_t tokenLen = 32;
-		strURIRedacted = strURIRedacted.replace(tokenpos + 6, tokenLen, strReplace);
-	}
-#endif
-
-	// response bodies can carry tokens and codes, so only their size is logged unless verbose
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[%p|%s|Verb %d] Completed: curl=%d status=%ld bytes=%zu", this, strURIRedacted.c_str(), m_httpVerb, result, m_responseCode, m_currentBufSize_Used);
+	long protocol = 0;
+	curl_easy_getinfo(m_pCURL, CURLINFO_HTTP_VERSION, &protocol);
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Completed: phase=%s curl=%d status=%ld proxy_status=%ld protocol=%s bytes=%zu",
+		ServiceConnection::FailurePhase(result, m_responseCode, proxyStatus), result, m_responseCode, proxyStatus,
+		ServiceConnection::ProtocolName(protocol), m_currentBufSize_Used);
 	if (NGMP_OnlineServicesManager::Settings.Debug_VerboseLogging())
 	{
 		const std::string strResponse(reinterpret_cast<const char*>(m_vecBuffer.data()), m_currentBufSize_Used);
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[%p|%s|Verb %d] Response was %ld - %s!", this, strURIRedacted.c_str(), m_httpVerb, m_responseCode, strResponse.c_str());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[%p|Verb %d] Response was %ld - %s!", this, m_httpVerb, m_responseCode, strResponse.c_str());
 	}
 
 	// trigger callback
@@ -216,8 +254,12 @@ void HTTPRequest::PlatformStartRequest()
 		Threaded_SetComplete(CURLE_FAILED_INIT);
 		return;
 	}
+	if (m_proxyRoute > 0)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Route %zu: %s", m_proxyRoute + 1, m_proxyPolicy.routes[m_proxyRoute].direct ? "direct" : m_proxyPolicy.routes[m_proxyRoute].url.c_str());
+	}
 	std::string error;
-	if (!ServiceConnection::ConfigureServiceTransport(m_pCURL, m_strURI, error))
+	if (!ServiceConnection::ConfigureCurl(m_pCURL, m_strURI, m_proxyPolicy.routes[m_proxyRoute], error))
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Connection policy: %s", error.c_str());
 		Threaded_SetComplete(CURLE_FAILED_INIT);
@@ -266,9 +308,11 @@ void HTTPRequest::PlatformStartRequest()
 	option(CURLOPT_WRITEDATA, static_cast<void*>(this));
 	option(CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
 	option(CURLOPT_USERAGENT, "GeneralsOnline Client");
-	option(CURLOPT_CONNECTTIMEOUT_MS, static_cast<long>(m_timeoutMS));
-	option(CURLOPT_TIMEOUT_MS, static_cast<long>(m_timeoutMS));
-	option(CURLOPT_HTTP_VERSION, static_cast<long>(NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersionForCurl()));
+	// proxy lookup and earlier routes share the request deadline
+	const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - m_setupStarted).count();
+	const long remaining = static_cast<long>(std::max<int64_t>(1, m_timeoutMS - elapsed));
+	option(CURLOPT_CONNECTTIMEOUT_MS, remaining);
+	option(CURLOPT_TIMEOUT_MS, remaining);
 	option(CURLOPT_IPRESOLVE, static_cast<long>(m_protover == EIPProtocolVersion::FORCE_IPV4 ? CURL_IPRESOLVE_V4 :
 		m_protover == EIPProtocolVersion::FORCE_IPV6 ? CURL_IPRESOLVE_V6 : CURL_IPRESOLVE_WHATEVER));
 	option(CURLOPT_HTTPHEADER, headers);
