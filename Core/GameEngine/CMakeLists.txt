@@ -506,6 +506,7 @@ set(GAMEENGINE_SRC
 #    Include/GameLogic/WeaponStatus.h
     Include/GameNetwork/Connection.h
     Include/GameNetwork/ConnectionManager.h
+    Include/GameNetwork/ConnectionStats.h
     Include/GameNetwork/DisconnectManager.h
     Include/GameNetwork/DownloadManager.h
     Include/GameNetwork/FileTransfer.h
@@ -1101,6 +1102,7 @@ set(GAMEENGINE_SRC
     Source/GameLogic/System/RankInfo.cpp
     Source/GameNetwork/Connection.cpp
     Source/GameNetwork/ConnectionManager.cpp
+    Source/GameNetwork/ConnectionStats.cpp
     Source/GameNetwork/DisconnectManager.cpp
     Source/GameNetwork/DownloadManager.cpp
     Source/GameNetwork/FileTransfer.cpp

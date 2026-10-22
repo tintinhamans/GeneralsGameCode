@@ -339,6 +339,11 @@ void ConnectionManager::init()
 		m_latencyAverages[i] = 0.0; // using zero since all floating point standards should be able to specify 0.0 accurately.
 	}
 	m_smallestPacketArrivalCushion = -1;
+#if defined(GENERALS_ONLINE)
+	m_stallActive = FALSE;
+	m_stallStartTime = 0;
+	m_stallMissingMask = 0;
+#endif
 
 	m_frameMetrics.init();
 
@@ -1002,6 +1007,11 @@ void ConnectionManager::processFrameInfo(NetFrameCommandMsg *msg) {
 		if (m_frameData[playerID] != nullptr) {
 //			DEBUG_LOG(("ConnectionManager::processFrameInfo - player %d, frame %d, command count %d, received on frame %d", playerID, msg->getExecutionFrame(), msg->getCommandCount(), TheGameLogic->getFrame()));
 			m_frameData[playerID]->setFrameCommandCount(msg->getExecutionFrame(), msg->getCommandCount());
+#if defined(GENERALS_ONLINE)
+			if ((playerID != (UnsignedInt)m_localSlot) && (TheGameLogic != nullptr)) {
+				m_cushionStats[playerID].note((Int)msg->getExecutionFrame() - (Int)TheGameLogic->getFrame(), timeGetTime());
+			}
+#endif
 		}
 	}
 }
@@ -2742,6 +2752,13 @@ Int ConnectionManager::getSlotAverageFPS(Int slot) {
 	return m_fpsAverages[slot];
 }
 
+const ConnectionStats* ConnectionManager::getConnectionStats(Int slot) const {
+	if ((slot < 0) || (slot >= MAX_SLOTS) || (m_connections[slot] == nullptr)) {
+		return nullptr;
+	}
+	return &m_connections[slot]->getStats();
+}
+
 #if defined(RTS_DEBUG)
 void ConnectionManager::debugPrintConnectionCommands() {
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::debugPrintConnectionCommands - begin commands"));
@@ -2873,3 +2890,25 @@ void ConnectionManager::requestFrameDataResend(Int playerID, UnsignedInt frame) 
 
 	msg->detach();
 }
+
+#if defined(GENERALS_ONLINE)
+void ConnectionManager::noteStalling(Bool stalling, UnsignedInt frame) {
+	time_t now = timeGetTime();
+
+	if (stalling && !m_stallActive) {
+		// list the senders whose commands for this frame are missing
+		m_stallMissingMask = 0;
+		for (Int i = 0; i < MAX_SLOTS; ++i) {
+			if ((m_frameData[i] != nullptr) && (m_frameData[i]->getIsQuitting() == FALSE)
+				&& (m_frameData[i]->getFrameCommandCount(frame) != m_frameData[i]->getCommandCount(frame))) {
+				m_stallMissingMask |= (1u << i);
+			}
+		}
+		m_stallActive = TRUE;
+		m_stallStartTime = now;
+	} else if (!stalling && m_stallActive) {
+		m_stallActive = FALSE;
+		m_stallStats.note((Int)(now - m_stallStartTime), m_stallMissingMask, now);
+	}
+}
+#endif
