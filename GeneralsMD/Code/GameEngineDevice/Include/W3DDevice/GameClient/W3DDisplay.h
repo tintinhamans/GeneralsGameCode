@@ -148,6 +148,7 @@ public:
 
 	void drawFPSStats();								///< draw the fps on the screen
 	virtual Real getAverageFPS() override;						///< return the average FPS.
+	virtual Real getPresentedFPS() override;					///< return the average FPS of rendered frames.
 	virtual Real getCurrentFPS() override;						///< return the current FPS.
 	virtual Int getLastFrameDrawCalls() override;				///< returns the number of draw calls issued in the previous frame
 
@@ -162,6 +163,7 @@ protected:
 	void calculateTerrainLOD();						///< Calculate terrain LOD.
 	void renderLetterBox(UnsignedInt time);							///< draw letter box border
 	void updateAverageFPS();	///< calculate the average fps over the last 30 frames.
+	void updatePresentedFPS();	///< calculate the average fps over the last 30 rendered frames.
 	void setup2DRenderState(TextureClass *tex, DrawImageMode mode, Bool grayscale);
 	virtual void onBeginBatch() override;
 	virtual void onEndBatch() override;
@@ -174,6 +176,7 @@ protected:
 	Bool m_isClippedEnabled;	///<used by 2D drawing operations to define clip re
 	Real m_averageFPS;		///<average fps over the last 30 frames.
 	Real m_currentFPS;		///<current fps value.
+	Real m_presentedFPS;	///<average fps over the last 30 rendered frames.
 
 	TextureClass *m_batchTexture;
 	DrawImageMode m_batchMode;

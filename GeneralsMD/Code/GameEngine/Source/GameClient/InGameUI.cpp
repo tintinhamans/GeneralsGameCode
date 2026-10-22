@@ -33,6 +33,7 @@
 
 #include "Common/ActionManager.h"
 #include "Common/FramePacer.h"
+#include "Common/AdaptiveQuality.h"
 #include "Common/GameAudio.h"
 #include "Common/GameType.h"
 #include "Common/GameUtility.h"
@@ -7016,7 +7017,7 @@ WindowMsgHandledType IdleWorkerSystem(GameWindow* window, UnsignedInt msg,
 
 void InGameUI::updateRenderFpsString()
 {
-	const UnsignedInt renderFps = (UnsignedInt)(TheDisplay->getAverageFPS() + 0.5f);
+	const UnsignedInt renderFps = (UnsignedInt)(TheDisplay->getPresentedFPS() + 0.5f);
 	if (renderFps != m_lastRenderFps)
 	{
 		UnicodeString fpsStr;
@@ -7176,6 +7177,15 @@ void InGameUI::drawGameTime()
 	// draw connections
 	if (NGMP_OnlineServicesManager::IsAdvancedNetworkStatsEnabled())
 	{
+		char adaptiveLine[128];
+		if (AdaptiveQuality::get().formatOverlayLine(adaptiveLine, sizeof(adaptiveLine)))
+		{
+			UnicodeString adaptiveString;
+			adaptiveString.translate(AsciiString(adaptiveLine));
+			m_gameTimeString->setText(adaptiveString);
+			m_gameTimeString->draw(0, 480, m_colorGood, m_gameTimeDropColor);
+		}
+
 		if (TheNGMPGame != nullptr)
 		{
 			NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();

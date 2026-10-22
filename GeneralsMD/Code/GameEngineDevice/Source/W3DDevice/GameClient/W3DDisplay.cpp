@@ -42,6 +42,7 @@ static void drawFramerateBar();
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "Common/FramePacer.h"
+#include "Common/AdaptiveQuality.h"
 #include "Common/ThingFactory.h"
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
@@ -430,6 +431,7 @@ W3DDisplay::W3DDisplay()
 	m_2DScene = nullptr;
 	m_3DInterfaceScene = nullptr;
 	m_averageFPS = TheGlobalData->m_framesPerSecondLimit;
+	m_presentedFPS = TheGlobalData->m_framesPerSecondLimit;
 #if defined(RTS_DEBUG)
 	m_timerAtCumuFPSStart = 0;
 #endif
@@ -1095,6 +1097,26 @@ void W3DDisplay::updateAverageFPS()
 	// determine average frame rate over our past history.
 	const Real sum = std::accumulate(fpsHistory, fpsHistory + FPS_HISTORY_SIZE, 0.0f);
 	m_averageFPS = sum / FPS_HISTORY_SIZE;
+
+	lastUpdateTime64 = time64;
+}
+
+void W3DDisplay::updatePresentedFPS()
+{
+	constexpr const Int FPS_HISTORY_SIZE = 30;
+
+	static Int64 lastUpdateTime64 = 0;
+	static Int historyOffset = 0;
+	static Real fpsHistory[FPS_HISTORY_SIZE] = {0};
+
+	const Int64 time64 = getPerformanceCounter();
+	const Real elapsedSeconds = (Real)(time64 - lastUpdateTime64) / (Real)getPerformanceCounterFrequency();
+
+	if (historyOffset >= FPS_HISTORY_SIZE)
+		historyOffset = 0;
+
+	fpsHistory[historyOffset++] = 1.0f / elapsedSeconds;
+	m_presentedFPS = std::accumulate(fpsHistory, fpsHistory + FPS_HISTORY_SIZE, 0.0f) / FPS_HISTORY_SIZE;
 
 	lastUpdateTime64 = time64;
 }
@@ -1822,6 +1844,11 @@ Real W3DDisplay::getAverageFPS()
 	return m_averageFPS;
 }
 
+Real W3DDisplay::getPresentedFPS()
+{
+	return m_presentedFPS;
+}
+
 Real W3DDisplay::getCurrentFPS()
 {
 	return m_currentFPS;
@@ -1990,6 +2017,13 @@ AGAIN:
 		// limit the framerate, because while fast time is on, the game logic is running as fast as it can.
 	}
 
+	// never skipped while time is frozen: scripted cameras render in the loop below
+	const Bool skipRender = !freezeTime && AdaptiveQuality::get().shouldSkipRender();
+	if (skipRender && m_cinematicText != AsciiString::TheEmptyString && m_cinematicTextFrames != 0)
+	{
+		m_cinematicTextFrames--;
+	}
+
 	do {
 
 		// update all views of the world - recomputes data which will affect drawing
@@ -2029,6 +2063,7 @@ AGAIN:
 		#else
 	    if ( (TheGameLogic->getFrame() % 30 == 1) || ( ! (!TheGameLogic->isGamePaused() && TheGlobalData->m_TiVOFastMode && TheGameLogic->isInReplayGame())) )
     #endif
+		if (!skipRender)
 		{
 			//USE_PERF_TIMER(BigAssRenderLoop)
 			static Bool couldRender = true;
@@ -2130,8 +2165,14 @@ AGAIN:
 					m_profilerFrameCapture->Capture(getWidth(), getHeight());
 				}
 #endif
+				// sorted geometry is drawn here so that only the Present below is timed as a wait
+				SortingRendererClass::Flush();
+				AdaptiveQuality::get().notePresentMode(WW3D::Is_Windowed(), WW3D::Get_Ext_Swap_Interval() != (long)D3DPRESENT_INTERVAL_IMMEDIATE);
+				const long long presentStart = AdaptiveQuality::now();
 				// render is all done!
 				WW3D::End_Render();
+				AdaptiveQuality::get().addPresentWait(AdaptiveQuality::now() - presentStart);
+				updatePresentedFPS();
 			}
 			else
 			{
@@ -2236,6 +2277,8 @@ void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
 																	 )
 {
 	if (m_3DScene == nullptr)
+		return;
+	if (AdaptiveQualityLevels::lightPulsesOff(TheGlobalData->m_adaptiveQualityLevel))
 		return;
 	if (innerRadius+attenuationWidth<2.0*PATHFIND_CELL_SIZE_F + 1.0f) {
 		return; // it basically won't make any visual difference.  jba.
