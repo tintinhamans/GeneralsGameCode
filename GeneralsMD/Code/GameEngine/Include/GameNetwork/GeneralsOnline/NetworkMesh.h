@@ -55,8 +55,6 @@ public:
 
 	void SendACPacket(const void* pData, uint32_t dataLen);
 
-	void UpdateLatencyHistogram();
-
 	void TickProbe(int64_t nowMs);
 	void HandleProbe(const uint8_t* payload, size_t len, int64_t arrivalMs);
 	void ResetProbe();
@@ -81,21 +79,12 @@ public:
 
 	int Recv(SteamNetworkingMessage_t** pMsg, int maxMessages = 255);
 
-	int GetHighestHistoricalLatency()
+	// the highest probe round trip of the stats window, the current ping while there are no probe samples
+	int GetPeakLatency()
 	{
-		int highestLatency = 0;
-		for (int latencyHistory : m_vecLatencyHistory)
-		{
-			if (latencyHistory > highestLatency)
-			{
-				highestLatency = latencyHistory;
-			}
-		}
-
-		return highestLatency;
+		return (m_probeStats.getSampleCount() > 0) ? static_cast<int>(m_probeStats.getMaxLatency()) : GetLatency();
 	}
 
-	std::vector<int> m_vecLatencyHistory;
 	std::string GetStats();
 
 	std::string GetConnectionType();
@@ -219,22 +208,6 @@ public:
 		m_cbOnConnected = nullptr;
 	}
 
-	int getMaximumLatency()
-	{
-		int highestLatency = 0;
-
-		for (auto& kvPair : m_mapConnections)
-		{
-			PlayerConnection& conn = kvPair.second;
-			if (conn.GetLatency() > highestLatency)
-			{
-				highestLatency = conn.GetLatency();
-			}
-		}
-
-		return highestLatency;
-	}
-
 	// The signing keys, see MatchKeys.h
 	bool BeginLobbyKeys();	///< Makes this client's key, call when it joins or creates a lobby.
 	void TickLobbyKeys(int64_t nowMs);	///< Announces the key to the peers that lack it and tells them which keys we hold.
@@ -252,16 +225,17 @@ public:
 	const MatchKeys& GetMatchKeys() const { return m_matchKeys; }
 	MatchKeys& GetMatchKeys() { return m_matchKeys; }
 
-	Real getMaximumHistoricalLatency()
+	// PEAK HOLD: the highest probe round trip of any connection over the probe stats window
+	Real getMaximumProbeLatency()
 	{
 		int highestLatency = 0;
 
 		for (auto& kvPair : m_mapConnections)
 		{
-			PlayerConnection& conn = kvPair.second;
-			if (conn.GetHighestHistoricalLatency() > highestLatency)
+			const int peak = kvPair.second.GetPeakLatency();
+			if (peak > highestLatency)
 			{
-				highestLatency = conn.GetHighestHistoricalLatency();
+				highestLatency = peak;
 			}
 		}
 

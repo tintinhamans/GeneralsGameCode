@@ -128,6 +128,24 @@ Real ConnectionStats::getMinLatency() const
 	return result;
 }
 
+Real ConnectionStats::getMaxLatency() const
+{
+	if (m_samples.size() == 0)
+	{
+		return 0.0f;
+	}
+
+	Real result = m_samples[0].rtt;
+	for (Int i = 1; i < m_samples.size(); ++i)
+	{
+		if (m_samples[i].rtt > result)
+		{
+			result = m_samples[i].rtt;
+		}
+	}
+	return result;
+}
+
 Real ConnectionStats::getLatencyPercentile(Int percent, time_t since) const
 {
 	Real sorted[MAX_SAMPLES];
