@@ -67,17 +67,22 @@ public:
 	void noteAcked(Real rttMs, time_t now);	///< A command that was acked on its first send.
 	void noteRetry(time_t now);							///< A command that was not acked in time and had to be sent again.
 	void noteLateAck(time_t now);						///< A retried command was acked by its earlier send after all, the retry was not a loss.
+	void setRedundancyDepth(Int depth, Int cap);
 	void update(time_t now);								///< Drop the samples that have left the window.
 
 	Real getLatency() const { return m_srtt; }
 	Real getMinLatency() const;
 	Real getLatencyPercentile(Int percent, time_t since = 0) const;	///< Round trip that this share of the samples in the window, from since on, stays within
+	Int getSampleCountSince(time_t since) const;
 	Real getJitter() const { return m_jitter; }
 	Real getLossPercent() const;						///< Share of retries the earlier send was not acked for
 	Real getLateAckPercent() const;					///< Share of retries whose earlier send was acked after the retry
 	Real getRetryPercent() const;						///< Share of retries, lost and late acked together
 	Real getLatePercent() const;						///< Share of acks that took more than twice the smoothed round trip time.
 	Int getSampleCount() const { return m_samples.size(); }
+	enum { MAX_REDUNDANCY_DEPTH = 16 };
+	Int getRedundancyDepth() const { return m_depth; }
+	Int getRedundancyCap() const { return m_depthCap; }
 
 private:
 	enum
@@ -106,6 +111,9 @@ private:
 	Real m_jitter;
 	Real m_previousRtt;
 	Bool m_hasRtt;
+
+	Int m_depth;
+	Int m_depthCap;
 };
 
 // Tracks how many frames before its execution frame the frame commands of one sender arrive,

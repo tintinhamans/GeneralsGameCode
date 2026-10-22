@@ -239,6 +239,19 @@ private:
 	Bool m_didSelfSlug;
 
 #if defined(GENERALS_ONLINE)
+	// the last command ids seen per sender, so a redundant copy of a command that is not synchronized is dropped
+	enum { RECENT_ID_COUNT = 256 };
+	struct RecentCommandIds
+	{
+		Bool valid;
+		UnsignedShort highest;
+		Bool seen[RECENT_ID_COUNT];
+	};
+	RecentCommandIds m_recentIds[MAX_SLOTS];
+
+	Bool isDuplicateCommand(NetCommandMsg *msg);
+	void resetRecentCommandIds();
+
 	ArrivalCushionStats m_cushionStats[MAX_SLOTS];
 	StallStats m_stallStats;
 	Bool m_stallActive;
