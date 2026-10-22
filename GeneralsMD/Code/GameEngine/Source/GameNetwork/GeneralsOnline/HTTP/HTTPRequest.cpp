@@ -51,7 +51,10 @@ void HTTPRequest::SetPostData(const char* szPostData)
 	// TODO_HTTP: Error if verb isnt post
 	m_strPostData = std::string(szPostData);
 
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "[%p|%s|Verb %d] Transfer is created: Body is %s", this, m_strURI.c_str(), m_httpVerb, szPostData);
+	if (NGMP_OnlineServicesManager::Settings.Debug_VerboseLogging())
+	{
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "[%p|%s|Verb %d] Transfer is created: Body is %s", this, m_strURI.c_str(), m_httpVerb, szPostData);
+	}
 }
 
 void HTTPRequest::SetPostDataBuffer(std::vector<uint8_t> vecBuffer)
@@ -68,7 +71,10 @@ void HTTPRequest::StartRequest()
 
 	m_currentBufSize_Used = 0;
 
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "[%p|%s|Verb %d] Transfer is starting: Body is %s", this, m_strURI.c_str(), m_httpVerb, m_strPostData.c_str());
+	if (NGMP_OnlineServicesManager::Settings.Debug_VerboseLogging())
+	{
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "[%p|%s|Verb %d] Transfer is starting: Body is %s", this, m_strURI.c_str(), m_httpVerb, m_strPostData.c_str());
+	}
 	PlatformStartRequest();
 }
 
@@ -191,34 +197,13 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 	}
 #endif
 
-	std::string strResponse = std::string(reinterpret_cast<const char*>(m_vecBuffer.data()), m_currentBufSize_Used);
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[%p|%s|Verb %d] Transfer is complete: %d bytes total! Curl result is %d", this, strURIRedacted.c_str(), m_httpVerb, m_currentBufSize_Used, result);
-
-	// if we got an error, set the response code to 0
-
-#if !_DEBUG
-	static const std::string strSeedKey = "\"RNGSeed\":";
-	for (size_t seedPos = strResponse.find(strSeedKey); seedPos != std::string::npos; seedPos = strResponse.find(strSeedKey, seedPos))
+	// response bodies can carry tokens and codes, so only their size is logged unless verbose
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[%p|%s|Verb %d] Completed: curl=%d status=%ld bytes=%zu", this, strURIRedacted.c_str(), m_httpVerb, result, m_responseCode, m_currentBufSize_Used);
+	if (NGMP_OnlineServicesManager::Settings.Debug_VerboseLogging())
 	{
-		size_t valueStart = seedPos + strSeedKey.length();
-		size_t valueEnd = strResponse.find_first_of(",}", valueStart);
-		if (valueEnd == std::string::npos)
-			break;
-
-		strResponse.replace(valueStart, valueEnd - valueStart, "<redacted>");
-		seedPos = valueStart;
+		const std::string strResponse(reinterpret_cast<const char*>(m_vecBuffer.data()), m_currentBufSize_Used);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[%p|%s|Verb %d] Response was %ld - %s!", this, strURIRedacted.c_str(), m_httpVerb, m_responseCode, strResponse.c_str());
 	}
-
-	std::string strResponseLower = strResponse;
-	std::transform(strResponseLower.begin(), strResponseLower.end(), strResponseLower.begin(),
-		[](unsigned char c) { return std::tolower(c); });
-	if (strResponseLower.find("token") != std::string::npos)
-	{
-		strResponse = "<redacted>";
-	}
-#endif
-
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[%p|%s|Verb %d] Response was %d - %s!", this, strURIRedacted.c_str(), m_httpVerb, m_responseCode, strResponse.c_str());
 
 	// trigger callback
 	InvokeCallbackIfComplete();
