@@ -165,6 +165,7 @@ public:
 
 	virtual Int getAverageFPS() override { return m_conMgr->getAverageFPS(); }
 	virtual Int getSlotAverageFPS(Int slot) override;
+	virtual const ConnectionStats* getConnectionStats(Int slot) const override;
 
 	virtual void attachTransport(Transport *transport) override;
 	virtual void initTransport(const char *transportName) override;
@@ -800,6 +801,12 @@ void Network::update()
 		QueryPerformanceCounter((LARGE_INTEGER*)&curTime);
 		m_isStalling = curTime >= m_nextFrameTime;
 	}
+
+#if defined(GENONLINE)
+	if (m_conMgr != nullptr && m_localStatus == NETLOCALSTATUS_INGAME) {
+		m_conMgr->noteStalling(m_isStalling, TheGameLogic->getFrame());
+	}
+#endif
 }
 
 void Network::liteupdate() {
@@ -1101,6 +1108,13 @@ Int Network::getSlotAverageFPS(Int slot) {
 		return m_conMgr->getSlotAverageFPS(slot);
 	}
 	return -1;
+}
+
+const ConnectionStats* Network::getConnectionStats(Int slot) const {
+	if (m_conMgr != nullptr) {
+		return m_conMgr->getConnectionStats(slot);
+	}
+	return nullptr;
 }
 
 #if defined(RTS_DEBUG)
