@@ -14,6 +14,8 @@
 #include "GameClient/View.h"
 #include "../GenOnlineDefines.h"
 
+int FRAME_GROUPING_CAP = 32;
+
 GenOnlineGameSlot::GenOnlineGameSlot()
 {
 	GameSlot();
@@ -423,34 +425,6 @@ void GenOnlineGame::launchGame(void)
 
 	//TheWritableGlobalData->m_networkPlayerTimeoutTime = 60000;
 	//TheWritableGlobalData->m_networkDisconnectScreenNotifyTime = 2500;
-
-	// process service config
-	GenOnlineServicesManager* pOnlineServicesMgr = GenOnlineServicesManager::GetInstance();
-	if (pOnlineServicesMgr != nullptr)
-	{
-		ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
-
-		if (serviceConf.use_default_config)
-		{
-			TheWritableGlobalData->m_networkFPSHistoryLength = 30;
-			TheWritableGlobalData->m_networkLatencyHistoryLength = 200;
-			TheWritableGlobalData->m_networkRunAheadSlack = serviceConf.ra_slack_override_percent_in_default; // normally 10
-			TheWritableGlobalData->m_networkRunAheadMetricsTime = 5000;
-		}
-		else
-		{
-			TheWritableGlobalData->m_networkFPSHistoryLength = 10;
-			TheWritableGlobalData->m_networkLatencyHistoryLength = 10;
-
-			MIN_RUNAHEAD = serviceConf.min_run_ahead_frames;
-
-			TheWritableGlobalData->m_networkRunAheadSlack = serviceConf.ra_slack_percent;
-			TheWritableGlobalData->m_networkRunAheadMetricsTime = serviceConf.ra_update_frequency_frames * ((float)MSEC_PER_SECOND / LOGICFRAMES_PER_SECOND);
-
-			FRAME_GROUPING_CAP = serviceConf.frame_grouping_frames * ((float)MSEC_PER_SECOND / LOGICFRAMES_PER_SECOND);
-		}
-	}
-	
 
 #if defined(GENONLINE)
 	TheWritableGlobalData->m_horizontalScrollSpeedFactor = GenOnlineServicesManager::Settings.Camera_MoveSpeedRatio();

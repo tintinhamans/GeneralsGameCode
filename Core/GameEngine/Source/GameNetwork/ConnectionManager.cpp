@@ -60,6 +60,10 @@
 #include "../NetworkMesh.h"
 #include "../GenOnlineInterfaces.h"
 
+#if defined(GENONLINE)
+Int MIN_RUNAHEAD = 4;
+#endif
+
 static Bool hasValidTransferFileExtension(const AsciiString& filePath)
 {
 	static const char* const validExtensions[] = {
@@ -274,6 +278,24 @@ ConnectionManager::ConnectionManager()
  */
 void ConnectionManager::init()
 {
+#if defined(GENONLINE)
+	m_networkSettings = NetworkSettings();
+	GenOnlineServicesManager *services = GenOnlineServicesManager::GetInstance();
+	// A launched online game takes the service values and a LAN game keeps the defaults.
+	if (TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress() && services != nullptr) {
+		const ServiceConfig &overrides = services->GetServiceConfig();
+		m_networkSettings.send = overrides.send;
+		m_networkSettings.input_delay = overrides.input_delay;
+	}
+	const NetworkSettings::InputDelay &runAhead = m_networkSettings.input_delay;
+	TheWritableGlobalData->m_networkFPSHistoryLength = (std::max)(1, runAhead.fps_history_samples);
+	TheWritableGlobalData->m_networkLatencyHistoryLength = (std::max)(1, runAhead.formula.latency_history_samples);
+	TheWritableGlobalData->m_networkRunAheadSlack = runAhead.slack_percent;
+	TheWritableGlobalData->m_networkRunAheadMetricsTime = runAhead.decision_interval_ms;
+	MIN_RUNAHEAD = runAhead.min_frames;
+	FRAME_GROUPING_CAP = (int)(m_networkSettings.send.frames_per_packet * ((float)MSEC_PER_SECOND / LOGICFRAMES_PER_SECOND));
+#endif
+
 //	if (m_transport == nullptr) {
 //		m_transport = new Transport;
 //	}
@@ -391,10 +413,10 @@ void ConnectionManager::reset()
 #endif
 	m_packetRouterSlot = -1;
 
-	for (i = 0; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
+	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
 		m_fpsAverages[i] = -1;
 	}
-	for (i = 0; i < TheGlobalData->m_networkLatencyHistoryLength; ++i) {
+	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
 		m_latencyAverages[i] = 0.0;
 	}
 
@@ -1972,7 +1994,7 @@ void ConnectionManager::setFrameGrouping(time_t frameGrouping) {
 	// This is probably ok since the packet router should have the fastest connection of all
 	// the players in the game.
 
-	NetworkLog(ELogVerbosity::LOG_DEBUG, "ConnectionManager::setFrameGrouping Frame grouping is %d, is packet router %d", frameGrouping, m_localSlot == m_packetRouterSlot);
+	NetworkLog(ELogVerbosity::LOG_DEBUG, "ConnectionManager::setFrameGrouping Frame grouping is %I64d, is packet router %d", (Int64)frameGrouping, m_localSlot == m_packetRouterSlot);
 
 	if (m_localSlot == m_packetRouterSlot) {
 		frameGrouping = frameGrouping / 2;
@@ -2767,7 +2789,7 @@ void ConnectionManager::sendFrameDataToPlayer(UnsignedInt playerID, UnsignedInt 
 }
 
 void ConnectionManager::sendSingleFrameToPlayer(UnsignedInt playerID, UnsignedInt frame) {
-	if ((TheGameLogic->getFrame() - FRAMES_TO_KEEP) > frame) {
+	if (frame + FRAMES_TO_KEEP < TheGameLogic->getFrame()) {
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendSingleFrameToPlayer - player %d requested frame %d when we are on frame %d, this is too far in the past.", playerID, frame, TheGameLogic->getFrame()));
 		return;
 	}
