@@ -7,6 +7,11 @@ struct ServiceConnectionSettings
 {
 	// "automatic" picks a working route
 	std::string serverMode = "automatic";
+	// "automatic" follows the Windows proxy settings, "disabled" connects directly, "custom" uses proxyURL
+	std::string proxyMode = "automatic";
+	std::string proxyURL;
+	// try the current Windows account when the proxy asks for a login
+	bool windowsLogin = true;
 };
 
 namespace ServiceConnection
@@ -17,6 +22,7 @@ std::vector<std::string> BootstrapRoutes(const std::string& environment,
 // host name of a route url
 std::string RouteHost(const std::string& route);
 bool IsTrustedServiceURL(const std::string& url, const std::string& base, bool websocket);
+std::string RequestURLForLog(const std::string& url, const std::string& serviceBase);
 bool IsExpectedVersionManifest(const std::string& body);
 // Verified TLS (not in _DEBUG builds), no redirects, no embedded credentials, direct connection; HTTPS or WSS only.
 bool ConfigureServiceTransport(CURL* curl, const std::string& url, std::string& error);

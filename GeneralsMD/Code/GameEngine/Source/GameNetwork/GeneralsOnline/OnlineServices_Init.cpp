@@ -220,7 +220,9 @@ void NGMP_OnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> ca
 		callback(!m_serviceBase.empty());
 		return;
 	}
-	if (!m_serviceBase.empty() && std::chrono::steady_clock::now() - m_routeValidatedAt < std::chrono::seconds(30))
+	const auto settings = Settings.Network_GetConnectionSettings();
+	const std::string key = settings.serverMode + "|" + settings.proxyMode + "|" + settings.proxyURL + (settings.windowsLogin ? "|1" : "|0");
+	if (key == m_routeSettingsKey && !m_serviceBase.empty() && std::chrono::steady_clock::now() - m_routeValidatedAt < std::chrono::seconds(30))
 	{
 		callback(true);
 		return;
@@ -230,7 +232,8 @@ void NGMP_OnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> ca
 	{
 		return;
 	}
-	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), Settings.Network_GetConnectionSettings(), Settings.Network_GetLastRoute());
+	m_routeSettingsKey = key;
+	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), settings, Settings.Network_GetLastRoute());
 	m_bootstrapIndex = 0;
 	ProbeServiceRoute();
 }
@@ -278,8 +281,8 @@ void NGMP_OnlineServicesManager::ProbeServiceRoute()
 				return;
 			}
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Route validation failed (HTTP %d); credentials were not sent", status);
-			// an access rejection is not evidence that another route would work
-			manager->m_bootstrapIndex = (status == 401 || status == 403) ? manager->m_bootstrapRoutes.size() : manager->m_bootstrapIndex + 1;
+			// an access or proxy rejection is not evidence that another route would work
+			manager->m_bootstrapIndex = (status == 401 || status == 403 || status == 407) ? manager->m_bootstrapRoutes.size() : manager->m_bootstrapIndex + 1;
 			manager->ProbeServiceRoute();
 		}, nullptr, 6000);
 }
@@ -433,7 +436,7 @@ void NGMP_OnlineServicesManager::Shutdown()
 
 	// Shutdown and completely destroy WebSocket BEFORE cleaning up HTTPManager
 	// This is critical because WebSocket has curl handles that must be freed
-	// before curl_global_cleanup() is called by HTTPManager
+	// before the HTTP multi handle is destroyed.
 	if (m_pWebSocket)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Shutting down WebSocket...");
@@ -445,7 +448,7 @@ void NGMP_OnlineServicesManager::Shutdown()
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] WebSocket shutdown complete");
 	}
 
-	// Now safe to shutdown HTTP manager which calls curl_global_cleanup()
+	// cancel remaining HTTP requests
 	if (m_pHTTPManager != nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Shutting down HTTPManager...");
@@ -1183,7 +1186,12 @@ void NGMP_OnlineServicesManager::InitSentry()
 	// Initialize libcurl global state here, before any plugins (e.g. EasyAntiCheat) are loaded.
 	// This ensures libcurl's internal mutexes are fully initialized before the EAC plugin
 	// attempts to use them, preventing an access violation in mtx_do_lock on null mutex state.
-	curl_global_init(CURL_GLOBAL_DEFAULT);
+	static const CURLcode curlInitialization = curl_global_init(CURL_GLOBAL_DEFAULT);
+	if (curlInitialization != CURLE_OK)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] curl initialization failed (%d)", curlInitialization);
+		return;
+	}
 
 #if !_DEBUG
 	// game paths are in the process code page, sentry's char* API wants UTF-8, so hand it the wide path
@@ -1285,6 +1293,7 @@ void WebSocket::Shutdown()
 	
 	// Signal that we're shutting down
 	m_bShuttingDown = true;
+	m_proxyResolution.reset();
 	
 	// Disconnect from the websocket (handles the connected case)
 	Disconnect();

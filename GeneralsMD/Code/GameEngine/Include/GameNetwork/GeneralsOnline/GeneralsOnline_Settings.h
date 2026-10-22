@@ -1,7 +1,7 @@
 #pragma once
-#include <curl/curl.h>
 #include <mutex>
 #include <string>
+#include <vector>
 #include "GameNetwork/GeneralsOnline/ServiceEndpointPolicy.h"
 
 // One layer of data_packs in settings.json: BIG paths in priority order, the first one wins
@@ -79,6 +79,7 @@ public:
 	ServiceConnectionSettings Network_GetConnectionSettings() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_ConnectionSettings; }
 	std::string Network_GetLastRoute() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_LastRoute; }
 	bool Network_SaveLastRoute(const std::string& host);
+	bool Network_SaveConnectionSettings(const ServiceConnectionSettings& settings, std::string& error);
 
 private:
 	void Load(void);

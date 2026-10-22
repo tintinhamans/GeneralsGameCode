@@ -83,75 +83,16 @@ void HTTPManager::Shutdown()
 	}
 	m_vecRequestsPendingStart.clear();
 
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTPManager] Waiting for %d in-flight requests to complete...", (int)m_vecRequestsInFlight.size());
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTPManager] Canceling %d in-flight requests...", (int)m_vecRequestsInFlight.size());
 
-	// Wait for all in-flight requests to complete
+	// removing handles cancels transfers; resolver workers hold value snapshots, so abandoned results never block shutdown
+	for (HTTPRequest* request : m_vecRequestsInFlight)
+		delete request;
+	m_vecRequestsInFlight.clear();
 	if (m_pCurl != nullptr)
 	{
-		int numRunning = 0;
-		do
-		{
-			// Perform any pending operations
-			curl_multi_perform(m_pCurl, &numRunning);
-			
-			// Check for completed requests
-			int msgq = 0;
-			CURLMsg* m = nullptr;
-			while ((m = curl_multi_info_read(m_pCurl, &msgq)) != nullptr)
-			{
-				if (m->msg == CURLMSG_DONE)
-				{
-					CURL* pCurlHandle = m->easy_handle;
-					
-					// Find and remove the associated request
-					for (auto it = m_vecRequestsInFlight.begin(); it != m_vecRequestsInFlight.end(); ++it)
-					{
-						HTTPRequest* pRequest = *it;
-						if (pRequest != nullptr && pRequest->EasyHandleMatches(pCurlHandle))
-						{
-							// During shutdown, skip invoking the completion callback. The callback
-							// may reference objects (e.g. NGMP_OnlineServices_StatsInterface via
-							// captured 'this') that have already been or are being destroyed,
-							// leading to use-after-free memory corruption and crashes in unrelated
-							// destructors such as GameSpyMiscPreferences::~GameSpyMiscPreferences().
-							// HTTPRequest::~HTTPRequest() handles all necessary curl handle cleanup.
-							delete pRequest;
-							m_vecRequestsInFlight.erase(it);
-							break;
-						}
-					}
-				}
-			}
-			
-			// Small sleep to avoid busy-waiting if there are still operations pending
-			if (numRunning > 0)
-			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(10));
-			}
-			
-		} while (numRunning > 0 || !m_vecRequestsInFlight.empty());
-		
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTPManager] All in-flight requests completed");
-
-		// Delete any remaining in-flight requests without invoking their callbacks.
-		// These are requests that completed via curl but were not matched above, or
-		// requests that are still pending completion. Invoking callbacks here is unsafe
-		// as the objects they reference may already be destroyed.
-		for (HTTPRequest* pRequest : m_vecRequestsInFlight)
-		{
-			if (pRequest != nullptr)
-			{
-				delete pRequest;
-			}
-		}
-		m_vecRequestsInFlight.clear();
-
-		// Now safe to cleanup
 		curl_multi_cleanup(m_pCurl);
 		m_pCurl = nullptr;
-
-        // Cleanup libcurl global state
-        curl_global_cleanup();
 	}
 
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTPManager] Shutdown complete");
@@ -186,18 +127,19 @@ void HTTPManager::Tick()
 
 	std::vector<HTTPRequest*> vecItemsToRemove = std::vector<HTTPRequest*>();
 
-	// callbacks may enqueue new requests, so do not iterate the live pending vector
+	// Callbacks may enqueue new requests; do not iterate the live pending vector.
 	auto pending = std::move(m_vecRequestsPendingStart);
 	m_vecRequestsPendingStart.clear();
-	for (HTTPRequest* pRequest : pending)
+	for (HTTPRequest* request : pending)
 	{
-		pRequest->StartRequest();
-		m_vecRequestsInFlight.push_back(pRequest);
-		// a request refused before reaching curl completes synchronously
-		if (pRequest->IsComplete())
-		{
-			vecItemsToRemove.push_back(pRequest);
-		}
+		request->StartRequest();
+		m_vecRequestsInFlight.push_back(request);
+	}
+	for (HTTPRequest* request : m_vecRequestsInFlight)
+	{
+		request->PollConnectionSetup();
+		if (request->IsComplete())
+			vecItemsToRemove.push_back(request);
 	}
 
 	// perform and poll
@@ -215,7 +157,7 @@ void HTTPManager::Tick()
 		if (pRequest->WaitingDelayAction())
 		{
 			bool bDone = pRequest->InvokeDelayAction();
-			if (bDone)
+			if (bDone && pRequest->IsComplete())
 			{
 				vecItemsToRemove.push_back(pRequest);
 			}
@@ -244,7 +186,8 @@ void HTTPManager::Tick()
 						pRequest->SetWaitingDelay(m->data.result);
 #else
 						pRequest->Threaded_SetComplete(m->data.result);
-						vecItemsToRemove.push_back(pRequest);
+						if (pRequest->IsComplete())
+							vecItemsToRemove.push_back(pRequest);
 #endif
 					}
 				}
