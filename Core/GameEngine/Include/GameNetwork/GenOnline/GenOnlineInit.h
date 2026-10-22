@@ -200,8 +200,16 @@ public:
 	// Queues the message; Tick() flushes it on the main thread. Thread-safe.
 	void Send(const char* message);
 
+	// An inbound P2P signal and the user the service says it came from. The service sets the sender itself
+	// from the authenticated websocket session, the payload is whatever the peer wrote.
+	struct PendingSignal
+	{
+		int64_t senderUserID = -1;
+		std::vector<uint8_t> payload;
+	};
+
 	// Thread-safe queue of inbound P2P signal payloads; drained by CSignalingClient::Poll().
-	void PushPendingSignal(std::vector<uint8_t> payload)
+	void PushPendingSignal(int64_t senderUserID, std::vector<uint8_t> payload)
 	{
 		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
 
@@ -212,20 +220,23 @@ public:
 			m_pendingSignals.pop();
 		}
 
-		m_pendingSignals.push(std::move(payload));
+		PendingSignal signal;
+		signal.senderUserID = senderUserID;
+		signal.payload = std::move(payload);
+		m_pendingSignals.push(std::move(signal));
 	}
 
 	// Drops queued signals so they never reach the next lobby.
 	void ClearPendingSignals()
 	{
 		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
-		m_pendingSignals = std::queue<std::vector<uint8_t>>();
+		m_pendingSignals = std::queue<PendingSignal>();
 	}
 
-	std::queue<std::vector<uint8_t>> DrainPendingSignals()
+	std::queue<PendingSignal> DrainPendingSignals()
 	{
 		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
-		std::queue<std::vector<uint8_t>> drained;
+		std::queue<PendingSignal> drained;
 		drained.swap(m_pendingSignals);
 		return drained;
 	}
@@ -283,7 +294,7 @@ private:
 	CURLcode FlushOutbound();
 
 	std::mutex m_pendingSignalsMutex;
-	std::queue<std::vector<uint8_t>> m_pendingSignals;
+	std::queue<PendingSignal> m_pendingSignals;
 };
 
 enum class ERoomFlags : int
@@ -438,6 +449,7 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 	{
 		const nlohmann::json& s = j["send"];
 		ReadServiceConfigValue(s, "mode", c.send.mode);
+		ReadServiceConfigValue(s, "direct", c.send.direct);
 		ReadServiceConfigValue(s, "frames_per_packet", c.send.frames_per_packet);
 		ReadServiceConfigValue(s, "frames_per_packet_lossy", c.send.frames_per_packet_lossy);
 		ReadServiceConfigValue(s, "flush_every_frame", c.send.flush_every_frame);
