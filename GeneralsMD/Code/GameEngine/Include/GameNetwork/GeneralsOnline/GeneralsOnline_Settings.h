@@ -1,14 +1,8 @@
 #pragma once
 #include <curl/curl.h>
-
-enum EHTTPVersion
-{
-    HTTP_VERSION_AUTO,
-    HTTP_VERSION_1_0,
-    HTTP_VERSION_1_1,
-    HTTP_VERSION_2_0,
-    HTTP_VERSION_3_0
-};
+#include <mutex>
+#include <string>
+#include "GameNetwork/GeneralsOnline/ServiceEndpointPolicy.h"
 
 // One layer of data_packs in settings.json: BIG paths in priority order, the first one wins
 struct GenOnlineDataPackLayer
@@ -82,44 +76,13 @@ public:
 	const GenOnlineDataPackLayer& DataPacks_CommunityPatch() const { return m_DataPacks_CommunityPatch; }
 	const std::vector<std::string>& DataPacks_UserExcludePaths() const { return m_DataPacks_UserExcludePaths; }
 
-	bool Network_UseAlternativeEndpoint() const { return m_Network_UseAlternativeEndpoint; }
-	EHTTPVersion Network_GetHTTPVersion() const { return m_Network_HTTPVersion; }
-	int Network_GetHTTPVersionForCurl() const
-	{
-		switch (m_Network_HTTPVersion)
-		{
-			case HTTP_VERSION_AUTO:
-			{
-				return CURL_HTTP_VERSION_NONE;
-			}
-
-			case HTTP_VERSION_1_0:
-			{
-				return CURL_HTTP_VERSION_1_0;
-            }
-
-			case HTTP_VERSION_1_1:
-			{
-				return CURL_HTTP_VERSION_1_1;
-			}
-
-			case HTTP_VERSION_2_0:
-			{
-				return CURL_HTTP_VERSION_2_0;
-			}
-
-			case HTTP_VERSION_3_0:
-			{
-				return CURL_HTTP_VERSION_3;
-			}
-		}
-
-		return CURL_HTTP_VERSION_NONE;
-	}
+	ServiceConnectionSettings Network_GetConnectionSettings() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_ConnectionSettings; }
+	std::string Network_GetLastRoute() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_LastRoute; }
+	bool Network_SaveLastRoute(const std::string& host);
 
 private:
 	void Load(void);
-	void Save();
+	bool Save();
 
 private:
 	// NOTE: This also works as the default creation (since we just call Save)
@@ -157,6 +120,11 @@ private:
 
 	std::string m_Plugins_Anticheat = std::string();
 
-	EHTTPVersion m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_AUTO;
-	bool m_Network_UseAlternativeEndpoint = false;
+	mutable std::mutex m_NetworkMutex;
+	ServiceConnectionSettings m_ConnectionSettings;
+	// host of the service route that worked last
+	std::string m_LastRoute;
+	// keeps keys this build does not know when a setting is saved mid-session
+	std::string m_PreservedJSON = "{}";
+	bool m_CanSave = true;
 };

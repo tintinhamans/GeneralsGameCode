@@ -225,7 +225,7 @@ public:
 
 private:
 	CURLcode ReceiveOneFrame();
-
+	void FailConnectionSetup();
 	CURL* m_pCurlWS = nullptr;
     CURLM* m_pMulti = nullptr;
 	struct curl_slist* m_pHeaders = nullptr;
@@ -536,6 +536,10 @@ public:
 	}
 
 	void StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback);
+	void StartVersionCheckOnSelectedRoute(std::function<void(bool, bool)> fnCallback);
+	void EnsureServiceRoute(std::function<void(bool)> callback);
+	static bool IsServiceURLTrusted(const std::string& url);
+	static bool IsWebSocketURLTrusted(const std::string& url);
 
 	std::shared_ptr<WebSocket> Internal_GetWebSocket() const { return m_pWebSocket; }
 	HTTPManager* GetHTTPManager() const { return m_pHTTPManager; }
@@ -649,6 +653,14 @@ private:
 	// Screenshot thread management
 	std::vector<std::thread*> m_vecScreenshotThreads;
 	std::mutex m_mutexScreenshotThreads;
+
+	void ProbeServiceRoute();
+	void FinishServiceRoute(bool success);
+	std::string m_serviceBase;
+	std::vector<std::string> m_bootstrapRoutes;
+	size_t m_bootstrapIndex = 0;
+	std::vector<std::function<void(bool)>> m_routeCallbacks;
+	std::chrono::steady_clock::time_point m_routeValidatedAt{};
 
 	ServiceConfig m_ServiceConfig;
 

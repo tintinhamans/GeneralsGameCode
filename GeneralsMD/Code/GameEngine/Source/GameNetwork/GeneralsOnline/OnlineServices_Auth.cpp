@@ -303,6 +303,32 @@ void NGMP_OnlineServices_AuthInterface::RefreshToken()
 
 void NGMP_OnlineServices_AuthInterface::BeginLogin()
 {
+	auto* manager = NGMP_OnlineServicesManager::GetInstance();
+	if (!manager)
+	{
+		return;
+	}
+	manager->EnsureServiceRoute([](bool success)
+	{
+		auto* auth = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+		if (!auth)
+		{
+			return;
+		}
+		if (success)
+		{
+			auth->BeginLoginOnSelectedRoute();
+		}
+		else
+		{
+			ClearGSMessageBoxes();
+			GSMessageBoxOk(UnicodeString(L"Connection failed"), UnicodeString(L"No trusted service route could be reached. Check your connection and try again."), []() { TheShell->pop(); });
+		}
+	});
+}
+
+void NGMP_OnlineServices_AuthInterface::BeginLoginOnSelectedRoute()
+{
 	m_tokenCreationTime = -1;
 
 	std::string strLoginURI = NGMP_OnlineServicesManager::GetAPIEndpoint("LoginWithToken");
