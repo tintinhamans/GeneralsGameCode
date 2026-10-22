@@ -1240,6 +1240,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/DiscordRichPresence.cpp
     Source/GameNetwork/GenOnline/GenOnlineHelpers.cpp
     Source/GameNetwork/GenOnline/GenOnlineGame.cpp
+    Source/GameNetwork/GenOnline/ServiceConnectionPolicy.cpp
     Source/GameNetwork/GenOnline/ServiceEndpointPolicy.cpp
     Source/GameNetwork/GenOnline/GenOnlineSettings.cpp
     Source/GameNetwork/GenOnline/HTTP/HTTPManager.cpp

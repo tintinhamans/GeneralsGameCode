@@ -35,6 +35,10 @@
 #define SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT "use_alternative_endpoint"
 #define SETTINGS_KEY_NETWORK_SERVER "server"
 #define SETTINGS_KEY_NETWORK_SERVER_MODE "mode"
+#define SETTINGS_KEY_NETWORK_PROXY "proxy"
+#define SETTINGS_KEY_NETWORK_PROXY_MODE "mode"
+#define SETTINGS_KEY_NETWORK_PROXY_ADDRESS "address"
+#define SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN "windows_login"
 #define SETTINGS_KEY_NETWORK_LAST_ROUTE "last_route"
 #define LEGACY_ALTERNATIVE_ROUTE_HOST "api-ru.playgenerals.online"
 
@@ -329,6 +333,33 @@ void GenOnlineSettings::Load(void)
                     m_ConnectionSettings.serverMode = "automatic";
                 }
 
+                if (networkSettings.contains(SETTINGS_KEY_NETWORK_PROXY) && networkSettings[SETTINGS_KEY_NETWORK_PROXY].is_object())
+                {
+                    const auto& proxySettings = networkSettings[SETTINGS_KEY_NETWORK_PROXY];
+                    if (proxySettings.contains(SETTINGS_KEY_NETWORK_PROXY_MODE) && proxySettings[SETTINGS_KEY_NETWORK_PROXY_MODE].is_string())
+                    {
+                        m_ConnectionSettings.proxyMode = proxySettings[SETTINGS_KEY_NETWORK_PROXY_MODE].get<std::string>();
+                    }
+                    if (proxySettings.contains(SETTINGS_KEY_NETWORK_PROXY_ADDRESS) && proxySettings[SETTINGS_KEY_NETWORK_PROXY_ADDRESS].is_string())
+                    {
+                        m_ConnectionSettings.proxyURL = proxySettings[SETTINGS_KEY_NETWORK_PROXY_ADDRESS].get<std::string>();
+                    }
+                    if (proxySettings.contains(SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN) && proxySettings[SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN].is_boolean())
+                    {
+                        m_ConnectionSettings.windowsLogin = proxySettings[SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN].get<bool>();
+                    }
+                }
+                if (m_ConnectionSettings.proxyMode != "automatic" && m_ConnectionSettings.proxyMode != "disabled" && m_ConnectionSettings.proxyMode != "custom")
+                {
+                    m_ConnectionSettings.proxyMode = "automatic";
+                }
+                // an invalid custom proxy stays custom with no address, so it can never silently escape to direct
+                std::string proxyError;
+                if (!m_ConnectionSettings.proxyURL.empty() && !ServiceConnection::ValidateProxyURL(m_ConnectionSettings.proxyURL, proxyError))
+                {
+                    m_ConnectionSettings.proxyURL.clear();
+                }
+
                 if (networkSettings.contains(SETTINGS_KEY_NETWORK_LAST_ROUTE) && networkSettings[SETTINGS_KEY_NETWORK_LAST_ROUTE].is_string())
                 {
                     m_LastRoute = networkSettings[SETTINGS_KEY_NETWORK_LAST_ROUTE].get<std::string>();
@@ -526,6 +557,10 @@ bool GenOnlineSettings::Save()
             SETTINGS_KEY_NETWORK,
                 {
                     {SETTINGS_KEY_NETWORK_SERVER, {{SETTINGS_KEY_NETWORK_SERVER_MODE, m_ConnectionSettings.serverMode}}},
+                    {SETTINGS_KEY_NETWORK_PROXY, {
+                        {SETTINGS_KEY_NETWORK_PROXY_MODE, m_ConnectionSettings.proxyMode},
+                        {SETTINGS_KEY_NETWORK_PROXY_ADDRESS, m_ConnectionSettings.proxyURL},
+                        {SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN, m_ConnectionSettings.windowsLogin}}},
                     {SETTINGS_KEY_NETWORK_LAST_ROUTE, m_LastRoute}
                 }
         },
@@ -609,6 +644,36 @@ bool GenOnlineSettings::Save()
 		m_PreservedJSON = strData;
 	}
 	return bSaved;
+}
+
+bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSettings& settings, std::string& error)
+{
+	error.clear();
+	if (settings.serverMode != "automatic" ||
+		(settings.proxyMode != "automatic" && settings.proxyMode != "disabled" && settings.proxyMode != "custom"))
+	{
+		error = "Choose a valid service and proxy mode.";
+		return false;
+	}
+	if ((settings.proxyMode == "custom" || !settings.proxyURL.empty()) && !ServiceConnection::ValidateProxyURL(settings.proxyURL, error))
+	{
+		return false;
+	}
+	if (!m_bInitialized)
+	{
+		Initialize();
+	}
+	std::lock_guard<std::mutex> lock(m_NetworkMutex);
+	const auto previous = m_ConnectionSettings;
+	m_ConnectionSettings = settings;
+	if (Save())
+	{
+		ServiceConnection::InvalidateProxyPolicyCache();
+		return true;
+	}
+	m_ConnectionSettings = previous;
+	error = "Could not save connection settings. Check the game user-data folder permissions.";
+	return false;
 }
 
 bool GenOnlineSettings::Network_SaveLastRoute(const std::string& host)

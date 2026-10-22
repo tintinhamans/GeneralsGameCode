@@ -4,6 +4,8 @@
 #include <map>
 #include <string>
 #include <functional>
+#include <chrono>
+#include "../ServiceConnectionPolicy.h"
 
 enum class EHTTPVerb;
 enum class EIPProtocolVersion;
@@ -30,6 +32,7 @@ public:
 	void SetPostData(const char* szPostData);
 	void SetPostDataBuffer(std::vector<uint8_t> vecBuffer);
 	void StartRequest();
+	void PollConnectionSetup();
 
 	void DisableServiceAuth()
 	{
@@ -76,6 +79,11 @@ private:
 private:
 	CURL* m_pCURL = nullptr;
 	bool m_handleAdded = false;
+	std::shared_ptr<ServiceConnection::ProxyResolution> m_proxyResolution;
+	ServiceConnection::ResolvedProxyPolicy m_proxyPolicy;
+	std::string m_setupFailurePhase;
+	size_t m_proxyRoute = 0;
+	std::chrono::steady_clock::time_point m_setupStarted;
 
 	long m_responseCode = 0;
 	CURLcode m_result = CURLE_OK;
