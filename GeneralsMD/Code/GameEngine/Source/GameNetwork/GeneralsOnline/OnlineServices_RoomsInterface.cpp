@@ -154,81 +154,38 @@ int WebSocket::Ping()
 void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback)
 {
 	if (m_bConnected || m_bShuttingDown)
-	{
 		return;
-	}
-
-	m_lastPong = NowMs();
-
-	// copy before replacing the stored address: reconnect passes its c_str()
+	// Copy before replacing the stored address: reconnect passes its c_str().
 	const std::string destination(url);
 	m_strWebsocketAddr = destination;
 	m_fnWebsocketConnectedCallback = fnWebsocketConnectedCallback;
-
-	// TODO_CACHE: Cleanup multi too
+	m_connectAsReconnect = bIsReconnect;
+	m_lastPong = NowMs();
+	m_proxySetupStarted = NowMs();
+	m_proxyResolution.reset();
+	m_proxyPolicy = {};
+	m_proxyRoute = 0;
 	if (m_pCurlWS != nullptr)
 	{
-		// remove from multi before cleanup (required by libcurl)
-		if (m_pMulti != nullptr)
-		{
-			curl_multi_remove_handle(m_pMulti, m_pCurlWS);
-		}
+		curl_multi_remove_handle(m_pMulti, m_pCurlWS);
 		curl_easy_cleanup(m_pCurlWS);
 		m_pCurlWS = nullptr;
 	}
-
-	// Free old headers before creating new ones
 	curl_slist_free_all(m_pHeaders);
 	m_pHeaders = nullptr;
-
-	// the token only ever goes to the selected service route
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-	if (pAuthInterface == nullptr || !NGMP_OnlineServicesManager::IsWebSocketURLTrusted(destination))
+	if (!NGMP_OnlineServicesManager::IsWebSocketURLTrusted(destination))
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Refused untrusted service destination");
 		FailConnectionSetup();
 		return;
 	}
-
-	m_pCurlWS = curl_easy_init();
-	std::string error;
-	if (m_pCurlWS == nullptr || !ServiceConnection::ConfigureServiceTransport(m_pCurlWS, destination, error))
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connection policy: %s", error.c_str());
-		FailConnectionSetup();
-		return;
-	}
-
-	const std::string authorization = "Authorization: Bearer " + pAuthInterface->GetAuthToken();
-	m_pHeaders = curl_slist_append(nullptr, authorization.c_str());
-	curl_slist* updated = m_pHeaders ? curl_slist_append(m_pHeaders, bIsReconnect ? "is-reconnect: true" : "is-reconnect: false") : nullptr;
-	if (updated == nullptr)
-	{
-		FailConnectionSetup();
-		return;
-	}
-	m_pHeaders = updated;
-
-	CURLcode result = CURLE_OK;
-	auto option = [&](CURLoption key, auto value) {
-		if (result == CURLE_OK)
-		{
-			result = curl_easy_setopt(m_pCurlWS, key, value);
-		}
-	};
-	option(CURLOPT_URL, destination.c_str());
-	option(CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
-	// HTTP v1 seems to have a higher success rate of bypassing DPI
-	option(CURLOPT_HTTP_VERSION, static_cast<long>(CURL_HTTP_VERSION_NONE));
-	option(CURLOPT_HTTPHEADER, m_pHeaders);
-	if (result != CURLE_OK || curl_multi_add_handle(m_pMulti, m_pCurlWS) != CURLM_OK)
-	{
-		FailConnectionSetup();
-	}
+	m_proxyResolution = ServiceConnection::StartProxyResolution(
+		NGMP_OnlineServicesManager::Settings.Network_GetConnectionSettings(), destination);
 }
 
 void WebSocket::FailConnectionSetup()
 {
+	m_proxyResolution.reset();
 	m_bConnected = false;
 	m_vecWSPartialBuffer.clear();
 	if (m_bReconnecting)
@@ -240,6 +197,94 @@ void WebSocket::FailConnectionSetup()
 	{
 		NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
 	}
+}
+
+void WebSocket::PollConnectionSetup()
+{
+	if (!m_proxyResolution)
+		return;
+	if (NowMs() - m_proxySetupStarted >= m_reconnectAttemptTimeout)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy policy failed: phase=proxy-timeout native_code=0");
+		FailConnectionSetup();
+		return;
+	}
+	if (!m_proxyResolution->ready.load(std::memory_order_acquire))
+		return;
+	m_proxyPolicy = std::move(m_proxyResolution->result);
+	m_proxyResolution.reset();
+	if (!m_proxyPolicy.error.empty() || m_proxyPolicy.routes.empty())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy policy failed: phase=%s native_code=%lu detail=%s",
+			m_proxyPolicy.failurePhase.empty() ? "proxy-policy" : m_proxyPolicy.failurePhase.c_str(),
+			m_proxyPolicy.nativeError, m_proxyPolicy.error.c_str());
+		FailConnectionSetup();
+		return;
+	}
+	if (ServiceConnection::ShouldLogProxyPolicy(true, m_proxyPolicy))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy route policy: %zu route(s), first=%s",
+			m_proxyPolicy.routes.size(), m_proxyPolicy.routes.front().direct ? "direct" : m_proxyPolicy.routes.front().url.c_str());
+		if (!m_proxyPolicy.fallbackReason.empty())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy policy fallback: native_code=%lu detail=%s",
+				m_proxyPolicy.nativeError, m_proxyPolicy.fallbackReason.c_str());
+		}
+	}
+	StartResolvedConnection();
+}
+
+void WebSocket::StartResolvedConnection()
+{
+	if (m_pCurlWS != nullptr)
+	{
+		curl_multi_remove_handle(m_pMulti, m_pCurlWS);
+		curl_easy_cleanup(m_pCurlWS);
+	}
+	curl_slist_free_all(m_pHeaders);
+	m_pHeaders = nullptr;
+	m_pCurlWS = curl_easy_init();
+	if (m_proxyRoute > 0)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Route %zu: %s", m_proxyRoute + 1, m_proxyPolicy.routes[m_proxyRoute].direct ? "direct" : m_proxyPolicy.routes[m_proxyRoute].url.c_str());
+	}
+	std::string error;
+	auto* auth = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	if (m_pCurlWS == nullptr || auth == nullptr || !auth->IsLoggedIn() || !NGMP_OnlineServicesManager::IsWebSocketURLTrusted(m_strWebsocketAddr)
+		|| !ServiceConnection::ConfigureCurl(m_pCurlWS, m_strWebsocketAddr, m_proxyPolicy.routes[m_proxyRoute], error))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connection policy: %s", error.c_str());
+		FailConnectionSetup();
+		return;
+	}
+	const std::string authorization = "Authorization: Bearer " + auth->GetAuthToken();
+	m_pHeaders = curl_slist_append(nullptr, authorization.c_str());
+	if (m_pHeaders == nullptr)
+	{
+		FailConnectionSetup();
+		return;
+	}
+	curl_slist* updated = curl_slist_append(m_pHeaders, m_connectAsReconnect ? "is-reconnect: true" : "is-reconnect: false");
+	if (updated == nullptr)
+	{
+		FailConnectionSetup();
+		return;
+	}
+	m_pHeaders = updated;
+	CURLcode result = CURLE_OK;
+	auto option = [&](CURLoption key, auto value) {
+		if (result == CURLE_OK)
+			result = curl_easy_setopt(m_pCurlWS, key, value);
+	};
+	option(CURLOPT_URL, m_strWebsocketAddr.c_str());
+	option(CURLOPT_CONNECT_ONLY, 2L);
+	option(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+	const long remaining = static_cast<long>(std::max<int64_t>(1, m_reconnectAttemptTimeout - (NowMs() - m_proxySetupStarted)));
+	option(CURLOPT_CONNECTTIMEOUT_MS, remaining);
+	option(CURLOPT_TIMEOUT_MS, remaining);
+	option(CURLOPT_HTTPHEADER, m_pHeaders);
+	if (result != CURLE_OK || curl_multi_add_handle(m_pMulti, m_pCurlWS) != CURLM_OK)
+		FailConnectionSetup();
 }
 
 void WebSocket::SendData_RoomChatMessage(UnicodeString& msg, bool bIsAction)
@@ -280,6 +325,7 @@ void WebSocket::SendData_JoinNetworkRoom(int roomID, uint64_t requestID)
 
 void WebSocket::Disconnect()
 {
+	m_proxyResolution.reset();
 	EndReconnect();
 	if (!m_bConnected)
 	{
@@ -851,6 +897,7 @@ void WebSocket::Tick()
 	}
 	// Main thread only; m_pCurlWS/m_vecWSPartialBuffer/m_bConnected are unlocked here.
 	UpdateReconnect();
+	PollConnectionSetup();
 
 
 
@@ -892,15 +939,29 @@ void WebSocket::Tick()
 
                 if (pCurlHandle == m_pCurlWS) // shouldnt hear about anything else
                 {
-					int httpResponseCode = -1;
+					long httpResponseCode = 0;
+					long proxyStatus = 0;
 					curl_easy_getinfo(pCurlHandle, CURLINFO_RESPONSE_CODE, &httpResponseCode);
+					curl_easy_getinfo(pCurlHandle, CURLINFO_HTTP_CONNECTCODE, &proxyStatus);
+					if (proxyStatus == 407)
+						httpResponseCode = 407;
 
 					/* Check for errors */
                     if (m->data.result != CURLE_OK)
                     {
+						const CURLcode failure = m->data.result;
+						if (httpResponseCode != 407 && (failure == CURLE_COULDNT_CONNECT || failure == CURLE_COULDNT_RESOLVE_PROXY || failure == CURLE_COULDNT_RESOLVE_HOST)
+							&& m_proxyRoute + 1 < m_proxyPolicy.routes.size() && NowMs() - m_proxySetupStarted < m_reconnectAttemptTimeout)
+						{
+							++m_proxyRoute;
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Trying next policy route after pre-connection failure (%d)", failure);
+							StartResolvedConnection();
+							continue;
+						}
                         m_bConnected = false;
                         m_vecWSPartialBuffer.clear();
-                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Failed to connect (%d - %s)", m->data.result, curl_easy_strerror(m->data.result));
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Handshake failed: phase=%s curl=%d status=%ld proxy_status=%ld",
+                            ServiceConnection::FailurePhase(m->data.result, httpResponseCode, proxyStatus), m->data.result, httpResponseCode, proxyStatus);
 
                         if (m_bReconnecting)
                         {
@@ -937,6 +998,10 @@ void WebSocket::Tick()
                         {
                             NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connected");
                         }
+
+                        long protocol = 0;
+                        curl_easy_getinfo(pCurlHandle, CURLINFO_HTTP_VERSION, &protocol);
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Handshake status=%ld protocol=%s", httpResponseCode, ServiceConnection::ProtocolName(protocol));
 
                         /* connected and ready */
                         m_bConnected = true;

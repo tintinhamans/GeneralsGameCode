@@ -106,6 +106,47 @@ std::string WebSocketURLForBase(const std::string& base)
 	return "wss://" + base.substr(8) + "ws";
 }
 
+std::string RequestURLForLog(const std::string& value, const std::string& serviceBase)
+{
+	if (value.size() > 8192 || std::any_of(value.begin(), value.end(), [](unsigned char c) { return c <= 32 || c >= 127; }))
+		return "[invalid-url]";
+	const auto schemeEnd = value.find("://");
+	if (schemeEnd == std::string::npos)
+		return "[invalid-url]";
+	const auto authority = value.substr(schemeEnd + 3, value.find_first_of("/?#", schemeEnd + 3) - schemeEnd - 3);
+	if (authority.find('@') != std::string::npos)
+		return "[redacted-url]";
+	std::unique_ptr<CURLU, decltype(&curl_url_cleanup)> url(curl_url(), curl_url_cleanup);
+	if (!url || curl_url_set(url.get(), CURLUPART_URL, value.c_str(), 0) != CURLUE_OK || Part(url.get(), CURLUPART_SCHEME) != "https")
+		return "[invalid-url]";
+	const auto host = Lower(Part(url.get(), CURLUPART_HOST));
+	if (host.empty() || host.find('%') != std::string::npos || !Part(url.get(), CURLUPART_ZONEID).empty())
+		return "[invalid-url]";
+	const auto port = Part(url.get(), CURLUPART_PORT);
+	const std::string origin = "https://" + host + (port.empty() || port == "443" ? "" : ":" + port);
+	const auto path = Part(url.get(), CURLUPART_PATH);
+	// only known service routes are logged; other paths may carry private identifiers
+	std::unique_ptr<CURLU, decltype(&curl_url_cleanup)> base(curl_url(), curl_url_cleanup);
+	if (path.find('%') != std::string::npos || !IsTrustedServiceURL(origin + path, serviceBase, false) ||
+		!base || curl_url_set(base.get(), CURLUPART_URL, serviceBase.c_str(), 0) != CURLUE_OK)
+		return origin + "/[redacted]";
+	const auto prefix = Part(base.get(), CURLUPART_PATH);
+	const auto action = path.substr(prefix.size());
+	static const char* const routes[] = {
+		"Matchmaking/Playlists", "Matchmaking/Widen", "PlayerStats/Batch",
+		"Social/Friends/Requests", "Social/Friends", "Social/Blocked",
+		"VersionManifest", "VersionCheck", "CheckLogin", "LoginWithToken", "LoginCode", "RefreshToken",
+		"ProvideMWToken", "ConnectionOutcome", "GlobalStats", "ServiceConfig", "Matchmaking",
+		"PlayerStats", "Lobbies", "Lobby", "Rooms", "MOTD", "User"
+	};
+	for (const std::string name : routes)
+	{
+		if (action == name || action.compare(0, name.size() + 1, name + "/") == 0)
+			return origin + prefix + name + (action.size() == name.size() ? "" : "/[redacted]");
+	}
+	return origin + prefix + "[redacted]";
+}
+
 bool IsExpectedVersionManifest(const std::string& body)
 {
 	const auto json = nlohmann::json::parse(body, nullptr, false);
