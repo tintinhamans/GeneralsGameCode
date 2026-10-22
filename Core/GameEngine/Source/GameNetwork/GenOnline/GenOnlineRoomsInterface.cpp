@@ -629,12 +629,26 @@ static bool JSONDeserialize(const char* szBuffer, nlohmann::json* jsonObject)
 	}
 	catch (nlohmann::json::exception& jsonException)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONDeserialize: Unparsable JSON: %s (%s)", szBuffer, jsonException.what());
+		if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONDeserialize: Unparsable JSON: %s (%s)", szBuffer, jsonException.what());
+		}
+		else
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONDeserialize: Invalid message JSON");
+		}
 		return false;
 	}
 	catch (...)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONDeserialize: Unparsable JSON: %s", szBuffer);
+		if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONDeserialize: Unparsable JSON: %s", szBuffer);
+		}
+		else
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONDeserialize: Invalid message JSON");
+		}
 		return false;
 	}
 
@@ -653,7 +667,14 @@ static bool JSONGetAsObject(nlohmann::json& jsonObject, T* outMsg)
 	catch (nlohmann::json::exception& jsonException)
 	{
 		std::string targetTypeName = typeid(T).name();
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONGetAsObject: Unparsable JSON: Target Type is %s (%s)", targetTypeName.c_str(), jsonException.what());
+		if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONGetAsObject: Unparsable JSON: Target Type is %s (%s)", targetTypeName.c_str(), jsonException.what());
+		}
+		else
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "JSONGetAsObject: Invalid message type %s", targetTypeName.c_str());
+		}
 		return false;
 	}
 	catch (...)
@@ -1022,7 +1043,14 @@ CURLcode WebSocket::ReceiveOneFrame()
 
 	if (ret == CURLE_OK)
 	{
-		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket msg: %s", bufferThisRecv);
+		if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+		{
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket msg: %s", bufferThisRecv);
+		}
+		else
+		{
+			NetworkLog(ELogVerbosity::LOG_DEBUG, "[WebSocket] Received %zu bytes", rlen);
+		}
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Got websocket len: %d", rlen);
 
 		// any server frame proves liveness, not just a JSON PONG
@@ -1654,7 +1682,14 @@ CURLcode WebSocket::ReceiveOneFrame()
 
 										if (bParsed)
 										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] GOT PROBE REQUEST: %s!", probe.url.c_str());
+											if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+											{
+												NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] GOT PROBE REQUEST: %s!", probe.url.c_str());
+											}
+											else
+											{
+												NetworkLog(ELogVerbosity::LOG_RELEASE, "[PROBE] Received request");
+											}
 
 											GenOnlineServicesManager::GetInstance()->CaptureScreenshotForProbe(EScreenshotType::SCREENSHOT_TYPE_GAMEPLAY, probe.url);
 
@@ -1848,21 +1883,41 @@ CURLcode WebSocket::ReceiveOneFrame()
 					}
 					catch (nlohmann::json::exception& jsonException)
 					{
-
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "Unparsable WebSocketMessage 101: %s (JSON: %s)", bufferThisRecv, jsonException.what());
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "Buildup buffer is: %s", m_vecWSPartialBuffer.data());
+						if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+						{
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "Unparsable WebSocketMessage 101: %s (JSON: %s)", bufferThisRecv, jsonException.what());
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "Buildup buffer is: %s", m_vecWSPartialBuffer.data());
+						}
+						else
+						{
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Invalid JSON message");
+						}
 
 						m_vecWSPartialBuffer.clear();
 					}
 					catch (std::exception& e)
 					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "Unparsable WebSocketMessage 100: %s (%s)", bufferThisRecv, e.what());
+						if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+						{
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "Unparsable WebSocketMessage 100: %s (%s)", bufferThisRecv, e.what());
+						}
+						else
+						{
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Message processing failed");
+						}
 
 						m_vecWSPartialBuffer.clear();
 					}
 					catch (...)
 					{
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "Unparsable WebSocketMessage 102: %s", bufferThisRecv);
+						if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+						{
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "Unparsable WebSocketMessage 102: %s", bufferThisRecv);
+						}
+						else
+						{
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Message processing failed");
+						}
 
 						m_vecWSPartialBuffer.clear();
 					}
