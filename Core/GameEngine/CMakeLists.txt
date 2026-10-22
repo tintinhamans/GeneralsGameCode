@@ -2,6 +2,7 @@ set(GAMEENGINE_SRC
     Include/Common/AcademyStats.h
     Include/Common/AdaptiveQuality.h
     Include/Common/AdaptiveQualityModel.h
+    Include/Common/AdaptiveQualityPower.h
 #    Include/Common/ActionManager.h
     Include/Common/AddonCompat.h
     Include/Common/ArchiveFile.h
