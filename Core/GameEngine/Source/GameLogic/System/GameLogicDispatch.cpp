@@ -901,6 +901,21 @@ bool GameLogic::onNewGame(MAYBE_UNUSED GameMessage *msg)
 	return true;
 }
 
+#if defined(GENONLINE)
+void GameLogic::processPendingGameExit()
+{
+	for (GameMessage* msg = TheCommandList->getFirstMessage(); msg != nullptr; msg = msg->next()) {
+		if (msg->getType() == GameMessage::MSG_CLEAR_GAME_DATA) {
+			TheCommandList->removeMessage(msg);
+			deleteInstance(msg);
+			AIGroupPtr selectedGroup = nullptr;
+			onClearGameData(nullptr, selectedGroup);
+			return;
+		}
+	}
+}
+#endif
+
 bool GameLogic::onClearGameData(MAYBE_UNUSED GameMessage *msg, AIGroupPtr &currentlySelectedGroup)
 {
 #if defined(RTS_DEBUG)
