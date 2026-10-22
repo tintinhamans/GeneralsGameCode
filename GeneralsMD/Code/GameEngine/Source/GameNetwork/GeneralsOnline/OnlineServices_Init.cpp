@@ -174,6 +174,9 @@ GenOnlineSettings NGMP_OnlineServicesManager::Settings;
 NGMP_OnlineServicesManager::NGMP_OnlineServicesManager()
 {
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Init");
+#if _DEBUG
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] WARNING: TLS verification is disabled in debug builds");
+#endif
 
 	m_pOnlineServicesManager = this;
 }

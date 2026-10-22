@@ -114,7 +114,15 @@ bool ConfigureServiceTransport(CURL* curl, const std::string& url, std::string& 
 			error = "Unable to configure service transport: " + std::string(curl_easy_strerror(code));
 		return code == CURLE_OK;
 	};
-	return set(CURLOPT_SSL_VERIFYPEER, 1L) && set(CURLOPT_SSL_VERIFYHOST, 2L) &&
+#if _DEBUG
+	// debug builds skip certificate checks for local service testing
+	constexpr long verifyPeer = 0L;
+	constexpr long verifyHost = 0L;
+#else
+	constexpr long verifyPeer = 1L;
+	constexpr long verifyHost = 2L;
+#endif
+	return set(CURLOPT_SSL_VERIFYPEER, verifyPeer) && set(CURLOPT_SSL_VERIFYHOST, verifyHost) &&
 		set(CURLOPT_SSL_OPTIONS, static_cast<long>(CURLSSLOPT_NATIVE_CA)) &&
 		set(CURLOPT_DISALLOW_USERNAME_IN_URL, 1L) && set(CURLOPT_FOLLOWLOCATION, 0L) &&
 		set(CURLOPT_PROTOCOLS_STR, websocket ? "wss" : "https") && set(CURLOPT_PROXY, "");
