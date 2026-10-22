@@ -255,8 +255,14 @@ private:
 	Bool isDuplicateCommand(NetCommandMsg *msg);
 
 	Int slotForUserID(Int64 userID) const;
+	Bool isPeerActive(Int slot) const;
+	void onDirectFrameAck(UnsignedInt frame, Int peerSlot);
+	std::map<UnsignedInt, UnsignedInt> m_frameAckedMasks;	///< Frame -> the peers that acked its frame info so far.
+	Bool isDirectSendActive();
+	Bool m_directSendActive;
+	time_t m_directSendCheckedAt;
 	UnsignedInt m_formerRouterMask;	///< Slots that were the packet router in this match, their last packets can still be on the way.
-	Bool isCommandFromSender(NetCommandMsg *msg, Int senderSlot);	///< A command must come from the player it names, unless the packet router relays it
+	Bool isCommandFromSender(NetCommandMsg *msg, Int senderSlot);
 	Bool noteSecurityDrop();
 	Bool m_loggedSenderUnavailable;
 	Int m_securityDrops;
