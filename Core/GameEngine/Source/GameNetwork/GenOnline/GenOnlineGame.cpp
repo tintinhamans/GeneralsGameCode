@@ -462,6 +462,12 @@ void GenOnlineGame::launchGame(void)
 
 	TheNetwork->parseUserList(this);
 
+	if (pMesh != nullptr && TheNetwork->GetConnectionManager() != nullptr)
+	{
+		// the run ahead of frame 1, decided by the packet router from the lobby round trips
+		pMesh->BeginStartRunAhead((int)TheNetwork->GetConnectionManager()->getPacketRouterSlot());
+	}
+
 	if (TheGameLogic->isInGame()) {
 		TheGameLogic->clearGameData();
 	}
