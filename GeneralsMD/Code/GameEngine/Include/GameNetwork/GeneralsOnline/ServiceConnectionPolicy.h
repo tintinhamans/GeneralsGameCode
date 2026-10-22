@@ -30,6 +30,9 @@ struct ProxyResolution
 	std::atomic<bool> ready{false};
 	ResolvedProxyPolicy result;
 };
+// Successful system policies expire after 60 seconds; settings saves invalidate immediately.
+void InvalidateProxyPolicyCache();
+bool ShouldLogProxyPolicy(bool websocket, const ResolvedProxyPolicy& result);
 std::shared_ptr<ProxyResolution> StartProxyResolution(ServiceConnectionSettings settings, std::string destinationURL);
 
 // Worker-only: PAC/WPAD resolution can take up to five seconds. Only absent optional WPAD permits system fallback.

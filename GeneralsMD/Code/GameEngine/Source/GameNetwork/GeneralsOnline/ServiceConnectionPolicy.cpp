@@ -10,6 +10,8 @@
 #include <thread>
 #include <deque>
 #include <mutex>
+#include <map>
+#include <chrono>
 
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "advapi32.lib")
@@ -250,6 +252,16 @@ void CALLBACK ProxyCallback(HINTERNET, DWORD_PTR value, DWORD status, void* info
 	}
 }
 
+// websocket lookups use the matching http scheme
+std::string ProxyDestination(std::string destination)
+{
+	if (destination.compare(0, 6, "wss://") == 0)
+		destination.replace(0, 6, "https://");
+	else if (destination.compare(0, 5, "ws://") == 0)
+		destination.replace(0, 5, "http://");
+	return destination;
+}
+
 ResolvedProxyPolicy AutoProxy(const std::wstring& destination, WINHTTP_AUTOPROXY_OPTIONS& options)
 {
 	ResolvedProxyPolicy result;
@@ -302,7 +314,11 @@ ResolvedProxyPolicy AutoProxy(const std::wstring& destination, WINHTTP_AUTOPROXY
 			for (DWORD i = 0; i < proxies.cEntries; ++i)
 			{
 				const auto& entry = proxies.pEntries[i];
-				if (!entry.fProxy) { result.routes.push_back({}); continue; }
+				if (!entry.fProxy)
+				{
+					result.routes.push_back({});
+					continue;
+				}
 				std::string scheme;
 				if (entry.ProxyScheme == INTERNET_SCHEME_HTTP)
 					scheme = "http";
@@ -382,7 +398,11 @@ bool ValidateProxyURL(const std::string& proxyURL, std::string& error)
 ResolvedProxyPolicy ResolveProxyPolicy(const ServiceConnectionSettings& settings, const std::string& destinationURL)
 {
 	ResolvedProxyPolicy result;
-	if (settings.proxyMode == "direct") { result.routes.push_back({}); return result; }
+	if (settings.proxyMode == "direct")
+	{
+		result.routes.push_back({});
+		return result;
+	}
 	if (settings.proxyMode == "custom")
 	{
 		std::string canonical;
@@ -398,11 +418,7 @@ ResolvedProxyPolicy ResolveProxyPolicy(const ServiceConnectionSettings& settings
 		result.failurePhase = "proxy-configuration";
 		return result;
 	}
-	std::string destination = destinationURL;
-	if (destination.compare(0, 6, "wss://") == 0)
-		destination.replace(0, 6, "https://");
-	else if (destination.compare(0, 5, "ws://") == 0)
-		destination.replace(0, 5, "http://");
+	const std::string destination = ProxyDestination(destinationURL);
 	WINHTTP_CURRENT_USER_IE_PROXY_CONFIG config{};
 	if (!WinHttpGetIEProxyConfigForCurrentUser(&config))
 	{
@@ -443,64 +459,357 @@ ResolvedProxyPolicy ResolveProxyPolicy(const ServiceConnectionSettings& settings
 	return result;
 }
 
+namespace
+{
+using ProxyClock = std::chrono::steady_clock;
+constexpr size_t MaxProxyJobs = 64;
+constexpr size_t MaxProxyWaiters = 64;
+constexpr size_t MaxProxyCache = 64;
+constexpr auto ProxyCacheTTL = std::chrono::seconds(60);
+constexpr auto ProxyFailureTTL = std::chrono::seconds(30);
+
+void KeyPart(std::string& key, const std::string& value)
+{
+	key += std::to_string(value.size()) + ":" + value;
+}
+
+// Failures are shared per PAC server, not per URL; empty when no script is fetched
+std::string PolicySource(const std::string& pacURL, bool autoDetect)
+{
+	if (pacURL.empty())
+	{
+		return autoDetect ? "wpad" : std::string();
+	}
+	const auto schemeEnd = pacURL.find("://");
+	const auto start = schemeEnd == std::string::npos ? 0 : schemeEnd + 3;
+	return "pac:" + Lower(pacURL.substr(0, pacURL.find_first_of("/?#", start)));
+}
+
+bool IsCacheableProxyFailure(const ResolvedProxyPolicy& result)
+{
+	return !result.error.empty() && (result.failurePhase == "proxy-timeout" ||
+		result.failurePhase == "proxy-pac" || result.failurePhase == "proxy-discovery");
+}
+
+// In-memory only: PAC decisions can depend on the full path and query
+bool ProxyKey(const ServiceConnectionSettings& settings, const std::string& destination,
+	std::string& key, ResolvedProxyPolicy& failure, std::string* systemFingerprint = nullptr,
+	std::string* failureSource = nullptr)
+{
+	KeyPart(key, ProxyDestination(destination));
+	KeyPart(key, settings.proxyMode);
+	KeyPart(key, settings.proxyURL);
+	key += settings.integratedProxyAuth ? "1" : "0";
+	WINHTTP_CURRENT_USER_IE_PROXY_CONFIG config{};
+	if (!WinHttpGetIEProxyConfigForCurrentUser(&config))
+	{
+		failure.nativeError = GetLastError();
+		failure.failurePhase = "proxy-settings";
+		failure.error = "Unable to read Windows proxy settings (" + std::to_string(failure.nativeError) + ").";
+		return false;
+	}
+	const auto systemStart = key.size();
+	key += config.fAutoDetect ? "1" : "0";
+	KeyPart(key, config.lpszProxy ? UTF8(config.lpszProxy) : "");
+	KeyPart(key, config.lpszProxyBypass ? UTF8(config.lpszProxyBypass) : "");
+	KeyPart(key, config.lpszAutoConfigUrl ? UTF8(config.lpszAutoConfigUrl) : "");
+	if (systemFingerprint)
+	{
+		*systemFingerprint = key.substr(systemStart);
+	}
+	if (failureSource)
+	{
+		*failureSource = PolicySource(config.lpszAutoConfigUrl ? UTF8(config.lpszAutoConfigUrl) : "", config.fAutoDetect != FALSE);
+	}
+	GlobalFree(config.lpszProxy);
+	GlobalFree(config.lpszProxyBypass);
+	GlobalFree(config.lpszAutoConfigUrl);
+	return true;
+}
+
+struct ProxyWork
+{
+	ServiceConnectionSettings settings;
+	std::string destination;
+	std::string key;
+	std::string failureKey;
+	unsigned long long generation = 0;
+	std::vector<std::weak_ptr<ProxyResolution>> waiters;
+};
+struct ProxyCacheEntry
+{
+	ResolvedProxyPolicy result;
+	ProxyClock::time_point expires;
+};
+struct ProxyQueue
+{
+	std::mutex mutex;
+	std::deque<std::shared_ptr<ProxyWork>> pending;
+	std::map<std::string, std::shared_ptr<ProxyWork>> active;
+	std::map<std::string, ProxyCacheEntry> cache;
+	std::map<std::string, ProxyCacheEntry> failures;
+	std::string lastSystemKey;
+	unsigned long long generation = 0;
+	unsigned workers = 0;
+};
+std::shared_ptr<ProxyQueue> ProxyQueueState()
+{
+	static auto queue = std::make_shared<ProxyQueue>();
+	return queue;
+}
+void CompleteProxy(ProxyResolution& state, const ResolvedProxyPolicy& result)
+{
+	state.result = result;
+	state.ready.store(true, std::memory_order_release);
+}
+void ProxyQueueFailure(ProxyResolution& state, const char* message)
+{
+	ResolvedProxyPolicy result;
+	result.error = message;
+	result.failurePhase = "proxy-policy";
+	CompleteProxy(state, result);
+}
+void PruneProxyEntries(std::map<std::string, ProxyCacheEntry>& entries, ProxyClock::time_point now)
+{
+	for (auto it = entries.begin(); it != entries.end();)
+	{
+		if (it->second.expires <= now)
+		{
+			it = entries.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
+void PruneProxyCache(ProxyQueue& queue, ProxyClock::time_point now)
+{
+	PruneProxyEntries(queue.cache, now);
+	PruneProxyEntries(queue.failures, now);
+}
+void FinishProxyWork(ProxyQueue& queue, const std::shared_ptr<ProxyWork>& work,
+	const ResolvedProxyPolicy& result, ProxyClock::time_point now)
+{
+	if (work->generation == queue.generation && result.error.empty() && !result.routes.empty())
+	{
+		PruneProxyCache(queue, now);
+		if (queue.cache.size() >= MaxProxyCache)
+		{
+			queue.cache.erase(queue.cache.begin());
+		}
+		queue.cache[work->key] = {result, now + ProxyCacheTTL};
+	}
+	else if (work->generation == queue.generation && !work->failureKey.empty() && IsCacheableProxyFailure(result))
+	{
+		PruneProxyCache(queue, now);
+		if (queue.failures.size() >= MaxProxyCache)
+		{
+			queue.failures.erase(queue.failures.begin());
+		}
+		queue.failures[work->failureKey] = {result, now + ProxyFailureTTL};
+	}
+	for (auto& waiter : work->waiters)
+	{
+		if (auto state = waiter.lock())
+		{
+			CompleteProxy(*state, result);
+		}
+	}
+	const auto active = queue.active.find(work->key);
+	if (active != queue.active.end() && active->second == work)
+	{
+		queue.active.erase(active);
+	}
+}
+std::shared_ptr<ProxyWork> QueueProxyWork(ProxyQueue& queue, const ServiceConnectionSettings& settings,
+	const std::string& destinationURL, const std::string& key, const std::shared_ptr<ProxyResolution>& state,
+	const std::string& failureKey = std::string(), ProxyClock::time_point now = ProxyClock::now())
+{
+	const auto cached = queue.cache.find(key);
+	if (cached != queue.cache.end())
+	{
+		CompleteProxy(*state, cached->second.result);
+		return {};
+	}
+	// a dead PAC server is probed once per TTL, not once per URL
+	const auto failed = failureKey.empty() ? queue.failures.end() : queue.failures.find(failureKey);
+	if (failed != queue.failures.end() && failed->second.expires > now)
+	{
+		CompleteProxy(*state, failed->second.result);
+		return {};
+	}
+	const auto active = queue.active.find(key);
+	if (active != queue.active.end())
+	{
+		auto& waiters = active->second->waiters;
+		waiters.erase(std::remove_if(waiters.begin(), waiters.end(),
+			[](const std::weak_ptr<ProxyResolution>& waiter) { return waiter.expired(); }), waiters.end());
+		if (waiters.size() >= MaxProxyWaiters)
+		{
+			ProxyQueueFailure(*state, "Too many pending proxy lookups. Try again shortly.");
+		}
+		else
+		{
+			waiters.push_back(state);
+		}
+		return {};
+	}
+	if (queue.pending.size() + queue.workers >= MaxProxyJobs)
+	{
+		ProxyQueueFailure(*state, "Too many pending proxy lookups. Try again shortly.");
+		return {};
+	}
+	auto work = std::make_shared<ProxyWork>();
+	work->settings = settings;
+	work->destination = destinationURL;
+	work->key = key;
+	work->failureKey = failureKey;
+	work->generation = queue.generation;
+	work->waiters.push_back(state);
+	queue.active[work->key] = work;
+	queue.pending.push_back(work);
+	return work;
+}
+
+}
+
+void InvalidateProxyPolicyCache()
+{
+	auto queue = ProxyQueueState();
+	std::lock_guard<std::mutex> lock(queue->mutex);
+	++queue->generation;
+	queue->cache.clear();
+	queue->failures.clear();
+	// callers already waiting keep their lookup, new callers start a fresh one
+	queue->active.clear();
+}
+
+bool ShouldLogProxyPolicy(bool websocket, const ResolvedProxyPolicy& result)
+{
+	static std::mutex mutex;
+	static std::string previous[2];
+	std::string signature;
+	KeyPart(signature, result.fallbackReason);
+	for (const auto& route : result.routes)
+	{
+		signature += route.direct ? "D" : "P";
+		KeyPart(signature, route.url);
+		signature += route.allowIntegratedAuth ? "1" : "0";
+	}
+	std::lock_guard<std::mutex> lock(mutex);
+	auto& last = previous[websocket ? 1 : 0];
+	if (last == signature)
+	{
+		return false;
+	}
+	last = std::move(signature);
+	return true;
+}
+
 std::shared_ptr<ProxyResolution> StartProxyResolution(ServiceConnectionSettings settings, std::string destinationURL)
 {
-	struct Work
-	{
-		ServiceConnectionSettings settings;
-		std::string destination;
-		std::shared_ptr<ProxyResolution> state;
-	};
-	struct Queue
-	{
-		std::mutex mutex;
-		std::deque<Work> pending;
-		unsigned workers = 0;
-	};
-	static auto queue = std::make_shared<Queue>();
 	auto state = std::make_shared<ProxyResolution>();
-	const auto sharedQueue = queue;
-	std::lock_guard<std::mutex> lock(sharedQueue->mutex);
-	if (sharedQueue->pending.size() >= 64)
+	if (destinationURL.size() > 16384 || settings.proxyURL.size() > 2048)
 	{
-		state->result.error = "Too many pending proxy lookups. Try again shortly.";
-		state->ready.store(true, std::memory_order_release);
+		ProxyQueueFailure(*state, "Proxy lookup configuration is too long.");
 		return state;
 	}
-	sharedQueue->pending.push_back({std::move(settings), std::move(destinationURL), state});
-	if (sharedQueue->workers >= 4)
+	// Explicit direct/custom policy needs neither discovery nor a background worker
+	if (settings.proxyMode != "system")
+	{
+		CompleteProxy(*state, ResolveProxyPolicy(settings, destinationURL));
 		return state;
-	++sharedQueue->workers;
+	}
+	std::string key, systemFingerprint, failureSource;
+	ResolvedProxyPolicy failure;
+	if (!ProxyKey(settings, destinationURL, key, failure, &systemFingerprint, &failureSource))
+	{
+		CompleteProxy(*state, failure);
+		return state;
+	}
+	auto queue = ProxyQueueState();
+	std::lock_guard<std::mutex> lock(queue->mutex);
+	if (queue->lastSystemKey != systemFingerprint)
+	{
+		++queue->generation;
+		queue->cache.clear();
+		queue->failures.clear();
+		queue->active.clear();
+		queue->lastSystemKey = std::move(systemFingerprint);
+	}
+	const auto now = ProxyClock::now();
+	PruneProxyCache(*queue, now);
+	auto work = QueueProxyWork(*queue, settings, destinationURL, key, state, failureSource, now);
+	if (!work)
+	{
+		return state;
+	}
+	if (queue->workers >= 4)
+	{
+		return state;
+	}
+	++queue->workers;
 	try
 	{
-		std::thread([sharedQueue]() {
+		std::thread([queue]() {
 			for (;;)
 			{
-				Work work;
+				std::shared_ptr<ProxyWork> work;
 				{
-					std::lock_guard<std::mutex> lock(sharedQueue->mutex);
-					if (sharedQueue->pending.empty())
+					std::lock_guard<std::mutex> lock(queue->mutex);
+					if (queue->pending.empty())
 					{
-						--sharedQueue->workers;
+						--queue->workers;
 						return;
 					}
-					work = std::move(sharedQueue->pending.front());
-					sharedQueue->pending.pop_front();
+					work = std::move(queue->pending.front());
+					queue->pending.pop_front();
+					const bool canceled = std::all_of(work->waiters.begin(), work->waiters.end(),
+						[](const std::weak_ptr<ProxyResolution>& waiter) { return waiter.expired(); });
+					if (canceled)
+					{
+						const auto active = queue->active.find(work->key);
+						if (active != queue->active.end() && active->second == work)
+						{
+							queue->active.erase(active);
+						}
+						continue;
+					}
 				}
-				if (work.state.use_count() == 1)
-					continue;
-				try { work.state->result = ResolveProxyPolicy(work.settings, work.destination); }
-				catch (...) { work.state->result.error = "Proxy resolution failed."; }
-				work.state->ready.store(true, std::memory_order_release);
+				ResolvedProxyPolicy result;
+				try
+				{
+					result = ResolveProxyPolicy(work->settings, work->destination);
+					std::string currentKey;
+					ResolvedProxyPolicy changed;
+					if (!ProxyKey(work->settings, work->destination, currentKey, changed))
+					{
+						result = std::move(changed);
+					}
+					else if (currentKey != work->key)
+					{
+						result = {};
+						result.error = "Windows proxy settings changed during lookup. Reconnect to retry.";
+						result.failurePhase = "proxy-settings";
+					}
+				}
+				catch (...)
+				{
+					result.error = "Proxy resolution failed.";
+					result.failurePhase = "proxy-policy";
+				}
+				std::lock_guard<std::mutex> lock(queue->mutex);
+				FinishProxyWork(*queue, work, result, ProxyClock::now());
 			}
 		}).detach();
 	}
 	catch (...)
 	{
-		--sharedQueue->workers;
-		sharedQueue->pending.pop_back();
-		state->result.error = "Unable to start proxy resolution.";
-		state->ready.store(true, std::memory_order_release);
+		--queue->workers;
+		queue->pending.pop_back();
+		queue->active.erase(work->key);
+		ProxyQueueFailure(*state, "Unable to start proxy resolution.");
 	}
 	return state;
 }
@@ -639,7 +948,8 @@ const char* FailurePhase(CURLcode code, long status, long proxyStatus)
 	if (code == CURLE_COULDNT_RESOLVE_HOST)
 		return "endpoint DNS";
 	if (code == CURLE_PEER_FAILED_VERIFICATION || code == CURLE_SSL_CONNECT_ERROR ||
-		code == CURLE_SSL_CACERT_BADFILE || code == CURLE_SSL_CERTPROBLEM) return "TLS";
+		code == CURLE_SSL_CACERT_BADFILE || code == CURLE_SSL_CERTPROBLEM)
+		return "TLS";
 	if (code == CURLE_COULDNT_CONNECT)
 		return "connection";
 	if (code == CURLE_OPERATION_TIMEDOUT)

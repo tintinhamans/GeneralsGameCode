@@ -557,6 +557,7 @@ bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSe
 	m_ConnectionSettings = settings;
 	if (Save())
 	{
+		ServiceConnection::InvalidateProxyPolicyCache();
 		return true;
 	}
 	m_ConnectionSettings = previous;

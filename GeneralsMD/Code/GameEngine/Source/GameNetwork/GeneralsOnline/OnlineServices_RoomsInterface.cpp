@@ -221,9 +221,16 @@ void WebSocket::PollConnectionSetup()
 		FailConnectionSetup();
 		return;
 	}
-	if (!m_proxyPolicy.fallbackReason.empty())
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy policy fallback: native_code=%lu detail=%s",
-			m_proxyPolicy.nativeError, m_proxyPolicy.fallbackReason.c_str());
+	if (ServiceConnection::ShouldLogProxyPolicy(true, m_proxyPolicy))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy route policy: %zu route(s), first=%s",
+			m_proxyPolicy.routes.size(), m_proxyPolicy.routes.front().direct ? "direct" : m_proxyPolicy.routes.front().url.c_str());
+		if (!m_proxyPolicy.fallbackReason.empty())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Proxy policy fallback: native_code=%lu detail=%s",
+				m_proxyPolicy.nativeError, m_proxyPolicy.fallbackReason.c_str());
+		}
+	}
 	StartResolvedConnection();
 }
 
@@ -237,7 +244,10 @@ void WebSocket::StartResolvedConnection()
 	curl_slist_free_all(m_pHeaders);
 	m_pHeaders = nullptr;
 	m_pCurlWS = curl_easy_init();
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Route %zu: %s", m_proxyRoute + 1, m_proxyPolicy.routes[m_proxyRoute].direct ? "direct" : m_proxyPolicy.routes[m_proxyRoute].url.c_str());
+	if (m_proxyRoute > 0)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Route %zu: %s", m_proxyRoute + 1, m_proxyPolicy.routes[m_proxyRoute].direct ? "direct" : m_proxyPolicy.routes[m_proxyRoute].url.c_str());
+	}
 	std::string error;
 	auto* auth = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
 	if (m_pCurlWS == nullptr || auth == nullptr || !auth->IsLoggedIn() || !NGMP_OnlineServicesManager::IsWebSocketURLTrusted(m_strWebsocketAddr)

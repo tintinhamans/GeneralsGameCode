@@ -104,9 +104,16 @@ void HTTPRequest::PollConnectionSetup()
 		Threaded_SetComplete(CURLE_FAILED_INIT);
 		return;
 	}
-	if (!m_proxyPolicy.fallbackReason.empty())
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Proxy policy fallback: native_code=%lu detail=%s",
-			m_proxyPolicy.nativeError, m_proxyPolicy.fallbackReason.c_str());
+	if (ServiceConnection::ShouldLogProxyPolicy(false, m_proxyPolicy))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Proxy route policy: %zu route(s), first=%s",
+			m_proxyPolicy.routes.size(), m_proxyPolicy.routes.front().direct ? "direct" : m_proxyPolicy.routes.front().url.c_str());
+		if (!m_proxyPolicy.fallbackReason.empty())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Proxy policy fallback: native_code=%lu detail=%s",
+				m_proxyPolicy.nativeError, m_proxyPolicy.fallbackReason.c_str());
+		}
+	}
 	PlatformStartRequest();
 }
 
@@ -240,17 +247,36 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 
 	long protocol = 0;
 	curl_easy_getinfo(m_pCURL, CURLINFO_HTTP_VERSION, &protocol);
-	if (!m_setupFailurePhase.empty())
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Completed: source=proxy-policy phase=%s curl=not-started native_code=%lu",
-			m_setupFailurePhase.c_str(), m_proxyPolicy.nativeError);
-	else
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Completed: phase=%s curl=%d status=%ld proxy_status=%ld protocol=%s bytes=%zu",
-			ServiceConnection::FailurePhase(result, m_responseCode, proxyStatus), result, m_responseCode, proxyStatus,
-			ServiceConnection::ProtocolName(protocol), m_currentBufSize_Used);
-	if (NGMP_OnlineServicesManager::Settings.Debug_VerboseLogging())
+	// successful requests are only logged in verbose mode
+	const bool success = m_setupFailurePhase.empty() && result == CURLE_OK && m_responseCode >= 200 && m_responseCode < 300;
+	if (!success || g_LogVerbosity == ELogVerbosity::LOG_DEBUG || NGMP_OnlineServicesManager::Settings.Debug_VerboseLogging())
 	{
-		const std::string strResponse(reinterpret_cast<const char*>(m_vecBuffer.data()), m_currentBufSize_Used);
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[%p|Verb %d] Response was %ld - %s!", this, m_httpVerb, m_responseCode, strResponse.c_str());
+		const char* method = "UNKNOWN";
+		switch (m_httpVerb)
+		{
+		case EHTTPVerb::HTTP_VERB_GET: method = "GET"; break;
+		case EHTTPVerb::HTTP_VERB_POST: method = "POST"; break;
+		case EHTTPVerb::HTTP_VERB_PUT: method = "PUT"; break;
+		case EHTTPVerb::HTTP_VERB_DELETE: method = "DELETE"; break;
+		}
+		const auto url = ServiceConnection::RequestURLForLog(m_strURI, NGMP_OnlineServicesManager::GetAPIEndpoint(""));
+		if (!m_setupFailurePhase.empty())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Completed: method=%s url=%s source=proxy-policy phase=%s curl=not-started native_code=%lu",
+				method, url.c_str(), m_setupFailurePhase.c_str(), m_proxyPolicy.nativeError);
+		}
+		else
+		{
+			NetworkLog(success ? ELogVerbosity::LOG_DEBUG : ELogVerbosity::LOG_RELEASE, "[HTTP] Completed: method=%s url=%s phase=%s curl=%d status=%ld proxy_status=%ld protocol=%s bytes=%zu",
+				method, url.c_str(), ServiceConnection::FailurePhase(result, m_responseCode, proxyStatus), result, m_responseCode, proxyStatus,
+				ServiceConnection::ProtocolName(protocol), m_currentBufSize_Used);
+		}
+
+		if (NGMP_OnlineServicesManager::Settings.Debug_VerboseLogging())
+		{
+			const std::string strResponse(reinterpret_cast<const char*>(m_vecBuffer.data()), m_currentBufSize_Used);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Response body for %s: %s", url.c_str(), strResponse.c_str());
+		}
 	}
 
 	// trigger callback
