@@ -39,7 +39,7 @@ std::mutex NGMP_OnlineServicesManager::m_ScreenshotMutex;
 std::vector<S3ScreenshotEntry> NGMP_OnlineServicesManager::m_vecGuardedSSData;
 
 
-bool NGMP_OnlineServicesManager::g_bAdvancedNetworkStats;
+int NGMP_OnlineServicesManager::g_networkOverlayMode;
 
 NetworkMesh* NGMP_OnlineServicesManager::GetNetworkMesh()
 {

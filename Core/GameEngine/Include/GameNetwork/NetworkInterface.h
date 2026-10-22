@@ -103,6 +103,7 @@ public:
 	virtual const ConnectionStats* getConnectionStats(Int slot) const = 0;	///< Latency, jitter and loss of the connection to a slot, nullptr when there is none.
 
 #if defined(GENERALS_ONLINE)
+	virtual Bool getOverlayInfo(Int slot, NetworkOverlayInfo &info) = 0;
 	virtual void SeedLatencyData(int highestLatency) = 0;
 	virtual bool IsSlugging() = 0;
 #endif

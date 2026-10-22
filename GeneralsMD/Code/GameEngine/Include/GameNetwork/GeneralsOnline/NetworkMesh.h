@@ -8,6 +8,7 @@
 #include "PluginInterfaces.h"
 #include "Lib/BaseType.h"
 #include "GameNetwork/ConnectionStats.h"
+#include "GameNetwork/GeneralsOnline/ConnectionRating.h"
 #include "GameNetwork/GeneralsOnline/PacketFeedback.h"
 
 class NetRoom_ChatMessagePacket;
@@ -92,7 +93,6 @@ public:
 	}
 
 	std::vector<int> m_vecLatencyHistory;
-	std::vector<float> m_vecQualityHistory;
 	std::string GetStats();
 
 	std::string GetConnectionType();
@@ -118,11 +118,13 @@ public:
 	bool GetOutgoingLoss(int windowMs, PacketFeedback::Summary& summary);	///< our packets to the peer, false without feedback
 	bool GetIncomingLoss(int windowMs, PacketFeedback::Summary& summary);	///< the peer's packets to us
 	int GetJitter();
-	float GetConnectionQuality();
-	int ComputeConnectionScore();
+	int ComputeConnectionRating();	///< 1..5 bars, -1 while it is not known yet; cached for 250 ms.
+	int UpdateConnectionRating();
+	int64_t m_nextRatingMs = 0;
+	int m_ratingResult = -1;
 
 	std::chrono::steady_clock::time_point m_connectedSinceTime = (std::chrono::steady_clock::time_point::min)();
-	float m_smoothedScore = -1.0f;
+	ConnectionRating::State m_rating;
 
 	// Only set for Steam connections
 	HSteamNetConnection m_hSteamConnection = k_HSteamNetConnection_Invalid;
