@@ -106,7 +106,7 @@ void NGMP_OnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType scree
 	{
 		ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
 
-		if (serviceConf.do_probes)
+		if (serviceConf.telemetry.screenshot_probes)
 		{
 			CHECK_MAIN_THREAD;
 
@@ -242,7 +242,7 @@ void NGMP_OnlineServicesManager::CommitReplay(AsciiString absoluteReplayPath)
 	{
 		ServiceConfig& serviceConf = pOnlineServicesMgr->GetServiceConfig();
 
-		if (serviceConf.do_replay_upload)
+		if (serviceConf.telemetry.replay_upload)
 		{
 			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 			const uint64_t matchID = pLobbyInterface == nullptr ? 0 : pLobbyInterface->GetCurrentMatchID();
@@ -653,8 +653,8 @@ void NGMP_OnlineServicesManager::CaptureScreenshot(bool bResizeForTransmit, std:
 										if (bResizeForTransmit)
 										{
 											ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
-											int new_width = serviceConf.screenshot_width;
-											int new_height = serviceConf.screenshot_height;
+											int new_width = serviceConf.telemetry.screenshot_width;
+											int new_height = serviceConf.telemetry.screenshot_height;
 											int channels = 3;
 											unsigned char* resized = new unsigned char[new_width * new_height * channels];
 
