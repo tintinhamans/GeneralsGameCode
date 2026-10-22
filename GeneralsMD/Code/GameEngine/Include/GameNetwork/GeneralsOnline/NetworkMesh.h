@@ -79,11 +79,19 @@ public:
 
 	int Recv(SteamNetworkingMessage_t** pMsg, int maxMessages = 255);
 
-	// the highest probe round trip of the stats window, the current ping while there are no probe samples
-	int GetPeakLatency()
+	// the p75 probe round trip of the stats window, -1 with too few samples: a spike or a lossy spell must not set the start run ahead
+	int GetSeedLatency(int minSamples = k_seedMinSamples) const
 	{
-		return (m_probeStats.getSampleCount() > 0) ? static_cast<int>(m_probeStats.getMaxLatency()) : GetLatency();
+		if (m_probeStats.getSampleCount() < minSamples)
+		{
+			return -1;
+		}
+		return static_cast<int>(m_probeStats.getLatencyPercentile(k_seedPercentile) + 0.5f);
 	}
+	static constexpr int k_seedMinSamples = 10;	// the probes a lobby round trip, a jitter or a rating needs, 2.5 s at the lobby interval
+	int GetMatchRatingMinSamples() const;	///< Half the probes the stats window holds at the match interval, one lost probe must not drop the probe p75.
+	static constexpr int k_seedPercentile = 75;
+	float GetSustainedLossPercent(int windowMs);	///< The worse direction of the packet feedback loss from at least 3 reports, -1 if unknown.
 
 	std::string GetStats();
 
@@ -225,23 +233,28 @@ public:
 	const MatchKeys& GetMatchKeys() const { return m_matchKeys; }
 	MatchKeys& GetMatchKeys() { return m_matchKeys; }
 
-	// PEAK HOLD: the highest probe round trip of any connection over the probe stats window
-	Real getMaximumProbeLatency()
+	// the highest p75 probe round trip of any connection over the probe stats window, 0 if none has enough samples
+	int getSeedProbeLatency()
 	{
 		int highestLatency = 0;
 
 		for (auto& kvPair : m_mapConnections)
 		{
-			const int peak = kvPair.second.GetPeakLatency();
-			if (peak > highestLatency)
+			const int seed = kvPair.second.GetSeedLatency();
+			if (seed > highestLatency)
 			{
-				highestLatency = peak;
+				highestLatency = seed;
 			}
 		}
 
-		return Real(highestLatency);
+		return highestLatency;
 	}
 
+	// Start run ahead: players send lobby round trips to the router, which sends frame 1's run ahead to all.
+	void BeginStartRunAhead(int routerSlot);	///< Call after the network parsed the user list.
+	void OnStartRunAheadMessage(int64_t connectionUserID, const uint8_t* data, size_t len);
+	bool BeginSyncedStart(int stage);	///< Call when the local part of the stage is done; false if there is nobody to start with.
+	bool SyncedStartDone(int stage);	///< Polled while waiting: true once every player is ready and the common leave time came, or on timeout.
 
 	int SendGamePacket(void* pBuffer, uint32_t totalDataSize, int64_t userID);
 
@@ -308,6 +321,65 @@ private:
 		std::vector<uint8_t> lastStatus;
 	};
 	std::map<int64_t, KeySync> m_keySync;	///< Per peer, when the key and the held keys were last sent.
+
+	struct StartRunAheadReport
+	{
+		uint64_t matchID = 0;
+		std::vector<std::pair<int64_t, int>> rtts;	///< user and p75 round trip in ms of each connection of the reporter
+		bool directSend = false;	///< the reporter sends its commands directly to every peer, else through the router
+	};
+	std::map<int64_t, StartRunAheadReport> m_startReports;	///< by reporter, kept until a match with another id begins
+	uint64_t m_startMatchID = 0;
+	bool m_startActive = false;		///< BeginStartRunAhead ran for m_startMatchID
+	bool m_startIsRouter = false;
+	bool m_startDecided = false;	///< the router sent its decision, or a peer applied the router's
+	int64_t m_startBeginMs = 0;
+	int64_t m_startRouterUserID = -1;
+	std::vector<int64_t> m_startPlayers;	///< user ids of the other human players of the match
+	int64_t m_startLocalUserID = -1;
+	struct StartDecision
+	{
+		uint64_t matchID = 0;
+		int runAhead = 0;
+		int maxRtt = 0;
+		int pairs = 0;
+	};
+	std::map<int64_t, StartDecision> m_startDecisions;	///< by sender, a decision can come before this client began; only the router's counts
+	bool StartReportsComplete() const;
+	bool IsStartPlayer(int64_t userID) const;
+	bool IsStartPlayerLost(int64_t userID, int64_t nowMs);	///< No usable connection to the user for START_LOST_GRACE_MS
+	std::map<int64_t, int64_t> m_startLostSinceMs;	///< by user, when its connection was first seen unusable
+	void PruneLostStartPlayers(int64_t nowMs);	///< The router stops waiting for the reports of players that left
+	void FallBackToRetailStart();	///< The router left before it decided, every client that has no decision starts at the retail run ahead
+	void SanitizeStartReport(int64_t reporter, StartRunAheadReport& report) const;	///< keeps the entries that name a start player, clamps their round trips
+	void TickStartRunAhead(int64_t nowMs);
+	void DecideStartRunAhead();
+	void ApplyStartDecision();
+	void SendStartMessage(int64_t userID, const std::vector<uint8_t>& payload);
+	// the stages of the synced start: 0 on the load screen, 1 when all the local setup is done
+	enum { SYNC_STAGES = 2 };
+	struct StartReady
+	{
+		uint64_t matchID = 0;
+		bool direct = false;	///< the sender's direct path to every peer is up, or it waited long enough for it
+	};
+	struct SyncStage
+	{
+		std::map<int64_t, StartReady> ready;	///< by sender, can come before this client is ready
+		uint64_t goMatchID = 0;	///< the router's go, valid for m_startMatchID only
+		int goDelayMs = 0;
+		int64_t goReceivedMs = 0;
+		bool hasGo = false;
+		bool active = false;
+		bool readySent = false;
+		int64_t beginMs = 0;
+		int64_t allInMs = 0;	///< when the last ready came in, 0 while one is missing
+		int64_t leaveAtMs = 0;	///< the common leave time once known, 0 before
+	};
+	SyncStage m_sync[SYNC_STAGES];
+	void SendSyncReady(int stage, int64_t nowMs, bool direct);
+	int CountSyncMissing(int stage, int64_t nowMs, int& total);	///< start players still to be heard from, players that left do not count
+	void FinishSyncedStart(int stage, const char* szReason, int64_t nowMs);
 
 	std::string m_strTurnUsername;
 	std::string m_strTurnToken;

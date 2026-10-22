@@ -515,6 +515,7 @@ static void playerTooltip(GameWindow *window,
 	int connectionLatency = -1;
 	int connectionJitter = -1;
 	int connectionLossPct = -1;
+	int connectionDelayMs = -1;
 	std::string strConnectionType = "";
 
 	LobbyMemberEntry member = pLobbyInterface->GetRoomMemberFromID(slot->m_userID);
@@ -537,9 +538,16 @@ static void playerTooltip(GameWindow *window,
 					bIsConnected = false;
 				}
 				connectionBars = pConnection->ComputeConnectionRating();
-				connectionLatency = pConnection->GetLatency();
+				// the same values the rating uses
+				connectionLatency = pConnection->GetSeedLatency();
+				if (connectionLatency < 0)
+				{
+					connectionLatency = pConnection->GetLatency();
+				}
 				connectionJitter = pConnection->GetJitter();
-				connectionLossPct = (pConnection->m_probeStats.getSampleCount() > 0) ? static_cast<int>(pConnection->m_probeStats.getLossPercent() + 0.5f) : -1; // packet loss
+				const float sustainedLoss = pConnection->GetSustainedLossPercent(60000);
+				connectionLossPct = (sustainedLoss >= 0.0f) ? static_cast<int>(sustainedLoss + 0.5f) : -1;
+				connectionDelayMs = (connectionBars > 0) ? pConnection->m_rating.delayMs : -1;
 			}
 		}
 	}
@@ -557,18 +565,26 @@ static void playerTooltip(GameWindow *window,
 	}
 	else if (bIsConnected)
 	{
-		UnicodeString latencyStr, jitterStr, qualityStr;
+		UnicodeString latencyStr, jitterStr, qualityStr, delayStr;
 		if (connectionLatency >= 0) latencyStr.format(L"%d ms", connectionLatency); else latencyStr = L"Unknown";
+		if (connectionDelayMs >= 0)
+		{
+			delayStr.format(L"%d ms", connectionDelayMs);
+		}
+		else
+		{
+			delayStr = L"Unknown";
+		}
 		if (connectionJitter >= 0) jitterStr.format(L"%d ms", connectionJitter); else jitterStr = L"Unknown";
 		if (connectionLossPct >= 0) qualityStr.format(L"%d%%", connectionLossPct); else qualityStr = L"Unknown";
 
 #if defined(WORLD_SERIES_CLIENT)
-		playerInfo.format(L"\nConnection State: Connected (%hs)\nPing: %s\nLoss: %s\nJitter: %s\nRegion: %hs\nOverall Elo Rating: %d (in %d matches)\nWS Elo Rating: %d\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
-			strConnectionType.c_str(), latencyStr.str(), qualityStr.str(), jitterStr.str(),
+		playerInfo.format(L"\nConnection State: Connected (%hs)\nPing (round trip): %s\nPacket loss: %s\nJitter: %s\nExpected input delay: %s\nRegion: %hs\nOverall Elo Rating: %d (in %d matches)\nWS Elo Rating: %d\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
+			strConnectionType.c_str(), latencyStr.str(), qualityStr.str(), jitterStr.str(), delayStr.str(),
 			member.region.c_str(), stats.elo_rating, stats.elo_num_matches, stats.monthly_elo_rating, totalWins, totalLosses, totalDiscons, favoriteSide.str());
 #else
-        playerInfo.format(L"\nConnection State: Connected (%hs)\nPing: %s\nLoss: %s\nJitter: %s\nRegion: %hs\nOverall Elo Rating: %d (in %d matches)\nMonthly Elo Rating: %d\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
-            strConnectionType.c_str(), latencyStr.str(), qualityStr.str(), jitterStr.str(),
+        playerInfo.format(L"\nConnection State: Connected (%hs)\nPing (round trip): %s\nPacket loss: %s\nJitter: %s\nExpected input delay: %s\nRegion: %hs\nOverall Elo Rating: %d (in %d matches)\nMonthly Elo Rating: %d\nWins: %d\nLosses: %d\nDisconnects: %d\nFavorite Army: %s",
+            strConnectionType.c_str(), latencyStr.str(), qualityStr.str(), jitterStr.str(), delayStr.str(),
             member.region.c_str(), stats.elo_rating, stats.elo_num_matches, stats.monthly_elo_rating, totalWins, totalLosses, totalDiscons, favoriteSide.str());
 #endif
 	}
