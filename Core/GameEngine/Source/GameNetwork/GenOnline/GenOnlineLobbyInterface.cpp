@@ -5,6 +5,7 @@
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
 #include "GameClient/MapUtil.h"
 #include "GameLogic/GameLogic.h"
+#include "GameNetwork/GenOnline/LobbyConnectionPolicy.h"
 
 extern void OnKickedFromLobby();
 
@@ -85,7 +86,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_Map(UnicodeString strMap, Ascii
 	ClearAutoReadyCountdown();
 #endif
 
-	if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+	if (TheGenOnlineGame)
 		TheGenOnlineGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -121,7 +122,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_LimitSuperweapons(bool bLimitSu
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
 	ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+	if (TheGenOnlineGame)
 		TheGenOnlineGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -145,7 +146,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_StartingCash(UnsignedInt starti
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+	if (TheGenOnlineGame)
 		TheGenOnlineGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -190,7 +191,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AISide(int slot, int side, int 
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+	if (TheGenOnlineGame)
 		TheGenOnlineGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -216,7 +217,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AITeam(int slot, int team)
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+	if (TheGenOnlineGame)
 		TheGenOnlineGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -241,7 +242,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AIStartPos(int slot, int startp
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+	if (TheGenOnlineGame)
 		TheGenOnlineGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -273,7 +274,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobbyMaxCameraHeight(uint16_t maxCame
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
         ClearAutoReadyCountdown();
 #endif
-		if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+		if (TheGenOnlineGame)
 			TheGenOnlineGame->StopCountdown();
 
 		std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -323,7 +324,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_AIColor(int slot, int color)
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+	if (TheGenOnlineGame)
 		TheGenOnlineGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -349,7 +350,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MySide(int side, int updatedSta
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+	if (TheGenOnlineGame)
 		TheGenOnlineGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -374,7 +375,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MyColor(int color)
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+	if (TheGenOnlineGame)
 		TheGenOnlineGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -398,7 +399,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MyStartPos(int startpos)
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+	if (TheGenOnlineGame)
 		TheGenOnlineGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -422,7 +423,7 @@ void GenOnlineLobbyInterface::UpdateCurrentLobby_MyTeam(int team)
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
     ClearAutoReadyCountdown();
 #endif
-	if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+	if (TheGenOnlineGame)
 		TheGenOnlineGame->StopCountdown();
 
 	std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), m_CurrentLobby.lobbyID);
@@ -857,7 +858,7 @@ void GenOnlineLobbyInterface::Tick()
 					// TODO_NGMP: Don't do this clientside...
 					UpdateCurrentLobby_ForceReady();
 					ClearAutoReadyCountdown();
-					if (TheGenOnlineGame && TheGenOnlineGame->IsCountdownStarted())
+					if (TheGenOnlineGame)
 						TheGenOnlineGame->StopCountdown();
 				}
 			}
@@ -1163,46 +1164,6 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 								TheGenOnlineGame->StopCountdown();
 							}
 
-							// A player who joined after the check is unchecked, so the countdown stops.
-							if (IsHost()
-								&& TheGenOnlineGame != nullptr
-								&& TheGenOnlineGame->IsCountdownStarted()
-								&& !TheGenOnlineGame->isQMGame())
-							{
-								bool bPlayerJoined = false;
-								for (const LobbyMemberEntry& newMember : lobbyEntry.members)
-								{
-									if (!newMember.IsHuman())
-									{
-										continue;
-									}
-
-									bool bWasInLobby = false;
-									for (const LobbyMemberEntry& oldMember : m_CurrentLobby.members)
-									{
-										if (oldMember.IsHuman() && oldMember.user_id == newMember.user_id)
-										{
-											bWasInLobby = true;
-											break;
-										}
-									}
-
-									if (!bWasInLobby)
-									{
-										bPlayerJoined = true;
-										break;
-									}
-								}
-
-								if (bPlayerJoined)
-								{
-									TheGenOnlineGame->StopCountdown();
-
-									UnicodeString strInform = UnicodeString(L"Countdown stopped: a player joined, start again to re-check connections.");
-									SendAnnouncementMessageToCurrentLobby(strInform, true);
-								}
-							}
-
 							// store
 							m_LobbyUpdateAppliedSeq = requestSeq;
 							m_CurrentLobby = lobbyEntry;
@@ -1482,6 +1443,146 @@ bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 		});
 
 	return true;
+}
+
+std::vector<int64_t> GenOnlineLobbyInterface::GetHumanLobbyMembers() const
+{
+	std::vector<int64_t> members;
+	for (const auto& member : m_CurrentLobby.members)
+	{
+		if (member.IsHuman())
+		{
+			members.push_back(member.user_id);
+		}
+	}
+	std::sort(members.begin(), members.end());
+	return members;
+}
+
+std::string GenOnlineLobbyInterface::GetLobbyStartSettings() const
+{
+	nlohmann::json settings = {m_CurrentLobby.owner, m_CurrentLobby.map_path, m_CurrentLobby.map_official,
+		m_CurrentLobby.starting_cash, m_CurrentLobby.limit_superweapons, m_CurrentLobby.max_cam_height,
+		m_CurrentLobby.vanilla_teams, m_CurrentLobby.track_stats, m_CurrentLobby.allow_observers, m_CurrentLobby.rng_seed};
+	auto members = m_CurrentLobby.members;
+	std::sort(members.begin(), members.end(), [](const auto& a, const auto& b) { return a.m_SlotIndex < b.m_SlotIndex; });
+	for (const auto& member : members)
+	{
+		if (member.m_SlotState == SlotState::SLOT_OPEN || member.m_SlotState == SlotState::SLOT_CLOSED)
+		{
+			continue;
+		}
+		settings.push_back({member.user_id, member.m_SlotIndex, member.m_SlotState, member.m_bIsReady,
+			member.side, member.color, member.team, member.startpos, member.has_map});
+	}
+	return settings.dump();
+}
+
+bool GenOnlineLobbyInterface::IsCurrentLobbyAttempt(int64_t lobbyID, uint64_t generation, const std::vector<int64_t>& members) const
+{
+	return LobbyConnectionPolicy::IsCurrentAttempt(lobbyID, generation, members, m_CurrentLobby.lobbyID,
+		GetLobbyGeneration(), GetHumanLobbyMembers());
+}
+
+bool GenOnlineLobbyInterface::AreLocalLobbyPeersConnected()
+{
+	auto* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (!IsInLobby() || auth == nullptr || m_pLobbyMesh == nullptr)
+	{
+		return false;
+	}
+
+	bool foundSelf = false;
+	for (const auto& member : m_CurrentLobby.members)
+	{
+		if (!member.IsHuman())
+		{
+			continue;
+		}
+		if (member.user_id == auth->GetUserID())
+		{
+			foundSelf = true;
+			continue;
+		}
+		auto* connection = m_pLobbyMesh->GetConnectionForUser(member.user_id);
+		if (connection == nullptr || connection->GetState() != EConnectionState::CONNECTED_DIRECT)
+		{
+			return false;
+		}
+	}
+	return foundSelf;
+}
+
+bool GenOnlineLobbyInterface::HasFailedLobbyPeers()
+{
+	auto* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (m_CurrentLobby.lobby_type != ELobbyType::CustomGame || auth == nullptr || !IsInLobby())
+	{
+		return false;
+	}
+
+	const int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	for (const auto& member : m_CurrentLobby.members)
+	{
+		if (!member.IsHuman() || member.user_id == auth->GetUserID())
+		{
+			continue;
+		}
+		auto* connection = m_pLobbyMesh != nullptr ? m_pLobbyMesh->GetConnectionForUser(member.user_id) : nullptr;
+		if (connection == nullptr)
+		{
+			continue;
+		}
+
+		const EConnectionState state = connection->GetState();
+		if (state == EConnectionState::CONNECTION_FAILED || state == EConnectionState::CONNECTION_DISCONNECTED)
+		{
+			return true;
+		}
+
+		// A peer still not connecting after the reconnect timeout counts as failed.
+		if (state == EConnectionState::NOT_CONNECTED && now - connection->m_connectStartedMs > MeshConnectionTimeoutPolicy::ReconnectTimeoutMs)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+int GenOnlineLobbyInterface::RetryFailedLobbyPeers()
+{
+	auto* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	auto ws = GenOnlineServicesManager::GetWebSocket();
+	if (auth == nullptr || ws == nullptr || !ws->IsConnected() || m_pLobbyMesh == nullptr || !IsInLobby())
+	{
+		return 0;
+	}
+
+	const bool inMatch = TheGenOnlineGame != nullptr && TheGenOnlineGame->isGameInProgress();
+	const int64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	int retries = 0;
+	for (const auto& member : m_CurrentLobby.members)
+	{
+		if (!member.IsHuman())
+		{
+			continue;
+		}
+		auto* connection = m_pLobbyMesh->GetConnectionForUser(member.user_id);
+		const auto state = connection != nullptr ? connection->GetState() : EConnectionState::NOT_CONNECTED;
+		if (!LobbyConnectionPolicy::CanRetry(m_CurrentLobby.lobby_type == ELobbyType::CustomGame, inMatch,
+			member.user_id == auth->GetUserID(), state == EConnectionState::CONNECTED_DIRECT,
+			state == EConnectionState::CONNECTING_DIRECT || state == EConnectionState::FINDING_ROUTE,
+			connection != nullptr ? now - connection->m_connectStartedMs : 1000))
+		{
+			continue;
+		}
+
+		m_pLobbyMesh->PrepareManualRetry(member.user_id, now);
+		ws->SendData_RequestSignalling(member.user_id);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Manual retry requested lobby=%lld peer=%lld", m_CurrentLobby.lobbyID, member.user_id);
+		++retries;
+	}
+	return retries;
 }
 
 void GenOnlineLobbyInterface::TearDownLocalLobbyState()

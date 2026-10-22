@@ -1151,6 +1151,13 @@ void WebSocket::Tick()
 
 									case EWebSocketMessageID::START_GAME:
 									{
+										auto* startLobby = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+										// The service and the other players have already started, so a missing link is only logged.
+										if (startLobby != nullptr && startLobby->GetCurrentLobby().lobby_type == ELobbyType::CustomGame
+											&& !startLobby->AreLocalLobbyPeersConnected())
+										{
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[LOBBY] Starting with a required peer connection missing");
+										}
                                         WebSocketMessage_StartGameResponse startGameData;
                                         bool bParsed = JSONGetAsObject(jsonObject, &startGameData);
 

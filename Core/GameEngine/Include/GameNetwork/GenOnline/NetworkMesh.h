@@ -6,6 +6,7 @@
 #include <mutex>
 #include <steam/steamnetworkingcustomsignaling.h>
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
+#include "GameNetwork/GenOnline/MeshConnectionTimeoutPolicy.h"
 
 class NetRoom_ChatMessagePacket;
 
@@ -100,6 +101,7 @@ public:
 	int64_t pingSent = -1;
 
 	int m_SignallingAttempts = 0;
+	bool m_retryTimeout = false; // keeps the extended timeouts when signalling restarts
 
 	// when signalling for this connection started, for connect-time logging
 	int64_t m_connectStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -218,6 +220,7 @@ public:
 
 	void SendACPacket(uint32_t userID, const void* pData, uint32_t dataLen);
 
+	void ApplyConnectionTimeouts(HSteamNetConnection connection, int64_t userID);
 	void StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort);
 
 	// A joiner gets its TURN credentials after its mesh exists; signalling waits for them
@@ -248,6 +251,9 @@ public:
 
 	// drops a peer that left for good so nothing keeps polling it
 	void RemoveConnection(int64_t userID);
+
+	// Resets the connection to the user for a manual retry and creates it when missing.
+	void PrepareManualRetry(int64_t userID, int64_t nowMs);
 
 	PlayerConnection* GetConnectionForUser(int64_t user_id)
 	{
@@ -293,4 +299,5 @@ private:
 	// k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_* for this lobby's connections.
 	int m_iceEnable = 0;
 	int m_iceImplementation = 2;
+	int m_reconnectTimeoutMs = MeshConnectionTimeoutPolicy::ReconnectTimeoutMs;
 };
