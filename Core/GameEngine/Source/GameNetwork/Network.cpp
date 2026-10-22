@@ -165,6 +165,10 @@ public:
 
 	virtual Int getAverageFPS() override { return m_conMgr->getAverageFPS(); }
 	virtual Int getSlotAverageFPS(Int slot) override;
+	virtual const ConnectionStats* getConnectionStats(Int slot) const override;
+#if defined(GENONLINE)
+	virtual Bool getOverlayInfo(Int slot, NetworkOverlayInfo &info) override;
+#endif
 
 	virtual void attachTransport(Transport *transport) override;
 	virtual void initTransport(const char *transportName) override;
@@ -800,6 +804,12 @@ void Network::update()
 		QueryPerformanceCounter((LARGE_INTEGER*)&curTime);
 		m_isStalling = curTime >= m_nextFrameTime;
 	}
+
+#if defined(GENONLINE)
+	if (m_conMgr != nullptr && m_localStatus == NETLOCALSTATUS_INGAME) {
+		m_conMgr->noteStalling(m_isStalling, TheGameLogic->getFrame());
+	}
+#endif
 }
 
 void Network::liteupdate() {
@@ -867,6 +877,8 @@ Bool Network::timeForNewFrame() {
 //		if (m_nextFrameTime + frameDelay < curTime) {
 		if (m_nextFrameTime + frameDelay < curTime) {
 		//if ((m_nextFrameTime + ((LOGICFRAMES_PER_BASEFRAME * 2) * frameDelay)) < curTime) {
+			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
+		//if ((m_nextFrameTime + ((GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
 			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
 		//if ((m_nextFrameTime + ((GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER * 2) * frameDelay)) < curTime) {
 			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
@@ -1108,6 +1120,22 @@ Int Network::getSlotAverageFPS(Int slot) {
 	}
 	return -1;
 }
+
+const ConnectionStats* Network::getConnectionStats(Int slot) const {
+	if (m_conMgr != nullptr) {
+		return m_conMgr->getConnectionStats(slot);
+	}
+	return nullptr;
+}
+
+#if defined(GENONLINE)
+Bool Network::getOverlayInfo(Int slot, NetworkOverlayInfo &info) {
+	if (m_conMgr != nullptr) {
+		return m_conMgr->getOverlayInfo(slot, info);
+	}
+	return FALSE;
+}
+#endif
 
 #if defined(RTS_DEBUG)
 void Network::toggleNetworkOn() {

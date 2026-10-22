@@ -7,6 +7,10 @@
 #include <steam/steamnetworkingcustomsignaling.h>
 #include "GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h"
 #include "GameNetwork/GenOnline/MeshConnectionTimeoutPolicy.h"
+#include "Lib/BaseType.h"
+#include "GameNetwork/ConnectionStats.h"
+#include "GameNetwork/GenOnline/ConnectionRating.h"
+#include "GameNetwork/GenOnline/PacketFeedback.h"
 
 class NetRoom_ChatMessagePacket;
 
@@ -51,6 +55,12 @@ public:
 
 	void UpdateLatencyHistogram();
 
+	void TickProbe(int64_t nowMs);
+	void HandleProbe(const uint8_t* payload, size_t len, int64_t arrivalMs);
+	void ResetProbe();
+	static int64_t GetArrivalMs(const SteamNetworkingMessage_t* msg);	///< transport receive time in steady_clock ms
+	ConnectionStats m_probeStats;
+
 	void Close();
 
 	bool IsIPV4();
@@ -68,7 +78,7 @@ public:
 	}
 
 
-	int Recv(SteamNetworkingMessage_t** pMsg);
+	int Recv(SteamNetworkingMessage_t** pMsg, int maxMessages = 255);
 
 	int GetHighestHistoricalLatency()
 	{
@@ -85,7 +95,8 @@ public:
 	}
 
 	std::vector<int> m_vecLatencyHistory;
-	std::vector<float> m_vecQualityHistory;
+	float GetSustainedLossPercent(int windowMs);	///< The worse direction of the packet feedback loss from at least 3 reports, -1 if unknown.
+
 	std::string GetStats();
 
 	std::string GetConnectionType();
@@ -98,8 +109,6 @@ public:
 
 	EConnectionState m_State = EConnectionState::NOT_CONNECTED;
 	
-	int64_t pingSent = -1;
-
 	int m_SignallingAttempts = 0;
 	bool m_retryTimeout = false; // keeps the extended timeouts when signalling restarts
 
@@ -107,12 +116,20 @@ public:
 	int64_t m_connectStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 	
 	int GetLatency();
+	PacketFeedback m_feedback;
+	size_t ConsumeEnvelope(const uint8_t* data, size_t len);	///< envelope size, 0 if malformed
+	int64_t m_lastPacketMs = 0;	///< steady_clock ms of the last enveloped packet, 0 before the first
+	int SendEnveloped(ENetworkChannel channel, const uint8_t* payload, size_t len, int sendFlags);	///< returns an EResult
+	bool GetOutgoingLoss(int windowMs, PacketFeedback::Summary& summary);	///< our packets to the peer, false without feedback
+	bool GetIncomingLoss(int windowMs, PacketFeedback::Summary& summary);	///< the peer's packets to us
 	int GetJitter();
-	float GetConnectionQuality();
-	int ComputeConnectionScore();
+	int ComputeConnectionRating();	///< 1..5 bars, -1 while it is not known yet; cached for 250 ms.
+	int UpdateConnectionRating();
+	int64_t m_nextRatingMs = 0;
+	int m_ratingResult = -1;
 
 	std::chrono::steady_clock::time_point m_connectedSinceTime = (std::chrono::steady_clock::time_point::min)();
-	float m_smoothedScore = -1.0f;
+	ConnectionRating::State m_rating;
 
 	// Only set for Steam connections
 	HSteamNetConnection m_hSteamConnection = k_HSteamNetConnection_Invalid;
@@ -121,6 +138,22 @@ public:
 	std::string m_strMiddlewareID = std::string("NOT SET");
 
 	void LiteUpdateForAC();
+
+private:
+	static constexpr size_t k_probeRingSize = 64;
+	static constexpr uint16_t k_noProbeSeq = 0xFFFF;
+
+	struct OutstandingProbe
+	{
+		uint16_t seq = k_noProbeSeq;	// k_noProbeSeq marks a free slot
+		int64_t sendTimeMs = 0;
+	};
+
+	OutstandingProbe m_probeRing[k_probeRingSize];	// indexed by seq % k_probeRingSize
+	uint16_t m_nextProbeSeq = 0;
+	uint16_t m_lastPeerSeq = k_noProbeSeq;	// last probe received from the peer
+	int64_t m_lastPeerSeqRecvMs = 0;
+	int64_t m_nextProbeMs = 0;
 };
 
 struct LobbyMemberEntry;

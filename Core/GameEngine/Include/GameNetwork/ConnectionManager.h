@@ -158,6 +158,10 @@ public:
 
 	Int getAverageFPS();
 	Int getSlotAverageFPS(Int slot);
+#if defined(GENONLINE)
+	void noteStalling(Bool stalling, UnsignedInt frame);	///< Called every network update with whether the game is waiting for commands.
+#endif
+	const ConnectionStats* getConnectionStats(Int slot) const;	///< Returns nullptr when there is no connection for the slot.
 
 #if defined(RTS_DEBUG)
 	void debugPrintConnectionCommands();
@@ -233,6 +237,32 @@ private:
 	Int  m_minFps;
 	UnsignedInt m_smallestPacketArrivalCushion;
 	Bool m_didSelfSlug;
+
+#if defined(GENONLINE)
+	// the last command ids seen per sender, so a redundant copy of a command that is not synchronized is dropped
+	enum { RECENT_ID_COUNT = 256 };
+	struct RecentCommandIds
+	{
+		Bool valid;
+		UnsignedShort highest;
+		Bool seen[RECENT_ID_COUNT];
+	};
+	RecentCommandIds m_recentIds[MAX_SLOTS];
+
+	Bool isDuplicateCommand(NetCommandMsg *msg);
+	void resetRecentCommandIds();
+
+	ArrivalCushionStats m_cushionStats[MAX_SLOTS];
+	StallStats m_stallStats;
+	Bool m_stallActive;
+	time_t m_stallStartTime;
+	UnsignedInt m_stallMissingMask;
+	Int m_lastKnownRunAhead;
+	Int m_frameGroupingMs;
+public:
+	Bool getOverlayInfo(Int slot, NetworkOverlayInfo &info);	///< Fills what the overlay and the connection rating need about one slot.
+protected:
+#endif
 
 	// -----------------------------------------------------------------------------
 	FileCommandMap s_fileCommandMap;

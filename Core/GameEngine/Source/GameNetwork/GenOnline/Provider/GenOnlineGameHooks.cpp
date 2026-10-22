@@ -21,6 +21,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h"
+#include "GameNetwork/GenOnline/Provider/GenOnlineNetworkOverlay.h"
 
 #include "Common/FileSystem.h"
 #include "GameClient/Color.h"
@@ -226,98 +227,17 @@ Bool GenOnlineGameHooks::isStatsOverlayEnabled()
 
 void GenOnlineGameHooks::drawNetworkOverlay( DisplayString *text, Int dropColor )
 {
-	const Color colorGood = GameMakeColor(0, 255, 0, 150);
-	const Color colorBad = GameMakeColor(255, 0, 0, 150);
-
-	// draw connections
-	if (GenOnlineServicesManager::IsAdvancedNetworkStatsEnabled())
+	if (GenOnlineServicesManager::GetNetworkOverlayMode() != 0)
 	{
-		if (TheGenOnlineGame != nullptr)
-		{
-			NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
-
-			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-
-			if (pMesh != nullptr && pLobbyInterface != nullptr)
-			{
-				//std::vector<LobbyMemberEntry>& vecMembers = pLobbyInterface->GetMembersListForCurrentRoom();
-
-				ISteamNetworkingSockets* pSteamNetSockets = SteamNetworkingSockets();
-				if (!pSteamNetSockets)
-				{
-					return;
-				}
-
-				int i = 0;
-				auto& allConnections = pMesh->GetAllConnections();
-				if (allConnections.empty())
-				{
-					return;
-				}
-
-				for (auto& connection : allConnections)
-				{
-					if (!connection.second.IsValid())
-					{
-						continue;
-					}
-
-					LobbyMemberEntry lobbyMember = pLobbyInterface->GetRoomMemberFromID(connection.first);
-
-					const int k_nLanes = 1;
-					SteamNetConnectionRealTimeStatus_t status;
-					SteamNetConnectionRealTimeLaneStatus_t laneStatus[k_nLanes];
-					
-					if (!TheNetwork)
-					{
-						continue;
-					}
-
-					EResult res = pSteamNetSockets->GetConnectionRealTimeStatus(connection.second.m_hSteamConnection, &status, k_nLanes, laneStatus);
-
-					if (res == k_EResultNoConnection || lobbyMember.display_name.empty())
-					{
-						continue;
-					}
-
-					int avgFPS = TheNetwork->getSlotAverageFPS(lobbyMember.m_SlotIndex);
-
-					UnicodeString netString;
-					netString.format(L"\n[usr %s|%d][%hs %hs][AVGFPS: %d] Lat: %i, QL: %.2f, QR: %.2f OutP/s: %.2f, OutB/s: %.2f, InP/s: %.2f, InB/s: %.2f, SR %i PU: %d, PR: %d, NACK: %d, QT: %I64d",
-						from_utf8(lobbyMember.display_name).c_str(),
-						(int)res,
-						connection.second.IsIPV4() ? "IPv4" : "IPv6",
-						connection.second.IsDirect() ? "Direct" : "Relay",
-						avgFPS,
-						status.m_nPing,
-						status.m_flConnectionQualityLocal,
-						status.m_flConnectionQualityRemote,
-						status.m_flOutPacketsPerSec,
-						status.m_flOutBytesPerSec,
-						status.m_flInPacketsPerSec,
-						status.m_flInBytesPerSec,
-						status.m_nSendRateBytesPerSecond,
-						status.m_cbPendingUnreliable,
-						status.m_cbPendingReliable,
-						status.m_cbSentUnackedReliable,
-						status.m_usecQueueTime);
-
-					int w, h;
-					text->getSize(&w, &h);
-
-					bool bIsHighQuality = true;
-					if (avgFPS < (LOGICFRAMES_PER_SECOND - 1) || status.m_cbSentUnackedReliable >= 1000 || (status.m_flConnectionQualityLocal != -1.f && status.m_flConnectionQualityLocal < 1.f) || (status.m_flConnectionQualityRemote != -1.f && status.m_flConnectionQualityRemote < 1.f))
-					{
-						bIsHighQuality = false;
-					}
-
-					text->setText(netString);
-					text->draw(0, 500 + (i * h / 2), bIsHighQuality ? colorGood : colorBad, dropColor);
-					++i;
-				}
-			}
-
-		}
+		GenOnlineDrawNetworkOverlay(GenOnlineServicesManager::GetNetworkOverlayMode(), text, dropColor);
 	}
+	else
+	{
+		GenOnlineReleaseNetworkOverlay();
+	}
+}
 
+void GenOnlineGameHooks::releaseNetworkOverlay()
+{
+	GenOnlineReleaseNetworkOverlay();
 }
