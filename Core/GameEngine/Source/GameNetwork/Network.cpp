@@ -126,6 +126,7 @@ public:
 	Bool isFrameDataReady(void);
 #if defined(GENONLINE)
 	virtual Bool isGameExitPending() const override { return m_localStatus == NETLOCALSTATUS_POSTGAME; }
+	virtual UnsignedInt getMeasuredLogicRate() override;
 #endif
 	virtual Bool isStalling();
 	void parseUserList(const GameInfo* game);
@@ -229,6 +230,11 @@ protected:
 	Int m_lastExecutionFrame;																	///< The highest frame number that a command could have been executed on.
 	Int m_lastFrameCompleted;
 	Bool m_didSelfSlug;
+#if defined(GENONLINE)
+	DWORD m_rateSampleMs;
+	UnsignedInt m_rateSampleFrame;
+	UnsignedInt m_measuredLogicRate;
+#endif
 	__int64 m_perfCountFreq;														///< The frequency of the performance counter.
 
 	__int64 m_nextFrameTime;														///< When did we execute the last frame?  For slugging the GameLogic...
@@ -383,6 +389,9 @@ void Network::init()
 #if defined(GENONLINE)
 	m_matchKeysRequired = FALSE;
 	m_matchStartFailed = FALSE;
+	m_rateSampleMs = 0;
+	m_rateSampleFrame = 0;
+	m_measuredLogicRate = 0;
 #endif
 
 	QueryPerformanceFrequency((LARGE_INTEGER*)&m_perfCountFreq);
@@ -742,7 +751,13 @@ void Network::processFrameSynchronizedNetCommand(NetCommandRef* msg) {
 }
 
 void Network::processRunAheadCommand(NetRunAheadCommandMsg* msg) {
+#if defined(GENONLINE)
+	const Int previousRunAhead = m_runAhead;
+#endif
 	m_runAhead = msg->getRunAhead();
+#if defined(GENONLINE)
+	m_conMgr->noteRunAheadApplied(previousRunAhead, m_runAhead);
+#endif
 	m_frameRate = msg->getFrameRate();
 	time_t frameGrouping = (1000 * m_runAhead) / m_frameRate; // number of miliseconds between packet sends
 	frameGrouping = frameGrouping / 2; // since we only want the latency for one way to be a factor.
@@ -932,7 +947,12 @@ Bool Network::timeForNewFrame() {
 	 */
 	if (m_conMgr != NULL) {
 		Real cushion = m_conMgr->getMinimumCushion();
+#if defined(GENONLINE)
+		// the controller keeps a margin of one frame, slow down when the commands of the slowest player arrive less than that early
+		Real runAheadPercentage = 1.0f;
+#else
 		Real runAheadPercentage = m_runAhead * (TheGlobalData->m_networkRunAheadSlack / (Real)100.0); // If we are at least 50% into our slack, we need to slow down.
+#endif
 		if (cushion < runAheadPercentage) {
 			__int64 oldFrameDelay = frameDelay;
 			frameDelay += oldFrameDelay / 10; // temporarily decrease the frame rate by 20%.
@@ -947,9 +967,13 @@ Bool Network::timeForNewFrame() {
 	if (curTime >= m_nextFrameTime) {
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "Allowing a new frame, frameDelay = %I64d, curTime - m_nextFrameTime = %I64d", frameDelay, curTime - m_nextFrameTime);
 
-//		if (m_nextFrameTime + frameDelay < curTime) {
-		if (m_nextFrameTime + frameDelay < curTime) {
-		//if ((m_nextFrameTime + ((LOGICFRAMES_PER_BASEFRAME * 2) * frameDelay)) < curTime) {
+		__int64 catchUpFrames = 1;
+#if defined(GENONLINE)
+		if (m_conMgr != nullptr) {
+			catchUpFrames = m_conMgr->getNetworkSettings().input_delay.catch_up_frames;
+		}
+#endif
+		if (m_nextFrameTime + catchUpFrames * frameDelay < curTime) {
 			// If we get too far behind on our framerate we need to reset the nextFrameTime thing.
 			m_nextFrameTime = curTime;
 			NetworkLog(ELogVerbosity::LOG_DEBUG, "Initializing m_nextFrameTime to %I64d", m_nextFrameTime);
@@ -1224,6 +1248,22 @@ Int Network::getSlotAverageFPS(Int slot) {
 	}
 	return -1;
 }
+
+#if defined(GENONLINE)
+UnsignedInt Network::getMeasuredLogicRate() {
+	const DWORD now = timeGetTime();
+	const UnsignedInt frame = TheGameLogic->getFrame();
+	if (m_rateSampleMs == 0 || frame < m_rateSampleFrame) {
+		m_rateSampleMs = now;
+		m_rateSampleFrame = frame;
+	} else if (now - m_rateSampleMs >= 1000) {
+		m_measuredLogicRate = (UnsignedInt)(((frame - m_rateSampleFrame) * 1000.0f) / (Real)(now - m_rateSampleMs) + 0.5f);
+		m_rateSampleMs = now;
+		m_rateSampleFrame = frame;
+	}
+	return m_measuredLogicRate;
+}
+#endif
 
 const ConnectionStats* Network::getConnectionStats(Int slot) const {
 	if (m_conMgr != nullptr) {

@@ -979,7 +979,11 @@ GlobalData::GlobalData()
 	m_networkFPSHistoryLength = 30;
 	m_networkLatencyHistoryLength = 200;
 	m_networkRunAheadMetricsTime = 500;
+#if defined(GENONLINE)
+	m_networkCushionHistoryLength = 10 * LOGICFRAMES_PER_BASEFRAME; // the 333 ms that retail's 10 frames covered
+#else
 	m_networkCushionHistoryLength = 10;
+#endif
 	m_networkRunAheadSlack = 10;
 	m_networkKeepAliveDelay = 20;
 	m_networkDisconnectTime = 5000;
