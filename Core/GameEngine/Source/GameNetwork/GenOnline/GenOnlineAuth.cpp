@@ -318,7 +318,7 @@ void GenOnlineAuthInterface::BeginLogin()
 		else
 		{
 			ClearGSMessageBoxes();
-			GSMessageBoxOk(UnicodeString(L"Connection failed"), UnicodeString(L"No trusted service route could be reached. Check your connection and try again."), []() { TheShell->pop(); });
+			GSMessageBoxOk(UnicodeString(L"Connection failed"), UnicodeString(L"No trusted service route could be reached. Check Connection settings in Options, then try again."), []() { TheShell->pop(); });
 		}
 	});
 }
