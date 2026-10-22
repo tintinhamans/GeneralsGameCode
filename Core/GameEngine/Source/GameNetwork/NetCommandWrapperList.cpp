@@ -29,6 +29,7 @@
 
 #include "GameNetwork/NetCommandWrapperList.h"
 #include "GameNetwork/NetPacket.h"
+#include "../NGMP_include.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////// NetCommandWrapperListNode ///////////////////////////////////////////////////////////////////
@@ -233,6 +234,19 @@ NetCommandList * NetCommandWrapperList::getReadyCommands()
 		next = temp->m_next;
 		if (temp->isComplete()) {
 			NetCommandRef *msg = NetPacket::ConstructNetCommandMsgFromRawData(temp->getRawData(), temp->getRawDataLength());
+
+#if defined(GENERALS_ONLINE)
+			// the wrapper was checked against its sender, the command inside has to name the same player
+			if (msg != nullptr && msg->getCommand() != nullptr && msg->getCommand()->getPlayerID() != temp->getPlayerID()) {
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[SECURITY] dropped a wrapped command claiming slot %d inside a wrapper from slot %d", (Int)msg->getCommand()->getPlayerID(), (Int)temp->getPlayerID());
+				deleteInstance(msg);
+				noteCompleted(temp->getPlayerID(), temp->getCommandID());
+				removeFromList(temp);
+				temp = next;
+				continue;
+			}
+#endif
+
 			NetCommandRef *ret = retlist->addMessage(msg->getCommand());
 			ret->setRelay(msg->getRelay());
 

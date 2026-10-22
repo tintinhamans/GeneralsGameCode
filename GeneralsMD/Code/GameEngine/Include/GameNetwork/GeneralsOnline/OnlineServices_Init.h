@@ -207,8 +207,16 @@ public:
 	// Continues the initial connect after the proxy login prompt closed.
 	void ResumeAfterProxyLogin(bool loggedIn);
 
+	// An inbound P2P signal and the user the service says it came from. The service sets the sender itself
+	// from the authenticated websocket session, the payload is whatever the peer wrote.
+	struct PendingSignal
+	{
+		int64_t senderUserID = -1;
+		std::vector<uint8_t> payload;
+	};
+
 	// Thread-safe queue of inbound P2P signal payloads; drained by CSignalingClient::Poll().
-	void PushPendingSignal(std::vector<uint8_t> payload)
+	void PushPendingSignal(int64_t senderUserID, std::vector<uint8_t> payload)
 	{
 		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
 
@@ -219,13 +227,16 @@ public:
 			m_pendingSignals.pop();
 		}
 
-		m_pendingSignals.push(std::move(payload));
+		PendingSignal signal;
+		signal.senderUserID = senderUserID;
+		signal.payload = std::move(payload);
+		m_pendingSignals.push(std::move(signal));
 	}
 
-	std::queue<std::vector<uint8_t>> DrainPendingSignals()
+	std::queue<PendingSignal> DrainPendingSignals()
 	{
 		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
-		std::queue<std::vector<uint8_t>> drained;
+		std::queue<PendingSignal> drained;
 		drained.swap(m_pendingSignals);
 		return drained;
 	}
@@ -291,7 +302,7 @@ private:
 	CURLcode FlushOutbound();
 
 	std::mutex m_pendingSignalsMutex;
-	std::queue<std::vector<uint8_t>> m_pendingSignals;
+	std::queue<PendingSignal> m_pendingSignals;
 };
 
 enum class ERoomFlags : int

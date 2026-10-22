@@ -452,12 +452,21 @@ void NGMPGame::launchGame(void)
 	TheNetwork = NetworkInterface::createNetwork();
 	TheNetwork->init();
 	
+	TheNetwork->requireMatchKeys();
 	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-	if (pMesh != nullptr)
+	if (pMesh == nullptr || !pMesh->BeginMatchKeys())
 	{
-
-		TheNetwork->SeedLatencyData(pMesh->getMaximumHistoricalLatency());
+		delete TheNetwork;
+		TheNetwork = nullptr;
+		setGameInProgress(FALSE);
+		UnicodeString error;
+		error.translate("Could not establish authenticated game connections. This transport may not support player authentication.");
+		GSMessageBoxOk(TheGameText->fetch("GUI:Error"), error);
+		void PopBackToLobby(void);
+		PopBackToLobby();
+		return;
 	}
+	TheNetwork->SeedLatencyData(pMesh->getMaximumHistoricalLatency());
 
 	// TODO_NGMP: Do we really care about these values anymore
 	TheNetwork->setLocalAddress(getLocalIP(), 8888);
