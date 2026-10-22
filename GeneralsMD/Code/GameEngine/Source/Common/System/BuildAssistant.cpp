@@ -1681,6 +1681,7 @@ void BuildAssistant::sellObject( Object *obj )
 		}
 	}
 
+#if RETAIL_COMPATIBLE_CRC
 	// destroy any mines that are owned by this structure, right now.
 	// unfortunately, structures don't keep a list of mines they own, so we must do
 	// this the hard way :-( [fortunately, this doesn't happen very often, so this
@@ -1695,6 +1696,16 @@ void BuildAssistant::sellObject( Object *obj )
 			}
 		}
 	}
+#else
+	for (BehaviorModule** m = obj->getBehaviorModules(); *m; ++m)
+	{
+		MinefieldGeneratorInterface* mgi = (*m)->getMinefieldGeneratorInterface();
+		if (mgi)
+		{
+			mgi->destroyMines();
+		}
+	}
+#endif
 
 }
 

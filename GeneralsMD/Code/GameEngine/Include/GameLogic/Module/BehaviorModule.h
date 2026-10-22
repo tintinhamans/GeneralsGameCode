@@ -58,6 +58,7 @@ class OverchargeBehaviorInterface;
 class TransportPassengerInterface;
 class CaveInterface;
 class LandMineInterface;
+class MinefieldGeneratorInterface;
 
 class ProjectileUpdateInterface;
 class AIUpdateInterface;
@@ -120,6 +121,7 @@ public:
 	virtual TransportPassengerInterface* getTransportPassengerInterface() = 0;
 	virtual CaveInterface* getCaveInterface() = 0;
 	virtual LandMineInterface* getLandMineInterface() = 0;
+	virtual MinefieldGeneratorInterface* getMinefieldGeneratorInterface() = 0;
 	virtual DieModuleInterface* getEjectPilotDieInterface() = 0;
 	// move from UpdateModuleInterface (srj)
 	virtual ProjectileUpdateInterface* getProjectileUpdateInterface() = 0;
@@ -175,6 +177,7 @@ public:
 	virtual TransportPassengerInterface* getTransportPassengerInterface() override { return nullptr; }
 	virtual CaveInterface* getCaveInterface() override { return nullptr; }
 	virtual LandMineInterface* getLandMineInterface() override { return nullptr; }
+	virtual MinefieldGeneratorInterface* getMinefieldGeneratorInterface() override { return nullptr; }
 	virtual DieModuleInterface* getEjectPilotDieInterface() override { return nullptr; }
 	// interface acquisition (moved from UpdateModule)
 	virtual ProjectileUpdateInterface* getProjectileUpdateInterface() override { return nullptr; }
@@ -279,6 +282,14 @@ class LandMineInterface
 public:
 	virtual void setScootParms(const Coord3D& start, const Coord3D& end) = 0;
 	virtual void disarm() = 0;
+};
+
+//-------------------------------------------------------------------------------------------------
+class MinefieldGeneratorInterface
+{
+public:
+	virtual void destroyMines() = 0;
+	virtual void transferMines(Team* team) = 0;
 };
 
 //-------------------------------------------------------------------------------------------------

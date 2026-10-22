@@ -219,6 +219,8 @@ Object* GenerateMinefieldBehavior::placeMineAt(const Coord3D& pt, const ThingTem
 		}
 	}
 
+	m_mineList.push_back(mine->getID());
+
 	return mine;
 }
 
@@ -428,6 +430,47 @@ void GenerateMinefieldBehavior::placeMines()
 
 }
 
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+static Object* findMineOf(ObjectID mineID, const Object* producer)
+{
+	Object* mine = TheGameLogic->findObjectByID(mineID);
+	if (mine && mine->isKindOf(KINDOF_MINE) && mine->getProducerID() == producer->getID())
+	{
+		return mine;
+	}
+	return nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+void GenerateMinefieldBehavior::destroyMines()
+{
+	for (std::vector<ObjectID>::iterator it = m_mineList.begin(); it != m_mineList.end(); ++it)
+	{
+		Object* mine = findMineOf(*it, getObject());
+		if (mine)
+		{
+			TheGameLogic->destroyObject(mine);
+		}
+	}
+	m_mineList.clear();
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+void GenerateMinefieldBehavior::transferMines(Team* team)
+{
+	for (std::vector<ObjectID>::iterator it = m_mineList.begin(); it != m_mineList.end(); ++it)
+	{
+		Object* mine = findMineOf(*it, getObject());
+		if (mine)
+		{
+			mine->setTeam(team);
+		}
+	}
+}
+
 // ------------------------------------------------------------------------------------------------
 /** CRC */
 // ------------------------------------------------------------------------------------------------
@@ -479,5 +522,15 @@ void GenerateMinefieldBehavior::loadPostProcess()
 
 	// extend base class
 	UpgradeMux::upgradeMuxLoadPostProcess();
+
+	// TheSuperHackers @tweak arcticdolphin 23/10/2026 Rebuild the mine list from the mines this object produced, like the retail scan.
+	m_mineList.clear();
+	for (Object* mine = TheGameLogic->getFirstObject(); mine; mine = mine->getNextObject())
+	{
+		if (mine->isKindOf(KINDOF_MINE) && mine->getProducerID() == getObject()->getID())
+		{
+			m_mineList.push_back(mine->getID());
+		}
+	}
 
 }

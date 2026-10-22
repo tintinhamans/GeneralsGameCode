@@ -64,7 +64,8 @@ private:
 //-------------------------------------------------------------------------------------------------
 class GenerateMinefieldBehavior : public BehaviorModule,
 																	public DieModuleInterface,
-																	public UpgradeMux
+																	public UpgradeMux,
+																	public MinefieldGeneratorInterface
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( GenerateMinefieldBehavior, "GenerateMinefieldBehavior" )
@@ -81,9 +82,14 @@ public:
 	// BehaviorModule
 	virtual DieModuleInterface* getDie() override { return this; }
 	virtual UpgradeModuleInterface* getUpgrade() override { return this; }
+	virtual MinefieldGeneratorInterface* getMinefieldGeneratorInterface() override { return this; }
 
 	// DamageModuleInterface
 	virtual void onDie( const DamageInfo *damageInfo ) override;
+
+	// MinefieldGeneratorInterface
+	virtual void destroyMines() override;
+	virtual void transferMines(Team* team) override;
 
 	void setMinefieldTarget(const Coord3D* pos);
 
@@ -110,6 +116,7 @@ private:
 	Coord3D m_target;
 	Bool m_hasTarget;
 	Bool m_generated;
+	std::vector<ObjectID> m_mineList;
 
 	const Coord3D* getMinefieldTarget() const;
 	void placeMines();

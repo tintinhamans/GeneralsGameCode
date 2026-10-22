@@ -6428,6 +6428,7 @@ void Object::defect( Team* newTeam, UnsignedInt detectionTime )
 		}
 	}
 
+#if RETAIL_COMPATIBLE_CRC
 	// defect any mines that are owned by this structure, right now.
 	// unfortunately, structures don't keep a list of mines they own, so we must do
 	// this the hard way :-( [fortunately, this doesn't happen very often, so this
@@ -6442,6 +6443,16 @@ void Object::defect( Team* newTeam, UnsignedInt detectionTime )
 			}
 		}
 	}
+#else
+	for (BehaviorModule** m = getBehaviorModules(); *m; ++m)
+	{
+		MinefieldGeneratorInterface* mgi = (*m)->getMinefieldGeneratorInterface();
+		if (mgi)
+		{
+			mgi->transferMines(newTeam);
+		}
+	}
+#endif
 
 }
 

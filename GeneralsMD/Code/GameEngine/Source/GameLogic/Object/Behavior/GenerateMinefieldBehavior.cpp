@@ -229,11 +229,7 @@ Object* GenerateMinefieldBehavior::placeMineAt(const Coord3D& pt, const ThingTem
 		}
 	}
 
-	// Keep track of the mines
-	if (mine && d->m_upgradable)
-	{
-		m_mineList.push_back(mine->getID());
-	}
+	m_mineList.push_back(mine->getID());
 
 	return mine;
 }
@@ -471,16 +467,7 @@ UpdateSleepTime GenerateMinefieldBehavior::update()
 					m_upgraded = TRUE;
 
 					// Remove all old mine objects if present
-					for (std::list<ObjectID>::iterator it = m_mineList.begin(); it != m_mineList.end(); ++it)
-					{
-						ObjectID objID = *it;
-						Object *obj = TheGameLogic->findObjectByID(objID);
-						if (obj)
-						{
-							TheGameLogic->destroyObject(obj);
-						}
-					}
-					m_mineList.clear();
+					destroyMines();
 
 					// Place new mines down (Replace old ones that we removed
 					m_generated = false;
@@ -493,6 +480,47 @@ UpdateSleepTime GenerateMinefieldBehavior::update()
 	}
 
 	return UPDATE_SLEEP_FOREVER;
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+static Object* findMineOf(ObjectID mineID, const Object* producer)
+{
+	Object* mine = TheGameLogic->findObjectByID(mineID);
+	if (mine && mine->isKindOf(KINDOF_MINE) && mine->getProducerID() == producer->getID())
+	{
+		return mine;
+	}
+	return nullptr;
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+void GenerateMinefieldBehavior::destroyMines()
+{
+	for (std::vector<ObjectID>::iterator it = m_mineList.begin(); it != m_mineList.end(); ++it)
+	{
+		Object* mine = findMineOf(*it, getObject());
+		if (mine)
+		{
+			TheGameLogic->destroyObject(mine);
+		}
+	}
+	m_mineList.clear();
+}
+
+//-------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------
+void GenerateMinefieldBehavior::transferMines(Team* team)
+{
+	for (std::vector<ObjectID>::iterator it = m_mineList.begin(); it != m_mineList.end(); ++it)
+	{
+		Object* mine = findMineOf(*it, getObject());
+		if (mine)
+		{
+			mine->setTeam(team);
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -535,34 +563,25 @@ void GenerateMinefieldBehavior::xfer( Xfer *xfer )
 
 	xfer->xferCoord3D( &m_target );
 
-		// spaces info count and objectID data
-	UnsignedByte spacesCount = m_mineList.size();
+	// mine count and objectID data
+	// retail only tracked the mines of upgradable minefields
+	const UnsignedInt savedMines = getGenerateMinefieldBehaviorModuleData()->m_upgradable ? m_mineList.size() : 0;
+	UnsignedByte spacesCount = savedMines > 255 ? 255 : savedMines;
 	xfer->xferUnsignedByte( &spacesCount );
 	if( xfer->getXferMode() == XFER_SAVE )
 	{
-		// save all elements
-		std::list<ObjectID>::iterator it;
-		for( it = m_mineList.begin(); it != m_mineList.end(); ++it )
+		for( UnsignedByte i = 0; i < spacesCount; ++i )
 		{
-			// object in this space
-			xfer->xferObjectID( &(*it) );
+			xfer->xferObjectID( &m_mineList[i] );
 		}
-
 	}
 	else if( xfer->getXferMode() == XFER_LOAD )
 	{
-		ObjectID objectID;
-		m_mineList.clear();
-
-		// read all elements
-		std::list<ObjectID>::iterator it;
-		it = m_mineList.begin();
-		for(int i = 0; i < spacesCount; ++i )
+		// the mine list is rebuilt in loadPostProcess
+		for( UnsignedByte i = 0; i < spacesCount; ++i )
 		{
-			// read object id
+			ObjectID objectID;
 			xfer->xferObjectID( &objectID );
-
-			m_mineList.push_back(objectID);
 		}
 	}
 
@@ -579,5 +598,15 @@ void GenerateMinefieldBehavior::loadPostProcess()
 
 	// extend base class
 	UpgradeMux::upgradeMuxLoadPostProcess();
+
+	// TheSuperHackers @tweak arcticdolphin 23/10/2026 Rebuild the mine list from the mines this object produced, like the retail scan.
+	m_mineList.clear();
+	for (Object* mine = TheGameLogic->getFirstObject(); mine; mine = mine->getNextObject())
+	{
+		if (mine->isKindOf(KINDOF_MINE) && mine->getProducerID() == getObject()->getID())
+		{
+			m_mineList.push_back(mine->getID());
+		}
+	}
 
 }
