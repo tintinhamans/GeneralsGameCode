@@ -173,12 +173,8 @@ void GenOnlineAuthInterface::SendMiddlewareToken(std::string strMWToken)
 
 void GenOnlineAuthInterface::OnRefreshTokenFailed(const char* szReason, const std::string& strBody)
 {
-	// the body can hold a rotated refresh token, so release builds log only its size
-#if _DEBUG
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Refresh response body: %s", strBody.c_str());
-#else
+	// the body can hold a rotated refresh token, so only its size is logged
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[AUTH]: Refresh response body was %zu bytes", strBody.size());
-#endif
 
 	if (m_currentRefreshAttempt < m_maxRefreshAttempts)
 	{
@@ -302,6 +298,32 @@ void GenOnlineAuthInterface::RefreshToken()
 }
 
 void GenOnlineAuthInterface::BeginLogin()
+{
+	auto* manager = GenOnlineServicesManager::GetInstance();
+	if (!manager)
+	{
+		return;
+	}
+	manager->EnsureServiceRoute([](bool success)
+	{
+		auto* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+		if (!auth)
+		{
+			return;
+		}
+		if (success)
+		{
+			auth->BeginLoginOnSelectedRoute();
+		}
+		else
+		{
+			ClearGSMessageBoxes();
+			GSMessageBoxOk(UnicodeString(L"Connection failed"), UnicodeString(L"No trusted service route could be reached. Check your connection and try again."), []() { TheShell->pop(); });
+		}
+	});
+}
+
+void GenOnlineAuthInterface::BeginLoginOnSelectedRoute()
 {
 	m_tokenCreationTime = -1;
 
@@ -431,7 +453,10 @@ void GenOnlineAuthInterface::DoFullLoginFlow()
 						m_lastCheckCode = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
 						m_strCode = authResp.login_code;
-						NetworkLog(ELogVerbosity::LOG_DEBUG, "Login Code is %s", m_strCode.c_str());
+						if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+						{
+							NetworkLog(ELogVerbosity::LOG_DEBUG, "Login Code is %s", m_strCode.c_str());
+						}
 
 #if defined(USE_TEST_ENV)
                         std::string strURI = std::format("https://www.playgenerals.online/login/?gamecode={}&env=test", m_strCode.c_str());
@@ -536,9 +561,10 @@ void GenOnlineAuthInterface::Tick()
 						nlohmann::json jsonObject = nlohmann::json::parse(strBody);
 						AuthResponse authResp = jsonObject.get<AuthResponse>();
 
-#if _DEBUG
-						NetworkLog(ELogVerbosity::LOG_RELEASE, "PageBody: %s", strBody.c_str());
-#endif
+						if (GenOnlineServicesManager::Settings.Debug_VerboseLogging())
+						{
+							NetworkLog(ELogVerbosity::LOG_RELEASE, "PageBody: %zu bytes", strBody.size());
+						}
 						if (authResp.result == EAuthResponseResult::CODE_INVALID)
 						{
 							NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Code didnt exist, trying again soon");

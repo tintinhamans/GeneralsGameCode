@@ -12,10 +12,10 @@
 
 class HTTPManager;
 
-// one clock for every websocket timestamp; utc_clock also loads the time zone database on MSVC
+// steady clock, so deadlines do not move with system clock changes
 inline int64_t NowMs()
 {
-	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
 class GenOnlineAuthInterface;
@@ -231,6 +231,8 @@ public:
 	}
 
 private:
+	CURLcode ReceiveOneFrame();
+	void FailConnectionSetup();
 	CURL* m_pCurlWS = nullptr;
     CURLM* m_pMulti = nullptr;
 	struct curl_slist* m_pHeaders = nullptr;
@@ -266,7 +268,19 @@ private:
 
 	// Outbound messages queued for Tick() to flush.
 	std::mutex m_outboundQueueMutex;
-	std::vector<std::string> m_vecQueuedOutboungMsgs;
+	struct OutboundMessage
+	{
+		std::string payload;
+		bool heartbeat;
+	};
+	std::vector<OutboundMessage> m_vecQueuedOutboungMsgs;
+	size_t m_queuedOutboundBytes = 0;
+	size_t m_outboundOffset = 0;
+	bool m_heartbeatQueued = false;
+	bool m_acceptOutbound = true;
+	void QueueOutbound(std::string payload, bool heartbeat);
+	void ClearOutbound();
+	CURLcode FlushOutbound();
 
 	std::mutex m_pendingSignalsMutex;
 	std::queue<std::vector<uint8_t>> m_pendingSignals;
@@ -646,6 +660,10 @@ public:
 	}
 
 	void StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback);
+	void StartVersionCheckOnSelectedRoute(std::function<void(bool, bool)> fnCallback);
+	void EnsureServiceRoute(std::function<void(bool)> callback);
+	static bool IsServiceURLTrusted(const std::string& url);
+	static bool IsWebSocketURLTrusted(const std::string& url);
 
 	std::shared_ptr<WebSocket> Internal_GetWebSocket() const { return m_pWebSocket; }
 	HTTPManager* GetHTTPManager() const { return m_pHTTPManager; }
@@ -762,6 +780,14 @@ private:
 	// Screenshot thread management
 	std::vector<std::thread*> m_vecScreenshotThreads;
 	std::mutex m_mutexScreenshotThreads;
+
+	void ProbeServiceRoute();
+	void FinishServiceRoute(bool success);
+	std::string m_serviceBase;
+	std::vector<std::string> m_bootstrapRoutes;
+	size_t m_bootstrapIndex = 0;
+	std::vector<std::function<void(bool)>> m_routeCallbacks;
+	std::chrono::steady_clock::time_point m_routeValidatedAt{};
 
 	ServiceConfig m_ServiceConfig;
 
