@@ -158,6 +158,10 @@ public:
 
 	Int getAverageFPS();
 	Int getSlotAverageFPS(Int slot);
+#if defined(GENERALS_ONLINE)
+	void noteStalling(Bool stalling, UnsignedInt frame);	///< Called every network update with whether the game is waiting for commands.
+#endif
+	const ConnectionStats* getConnectionStats(Int slot) const;	///< Returns nullptr when there is no connection for the slot.
 
 #if defined(RTS_DEBUG)
 	void debugPrintConnectionCommands();
@@ -233,6 +237,14 @@ private:
 	Int  m_minFps;
 	UnsignedInt m_smallestPacketArrivalCushion;
 	Bool m_didSelfSlug;
+
+#if defined(GENERALS_ONLINE)
+	ArrivalCushionStats m_cushionStats[MAX_SLOTS];
+	StallStats m_stallStats;
+	Bool m_stallActive;
+	time_t m_stallStartTime;
+	UnsignedInt m_stallMissingMask;
+#endif
 
 	// -----------------------------------------------------------------------------
 	FileCommandMap s_fileCommandMap;
