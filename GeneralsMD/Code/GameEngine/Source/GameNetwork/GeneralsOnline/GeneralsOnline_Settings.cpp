@@ -32,6 +32,8 @@
 #define SETTINGS_KEY_NETWORK "network"
 #define SETTINGS_KEY_NETWORK_HTTP_VERSION "http_version"
 #define SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT "use_alternative_endpoint"
+#define SETTINGS_KEY_NETWORK_ENDPOINT_MODE "endpoint_mode"
+#define SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT "last_successful_endpoint"
 
 #define SETTINGS_KEY_PLUGINS "plugins"
 #define SETTINGS_KEY_PLUGINS_ANTICHEAT "anticheat"
@@ -163,6 +165,9 @@ void GenOnlineSettings::Load(void)
 		try
 		{
 			jsonSettings = nlohmann::json::parse(strJSON);
+			if (!jsonSettings.is_object())
+				throw std::runtime_error("Settings must be an object");
+			m_PreservedJSON = jsonSettings.dump();
 
 		}
 		catch (...)
@@ -215,9 +220,9 @@ void GenOnlineSettings::Load(void)
 				}
 			}
 
-            if (jsonSettings.contains(SETTINGS_KEY_NETWORK))
+            if (jsonSettings.contains(SETTINGS_KEY_NETWORK) && jsonSettings[SETTINGS_KEY_NETWORK].is_object())
             {
-                auto networkSettings = jsonSettings[SETTINGS_KEY_NETWORK];
+                const auto& networkSettings = jsonSettings[SETTINGS_KEY_NETWORK];
 
                 if (networkSettings.contains(SETTINGS_KEY_NETWORK_HTTP_VERSION))
                 {
@@ -234,9 +239,28 @@ void GenOnlineSettings::Load(void)
 				   }
                 }
 
-                if (networkSettings.contains(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT))
+                if (networkSettings.contains(SETTINGS_KEY_NETWORK_ENDPOINT_MODE) && networkSettings[SETTINGS_KEY_NETWORK_ENDPOINT_MODE].is_string())
                 {
-                    m_Network_UseAlternativeEndpoint = networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT];
+                    m_ConnectionSettings.endpointMode = networkSettings[SETTINGS_KEY_NETWORK_ENDPOINT_MODE].get<std::string>();
+                }
+                else if (networkSettings.contains(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT) &&
+                    networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].is_boolean() &&
+                    networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].get<bool>())
+                {
+                    m_ConnectionSettings.endpointMode = "alternative";
+                }
+                if (m_ConnectionSettings.endpointMode != "automatic" && m_ConnectionSettings.endpointMode != "primary" && m_ConnectionSettings.endpointMode != "alternative")
+                {
+                    m_ConnectionSettings.endpointMode = "automatic";
+                }
+
+                if (networkSettings.contains(SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT) && networkSettings[SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT].is_string())
+                {
+                    m_LastSuccessfulEndpoint = networkSettings[SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT].get<std::string>();
+                }
+                if (m_LastSuccessfulEndpoint != "primary" && m_LastSuccessfulEndpoint != "alternative")
+                {
+                    m_LastSuccessfulEndpoint.clear();
                 }
             }
 
@@ -356,6 +380,7 @@ void GenOnlineSettings::Load(void)
 	
 	if (bReadFailed)
 	{
+		m_CanSave = false;
 		// keep the file on disk, the defaults above only apply to this session
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Could not read settings file, keeping it untouched");
 		return;
@@ -365,17 +390,28 @@ void GenOnlineSettings::Load(void)
 	{
 		// keep the unparseable file for recovery before the defaults replace it
 		std::filesystem::rename(strSettingsFilePath, strSettingsFilePath + ".bad", ec);
+		if (ec)
+		{
+			m_CanSave = false;
+			return;
+		}
+		m_PreservedJSON = "{}";
 	}
 
 	// Always save so we re-serialize anything new or missing
 	Save();
 }
 
-void GenOnlineSettings::Save()
+bool GenOnlineSettings::Save()
 {
 	if (!m_bInitialized)
 	{
 		Initialize();
+	}
+
+	if (!m_CanSave)
+	{
+		return false;
 	}
 
 	nlohmann::json root = {
@@ -401,7 +437,8 @@ void GenOnlineSettings::Save()
             SETTINGS_KEY_NETWORK,
                 {
                     {SETTINGS_KEY_NETWORK_HTTP_VERSION, m_Network_HTTPVersion},
-                    {SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT, m_Network_UseAlternativeEndpoint}
+                    {SETTINGS_KEY_NETWORK_ENDPOINT_MODE, m_ConnectionSettings.endpointMode},
+                    {SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT, m_LastSuccessfulEndpoint}
                 }
         },
 
@@ -448,7 +485,10 @@ void GenOnlineSettings::Save()
         }
     };
 	
-	std::string strData = root.dump(1);
+	auto preserved = nlohmann::json::parse(m_PreservedJSON);
+	preserved.merge_patch(root);
+	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT);
+	std::string strData = preserved.dump(1);
 
 	std::string strSettingsFilePath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), SETTINGS_FILENAME);
 
@@ -472,4 +512,34 @@ void GenOnlineSettings::Save()
 		std::error_code ec;
 		std::filesystem::remove(strTempPath, ec);
 	}
+	else
+	{
+		m_PreservedJSON = strData;
+	}
+	return bSaved;
+}
+
+bool GenOnlineSettings::Network_SaveLastSuccessfulEndpoint(const std::string& endpoint)
+{
+	if (endpoint != "primary" && endpoint != "alternative")
+	{
+		return false;
+	}
+	if (!m_bInitialized)
+	{
+		Initialize();
+	}
+	std::lock_guard<std::mutex> lock(m_NetworkMutex);
+	if (m_LastSuccessfulEndpoint == endpoint)
+	{
+		return true;
+	}
+	const auto previous = m_LastSuccessfulEndpoint;
+	m_LastSuccessfulEndpoint = endpoint;
+	if (Save())
+	{
+		return true;
+	}
+	m_LastSuccessfulEndpoint = previous;
+	return false;
 }

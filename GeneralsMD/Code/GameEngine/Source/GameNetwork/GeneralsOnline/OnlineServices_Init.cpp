@@ -17,6 +17,7 @@
 #include "WW3D2/dx8wrapper.h"
 #include <mutex>
 #include <utility>
+#include "GameNetwork/GeneralsOnline/ServiceEndpointPolicy.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
@@ -177,27 +178,107 @@ NGMP_OnlineServicesManager::NGMP_OnlineServicesManager()
 	m_pOnlineServicesManager = this;
 }
 
+static const char* ServiceEnvironment()
+{
+	switch (NGMP_OnlineServicesManager::g_Environment)
+	{
+		case NGMP_OnlineServicesManager::EEnvironment::DEV: return "dev";
+		case NGMP_OnlineServicesManager::EEnvironment::TEST: return "test";
+		default: return "prod";
+	}
+}
+
 std::string NGMP_OnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 {
-	if (g_Environment == EEnvironment::DEV)
+	auto* manager = GetInstance();
+	if (manager && !manager->m_serviceBase.empty())
 	{
-		return std::format("https://localhost:9000/env/dev/contract/1/{}", szEndpoint);
+		return manager->m_serviceBase + szEndpoint;
 	}
-	else if (g_Environment == EEnvironment::TEST)
+	const auto routes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), Settings.Network_GetConnectionSettings(), Settings.Network_GetLastSuccessfulEndpoint());
+	return routes.empty() ? std::string() : routes.front() + szEndpoint;
+}
+
+bool NGMP_OnlineServicesManager::IsServiceURLTrusted(const std::string& url)
+{
+	return ServiceConnection::IsTrustedServiceURL(url, GetAPIEndpoint(""), false);
+}
+
+bool NGMP_OnlineServicesManager::IsWebSocketURLTrusted(const std::string& url)
+{
+	return ServiceConnection::IsTrustedServiceURL(url, GetAPIEndpoint(""), true);
+}
+
+void NGMP_OnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> callback)
+{
+	// never change the route of an authenticated session behind its caller
+	if (m_pAuthInterface && m_pAuthInterface->IsLoggedIn())
 	{
-		return std::format("https://api.playgenerals.online:2087/env/test/contract/1/{}", szEndpoint);
+		callback(!m_serviceBase.empty());
+		return;
 	}
-	else // PROD
+	if (!m_serviceBase.empty() && std::chrono::steady_clock::now() - m_routeValidatedAt < std::chrono::seconds(30))
 	{
-		if (NGMP_OnlineServicesManager::Settings.Network_UseAlternativeEndpoint())
+		callback(true);
+		return;
+	}
+	m_routeCallbacks.push_back(std::move(callback));
+	if (m_routeCallbacks.size() > 1)
+	{
+		return;
+	}
+	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), Settings.Network_GetConnectionSettings(), Settings.Network_GetLastSuccessfulEndpoint());
+	m_bootstrapIndex = 0;
+	ProbeServiceRoute();
+}
+
+void NGMP_OnlineServicesManager::FinishServiceRoute(bool success)
+{
+	auto callbacks = std::move(m_routeCallbacks);
+	m_routeCallbacks.clear();
+	for (auto& callback : callbacks)
+	{
+		callback(success);
+	}
+}
+
+void NGMP_OnlineServicesManager::ProbeServiceRoute()
+{
+	if (m_bootstrapIndex >= m_bootstrapRoutes.size())
+	{
+		m_serviceBase.clear();
+		FinishServiceRoute(false);
+		return;
+	}
+
+	// anonymous request: no credentials are sent until a route is validated
+	m_serviceBase = m_bootstrapRoutes[m_bootstrapIndex];
+	const std::string url = m_serviceBase + "VersionManifest";
+	std::map<std::string, std::string> headers;
+	m_pHTTPManager->SendGETRequest(url.c_str(), EIPProtocolVersion::DONT_CARE, headers,
+		[](bool success, int status, std::string body, HTTPRequest*)
 		{
-			return std::format("https://api-ru.playgenerals.online/env/prod/contract/1/{}", szEndpoint);
-		}
-		else
-		{
-			return std::format("https://api.playgenerals.online/env/prod/contract/1/{}", szEndpoint);
-		}
-	}
+			auto* manager = GetInstance();
+			if (!manager)
+			{
+				return;
+			}
+			if (success && status == 200 && ServiceConnection::IsExpectedVersionManifest(body))
+			{
+				manager->m_routeValidatedAt = std::chrono::steady_clock::now();
+				if (g_Environment == EEnvironment::PROD)
+				{
+					Settings.Network_SaveLastSuccessfulEndpoint(manager->m_serviceBase.find("://api-ru.") != std::string::npos ? "alternative" : "primary");
+				}
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Trusted service route validated: %s", manager->m_serviceBase.c_str());
+				manager->FinishServiceRoute(true);
+				return;
+			}
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Route validation failed (HTTP %d); credentials were not sent", status);
+			// an access rejection is not evidence that another route would work
+			manager->m_bootstrapIndex = (status == 401 || status == 403) ? manager->m_bootstrapRoutes.size() : manager->m_bootstrapIndex + 1;
+			manager->ProbeServiceRoute();
+		}, nullptr, 6000);
 }
 
 void NGMP_OnlineServicesManager::AttemptLoadSteam()
@@ -375,6 +456,22 @@ void NGMP_OnlineServicesManager::Shutdown()
 }
 
 void NGMP_OnlineServicesManager::StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback)
+{
+    EnsureServiceRoute([fnCallback](bool success)
+    {
+        auto* manager = GetInstance();
+        if (!manager)
+            return;
+        if (!success)
+        {
+            fnCallback(false, false);
+            return;
+        }
+        manager->StartVersionCheckOnSelectedRoute(fnCallback);
+    });
+}
+
+void NGMP_OnlineServicesManager::StartVersionCheckOnSelectedRoute(std::function<void(bool, bool)> fnCallback)
 {
 	std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("VersionCheck");
 
@@ -865,8 +962,17 @@ void NGMP_OnlineServicesManager::OnLogin(ELoginResult loginResult, const char* s
 		// connect to WS
 		m_pWebSocket = std::make_shared<WebSocket>();
 
-		// TODO_NGMP: This should come from the service, if the service was russia-aware
-		std::string strWebsocketAddr = NGMP_OnlineServicesManager::Settings.Network_UseAlternativeEndpoint() ? "wss://api-ru.playgenerals.online/ws" : std::string(szWSAddr);
+        const std::string strWebsocketAddr = szWSAddr ? szWSAddr : "";
+        if (!IsWebSocketURLTrusted(strWebsocketAddr))
+        {
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Rejected untrusted service-issued WebSocket route; reauthentication required");
+            m_pWebSocket.reset();
+            SetPendingFullTeardown(EGOTearDownReason::UNKNOWN);
+            ClearGSMessageBoxes();
+            GSMessageBoxOk(UnicodeString(L"Connection failed"), UnicodeString(L"The service returned an unexpected WebSocket address. Please reconnect; no token was sent to that address."), []() {});
+            return;
+        }
+
 
         m_pWebSocket->Connect(strWebsocketAddr.c_str(), false, [=]()
             {

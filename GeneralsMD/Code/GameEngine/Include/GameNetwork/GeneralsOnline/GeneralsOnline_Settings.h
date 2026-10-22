@@ -1,5 +1,8 @@
 #pragma once
 #include <curl/curl.h>
+#include <mutex>
+#include <string>
+#include "GameNetwork/GeneralsOnline/ServiceEndpointPolicy.h"
 
 enum EHTTPVersion
 {
@@ -72,7 +75,9 @@ public:
 
 	bool DataPacks_UseCommunityPatch() const { return m_DataPacks_UseCommunityPatch; }
 
-	bool Network_UseAlternativeEndpoint() const { return m_Network_UseAlternativeEndpoint; }
+	ServiceConnectionSettings Network_GetConnectionSettings() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_ConnectionSettings; }
+	std::string Network_GetLastSuccessfulEndpoint() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_LastSuccessfulEndpoint; }
+	bool Network_SaveLastSuccessfulEndpoint(const std::string& endpoint);
 	EHTTPVersion Network_GetHTTPVersion() const { return m_Network_HTTPVersion; }
 	int Network_GetHTTPVersionForCurl() const
 	{
@@ -109,7 +114,7 @@ public:
 
 private:
 	void Load(void);
-	void Save();
+	bool Save();
 
 private:
 	// NOTE: This also works as the default creation (since we just call Save)
@@ -144,5 +149,10 @@ private:
 	std::string m_Plugins_Anticheat = std::string();
 
 	EHTTPVersion m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_AUTO;
-	bool m_Network_UseAlternativeEndpoint = false;
+	mutable std::mutex m_NetworkMutex;
+	ServiceConnectionSettings m_ConnectionSettings;
+	std::string m_LastSuccessfulEndpoint;
+	// keeps keys this build does not know when a setting is saved mid-session
+	std::string m_PreservedJSON = "{}";
+	bool m_CanSave = true;
 };

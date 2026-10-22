@@ -1,4 +1,5 @@
 #include <random>
+#include "GameNetwork/GeneralsOnline/ServiceEndpointPolicy.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include "GameNetwork/GeneralsOnline/NGMP_include.h"
 #include "GameNetwork/GeneralsOnline/NetworkPacket.h"
@@ -152,86 +153,92 @@ int WebSocket::Ping()
 
 void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(void)> fnWebsocketConnectedCallback)
 {
-	if (m_bConnected)
+	if (m_bConnected || m_bShuttingDown)
 	{
 		return;
 	}
 
 	m_lastPong = NowMs();
 
+	// copy before replacing the stored address: reconnect passes its c_str()
+	const std::string destination(url);
+	m_strWebsocketAddr = destination;
+	m_fnWebsocketConnectedCallback = fnWebsocketConnectedCallback;
+
 	// TODO_CACHE: Cleanup multi too
 	if (m_pCurlWS != nullptr)
 	{
-        // remove from multi before cleanup (required by libcurl)
-        if (m_pMulti != nullptr)
-        {
-            curl_multi_remove_handle(m_pMulti, m_pCurlWS);
-        }
-        // cleanup
-        curl_easy_cleanup(m_pCurlWS);
-        m_pCurlWS = nullptr;
+		// remove from multi before cleanup (required by libcurl)
+		if (m_pMulti != nullptr)
+		{
+			curl_multi_remove_handle(m_pMulti, m_pCurlWS);
+		}
+		curl_easy_cleanup(m_pCurlWS);
+		m_pCurlWS = nullptr;
 	}
 
-    // Free old headers before creating new ones
-	if (m_pHeaders != nullptr)
+	// Free old headers before creating new ones
+	curl_slist_free_all(m_pHeaders);
+	m_pHeaders = nullptr;
+
+	// the token only ever goes to the selected service route
+	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	if (pAuthInterface == nullptr || !NGMP_OnlineServicesManager::IsWebSocketURLTrusted(destination))
 	{
-		curl_slist_free_all(m_pHeaders);
-		m_pHeaders = nullptr;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Refused untrusted service destination");
+		FailConnectionSetup();
+		return;
 	}
 
 	m_pCurlWS = curl_easy_init();
-
-	if (m_pCurlWS != nullptr)
+	std::string error;
+	if (m_pCurlWS == nullptr || !ServiceConnection::ConfigureServiceTransport(m_pCurlWS, destination, error))
 	{
-		m_fnWebsocketConnectedCallback = fnWebsocketConnectedCallback;
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Connection policy: %s", error.c_str());
+		FailConnectionSetup();
+		return;
+	}
 
-		int httpResponseCode = -1;
-		m_strWebsocketAddr = std::string(url);
-		curl_easy_setopt(m_pCurlWS, CURLOPT_URL, url);
+	const std::string authorization = "Authorization: Bearer " + pAuthInterface->GetAuthToken();
+	m_pHeaders = curl_slist_append(nullptr, authorization.c_str());
+	curl_slist* updated = m_pHeaders ? curl_slist_append(m_pHeaders, bIsReconnect ? "is-reconnect: true" : "is-reconnect: false") : nullptr;
+	if (updated == nullptr)
+	{
+		FailConnectionSetup();
+		return;
+	}
+	m_pHeaders = updated;
 
-		curl_easy_getinfo(m_pCurlWS, CURLINFO_RESPONSE_CODE, &httpResponseCode);
-
-		curl_easy_setopt(m_pCurlWS, CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
-
-        // HTTP v1 seems to have a higher success rate of bypassing DPI
-		curl_easy_setopt(m_pCurlWS, CURLOPT_HTTP_VERSION, NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersionForCurl());
-
-#if _DEBUG
-		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 0);
-		curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 0);
-
-		curl_easy_setopt(m_pCurlWS, CURLOPT_VERBOSE, 1L);
-#else
-        // Use the OS cert store (needed since we build curl against OpenSSL, not schannel).
-        curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
-        curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYPEER, 1L);
-        curl_easy_setopt(m_pCurlWS, CURLOPT_SSL_VERIFYHOST, 2L);
-#endif
-
-
-		// ws needs auth
-		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-		if (pAuthInterface == nullptr)
+	CURLcode result = CURLE_OK;
+	auto option = [&](CURLoption key, auto value) {
+		if (result == CURLE_OK)
 		{
-			curl_easy_cleanup(m_pCurlWS);
-			m_pCurlWS = nullptr;
-			return;
+			result = curl_easy_setopt(m_pCurlWS, key, value);
 		}
+	};
+	option(CURLOPT_URL, destination.c_str());
+	option(CURLOPT_CONNECT_ONLY, 2L); /* websocket style */
+	// HTTP v1 seems to have a higher success rate of bypassing DPI
+	option(CURLOPT_HTTP_VERSION, static_cast<long>(NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersionForCurl()));
+	option(CURLOPT_HTTPHEADER, m_pHeaders);
+	if (result != CURLE_OK || curl_multi_add_handle(m_pMulti, m_pCurlWS) != CURLM_OK)
+	{
+		FailConnectionSetup();
+	}
+}
 
-		char szHeaderBuffer[8192] = { 0 };
-		sprintf_s(szHeaderBuffer, "Authorization: Bearer %s", pAuthInterface->GetAuthToken().c_str());
-		m_pHeaders = curl_slist_append(m_pHeaders, szHeaderBuffer);
-
-        sprintf_s(szHeaderBuffer, "is-reconnect: %s", bIsReconnect ? "true": "false");
-		m_pHeaders = curl_slist_append(m_pHeaders, szHeaderBuffer);
-
-		curl_easy_setopt(m_pCurlWS, CURLOPT_HTTPHEADER, m_pHeaders);
-
-		//curl_easy_setopt(m_pCurl, CURLOPT_TIMEOUT_MS, 1000);
-
-		/* Perform the request, res gets the return code */
-		//CURLcode res = curl_easy_perform(m_pCurl);
-		curl_multi_add_handle(m_pMulti, m_pCurlWS);
+void WebSocket::FailConnectionSetup()
+{
+	m_bConnected = false;
+	m_vecWSPartialBuffer.clear();
+	if (m_bReconnecting)
+	{
+		m_reconnectAttemptStarted = -1;
+		m_nextReconnectAttempt = NowMs() + ComputeReconnectDelay();
+	}
+	else
+	{
+		NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::LOST_CONNECTION);
 	}
 }
 

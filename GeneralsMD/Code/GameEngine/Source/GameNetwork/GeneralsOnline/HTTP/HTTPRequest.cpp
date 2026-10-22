@@ -1,4 +1,5 @@
 #include "GameNetwork/GeneralsOnline/HTTP/HTTPRequest.h"
+#include "GameNetwork/GeneralsOnline/ServiceEndpointPolicy.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_Init.h"
 #include "GameNetwork/GeneralsOnline/HTTP/HTTPManager.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
@@ -35,22 +36,13 @@ HTTPRequest::HTTPRequest(EHTTPVerb httpVerb, EIPProtocolVersion protover, const 
 
 HTTPRequest::~HTTPRequest()
 {
-	NGMP_OnlineServicesManager* pMgr = NGMP_OnlineServicesManager::GetInstance();
-	if (pMgr == nullptr)
-		return;
-
-	HTTPManager* pHTTPManager = pMgr->GetHTTPManager();
-	pHTTPManager->RemoveHandleFromMulti(m_pCURL);
-
-	curl_easy_cleanup(m_pCURL);
-
-	m_vecBuffer.clear();
-
-    if (headers)
+	NGMP_OnlineServicesManager* manager = NGMP_OnlineServicesManager::GetInstance();
+	if (m_handleAdded && manager != nullptr && manager->GetHTTPManager() != nullptr)
 	{
-        curl_slist_free_all(headers);
-		headers = nullptr;
-    }
+		manager->GetHTTPManager()->RemoveHandleFromMulti(m_pCURL);
+	}
+	curl_easy_cleanup(m_pCURL);
+	curl_slist_free_all(headers);
 }
 
 
@@ -119,7 +111,7 @@ void HTTPRequest::InvokeCallbackIfComplete()
 			{
 				strResponse.clear();
 			}
-			m_completionCallback(true, m_responseCode, strResponse, this);
+			m_completionCallback(m_result == CURLE_OK, static_cast<int>(m_responseCode), strResponse, this);
 		}
 	}
 }
@@ -152,8 +144,9 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 {
 	// store response code
 	curl_easy_getinfo(m_pCURL, CURLINFO_RESPONSE_CODE, &m_responseCode);
+	m_result = result;
 
-	if (result == CURLE_OK)
+	if (result == CURLE_OK && NGMP_OnlineServicesManager::IsServiceURLTrusted(m_strURI))
 	{
 		HTTPManager* pHTTPManager = static_cast<HTTPManager*>(NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager());
 		if (pHTTPManager != nullptr)
@@ -233,99 +226,101 @@ void HTTPRequest::Threaded_SetComplete(CURLcode result)
 
 void HTTPRequest::PlatformStartRequest()
 {
-	if (m_pCURL)
+	if (m_pCURL == nullptr)
 	{
-		HTTPManager* pHTTPManager = static_cast<HTTPManager*>(NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager());
+		Threaded_SetComplete(CURLE_FAILED_INIT);
+		return;
+	}
+	std::string error;
+	if (!ServiceConnection::ConfigureServiceTransport(m_pCURL, m_strURI, error))
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Connection policy: %s", error.c_str());
+		Threaded_SetComplete(CURLE_FAILED_INIT);
+		return;
+	}
 
-		curl_easy_setopt(m_pCURL, CURLOPT_URL, m_strURI.c_str());
-		curl_easy_setopt(m_pCURL, CURLOPT_FOLLOWLOCATION, 1L);
-		curl_easy_setopt(m_pCURL, CURLOPT_WRITEDATA, (void*)this);
-		curl_easy_setopt(m_pCURL, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-		curl_easy_setopt(m_pCURL, CURLOPT_USERAGENT, "GeneralsOnline Client");
-
-		
-		curl_easy_setopt(m_pCURL, CURLOPT_CONNECTTIMEOUT_MS, m_timeoutMS);
-		curl_easy_setopt(m_pCURL, CURLOPT_TIMEOUT_MS, m_timeoutMS);
-
-		curl_easy_setopt(m_pCURL, CURLOPT_HTTP_VERSION, NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersionForCurl());
-
-		if (m_protover == EIPProtocolVersion::DONT_CARE)
+	// credentials only ever go to the selected service route
+	const bool trusted = NGMP_OnlineServicesManager::IsServiceURLTrusted(m_strURI);
+	for (const auto& kvPair : m_mapHeaders)
+	{
+		if (_stricmp(kvPair.first.c_str(), "Authorization") == 0 && !trusted)
 		{
-			curl_easy_setopt(m_pCURL, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[HTTP] Refused credentials outside selected service route");
+			Threaded_SetComplete(CURLE_URL_MALFORMAT);
+			return;
 		}
-		else if (m_protover == EIPProtocolVersion::FORCE_IPV4)
+	}
+
+	// Are we authenticated? attach our auth header
+	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	if (trusted && m_bAppendAuthIfPresent && pAuthInterface != nullptr && pAuthInterface->IsLoggedIn())
+	{
+		m_mapHeaders["Authorization"] = "Bearer " + pAuthInterface->GetAuthToken();
+	}
+
+	for (const auto& kvPair : m_mapHeaders)
+	{
+		const std::string strHeader = kvPair.first + ": " + kvPair.second;
+		curl_slist* updated = curl_slist_append(headers, strHeader.c_str());
+		if (updated == nullptr)
 		{
-			curl_easy_setopt(m_pCURL, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+			Threaded_SetComplete(CURLE_OUT_OF_MEMORY);
+			return;
 		}
-		else if (m_protover == EIPProtocolVersion::FORCE_IPV6)
+		headers = updated;
+	}
+
+	CURLcode result = CURLE_OK;
+	auto option = [&](CURLoption key, auto value) {
+		if (result == CURLE_OK)
 		{
-			curl_easy_setopt(m_pCURL, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V6);
+			result = curl_easy_setopt(m_pCURL, key, value);
 		}
-		
+	};
+	option(CURLOPT_URL, m_strURI.c_str());
+	option(CURLOPT_WRITEDATA, static_cast<void*>(this));
+	option(CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+	option(CURLOPT_USERAGENT, "GeneralsOnline Client");
+	option(CURLOPT_CONNECTTIMEOUT_MS, static_cast<long>(m_timeoutMS));
+	option(CURLOPT_TIMEOUT_MS, static_cast<long>(m_timeoutMS));
+	option(CURLOPT_HTTP_VERSION, static_cast<long>(NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersionForCurl()));
+	option(CURLOPT_IPRESOLVE, static_cast<long>(m_protover == EIPProtocolVersion::FORCE_IPV4 ? CURL_IPRESOLVE_V4 :
+		m_protover == EIPProtocolVersion::FORCE_IPV6 ? CURL_IPRESOLVE_V6 : CURL_IPRESOLVE_WHATEVER));
+	option(CURLOPT_HTTPHEADER, headers);
 
-		// Are we authenticated? attach our auth header
-		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-		if (pAuthInterface != nullptr && pAuthInterface->IsLoggedIn())
+	if (m_httpVerb == EHTTPVerb::HTTP_VERB_POST || m_httpVerb == EHTTPVerb::HTTP_VERB_PUT || m_httpVerb == EHTTPVerb::HTTP_VERB_DELETE)
+	{
+		if (!m_vecPostDataBuffer.empty())
 		{
-			if (m_bAppendAuthIfPresent)
-			{
-				m_mapHeaders["Authorization"] = "Bearer " + pAuthInterface->GetAuthToken();
-			}
+			option(CURLOPT_POSTFIELDS, m_vecPostDataBuffer.data());
+			option(CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(m_vecPostDataBuffer.size()));
 		}
-
-		for (auto& kvPair : m_mapHeaders)
+		else
 		{
-			std::string strHeader = kvPair.first + ": " + kvPair.second;
-			headers = curl_slist_append(headers, strHeader.c_str());
+			option(CURLOPT_POSTFIELDS, m_strPostData.c_str());
+			option(CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(m_strPostData.size()));
 		}
-		curl_easy_setopt(m_pCURL, CURLOPT_HTTPHEADER, headers);
+	}
 
-		if (m_httpVerb == EHTTPVerb::HTTP_VERB_POST || m_httpVerb == EHTTPVerb::HTTP_VERB_PUT || m_httpVerb == EHTTPVerb::HTTP_VERB_DELETE)
-		{
-			//if (m_strPostData.length() > 0)
-			{
-				//char* pEscaped = curl_easy_escape(m_pCURL, m_strPostData.c_str(), m_strPostData.length());
+	// needed for PUT etc
+	if (m_httpVerb == EHTTPVerb::HTTP_VERB_PUT)
+	{
+		option(CURLOPT_CUSTOMREQUEST, "PUT");
+	}
+	else if (m_httpVerb == EHTTPVerb::HTTP_VERB_DELETE)
+	{
+		option(CURLOPT_CUSTOMREQUEST, "DELETE");
+	}
 
-				if (!m_vecPostDataBuffer.empty())
-				{
-                    curl_easy_setopt(m_pCURL, CURLOPT_POSTFIELDS, m_vecPostDataBuffer.data());
-					curl_easy_setopt(m_pCURL, CURLOPT_POSTFIELDSIZE, m_vecPostDataBuffer.size());
-				}
-				else
-				{
-                    curl_easy_setopt(m_pCURL, CURLOPT_POSTFIELDS, m_strPostData.c_str());
-				}
-			}
-		}
+	if (result != CURLE_OK)
+	{
+		Threaded_SetComplete(result);
+		return;
+	}
 
-		// needed for PUT etc
-		if (m_httpVerb == EHTTPVerb::HTTP_VERB_PUT)
-		{
-			curl_easy_setopt(m_pCURL, CURLOPT_CUSTOMREQUEST, "PUT");
-		}
-		else if (m_httpVerb == EHTTPVerb::HTTP_VERB_DELETE)
-		{
-			curl_easy_setopt(m_pCURL, CURLOPT_CUSTOMREQUEST, "DELETE");
-		}
-
-#if _DEBUG
-		if (pHTTPManager->IsProxyEnabled())
-		{
-			curl_easy_setopt(m_pCURL, CURLOPT_PROXY, pHTTPManager->GetProxyAddress().c_str());
-			curl_easy_setopt(m_pCURL, CURLOPT_PROXYPORT, pHTTPManager->GetProxyPort());
-		}
-
-		curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYPEER, 0);
-		curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 0);
-		curl_easy_setopt(m_pCURL, CURLOPT_VERBOSE, 1);
-#else
-
-		// Use the OS cert store (needed since we build curl against OpenSSL, not schannel).
-		curl_easy_setopt(m_pCURL, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
-		curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYPEER, 1L);
-		curl_easy_setopt(m_pCURL, CURLOPT_SSL_VERIFYHOST, 2L);
-#endif
-
-		pHTTPManager->AddHandleToMulti(m_pCURL);
+	m_handleAdded = NGMP_OnlineServicesManager::GetInstance()->GetHTTPManager()->AddHandleToMulti(m_pCURL);
+	if (!m_handleAdded)
+	{
+		Threaded_SetComplete(CURLE_FAILED_INIT);
 	}
 }
