@@ -72,6 +72,7 @@ public:
 
 	Real getLatency() const { return m_srtt; }
 	Real getMinLatency() const;
+	Real getMaxLatency() const;
 	Real getLatencyPercentile(Int percent, time_t since = 0) const;	///< Round trip that this share of the samples in the window, from since on, stays within
 	Int getSampleCountSince(time_t since) const;
 	Real getJitter() const { return m_jitter; }

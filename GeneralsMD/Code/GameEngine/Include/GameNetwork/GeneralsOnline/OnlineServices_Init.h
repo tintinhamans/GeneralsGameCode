@@ -322,7 +322,7 @@ struct RegionResponse
 
 struct ServiceConfig
 {
-	// Peer connections: signalling, NAT traversal, latency probes, and the per-connection ping history
+	// Peer connections: signalling, NAT traversal and latency probes
 	struct Connection
 	{
 		bool relay_only = false;
@@ -332,17 +332,8 @@ struct ServiceConfig
 		bool anticheat_transport = false; // game traffic through the anticheat plugin's transport
 		int probe_lobby_interval_ms = 250; // time between latency probes sent to each peer while not in a match
 		int probe_match_interval_ms = 1000; // the same in a match, the command acks already measure the round trip
-		int latency_history_ms = 20000;
 	} connection;
 
-	int network_latency_logic_model = 0;
-	bool ibra_ra_tweaks = false;
-	float ibra_minslack_default = 0.25f;
-	float ibra_maxslack_default = 1.f;
-    float ibra_minslack_greaterthan300ms = 0.35f;
-    float ibra_maxslack_greaterthan300ms = 1.f;
-    float ibra_minslack_greaterthan200ms = 0.3f;
-    float ibra_maxslack_greaterthan200ms = 1.f;
 	using Send = NetworkSettings::Send;
 	using InputDelay = NetworkSettings::InputDelay;
 	using Disconnect = NetworkSettings::Disconnect;
@@ -363,6 +354,18 @@ struct ServiceConfig
 		int screenshot_height = 600;
 	} telemetry;
 };
+
+// Legacy latency modes 0 and 1 (and 10 + model) hold no decrease, the others 20 decisions.
+inline int LegacyLatencyModelToDecreaseIntervals(int model)
+{
+	return (model % 10) <= 1 ? 0 : 20;
+}
+
+// The old latency_history counted in-band samples at the 60 Hz logic rate, the average is now in milliseconds
+inline int LatencySamplesToMs(int samples)
+{
+	return samples * 1000 / GENERALS_ONLINE_HIGH_FPS_LIMIT;
+}
 
 // Reads key into value when present; a missing key keeps the default
 template <typename T>
@@ -423,7 +426,6 @@ inline void ReadGroupedServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadServiceConfigValue(s, "anticheat_transport", c.connection.anticheat_transport);
 		ReadServiceConfigValue(s, "probe_lobby_interval_ms", c.connection.probe_lobby_interval_ms);
 		ReadServiceConfigValue(s, "probe_match_interval_ms", c.connection.probe_match_interval_ms);
-		ReadServiceConfigValue(s, "latency_history_ms", c.connection.latency_history_ms);
 	}
 	if (j.contains("send"))
 	{
@@ -444,11 +446,14 @@ inline void ReadGroupedServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadServiceConfigValue(s, "min_frames", c.input_delay.min_frames);
 		ReadServiceConfigValue(s, "decision_interval_ms", c.input_delay.decision_interval_ms);
 		ReadServiceConfigValue(s, "fps_history_samples", c.input_delay.fps_history_samples);
+		ReadServiceConfigValue(s, "catch_up_frames", c.input_delay.catch_up_frames);
 		ReadServiceConfigValue(s, "slack_percent", c.input_delay.slack_percent);
 		if (s.contains("formula"))
 		{
 			const nlohmann::json& f = s["formula"];
-			ReadServiceConfigValue(f, "latency_history_samples", c.input_delay.formula.latency_history_samples);
+			ReadServiceConfigValue(f, "latency_window_ms", c.input_delay.formula.latency_window_ms);
+			ReadServiceConfigValue(f, "decrease_after_decisions", c.input_delay.formula.decrease_after_decisions);
+			ReadServiceConfigValue(f, "repair_budget", c.input_delay.formula.repair_budget);
 		}
 	}
 	if (j.contains("disconnect"))
@@ -480,9 +485,13 @@ inline void ReadLegacyServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 	ReadServiceConfigValue(j, "relay_all_traffic", c.connection.relay_only);
 	ReadServiceConfigValue(j, "ice_implementation", c.connection.ice_engine);
 	ReadServiceConfigValue(j, "use_new_networking", c.connection.anticheat_transport);
-	ReadServiceConfigValue(j, "network_mesh_histogram_duration", c.connection.latency_history_ms);
 	ReadServiceConfigValue(j, "network_do_immediate_flush_per_frame", c.send.flush_every_frame);
-	ReadServiceConfigValue(j, "network_latency_logic_model", c.network_latency_logic_model);
+	int legacyLatencyModel = -1;
+	ReadServiceConfigValue(j, "network_latency_logic_model", legacyLatencyModel);
+	if (legacyLatencyModel >= 0)
+	{
+		c.input_delay.formula.decrease_after_decisions = LegacyLatencyModelToDecreaseIntervals(legacyLatencyModel);
+	}
 
 	bool useRetailProfile = true;
 	ReadServiceConfigValue(j, "use_default_config", useRetailProfile);
@@ -491,7 +500,7 @@ inline void ReadLegacyServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadServiceConfigValue(j, "ra_slack_override_percent_in_default", c.input_delay.slack_percent);
 		c.input_delay.decision_interval_ms = 5000;
 		c.input_delay.fps_history_samples = 30;
-		c.input_delay.formula.latency_history_samples = 200;
+		c.input_delay.formula.latency_window_ms = LatencySamplesToMs(200);
 	}
 	else
 	{
@@ -502,16 +511,8 @@ inline void ReadLegacyServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadServiceConfigValue(j, "frame_grouping_frames", c.send.frames_per_packet);
 		c.input_delay.decision_interval_ms = updateFrames * 1000 / GENERALS_ONLINE_HIGH_FPS_LIMIT;
 		c.input_delay.fps_history_samples = 10;
-		c.input_delay.formula.latency_history_samples = 10;
 	}
 
-	ReadServiceConfigValue(j, "ibra_ra_tweaks", c.ibra_ra_tweaks);
-	ReadServiceConfigValue(j, "ibra_minslack_default", c.ibra_minslack_default);
-	ReadServiceConfigValue(j, "ibra_maxslack_default", c.ibra_maxslack_default);
-	ReadServiceConfigValue(j, "ibra_minslack_greaterthan200ms", c.ibra_minslack_greaterthan200ms);
-	ReadServiceConfigValue(j, "ibra_maxslack_greaterthan200ms", c.ibra_maxslack_greaterthan200ms);
-	ReadServiceConfigValue(j, "ibra_minslack_greaterthan300ms", c.ibra_minslack_greaterthan300ms);
-	ReadServiceConfigValue(j, "ibra_maxslack_greaterthan300ms", c.ibra_maxslack_greaterthan300ms);
 
 	ReadServiceConfigValue(j, "enable_host_migration", c.lobby.host_migration);
 	ReadServiceConfigValue(j, "do_probes", c.telemetry.screenshot_probes);
@@ -529,7 +530,6 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 // Keeps values from the service inside the ranges the game can run with
 inline void ClampServiceConfig(ServiceConfig& c)
 {
-	c.connection.latency_history_ms = (std::max)(c.connection.latency_history_ms, 1000);
 	c.connection.probe_lobby_interval_ms = std::clamp(c.connection.probe_lobby_interval_ms, 50, 5000);
 	c.connection.probe_match_interval_ms = std::clamp(c.connection.probe_match_interval_ms, 50, 10000);
 	c.send.redundancy_window_ms = std::clamp(c.send.redundancy_window_ms, 0, 5000);
@@ -540,11 +540,16 @@ inline void ClampServiceConfig(ServiceConfig& c)
 		c.send.mode = "datagram"; // the old name
 	}
 
-	c.input_delay.min_frames = std::clamp(c.input_delay.min_frames, 1, 64);
+	c.input_delay.formula.decrease_after_decisions = std::clamp(c.input_delay.formula.decrease_after_decisions, 0, 20);
+	c.input_delay.catch_up_frames = std::clamp(c.input_delay.catch_up_frames, 1, 4);
+	c.input_delay.min_frames = std::clamp(c.input_delay.min_frames, 0, 30); // the start run ahead is at least 30, a higher floor would make configs disagree
 	c.input_delay.slack_percent = std::clamp(c.input_delay.slack_percent, 0, 200);
 	c.input_delay.decision_interval_ms = std::clamp(c.input_delay.decision_interval_ms, 100, 60000);
 	c.input_delay.fps_history_samples = std::clamp(c.input_delay.fps_history_samples, 1, 128);
-	c.input_delay.formula.latency_history_samples = std::clamp(c.input_delay.formula.latency_history_samples, 128, 3600); // FrameMetrics drops pending acks when the window is smaller than the frames in flight
+	if (c.input_delay.formula.latency_window_ms > 0)
+	{
+		c.input_delay.formula.latency_window_ms = std::clamp(c.input_delay.formula.latency_window_ms, LatencySamplesToMs(30) + 1, 60000);
+	}
 	c.send.frames_per_packet = std::clamp(c.send.frames_per_packet, 1, 16);
 
 	c.disconnect.freeze_before_screen_ms = std::clamp(c.disconnect.freeze_before_screen_ms, 1000, 30000);

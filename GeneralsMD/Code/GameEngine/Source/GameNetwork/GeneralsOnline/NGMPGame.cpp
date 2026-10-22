@@ -466,7 +466,7 @@ void NGMPGame::launchGame(void)
 		PopBackToLobby();
 		return;
 	}
-	TheNetwork->SeedLatencyData(pMesh->getMaximumHistoricalLatency());
+	TheNetwork->SeedLatencyData(pMesh->getMaximumProbeLatency());
 
 	// TODO_NGMP: Do we really care about these values anymore
 	TheNetwork->setLocalAddress(getLocalIP(), 8888);
