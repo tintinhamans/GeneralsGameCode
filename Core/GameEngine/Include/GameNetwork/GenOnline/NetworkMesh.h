@@ -9,6 +9,7 @@
 #include "GameNetwork/GenOnline/MeshConnectionTimeoutPolicy.h"
 #include "Lib/BaseType.h"
 #include "GameNetwork/ConnectionStats.h"
+#include "GameNetwork/GenOnline/ConnectionRating.h"
 #include "GameNetwork/GenOnline/PacketFeedback.h"
 
 class NetRoom_ChatMessagePacket;
@@ -94,7 +95,8 @@ public:
 	}
 
 	std::vector<int> m_vecLatencyHistory;
-	std::vector<float> m_vecQualityHistory;
+	float GetSustainedLossPercent(int windowMs);	///< The worse direction of the packet feedback loss from at least 3 reports, -1 if unknown.
+
 	std::string GetStats();
 
 	std::string GetConnectionType();
@@ -121,11 +123,13 @@ public:
 	bool GetOutgoingLoss(int windowMs, PacketFeedback::Summary& summary);	///< our packets to the peer, false without feedback
 	bool GetIncomingLoss(int windowMs, PacketFeedback::Summary& summary);	///< the peer's packets to us
 	int GetJitter();
-	float GetConnectionQuality();
-	int ComputeConnectionScore();
+	int ComputeConnectionRating();	///< 1..5 bars, -1 while it is not known yet; cached for 250 ms.
+	int UpdateConnectionRating();
+	int64_t m_nextRatingMs = 0;
+	int m_ratingResult = -1;
 
 	std::chrono::steady_clock::time_point m_connectedSinceTime = (std::chrono::steady_clock::time_point::min)();
-	float m_smoothedScore = -1.0f;
+	ConnectionRating::State m_rating;
 
 	// Only set for Steam connections
 	HSteamNetConnection m_hSteamConnection = k_HSteamNetConnection_Invalid;

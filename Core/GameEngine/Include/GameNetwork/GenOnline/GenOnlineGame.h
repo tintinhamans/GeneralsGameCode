@@ -91,6 +91,18 @@ public:
 	void AbortStart();
 	EStartPhase GetStartPhase() const { return m_startPhase; }
 	int64_t GetStartPhaseTime() const { return m_startPhaseTime; }
+	Int getSlotOfUser(int64_t userID) const
+	{
+		for (Int slotNum = 0; slotNum < MAX_SLOTS; ++slotNum)
+		{
+			const GenOnlineGameSlot* pSlot = (const GenOnlineGameSlot*)getConstSlot(slotNum);
+			if (pSlot != nullptr && pSlot->m_userID == userID)
+			{
+				return slotNum;
+			}
+		}
+		return -1;
+	}
 
 	bool HasCommittedOutcome() const { return m_bHasCommittedOutcome; }
 	void SetHasCommittedOutcome() { m_bHasCommittedOutcome = true; }

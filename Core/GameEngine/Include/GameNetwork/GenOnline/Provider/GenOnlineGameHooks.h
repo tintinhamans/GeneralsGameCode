@@ -55,6 +55,7 @@ public:
 	virtual Int getChatMessageLifeSeconds() override;
 	virtual Bool isStatsOverlayEnabled() override;
 	virtual void drawNetworkOverlay( DisplayString *text, Int dropColor ) override;
+	virtual void releaseNetworkOverlay() override;
 
 private:
 	GenOnlineDiscordRPC *m_discordRichPresence;

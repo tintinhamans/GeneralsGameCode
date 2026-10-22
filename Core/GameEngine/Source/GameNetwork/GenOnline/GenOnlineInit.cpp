@@ -44,7 +44,7 @@ std::mutex GenOnlineServicesManager::m_ScreenshotMutex;
 std::vector<S3ScreenshotEntry> GenOnlineServicesManager::m_vecGuardedSSData;
 
 
-bool GenOnlineServicesManager::g_bAdvancedNetworkStats;
+int GenOnlineServicesManager::g_networkOverlayMode;
 
 NetworkMesh* GenOnlineServicesManager::GetNetworkMesh()
 {

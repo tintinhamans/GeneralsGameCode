@@ -1205,6 +1205,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/DiscordRichPresence.h
     Include/GameNetwork/GenOnline/Vendor/DiscordRPC/discord_rpc.h
     Include/GameNetwork/GenOnline/NetworkBitstream.h
+    Include/GameNetwork/GenOnline/ConnectionRating.h
     Include/GameNetwork/GenOnline/NetworkMesh.h
     Include/GameNetwork/GenOnline/NetBytes.h
     Include/GameNetwork/GenOnline/PacketFeedback.h
@@ -1229,6 +1230,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/PluginApi/GenOnlinePluginApi.h
     Include/GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h
+    Include/GameNetwork/GenOnline/Provider/GenOnlineNetworkOverlay.h
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginHost.h
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginKeys.h
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginPlatform.h
@@ -1241,6 +1243,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/GenOnlineSettings.cpp
     Source/GameNetwork/GenOnline/HTTP/HTTPManager.cpp
     Source/GameNetwork/GenOnline/HTTP/HTTPRequest.cpp
+    Source/GameNetwork/GenOnline/ConnectionRating.cpp
     Source/GameNetwork/GenOnline/NetworkMesh.cpp
     Source/GameNetwork/GenOnline/PacketFeedback.cpp
     Source/GameNetwork/GenOnline/GenOnlineInit.cpp
@@ -1254,6 +1257,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/GenOnlineTransport.cpp
     Source/GameNetwork/GenOnline/NetworkBitstream.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlineGameHooks.cpp
+    Source/GameNetwork/GenOnline/Provider/GenOnlineNetworkOverlay.cpp
     Source/GameNetwork/GenOnline/AntiCheat/GenOnlineAntiCheat.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlinePluginHost.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlinePluginPlatformWin32.cpp
