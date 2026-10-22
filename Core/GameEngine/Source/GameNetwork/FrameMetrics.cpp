@@ -285,6 +285,10 @@ Real FrameMetrics::getAverageLatency() {
 	return m_averageLatency;
 }
 
+Bool FrameMetrics::isPending(UnsignedInt frame) {
+	return m_mapPendingLatenciesLookup.find(frame) != m_mapPendingLatenciesLookup.end();
+}
+
 Int FrameMetrics::getMinimumCushion() {
 	return m_minimumCushion;
 }

@@ -358,7 +358,10 @@ void ConnectionManager::init()
 	m_lastKnownRunAhead = 0;
 	m_loggedSenderUnavailable = FALSE;
 	m_securityDrops = 0;
+	m_directSendActive = FALSE;
+	m_frameAckedMasks.clear();
 	m_formerRouterMask = 0;
+	m_directSendCheckedAt = 0;
 	clearSignatureState(TRUE);
 	m_frameGroupingMs = 0;
 #endif
@@ -554,6 +557,39 @@ Bool ConnectionManager::isDuplicateCommand(NetCommandMsg *msg) {
 	return FALSE;
 }
 
+enum { ACK_PRUNE_FRAMES = 256, DIRECT_RECHECK_MS = 250 };
+
+Bool ConnectionManager::isPeerActive(Int slot) const {
+	return m_connections[slot] != nullptr && !m_connections[slot]->isQuitting();
+}
+
+// Frame infos sent directly are acked by every peer, the latency of a frame is the slowest peer's round trip.
+void ConnectionManager::onDirectFrameAck(UnsignedInt frame, Int peerSlot) {
+	if (peerSlot < 0 || peerSlot >= MAX_SLOTS || !m_frameMetrics.isPending(frame)) {
+		return;
+	}
+
+	UnsignedInt &acked = m_frameAckedMasks[frame];
+	acked |= (1u << peerSlot);
+
+	UnsignedInt expected = 0;
+	for (Int slot = 0; slot < MAX_SLOTS; ++slot) {
+		if (slot != m_localSlot && isPeerActive(slot)) {
+			expected |= (1u << slot);
+		}
+	}
+
+	if ((acked & expected) == expected) {
+		m_frameMetrics.processLatencyResponse(frame);
+		m_frameAckedMasks.erase(frame);
+	}
+
+	// frames that never completed, a peer's ack was lost for good
+	while (!m_frameAckedMasks.empty() && m_frameAckedMasks.begin()->first + ACK_PRUNE_FRAMES < frame) {
+		m_frameAckedMasks.erase(m_frameAckedMasks.begin());
+	}
+}
+
 Int ConnectionManager::slotForUserID(Int64 userID) const {
 	return (TheNGMPGame != nullptr) ? TheNGMPGame->getSlotOfUser(userID) : -1;
 }
@@ -587,6 +623,38 @@ static Int relayClass(NetCommandType type) {
 	default:
 		return 0; // votes, disconnect frames, keep alives, load complete, file transfer, ... are never passed on
 	}
+}
+
+// send.direct is on and every peer has a direct connection; commands then bypass the packet router.
+Bool ConnectionManager::isDirectSendActive() {
+	if (TheNGMPGame == nullptr || !m_networkSettings.send.direct) {
+		return FALSE;
+	}
+
+	const time_t now = timeGetTime();
+	if (m_directSendCheckedAt != 0 && (now - m_directSendCheckedAt) < DIRECT_RECHECK_MS) {
+		return m_directSendActive;
+	}
+	m_directSendCheckedAt = now;
+
+	Bool meshUp = TRUE;
+	NetworkMesh *mesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+	for (Int slot = 0; slot < MAX_SLOTS && meshUp; ++slot) {
+		if (slot == m_localSlot || !isPeerActive(slot)) {
+			continue;
+		}
+		const NGMPGameSlot *gameSlot = (const NGMPGameSlot *)TheNGMPGame->getConstSlot(slot);
+		PlayerConnection *connection = (mesh != nullptr && gameSlot != nullptr) ? mesh->GetConnectionForUser(gameSlot->m_userID) : nullptr;
+		if (connection == nullptr || connection->GetState() != EConnectionState::CONNECTED_DIRECT) {
+			meshUp = FALSE;
+		}
+	}
+
+	if (meshUp != m_directSendActive) {
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[DIRECT] commands are now sent %s", meshUp ? "directly to every peer" : "through the packet router, a peer connection is not up");
+	}
+	m_directSendActive = meshUp;
+	return m_directSendActive;
 }
 
 // Checks that a command names its sender, or that the packet router or a former one passes it on.
@@ -827,7 +895,8 @@ void ConnectionManager::signLocalFrame(NetFrameCommandMsg *frameInfo) {
 
 void ConnectionManager::signLocalChat(NetChatCommandMsg *chat) {
 	MatchKeys *keys = activeMatchKeys();
-	if (keys == nullptr || m_packetRouterSlot >= MAX_SLOTS || m_packetRouterSlot == m_localSlot || m_connections[m_packetRouterSlot] == nullptr) {
+	if (keys == nullptr || m_packetRouterSlot >= MAX_SLOTS || m_packetRouterSlot == m_localSlot || m_connections[m_packetRouterSlot] == nullptr
+		|| isDirectSendActive()) {
 		return;
 	}
 
@@ -1736,8 +1805,16 @@ void ConnectionManager::processAckStage1(NetCommandMsg *msg) {
 	}
 
 	if (ref != nullptr) {
-		if (ref->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) {
-			m_frameMetrics.processLatencyResponse(((NetFrameCommandMsg *)(ref->getCommand()))->getExecutionFrame());
+		if (ref->getCommand()->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO || ref->getCommand()->getNetCommandType() == NETCOMMANDTYPE_SIGNEDFRAMEINFO) {
+			const UnsignedInt ackedFrame = ref->getCommand()->getExecutionFrame();
+#if defined(GENERALS_ONLINE)
+			if (isDirectSendActive()) {
+				onDirectFrameAck(ackedFrame, (Int)playerID);
+			} else
+#endif
+			{
+				m_frameMetrics.processLatencyResponse(ackedFrame);
+			}
 		}
 
 		deleteInstance(ref);
@@ -1950,7 +2027,16 @@ void ConnectionManager::ackCommand(NetCommandRef *ref, UnsignedInt localSlot) {
 
 	ackmsg->setPlayerID(localSlot); // Tell the player who this ack is coming from.
 
-	if (CommandRequiresDirectSend(msg) && CommandRequiresAck(msg)) {
+	// A command that came straight from its author and needs no relaying is acked straight back to it, one the router
+	// passed on is acked to the router. The arrival decides, not our own direct send mode: peers can be in different modes.
+	Bool ackDirectly = CommandRequiresDirectSend(msg) && CommandRequiresAck(msg);
+#if defined(GENERALS_ONLINE) && !RETAIL_COMPATIBLE_NETWORKING
+	if (!ackDirectly && sendRelay == 0 && msg->getPlayerID() < MAX_SLOTS && m_connections[msg->getPlayerID()] != nullptr) {
+		// an unknown sender (anticheat transport) falls back to our own mode
+		ackDirectly = (m_currentSenderSlot >= 0) ? (m_currentSenderSlot == (Int)msg->getPlayerID()) : isDirectSendActive();
+	}
+#endif
+	if (ackDirectly) {
 		// Send this ack directly back to the sending player, don't go through the packet router.
 		if (msg->getPlayerID() < MAX_SLOTS) {
 			if (m_connections[msg->getPlayerID()] != nullptr) {
@@ -2592,8 +2678,13 @@ void ConnectionManager::sendLocalCommand(NetCommandMsg *msg, UnsignedByte relay 
 	}
 
 	// Send the packet to everyone else
-	if (m_localSlot == m_packetRouterSlot) {
-		// I am the packet router, I need to send this packet to everyone individually.
+#if defined(GENERALS_ONLINE)
+	const Bool sendToAll = isDirectSendActive() || (m_localSlot == m_packetRouterSlot);
+#else
+	const Bool sendToAll = (m_localSlot == m_packetRouterSlot);
+#endif
+	if (sendToAll) {
+		// I am the packet router or sending directly, I need to send this packet to everyone individually.
 		for (Int i = 0; i < MAX_SLOTS; ++i) {
 			// Send it to all open connections.
 			if (((m_connections[i] != nullptr) && (m_connections[i]->isQuitting() == FALSE)) && (relay & (1 << i))) {

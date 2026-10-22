@@ -433,6 +433,7 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 	{
 		const nlohmann::json& s = j["send"];
 		ReadServiceConfigValue(s, "mode", c.send.mode);
+		ReadServiceConfigValue(s, "direct", c.send.direct);
 		ReadServiceConfigValue(s, "frames_per_packet", c.send.frames_per_packet);
 		ReadServiceConfigValue(s, "frames_per_packet_lossy", c.send.frames_per_packet_lossy);
 		ReadServiceConfigValue(s, "flush_every_frame", c.send.flush_every_frame);
