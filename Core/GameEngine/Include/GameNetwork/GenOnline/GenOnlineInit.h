@@ -2,6 +2,7 @@
 
 #include "GameNetwork/NetworkSettings.h"
 #include "GenOnlineInclude.h"
+#include "MeshConnectionTimeoutPolicy.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -337,6 +338,7 @@ struct ServiceConfig
 		int ice_engine = 2;             // 0 library default, 1 native, 2 WebRTC, or the name
 		bool use_mapped_port = true;
 		bool retry_signalling = true;
+		int reconnect_timeout_ms = MeshConnectionTimeoutPolicy::ReconnectTimeoutMs; // first negotiation keeps 10 s
 		bool anticheat_transport = false; // game traffic through the anticheat plugin's transport
 		int latency_history_ms = 20000;
 	} connection;
@@ -428,6 +430,7 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadIceEngine(s, c.connection.ice_engine);
 		ReadServiceConfigValue(s, "use_mapped_port", c.connection.use_mapped_port);
 		ReadServiceConfigValue(s, "retry_signalling", c.connection.retry_signalling);
+		ReadServiceConfigValue(s, "reconnect_timeout_ms", c.connection.reconnect_timeout_ms);
 		ReadServiceConfigValue(s, "anticheat_transport", c.connection.anticheat_transport);
 		ReadServiceConfigValue(s, "latency_history_ms", c.connection.latency_history_ms);
 	}
@@ -471,6 +474,7 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 inline void ClampServiceConfig(ServiceConfig& c)
 {
 	c.connection.latency_history_ms = std::clamp(c.connection.latency_history_ms, 1000, 120000);
+	c.connection.reconnect_timeout_ms = MeshConnectionTimeoutPolicy::ClampReconnectTimeout(c.connection.reconnect_timeout_ms);
 
 	c.input_delay.min_frames = std::clamp(c.input_delay.min_frames, 1, 64);
 	c.input_delay.slack_percent = std::clamp(c.input_delay.slack_percent, 0, 200);

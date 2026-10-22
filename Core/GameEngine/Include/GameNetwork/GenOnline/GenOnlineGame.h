@@ -65,6 +65,8 @@ private:
 	Int m_reportedNumObservers;
 
 	bool m_bHasCommittedOutcome = false;
+	uint64_t m_startAttempt = 0;
+	bool m_bStartRequested = false;
 	
 	std::chrono::system_clock::time_point matchStartTime;
 
@@ -79,6 +81,12 @@ public:
 	virtual ~GenOnlineGame();
 	virtual void reset(void);
 
+	uint64_t BeginStartAttempt() { return ++m_startAttempt; }
+	uint64_t GetStartAttempt() const { return m_startAttempt; }
+
+	// Set from the StartGame request until the start packet so the host cannot start twice.
+	void SetStartRequested(bool requested) { m_bStartRequested = requested; }
+	bool IsStartRequested() const { return m_bStartRequested; }
 	bool HasCommittedOutcome() const { return m_bHasCommittedOutcome; }
 	void SetHasCommittedOutcome() { m_bHasCommittedOutcome = true; }
 
@@ -87,6 +95,8 @@ public:
 
 	void StopCountdown()
 	{
+		++m_startAttempt;
+		m_bStartRequested = false;
 		m_bCountdownStarted = false;
 		m_countdownStartTime = -1;
 		m_countdownLastCheckTime = -1;
