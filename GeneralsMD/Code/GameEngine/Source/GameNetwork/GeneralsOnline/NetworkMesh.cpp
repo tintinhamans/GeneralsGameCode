@@ -1475,13 +1475,13 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
     if (totalDataSize == 0)
     {
         NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send empty game packet to user %lld", m_userID);
-        return (int)k_EResultFail;
+        return -(int)k_EResultFail;
     }
 
     if (pBuffer == nullptr)
     {
         NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet with null buffer to user %lld", m_userID);
-        return (int)k_EResultFail;
+        return -(int)k_EResultFail;
     }
 
 	if (AnticheatPlugInterface::DoesACPluginProvideSecureGameTransport())
@@ -1494,21 +1494,28 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 		if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
-			return (int)k_EResultFail;
+			return -(int)k_EResultFail;
 		}
 
+		ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+
+		// datagram mode leaves loss repair to the game layer; the restart flag only applies to ISteamNetworkingMessages
 		int sendFlags = k_nSteamNetworkingSend_Reliable | k_nSteamNetworkingSend_AutoRestartBrokenSession; // default from last patch
+		if (serviceConf.send.IsDatagram())
+		{
+			sendFlags = k_nSteamNetworkingSend_UnreliableNoNagle;
+		}
 
 		NetworkLog(ELogVerbosity::LOG_DEBUG, "[GAME PACKET] Sending msg of size %ld to user %lld\n", totalDataSize, m_userID);
 		const int r = SendEnveloped(ENetworkChannel::NETWORK_CHANNEL_GAME, static_cast<const uint8_t*>(pBuffer), totalDataSize, sendFlags);
 		if (r != k_EResultOK)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Failed to send, err code was %d", r);
-			return r;
+			return -r;
 		}
 	}
 
-	return (int)k_EResultFail;
+	return 0;
 
 }
 
