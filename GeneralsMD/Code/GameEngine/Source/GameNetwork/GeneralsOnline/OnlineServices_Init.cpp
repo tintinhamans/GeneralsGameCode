@@ -10,6 +10,7 @@
 #include <ws2tcpip.h>
 #include "GameClient/DisplayStringManager.h"
 #include "GameNetwork/NetworkInterface.h"
+#include "GameNetwork/ConnectionManager.h"
 #include "Common/MultiplayerSettings.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameClient/Display.h"
@@ -109,6 +110,12 @@ void NGMP_OnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType scree
 		if (serviceConf.telemetry.screenshot_probes)
 		{
 			CHECK_MAIN_THREAD;
+
+			// the capture stalls every client at the same time, the run ahead controller must not read that as the network
+			if (TheNetwork != nullptr && TheNetwork->GetConnectionManager() != nullptr)
+			{
+				TheNetwork->GetConnectionManager()->noteScreenshotCapture();
+			}
 
 			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
 			if (pLobbyInterface != nullptr)

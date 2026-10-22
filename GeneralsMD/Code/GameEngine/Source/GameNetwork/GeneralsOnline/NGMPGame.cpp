@@ -466,7 +466,8 @@ void NGMPGame::launchGame(void)
 		PopBackToLobby();
 		return;
 	}
-	TheNetwork->SeedLatencyData(pMesh->getMaximumProbeLatency());
+	// One spike or lossy spell must not start the match at a huge run ahead.
+	TheNetwork->SeedLatencyData(pMesh->getSeedProbeLatency());
 
 	// TODO_NGMP: Do we really care about these values anymore
 	TheNetwork->setLocalAddress(getLocalIP(), 8888);
@@ -474,6 +475,12 @@ void NGMPGame::launchGame(void)
 	TheNetwork->initTransport();
 
 	TheNetwork->parseUserList(this);
+
+	if (pMesh != nullptr && TheNetwork->GetConnectionManager() != nullptr)
+	{
+		// the run ahead of frame 1, decided by the packet router from the lobby round trips
+		pMesh->BeginStartRunAhead((int)TheNetwork->GetConnectionManager()->getPacketRouterSlot());
+	}
 
 	if (TheGameLogic->isInGame()) {
 		TheGameLogic->clearGameData();
