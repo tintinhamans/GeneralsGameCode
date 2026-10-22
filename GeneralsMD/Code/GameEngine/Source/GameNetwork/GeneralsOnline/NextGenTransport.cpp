@@ -399,6 +399,12 @@ Bool NextGenTransport::doRecv(void)
                         msg->Release();
                         continue;
                     }
+                    else if (netChannel == ENetworkChannel::NETWORK_CHANNEL_KEYS)
+                    {
+                        kvPair.second.HandleKeyMessage(reinterpret_cast<const uint8_t*>(vecPacketDataWithoutHeader.data()), vecPacketDataWithoutHeader.size());
+                        msg->Release();
+                        continue;
+                    }
                     else if (netChannel == ENetworkChannel::NETWORK_CHANNEL_PING)
                     {
                         kvPair.second.HandleProbe(reinterpret_cast<const uint8_t*>(vecPacketDataWithoutHeader.data()), vecPacketDataWithoutHeader.size(), PlayerConnection::GetArrivalMs(msg));
@@ -547,6 +553,10 @@ Bool NextGenTransport::doRecv(void)
 
                             // Clear slot
                             std::memset(&m_inBuffer[i], 0, sizeof(m_inBuffer[i]));
+
+                            // the connection the packet arrived on says which user sent it
+                            m_inBuffer[i].senderKnown = true;
+                            m_inBuffer[i].senderUserID = static_cast<Int64>(kvPair.second.m_userID);
 
                             // Copy header
                             m_inBuffer[i].header = incomingMessage.header;

@@ -133,6 +133,10 @@ struct TransportMessage
 	Int length;
 	UnsignedInt addr;
 	UnsignedShort port;
+#if defined(GENERALS_ONLINE)
+	Bool senderKnown;		///< The transport knows which user this packet came from, set by the receiving side only.
+	Int64 senderUserID;
+#endif
 };
 #pragma pack(pop)
 
@@ -192,6 +196,9 @@ enum NetCommandType CPP_11(: Int) {
 	NETCOMMANDTYPE_DISCONNECTFRAME,
 	NETCOMMANDTYPE_DISCONNECTSCREENOFF,
 	NETCOMMANDTYPE_DISCONNECTEND,
+
+	NETCOMMANDTYPE_SIGNEDFRAMEINFO = 32,			// A frame info with its author's signature, only on the wire.
+	NETCOMMANDTYPE_SIGNATURES,						// Signatures of an author sent apart from its frames: for its chat.
 };
 
 enum NetLocalStatus CPP_11(: Int) {

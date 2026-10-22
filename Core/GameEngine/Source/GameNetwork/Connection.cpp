@@ -157,6 +157,16 @@ void Connection::sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay) {
 	if (m_isQuitting)
 		return;
 
+#if defined(GENERALS_ONLINE)
+	// a signed frame info goes out in its signed form
+	if (msg->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO && ((NetFrameCommandMsg *)msg)->hasSignature()) {
+		NetSignedFrameCommandMsg *signedMsg = newInstance(NetSignedFrameCommandMsg)((NetFrameCommandMsg *)msg);
+		sendNetCommandMsg(signedMsg, relay);
+		signedMsg->detach();
+		return;
+	}
+#endif
+
 	if (m_netCommandList != nullptr) {
 		// check to see if this command will fit in a packet.  If not, we need to split it up.
 		// we are splitting up the command here so that the retry logic will not try to
