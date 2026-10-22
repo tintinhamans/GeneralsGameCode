@@ -738,6 +738,10 @@ void GenOnlineLobbyInterface::Tick()
 					if (!TheGenOnlineGame->HasCommittedOutcome())
 					{
 						TheGenOnlineGame->SetHasCommittedOutcome();
+						if (m_pLobbyMesh != nullptr)
+						{
+							m_pLobbyMesh->EndMatchKeys();
+						}
 						pStatsInterface->CommitMyOutcome(localPlayer->getScoreKeeper(), TheVictoryConditions->isLocalAlliedVictory());
 					}
 				}

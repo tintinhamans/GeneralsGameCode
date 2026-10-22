@@ -1206,6 +1206,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/Vendor/DiscordRPC/discord_rpc.h
     Include/GameNetwork/GenOnline/NetworkBitstream.h
     Include/GameNetwork/GenOnline/ConnectionRating.h
+    Include/GameNetwork/GenOnline/MatchKeys.h
     Include/GameNetwork/GenOnline/NetworkMesh.h
     Include/GameNetwork/GenOnline/NetBytes.h
     Include/GameNetwork/GenOnline/PacketFeedback.h
@@ -1244,6 +1245,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/HTTP/HTTPManager.cpp
     Source/GameNetwork/GenOnline/HTTP/HTTPRequest.cpp
     Source/GameNetwork/GenOnline/ConnectionRating.cpp
+    Source/GameNetwork/GenOnline/MatchKeys.cpp
     Source/GameNetwork/GenOnline/NetworkMesh.cpp
     Source/GameNetwork/GenOnline/PacketFeedback.cpp
     Source/GameNetwork/GenOnline/GenOnlineInit.cpp
