@@ -3,6 +3,7 @@
 #include "../json.hpp"
 #include "../OnlineServices_LobbyInterface.h"
 #include "../OnlineServices_Init.h"
+#include <algorithm>
 #include "GameNetwork/GeneralsOnline/CredentialStore.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_Auth.h"
 
@@ -37,6 +38,7 @@
 #define SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT "use_alternative_endpoint"
 #define SETTINGS_KEY_NETWORK_SERVER "server"
 #define SETTINGS_KEY_NETWORK_SERVER_MODE "mode"
+#define SETTINGS_KEY_NETWORK_SERVER_ADDRESS "address"
 #define SETTINGS_KEY_NETWORK_PROXY "proxy"
 #define SETTINGS_KEY_NETWORK_PROXY_MODE "mode"
 #define SETTINGS_KEY_NETWORK_PROXY_ADDRESS "address"
@@ -320,64 +322,124 @@ void GenOnlineSettings::Load(void)
 				}
 			}
 
-            if (jsonSettings.contains(SETTINGS_KEY_NETWORK) && jsonSettings[SETTINGS_KEY_NETWORK].is_object())
+            if (jsonSettings.contains(SETTINGS_KEY_NETWORK))
             {
-                const auto& networkSettings = jsonSettings[SETTINGS_KEY_NETWORK];
+                // Any network value that is unknown, malformed or of the wrong type goes back to its default and is logged, one line per field.
+                // The load ends with a save, so the file never keeps the invalid value. Addresses can hold a secret, so their old value is not logged.
+                auto resetField = [](const std::string& path, const nlohmann::json& old, bool secret)
+                {
+                    const std::string oldText = secret ? std::string("hidden") : old.is_string() ? old.get<std::string>().substr(0, 64) : std::string(old.type_name());
+                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] %s is not valid (%s), reset to its default", path.c_str(), oldText.c_str());
+                };
+                auto choice = [&](const nlohmann::json& section, const std::string& path, const char* key, std::string& value, std::initializer_list<const char*> allowed)
+                {
+                    if (!section.contains(key))
+                    {
+                        return;
+                    }
+                    const auto& found = section[key];
+                    if (found.is_string() && std::find_if(allowed.begin(), allowed.end(), [&](const char* name) { return found.get<std::string>() == name; }) != allowed.end())
+                    {
+                        value = found.get<std::string>();
+                        return;
+                    }
+                    resetField(path + "." + key, found, false);
+                };
+                // a section that is present but not an object goes back to its defaults
+                auto section = [&](const nlohmann::json& parent, const std::string& path, const char* key) -> const nlohmann::json*
+                {
+                    if (!parent.contains(key))
+                    {
+                        return nullptr;
+                    }
+                    if (!parent[key].is_object())
+                    {
+                        resetField(path + "." + key, parent[key], false);
+                        return nullptr;
+                    }
+                    return &parent[key];
+                };
 
-                if (networkSettings.contains(SETTINGS_KEY_NETWORK_SERVER) && networkSettings[SETTINGS_KEY_NETWORK_SERVER].is_object())
+                if (!jsonSettings[SETTINGS_KEY_NETWORK].is_object())
                 {
-                    const auto& serverSettings = networkSettings[SETTINGS_KEY_NETWORK_SERVER];
-                    if (serverSettings.contains(SETTINGS_KEY_NETWORK_SERVER_MODE) && serverSettings[SETTINGS_KEY_NETWORK_SERVER_MODE].is_string())
-                    {
-                        m_ConnectionSettings.serverMode = serverSettings[SETTINGS_KEY_NETWORK_SERVER_MODE].get<std::string>();
-                    }
+                    resetField(SETTINGS_KEY_NETWORK, jsonSettings[SETTINGS_KEY_NETWORK], false);
                 }
-                if (m_ConnectionSettings.serverMode != "automatic")
+                else
                 {
-                    m_ConnectionSettings.serverMode = "automatic";
-                }
+                    const auto& networkSettings = jsonSettings[SETTINGS_KEY_NETWORK];
 
-                if (networkSettings.contains(SETTINGS_KEY_NETWORK_PROXY) && networkSettings[SETTINGS_KEY_NETWORK_PROXY].is_object())
-                {
-                    const auto& proxySettings = networkSettings[SETTINGS_KEY_NETWORK_PROXY];
-                    if (proxySettings.contains(SETTINGS_KEY_NETWORK_PROXY_MODE) && proxySettings[SETTINGS_KEY_NETWORK_PROXY_MODE].is_string())
+                    if (const auto* serverSettings = section(networkSettings, SETTINGS_KEY_NETWORK, SETTINGS_KEY_NETWORK_SERVER))
                     {
-                        m_ConnectionSettings.proxyMode = proxySettings[SETTINGS_KEY_NETWORK_PROXY_MODE].get<std::string>();
+                        const std::string path = std::string(SETTINGS_KEY_NETWORK) + "." + SETTINGS_KEY_NETWORK_SERVER;
+                        choice(*serverSettings, path, SETTINGS_KEY_NETWORK_SERVER_MODE, m_ConnectionSettings.serverMode, { "automatic", "custom" });
+                        if (serverSettings->contains(SETTINGS_KEY_NETWORK_SERVER_ADDRESS))
+                        {
+                            const auto& found = (*serverSettings)[SETTINGS_KEY_NETWORK_SERVER_ADDRESS];
+                            std::string endpointError;
+                            if (found.is_string() && (found.get<std::string>().empty() ||
+                                ServiceConnection::NormalizeCustomEndpoint(found.get<std::string>(), m_ConnectionSettings.serverAddress, endpointError)))
+                            {
+                                // an empty address stays empty
+                            }
+                            else
+                            {
+                                resetField(path + "." + SETTINGS_KEY_NETWORK_SERVER_ADDRESS, found, true);
+                                m_ConnectionSettings.serverAddress.clear();
+                            }
+                        }
                     }
-                    if (proxySettings.contains(SETTINGS_KEY_NETWORK_PROXY_ADDRESS) && proxySettings[SETTINGS_KEY_NETWORK_PROXY_ADDRESS].is_string())
-                    {
-                        m_ConnectionSettings.proxyURL = proxySettings[SETTINGS_KEY_NETWORK_PROXY_ADDRESS].get<std::string>();
-                    }
-                    if (proxySettings.contains(SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN) && proxySettings[SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN].is_boolean())
-                    {
-                        m_ConnectionSettings.windowsLogin = proxySettings[SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN].get<bool>();
-                    }
-                }
-                if (m_ConnectionSettings.proxyMode != "automatic" && m_ConnectionSettings.proxyMode != "disabled" && m_ConnectionSettings.proxyMode != "custom")
-                {
-                    m_ConnectionSettings.proxyMode = "automatic";
-                }
-                // an invalid custom proxy stays custom with no address, so it can never silently escape to direct
-                std::string proxyError;
-                if (!m_ConnectionSettings.proxyURL.empty() && !ServiceConnection::ValidateProxyURL(m_ConnectionSettings.proxyURL, proxyError))
-                {
-                    m_ConnectionSettings.proxyURL.clear();
-                }
 
-                if (networkSettings.contains(SETTINGS_KEY_NETWORK_LAST_ROUTE) && networkSettings[SETTINGS_KEY_NETWORK_LAST_ROUTE].is_string())
-                {
-                    m_LastRoute = networkSettings[SETTINGS_KEY_NETWORK_LAST_ROUTE].get<std::string>();
-                }
-                else if (networkSettings.contains(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT) &&
-                    networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].is_boolean() &&
-                    networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].get<bool>())
-                {
-                    // the old switch from the released client now only prefers that route
-                    m_LastRoute = LEGACY_ALTERNATIVE_ROUTE_HOST;
-                }
-                if (m_LastRoute.size() > 253 || m_LastRoute.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-") != std::string::npos)
-                {
-                    m_LastRoute.clear();
+                    if (const auto* proxySettings = section(networkSettings, SETTINGS_KEY_NETWORK, SETTINGS_KEY_NETWORK_PROXY))
+                    {
+                        const std::string path = std::string(SETTINGS_KEY_NETWORK) + "." + SETTINGS_KEY_NETWORK_PROXY;
+                        choice(*proxySettings, path, SETTINGS_KEY_NETWORK_PROXY_MODE, m_ConnectionSettings.proxyMode, { "automatic", "disabled", "custom" });
+                        if (proxySettings->contains(SETTINGS_KEY_NETWORK_PROXY_ADDRESS))
+                        {
+                            const auto& found = (*proxySettings)[SETTINGS_KEY_NETWORK_PROXY_ADDRESS];
+                            std::string proxyError;
+                            if (found.is_string() && (found.get<std::string>().empty() || ServiceConnection::ValidateProxyURL(found.get<std::string>(), proxyError)))
+                            {
+                                m_ConnectionSettings.proxyURL = found.get<std::string>();
+                            }
+                            else
+                            {
+                                resetField(path + "." + SETTINGS_KEY_NETWORK_PROXY_ADDRESS, found, true);
+                            }
+                        }
+                        if (proxySettings->contains(SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN))
+                        {
+                            const auto& found = (*proxySettings)[SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN];
+                            if (found.is_boolean())
+                            {
+                                m_ConnectionSettings.windowsLogin = found.get<bool>();
+                            }
+                            else
+                            {
+                                resetField(path + "." + SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN, found, false);
+                            }
+                        }
+                    }
+
+                    if (networkSettings.contains(SETTINGS_KEY_NETWORK_LAST_ROUTE))
+                    {
+                        const auto& found = networkSettings[SETTINGS_KEY_NETWORK_LAST_ROUTE];
+                        if (found.is_string() && found.get<std::string>().size() <= 253 &&
+                            found.get<std::string>().find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-") == std::string::npos)
+                        {
+                            m_LastRoute = found.get<std::string>();
+                        }
+                        else
+                        {
+                            resetField(std::string(SETTINGS_KEY_NETWORK) + "." + SETTINGS_KEY_NETWORK_LAST_ROUTE, found, false);
+                        }
+                    }
+                    else if (networkSettings.contains(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT) &&
+                        networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].is_boolean() &&
+                        networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].get<bool>())
+                    {
+                        // the old switch of the released client now only prefers that route
+                        m_LastRoute = LEGACY_ALTERNATIVE_ROUTE_HOST;
+                    }
                 }
             }
 
@@ -560,7 +622,9 @@ bool GenOnlineSettings::Save()
         {
             SETTINGS_KEY_NETWORK,
                 {
-                    {SETTINGS_KEY_NETWORK_SERVER, {{SETTINGS_KEY_NETWORK_SERVER_MODE, m_ConnectionSettings.serverMode}}},
+                    {SETTINGS_KEY_NETWORK_SERVER, {
+                        {SETTINGS_KEY_NETWORK_SERVER_MODE, m_ConnectionSettings.serverMode},
+                        {SETTINGS_KEY_NETWORK_SERVER_ADDRESS, m_ConnectionSettings.serverAddress}}},
                     {SETTINGS_KEY_NETWORK_PROXY, {
                         {SETTINGS_KEY_NETWORK_PROXY_MODE, m_ConnectionSettings.proxyMode},
                         {SETTINGS_KEY_NETWORK_PROXY_ADDRESS, m_ConnectionSettings.proxyURL},
@@ -650,14 +714,26 @@ bool GenOnlineSettings::Save()
 	return bSaved;
 }
 
-bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSettings& settings, std::string& error)
+bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSettings& requested, std::string& error)
 {
 	error.clear();
-	if (settings.serverMode != "automatic" ||
+	ServiceConnectionSettings settings = requested;
+	if ((settings.serverMode != "automatic" && settings.serverMode != "custom") ||
 		(settings.proxyMode != "automatic" && settings.proxyMode != "disabled" && settings.proxyMode != "custom"))
 	{
 		error = "Choose a valid service and proxy mode.";
 		return false;
+	}
+	if (settings.serverMode == "custom")
+	{
+		if (!ServiceConnection::NormalizeCustomEndpoint(settings.serverAddress, settings.serverAddress, error))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		settings.serverAddress.clear();
 	}
 	if ((settings.proxyMode == "custom" || !settings.proxyURL.empty()) && !ServiceConnection::ValidateProxyURL(settings.proxyURL, error))
 	{
@@ -673,8 +749,10 @@ bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSe
 	if (Save())
 	{
 		// a changed proxy starts without anything typed for the old one
-		if (settings.proxyMode == "custom" && (previous.proxyMode != "custom" || previous.proxyURL != settings.proxyURL))
-			ServiceConnection::ClearSessionProxyCredentialsExcept(settings.proxyURL);
+		const std::string previousProxy = previous.proxyMode == "custom" ? ServiceConnection::CanonicalProxyKey(previous.proxyURL) : std::string();
+		const std::string proxy = settings.proxyMode == "custom" ? ServiceConnection::CanonicalProxyKey(settings.proxyURL) : std::string();
+		if (previousProxy != proxy)
+			ServiceConnection::ClearSessionProxyCredentialsExcept(proxy);
 		ServiceConnection::InvalidateProxyPolicyCache();
 		return true;
 	}

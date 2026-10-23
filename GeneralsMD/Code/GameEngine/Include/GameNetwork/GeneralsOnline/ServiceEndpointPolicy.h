@@ -5,8 +5,10 @@
 
 struct ServiceConnectionSettings
 {
-	// "automatic" picks a working route
+	// "automatic" picks a working route, "custom" uses only serverAddress
 	std::string serverMode = "automatic";
+	// https origin of the custom server, empty unless serverMode is custom
+	std::string serverAddress;
 	// "automatic" follows the Windows proxy settings, "disabled" connects directly, "custom" uses proxyURL
 	std::string proxyMode = "automatic";
 	std::string proxyURL;
@@ -16,6 +18,10 @@ struct ServiceConnectionSettings
 
 namespace ServiceConnection
 {
+// host[:port] or https://host[:port] to its origin (https, lower case host, default port dropped); false with a reason for anything else
+bool NormalizeCustomEndpoint(const std::string& typed, std::string& origin, std::string& error);
+// The key the login token is stored under: one for every GO route, one per custom origin, empty when a custom server has no valid address
+std::string CredentialServerKey(const ServiceConnectionSettings& settings);
 // remembered is the host of the route that worked last, ignored unless it is one of the automatic routes
 std::vector<std::string> BootstrapRoutes(const std::string& environment,
     const ServiceConnectionSettings& settings, const std::string& remembered);
