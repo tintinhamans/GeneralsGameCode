@@ -54,6 +54,9 @@
 #include "Common/FileSystem.h"
 #include "Common/GameMemory.h"
 #include "Common/NameKeyGenerator.h"
+#include "Common/GlobalData.h"
+#include <algorithm>
+#include <string>
 #include "Common/FunctionLexicon.h"
 #include "GameClient/Display.h"
 #include "GameClient/WindowLayout.h"
@@ -2727,14 +2730,18 @@ GameWindow *GameWindowManager::winCreateFromScript( AsciiString filenameString,
 		strlcpy(filepath, filename, ARRAY_SIZE(filepath));
 
 #if defined(GENERALS_ONLINE)
-	// check Generals Online first
-	char gofilepath[_MAX_PATH] = "GeneralsOnlineGameData\\";
-	if (strchr(filename, '\\') == NULL)
-		sprintf(gofilepath, "GeneralsOnlineGameData\\%s", filename);
-	else
-		strcpy(gofilepath, filename);
+	// Interim: loose layouts under <user data>\GeneralsOnlineGameData\Window\ win over the archives until the data layer replaces this
+	std::string gofilepath;
+	if (strchr(filename, ':') == nullptr)
+	{
+		std::string relative = filename;
+		std::replace(relative.begin(), relative.end(), '/', '\\');
+		if (_strnicmp(relative.c_str(), "Window\\", 7) != 0)
+			relative = "Window\\" + relative;
+		gofilepath = std::string(TheGlobalData->getPath_UserData().str()) + "GeneralsOnlineGameData\\" + relative;
+	}
 
-	inFile = TheFileSystem->openFile(gofilepath, File::READ);
+	inFile = gofilepath.empty() ? nullptr : TheFileSystem->openFile(gofilepath.c_str(), File::READ);
 	if (inFile == NULL)
 	{
 		// fall back to game archive
