@@ -25,6 +25,8 @@ struct ResolvedProxyPolicy
 	unsigned long nativeError = 0;
 	std::string failurePhase;
 	std::string fallbackReason;
+	// what the policy comes from, for display: a host:port, "PAC: <url>", "Auto-detect" or "Direct"
+	std::string source;
 };
 
 struct ProxyResolution
