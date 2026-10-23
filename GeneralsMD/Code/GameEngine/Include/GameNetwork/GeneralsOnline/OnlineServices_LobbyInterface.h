@@ -25,12 +25,19 @@ struct LobbyMemberEntry : public NetworkMemberBase
 	int startpos = -1;
 	bool has_map = false;
 
-	uint16_t m_SlotIndex = 999999;
+	// marks a member the service sent without a usable slot
+	static constexpr uint16_t NO_SLOT_INDEX = UINT16_MAX;
+	uint16_t m_SlotIndex = NO_SLOT_INDEX;
 	uint16_t m_SlotState = SlotState::SLOT_OPEN;
 
 	std::string region;
 	std::string middlewareUserID;
 	int latency = 0;
+
+	bool HasValidSlot() const
+	{
+		return m_SlotIndex < MAX_SLOTS;
+	}
 
 	bool IsHuman() const
 	{
@@ -383,6 +390,10 @@ private:
 public:
 
 	void UpdateRoomDataCache(std::function<void(bool)> fnCallback = nullptr);
+
+	// re-fetches the lobby when the roster could not be trusted, throttled
+	void RequestRosterRefresh();
+	int64_t m_lastRosterRefreshRequestMs = 0;
 
 	std::function<void(LobbyMemberEntry)> m_cbPlayerDoesntHaveMap = nullptr;
 	void RegisterForPlayerDoesntHaveMapCallback(std::function<void(LobbyMemberEntry)> cb)
