@@ -687,6 +687,17 @@ void Mouse::update()
 }
 
 //-------------------------------------------------------------------------------------------------
+/** Release all buttons without an event, so no click or drag is created for a release the OS ate */
+//-------------------------------------------------------------------------------------------------
+void Mouse::resetButtons()
+{
+	m_currMouse.leftState = m_currMouse.middleState = m_currMouse.rightState = MBS_Up;
+	m_currMouse.leftEvent = m_currMouse.middleEvent = m_currMouse.rightEvent = MOUSE_EVENT_NONE;
+	m_prevMouse.leftState = m_prevMouse.middleState = m_prevMouse.rightState = MBS_Up;
+	m_prevMouse.leftEvent = m_prevMouse.middleEvent = m_prevMouse.rightEvent = MOUSE_EVENT_NONE;
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Given the current state of this input device, turn the raw input
 	* data into raw stream messages and place those messages on the stream.
 	* NOTE that the click messages replace up messages in the mouse, so we
