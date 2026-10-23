@@ -418,6 +418,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 			return 0;
 
 			//-------------------------------------------------------------------------
+		case WM_ENTERSIZEMOVE:
+		{
+			if (TheMouse)
+				TheMouse->onWindowMoveSizeBegin();
+
+			break;
+		}
+
+		//-------------------------------------------------------------------------
+		case WM_EXITSIZEMOVE:
+		{
+			if (TheMouse)
+				TheMouse->onWindowMoveSizeEnd();
+
+			break;
+		}
+
+		//-------------------------------------------------------------------------
 		case WM_MOVE:
 		{
 			if (TheMouse)
@@ -608,6 +626,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 		//-------------------------------------------------------------------------
 		case WM_SETCURSOR:
 		{
+			// the title bar and borders keep the system cursor, also while the window is moved
+			if (LOWORD(lParam) != HTCLIENT)
+				break;
+
 			if (TheWin32Mouse && (HWND)wParam == ApplicationHWnd)
 				TheWin32Mouse->setCursor(TheWin32Mouse->getMouseCursor());
 			return TRUE;	//tell Windows not to reset mouse cursor image to default.
