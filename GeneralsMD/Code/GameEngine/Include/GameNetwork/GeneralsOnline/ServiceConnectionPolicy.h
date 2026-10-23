@@ -43,6 +43,31 @@ bool ConfigureCurl(CURL* curl, const std::string& destinationURL, const ProxyRou
 bool SaveProxyCredentials(const std::string& proxyURL, const std::string& username,
 	const std::string& password, std::string& error);
 bool DeleteProxyCredentials(const std::string& proxyURL, std::string& error);
+bool HasProxyCredentials(const std::string& proxyURL);
+// Sign-in kept in memory for this session only; never written to disk
+void SetSessionProxyCredentials(const std::string& proxyURL, const std::string& username, const std::string& password);
+void ClearSessionProxyCredentials(const std::string& proxyURL);
+// Sign-ins are bound to one proxy: nothing typed for another proxy is ever offered to this one
+void ClearSessionProxyCredentialsExcept(const std::string& keepProxyURL);
+// The key a proxy's sign-in is stored under: scheme://host:port in lower case with the default port filled in, empty for an invalid address
+std::string CanonicalProxyKey(const std::string& proxyURL);
+// User name of the session or saved sign-in, empty when there is none
+std::string ProxyUsername(const std::string& proxyURL);
+// host:port of a proxy address for display
+std::string ProxyDisplayName(const std::string& proxyURL);
+
+struct ConnectionTestResult
+{
+	enum class Outcome { Connected, ProxyAuthRequired, ServiceRejected, Unreachable, Failed };
+	Outcome outcome = Outcome::Failed;
+	std::string route;
+	std::string proxyURL;
+	std::string detail;
+	bool proxyAnswered = false;
+};
+// Worker-only: probes the anonymous VersionManifest request with the given settings
+ConnectionTestResult TestServiceConnection(const ServiceConnectionSettings& settings, const std::string& environment, int maxSeconds = 15);
+std::string DescribeConnectionTest(const ConnectionTestResult& result);
 const char* ProtocolName(long version);
 const char* FailurePhase(CURLcode code, long status, long proxyStatus);
 }

@@ -2,6 +2,8 @@
 #include "../json.hpp"
 #include "../OnlineServices_LobbyInterface.h"
 #include "../OnlineServices_Init.h"
+#include "GameNetwork/GeneralsOnline/CredentialStore.h"
+#include "GameNetwork/GeneralsOnline/OnlineServices_Auth.h"
 
 #define SETTINGS_KEY_CAMERA "camera"
 #define SETTINGS_KEY_CAMERA_MIN_HEIGHT "min_height"
@@ -101,6 +103,8 @@ std::string GenOnlineSettings::GetAnticheatPlugin() const
 
 void GenOnlineSettings::Load(void)
 {
+	ServiceConnection::ConfigureCredentialStore(&NGMP_OnlineServices_AuthInterface::GetCredentialsFilePath);
+	ServiceConnection::SetCredentialLogSink([](const std::string& line) { NetworkLog(ELogVerbosity::LOG_RELEASE, "%s", line.c_str()); });
 	char GameDir[MAX_PATH + 1] = {};
 	::GetCurrentDirectoryA(MAX_PATH + 1u, GameDir);
 	std::string strSettingsFileDir = std::format("{}/GeneralsOnlineData/", TheGlobalData->getPath_UserData().str());
@@ -452,7 +456,6 @@ bool GenOnlineSettings::Save()
                     {SETTINGS_KEY_NETWORK_ENDPOINT_MODE, m_ConnectionSettings.endpointMode},
                     {SETTINGS_KEY_NETWORK_PROXY_MODE, m_ConnectionSettings.proxyMode},
                     {SETTINGS_KEY_NETWORK_PROXY_URL, m_ConnectionSettings.proxyURL},
-                    {SETTINGS_KEY_NETWORK_INTEGRATED_PROXY_AUTH, m_ConnectionSettings.integratedProxyAuth},
                     {SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT, m_LastSuccessfulEndpoint}
                 }
         },
@@ -557,6 +560,9 @@ bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSe
 	m_ConnectionSettings = settings;
 	if (Save())
 	{
+		// a changed proxy starts without anything typed for the old one
+		if (settings.proxyMode == "custom" && (previous.proxyMode != "custom" || previous.proxyURL != settings.proxyURL))
+			ServiceConnection::ClearSessionProxyCredentialsExcept(settings.proxyURL);
 		ServiceConnection::InvalidateProxyPolicyCache();
 		return true;
 	}

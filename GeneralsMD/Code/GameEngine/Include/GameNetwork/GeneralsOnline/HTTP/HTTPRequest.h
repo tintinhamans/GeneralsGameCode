@@ -68,6 +68,9 @@ public:
 
 	std::string GetURI() { return m_strURI; }
 
+	// proxy the finished request went through, empty when direct
+	std::string GetProxyURL() const { return m_proxyRoute < m_proxyPolicy.routes.size() && !m_proxyPolicy.routes[m_proxyRoute].direct ? m_proxyPolicy.routes[m_proxyRoute].url : std::string(); }
+
 private:
 	void PlatformStartRequest();
 

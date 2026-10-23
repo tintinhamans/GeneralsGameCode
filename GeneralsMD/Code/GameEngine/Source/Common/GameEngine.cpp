@@ -112,6 +112,7 @@
 
 // GENERALS ONLINE
 #include "../OnlineServices_Init.h"
+#include "GameNetwork/GeneralsOnline/ProxySignIn.h"
 #include "GameNetwork/GeneralsOnline/DiscordRichPresence.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_LobbyInterface.h"
 #include "GameNetwork/GameSpyOverlay.h"
@@ -1011,6 +1012,9 @@ void GameEngine::update()
 
 			}
 			
+			// work handed back by worker threads, also while no online services instance exists
+			ServiceConnection::PumpMainThreadTasks();
+
 			if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
 			{
 				NGMP_OnlineServicesManager::GetInstance()->Tick();
