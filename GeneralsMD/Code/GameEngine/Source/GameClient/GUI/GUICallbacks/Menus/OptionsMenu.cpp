@@ -66,6 +66,11 @@
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/GlobalLanguage.h"
 #include "GameNetwork/FirewallHelper.h"
+#if defined(GENERALS_ONLINE)
+#include "GameNetwork/GeneralsOnline/ServiceConnectionPolicy.h"
+#include "GameNetwork/GeneralsOnline/ProxySignIn.h"
+#include "GameClient/GadgetPushButton.h"
+#endif
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
@@ -220,6 +225,350 @@ WindowLayout *OptionsLayout = nullptr;
 
 static OptionPreferences *pref = nullptr;
 
+#if defined(GENERALS_ONLINE)
+// Network section: the Online and LAN tabs and their controls come from OptionsMenu.wnd. A control that is missing is skipped.
+struct NetworkControls
+{
+	GameWindow *tabOnline = nullptr;
+	GameWindow *tabLan = nullptr;
+	GameWindow *panelOnline = nullptr;
+	GameWindow *panelLan = nullptr;
+	GameWindow *proxyModeLabel = nullptr;
+	GameWindow *proxyMode = nullptr;
+	GameWindow *proxyAddressLabel = nullptr;
+	GameWindow *proxyAddress = nullptr;
+	GameWindow *serverLabel = nullptr;
+	GameWindow *server = nullptr;
+	GameWindow *serverAddressLabel = nullptr;
+	GameWindow *serverAddress = nullptr;
+	GameWindow *lanLabel = nullptr;
+};
+
+static GameWindow *networkControl(const char *name)
+{
+	return TheWindowManager->winGetWindowFromId(nullptr, TheNameKeyGenerator->nameToKey(name));
+}
+
+static NetworkControls getNetworkControls()
+{
+	NetworkControls c;
+	c.tabOnline = networkControl("OptionsMenu.wnd:ButtonTabOnline");
+	c.tabLan = networkControl("OptionsMenu.wnd:ButtonTabLan");
+	c.panelOnline = networkControl("OptionsMenu.wnd:PanelOnline");
+	c.panelLan = networkControl("OptionsMenu.wnd:PanelLan");
+	c.proxyModeLabel = networkControl("OptionsMenu.wnd:StaticTextProxyMode");
+	c.proxyMode = networkControl("OptionsMenu.wnd:ComboBoxProxyMode");
+	c.proxyAddressLabel = networkControl("OptionsMenu.wnd:StaticTextProxyAddress");
+	c.proxyAddress = networkControl("OptionsMenu.wnd:TextEntryProxyAddress");
+	c.serverLabel = networkControl("OptionsMenu.wnd:StaticTextServer");
+	c.server = networkControl("OptionsMenu.wnd:ComboBoxServer");
+	c.serverAddressLabel = networkControl("OptionsMenu.wnd:StaticTextServerAddress");
+	c.serverAddress = networkControl("OptionsMenu.wnd:TextEntryServerAddress");
+	c.lanLabel = networkControl("OptionsMenu.wnd:StaticTextLANIpAddresses");
+	return c;
+}
+
+static bool networkTestPassed = false;
+static bool networkDiscard = false;
+static bool networkLocked = false;
+
+static UnicodeString networkWide(const std::string &text)
+{
+	UnicodeString result;
+	result.translate(text.c_str());
+	return result;
+}
+
+static std::string networkNarrow(const UnicodeString &text)
+{
+	AsciiString ascii;
+	ascii.translate(text);
+	return ascii.str();
+}
+
+static std::string networkTrimmed(std::string text)
+{
+	text.erase(0, text.find_first_not_of(" \t"));
+	text.erase(text.find_last_not_of(" \t") + 1);
+	return text;
+}
+
+static void networkSetText(GameWindow *label, const wchar_t *text)
+{
+	if (label != nullptr)
+	{
+		GadgetStaticTextSetText(label, UnicodeString(text));
+	}
+}
+
+static void networkSetTooltip(GameWindow *window, const wchar_t *text)
+{
+	if (window != nullptr)
+	{
+		window->winSetTooltip(UnicodeString(text));
+	}
+}
+
+static void networkFillCombo(GameWindow *combo, std::initializer_list<const wchar_t *> entries, Int selected)
+{
+	if (combo == nullptr)
+	{
+		return;
+	}
+	const Color white = GameMakeColor(255, 255, 255, 255);
+	GadgetComboBoxReset(combo);
+	for (const wchar_t *entry : entries)
+	{
+		GadgetComboBoxAddEntry(combo, UnicodeString(entry), white);
+	}
+	GadgetComboBoxSetSelectedPos(combo, selected);
+}
+
+static void networkShowTab(bool online)
+{
+	const NetworkControls c = getNetworkControls();
+	if (c.panelOnline != nullptr)
+	{
+		c.panelOnline->winHide(!online);
+	}
+	if (c.panelLan != nullptr)
+	{
+		c.panelLan->winHide(online);
+	}
+	if (c.tabOnline != nullptr)
+	{
+		GadgetCheckLikeButtonSetVisualCheck(c.tabOnline, online);
+	}
+	if (c.tabLan != nullptr)
+	{
+		GadgetCheckLikeButtonSetVisualCheck(c.tabLan, !online);
+	}
+}
+
+// the address entries only matter for the Custom choice
+static void networkRefresh()
+{
+	const NetworkControls c = getNetworkControls();
+	Int mode = 0;
+	if (c.proxyMode != nullptr)
+	{
+		GadgetComboBoxGetSelectedPos(c.proxyMode, &mode);
+	}
+	if (c.proxyAddress != nullptr)
+	{
+		c.proxyAddress->winEnable(!networkLocked && mode == 2);
+	}
+	Int server = 0;
+	if (c.server != nullptr)
+	{
+		GadgetComboBoxGetSelectedPos(c.server, &server);
+	}
+	if (c.serverAddress != nullptr)
+	{
+		c.serverAddress->winEnable(!networkLocked && server == 3);
+	}
+}
+
+static void networkShow(const ServiceConnectionSettings &settings)
+{
+	const NetworkControls c = getNetworkControls();
+	const Int proxy = settings.proxyMode == "direct" ? 1 : settings.proxyMode == "custom" ? 2 : 0;
+	networkFillCombo(c.proxyMode, { L"System", L"Off", L"Custom" }, proxy);
+	std::string proxyAddress = settings.proxyURL;
+	if (proxyAddress.compare(0, 7, "http://") == 0)
+	{
+		proxyAddress.erase(0, 7);
+	}
+	if (c.proxyAddress != nullptr)
+	{
+		GadgetTextEntrySetText(c.proxyAddress, networkWide(proxyAddress));
+	}
+	const Int server = settings.endpointMode == "primary" ? 1 : settings.endpointMode == "alternative" ? 2 : settings.endpointMode == "custom" ? 3 : 0;
+	networkFillCombo(c.server, { L"Automatic", L"Primary", L"Alternative", L"Custom" }, server);
+	std::string serverAddress = settings.customEndpoint;
+	if (serverAddress.compare(0, 8, "https://") == 0)
+	{
+		serverAddress.erase(0, 8);
+	}
+	if (c.serverAddress != nullptr)
+	{
+		GadgetTextEntrySetText(c.serverAddress, networkWide(serverAddress));
+	}
+	networkRefresh();
+}
+
+static void networkInit()
+{
+	networkTestPassed = false;
+	networkDiscard = false;
+	const NetworkControls c = getNetworkControls();
+	if (c.tabOnline != nullptr)
+	{
+		GadgetButtonSetText(c.tabOnline, UnicodeString(L"Online"));
+		c.tabOnline->winSetTooltip(UnicodeString(L"Settings for playing on Generals Online."));
+	}
+	if (c.tabLan != nullptr)
+	{
+		GadgetButtonSetText(c.tabLan, UnicodeString(L"LAN"));
+		c.tabLan->winSetTooltip(UnicodeString(L"Settings for LAN games."));
+	}
+	networkSetText(c.proxyModeLabel, L"Proxy");
+	networkSetText(c.proxyAddressLabel, L"Proxy address");
+	networkSetText(c.serverLabel, L"Server");
+	networkSetText(c.serverAddressLabel, L"Server address");
+	networkSetText(c.lanLabel, L"LAN IP");
+	networkSetTooltip(c.proxyMode, L"System follows the Windows proxy settings. Off connects directly. Custom uses the proxy address.");
+	networkSetTooltip(c.proxyAddress, L"Proxy as host:port, or a full http://, https:// or socks5h:// address. Used with Custom.");
+	networkSetTooltip(c.server, L"Which Generals Online server to use. Applies at the next sign-in.");
+	networkSetTooltip(c.serverAddress, L"Your own server as host:port. Only https is allowed. Used with Custom.");
+	networkSetTooltip(comboBoxLANIP, L"The network adapter used for LAN games.");
+	networkShow(NGMP_OnlineServicesManager::Settings.Network_GetConnectionSettings());
+	networkShowTab(true);
+}
+
+// the connection settings can't change while a session is open or in a game
+static void networkLock()
+{
+	networkLocked = true;
+	const NetworkControls c = getNetworkControls();
+	for (GameWindow *window : { c.proxyMode, c.proxyAddress, c.server, c.serverAddress })
+	{
+		if (window != nullptr)
+		{
+			window->winEnable(FALSE);
+		}
+	}
+}
+
+static void networkDefaults()
+{
+	networkShow(ServiceConnectionSettings());
+	if (comboBoxLANIP != nullptr)
+	{
+		GadgetComboBoxSetSelectedPos(comboBoxLANIP, 0);
+		GadgetComboBoxSetText(comboBoxLANIP, L"***.***.***.***");
+	}
+}
+
+// the controls as settings; false with the reason when an address is not valid
+static bool networkRead(ServiceConnectionSettings &settings, std::string &error)
+{
+	const NetworkControls c = getNetworkControls();
+	Int mode = 0;
+	if (c.proxyMode != nullptr)
+	{
+		GadgetComboBoxGetSelectedPos(c.proxyMode, &mode);
+		settings.proxyMode = mode == 1 ? "direct" : mode == 2 ? "custom" : "system";
+	}
+	if (c.proxyAddress != nullptr)
+	{
+		std::string address = networkTrimmed(networkNarrow(GadgetTextEntryGetText(c.proxyAddress)));
+		if (!address.empty() && address.find("://") == std::string::npos)
+		{
+			address = "http://" + address;
+		}
+		settings.proxyURL = address;
+		if (settings.proxyMode == "custom" && !ServiceConnection::ValidateProxyURL(address, error))
+		{
+			return false;
+		}
+	}
+	Int server = 0;
+	if (c.server != nullptr)
+	{
+		GadgetComboBoxGetSelectedPos(c.server, &server);
+		settings.endpointMode = server == 1 ? "primary" : server == 2 ? "alternative" : server == 3 ? "custom" : "automatic";
+	}
+	if (c.serverAddress != nullptr)
+	{
+		settings.customEndpoint = networkTrimmed(networkNarrow(GadgetTextEntryGetText(c.serverAddress)));
+		if (settings.endpointMode == "custom")
+		{
+			return ServiceConnection::NormalizeCustomEndpoint(settings.customEndpoint, settings.customEndpoint, error);
+		}
+		settings.customEndpoint.clear();
+	}
+	return true;
+}
+
+// the proxy or the server differs from the saved one; an address only counts for its Custom choice
+static bool networkChanged(const ServiceConnectionSettings &saved, const ServiceConnectionSettings &edited)
+{
+	if (saved.proxyMode != edited.proxyMode || saved.endpointMode != edited.endpointMode)
+	{
+		return true;
+	}
+	if (edited.proxyMode == "custom" && ServiceConnection::CanonicalProxyKey(saved.proxyURL) != ServiceConnection::CanonicalProxyKey(edited.proxyURL))
+	{
+		return true;
+	}
+	return edited.endpointMode == "custom" && saved.customEndpoint != edited.customEndpoint;
+}
+
+static void pressAccept()
+{
+	GameWindow *accept = networkControl("OptionsMenu.wnd:ButtonAccept");
+	if (accept != nullptr)
+	{
+		TheWindowManager->winSendSystemMsg(accept->winGetParent(), GBM_SELECTED, (WindowMsgData)accept, accept->winGetWindowId());
+	}
+}
+
+// Accept with changed connection settings tests them first; true when Accept goes on to save the other options and close
+static bool networkAccept()
+{
+	if (networkDiscard)
+	{
+		networkDiscard = false;
+		return true;
+	}
+	const NetworkControls c = getNetworkControls();
+	if (networkLocked || (c.proxyMode == nullptr && c.server == nullptr))
+	{
+		return true;
+	}
+	const ServiceConnectionSettings saved = NGMP_OnlineServicesManager::Settings.Network_GetConnectionSettings();
+	ServiceConnectionSettings edited = saved;
+	std::string error;
+	if (!networkRead(edited, error))
+	{
+		MessageBoxOk(UnicodeString(L"Connection settings"), networkWide(error), nullptr);
+		return false;
+	}
+	if (networkChanged(saved, edited) && !networkTestPassed)
+	{
+		ServiceConnection::ShowAcceptTest(edited, [](ServiceConnection::AcceptChoice choice)
+		{
+			if (choice == ServiceConnection::AcceptChoice::Save)
+			{
+				networkTestPassed = true;
+			}
+			else if (choice == ServiceConnection::AcceptChoice::Discard)
+			{
+				networkDiscard = true;
+			}
+			if (choice != ServiceConnection::AcceptChoice::KeepEditing)
+			{
+				pressAccept();
+			}
+		});
+		return false;
+	}
+	networkTestPassed = false;
+	if (!NGMP_OnlineServicesManager::Settings.Network_SaveConnectionSettings(edited, error))
+	{
+		MessageBoxOk(UnicodeString(L"Connection settings"), networkWide(error), nullptr);
+		return false;
+	}
+	return true;
+}
+
+static bool isNetworkControl(GameWindow *control, const char *name)
+{
+	return control->winGetWindowId() == TheNameKeyGenerator->nameToKey(name);
+}
+#endif
+
 static void setDefaults()
 {
 	constexpr const Bool ModifyDisplaySettings = FALSE;
@@ -238,7 +587,10 @@ static void setDefaults()
 
 	//-------------------------------------------------------------------------------------------------
 	// send Delay
-	GadgetCheckBoxSetChecked(checkSendDelay, FALSE);
+	if (checkSendDelay)
+	{
+		GadgetCheckBoxSetChecked(checkSendDelay, FALSE);
+	}
 
 	if constexpr (ModifyDisplaySettings)
 	{
@@ -1414,7 +1766,10 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	DEBUG_LOG(("Scroll Speed %d", scrollPos));
 
 	// set the send delay check box
-	GadgetCheckBoxSetChecked(checkSendDelay, TheGlobalData->m_firewallSendDelay);
+	if (checkSendDelay)
+	{
+		GadgetCheckBoxSetChecked(checkSendDelay, TheGlobalData->m_firewallSendDelay);
+	}
 
  	// set volume sliders
 
@@ -1447,9 +1802,11 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 		if (comboBoxOnlineIP)
 			comboBoxOnlineIP->winEnable(FALSE);
 
-		checkSendDelay->winEnable(FALSE);
+		if (checkSendDelay)
+			checkSendDelay->winEnable(FALSE);
 
-		buttonFirewallRefresh->winEnable(FALSE);
+		if (buttonFirewallRefresh)
+			buttonFirewallRefresh->winEnable(FALSE);
 
 		if (comboBoxDetail)
 			comboBoxDetail->winEnable(FALSE);
@@ -1471,6 +1828,13 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	}
 
 
+#if defined(GENERALS_ONLINE)
+	networkInit();
+	if ((TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || NGMP_OnlineServicesManager::GetInstance() != nullptr)
+	{
+		networkLock();
+	}
+#endif
 	TheWindowManager->winSetModal(parent);
 	ignoreSelected = FALSE;
 }
@@ -1625,6 +1989,12 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 
 					showAdvancedOptions();
 				}
+#if defined(GENERALS_ONLINE)
+				else if (isNetworkControl(control, "OptionsMenu.wnd:ComboBoxProxyMode") || isNetworkControl(control, "OptionsMenu.wnd:ComboBoxServer"))
+				{
+					networkRefresh();
+				}
+#endif
 			break;
 		}
 
@@ -1657,6 +2027,11 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else if (controlID == buttonAccept )
 			{
+#if defined(GENERALS_ONLINE)
+				// changed connection settings are tested first; a rejected address keeps the menu open
+				if (!networkAccept())
+					break;
+#endif
 				saveOptions();
 
 				if (pref)
@@ -1688,7 +2063,20 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 			else if (controlID == buttonDefaults )
 			{
 				setDefaults();
+#if defined(GENERALS_ONLINE)
+				networkDefaults();
+#endif
 			}
+#if defined(GENERALS_ONLINE)
+			else if (isNetworkControl(control, "OptionsMenu.wnd:ButtonTabOnline"))
+			{
+				networkShowTab(true);
+			}
+			else if (isNetworkControl(control, "OptionsMenu.wnd:ButtonTabLan"))
+			{
+				networkShowTab(false);
+			}
+#endif
 			else if (controlID == ButtonAdvancedAcceptID )
 			{
 				acceptAdvancedOptions();
