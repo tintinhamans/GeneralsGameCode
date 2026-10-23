@@ -36,6 +36,7 @@
 #include "GameNetwork/GenOnline/GenOnlineGame.h"
 #include "GameNetwork/GenOnline/DiscordRichPresence.h"
 #include "GameNetwork/GenOnline/NetworkMesh.h"
+#include "GameNetwork/GenOnline/ProxyLogin.h"
 #include <steam/isteamnetworkingsockets.h>
 
 static bool g_bTearDownGeneralsOnlineRequested = false;
@@ -123,6 +124,9 @@ void GenOnlineGameHooks::onEngineUpdate()
 		GenOnlineServicesManager::DestroyInstance();
 
 	}
+
+	// work handed back by worker threads, also while no online services instance exists
+	ServiceConnection::PumpMainThreadTasks();
 
 	if (GenOnlineServicesManager::GetInstance() != nullptr)
 	{
