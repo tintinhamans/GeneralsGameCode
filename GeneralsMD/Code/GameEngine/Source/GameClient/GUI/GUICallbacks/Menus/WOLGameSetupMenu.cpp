@@ -977,6 +977,137 @@ static void WOLLockSettings()
 	}
 }
 
+// lobby humans (the service's view) the game has no human slot for
+static Int CountLobbyHumansMissingFromGame(GenOnlineGame* game)
+{
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface == nullptr || game == nullptr)
+	{
+		return 0;
+	}
+
+	Int missing = 0;
+	for (const LobbyMemberEntry& member : pLobbyInterface->GetCurrentLobby().members)
+	{
+		if (!member.IsHuman())
+		{
+			continue;
+		}
+
+		bool bInGame = false;
+		for (Int i = 0; i < MAX_SLOTS; ++i)
+		{
+			GenOnlineGameSlot* slot = static_cast<GenOnlineGameSlot*>(game->getSlot(i));
+			if (slot != nullptr && slot->isHuman() && slot->m_userID == member.user_id)
+			{
+				bInGame = true;
+				break;
+			}
+		}
+
+		if (!bInGame)
+		{
+			++missing;
+		}
+	}
+
+	return missing;
+}
+
+// other lobby humans we have no connected link to, a mesh check can't be complete with these
+static Int CountLobbyHumansWithoutMeshLink()
+{
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
+	if (pLobbyInterface == nullptr || pAuthInterface == nullptr || pMesh == nullptr)
+	{
+		return 0;
+	}
+
+	const int64_t myUserID = pAuthInterface->GetUserID();
+	Int unlinked = 0;
+	for (const LobbyMemberEntry& member : pLobbyInterface->GetCurrentLobby().members)
+	{
+		if (!member.IsHuman() || member.user_id == myUserID)
+		{
+			continue;
+		}
+
+		PlayerConnection* pConnection = pMesh->GetConnectionForUser(member.user_id);
+		if (pConnection == nullptr || pConnection->GetState() != EConnectionState::CONNECTED_DIRECT)
+		{
+			++unlinked;
+		}
+	}
+
+	return unlinked;
+}
+
+static const Int MAX_ROSTER_REFRESHES_BEFORE_START = 3;
+static bool s_startWaitingForRoster = false;
+
+// Refreshes the roster until every lobby human has a game slot, then starts the match.
+static void StartMatchWhenRosterMatches(Int refreshesDone)
+{
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
+
+	if (pLobbyInterface == nullptr || !myGame || !myGame->isInGame())
+	{
+		s_startWaitingForRoster = false;
+		return;
+	}
+
+	if (!TheGenOnlineGame)
+	{
+		s_startWaitingForRoster = false;
+		return;
+	}
+
+	const Int missingHumans = CountLobbyHumansMissingFromGame(myGame);
+	if (missingHumans > 0)
+	{
+		if (refreshesDone < MAX_ROSTER_REFRESHES_BEFORE_START)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Start: the game is missing %d lobby player(s), refreshing the lobby (%d/%d)", missingHumans, refreshesDone + 1, MAX_ROSTER_REFRESHES_BEFORE_START);
+			pLobbyInterface->UpdateRoomDataCache([refreshesDone](bool)
+				{
+					StartMatchWhenRosterMatches(refreshesDone + 1);
+				});
+			return;
+		}
+
+		// A client starts anyway because the service and the other players have already started.
+		if (!pLobbyInterface->IsHost())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Start: the game is still missing %d lobby player(s), starting anyway", missingHumans);
+		}
+		else
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Start: the game is still missing %d lobby player(s), not starting", missingHumans);
+			s_startWaitingForRoster = false;
+			GSMessageBoxOk(TheGameText->fetch("GUI:Error"), UnicodeString(L"The player list was incomplete, so the match was not started. Please rejoin the lobby."));
+			PopBackToLobby();
+			return;
+		}
+	}
+
+	s_startWaitingForRoster = false;
+
+	// TODO_NGMP
+	//SendStatsToOtherPlayers(TheGenOnlineGame);
+
+	GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
+	if (buttonBuddy)
+		buttonBuddy->winEnable(FALSE);
+	GameSpyCloseOverlay(GSOVERLAY_BUDDY);
+	GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
+
+	*TheGenOnlineGame = *myGame;
+	TheGenOnlineGame->startGame(0);
+}
+
 static void StartPressed()
 {
 	Bool isReady = TRUE;
@@ -1164,6 +1295,13 @@ static void StartPressed()
 
 			pWS->SendData_StartFullMeshConnectivityCheck([=](bool bMeshFullyConnected, std::list<std::pair<int64_t, int64_t>> missingConnections, std::string strFailureReason)
 				{
+					// the service can report a complete mesh while we hold no link to players the lobby lists
+					if (bMeshFullyConnected && CountLobbyHumansWithoutMeshLink() > 0)
+					{
+						bMeshFullyConnected = false;
+						strFailureReason = "no_link_to_lobby_players";
+					}
+
 					if (bMeshFullyConnected)
 					{
 						UnicodeString strInform = UnicodeString(L"Connections: All players are connected.");
@@ -1883,6 +2021,8 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 		return;
 	}
 
+	s_startWaitingForRoster = false;
+
 	// register for chat events
 	pLobbyInterface->RegisterForChatCallback([](UnicodeString strMessage, Color color)
 		{
@@ -2008,26 +2148,13 @@ void WOLGameSetupMenuInit( WindowLayout *layout, void *userData )
 
 	pLobbyInterface->RegisterForGameStartPacket([]()
 		{
-			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-			GenOnlineGame* myGame = pLobbyInterface == nullptr ? nullptr : pLobbyInterface->GetCurrentGame();
-
-			if (pLobbyInterface == nullptr || !myGame || !myGame->isInGame())
+			if (s_startWaitingForRoster)
+			{
 				return;
+			}
 
-			if (!TheGenOnlineGame)
-				return;
-
-			// TODO_NGMP
-			//SendStatsToOtherPlayers(TheGenOnlineGame);
-
-			GameWindow* buttonBuddy = TheWindowManager->winGetWindowFromId(NULL, NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator"));
-			if (buttonBuddy)
-				buttonBuddy->winEnable(FALSE);
-			GameSpyCloseOverlay(GSOVERLAY_BUDDY);
-			GameSpyCloseOverlay(GSOVERLAY_PLAYERINFO);
-
-			*TheGenOnlineGame = *myGame;
-			TheGenOnlineGame->startGame(0);
+			s_startWaitingForRoster = true;
+			StartMatchWhenRosterMatches(0);
 		});
 
 
@@ -2432,6 +2559,7 @@ void WOLGameSetupMenuShutdown( WindowLayout *layout, void *userData )
 		TheEstablishConnectionsMenu->endMenu();
 	}
 	initDone = false;
+	s_startWaitingForRoster = false;
 
 	isShuttingDown = true;
 
