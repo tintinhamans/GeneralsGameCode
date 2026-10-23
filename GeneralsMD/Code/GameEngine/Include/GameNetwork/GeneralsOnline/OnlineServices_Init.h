@@ -203,6 +203,9 @@ public:
 	// Queues the message; Tick() flushes it on the main thread. Thread-safe.
 	void Send(const char* message);
 
+	// Continues the initial connect after the proxy login prompt closed.
+	void ResumeAfterProxyLogin(bool loggedIn);
+
 	// Thread-safe queue of inbound P2P signal payloads; drained by CSignalingClient::Poll().
 	void PushPendingSignal(std::vector<uint8_t> payload)
 	{
@@ -231,6 +234,7 @@ private:
 	void PollConnectionSetup();
 	void StartResolvedConnection();
 	void FailConnectionSetup();
+	bool m_proxyPrompted = false;
 	std::shared_ptr<ServiceConnection::ProxyResolution> m_proxyResolution;
 	ServiceConnection::ResolvedProxyPolicy m_proxyPolicy;
 	size_t m_proxyRoute = 0;
@@ -550,6 +554,8 @@ public:
 	void StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback);
 	void StartVersionCheckOnSelectedRoute(std::function<void(bool, bool)> fnCallback);
 	void EnsureServiceRoute(std::function<void(bool)> callback);
+	// true when the last failed route check was a proxy login the player did not complete
+	bool RouteFailedProxyAuth() const { return m_routeProxyAuthFailed; }
 	static bool IsServiceURLTrusted(const std::string& url);
 	static bool IsWebSocketURLTrusted(const std::string& url);
 
@@ -674,6 +680,8 @@ private:
 	std::vector<std::function<void(bool)>> m_routeCallbacks;
 	std::chrono::steady_clock::time_point m_routeValidatedAt{};
 	std::string m_routeSettingsKey;
+	bool m_routeProxyPrompted = false;
+	bool m_routeProxyAuthFailed = false;
 
 	ServiceConfig m_ServiceConfig;
 

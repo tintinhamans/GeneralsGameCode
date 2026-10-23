@@ -1,3 +1,4 @@
+#include "GameNetwork/GeneralsOnline/ProxyLogin.h"
 #include <random>
 #include "GameNetwork/GeneralsOnline/ServiceEndpointPolicy.h"
 #include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
@@ -165,6 +166,7 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 	m_proxyResolution.reset();
 	m_proxyPolicy = {};
 	m_proxyRoute = 0;
+	m_proxyPrompted = false;
 	if (m_pCurlWS != nullptr)
 	{
 		curl_multi_remove_handle(m_pMulti, m_pCurlWS);
@@ -181,6 +183,22 @@ void WebSocket::Connect(const char* url, bool bIsReconnect, std::function<void(v
 	}
 	m_proxyResolution = ServiceConnection::StartProxyResolution(
 		NGMP_OnlineServicesManager::Settings.Network_GetConnectionSettings(), destination);
+}
+
+// the lobby connection is a visible flow: a proxy that wants a login gets one prompt, then the handshake runs again
+void WebSocket::ResumeAfterProxyLogin(bool loggedIn)
+{
+	if (m_bShuttingDown || m_bConnected)
+	{
+		return;
+	}
+	if (!loggedIn)
+	{
+		FailConnectionSetup();
+		return;
+	}
+	m_proxySetupStarted = NowMs();
+	StartResolvedConnection();
 }
 
 void WebSocket::FailConnectionSetup()
@@ -962,6 +980,20 @@ void WebSocket::Tick()
                         m_vecWSPartialBuffer.clear();
                         NetworkLog(ELogVerbosity::LOG_RELEASE, "[WebSocket] Handshake failed: phase=%s curl=%d status=%ld proxy_status=%ld",
                             ServiceConnection::FailurePhase(m->data.result, httpResponseCode, proxyStatus), m->data.result, httpResponseCode, proxyStatus);
+						if (httpResponseCode == 407 && !m_bReconnecting && !m_proxyPrompted && m_proxyRoute < m_proxyPolicy.routes.size() && !m_proxyPolicy.routes[m_proxyRoute].direct)
+						{
+							m_proxyPrompted = true;
+							ServiceConnection::RequestProxyLogin(m_proxyPolicy.routes[m_proxyRoute], [](bool loggedIn)
+							{
+								auto* manager = NGMP_OnlineServicesManager::GetInstance();
+								auto socket = manager ? manager->Internal_GetWebSocket() : nullptr;
+								if (socket)
+								{
+									socket->ResumeAfterProxyLogin(loggedIn);
+								}
+							});
+							continue;
+						}
 
                         if (m_bReconnecting)
                         {
