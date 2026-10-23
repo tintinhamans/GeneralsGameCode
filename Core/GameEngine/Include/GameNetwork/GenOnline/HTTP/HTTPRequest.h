@@ -73,6 +73,9 @@ public:
 
 	std::string GetURI() { return m_strURI; }
 
+	// route the finished request went through
+	ServiceConnection::ProxyRoute GetProxyRoute() const { return m_proxyRoute < m_proxyPolicy.routes.size() ? m_proxyPolicy.routes[m_proxyRoute] : ServiceConnection::ProxyRoute(); }
+
 private:
 	void PlatformStartRequest();
 

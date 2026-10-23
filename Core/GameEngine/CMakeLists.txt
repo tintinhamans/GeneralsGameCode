@@ -1237,9 +1237,11 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginPlatform.h
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h
+    Source/GameNetwork/GenOnline/CredentialStore.cpp
     Source/GameNetwork/GenOnline/DiscordRichPresence.cpp
     Source/GameNetwork/GenOnline/GenOnlineHelpers.cpp
     Source/GameNetwork/GenOnline/GenOnlineGame.cpp
+    Source/GameNetwork/GenOnline/ProxyLogin.cpp
     Source/GameNetwork/GenOnline/ServiceConnectionPolicy.cpp
     Source/GameNetwork/GenOnline/ServiceEndpointPolicy.cpp
     Source/GameNetwork/GenOnline/GenOnlineSettings.cpp
