@@ -115,7 +115,7 @@ static std::chrono::steady_clock::time_point GetScreenshotUploadTime()
 		{
 			if (lobbyMember.user_id == localUserID)
 			{
-				slotIndex = lobbyMember.m_SlotIndex < MAX_SLOTS ? lobbyMember.m_SlotIndex : 0;
+				slotIndex = lobbyMember.HasValidSlot() ? lobbyMember.m_SlotIndex : 0;
 				break;
 			}
 		}
@@ -1361,6 +1361,7 @@ void WebSocket::SendData_StartFullMeshConnectivityCheck(std::function<void(bool,
 
 	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 	m_connectivityCheckLobbyID = pLobbyInterface != nullptr ? pLobbyInterface->GetCurrentLobby().lobbyID : -1;
+	m_connectivityCheckStartMs = NowMs();
 
 	nlohmann::json j;
 	j["msg_id"] = EWebSocketMessageID::FULL_MESH_CONNECTIVITY_CHECK_HOST_REQUESTS_BEGIN;

@@ -1,5 +1,6 @@
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/json.hpp"
+#include "GameNetwork/GenOnline/JsonHelpers.h"
 #include "GameNetwork/GenOnline/HTTP/HTTPManager.h"
 #include "GameNetwork/GenOnline/GenOnlineInit.h"
 #include "GameClient/MapUtil.h"
@@ -517,6 +518,22 @@ GenOnlineLobbyInterface::GenOnlineLobbyInterface()
 
 }
 
+// a missing or out of range slot index leaves the member at NO_SLOT_INDEX
+static void ParseMemberSlotIndex(const nlohmann::json& memberJson, LobbyMemberEntry& memberEntry)
+{
+	auto it = memberJson.find("SlotIndex");
+	if (it == memberJson.end() || !it->is_number_integer())
+	{
+		return;
+	}
+
+	const int64_t slotIndex = it->get<int64_t>();
+	if (slotIndex >= 0 && slotIndex < MAX_SLOTS)
+	{
+		memberEntry.m_SlotIndex = static_cast<uint16_t>(slotIndex);
+	}
+}
+
 void GenOnlineLobbyInterface::SearchForLobbies(std::function<void()> onStartCallback, std::function<void(std::vector<LobbyEntry>)> onCompleteCallback)
 {
 	const bool lobbyListWasDirty = m_bLobbyListDirty.exchange(false);
@@ -552,7 +569,7 @@ void GenOnlineLobbyInterface::SearchForLobbies(std::function<void()> onStartCall
 				std::vector<int> vecLatencies;
 				std::map<int64_t, int> mapPlayerLatencies;
 
-				jsonObject["latencies"].get_to(vecLatencies);
+				JsonGetOptional(jsonObject, "latencies", vecLatencies);
 
 				// player latencies
 				for (const auto& playerLatencyEntryIter : jsonObject["playerlatencies"])
@@ -560,8 +577,8 @@ void GenOnlineLobbyInterface::SearchForLobbies(std::function<void()> onStartCall
 					int64_t user_id = -1;
 					int latency = -1;
 
-					playerLatencyEntryIter["user_id"].get_to(user_id);
-					playerLatencyEntryIter["latency"].get_to(latency);
+					JsonGetOptional(playerLatencyEntryIter, "user_id", user_id);
+					JsonGetOptional(playerLatencyEntryIter, "latency", latency);
 
 					if (user_id != -1 && latency != -1)
 					{
@@ -572,79 +589,86 @@ void GenOnlineLobbyInterface::SearchForLobbies(std::function<void()> onStartCall
 				int latencyIndex = 0;
 			for (const auto& lobbyEntryIter : jsonObject["lobbies"])
 			{
-				LobbyEntry lobbyEntry;
-				lobbyEntryIter["LobbyID"].get_to(lobbyEntry.lobbyID);
-				lobbyEntryIter["Owner"].get_to(lobbyEntry.owner);
-				lobbyEntryIter["Name"].get_to(lobbyEntry.name);
-				lobbyEntryIter["MapName"].get_to(lobbyEntry.map_name);
-				lobbyEntryIter["MapPath"].get_to(lobbyEntry.map_path);
-				lobbyEntry.map_path = utf8_to_local(lobbyEntry.map_path); // local file path from here on
-				lobbyEntryIter["IsMapOfficial"].get_to(lobbyEntry.map_official);
-				lobbyEntryIter["NumCurrentPlayers"].get_to(lobbyEntry.current_players);
-				lobbyEntryIter["MaxPlayers"].get_to(lobbyEntry.max_players);
-				lobbyEntryIter["IsVanillaTeamsOnly"].get_to(lobbyEntry.vanilla_teams);
-				lobbyEntryIter["StartingCash"].get_to(lobbyEntry.starting_cash);
-				lobbyEntryIter["IsLimitSuperweapons"].get_to(lobbyEntry.limit_superweapons);
-				lobbyEntryIter["IsTrackingStats"].get_to(lobbyEntry.track_stats);
-				lobbyEntryIter["IsPassworded"].get_to(lobbyEntry.passworded);
-				lobbyEntryIter["AllowObservers"].get_to(lobbyEntry.allow_observers);
-				lobbyEntryIter["MaximumCameraHeight"].get_to(lobbyEntry.max_cam_height);
-				lobbyEntryIter["ExeCRC"].get_to(lobbyEntry.exe_crc);
-				lobbyEntryIter["IniCRC"].get_to(lobbyEntry.ini_crc);
-				lobbyEntryIter["MatchID"].get_to(lobbyEntry.match_id);
-				lobbyEntryIter["LobbyType"].get_to(lobbyEntry.lobby_type);
-				lobbyEntryIter["Region"].get_to(lobbyEntry.region);
-
-				// attach latency
-				if (latencyIndex < vecLatencies.size())
+				// latencies are indexed by the server's lobby order, so count skipped entries too
+				const size_t entryLatencyIndex = latencyIndex++;
+				try
 				{
-					lobbyEntry.latency = vecLatencies[latencyIndex];
-				}
-				else
-				{
-					// dummy value
-					lobbyEntry.latency = 9001;
-				}
-				++latencyIndex;
+					LobbyEntry lobbyEntry;
+					JsonGetRequired(lobbyEntryIter, "LobbyID", lobbyEntry.lobbyID);
+					JsonGetRequired(lobbyEntryIter, "Owner", lobbyEntry.owner);
+					JsonGetOptional(lobbyEntryIter, "Name", lobbyEntry.name);
+					JsonGetOptional(lobbyEntryIter, "MapName", lobbyEntry.map_name);
+					JsonGetOptional(lobbyEntryIter, "MapPath", lobbyEntry.map_path);
+					lobbyEntry.map_path = utf8_to_local(lobbyEntry.map_path); // local file path from here on
+					JsonGetOptional(lobbyEntryIter, "IsMapOfficial", lobbyEntry.map_official);
+					JsonGetOptional(lobbyEntryIter, "NumCurrentPlayers", lobbyEntry.current_players);
+					JsonGetOptional(lobbyEntryIter, "MaxPlayers", lobbyEntry.max_players);
+					JsonGetOptional(lobbyEntryIter, "IsVanillaTeamsOnly", lobbyEntry.vanilla_teams);
+					JsonGetOptional(lobbyEntryIter, "StartingCash", lobbyEntry.starting_cash);
+					JsonGetOptional(lobbyEntryIter, "IsLimitSuperweapons", lobbyEntry.limit_superweapons);
+					JsonGetOptional(lobbyEntryIter, "IsTrackingStats", lobbyEntry.track_stats);
+					JsonGetOptional(lobbyEntryIter, "IsPassworded", lobbyEntry.passworded);
+					JsonGetOptional(lobbyEntryIter, "AllowObservers", lobbyEntry.allow_observers);
+					JsonGetOptional(lobbyEntryIter, "MaximumCameraHeight", lobbyEntry.max_cam_height);
+					JsonGetOptional(lobbyEntryIter, "ExeCRC", lobbyEntry.exe_crc);
+					JsonGetOptional(lobbyEntryIter, "IniCRC", lobbyEntry.ini_crc);
+					JsonGetOptional(lobbyEntryIter, "MatchID", lobbyEntry.match_id);
+					JsonGetOptional(lobbyEntryIter, "LobbyType", lobbyEntry.lobby_type);
+					JsonGetOptional(lobbyEntryIter, "Region", lobbyEntry.region);
 
-				// correct map path
-				if (lobbyEntry.map_official)
-				{
-					lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
-				}
-				else
-				{
-					lobbyEntry.map_path = std::format("{}\\{}", TheMapCache->getUserMapDir(true).str(), lobbyEntry.map_path.c_str());
-				}
-
-				// NOTE: These fields won't be present becauase they're private properties
-				//memberEntryIter["enc_key"].get_to(strEncKey);
-
-				for (const auto& memberEntryIter : lobbyEntryIter["Members"])
-				{
-					LobbyMemberEntry memberEntry;
-
-					memberEntryIter["UserID"].get_to(memberEntry.user_id);
-					memberEntryIter["DisplayName"].get_to(memberEntry.display_name);
-					memberEntryIter["IsReady"].get_to(memberEntry.m_bIsReady);
-					memberEntryIter["SlotIndex"].get_to(memberEntry.m_SlotIndex);
-					memberEntryIter["SlotState"].get_to(memberEntry.m_SlotState);
-					memberEntryIter["Region"].get_to(memberEntry.region);
-
-					// store latency
-					if (mapPlayerLatencies.contains(memberEntry.user_id))
+					// attach latency
+					if (entryLatencyIndex < vecLatencies.size())
 					{
-						memberEntry.latency = mapPlayerLatencies[memberEntry.user_id];
+						lobbyEntry.latency = vecLatencies[entryLatencyIndex];
 					}
 					else
 					{
-						memberEntry.latency = 0;
+						// dummy value
+						lobbyEntry.latency = 9001;
+					}
+					// correct map path
+					if (lobbyEntry.map_official)
+					{
+						lobbyEntry.map_path = std::format("maps\\{}", lobbyEntry.map_path.c_str());
+					}
+					else
+					{
+						lobbyEntry.map_path = std::format("{}\\{}", TheMapCache->getUserMapDir(true).str(), lobbyEntry.map_path.c_str());
 					}
 
-					lobbyEntry.members.push_back(memberEntry);
-				}
+					// NOTE: These fields won't be present becauase they're private properties
+					//memberEntryIter["enc_key"].get_to(strEncKey);
 
-				parsedLobbies.push_back(std::move(lobbyEntry));
+					for (const auto& memberEntryIter : lobbyEntryIter.at("Members"))
+					{
+						LobbyMemberEntry memberEntry;
+
+						JsonGetRequired(memberEntryIter, "UserID", memberEntry.user_id);
+						JsonGetOptional(memberEntryIter, "DisplayName", memberEntry.display_name);
+						JsonGetOptional(memberEntryIter, "IsReady", memberEntry.m_bIsReady);
+						ParseMemberSlotIndex(memberEntryIter, memberEntry);
+						JsonGetOptional(memberEntryIter, "SlotState", memberEntry.m_SlotState);
+						JsonGetOptional(memberEntryIter, "Region", memberEntry.region);
+
+						// store latency
+						if (mapPlayerLatencies.contains(memberEntry.user_id))
+						{
+							memberEntry.latency = mapPlayerLatencies[memberEntry.user_id];
+						}
+						else
+						{
+							memberEntry.latency = 0;
+						}
+
+						lobbyEntry.members.push_back(memberEntry);
+					}
+
+					parsedLobbies.push_back(std::move(lobbyEntry));
+				}
+				catch (...)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Skipping malformed lobby list entry");
+				}
 			}
 					m_vecLobbies = std::move(parsedLobbies);
 					bSearchSucceeded = true;
@@ -668,6 +692,35 @@ void GenOnlineLobbyInterface::SearchForLobbies(std::function<void()> onStartCall
 				completionCallback(lobbies);
 			}
 	});
+}
+
+void GenOnlineLobbyInterface::RequestRosterRefresh()
+{
+	// A service that keeps sending a member without a slot gets a bounded number of refreshes per lobby.
+	static constexpr int MAX_ROSTER_REFRESHES_PER_LOBBY = 10;
+	if (m_rosterRefreshLobbyID != m_CurrentLobby.lobbyID)
+	{
+		m_rosterRefreshLobbyID = m_CurrentLobby.lobbyID;
+		m_rosterRefreshCount = 0;
+	}
+
+	if (m_rosterRefreshCount >= MAX_ROSTER_REFRESHES_PER_LOBBY)
+	{
+		return;
+	}
+
+	const int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	if (nowMs - m_lastRosterRefreshRequestMs < 2000)
+	{
+		return;
+	}
+
+	m_lastRosterRefreshRequestMs = nowMs;
+	if (++m_rosterRefreshCount == MAX_ROSTER_REFRESHES_PER_LOBBY)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Roster refresh limit reached for lobby %lld", m_CurrentLobby.lobbyID);
+	}
+	UpdateRoomDataCache();
 }
 
 void GenOnlineLobbyInterface::ResetJoinOrder()
@@ -772,13 +825,13 @@ void GenOnlineLobbyInterface::Tick()
 		m_pLobbyMesh->Tick();
 	}
 
+	// stays pending until a menu has registered to handle it
 	if (m_bCannotConnectToLobbyPending)
 	{
-		m_bCannotConnectToLobbyPending = false;
-
 		auto callbackCopy = m_OnCannotConnectToLobbyCallback;
 		if (callbackCopy != nullptr)
 		{
+			m_bCannotConnectToLobbyPending = false;
 			callbackCopy();
 		}
 	}
@@ -869,6 +922,7 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 	if (m_CurrentLobby.lobbyID != -1 && TheGenOnlineGame != nullptr)
 	{
 		const int64_t requestedLobbyID = m_CurrentLobby.lobbyID;
+		const uint64_t requestSeq = ++m_LobbyUpdateRequestSeq;
 		std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), requestedLobbyID);
 		std::map<std::string, std::string> mapHeaders;
 
@@ -880,11 +934,19 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 					// TODO_GENONLINE: Error handling
 					try
 					{
+						// Overlapping GETs must not roll the roster or owner back.
+						if (requestSeq < m_LobbyUpdateAppliedSeq)
+						{
+							NetworkLog(ELogVerbosity::LOG_DEBUG, "[GenOnline] Ignoring out of order lobby response %llu (already applied %llu)", requestSeq, m_LobbyUpdateAppliedSeq.load());
+							if (fnCallback != nullptr)
+							{
+								fnCallback(true); // a newer response has already refreshed the cache
+							}
+							return;
+						}
+
 						if (statusCode == 404) // lobby destroyed, just leave
 						{
-							m_bPendingHostHasLeft = true;
-							// error msg
-
 							// TODO_GENONLINE: We still want to do this, but we need to send back that it failed and back out, proceeding to lobby crashes because mesh wasn't created
 							if (fnCallback != nullptr)
 							{
@@ -898,7 +960,18 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 								return;
 							}
 
+							// the server requeues quick match players itself, a DELETE would cancel that
+							if (TheGenOnlineGame->isQMGame() || m_CurrentLobby.lobby_type == ELobbyType::QuickMatch)
+							{
+								NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Quick match lobby lookup returned 404, tearing down locally only");
+								ResetForMatchmakingRequeue();
+								return;
+							}
+
 							LeaveCurrentLobby();
+
+							// Set after LeaveCurrentLobby because it clears the flag.
+							m_bPendingHostHasLeft = true;
 							return;
 						}
 
@@ -910,28 +983,51 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 						auto lobbyEntryIter = jsonObjectRoot["lobby"];
 
 						LobbyEntry lobbyEntry;
-						lobbyEntryIter["LobbyID"].get_to(lobbyEntry.lobbyID);
-						lobbyEntryIter["Owner"].get_to(lobbyEntry.owner);
-						lobbyEntryIter["Name"].get_to(lobbyEntry.name);
-						lobbyEntryIter["MapName"].get_to(lobbyEntry.map_name);
-						lobbyEntryIter["MapPath"].get_to(lobbyEntry.map_path);
+						JsonGetRequired(lobbyEntryIter, "LobbyID", lobbyEntry.lobbyID);
+						JsonGetRequired(lobbyEntryIter, "Owner", lobbyEntry.owner);
+						JsonGetOptional(lobbyEntryIter, "Name", lobbyEntry.name);
+						JsonGetOptional(lobbyEntryIter, "MapName", lobbyEntry.map_name);
+						JsonGetOptional(lobbyEntryIter, "MapPath", lobbyEntry.map_path);
 						lobbyEntry.map_path = utf8_to_local(lobbyEntry.map_path); // local file path from here on
-						lobbyEntryIter["IsMapOfficial"].get_to(lobbyEntry.map_official);
-						lobbyEntryIter["NumCurrentPlayers"].get_to(lobbyEntry.current_players);
-						lobbyEntryIter["MaxPlayers"].get_to(lobbyEntry.max_players);
-						lobbyEntryIter["IsVanillaTeamsOnly"].get_to(lobbyEntry.vanilla_teams);
-						lobbyEntryIter["RNGSeed"].get_to(lobbyEntry.rng_seed);
-						lobbyEntryIter["StartingCash"].get_to(lobbyEntry.starting_cash);
-						lobbyEntryIter["IsLimitSuperweapons"].get_to(lobbyEntry.limit_superweapons);
-						lobbyEntryIter["IsTrackingStats"].get_to(lobbyEntry.track_stats);
-						lobbyEntryIter["IsPassworded"].get_to(lobbyEntry.passworded);
-						lobbyEntryIter["AllowObservers"].get_to(lobbyEntry.allow_observers);
-						lobbyEntryIter["MaximumCameraHeight"].get_to(lobbyEntry.max_cam_height);
-						lobbyEntryIter["ExeCRC"].get_to(lobbyEntry.exe_crc);
-						lobbyEntryIter["IniCRC"].get_to(lobbyEntry.ini_crc);
-						lobbyEntryIter["MatchID"].get_to(lobbyEntry.match_id);
-						lobbyEntryIter["LobbyType"].get_to(lobbyEntry.lobby_type);
-						lobbyEntryIter["Region"].get_to(lobbyEntry.region);
+						JsonGetOptional(lobbyEntryIter, "IsMapOfficial", lobbyEntry.map_official);
+						JsonGetOptional(lobbyEntryIter, "NumCurrentPlayers", lobbyEntry.current_players);
+						JsonGetOptional(lobbyEntryIter, "MaxPlayers", lobbyEntry.max_players);
+						JsonGetOptional(lobbyEntryIter, "IsVanillaTeamsOnly", lobbyEntry.vanilla_teams);
+						JsonGetOptional(lobbyEntryIter, "RNGSeed", lobbyEntry.rng_seed);
+						JsonGetOptional(lobbyEntryIter, "StartingCash", lobbyEntry.starting_cash);
+						JsonGetOptional(lobbyEntryIter, "IsLimitSuperweapons", lobbyEntry.limit_superweapons);
+						JsonGetOptional(lobbyEntryIter, "IsTrackingStats", lobbyEntry.track_stats);
+						JsonGetOptional(lobbyEntryIter, "IsPassworded", lobbyEntry.passworded);
+						JsonGetOptional(lobbyEntryIter, "AllowObservers", lobbyEntry.allow_observers);
+						JsonGetOptional(lobbyEntryIter, "MaximumCameraHeight", lobbyEntry.max_cam_height);
+						JsonGetOptional(lobbyEntryIter, "ExeCRC", lobbyEntry.exe_crc);
+						JsonGetOptional(lobbyEntryIter, "IniCRC", lobbyEntry.ini_crc);
+						JsonGetOptional(lobbyEntryIter, "MatchID", lobbyEntry.match_id);
+						JsonGetOptional(lobbyEntryIter, "LobbyType", lobbyEntry.lobby_type);
+						JsonGetOptional(lobbyEntryIter, "Region", lobbyEntry.region);
+
+						// Every member is parsed before any side effect so a malformed member changes nothing.
+						std::vector<LobbyMemberEntry> parsedMembers;
+						for (const auto& memberEntryIter : lobbyEntryIter.at("Members"))
+						{
+							LobbyMemberEntry memberEntry;
+
+							JsonGetRequired(memberEntryIter, "UserID", memberEntry.user_id);
+							JsonGetOptional(memberEntryIter, "DisplayName", memberEntry.display_name);
+							JsonGetOptional(memberEntryIter, "IsReady", memberEntry.m_bIsReady);
+							JsonGetOptional(memberEntryIter, "Port", memberEntry.preferredPort);
+							JsonGetOptional(memberEntryIter, "Side", memberEntry.side);
+							JsonGetOptional(memberEntryIter, "Color", memberEntry.color);
+							JsonGetOptional(memberEntryIter, "Team", memberEntry.team);
+							JsonGetOptional(memberEntryIter, "StartingPosition", memberEntry.startpos);
+							JsonGetOptional(memberEntryIter, "HasMap", memberEntry.has_map);
+							JsonGetOptional(memberEntryIter, "SlotState", memberEntry.m_SlotState);
+							ParseMemberSlotIndex(memberEntryIter, memberEntry);
+							JsonGetOptional(memberEntryIter, "Region", memberEntry.region);
+							JsonGetOptional(memberEntryIter, "MiddlewareUserID", memberEntry.middlewareUserID);
+
+							parsedMembers.push_back(memberEntry);
+						}
 
 						if (lobbyEntry.lobby_type == ELobbyType::QuickMatch)
 						{
@@ -972,6 +1068,7 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 							lobbyEntry.members = m_CurrentLobby.members;
 
 							// still store the lobby though
+							m_LobbyUpdateAppliedSeq = requestSeq;
 							m_CurrentLobby = lobbyEntry;
 						}
 						else
@@ -995,24 +1092,8 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 								}
 							}
 
-							for (const auto& memberEntryIter : lobbyEntryIter["Members"])
+							for (const LobbyMemberEntry& memberEntry : parsedMembers)
 							{
-								LobbyMemberEntry memberEntry;
-
-								memberEntryIter["UserID"].get_to(memberEntry.user_id);
-								memberEntryIter["DisplayName"].get_to(memberEntry.display_name);
-								memberEntryIter["IsReady"].get_to(memberEntry.m_bIsReady);
-								memberEntryIter["Port"].get_to(memberEntry.preferredPort);
-								memberEntryIter["Side"].get_to(memberEntry.side);
-								memberEntryIter["Color"].get_to(memberEntry.color);
-								memberEntryIter["Team"].get_to(memberEntry.team);
-								memberEntryIter["StartingPosition"].get_to(memberEntry.startpos);
-								memberEntryIter["HasMap"].get_to(memberEntry.has_map);
-								memberEntryIter["SlotState"].get_to(memberEntry.m_SlotState);
-								memberEntryIter["SlotIndex"].get_to(memberEntry.m_SlotIndex);
-								memberEntryIter["Region"].get_to(memberEntry.region);
-								memberEntryIter["MiddlewareUserID"].get_to(memberEntry.middlewareUserID);
-
 								lobbyEntry.members.push_back(memberEntry);
 
 								// TODO_GENONLINE: Much more robust system here
@@ -1082,7 +1163,48 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 								TheGenOnlineGame->StopCountdown();
 							}
 
+							// A player who joined after the check is unchecked, so the countdown stops.
+							if (IsHost()
+								&& TheGenOnlineGame != nullptr
+								&& TheGenOnlineGame->IsCountdownStarted()
+								&& !TheGenOnlineGame->isQMGame())
+							{
+								bool bPlayerJoined = false;
+								for (const LobbyMemberEntry& newMember : lobbyEntry.members)
+								{
+									if (!newMember.IsHuman())
+									{
+										continue;
+									}
+
+									bool bWasInLobby = false;
+									for (const LobbyMemberEntry& oldMember : m_CurrentLobby.members)
+									{
+										if (oldMember.IsHuman() && oldMember.user_id == newMember.user_id)
+										{
+											bWasInLobby = true;
+											break;
+										}
+									}
+
+									if (!bWasInLobby)
+									{
+										bPlayerJoined = true;
+										break;
+									}
+								}
+
+								if (bPlayerJoined)
+								{
+									TheGenOnlineGame->StopCountdown();
+
+									UnicodeString strInform = UnicodeString(L"Countdown stopped: a player joined, start again to re-check connections.");
+									SendAnnouncementMessageToCurrentLobby(strInform, true);
+								}
+							}
+
 							// store
+							m_LobbyUpdateAppliedSeq = requestSeq;
 							m_CurrentLobby = lobbyEntry;
 							RecordJoinOrder(lobbyEntry.members);
 
@@ -1133,12 +1255,12 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 	return;
 }
 
-void GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPassword)
+bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPassword)
 {
 	if (m_bAttemptingToJoinLobby)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "Not attempting to join lobby because a join attempt is already in progress");
-		return;
+		return false;
 	}
 
 	const uint64_t lobbyJoinGeneration = ++m_LobbyJoinGeneration;
@@ -1148,6 +1270,7 @@ void GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 	m_bAttemptingToJoinLobby = true;
 	m_CurrentLobby = LobbyEntry();
 	ResetJoinOrder();
+	ResetHostMigrationFlags();
 
 	GenOnlineServicesManager::GetInstance()->GetAndParseServiceConfig([=]()
 		{
@@ -1355,9 +1478,11 @@ void GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 
 				});
 		});
+
+	return true;
 }
 
-void GenOnlineLobbyInterface::LeaveCurrentLobby()
+void GenOnlineLobbyInterface::TearDownLocalLobbyState()
 {
 	m_bCannotConnectToLobbyPending = false;
 	ResetJoinOrder();
@@ -1373,6 +1498,7 @@ void GenOnlineLobbyInterface::LeaveCurrentLobby()
 	if (pWS != nullptr)
 	{
 		pWS->ClearConnectivityCheckCallback();
+		pWS->ClearPendingSignals();
 	}
 
 	// reset host migration flags
@@ -1397,6 +1523,11 @@ void GenOnlineLobbyInterface::LeaveCurrentLobby()
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
 	m_timeStartAutoReadyCountdown = -1;
 #endif
+}
+
+void GenOnlineLobbyInterface::LeaveCurrentLobby()
+{
+	TearDownLocalLobbyState();
 	
 	if (!IsInLobby())
 	{
@@ -1414,34 +1545,9 @@ void GenOnlineLobbyInterface::LeaveCurrentLobby()
 
 void GenOnlineLobbyInterface::ResetForMatchmakingRequeue()
 {
-	m_bCannotConnectToLobbyPending = false;
-	ResetJoinOrder();
-
 	// The service has already removed us from the failed temporary lobby. Tear down only
 	// local state here; sending the normal DELETE would cancel the server-side requeue.
-	++m_LobbyJoinGeneration;
-	ResetHostMigrationFlags();
-	GenOnlinePluginHost::Anticheat::EndSession();
-
-	if (m_pLobbyMesh != nullptr)
-	{
-		m_pLobbyMesh->Disconnect();
-		delete m_pLobbyMesh;
-		m_pLobbyMesh = nullptr;
-	}
-
-	if (TheGenOnlineGame != nullptr)
-	{
-		delete TheGenOnlineGame;
-		TheGenOnlineGame = nullptr;
-	}
-
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-	m_timeStartAutoReadyCountdown = -1;
-#endif
-
-	m_bAttemptingToJoinLobby = false;
-	ResetLobbyTryingToJoin();
+	TearDownLocalLobbyState();
 	ResetCachedRoomData();
 }
 
@@ -1489,6 +1595,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 		{
 			m_CurrentLobby = LobbyEntry();
 			ResetJoinOrder();
+			ResetHostMigrationFlags();
 			m_bJoinOrderKnown = true;
 			std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("Lobbies");
 			std::map<std::string, std::string> mapHeaders;
@@ -1610,6 +1717,9 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 							me.user_id = m_CurrentLobby.owner;
 							me.display_name = pAuthInterface->GetDisplayName();
 							me.m_bIsReady = true; // host is always ready
+
+							me.m_SlotIndex = 0;
+							me.m_SlotState = SlotState::SLOT_PLAYER;
 
 							// TODO_GENONLINE: Remove this and just hardcode it or provide from service
 							me.preferredPort = 0;

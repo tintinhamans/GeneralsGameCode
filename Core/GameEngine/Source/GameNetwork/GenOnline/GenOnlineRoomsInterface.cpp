@@ -9,11 +9,6 @@
 #include "../HTTP/HTTPManager.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 
-// one clock for every websocket timestamp; utc_clock also loads the time zone database on MSVC
-static int64_t NowMs()
-{
-	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-}
 
 // -----------------------------
 // Module info structure
@@ -751,7 +746,15 @@ void WebSocket::Tick()
 	// Main thread only; m_pCurlWS/m_vecWSPartialBuffer/m_bConnected are unlocked here.
 	UpdateReconnect();
 
-
+	// Longer than the 20 s server backstop so a late reply finds no callback and is ignored.
+	static constexpr int64_t CONNECTIVITY_CHECK_TIMEOUT_MS = 30000;
+	if (m_cbOnConnectivityCheckComplete != nullptr && m_connectivityCheckStartMs != -1 && (NowMs() - m_connectivityCheckStartMs) > CONNECTIVITY_CHECK_TIMEOUT_MS)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK] No reply from the server, timing out");
+		auto cbTimedOut = std::move(m_cbOnConnectivityCheckComplete);
+		ClearConnectivityCheckCallback();
+		cbTimedOut(false, {}, "timeout");
+	}
 
 	/*
 	if (strSignal.length() == 6)
@@ -1294,22 +1297,30 @@ void WebSocket::Tick()
 										WebSocketMessage_NetworkStartSignalling startSignallingData;
 										bool bParsed = JSONGetAsObject(jsonObject, &startSignallingData);
 
-										// TODO_GENONLINE: Better location for this
-										// When we find a new player, get their latest stats. Tooltip and loading screen need it, so we'll grab it now and then use cached data later since it cannot possibly change while in a lobby
-										GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
-										if (pStatsInterface != nullptr)
-										{
-											pStatsInterface->findPlayerStatsByID(startSignallingData.user_id, [=](bool bSuccess, PSPlayerStats stats)
-												{
-
-												}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
-										}
-
 										if (bParsed)
 										{
 											GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 											if (pLobbyInterface != nullptr)
 											{
+												// -1 while a join is still in flight, when this can legitimately arrive first
+												const int64_t currentLobbyID = pLobbyInterface->GetCurrentLobby().lobbyID;
+												if (currentLobbyID != -1 && currentLobbyID != startSignallingData.lobby_id)
+												{
+													NetworkLog(ELogVerbosity::LOG_RELEASE, "[NETWORK_CONNECTION_START_SIGNALLING] Ignoring signalling for lobby %lld, we are in lobby %lld", startSignallingData.lobby_id, currentLobbyID);
+													break;
+												}
+
+												// TODO_GENONLINE: Better location for this
+												// When we find a new player, get their latest stats. Tooltip and loading screen need it, so we'll grab it now and then use cached data later since it cannot possibly change while in a lobby
+												GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
+												if (pStatsInterface != nullptr)
+												{
+													pStatsInterface->findPlayerStatsByID(startSignallingData.user_id, [=](bool bSuccess, PSPlayerStats stats)
+														{
+
+														}, EStatsRequestPolicy::BYPASS_CACHE_FORCE_REQUEST);
+												}
+
 												NetworkMesh* pMesh = pLobbyInterface->GetNetworkMeshForLobby();
 
 												if (pMesh != nullptr)
@@ -1339,7 +1350,7 @@ void WebSocket::Tick()
 
 										if (bParsed)
 										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_REGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid);
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_REGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid.c_str());
 											if (!GenOnlinePluginHost::Anticheat::RegisterPeer(acData.mwid, acData.user_id))
 											{
 												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::RegisterPeer failed");
@@ -1355,7 +1366,7 @@ void WebSocket::Tick()
 
 										if (bParsed)
 										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_DEREGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid);
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_DEREGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid.c_str());
 											if (!GenOnlinePluginHost::Anticheat::DeregisterPeer(acData.mwid, acData.user_id))
 											{
 												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::DeregisterPeer failed");
@@ -1580,9 +1591,14 @@ void WebSocket::Tick()
 												lobbyEntry.lobbyID = mmEvent.lobby_id;
 												lobbyEntry.map_path = "Maps\\Alpine Assault\\Alpine Assault.map";
 
-												pLobbyInterface->JoinLobby(lobbyEntry, std::string());
-
-												pLobbyInterface->InvokeMatchmakingMessageCallback("Joining QuickMatch Lobby");
+												if (pLobbyInterface->JoinLobby(lobbyEntry, std::string()))
+												{
+													pLobbyInterface->InvokeMatchmakingMessageCallback("Joining QuickMatch Lobby");
+												}
+												else
+												{
+													pLobbyInterface->InvokeMatchmakingMessageCallback("Could not join the QuickMatch lobby, another join is still in progress");
+												}
 											}
 											else
 											{

@@ -191,6 +191,11 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 			}
 
 
+			if (bPeerLeft)
+			{
+				pMesh->RemoveConnection(userID);
+			}
+
 			// In this example, we will bail the test whenever this happens.
 			// Was this a normal termination?
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING]DISCONNECTED OR PROBLEM DETECTED %d\n", pInfo->m_info.m_eEndReason);
@@ -254,35 +259,9 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 					return;
 				}
 
-				auto currentLobby = pLobbyInterface->GetCurrentLobby();
-				bool bPlayerIsInLobby = false;
-				for (const auto& member : currentLobby.members)
-				{
-					// TODO_GENONLINE: Use bytes or SteamID instead... string compare is nasty
-					if (std::to_string(member.user_id) == pInfo->m_info.m_identityRemote.GetGenericString())
-					{
-						bPlayerIsInLobby = true;
-						break;
-					}
-				}
-
-				if (bPlayerIsInLobby)
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][%s] Accepting - Player is in lobby\n", pInfo->m_info.m_szConnectionDescription);
-					SteamNetworkingSockets()->AcceptConnection(pInfo->m_hConn);
-				}
-				else
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][%s] Rejecting - Player is not in lobby\n", pInfo->m_info.m_szConnectionDescription);
-
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection not in lobby %lld", plrConnection.m_userID);
-					SteamNetworkingSockets()->CloseConnection(pInfo->m_hConn, 1000, "Player is not in lobby (Rejected)", false);
-
-					if (TheNetwork != nullptr)
-					{
-						TheNetwork->GetConnectionManager()->disconnectPlayer(plrConnection.m_userID);
-					}
-				}
+				// A signalled connection is accepted even with a stale roster.
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][%s] Accepting - Server started signalling\n", pInfo->m_info.m_szConnectionDescription);
+				SteamNetworkingSockets()->AcceptConnection(pInfo->m_hConn);
 			}
 			
 		}
@@ -1058,6 +1037,18 @@ void NetworkMesh::SetTurnCredentials(const std::string& strUsername, const std::
 }
 
 
+void NetworkMesh::RemoveConnection(int64_t userID)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+
+	auto it = m_mapConnections.find(userID);
+	if (it != m_mapConnections.end())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ERASE 4] Removing user %lld", it->second.m_userID);
+		m_mapConnections.erase(it);
+	}
+}
+
 void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
@@ -1515,7 +1506,7 @@ int PlayerConnection::Recv(SteamNetworkingMessage_t** pMsg)
 	}
 	else
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[DISC] Recv Failed 1 from user %lld", m_userID);
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "[DISC] Recv Failed 1 from user %lld", m_userID);
 	}
 
 	return r;
