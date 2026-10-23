@@ -3,6 +3,8 @@
 #include "../json.hpp"
 #include "../OnlineServices_LobbyInterface.h"
 #include "../OnlineServices_Init.h"
+#include "GameNetwork/GeneralsOnline/CredentialStore.h"
+#include "GameNetwork/GeneralsOnline/OnlineServices_Auth.h"
 
 #define SETTINGS_KEY_CAMERA "camera"
 #define SETTINGS_KEY_CAMERA_MIN_HEIGHT "min_height"
@@ -194,6 +196,8 @@ static nlohmann::json DataPackLayerToJson(const GenOnlineDataPackLayer& layer, c
 
 void GenOnlineSettings::Load(void)
 {
+	ServiceConnection::ConfigureCredentialStore(&NGMP_OnlineServices_AuthInterface::GetCredentialsFilePath);
+	ServiceConnection::SetCredentialLogSink([](const std::string& line) { NetworkLog(ELogVerbosity::LOG_RELEASE, "%s", line.c_str()); });
 	char GameDir[MAX_PATH + 1] = {};
 	::GetCurrentDirectoryA(MAX_PATH + 1u, GameDir);
 	std::string strSettingsFileDir = std::format("{}/GeneralsOnlineData/", TheGlobalData->getPath_UserData().str());
@@ -668,12 +672,36 @@ bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSe
 	m_ConnectionSettings = settings;
 	if (Save())
 	{
+		// a changed proxy starts without anything typed for the old one
+		if (settings.proxyMode == "custom" && (previous.proxyMode != "custom" || previous.proxyURL != settings.proxyURL))
+			ServiceConnection::ClearSessionProxyCredentialsExcept(settings.proxyURL);
 		ServiceConnection::InvalidateProxyPolicyCache();
 		return true;
 	}
 	m_ConnectionSettings = previous;
 	error = "Could not save connection settings. Check the game user-data folder permissions.";
 	return false;
+}
+
+bool GenOnlineSettings::Network_SaveWindowsLogin(bool windowsLogin)
+{
+	if (!m_bInitialized)
+	{
+		Initialize();
+	}
+	std::lock_guard<std::mutex> lock(m_NetworkMutex);
+	if (m_ConnectionSettings.windowsLogin == windowsLogin)
+	{
+		return true;
+	}
+	m_ConnectionSettings.windowsLogin = windowsLogin;
+	if (!Save())
+	{
+		m_ConnectionSettings.windowsLogin = !windowsLogin;
+		return false;
+	}
+	ServiceConnection::InvalidateProxyPolicyCache();
+	return true;
 }
 
 bool GenOnlineSettings::Network_SaveLastRoute(const std::string& host)

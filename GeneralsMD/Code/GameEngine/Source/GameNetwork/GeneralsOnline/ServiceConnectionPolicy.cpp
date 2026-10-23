@@ -1,9 +1,9 @@
 #include "GameNetwork/GeneralsOnline/ServiceConnectionPolicy.h"
+#include "GameNetwork/GeneralsOnline/CredentialStore.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winhttp.h>
-#include <wincred.h>
 #include <algorithm>
 #include <cctype>
 #include <sstream>
@@ -14,7 +14,6 @@
 #include <chrono>
 
 #pragma comment(lib, "winhttp.lib")
-#pragma comment(lib, "advapi32.lib")
 
 namespace ServiceConnection
 {
@@ -64,9 +63,11 @@ std::string Part(CURLU* url, CURLUPart part, unsigned flags = 0)
 	return result;
 }
 
-bool CanonicalProxy(const std::string& input, std::string& canonical, std::string& error)
+bool CanonicalProxy(const std::string& typed, std::string& canonical, std::string& error)
 {
 	error.clear();
+	// host:port without a scheme means an http proxy, so it maps to the same key as http://host:port
+	const std::string input = typed.find("://") == std::string::npos && !typed.empty() ? "http://" + typed : typed;
 	CURLU* url = curl_url();
 	if (!url)
 	{
@@ -95,9 +96,40 @@ bool CanonicalProxy(const std::string& input, std::string& canonical, std::strin
 	return valid;
 }
 
-std::wstring CredentialTarget(const std::string& canonical)
+
+struct SessionLogin
 {
-	return L"GeneralsOnline/Proxy/" + Wide(canonical);
+	std::string user;
+	std::string secret;
+};
+
+std::mutex& SessionLoginMutex()
+{
+	static std::mutex mutex;
+	return mutex;
+}
+
+std::map<std::string, SessionLogin>& SessionLogins()
+{
+	static std::map<std::string, SessionLogin> logins;
+	return logins;
+}
+
+void WipeSessionLogin(SessionLogin& login)
+{
+	if (!login.secret.empty())
+		SecureZeroMemory(&login.secret[0], login.secret.size());
+	login.secret.clear();
+}
+
+bool FindSessionLogin(const std::string& canonical, SessionLogin& login)
+{
+	std::lock_guard<std::mutex> lock(SessionLoginMutex());
+	const auto found = SessionLogins().find(canonical);
+	if (found == SessionLogins().end())
+		return false;
+	login = found->second;
+	return true;
 }
 
 bool Wildcard(const std::string& pattern, const std::string& value)
@@ -200,7 +232,7 @@ bool StaticProxy(const std::wstring& proxy, const std::wstring& bypass, const st
 			result.routes.clear();
 			return false;
 		}
-		result.routes.push_back({canonical, false, false});
+		result.routes.push_back({canonical, false, canonical.find("socks5h://") != 0});
 	}
 	// A protocol-specific system configuration without this protocol explicitly leaves it direct.
 	if (result.routes.empty())
@@ -339,7 +371,7 @@ ResolvedProxyPolicy AutoProxy(const std::wstring& destination, WINHTTP_AUTOPROXY
 				std::string canonical;
 				if (!CanonicalProxy(scheme + "://" + host + ":" + std::to_string(entry.ProxyPort), canonical, result.error))
 					break;
-				result.routes.push_back({canonical, false, false});
+				result.routes.push_back({canonical, false, canonical.find("socks5h://") != 0});
 			}
 			WinHttpFreeProxyResult(&proxies);
 		}
@@ -399,7 +431,9 @@ bool ValidateProxyURL(const std::string& proxyURL, std::string& error)
 	return CanonicalProxy(proxyURL, canonical, error);
 }
 
-ResolvedProxyPolicy ResolveProxyPolicy(const ServiceConnectionSettings& settings, const std::string& destinationURL)
+namespace
+{
+ResolvedProxyPolicy ResolveProxyRoutes(const ServiceConnectionSettings& settings, const std::string& destinationURL)
 {
 	ResolvedProxyPolicy result;
 	if (settings.proxyMode == "disabled")
@@ -460,6 +494,19 @@ ResolvedProxyPolicy ResolveProxyPolicy(const ServiceConnectionSettings& settings
 	}
 	else
 		result.routes.push_back({});
+	return result;
+}
+}
+
+ResolvedProxyPolicy ResolveProxyPolicy(const ServiceConnectionSettings& settings, const std::string& destinationURL)
+{
+	ResolvedProxyPolicy result = ResolveProxyRoutes(settings, destinationURL);
+	// the Windows login is only tried when the player wants it
+	if (!settings.windowsLogin)
+	{
+		for (auto& route : result.routes)
+			route.allowIntegratedAuth = false;
+	}
 	return result;
 }
 
@@ -817,37 +864,106 @@ std::shared_ptr<ProxyResolution> StartProxyResolution(ServiceConnectionSettings 
 	}
 	return state;
 }
+
 bool SaveProxyCredentials(const std::string& proxyURL, const std::string& username,
 	const std::string& password, std::string& error)
 {
 	std::string canonical;
 	if (!CanonicalProxy(proxyURL, canonical, error))
 		return false;
-	auto user = Wide(username);
-	auto secret = Wide(password);
-	if (user.empty() || username.find('\0') != std::string::npos || password.find('\0') != std::string::npos ||
-		(!password.empty() && secret.empty()) || secret.size() * sizeof(wchar_t) > CRED_MAX_CREDENTIAL_BLOB_SIZE)
+	if (username.empty() || username.find('\0') != std::string::npos || password.find('\0') != std::string::npos)
 	{
-		if (!secret.empty())
-			SecureZeroMemory(&secret[0], secret.size() * sizeof(wchar_t));
-		error = "Proxy credentials are invalid or too long.";
+		error = "Proxy credentials are invalid.";
 		return false;
 	}
-	auto target = CredentialTarget(canonical);
-	CREDENTIALW credential{};
-	credential.Type = CRED_TYPE_GENERIC;
-	credential.TargetName = &target[0];
-	credential.UserName = &user[0];
-	credential.CredentialBlobSize = (DWORD)(secret.size() * sizeof(wchar_t));
-	credential.CredentialBlob = reinterpret_cast<LPBYTE>(secret.empty() ? nullptr : &secret[0]);
-	credential.Persist = CRED_PERSIST_LOCAL_MACHINE;
-	bool success = CredWriteW(&credential, 0) != FALSE;
-	DWORD status = success ? ERROR_SUCCESS : GetLastError();
-	if (!secret.empty())
-		SecureZeroMemory(&secret[0], secret.size() * sizeof(wchar_t));
-	if (!success)
-		error = "Unable to save proxy credentials (" + std::to_string(status) + ").";
-	return success;
+	if (!SaveProxyLogin(canonical, username, password))
+	{
+		error = "Unable to save proxy credentials. They are used until the game closes.";
+		return false;
+	}
+	return true;
+}
+
+void SetSessionProxyCredentials(const std::string& proxyURL, const std::string& username, const std::string& password)
+{
+	std::string canonical, error;
+	if (!CanonicalProxy(proxyURL, canonical, error))
+		return;
+	std::lock_guard<std::mutex> lock(SessionLoginMutex());
+	auto& login = SessionLogins()[canonical];
+	WipeSessionLogin(login);
+	login.user = username;
+	login.secret = password;
+}
+
+void ClearSessionProxyCredentials(const std::string& proxyURL)
+{
+	std::string canonical, error;
+	if (!CanonicalProxy(proxyURL, canonical, error))
+		return;
+	std::lock_guard<std::mutex> lock(SessionLoginMutex());
+	const auto found = SessionLogins().find(canonical);
+	if (found == SessionLogins().end())
+		return;
+	WipeSessionLogin(found->second);
+	SessionLogins().erase(found);
+}
+
+void ClearSessionProxyCredentialsExcept(const std::string& keepProxyURL)
+{
+	std::string keep, error;
+	CanonicalProxy(keepProxyURL, keep, error);
+	std::lock_guard<std::mutex> lock(SessionLoginMutex());
+	for (auto it = SessionLogins().begin(); it != SessionLogins().end();)
+	{
+		if (it->first == keep)
+		{
+			++it;
+			continue;
+		}
+		WipeSessionLogin(it->second);
+		it = SessionLogins().erase(it);
+	}
+}
+
+std::string CanonicalProxyKey(const std::string& proxyURL)
+{
+	std::string canonical, error;
+	return CanonicalProxy(proxyURL, canonical, error) ? canonical : std::string();
+}
+
+std::string ProxyUsername(const std::string& proxyURL)
+{
+	std::string canonical, error;
+	if (!CanonicalProxy(proxyURL, canonical, error))
+		return {};
+	SessionLogin session;
+	if (FindSessionLogin(canonical, session))
+	{
+		WipeSessionLogin(session);
+		return session.user;
+	}
+	std::string user, password;
+	const bool found = LoadProxyLogin(canonical, user, password);
+	if (!password.empty())
+		SecureZeroMemory(&password[0], password.size());
+	return found ? user : std::string();
+}
+
+std::string ProxyDisplayName(const std::string& proxyURL)
+{
+	const auto schemeEnd = proxyURL.find("://");
+	return schemeEnd == std::string::npos ? proxyURL : proxyURL.substr(schemeEnd + 3);
+}
+
+bool HasProxyCredentials(const std::string& proxyURL)
+{
+	std::string canonical, error;
+	std::string user, password;
+	const bool found = CanonicalProxy(proxyURL, canonical, error) && LoadProxyLogin(canonical, user, password);
+	if (!password.empty())
+		SecureZeroMemory(&password[0], password.size());
+	return found;
 }
 
 bool DeleteProxyCredentials(const std::string& proxyURL, std::string& error)
@@ -855,12 +971,9 @@ bool DeleteProxyCredentials(const std::string& proxyURL, std::string& error)
 	std::string canonical;
 	if (!CanonicalProxy(proxyURL, canonical, error))
 		return false;
-	if (CredDeleteW(CredentialTarget(canonical).c_str(), CRED_TYPE_GENERIC, 0))
+	if (DeleteProxyLogin(canonical))
 		return true;
-	DWORD status = GetLastError();
-	if (status == ERROR_NOT_FOUND)
-		return true;
-	error = "Unable to remove proxy credentials (" + std::to_string(status) + ").";
+	error = "Unable to remove proxy credentials.";
 	return false;
 }
 
@@ -890,35 +1003,6 @@ bool ConfigureCurl(CURL* curl, const std::string& destinationURL, const ProxyRou
 		return false;
 	if (!set(CURLOPT_PROXY, canonical.c_str()))
 		return false;
-	PCREDENTIALW credential = nullptr;
-	if (CredReadW(CredentialTarget(canonical).c_str(), CRED_TYPE_GENERIC, 0, &credential))
-	{
-		bool valid = credential->UserName && *credential->UserName && credential->CredentialBlobSize % sizeof(wchar_t) == 0;
-		std::string user = valid ? UTF8(credential->UserName) : std::string();
-		std::wstring wideSecret;
-		if (valid && credential->CredentialBlobSize)
-			wideSecret.assign(reinterpret_cast<wchar_t*>(credential->CredentialBlob), credential->CredentialBlobSize / sizeof(wchar_t));
-		std::string secret = UTF8(wideSecret);
-		valid = valid && !user.empty() && secret.find('\0') == std::string::npos;
-		bool success = valid && set(CURLOPT_PROXYUSERNAME, user.c_str()) && set(CURLOPT_PROXYPASSWORD, secret.c_str()) &&
-			set(CURLOPT_PROXYAUTH, (long)(CURLAUTH_BASIC | CURLAUTH_DIGEST | CURLAUTH_NEGOTIATE));
-		if (!secret.empty())
-			SecureZeroMemory(&secret[0], secret.size());
-		if (!wideSecret.empty())
-			SecureZeroMemory(&wideSecret[0], wideSecret.size() * sizeof(wchar_t));
-		if (credential->CredentialBlobSize)
-			SecureZeroMemory(credential->CredentialBlob, credential->CredentialBlobSize);
-		CredFree(credential);
-		if (!valid)
-			error = "Stored proxy credentials are invalid. Save them again.";
-		return success;
-	}
-	DWORD status = GetLastError();
-	if (status != ERROR_NOT_FOUND)
-	{
-		error = "Unable to read saved proxy credentials (" + std::to_string(status) + ").";
-		return false;
-	}
 	if (route.allowIntegratedAuth)
 	{
 		if (!(version->features & CURL_VERSION_SSPI))
@@ -927,6 +1011,24 @@ bool ConfigureCurl(CURL* curl, const std::string& destinationURL, const ProxyRou
 			return false;
 		}
 		return set(CURLOPT_PROXYAUTH, (long)CURLAUTH_NEGOTIATE) && set(CURLOPT_PROXYUSERPWD, ":");
+	}
+	// otherwise a login typed for this session wins over the saved one
+	SessionLogin session;
+	if (FindSessionLogin(canonical, session))
+	{
+		const bool success = set(CURLOPT_PROXYUSERNAME, session.user.c_str()) && set(CURLOPT_PROXYPASSWORD, session.secret.c_str()) &&
+			set(CURLOPT_PROXYAUTH, (long)(CURLAUTH_BASIC | CURLAUTH_DIGEST | CURLAUTH_NEGOTIATE));
+		WipeSessionLogin(session);
+		return success;
+	}
+	std::string user, secret;
+	if (LoadProxyLogin(canonical, user, secret))
+	{
+		const bool success = set(CURLOPT_PROXYUSERNAME, user.c_str()) && set(CURLOPT_PROXYPASSWORD, secret.c_str()) &&
+			set(CURLOPT_PROXYAUTH, (long)(CURLAUTH_BASIC | CURLAUTH_DIGEST | CURLAUTH_NEGOTIATE));
+		if (!secret.empty())
+			SecureZeroMemory(&secret[0], secret.size());
+		return success;
 	}
 	return true;
 }
@@ -965,5 +1067,117 @@ const char* FailurePhase(CURLcode code, long status, long proxyStatus)
 	if (status >= 400)
 		return "service response";
 	return "none";
+}
+
+namespace
+{
+size_t ReceiveProbe(void* data, size_t size, size_t count, void* target)
+{
+	if (size && count > SIZE_MAX / size)
+		return 0;
+	const size_t bytes = size * count;
+	auto& body = *static_cast<std::string*>(target);
+	if (bytes > 4096 || body.size() > 4096 - bytes)
+		return 0;
+	body.append(static_cast<const char*>(data), bytes);
+	return bytes;
+}
+}
+
+ConnectionTestResult TestServiceConnection(const ServiceConnectionSettings& settings, const std::string& environment, int maxSeconds)
+{
+	using Outcome = ConnectionTestResult::Outcome;
+	ConnectionTestResult result;
+	result.outcome = Outcome::Unreachable;
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(maxSeconds);
+	for (const auto& base : BootstrapRoutes(environment, settings, ""))
+	{
+		const std::string url = base + "VersionManifest";
+		const std::string routeName = base.find("://api-ru.") != std::string::npos ? "alternative" : "primary";
+		const auto policy = ResolveProxyPolicy(settings, url);
+		if (!policy.error.empty())
+		{
+			result.outcome = Outcome::Failed;
+			result.detail = policy.error;
+			return result;
+		}
+		for (const auto& route : policy.routes)
+		{
+			if (std::chrono::steady_clock::now() >= deadline)
+				return result;
+			std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> curl(curl_easy_init(), curl_easy_cleanup);
+			std::string error, body;
+			if (!ConfigureCurl(curl.get(), url, route, error))
+			{
+				result.outcome = Outcome::Failed;
+				result.detail = error;
+				return result;
+			}
+			if (curl_easy_setopt(curl.get(), CURLOPT_URL, url.c_str()) != CURLE_OK ||
+				curl_easy_setopt(curl.get(), CURLOPT_CONNECTTIMEOUT_MS, 4000L) != CURLE_OK ||
+				curl_easy_setopt(curl.get(), CURLOPT_TIMEOUT_MS, 6000L) != CURLE_OK ||
+				curl_easy_setopt(curl.get(), CURLOPT_WRITEFUNCTION, ReceiveProbe) != CURLE_OK ||
+				curl_easy_setopt(curl.get(), CURLOPT_WRITEDATA, &body) != CURLE_OK)
+			{
+				result.outcome = Outcome::Failed;
+				result.detail = "Could not set up the test.";
+				return result;
+			}
+			const auto code = curl_easy_perform(curl.get());
+			long status = 0, proxyStatus = 0;
+			curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &status);
+			curl_easy_getinfo(curl.get(), CURLINFO_HTTP_CONNECTCODE, &proxyStatus);
+			result.route = routeName;
+			result.proxyURL = route.direct ? std::string() : route.url;
+			result.proxyAnswered = proxyStatus != 0;
+			if (status == 407 || proxyStatus == 407)
+			{
+				result.outcome = Outcome::ProxyAuthRequired;
+				result.detail = ProxyUsername(route.url).empty() ? "required" : "refused";
+				return result;
+			}
+			if (status == 401 || status == 403)
+			{
+				result.outcome = Outcome::ServiceRejected;
+				return result;
+			}
+			if (code == CURLE_OK && status == 200 && IsExpectedVersionManifest(body))
+			{
+				result.outcome = Outcome::Connected;
+				return result;
+			}
+			if (code == CURLE_PEER_FAILED_VERIFICATION || code == CURLE_SSL_CONNECT_ERROR)
+			{
+				result.outcome = Outcome::Failed;
+				result.detail = "Secure connection failed. Check certificates or TLS inspection.";
+			}
+			else if (code == CURLE_OK)
+			{
+				result.outcome = Outcome::Failed;
+				result.detail = "Unexpected reply from the service (HTTP " + std::to_string(status) + ").";
+			}
+			else
+				result.outcome = Outcome::Unreachable;
+		}
+	}
+	return result;
+}
+
+std::string DescribeConnectionTest(const ConnectionTestResult& result)
+{
+	using Outcome = ConnectionTestResult::Outcome;
+	switch (result.outcome)
+	{
+		case Outcome::Connected:
+			return result.proxyURL.empty() ? "Connected through the " + result.route + " route, no proxy." : "Connected through proxy " + ProxyDisplayName(result.proxyURL) + ".";
+		case Outcome::ProxyAuthRequired:
+			return result.detail == "required" ? "The proxy needs a login." : "The proxy refused the login.";
+		case Outcome::ServiceRejected:
+			return "The service refused the connection.";
+		case Outcome::Unreachable:
+			return std::string("Could not reach the service.") + (result.proxyURL.empty() ? "\nCheck your internet connection." : "\nCheck the proxy address.");
+		default:
+			return result.detail.empty() ? "Could not test the connection." : result.detail;
+	}
 }
 }

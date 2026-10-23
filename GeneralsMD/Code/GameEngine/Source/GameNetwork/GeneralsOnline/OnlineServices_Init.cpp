@@ -18,6 +18,7 @@
 #include <mutex>
 #include <utility>
 #include "GameNetwork/GeneralsOnline/ServiceEndpointPolicy.h"
+#include "GameNetwork/GeneralsOnline/ProxyLogin.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
@@ -233,6 +234,8 @@ void NGMP_OnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> ca
 		return;
 	}
 	m_routeSettingsKey = key;
+	m_routeProxyPrompted = false;
+	m_routeProxyAuthFailed = false;
 	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), settings, Settings.Network_GetLastRoute());
 	m_bootstrapIndex = 0;
 	ProbeServiceRoute();
@@ -262,15 +265,40 @@ void NGMP_OnlineServicesManager::ProbeServiceRoute()
 	const std::string url = m_serviceBase + "VersionManifest";
 	std::map<std::string, std::string> headers;
 	m_pHTTPManager->SendGETRequest(url.c_str(), EIPProtocolVersion::DONT_CARE, headers,
-		[](bool success, int status, std::string body, HTTPRequest*)
+		[](bool success, int status, std::string body, HTTPRequest* request)
 		{
 			auto* manager = GetInstance();
 			if (!manager)
 			{
 				return;
 			}
+			// the proxy wants a login: ask once per attempt, then probe the same route again
+			const std::string proxyURL = status == 407 && request != nullptr ? request->GetProxyURL() : std::string();
+			if (!proxyURL.empty())
+			{
+				manager->m_routeProxyAuthFailed = true;
+				if (!manager->m_routeProxyPrompted)
+				{
+					manager->m_routeProxyPrompted = true;
+					ServiceConnection::RequestProxyLogin(proxyURL, Settings.Network_GetConnectionSettings().windowsLogin, [](bool loggedIn)
+					{
+						auto* manager = GetInstance();
+						if (!manager)
+						{
+							return;
+						}
+						if (!loggedIn)
+						{
+							manager->m_bootstrapIndex = manager->m_bootstrapRoutes.size();
+						}
+						manager->ProbeServiceRoute();
+					});
+					return;
+				}
+			}
 			if (success && status == 200 && ServiceConnection::IsExpectedVersionManifest(body))
 			{
+				manager->m_routeProxyAuthFailed = false;
 				manager->m_routeValidatedAt = std::chrono::steady_clock::now();
 				if (g_Environment == EEnvironment::PROD)
 				{
