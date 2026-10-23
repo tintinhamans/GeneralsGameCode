@@ -518,6 +518,21 @@ NGMP_OnlineServices_LobbyInterface::NGMP_OnlineServices_LobbyInterface()
 
 }
 
+// a missing or out of range slot index leaves the member at NO_SLOT_INDEX
+static void ParseMemberSlotIndex(const nlohmann::json& memberJson, LobbyMemberEntry& memberEntry)
+{
+	if (!memberJson.contains("SlotIndex") || !memberJson["SlotIndex"].is_number_integer())
+	{
+		return;
+	}
+
+	const int64_t slotIndex = memberJson["SlotIndex"].get<int64_t>();
+	if (slotIndex >= 0 && slotIndex < MAX_SLOTS)
+	{
+		memberEntry.m_SlotIndex = static_cast<uint16_t>(slotIndex);
+	}
+}
+
 void NGMP_OnlineServices_LobbyInterface::SearchForLobbies(std::function<void()> onStartCallback, std::function<void(std::vector<LobbyEntry>)> onCompleteCallback)
 {
 	const bool lobbyListWasDirty = m_bLobbyListDirty.exchange(false);
@@ -630,7 +645,7 @@ void NGMP_OnlineServices_LobbyInterface::SearchForLobbies(std::function<void()> 
 					JsonGetRequired(memberEntryIter, "UserID", memberEntry.user_id);
 					JsonGetOptional(memberEntryIter, "DisplayName", memberEntry.display_name);
 					JsonGetOptional(memberEntryIter, "IsReady", memberEntry.m_bIsReady);
-					JsonGetOptional(memberEntryIter, "SlotIndex", memberEntry.m_SlotIndex);
+					ParseMemberSlotIndex(memberEntryIter, memberEntry);
 					JsonGetOptional(memberEntryIter, "SlotState", memberEntry.m_SlotState);
 					JsonGetOptional(memberEntryIter, "Region", memberEntry.region);
 
@@ -676,6 +691,18 @@ void NGMP_OnlineServices_LobbyInterface::SearchForLobbies(std::function<void()> 
 				completionCallback(lobbies);
 			}
 	});
+}
+
+void NGMP_OnlineServices_LobbyInterface::RequestRosterRefresh()
+{
+	const int64_t nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	if (nowMs - m_lastRosterRefreshRequestMs < 2000)
+	{
+		return;
+	}
+
+	m_lastRosterRefreshRequestMs = nowMs;
+	UpdateRoomDataCache();
 }
 
 void NGMP_OnlineServices_LobbyInterface::ResetJoinOrder()
@@ -1038,7 +1065,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 								JsonGetOptional(memberEntryIter, "StartingPosition", memberEntry.startpos);
 								JsonGetOptional(memberEntryIter, "HasMap", memberEntry.has_map);
 								JsonGetOptional(memberEntryIter, "SlotState", memberEntry.m_SlotState);
-								JsonGetOptional(memberEntryIter, "SlotIndex", memberEntry.m_SlotIndex);
+								ParseMemberSlotIndex(memberEntryIter, memberEntry);
 								JsonGetOptional(memberEntryIter, "Region", memberEntry.region);
 								JsonGetOptional(memberEntryIter, "MiddlewareUserID", memberEntry.middlewareUserID);
 
@@ -1693,6 +1720,10 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 							me.user_id = m_CurrentLobby.owner;
 							me.display_name = pAuthInterface->GetDisplayName();
 							me.m_bIsReady = true; // host is always ready
+
+							// the host always takes the first slot
+							me.m_SlotIndex = 0;
+							me.m_SlotState = SlotState::SLOT_PLAYER;
 
 							// TODO_NGMP: Remove this and just hardcode it or provide from service
 							me.preferredPort = 0;
