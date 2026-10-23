@@ -191,6 +191,12 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 			}
 
 
+			// a clean close is a leave, the peer is gone for good; the game's own disconnect already ran above
+			if (!bWasError)
+			{
+				pMesh->RemoveConnection(userID);
+			}
+
 			// In this example, we will bail the test whenever this happens.
 			// Was this a normal termination?
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING]DISCONNECTED OR PROBLEM DETECTED %d\n", pInfo->m_info.m_eEndReason);
@@ -1051,6 +1057,18 @@ void NetworkMesh::SetTurnCredentials(const std::string& strUsername, const std::
 }
 
 
+void NetworkMesh::RemoveConnection(int64_t userID)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+
+	auto it = m_mapConnections.find(userID);
+	if (it != m_mapConnections.end())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ERASE 4] Removing user %lld", it->second.m_userID);
+		m_mapConnections.erase(it);
+	}
+}
+
 void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
@@ -1189,6 +1207,11 @@ void PlayerConnection::LiteUpdateForAC()
 	}
 	else
 	{
+		if (!CanRecv())
+		{
+			return;
+		}
+
 		SteamNetworkingMessage_t* pMsg[255] = { nullptr };
 		int numPackets = Recv(pMsg);
 
