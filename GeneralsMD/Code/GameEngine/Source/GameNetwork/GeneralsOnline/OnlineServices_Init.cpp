@@ -222,7 +222,7 @@ void NGMP_OnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> ca
 		return;
 	}
 	const auto settings = Settings.Network_GetConnectionSettings();
-	const std::string key = settings.endpointMode + "|" + settings.proxyMode + "|" + settings.proxyURL + (settings.integratedProxyAuth ? "|1" : "|0");
+	const std::string key = settings.endpointMode + "|" + settings.customEndpoint + "|" + settings.proxyMode + "|" + settings.proxyURL + (settings.integratedProxyAuth ? "|1" : "|0");
 	if (key == m_routeSettingsKey && !m_serviceBase.empty() && std::chrono::steady_clock::now() - m_routeValidatedAt < std::chrono::seconds(30))
 	{
 		callback(true);
@@ -300,7 +300,7 @@ void NGMP_OnlineServicesManager::ProbeServiceRoute()
 			{
 				manager->m_routeProxyAuthFailed = false;
 				manager->m_routeValidatedAt = std::chrono::steady_clock::now();
-				if (g_Environment == EEnvironment::PROD)
+				if (g_Environment == EEnvironment::PROD && Settings.Network_GetConnectionSettings().endpointMode != "custom")
 				{
 					Settings.Network_SaveLastSuccessfulEndpoint(manager->m_serviceBase.find("://api-ru.") != std::string::npos ? "alternative" : "primary");
 				}

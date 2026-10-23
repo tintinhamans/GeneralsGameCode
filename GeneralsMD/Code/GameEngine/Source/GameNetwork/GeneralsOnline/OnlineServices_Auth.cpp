@@ -681,7 +681,7 @@ bool NGMP_OnlineServices_AuthInterface::GetCredentials()
 
 std::string NGMP_OnlineServices_AuthInterface::CredentialServerKey()
 {
-	return "go";
+	return ServiceConnection::CredentialServerKey(NGMP_OnlineServicesManager::Settings.Network_GetConnectionSettings());
 }
 
 std::string NGMP_OnlineServices_AuthInterface::GetCredentialsFilePath()

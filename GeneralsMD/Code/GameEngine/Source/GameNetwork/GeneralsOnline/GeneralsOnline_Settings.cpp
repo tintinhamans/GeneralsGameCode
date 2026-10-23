@@ -34,6 +34,7 @@
 #define SETTINGS_KEY_NETWORK "network"
 #define SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT "use_alternative_endpoint"
 #define SETTINGS_KEY_NETWORK_ENDPOINT_MODE "endpoint_mode"
+#define SETTINGS_KEY_NETWORK_CUSTOM_ENDPOINT "custom_endpoint"
 #define SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT "last_successful_endpoint"
 #define SETTINGS_KEY_NETWORK_PROXY_MODE "proxy_mode"
 #define SETTINGS_KEY_NETWORK_PROXY_URL "proxy_url"
@@ -241,9 +242,19 @@ void GenOnlineSettings::Load(void)
                 {
                     m_ConnectionSettings.endpointMode = "alternative";
                 }
-                if (m_ConnectionSettings.endpointMode != "automatic" && m_ConnectionSettings.endpointMode != "primary" && m_ConnectionSettings.endpointMode != "alternative")
+                if (m_ConnectionSettings.endpointMode != "automatic" && m_ConnectionSettings.endpointMode != "primary" && m_ConnectionSettings.endpointMode != "alternative" && m_ConnectionSettings.endpointMode != "custom")
                 {
                     m_ConnectionSettings.endpointMode = "automatic";
+                }
+
+                // a custom server without a valid address stays custom with no address, so it can never silently fall back to another server
+                if (networkSettings.contains(SETTINGS_KEY_NETWORK_CUSTOM_ENDPOINT) && networkSettings[SETTINGS_KEY_NETWORK_CUSTOM_ENDPOINT].is_string())
+                {
+                    std::string endpointError;
+                    if (!ServiceConnection::NormalizeCustomEndpoint(networkSettings[SETTINGS_KEY_NETWORK_CUSTOM_ENDPOINT].get<std::string>(), m_ConnectionSettings.customEndpoint, endpointError))
+                    {
+                        m_ConnectionSettings.customEndpoint.clear();
+                    }
                 }
 
                 if (networkSettings.contains(SETTINGS_KEY_NETWORK_PROXY_MODE) && networkSettings[SETTINGS_KEY_NETWORK_PROXY_MODE].is_string())
@@ -454,6 +465,7 @@ bool GenOnlineSettings::Save()
             SETTINGS_KEY_NETWORK,
                 {
                     {SETTINGS_KEY_NETWORK_ENDPOINT_MODE, m_ConnectionSettings.endpointMode},
+                    {SETTINGS_KEY_NETWORK_CUSTOM_ENDPOINT, m_ConnectionSettings.customEndpoint},
                     {SETTINGS_KEY_NETWORK_PROXY_MODE, m_ConnectionSettings.proxyMode},
                     {SETTINGS_KEY_NETWORK_PROXY_URL, m_ConnectionSettings.proxyURL},
                     {SETTINGS_KEY_NETWORK_LAST_SUCCESSFUL_ENDPOINT, m_LastSuccessfulEndpoint}
@@ -538,14 +550,26 @@ bool GenOnlineSettings::Save()
 	return bSaved;
 }
 
-bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSettings& settings, std::string& error)
+bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSettings& requested, std::string& error)
 {
 	error.clear();
-	if ((settings.endpointMode != "automatic" && settings.endpointMode != "primary" && settings.endpointMode != "alternative") ||
+	ServiceConnectionSettings settings = requested;
+	if ((settings.endpointMode != "automatic" && settings.endpointMode != "primary" && settings.endpointMode != "alternative" && settings.endpointMode != "custom") ||
 		(settings.proxyMode != "system" && settings.proxyMode != "direct" && settings.proxyMode != "custom"))
 	{
 		error = "Choose a valid service and proxy mode.";
 		return false;
+	}
+	if (settings.endpointMode == "custom")
+	{
+		if (!ServiceConnection::NormalizeCustomEndpoint(settings.customEndpoint, settings.customEndpoint, error))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		settings.customEndpoint.clear();
 	}
 	if ((settings.proxyMode == "custom" || !settings.proxyURL.empty()) && !ServiceConnection::ValidateProxyURL(settings.proxyURL, error))
 	{
@@ -561,8 +585,10 @@ bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSe
 	if (Save())
 	{
 		// a changed proxy starts without anything typed for the old one
-		if (settings.proxyMode == "custom" && (previous.proxyMode != "custom" || previous.proxyURL != settings.proxyURL))
-			ServiceConnection::ClearSessionProxyCredentialsExcept(settings.proxyURL);
+		const std::string previousProxy = previous.proxyMode == "custom" ? ServiceConnection::CanonicalProxyKey(previous.proxyURL) : std::string();
+		const std::string proxy = settings.proxyMode == "custom" ? ServiceConnection::CanonicalProxyKey(settings.proxyURL) : std::string();
+		if (previousProxy != proxy)
+			ServiceConnection::ClearSessionProxyCredentialsExcept(proxy);
 		ServiceConnection::InvalidateProxyPolicyCache();
 		return true;
 	}
