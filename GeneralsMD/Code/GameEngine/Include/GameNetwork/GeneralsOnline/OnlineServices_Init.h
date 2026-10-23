@@ -579,6 +579,12 @@ public:
 	void ProcessMOTD(const char* szMOTD)
 	{
 		m_strMOTD = std::string(szMOTD);
+		// the welcome screen shows which custom server this is, ahead of anything the server says
+		const ServiceConnectionSettings settings = Settings.Network_GetConnectionSettings();
+		if (settings.serverMode == "custom")
+		{
+			m_strMOTD = "Custom server: " + settings.serverAddress.substr(settings.serverAddress.find("://") + 3) + "\n \n" + m_strMOTD;
+		}
 	}
 
 	std::string& GetMOTD() { return m_strMOTD; }
