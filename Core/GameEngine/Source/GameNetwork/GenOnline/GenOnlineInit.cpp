@@ -115,7 +115,7 @@ static std::chrono::steady_clock::time_point GetScreenshotUploadTime()
 		{
 			if (lobbyMember.user_id == localUserID)
 			{
-				slotIndex = lobbyMember.m_SlotIndex < MAX_SLOTS ? lobbyMember.m_SlotIndex : 0;
+				slotIndex = lobbyMember.HasValidSlot() ? lobbyMember.m_SlotIndex : 0;
 				break;
 			}
 		}
