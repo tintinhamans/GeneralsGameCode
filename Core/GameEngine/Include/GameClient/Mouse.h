@@ -169,6 +169,7 @@ class Mouse : public SubsystemInterface
 		CursorCaptureBlockReason_Paused,
 		CursorCaptureBlockReason_Unfocused,
 		CursorCaptureBlockReadon_CursorIsOutside,
+		CursorCaptureBlockReason_MovingWindow,
 
 		CursorCaptureBlockReason_Count
 	};
@@ -289,6 +290,8 @@ public:
 	void setCursorCaptureMode(CursorCaptureMode mode); ///< set the rules for the mouse capture
 	void refreshCursorCapture(); ///< refresh the mouse capture
 	Bool isCursorCaptured(); ///< true if the mouse is captured in the game window
+	void onWindowMoveSizeBegin(); ///< called when the window enters its move or size loop
+	void onWindowMoveSizeEnd(); ///< called when the window leaves its move or size loop
 
 	// access methods for the mouse data
 	const MouseIO *getMouseStatus() { return &m_currMouse; }							///< get current mouse status

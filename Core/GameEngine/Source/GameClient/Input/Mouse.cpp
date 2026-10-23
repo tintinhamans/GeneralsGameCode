@@ -65,6 +65,7 @@ const char *const Mouse::CursorCaptureBlockReasonNames[] = {
 	"CursorCaptureBlockReason_Paused",
 	"CursorCaptureBlockReason_Unfocused",
 	"CursorCaptureBlockReason_CursorIsOutside",
+	"CursorCaptureBlockReason_MovingWindow",
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1036,6 +1037,19 @@ void Mouse::regainFocus()
 {
 	// Recapture the cursor when returning from desktop.
 	unblockCapture(CursorCaptureBlockReason_Unfocused);
+}
+
+// ------------------------------------------------------------------------------------------------
+void Mouse::onWindowMoveSizeBegin()
+{
+	// TheSuperHackers @bugfix arcticdolphin 23/10/2026 Do not capture the cursor while the window is dragged because the clip drags the window along.
+	blockCapture(CursorCaptureBlockReason_MovingWindow);
+}
+
+// ------------------------------------------------------------------------------------------------
+void Mouse::onWindowMoveSizeEnd()
+{
+	unblockCapture(CursorCaptureBlockReason_MovingWindow);
 }
 
 // ------------------------------------------------------------------------------------------------
