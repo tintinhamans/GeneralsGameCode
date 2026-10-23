@@ -276,6 +276,7 @@ public:
 	virtual void init() override;		///< init mouse, extend this functionality, do not replace
 	virtual void reset() override;		///< Reset the system
 	virtual void update() override;  ///< update the state of the mouse position and buttons
+	void resetButtons();  ///< release all buttons without an event, for input that was eaten by the OS
 	virtual void initCursorResources()=0;	///< needed so Win32 cursors can load resources before D3D device created.
 
 	virtual void createStreamMessages();  /**< given state of device, create
