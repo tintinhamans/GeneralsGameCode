@@ -418,6 +418,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 			return 0;
 
 			//-------------------------------------------------------------------------
+		case WM_ENTERSIZEMOVE:
+		{
+			if (TheMouse)
+				TheMouse->onWindowMoveSizeBegin();
+
+			break;
+		}
+
+		//-------------------------------------------------------------------------
+		case WM_EXITSIZEMOVE:
+		{
+			if (TheMouse)
+				TheMouse->onWindowMoveSizeEnd();
+
+			break;
+		}
+
+		//-------------------------------------------------------------------------
 		case WM_MOVE:
 		{
 			if (TheMouse)
