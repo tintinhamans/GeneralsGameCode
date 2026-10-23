@@ -191,6 +191,12 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 			}
 
 
+			// A peer that left the lobby is removed from the mesh.
+			if (bPeerLeft)
+			{
+				pMesh->RemoveConnection(userID);
+			}
+
 			// In this example, we will bail the test whenever this happens.
 			// Was this a normal termination?
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING]DISCONNECTED OR PROBLEM DETECTED %d\n", pInfo->m_info.m_eEndReason);
@@ -1032,6 +1038,18 @@ void NetworkMesh::SetTurnCredentials(const std::string& strUsername, const std::
 }
 
 
+void NetworkMesh::RemoveConnection(int64_t userID)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
+
+	auto it = m_mapConnections.find(userID);
+	if (it != m_mapConnections.end())
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[ERASE 4] Removing user %lld", it->second.m_userID);
+		m_mapConnections.erase(it);
+	}
+}
+
 void NetworkMesh::DisconnectUser(int64_t remoteUserID)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_mapConnectionsMutex);
@@ -1489,7 +1507,7 @@ int PlayerConnection::Recv(SteamNetworkingMessage_t** pMsg)
 	}
 	else
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[DISC] Recv Failed 1 from user %lld", m_userID);
+		NetworkLog(ELogVerbosity::LOG_DEBUG, "[DISC] Recv Failed 1 from user %lld", m_userID);
 	}
 
 	return r;

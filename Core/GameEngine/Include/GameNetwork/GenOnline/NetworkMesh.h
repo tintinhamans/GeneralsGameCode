@@ -66,6 +66,7 @@ public:
 		       m_State != EConnectionState::CONNECTION_DISCONNECTED;
 	}
 
+
 	int Recv(SteamNetworkingMessage_t** pMsg);
 
 	int GetHighestHistoricalLatency()
@@ -244,6 +245,9 @@ public:
 		std::lock_guard<std::mutex> lock(m_pendingStateUpdatesMutex);
 		m_vecPendingStateUpdates.emplace_back(userID, newState);
 	}
+
+	// drops a peer that left for good so nothing keeps polling it
+	void RemoveConnection(int64_t userID);
 
 	PlayerConnection* GetConnectionForUser(int64_t user_id)
 	{
