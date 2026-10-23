@@ -673,7 +673,7 @@ bool GenOnlineAuthInterface::GetCredentials()
 
 std::string GenOnlineAuthInterface::CredentialServerKey()
 {
-	return "go";
+	return ServiceConnection::CredentialServerKey(GenOnlineServicesManager::Settings.Network_GetConnectionSettings());
 }
 
 std::string GenOnlineAuthInterface::GetCredentialsFilePath()

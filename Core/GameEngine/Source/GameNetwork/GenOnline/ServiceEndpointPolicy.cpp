@@ -6,9 +6,98 @@
 
 namespace ServiceConnection
 {
+static std::string Lower(std::string value);
+static std::string Part(CURLU* url, CURLUPart part);
+
+bool NormalizeCustomEndpoint(const std::string& typed, std::string& origin, std::string& error)
+{
+	const std::string input = typed;
+	origin.clear();
+	error.clear();
+	size_t first = input.find_first_not_of(" \t");
+	if (first == std::string::npos)
+	{
+		error = "Enter the server address.";
+		return false;
+	}
+	std::string value = input.substr(first, input.find_last_not_of(" \t") - first + 1);
+	if (std::any_of(value.begin(), value.end(), [](unsigned char c) { return c <= 32 || c >= 127 || c == '\\'; }))
+	{
+		error = "The server address has characters that are not allowed.";
+		return false;
+	}
+	const std::string lower = Lower(value);
+	if (lower.compare(0, 7, "http://") == 0)
+	{
+		error = "The server must use https. Plain http is not allowed.";
+		return false;
+	}
+	if (lower.compare(0, 8, "https://") == 0)
+		value.erase(0, 8);
+	else if (value.find("://") != std::string::npos)
+	{
+		error = "The server must use https.";
+		return false;
+	}
+	if (value.find('@') != std::string::npos)
+	{
+		error = "The server address can't contain a user name or password.";
+		return false;
+	}
+	if (value.find('?') != std::string::npos)
+	{
+		error = "The server address can't contain a query.";
+		return false;
+	}
+	if (value.find('#') != std::string::npos)
+	{
+		error = "The server address can't contain a fragment.";
+		return false;
+	}
+	const auto slash = value.find('/');
+	if (slash != std::string::npos && slash + 1 != value.size())
+	{
+		error = "Enter only the host and port, without a path.";
+		return false;
+	}
+	if (slash != std::string::npos)
+		value.erase(slash);
+	std::unique_ptr<CURLU, decltype(&curl_url_cleanup)> url(curl_url(), curl_url_cleanup);
+	if (!url || curl_url_set(url.get(), CURLUPART_URL, ("https://" + value).c_str(), 0) != CURLUE_OK)
+	{
+		error = "Enter a host name with an optional port, like server.example:8443.";
+		return false;
+	}
+	const auto host = Lower(Part(url.get(), CURLUPART_HOST));
+	const auto port = Part(url.get(), CURLUPART_PORT);
+	if (host.empty() || host.find('%') != std::string::npos || !Part(url.get(), CURLUPART_ZONEID).empty() || port == "0")
+	{
+		error = "Enter a host name with an optional port, like server.example:8443.";
+		return false;
+	}
+	origin = "https://" + host + (port.empty() || port == "443" ? "" : ":" + port);
+	return true;
+}
+
+std::string CredentialServerKey(const ServiceConnectionSettings& settings)
+{
+	if (settings.serverMode != "custom")
+		return "go";
+	std::string origin, error;
+	return NormalizeCustomEndpoint(settings.serverAddress, origin, error) ? "custom:" + origin : std::string();
+}
+
 std::vector<std::string> BootstrapRoutes(const std::string& environment,
 	const ServiceConnectionSettings& settings, const std::string& remembered)
 {
+	// a custom server is the only route there is: no other server is tried for it
+	if (settings.serverMode == "custom")
+	{
+		std::string origin, error;
+		if ((environment != "dev" && environment != "test" && environment != "prod") || !NormalizeCustomEndpoint(settings.serverAddress, origin, error))
+			return {};
+		return {origin + "/env/" + environment + "/contract/1/"};
+	}
 	if (environment == "dev")
 		return {"https://localhost:9000/env/dev/contract/1/"};
 	if (environment == "test")
