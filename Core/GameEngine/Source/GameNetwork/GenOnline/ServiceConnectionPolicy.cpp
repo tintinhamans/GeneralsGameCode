@@ -398,6 +398,12 @@ ResolvedProxyPolicy AutoProxy(const std::wstring& destination, WINHTTP_AUTOPROXY
 	return result;
 }
 
+// the first route for display
+std::string SourceOfRoutes(const ResolvedProxyPolicy& result)
+{
+	return result.routes.empty() || result.routes.front().direct ? std::string("Direct") : ProxyDisplayName(result.routes.front().url);
+}
+
 ResolvedProxyPolicy ApplyOptionalWpadFallback(ResolvedProxyPolicy result, bool autoDetect, bool explicitPac,
 	const std::wstring& proxy, const std::wstring& bypass, const std::string& destination)
 {
@@ -439,6 +445,7 @@ ResolvedProxyPolicy ResolveProxyRoutes(const ServiceConnectionSettings& settings
 	if (settings.proxyMode == "disabled")
 	{
 		result.routes.push_back({});
+		result.source = "Direct";
 		return result;
 	}
 	if (settings.proxyMode == "custom")
@@ -484,16 +491,22 @@ ResolvedProxyPolicy ResolveProxyRoutes(const ServiceConnectionSettings& settings
 			options.dwAutoDetectFlags = WINHTTP_AUTO_DETECT_TYPE_DHCP | WINHTTP_AUTO_DETECT_TYPE_DNS_A;
 		}
 		options.fAutoLogonIfChallenged = FALSE;
-		return ApplyOptionalWpadFallback(AutoProxy(Wide(destination), options), autoDetect, !pac.empty(),
+		result = ApplyOptionalWpadFallback(AutoProxy(Wide(destination), options), autoDetect, !pac.empty(),
 			proxy, bypass, destination);
+		result.source = !result.fallbackReason.empty() ? SourceOfRoutes(result) : !pac.empty() ? "PAC: " + UTF8(pac) : "Auto-detect";
+		return result;
 	}
 	if (!proxy.empty())
 	{
 		if (!StaticProxy(proxy, bypass, destination, result))
 			result.failurePhase = "proxy-configuration";
+		result.source = SourceOfRoutes(result);
 	}
 	else
+	{
 		result.routes.push_back({});
+		result.source = "Direct";
+	}
 	return result;
 }
 }
@@ -1094,7 +1107,7 @@ ConnectionTestResult TestServiceConnection(const ServiceConnectionSettings& sett
 	for (const auto& base : BootstrapRoutes(environment, settings, ""))
 	{
 		const std::string url = base + "VersionManifest";
-		const std::string routeName = base.find("://api-ru.") != std::string::npos ? "alternative" : "primary";
+		const std::string routeName = RouteHost(base);
 		const auto policy = ResolveProxyPolicy(settings, url);
 		if (!policy.error.empty())
 		{
