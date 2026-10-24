@@ -124,9 +124,11 @@ public:
 enum ArchivePriority
 {
 	ARCHIVE_PRIORITY_MOD = 0,						///< -mod and -modDir, 0 to 999, a later one is lower and wins
-	ARCHIVE_PRIORITY_GAME_FOLDER = 1000,	///< BIGs of the game folders that are not retail: the Zero Hour folder first, then the Generals folder, in name order
+	ARCHIVE_PRIORITY_GAME_FOLDER = 1000,	///< BIGs of the Zero Hour folder that are not retail, in name order
+	ARCHIVE_PRIORITY_GAME_FOLDER_GENERALS = 1100,	///< BIGs of the Generals data (ZH_Generals or the Generals install) that are not retail
 	ARCHIVE_PRIORITY_LIST = 100000,			///< the archives list of settings.json, 100000 plus the position in the list
-	ARCHIVE_PRIORITY_RETAIL = 3000000		///< retail and official patch BIGs
+	ARCHIVE_PRIORITY_RETAIL = 3000000,		///< Zero Hour retail and official patch BIGs
+	ARCHIVE_PRIORITY_RETAIL_GENERALS = 3000100	///< Generals retail and official patch BIGs
 };
 
 // One entry of the archives list in settings.json, see ArchiveFileSystem::parseMountEntry
@@ -171,6 +173,8 @@ public:
 	static Bool parseMountEntry(const AsciiString& text, ArchiveMountEntry* entry, AsciiString* reason);
 
 	/// TRUE for the retail archives and the official patches of Zero Hour and Generals, in every language.
+	static Bool isGeneralsArchivePath(const AsciiString& path, Bool generalsFolder);	///< TRUE for the Generals archives: the Generals install folder, or a ZH_Generals folder
+
 	static Bool isRetailArchive(const AsciiString& path, Bool generalsFolder, Bool zeroHour);
 
 	/// BIGs of the game folders that are not retail, which are mounted above the archives list
@@ -200,6 +204,7 @@ protected:
 
 	ArchiveFileMap m_archiveFileMap;
 	std::vector<AsciiString> m_gameFolderArchives;
+	AsciiString m_generalsBaseSource;	///< where the Generals data came from, for the log
 	Int m_nextModPriority = ARCHIVE_PRIORITY_MOD + 999;
 	ArchivedDirectoryInfo m_rootDirectory;
 };
