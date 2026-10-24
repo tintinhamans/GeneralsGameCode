@@ -1347,7 +1347,7 @@ void WebSocket::Tick()
 
 										if (bParsed)
 										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_REGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid);
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_REGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid.c_str());
 											if (!GenOnlinePluginHost::Anticheat::RegisterPeer(acData.mwid, acData.user_id))
 											{
 												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::RegisterPeer failed");
@@ -1363,7 +1363,7 @@ void WebSocket::Tick()
 
 										if (bParsed)
 										{
-											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_DEREGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid);
+											NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] Websocket AC_DEREGISTER_PLAYER for %lld and %s", acData.user_id, acData.mwid.c_str());
 											if (!GenOnlinePluginHost::Anticheat::DeregisterPeer(acData.mwid, acData.user_id))
 											{
 												NetworkLog(ELogVerbosity::LOG_RELEASE, "[AC] GenOnlinePluginHost::Anticheat::DeregisterPeer failed");
