@@ -130,6 +130,13 @@ ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename) {
 	}
 	numLittleFiles = betoh(numLittleFiles);
 
+	if (numLittleFiles < 0) {
+		DEBUG_CRASH(("Invalid BIG file count in file %s", filename));
+		fp->close();
+		fp = nullptr;
+		return nullptr;
+	}
+
 	DEBUG_LOG(("BIGFileSystem::openArchiveFile - %d are contained in archive", numLittleFiles));
 //	for (Int i = 0; i < 2; ++i) {
 //		t = buffer[i];
@@ -137,8 +144,14 @@ ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename) {
 //		buffer[(4-i)-1] = t;
 //	}
 
-	// seek to the beginning of the directory listing.
-	fp->seek(0x10, File::START);
+	// read the first entry offset field, which ends the header and starts the directory listing.
+	Int firstEntryOffset = 0;
+	if (fp->read(&firstEntryOffset, 4) != 4) {
+		DEBUG_CRASH(("Error reading BIG header in file %s", filename));
+		fp->close();
+		fp = nullptr;
+		return nullptr;
+	}
 	// read in each directory listing.
 	ArchivedFileInfo fileInfo;
 	ArchiveFile *archiveFile = NEW ArchiveFile(filename, AsciiString::TheEmptyString);
@@ -160,7 +173,6 @@ ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename) {
 		fileInfo.m_size = filesize;
 
 		// read in the path name of the file.
-		// the name must terminate within the buffer
 		Int pathIndex = -1;
 		Bool terminated = FALSE;
 		while (++pathIndex < (Int)sizeof(buffer)) {
