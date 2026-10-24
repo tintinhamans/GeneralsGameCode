@@ -34,6 +34,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/GameLOD.h"
+#include "AdaptiveQualityLevels.h"
 #include "GameClient/TerrainVisual.h"
 #include "GameClient/GameClient.h"
 #include "Common/OptionPreferences.h"
@@ -250,6 +251,12 @@ GameLODManager::GameLODManager()
 	m_compositeBenchIndex=0;
 	m_numBenchProfiles=0;
 	m_reallyLowMHz = 400;
+	m_adaptiveParticleSkipMask = 0;
+	m_adaptiveMinParticlePriority = PARTICLE_PRIORITY_LOWEST;
+	m_adaptiveMinParticleSkipPriority = PARTICLE_PRIORITY_LOWEST;
+	m_effectiveParticleSkipMask = 0;
+	m_effectiveMinParticlePriority = PARTICLE_PRIORITY_LOWEST;
+	m_effectiveMinParticleSkipPriority = PARTICLE_PRIORITY_LOWEST;
 
 	for (Int i=0; i<STATIC_GAME_LOD_CUSTOM; i++)
 		m_numLevelPresets[i]=0;
@@ -740,6 +747,45 @@ void GameLODManager::applyDynamicLODLevel(DynamicGameLODLevel level)
 	m_slowDeathScale=m_dynamicGameLODInfo[level].m_slowDeathScale;
 	m_minDynamicParticlePriority=m_dynamicGameLODInfo[level].m_minDynamicParticlePriority;
 	m_minDynamicParticleSkipPriority=m_dynamicGameLODInfo[level].m_minDynamicParticleSkipPriority;
+	applyEffectiveParticleLOD();
+}
+
+/**Combine the dynamic LOD with the adaptive quality: skip more, drop more priorities.*/
+void GameLODManager::applyEffectiveParticleLOD()
+{
+	m_effectiveParticleSkipMask = m_dynamicParticleSkipMask | m_adaptiveParticleSkipMask;
+	m_effectiveMinParticlePriority = max(m_minDynamicParticlePriority, m_adaptiveMinParticlePriority);
+	m_effectiveMinParticleSkipPriority = max(m_minDynamicParticleSkipPriority, m_adaptiveMinParticleSkipPriority);
+}
+
+void GameLODManager::setAdaptiveParticleLevel(Int adaptiveQualityLevel)
+{
+	DynamicGameLODLevel source = DYNAMIC_GAME_LOD_UNKNOWN;
+	const Int particleLod = AdaptiveQualityLevels::level(adaptiveQualityLevel).particleLod;
+	if (particleLod == AdaptiveQualityLevels::PARTICLE_LOD_LOW)
+	{
+		source = DYNAMIC_GAME_LOD_LOW;
+	}
+	else if (particleLod == AdaptiveQualityLevels::PARTICLE_LOD_MEDIUM)
+	{
+		source = DYNAMIC_GAME_LOD_MEDIUM;
+	}
+
+	if (source == DYNAMIC_GAME_LOD_UNKNOWN)
+	{
+		m_adaptiveParticleSkipMask = 0;
+		m_adaptiveMinParticlePriority = PARTICLE_PRIORITY_LOWEST;
+		m_adaptiveMinParticleSkipPriority = PARTICLE_PRIORITY_LOWEST;
+	}
+	else
+	{
+		m_adaptiveParticleSkipMask = m_dynamicGameLODInfo[source].m_dynamicParticleSkipMask;
+		m_adaptiveMinParticlePriority = m_dynamicGameLODInfo[source].m_minDynamicParticlePriority;
+		m_adaptiveMinParticleSkipPriority = m_dynamicGameLODInfo[source].m_minDynamicParticleSkipPriority;
+	}
+
+	m_numParticleGenerations = 0;
+	applyEffectiveParticleLOD();
 }
 
 Int GameLODManager::getRecommendedTextureReduction()

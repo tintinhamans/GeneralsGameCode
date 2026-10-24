@@ -1,5 +1,6 @@
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/NetworkMesh.h"
+#include "GameNetwork/GenOnline/WifiLowLatency.h"
 #include "GameNetwork/GenOnline/HTTP/HTTPManager.h"
 #include "../json.hpp"
 #include "GameClient/MessageBox.h"
@@ -500,6 +501,8 @@ void GenOnlineServicesManager::Shutdown()
 	// First, wait for all screenshot threads to complete
 	// This prevents race conditions where threads might still be using resources
 	WaitForScreenshotThreads();
+
+	WifiLowLatency::End();
 
 	NetworkMeshLibrary::Shutdown();
 

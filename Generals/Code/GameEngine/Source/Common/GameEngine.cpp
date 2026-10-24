@@ -68,6 +68,7 @@
 #include "Common/Xfer.h"
 #include "Common/XferCRC.h"
 #include "Common/GameLOD.h"
+#include "Common/AdaptiveQuality.h"
 #include "Common/Registry.h"
 
 #include "GameLogic/Armor.h"
@@ -718,8 +719,17 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 	const Bool useFastMode = TheGlobalData->m_TiVOFastMode && TheGameLogic->isInReplayGame();
 #endif
 
+	// GenOnline @bugfix arcticdolphin 21/11/2026 A logic rate at or above the render limit stays in lock step, so every drawn frame steps the logic once and
+	// the draw modules and particles keep an even rhythm. Only a drawn frame that took longer than a logic frame hands the missed frames to the catch-up loop.
+	const Int catchUpFrames = getCatchUpFrames();
 	if (useFastMode || logicTimeScaleFps >= maxRenderFps)
 	{
+		if (catchUpFrames > 1 && logicTimeScaleFps < (Int)RenderFpsPreset::UncappedFpsValue)
+		{
+			const Real targetFrameTime = 1.0f / logicTimeScaleFps;
+			const Real owed = TheFramePacer->getUpdateTime() - targetFrameTime;
+			m_logicTimeAccumulator = owed >= targetFrameTime ? min(owed, targetFrameTime * (catchUpFrames - 1)) : 0.0f;
+		}
 		// Logic time scale is uncapped or larger equal Render FPS. Update straight away.
 		return true;
 	}
@@ -728,7 +738,9 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 		// TheSuperHackers @tweak xezon 06/08/2025
 		// The logic time step is now decoupled from the render update.
 		const Real targetFrameTime = 1.0f / logicTimeScaleFps;
-		m_logicTimeAccumulator += min(TheFramePacer->getUpdateTime(), targetFrameTime);
+		// GenOnline @feature arcticdolphin 21/11/2026 One drawn frame credits up to catch up frames and the bound only holds a backlog the loop could not spend
+		const Real maxCredit = targetFrameTime * catchUpFrames;
+		m_logicTimeAccumulator = min(m_logicTimeAccumulator + min(TheFramePacer->getUpdateTime(), maxCredit), maxCredit + targetFrameTime);
 
 		if (m_logicTimeAccumulator >= targetFrameTime)
 		{
@@ -738,6 +750,49 @@ Bool GameEngine::canUpdateRegularGameLogic(UnsignedInt logicTimeQueryFlags)
 	}
 
 	return false;
+}
+
+/// -----------------------------------------------------------------------------------------------
+Bool GameEngine::canUpdateGameLogicFromBacklog()
+{
+	// GenOnline @bugfix arcticdolphin 21/11/2026 The logic already stepped in this drawn frame and preUpdate clears hasUpdated, which the W3D sync and the frame pacer read, so preUpdate only runs before a frame that is due.
+	TheFramePacer->setTimeFrozen(isTimeFrozen());
+	TheFramePacer->setGameHalted(isGameHalted());
+	Bool due = FALSE;
+	if (TheNetwork != nullptr)
+	{
+		due = canUpdateNetworkGameLogic();
+	}
+	else
+	{
+		// offline: spend time the drawn frame already credited, never credit it again
+		const Int logicTimeScaleFps = TheFramePacer->getActualLogicTimeScaleFps(FramePacer::IgnoreFrozenTime);
+		if (logicTimeScaleFps > 0 && logicTimeScaleFps < (Int)RenderFpsPreset::UncappedFpsValue)
+		{
+			const Real targetFrameTime = 1.0f / logicTimeScaleFps;
+			if (m_logicTimeAccumulator >= targetFrameTime)
+			{
+				m_logicTimeAccumulator -= targetFrameTime;
+				due = TRUE;
+			}
+		}
+	}
+	if (!due)
+	{
+		return false;
+	}
+	TheGameLogic->preUpdate();
+	return !isGameHalted();
+}
+
+/// -----------------------------------------------------------------------------------------------
+Int GameEngine::getCatchUpFrames() const
+{
+	if (TheGameLogic == nullptr || !TheGameLogic->isInGame() || TheGameLogic->isInShellGame() || TheGameLogic->isInReplayGame())
+	{
+		return 1;
+	}
+	return AdaptiveQuality::get().catchUpFrames();
 }
 
 /// -----------------------------------------------------------------------------------------------
@@ -758,12 +813,31 @@ void GameEngine::update()
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
 			VERIFY_CRC
 
+#if defined(GENONLINE)
+			// GenOnline @feature arcticdolphin 21/11/2026 The shell map stays at the logic rate and a match uses the provider limit
+			Int matchFpsLimit = 0;
+			if (GetOnlineGameHooks()->getMatchFrameRateLimit(matchFpsLimit) && TheGameLogic->isInGame() && !TheShell->isShellActive())
+			{
+				TheFramePacer->setFramesPerSecondLimit(matchFpsLimit);
+				TheWritableGlobalData->m_useFpsLimit = matchFpsLimit;
+			}
+			else
+			{
+				TheFramePacer->setFramesPerSecondLimit(LOGICFRAMES_PER_SECOND);
+			}
+#endif
+
 			TheRadar->UPDATE();
 
 			/// @todo Move audio init, update, etc, into GameClient update
 
 			TheAudio->UPDATE();
-			TheGameClient->UPDATE();
+			{
+				// GenOnline @feature arcticdolphin 21/11/2026 Count the client update as own cost for adaptive quality
+				const long long aqClientStart = AdaptiveQuality::now();
+				TheGameClient->UPDATE();
+				AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqClientStart);
+			}
 			TheMessageStream->propagateMessages();
 
 			if (TheNetwork != nullptr)
@@ -785,12 +859,67 @@ void GameEngine::update()
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
 		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
 		{
+			// GenOnline @feature arcticdolphin 21/11/2026 Catch up logic frames a slow drawn frame missed and count the logic cost
+			const long long aqLogicStart = AdaptiveQuality::now();
 			TheGameLogic->UPDATE();
 
 			if (!TheFramePacer->isTimeFrozen())
 			{
 				TheGameClient->step();
 			}
+
+			const long long aqCatchUpStart = AdaptiveQuality::now();
+			Int caughtUp = 0;
+			const Int catchUpFrames = getCatchUpFrames();
+			static LARGE_INTEGER s_catchUpFrequency = {};
+			if (s_catchUpFrequency.QuadPart == 0)
+			{
+				QueryPerformanceFrequency(&s_catchUpFrequency);
+			}
+			for (Int i = 1; i < catchUpFrames; ++i)
+			{
+				// frame 1 runs from the main step, whose frame tick lets the network leave pregame
+				if (TheGameLogic->getFrame() <= 1)
+				{
+					break;
+				}
+				// later catch-up frames only run while the logic of this drawn frame has time left, so a slow machine still draws
+				if (i >= 2)
+				{
+					const double logicMs = (double)(AdaptiveQuality::now() - aqLogicStart) * 1000.0 / (double)s_catchUpFrequency.QuadPart;
+					if (logicMs >= AdaptiveQuality::get().catchUpBudgetMs())
+					{
+						break;
+					}
+				}
+				// hands on what the last logic frame queued (its CRC), so it reaches the same frame as without catch-up
+				TheMessageStream->propagateMessages();
+				if (TheNetwork != nullptr)
+				{
+					TheNetwork->UPDATE();
+					if (TheNetwork->isGameExitPending())
+					{
+						TheGameLogic->processPendingGameExit();
+						return;
+					}
+				}
+				if (!canUpdateGameLogicFromBacklog())
+				{
+					break;
+				}
+				TheGameLogic->UPDATE();
+				if (!TheFramePacer->isTimeFrozen())
+				{
+					TheGameClient->step();
+				}
+				++caughtUp;
+			}
+			AdaptiveQuality::get().addOwn(aqCatchUpStart - aqLogicStart);
+			AdaptiveQuality::get().addCatchUp(AdaptiveQuality::now() - aqCatchUpStart, caughtUp);
+		}
+		else if (TheNetwork != nullptr && TheNetwork->isStalling())
+		{
+			AdaptiveQuality::get().noteNetworkWait();
 		}
 	}
 }
@@ -844,6 +973,8 @@ void GameEngine::execute()
 #endif
 
 			{
+				// GenOnline @feature arcticdolphin 21/11/2026 Frame accounting for adaptive quality
+				AdaptiveQuality::get().frameBegin();
 				try
 				{
 					// compute a frame
@@ -873,6 +1004,7 @@ void GameEngine::execute()
 			}
 
 			TheFramePacer->update();
+			AdaptiveQuality::get().frameEnd();
 		}
 
 #ifdef PERF_TIMERS

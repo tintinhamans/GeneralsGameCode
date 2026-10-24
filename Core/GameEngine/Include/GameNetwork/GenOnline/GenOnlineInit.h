@@ -361,6 +361,7 @@ struct ServiceConfig
 		bool anticheat_transport = false; // game traffic through the anticheat plugin's transport
 		int probe_lobby_interval_ms = 250; // time between latency probes sent to each peer while not in a match
 		int probe_match_interval_ms = 1000; // the same in a match, the command acks already measure the round trip
+		bool wifi_low_latency = true;   // Wi-Fi media streaming mode while a match runs, stops background scans from stalling the game
 	} connection;
 
 	using Send = NetworkSettings::Send;
@@ -445,6 +446,7 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadServiceConfigValue(s, "anticheat_transport", c.connection.anticheat_transport);
 		ReadServiceConfigValue(s, "probe_lobby_interval_ms", c.connection.probe_lobby_interval_ms);
 		ReadServiceConfigValue(s, "probe_match_interval_ms", c.connection.probe_match_interval_ms);
+		ReadServiceConfigValue(s, "wifi_low_latency", c.connection.wifi_low_latency);
 	}
 	if (j.contains("send"))
 	{
@@ -469,7 +471,6 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadServiceConfigValue(s, "fast_recovery", c.input_delay.fast_recovery);
 		ReadServiceConfigValue(s, "decision_interval_ms", c.input_delay.decision_interval_ms);
 		ReadServiceConfigValue(s, "fps_history_samples", c.input_delay.fps_history_samples);
-		ReadServiceConfigValue(s, "catch_up_frames", c.input_delay.catch_up_frames);
 		ReadServiceConfigValue(s, "slack_percent", c.input_delay.slack_percent);
 		if (s.contains("formula"))
 		{
@@ -511,7 +512,6 @@ inline void ClampServiceConfig(ServiceConfig& c)
 	c.send.frames_per_packet_lossy = std::clamp(c.send.frames_per_packet_lossy, 0, 8);
 
 	c.input_delay.formula.decrease_after_decisions = std::clamp(c.input_delay.formula.decrease_after_decisions, 0, 20);
-	c.input_delay.catch_up_frames = std::clamp(c.input_delay.catch_up_frames, 1, 4);
 	c.input_delay.min_frames = std::clamp(c.input_delay.min_frames, 0, 30); // the start run ahead is at least 30, a higher floor would make configs disagree
 	c.input_delay.max_frames = std::clamp(c.input_delay.max_frames, (std::max)(30, c.input_delay.min_frames), 128);
 	c.input_delay.slack_percent = std::clamp(c.input_delay.slack_percent, 0, 200);
