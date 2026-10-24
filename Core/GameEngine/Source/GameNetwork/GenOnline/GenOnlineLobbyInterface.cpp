@@ -780,13 +780,13 @@ void GenOnlineLobbyInterface::Tick()
 		m_pLobbyMesh->Tick();
 	}
 
+	// stays pending until a menu has registered to handle it
 	if (m_bCannotConnectToLobbyPending)
 	{
-		m_bCannotConnectToLobbyPending = false;
-
 		auto callbackCopy = m_OnCannotConnectToLobbyCallback;
 		if (callbackCopy != nullptr)
 		{
+			m_bCannotConnectToLobbyPending = false;
 			callbackCopy();
 		}
 	}
@@ -877,6 +877,7 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 	if (m_CurrentLobby.lobbyID != -1 && TheGenOnlineGame != nullptr)
 	{
 		const int64_t requestedLobbyID = m_CurrentLobby.lobbyID;
+		const uint64_t requestSeq = ++m_LobbyUpdateRequestSeq;
 		std::string strURI = std::format("{}/{}", GenOnlineServicesManager::GetAPIEndpoint("Lobby"), requestedLobbyID);
 		std::map<std::string, std::string> mapHeaders;
 
@@ -888,11 +889,19 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 					// TODO_NGMP: Error handling
 					try
 					{
+						// Overlapping GETs must not roll the roster or owner back.
+						if (requestSeq < m_LobbyUpdateAppliedSeq)
+						{
+							NetworkLog(ELogVerbosity::LOG_DEBUG, "[NGMP] Ignoring out of order lobby response %llu (already applied %llu)", requestSeq, m_LobbyUpdateAppliedSeq.load());
+							if (fnCallback != nullptr)
+							{
+								fnCallback(true); // a newer response has already refreshed the cache
+							}
+							return;
+						}
+
 						if (statusCode == 404) // lobby destroyed, just leave
 						{
-							m_bPendingHostHasLeft = true;
-							// error msg
-
 							// TODO_NGMP: We still want to do this, but we need to send back that it failed and back out, proceeding to lobby crashes because mesh wasn't created
 							if (fnCallback != nullptr)
 							{
@@ -907,6 +916,9 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 							}
 
 							LeaveCurrentLobby();
+
+							// Set after LeaveCurrentLobby because it clears the flag.
+							m_bPendingHostHasLeft = true;
 							return;
 						}
 
@@ -980,6 +992,7 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 							lobbyEntry.members = m_CurrentLobby.members;
 
 							// still store the lobby though
+							m_LobbyUpdateAppliedSeq = requestSeq;
 							m_CurrentLobby = lobbyEntry;
 						}
 						else
@@ -1090,7 +1103,48 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 								TheGenOnlineGame->StopCountdown();
 							}
 
+							// A player who joined after the check is unchecked, so the countdown stops.
+							if (IsHost()
+								&& TheGenOnlineGame != nullptr
+								&& TheGenOnlineGame->IsCountdownStarted()
+								&& !TheGenOnlineGame->isQMGame())
+							{
+								bool bPlayerJoined = false;
+								for (const LobbyMemberEntry& newMember : lobbyEntry.members)
+								{
+									if (!newMember.IsHuman())
+									{
+										continue;
+									}
+
+									bool bWasInLobby = false;
+									for (const LobbyMemberEntry& oldMember : m_CurrentLobby.members)
+									{
+										if (oldMember.IsHuman() && oldMember.user_id == newMember.user_id)
+										{
+											bWasInLobby = true;
+											break;
+										}
+									}
+
+									if (!bWasInLobby)
+									{
+										bPlayerJoined = true;
+										break;
+									}
+								}
+
+								if (bPlayerJoined)
+								{
+									TheGenOnlineGame->StopCountdown();
+
+									UnicodeString strInform = UnicodeString(L"Countdown stopped: a player joined, start again to re-check connections.");
+									SendAnnouncementMessageToCurrentLobby(strInform, true);
+								}
+							}
+
 							// store
+							m_LobbyUpdateAppliedSeq = requestSeq;
 							m_CurrentLobby = lobbyEntry;
 							RecordJoinOrder(lobbyEntry.members);
 
@@ -1156,6 +1210,7 @@ void GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 	m_bAttemptingToJoinLobby = true;
 	m_CurrentLobby = LobbyEntry();
 	ResetJoinOrder();
+	ResetHostMigrationFlags();
 
 	GenOnlineServicesManager::GetInstance()->GetAndParseServiceConfig([=]()
 		{
@@ -1480,6 +1535,7 @@ void GenOnlineLobbyInterface::CreateLobby(UnicodeString strLobbyName, UnicodeStr
 		{
 			m_CurrentLobby = LobbyEntry();
 			ResetJoinOrder();
+			ResetHostMigrationFlags();
 			m_bJoinOrderKnown = true;
 			std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("Lobbies");
 			std::map<std::string, std::string> mapHeaders;

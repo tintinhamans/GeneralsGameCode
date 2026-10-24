@@ -9,11 +9,6 @@
 #include "../HTTP/HTTPManager.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 
-// one clock for every websocket timestamp; utc_clock also loads the time zone database on MSVC
-static int64_t NowMs()
-{
-	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-}
 
 // -----------------------------
 // Module info structure
@@ -751,7 +746,15 @@ void WebSocket::Tick()
 	// Main thread only; m_pCurlWS/m_vecWSPartialBuffer/m_bConnected are unlocked here.
 	UpdateReconnect();
 
-
+	// Longer than the 20 s server backstop so a late reply finds no callback and is ignored.
+	static constexpr int64_t CONNECTIVITY_CHECK_TIMEOUT_MS = 30000;
+	if (m_cbOnConnectivityCheckComplete != nullptr && m_connectivityCheckStartMs != -1 && (NowMs() - m_connectivityCheckStartMs) > CONNECTIVITY_CHECK_TIMEOUT_MS)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK] No reply from the server, timing out");
+		auto cbTimedOut = std::move(m_cbOnConnectivityCheckComplete);
+		ClearConnectivityCheckCallback();
+		cbTimedOut(false, {}, "timeout");
+	}
 
 	/*
 	if (strSignal.length() == 6)
