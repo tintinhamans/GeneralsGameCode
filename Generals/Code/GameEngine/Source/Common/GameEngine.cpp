@@ -389,6 +389,9 @@ void GameEngine::init()
 		xferCRC.open("lightCRC");
 
 		initSubsystem(TheLocalFileSystem, "TheLocalFileSystem", createLocalFileSystem(), nullptr);
+
+		GetOnlineGameHooks()->loadSettings();
+
 		initSubsystem(TheArchiveFileSystem, "TheArchiveFileSystem", createArchiveFileSystem(), nullptr); // this MUST come after TheLocalFileSystem creation
 
 		DEBUG_ASSERTCRASH(TheWritableGlobalData,("TheWritableGlobalData expected to be created"));
@@ -406,8 +409,6 @@ void GameEngine::init()
 
 		// special-case: parse command-line parameters after loading global data
 		CommandLine::parseCommandLineForEngineInit();
-
-		GetOnlineGameHooks()->loadSettings();
 
 		TheArchiveFileSystem->loadMods();
 
