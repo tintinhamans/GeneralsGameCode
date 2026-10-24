@@ -751,7 +751,15 @@ void WebSocket::Tick()
 	// Main thread only; m_pCurlWS/m_vecWSPartialBuffer/m_bConnected are unlocked here.
 	UpdateReconnect();
 
-
+	// longer than the server's 20s backstop; a late reply then finds no callback and is ignored
+	static constexpr int64_t CONNECTIVITY_CHECK_TIMEOUT_MS = 30000;
+	if (m_cbOnConnectivityCheckComplete != nullptr && m_connectivityCheckStartMs != -1 && (NowMs() - m_connectivityCheckStartMs) > CONNECTIVITY_CHECK_TIMEOUT_MS)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[FULL_MESH_CONNECTIVITY_CHECK] No reply from the server, timing out");
+		auto cbTimedOut = std::move(m_cbOnConnectivityCheckComplete);
+		ClearConnectivityCheckCallback();
+		cbTimedOut(false, {}, "timeout");
+	}
 
 	/*
 	if (strSignal.length() == 6)
