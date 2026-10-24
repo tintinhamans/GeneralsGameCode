@@ -92,12 +92,20 @@ void BIGFileSystem::init() {
 
 #if RTS_ZEROHOUR
     // load original Generals assets
+    // The Steam install ships them in ZH_Generals, which the scan above already mounted. Mounting the Generals install as well would only add its mods.
+    if (TheLocalFileSystem->doesFileExist("ZH_Generals\\INI.big")) {
+      m_generalsBaseSource = "ZH_Generals folder";
+      return;
+    }
+
     AsciiString installPath;
     GetStringFromGeneralsRegistry("", "InstallPath", installPath );
     //@todo this will need to be ramped up to a crash for release
     DEBUG_ASSERTCRASH(!installPath.isEmpty(), ("Be 1337! Go install Generals!"));
-    if (!installPath.isEmpty())
+    if (!installPath.isEmpty()) {
+      m_generalsBaseSource.format("Generals install folder %s", installPath.str());
       loadArchiveFilesFromDirectory(installPath, "*.big");
+    }
 #endif
 }
 
@@ -252,11 +260,23 @@ Bool BIGFileSystem::loadArchiveFilesFromDirectory(AsciiString dir, AsciiString f
 		}
 #endif
 
+#if RTS_ZEROHOUR
+		const Bool zeroHour = TRUE;
+#else
+		const Bool zeroHour = FALSE;
+#endif
+		// The first scan is the game folder, the second one the Generals install: the retail archives are the bottom of the lookup
+		const Int priority = overwrite ? getNextModPriority() : getGameFolderArchivePriority((*it), dir.isNotEmpty(), zeroHour);
+		if (priority == ARCHIVE_PRIORITY_EXCLUDED) {
+			it++;
+			continue;
+		}
+
 		ArchiveFile *archiveFile = openArchiveFile((*it).str());
 
 		if (archiveFile != nullptr) {
 			DEBUG_LOG(("BIGFileSystem::loadArchiveFilesFromDirectory - loading %s into the directory tree.", (*it).str()));
-			loadIntoDirectoryTree(archiveFile, overwrite);
+			loadIntoDirectoryTree(archiveFile, priority);
 			m_archiveFileMap[(*it)] = archiveFile;
 			DEBUG_LOG(("BIGFileSystem::loadArchiveFilesFromDirectory - %s inserted into the archive file map.", (*it).str()));
 			actuallyAdded = TRUE;
@@ -270,26 +290,21 @@ Bool BIGFileSystem::loadArchiveFilesFromDirectory(AsciiString dir, AsciiString f
 
 void BIGFileSystem::loadMods()
 {
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES)
-	// load community data patch BIG
-	if (NGMP_OnlineServicesManager::Settings.DataPacks_UseCommunityPatch()
-		&& !TheGlobalData->m_commandLineData.isCommunityDataPatchDisabled())
-	{
-		std::string strBigPath = std::format("{}GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big", TheGlobalData->getPath_UserData().str());
-		bool bLoaded = false;
-		if (TheLocalFileSystem->doesFileExist(strBigPath.c_str()))
-		{
-			ArchiveFile* archiveFile = openArchiveFile(strBigPath.c_str());
-			if (archiveFile != nullptr)
-			{
-				// Sorted by filename so the patch respects the addon number order of BIGs in the game folder.
-				loadIntoDirectoryTree(archiveFile, FALSE, TRUE);
-				m_archiveFileMap[AsciiString(strBigPath.c_str())] = archiveFile;
-				bLoaded = true;
-			}
-		}
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Loaded community patch (%s): %d", strBigPath.c_str(), bLoaded);
-	}
+#if defined(GENERALS_ONLINE)
+	// Order, highest first: loose files of the game folder, -mod and -modDir, the BIGs of the game folders that are not retail (user.exclude_paths removes some),
+	// the data pack layers of settings.json (user, generals_online, community_patch), the retail archives. The BIGs of the game folders were mounted by init().
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Generals data: %s", m_generalsBaseSource.isEmpty() ? "none" : m_generalsBaseSource.str());
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Game folder archives above the data pack layers: %d", static_cast<int>(m_gameFolderArchives.size()));
+	for (const AsciiString& gameFolderArchive : m_gameFolderArchives)
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "  %s", gameFolderArchive.str());
+
+	const GenOnlineSettings& settings = NGMP_OnlineServicesManager::Settings;
+	mountDataPackLayer("user", settings.DataPacks_User().m_enabled, settings.DataPacks_User().m_includePaths, &TheFileSystem->getExcludedPaths(), ARCHIVE_PRIORITY_USER);
+	mountDataPackLayer("generals_online", settings.DataPacks_GeneralsOnline().m_enabled, settings.DataPacks_GeneralsOnline().m_includePaths, nullptr, ARCHIVE_PRIORITY_GENERALS_ONLINE);
+
+	// -disableCommunityDataPatch skips the community_patch layer for this launch only, the setting is not changed
+	const Bool communityPatchEnabled = settings.DataPacks_CommunityPatch().m_enabled && !TheGlobalData->m_commandLineData.isCommunityDataPatchDisabled();
+	mountDataPackLayer("community_patch", communityPatchEnabled, settings.DataPacks_CommunityPatch().m_includePaths, nullptr, ARCHIVE_PRIORITY_COMMUNITY_PATCH);
 #endif
 
 	if (TheGlobalData->m_modBIG.isNotEmpty())
@@ -298,7 +313,7 @@ void BIGFileSystem::loadMods()
 
 		if (archiveFile != nullptr) {
 			DEBUG_LOG(("BIGFileSystem::loadMods - loading %s into the directory tree.", TheGlobalData->m_modBIG.str()));
-			loadIntoDirectoryTree(archiveFile, TRUE);
+			loadIntoDirectoryTree(archiveFile, getNextModPriority());
 			m_archiveFileMap[TheGlobalData->m_modBIG] = archiveFile;
 			DEBUG_LOG(("BIGFileSystem::loadMods - %s inserted into the archive file map.", TheGlobalData->m_modBIG.str()));
 		}
