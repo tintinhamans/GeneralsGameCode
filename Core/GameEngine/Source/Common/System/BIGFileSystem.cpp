@@ -256,11 +256,19 @@ Bool BIGFileSystem::loadArchiveFilesFromDirectory(AsciiString dir, AsciiString f
 		}
 #endif
 
+#if RTS_ZEROHOUR
+		const Bool zeroHour = TRUE;
+#else
+		const Bool zeroHour = FALSE;
+#endif
+		// The first scan is the game folder, the second one the Generals install: the retail archives are the bottom of the lookup
+		const Int priority = overwrite ? getNextModPriority() : getGameFolderArchivePriority((*it), dir.isNotEmpty(), zeroHour);
+
 		ArchiveFile *archiveFile = openArchiveFile((*it).str());
 
 		if (archiveFile != nullptr) {
 			DEBUG_LOG(("BIGFileSystem::loadArchiveFilesFromDirectory - loading %s into the directory tree.", (*it).str()));
-			loadIntoDirectoryTree(archiveFile, overwrite);
+			loadIntoDirectoryTree(archiveFile, priority);
 			m_archiveFileMap[(*it)] = archiveFile;
 			DEBUG_LOG(("BIGFileSystem::loadArchiveFilesFromDirectory - %s inserted into the archive file map.", (*it).str()));
 			actuallyAdded = TRUE;
@@ -274,25 +282,27 @@ Bool BIGFileSystem::loadArchiveFilesFromDirectory(AsciiString dir, AsciiString f
 
 void BIGFileSystem::loadMods()
 {
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES)
-	// load community data patch BIG
-	if (NGMP_OnlineServicesManager::Settings.DataPacks_UseCommunityPatch()
-		&& !TheGlobalData->m_commandLineData.isCommunityDataPatchDisabled())
+#if defined(GENERALS_ONLINE)
+	// Order, highest first: loose files of the game folder, -mod and -modDir, the BIGs of the game folders that are not retail,
+	// the archives list of settings.json, the retail archives. The BIGs of the game folders were mounted by init().
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Game folder archives above the archives list: %d", static_cast<int>(m_gameFolderArchives.size()));
+	for (const AsciiString& gameFolderArchive : m_gameFolderArchives)
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "  %s", gameFolderArchive.str());
+
+	if (TheGlobalData->m_commandLineData.isCommunityDataPatchDisabled())
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "-disableCommunityDataPatch is ignored, the archives list of settings.json decides");
+
+	const std::vector<std::string>& archives = NGMP_OnlineServicesManager::Settings.DataPacks_Archives();
+	for (size_t i = 0; i < archives.size(); ++i)
 	{
-		std::string strBigPath = std::format("{}GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big", TheGlobalData->getPath_UserData().str());
-		bool bLoaded = false;
-		if (TheLocalFileSystem->doesFileExist(strBigPath.c_str()))
+		ArchiveMountEntry entry;
+		AsciiString reason;
+		if (!parseMountEntry(AsciiString(archives[i].c_str()), &entry, &reason))
 		{
-			ArchiveFile* archiveFile = openArchiveFile(strBigPath.c_str());
-			if (archiveFile != nullptr)
-			{
-				// Sorted by filename so the patch respects the addon number order of BIGs in the game folder.
-				loadIntoDirectoryTree(archiveFile, FALSE, TRUE);
-				m_archiveFileMap[AsciiString(strBigPath.c_str())] = archiveFile;
-				bLoaded = true;
-			}
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "Archives list entry ignored (%s): %s", reason.str(), archives[i].c_str());
+			continue;
 		}
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "Loaded community patch (%s): %d", strBigPath.c_str(), bLoaded);
+		mountListedArchive(entry, ARCHIVE_PRIORITY_LIST + static_cast<Int>(i));
 	}
 #endif
 
@@ -302,7 +312,7 @@ void BIGFileSystem::loadMods()
 
 		if (archiveFile != nullptr) {
 			DEBUG_LOG(("BIGFileSystem::loadMods - loading %s into the directory tree.", TheGlobalData->m_modBIG.str()));
-			loadIntoDirectoryTree(archiveFile, TRUE);
+			loadIntoDirectoryTree(archiveFile, getNextModPriority());
 			m_archiveFileMap[TheGlobalData->m_modBIG] = archiveFile;
 			DEBUG_LOG(("BIGFileSystem::loadMods - %s inserted into the archive file map.", TheGlobalData->m_modBIG.str()));
 		}

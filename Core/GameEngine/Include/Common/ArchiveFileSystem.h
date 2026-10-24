@@ -120,6 +120,26 @@ public:
 };
 
 
+// Lookup priority of an archive, lower wins. The archive mounted first wins on equal priority.
+enum ArchivePriority
+{
+	ARCHIVE_PRIORITY_MOD = 0,						///< -mod and -modDir, 0 to 999, a later one is lower and wins
+	ARCHIVE_PRIORITY_GAME_FOLDER = 1000,	///< BIGs of the game folders that are not retail: the Zero Hour folder first, then the Generals folder, in name order
+	ARCHIVE_PRIORITY_LIST = 100000,			///< the archives list of settings.json, 100000 plus the position in the list
+	ARCHIVE_PRIORITY_RETAIL = 3000000		///< retail and official patch BIGs
+};
+
+// One entry of the archives list in settings.json, see ArchiveFileSystem::parseMountEntry
+struct ArchiveMountEntry
+{
+	enum Kind { KIND_BIG, KIND_BIG_GLOB };
+	enum Base { BASE_GAME, BASE_USER, BASE_ABSOLUTE };
+
+	Kind m_kind;
+	Base m_base;
+	AsciiString m_path;	///< with backslashes, relative to the base, the BASE_ABSOLUTE path is complete
+};
+
 class ArchiveFileSystem : public SubsystemInterface
 {
 public:
@@ -145,6 +165,17 @@ public:
 
 	virtual void loadMods() = 0;
 
+	/// Parses an entry of the archives list: "game:<path>", "user:<path>" or an absolute path. A path ending in .big is one BIG,
+	/// a last component with * or ? and ending in .big is a set of BIGs, a path ending in a slash is every BIG in that folder.
+	/// Returns FALSE and a reason for an entry that is not valid.
+	static Bool parseMountEntry(const AsciiString& text, ArchiveMountEntry* entry, AsciiString* reason);
+
+	/// TRUE for the retail archives and the official patches of Zero Hour and Generals, in every language.
+	static Bool isRetailArchive(const AsciiString& path, Bool generalsFolder, Bool zeroHour);
+
+	/// BIGs of the game folders that are not retail, which are mounted above the archives list
+	const std::vector<AsciiString>& getGameFolderArchives() const { return m_gameFolderArchives; }
+
 	ArchivedDirectoryInfo* friend_getArchivedDirectoryInfo(const Char* directory);
 
 protected:
@@ -160,9 +191,16 @@ protected:
 	ArchiveFile* getArchiveFile(const AsciiString& filename, FileInstance instance = 0) const;
 	ArchivedDirectoryInfoResult getArchivedDirectoryInfo(const Char* directory);
 
-	virtual void loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool overwrite = FALSE, Bool sortedByName = FALSE);	///< load the archive file's header information and apply it to the global archive directory tree. sortedByName inserts by archive filename order (addon number convention), ignoring overwrite.
+	virtual void loadIntoDirectoryTree(ArchiveFile *archiveFile, Int priority = ARCHIVE_PRIORITY_RETAIL);	///< load the archive file's header information and apply it to the global archive directory tree. The lowest priority number wins, the first mounted wins on equal priority.
+
+	Int getNextModPriority() { return m_nextModPriority > ARCHIVE_PRIORITY_MOD ? m_nextModPriority-- : ARCHIVE_PRIORITY_MOD; }	///< -mod and -modDir: a later one wins
+	Int getGameFolderArchivePriority(const AsciiString& path, Bool generalsFolder, Bool zeroHour);	///< retail archives are the bottom, any other BIG of the game folders ranks above the archives list
+
+	void mountListedArchive(const ArchiveMountEntry& entry, Int priority);
 
 	ArchiveFileMap m_archiveFileMap;
+	std::vector<AsciiString> m_gameFolderArchives;
+	Int m_nextModPriority = ARCHIVE_PRIORITY_MOD + 999;
 	ArchivedDirectoryInfo m_rootDirectory;
 };
 

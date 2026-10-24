@@ -1,4 +1,5 @@
 #include "GameNetwork/GeneralsOnline/GeneralsOnline_Settings.h"
+#include "Common/ArchiveFileSystem.h"
 #include "../json.hpp"
 #include "../OnlineServices_LobbyInterface.h"
 #include "../OnlineServices_Init.h"
@@ -37,7 +38,7 @@
 #define SETTINGS_KEY_PLUGINS_ANTICHEAT "anticheat"
 
 #define SETTINGS_KEY_DATAPACKS "data_packs"
-#define SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH "use_community_data_patch"
+#define SETTINGS_KEY_DATAPACKS_ARCHIVES "archives"
 
 #define SETTINGS_FILENAME_LEGACY "GeneralsOnline_settings.json"
 #define SETTINGS_FILENAME "settings.json"
@@ -319,9 +320,29 @@ void GenOnlineSettings::Load(void)
             {
                 auto datapackSettings = jsonSettings[SETTINGS_KEY_DATAPACKS];
 
-                if (datapackSettings.contains(SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH))
+                // the ordered list of BIG archives, an entry that is not valid is dropped. A missing or invalid list keeps the default.
+                if (datapackSettings.contains(SETTINGS_KEY_DATAPACKS_ARCHIVES))
                 {
-                    m_DataPacks_UseCommunityPatch = datapackSettings[SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH];
+                    if (datapackSettings[SETTINGS_KEY_DATAPACKS_ARCHIVES].is_array())
+                    {
+                        m_DataPacks_Archives.clear();
+                        for (const auto& archive : datapackSettings[SETTINGS_KEY_DATAPACKS_ARCHIVES])
+                        {
+                            AsciiString reason;
+                            if (archive.is_string() && ArchiveFileSystem::parseMountEntry(AsciiString(archive.get<std::string>().c_str()), nullptr, &reason))
+                            {
+                                m_DataPacks_Archives.push_back(archive.get<std::string>());
+                            }
+                            else
+                            {
+                                NetworkLog(ELogVerbosity::LOG_RELEASE, "Archives list entry dropped from the settings (%s)", archive.is_string() ? reason.str() : "not a string");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        NetworkLog(ELogVerbosity::LOG_RELEASE, "Archives list in the settings is not a list, using the default");
+                    }
                 }
             }
 		}
@@ -443,7 +464,7 @@ void GenOnlineSettings::Save()
         {
             SETTINGS_KEY_DATAPACKS,
                 {
-                    {SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH, m_DataPacks_UseCommunityPatch}
+                    {SETTINGS_KEY_DATAPACKS_ARCHIVES, m_DataPacks_Archives}
                 }
         }
     };

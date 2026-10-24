@@ -70,7 +70,7 @@ public:
 		Load();
 	}
 
-	bool DataPacks_UseCommunityPatch() const { return m_DataPacks_UseCommunityPatch; }
+	const std::vector<std::string>& DataPacks_Archives() const { return m_DataPacks_Archives; }
 
 	bool Network_UseAlternativeEndpoint() const { return m_Network_UseAlternativeEndpoint; }
 	EHTTPVersion Network_GetHTTPVersion() const { return m_Network_HTTPVersion; }
@@ -139,7 +139,8 @@ private:
 	bool m_Social_Notification_PlayerSendsRequest_Menus = true;
 	bool m_Social_Notification_PlayerSendsRequest_Gameplay = true;
 
-	bool m_DataPacks_UseCommunityPatch = true;
+	// BIG archives above the retail ones, highest priority first. The default is used when the key is missing or invalid.
+	std::vector<std::string> m_DataPacks_Archives = { "user:GeneralsOnlineGameData/GeneralsOnline_Core.big", "user:GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big" };
 
 	std::string m_Plugins_Anticheat = std::string();
 
