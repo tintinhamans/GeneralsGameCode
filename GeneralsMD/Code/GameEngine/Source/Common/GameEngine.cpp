@@ -68,6 +68,7 @@
 #include "Common/Xfer.h"
 #include "Common/XferCRC.h"
 #include "Common/GameLOD.h"
+#include "Common/AdaptiveQuality.h"
 #include "Common/Registry.h"
 #include "Common/GameCommon.h"	// FOR THE ALLOW_DEBUG_CHEATS_IN_RELEASE #define
 
@@ -924,7 +925,11 @@ void GameEngine::update()
 			/// @todo Move audio init, update, etc, into GameClient update
 
 			TheAudio->UPDATE();
-			TheGameClient->UPDATE();
+			{
+				const long long aqClientStart = AdaptiveQuality::now();
+				TheGameClient->UPDATE();
+				AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqClientStart);
+			}
 			TheMessageStream->propagateMessages();
 
             if (TheNetwork != nullptr)
@@ -946,12 +951,18 @@ void GameEngine::update()
 		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
 		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
 		{
+			const long long aqLogicStart = AdaptiveQuality::now();
 			TheGameLogic->UPDATE();
 
 			if (!TheFramePacer->isTimeFrozen())
 			{
 				TheGameClient->step();
 			}
+			AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqLogicStart);
+		}
+		else if (TheNetwork != nullptr && TheNetwork->isStalling())
+		{
+			AdaptiveQuality::get().noteNetworkWait();
 		}
 	}
 }
@@ -1005,6 +1016,7 @@ void GameEngine::execute()
 #endif
 
 			{
+				AdaptiveQuality::get().frameBegin();
 				update();
 // 				try
 // 				{
@@ -1036,6 +1048,7 @@ void GameEngine::execute()
 			}
 
 			TheFramePacer->update();
+			AdaptiveQuality::get().frameEnd();
 		}
 
 #ifdef PERF_TIMERS

@@ -1,5 +1,8 @@
 set(GAMEENGINE_SRC
     Include/Common/AcademyStats.h
+    Include/Common/AdaptiveQuality.h
+    Include/Common/AdaptiveQualityModel.h
+    Include/Common/AdaptiveQualityPower.h
 #    Include/Common/ActionManager.h
     Include/Common/AddonCompat.h
     Include/Common/ArchiveFile.h
@@ -589,6 +592,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/WOLBrowser/FEBDispatch.h
     Include/GameNetwork/WOLBrowser/WebBrowser.h
     Include/Precompiled/PreRTS.h
+    Source/Common/AdaptiveQuality.cpp
     Source/Common/AddonCompat.cpp
     Source/Common/Audio/AudioEventRTS.cpp
     Source/Common/Audio/AudioRequest.cpp
@@ -1237,6 +1241,7 @@ set(GAMEENGINE_SRC
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginPlatform.h
     Include/GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.h
     Include/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.h
+    Include/GameNetwork/GenOnline/WifiLowLatency.h
     Source/GameNetwork/GenOnline/CredentialStore.cpp
     Source/GameNetwork/GenOnline/DiscordRichPresence.cpp
     Source/GameNetwork/GenOnline/GenOnlineHelpers.cpp
@@ -1268,6 +1273,7 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/GenOnline/Provider/GenOnlinePluginPlatformWin32.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlinePluginTrust.cpp
     Source/GameNetwork/GenOnline/Provider/GenOnlineProviderFactory.cpp
+    Source/GameNetwork/GenOnline/WifiLowLatency.cpp
     Source/Precompiled/PreRTS.cpp
 )
 
