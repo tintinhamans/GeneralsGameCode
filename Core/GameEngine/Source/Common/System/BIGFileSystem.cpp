@@ -64,12 +64,20 @@ void BIGFileSystem::init() {
 
 #if RTS_ZEROHOUR
     // load original Generals assets
+    // The Steam install ships them in ZH_Generals, which the scan above already mounted. Mounting the Generals install as well would only add its mods.
+    if (TheLocalFileSystem->doesFileExist("ZH_Generals\\INI.big")) {
+      m_generalsBaseSource = "ZH_Generals folder";
+      return;
+    }
+
     AsciiString installPath;
     GetStringFromGeneralsRegistry("", "InstallPath", installPath );
     //@todo this will need to be ramped up to a crash for release
     DEBUG_ASSERTCRASH(!installPath.isEmpty(), ("Be 1337! Go install Generals!"));
-    if (!installPath.isEmpty())
+    if (!installPath.isEmpty()) {
+      m_generalsBaseSource.format("Generals install folder %s", installPath.str());
       loadArchiveFilesFromDirectory(installPath, "*.big");
+    }
 #endif
 }
 
@@ -289,6 +297,7 @@ void BIGFileSystem::loadMods()
 #if defined(GENERALS_ONLINE)
 	// Order, highest first: loose files of the game folder, -mod and -modDir, the BIGs of the game folders that are not retail (user.exclude_paths removes some),
 	// the data pack layers of settings.json (user, generals_online, community_patch), the retail archives. The BIGs of the game folders were mounted by init().
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Generals data: %s", m_generalsBaseSource.isEmpty() ? "none" : m_generalsBaseSource.str());
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "Game folder archives above the data pack layers: %d", static_cast<int>(m_gameFolderArchives.size()));
 	for (const AsciiString& gameFolderArchive : m_gameFolderArchives)
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "  %s", gameFolderArchive.str());

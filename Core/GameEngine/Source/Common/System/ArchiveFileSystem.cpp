@@ -234,6 +234,16 @@ static void addRetailNames(std::set<std::string>& names, Bool zeroHour)
 	}
 }
 
+Bool ArchiveFileSystem::isGeneralsArchivePath(const AsciiString& path, Bool generalsFolder)
+{
+	if (generalsFolder)
+		return TRUE;
+
+	AsciiString lowerPath = path;
+	lowerPath.toLower();
+	return strstr(lowerPath.str(), "zh_generals\\") != nullptr || strstr(lowerPath.str(), "zh_generals/") != nullptr;
+}
+
 Bool ArchiveFileSystem::isRetailArchive(const AsciiString& path, Bool generalsFolder, Bool zeroHour)
 {
 	static std::set<std::string> zeroHourNames;
@@ -253,9 +263,7 @@ Bool ArchiveFileSystem::isRetailArchive(const AsciiString& path, Bool generalsFo
 		c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
 
 	// The Generals archives are in the Generals install folder, or in a ZH_Generals folder inside the game folder
-	AsciiString lowerPath = path;
-	lowerPath.toLower();
-	const Bool inGeneralsFolder = generalsFolder || strstr(lowerPath.str(), "zh_generals\\") != nullptr || strstr(lowerPath.str(), "zh_generals/") != nullptr;
+	const Bool inGeneralsFolder = isGeneralsArchivePath(path, generalsFolder);
 
 	if (zeroHour && !inGeneralsFolder)
 		return zeroHourNames.count(lower) != 0;
@@ -264,8 +272,10 @@ Bool ArchiveFileSystem::isRetailArchive(const AsciiString& path, Bool generalsFo
 
 Int ArchiveFileSystem::getGameFolderArchivePriority(const AsciiString& path, Bool generalsFolder, Bool zeroHour)
 {
+	// The Zero Hour archives rank above the Generals ones in their tier, whatever the order of the scan
+	const Bool generals = zeroHour && isGeneralsArchivePath(path, generalsFolder);
 	if (isRetailArchive(path, generalsFolder, zeroHour))
-		return ARCHIVE_PRIORITY_RETAIL;
+		return generals ? ARCHIVE_PRIORITY_RETAIL_GENERALS : ARCHIVE_PRIORITY_RETAIL;
 
 	if (TheFileSystem != nullptr && TheFileSystem->getExcludedPaths().matchesPath(path.str()))
 	{
@@ -274,7 +284,7 @@ Int ArchiveFileSystem::getGameFolderArchivePriority(const AsciiString& path, Boo
 	}
 
 	m_gameFolderArchives.push_back(path);
-	return ARCHIVE_PRIORITY_GAME_FOLDER;
+	return generals ? ARCHIVE_PRIORITY_GAME_FOLDER_GENERALS : ARCHIVE_PRIORITY_GAME_FOLDER;
 }
 
 Bool ArchiveFileSystem::parseMountEntry(const AsciiString& text, ArchiveMountEntry* entry, AsciiString* reason)
