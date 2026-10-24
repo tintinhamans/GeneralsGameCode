@@ -254,35 +254,9 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 					return;
 				}
 
-				auto currentLobby = pLobbyInterface->GetCurrentLobby();
-				bool bPlayerIsInLobby = false;
-				for (const auto& member : currentLobby.members)
-				{
-					// TODO_NGMP: Use bytes or SteamID instead... string compare is nasty
-					if (std::to_string(member.user_id) == pInfo->m_info.m_identityRemote.GetGenericString())
-					{
-						bPlayerIsInLobby = true;
-						break;
-					}
-				}
-
-				if (bPlayerIsInLobby)
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][%s] Accepting - Player is in lobby\n", pInfo->m_info.m_szConnectionDescription);
-					SteamNetworkingSockets()->AcceptConnection(pInfo->m_hConn);
-				}
-				else
-				{
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][%s] Rejecting - Player is not in lobby\n", pInfo->m_info.m_szConnectionDescription);
-
-					NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection not in lobby %lld", plrConnection.m_userID);
-					SteamNetworkingSockets()->CloseConnection(pInfo->m_hConn, 1000, "Player is not in lobby (Rejected)", false);
-
-					if (TheNetwork != nullptr)
-					{
-						TheNetwork->GetConnectionManager()->disconnectPlayer(plrConnection.m_userID);
-					}
-				}
+				// A signalled connection is accepted even with a stale roster.
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[STEAM NETWORKING][%s] Accepting - Server started signalling\n", pInfo->m_info.m_szConnectionDescription);
+				SteamNetworkingSockets()->AcceptConnection(pInfo->m_hConn);
 			}
 			
 		}
