@@ -8,6 +8,12 @@
 
 class HTTPManager;
 
+// one clock for every websocket timestamp; utc_clock also loads the time zone database on MSVC
+inline int64_t NowMs()
+{
+	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
 class GenOnlineAuthInterface;
 class GenOnlineLobbyInterface;
 class GenOnlineRoomsInterface;
@@ -187,12 +193,16 @@ public:
 	// lobby ID the check was started for; a stale reply (different lobby) is ignored
 	int64_t m_connectivityCheckLobbyID = -1;
 
+	// Start time of the connectivity check for the client timeout.
+	int64_t m_connectivityCheckStartMs = -1;
+
 	void SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> cbOnConnectivityCheckComplete);
 
 	void ClearConnectivityCheckCallback()
 	{
 		m_cbOnConnectivityCheckComplete = nullptr;
 		m_connectivityCheckLobbyID = -1;
+		m_connectivityCheckStartMs = -1;
 	}
 
 	void Tick();
