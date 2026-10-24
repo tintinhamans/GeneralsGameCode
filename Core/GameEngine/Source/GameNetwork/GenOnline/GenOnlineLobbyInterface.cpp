@@ -915,6 +915,14 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 								return;
 							}
 
+							// the server requeues quick match players itself, a DELETE would cancel that
+							if (TheGenOnlineGame->isQMGame() || m_CurrentLobby.lobby_type == ELobbyType::QuickMatch)
+							{
+								NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Quick match lobby lookup returned 404, tearing down locally only");
+								ResetForMatchmakingRequeue();
+								return;
+							}
+
 							LeaveCurrentLobby();
 
 							// Set after LeaveCurrentLobby because it clears the flag.
@@ -1195,12 +1203,12 @@ void GenOnlineLobbyInterface::UpdateRoomDataCache(std::function<void(bool)> fnCa
 	return;
 }
 
-void GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPassword)
+bool GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPassword)
 {
 	if (m_bAttemptingToJoinLobby)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "Not attempting to join lobby because a join attempt is already in progress");
-		return;
+		return false;
 	}
 
 	const uint64_t lobbyJoinGeneration = ++m_LobbyJoinGeneration;
@@ -1420,6 +1428,8 @@ void GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 
 				});
 		});
+
+	return true;
 }
 
 void GenOnlineLobbyInterface::TearDownLocalLobbyState()
