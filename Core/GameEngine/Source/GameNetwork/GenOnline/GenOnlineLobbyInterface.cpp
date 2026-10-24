@@ -1359,7 +1359,7 @@ void GenOnlineLobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::string strPas
 		});
 }
 
-void GenOnlineLobbyInterface::LeaveCurrentLobby()
+void GenOnlineLobbyInterface::TearDownLocalLobbyState()
 {
 	m_bCannotConnectToLobbyPending = false;
 	ResetJoinOrder();
@@ -1375,6 +1375,7 @@ void GenOnlineLobbyInterface::LeaveCurrentLobby()
 	if (pWS != nullptr)
 	{
 		pWS->ClearConnectivityCheckCallback();
+		pWS->ClearPendingSignals();
 	}
 
 	// reset host migration flags
@@ -1399,6 +1400,11 @@ void GenOnlineLobbyInterface::LeaveCurrentLobby()
 #if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
 	m_timeStartAutoReadyCountdown = -1;
 #endif
+}
+
+void GenOnlineLobbyInterface::LeaveCurrentLobby()
+{
+	TearDownLocalLobbyState();
 	
 	if (!IsInLobby())
 	{
@@ -1416,34 +1422,9 @@ void GenOnlineLobbyInterface::LeaveCurrentLobby()
 
 void GenOnlineLobbyInterface::ResetForMatchmakingRequeue()
 {
-	m_bCannotConnectToLobbyPending = false;
-	ResetJoinOrder();
-
 	// The service has already removed us from the failed temporary lobby. Tear down only
 	// local state here; sending the normal DELETE would cancel the server-side requeue.
-	++m_LobbyJoinGeneration;
-	ResetHostMigrationFlags();
-	GenOnlinePluginHost::Anticheat::EndSession();
-
-	if (m_pLobbyMesh != nullptr)
-	{
-		m_pLobbyMesh->Disconnect();
-		delete m_pLobbyMesh;
-		m_pLobbyMesh = nullptr;
-	}
-
-	if (TheGenOnlineGame != nullptr)
-	{
-		delete TheGenOnlineGame;
-		TheGenOnlineGame = nullptr;
-	}
-
-#if !defined(GENONLINE_DISABLE_AUTO_ACCEPT)
-	m_timeStartAutoReadyCountdown = -1;
-#endif
-
-	m_bAttemptingToJoinLobby = false;
-	ResetLobbyTryingToJoin();
+	TearDownLocalLobbyState();
 	ResetCachedRoomData();
 }
 

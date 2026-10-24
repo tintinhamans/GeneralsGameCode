@@ -380,6 +380,9 @@ private:
 	void ResetJoinOrder();
 	void RecordJoinOrder(const std::vector<LobbyMemberEntry>& members);
 
+	// Local lobby teardown shared by a leave and a matchmaking requeue.
+	void TearDownLocalLobbyState();
+
 public:
 
 	void UpdateRoomDataCache(std::function<void(bool)> fnCallback = nullptr);
