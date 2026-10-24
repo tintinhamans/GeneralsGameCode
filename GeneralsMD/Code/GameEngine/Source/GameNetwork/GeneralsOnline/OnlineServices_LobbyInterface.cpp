@@ -780,13 +780,13 @@ void NGMP_OnlineServices_LobbyInterface::Tick()
 		m_pLobbyMesh->Tick();
 	}
 
+	// stays pending until a menu has registered to handle it
 	if (m_bCannotConnectToLobbyPending)
 	{
-		m_bCannotConnectToLobbyPending = false;
-
 		auto callbackCopy = m_OnCannotConnectToLobbyCallback;
 		if (callbackCopy != nullptr)
 		{
+			m_bCannotConnectToLobbyPending = false;
 			callbackCopy();
 		}
 	}
@@ -877,6 +877,7 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 	if (m_CurrentLobby.lobbyID != -1 && TheNGMPGame != nullptr)
 	{
 		const int64_t requestedLobbyID = m_CurrentLobby.lobbyID;
+		const uint64_t requestSeq = ++m_LobbyUpdateRequestSeq;
 		std::string strURI = std::format("{}/{}", NGMP_OnlineServicesManager::GetAPIEndpoint("Lobby"), requestedLobbyID);
 		std::map<std::string, std::string> mapHeaders;
 
@@ -888,11 +889,20 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 					// TODO_NGMP: Error handling
 					try
 					{
+						// GETs can overlap, a response older than one already applied would roll the roster/owner back
+						if (requestSeq < m_LobbyUpdateAppliedSeq)
+						{
+							NetworkLog(ELogVerbosity::LOG_DEBUG, "[NGMP] Ignoring out of order lobby response %llu (already applied %llu)", requestSeq, m_LobbyUpdateAppliedSeq.load());
+							if (fnCallback != nullptr)
+							{
+								fnCallback(true); // a newer response has already refreshed the cache
+							}
+							return;
+						}
+						m_LobbyUpdateAppliedSeq = requestSeq;
+
 						if (statusCode == 404) // lobby destroyed, just leave
 						{
-							m_bPendingHostHasLeft = true;
-							// error msg
-
 							// TODO_NGMP: We still want to do this, but we need to send back that it failed and back out, proceeding to lobby crashes because mesh wasn't created
 							if (fnCallback != nullptr)
 							{
@@ -907,6 +917,9 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 							}
 
 							LeaveCurrentLobby();
+
+							// after leaving, which clears it, so the setup menu backs out
+							m_bPendingHostHasLeft = true;
 							return;
 						}
 
@@ -1090,6 +1103,47 @@ void NGMP_OnlineServices_LobbyInterface::UpdateRoomDataCache(std::function<void(
 								TheNGMPGame->StopCountdown();
 							}
 
+							// a player who joined after the connectivity check passed hasn't been checked, so the host must re-run it
+							if (IsHost()
+								&& TheNGMPGame != nullptr
+								&& TheNGMPGame->IsCountdownStarted()
+								&& lobbyEntry.lobby_type != ELobbyType::QuickMatch
+								&& !TheNGMPGame->isQMGame())
+							{
+								bool bPlayerJoined = false;
+								for (const LobbyMemberEntry& newMember : lobbyEntry.members)
+								{
+									if (!newMember.IsHuman())
+									{
+										continue;
+									}
+
+									bool bWasInLobby = false;
+									for (const LobbyMemberEntry& oldMember : m_CurrentLobby.members)
+									{
+										if (oldMember.IsHuman() && oldMember.user_id == newMember.user_id)
+										{
+											bWasInLobby = true;
+											break;
+										}
+									}
+
+									if (!bWasInLobby)
+									{
+										bPlayerJoined = true;
+										break;
+									}
+								}
+
+								if (bPlayerJoined)
+								{
+									TheNGMPGame->StopCountdown();
+
+									UnicodeString strInform = UnicodeString(L"Countdown stopped: a player joined, start again to re-check connections.");
+									SendAnnouncementMessageToCurrentLobby(strInform, true);
+								}
+							}
+
 							// store
 							m_CurrentLobby = lobbyEntry;
 							RecordJoinOrder(lobbyEntry.members);
@@ -1156,6 +1210,7 @@ void NGMP_OnlineServices_LobbyInterface::JoinLobby(LobbyEntry lobbyInfo, std::st
 	m_bAttemptingToJoinLobby = true;
 	m_CurrentLobby = LobbyEntry();
 	ResetJoinOrder();
+	ResetHostMigrationFlags();
 
 	NGMP_OnlineServicesManager::GetInstance()->GetAndParseServiceConfig([=]()
 		{
@@ -1506,6 +1561,7 @@ void NGMP_OnlineServices_LobbyInterface::CreateLobby(UnicodeString strLobbyName,
 		{
 			m_CurrentLobby = LobbyEntry();
 			ResetJoinOrder();
+			ResetHostMigrationFlags();
 			m_bJoinOrderKnown = true;
 			std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("Lobbies");
 			std::map<std::string, std::string> mapHeaders;
