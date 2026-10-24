@@ -24,6 +24,7 @@
 
 #include "GameNetwork/GenOnline/Provider/GenOnlineGameHooks.h"
 
+#include "Common/FileSystem.h"
 #include "GameClient/Color.h"
 #include "GameClient/DisplayString.h"
 #include "GameClient/GameText.h"
@@ -103,6 +104,7 @@ void GenOnlineGameHooks::onGlobalDataLoaded()
 void GenOnlineGameHooks::loadSettings()
 {
 	GenOnlineServicesManager::Settings.Initialize();
+	TheFileSystem->setExcludedPaths(GenOnlineServicesManager::Settings.DataPacks_UserExcludePaths());
 }
 
 void GenOnlineGameHooks::onEngineInitialized()

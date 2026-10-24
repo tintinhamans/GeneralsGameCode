@@ -444,6 +444,9 @@ void GameEngine::init()
 	#endif/////////////////////////////////////////////////////////////////////////////////////////////
 
 
+		// NGMP_CHANGE: Init our settings before the archives are mounted, the data_packs layers decide which ones. Needs TheGlobalData for the user data path.
+		GetOnlineGameHooks()->loadSettings();
+
 		initSubsystem(TheArchiveFileSystem, "TheArchiveFileSystem", createArchiveFileSystem(), nullptr); // this MUST come after TheLocalFileSystem creation
 
     	#ifdef DUMP_PERF_STATS///////////////////////////////////////////////////////////////////////////
@@ -475,9 +478,6 @@ void GameEngine::init()
 
 		// special-case: parse command-line parameters after loading global data
 		CommandLine::parseCommandLineForEngineInit();
-
-		// NGMP_CHANGE: Init our settings before loadMods, which reads DataPacks_UseCommunityPatch. Needs TheGlobalData for the user data path.
-		GetOnlineGameHooks()->loadSettings();
 
 		TheArchiveFileSystem->loadMods();
 
