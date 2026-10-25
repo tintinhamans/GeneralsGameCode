@@ -47,6 +47,14 @@
 #define PRESERVE_NO_XP_FROM_OCL_KILLS (1)
 #endif
 
+#ifndef RTS_REPLAY_EXE_CRC
+#define RTS_REPLAY_EXE_CRC (0) // Exe CRC written to replays, 0 writes the real exe CRC. Set by the cmake option of the same name.
+#endif
+
+#ifndef RTS_REPLAY_COMPATIBLE_EXE_CRCS
+#define RTS_REPLAY_COMPATIBLE_EXE_CRCS // Exe CRCs replays treat as this build, each followed by a comma: 0x1u,0x2u,
+#endif
+
 #if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES) // COMMUNITY PATCH CHANGE
 	#ifndef PRESERVE_NO_XP_FROM_POISON_KILLS
 	#define PRESERVE_NO_XP_FROM_POISON_KILLS (0)
