@@ -2955,6 +2955,28 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 	RectClass screen_rect(startX,startY,endX,endY);
 	RectClass uv_rect(uv->lo.x,uv->lo.y,uv->hi.x,uv->hi.y);
 
+	const Bool rotated = BitIsSet( image->getStatus(), IMAGE_STATUS_ROTATED_90_CLOCKWISE );
+
+	// A stretched image samples half a texel inside its rect so atlas neighbours do not bleed in.
+	const Int imageWidth = image->getImageWidth();
+	const Int imageHeight = image->getImageHeight();
+	const Bool stretchedX = endX - startX != imageWidth;
+	const Bool stretchedY = endY - startY != imageHeight;
+	const Int texelsU = rotated ? imageHeight : imageWidth;
+	const Int texelsV = rotated ? imageWidth : imageHeight;
+	if ((rotated ? stretchedY : stretchedX) && texelsU > 1)
+	{
+		const Real insetU = 0.5f * uv_rect.Width() / (Real)texelsU;
+		uv_rect.Left += insetU;
+		uv_rect.Right -= insetU;
+	}
+	if ((rotated ? stretchedX : stretchedY) && texelsV > 1)
+	{
+		const Real insetV = 0.5f * uv_rect.Height() / (Real)texelsV;
+		uv_rect.Top += insetV;
+		uv_rect.Bottom -= insetV;
+	}
+
 	if (m_isClippedEnabled)
 	{
 		//need to clip this quad to clip rectangle
@@ -2963,7 +2985,7 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 			RectClass clipped_rect;
 			RectClass clipped_uv_rect;
 
-			if( BitIsSet( image->getStatus(), IMAGE_STATUS_ROTATED_90_CLOCKWISE ) )
+			if( rotated )
 			{
 
 
@@ -3031,7 +3053,7 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 	}
 
 	// if rotated 90 degrees clockwise we have to adjust the uv coords
-	if( BitIsSet( image->getStatus(), IMAGE_STATUS_ROTATED_90_CLOCKWISE ) )
+	if( rotated )
 	{
 
 		m_2DRender->Add_Tri( Vector2( screen_rect.Left, screen_rect.Top ),
