@@ -1,7 +1,7 @@
 #pragma once
-#include <curl/curl.h>
 #include <mutex>
 #include <string>
+#include <vector>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
 
 // One layer of data_packs in settings.json: BIG paths in priority order, the first one wins
@@ -16,7 +16,6 @@ class GenOnlineSettings
 public:
 	GenOnlineSettings();
 
-	float Camera_MoveSpeedRatio() const { return m_Camera_MoveSpeedRatio; }
 	float Camera_GetMinHeight() const { return m_Camera_MinHeight; }
 	float Camera_GetMaxHeight_WhenLobbyHost() const { return m_Camera_MaxHeight_LobbyHost; }
 
@@ -38,7 +37,6 @@ public:
 		}
 	}
 
-	bool Graphics_DrawStatsOverlay() const { return m_Render_DrawStatsOverlay; }
 	bool Graphics_LimitFramerate() const { return m_Render_LimitFramerate; }
 	int Graphics_GetFPSLimit() const
 	{
@@ -79,6 +77,8 @@ public:
 	ServiceConnectionSettings Network_GetConnectionSettings() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_ConnectionSettings; }
 	std::string Network_GetLastRoute() const { std::lock_guard<std::mutex> lock(m_NetworkMutex); return m_LastRoute; }
 	bool Network_SaveLastRoute(const std::string& host);
+	bool Network_SaveWindowsLogin(bool windowsLogin);
+	bool Network_SaveConnectionSettings(const ServiceConnectionSettings& settings, std::string& error);
 
 private:
 	void Load(void);
@@ -89,16 +89,12 @@ private:
 	const float m_Camera_MinHeight_default = 100.f;
 	float m_Camera_MinHeight = m_Camera_MinHeight_default;
 
-	const float m_Camera_MoveSpeedRatio_default = 1.f;
-	float m_Camera_MoveSpeedRatio = m_Camera_MoveSpeedRatio_default;
-
 	float m_Camera_MaxHeight_LobbyHost = GENONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
 
 	bool m_bInitialized = false;
 
 	bool m_bVerbose = false;
 
-	bool m_Render_DrawStatsOverlay = true;
 	bool m_Render_LimitFramerate = true;
 	int m_Render_FramerateLimit_FPSVal = 60;
 	int m_Chat_LifeSeconds = 30;

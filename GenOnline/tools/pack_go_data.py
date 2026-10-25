@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-r"""Pack GeneralsOnline/GameData into the Generals Online fix pack BIG.
+r"""Pack GenOnline/data/core and the data folder of a game into the baseline data pack of that game.
 
 Usage: pack_go_data.py <zerohour|generals> <build> [output folder]
 
@@ -31,8 +31,9 @@ import re
 import struct
 import sys
 
-ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "GeneralsOnline", "GameData")
-OUT = sys.argv[1] if len(sys.argv) > 1 else "GeneralsOnline_Core.big"
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+CORE = os.path.join(DATA, "core")
+GAMES = ("zerohour", "generals")
 
 
 def main():

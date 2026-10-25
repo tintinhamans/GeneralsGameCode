@@ -33,6 +33,9 @@
 #include "Common/RandomValue.h"
 #include "GameClient/Shell.h"
 #include "GameClient/WindowLayout.h"
+#include "Common/version.h"
+#include "GameClient/GadgetStaticText.h"
+#include "GameClient/Image.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/IMEManager.h"
@@ -677,6 +680,65 @@ void Shell::unlinkScreen( WindowLayout *screen )
 }
 
 //-------------------------------------------------------------------------------------------------
+// Generals Online: a screen with a ruler gets the version label as a child of it, so it is drawn on top and shown and hidden with the ruler.
+//-------------------------------------------------------------------------------------------------
+static GameWindow *findRuler(GameWindow *window)
+{
+	for (; window != nullptr; window = window->winGetNext())
+	{
+		const Image *image = window->winGetEnabledImage(0);
+		if (image != nullptr && image->getName().compareNoCase("MainMenuRuler") == 0)
+		{
+			return window;
+		}
+		if (GameWindow *ruler = findRuler(window->winGetChild()))
+		{
+			return ruler;
+		}
+	}
+	return nullptr;
+}
+
+static void addVersionLabel(WindowLayout *screen)
+{
+	// the ruler is the window with the ruler image, whatever the screen calls it
+	GameWindow *ruler = nullptr;
+	for (GameWindow *top = screen->getFirstWindow(); top != nullptr && ruler == nullptr; top = top->winGetNextInLayout())
+	{
+		const Image *image = top->winGetEnabledImage(0);
+		if (image != nullptr && image->getName().compareNoCase("MainMenuRuler") == 0)
+		{
+			ruler = top;
+		}
+		else
+		{
+			ruler = findRuler(top->winGetChild());
+		}
+	}
+	if (ruler == nullptr)
+	{
+		return;
+	}
+
+	GameWindow *label = TheWindowManager->winCreateFromScript(AsciiString("Menus/MainMenuVersion.wnd"));
+	if (label == nullptr)
+	{
+		return;
+	}
+
+	ICoord2D labelPos;
+	ICoord2D rulerPos;
+	label->winGetScreenPosition(&labelPos.x, &labelPos.y);
+	ruler->winGetScreenPosition(&rulerPos.x, &rulerPos.y);
+	label->winSetParent(ruler);
+	label->winSetPosition(labelPos.x - rulerPos.x, labelPos.y - rulerPos.y);
+	if (TheVersion != nullptr)
+	{
+		GadgetStaticTextSetText(label, TheVersion->getUnicodeProductVersionHashString());
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Actually do the work for a push */
 //-------------------------------------------------------------------------------------------------
 void Shell::doPush( AsciiString layoutFile )
@@ -688,6 +750,10 @@ void Shell::doPush( AsciiString layoutFile )
 	// create new layout and load from window manager
 	newScreen = TheWindowManager->winCreateLayout( layoutFile );
 	DEBUG_ASSERTCRASH( newScreen != nullptr, ("Shell unable to load pending push layout") );
+	if (newScreen != nullptr)
+	{
+		addVersionLabel(newScreen);
+	}
 
 	// link screen to the top
 	linkScreen( newScreen );

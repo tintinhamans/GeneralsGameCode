@@ -1,4 +1,5 @@
 #pragma once
+#include "ServiceConnectionPolicy.h"
 
 #include "GameNetwork/NetworkSettings.h"
 #include "GenOnlineInclude.h"
@@ -200,6 +201,8 @@ public:
 	// Queues the message; Tick() flushes it on the main thread. Thread-safe.
 	void Send(const char* message);
 
+	void ResumeAfterProxyLogin(bool loggedIn);
+
 	// An inbound P2P signal and the user the service says it came from. The service sets the sender itself
 	// from the authenticated websocket session, the payload is whatever the peer wrote.
 	struct PendingSignal
@@ -243,7 +246,15 @@ public:
 
 private:
 	CURLcode ReceiveOneFrame();
+	void PollConnectionSetup();
+	void StartResolvedConnection();
 	void FailConnectionSetup();
+	bool m_proxyPrompted = false;
+	std::shared_ptr<ServiceConnection::ProxyResolution> m_proxyResolution;
+	ServiceConnection::ResolvedProxyPolicy m_proxyPolicy;
+	size_t m_proxyRoute = 0;
+	int64_t m_proxySetupStarted = -1;
+	bool m_connectAsReconnect = false;
 	CURL* m_pCurlWS = nullptr;
     CURLM* m_pMulti = nullptr;
 	struct curl_slist* m_pHeaders = nullptr;
@@ -688,6 +699,8 @@ public:
 	void StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback);
 	void StartVersionCheckOnSelectedRoute(std::function<void(bool, bool)> fnCallback);
 	void EnsureServiceRoute(std::function<void(bool)> callback);
+	// true when the last failed route check was a proxy login the player did not complete
+	bool RouteFailedProxyAuth() const { return m_routeProxyAuthFailed; }
 	static bool IsServiceURLTrusted(const std::string& url);
 	static bool IsWebSocketURLTrusted(const std::string& url);
 
@@ -716,6 +729,12 @@ public:
 	void ProcessMOTD(const char* szMOTD)
 	{
 		m_strMOTD = std::string(szMOTD);
+		// the welcome screen shows which custom server this is, ahead of anything the server says
+		const ServiceConnectionSettings settings = Settings.Network_GetConnectionSettings();
+		if (settings.serverMode == "custom")
+		{
+			m_strMOTD = "Custom server: " + settings.serverAddress.substr(settings.serverAddress.find("://") + 3) + "\n \n" + m_strMOTD;
+		}
 	}
 
 	std::string& GetMOTD() { return m_strMOTD; }
@@ -815,6 +834,9 @@ private:
 	size_t m_bootstrapIndex = 0;
 	std::vector<std::function<void(bool)>> m_routeCallbacks;
 	std::chrono::steady_clock::time_point m_routeValidatedAt{};
+	std::string m_routeSettingsKey;
+	bool m_routeProxyPrompted = false;
+	bool m_routeProxyAuthFailed = false;
 
 	ServiceConfig m_ServiceConfig;
 

@@ -19,6 +19,7 @@
 #include <mutex>
 #include <utility>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
+#include "GameNetwork/GenOnline/ProxyLogin.h"
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "GameNetwork/GenOnline/Vendor/stb_image/stb_image_write.h"
@@ -254,7 +255,9 @@ void GenOnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> call
 		callback(!m_serviceBase.empty());
 		return;
 	}
-	if (!m_serviceBase.empty() && std::chrono::steady_clock::now() - m_routeValidatedAt < std::chrono::seconds(30))
+	const auto settings = Settings.Network_GetConnectionSettings();
+	const std::string key = settings.serverMode + "|" + settings.serverAddress + "|" + settings.proxyMode + "|" + settings.proxyURL + (settings.windowsLogin ? "|1" : "|0");
+	if (key == m_routeSettingsKey && !m_serviceBase.empty() && std::chrono::steady_clock::now() - m_routeValidatedAt < std::chrono::seconds(30))
 	{
 		callback(true);
 		return;
@@ -264,7 +267,10 @@ void GenOnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> call
 	{
 		return;
 	}
-	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), Settings.Network_GetConnectionSettings(), Settings.Network_GetLastRoute());
+	m_routeSettingsKey = key;
+	m_routeProxyPrompted = false;
+	m_routeProxyAuthFailed = false;
+	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), settings, Settings.Network_GetLastRoute());
 	m_bootstrapIndex = 0;
 	ProbeServiceRoute();
 }
@@ -293,17 +299,42 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 	const std::string url = m_serviceBase + "VersionManifest";
 	std::map<std::string, std::string> headers;
 	m_pHTTPManager->SendGETRequest(url.c_str(), EIPProtocolVersion::DONT_CARE, headers,
-		[](bool success, int status, std::string body, HTTPRequest*)
+		[](bool success, int status, std::string body, HTTPRequest* request)
 		{
 			auto* manager = GetInstance();
 			if (!manager)
 			{
 				return;
 			}
+			// the proxy wants a login: ask once per attempt, then probe the same route again
+			const ServiceConnection::ProxyRoute route = status == 407 && request != nullptr ? request->GetProxyRoute() : ServiceConnection::ProxyRoute();
+			if (!route.direct)
+			{
+				manager->m_routeProxyAuthFailed = true;
+				if (!manager->m_routeProxyPrompted)
+				{
+					manager->m_routeProxyPrompted = true;
+					ServiceConnection::RequestProxyLogin(route, [](bool loggedIn)
+					{
+						auto* manager = GetInstance();
+						if (!manager)
+						{
+							return;
+						}
+						if (!loggedIn)
+						{
+							manager->m_bootstrapIndex = manager->m_bootstrapRoutes.size();
+						}
+						manager->ProbeServiceRoute();
+					});
+					return;
+				}
+			}
 			if (success && status == 200 && ServiceConnection::IsExpectedVersionManifest(body))
 			{
+				manager->m_routeProxyAuthFailed = false;
 				manager->m_routeValidatedAt = std::chrono::steady_clock::now();
-				if (g_Environment == EEnvironment::PROD)
+				if (g_Environment == EEnvironment::PROD && Settings.Network_GetConnectionSettings().serverMode != "custom")
 				{
 					Settings.Network_SaveLastRoute(ServiceConnection::RouteHost(manager->m_serviceBase));
 				}
@@ -312,8 +343,8 @@ void GenOnlineServicesManager::ProbeServiceRoute()
 				return;
 			}
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Route validation failed (HTTP %d); credentials were not sent", status);
-			// an access rejection is not evidence that another route would work
-			manager->m_bootstrapIndex = (status == 401 || status == 403) ? manager->m_bootstrapRoutes.size() : manager->m_bootstrapIndex + 1;
+			// an access or proxy rejection is not evidence that another route would work
+			manager->m_bootstrapIndex = (status == 401 || status == 403 || status == 407) ? manager->m_bootstrapRoutes.size() : manager->m_bootstrapIndex + 1;
 			manager->ProbeServiceRoute();
 		}, nullptr, 6000);
 }
@@ -467,7 +498,6 @@ void GenOnlineServicesManager::Shutdown()
 
 	// Shutdown and completely destroy WebSocket BEFORE cleaning up HTTPManager
 	// This is critical because WebSocket has curl handles that must be freed
-	// before curl_global_cleanup() is called by HTTPManager
 	if (m_pWebSocket)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Shutting down WebSocket...");
@@ -479,7 +509,6 @@ void GenOnlineServicesManager::Shutdown()
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] WebSocket shutdown complete");
 	}
 
-	// Now safe to shutdown HTTP manager which calls curl_global_cleanup()
 	if (m_pHTTPManager != nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Shutting down HTTPManager...");
@@ -1210,7 +1239,12 @@ void GenOnlineServicesManager::InitSentry()
 	// Initialize libcurl global state here, before any plugins (e.g. EasyAntiCheat) are loaded.
 	// This ensures libcurl's internal mutexes are fully initialized before the EAC plugin
 	// attempts to use them, preventing an access violation in mtx_do_lock on null mutex state.
-	curl_global_init(CURL_GLOBAL_DEFAULT);
+	static const CURLcode curlInitialization = curl_global_init(CURL_GLOBAL_DEFAULT);
+	if (curlInitialization != CURLE_OK)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] curl initialization failed (%d)", curlInitialization);
+		return;
+	}
 
 #if !_DEBUG
 	// game paths are in the process code page, sentry's char* API wants UTF-8, so hand it the wide path
@@ -1312,6 +1346,7 @@ void WebSocket::Shutdown()
 	
 	// Signal that we're shutting down
 	m_bShuttingDown = true;
+	m_proxyResolution.reset();
 	
 	// Disconnect from the websocket (handles the connected case)
 	Disconnect();

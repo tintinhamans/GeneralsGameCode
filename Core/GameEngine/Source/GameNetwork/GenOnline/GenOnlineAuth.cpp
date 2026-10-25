@@ -9,7 +9,7 @@
 #include <chrono>
 #include <random>
 #include <windows.h>
-#include <wincred.h>
+#include "GameNetwork/GenOnline/CredentialStore.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "../json.hpp"
 
@@ -318,7 +318,8 @@ void GenOnlineAuthInterface::BeginLogin()
 		else
 		{
 			ClearGSMessageBoxes();
-			GSMessageBoxOk(UnicodeString(L"Connection failed"), UnicodeString(L"No trusted service route could be reached. Check your connection and try again."), []() { TheShell->pop(); });
+			const bool proxyAuth = GenOnlineServicesManager::GetInstance() != nullptr && GenOnlineServicesManager::GetInstance()->RouteFailedProxyAuth();
+			GSMessageBoxOk(UnicodeString(L"Connection failed"), UnicodeString(proxyAuth ? L"The proxy did not accept the login. Try again, or check the proxy settings in Options." : L"No trusted service route could be reached. Check Connection settings in Options, then try again."), []() { TheShell->pop(); });
 		}
 	});
 }
@@ -639,14 +640,7 @@ void GenOnlineAuthInterface::LogoutOfMyAccount()
 	std::map<std::string, std::string> mapHeaders;
 	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", nullptr);
 
-	// delete local credentials cache
-	std::string strCredentialsCachePath = GetCredentialsFilePath();
-
-	std::error_code ec;
-	if (std::filesystem::exists(strCredentialsCachePath, ec))
-	{
-		std::filesystem::remove(strCredentialsCachePath, ec);
-	}
+	ServiceConnection::DeleteRefreshToken(CredentialServerKey());
 }
 
 void GenOnlineAuthInterface::LoginAsSecondaryDevAccount()
@@ -659,55 +653,8 @@ void GenOnlineAuthInterface::SaveCredentials(const char* szRefreshToken)
 	m_strRefreshToken = std::string(szRefreshToken); // store the new refresh token, we'll need it for the next refresh
 	m_tokenCreationTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
-	// store in data dir
-	nlohmann::json root = { {"refresh_token", szRefreshToken} };
-
-	std::string strData = root.dump(1);
-
-	// encrypt before touching the file so a failure doesn't truncate the credentials already stored
-	std::string strFileData;
-#if defined(GENONLINE_ENCRYPT_CREDENTIALS)
-	DATA_BLOB inputBlob;
-	DATA_BLOB outputBlob;
-
-	inputBlob.pbData = (BYTE*)strData.c_str();
-	inputBlob.cbData = static_cast<DWORD>(strData.size());
-
-	if (CryptProtectData(&inputBlob, L"GO Credentials", nullptr, nullptr, nullptr, 0, &outputBlob))
-	{
-		strFileData.assign((const char*)outputBlob.pbData, outputBlob.cbData);
-		LocalFree(outputBlob.pbData);
-	}
-	else
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Failed to encrypt credentials, keeping the stored ones");
-		return;
-	}
-#else
-	strFileData = strData;
-#endif
-
-	// write to a temp file and swap it in so a failed write never leaves truncated credentials
-	std::string strCredentialsPath = GetCredentialsFilePath();
-	std::string strTempPath = strCredentialsPath + ".tmp";
-	bool bSaved = false;
-	FILE* file = fopen(strTempPath.c_str(), "wb");
-	if (file)
-	{
-		bSaved = fwrite(strFileData.data(), 1, strFileData.size(), file) == strFileData.size();
-		if (fclose(file) != 0)
-			bSaved = false;
-	}
-
-	if (bSaved)
-		bSaved = MoveFileExA(strTempPath.c_str(), strCredentialsPath.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
-
-	if (!bSaved)
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[GenOnline] Failed to save credentials");
-		std::error_code ec;
-		std::filesystem::remove(strTempPath, ec);
-	}
+	// a failed save keeps the token for this session
+	ServiceConnection::SaveRefreshToken(CredentialServerKey(), m_strRefreshToken);
 }
 
 bool GenOnlineAuthInterface::GetCredentials()
@@ -715,75 +662,18 @@ bool GenOnlineAuthInterface::GetCredentials()
 #if defined(_DEBUG) && !defined(USE_TEST_ENV) && !defined(USE_DEBUG_ON_LIVE_SERVER)
 	return false;
 #endif
-	std::vector<uint8_t> vecBytes;
-	FILE* file = fopen(GetCredentialsFilePath().c_str(), "rb");
-	if (file)
+	std::string strToken;
+	if (!ServiceConnection::LoadRefreshToken(CredentialServerKey(), strToken))
 	{
-		fseek(file, 0, SEEK_END);
-		long fileSize = ftell(file);
-		fseek(file, 0, SEEK_SET);
-		if (fileSize > 0)
-		{
-			vecBytes.resize(fileSize);
-			fread(vecBytes.data(), 1, fileSize, file);
-		}
-		fclose(file);
+		return false;
 	}
+	m_strRefreshToken = strToken;
+	return true;
+}
 
-
-	if (!vecBytes.empty())
-	{
-		// needs decrypt first
-#if defined(GENONLINE_ENCRYPT_CREDENTIALS)
-		DATA_BLOB encryptedBlob;
-		encryptedBlob.pbData = const_cast<BYTE*>(vecBytes.data());
-		encryptedBlob.cbData = static_cast<DWORD>(vecBytes.size());
-		std::string strJSON;
-
-		DATA_BLOB decryptedBlob = { 0 };
-		if (CryptUnprotectData(&encryptedBlob, nullptr, nullptr, nullptr, nullptr, 0, &decryptedBlob))
-		{
-			strJSON = std::string((char*)decryptedBlob.pbData, decryptedBlob.cbData);
-			LocalFree(decryptedBlob.pbData); // Free memory allocated by CryptUnprotectData
-		}
-		else
-		{
-			// TODO_JWT: Handle failure
-		}
-#else
-		std::string strJSON = std::string((char*)vecBytes.data(), vecBytes.size());
-#endif
-
-		
-		nlohmann::json jsonCredentials = nullptr;
-
-		try
-		{
-			jsonCredentials = nlohmann::json::parse(strJSON);
-
-			if (jsonCredentials != nullptr)
-			{
-				if (jsonCredentials.contains("refresh_token"))
-				{
-					m_strRefreshToken = jsonCredentials["refresh_token"];
-
-					if (m_strRefreshToken.empty())
-					{
-						return false;
-					}
-
-					return true;
-				}
-			}
-
-		}
-		catch (...)
-		{
-			return false;
-		}
-	}
-
-	return false;
+std::string GenOnlineAuthInterface::CredentialServerKey()
+{
+	return ServiceConnection::CredentialServerKey(GenOnlineServicesManager::Settings.Network_GetConnectionSettings());
 }
 
 std::string GenOnlineAuthInterface::GetCredentialsFilePath()
