@@ -35,10 +35,17 @@ public:
     bool close();
     QueueResult queue(const short *interleaved, uint32_t frames);
     uint32_t availableFrames() const;
+    // Callback-read source frames; includes mixer prefetch, not a presentation clock.
+    uint32_t getReadFrames() const;
+    // Publish a finite immutable tail after a source-frame cutoff; normal queueing then ends.
+    bool replaceQueuedAfter(uint32_t endFrame, const short *tail, uint32_t frames);
     bool play();
     bool pause();
     bool stop();
     bool markEnd();
+    bool setGain(float gain);
+    bool setPitch(float pitch);
+    bool setPosition(float x, float y, float z, bool positional);
     State state() const;
     int getLastError() const;
 
