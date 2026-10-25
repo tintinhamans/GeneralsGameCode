@@ -447,6 +447,9 @@ void MilesAudioManager::postProcessLoad()
 //-------------------------------------------------------------------------------------------------
 void MilesAudioManager::reset()
 {
+#if defined(RTS_HAS_FFMPEG)
+	m_metadata.clear();
+#endif
 #if defined(RTS_DEBUG)
 	dumpAllAssetsUsed();
 	m_allEventsLoaded.clear();
@@ -2596,6 +2599,9 @@ void MilesAudioManager::setSpeakerSurround(Bool surround)
 //-------------------------------------------------------------------------------------------------
 Real MilesAudioManager::getFileLengthMS( AsciiString strToLoad ) const
 {
+#if defined(RTS_HAS_FFMPEG)
+	return m_metadata.getLengthMS(strToLoad);
+#else
 	if (strToLoad.isEmpty()) {
 		return 0.0f;
 	}
@@ -2612,6 +2618,7 @@ Real MilesAudioManager::getFileLengthMS( AsciiString strToLoad ) const
 	AIL_close_stream(stream);
 
 	return INT_TO_REAL(retVal);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------

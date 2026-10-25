@@ -1,6 +1,4 @@
 set(GAMEENGINEDEVICE_SRC
-    Include/MilesAudioDevice/MilesAudioManager.h
-    Include/VideoDevice/Bink/BinkVideoPlayer.h
     Include/W3DDevice/Common/W3DConvert.h
     Include/W3DDevice/Common/W3DFunctionLexicon.h
     Include/W3DDevice/Common/W3DModuleFactory.h
@@ -90,8 +88,6 @@ set(GAMEENGINEDEVICE_SRC
     Include/Win32Device/GameClient/Win32DIKeyboard.h
     #Include/Win32Device/GameClient/Win32DIMouse.h
     Include/Win32Device/GameClient/Win32Mouse.h
-    Source/MilesAudioDevice/MilesAudioManager.cpp
-    Source/VideoDevice/Bink/BinkVideoPlayer.cpp
     Source/W3DDevice/Common/System/W3DFunctionLexicon.cpp
     Source/W3DDevice/Common/System/W3DRadar.cpp
     Source/W3DDevice/Common/Thing/W3DModuleFactory.cpp
@@ -209,6 +205,15 @@ add_library(corei_gameenginedevice_private INTERFACE)
 add_library(corei_gameenginedevice_public INTERFACE)
 
 target_sources(corei_gameenginedevice_private INTERFACE ${GAMEENGINEDEVICE_SRC})
+if(RTS_NEEDS_LEGACY_MEDIA)
+    target_sources(corei_gameenginedevice_private INTERFACE
+        Include/MilesAudioDevice/MilesAudioManager.h
+        Source/MilesAudioDevice/MilesAudioManager.cpp
+        Include/VideoDevice/Bink/BinkVideoPlayer.h
+        Source/VideoDevice/Bink/BinkVideoPlayer.cpp
+    )
+    target_link_libraries(corei_gameenginedevice_public INTERFACE deps_bink deps_miles)
+endif()
 
 target_include_directories(corei_gameenginedevice_public INTERFACE
     Include
@@ -222,16 +227,23 @@ target_link_libraries(corei_gameenginedevice_private INTERFACE
 
 target_link_libraries(corei_gameenginedevice_public INTERFACE
     corei_gameengine_public
-    deps_bink
-    deps_miles
 )
 
 if(RTS_BUILD_OPTION_FFMPEG)
+    if(MSVC AND MSVC_VERSION LESS 1930)
+        message(FATAL_ERROR "FFmpeg support requires modern MSVC (Visual Studio 2022 or newer)")
+    endif()
     find_package(FFMPEG REQUIRED)
 
     if(FFMPEG_FOUND)
         target_sources(corei_gameenginedevice_private INTERFACE
             Include/VideoDevice/FFmpeg/FFmpegFile.h
+            Include/VideoDevice/FFmpeg/FFmpegPcmConverter.h
+            Source/VideoDevice/FFmpeg/FFmpegPcmConverter.cpp
+            Include/VideoDevice/FFmpeg/FFmpegAudioFile.h
+            Source/VideoDevice/FFmpeg/FFmpegAudioFile.cpp
+            Include/VideoDevice/FFmpeg/FFmpegAudioMetadata.h
+            Source/VideoDevice/FFmpeg/FFmpegAudioMetadata.cpp
             Include/VideoDevice/FFmpeg/FFmpegVideoPlayer.h
             Source/VideoDevice/FFmpeg/FFmpegFile.cpp
             Source/VideoDevice/FFmpeg/FFmpegVideoPlayer.cpp
@@ -240,5 +252,31 @@ if(RTS_BUILD_OPTION_FFMPEG)
         target_link_directories(corei_gameenginedevice_private INTERFACE ${FFMPEG_LIBRARY_DIRS})
         target_link_libraries(corei_gameenginedevice_private INTERFACE ${FFMPEG_LIBRARIES})
         target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_FFMPEG)
+    endif()
+endif()
+
+if(RTS_BUILD_OPTION_OPENAL)
+    if(MSVC AND MSVC_VERSION LESS 1930)
+        message(FATAL_ERROR "OpenAL PCM support requires Visual Studio 2022 or newer")
+    endif()
+    find_package(OpenAL CONFIG REQUIRED)
+    target_sources(corei_gameenginedevice_private INTERFACE
+        Include/OpenALAudioDevice/OpenALDevice.h
+        Include/OpenALAudioDevice/OpenALPcmStream.h
+        Source/OpenALAudioDevice/OpenALDevice.cpp
+        Source/OpenALAudioDevice/OpenALPcmStream.cpp
+    )
+    target_link_libraries(corei_gameenginedevice_private INTERFACE OpenAL::OpenAL)
+    if(RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
+        target_sources(corei_gameenginedevice_private INTERFACE
+            Include/OpenALAudioDevice/OpenALMovieVoice.h
+            Source/OpenALAudioDevice/OpenALMovieVoice.cpp
+            Include/OpenALAudioDevice/OpenALAudioManager.h
+            Include/OpenALAudioDevice/OpenALAudioProducer.h
+            Include/OpenALAudioDevice/OpenALAudioCache.h
+            Source/OpenALAudioDevice/OpenALAudioManager.cpp
+            Source/OpenALAudioDevice/OpenALAudioProducer.cpp
+            Source/OpenALAudioDevice/OpenALAudioCache.cpp
+        )
     endif()
 endif()
