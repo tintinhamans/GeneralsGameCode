@@ -211,7 +211,8 @@ std::vector<AsciiString> ReplaySimulation::resolveFilenameWildcards(const std::v
 	{
 		if (filename->find('*') || filename->find('?'))
 		{
-			AsciiString dir1 = TheRecorder->getReplayDir();
+			// An absolute path is searched as is, a relative path is searched in the replay directory.
+			AsciiString dir1 = isAbsolutePath(filename->str()) ? AsciiString::TheEmptyString : TheRecorder->getReplayDir();
 			AsciiString dir2 = *filename;
 			AsciiString wildcard = *filename;
 			{
