@@ -85,8 +85,8 @@ void NGMP_OnlineServicesManager::GetAndParseServiceConfig(std::function<void(voi
 				
 				if (bSuccess && statusCode == 200)
 				{
-					nlohmann::json jsonObject = nlohmann::json::parse(strBody);
-					pMgr->m_ServiceConfig = jsonObject.get<ServiceConfig>();
+					// tester build: the service config is ignored, the compiled grouped defaults stay
+					pMgr->m_ServiceConfig = ServiceConfig();
 				}
 				else
 				{

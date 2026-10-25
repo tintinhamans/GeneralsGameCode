@@ -550,6 +550,10 @@ inline void ClampServiceConfig(ServiceConfig& c)
 
 inline void from_json(const nlohmann::json& j, ServiceConfig& c)
 {
+	// tester build: the received JSON is ignored, the compiled grouped defaults stay
+	(void)j;
+	c = ServiceConfig();
+	return;
 	if (!j.is_object())
 	{
 		throw std::invalid_argument("Service config must be an object");
