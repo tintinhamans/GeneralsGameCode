@@ -407,11 +407,6 @@ void GenOnlineGame::launchGame(void)
 	//TheWritableGlobalData->m_networkPlayerTimeoutTime = 60000;
 	//TheWritableGlobalData->m_networkDisconnectScreenNotifyTime = 2500;
 
-#if defined(GENONLINE)
-	TheWritableGlobalData->m_horizontalScrollSpeedFactor = GenOnlineServicesManager::Settings.Camera_MoveSpeedRatio();
-	TheWritableGlobalData->m_verticalScrollSpeedFactor = GenOnlineServicesManager::Settings.Camera_MoveSpeedRatio();
-#endif
-
 	setGameInProgress(TRUE);
 
 	for (Int i = 0; i < MAX_SLOTS; ++i)
