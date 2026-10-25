@@ -35,6 +35,13 @@ extern "C" {
 }
 
 
+static void logFFmpegError(const char *operation, Int error)
+{
+    char message[AV_ERROR_MAX_STRING_SIZE];
+    av_strerror(error, message, sizeof(message));
+    DEBUG_LOG(("FFmpeg %s failed: %s\n", operation, message));
+}
+
 FFmpegFile::FFmpegFile() {}
 
 FFmpegFile::FFmpegFile(File *file)
@@ -49,240 +56,252 @@ FFmpegFile::~FFmpegFile()
 
 Bool FFmpegFile::open(File *file)
 {
-	DEBUG_ASSERTCRASH(m_file == nullptr, ("already open"));
-	DEBUG_ASSERTCRASH(file != nullptr, ("null file pointer"));
-#if LOGGING_LEVEL != LOGLEVEL_NONE
-	av_log_set_level(AV_LOG_INFO);
-#endif
-
-// This is required for FFmpeg older than 4.0 -> deprecated afterwards though
-#if LIBAVFORMAT_VERSION_MAJOR < 58
-	av_register_all();
-#endif
-
+	if (file != nullptr && file == m_file)
+		return false;
+	close();
 	m_file = file;
+	if (m_file == nullptr)
+		return false;
 
-	// FFmpeg setup
 	m_fmtCtx = avformat_alloc_context();
-	if (!m_fmtCtx) {
-		DEBUG_LOG(("Failed to alloc AVFormatContext"));
+	if (m_fmtCtx == nullptr) {
 		close();
 		return false;
 	}
-
-	constexpr size_t avio_ctx_buffer_size = 0x10000;
-	uint8_t *buffer = static_cast<uint8_t *>(av_malloc(avio_ctx_buffer_size));
+	const Int bufferSize = 0x10000;
+	UnsignedByte *buffer = static_cast<UnsignedByte *>(av_malloc(bufferSize));
 	if (buffer == nullptr) {
-		DEBUG_LOG(("Failed to alloc AVIOContextBuffer"));
 		close();
 		return false;
 	}
-
-	m_avioCtx = avio_alloc_context(buffer, avio_ctx_buffer_size, 0, file, &readPacket, nullptr, nullptr);
+	m_avioCtx = avio_alloc_context(buffer, bufferSize, 0, file, &readPacket, nullptr, &seekPacket);
 	if (m_avioCtx == nullptr) {
-		DEBUG_LOG(("Failed to alloc AVIOContext"));
+		av_free(buffer);
 		close();
 		return false;
 	}
-
 	m_fmtCtx->pb = m_avioCtx;
 	m_fmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO;
-
-	int result = avformat_open_input(&m_fmtCtx, nullptr, nullptr, nullptr);
+	Int result = avformat_open_input(&m_fmtCtx, nullptr, nullptr, nullptr);
 	if (result < 0) {
-		char error_buffer[1024];
-		av_strerror(result, error_buffer, sizeof(error_buffer));
-		DEBUG_LOG(("Failed 'avformat_open_input': %s", error_buffer));
+		logFFmpegError("open input", result);
 		close();
 		return false;
 	}
-
 	result = avformat_find_stream_info(m_fmtCtx, nullptr);
 	if (result < 0) {
-		char error_buffer[1024];
-		av_strerror(result, error_buffer, sizeof(error_buffer));
-		DEBUG_LOG(("Failed 'avformat_find_stream_info': %s", error_buffer));
+		logFFmpegError("read stream metadata", result);
 		close();
 		return false;
 	}
 
 	m_streams.resize(m_fmtCtx->nb_streams);
-	for (unsigned int stream_idx = 0; stream_idx < m_fmtCtx->nb_streams; stream_idx++) {
-		AVStream *av_stream = m_fmtCtx->streams[stream_idx];
-		const AVCodec *input_codec = avcodec_find_decoder(av_stream->codecpar->codec_id);
-		if (input_codec == nullptr) {
-			DEBUG_LOG(("Codec not supported: '%s'", avcodec_get_name(av_stream->codecpar->codec_id)));
+	for (unsigned int i = 0; i < m_fmtCtx->nb_streams; ++i) {
+		AVStream *input = m_fmtCtx->streams[i];
+		FFmpegStream &stream = m_streams[i];
+		stream.codec = avcodec_find_decoder(input->codecpar->codec_id);
+		if (stream.codec == nullptr) {
+			logFFmpegError("find decoder", AVERROR_DECODER_NOT_FOUND);
 			close();
 			return false;
 		}
-
-		AVCodecContext *codec_ctx = avcodec_alloc_context3(input_codec);
-		if (codec_ctx == nullptr) {
-			DEBUG_LOG(("Could not allocate codec context"));
+		stream.codec_ctx = avcodec_alloc_context3(stream.codec);
+		stream.frame = av_frame_alloc();
+		if (stream.codec_ctx == nullptr || stream.frame == nullptr) {
+			logFFmpegError("allocate decoder", AVERROR(ENOMEM));
 			close();
 			return false;
 		}
-
-		result = avcodec_parameters_to_context(codec_ctx, av_stream->codecpar);
+		result = avcodec_parameters_to_context(stream.codec_ctx, input->codecpar);
+		if (result >= 0)
+			result = avcodec_open2(stream.codec_ctx, stream.codec, nullptr);
 		if (result < 0) {
-			char error_buffer[1024];
-			av_strerror(result, error_buffer, sizeof(error_buffer));
-			DEBUG_LOG(("Failed 'avcodec_parameters_to_context': %s", error_buffer));
+			logFFmpegError("initialize decoder", result);
 			close();
 			return false;
 		}
-
-		result = avcodec_open2(codec_ctx, input_codec, nullptr);
-		if (result < 0) {
-			char error_buffer[1024];
-			av_strerror(result, error_buffer, sizeof(error_buffer));
-			DEBUG_LOG(("Failed 'avcodec_open2': %s", error_buffer));
-			close();
-			return false;
-		}
-
-		FFmpegStream &output_stream = m_streams[stream_idx];
-		output_stream.codec_ctx = codec_ctx;
-		output_stream.codec = input_codec;
-		output_stream.stream_type = input_codec->type;
-		output_stream.stream_idx = stream_idx;
-		output_stream.frame = av_frame_alloc();
+		stream.stream_type = stream.codec->type;
+		stream.stream_idx = i;
 	}
-
 	m_packet = av_packet_alloc();
-
+	if (m_packet == nullptr) {
+		close();
+		return false;
+	}
 	return true;
 }
 
-/**
- * Read an FFmpeg packet from file
- */
-int FFmpegFile::readPacket(void *opaque, uint8_t *buf, int buf_size)
+Int FFmpegFile::readPacket(void *opaque, UnsignedByte *buffer, Int size)
 {
-	File *file = static_cast<File *>(opaque);
-	const int read = file->read(buf, buf_size);
-
-	// Streaming protocol requires us to return real errors - when we read less equal 0 we're at EOF
-	if (read <= 0)
+	const Int count = static_cast<File *>(opaque)->read(buffer, size);
+	if (count < 0)
+		return AVERROR(EIO);
+	if (count == 0)
 		return AVERROR_EOF;
-
-	return read;
+	return count;
 }
 
-/**
- * close all the open FFmpeg handles for an open file.
- */
+Int64 FFmpegFile::seekPacket(void *opaque, Int64 offset, Int whence)
+{
+	File *file = static_cast<File *>(opaque);
+	const Int size = file->size();
+	if (size < 0)
+		return AVERROR(EIO);
+	if (whence == AVSEEK_SIZE)
+		return size;
+	whence &= ~AVSEEK_FORCE;
+	Int64 origin = 0;
+	if (whence == SEEK_CUR) {
+		origin = file->position();
+		if (origin < 0)
+			return AVERROR(EIO);
+	} else if (whence == SEEK_END) {
+		origin = size;
+	} else if (whence != SEEK_SET) {
+		return AVERROR(EINVAL);
+	}
+	// File uses signed 32-bit offsets; validate before narrowing or adding.
+	if (offset < -origin || offset > static_cast<Int64>(size) - origin)
+		return AVERROR(EINVAL);
+	const Int position = static_cast<Int>(origin + offset);
+	if (file->seek(position, File::START) != position)
+		return AVERROR(EIO);
+	return position;
+}
+
 void FFmpegFile::close()
 {
-	if (m_fmtCtx != nullptr) {
-		avformat_close_input(&m_fmtCtx);
-	}
-
+	avformat_close_input(&m_fmtCtx);
 	for (auto &stream : m_streams) {
-		if (stream.codec_ctx != nullptr) {
-			avcodec_free_context(&stream.codec_ctx);
-			av_frame_free(&stream.frame);
-		}
+		avcodec_free_context(&stream.codec_ctx);
+		av_frame_free(&stream.frame);
 	}
 	m_streams.clear();
-
 	if (m_avioCtx != nullptr) {
 		av_freep(&m_avioCtx->buffer);
 		avio_context_free(&m_avioCtx);
 	}
-
-	if (m_packet != nullptr) {
-		av_packet_free(&m_packet);
-	}
-
+	av_packet_free(&m_packet);
 	if (m_file != nullptr) {
 		m_file->close();
 		m_file = nullptr;
 	}
+	m_endOfInput = false;
+	m_decodeFailed = false;
+}
+
+Bool FFmpegFile::receiveFrames(FFmpegStream &stream, Bool &produced)
+{
+	for (;;) {
+		const Int result = avcodec_receive_frame(stream.codec_ctx, stream.frame);
+		if (result == AVERROR(EAGAIN) || result == AVERROR_EOF)
+			return true;
+		if (result < 0) {
+			logFFmpegError("receive frame", result);
+			return false;
+		}
+		produced = true;
+		if (m_frameCallback != nullptr)
+			m_frameCallback(stream.frame, stream.stream_idx, stream.stream_type, m_userData);
+		av_frame_unref(stream.frame);
+	}
+}
+
+Bool FFmpegFile::submitPacket(FFmpegStream &stream, const AVPacket *packet, Bool &produced)
+{
+	Int result = avcodec_send_packet(stream.codec_ctx, packet);
+	if (result == AVERROR(EAGAIN)) {
+		if (!receiveFrames(stream, produced))
+			return false;
+		result = avcodec_send_packet(stream.codec_ctx, packet);
+	}
+	if (result < 0) {
+		logFFmpegError("submit packet or drain", result);
+		return false;
+	}
+	return receiveFrames(stream, produced);
 }
 
 Bool FFmpegFile::decodePacket()
 {
-	DEBUG_ASSERTCRASH(m_fmtCtx != nullptr, ("null format context"));
-	DEBUG_ASSERTCRASH(m_packet != nullptr, ("null packet pointer"));
-
-	int result = av_read_frame(m_fmtCtx, m_packet);
-	if (result == AVERROR_EOF)
+	if (m_fmtCtx == nullptr || m_packet == nullptr || m_endOfInput || m_decodeFailed)
 		return false;
-
-	const int stream_idx = m_packet->stream_index;
-	if (stream_idx < 0 || (size_t)stream_idx >= m_streams.size()) {
-		DEBUG_LOG(("Invalid stream index: %d (total streams: %zu)", stream_idx, m_streams.size()));
-		av_packet_unref(m_packet);
-		return true;
-	}
-
-	auto &stream = m_streams[stream_idx];
-	AVCodecContext *codec_ctx = stream.codec_ctx;
-	if (codec_ctx == nullptr) {
-		DEBUG_LOG(("Null codec context for stream %d", stream_idx));
-		av_packet_unref(m_packet);
-		return true;
-	}
-
-	result = avcodec_send_packet(codec_ctx, m_packet);
-	// Check if we need more data
-	if (result == AVERROR(EAGAIN))
-		return true;
-
-	// Handle any other errors
-	if (result < 0) {
-		char error_buffer[1024];
-		av_strerror(result, error_buffer, sizeof(error_buffer));
-		DEBUG_LOG(("Failed 'avcodec_send_packet': %s", error_buffer));
-		av_packet_unref(m_packet);
+	Bool produced = false;
+	Int result = av_read_frame(m_fmtCtx, m_packet);
+	if (result == AVERROR_EOF && m_avioCtx->error < 0 && m_avioCtx->error != AVERROR_EOF) {
+		logFFmpegError("read input", m_avioCtx->error);
+		m_decodeFailed = true;
 		return false;
 	}
-	av_packet_unref(m_packet);
-
-	// Get all frames in this packet
-	while (result >= 0) {
-		result = avcodec_receive_frame(codec_ctx, stream.frame);
-
-		// Check if we need more data
-		if (result == AVERROR(EAGAIN))
-			return true;
-
-		// Handle any other errors
-		if (result < 0) {
-			char error_buffer[1024];
-			av_strerror(result, error_buffer, sizeof(error_buffer));
-			DEBUG_LOG(("Failed 'avcodec_receive_frame': %s", error_buffer));
-			return false;
-		}
-
-		// Validate the frame before passing to callback
-		if (stream.frame != nullptr && stream.frame->data[0] != nullptr && 
-			stream.frame->width > 0 && stream.frame->height > 0) {
-			if (m_frameCallback != nullptr) {
-				m_frameCallback(stream.frame, stream_idx, stream.stream_type, m_userData);
+	if (result == AVERROR_EOF) {
+		m_endOfInput = true;
+		for (auto &stream : m_streams) {
+			if (!submitPacket(stream, nullptr, produced)) {
+				m_decodeFailed = true;
+				return false;
 			}
-		} else {
-			DEBUG_LOG(("Decoded frame has invalid data or dimensions"));
 		}
+		return produced;
 	}
-
+	if (result < 0 || m_packet->stream_index < 0 ||
+		static_cast<size_t>(m_packet->stream_index) >= m_streams.size()) {
+		if (result >= 0)
+			result = AVERROR_INVALIDDATA;
+		logFFmpegError("read packet", result);
+		av_packet_unref(m_packet);
+		m_decodeFailed = true;
+		return false;
+	}
+	FFmpegStream &stream = m_streams[m_packet->stream_index];
+	m_decodeFailed = !submitPacket(stream, m_packet, produced);
+	av_packet_unref(m_packet);
+	if (m_decodeFailed)
+		return false;
 	return true;
 }
 
-void FFmpegFile::seekFrame(int frame_idx)
+Bool FFmpegFile::seek(Int streamIndex, Int64 timestamp)
 {
-	// Note: not tested, since not used ingame
-	for (const auto &stream : m_streams) {
-		Int64 timestamp = av_q2d(m_fmtCtx->streams[stream.stream_idx]->time_base) * frame_idx
-			* av_q2d(m_fmtCtx->streams[stream.stream_idx]->avg_frame_rate);
-		int result = av_seek_frame(m_fmtCtx, stream.stream_idx, timestamp, AVSEEK_FLAG_ANY);
-		if (result < 0) {
-			char error_buffer[1024];
-			av_strerror(result, error_buffer, sizeof(error_buffer));
-			DEBUG_LOG(("Failed 'av_seek_frame': %s", error_buffer));
-		}
+	if (m_fmtCtx == nullptr)
+		return false;
+	const Int result = av_seek_frame(m_fmtCtx, streamIndex, timestamp, AVSEEK_FLAG_BACKWARD);
+	if (result < 0) {
+		logFFmpegError("seek", result);
+		return false;
 	}
+	m_avioCtx->error = 0;
+	av_packet_unref(m_packet);
+	for (auto &stream : m_streams) {
+		avcodec_flush_buffers(stream.codec_ctx);
+		av_frame_unref(stream.frame);
+	}
+	m_endOfInput = false;
+	m_decodeFailed = false;
+	return true;
+}
+
+Bool FFmpegFile::rewind()
+{
+	return seek(-1, 0);
+}
+
+void FFmpegFile::seekFrame(Int frameIndex)
+{
+	const FFmpegStream *stream = findMatch(AVMEDIA_TYPE_VIDEO);
+	if (stream == nullptr || frameIndex < 0)
+		return;
+	AVStream *video = m_fmtCtx->streams[stream->stream_idx];
+	if (video->avg_frame_rate.num <= 0 || video->avg_frame_rate.den <= 0)
+		return;
+	seek(stream->stream_idx, av_rescale_q(frameIndex, av_inv_q(video->avg_frame_rate), video->time_base));
+}
+
+Int FFmpegFile::getAudioStreamIndex() const
+{
+	const FFmpegStream *stream = findMatch(AVMEDIA_TYPE_AUDIO);
+	if (stream == nullptr)
+		return -1;
+	return stream->stream_idx;
 }
 
 Bool FFmpegFile::hasAudio() const

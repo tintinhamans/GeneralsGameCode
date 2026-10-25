@@ -226,11 +226,16 @@ target_link_libraries(corei_gameenginedevice_public INTERFACE
 )
 
 if(RTS_BUILD_OPTION_FFMPEG)
+    if(MSVC AND MSVC_VERSION LESS 1930)
+        message(FATAL_ERROR "FFmpeg support requires modern MSVC (Visual Studio 2022 or newer)")
+    endif()
     find_package(FFMPEG REQUIRED)
 
     if(FFMPEG_FOUND)
         target_sources(corei_gameenginedevice_private INTERFACE
             Include/VideoDevice/FFmpeg/FFmpegFile.h
+            Include/VideoDevice/FFmpeg/FFmpegAudioFile.h
+            Source/VideoDevice/FFmpeg/FFmpegAudioFile.cpp
             Include/VideoDevice/FFmpeg/FFmpegVideoPlayer.h
             Source/VideoDevice/FFmpeg/FFmpegFile.cpp
             Source/VideoDevice/FFmpeg/FFmpegVideoPlayer.cpp

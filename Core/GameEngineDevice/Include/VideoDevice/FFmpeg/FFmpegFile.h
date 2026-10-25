@@ -47,9 +47,11 @@ class FFmpegFile
 {
 public:
 	FFmpegFile();
-	// The constructur takes ownership of the file
+	// open and the constructor take ownership, including on failure.
 	explicit FFmpegFile(File *file);
 	~FFmpegFile();
+	FFmpegFile(const FFmpegFile &) = delete;
+	FFmpegFile &operator=(const FFmpegFile &) = delete;
 
 	Bool open(File *file);
 	void close();
@@ -57,7 +59,11 @@ public:
 	void setUserData(void *user_data) { m_userData = user_data; }
 	// Read & decode a packet from the container. Note that we could/should split this step
 	Bool decodePacket();
+	// Seeks to a preceding keyframe; callers decode forward to an exact frame.
 	void seekFrame(int frame_idx);
+	Bool rewind();
+	Bool hasError() const { return m_decodeFailed; }
+	Int getAudioStreamIndex() const;
 	Bool hasAudio() const;
 
 	// Audio specific
@@ -85,8 +91,14 @@ private:
 	};
 
 	static Int readPacket(void *opaque, UnsignedByte *buf, Int buf_size);
+	static Int64 seekPacket(void *opaque, Int64 offset, Int whence);
+	Bool receiveFrames(FFmpegStream &stream, Bool &produced);
+	Bool submitPacket(FFmpegStream &stream, const AVPacket *packet, Bool &produced);
+	Bool seek(Int streamIndex, Int64 timestamp);
 	const FFmpegStream *findMatch(int type) const;
 
+	Bool m_endOfInput = false;
+	Bool m_decodeFailed = false;
 	FFmpegFrameCallback 		m_frameCallback = nullptr; ///< Callback for frame processing
 	AVFormatContext 			*m_fmtCtx = nullptr; ///< Format context for AVFormat
 	AVIOContext 				*m_avioCtx = nullptr; ///< IO context for AVFormat
