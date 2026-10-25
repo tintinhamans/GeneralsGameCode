@@ -21,6 +21,7 @@ endif()
 #endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/GenOnline/cmake/")
 
 include(FeatureSummary)
 include(CMakeDependentOption)

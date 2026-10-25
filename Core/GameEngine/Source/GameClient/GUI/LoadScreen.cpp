@@ -542,7 +542,7 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 
 		Int progressUpdateCount = m_videoStream->frameCount() / FRAME_FUDGE_ADD;
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
-		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
+		while (!m_videoStream->isPlaybackComplete())
 		{
 			if (GameClient::isMovieAbortRequested())
 			{
@@ -1053,7 +1053,7 @@ void ChallengeLoadScreen::init( GameInfo *game )
 
 		Int progressUpdateCount = m_videoStream->frameCount() / FRAME_FUDGE_ADD;
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
-		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
+		while (!m_videoStream->isPlaybackComplete())
 		{
 			if (GameClient::isMovieAbortRequested())
 			{
