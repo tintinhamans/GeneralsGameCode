@@ -20,8 +20,19 @@ Keep OpenAL Soft's LGPL notices and applicable source/build information with dis
 `RTS_BUILD_OPTION_OPENAL=ON` and `RTS_BUILD_OPTION_FFMPEG=ON`, plus `OpenAL_DIR` and
 `FFMPEG_ROOT` pointing at the pinned local installations. The alternative is for
 modern Zero Hour only; it does not replace the Generals factory or enable VC6.
+Default builds retain Miles and Bink, with FFmpeg and OpenAL disabled. The FFmpeg
+option is initialized before the CMake project/toolchain and selects the optional
+vcpkg `ffmpeg` feature; it is not an unconditional manifest dependency.
 The public engine header does not expose OpenAL headers: backend construction
 lives in the Win32 implementation file.
+
+With `RTS_BUILD_GENERALS=OFF`, `RTS_BUILD_ZEROHOUR_TOOLS=OFF` and
+`RTS_BUILD_CORE_EXTRAS=OFF`, this configuration does not fetch, compile or link
+Miles/Bink SDK stubs or their engine backends. The isolated audio/movie tests also
+need neither SDK. Enabling Generals, WorldBuilder/W3DView or core extras retains
+the legacy media dependencies for those consumers. Legacy backend selection and
+VC6 builds retain their existing dependencies; FFmpeg-selected Miles builds remain
+video-only, not a supported replacement for Bink movie audio.
 
 The manager derives from the real `AudioManager`, retaining INI event generation,
 `SoundManager` admission and `MusicManager` request creation. Device controls,
