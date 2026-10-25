@@ -62,6 +62,7 @@
 
 class File;
 class ArchiveFile;
+struct EmbeddedFileRecord;
 
 //----------------------------------------------------------------------------
 //           Type Defines
@@ -187,6 +188,9 @@ public:
 
 	ArchivedDirectoryInfo* friend_getArchivedDirectoryInfo(const Char* directory);
 
+	// Records the table of the GO core data compiled into the executable (see cmake/GenerateEmbeddedData.cmake). BIGFileSystem::loadMods() mounts it in the generals_online tier.
+	static void registerEmbeddedFiles(const EmbeddedFileRecord* records, unsigned int count);
+
 protected:
 	struct ArchivedDirectoryInfoResult
 	{
@@ -206,7 +210,11 @@ protected:
 	Int getGameFolderArchivePriority(const AsciiString& path, Bool generalsFolder, Bool zeroHour);	///< retail archives are the bottom, any other BIG of the game folders ranks above the data pack layers unless user.exclude_paths matches it
 
 	void mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes);
+	void mountEmbeddedArchive(Int priority);	///< mounts the data compiled into the executable as a virtual archive, nothing when the exe has none
 	void mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority);	///< mounts the include_paths of one layer in list order, the first one wins, minus what excludes matches
+
+	static const EmbeddedFileRecord* s_embeddedFileRecords;
+	static unsigned int s_embeddedFileRecordCount;
 
 	ArchiveFileMap m_archiveFileMap;
 	std::vector<AsciiString> m_gameFolderArchives;

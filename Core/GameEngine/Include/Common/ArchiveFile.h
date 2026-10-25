@@ -48,15 +48,15 @@ class ArchiveFile
 {
 public:
 	ArchiveFile(AsciiString name, AsciiString path);
-	~ArchiveFile();
+	virtual ~ArchiveFile();
 
-	Bool					getFileInfo( const AsciiString& filename, FileInfo *fileInfo) const;	///< fill in the fileInfo struct with info about the file requested.
-	File*					openFile( const Char *filename, Int access = 0);	///< Open the specified file within the archive file
-	void					closeAllFiles();									///< Close all file opened in this archive file
+	virtual Bool					getFileInfo( const AsciiString& filename, FileInfo *fileInfo) const;	///< fill in the fileInfo struct with info about the file requested.
+	virtual File*					openFile( const Char *filename, Int access = 0);	///< Open the specified file within the archive file
+	virtual void					closeAllFiles();									///< Close all file opened in this archive file
 	AsciiString		getName();												///< Returns the name of the archive file
 	AsciiString		getPath();												///< Returns full path and name of archive file
-	void					setSearchPriority( Int new_priority );	///< Set this archive file's search priority
-	void					close();													///< Close this archive file
+	virtual void					setSearchPriority( Int new_priority );	///< Set this archive file's search priority
+	virtual void					close();													///< Close this archive file
 	void									attachFile(File *file);
 	void									setPriority(Int priority) { m_priority = priority; }
 	Int										getPriority() const { return m_priority; }

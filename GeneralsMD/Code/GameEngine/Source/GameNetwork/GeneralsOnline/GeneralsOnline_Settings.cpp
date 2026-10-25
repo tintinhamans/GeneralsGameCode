@@ -510,6 +510,8 @@ void GenOnlineSettings::Load(void)
 	m_DataPacks_User = GenOnlineDataPackLayer();
 	m_DataPacks_UserExcludePaths.clear();
 	m_DataPacks_GeneralsOnline.m_enabled = true;
+	// the GO core data is embedded in the exe and mounted first in this tier; a GeneralsOnline_Core.big in the user folder is ignored, so the data always matches the exe
+	m_DataPacks_GeneralsOnline.m_includePaths.clear();
 	m_DataPacks_CommunityPatch.m_enabled = m_DataPacks_UseCommunityPatch;
 
 	if (bReadFailed)

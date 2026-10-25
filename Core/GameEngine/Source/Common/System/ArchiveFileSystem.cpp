@@ -53,6 +53,7 @@
 #include "Common/ArchiveFile.h"
 #include "Common/ArchiveFileSystem.h"
 #include "Common/AsciiString.h"
+#include "Common/EmbeddedArchiveFile.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/PerfTimer.h"
 #include "Common/Registry.h"
@@ -88,6 +89,9 @@
 //----------------------------------------------------------------------------
 
 ArchiveFileSystem *TheArchiveFileSystem = nullptr;
+
+const EmbeddedFileRecord* ArchiveFileSystem::s_embeddedFileRecords = nullptr;
+unsigned int ArchiveFileSystem::s_embeddedFileRecordCount = 0;
 
 
 //----------------------------------------------------------------------------
@@ -453,6 +457,26 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 		++mounted;
 	}
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s at priority %d: %d archives", fullPath.c_str(), priority, mounted);
+}
+
+void ArchiveFileSystem::registerEmbeddedFiles(const EmbeddedFileRecord* records, unsigned int count)
+{
+	s_embeddedFileRecords = records;
+	s_embeddedFileRecordCount = count;
+}
+
+void ArchiveFileSystem::mountEmbeddedArchive(Int priority)
+{
+	if (s_embeddedFileRecordCount == 0)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Embedded GO core data: none in this executable");
+		return;
+	}
+
+	EmbeddedArchiveFile* embeddedArchive = new EmbeddedArchiveFile(s_embeddedFileRecords, s_embeddedFileRecordCount);
+	loadIntoDirectoryTree(embeddedArchive, priority);
+	m_archiveFileMap[embeddedArchive->getName()] = embeddedArchive;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Embedded GO core data %s at priority %d: %u files", embeddedArchive->getName().str(), priority, s_embeddedFileRecordCount);
 }
 
 void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority)

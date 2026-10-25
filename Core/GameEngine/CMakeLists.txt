@@ -3,6 +3,7 @@ set(GAMEENGINE_SRC
 #    Include/Common/ActionManager.h
     Include/Common/AddonCompat.h
     Include/Common/ArchiveFile.h
+    Include/Common/EmbeddedArchiveFile.h
     Include/Common/ArchiveFileSystem.h
     Include/Common/AsciiString.h
     Include/Common/AudioAffect.h
@@ -645,6 +646,7 @@ set(GAMEENGINE_SRC
 #    Source/Common/StatsCollector.cpp
     Source/Common/System/ArchiveFile.cpp
     Source/Common/System/ArchiveFileSystem.cpp
+    Source/Common/System/EmbeddedArchiveFile.cpp
     Source/Common/System/AsciiString.cpp
     Source/Common/System/BIGFileSystem.cpp
 #    Source/Common/System/BuildAssistant.cpp

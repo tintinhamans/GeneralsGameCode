@@ -300,6 +300,8 @@ void BIGFileSystem::loadMods()
 
 	const GenOnlineSettings& settings = NGMP_OnlineServicesManager::Settings;
 	mountDataPackLayer("user", settings.DataPacks_User().m_enabled, settings.DataPacks_User().m_includePaths, &TheFileSystem->getExcludedPaths(), ARCHIVE_PRIORITY_USER);
+	// the GO core data of this executable is the first of the generals_online tier, always mounted; include_paths of the layer rank behind it
+	mountEmbeddedArchive(ARCHIVE_PRIORITY_GENERALS_ONLINE);
 	mountDataPackLayer("generals_online", settings.DataPacks_GeneralsOnline().m_enabled, settings.DataPacks_GeneralsOnline().m_includePaths, nullptr, ARCHIVE_PRIORITY_GENERALS_ONLINE);
 
 	// -disableCommunityDataPatch skips the community_patch layer for this launch only, the setting is not changed

@@ -41,6 +41,7 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "WinMain.h"
+#include "EmbeddedDataTable.h"
 #include "Lib/BaseType.h"
 #include "Common/CommandLine.h"
 #include "Common/CriticalSection.h"
@@ -984,6 +985,9 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 		// initialize the memory manager early
 		initMemoryManager();
+
+		// register the GO core data compiled into this executable; loadMods() mounts it in the generals_online tier
+		ArchiveFileSystem::registerEmbeddedFiles(g_embeddedDataTable, g_embeddedDataCount);
 
 		/// @todo remove this force set of working directory later
 		Char buffer[_MAX_PATH];

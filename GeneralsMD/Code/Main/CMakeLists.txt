@@ -60,6 +60,35 @@ target_sources(z_generals PRIVATE
     WinMain.h
 )
 
+# Embed GeneralsOnline/GameData (the GO core data: window layouts, INI and art) into the executable.
+# It is already a game-relative tree, so GenerateEmbeddedData.cmake embeds it directly (rmlui stages
+# Assets/ first because that tree needs str2csf). ArchiveFileSystem mounts it in the generals_online tier.
+set(RTS_EMBEDDED_ROOT "${CMAKE_SOURCE_DIR}/GeneralsOnline/GameData")
+file(GLOB_RECURSE RTS_EMBEDDED_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES FALSE "${RTS_EMBEDDED_ROOT}/*")
+
+# A removed file makes nothing newer, so the file list's own content forces the table to regenerate too.
+set(RTS_EMBEDDED_MANIFEST "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedDataManifest.txt")
+file(GENERATE OUTPUT "${RTS_EMBEDDED_MANIFEST}" CONTENT "${RTS_EMBEDDED_FILES}")
+
+set(RTS_EMBEDDED_DATA_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedDataTable.cpp")
+set(RTS_EMBEDDED_DATA_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/GenerateEmbeddedData.cmake")
+
+add_custom_command(
+    OUTPUT "${RTS_EMBEDDED_DATA_SOURCE}"
+    COMMAND ${CMAKE_COMMAND}
+        "-DDATA_DIR=${RTS_EMBEDDED_ROOT}"
+        "-DOUTPUT_FILE=${RTS_EMBEDDED_DATA_SOURCE}"
+        -P "${RTS_EMBEDDED_DATA_SCRIPT}"
+    DEPENDS ${RTS_EMBEDDED_FILES} "${RTS_EMBEDDED_MANIFEST}" "${RTS_EMBEDDED_DATA_SCRIPT}"
+    COMMENT "Generating the embedded GO core data table"
+    VERBATIM
+)
+
+target_sources(z_generals PRIVATE
+    "${RTS_EMBEDDED_DATA_SOURCE}"
+    EmbeddedDataTable.h
+)
+
 # Stamp the file version of the runtime this toolset ships, the minimum VCRuntimeCheck.cpp accepts
 if(MSVC AND NOT IS_VS6_BUILD)
     # cl.exe lives in VC/Tools/MSVC/<ver>/bin/Host<arch>/<arch>

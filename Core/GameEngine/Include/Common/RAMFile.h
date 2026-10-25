@@ -75,6 +75,7 @@ class RAMFile : public File
 		Char				*m_data;											///< File data in memory
 		Int					m_pos;												///< current read position
 		Int					m_size;												///< size of file in memory
+		Bool				m_ownsData;										///< TRUE if m_data was allocated by this RAMFile and must be freed on close
 
 	public:
 
@@ -102,6 +103,7 @@ class RAMFile : public File
 
 		virtual Bool	open( File *file );																	///< Open file for fast RAM access
 		virtual Bool	openFromArchive(File *archiveFile, const AsciiString& filename, Int offset, Int size); ///< copy file data from the given file at the given offset for the given size.
+		virtual Bool	openFromMemory(const AsciiString& filename, const void* data, Int size); ///< reference the given read-only memory buffer directly, without copying or taking ownership. The caller must keep the buffer alive and writable-immutable for the life of this RAMFile; close() will not free it.
 		virtual Bool	copyDataToFile(File *localFile);										///< write the contents of the RAM file to the given local file.  This could be REALLY slow.
 
 		/**
