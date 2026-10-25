@@ -261,9 +261,9 @@ bool changeMaxRenderFps(FpsValueChange change)
 	TheWritableGlobalData->m_useFpsLimit = (maxRenderFps != RenderFpsPreset::UncappedFpsValue);
 
 #if defined(GENERALS_ONLINE)
-	// the limit of the next online match, kept in Options.ini
+	// the limit is kept in settings.json, as on GO main
 	TheWritableGlobalData->m_framesPerSecondLimit = maxRenderFps;
-	writeIntPref("RenderFpsLimit", maxRenderFps);
+	NGMP_OnlineServicesManager::Settings.Graphics_SetFPS(maxRenderFps, TheWritableGlobalData->m_useFpsLimit);
 #endif
 
 	UnicodeString message;

@@ -11,14 +11,14 @@
 
 #define SETTINGS_KEY_CAMERA "camera"
 #define SETTINGS_KEY_CAMERA_MIN_HEIGHT "min_height"
-#define SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO "move_speed_ratio"
+#define SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO "move_speed_ratio"
 #define SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST "max_height_only_when_lobby_host"
 
 #define SETTINGS_KEY_RENDER "render"
-#define SETTINGS_KEY_RENDER_LEGACY_LIMIT_FRAMERATE "limit_framerate"
-#define SETTINGS_KEY_RENDER_LEGACY_FPS_LIMIT "fps_limit"
+#define SETTINGS_KEY_RENDER_LIMIT_FRAMERATE "limit_framerate"
+#define SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL "fps_limit"
+#define SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY "stats_overlay"
 #define SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY "adaptive_quality"
-#define SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY "stats_overlay"
 
 #define SETTINGS_KEY_CHAT "chat"
 #define SETTINGS_KEY_CHAT_LIFE_SECONDS "duration_seconds_until_fade_out"
@@ -37,7 +37,7 @@
 #define SETTINGS_KEY_DEBUG_VERBOSE_LOGGING "verbose_logging"
 
 #define SETTINGS_KEY_NETWORK "network"
-#define SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION "http_version"
+#define SETTINGS_KEY_NETWORK_HTTP_VERSION "http_version"
 #define SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT "use_alternative_endpoint"
 #define SETTINGS_KEY_NETWORK_SERVER "server"
 #define SETTINGS_KEY_NETWORK_SERVER_MODE "mode"
@@ -59,7 +59,7 @@
 #define SETTINGS_KEY_DATAPACKS_ENABLED "enabled"
 #define SETTINGS_KEY_DATAPACKS_INCLUDE_PATHS "include_paths"
 #define SETTINGS_KEY_DATAPACKS_EXCLUDE_PATHS "exclude_paths"
-#define SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY "use_community_data_patch"	// before the layers, read once and dropped on save
+#define SETTINGS_KEY_DATAPACKS_USE_COMMUNITY_PATCH "use_community_data_patch"
 
 #define SETTINGS_FILENAME_LEGACY "GeneralsOnline_settings.json"
 #define SETTINGS_FILENAME "settings.json"
@@ -114,126 +114,6 @@ std::string GenOnlineSettings::GetAnticheatPlugin() const
     }
 
     return m_Plugins_Anticheat;
-}
-
-// Reads a list of paths of data_packs, an entry that is not valid is dropped. Returns FALSE and keeps the list when the field is missing or not a list.
-static bool LoadDataPackPaths(const nlohmann::json& jsonLayer, const char* layerName, const char* key, bool excludes, std::vector<std::string>& paths)
-{
-    if (!jsonLayer.contains(key))
-    {
-        return false;
-    }
-
-    if (!jsonLayer[key].is_array())
-    {
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: %s is not a list, using the default", layerName, key);
-        return false;
-    }
-
-    paths.clear();
-    for (const auto& path : jsonLayer[key])
-    {
-        AsciiString reason;
-        bool bValid = false;
-        if (path.is_string())
-        {
-            bValid = excludes ? PathExcludeList::parse(path.get<std::string>(), nullptr, &reason) : ArchiveFileSystem::parseMountEntry(AsciiString(path.get<std::string>().c_str()), nullptr, &reason);
-        }
-
-        if (bValid)
-        {
-            paths.push_back(path.get<std::string>());
-        }
-        else
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: %s entry dropped from the settings (%s)", layerName, key, path.is_string() ? reason.str() : "not a string");
-        }
-    }
-    return true;
-}
-
-// Reads one layer of data_packs. A missing or invalid field keeps what the layer holds, its default. excludePaths is only read for the user layer.
-static void LoadDataPackLayer(const nlohmann::json& dataPacks, const char* name, GenOnlineDataPackLayer& layer, std::vector<std::string>* excludePaths)
-{
-    if (!dataPacks.contains(name))
-    {
-        return;
-    }
-
-    const nlohmann::json& jsonLayer = dataPacks[name];
-    if (!jsonLayer.is_object())
-    {
-        NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s in the settings is not an object, using the default", name);
-        return;
-    }
-
-    if (jsonLayer.contains(SETTINGS_KEY_DATAPACKS_ENABLED))
-    {
-        if (jsonLayer[SETTINGS_KEY_DATAPACKS_ENABLED].is_boolean())
-        {
-            layer.m_enabled = jsonLayer[SETTINGS_KEY_DATAPACKS_ENABLED].get<bool>();
-        }
-        else
-        {
-            NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: enabled is not a boolean, using the default", name);
-        }
-    }
-
-    LoadDataPackPaths(jsonLayer, name, SETTINGS_KEY_DATAPACKS_INCLUDE_PATHS, false, layer.m_includePaths);
-
-    if (excludePaths != nullptr)
-    {
-        LoadDataPackPaths(jsonLayer, name, SETTINGS_KEY_DATAPACKS_EXCLUDE_PATHS, true, *excludePaths);
-    }
-}
-
-static nlohmann::json DataPackLayerToJson(const GenOnlineDataPackLayer& layer, const std::vector<std::string>* excludePaths)
-{
-    nlohmann::json jsonLayer = nlohmann::json::object();
-    jsonLayer[SETTINGS_KEY_DATAPACKS_ENABLED] = layer.m_enabled;
-    jsonLayer[SETTINGS_KEY_DATAPACKS_INCLUDE_PATHS] = layer.m_includePaths;
-    if (excludePaths != nullptr)
-    {
-        jsonLayer[SETTINGS_KEY_DATAPACKS_EXCLUDE_PATHS] = *excludePaths;
-    }
-    return jsonLayer;
-}
-
-// The old right mouse scroll speed was ratio * Options.ini scroll speed * (screen width / 2) pixels. The scroll now measures the drag at 800x600
-// and uses the 1.6 horizontal speed factor of GameData.ini, so the same speed needs a scroll speed of
-// old scroll speed * ratio * (width / 2) / (1.6 * 400), within the range of the options slider.
-static void MigrateMoveSpeedRatioToOptions(float ratio)
-{
-	OptionPreferences options;
-	Int width = 0;
-	Int height = 0;
-	options.getResolution(&width, &height);
-	const auto scrollFactor = options.find("ScrollFactor");
-	const Int oldSlider = scrollFactor == options.end() ? 50 : (std::max)(1, atoi(scrollFactor->second.str()));
-	const Int newSlider = (std::max)(1, static_cast<Int>(oldSlider * ratio * (width / 2.0f) / (1.6f * 400.0f) + 0.5f));
-	AsciiString text;
-	text.format("%d", newSlider);
-	options["ScrollFactor"] = text;
-	options.write();
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Moved camera.move_speed_ratio=%.2f to Options.ini ScrollFactor: %d -> %d at %dx%d", ratio, oldSlider, newSlider, width, height);
-}
-
-// The render frame rate limit used to be kept here as well as in Options.ini. A value from an old settings.json moves to the
-// RenderFpsLimit key of Options.ini, unless that file already has one.
-static void MigrateFpsLimitToOptions(bool limited, int fps)
-{
-	OptionPreferences options;
-	if (options.find("RenderFpsLimit") != options.end())
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] render.limit_framerate and render.fps_limit dropped, Options.ini already has RenderFpsLimit");
-		return;
-	}
-	const int value = limited ? std::clamp(fps, 30, 480) : static_cast<int>(RenderFpsPreset::UncappedFpsValue);
-	AsciiString text;
-	text.format("%d", value);
-	options["RenderFpsLimit"] = text;
-	options.write();
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Moved render.limit_framerate=%d render.fps_limit=%d to Options.ini RenderFpsLimit=%d", limited ? 1 : 0, fps, value);
 }
 
 void GenOnlineSettings::Load(void)
@@ -331,10 +211,9 @@ void GenOnlineSettings::Load(void)
 					m_Camera_MinHeight = std::max<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_MIN_HEIGHT]), m_Camera_MinHeight_default);
 				}
 
-				// the right mouse scroll speed is the Options.ini scroll speed now, an old ratio is converted once
-				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO) && cameraSettings[SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO].is_number())
+				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO))
 				{
-					MigrateMoveSpeedRatioToOptions(std::clamp<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO]), 0.05f, 25.f));
+					m_Camera_MoveSpeedRatio = std::clamp<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO]), 0.05f, 25.f);
 				}
 
 				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST))
@@ -347,15 +226,19 @@ void GenOnlineSettings::Load(void)
 			{
 				auto renderSettings = jsonSettings[SETTINGS_KEY_RENDER];
 
-				// the frame rate limit lives in Options.ini now: carry an old value over, the keys are dropped on the next save
-				const bool hasLimited = renderSettings.contains(SETTINGS_KEY_RENDER_LEGACY_LIMIT_FRAMERATE);
-				const bool hasFps = renderSettings.contains(SETTINGS_KEY_RENDER_LEGACY_FPS_LIMIT);
-				if (hasLimited || hasFps)
+				if (renderSettings.contains(SETTINGS_KEY_RENDER_LIMIT_FRAMERATE))
 				{
-					const auto& limitedValue = renderSettings[SETTINGS_KEY_RENDER_LEGACY_LIMIT_FRAMERATE];
-					const auto& fpsValue = renderSettings[SETTINGS_KEY_RENDER_LEGACY_FPS_LIMIT];
-					MigrateFpsLimitToOptions(!hasLimited || !limitedValue.is_boolean() || limitedValue.get<bool>(),
-						hasFps && fpsValue.is_number_integer() ? fpsValue.get<int>() : 60);
+					m_Render_LimitFramerate = renderSettings[SETTINGS_KEY_RENDER_LIMIT_FRAMERATE];
+				}
+
+				if (renderSettings.contains(SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL))
+				{
+					m_Render_FramerateLimit_FPSVal = renderSettings[SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL];
+				}
+
+				if (renderSettings.contains(SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY))
+				{
+					m_Render_DrawStatsOverlay = renderSettings[SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY];
 				}
 
 				if (renderSettings.contains(SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY))
@@ -409,6 +292,26 @@ void GenOnlineSettings::Load(void)
                 else
                 {
                     const auto& networkSettings = jsonSettings[SETTINGS_KEY_NETWORK];
+
+                    if (networkSettings.contains(SETTINGS_KEY_NETWORK_HTTP_VERSION))
+                    {
+                        int httpVersion = networkSettings[SETTINGS_KEY_NETWORK_HTTP_VERSION];
+
+                        // clamp
+                        if (httpVersion < 0 || httpVersion > HTTP_VERSION_3_0)
+                        {
+                            m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_AUTO;
+                        }
+                        else
+                        {
+                            m_Network_HTTPVersion = (EHTTPVersion)httpVersion;
+                        }
+                    }
+
+                    if (networkSettings.contains(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT))
+                    {
+                        m_Network_UseAlternativeEndpoint = networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT];
+                    }
 
                     if (const auto* serverSettings = section(networkSettings, SETTINGS_KEY_NETWORK, SETTINGS_KEY_NETWORK_SERVER))
                     {
@@ -562,18 +465,10 @@ void GenOnlineSettings::Load(void)
 
             if (jsonSettings.contains(SETTINGS_KEY_DATAPACKS))
             {
-                const nlohmann::json& datapackSettings = jsonSettings[SETTINGS_KEY_DATAPACKS];
-
-                LoadDataPackLayer(datapackSettings, SETTINGS_KEY_DATAPACKS_USER, m_DataPacks_User, &m_DataPacks_UserExcludePaths);
-                LoadDataPackLayer(datapackSettings, SETTINGS_KEY_DATAPACKS_GENERALS_ONLINE, m_DataPacks_GeneralsOnline, nullptr);
-                LoadDataPackLayer(datapackSettings, SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH, m_DataPacks_CommunityPatch, nullptr);
-
-                // a file from before the layers: the old community patch switch becomes community_patch.enabled
-                if (!datapackSettings.contains(SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH)
-                    && datapackSettings.contains(SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY)
-                    && datapackSettings[SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY].is_boolean())
+                auto datapackSettings = jsonSettings[SETTINGS_KEY_DATAPACKS];
+                if (datapackSettings.contains(SETTINGS_KEY_DATAPACKS_USE_COMMUNITY_PATCH))
                 {
-                    m_DataPacks_CommunityPatch.m_enabled = datapackSettings[SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY].get<bool>();
+                    m_DataPacks_UseCommunityPatch = datapackSettings[SETTINGS_KEY_DATAPACKS_USE_COMMUNITY_PATCH];
                 }
             }
 		}
@@ -596,6 +491,13 @@ void GenOnlineSettings::Load(void)
 		m_Camera_MaxHeight_LobbyHost = GENERALS_ONLINE_DEFAULT_LOBBY_CAMERA_ZOOM;
 		m_bVerbose = false;
 		m_Render_AdaptiveQuality = true;
+		m_Camera_MoveSpeedRatio = m_Camera_MoveSpeedRatio_default;
+		m_Render_DrawStatsOverlay = true;
+		m_Render_LimitFramerate = true;
+		m_Render_FramerateLimit_FPSVal = 60;
+		m_DataPacks_UseCommunityPatch = true;
+		m_Network_HTTPVersion = EHTTPVersion::HTTP_VERSION_AUTO;
+		m_Network_UseAlternativeEndpoint = false;
 		m_Chat_LifeSeconds = 30;
 
         m_Social_Notification_FriendComesOnline_Menus = true;
@@ -604,6 +506,12 @@ void GenOnlineSettings::Load(void)
         m_Social_Notification_FriendGoesOffline_Gameplay = true;
 	}
 	
+	// the GO core pack is always mounted, the community patch follows the old switch of the released client
+	m_DataPacks_User = GenOnlineDataPackLayer();
+	m_DataPacks_UserExcludePaths.clear();
+	m_DataPacks_GeneralsOnline.m_enabled = true;
+	m_DataPacks_CommunityPatch.m_enabled = m_DataPacks_UseCommunityPatch;
+
 	if (bReadFailed)
 	{
 		m_CanSave = false;
@@ -646,12 +554,16 @@ bool GenOnlineSettings::Save()
 				{
 					{SETTINGS_KEY_CAMERA_MIN_HEIGHT, m_Camera_MinHeight},
 					{SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST, m_Camera_MaxHeight_LobbyHost},
+					{SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO, m_Camera_MoveSpeedRatio},
 				}
 		  },
 
 		{
 			SETTINGS_KEY_RENDER,
 				{
+					{SETTINGS_KEY_RENDER_LIMIT_FRAMERATE, m_Render_LimitFramerate},
+					{SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL, m_Render_FramerateLimit_FPSVal},
+					{SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY, m_Render_DrawStatsOverlay},
 					{SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY, m_Render_AdaptiveQuality},
 				}
 		},
@@ -659,6 +571,8 @@ bool GenOnlineSettings::Save()
         {
             SETTINGS_KEY_NETWORK,
                 {
+                    {SETTINGS_KEY_NETWORK_HTTP_VERSION, m_Network_HTTPVersion},
+                    {SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT, m_Network_UseAlternativeEndpoint},
                     {SETTINGS_KEY_NETWORK_SERVER, {
                         {SETTINGS_KEY_NETWORK_SERVER_MODE, m_ConnectionSettings.serverMode},
                         {SETTINGS_KEY_NETWORK_SERVER_ADDRESS, m_ConnectionSettings.serverAddress}}},
@@ -708,23 +622,13 @@ bool GenOnlineSettings::Save()
         {
             SETTINGS_KEY_DATAPACKS,
                 {
-                    {SETTINGS_KEY_DATAPACKS_USER, DataPackLayerToJson(m_DataPacks_User, &m_DataPacks_UserExcludePaths)},
-                    {SETTINGS_KEY_DATAPACKS_GENERALS_ONLINE, DataPackLayerToJson(m_DataPacks_GeneralsOnline, nullptr)},
-                    {SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH, DataPackLayerToJson(m_DataPacks_CommunityPatch, nullptr)}
+                    {SETTINGS_KEY_DATAPACKS_USE_COMMUNITY_PATCH, m_DataPacks_UseCommunityPatch}
                 }
         }
     };
 	
 	auto preserved = nlohmann::json::parse(m_PreservedJSON);
 	preserved.merge_patch(root);
-	preserved[SETTINGS_KEY_DATAPACKS] = root[SETTINGS_KEY_DATAPACKS];	// the client owns data_packs completely, stale keys go
-	// settings this build no longer has are dropped from the file
-	preserved[SETTINGS_KEY_RENDER].erase(SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY);
-	preserved[SETTINGS_KEY_RENDER].erase(SETTINGS_KEY_RENDER_LEGACY_LIMIT_FRAMERATE);
-	preserved[SETTINGS_KEY_RENDER].erase(SETTINGS_KEY_RENDER_LEGACY_FPS_LIMIT);
-	preserved[SETTINGS_KEY_CAMERA].erase(SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO);
-	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT);
-	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION);
 	std::string strData = preserved.dump(1);
 
 	std::string strSettingsFilePath = std::format("{}/GeneralsOnlineData/{}", TheGlobalData->getPath_UserData().str(), SETTINGS_FILENAME);

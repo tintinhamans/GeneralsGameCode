@@ -368,6 +368,11 @@ void HTTPRequest::PlatformStartRequest()
 	option(CURLOPT_WRITEDATA, static_cast<void*>(this));
 	option(CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
 	option(CURLOPT_USERAGENT, "GeneralsOnline Client");
+	// network.http_version of settings.json overrides the protocol of the route, as it does on GO main
+	if (NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersion() != HTTP_VERSION_AUTO)
+	{
+		option(CURLOPT_HTTP_VERSION, NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersionForCurl());
+	}
 	// proxy lookup and earlier routes share the request deadline
 	const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - m_setupStarted).count();
 	const long remaining = static_cast<long>(std::max<int64_t>(1, m_timeoutMS - elapsed));

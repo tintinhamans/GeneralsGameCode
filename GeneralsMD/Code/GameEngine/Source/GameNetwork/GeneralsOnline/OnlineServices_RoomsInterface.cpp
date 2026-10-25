@@ -296,7 +296,7 @@ void WebSocket::StartResolvedConnection()
 	};
 	option(CURLOPT_URL, m_strWebsocketAddr.c_str());
 	option(CURLOPT_CONNECT_ONLY, 2L);
-	option(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+	option(CURLOPT_HTTP_VERSION, NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersion() != HTTP_VERSION_AUTO ? NGMP_OnlineServicesManager::Settings.Network_GetHTTPVersionForCurl() : CURL_HTTP_VERSION_1_1);
 	const long remaining = static_cast<long>(std::max<int64_t>(1, m_reconnectAttemptTimeout - (NowMs() - m_proxySetupStarted)));
 	option(CURLOPT_CONNECTTIMEOUT_MS, remaining);
 	option(CURLOPT_TIMEOUT_MS, remaining);

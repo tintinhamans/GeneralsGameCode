@@ -39,6 +39,7 @@
 
 #include "GameClient/ClientInstance.h"
 #include "GameClient/Display.h"
+#include "../OnlineServices_Init.h"
 #include "GameClient/LookAtXlat.h"
 #include "GameClient/Mouse.h"
 
@@ -746,15 +747,15 @@ Bool OptionPreferences::getDynamicLODEnabled()
 
 UnsignedInt OptionPreferences::getRenderFpsLimit()
 {
+#if defined(GENERALS_ONLINE)
+	// the test client keeps the limit in settings.json (render.limit_framerate and render.fps_limit), as GO main does; Options.ini is left alone
+	return (UnsignedInt)NGMP_OnlineServicesManager::Settings.Graphics_GetFPSLimit();
+#else
 	OptionPreferences::const_iterator it = find("RenderFpsLimit");
 	if (it == end())
 		return TheGlobalData->m_framesPerSecondLimit;
 
 	const Int fps = atoi(it->second.str());
-#if defined(GENERALS_ONLINE)
-	// the logic rate is capped by the render rate, so a lower limit would slow the game down
-	return fps > 0 ? (UnsignedInt)std::max<Int>(fps, LOGICFRAMES_PER_SECOND) : TheGlobalData->m_framesPerSecondLimit;
-#else
 	return fps > 0 ? (UnsignedInt)fps : TheGlobalData->m_framesPerSecondLimit;
 #endif
 }
