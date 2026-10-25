@@ -14,6 +14,7 @@ set(RTS_PGO_FILE "${CMAKE_BINARY_DIR}/genzh.pgd" CACHE FILEPATH "MSVC PGO databa
 option(RTS_BUILD_OPTION_VC6_FULL_DEBUG "Build VC6 with full debug info." OFF)
 cmake_dependent_option(RTS_BUILD_OPTION_TESTS "Build the unit tests." OFF "NOT IS_VS6_BUILD" OFF)
 cmake_dependent_option(RTS_BUILD_OPTION_BENCHMARKS "Build the benchmarks." OFF "NOT IS_VS6_BUILD" OFF)
+option(RTS_BUILD_OPTION_OPENAL "Build modern OpenAL PCM primitives (does not select an audio backend)" OFF)
 
 if(NOT RTS_BUILD_ZEROHOUR AND NOT RTS_BUILD_GENERALS)
     set(RTS_BUILD_ZEROHOUR TRUE)
