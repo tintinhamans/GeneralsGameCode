@@ -48,7 +48,6 @@ public:
 	virtual void onReplayWritten( const AsciiString &replayPath ) = 0;
 
 	virtual Int getChatMessageLifeSeconds() = 0;	///< Seconds a chat line stays up, or -1 for the standard message time.
-	virtual Bool isStatsOverlayEnabled() = 0;
 	virtual void drawNetworkOverlay( DisplayString *text, Int dropColor ) = 0;
 	virtual void releaseNetworkOverlay() = 0;	///< Frees what the overlay keeps between frames.
 };

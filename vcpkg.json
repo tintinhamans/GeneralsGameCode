@@ -19,7 +19,7 @@
     {
       "name": "curl",
       "default-features": false,
-      "features": [ "openssl", "websockets" ]
+      "features": [ "openssl", "websockets", "http2", "http3", "sspi" ]
     },
     {
       "name": "gamenetworkingsockets",

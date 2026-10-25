@@ -17,6 +17,11 @@ set(VCPKG_DISABLE_COMPILER_TRACKING ON)
 set(VCPKG_PLATFORM_TOOLSET v143)
 set(VCPKG_PLATFORM_TOOLSET_VERSION 14.44)
 
+# The pinned curl port exposes SSPI but leaves NTLM disabled without this option.
+if(PORT STREQUAL "curl")
+    list(APPEND VCPKG_CMAKE_CONFIGURE_OPTIONS "-DCURL_ENABLE_NTLM=ON")
+endif()
+
 # The gamenetworkingsockets port does not forward static linkage to its
 # protobuf lookup, so it would otherwise compile with PROTOBUF_USE_DLLS.
 if(PORT STREQUAL "gamenetworkingsockets")

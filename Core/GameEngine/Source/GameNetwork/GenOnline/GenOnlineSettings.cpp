@@ -1,18 +1,22 @@
 #include "GameNetwork/GenOnline/GenOnlineSettings.h"
+#include "Common/OptionPreferences.h"
 #include "Common/ArchiveFileSystem.h"
 #include "../json.hpp"
 #include "../GenOnlineLobbyInterface.h"
 #include "../GenOnlineInit.h"
+#include <algorithm>
+#include "GameNetwork/GenOnline/CredentialStore.h"
+#include "GameNetwork/GenOnline/GenOnlineAuth.h"
 
 #define SETTINGS_KEY_CAMERA "camera"
 #define SETTINGS_KEY_CAMERA_MIN_HEIGHT "min_height"
-#define SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO "move_speed_ratio"
+#define SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO "move_speed_ratio"
 #define SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST "max_height_only_when_lobby_host"
 
 #define SETTINGS_KEY_RENDER "render"
 #define SETTINGS_KEY_RENDER_LIMIT_FRAMERATE "limit_framerate"
 #define SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL "fps_limit"
-#define SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY "stats_overlay"
+#define SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY "stats_overlay"
 
 #define SETTINGS_KEY_CHAT "chat"
 #define SETTINGS_KEY_CHAT_LIFE_SECONDS "duration_seconds_until_fade_out"
@@ -35,6 +39,11 @@
 #define SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT "use_alternative_endpoint"
 #define SETTINGS_KEY_NETWORK_SERVER "server"
 #define SETTINGS_KEY_NETWORK_SERVER_MODE "mode"
+#define SETTINGS_KEY_NETWORK_SERVER_ADDRESS "address"
+#define SETTINGS_KEY_NETWORK_PROXY "proxy"
+#define SETTINGS_KEY_NETWORK_PROXY_MODE "mode"
+#define SETTINGS_KEY_NETWORK_PROXY_ADDRESS "address"
+#define SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN "windows_login"
 #define SETTINGS_KEY_NETWORK_LAST_ROUTE "last_route"
 #define LEGACY_ALTERNATIVE_ROUTE_HOST "api-ru.playgenerals.online"
 
@@ -188,8 +197,29 @@ static nlohmann::json DataPackLayerToJson(const GenOnlineDataPackLayer& layer, c
     return jsonLayer;
 }
 
+// The old right mouse scroll speed was ratio * Options.ini scroll speed * (screen width / 2) pixels. The scroll now measures the drag at 800x600
+// and uses the 1.6 horizontal speed factor of GameData.ini, so the same speed needs a scroll speed of
+// old scroll speed * ratio * (width / 2) / (1.6 * 400), within the range of the options slider.
+static void MigrateMoveSpeedRatioToOptions(float ratio)
+{
+	OptionPreferences options;
+	Int width = 0;
+	Int height = 0;
+	options.getResolution(&width, &height);
+	const auto scrollFactor = options.find("ScrollFactor");
+	const Int oldSlider = scrollFactor == options.end() ? 50 : (std::max)(1, atoi(scrollFactor->second.str()));
+	const Int newSlider = (std::max)(1, static_cast<Int>(oldSlider * ratio * (width / 2.0f) / (1.6f * 400.0f) + 0.5f));
+	AsciiString text;
+	text.format("%d", newSlider);
+	options["ScrollFactor"] = text;
+	options.write();
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Moved camera.move_speed_ratio=%.2f to Options.ini ScrollFactor: %d -> %d at %dx%d", ratio, oldSlider, newSlider, width, height);
+}
+
 void GenOnlineSettings::Load(void)
 {
+	ServiceConnection::ConfigureCredentialStore(&GenOnlineAuthInterface::GetCredentialsFilePath);
+	ServiceConnection::SetCredentialLogSink([](const std::string& line) { NetworkLog(ELogVerbosity::LOG_RELEASE, "%s", line.c_str()); });
 	char GameDir[MAX_PATH + 1] = {};
 	::GetCurrentDirectoryA(MAX_PATH + 1u, GameDir);
 	std::string strSettingsFileDir = std::format("{}/GeneralsOnlineData/", TheGlobalData->getPath_UserData().str());
@@ -281,9 +311,10 @@ void GenOnlineSettings::Load(void)
 					m_Camera_MinHeight = std::max<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_MIN_HEIGHT]), m_Camera_MinHeight_default);
 				}
 
-				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO))
+				// the right mouse scroll speed is the Options.ini scroll speed now, an old ratio is converted once
+				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO) && cameraSettings[SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO].is_number())
 				{
-					m_Camera_MoveSpeedRatio = std::clamp<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO]), 0.05f, 25.f);
+					MigrateMoveSpeedRatioToOptions(std::clamp<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO]), 0.05f, 25.f));
 				}
 
 				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST))
@@ -305,44 +336,126 @@ void GenOnlineSettings::Load(void)
 				{
 					m_Render_FramerateLimit_FPSVal = renderSettings[SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL];
 				}
-
-				if (renderSettings.contains(SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY))
-				{
-					m_Render_DrawStatsOverlay = renderSettings[SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY];
-				}
 			}
 
-            if (jsonSettings.contains(SETTINGS_KEY_NETWORK) && jsonSettings[SETTINGS_KEY_NETWORK].is_object())
+            if (jsonSettings.contains(SETTINGS_KEY_NETWORK))
             {
-                const auto& networkSettings = jsonSettings[SETTINGS_KEY_NETWORK];
-
-                if (networkSettings.contains(SETTINGS_KEY_NETWORK_SERVER) && networkSettings[SETTINGS_KEY_NETWORK_SERVER].is_object())
+                // Any network value that is unknown, malformed or of the wrong type goes back to its default and is logged, one line per field.
+                // The load ends with a save, so the file never keeps the invalid value. Addresses can hold a secret, so their old value is not logged.
+                auto resetField = [](const std::string& path, const nlohmann::json& old, bool secret)
                 {
-                    const auto& serverSettings = networkSettings[SETTINGS_KEY_NETWORK_SERVER];
-                    if (serverSettings.contains(SETTINGS_KEY_NETWORK_SERVER_MODE) && serverSettings[SETTINGS_KEY_NETWORK_SERVER_MODE].is_string())
+                    const std::string oldText = secret ? std::string("hidden") : old.is_string() ? old.get<std::string>().substr(0, 64) : std::string(old.type_name());
+                    NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] %s is not valid (%s), reset to its default", path.c_str(), oldText.c_str());
+                };
+                auto choice = [&](const nlohmann::json& section, const std::string& path, const char* key, std::string& value, std::initializer_list<const char*> allowed)
+                {
+                    if (!section.contains(key))
                     {
-                        m_ConnectionSettings.serverMode = serverSettings[SETTINGS_KEY_NETWORK_SERVER_MODE].get<std::string>();
+                        return;
                     }
-                }
-                if (m_ConnectionSettings.serverMode != "automatic")
+                    const auto& found = section[key];
+                    if (found.is_string() && std::find_if(allowed.begin(), allowed.end(), [&](const char* name) { return found.get<std::string>() == name; }) != allowed.end())
+                    {
+                        value = found.get<std::string>();
+                        return;
+                    }
+                    resetField(path + "." + key, found, false);
+                };
+                // a section that is present but not an object goes back to its defaults
+                auto section = [&](const nlohmann::json& parent, const std::string& path, const char* key) -> const nlohmann::json*
                 {
-                    m_ConnectionSettings.serverMode = "automatic";
-                }
+                    if (!parent.contains(key))
+                    {
+                        return nullptr;
+                    }
+                    if (!parent[key].is_object())
+                    {
+                        resetField(path + "." + key, parent[key], false);
+                        return nullptr;
+                    }
+                    return &parent[key];
+                };
 
-                if (networkSettings.contains(SETTINGS_KEY_NETWORK_LAST_ROUTE) && networkSettings[SETTINGS_KEY_NETWORK_LAST_ROUTE].is_string())
+                if (!jsonSettings[SETTINGS_KEY_NETWORK].is_object())
                 {
-                    m_LastRoute = networkSettings[SETTINGS_KEY_NETWORK_LAST_ROUTE].get<std::string>();
+                    resetField(SETTINGS_KEY_NETWORK, jsonSettings[SETTINGS_KEY_NETWORK], false);
                 }
-                else if (networkSettings.contains(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT) &&
-                    networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].is_boolean() &&
-                    networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].get<bool>())
+                else
                 {
-                    // the old switch from the released client now only prefers that route
-                    m_LastRoute = LEGACY_ALTERNATIVE_ROUTE_HOST;
-                }
-                if (m_LastRoute.size() > 253 || m_LastRoute.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-") != std::string::npos)
-                {
-                    m_LastRoute.clear();
+                    const auto& networkSettings = jsonSettings[SETTINGS_KEY_NETWORK];
+
+                    if (const auto* serverSettings = section(networkSettings, SETTINGS_KEY_NETWORK, SETTINGS_KEY_NETWORK_SERVER))
+                    {
+                        const std::string path = std::string(SETTINGS_KEY_NETWORK) + "." + SETTINGS_KEY_NETWORK_SERVER;
+                        choice(*serverSettings, path, SETTINGS_KEY_NETWORK_SERVER_MODE, m_ConnectionSettings.serverMode, { "automatic", "custom" });
+                        if (serverSettings->contains(SETTINGS_KEY_NETWORK_SERVER_ADDRESS))
+                        {
+                            const auto& found = (*serverSettings)[SETTINGS_KEY_NETWORK_SERVER_ADDRESS];
+                            std::string endpointError;
+                            if (found.is_string() && (found.get<std::string>().empty() ||
+                                ServiceConnection::NormalizeCustomEndpoint(found.get<std::string>(), m_ConnectionSettings.serverAddress, endpointError)))
+                            {
+                                // an empty address stays empty
+                            }
+                            else
+                            {
+                                resetField(path + "." + SETTINGS_KEY_NETWORK_SERVER_ADDRESS, found, true);
+                                m_ConnectionSettings.serverAddress.clear();
+                            }
+                        }
+                    }
+
+                    if (const auto* proxySettings = section(networkSettings, SETTINGS_KEY_NETWORK, SETTINGS_KEY_NETWORK_PROXY))
+                    {
+                        const std::string path = std::string(SETTINGS_KEY_NETWORK) + "." + SETTINGS_KEY_NETWORK_PROXY;
+                        choice(*proxySettings, path, SETTINGS_KEY_NETWORK_PROXY_MODE, m_ConnectionSettings.proxyMode, { "automatic", "disabled", "custom" });
+                        if (proxySettings->contains(SETTINGS_KEY_NETWORK_PROXY_ADDRESS))
+                        {
+                            const auto& found = (*proxySettings)[SETTINGS_KEY_NETWORK_PROXY_ADDRESS];
+                            std::string proxyError;
+                            if (found.is_string() && (found.get<std::string>().empty() || ServiceConnection::ValidateProxyURL(found.get<std::string>(), proxyError)))
+                            {
+                                m_ConnectionSettings.proxyURL = found.get<std::string>();
+                            }
+                            else
+                            {
+                                resetField(path + "." + SETTINGS_KEY_NETWORK_PROXY_ADDRESS, found, true);
+                            }
+                        }
+                        if (proxySettings->contains(SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN))
+                        {
+                            const auto& found = (*proxySettings)[SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN];
+                            if (found.is_boolean())
+                            {
+                                m_ConnectionSettings.windowsLogin = found.get<bool>();
+                            }
+                            else
+                            {
+                                resetField(path + "." + SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN, found, false);
+                            }
+                        }
+                    }
+
+                    if (networkSettings.contains(SETTINGS_KEY_NETWORK_LAST_ROUTE))
+                    {
+                        const auto& found = networkSettings[SETTINGS_KEY_NETWORK_LAST_ROUTE];
+                        if (found.is_string() && found.get<std::string>().size() <= 253 &&
+                            found.get<std::string>().find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-") == std::string::npos)
+                        {
+                            m_LastRoute = found.get<std::string>();
+                        }
+                        else
+                        {
+                            resetField(std::string(SETTINGS_KEY_NETWORK) + "." + SETTINGS_KEY_NETWORK_LAST_ROUTE, found, false);
+                        }
+                    }
+                    else if (networkSettings.contains(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT) &&
+                        networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].is_boolean() &&
+                        networkSettings[SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT].get<bool>())
+                    {
+                        // the old switch of the released client now only prefers that route
+                        m_LastRoute = LEGACY_ALTERNATIVE_ROUTE_HOST;
+                    }
                 }
             }
 
@@ -458,7 +571,6 @@ void GenOnlineSettings::Load(void)
 		m_bVerbose = false;
 		m_Render_LimitFramerate = true;
 		m_Render_FramerateLimit_FPSVal = 60;
-		m_Render_DrawStatsOverlay = true;
 		m_Chat_LifeSeconds = 30;
 
         m_Social_Notification_FriendComesOnline_Menus = true;
@@ -509,7 +621,6 @@ bool GenOnlineSettings::Save()
 				{
 					{SETTINGS_KEY_CAMERA_MIN_HEIGHT, m_Camera_MinHeight},
 					{SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST, m_Camera_MaxHeight_LobbyHost},
-					{ SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO, m_Camera_MoveSpeedRatio },
 				}
 		  },
 
@@ -518,14 +629,19 @@ bool GenOnlineSettings::Save()
 				{
 					{SETTINGS_KEY_RENDER_LIMIT_FRAMERATE, m_Render_LimitFramerate},
 					{SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL, m_Render_FramerateLimit_FPSVal},
-					{SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY, m_Render_DrawStatsOverlay},
 				}
 		},
 
         {
             SETTINGS_KEY_NETWORK,
                 {
-                    {SETTINGS_KEY_NETWORK_SERVER, {{SETTINGS_KEY_NETWORK_SERVER_MODE, m_ConnectionSettings.serverMode}}},
+                    {SETTINGS_KEY_NETWORK_SERVER, {
+                        {SETTINGS_KEY_NETWORK_SERVER_MODE, m_ConnectionSettings.serverMode},
+                        {SETTINGS_KEY_NETWORK_SERVER_ADDRESS, m_ConnectionSettings.serverAddress}}},
+                    {SETTINGS_KEY_NETWORK_PROXY, {
+                        {SETTINGS_KEY_NETWORK_PROXY_MODE, m_ConnectionSettings.proxyMode},
+                        {SETTINGS_KEY_NETWORK_PROXY_ADDRESS, m_ConnectionSettings.proxyURL},
+                        {SETTINGS_KEY_NETWORK_PROXY_WINDOWS_LOGIN, m_ConnectionSettings.windowsLogin}}},
                     {SETTINGS_KEY_NETWORK_LAST_ROUTE, m_LastRoute}
                 }
         },
@@ -578,6 +694,8 @@ bool GenOnlineSettings::Save()
 	auto preserved = nlohmann::json::parse(m_PreservedJSON);
 	preserved.merge_patch(root);
 	preserved[SETTINGS_KEY_DATAPACKS] = root[SETTINGS_KEY_DATAPACKS];	// the client owns data_packs completely, stale keys go
+	preserved[SETTINGS_KEY_RENDER].erase(SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY);
+	preserved[SETTINGS_KEY_CAMERA].erase(SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO);
 	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT);
 	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION);
 	std::string strData = preserved.dump(1);
@@ -609,6 +727,74 @@ bool GenOnlineSettings::Save()
 		m_PreservedJSON = strData;
 	}
 	return bSaved;
+}
+
+bool GenOnlineSettings::Network_SaveConnectionSettings(const ServiceConnectionSettings& requested, std::string& error)
+{
+	error.clear();
+	ServiceConnectionSettings settings = requested;
+	if ((settings.serverMode != "automatic" && settings.serverMode != "custom") ||
+		(settings.proxyMode != "automatic" && settings.proxyMode != "disabled" && settings.proxyMode != "custom"))
+	{
+		error = "Choose a valid service and proxy mode.";
+		return false;
+	}
+	if (settings.serverMode == "custom")
+	{
+		if (!ServiceConnection::NormalizeCustomEndpoint(settings.serverAddress, settings.serverAddress, error))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		settings.serverAddress.clear();
+	}
+	if ((settings.proxyMode == "custom" || !settings.proxyURL.empty()) && !ServiceConnection::ValidateProxyURL(settings.proxyURL, error))
+	{
+		return false;
+	}
+	if (!m_bInitialized)
+	{
+		Initialize();
+	}
+	std::lock_guard<std::mutex> lock(m_NetworkMutex);
+	const auto previous = m_ConnectionSettings;
+	m_ConnectionSettings = settings;
+	if (Save())
+	{
+		// a changed proxy starts without anything typed for the old one
+		const std::string previousProxy = previous.proxyMode == "custom" ? ServiceConnection::CanonicalProxyKey(previous.proxyURL) : std::string();
+		const std::string proxy = settings.proxyMode == "custom" ? ServiceConnection::CanonicalProxyKey(settings.proxyURL) : std::string();
+		if (previousProxy != proxy)
+			ServiceConnection::ClearSessionProxyCredentialsExcept(proxy);
+		ServiceConnection::InvalidateProxyPolicyCache();
+		return true;
+	}
+	m_ConnectionSettings = previous;
+	error = "Could not save connection settings. Check the game user-data folder permissions.";
+	return false;
+}
+
+bool GenOnlineSettings::Network_SaveWindowsLogin(bool windowsLogin)
+{
+	if (!m_bInitialized)
+	{
+		Initialize();
+	}
+	std::lock_guard<std::mutex> lock(m_NetworkMutex);
+	if (m_ConnectionSettings.windowsLogin == windowsLogin)
+	{
+		return true;
+	}
+	m_ConnectionSettings.windowsLogin = windowsLogin;
+	if (!Save())
+	{
+		m_ConnectionSettings.windowsLogin = !windowsLogin;
+		return false;
+	}
+	ServiceConnection::InvalidateProxyPolicyCache();
+	return true;
 }
 
 bool GenOnlineSettings::Network_SaveLastRoute(const std::string& host)
