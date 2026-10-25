@@ -53,6 +53,14 @@ Real FrameRateLimit::wait(UnsignedInt maxFps)
 		Sleep(dwMilliseconds);
 	}
 
+#if defined(GENERALS_ONLINE)
+	else
+	{
+		// Give the rest of the time slice to other threads and processes once per frame
+		Sleep(0);
+	}
+#endif
+
 	// Busy wait for remaining time
 	do
 	{
