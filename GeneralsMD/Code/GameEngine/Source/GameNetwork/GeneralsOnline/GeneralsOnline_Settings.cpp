@@ -15,7 +15,7 @@
 #define SETTINGS_KEY_RENDER "render"
 #define SETTINGS_KEY_RENDER_LIMIT_FRAMERATE "limit_framerate"
 #define SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL "fps_limit"
-#define SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY "stats_overlay"
+#define SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY "stats_overlay"
 
 #define SETTINGS_KEY_CHAT "chat"
 #define SETTINGS_KEY_CHAT_LIFE_SECONDS "duration_seconds_until_fade_out"
@@ -315,11 +315,6 @@ void GenOnlineSettings::Load(void)
 				{
 					m_Render_FramerateLimit_FPSVal = renderSettings[SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL];
 				}
-
-				if (renderSettings.contains(SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY))
-				{
-					m_Render_DrawStatsOverlay = renderSettings[SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY];
-				}
 			}
 
             if (jsonSettings.contains(SETTINGS_KEY_NETWORK))
@@ -555,7 +550,6 @@ void GenOnlineSettings::Load(void)
 		m_bVerbose = false;
 		m_Render_LimitFramerate = true;
 		m_Render_FramerateLimit_FPSVal = 60;
-		m_Render_DrawStatsOverlay = true;
 		m_Chat_LifeSeconds = 30;
 
         m_Social_Notification_FriendComesOnline_Menus = true;
@@ -615,7 +609,6 @@ bool GenOnlineSettings::Save()
 				{
 					{SETTINGS_KEY_RENDER_LIMIT_FRAMERATE, m_Render_LimitFramerate},
 					{SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL, m_Render_FramerateLimit_FPSVal},
-					{SETTINGS_KEY_RENDER_DRAW_STATS_OVERLAY, m_Render_DrawStatsOverlay},
 				}
 		},
 
@@ -681,6 +674,8 @@ bool GenOnlineSettings::Save()
 	auto preserved = nlohmann::json::parse(m_PreservedJSON);
 	preserved.merge_patch(root);
 	preserved[SETTINGS_KEY_DATAPACKS] = root[SETTINGS_KEY_DATAPACKS];	// the client owns data_packs completely, stale keys go
+	// settings this build no longer has are dropped from the file
+	preserved[SETTINGS_KEY_RENDER].erase(SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY);
 	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT);
 	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION);
 	std::string strData = preserved.dump(1);
