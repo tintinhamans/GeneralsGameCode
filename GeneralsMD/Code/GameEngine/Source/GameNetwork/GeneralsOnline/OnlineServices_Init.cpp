@@ -551,6 +551,11 @@ void NGMP_OnlineServicesManager::StartVersionCheck(std::function<void(bool bSucc
 
 void NGMP_OnlineServicesManager::StartVersionCheckOnSelectedRoute(std::function<void(bool, bool)> fnCallback)
 {
+	// tester build: report up to date without contacting the update path
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[TESTER] Update check skipped");
+	fnCallback(true, false);
+	return;
+
 	std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("VersionCheck");
 
 	// NOTE: Generals 'CRCs' are not true CRC's, its a custom algorithm. This is fine for lobby comparisons, but its not good for patch comparisons.
@@ -1051,14 +1056,8 @@ void NGMP_OnlineServicesManager::Init()
 	m_pHTTPManager = new HTTPManager();
 	m_pHTTPManager->Initialize();
 
-    std::string strPlugin = NGMP_OnlineServicesManager::Settings.GetAnticheatPlugin();
-
-	// Empty name means no anticheat plugin configured; skip loading.
-	if (!strPlugin.empty())
-	{
-		std::string pluginPath = std::format("plugins/{}/{}.dll", strPlugin.c_str(), strPlugin.c_str());
-		AnticheatPlugInterface::LoadPlugin(pluginPath.c_str());
-	}
+	// tester build: no anticheat plugin is loaded, every plugin call is a no-op while IsPluginLoaded() is false
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[TESTER] Anticheat plugin loading skipped");
 
 	// TODO_NGMP: Better location
 	// TODO_NGMP: Get all of this from the service
