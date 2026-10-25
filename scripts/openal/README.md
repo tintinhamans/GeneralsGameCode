@@ -49,6 +49,10 @@ before new admission; stop/error states are not counted as playing. Existing
 `AudioEventRTS` AC_ALL behavior is retained, including its pre-existing first-sample
 limitation; this is not an unrelated AC_ALL fix.
 
+Category pause affects existing voices only, matching Miles; new menu sounds can
+play while gameplay voices remain paused. Ambient pause remains persistent, and
+its state is combined with each voice's category pause before resuming playback.
+
 Resource pools are separate from category controls: music and speech share stream
 slots and priority preemption, while their volume and pause settings remain
 independent. Uninterruptible speech is excluded from generic pool preemption. Replacement requests prepare their asset, initial PCM, source and
