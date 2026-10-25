@@ -564,8 +564,12 @@ static Bool parseScreenRect( const char *token, char *buffer,
 	Real yScale = (Real)TheDisplay->getHeight() / (Real)createRes.y;
 	screenRegion.lo.x = (Int)((Real)screenRegion.lo.x * xScale);
 	screenRegion.lo.y = (Int)((Real)screenRegion.lo.y * yScale);
-	screenRegion.hi.x = (Int)((Real)screenRegion.hi.x * xScale);
-	screenRegion.hi.y = (Int)((Real)screenRegion.hi.y * yScale);
+	// Away from the creation resolution an edge on its last pixel maps to the screen edge.
+	const Bool remapLastPixel = (Int)TheDisplay->getWidth() != createRes.x || (Int)TheDisplay->getHeight() != createRes.y;
+	const Int hiX = (remapLastPixel && screenRegion.hi.x == createRes.x - 1) ? createRes.x : screenRegion.hi.x;
+	const Int hiY = (remapLastPixel && screenRegion.hi.y == createRes.y - 1) ? createRes.y : screenRegion.hi.y;
+	screenRegion.hi.x = (Int)((Real)hiX * xScale);
+	screenRegion.hi.y = (Int)((Real)hiY * yScale);
 
 	//
 	// given the screen region upper left compute the upper left that we

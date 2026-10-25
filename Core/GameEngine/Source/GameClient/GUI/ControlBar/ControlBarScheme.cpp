@@ -749,6 +749,12 @@ void ControlBarScheme::update()
 
 }
 
+// An edge on the last pixel of the creation resolution maps to the screen edge.
+static Real schemeEdge( Int edge, Int creationRes, Real multi, Int offset )
+{
+	return (edge == creationRes - 1 ? creationRes : edge) * multi + offset;
+}
+
 //
 // Loop through the proper lists and draw everything for the foreground
 //-----------------------------------------------------------------------------
@@ -777,8 +783,8 @@ void ControlBarScheme::drawForeground( Coord2D multi, ICoord2D offset )
 			// draw the image
 			TheDisplay->drawImage(schemeImage->m_image, schemeImage->m_position.x * multi.x + offset.x,
 														schemeImage->m_position.y * multi.y + offset.y,
-														(schemeImage->m_position.x + schemeImage->m_size.x) * multi.x + offset.x,
-														(schemeImage->m_position.y + schemeImage->m_size.y) * multi.y + offset.y);
+														schemeEdge(schemeImage->m_position.x + schemeImage->m_size.x, m_ScreenCreationRes.x, multi.x, offset.x),
+														schemeEdge(schemeImage->m_position.y + schemeImage->m_size.y, m_ScreenCreationRes.y, multi.y, offset.y));
 
 			it ++;
 		}
@@ -814,8 +820,8 @@ void ControlBarScheme::drawBackground( Coord2D multi, ICoord2D offset )
 			// draw it
 			TheDisplay->drawImage(schemeImage->m_image, schemeImage->m_position.x * multi.x + offset.x,
 														schemeImage->m_position.y * multi.y + offset.y,
-														(schemeImage->m_position.x + schemeImage->m_size.x) * multi.x + offset.x,
-														(schemeImage->m_position.y + schemeImage->m_size.y) * multi.y + offset.y);
+														schemeEdge(schemeImage->m_position.x + schemeImage->m_size.x, m_ScreenCreationRes.x, multi.x, offset.x),
+														schemeEdge(schemeImage->m_position.y + schemeImage->m_size.y, m_ScreenCreationRes.y, multi.y, offset.y));
 
 			it ++;
 		}
