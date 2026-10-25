@@ -109,6 +109,8 @@ std::vector<std::string> BootstrapRoutes(const std::string& environment,
 	std::vector<std::string> routes = {
 		"https://api.playgenerals.online/env/prod/contract/1/",
 		"https://api-ru.playgenerals.online/env/prod/contract/1/",
+		// tester route, last unless it was the last that worked
+		"https://api.oldanal.com/env/prod/contract/1/",
 	};
 	const auto remembered_route = std::find_if(routes.begin(), routes.end(), [&](const std::string& route) { return RouteHost(route) == remembered; });
 	if (remembered_route != routes.end())
