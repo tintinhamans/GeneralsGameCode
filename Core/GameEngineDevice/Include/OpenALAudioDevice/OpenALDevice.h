@@ -38,6 +38,7 @@ public:
     bool close();
     bool isOpen() const;
     int getLastError() const { return m_error; }
+    bool setListener(float x, float y, float z, const float *forward, const float *up);
 
 private:
     friend class OpenALPcmStream;
