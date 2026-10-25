@@ -227,11 +227,6 @@ Int GenOnlineGameHooks::getChatMessageLifeSeconds()
 	return GenOnlineServicesManager::Settings.GetChatLifeSeconds();
 }
 
-Bool GenOnlineGameHooks::isStatsOverlayEnabled()
-{
-	return GenOnlineServicesManager::Settings.Graphics_DrawStatsOverlay();
-}
-
 void GenOnlineGameHooks::drawNetworkOverlay( DisplayString *text, Int dropColor )
 {
 	if (GenOnlineServicesManager::GetNetworkOverlayMode() != 0)

@@ -53,7 +53,6 @@ public:
 	virtual void onReplayWritten( const AsciiString &replayPath ) override;
 
 	virtual Int getChatMessageLifeSeconds() override;
-	virtual Bool isStatsOverlayEnabled() override;
 	virtual void drawNetworkOverlay( DisplayString *text, Int dropColor ) override;
 	virtual void releaseNetworkOverlay() override;
 

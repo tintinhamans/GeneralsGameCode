@@ -38,7 +38,6 @@ public:
 		}
 	}
 
-	bool Graphics_DrawStatsOverlay() const { return m_Render_DrawStatsOverlay; }
 	bool Graphics_LimitFramerate() const { return m_Render_LimitFramerate; }
 	int Graphics_GetFPSLimit() const
 	{
@@ -100,7 +99,6 @@ private:
 
 	bool m_bVerbose = false;
 
-	bool m_Render_DrawStatsOverlay = true;
 	bool m_Render_LimitFramerate = true;
 	int m_Render_FramerateLimit_FPSVal = 60;
 	int m_Chat_LifeSeconds = 30;
