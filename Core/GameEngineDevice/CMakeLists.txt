@@ -236,6 +236,8 @@ if(RTS_BUILD_OPTION_FFMPEG)
             Include/VideoDevice/FFmpeg/FFmpegFile.h
             Include/VideoDevice/FFmpeg/FFmpegAudioFile.h
             Source/VideoDevice/FFmpeg/FFmpegAudioFile.cpp
+            Include/VideoDevice/FFmpeg/FFmpegAudioMetadata.h
+            Source/VideoDevice/FFmpeg/FFmpegAudioMetadata.cpp
             Include/VideoDevice/FFmpeg/FFmpegVideoPlayer.h
             Source/VideoDevice/FFmpeg/FFmpegFile.cpp
             Source/VideoDevice/FFmpeg/FFmpegVideoPlayer.cpp
@@ -259,4 +261,12 @@ if(RTS_BUILD_OPTION_OPENAL)
         Source/OpenALAudioDevice/OpenALPcmStream.cpp
     )
     target_link_libraries(corei_gameenginedevice_private INTERFACE OpenAL::OpenAL)
+    if(RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
+        target_sources(corei_gameenginedevice_private INTERFACE
+            Include/OpenALAudioDevice/OpenALAudioManager.h
+            Include/OpenALAudioDevice/OpenALAudioCache.h
+            Source/OpenALAudioDevice/OpenALAudioManager.cpp
+            Source/OpenALAudioDevice/OpenALAudioCache.cpp
+        )
+    endif()
 endif()

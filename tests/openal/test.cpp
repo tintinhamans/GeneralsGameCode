@@ -226,6 +226,106 @@ static void pauseContinuity()
     CHECK(!matches(repeated));
 }
 
+static void parametersAndReplacement()
+{
+    OpenALDevice device;
+    OpenALPcmStream stream;
+    CHECK(device.openLoopback() && stream.open(device, 48000, 2, 4096));
+    CHECK(!stream.setGain(-1) && !stream.setPitch(0));
+    CHECK(!stream.setPosition(0, 0, 0, true));
+    CHECK(stream.setGain(0.5f) && stream.setPitch(2.0f));
+    auto input = sequence(0, 4096);
+    CHECK(stream.queue(input.data(), 4096) == Result::Accepted && stream.play());
+    const auto faster = render(device, 128);
+    for (int frame = 0; frame < 128; ++frame) {
+        CHECK(std::abs(faster[2 * frame] - input[4 * frame] / 2) <= 2);
+        CHECK(std::abs(faster[2 * frame + 1] - input[4 * frame + 1] / 2) <= 2);
+    }
+    CHECK(stream.getReadFrames() >= 256);
+    CHECK(stream.stop() && stream.getReadFrames() == 0);
+    render(device, 1024);
+    CHECK(stream.setGain(1) && stream.setPitch(1));
+    std::fill(input.begin(), input.begin() + 512 * 2, 0);
+    CHECK(stream.queue(input.data(), 4096) == Result::Accepted && stream.play());
+    auto output = render(device, 128);
+    auto decay = sequence(8000, 512);
+    std::fill(decay.end() - 256, decay.end(), 0);
+    CHECK(!stream.replaceQueuedAfter(4097, decay.data(), 512));
+    CHECK(stream.replaceQueuedAfter(1024, decay.data(), 512));
+    CHECK(stream.queue(decay.data(), 1) == Result::Invalid);
+    CHECK(!stream.replaceQueuedAfter(1024, nullptr, 0));
+    auto rest = render(device, 2048);
+    output.insert(output.end(), rest.begin(), rest.end());
+    auto expected = std::vector<short>(input.begin(), input.begin() + 1024 * 2);
+    expected.insert(expected.end(), decay.begin(), decay.end());
+    expected.resize(output.size(), 0);
+    CHECK(output.size() == expected.size());
+    for (size_t i = 0; i < output.size(); ++i) {
+        if (std::abs(static_cast<int>(output[i]) - expected[i]) > 2)
+            std::fprintf(stderr, "replacement sample %zu actual %d expected %d\n", i, output[i], expected[i]);
+        CHECK(std::abs(static_cast<int>(output[i]) - expected[i]) <= 2);
+    }
+    CHECK(stream.getReadFrames() == 1536 && stream.state() == State::Finished);
+    CHECK(stream.stop() && stream.getReadFrames() == 0);
+    std::puts("gain/pitch/read-counter/immutable replacement content tests passed");
+}
+
+static void replacementEdges()
+{
+    OpenALDevice device;
+    OpenALPcmStream stream;
+    CHECK(device.openLoopback() && stream.open(device, 48000, 2, 1024));
+    auto input = sequence(0, 1024);
+    CHECK(stream.queue(input.data(), 1024) == Result::Accepted);
+    CHECK(stream.markEnd() && stream.play());
+    CHECK(stream.replaceQueuedAfter(512, nullptr, 0));
+    render(device, 2048);
+    CHECK(stream.state() == State::Finished && stream.getReadFrames() == 512);
+    CHECK(!stream.replaceQueuedAfter(512, nullptr, 0));
+    silence(render(device, 512));
+    CHECK(stream.stop());
+    render(device, 1024);
+
+    CHECK(stream.queue(input.data(), 1024) == Result::Accepted && stream.play());
+    render(device, 512);
+    const uint32_t alreadyRead = stream.getReadFrames();
+    CHECK(alreadyRead > 128);
+    std::vector<short> tail(128);
+    for (int i = 0; i < 63; ++i) {
+        tail[2 * i] = 10000;
+        tail[2 * i + 1] = -10000;
+    }
+    CHECK(stream.replaceQueuedAfter(128, tail.data(), 64));
+    const auto late = render(device, 2048);
+    int tailFrames = 0;
+    for (size_t i = 0; i < late.size(); i += 2) {
+        if (late[i] > 9000 && late[i + 1] < -9000)
+            ++tailFrames;
+    }
+    CHECK(tailFrames == 63);
+    CHECK(stream.state() == State::Finished && stream.getReadFrames() == alreadyRead + 64);
+    CHECK(stream.stop());
+    render(device, 1024);
+
+    std::fill(input.begin(), input.begin() + 512 * 2, 0);
+    CHECK(stream.queue(input.data(), 1024) == Result::Accepted);
+    CHECK(stream.markEnd() && stream.play());
+    render(device, 128);
+    CHECK(stream.pause());
+    silence(render(device, 512));
+    const uint32_t pausedRead = stream.getReadFrames();
+    CHECK(stream.replaceQueuedAfter(512, tail.data(), 64));
+    silence(render(device, 512));
+    CHECK(stream.getReadFrames() == pausedRead && stream.state() == State::Paused);
+    CHECK(stream.play());
+    render(device, 2048);
+    std::printf("paused replacement read before %u after %u state %d\n", pausedRead, stream.getReadFrames(), static_cast<int>(stream.state()));
+    const uint32_t cut = std::max<uint32_t>(512, pausedRead);
+    CHECK(stream.state() == State::Finished && stream.getReadFrames() == cut + 64);
+    silence(render(device, 512));
+    std::puts("empty/late/paused/after-EOF immutable replacement edge tests passed");
+}
+
 static void monoResampling()
 {
     OpenALDevice device;
@@ -425,7 +525,11 @@ static void concurrentNullStress()
                 ++consumed;
             CHECK(stream.state() != State::Error);
         }
+        CHECK(stream.replaceQueuedAfter(stream.getReadFrames(), input.data(), 127));
+        CHECK(stream.queue(input.data(), 1) == Result::Invalid);
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));
         CHECK(stream.stop());
+        CHECK(stream.getReadFrames() == 0);
         CHECK(stream.availableFrames() == 1024);
         CHECK(stream.queue(input.data(), 127) == Result::Accepted);
         CHECK(stream.markEnd() && stream.play());
@@ -435,6 +539,31 @@ static void concurrentNullStress()
     }
     CHECK(consumed > 0);
     std::printf("null mixer concurrent progress observations: %d\n", consumed);
+    OpenALDevice device;
+    CHECK(device.open());
+    const auto shortInput = sequence(0, 32);
+    const auto tail = sequence(8000, 64);
+    unsigned accepted = 0;
+    for (unsigned round = 0; round < 100; ++round) {
+        OpenALPcmStream stream;
+        CHECK(stream.open(device, 48000, 2, 256));
+        CHECK(stream.queue(shortInput.data(), 32) == Result::Accepted);
+        CHECK(stream.markEnd() && stream.play());
+        if (round % 2 == 0)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        const bool replaced = stream.replaceQueuedAfter(32, tail.data(), 64);
+        while (stream.state() != State::Finished) {
+            CHECK(stream.state() != State::Error && std::chrono::steady_clock::now() < deadline);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        uint32_t expectedRead = 32;
+        if (replaced) {
+            ++accepted;
+            expectedRead += 64;
+        }
+        CHECK(stream.getReadFrames() == expectedRead);
+    }
+    std::printf("concurrent EOF/publication rounds: 100, replacement accepted: %u\n", accepted);
 }
 
 int main(int argc, char **argv)
@@ -448,6 +577,8 @@ int main(int argc, char **argv)
     queueAndWrap();
     controlsAndStarvation();
     pauseContinuity();
+    parametersAndReplacement();
+    replacementEdges();
     monoResampling();
     contextsAndLifetime();
     decoderBridge(argv[1]);

@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
+#include <cmath>
 #include <cstring>
 #include <exception>
 #include <limits>
@@ -35,7 +36,14 @@ struct OpenALPcmStream::Data
     std::vector<short> pcm;
     std::atomic<uint32_t> readPosition{0};
     std::atomic<uint32_t> writePosition{0};
+    std::atomic<uint32_t> readFrames{0};
     std::atomic<bool> ended{false};
+    std::vector<short> replacement;
+    uint32_t replaceAfter = 0;
+    uint32_t replacementPosition = 0;
+    uint32_t writtenFrames = 0;
+    enum : uint32_t { InputNormal, InputReplacement, InputClosed };
+    std::atomic<uint32_t> inputState{InputNormal};
     std::atomic<bool> starved{false};
     std::atomic<bool> callbackFailed{false};
     State requested = State::Stopped;
@@ -62,17 +70,51 @@ struct OpenALPcmStream::Data
         const uint32_t requested = static_cast<uint32_t>(bytes) / frameBytes;
         // Observe EOF before the write index so its final published samples cannot be missed.
         const bool ended = data.ended.load(std::memory_order_acquire);
+        const bool replacing = data.inputState.load(std::memory_order_acquire) == InputReplacement;
         const uint32_t read = data.readPosition.load(std::memory_order_relaxed);
         const uint32_t write = data.writePosition.load(std::memory_order_acquire);
-        const uint32_t count = std::min(requested, data.distance(write, read));
+        uint32_t limit = requested;
+        if (replacing) {
+            const uint32_t remaining = data.replaceAfter - data.readFrames.load(std::memory_order_relaxed);
+            if (remaining > std::numeric_limits<uint32_t>::max() / 2)
+                limit = 0;
+            else
+                limit = std::min(limit, remaining);
+        }
+        const uint32_t count = std::min(limit, data.distance(write, read));
+        if (replacing && count < limit) {
+            data.callbackFailed.store(true, std::memory_order_relaxed);
+            return 0;
+        }
         const uint32_t first = std::min(count, data.ringFrames - read);
         auto destination = static_cast<unsigned char *>(output);
         std::memcpy(destination, data.pcm.data() + read * data.channels, first * frameBytes);
         std::memcpy(destination + first * frameBytes, data.pcm.data(), (count - first) * frameBytes);
         data.readPosition.store((read + count) % data.ringFrames, std::memory_order_release);
+        if (replacing) {
+            const uint32_t remaining = static_cast<uint32_t>(data.replacement.size() / data.channels) - data.replacementPosition;
+            const uint32_t tail = std::min(requested - count, remaining);
+            if (tail != 0)
+                std::memcpy(destination + count * frameBytes,
+                    data.replacement.data() + data.replacementPosition * data.channels, tail * frameBytes);
+            data.replacementPosition += tail;
+            data.readFrames.fetch_add(count + tail, std::memory_order_relaxed);
+            data.starved.store(false, std::memory_order_relaxed);
+            return static_cast<ALsizei>((count + tail) * frameBytes);
+        }
+        data.readFrames.fetch_add(count, std::memory_order_relaxed);
         data.starved.store(!ended && count < requested, std::memory_order_relaxed);
-        if (ended)
+        if (ended && count < requested) {
+            uint32_t normal = InputNormal;
+            if (!data.inputState.compare_exchange_strong(normal, InputClosed, std::memory_order_acq_rel) &&
+                normal == InputReplacement) {
+                // Publication won the EOF race; fill the remainder before the driver latches EOF.
+                const ALsizei tail = readPcm(opaque, destination + count * frameBytes,
+                    static_cast<ALsizei>((requested - count) * frameBytes));
+                return static_cast<ALsizei>(count * frameBytes) + tail;
+            }
             return static_cast<ALsizei>(count * frameBytes);
+        }
         std::memset(destination + count * frameBytes, 0, (requested - count) * frameBytes);
         return bytes;
     }
@@ -168,9 +210,44 @@ uint32_t OpenALPcmStream::availableFrames() const
 {
     if (m_data == nullptr || !m_data->context->onOwnerThread())
         return 0;
+    if (m_data->inputState.load(std::memory_order_relaxed) == Data::InputReplacement)
+        return 0;
     const uint32_t write = m_data->writePosition.load(std::memory_order_relaxed);
     const uint32_t read = m_data->readPosition.load(std::memory_order_acquire);
     return m_data->ringFrames - 1 - m_data->distance(write, read);
+}
+
+uint32_t OpenALPcmStream::getReadFrames() const
+{
+    if (m_data == nullptr || !m_data->context->onOwnerThread())
+        return 0;
+    return m_data->readFrames.load(std::memory_order_relaxed);
+}
+
+bool OpenALPcmStream::replaceQueuedAfter(uint32_t endFrame, const short *tail, uint32_t frames)
+{
+    if (m_data == nullptr || !m_data->context->onOwnerThread() ||
+        m_data->inputState.load(std::memory_order_acquire) != Data::InputNormal ||
+        (frames != 0 && tail == nullptr) || frames > (16 * 1024 * 1024) / (sizeof(short) * m_data->channels))
+        return false;
+    const uint32_t ahead = endFrame - m_data->writtenFrames;
+    if (ahead != 0 && ahead <= std::numeric_limits<uint32_t>::max() / 2)
+        return false;
+    try {
+        std::vector<short> replacement;
+        if (frames != 0)
+            replacement.assign(tail, tail + static_cast<size_t>(frames) * m_data->channels);
+        if (replacement.capacity() > (16 * 1024 * 1024) / sizeof(short))
+            return false;
+        m_data->replacement.swap(replacement);
+    } catch (const std::bad_alloc &) {
+        m_data->error = AL_OUT_OF_MEMORY;
+        return false;
+    }
+    m_data->replaceAfter = endFrame;
+    m_data->replacementPosition = 0;
+    uint32_t normal = Data::InputNormal;
+    return m_data->inputState.compare_exchange_strong(normal, Data::InputReplacement, std::memory_order_release);
 }
 
 OpenALPcmStream::QueueResult OpenALPcmStream::queue(const short *interleaved, uint32_t frames)
@@ -178,7 +255,8 @@ OpenALPcmStream::QueueResult OpenALPcmStream::queue(const short *interleaved, ui
     if (m_data == nullptr || !m_data->context->onOwnerThread() || m_data->error != AL_NO_ERROR ||
         m_data->callbackFailed.load(std::memory_order_relaxed))
         return QueueResult::Error;
-    if (interleaved == nullptr || frames == 0 || frames >= m_data->ringFrames || m_data->ended.load(std::memory_order_relaxed))
+    if (interleaved == nullptr || frames == 0 || frames >= m_data->ringFrames || m_data->ended.load(std::memory_order_relaxed) ||
+        m_data->inputState.load(std::memory_order_relaxed) != Data::InputNormal)
         return QueueResult::Invalid;
     if (frames > availableFrames())
         return QueueResult::Full;
@@ -188,6 +266,7 @@ OpenALPcmStream::QueueResult OpenALPcmStream::queue(const short *interleaved, ui
     std::memcpy(m_data->pcm.data() + write * m_data->channels, interleaved, first * frameBytes);
     std::memcpy(m_data->pcm.data(), interleaved + first * m_data->channels, (frames - first) * frameBytes);
     m_data->writePosition.store((write + frames) % m_data->ringFrames, std::memory_order_release);
+    m_data->writtenFrames += frames;
     return QueueResult::Accepted;
 }
 
@@ -200,7 +279,8 @@ bool OpenALPcmStream::play()
         return false;
     ALint current = AL_INITIAL;
     alGetSourcei(m_data->source, AL_SOURCE_STATE, &current);
-    if (current == AL_STOPPED && m_data->ended.load(std::memory_order_relaxed))
+    if (current == AL_STOPPED && (m_data->ended.load(std::memory_order_relaxed) ||
+        m_data->inputState.load(std::memory_order_relaxed) != Data::InputNormal))
         return false;
     if (current != AL_PLAYING)
         alSourcePlay(m_data->source);
@@ -241,6 +321,11 @@ bool OpenALPcmStream::stop()
         return false;
     m_data->readPosition.store(0, std::memory_order_relaxed);
     m_data->writePosition.store(0, std::memory_order_relaxed);
+    m_data->readFrames.store(0, std::memory_order_relaxed);
+    m_data->inputState.store(Data::InputNormal, std::memory_order_relaxed);
+    m_data->replacement.clear();
+    m_data->replacementPosition = 0;
+    m_data->writtenFrames = 0;
     m_data->ended.store(false, std::memory_order_relaxed);
     m_data->starved.store(false, std::memory_order_relaxed);
     m_data->callbackFailed.store(false, std::memory_order_relaxed);
@@ -256,6 +341,47 @@ bool OpenALPcmStream::markEnd()
     return true;
 }
 
+bool OpenALPcmStream::setGain(float gain)
+{
+    if (m_data == nullptr || !std::isfinite(gain) || gain < 0.0f)
+        return false;
+    OpenALDevice::Scope scope(*m_data->context);
+    if (!scope.valid)
+        return false;
+    alSourcef(m_data->source, AL_GAIN, gain);
+    m_data->error = alGetError();
+    return m_data->error == AL_NO_ERROR;
+}
+
+bool OpenALPcmStream::setPitch(float pitch)
+{
+    if (m_data == nullptr || !std::isfinite(pitch) || pitch <= 0.0f)
+        return false;
+    OpenALDevice::Scope scope(*m_data->context);
+    if (!scope.valid)
+        return false;
+    alSourcef(m_data->source, AL_PITCH, pitch);
+    m_data->error = alGetError();
+    return m_data->error == AL_NO_ERROR;
+}
+
+bool OpenALPcmStream::setPosition(float x, float y, float z, bool positional)
+{
+    if (m_data == nullptr || (positional && m_data->channels != 1) ||
+        !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z))
+        return false;
+    OpenALDevice::Scope scope(*m_data->context);
+    if (!scope.valid)
+        return false;
+    ALint relative = AL_TRUE;
+    if (positional)
+        relative = AL_FALSE;
+    alSourcei(m_data->source, AL_SOURCE_RELATIVE, relative);
+    alSource3f(m_data->source, AL_POSITION, x, y, z);
+    m_data->error = alGetError();
+    return m_data->error == AL_NO_ERROR;
+}
+
 OpenALPcmStream::State OpenALPcmStream::state() const
 {
     if (m_data == nullptr || !m_data->context->onOwnerThread())
@@ -268,7 +394,8 @@ OpenALPcmStream::State OpenALPcmStream::state() const
     m_data->error = alGetError();
     if (m_data->error != AL_NO_ERROR)
         return State::Error;
-    if (current == AL_STOPPED && m_data->ended.load(std::memory_order_relaxed))
+    if (current == AL_STOPPED && (m_data->ended.load(std::memory_order_relaxed) ||
+        m_data->inputState.load(std::memory_order_relaxed) != Data::InputNormal))
         return State::Finished;
     if (m_data->requested == State::Playing && m_data->starved.load(std::memory_order_relaxed))
         return State::Starved;

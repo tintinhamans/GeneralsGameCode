@@ -32,6 +32,11 @@
 #include <windows.h>
 
 #include "Win32Device/Common/Win32GameEngine.h"
+#if defined(RTS_AUDIO_BACKEND_OPENAL)
+#include "OpenALAudioDevice/OpenALAudioManager.h"
+#else
+#include "MilesAudioDevice/MilesAudioManager.h"
+#endif
 #include "Common/PerfTimer.h"
 #include "Common/FramePacer.h"
 #include "Common/MessageStream.h"
@@ -43,6 +48,17 @@
 
 #include "GameNetwork/LANAPICallbacks.h"
 #include "../OnlineServices_Init.h"
+
+AudioManager *Win32GameEngine::createAudioManager(Bool dummy)
+{
+#if defined(RTS_AUDIO_BACKEND_OPENAL)
+	return NEW OpenALAudioManager(dummy);
+#else
+	if (dummy)
+		return NEW MilesAudioManagerDummy;
+	return NEW MilesAudioManager;
+#endif
+}
 
 extern DWORD TheMessageTime;
 

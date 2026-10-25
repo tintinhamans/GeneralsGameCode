@@ -95,3 +95,13 @@ endif()
 
 feature_summary(WHAT ENABLED_FEATURES DESCRIPTION "Enabled features:")
 feature_summary(WHAT DISABLED_FEATURES DESCRIPTION "Disabled features:")
+
+option(RTS_BUILD_AUDIO_MANAGER_TESTS "Build isolated OpenAL AudioManager tests" OFF)
+if(RTS_BUILD_AUDIO_MANAGER_TESTS)
+    if(IS_VS6_BUILD OR NOT RTS_BUILD_ZEROHOUR OR NOT RTS_BUILD_OPTION_OPENAL OR
+       NOT RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
+        message(FATAL_ERROR "AudioManager tests require modern Zero Hour with the OpenAL backend selected")
+    endif()
+    enable_testing()
+    add_subdirectory(tests/audio_manager)
+endif()

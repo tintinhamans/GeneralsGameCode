@@ -444,6 +444,9 @@ void MilesAudioManager::postProcessLoad()
 //-------------------------------------------------------------------------------------------------
 void MilesAudioManager::reset()
 {
+#if defined(RTS_HAS_FFMPEG)
+	m_metadata.clear();
+#endif
 #if defined(RTS_DEBUG)
 	dumpAllAssetsUsed();
 	m_allEventsLoaded.clear();
@@ -1432,6 +1435,9 @@ void MilesAudioManager::openDevice()
 
 	AIL_set_redist_directory("MSS\\");
 	AIL_startup();
+#if defined(RTS_HAS_FFMPEG)
+	m_startedMiles = true;
+#endif
 	Int retval = 0;
 
 	// AIL_quick_startup should be replaced later with a call to actually pick which device to use, etc
@@ -1465,9 +1471,16 @@ void MilesAudioManager::openDevice()
 //-------------------------------------------------------------------------------------------------
 void MilesAudioManager::closeDevice()
 {
+#if defined(RTS_HAS_FFMPEG)
+	if (!m_startedMiles)
+		return;
+#endif
 	freeAllMilesHandles();
 	unselectProvider();
 	AIL_shutdown();
+#if defined(RTS_HAS_FFMPEG)
+	m_startedMiles = false;
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2564,6 +2577,9 @@ void MilesAudioManager::setSpeakerSurround(Bool surround)
 //-------------------------------------------------------------------------------------------------
 Real MilesAudioManager::getFileLengthMS( AsciiString strToLoad ) const
 {
+#if defined(RTS_HAS_FFMPEG)
+	return m_metadata.getLengthMS(strToLoad);
+#else
 	if (strToLoad.isEmpty()) {
 		return 0.0f;
 	}
@@ -2580,6 +2596,7 @@ Real MilesAudioManager::getFileLengthMS( AsciiString strToLoad ) const
 	AIL_close_stream(stream);
 
 	return INT_TO_REAL(retVal);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------

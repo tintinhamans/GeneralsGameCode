@@ -24,6 +24,9 @@
 #include "Common/GameAudio.h"
 #include "mss/mss.h"
 #include "WWLib/mutex.h"
+#if defined(RTS_HAS_FFMPEG)
+#include "VideoDevice/FFmpeg/FFmpegAudioMetadata.h"
+#endif
 
 class AudioEventRTS;
 class DynamicAudioEventRTS;
@@ -347,6 +350,10 @@ class MilesAudioManager : public AudioManager
 
 		AudioFileCache *m_audioCache;
 		PlayingAudio *m_binkHandle;
+#if defined(RTS_HAS_FFMPEG)
+		mutable FFmpegAudioMetadata m_metadata;
+		Bool m_startedMiles = false;
+#endif
 		UnsignedInt m_num2DSamples;
 		UnsignedInt m_num3DSamples;
 		UnsignedInt m_numStreams;
@@ -362,9 +369,13 @@ class MilesAudioManager : public AudioManager
 
 // TheSuperHackers @feature helmutbuhler 17/05/2025 AudioManager that does almost nothing. Useful for headless mode.
 // @bugfix Caball009 26/03/2026 Scripts may require the actual audio file length to function properly, which is important for the CRC computation.
-// The Miles AudioManager handles the device opening / closure, so that getFileLengthMS can function as intended.
+// Legacy duration queries require a Miles device; FFmpeg builds read source metadata without one.
 class MilesAudioManagerDummy : public MilesAudioManager
 {
+#if defined(RTS_HAS_FFMPEG)
+	virtual void init() override { AudioManager::init(); }
+	virtual void update() override { removeAllAudioRequests(); }
+#endif
 #if defined(RTS_DEBUG)
 	virtual void audioDebugDisplay(DebugDisplayInterface* dd, void* userData, FILE* fp) override {}
 #endif

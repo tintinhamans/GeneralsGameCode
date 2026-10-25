@@ -18,6 +18,7 @@
 
 #include "OpenALAudioDevice/OpenALDevice.h"
 #include <exception>
+#include <cmath>
 #include <limits>
 
 OpenALDevice::Context::~Context()
@@ -148,7 +149,28 @@ bool OpenALDevice::initialize(ALCdevice *device, int sampleRate, bool loopback)
         }
     }
     m_context = candidate;
+    alDopplerFactor(0.0f);
     return true;
+}
+
+bool OpenALDevice::setListener(float x, float y, float z, const float *forward, const float *up)
+{
+    if (!isOpen() || forward == nullptr || up == nullptr ||
+        !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z))
+        return false;
+    float orientation[6];
+    for (int i = 0; i < 3; ++i) {
+        if (!std::isfinite(forward[i]) || !std::isfinite(up[i]))
+            return false;
+        orientation[i] = forward[i];
+        orientation[i + 3] = up[i];
+    }
+    Scope scope(*m_context);
+    if (!scope.valid)
+        return false;
+    alListener3f(AL_POSITION, x, y, z);
+    alListenerfv(AL_ORIENTATION, orientation);
+    return alGetError() == AL_NO_ERROR;
 }
 
 bool OpenALDevice::render(short *stereo, int frames)
