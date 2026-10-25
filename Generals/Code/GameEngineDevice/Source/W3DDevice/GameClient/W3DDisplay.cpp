@@ -1801,7 +1801,7 @@ AGAIN:
   	//
 	//PredictiveLODOptimizerClass::Optimize_LODs( 5000 );
 
-	Bool freezeTime = TheFramePacer->isTimeFrozen() || TheFramePacer->isGameHalted();
+	Bool freezeTime = TheFramePacer->isTimeFrozen();
 
 	// hack to let client spin fast in network games but still do effects at the same pace. -MDC
 	static UnsignedInt lastFrame = ~0;
@@ -1810,7 +1810,7 @@ AGAIN:
 
 	/// @todo: I'm assuming the first view is our main 3D view.
 	W3DView *primaryW3DView=(W3DView *)getFirstView();
-	if (!freezeTime && TheScriptEngine->isTimeFast())
+	if ((!freezeTime || TheFramePacer->isGameHalted()) && TheScriptEngine->isTimeFast())
 	{
 		primaryW3DView->updateCameraMovements();  // Update camera motion effects.
 		syncTime += TheW3DFrameLengthInMsec;
@@ -2025,7 +2025,7 @@ AGAIN:
 
 		if (TheScriptEngine->isTimeFrozenDebug() || TheScriptEngine->isTimeFrozenScript() || TheGameLogic->isGamePaused())
 		{
-			freezeTime = false; // We're frozen for debug or for pause, and need to continue out of the loop.
+			break; // We're frozen for debug or for pause, and need to break out of the loop.
 		}
 
 	} while (freezeTime && !TheTacticalView->isCameraMovementFinished());
