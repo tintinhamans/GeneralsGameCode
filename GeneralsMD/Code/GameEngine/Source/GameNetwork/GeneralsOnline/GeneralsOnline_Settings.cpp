@@ -6,10 +6,11 @@
 #include <algorithm>
 #include "GameNetwork/GeneralsOnline/CredentialStore.h"
 #include "GameNetwork/GeneralsOnline/OnlineServices_Auth.h"
+#include "Common/OptionPreferences.h"
 
 #define SETTINGS_KEY_CAMERA "camera"
 #define SETTINGS_KEY_CAMERA_MIN_HEIGHT "min_height"
-#define SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO "move_speed_ratio"
+#define SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO "move_speed_ratio"
 #define SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST "max_height_only_when_lobby_host"
 
 #define SETTINGS_KEY_RENDER "render"
@@ -196,6 +197,25 @@ static nlohmann::json DataPackLayerToJson(const GenOnlineDataPackLayer& layer, c
     return jsonLayer;
 }
 
+// The old right mouse scroll speed was ratio * Options.ini scroll speed * (screen width / 2) pixels. The scroll now measures the drag at 800x600
+// and uses the 1.6 horizontal speed factor of GameData.ini, so the same speed needs a scroll speed of
+// old scroll speed * ratio * (width / 2) / (1.6 * 400), within the range of the options slider.
+static void MigrateMoveSpeedRatioToOptions(float ratio)
+{
+	OptionPreferences options;
+	Int width = 0;
+	Int height = 0;
+	options.getResolution(&width, &height);
+	const auto scrollFactor = options.find("ScrollFactor");
+	const Int oldSlider = scrollFactor == options.end() ? 50 : (std::max)(1, atoi(scrollFactor->second.str()));
+	const Int newSlider = (std::max)(1, static_cast<Int>(oldSlider * ratio * (width / 2.0f) / (1.6f * 400.0f) + 0.5f));
+	AsciiString text;
+	text.format("%d", newSlider);
+	options["ScrollFactor"] = text;
+	options.write();
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Settings] Moved camera.move_speed_ratio=%.2f to Options.ini ScrollFactor: %d -> %d at %dx%d", ratio, oldSlider, newSlider, width, height);
+}
+
 void GenOnlineSettings::Load(void)
 {
 	ServiceConnection::ConfigureCredentialStore(&NGMP_OnlineServices_AuthInterface::GetCredentialsFilePath);
@@ -291,9 +311,10 @@ void GenOnlineSettings::Load(void)
 					m_Camera_MinHeight = std::max<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_MIN_HEIGHT]), m_Camera_MinHeight_default);
 				}
 
-				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO))
+				// the right mouse scroll speed is the Options.ini scroll speed now, an old ratio is converted once
+				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO) && cameraSettings[SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO].is_number())
 				{
-					m_Camera_MoveSpeedRatio = std::clamp<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO]), 0.05f, 25.f);
+					MigrateMoveSpeedRatioToOptions(std::clamp<float>(static_cast<float>(cameraSettings[SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO]), 0.05f, 25.f));
 				}
 
 				if (cameraSettings.contains(SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST))
@@ -600,7 +621,6 @@ bool GenOnlineSettings::Save()
 				{
 					{SETTINGS_KEY_CAMERA_MIN_HEIGHT, m_Camera_MinHeight},
 					{SETTINGS_KEY_CAMERA_MAX_HEIGHT_WHEN_LOBBY_HOST, m_Camera_MaxHeight_LobbyHost},
-					{ SETTINGS_KEY_CAMERA_MOVE_SPEED_RATIO, m_Camera_MoveSpeedRatio },
 				}
 		  },
 
@@ -676,6 +696,7 @@ bool GenOnlineSettings::Save()
 	preserved[SETTINGS_KEY_DATAPACKS] = root[SETTINGS_KEY_DATAPACKS];	// the client owns data_packs completely, stale keys go
 	// settings this build no longer has are dropped from the file
 	preserved[SETTINGS_KEY_RENDER].erase(SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY);
+	preserved[SETTINGS_KEY_CAMERA].erase(SETTINGS_KEY_CAMERA_LEGACY_MOVE_SPEED_RATIO);
 	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_USE_ALTERNATIVE_ENDPOINT);
 	preserved[SETTINGS_KEY_NETWORK].erase(SETTINGS_KEY_NETWORK_LEGACY_HTTP_VERSION);
 	std::string strData = preserved.dump(1);
