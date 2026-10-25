@@ -24,12 +24,14 @@
 #include "Common/AudioEventRTS.h"
 #include "Common/AudioHandleSpecialValues.h"
 #include "Common/AudioRequest.h"
+#include "OpenALAudioDevice/OpenALMovieVoice.h"
 #include "Common/AudioSettings.h"
 #include "Common/FileSystem.h"
 #include "Common/GameCommon.h"
 #include "Common/GameSounds.h"
 #include "Common/GlobalData.h"
 #include "GameClient/DebugDisplay.h"
+#include "GameClient/VideoPlayer.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -93,6 +95,7 @@ void OpenALAudioManager::init()
 
 void OpenALAudioManager::reset()
 {
+    closeMovieVoices();
     stopAudio(AudioAffect_All);
     m_voices.clear();
     removeAllAudioRequests();
@@ -151,11 +154,34 @@ void OpenALAudioManager::openDevice()
 
 void OpenALAudioManager::closeDevice()
 {
+    closeMovieVoices();
     stopAudio(AudioAffect_All);
     m_voices.clear();
     m_cache.clear();
     m_device.close();
     m_provider = PROVIDER_ERROR;
+}
+
+std::shared_ptr<OpenALMovieVoice> OpenALAudioManager::createMovieVoice()
+{
+    if (m_dummy || !m_device.isOpen())
+        return nullptr;
+    m_movieVoices.erase(std::remove_if(m_movieVoices.begin(), m_movieVoices.end(),
+        [](const std::weak_ptr<OpenALMovieVoice> &voice) { return voice.expired(); }), m_movieVoices.end());
+    auto voice = std::shared_ptr<OpenALMovieVoice>(new OpenALMovieVoice(m_device, m_audioSettings->m_outputRate));
+    if (voice->failed())
+        return nullptr;
+    m_movieVoices.push_back(voice);
+    return voice;
+}
+
+void OpenALAudioManager::closeMovieVoices()
+{
+    for (auto &entry : m_movieVoices) {
+        if (auto voice = entry.lock())
+            voice->close();
+    }
+    m_movieVoices.clear();
 }
 
 void *OpenALAudioManager::getDevice()
@@ -781,7 +807,11 @@ void OpenALAudioManager::updatePlayback()
     for (auto &voice : m_voices)
         updateVoice(*voice);
     m_voices.remove_if([](const std::unique_ptr<Voice> &voice) { return voice->removed; });
-    m_volumeHasChanged = false;
+    if (m_volumeHasChanged) {
+        m_volumeHasChanged = false;
+        if (TheVideoPlayer != nullptr)
+            TheVideoPlayer->setVolume(getVolume(AudioAffect_Speech));
+    }
 }
 
 Real OpenALAudioManager::effectiveVolume(AudioEventRTS &event) const
