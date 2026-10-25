@@ -27,3 +27,8 @@ Covered behaviour:
 Limits: this is not a full game launch, physical-device, hosted network, retail CRC or renderer/camera test. Player/shroud/ownership filtering is intentionally outside this fixture, as are object-backed voice positions and full gameplay scheduling. The public normal `update()` camera path is not executed; its production playback pipeline is. Standalone OpenAL tests separately cover callback lifetime faults and a concurrent real Null mixer. A single umbrella behaviour test fails on the first assertion; the fixture setup is a separate CTest step.
 
 Cache growth evidence records vector capacity, not allocator-call counts or wall-clock performance: the one-second stereo fixture has 96,000 samples; with 1 MiB available its capacity is 131,072 samples (262,144 bytes), while a 192,000-byte budget fits exactly and 191,999 bytes rejects it. A pinned small clip plus the large clip stays within 200,000 bytes. These checks exercise the geometric-growth and tight-headroom paths without production instrumentation.
+
+Pause regressions check that existing voices remain paused while new UI sounds
+play, queued play requests are cleared, UI sounds do not replay on resume, and
+resumed PCM is identical with or without intervening UI playback. Separate checks
+cover category-scoped resume and persistent ambient pause in both overlap orders.

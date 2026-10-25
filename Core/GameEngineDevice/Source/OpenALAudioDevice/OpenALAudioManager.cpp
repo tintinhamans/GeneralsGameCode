@@ -61,6 +61,7 @@ struct OpenALAudioManager::Voice
     bool requestedStop = false;
     bool stopTailPublished = false;
     bool paused = false;
+    bool categoryPaused = false;
     bool forced = false;
     bool eof = false;
     bool decodeFailed = false;
@@ -102,7 +103,6 @@ void OpenALAudioManager::reset()
     removeLevelSpecificAudioEventInfos();
     m_cache.clear();
     m_metadata.clear();
-    m_paused = 0;
     m_ambientPaused = false;
     m_lastMusic.clear();
     m_musicCompletions = 0;
@@ -278,11 +278,10 @@ void OpenALAudioManager::stopAudio(AudioAffect which)
 
 void OpenALAudioManager::pauseAudio(AudioAffect which)
 {
-    m_paused |= which;
     for (auto &voice : m_voices) {
-        if (matches(*voice, which) && !voice->paused) {
-            voice->stream.pause();
-            voice->paused = true;
+        if (matches(*voice, which)) {
+            voice->categoryPaused = true;
+            updateVoicePause(*voice);
         }
     }
     for (auto it = m_audioRequests.begin(); it != m_audioRequests.end();) {
@@ -298,13 +297,10 @@ void OpenALAudioManager::pauseAudio(AudioAffect which)
 
 void OpenALAudioManager::resumeAudio(AudioAffect which)
 {
-    m_paused &= ~which;
     for (auto &voice : m_voices) {
-        if (matches(*voice, which) && voice->paused) {
-            if (m_ambientPaused && voice->event->getAudioEventInfo()->isPermanentSound())
-                continue;
-            voice->stream.play();
-            voice->paused = false;
+        if (matches(*voice, which)) {
+            voice->categoryPaused = false;
+            updateVoicePause(*voice);
         }
     }
 }
@@ -313,16 +309,22 @@ void OpenALAudioManager::pauseAmbient(Bool pause)
 {
     m_ambientPaused = pause;
     for (auto &voice : m_voices) {
-        if (!active(*voice) || !voice->event->getAudioEventInfo()->isPermanentSound())
-            continue;
-        if (pause && !voice->paused) {
-            voice->stream.pause();
-            voice->paused = true;
-        } else if (!pause && voice->paused && (m_paused & category(*voice->event)) == 0) {
-            voice->stream.play();
-            voice->paused = false;
-        }
+        if (active(*voice) && voice->event->getAudioEventInfo()->isPermanentSound())
+            updateVoicePause(*voice);
     }
+}
+
+void OpenALAudioManager::updateVoicePause(Voice &voice)
+{
+    const bool paused = voice.categoryPaused ||
+        (m_ambientPaused && voice.event->getAudioEventInfo()->isPermanentSound());
+    if (voice.paused == paused)
+        return;
+    if (paused)
+        voice.stream.pause();
+    else
+        voice.stream.play();
+    voice.paused = paused;
 }
 
 OpenALAudioManager::Voice *OpenALAudioManager::find(AudioHandle handle)
@@ -658,9 +660,7 @@ void OpenALAudioManager::playRequest(AudioRequest &request, bool forced)
         gain = event.getVolume() * m_speechVolume;
     if (!voice->stream.setPitch(pitch) || !voice->stream.setGain(gain) || !pump(*voice) || voice->submittedFrames == 0)
         return;
-    voice->paused = (m_paused & kind) != 0;
-    if (m_ambientPaused && info->isPermanentSound())
-        voice->paused = true;
+    voice->paused = m_ambientPaused && info->isPermanentSound();
     if (!voice->paused && !voice->stream.play())
         return;
     for (Voice *victim : victims)

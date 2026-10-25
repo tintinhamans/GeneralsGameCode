@@ -303,6 +303,113 @@ static void controlsAndStreamingTests(FixtureManager &manager)
 }
 
 
+static void pauseSnapshotTests(FixtureManager &manager)
+{
+    manager.reset();
+    manager.render(1600);
+    const AudioHandle existing = add(manager, "Permanent");
+    CHECK(energy(manager.run(1600)) > 1.0e9);
+    const AudioHandle pending = add(manager, "Delayed");
+    CHECK(manager.pendingRequests() == 1);
+    manager.pauseAudio(static_cast<AudioAffect>(AudioAffect_All & ~AudioAffect_Music));
+    CHECK(manager.pendingRequests() == 0 && !manager.isCurrentlyPlaying(pending));
+    manager.run(1600);
+    CHECK(energy(manager.run(1600)) < 10000);
+    const AudioHandle ui = add(manager, "Ui");
+    const auto menu = manager.run(6400);
+    CHECK(toneScore(menu, 256, 2048, 400) > 0.95);
+    CHECK(energy(menu, -1, 4800) < 10000);
+    CHECK(manager.isCurrentlyPlaying(existing) && !manager.isCurrentlyPlaying(ui));
+    manager.resumeAudio(AudioAffect_Sound);
+    CHECK(energy(manager.run(3200)) > 1.0e9);
+    CHECK(!manager.isCurrentlyPlaying(ui));
+    manager.stopAudio(AudioAffect_All);
+    manager.run(1600);
+    CHECK(energy(manager.run(3200)) < 10000);
+
+    std::vector<short> resumedWithoutUi;
+    for (bool playUi : {false, true}) {
+        manager.reset();
+        manager.render(1600);
+        const AudioHandle sound = add(manager, "Low");
+        manager.run(800);
+        manager.pauseAudio(AudioAffect_Sound);
+        manager.run(1600);
+        if (playUi)
+            add(manager, "Ui");
+        manager.run(6400);
+        manager.resumeAudio(AudioAffect_Sound);
+        const auto resumed = manager.run(48000);
+        CHECK(!manager.isCurrentlyPlaying(sound));
+        if (!playUi) {
+            resumedWithoutUi = resumed;
+        } else {
+            CHECK(resumed.size() == resumedWithoutUi.size());
+            int maximum = 0;
+            for (size_t i = 0; i < resumed.size(); ++i)
+                maximum = std::max(maximum, std::abs(resumed[i] - resumedWithoutUi[i]));
+            std::printf("pause/resume PCM with and without intervening UI maximum error=%d\n", maximum);
+            CHECK(maximum <= 2);
+        }
+    }
+
+    manager.reset();
+    manager.render(1600);
+    add(manager, "Permanent");
+    add(manager, "MusicOne");
+    manager.run(1600);
+    manager.pauseAudio(AudioAffect_Sound);
+    manager.run(1600);
+    manager.resumeAudio(AudioAffect_Speech);
+    CHECK(toneScore(manager.run(3200), 128, 2560, 440) > 0.95);
+    manager.stopAudio(AudioAffect_Music);
+    manager.run(1600);
+    CHECK(energy(manager.run(3200)) < 10000);
+    manager.resumeAudio(AudioAffect_Sound);
+    CHECK(energy(manager.run(3200)) > 1.0e9);
+
+    for (bool categoryFirst : {false, true}) {
+        manager.reset();
+        manager.render(1600);
+        add(manager, "Permanent");
+        manager.run(1600);
+        if (categoryFirst) {
+            manager.pauseAudio(AudioAffect_Sound);
+            manager.pauseAmbient(true);
+            manager.resumeAudio(AudioAffect_Sound);
+        } else {
+            manager.pauseAmbient(true);
+            manager.pauseAudio(AudioAffect_Sound);
+            manager.pauseAmbient(false);
+        }
+        manager.run(1600);
+        CHECK(energy(manager.run(3200)) < 10000);
+        if (categoryFirst)
+            manager.pauseAmbient(false);
+        else
+            manager.resumeAudio(AudioAffect_Sound);
+        CHECK(energy(manager.run(3200)) > 1.0e9);
+    }
+
+    manager.reset();
+    manager.render(1600);
+    manager.pauseAmbient(true);
+    const AudioHandle ambient = add(manager, "Permanent");
+    CHECK(energy(manager.run(3200)) < 10000);
+    CHECK(manager.isCurrentlyPlaying(ambient));
+    const AudioHandle freshUi = add(manager, "Ui");
+    CHECK(energy(manager.run(6400)) > 1.0e9);
+    CHECK(!manager.isCurrentlyPlaying(freshUi));
+    manager.pauseAudio(AudioAffect_Sound);
+    manager.pauseAmbient(false);
+    CHECK(energy(manager.run(3200)) < 10000);
+    manager.resumeAudio(AudioAffect_Sound);
+    CHECK(energy(manager.run(3200)) > 1.0e9);
+    manager.reset();
+    manager.render(1600);
+    std::puts("pause snapshot, new UI playback, scoped resume and ambient overlap tests passed");
+}
+
 static void loopStopAndForcedTests(FixtureManager &manager)
 {
     manager.reset();
@@ -724,6 +831,7 @@ int main(int argc, char **argv)
         streamedPayloadTest(manager);
         retireFinishedTests(manager);
         controlsAndStreamingTests(manager);
+        pauseSnapshotTests(manager);
         loopStopAndForcedTests(manager);
         pendingCancellationAndMusicTests(manager);
         positionAndVolumeTests(manager);

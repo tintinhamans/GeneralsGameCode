@@ -102,6 +102,7 @@ private:
     void stopVoice(Voice &voice, bool immediate);
     void finishVoice(Voice &voice);
     void updateVoice(Voice &voice);
+    void updateVoicePause(Voice &voice);
     void retireFinished();
     Real effectiveVolume(AudioEventRTS &event) const;
     Voice *find(AudioHandle handle);
@@ -121,7 +122,6 @@ private:
     OpenALAudioCache m_cache;
     mutable FFmpegAudioMetadata m_metadata;
     std::list<std::unique_ptr<Voice>> m_voices;
-    unsigned m_paused = 0;
     AsciiString m_lastMusic;
     Int m_musicCompletions = 0;
 };
