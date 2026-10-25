@@ -55,6 +55,7 @@ function(rts_replay_normalize_crc Name Value OutVar)
     string(TOUPPER "${Hex}" Hex)
     set(${OutVar} "0x${Hex}" PARENT_SCOPE)
 endfunction()
+option(RTS_BUILD_OPTION_OPENAL "Build modern OpenAL PCM primitives (does not select an audio backend)" OFF)
 
 if(NOT RTS_BUILD_ZEROHOUR AND NOT RTS_BUILD_GENERALS)
     set(RTS_BUILD_ZEROHOUR TRUE)

@@ -246,3 +246,17 @@ if(RTS_BUILD_OPTION_FFMPEG)
         target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_FFMPEG)
     endif()
 endif()
+
+if(RTS_BUILD_OPTION_OPENAL)
+    if(MSVC AND MSVC_VERSION LESS 1930)
+        message(FATAL_ERROR "OpenAL PCM support requires Visual Studio 2022 or newer")
+    endif()
+    find_package(OpenAL CONFIG REQUIRED)
+    target_sources(corei_gameenginedevice_private INTERFACE
+        Include/OpenALAudioDevice/OpenALDevice.h
+        Include/OpenALAudioDevice/OpenALPcmStream.h
+        Source/OpenALAudioDevice/OpenALDevice.cpp
+        Source/OpenALAudioDevice/OpenALPcmStream.cpp
+    )
+    target_link_libraries(corei_gameenginedevice_private INTERFACE OpenAL::OpenAL)
+endif()
