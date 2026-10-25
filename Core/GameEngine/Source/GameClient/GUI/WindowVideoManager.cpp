@@ -230,20 +230,21 @@ void WindowVideoManager::update()
 
 		if ( videoStream && videoBuffer )
 		{
-			if ( videoStream->isFrameReady())
+			if (videoStream->isFrameReady())
 			{
 				videoStream->frameDecompress();
-				videoStream->frameRender( videoBuffer );
-				videoStream->frameNext();
-
-				// If we reach frame Index of 0, we might have to pause, or loop.
-				if ( videoStream->frameIndex() == 0 )
-				{
-					if(winVid->getPlayType() == WINDOW_PLAY_MOVIE_ONCE)
-						stopMovie(win);
-					else if (winVid->getPlayType() == WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME)
-						pauseMovie(win);
-				}
+				videoStream->frameRender(videoBuffer);
+				if (!videoStream->isPlaybackComplete())
+					videoStream->frameNext();
+			}
+			if (videoStream->isPlaybackComplete())
+			{
+				if (winVid->getPlayType() == WINDOW_PLAY_MOVIE_ONCE)
+					stopMovie(win);
+				else if (winVid->getPlayType() == WINDOW_PLAY_MOVIE_SHOW_LAST_FRAME)
+					pauseMovie(win);
+				else
+					videoStream->frameGoto(0);
 			}
 		}
 

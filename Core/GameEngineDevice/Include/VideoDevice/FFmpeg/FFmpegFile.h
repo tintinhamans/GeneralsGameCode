@@ -58,10 +58,13 @@ public:
 	// Read & decode a packet from the container. Note that we could/should split this step
 	Bool decodePacket();
 	// Seeks to a preceding keyframe, from where callers decode forward to an exact frame.
-	void seekFrame(int frame_idx);
+	Bool seekFrame(int frame_idx);
 	Bool rewind();
 	Bool hasError() const { return m_decodeFailed; }
 	Int getAudioStreamIndex() const;
+	Int getVideoStreamIndex() const;
+	Int64 getFrameTimestampUS(const AVFrame *frame, Int stream) const;
+	Int64 getVideoFrameTimeUS(Int index) const;
 	Bool hasAudio() const;
 
 	// Audio specific
