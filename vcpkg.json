@@ -15,7 +15,6 @@
     },
     "dependencies": [
       "zlib",
-      "ffmpeg",
       "stb",
       {
         "name": "curl",
@@ -34,5 +33,11 @@
         "default-features": false,
         "features": [ "backend", "transport" ]
       }
-    ]
+    ],
+    "features": {
+      "ffmpeg": {
+        "description": "Use FFmpeg instead of Bink for video rendering",
+        "dependencies": [ "ffmpeg" ]
+      }
+    }
   }

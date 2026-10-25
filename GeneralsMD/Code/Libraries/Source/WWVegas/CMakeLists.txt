@@ -4,7 +4,6 @@ add_library(z_wwcommon INTERFACE)
 target_link_libraries(z_wwcommon INTERFACE
     core_wwcommon
     d3d8lib
-    milesstub
     stlport
 )
 
@@ -12,7 +11,10 @@ target_include_directories(z_wwcommon INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_subdirectory(WWAudio)
+if(RTS_NEEDS_LEGACY_MEDIA)
+    target_link_libraries(z_wwcommon INTERFACE milesstub)
+    add_subdirectory(WWAudio)
+endif()
 add_subdirectory(WW3D2)
 add_subdirectory(WWDownload)
 

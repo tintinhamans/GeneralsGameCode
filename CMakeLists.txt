@@ -30,6 +30,8 @@ if (CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
     message(FATAL_ERROR "Building in-source is not supported! Create a build dir and remove ${CMAKE_SOURCE_DIR}/CMakeCache.txt")
 endif()
 
+include(cmake/config-vcpkg.cmake)
+
 # Top level project, doesn't really affect anything.
 project(genzh LANGUAGES C CXX)
 
@@ -48,10 +50,14 @@ if(MINGW)
     include(cmake/widl.cmake)
 endif()
 
+include(cmake/config.cmake)
+
 # Find/Add build dependencies and stubs shared by all projects
 if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
-    include(cmake/miles.cmake)
-    include(cmake/bink.cmake)
+    if(RTS_NEEDS_LEGACY_MEDIA)
+        include(cmake/miles.cmake)
+        include(cmake/bink.cmake)
+    endif()
     include(cmake/dx8.cmake)
 endif()
 
@@ -62,7 +68,6 @@ else()
     add_library(stlport INTERFACE)
 endif()
 
-include(cmake/config.cmake)
 include(cmake/gamespy.cmake)
 include(cmake/lzhl.cmake)
 include(cmake/stb.cmake)

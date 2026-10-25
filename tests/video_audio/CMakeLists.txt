@@ -2,8 +2,8 @@ find_package(OpenAL CONFIG REQUIRED)
 find_package(FFMPEG REQUIRED)
 add_executable(video_audio_tests test.cpp "${PROJECT_SOURCE_DIR}/tests/audio_manager/host.cpp")
 target_link_libraries(video_audio_tests PRIVATE
-    binkstub comctl32 core_debug core_profile_legacy d3d8 d3dx8 dinput8 dxguid
-    imm32 milesstub vfw32 winmm z_gameengine z_gameenginedevice zi_always
+    comctl32 core_debug core_profile_legacy d3d8 d3dx8 dinput8 dxguid
+    imm32 vfw32 winmm z_gameengine z_gameenginedevice zi_always
     OpenAL::OpenAL ${FFMPEG_LIBRARIES})
 target_include_directories(video_audio_tests PRIVATE
     "${PROJECT_SOURCE_DIR}/GeneralsMD/Code/GameEngine/Include/Precompiled" ${FFMPEG_INCLUDE_DIRS})

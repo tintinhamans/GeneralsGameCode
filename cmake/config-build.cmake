@@ -12,7 +12,6 @@ set(RTS_BUILD_OPTION_PGO "OFF" CACHE STRING "MSVC profile-guided optimization mo
 set_property(CACHE RTS_BUILD_OPTION_PGO PROPERTY STRINGS OFF GENERATE USE)
 set(RTS_PGO_FILE "${CMAKE_BINARY_DIR}/genzh.pgd" CACHE FILEPATH "MSVC PGO database path.")
 option(RTS_BUILD_OPTION_VC6_FULL_DEBUG "Build VC6 with full debug info." OFF)
-option(RTS_BUILD_OPTION_FFMPEG "Enable FFmpeg support" OFF)
 set(RTS_REPLAY_EXE_CRC "" CACHE STRING "Exe CRC written to replays instead of the real one, hex (0xC8FC6170) or decimal. Empty writes the real exe CRC.")
 set(RTS_REPLAY_COMPATIBLE_EXE_CRCS "" CACHE STRING "Extra exe CRCs that replays treat as this build, hex or decimal separated by ; or ,. The real and written exe CRC always match.")
 
@@ -210,4 +209,11 @@ if(RTS_BUILD_OPTION_PROFILE_TRACY)
     include(cmake/tracy.cmake)
 else()
     add_library(core_profile_tracy INTERFACE)
+endif()
+
+set(RTS_NEEDS_LEGACY_MEDIA TRUE)
+if(NOT IS_VS6_BUILD AND RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL" AND
+   RTS_BUILD_OPTION_FFMPEG AND NOT RTS_BUILD_GENERALS AND
+   NOT RTS_BUILD_ZEROHOUR_TOOLS AND NOT RTS_BUILD_CORE_EXTRAS)
+    set(RTS_NEEDS_LEGACY_MEDIA FALSE)
 endif()

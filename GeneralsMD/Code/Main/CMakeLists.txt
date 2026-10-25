@@ -28,7 +28,6 @@ else()
 endif()
 
 target_link_libraries(z_generals PRIVATE
-    binkstub
     comctl32
     core_debug
     core_profile_legacy
@@ -37,13 +36,16 @@ target_link_libraries(z_generals PRIVATE
     dinput8
     dxguid
     imm32
-    milesstub
     vfw32
     winmm
     z_gameengine
     z_gameenginedevice
     zi_always
 )
+
+if(RTS_NEEDS_LEGACY_MEDIA)
+    target_link_libraries(z_generals PRIVATE binkstub milesstub)
+endif()
 
 # TODO Originally referred to build host and user, replace with git info perhaps?
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/GeneratedVersion.h

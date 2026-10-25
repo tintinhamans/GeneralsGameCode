@@ -8,7 +8,6 @@ target_compile_definitions(core_wwcommon INTERFACE
 
 target_link_libraries(core_wwcommon INTERFACE
     d3d8lib
-    milesstub
     stlport
 )
 
@@ -17,7 +16,10 @@ target_include_directories(core_wwcommon INTERFACE
 )
 
 add_subdirectory(WW3D2)
-add_subdirectory(WWAudio)
+if(RTS_NEEDS_LEGACY_MEDIA)
+    target_link_libraries(core_wwcommon INTERFACE milesstub)
+    add_subdirectory(WWAudio)
+endif()
 add_subdirectory(WWDebug)
 add_subdirectory(WWDownload)
 add_subdirectory(WWLib)

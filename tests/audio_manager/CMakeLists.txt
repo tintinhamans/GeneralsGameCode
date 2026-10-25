@@ -2,8 +2,8 @@ find_package(OpenAL CONFIG REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_executable(audio_manager_tests test.cpp host.cpp)
 target_link_libraries(audio_manager_tests PRIVATE
-    binkstub comctl32 core_debug core_profile_legacy d3d8 d3dx8 dinput8 dxguid
-    imm32 milesstub vfw32 winmm z_gameengine z_gameenginedevice zi_always OpenAL::OpenAL)
+    comctl32 core_debug core_profile_legacy d3d8 d3dx8 dinput8 dxguid
+    imm32 vfw32 winmm z_gameengine z_gameenginedevice zi_always OpenAL::OpenAL)
 target_include_directories(audio_manager_tests PRIVATE "${PROJECT_SOURCE_DIR}/GeneralsMD/Code/GameEngine/Include/Precompiled")
 if(MSVC)
     target_link_options(audio_manager_tests PRIVATE /NODEFAULTLIB:libci.lib)

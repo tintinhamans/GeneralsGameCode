@@ -1,6 +1,4 @@
 set(GAMEENGINEDEVICE_SRC
-    Include/MilesAudioDevice/MilesAudioManager.h
-    Include/VideoDevice/Bink/BinkVideoPlayer.h
 #    Include/W3DDevice/Common/W3DConvert.h
 #    Include/W3DDevice/Common/W3DFunctionLexicon.h
 #    Include/W3DDevice/Common/W3DModuleFactory.h
@@ -89,8 +87,6 @@ set(GAMEENGINEDEVICE_SRC
     Include/Win32Device/GameClient/Win32DIKeyboard.h
     #Include/Win32Device/GameClient/Win32DIMouse.h
     Include/Win32Device/GameClient/Win32Mouse.h
-    Source/MilesAudioDevice/MilesAudioManager.cpp
-    Source/VideoDevice/Bink/BinkVideoPlayer.cpp
 #    Source/W3DDevice/Common/System/W3DFunctionLexicon.cpp
     Source/W3DDevice/Common/System/W3DRadar.cpp
 #    Source/W3DDevice/Common/Thing/W3DModuleFactory.cpp
@@ -207,6 +203,15 @@ add_library(corei_gameenginedevice_private INTERFACE)
 add_library(corei_gameenginedevice_public INTERFACE)
 
 target_sources(corei_gameenginedevice_private INTERFACE ${GAMEENGINEDEVICE_SRC})
+if(RTS_NEEDS_LEGACY_MEDIA)
+    target_sources(corei_gameenginedevice_private INTERFACE
+        Include/MilesAudioDevice/MilesAudioManager.h
+        Source/MilesAudioDevice/MilesAudioManager.cpp
+        Include/VideoDevice/Bink/BinkVideoPlayer.h
+        Source/VideoDevice/Bink/BinkVideoPlayer.cpp
+    )
+    target_link_libraries(corei_gameenginedevice_public INTERFACE binkstub milesstub)
+endif()
 
 target_include_directories(corei_gameenginedevice_public INTERFACE
     Include
@@ -219,10 +224,8 @@ target_link_libraries(corei_gameenginedevice_private INTERFACE
 )
 
 target_link_libraries(corei_gameenginedevice_public INTERFACE
-    binkstub
     corei_gameengine_public
     d3d8lib
-    milesstub
 )
 
 if(RTS_BUILD_OPTION_FFMPEG)
