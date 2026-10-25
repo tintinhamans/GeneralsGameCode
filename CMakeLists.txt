@@ -105,3 +105,13 @@ if(RTS_BUILD_AUDIO_MANAGER_TESTS)
     enable_testing()
     add_subdirectory(tests/audio_manager)
 endif()
+
+option(RTS_BUILD_VIDEO_AUDIO_TESTS "Build isolated FFmpeg movie audio tests" OFF)
+if(RTS_BUILD_VIDEO_AUDIO_TESTS)
+    if(IS_VS6_BUILD OR NOT RTS_BUILD_ZEROHOUR OR NOT RTS_BUILD_OPTION_OPENAL OR
+       NOT RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL" OR NOT RTS_BUILD_OPTION_FFMPEG)
+        message(FATAL_ERROR "Movie audio tests require modern Zero Hour with FFmpeg and the OpenAL backend")
+    endif()
+    enable_testing()
+    add_subdirectory(tests/video_audio)
+endif()

@@ -10,7 +10,8 @@ add_executable(openal_pcm_tests test.cpp
     "${REPO_ROOT}/Core/GameEngineDevice/Source/OpenALAudioDevice/OpenALDevice.cpp"
     "${REPO_ROOT}/Core/GameEngineDevice/Source/OpenALAudioDevice/OpenALPcmStream.cpp"
     "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegFile.cpp"
-    "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegAudioFile.cpp")
+    "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegAudioFile.cpp"
+    "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegPcmConverter.cpp")
 target_include_directories(openal_pcm_tests PRIVATE ../ffmpeg/adapters
     "${REPO_ROOT}/Core/GameEngineDevice/Include" ${FFMPEG_INCLUDE_DIRS})
 target_link_libraries(openal_pcm_tests PRIVATE OpenAL::OpenAL ${FFMPEG_LIBRARIES})

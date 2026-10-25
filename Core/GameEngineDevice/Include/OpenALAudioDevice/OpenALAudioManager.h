@@ -25,6 +25,8 @@
 #include "VideoDevice/FFmpeg/FFmpegAudioMetadata.h"
 #include <memory>
 
+class OpenALMovieVoice;
+
 class OpenALAudioManager : public AudioManager
 {
 public:
@@ -37,6 +39,7 @@ public:
     void openDevice() override;
     void closeDevice() override;
     void *getDevice() override;
+    std::shared_ptr<OpenALMovieVoice> createMovieVoice();
     void stopAudio(AudioAffect which) override;
     void pauseAudio(AudioAffect which) override;
     void resumeAudio(AudioAffect which) override;
@@ -107,6 +110,8 @@ private:
     unsigned count(ResourcePool which) const;
     unsigned capacity(ResourcePool which) const;
     AsciiString selectMusic(int direction);
+    std::vector<std::weak_ptr<OpenALMovieVoice>> m_movieVoices;
+    void closeMovieVoices();
     Bool m_dummy = false;
     Bool m_ambientPaused = false;
     UnsignedInt m_provider = PROVIDER_ERROR;

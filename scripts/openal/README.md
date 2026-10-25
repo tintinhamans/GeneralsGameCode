@@ -93,8 +93,8 @@ Miles retain the old path. Mixed feature configurations are not claimed compatib
 prefetch, not an audible clock: no multiplayer CRC determinism is established here.
 
 This remains opt-in and is not closed-library removal or full Miles feature parity.
-Movie audio is a separate slice: no legacy OpenAL movie macros are enabled and no
-OpenAL pointer is passed through Bink's opaque DirectSound handle. The backend uses
+No legacy OpenAL movie macros are enabled and no OpenAL pointer is passed through
+Bink's opaque DirectSound handle. The backend uses
 the OS speaker layout, exposes a software provider, and does not implement legacy
 MSS hardware selection, forced speaker layouts or Miles delay/low-pass DSP effects.
 The game build stages the selected OpenAL shared runtime and the five known FFmpeg
@@ -104,3 +104,56 @@ See `tests/audio_manager/README.md` for actual engine-linked offline coverage an
 its limits. The harness links the production manager, File/INI/archive and memory
 classes without normal GameEngine startup, network login, anti-cheat or production
 traffic. Physical-device and in-game playback are not established by loopback tests.
+
+## FFmpeg movie audio
+
+Selected modern Zero Hour OpenAL builds use one typed `OpenALMovieVoice` per
+FFmpeg movie on the manager's existing device/context. These voices are separate
+from gameplay stream admission; physical source exhaustion produces a diagnostic
+and video-only playback. The manager holds weak registrations and closes movie
+sources on reset/device close, so movies cannot keep a dangling manager pointer.
+Miles-selected FFmpeg builds remain video-only; no Bink/Miles handle is requested.
+
+`FFmpegPcmConverter` owns the single swresample conversion implementation shared by
+movie AVFrames and `FFmpegAudioFile`. The movie uses its existing demuxer and only
+the first audio/video tracks. Each source has a 16,384-frame stereo S16 ring,
+65,536 pending audio frames, and up to eight future video frames. Current plus
+queued video buffers are capped at 64 MiB. Demux pauses under backpressure, using
+the largest observed frame allocation to avoid decoding into known insufficient
+space. A single packet/frame exceeding these limits fails diagnostically rather
+than silently dropping samples/frames or allocating without bounds. Decoder
+internal allocations and transient cloning/resampling overhead are not included.
+
+Readiness uses steady monotonic time, rational video timestamps and a cap from
+callback-read audio progress. Prefetch cannot make video advance faster than real
+time; starvation limits video progress until audio is fed again. This is not a
+hardware presentation clock or a sample-accurate AV-sync guarantee. Initial audio
+PTS offset is represented by silence or trimming; continuous game-movie audio is
+the intended input, not arbitrary discontinuous/edit-list media. Silent movies and
+explicit device-failure fallback use steady time without opening another device.
+Failure rebases that clock at the last audio-capped playback position, rather than
+jumping forward across an earlier underrun.
+
+Focus pauses the movie source and freezes/rebases its clock. Speech-volume changes
+and mute propagate through the native manager; the Bink path's 0.8 gain factor is
+retained without its nonzero-volume workaround, so zero truly mutes. Seek clears
+queued frames/PCM and resampler state, rewinds the demuxer, decodes to the requested
+image and trims preceding audio. Starting from zero reconstructs Bink audio overlap
+and resampler history instead of guessing a codec-specific preroll. Long seeks cost
+more decoding/latency, serviced in bounded packet batches; the movie clock starts
+when the target image is available, not while preroll is still decoding.
+
+`isFrameReady` reports only a due image. `frameNext` consumes that image and releases
+its decoder buffer after rendering, including the last image; it does not loop.
+`isPlaybackComplete` separately waits for all images to be consumed, the final
+image interval, demux/converter EOF and audio drain. Window/UI callers explicitly
+restart looping movies with `frameGoto(0)`. The default completion query preserves
+the existing Bink last-frame readiness contract.
+
+Releasing the presented image also lets a single-frame queue reach demux EOF
+without retaining a large last frame while waiting for completion. Frame and
+completion polling service decoding, including blocking loading/score screens
+that do not update the normal subsystems. No background decoder or new production
+startup/test mode is introduced. Offline coverage and its limits are in
+`tests/video_audio/README.md`; no physical-device or production-session proof is
+implied by loopback output.

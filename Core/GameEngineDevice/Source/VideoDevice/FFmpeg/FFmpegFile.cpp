@@ -27,6 +27,7 @@
 /////////////////////////////////////////////////
 
 #include "VideoDevice/FFmpeg/FFmpegFile.h"
+#include <limits>
 #include "Common/File.h"
 
 extern "C" {
@@ -285,15 +286,15 @@ Bool FFmpegFile::rewind()
 	return seek(-1, 0);
 }
 
-void FFmpegFile::seekFrame(Int frameIndex)
+Bool FFmpegFile::seekFrame(Int frameIndex)
 {
 	const FFmpegStream *stream = findMatch(AVMEDIA_TYPE_VIDEO);
 	if (stream == nullptr || frameIndex < 0)
-		return;
+		return false;
 	AVStream *video = m_fmtCtx->streams[stream->stream_idx];
 	if (video->avg_frame_rate.num <= 0 || video->avg_frame_rate.den <= 0)
-		return;
-	seek(stream->stream_idx, av_rescale_q(frameIndex, av_inv_q(video->avg_frame_rate), video->time_base));
+		return false;
+	return seek(stream->stream_idx, av_rescale_q(frameIndex, av_inv_q(video->avg_frame_rate), video->time_base));
 }
 
 Int FFmpegFile::getAudioStreamIndex() const
@@ -302,6 +303,36 @@ Int FFmpegFile::getAudioStreamIndex() const
 	if (stream == nullptr)
 		return -1;
 	return stream->stream_idx;
+}
+
+Int FFmpegFile::getVideoStreamIndex() const
+{
+    const FFmpegStream *stream = findMatch(AVMEDIA_TYPE_VIDEO);
+    if (stream == nullptr)
+        return -1;
+    return stream->stream_idx;
+}
+
+Int64 FFmpegFile::getFrameTimestampUS(const AVFrame *frame, Int stream) const
+{
+    if (m_fmtCtx == nullptr || frame == nullptr || stream < 0 ||
+        static_cast<unsigned>(stream) >= m_fmtCtx->nb_streams || frame->best_effort_timestamp == AV_NOPTS_VALUE)
+        return -1;
+    Int64 origin = m_fmtCtx->start_time;
+    if (origin == AV_NOPTS_VALUE)
+        origin = 0;
+    return av_rescale_q(frame->best_effort_timestamp, m_fmtCtx->streams[stream]->time_base, AV_TIME_BASE_Q) - origin;
+}
+
+Int64 FFmpegFile::getVideoFrameTimeUS(Int index) const
+{
+    const FFmpegStream *stream = findMatch(AVMEDIA_TYPE_VIDEO);
+    if (stream == nullptr || index < 0)
+        return 0;
+    const AVRational rate = m_fmtCtx->streams[stream->stream_idx]->avg_frame_rate;
+    if (rate.num <= 0 || rate.den <= 0)
+        return 0;
+    return av_rescale_q(index, av_inv_q(rate), AV_TIME_BASE_Q);
 }
 
 Bool FFmpegFile::hasAudio() const
@@ -380,7 +411,15 @@ Int FFmpegFile::getNumFrames() const
 	if (m_fmtCtx == nullptr || stream == nullptr || m_fmtCtx->streams[stream->stream_idx] == nullptr)
 		return 0;
 
-	return (m_fmtCtx->duration / (double)AV_TIME_BASE) * av_q2d(m_fmtCtx->streams[stream->stream_idx]->avg_frame_rate);
+	const AVStream *video = m_fmtCtx->streams[stream->stream_idx];
+    if (video->nb_frames > 0 && video->nb_frames <= std::numeric_limits<Int>::max())
+        return static_cast<Int>(video->nb_frames);
+    if (m_fmtCtx->duration <= 0 || video->avg_frame_rate.num <= 0 || video->avg_frame_rate.den <= 0)
+        return 0;
+    const Int64 count = av_rescale_q(m_fmtCtx->duration, AV_TIME_BASE_Q, av_inv_q(video->avg_frame_rate));
+    if (count <= 0 || count > std::numeric_limits<Int>::max())
+        return 0;
+    return static_cast<Int>(count);
 }
 
 Int FFmpegFile::getCurrentFrame() const

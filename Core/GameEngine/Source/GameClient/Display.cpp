@@ -260,15 +260,11 @@ void Display::update()
 		{
 			m_videoStream->frameDecompress();
 			m_videoStream->frameRender(m_videoBuffer);
-			if (m_videoStream->frameIndex() != m_videoStream->frameCount() - 1)
-			{
+			if (!m_videoStream->isPlaybackComplete())
 				m_videoStream->frameNext();
-			}
-			else
-			{
-				stopMovie();
-			}
 		}
+		if (m_videoStream->isPlaybackComplete())
+			stopMovie();
 	}
 }
 

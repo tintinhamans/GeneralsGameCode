@@ -7,7 +7,8 @@ list(APPEND CMAKE_MODULE_PATH "${REPO_ROOT}/cmake")
 find_package(FFMPEG REQUIRED)
 add_executable(ffmpeg_foundation_tests test.cpp
     "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegFile.cpp"
-    "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegAudioFile.cpp")
+    "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegAudioFile.cpp"
+    "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegPcmConverter.cpp")
 target_include_directories(ffmpeg_foundation_tests PRIVATE adapters
     "${REPO_ROOT}/Core/GameEngineDevice/Include" ${FFMPEG_INCLUDE_DIRS})
 target_link_libraries(ffmpeg_foundation_tests PRIVATE ${FFMPEG_LIBRARIES})

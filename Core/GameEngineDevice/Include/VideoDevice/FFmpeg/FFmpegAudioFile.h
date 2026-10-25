@@ -19,10 +19,9 @@
 #pragma once
 
 #include "VideoDevice/FFmpeg/FFmpegFile.h"
+#include "VideoDevice/FFmpeg/FFmpegPcmConverter.h"
 #include <memory>
 
-// Samples are interleaved signed 16-bit PCM, borrowed for the callback duration.
-using FFmpegPcmCallback = std::function<void(const short *, Int)>;
 
 class FFmpegAudioFile
 {
