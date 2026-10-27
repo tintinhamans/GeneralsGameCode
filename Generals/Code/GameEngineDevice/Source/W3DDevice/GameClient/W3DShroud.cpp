@@ -241,7 +241,7 @@ W3DShroudLevel W3DShroud::getShroudLevel(Int x, Int y)
 {
 	DEBUG_ASSERTCRASH( m_shroudData != nullptr, ("Reading empty shroud"));
 
-	if (x < m_numCellsX && y < m_numCellsY)
+	if (x >= 0 && y >= 0 && x < m_numCellsX && y < m_numCellsY)
 	{
 		UnsignedShort pixel=m_shroudData[x + y*m_numCellsX];
 
