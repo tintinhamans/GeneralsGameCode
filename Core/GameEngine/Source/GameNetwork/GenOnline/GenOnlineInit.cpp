@@ -22,7 +22,10 @@
 #include "GameNetwork/GenOnline/Vendor/stb_image/stb_image_write.h"
 #include "GameNetwork/GenOnline/Vendor/stb_image/stb_image_resize.h"
 #include "GameClient/GameText.h"
+#include "GameLogic/GameLogic.h"
 #include <unordered_set>
+#include <random>
+#include <algorithm>
 
 extern "C"
 {
@@ -98,6 +101,34 @@ void GenOnlineServicesManager::GetAndParseServiceConfig(std::function<void(void)
 		});
 }
 
+// Staggers the screenshot upload by match slot so players do not upload at once.
+static std::chrono::steady_clock::time_point GetScreenshotUploadTime()
+{
+	int slotIndex = 0;
+
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pAuthInterface != nullptr && pLobbyInterface != nullptr)
+	{
+		const int64_t localUserID = pAuthInterface->GetUserID();
+		for (const LobbyMemberEntry& lobbyMember : pLobbyInterface->GetMembersListForCurrentRoom())
+		{
+			if (lobbyMember.user_id == localUserID)
+			{
+				slotIndex = lobbyMember.m_SlotIndex < MAX_SLOTS ? lobbyMember.m_SlotIndex : 0;
+				break;
+			}
+		}
+	}
+
+	const int slotOffsetMS = std::clamp(GenOnlineServicesManager::GetInstance()->GetServiceConfig().screenshot_slot_offset_ms, 0, 10000);
+
+	static std::mt19937 rng{ std::random_device{}() };
+	const int jitterMS = std::uniform_int_distribution<int>(0, 500)(rng);
+
+	return std::chrono::steady_clock::now() + std::chrono::milliseconds(slotIndex * slotOffsetMS + jitterMS);
+}
+
 void GenOnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screenshotType, std::string strURI)
 {
 	GenOnlineServicesManager* pOnlineServicesMgr = GenOnlineServicesManager::GetInstance();
@@ -113,7 +144,8 @@ void GenOnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screens
 			if (pLobbyInterface != nullptr)
 			{
 				const uint64_t matchID = pLobbyInterface->GetCurrentMatchID();
-				GenOnlineServicesManager::GetInstance()->CaptureScreenshot(true, [strURI = std::move(strURI), screenshotType, matchID](std::vector<uint8_t> vecData)
+				const std::chrono::steady_clock::time_point uploadTime = GetScreenshotUploadTime();
+				GenOnlineServicesManager::GetInstance()->CaptureScreenshot(true, [strURI = std::move(strURI), screenshotType, matchID, uploadTime](std::vector<uint8_t> vecData)
 					{
 						CHECK_WORKER_THREAD;
 
@@ -142,6 +174,7 @@ void GenOnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screens
                             newEntry.vecBytes = std::move(vecData);
                             newEntry.strSignedURI = strURI;
                             newEntry.screenshotType = screenshotType;
+                            newEntry.notBefore = uploadTime;
                             m_vecGuardedSSData.push_back(std::move(newEntry));
 						}
 					});
@@ -915,17 +948,38 @@ void GenOnlineServicesManager::Tick()
 		std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
 
 
+		const int uploadBytesPerSec = std::clamp(m_ServiceConfig.screenshot_upload_bytes_per_sec, 16384, 10485760);
+		const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+		const bool bMatchOver = TheGameLogic == nullptr || !TheGameLogic->isInMultiplayerGame(); // uploads no longer compete with game traffic
+
 		// screenshot types that already have a presigned URL
-		for (S3ScreenshotEntry& screenshotEntry : m_vecGuardedSSData)
+		for (auto it = m_vecGuardedSSData.begin(); it != m_vecGuardedSSData.end();)
 		{
+			S3ScreenshotEntry& screenshotEntry = *it;
+			const bool bUnthrottled = bMatchOver || screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN;
+
+			// not this client's turn to upload yet
+			if (!bUnthrottled && (screenshotEntry.notBefore > now || m_nextThrottledUploadTime > now))
+			{
+				++it;
+				continue;
+			}
+
 			// NOTE: Screenshot types start and end of match are captures and cached in memory until the server tells us where to upload them, so we need to wait for the upload URI
 
 			if ((screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_LOADSCREEN || screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN) && screenshotEntry.strSignedURI.empty())
 			{
+				it = m_vecGuardedSSData.erase(it);
 				continue;
 			}
 			else // we have the data we need, send away
 			{
+				if (!bUnthrottled)
+				{
+					const int64_t sendMS = (int64_t)screenshotEntry.vecBytes.size() * 1000 / uploadBytesPerSec;
+					m_nextThrottledUploadTime = now + std::chrono::milliseconds(sendMS);
+				}
+
                 std::map<std::string, std::string> mapHeaders;
                 mapHeaders["Content-Type"] = "image/jpeg";
                 GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendS3PUTRequest(screenshotEntry.strSignedURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, std::move(screenshotEntry.vecBytes), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
@@ -937,12 +991,11 @@ void GenOnlineServicesManager::Tick()
                         }
 #endif
                         NetworkLog(ELogVerbosity::LOG_RELEASE, "Screenshot upload, result: %d", statusCode);
-                    }, nullptr, HTTP_UPLOAD_TIMEOUT);
+                    }, nullptr, HTTP_UPLOAD_TIMEOUT, bUnthrottled ? 0 : uploadBytesPerSec);
 			}
-            
-		}
 
-		m_vecGuardedSSData.clear();
+			it = m_vecGuardedSSData.erase(it);
+		}
 
 		// screenshots and replays that are cached and awaiting S3 url, and now have said URL
 		if (!m_vecCachedScreenshotBytes_MatchStart.empty()) // we have data waiting
@@ -954,6 +1007,7 @@ void GenOnlineServicesManager::Tick()
 				newEntry.screenshotType = EScreenshotType::SCREENSHOT_TYPE_LOADSCREEN;
 				newEntry.vecBytes = std::move(m_vecCachedScreenshotBytes_MatchStart);
 				newEntry.strSignedURI = std::move(m_strCachedScreenshot_MatchStart_S3URI);
+				newEntry.notBefore = GetScreenshotUploadTime();
 				m_vecGuardedSSData.push_back(std::move(newEntry));
 
 				// clear data
