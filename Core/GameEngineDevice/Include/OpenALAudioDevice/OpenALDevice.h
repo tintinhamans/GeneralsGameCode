@@ -37,8 +37,8 @@ public:
     bool open(int sampleRate = 48000);
     bool close();
     bool isOpen() const;
+    bool isStereoOutput() const;
     int getLastError() const { return m_error; }
-    bool setListener(float x, float y, float z, const float *forward, const float *up);
 
 private:
     friend class OpenALPcmStream;
@@ -47,11 +47,13 @@ private:
         ALCdevice *device = nullptr;
         ALCcontext *context = nullptr;
         LPALBUFFERCALLBACKSOFT bufferCallback = nullptr;
+        int sampleRate = 0;
         std::thread::id owner = std::this_thread::get_id();
         ~Context();
         bool onOwnerThread() const { return owner == std::this_thread::get_id(); }
     };
     bool initialize(ALCdevice *device, int sampleRate);
+    ALCint outputMode() const;
     std::shared_ptr<Context> m_context;
     int m_error = 0;
 };

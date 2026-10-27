@@ -360,7 +360,7 @@ struct FFmpegVideoStream::State
             start = now - std::chrono::microseconds(progressUS);
             pauseStart = now;
         }
-        DEBUG_LOG(("FFmpeg movie audio unavailable; continuing video-only"));
+        DEBUG_LOG(("FFmpeg movie audio is unavailable, so the movie continues without audio"));
 #ifdef RTS_AUDIO_BACKEND_OPENAL
         if (audio != nullptr)
             audio->close();
@@ -387,7 +387,7 @@ struct FFmpegVideoStream::State
         if (audio != nullptr && rate > 0) {
             if (audio->failed())
                 return progressUS;
-            // Callback progress caps starvation; it is not a presentation clock.
+            // Callback progress caps starvation and is not a presentation clock.
             if (!audioEnded || !audio->finished())
                 elapsed = std::min(elapsed, static_cast<Int64>(audio->readFrames()) * 1000000 / rate);
         }
@@ -822,7 +822,7 @@ void FFmpegVideoStream::frameGoto(Int index)
     m_state->clockPrimed = false;
     m_state->progressUS = 0;
     m_state->videoEndUS = m_state->seekUS;
-    // Reconstruct codec overlap and resampler history before trimming.
+    // Codec overlap and resampler history are rebuilt before trimming.
     m_state->failed = !m_ffmpegFile->rewind();
 #ifdef RTS_AUDIO_BACKEND_OPENAL
     if (m_state->audio != nullptr && !m_state->audio->reset())

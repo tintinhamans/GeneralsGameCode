@@ -23,14 +23,18 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <vector>
 class AsciiString;
 
 struct OpenALAudioClip
 {
     std::vector<short> samples;
+    std::vector<float> filteredSamples;
     int sampleRate = 0;
     int channels = 0;
+    size_t frameCount() const;
+    size_t byteSize() const;
 };
 
 class OpenALAudioCache
@@ -39,8 +43,8 @@ public:
     explicit OpenALAudioCache(size_t budget = 0) : m_budget(budget) {}
     void setBudget(size_t budget);
     void clear();
-    std::shared_ptr<const OpenALAudioClip> load(const AsciiString &filename, int rate, int channels);
-    static std::shared_ptr<const OpenALAudioClip> loadUncached(const AsciiString &filename, int rate, int channels, size_t budget);
+    std::shared_ptr<const OpenALAudioClip> load(const AsciiString &filename, int rate, int channels, float normalizedCutoff = 1.0f);
+    static std::shared_ptr<const OpenALAudioClip> loadUncached(const AsciiString &filename, int rate, int channels, size_t budget, float normalizedCutoff = 1.0f);
     size_t usedBytes() const { return m_bytes; }
 private:
     struct Entry
@@ -49,7 +53,8 @@ private:
         uint64_t accessed = 0;
     };
     bool reserve(size_t bytes);
-    std::map<std::string, Entry> m_files;
+    using Key = std::tuple<std::string, int, int, float>;
+    std::map<Key, Entry> m_files;
     size_t m_budget = 0;
     size_t m_bytes = 0;
     uint64_t m_clock = 0;

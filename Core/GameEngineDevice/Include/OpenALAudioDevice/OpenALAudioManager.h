@@ -86,6 +86,7 @@ public:
 #endif
 protected:
     void setDeviceListenerPosition() override;
+    virtual Bool isOnScreen(const Coord3D *position) const;
     void updatePlayback();
     OpenALDevice m_device;
 private:
@@ -105,6 +106,10 @@ private:
     void updateVoicePause(Voice &voice);
     void retireFinished();
     Real effectiveVolume(AudioEventRTS &event) const;
+    Real playbackGain(const Voice &voice) const;
+    Real spatialGain(AudioEventRTS &event) const;
+    bool updateSpatialPosition(Voice &voice);
+    Real lowPassCutoff(AudioEventRTS &event) const;
     Voice *find(AudioHandle handle);
     const Voice *findMusic(const AsciiString *track = nullptr) const;
     Voice *lowestPriority(AudioEventRTS &event) const;

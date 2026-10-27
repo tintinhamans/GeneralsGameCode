@@ -18,7 +18,18 @@
 
 #include "OpenALAudioDevice/OpenALDevice.h"
 #include <exception>
-#include <cmath>
+#include <vector>
+
+namespace {
+std::vector<ALCint> outputAttributes(int sampleRate)
+{
+    // Basic stereo with HRTF off keeps a headphone endpoint from switching HRTF on behind the measured Miles mix.
+    std::vector<ALCint> attributes = {ALC_FREQUENCY, sampleRate,
+        ALC_OUTPUT_MODE_SOFT, ALC_STEREO_BASIC_SOFT, ALC_HRTF_SOFT, ALC_FALSE};
+    attributes.push_back(0);
+    return attributes;
+}
+}
 
 OpenALDevice::Context::~Context()
 {
@@ -72,8 +83,13 @@ bool OpenALDevice::initialize(ALCdevice *device, int sampleRate)
     }
     auto candidate = std::make_shared<Context>();
     candidate->device = device;
-    const ALCint attributes[] = { ALC_FREQUENCY, sampleRate, 0 };
-    candidate->context = alcCreateContext(device, attributes);
+    if (!alcIsExtensionPresent(device, "ALC_SOFT_output_mode") || !alcIsExtensionPresent(device, "ALC_SOFT_HRTF")) {
+        m_error = ALC_INVALID_VALUE;
+        return false;
+    }
+    candidate->sampleRate = sampleRate;
+    const auto attributes = outputAttributes(sampleRate);
+    candidate->context = alcCreateContext(device, attributes.data());
     if (candidate->context == nullptr) {
         m_error = alcGetError(device);
         return false;
@@ -92,19 +108,15 @@ bool OpenALDevice::initialize(ALCdevice *device, int sampleRate)
     return true;
 }
 
-bool OpenALDevice::setListener(float x, float y, float z, const float *forward, const float *up)
+ALCint OpenALDevice::outputMode() const
 {
-    if (!isOpen() || forward == nullptr || up == nullptr ||
-        !std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z))
-        return false;
-    float orientation[6];
-    for (int i = 0; i < 3; ++i) {
-        if (!std::isfinite(forward[i]) || !std::isfinite(up[i]))
-            return false;
-        orientation[i] = forward[i];
-        orientation[i + 3] = up[i];
-    }
-    alListener3f(AL_POSITION, x, y, z);
-    alListenerfv(AL_ORIENTATION, orientation);
-    return alGetError() == AL_NO_ERROR;
+    ALCint value = ALC_ANY_SOFT;
+    if (isOpen())
+        alcGetIntegerv(m_context->device, ALC_OUTPUT_MODE_SOFT, 1, &value);
+    return value;
+}
+
+bool OpenALDevice::isStereoOutput() const
+{
+    return outputMode() == ALC_STEREO_BASIC_SOFT;
 }
