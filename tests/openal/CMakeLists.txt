@@ -62,3 +62,25 @@ endforeach()
 add_test(NAME openal_explicit_output COMMAND openal_pcm_tests --output-modes)
 set_tests_properties(openal_explicit_output PROPERTIES TIMEOUT 30
     ENVIRONMENT "ALSOFT_DRIVERS=null;ALSOFT_CONF=${CMAKE_CURRENT_LIST_DIR}/alsoft-hrtf.conf")
+
+add_library(openal_gain_stream OBJECT
+    "${REPO_ROOT}/Core/GameEngineDevice/Source/OpenALAudioDevice/OpenALPcmStream.cpp")
+target_include_directories(openal_gain_stream PRIVATE "${REPO_ROOT}/Core/GameEngineDevice/Include")
+target_link_libraries(openal_gain_stream PRIVATE OpenAL::OpenAL)
+if(MSVC)
+    target_compile_options(openal_gain_stream PRIVATE "/FI${CMAKE_CURRENT_LIST_DIR}/gain_calls.h")
+else()
+    target_compile_options(openal_gain_stream PRIVATE -include "${CMAKE_CURRENT_LIST_DIR}/gain_calls.h")
+endif()
+add_executable(openal_gain_tests gain_test.cpp gain_calls.cpp
+    "${REPO_ROOT}/Core/GameEngineDevice/Source/OpenALAudioDevice/OpenALDevice.cpp"
+    $<TARGET_OBJECTS:openal_gain_stream>)
+target_include_directories(openal_gain_tests PRIVATE "${REPO_ROOT}/Core/GameEngineDevice/Include")
+target_link_libraries(openal_gain_tests PRIVATE OpenAL::OpenAL)
+if(WIN32)
+    add_custom_command(TARGET openal_gain_tests POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:OpenAL::OpenAL>" "$<TARGET_FILE_DIR:openal_gain_tests>")
+endif()
+add_test(NAME openal_gain_cache COMMAND openal_gain_tests)
+set_tests_properties(openal_gain_cache PROPERTIES TIMEOUT 15
+    ENVIRONMENT "ALSOFT_DRIVERS=null;ALSOFT_CONF=${CMAKE_CURRENT_LIST_DIR}/alsoft.conf")

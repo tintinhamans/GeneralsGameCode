@@ -60,6 +60,8 @@ struct OpenALPcmStream::Data
     std::atomic<uint32_t> inputState{InputNormal};
     std::atomic<bool> starved{false};
     std::atomic<bool> callbackFailed{false};
+    float appliedGain = 0;
+    bool gainApplied = false;
     State requested = State::Stopped;
     int error = AL_NO_ERROR;
 
@@ -568,9 +570,16 @@ bool OpenALPcmStream::setGain(float gain)
     OpenALDevice::Scope scope(*m_data->context);
     if (!scope.valid)
         return false;
-    alSourcef(m_data->source, AL_GAIN, gain);
+    if (!m_data->gainApplied || gain != m_data->appliedGain)
+        alSourcef(m_data->source, AL_GAIN, gain);
     m_data->error = alGetError();
-    return m_data->error == AL_NO_ERROR;
+    if (m_data->error != AL_NO_ERROR) {
+        m_data->gainApplied = false;
+        return false;
+    }
+    m_data->appliedGain = gain;
+    m_data->gainApplied = true;
+    return true;
 }
 
 bool OpenALPcmStream::setPitch(float pitch)
