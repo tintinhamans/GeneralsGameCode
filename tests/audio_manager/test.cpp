@@ -7,6 +7,8 @@
 #include "Common/AudioHandleSpecialValues.h"
 #include "Common/AudioSettings.h"
 #include "Common/AudioRequest.h"
+#include "Common/AudioRandomValue.h"
+#include "Common/RandomValue.h"
 #include "Common/FileSystem.h"
 #include "Common/GameCommon.h"
 #include "Common/GameMemory.h"
@@ -1344,6 +1346,166 @@ static void filteredCacheVariantTests()
     std::puts("filtered/unfiltered cache variants, pins, float byte budgets and eviction passed");
 }
 
+static unsigned audioRngFingerprint()
+{
+    unsigned value = 2166136261u;
+    for (unsigned i = 0; i < 4; ++i)
+        value = (value ^ static_cast<unsigned>(GameAudioRandomValue(0, 1000000000))) * 16777619u;
+    return value;
+}
+
+static void cachedTrace(FixtureManager &manager)
+{
+    for (const char *name : {"DirectRandom", "DirectTinyRandom", "DirectDelay", "DirectStop", "Sequence"}) {
+        manager.reset();
+        manager.render(1600);
+        InitRandom(1273489);
+        const auto handle = add(manager, name);
+        for (unsigned tick = 0; tick < 80; ++tick) {
+            if (tick == 11 && std::string(name) == "DirectStop")
+                manager.removeAudioEvent(handle);
+            manager.tick();
+            const auto pcm = manager.render(800);
+            unsigned hash = 2166136261u;
+            for (short sample : pcm)
+                hash = (hash ^ static_cast<unsigned short>(sample)) * 16777619u;
+            std::printf("CACHED_TRACE %s tick=%u pcm=%08x playing=%d\n", name, tick,
+                hash, manager.isCurrentlyPlaying(handle));
+        }
+        std::printf("CACHED_TRACE %s final-rng=%08x\n", name, audioRngFingerprint());
+    }
+    manager.reset();
+}
+
+static void cachedReclaimTests(FixtureManager &manager)
+{
+    manager.reset();
+    {
+        FixtureManager tight;
+        tight.configure();
+        tight.friend_getAudioSettings()->m_maxCacheSize = 240000;
+        TheAudio = &tight;
+        tight.init();
+        const auto first = add(tight, "ReclaimPrior");
+        tight.run(46400);
+        tight.render(3200);
+        CHECK(tight.isCurrentlyPlaying(first));
+        add(tight, "DirectAlt");
+        tight.tick();
+        CHECK(tight.isCurrentlyPlaying(first));
+        const auto pcm = tight.render(24000);
+        const double lateEnergy = energy(pcm, -1, 16000);
+        std::printf("active prior-portion reclaim late energy: %.0f\n", lateEnergy);
+        CHECK(lateEnergy > 1.0e9);
+        CHECK(toneScore(pcm, 16000, 4000, 660) > 0.95);
+        CHECK(tight.isCurrentlyPlaying(first));
+        tight.reset();
+    }
+    TheAudio = &manager;
+    std::puts("consumed prior-portion pin reclaimed before new cache admission; original voice retained");
+}
+
+static void cachedStallTests(FixtureManager &manager)
+{
+    unsigned untouchedRng = 0;
+    for (unsigned render = 0; render < 2; ++render) {
+        manager.reset();
+        manager.render(1600);
+        InitRandom(723451);
+        add(manager, "DirectRandom");
+        manager.tick();
+        if (render) {
+            const auto pcm = manager.render(24000);
+            CHECK(energy(pcm, -1, 16000) > 1.0e9);
+        }
+        const unsigned fingerprint = audioRngFingerprint();
+        if (!render)
+            untouchedRng = fingerprint;
+        else
+            CHECK(fingerprint == untouchedRng);
+    }
+    manager.reset();
+    manager.render(1600);
+    add(manager, "Limited");
+    manager.tick();
+    auto pcm = manager.render(24000);
+    CHECK(toneScore(pcm, 16000, 4000, 440) > 0.95);
+    manager.pauseAudio(AudioAffect_All);
+    manager.render(1600);
+    CHECK(energy(manager.render(8000)) < 10000);
+    manager.resumeAudio(AudioAffect_All);
+    CHECK(toneScore(manager.render(8000), 1000, 4000, 440) > 0.95);
+
+    manager.reset();
+    manager.render(1600);
+    manager.onScreen = false;
+    Coord3D position{0, 0, 0};
+    AudioEventRTS filtered(AsciiString("FilteredLowRate"), &position);
+    manager.addAudioEvent(&filtered);
+    manager.tick();
+    pcm = manager.render(24000);
+    CHECK(energy(pcm, -1, 16000) > 1.0e6);
+    CHECK(toneScore(pcm, 16000, 4000, 250) > 0.3);
+    manager.onScreen = true;
+
+    manager.reset();
+    manager.render(1600);
+    const auto loop = add(manager, "DirectStop");
+    manager.tick();
+    pcm = manager.render(20000);
+    manager.removeAudioEvent(loop);
+    auto tail = manager.run(32000);
+    pcm.insert(pcm.end(), tail.begin(), tail.end());
+    CHECK(toneScore(pcm, 44000, 2000, 440) > 0.95);
+    CHECK(toneScore(pcm, 48200, 1200, 800) > 0.95);
+    CHECK(energy(pcm, -1, 51000) < 10000);
+
+    manager.reset();
+    manager.render(1600);
+    add(manager, "Permanent");
+    manager.tick();
+    pcm = manager.render(12000);
+    CHECK(toneScore(pcm, 128, 2000, 400) > 0.95);
+    CHECK(energy(pcm, -1, 9000) < 10000);
+    CHECK(toneScore(manager.run(3200), 128, 2000, 400) > 0.95);
+    manager.reset();
+
+    {
+        FixtureManager mixed;
+        mixed.configure();
+        mixed.friend_getAudioSettings()->m_maxCacheSize = 240000;
+        TheAudio = &mixed;
+        mixed.init();
+        add(mixed, "DirectMixed");
+        pcm = mixed.run(96000);
+        CHECK(toneScore(pcm, 128, 1280, 200) > 0.95);
+        CHECK(toneScore(pcm, 3200, 8000, 660) > 0.95);
+        const auto cachedTail = mixed.render(32000);
+        CHECK(toneScore(cachedTail, 10000, 8000, 440) > 0.95);
+        mixed.reset();
+    }
+    {
+        FixtureManager pinned;
+        pinned.configure();
+        pinned.friend_getAudioSettings()->m_maxCacheSize = 240000;
+        TheAudio = &pinned;
+        pinned.init();
+        const auto first = add(pinned, "Low");
+        add(pinned, "DirectAlt");
+        pinned.tick();
+        auto stalled = pinned.render(24000);
+        CHECK(toneScore(stalled, 16000, 4000, 440) > 0.95);
+        pinned.killAudioEventImmediately(first);
+        add(pinned, "DirectAlt");
+        pinned.tick();
+        stalled = pinned.render(24000);
+        CHECK(toneScore(stalled, 16000, 4000, 660) > 0.95);
+        pinned.reset();
+    }
+    TheAudio = &manager;
+    std::puts("direct cached PCM owner-stall, RNG, pause, stop-decay, cache-pin and mixed decoder tests passed");
+}
+
 int main(int argc, char **argv)
 {
     CHECK(argc == 2 || argc == 3);
@@ -1370,7 +1532,13 @@ int main(int argc, char **argv)
         CHECK(manager.deviceOpens == 1 && manager.getDevice() != nullptr);
         if (argc == 3) {
             const std::string selected = argv[2];
-            if (selected == "paused-gain")
+            if (selected == "cached-trace")
+                cachedTrace(manager);
+            else if (selected == "cached-reclaim")
+                cachedReclaimTests(manager);
+            else if (selected == "cached-stall")
+                cachedStallTests(manager);
+            else if (selected == "paused-gain")
                 pausedGainTests(manager);
             else if (selected == "forced-overrides")
                 forcedOverrideTests(manager);
@@ -1408,6 +1576,8 @@ int main(int argc, char **argv)
             replacementAndPoolTests(manager);
             cacheGrowthTests();
             filteredCacheVariantTests();
+            cachedStallTests(manager);
+            cachedReclaimTests(manager);
         }
         manager.reset();
         TheAudio = nullptr;

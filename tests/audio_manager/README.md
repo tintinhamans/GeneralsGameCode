@@ -76,3 +76,38 @@ Miles providers using audio-only process-isolated render capture. This does not
 establish bit-exact Miles integer mixer arithmetic, physical headphone perception,
 or support for unmeasured legacy hardware providers. Camera visibility is sampled
 when a portion is prepared, not from the real-time audio callback.
+
+## Direct cached playback
+
+`cached-stall` renders 500 ms without owner updates and checks that the resolved
+cached portion remains audible, with no extra audio-RNG draws. It also covers
+filtered float clips, pause/resume, current-main-then-decay stop timing, an explicit
+unprepared-loop limit, cached attack -> oversized decoded main -> cached decay,
+and cache-budget pins released by stopping the old source. Existing forced speech
+coverage renders a full one-second preloaded clip without owner refill.
+
+`cached-trace` runs five seeded scenarios with normal 800-frame rendering/ticks.
+It prints `CACHED_TRACE` PCM hashes per tick and one final next-RNG fingerprint
+per scenario. The observer consumes RNG only after each scenario has finished;
+it does not perturb the unobserved playback trajectory. Compare these lines
+against an executable linking the snapshotted pre-change manager implementation
+to prove the same no-stall portion/audio timeline and audio-RNG state. The trace
+includes randomized filenames, randomized inter-loop delay, stop and attack/decay.
+
+Both modes use the ordinary engine fixture and loopback configuration:
+
+```powershell
+audio_manager_tests.exe <fixture-directory> cached-stall
+audio_manager_tests.exe <fixture-directory> cached-trace
+```
+
+A direct reference covers only an already-resolved immutable portion. An owner
+stall can still reach the end of prepared loop portions; no callback chooses the
+next filename or consumes game RNG. Decoder fallback still needs regular updates.
+These tests do not claim physical-device or indefinite randomized-loop playback.
+
+`cached-reclaim` keeps voice A active after its long attack has been consumed and
+its main portion has started. Under a 240,000-byte cache budget, it admits voice B
+before A's ordinary update, then stalls the owner for 500 ms. B's late 660 Hz PCM
+proves the consumed prior-portion pin was collected in the pre-request sweep,
+rather than forcing B to decoder fallback. A is never stopped to release that pin.

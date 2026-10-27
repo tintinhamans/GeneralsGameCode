@@ -21,21 +21,28 @@
 #include "OpenALAudioDevice/OpenALDevice.h"
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 class OpenALPcmStream
 {
 public:
+    enum class InputMode { Queued, CachedSpans };
     enum class QueueResult { Accepted, Full, Invalid, Error };
     enum class State { Stopped, Playing, Paused, Starved, Finished, Error };
     OpenALPcmStream();
     ~OpenALPcmStream();
     OpenALPcmStream(const OpenALPcmStream &) = delete;
     OpenALPcmStream &operator=(const OpenALPcmStream &) = delete;
-    bool open(OpenALDevice &device, int sampleRate, int channels, uint32_t capacityFrames, bool stereoMono = false);
+    bool open(OpenALDevice &device, int sampleRate, int channels, uint32_t capacityFrames, bool stereoMono = false, InputMode mode = InputMode::Queued);
     bool close();
     QueueResult queue(const short *interleaved, uint32_t frames);
     // Float input preserves filtered mono headroom until the final device mix.
     QueueResult queueFloat(const float *interleaved, uint32_t frames);
+    // Cached storage is immutable; its references are released only on the owner thread.
+    QueueResult queueCached(std::shared_ptr<const std::vector<short>> pcm, uint32_t offsetFrames, uint32_t frames);
+    QueueResult queueCachedFloat(std::shared_ptr<const std::vector<float>> pcm, uint32_t offsetFrames, uint32_t frames);
+    void reclaimConsumed();
+    // Free copied-ring capacity, independent of queued cached spans.
     uint32_t availableFrames() const;
     // Callback-read source frames; includes mixer prefetch, not a presentation clock.
     uint32_t getReadFrames() const;
@@ -57,6 +64,8 @@ public:
 
 private:
     QueueResult queueData(const void *interleaved, uint32_t frames, bool floatInput);
+    QueueResult queueCachedData(std::shared_ptr<const void> owner, const void *samples, size_t available,
+        uint32_t offsetFrames, uint32_t frames, bool floatInput);
     bool replaceQueuedDataAfter(uint32_t endFrame, const void *tail, uint32_t frames, bool floatInput);
     struct Data;
     std::unique_ptr<Data> m_data;

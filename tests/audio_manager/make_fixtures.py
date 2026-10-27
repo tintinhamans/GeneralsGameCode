@@ -27,6 +27,8 @@ def audio(name, frames, frequency=440, amplitude=8000, channels=1):
 for name, frames, hz in (("attack", 1600, 200), ("main", 3200, 400), ("decay", 1600, 800),
                          ("long", 48000, 440), ("tiny", 64, 1000), ("odd", 14239, 500)):
     audio(name, frames, hz)
+audio("direct-huge", 96000, 660)
+audio("long-alt", 48000, 660)
 audio("mix-ui", 48000, 400)
 with wave.open(str(root / "Data/Audio/Sounds/filtered.wav"), "wb") as output:
     output.setnchannels(1)
@@ -86,6 +88,13 @@ mp3 = Path(__file__).resolve().parent.parent / "ffmpeg/fixtures/gapless.mp3"
 (root / "Data/INI/Music.ini").write_text(block("MusicTrack", "MusicOne", "  Filename = long.wav\n") + block("MusicTrack", "MusicTwo", "  Filename = second.mp3\n"))
 (root / "Data/INI/Default/SoundEffects.ini").write_text(block("AudioEvent", "DefaultSoundEffect", "  Sounds = main\n", True))
 events = block("AudioEvent", "Ui", "  Sounds = main\n")
+events += block("AudioEvent", "ReclaimPrior", "  Attack = long\n  Sounds = main\n  Control = LOOP\n  LoopCount = 0\n")
+events += block("AudioEvent", "DirectAlt", "  Sounds = long-alt\n")
+events += block("AudioEvent", "DirectRandom", "  Sounds = long long-alt\n  Control = LOOP\n  LoopCount = 0\n")
+events += block("AudioEvent", "DirectTinyRandom", "  Sounds = attack main decay\n  Control = LOOP\n  LoopCount = 0\n")
+events += block("AudioEvent", "DirectDelay", "  Sounds = main attack\n  Control = LOOP\n  LoopCount = 4\n  Delay = 50 100\n")
+events += block("AudioEvent", "DirectStop", "  Sounds = long\n  Decay = decay\n  Control = LOOP\n  LoopCount = 0\n")
+events += block("AudioEvent", "DirectMixed", "  Attack = attack\n  Sounds = direct-huge\n  Decay = long\n")
 events += block("AudioEvent", "Sequence", "  Attack = attack\n  Sounds = main\n  Decay = decay\n")
 events += block("AudioEvent", "FiniteLoop", "  Sounds = main\n  Control = LOOP\n  LoopCount = 3\n")
 events += block("AudioEvent", "Permanent", "  Sounds = main\n  Control = LOOP\n  LoopCount = 0\n")

@@ -99,14 +99,21 @@ is unavailable it reserves only the required growth, evicting unreferenced clips
 as needed. Accounting uses actual capacity. Vector reallocation can temporarily
 retain both the old and new allocation; this transient copy peak is not a hard
 process-memory bound and is separate from decoder scratch.
-Ordinary voices use 4,096-frame effect rings or 16,384-frame speech/music rings, plus
-at most 65,536 pending converted frames. Cached tiny loops have a separate bounded
-copy budget rather than sharing the 32-packet per-tick decoding budget. Timing uses
+Effects use a 4,096-frame queued fallback with immutable cached spans; ordinary
+speech/music retain 16,384-frame rings and at most 65,536 pending converted frames.
+A resolved cached portion is referenced in full, so it can outlast an owner stall
+without refill. Its clip remains pinned until consumption is collected on the owner.
+A separate 4,096-frame logical producer horizon retains the previous portion/RNG
+lookahead. Loop selection, delays and decoding stay on the owner: a stall can still
+reach an unprepared randomized portion or starve a decoder-backed voice. This is
+not automatic indefinite looping or a general streaming-underrun fix. Timing uses
 `MSEC_PER_LOGICFRAME_REAL` (60 Hz in the validated GO configuration), not a hardcoded
 retail tick interval.
 
-Blocking loading-screen speech is fully predecoded into a one-shot ring, independent
-of the effect cache's configured size. Its explicit 16 MiB PCM cap covers every WAV
+Blocking loading-screen speech is fully predecoded into one immutable span, independent
+of the effect cache's configured size. Its transport uses the fixed 4,096-frame mode
+budget, not clip-length ring or descriptor allocation; completion is published with
+the span and needs no later manager refill. Its explicit 16 MiB PCM cap covers every WAV
 in the inspected installation (the longest observed speech was about 39.25 seconds,
 about 7.54 MB at 48 kHz stereo S16). Previous forced speech is replaced, and oversized
 or unreadable custom input is diagnosed rather than truncated. Ordinary streaming

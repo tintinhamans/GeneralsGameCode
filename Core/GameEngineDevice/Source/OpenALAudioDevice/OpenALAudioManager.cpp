@@ -66,6 +66,9 @@ struct OpenALAudioManager::Voice
     std::unique_ptr<FFmpegAudioFile> decoder;
     std::shared_ptr<const OpenALAudioClip> clip;
     size_t clipOffset = 0;
+    unsigned producerCapacity = 0;
+    bool cachedSpans = false;
+    bool cachedPortionQueued = false;
     std::vector<short> pending;
     std::vector<float> pendingFloat;
     bool floatPcm = false;
@@ -146,6 +149,7 @@ void OpenALAudioManager::retireFinished()
     for (auto &voice : m_voices) {
         if (voice->removed)
             continue;
+        voice->stream.reclaimConsumed();
         const auto state = voice->stream.state();
         if (state == OpenALPcmStream::State::Finished || state == OpenALPcmStream::State::Error)
             finishVoice(*voice);
@@ -405,6 +409,7 @@ void OpenALAudioManager::stopVoice(Voice &voice, bool immediate)
     std::shared_ptr<const OpenALAudioClip> decay;
     const AsciiString filename = voice.event->getDecayFilename();
     if (!filename.isEmpty()) {
+        voice.stream.reclaimConsumed();
         decay = m_cache.load(filename, voice.rate, voice.channels, lowPassCutoff(*voice.event));
         if (decay == nullptr)
             decay = OpenALAudioCache::loadUncached(filename, voice.rate, voice.channels, FORCED_PCM_BYTES, lowPassCutoff(*voice.event));
@@ -492,9 +497,11 @@ bool OpenALAudioManager::startPortion(Voice &voice)
     case PP_Decay: filename = event.getDecayFilename(); break;
     default: return false;
     }
+    voice.stream.reclaimConsumed();
     voice.clip.reset();
     voice.decoder.reset();
     voice.clipOffset = 0;
+    voice.cachedPortionQueued = false;
     voice.portion = event.getNextPlayPortion();
     voice.portionRefreshPending = true;
     if (filename.isEmpty())
@@ -569,6 +576,20 @@ bool OpenALAudioManager::nextPortion(Voice &voice)
     return startPortion(voice);
 }
 
+unsigned OpenALAudioManager::producerAvailable(const Voice &voice) const
+{
+    if (!voice.cachedSpans)
+        return voice.stream.availableFrames();
+    // Direct spans may be ahead of the legacy portion/RNG producer horizon.
+    const uint64_t consumed = voice.readFrames +
+        static_cast<uint32_t>(voice.stream.getReadFrames() - voice.previousRead);
+    uint64_t outstanding = 0;
+    if (voice.submittedFrames > consumed)
+        outstanding = voice.submittedFrames - consumed;
+    return voice.producerCapacity - static_cast<unsigned>(
+        std::min<uint64_t>(outstanding, voice.producerCapacity));
+}
+
 bool OpenALAudioManager::pump(Voice &voice)
 {
     if (voice.eof || voice.delayMS > 0)
@@ -579,7 +600,7 @@ bool OpenALAudioManager::pump(Voice &voice)
         if (voice.floatPcm)
             pendingSize = voice.pendingFloat.size();
         if (voice.pendingOffset < pendingSize) {
-            const unsigned available = voice.stream.availableFrames();
+            const unsigned available = std::min(producerAvailable(voice), voice.stream.availableFrames());
             if (available == 0)
                 return true;
             const size_t remaining = (pendingSize - voice.pendingOffset) / voice.channels;
@@ -607,27 +628,35 @@ bool OpenALAudioManager::pump(Voice &voice)
             voice.pendingFloat.clear();
             voice.pendingOffset = 0;
         }
-        if (voice.stream.availableFrames() == 0)
+        if (producerAvailable(voice) == 0)
             return true;
         if (voice.clip != nullptr && voice.clipOffset < voice.clip->frameCount()) {
             const size_t remaining = voice.clip->frameCount() - voice.clipOffset;
-            const unsigned frames = static_cast<unsigned>(std::min<size_t>(voice.stream.availableFrames(), remaining));
+            unsigned frames = static_cast<unsigned>(std::min<size_t>(producerAvailable(voice), remaining));
+            if (voice.forced)
+                frames = static_cast<unsigned>(remaining);
             if (voice.portionRefreshPending) {
                 if (category(*voice.event) == AudioAffect_Sound3D &&
                     !voice.stream.schedulePortionBoundary(static_cast<uint32_t>(voice.submittedFrames)))
                     return false;
                 voice.portionRefreshPending = false;
             }
-            OpenALPcmStream::QueueResult result;
-            const size_t offset = voice.clipOffset * voice.channels;
-            if (!voice.clip->filteredSamples.empty())
-                result = voice.stream.queueFloat(voice.clip->filteredSamples.data() + offset, frames);
-            else
-                result = voice.stream.queue(voice.clip->samples.data() + offset, frames);
-            if (result == OpenALPcmStream::QueueResult::Full)
-                return true;
-            if (result != OpenALPcmStream::QueueResult::Accepted)
-                return false;
+            if (!voice.cachedPortionQueued) {
+                OpenALPcmStream::QueueResult result;
+                const auto &clip = voice.clip;
+                if (!clip->filteredSamples.empty()) {
+                    std::shared_ptr<const std::vector<float>> pcm(clip, &clip->filteredSamples);
+                    result = voice.stream.queueCachedFloat(pcm, 0, static_cast<uint32_t>(clip->frameCount()));
+                } else {
+                    std::shared_ptr<const std::vector<short>> pcm(clip, &clip->samples);
+                    result = voice.stream.queueCached(pcm, 0, static_cast<uint32_t>(clip->frameCount()));
+                }
+                if (result == OpenALPcmStream::QueueResult::Full)
+                    return true;
+                if (result != OpenALPcmStream::QueueResult::Accepted)
+                    return false;
+                voice.cachedPortionQueued = true;
+            }
             voice.clipOffset += frames;
             voice.submittedFrames += frames;
             if (voice.clipOffset < voice.clip->frameCount())
@@ -716,13 +745,16 @@ void OpenALAudioManager::playRequest(AudioRequest &request, bool forced)
     if (kind == AudioAffect_Sound3D)
         voice->channels = 1;
     unsigned bufferFrames = STREAM_BUFFER_FRAMES;
-    if (info->m_soundType == AT_SoundEffect)
+    if (info->m_soundType == AT_SoundEffect || forced)
         bufferFrames = SOUND_BUFFER_FRAMES;
+    voice->producerCapacity = bufferFrames;
+    voice->cachedSpans = info->m_soundType == AT_SoundEffect || forced;
     if (!startPortion(*voice))
         return;
-    if (forced)
-        bufferFrames = static_cast<unsigned>(voice->clip->frameCount());
-    if (!voice->stream.open(m_device, voice->rate, voice->channels, bufferFrames, kind == AudioAffect_Sound3D)) {
+    OpenALPcmStream::InputMode inputMode = OpenALPcmStream::InputMode::Queued;
+    if (voice->cachedSpans)
+        inputMode = OpenALPcmStream::InputMode::CachedSpans;
+    if (!voice->stream.open(m_device, voice->rate, voice->channels, bufferFrames, kind == AudioAffect_Sound3D, inputMode)) {
         std::fprintf(stderr, "OpenAL could not prepare a source for %s; existing voices retained\n", event.getEventName().str());
         return;
     }
@@ -815,6 +847,7 @@ void OpenALAudioManager::updateVoice(Voice &voice)
 {
     if (voice.removed)
         return;
+    voice.stream.reclaimConsumed();
     const uint32_t read = voice.stream.getReadFrames();
     voice.readFrames += static_cast<uint32_t>(read - voice.previousRead);
     voice.previousRead = read;

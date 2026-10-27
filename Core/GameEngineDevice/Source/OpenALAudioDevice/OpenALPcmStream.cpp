@@ -34,6 +34,20 @@ struct OpenALPcmStream::Data
     int channels = 0;
     int outputChannels = 0;
     bool stereoMono = false;
+    bool cachedSpans = false;
+    struct Segment
+    {
+        const void *samples = nullptr;
+        uint32_t frames = 0;
+        uint32_t ringStart = 0;
+        bool ring = false;
+        bool floatInput = false;
+    };
+    std::vector<Segment> segments;
+    std::vector<std::shared_ptr<const void>> segmentOwners;
+    std::atomic<uint32_t> segmentRead{0}, segmentWrite{0};
+    uint32_t segmentOffset = 0;
+    uint32_t segmentRetired = 0;
     std::atomic<uint32_t> mixSequence{0};
     std::atomic<uint32_t> mixValues[4]{};
     float leftGain = 0.5f, rightGain = 0.5f, frontBack = 0;
@@ -73,6 +87,33 @@ struct OpenALPcmStream::Data
         if (write >= read)
             return write - read;
         return ringFrames - read + write;
+    }
+
+    void reclaimSegments()
+    {
+        if (!cachedSpans)
+            return;
+        const uint32_t read = segmentRead.load(std::memory_order_acquire);
+        while (segmentRetired != read) {
+            segmentOwners[segmentRetired].reset();
+            segmentRetired = (segmentRetired + 1) % static_cast<uint32_t>(segments.size());
+        }
+    }
+
+    bool segmentAvailable()
+    {
+        reclaimSegments();
+        const uint32_t write = segmentWrite.load(std::memory_order_relaxed);
+        const uint32_t next = (write + 1) % static_cast<uint32_t>(segments.size());
+        return next != segmentRead.load(std::memory_order_acquire);
+    }
+
+    void publishSegment(const Segment &segment, std::shared_ptr<const void> owner)
+    {
+        const uint32_t write = segmentWrite.load(std::memory_order_relaxed);
+        segments[write] = segment;
+        segmentOwners[write] = std::move(owner);
+        segmentWrite.store((write + 1) % static_cast<uint32_t>(segments.size()), std::memory_order_release);
     }
 
     static uint32_t bits(float value) noexcept
@@ -146,24 +187,20 @@ struct OpenALPcmStream::Data
             floatPcm[frame + i] = source[i] / 32768.0f;
     }
 
-    void writeOutput(void *output, const void *input, uint32_t frames, uint32_t firstFrame,
-        bool replacement = false) noexcept
+    static float normalized(float sample) noexcept { return sample; }
+    static float normalized(short sample) noexcept { return sample / 32768.0f; }
+
+    template<typename Sample>
+    void writeMonoOutput(float *stereo, const Sample *mono, uint32_t frames,
+        uint32_t firstFrame, bool replacement) noexcept
     {
-        if (!stereoMono) {
-            std::memcpy(output, input, frames * channels * sizeof(short));
-            return;
-        }
-        if (frames == 0)
-            return;
         if (replacement && !replacementPortionStarted) {
             portionRead.store(portionWrite.load(std::memory_order_acquire), std::memory_order_release);
             previousRear = 0;
             replacementPortionStarted = true;
         }
-        auto stereo = static_cast<float *>(output);
         uint32_t command = portionRead.load(std::memory_order_relaxed);
         const uint32_t end = portionWrite.load(std::memory_order_acquire);
-        const auto mono = static_cast<const float *>(input);
         uint32_t frame = 0;
         while (frame < frames) {
             while (!replacement && command != end &&
@@ -177,7 +214,7 @@ struct OpenALPcmStream::Data
             const uint32_t chunkEnd = frame + count;
             if (surround) {
                 for (; frame < chunkEnd; ++frame) {
-                    const double sample = mono[frame];
+                    const double sample = normalized(mono[frame]);
                     const double left = sample * leftGain;
                     const double right = sample * rightGain;
                     stereo[frame * 2] = static_cast<float>(((1 - frontBack) * left + frontBack * previousRear));
@@ -186,17 +223,69 @@ struct OpenALPcmStream::Data
                 }
             } else {
                 for (; frame < chunkEnd; ++frame) {
-                    const double sample = mono[frame];
+                    const double sample = normalized(mono[frame]);
                     stereo[frame * 2] = static_cast<float>(sample * leftGain);
                     stereo[frame * 2 + 1] = static_cast<float>(sample * rightGain);
                 }
-                const double sample = mono[chunkEnd - 1];
+                const double sample = normalized(mono[chunkEnd - 1]);
                 const double left = sample * leftGain;
                 const double right = sample * rightGain;
                 previousRear = (left + right) * 0.5;
             }
         }
         portionRead.store(command, std::memory_order_release);
+    }
+
+    void writeOutput(void *output, const void *input, uint32_t frames, uint32_t firstFrame,
+        bool replacement = false, bool floatInput = true) noexcept
+    {
+        if (!stereoMono) {
+            std::memcpy(output, input, frames * channels * sizeof(short));
+            return;
+        }
+        if (frames == 0)
+            return;
+        auto stereo = static_cast<float *>(output);
+        if (floatInput)
+            writeMonoOutput(stereo, static_cast<const float *>(input), frames, firstFrame, replacement);
+        else
+            writeMonoOutput(stereo, static_cast<const short *>(input), frames, firstFrame, replacement);
+    }
+
+    uint32_t readSegments(unsigned char *output, uint32_t frames, uint32_t firstFrame,
+        uint32_t frameBytes) noexcept
+    {
+        uint32_t count = 0;
+        uint32_t read = segmentRead.load(std::memory_order_relaxed);
+        const uint32_t end = segmentWrite.load(std::memory_order_acquire);
+        while (count < frames && read != end) {
+            const Segment &segment = segments[read];
+            const uint32_t take = std::min(frames - count, segment.frames - segmentOffset);
+            if (segment.ring) {
+                const uint32_t position = (segment.ringStart + segmentOffset) % ringFrames;
+                const uint32_t first = std::min(take, ringFrames - position);
+                writeOutput(output + count * frameBytes, inputAt(position), first, firstFrame + count);
+                writeOutput(output + (count + first) * frameBytes, inputAt(0), take - first,
+                    firstFrame + count + first);
+                readPosition.store((position + take) % ringFrames, std::memory_order_release);
+            } else {
+                size_t sampleBytes = sizeof(short);
+                if (segment.floatInput)
+                    sampleBytes = sizeof(float);
+                const auto input = static_cast<const unsigned char *>(segment.samples) +
+                    static_cast<size_t>(segmentOffset) * channels * sampleBytes;
+                writeOutput(output + count * frameBytes, input, take,
+                    firstFrame + count, false, segment.floatInput);
+            }
+            segmentOffset += take;
+            count += take;
+            if (segmentOffset == segment.frames) {
+                segmentOffset = 0;
+                read = (read + 1) % static_cast<uint32_t>(segments.size());
+                segmentRead.store(read, std::memory_order_release);
+            }
+        }
+        return count;
     }
 
     static ALsizei AL_APIENTRY readPcm(void *opaque, void *output, ALsizei bytes) noexcept
@@ -227,17 +316,27 @@ struct OpenALPcmStream::Data
             else
                 limit = std::min(limit, remaining);
         }
-        const uint32_t count = std::min(limit, data.distance(write, read));
+        auto destination = static_cast<unsigned char *>(output);
+        uint32_t count = 0;
+        if (data.cachedSpans)
+            count = data.readSegments(destination, limit, firstFrame, frameBytes);
+        else {
+            count = std::min(limit, data.distance(write, read));
+            const uint32_t first = std::min(count, data.ringFrames - read);
+            data.writeOutput(destination, data.inputAt(read), first, firstFrame);
+            data.writeOutput(destination + first * frameBytes, data.inputAt(0), count - first, firstFrame + first);
+            data.readPosition.store((read + count) % data.ringFrames, std::memory_order_release);
+        }
         if (replacing && count < limit) {
             data.callbackFailed.store(true, std::memory_order_relaxed);
             return 0;
         }
-        const uint32_t first = std::min(count, data.ringFrames - read);
-        auto destination = static_cast<unsigned char *>(output);
-        data.writeOutput(destination, data.inputAt(read), first, firstFrame);
-        data.writeOutput(destination + first * frameBytes, data.inputAt(0), count - first, firstFrame + first);
-        data.readPosition.store((read + count) % data.ringFrames, std::memory_order_release);
         if (replacing) {
+            if (data.cachedSpans && count < requested) {
+                data.segmentOffset = 0;
+                data.segmentRead.store(data.segmentWrite.load(std::memory_order_acquire), std::memory_order_release);
+                data.readPosition.store(data.writePosition.load(std::memory_order_acquire), std::memory_order_release);
+            }
             const uint32_t remaining = data.replacementFrames() - data.replacementPosition;
             const uint32_t tail = std::min(requested - count, remaining);
             if (tail != 0)
@@ -318,10 +417,11 @@ bool OpenALPcmStream::close()
     return true;
 }
 
-bool OpenALPcmStream::open(OpenALDevice &device, int sampleRate, int channels, uint32_t capacityFrames, bool stereoMono)
+bool OpenALPcmStream::open(OpenALDevice &device, int sampleRate, int channels, uint32_t capacityFrames, bool stereoMono, InputMode mode)
 {
     if (!close() || !device.isOpen() || sampleRate <= 0 || (channels != 1 && channels != 2) ||
-        (stereoMono && channels != 1) || capacityFrames == 0 || capacityFrames >= static_cast<uint32_t>(std::numeric_limits<int>::max()) / (sizeof(short) * channels))
+        (stereoMono && channels != 1) ||
+        (mode != InputMode::Queued && mode != InputMode::CachedSpans) || capacityFrames == 0 || capacityFrames >= static_cast<uint32_t>(std::numeric_limits<int>::max()) / (sizeof(short) * channels))
         return false;
     std::unique_ptr<Data> candidate;
     try {
@@ -330,6 +430,11 @@ bool OpenALPcmStream::open(OpenALDevice &device, int sampleRate, int channels, u
         candidate->channels = channels;
         candidate->outputChannels = channels;
         candidate->stereoMono = stereoMono;
+        candidate->cachedSpans = mode == InputMode::CachedSpans;
+        if (candidate->cachedSpans) {
+            candidate->segments.resize(static_cast<size_t>(capacityFrames) + 2);
+            candidate->segmentOwners.resize(candidate->segments.size());
+        }
         if (stereoMono)
             candidate->outputChannels = 2;
         candidate->mixValues[0].store(Data::bits(0.5f));
@@ -369,6 +474,12 @@ bool OpenALPcmStream::open(OpenALDevice &device, int sampleRate, int channels, u
         return false;
     m_data = std::move(candidate);
     return true;
+}
+
+void OpenALPcmStream::reclaimConsumed()
+{
+    if (m_data != nullptr && m_data->context->onOwnerThread())
+        m_data->reclaimSegments();
 }
 
 uint32_t OpenALPcmStream::availableFrames() const
@@ -466,6 +577,8 @@ OpenALPcmStream::QueueResult OpenALPcmStream::queueData(const void *interleaved,
         return QueueResult::Invalid;
     if (frames > availableFrames())
         return QueueResult::Full;
+    if (m_data->cachedSpans && !m_data->segmentAvailable())
+        return QueueResult::Full;
     if (floatInput) {
         const auto input = static_cast<const float *>(interleaved);
         for (uint32_t frame = 0; frame < frames; ++frame) {
@@ -483,6 +596,69 @@ OpenALPcmStream::QueueResult OpenALPcmStream::queueData(const void *interleaved,
     m_data->copyInput(0, bytes + first * inputFrameBytes, frames - first, floatInput);
     m_data->writePosition.store((write + frames) % m_data->ringFrames, std::memory_order_release);
     m_data->writtenFrames += frames;
+    if (m_data->cachedSpans) {
+        Data::Segment segment;
+        segment.frames = frames;
+        segment.ringStart = write;
+        segment.ring = true;
+        m_data->publishSegment(segment, {});
+    }
+    return QueueResult::Accepted;
+}
+
+OpenALPcmStream::QueueResult OpenALPcmStream::queueCached(
+    std::shared_ptr<const std::vector<short>> pcm, uint32_t offsetFrames, uint32_t frames)
+{
+    if (pcm == nullptr)
+        return QueueResult::Invalid;
+    const void *samples = pcm->data();
+    const size_t available = pcm->size();
+    return queueCachedData(std::move(pcm), samples, available, offsetFrames, frames, false);
+}
+
+OpenALPcmStream::QueueResult OpenALPcmStream::queueCachedFloat(
+    std::shared_ptr<const std::vector<float>> pcm, uint32_t offsetFrames, uint32_t frames)
+{
+    if (pcm == nullptr)
+        return QueueResult::Invalid;
+    const void *samples = pcm->data();
+    const size_t available = pcm->size();
+    return queueCachedData(std::move(pcm), samples, available, offsetFrames, frames, true);
+}
+
+OpenALPcmStream::QueueResult OpenALPcmStream::queueCachedData(std::shared_ptr<const void> owner,
+    const void *samples, size_t available, uint32_t offsetFrames, uint32_t frames, bool floatInput)
+{
+    if (m_data == nullptr || !m_data->context->onOwnerThread() || m_data->error != AL_NO_ERROR ||
+        m_data->callbackFailed.load(std::memory_order_relaxed))
+        return QueueResult::Error;
+    if (!m_data->cachedSpans || frames == 0 || frames >= 0x80000000u ||
+        (floatInput && !m_data->stereoMono) ||
+        m_data->ended.load(std::memory_order_relaxed) ||
+        m_data->inputState.load(std::memory_order_relaxed) != Data::InputNormal ||
+        offsetFrames > available / m_data->channels ||
+        frames > available / m_data->channels - offsetFrames)
+        return QueueResult::Invalid;
+    if (!m_data->segmentAvailable())
+        return QueueResult::Full;
+    size_t sampleBytes = sizeof(short);
+    if (floatInput)
+        sampleBytes = sizeof(float);
+    const auto input = static_cast<const unsigned char *>(samples) +
+        static_cast<size_t>(offsetFrames) * m_data->channels * sampleBytes;
+    if (floatInput) {
+        const auto values = static_cast<const float *>(static_cast<const void *>(input));
+        for (uint32_t frame = 0; frame < frames; ++frame) {
+            if (!std::isfinite(values[frame]))
+                return QueueResult::Invalid;
+        }
+    }
+    Data::Segment segment;
+    segment.samples = input;
+    segment.frames = frames;
+    segment.floatInput = floatInput;
+    m_data->writtenFrames += frames;
+    m_data->publishSegment(segment, std::move(owner));
     return QueueResult::Accepted;
 }
 
@@ -551,6 +727,12 @@ bool OpenALPcmStream::stop()
     m_data->replacementPortionStarted = false;
     m_data->hasPortionFrame = false;
     m_data->previousRear = 0;
+    m_data->segmentOffset = 0;
+    m_data->segmentRead.store(0, std::memory_order_relaxed);
+    m_data->segmentWrite.store(0, std::memory_order_relaxed);
+    m_data->segmentRetired = 0;
+    for (auto &owner : m_data->segmentOwners)
+        owner.reset();
     m_data->requested = State::Stopped;
     return true;
 }

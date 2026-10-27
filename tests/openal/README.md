@@ -76,3 +76,13 @@ source gain, NaN rejection and stop/reuse. A bounded real Null mixer also receiv
 concurrent float feeds and coherent stereo-control updates. These tests do not
 claim bit-identical proprietary fixed-point mixer output or physical listening
 parity; provider reference measurements define the policy and DSP tolerances.
+
+## Direct cached playback
+
+`InputMode::CachedSpans` opts sound-effect voices into a bounded ordered span queue. Immutable cached S16/float storage is pinned on the owner thread; the callback only consumes raw spans and acknowledges retired descriptors. Ordinary queued ring input remains supported in the same timeline, so cached-to-decoder fallback and later cached portions need no source recreation. The default input mode remains unchanged for movies and streaming audio.
+
+The primitive regressions compare output exactly with the old scalar mixer for S16 normalization, float headroom, live Fast2D/Dolby changes, portion boundaries, mixed cached/ring ordering, ring wraps and replacement tails. Lifetime tests check pause/resume, stop/reopen, bounded descriptor exhaustion and owner-thread release after callback consumption. A loopback test consumes 2.25 seconds of one cached clip without pumping; the Null stress test additionally sleeps the owner thread for 2.25 seconds while the backend continues asynchronously.
+
+This removes the copied-ring refill deadline within already-published cached storage. It does not let the callback choose random loop portions, run event logic, decode missing assets or avoid silence at an unprepared next-portion boundary. Those decisions remain owner-thread work under the manager's existing prefetch/RNG policy.
+
+The asynchronous Null stress also drives a small 8-frame hybrid ring through four stop/reuse rounds and more than 64 descriptor-pool wraps. Each round mixes immutable S16/float cached spans with copied ring input, observes deterministic ring and descriptor backpressure before playback, and checks the exact total consumed payload frames. Custom deleters and weak references verify that every cached pin is released on the owner thread after explicit collection or synchronized stop. The added stress has one shared 8-second deadline; it never opens a physical audio device.

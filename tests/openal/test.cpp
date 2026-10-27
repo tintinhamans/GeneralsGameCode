@@ -3,6 +3,7 @@
 #include "VideoDevice/FFmpeg/FFmpegAudioFile.h"
 #include "Common/File.h"
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -854,12 +855,15 @@ struct ScalarMixReference
     }
 };
 
-static void scalarMixEquivalence(bool replace)
+static void scalarMixEquivalence(bool replace, bool cachedSpans = false)
 {
     OpenALDevice device;
     CHECK(device.openLoopback());
     OpenALPcmStream stream;
-    CHECK(stream.open(device, 48000, 1, 4096, true));
+    auto mode = OpenALPcmStream::InputMode::Queued;
+    if (cachedSpans)
+        mode = OpenALPcmStream::InputMode::CachedSpans;
+    CHECK(stream.open(device, 48000, 1, 4096, true, mode));
     CHECK(stream.setGain(0.25f));
     ScalarMixReference reference;
     reference.input.resize(16000);
@@ -911,6 +915,314 @@ static void scalarMixEquivalenceTests()
     scalarMixEquivalence(false);
     scalarMixEquivalence(true);
     std::puts("scalar-reference exact output: live modes, portion chunks, wraps and replacement passed");
+}
+
+
+static void directCachedScalarEquivalence(bool floatInput, bool replace)
+{
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 1, 4096, true, OpenALPcmStream::InputMode::CachedSpans));
+    CHECK(stream.setGain(0.25f));
+    ScalarMixReference reference;
+    auto shorts = std::make_shared<std::vector<short>>(16000);
+    auto floats = std::make_shared<std::vector<float>>(16000);
+    reference.input.resize(16000);
+    for (size_t frame = 0; frame < reference.input.size(); ++frame) {
+        (*shorts)[frame] = static_cast<short>(30000 * std::sin(frame * 0.071));
+        (*floats)[frame] = static_cast<float>(1.5 * std::sin(frame * 0.071) + 0.125 * std::cos(frame * 0.137));
+        if (floatInput)
+            reference.input[frame] = (*floats)[frame];
+        else
+            reference.input[frame] = (*shorts)[frame] / 32768.0f;
+    }
+    reference.boundaries = {0, 1, 1, 2, 7, 333, 334, 4096, 4097, 6000, 6001, 6500, 8193, 12001};
+    for (uint32_t boundary : reference.boundaries)
+        CHECK(stream.schedulePortionBoundary(boundary));
+    if (floatInput) {
+        CHECK(stream.queueCachedFloat(floats, 0, 6000) == Result::Accepted);
+        CHECK(stream.queueFloat(floats->data() + 6000, 500) == Result::Accepted);
+        CHECK(stream.queueCachedFloat(floats, 6500, 9500) == Result::Accepted);
+    } else {
+        CHECK(stream.queueCached(shorts, 0, 6000) == Result::Accepted);
+        CHECK(stream.queue(shorts->data() + 6000, 500) == Result::Accepted);
+        CHECK(stream.queueCached(shorts, 6500, 9500) == Result::Accepted);
+    }
+    CHECK(stream.markEnd() && stream.play());
+    reference.play();
+    for (unsigned iteration = 0; iteration < 60; ++iteration) {
+        reference.leftGain = static_cast<float>((iteration * 7) % 17) / 16.0f;
+        reference.rightGain = 1 - reference.leftGain;
+        reference.frontBack = static_cast<float>((iteration * 3) % 11) / 10.0f;
+        reference.surround = iteration % 5 >= 2;
+        CHECK(stream.setStereoMix(reference.leftGain, reference.rightGain, reference.frontBack, reference.surround));
+        if (replace && iteration == 17) {
+            CHECK(stream.getReadFrames() == reference.read);
+            reference.replaceAt = reference.read + 173;
+            reference.tail.assign(reference.input.begin() + 1000, reference.input.begin() + 3049);
+            CHECK(stream.replaceQueuedAfterFloat(reference.replaceAt, reference.tail.data(),
+                static_cast<uint32_t>(reference.tail.size())));
+            reference.replacing = true;
+        }
+        CHECK(render(device, 333) == reference.render(333));
+        CHECK(stream.getReadFrames() == reference.read);
+    }
+    CHECK(stream.state() == State::Finished);
+}
+
+static void directCachedLifetimeTests()
+{
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 1, 4096, true, OpenALPcmStream::InputMode::CachedSpans));
+    const auto ownerThread = std::this_thread::get_id();
+    std::atomic<bool> destroyedOnOwner{false};
+    auto input = std::shared_ptr<const std::vector<short>>(new std::vector<short>(144000, 6000),
+        [&](const std::vector<short> *pcm) {
+            destroyedOnOwner.store(std::this_thread::get_id() == ownerThread);
+            delete pcm;
+        });
+    std::weak_ptr<const std::vector<short>> weak = input;
+    CHECK(stream.queueCached(input, 0, 144000) == Result::Accepted);
+    input.reset();
+    CHECK(stream.markEnd() && stream.play());
+    const auto uninterrupted = render(device, 108000);
+    CHECK(stream.state() == State::Playing && stream.getReadFrames() >= 108000);
+    for (unsigned frame = 1024; frame < 107000; ++frame) {
+        CHECK(std::abs(static_cast<int>(uninterrupted[frame * 2]) - 3000) <= 1);
+        CHECK(std::abs(static_cast<int>(uninterrupted[frame * 2 + 1]) - 3000) <= 1);
+    }
+    CHECK(!weak.expired());
+    CHECK(stream.pause());
+    silence(render(device, 512), 256);
+    const uint32_t pausedAt = stream.getReadFrames();
+    silence(render(device, 256));
+    CHECK(stream.getReadFrames() == pausedAt && !weak.expired());
+    CHECK(stream.play());
+    render(device, 40000);
+    CHECK(!weak.expired());
+    std::thread other([&] { stream.reclaimConsumed(); });
+    other.join();
+    CHECK(!weak.expired());
+    stream.reclaimConsumed();
+    CHECK(weak.expired() && destroyedOnOwner.load());
+    CHECK(stream.state() == State::Finished);
+
+    input = std::make_shared<const std::vector<short>>(144000, 6000);
+    weak = input;
+    CHECK(stream.stop());
+    CHECK(stream.queueCached(input, 0, 144000) == Result::Accepted);
+    input.reset();
+    CHECK(stream.play());
+    render(device, 256);
+    const uint32_t cutoff = stream.getReadFrames() + 173;
+    std::vector<short> tail(128, -4000);
+    CHECK(stream.replaceQueuedAfter(cutoff, tail.data(), 128));
+    render(device, 1024);
+    CHECK(stream.getReadFrames() == cutoff + 128);
+    CHECK(!weak.expired());
+    stream.reclaimConsumed();
+    CHECK(weak.expired());
+    CHECK(stream.stop());
+    input = std::make_shared<const std::vector<short>>(1000, 2000);
+    weak = input;
+    CHECK(stream.queueCached(input, 0, 1000) == Result::Accepted);
+    input.reset();
+    CHECK(!weak.expired());
+    CHECK(stream.stop() && weak.expired());
+    CHECK(stream.close());
+    CHECK(stream.open(device, 48000, 1, 16));
+    CHECK(stream.queueCached(std::make_shared<const std::vector<short>>(32, 1), 0, 32) == Result::Invalid);
+}
+
+static void directCachedQueueTests()
+{
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 2, 4, false, OpenALPcmStream::InputMode::CachedSpans));
+    auto input = std::make_shared<const std::vector<short>>(sequence(0, 64));
+    CHECK(stream.queueCached(nullptr, 0, 1) == Result::Invalid);
+    CHECK(stream.queueCached(input, 65, 1) == Result::Invalid);
+    CHECK(stream.queueCached(input, 63, 2) == Result::Invalid);
+    CHECK(stream.queueCached(input, 0, 0) == Result::Invalid);
+    CHECK(stream.queueCachedFloat(std::make_shared<const std::vector<float>>(64, 1.0f), 0, 1) == Result::Invalid);
+    for (unsigned round = 0; round < 4; ++round) {
+        for (unsigned segment = 0; segment < 5; ++segment)
+            CHECK(stream.queueCached(input, segment, 1) == Result::Accepted);
+        CHECK(stream.queueCached(input, 0, 1) == Result::Full);
+        if (round == 0)
+            CHECK(stream.play());
+        render(device, 128);
+        CHECK(stream.getReadFrames() == (round + 1) * 5);
+    }
+    CHECK(stream.stop());
+    CHECK(stream.queueCached(input, 0, 64) == Result::Accepted);
+    CHECK(stream.markEnd() && stream.play());
+    const auto output = render(device, 256);
+    for (size_t sample = 0; sample < input->size(); ++sample)
+        CHECK(std::abs(static_cast<int>(output[sample]) - (*input)[sample]) <= 2);
+}
+
+static void directCachedTests()
+{
+    scalarMixEquivalence(false, true);
+    scalarMixEquivalence(true, true);
+    directCachedScalarEquivalence(false, false);
+    directCachedScalarEquivalence(false, true);
+    directCachedScalarEquivalence(true, false);
+    directCachedScalarEquivalence(true, true);
+    directCachedLifetimeTests();
+    directCachedQueueTests();
+    std::puts("cached spans exact scalar output, mixed ring ordering and owner-only lifetime passed");
+}
+
+
+struct CachedPinCounts
+{
+    std::thread::id owner = std::this_thread::get_id();
+    std::atomic<unsigned> created{0}, destroyed{0}, wrongThread{0};
+};
+
+template<typename Sample>
+static std::shared_ptr<const std::vector<Sample>> trackedCachedSamples(
+    unsigned frames, Sample value, CachedPinCounts &counts)
+{
+    ++counts.created;
+    return std::shared_ptr<const std::vector<Sample>>(new std::vector<Sample>(frames, value),
+        [&counts](const std::vector<Sample> *samples) {
+            if (std::this_thread::get_id() != counts.owner)
+                ++counts.wrongThread;
+            ++counts.destroyed;
+            delete samples;
+        });
+}
+
+static void concurrentCachedSpanStress()
+{
+    const char *driver = std::getenv("ALSOFT_DRIVERS");
+    CHECK(driver != nullptr && std::strcmp(driver, "null") == 0);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+    CachedPinCounts counts;
+    OpenALDevice device;
+    CHECK(device.open());
+    OpenALPcmStream stream;
+    constexpr unsigned capacity = 8;
+    constexpr unsigned rounds = 4;
+    CHECK(stream.open(device, 48000, 1, capacity, true, OpenALPcmStream::InputMode::CachedSpans));
+    unsigned acceptedSegments = 0, fullResults = 0, totalConsumed = 0;
+    const std::vector<short> copied(capacity, 2000);
+    auto waitForSpace = [&] {
+        CHECK(std::chrono::steady_clock::now() < deadline);
+        CHECK(stream.state() != State::Error);
+        stream.reclaimConsumed();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    };
+    for (unsigned round = 0; round < rounds; ++round) {
+        std::vector<std::weak_ptr<const void>> pins;
+        unsigned expectedFrames = 0;
+        CHECK(stream.queue(copied.data(), capacity) == Result::Accepted);
+        expectedFrames += capacity;
+        ++acceptedSegments;
+        for (unsigned segment = 0; segment < capacity; ++segment) {
+            auto input = trackedCachedSamples(29, static_cast<short>(4000), counts);
+            pins.emplace_back(input);
+            CHECK(stream.queueCached(input, 0, 29) == Result::Accepted);
+            expectedFrames += 29;
+            ++acceptedSegments;
+        }
+        auto rejected = trackedCachedSamples(1, static_cast<short>(4000), counts);
+        CHECK(stream.queueCached(rejected, 0, 1) == Result::Full);
+        ++fullResults;
+        rejected.reset();
+        CHECK(stream.queue(copied.data(), 1) == Result::Full);
+        ++fullResults;
+        CHECK(stream.play());
+        for (unsigned segment = 0; segment < 192; ++segment) {
+            Result result = Result::Full;
+            if (segment % 2 == 0) {
+                do {
+                    result = stream.queue(copied.data(), 3);
+                    CHECK(result == Result::Accepted || result == Result::Full);
+                    if (result == Result::Full) {
+                        ++fullResults;
+                        waitForSpace();
+                    }
+                } while (result == Result::Full);
+                expectedFrames += 3;
+            } else if (segment % 4 == 1) {
+                auto input = trackedCachedSamples(29, static_cast<short>(4000), counts);
+                pins.emplace_back(input);
+                do {
+                    result = stream.queueCached(input, 0, 29);
+                    CHECK(result == Result::Accepted || result == Result::Full);
+                    if (result == Result::Full) {
+                        ++fullResults;
+                        waitForSpace();
+                    }
+                } while (result == Result::Full);
+                expectedFrames += 29;
+            } else {
+                auto input = trackedCachedSamples(29, 0.125f, counts);
+                pins.emplace_back(input);
+                do {
+                    result = stream.queueCachedFloat(input, 0, 29);
+                    CHECK(result == Result::Accepted || result == Result::Full);
+                    if (result == Result::Full) {
+                        ++fullResults;
+                        waitForSpace();
+                    }
+                } while (result == Result::Full);
+                expectedFrames += 29;
+            }
+            ++acceptedSegments;
+            if (segment % 7 == 0)
+                stream.reclaimConsumed();
+        }
+        CHECK(stream.markEnd());
+        while (stream.state() != State::Finished)
+            waitForSpace();
+        CHECK(stream.getReadFrames() == expectedFrames);
+        totalConsumed += expectedFrames;
+        stream.reclaimConsumed();
+        for (const auto &pin : pins)
+            CHECK(pin.expired());
+        CHECK(counts.wrongThread.load() == 0);
+        CHECK(counts.created.load() == counts.destroyed.load());
+        CHECK(stream.stop() && stream.getReadFrames() == 0);
+        auto stopped = trackedCachedSamples(64, static_cast<short>(1000), counts);
+        std::weak_ptr<const void> stoppedPin = stopped;
+        CHECK(stream.queueCached(stopped, 0, 64) == Result::Accepted);
+        CHECK(stream.queue(copied.data(), capacity) == Result::Accepted);
+        stopped.reset();
+        CHECK(!stoppedPin.expired());
+        CHECK(stream.stop() && stoppedPin.expired());
+    }
+    CHECK(acceptedSegments >= (capacity + 2) * 64);
+    CHECK(fullResults >= rounds * 2);
+    CHECK(totalConsumed == rounds * (capacity + capacity * 29 + 96 * 3 + 96 * 29));
+    CHECK(counts.wrongThread.load() == 0 && counts.created.load() == counts.destroyed.load());
+    CHECK(stream.close() && device.close());
+    std::printf("async cached spans: %u segments, %u Full results, %u exact frames, %u owner-only releases\n",
+        acceptedSegments, fullResults, totalConsumed, counts.destroyed.load());
+}
+
+static void directCachedNullStall()
+{
+    OpenALDevice device;
+    CHECK(device.open());
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 1, 4096, true, OpenALPcmStream::InputMode::CachedSpans));
+    auto input = std::make_shared<const std::vector<short>>(192000, 2000);
+    CHECK(stream.queueCached(input, 0, 192000) == Result::Accepted);
+    CHECK(stream.markEnd() && stream.play());
+    std::this_thread::sleep_for(std::chrono::milliseconds(2250));
+    CHECK(stream.getReadFrames() >= 96000);
+    CHECK(stream.state() == State::Playing);
+    CHECK(stream.stop());
+    std::puts("cached current clip continues during a 2.25 second owner stall on Null backend");
 }
 
 static void floatMixHeadroomTests()
@@ -1008,11 +1320,14 @@ int main(int argc, char **argv)
         return 0;
     }
     if (argc == 2 && std::strcmp(argv[1], "--stress") == 0) {
+        concurrentCachedSpanStress();
+        directCachedNullStall();
         concurrentMixedControls();
         concurrentNullStress();
         return 0;
     }
     CHECK(argc == 2);
+    directCachedTests();
     scalarMixEquivalenceTests();
     legacyMixTests();
     mixedBoundaryTests();
