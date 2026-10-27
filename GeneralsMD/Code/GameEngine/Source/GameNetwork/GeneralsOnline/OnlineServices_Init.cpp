@@ -23,7 +23,10 @@
 #include "GameNetwork/GeneralsOnline/Vendor/stb_image/stb_image_write.h"
 #include "GameNetwork/GeneralsOnline/Vendor/stb_image/stb_image_resize.h"
 #include "GameClient/GameText.h"
+#include "GameLogic/GameLogic.h"
 #include <unordered_set>
+#include <random>
+#include <algorithm>
 
 extern "C"
 {
@@ -99,6 +102,34 @@ void NGMP_OnlineServicesManager::GetAndParseServiceConfig(std::function<void(voi
 		});
 }
 
+// time this client may upload its screenshot, staggered by match slot so players do not saturate their links at once
+static std::chrono::steady_clock::time_point GetScreenshotUploadTime()
+{
+	int slotIndex = 0;
+
+	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+	if (pAuthInterface != nullptr && pLobbyInterface != nullptr)
+	{
+		const int64_t localUserID = pAuthInterface->GetUserID();
+		for (const LobbyMemberEntry& lobbyMember : pLobbyInterface->GetMembersListForCurrentRoom())
+		{
+			if (lobbyMember.user_id == localUserID)
+			{
+				slotIndex = lobbyMember.m_SlotIndex < MAX_SLOTS ? lobbyMember.m_SlotIndex : 0;
+				break;
+			}
+		}
+	}
+
+	const int slotOffsetMS = std::clamp(NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig().screenshot_slot_offset_ms, 0, 10000);
+
+	static thread_local std::mt19937 rng{ std::random_device{}() };
+	const int jitterMS = std::uniform_int_distribution<int>(0, 500)(rng);
+
+	return std::chrono::steady_clock::now() + std::chrono::milliseconds(slotIndex * slotOffsetMS + jitterMS);
+}
+
 void NGMP_OnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType screenshotType, std::string strURI)
 {
 	NGMP_OnlineServicesManager* pOnlineServicesMgr = NGMP_OnlineServicesManager::GetInstance();
@@ -114,7 +145,8 @@ void NGMP_OnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType scree
 			if (pLobbyInterface != nullptr)
 			{
 				const uint64_t matchID = pLobbyInterface->GetCurrentMatchID();
-				NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshot(true, [strURI = std::move(strURI), screenshotType, matchID](std::vector<uint8_t> vecData)
+				const std::chrono::steady_clock::time_point uploadTime = GetScreenshotUploadTime();
+				NGMP_OnlineServicesManager::GetInstance()->CaptureScreenshot(true, [strURI = std::move(strURI), screenshotType, matchID, uploadTime](std::vector<uint8_t> vecData)
 					{
 						CHECK_WORKER_THREAD;
 
@@ -143,6 +175,7 @@ void NGMP_OnlineServicesManager::CaptureScreenshotForProbe(EScreenshotType scree
                             newEntry.vecBytes = std::move(vecData);
                             newEntry.strSignedURI = strURI;
                             newEntry.screenshotType = screenshotType;
+                            newEntry.notBefore = uploadTime;
                             m_vecGuardedSSData.push_back(std::move(newEntry));
 						}
 					});
@@ -920,13 +953,28 @@ void NGMP_OnlineServicesManager::Tick()
 		std::scoped_lock<std::mutex> ssLock(m_ScreenshotMutex);
 
 
+		const int uploadBytesPerSec = std::clamp(m_ServiceConfig.screenshot_upload_bytes_per_sec, 16384, 10485760);
+		const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+		const bool bMatchOver = TheGameLogic == nullptr || !TheGameLogic->isInMultiplayerGame(); // uploads no longer compete with game traffic
+
 		// screenshot types that already have a presigned URL
-		for (S3ScreenshotEntry& screenshotEntry : m_vecGuardedSSData)
+		for (auto it = m_vecGuardedSSData.begin(); it != m_vecGuardedSSData.end();)
 		{
+			S3ScreenshotEntry& screenshotEntry = *it;
+			const bool bUnthrottled = bMatchOver || screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN;
+
+			// not this client's turn to upload yet
+			if (!bUnthrottled && screenshotEntry.notBefore > now)
+			{
+				++it;
+				continue;
+			}
+
 			// NOTE: Screenshot types start and end of match are captures and cached in memory until the server tells us where to upload them, so we need to wait for the upload URI
 
 			if ((screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_LOADSCREEN || screenshotEntry.screenshotType == EScreenshotType::SCREENSHOT_TYPE_SCORESCREEN) && screenshotEntry.strSignedURI.empty())
 			{
+				it = m_vecGuardedSSData.erase(it);
 				continue;
 			}
 			else // we have the data we need, send away
@@ -942,12 +990,11 @@ void NGMP_OnlineServicesManager::Tick()
                         }
 #endif
                         NetworkLog(ELogVerbosity::LOG_RELEASE, "Screenshot upload, result: %d", statusCode);
-                    }, nullptr, HTTP_UPLOAD_TIMEOUT);
+                    }, nullptr, HTTP_UPLOAD_TIMEOUT, bUnthrottled ? 0 : uploadBytesPerSec);
 			}
-            
-		}
 
-		m_vecGuardedSSData.clear();
+			it = m_vecGuardedSSData.erase(it);
+		}
 
 		// screenshots and replays that are cached and awaiting S3 url, and now have said URL
 		if (!m_vecCachedScreenshotBytes_MatchStart.empty()) // we have data waiting
@@ -959,6 +1006,7 @@ void NGMP_OnlineServicesManager::Tick()
 				newEntry.screenshotType = EScreenshotType::SCREENSHOT_TYPE_LOADSCREEN;
 				newEntry.vecBytes = std::move(m_vecCachedScreenshotBytes_MatchStart);
 				newEntry.strSignedURI = std::move(m_strCachedScreenshot_MatchStart_S3URI);
+				newEntry.notBefore = GetScreenshotUploadTime();
 				m_vecGuardedSSData.push_back(std::move(newEntry));
 
 				// clear data
