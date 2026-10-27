@@ -31,25 +31,33 @@ public:
     ~OpenALPcmStream();
     OpenALPcmStream(const OpenALPcmStream &) = delete;
     OpenALPcmStream &operator=(const OpenALPcmStream &) = delete;
-    bool open(OpenALDevice &device, int sampleRate, int channels, uint32_t capacityFrames);
+    bool open(OpenALDevice &device, int sampleRate, int channels, uint32_t capacityFrames, bool stereoMono = false);
     bool close();
     QueueResult queue(const short *interleaved, uint32_t frames);
+    // Float input preserves filtered mono headroom until the final device mix.
+    QueueResult queueFloat(const float *interleaved, uint32_t frames);
     uint32_t availableFrames() const;
     // Callback-read source frames; includes mixer prefetch, not a presentation clock.
     uint32_t getReadFrames() const;
     // Publish a finite immutable tail after a source-frame cutoff; normal queueing then ends.
     bool replaceQueuedAfter(uint32_t endFrame, const short *tail, uint32_t frames);
+    bool replaceQueuedAfterFloat(uint32_t endFrame, const float *tail, uint32_t frames);
     bool play();
     bool pause();
     bool stop();
     bool markEnd();
     bool setGain(float gain);
     bool setPitch(float pitch);
+    bool setStereoMix(float leftGain, float rightGain, float frontBack, bool surround = false);
+    // Publish before the new portion PCM; the callback resets its one-sample delay here.
+    bool schedulePortionBoundary(uint32_t sourceFrame);
     bool setPosition(float x, float y, float z, bool positional);
     State state() const;
     int getLastError() const;
 
 private:
+    QueueResult queueData(const void *interleaved, uint32_t frames, bool floatInput);
+    bool replaceQueuedDataAfter(uint32_t endFrame, const void *tail, uint32_t frames, bool floatInput);
     struct Data;
     std::unique_ptr<Data> m_data;
 };

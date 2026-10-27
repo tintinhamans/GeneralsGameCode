@@ -119,8 +119,225 @@ static std::vector<unsigned char> wave(int samples, int channels = 1)
     return data;
 }
 
+static void monoUpmixTests()
+{
+    FFmpegAudioFile audio;
+    Int64 received = 0;
+    audio.setPcmCallback([&](const short *pcm, Int count) {
+        for (Int i = 0; i < count; ++i) {
+            const short expected = static_cast<short>((received + i) % 2000 - 1000);
+            CHECK(pcm[2 * i] == expected);
+            CHECK(pcm[2 * i + 1] == expected);
+        }
+        received += count;
+    });
+    CHECK(audio.open(new TestFile(wave(8000)), 8000, 2));
+    for (Int pass = 0; pass < 2; ++pass) {
+        received = 0;
+        while (audio.decodePacket()) {}
+        CHECK(!audio.hasError() && received == 8000);
+        CHECK(audio.rewind());
+    }
+    audio.close();
+    CHECK(TestFile::live == 0);
+
+    FFmpegPcmConverter converter;
+    for (Int pass = 0; pass < 3; ++pass) {
+        if (pass == 1)
+            CHECK(converter.configure(8000, 2, FFmpegPcmConverter::MonoUpmix::Duplicate));
+        else
+            CHECK(converter.configure(8000, 2));
+        received = 0;
+        converter.setPcmCallback([&](const short *pcm, Int count) {
+            for (Int i = 0; i < count; ++i) {
+                double expected = static_cast<short>((received + i) % 2000 - 1000);
+                if (pass != 1)
+                    expected /= std::sqrt(2.0);
+                CHECK(std::abs(pcm[2 * i] - expected) <= 1.0);
+                CHECK(pcm[2 * i] == pcm[2 * i + 1]);
+            }
+            received += count;
+        });
+        FFmpegFile source;
+        CHECK(source.open(new TestFile(wave(8000))));
+        source.setFrameCallback([&](AVFrame *frame, int, int type, void *) {
+            CHECK(type == AVMEDIA_TYPE_AUDIO);
+            CHECK(converter.convert(frame));
+        });
+        while (source.decodePacket()) {}
+        CHECK(converter.drain());
+        CHECK(!source.hasError() && !converter.hasError() && received == 8000);
+    }
+    CHECK(TestFile::live == 0);
+    CHECK(converter.configure(8000, 2, FFmpegPcmConverter::MonoUpmix::Duplicate));
+    for (Int inputChannels : {1, 2, 1}) {
+        received = 0;
+        converter.setPcmCallback([&](const short *pcm, Int count) {
+            for (Int i = 0; i < count; ++i) {
+                const short left = static_cast<short>((received + i) % 2000 - 1000);
+                short right = left;
+                if (inputChannels == 2)
+                    right = static_cast<short>(12000 - (received + i) % 3000);
+                CHECK(pcm[2 * i] == left);
+                CHECK(pcm[2 * i + 1] == right);
+            }
+            received += count;
+        });
+        FFmpegFile source;
+        CHECK(source.open(new TestFile(wave(8000, inputChannels))));
+        source.setFrameCallback([&](AVFrame *frame, int, int type, void *) {
+            CHECK(type == AVMEDIA_TYPE_AUDIO);
+            CHECK(converter.convert(frame));
+        });
+        while (source.decodePacket()) {}
+        CHECK(converter.drain());
+        CHECK(!source.hasError() && !converter.hasError() && received == 8000);
+    }
+    CHECK(TestFile::live == 0);
+    std::puts("standalone mono duplication and default converter equal-power remix passed");
+}
+
+static std::vector<unsigned char> filterWave(int rate, bool step = false)
+{
+    auto data = wave(rate);
+    for (Int offset : {24, 28}) {
+        const unsigned value = rate * (offset == 28 ? 2 : 1);
+        for (Int byte = 0; byte < 4; ++byte)
+            data[offset + byte] = static_cast<unsigned char>(value >> (8 * byte));
+    }
+    for (Int sample = 0; sample < rate; ++sample) {
+        double value = 0;
+        if (step) {
+            if (sample >= rate / 4)
+                value = 32700;
+        } else {
+            for (Int frequency : {250, 1000, 4000, 8000})
+                value += 3000 * std::sin(2.0 * 3.141592653589793 * frequency * sample / rate);
+        }
+        const short encoded = static_cast<short>(std::lround(value));
+        data[44 + 2 * sample] = static_cast<unsigned char>(encoded);
+        data[45 + 2 * sample] = static_cast<unsigned char>(encoded >> 8);
+    }
+    return data;
+}
+
+static double expectedLowPassGain(double cutoff, double frequency, double sourceRate)
+{
+    const double c = 1.0 / std::tan(3.141592653589793 * cutoff / 2.0);
+    const double b0 = 1.0 / (1.0 + std::sqrt(2.0) * c + c * c);
+    const double a1 = std::round(2.0 * (1.0 - c * c) * b0 * 4096.0) / 4096.0;
+    const double a2 = std::round((1.0 - std::sqrt(2.0) * c + c * c) * b0 * 4096.0) / 4096.0;
+    const double angle = 2.0 * 3.141592653589793 * frequency / sourceRate;
+    const double realNumerator = b0 * (1.0 + 2.0 * std::cos(angle) + std::cos(2.0 * angle));
+    const double imagNumerator = -b0 * (2.0 * std::sin(angle) + std::sin(2.0 * angle));
+    const double realDenominator = 1.0 + a1 * std::cos(angle) + a2 * std::cos(2.0 * angle);
+    const double imagDenominator = -a1 * std::sin(angle) - a2 * std::sin(2.0 * angle);
+    return std::sqrt((realNumerator * realNumerator + imagNumerator * imagNumerator) /
+        (realDenominator * realDenominator + imagDenominator * imagDenominator));
+}
+
+static double toneAmplitude(const std::vector<float> &pcm, int frequency)
+{
+    double real = 0;
+    double imaginary = 0;
+    const Int start = 9600;
+    const Int end = 38400;
+    for (Int sample = start; sample < end; ++sample) {
+        const double angle = 2.0 * 3.141592653589793 * frequency * sample / 48000;
+        real += pcm[sample] * std::cos(angle);
+        imaginary += pcm[sample] * std::sin(angle);
+    }
+    return 2.0 * std::sqrt(real * real + imaginary * imaginary) / (end - start);
+}
+
+static std::vector<float> convertFilterFrames(bool changeFormat)
+{
+    FFmpegPcmConverter converter;
+    CHECK(converter.configure(44100, 1, FFmpegPcmConverter::MonoUpmix::EqualPower, 0.26f));
+    std::vector<float> output;
+    CHECK(converter.setFloatPcmCallback([&](const float *pcm, Int count) {
+        output.insert(output.end(), pcm, pcm + count);
+    }));
+    AVFrame *empty = av_frame_alloc();
+    CHECK(empty != nullptr);
+    empty->sample_rate = 44100;
+    empty->format = AV_SAMPLE_FMT_S16;
+    av_channel_layout_default(&empty->ch_layout, 1);
+    CHECK(converter.convert(empty));
+    av_frame_free(&empty);
+    for (Int block = 0; block < 8; ++block) {
+        AVFrame *frame = av_frame_alloc();
+        CHECK(frame != nullptr);
+        frame->sample_rate = 44100;
+        frame->format = AV_SAMPLE_FMT_S16;
+        if (changeFormat && block >= 4)
+            frame->format = AV_SAMPLE_FMT_FLTP;
+        frame->nb_samples = 128;
+        av_channel_layout_default(&frame->ch_layout, 1);
+        CHECK(av_frame_get_buffer(frame, 0) == 0);
+        for (Int index = 0; index < 128; ++index) {
+            const short sample = static_cast<short>(10000 * std::sin(
+                2.0 * 3.141592653589793 * 1700 * (block * 128 + index) / 44100));
+            if (frame->format == AV_SAMPLE_FMT_S16)
+                reinterpret_cast<short *>(frame->data[0])[index] = sample;
+            else
+                reinterpret_cast<float *>(frame->data[0])[index] = sample / 32768.0f;
+        }
+        CHECK(converter.convert(frame));
+        av_frame_free(&frame);
+    }
+    CHECK(converter.drain() && !converter.hasError());
+    CHECK(output.size() == 1024);
+    return output;
+}
+
+static void sourceFilterTests()
+{
+    const auto fixedFormat = convertFilterFrames(false);
+    const auto changedFormat = convertFilterFrames(true);
+    CHECK(fixedFormat.size() == changedFormat.size());
+    for (size_t index = 0; index < fixedFormat.size(); ++index)
+        CHECK(std::abs(fixedFormat[index] - changedFormat[index]) < 0.000001f);
+    for (Int sourceRate : {22050, 44100}) {
+        std::vector<float> output;
+        FFmpegAudioFile audio;
+        CHECK(audio.open(new TestFile(filterWave(sourceRate)), 48000, 1, 0.26f));
+        CHECK(audio.setFloatPcmCallback([&](const float *pcm, Int count) {
+            output.insert(output.end(), pcm, pcm + count);
+        }));
+        while (audio.decodePacket()) {}
+        CHECK(!audio.hasError() && output.size() == 48000);
+        for (Int frequency : {250, 1000, 4000, 8000}) {
+            const double actual = toneAmplitude(output, frequency) / (3000.0 / 32768);
+            const double expected = expectedLowPassGain(0.26f, frequency, sourceRate);
+            CHECK(std::abs(actual - expected) < 0.003);
+        }
+        const auto first = output;
+        CHECK(!audio.setFloatPcmCallback(nullptr));
+        CHECK(audio.rewind());
+        output.clear();
+        while (audio.decodePacket()) {}
+        CHECK(!audio.hasError() && output == first);
+    }
+    FFmpegAudioFile headroom;
+    CHECK(headroom.open(new TestFile(filterWave(44100, true)), 48000, 1, 0.1f));
+    float peak = 0;
+    CHECK(headroom.setFloatPcmCallback([&](const float *pcm, Int count) {
+        for (Int sample = 0; sample < count; ++sample)
+            peak = std::max(peak, pcm[sample]);
+    }));
+    while (headroom.decodePacket()) {}
+    CHECK(!headroom.hasError() && peak > 1.02f && peak < 1.1f);
+    std::printf("source-rate lowpass and float headroom passed (peak %.6f)\n", peak);
+    CHECK(!headroom.open(new TestFile(wave(8)), 8000, 1, NAN));
+    headroom.close();
+    CHECK(TestFile::live == 0);
+}
+
 static void unitTests()
 {
+    sourceFilterTests();
+    monoUpmixTests();
     FFmpegAudioFile audio;
     Int64 received = 0;
     audio.setPcmCallback([&](const short *pcm, Int samples) {
@@ -203,7 +420,7 @@ static void gaplessTests(const char *path)
             CHECK(pcm[2 * i] == pcm[2 * i + 1]);
             // Exclude codec/resampler edge transients, not encoder delay (tested by sample counts).
             if (index >= 4800 && index < 43200) {
-                const double reference = 10000.0 / std::sqrt(2.0) * std::sin(2.0 * 3.141592653589793 * 440.0 * index / 48000.0);
+                const double reference = 10000.0 * std::sin(2.0 * 3.141592653589793 * 440.0 * index / 48000.0);
                 const double error = pcm[2 * i] - reference;
                 errorSquared += error * error;
                 referenceSquared += reference * reference;

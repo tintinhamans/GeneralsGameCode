@@ -27,3 +27,22 @@ python tests/ffmpeg/run_corpus.py build/ffmpeg-tests/ffmpeg_foundation_tests.exe
 Validated locally against minimal FFmpeg 9.0.2 x86. A full modern MSVC Zero Hour Release x86 game build also compiled and linked successfully (1,101 build steps), with a subsequent incremental build succeeding. Logs are retained locally in `build/go-modern-build.log` and `build/go-modern-final.log`. Both Generals and Zero Hour headers additionally passed focused object compilation. No game was launched: actual engine BIG/File runtime integration, audio devices and playback remain unverified. The PCM foundation is not yet wired into a playback backend.
 
 The pinned minimal-library build recipe is in `scripts/ffmpeg/README.md`.
+
+Standalone `FFmpegAudioFile` duplicates mono input to stereo at unity per channel,
+matching the audio manager's explicit center-pan gain instead of applying a second
+equal-power attenuation during decoding. Stereo input remains channel-exact.
+The shared `FFmpegPcmConverter` retains equal-power mono upmix by default for
+movies; duplication is an explicit conversion policy used only by standalone
+audio. Tests check both policies, default-policy restoration after reconfiguration,
+exact duplication after rewind, and compressed mono amplitude after resampling.
+
+Optional normalized low-pass cutoff is relative to the decoded source Nyquist
+frequency and applied before sample-rate conversion. The shared converter and
+movie path default to bypass. Filter history spans decoded frames and clears on
+rewind or input rate/layout changes. A format-only conversion stage produces
+float PCM at the native source rate, then the filtered signal is resampled once.
+`setFloatPcmCallback` must be selected before the first decoded frame; its float
+output preserves filter overshoot until the playback gain/mixer stage. Existing
+short callbacks remain S16. Tests exercise 22,050/44,100 Hz sources resampled to
+48,000 Hz, frequency response, exact rewind, default movie conversion, and a
+step response exceeding full scale without intermediate clipping.

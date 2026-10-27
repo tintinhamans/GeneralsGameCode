@@ -30,12 +30,15 @@ class OpenALPcmStream;
 class OpenALDevice
 {
 public:
+    enum class OutputMode { Unknown, Stereo, Headphones, SurroundStereo, Quad, Surround51, Surround71 };
     OpenALDevice() = default;
     ~OpenALDevice();
     OpenALDevice(const OpenALDevice &) = delete;
     OpenALDevice &operator=(const OpenALDevice &) = delete;
-    bool open(int sampleRate = 48000, const char *name = nullptr);
-    bool openLoopback(int sampleRate = 48000);
+    bool open(int sampleRate = 48000, const char *name = nullptr, OutputMode mode = OutputMode::Stereo);
+    bool openLoopback(int sampleRate = 48000, OutputMode mode = OutputMode::Stereo);
+    bool setOutputMode(OutputMode mode);
+    OutputMode getOutputMode() const;
     bool close();
     bool isOpen() const;
     int getLastError() const { return m_error; }
@@ -52,6 +55,9 @@ private:
         PFNALCGETTHREADCONTEXTPROC getCurrent = nullptr;
         LPALBUFFERCALLBACKSOFT bufferCallback = nullptr;
         LPALCRENDERSAMPLESSOFT render = nullptr;
+        LPALCRESETDEVICESOFT reset = nullptr;
+        int sampleRate = 0;
+        bool loopback = false;
         std::thread::id owner = std::this_thread::get_id();
         ~Context();
         bool onOwnerThread() const { return owner == std::this_thread::get_id(); }
@@ -64,7 +70,7 @@ private:
         explicit Scope(Context &value);
         ~Scope();
     };
-    bool initialize(ALCdevice *device, int sampleRate, bool loopback);
+    bool initialize(ALCdevice *device, int sampleRate, bool loopback, OutputMode mode);
     std::shared_ptr<Context> m_context;
     int m_error = 0;
 };

@@ -20,6 +20,37 @@
 #include <exception>
 #include <cmath>
 #include <limits>
+#include <vector>
+
+namespace {
+ALCenum outputModeValue(OpenALDevice::OutputMode mode)
+{
+    using Mode = OpenALDevice::OutputMode;
+    switch (mode) {
+    case Mode::Stereo: return ALC_STEREO_BASIC_SOFT;
+    case Mode::Headphones: return ALC_STEREO_HRTF_SOFT;
+    case Mode::SurroundStereo: return ALC_STEREO_UHJ_SOFT;
+    case Mode::Quad: return ALC_QUAD_SOFT;
+    case Mode::Surround51: return ALC_SURROUND_5_1_SOFT;
+    case Mode::Surround71: return ALC_SURROUND_7_1_SOFT;
+    default: return ALC_ANY_SOFT;
+    }
+}
+
+std::vector<ALCint> outputAttributes(int sampleRate, bool loopback, OpenALDevice::OutputMode mode)
+{
+    std::vector<ALCint> attributes = {ALC_FREQUENCY, sampleRate,
+        ALC_OUTPUT_MODE_SOFT, outputModeValue(mode), ALC_HRTF_SOFT, ALC_FALSE};
+    if (mode == OpenALDevice::OutputMode::Headphones)
+        attributes.back() = ALC_TRUE;
+    if (loopback) {
+        attributes.insert(attributes.end(), {ALC_FORMAT_CHANNELS_SOFT, ALC_STEREO_SOFT,
+            ALC_FORMAT_TYPE_SOFT, ALC_SHORT_SOFT});
+    }
+    attributes.push_back(0);
+    return attributes;
+}
+}
 
 OpenALDevice::Context::~Context()
 {
@@ -67,7 +98,7 @@ bool OpenALDevice::isOpen() const
     return m_context != nullptr && m_context->onOwnerThread();
 }
 
-bool OpenALDevice::open(int sampleRate, const char *name)
+bool OpenALDevice::open(int sampleRate, const char *name, OutputMode mode)
 {
     if (!close())
         return false;
@@ -75,10 +106,10 @@ bool OpenALDevice::open(int sampleRate, const char *name)
         m_error = ALC_INVALID_VALUE;
         return false;
     }
-    return initialize(alcOpenDevice(name), sampleRate, false);
+    return initialize(alcOpenDevice(name), sampleRate, false, mode);
 }
 
-bool OpenALDevice::openLoopback(int sampleRate)
+bool OpenALDevice::openLoopback(int sampleRate, OutputMode mode)
 {
     if (!close())
         return false;
@@ -91,10 +122,10 @@ bool OpenALDevice::openLoopback(int sampleRate)
         m_error = ALC_INVALID_DEVICE;
         return false;
     }
-    return initialize(openLoopback(nullptr), sampleRate, true);
+    return initialize(openLoopback(nullptr), sampleRate, true, mode);
 }
 
-bool OpenALDevice::initialize(ALCdevice *device, int sampleRate, bool loopback)
+bool OpenALDevice::initialize(ALCdevice *device, int sampleRate, bool loopback, OutputMode mode)
 {
     m_error = ALC_NO_ERROR;
     if (device == nullptr) {
@@ -120,13 +151,17 @@ bool OpenALDevice::initialize(ALCdevice *device, int sampleRate, bool loopback)
         m_error = ALC_INVALID_CONTEXT;
         return false;
     }
-    const ALCint playbackAttributes[] = { ALC_FREQUENCY, sampleRate, 0 };
-    const ALCint loopbackAttributes[] = { ALC_FREQUENCY, sampleRate,
-        ALC_FORMAT_CHANNELS_SOFT, ALC_STEREO_SOFT, ALC_FORMAT_TYPE_SOFT, ALC_SHORT_SOFT, 0 };
-    const ALCint *attributes = playbackAttributes;
-    if (loopback)
-        attributes = loopbackAttributes;
-    candidate->context = alcCreateContext(device, attributes);
+    if ((loopback && mode != OutputMode::Stereo && mode != OutputMode::Headphones && mode != OutputMode::SurroundStereo) ||
+        mode == OutputMode::Unknown || !alcIsExtensionPresent(device, "ALC_SOFT_output_mode") ||
+        !alcIsExtensionPresent(device, "ALC_SOFT_HRTF")) {
+        m_error = ALC_INVALID_VALUE;
+        return false;
+    }
+    candidate->sampleRate = sampleRate;
+    candidate->loopback = loopback;
+    candidate->reset = reinterpret_cast<LPALCRESETDEVICESOFT>(alcGetProcAddress(device, "alcResetDeviceSOFT"));
+    const auto attributes = outputAttributes(sampleRate, loopback, mode);
+    candidate->context = alcCreateContext(device, attributes.data());
     if (candidate->context == nullptr) {
         m_error = alcGetError(device);
         return false;
@@ -150,6 +185,51 @@ bool OpenALDevice::initialize(ALCdevice *device, int sampleRate, bool loopback)
     }
     m_context = candidate;
     alDopplerFactor(0.0f);
+    return true;
+}
+
+OpenALDevice::OutputMode OpenALDevice::getOutputMode() const
+{
+    if (!isOpen())
+        return OutputMode::Unknown;
+    ALCint value = ALC_ANY_SOFT;
+    alcGetIntegerv(m_context->device, ALC_OUTPUT_MODE_SOFT, 1, &value);
+    switch (value) {
+    case ALC_STEREO_BASIC_SOFT: return OutputMode::Stereo;
+    case ALC_STEREO_HRTF_SOFT: return OutputMode::Headphones;
+    case ALC_STEREO_UHJ_SOFT: return OutputMode::SurroundStereo;
+    case ALC_QUAD_SOFT: return OutputMode::Quad;
+    case ALC_SURROUND_5_1_SOFT: return OutputMode::Surround51;
+    case ALC_SURROUND_7_1_SOFT: return OutputMode::Surround71;
+    default: return OutputMode::Unknown;
+    }
+}
+
+bool OpenALDevice::setOutputMode(OutputMode mode)
+{
+    if (!isOpen() || mode == OutputMode::Unknown || m_context->reset == nullptr) {
+        m_error = ALC_INVALID_VALUE;
+        return false;
+    }
+    if (m_context->loopback && mode != OutputMode::Stereo && mode != OutputMode::Headphones && mode != OutputMode::SurroundStereo) {
+        m_error = ALC_INVALID_VALUE;
+        return false;
+    }
+    if (getOutputMode() == mode) {
+        m_error = ALC_NO_ERROR;
+        return true;
+    }
+    const auto attributes = outputAttributes(m_context->sampleRate, m_context->loopback, mode);
+    if (!m_context->reset(m_context->device, attributes.data())) {
+        m_error = alcGetError(m_context->device);
+        return false;
+    }
+    // A successful device reset does not guarantee that its requested attributes were honored.
+    if (getOutputMode() != mode) {
+        m_error = ALC_INVALID_VALUE;
+        return false;
+    }
+    m_error = ALC_NO_ERROR;
     return true;
 }
 

@@ -28,6 +28,9 @@ class FixtureManager : public OpenALAudioManager
 public:
     explicit FixtureManager(Bool dummy = false) : OpenALAudioManager(dummy) {}
     unsigned deviceOpens = 0;
+    bool onScreen = true;
+    mutable unsigned screenQueries = 0;
+    AudioHandle nextPlaybackHandle() { return allocateNewHandle(); }
     void openDevice() override
     {
         ++deviceOpens;
@@ -110,6 +113,7 @@ public:
     }
 protected:
     Bool shouldPlayLocally(const AudioEventRTS *) override { return true; }
+    Bool isOnScreen(const Coord3D *) const override { ++screenQueries; return onScreen; }
 };
 
 static double energy(const std::vector<short> &pcm, int channel = -1, size_t start = 0)
@@ -218,7 +222,7 @@ static void streamedPayloadTest(FixtureManager &manager)
     int maximumError = 0;
     for (int i = 0; i < 48000; ++i) {
         const short source = static_cast<short>(std::lround(8000.0 * std::sin(2.0 * 3.141592653589793 * 440.0 * i / 48000.0)));
-        const short expected = static_cast<short>(std::lround(source / std::sqrt(2.0)));
+        const short expected = static_cast<short>(std::lround(source * std::pow(0.5, 0.3000000119)));
         maximumError = std::max(maximumError, std::abs(static_cast<int>(output[2 * i]) - expected));
         maximumError = std::max(maximumError, std::abs(static_cast<int>(output[2 * i + 1]) - expected));
     }
@@ -410,6 +414,181 @@ static void pauseSnapshotTests(FixtureManager &manager)
     std::puts("pause snapshot, new UI playback, scoped resume and ambient overlap tests passed");
 }
 
+static void pausedGainTests(FixtureManager &manager)
+{
+    for (bool ambient : {false, true}) {
+        manager.reset();
+        manager.render(1600);
+        add(manager, "Permanent");
+        CHECK(energy(manager.run(3200)) > 1.0e9);
+        if (ambient)
+            manager.pauseAmbient(true);
+        else
+            manager.pauseAudio(AudioAffect_Sound);
+        manager.run(1600);
+        manager.setVolume(0, AudioAffect_Sound);
+        if (!ambient)
+            manager.tick();
+        if (ambient)
+            manager.pauseAmbient(false);
+        else
+            manager.resumeAudio(AudioAffect_Sound);
+        const auto muted = manager.render(6400);
+        CHECK(energy(muted, -1, 1600) < 10000);
+        manager.setVolume(1, AudioAffect_Sound);
+        CHECK(energy(manager.run(3200)) > 1.0e9);
+    }
+    manager.reset();
+    manager.render(1600);
+    add(manager, "Permanent");
+    manager.run(3200);
+    manager.pauseAudio(AudioAffect_Sound);
+    manager.run(1600);
+    manager.muteAudio(AudioManager::MuteAudioReason_WindowFocus);
+    manager.tick();
+    manager.resumeAudio(AudioAffect_Sound);
+    CHECK(energy(manager.render(6400), -1, 1600) < 10000);
+    manager.unmuteAudio(AudioManager::MuteAudioReason_WindowFocus);
+    CHECK(energy(manager.run(3200)) > 1.0e9);
+    manager.reset();
+    manager.render(1600);
+    manager.friend_getAudioSettings()->m_fadeAudioFrames = 20;
+    const AudioHandle fading = add(manager, "MusicOne");
+    manager.run(1600);
+    add(manager, "MusicTwo");
+    manager.tick();
+    manager.pauseAudio(AudioAffect_Music);
+    manager.run(1600);
+    manager.setVolume(0, AudioAffect_Music);
+    for (int tick = 0; tick < 25; ++tick)
+        manager.tick();
+    CHECK(manager.isCurrentlyPlaying(fading));
+    manager.resumeAudio(AudioAffect_Music);
+    CHECK(energy(manager.render(6400), -1, 1600) < 10000);
+    CHECK(manager.isCurrentlyPlaying(fading));
+    manager.run(17600);
+    CHECK(!manager.isCurrentlyPlaying(fading));
+    manager.friend_getAudioSettings()->m_fadeAudioFrames = 3;
+    manager.reset();
+    manager.render(1600);
+    std::puts("paused category/ambient gains, focus mute and frozen fades apply before direct resume passed");
+}
+
+static void forcedOverrideTests(FixtureManager &manager)
+{
+    manager.reset();
+    manager.render(1600);
+    AudioEventRTS briefing{AsciiString("Low")};
+    manager.friend_forcePlayAudioEventRTS(&briefing);
+    const double baseline = energy(manager.render(48000), -1, 1600);
+    CHECK(baseline > 1.0e9);
+    manager.reset();
+    manager.render(1600);
+    manager.setAudioEventVolumeOverride("Low", 0.25f);
+    manager.setVolume(0.5f, AudioAffect_Speech);
+    manager.friend_forcePlayAudioEventRTS(&briefing);
+    const double quiet = energy(manager.render(48000), -1, 1600);
+    const double expectedRatio = std::pow(0.125, 10.0 / 3.0);
+    CHECK(quiet / baseline > expectedRatio * 0.95 && quiet / baseline < expectedRatio * 1.05);
+    manager.reset();
+    manager.render(1600);
+    manager.setAudioEventEnabled("Low", false);
+    manager.friend_forcePlayAudioEventRTS(&briefing);
+    CHECK(energy(manager.render(48000), -1, 1600) < 10000);
+    manager.reset();
+    manager.render(1600);
+    manager.setVolume(0.5f, AudioAffect_Speech);
+    manager.friend_forcePlayAudioEventRTS(&briefing);
+    manager.render(1600);
+    manager.setAudioEventVolumeOverride("Low", 0.25f);
+    const auto changed = manager.render(6400);
+    const double expectedGain = std::pow(0.125, 5.0 / 3.0) * std::pow(0.5, 0.3000000119);
+    for (size_t frame = 1600; frame < changed.size() / 2; ++frame) {
+        const double phase = 6.283185307179586 * 440 * (1600 + frame) / 48000;
+        const int expected = static_cast<int>(std::lround(8000 * std::sin(phase) * expectedGain));
+        CHECK(std::abs(changed[frame * 2] - expected) <= 2);
+        CHECK(std::abs(changed[frame * 2 + 1] - expected) <= 2);
+    }
+    manager.reset();
+    manager.render(1600);
+    std::puts("forced briefing initial/live event overrides, disable and speech slider passed");
+}
+
+static void disabledCleanupTests(FixtureManager &manager)
+{
+    manager.reset();
+    manager.render(1600);
+    const AudioHandle keep = add(manager, "Permanent");
+    AudioEventRTS protectedSpeech{AsciiString("SpeechOne")};
+    protectedSpeech.setUninterruptible(true);
+    const AudioHandle disabled = manager.addAudioEvent(&protectedSpeech);
+    manager.tick();
+    CHECK(manager.isCurrentlyPlaying(disabled) && manager.getDisallowSpeech());
+    manager.setAudioEventEnabled("SpeechOne", false);
+    manager.setAudioEventEnabled("SpeechOne", true);
+    manager.removeDisabledEvents();
+    CHECK(!manager.isCurrentlyPlaying(disabled) && !manager.getDisallowSpeech());
+    CHECK(manager.isCurrentlyPlaying(keep));
+    CHECK(add(manager, "SpeechOne") >= AHSV_FirstHandle);
+    manager.tick();
+    manager.setAudioEventVolumeOverride("Permanent", 0);
+    manager.setAudioEventVolumeOverride(AsciiString::TheEmptyString, -1);
+    manager.removeDisabledEvents();
+    CHECK(!manager.isCurrentlyPlaying(keep));
+    manager.reset();
+    manager.render(1600);
+    std::puts("disabled cleanup follows active event volume after overrides are cleared passed");
+}
+
+static void movingRangeTests(FixtureManager &manager)
+{
+    Coord3D listener, forward, position;
+    listener.set(0, 0, 0);
+    forward.set(0, 1, 0);
+    position.set(0, 5, 0);
+    for (const Real exponent : {1.0f, 4.0f}) {
+        manager.friend_getAudioSettings()->m_3DSoundRangeVolumeFadeExponent = exponent;
+        const double expectedRatio = std::pow(1.0 - std::pow(0.5, exponent), 10.0 / 3.0) *
+            std::pow(10.0 / 55.0, 2);
+        for (const char *name : {"CriticalWorldLoop", "GlobalWorldLoop"}) {
+            manager.reset();
+            manager.render(1600);
+            listener.set(0, 0, 0);
+            manager.setListenerPosition(&listener, &forward);
+            AudioEventRTS event(AsciiString(name), &position);
+            const AudioHandle handle = manager.addAudioEvent(&event);
+            const double nearEnergy = energy(manager.run(6400), -1, 1600);
+            CHECK(nearEnergy > 1.0e9 && manager.isCurrentlyPlaying(handle));
+            listener.set(0, -50, 0);
+            manager.setListenerPosition(&listener, &forward);
+            manager.run(1600);
+            const double farEnergy = energy(manager.run(6400), -1, 1600);
+            const double actualRatio = farEnergy / nearEnergy;
+            std::printf("moving range event=%s exponent=%.0f energy ratio=%f expected=%f\n",
+                name, exponent, actualRatio, expectedRatio);
+            CHECK(actualRatio > expectedRatio * 0.95 && actualRatio < expectedRatio * 1.05);
+            CHECK(manager.isCurrentlyPlaying(handle));
+            listener.set(0, -110, 0);
+            manager.setListenerPosition(&listener, &forward);
+            manager.run(1600);
+            CHECK(energy(manager.run(3200)) < 10000);
+            CHECK(manager.isCurrentlyPlaying(handle));
+            listener.set(0, 0, 0);
+            manager.setListenerPosition(&listener, &forward);
+            manager.run(1600);
+            const double restored = energy(manager.run(6400), -1, 1600);
+            CHECK(restored / nearEnergy > 0.95 && restored / nearEnergy < 1.05);
+            CHECK(manager.isCurrentlyPlaying(handle));
+        }
+    }
+    manager.friend_getAudioSettings()->m_3DSoundRangeVolumeFadeExponent = 1;
+    manager.reset();
+    manager.render(1600);
+    listener.set(0, 0, 0);
+    manager.setListenerPosition(&listener, &forward);
+    std::puts("same-voice moving range gain and critical/global recovery passed");
+}
+
 static void loopStopAndForcedTests(FixtureManager &manager)
 {
     manager.reset();
@@ -486,6 +665,342 @@ static void pendingCancellationAndMusicTests(FixtureManager &manager)
     std::puts("pending speech/music cancellation, compressed music navigation and fade tests passed");
 }
 
+// Exercise playback retirement without entering player/shroud admission code.
+static AudioHandle enqueuePlayback(FixtureManager &manager, const AudioEventRTS &event)
+{
+    AudioRequest *request = manager.allocateAudioRequest();
+    request->m_pendingEvent.Assign_No_Add_Ref(newInstance(DynamicAudioEventRTS)(event));
+    auto &queued = *request->m_pendingEvent;
+    manager.getInfoForAudioEvent(&queued);
+    queued.setPlayingHandle(manager.nextPlaybackHandle());
+    queued.generateFilename();
+    queued.generatePlayInfo();
+    manager.appendAudioRequest(request);
+    return queued.getPlayingHandle();
+}
+
+static void minimumAudibleVolumeTests(FixtureManager &manager)
+{
+    Coord3D listener, forward, position;
+    listener.set(0, 0, 0);
+    forward.set(0, 1, 0);
+    position.set(0, 5, 0);
+    manager.setListenerPosition(&listener, &forward);
+    manager.friend_getAudioSettings()->m_minVolume = 0.4f;
+    for (float soundVolume : {1.0f, 0.25f, 0.0f}) {
+        manager.reset();
+        manager.setVolume(soundVolume, AudioAffect_Sound);
+        manager.setVolume(0.2f, AudioAffect_Sound3D);
+        AudioEventRTS event(AsciiString("OrdinaryWorldLoop"), &position);
+        const AudioHandle handle = enqueuePlayback(manager, event);
+        manager.tick();
+        CHECK(manager.isCurrentlyPlaying(handle) == (soundVolume != 1.0f));
+    }
+    for (const char *name : {"GlobalWorldLoop", "CriticalWorldLoop"}) {
+        manager.reset();
+        manager.setVolume(1, AudioAffect_Sound);
+        manager.setVolume(0.2f, AudioAffect_Sound3D);
+        AudioEventRTS event(AsciiString(name), &position);
+        const AudioHandle handle = enqueuePlayback(manager, event);
+        manager.tick();
+        CHECK(manager.isCurrentlyPlaying(handle));
+    }
+    manager.reset();
+    manager.setVolume(0, AudioAffect_Sound3D);
+    AudioEventRTS muted(AsciiString("OrdinaryWorldLoop"), &position);
+    const AudioHandle mutedHandle = enqueuePlayback(manager, muted);
+    manager.tick();
+    CHECK(!manager.isCurrentlyPlaying(mutedHandle));
+    manager.friend_getAudioSettings()->m_minVolume = 0;
+    manager.setVolume(1, AudioAffect_Sound3D);
+    manager.setVolume(1, AudioAffect_Sound);
+    manager.reset();
+    std::puts("legacy minimum-volume culling and global/critical exemptions passed");
+}
+
+static void speakerSelectionTests(FixtureManager &manager)
+{
+    manager.reset();
+    CHECK(manager.getSpeakerType() == 0);
+    const AudioHandle handle = add(manager, "Permanent");
+    manager.run(1600);
+    manager.setSpeakerType(1);
+    CHECK(manager.getSpeakerType() == 1);
+    CHECK(manager.isCurrentlyPlaying(handle));
+    manager.run(1600);
+    CHECK(manager.isCurrentlyPlaying(handle));
+    manager.setSpeakerType(0);
+    CHECK(manager.getSpeakerType() == 0);
+    CHECK(manager.isCurrentlyPlaying(handle));
+    manager.setSpeakerType(99);
+    CHECK(manager.getSpeakerType() == 0);
+    manager.setSpeakerType(3);
+    CHECK(manager.getSpeakerType() == 0);
+    manager.setSpeakerSurround(false);
+    CHECK(!manager.getSpeakerSurround());
+    manager.friend_getAudioSettings()->m_defaultSpeakerType3D = 3;
+    manager.setSpeakerSurround(true);
+    CHECK(manager.getSpeakerType() == 0);
+    CHECK(!manager.getSpeakerSurround());
+    manager.friend_getAudioSettings()->m_defaultSpeakerType3D = 2;
+    manager.setSpeakerSurround(true);
+    CHECK(manager.getSpeakerType() == 2);
+    CHECK(manager.getSpeakerSurround());
+    manager.setSpeakerSurround(false);
+    CHECK(manager.getSpeakerType() == 0);
+    CHECK(!manager.getSpeakerSurround());
+    manager.friend_getAudioSettings()->m_defaultSpeakerType3D = 0;
+    manager.setSpeakerType(2);
+    CHECK(manager.getSpeakerType() == 2);
+    manager.setSpeakerType(0);
+    CHECK(manager.getSpeakerType() == 0);
+    manager.reset();
+    std::puts("speaker selection maps actual renderer without discarding voices");
+}
+
+static void mixedSpatialVolumeTests(FixtureManager &manager)
+{
+    manager.reset();
+    manager.setVolume(1, AudioAffect_Sound3D);
+    manager.setVolume(1, AudioAffect_Sound);
+    Coord3D listener, forward, left, right;
+    listener.set(0, 0, 0);
+    forward.set(0, 1, 0);
+    left.set(-5, 0, 0);
+    right.set(5, 0, 0);
+    manager.setListenerPosition(&listener, &forward);
+    AudioEventRTS leftEvent(AsciiString("World"), &left);
+    AudioEventRTS rightEvent(AsciiString("World"), &right);
+    manager.addAudioEvent(&leftEvent);
+    manager.addAudioEvent(&rightEvent);
+    add(manager, "MixUI");
+    const auto loud = manager.run(4800);
+    const double balance = energy(loud, 0, 1200) / energy(loud, 1, 1200);
+    CHECK(balance > 0.95 && balance < 1.05);
+    auto tonePower = [](const std::vector<short> &pcm, double frequency) {
+        double sine = 0, cosine = 0;
+        for (int i = 0; i < 2400; ++i) {
+            const double angle = 2.0 * 3.141592653589793 * frequency * i / 48000.0;
+            sine += pcm[(i + 1200) * 2] * std::sin(angle);
+            cosine += pcm[(i + 1200) * 2] * std::cos(angle);
+        }
+        return sine * sine + cosine * cosine;
+    };
+    manager.setVolume(0.25f, AudioAffect_Sound3D);
+    const auto quietWorld = manager.run(4800);
+    const double worldRatio = tonePower(quietWorld, 440) / tonePower(loud, 440);
+    const double unchangedUI = tonePower(quietWorld, 400) / tonePower(loud, 400);
+    std::printf("mixed world power ratio=%.6f unchanged UI=%.6f\n", worldRatio, unchangedUI);
+    const double expectedWorldRatio = std::pow(0.25, 10.0 / 3.0);
+    CHECK(worldRatio > expectedWorldRatio * 0.95 && worldRatio < expectedWorldRatio * 1.05);
+    CHECK(unchangedUI > 0.98 && unchangedUI < 1.02);
+    manager.setVolume(0.5f, AudioAffect_Sound);
+    const auto quietBoth = manager.run(4800);
+    const double uiRatio = tonePower(quietBoth, 400) / tonePower(quietWorld, 400);
+    const double unchangedWorld = tonePower(quietBoth, 440) / tonePower(quietWorld, 440);
+    std::printf("mixed UI power ratio=%.6f unchanged world=%.6f\n", uiRatio, unchangedWorld);
+    const double expectedUIRatio = std::pow(0.5, 10.0 / 3.0);
+    CHECK(uiRatio > expectedUIRatio * 0.95 && uiRatio < expectedUIRatio * 1.05);
+    CHECK(unchangedWorld > 0.98 && unchangedWorld < 1.02);
+    manager.setVolume(1, AudioAffect_Sound3D);
+    manager.setVolume(1, AudioAffect_Sound);
+    manager.reset();
+    std::puts("simultaneous left/right world and centered UI category mix passed");
+}
+
+static void measuredSpatialMixTests(FixtureManager &manager)
+{
+    manager.friend_getAudioSettings()->m_use3DSoundRangeVolumeFade = false;
+    Coord3D listener, forward;
+    listener.set(0, 0, 0);
+    forward.set(0, 1, 0);
+    auto capture = [&](float x, float y, float z, float volume = 1, unsigned speaker = 0) {
+        manager.reset();
+        manager.render(1600);
+        manager.setSpeakerType(speaker);
+        manager.setVolume(volume, AudioAffect_Sound3D);
+        manager.setListenerPosition(&listener, &forward);
+        Coord3D position;
+        position.set(x, y, z);
+        AudioEventRTS event(AsciiString("World"), &position);
+        manager.addAudioEvent(&event);
+        return manager.run(6400);
+    };
+    const auto front = capture(0, 5, 0);
+    const double baseline = energy(front, 0, 1600);
+    struct Position { float x, y, z; double left, right; };
+    for (const Position position : {
+        Position{5, 0, 0, 0, 2},
+        Position{-5, 0, 0, 2, 0},
+        Position{3.5355339f, 3.5355339f, 0, 0.5, 1.5},
+        Position{2.5f, 0, 4.3301270f, 2.0 / 3.0, 4.0 / 3.0},
+        Position{0, -5, 0, 0.75, 0.75},
+        Position{0, 0, 5, 1, 1}}) {
+        const auto pcm = capture(position.x, position.y, position.z);
+        const double left = std::sqrt(energy(pcm, 0, 1600) / baseline);
+        const double right = std::sqrt(energy(pcm, 1, 1600) / baseline);
+        CHECK(std::abs(left - position.left) < 0.025);
+        CHECK(std::abs(right - position.right) < 0.025);
+    }
+    const auto half = capture(0, 5, 0, 0.5f);
+    const double volumeRatio = energy(half, 0, 1600) / baseline;
+    CHECK(std::abs(volumeRatio - std::pow(0.5, 10.0 / 3.0)) < 0.003);
+    const auto atMinimum = capture(0, 10, 0);
+    const double minimumEnergy = energy(atMinimum, 0, 1600);
+    for (const float distance : {20.0f, 40.0f, 80.0f}) {
+        const auto pcm = capture(0, distance, 0);
+        const double ratio = std::sqrt(energy(pcm, 0, 1600) / minimumEnergy);
+        CHECK(std::abs(ratio - 10.0 / distance) < 0.01);
+    }
+    forward.set(1, 0, 0);
+    const auto rotated = capture(0, 5, 0);
+    CHECK(energy(rotated, 0, 1600) > 1000 * energy(rotated, 1, 1600));
+    forward.set(0, 1, 0);
+    for (unsigned speaker : {1u, 2u}) {
+        const auto dolbyFront = capture(0, 5, 0, 1, speaker);
+        const auto dolbyRear = capture(0, -5, 0, 1, speaker);
+        CHECK(std::abs(energy(dolbyRear, 0, 1600) / energy(dolbyFront, 0, 1600) - 1) < 0.03);
+        double sum = 0, difference = 0;
+        for (size_t frame = 1600; frame < dolbyRear.size() / 2; ++frame) {
+            const double left = dolbyRear[frame * 2];
+            const double right = dolbyRear[frame * 2 + 1];
+            sum += (left + right) * (left + right);
+            difference += (left - right) * (left - right);
+        }
+        CHECK(sum < difference * 0.0001);
+    }
+    manager.reset();
+    manager.render(1600);
+    manager.setSpeakerType(0);
+    Coord3D rear;
+    rear.set(0, -5, 0);
+    AudioEventRTS continuing(AsciiString("World"), &rear);
+    const AudioHandle handle = manager.addAudioEvent(&continuing);
+    manager.run(1600);
+    unsigned sourceOffset = 1600;
+    for (unsigned speaker : {1u, 2u, 0u}) {
+        manager.setSpeakerType(speaker);
+        const auto pcm = manager.run(3200);
+        CHECK(manager.isCurrentlyPlaying(handle));
+        for (size_t frame = 1600; frame < pcm.size() / 2; ++frame) {
+            double phase = 6.283185307179586 * 440 * (sourceOffset + frame) / 48000;
+            double gain = 0.375;
+            double rightSign = 1;
+            if (speaker != 0) {
+                phase = 6.283185307179586 * 440 * (sourceOffset + frame - 1) / 48000;
+                gain = 0.5;
+                rightSign = -1;
+            }
+            const double expected = 8000 * std::sin(phase) * gain;
+            CHECK(std::abs(pcm[frame * 2] - expected) < 3);
+            CHECK(std::abs(pcm[frame * 2 + 1] - expected * rightSign) < 3);
+        }
+        sourceOffset += 3200;
+    }
+    manager.reset();
+    manager.setSpeakerType(0);
+    manager.setVolume(1, AudioAffect_Sound3D);
+    manager.friend_getAudioSettings()->m_use3DSoundRangeVolumeFade = true;
+    std::puts("measured Miles volume, distance, angular panning and rear stereo behavior passed");
+}
+
+static void offScreenFilterTests(FixtureManager &manager)
+{
+    manager.reset();
+    manager.render(1600);
+    manager.setSpeakerType(0);
+    manager.onScreen = true;
+    Coord3D listener, forward, position;
+    listener.set(0, 0, 0);
+    forward.set(0, 1, 0);
+    position.set(0, 5, 0);
+    manager.setListenerPosition(&listener, &forward);
+    AudioEventRTS event(AsciiString("FilteredWorldLoop"), &position);
+    manager.screenQueries = 0;
+    const AudioHandle handle = manager.addAudioEvent(&event);
+    const auto initial = manager.run(1600);
+    auto tonePower = [](const std::vector<short> &pcm, size_t start, size_t frames, double frequency) {
+        CHECK((start + frames) * 2 <= pcm.size());
+        double sine = 0, cosine = 0;
+        for (size_t i = 0; i < frames; ++i) {
+            const double angle = 6.283185307179586 * frequency * i / 48000;
+            sine += pcm[(start + i) * 2] * std::sin(angle);
+            cosine += pcm[(start + i) * 2] * std::cos(angle);
+        }
+        return (sine * sine + cosine * cosine) / (frames * frames);
+    };
+    auto lowPassPower = [](double sampleRate, double frequency) {
+        const double c = 1.0 / std::tan(3.141592653589793 * 0.26 / 2.0);
+        const double b = 1.0 / (1.0 + std::sqrt(2.0) * c + c * c);
+        const double a1 = 2.0 * (1.0 - c * c) * b;
+        const double a2 = (1.0 - std::sqrt(2.0) * c + c * c) * b;
+        const double w = 6.283185307179586 * frequency / sampleRate;
+        const double numeratorReal = b * (1.0 + 2.0 * std::cos(w) + std::cos(2.0 * w));
+        const double numeratorImag = -b * (2.0 * std::sin(w) + std::sin(2.0 * w));
+        const double denominatorReal = 1.0 + a1 * std::cos(w) + a2 * std::cos(2.0 * w);
+        const double denominatorImag = -a1 * std::sin(w) - a2 * std::sin(2.0 * w);
+        return (numeratorReal * numeratorReal + numeratorImag * numeratorImag) /
+            (denominatorReal * denominatorReal + denominatorImag * denominatorImag);
+    };
+    const double bright = tonePower(initial, 400, 1200, 8000);
+    const unsigned preparedPortions = manager.screenQueries;
+    CHECK(preparedPortions >= 1 && preparedPortions <= 3);
+    const unsigned preparedFrames = preparedPortions * 4800;
+    manager.onScreen = false;
+    const auto changed = manager.run(preparedFrames + 4800 - 1600);
+    CHECK(tonePower(changed, 400, 1200, 8000) > bright * 0.95);
+    const double dark = tonePower(changed, changed.size() / 2 - 2400, 2400, 8000);
+    std::printf("offscreen8k power ratio=%f\n", dark / bright);
+    const double expectedPower = lowPassPower(48000, 8000);
+    CHECK(dark > bright * expectedPower * 0.95 && dark < bright * expectedPower * 1.05);
+    CHECK(manager.isCurrentlyPlaying(handle));
+    const unsigned preparedBeforeRestore = manager.screenQueries;
+    manager.onScreen = true;
+    const unsigned renderedFrames = 1600 + static_cast<unsigned>(changed.size() / 2);
+    const auto restored = manager.run(preparedBeforeRestore * 4800 + 4800 - renderedFrames);
+    const double restoredBright = tonePower(restored, restored.size() / 2 - 2400, 2400, 8000);
+    CHECK(restoredBright > bright * 0.95 && restoredBright < bright * 1.05);
+    manager.onScreen = false;
+    manager.run(1600);
+    manager.removeAudioEvent(handle);
+    const auto decay = manager.run(12000);
+    CHECK(!manager.isCurrentlyPlaying(handle));
+    CHECK(energy(decay) > 1.0e7);
+    CHECK(energy(decay, -1, 11000) < 10000);
+    manager.reset();
+    manager.render(1600);
+    manager.onScreen = true;
+    AudioEventRTS lowRate(AsciiString("FilteredLowRate"), &position);
+    manager.addAudioEvent(&lowRate);
+    const auto lowRateBright = manager.run(6400);
+    manager.reset();
+    manager.render(1600);
+    manager.onScreen = false;
+    manager.addAudioEvent(&lowRate);
+    const auto lowRateDark = manager.run(6400);
+    const double nativeRatio = tonePower(lowRateDark, 1600, 4800, 4000) /
+        tonePower(lowRateBright, 1600, 4800, 4000);
+    const double nativeExpected = lowPassPower(22050, 4000);
+    std::printf("22050Hz source lowpass4k power ratio=%f expected=%f\n", nativeRatio, nativeExpected);
+    CHECK(nativeRatio > nativeExpected * 0.95 && nativeRatio < nativeExpected * 1.05);
+    manager.reset();
+    manager.render(1600);
+    manager.setVolume(0.1f, AudioAffect_Sound3D);
+    AudioEventRTS headroom(AsciiString("FilteredHeadroom"), &position);
+    manager.addAudioEvent(&headroom);
+    const auto quietHeadroom = manager.run(6400);
+    int peak = 0;
+    for (size_t frame = 1600; frame < quietHeadroom.size() / 2; ++frame)
+        peak = std::max(peak, std::abs(static_cast<int>(quietHeadroom[frame * 2])));
+    const double prematureClipLimit = 32767 * std::pow(0.1, 5.0 / 3.0) * 0.5;
+    CHECK(peak > prematureClipLimit + 10);
+    CHECK(peak < 450);
+    manager.setVolume(1, AudioAffect_Sound3D);
+    manager.onScreen = true;
+    manager.reset();
+    std::puts("source-rate offscreen filtering, immutable variants and quiet-gain headroom passed");
+}
+
 static void positionAndVolumeTests(FixtureManager &manager)
 {
     manager.reset();
@@ -527,7 +1042,8 @@ static void positionAndVolumeTests(FixtureManager &manager)
     manager.addAudioEvent(&farEvent);
     const auto farPcm = manager.run(3200);
     const double ratio = energy(farPcm, -1, 256) / energy(nearPcm, -1, 256);
-    CHECK(ratio > 0.20 && ratio < 0.30);
+    const double expectedRatio = std::pow(0.5, 10.0 / 3.0) * std::pow(10.0 / 55.0, 2);
+    CHECK(ratio > expectedRatio * 0.95 && ratio < expectedRatio * 1.05);
     manager.stopAudio(AudioAffect_All);
     manager.run(1600);
     const AudioHandle looping = add(manager, "Permanent");
@@ -535,7 +1051,8 @@ static void positionAndVolumeTests(FixtureManager &manager)
     manager.setVolume(0.5f, AudioAffect_Sound);
     manager.run(1600);
     const double quiet = energy(manager.run(3200), -1, 256);
-    CHECK(quiet / loud > 0.20 && quiet / loud < 0.30);
+    const double expectedCategoryRatio = std::pow(0.5, 10.0 / 3.0);
+    CHECK(quiet / loud > expectedCategoryRatio * 0.95 && quiet / loud < expectedCategoryRatio * 1.05);
     manager.killAudioEventImmediately(looping);
     manager.setVolume(1, AudioAffect_Sound);
     manager.tick();
@@ -591,12 +1108,13 @@ static void delayAndReloadTests(FixtureManager &manager)
     std::puts("logic-frame delay and real-file PCM/metadata reset-reload tests passed");
 }
 
-static void checkLongPcm(const std::vector<short> &pcm, unsigned offset, int voices = 1)
+static void checkLongPcm(const std::vector<short> &pcm, unsigned offset, int voices = 1,
+    double gain = std::pow(0.5, 0.3000000119))
 {
     for (size_t frame = 128; frame < pcm.size() / 2; ++frame) {
         const double phase = 6.283185307179586 * 440 * (offset + frame) / 48000;
         const int source = static_cast<int>(std::lround(8000 * std::sin(phase)));
-        const int expected = voices * static_cast<int>(std::lround(source / std::sqrt(2.0)));
+        const int expected = voices * static_cast<int>(std::lround(source * gain));
         CHECK(std::abs(pcm[frame * 2] - expected) <= voices * 2);
         CHECK(std::abs(pcm[frame * 2 + 1] - expected) <= voices * 2);
     }
@@ -747,7 +1265,7 @@ static void cacheGrowthTests()
             CHECK(clip->samples.capacity() > clip->samples.size());
         else
             CHECK(clip->samples.capacity() == clip->samples.size());
-        checkLongPcm(clip->samples, 0);
+        checkLongPcm(clip->samples, 0, 1, 1.0);
         std::printf("cache budget=%zu logical=%zu capacity=%zu bytes=%zu\n", budget,
             clip->samples.size(), clip->samples.capacity(), cache.usedBytes());
     }
@@ -757,7 +1275,7 @@ static void cacheGrowthTests()
     auto large = cache.load(longFile, 48000, 2);
     CHECK(large != nullptr && cache.usedBytes() <= 240000);
     CHECK(cache.load("Data\\Audio\\Sounds\\attack.wav", 48000, 2) == pinned);
-    checkLongPcm(large->samples, 0);
+    checkLongPcm(large->samples, 0, 1, 1.0);
     std::printf("pinned cache capacity bytes=%zu\n", cache.usedBytes());
 }
 
@@ -802,9 +1320,33 @@ static void durationAndCacheTests(FixtureManager &manager)
     std::puts("normal/headless/source-duration/script-frame/cache-pin/actual-BIG tests passed");
 }
 
+static void filteredCacheVariantTests()
+{
+    OpenALAudioCache cache(512000);
+    const AsciiString filename("Data\\Audio\\Sounds\\filtered-low-rate.wav");
+    auto plain = cache.load(filename, 48000, 1);
+    auto filtered = cache.load(filename, 48000, 1, 0.26f);
+    CHECK(plain != nullptr && filtered != nullptr && plain != filtered);
+    CHECK(!plain->samples.empty() && plain->filteredSamples.empty());
+    CHECK(filtered->samples.empty() && !filtered->filteredSamples.empty());
+    CHECK(plain->frameCount() == filtered->frameCount());
+    CHECK(cache.load(filename, 48000, 1, 1.01f) == plain);
+    CHECK(cache.load(filename, 48000, 1, 0.26f) == filtered);
+    CHECK(cache.usedBytes() == plain->byteSize() + filtered->byteSize());
+    const size_t pinnedBytes = cache.usedBytes();
+    cache.setBudget(pinnedBytes);
+    CHECK(cache.load(filename, 48000, 1, 0.51f) == nullptr);
+    CHECK(cache.usedBytes() == pinnedBytes);
+    filtered.reset();
+    auto otherFilter = cache.load(filename, 48000, 1, 0.51f);
+    CHECK(otherFilter != nullptr && cache.usedBytes() <= pinnedBytes);
+    CHECK(cache.load(filename, 48000, 1) == plain);
+    std::puts("filtered/unfiltered cache variants, pins, float byte budgets and eviction passed");
+}
+
 int main(int argc, char **argv)
 {
-    CHECK(argc == 2);
+    CHECK(argc == 2 || argc == 3);
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     initMemoryManager();
     CHECK(_chdir(argv[1]) == 0);
@@ -826,19 +1368,47 @@ int main(int argc, char **argv)
         TheAudio = &manager;
         manager.init();
         CHECK(manager.deviceOpens == 1 && manager.getDevice() != nullptr);
-        requestAndSequenceTests(manager);
-        limitAndPriorityTests(manager);
-        streamedPayloadTest(manager);
-        retireFinishedTests(manager);
-        controlsAndStreamingTests(manager);
-        pauseSnapshotTests(manager);
-        loopStopAndForcedTests(manager);
-        pendingCancellationAndMusicTests(manager);
-        positionAndVolumeTests(manager);
-        delayAndReloadTests(manager);
-        durationAndCacheTests(manager);
-        replacementAndPoolTests(manager);
-        cacheGrowthTests();
+        if (argc == 3) {
+            const std::string selected = argv[2];
+            if (selected == "paused-gain")
+                pausedGainTests(manager);
+            else if (selected == "forced-overrides")
+                forcedOverrideTests(manager);
+            else if (selected == "disabled-cleanup")
+                disabledCleanupTests(manager);
+            else if (selected == "moving-range")
+                movingRangeTests(manager);
+            else if (selected == "spatial-reference")
+                measuredSpatialMixTests(manager);
+            else if (selected == "offscreen-filter")
+                offScreenFilterTests(manager);
+            else
+                CHECK(false);
+        } else {
+            requestAndSequenceTests(manager);
+            limitAndPriorityTests(manager);
+            streamedPayloadTest(manager);
+            retireFinishedTests(manager);
+            controlsAndStreamingTests(manager);
+            pauseSnapshotTests(manager);
+            pausedGainTests(manager);
+            forcedOverrideTests(manager);
+            disabledCleanupTests(manager);
+            movingRangeTests(manager);
+            loopStopAndForcedTests(manager);
+            pendingCancellationAndMusicTests(manager);
+            minimumAudibleVolumeTests(manager);
+            speakerSelectionTests(manager);
+            mixedSpatialVolumeTests(manager);
+            measuredSpatialMixTests(manager);
+            offScreenFilterTests(manager);
+            positionAndVolumeTests(manager);
+            delayAndReloadTests(manager);
+            durationAndCacheTests(manager);
+            replacementAndPoolTests(manager);
+            cacheGrowthTests();
+            filteredCacheVariantTests();
+        }
         manager.reset();
         TheAudio = nullptr;
     }

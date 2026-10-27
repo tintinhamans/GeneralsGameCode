@@ -25,6 +25,7 @@ struct FFmpegAudioFile::State
     FFmpegFile file;
     FFmpegPcmConverter converter;
     bool finished = false;
+    float normalizedCutoff = 1.0f;
 };
 FFmpegAudioFile::FFmpegAudioFile() : m_state(new State)
 {
@@ -34,15 +35,16 @@ FFmpegAudioFile::FFmpegAudioFile() : m_state(new State)
     });
 }
 FFmpegAudioFile::~FFmpegAudioFile() { close(); }
-Bool FFmpegAudioFile::open(File *file, Int rate, Int channels)
+Bool FFmpegAudioFile::open(File *file, Int rate, Int channels, float normalizedCutoff)
 {
     close();
     if (!m_state->file.open(file))
         return false;
-    if (!m_state->file.hasAudio() || !m_state->converter.configure(rate, channels)) {
+    if (!m_state->file.hasAudio() || !m_state->converter.configure(rate, channels, FFmpegPcmConverter::MonoUpmix::Duplicate, normalizedCutoff)) {
         close();
         return false;
     }
+    m_state->normalizedCutoff = normalizedCutoff;
     return true;
 }
 void FFmpegAudioFile::close()
@@ -50,6 +52,7 @@ void FFmpegAudioFile::close()
     m_state->file.close();
     m_state->converter.reset();
     m_state->finished = false;
+    m_state->normalizedCutoff = 1.0f;
 }
 Bool FFmpegAudioFile::decodePacket()
 {
@@ -69,10 +72,14 @@ Bool FFmpegAudioFile::rewind()
     if (!m_state->file.rewind())
         return false;
     m_state->finished = false;
-    return m_state->converter.configure(rate, channels);
+    return m_state->converter.configure(rate, channels, FFmpegPcmConverter::MonoUpmix::Duplicate, m_state->normalizedCutoff);
 }
 Bool FFmpegAudioFile::hasError() const { return m_state->converter.hasError() || m_state->file.hasError(); }
 void FFmpegAudioFile::setPcmCallback(FFmpegPcmCallback callback) { m_state->converter.setPcmCallback(std::move(callback)); }
+Bool FFmpegAudioFile::setFloatPcmCallback(FFmpegFloatPcmCallback callback)
+{
+    return m_state->converter.setFloatPcmCallback(std::move(callback));
+}
 Int FFmpegAudioFile::getSampleRate() const { return m_state->converter.getSampleRate(); }
 Int FFmpegAudioFile::getNumChannels() const { return m_state->converter.getNumChannels(); }
 Int64 FFmpegAudioFile::getDecodedSampleCount() const { return m_state->converter.getDecodedSampleCount(); }

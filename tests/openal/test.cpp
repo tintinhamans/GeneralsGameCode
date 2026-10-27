@@ -10,6 +10,7 @@
 #include <cstring>
 #include <thread>
 #include <vector>
+#include <limits>
 extern "C" {
 #include <libavutil/log.h>
 }
@@ -498,6 +499,37 @@ static void decoderBridge(const char *path)
     CHECK(error < 0.01);
 }
 
+static void concurrentMixedControls()
+{
+    OpenALDevice device;
+    CHECK(device.open());
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 1, 4096, true));
+    CHECK(stream.schedulePortionBoundary(0));
+    std::vector<float> input(512, 0.25f);
+    CHECK(stream.queueFloat(input.data(), 512) == Result::Accepted);
+    CHECK(stream.play());
+    uint32_t submitted = 512;
+    for (unsigned iteration = 0; iteration < 80; ++iteration) {
+        const float left = static_cast<float>(iteration % 17) / 16.0f;
+        CHECK(stream.setStereoMix(left, 1 - left, 0.5f, iteration % 2 != 0));
+        CHECK(stream.setGain(0.5f));
+        if (stream.availableFrames() >= input.size()) {
+            CHECK(stream.queueFloat(input.data(), static_cast<uint32_t>(input.size())) == Result::Accepted);
+            submitted += static_cast<uint32_t>(input.size());
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    CHECK(stream.markEnd());
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (stream.state() != State::Finished) {
+        CHECK(stream.state() != State::Error && std::chrono::steady_clock::now() < deadline);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    CHECK(stream.getReadFrames() == submitted);
+    std::puts("concurrent Null mixer stereo controls and float feed passed");
+}
+
 static void concurrentNullStress()
 {
     const char *driver = std::getenv("ALSOFT_DRIVERS");
@@ -566,14 +598,426 @@ static void concurrentNullStress()
     std::printf("concurrent EOF/publication rounds: 100, replacement accepted: %u\n", accepted);
 }
 
+static double mixedTonePower(const std::vector<short> &pcm, double frequency, int channel = 0)
+{
+    double sine = 0, cosine = 0;
+    for (int i = 0; i < 4410; ++i) {
+        const double angle = 2.0 * 3.141592653589793 * frequency * i / 44100.0;
+        sine += pcm[(i + 1200) * 2 + channel] * std::sin(angle);
+        cosine += pcm[(i + 1200) * 2 + channel] * std::cos(angle);
+    }
+    return sine * sine + cosine * cosine;
+}
+
+static std::vector<short> mixedTone(float left, float right, float frontBack, bool surround,
+    float gain = 1)
+{
+    OpenALDevice device;
+    CHECK(device.openLoopback(44100));
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 44100, 1, 8192, true));
+    CHECK(stream.setStereoMix(left, right, frontBack, surround));
+    CHECK(stream.setGain(gain));
+    CHECK(!stream.setStereoMix(-0.1f, right, frontBack, surround));
+    CHECK(stream.schedulePortionBoundary(0));
+    std::vector<short> input(8192);
+    for (size_t i = 0; i < input.size(); ++i) {
+        const double phase = 2.0 * 3.141592653589793 * i / 44100.0;
+        input[i] = static_cast<short>(4000 * (std::sin(250 * phase) + std::sin(1000 * phase) +
+            std::sin(4000 * phase) + std::sin(8000 * phase)));
+    }
+    CHECK(stream.queue(input.data(), static_cast<uint32_t>(input.size())) == Result::Accepted);
+    CHECK(stream.markEnd() && stream.play());
+    return render(device, 7200);
+}
+
+static void legacyMixTests()
+{
+    const auto full = mixedTone(1, 0, 0, false);
+    for (const auto gains : {std::pair<float,float>{0.5f,0.5f}, {0.25f,0.75f}, {0.0f,1.0f}}) {
+        const auto pcm = mixedTone(gains.first, gains.second, 0, false);
+        CHECK(std::abs(mixedTonePower(pcm, 1000, 0) / mixedTonePower(full, 1000) - gains.first * gains.first) < 0.001);
+        CHECK(std::abs(mixedTonePower(pcm, 1000, 1) / mixedTonePower(full, 1000) - gains.second * gains.second) < 0.001);
+    }
+    const auto quiet = mixedTone(0.25f, 0.75f, 0, false, 0.5f);
+    CHECK(std::abs(mixedTonePower(quiet, 1000, 1) / mixedTonePower(full, 1000) - 0.75 * 0.75 * 0.25) < 0.001);
+    const auto rear = mixedTone(0.5f, 0.5f, 1, true);
+    CHECK(std::abs(mixedTonePower(rear, 1000, 0) / mixedTonePower(full, 1000) - 0.25) < 0.001);
+    for (int frame = 1200; frame < 6000; ++frame)
+        CHECK(std::abs(static_cast<int>(rear[frame * 2]) + rear[frame * 2 + 1]) <= 1);
+    std::puts("linear stereo mix and Dolby phase passed");
+}
+
+static std::vector<short> mixedWrap(bool wrapped)
+{
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    OpenALPcmStream stream;
+    uint32_t capacity = 16384;
+    if (wrapped)
+        capacity = 4096;
+    CHECK(stream.open(device, 48000, 1, capacity, true));
+    CHECK(stream.setStereoMix(0.25f, 0.75f, 0.4f, true));
+    CHECK(stream.schedulePortionBoundary(0));
+    std::vector<short> input(12000);
+    for (size_t i = 0; i < input.size(); ++i)
+        input[i] = static_cast<short>(7000 * std::sin(0.071 * i));
+    size_t submitted = 0;
+    bool ended = false;
+    std::vector<short> output;
+    while (output.size() < 14000 * 2) {
+        const size_t count = std::min<size_t>(stream.availableFrames(), input.size() - submitted);
+        if (count != 0) {
+            CHECK(stream.queue(input.data() + submitted, static_cast<uint32_t>(count)) == Result::Accepted);
+            submitted += count;
+        }
+        if (submitted == input.size() && !ended) {
+            CHECK(stream.markEnd());
+            ended = true;
+        }
+        if (output.empty())
+            CHECK(stream.play());
+        const auto block = render(device, 256);
+        output.insert(output.end(), block.begin(), block.end());
+    }
+    CHECK(stream.getReadFrames() == input.size());
+    CHECK(stream.state() == State::Finished);
+    return output;
+}
+
+static void mixedBoundaryTests()
+{
+    CHECK(mixedWrap(false) == mixedWrap(true));
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 1, 16384, true));
+    CHECK(stream.setStereoMix(0.5f, 0.5f, 1, true));
+    CHECK(stream.schedulePortionBoundary(0));
+    CHECK(stream.schedulePortionBoundary(5000));
+    std::vector<short> input(12000, 8000);
+    CHECK(stream.queue(input.data(), static_cast<uint32_t>(input.size())) == Result::Accepted);
+    CHECK(stream.markEnd() && stream.play());
+    auto output = render(device, 12020);
+    CHECK(std::abs(output[5000 * 2]) <= 1);
+    CHECK(std::abs(output[5000 * 2 + 1]) <= 1);
+    CHECK(std::abs(static_cast<int>(output[5001 * 2]) - 4000) <= 1);
+    CHECK(std::abs(static_cast<int>(output[5001 * 2 + 1]) + 4000) <= 1);
+    CHECK(stream.getReadFrames() == input.size());
+    CHECK(stream.stop());
+    CHECK(stream.setStereoMix(0.5f, 0.5f, 0, false));
+    CHECK(stream.schedulePortionBoundary(0));
+    CHECK(stream.queue(input.data(), 12000) == Result::Accepted);
+    CHECK(stream.markEnd() && stream.play());
+    render(device, 13000);
+    CHECK(stream.getReadFrames() == 12000);
+    CHECK(stream.stop());
+    CHECK(stream.setStereoMix(0.5f, 0.5f, 1, true));
+    CHECK(stream.schedulePortionBoundary(0));
+    CHECK(stream.schedulePortionBoundary(6000));
+    CHECK(!stream.schedulePortionBoundary(5000));
+    CHECK(stream.queue(input.data(), 8192) == Result::Accepted);
+    CHECK(stream.markEnd() && stream.play());
+    output = render(device, 512);
+    CHECK(stream.getReadFrames() < 4096);
+    std::vector<short> decay(2048, -6000);
+    CHECK(stream.replaceQueuedAfter(4096, decay.data(), 2048));
+    const auto replacement = render(device, 7000);
+    output.insert(output.end(), replacement.begin(), replacement.end());
+    CHECK(stream.getReadFrames() == 4096 + decay.size());
+    CHECK(std::abs(output[4096 * 2]) <= 1);
+    CHECK(std::abs(static_cast<int>(output[4097 * 2]) + 3000) <= 1);
+    CHECK(std::abs(static_cast<int>(output[6000 * 2]) + 3000) <= 1);
+    std::puts("mixed ring-wrap continuity, portion/reset/replacement-tail boundaries passed");
+}
+
+
+struct ScalarMixReference
+{
+    ALCdevice *device = nullptr;
+    ALCcontext *context = nullptr;
+    LPALCRENDERSAMPLESSOFT renderSamples = nullptr;
+    PFNALCSETTHREADCONTEXTPROC setContext = nullptr;
+    PFNALCGETTHREADCONTEXTPROC getContext = nullptr;
+    ALuint source = 0, buffer = 0;
+    std::vector<float> input, tail;
+    std::vector<uint32_t> boundaries;
+    uint32_t read = 0, boundary = 0, replaceAt = 0;
+    bool replacing = false, replacementStarted = false, surround = false;
+    float leftGain = 0.5f, rightGain = 0.5f, frontBack = 0;
+    double previousRear = 0;
+
+    static ALsizei AL_APIENTRY callback(void *opaque, void *output, ALsizei bytes) noexcept
+    {
+        auto &data = *static_cast<ScalarMixReference *>(opaque);
+        auto stereo = static_cast<float *>(output);
+        const uint32_t requested = static_cast<uint32_t>(bytes) / (2 * sizeof(float));
+        uint32_t end = static_cast<uint32_t>(data.input.size());
+        if (data.replacing)
+            end = data.replaceAt + static_cast<uint32_t>(data.tail.size());
+        const uint32_t count = std::min(requested, end - data.read);
+        for (uint32_t frame = 0; frame < count; ++frame) {
+            const uint32_t position = data.read + frame;
+            bool replacement = false;
+            if (data.replacing && position >= data.replaceAt) {
+                replacement = true;
+                if (!data.replacementStarted) {
+                    data.previousRear = 0;
+                    data.replacementStarted = true;
+                }
+            }
+            while (!replacement && data.boundary < data.boundaries.size() &&
+                position - data.boundaries[data.boundary] < 0x80000000u) {
+                data.previousRear = 0;
+                ++data.boundary;
+            }
+            double mono = 0;
+            if (replacement)
+                mono = data.tail[position - data.replaceAt];
+            else
+                mono = data.input[position];
+            const double left = mono * data.leftGain;
+            const double right = mono * data.rightGain;
+            if (data.surround) {
+                stereo[frame * 2] = static_cast<float>(((1 - data.frontBack) * left + data.frontBack * data.previousRear));
+                stereo[frame * 2 + 1] = static_cast<float>(((1 - data.frontBack) * right - data.frontBack * data.previousRear));
+            } else {
+                stereo[frame * 2] = static_cast<float>(left);
+                stereo[frame * 2 + 1] = static_cast<float>(right);
+            }
+            data.previousRear = (left + right) * 0.5;
+        }
+        data.read += count;
+        return static_cast<ALsizei>(count * 2 * sizeof(float));
+    }
+
+    ScalarMixReference()
+    {
+        const auto open = reinterpret_cast<LPALCLOOPBACKOPENDEVICESOFT>(alcGetProcAddress(nullptr, "alcLoopbackOpenDeviceSOFT"));
+        CHECK(open != nullptr);
+        device = open(nullptr);
+        CHECK(device != nullptr);
+        const ALCint attributes[] = {ALC_FREQUENCY, 48000, ALC_FORMAT_CHANNELS_SOFT, ALC_STEREO_SOFT,
+            ALC_FORMAT_TYPE_SOFT, ALC_SHORT_SOFT, ALC_OUTPUT_MODE_SOFT, ALC_STEREO_BASIC_SOFT,
+            ALC_HRTF_SOFT, ALC_FALSE, 0};
+        context = alcCreateContext(device, attributes);
+        CHECK(context != nullptr);
+        setContext = reinterpret_cast<PFNALCSETTHREADCONTEXTPROC>(alcGetProcAddress(device, "alcSetThreadContext"));
+        getContext = reinterpret_cast<PFNALCGETTHREADCONTEXTPROC>(alcGetProcAddress(device, "alcGetThreadContext"));
+        renderSamples = reinterpret_cast<LPALCRENDERSAMPLESSOFT>(alcGetProcAddress(device, "alcRenderSamplesSOFT"));
+        CHECK(setContext != nullptr && getContext != nullptr && renderSamples != nullptr);
+        auto previous = getContext();
+        CHECK(setContext(context));
+        const auto bufferCallback = reinterpret_cast<LPALBUFFERCALLBACKSOFT>(alGetProcAddress("alBufferCallbackSOFT"));
+        CHECK(bufferCallback != nullptr);
+        alGenSources(1, &source);
+        alGenBuffers(1, &buffer);
+        bufferCallback(buffer, AL_FORMAT_STEREO_FLOAT32, 48000, callback, this);
+        alSourcei(source, AL_BUFFER, buffer);
+        alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
+        alSourcef(source, AL_ROLLOFF_FACTOR, 0);
+        alSourcei(source, AL_DIRECT_CHANNELS_SOFT, AL_TRUE);
+        alSourcef(source, AL_GAIN, 0.25f);
+        CHECK(alGetError() == AL_NO_ERROR);
+        CHECK(setContext(previous));
+    }
+
+    void play()
+    {
+        auto previous = getContext();
+        CHECK(setContext(context));
+        alSourcePlay(source);
+        CHECK(alGetError() == AL_NO_ERROR);
+        CHECK(setContext(previous));
+    }
+
+    std::vector<short> render(int frames)
+    {
+        std::vector<short> output(frames * 2);
+        renderSamples(device, output.data(), frames);
+        CHECK(alcGetError(device) == ALC_NO_ERROR);
+        return output;
+    }
+
+    ~ScalarMixReference()
+    {
+        auto previous = getContext();
+        CHECK(setContext(context));
+        alSourceStop(source);
+        alSourcei(source, AL_BUFFER, 0);
+        alDeleteSources(1, &source);
+        alDeleteBuffers(1, &buffer);
+        CHECK(alGetError() == AL_NO_ERROR);
+        CHECK(setContext(previous));
+        alcDestroyContext(context);
+        CHECK(alcCloseDevice(device));
+    }
+};
+
+static void scalarMixEquivalence(bool replace)
+{
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 1, 4096, true));
+    CHECK(stream.setGain(0.25f));
+    ScalarMixReference reference;
+    reference.input.resize(16000);
+    for (size_t frame = 0; frame < reference.input.size(); ++frame)
+        reference.input[frame] = static_cast<float>(1.5 * std::sin(frame * 0.071) + 0.125 * std::cos(frame * 0.137));
+    reference.boundaries = {0, 1, 1, 2, 7, 333, 334, 4096, 4097, 4098, 6001, 8193, 12001};
+    for (uint32_t boundary : reference.boundaries)
+        CHECK(stream.schedulePortionBoundary(boundary));
+    uint32_t submitted = 4096;
+    CHECK(stream.queueFloat(reference.input.data(), submitted) == Result::Accepted);
+    CHECK(stream.play());
+    reference.play();
+    bool replaced = false;
+    for (unsigned iteration = 0; iteration < 60; ++iteration) {
+        reference.leftGain = static_cast<float>((iteration * 7) % 17) / 16.0f;
+        reference.rightGain = 1 - reference.leftGain;
+        reference.frontBack = static_cast<float>((iteration * 3) % 11) / 10.0f;
+        reference.surround = iteration % 5 >= 2;
+        CHECK(stream.setStereoMix(reference.leftGain, reference.rightGain, reference.frontBack, reference.surround));
+        if (replace && iteration == 17) {
+            CHECK(stream.getReadFrames() == reference.read);
+            reference.replaceAt = reference.read + 173;
+            reference.tail.assign(reference.input.begin() + 1000, reference.input.begin() + 3049);
+            CHECK(stream.replaceQueuedAfterFloat(reference.replaceAt, reference.tail.data(),
+                static_cast<uint32_t>(reference.tail.size())));
+            reference.replacing = true;
+            replaced = true;
+        }
+        const auto actual = render(device, 333);
+        const auto expected = reference.render(333);
+        CHECK(actual == expected);
+        CHECK(stream.getReadFrames() == reference.read);
+        if (!replaced && submitted < reference.input.size()) {
+            const uint32_t count = std::min(stream.availableFrames(),
+                static_cast<uint32_t>(reference.input.size()) - submitted);
+            if (count != 0) {
+                CHECK(stream.queueFloat(reference.input.data() + submitted, count) == Result::Accepted);
+                submitted += count;
+            }
+            if (submitted == reference.input.size())
+                CHECK(stream.markEnd());
+        }
+    }
+    CHECK(stream.state() == State::Finished);
+}
+
+static void scalarMixEquivalenceTests()
+{
+    scalarMixEquivalence(false);
+    scalarMixEquivalence(true);
+    std::puts("scalar-reference exact output: live modes, portion chunks, wraps and replacement passed");
+}
+
+static void floatMixHeadroomTests()
+{
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 1, 8192, true));
+    CHECK(stream.setStereoMix(1, 0, 0, false));
+    CHECK(stream.setGain(0.125f));
+    CHECK(stream.schedulePortionBoundary(0));
+    std::vector<float> input(8192, 2.0f);
+    CHECK(stream.queueFloat(input.data(), 8192) == Result::Accepted);
+    CHECK(stream.markEnd() && stream.play());
+    auto output = render(device, 512);
+    CHECK(stream.getReadFrames() < 4096);
+    std::vector<float> decay(2048, -1.5f);
+    CHECK(stream.replaceQueuedAfterFloat(4096, decay.data(), 2048));
+    const auto tail = render(device, 7000);
+    output.insert(output.end(), tail.begin(), tail.end());
+    for (unsigned frame = 1200; frame < 3800; ++frame)
+        CHECK(std::abs(static_cast<int>(output[frame * 2]) - 8192) <= 1);
+    for (unsigned frame = 4300; frame < 6000; ++frame)
+        CHECK(std::abs(static_cast<int>(output[frame * 2]) + 6144) <= 1);
+    CHECK(stream.getReadFrames() == 6144);
+    CHECK(stream.stop());
+    const float invalid = std::numeric_limits<float>::quiet_NaN();
+    CHECK(stream.queueFloat(&invalid, 1) == Result::Invalid);
+    CHECK(stream.close());
+    CHECK(stream.open(device, 48000, 2, 1024));
+    CHECK(stream.queueFloat(input.data(), 128) == Result::Invalid);
+    CHECK(!stream.setStereoMix(0.5f, 0.5f, 0, false));
+    CHECK(!stream.replaceQueuedAfterFloat(0, decay.data(), 128));
+    CHECK(stream.close());
+    CHECK(stream.open(device, 48000, 1, 4096, true));
+    CHECK(stream.setStereoMix(0.5f, 0.5f, 1, true));
+    std::vector<float> initial(512, 0.25f);
+    CHECK(stream.queueFloat(initial.data(), 512) == Result::Accepted);
+    CHECK(stream.play());
+    render(device, 2048);
+    CHECK(stream.state() == State::Starved);
+    std::vector<float> zero(128, 0);
+    CHECK(stream.queueFloat(zero.data(), 128) == Result::Accepted);
+    CHECK(stream.markEnd());
+    silence(render(device, 2048));
+    CHECK(stream.getReadFrames() == 640);
+    std::puts("float headroom/replacement/typed input and starvation-history checks passed");
+}
+
+static void outputModeTests()
+{
+    using Mode = OpenALDevice::OutputMode;
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    CHECK(device.getOutputMode() == Mode::Stereo);
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 2, 8192));
+    const auto input = sequence(0, 8192);
+    CHECK(stream.queue(input.data(), 8192) == Result::Accepted);
+    CHECK(stream.markEnd() && stream.play());
+    render(device, 512);
+    const auto read = stream.getReadFrames();
+    CHECK(read > 0);
+    CHECK(device.setOutputMode(Mode::Headphones));
+    CHECK(device.getOutputMode() == Mode::Headphones);
+    CHECK(stream.getReadFrames() == read);
+    CHECK(stream.state() == State::Playing);
+    render(device, 512);
+    CHECK(stream.getReadFrames() > read);
+    const auto afterHeadphones = stream.getReadFrames();
+    CHECK(device.setOutputMode(Mode::Stereo));
+    CHECK(device.getOutputMode() == Mode::Stereo);
+    CHECK(stream.getReadFrames() == afterHeadphones);
+    CHECK(!device.setOutputMode(Mode::Unknown));
+    CHECK(device.getOutputMode() == Mode::Stereo);
+    while (stream.state() != State::Finished) {
+        CHECK(stream.state() == State::Playing);
+        render(device, 256);
+    }
+    CHECK(stream.getReadFrames() == 8192);
+    CHECK(!device.setOutputMode(Mode::Quad));
+    CHECK(device.getOutputMode() == Mode::Stereo);
+    CHECK(device.setOutputMode(Mode::SurroundStereo));
+    CHECK(device.getOutputMode() == Mode::SurroundStereo);
+    CHECK(device.setOutputMode(Mode::Stereo));
+    CHECK(device.getOutputMode() == Mode::Stereo);
+    std::puts("explicit output modes and live voice preservation passed");
+}
+
 int main(int argc, char **argv)
 {
     av_log_set_level(AV_LOG_ERROR);
+    if (argc == 2 && std::strcmp(argv[1], "--output-modes") == 0) {
+        outputModeTests();
+        return 0;
+    }
     if (argc == 2 && std::strcmp(argv[1], "--stress") == 0) {
+        concurrentMixedControls();
         concurrentNullStress();
         return 0;
     }
     CHECK(argc == 2);
+    scalarMixEquivalenceTests();
+    legacyMixTests();
+    mixedBoundaryTests();
+    floatMixHeadroomTests();
+    outputModeTests();
     queueAndWrap();
     controlsAndStarvation();
     pauseContinuity();

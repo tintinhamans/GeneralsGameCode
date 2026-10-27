@@ -32,3 +32,47 @@ Pause regressions check that existing voices remain paused while new UI sounds
 play, queued play requests are cleared, UI sounds do not replay on resume, and
 resumed PCM is identical with or without intervening UI playback. Separate checks
 cover category-scoped resume and persistent ambient pause in both overlap orders.
+
+Behavior regression selectors accept a second argument after the fixture path:
+`paused-gain`, `forced-overrides`, `disabled-cleanup`, or `moving-range`.
+The normal CTest suite runs all four. They cover paused gain updates and direct
+resume (including focus mute and frozen fades), initial/live forced-briefing event
+overrides through the speech slider, and disabled-event retirement after override
+history is cleared, including protected-speech exclusion release.
+
+The range regression moves the listener while retaining the same critical/global
+looping voice, checks near/far gain with curve exponents 1 and 4, then checks
+silence beyond range and recovery on return without restarting. The global fixture
+uses different event-local ranges to detect accidental use of the wrong limits.
+This covers the per-frame range-gain behavior addressed by PR #3511 without changing
+our custom curve. It also checks the measured native provider response applied
+after the game curve. Ordinary non-global admission and
+object-backed movement still require the separate game/world fixture.
+
+The measured spatial reference tests cover the bundled Fast 2D provider's
+`volume^(5/3)` response, angular linear panning (including elevated and rotated
+sources), inverse-distance attenuation and rear attenuation. They also check
+Dolby's one-sample rear phase behavior for both two-channel game surround modes.
+A playing positional voice retains its exact source-frame progression through
+Fast 2D/Dolby switches; these modes do not silently enable OpenAL HRTF.
+
+Simultaneous left/right 440 Hz world sources and centered 400 Hz UI audio verify
+independent category gain changes. Standalone mono files are duplicated at unity
+before the measured Miles center-pan factor, rather than inheriting FFmpeg's
+movie-oriented equal-power upmix. Legacy quiet-voice retirement is tested with
+unequal 2D/3D sliders, muted sliders, and global/critical exemptions.
+
+Off-screen tests check the source-rate Butterworth response, including 22.05 kHz
+input resampled to 48 kHz. Filtered/unfiltered cache variants retain independent
+pins and account for float payload capacity in the same byte budget. A near-full-
+scale filtered waveform under quiet gain detects premature S16 clipping. Loop
+and decay checks verify immutable portions: already prepared PCM is unchanged;
+visibility changes affect subsequently prepared portions. The fixture counts
+preparation queries to bound this lookahead rather than waiting arbitrarily.
+
+The additional selectors are `spatial-reference` and `offscreen-filter`.
+Reference formulas and position ratios were checked against the actual bundled
+Miles providers using audio-only process-isolated render capture. This does not
+establish bit-exact Miles integer mixer arithmetic, physical headphone perception,
+or support for unmeasured legacy hardware providers. Camera visibility is sampled
+when a portion is prepared, not from the real-time audio callback.

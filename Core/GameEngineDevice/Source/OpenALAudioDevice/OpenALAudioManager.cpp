@@ -32,6 +32,7 @@
 #include "Common/GlobalData.h"
 #include "GameClient/DebugDisplay.h"
 #include "GameClient/VideoPlayer.h"
+#include "GameClient/View.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -44,6 +45,18 @@ constexpr unsigned STREAM_BUFFER_FRAMES = 16384;
 constexpr unsigned MAX_PENDING_FRAMES = 65536;
 constexpr unsigned MAX_DECODE_PACKETS = 32;
 constexpr size_t FORCED_PCM_BYTES = 16 * 1024 * 1024;
+
+OpenALDevice::OutputMode speakerOutputMode(UnsignedInt type)
+{
+    using Mode = OpenALDevice::OutputMode;
+    switch (type) {
+    case 0: return Mode::Stereo;
+    case 1: return Mode::Stereo;
+    case 2: return Mode::Stereo;
+    default: return Mode::Unknown;
+    }
+}
+
 }
 
 struct OpenALAudioManager::Voice
@@ -54,6 +67,8 @@ struct OpenALAudioManager::Voice
     std::shared_ptr<const OpenALAudioClip> clip;
     size_t clipOffset = 0;
     std::vector<short> pending;
+    std::vector<float> pendingFloat;
+    bool floatPcm = false;
     size_t pendingOffset = 0;
     int channels = 2;
     int rate = 48000;
@@ -75,6 +90,7 @@ struct OpenALAudioManager::Voice
     std::deque<uint64_t> musicBoundaries;
     std::deque<std::pair<uint64_t, PortionToPlay>> portionBoundaries;
     PortionToPlay portion = PP_Done;
+    bool portionRefreshPending = true;
     unsigned completedRounds = 0;
 };
 
@@ -90,6 +106,9 @@ void OpenALAudioManager::init()
 {
     AudioManager::init();
     m_cache.setBudget(m_audioSettings->m_maxCacheSize);
+    m_speaker = m_audioSettings->m_defaultSpeakerType2D;
+    if (speakerOutputMode(m_speaker) == OpenALDevice::OutputMode::Unknown)
+        m_speaker = 0;
     if (!m_dummy)
         openDevice();
 }
@@ -142,14 +161,15 @@ void OpenALAudioManager::openDevice()
         setOn(false, AudioAffect_All);
         return;
     }
-    if (!m_device.open(m_audioSettings->m_outputRate)) {
+    if (!m_device.open(m_audioSettings->m_outputRate, nullptr, speakerOutputMode(m_speaker))) {
         std::fprintf(stderr, "OpenAL audio device initialization failed: 0x%x\n", m_device.getLastError());
         setOn(false, AudioAffect_All);
         m_provider = PROVIDER_ERROR;
         return;
     }
     m_provider = 0;
-    m_speaker = m_audioSettings->m_defaultSpeakerType2D;
+    if (m_device.getOutputMode() != speakerOutputMode(m_speaker))
+        std::fprintf(stderr, "OpenAL selected speaker type %u instead of requested type %u\n", getSpeakerType(), m_speaker);
 }
 
 void OpenALAudioManager::closeDevice()
@@ -320,10 +340,19 @@ void OpenALAudioManager::updateVoicePause(Voice &voice)
         (m_ambientPaused && voice.event->getAudioEventInfo()->isPermanentSound());
     if (voice.paused == paused)
         return;
+    if (!paused && !voice.stream.setGain(playbackGain(voice))) {
+        finishVoice(voice);
+        return;
+    }
+    bool changed = false;
     if (paused)
-        voice.stream.pause();
+        changed = voice.stream.pause();
     else
-        voice.stream.play();
+        changed = voice.stream.play();
+    if (!changed) {
+        finishVoice(voice);
+        return;
+    }
     voice.paused = paused;
 }
 
@@ -346,6 +375,7 @@ void OpenALAudioManager::finishVoice(Voice &voice)
     voice.decoder.reset();
     voice.clip.reset();
     voice.pending.clear();
+    voice.pendingFloat.clear();
     if (voice.event->getAudioEventInfo()->m_soundType == AT_Streaming && voice.event->getUninterruptible())
         setDisallowSpeech(false);
 }
@@ -375,23 +405,30 @@ void OpenALAudioManager::stopVoice(Voice &voice, bool immediate)
     std::shared_ptr<const OpenALAudioClip> decay;
     const AsciiString filename = voice.event->getDecayFilename();
     if (!filename.isEmpty()) {
-        decay = m_cache.load(filename, voice.rate, voice.channels);
+        decay = m_cache.load(filename, voice.rate, voice.channels, lowPassCutoff(*voice.event));
         if (decay == nullptr)
-            decay = OpenALAudioCache::loadUncached(filename, voice.rate, voice.channels, FORCED_PCM_BYTES);
+            decay = OpenALAudioCache::loadUncached(filename, voice.rate, voice.channels, FORCED_PCM_BYTES, lowPassCutoff(*voice.event));
         if (decay == nullptr)
             std::fprintf(stderr, "OpenAL loop decay could not be decoded within its 16 MiB tail budget: %s\n", filename.str());
     }
-    const short *tail = nullptr;
     unsigned frames = 0;
     if (decay != nullptr) {
-        if (decay->samples.size() > FORCED_PCM_BYTES / sizeof(short)) {
+        if (decay->byteSize() > FORCED_PCM_BYTES) {
             std::fprintf(stderr, "OpenAL loop decay exceeds the 16 MiB stop-tail budget; retaining ordinary loop shutdown: %s\n", filename.str());
             return;
         }
-        tail = decay->samples.data();
-        frames = static_cast<unsigned>(decay->samples.size() / voice.channels);
+        frames = static_cast<unsigned>(decay->frameCount());
     }
-    if (!voice.stream.replaceQueuedAfter(static_cast<uint32_t>(end), tail, frames)) {
+    bool replaced = false;
+    if (decay != nullptr && !decay->filteredSamples.empty())
+        replaced = voice.stream.replaceQueuedAfterFloat(static_cast<uint32_t>(end), decay->filteredSamples.data(), frames);
+    else {
+        const short *tail = nullptr;
+        if (decay != nullptr)
+            tail = decay->samples.data();
+        replaced = voice.stream.replaceQueuedAfter(static_cast<uint32_t>(end), tail, frames);
+    }
+    if (!replaced) {
         // A finite source whose callback has latched EOF is already committed to mixer prefetch.
         if (voice.stream.getLastError() != AL_NO_ERROR)
             finishVoice(voice);
@@ -404,6 +441,7 @@ void OpenALAudioManager::stopVoice(Voice &voice, bool immediate)
     voice.decoder.reset();
     voice.clip.reset();
     voice.pending.clear();
+    voice.pendingFloat.clear();
     voice.pendingOffset = 0;
     voice.event->setNextPlayPortion(PP_Done);
 }
@@ -446,6 +484,8 @@ bool OpenALAudioManager::startPortion(Voice &voice)
 {
     auto &event = *voice.event;
     AsciiString filename;
+    const Real cutoff = lowPassCutoff(event);
+    voice.floatPcm = cutoff > 0 && cutoff < 0.999f;
     switch (event.getNextPlayPortion()) {
     case PP_Attack: filename = event.getAttackFilename(); break;
     case PP_Sound: filename = event.getFilename(); break;
@@ -456,30 +496,44 @@ bool OpenALAudioManager::startPortion(Voice &voice)
     voice.decoder.reset();
     voice.clipOffset = 0;
     voice.portion = event.getNextPlayPortion();
+    voice.portionRefreshPending = true;
     if (filename.isEmpty())
         return false;
     if (voice.forced)
-        voice.clip = OpenALAudioCache::loadUncached(filename, voice.rate, voice.channels, FORCED_PCM_BYTES);
+        voice.clip = OpenALAudioCache::loadUncached(filename, voice.rate, voice.channels, FORCED_PCM_BYTES, cutoff);
     else if (event.getAudioEventInfo()->m_soundType == AT_SoundEffect)
-        voice.clip = m_cache.load(filename, voice.rate, voice.channels);
+        voice.clip = m_cache.load(filename, voice.rate, voice.channels, cutoff);
     if (voice.clip != nullptr)
         return true;
     if (voice.forced) {
         std::fprintf(stderr, "OpenAL loading audio could not be preloaded within the 16 MiB briefing budget: %s\n", filename.str());
         return false;
     }
-    voice.pending.reserve(MAX_PENDING_FRAMES * static_cast<size_t>(voice.channels));
     voice.decoder = std::make_unique<FFmpegAudioFile>();
-    if (TheFileSystem == nullptr || !voice.decoder->open(TheFileSystem->openFile(filename.str()), voice.rate, voice.channels))
+    if (TheFileSystem == nullptr || !voice.decoder->open(TheFileSystem->openFile(filename.str()), voice.rate, voice.channels, cutoff))
         return false;
-    voice.decoder->setPcmCallback([&voice](const short *pcm, int frames) {
-        const size_t count = static_cast<size_t>(frames) * voice.channels;
-        if (voice.decodeFailed || count > MAX_PENDING_FRAMES * static_cast<size_t>(voice.channels) - voice.pending.size()) {
-            voice.decodeFailed = true;
-            return;
-        }
-        voice.pending.insert(voice.pending.end(), pcm, pcm + count);
-    });
+    if (voice.floatPcm) {
+        voice.pendingFloat.reserve(MAX_PENDING_FRAMES * static_cast<size_t>(voice.channels));
+        if (!voice.decoder->setFloatPcmCallback([&voice](const float *pcm, int frames) {
+            const size_t count = static_cast<size_t>(frames) * voice.channels;
+            if (voice.decodeFailed || count > MAX_PENDING_FRAMES * static_cast<size_t>(voice.channels) - voice.pendingFloat.size()) {
+                voice.decodeFailed = true;
+                return;
+            }
+            voice.pendingFloat.insert(voice.pendingFloat.end(), pcm, pcm + count);
+        }))
+            return false;
+    } else {
+        voice.pending.reserve(MAX_PENDING_FRAMES * static_cast<size_t>(voice.channels));
+        voice.decoder->setPcmCallback([&voice](const short *pcm, int frames) {
+            const size_t count = static_cast<size_t>(frames) * voice.channels;
+            if (voice.decodeFailed || count > MAX_PENDING_FRAMES * static_cast<size_t>(voice.channels) - voice.pending.size()) {
+                voice.decodeFailed = true;
+                return;
+            }
+            voice.pending.insert(voice.pending.end(), pcm, pcm + count);
+        });
+    }
     return true;
 }
 
@@ -521,38 +575,62 @@ bool OpenALAudioManager::pump(Voice &voice)
         return true;
     unsigned decodedPackets = 0;
     for (unsigned transfer = 0; transfer < SOUND_BUFFER_FRAMES * 2 + MAX_DECODE_PACKETS; ++transfer) {
-        if (voice.pendingOffset < voice.pending.size()) {
+        size_t pendingSize = voice.pending.size();
+        if (voice.floatPcm)
+            pendingSize = voice.pendingFloat.size();
+        if (voice.pendingOffset < pendingSize) {
             const unsigned available = voice.stream.availableFrames();
             if (available == 0)
                 return true;
-            const size_t remaining = (voice.pending.size() - voice.pendingOffset) / voice.channels;
+            const size_t remaining = (pendingSize - voice.pendingOffset) / voice.channels;
             const unsigned frames = static_cast<unsigned>(std::min<size_t>(available, remaining));
-            const auto result = voice.stream.queue(voice.pending.data() + voice.pendingOffset, frames);
+            if (voice.portionRefreshPending) {
+                if (category(*voice.event) == AudioAffect_Sound3D &&
+                    !voice.stream.schedulePortionBoundary(static_cast<uint32_t>(voice.submittedFrames)))
+                    return false;
+                voice.portionRefreshPending = false;
+            }
+            OpenALPcmStream::QueueResult result;
+            if (voice.floatPcm)
+                result = voice.stream.queueFloat(voice.pendingFloat.data() + voice.pendingOffset, frames);
+            else
+                result = voice.stream.queue(voice.pending.data() + voice.pendingOffset, frames);
             if (result == OpenALPcmStream::QueueResult::Full)
                 return true;
             if (result != OpenALPcmStream::QueueResult::Accepted)
                 return false;
             voice.pendingOffset += static_cast<size_t>(frames) * voice.channels;
             voice.submittedFrames += frames;
-            if (voice.pendingOffset != voice.pending.size())
+            if (voice.pendingOffset != pendingSize)
                 continue;
             voice.pending.clear();
+            voice.pendingFloat.clear();
             voice.pendingOffset = 0;
         }
         if (voice.stream.availableFrames() == 0)
             return true;
-        if (voice.clip != nullptr && voice.clipOffset < voice.clip->samples.size()) {
-            const size_t available = static_cast<size_t>(voice.stream.availableFrames()) * voice.channels;
-            const size_t count = std::min(available, voice.clip->samples.size() - voice.clipOffset);
-            const unsigned frames = static_cast<unsigned>(count / voice.channels);
-            const auto result = voice.stream.queue(voice.clip->samples.data() + voice.clipOffset, frames);
+        if (voice.clip != nullptr && voice.clipOffset < voice.clip->frameCount()) {
+            const size_t remaining = voice.clip->frameCount() - voice.clipOffset;
+            const unsigned frames = static_cast<unsigned>(std::min<size_t>(voice.stream.availableFrames(), remaining));
+            if (voice.portionRefreshPending) {
+                if (category(*voice.event) == AudioAffect_Sound3D &&
+                    !voice.stream.schedulePortionBoundary(static_cast<uint32_t>(voice.submittedFrames)))
+                    return false;
+                voice.portionRefreshPending = false;
+            }
+            OpenALPcmStream::QueueResult result;
+            const size_t offset = voice.clipOffset * voice.channels;
+            if (!voice.clip->filteredSamples.empty())
+                result = voice.stream.queueFloat(voice.clip->filteredSamples.data() + offset, frames);
+            else
+                result = voice.stream.queue(voice.clip->samples.data() + offset, frames);
             if (result == OpenALPcmStream::QueueResult::Full)
                 return true;
             if (result != OpenALPcmStream::QueueResult::Accepted)
                 return false;
-            voice.clipOffset += count;
+            voice.clipOffset += frames;
             voice.submittedFrames += frames;
-            if (voice.clipOffset < voice.clip->samples.size())
+            if (voice.clipOffset < voice.clip->frameCount())
                 continue;
             if (voice.forced) {
                 voice.clip.reset();
@@ -565,7 +643,7 @@ bool OpenALAudioManager::pump(Voice &voice)
             const bool decoded = voice.decoder->decodePacket();
             if (voice.decodeFailed || voice.decoder->hasError())
                 return false;
-            if (decoded || !voice.pending.empty())
+            if (decoded || !voice.pending.empty() || !voice.pendingFloat.empty())
                 continue;
         }
         if (voice.event->getAudioEventInfo()->m_soundType == AT_SoundEffect)
@@ -643,22 +721,17 @@ void OpenALAudioManager::playRequest(AudioRequest &request, bool forced)
     if (!startPortion(*voice))
         return;
     if (forced)
-        bufferFrames = static_cast<unsigned>(voice->clip->samples.size() / voice->channels);
-    if (!voice->stream.open(m_device, voice->rate, voice->channels, bufferFrames)) {
+        bufferFrames = static_cast<unsigned>(voice->clip->frameCount());
+    if (!voice->stream.open(m_device, voice->rate, voice->channels, bufferFrames, kind == AudioAffect_Sound3D)) {
         std::fprintf(stderr, "OpenAL could not prepare a source for %s; existing voices retained\n", event.getEventName().str());
         return;
     }
-    const Coord3D *position = event.getCurrentPosition();
-    if (kind == AudioAffect_Sound3D && position != nullptr &&
-        !voice->stream.setPosition(position->x, position->y, position->z, true))
+    if (kind == AudioAffect_Sound3D && !updateSpatialPosition(*voice))
         return;
     Real pitch = event.getPitchShift();
     if (pitch <= 0.0f)
         pitch = 1.0f;
-    Real gain = effectiveVolume(event);
-    if (forced)
-        gain = event.getVolume() * m_speechVolume;
-    if (!voice->stream.setPitch(pitch) || !voice->stream.setGain(gain) || !pump(*voice) || voice->submittedFrames == 0)
+    if (!voice->stream.setPitch(pitch) || !voice->stream.setGain(playbackGain(*voice)) || !pump(*voice) || voice->submittedFrames == 0)
         return;
     voice->paused = m_ambientPaused && info->isPermanentSound();
     if (!voice->paused && !voice->stream.play())
@@ -753,8 +826,11 @@ void OpenALAudioManager::updateVoice(Voice &voice)
         if (!voice.fading && voice.event->getEventName() == m_lastMusic)
             m_musicCompletions = static_cast<Int>(voice.completedRounds);
     }
-    if (voice.paused)
+    if (voice.paused) {
+        if (!voice.stream.setGain(playbackGain(voice)))
+            finishVoice(voice);
         return;
+    }
     if (voice.delayMS > 0 && voice.readFrames >= voice.delayBoundary)
         voice.delayMS -= MSEC_PER_LOGICFRAME_REAL;
     auto &event = *voice.event;
@@ -764,23 +840,21 @@ void OpenALAudioManager::updateVoice(Voice &voice)
             finishVoice(voice);
             return;
         }
-        if (!voice.stream.setPosition(position->x, position->y, position->z, true)) {
+        if (!updateSpatialPosition(voice)) {
             finishVoice(voice);
             return;
         }
         const AudioEventInfo *info = event.getAudioEventInfo();
         if ((info->m_type & ST_GLOBAL) == 0 && info->m_priority != AP_CRITICAL) {
-            Coord3D distance = m_listenerPosition;
-            distance.sub(*position);
-            if (distance.length() >= info->m_maxDistance) {
+            Real volumeForConsideration = effectiveVolume(event);
+            if (m_sound3DVolume > 0.0f)
+                volumeForConsideration /= m_soundVolume;
+            if (volumeForConsideration < m_audioSettings->m_minVolume) {
                 finishVoice(voice);
                 return;
             }
         }
     }
-    Real gain = effectiveVolume(event);
-    if (voice.forced)
-        gain = event.getVolume() * m_speechVolume;
     if (voice.fading) {
         ++voice.fadeFrames;
         const int length = m_audioSettings->m_fadeAudioFrames;
@@ -788,9 +862,8 @@ void OpenALAudioManager::updateVoice(Voice &voice)
             finishVoice(voice);
             return;
         }
-        gain *= 1.0f - static_cast<Real>(voice.fadeFrames) / length;
     }
-    if (!voice.stream.setGain(gain) || !pump(voice) || voice.stream.state() == OpenALPcmStream::State::Error ||
+    if (!voice.stream.setGain(playbackGain(voice)) || !pump(voice) || voice.stream.state() == OpenALPcmStream::State::Error ||
         voice.stream.state() == OpenALPcmStream::State::Finished)
         finishVoice(voice);
 }
@@ -847,6 +920,93 @@ Real OpenALAudioManager::effectiveVolume(AudioEventRTS &event) const
     if (!std::isfinite(volume) || volume < 0)
         return 0;
     return volume;
+}
+
+Real OpenALAudioManager::spatialGain(AudioEventRTS &event) const
+{
+    const Coord3D *position = event.getCurrentPosition();
+    if (position == nullptr)
+        return 0;
+    const AudioEventInfo *info = event.getAudioEventInfo();
+    Real minimum = info->m_minDistance;
+    Real maximum = info->m_maxDistance;
+    if ((info->m_type & ST_GLOBAL) != 0) {
+        minimum = m_audioSettings->m_globalMinRange;
+        maximum = m_audioSettings->m_globalMaxRange;
+    }
+    if (maximum < minimum)
+        std::swap(minimum, maximum);
+    minimum = std::max(minimum, 0.0001f);
+    Coord3D direction = *position;
+    direction.sub(m_listenerPosition);
+    const Real distance = direction.length();
+    Real gain = 1.0f;
+    if (distance > minimum + 0.0001f)
+        gain *= minimum / distance;
+    const Real forward = direction.x * m_listenerOrientation.x +
+        direction.y * m_listenerOrientation.y + direction.z * m_listenerOrientation.z;
+    if (m_speaker == 0 && forward < 0)
+        gain *= 0.75f;
+    return gain;
+}
+
+Real OpenALAudioManager::playbackGain(const Voice &voice) const
+{
+    Real gain = effectiveVolume(*voice.event);
+    if (voice.forced)
+        gain = voice.event->getVolume() * m_speechVolume;
+    if (voice.fading) {
+        const int length = m_audioSettings->m_fadeAudioFrames;
+        if (length <= 0 || voice.fadeFrames >= static_cast<unsigned>(length))
+            return 0;
+        gain *= 1.0f - static_cast<Real>(voice.fadeFrames) / length;
+    }
+    gain = std::pow(gain, 5.0f / 3.0f);
+    if (category(*voice.event) == AudioAffect_Sound3D)
+        gain *= spatialGain(*voice.event);
+    else
+        gain *= std::pow(0.5f, 0.3000000119f);
+    return gain;
+}
+
+bool OpenALAudioManager::updateSpatialPosition(Voice &voice)
+{
+    const Coord3D *position = voice.event->getCurrentPosition();
+    if (position == nullptr)
+        return false;
+    if (!voice.stream.setPosition(position->x, position->y, position->z, true))
+        return false;
+    Coord3D direction = *position;
+    direction.sub(m_listenerPosition);
+    const Real distance = direction.length();
+    Real left = 0.5f;
+    Real frontBack = 0.5f;
+    if (distance > 0.0001f) {
+        const Real side = (direction.x * m_listenerOrientation.y -
+            direction.y * m_listenerOrientation.x) / distance;
+        left = std::acos(std::clamp(side, -1.0f, 1.0f)) / 3.14159265358979323846f;
+        const Real front = (direction.x * m_listenerOrientation.x +
+            direction.y * m_listenerOrientation.y + direction.z * m_listenerOrientation.z) / distance;
+        frontBack = std::acos(std::clamp(front, -1.0f, 1.0f)) / 3.14159265358979323846f;
+    }
+    return voice.stream.setStereoMix(left, 1.0f - left, frontBack, m_speaker == 1 || m_speaker == 2);
+}
+
+Real OpenALAudioManager::lowPassCutoff(AudioEventRTS &event) const
+{
+    if (category(event) != AudioAffect_Sound3D)
+        return 1.0f;
+    const Real cutoff = event.getAudioEventInfo()->m_lowPassFreq;
+    const Coord3D *position = event.getCurrentPosition();
+    if (cutoff > 0 && position != nullptr && !isOnScreen(position))
+        return cutoff + 0.01f;
+    return 1.0f;
+}
+
+Bool OpenALAudioManager::isOnScreen(const Coord3D *position) const
+{
+    ICoord2D screen;
+    return TheTacticalView != nullptr && TheTacticalView->worldToScreen(position, &screen);
 }
 
 void OpenALAudioManager::setDeviceListenerPosition()
@@ -936,7 +1096,7 @@ void OpenALAudioManager::adjustVolumeOfPlayingAudio(AsciiString event, Real volu
     for (auto &voice : m_voices) {
         if (active(*voice) && voice->event->getEventName() == event) {
             voice->event->setVolume(volume);
-            voice->stream.setGain(effectiveVolume(*voice->event));
+            voice->stream.setGain(playbackGain(*voice));
         }
     }
 }
@@ -951,9 +1111,9 @@ void OpenALAudioManager::removePlayingAudio(AsciiString event)
 
 void OpenALAudioManager::removeAllDisabledAudio()
 {
-    for (const auto &override : m_adjustedVolumes) {
-        if (override.second == 0.0f)
-            removePlayingAudio(override.first);
+    for (auto &voice : m_voices) {
+        if (active(*voice) && voice->event->getVolume() == 0.0f)
+            finishVoice(*voice);
     }
 }
 
@@ -1034,11 +1194,24 @@ void OpenALAudioManager::unselectProvider() { closeDevice(); }
 UnsignedInt OpenALAudioManager::getSelectedProvider() const { return m_provider; }
 void OpenALAudioManager::setSpeakerType(UnsignedInt type)
 {
+    const auto mode = speakerOutputMode(type);
+    if (mode == OpenALDevice::OutputMode::Unknown) {
+        std::fprintf(stderr, "OpenAL compatibility mixing does not support speaker type %u; keeping type %u\n", type, getSpeakerType());
+        return;
+    }
+    if (m_device.isOpen() && !m_device.setOutputMode(mode)) {
+        std::fprintf(stderr, "OpenAL could not select speaker type %u (actual type %u): 0x%x\n",
+            type, getSpeakerType(), m_device.getLastError());
+        return;
+    }
     m_speaker = type;
-    if (m_device.isOpen())
-        std::fprintf(stderr, "OpenAL uses the operating system speaker layout (requested legacy type %u)\n", type);
 }
-UnsignedInt OpenALAudioManager::getSpeakerType() { return m_speaker; }
+UnsignedInt OpenALAudioManager::getSpeakerType()
+{
+    if (m_device.isOpen() && m_device.getOutputMode() != speakerOutputMode(m_speaker))
+        return PROVIDER_ERROR;
+    return m_speaker;
+}
 void OpenALAudioManager::setPreferredProvider(AsciiString provider) { m_preferredProvider = provider; }
 void OpenALAudioManager::setPreferredSpeaker(AsciiString speaker)
 {
@@ -1051,11 +1224,12 @@ void OpenALAudioManager::setHardwareAccelerated(Bool)
 }
 void OpenALAudioManager::setSpeakerSurround(Bool enabled)
 {
-    AudioManager::setSpeakerSurround(enabled);
     UnsignedInt speaker = m_audioSettings->m_defaultSpeakerType2D;
     if (enabled)
         speaker = m_audioSettings->m_defaultSpeakerType3D;
     setSpeakerType(speaker);
+    if (getSpeakerType() == speaker)
+        AudioManager::setSpeakerSurround(enabled);
 }
 
 void *OpenALAudioManager::getHandleForBink() { return nullptr; }
@@ -1073,6 +1247,12 @@ void OpenALAudioManager::friend_forcePlayAudioEventRTS(const AudioEventRTS *inpu
     request->m_pendingEvent.Assign_No_Add_Ref(newInstance(DynamicAudioEventRTS)(*input));
     request->m_pendingEvent->generateFilename();
     request->m_pendingEvent->generatePlayInfo();
+    for (const auto &override : m_adjustedVolumes) {
+        if (override.first == request->m_pendingEvent->getEventName()) {
+            request->m_pendingEvent->setVolume(override.second);
+            break;
+        }
+    }
     request->m_pendingEvent->setNextPlayPortion(PP_Sound);
     playRequest(*request, true);
     releaseAudioRequest(request);

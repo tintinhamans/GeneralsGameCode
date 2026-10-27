@@ -22,17 +22,21 @@
 #include <memory>
 struct AVFrame;
 using FFmpegPcmCallback = std::function<void(const short *, Int)>;
+using FFmpegFloatPcmCallback = std::function<void(const float *, Int)>;
 
 class FFmpegPcmConverter
 {
 public:
+    enum class MonoUpmix { EqualPower, Duplicate };
     FFmpegPcmConverter();
     ~FFmpegPcmConverter();
-    bool configure(Int sampleRate, Int channels);
+    bool configure(Int sampleRate, Int channels, MonoUpmix monoUpmix = MonoUpmix::EqualPower, float normalizedCutoff = 1.0f);
     void reset();
     bool convert(AVFrame *frame);
     bool drain();
     void setPcmCallback(FFmpegPcmCallback callback);
+    // Select before the first converted frame; preserves filtered headroom through resampling.
+    bool setFloatPcmCallback(FFmpegFloatPcmCallback callback);
     Int getSampleRate() const;
     Int getNumChannels() const;
     Int64 getDecodedSampleCount() const;

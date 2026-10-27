@@ -24,7 +24,7 @@ cmake --build build/openal-tests
 ctest --test-dir build/openal-tests --output-on-failure
 ```
 
-CTest forces the Null backend and a deterministic loopback configuration, so no physical speakers are used. Tests have bounded 10–30-second timeouts. Loopback checks exact channel/sample order across repeated ring wraps, full/no-consumption backpressure, EOF/no replay/eventual silence, empty/starved EOF, pause/resume/stop, full sample continuity across four pauses against an uninterrupted reference, non-null context restoration, two-context isolation and retained lifetime. A 16 kHz mono tone rendered at 48 kHz also checks equal channels, 440 Hz content/crossings, bounded phase and residual, plausible mono panner gain, payload at both ends of the expected second, and eventual silence. Mono gain is renderer-dependent; the test does not assume a stereo duplication gain. The FFmpeg bridge retains each callback block until every chunk is accepted; rendered energy and accepted sample counts are checked. The Null test runs an actual concurrent mixer through repeated feed/pause/stop/close/recreate cycles; it is a bounded stress test, not a formal race proof.
+CTest forces the Null backend and a deterministic loopback configuration, so no physical speakers are used. Tests have bounded 10â€“30-second timeouts. Loopback checks exact channel/sample order across repeated ring wraps, full/no-consumption backpressure, EOF/no replay/eventual silence, empty/starved EOF, pause/resume/stop, full sample continuity across four pauses against an uninterrupted reference, non-null context restoration, two-context isolation and retained lifetime. A 16 kHz mono tone rendered at 48 kHz also checks equal channels, 440 Hz content/crossings, bounded phase and residual, plausible mono panner gain, payload at both ends of the expected second, and eventual silence. Mono gain is renderer-dependent; the test does not assume a stereo duplication gain. The FFmpeg bridge retains each callback block until every chunk is accepted; rendered energy and accepted sample counts are checked. The Null test runs an actual concurrent mixer through repeated feed/pause/stop/close/recreate cycles; it is a bounded stress test, not a formal race proof.
 
 The continuity signal has silence guards around pause transitions to isolate renderer gain ramps; every payload sample and its position must still match, and one-frame loss/repeat negative controls are rejected. Separate cleanup tests compile the actual stream with test-only AL call interposition forwarding to the real library. Pending, detach, source-delete and buffer-delete errors must log and return safely; an injected stop failure must terminate with the exact expected exit code in a timeout-bounded child. No production fault-injection hooks are added.
 
@@ -35,3 +35,44 @@ The production OpenAL classes compile directly without adapters. Only the FFmpeg
 ## Pinned lifetime evidence
 
 OpenAL Soft 1.25.2 `al/source.cpp` queues `VChangeState::Stop` in `alSourceStopv_`, then `SendVoiceChanges` calls `device->waitForMix()`. `alc/alu.cpp` clears the stopped voice's current/loop buffers before subsequent mixing. `core/voice.cpp::LoadBufferCallback` explains the last-sample EOF tail, and its stopping branch preserves prefetched data/positions during pause. This implementation uses no deferred-update mode.
+
+## Explicit output selection
+
+The device requests basic stereo panning by default, rather than allowing headphone
+endpoint detection to select HRTF implicitly. Low-level headphone/UHJ output modes
+remain available and quad/5.1/7.1 request their corresponding layouts. Game-facing
+headphones/surround instead use the measured legacy stereo matrix, not HRTF/UHJ;
+the manager maps that policy separately from the physical OpenAL output mode.
+The manager reports the renderer actually selected if a backend ignores a request.
+Live changes reset the device without replacing contexts or losing source queues.
+Loopback rendering remains stereo-only and rejects multi-channel layout changes.
+
+The output-mode regression checks queried renderer modes, stereo/HRTF/UHJ switching,
+invalid and unsupported requests, active-source state, unchanged read counters at
+reset and complete consumption after switching. A separate process starts with
+`stereo-encoding = hrtf` to prove the explicit stereo baseline overrides auto/config
+selection in the pinned OpenAL Soft implementation. No physical endpoint is opened.
+
+## Positional stereo mixing
+
+Positional mono input uses a fixed float ring and float stereo callback output.
+S16 queueing promotes input on the producer thread; filtered float clips retain
+headroom until final source gain and device mixing. Ordinary non-positional S16
+streams are unchanged. There is one source, one callback and one read-frame clock.
+
+The callback applies independently published linear left/right gains. Surround
+mode blends a one-sample delayed `(left + right) / 2` into left and its inverse
+into right using the front/back factor. Owner-published portion markers reset the
+delay at exact source-frame boundaries; immutable replacement tails discard old
+future markers and reset at their own start. Mode changes do not recreate queues.
+The callback allocates nothing and makes no OpenAL or game-camera calls. The
+native-rate low-pass filter runs before resampling in the decoder/cache path,
+not here, so source-rate cutoff and output-rate delay are not conflated.
+
+Regressions check linear channel coefficients, independent source gain, rear
+anti-phase output, ring-wrap identity, exact portion reset, discarded future
+markers after replacement, float tail consumption, above-unity input at quiet
+source gain, NaN rejection and stop/reuse. A bounded real Null mixer also receives
+concurrent float feeds and coherent stereo-control updates. These tests do not
+claim bit-identical proprietary fixed-point mixer output or physical listening
+parity; provider reference measurements define the policy and DSP tolerances.

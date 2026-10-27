@@ -23,6 +23,21 @@
 #include <limits>
 #include <algorithm>
 #include <functional>
+#include <cmath>
+
+size_t OpenALAudioClip::frameCount() const
+{
+    if (channels <= 0)
+        return 0;
+    if (!filteredSamples.empty())
+        return filteredSamples.size() / channels;
+    return samples.size() / channels;
+}
+
+size_t OpenALAudioClip::byteSize() const
+{
+    return samples.capacity() * sizeof(short) + filteredSamples.capacity() * sizeof(float);
+}
 
 void OpenALAudioCache::clear()
 {
@@ -50,14 +65,14 @@ bool OpenALAudioCache::reserve(size_t bytes)
         }
         if (oldest == m_files.end())
             return false;
-        m_bytes -= oldest->second.clip->samples.capacity() * sizeof(short);
+        m_bytes -= oldest->second.clip->byteSize();
         m_files.erase(oldest);
     }
     return true;
 }
 
 namespace {
-std::shared_ptr<OpenALAudioClip> decodeClip(const AsciiString &filename, int rate, int channels,
+std::shared_ptr<OpenALAudioClip> decodeClip(const AsciiString &filename, int rate, int channels, float normalizedCutoff,
     const std::function<bool(size_t)> &reserve, const std::function<size_t()> &available)
 {
     if (TheFileSystem == nullptr)
@@ -66,48 +81,63 @@ std::shared_ptr<OpenALAudioClip> decodeClip(const AsciiString &filename, int rat
     clip->sampleRate = rate;
     clip->channels = channels;
     FFmpegAudioFile decoder;
-    if (!decoder.open(TheFileSystem->openFile(filename.str()), rate, channels))
+    if (!decoder.open(TheFileSystem->openFile(filename.str()), rate, channels, normalizedCutoff))
         return nullptr;
     bool valid = true;
-    decoder.setPcmCallback([&](const short *pcm, int frames) {
+    auto append = [&](const auto *pcm, int frames, auto &samples) {
+        const size_t sampleBytes = sizeof(*pcm);
         const size_t count = static_cast<size_t>(frames) * channels;
-        if (!valid || count > std::numeric_limits<size_t>::max() / sizeof(short) - clip->samples.size()) {
+        if (!valid || count > std::numeric_limits<size_t>::max() / sampleBytes - samples.size()) {
             valid = false;
             return;
         }
-        const size_t required = clip->samples.size() + count;
-        if (required > clip->samples.capacity()) {
-            const size_t maxSamples = std::numeric_limits<size_t>::max() / sizeof(short);
+        const size_t required = samples.size() + count;
+        if (required > samples.capacity()) {
+            const size_t maxSamples = std::numeric_limits<size_t>::max() / sampleBytes;
             size_t proposed = maxSamples;
-            if (clip->samples.capacity() <= maxSamples / 2)
-                proposed = clip->samples.capacity() * 2;
-            const size_t headroom = available() / sizeof(short);
+            if (samples.capacity() <= maxSamples / 2)
+                proposed = samples.capacity() * 2;
+            const size_t headroom = available() / sampleBytes;
             proposed = std::max(required, std::min(proposed, headroom));
-            if (!reserve(proposed * sizeof(short))) {
+            if (!reserve(proposed * sampleBytes)) {
                 proposed = required;
-                if (!reserve(required * sizeof(short))) {
+                if (!reserve(required * sampleBytes)) {
                     valid = false;
                     return;
                 }
             }
-            clip->samples.reserve(proposed);
-            if (!reserve(clip->samples.capacity() * sizeof(short))) {
+            samples.reserve(proposed);
+            if (!reserve(samples.capacity() * sampleBytes)) {
                 valid = false;
                 return;
             }
         }
-        clip->samples.insert(clip->samples.end(), pcm, pcm + count);
-    });
+        samples.insert(samples.end(), pcm, pcm + count);
+    };
+    if (normalizedCutoff > 0.0f && normalizedCutoff < 0.999f) {
+        if (!decoder.setFloatPcmCallback([&](const float *pcm, int frames) {
+                append(pcm, frames, clip->filteredSamples);
+            }))
+            return nullptr;
+    } else {
+        decoder.setPcmCallback([&](const short *pcm, int frames) {
+            append(pcm, frames, clip->samples);
+        });
+    }
     while (valid && decoder.decodePacket()) {}
-    if (!valid || decoder.hasError() || clip->samples.empty())
+    if (!valid || decoder.hasError() || clip->frameCount() == 0)
         return nullptr;
     return clip;
 }
 }
 
-std::shared_ptr<const OpenALAudioClip> OpenALAudioCache::load(const AsciiString &filename, int rate, int channels)
+std::shared_ptr<const OpenALAudioClip> OpenALAudioCache::load(const AsciiString &filename, int rate, int channels, float normalizedCutoff)
 {
-    const std::string key = std::string(filename.str()) + "|" + std::to_string(rate) + "|" + std::to_string(channels);
+    if (!std::isfinite(normalizedCutoff))
+        return nullptr;
+    if (normalizedCutoff <= 0.0f || normalizedCutoff >= 0.999f)
+        normalizedCutoff = 1.0f;
+    const auto key = std::make_tuple(std::string(filename.str()), rate, channels, normalizedCutoff);
     auto found = m_files.find(key);
     if (found != m_files.end()) {
         found->second.accessed = ++m_clock;
@@ -115,7 +145,7 @@ std::shared_ptr<const OpenALAudioClip> OpenALAudioCache::load(const AsciiString 
     }
     if (m_budget == 0)
         return nullptr;
-    auto clip = decodeClip(filename, rate, channels,
+    auto clip = decodeClip(filename, rate, channels, normalizedCutoff,
         [this](size_t bytes) { return reserve(bytes); }, [this]() {
             if (m_bytes >= m_budget)
                 return size_t(0);
@@ -123,13 +153,15 @@ std::shared_ptr<const OpenALAudioClip> OpenALAudioCache::load(const AsciiString 
         });
     if (clip == nullptr)
         return nullptr;
-    m_bytes += clip->samples.capacity() * sizeof(short);
+    m_bytes += clip->byteSize();
     m_files.emplace(key, Entry{clip, ++m_clock});
     return clip;
 }
 
-std::shared_ptr<const OpenALAudioClip> OpenALAudioCache::loadUncached(const AsciiString &filename, int rate, int channels, size_t budget)
+std::shared_ptr<const OpenALAudioClip> OpenALAudioCache::loadUncached(const AsciiString &filename, int rate, int channels, size_t budget, float normalizedCutoff)
 {
-    return decodeClip(filename, rate, channels, [budget](size_t bytes) { return bytes <= budget; },
+    if (!std::isfinite(normalizedCutoff))
+        return nullptr;
+    return decodeClip(filename, rate, channels, normalizedCutoff, [budget](size_t bytes) { return bytes <= budget; },
         [budget]() { return budget; });
 }

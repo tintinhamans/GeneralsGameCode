@@ -27,6 +27,32 @@ def audio(name, frames, frequency=440, amplitude=8000, channels=1):
 for name, frames, hz in (("attack", 1600, 200), ("main", 3200, 400), ("decay", 1600, 800),
                          ("long", 48000, 440), ("tiny", 64, 1000), ("odd", 14239, 500)):
     audio(name, frames, hz)
+audio("mix-ui", 48000, 400)
+with wave.open(str(root / "Data/Audio/Sounds/filtered.wav"), "wb") as output:
+    output.setnchannels(1)
+    output.setsampwidth(2)
+    output.setframerate(48000)
+    values = [round(sum(1000 * math.sin(2 * math.pi * frequency * i / 48000)
+                        for frequency in (250, 1000, 4000, 8000))) for i in range(4800)]
+    output.writeframes(struct.pack("<" + "h" * len(values), *values))
+with wave.open(str(root / "Data/Audio/Sounds/filtered-low-rate.wav"), "wb") as output:
+    output.setnchannels(1)
+    output.setsampwidth(2)
+    output.setframerate(22050)
+    values = [round(sum(1000 * math.sin(2 * math.pi * frequency * i / 22050)
+                        for frequency in (250, 1000, 4000, 8000))) for i in range(22050)]
+    output.writeframes(struct.pack("<" + "h" * len(values), *values))
+with wave.open(str(root / "Data/Audio/Sounds/filter-headroom.wav"), "wb") as output:
+    output.setnchannels(1)
+    output.setsampwidth(2)
+    output.setframerate(48000)
+    values = []
+    for i in range(48000):
+        sample = -32700
+        if (i // 128) % 2 == 0:
+            sample = 32700
+        values.append(sample)
+    output.writeframes(struct.pack("<" + "h" * len(values), *values))
 for directory in ("Music", "Speech"):
     (root / "Data/Audio" / directory / "long.wav").write_bytes((root / "Data/Audio/Sounds/long.wav").read_bytes())
 
@@ -69,7 +95,14 @@ events += block("AudioEvent", "Limited", "  Sounds = long\n  Limit = 1\n")
 events += block("AudioEvent", "Low", "  Sounds = long\n  Priority = LOW\n")
 events += block("AudioEvent", "High", "  Sounds = long\n  Priority = HIGH\n")
 events += block("AudioEvent", "Delayed", "  Sounds = main\n  Delay = 100 100\n")
+events += block("AudioEvent", "MixUI", "  Sounds = mix-ui\n")
 events += block("AudioEvent", "World", "  Sounds = long\n  Type = WORLD GLOBAL EVERYONE\n")
+events += block("AudioEvent", "FilteredWorldLoop", "  Sounds = filtered\n  Decay = filtered\n  Type = WORLD GLOBAL EVERYONE\n  Control = LOOP\n  LoopCount = 0\n  LowPassCutoff = 25\n")
+events += block("AudioEvent", "FilteredLowRate", "  Sounds = filtered-low-rate\n  Type = WORLD GLOBAL EVERYONE\n  LowPassCutoff = 25\n")
+events += block("AudioEvent", "FilteredHeadroom", "  Sounds = filter-headroom\n  Type = WORLD GLOBAL EVERYONE\n  LowPassCutoff = 25\n")
+events += block("AudioEvent", "OrdinaryWorldLoop", "  Sounds = main\n  Type = WORLD EVERYONE\n  Control = LOOP\n  LoopCount = 0\n")
+events += block("AudioEvent", "CriticalWorldLoop", "  Sounds = main\n  Type = WORLD EVERYONE\n  Priority = CRITICAL\n  Control = LOOP\n  LoopCount = 0\n")
+events += block("AudioEvent", "GlobalWorldLoop", "  Sounds = main\n  Type = WORLD GLOBAL EVERYONE\n  MinRange = 20\n  MaxRange = 30\n  Control = LOOP\n  LoopCount = 0\n")
 for suffix, filename in (("Missing", "missing"), ("Corrupt", "corrupt")):
     events += block("AudioEvent", "Bad" + suffix, "  Sounds = " + filename + "\n  Priority = HIGH\n")
 events += block("AudioEvent", "Interrupt", "  Sounds = long\n  Limit = 1\n  Control = INTERRUPT\n")

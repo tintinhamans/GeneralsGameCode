@@ -52,6 +52,10 @@ limitation; this is not an unrelated AC_ALL fix.
 Category pause affects existing voices only, matching Miles; new menu sounds can
 play while gameplay voices remain paused. Ambient pause remains persistent, and
 its state is combined with each voice's category pause before resuming playback.
+Paused voices still receive volume changes, and their current gain is applied
+before resuming. Fade progression remains frozen during pause. Forced briefing
+playback honors per-event overrides through the speech slider; disabled cleanup
+uses the active event volume rather than override-table history.
 
 Resource pools are separate from category controls: music and speech share stream
 slots and priority preemption, while their volume and pause settings remain
@@ -109,9 +113,20 @@ prefetch, not an audible clock: no multiplayer CRC determinism is established he
 
 This remains opt-in and is not closed-library removal or full Miles feature parity.
 No legacy OpenAL movie macros are enabled and no OpenAL pointer is passed through
-Bink's opaque DirectSound handle. The backend uses
-the OS speaker layout, exposes a software provider, and does not implement legacy
-MSS hardware selection, forced speaker layouts or Miles delay/low-pass DSP effects.
+Bink's opaque DirectSound handle. Two-channel compatibility mixing follows the
+bundled Miles Fast 2D and Dolby providers: nonlinear volume response, angular
+linear panning, native inverse-distance attenuation in addition to the game curve,
+and Dolby's one-sample phase matrix. The game speaker choices select Fast 2D
+(`2 Speakers`) or Dolby (`Headphones` / `Surround Sound`), backed by explicit basic
+stereo output rather than automatic HRTF. Unsupported multichannel choices retain
+the working mode instead of claiming an unavailable layout.
+
+Off-screen `LowPassCutoff` uses the measured source-rate Butterworth response
+before resampling. Filtered float PCM retains overshoot until final mixing and
+shares the bounded cache with ordinary clips. Each prepared attack/main/decay or
+loop portion has an immutable filtered variant; changing camera visibility does
+not rewrite PCM already queued. This is not bit-exact proprietary integer mixing
+or support for the historical hardware/EAX providers and arbitrary Miles plugins.
 The game build stages the selected OpenAL shared runtime and the five known FFmpeg
 DLL families into its build output only; no install or deployment is invoked.
 

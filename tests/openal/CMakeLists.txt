@@ -58,3 +58,7 @@ foreach(fault pending detach source buffer stop)
     set_tests_properties(openal_cleanup_${fault} PROPERTIES TIMEOUT 15
         ENVIRONMENT "ALSOFT_DRIVERS=null;ALSOFT_CONF=${CMAKE_CURRENT_LIST_DIR}/alsoft.conf")
 endforeach()
+
+add_test(NAME openal_explicit_output COMMAND openal_pcm_tests --output-modes)
+set_tests_properties(openal_explicit_output PROPERTIES TIMEOUT 30
+    ENVIRONMENT "ALSOFT_DRIVERS=null;ALSOFT_CONF=${CMAKE_CURRENT_LIST_DIR}/alsoft-hrtf.conf")

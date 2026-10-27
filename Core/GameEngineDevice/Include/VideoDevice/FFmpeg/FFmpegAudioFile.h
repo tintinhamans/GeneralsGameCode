@@ -31,12 +31,14 @@ public:
     FFmpegAudioFile(const FFmpegAudioFile &) = delete;
     FFmpegAudioFile &operator=(const FFmpegAudioFile &) = delete;
 
-    Bool open(File *file, Int sampleRate, Int channels);
+    Bool open(File *file, Int sampleRate, Int channels, float normalizedCutoff = 1.0f);
     void close();
     Bool decodePacket();
     Bool rewind();
     Bool hasError() const;
     void setPcmCallback(FFmpegPcmCallback callback);
+    // Select before decoding; callbacks receive normalized, unclipped float PCM.
+    Bool setFloatPcmCallback(FFmpegFloatPcmCallback callback);
     Int getSampleRate() const;
     Int getNumChannels() const;
     Int64 getDecodedSampleCount() const;
