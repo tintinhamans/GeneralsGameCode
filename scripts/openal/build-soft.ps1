@@ -30,6 +30,7 @@ if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $expected) {
 }
 & tar -xf $archive -C $root
 if ($LASTEXITCODE -ne 0) { throw 'Source extraction failed.' }
+$patch = & (Join-Path $PSScriptRoot 'apply-float-loader.ps1') -SourceDirectory $source
 $arguments = @('-S', $source, '-B', $build, '-G', 'Ninja',
     '-DCMAKE_BUILD_TYPE=Release', "-DCMAKE_INSTALL_PREFIX=$install", '-DLIBTYPE=SHARED',
     '-DALSOFT_UTILS=OFF', '-DALSOFT_EXAMPLES=OFF', '-DALSOFT_TESTS=OFF', '-DALSOFT_EAX=OFF',
@@ -39,7 +40,8 @@ $arguments = @('-S', $source, '-B', $build, '-G', 'Ninja',
     '-DALSOFT_INSTALL_AMBDEC_PRESETS=OFF', '-DALSOFT_ENABLE_MODULES=OFF')
 $arguments | Set-Content (Join-Path $root 'configure-arguments.txt')
 @{ source = $url; sha256 = $expected; compiler = (Get-Command cl).Source;
-   compilerVersion = (Get-Item (Get-Command cl).Source).VersionInfo.FileVersion } |
+   compilerVersion = (Get-Item (Get-Command cl).Source).VersionInfo.FileVersion;
+   patch = $patch } |
     ConvertTo-Json | Set-Content (Join-Path $root 'provenance.json')
 & cmake @arguments *> (Join-Path $root 'configure.log')
 if ($LASTEXITCODE -ne 0) { throw 'OpenAL Soft configuration failed; see configure.log.' }
