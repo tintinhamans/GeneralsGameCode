@@ -99,6 +99,7 @@ private:
     void playRequest(AudioRequest &request, bool forced = false);
     bool startPortion(Voice &voice);
     bool nextPortion(Voice &voice);
+    unsigned producerAvailable(const Voice &voice) const;
     bool pump(Voice &voice);
     void stopVoice(Voice &voice, bool immediate);
     void finishVoice(Voice &voice);
