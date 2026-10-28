@@ -26,6 +26,7 @@
 #include <memory>
 
 class OpenALMovieVoice;
+class OpenALAudioProducer;
 
 class OpenALAudioManager : public AudioManager
 {
@@ -101,6 +102,7 @@ private:
     bool nextPortion(Voice &voice);
     unsigned producerAvailable(const Voice &voice) const;
     bool pump(Voice &voice);
+    bool pumpStream(Voice &voice);
     void stopVoice(Voice &voice, bool immediate);
     void finishVoice(Voice &voice);
     void updateVoice(Voice &voice);
@@ -125,6 +127,7 @@ private:
     UnsignedInt m_speaker = 0;
     OpenALAudioCache m_cache;
     mutable FFmpegAudioMetadata m_metadata;
+    std::unique_ptr<OpenALAudioProducer> m_producers;
     std::list<std::unique_ptr<Voice>> m_voices;
     AsciiString m_lastMusic;
     Int m_musicCompletions = 0;

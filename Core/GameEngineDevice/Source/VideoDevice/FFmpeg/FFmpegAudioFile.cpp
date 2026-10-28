@@ -47,6 +47,7 @@ Bool FFmpegAudioFile::open(File *file, Int rate, Int channels, float normalizedC
     m_state->normalizedCutoff = normalizedCutoff;
     return true;
 }
+void FFmpegAudioFile::setErrorLogging(Bool enabled) { m_state->file.setErrorLogging(enabled); }
 void FFmpegAudioFile::close()
 {
     m_state->file.close();
