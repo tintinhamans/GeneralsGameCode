@@ -9,6 +9,7 @@ find_package(FFMPEG REQUIRED)
 add_executable(openal_pcm_tests test.cpp
     "${REPO_ROOT}/Core/GameEngineDevice/Source/OpenALAudioDevice/OpenALDevice.cpp"
     "${REPO_ROOT}/Core/GameEngineDevice/Source/OpenALAudioDevice/OpenALPcmStream.cpp"
+    "${REPO_ROOT}/Core/GameEngineDevice/Source/OpenALAudioDevice/OpenALAudioProducer.cpp"
     "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegFile.cpp"
     "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegAudioFile.cpp"
     "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegPcmConverter.cpp")

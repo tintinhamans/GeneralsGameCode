@@ -271,8 +271,10 @@ if(RTS_BUILD_OPTION_OPENAL)
             Include/OpenALAudioDevice/OpenALMovieVoice.h
             Source/OpenALAudioDevice/OpenALMovieVoice.cpp
             Include/OpenALAudioDevice/OpenALAudioManager.h
+            Include/OpenALAudioDevice/OpenALAudioProducer.h
             Include/OpenALAudioDevice/OpenALAudioCache.h
             Source/OpenALAudioDevice/OpenALAudioManager.cpp
+            Source/OpenALAudioDevice/OpenALAudioProducer.cpp
             Source/OpenALAudioDevice/OpenALAudioCache.cpp
         )
     endif()

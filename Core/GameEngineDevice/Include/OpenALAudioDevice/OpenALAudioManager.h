@@ -26,6 +26,7 @@
 #include <memory>
 
 class OpenALMovieVoice;
+class OpenALAudioProducer;
 
 class OpenALAudioManager : public AudioManager
 {
@@ -88,6 +89,7 @@ protected:
     void setDeviceListenerPosition() override;
     virtual Bool isOnScreen(const Coord3D *position) const;
     void updatePlayback();
+    void waitForAudioProducers();
     OpenALDevice m_device;
 private:
     struct Voice;
@@ -101,6 +103,7 @@ private:
     bool nextPortion(Voice &voice);
     unsigned producerAvailable(const Voice &voice) const;
     bool pump(Voice &voice);
+    bool pumpStream(Voice &voice);
     void stopVoice(Voice &voice, bool immediate);
     void finishVoice(Voice &voice);
     void updateVoice(Voice &voice);
@@ -127,6 +130,7 @@ private:
     AsciiString m_preferredSpeaker;
     OpenALAudioCache m_cache;
     mutable FFmpegAudioMetadata m_metadata;
+    std::unique_ptr<OpenALAudioProducer> m_producers;
     std::list<std::unique_ptr<Voice>> m_voices;
     AsciiString m_lastMusic;
     Int m_musicCompletions = 0;

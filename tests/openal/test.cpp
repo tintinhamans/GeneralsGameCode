@@ -1,4 +1,5 @@
 #include "OpenALAudioDevice/OpenALDevice.h"
+#include "OpenALAudioDevice/OpenALAudioProducer.h"
 #include "OpenALAudioDevice/OpenALPcmStream.h"
 #include "VideoDevice/FFmpeg/FFmpegAudioFile.h"
 #include "Common/File.h"
@@ -12,6 +13,10 @@
 #include <thread>
 #include <vector>
 #include <limits>
+#include <cfenv>
+#if defined(_M_IX86)
+#include <float.h>
+#endif
 extern "C" {
 #include <libavutil/log.h>
 }
@@ -423,8 +428,10 @@ class MemoryFile : public File
 {
     std::vector<unsigned char> data;
     int position_ = 0;
+    const std::thread::id owner = std::this_thread::get_id();
+    unsigned *closeCount = nullptr;
 public:
-    explicit MemoryFile(const char *path)
+    explicit MemoryFile(const char *path, unsigned *closed = nullptr) : closeCount(closed)
     {
         std::FILE *file = std::fopen(path, "rb");
         CHECK(file != nullptr);
@@ -434,6 +441,8 @@ public:
         CHECK(std::fread(data.data(), 1, data.size(), file) == data.size());
         std::fclose(file);
     }
+    explicit MemoryFile(std::vector<unsigned char> bytes, unsigned *closed = nullptr)
+        : data(std::move(bytes)), closeCount(closed) {}
     Int read(void *destination, Int bytes) override
     {
         bytes = std::min(bytes, size() - position_);
@@ -455,8 +464,214 @@ public:
     }
     Int position() override { return position_; }
     Int size() override { return static_cast<Int>(data.size()); }
-    void close() override { delete this; }
+    void close() override
+    {
+        CHECK(std::this_thread::get_id() == owner);
+        if (closeCount != nullptr)
+            ++*closeCount;
+        delete this;
+    }
 };
+
+
+static void producerServiceParity(const char *path)
+{
+    struct RestoreEnvironment {
+        std::fenv_t saved;
+        RestoreEnvironment() { CHECK(std::fegetenv(&saved) == 0); }
+        ~RestoreEnvironment() { CHECK(std::fesetenv(&saved) == 0); }
+    } restore;
+    OpenALAudioProducer service;
+    for (unsigned mode = 0; mode < 2; ++mode) {
+#if defined(_M_IX86)
+        const unsigned precision[] = {_PC_24, _PC_53};
+        unsigned control = 0;
+        CHECK(_controlfp_s(&control, precision[mode], _MCW_PC) == 0);
+#else
+        const int rounding[] = {FE_TONEAREST, FE_DOWNWARD};
+        CHECK(std::fesetround(rounding[mode]) == 0);
+#endif
+        std::fenv_t selected;
+        CHECK(std::fegetenv(&selected) == 0);
+        std::vector<short> pcm;
+        FFmpegAudioFile synchronous;
+        CHECK(synchronous.open(new MemoryFile(path), 48000, 2));
+        synchronous.setPcmCallback([&](const short *data, int frames) { pcm.insert(pcm.end(), data, data + frames * 2); });
+        while (synchronous.decodePacket()) {}
+        CHECK(!synchronous.hasError() && !pcm.empty() && pcm.size() % 2 == 0);
+        const auto frames = static_cast<uint32_t>(pcm.size() / 2);
+        OpenALDevice referenceDevice, streamedDevice;
+        OpenALPcmStream reference, streamed;
+        CHECK(referenceDevice.openLoopback() && streamedDevice.openLoopback());
+        CHECK(reference.open(referenceDevice, 48000, 2, frames + 4096));
+        CHECK(streamed.open(streamedDevice, 48000, 2, frames + 4096));
+        CHECK(reference.queue(pcm.data(), frames) == Result::Accepted);
+        CHECK(std::fesetenv(&selected) == 0);
+        unsigned closed = 0;
+        auto decoder = std::make_unique<FFmpegAudioFile>();
+        CHECK(decoder->open(new MemoryFile(path, &closed), 48000, 2));
+        auto job = service.add(std::move(decoder), streamed.acquireProducer(), 2, false);
+        CHECK(job != nullptr);
+        job->prime();
+        service.waitForIdle();
+        bool eof = false;
+        OpenALAudioProducer::Packet packet;
+        while (job->peekPacket(packet)) {
+            CHECK(packet.endFrame <= frames);
+            eof = eof || packet.eof;
+            job->consumePacket();
+        }
+        CHECK(eof && !job->failed() && job->producedFrames() == frames);
+        job.reset();
+        CHECK(closed == 1);
+        streamed.releaseProducer();
+        CHECK(reference.markEnd() && streamed.markEnd() && reference.play() && streamed.play());
+        CHECK(render(referenceDevice, frames + 1024) == render(streamedDevice, frames + 1024));
+        CHECK(reference.getReadFrames() == frames && streamed.getReadFrames() == frames);
+    }
+    const char *driver = std::getenv("ALSOFT_DRIVERS");
+    CHECK(driver != nullptr && std::strcmp(driver, "null") == 0);
+    OpenALDevice device;
+    OpenALPcmStream stream;
+    CHECK(device.open() && stream.open(device, 48000, 2, 16384));
+    unsigned closed = 0;
+    auto decoder = std::make_unique<FFmpegAudioFile>();
+    CHECK(decoder->open(new MemoryFile(path, &closed), 48000, 2));
+    auto job = service.add(std::move(decoder), stream.acquireProducer(), 2, false);
+    CHECK(job != nullptr);
+    job->prime();
+    CHECK(stream.play());
+    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    CHECK(stream.getReadFrames() > 20000 && job->producedFrames() > 16384 && !job->failed());
+    job.reset();
+    CHECK(closed == 1);
+    stream.releaseProducer();
+    CHECK(stream.stop());
+    std::puts("decoder service exact owner FP parity, per-job reuse and 600 ms owner stall passed");
+}
+
+
+static void producerServiceLifetime(const char *path)
+{
+    OpenALDevice device;
+    OpenALPcmStream stream;
+    CHECK(device.openLoopback());
+    unsigned closed = 0;
+    for (unsigned round = 0; round < 2; ++round) {
+        CHECK(stream.open(device, 48000, 2, 65536));
+        auto service = std::make_unique<OpenALAudioProducer>();
+        auto decoder = std::make_unique<FFmpegAudioFile>();
+        CHECK(decoder->open(new MemoryFile(path, &closed), 48000, 2));
+        auto job = service->add(std::move(decoder), stream.acquireProducer(), 2, false);
+        CHECK(job != nullptr && decoder == nullptr);
+        service.reset();
+        job->prime();
+        CHECK(!job->failed() && job->producedFrames() == 48000 && closed == round);
+        job.reset();
+        CHECK(closed == round + 1);
+        stream.releaseProducer();
+        CHECK(stream.stop());
+    }
+    std::puts("owned decoder and worker state survive service wrapper destruction; owner close/reopen passed");
+}
+
+static std::vector<unsigned char> packetPressureWave(uint32_t frames)
+{
+    std::vector<unsigned char> bytes(44 + static_cast<size_t>(frames) * 4);
+    auto u32 = [&](unsigned offset, uint32_t value) {
+        for (unsigned byte = 0; byte < 4; ++byte)
+            bytes[offset + byte] = static_cast<unsigned char>(value >> (byte * 8));
+    };
+    std::memcpy(bytes.data(), "RIFF", 4);
+    u32(4, static_cast<uint32_t>(bytes.size() - 8));
+    std::memcpy(bytes.data() + 8, "WAVEfmt ", 8);
+    u32(16, 16);
+    bytes[20] = 1;
+    bytes[22] = 2;
+    u32(24, 8000);
+    u32(28, 8000 * 4);
+    bytes[32] = 4;
+    bytes[34] = 16;
+    std::memcpy(bytes.data() + 36, "data", 4);
+    u32(40, frames * 4);
+    return bytes;
+}
+
+static void producerPacketPressure()
+{
+    constexpr uint32_t frames = 5000000;
+    std::vector<OpenALAudioProducer::Packet> expected;
+    {
+        FFmpegAudioFile decoder;
+        CHECK(decoder.open(new MemoryFile(packetPressureWave(frames)), 8000, 2));
+        uint64_t decoded = 0;
+        decoder.setPcmCallback([&](const short *, int count) { decoded += count; });
+        for (;;) {
+            const uint64_t before = decoded;
+            const bool more = decoder.decodePacket();
+            CHECK(!decoder.hasError());
+            const bool eof = !more && before == decoded;
+            expected.push_back({decoded, eof});
+            if (eof)
+                break;
+        }
+        std::printf("FIFO reference: %zu packet records, %llu decoded frames at 8000 Hz\n",
+            expected.size(), static_cast<unsigned long long>(decoded));
+        CHECK(decoded == frames && expected.size() > OpenALAudioProducer::PacketCapacity);
+    }
+    OpenALAudioProducer service;
+    OpenALDevice device;
+    OpenALPcmStream stream;
+    CHECK(device.openLoopback() && stream.open(device, 8000, 2, frames + 1));
+    unsigned closed = 0;
+    auto decoder = std::make_unique<FFmpegAudioFile>();
+    CHECK(decoder->open(new MemoryFile(packetPressureWave(frames), &closed), 8000, 2));
+    auto producer = stream.acquireProducer();
+    auto job = service.add(std::move(decoder), producer, 2, false);
+    CHECK(job != nullptr);
+    job->prime();
+    CHECK(!job->failed() && job->producedFrames() < frames && producer->availableFrames() > 0);
+    CHECK(job->pendingPackets() == OpenALAudioProducer::PacketCapacity);
+    size_t consumed = 0;
+    auto consume = [&] {
+        OpenALAudioProducer::Packet packet;
+        CHECK(job->peekPacket(packet) && consumed < expected.size());
+        CHECK(packet.endFrame == expected[consumed].endFrame && packet.eof == expected[consumed].eof);
+        job->consumePacket();
+        ++consumed;
+    };
+    for (size_t packet = 0; packet < OpenALAudioProducer::PacketCapacity; ++packet)
+        consume();
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (consumed < expected.size()) {
+        CHECK(std::chrono::steady_clock::now() < deadline);
+        job->prime();
+        CHECK(!job->failed());
+        OpenALAudioProducer::Packet packet;
+        while (job->peekPacket(packet))
+            consume();
+    }
+    CHECK(job->producedFrames() == frames && stream.getReadFrames() == 0 && closed == 0);
+    job.reset();
+    CHECK(closed == 1);
+    stream.releaseProducer();
+    CHECK(stream.stop());
+    decoder = std::make_unique<FFmpegAudioFile>();
+    CHECK(decoder->open(new MemoryFile(packetPressureWave(frames), &closed), 8000, 2));
+    producer = stream.acquireProducer();
+    job = service.add(std::move(decoder), producer, 2, false);
+    CHECK(job != nullptr);
+    job->prime();
+    CHECK(!job->failed() && job->producedFrames() < frames && producer->availableFrames() > 0);
+    CHECK(job->pendingPackets() == OpenALAudioProducer::PacketCapacity);
+    job.reset();
+    CHECK(closed == 2);
+    stream.releaseProducer();
+    CHECK(stream.stop());
+    service.waitForIdle();
+    std::printf("producer FIFO saturation/recovery: %zu exact packet records, %u frames; full-FIFO cancellation passed\n",
+        consumed, frames);
+}
 
 static void decoderBridge(const char *path)
 {
@@ -1209,6 +1424,213 @@ static void concurrentCachedSpanStress()
         acceptedSegments, fullResults, totalConsumed, counts.destroyed.load());
 }
 
+
+static void producerEndpointTests()
+{
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    OpenALPcmStream stream;
+    CHECK(stream.acquireProducer() == nullptr);
+    stream.releaseProducer();
+    CHECK(stream.open(device, 48000, 2, 1024));
+    auto producer = stream.acquireProducer();
+    CHECK(producer != nullptr && stream.acquireProducer() == nullptr);
+    const auto input = sequence(0, 1024);
+    CHECK(stream.queue(input.data(), 1) == Result::Error);
+    CHECK(stream.queueCached(std::make_shared<const std::vector<short>>(input), 0, 1) == Result::Error);
+    CHECK(!stream.markEnd());
+    bool wrongThreadAcquire = true;
+    Result queued = Result::Error;
+    std::thread writer([&] {
+        wrongThreadAcquire = stream.acquireProducer() != nullptr;
+        stream.releaseProducer();
+        CHECK(producer->queue(nullptr, 1) == Result::Invalid);
+        queued = producer->queue(input.data(), 1024);
+        CHECK(producer->availableFrames() == 0);
+        CHECK(producer->queue(input.data(), 1) == Result::Full);
+    });
+    writer.join();
+    CHECK(!wrongThreadAcquire && queued == Result::Accepted);
+    stream.releaseProducer();
+    CHECK(producer->availableFrames() == 0 && producer->queue(input.data(), 1) == Result::Error);
+    CHECK(stream.markEnd() && stream.play());
+    const auto output = render(device, 1536);
+    for (size_t sample = 0; sample < input.size(); ++sample)
+        CHECK(std::abs(static_cast<int>(output[sample]) - input[sample]) <= 2);
+    CHECK(stream.getReadFrames() == 1024 && stream.acquireProducer() == nullptr);
+    CHECK(stream.stop());
+    auto replacement = stream.acquireProducer();
+    CHECK(replacement != nullptr);
+    CHECK(producer->queue(input.data(), 1) == Result::Error);
+    CHECK(stream.stop());
+    CHECK(replacement->queue(input.data(), 1) == Result::Error);
+    CHECK(stream.close());
+    CHECK(stream.open(device, 48000, 1, 512, true));
+    CHECK(stream.setGain(0.125f) && stream.setStereoMix(1, 0, 0));
+    auto floats = stream.acquireProducer();
+    CHECK(floats != nullptr);
+    std::vector<float> high(256, 2.0f);
+    std::vector<float> invalid(1, std::numeric_limits<float>::quiet_NaN());
+    std::thread floatWriter([&] {
+        CHECK(floats->queueFloat(invalid.data(), 1) == Result::Invalid);
+        CHECK(floats->queueFloat(high.data(), 256) == Result::Accepted);
+    });
+    floatWriter.join();
+    stream.releaseProducer();
+    CHECK(floats->queueFloat(high.data(), 1) == Result::Error);
+    CHECK(stream.markEnd() && stream.play());
+    const auto floatOutput = render(device, 1024);
+    for (unsigned frame = 128; frame < 240; ++frame) {
+        CHECK(std::abs(static_cast<int>(floatOutput[frame * 2]) - 8192) <= 1);
+        CHECK(floatOutput[frame * 2 + 1] == 0);
+    }
+    CHECK(stream.close());
+    CHECK(stream.open(device, 48000, 1, 64, true, OpenALPcmStream::InputMode::CachedSpans));
+    CHECK(stream.acquireProducer() == nullptr);
+    CHECK(stream.close());
+    std::puts("producer endpoint validation, single-writer lease, float headroom and stale generations passed");
+}
+
+
+static void producerReplacementLease()
+{
+    const std::vector<short> input(512, 6000), tail(128, -2000);
+    const std::vector<float> floatTail(128, -0.25f);
+    for (unsigned replace = 0; replace < 2; ++replace) {
+        OpenALDevice device;
+        OpenALPcmStream stream;
+        CHECK(device.openLoopback());
+        CHECK(stream.open(device, 48000, 1, 1024, true) && stream.setGain(0.25f));
+        auto producer = stream.acquireProducer();
+        CHECK(producer != nullptr && producer->queue(input.data(), 512) == Result::Accepted);
+        CHECK(!stream.replaceQueuedAfter(256, tail.data(), 128));
+        CHECK(!stream.replaceQueuedAfterFloat(256, floatTail.data(), 128));
+        CHECK(producer->availableFrames() == 512);
+        ScalarMixReference reference;
+        reference.input.assign(512, 6000 / 32768.0f);
+        stream.releaseProducer();
+        if (replace != 0) {
+            CHECK(stream.replaceQueuedAfterFloat(256, floatTail.data(), 128));
+            reference.replacing = true;
+            reference.replaceAt = 256;
+            reference.tail = floatTail;
+        } else
+            CHECK(stream.markEnd());
+        CHECK(stream.play());
+        reference.play();
+        const auto actual = render(device, 1024);
+        const auto expected = reference.render(1024);
+        if (actual != expected) {
+            for (size_t sample = 0; sample < actual.size(); ++sample) {
+                if (actual[sample] != expected[sample]) {
+                    std::fprintf(stderr, "replacement round %u sample %zu: %d vs %d; read %u vs %u\n",
+                        replace, sample, actual[sample], expected[sample], stream.getReadFrames(), reference.read);
+                    break;
+                }
+            }
+        }
+        CHECK(actual == expected);
+        CHECK(stream.getReadFrames() == reference.read);
+    }
+    std::puts("active producer rejects both replacement types without changing PCM; detached replacement passed");
+}
+
+static void producerEndpointDetachRaces()
+{
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    OpenALPcmStream stream;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    const auto input = sequence(0, 32);
+    for (unsigned round = 0; round < 16; ++round) {
+        CHECK(stream.open(device, 48000, 2, 64));
+        auto producer = stream.acquireProducer();
+        CHECK(producer != nullptr);
+        std::weak_ptr<OpenALPcmStream::Producer> weak = producer;
+        std::atomic<bool> entered{false}, detached{false};
+        std::thread writer([endpoint = std::move(producer), &input, &entered, &detached, &deadline]() mutable {
+            CHECK(endpoint->queue(input.data(), 32) == Result::Accepted);
+            entered.store(true);
+            while (!detached.load()) {
+                CHECK(std::chrono::steady_clock::now() < deadline);
+                const Result result = endpoint->queue(input.data(), 32);
+                CHECK(result == Result::Accepted || result == Result::Full || result == Result::Error);
+                std::this_thread::yield();
+            }
+            CHECK(endpoint->availableFrames() == 0);
+            CHECK(endpoint->queue(input.data(), 1) == Result::Error);
+            endpoint.reset();
+        });
+        while (!entered.load()) {
+            CHECK(std::chrono::steady_clock::now() < deadline);
+            std::this_thread::yield();
+        }
+        if (round % 3 == 0)
+            stream.releaseProducer();
+        else if (round % 3 == 1)
+            CHECK(stream.stop());
+        else
+            CHECK(stream.close());
+        detached.store(true);
+        writer.join();
+        CHECK(weak.expired());
+        CHECK(stream.close());
+    }
+    std::puts("producer endpoint release/stop/close races and worker-side final destruction passed");
+}
+
+static void producerNullFeed()
+{
+    const char *driver = std::getenv("ALSOFT_DRIVERS");
+    CHECK(driver != nullptr && std::strcmp(driver, "null") == 0);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    OpenALDevice device;
+    CHECK(device.open());
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 2, 4096));
+    auto producer = stream.acquireProducer();
+    CHECK(producer != nullptr);
+    std::atomic<unsigned> submitted{0};
+    std::atomic<bool> done{false};
+    const auto input = sequence(0, 256);
+    std::thread writer([&] {
+        while (submitted.load() < 48000) {
+            CHECK(std::chrono::steady_clock::now() < deadline);
+            const unsigned count = std::min(256u, 48000u - submitted.load());
+            const Result result = producer->queue(input.data(), count);
+            CHECK(result == Result::Accepted || result == Result::Full);
+            if (result == Result::Accepted)
+                submitted.fetch_add(count);
+            else
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        done.store(true);
+    });
+    while (submitted.load() < 4096) {
+        CHECK(std::chrono::steady_clock::now() < deadline);
+        std::this_thread::yield();
+    }
+    CHECK(stream.play());
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    CHECK(stream.getReadFrames() >= 9600 && stream.state() == State::Playing);
+    while (!done.load()) {
+        CHECK(std::chrono::steady_clock::now() < deadline);
+        CHECK(stream.state() == State::Playing);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    writer.join();
+    stream.releaseProducer();
+    CHECK(stream.markEnd());
+    while (stream.state() != State::Finished) {
+        CHECK(std::chrono::steady_clock::now() < deadline);
+        CHECK(stream.state() != State::Error);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    CHECK(submitted.load() == 48000 && stream.getReadFrames() == 48000);
+    CHECK(producer->queue(input.data(), 1) == Result::Error);
+    std::puts("producer worker fed 48000 exact Null frames through a 300 ms owner stall");
+}
+
 static void directCachedNullStall()
 {
     OpenALDevice device;
@@ -1320,6 +1742,7 @@ int main(int argc, char **argv)
         return 0;
     }
     if (argc == 2 && std::strcmp(argv[1], "--stress") == 0) {
+        producerNullFeed();
         concurrentCachedSpanStress();
         directCachedNullStall();
         concurrentMixedControls();
@@ -1327,6 +1750,9 @@ int main(int argc, char **argv)
         return 0;
     }
     CHECK(argc == 2);
+    producerEndpointTests();
+    producerEndpointDetachRaces();
+    producerReplacementLease();
     directCachedTests();
     scalarMixEquivalenceTests();
     legacyMixTests();
@@ -1340,6 +1766,9 @@ int main(int argc, char **argv)
     replacementEdges();
     monoResampling();
     contextsAndLifetime();
+    producerServiceParity(argv[1]);
+    producerServiceLifetime(argv[1]);
+    producerPacketPressure();
     decoderBridge(argv[1]);
     std::puts("OpenAL loopback tests passed");
     return 0;

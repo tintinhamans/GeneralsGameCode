@@ -36,8 +36,10 @@ extern "C" {
 }
 
 
-static void logFFmpegError(const char *operation, Int error)
+void FFmpegFile::logError(const char *operation, Int error)
 {
+    if (!m_errorLogging)
+        return;
     char message[AV_ERROR_MAX_STRING_SIZE];
     av_strerror(error, message, sizeof(message));
     DEBUG_LOG(("FFmpeg %s failed: %s\n", operation, message));
@@ -85,13 +87,13 @@ Bool FFmpegFile::open(File *file)
 	m_fmtCtx->flags |= AVFMT_FLAG_CUSTOM_IO;
 	Int result = avformat_open_input(&m_fmtCtx, nullptr, nullptr, nullptr);
 	if (result < 0) {
-		logFFmpegError("open input", result);
+		logError("open input", result);
 		close();
 		return false;
 	}
 	result = avformat_find_stream_info(m_fmtCtx, nullptr);
 	if (result < 0) {
-		logFFmpegError("read stream metadata", result);
+		logError("read stream metadata", result);
 		close();
 		return false;
 	}
@@ -102,14 +104,14 @@ Bool FFmpegFile::open(File *file)
 		FFmpegStream &stream = m_streams[i];
 		stream.codec = avcodec_find_decoder(input->codecpar->codec_id);
 		if (stream.codec == nullptr) {
-			logFFmpegError("find decoder", AVERROR_DECODER_NOT_FOUND);
+			logError("find decoder", AVERROR_DECODER_NOT_FOUND);
 			close();
 			return false;
 		}
 		stream.codec_ctx = avcodec_alloc_context3(stream.codec);
 		stream.frame = av_frame_alloc();
 		if (stream.codec_ctx == nullptr || stream.frame == nullptr) {
-			logFFmpegError("allocate decoder", AVERROR(ENOMEM));
+			logError("allocate decoder", AVERROR(ENOMEM));
 			close();
 			return false;
 		}
@@ -117,7 +119,7 @@ Bool FFmpegFile::open(File *file)
 		if (result >= 0)
 			result = avcodec_open2(stream.codec_ctx, stream.codec, nullptr);
 		if (result < 0) {
-			logFFmpegError("initialize decoder", result);
+			logError("initialize decoder", result);
 			close();
 			return false;
 		}
@@ -198,7 +200,7 @@ Bool FFmpegFile::receiveFrames(FFmpegStream &stream, Bool &produced)
 		if (result == AVERROR(EAGAIN) || result == AVERROR_EOF)
 			return true;
 		if (result < 0) {
-			logFFmpegError("receive frame", result);
+			logError("receive frame", result);
 			return false;
 		}
 		produced = true;
@@ -217,7 +219,7 @@ Bool FFmpegFile::submitPacket(FFmpegStream &stream, const AVPacket *packet, Bool
 		result = avcodec_send_packet(stream.codec_ctx, packet);
 	}
 	if (result < 0) {
-		logFFmpegError("submit packet or drain", result);
+		logError("submit packet or drain", result);
 		return false;
 	}
 	return receiveFrames(stream, produced);
@@ -230,7 +232,7 @@ Bool FFmpegFile::decodePacket()
 	Bool produced = false;
 	Int result = av_read_frame(m_fmtCtx, m_packet);
 	if (result == AVERROR_EOF && m_avioCtx->error < 0 && m_avioCtx->error != AVERROR_EOF) {
-		logFFmpegError("read input", m_avioCtx->error);
+		logError("read input", m_avioCtx->error);
 		m_decodeFailed = true;
 		return false;
 	}
@@ -248,7 +250,7 @@ Bool FFmpegFile::decodePacket()
 		static_cast<size_t>(m_packet->stream_index) >= m_streams.size()) {
 		if (result >= 0)
 			result = AVERROR_INVALIDDATA;
-		logFFmpegError("read packet", result);
+		logError("read packet", result);
 		av_packet_unref(m_packet);
 		m_decodeFailed = true;
 		return false;
@@ -267,7 +269,7 @@ Bool FFmpegFile::seek(Int streamIndex, Int64 timestamp)
 		return false;
 	const Int result = av_seek_frame(m_fmtCtx, streamIndex, timestamp, AVSEEK_FLAG_BACKWARD);
 	if (result < 0) {
-		logFFmpegError("seek", result);
+		logError("seek", result);
 		return false;
 	}
 	m_avioCtx->error = 0;

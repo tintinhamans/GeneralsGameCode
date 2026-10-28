@@ -111,3 +111,36 @@ its main portion has started. Under a 240,000-byte cache budget, it admits voice
 before A's ordinary update, then stalls the owner for 500 ms. B's late 660 Hz PCM
 proves the consumed prior-portion pin was collected in the pre-request sweep,
 rather than forcing B to decoder fallback. A is never stopped to release that pin.
+
+
+## Streamed producer
+
+Music and ordinary speech use one background producer service for packet decode
+and bounded ring refills. Each job owns its decoder and retains the producer service state. Files are
+opened on the owner thread with the ordinary private-file path; unregistering
+waits for any in-flight decode before owner-thread decoder destruction. Cached effects, cache-miss effect decoding, forced loading
+speech and movie audio retain their existing paths.
+
+`streamed-stall` advances loopback for 1.1 seconds without manager updates, using
+local speech, actual BIG-backed speech and music. It checks late tone energy,
+finite payload drain and the intentional unprepared-next-portion boundary.
+`streamed-trace` records PCM/status hashes and synthetic raw PCM for seeded
+pause/resume/stop scenarios. `streamed-fp-trace` repeats with alternate owner
+precision. Compare these against the pre-change manager fixture for policy and
+bit-exact PCM proof, including final audio-RNG fingerprints.
+
+The accelerated fixture waits for producer readiness after each ordinary update;
+this supplies CPU scheduling time without advancing policy a second time. That
+barrier is not used by the production update path or the paced stall test.
+Opening/initial priming and cancelling an in-flight disk read can still block the
+owner. A bounded packet-progress FIFO can also apply producer backpressure during
+very long owner stalls. No callback decodes, selects files or consumes RNG.
+
+
+`streamed-budget` independently counts decoder steps for a high-rate WAV converted
+at a low output rate, so the 32-packet limit is reached before ring capacity.
+It separates the initial request pump from subsequent owner updates, drains audio
+without advancing policy, and checks that EOF becomes visible on exactly the
+expected pump. The fixture requires 65 steps and three pumps; a local 33-packet
+mutation fails on pump two. The high source/output-rate ratio is synthetic control
+coverage, not a proposed production audio configuration.

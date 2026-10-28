@@ -13,6 +13,7 @@
 #include "Common/GameCommon.h"
 #include "Common/GameMemory.h"
 #include "OpenALAudioDevice/OpenALAudioManager.h"
+#include "VideoDevice/FFmpeg/FFmpegAudioFile.h"
 #include "Win32Device/Common/Win32BIGFileSystem.h"
 #include "Win32Device/Common/Win32LocalFileSystem.h"
 #include <direct.h>
@@ -22,6 +23,12 @@
 #include <cstdlib>
 #include <vector>
 #include <string>
+#include <chrono>
+#include <thread>
+#include <cfenv>
+#if defined(_M_IX86)
+#include <float.h>
+#endif
 
 #define CHECK(x) do { if (!(x)) { std::fprintf(stderr, "FAILED %d: %s\n", __LINE__, #x); std::exit(1); } } while (false)
 
@@ -82,7 +89,22 @@ public:
         s.m_3DSoundRangeVolumeFadeExponent = 1;
         m_zoomVolume = 1;
     }
-    void tick() { updatePlayback(); }
+    void waitReady()
+    {
+#ifndef AUDIO_PRODUCER_BASELINE
+        waitForAudioProducers();
+#endif
+    }
+    void tick()
+    {
+        updatePlayback();
+        waitReady();
+    }
+    void startRequests()
+    {
+        processRequestList();
+        waitReady();
+    }
     std::vector<short> render(int frames)
     {
         std::vector<short> output(static_cast<size_t>(frames) * 2);
@@ -1377,6 +1399,116 @@ static void cachedTrace(FixtureManager &manager)
     manager.reset();
 }
 
+static void streamedTrace(FixtureManager &manager)
+{
+    for (const char *name : {"SpeechOne", "MusicOne", "MusicTwo"}) {
+        manager.reset();
+        manager.render(1600);
+        InitRandom(381724);
+        const auto handle = add(manager, name);
+        const std::string filename = std::string("stream-trace-") + name + ".pcm";
+        FILE *capture = std::fopen(filename.c_str(), "wb");
+        CHECK(capture != nullptr);
+        for (unsigned tick = 0; tick < 120; ++tick) {
+            if (tick == 19)
+                manager.pauseAudio(AudioAffect_All);
+            if (tick == 24)
+                manager.resumeAudio(AudioAffect_All);
+            if (tick == 86)
+                manager.removeAudioEvent(handle);
+            manager.tick();
+            const auto pcm = manager.render(800);
+            CHECK(std::fwrite(pcm.data(), sizeof(short), pcm.size(), capture) == pcm.size());
+            unsigned hash = 2166136261u;
+            for (short sample : pcm)
+                hash = (hash ^ static_cast<unsigned short>(sample)) * 16777619u;
+            std::printf("STREAM_TRACE %s tick=%u pcm=%08x playing=%d\n", name, tick,
+                hash, manager.isCurrentlyPlaying(handle));
+        }
+        CHECK(std::fclose(capture) == 0);
+        std::printf("STREAM_TRACE %s final-rng=%08x\n", name, audioRngFingerprint());
+    }
+    manager.reset();
+}
+
+static void streamedPacketBudgetTests(FixtureManager &manager)
+{
+    manager.reset();
+    manager.render(1600);
+    const Int originalRate = manager.friend_getAudioSettings()->m_outputRate;
+    manager.friend_getAudioSettings()->m_outputRate = 4000;
+    unsigned packets = 0;
+    uint64_t frames = 0;
+    {
+        FFmpegAudioFile decoder;
+        CHECK(decoder.open(TheFileSystem->openFile("Data/Audio/Speech/packet-budget.wav"), 4000, 2));
+        decoder.setPcmCallback([&](const short *, int count) { frames += count; });
+        while (true) {
+            const uint64_t before = frames;
+            const bool decoded = decoder.decodePacket();
+            CHECK(++packets < 8192 && !decoder.hasError());
+            if (!decoded && frames == before)
+                break;
+        }
+    }
+    std::printf("STREAM_BUDGET reference packets=%u frames=%llu\n", packets, static_cast<unsigned long long>(frames));
+    CHECK(packets > 64 && frames > 0 && frames < 48000);
+    const unsigned pumps = (packets + 31) / 32;
+    const auto handle = add(manager, "SpeechPacketBudget");
+    for (unsigned pump = 1; pump <= pumps; ++pump) {
+        if (pump == 1)
+            manager.startRequests();
+        else
+            manager.tick();
+        for (uint64_t remaining = frames * 12 + 1600; remaining != 0;) {
+            manager.waitReady();
+            const unsigned block = static_cast<unsigned>(std::min<uint64_t>(800, remaining));
+            manager.render(block);
+            remaining -= block;
+        }
+        const bool expectedPlaying = pump * 32 < packets;
+        const bool playing = manager.isCurrentlyPlaying(handle);
+        std::printf("STREAM_BUDGET packets=%u pump=%u playing=%d expected=%d\n",
+            packets, pump, playing, expectedPlaying);
+        CHECK(playing == expectedPlaying);
+    }
+    manager.reset();
+    manager.friend_getAudioSettings()->m_outputRate = originalRate;
+    std::puts("streamed EOF obeys the 32-packet owner pump budget even after payload drain");
+}
+
+static void streamedStallTests(FixtureManager &manager)
+{
+    for (const char *name : {"SpeechOne", "SpeechArchive", "MusicOne"}) {
+        manager.reset();
+        manager.render(1600);
+        InitRandom(918273);
+        const auto handle = add(manager, name);
+        manager.tick();
+        std::vector<short> pcm;
+        const auto start = std::chrono::steady_clock::now();
+        for (unsigned block = 0; block < 66; ++block) {
+            std::this_thread::sleep_until(start + std::chrono::microseconds((block + 1) * 1000000 / 60));
+            const auto output = manager.render(800);
+            pcm.insert(pcm.end(), output.begin(), output.end());
+        }
+        const double late = energy(pcm, -1, 36000);
+        std::printf("stream service stall %s late energy=%.0f\n", name, late);
+        CHECK(late > 1.0e9);
+        CHECK(toneScore(pcm, 36000, 6000, 440) > 0.95);
+        CHECK(energy(pcm, -1, 50000) < 10000);
+        manager.tick();
+        if (std::string(name) != "MusicOne") {
+            manager.run(3200);
+            CHECK(!manager.isCurrentlyPlaying(handle));
+        }
+        manager.killAudioEventImmediately(handle);
+        CHECK(!manager.isCurrentlyPlaying(handle));
+    }
+    manager.reset();
+    std::puts("local/BIG speech and music continue without owner service; unprepared boundary stays owner-controlled");
+}
+
 static void cachedReclaimTests(FixtureManager &manager)
 {
     manager.reset();
@@ -1532,7 +1664,24 @@ int main(int argc, char **argv)
         CHECK(manager.deviceOpens == 1 && manager.getDevice() != nullptr);
         if (argc == 3) {
             const std::string selected = argv[2];
-            if (selected == "cached-trace")
+            if (selected == "streamed-budget")
+                streamedPacketBudgetTests(manager);
+            else if (selected == "streamed-fp-trace") {
+                std::fenv_t original;
+                CHECK(std::fegetenv(&original) == 0);
+#if defined(_M_IX86)
+                unsigned control = 0;
+                CHECK(_controlfp_s(&control, _PC_53, _MCW_PC) == 0);
+#else
+                CHECK(std::fesetround(FE_DOWNWARD) == 0);
+#endif
+                streamedTrace(manager);
+                CHECK(std::fesetenv(&original) == 0);
+            } else if (selected == "streamed-trace")
+                streamedTrace(manager);
+            else if (selected == "streamed-stall")
+                streamedStallTests(manager);
+            else if (selected == "cached-trace")
                 cachedTrace(manager);
             else if (selected == "cached-reclaim")
                 cachedReclaimTests(manager);
@@ -1578,6 +1727,8 @@ int main(int argc, char **argv)
             filteredCacheVariantTests();
             cachedStallTests(manager);
             cachedReclaimTests(manager);
+            streamedStallTests(manager);
+            streamedPacketBudgetTests(manager);
         }
         manager.reset();
         TheAudio = nullptr;

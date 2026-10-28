@@ -55,6 +55,7 @@ public:
 
 	Bool open(File *file);
 	void close();
+	void setErrorLogging(Bool enabled) { m_errorLogging = enabled; }
 	void setFrameCallback(FFmpegFrameCallback callback) { m_frameCallback = callback; }
 	void setUserData(void *user_data) { m_userData = user_data; }
 	// Read & decode a packet from the container. Note that we could/should split this step
@@ -100,6 +101,8 @@ private:
 	Bool seek(Int streamIndex, Int64 timestamp);
 	const FFmpegStream *findMatch(int type) const;
 
+	void logError(const char *operation, Int error);
+	Bool m_errorLogging = true;
 	Bool m_endOfInput = false;
 	Bool m_decodeFailed = false;
 	FFmpegFrameCallback 		m_frameCallback = nullptr; ///< Callback for frame processing

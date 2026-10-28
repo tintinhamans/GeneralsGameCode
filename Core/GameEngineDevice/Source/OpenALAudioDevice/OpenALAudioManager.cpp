@@ -17,6 +17,7 @@
 */
 
 #include "OpenALAudioDevice/OpenALAudioManager.h"
+#include "OpenALAudioDevice/OpenALAudioProducer.h"
 #include "OpenALAudioDevice/OpenALPcmStream.h"
 #include "VideoDevice/FFmpeg/FFmpegAudioFile.h"
 #include "Common/AudioAffect.h"
@@ -64,6 +65,11 @@ struct OpenALAudioManager::Voice
     RefCountPtr<DynamicAudioEventRTS> event;
     OpenALPcmStream stream;
     std::unique_ptr<FFmpegAudioFile> decoder;
+    std::unique_ptr<OpenALAudioProducer::Job> producerJob;
+    bool preparing = true;
+    bool packetPending = false;
+    uint64_t producerStart = 0;
+    OpenALAudioProducer::Packet packet;
     std::shared_ptr<const OpenALAudioClip> clip;
     size_t clipOffset = 0;
     unsigned producerCapacity = 0;
@@ -374,6 +380,8 @@ void OpenALAudioManager::finishVoice(Voice &voice)
     if (voice.removed)
         return;
     voice.removed = true;
+    voice.producerJob.reset();
+    voice.stream.releaseProducer();
     voice.stream.stop();
     voice.stream.close();
     voice.decoder.reset();
@@ -497,6 +505,9 @@ bool OpenALAudioManager::startPortion(Voice &voice)
     case PP_Decay: filename = event.getDecayFilename(); break;
     default: return false;
     }
+    voice.producerJob.reset();
+    voice.stream.releaseProducer();
+    voice.packetPending = false;
     voice.stream.reclaimConsumed();
     voice.clip.reset();
     voice.decoder.reset();
@@ -519,6 +530,8 @@ bool OpenALAudioManager::startPortion(Voice &voice)
     voice.decoder = std::make_unique<FFmpegAudioFile>();
     if (TheFileSystem == nullptr || !voice.decoder->open(TheFileSystem->openFile(filename.str()), voice.rate, voice.channels, cutoff))
         return false;
+    if (event.getAudioEventInfo()->m_soundType != AT_SoundEffect)
+        return true;
     if (voice.floatPcm) {
         voice.pendingFloat.reserve(MAX_PENDING_FRAMES * static_cast<size_t>(voice.channels));
         if (!voice.decoder->setFloatPcmCallback([&voice](const float *pcm, int frames) {
@@ -578,7 +591,7 @@ bool OpenALAudioManager::nextPortion(Voice &voice)
 
 unsigned OpenALAudioManager::producerAvailable(const Voice &voice) const
 {
-    if (!voice.cachedSpans)
+    if (!voice.cachedSpans && voice.event->getAudioEventInfo()->m_soundType == AT_SoundEffect)
         return voice.stream.availableFrames();
     // Direct spans may be ahead of the legacy portion/RNG producer horizon.
     const uint64_t consumed = voice.readFrames +
@@ -594,6 +607,8 @@ bool OpenALAudioManager::pump(Voice &voice)
 {
     if (voice.eof || voice.delayMS > 0)
         return true;
+    if (!voice.forced && voice.event->getAudioEventInfo()->m_soundType != AT_SoundEffect)
+        return pumpStream(voice);
     unsigned decodedPackets = 0;
     for (unsigned transfer = 0; transfer < SOUND_BUFFER_FRAMES * 2 + MAX_DECODE_PACKETS; ++transfer) {
         size_t pendingSize = voice.pending.size();
@@ -687,6 +702,64 @@ bool OpenALAudioManager::pump(Voice &voice)
     return true;
 }
 
+bool OpenALAudioManager::pumpStream(Voice &voice)
+{
+    unsigned packets = 0;
+    while (true) {
+        if (!voice.producerJob) {
+            try {
+                if (!m_producers)
+                    m_producers = std::make_unique<OpenALAudioProducer>();
+                voice.producerStart = voice.submittedFrames;
+                voice.producerJob = m_producers->add(std::move(voice.decoder), voice.stream.acquireProducer(), voice.channels, voice.floatPcm);
+                if (!voice.producerJob)
+                    return false;
+                if (voice.preparing)
+                    voice.producerJob->prime();
+            } catch (...) {
+                return false;
+            }
+        }
+        if (voice.producerJob->failed()) {
+            std::fprintf(stderr, "OpenAL streamed audio decoding failed: %s\n", voice.event->getEventName().str());
+            return false;
+        }
+        if (!voice.packetPending) {
+            if (producerAvailable(voice) == 0 || packets >= MAX_DECODE_PACKETS ||
+                !voice.producerJob->peekPacket(voice.packet))
+                return true;
+            ++packets;
+            voice.packetPending = true;
+        }
+        const uint64_t end = voice.producerStart + voice.packet.endFrame;
+        const uint64_t produced = voice.producerStart + voice.producerJob->producedFrames();
+        const uint64_t ready = std::min(end, produced);
+        if (ready > voice.submittedFrames)
+            voice.submittedFrames += std::min<uint64_t>(producerAvailable(voice), ready - voice.submittedFrames);
+        if (voice.submittedFrames < end)
+            return true;
+        const bool eof = voice.packet.eof;
+        voice.producerJob->consumePacket();
+        voice.packetPending = false;
+        if (!eof)
+            continue;
+        voice.producerJob.reset();
+        voice.stream.releaseProducer();
+        if (!nextPortion(voice)) {
+            voice.eof = true;
+            return voice.stream.markEnd();
+        }
+        if (voice.delayMS > 0)
+            return true;
+    }
+}
+
+void OpenALAudioManager::waitForAudioProducers()
+{
+    if (m_producers)
+        m_producers->waitForIdle();
+}
+
 void OpenALAudioManager::playRequest(AudioRequest &request, bool forced)
 {
     if (!request.m_pendingEvent || m_dummy || !m_device.isOpen())
@@ -768,6 +841,7 @@ void OpenALAudioManager::playRequest(AudioRequest &request, bool forced)
     voice->paused = m_ambientPaused && info->isPermanentSound();
     if (!voice->paused && !voice->stream.play())
         return;
+    voice->preparing = false;
     for (Voice *victim : victims)
         finishVoice(*victim);
     if (info->m_soundType == AT_Music) {

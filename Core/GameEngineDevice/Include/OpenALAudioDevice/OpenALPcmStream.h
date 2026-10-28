@@ -25,16 +25,33 @@
 
 class OpenALPcmStream
 {
+    struct ProducerState;
 public:
     enum class InputMode { Queued, CachedSpans };
     enum class QueueResult { Accepted, Full, Invalid, Error };
     enum class State { Stopped, Playing, Paused, Starved, Finished, Error };
+    class Producer
+    {
+    public:
+        Producer(const Producer &) = delete;
+        Producer &operator=(const Producer &) = delete;
+        QueueResult queue(const short *interleaved, uint32_t frames);
+        QueueResult queueFloat(const float *interleaved, uint32_t frames);
+        uint32_t availableFrames() const;
+    private:
+        friend class OpenALPcmStream;
+        explicit Producer(std::shared_ptr<ProducerState> state);
+        std::shared_ptr<ProducerState> m_state;
+    };
     OpenALPcmStream();
     ~OpenALPcmStream();
     OpenALPcmStream(const OpenALPcmStream &) = delete;
     OpenALPcmStream &operator=(const OpenALPcmStream &) = delete;
     bool open(OpenALDevice &device, int sampleRate, int channels, uint32_t capacityFrames, bool stereoMono = false, InputMode mode = InputMode::Queued);
     bool close();
+    // Queued input only; detach before EOF or returning to owner-thread queueing.
+    std::shared_ptr<Producer> acquireProducer();
+    void releaseProducer();
     QueueResult queue(const short *interleaved, uint32_t frames);
     // Float input preserves filtered mono headroom until the final device mix.
     QueueResult queueFloat(const float *interleaved, uint32_t frames);

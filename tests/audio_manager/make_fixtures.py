@@ -58,6 +58,12 @@ with wave.open(str(root / "Data/Audio/Sounds/filter-headroom.wav"), "wb") as out
 for directory in ("Music", "Speech"):
     (root / "Data/Audio" / directory / "long.wav").write_bytes((root / "Data/Audio/Sounds/long.wav").read_bytes())
 
+with wave.open(str(root / "Data/Audio/Speech/packet-budget.wav"), "wb") as output:
+    output.setnchannels(2)
+    output.setsampwidth(2)
+    output.setframerate(384000)
+    output.writeframes(struct.pack("<h", 1000) * (2064384 * 2))
+
 for directory in ("Sounds", "Music", "Speech"):
     (root / "Data/Audio" / directory / "corrupt.wav").write_bytes(b"not an audio container")
 
@@ -117,15 +123,20 @@ for suffix, filename in (("Missing", "missing"), ("Corrupt", "corrupt")):
 events += block("AudioEvent", "Interrupt", "  Sounds = long\n  Limit = 1\n  Control = INTERRUPT\n")
 (root / "Data/INI/SoundEffects.ini").write_text(events)
 (root / "Data/INI/Default/Speech.ini").write_text(block("DialogEvent", "DefaultDialog", "  Filename = long.wav\n", True))
-(root / "Data/INI/Speech.ini").write_text(block("DialogEvent", "SpeechOne", "  Filename = long.wav\n"))
+(root / "Data/INI/Speech.ini").write_text(block("DialogEvent", "SpeechOne", "  Filename = long.wav\n") + block("DialogEvent", "SpeechArchive", "  Filename = archive-long.wav\n") + block("DialogEvent", "SpeechPacketBudget", "  Filename = packet-budget.wav\n"))
 for name in ("Default/Voice", "Voice", "MiscAudio"):
     (root / "Data/INI" / (name + ".ini")).write_text("; Deliberately empty fixture.\n")
 
-payload = (root / "Data/Audio/Sounds/main.wav").read_bytes()
-name = b"Data/Audio/Sounds/archive.wav\0"
-header_size = 16 + 8 + len(name)
-header = b"BIGF" + struct.pack("<I", header_size + len(payload)) + struct.pack(">II", 1, header_size)
-(root / "fixture.big").write_bytes(header + struct.pack(">II", header_size, len(payload)) + name + payload)
+entries = [(b"Data/Audio/Sounds/archive.wav\0", (root / "Data/Audio/Sounds/main.wav").read_bytes()),
+           (b"Data/Audio/Speech/archive-long.wav\0", (root / "Data/Audio/Speech/long.wav").read_bytes())]
+header_size = 16 + sum(8 + len(name) for name, payload in entries)
+size = header_size + sum(len(payload) for name, payload in entries)
+header = b"BIGF" + struct.pack("<I", size) + struct.pack(">II", len(entries), header_size)
+offset = header_size
+for name, payload in entries:
+    header += struct.pack(">II", offset, len(payload)) + name
+    offset += len(payload)
+(root / "fixture.big").write_bytes(header + b"".join(payload for name, payload in entries))
 print(root)
 
 for kind, ini, prefix in (("MusicTrack", "Music", "Music"), ("DialogEvent", "Speech", "Speech")):

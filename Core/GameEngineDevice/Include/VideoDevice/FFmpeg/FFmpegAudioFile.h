@@ -33,6 +33,7 @@ public:
 
     Bool open(File *file, Int sampleRate, Int channels, float normalizedCutoff = 1.0f);
     void close();
+    void setErrorLogging(Bool enabled);
     Bool decodePacket();
     Bool rewind();
     Bool hasError() const;
