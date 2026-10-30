@@ -821,9 +821,9 @@ namespace
 			config.intensityWindowMs = query.intensity_window_ms();
 		}
 
-		if (config.lightIntervalMs != 0 && (config.lightIntervalMs < 50 || config.lightIntervalMs > 60000))
+		if (config.lightIntervalMs != 0 && (config.lightIntervalMs < 1 || config.lightIntervalMs > 60000))
 		{
-			message = "light_interval_ms must be 0 or 50..60000";
+			message = "light_interval_ms must be 0 or 1..60000";
 			return statsexporter::RESPONSE_STATUS_BAD_REQUEST;
 		}
 		if (config.fullIntervalMs != 0 && (config.fullIntervalMs < 100 || config.fullIntervalMs > 60000))
