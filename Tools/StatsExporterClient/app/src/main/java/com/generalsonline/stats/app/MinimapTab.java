@@ -8,10 +8,9 @@ import com.generalsonline.stats.proto.InterestHighlight;
 import com.generalsonline.stats.proto.InterestMap;
 
 import javax.swing.BorderFactory;
-import javax.swing.JCheckBox;
+import javax.swing.JToggleButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -32,20 +31,20 @@ final class MinimapTab extends JPanel {
     private final GuiModel model;
     private final Minimap minimap;
     private final PipeCommands commands;
-    private final JCheckBox interestBox = new JCheckBox("Interest map: where the action is, and what is about to happen");
-    private final JLabel statusLabel = new JLabel(" ");
+    private final JToggleButton interestBox = new JToggleButton("Interest map");
+    private final MapLegend legend = new MapLegend();
+    private final JLabel statusLabel = Ui.caption(" ");
     private final GuiTables.HintTable highlightsTable;
     private Consumer<FeedConfig> feedListener = config -> {
     };
     private boolean updating;
 
     final RowTableModel<InterestHighlight> highlights = new RowTableModel<>(256, List.of(
-        column("Id", Long.class, (InterestHighlight h) -> Format.u(h.getId())),
         column("What", String.class, this::kindText),
         column("Player", String.class, (InterestHighlight h) -> playerName(h.getPlayerIndex())),
         column("Place", String.class, (InterestHighlight h) -> String.format("%.0f, %.0f", h.getX(), h.getY())),
         column("Impact", String.class, (InterestHighlight h) -> impactColumn(h)),
-        column("Value", Long.class, (InterestHighlight h) -> Format.u(h.getValue())),
+        column("Value", Long.class, (InterestHighlight h) -> h.getValue() == 0 ? -1L : Format.u(h.getValue())),
         column("Ends in", String.class, (InterestHighlight h) -> endsColumn(h))));
 
     MinimapTab(GuiModel model, Minimap minimap, PipeCommands commands) {
@@ -56,18 +55,25 @@ final class MinimapTab extends JPanel {
         highlightsTable = GuiTables.table(highlights, "No highlight pending. Superweapon launches, hero deaths and big structure losses appear here.",
             Map.of("What", 260, "Player", 120, "Impact", 150), GuiTables.Sorting.NONE);
         interestBox.addActionListener(e -> toggle());
-        statusLabel.setBorder(BorderFactory.createEmptyBorder(0, 8, 2, 8));
 
-        JPanel bar = new JPanel(new BorderLayout());
-        bar.add(PanelKit.row(interestBox), BorderLayout.NORTH);
-        bar.add(statusLabel, BorderLayout.SOUTH);
-        JScrollPane list = new JScrollPane(highlightsTable);
-        list.setBorder(BorderFactory.createTitledBorder("Pending highlights"));
-        list.setPreferredSize(new Dimension(400, 120));
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, minimap, list);
-        split.setResizeWeight(0.8);
-        add(bar, BorderLayout.NORTH);
-        add(split, BorderLayout.CENTER);
+        interestBox.setToolTipText("Show where the action is and what is about to happen: asks the game for the interest map");
+        GuiTables.useRenderer(highlightsTable, "Value", new GuiTables.BlankRenderer(false));
+        JPanel bar = new JPanel(new BorderLayout(0, 4));
+        bar.setOpaque(false);
+        bar.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        bar.add(new Ui.Toolbar(interestBox, statusLabel).hint("The marks on the map are explained below."), BorderLayout.NORTH);
+        bar.add(legend, BorderLayout.CENTER);
+        bar.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+        JPanel mapFrame = new JPanel(new BorderLayout());
+        mapFrame.setBorder(Ui.edge());
+        mapFrame.add(minimap, BorderLayout.CENTER);
+        JPanel list = Ui.section("Pending highlights", Ui.scroll(highlightsTable));
+        list.setPreferredSize(new Dimension(400, 150));
+        JSplitPane split = Ui.split(JSplitPane.VERTICAL_SPLIT, mapFrame, list, 0.8);
+        JPanel page = new JPanel(new BorderLayout());
+        page.add(bar, BorderLayout.NORTH);
+        page.add(split, BorderLayout.CENTER);
+        add(Ui.pad(page), BorderLayout.CENTER);
     }
 
     /** Called with the feed configuration the game answered when the switch changed it, so the Query tab shows it too. */
@@ -75,7 +81,7 @@ final class MinimapTab extends JPanel {
         this.feedListener = listener;
     }
 
-    JCheckBox interestBox() {
+    JToggleButton interestBox() {
         return interestBox;
     }
 
@@ -91,19 +97,24 @@ final class MinimapTab extends JPanel {
         return statusLabel.getText();
     }
 
+    private void showInterest(boolean on) {
+        minimap.setShowInterest(on);
+        legend.setInterest(on);
+    }
+
     private void toggle() {
         if (updating) {
             return;
         }
         boolean on = interestBox.isSelected();
         if (!commands.available()) {
-            minimap.setShowInterest(on);
+            showInterest(on);
             PanelKit.info(statusLabel, "display only: no game is connected, so the interest feed cannot be switched; frames in a dump are shown");
             return;
         }
         PanelKit.info(statusLabel, "asking the game to " + (on ? "send" : "stop sending") + " interest maps...");
         commands.run(pipe -> pipe.setFeedConfig(FeedConfigQuery.newBuilder().setInterest(on).build()), config -> {
-            minimap.setShowInterest(config.getInterest());
+            showInterest(config.getInterest());
             feedListener.accept(config);
             PanelKit.good(statusLabel, config.getInterest() ? "interest frames every " + config.getInterestIntervalMs() + " ms, grid " + config.getGridResolution() : "interest feed off");
         }, failure -> {

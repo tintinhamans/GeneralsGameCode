@@ -121,8 +121,8 @@ public final class DumpReader {
         try {
             readFrames(file, raw -> {
                 DecodedFrame decoded = FrameDispatcher.decode(raw);
-                if (decoded.message() instanceof MatchInfo match) {
-                    pacer.setLogicFps(match.getLogicFramesPerSecond());
+                if (decoded.message() instanceof MatchInfo) {
+                    pacer.setLogicFps(((MatchInfo) decoded.message()).getLogicFramesPerSecond());
                 }
                 if (!sleepNanos(pacer.delayNanos(ReplayPacer.gameFrameOf(decoded), System.nanoTime()))) {
                     throw new ReplayInterrupted();

@@ -4,8 +4,8 @@
 // rules, a client changes only its own slot and accepts. What the screen would refuse arrives here as a
 // NotAllowedException with the reason. The LobbyState frame that follows a change is the confirmation.
 //
-// Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar ControlLobby.java
+// Run (Java 11+), with the library jar and protobuf-java on the class path:
+//   java -cp stats-pipe-client-3.0.0.jar:protobuf-java-4.33.4.jar ControlLobby.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.LobbyControl;
 import com.generalsonline.stats.MatchState;
@@ -67,10 +67,10 @@ public class ControlLobby {
                 // announces the intent to start. Leave it commented out unless you mean it.
                 // pipe.startGame().get(10, TimeUnit.SECONDS);
             } catch (ExecutionException e) {
-                if (e.getCause() instanceof NotAllowedException refused) {
-                    System.out.println("the setup screen would not allow it: " + refused.reason());
-                } else if (e.getCause() instanceof RequestFailedException failed) {
-                    System.out.println("the request failed: " + failed.getMessage());
+                if (e.getCause() instanceof NotAllowedException) {
+                    System.out.println("the setup screen would not allow it: " + ((NotAllowedException) e.getCause()).reason());
+                } else if (e.getCause() instanceof RequestFailedException) {
+                    System.out.println("the request failed: " + e.getCause().getMessage());
                 } else {
                     throw e;
                 }

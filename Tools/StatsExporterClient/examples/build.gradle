@@ -1,6 +1,6 @@
-// The example programs, one per scenario of the test client's Code tab. They are compiled here against the library only,
-// so a change to the library API that breaks an example breaks the build. The app's tests check that these files are the
-// generator's output.
+// The example programs, one per scenario of the client's Code section. They are compiled here against the library only,
+// so a change to the library API that breaks an example breaks the build. The files are the output of the client's
+// `example` command (the Code tab shows the same programs).
 plugins {
     id 'java'
 }

@@ -254,7 +254,11 @@ public final class CameraMove {
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof CameraMove m && x.equals(m.x) && y.equals(m.y) && zoom.equals(m.zoom) && angle.equals(m.angle) && pitch.equals(m.pitch)
+        if (!(o instanceof CameraMove)) {
+            return false;
+        }
+        CameraMove m = (CameraMove) o;
+        return x.equals(m.x) && y.equals(m.y) && zoom.equals(m.zoom) && angle.equals(m.angle) && pitch.equals(m.pitch)
             && reset == m.reset && transition.equals(m.transition) && easeInOut == m.easeInOut;
     }
 

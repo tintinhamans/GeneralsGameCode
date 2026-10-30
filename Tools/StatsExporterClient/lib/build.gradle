@@ -1,6 +1,6 @@
 // com.generalsonline:stats-pipe-client - the library other programs depend on.
 //
-//   ./gradlew :lib:build                  compile, generate the protobuf classes, run the tests, build the jars
+//   ./gradlew :lib:build                  compile, generate the protobuf classes, build the jars
 //   ./gradlew :lib:publishToMavenLocal    install the jar, the sources jar and the javadoc jar into ~/.m2
 plugins {
     id 'java-library'
@@ -23,9 +23,6 @@ dependencies {
     // The generated message classes are part of the API (every callback receives one), so protobuf-java is api scope.
     api "com.google.protobuf:protobuf-java:${protobufVersion}"
 
-    testImplementation platform(junitBom)
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('jar') {

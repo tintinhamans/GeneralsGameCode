@@ -6,6 +6,7 @@ import com.generalsonline.stats.proto.RadarState;
 import com.generalsonline.stats.proto.StatEvent;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.function.IntFunction;
 
 /**
@@ -294,14 +295,101 @@ public final class Format {
 
     /**
      * The minimap view box summarised: where it is, how big and how far it is turned. Sizes are in world units.
-     *
-     * @param centerX world x of the middle of the four corners
-     * @param centerY world y of the middle of the four corners
-     * @param width average length of the top and bottom edges
-     * @param height average length of the left and right edges
-     * @param rotationDegrees the angle of the top edge, counter-clockwise from the world x axis
      */
-    public record ViewBox(double centerX, double centerY, double width, double height, double rotationDegrees) {
+    public static final class ViewBox {
+        private final double centerX;
+        private final double centerY;
+        private final double width;
+        private final double height;
+        private final double rotationDegrees;
+
+        /**
+         * Creates the value.
+         *
+         * @param centerX world x of the middle of the four corners
+         * @param centerY world y of the middle of the four corners
+         * @param width average length of the top and bottom edges
+         * @param height average length of the left and right edges
+         * @param rotationDegrees the angle of the top edge, counter-clockwise from the world x axis
+         */
+        public ViewBox(double centerX, double centerY, double width, double height, double rotationDegrees) {
+            this.centerX = centerX;
+            this.centerY = centerY;
+            this.width = width;
+            this.height = height;
+            this.rotationDegrees = rotationDegrees;
+        }
+
+        /**
+         * Returns centerX.
+         *
+         * @return world x of the middle of the four corners
+         */
+        public double centerX() {
+            return centerX;
+        }
+
+        /**
+         * Returns centerY.
+         *
+         * @return world y of the middle of the four corners
+         */
+        public double centerY() {
+            return centerY;
+        }
+
+        /**
+         * Returns width.
+         *
+         * @return average length of the top and bottom edges
+         */
+        public double width() {
+            return width;
+        }
+
+        /**
+         * Returns height.
+         *
+         * @return average length of the left and right edges
+         */
+        public double height() {
+            return height;
+        }
+
+        /**
+         * Returns rotationDegrees.
+         *
+         * @return the angle of the top edge, counter-clockwise from the world x axis
+         */
+        public double rotationDegrees() {
+            return rotationDegrees;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ViewBox)) {
+                return false;
+            }
+            ViewBox other = (ViewBox) o;
+            return Double.compare(centerX, other.centerX) == 0
+                    && Double.compare(centerY, other.centerY) == 0
+                    && Double.compare(width, other.width) == 0
+                    && Double.compare(height, other.height) == 0
+                    && Double.compare(rotationDegrees, other.rotationDegrees) == 0;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(centerX, centerY, width, height, rotationDegrees);
+        }
+
+        @Override
+        public String toString() {
+            return "ViewBox[" + "centerX=" + centerX + ", centerY=" + centerY + ", width=" + width + ", height=" + height + ", rotationDegrees=" + rotationDegrees + "]";
+        }
     }
 
     /**

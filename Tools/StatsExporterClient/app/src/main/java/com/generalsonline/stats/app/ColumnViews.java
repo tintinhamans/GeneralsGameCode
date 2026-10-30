@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * The Players table has many columns, so it shows one named group at a time. The table model always holds all of
@@ -14,7 +15,45 @@ import java.util.Map;
  */
 final class ColumnViews {
     /** @param columns column names, as {@link RowTableModel#getColumnName} returns them */
-    record View(String name, List<String> columns) {
+    static final class View {
+        private final String name;
+        private final List<String> columns;
+
+        View(String name, List<String> columns) {
+            this.name = name;
+            this.columns = columns;
+        }
+
+        String name() {
+            return name;
+        }
+
+        List<String> columns() {
+            return columns;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof View)) {
+                return false;
+            }
+            View other = (View) o;
+            return Objects.equals(name, other.name)
+                    && Objects.equals(columns, other.columns);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, columns);
+        }
+
+        @Override
+        public String toString() {
+            return "View[" + "name=" + name + ", columns=" + columns + "]";
+        }
     }
 
     static final View OVERVIEW = new View("Overview", List.of("Color", "Name", "State", "Team", "Side", "ELO", "Money", "Income/min", "Army value", "APM", "Score", "Rank"));

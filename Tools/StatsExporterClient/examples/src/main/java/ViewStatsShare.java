@@ -3,8 +3,8 @@
 // build costs), the same weighted by health, the value by class, veterancy, notable units, superweapons in view, and the
 // value killed and lost and the damage dealt over rolling windows.
 //
-// Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar ViewStatsShare.java
+// Run (Java 11+), with the library jar and protobuf-java on the class path:
+//   java -cp stats-pipe-client-3.0.0.jar:protobuf-java-4.33.4.jar ViewStatsShare.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.MatchState;

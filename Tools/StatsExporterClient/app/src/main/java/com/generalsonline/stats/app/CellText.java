@@ -108,7 +108,22 @@ final class CellText {
      * ready frame yet shows its charge percentage instead and sorts last.
      */
     static String superweaponText(PlayerStats p, long snapshotFrame, int fps) {
-        record Entry(long sortKey, String text) {
+        final class Entry {
+            private final long sortKey;
+            private final String text;
+
+            Entry(long sortKey, String text) {
+                this.sortKey = sortKey;
+                this.text = text;
+            }
+
+            long sortKey() {
+                return sortKey;
+            }
+
+            String text() {
+                return text;
+            }
         }
         List<Entry> entries = new ArrayList<>();
         for (SuperweaponTimer t : p.getSuperweaponsList()) {
@@ -204,11 +219,14 @@ final class CellText {
 
     /** Who moved the camera since the previous camera frame, as a short phrase. */
     static String cameraSourceText(Camera c) {
-        return switch (c.getChangeSource()) {
-            case CAMERA_CHANGE_USER -> "a human";
-            case CAMERA_CHANGE_PIPE -> "a command";
-            default -> "the game";
-        };
+        switch (c.getChangeSource()) {
+            case CAMERA_CHANGE_USER:
+                return "a human";
+            case CAMERA_CHANGE_PIPE:
+                return "a command";
+            default:
+                return "the game";
+        }
     }
 
     static String cameraText(Camera c) {

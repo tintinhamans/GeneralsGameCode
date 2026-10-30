@@ -1,8 +1,8 @@
 // Follows one player's "Money" during a match: prints a line every time the value changes.
 // The value is Format.u(player.stats().getMoney()) (uint32 fields come as Java ints; Format.u reads them as unsigned).
 //
-// Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar TrackPlayerStat.java
+// Run (Java 11+), with the library jar and protobuf-java on the class path:
+//   java -cp stats-pipe-client-3.0.0.jar:protobuf-java-4.33.4.jar TrackPlayerStat.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.MatchState;

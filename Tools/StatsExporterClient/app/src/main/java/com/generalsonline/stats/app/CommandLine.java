@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -29,12 +30,77 @@ final class CommandLine {
 
     /**
      * What a command accepts.
-     *
-     * @param textFrom the number of positionals after which the rest is free text, or -1 when there is no text
      */
-    private record Spec(String form, Set<String> valueOptions, Set<String> flags, int minPositional, int maxPositional, int textFrom) {
+    private static final class Spec {
+        private final String form;
+        private final Set<String> valueOptions;
+        private final Set<String> flags;
+        private final int minPositional;
+        private final int maxPositional;
+        private final int textFrom;
+
+        private Spec(String form, Set<String> valueOptions, Set<String> flags, int minPositional, int maxPositional, int textFrom) {
+            this.form = form;
+            this.valueOptions = valueOptions;
+            this.flags = flags;
+            this.minPositional = minPositional;
+            this.maxPositional = maxPositional;
+            this.textFrom = textFrom;
+        }
+
+        String form() {
+            return form;
+        }
+
+        Set<String> valueOptions() {
+            return valueOptions;
+        }
+
+        Set<String> flags() {
+            return flags;
+        }
+
+        int minPositional() {
+            return minPositional;
+        }
+
+        int maxPositional() {
+            return maxPositional;
+        }
+
+        int textFrom() {
+            return textFrom;
+        }
+
         boolean isKnownOption(String name) {
             return valueOptions.contains(name) || flags.contains(name);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Spec)) {
+                return false;
+            }
+            Spec other = (Spec) o;
+            return Objects.equals(form, other.form)
+                    && Objects.equals(valueOptions, other.valueOptions)
+                    && Objects.equals(flags, other.flags)
+                    && minPositional == other.minPositional
+                    && maxPositional == other.maxPositional
+                    && textFrom == other.textFrom;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(form, valueOptions, flags, minPositional, maxPositional, textFrom);
+        }
+
+        @Override
+        public String toString() {
+            return "Spec[" + "form=" + form + ", valueOptions=" + valueOptions + ", flags=" + flags + ", minPositional=" + minPositional + ", maxPositional=" + maxPositional + ", textFrom=" + textFrom + "]";
         }
     }
 
@@ -45,13 +111,11 @@ final class CommandLine {
         SPECS.put("dump", new Spec("dump [--pid N | --pipe PATH] [--overwrite] [--no-camera] <file>", Set.of("pid", "pipe"), Set.of("overwrite", "no-camera"), 1, 1, -1));
         SPECS.put("replay", new Spec("replay <file>", Set.of(), Set.of(), 1, 1, -1));
         SPECS.put("chat", new Spec("chat [--audience A] [--pid N | --pipe PATH] [--] <channel> <text...>", Set.of("pid", "pipe", "audience"), Set.of(), 2, -1, 1));
-        SPECS.put("gui", new Spec("gui [--pid N | --pipe PATH | --replay FILE [--speed MULTIPLIER] | --fake FILE [--speed MULTIPLIER]]", Set.of("pid", "pipe", "replay", "fake", "speed"), Set.of(), 0, 0, -1));
-        SPECS.put("serve", new Spec("serve [--pid N | --pipe NAME] [--speed MULTIPLIER] [--loop] [--no-wait] [--situation replay|observer|player] <dump>",
-            Set.of("pid", "pipe", "speed", "situation"), Set.of("loop", "no-wait"), 1, 1, -1));
+        SPECS.put("gui", new Spec("gui [--pid N | --pipe PATH | --replay FILE [--speed MULTIPLIER]]", Set.of("pid", "pipe", "replay", "speed"), Set.of(), 0, 0, -1));
         SPECS.put("schema", new Spec("schema", Set.of(), Set.of(), 0, 0, -1));
         SPECS.put("example", new Spec("example [--player NAME] [--column NAME] [--kind KIND] [--channel CH] [--audience A] [--text TEXT] [--template NAME] [--side SIDE]"
-            + " [--object ID] [--x X] [--y Y] [--zoom Z] [--speed RATIO] [--mode MODE] [--dump FILE] [<name>]",
-            Set.of("player", "column", "kind", "channel", "audience", "text", "template", "side", "object", "x", "y", "zoom", "speed", "mode", "dump"), Set.of(), 0, 1, -1));
+            + " [--object ID] [--x X] [--y Y] [--zoom Z] [--speed RATIO] [--mode MODE] [<name>]",
+            Set.of("player", "column", "kind", "channel", "audience", "text", "template", "side", "object", "x", "y", "zoom", "speed", "mode"), Set.of(), 0, 1, -1));
     }
 
     private final String command;
@@ -187,7 +251,7 @@ final class CommandLine {
         }
     }
 
-    /** Like {@link #speed()} but with a default for when the option was not given (a fake game runs in real time unless told otherwise). */
+    /** Like {@link #speed()} but with a default for when the option was not given (a replay runs as fast as possible unless told otherwise). */
     double speed(double fallback) {
         return values.containsKey("speed") ? speed() : fallback;
     }

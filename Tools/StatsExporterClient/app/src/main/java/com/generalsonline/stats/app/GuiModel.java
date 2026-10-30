@@ -1,5 +1,6 @@
 package com.generalsonline.stats.app;
 
+import com.generalsonline.stats.app.Theme.Tone;
 import com.generalsonline.stats.DecodedFrame;
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.FrameDispatcher;
@@ -17,6 +18,7 @@ import com.generalsonline.stats.proto.ChatMessage;
 import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.Hello;
 import com.generalsonline.stats.proto.LobbySlot;
+import com.generalsonline.stats.proto.LobbySlotState;
 import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchPhase;
@@ -36,6 +38,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.function.LongSupplier;
 
@@ -64,17 +67,286 @@ final class GuiModel implements StatsListener {
 
     // -- Row types. A player row is the library's PlayerView; the other rows keep the message and derive cells on demand.
 
-    record EventRow(StatEvent event, long frame, String time, String player, int playerIndex, String kind, String category, String name,
-                    String secondary, long cost, String location, String detail) {
+    static final class EventRow {
+        private final StatEvent event;
+        private final long frame;
+        private final String time;
+        private final String player;
+        private final int playerIndex;
+        private final String kind;
+        private final String category;
+        private final String name;
+        private final String secondary;
+        private final long cost;
+        private final String location;
+        private final String detail;
+
+        EventRow(StatEvent event, long frame, String time, String player, int playerIndex, String kind, String category, String name, String secondary, long cost, String location, String detail) {
+            this.event = event;
+            this.frame = frame;
+            this.time = time;
+            this.player = player;
+            this.playerIndex = playerIndex;
+            this.kind = kind;
+            this.category = category;
+            this.name = name;
+            this.secondary = secondary;
+            this.cost = cost;
+            this.location = location;
+            this.detail = detail;
+        }
+
+        StatEvent event() {
+            return event;
+        }
+
+        long frame() {
+            return frame;
+        }
+
+        String time() {
+            return time;
+        }
+
+        String player() {
+            return player;
+        }
+
+        int playerIndex() {
+            return playerIndex;
+        }
+
+        String kind() {
+            return kind;
+        }
+
+        String category() {
+            return category;
+        }
+
+        String name() {
+            return name;
+        }
+
+        String secondary() {
+            return secondary;
+        }
+
+        long cost() {
+            return cost;
+        }
+
+        String location() {
+            return location;
+        }
+
+        String detail() {
+            return detail;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof EventRow)) {
+                return false;
+            }
+            EventRow other = (EventRow) o;
+            return Objects.equals(event, other.event)
+                    && frame == other.frame
+                    && Objects.equals(time, other.time)
+                    && Objects.equals(player, other.player)
+                    && playerIndex == other.playerIndex
+                    && Objects.equals(kind, other.kind)
+                    && Objects.equals(category, other.category)
+                    && Objects.equals(name, other.name)
+                    && Objects.equals(secondary, other.secondary)
+                    && cost == other.cost
+                    && Objects.equals(location, other.location)
+                    && Objects.equals(detail, other.detail);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(event, frame, time, player, playerIndex, kind, category, name, secondary, cost, location, detail);
+        }
+
+        @Override
+        public String toString() {
+            return "EventRow[" + "event=" + event + ", frame=" + frame + ", time=" + time + ", player=" + player + ", playerIndex=" + playerIndex + ", kind=" + kind + ", category=" + category + ", name=" + name + ", secondary=" + secondary + ", cost=" + cost + ", location=" + location + ", detail=" + detail + "]";
+        }
     }
 
-    record ChatRow(String received, String channel, String sender, String audience, String text, String flags) {
+    static final class ChatRow {
+        private final String received;
+        private final String channel;
+        private final String sender;
+        private final String audience;
+        private final String text;
+        private final String flags;
+        private final int playerIndex;
+
+        ChatRow(String received, String channel, String sender, String audience, String text, String flags, int playerIndex) {
+            this.playerIndex = playerIndex;
+            this.received = received;
+            this.channel = channel;
+            this.sender = sender;
+            this.audience = audience;
+            this.text = text;
+            this.flags = flags;
+        }
+
+        int playerIndex() {
+            return playerIndex;
+        }
+
+        String received() {
+            return received;
+        }
+
+        String channel() {
+            return channel;
+        }
+
+        String sender() {
+            return sender;
+        }
+
+        String audience() {
+            return audience;
+        }
+
+        String text() {
+            return text;
+        }
+
+        String flags() {
+            return flags;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ChatRow)) {
+                return false;
+            }
+            ChatRow other = (ChatRow) o;
+            return Objects.equals(received, other.received)
+                    && Objects.equals(channel, other.channel)
+                    && Objects.equals(sender, other.sender)
+                    && Objects.equals(audience, other.audience)
+                    && Objects.equals(text, other.text)
+                    && Objects.equals(flags, other.flags);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(received, channel, sender, audience, text, flags);
+        }
+
+        @Override
+        public String toString() {
+            return "ChatRow[" + "received=" + received + ", channel=" + channel + ", sender=" + sender + ", audience=" + audience + ", text=" + text + ", flags=" + flags + "]";
+        }
     }
 
-    record SlotRow(int slot, LobbySlot data) {
+    static final class SlotRow {
+        private final int slot;
+        private final LobbySlot data;
+
+        SlotRow(int slot, LobbySlot data) {
+            this.slot = slot;
+            this.data = data;
+        }
+
+        int slot() {
+            return slot;
+        }
+
+        LobbySlot data() {
+            return data;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof SlotRow)) {
+                return false;
+            }
+            SlotRow other = (SlotRow) o;
+            return slot == other.slot
+                    && Objects.equals(data, other.data);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(slot, data);
+        }
+
+        @Override
+        public String toString() {
+            return "SlotRow[" + "slot=" + slot + ", data=" + data + "]";
+        }
     }
 
-    record FrameRow(String received, String type, int bytes, String summary) {
+    static final class FrameRow {
+        private final String received;
+        private final String type;
+        private final int bytes;
+        private final String summary;
+
+        FrameRow(String received, String type, int bytes, String summary) {
+            this.received = received;
+            this.type = type;
+            this.bytes = bytes;
+            this.summary = summary;
+        }
+
+        String received() {
+            return received;
+        }
+
+        String type() {
+            return type;
+        }
+
+        int bytes() {
+            return bytes;
+        }
+
+        String summary() {
+            return summary;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof FrameRow)) {
+                return false;
+            }
+            FrameRow other = (FrameRow) o;
+            return Objects.equals(received, other.received)
+                    && Objects.equals(type, other.type)
+                    && bytes == other.bytes
+                    && Objects.equals(summary, other.summary);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(received, type, bytes, summary);
+        }
+
+        @Override
+        public String toString() {
+            return "FrameRow[" + "received=" + received + ", type=" + type + ", bytes=" + bytes + ", summary=" + summary + "]";
+        }
     }
 
     private final LongSupplier clockMillis;
@@ -154,17 +426,17 @@ final class GuiModel implements StatsListener {
 
     final RowTableModel<SlotRow> lobbySlots = new RowTableModel<>(64, List.of(
         column("Slot", Integer.class, (SlotRow r) -> r.slot() + 1),
-        column("State", String.class, (SlotRow r) -> strip(r.data().getState().name(), "LOBBY_SLOT_")),
+        column("State", String.class, (SlotRow r) -> slotStateText(r.data().getState())),
         column("Name", String.class, (SlotRow r) -> r.data().hasPlayer() ? r.data().getPlayer().getName() : ""),
         column("Side", String.class, (SlotRow r) -> CellText.lobbySide(r.data(), this.lobbyPredictionValid, this.predictionCheckOk())),
         column("Color", ColorCell.class, (SlotRow r) -> slotColor(r.data(), false)),
         column("Team", Integer.class, (SlotRow r) -> r.data().hasPlayer() ? displayTeam(r.data().getPlayer().getTeam()) : -1),
-        column("Start pos", Integer.class, (SlotRow r) -> r.data().getStartPosition()),
+        column("Start pos", Integer.class, (SlotRow r) -> emptySlot(r.data()) ? -1 : r.data().getStartPosition()),
         column("Ready", Boolean.class, (SlotRow r) -> r.data().getIsReady()),
         column("Has map", Boolean.class, (SlotRow r) -> r.data().getHasMap()),
         column("Random", String.class, (SlotRow r) -> CellText.lobbyRandomFlags(r.data())),
         column("Predicted color", ColorCell.class, (SlotRow r) -> slotColor(r.data(), true)),
-        column("Predicted start", Integer.class, (SlotRow r) -> this.lobbyStartPositionsValid ? r.data().getPredictedStartPosition() : -1)));
+        column("Predicted start", Integer.class, (SlotRow r) -> this.lobbyStartPositionsValid && !emptySlot(r.data()) ? r.data().getPredictedStartPosition() : -1)));
 
     final RowTableModel<String[]> matchInfo = new RowTableModel<>(200, List.of(
         column("Key", String.class, (String[] r) -> r[0]),
@@ -212,10 +484,17 @@ final class GuiModel implements StatsListener {
     private String lastError;
     private String ui = "-";
     private String match = "-";
+    private long droppedBase;
+    private volatile List<Integer> selectedObjects = List.of();
+    private String matchDetail = "";
     private String mapName = "";
     private String replayName = "";
     private long cameraFrames;
     private String lobbyHeader = "not in a lobby";
+    private String lobbyKind = "";
+    private String lobbyMap = "";
+    private String lobbyHost = "";
+    private String lobbyFlags = "";
     private boolean lobbyPredictionValid;
     private boolean lobbyStartPositionsValid;
 
@@ -232,6 +511,58 @@ final class GuiModel implements StatsListener {
                 startNewMatch();
             }
         });
+    }
+
+    private static boolean emptySlot(LobbySlot slot) {
+        return slot.getState() == LobbySlotState.LOBBY_SLOT_OPEN || slot.getState() == LobbySlotState.LOBBY_SLOT_CLOSED;
+    }
+
+    /** "Human", "Open", "Closed", "Easy AI": the slot state as the setup screen would say it. */
+    static String slotStateText(LobbySlotState state) {
+        switch (state) {
+            case LOBBY_SLOT_HUMAN:
+                return "Human";
+            case LOBBY_SLOT_OPEN:
+                return "Open";
+            case LOBBY_SLOT_CLOSED:
+                return "Closed";
+            case LOBBY_SLOT_AI_EASY:
+                return "Easy AI";
+            case LOBBY_SLOT_AI_MEDIUM:
+                return "Medium AI";
+            case LOBBY_SLOT_AI_BRUTAL:
+                return "Hard AI";
+            default:
+                return titleCase(strip(state.name(), "LOBBY_SLOT_").replace('_', ' '));
+        }
+    }
+
+    /**
+     * Forgets what the previous source showed, for a window that switches between the live game and a recording: the match
+     * data (as a new match does), the lobby, the logs, the status texts and the dropped frames counted so far.
+     */
+    /** The objects the user has selected in the game, as the latest snapshot says (empty when none). */
+    List<Integer> selectedObjects() {
+        return selectedObjects;
+    }
+
+    void resetForSource() {
+        selectedObjects = List.of();
+        onMatchInfo(MatchInfo.newBuilder().setPhase(MatchPhase.MATCH_PHASE_LOADING).build());
+        onLobbyState(LobbyState.getDefaultInstance());
+        chat.clear();
+        frames.clear();
+        match = "-";
+        matchDetail = "";
+        mapName = "";
+        replayName = "";
+        ui = "-";
+        pid = -1;
+        lastError = null;
+        lastUpdateMillis = 0;
+        cameraFrames = 0;
+        droppedBase = state.droppedFrames();
+        newMatchHook.run();
     }
 
     void setNewMatchHook(Runnable hook) {
@@ -255,12 +586,88 @@ final class GuiModel implements StatsListener {
         String game = hello == null ? "no Hello received"
             : "version " + hello.getGameVersion() + "    Protocol: " + hello.getProtocolVersion()
                 + "    Reader: " + (hello.getReaderSlot() + 1) + " of " + hello.getMaxReaders() + "    Logic: " + hello.getLogicFramesPerSecond() + " fps";
-        return "Game: " + game + "    Dropped frames: " + state.droppedFrames();
+        return "Game: " + game + "    Dropped frames: " + droppedFrames();
     }
 
     /** The number of frames the game dropped for this reader, from the sequence numbers. */
     long droppedFrames() {
-        return state.droppedFrames();
+        return state.droppedFrames() - droppedBase;
+    }
+
+    // The same facts as the lines above, split into the cells of the header.
+
+    /** The state light of the connection: green while frames can arrive, amber while no game is there yet, red once it was lost. */
+    Tone connectionTone() {
+        if (!connected) {
+            return lastUpdateMillis != 0 || connection.startsWith("disconnected") ? Tone.BAD : Tone.WARN;
+        }
+        return connection.startsWith("replay failed") ? Tone.BAD : Tone.OK;
+    }
+
+    String connectionTitle() {
+        if (!connected) {
+            return lastUpdateMillis != 0 || connection.startsWith("disconnected") ? "Disconnected" : "Waiting for game";
+        }
+        return connection.startsWith("replay") ? "Recording" : "Live";
+    }
+
+    String connectionDetail() {
+        if (!connected) {
+            return lastUpdateMillis != 0 || connection.startsWith("disconnected") ? "retrying" : "no game running";
+        }
+        if (connection.startsWith("replay")) {
+            String text = connection.startsWith("replaying ") ? connection.substring("replaying ".length()) : connection;
+            return replayName.isEmpty() ? text.substring(Math.max(text.lastIndexOf('\\'), text.lastIndexOf('/')) + 1) : replayName;
+        }
+        return pid >= 0 ? "pid " + pid : "";
+    }
+
+    private static String titleCase(String text) {
+        return text.isEmpty() ? text : text.charAt(0) + text.substring(1).toLowerCase(java.util.Locale.ROOT);
+    }
+
+    String screenText() {
+        return ui;
+    }
+
+    /** The map as the header shows it, or empty before a match. */
+    String mapTitle() {
+        return mapName;
+    }
+
+    String matchTitle() {
+        return mapName.isEmpty() ? "No match yet" : mapName;
+    }
+
+    String matchDetailText() {
+        return matchDetail.isEmpty() ? " " : matchDetail;
+    }
+
+    String gameTimeText() {
+        long frame = state.frame();
+        return frame < 0 ? "-" : Format.gameTime(frame, state.logicFps());
+    }
+
+    String frameText() {
+        long frame = state.frame();
+        return frame < 0 ? "-" : Long.toString(frame);
+    }
+
+    /** The game speed as the header shows it ("1.00x", "paused", "network stall"). */
+    String speedValue() {
+        return speedText();
+    }
+
+    String networkText() {
+        return state.networkStalled() ? "stalled " + state.stalledFrames() + " frames" : "ok";
+    }
+
+    boolean networkStalled() {
+        return state.networkStalled();
+    }
+
+    String thisPcText() {
+        return String.format("render %.0f fps, logic %.0f fps", state.localRenderFps(), state.localLogicFps());
     }
 
     String matchLine() {
@@ -318,6 +725,22 @@ final class GuiModel implements StatsListener {
 
     int logicFps() {
         return state.logicFps();
+    }
+
+    String lobbyKind() {
+        return lobbyKind;
+    }
+
+    String lobbyMap() {
+        return lobbyMap;
+    }
+
+    String lobbyHost() {
+        return lobbyHost;
+    }
+
+    String lobbyFlags() {
+        return lobbyFlags;
     }
 
     String lobbyHeader() {
@@ -512,6 +935,8 @@ final class GuiModel implements StatsListener {
         int logicFps = state.logicFps();
         match = strip(message.getPhase().name(), "MATCH_PHASE_") + "  " + strip(message.getMode().name(), "MATCH_MODE_")
             + "  map " + message.getMapName() + "  id " + message.getMatchId();
+        matchDetail = titleCase(strip(message.getPhase().name(), "MATCH_PHASE_")) + ", " + titleCase(strip(message.getMode().name(), "MATCH_MODE_"))
+            + (message.getMatchId().isEmpty() ? "" : ", id " + message.getMatchId());
         if (message.getPhase() == MatchPhase.MATCH_PHASE_ENDED) {
             match += "  duration " + Format.gameTime(u(message.getDurationFrames()), logicFps) + (message.getCompleted() ? "  completed" : "");
         }
@@ -536,6 +961,7 @@ final class GuiModel implements StatsListener {
 
     @Override
     public void onStatsSnapshot(StatsSnapshot message) {
+        selectedObjects = message.getSelectedObjectIdsList();
         lastUpdateMillis = clockMillis.getAsLong();
         state.onStatsSnapshot(message);
         // A stall snapshot has no players; it must not clear the table. One update event for the whole snapshot (in place when the set of players is unchanged).
@@ -603,7 +1029,7 @@ final class GuiModel implements StatsListener {
         // The audience is only defined for in-match chat; for the other channels it would always read EVERYONE.
         String audience = message.getChannel() == ChatChannel.CHAT_CHANNEL_MATCH ? strip(message.getAudience().name(), "CHAT_AUDIENCE_") : "";
         chat.add(new ChatRow(LocalTime.now().format(CLOCK), strip(message.getChannel().name(), "CHAT_CHANNEL_"), message.getSenderName(),
-            audience, message.getText(), String.join(", ", flags)));
+            audience, message.getText(), String.join(", ", flags), message.getPlayerIndex()));
     }
 
     @Override
@@ -612,6 +1038,10 @@ final class GuiModel implements StatsListener {
         if (!message.getInLobby()) {
             lobbySlots.clear();
             lobbyHeader = "not in a lobby";
+            lobbyKind = "";
+            lobbyMap = "";
+            lobbyHost = "";
+            lobbyFlags = "";
             return;
         }
         lobbyPredictionValid = message.getPredictionValid();
@@ -626,6 +1056,11 @@ final class GuiModel implements StatsListener {
             }
         }
         lobbySlots.replaceAll(rows);
+        lobbyKind = strip(message.getKind().name(), "LOBBY_KIND_");
+        lobbyMap = message.getMapDisplayName().isEmpty() ? message.getMapName() : message.getMapDisplayName();
+        lobbyHost = host;
+        lobbyFlags = (message.getPredictionValid() ? "Prediction valid" : "Prediction not valid") + ", " + (message.getPredictionStartPositionsValid() ? "start positions valid" : "start positions not valid")
+            + (message.hasOnline() && !message.getOnline().getLobbyName().isEmpty() ? ", lobby \"" + message.getOnline().getLobbyName() + "\"" : "");
         lobbyHeader = strip(message.getKind().name(), "LOBBY_KIND_") + "    map " + (message.getMapDisplayName().isEmpty() ? message.getMapName() : message.getMapDisplayName()) + "    host " + host
             + "    prediction valid: " + message.getPredictionValid() + "    start positions valid: " + message.getPredictionStartPositionsValid()
             + (message.hasOnline() && !message.getOnline().getLobbyName().isEmpty() ? "    lobby \"" + message.getOnline().getLobbyName() + "\"" : "");

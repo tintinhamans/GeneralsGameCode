@@ -1,9 +1,9 @@
 // Records the raw frames of a running game to a dump file, then replays the file at twice real time into the
 // same listener. Handler is an ordinary StatsListener: it does not know whether the frames come from a game or a file.
 //
-// Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java record match.dump
-//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java replay match.dump
+// Run (Java 11+), with the library jar and protobuf-java on the class path:
+//   java -cp stats-pipe-client-3.0.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java record match.dump
+//   java -cp stats-pipe-client-3.0.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java replay match.dump
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.DecodedFrame;
 import com.generalsonline.stats.DumpReader;

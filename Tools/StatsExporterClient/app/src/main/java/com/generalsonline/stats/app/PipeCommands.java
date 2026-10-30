@@ -7,6 +7,7 @@ import com.generalsonline.stats.RequestTimeoutException;
 import com.generalsonline.stats.StatsPipe;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -24,15 +25,57 @@ import java.util.function.Supplier;
 final class PipeCommands {
     /**
      * Why a command did not work.
-     *
-     * @param kind a short word for a label, for example NOT ALLOWED or NOT_FOUND
-     * @param text a sentence that says what happened and what to do
-     * @param notAllowed true for the game's refusal because of its situation (the player plays, no replay runs)
      */
-    record Failure(String kind, String text, boolean notAllowed) {
+    static final class Failure {
+        private final String kind;
+        private final String text;
+        private final boolean notAllowed;
+
+        Failure(String kind, String text, boolean notAllowed) {
+            this.kind = kind;
+            this.text = text;
+            this.notAllowed = notAllowed;
+        }
+
+        String kind() {
+            return kind;
+        }
+
+        String text() {
+            return text;
+        }
+
+        boolean notAllowed() {
+            return notAllowed;
+        }
+
         /** One line for a status label. */
         String line() {
             return kind + ": " + text;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Failure)) {
+                return false;
+            }
+            Failure other = (Failure) o;
+            return Objects.equals(kind, other.kind)
+                    && Objects.equals(text, other.text)
+                    && notAllowed == other.notAllowed;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(kind, text, notAllowed);
+        }
+
+        @Override
+        public String toString() {
+            return "Failure[" + "kind=" + kind + ", text=" + text + ", notAllowed=" + notAllowed + "]";
         }
     }
 
@@ -70,7 +113,7 @@ final class PipeCommands {
     <T> void run(Function<StatsPipe, CompletableFuture<T>> call, Consumer<T> ok, Consumer<Failure> failed) {
         StatsPipe p = pipe.get();
         if (p == null) {
-            failed.accept(new Failure("NOT CONNECTED", "no game is connected; requests need a live pipe (or a fake game: serve a dump and connect to it)", false));
+            failed.accept(new Failure("NOT CONNECTED", "no game is connected; requests need a live pipe", false));
             return;
         }
         CompletableFuture<T> future;
@@ -95,11 +138,13 @@ final class PipeCommands {
         while ((cause instanceof CompletionException || cause instanceof java.util.concurrent.ExecutionException) && cause.getCause() != null) {
             cause = cause.getCause();
         }
-        if (cause instanceof NotAllowedException refused) {
+        if (cause instanceof NotAllowedException) {
+            NotAllowedException refused = (NotAllowedException) cause;
             String why = refused.reason().isEmpty() ? "the game's situation does not allow it" : refused.reason();
-            return new Failure("NOT ALLOWED", "the game refused: " + why + ". Camera and observer commands need an observer or a replay, replay commands a replay.", true);
+            return new Failure("NOT ALLOWED", "the game refused: " + why + ". Observing a player needs an observer or a replay, replay commands a replay.", true);
         }
-        if (cause instanceof RequestFailedException failed) {
+        if (cause instanceof RequestFailedException) {
+            RequestFailedException failed = (RequestFailedException) cause;
             String status = Format.strip(failed.status().name(), "RESPONSE_STATUS_");
             return new Failure(status, failed.reason().isEmpty() ? "the game answered " + status : failed.reason(), false);
         }

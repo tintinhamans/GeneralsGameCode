@@ -1,5 +1,29 @@
 # Changelog
 
+## 3.0.0
+
+Breaking for source and build; the protocol is still version 2 and the wire format did not change. Everything that was in 2.4.0 (below) is part of this release.
+
+- **Java 11.** The library, the client and the examples compile with `--release 11` and need a Java 11 runtime instead of 17. Records, pattern matching for `instanceof`, switch expressions and text blocks are gone from the code; the public value types keep their accessor names (`PlayerView.name()`, `DecodedFrame.type()`, ...) but are now final classes, so they no longer are `java.lang.Record`s (no `RecordComponent` reflection, no deconstruction); `equals`, `hashCode` and `toString` behave as before. The generated example programs need nothing newer than Java 11 either. protobuf-java is still the library's only dependency.
+- **`FakeGame` is removed**, with `FakeDump`, `FakeFeed`, `FakeWorld`, `FakeCamera`, `FakeSynth`, `FakeLobby` and the internal in-memory link and PowerShell pipe server. To try a tool without a game, replay a dump (`DumpReader`, `gui --replay`) or run it against a real game. `StatsPipe` lost its package-private test hooks (the pipe opener, the candidate supplier) and talks to `NamedPipeLink` directly; `PipeLink` is gone.
+- **Tests are removed**: `lib/src/test`, `app/src/test`, the JUnit dependencies and the `examples.dir` wiring of the Gradle files.
+- **Test client.** The `serve` command, `gui --fake`, the `fake-server` example scenario (and `FakeServer` in `examples/`, and `example --dump`) are removed. The `gui --replay` window stays.
+- **A new look for the window.** A dark theme on FlatLaf 3.5.4 (the client's only dependency besides the library; the library has none) with the design in one place (`Theme`, `Ui`): a header strip with the connection state light, screen, match, game time, speed and dropped frames; a navigation rail that groups the twelve sections; banners for a stale feed and a finished match; tables with right aligned numbers, zebra rows, player colours as chips and names, and empty states that say what to do; cards and aligned forms for the Camera, Lobby, Director and Query sections that wrap at narrow widths; success, warning (the game's NOT ALLOWED, in bold amber) and failure lines in one style; a minimap on a dark ground with a grid and a legend. Every section, right-click menu, column view, filter, stat card, "Show code for this" and director tunable works as before.
+- **Camera control in any match.** The game no longer gates camera and follow commands: they work in any running match, also for an active player; observing a player still needs an observer or a replay, replay control a replay. The wording of the library javadoc, the window, the examples and the README follows.
+- **Recording in the window.** A Record and Stop control in the header writes the live feed to `Documents\GeneralsOnline\Recordings\<date>-<map>.dump` (never overwriting), with the time and size while it runs; Recordings opens a recording or one of the newest, and the window then plays it with play and pause, a speed and Back to live. A recording is a library dump, not a game replay (.rep).
+- **Chat** is a conversation view with a tab and an unread count per channel, player colours, search, scroll-lock, and a composer that offers only the channels the game delivers to now (1024-byte counter, history, quick lines, echo confirmation). **Control** is a section for casters: replay transport, observe buttons in player colours, follow selection, eight camera positions, the director, and keyboard shortcuts.
+- **Settings section** (connection, the feed settings the game applies per connection, re-sent on every connect, the recordings folder, the opening section and the inspector default, about the game), the object inspector follows the selection in the game, a team summary above the Players table, "Every frame" light snapshots with coalescing on the event thread.
+
+- The examples and the README name the 3.0.0 jar.
+
+## 2.4.0
+
+Additive; the protocol is still version 2.
+
+- **Every-frame light snapshots.** `light_interval_ms` now goes down to 1, which means a light snapshot every logic frame (`StatsPipe.LIGHT_EVERY_FRAME`). Older game builds answer `BAD_REQUEST` below 50. The full snapshot keeps its floor of 100 ms. `local_logic_fps` is now measured over at least 250 ms, so it stays steady at any cadence.
+- `FakeGame` accepts the same range.
+- The examples and the README name the 2.4.0 jar.
+
 ## 2.3.0
 
 Additive; the protocol is still version 2 and nothing of 2.2.0 changed incompatibly. A game without the capability `lobby.control` answers the new request `BAD_REQUEST`.

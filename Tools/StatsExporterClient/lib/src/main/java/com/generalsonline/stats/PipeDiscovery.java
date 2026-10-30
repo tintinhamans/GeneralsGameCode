@@ -8,6 +8,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.OptionalInt;
 
 /**
@@ -177,10 +178,62 @@ public final class PipeDiscovery {
      * A pipe that was opened, with the path it was opened under.
      *
      * @param <T> what an open pipe is represented by
-     * @param path the pipe path that opened
-     * @param channel the open pipe
      */
-    public record Opened<T>(String path, T channel) {
+    public static final class Opened<T> {
+        private final String path;
+        private final T channel;
+
+        /**
+         * Creates the value.
+         *
+         * @param path the pipe path that opened
+         * @param channel the open pipe
+         */
+        public Opened(String path, T channel) {
+            this.path = path;
+            this.channel = channel;
+        }
+
+        /**
+         * Returns path.
+         *
+         * @return the pipe path that opened
+         */
+        public String path() {
+            return path;
+        }
+
+        /**
+         * Returns channel.
+         *
+         * @return the open pipe
+         */
+        public T channel() {
+            return channel;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Opened)) {
+                return false;
+            }
+            Opened<?> other = (Opened<?>) o;
+            return Objects.equals(path, other.path)
+                    && Objects.equals(channel, other.channel);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(path, channel);
+        }
+
+        @Override
+        public String toString() {
+            return "Opened[" + "path=" + path + ", channel=" + channel + "]";
+        }
     }
 
     /**

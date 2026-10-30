@@ -5,20 +5,82 @@ import com.generalsonline.stats.proto.PlayerResult;
 import com.generalsonline.stats.proto.PlayerStats;
 
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * One player of a match as {@link MatchState} knows it: the live numbers of the latest snapshot (with the heavy fields
  * of the last full snapshot kept) joined with the static data of {@code MatchInfo} by {@code player_index}. Immutable;
  * a new view replaces it when anything changes.
- *
- * @param playerIndex the engine's player index, the key that snapshots and events use
- * @param info the player's {@code MatchInfo} entry (name, side, colour, team, online rating), or null while no
- *             {@code MatchInfo} named this player
- * @param stats the merged statistics: light fields of the latest snapshot, heavy fields of the last full one
- * @param frame the logic frame of the snapshot these numbers are from
- * @param life whether the player is still in the match
  */
-public record PlayerView(int playerIndex, MatchPlayer info, PlayerStats stats, long frame, PlayerLife life) {
+public final class PlayerView {
+    private final int playerIndex;
+    private final MatchPlayer info;
+    private final PlayerStats stats;
+    private final long frame;
+    private final PlayerLife life;
+
+    /**
+     * Creates the value.
+     *
+     * @param playerIndex the engine's player index, the key that snapshots and events use
+     * @param info the player's {@code MatchInfo} entry (name, side, colour, team, online rating), or null while no {@code MatchInfo} named this player
+     * @param stats the merged statistics: light fields of the latest snapshot, heavy fields of the last full one
+     * @param frame the logic frame of the snapshot these numbers are from
+     * @param life whether the player is still in the match
+     */
+    public PlayerView(int playerIndex, MatchPlayer info, PlayerStats stats, long frame, PlayerLife life) {
+        this.playerIndex = playerIndex;
+        this.info = info;
+        this.stats = stats;
+        this.frame = frame;
+        this.life = life;
+    }
+
+    /**
+     * Returns playerIndex.
+     *
+     * @return the engine's player index, the key that snapshots and events use
+     */
+    public int playerIndex() {
+        return playerIndex;
+    }
+
+    /**
+     * Returns info.
+     *
+     * @return the player's {@code MatchInfo} entry (name, side, colour, team, online rating), or null while no {@code MatchInfo} named this player
+     */
+    public MatchPlayer info() {
+        return info;
+    }
+
+    /**
+     * Returns stats.
+     *
+     * @return the merged statistics: light fields of the latest snapshot, heavy fields of the last full one
+     */
+    public PlayerStats stats() {
+        return stats;
+    }
+
+    /**
+     * Returns frame.
+     *
+     * @return the logic frame of the snapshot these numbers are from
+     */
+    public long frame() {
+        return frame;
+    }
+
+    /**
+     * Returns life.
+     *
+     * @return whether the player is still in the match
+     */
+    public PlayerLife life() {
+        return life;
+    }
+
     /**
      * Returns the player's name.
      *
@@ -105,12 +167,43 @@ public record PlayerView(int playerIndex, MatchPlayer info, PlayerStats stats, l
      * @return "won", "lost", "left", "observer", or an empty text for unknown
      */
     public static String resultText(PlayerResult result) {
-        return switch (result) {
-            case PLAYER_RESULT_WON -> "won";
-            case PLAYER_RESULT_LOST -> "lost";
-            case PLAYER_RESULT_LEFT -> "left";
-            case PLAYER_RESULT_OBSERVER -> "observer";
-            default -> "";
-        };
+        switch (result) {
+            case PLAYER_RESULT_WON:
+                return "won";
+            case PLAYER_RESULT_LOST:
+                return "lost";
+            case PLAYER_RESULT_LEFT:
+                return "left";
+            case PLAYER_RESULT_OBSERVER:
+                return "observer";
+            default:
+                return "";
+        }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof PlayerView)) {
+            return false;
+        }
+        PlayerView other = (PlayerView) o;
+        return playerIndex == other.playerIndex
+                && Objects.equals(info, other.info)
+                && Objects.equals(stats, other.stats)
+                && frame == other.frame
+                && Objects.equals(life, other.life);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(playerIndex, info, stats, frame, life);
+    }
+
+    @Override
+    public String toString() {
+        return "PlayerView[" + "playerIndex=" + playerIndex + ", info=" + info + ", stats=" + stats + ", frame=" + frame + ", life=" + life + "]";
     }
 }

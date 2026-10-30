@@ -6,7 +6,6 @@ import com.generalsonline.stats.proto.ChatChannel;
 import com.generalsonline.stats.proto.StatEventKind;
 
 import javax.swing.BorderFactory;
-import javax.swing.Box;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -15,7 +14,6 @@ import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -25,10 +23,7 @@ import javax.swing.event.DocumentListener;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.io.File;
@@ -37,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The Code tab: pick what you want to do from the list, or choose "Show code for this" in another tab, and read a
@@ -47,7 +43,45 @@ import java.util.List;
 @SuppressWarnings("serial")
 final class CodeTab extends JPanel {
     /** A request from another tab: show this scenario for this selection. */
-    record Request(Examples.Scenario scenario, Examples.Selection selection) {
+    static final class Request {
+        private final Examples.Scenario scenario;
+        private final Examples.Selection selection;
+
+        Request(Examples.Scenario scenario, Examples.Selection selection) {
+            this.scenario = scenario;
+            this.selection = selection;
+        }
+
+        Examples.Scenario scenario() {
+            return scenario;
+        }
+
+        Examples.Selection selection() {
+            return selection;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Request)) {
+                return false;
+            }
+            Request other = (Request) o;
+            return Objects.equals(scenario, other.scenario)
+                    && Objects.equals(selection, other.selection);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(scenario, selection);
+        }
+
+        @Override
+        public String toString() {
+            return "Request[" + "scenario=" + scenario + ", selection=" + selection + "]";
+        }
     }
 
     private final JList<Examples.Scenario> scenarios = new JList<>(Examples.Scenario.values());
@@ -66,7 +100,6 @@ final class CodeTab extends JPanel {
     private final JTextField zoomField = new JTextField(4);
     private final JTextField speedField = new JTextField(4);
     private final JComboBox<DirectorMode> modeBox = new JComboBox<>(DirectorMode.values());
-    private final JTextField dumpField = new JTextField(14);
     private final JTextArea codeArea = new JTextArea();
     private final JLabel statusLabel = new JLabel(" ");
     private final JButton copyButton = new JButton("Copy");
@@ -90,7 +123,7 @@ final class CodeTab extends JPanel {
         kindBox.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean focus) {
-                return super.getListCellRendererComponent(list, value instanceof StatEventKind kind ? Examples.kindName(kind) : value, index, selected, focus);
+                return super.getListCellRendererComponent(list, value instanceof StatEventKind ? Examples.kindName((StatEventKind) value) : value, index, selected, focus);
             }
         });
 
@@ -125,7 +158,7 @@ final class CodeTab extends JPanel {
         };
         playerField.getDocument().addDocumentListener(typing);
         textField.getDocument().addDocumentListener(typing);
-        for (JTextField field : List.of(templateField, sideField, objectField, xField, yField, zoomField, speedField, dumpField)) {
+        for (JTextField field : List.of(templateField, sideField, objectField, xField, yField, zoomField, speedField)) {
             field.getDocument().addDocumentListener(typing);
         }
         modeBox.addActionListener(e -> change.run());
@@ -133,100 +166,57 @@ final class CodeTab extends JPanel {
 
 
         codeArea.setEditable(false);
-        codeArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        codeArea.setFont(Theme.mono(12.5f));
+        codeArea.setBackground(Theme.FIELD);
+        codeArea.setForeground(Theme.TEXT);
+        codeArea.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
         codeArea.setTabSize(4);
 
         copyButton.addActionListener(e -> copy());
         saveButton.addActionListener(e -> save());
+        Ui.primary(copyButton);
+        scenarios.setFixedCellHeight(32);
+        scenarios.setBackground(Theme.FIELD);
+        descriptionLabel.setForeground(Theme.MUTED);
+        statusLabel.setForeground(Theme.MUTED);
 
-        JPanel left = new JPanel(new BorderLayout());
-        JLabel heading = new JLabel("What do you want to do?");
-        heading.setBorder(BorderFactory.createEmptyBorder(6, 8, 4, 8));
-        heading.setFont(heading.getFont().deriveFont(Font.BOLD));
-        left.add(heading, BorderLayout.NORTH);
-        left.add(new JScrollPane(scenarios), BorderLayout.CENTER);
+        JPanel left = new JPanel(new BorderLayout(0, 8));
+        left.setOpaque(false);
+        left.add(Ui.heading("What do you want to do?"), BorderLayout.NORTH);
+        left.add(Ui.scroll(scenarios), BorderLayout.CENTER);
         left.setPreferredSize(new Dimension(300, 400));
 
-        JPanel right = new JPanel(new BorderLayout());
+        JPanel right = new JPanel(new BorderLayout(0, 10));
+        right.setOpaque(false);
         right.add(controls(), BorderLayout.NORTH);
-        right.add(new JScrollPane(codeArea), BorderLayout.CENTER);
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        buttons.add(copyButton);
-        buttons.add(saveButton);
-        buttons.add(statusLabel);
-        right.add(buttons, BorderLayout.SOUTH);
+        right.add(Ui.scroll(codeArea), BorderLayout.CENTER);
+        right.add(Ui.bar(copyButton, saveButton, statusLabel), BorderLayout.SOUTH);
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
-        split.setResizeWeight(0.0);
+        JSplitPane split = Ui.split(JSplitPane.HORIZONTAL_SPLIT, left, right, 0.0);
         split.setDividerLocation(300);
-        add(split, BorderLayout.CENTER);
+        add(Ui.pad(wrap(split)), BorderLayout.CENTER);
         regenerate();
     }
 
-    private JComponent controls() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
-        GridBagConstraints c = new GridBagConstraints();
-        c.anchor = GridBagConstraints.WEST;
-        c.insets = new java.awt.Insets(2, 4, 2, 4);
-
-        c.gridx = 0;
-        c.gridy = 0;
-        c.gridwidth = 6;
-        c.fill = GridBagConstraints.HORIZONTAL;
-        descriptionLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 4, 0));
-        panel.add(descriptionLabel, c);
-
-        c.gridwidth = 1;
-        c.fill = GridBagConstraints.NONE;
-        c.gridy = 1;
-        c.gridx = 0;
-        panel.add(new JLabel("Player:"), c);
-        c.gridx = 1;
-        panel.add(playerField, c);
-        c.gridx = 2;
-        panel.add(new JLabel("Stat (Players column):"), c);
-        c.gridx = 3;
-        panel.add(columnBox, c);
-        c.gridx = 4;
-        panel.add(new JLabel("Event kind:"), c);
-        c.gridx = 5;
-        panel.add(kindBox, c);
-
-        c.gridy = 2;
-        c.gridx = 0;
-        panel.add(new JLabel("Chat channel:"), c);
-        c.gridx = 1;
-        panel.add(channelBox, c);
-        c.gridx = 2;
-        panel.add(new JLabel("Audience:"), c);
-        c.gridx = 3;
-        panel.add(audienceBox, c);
-        c.gridx = 4;
-        panel.add(new JLabel("Text:"), c);
-        c.gridx = 5;
-        panel.add(textField, c);
-        c.gridx = 6;
-        c.weightx = 1;
-        panel.add(Box.createHorizontalGlue(), c);
-        c.weightx = 0;
-
-        c.gridy = 3;
-        c.gridx = 0;
-        c.gridwidth = 7;
-        c.fill = GridBagConstraints.HORIZONTAL;
-        panel.add(flow(new JLabel("Template:"), templateField, new JLabel("Side:"), sideField, new JLabel("Object id:"), objectField, new JLabel("Dump file:"), dumpField), c);
-        c.gridy = 4;
-        panel.add(flow(new JLabel("Camera x, y, zoom:"), xField, yField, zoomField, new JLabel("Replay speed:"), speedField, new JLabel("Director mode:"), modeBox), c);
+    private static JPanel wrap(JComponent content) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setOpaque(false);
+        panel.add(content, BorderLayout.CENTER);
         return panel;
     }
 
-    private static JPanel flow(Component... parts) {
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        for (Component part : parts) {
-            row.add(part);
-        }
-        return row;
+    /** The choices that fill the program, as captioned fields that wrap; the ones a scenario does not use are dimmed. */
+    private JComponent controls() {
+        JPanel panel = new JPanel(new BorderLayout(0, 8));
+        panel.setOpaque(false);
+        descriptionLabel.setFont(Theme.ui(Font.PLAIN, 12.5f));
+        panel.add(descriptionLabel, BorderLayout.NORTH);
+        panel.add(Ui.bar(Ui.field("Player", playerField), Ui.field("Stat (Players column)", columnBox), Ui.field("Event kind", kindBox),
+            Ui.field("Chat channel", channelBox), Ui.field("Audience", audienceBox), Ui.field("Text", textField),
+            Ui.field("Template", templateField), Ui.field("Side", sideField), Ui.field("Object id", objectField),
+            Ui.field("Camera x", xField), Ui.field("y", yField), Ui.field("zoom", zoomField), Ui.field("Replay speed", speedField), Ui.field("Director mode", modeBox)),
+            BorderLayout.CENTER);
+        return panel;
     }
 
     /** What the controls say now; a field that is empty or not a number keeps its default. */
@@ -243,7 +233,7 @@ final class CodeTab extends JPanel {
             channel == null ? defaults.channel() : channel, audience == null ? defaults.audience() : audience, text,
             textOr(templateField, defaults.templateName()), textOr(sideField, defaults.side()), (int) number(objectField, defaults.objectId()),
             number(xField, defaults.cameraX()), number(yField, defaults.cameraY()), number(zoomField, defaults.zoom()), number(speedField, defaults.replaySpeed()),
-            mode == null ? defaults.directorMode() : mode, textOr(dumpField, defaults.dumpFile()));
+            mode == null ? defaults.directorMode() : mode);
     }
 
     private static String textOr(JTextField field, String fallback) {
@@ -275,7 +265,6 @@ final class CodeTab extends JPanel {
         zoomField.setText(Double.toString(selection.zoom()));
         speedField.setText(Double.toString(selection.replaySpeed()));
         modeBox.setSelectedItem(selection.directorMode());
-        dumpField.setText(selection.dumpFile());
     }
 
     Examples.Scenario scenario() {
@@ -322,7 +311,6 @@ final class CodeTab extends JPanel {
         zoomField.setEnabled(camera);
         speedField.setEnabled(scenario == Examples.Scenario.REPLAY_CONTROL);
         modeBox.setEnabled(scenario == Examples.Scenario.DIRECTOR);
-        dumpField.setEnabled(scenario == Examples.Scenario.FAKE_SERVER);
         try {
             codeArea.setText(Examples.generate(scenario, selection()));
             codeArea.setCaretPosition(0);

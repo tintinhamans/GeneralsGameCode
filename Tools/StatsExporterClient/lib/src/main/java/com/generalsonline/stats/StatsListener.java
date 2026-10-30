@@ -22,8 +22,8 @@ import com.generalsonline.stats.proto.ViewStats;
  * never overlap. A callback that throws costs only its frame: the exception goes to {@link #onError} and reading
  * continues.
  *
- * <p>Frames reach the typed methods through {@link FrameDispatcher#deliver}, whose switch covers every
- * {@link FrameType}, so a frame type added to the protocol cannot be silently skipped.
+ * <p>Frames reach the typed methods through {@link FrameDispatcher#deliver}, whose switch handles every outbound
+ * {@link FrameType}; any other frame reaches {@link #unknownFrame}, so a frame is never silently skipped.
  */
 public interface StatsListener {
     /**

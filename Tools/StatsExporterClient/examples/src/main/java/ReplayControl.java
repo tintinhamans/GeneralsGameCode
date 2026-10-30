@@ -2,8 +2,8 @@
 // Only a replay can be steered this way; pausing or slowing a live network game would desynchronize it, so the game
 // answers NOT_ALLOWED there (a NotAllowedException). Nothing here touches the simulation, only the pace of the playback.
 //
-// Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar ReplayControl.java
+// Run (Java 11+), with the library jar and protobuf-java on the class path:
+//   java -cp stats-pipe-client-3.0.0.jar:protobuf-java-4.33.4.jar ReplayControl.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.NotAllowedException;
 import com.generalsonline.stats.RequestFailedException;
@@ -40,10 +40,10 @@ public class ReplayControl {
                 ReplayState normal = pipe.setReplaySpeed(1.0).get(10, TimeUnit.SECONDS);
                 System.out.println("back to normal speed: " + normal.getSpeedRatio() + ", fast forward " + normal.getFastForward());
             } catch (ExecutionException e) {
-                if (e.getCause() instanceof NotAllowedException refused) {
-                    System.out.println("the game refused: " + refused.reason());
-                } else if (e.getCause() instanceof RequestFailedException failed) {
-                    System.out.println("the request failed: " + failed.getMessage());
+                if (e.getCause() instanceof NotAllowedException) {
+                    System.out.println("the game refused: " + ((NotAllowedException) e.getCause()).reason());
+                } else if (e.getCause() instanceof RequestFailedException) {
+                    System.out.println("the request failed: " + e.getCause().getMessage());
                 } else {
                     throw e;
                 }

@@ -69,11 +69,11 @@ public final class ReplayPacer {
      * @return the logic frame, or -1
      */
     public static long gameFrameOf(DecodedFrame frame) {
-        if (frame.message() instanceof StatsSnapshot s) {
-            return Format.u(s.getFrame());
+        if (frame.message() instanceof StatsSnapshot) {
+            return Format.u(((StatsSnapshot) frame.message()).getFrame());
         }
-        if (frame.message() instanceof Events e) {
-            return Format.u(e.getFrame());
+        if (frame.message() instanceof Events) {
+            return Format.u(((Events) frame.message()).getFrame());
         }
         return -1;
     }

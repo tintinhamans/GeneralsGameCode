@@ -43,19 +43,95 @@ import java.util.Set;
 public final class DirectorLogic {
     /**
      * A place the overview can visit.
-     *
-     * @param playerIndex the player it belongs to
-     * @param x the world x
-     * @param y the world y
-     * @param kind whether it is a base or an army
      */
-    public record Spot(int playerIndex, double x, double y, Kind kind) {
+    public static final class Spot {
+        private final int playerIndex;
+        private final double x;
+        private final double y;
+        private final Kind kind;
+
+        /**
+         * Creates the value.
+         *
+         * @param playerIndex the player it belongs to
+         * @param x the world x
+         * @param y the world y
+         * @param kind whether it is a base or an army
+         */
+        public Spot(int playerIndex, double x, double y, Kind kind) {
+            this.playerIndex = playerIndex;
+            this.x = x;
+            this.y = y;
+            this.kind = kind;
+        }
+
+        /**
+         * Returns playerIndex.
+         *
+         * @return the player it belongs to
+         */
+        public int playerIndex() {
+            return playerIndex;
+        }
+
+        /**
+         * Returns x.
+         *
+         * @return the world x
+         */
+        public double x() {
+            return x;
+        }
+
+        /**
+         * Returns y.
+         *
+         * @return the world y
+         */
+        public double y() {
+            return y;
+        }
+
+        /**
+         * Returns kind.
+         *
+         * @return whether it is a base or an army
+         */
+        public Kind kind() {
+            return kind;
+        }
+
         /** What the spot is. */
         public enum Kind {
             /** A player's start position. */
             BASE,
             /** The centre of a player's units and structures. */
             ARMY
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Spot)) {
+                return false;
+            }
+            Spot other = (Spot) o;
+            return playerIndex == other.playerIndex
+                    && Double.compare(x, other.x) == 0
+                    && Double.compare(y, other.y) == 0
+                    && Objects.equals(kind, other.kind);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(playerIndex, x, y, kind);
+        }
+
+        @Override
+        public String toString() {
+            return "Spot[" + "playerIndex=" + playerIndex + ", x=" + x + ", y=" + y + ", kind=" + kind + "]";
         }
     }
 
@@ -77,15 +153,114 @@ public final class DirectorLogic {
 
     /**
      * A snapshot of what the logic is doing.
-     *
-     * @param mode the mode in force
-     * @param state what it is doing
-     * @param hasTarget whether it has put the camera somewhere
-     * @param targetX the world x of the last move, meaningful when {@code hasTarget}
-     * @param targetY the world y of the last move, meaningful when {@code hasTarget}
-     * @param pendingHighlights the highlights it knows of and has not shown yet
      */
-    public record Status(DirectorMode mode, State state, boolean hasTarget, double targetX, double targetY, int pendingHighlights) {
+    public static final class Status {
+        private final DirectorMode mode;
+        private final State state;
+        private final boolean hasTarget;
+        private final double targetX;
+        private final double targetY;
+        private final int pendingHighlights;
+
+        /**
+         * Creates the value.
+         *
+         * @param mode the mode in force
+         * @param state what it is doing
+         * @param hasTarget whether it has put the camera somewhere
+         * @param targetX the world x of the last move, meaningful when {@code hasTarget}
+         * @param targetY the world y of the last move, meaningful when {@code hasTarget}
+         * @param pendingHighlights the highlights it knows of and has not shown yet
+         */
+        public Status(DirectorMode mode, State state, boolean hasTarget, double targetX, double targetY, int pendingHighlights) {
+            this.mode = mode;
+            this.state = state;
+            this.hasTarget = hasTarget;
+            this.targetX = targetX;
+            this.targetY = targetY;
+            this.pendingHighlights = pendingHighlights;
+        }
+
+        /**
+         * Returns mode.
+         *
+         * @return the mode in force
+         */
+        public DirectorMode mode() {
+            return mode;
+        }
+
+        /**
+         * Returns state.
+         *
+         * @return what it is doing
+         */
+        public State state() {
+            return state;
+        }
+
+        /**
+         * Returns hasTarget.
+         *
+         * @return whether it has put the camera somewhere
+         */
+        public boolean hasTarget() {
+            return hasTarget;
+        }
+
+        /**
+         * Returns targetX.
+         *
+         * @return the world x of the last move, meaningful when {@code hasTarget}
+         */
+        public double targetX() {
+            return targetX;
+        }
+
+        /**
+         * Returns targetY.
+         *
+         * @return the world y of the last move, meaningful when {@code hasTarget}
+         */
+        public double targetY() {
+            return targetY;
+        }
+
+        /**
+         * Returns pendingHighlights.
+         *
+         * @return the highlights it knows of and has not shown yet
+         */
+        public int pendingHighlights() {
+            return pendingHighlights;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Status)) {
+                return false;
+            }
+            Status other = (Status) o;
+            return Objects.equals(mode, other.mode)
+                    && Objects.equals(state, other.state)
+                    && hasTarget == other.hasTarget
+                    && Double.compare(targetX, other.targetX) == 0
+                    && Double.compare(targetY, other.targetY) == 0
+                    && pendingHighlights == other.pendingHighlights;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(mode, state, hasTarget, targetX, targetY, pendingHighlights);
+        }
+
+        @Override
+        public String toString() {
+            return "Status[" + "mode=" + mode + ", state=" + state + ", hasTarget=" + hasTarget + ", targetX=" + targetX + ", targetY=" + targetY + ", pendingHighlights=" + pendingHighlights + "]";
+        }
     }
 
     /** How long a superweapon without a known impact time is waited for after the camera arrived. */
@@ -109,11 +284,14 @@ public final class DirectorLogic {
         }
 
         int priority() {
-            return switch (kind) {
-                case HIGHLIGHT_SUPERWEAPON_LAUNCH -> 0;
-                case HIGHLIGHT_HERO_DEATH -> 1;
-                default -> 2;
-            };
+            switch (kind) {
+                case HIGHLIGHT_SUPERWEAPON_LAUNCH:
+                    return 0;
+                case HIGHLIGHT_HERO_DEATH:
+                    return 1;
+                default:
+                    return 2;
+            }
         }
     }
 
@@ -133,7 +311,59 @@ public final class DirectorLogic {
         }
     }
 
-    private record Best(double x, double y, double score, double cellSize) {
+    private static final class Best {
+        private final double x;
+        private final double y;
+        private final double score;
+        private final double cellSize;
+
+        private Best(double x, double y, double score, double cellSize) {
+            this.x = x;
+            this.y = y;
+            this.score = score;
+            this.cellSize = cellSize;
+        }
+
+        double x() {
+            return x;
+        }
+
+        double y() {
+            return y;
+        }
+
+        double score() {
+            return score;
+        }
+
+        double cellSize() {
+            return cellSize;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Best)) {
+                return false;
+            }
+            Best other = (Best) o;
+            return Double.compare(x, other.x) == 0
+                    && Double.compare(y, other.y) == 0
+                    && Double.compare(score, other.score) == 0
+                    && Double.compare(cellSize, other.cellSize) == 0;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(x, y, score, cellSize);
+        }
+
+        @Override
+        public String toString() {
+            return "Best[" + "x=" + x + ", y=" + y + ", score=" + score + ", cellSize=" + cellSize + "]";
+        }
     }
 
     private DirectorConfig config;

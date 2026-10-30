@@ -1,5 +1,5 @@
-// The test client: command line (watch, dump, replay, chat, schema, example) and a Swing GUI, written against the
-// library's public API only (the ArchitectureTest fails on an import of the internal package).
+// The client: command line (watch, dump, replay, chat, schema, example) and a Swing GUI, written against the
+// library's public API only. FlatLaf (a Swing look and feel) is the only dependency besides the library.
 //
 //   ./gradlew :app:run --args="watch"
 //   ./gradlew :app:installDist           script in app/build/install/stats-exporter-client/bin
@@ -9,18 +9,10 @@ plugins {
 
 dependencies {
     implementation project(':lib')
-
-    testImplementation platform(junitBom)
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation "com.formdev:flatlaf:${flatlafVersion}"
 }
 
 application {
     mainClass = 'com.generalsonline.stats.app.Main'
     applicationName = 'stats-exporter-client'
-}
-
-// The tests compare the generated example programs with the files of the examples project, which sits next to this one.
-tasks.named('test') {
-    systemProperty 'examples.dir', project(':examples').file('src/main/java').absolutePath
 }

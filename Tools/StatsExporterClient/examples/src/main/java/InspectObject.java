@@ -2,8 +2,8 @@
 // Ids come from events (StatEvent.getObjectId, getKillerObjectId), from the notable units of the view statistics and
 // from the units a camera lock follows. An object that was destroyed answers NOT_FOUND.
 //
-// Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar InspectObject.java [object id]
+// Run (Java 11+), with the library jar and protobuf-java on the class path:
+//   java -cp stats-pipe-client-3.0.0.jar:protobuf-java-4.33.4.jar InspectObject.java [object id]
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.RequestFailedException;
@@ -41,8 +41,8 @@ public class InspectObject {
                 }
             } catch (ExecutionException e) {
                 // The typed request methods fail with a RequestFailedException carrying the status of the answer.
-                if (e.getCause() instanceof RequestFailedException failed) {
-                    System.out.println("object " + id + ": " + failed.getMessage());
+                if (e.getCause() instanceof RequestFailedException) {
+                    System.out.println("object " + id + ": " + e.getCause().getMessage());
                 } else {
                     throw e;
                 }

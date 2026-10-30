@@ -56,8 +56,8 @@ final class DumpStatus implements StatsListener {
         if (frame.type() == FrameType.CAMERA) {
             cameraFrames.incrementAndGet();
         }
-        if (frame.message() instanceof StatsSnapshot s) {
-            gameFrame = Format.u(s.getFrame());
+        if (frame.message() instanceof StatsSnapshot) {
+            gameFrame = Format.u(((StatsSnapshot) frame.message()).getFrame());
         }
         if (recorder != null) {
             recorder.accept(frame);
