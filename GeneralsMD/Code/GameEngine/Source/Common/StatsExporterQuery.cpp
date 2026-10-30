@@ -19,6 +19,7 @@
 #include "Common/StatsExporterQuery.h"
 #include "Common/StatsExporterPipe.h"
 #include "Common/StatsExporterControl.h"
+#include "Common/StatsExporterLobby.h"
 
 #include "Common/KindOf.h"
 #include "Common/Player.h"
@@ -79,6 +80,7 @@ namespace
 	const UnsignedInt kResultCameraFollow = 18;
 	const UnsignedInt kResultReplayControl = 19;
 	const UnsignedInt kResultObserve = 20;
+	const UnsignedInt kResultLobbyControl = 21;
 
 	typedef statsexporter::ResponseStatus Status;
 
@@ -984,6 +986,10 @@ namespace
 				case statsexporter::Request::kObserve:
 					resultField = kResultObserve;
 					status = (Status)StatsExporterControlObserve(request.observe(), s_result, message);
+					break;
+				case statsexporter::Request::kLobbyControl:
+					resultField = kResultLobbyControl;
+					status = (Status)StatsExporterLobbyControl(request.lobby_control(), s_result, message);
 					break;
 				default:
 					status = statsexporter::RESPONSE_STATUS_BAD_REQUEST;

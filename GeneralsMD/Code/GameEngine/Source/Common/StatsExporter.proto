@@ -749,6 +749,7 @@ message Request
 		CameraFollowQuery camera_follow = 18;
 		ReplayControlQuery replay_control = 19;
 		ObserveQuery observe = 20;
+		LobbyControlQuery lobby_control = 21;
 	}
 }
 
@@ -770,6 +771,7 @@ message Response
 		CameraState camera_follow = 18;
 		ReplayState replay_control = 19;
 		ObserveState observe = 20;
+		LobbyControlResult lobby_control = 21;
 	}
 }
 
@@ -1119,6 +1121,63 @@ message ObserveState
 {
 	int32 player_index = 1;		// the player looked at, -1 for none
 	bool full_view = 2;			// the view really switched to that player; false when the game only remembers the choice for its panels
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Lobby control
+// ---------------------------------------------------------------------------------------------------------------------
+// Changes the game setup lobby the local user sits in (skirmish, LAN or Generals Online) by driving the setup screen's own controls:
+// the dropdowns, check boxes and buttons are operated the way a click would, so the screen's handlers validate the change and send it on
+// (host and client messages, the lobby service). What the screen would not let the user do is refused with RESPONSE_STATUS_NOT_ALLOWED and
+// a reason: a client may only change its own slot, only the host changes the lobby, a locked or hidden control is not touched. Answered on
+// the main thread, only while a setup screen is up (RESPONSE_STATUS_UNAVAILABLE otherwise, and never during a match). The LobbyState
+// frame that follows a change is the confirmation.
+
+// Presses the Kick option of a human's slot dropdown. Host only.
+message LobbyKick
+{
+	bool close_slot = 1;		// leave the slot closed instead of open
+}
+
+// The Accept button (a client) or the Start button (the host), if the screen has it enabled.
+message LobbyPress
+{
+}
+
+message LobbyControlQuery
+{
+	uint32 lobby_slot = 1;		// the slot an action in the slot group targets, 0-based as in LobbyState; ignored by the lobby-wide actions
+	oneof action
+	{
+		// -- slot group: the host for any slot of an AI or empty slot, a client for its own slot (the screen's rules)
+		LobbySlotState set_slot_state = 10;	// host only: OPEN, CLOSED, AI_EASY, AI_MEDIUM or AI_BRUTAL (the screen's Hard); a human's slot needs kick
+		LobbyKick kick = 11;				// host only: remove the human in the slot
+		string faction = 12;				// a side as in LobbyState (e.g. "America"), "Random" or "Observer" (where the lobby offers it)
+		uint32 color = 13;					// packed 0xAARRGGBB as in LobbyState, 0 = Random; a colour another slot holds is refused
+		int32 team = 14;					// 0-based team, -1 = none
+		int32 start_position = 15;			// 0-based start position of the map, -1 = clear; the screen's own rules for who may place whom
+		// -- lobby-wide
+		string map_name = 16;				// host only: a multiplayer map as in LobbyState.map_name (or the game's own path of it)
+		uint32 starting_cash = 17;			// host only: one of the amounts the screen offers
+		bool limit_superweapons = 18;		// host only
+		uint32 game_speed_fps = 19;			// skirmish only: the speed slider, 15..61 (61 = no limit)
+		LobbyPress accept = 20;				// a client: tell the host it accepts the options
+		LobbyPress start = 21;				// the host: the Start button; with unready players the game only announces the intent to start
+	}
+}
+
+enum LobbyChangeRoute
+{
+	LOBBY_CHANGE_APPLIED = 0;				// the lobby changed at once (skirmish, a LAN host); the next LobbyState shows it
+	LOBBY_CHANGE_REQUESTED_FROM_HOST = 1;	// a LAN client asked the host; the LobbyState follows when the host confirms
+	LOBBY_CHANGE_REQUESTED_FROM_SERVICE = 2;	// Generals Online: the request went to the lobby service, which decides and echoes it back
+}
+
+message LobbyControlResult
+{
+	LobbyKind kind = 1;
+	LobbyChangeRoute route = 2;
+	string note = 3;			// e.g. what Start does with unready players; empty otherwise
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

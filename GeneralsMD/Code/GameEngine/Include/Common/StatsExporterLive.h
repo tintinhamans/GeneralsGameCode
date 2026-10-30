@@ -45,6 +45,9 @@ enum StatsExporterChatChannel
 /// requests and answers the queued Requests.
 void StatsExporterLiveTick();
 
+/// The screen the game is on as the UiState frame reports it (a statsexporter::UiScreen value).
+int StatsExporterLiveCurrentScreen();
+
 /// An in-match chat line that is being shown to the local player. `playerMask` is the line's recipient mask.
 void StatsExporterLiveChatInGame(Int senderSlot, const UnicodeString& senderName, const UnicodeString& text, Int playerMask, Bool isLocal);
 

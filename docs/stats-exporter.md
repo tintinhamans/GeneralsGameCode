@@ -74,7 +74,7 @@ The first frame on every connection is a `Hello` (type 0x09, sequence 0). The ga
 | `epoch_unix_ms` | the wall clock in milliseconds since the Unix epoch at frame timestamp 0, so a reader can turn frame timestamps into wall-clock times |
 | `queue_capacity_bytes` | the outbound queue of this reader (1 MiB); a reader that falls this far behind loses frames |
 
-Capabilities in this version: `frame.sequence`, `frame.timestamp`, `multi_reader`, `chat.send`, `request.catalog`, `request.object`, `request.objects`, `request.player`, `request.map`, `request.resync`, `request.feed_config`, `map.minimap_rgba`, `event.object_ids`, `event.kill_detail`, `feed.per_reader`, and, added without a protocol change, `camera.control`, `camera.follow`, `camera.source`, `replay.control`, `observe.player`, `view_stats`, `interest_map`, `status.not_allowed` (see Camera, replay and observer control, In-view statistics and Interest map). A capability is a promise that the matching frame, field or request exists; a later version can add names without changing `protocol_version`.
+Capabilities in this version: `frame.sequence`, `frame.timestamp`, `multi_reader`, `chat.send`, `request.catalog`, `request.object`, `request.objects`, `request.player`, `request.map`, `request.resync`, `request.feed_config`, `map.minimap_rgba`, `event.object_ids`, `event.kill_detail`, `feed.per_reader`, and, added without a protocol change, `camera.control`, `camera.follow`, `camera.source`, `replay.control`, `observe.player`, `view_stats`, `interest_map`, `status.not_allowed`, `lobby.control` (see Camera, replay and observer control, In-view statistics, Interest map and Lobby control). A capability is a promise that the matching frame, field or request exists; a later version can add names without changing `protocol_version`.
 
 ## Sequence numbers and timestamps
 
@@ -99,8 +99,8 @@ Frames that are the same for everyone are built once and queued for every reader
 
 A reader sends a `Request { id, query }` (inbound type 0x11) and receives a `Response { id, status, message, result }` (outbound type 0x0A) carrying the same `id`. The reader chooses the `id`; use a distinct one for every request in flight (0 is allowed but cannot be told apart from "unknown" when a request cannot be decoded).
 
-- **Threading.** The pipe thread only decodes the framing, rate limits and queues the request. The main thread answers it once per render frame (at most 4 per frame, the rest wait), reading game state and changing nothing (the control commands below change client-side state only, see there): no random numbers are drawn, no commands are issued, no object is touched. Because of that, a query is answered also while the game is paused or in a menu, and the answer describes the state of the moment it ran.
-- **Statuses.** `OK`; `BAD_REQUEST` (undecodable, no query set, a value out of range); `NOT_FOUND` (no such object, player or template); `RATE_LIMITED` (the reader exceeded its rate or has 16 requests waiting; nothing was done, retry later); `UNAVAILABLE` (the data does not exist right now: no match running, no map loaded); `TOO_LARGE` (the result would not fit a frame: ask for a smaller page); `NOT_ALLOWED` (the command is refused in the situation the game is in, see Camera, replay and observer control: nothing was changed). `message` carries a short reason for any status other than OK. A request that cannot be decoded is answered with id 0.
+- **Threading.** The pipe thread only decodes the framing, rate limits and queues the request. The main thread answers it once per render frame (at most 4 per frame, the rest wait), reading game state and changing nothing (the camera, replay and observer commands below change client-side state only, and lobby control operates the game setup screen, see there): no random numbers are drawn, no commands are issued, no object is touched. Because of that, a query is answered also while the game is paused or in a menu, and the answer describes the state of the moment it ran.
+- **Statuses.** `OK`; `BAD_REQUEST` (undecodable, no query set, a value out of range); `NOT_FOUND` (no such object, player or template); `RATE_LIMITED` (the reader exceeded its rate or has 16 requests waiting; nothing was done, retry later); `UNAVAILABLE` (the data does not exist right now: no match running, no map loaded); `TOO_LARGE` (the result would not fit a frame: ask for a smaller page); `NOT_ALLOWED` (the command is refused in the situation the game is in, see Camera, replay and observer control and Lobby control: nothing was changed). `message` carries a short reason for any status other than OK. A request that cannot be decoded is answered with id 0.
 - **Rate limit.** A token bucket per reader: 20 requests per second sustained, bursts up to 40. Requests are answered in arrival order per reader and in turn between readers. There is no answer to a request that arrives before the Hello was queued, and none when the reader's queue is full (the sequence shows the gap), so readers should time requests out.
 - **Paging.** Queries that can return many rows take a `PageRequest { cursor, page_size }` and answer with a `PageInfo { has_more, next_cursor, total }`. Start with cursor 0, pass `next_cursor` back while `has_more`. The cursor is opaque: a template index for the catalog, an object id for objects. `page_size` 0 means the default, anything above `Hello.max_page_size` is lowered to it.
 
@@ -117,6 +117,7 @@ A reader sends a `Request { id, query }` (inbound type 0x11) and receives a `Res
 | `CameraFollowQuery` | `CameraState` | Locks the camera on a unit (centered, or tethered), or releases the lock. Observers and replay playback only |
 | `ReplayControlQuery` | `ReplayState` | Pauses or resumes a replay playback, sets its pace, switches fast forward. Replay playback only |
 | `ObserveQuery` | `ObserveState` | Changes the observer's point of view to a player, or back to the all-seeing observer. Observers and replay playback only |
+| `LobbyControlQuery` | `LobbyControlResult` | Changes the game setup lobby the user sits in (skirmish, LAN, Generals Online) by operating the setup screen's own controls. Setup screens only, see Lobby control |
 
 **Minimap.** `Minimap.rgba` is the radar's terrain image, read back from the game's radar texture: `width * height * 4` bytes, row-major, R G B A, 128 by 128 in this build (64 KiB). Pixel (px, py) covers the world cell with its lower corner at `(origin_x + px * cell_width, origin_y + py * cell_height)`; the cell size and origin come from the radar's own world conversion, so this is exactly the mapping the game's minimap uses. It shows the terrain, water and bridges as the radar draws them, not units or fog. When the image cannot be read the `minimap` field is simply absent and the status is still OK.
 
@@ -252,6 +253,33 @@ Room chat is only reported while the online lobby (room) menu is open, game lobb
 
 `audience` of an in-match line is a heuristic. The game does not send an audience; the exporter compares the line's recipient mask with the masks of everyone, of the sender's allies and of the sender alone, so a line is EVERYONE, ALLIES (including a subset of the allies), OBSERVERS (the sender is an observer) or OTHER (a private line, or an unknown sender). The "everyone" mask omits the slots this client has muted, so with muted players a genuine "everyone" line can look like a smaller group and be reported as ALLIES or, for a lone remaining recipient, OTHER.
 
+## Lobby control
+
+A reader can change the game setup lobby the local user sits in. The game does not write the lobby's data: it **operates the setup screen's own controls** the way a click would (it selects the entry in the slot's dropdown, runs the handler behind the start position buttons, ticks the check box, presses the Start or Accept button). The screen's handlers then validate the change and send it on as they always do (the host broadcasts the options in LAN, a client asks the host, an online lobby calls the lobby service), and the screen refreshes itself. The simulation is not involved and no random number is drawn; nothing is done during a match: with no setup screen up the answer is `UNAVAILABLE` ("the user is not in a game setup lobby"). It is answered on the main thread between frames, like the other requests, and needs the `lobby.control` capability.
+
+**Permissions mirror the screen.** A control that is hidden or disabled is not touched, so a request is refused (`NOT_ALLOWED` with a reason, nothing changed) exactly when the user could not do it: only the host changes slots (open, close, AI, kick), the map, the starting cash and the superweapon limit; a client changes its own slot (side, color, team, start position) and accepts; the host also sets the side, color, team and start position of an AI slot; a colour another slot holds is not in the dropdown, so it is refused; a client that has accepted has its controls locked; a screen that is busy (map selector open, the Start button was pressed, the screen is still opening) refuses everything. A value that is not a valid argument answers `BAD_REQUEST` (a slot above 7, a state of HUMAN, a color that is not a lobby color, a team above 3, a start position beyond the map's, a starting cash the dropdown does not offer, a speed outside 15..61, no action); an unknown side or map answers `NOT_FOUND`.
+
+`LobbyControlQuery` has the target `lobby_slot` (0-based as in `LobbyState`, used by the slot actions) and one `action`:
+
+| Action | Who | What it drives |
+|---|---|---|
+| `set_slot_state` (OPEN, CLOSED, AI_EASY, AI_MEDIUM, AI_BRUTAL) | host | the slot's player dropdown (AI_BRUTAL is the screen's Hard). Not the host's own slot; a human's slot needs `kick` |
+| `kick` (`close_slot`) | host | the same dropdown on a human's slot: Open or Closed removes the player (LAN: the leave message; online: the lobby service's kick and slot state) |
+| `faction` (a side, `"Random"`, `"Observer"`) | own slot, or AI slot as host | the slot's faction dropdown. `"Observer"` only where the lobby allows observers |
+| `color` (packed ARGB, 0 = Random) | own slot, or AI slot as host | the slot's color dropdown |
+| `team` (-1 none, 0..3) | own slot, or AI slot as host | the slot's team dropdown |
+| `start_position` (-1 clear, 0..) | own slot, or AI slot as host | the handler behind the start position buttons on the map preview; the button must be selectable. A position another slot holds is refused |
+| `map_name` | host | the map selector's OK path, without the selector. A multiplayer map of the map cache, by the form `LobbyState.map_name` has (or the game's own path); the start positions and accepted flags start over |
+| `starting_cash` | host | the starting cash dropdown; one of the amounts it lists (the `BAD_REQUEST` message lists them) |
+| `limit_superweapons` | host | the check box |
+| `game_speed_fps` (15..61) | skirmish | the speed slider (61 is no limit); the other screens have none |
+| `accept` | client | the Accept button, if enabled |
+| `start` | host | the Start button, if enabled. In skirmish this starts the game. In LAN and online it starts the game when every human has accepted; otherwise it only announces the intent to start (the result's `note` says so) |
+
+The `LobbyControlResult` says the `kind` of lobby and the `route` of the change: `APPLIED` (the lobby changed at once: skirmish, a LAN host), `REQUESTED_FROM_HOST` (a LAN client asked the host) or `REQUESTED_FROM_SERVICE` (Generals Online: every change goes through the lobby service, which decides and echoes it back). In every case the `LobbyState` frame that follows is the confirmation; on a requested route the result only says the request was made, and the lobby may end up unchanged if the host or the service refuses.
+
+**Generals Online.** The online setup screen's handlers call the lobby service (`UpdateCurrentLobby_*`); the exporter drives those handlers and does not call the service itself, so the service still enforces its own rules. Slot state, kick, faction, color, team, start position, map, starting cash, the superweapon limit, Accept and Start are all reachable this way. Not available online: the speed slider (skirmish only), and the "use stats" and "limit armies" check boxes, which the screen shows but does not let the user change. The online screen applies a few changes locally as well as asking the service (slot state, kick, faction, map); the others (color, team, start position, cash, superweapon limit) appear in `LobbyState` only after the service echoes them.
+
 ## UiState
 
 `UiState { screen, layout, game_mode, paused }` reports which screen the game shows. `screen` is derived from the top shell layout: main menu, single player, skirmish setup, LAN lobby, LAN game setup, online welcome, online lobby, online game setup, quickmatch, replay menu, options, save/load, then the in-game screens. `layout` is the raw layout file name (empty when none). `game_mode` and `paused` are meaningful for in-game screens only. It is sent to every new reader first, and again on every change.
@@ -314,6 +342,7 @@ The template buckets (`category` for kill, loss, build, sell, capture, evacuate,
 - Online identity data (match id, user ids, IPs) is exported exactly as the client knows it; fields are 0 or empty when unknown.
 - A frame dropped to backpressure is not retransmitted, except the one-shot resync described above; counters in snapshots are cumulative where noted, so the next snapshot recovers them, but discrete events in a dropped frame are lost. The sequence numbers tell a reader exactly how many frames it lost.
 - At most four readers at a time. Inbound frames other than `ChatSend` and `Request` are ignored.
+- Lobby control does what the setup screen does and no more (no changing another human's slot, no map the map cache does not list), and the screen's handlers are not atomic with the service: two readers, or a reader and the user, changing the same thing race as two users would.
 - Queries are answered on the main thread between frames; a very large page costs main-thread time, which is why pages are capped and the number of requests per frame is limited. Query results are not synchronized across clients: they describe this client's view of the simulation at the moment of the query.
 - Known engine constraint: the engine's `operator new` is only 4-byte aligned, but protobuf `RepeatedField` stores tag bits in the low 3 bits of its heap pointer. Protobuf messages with repeated scalar fields (`cells`, `selected_object_ids`, `contained_ids`) must therefore be arena-allocated in the exporter, on an arena whose blocks come from `_aligned_malloc`, never from the engine's `new`. Query results are built in reused arena messages for the same reason; the inbound `Request` and `ChatSend` messages contain no repeated fields and are decoded on the stack.
 - The schema may grow; add-only changes keep older readers working. Regenerate your bindings from the proto.
@@ -1078,6 +1107,7 @@ Paging for the queries that can return many rows. The cursor is opaque to the re
 | 18 | `camera_follow` | CameraFollowQuery | one of `query`.  |
 | 19 | `replay_control` | ReplayControlQuery | one of `query`.  |
 | 20 | `observe` | ObserveQuery | one of `query`.  |
+| 21 | `lobby_control` | LobbyControlQuery | one of `query`.  |
 
 #### `Response`
 
@@ -1097,6 +1127,7 @@ Paging for the queries that can return many rows. The cursor is opaque to the re
 | 18 | `camera_follow` | CameraState | one of `result`.  |
 | 19 | `replay_control` | ReplayState | one of `result`.  |
 | 20 | `observe` | ObserveState | one of `result`.  |
+| 21 | `lobby_control` | LobbyControlResult | one of `result`.  |
 
 #### `CatalogQuery`
 
@@ -1445,6 +1476,55 @@ The observer's point of view: whose units, shroud and radar the local view shows
 |---|---|---|---|
 | 1 | `player_index` | int32 | the player looked at, -1 for none |
 | 2 | `full_view` | bool | the view really switched to that player; false when the game only remembers the choice for its panels |
+
+#### `LobbyKick`
+
+Presses the Kick option of a human's slot dropdown. Host only.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `close_slot` | bool | leave the slot closed instead of open |
+
+#### `LobbyPress`
+
+The Accept button (a client) or the Start button (the host), if the screen has it enabled.
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+
+#### `LobbyControlQuery`
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `lobby_slot` | uint32 | the slot an action in the slot group targets, 0-based as in LobbyState; ignored by the lobby-wide actions |
+| 10 | `set_slot_state` | LobbySlotState | one of `action`. host only: OPEN, CLOSED, AI_EASY, AI_MEDIUM or AI_BRUTAL (the screen's Hard); a human's slot needs kick |
+| 11 | `kick` | LobbyKick | one of `action`. host only: remove the human in the slot |
+| 12 | `faction` | string | one of `action`. a side as in LobbyState (e.g. "America"), "Random" or "Observer" (where the lobby offers it) |
+| 13 | `color` | uint32 | one of `action`. packed 0xAARRGGBB as in LobbyState, 0 = Random; a colour another slot holds is refused |
+| 14 | `team` | int32 | one of `action`. 0-based team, -1 = none |
+| 15 | `start_position` | int32 | one of `action`. 0-based start position of the map, -1 = clear; the screen's own rules for who may place whom |
+| 16 | `map_name` | string | one of `action`. host only: a multiplayer map as in LobbyState.map_name (or the game's own path of it) |
+| 17 | `starting_cash` | uint32 | one of `action`. host only: one of the amounts the screen offers |
+| 18 | `limit_superweapons` | bool | one of `action`. host only |
+| 19 | `game_speed_fps` | uint32 | one of `action`. skirmish only: the speed slider, 15..61 (61 = no limit) |
+| 20 | `accept` | LobbyPress | one of `action`. a client: tell the host it accepts the options |
+| 21 | `start` | LobbyPress | one of `action`. the host: the Start button; with unready players the game only announces the intent to start |
+
+#### enum `LobbyChangeRoute`
+
+| Value | Name | Meaning |
+|---|---|---|
+| 0 | `LOBBY_CHANGE_APPLIED` | the lobby changed at once (skirmish, a LAN host); the next LobbyState shows it |
+| 1 | `LOBBY_CHANGE_REQUESTED_FROM_HOST` | a LAN client asked the host; the LobbyState follows when the host confirms |
+| 2 | `LOBBY_CHANGE_REQUESTED_FROM_SERVICE` | Generals Online: the request went to the lobby service, which decides and echoes it back |
+
+#### `LobbyControlResult`
+
+| # | Field | Type | Meaning |
+|---|---|---|---|
+| 1 | `kind` | LobbyKind |  |
+| 2 | `route` | LobbyChangeRoute |  |
+| 3 | `note` | string | e.g. what Start does with unready players; empty otherwise |
 
 #### `NotableUnit`
 

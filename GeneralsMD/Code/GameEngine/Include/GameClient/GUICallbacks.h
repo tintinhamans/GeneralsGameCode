@@ -350,6 +350,12 @@ Bool WOLLobbyMenuSubmitChatLine( UnicodeString text );
 Bool LanLobbyMenuSubmitChatLine( UnicodeString text );
 Bool LanGameOptionsMenuSubmitChatLine( UnicodeString text );
 
+/// Stats pipe lobby control: each game setup screen describes its controls (FALSE when it is not open), and the map selector's OK path runs without the selector.
+struct StatsLobbyScreen;
+Bool SkirmishGameOptionsMenuStatsLobby( StatsLobbyScreen& out );
+Bool LanGameOptionsMenuStatsLobby( StatsLobbyScreen& out );
+Bool WOLGameSetupMenuStatsLobby( StatsLobbyScreen& out );
+
 
 // Diplomacy Controls --------------------------------------------------------------------------------
 WindowMsgHandledType DiplomacySystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 );
