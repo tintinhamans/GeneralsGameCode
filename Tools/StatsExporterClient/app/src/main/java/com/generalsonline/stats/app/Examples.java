@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * The example-code generator: a list of scenarios, each a complete, minimal, runnable program that uses the library for
@@ -41,15 +42,13 @@ final class Examples {
         INSPECT_OBJECT("inspect-object", "InspectObject", "Inspect one object by id",
             "Look a live object up by the id an event, a selection or a view statistic gave: template, owner, place, health, veterancy."),
         CAMERA_CONTROL("camera-control", "CameraControl", "Move the camera and follow a unit",
-            "Pan the game's camera with a transition, then lock it on a unit. Needs an observer or a replay; an active player gets NOT_ALLOWED."),
+            "Pan the game's camera with a transition, then lock it on a unit. Works in any running match; the game answers with a reason when it cannot."),
         REPLAY_CONTROL("replay-control", "ReplayControl", "Pause, resume and change the speed of a replay",
             "Steer a replay playback: pause, resume, a speed ratio (capped by the game) and fast forward."),
         VIEW_STATS("view-stats", "ViewStatsShare", "Print each player's share of the value in view",
             "Read the ViewStats frames and print what share of the value inside the camera's view each player holds."),
         DIRECTOR("director", "RunDirector", "Run the automatic camera director",
             "Let the Director steer the camera in a mode (hotspot, highlights, overview or all three) and print what it does."),
-        FAKE_SERVER("fake-server", "FakeServer", "Serve a dump as a fake game and connect to it",
-            "Play a recorded dump back as a game, in this process, and read it with the same code that reads a live game."),
         CONTROL_LOBBY("lobby-control", "ControlLobby", "Change the game setup lobby",
             "Put a computer opponent into an open slot, choose its faction and set the starting cash, through the setup screen's own controls. The screen's rules apply: NOT_ALLOWED where the user could not.");
 
@@ -106,29 +105,99 @@ final class Examples {
 
     /**
      * What the user picked on screen. Scenarios ignore the parts they do not need.
-     *
-     * @param playerName the player to follow, by lobby name
-     * @param column the Players column (see {@link #statColumns})
-     * @param eventKind the event kind to react to
-     * @param channel the chat channel to send to
-     * @param audience the in-match chat audience
-     * @param chatText the line to send
-     * @param templateName the object template to look up in the catalog
-     * @param side the side to list templates of
-     * @param objectId the object to inspect or follow
-     * @param cameraX the world x to move the camera to
-     * @param cameraY the world y to move the camera to
-     * @param zoom the camera zoom
-     * @param replaySpeed the replay speed ratio
-     * @param directorMode the mode of the director
-     * @param dumpFile the dump file the fake game plays
      */
-    record Selection(String playerName, String column, StatEventKind eventKind, ChatChannel channel, ChatAudience audience, String chatText,
-                     String templateName, String side, int objectId, double cameraX, double cameraY, double zoom, double replaySpeed, DirectorMode directorMode,
-                     String dumpFile) {
+    static final class Selection {
+        private final String playerName;
+        private final String column;
+        private final StatEventKind eventKind;
+        private final ChatChannel channel;
+        private final ChatAudience audience;
+        private final String chatText;
+        private final String templateName;
+        private final String side;
+        private final int objectId;
+        private final double cameraX;
+        private final double cameraY;
+        private final double zoom;
+        private final double replaySpeed;
+        private final DirectorMode directorMode;
+
+        Selection(String playerName, String column, StatEventKind eventKind, ChatChannel channel, ChatAudience audience, String chatText, String templateName, String side, int objectId, double cameraX, double cameraY, double zoom, double replaySpeed, DirectorMode directorMode) {
+            this.playerName = playerName;
+            this.column = column;
+            this.eventKind = eventKind;
+            this.channel = channel;
+            this.audience = audience;
+            this.chatText = chatText;
+            this.templateName = templateName;
+            this.side = side;
+            this.objectId = objectId;
+            this.cameraX = cameraX;
+            this.cameraY = cameraY;
+            this.zoom = zoom;
+            this.replaySpeed = replaySpeed;
+            this.directorMode = directorMode;
+        }
+
+        String playerName() {
+            return playerName;
+        }
+
+        String column() {
+            return column;
+        }
+
+        StatEventKind eventKind() {
+            return eventKind;
+        }
+
+        ChatChannel channel() {
+            return channel;
+        }
+
+        ChatAudience audience() {
+            return audience;
+        }
+
+        String chatText() {
+            return chatText;
+        }
+
+        String templateName() {
+            return templateName;
+        }
+
+        String side() {
+            return side;
+        }
+
+        int objectId() {
+            return objectId;
+        }
+
+        double cameraX() {
+            return cameraX;
+        }
+
+        double cameraY() {
+            return cameraY;
+        }
+
+        double zoom() {
+            return zoom;
+        }
+
+        double replaySpeed() {
+            return replaySpeed;
+        }
+
+        DirectorMode directorMode() {
+            return directorMode;
+        }
+
         static Selection defaults() {
             return new Selection("Alice", "Money", StatEventKind.STATEVENT_KILL, ChatChannel.CHAT_CHANNEL_MATCH, ChatAudience.CHAT_AUDIENCE_EVERYONE, "gg wp",
-                "AmericaTankCrusader", "America", 1234, 1800.0, 2400.0, 1.2, 0.5, DirectorMode.DIRECTOR, "match.dump");
+                "AmericaTankCrusader", "America", 1234, 1800.0, 2400.0, 1.2, 0.5, DirectorMode.DIRECTOR);
         }
 
         private static String orElse(String value, String fallback) {
@@ -136,64 +205,136 @@ final class Examples {
         }
 
         Selection withPlayer(String name) {
-            return new Selection(orElse(name, playerName), column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
+            return new Selection(orElse(name, playerName), column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode);
         }
 
         Selection withColumn(String name) {
-            return new Selection(playerName, name, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
+            return new Selection(playerName, name, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode);
         }
 
         Selection withEventKind(StatEventKind kind) {
-            return new Selection(playerName, column, kind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
+            return new Selection(playerName, column, kind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode);
         }
 
         Selection withChannel(ChatChannel next) {
-            return new Selection(playerName, column, eventKind, next, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
+            return new Selection(playerName, column, eventKind, next, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode);
         }
 
         Selection withAudience(ChatAudience next) {
-            return new Selection(playerName, column, eventKind, channel, next, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
+            return new Selection(playerName, column, eventKind, channel, next, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode);
         }
 
         Selection withChatText(String text) {
-            return new Selection(playerName, column, eventKind, channel, audience, text, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
+            return new Selection(playerName, column, eventKind, channel, audience, text, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode);
         }
 
         /** The template to look up and the side to list (a blank one keeps the current value). */
         Selection withTemplate(String name, String forSide) {
-            return new Selection(playerName, column, eventKind, channel, audience, chatText, orElse(name, templateName), orElse(forSide, side), objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
+            return new Selection(playerName, column, eventKind, channel, audience, chatText, orElse(name, templateName), orElse(forSide, side), objectId, cameraX, cameraY, zoom, replaySpeed, directorMode);
         }
 
         Selection withObjectId(int id) {
-            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, id, cameraX, cameraY, zoom, replaySpeed, directorMode, dumpFile);
+            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, id, cameraX, cameraY, zoom, replaySpeed, directorMode);
         }
 
         /** Where the camera goes, and at what zoom. */
         Selection withCamera(double x, double y, double nextZoom) {
-            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, x, y, nextZoom, replaySpeed, directorMode, dumpFile);
+            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, x, y, nextZoom, replaySpeed, directorMode);
         }
 
         Selection withReplaySpeed(double speed) {
-            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, speed, directorMode, dumpFile);
+            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, speed, directorMode);
         }
 
         Selection withDirectorMode(DirectorMode mode) {
-            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, mode, dumpFile);
+            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, mode);
         }
 
-        Selection withDumpFile(String file) {
-            return new Selection(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode, orElse(file, dumpFile));
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Selection)) {
+                return false;
+            }
+            Selection other = (Selection) o;
+            return Objects.equals(playerName, other.playerName)
+                    && Objects.equals(column, other.column)
+                    && Objects.equals(eventKind, other.eventKind)
+                    && Objects.equals(channel, other.channel)
+                    && Objects.equals(audience, other.audience)
+                    && Objects.equals(chatText, other.chatText)
+                    && Objects.equals(templateName, other.templateName)
+                    && Objects.equals(side, other.side)
+                    && objectId == other.objectId
+                    && Double.compare(cameraX, other.cameraX) == 0
+                    && Double.compare(cameraY, other.cameraY) == 0
+                    && Double.compare(zoom, other.zoom) == 0
+                    && Double.compare(replaySpeed, other.replaySpeed) == 0
+                    && Objects.equals(directorMode, other.directorMode);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(playerName, column, eventKind, channel, audience, chatText, templateName, side, objectId, cameraX, cameraY, zoom, replaySpeed, directorMode);
+        }
+
+        @Override
+        public String toString() {
+            return "Selection[" + "playerName=" + playerName + ", column=" + column + ", eventKind=" + eventKind + ", channel=" + channel + ", audience=" + audience + ", chatText=" + chatText + ", templateName=" + templateName + ", side=" + side + ", objectId=" + objectId + ", cameraX=" + cameraX + ", cameraY=" + cameraY + ", zoom=" + zoom + ", replaySpeed=" + replaySpeed + ", directorMode=" + directorMode + "]";
         }
     }
 
     /**
      * How a column of the Players table is read from a {@code PlayerView} named {@code player}.
-     *
-     * @param name the column header
-     * @param expression a Java expression over {@code player} (a PlayerView) whose value can be printed
-     * @param note a sentence for the generated comment, or an empty text
      */
-    record StatColumn(String name, String expression, String note) {
+    static final class StatColumn {
+        private final String name;
+        private final String expression;
+        private final String note;
+
+        StatColumn(String name, String expression, String note) {
+            this.name = name;
+            this.expression = expression;
+            this.note = note;
+        }
+
+        String name() {
+            return name;
+        }
+
+        String expression() {
+            return expression;
+        }
+
+        String note() {
+            return note;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof StatColumn)) {
+                return false;
+            }
+            StatColumn other = (StatColumn) o;
+            return Objects.equals(name, other.name)
+                    && Objects.equals(expression, other.expression)
+                    && Objects.equals(note, other.note);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, expression, note);
+        }
+
+        @Override
+        public String toString() {
+            return "StatColumn[" + "name=" + name + ", expression=" + expression + ", note=" + note + "]";
+        }
     }
 
     private static StatColumn col(String name, String expression) {
@@ -252,10 +393,86 @@ final class Examples {
         col("Ping ms", "player.stats().getNetwork().getPingMs()", "-1 for the local player or no connection"));
 
     /** One line of the generated event handler. */
-    private record EventField(String label, String expression) {
+    private static final class EventField {
+        private final String label;
+        private final String expression;
+
+        private EventField(String label, String expression) {
+            this.label = label;
+            this.expression = expression;
+        }
+
+        String label() {
+            return label;
+        }
+
+        String expression() {
+            return expression;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof EventField)) {
+                return false;
+            }
+            EventField other = (EventField) o;
+            return Objects.equals(label, other.label)
+                    && Objects.equals(expression, other.expression);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(label, expression);
+        }
+
+        @Override
+        public String toString() {
+            return "EventField[" + "label=" + label + ", expression=" + expression + "]";
+        }
     }
 
-    private record EventInfo(String description, List<EventField> fields) {
+    private static final class EventInfo {
+        private final String description;
+        private final List<EventField> fields;
+
+        private EventInfo(String description, List<EventField> fields) {
+            this.description = description;
+            this.fields = fields;
+        }
+
+        String description() {
+            return description;
+        }
+
+        List<EventField> fields() {
+            return fields;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof EventInfo)) {
+                return false;
+            }
+            EventInfo other = (EventInfo) o;
+            return Objects.equals(description, other.description)
+                    && Objects.equals(fields, other.fields);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(description, fields);
+        }
+
+        @Override
+        public String toString() {
+            return "EventInfo[" + "description=" + description + ", fields=" + fields + "]";
+        }
     }
 
     private static EventField field(String label, String expression) {
@@ -364,8 +581,10 @@ final class Examples {
         Map<String, String> values = new LinkedHashMap<>();
         String template;
         switch (scenario) {
-            case PRINT_FRAMES -> template = ExampleTemplates.PRINT_FRAMES;
-            case TRACK_PLAYER -> {
+            case PRINT_FRAMES:
+                template = ExampleTemplates.PRINT_FRAMES;
+                break;
+            case TRACK_PLAYER:
                 StatColumn column = statColumn(selection.column());
                 if (column == null) {
                     throw new IllegalArgumentException("unknown column '" + selection.column() + "'; known: " + columnNames());
@@ -375,8 +594,8 @@ final class Examples {
                 values.put("EXPRESSION", column.expression());
                 values.put("NOTE", column.note().isEmpty() ? "." : " (" + column.note() + ").");
                 template = ExampleTemplates.TRACK_PLAYER;
-            }
-            case REACT_TO_EVENT -> {
+                break;
+            case REACT_TO_EVENT:
                 EventInfo info = EVENT_INFO.get(selection.eventKind());
                 if (info == null) {
                     throw new IllegalArgumentException("unknown event kind " + selection.eventKind());
@@ -386,10 +605,14 @@ final class Examples {
                 values.put("KIND_DESCRIPTION", info.description());
                 values.put("FIELDS", fieldLines(info));
                 template = ExampleTemplates.REACT_TO_EVENT;
-            }
-            case CAMERA_BOX -> template = ExampleTemplates.CAMERA_BOX;
-            case LOBBY -> template = ExampleTemplates.LOBBY;
-            case SEND_CHAT -> {
+                break;
+            case CAMERA_BOX:
+                template = ExampleTemplates.CAMERA_BOX;
+                break;
+            case LOBBY:
+                template = ExampleTemplates.LOBBY;
+                break;
+            case SEND_CHAT:
                 ChatChannel channel = selection.channel();
                 values.put("TEXT", javaString(selection.chatText()));
                 values.put("CHANNEL_CONSTANT", channel.name());
@@ -397,41 +620,46 @@ final class Examples {
                 values.put("AUDIENCE_ARGUMENT", channel == ChatChannel.CHAT_CHANNEL_MATCH && selection.audience() != ChatAudience.CHAT_AUDIENCE_EVERYONE
                     ? ", ChatAudience." + selection.audience().name() : "");
                 template = ExampleTemplates.SEND_CHAT;
-            }
-            case RECORD_REPLAY -> template = ExampleTemplates.RECORD_REPLAY;
-            case UI_THREAD -> template = ExampleTemplates.UI_THREAD;
-            case QUERY_CATALOG -> {
+                break;
+            case RECORD_REPLAY:
+                template = ExampleTemplates.RECORD_REPLAY;
+                break;
+            case UI_THREAD:
+                template = ExampleTemplates.UI_THREAD;
+                break;
+            case QUERY_CATALOG:
                 values.put("SIDE", javaString(selection.side()));
                 values.put("NAME", javaString(selection.templateName()));
                 template = ExampleTemplates.QUERY_CATALOG;
-            }
-            case INSPECT_OBJECT -> {
+                break;
+            case INSPECT_OBJECT:
                 values.put("OBJECT_ID", Integer.toString(selection.objectId()));
                 template = ExampleTemplates.INSPECT_OBJECT;
-            }
-            case CAMERA_CONTROL -> {
+                break;
+            case CAMERA_CONTROL:
                 values.put("X", number(selection.cameraX()));
                 values.put("Y", number(selection.cameraY()));
                 values.put("ZOOM", number(selection.zoom()));
                 values.put("OBJECT_ID", Integer.toString(selection.objectId()));
                 template = ExampleTemplates.CAMERA_CONTROL;
-            }
-            case REPLAY_CONTROL -> {
+                break;
+            case REPLAY_CONTROL:
                 values.put("SPEED", number(selection.replaySpeed()));
                 template = ExampleTemplates.REPLAY_CONTROL;
-            }
-            case VIEW_STATS -> template = ExampleTemplates.VIEW_STATS;
-            case DIRECTOR -> {
+                break;
+            case VIEW_STATS:
+                template = ExampleTemplates.VIEW_STATS;
+                break;
+            case DIRECTOR:
                 values.put("MODE", selection.directorMode().name());
                 values.put("MODE_DESCRIPTION", modeDescription(selection.directorMode()));
                 template = ExampleTemplates.DIRECTOR;
-            }
-            case FAKE_SERVER -> {
-                values.put("DUMP", javaString(selection.dumpFile()));
-                template = ExampleTemplates.FAKE_SERVER;
-            }
-            case CONTROL_LOBBY -> template = ExampleTemplates.CONTROL_LOBBY;
-            default -> throw new IllegalArgumentException("unknown scenario " + scenario);
+                break;
+            case CONTROL_LOBBY:
+                template = ExampleTemplates.CONTROL_LOBBY;
+                break;
+            default:
+                throw new IllegalArgumentException("unknown scenario " + scenario);
         }
         return fill(template, values);
     }
@@ -490,23 +718,35 @@ final class Examples {
     }
 
     private static String modeDescription(DirectorMode mode) {
-        return switch (mode) {
-            case HOTSPOT -> "it goes to the place with the most going on and stays until something clearly better appears";
-            case HIGHLIGHTS -> "it waits for a superweapon launch, a hero death or a big structure loss, shows it and returns";
-            case OVERVIEW -> "it tours every player's base and army while it is quiet, and hands over to hotspots in a fight";
-            case DIRECTOR -> "highlights interrupt, hotspots are followed and the overview fills the quiet";
-        };
+        switch (mode) {
+            case HOTSPOT:
+                return "it goes to the place with the most going on and stays until something clearly better appears";
+            case HIGHLIGHTS:
+                return "it waits for a superweapon launch, a hero death or a big structure loss, shows it and returns";
+            case OVERVIEW:
+                return "it tours every player's base and army while it is quiet, and hands over to hotspots in a fight";
+            case DIRECTOR:
+                return "highlights interrupt, hotspots are followed and the overview fills the quiet";
+            default:
+                throw new IllegalArgumentException(String.valueOf(mode));
+        }
     }
 
     private static String channelDescription(ChatChannel channel, ChatAudience audience) {
-        return switch (channel) {
-            case CHAT_CHANNEL_MATCH -> "the in-match chat (" + audience.name().replace("CHAT_AUDIENCE_", "").toLowerCase(Locale.ROOT) + ")";
-            case CHAT_CHANNEL_GAME_LOBBY -> "the game setup lobby chat";
-            case CHAT_CHANNEL_ROOM -> "the chat room";
-            case CHAT_CHANNEL_LAN_LOBBY -> "the LAN lobby chat";
-            case CHAT_CHANNEL_LAN_GAME -> "the LAN game setup chat";
-            default -> channel.name();
-        };
+        switch (channel) {
+            case CHAT_CHANNEL_MATCH:
+                return "the in-match chat (" + audience.name().replace("CHAT_AUDIENCE_", "").toLowerCase(Locale.ROOT) + ")";
+            case CHAT_CHANNEL_GAME_LOBBY:
+                return "the game setup lobby chat";
+            case CHAT_CHANNEL_ROOM:
+                return "the chat room";
+            case CHAT_CHANNEL_LAN_LOBBY:
+                return "the LAN lobby chat";
+            case CHAT_CHANNEL_LAN_GAME:
+                return "the LAN game setup chat";
+            default:
+                return channel.name();
+        }
     }
 
     /** "KILL" for STATEVENT_KILL. */
@@ -527,12 +767,24 @@ final class Examples {
         StringBuilder out = new StringBuilder();
         for (char c : text.toCharArray()) {
             switch (c) {
-                case '"' -> out.append("\\\"");
-                case '\\' -> out.append("\\\\");
-                case '\n' -> out.append("\\n");
-                case '\r' -> out.append("\\r");
-                case '\t' -> out.append("\\t");
-                default -> out.append(c < 32 ? String.format("\\u%04x", (int) c) : String.valueOf(c));
+                case '"':
+                    out.append("\\\"");
+                    break;
+                case '\\':
+                    out.append("\\\\");
+                    break;
+                case '\n':
+                    out.append("\\n");
+                    break;
+                case '\r':
+                    out.append("\\r");
+                    break;
+                case '\t':
+                    out.append("\\t");
+                    break;
+                default:
+                    out.append(c < 32 ? String.format("\\u%04x", (int) c) : String.valueOf(c));
+                    break;
             }
         }
         return out.toString();

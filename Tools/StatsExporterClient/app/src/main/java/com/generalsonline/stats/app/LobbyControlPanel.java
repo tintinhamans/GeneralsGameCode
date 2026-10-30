@@ -6,7 +6,6 @@ import com.generalsonline.stats.proto.LobbyControlResult;
 import com.generalsonline.stats.proto.LobbySlot;
 import com.generalsonline.stats.proto.LobbyState;
 
-import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -15,7 +14,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
-import javax.swing.BoxLayout;
 import java.awt.BorderLayout;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +47,7 @@ final class LobbyControlPanel extends JPanel {
     private final JComboBox<String> positionBox = new JComboBox<>(new String[] {"None", "1", "2", "3", "4", "5", "6", "7", "8"});
     private final JButton positionButton = new JButton("Set start position");
 
-    private final JTextField mapField = new JTextField(34);
+    private final JTextField mapField = new JTextField(22);
     private final JButton mapButton = new JButton("Change map");
     private final JComboBox<String> cashBox = new JComboBox<>(new String[] {"5000", "10000", "20000", "50000", "100000"});
     private final JButton cashButton = new JButton("Set cash");
@@ -61,7 +59,7 @@ final class LobbyControlPanel extends JPanel {
     private final JButton acceptButton = new JButton("Accept");
     private final JButton startButton = new JButton("Start");
 
-    private final JLabel resultLabel = PanelKit.statusLabel();
+    private final JLabel resultLabel = PanelKit.statusLabel("Changes you send to the lobby show their result here.");
     private String colorSignature = "";
 
     LobbyControlPanel(PipeCommands commands, GuiModel model) {
@@ -113,20 +111,32 @@ final class LobbyControlPanel extends JPanel {
         acceptButton.addActionListener(e -> send("accepted", LobbyControl.accept()));
         startButton.addActionListener(e -> send("start pressed", LobbyControl.start()));
 
-        JPanel stack = new JPanel();
-        stack.setLayout(new BoxLayout(stack, BoxLayout.Y_AXIS));
-        stack.setBorder(BorderFactory.createTitledBorder("Change the lobby (works like the setup screen: the host changes the lobby, a client its own slot)"));
-        stack.add(PanelKit.row(new JLabel("slot"), slotSpinner, openButton, closeButton, kickButton, keepClosed, new JLabel("   computer"), aiBox, aiButton));
-        stack.add(PanelKit.row(new JLabel("faction"), factionBox, factionButton, new JLabel("color"), colorBox, colorButton, new JLabel("team"), teamBox, teamButton,
-            new JLabel("start position"), positionBox, positionButton));
-        stack.add(PanelKit.row(new JLabel("map"), mapField, mapButton, new JLabel("starting cash"), cashBox, cashButton, limitBox, limitButton));
-        stack.add(PanelKit.row(new JLabel("skirmish speed"), speedSpinner, speedButton, new JLabel("   "), acceptButton, startButton));
+        Ui.primary(acceptButton);
+        keepClosed.setOpaque(false);
+        limitBox.setOpaque(false);
+        JPanel slotCard = Ui.card("Slot", "Pick the slot here or click its row in the table.", new Ui.Form(96)
+            .row("Slot", slotSpinner)
+            .row("Slot state", openButton, closeButton)
+            .row("Player", kickButton, keepClosed)
+            .row("Computer", aiBox, aiButton)).width(360);
+        JPanel playerCard = Ui.card("Player in the slot", "A client may change its own slot only.", new Ui.Form(96)
+            .row("Faction", factionBox, factionButton)
+            .row("Color", colorBox, colorButton)
+            .row("Team", teamBox, teamButton)
+            .row("Start position", positionBox, positionButton)).width(360);
+        JPanel lobbyCard = Ui.card("The lobby", "Only the host changes these.", Ui.stack(10, Ui.field("Map", mapField), new Ui.Form(96)
+            .row("", mapButton)
+            .row("Starting cash", cashBox, cashButton)
+            .row("Superweapons", limitBox, limitButton)
+            .row("Skirmish speed", speedSpinner, speedButton)
+            .row("Accept, then start", acceptButton, startButton))).width(360);
 
-        JPanel bottom = new JPanel(new BorderLayout());
-        bottom.setBorder(BorderFactory.createEmptyBorder(2, 10, 4, 10));
-        bottom.add(resultLabel, BorderLayout.CENTER);
-        add(stack, BorderLayout.CENTER);
-        add(bottom, BorderLayout.SOUTH);
+        JPanel cards = Ui.flow(slotCard, playerCard, lobbyCard);
+        JPanel bottom = new JPanel(new BorderLayout(0, Ui.GAP));
+        bottom.setOpaque(false);
+        bottom.add(resultLabel, BorderLayout.NORTH);
+        bottom.add(cards, BorderLayout.CENTER);
+        add(bottom, BorderLayout.CENTER);
     }
 
     private int slot() {
@@ -141,11 +151,14 @@ final class LobbyControlPanel extends JPanel {
     }
 
     static LobbyControl.AiLevel aiLevel(int index) {
-        return switch (index) {
-            case 0 -> LobbyControl.AiLevel.EASY;
-            case 1 -> LobbyControl.AiLevel.MEDIUM;
-            default -> LobbyControl.AiLevel.BRUTAL;
-        };
+        switch (index) {
+            case 0:
+                return LobbyControl.AiLevel.EASY;
+            case 1:
+                return LobbyControl.AiLevel.MEDIUM;
+            default:
+                return LobbyControl.AiLevel.BRUTAL;
+        }
     }
 
     /** A color as typed: Random (or nothing) is 0, else hex with or without # and 0x; null when it is not one. */
@@ -173,12 +186,21 @@ final class LobbyControlPanel extends JPanel {
     /** What the answer says: the kind of lobby, how the change travels and the game's note. */
     static String describe(LobbyControlResult r) {
         String kind = r.getKind().name().replace("LOBBY_KIND_", "").toLowerCase(Locale.ROOT);
-        String route = switch (r.getRoute()) {
-            case LOBBY_CHANGE_APPLIED -> "applied at once";
-            case LOBBY_CHANGE_REQUESTED_FROM_HOST -> "requested from the host, the lobby follows when it confirms";
-            case LOBBY_CHANGE_REQUESTED_FROM_SERVICE -> "requested from the lobby service, the lobby follows when it confirms";
-            default -> "sent";
-        };
+        String route;
+        switch (r.getRoute()) {
+            case LOBBY_CHANGE_APPLIED:
+                route = "applied at once";
+                break;
+            case LOBBY_CHANGE_REQUESTED_FROM_HOST:
+                route = "requested from the host, the lobby follows when it confirms";
+                break;
+            case LOBBY_CHANGE_REQUESTED_FROM_SERVICE:
+                route = "requested from the lobby service, the lobby follows when it confirms";
+                break;
+            default:
+                route = "sent";
+                break;
+        }
         return kind + " lobby, " + route + (r.getNote().isEmpty() ? "" : " (" + r.getNote() + ")");
     }
 
@@ -244,22 +266,36 @@ final class LobbyControlPanel extends JPanel {
     // -- For the tests.
 
     JButton button(String name) {
-        return switch (name) {
-            case "open" -> openButton;
-            case "close" -> closeButton;
-            case "kick" -> kickButton;
-            case "ai" -> aiButton;
-            case "faction" -> factionButton;
-            case "color" -> colorButton;
-            case "team" -> teamButton;
-            case "position" -> positionButton;
-            case "map" -> mapButton;
-            case "cash" -> cashButton;
-            case "limit" -> limitButton;
-            case "speed" -> speedButton;
-            case "accept" -> acceptButton;
-            default -> startButton;
-        };
+        switch (name) {
+            case "open":
+                return openButton;
+            case "close":
+                return closeButton;
+            case "kick":
+                return kickButton;
+            case "ai":
+                return aiButton;
+            case "faction":
+                return factionButton;
+            case "color":
+                return colorButton;
+            case "team":
+                return teamButton;
+            case "position":
+                return positionButton;
+            case "map":
+                return mapButton;
+            case "cash":
+                return cashButton;
+            case "limit":
+                return limitButton;
+            case "speed":
+                return speedButton;
+            case "accept":
+                return acceptButton;
+            default:
+                return startButton;
+        }
     }
 
     JSpinner slotSpinner() {
@@ -267,14 +303,20 @@ final class LobbyControlPanel extends JPanel {
     }
 
     JComboBox<String> box(String name) {
-        return switch (name) {
-            case "ai" -> aiBox;
-            case "faction" -> factionBox;
-            case "color" -> colorBox;
-            case "team" -> teamBox;
-            case "position" -> positionBox;
-            default -> cashBox;
-        };
+        switch (name) {
+            case "ai":
+                return aiBox;
+            case "faction":
+                return factionBox;
+            case "color":
+                return colorBox;
+            case "team":
+                return teamBox;
+            case "position":
+                return positionBox;
+            default:
+                return cashBox;
+        }
     }
 
     JTextField mapField() {

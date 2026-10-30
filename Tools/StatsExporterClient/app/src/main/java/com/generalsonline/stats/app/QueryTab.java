@@ -14,7 +14,6 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
@@ -22,12 +21,10 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import static com.generalsonline.stats.app.RowTableModel.column;
@@ -104,6 +101,7 @@ final class QueryTab extends JPanel {
     private final JCheckBox productionBox = new JCheckBox("production");
     private final JCheckBox interestBox = new JCheckBox("interest map");
     private final JSpinner lightMs = PanelKit.spinner(100, 0, 60000, 50);
+    private final JCheckBox everyFrameBox = new JCheckBox("every frame");
     private final JSpinner fullMs = PanelKit.spinner(250, 0, 60000, 50);
     private final JSpinner viewMs = PanelKit.spinner(250, 0, 60000, 50);
     private final JSpinner interestMs = PanelKit.spinner(500, 250, 60000, 50);
@@ -111,6 +109,14 @@ final class QueryTab extends JPanel {
     private final JSpinner notableCost = PanelKit.spinner(2000, 0, 1_000_000, 100);
     private final JSpinner tradeMs = PanelKit.spinner(15000, 1000, 60000, 1000);
     private final JSpinner intensityMs = PanelKit.spinner(5000, 1000, 60000, 1000);
+    private final JCheckBox followSelectionBox = new JCheckBox("Follow selection", Prefs.getBoolean("followSelection", true));
+    private final JPanel selectionBar = Ui.bar();
+    private JPanel feedPanel;
+    private List<Integer> lastSelection = new ArrayList<>();
+    private int shownObject;
+    private boolean objectPending;
+    private long lastAutoNanos;
+    private boolean autoGone;
     private final JButton applyButton = new JButton("Apply");
     private final JButton resetButton = new JButton("Reset to defaults");
     private final JButton readButton = new JButton("Read from the game");
@@ -128,7 +134,7 @@ final class QueryTab extends JPanel {
         sections.addTab("Object", objectSection());
         sections.addTab("Player", playerSection());
         sections.addTab("Map", mapSection());
-        sections.addTab("Feed", feedSection());
+        feedPanel = feedSection();
         add(sections, BorderLayout.CENTER);
         refreshButtons();
     }
@@ -161,21 +167,24 @@ final class QueryTab extends JPanel {
     // -- Catalog.
 
     private JPanel catalogSection() {
-        JPanel bar = PanelKit.row(new JLabel("Name:"), nameField, new JLabel("Side:"), sideField, new JLabel("Kind:"), kindBox, buildableBox,
-            new JLabel("Rows per page:"), pageSize, searchButton, previousButton, nextButton, pageLabel);
+        buildableBox.setOpaque(false);
+        Ui.primary(searchButton);
+        JPanel bar = new Ui.Toolbar(Ui.labeled("Name", nameField), Ui.labeled("Side", sideField), Ui.labeled("Kind", kindBox), buildableBox,
+            Ui.labeled("Rows per page", pageSize), searchButton, previousButton, nextButton, pageLabel);
         searchButton.addActionListener(e -> search());
         nameField.addActionListener(e -> search());
         sideField.addActionListener(e -> search());
         previousButton.addActionListener(e -> load(pager.previous()));
         nextButton.addActionListener(e -> load(pager.next()));
-        JPanel top = new JPanel(new BorderLayout());
+        JPanel top = new JPanel(new BorderLayout(0, 6));
+        top.setOpaque(false);
+        top.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
         top.add(bar, BorderLayout.CENTER);
         top.add(catalogStatus, BorderLayout.SOUTH);
-        catalogStatus.setBorder(BorderFactory.createEmptyBorder(0, 8, 2, 8));
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(top, BorderLayout.NORTH);
-        panel.add(new JScrollPane(catalogTable), BorderLayout.CENTER);
-        return panel;
+        panel.add(Ui.scroll(catalogTable), BorderLayout.CENTER);
+        return Ui.pad(panel);
     }
 
     /** Fills the filters and searches; used by "Look up by name" in the catalog menu and by tests. */
@@ -223,15 +232,20 @@ final class QueryTab extends JPanel {
                 followRequest.accept(lastObjectId);
             }
         });
+        Ui.primary(inspectButton);
+        followSelectionBox.setOpaque(false);
+        followSelectionBox.setToolTipText("Inspect whatever you select in the game, and keep it up to date. Looking up an id yourself turns this off.");
+        selectionBar.setVisible(false);
         JPanel panel = new JPanel(new BorderLayout());
-        JPanel top = new JPanel(new BorderLayout());
-        top.add(PanelKit.row(new JLabel("Object id:"), objectField, inspectButton, followButton,
-            new JLabel("Ids are in the Events tab (right-click a row: Inspect object) and the In view tab (notable units).")), BorderLayout.CENTER);
+        JPanel top = new JPanel(new BorderLayout(0, 6));
+        top.setOpaque(false);
+        top.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+        top.add(Ui.stack(4, new Ui.Toolbar(Ui.labeled("Object id", objectField), inspectButton, followButton, followSelectionBox)
+            .hint("Ids are in the Events tab (right-click a row: Inspect object) and the In view tab (notable units)."), selectionBar), BorderLayout.CENTER);
         top.add(objectStatus, BorderLayout.SOUTH);
-        objectStatus.setBorder(BorderFactory.createEmptyBorder(0, 8, 2, 8));
         panel.add(top, BorderLayout.NORTH);
-        panel.add(new JScrollPane(objectArea), BorderLayout.CENTER);
-        return panel;
+        panel.add(Ui.scroll(objectArea), BorderLayout.CENTER);
+        return Ui.pad(panel);
     }
 
     /** Shows the Object section and asks the game about this object. */
@@ -241,17 +255,131 @@ final class QueryTab extends JPanel {
             PanelKit.fail(objectStatus, new PipeCommands.Failure("INVALID", "enter an object id (a whole number above 0)", false));
             return;
         }
+        if (followSelectionBox.isSelected()) {
+            followSelectionBox.setSelected(false);
+        }
+        showObject(objectId, false);
+    }
+
+    /**
+     * Asks the game about an object and shows the answer. An automatic request (following the selection) keeps the reading
+     * position of the text, says so in the status and, when the object is gone, keeps the last text and says that.
+     */
+    private void showObject(int objectId, boolean automatic) {
         objectField.setText(Long.toString(Format.u(objectId)));
-        PanelKit.info(objectStatus, "asking the game...");
+        if (!automatic) {
+            PanelKit.info(objectStatus, "asking the game...");
+        }
+        objectPending = true;
+        shownObject = objectId;
+        autoGone = false;
         commands.run(pipe -> pipe.object(objectId), detail -> {
+            objectPending = false;
+            boolean sameObject = lastObjectId == objectId;
             lastObjectId = objectId;
-            objectArea.setText(QueryText.object(detail, model.state()::playerName));
-            objectArea.setCaretPosition(0);
-            PanelKit.good(objectStatus, "object " + Format.u(objectId) + " found");
+            String text = QueryText.object(detail, model.state()::playerName);
+            if (!text.equals(objectArea.getText())) {
+                int caret = objectArea.getCaretPosition();
+                objectArea.setText(text);
+                objectArea.setCaretPosition(automatic && sameObject ? Math.min(caret, text.length()) : 0);
+            }
+            if (automatic) {
+                PanelKit.info(objectStatus, "Following the selection: object " + Format.u(objectId) + ", kept up to date");
+            } else {
+                PanelKit.good(objectStatus, "object " + Format.u(objectId) + " found");
+            }
         }, failure -> {
-            objectArea.setText("");
-            PanelKit.fail(objectStatus, failure);
+            objectPending = false;
+            if (automatic && "NOT_FOUND".equals(failure.kind())) {
+                autoGone = true;
+                PanelKit.warn(objectStatus, "Object " + Format.u(objectId) + " is gone (destroyed or removed). The text above is its last known state.");
+            } else if (automatic) {
+                PanelKit.fail(objectStatus, failure);
+            } else {
+                objectArea.setText("");
+                PanelKit.fail(objectStatus, failure);
+            }
         });
+    }
+
+    /** Turns "follow the selection" on or off (the setting of the Settings section). */
+    void setFollowSelection(boolean on) {
+        followSelectionBox.setSelected(on);
+    }
+
+    /**
+     * Called from the window's timer: inspects the object selected in the game when the selection changes, and refreshes it about
+     * once a second while it stays selected. Only while this section is on screen, so a hidden window asks the game for nothing.
+     */
+    void refreshSelection() {
+        List<Integer> selection = model.selectedObjects();
+        boolean changed = !selection.equals(lastSelection);
+        if (changed) {
+            lastSelection = new ArrayList<>(selection);
+            rebuildSelectionBar();
+        }
+        if (!followSelectionBox.isSelected() || !isShowing() || sections.getSelectedIndex() != 1) {
+            return;
+        }
+        long now = System.nanoTime();
+        if (selection.isEmpty()) {
+            if (changed && shownObject != 0) {
+                PanelKit.warn(objectStatus, "Object " + Format.u(shownObject) + " is no longer selected in the game. Showing its last known state.");
+            }
+            return;
+        }
+        if (objectPending) {
+            return;
+        }
+        boolean stillShown = selection.contains(shownObject);
+        if (changed && !stillShown) {
+            lastAutoNanos = now;
+            showObject(selection.get(0), true);
+        } else if (stillShown && !autoGone && now - lastAutoNanos >= 1_000_000_000L) {
+            lastAutoNanos = now;
+            showObject(shownObject, true);
+        }
+    }
+
+    /** "Selected in the game: 601 602 603": one click switches the inspector to another selected object. */
+    private void rebuildSelectionBar() {
+        selectionBar.removeAll();
+        if (lastSelection.isEmpty()) {
+            selectionBar.setVisible(false);
+            return;
+        }
+        selectionBar.add(Ui.caption("Selected in the game"));
+        int shown = 0;
+        for (int id : lastSelection) {
+            if (shown++ == 12) {
+                selectionBar.add(Ui.caption("+" + (lastSelection.size() - 12) + " more"));
+                break;
+            }
+            JButton chip = new JButton(Long.toString(Format.u(id)));
+            chip.putClientProperty("FlatLaf.style", "arc: 999; margin: 2,10,2,10");
+            chip.addActionListener(e -> showObject(id, true));
+            selectionBar.add(chip);
+        }
+        selectionBar.setVisible(true);
+        selectionBar.revalidate();
+    }
+
+    /** The feed settings, as a panel for the Settings section. */
+    JPanel feedPanel() {
+        return feedPanel;
+    }
+
+    /** Sends the settings saved by the last Apply, if any; called on every connect, because the game keeps them per connection. */
+    void applySaved() {
+        String saved = Prefs.get("feed", "");
+        if (saved.isEmpty()) {
+            return;
+        }
+        try {
+            sendFeed(FeedConfigQuery.parseFrom(java.util.Base64.getDecoder().decode(saved)), "your saved settings were sent to the game again");
+        } catch (com.google.protobuf.InvalidProtocolBufferException | IllegalArgumentException e) {
+            Prefs.put("feed", "");
+        }
     }
 
     // -- Player.
@@ -273,22 +401,59 @@ final class QueryTab extends JPanel {
                 PanelKit.fail(playerStatus, failure);
             });
         });
+        Ui.primary(playerButton);
         JPanel panel = new JPanel(new BorderLayout());
-        JPanel top = new JPanel(new BorderLayout());
-        top.add(PanelKit.row(new JLabel("Player:"), playerBox, playerButton), BorderLayout.CENTER);
+        JPanel top = new JPanel(new BorderLayout(0, 6));
+        top.setOpaque(false);
+        top.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+        top.add(new Ui.Toolbar(Ui.labeled("Player", playerBox), playerButton), BorderLayout.CENTER);
         top.add(playerStatus, BorderLayout.SOUTH);
-        playerStatus.setBorder(BorderFactory.createEmptyBorder(0, 8, 2, 8));
         panel.add(top, BorderLayout.NORTH);
-        panel.add(new JScrollPane(playerArea), BorderLayout.CENTER);
-        return panel;
+        panel.add(Ui.scroll(playerArea), BorderLayout.CENTER);
+        return Ui.pad(panel);
     }
 
     /** One entry of the player list: the engine's player index and the name. */
-    record PlayerChoice(int index, String name) {
+    static final class PlayerChoice {
+        private final int index;
+        private final String name;
+
+        PlayerChoice(int index, String name) {
+            this.index = index;
+            this.name = name;
+        }
+
+        int index() {
+            return index;
+        }
+
+        String name() {
+            return name;
+        }
+
         @Override
         public String toString() {
             return name + " (" + index + ")";
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof PlayerChoice)) {
+                return false;
+            }
+            PlayerChoice other = (PlayerChoice) o;
+            return index == other.index
+                    && Objects.equals(name, other.name);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(index, name);
+        }
+
     }
 
     /** Keeps the player list in step with the players of the match; cheap when nothing changed. */
@@ -326,19 +491,21 @@ final class QueryTab extends JPanel {
             });
         });
         mapArea.setRows(8);
+        Ui.primary(mapButton);
+        minimapBox.setOpaque(false);
         JPanel left = new JPanel(new BorderLayout());
-        JPanel top = new JPanel(new BorderLayout());
-        top.add(PanelKit.row(mapButton, minimapBox), BorderLayout.CENTER);
+        JPanel top = new JPanel(new BorderLayout(0, 6));
+        top.setOpaque(false);
+        top.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+        top.add(new Ui.Toolbar(mapButton, minimapBox), BorderLayout.CENTER);
         top.add(mapStatus, BorderLayout.SOUTH);
-        mapStatus.setBorder(BorderFactory.createEmptyBorder(0, 8, 2, 8));
         left.add(top, BorderLayout.NORTH);
-        left.add(new JScrollPane(mapArea), BorderLayout.CENTER);
+        left.add(Ui.scroll(mapArea), BorderLayout.CENTER);
         left.setPreferredSize(new Dimension(380, 300));
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, mapView);
-        split.setResizeWeight(0.35);
+        JSplitPane split = Ui.split(JSplitPane.HORIZONTAL_SPLIT, left, mapView, 0.35);
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(split, BorderLayout.CENTER);
-        return panel;
+        return Ui.pad(panel);
     }
 
     void showMap(MapDetail map) {
@@ -355,51 +522,6 @@ final class QueryTab extends JPanel {
     // -- Feed.
 
     private JPanel feedSection() {
-        JPanel form = new JPanel(new GridBagLayout());
-        form.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
-        GridBagConstraints c = new GridBagConstraints();
-        c.anchor = GridBagConstraints.WEST;
-        c.insets = new Insets(2, 4, 2, 4);
-        c.gridy = 0;
-        int x = 0;
-        for (JCheckBox box : List.of(eventsBox, cameraBox, chatBox, gridsBox, supplyBox, techBox, productionBox, interestBox)) {
-            c.gridx = x++;
-            form.add(box, c);
-        }
-        c.gridy = 1;
-        c.gridx = 0;
-        form.add(new JLabel("Light snapshot (ms):"), c);
-        c.gridx = 1;
-        form.add(lightMs, c);
-        c.gridx = 2;
-        form.add(new JLabel("Full (ms):"), c);
-        c.gridx = 3;
-        form.add(fullMs, c);
-        c.gridx = 4;
-        form.add(new JLabel("View stats (ms):"), c);
-        c.gridx = 5;
-        form.add(viewMs, c);
-        c.gridx = 6;
-        form.add(new JLabel("Interest (ms):"), c);
-        c.gridx = 7;
-        form.add(interestMs, c);
-        c.gridy = 2;
-        c.gridx = 0;
-        form.add(new JLabel("Grid resolution:"), c);
-        c.gridx = 1;
-        form.add(gridBox, c);
-        c.gridx = 2;
-        form.add(new JLabel("Notable cost:"), c);
-        c.gridx = 3;
-        form.add(notableCost, c);
-        c.gridx = 4;
-        form.add(new JLabel("Trade window (ms):"), c);
-        c.gridx = 5;
-        form.add(tradeMs, c);
-        c.gridx = 6;
-        form.add(new JLabel("Intensity window (ms):"), c);
-        c.gridx = 7;
-        form.add(intensityMs, c);
         showFeedControls(FeedConfig.newBuilder().setLightIntervalMs(100).setFullIntervalMs(250).setEvents(true).setCamera(true).setChat(true).setGrids(true).setSupply(true)
             .setTech(true).setProduction(true).setGridResolution(32).setViewStatsIntervalMs(250).setInterestIntervalMs(500).setNotableCost(2000).setTradeWindowMs(15000)
             .setIntensityWindowMs(5000).build());
@@ -419,23 +541,35 @@ final class QueryTab extends JPanel {
                 failure -> PanelKit.fail(feedStatus, failure));
         });
 
-        JPanel buttons = PanelKit.row(applyButton, resetButton, readButton, resyncButton,
-            new JLabel("Each reader has its own configuration; this changes only this window's."));
-        JPanel top = new JPanel(new BorderLayout());
-        top.add(form, BorderLayout.NORTH);
-        top.add(buttons, BorderLayout.CENTER);
+        Ui.primary(applyButton);
+        for (JCheckBox box : List.of(eventsBox, cameraBox, chatBox, gridsBox, supplyBox, techBox, productionBox, interestBox)) {
+            box.setOpaque(false);
+        }
+        JPanel streams = Ui.card("What this reader receives", "Each reader has its own configuration; this changes only this window's.",
+            Ui.bar(eventsBox, cameraBox, chatBox, gridsBox, supplyBox, techBox, productionBox, interestBox));
+        JPanel timing = Ui.card("How often", "Intervals in milliseconds; 0 turns a snapshot off. Every frame sends a light snapshot with each logic frame.", Ui.bar(
+            Ui.field("Light snapshot", Ui.line(lightMs, everyFrameBox)), Ui.field("Full snapshot", fullMs), Ui.field("View stats", viewMs), Ui.field("Interest", interestMs),
+            Ui.field("Grid resolution", gridBox), Ui.field("Notable cost", notableCost), Ui.field("Trade window", tradeMs), Ui.field("Intensity window", intensityMs)));
+        lightMs.setToolTipText("Milliseconds between light snapshots; 0 = none");
+        everyFrameBox.setOpaque(false);
+        everyFrameBox.setToolTipText("A light snapshot with every logic frame (30 or 60 a second). Older game builds refuse it.");
+        everyFrameBox.addActionListener(e -> lightMs.setEnabled(!everyFrameBox.isSelected()));
+        JPanel buttons = PanelKit.row(applyButton, resetButton, readButton, resyncButton);
+        JPanel top = new JPanel(new BorderLayout(0, Ui.GAP));
+        top.setOpaque(false);
+        top.setBorder(BorderFactory.createEmptyBorder(0, 0, Ui.GAP, 0));
+        top.add(Ui.stack(Ui.GAP, streams, timing, buttons), BorderLayout.CENTER);
         top.add(feedStatus, BorderLayout.SOUTH);
-        feedStatus.setBorder(BorderFactory.createEmptyBorder(0, 8, 2, 8));
         feedArea.setRows(4);
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(top, BorderLayout.NORTH);
-        panel.add(new JScrollPane(feedArea), BorderLayout.CENTER);
+        panel.add(Ui.scroll(feedArea), BorderLayout.CENTER);
         return panel;
     }
 
     /** The query that applies every control; with {@code only} false all settings are sent, so the game ends up exactly as the form shows. */
     FeedConfigQuery feedQuery(boolean reset) {
-        return FeedConfigQuery.newBuilder().setReset(reset).setLightIntervalMs(PanelKit.intOf(lightMs)).setFullIntervalMs(PanelKit.intOf(fullMs))
+        return FeedConfigQuery.newBuilder().setReset(reset).setLightIntervalMs(everyFrameBox.isSelected() ? com.generalsonline.stats.StatsPipe.LIGHT_EVERY_FRAME : PanelKit.intOf(lightMs)).setFullIntervalMs(PanelKit.intOf(fullMs))
             .setEvents(eventsBox.isSelected()).setCamera(cameraBox.isSelected()).setChat(chatBox.isSelected()).setGrids(gridsBox.isSelected()).setSupply(supplyBox.isSelected())
             .setTech(techBox.isSelected()).setProduction(productionBox.isSelected()).setGridResolution((Integer) gridBox.getSelectedItem())
             .setViewStatsIntervalMs(PanelKit.intOf(viewMs)).setInterest(interestBox.isSelected()).setInterestIntervalMs(PanelKit.intOf(interestMs))
@@ -445,6 +579,7 @@ final class QueryTab extends JPanel {
     private void sendFeed(FeedConfigQuery query, String done) {
         PanelKit.info(feedStatus, "asking the game...");
         commands.run(pipe -> pipe.setFeedConfig(query), config -> {
+            Prefs.put("feed", query.getReset() ? "" : java.util.Base64.getEncoder().encodeToString(query.toByteArray()));
             showFeed(config);
             PanelKit.good(feedStatus, done);
         }, failure -> PanelKit.fail(feedStatus, failure));
@@ -466,7 +601,9 @@ final class QueryTab extends JPanel {
         techBox.setSelected(c.getTech());
         productionBox.setSelected(c.getProduction());
         interestBox.setSelected(c.getInterest());
-        lightMs.setValue(c.getLightIntervalMs());
+        everyFrameBox.setSelected(c.getLightIntervalMs() == com.generalsonline.stats.StatsPipe.LIGHT_EVERY_FRAME);
+        lightMs.setEnabled(!everyFrameBox.isSelected());
+        lightMs.setValue(Math.max(50, c.getLightIntervalMs()));
         fullMs.setValue(c.getFullIntervalMs());
         viewMs.setValue(c.getViewStatsIntervalMs());
         interestMs.setValue(Math.max(250, c.getInterestIntervalMs()));
@@ -487,14 +624,18 @@ final class QueryTab extends JPanel {
     }
 
     String statusOf(String section) {
-        JLabel label = switch (section) {
-            case "catalog" -> catalogStatus;
-            case "object" -> objectStatus;
-            case "player" -> playerStatus;
-            case "map" -> mapStatus;
-            default -> feedStatus;
-        };
-        return label.getText();
+        switch (section) {
+            case "catalog":
+                return catalogStatus.getText();
+            case "object":
+                return objectStatus.getText();
+            case "player":
+                return playerStatus.getText();
+            case "map":
+                return mapStatus.getText();
+            default:
+                return feedStatus.getText();
+        }
     }
 
     JButton searchButton() {

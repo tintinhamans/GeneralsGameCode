@@ -1,10 +1,8 @@
 package com.generalsonline.stats.app;
 
-import com.generalsonline.stats.DecodedFrame;
 import com.generalsonline.stats.DumpReader;
 import com.generalsonline.stats.DirectorMode;
 import com.generalsonline.stats.DumpWriter;
-import com.generalsonline.stats.FakeGame;
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.FrameType;
 import com.generalsonline.stats.StatsListener;
@@ -30,7 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/** Command line front end: watch, dump, replay, chat, gui, serve, schema, example. */
+/** Command line front end: watch, dump, replay, chat, gui, schema, example. */
 public final class Main {
     private static final long SNAPSHOT_PRINT_INTERVAL_MS = 1000;
 
@@ -38,7 +36,7 @@ public final class Main {
     }
 
     /**
-     * Runs one command; see the README of the test client for the commands.
+     * Runs one command; see the README of the client for the commands.
      *
      * @param args the command line
      * @throws Exception when a command fails in a way that is not a user mistake
@@ -70,27 +68,32 @@ public final class Main {
         int pid = line.pid();
         String pipe = line.value("pipe");
         switch (line.command()) {
-            case "watch" -> {
+            case "watch":
                 Set<FramePrinter.Kind> only = line.value("only") == null ? java.util.EnumSet.allOf(FramePrinter.Kind.class) : FramePrinter.parseOnly(line.value("only"));
                 follow(pid, pipe, new FramePrinter(System.out, only, SNAPSHOT_PRINT_INTERVAL_MS, System::currentTimeMillis));
-            }
-            case "dump" -> dump(pid, pipe, Paths.get(line.positional().get(0)), line.flag("overwrite"), line.flag("no-camera"));
-            case "replay" -> {
+                break;
+            case "dump":
+                dump(pid, pipe, Paths.get(line.positional().get(0)), line.flag("overwrite"), line.flag("no-camera"));
+                break;
+            case "replay":
                 FramePrinter printer = new FramePrinter(System.out);
                 int frames = DumpReader.replay(Paths.get(line.positional().get(0)), printer);
                 System.out.println("replayed " + frames + " frames" + (printer.droppedFrames() > 0 ? ", " + printer.droppedFrames() + " dropped by the game" : ""));
-            }
-            case "chat" -> chat(pid, pipe, line);
-            case "gui" -> {
-                if (line.value("replay") != null && line.value("fake") != null) {
-                    throw new CommandLine.UsageException("--replay and --fake are alternatives");
-                }
-                StatsGui.run(pid, pipe, line.value("replay") == null ? null : Paths.get(line.value("replay")), line.value("fake") == null ? null : Paths.get(line.value("fake")), line.speed(line.value("fake") == null ? 0 : 1));
-            }
-            case "serve" -> serve(line, System.out);
-            case "schema" -> Schema.print(System.out);
-            case "example" -> example(line, System.out);
-            default -> throw new CommandLine.UsageException("unknown command '" + line.command() + "'");
+                break;
+            case "chat":
+                chat(pid, pipe, line);
+                break;
+            case "gui":
+                StatsGui.run(pid, pipe, line.value("replay") == null ? null : Paths.get(line.value("replay")), line.speed(0));
+                break;
+            case "schema":
+                Schema.print(System.out);
+                break;
+            case "example":
+                example(line, System.out);
+                break;
+            default:
+                throw new CommandLine.UsageException("unknown command '" + line.command() + "'");
         }
     }
 
@@ -189,60 +192,6 @@ public final class Main {
         }
     }
 
-    /**
-     * {@code serve}: starts a fake game on a dump and returns it. Package-private for the tests; {@link #serve} blocks.
-     */
-    static FakeGame startFake(CommandLine line, PrintStream out) throws IOException {
-        if (line.value("pid") != null && line.value("pipe") != null) {
-            throw new CommandLine.UsageException("--pid and --pipe are alternatives");
-        }
-        Path dump = Paths.get(line.positional().get(0));
-        if (!Files.isRegularFile(dump)) {
-            throw new IllegalArgumentException("'" + dump + "' is not a file");
-        }
-        FakeGame.Builder builder = FakeGame.builder(dump).speed(line.speed(1.0)).loop(line.flag("loop")).holdForReader(!line.flag("no-wait"));
-        if (line.value("pipe") != null) {
-            builder.pipe(line.value("pipe"));
-        } else if (line.pid() >= 0) {
-            builder.pid(line.pid());
-        }
-        if (line.value("situation") != null) {
-            builder.situation(situation(line.value("situation")));
-        }
-        FakeGame game = builder.build().start();
-        out.println("serving " + dump.getFileName() + " on " + game.pipePath() + " (pid " + game.pid() + ", "
-            + (line.speed(1.0) == 0 ? "as fast as possible" : "speed " + line.speed(1.0)) + (line.flag("loop") ? ", looping" : "") + ")");
-        out.println(line.flag("no-wait") ? "playing now; readers join live" : "waiting for the first reader before it starts (--no-wait starts at once)");
-        return game;
-    }
-
-    private static FakeGame.Situation situation(String name) {
-        try {
-            return FakeGame.Situation.valueOf(name.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("unknown situation '" + name + "' (replay, observer, player)");
-        }
-    }
-
-    /** Serves a dump as a fake game until the process is stopped. */
-    private static void serve(CommandLine line, PrintStream out) throws Exception {
-        FakeGame game = startFake(line, out);
-        Runtime.getRuntime().addShutdownHook(new Thread(game::close));
-        int readers = 0;
-        boolean announced = false;
-        while (true) {
-            Thread.sleep(500);
-            if (game.readerCount() != readers) {
-                readers = game.readerCount();
-                out.println(readers + (readers == 1 ? " reader" : " readers") + " connected");
-            }
-            if (game.isFinished() && !announced) {
-                announced = true;
-                out.println("the end of the dump was reached; the game stays up (Ctrl+C to stop)");
-            }
-        }
-    }
-
     /** {@code example}: with no name, lists the scenarios; with one, prints the program for it. Package-private for the tests. */
     static void example(CommandLine line, PrintStream out) {
         if (line.positional().isEmpty()) {
@@ -253,8 +202,7 @@ public final class Main {
             out.println();
             out.println("Options fill the program: --player NAME and --column NAME (track-player), --kind KIND (react-to-event),");
             out.println("--channel CH, --audience A and --text TEXT (send-chat), --template NAME and --side SIDE (query-catalog), --object ID (inspect-object and");
-            out.println("camera-control), --x, --y and --zoom (camera-control), --speed RATIO (replay-control), --mode hotspot|highlights|overview|director (director),");
-            out.println("--dump FILE (fake-server).");
+            out.println("camera-control), --x, --y and --zoom (camera-control), --speed RATIO (replay-control), --mode hotspot|highlights|overview|director (director).");
             return;
         }
         String name = line.positional().get(0);
@@ -314,9 +262,6 @@ public final class Main {
         }
         if (line.value("mode") != null) {
             selection = selection.withDirectorMode(directorMode(line.value("mode")));
-        }
-        if (line.value("dump") != null) {
-            selection = selection.withDumpFile(line.value("dump"));
         }
         out.print(Examples.generate(scenario, selection));
     }

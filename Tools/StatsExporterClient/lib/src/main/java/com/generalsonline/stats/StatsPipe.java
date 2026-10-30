@@ -2,7 +2,6 @@ package com.generalsonline.stats;
 
 import com.generalsonline.stats.internal.FrameCodec;
 import com.generalsonline.stats.internal.NamedPipeLink;
-import com.generalsonline.stats.internal.PipeLink;
 import com.generalsonline.stats.internal.RequestLimiter;
 import com.generalsonline.stats.internal.SequenceTracker;
 import com.generalsonline.stats.proto.CatalogEntry;
@@ -115,7 +114,7 @@ import java.util.function.Supplier;
  *
  * <p><b>Control.</b> The camera, replay and observer methods ({@link #moveCamera}, {@link #followUnit}, {@link #pauseReplay},
  * {@link #observePlayer}, ...) are requests too. The game answers {@code NOT_ALLOWED}, which these methods turn into a
- * {@link NotAllowedException}, when its situation forbids the command: only observers and replay playback may be steered.
+ * {@link NotAllowedException}, when its situation forbids the command: observing a player needs an observer or a replay, replay control a replay.
  * The lobby methods ({@link #lobbyControl}, {@link #addAi}, {@link #setFaction}, {@link #startGame}, ...) change the game
  * setup lobby the user sits in through the setup screen's own controls, with the screen's rules and the same exception.
  *
@@ -126,6 +125,9 @@ import java.util.function.Supplier;
 public final class StatsPipe implements AutoCloseable {
     /** The longest chat line the game takes, in UTF-8 bytes. */
     public static final int MAX_CHAT_BYTES = 1024;
+
+    /** The {@code light_interval_ms} of a feed config that asks for a light snapshot every logic frame. */
+    public static final int LIGHT_EVERY_FRAME = 1;
 
     /** How long the library waits for the game's Hello after the pipe was opened unless {@link Builder#helloTimeout} says otherwise. */
     public static final Duration DEFAULT_HELLO_TIMEOUT = Duration.ofSeconds(10);
@@ -140,7 +142,6 @@ public final class StatsPipe implements AutoCloseable {
     };
 
     private final Supplier<List<String>> candidates;
-    private final PipeDiscovery.PipeOpener<PipeLink> opener;
     private final StatsListener listener;
     private final MatchState state;
     private final Executor executor;
@@ -160,13 +161,12 @@ public final class StatsPipe implements AutoCloseable {
     private volatile RequestLimiter limiter;
     private volatile Hello hello;
     private volatile boolean closed;
-    private volatile PipeLink link;
+    private volatile NamedPipeLink link;
     private volatile String connectedPath;
     private Thread thread;
 
     private StatsPipe(Builder b) {
-        this.candidates = b.candidates != null ? b.candidates : candidatesFor(b.pid, b.pipe);
-        this.opener = b.opener != null ? b.opener : NamedPipeLink::open;
+        this.candidates = candidatesFor(b.pid, b.pipe);
         this.listener = b.listener != null ? b.listener : NO_LISTENER;
         this.state = b.state;
         this.executor = b.executor != null ? b.executor : Runnable::run;
@@ -210,8 +210,6 @@ public final class StatsPipe implements AutoCloseable {
         private Duration helloTimeout = DEFAULT_HELLO_TIMEOUT;
         private Duration requestTimeout = DEFAULT_REQUEST_TIMEOUT;
         private boolean limitRequests;
-        private Supplier<List<String>> candidates;
-        private PipeDiscovery.PipeOpener<PipeLink> opener;
 
         private Builder() {
         }
@@ -358,18 +356,6 @@ public final class StatsPipe implements AutoCloseable {
             }
         }
 
-        /** Replaces discovery with a fixed supplier of candidate paths. For tests. */
-        Builder candidates(Supplier<List<String>> candidates) {
-            this.candidates = candidates;
-            return this;
-        }
-
-        /** Replaces the Windows pipe opener. For tests. */
-        Builder opener(PipeDiscovery.PipeOpener<PipeLink> opener) {
-            this.opener = opener;
-            return this;
-        }
-
         /**
          * Creates the connection; call {@link StatsPipe#start()} to begin.
          *
@@ -499,7 +485,7 @@ public final class StatsPipe implements AutoCloseable {
     public void close() {
         closed = true;
         failAllPending(new IOException("the stats pipe was closed"));
-        PipeLink current = link;
+        NamedPipeLink current = link;
         if (current != null) {
             try {
                 current.close();
@@ -518,29 +504,6 @@ public final class StatsPipe implements AutoCloseable {
             helloLock.notifyAll();
         }
         scheduler.shutdownNow();
-    }
-
-    /** The number of requests waiting for a response; for tests. */
-    int pendingRequests() {
-        return pending.size();
-    }
-
-    /** Sets the id counter so the next request gets {@code lastId + 1}; for tests of the wrap-around. */
-    void setLastRequestId(int lastId) {
-        lastRequestId.set(lastId);
-    }
-
-    /** Waits for the reader thread to end; for tests. */
-    boolean awaitStopped(long millis) throws InterruptedException {
-        Thread reader;
-        synchronized (this) {
-            reader = thread;
-        }
-        if (reader == null) {
-            return true;
-        }
-        reader.join(millis);
-        return !reader.isAlive();
     }
 
     // -- Chat.
@@ -607,7 +570,7 @@ public final class StatsPipe implements AutoCloseable {
 
     /** Writes one inbound frame; the only write path, shared by chat and requests. */
     private boolean writeFrame(int type, byte[] body) throws IOException {
-        PipeLink out = link;
+        NamedPipeLink out = link;
         if (out == null) {
             return false;
         }
@@ -834,8 +797,8 @@ public final class StatsPipe implements AutoCloseable {
     // situation does not allow it, and with a RequestFailedException for any other status.
 
     /**
-     * Moves or sets the camera, at once or over a transition. The game accepts this only while the local player is an
-     * observer of a match or a replay plays back, so a tool never moves the camera of someone who plays.
+     * Moves or sets the camera, at once or over a transition. The game accepts this in any running match, also for
+     * an active player.
      *
      * @param move the target values and the transition
      * @return the camera as the command left it; fails with a {@link NotAllowedException} when the local player plays,
@@ -1285,7 +1248,7 @@ public final class StatsPipe implements AutoCloseable {
         long backoff = minBackoffMillis;
         while (!closed) {
             List<String> paths = candidates.get();
-            PipeDiscovery.Opened<PipeLink> connection = paths == null || paths.isEmpty() ? null : PipeDiscovery.openFirst(paths, opener);
+            PipeDiscovery.Opened<NamedPipeLink> connection = paths == null || paths.isEmpty() ? null : PipeDiscovery.openFirst(paths, NamedPipeLink::open);
 
             if (connection == null) {
                 sleep(backoff);
@@ -1293,7 +1256,7 @@ public final class StatsPipe implements AutoCloseable {
                 continue;
             }
 
-            PipeLink opened = connection.channel();
+            NamedPipeLink opened = connection.channel();
             String path = connection.path();
             backoff = minBackoffMillis;
             link = opened;
@@ -1327,7 +1290,7 @@ public final class StatsPipe implements AutoCloseable {
         }
     }
 
-    private void readLoop(PipeLink in) throws IOException {
+    private void readLoop(NamedPipeLink in) throws IOException {
         Connection connection = new Connection();
         ScheduledFuture<?> watchdog = null;
         try {
@@ -1383,8 +1346,8 @@ public final class StatsPipe implements AutoCloseable {
             post(0, () -> listener.onFramesDropped(dropped));
         }
         clockSync.observe(frame.timestampMicros(), System.nanoTime() / 1000);
-        if (decoded.message() instanceof Response response) {
-            completePending(response);
+        if (decoded.message() instanceof Response) {
+            completePending((Response) decoded.message());
         }
         post(frame.type(), () -> deliver(decoded));
     }

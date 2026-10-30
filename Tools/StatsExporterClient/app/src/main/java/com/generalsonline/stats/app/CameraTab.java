@@ -10,18 +10,16 @@ import com.generalsonline.stats.proto.CameraState;
 import com.generalsonline.stats.proto.MatchPlayer;
 import com.generalsonline.stats.proto.ReplayState;
 
-import javax.swing.BorderFactory;
 import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
+import java.awt.GridLayout;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +28,7 @@ import java.util.Optional;
 /**
  * The Camera tab: moves the game's camera (a position, zoom, angle and pitch, at once or over a transition), locks it on a
  * unit, steers a replay (pause, speed, fast forward) and picks the player an observer looks through. The game accepts
- * these only for an observer or a replay playback; its refusal is shown in orange and bold, apart from mistakes in the
+ * camera and follow commands in any running match (observing a player needs an observer or a replay, replay control a replay); its refusal is shown in amber and bold, apart from mistakes in the
  * input, which are red.
  *
  * <p>Angles and pitch are typed in degrees (the protocol counts radians). An empty field leaves that value as it is.
@@ -40,8 +38,8 @@ final class CameraTab extends JPanel {
     private final PipeCommands commands;
     private final GuiModel model;
 
-    private final JTextField xField = new JTextField(7);
-    private final JTextField yField = new JTextField(7);
+    private final JTextField xField = new JTextField(6);
+    private final JTextField yField = new JTextField(6);
     private final JTextField zoomField = new JTextField(5);
     private final JTextField angleField = new JTextField(5);
     private final JTextField pitchField = new JTextField(5);
@@ -72,8 +70,13 @@ final class CameraTab extends JPanel {
     private final JButton nobodyButton = new JButton("Nobody (all seeing)");
     private String observeSignature = "";
 
-    private final JLabel liveLabel = new JLabel(" ");
-    private final JLabel resultLabel = PanelKit.statusLabel();
+    private final JLabel liveLabel = Ui.caption(" ");
+    private final Ui.Stat liveX = new Ui.Stat("x");
+    private final Ui.Stat liveY = new Ui.Stat("y");
+    private final Ui.Stat liveZoom = new Ui.Stat("zoom");
+    private final Ui.Stat liveAngle = new Ui.Stat("angle");
+    private final Ui.Stat livePitch = new Ui.Stat("pitch");
+    private final JLabel resultLabel = PanelKit.statusLabel("Commands you send to the game show their result here.");
     private final JPanel cameraSection;
     private final JPanel replaySection;
     private java.util.function.IntSupplier inspected = () -> 0;
@@ -121,40 +124,54 @@ final class CameraTab extends JPanel {
         });
         nobodyButton.addActionListener(e -> send("observer view reset", p -> p.observeNobody(), state -> "the all-seeing observer view"));
 
-        cameraSection = section("Camera", List.of(
-            PanelKit.row(new JLabel("x"), xField, new JLabel("y"), yField, new JLabel("zoom"), zoomField, new JLabel("angle (degrees)"), angleField, new JLabel("pitch (degrees)"), pitchField),
-            PanelKit.row(new JLabel("transition (ms, 0 = at once)"), durationField, easingBox, resetFirst),
-            PanelKit.row(moveButton, resetButton, cancelButton, currentButton)));
-        JPanel followSection = section("Follow a unit", List.of(
-            PanelKit.row(new JLabel("object id"), followField, inspectedButton, followMode, new JLabel("tether distance"), tetherDistance, snapBox),
-            PanelKit.row(followButton, unfollowButton)));
-        replaySection = section("Replay", List.of(PanelKit.row(pauseButton, resumeButton, new JLabel("speed"), speedBox, speedButton, fastForwardBox,
-            new JLabel("(the game caps a replay at its logic rate; fast forward goes beyond)"))));
-        JPanel observeSection = section("Observer view", List.of(PanelKit.row(new JLabel("player"), observeBox, observeButton, nobodyButton)));
+        Ui.primary(moveButton);
+        Ui.primary(followButton);
+        Ui.primary(speedButton);
+        Ui.primary(observeButton);
+        resetFirst.setOpaque(false);
+        snapBox.setOpaque(false);
+        fastForwardBox.setOpaque(false);
+        JPanel coordinates = Ui.bar(Ui.field("x", xField), Ui.field("y", yField), Ui.field("zoom", zoomField), Ui.field("angle (degrees)", angleField), Ui.field("pitch (degrees)", pitchField));
+        JPanel transition = Ui.bar(Ui.field("transition (ms, 0 = at once)", durationField), Ui.field("easing", easingBox), Ui.field(" ", resetFirst));
+        cameraSection = Ui.card("Move the camera", "Leave a field empty to keep that value.", Ui.stack(10, coordinates, transition,
+            Ui.bar(moveButton, resetButton, cancelButton, currentButton)));
 
-        JPanel stack = new JPanel();
-        stack.setLayout(new BoxLayout(stack, BoxLayout.Y_AXIS));
-        stack.add(cameraSection);
-        stack.add(followSection);
-        stack.add(replaySection);
-        stack.add(observeSection);
-        stack.add(Box.createVerticalGlue());
-        JPanel bottom = new JPanel(new BorderLayout());
-        bottom.setBorder(BorderFactory.createEmptyBorder(4, 10, 6, 10));
-        bottom.add(resultLabel, BorderLayout.NORTH);
-        bottom.add(liveLabel, BorderLayout.SOUTH);
-        add(new JScrollPane(stack), BorderLayout.CENTER);
-        add(bottom, BorderLayout.SOUTH);
+        JPanel followSection = Ui.card("Follow a unit", "Lock the camera on an object by its id; the Query tab finds ids.", new Ui.Form(110)
+            .row("Object id", followField, inspectedButton)
+            .row("Mode", followMode)
+            .row("Tether distance", tetherDistance)
+            .row("Options", snapBox)
+            .row("", followButton, unfollowButton));
+
+        JPanel readout = Ui.bar(liveX, Box.createHorizontalStrut(14), liveY, Box.createHorizontalStrut(14), liveZoom, Box.createHorizontalStrut(14), liveAngle, Box.createHorizontalStrut(14), livePitch);
+        JPanel liveSection = Ui.card("Camera now", "Live, from the game's camera frames.", Ui.stack(8, readout, liveLabel));
+        replaySection = Ui.card("Replay", "The game caps a replay at its logic rate; fast forward goes beyond.", new Ui.Form(110)
+            .row("Playback", pauseButton, resumeButton)
+            .row("Speed", speedBox, speedButton)
+            .row("Options", fastForwardBox));
+        JPanel observeSection = Ui.card("Observer view", "Whose units, shroud and radar the view shows.", new Ui.Form(110)
+            .row("Player", observeBox, observeButton)
+            .row("", nobodyButton));
+
+        JPanel left = Ui.stack(Ui.GAP, cameraSection, followSection);
+        JPanel right = Ui.stack(Ui.GAP, liveSection, replaySection, observeSection);
+        JPanel columns = new JPanel(new GridLayout(1, 2, Ui.GAP, 0));
+        columns.setOpaque(false);
+        columns.add(top(left));
+        columns.add(top(right));
+        JPanel page = new JPanel(new BorderLayout(0, Ui.GAP));
+        page.setOpaque(false);
+        page.add(resultLabel, BorderLayout.NORTH);
+        page.add(columns, BorderLayout.CENTER);
+        add(Ui.pageScroll(Ui.pad(page)), BorderLayout.CENTER);
     }
 
-    private static JPanel section(String title, List<JPanel> rows) {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder(title));
-        for (JPanel row : rows) {
-            panel.add(row);
-        }
-        return panel;
+    /** Pins a column of cards to the top of its cell, so a short column does not stretch its cards. */
+    private static JPanel top(JPanel column) {
+        JPanel holder = new JPanel(new BorderLayout());
+        holder.setOpaque(false);
+        holder.add(column, BorderLayout.NORTH);
+        return holder;
     }
 
     /** Where "Use the inspected object" gets its id. */
@@ -183,8 +200,8 @@ final class CameraTab extends JPanel {
         PanelKit.info(resultLabel, "asking the game...");
         commands.run(call, result -> {
             PanelKit.good(resultLabel, done + (describe == null ? "" : ": " + describe.apply(result)));
-            if (result instanceof ReplayState replay) {
-                fastForwardBox.setSelected(replay.getFastForward());
+            if (result instanceof ReplayState) {
+                fastForwardBox.setSelected(((ReplayState) result).getFastForward());
             }
         }, failure -> PanelKit.fail(resultLabel, failure));
     }
@@ -297,10 +314,14 @@ final class CameraTab extends JPanel {
     void refresh() {
         Camera c = model.state().camera().orElse(null);
         if (c == null) {
-            liveLabel.setText("Camera frames: none yet");
+            liveLabel.setText("No camera frames yet");
         } else {
-            liveLabel.setText(String.format("Camera now: %.0f, %.0f  zoom %.2f  angle %.0f  pitch %.0f degrees   moved by: %s   user actions: %d   lock: %s%s%s",
-                c.getX(), c.getY(), c.getZoom(), Math.toDegrees(c.getAngle()), Math.toDegrees(c.getPitch()), CellText.cameraSourceText(c), Integer.toUnsignedLong(c.getUserInputCount()),
+            liveX.setValue(String.format("%.0f", c.getX()));
+            liveY.setValue(String.format("%.0f", c.getY()));
+            liveZoom.setValue(String.format("%.2f", c.getZoom()));
+            liveAngle.setValue(String.format("%.0f", Math.toDegrees(c.getAngle())));
+            livePitch.setValue(String.format("%.0f", Math.toDegrees(c.getPitch())));
+            liveLabel.setText(String.format("Moved by %s   %d user actions   lock: %s%s%s", CellText.cameraSourceText(c), Integer.toUnsignedLong(c.getUserInputCount()),
                 c.getFollowObjectId() == 0 ? "none" : Format.strip(c.getFollowMode().name(), "CAMERA_FOLLOW_").toLowerCase(java.util.Locale.ROOT) + " object " + Format.u(c.getFollowObjectId()),
                 c.getTransitionActive() ? "   transition running" : "",
                 c.getFollowEnded().getNumber() != 0 ? "   lock ended: " + Format.strip(c.getFollowEnded().name(), "CAMERA_FOLLOW_END_").toLowerCase(java.util.Locale.ROOT) : ""));
@@ -342,31 +363,49 @@ final class CameraTab extends JPanel {
     }
 
     JTextField field(String name) {
-        return switch (name) {
-            case "x" -> xField;
-            case "y" -> yField;
-            case "zoom" -> zoomField;
-            case "angle" -> angleField;
-            case "pitch" -> pitchField;
-            case "duration" -> durationField;
-            default -> followField;
-        };
+        switch (name) {
+            case "x":
+                return xField;
+            case "y":
+                return yField;
+            case "zoom":
+                return zoomField;
+            case "angle":
+                return angleField;
+            case "pitch":
+                return pitchField;
+            case "duration":
+                return durationField;
+            default:
+                return followField;
+        }
     }
 
     JButton button(String name) {
-        return switch (name) {
-            case "move" -> moveButton;
-            case "reset" -> resetButton;
-            case "cancel" -> cancelButton;
-            case "current" -> currentButton;
-            case "follow" -> followButton;
-            case "unfollow" -> unfollowButton;
-            case "pause" -> pauseButton;
-            case "resume" -> resumeButton;
-            case "speed" -> speedButton;
-            case "observe" -> observeButton;
-            default -> nobodyButton;
-        };
+        switch (name) {
+            case "move":
+                return moveButton;
+            case "reset":
+                return resetButton;
+            case "cancel":
+                return cancelButton;
+            case "current":
+                return currentButton;
+            case "follow":
+                return followButton;
+            case "unfollow":
+                return unfollowButton;
+            case "pause":
+                return pauseButton;
+            case "resume":
+                return resumeButton;
+            case "speed":
+                return speedButton;
+            case "observe":
+                return observeButton;
+            default:
+                return nobodyButton;
+        }
     }
 
     JComboBox<String> speedBox() {

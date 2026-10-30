@@ -2,16 +2,69 @@ package com.generalsonline.stats;
 
 import com.google.protobuf.Message;
 
+import java.util.Objects;
+
 /**
  * One frame after parsing: the raw bytes, the frame type and the decoded message. Parsing happens once, on the reader
  * thread, and everything after that (dump files, statistics, user interfaces) works from this object.
- *
- * @param raw the frame as received
- * @param type the frame type, or null for a type byte this library does not know
- * @param message the decoded message, or null when the type is unknown or the body did not parse
- * @param error the parse failure, or null when the body parsed (or the type is unknown)
  */
-public record DecodedFrame(RawFrame raw, FrameType type, Message message, Exception error) {
+public final class DecodedFrame {
+    private final RawFrame raw;
+    private final FrameType type;
+    private final Message message;
+    private final Exception error;
+
+    /**
+     * Creates the value.
+     *
+     * @param raw the frame as received
+     * @param type the frame type, or null for a type byte this library does not know
+     * @param message the decoded message, or null when the type is unknown or the body did not parse
+     * @param error the parse failure, or null when the body parsed (or the type is unknown)
+     */
+    public DecodedFrame(RawFrame raw, FrameType type, Message message, Exception error) {
+        this.raw = raw;
+        this.type = type;
+        this.message = message;
+        this.error = error;
+    }
+
+    /**
+     * Returns raw.
+     *
+     * @return the frame as received
+     */
+    public RawFrame raw() {
+        return raw;
+    }
+
+    /**
+     * Returns type.
+     *
+     * @return the frame type, or null for a type byte this library does not know
+     */
+    public FrameType type() {
+        return type;
+    }
+
+    /**
+     * Returns message.
+     *
+     * @return the decoded message, or null when the type is unknown or the body did not parse
+     */
+    public Message message() {
+        return message;
+    }
+
+    /**
+     * Returns error.
+     *
+     * @return the parse failure, or null when the body parsed (or the type is unknown)
+     */
+    public Exception error() {
+        return error;
+    }
+
     private static final int WIRE_HEADER_BYTES = 17;
 
     /**
@@ -66,5 +119,30 @@ public record DecodedFrame(RawFrame raw, FrameType type, Message message, Except
      */
     public boolean isDecoded() {
         return message != null;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof DecodedFrame)) {
+            return false;
+        }
+        DecodedFrame other = (DecodedFrame) o;
+        return Objects.equals(raw, other.raw)
+                && Objects.equals(type, other.type)
+                && Objects.equals(message, other.message)
+                && Objects.equals(error, other.error);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(raw, type, message, error);
+    }
+
+    @Override
+    public String toString() {
+        return "DecodedFrame[" + "raw=" + raw + ", type=" + type + ", message=" + message + ", error=" + error + "]";
     }
 }

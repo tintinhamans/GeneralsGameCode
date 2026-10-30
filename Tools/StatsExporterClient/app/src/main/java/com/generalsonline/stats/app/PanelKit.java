@@ -1,5 +1,8 @@
 package com.generalsonline.stats.app;
 
+import com.generalsonline.stats.app.Theme.Tone;
+
+import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
@@ -8,48 +11,86 @@ import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.FlowLayout;
 import java.awt.Font;
 
-/** Small Swing helpers the new panels share: rows of controls, status labels with the colours of success and failure, number fields. */
+/** Small Swing helpers the panels share: rows of controls, status lines with the tones of success, warning and failure, number fields. */
 final class PanelKit {
-    static final Color GOOD = new Color(0x1B5E20);
-    static final Color BAD = new Color(0xB71C1C);
-    static final Color WARN = new Color(0xE65100);
+    static final Color GOOD = Theme.GOOD;
+    static final Color BAD = Theme.BAD;
+    static final Color WARN = Theme.WARN;
 
     private PanelKit() {
     }
 
-    /** A left aligned row of components. */
+    /** A left aligned row of components that wraps when the window is narrow. */
     static JPanel row(Component... parts) {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 3));
-        for (Component part : parts) {
-            panel.add(part);
-        }
-        return panel;
+        return Ui.bar(parts);
     }
 
     /** A label for the outcome of the last command; it keeps its height while empty. */
     static JLabel statusLabel() {
-        return new JLabel(" ");
+        return statusLabel(null);
+    }
+
+    /** A status line that says {@code idle} (muted) while there is nothing to report; without it the line takes no room until it has something to say. */
+    static JLabel statusLabel(String idle) {
+        StatusLabel label = new StatusLabel(idle);
+        show(label, Tone.IDLE, false, Font.PLAIN);
+        info(label, "");
+        return label;
+    }
+
+    /** Applies a tone to a status line: a tinted strip with a bar on the left for success, warning and failure, plain muted text for progress. */
+    private static void show(JLabel label, Tone tone, boolean tinted, int style) {
+        label.setVisible(true);
+        label.setOpaque(tinted);
+        label.setBackground(tone.soft());
+        label.setForeground(tinted ? tone.color() : Theme.MUTED);
+        label.setFont(Theme.ui(style, Theme.TEXT_SIZE));
+        Color bar = tinted ? tone.color() : Theme.alpha(Theme.MUTED, 0);
+        label.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 3, 0, 0, bar), BorderFactory.createEmptyBorder(6, 10, 6, 10)));
+    }
+
+    /** A status line: it wraps to the width it is given, and says {@code idle} while there is nothing to report. */
+    @SuppressWarnings("serial")
+    private static final class StatusLabel extends Ui.WrapLabel {
+        private final String idle;
+
+        StatusLabel(String idle) {
+            this.idle = idle;
+        }
     }
 
     static void info(JLabel label, String text) {
-        label.setForeground(null);
-        label.setFont(label.getFont().deriveFont(Font.PLAIN));
+        show(label, Tone.IDLE, false, Font.PLAIN);
         label.setText(text.isEmpty() ? " " : text);
+        if (text.isEmpty() && label instanceof StatusLabel) {
+            String idle = ((StatusLabel) label).idle;
+            label.setText(idle == null ? " " : idle);
+            label.setVisible(idle != null);
+        }
     }
 
     static void good(JLabel label, String text) {
-        label.setForeground(GOOD);
-        label.setFont(label.getFont().deriveFont(Font.PLAIN));
-        label.setText(text);
+        show(label, Tone.OK, true, Font.PLAIN);
+        label.setText("<html>" + escape(text) + "</html>");
     }
 
-    /** A failure in red; the game's refusal because of its situation is bold, so it is not mistaken for a mistake in the input. */
+    /** An amber status line, for a state that needs attention but is not a failure. */
+    static void warn(JLabel label, String text) {
+        show(label, Tone.WARN, true, Font.BOLD);
+        label.setText("<html>" + escape(text) + "</html>");
+    }
+
+    /** A red status line. */
+    static void bad(JLabel label, String text) {
+        show(label, Tone.BAD, true, Font.PLAIN);
+        label.setText("<html>" + escape(text) + "</html>");
+    }
+
+    /** A failure in red; the game's refusal because of its situation is amber and bold, so it is not mistaken for a mistake in the input. */
     static void fail(JLabel label, PipeCommands.Failure failure) {
-        label.setForeground(failure.notAllowed() ? WARN : BAD);
-        label.setFont(label.getFont().deriveFont(failure.notAllowed() ? Font.BOLD : Font.PLAIN));
+        show(label, failure.notAllowed() ? Tone.WARN : Tone.BAD, true, failure.notAllowed() ? Font.BOLD : Font.PLAIN);
         label.setText("<html>" + escape(failure.line()) + "</html>");
     }
 
@@ -59,10 +100,7 @@ final class PanelKit {
 
     /** A read-only monospaced text area. */
     static JTextArea monospaced() {
-        JTextArea area = new JTextArea();
-        area.setEditable(false);
-        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        return area;
+        return Ui.code();
     }
 
     static JSpinner spinner(int value, int min, int max, int step) {

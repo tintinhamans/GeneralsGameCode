@@ -6,10 +6,14 @@ import com.generalsonline.stats.FrameType;
 import com.generalsonline.stats.StatsListener;
 import com.generalsonline.stats.proto.Camera;
 
+import com.generalsonline.stats.proto.StatsSnapshot;
+
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -33,6 +37,9 @@ final class EdtFeed implements StatsListener {
     private final AtomicBoolean drainScheduled = new AtomicBoolean();
     private final AtomicReference<Camera> latestCamera = new AtomicReference<>();
     private final AtomicLong camerasSinceApplied = new AtomicLong();
+    private final AtomicInteger queued = new AtomicInteger();
+    private final AtomicReference<LightTask> lastLight = new AtomicReference<>();
+    private volatile Consumer<DecodedFrame> recorder;
 
     /** @param eventThread runs tasks on the Swing event thread (SwingUtilities::invokeLater); tests pass Runnable::run */
     EdtFeed(GuiModel model, FeedHealth health, Executor eventThread) {
@@ -44,21 +51,95 @@ final class EdtFeed implements StatsListener {
     @Override
     public void onFrame(DecodedFrame frame) {
         health.record(frame, System.nanoTime());
-        if (frame.type() == FrameType.CAMERA && frame.message() instanceof Camera camera) {
-            latestCamera.set(camera);
+        Consumer<DecodedFrame> recording = recorder;
+        if (recording != null) {
+            recording.accept(frame);
+        }
+        if (frame.type() == FrameType.CAMERA && frame.message() instanceof Camera) {
+            latestCamera.set((Camera) frame.message());
             camerasSinceApplied.incrementAndGet();
             return;
         }
         String summary = FrameSummary.of(frame);
+        if (frame.message() instanceof StatsSnapshot && !((StatsSnapshot) frame.message()).getFull()) {
+            postLight(frame, summary);
+            return;
+        }
         post(() -> model.accept(frame, summary));
+    }
+
+    /** Where every frame goes before it is shown (the recording); null for none. Called on the reader thread. */
+    void setRecorder(Consumer<DecodedFrame> recorder) {
+        this.recorder = recorder;
+    }
+
+    /** The number of tasks waiting for the event thread. */
+    int backlog() {
+        return queued.get();
+    }
+
+    /**
+     * A light snapshot (up to 60 a second with the every-frame option) replaces the one before it while that one is still
+     * waiting: the window shows the newest numbers and a slow event thread never falls behind. Anything queued after it
+     * ends the run, so the order against events and full snapshots is kept.
+     */
+    private void postLight(DecodedFrame frame, String summary) {
+        Held held = new Held(frame, summary);
+        LightTask task = lastLight.get();
+        if (task != null) {
+            Held old = task.held.get();
+            if (old != null && task.held.compareAndSet(old, held)) {
+                return;
+            }
+        }
+        task = new LightTask(held);
+        enqueue(task);
+        lastLight.set(task);
+    }
+
+    private static final class Held {
+        private final DecodedFrame frame;
+        private final String summary;
+
+        Held(DecodedFrame frame, String summary) {
+            this.frame = frame;
+            this.summary = summary;
+        }
+    }
+
+    private final class LightTask implements Runnable {
+        private final AtomicReference<Held> held;
+
+        LightTask(Held first) {
+            held = new AtomicReference<>(first);
+        }
+
+        @Override
+        public void run() {
+            Held now = held.getAndSet(null);
+            if (now != null) {
+                model.accept(now.frame, now.summary);
+            }
+        }
     }
 
     /** Runs a task on the event thread, in order with the frames. */
     void post(Runnable task) {
+        lastLight.set(null);
+        enqueue(task);
+    }
+
+    private void enqueue(Runnable task) {
+        queued.incrementAndGet();
         pending.add(task);
         if (drainScheduled.compareAndSet(false, true)) {
             eventThread.execute(this::drain);
         }
+    }
+
+    /** Runs everything queued so far at once; the window calls it (on the event thread) before it switches to another source. */
+    void flush() {
+        drain();
     }
 
     private void drain() {
@@ -68,6 +149,7 @@ final class EdtFeed implements StatsListener {
         try {
             Runnable task;
             while ((task = pending.poll()) != null) {
+                queued.decrementAndGet();
                 try {
                     task.run();
                 } catch (RuntimeException e) {

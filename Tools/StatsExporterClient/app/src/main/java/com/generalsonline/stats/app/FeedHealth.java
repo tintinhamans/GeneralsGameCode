@@ -5,6 +5,7 @@ import com.generalsonline.stats.FrameType;
 import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.StatsSnapshot;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -38,10 +39,10 @@ final class FeedHealth {
         bytes.addAndGet(frame.wireBytes());
         lastFrameNanos = nowNanos;
         anyFrame = true;
-        if (frame.message() instanceof StatsSnapshot s) {
-            (s.getFull() ? fullSnapshots : lightSnapshots).incrementAndGet();
-        } else if (frame.message() instanceof Events e) {
-            events.addAndGet(e.getEventsCount());
+        if (frame.message() instanceof StatsSnapshot) {
+            (((StatsSnapshot) frame.message()).getFull() ? fullSnapshots : lightSnapshots).incrementAndGet();
+        } else if (frame.message() instanceof Events) {
+            events.addAndGet(((Events) frame.message()).getEventsCount());
             otherFrames.incrementAndGet();
         } else if (frame.type() == FrameType.CAMERA) {
             cameraFrames.incrementAndGet();
@@ -63,8 +64,94 @@ final class FeedHealth {
     }
 
     /** Rates over the time since the previous sample. secondsSinceFrame is -1 before any frame arrived. */
-    record Sample(double lightPerSecond, double fullPerSecond, double eventsPerSecond, double cameraHz, double otherPerSecond,
-                  double kilobytesPerSecond, double secondsSinceFrame, long totalFrames, long totalBytes) {
+    static final class Sample {
+        private final double lightPerSecond;
+        private final double fullPerSecond;
+        private final double eventsPerSecond;
+        private final double cameraHz;
+        private final double otherPerSecond;
+        private final double kilobytesPerSecond;
+        private final double secondsSinceFrame;
+        private final long totalFrames;
+        private final long totalBytes;
+
+        Sample(double lightPerSecond, double fullPerSecond, double eventsPerSecond, double cameraHz, double otherPerSecond, double kilobytesPerSecond, double secondsSinceFrame, long totalFrames, long totalBytes) {
+            this.lightPerSecond = lightPerSecond;
+            this.fullPerSecond = fullPerSecond;
+            this.eventsPerSecond = eventsPerSecond;
+            this.cameraHz = cameraHz;
+            this.otherPerSecond = otherPerSecond;
+            this.kilobytesPerSecond = kilobytesPerSecond;
+            this.secondsSinceFrame = secondsSinceFrame;
+            this.totalFrames = totalFrames;
+            this.totalBytes = totalBytes;
+        }
+
+        double lightPerSecond() {
+            return lightPerSecond;
+        }
+
+        double fullPerSecond() {
+            return fullPerSecond;
+        }
+
+        double eventsPerSecond() {
+            return eventsPerSecond;
+        }
+
+        double cameraHz() {
+            return cameraHz;
+        }
+
+        double otherPerSecond() {
+            return otherPerSecond;
+        }
+
+        double kilobytesPerSecond() {
+            return kilobytesPerSecond;
+        }
+
+        double secondsSinceFrame() {
+            return secondsSinceFrame;
+        }
+
+        long totalFrames() {
+            return totalFrames;
+        }
+
+        long totalBytes() {
+            return totalBytes;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Sample)) {
+                return false;
+            }
+            Sample other = (Sample) o;
+            return Double.compare(lightPerSecond, other.lightPerSecond) == 0
+                    && Double.compare(fullPerSecond, other.fullPerSecond) == 0
+                    && Double.compare(eventsPerSecond, other.eventsPerSecond) == 0
+                    && Double.compare(cameraHz, other.cameraHz) == 0
+                    && Double.compare(otherPerSecond, other.otherPerSecond) == 0
+                    && Double.compare(kilobytesPerSecond, other.kilobytesPerSecond) == 0
+                    && Double.compare(secondsSinceFrame, other.secondsSinceFrame) == 0
+                    && totalFrames == other.totalFrames
+                    && totalBytes == other.totalBytes;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(lightPerSecond, fullPerSecond, eventsPerSecond, cameraHz, otherPerSecond, kilobytesPerSecond, secondsSinceFrame, totalFrames, totalBytes);
+        }
+
+        @Override
+        public String toString() {
+            return "Sample[" + "lightPerSecond=" + lightPerSecond + ", fullPerSecond=" + fullPerSecond + ", eventsPerSecond=" + eventsPerSecond + ", cameraHz=" + cameraHz + ", otherPerSecond=" + otherPerSecond + ", kilobytesPerSecond=" + kilobytesPerSecond + ", secondsSinceFrame=" + secondsSinceFrame + ", totalFrames=" + totalFrames + ", totalBytes=" + totalBytes + "]";
+        }
     }
 
     Sample sample(long nowNanos) {
@@ -91,6 +178,16 @@ final class FeedHealth {
     /** True when frames were arriving and then stopped for longer than {@link #STALE_SECONDS}. */
     static boolean isStale(Sample sample) {
         return sample.secondsSinceFrame() > STALE_SECONDS;
+    }
+
+    /** The feed as a quiet footer: dim names, muted values, one group, red once frames stop. */
+    static String quiet(Sample s) {
+        String dim = "<span style='color:#5E6B7C'>";
+        String last = s.secondsSinceFrame() < 0 ? "no frame yet"
+            : isStale(s) ? String.format("<span style='color:#F0626A'>no frames for %.0f s</span>", s.secondsSinceFrame())
+            : String.format("last frame %.1f s ago", s.secondsSinceFrame());
+        return String.format("<html>%sFeed</span>&nbsp; %.0f snapshots/s&nbsp;&nbsp; %.0f events/s&nbsp;&nbsp; camera %.0f Hz&nbsp;&nbsp; %.1f KB/s&nbsp;&nbsp; %s</html>",
+            dim, s.lightPerSecond() + s.fullPerSecond(), s.eventsPerSecond(), s.cameraHz(), s.kilobytesPerSecond(), last);
     }
 
     /** "Feed: light 10.0/s  full 4.0/s  events 3/s  camera 118 Hz  other 1.0/s  12.3 KB/s    last frame 0.1 s ago ...". */

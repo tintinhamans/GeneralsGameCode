@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -68,7 +69,45 @@ public final class MatchState implements StatsListener {
     /** How many chat lines the default ring buffer keeps. */
     public static final int DEFAULT_CHAT_CAPACITY = 500;
 
-    private record Entry(PlayerStats stats, long frame) {
+    private static final class Entry {
+        private final PlayerStats stats;
+        private final long frame;
+
+        private Entry(PlayerStats stats, long frame) {
+            this.stats = stats;
+            this.frame = frame;
+        }
+
+        PlayerStats stats() {
+            return stats;
+        }
+
+        long frame() {
+            return frame;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Entry)) {
+                return false;
+            }
+            Entry other = (Entry) o;
+            return Objects.equals(stats, other.stats)
+                    && frame == other.frame;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(stats, frame);
+        }
+
+        @Override
+        public String toString() {
+            return "Entry[" + "stats=" + stats + ", frame=" + frame + "]";
+        }
     }
 
     private final Object lock = new Object();
@@ -892,11 +931,14 @@ public final class MatchState implements StatsListener {
 
     /** The engine's own state wins; the events cover the moment between the event and the next snapshot. */
     private PlayerLife lifeOf(PlayerStats stats) {
-        return switch (stats.getState()) {
-            case PLAYER_STATE_DEFEATED -> PlayerLife.DEFEATED;
-            case PLAYER_STATE_LEFT -> PlayerLife.LEFT;
-            default -> lifeStates.getOrDefault(stats.getPlayerIndex(), PlayerLife.ALIVE);
-        };
+        switch (stats.getState()) {
+            case PLAYER_STATE_DEFEATED:
+                return PlayerLife.DEFEATED;
+            case PLAYER_STATE_LEFT:
+                return PlayerLife.LEFT;
+            default:
+                return lifeStates.getOrDefault(stats.getPlayerIndex(), PlayerLife.ALIVE);
+        }
     }
 
     /** Rebuilds the immutable player views from the entries. Called with the lock held. */

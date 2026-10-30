@@ -4,12 +4,58 @@ import javax.swing.table.AbstractTableModel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 
 /** A table model over a list of row objects; each column is a name, a class (for sorting and rendering) and a getter. */
 @SuppressWarnings("serial")
 final class RowTableModel<T> extends AbstractTableModel {
-    record Column<T>(String name, Class<?> type, Function<T, ?> value) {
+    static final class Column<T> {
+        private final String name;
+        private final Class<?> type;
+        private final Function<T, ?> value;
+
+        Column(String name, Class<?> type, Function<T, ?> value) {
+            this.name = name;
+            this.type = type;
+            this.value = value;
+        }
+
+        String name() {
+            return name;
+        }
+
+        Class<?> type() {
+            return type;
+        }
+
+        Function<T, ?> value() {
+            return value;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Column)) {
+                return false;
+            }
+            Column<?> other = (Column<?>) o;
+            return Objects.equals(name, other.name)
+                    && Objects.equals(type, other.type)
+                    && Objects.equals(value, other.value);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, type, value);
+        }
+
+        @Override
+        public String toString() {
+            return "Column[" + "name=" + name + ", type=" + type + ", value=" + value + "]";
+        }
     }
 
     private final List<Column<T>> columns;

@@ -25,6 +25,7 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.IntFunction;
 
 /**
@@ -55,7 +56,66 @@ final class Minimap extends JPanel {
     static final int MAX_MARKS = 256;
 
     /** One remembered event location. */
-    record Mark(long frame, float x, float y, StatEventKind kind, int playerIndex) {
+    static final class Mark {
+        private final long frame;
+        private final float x;
+        private final float y;
+        private final StatEventKind kind;
+        private final int playerIndex;
+
+        Mark(long frame, float x, float y, StatEventKind kind, int playerIndex) {
+            this.frame = frame;
+            this.x = x;
+            this.y = y;
+            this.kind = kind;
+            this.playerIndex = playerIndex;
+        }
+
+        long frame() {
+            return frame;
+        }
+
+        float x() {
+            return x;
+        }
+
+        float y() {
+            return y;
+        }
+
+        StatEventKind kind() {
+            return kind;
+        }
+
+        int playerIndex() {
+            return playerIndex;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Mark)) {
+                return false;
+            }
+            Mark other = (Mark) o;
+            return frame == other.frame
+                    && Float.compare(x, other.x) == 0
+                    && Float.compare(y, other.y) == 0
+                    && Objects.equals(kind, other.kind)
+                    && playerIndex == other.playerIndex;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(frame, x, y, kind, playerIndex);
+        }
+
+        @Override
+        public String toString() {
+            return "Mark[" + "frame=" + frame + ", x=" + x + ", y=" + y + ", kind=" + kind + ", playerIndex=" + playerIndex + "]";
+        }
     }
 
     /** The marks among these events (oldest first) that are not older than maxAgeFrames at currentFrame; at most {@link #MAX_MARKS}, the newest. */
@@ -116,12 +176,16 @@ final class Minimap extends JPanel {
     /** One line about a highlight: what it is, whose, and the time to the impact when it is known. */
     static String highlightText(InterestHighlight h, long frame, int fps, IntFunction<String> playerName) {
         String who = playerName.apply(h.getPlayerIndex());
-        return switch (h.getKind()) {
-            case HIGHLIGHT_SUPERWEAPON_LAUNCH -> "Superweapon launch by " + who + " (" + Format.shortPowerName(h.getPowerName()) + ")" + impactText(h, frame, fps);
-            case HIGHLIGHT_HERO_DEATH -> "Hero lost by " + who + " (" + Format.shortName(h.getTemplateName()) + ")";
-            case HIGHLIGHT_STRUCTURE_LOST -> "Structure lost by " + who + " (" + Format.shortName(h.getTemplateName()) + ", worth " + Format.u(h.getValue()) + ")";
-            default -> "Highlight " + h.getId();
-        };
+        switch (h.getKind()) {
+            case HIGHLIGHT_SUPERWEAPON_LAUNCH:
+                return "Superweapon launch by " + who + " (" + Format.shortPowerName(h.getPowerName()) + ")" + impactText(h, frame, fps);
+            case HIGHLIGHT_HERO_DEATH:
+                return "Hero lost by " + who + " (" + Format.shortName(h.getTemplateName()) + ")";
+            case HIGHLIGHT_STRUCTURE_LOST:
+                return "Structure lost by " + who + " (" + Format.shortName(h.getTemplateName()) + ", worth " + Format.u(h.getValue()) + ")";
+            default:
+                return "Highlight " + h.getId();
+        }
     }
 
     /** " impact in 4.0 s" (estimated ones say so), " impact now" after the impact frame, "" when the game does not know it. */
@@ -136,7 +200,7 @@ final class Minimap extends JPanel {
 
     Minimap(GuiModel model) {
         this.model = model;
-        setBackground(new Color(0x1B1F24));
+        setBackground(Theme.BG);
         setPreferredSize(new java.awt.Dimension(640, 480));
     }
 
@@ -144,7 +208,41 @@ final class Minimap extends JPanel {
      * The map rectangle on screen and the world-to-screen mapping. The map keeps its aspect ratio: it is scaled to
      * fit the panel and centered, with unused space left empty.
      */
-    record View(double left, double top, double width, double height, WorldExtent extent) {
+    static final class View {
+        private final double left;
+        private final double top;
+        private final double width;
+        private final double height;
+        private final WorldExtent extent;
+
+        View(double left, double top, double width, double height, WorldExtent extent) {
+            this.left = left;
+            this.top = top;
+            this.width = width;
+            this.height = height;
+            this.extent = extent;
+        }
+
+        double left() {
+            return left;
+        }
+
+        double top() {
+            return top;
+        }
+
+        double width() {
+            return width;
+        }
+
+        double height() {
+            return height;
+        }
+
+        WorldExtent extent() {
+            return extent;
+        }
+
         static View fit(int panelWidth, int panelHeight, int margin, WorldExtent extent) {
             double availableWidth = Math.max(1, panelWidth - 2.0 * margin);
             double availableHeight = Math.max(1, panelHeight - 2.0 * margin);
@@ -165,6 +263,32 @@ final class Minimap extends JPanel {
         /** North (larger world y) is up. */
         double sy(double worldY) {
             return top + (extent.maxY() - worldY) * scale();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof View)) {
+                return false;
+            }
+            View other = (View) o;
+            return Double.compare(left, other.left) == 0
+                    && Double.compare(top, other.top) == 0
+                    && Double.compare(width, other.width) == 0
+                    && Double.compare(height, other.height) == 0
+                    && Objects.equals(extent, other.extent);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(left, top, width, height, extent);
+        }
+
+        @Override
+        public String toString() {
+            return "View[" + "left=" + left + ", top=" + top + ", width=" + width + ", height=" + height + ", extent=" + extent + "]";
         }
     }
 
@@ -189,15 +313,13 @@ final class Minimap extends JPanel {
             MatchState world = model.state();
             WorldExtent extent = world.worldExtent().orElse(null);
             if (extent == null) {
-                g.setColor(Color.GRAY);
-                String hint = "Waiting for the map extent (sent once the map is loaded).";
-                FontMetrics metrics = g.getFontMetrics();
-                g.drawString(hint, Math.max(8, (getWidth() - metrics.stringWidth(hint)) / 2), getHeight() / 2);
+                paintEmpty(g);
                 return;
             }
             View view = View.fit(getWidth(), getHeight(), MARGIN, extent);
-            g.setColor(new Color(0x2A3038));
+            g.setColor(new Color(0x161D26));
             g.fill(new Rectangle2D.Double(view.left(), view.top(), view.width(), view.height()));
+            drawGraticule(g, view);
 
             drawGrids(g, view, world);
             if (showInterest) {
@@ -209,13 +331,42 @@ final class Minimap extends JPanel {
             drawEventMarks(g, view, world);
             drawCamera(g, view, world.camera().orElse(null));
 
-            g.setColor(new Color(0x59626E));
+            g.setColor(Theme.BORDER);
             g.setStroke(new BasicStroke(1f));
             g.draw(new Rectangle2D.Double(view.left(), view.top(), view.width(), view.height()));
             drawLegend(g, world);
         } finally {
             g.dispose();
         }
+    }
+
+    /** A faint grid over the map, eight cells wide, so a place can be read off the picture. */
+    private static void drawGraticule(Graphics2D g, View view) {
+        g.setColor(Theme.alpha(Theme.TEXT, 14));
+        g.setStroke(new BasicStroke(1f));
+        for (int i = 1; i < 8; i++) {
+            double x = view.left() + view.width() * i / 8;
+            g.draw(new java.awt.geom.Line2D.Double(x, view.top(), x, view.top() + view.height()));
+        }
+        int rows = Math.max(1, (int) Math.round(8 * view.height() / view.width()));
+        for (int i = 1; i < rows; i++) {
+            double y = view.top() + view.height() * i / rows;
+            g.draw(new java.awt.geom.Line2D.Double(view.left(), y, view.left() + view.width(), y));
+        }
+    }
+
+    private void paintEmpty(Graphics2D g) {
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        String headline = "No map yet";
+        String hint = "The minimap draws once the map is loaded and the game has sent its extent.";
+        g.setFont(Theme.semibold(15));
+        g.setColor(Theme.TEXT);
+        FontMetrics metrics = g.getFontMetrics();
+        g.drawString(headline, (getWidth() - metrics.stringWidth(headline)) / 2, getHeight() / 2 - 4);
+        g.setFont(Theme.ui(java.awt.Font.PLAIN, 12.5f));
+        g.setColor(Theme.MUTED);
+        metrics = g.getFontMetrics();
+        g.drawString(hint, Math.max(8, (getWidth() - metrics.stringWidth(hint)) / 2), getHeight() / 2 + 18);
     }
 
     /** Each cell with units or structures becomes a square; more objects make it more opaque. */
@@ -231,7 +382,7 @@ final class Minimap extends JPanel {
                 }
                 double worldX = view.extent().minX() + (i % width) * grid.getCellWidth();
                 double worldY = view.extent().minY() + (i / width) * grid.getCellHeight();
-                g.setColor(withAlpha(color, Math.min(210, 70 + count * 25)));
+                g.setColor(withAlpha(color, Math.min(190, 55 + count * 22)));
                 // The cell's top edge is its far (larger y) side, which is what sy() maps highest.
                 g.fill(new Rectangle2D.Double(view.sx(worldX), view.sy(worldY + grid.getCellHeight()), grid.getCellWidth() * size, grid.getCellHeight() * size));
             }
@@ -355,7 +506,11 @@ final class Minimap extends JPanel {
         g.setColor(Color.WHITE);
         g.setStroke(new BasicStroke(2f));
         if (camera.getHasViewBox()) {
-            g.draw(cameraPolygon(view, camera));
+            Path2D box = cameraPolygon(view, camera);
+            g.setColor(Theme.alpha(Theme.ACCENT, 38));
+            g.fill(box);
+            g.setColor(Theme.ACCENT);
+            g.draw(box);
         } else {
             double x = view.sx(camera.getX());
             double y = view.sy(camera.getY());
@@ -375,19 +530,37 @@ final class Minimap extends JPanel {
         return polygon;
     }
 
+    /** The players in a small translucent card in the corner: a chip of the color and the name. */
     private void drawLegend(Graphics2D g, MatchState world) {
-        List<MatchPlayer> players = world.matchPlayers();
-        int y = 18;
-        g.setFont(g.getFont().deriveFont(java.awt.Font.PLAIN, 12f));
-        for (MatchPlayer player : players) {
-            if (player.getIsObserver()) {
-                continue;
+        List<MatchPlayer> players = new ArrayList<>();
+        for (MatchPlayer player : world.matchPlayers()) {
+            if (!player.getIsObserver()) {
+                players.add(player);
             }
+        }
+        if (players.isEmpty()) {
+            return;
+        }
+        g.setFont(Theme.ui(java.awt.Font.PLAIN, 12f));
+        FontMetrics metrics = g.getFontMetrics();
+        int width = 0;
+        for (MatchPlayer player : players) {
+            width = Math.max(width, metrics.stringWidth(player.getName()));
+        }
+        int rowHeight = 20;
+        int boxWidth = width + 44;
+        int boxHeight = players.size() * rowHeight + 14;
+        g.setColor(Theme.alpha(Theme.BG, 215));
+        g.fillRoundRect(10, 10, boxWidth, boxHeight, 10, 10);
+        g.setColor(Theme.BORDER);
+        g.drawRoundRect(10, 10, boxWidth, boxHeight, 10, 10);
+        int y = 10 + 7 + rowHeight / 2;
+        for (MatchPlayer player : players) {
             g.setColor(playerColor(player.getColor(), player.getPlayerIndex()));
-            g.fillRect(8, y - 10, 10, 10);
-            g.setColor(Color.LIGHT_GRAY);
-            g.drawString(player.getName(), 24, y);
-            y += 16;
+            g.fillRoundRect(22, y - 6, 12, 12, 5, 5);
+            g.setColor(Theme.TEXT);
+            g.drawString(player.getName(), 42, y + (metrics.getAscent() - metrics.getDescent()) / 2);
+            y += rowHeight;
         }
     }
 

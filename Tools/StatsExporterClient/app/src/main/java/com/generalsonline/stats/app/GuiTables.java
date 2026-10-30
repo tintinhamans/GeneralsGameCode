@@ -1,26 +1,35 @@
 package com.generalsonline.stats.app;
 
+import javax.swing.JLabel;
+import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JViewport;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
+import javax.swing.SwingConstants;
 import javax.swing.ToolTipManager;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.FontMetrics;
+import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 
 /** Swing table pieces shared by the tabs of {@link StatsGui}: the table itself, column widths and the cell renderers. */
 final class GuiTables {
-    private static final Color RECENT_ROW = new Color(0xFFF3C4);
+    private static final Color RECENT_ROW = Theme.mix(Theme.FIELD, Theme.ACCENT, 0.13f);
     private static final int HEADER_PADDING = 30;
 
     private GuiTables() {
@@ -48,8 +57,8 @@ final class GuiTables {
         }
         table.setRowSorter(sorter);
         table.setFillsViewportHeight(true);
-        table.setRowHeight(table.getRowHeight() + 2);
-        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        alignHeader(table);
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
         FontMetrics header = table.getTableHeader().getFontMetrics(table.getTableHeader().getFont());
         for (int i = 0; i < table.getColumnModel().getColumnCount(); i++) {
             TableColumn column = table.getColumnModel().getColumn(i);
@@ -58,6 +67,26 @@ final class GuiTables {
             column.setPreferredWidth(Math.max(width, header.stringWidth(name) + HEADER_PADDING));
         }
         return table;
+    }
+
+    /** Numbers are right aligned under their header, like their cells. */
+    private static void alignHeader(JTable table) {
+        TableCellRenderer base = table.getTableHeader().getDefaultRenderer();
+        table.getTableHeader().setDefaultRenderer((t, value, selected, focus, row, column) -> {
+            Component part = base.getTableCellRendererComponent(t, value, selected, focus, row, column);
+            if (part instanceof JLabel) {
+                int modelColumn = t.convertColumnIndexToModel(column);
+                boolean numeric = Number.class.isAssignableFrom(t.getModel().getColumnClass(modelColumn))
+                    && !String.valueOf(value).equals(t.getClientProperty("leftHeaders"));
+                ((JLabel) part).setHorizontalAlignment(numeric ? SwingConstants.RIGHT : SwingConstants.LEFT);
+            }
+            return part;
+        });
+    }
+
+    /** A table in a bordered scroll pane on the table color. */
+    static JScrollPane scroll(JTable table) {
+        return Ui.scroll(table);
     }
 
     private static int defaultWidth(Class<?> type) {
@@ -93,12 +122,6 @@ final class GuiTables {
         }
     }
 
-    /** A color blended towards white, for tinting a text cell with a player's color. */
-    static Color tint(int argb) {
-        Color base = new Color(argb | 0xFF000000);
-        return new Color((base.getRed() + 255) / 2, (base.getGreen() + 255) / 2, (base.getBlue() + 255) / 2);
-    }
-
     /** A table that explains itself while it is empty, and can show a tooltip per cell. */
     @SuppressWarnings("serial")
     static final class HintTable extends JTable {
@@ -116,6 +139,12 @@ final class GuiTables {
             this.tooltips = tooltips;
         }
 
+        /** Fills the width of the pane while the columns fit in it; scrolls sideways when they do not. */
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return getParent() instanceof JViewport && getPreferredSize().width < getParent().getWidth();
+        }
+
         @Override
         public String getToolTipText(MouseEvent event) {
             int row = rowAtPoint(event.getPoint());
@@ -128,13 +157,52 @@ final class GuiTables {
         }
 
         @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
+        protected void paintComponent(Graphics graphics) {
+            super.paintComponent(graphics);
             if (getRowCount() == 0) {
+                paintEmptyState((Graphics2D) graphics.create());
+            }
+        }
+
+        /** The empty state: the first sentence of the hint as a headline, the rest as muted lines under it, centered. */
+        private void paintEmptyState(Graphics2D g) {
+            try {
+                g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
                 Rectangle area = getVisibleRect();
-                g.setColor(Color.GRAY);
-                FontMetrics metrics = g.getFontMetrics();
-                g.drawString(hint, area.x + Math.max(8, (area.width - metrics.stringWidth(hint)) / 2), area.y + area.height / 2);
+                int split = hint.indexOf(". ");
+                String headline = split < 0 ? hint : hint.substring(0, split + 1);
+                String rest = split < 0 ? "" : hint.substring(split + 2);
+                int maxWidth = Math.max(160, Math.min(520, area.width - 48));
+                g.setFont(Theme.semibold(15));
+                FontMetrics big = g.getFontMetrics();
+                List<String> lines = new ArrayList<>();
+                g.setFont(Theme.ui(Font.PLAIN, 12.5f));
+                FontMetrics small = g.getFontMetrics();
+                StringBuilder line = new StringBuilder();
+                for (String word : rest.split(" ")) {
+                    if (line.length() > 0 && small.stringWidth(line + " " + word) > maxWidth) {
+                        lines.add(line.toString());
+                        line.setLength(0);
+                    }
+                    line.append(line.length() > 0 ? " " : "").append(word);
+                }
+                if (line.length() > 0) {
+                    lines.add(line.toString());
+                }
+                int height = big.getHeight() + (lines.isEmpty() ? 0 : 6 + lines.size() * small.getHeight());
+                int y = area.y + Math.max(big.getAscent() + 24, (area.height - height) / 2 + big.getAscent());
+                g.setFont(Theme.semibold(15));
+                g.setColor(Theme.TEXT);
+                g.drawString(headline, area.x + (area.width - big.stringWidth(headline)) / 2, y);
+                g.setFont(Theme.ui(Font.PLAIN, 12.5f));
+                g.setColor(Theme.MUTED);
+                y += 8;
+                for (String text : lines) {
+                    y += small.getHeight();
+                    g.drawString(text, area.x + (area.width - small.stringWidth(text)) / 2, y);
+                }
+            } finally {
+                g.dispose();
             }
         }
     }
@@ -151,7 +219,7 @@ final class GuiTables {
 
         @Override
         protected void setValue(Object value) {
-            boolean none = value instanceof Number number && (number.doubleValue() < 0 || (zeroToo && number.doubleValue() == 0));
+            boolean none = value instanceof Number && (((Number) value).doubleValue() < 0 || (zeroToo && ((Number) value).doubleValue() == 0));
             setText(none || value == null ? "" : value.toString());
         }
     }
@@ -168,11 +236,11 @@ final class GuiTables {
         public Component getTableCellRendererComponent(JTable table, Object value, boolean selected, boolean focus, int row, int column) {
             super.getTableCellRendererComponent(table, "", selected, focus, row, column);
             swatch = null;
-            setHorizontalAlignment(LEFT);
-            if (value instanceof ColorCell cell) {
+            setHorizontalAlignment(CENTER);
+            if (value instanceof ColorCell) {
+                ColorCell cell = (ColorCell) value;
                 if (cell.random()) {
                     setText("?");
-                    setHorizontalAlignment(CENTER);
                 } else if (cell.isColor()) {
                     swatch = cell.awt();
                 } else if (cell.argb() != 0) {
@@ -183,11 +251,22 @@ final class GuiTables {
         }
 
         @Override
-        protected void paintComponent(Graphics g) {
-            super.paintComponent(g);
+        protected void paintComponent(Graphics graphics) {
+            super.paintComponent(graphics);
             if (swatch != null) {
-                g.setColor(swatch);
-                g.fillRect(4, 3, Math.max(1, getWidth() - 8), Math.max(1, getHeight() - 6));
+                Graphics2D g = (Graphics2D) graphics.create();
+                try {
+                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    int size = Math.min(16, getHeight() - 10);
+                    int x = Math.max(6, (getWidth() - size) / 2);
+                    int y = (getHeight() - size) / 2;
+                    g.setColor(swatch);
+                    g.fillRoundRect(x, y, size, size, 6, 6);
+                    g.setColor(Theme.alpha(Color.WHITE, 40));
+                    g.drawRoundRect(x, y, size, size, 6, 6);
+                } finally {
+                    g.dispose();
+                }
             }
         }
     }
@@ -210,7 +289,7 @@ final class GuiTables {
 
         @Override
         protected void setValue(Object value) {
-            boolean none = blankZero && value instanceof Number number && number.doubleValue() == 0;
+            boolean none = blankZero && value instanceof Number && ((Number) value).doubleValue() == 0;
             setText(none || value == null ? "" : value.toString());
         }
 
@@ -220,16 +299,13 @@ final class GuiTables {
             setHorizontalAlignment(value instanceof Number ? RIGHT : LEFT);
             if (!selected) {
                 GuiModel.EventRow event = model.events.get(table.convertRowIndexToModel(row));
-                Color background = table.getBackground();
+                Color background = row % 2 == 1 ? Theme.ZEBRA : table.getBackground();
                 if (model.isRecent(event)) {
                     background = RECENT_ROW;
                 }
                 int argb = model.state().playerColor(event.playerIndex());
-                if (playerColumn && argb != 0) {
-                    background = tint(argb);
-                }
                 setBackground(background);
-                setForeground(table.getForeground());
+                setForeground(playerColumn && argb != 0 ? Theme.legible(new Color(argb | 0xFF000000)) : table.getForeground());
             }
             return this;
         }

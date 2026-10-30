@@ -18,7 +18,7 @@ import com.google.protobuf.Message;
 /**
  * Decodes a frame body to its message ({@link #decode}) and calls the matching listener method ({@link #deliver}).
  * Every consumer of frames goes through these two methods, so a new frame type is added in exactly one place: both
- * switches below are switch expressions over {@link FrameType}, which the compiler requires to cover every constant.
+ * switches below are over {@link FrameType}.
  */
 public final class FrameDispatcher {
     private FrameDispatcher() {
@@ -37,22 +37,48 @@ public final class FrameDispatcher {
         }
         byte[] body = frame.body();
         try {
-            // A switch expression over an enum must cover every constant, so a new FrameType does not compile until it is handled here.
-            Message message = switch (type) {
-                case MATCH_INFO -> MatchInfo.parseFrom(body);
-                case STATS_SNAPSHOT -> StatsSnapshot.parseFrom(body);
-                case MATCH_SUMMARY -> MatchSummary.parseFrom(body);
-                case CHAT_MESSAGE -> ChatMessage.parseFrom(body);
-                case UI_STATE -> UiState.parseFrom(body);
-                case LOBBY_STATE -> LobbyState.parseFrom(body);
-                case EVENTS -> Events.parseFrom(body);
-                case CAMERA -> Camera.parseFrom(body);
-                case HELLO -> Hello.parseFrom(body);
-                case RESPONSE -> Response.parseFrom(body);
-                case VIEW_STATS -> ViewStats.parseFrom(body);
-                case INTEREST_MAP -> InterestMap.parseFrom(body);
-                case CHAT_SEND, REQUEST -> null; // inbound only; outboundFromId never returns them
-            };
+            Message message;
+            switch (type) {
+                case MATCH_INFO:
+                    message = MatchInfo.parseFrom(body);
+                    break;
+                case STATS_SNAPSHOT:
+                    message = StatsSnapshot.parseFrom(body);
+                    break;
+                case MATCH_SUMMARY:
+                    message = MatchSummary.parseFrom(body);
+                    break;
+                case CHAT_MESSAGE:
+                    message = ChatMessage.parseFrom(body);
+                    break;
+                case UI_STATE:
+                    message = UiState.parseFrom(body);
+                    break;
+                case LOBBY_STATE:
+                    message = LobbyState.parseFrom(body);
+                    break;
+                case EVENTS:
+                    message = Events.parseFrom(body);
+                    break;
+                case CAMERA:
+                    message = Camera.parseFrom(body);
+                    break;
+                case HELLO:
+                    message = Hello.parseFrom(body);
+                    break;
+                case RESPONSE:
+                    message = Response.parseFrom(body);
+                    break;
+                case VIEW_STATS:
+                    message = ViewStats.parseFrom(body);
+                    break;
+                case INTEREST_MAP:
+                    message = InterestMap.parseFrom(body);
+                    break;
+                default:
+                    message = null; // inbound only; outboundFromId never returns them
+                    break;
+            }
             return new DecodedFrame(frame, message == null ? null : type, message, null);
         } catch (InvalidProtocolBufferException e) {
             return new DecodedFrame(frame, type, null, e);
@@ -80,58 +106,49 @@ public final class FrameDispatcher {
             listener.unknownFrame(frame.raw().type(), frame.raw().body());
             return;
         }
-        // Again an exhaustive switch expression: the yield value says whether the frame was a known outbound type.
-        boolean delivered = switch (frame.type()) {
-            case MATCH_INFO -> {
+        // The inbound only types (CHAT_SEND, REQUEST) are not delivered; they count as unknown.
+        boolean delivered = true;
+        switch (frame.type()) {
+            case MATCH_INFO:
                 listener.onMatchInfo((MatchInfo) frame.message());
-                yield true;
-            }
-            case STATS_SNAPSHOT -> {
+                break;
+            case STATS_SNAPSHOT:
                 listener.onStatsSnapshot((StatsSnapshot) frame.message());
-                yield true;
-            }
-            case MATCH_SUMMARY -> {
+                break;
+            case MATCH_SUMMARY:
                 listener.onMatchSummary((MatchSummary) frame.message());
-                yield true;
-            }
-            case CHAT_MESSAGE -> {
+                break;
+            case CHAT_MESSAGE:
                 listener.onChatMessage((ChatMessage) frame.message());
-                yield true;
-            }
-            case UI_STATE -> {
+                break;
+            case UI_STATE:
                 listener.onUiState((UiState) frame.message());
-                yield true;
-            }
-            case LOBBY_STATE -> {
+                break;
+            case LOBBY_STATE:
                 listener.onLobbyState((LobbyState) frame.message());
-                yield true;
-            }
-            case EVENTS -> {
+                break;
+            case EVENTS:
                 listener.onEvents((Events) frame.message());
-                yield true;
-            }
-            case CAMERA -> {
+                break;
+            case CAMERA:
                 listener.onCamera((Camera) frame.message());
-                yield true;
-            }
-            case HELLO -> {
+                break;
+            case HELLO:
                 listener.onHello((Hello) frame.message());
-                yield true;
-            }
-            case RESPONSE -> {
+                break;
+            case RESPONSE:
                 listener.onResponse((Response) frame.message());
-                yield true;
-            }
-            case VIEW_STATS -> {
+                break;
+            case VIEW_STATS:
                 listener.onViewStats((ViewStats) frame.message());
-                yield true;
-            }
-            case INTEREST_MAP -> {
+                break;
+            case INTEREST_MAP:
                 listener.onInterestMap((InterestMap) frame.message());
-                yield true;
-            }
-            case CHAT_SEND, REQUEST -> false;
-        };
+                break;
+            default:
+                delivered = false;
+                break;
+        }
         if (!delivered) {
             listener.unknownFrame(frame.raw().type(), frame.raw().body());
         }

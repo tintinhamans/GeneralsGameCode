@@ -1,7 +1,7 @@
 // Maps the camera's view box onto a minimap image: the four ground corners of the screen, in pixels.
 //
-// Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar DrawCameraBox.java
+// Run (Java 11+), with the library jar and protobuf-java on the class path:
+//   java -cp stats-pipe-client-3.0.0.jar:protobuf-java-4.33.4.jar DrawCameraBox.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.MatchState;
 import com.generalsonline.stats.StateListener;
