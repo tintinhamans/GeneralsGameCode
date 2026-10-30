@@ -117,17 +117,28 @@ namespace
 		return TheGameLogic != NULL && TheGameLogic->isInReplayGame() && TheRecorder != NULL && TheRecorder->isPlaybackMode() && TheNetwork == NULL;
 	}
 
-	// Camera and observer commands: an observer of a match, or a replay playback. Never the view of someone who plays.
-	Status observerGate(std::string& message)
+	// Camera commands: any running match. The camera is client-side state, it cannot reach the simulation.
+	Status matchGate(std::string& message)
 	{
 		if (TheGameLogic == NULL || ThePlayerList == NULL || TheTacticalView == NULL || !TheGameLogic->isInInteractiveGame())
 		{
 			message = "no match is running";
 			return statsexporter::RESPONSE_STATUS_UNAVAILABLE;
 		}
+		return statsexporter::RESPONSE_STATUS_OK;
+	}
+
+	// Observer commands: an observer of a match, or a replay playback.
+	Status observerGate(std::string& message)
+	{
+		const Status gate = matchGate(message);
+		if (gate != statsexporter::RESPONSE_STATUS_OK)
+		{
+			return gate;
+		}
 		if (!TheGameLogic->isInReplayGame() && !localPlayerIsObserver())
 		{
-			message = "the local player is an active player of the match: its camera is not touched";
+			message = "the local player is an active player of the match: only an observer can change the point of view";
 			return statsexporter::RESPONSE_STATUS_NOT_ALLOWED;
 		}
 		return statsexporter::RESPONSE_STATUS_OK;
@@ -316,7 +327,7 @@ void StatsExporterControlReset()
 
 int StatsExporterControlCamera(const statsexporter::CameraControlQuery& query, std::string& result, std::string& message)
 {
-	const Status gate = observerGate(message);
+	const Status gate = matchGate(message);
 	if (gate != statsexporter::RESPONSE_STATUS_OK)
 	{
 		return gate;
@@ -435,7 +446,7 @@ int StatsExporterControlCamera(const statsexporter::CameraControlQuery& query, s
 
 int StatsExporterControlFollow(const statsexporter::CameraFollowQuery& query, std::string& result, std::string& message)
 {
-	const Status gate = observerGate(message);
+	const Status gate = matchGate(message);
 	if (gate != statsexporter::RESPONSE_STATUS_OK)
 	{
 		return gate;
