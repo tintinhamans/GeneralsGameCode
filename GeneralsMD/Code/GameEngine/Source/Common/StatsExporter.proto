@@ -716,7 +716,7 @@ enum ResponseStatus
 	RESPONSE_STATUS_RATE_LIMITED = 3;	// too many requests; nothing was done, retry later
 	RESPONSE_STATUS_UNAVAILABLE = 4;	// the data does not exist right now (no match running, no map loaded)
 	RESPONSE_STATUS_TOO_LARGE = 5;		// the result does not fit a frame; ask for a smaller page
-	RESPONSE_STATUS_NOT_ALLOWED = 6;	// the command is refused in this situation (an active player's camera, a live network game); the message says why
+	RESPONSE_STATUS_NOT_ALLOWED = 6;	// the command is refused in this situation (a point of view change for an active player, replay control of a live game); the message says why
 }
 
 // Paging for the queries that can return many rows. The cursor is opaque to the reader: pass the previous page's next_cursor back, 0 starts at the beginning.
@@ -1049,8 +1049,7 @@ message FeedConfigQuery
 // ---------------------------------------------------------------------------------------------------------------------
 // Camera, replay and observer control
 // ---------------------------------------------------------------------------------------------------------------------
-// Camera commands move this client's own view and nothing else. They are accepted only while the local player is an observer of a match
-// or the game plays back a replay; an active player's camera is never touched (RESPONSE_STATUS_NOT_ALLOWED). A replay with the
+// Camera commands move this client's own view and nothing else. They are accepted in any running match. A replay with the
 // replay camera on (it follows the camera recorded in the file) refuses them too. Replay commands need a replay playback.
 
 enum CameraEasing
