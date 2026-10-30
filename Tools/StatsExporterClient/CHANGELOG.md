@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.0
+
+Additive; the protocol is still version 2 and nothing of 2.2.0 changed incompatibly. A game without the capability `lobby.control` answers the new request `BAD_REQUEST`.
+
+- **Lobby control.** `StatsPipe.lobbyControl(LobbyControlQuery)` and the typed methods `openSlot`, `closeSlot`, `addAi`, `kickPlayer`, `setFaction`, `setColor`, `setTeam`, `setStartPosition`, `changeMap`, `setStartingCash`, `limitSuperweapons`, `setLobbyGameSpeed`, `acceptLobby` and `startGame` change the game setup lobby the user sits in (skirmish, LAN, Generals Online) by operating the setup screen's own controls, so the screen's rules decide: a refusal arrives as a `NotAllowedException` with the reason, a bad argument as a `RequestFailedException` (`BAD_REQUEST` or `NOT_FOUND`), no setup screen as `UNAVAILABLE`. The answer (`LobbyControlResult`) names the lobby kind and whether the change was `APPLIED`, `REQUESTED_FROM_HOST` or `REQUESTED_FROM_SERVICE`. `LobbyControl` builds the actions (`LobbyControl.AiLevel` has `EASY`, `MEDIUM` and `BRUTAL`, the screen's Hard). New proto messages `LobbyControlQuery` (request field 21), `LobbyControlResult` (response field 21), `LobbyKick`, `LobbyPress`, `LobbyChangeRoute`; Hello capability `lobby.control`.
+- **`FakeGame`** accepts lobby control while its dump is in a game setup lobby, by the rules of the setup screens (the host changes slots, map and rules, a client its own slot and accepts), sends the changed `LobbyState` to every reader and answers `UNAVAILABLE` outside a lobby. `Builder.lobbyLocalSlot(int)` makes the local user a client. The Hello lists `lobby.control`.
+- **Test client.** The Lobby tab has the lobby controls (slot actions, faction, color, team, start position, map, starting cash, superweapon limit, skirmish speed, Accept and Start) with the game's `NOT_ALLOWED` shown in orange like the Camera tab, and a right-click menu on a slot (open, close, kick, add an AI of each level). New scenario `lobby-control` in the Code tab, the `example` command and `examples/` (`ControlLobby`).
+- The examples and the README name the 2.3.0 jar.
+
 ## 2.2.0
 
 Additive; the protocol is still version 2 and nothing of 2.1.0 changed incompatibly.

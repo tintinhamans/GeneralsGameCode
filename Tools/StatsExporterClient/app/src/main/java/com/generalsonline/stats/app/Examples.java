@@ -49,7 +49,9 @@ final class Examples {
         DIRECTOR("director", "RunDirector", "Run the automatic camera director",
             "Let the Director steer the camera in a mode (hotspot, highlights, overview or all three) and print what it does."),
         FAKE_SERVER("fake-server", "FakeServer", "Serve a dump as a fake game and connect to it",
-            "Play a recorded dump back as a game, in this process, and read it with the same code that reads a live game.");
+            "Play a recorded dump back as a game, in this process, and read it with the same code that reads a live game."),
+        CONTROL_LOBBY("lobby-control", "ControlLobby", "Change the game setup lobby",
+            "Put a computer opponent into an open slot, choose its faction and set the starting cash, through the setup screen's own controls. The screen's rules apply: NOT_ALLOWED where the user could not.");
 
         private final String id;
         private final String className;
@@ -428,6 +430,7 @@ final class Examples {
                 values.put("DUMP", javaString(selection.dumpFile()));
                 template = ExampleTemplates.FAKE_SERVER;
             }
+            case CONTROL_LOBBY -> template = ExampleTemplates.CONTROL_LOBBY;
             default -> throw new IllegalArgumentException("unknown scenario " + scenario);
         }
         return fill(template, values);

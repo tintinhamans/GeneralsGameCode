@@ -3,7 +3,7 @@
 // answers NOT_ALLOWED, which arrives here as a NotAllowedException with the game's reason.
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar CameraControl.java
+//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar CameraControl.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.CameraMove;
 import com.generalsonline.stats.NotAllowedException;

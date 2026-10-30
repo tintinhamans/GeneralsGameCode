@@ -4,7 +4,7 @@
 // value killed and lost and the damage dealt over rolling windows.
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar ViewStatsShare.java
+//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar ViewStatsShare.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.MatchState;

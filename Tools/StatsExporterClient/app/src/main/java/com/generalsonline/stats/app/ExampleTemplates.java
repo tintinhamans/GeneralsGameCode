@@ -15,7 +15,7 @@ final class ExampleTemplates {
         // Connects to a running Generals Online game and prints one line for every frame type.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar PrintEveryFrame.java
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar PrintEveryFrame.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.StatsListener;
         import com.generalsonline.stats.StatsPipe;
@@ -112,7 +112,7 @@ final class ExampleTemplates {
         // The value is ${EXPRESSION}${NOTE}
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar TrackPlayerStat.java
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar TrackPlayerStat.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Format;
         import com.generalsonline.stats.MatchState;
@@ -160,7 +160,7 @@ final class ExampleTemplates {
         // Reacts to ${KIND} events: ${KIND_DESCRIPTION}
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar ReactToEvent.java
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar ReactToEvent.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Format;
         import com.generalsonline.stats.MatchState;
@@ -200,7 +200,7 @@ final class ExampleTemplates {
         // Maps the camera's view box onto a minimap image: the four ground corners of the screen, in pixels.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar DrawCameraBox.java
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar DrawCameraBox.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.MatchState;
         import com.generalsonline.stats.StateListener;
@@ -264,7 +264,7 @@ final class ExampleTemplates {
         // lobby state, so an overlay can show them before the match starts. A prediction is only valid when the lobby says so.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar ShowLobby.java
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar ShowLobby.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Format;
         import com.generalsonline.stats.StatsListener;
@@ -325,7 +325,7 @@ final class ExampleTemplates {
         //  * The audience matters for the match channel only: EVERYONE, ALLIES, or OBSERVERS (observers only).
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar SendChat.java "your text"
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar SendChat.java "your text"
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.StatsListener;
         import com.generalsonline.stats.StatsPipe;
@@ -368,8 +368,8 @@ final class ExampleTemplates {
         // same listener. Handler is an ordinary StatsListener: it does not know whether the frames come from a game or a file.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java record match.dump
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java replay match.dump
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java record match.dump
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar RecordAndReplay.java replay match.dump
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.DecodedFrame;
         import com.generalsonline.stats.DumpReader;
@@ -480,7 +480,7 @@ final class ExampleTemplates {
         // Camera frames arrive up to 120 times a second; if the UI only needs the latest one, do not repaint per frame.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar UiThreadState.java
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar UiThreadState.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.MatchState;
         import com.generalsonline.stats.PlayerView;
@@ -534,7 +534,7 @@ final class ExampleTemplates {
         // The game answers from the templates it has loaded, so this also works outside a match.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar QueryCatalog.java
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar QueryCatalog.java
         // (use ; instead of : between the jars on Windows)
         // No game at hand? Serve a recorded dump as one with the test client:  stats-exporter-client serve match.dump
         import com.generalsonline.stats.Format;
@@ -597,7 +597,7 @@ final class ExampleTemplates {
         // from the units a camera lock follows. An object that was destroyed answers NOT_FOUND.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar InspectObject.java [object id]
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar InspectObject.java [object id]
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Format;
         import com.generalsonline.stats.RequestFailedException;
@@ -652,7 +652,7 @@ final class ExampleTemplates {
         // answers NOT_ALLOWED, which arrives here as a NotAllowedException with the game's reason.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar CameraControl.java
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar CameraControl.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.CameraMove;
         import com.generalsonline.stats.NotAllowedException;
@@ -712,7 +712,7 @@ final class ExampleTemplates {
         // answers NOT_ALLOWED there (a NotAllowedException). Nothing here touches the simulation, only the pace of the playback.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar ReplayControl.java
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar ReplayControl.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.NotAllowedException;
         import com.generalsonline.stats.RequestFailedException;
@@ -769,7 +769,7 @@ final class ExampleTemplates {
         // value killed and lost and the damage dealt over rolling windows.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar ViewStatsShare.java
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar ViewStatsShare.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Format;
         import com.generalsonline.stats.MatchState;
@@ -825,7 +825,7 @@ final class ExampleTemplates {
         // after the resume delay (10 s by default). When the game refuses (NOT_ALLOWED) it pauses itself and says why.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar RunDirector.java
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar RunDirector.java
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.Director;
         import com.generalsonline.stats.DirectorConfig;
@@ -884,7 +884,7 @@ final class ExampleTemplates {
         // like a game's (generalsonline-stats-<pid>), which any client finds. The test client does that with its serve command.
         //
         // Run (Java 17+), with the library jar and protobuf-java on the class path:
-        //   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar FakeServer.java match.dump
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar FakeServer.java match.dump
         // (use ; instead of : between the jars on Windows)
         import com.generalsonline.stats.FakeGame;
         import com.generalsonline.stats.Format;
@@ -918,6 +918,89 @@ final class ExampleTemplates {
                         Thread.sleep(300); // let the last frames arrive
                         for (PlayerView player : state.players()) {
                             System.out.println(player.name() + " (" + player.side() + ") " + player.stateText() + ", money " + Format.u(player.stats().getMoney()));
+                        }
+                    }
+                }
+            }
+        }
+        """;
+
+    static final String CONTROL_LOBBY = """
+        // Changes the game setup lobby the user sits in (skirmish, LAN or Generals Online) the way the setup screen's own
+        // controls would: it puts a computer opponent into an open slot, picks its faction and sets the starting cash.
+        // The game drives the screen's controls, so the screen's rules apply: only the host changes slots, the map and the
+        // rules, a client changes only its own slot and accepts. What the screen would refuse arrives here as a
+        // NotAllowedException with the reason. The LobbyState frame that follows a change is the confirmation.
+        //
+        // Run (Java 17+), with the library jar and protobuf-java on the class path:
+        //   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar ControlLobby.java
+        // (use ; instead of : between the jars on Windows)
+        import com.generalsonline.stats.LobbyControl;
+        import com.generalsonline.stats.MatchState;
+        import com.generalsonline.stats.NotAllowedException;
+        import com.generalsonline.stats.RequestFailedException;
+        import com.generalsonline.stats.StatsPipe;
+        import com.generalsonline.stats.proto.LobbyControlResult;
+        import com.generalsonline.stats.proto.LobbySlotState;
+        import com.generalsonline.stats.proto.LobbyState;
+
+        import java.time.Duration;
+        import java.util.concurrent.ExecutionException;
+        import java.util.concurrent.TimeUnit;
+
+        public class ControlLobby {
+            public static void main(String[] args) throws Exception {
+                MatchState state = new MatchState();
+                try (StatsPipe pipe = StatsPipe.builder().reconnect(false).state(state).build().start()) {
+                    if (pipe.awaitHello(Duration.ofSeconds(10)).isEmpty()) {
+                        System.err.println("no game found within 10 seconds");
+                        return;
+                    }
+                    if (!pipe.hasCapability("lobby.control")) {
+                        System.err.println("this game cannot change a lobby (no lobby.control capability)");
+                        return;
+                    }
+                    LobbyState lobby = null;
+                    for (int i = 0; i < 50 && lobby == null; i++) {
+                        lobby = state.lobby().orElse(null);
+                        if (lobby == null) {
+                            Thread.sleep(100);
+                        }
+                    }
+                    if (lobby == null) {
+                        System.out.println("the user is not in a game setup lobby");
+                        return;
+                    }
+
+                    int open = -1;
+                    for (int slot = 0; slot < lobby.getSlotsCount() && open < 0; slot++) {
+                        if (lobby.getSlots(slot).getState() == LobbySlotState.LOBBY_SLOT_OPEN) {
+                            open = slot;
+                        }
+                    }
+                    try {
+                        if (open >= 0) {
+                            // The result says whether the lobby changed at once (skirmish, a LAN host) or the change was
+                            // requested from the host or the lobby service and shows in the next LobbyState.
+                            LobbyControlResult added = pipe.addAi(open, LobbyControl.AiLevel.MEDIUM).get(10, TimeUnit.SECONDS);
+                            System.out.println("computer opponent in slot " + (open + 1) + ": " + added.getRoute());
+                            pipe.setFaction(open, "China").get(10, TimeUnit.SECONDS);
+                        } else {
+                            System.out.println("no open slot to put a computer opponent in");
+                        }
+                        pipe.setStartingCash(20000).get(10, TimeUnit.SECONDS);
+                        System.out.println("starting cash set");
+
+                        // The Start button, if the screen has it enabled; with players that have not accepted the game only
+                        // announces the intent to start. Leave it commented out unless you mean it.
+                        // pipe.startGame().get(10, TimeUnit.SECONDS);
+                    } catch (ExecutionException e) {
+                        if (e.getCause() instanceof NotAllowedException refused) {
+                            System.out.println("the setup screen would not allow it: " + refused.reason());
+                        } else if (e.getCause() instanceof RequestFailedException failed) {
+                            System.out.println("the request failed: " + failed.getMessage());
+                        } else {
+                            throw e;
                         }
                     }
                 }

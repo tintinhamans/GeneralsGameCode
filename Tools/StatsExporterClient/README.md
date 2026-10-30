@@ -1,10 +1,10 @@
 # Generals Online stats pipe client
 
-A Java 17 library for the live stats pipe of a Generals Online game, a test client that shows everything the pipe delivers, and example programs. Protocol reference: [docs/stats-exporter.md](../../docs/stats-exporter.md). This is version 2.2.0, for **protocol version 2** (a 17 byte frame header with a sequence number and a timestamp, a Hello handshake, requests and responses); it cannot talk to a game of protocol version 1, see the [CHANGELOG](CHANGELOG.md).
+A Java 17 library for the live stats pipe of a Generals Online game, a test client that shows everything the pipe delivers, and example programs. Protocol reference: [docs/stats-exporter.md](../../docs/stats-exporter.md). This is version 2.3.0, for **protocol version 2** (a 17 byte frame header with a sequence number and a timestamp, a Hello handshake, requests and responses); it cannot talk to a game of protocol version 1, see the [CHANGELOG](CHANGELOG.md).
 
 | Project | What it is |
 |---|---|
-| [`lib/`](lib) | `com.generalsonline:stats-pipe-client:2.2.0`. The library other people depend on: the generated protobuf classes, the transport, a thread safe match state, dump files and helpers. protobuf-java is its only dependency. |
+| [`lib/`](lib) | `com.generalsonline:stats-pipe-client:2.3.0`. The library other people depend on: the generated protobuf classes, the transport, a thread safe match state, dump files and helpers. protobuf-java is its only dependency. |
 | [`app/`](app) | The test client: the commands `watch`, `dump`, `replay`, `chat`, `gui`, `serve`, `schema`, `example` and a Swing GUI. It uses the library through its public API only. |
 | [`examples/`](examples) | One runnable program per scenario of the GUI's Code tab, compiled against the library in every build. |
 
@@ -24,18 +24,18 @@ Then, in another project:
 
 ```groovy
 repositories { mavenLocal() }
-dependencies { implementation 'com.generalsonline:stats-pipe-client:2.2.0' }   // brings protobuf-java 4.33.4
+dependencies { implementation 'com.generalsonline:stats-pipe-client:2.3.0' }   // brings protobuf-java 4.33.4
 ```
 
 ```xml
 <dependency>
   <groupId>com.generalsonline</groupId>
   <artifactId>stats-pipe-client</artifactId>
-  <version>2.2.0</version>
+  <version>2.3.0</version>
 </dependency>
 ```
 
-Without a build tool: `lib/build/libs/stats-pipe-client-2.2.0.jar` plus `protobuf-java-4.33.4.jar` on the class path. The jar is an automatic module named `com.generalsonline.stats`. The packages are `com.generalsonline.stats` (the API), `com.generalsonline.stats.proto` (the generated messages) and `com.generalsonline.stats.internal` (not for users).
+Without a build tool: `lib/build/libs/stats-pipe-client-2.3.0.jar` plus `protobuf-java-4.33.4.jar` on the class path. The jar is an automatic module named `com.generalsonline.stats`. The packages are `com.generalsonline.stats` (the API), `com.generalsonline.stats.proto` (the generated messages) and `com.generalsonline.stats.internal` (not for users).
 
 The message classes are generated from the game's own `StatsExporter.proto` (a filtered copy with `optimize_for = LITE_RUNTIME` removed, so the classes have descriptors and text printing). There is one copy of the schema; the build never modifies it. `protobuf-java` 4.33.4 pairs with the engine's protobuf 6.33.4 (Java 4.x corresponds to C++ 6.x); the wire format is stable across versions.
 
@@ -63,7 +63,7 @@ public class QuickStart {
 }
 ```
 
-Run it with the two jars on the class path, for example `java -cp stats-pipe-client-2.2.0.jar;protobuf-java-4.33.4.jar QuickStart.java` (`:` instead of `;` outside Windows).
+Run it with the two jars on the class path, for example `java -cp stats-pipe-client-2.3.0.jar;protobuf-java-4.33.4.jar QuickStart.java` (`:` instead of `;` outside Windows).
 
 ### The public API
 
@@ -164,6 +164,24 @@ Director director = Director.start(pipe, state, config);     // switches the int
 
 The director pauses when a `Camera` frame says a human moved the camera (`change_source` `USER`, or the user action count grew) and takes over again after `resumeDelay` (10 s) without input, or at once with `resume()`. When the game refuses (`NotAllowedException`) it pauses itself and `lastError()` holds the exception. `DirectorLogic` is the pure decision part: it takes interest maps and camera frames and the time of each call, and `poll(now)` returns the moves; with a manual `DirectorClock` it is deterministic, which is how it is tested. `DirectorConfig` is immutable (`defaults().toBuilder()...build()`).
 
+### Lobby control
+
+New in 2.3.0 (protocol version 2, announced by the capability `lobby.control`). A tool can change the game setup lobby the user sits in: skirmish, LAN or Generals Online. The game does not poke the lobby's data, it **operates the setup screen's own controls** (the slot dropdowns, the start position buttons, the check box, the Start and Accept buttons), so the screen's handlers validate the change and send it on as usual, and the screen refreshes itself.
+
+```java
+pipe.addAi(3, LobbyControl.AiLevel.MEDIUM);          pipe.openSlot(4);        pipe.closeSlot(5);       pipe.kickPlayer(1, false);
+pipe.setFaction(3, "China");                         pipe.setColor(3, 0xFF3060FF);   pipe.setTeam(3, 1);  pipe.setStartPosition(3, 2);
+pipe.changeMap("maps\\tournament desert\\tournament desert.map");     pipe.setStartingCash(20000);    pipe.limitSuperweapons(true);
+pipe.acceptLobby();                                  pipe.startGame();        // a client accepts, the host starts
+pipe.lobbyControl(LobbyControl.faction(0, "Random"));   // the same, built by LobbyControl; slots are 0-based as in LobbyState
+```
+
+- **The screen's rules apply.** Only the host changes slots, the map, the starting cash and the superweapon limit; a client changes its own slot and accepts; the host also sets the side, color, team and start position of an AI slot. What the screen would not allow (a locked or hidden control, a colour another slot holds, a button that is disabled) fails with a `NotAllowedException` carrying the reason, and nothing changes. A bad argument fails with `RequestFailedException` (`BAD_REQUEST`, or `NOT_FOUND` for an unknown side or map), and with no setup screen up the status is `UNAVAILABLE`. Nothing is done during a match.
+- **The result** (`LobbyControlResult`) tells the `kind` of lobby and the `route`: `APPLIED` (the lobby changed at once: skirmish, a LAN host), `REQUESTED_FROM_HOST` (a LAN client asked the host) or `REQUESTED_FROM_SERVICE` (Generals Online: the lobby service decides and echoes the change). The `LobbyState` frame that follows is the confirmation.
+- `startGame()` presses the Start button: in skirmish it starts the game, in LAN and online it starts when every human has accepted and otherwise only announces the intent (the result's note says so). `setLobbyGameSpeed` is the skirmish speed slider.
+- `FakeGame` takes lobby control while its dump is in a lobby (`Builder.lobbyLocalSlot(slot)` makes the local user a client instead of the host) and sends the changed `LobbyState` to its readers; see "The fake game".
+- The test client's **Lobby** tab has the controls (a slot spinner and buttons under the table, and a right-click menu on a slot) and a "Show code for this" for the `lobby-control` example.
+
 ### The fake game
 
 New in 2.2.0. `FakeGame` plays a recorded dump back **as a game**, so a tool, an overlay or a director can be written and tested without one running. It speaks protocol 2 like the real thing: a `Hello` with a reader slot and the game's limits, frames with fresh sequence numbers and timestamps, up to four readers, and answers to requests.
@@ -185,6 +203,8 @@ The same from the test client: `stats-exporter-client serve match.dump --speed 2
 - **Approximations.** A dump recorded without the view or interest feeds has no `ViewStats` or `InterestMap` frames; the fake computes stand-ins from the snapshots and events: the interest score is the decayed kill value per cell (half life 6 s of game time) plus the armies of enemy players close together, with highlights for superweapon launches (impact time estimated), hero deaths and structures worth 1000 or more lost; the view statistics apportion each player's army by the player grid cells inside the camera's view box, list heroes and expensive units the events placed inside it, and roll kills and losses over the trade window. They are plausible, not exact. A dump that has those frames (recorded with the feeds on) has them forwarded as recorded, filtered by the configuration. The camera's view box is a fixed trapezoid scaled by the zoom, not a projection of terrain.
 - **Limits.** The game's object model is only what the dump shows: no health beyond what a notable unit reports, no production queues behind `object`, no sciences to buy (`purchasable` and `locked` are empty). Object ids of the dump are the real ones, so they mean the same in a later live run of the same match only if the same game produced both.
 
+**Lobby control** is answered while the dump sits in a game setup lobby: the local user is the host unless `lobbyLocalSlot(slot)` makes it a client, the changes follow the setup screens' rules, and every change goes out as a new `LobbyState`. The model has no map list and no network: any `.map` name is a map, and Start only answers.
+
 ### Threading
 
 - A pipe has one daemon reader thread that connects, reads and decodes. By default the listener and the state are called on that thread, so keep callbacks short.
@@ -196,7 +216,7 @@ The same from the test client: `stats-exporter-client serve match.dump --speed 2
 
 ### Example programs
 
-[`examples/src/main/java`](examples/src/main/java) has one complete program per scenario, compiled against the library on every build. Each can also be run on its own: `java -cp stats-pipe-client-2.2.0.jar;protobuf-java-4.33.4.jar PrintEveryFrame.java`.
+[`examples/src/main/java`](examples/src/main/java) has one complete program per scenario, compiled against the library on every build. Each can also be run on its own: `java -cp stats-pipe-client-2.3.0.jar;protobuf-java-4.33.4.jar PrintEveryFrame.java`.
 
 | Program | Shows |
 |---|---|

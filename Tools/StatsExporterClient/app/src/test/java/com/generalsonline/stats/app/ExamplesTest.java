@@ -104,7 +104,7 @@ class ExamplesTest {
             programs.add(Examples.generate(scenario, DEFAULTS));
             scenarios.add(scenario);
         }
-        assertEquals(15, programs.size(), "the eight scenarios of the first version and the seven of the control features");
+        assertEquals(16, programs.size(), "the eight scenarios of the first version, the seven of the control features and the lobby control");
         assertCompiles(output, programs, scenarios);
     }
 
@@ -287,6 +287,10 @@ class ExamplesTest {
         String fake = Examples.generate(Examples.Scenario.FAKE_SERVER, DEFAULTS.withDumpFile("x.dump"));
         assertTrue(fake.contains("\"x.dump\"") && fake.contains("game.connect(StatsPipe.builder()") && fake.contains("namedPipe(false)") && fake.contains("holdForReader(true)"), fake);
         assertFalse(fake.contains("\\\\.\\pipe"), "no backslash path in a template: " + fake);
+
+        String lobby = Examples.generate(Examples.Scenario.CONTROL_LOBBY, DEFAULTS);
+        assertTrue(lobby.contains("hasCapability(\"lobby.control\")") && lobby.contains("pipe.addAi(open, LobbyControl.AiLevel.MEDIUM)") && lobby.contains("pipe.setFaction(open, \"China\")"), lobby);
+        assertTrue(lobby.contains("NotAllowedException") && lobby.contains("getRoute()") && lobby.contains("setStartingCash(20000)"), lobby);
     }
 
     @Test
