@@ -2445,6 +2445,7 @@ void StatsExporterLiveUpdate()
 	static UnsignedInt s_fullEpoch[STATS_EXPORTER_MAX_READERS];
 	static UnsignedInt s_previousFrame = 0;
 	static ULONGLONG s_previousMs = 0;
+	static Real s_localLogicFps = 0.0f;
 
 	StatsExporterSink* sink = StatsExporterPipeGetSink();
 	if (sink == NULL)
@@ -2588,15 +2589,22 @@ void StatsExporterLiveUpdate()
 		return;
 	}
 
-	// Local client only: the logic frames achieved per wall-clock second since the last sample.
+	// Local client only: the logic frames achieved per wall-clock second, over at least 250 ms (the tick count is too coarse for per-frame samples).
 	SnapshotOptions options;
 	const ULONGLONG nowMs = GetTickCount64();
-	if (s_previousMs != 0 && now > s_previousFrame && nowMs > s_previousMs)
+	if (s_previousMs == 0 || now < s_previousFrame)
 	{
-		options.localLogicFps = (Real)(now - s_previousFrame) * 1000.0f / (Real)(nowMs - s_previousMs);
+		s_previousFrame = now;
+		s_previousMs = nowMs;
+		s_localLogicFps = 0.0f;
 	}
-	s_previousFrame = now;
-	s_previousMs = nowMs;
+	else if (now > s_previousFrame && nowMs >= s_previousMs + 250)
+	{
+		s_localLogicFps = (Real)(now - s_previousFrame) * 1000.0f / (Real)(nowMs - s_previousMs);
+		s_previousFrame = now;
+		s_previousMs = nowMs;
+	}
+	options.localLogicFps = s_localLogicFps;
 
 	for (Int group = 0; group < fullGroups; ++group)
 	{

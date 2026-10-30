@@ -1006,7 +1006,7 @@ message ResyncResult
 // Which frames this reader gets and how often. Defaults apply to every new connection.
 message FeedConfig
 {
-	uint32 light_interval_ms = 1;	// light StatsSnapshot cadence in game time, 0 = none; default 100, lowest 50
+	uint32 light_interval_ms = 1;	// light StatsSnapshot cadence in game time, 0 = none; default 100, lowest 1; anything up to one logic frame means every logic frame
 	uint32 full_interval_ms = 2;	// full StatsSnapshot cadence, 0 = none (the heavy fields then never arrive); default 250, lowest 100
 	bool events = 3;				// default true
 	bool camera = 4;				// default true
