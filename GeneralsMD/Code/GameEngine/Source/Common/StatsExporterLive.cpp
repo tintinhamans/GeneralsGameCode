@@ -1194,7 +1194,7 @@ namespace
 			"frame.sequence", "frame.timestamp", "multi_reader", "chat.send",
 			"request.catalog", "request.object", "request.objects", "request.player", "request.map", "request.resync", "request.feed_config",
 			"map.minimap_rgba", "event.object_ids", "event.kill_detail", "feed.per_reader",
-			"camera.control", "camera.follow", "camera.source", "replay.control", "observe.player", "view_stats", "interest_map", "status.not_allowed"
+			"camera.control", "camera.follow", "camera.source", "replay.control", "observe.player", "view_stats", "interest_map", "status.not_allowed", "lobby.control"
 		};
 
 		statsexporter::Hello& hello = helloMessage();
@@ -4514,6 +4514,11 @@ void StatsExporterLiveCamera()
 	}
 
 	emitViewFrames(sink, started, TheGameLogic->getFrame());
+}
+
+int StatsExporterLiveCurrentScreen()
+{
+	return (int)currentUiState().screen;
 }
 
 void StatsExporterLiveTick()

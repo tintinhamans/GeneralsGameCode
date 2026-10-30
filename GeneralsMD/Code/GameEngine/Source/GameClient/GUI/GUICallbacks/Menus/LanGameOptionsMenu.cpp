@@ -59,6 +59,7 @@
 #include "Common/MultiplayerSettings.h"
 #include "GameClient/GameText.h"
 #include "GameNetwork/GUIUtil.h"
+#include "Common/StatsExporterLobby.h"
 
 
 extern char *LANnextScreen;
@@ -1449,4 +1450,38 @@ void PostToLanGameOptions( PostToLanGameType post )
 		default:
 			return;
 	}
+}
+
+// Stats pipe lobby control: the start position buttons' own handler.
+static void statsMoveStartPosition(Int slot, Int position)
+{
+	handleStartPositionSelection(slot, position);
+}
+
+Bool LanGameOptionsMenuStatsLobby( StatsLobbyScreen& out )
+{
+	if (!parentLanGameOptions || !TheLAN || !TheLAN->GetMyGame() || !buttonStart)
+		return FALSE;
+
+	out.game = TheLAN->GetMyGame();
+	out.isHost = TheLAN->AmIHost();
+	out.localSlot = out.game->getLocalSlotNum();
+	if (LANbuttonPushed)
+		out.blocked = "the screen is leaving or starting the game";
+	else if (mapSelectLayout)
+		out.blocked = "the map selector is open";
+	else if (!AreSlotListUpdatesEnabled() || s_isIniting)
+		out.blocked = "the screen is still opening";
+	out.comboPlayer = comboBoxPlayer;
+	out.comboColor = comboBoxColor;
+	out.comboTemplate = comboBoxPlayerTemplate;
+	out.comboTeam = comboBoxTeam;
+	out.buttonStartPosition = buttonMapStartPosition;
+	out.comboStartingCash = comboBoxStartingCash;
+	out.checkLimitSuperweapons = checkboxLimitSuperweapons;
+	out.buttonSelectMap = buttonSelectMap;
+	out.buttonStart = buttonStart;
+	out.moveStartPosition = statsMoveStartPosition;
+	out.applyMap = LanMapSelectMenuApplyMap;
+	return TRUE;
 }

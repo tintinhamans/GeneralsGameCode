@@ -65,6 +65,7 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameNetwork/NAT.h"
 #include "GameNetwork/GUIUtil.h"
+#include "Common/StatsExporterLobby.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
 
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
@@ -4577,4 +4578,45 @@ void OnKickedFromLobby()
 	GSMessageBoxOk(TheGameText->fetch("GUI:GSErrorTitle"), TheGameText->fetch("GUI:GSKicked"));
 	nextScreen = "Menus/WOLCustomLobby.wnd";
 	TheShell->pop();
+}
+
+// Stats pipe lobby control: the start position buttons' own handler.
+static void statsMoveStartPosition(Int slot, Int position)
+{
+	handleStartPositionSelection(slot, position);
+}
+
+Bool WOLGameSetupMenuStatsLobby( StatsLobbyScreen& out )
+{
+	if (!s_gameSetupMenuOpen || !parentWOLGameSetup || !buttonStart)
+		return FALSE;
+
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+	if (pLobbyInterface == nullptr || !pLobbyInterface->IsInLobby())
+		return FALSE;
+
+	out.game = pLobbyInterface->GetCurrentGame();
+	if (out.game == nullptr)
+		return FALSE;
+
+	out.isHost = pLobbyInterface->IsHost();
+	out.localSlot = out.game->getLocalSlotNum();
+	if (buttonPushed)
+		out.blocked = "the screen is leaving or starting the game";
+	else if (WOLMapSelectLayout)
+		out.blocked = "the map selector is open";
+	else if (!initDone)
+		out.blocked = "the screen is still opening";
+	out.comboPlayer = comboBoxPlayer;
+	out.comboColor = comboBoxColor;
+	out.comboTemplate = comboBoxPlayerTemplate;
+	out.comboTeam = comboBoxTeam;
+	out.buttonStartPosition = buttonMapStartPosition;
+	out.comboStartingCash = comboBoxStartingCash;
+	out.checkLimitSuperweapons = checkBoxLimitSuperweapons;
+	out.buttonSelectMap = buttonSelectMap;
+	out.buttonStart = buttonStart;
+	out.moveStartPosition = statsMoveStartPosition;
+	out.applyMap = WOLMapSelectMenuApplyMap;
+	return TRUE;
 }
