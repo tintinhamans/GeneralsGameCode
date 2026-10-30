@@ -4,7 +4,7 @@
 // after the resume delay (10 s by default). When the game refuses (NOT_ALLOWED) it pauses itself and says why.
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar RunDirector.java
+//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar RunDirector.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.Director;
 import com.generalsonline.stats.DirectorConfig;

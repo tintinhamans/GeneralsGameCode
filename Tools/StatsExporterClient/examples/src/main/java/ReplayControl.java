@@ -3,7 +3,7 @@
 // answers NOT_ALLOWED there (a NotAllowedException). Nothing here touches the simulation, only the pace of the playback.
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar ReplayControl.java
+//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar ReplayControl.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.NotAllowedException;
 import com.generalsonline.stats.RequestFailedException;

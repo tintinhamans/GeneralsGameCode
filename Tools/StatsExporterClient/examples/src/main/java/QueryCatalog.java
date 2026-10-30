@@ -2,7 +2,7 @@
 // The game answers from the templates it has loaded, so this also works outside a match.
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar QueryCatalog.java
+//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar QueryCatalog.java
 // (use ; instead of : between the jars on Windows)
 // No game at hand? Serve a recorded dump as one with the test client:  stats-exporter-client serve match.dump
 import com.generalsonline.stats.Format;

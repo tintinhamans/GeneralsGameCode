@@ -18,6 +18,8 @@ import com.generalsonline.stats.proto.ChatSend;
 import com.generalsonline.stats.proto.FeedConfig;
 import com.generalsonline.stats.proto.FeedConfigQuery;
 import com.generalsonline.stats.proto.Hello;
+import com.generalsonline.stats.proto.LobbyControlQuery;
+import com.generalsonline.stats.proto.LobbyControlResult;
 import com.generalsonline.stats.proto.MapDetail;
 import com.generalsonline.stats.proto.MapQuery;
 import com.generalsonline.stats.proto.ObjectDetail;
@@ -114,6 +116,8 @@ import java.util.function.Supplier;
  * <p><b>Control.</b> The camera, replay and observer methods ({@link #moveCamera}, {@link #followUnit}, {@link #pauseReplay},
  * {@link #observePlayer}, ...) are requests too. The game answers {@code NOT_ALLOWED}, which these methods turn into a
  * {@link NotAllowedException}, when its situation forbids the command: only observers and replay playback may be steered.
+ * The lobby methods ({@link #lobbyControl}, {@link #addAi}, {@link #setFaction}, {@link #startGame}, ...) change the game
+ * setup lobby the user sits in through the setup screen's own controls, with the screen's rules and the same exception.
  *
  * <p><b>Errors.</b> A listener, state listener or executor task that throws costs only its frame: the exception goes to
  * {@link StatsListener#onError} and reading continues. Only a pipe or framing failure disconnects, and its real cause
@@ -1011,6 +1015,168 @@ public final class StatsPipe implements AutoCloseable {
      */
     public CompletableFuture<ObserveState> observeNobody() {
         return typed(Request.newBuilder().setObserve(ObserveQuery.newBuilder().setPlayerIndex(-1)), Response.ResultCase.OBSERVE, Response::getObserve);
+    }
+
+    // -- Lobby control. The game drives the setup screen's own controls; whatever the screen would refuse fails with a
+    // NotAllowedException. Build the actions with LobbyControl.
+
+    /**
+     * Changes the game setup lobby the local user sits in, the way the setup screen's own controls would (skirmish, LAN
+     * or Generals Online). The result says whether the lobby changed at once or the change was requested from the host or
+     * the lobby service; the {@code LobbyState} frame that follows is the confirmation.
+     *
+     * @param action an action built with {@link LobbyControl}
+     * @return the kind of lobby, how the change travels and an optional note; fails with a {@link NotAllowedException}
+     *         when the screen would not allow it, with UNAVAILABLE when the user is not in a setup lobby and with
+     *         BAD_REQUEST or NOT_FOUND for a bad argument
+     */
+    public CompletableFuture<LobbyControlResult> lobbyControl(LobbyControlQuery action) {
+        Objects.requireNonNull(action, "action");
+        return typed(Request.newBuilder().setLobbyControl(action), Response.ResultCase.LOBBY_CONTROL, Response::getLobbyControl);
+    }
+
+    /**
+     * Opens a slot (host only). See {@link LobbyControl#openSlot}.
+     *
+     * @param slot the lobby slot
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> openSlot(int slot) {
+        return lobbyControl(LobbyControl.openSlot(slot));
+    }
+
+    /**
+     * Closes a slot (host only). See {@link LobbyControl#closeSlot}.
+     *
+     * @param slot the lobby slot
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> closeSlot(int slot) {
+        return lobbyControl(LobbyControl.closeSlot(slot));
+    }
+
+    /**
+     * Puts a computer opponent into a slot (host only). See {@link LobbyControl#addAi}.
+     *
+     * @param slot the lobby slot
+     * @param level the AI level
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> addAi(int slot, LobbyControl.AiLevel level) {
+        return lobbyControl(LobbyControl.addAi(slot, level));
+    }
+
+    /**
+     * Removes the human in a slot (host only). See {@link LobbyControl#kick}.
+     *
+     * @param slot the lobby slot
+     * @param closeSlot true to leave the slot closed instead of open
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> kickPlayer(int slot, boolean closeSlot) {
+        return lobbyControl(LobbyControl.kick(slot, closeSlot));
+    }
+
+    /**
+     * Sets a slot's side. See {@link LobbyControl#faction}.
+     *
+     * @param slot the lobby slot
+     * @param side a side such as {@code "America"}, or {@code "Random"} or {@code "Observer"}
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> setFaction(int slot, String side) {
+        return lobbyControl(LobbyControl.faction(slot, side));
+    }
+
+    /**
+     * Sets a slot's color. See {@link LobbyControl#color}.
+     *
+     * @param slot the lobby slot
+     * @param argb a lobby color packed as {@code 0xAARRGGBB}, or 0 for Random
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> setColor(int slot, int argb) {
+        return lobbyControl(LobbyControl.color(slot, argb));
+    }
+
+    /**
+     * Sets a slot's team. See {@link LobbyControl#team}.
+     *
+     * @param slot the lobby slot
+     * @param team the 0-based team, or -1 for none
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> setTeam(int slot, int team) {
+        return lobbyControl(LobbyControl.team(slot, team));
+    }
+
+    /**
+     * Puts a slot on a start position, or off any. See {@link LobbyControl#startPosition}.
+     *
+     * @param slot the lobby slot
+     * @param position the 0-based start position, or -1 to clear
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> setStartPosition(int slot, int position) {
+        return lobbyControl(LobbyControl.startPosition(slot, position));
+    }
+
+    /**
+     * Changes the lobby's map (host only). See {@link LobbyControl#map}.
+     *
+     * @param mapName a multiplayer map as {@code LobbyState.map_name} gives it
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> changeMap(String mapName) {
+        return lobbyControl(LobbyControl.map(mapName));
+    }
+
+    /**
+     * Sets the starting cash (host only). See {@link LobbyControl#startingCash}.
+     *
+     * @param cash one of the amounts the setup screen offers
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> setStartingCash(int cash) {
+        return lobbyControl(LobbyControl.startingCash(cash));
+    }
+
+    /**
+     * Switches the superweapon limit on or off (host only). See {@link LobbyControl#limitSuperweapons}.
+     *
+     * @param limited true for limited superweapons
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> limitSuperweapons(boolean limited) {
+        return lobbyControl(LobbyControl.limitSuperweapons(limited));
+    }
+
+    /**
+     * Sets the skirmish speed slider (skirmish only). See {@link LobbyControl#gameSpeed}.
+     *
+     * @param fps the frame rate limit, 15 to 61
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> setLobbyGameSpeed(int fps) {
+        return lobbyControl(LobbyControl.gameSpeed(fps));
+    }
+
+    /**
+     * Presses a client's Accept button. See {@link LobbyControl#accept}.
+     *
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> acceptLobby() {
+        return lobbyControl(LobbyControl.accept());
+    }
+
+    /**
+     * Presses the host's Start button. See {@link LobbyControl#start}.
+     *
+     * @return the result of the action
+     */
+    public CompletableFuture<LobbyControlResult> startGame() {
+        return lobbyControl(LobbyControl.start());
     }
 
     /**

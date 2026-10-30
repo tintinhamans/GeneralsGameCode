@@ -7,7 +7,7 @@
 // Camera frames arrive up to 120 times a second; if the UI only needs the latest one, do not repaint per frame.
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar UiThreadState.java
+//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar UiThreadState.java
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.MatchState;
 import com.generalsonline.stats.PlayerView;

@@ -16,6 +16,8 @@ import com.generalsonline.stats.proto.Events;
 import com.generalsonline.stats.proto.FeedConfig;
 import com.generalsonline.stats.proto.Hello;
 import com.generalsonline.stats.proto.InterestMap;
+import com.generalsonline.stats.proto.LobbyControlQuery;
+import com.generalsonline.stats.proto.LobbyState;
 import com.generalsonline.stats.proto.MatchInfo;
 import com.generalsonline.stats.proto.MatchPlayer;
 import com.generalsonline.stats.proto.ObserveQuery;
@@ -82,6 +84,14 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@code Camera} frames with the change source PIPE; replay pause and speed change the pace of the stream. There is one
  * camera, shared by all readers, as there is one in a game. Requests over the rate limit get {@code RATE_LIMITED}.
  *
+ * <p><b>Lobby control</b> works while the dump is in a game setup lobby (a {@code LobbyState} with {@code in_lobby} and no
+ * match running; otherwise {@code UNAVAILABLE}). The lobby is modelled by the rules of the setup screens: the local user
+ * is the host unless {@link Builder#lobbyLocalSlot} makes it a client, only the host changes slots, map and rules, a
+ * client changes its own slot and accepts, and what the screens refuse gets {@code NOT_ALLOWED}. A change is sent to every
+ * reader as a new {@code LobbyState} and replaces the dump's lobby for readers that join later, until the dump sends the
+ * next one. The model has no map list, no random resolution and no network: any {@code .map} name is a map, and Start
+ * only answers.
+ *
  * <p>Thread safe; it uses daemon threads and {@link #close()} stops them. This class never prints.
  */
 public final class FakeGame implements AutoCloseable {
@@ -100,7 +110,7 @@ public final class FakeGame implements AutoCloseable {
     private static final String[] CAPABILITIES = {
         "frame.sequence", "frame.timestamp", "multi_reader", "chat.send", "request.catalog", "request.object", "request.objects", "request.player",
         "request.map", "request.resync", "request.feed_config", "map.minimap_rgba", "event.object_ids", "event.kill_detail", "feed.per_reader",
-        "camera.control", "camera.follow", "camera.source", "replay.control", "observe.player", "view_stats", "interest_map", "status.not_allowed"};
+        "camera.control", "camera.follow", "camera.source", "replay.control", "observe.player", "view_stats", "interest_map", "status.not_allowed", "lobby.control"};
 
     /** What the local player of the fake game is doing, which decides what the control commands may do. */
     public enum Situation {
@@ -124,6 +134,7 @@ public final class FakeGame implements AutoCloseable {
     private final Situation situation;
     private final int queueBytes;
     private final boolean holdForReader;
+    private final int lobbyLocalSlot;
 
     private final FakeWorld world;
     private final FakeCamera camera = new FakeCamera();
@@ -165,6 +176,7 @@ public final class FakeGame implements AutoCloseable {
         this.situation = b.situation;
         this.queueBytes = b.queueBytes;
         this.holdForReader = b.holdForReader;
+        this.lobbyLocalSlot = b.lobbyLocalSlot;
         this.world = new FakeWorld(dump);
         this.synth = new FakeSynth(dump.logicFps);
         this.slots = new Session[maxReaders];
@@ -194,6 +206,7 @@ public final class FakeGame implements AutoCloseable {
         private Situation situation = Situation.REPLAY;
         private int queueBytes = DEFAULT_QUEUE_BYTES;
         private boolean holdForReader;
+        private int lobbyLocalSlot = -1;
 
         private Builder(Path dump) {
             this.dump = dump;
@@ -320,6 +333,21 @@ public final class FakeGame implements AutoCloseable {
          */
         public Builder situation(Situation situation) {
             this.situation = Objects.requireNonNull(situation, "situation");
+            return this;
+        }
+
+        /**
+         * Chooses who the local user is in a game setup lobby of the dump, which decides what lobby control may do: the
+         * host (the default) changes slots, map and rules; a client changes only its own slot and accepts.
+         *
+         * @param slot the lobby slot the local user holds as a client, or -1 for the host
+         * @return this builder
+         */
+        public Builder lobbyLocalSlot(int slot) {
+            if (slot < -1 || slot >= LobbyControl.MAX_SLOTS) {
+                throw new IllegalArgumentException("a lobby slot is 0 to " + (LobbyControl.MAX_SLOTS - 1) + ", or -1 for the host, got " + slot);
+            }
+            this.lobbyLocalSlot = slot;
             return this;
         }
 
@@ -1060,6 +1088,7 @@ public final class FakeGame implements AutoCloseable {
                 case CAMERA_FOLLOW -> response = cameraFollow(request.getCameraFollow());
                 case REPLAY_CONTROL -> response = replayControl(request.getReplayControl());
                 case OBSERVE -> response = observe(request.getObserve());
+                case LOBBY_CONTROL -> response = lobbyControl(request.getLobbyControl());
                 default -> response = refuse(ResponseStatus.RESPONSE_STATUS_BAD_REQUEST, "the request has no query");
             }
         }
@@ -1171,6 +1200,29 @@ public final class FakeGame implements AutoCloseable {
         synchronized (lock) {
             observed = index < 0 ? -1 : index;
             return Response.newBuilder().setObserve(ObserveState.newBuilder().setPlayerIndex(observed).setFullView(true));
+        }
+    }
+
+    /** A lobby control action, while the dump is in a game setup lobby: applied to the lobby model, then sent to every reader as a LobbyState. */
+    private Response.Builder lobbyControl(LobbyControlQuery query) {
+        synchronized (lock) {
+            LobbyState current = world.lobby();
+            if (current == null) {
+                return refuse(ResponseStatus.RESPONSE_STATUS_UNAVAILABLE, "the user is not in a game setup lobby");
+            }
+            FakeLobby.Outcome outcome = FakeLobby.apply(current, query, lobbyLocalSlot);
+            if (outcome.refusal() != null) {
+                return refuse(outcome.refusal().status(), outcome.refusal().message());
+            }
+            if (!outcome.state().equals(current)) {
+                world.replaceLobby(outcome.state());
+                for (Session s : slots) {
+                    if (s != null) {
+                        s.send(FrameType.LOBBY_STATE, outcome.state());
+                    }
+                }
+            }
+            return Response.newBuilder().setLobbyControl(outcome.result());
         }
     }
 

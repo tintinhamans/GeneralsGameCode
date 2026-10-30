@@ -7,6 +7,7 @@ import com.generalsonline.stats.PlayerView;
 import com.generalsonline.stats.StatsPipe;
 import com.generalsonline.stats.proto.CatalogEntry;
 import com.generalsonline.stats.proto.ChatChannel;
+import com.generalsonline.stats.proto.LobbySlotState;
 import com.generalsonline.stats.proto.MatchPlayer;
 import com.generalsonline.stats.proto.StatEventKind;
 
@@ -91,6 +92,7 @@ public final class StatsGui {
     private final MinimapTab minimapTab = new MinimapTab(model, minimap, commands);
     private final QueryTab queryTab = new QueryTab(commands, model);
     private final CameraTab cameraTab = new CameraTab(commands, model);
+    private final LobbyControlPanel lobbyPanel = new LobbyControlPanel(commands, model);
     private final ViewStatsTab viewTab = new ViewStatsTab(model);
     private final DirectorModel directorModel = new DirectorModel(model.state(), () -> pipe);
     private final DirectorTab directorTab = new DirectorTab(directorModel);
@@ -437,7 +439,21 @@ public final class StatsGui {
             Map.of("Name", 130, "Side", 180, "Random", 100, "Color", 46, "Predicted color", 90, "Predicted start", 100), GuiTables.Sorting.BY_HEADER);
         GuiTables.useRenderer(table, "Color", new GuiTables.SwatchRenderer());
         GuiTables.useRenderer(table, "Predicted color", new GuiTables.SwatchRenderer());
-        attachShowCode(table, (row, column) -> new CodeTab.Request(Examples.Scenario.LOBBY, Examples.Selection.defaults()));
+        lobbyTable = table;
+        attachMenu(table, List.of(
+            new MenuEntry("Open slot", (row, column) -> lobbyPanel.open(model.lobbySlots.get(row).slot()), (row, column) -> !isHuman(row)),
+            new MenuEntry("Close slot", (row, column) -> lobbyPanel.close(model.lobbySlots.get(row).slot()), (row, column) -> !isHuman(row)),
+            new MenuEntry("Kick player", (row, column) -> lobbyPanel.kick(model.lobbySlots.get(row).slot()), (row, column) -> isHuman(row)),
+            new MenuEntry("Add easy AI", (row, column) -> lobbyPanel.addAi(model.lobbySlots.get(row).slot(), 0), (row, column) -> !isHuman(row)),
+            new MenuEntry("Add medium AI", (row, column) -> lobbyPanel.addAi(model.lobbySlots.get(row).slot(), 1), (row, column) -> !isHuman(row)),
+            new MenuEntry("Add hard AI", (row, column) -> lobbyPanel.addAi(model.lobbySlots.get(row).slot(), 2), (row, column) -> !isHuman(row)),
+            new MenuEntry("Show code for this", (row, column) -> showCode(new CodeTab.Request(Examples.Scenario.LOBBY, Examples.Selection.defaults())), (row, column) -> true)));
+        table.getSelectionModel().addListSelectionListener(e -> {
+            int viewRow = table.getSelectedRow();
+            if (!e.getValueIsAdjusting() && viewRow >= 0) {
+                lobbyPanel.selectSlot(model.lobbySlots.get(table.convertRowIndexToModel(viewRow)).slot());
+            }
+        });
         for (String blankable : List.of("Team", "Start pos", "Predicted start")) {
             GuiTables.useRenderer(table, blankable, new GuiTables.BlankRenderer(false));
         }
@@ -456,7 +472,18 @@ public final class StatsGui {
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(header, BorderLayout.NORTH);
         panel.add(new JScrollPane(table), BorderLayout.CENTER);
+        panel.add(lobbyPanel, BorderLayout.SOUTH);
         return panel;
+    }
+
+    private JTable lobbyTable;
+
+    JTable lobbyTable() {
+        return lobbyTable;
+    }
+
+    private boolean isHuman(int modelRow) {
+        return model.lobbySlots.get(modelRow).data().getState() == LobbySlotState.LOBBY_SLOT_HUMAN;
     }
 
     private JSplitPane matchTab() {
@@ -644,6 +671,7 @@ public final class StatsGui {
         attachShowCode(cameraTab.cameraSection(), () -> new CodeTab.Request(Examples.Scenario.CAMERA_CONTROL, cameraTab.cameraSelection()));
         attachShowCode(cameraTab.replaySection(), () -> new CodeTab.Request(Examples.Scenario.REPLAY_CONTROL, cameraTab.replaySelection()));
         attachShowCode(directorTab, () -> new CodeTab.Request(Examples.Scenario.DIRECTOR, directorTab.selection()));
+        attachShowCode(lobbyPanel, () -> new CodeTab.Request(Examples.Scenario.CONTROL_LOBBY, Examples.Selection.defaults()));
     }
 
     /** Shows the Query tab and asks the game about an object; 0 is no object and does nothing. */
@@ -661,6 +689,7 @@ public final class StatsGui {
         viewTab.refresh();
         minimapTab.refresh();
         directorTab.refresh();
+        lobbyPanel.refresh();
     }
 
     // -- For the tests: the pieces, and a way to attach a connection without opening a window.
@@ -680,6 +709,10 @@ public final class StatsGui {
 
     CameraTab cameraTab() {
         return cameraTab;
+    }
+
+    LobbyControlPanel lobbyPanel() {
+        return lobbyPanel;
     }
 
     ViewStatsTab viewTab() {

@@ -282,6 +282,20 @@ final class FakeWorld {
     }
 
     /** True while a match is running (a MatchInfo that is not ENDED). */
+    /** The lobby the user sits in now, or null when there is none or a match runs. */
+    LobbyState lobby() {
+        synchronized (lock) {
+            return lastLobby != null && !(lastMatch != null && lastMatch.getPhase() != MatchPhase.MATCH_PHASE_ENDED) ? lastLobby : null;
+        }
+    }
+
+    /** Replaces the lobby, after a lobby control action changed it. */
+    void replaceLobby(LobbyState lobby) {
+        synchronized (lock) {
+            lastLobby = lobby;
+        }
+    }
+
     boolean matchRunning() {
         synchronized (lock) {
             return lastMatch != null && lastMatch.getPhase() != MatchPhase.MATCH_PHASE_ENDED;

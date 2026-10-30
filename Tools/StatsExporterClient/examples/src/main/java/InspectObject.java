@@ -3,7 +3,7 @@
 // from the units a camera lock follows. An object that was destroyed answers NOT_FOUND.
 //
 // Run (Java 17+), with the library jar and protobuf-java on the class path:
-//   java -cp stats-pipe-client-2.2.0.jar:protobuf-java-4.33.4.jar InspectObject.java [object id]
+//   java -cp stats-pipe-client-2.3.0.jar:protobuf-java-4.33.4.jar InspectObject.java [object id]
 // (use ; instead of : between the jars on Windows)
 import com.generalsonline.stats.Format;
 import com.generalsonline.stats.RequestFailedException;
