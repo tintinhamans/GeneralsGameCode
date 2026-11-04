@@ -129,9 +129,20 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 			const int signallingAttemptsBeforeDisconnect = plrConnection.m_SignallingAttempts;
 			plrConnection.m_retryTimeout = true;
 
+			const bool bInMatch = TheGameLogic != nullptr && TheGameLogic->isInInternetGame();
 			if (TheNetwork != nullptr)
 			{
 				TheNetwork->GetConnectionManager()->disconnectPlayer(userID);
+
+		// a peer that closed on purpose during the match has left, closing to negotiate a new connection is not a leave
+				const bool bClosedOnPurpose = pInfo->m_info.m_eState == k_ESteamNetworkingConnectionState_ClosedByPeer
+					&& pInfo->m_info.m_eEndReason == k_ESteamNetConnectionEnd_App_Generic
+					&& strstr(pInfo->m_info.m_szEndDebug, "new connection being negotiated") == nullptr
+					&& strstr(pInfo->m_info.m_szEndDebug, "(Rejected)") == nullptr;
+				if (bClosedOnPurpose && bInMatch)
+				{
+					TheNetwork->GetConnectionManager()->playerClosedGracefully(userID);
+				}
 			}
 
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "[DC] Closing connection %lld", userID);
@@ -144,7 +155,6 @@ void OnSteamNetConnectionStatusChanged(SteamNetConnectionStatusChangedCallback_t
 			const bool bWeJoinedLater = pJoinOrderLobby == nullptr || !pJoinOrderLobby->IsJoinOrderKnown() || pJoinOrderLobby->JoinedAfter(userID);
 			const bool bPeerLeft = pJoinOrderLobby != nullptr && pJoinOrderLobby->IsJoinOrderKnown() && !pJoinOrderLobby->IsLobbyMember(userID);
 			// a match can't leave its lobby, so keep repairing the link until the service drops the player
-			const bool bInMatch = TheGameLogic != nullptr && TheGameLogic->isInInternetGame();
 			const bool bManualLobby = pJoinOrderLobby != nullptr && pJoinOrderLobby->GetCurrentLobby().lobby_type == ELobbyType::CustomGame;
 			bool bShouldRetry = serviceConf.connection.retry_signalling && !bPeerLeft
 				&& (bInMatch || (!bManualLobby && !bWeJoinedLater) || signallingAttemptsBeforeDisconnect < numSignallingAttempts);
@@ -1841,6 +1851,17 @@ PlayerConnection::PlayerConnection(int64_t userID, const char* szMiddlewareID)
     }
 }
 
+bool PlayerConnection::LogInvalidDue()
+{
+	const int64_t nowMs = NowSteadyMs();
+	if (nowMs < m_nextInvalidLogMs)
+	{
+		return false;
+	}
+	m_nextInvalidLogMs = nowMs + 5000;
+	return true;
+}
+
 int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 {
     if (totalDataSize == 0)
@@ -1864,7 +1885,10 @@ int PlayerConnection::SendGamePacket(void* pBuffer, uint32_t totalDataSize)
 	{
 		if (m_hSteamConnection == k_HSteamNetConnection_Invalid)
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
+			if (LogInvalidDue())
+			{
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[GAME PACKET] Cannot send game packet - connection is invalid for user %lld", m_userID);
+			}
 			return -(int)k_EResultFail;
 		}
 
