@@ -618,6 +618,13 @@ void Network::updateLogicFrame()
  */
 Bool Network::processCommand(GameMessage *msg)
 {
+#if defined(GENONLINE)
+	if (msg->getType() == GameMessage::MSG_CLEAR_GAME_DATA &&
+		(m_localStatus == NETLOCALSTATUS_LEAVING || m_localStatus == NETLOCALSTATUS_LEFT)) {
+		return TRUE; // the exit is already under way
+	}
+#endif
+
 	// Are we leaving the game?
 	// This has to happen after the check to see if this is the start of a new logic frame.
 	// The reason is that we have to send all the frame info packets necessary to get to the
