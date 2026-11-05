@@ -30,55 +30,35 @@ Keep OpenAL Soft's LGPL notices and applicable source/build information with dis
 
 ## Static audio build
 
-These steps build Zero Hour with the OpenAL audio backend and FFmpeg movies, both linked statically, using only the scripts in this repository. Run them in order from the repository root in one `cmd.exe` window. Adjust the tool locations.
+The `win32-vcpkg-generalsmd-openal` preset builds Zero Hour with the OpenAL audio backend and FFmpeg movies, both linked statically. It selects Zero Hour only, `RTS_BUILD_OPTION_FFMPEG`, `RTS_BUILD_OPTION_OPENAL` and `RTS_BUILD_AUDIO_BACKEND=OPENAL`. The OpenAL backend turns on the `openal-audio` manifest feature instead of the full vcpkg `ffmpeg` feature, and vcpkg builds its two overlay ports from `cmake/ports`:
 
-Prerequisites: Visual Studio 18 (or 2022) with the v143 x86 C++ tools, its bundled CMake, Ninja and vcpkg; MSYS2 with bash, make, coreutils, curl and tar; NASM. Neither script installs tools. Both download their pinned source archive into the work directory unless it is already there, and both check its SHA256.
+- `ffmpeg-minimal`: FFmpeg 9.0.2 with the same trimmed configure as `scripts/ffmpeg/build-minimal.sh --static`, release static libraries against the DLL C runtime.
+- `openal-soft`: OpenAL Soft 1.25.2 with the float loader as `0001-float-loader.patch` and the same options as `build-soft.ps1 -Static`. The port checks the patched `core/voice.cpp` digest.
 
-1. Open the x86 tools environment. This also sets `VCPKG_ROOT` to the Visual Studio vcpkg used by the preset. `CC`/`CXX` keep CMake on `cl` when another compiler is on `PATH`.
+Both ports check the SHA256 pinned by the scripts. vcpkg fetches MSYS2 and NASM for the FFmpeg build itself, so the only prerequisite is Visual Studio 18 (or 2022) with the v143 x86 C++ tools, its bundled CMake, Ninja and vcpkg. Run from the repository root in an x86 tools environment, which also sets `VCPKG_ROOT`; `CC`/`CXX` keep CMake on `cl` when another compiler is on `PATH`:
 
-   ```bat
-   call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsamd64_x86.bat" -vcvars_ver=14.44
-   set CC=cl
-   set CXX=cl
-   ```
+```bat
+call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsamd64_x86.bat" -vcvars_ver=14.44
+set CC=cl
+set CXX=cl
+cmake --preset win32-vcpkg-generalsmd-openal
+cmake --build --preset win32-vcpkg-generalsmd-openal
+```
 
-2. Build the trimmed static FFmpeg into `build/ffmpeg-static`:
+The executable lands in `build/win32-vcpkg-generalsmd-openal/GeneralsMD/Release` with `audio-libraries-NOTICE.txt`, `ffmpeg-LICENSE.txt`, `openal-soft-LICENSE.txt` and `openal-soft-pffft-LICENSE.txt` beside it, and imports no FFmpeg or OpenAL DLL.
 
-   ```bat
-   set PATH=C:\path\to\nasm;%PATH%
-   set MSYS2_PATH_TYPE=inherit
-   C:\tools\msys64\usr\bin\bash.exe scripts/ffmpeg/build-minimal.sh --static
-   ```
-
-3. Build the static OpenAL Soft into `build/openal-soft-static`:
-
-   ```bat
-   powershell -ExecutionPolicy Bypass -File scripts/openal/build-soft.ps1 -Static
-   ```
-
-4. Configure with the preset, which selects Zero Hour only, `RTS_BUILD_OPTION_FFMPEG`, `RTS_BUILD_OPTION_OPENAL`, `RTS_BUILD_AUDIO_BACKEND=OPENAL`, and points `FFMPEG_ROOT` and `OpenAL_DIR` at the two folders above:
-
-   ```bat
-   cmake --preset win32-vcpkg-generalsmd-openal
-   ```
-
-5. Build the game:
-
-   ```bat
-   cmake --build --preset win32-vcpkg-generalsmd-openal
-   ```
-
-The executable lands in `build/win32-vcpkg-generalsmd-openal/GeneralsMD/Release` with `audio-libraries-NOTICE.txt`, `ffmpeg-LICENSE.txt`, `openal-soft-LICENSE.txt` and `openal-soft-pffft-LICENSE.txt` beside it, and imports no FFmpeg or OpenAL DLL. `RTS_BUILD_OPTION_FFMPEG` also selects the vcpkg `ffmpeg` manifest feature, so the first configure with manifest install on builds the vcpkg FFmpeg as well, although the game links the one in `build/ffmpeg-static`.
+The scripts remain an optional manual route: build `scripts/ffmpeg/build-minimal.sh --static` and `build-soft.ps1 -Static` as described above, then add `-DFFMPEG_ROOT=<repo>/build/ffmpeg-static/install` and `-DOpenAL_DIR=<repo>/build/openal-soft-static/install/lib/cmake/OpenAL` to the configure. Those take precedence over the vcpkg packages, which vcpkg still installs.
 
 ## Opt-in Zero Hour manager
 
 `RTS_BUILD_AUDIO_BACKEND` defaults to `MILES`. Select `OPENAL` explicitly with both
-`RTS_BUILD_OPTION_OPENAL=ON` and `RTS_BUILD_OPTION_FFMPEG=ON`, plus `OpenAL_DIR` and
-`FFMPEG_ROOT` pointing at the pinned local installations. The alternative is for
+`RTS_BUILD_OPTION_OPENAL=ON` and `RTS_BUILD_OPTION_FFMPEG=ON`; vcpkg then provides
+the pinned FFmpeg and OpenAL Soft through the `openal-audio` feature. The alternative is for
 modern Zero Hour only; it does not replace the Generals factory or enable VC6.
 Default builds retain Miles and Bink, with FFmpeg and OpenAL disabled. The FFmpeg
 option is initialized before the CMake project/toolchain and selects the optional
-vcpkg `ffmpeg` feature; it is not an unconditional manifest dependency.
+vcpkg `ffmpeg` feature (`openal-audio` with the OpenAL backend); it is not an
+unconditional manifest dependency.
 The public engine header does not expose OpenAL headers: backend construction
 lives in the Win32 implementation file.
 
