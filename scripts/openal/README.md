@@ -130,9 +130,10 @@ bounds cached PCM vector capacity, not allocator/map overhead or decoder scratch
 Referenced clips cannot be evicted; new cache admission fails when active pins occupy the budget, and the voice falls back to bounded streaming.
 Decoding grows the PCM vector geometrically within free budget; when that headroom
 is unavailable it reserves only the required growth, evicting unreferenced clips
-as needed. Accounting uses actual capacity. Vector reallocation can temporarily
-retain both the old and new allocation; this transient copy peak is not a hard
-process-memory bound and is separate from decoder scratch.
+as needed. A finished clip is trimmed to its sample count, so the growth slack
+is not kept. Accounting uses actual capacity. Vector reallocation and the final
+trim can temporarily retain both the old and new allocation; this transient copy
+peak is not a hard process-memory bound and is separate from decoder scratch.
 Effects use a 4,096-frame queued fallback with immutable cached spans; ordinary
 speech/music retain 16,384-frame rings and at most 65,536 pending converted frames.
 A resolved cached portion is referenced in full, so it can outlast an owner stall
