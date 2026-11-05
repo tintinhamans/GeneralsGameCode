@@ -17,8 +17,11 @@
 #include "GameClient/Display.h"
 #include "WW3D2/surfaceclass.h"
 #include "WW3D2/dx8wrapper.h"
+#include <algorithm>
 #include <mutex>
 #include <utility>
+#include "GameNetwork/GeneralsOnline/ServiceEndpointPolicy.h"
+#include "GameNetwork/GeneralsOnline/ProxyLogin.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
@@ -214,31 +217,144 @@ GenOnlineSettings NGMP_OnlineServicesManager::Settings;
 NGMP_OnlineServicesManager::NGMP_OnlineServicesManager()
 {
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Init");
+#if _DEBUG
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] WARNING: TLS verification is disabled in debug builds");
+#endif
 
 	m_pOnlineServicesManager = this;
 }
 
+static const char* ServiceEnvironment()
+{
+	switch (NGMP_OnlineServicesManager::g_Environment)
+	{
+		case NGMP_OnlineServicesManager::EEnvironment::DEV: return "dev";
+		case NGMP_OnlineServicesManager::EEnvironment::TEST: return "test";
+		default: return "prod";
+	}
+}
+
 std::string NGMP_OnlineServicesManager::GetAPIEndpoint(const char* szEndpoint)
 {
-	if (g_Environment == EEnvironment::DEV)
+	auto* manager = GetInstance();
+	if (manager && !manager->m_serviceBase.empty())
 	{
-		return std::format("https://localhost:9000/env/dev/contract/1/{}", szEndpoint);
+		return manager->m_serviceBase + szEndpoint;
 	}
-	else if (g_Environment == EEnvironment::TEST)
+	const auto routes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), Settings.Network_GetConnectionSettings(), Settings.Network_GetLastRoute());
+	return routes.empty() ? std::string() : routes.front() + szEndpoint;
+}
+
+bool NGMP_OnlineServicesManager::IsServiceURLTrusted(const std::string& url)
+{
+	return ServiceConnection::IsTrustedServiceURL(url, GetAPIEndpoint(""), false);
+}
+
+bool NGMP_OnlineServicesManager::IsWebSocketURLTrusted(const std::string& url)
+{
+	return ServiceConnection::IsTrustedServiceURL(url, GetAPIEndpoint(""), true);
+}
+
+void NGMP_OnlineServicesManager::EnsureServiceRoute(std::function<void(bool)> callback)
+{
+	// never change the route of an authenticated session behind its caller
+	if (m_pAuthInterface && m_pAuthInterface->IsLoggedIn())
 	{
-		return std::format("https://api.playgenerals.online:2087/env/test/contract/1/{}", szEndpoint);
+		callback(!m_serviceBase.empty());
+		return;
 	}
-	else // PROD
+	const auto settings = Settings.Network_GetConnectionSettings();
+	const std::string key = settings.serverMode + "|" + settings.serverAddress + "|" + settings.proxyMode + "|" + settings.proxyURL + (settings.windowsLogin ? "|1" : "|0");
+	if (key == m_routeSettingsKey && !m_serviceBase.empty() && std::chrono::steady_clock::now() - m_routeValidatedAt < std::chrono::seconds(30))
 	{
-		if (NGMP_OnlineServicesManager::Settings.Network_UseAlternativeEndpoint())
+		callback(true);
+		return;
+	}
+	m_routeCallbacks.push_back(std::move(callback));
+	if (m_routeCallbacks.size() > 1)
+	{
+		return;
+	}
+	m_routeSettingsKey = key;
+	m_routeProxyPrompted = false;
+	m_routeProxyAuthFailed = false;
+	m_bootstrapRoutes = ServiceConnection::BootstrapRoutes(ServiceEnvironment(), settings, Settings.Network_GetLastRoute());
+	m_bootstrapIndex = 0;
+	ProbeServiceRoute();
+}
+
+void NGMP_OnlineServicesManager::FinishServiceRoute(bool success)
+{
+	auto callbacks = std::move(m_routeCallbacks);
+	m_routeCallbacks.clear();
+	for (auto& callback : callbacks)
+	{
+		callback(success);
+	}
+}
+
+void NGMP_OnlineServicesManager::ProbeServiceRoute()
+{
+	if (m_bootstrapIndex >= m_bootstrapRoutes.size())
+	{
+		m_serviceBase.clear();
+		FinishServiceRoute(false);
+		return;
+	}
+
+	// anonymous request: no credentials are sent until a route is validated
+	m_serviceBase = m_bootstrapRoutes[m_bootstrapIndex];
+	const std::string url = m_serviceBase + "VersionManifest";
+	std::map<std::string, std::string> headers;
+	m_pHTTPManager->SendGETRequest(url.c_str(), EIPProtocolVersion::DONT_CARE, headers,
+		[](bool success, int status, std::string body, HTTPRequest* request)
 		{
-			return std::format("https://api-ru.playgenerals.online/env/prod/contract/1/{}", szEndpoint);
-		}
-		else
-		{
-			return std::format("https://api.playgenerals.online/env/prod/contract/1/{}", szEndpoint);
-		}
-	}
+			auto* manager = GetInstance();
+			if (!manager)
+			{
+				return;
+			}
+			// the proxy wants a login: ask once per attempt, then probe the same route again
+			const ServiceConnection::ProxyRoute route = status == 407 && request != nullptr ? request->GetProxyRoute() : ServiceConnection::ProxyRoute();
+			if (!route.direct)
+			{
+				manager->m_routeProxyAuthFailed = true;
+				if (!manager->m_routeProxyPrompted)
+				{
+					manager->m_routeProxyPrompted = true;
+					ServiceConnection::RequestProxyLogin(route, [](bool loggedIn)
+					{
+						auto* manager = GetInstance();
+						if (!manager)
+						{
+							return;
+						}
+						if (!loggedIn)
+						{
+							manager->m_bootstrapIndex = manager->m_bootstrapRoutes.size();
+						}
+						manager->ProbeServiceRoute();
+					});
+					return;
+				}
+			}
+			if (success && status == 200 && ServiceConnection::IsExpectedVersionManifest(body))
+			{
+				manager->m_routeProxyAuthFailed = false;
+				manager->m_routeValidatedAt = std::chrono::steady_clock::now();
+				if (g_Environment == EEnvironment::PROD && Settings.Network_GetConnectionSettings().serverMode != "custom")
+				{
+					Settings.Network_SaveLastRoute(ServiceConnection::RouteHost(manager->m_serviceBase));
+				}
+				NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Trusted service route validated: %s", manager->m_serviceBase.c_str());
+				manager->FinishServiceRoute(true);
+				return;
+			}
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Route validation failed (HTTP %d); credentials were not sent", status);
+			// an access or proxy rejection is not evidence that another route would work
+			manager->m_bootstrapIndex = (status == 401 || status == 403 || status == 407) ? manager->m_bootstrapRoutes.size() : manager->m_bootstrapIndex + 1;
+			manager->ProbeServiceRoute();
+		}, nullptr, 6000);
 }
 
 void NGMP_OnlineServicesManager::AttemptLoadSteam()
@@ -392,7 +508,7 @@ void NGMP_OnlineServicesManager::Shutdown()
 
 	// Shutdown and completely destroy WebSocket BEFORE cleaning up HTTPManager
 	// This is critical because WebSocket has curl handles that must be freed
-	// before curl_global_cleanup() is called by HTTPManager
+	// before the HTTP multi handle is destroyed.
 	if (m_pWebSocket)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Shutting down WebSocket...");
@@ -404,7 +520,7 @@ void NGMP_OnlineServicesManager::Shutdown()
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] WebSocket shutdown complete");
 	}
 
-	// Now safe to shutdown HTTP manager which calls curl_global_cleanup()
+	// cancel remaining HTTP requests
 	if (m_pHTTPManager != nullptr)
 	{
 		NetworkLog(ELogVerbosity::LOG_RELEASE, "[NGMP] Shutting down HTTPManager...");
@@ -418,6 +534,22 @@ void NGMP_OnlineServicesManager::Shutdown()
 }
 
 void NGMP_OnlineServicesManager::StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback)
+{
+    EnsureServiceRoute([fnCallback](bool success)
+    {
+        auto* manager = GetInstance();
+        if (!manager)
+            return;
+        if (!success)
+        {
+            fnCallback(false, false);
+            return;
+        }
+        manager->StartVersionCheckOnSelectedRoute(fnCallback);
+    });
+}
+
+void NGMP_OnlineServicesManager::StartVersionCheckOnSelectedRoute(std::function<void(bool, bool)> fnCallback)
 {
 	std::string strURI = NGMP_OnlineServicesManager::GetAPIEndpoint("VersionCheck");
 
@@ -875,8 +1007,15 @@ void NGMP_OnlineServicesManager::OnLogin(ELoginResult loginResult, const char* s
 		// connect to WS
 		m_pWebSocket = std::make_shared<WebSocket>();
 
-		// TODO_NGMP: This should come from the service, if the service was russia-aware
-		std::string strWebsocketAddr = NGMP_OnlineServicesManager::Settings.Network_UseAlternativeEndpoint() ? "wss://api-ru.playgenerals.online/ws" : std::string(szWSAddr);
+        // the websocket address comes from the route we logged in through, not from the service
+        const std::string strWebsocketAddr = ServiceConnection::WebSocketURLForBase(GetAPIEndpoint(""));
+        const std::string strServiceAddr = szWSAddr ? szWSAddr : "";
+        if (strServiceAddr != strWebsocketAddr)
+        {
+            const std::string strServiceHost = ServiceConnection::RouteHost(strServiceAddr);
+            const bool bPrintable = std::none_of(strServiceHost.begin(), strServiceHost.end(), [](unsigned char c) { return c <= 32 || c >= 127; });
+            NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] Service websocket address (host %s) differs from the route, using %s", bPrintable ? strServiceHost.c_str() : "[invalid]", strWebsocketAddr.c_str());
+        }
 
         m_pWebSocket->Connect(strWebsocketAddr.c_str(), false, [=]()
             {
@@ -1108,7 +1247,12 @@ void NGMP_OnlineServicesManager::InitSentry()
 	// Initialize libcurl global state here, before any plugins (e.g. EasyAntiCheat) are loaded.
 	// This ensures libcurl's internal mutexes are fully initialized before the EAC plugin
 	// attempts to use them, preventing an access violation in mtx_do_lock on null mutex state.
-	curl_global_init(CURL_GLOBAL_DEFAULT);
+	static const CURLcode curlInitialization = curl_global_init(CURL_GLOBAL_DEFAULT);
+	if (curlInitialization != CURLE_OK)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Connection] curl initialization failed (%d)", curlInitialization);
+		return;
+	}
 
 #if !_DEBUG
 	// game paths are in the process code page, sentry's char* API wants UTF-8, so hand it the wide path
@@ -1210,6 +1354,7 @@ void WebSocket::Shutdown()
 	
 	// Signal that we're shutting down
 	m_bShuttingDown = true;
+	m_proxyResolution.reset();
 	
 	// Disconnect from the websocket (handles the connected case)
 	Disconnect();

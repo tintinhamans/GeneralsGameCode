@@ -1,4 +1,5 @@
 #pragma once
+#include "ServiceConnectionPolicy.h"
 
 #include "GameNetwork/NetworkSettings.h"
 #include "NGMP_include.h"
@@ -210,6 +211,9 @@ public:
 	// Queues the message; Tick() flushes it on the main thread. Thread-safe.
 	void Send(const char* message);
 
+	// Continues the initial connect after the proxy login prompt closed.
+	void ResumeAfterProxyLogin(bool loggedIn);
+
 	// An inbound P2P signal and the user the service says it came from. The service sets the sender itself
 	// from the authenticated websocket session, the payload is whatever the peer wrote.
 	struct PendingSignal
@@ -252,6 +256,16 @@ public:
 	}
 
 private:
+	CURLcode ReceiveOneFrame();
+	void PollConnectionSetup();
+	void StartResolvedConnection();
+	void FailConnectionSetup();
+	bool m_proxyPrompted = false;
+	std::shared_ptr<ServiceConnection::ProxyResolution> m_proxyResolution;
+	ServiceConnection::ResolvedProxyPolicy m_proxyPolicy;
+	size_t m_proxyRoute = 0;
+	int64_t m_proxySetupStarted = -1;
+	bool m_connectAsReconnect = false;
 	CURL* m_pCurlWS = nullptr;
     CURLM* m_pMulti = nullptr;
 	struct curl_slist* m_pHeaders = nullptr;
@@ -287,7 +301,19 @@ private:
 
 	// Outbound messages queued for Tick() to flush.
 	std::mutex m_outboundQueueMutex;
-	std::vector<std::string> m_vecQueuedOutboungMsgs;
+	struct OutboundMessage
+	{
+		std::string payload;
+		bool heartbeat;
+	};
+	std::vector<OutboundMessage> m_vecQueuedOutboungMsgs;
+	size_t m_queuedOutboundBytes = 0;
+	size_t m_outboundOffset = 0;
+	bool m_heartbeatQueued = false;
+	bool m_acceptOutbound = true;
+	void QueueOutbound(std::string payload, bool heartbeat);
+	void ClearOutbound();
+	CURLcode FlushOutbound();
 
 	std::mutex m_pendingSignalsMutex;
 	std::queue<PendingSignal> m_pendingSignals;
@@ -700,6 +726,12 @@ public:
 	}
 
 	void StartVersionCheck(std::function<void(bool bSuccess, bool bNeedsUpdate)> fnCallback);
+	void StartVersionCheckOnSelectedRoute(std::function<void(bool, bool)> fnCallback);
+	void EnsureServiceRoute(std::function<void(bool)> callback);
+	// true when the last failed route check was a proxy login the player did not complete
+	bool RouteFailedProxyAuth() const { return m_routeProxyAuthFailed; }
+	static bool IsServiceURLTrusted(const std::string& url);
+	static bool IsWebSocketURLTrusted(const std::string& url);
 
 	std::shared_ptr<WebSocket> Internal_GetWebSocket() const { return m_pWebSocket; }
 	HTTPManager* GetHTTPManager() const { return m_pHTTPManager; }
@@ -726,6 +758,12 @@ public:
 	void ProcessMOTD(const char* szMOTD)
 	{
 		m_strMOTD = std::string(szMOTD);
+		// the welcome screen shows which custom server this is, ahead of anything the server says
+		const ServiceConnectionSettings settings = Settings.Network_GetConnectionSettings();
+		if (settings.serverMode == "custom")
+		{
+			m_strMOTD = "Custom server: " + settings.serverAddress.substr(settings.serverAddress.find("://") + 3) + "\n \n" + m_strMOTD;
+		}
 	}
 
 	std::string& GetMOTD() { return m_strMOTD; }
@@ -814,6 +852,17 @@ private:
 	// Screenshot thread management
 	std::vector<std::thread*> m_vecScreenshotThreads;
 	std::mutex m_mutexScreenshotThreads;
+
+	void ProbeServiceRoute();
+	void FinishServiceRoute(bool success);
+	std::string m_serviceBase;
+	std::vector<std::string> m_bootstrapRoutes;
+	size_t m_bootstrapIndex = 0;
+	std::vector<std::function<void(bool)>> m_routeCallbacks;
+	std::chrono::steady_clock::time_point m_routeValidatedAt{};
+	std::string m_routeSettingsKey;
+	bool m_routeProxyPrompted = false;
+	bool m_routeProxyAuthFailed = false;
 
 	ServiceConfig m_ServiceConfig;
 

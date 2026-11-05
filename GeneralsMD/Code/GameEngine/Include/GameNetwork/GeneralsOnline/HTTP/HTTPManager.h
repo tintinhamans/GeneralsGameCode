@@ -47,7 +47,7 @@ public:
         return m_sProtocolInUse.load();
     }
 
-	void AddHandleToMulti(CURL* pNewHandle);
+	bool AddHandleToMulti(CURL* pNewHandle);
 	void RemoveHandleFromMulti(CURL* pHandleToRemove);
 
 	void SendGETRequest(const char* szURI, EIPProtocolVersion protover, std::map<std::string, std::string>& inHeaders, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback, std::function<void(size_t bytesReceived)> progressCallback = nullptr, int timeoutMS = -1);
@@ -59,11 +59,6 @@ public:
 
 	void Shutdown();
 
-	bool IsProxyEnabled() const { return m_bProxyEnabled; }
-
-	bool DeterminePlatformProxySettings();
-	std::string& GetProxyAddress() { return m_strProxyAddr; }
-	uint16_t GetProxyPort() const { return m_proxyPort; }
 
 private:
 	HTTPRequest* PlatformCreateRequest(EHTTPVerb htpVerb, EIPProtocolVersion protover, const char* szURI, std::map<std::string, std::string>& inHeaders, std::function<void(bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)> completionCallback,
@@ -74,9 +69,6 @@ private:
 
 	std::atomic<EIPProtocolVersion> m_sProtocolInUse = EIPProtocolVersion::DONT_CARE;
 
-	bool m_bProxyEnabled = false;
-	std::string m_strProxyAddr;
-	uint16_t m_proxyPort;
 
 	std::atomic<bool> m_bShuttingDown = false;
 
