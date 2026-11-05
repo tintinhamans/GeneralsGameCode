@@ -4,17 +4,14 @@ if(NOT VCPKG_LIBRARY_LINKAGE STREQUAL "static" OR NOT VCPKG_CRT_LINKAGE STREQUAL
     message(FATAL_ERROR "${PORT} only builds static libraries against the DLL C runtime")
 endif()
 
-vcpkg_download_distfile(ARCHIVE
-    URLS "https://ffmpeg.org/releases/ffmpeg-${VERSION}.tar.xz"
-    FILENAME "ffmpeg-${VERSION}.tar.xz"
-    SHA512 7756f8434371b9bc1d01cf578bf49014e058b0869c3c1df05030f5f4035f1def64b2e7dba3cf340da4dc8dd9239dd5f894530c9e45793ac27876807079aa546a
+# The GitHub mirror of the release tag, the same source the stock vcpkg ffmpeg port uses; ffmpeg.org downloads time out too often
+vcpkg_from_github(
+    OUT_SOURCE_PATH SOURCE_PATH
+    REPO ffmpeg/ffmpeg
+    REF "n${VERSION}"
+    SHA512 21bf3fbcdfd2f41ea6edeab40433fecfe362b09ecaa177a652471b54f9357011b4f74dab18245ab1c26f1a473b94205490baecb42289afd2effd603cd0b22b59
+    HEAD_REF master
 )
-# The digest pinned in scripts/ffmpeg, verified against the official release signature
-file(SHA256 "${ARCHIVE}" archive_sha256)
-if(NOT archive_sha256 STREQUAL "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e")
-    message(FATAL_ERROR "FFmpeg archive SHA256 mismatch: ${archive_sha256}")
-endif()
-vcpkg_extract_source_archive(SOURCE_PATH ARCHIVE "${ARCHIVE}")
 if(SOURCE_PATH MATCHES " ")
     message(FATAL_ERROR "FFmpeg does not build in a path with spaces: ${SOURCE_PATH}")
 endif()
