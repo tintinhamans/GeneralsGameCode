@@ -332,6 +332,11 @@ Bool NextGenTransport::doRecv(void)
         std::map<int64_t, PlayerConnection>& connections = pMesh->GetAllConnections();
         for (auto& kvPair : connections)
         {
+            if (!kvPair.second.CanRecv())
+            {
+                continue;
+            }
+
             // Only take as many messages as there are free slots, the rest stay queued in GNS
             int numFreeSlots = 0;
             for (int iSlot = 0; iSlot < MAX_MESSAGES; ++iSlot)

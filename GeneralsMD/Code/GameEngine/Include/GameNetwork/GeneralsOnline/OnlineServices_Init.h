@@ -2,6 +2,7 @@
 
 #include "GameNetwork/NetworkSettings.h"
 #include "NGMP_include.h"
+#include "MeshConnectionTimeoutPolicy.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -190,12 +191,16 @@ public:
 	// lobby ID the check was started for; a stale reply (different lobby) is ignored
 	int64_t m_connectivityCheckLobbyID = -1;
 
+	// when the check was sent; Tick() gives up on it after a client-side timeout
+	int64_t m_connectivityCheckStartMs = -1;
+
 	void SendData_StartFullMeshConnectivityCheck(std::function<void(bool, std::list<std::pair<int64_t, int64_t>>, std::string)> cbOnConnectivityCheckComplete);
 
 	void ClearConnectivityCheckCallback()
 	{
 		m_cbOnConnectivityCheckComplete = nullptr;
 		m_connectivityCheckLobbyID = -1;
+		m_connectivityCheckStartMs = -1;
 	}
 
 	void Tick();
@@ -229,6 +234,13 @@ public:
 		signal.senderUserID = senderUserID;
 		signal.payload = std::move(payload);
 		m_pendingSignals.push(std::move(signal));
+	}
+
+	// signals queued for a lobby we've since left must not reach the next one
+	void ClearPendingSignals()
+	{
+		std::scoped_lock<std::mutex> lock(m_pendingSignalsMutex);
+		m_pendingSignals = std::queue<PendingSignal>();
 	}
 
 	std::queue<PendingSignal> DrainPendingSignals()
@@ -331,6 +343,7 @@ struct ServiceConfig
 		int ice_engine = 2;             // ICE library: 0 = library default, 1 = native, 2 = WebRTC; the key also takes "default", "native" or "webrtc"
 		bool use_mapped_port = true;
 		bool retry_signalling = true;
+		int reconnect_timeout_ms = MeshConnectionTimeoutPolicy::ReconnectTimeoutMs; // first negotiation keeps 10 s
 		bool anticheat_transport = false; // game traffic through the anticheat plugin's transport
 		int probe_lobby_interval_ms = 250; // time between latency probes sent to each peer while not in a match
 		int probe_match_interval_ms = 1000; // the same in a match, the command acks already measure the round trip
@@ -417,6 +430,7 @@ inline void ReadServiceConfig(const nlohmann::json& j, ServiceConfig& c)
 		ReadIceEngine(s, c.connection.ice_engine);
 		ReadServiceConfigValue(s, "use_mapped_port", c.connection.use_mapped_port);
 		ReadServiceConfigValue(s, "retry_signalling", c.connection.retry_signalling);
+		ReadServiceConfigValue(s, "reconnect_timeout_ms", c.connection.reconnect_timeout_ms);
 		ReadServiceConfigValue(s, "anticheat_transport", c.connection.anticheat_transport);
 		ReadServiceConfigValue(s, "probe_lobby_interval_ms", c.connection.probe_lobby_interval_ms);
 		ReadServiceConfigValue(s, "probe_match_interval_ms", c.connection.probe_match_interval_ms);
@@ -485,6 +499,7 @@ inline void ClampServiceConfig(ServiceConfig& c)
 	c.send.redundancy_window_ms = std::clamp(c.send.redundancy_window_ms, 0, 5000);
 	c.send.redundancy_burst_ms = std::clamp(c.send.redundancy_burst_ms, 0, 1000);
 	c.send.frames_per_packet_lossy = std::clamp(c.send.frames_per_packet_lossy, 0, 8);
+	c.connection.reconnect_timeout_ms = MeshConnectionTimeoutPolicy::ClampReconnectTimeout(c.connection.reconnect_timeout_ms);
 
 	c.input_delay.formula.decrease_after_decisions = std::clamp(c.input_delay.formula.decrease_after_decisions, 0, 20);
 	c.input_delay.catch_up_frames = std::clamp(c.input_delay.catch_up_frames, 1, 4);

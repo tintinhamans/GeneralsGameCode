@@ -11,6 +11,7 @@
 #include "GameNetwork/GeneralsOnline/ConnectionRating.h"
 #include "GameNetwork/GeneralsOnline/PacketFeedback.h"
 #include "GameNetwork/GeneralsOnline/MatchKeys.h"
+#include "GameNetwork/GeneralsOnline/MeshConnectionTimeoutPolicy.h"
 
 class NetRoom_ChatMessagePacket;
 
@@ -77,6 +78,9 @@ public:
 		       m_State != EConnectionState::CONNECTION_DISCONNECTED;
 	}
 
+	// a closed connection has nothing to receive
+	bool CanRecv() const { return m_hSteamConnection != k_HSteamNetConnection_Invalid; }
+
 	int Recv(SteamNetworkingMessage_t** pMsg, int maxMessages = 255);
 
 	// the p75 probe round trip of the stats window, -1 with too few samples: a spike or a lossy spell must not set the start run ahead
@@ -106,6 +110,7 @@ public:
 	EConnectionState m_State = EConnectionState::NOT_CONNECTED;
 	
 	int m_SignallingAttempts = 0;
+	bool m_retryTimeout = false; // keeps the extended timeouts when signalling restarts
 
 	// when signalling for this connection started, for connect-time logging
 	int64_t m_connectStartedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -260,6 +265,7 @@ public:
 
 	void SendACPacket(uint32_t userID, const void* pData, uint32_t dataLen);
 
+	void ApplyConnectionTimeouts(HSteamNetConnection connection, int64_t userID);
 	void StartConnectionSignalling(const char* szMiddlewareID, int64_t remoteUserID, uint16_t preferredPort);
 
 	// A joiner gets its TURN credentials after its mesh exists; signalling waits for them
@@ -287,6 +293,9 @@ public:
 		std::lock_guard<std::mutex> lock(m_pendingStateUpdatesMutex);
 		m_vecPendingStateUpdates.emplace_back(userID, newState);
 	}
+
+	// drops a peer that left for good so nothing keeps polling it
+	void RemoveConnection(int64_t userID);
 
 	PlayerConnection* GetConnectionForUser(int64_t user_id)
 	{
@@ -400,4 +409,5 @@ private:
 	// k_nSteamNetworkingConfig_P2P_Transport_ICE_Enable_* for this lobby's connections.
 	int m_iceEnable = 0;
 	int m_iceImplementation = 2;
+	int m_reconnectTimeoutMs = MeshConnectionTimeoutPolicy::ReconnectTimeoutMs;
 };
