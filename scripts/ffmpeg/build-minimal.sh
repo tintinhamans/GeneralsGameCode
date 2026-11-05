@@ -2,9 +2,22 @@
 set -euo pipefail
 export PATH="/usr/bin:$PATH"
 
-if [[ $# -lt 1 || $# -gt 2 ]]; then
-    echo "Usage: bash build-minimal.sh WORK_DIRECTORY [JOBS]" >&2
+linkage=shared
+if [[ ${1:-} == --static ]]; then
+    linkage=static
+    shift
+fi
+if [[ $# -gt 2 ]]; then
+    echo "Usage: bash build-minimal.sh [--static] [WORK_DIRECTORY [JOBS]]" >&2
     exit 2
+fi
+repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+if [[ $linkage == static ]]; then
+    default_work="$repo/build/ffmpeg-static"
+    linkage_flags=(--enable-static --disable-shared --extra-cflags=-MD)
+else
+    default_work="$repo/build/ffmpeg-minimal"
+    linkage_flags=(--disable-static --enable-shared)
 fi
 if [[ ${VSCMD_ARG_TGT_ARCH:-} != x86 ]]; then
     echo "Run from an x86 VS 2022 developer environment with MSYS2 tools and NASM on PATH." >&2
@@ -18,8 +31,8 @@ if [[ ! $jobs =~ ^[1-9][0-9]*$ ]]; then
     echo "JOBS must be a positive integer." >&2
     exit 2
 fi
-mkdir -p "$1"
-work=$(cd "$1" && pwd)
+mkdir -p "${1:-$default_work}"
+work=$(cd "${1:-$default_work}" && pwd)
 cd "$work"
 version=9.0.2
 archive="ffmpeg-$version.tar.xz"
@@ -47,11 +60,15 @@ cd build
     --disable-debug --extra-ldflags='-OPT:REF -OPT:ICF' \
     --disable-everything --disable-autodetect --disable-programs --disable-doc \
     --disable-network --disable-avdevice --disable-avfilter --disable-protocols \
-    --disable-static --enable-shared \
+    "${linkage_flags[@]}" \
     --enable-avformat --enable-avcodec --enable-avutil --enable-swscale --enable-swresample \
     --enable-demuxer=bink,wav,mp3 \
     --enable-decoder=bink,binkaudio_dct,pcm_s16le,adpcm_ima_wav,mp3float \
     --enable-parser=mpegaudio 2>&1 | tee ../configure.log
 make -j "$jobs" 2>&1 | tee ../build.log
 make install 2>&1 | tee ../install.log
-find "$work/install/bin" -name '*.dll' -printf '%f %s bytes\n' | tee ../runtime-sizes.txt
+if [[ $linkage == static ]]; then
+    find "$work/install/lib" -name '*.lib' -printf '%f %s bytes\n' | tee ../library-sizes.txt
+else
+    find "$work/install/bin" -name '*.dll' -printf '%f %s bytes\n' | tee ../runtime-sizes.txt
+fi
