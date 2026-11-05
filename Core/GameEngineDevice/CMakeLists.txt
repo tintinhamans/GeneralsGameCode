@@ -258,6 +258,8 @@ if(RTS_BUILD_OPTION_OPENAL)
     if(MSVC AND MSVC_VERSION LESS 1930)
         message(FATAL_ERROR "OpenAL PCM support requires Visual Studio 2022 or newer")
     endif()
+    # A static OpenAL Soft export links Threads::Threads.
+    find_package(Threads REQUIRED)
     find_package(OpenAL CONFIG REQUIRED)
     target_sources(corei_gameenginedevice_private INTERFACE
         Include/OpenALAudioDevice/OpenALDevice.h

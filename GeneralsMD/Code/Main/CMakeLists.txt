@@ -1,6 +1,7 @@
 add_executable(z_generals WIN32)
 
 if(WIN32 AND RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
+    find_package(Threads REQUIRED)
     find_package(OpenAL CONFIG REQUIRED)
     get_target_property(_openal_library_type OpenAL::OpenAL TYPE)
     if(_openal_library_type STREQUAL "SHARED_LIBRARY")
@@ -10,7 +11,7 @@ if(WIN32 AND RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
     endif()
 endif()
 
-if(WIN32 AND RTS_BUILD_OPTION_FFMPEG AND FFMPEG_ROOT)
+if(WIN32 AND RTS_BUILD_OPTION_FFMPEG AND FFMPEG_ROOT AND NOT FFMPEG_STATIC)
     foreach(_component avformat avcodec avutil swscale swresample)
         file(GLOB _ffmpeg_runtime_dlls "${FFMPEG_ROOT}/bin/${_component}*.dll")
         foreach(_dll IN LISTS _ffmpeg_runtime_dlls)
