@@ -1,0 +1,3 @@
+ffmpeg-minimal installs static avformat, avcodec, avutil, swscale and swresample
+libraries with headers in the standard include and lib folders. cmake/FindFFMPEG.cmake
+finds them and adds the Windows libraries they need (bcrypt, ole32, user32).
