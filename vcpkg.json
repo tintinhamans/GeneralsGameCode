@@ -37,12 +37,12 @@
     ],
     "features": {
       "ffmpeg": {
-        "description": "Use FFmpeg instead of Bink for video rendering",
+        "description": "Use FFmpeg instead of Bink for video rendering (trimmed overlay port in cmake/ports/ffmpeg)",
         "dependencies": [ "ffmpeg" ]
       },
       "openal-audio": {
         "description": "Trimmed static FFmpeg and OpenAL Soft for the OpenAL audio backend",
-        "dependencies": [ "ffmpeg-minimal", "openal-soft" ]
+        "dependencies": [ "ffmpeg", "openal-soft" ]
       }
     }
   }

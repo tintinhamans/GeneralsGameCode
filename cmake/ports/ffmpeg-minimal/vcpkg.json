@@ -1,8 +1,0 @@
-{
-  "name": "ffmpeg-minimal",
-  "version": "9.0.2",
-  "description": "FFmpeg trimmed to the Bink, WAV and MP3 decoders the game uses, built as static libraries.",
-  "homepage": "https://ffmpeg.org",
-  "license": "LGPL-2.1-or-later",
-  "supports": "windows & x86 & !uwp & !mingw"
-}

@@ -30,12 +30,12 @@ Keep OpenAL Soft's LGPL notices and applicable source/build information with dis
 
 ## Static audio build
 
-The `win32-vcpkg-generalsmd-openal` preset builds Zero Hour with the OpenAL audio backend and FFmpeg movies, both linked statically. It selects Zero Hour only, `RTS_BUILD_OPTION_FFMPEG`, `RTS_BUILD_OPTION_OPENAL` and `RTS_BUILD_AUDIO_BACKEND=OPENAL`. The OpenAL backend turns on the `openal-audio` manifest feature instead of the full vcpkg `ffmpeg` feature, and vcpkg builds its two overlay ports from `cmake/ports`:
+The `win32-vcpkg-generalsmd-openal` preset builds Zero Hour with the OpenAL audio backend and FFmpeg movies, both linked statically. It selects Zero Hour only, `RTS_BUILD_OPTION_FFMPEG`, `RTS_BUILD_OPTION_OPENAL` and `RTS_BUILD_AUDIO_BACKEND=OPENAL`. The OpenAL backend turns on the `openal-audio` manifest feature, and vcpkg builds its two overlay ports from `cmake/ports`:
 
-- `ffmpeg-minimal`: FFmpeg 9.0.2 with the same trimmed configure as `scripts/ffmpeg/build-minimal.sh --static`, release static libraries against the DLL C runtime.
+- `ffmpeg`: FFmpeg 9.0.2 with the same trimmed configure as `scripts/ffmpeg/build-minimal.sh --static`, release static libraries against the DLL C runtime. It replaces the stock vcpkg `ffmpeg` port, so the `ffmpeg` feature of FFmpeg video builds uses it too.
 - `openal-soft`: OpenAL Soft 1.25.2 with the float loader as `0001-float-loader.patch` and the same options as `build-soft.ps1 -Static`. The port checks the patched `core/voice.cpp` digest.
 
-Both ports check the SHA256 pinned by the scripts. vcpkg fetches MSYS2 and NASM for the FFmpeg build itself, so the only prerequisite is Visual Studio 18 (or 2022) with the v143 x86 C++ tools, its bundled CMake, Ninja and vcpkg. Run from the repository root in an x86 tools environment, which also sets `VCPKG_ROOT`; `CC`/`CXX` keep CMake on `cl` when another compiler is on `PATH`:
+The OpenAL Soft port checks the SHA256 pinned by its script; the FFmpeg port fetches the n9.0.2 tag from the GitHub mirror with a pinned SHA512. vcpkg fetches MSYS2 and NASM for the FFmpeg build itself, so the only prerequisite is Visual Studio 18 (or 2022) with the v143 x86 C++ tools, its bundled CMake, Ninja and vcpkg. Run from the repository root in an x86 tools environment, which also sets `VCPKG_ROOT`; `CC`/`CXX` keep CMake on `cl` when another compiler is on `PATH`:
 
 ```bat
 call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsamd64_x86.bat" -vcvars_ver=14.44
@@ -57,7 +57,7 @@ the pinned FFmpeg and OpenAL Soft through the `openal-audio` feature. The altern
 modern Zero Hour only; it does not replace the Generals factory or enable VC6.
 Default builds retain Miles and Bink, with FFmpeg and OpenAL disabled. The FFmpeg
 option is initialized before the CMake project/toolchain and selects the optional
-vcpkg `ffmpeg` feature (`openal-audio` with the OpenAL backend); it is not an
+vcpkg `ffmpeg` feature (plus `openal-audio` with the OpenAL backend); it is not an
 unconditional manifest dependency.
 The public engine header does not expose OpenAL headers: backend construction
 lives in the Win32 implementation file.

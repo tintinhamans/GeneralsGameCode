@@ -31,7 +31,7 @@ endforeach()
 # A static install ships no runtime DLLs and needs the Windows libs FFmpeg calls.
 set(_ffmpeg_static OFF)
 if(WIN32 AND FFMPEG_INCLUDE_DIR)
-    # FFMPEG_ROOT or the vcpkg installed tree (ffmpeg-minimal)
+    # FFMPEG_ROOT or the vcpkg installed tree (trimmed ffmpeg overlay port)
     get_filename_component(_ffmpeg_prefix "${FFMPEG_INCLUDE_DIR}" DIRECTORY)
     file(GLOB _ffmpeg_runtime_dlls "${_ffmpeg_prefix}/bin/avcodec*.dll")
     if(NOT _ffmpeg_runtime_dlls)
