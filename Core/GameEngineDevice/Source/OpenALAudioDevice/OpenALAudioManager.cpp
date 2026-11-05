@@ -1074,12 +1074,17 @@ Real OpenALAudioManager::playbackGain(const Voice &voice) const
             return 0;
         gain *= 1.0f - static_cast<Real>(voice.fadeFrames) / length;
     }
-    gain = std::pow(gain, 5.0f / 3.0f);
+    gain = directSoundGain(gain);
     if (category(*voice.event) == AudioAffect_Sound3D)
         gain *= spatialGain(*voice.event);
     else
         gain *= std::pow(0.5f, 0.3f); // Measured Miles Fast 2D centre pan factor.
     return gain;
+}
+
+Real OpenALAudioManager::directSoundGain(Real volume)
+{
+    return std::pow(volume, 5.0f / 3.0f);
 }
 
 bool OpenALAudioManager::updateSpatialPosition(Voice &voice)
