@@ -386,6 +386,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 			case WM_EXITSIZEMOVE:
 				if( TheMouse != nullptr )
 					TheMouse->onWindowMoveSizeEnd();
+#if defined(GENERALS_ONLINE)
+				// the window may be on another monitor now
+				if( TheFramePacer != nullptr )
+					TheFramePacer->invalidateWindowRefreshRate();
+#endif
 				// fall through
 			case WM_EXITMENULOOP:
 				KillTimer( hWnd, NETWORK_TIMER_ID );
@@ -475,7 +480,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 #if defined(GENERALS_ONLINE)
 		//-------------------------------------------------------------------------
 		case WM_DISPLAYCHANGE:
-		case WM_EXITSIZEMOVE:
 		{
 			if (TheFramePacer)
 				TheFramePacer->invalidateWindowRefreshRate();
