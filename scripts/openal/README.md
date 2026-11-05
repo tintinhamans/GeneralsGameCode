@@ -114,8 +114,12 @@ samples. Mixer-prefetched audio and renderer fade tails remain unavoidable laten
 not a promise of sample-accurate audible stop timing. The stop tail is capped at
 16 MiB; oversized custom tails retain the ordinary queued shutdown with a diagnostic.
 
-`AudioFootprintInBytes` bounds cached PCM vector capacity, not allocator/map overhead
-or decoder scratch. Referenced clips cannot be evicted; new cache admission fails
+`AudioFootprintInBytes` was sized for Miles, which caches the sound files as stored.
+The OpenAL cache holds PCM at the output rate, which is 2-4 times bigger for the
+retail 22 kHz files and up to 8 times for low-passed ADPCM, so its budget is 8 times
+the INI value, capped at 128 MiB unless the INI value is already larger (retail
+4 MiB gives 32 MiB). The budget bounds cached PCM vector capacity, not allocator/map
+overhead or decoder scratch. Referenced clips cannot be evicted; new cache admission fails
 when active pins occupy the budget, and the voice falls back to bounded streaming.
 Decoding grows the PCM vector geometrically within free budget; when that headroom
 is unavailable it reserves only the required growth, evicting unreferenced clips
