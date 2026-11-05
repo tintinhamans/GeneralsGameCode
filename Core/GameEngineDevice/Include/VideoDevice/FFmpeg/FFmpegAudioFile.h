@@ -40,6 +40,9 @@ public:
     void setPcmCallback(FFmpegPcmCallback callback);
     Int getSampleRate() const;
     Int getNumChannels() const;
+    // The file's own rate and channel count (at most 2), whatever was requested.
+    Int getSourceSampleRate() const;
+    Int getSourceNumChannels() const;
 
 private:
     struct State;

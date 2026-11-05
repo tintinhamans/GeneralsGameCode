@@ -443,7 +443,11 @@ void OpenALAudioManager::stopVoice(Voice &voice, bool immediate)
     }
     unsigned frames = 0;
     if (decay != nullptr) {
-        if (decay->byteSize() > FORCED_PCM_BYTES) {
+        // The stream holds the tail as it plays it, float mono for 3D and S16 at the voice's channels otherwise.
+        size_t frameBytes = sizeof(short) * voice.channels;
+        if (voice.channels == 1)
+            frameBytes = sizeof(float);
+        if (decay->frameCount() > FORCED_PCM_BYTES / frameBytes) {
             DEBUG_LOG(("OpenAL loop decay exceeds the 16 MiB stop tail budget, keeping the ordinary loop shutdown: %s", filename.str()));
             return;
         }

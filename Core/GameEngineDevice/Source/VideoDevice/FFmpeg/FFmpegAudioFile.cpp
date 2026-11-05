@@ -40,10 +40,10 @@ Bool FFmpegAudioFile::open(File *file, Int rate, Int channels, float normalizedC
     close();
     if (!m_state->file.open(file))
         return false;
-    if (rate <= 0)
-        rate = m_state->file.getSampleRate();
-    if (channels <= 0)
-        channels = std::min(m_state->file.getNumChannels(), 2);
+    if (rate == 0)
+        rate = getSourceSampleRate();
+    if (channels == 0)
+        channels = getSourceNumChannels();
     if (!m_state->file.hasAudio() || !m_state->converter.configure(rate, channels, FFmpegPcmConverter::MonoUpmix::Duplicate, normalizedCutoff)) {
         close();
         return false;
@@ -72,3 +72,5 @@ Bool FFmpegAudioFile::hasError() const { return m_state->converter.hasError() ||
 void FFmpegAudioFile::setPcmCallback(FFmpegPcmCallback callback) { m_state->converter.setPcmCallback(std::move(callback)); }
 Int FFmpegAudioFile::getSampleRate() const { return m_state->converter.getSampleRate(); }
 Int FFmpegAudioFile::getNumChannels() const { return m_state->converter.getNumChannels(); }
+Int FFmpegAudioFile::getSourceSampleRate() const { return m_state->file.getSampleRate(); }
+Int FFmpegAudioFile::getSourceNumChannels() const { return std::min(m_state->file.getNumChannels(), 2); }

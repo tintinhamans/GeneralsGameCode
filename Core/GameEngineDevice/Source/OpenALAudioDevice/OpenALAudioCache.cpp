@@ -82,7 +82,7 @@ bool OpenALAudioCache::reserve(size_t bytes)
 
 namespace {
 std::shared_ptr<OpenALAudioClip> decodeClip(const AsciiString &filename, int rate, int channels, float normalizedCutoff,
-    const std::function<bool(size_t)> &reserve, const std::function<size_t()> &available)
+    const std::function<bool(size_t)> &reserve, const std::function<size_t()> &available, std::pair<int, int> *sourceFormat = nullptr)
 {
     if (TheFileSystem == nullptr)
         return nullptr;
@@ -90,6 +90,8 @@ std::shared_ptr<OpenALAudioClip> decodeClip(const AsciiString &filename, int rat
     FFmpegAudioFile decoder;
     if (!decoder.open(TheFileSystem->openFile(filename.str()), rate, channels, normalizedCutoff))
         return nullptr;
+    if (sourceFormat != nullptr)
+        *sourceFormat = std::make_pair(decoder.getSourceSampleRate(), decoder.getSourceNumChannels());
     clip->sampleRate = decoder.getSampleRate();
     clip->channels = decoder.getNumChannels();
     bool valid = true;
@@ -140,13 +142,11 @@ std::shared_ptr<const OpenALAudioClip> OpenALAudioCache::load(const AsciiString 
     if (normalizedCutoff <= 0.0f || normalizedCutoff >= 0.999f)
         normalizedCutoff = 1.0f;
     const std::string name(filename.str());
-    // The file's own rate and channel count, 0 until a native request has decoded it.
+    // The file's own rate and channel count, 0 until any request has opened it.
     auto &format = m_formats[name];
-    const bool nativeRate = rate <= 0;
-    const bool nativeChannels = channels <= 0;
-    if (nativeRate)
+    if (rate <= 0)
         rate = format.first;
-    if (nativeChannels)
+    if (channels <= 0)
         channels = format.second;
     if (rate > 0 && channels > 0) {
         auto found = m_files.find(std::make_tuple(name, rate, channels, normalizedCutoff));
@@ -162,13 +162,9 @@ std::shared_ptr<const OpenALAudioClip> OpenALAudioCache::load(const AsciiString 
             if (m_bytes >= m_budget)
                 return size_t(0);
             return m_budget - m_bytes;
-        });
+        }, &format);
     if (clip == nullptr)
         return nullptr;
-    if (nativeRate)
-        format.first = clip->sampleRate;
-    if (nativeChannels)
-        format.second = clip->channels;
     const auto key = std::make_tuple(name, clip->sampleRate, clip->channels, normalizedCutoff);
     auto found = m_files.find(key);
     if (found != m_files.end()) {
