@@ -105,6 +105,17 @@ extern "C" {
 //         Private Functions
 //----------------------------------------------------------------------------
 
+#ifdef RTS_AUDIO_BACKEND_OPENAL
+// Bink steps the speech volume to 1 to 81 percent of 32768, and a volume of zero mutes.
+static float movieAudioGain(Real volume)
+{
+    if (!(volume > 0))
+        return 0;
+    const Int percent = static_cast<Int>((volume * 0.8f) * 100) + 1;
+    const Int binkVolume = (32768 * percent) / 100;
+    return OpenALAudioManager::directSoundGain(binkVolume / 32768.0f);
+}
+#endif
 
 
 //----------------------------------------------------------------------------
@@ -560,7 +571,7 @@ void FFmpegVideoStream::pump()
                 }
                 if (!m_state->paused && !m_state->started && m_state->submitted > 0 &&
                     (m_state->clockPrimed || m_frame != nullptr || !m_state->frames.empty())) {
-                    if (!m_state->audio->setGain(m_state->volume * 0.8f) || !m_state->audio->play()) {
+                    if (!m_state->audio->setGain(movieAudioGain(m_state->volume)) || !m_state->audio->play()) {
                         m_state->disableAudio();
                         continue;
                     }
@@ -653,7 +664,7 @@ void FFmpegVideoStream::setVolume(Real volume)
 {
     m_state->volume = volume;
 #ifdef RTS_AUDIO_BACKEND_OPENAL
-    if (m_state->audio != nullptr && !m_state->audio->setGain(volume * 0.8f))
+    if (m_state->audio != nullptr && !m_state->audio->setGain(movieAudioGain(volume)))
         m_state->disableAudio();
 #endif
 }

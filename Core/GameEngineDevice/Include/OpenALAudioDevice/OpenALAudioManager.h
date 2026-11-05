@@ -42,6 +42,8 @@ public:
     void closeDevice() override;
     void *getDevice() override;
     std::shared_ptr<OpenALMovieVoice> createMovieVoice();
+    // Miles and Bink hand volumes to DirectSound, which plays a volume v at amplitude v^(5/3).
+    static Real directSoundGain(Real volume);
     void stopAudio(AudioAffect which) override;
     void pauseAudio(AudioAffect which) override;
     void resumeAudio(AudioAffect which) override;
