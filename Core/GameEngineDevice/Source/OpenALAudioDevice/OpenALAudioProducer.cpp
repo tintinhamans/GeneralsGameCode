@@ -34,7 +34,6 @@ struct OpenALAudioProducer::Work
     FFmpegAudioFile *decoder = nullptr;
     std::shared_ptr<OpenALPcmStream::Producer> output;
     int channels = 0;
-    bool floatPcm = false;
     bool cancelled = false;
     bool inFlight = false;
     bool eof = false;
@@ -42,7 +41,6 @@ struct OpenALAudioProducer::Work
     std::atomic<uint64_t> produced{0};
     uint64_t decoded = 0;
     std::vector<short> pcm;
-    std::vector<float> floats;
     size_t offset = 0;
     std::array<Packet, PacketCapacity> packets;
     std::atomic<uint64_t> packetWrite{0};
@@ -52,24 +50,17 @@ struct OpenALAudioProducer::Work
     {
         return failed.load() || output->availableFrames() == 0 ||
             packetWrite.load() - packetRead.load() == PacketCapacity ||
-            (eof && pcm.empty() && floats.empty());
+            (eof && pcm.empty());
     }
     bool step()
     {
         if (failed.load())
             return false;
-        size_t samples = pcm.size();
-        if (floatPcm)
-            samples = floats.size();
-        if (offset < samples) {
-            const auto frames = static_cast<uint32_t>(std::min<size_t>(output->availableFrames(), (samples - offset) / channels));
+        if (offset < pcm.size()) {
+            const auto frames = static_cast<uint32_t>(std::min<size_t>(output->availableFrames(), (pcm.size() - offset) / channels));
             if (frames == 0)
                 return false;
-            OpenALPcmStream::QueueResult result;
-            if (floatPcm)
-                result = output->queueFloat(floats.data() + offset, frames);
-            else
-                result = output->queue(pcm.data() + offset, frames);
+            const OpenALPcmStream::QueueResult result = output->queue(pcm.data() + offset, frames);
             if (result == OpenALPcmStream::QueueResult::Full)
                 return false;
             if (result != OpenALPcmStream::QueueResult::Accepted) {
@@ -78,9 +69,8 @@ struct OpenALAudioProducer::Work
             }
             produced.fetch_add(frames);
             offset += static_cast<size_t>(frames) * channels;
-            if (offset == samples) {
+            if (offset == pcm.size()) {
                 pcm.clear();
-                floats.clear();
                 offset = 0;
             }
             return true;
@@ -93,11 +83,8 @@ struct OpenALAudioProducer::Work
             failed.store(true);
             return false;
         }
-        samples = pcm.size();
-        if (floatPcm)
-            samples = floats.size();
-        decoded += samples / channels;
-        eof = !decodedPacket && samples == 0;
+        decoded += pcm.size() / channels;
+        eof = !decodedPacket && pcm.empty();
         packets[written % PacketCapacity] = {decoded, eof};
         packetWrite.store(written + 1, std::memory_order_release);
         return true;
@@ -180,7 +167,7 @@ void OpenALAudioProducer::Job::prime()
 OpenALAudioProducer::OpenALAudioProducer() : m_state(std::make_shared<State>()) {}
 OpenALAudioProducer::~OpenALAudioProducer() = default;
 std::unique_ptr<OpenALAudioProducer::Job> OpenALAudioProducer::add(std::unique_ptr<FFmpegAudioFile> decoder,
-    std::shared_ptr<OpenALPcmStream::Producer> output, int channels, bool floatPcm)
+    std::shared_ptr<OpenALPcmStream::Producer> output, int channels)
 {
     if (!decoder || !output || channels <= 0)
         return {};
@@ -188,30 +175,8 @@ std::unique_ptr<OpenALAudioProducer::Job> OpenALAudioProducer::add(std::unique_p
     work->decoder = decoder.get();
     work->output = std::move(output);
     work->channels = channels;
-    work->floatPcm = floatPcm;
     std::unique_ptr<Job> job(new Job(m_state, work, std::move(decoder)));
-    if (floatPcm) {
-        work->floats.reserve(MaxFrames * channels);
-        if (!work->decoder->setFloatPcmCallback([raw = work.get()](const float *pcm, int frames) {
-            const size_t count = static_cast<size_t>(frames) * raw->channels;
-            if (count > MaxFrames * raw->channels - raw->floats.size()) {
-                raw->failed.store(true);
-                return;
-            }
-            raw->floats.insert(raw->floats.end(), pcm, pcm + count);
-        }))
-            return {};
-    } else {
-        work->pcm.reserve(MaxFrames * channels);
-        work->decoder->setPcmCallback([raw = work.get()](const short *pcm, int frames) {
-            const size_t count = static_cast<size_t>(frames) * raw->channels;
-            if (count > MaxFrames * raw->channels - raw->pcm.size()) {
-                raw->failed.store(true);
-                return;
-            }
-            raw->pcm.insert(raw->pcm.end(), pcm, pcm + count);
-        });
-    }
+    work->decoder->setPcmCallback(appendDecodedPcm(work->pcm, channels, MaxFrames, work->failed));
     work->decoder->setErrorLogging(false);
     { std::lock_guard<std::mutex> lock(m_state->mutex); m_state->jobs.push_back(work); }
     m_state->changed.notify_all();
