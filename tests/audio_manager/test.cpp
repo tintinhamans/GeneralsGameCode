@@ -12,7 +12,11 @@
 #include "Common/FileSystem.h"
 #include "Common/GameCommon.h"
 #include "Common/GameMemory.h"
+#include "GameClient/View.h"
+#define RECOVERY_CALLS_IMPLEMENTATION
+#include "../openal/recovery_calls.h"
 #include "OpenALAudioDevice/OpenALAudioManager.h"
+#include "OpenALAudioDevice/OpenALPcmStream.h"
 #include "VideoDevice/FFmpeg/FFmpegAudioFile.h"
 #include "Win32Device/Common/Win32BIGFileSystem.h"
 #include "Win32Device/Common/Win32LocalFileSystem.h"
@@ -286,6 +290,101 @@ static void retireFinishedTests(FixtureManager &manager)
     std::puts("300 no-reset finished-source reuses and pre-add speech-gate retirement passed");
 }
 
+static void closeFinishedSpeechTests(FixtureManager &manager)
+{
+    manager.reset();
+    AudioEventRTS speech{AsciiString("SpeechOne")};
+    speech.setUninterruptible(true);
+    manager.friend_forcePlayAudioEventRTS(&speech);
+    CHECK(manager.getDisallowSpeech());
+    manager.render(51200);
+    CHECK(manager.getDisallowSpeech());
+    manager.closeDevice();
+    CHECK(!manager.getDisallowSpeech());
+    manager.openDevice();
+    manager.reset();
+    std::puts("closing a finished uninterruptible voice clears its speech gate without an owner tick passed");
+}
+
+class RecoveryView : public View
+{
+public:
+    Drawable *pickDrawable(const ICoord2D *, Bool, PickType) override { return nullptr; }
+    Int iterateDrawablesInRegion(IRegion2D *, Bool (*)(Drawable *, void *), void *) override { return 0; }
+    void forceRedraw() override {}
+    Bool isDoingScriptedCamera() override { return false; }
+    void stopDoingScriptedCamera() override {}
+    WorldToScreenReturn worldToScreenTriReturn(const Coord3D *, ICoord2D *) override { return WTS_INVALID; }
+    Bool screenToTerrain(const ICoord2D *, Coord3D *) override { return false; }
+    PlaneClass::IntersectionResType screenToWorldAtZ(const ICoord2D *, Coord3D *, Real) override
+    { return PlaneClass::NO_INTERSECTION; }
+    void drawView() override {}
+    void updateView() override {}
+    void stepView() override {}
+    void setGuardBandBias(const Coord2D *) override {}
+};
+
+class RecoveryManager : public FixtureManager
+{
+public:
+    void openDevice() override { ++deviceOpens; CHECK(m_device.open(48000)); }
+    bool connected() const { return m_device.isConnected(); }
+    uint64_t recoveryEpoch() const { return m_device.recoveryEpoch(); }
+};
+
+static void managerRecoveryTests(FixtureManager &previous)
+{
+    RecoveryTest::reset();
+    RecoveryView view;
+    View *previousView = TheTacticalView;
+    TheTacticalView = &view;
+    {
+        RecoveryManager manager;
+        manager.configure();
+        TheAudio = &manager;
+        manager.init();
+        manager.setVolume(0.6f, AudioAffect_Speech);
+        manager.setOn(false, AudioAffect_Music);
+        AudioEventRTS speech{AsciiString("SpeechOne")};
+        speech.setUninterruptible(true);
+        const auto handle = manager.addAudioEvent(&speech);
+        manager.update();
+        manager.waitReady();
+        CHECK(manager.isCurrentlyPlaying(handle) && manager.getDisallowSpeech());
+        RecoveryTest::failReopen(true);
+        RecoveryTest::disconnect();
+        const auto lostUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
+        while (std::chrono::steady_clock::now() < lostUntil) {
+            manager.update();
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        CHECK(!manager.connected() && manager.getDisallowSpeech());
+        CHECK(manager.isCurrentlyPlaying(handle));
+        CHECK(manager.isOn(AudioAffect_Speech) && !manager.isOn(AudioAffect_Music));
+        CHECK(manager.getVolume(AudioAffect_Speech) == 0.6f && manager.deviceOpens == 1);
+        CHECK(add(manager, "SpeechOne") == AHSV_NoSound);
+        RecoveryTest::failReopen(false);
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+        while (manager.getDisallowSpeech() && std::chrono::steady_clock::now() < deadline) {
+            manager.update();
+            manager.waitReady();
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        CHECK(manager.connected() && manager.recoveryEpoch() == 1);
+        CHECK(!manager.getDisallowSpeech() && !manager.isCurrentlyPlaying(handle));
+        CHECK(manager.isOn(AudioAffect_Speech) && !manager.isOn(AudioAffect_Music));
+        CHECK(manager.getVolume(AudioAffect_Speech) == 0.6f && manager.deviceOpens == 1);
+        CHECK(add(manager, "SpeechOne") != AHSV_NoSound);
+        manager.update();
+        manager.waitReady();
+        manager.reset();
+    }
+    TheTacticalView = previousView;
+    TheAudio = &previous;
+    RecoveryTest::reset();
+    std::puts("public manager updates recover speech, preserve preferences and release speech ownership on EOF passed");
+}
+
 static void controlsAndStreamingTests(FixtureManager &manager)
 {
     manager.reset();
@@ -436,6 +535,44 @@ static void pauseSnapshotTests(FixtureManager &manager)
     manager.reset();
     manager.render(1600);
     std::puts("pause snapshot, new UI playback, scoped resume and ambient overlap tests passed");
+}
+
+static void immediateVolumeTests(FixtureManager &manager)
+{
+    manager.reset();
+    manager.render(1600);
+    AudioEventRTS speech{AsciiString("SpeechOne")};
+    speech.setUninterruptible(true);
+    const AudioHandle speaking = manager.addAudioEvent(&speech);
+    manager.tick();
+    CHECK(energy(manager.render(1600)) > 1.0e9);
+    const AudioHandle pending = add(manager, "Ui");
+    const unsigned requests = manager.pendingRequests();
+    CHECK(requests > 0 && pending >= AHSV_FirstHandle);
+
+    manager.muteAudio(AudioManager::MuteAudioReason_WindowFocus);
+    manager.render(800);
+    CHECK(energy(manager.render(1600)) < 10000);
+    manager.muteAudio(AudioManager::MuteAudioReason_WindowFocus);
+    CHECK(energy(manager.render(800)) < 10000);
+    CHECK(manager.isCurrentlyPlaying(speaking) && manager.getDisallowSpeech());
+    CHECK(manager.pendingRequests() == requests);
+    manager.unmuteAudio(AudioManager::MuteAudioReason_WindowFocus);
+    CHECK(energy(manager.render(1600)) > 1.0e9);
+    CHECK(manager.isCurrentlyPlaying(speaking) && manager.getDisallowSpeech());
+    CHECK(manager.pendingRequests() == requests);
+
+    manager.setVolume(0, AudioAffect_Speech);
+    manager.render(800);
+    CHECK(energy(manager.render(1600)) < 10000);
+    manager.muteAudio(AudioManager::MuteAudioReason_WindowFocus);
+    manager.unmuteAudio(AudioManager::MuteAudioReason_WindowFocus);
+    CHECK(energy(manager.render(1600)) < 10000);
+    manager.setVolume(1, AudioAffect_Speech);
+    CHECK(energy(manager.render(1600)) > 1.0e9);
+    manager.reset();
+    manager.render(1600);
+    std::puts("immediate focus/category gain, repeated mute and speech/request preservation without owner update passed");
 }
 
 static void pausedGainTests(FixtureManager &manager)
@@ -1351,19 +1488,34 @@ static void filteredCacheVariantTests()
     auto plain = cache.load(filename, 48000, 1);
     auto filtered = cache.load(filename, 48000, 1, 0.26f);
     CHECK(plain != nullptr && filtered != nullptr && plain != filtered);
-    CHECK(!plain->samples.empty() && plain->filteredSamples.empty());
-    CHECK(filtered->samples.empty() && !filtered->filteredSamples.empty());
+    CHECK(!plain->samples.empty() && plain->filteredSamples == nullptr);
+    CHECK(filtered->samples.empty() && filtered->filteredSamples != nullptr);
     CHECK(plain->frameCount() == filtered->frameCount());
     CHECK(cache.load(filename, 48000, 1, 1.01f) == plain);
     CHECK(cache.load(filename, 48000, 1, 0.26f) == filtered);
     CHECK(cache.usedBytes() == plain->byteSize() + filtered->byteSize());
+    CHECK(filtered->byteSize() == filtered->filteredSamples->capacity() * sizeof(float));
     const size_t pinnedBytes = cache.usedBytes();
     cache.setBudget(pinnedBytes);
     CHECK(cache.load(filename, 48000, 1, 0.51f) == nullptr);
     CHECK(cache.usedBytes() == pinnedBytes);
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 1, 4, true, OpenALPcmStream::InputMode::CachedSpans));
+    std::shared_ptr<const OpenALCachedFloatPcm> queued(filtered, filtered->filteredSamples.get());
+    CHECK(stream.queueCachedFloat(queued, 0, static_cast<uint32_t>(filtered->frameCount())) ==
+        OpenALPcmStream::QueueResult::Accepted);
+    std::weak_ptr<const OpenALAudioClip> pinnedClip = filtered;
     filtered.reset();
+    queued.reset();
+    CHECK(!pinnedClip.expired());
+    CHECK(cache.load(filename, 48000, 1, 0.51f) == nullptr);
+    CHECK(cache.usedBytes() == pinnedBytes);
+    CHECK(stream.stop());
     auto otherFilter = cache.load(filename, 48000, 1, 0.51f);
     CHECK(otherFilter != nullptr && cache.usedBytes() <= pinnedBytes);
+    CHECK(pinnedClip.expired());
     CHECK(cache.load(filename, 48000, 1) == plain);
     std::puts("filtered/unfiltered cache variants, pins, float byte budgets and eviction passed");
 }
@@ -1687,6 +1839,8 @@ int main(int argc, char **argv)
                 cachedReclaimTests(manager);
             else if (selected == "cached-stall")
                 cachedStallTests(manager);
+            else if (selected == "immediate-volume")
+                immediateVolumeTests(manager);
             else if (selected == "paused-gain")
                 pausedGainTests(manager);
             else if (selected == "forced-overrides")
@@ -1706,9 +1860,12 @@ int main(int argc, char **argv)
             limitAndPriorityTests(manager);
             streamedPayloadTest(manager);
             retireFinishedTests(manager);
+            closeFinishedSpeechTests(manager);
+            managerRecoveryTests(manager);
             controlsAndStreamingTests(manager);
             pauseSnapshotTests(manager);
             pausedGainTests(manager);
+            immediateVolumeTests(manager);
             forcedOverrideTests(manager);
             disabledCleanupTests(manager);
             movingRangeTests(manager);

@@ -19,9 +19,23 @@
 #pragma once
 
 #include "OpenALAudioDevice/OpenALDevice.h"
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
+
+class OpenALCachedFloatPcm
+{
+public:
+    // Transfers storage ownership; callers must not retain mutable sample aliases.
+    static std::shared_ptr<const OpenALCachedFloatPcm> create(std::vector<float> samples);
+    const float *data() const { return m_samples.data(); }
+    size_t size() const { return m_samples.size(); }
+    size_t capacity() const { return m_samples.capacity(); }
+private:
+    explicit OpenALCachedFloatPcm(std::vector<float> samples);
+    const std::vector<float> m_samples;
+};
 
 class OpenALPcmStream
 {
@@ -29,7 +43,7 @@ class OpenALPcmStream
 public:
     enum class InputMode { Queued, CachedSpans };
     enum class QueueResult { Accepted, Full, Invalid, Error };
-    enum class State { Stopped, Playing, Paused, Starved, Finished, Error };
+    enum class State { Stopped, Playing, Paused, Starved, Finished, Error, Disconnected };
     class Producer
     {
     public:
@@ -58,6 +72,7 @@ public:
     // Cached storage is immutable; its references are released only on the owner thread.
     QueueResult queueCached(std::shared_ptr<const std::vector<short>> pcm, uint32_t offsetFrames, uint32_t frames);
     QueueResult queueCachedFloat(std::shared_ptr<const std::vector<float>> pcm, uint32_t offsetFrames, uint32_t frames);
+    QueueResult queueCachedFloat(std::shared_ptr<const OpenALCachedFloatPcm> pcm, uint32_t offsetFrames, uint32_t frames);
     void reclaimConsumed();
     // Free copied-ring capacity, independent of queued cached spans.
     uint32_t availableFrames() const;
@@ -66,6 +81,8 @@ public:
     // Publish a finite immutable tail after a source-frame cutoff; normal queueing then ends.
     bool replaceQueuedAfter(uint32_t endFrame, const short *tail, uint32_t frames);
     bool replaceQueuedAfterFloat(uint32_t endFrame, const float *tail, uint32_t frames);
+    // Restore playback intent after the owning device has been serviced.
+    void update();
     bool play();
     bool pause();
     bool stop();

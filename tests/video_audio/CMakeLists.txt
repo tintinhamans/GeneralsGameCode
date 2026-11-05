@@ -30,3 +30,7 @@ if(RTS_VIDEO_AUDIO_TEST_AUDIO_FILE AND RTS_VIDEO_AUDIO_TEST_SILENT_FILE)
     set_tests_properties(video_audio_engine PROPERTIES TIMEOUT 60
         ENVIRONMENT "ALSOFT_DRIVERS=null;ALSOFT_CONF=${PROJECT_SOURCE_DIR}/tests/openal/alsoft.conf")
 endif()
+
+include("${PROJECT_SOURCE_DIR}/tests/openal/recovery.cmake")
+target_sources(video_audio_tests PRIVATE
+    "${PROJECT_SOURCE_DIR}/tests/openal/recovery_calls.cpp" $<TARGET_OBJECTS:openal_recovery_stream>)

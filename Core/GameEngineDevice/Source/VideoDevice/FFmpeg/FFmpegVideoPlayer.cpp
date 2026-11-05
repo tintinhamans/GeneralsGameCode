@@ -173,28 +173,6 @@ void	FFmpegVideoPlayer::update()
 }
 
 //============================================================================
-// FFmpegVideoPlayer::loseFocus
-//============================================================================
-
-void	FFmpegVideoPlayer::loseFocus()
-{
-    m_focused = false;
-    for (auto *stream = m_firstStream; stream != nullptr; stream = static_cast<VideoStream *>(stream->next()))
-        static_cast<FFmpegVideoStream *>(stream)->setFocused(false);
-}
-
-//============================================================================
-// FFmpegVideoPlayer::regainFocus
-//============================================================================
-
-void	FFmpegVideoPlayer::regainFocus()
-{
-    m_focused = true;
-    for (auto *stream = m_firstStream; stream != nullptr; stream = static_cast<VideoStream *>(stream->next()))
-        static_cast<FFmpegVideoStream *>(stream)->setFocused(true);
-}
-
-//============================================================================
 // FFmpegVideoPlayer::createStream
 //============================================================================
 
@@ -219,7 +197,7 @@ VideoStreamInterface* FFmpegVideoPlayer::createStream(File *file)
     std::shared_ptr<OpenALMovieVoice> audio;
     if (decoder->hasAudio())
         audio = createAudioVoice();
-    auto *stream = NEW FFmpegVideoStream(decoder, std::move(audio), m_volume, m_focused, videoQueueByteLimit());
+    auto *stream = NEW FFmpegVideoStream(decoder, std::move(audio), m_volume, videoQueueByteLimit());
     if (!stream->valid()) {
         delete stream;
         return nullptr;
@@ -321,6 +299,7 @@ struct FFmpegVideoStream::State
     uint64_t submitted = 0;
     Int64 audioOrigin = 0;
     bool audioOriginSet = false;
+    uint64_t audioRecoveryEpoch = 0;
     int rate = 0;
     int index = 0;
     int decodedIndex = 0;
@@ -330,7 +309,7 @@ struct FFmpegVideoStream::State
     bool audioEnded = false;
     bool started = false;
     bool clockPrimed = false;
-    bool focused = true;
+    bool paused = false;
     Real volume = 1;
     Clock::time_point start = Clock::now();
     Clock::time_point pauseStart = start;
@@ -376,7 +355,7 @@ struct FFmpegVideoStream::State
         if (!clockPrimed)
             return 0;
         auto now = pauseStart;
-        if (focused)
+        if (!paused)
             now = Clock::now();
         return std::chrono::duration_cast<std::chrono::microseconds>(now - start).count();
     }
@@ -388,8 +367,11 @@ struct FFmpegVideoStream::State
             if (audio->failed())
                 return progressUS;
             // Callback progress caps starvation; it is not a presentation clock.
-            if (!audioEnded || !audio->finished())
+            if (!audioEnded || !audio->finished()) {
+                if (!audio->connected())
+                    return progressUS;
                 elapsed = std::min(elapsed, static_cast<Int64>(audio->readFrames()) * 1000000 / rate);
+            }
         }
 #endif
         progressUS = elapsed;
@@ -397,16 +379,16 @@ struct FFmpegVideoStream::State
     }
 };
 
-FFmpegVideoStream::FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMovieVoice> audio, Real volume, Bool focused, size_t queueByteLimit)
+FFmpegVideoStream::FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMovieVoice> audio, Real volume, size_t queueByteLimit)
     : m_state(new State), m_ffmpegFile(file)
 {
     m_state->queueByteLimit = queueByteLimit;
     m_state->totalFrames = file->getNumFrames();
     m_state->audio = std::move(audio);
-    m_state->focused = focused;
     m_state->volume = volume;
 #ifdef RTS_AUDIO_BACKEND_OPENAL
     if (m_state->audio != nullptr) {
+        m_state->audioRecoveryEpoch = m_state->audio->recoveryEpoch();
         m_state->rate = m_state->audio->sampleRate();
         if (!m_state->converter.configure(m_state->rate, 2))
             m_state->disableAudio();
@@ -576,7 +558,7 @@ void FFmpegVideoStream::pump()
                         m_state->pendingOffset = 0;
                     }
                 }
-                if (m_state->focused && !m_state->started && m_state->submitted > 0 &&
+                if (!m_state->paused && !m_state->started && m_state->submitted > 0 &&
                     (m_state->clockPrimed || m_frame != nullptr || !m_state->frames.empty())) {
                     if (!m_state->audio->setGain(m_state->volume * 0.8f) || !m_state->audio->play()) {
                         m_state->disableAudio();
@@ -627,14 +609,27 @@ void FFmpegVideoStream::pump()
 
 void FFmpegVideoStream::update()
 {
+#ifdef RTS_AUDIO_BACKEND_OPENAL
+    if (m_state->audio != nullptr) {
+        m_state->audio->update();
+        const uint64_t epoch = m_state->audio->recoveryEpoch();
+        if (epoch != m_state->audioRecoveryEpoch) {
+            m_state->audioRecoveryEpoch = epoch;
+            const auto now = State::Clock::now();
+            m_state->start = now - std::chrono::microseconds(m_state->progressUS);
+            m_state->pauseStart = now;
+        }
+    }
+#endif
     pump();
     selectFrame();
+    m_state->playbackUS();
 }
 
 Bool FFmpegVideoStream::isFrameReady()
 {
     update();
-    return !m_state->failed && m_state->focused && m_frame != nullptr &&
+    return !m_state->failed && !m_state->paused && m_frame != nullptr &&
         m_state->seekUS + m_state->playbackUS() >= m_state->currentUS;
 }
 
@@ -643,7 +638,7 @@ Bool FFmpegVideoStream::isPlaybackComplete()
     update();
     if (m_state->failed)
         return true;
-    if (!m_state->focused || !m_state->eof || m_frame != nullptr || !m_state->frames.empty())
+    if (m_state->paused || !m_state->eof || m_frame != nullptr || !m_state->frames.empty())
         return false;
     const Int64 elapsed = m_state->playbackUS();
 #ifdef RTS_AUDIO_BACKEND_OPENAL
@@ -663,25 +658,26 @@ void FFmpegVideoStream::setVolume(Real volume)
 #endif
 }
 
-void FFmpegVideoStream::setFocused(Bool focused)
+void FFmpegVideoStream::setPaused(Bool paused)
 {
-    if (m_state->focused == focused)
+    if (m_state->paused == paused)
         return;
     const auto now = State::Clock::now();
-    if (!focused) {
+    if (paused)
         m_state->pauseStart = now;
-#ifdef RTS_AUDIO_BACKEND_OPENAL
-        if (m_state->audio != nullptr && m_state->started && !m_state->audio->pause())
-            m_state->disableAudio();
-#endif
-    } else {
+    else
         m_state->start += now - m_state->pauseStart;
+    m_state->paused = paused;
 #ifdef RTS_AUDIO_BACKEND_OPENAL
-        if (m_state->audio != nullptr && m_state->started && !m_state->audio->finished() && !m_state->audio->play())
+    if (m_state->audio != nullptr && m_state->started) {
+        if (paused) {
+            if (!m_state->audio->pause())
+                m_state->disableAudio();
+        } else if (!m_state->audio->finished() && !m_state->audio->play()) {
             m_state->disableAudio();
-#endif
+        }
     }
-    m_state->focused = focused;
+#endif
 }
 
 
@@ -825,8 +821,12 @@ void FFmpegVideoStream::frameGoto(Int index)
     // Reconstruct codec overlap and resampler history before trimming.
     m_state->failed = !m_ffmpegFile->rewind();
 #ifdef RTS_AUDIO_BACKEND_OPENAL
-    if (m_state->audio != nullptr && !m_state->audio->reset())
-        m_state->disableAudio();
+    if (m_state->audio != nullptr) {
+        if (!m_state->audio->reset())
+            m_state->disableAudio();
+        else
+            m_state->audioRecoveryEpoch = m_state->audio->recoveryEpoch();
+    }
 #endif
     if (m_state->rate > 0)
         m_state->converter.configure(m_state->rate, 2);

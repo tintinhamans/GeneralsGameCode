@@ -23,3 +23,7 @@ set_tests_properties(audio_manager_fixtures PROPERTIES FIXTURES_SETUP audio_mana
 add_test(NAME audio_manager_engine COMMAND audio_manager_tests "${CMAKE_CURRENT_BINARY_DIR}/fixture")
 set_tests_properties(audio_manager_engine PROPERTIES TIMEOUT 30 FIXTURES_REQUIRED audio_manager_files
     ENVIRONMENT "ALSOFT_DRIVERS=null;ALSOFT_CONF=${PROJECT_SOURCE_DIR}/tests/openal/alsoft.conf")
+
+include("${PROJECT_SOURCE_DIR}/tests/openal/recovery.cmake")
+target_sources(audio_manager_tests PRIVATE
+    "${PROJECT_SOURCE_DIR}/tests/openal/recovery_calls.cpp" $<TARGET_OBJECTS:openal_recovery_stream>)

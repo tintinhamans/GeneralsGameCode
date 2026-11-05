@@ -125,7 +125,8 @@ void OpenALAudioManager::init()
 void OpenALAudioManager::reset()
 {
     closeMovieVoices();
-    stopAudio(AudioAffect_All);
+    for (auto &voice : m_voices)
+        finishVoice(*voice);
     m_voices.clear();
     removeAllAudioRequests();
     removeLevelSpecificAudioEventInfos();
@@ -144,6 +145,20 @@ void OpenALAudioManager::update()
     updatePlayback();
 }
 
+void OpenALAudioManager::setVolume(Real volume, AudioAffect which)
+{
+    AudioManager::setVolume(volume, which);
+    if (!m_volumeHasChanged)
+        return;
+    for (auto &voice : m_voices) {
+        if (active(*voice))
+            voice->stream.setGain(playbackGain(*voice));
+    }
+    if (TheVideoPlayer != nullptr)
+        TheVideoPlayer->setVolume(getVolume(AudioAffect_Speech));
+    m_volumeHasChanged = false;
+}
+
 AudioHandle OpenALAudioManager::addAudioEvent(const AudioEventRTS *event)
 {
     retireFinished();
@@ -155,6 +170,7 @@ void OpenALAudioManager::retireFinished()
     for (auto &voice : m_voices) {
         if (voice->removed)
             continue;
+        voice->stream.update();
         voice->stream.reclaimConsumed();
         const auto state = voice->stream.state();
         if (state == OpenALPcmStream::State::Finished || state == OpenALPcmStream::State::Error)
@@ -185,7 +201,8 @@ void OpenALAudioManager::openDevice()
 void OpenALAudioManager::closeDevice()
 {
     closeMovieVoices();
-    stopAudio(AudioAffect_All);
+    for (auto &voice : m_voices)
+        finishVoice(*voice);
     m_voices.clear();
     m_cache.clear();
     m_device.close();
@@ -433,8 +450,8 @@ void OpenALAudioManager::stopVoice(Voice &voice, bool immediate)
         frames = static_cast<unsigned>(decay->frameCount());
     }
     bool replaced = false;
-    if (decay != nullptr && !decay->filteredSamples.empty())
-        replaced = voice.stream.replaceQueuedAfterFloat(static_cast<uint32_t>(end), decay->filteredSamples.data(), frames);
+    if (decay != nullptr && decay->filteredSamples != nullptr)
+        replaced = voice.stream.replaceQueuedAfterFloat(static_cast<uint32_t>(end), decay->filteredSamples->data(), frames);
     else {
         const short *tail = nullptr;
         if (decay != nullptr)
@@ -659,8 +676,8 @@ bool OpenALAudioManager::pump(Voice &voice)
             if (!voice.cachedPortionQueued) {
                 OpenALPcmStream::QueueResult result;
                 const auto &clip = voice.clip;
-                if (!clip->filteredSamples.empty()) {
-                    std::shared_ptr<const std::vector<float>> pcm(clip, &clip->filteredSamples);
+                if (clip->filteredSamples != nullptr) {
+                    std::shared_ptr<const OpenALCachedFloatPcm> pcm(clip, clip->filteredSamples.get());
                     result = voice.stream.queueCachedFloat(pcm, 0, static_cast<uint32_t>(clip->frameCount()));
                 } else {
                     std::shared_ptr<const std::vector<short>> pcm(clip, &clip->samples);
@@ -981,6 +998,7 @@ void OpenALAudioManager::updatePlayback()
         removeAllAudioRequests();
         return;
     }
+    m_device.update();
     setDeviceListenerPosition();
     retireFinished();
     processRequestList();

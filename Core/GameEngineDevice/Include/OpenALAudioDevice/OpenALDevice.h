@@ -22,6 +22,9 @@
 #include <AL/alc.h>
 #include <AL/alext.h>
 #include <memory>
+#include <chrono>
+#include <cstdint>
+#include <string>
 #include <thread>
 
 class OpenALPcmStream;
@@ -41,6 +44,10 @@ public:
     OutputMode getOutputMode() const;
     bool close();
     bool isOpen() const;
+    bool isConnected() const;
+    // Owner thread: service once per tick, before updating this device's streams.
+    bool update();
+    uint64_t recoveryEpoch() const;
     int getLastError() const { return m_error; }
     bool render(short *stereo, int frames);
     bool setListener(float x, float y, float z, const float *forward, const float *up);
@@ -58,6 +65,19 @@ private:
         LPALCRESETDEVICESOFT reset = nullptr;
         int sampleRate = 0;
         bool loopback = false;
+        bool disconnectSupported = false;
+        bool deviceConnected = true;
+        bool systemEvents = false;
+        unsigned availabilityGeneration = 0;
+        unsigned removalGeneration = 0;
+        OutputMode outputMode = OutputMode::Unknown;
+        LPALCREOPENDEVICESOFT reopen = nullptr;
+        std::string outputName;
+        std::chrono::steady_clock::time_point nextRetry;
+        std::chrono::steady_clock::time_point retryDeadline;
+        std::chrono::steady_clock::time_point nextCheck;
+        uint64_t recoveryEpoch = 0;
+        bool connected() const { return deviceConnected; }
         std::thread::id owner = std::this_thread::get_id();
         ~Context();
         bool onOwnerThread() const { return owner == std::this_thread::get_id(); }

@@ -14,6 +14,7 @@ add_executable(openal_pcm_tests test.cpp
     "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegAudioFile.cpp"
     "${REPO_ROOT}/Core/GameEngineDevice/Source/VideoDevice/FFmpeg/FFmpegPcmConverter.cpp")
 target_include_directories(openal_pcm_tests PRIVATE ../ffmpeg/adapters
+    "${REPO_ROOT}/Core/GameEngineDevice/Source"
     "${REPO_ROOT}/Core/GameEngineDevice/Include" ${FFMPEG_INCLUDE_DIRS})
 target_link_libraries(openal_pcm_tests PRIVATE OpenAL::OpenAL ${FFMPEG_LIBRARIES})
 if(WIN32)
@@ -84,4 +85,16 @@ if(WIN32)
 endif()
 add_test(NAME openal_gain_cache COMMAND openal_gain_tests)
 set_tests_properties(openal_gain_cache PROPERTIES TIMEOUT 15
+    ENVIRONMENT "ALSOFT_DRIVERS=null;ALSOFT_CONF=${CMAKE_CURRENT_LIST_DIR}/alsoft.conf")
+
+include("${CMAKE_CURRENT_LIST_DIR}/recovery.cmake")
+add_executable(openal_recovery_tests recovery_test.cpp recovery_calls.cpp $<TARGET_OBJECTS:openal_recovery_stream>)
+target_include_directories(openal_recovery_tests PRIVATE "${REPO_ROOT}/Core/GameEngineDevice/Include")
+target_link_libraries(openal_recovery_tests PRIVATE OpenAL::OpenAL)
+if(WIN32)
+    add_custom_command(TARGET openal_recovery_tests POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "$<TARGET_FILE:OpenAL::OpenAL>" "$<TARGET_FILE_DIR:openal_recovery_tests>")
+endif()
+add_test(NAME openal_device_recovery COMMAND openal_recovery_tests)
+set_tests_properties(openal_device_recovery PROPERTIES TIMEOUT 30
     ENVIRONMENT "ALSOFT_DRIVERS=null;ALSOFT_CONF=${CMAKE_CURRENT_LIST_DIR}/alsoft.conf")

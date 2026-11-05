@@ -124,6 +124,8 @@ void WindowVideo::init( GameWindow *win, AsciiString movieName,
 void WindowVideo::setWindowState( WindowVideoStates state )
 {
 	m_state = state;
+	if (m_videoStream)
+		m_videoStream->setPaused(state != WINDOW_VIDEO_STATE_PLAY);
 
 	if(m_state == WINDOW_VIDEO_STATE_STOP && m_win)
 		m_win->winGetInstanceData()->setVideoBuffer( nullptr );

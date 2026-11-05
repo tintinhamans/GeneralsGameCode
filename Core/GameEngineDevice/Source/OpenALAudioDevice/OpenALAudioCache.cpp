@@ -17,6 +17,7 @@
 */
 
 #include "OpenALAudioDevice/OpenALAudioCache.h"
+#include "OpenALAudioDevice/OpenALPcmStream.h"
 #include "VideoDevice/FFmpeg/FFmpegAudioFile.h"
 #include "Common/AsciiString.h"
 #include "Common/FileSystem.h"
@@ -29,14 +30,17 @@ size_t OpenALAudioClip::frameCount() const
 {
     if (channels <= 0)
         return 0;
-    if (!filteredSamples.empty())
-        return filteredSamples.size() / channels;
+    if (filteredSamples != nullptr)
+        return filteredSamples->size() / channels;
     return samples.size() / channels;
 }
 
 size_t OpenALAudioClip::byteSize() const
 {
-    return samples.capacity() * sizeof(short) + filteredSamples.capacity() * sizeof(float);
+    size_t bytes = samples.capacity() * sizeof(short);
+    if (filteredSamples != nullptr)
+        bytes += filteredSamples->capacity() * sizeof(float);
+    return bytes;
 }
 
 void OpenALAudioCache::clear()
@@ -84,6 +88,7 @@ std::shared_ptr<OpenALAudioClip> decodeClip(const AsciiString &filename, int rat
     if (!decoder.open(TheFileSystem->openFile(filename.str()), rate, channels, normalizedCutoff))
         return nullptr;
     bool valid = true;
+    std::vector<float> filteredSamples;
     auto append = [&](const auto *pcm, int frames, auto &samples) {
         const size_t sampleBytes = sizeof(*pcm);
         const size_t count = static_cast<size_t>(frames) * channels;
@@ -116,7 +121,7 @@ std::shared_ptr<OpenALAudioClip> decodeClip(const AsciiString &filename, int rat
     };
     if (normalizedCutoff > 0.0f && normalizedCutoff < 0.999f) {
         if (!decoder.setFloatPcmCallback([&](const float *pcm, int frames) {
-                append(pcm, frames, clip->filteredSamples);
+                append(pcm, frames, filteredSamples);
             }))
             return nullptr;
     } else {
@@ -125,7 +130,14 @@ std::shared_ptr<OpenALAudioClip> decodeClip(const AsciiString &filename, int rat
         });
     }
     while (valid && decoder.decodePacket()) {}
-    if (!valid || decoder.hasError() || clip->frameCount() == 0)
+    if (!valid || decoder.hasError())
+        return nullptr;
+    if (!filteredSamples.empty()) {
+        clip->filteredSamples = OpenALCachedFloatPcm::create(std::move(filteredSamples));
+        if (clip->filteredSamples == nullptr)
+            return nullptr;
+    }
+    if (clip->frameCount() == 0)
         return nullptr;
     return clip;
 }

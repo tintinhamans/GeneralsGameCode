@@ -1,6 +1,7 @@
 #include "OpenALAudioDevice/OpenALDevice.h"
 #include "OpenALAudioDevice/OpenALAudioProducer.h"
 #include "OpenALAudioDevice/OpenALPcmStream.h"
+#include "OpenALAudioDevice/OpenALMonoMix.h"
 #include "VideoDevice/FFmpeg/FFmpegAudioFile.h"
 #include "Common/File.h"
 #include <algorithm>
@@ -14,6 +15,9 @@
 #include <vector>
 #include <limits>
 #include <cfenv>
+#if defined(_M_IX86) || defined(_M_X64) || defined(__SSE2__)
+#include <xmmintrin.h>
+#endif
 #if defined(_M_IX86)
 #include <float.h>
 #endif
@@ -1125,6 +1129,98 @@ static void scalarMixEquivalence(bool replace, bool cachedSpans = false)
     CHECK(stream.state() == State::Finished);
 }
 
+static float scalarNormalized(float sample) { return sample; }
+static float scalarNormalized(short sample) { return sample / 32768.0f; }
+
+template<typename Sample>
+static void stereoKernelEquivalence(const std::vector<Sample> &input, float left, float right)
+{
+    const uint32_t count = static_cast<uint32_t>(input.size() - 1);
+    std::vector<float> actual(count * 2 + 5, 17.0f), expected(actual);
+    volatile float *scalar = expected.data() + 3;
+    for (uint32_t frame = 0; frame < count; ++frame) {
+        const double sample = scalarNormalized(input[frame + 1]);
+        scalar[frame * 2] = static_cast<float>(sample * left);
+        scalar[frame * 2 + 1] = static_cast<float>(sample * right);
+    }
+    OpenALMonoMix::writeStereo(actual.data() + 3, input.data() + 1, count, left, right);
+    CHECK(std::memcmp(actual.data(), expected.data(), actual.size() * sizeof(float)) == 0);
+    for (uint32_t length : {0u, 1u, 3u, 7u, 255u, 1023u}) {
+        std::fill(actual.begin(), actual.end(), 17.0f);
+        std::fill(expected.begin(), expected.end(), 17.0f);
+        for (uint32_t frame = 0; frame < length; ++frame) {
+            const double sample = scalarNormalized(input[frame + 1]);
+            scalar[frame * 2] = static_cast<float>(sample * left);
+            scalar[frame * 2 + 1] = static_cast<float>(sample * right);
+        }
+        OpenALMonoMix::writeStereo(actual.data() + 3, input.data() + 1, length, left, right);
+        CHECK(std::memcmp(actual.data(), expected.data(), actual.size() * sizeof(float)) == 0);
+    }
+}
+
+static void stereoKernelTests()
+{
+    struct RestoreEnvironment {
+        std::fenv_t saved;
+        RestoreEnvironment() { CHECK(std::fegetenv(&saved) == 0); }
+        ~RestoreEnvironment() { CHECK(std::fesetenv(&saved) == 0); }
+    } restore;
+    std::vector<short> integers(65537);
+    std::vector<float> floating(integers.size());
+    for (unsigned i = 0; i < 65536; ++i) {
+        integers[i + 1] = static_cast<short>(static_cast<int>(i) - 32768);
+        uint32_t bits = i * 2654435761u;
+        if ((bits & 0x7f800000u) == 0x7f800000u)
+            bits ^= 0x00800000u;
+        std::memcpy(&floating[i + 1], &bits, sizeof(bits));
+    }
+    const float edges[] = {0.0f, -0.0f, std::numeric_limits<float>::denorm_min(),
+        -std::numeric_limits<float>::denorm_min(), std::numeric_limits<float>::min(),
+        -std::numeric_limits<float>::min(), 1.5f, -1.5f,
+        std::numeric_limits<float>::max(), -std::numeric_limits<float>::max()};
+    std::copy(std::begin(edges), std::end(edges), floating.begin() + 1);
+    const float gains[] = {0.0f, 1.0f, 0.5f, 0.1f, 0.99999994f,
+        std::numeric_limits<float>::denorm_min(), std::numeric_limits<float>::min(), 0.33333334f};
+    for (int rounding : {FE_TONEAREST, FE_DOWNWARD, FE_UPWARD, FE_TOWARDZERO}) {
+        CHECK(std::fesetround(rounding) == 0);
+        unsigned precisionModes = 1;
+#if defined(_M_IX86)
+        precisionModes = 3;
+#endif
+        for (unsigned precision = 0; precision < precisionModes; ++precision) {
+#if defined(_M_IX86)
+            const unsigned settings[] = {_PC_24, _PC_53, _PC_64};
+            unsigned current = 0;
+            CHECK(_controlfp_s(&current, settings[precision], _MCW_PC) == 0);
+#endif
+            unsigned flushModes = 1;
+#if defined(_M_IX86) || defined(_M_X64) || defined(__SSE2__)
+            flushModes = 4;
+            const unsigned csr = _mm_getcsr();
+#endif
+            for (unsigned flush = 0; flush < flushModes; ++flush) {
+#if defined(_M_IX86) || defined(_M_X64) || defined(__SSE2__)
+                unsigned flags = 0;
+                if ((flush & 1) != 0)
+                    flags |= 0x8000u;
+                if ((flush & 2) != 0)
+                    flags |= 0x0040u;
+                _mm_setcsr((csr & ~0x8040u) | flags);
+#endif
+                for (unsigned gain = 0; gain < std::size(gains); ++gain) {
+                    const float left = gains[gain], right = gains[std::size(gains) - gain - 1];
+                    stereoKernelEquivalence(integers, left, right);
+                    stereoKernelEquivalence(floating, left, right);
+                }
+            }
+#if defined(_M_IX86) || defined(_M_X64) || defined(__SSE2__)
+            _mm_setcsr(csr);
+#endif
+        }
+    }
+    std::puts("Fast2D float-bit equivalence: all S16 values, finite float edges, rounding/precision/flush modes and unaligned odd spans passed");
+}
+
 static void scalarMixEquivalenceTests()
 {
     scalarMixEquivalence(false);
@@ -1133,7 +1229,7 @@ static void scalarMixEquivalenceTests()
 }
 
 
-static void directCachedScalarEquivalence(bool floatInput, bool replace)
+static void directCachedScalarEquivalence(bool floatInput, bool replace, bool validatedFloat = false)
 {
     OpenALDevice device;
     CHECK(device.openLoopback());
@@ -1156,9 +1252,16 @@ static void directCachedScalarEquivalence(bool floatInput, bool replace)
     for (uint32_t boundary : reference.boundaries)
         CHECK(stream.schedulePortionBoundary(boundary));
     if (floatInput) {
-        CHECK(stream.queueCachedFloat(floats, 0, 6000) == Result::Accepted);
+        auto validated = OpenALCachedFloatPcm::create(*floats);
+        CHECK(validated != nullptr);
+        auto queueSpan = [&](uint32_t offset, uint32_t frames) {
+            if (validatedFloat)
+                return stream.queueCachedFloat(validated, offset, frames);
+            return stream.queueCachedFloat(floats, offset, frames);
+        };
+        CHECK(queueSpan(0, 6000) == Result::Accepted);
         CHECK(stream.queueFloat(floats->data() + 6000, 500) == Result::Accepted);
-        CHECK(stream.queueCachedFloat(floats, 6500, 9500) == Result::Accepted);
+        CHECK(queueSpan(6500, 9500) == Result::Accepted);
     } else {
         CHECK(stream.queueCached(shorts, 0, 6000) == Result::Accepted);
         CHECK(stream.queue(shorts->data() + 6000, 500) == Result::Accepted);
@@ -1281,6 +1384,49 @@ static void directCachedQueueTests()
         CHECK(std::abs(static_cast<int>(output[sample]) - (*input)[sample]) <= 2);
 }
 
+static void validatedCachedFloatTests()
+{
+    for (float invalid : {std::numeric_limits<float>::quiet_NaN(),
+            std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity()}) {
+        std::vector<float> samples{0.25f, invalid, 0.5f};
+        CHECK(OpenALCachedFloatPcm::create(std::move(samples)) == nullptr);
+    }
+    std::vector<float> samples(1024, 1.5f);
+    samples.reserve(2048);
+    const float *original = samples.data();
+    const size_t capacity = samples.capacity();
+    auto pcm = OpenALCachedFloatPcm::create(std::move(samples));
+    CHECK(pcm != nullptr && pcm->data() == original);
+    CHECK(pcm->size() == 1024 && pcm->capacity() == capacity);
+    OpenALDevice device;
+    CHECK(device.openLoopback());
+    OpenALPcmStream stream;
+    CHECK(stream.open(device, 48000, 1, 4, true, OpenALPcmStream::InputMode::CachedSpans));
+    CHECK(stream.queueCachedFloat(std::shared_ptr<const OpenALCachedFloatPcm>(), 0, 1) == Result::Invalid);
+    CHECK(stream.queueCachedFloat(pcm, 1024, 1) == Result::Invalid);
+    CHECK(stream.queueCachedFloat(pcm, 1023, 2) == Result::Invalid);
+    CHECK(stream.queueCachedFloat(pcm, 0, 0) == Result::Invalid);
+    auto raw = std::make_shared<std::vector<float>>(4, 0.25f);
+    (*raw)[1] = std::numeric_limits<float>::quiet_NaN();
+    CHECK(stream.queueCachedFloat(raw, 0, 4) == Result::Invalid);
+    (*raw)[1] = std::numeric_limits<float>::infinity();
+    CHECK(stream.queueCachedFloat(raw, 0, 4) == Result::Invalid);
+    CHECK(stream.queueCachedFloat(raw, 0, 1) == Result::Accepted);
+    CHECK(stream.stop());
+    std::weak_ptr<const OpenALCachedFloatPcm> pin = pcm;
+    CHECK(stream.queueCachedFloat(pcm, 0, 1024) == Result::Accepted);
+    CHECK(stream.queueCachedFloat(pcm, 0, 1024) == Result::Accepted);
+    pcm.reset();
+    CHECK(!pin.expired());
+    CHECK(stream.setGain(0.25f) && stream.markEnd() && stream.play());
+    render(device, 2304);
+    CHECK(stream.getReadFrames() == 2048 && stream.state() == State::Finished);
+    CHECK(!pin.expired());
+    stream.reclaimConsumed();
+    CHECK(pin.expired());
+    std::puts("cached float factory validation, ownership transfer, raw rejection and repeated pinned playback passed");
+}
+
 static void directCachedTests()
 {
     scalarMixEquivalence(false, true);
@@ -1289,6 +1435,9 @@ static void directCachedTests()
     directCachedScalarEquivalence(false, true);
     directCachedScalarEquivalence(true, false);
     directCachedScalarEquivalence(true, true);
+    directCachedScalarEquivalence(true, false, true);
+    directCachedScalarEquivalence(true, true, true);
+    validatedCachedFloatTests();
     directCachedLifetimeTests();
     directCachedQueueTests();
     std::puts("cached spans exact scalar output, mixed ring ordering and owner-only lifetime passed");
@@ -1754,6 +1903,7 @@ int main(int argc, char **argv)
     producerEndpointDetachRaces();
     producerReplacementLease();
     directCachedTests();
+    stereoKernelTests();
     scalarMixEquivalenceTests();
     legacyMixTests();
     mixedBoundaryTests();

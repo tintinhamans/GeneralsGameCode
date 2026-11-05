@@ -144,3 +144,24 @@ without advancing policy, and checks that EOF becomes visible on exactly the
 expected pump. The fixture requires 65 steps and three pumps; a local 33-packet
 mutation fails on pump two. The high source/output-rate ratio is synthetic control
 coverage, not a proposed production audio configuration.
+
+Immediate-volume coverage mutes and restores an active speech stream without an
+owner update. It checks repeated focus muting, preserved script volume, live speech
+ownership and untouched pending requests.
+
+Filtered cache publication seals finite float PCM before exposing a clip. Cache
+byte accounting uses retained storage capacity, and queued spans pin the parent
+clip so live playback cannot evade eviction budgets. The cache regression checks
+that admission remains blocked until the queued pin is released.
+
+Device close now retires every retained voice, including already-finished speech
+that has not received an owner update. The uninterruptible-speech regression
+checks that its global speech gate is cleared before reopening. Device and stream
+objects in this test executable use the same production source with native-call
+interposition; the normal game build does not include that test adapter.
+
+A Null playback-device regression drives public `AudioManager::update()` with a
+renderer-free camera fixture. Active uninterruptible speech survives failed
+reopens without releasing its gate or changing category/volume preferences. The
+same voice resumes after recovery, finishes naturally, and permits new speech;
+startup device opening is not repeated.

@@ -17,6 +17,7 @@
 */
 
 #include "OpenALAudioDevice/OpenALPcmStream.h"
+#include "OpenALMonoMix.h"
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
@@ -33,9 +34,24 @@ struct OpenALPcmStream::ProducerState
     Data *data = nullptr;
 };
 
+OpenALCachedFloatPcm::OpenALCachedFloatPcm(std::vector<float> samples)
+    : m_samples(std::move(samples))
+{
+}
+
+std::shared_ptr<const OpenALCachedFloatPcm> OpenALCachedFloatPcm::create(std::vector<float> samples)
+{
+    for (float sample : samples) {
+        if (!std::isfinite(sample))
+            return nullptr;
+    }
+    return std::shared_ptr<const OpenALCachedFloatPcm>(new OpenALCachedFloatPcm(std::move(samples)));
+}
+
 struct OpenALPcmStream::Data
 {
     std::shared_ptr<OpenALDevice::Context> context;
+    uint64_t recoveryEpoch = 0;
     std::shared_ptr<ProducerState> producerState;
     ALuint source = 0;
     ALuint buffer = 0;
@@ -225,6 +241,13 @@ struct OpenALPcmStream::Data
         return static_cast<uint32_t>(replacement.size() / channels);
     }
 
+    bool playbackFinished(ALint nativeState) const
+    {
+        if (nativeState != AL_STOPPED)
+            return false;
+        return inputState.load(std::memory_order_acquire) == InputClosed;
+    }
+
     void copyInput(uint32_t frame, const void *input, uint32_t count, bool floatInput) noexcept
     {
         if (!stereoMono) {
@@ -239,9 +262,6 @@ struct OpenALPcmStream::Data
         for (uint32_t i = 0; i < count; ++i)
             floatPcm[frame + i] = source[i] / 32768.0f;
     }
-
-    static float normalized(float sample) noexcept { return sample; }
-    static float normalized(short sample) noexcept { return sample / 32768.0f; }
 
     template<typename Sample>
     void writeMonoOutput(float *stereo, const Sample *mono, uint32_t frames,
@@ -267,7 +287,7 @@ struct OpenALPcmStream::Data
             const uint32_t chunkEnd = frame + count;
             if (surround) {
                 for (; frame < chunkEnd; ++frame) {
-                    const double sample = normalized(mono[frame]);
+                    const double sample = OpenALMonoMix::normalized(mono[frame]);
                     const double left = sample * leftGain;
                     const double right = sample * rightGain;
                     stereo[frame * 2] = static_cast<float>(((1 - frontBack) * left + frontBack * previousRear));
@@ -275,12 +295,9 @@ struct OpenALPcmStream::Data
                     previousRear = (left + right) * 0.5;
                 }
             } else {
-                for (; frame < chunkEnd; ++frame) {
-                    const double sample = normalized(mono[frame]);
-                    stereo[frame * 2] = static_cast<float>(sample * leftGain);
-                    stereo[frame * 2 + 1] = static_cast<float>(sample * rightGain);
-                }
-                const double sample = normalized(mono[chunkEnd - 1]);
+                OpenALMonoMix::writeStereo(stereo + frame * 2, mono + frame, count, leftGain, rightGain);
+                frame = chunkEnd;
+                const double sample = OpenALMonoMix::normalized(mono[chunkEnd - 1]);
                 const double left = sample * leftGain;
                 const double right = sample * rightGain;
                 previousRear = (left + right) * 0.5;
@@ -358,7 +375,10 @@ struct OpenALPcmStream::Data
             data.readMix();
         // Observe EOF before the write index so its final published samples cannot be missed.
         const bool ended = data.ended.load(std::memory_order_acquire);
-        const bool replacing = data.inputState.load(std::memory_order_acquire) == InputReplacement;
+        const auto input = data.inputState.load(std::memory_order_acquire);
+        if (input == InputClosed)
+            return 0;
+        const bool replacing = input == InputReplacement;
         const uint32_t read = data.readPosition.load(std::memory_order_relaxed);
         const uint32_t write = data.writePosition.load(std::memory_order_acquire);
         uint32_t limit = requested;
@@ -399,6 +419,8 @@ struct OpenALPcmStream::Data
             data.replacementPosition += tail;
             data.readFrames.fetch_add(count + tail, std::memory_order_relaxed);
             data.starved.store(false, std::memory_order_relaxed);
+            if (count + tail < requested)
+                data.inputState.store(InputClosed, std::memory_order_release);
             return static_cast<ALsizei>((count + tail) * frameBytes);
         }
         data.readFrames.fetch_add(count, std::memory_order_relaxed);
@@ -481,6 +503,7 @@ bool OpenALPcmStream::open(OpenALDevice &device, int sampleRate, int channels, u
     try {
         candidate = std::make_unique<Data>();
         candidate->context = device.m_context;
+        candidate->recoveryEpoch = device.m_context->recoveryEpoch;
         candidate->channels = channels;
         candidate->outputChannels = channels;
         candidate->stereoMono = stereoMono;
@@ -703,6 +726,28 @@ OpenALPcmStream::QueueResult OpenALPcmStream::queueCachedFloat(
 {
     if (pcm == nullptr)
         return QueueResult::Invalid;
+    if (m_data == nullptr || !m_data->context->onOwnerThread() || m_data->error != AL_NO_ERROR ||
+        m_data->callbackFailed.load(std::memory_order_relaxed) || m_data->producerState != nullptr)
+        return QueueResult::Error;
+    const size_t available = pcm->size();
+    if (frames == 0 || offsetFrames > available / m_data->channels ||
+        frames > available / m_data->channels - offsetFrames)
+        return QueueResult::Invalid;
+    const float *begin = pcm->data() + static_cast<size_t>(offsetFrames) * m_data->channels;
+    const size_t count = static_cast<size_t>(frames) * m_data->channels;
+    for (size_t sample = 0; sample < count; ++sample) {
+        if (!std::isfinite(begin[sample]))
+            return QueueResult::Invalid;
+    }
+    const void *samples = pcm->data();
+    return queueCachedData(std::move(pcm), samples, available, offsetFrames, frames, true);
+}
+
+OpenALPcmStream::QueueResult OpenALPcmStream::queueCachedFloat(
+    std::shared_ptr<const OpenALCachedFloatPcm> pcm, uint32_t offsetFrames, uint32_t frames)
+{
+    if (pcm == nullptr)
+        return QueueResult::Invalid;
     const void *samples = pcm->data();
     const size_t available = pcm->size();
     return queueCachedData(std::move(pcm), samples, available, offsetFrames, frames, true);
@@ -728,13 +773,6 @@ OpenALPcmStream::QueueResult OpenALPcmStream::queueCachedData(std::shared_ptr<co
         sampleBytes = sizeof(float);
     const auto input = static_cast<const unsigned char *>(samples) +
         static_cast<size_t>(offsetFrames) * m_data->channels * sampleBytes;
-    if (floatInput) {
-        const auto values = static_cast<const float *>(static_cast<const void *>(input));
-        for (uint32_t frame = 0; frame < frames; ++frame) {
-            if (!std::isfinite(values[frame]))
-                return QueueResult::Invalid;
-        }
-    }
     Data::Segment segment;
     segment.samples = input;
     segment.frames = frames;
@@ -744,17 +782,44 @@ OpenALPcmStream::QueueResult OpenALPcmStream::queueCachedData(std::shared_ptr<co
     return QueueResult::Accepted;
 }
 
+void OpenALPcmStream::update()
+{
+    if (m_data == nullptr || !m_data->context->onOwnerThread() || !m_data->context->connected() ||
+        m_data->error != AL_NO_ERROR || m_data->callbackFailed.load(std::memory_order_relaxed) ||
+        m_data->recoveryEpoch == m_data->context->recoveryEpoch || m_data->requested == State::Paused)
+        return;
+    if (m_data->requested == State::Playing &&
+        m_data->inputState.load(std::memory_order_acquire) != Data::InputClosed) {
+        OpenALDevice::Scope scope(*m_data->context);
+        if (!scope.valid)
+            return;
+        ALint current = AL_INITIAL;
+        alGetSourcei(m_data->source, AL_SOURCE_STATE, &current);
+        if (!m_data->playbackFinished(current))
+            alSourcePlay(m_data->source);
+        m_data->error = alGetError();
+    }
+    m_data->recoveryEpoch = m_data->context->recoveryEpoch;
+}
+
 bool OpenALPcmStream::play()
 {
-    if (m_data == nullptr)
+    if (m_data == nullptr || !m_data->context->onOwnerThread())
         return false;
+    if (m_data->error != AL_NO_ERROR || m_data->callbackFailed.load(std::memory_order_relaxed))
+        return false;
+    if (!m_data->context->connected()) {
+        if (m_data->inputState.load(std::memory_order_acquire) == Data::InputClosed)
+            return false;
+        m_data->requested = State::Playing;
+        return true;
+    }
     OpenALDevice::Scope scope(*m_data->context);
     if (!scope.valid)
         return false;
     ALint current = AL_INITIAL;
     alGetSourcei(m_data->source, AL_SOURCE_STATE, &current);
-    if (current == AL_STOPPED && (m_data->ended.load(std::memory_order_relaxed) ||
-        m_data->inputState.load(std::memory_order_relaxed) != Data::InputNormal))
+    if (m_data->playbackFinished(current))
         return false;
     if (current != AL_PLAYING)
         alSourcePlay(m_data->source);
@@ -762,6 +827,7 @@ bool OpenALPcmStream::play()
     if (m_data->error != AL_NO_ERROR)
         return false;
     m_data->requested = State::Playing;
+    m_data->recoveryEpoch = m_data->context->recoveryEpoch;
     return true;
 }
 
@@ -769,6 +835,10 @@ bool OpenALPcmStream::pause()
 {
     if (m_data == nullptr || !m_data->context->onOwnerThread() || m_data->requested != State::Playing)
         return false;
+    if (!m_data->context->connected()) {
+        m_data->requested = State::Paused;
+        return true;
+    }
     OpenALDevice::Scope scope(*m_data->context);
     if (!scope.valid)
         return false;
@@ -929,9 +999,17 @@ OpenALPcmStream::State OpenALPcmStream::state() const
     m_data->error = alGetError();
     if (m_data->error != AL_NO_ERROR)
         return State::Error;
-    if (current == AL_STOPPED && (m_data->ended.load(std::memory_order_relaxed) ||
-        m_data->inputState.load(std::memory_order_relaxed) != Data::InputNormal))
+    if (m_data->playbackFinished(current))
         return State::Finished;
+    if (!m_data->context->connected())
+        return State::Disconnected;
+    if (m_data->recoveryEpoch != m_data->context->recoveryEpoch &&
+        m_data->inputState.load(std::memory_order_acquire) != Data::InputClosed) {
+        if (m_data->requested == State::Paused)
+            return State::Paused;
+        if (m_data->requested == State::Playing)
+            return State::Disconnected;
+    }
     if (m_data->requested == State::Playing && m_data->starved.load(std::memory_order_relaxed))
         return State::Starved;
     return m_data->requested;

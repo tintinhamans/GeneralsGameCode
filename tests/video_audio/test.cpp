@@ -6,6 +6,7 @@
 #include "Common/File.h"
 #include "Common/FileSystem.h"
 #include "Common/GameMemory.h"
+#include "GameClient/WindowVideoManager.h"
 #include "OpenALAudioDevice/OpenALAudioManager.h"
 #include "OpenALAudioDevice/OpenALMovieVoice.h"
 #include "VideoDevice/FFmpeg/FFmpegVideoPlayer.h"
@@ -22,6 +23,8 @@
 #include <cstring>
 #include <cstdint>
 #include <vector>
+#define RECOVERY_CALLS_IMPLEMENTATION
+#include "../openal/recovery_calls.h"
 extern "C" {
 #include <libavutil/frame.h>
 #include <libavutil/buffer.h>
@@ -50,6 +53,12 @@ public:
         CHECK(m_device.render(result.data(), frames));
         return result;
     }
+};
+
+class RecoveryAudio : public FixtureAudio
+{
+public:
+    void openDevice() override { CHECK(m_device.open(48000)); }
 };
 
 class FixturePlayer : public FFmpegVideoPlayer
@@ -377,21 +386,29 @@ static void controlTests(FixtureAudio &audio, FixturePlayer &player, const char 
     player.setVolume(1.25f);
     stream->frameNext(); stream->update();
     CHECK(energy(audio.render(800)) > 10000);
+    auto movieVoice = player.voices.back().lock();
+    CHECK(movieVoice != nullptr);
+    const uint64_t beforeMute = movieVoice->readFrames();
     audio.muteAudio(AudioManager::MuteAudioReason_WindowFocus);
-    audio.tick();
     audio.render(800);
     CHECK(energy(audio.render(800)) < 10000);
+    CHECK(movieVoice->readFrames() > beforeMute);
+    audio.muteAudio(AudioManager::MuteAudioReason_WindowFocus);
+    CHECK(energy(audio.render(800)) < 10000);
     audio.unmuteAudio(AudioManager::MuteAudioReason_WindowFocus);
-    audio.tick(); stream->update();
     CHECK(energy(audio.render(800)) > 10000);
+    stream->setPaused(true);
     player.loseFocus();
+    player.regainFocus();
     audio.render(800);
     CHECK(energy(audio.render(800)) < 10000);
     stream->frameNext();
     CHECK(!stream->isFrameReady());
-    player.regainFocus(); stream->update();
+    stream->setPaused(false); stream->update();
     CHECK(energy(audio.render(800)) > 10000);
     stream->close(); audio.render(1600);
+    CHECK(energy(audio.render(800)) < 10000);
+    movieVoice.reset();
 
     player.setVolume(1.25f);
     auto *first = player.openFile(filename);
@@ -403,16 +420,39 @@ static void controlTests(FixtureAudio &audio, FixturePlayer &player, const char 
     CHECK(remainingVoice != nullptr);
     audio.render(800);
     const auto previousRead = remainingVoice->readFrames();
-    first->close();
+    first->setPaused(true);
     const auto independent = audio.render(1600);
     std::printf("multimovie read before=%llu after=%llu energy=%g failed=%d finished=%d available=%u\n", previousRead, remainingVoice->readFrames(), energy(independent), remainingVoice->failed(), remainingVoice->finished(), remainingVoice->availableFrames());
     std::fflush(stdout);
     CHECK(remainingVoice->readFrames() > previousRead && energy(independent) > 10000);
     for (size_t i = 1024; i < independent.size(); ++i)
         CHECK(std::abs(independent[i] - baseline[1600 + i]) <= 2);
+    first->close();
+    const auto beforeCloseRender = remainingVoice->readFrames();
+    CHECK(energy(audio.render(800)) > 10000);
+    CHECK(remainingVoice->readFrames() > beforeCloseRender);
     remainingVoice.reset();
     second->close(); audio.render(1600);
-    std::puts("movie gain/mute/focus and independent simultaneous streams passed");
+    auto *background = player.openFile(filename);
+    CHECK(background != nullptr);
+    auto backgroundVoice = player.voices.back().lock();
+    CHECK(backgroundVoice != nullptr);
+    audio.muteAudio(AudioManager::MuteAudioReason_WindowFocus);
+    player.loseFocus();
+    const Int firstFrame = background->frameIndex();
+    for (int tick = 0; tick < 40; ++tick) {
+        if (background->isFrameReady())
+            background->frameNext();
+        CHECK(energy(audio.render(1600)) < 10000);
+        Sleep(34);
+    }
+    CHECK(background->frameIndex() > firstFrame + 1);
+    CHECK(backgroundVoice->readFrames() > 0);
+    player.regainFocus();
+    audio.unmuteAudio(AudioManager::MuteAudioReason_WindowFocus);
+    background->close();
+    audio.render(1600);
+    std::puts("movie gain/immediate mute, muted timeline progress, panel pause, no-op focus hooks and independent streams passed");
 }
 
 struct FaultState { bool fail = false; unsigned failures = 0; };
@@ -493,6 +533,176 @@ static void oneFrameBudgetTest(FixtureAudio &audio, FixturePlayer &player, const
     std::puts("single-frame queue budget reaches EOF without exceeding the bound or deadlock passed");
 }
 
+static void windowPauseTests(FixtureAudio &audio, FixturePlayer &player, const char *filename,
+    const Reference &expected)
+{
+    const WindowVideoStates states[] = {
+        WINDOW_VIDEO_STATE_PAUSE, WINDOW_VIDEO_STATE_HIDDEN, WINDOW_VIDEO_STATE_STOP};
+    for (const auto state : states) {
+        WindowVideo window;
+        auto *stream = player.openFile(filename);
+        CHECK(stream != nullptr);
+        auto *buffer = new MemoryVideo;
+        CHECK(buffer->allocate(stream->width(), stream->height()));
+        window.init(nullptr, AsciiString("pause-fixture"), WINDOW_PLAY_MOVIE_ONCE, buffer, stream);
+        stream->frameRender(buffer);
+        CHECK(hash(buffer->bytes) == expected.video[0]);
+        window.setWindowState(state);
+        audio.render(1600);
+        auto voice = player.voices.back().lock();
+        uint64_t pausedRead = 0;
+        if (voice != nullptr)
+            pausedRead = voice->readFrames();
+        for (int tick = 0; tick < 30; ++tick) {
+            window.setWindowState(state);
+            player.update();
+            CHECK(!stream->isFrameReady() && !stream->isPlaybackComplete());
+            CHECK(stream->frameIndex() == 0);
+            CHECK(energy(audio.render(480)) < 10000);
+            Sleep(10);
+        }
+        if (voice != nullptr)
+            CHECK(voice->readFrames() == pausedRead);
+        window.setWindowState(WINDOW_VIDEO_STATE_PLAY);
+        const auto resumed = std::chrono::steady_clock::now();
+        int displayed = 0;
+        while (std::chrono::steady_clock::now() - resumed < std::chrono::milliseconds(60)) {
+            player.update();
+            if (stream->isFrameReady()) {
+                stream->frameRender(buffer);
+                CHECK(hash(buffer->bytes) == expected.video[displayed]);
+                ++displayed;
+                stream->frameNext();
+            }
+            audio.render(48);
+            Sleep(1);
+        }
+        CHECK(displayed > 0 && displayed <= 3);
+        window.setWindowState(state);
+        stream->frameGoto(0);
+        player.update();
+        CHECK(!stream->isFrameReady());
+        audio.render(1600);
+        CHECK(energy(audio.render(800)) < 10000);
+        Sleep(80);
+        window.setWindowState(WINDOW_VIDEO_STATE_PLAY);
+        CHECK(stream->frameIndex() == 0 && stream->isFrameReady());
+        if (expected.audio.empty()) {
+            stream->frameNext();
+            CHECK(!stream->isFrameReady());
+            Sleep(40);
+            CHECK(stream->isFrameReady());
+        }
+    }
+    audio.render(1600);
+    std::puts("WindowVideo pause/hidden/stop suspend audio and resume without overdue-frame catch-up passed");
+}
+
+static void recoveryMovieTests(const char *filename)
+{
+    for (unsigned scenario = 0; scenario < 3; ++scenario) {
+        RecoveryTest::reset();
+        RecoveryAudio audio;
+        audio.setup();
+        FixturePlayer player(audio);
+        auto *stream = player.openFile(filename);
+        CHECK(stream != nullptr);
+        auto voice = player.voices.back().lock();
+        CHECK(voice != nullptr);
+        WindowVideo window;
+        auto *buffer = new MemoryVideo;
+        CHECK(buffer->allocate(stream->width(), stream->height()));
+        window.init(nullptr, AsciiString("recovery"), WINDOW_PLAY_MOVIE_ONCE, buffer, stream);
+        const auto activeUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(700);
+        while (std::chrono::steady_clock::now() < activeUntil) {
+            if (stream->isFrameReady()) {
+                stream->frameRender(buffer);
+                stream->frameNext();
+            }
+            Sleep(2);
+        }
+        if (scenario == 1)
+            window.setWindowState(WINDOW_VIDEO_STATE_PAUSE);
+        RecoveryTest::failReopen(true);
+        RecoveryTest::disconnect();
+        const auto lostDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
+        while (voice->connected() && std::chrono::steady_clock::now() < lostDeadline) {
+            player.update();
+            Sleep(5);
+        }
+        CHECK(!voice->connected());
+        if (scenario == 1)
+            stream->frameGoto(10);
+        if (scenario == 2) {
+            window.setWindowState(WINDOW_VIDEO_STATE_PAUSE);
+            stream->frameGoto(stream->frameCount() - 1);
+        }
+        const auto frozen = stream->frameIndex();
+        const auto read = voice->readFrames();
+        const auto outageUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
+        while (std::chrono::steady_clock::now() < outageUntil) {
+            player.update();
+            CHECK(!stream->isFrameReady() && !stream->isPlaybackComplete());
+            CHECK(stream->frameIndex() == frozen && voice->readFrames() == read);
+            Sleep(5);
+        }
+        RecoveryTest::failReopen(false);
+        const auto recoveryUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(1300);
+        while (!voice->connected() && std::chrono::steady_clock::now() < recoveryUntil) {
+            player.update();
+            Sleep(5);
+        }
+        CHECK(voice->connected() && voice->recoveryEpoch() == 1);
+        if (scenario != 0) {
+            const auto pausedRead = voice->readFrames();
+            Sleep(80);
+            player.update();
+            CHECK(voice->readFrames() == pausedRead && !stream->isFrameReady());
+            window.setWindowState(WINDOW_VIDEO_STATE_PLAY);
+        }
+        const auto resumed = std::chrono::steady_clock::now();
+        unsigned shown = 0;
+        while (std::chrono::steady_clock::now() - resumed < std::chrono::milliseconds(60)) {
+            if (stream->isFrameReady()) {
+                stream->frameRender(buffer);
+                stream->frameNext();
+                ++shown;
+            }
+            if (scenario == 2 && shown != 0 &&
+                std::chrono::steady_clock::now() - resumed < std::chrono::milliseconds(15))
+                CHECK(!stream->isPlaybackComplete());
+            Sleep(1);
+        }
+        std::printf("recovery scenario=%u shown=%u frame=%d frozen=%d read=%llu before=%llu connected=%d failed=%d epoch=%llu\n", scenario, shown, stream->frameIndex(), frozen, static_cast<unsigned long long>(voice->readFrames()), static_cast<unsigned long long>(read), voice->connected(), voice->failed(), static_cast<unsigned long long>(voice->recoveryEpoch()));
+        std::fflush(stdout);
+        CHECK(shown <= 6);
+        const auto liveDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+        while (shown == 0 && std::chrono::steady_clock::now() < liveDeadline) {
+            if (stream->isFrameReady()) {
+                stream->frameRender(buffer);
+                stream->frameNext();
+                ++shown;
+            }
+            Sleep(2);
+        }
+        CHECK(shown > 0 && voice->readFrames() > read);
+        if (scenario == 0) {
+            auto *fresh = player.openFile(filename);
+            CHECK(fresh != nullptr && fresh->isFrameReady());
+            CHECK(player.voices.back().lock()->recoveryEpoch() == 1);
+            fresh->close();
+        }
+        if (scenario == 2) {
+            const auto completeDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
+            while (!stream->isPlaybackComplete() && std::chrono::steady_clock::now() < completeDeadline)
+                Sleep(2);
+            CHECK(stream->isPlaybackComplete());
+        }
+    }
+    RecoveryTest::reset();
+    std::puts("movie-only recovery, outage clock freeze, paused overlap, seek/re-prime and finite EOF passed");
+}
+
 static void movieTests(FixtureAudio &audio, const char *withAudio, const char *silent)
 {
     const auto expected = reference(withAudio);
@@ -550,10 +760,13 @@ static void movieTests(FixtureAudio &audio, const char *withAudio, const char *s
     checkPcm(seekPcm, std::vector<short>(expected.audio.begin() + seekSample, expected.audio.end()));
     stream->close();
     controlTests(audio, player, withAudio, expected);
+    windowPauseTests(audio, player, withAudio, expected);
+    windowPauseTests(audio, player, silent, silentExpected);
     std::fflush(stdout);
     sourceErrorTest(audio, player, withAudio);
     audioFailureClockTest(audio, player, withAudio);
     oneFrameBudgetTest(audio, player, silent, silentExpected);
+    recoveryMovieTests(withAudio);
     auto *silentStream = player.openFile(silent);
     CHECK(silentStream != nullptr);
     CHECK(energy(walkMovie(audio, silentStream, silentExpected)) < 10000);

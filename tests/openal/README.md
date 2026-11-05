@@ -96,3 +96,40 @@ Primitive regressions cover owner/wrong-thread validation, single-writer exclusi
 The production decoder service is also tested directly against synchronous owner-thread decoding of the same MemoryFile MP3. One reusable service runs jobs under two owner floating-point environments (x86 PC24/PC53, otherwise nearest/downward rounding), primes complete PCM into matching loopback sources and requires exact rendered S16 equality and EOF/frame metadata. Tracked files must close on their creator thread during job destruction. An actual FFmpeg job additionally primes a 16,384-frame Null stream, survives a 600 ms blocked owner (longer than that ring), and must advance both decoding and callback consumption without failure.
 
 Producer ownership regressions reject both replacement-tail formats during an active lease without changing rendered PCM, then verify replacement after detachment. Owned jobs remain usable after their service wrapper is destroyed; decoder files close exactly once on the creator thread when jobs retire. A synthesized 20 MB, 8 kHz stereo WAV fills the actual 4,096-entry metadata FIFO while ring capacity remains available. Recovery compares every cumulative-frame/EOF record with an independently decoded sequence (no assumed packet size), checks all 5,000,000 frames, and cancels another saturated job without rendering the long fixture.
+
+Cached filtered float PCM can be sealed with `OpenALCachedFloatPcm::create()`.
+The factory takes storage ownership and rejects nonfinite samples once; callers
+must relinquish mutable aliases. Its const storage can then be queued repeatedly
+without another sample scan. Arbitrary vector-based cached input still validates
+each selected span. Regressions check NaN/Inf rejection, no-copy transfer,
+range validation, repeated playback, owner-thread release and exact scalar output
+for both cached interfaces.
+
+The private Fast2D kernel is also checked before OpenAL output quantization.
+Float bit patterns must match an independent scalar loop for every S16 value,
+finite float edge/headroom inputs, unaligned spans and odd lengths. On the local
+MSVC x86 test build this includes all four rounding modes, x87 24/53/64-bit precision
+and MXCSR flush/denormal modes. Existing live-mode, portion-reset and replacement
+checks retain the surround-history coverage. Other compiler/platform runs remain
+separate validation; no precision flags or architecture-specific intrinsics are
+introduced by the kernel.
+
+Device-recovery coverage uses the current device and PCM stream with native-call
+interposition on the Null playback backend. It simulates disconnect, failed
+reopen and a reported-success reopen that remains disconnected; checks the
+original endpoint name, owner-thread restrictions and
+cached health checks; and verifies playing, paused, starved, completed and
+replacement-tail sources. A published finite tail is not callback EOF: unread
+finite PCM must survive an unexpected native stop. Both normal and replacement
+callbacks publish `InputClosed` at EOF, so recovery cannot replay completed PCM.
+Permanent errors are not cleared by automatic recovery. Loopback and missing
+disconnect-extension behavior remain unchanged.
+
+Playback-added notifications request owner-thread recovery immediately. Failed
+attempts retry every 300 ms within a fixed eight-second readiness window; further
+arrivals can start a new window after exhaustion. Capture/default changes do not
+retarget the pinned endpoint. Tests cover background callbacks, shared registration,
+concurrent shutdown, and notification bursts without extending the active window.
+Absent/unsupported notifications or failed registration retain the one-second
+fallback. No callback invokes AL/ALC or sleeps; physical notification delivery and
+replug latency remain hardware-test boundaries.

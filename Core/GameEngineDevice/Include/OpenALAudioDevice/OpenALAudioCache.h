@@ -26,11 +26,12 @@
 #include <tuple>
 #include <vector>
 class AsciiString;
+class OpenALCachedFloatPcm;
 
 struct OpenALAudioClip
 {
     std::vector<short> samples;
-    std::vector<float> filteredSamples;
+    std::shared_ptr<const OpenALCachedFloatPcm> filteredSamples;
     int sampleRate = 0;
     int channels = 0;
     size_t frameCount() const;
@@ -49,7 +50,7 @@ public:
 private:
     struct Entry
     {
-        std::shared_ptr<OpenALAudioClip> clip;
+        std::shared_ptr<const OpenALAudioClip> clip;
         uint64_t accessed = 0;
     };
     bool reserve(size_t bytes);

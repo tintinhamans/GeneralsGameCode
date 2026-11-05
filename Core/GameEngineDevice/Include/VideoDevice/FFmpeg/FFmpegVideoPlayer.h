@@ -63,18 +63,18 @@ class FFmpegVideoStream : public VideoStream
         AVFrame *m_frame = nullptr;
         SwsContext *m_swsContext = nullptr;
         FFmpegFile *m_ffmpegFile;
-        FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMovieVoice> audio, Real volume, Bool focused, size_t queueByteLimit);
+        FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMovieVoice> audio, Real volume, size_t queueByteLimit);
         virtual ~FFmpegVideoStream();
         static void onFrame(AVFrame *frame, int stream, int type, void *user);
         void pump();
         void selectFrame();
-        void setFocused(Bool focused);
         void setVolume(Real volume);
         bool valid() const;
 	public:
 
 		virtual void update();											///< Update bink stream
 
+        void setPaused(Bool paused) override;
 		virtual Bool isPlaybackComplete() override;
 		virtual Bool	isFrameReady();								///< Is the frame ready to be displayed
 		virtual void	frameDecompress();						///< Render current frame in to buffer
@@ -106,7 +106,6 @@ class FFmpegVideoPlayer : public VideoPlayer
         virtual std::shared_ptr<OpenALMovieVoice> createAudioVoice();
         virtual size_t videoQueueByteLimit() const { return 64 * 1024 * 1024; }
         Real m_volume = 1.0f;
-        Bool m_focused = true;
 
 	public:
 
@@ -122,8 +121,6 @@ class FFmpegVideoPlayer : public VideoPlayer
 		~FFmpegVideoPlayer();
 
 		// service
-		virtual void	loseFocus();											///< Should be called when application loses focus
-		virtual void	regainFocus();										///< Should be called when application regains focus
 
 		virtual VideoStreamInterface*	open( AsciiString movieTitle );	///< Open video file for playback
 		virtual VideoStreamInterface*	load( AsciiString movieTitle );	///< Load video file in to memory for playback

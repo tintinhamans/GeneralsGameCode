@@ -183,10 +183,16 @@ explicit device-failure fallback use steady time without opening another device.
 Failure rebases that clock at the last audio-capped playback position, rather than
 jumping forward across an earlier underrun.
 
-Focus pauses the movie source and freezes/rebases its clock. Speech-volume changes
-and mute propagate through the native manager; the Bink path's 0.8 gain factor is
-retained without its nonzero-volume workaround, so zero truly mutes. Seek clears
-queued frames/PCM and resampler state, rewinds the demuxer, decodes to the requested
+Windows focus changes mute/unmute through the audio manager while movie playback
+continues. Volume changes apply to existing voices and movie audio immediately,
+even inside loading loops that do not update the audio manager. Explicit video-player
+focus hooks are no-ops, matching Bink. WindowVideo state changes explicitly pause
+the stream voice and clock; resuming preserves position instead of catching up.
+This intentionally pauses panel audio immediately rather than reproducing Bink's
+buffer-drain delay. Bink window playback itself is unchanged.
+The Bink path's 0.8 gain factor is retained without its nonzero-volume workaround,
+so zero truly mutes. Seek clears queued frames/PCM and resampler state, rewinds
+the demuxer, decodes to the requested
 image and trims preceding audio. Starting from zero reconstructs Bink audio overlap
 and resampler history instead of guessing a codec-specific preroll. Long seeks cost
 more decoding/latency, serviced in bounded packet batches; the movie clock starts
@@ -206,3 +212,34 @@ that do not update the normal subsystems. No background decoder or new productio
 startup/test mode is introduced. Offline coverage and its limits are in
 `tests/video_audio/README.md`; no physical-device or production-session proof is
 implied by loopback output.
+
+## Device loss
+
+Real-device playback checks connection health on the owning thread, at most every
+100 ms of explicit service. A disconnected endpoint is reopened at most once per
+second using `ALC_SOFT_reopen_device`. Recovery stays bound to the originally
+selected output and accepted output mode; it does not switch to a temporary
+system-default monitor or speaker while a headset is missing. The device list is
+refreshed before retrying. Changing the system default alone does not rebind an
+already-open device.
+
+A successful native return is insufficient: connection and output mode must also
+be valid. Context/source objects and queued PCM remain owned throughout recovery.
+A recovery epoch restores each source's playing intent once; paused sources stay
+paused and callback-completed sources are not replayed. Health getters and gain
+setters do not reopen devices or query native connection health per voice. The
+manager's update and the movie voice's explicit update service this path, including
+manual movie loops. Pending movie audio freezes logical progress during loss and
+rebases on recovery independently of panel pause.
+
+Automatic recovery needs `ALC_EXT_disconnect` and `ALC_SOFT_reopen_device`, available
+in the pinned OpenAL Soft build. There is no new engine background thread. Retry
+frequency is bounded, but a native reopen may still wait for the audio driver.
+Already-buffered hardware output can be lost; this is not a promise of gapless or
+sample-perfect A/V recovery. The original endpoint must return under the same
+enumerated name. Physical headset validation is separate from Null-backend fault
+injection.
+
+Direct owners call `device.update()` once per tick, then `stream.update()` for
+each stream. `OpenALMovieVoice::update()` performs both for manual movie loops.
+Status, health and gain access never retry a device.

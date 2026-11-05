@@ -26,6 +26,9 @@ class OpenALMovieVoice
 {
 public:
     ~OpenALMovieVoice();
+    void update();
+    bool connected() const;
+    uint64_t recoveryEpoch() const;
     bool queue(const short *pcm, uint32_t frames);
     uint32_t availableFrames() const;
     uint64_t readFrames();

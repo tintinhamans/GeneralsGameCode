@@ -34,6 +34,23 @@ OpenALMovieVoice::OpenALMovieVoice(OpenALDevice &device, int rate) : m_state(new
         close();
 }
 OpenALMovieVoice::~OpenALMovieVoice() { close(); }
+void OpenALMovieVoice::update()
+{
+    if (m_state->device != nullptr) {
+        m_state->device->update();
+        m_state->stream.update();
+    }
+}
+bool OpenALMovieVoice::connected() const
+{
+    return m_state->device != nullptr && m_state->device->isConnected();
+}
+uint64_t OpenALMovieVoice::recoveryEpoch() const
+{
+    if (m_state->device == nullptr)
+        return 0;
+    return m_state->device->recoveryEpoch();
+}
 bool OpenALMovieVoice::queue(const short *pcm, uint32_t frames)
 {
     return m_state->stream.queue(pcm, frames) == OpenALPcmStream::QueueResult::Accepted;
