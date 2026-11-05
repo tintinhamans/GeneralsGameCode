@@ -22,6 +22,8 @@
 #include <AL/alc.h>
 #include <AL/alext.h>
 #include <memory>
+#include <chrono>
+#include <cstdint>
 #include <thread>
 
 class OpenALPcmStream;
@@ -34,10 +36,15 @@ public:
     ~OpenALDevice();
     OpenALDevice(const OpenALDevice &) = delete;
     OpenALDevice &operator=(const OpenALDevice &) = delete;
+    // Opens the default output and follows the system default when it changes.
     bool open(int sampleRate = 48000);
     bool close();
     bool isOpen() const;
     bool isStereoOutput() const;
+    bool isConnected() const;
+    // The owner thread services the device once per tick, before it updates the device's streams.
+    bool update();
+    uint64_t recoveryEpoch() const;
     int getLastError() const { return m_error; }
 
 private:
@@ -48,11 +55,25 @@ private:
         ALCcontext *context = nullptr;
         LPALBUFFERCALLBACKSOFT bufferCallback = nullptr;
         int sampleRate = 0;
+        bool disconnectSupported = false;
+        bool deviceConnected = true;
+        bool systemEvents = false;
+        unsigned availabilityGeneration = 0;
+        unsigned removalGeneration = 0;
+        unsigned defaultGeneration = 0;
+        ALCint outputMode = 0;
+        LPALCREOPENDEVICESOFT reopen = nullptr;
+        std::chrono::steady_clock::time_point nextRetry;
+        std::chrono::steady_clock::time_point retryDeadline;
+        std::chrono::steady_clock::time_point nextCheck;
+        uint64_t recoveryEpoch = 0;
+        bool connected() const { return deviceConnected; }
         std::thread::id owner = std::this_thread::get_id();
         ~Context();
         bool onOwnerThread() const { return owner == std::this_thread::get_id(); }
     };
     bool initialize(ALCdevice *device, int sampleRate);
+    bool reopenDefault();
     ALCint outputMode() const;
     std::shared_ptr<Context> m_context;
     int m_error = 0;
