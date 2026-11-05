@@ -202,6 +202,23 @@
             }
         },
         {
+            "name": "win32-vcpkg-generalsmd-openal",
+            "inherits": "win32-vcpkg",
+            "displayName": "Windows 32bit VCPKG Zero Hour OpenAL Release",
+            "description": "Zero Hour game only, with OpenAL Soft audio and the trimmed FFmpeg linked statically from the vcpkg overlay ports in GenOnline/cmake/ports",
+            "cacheVariables": {
+                "RTS_BUILD_ZEROHOUR": "ON",
+                "RTS_BUILD_GENERALS": "OFF",
+                "RTS_BUILD_CORE_TOOLS": "OFF",
+                "RTS_BUILD_ZEROHOUR_TOOLS": "OFF",
+                "RTS_BUILD_CORE_EXTRAS": "OFF",
+                "RTS_BUILD_ZEROHOUR_EXTRAS": "OFF",
+                "RTS_BUILD_OPTION_FFMPEG": "ON",
+                "RTS_BUILD_OPTION_OPENAL": "ON",
+                "RTS_BUILD_AUDIO_BACKEND": "OPENAL"
+            }
+        },
+        {
             "name": "unix",
             "inherits": "default-vcpkg",
             "hidden": false,
@@ -332,6 +349,14 @@
             "displayName": "Build Windows 32bit VCPKG PGO Use",
             "description": "Build Windows 32bit VCPKG PGO Use",
             "configuration": "Release"
+        },
+        {
+            "name": "win32-vcpkg-generalsmd-openal",
+            "configurePreset": "win32-vcpkg-generalsmd-openal",
+            "displayName": "Build Windows 32bit VCPKG Zero Hour OpenAL Release",
+            "description": "Build Windows 32bit VCPKG Zero Hour OpenAL Release",
+            "configuration": "Release",
+            "targets": ["z_generals"]
         },
         {
             "name": "unix",
