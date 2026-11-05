@@ -21,6 +21,26 @@ if(WIN32 AND RTS_BUILD_OPTION_FFMPEG AND FFMPEG_ROOT AND NOT FFMPEG_STATIC)
     endforeach()
 endif()
 
+# Ship the licenses of the audio libraries next to the exe
+set(_audio_licenses "${CMAKE_SOURCE_DIR}/Core/GameEngineDevice/Licenses")
+if(WIN32 AND (RTS_BUILD_OPTION_FFMPEG OR RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL"))
+    add_custom_command(TARGET z_generals POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_audio_licenses}/audio-libraries-NOTICE.txt" "$<TARGET_FILE_DIR:z_generals>/audio-libraries-NOTICE.txt")
+endif()
+if(WIN32 AND RTS_BUILD_OPTION_FFMPEG)
+    add_custom_command(TARGET z_generals POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_audio_licenses}/FFmpeg-LGPL-2.1.txt" "$<TARGET_FILE_DIR:z_generals>/ffmpeg-LICENSE.txt")
+endif()
+if(WIN32 AND RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
+    add_custom_command(TARGET z_generals POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_audio_licenses}/OpenAL-Soft-LGPL-2.txt" "$<TARGET_FILE_DIR:z_generals>/openal-soft-LICENSE.txt"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_audio_licenses}/OpenAL-Soft-PFFFT.txt" "$<TARGET_FILE_DIR:z_generals>/openal-soft-pffft-LICENSE.txt")
+endif()
+
 # Use a binary name that doesn't conflict with original game.
 if("${CMAKE_SYSTEM}" MATCHES "Windows")
     set_target_properties(z_generals PROPERTIES OUTPUT_NAME "GeneralsOnlineZH${RTS_BUILD_OUTPUT_SUFFIX}")
