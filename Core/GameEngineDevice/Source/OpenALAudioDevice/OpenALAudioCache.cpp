@@ -131,6 +131,7 @@ std::shared_ptr<OpenALAudioClip> decodeClip(const AsciiString &filename, int rat
         return nullptr;
     if (clip->frameCount() == 0)
         return nullptr;
+    samples.shrink_to_fit();
     return clip;
 }
 }
