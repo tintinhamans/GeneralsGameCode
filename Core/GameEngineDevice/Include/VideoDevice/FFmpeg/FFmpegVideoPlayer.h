@@ -75,6 +75,7 @@ class FFmpegVideoStream : public VideoStream
 		virtual void update();											///< Update bink stream
 
         void setPaused(Bool paused) override;
+        Int64 audioOffsetUS(); ///< Audio read position minus the presentation clock
 		virtual Bool isPlaybackComplete() override;
 		virtual Bool	isFrameReady();								///< Is the frame ready to be displayed
 		virtual void	frameDecompress();						///< Render current frame in to buffer

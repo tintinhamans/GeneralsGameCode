@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/GenOnline/docs/vcpkg.schema.json",
   "builtin-baseline": "b61d33065508ba0d5e393206abb3cb2366299699",
   "vcpkg-configuration": {
+    "overlay-ports": [ "GenOnline/cmake/ports" ],
     "registries": [
       {
         "kind": "git",
@@ -35,8 +36,12 @@
   ],
   "features": {
     "ffmpeg": {
-      "description": "Use FFmpeg instead of Bink for video rendering",
+      "description": "Use FFmpeg instead of Bink for video rendering (trimmed overlay port in GenOnline/cmake/ports/ffmpeg)",
       "dependencies": [ "ffmpeg" ]
+    },
+    "openal-audio": {
+      "description": "Trimmed static FFmpeg and OpenAL Soft for the OpenAL audio backend",
+      "dependencies": [ "ffmpeg", "openal-soft" ]
     }
   }
 }

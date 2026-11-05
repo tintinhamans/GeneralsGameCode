@@ -25,15 +25,39 @@ Set `OpenAL_DIR` to `install/lib/cmake/OpenAL`. `RTS_BUILD_OPTION_OPENAL=ON` com
 
 Keep OpenAL Soft's LGPL notices and applicable source/build information with distribution. No DLLs or commercial media are checked in.
 
+`-WorkDirectory` defaults to `build/openal-soft` in the repository. `-Static` builds a static library instead (`LIBTYPE=STATIC`, DLL C runtime through `CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL` and `FORCE_STATIC_VCRT=OFF`) with the same backends, options and float loader, and defaults to `build/openal-soft-static`. The game then ships no `OpenAL32.dll`; the build copies the OpenAL Soft LGPL and PFFFT notices next to the executable.
+
+## Static audio build
+
+The `win32-vcpkg-generalsmd-openal` preset builds Zero Hour with the OpenAL audio backend and FFmpeg movies, both linked statically. It selects Zero Hour only, `RTS_BUILD_OPTION_FFMPEG`, `RTS_BUILD_OPTION_OPENAL` and `RTS_BUILD_AUDIO_BACKEND=OPENAL`. The OpenAL backend turns on the `openal-audio` manifest feature, and vcpkg builds its two overlay ports from `GenOnline/cmake/ports`:
+
+- `ffmpeg`: FFmpeg 9.0.2 with the same trimmed configure as `GenOnline/media/ffmpeg/build-minimal.sh --static`, release static libraries against the DLL C runtime. It replaces the stock vcpkg `ffmpeg` port, so the `ffmpeg` feature of FFmpeg video builds uses it too.
+- `openal-soft`: OpenAL Soft 1.25.2 with the float loader as `0001-float-loader.patch` and the same options as `build-soft.ps1 -Static`. The port checks the patched `core/voice.cpp` digest.
+
+The OpenAL Soft port checks the SHA256 pinned by its script; the FFmpeg port fetches the n9.0.2 tag from the GitHub mirror with a pinned SHA512. vcpkg fetches MSYS2 and NASM for the FFmpeg build itself, so the only prerequisite is Visual Studio 18 (or 2022) with the v143 x86 C++ tools, its bundled CMake, Ninja and vcpkg. Run from the repository root in an x86 tools environment, which also sets `VCPKG_ROOT`; `CC`/`CXX` keep CMake on `cl` when another compiler is on `PATH`:
+
+```bat
+call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsamd64_x86.bat" -vcvars_ver=14.44
+set CC=cl
+set CXX=cl
+cmake --preset win32-vcpkg-generalsmd-openal
+cmake --build --preset win32-vcpkg-generalsmd-openal
+```
+
+The executable lands in `build/win32-vcpkg-generalsmd-openal/GeneralsMD/Release` with `audio-libraries-NOTICE.txt`, `ffmpeg-LICENSE.txt`, `openal-soft-LICENSE.txt` and `openal-soft-pffft-LICENSE.txt` beside it, and imports no FFmpeg or OpenAL DLL.
+
+The scripts remain an optional manual route: build `GenOnline/media/ffmpeg/build-minimal.sh --static` and `build-soft.ps1 -Static` as described above, then add `-DFFMPEG_ROOT=<repo>/build/ffmpeg-static/install` and `-DOpenAL_DIR=<repo>/build/openal-soft-static/install/lib/cmake/OpenAL` to the configure. Those take precedence over the vcpkg packages, which vcpkg still installs.
+
 ## Opt-in Zero Hour manager
 
 `RTS_BUILD_AUDIO_BACKEND` defaults to `MILES`. Select `OPENAL` explicitly with both
-`RTS_BUILD_OPTION_OPENAL=ON` and `RTS_BUILD_OPTION_FFMPEG=ON`, plus `OpenAL_DIR` and
-`FFMPEG_ROOT` pointing at the pinned local installations. The alternative is for
+`RTS_BUILD_OPTION_OPENAL=ON` and `RTS_BUILD_OPTION_FFMPEG=ON`; vcpkg then provides
+the pinned FFmpeg and OpenAL Soft through the `openal-audio` feature. The alternative is for
 modern Zero Hour only; it does not replace the Generals factory or enable VC6.
 Default builds retain Miles and Bink, with FFmpeg and OpenAL disabled. The FFmpeg
 option is initialized before the CMake project/toolchain and selects the optional
-vcpkg `ffmpeg` feature; it is not an unconditional manifest dependency.
+vcpkg `ffmpeg` feature (plus `openal-audio` with the OpenAL backend); it is not an
+unconditional manifest dependency.
 The public engine header does not expose OpenAL headers: backend construction
 lives in the Win32 implementation file.
 
@@ -219,8 +243,10 @@ A recovery epoch restores each source's playing intent once; paused sources stay
 paused and callback-completed sources are not replayed. Health getters and gain
 setters do not reopen devices or query native connection health per voice. The
 manager's update and the movie voice's explicit update service this path, including
-manual movie loops. Pending movie audio freezes logical progress during loss and
-rebases on recovery independently of panel pause.
+manual movie loops. A movie keeps playing silently on the wall clock while its
+device is lost; on recovery its voice restarts at the current playback position, so
+the missed audio is skipped rather than replayed. A paused panel still holds its
+position.
 
 Automatic recovery needs `ALC_EXT_disconnect` and `ALC_SOFT_reopen_device`, available
 in the pinned OpenAL Soft build. There is no new engine background thread. Retry
