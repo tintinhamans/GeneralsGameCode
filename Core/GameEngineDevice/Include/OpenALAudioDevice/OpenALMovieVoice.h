@@ -25,6 +25,7 @@ class OpenALAudioManager;
 class OpenALMovieVoice
 {
 public:
+    static constexpr uint32_t CapacityFrames = 16384;
     ~OpenALMovieVoice();
     void update();
     bool connected() const;

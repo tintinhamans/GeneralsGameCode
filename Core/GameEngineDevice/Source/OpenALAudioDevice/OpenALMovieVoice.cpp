@@ -80,7 +80,7 @@ bool OpenALMovieVoice::reset()
     m_state->stream.close();
     m_state->previousRead = 0;
     m_state->read = 0;
-    return m_state->stream.open(*m_state->device, m_state->rate, 2, 16384);
+    return m_state->stream.open(*m_state->device, m_state->rate, 2, CapacityFrames);
 }
 void OpenALMovieVoice::close()
 {
