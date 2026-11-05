@@ -276,6 +276,15 @@ static void voiceOwnershipTests(FixtureAudio &audio)
     std::puts("per-movie ownership, EOF no-replay and device shutdown tests passed");
 }
 
+// Bink movie volume: percent = int(speech * 80) + 1, amplitude (32768 * percent / 100 / 32768)^(5/3)
+static const float UNITY_MOVIE_VOLUME = 1.24f; // percent 100
+static const float PERCENT_61_MOVIE_VOLUME = 0.7578125f; // percent 61, as speech 0.75
+
+static double binkMovieGain(int percent)
+{
+    return std::pow((32768 * percent / 100) / 32768.0, 5.0 / 3.0);
+}
+
 static void checkPcm(const std::vector<short> &output, const std::vector<short> &expected)
 {
     CHECK(output.size() >= expected.size());
@@ -363,7 +372,7 @@ static void controlTests(FixtureAudio &audio, FixturePlayer &player, const char 
     }
     CHECK(bestMinimum > 100000);
     std::printf("control fixture frame=%d minimum reference window energy=%g\n", startFrame, bestMinimum);
-    player.setVolume(1.25f);
+    player.setVolume(UNITY_MOVIE_VOLUME);
     auto *baselineStream = player.openFile(filename);
     CHECK(baselineStream != nullptr);
     baselineStream->frameGoto(startFrame);
@@ -372,18 +381,20 @@ static void controlTests(FixtureAudio &audio, FixturePlayer &player, const char 
     checkPcm(baseline, std::vector<short>(expected.audio.begin() + startSample,
         expected.audio.begin() + startSample + baseline.size()));
     baselineStream->close(); audio.render(1600);
-    player.setVolume(0.625f);
+    player.setVolume(PERCENT_61_MOVIE_VOLUME);
     auto *stream = player.openFile(filename);
     CHECK(stream != nullptr);
     stream->frameGoto(startFrame);
     for (int tick = 0; tick < 40; ++tick) stream->update();
-    const auto half = audio.render(800);
-    for (size_t i = 256; i < half.size(); ++i)
-        CHECK(std::abs(half[i] - std::lround(baseline[i] * 0.5)) <= 2);
+    const auto reduced = audio.render(800);
+    const double gain = binkMovieGain(61);
+    std::printf("movie gain at percent 61=%f\n", gain);
+    for (size_t i = 256; i < reduced.size(); ++i)
+        CHECK(std::abs(reduced[i] - std::lround(baseline[i] * gain)) <= 2);
     player.setVolume(0);
     audio.render(800);
     CHECK(energy(audio.render(800)) < 10000);
-    player.setVolume(1.25f);
+    player.setVolume(UNITY_MOVIE_VOLUME);
     stream->frameNext(); stream->update();
     CHECK(energy(audio.render(800)) > 10000);
     auto movieVoice = player.voices.back().lock();
@@ -410,7 +421,7 @@ static void controlTests(FixtureAudio &audio, FixturePlayer &player, const char 
     CHECK(energy(audio.render(800)) < 10000);
     movieVoice.reset();
 
-    player.setVolume(1.25f);
+    player.setVolume(UNITY_MOVIE_VOLUME);
     auto *first = player.openFile(filename);
     auto *second = player.openFile(filename);
     CHECK(first != nullptr && second != nullptr);
@@ -714,7 +725,7 @@ static void movieTests(FixtureAudio &audio, const char *withAudio, const char *s
     CHECK(energy(expected.audio) > 10000);
     FixturePlayer player(audio);
     TheVideoPlayer = &player;
-    player.setVolume(1.25f);
+    player.setVolume(UNITY_MOVIE_VOLUME);
     auto *stream = player.openFile(withAudio);
     CHECK(stream != nullptr && stream->frameIndex() == 0);
     MemoryVideo initial;
