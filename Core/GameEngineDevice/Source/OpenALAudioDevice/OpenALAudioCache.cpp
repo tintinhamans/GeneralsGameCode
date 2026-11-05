@@ -49,6 +49,16 @@ void OpenALAudioCache::clear()
     m_bytes = 0;
 }
 
+// AudioFootprintInBytes was sized for Miles, which caches the files as stored; PCM at the output rate is up to 8 times bigger
+size_t OpenALAudioCache::budgetForFootprint(size_t footprint)
+{
+    constexpr size_t DECODED_SCALE = 8;
+    constexpr size_t MAX_SCALED_BUDGET = 128 * 1024 * 1024;
+    if (footprint >= MAX_SCALED_BUDGET / DECODED_SCALE)
+        return std::max(footprint, MAX_SCALED_BUDGET);
+    return footprint * DECODED_SCALE;
+}
+
 void OpenALAudioCache::setBudget(size_t budget)
 {
     m_budget = budget;

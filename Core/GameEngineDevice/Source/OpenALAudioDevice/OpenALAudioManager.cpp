@@ -109,7 +109,7 @@ OpenALAudioManager::~OpenALAudioManager()
 void OpenALAudioManager::init()
 {
     AudioManager::init();
-    m_cache.setBudget(m_audioSettings->m_maxCacheSize);
+    m_cache.setBudget(OpenALAudioCache::budgetForFootprint(m_audioSettings->m_maxCacheSize));
     m_speaker = m_audioSettings->m_defaultSpeakerType2D;
     if (!isSupportedSpeaker(m_speaker))
         m_speaker = 0;

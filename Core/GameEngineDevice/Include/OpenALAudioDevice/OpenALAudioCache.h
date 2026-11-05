@@ -42,6 +42,7 @@ class OpenALAudioCache
 {
 public:
     explicit OpenALAudioCache(size_t budget = 0) : m_budget(budget) {}
+    static size_t budgetForFootprint(size_t footprint);
     void setBudget(size_t budget);
     void clear();
     std::shared_ptr<const OpenALAudioClip> load(const AsciiString &filename, int rate, int channels, float normalizedCutoff = 1.0f);
