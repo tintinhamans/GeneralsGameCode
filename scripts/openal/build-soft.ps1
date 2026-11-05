@@ -1,8 +1,13 @@
 param(
-    [Parameter(Mandatory = $true)][string]$WorkDirectory,
-    [ValidateRange(1, 32)][int]$Jobs = 6
+    [string]$WorkDirectory,
+    [ValidateRange(1, 32)][int]$Jobs = 6,
+    [switch]$Static
 )
 $ErrorActionPreference = 'Stop'
+if (!$WorkDirectory) {
+    $folder = if ($Static) { 'openal-soft-static' } else { 'openal-soft' }
+    $WorkDirectory = Join-Path (Split-Path (Split-Path $PSScriptRoot)) "build/$folder"
+}
 if ($env:VSCMD_ARG_TGT_ARCH -ne 'x86') {
     throw 'Run from an x86 Visual Studio 2022 developer environment.'
 }
@@ -28,11 +33,20 @@ if (!(Test-Path -LiteralPath $archive)) {
 if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $expected) {
     throw 'OpenAL Soft archive hash mismatch.'
 }
-& tar -xf $archive -C $root
+# Prefer the Windows tar; an MSYS or Git tar earlier on PATH reads "D:" as a remote host
+$tar = Join-Path $env:SystemRoot 'System32\tar.exe'
+if (!(Test-Path -LiteralPath $tar)) { $tar = 'tar' }
+& $tar -xf $archive -C $root
 if ($LASTEXITCODE -ne 0) { throw 'Source extraction failed.' }
 $patch = & (Join-Path $PSScriptRoot 'apply-float-loader.ps1') -SourceDirectory $source
 $arguments = @('-S', $source, '-B', $build, '-G', 'Ninja',
-    '-DCMAKE_BUILD_TYPE=Release', "-DCMAKE_INSTALL_PREFIX=$install", '-DLIBTYPE=SHARED',
+    '-DCMAKE_BUILD_TYPE=Release', "-DCMAKE_INSTALL_PREFIX=$install")
+if ($Static) {
+    $arguments += '-DLIBTYPE=STATIC', '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL', '-DFORCE_STATIC_VCRT=OFF'
+} else {
+    $arguments += '-DLIBTYPE=SHARED'
+}
+$arguments += @(
     '-DALSOFT_UTILS=OFF', '-DALSOFT_EXAMPLES=OFF', '-DALSOFT_TESTS=OFF', '-DALSOFT_EAX=OFF',
     '-DALSOFT_BACKEND_SDL2=OFF', '-DALSOFT_BACKEND_SDL3=OFF', '-DALSOFT_BACKEND_DSOUND=OFF',
     '-DALSOFT_BACKEND_WINMM=OFF', '-DALSOFT_BACKEND_WASAPI=ON', '-DALSOFT_BACKEND_WAVE=ON',
@@ -49,4 +63,8 @@ if ($LASTEXITCODE -ne 0) { throw 'OpenAL Soft configuration failed; see configur
 if ($LASTEXITCODE -ne 0) { throw 'OpenAL Soft build failed; see build.log.' }
 & cmake --install $build *> (Join-Path $root 'install.log')
 if ($LASTEXITCODE -ne 0) { throw 'OpenAL Soft install failed; see install.log.' }
-Get-ChildItem (Join-Path $install 'bin/*.dll') | Select-Object Name, Length
+if ($Static) {
+    Get-ChildItem (Join-Path $install 'lib/*.lib') | Select-Object Name, Length
+} else {
+    Get-ChildItem (Join-Path $install 'bin/*.dll') | Select-Object Name, Length
+}
