@@ -18,7 +18,7 @@
 #include "OpenALAudioDevice/OpenALAudioManager.h"
 #include "OpenALAudioDevice/OpenALPcmStream.h"
 #include "VideoDevice/FFmpeg/FFmpegAudioFile.h"
-#include "Win32Device/Common/Win32BIGFileSystem.h"
+#include "Common/BIGFileSystem.h"
 #include "Win32Device/Common/Win32LocalFileSystem.h"
 #include <direct.h>
 #include <algorithm>
@@ -1802,12 +1802,12 @@ int main(int argc, char **argv)
         std::equal(marker.begin(), marker.end(), expectedMarker));
     FileSystem fileSystem;
     Win32LocalFileSystem local;
-    Win32BIGFileSystem archive;
+    BIGFileSystem archive;
     TheFileSystem = &fileSystem;
     TheLocalFileSystem = &local;
     TheArchiveFileSystem = &archive;
     local.init();
-    archive.loadBigFilesFromDirectory("", "fixture.big");
+    archive.loadArchiveFilesFromDirectory("", "fixture.big");
     {
         FixtureManager manager;
         manager.configure();
