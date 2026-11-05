@@ -20,7 +20,6 @@
 #include "OpenALMonoMix.h"
 #include <algorithm>
 #include <atomic>
-#include <cstdio>
 #include <cmath>
 #include <cstring>
 #include <exception>
@@ -34,20 +33,6 @@ struct OpenALPcmStream::ProducerState
     Data *data = nullptr;
 };
 
-OpenALCachedFloatPcm::OpenALCachedFloatPcm(std::vector<float> samples)
-    : m_samples(std::move(samples))
-{
-}
-
-std::shared_ptr<const OpenALCachedFloatPcm> OpenALCachedFloatPcm::create(std::vector<float> samples)
-{
-    for (float sample : samples) {
-        if (!std::isfinite(sample))
-            return nullptr;
-    }
-    return std::shared_ptr<const OpenALCachedFloatPcm>(new OpenALCachedFloatPcm(std::move(samples)));
-}
-
 struct OpenALPcmStream::Data
 {
     std::shared_ptr<OpenALDevice::Context> context;
@@ -56,7 +41,6 @@ struct OpenALPcmStream::Data
     ALuint source = 0;
     ALuint buffer = 0;
     int channels = 0;
-    int outputChannels = 0;
     bool stereoMono = false;
     bool cachedSpans = false;
     struct Segment
@@ -64,8 +48,8 @@ struct OpenALPcmStream::Data
         const void *samples = nullptr;
         uint32_t frames = 0;
         uint32_t ringStart = 0;
+        int channels = 0;
         bool ring = false;
-        bool floatInput = false;
     };
     std::vector<Segment> segments;
     std::vector<std::shared_ptr<const void>> segmentOwners;
@@ -147,32 +131,21 @@ struct OpenALPcmStream::Data
         return ringFrames - 1 - distance(write, read);
     }
 
-    QueueResult queueRing(const void *interleaved, uint32_t frames, bool floatInput)
+    QueueResult queueRing(const short *interleaved, uint32_t frames)
     {
         if (callbackFailed.load(std::memory_order_relaxed))
             return QueueResult::Error;
-        if (interleaved == nullptr || frames == 0 || frames >= ringFrames || (floatInput && !stereoMono) ||
+        if (interleaved == nullptr || frames == 0 || frames >= ringFrames ||
             ended.load(std::memory_order_relaxed) || inputState.load(std::memory_order_relaxed) != Data::InputNormal)
             return QueueResult::Invalid;
         if (frames > ringAvailable())
             return QueueResult::Full;
         if (cachedSpans && !segmentAvailable())
             return QueueResult::Full;
-        if (floatInput) {
-            const auto input = static_cast<const float *>(interleaved);
-            for (uint32_t frame = 0; frame < frames; ++frame) {
-                if (!std::isfinite(input[frame]))
-                    return QueueResult::Invalid;
-            }
-        }
         const uint32_t write = writePosition.load(std::memory_order_relaxed);
         const uint32_t first = std::min(frames, ringFrames - write);
-        const auto bytes = static_cast<const unsigned char *>(interleaved);
-        size_t inputFrameBytes = sizeof(short) * channels;
-        if (floatInput)
-            inputFrameBytes = sizeof(float);
-        copyInput(write, interleaved, first, floatInput);
-        copyInput(0, bytes + first * inputFrameBytes, frames - first, floatInput);
+        copyInput(write, interleaved, first);
+        copyInput(0, interleaved + static_cast<size_t>(first) * channels, frames - first);
         writePosition.store((write + frames) % ringFrames, std::memory_order_release);
         writtenFrames.fetch_add(frames, std::memory_order_relaxed);
         if (cachedSpans) {
@@ -248,19 +221,14 @@ struct OpenALPcmStream::Data
         return inputState.load(std::memory_order_acquire) == InputClosed;
     }
 
-    void copyInput(uint32_t frame, const void *input, uint32_t count, bool floatInput) noexcept
+    void copyInput(uint32_t frame, const short *input, uint32_t count) noexcept
     {
         if (!stereoMono) {
             std::memcpy(pcm.data() + frame * channels, input, count * channels * sizeof(short));
             return;
         }
-        if (floatInput) {
-            std::memcpy(floatPcm.data() + frame, input, count * sizeof(float));
-            return;
-        }
-        const auto source = static_cast<const short *>(input);
         for (uint32_t i = 0; i < count; ++i)
-            floatPcm[frame + i] = source[i] / 32768.0f;
+            floatPcm[frame + i] = input[i] / 32768.0f;
     }
 
     template<typename Sample>
@@ -307,8 +275,17 @@ struct OpenALPcmStream::Data
     }
 
     void writeOutput(void *output, const void *input, uint32_t frames, uint32_t firstFrame,
-        bool replacement = false, bool floatInput = true) noexcept
+        bool replacement = false, bool floatInput = true, int inputChannels = 0) noexcept
     {
+        if (!stereoMono && inputChannels == 1 && channels == 2) {
+            const auto mono = static_cast<const short *>(input);
+            auto stereo = static_cast<short *>(output);
+            for (uint32_t frame = 0; frame < frames; ++frame) {
+                stereo[frame * 2] = mono[frame];
+                stereo[frame * 2 + 1] = mono[frame];
+            }
+            return;
+        }
         if (!stereoMono) {
             std::memcpy(output, input, frames * channels * sizeof(short));
             return;
@@ -339,13 +316,10 @@ struct OpenALPcmStream::Data
                     firstFrame + count + first);
                 readPosition.store((position + take) % ringFrames, std::memory_order_release);
             } else {
-                size_t sampleBytes = sizeof(short);
-                if (segment.floatInput)
-                    sampleBytes = sizeof(float);
-                const auto input = static_cast<const unsigned char *>(segment.samples) +
-                    static_cast<size_t>(segmentOffset) * channels * sampleBytes;
+                const auto input = static_cast<const short *>(segment.samples) +
+                    static_cast<size_t>(segmentOffset) * segment.channels;
                 writeOutput(output + count * frameBytes, input, take,
-                    firstFrame + count, false, segment.floatInput);
+                    firstFrame + count, false, false, segment.channels);
             }
             segmentOffset += take;
             count += take;
@@ -364,7 +338,7 @@ struct OpenALPcmStream::Data
         uint32_t sampleBytes = sizeof(short);
         if (data.stereoMono)
             sampleBytes = sizeof(float);
-        const uint32_t frameBytes = sampleBytes * data.outputChannels;
+        const uint32_t frameBytes = sampleBytes * 2;
         if (bytes <= 0 || static_cast<uint32_t>(bytes) % frameBytes != 0) {
             data.callbackFailed.store(true, std::memory_order_relaxed);
             return 0;
@@ -495,22 +469,19 @@ bool OpenALPcmStream::close()
 bool OpenALPcmStream::open(OpenALDevice &device, int sampleRate, int channels, uint32_t capacityFrames, bool stereoMono, InputMode mode)
 {
     if (!close() || !device.isOpen() || sampleRate <= 0 || (channels != 1 && channels != 2) ||
-        (stereoMono && channels != 1) ||
+        stereoMono != (channels == 1) ||
         (mode != InputMode::Queued && mode != InputMode::CachedSpans) || capacityFrames == 0 || capacityFrames >= static_cast<uint32_t>(std::numeric_limits<int>::max()) / (sizeof(short) * channels))
         return false;
     auto candidate = std::make_unique<Data>();
     candidate->context = device.m_context;
     candidate->recoveryEpoch = device.m_context->recoveryEpoch;
     candidate->channels = channels;
-    candidate->outputChannels = channels;
     candidate->stereoMono = stereoMono;
     candidate->cachedSpans = mode == InputMode::CachedSpans;
     if (candidate->cachedSpans) {
         candidate->segments.resize(static_cast<size_t>(capacityFrames) + 2);
         candidate->segmentOwners.resize(candidate->segments.size());
     }
-    if (stereoMono)
-        candidate->outputChannels = 2;
     candidate->mixValues[0].store(Data::bits(0.5f));
     candidate->mixValues[1].store(Data::bits(0.5f));
     candidate->ringFrames = capacityFrames + 1;
@@ -520,9 +491,7 @@ bool OpenALPcmStream::open(OpenALDevice &device, int sampleRate, int channels, u
     } else {
         candidate->pcm.resize(static_cast<size_t>(candidate->ringFrames) * channels);
     }
-    ALenum format = AL_FORMAT_MONO16;
-    if (candidate->outputChannels == 2)
-        format = AL_FORMAT_STEREO16;
+    ALenum format = AL_FORMAT_STEREO16;
     if (stereoMono) {
         if (!alIsExtensionPresent("AL_EXT_FLOAT32") || !alIsExtensionPresent("AL_SOFT_direct_channels"))
             return false;
@@ -568,15 +537,7 @@ OpenALPcmStream::QueueResult OpenALPcmStream::Producer::queue(const short *inter
     std::lock_guard<std::mutex> lock(m_state->mutex);
     if (m_state->data == nullptr)
         return QueueResult::Error;
-    return m_state->data->queueRing(interleaved, frames, false);
-}
-
-OpenALPcmStream::QueueResult OpenALPcmStream::Producer::queueFloat(const float *interleaved, uint32_t frames)
-{
-    std::lock_guard<std::mutex> lock(m_state->mutex);
-    if (m_state->data == nullptr)
-        return QueueResult::Error;
-    return m_state->data->queueRing(interleaved, frames, true);
+    return m_state->data->queueRing(interleaved, frames);
 }
 
 uint32_t OpenALPcmStream::Producer::availableFrames() const
@@ -621,20 +582,14 @@ uint32_t OpenALPcmStream::getReadFrames() const
     return m_data->readFrames.load(std::memory_order_relaxed);
 }
 
-bool OpenALPcmStream::replaceQueuedAfter(uint32_t endFrame, const short *tail, uint32_t frames)
+bool OpenALPcmStream::replaceQueuedAfter(uint32_t endFrame, const short *tail, uint32_t frames, int sourceChannels)
 {
-    return replaceQueuedDataAfter(endFrame, tail, frames, false);
-}
-
-bool OpenALPcmStream::replaceQueuedAfterFloat(uint32_t endFrame, const float *tail, uint32_t frames)
-{
-    return replaceQueuedDataAfter(endFrame, tail, frames, true);
-}
-
-bool OpenALPcmStream::replaceQueuedDataAfter(uint32_t endFrame, const void *tail, uint32_t frames, bool floatInput)
-{
-    if (m_data == nullptr || m_data->producerState != nullptr ||
-        (floatInput && !m_data->stereoMono) ||
+    if (m_data == nullptr)
+        return false;
+    if (sourceChannels == 0)
+        sourceChannels = m_data->channels;
+    if (m_data->producerState != nullptr ||
+        (sourceChannels != m_data->channels && (sourceChannels != 1 || m_data->stereoMono)) ||
         m_data->inputState.load(std::memory_order_acquire) != Data::InputNormal || (frames != 0 && tail == nullptr))
         return false;
     size_t frameBytes = sizeof(short) * m_data->channels;
@@ -647,22 +602,21 @@ bool OpenALPcmStream::replaceQueuedDataAfter(uint32_t endFrame, const void *tail
         return false;
     if (m_data->stereoMono) {
         std::vector<float> replacement(frames);
-        for (uint32_t i = 0; i < frames; ++i) {
-            if (floatInput)
-                replacement[i] = static_cast<const float *>(tail)[i];
-            else
-                replacement[i] = static_cast<const short *>(tail)[i] / 32768.0f;
-            if (!std::isfinite(replacement[i]))
-                return false;
-        }
+        for (uint32_t i = 0; i < frames; ++i)
+            replacement[i] = tail[i] / 32768.0f;
         if (replacement.capacity() > (16 * 1024 * 1024) / sizeof(float))
             return false;
         m_data->floatReplacement.swap(replacement);
     } else {
         std::vector<short> replacement;
-        if (frames != 0) {
-            const auto source = static_cast<const short *>(tail);
-            replacement.assign(source, source + static_cast<size_t>(frames) * m_data->channels);
+        if (frames != 0 && sourceChannels != m_data->channels) {
+            replacement.resize(static_cast<size_t>(frames) * m_data->channels);
+            for (uint32_t frame = 0; frame < frames; ++frame) {
+                replacement[frame * 2] = tail[frame];
+                replacement[frame * 2 + 1] = tail[frame];
+            }
+        } else if (frames != 0) {
+            replacement.assign(tail, tail + static_cast<size_t>(frames) * m_data->channels);
         }
         if (replacement.capacity() > (16 * 1024 * 1024) / sizeof(short))
             return false;
@@ -676,90 +630,37 @@ bool OpenALPcmStream::replaceQueuedDataAfter(uint32_t endFrame, const void *tail
 
 OpenALPcmStream::QueueResult OpenALPcmStream::queue(const short *interleaved, uint32_t frames)
 {
-    return queueData(interleaved, frames, false);
-}
-
-OpenALPcmStream::QueueResult OpenALPcmStream::queueFloat(const float *interleaved, uint32_t frames)
-{
-    return queueData(interleaved, frames, true);
-}
-
-OpenALPcmStream::QueueResult OpenALPcmStream::queueData(const void *interleaved, uint32_t frames, bool floatInput)
-{
-    if (m_data == nullptr || m_data->error != AL_NO_ERROR ||
-        m_data->producerState != nullptr)
+    if (m_data == nullptr || m_data->error != AL_NO_ERROR || m_data->producerState != nullptr)
         return QueueResult::Error;
-    return m_data->queueRing(interleaved, frames, floatInput);
+    return m_data->queueRing(interleaved, frames);
 }
 
 OpenALPcmStream::QueueResult OpenALPcmStream::queueCached(
-    std::shared_ptr<const std::vector<short>> pcm, uint32_t offsetFrames, uint32_t frames)
-{
-    if (pcm == nullptr)
-        return QueueResult::Invalid;
-    const void *samples = pcm->data();
-    const size_t available = pcm->size();
-    return queueCachedData(std::move(pcm), samples, available, offsetFrames, frames, false);
-}
-
-OpenALPcmStream::QueueResult OpenALPcmStream::queueCachedFloat(
-    std::shared_ptr<const std::vector<float>> pcm, uint32_t offsetFrames, uint32_t frames)
+    std::shared_ptr<const std::vector<short>> pcm, uint32_t offsetFrames, uint32_t frames, int sourceChannels)
 {
     if (pcm == nullptr)
         return QueueResult::Invalid;
     if (m_data == nullptr || m_data->error != AL_NO_ERROR ||
         m_data->callbackFailed.load(std::memory_order_relaxed) || m_data->producerState != nullptr)
         return QueueResult::Error;
+    if (sourceChannels == 0)
+        sourceChannels = m_data->channels;
     const size_t available = pcm->size();
-    if (frames == 0 || offsetFrames > available / m_data->channels ||
-        frames > available / m_data->channels - offsetFrames)
-        return QueueResult::Invalid;
-    const float *begin = pcm->data() + static_cast<size_t>(offsetFrames) * m_data->channels;
-    const size_t count = static_cast<size_t>(frames) * m_data->channels;
-    for (size_t sample = 0; sample < count; ++sample) {
-        if (!std::isfinite(begin[sample]))
-            return QueueResult::Invalid;
-    }
-    const void *samples = pcm->data();
-    return queueCachedData(std::move(pcm), samples, available, offsetFrames, frames, true);
-}
-
-OpenALPcmStream::QueueResult OpenALPcmStream::queueCachedFloat(
-    std::shared_ptr<const OpenALCachedFloatPcm> pcm, uint32_t offsetFrames, uint32_t frames)
-{
-    if (pcm == nullptr)
-        return QueueResult::Invalid;
-    const void *samples = pcm->data();
-    const size_t available = pcm->size();
-    return queueCachedData(std::move(pcm), samples, available, offsetFrames, frames, true);
-}
-
-OpenALPcmStream::QueueResult OpenALPcmStream::queueCachedData(std::shared_ptr<const void> owner,
-    const void *samples, size_t available, uint32_t offsetFrames, uint32_t frames, bool floatInput)
-{
-    if (m_data == nullptr || m_data->error != AL_NO_ERROR ||
-        m_data->callbackFailed.load(std::memory_order_relaxed) || m_data->producerState != nullptr)
-        return QueueResult::Error;
     if (!m_data->cachedSpans || frames == 0 || frames >= 0x80000000u ||
-        (floatInput && !m_data->stereoMono) ||
+        (sourceChannels != m_data->channels && (sourceChannels != 1 || m_data->stereoMono)) ||
         m_data->ended.load(std::memory_order_relaxed) ||
         m_data->inputState.load(std::memory_order_relaxed) != Data::InputNormal ||
-        offsetFrames > available / m_data->channels ||
-        frames > available / m_data->channels - offsetFrames)
+        offsetFrames > available / sourceChannels ||
+        frames > available / sourceChannels - offsetFrames)
         return QueueResult::Invalid;
     if (!m_data->segmentAvailable())
         return QueueResult::Full;
-    size_t sampleBytes = sizeof(short);
-    if (floatInput)
-        sampleBytes = sizeof(float);
-    const auto input = static_cast<const unsigned char *>(samples) +
-        static_cast<size_t>(offsetFrames) * m_data->channels * sampleBytes;
     Data::Segment segment;
-    segment.samples = input;
+    segment.samples = pcm->data() + static_cast<size_t>(offsetFrames) * sourceChannels;
     segment.frames = frames;
-    segment.floatInput = floatInput;
+    segment.channels = sourceChannels;
     m_data->writtenFrames.fetch_add(frames, std::memory_order_relaxed);
-    m_data->publishSegment(segment, std::move(owner));
+    m_data->publishSegment(segment, std::move(pcm));
     return QueueResult::Accepted;
 }
 
@@ -894,7 +795,7 @@ bool OpenALPcmStream::setPitch(float pitch)
 
 bool OpenALPcmStream::setStereoMix(float leftGain, float rightGain, float frontBack, bool surround)
 {
-    if (m_data == nullptr || !m_data->stereoMono || !m_data->context->onOwnerThread() ||
+    if (m_data == nullptr || !m_data->stereoMono ||
         !std::isfinite(leftGain) || !std::isfinite(rightGain) || !std::isfinite(frontBack) ||
         leftGain < 0 || leftGain > 1 || rightGain < 0 || rightGain > 1 || frontBack < 0 || frontBack > 1)
         return false;
@@ -910,7 +811,7 @@ bool OpenALPcmStream::setStereoMix(float leftGain, float rightGain, float frontB
 
 bool OpenALPcmStream::schedulePortionBoundary(uint32_t sourceFrame)
 {
-    if (m_data == nullptr || !m_data->stereoMono || !m_data->context->onOwnerThread() ||
+    if (m_data == nullptr || !m_data->stereoMono ||
         m_data->inputState.load(std::memory_order_acquire) != Data::InputNormal)
         return false;
     const uint32_t readFrame = m_data->readFrames.load(std::memory_order_acquire);
@@ -935,9 +836,7 @@ bool OpenALPcmStream::schedulePortionBoundary(uint32_t sourceFrame)
 
 OpenALPcmStream::State OpenALPcmStream::state() const
 {
-    if (m_data == nullptr)
-        return State::Error;
-    if (m_data->error != AL_NO_ERROR || m_data->callbackFailed.load(std::memory_order_relaxed))
+    if (m_data == nullptr || m_data->error != AL_NO_ERROR || m_data->callbackFailed.load(std::memory_order_relaxed))
         return State::Error;
     ALint current = AL_INITIAL;
     alGetSourcei(m_data->source, AL_SOURCE_STATE, &current);

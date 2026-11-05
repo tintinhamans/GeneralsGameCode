@@ -19,11 +19,29 @@
 #pragma once
 
 #include "OpenALAudioDevice/OpenALPcmStream.h"
+#include "VideoDevice/FFmpeg/FFmpegPcmConverter.h"
 #include <cstdint>
 #include <cstddef>
 #include <memory>
+#include <vector>
 
 class FFmpegAudioFile;
+
+// Appends decoded PCM to pcm up to maxFrames and raises failed when a packet does not fit.
+template<typename Flag>
+FFmpegPcmCallback appendDecodedPcm(std::vector<short> &pcm, int channels, size_t maxFrames, Flag &failed)
+{
+    pcm.reserve(maxFrames * channels);
+    return [&pcm, &failed, channels, maxFrames](const short *samples, Int frames)
+    {
+        const size_t count = static_cast<size_t>(frames) * channels;
+        if (failed || count > maxFrames * channels - pcm.size()) {
+            failed = true;
+            return;
+        }
+        pcm.insert(pcm.end(), samples, samples + count);
+    };
+}
 
 class OpenALAudioProducer
 {
@@ -55,7 +73,7 @@ public:
     OpenALAudioProducer(const OpenALAudioProducer &) = delete;
     OpenALAudioProducer &operator=(const OpenALAudioProducer &) = delete;
     std::unique_ptr<Job> add(std::unique_ptr<FFmpegAudioFile> decoder,
-        std::shared_ptr<OpenALPcmStream::Producer> output, int channels, bool floatPcm);
+        std::shared_ptr<OpenALPcmStream::Producer> output, int channels);
 private:
     std::shared_ptr<State> m_state;
 };

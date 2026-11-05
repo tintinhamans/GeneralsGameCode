@@ -24,14 +24,13 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 class AsciiString;
-class OpenALCachedFloatPcm;
 
 struct OpenALAudioClip
 {
     std::vector<short> samples;
-    std::shared_ptr<const OpenALCachedFloatPcm> filteredSamples;
     int sampleRate = 0;
     int channels = 0;
     size_t frameCount() const;
@@ -45,6 +44,7 @@ public:
     static size_t budgetForFootprint(size_t footprint);
     void setBudget(size_t budget);
     void clear();
+    // A rate or channels of 0 keeps the file's own rate or channel count. Clips are 16-bit and low-passed clips saturate.
     std::shared_ptr<const OpenALAudioClip> load(const AsciiString &filename, int rate, int channels, float normalizedCutoff = 1.0f);
     static std::shared_ptr<const OpenALAudioClip> loadUncached(const AsciiString &filename, int rate, int channels, size_t budget, float normalizedCutoff = 1.0f);
     size_t usedBytes() const { return m_bytes; }
@@ -57,6 +57,7 @@ private:
     bool reserve(size_t bytes);
     using Key = std::tuple<std::string, int, int, float>;
     std::map<Key, Entry> m_files;
+    std::map<std::string, std::pair<int, int>> m_formats;
     size_t m_budget = 0;
     size_t m_bytes = 0;
     uint64_t m_clock = 0;

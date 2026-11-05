@@ -17,6 +17,7 @@
 */
 
 #include "VideoDevice/FFmpeg/FFmpegAudioFile.h"
+#include <algorithm>
 extern "C" {
 #include <libavutil/avutil.h>
 }
@@ -25,7 +26,6 @@ struct FFmpegAudioFile::State
     FFmpegFile file;
     FFmpegPcmConverter converter;
     bool finished = false;
-    float normalizedCutoff = 1.0f;
 };
 FFmpegAudioFile::FFmpegAudioFile() : m_state(new State)
 {
@@ -40,11 +40,14 @@ Bool FFmpegAudioFile::open(File *file, Int rate, Int channels, float normalizedC
     close();
     if (!m_state->file.open(file))
         return false;
+    if (rate <= 0)
+        rate = m_state->file.getSampleRate();
+    if (channels <= 0)
+        channels = std::min(m_state->file.getNumChannels(), 2);
     if (!m_state->file.hasAudio() || !m_state->converter.configure(rate, channels, FFmpegPcmConverter::MonoUpmix::Duplicate, normalizedCutoff)) {
         close();
         return false;
     }
-    m_state->normalizedCutoff = normalizedCutoff;
     return true;
 }
 void FFmpegAudioFile::setErrorLogging(Bool enabled) { m_state->file.setErrorLogging(enabled); }
@@ -53,7 +56,6 @@ void FFmpegAudioFile::close()
     m_state->file.close();
     m_state->converter.reset();
     m_state->finished = false;
-    m_state->normalizedCutoff = 1.0f;
 }
 Bool FFmpegAudioFile::decodePacket()
 {
@@ -68,9 +70,5 @@ Bool FFmpegAudioFile::decodePacket()
 }
 Bool FFmpegAudioFile::hasError() const { return m_state->converter.hasError() || m_state->file.hasError(); }
 void FFmpegAudioFile::setPcmCallback(FFmpegPcmCallback callback) { m_state->converter.setPcmCallback(std::move(callback)); }
-Bool FFmpegAudioFile::setFloatPcmCallback(FFmpegFloatPcmCallback callback)
-{
-    return m_state->converter.setFloatPcmCallback(std::move(callback));
-}
 Int FFmpegAudioFile::getSampleRate() const { return m_state->converter.getSampleRate(); }
 Int FFmpegAudioFile::getNumChannels() const { return m_state->converter.getNumChannels(); }

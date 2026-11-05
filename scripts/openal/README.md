@@ -114,13 +114,20 @@ samples. Mixer-prefetched audio and renderer fade tails remain unavoidable laten
 not a promise of sample-accurate audible stop timing. The stop tail is capped at
 16 MiB; oversized custom tails retain the ordinary queued shutdown with a diagnostic.
 
+Cached sound effects are stored as 16-bit PCM at the file's own sample rate and
+channel count, like Miles keeps the files as stored. An effect voice plays at its
+first portion's rate and OpenAL Soft resamples it to the device; a later portion with
+another rate gets a cache variant converted to the voice rate (no retail event has a
+later portion above its first portion's rate). 2D voices keep stereo files stereo
+and play mono files on both channels at unity, as the old duplicated stereo did;
+3D voices cache mono and keep the panning and gain mix described below. Speech,
+music and blocking loading-screen speech still decode at the output rate.
 `AudioFootprintInBytes` was sized for Miles, which caches the sound files as stored.
-The OpenAL cache holds PCM at the output rate, which is 2-4 times bigger for the
-retail 22 kHz files and up to 8 times for low-passed ADPCM, so its budget is 8 times
-the INI value, capped at 128 MiB unless the INI value is already larger (retail
-4 MiB gives 32 MiB). The budget bounds cached PCM vector capacity, not allocator/map
-overhead or decoder scratch. Referenced clips cannot be evicted; new cache admission fails
-when active pins occupy the budget, and the voice falls back to bounded streaming.
+The retail sound effects decoded at their own rate are 1.41 times the file bytes
+(22 kHz PCM 1x, IMA ADPCM 4x), so the cache budget is twice the INI value, capped at
+128 MiB unless the INI value is already larger (retail 4 MiB gives 8 MiB). The budget
+bounds cached PCM vector capacity, not allocator/map overhead or decoder scratch.
+Referenced clips cannot be evicted; new cache admission fails when active pins occupy the budget, and the voice falls back to bounded streaming.
 Decoding grows the PCM vector geometrically within free budget; when that headroom
 is unavailable it reserves only the required growth, evicting unreferenced clips
 as needed. Accounting uses actual capacity. Vector reallocation can temporarily
@@ -167,9 +174,9 @@ and Dolby's one-sample phase matrix. The game speaker choices select Fast 2D
 stereo output with HRTF off. Other speaker types keep the current one.
 
 Off-screen `LowPassCutoff` uses the measured source-rate Butterworth response
-before resampling. Filtered float PCM retains overshoot until final mixing and
-shares the bounded cache with ordinary clips. Each prepared attack/main/decay or
-loop portion has an immutable filtered variant; changing camera visibility does
+before resampling. Cached filtered variants are 16-bit like ordinary clips and
+saturate overshoot at full scale, and so does the uncached decoder fallback.
+Each prepared attack/main/decay or loop portion has an immutable filtered variant; changing camera visibility does
 not rewrite PCM already queued. This is not bit-exact proprietary integer mixing
 or support for the historical hardware/EAX providers and arbitrary Miles plugins.
 The game build stages the selected OpenAL shared runtime and the five known FFmpeg

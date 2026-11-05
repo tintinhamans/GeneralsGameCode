@@ -17,7 +17,6 @@
 */
 
 #include "OpenALAudioDevice/OpenALAudioCache.h"
-#include "OpenALAudioDevice/OpenALPcmStream.h"
 #include "VideoDevice/FFmpeg/FFmpegAudioFile.h"
 #include "Common/AsciiString.h"
 #include "Common/FileSystem.h"
@@ -30,29 +29,25 @@ size_t OpenALAudioClip::frameCount() const
 {
     if (channels <= 0)
         return 0;
-    if (filteredSamples != nullptr)
-        return filteredSamples->size() / channels;
     return samples.size() / channels;
 }
 
 size_t OpenALAudioClip::byteSize() const
 {
-    size_t bytes = samples.capacity() * sizeof(short);
-    if (filteredSamples != nullptr)
-        bytes += filteredSamples->capacity() * sizeof(float);
-    return bytes;
+    return samples.capacity() * sizeof(short);
 }
 
 void OpenALAudioCache::clear()
 {
     m_files.clear();
+    m_formats.clear();
     m_bytes = 0;
 }
 
-// AudioFootprintInBytes was sized for Miles, which caches the files as stored; PCM at the output rate is up to 8 times bigger
+// AudioFootprintInBytes was sized for Miles, which caches the files as stored. Retail files decoded at their own rate are 1.4 times bigger, ADPCM files 4 times.
 size_t OpenALAudioCache::budgetForFootprint(size_t footprint)
 {
-    constexpr size_t DECODED_SCALE = 8;
+    constexpr size_t DECODED_SCALE = 2;
     constexpr size_t MAX_SCALED_BUDGET = 128 * 1024 * 1024;
     if (footprint >= MAX_SCALED_BUDGET / DECODED_SCALE)
         return std::max(footprint, MAX_SCALED_BUDGET);
@@ -92,16 +87,16 @@ std::shared_ptr<OpenALAudioClip> decodeClip(const AsciiString &filename, int rat
     if (TheFileSystem == nullptr)
         return nullptr;
     auto clip = std::make_shared<OpenALAudioClip>();
-    clip->sampleRate = rate;
-    clip->channels = channels;
     FFmpegAudioFile decoder;
     if (!decoder.open(TheFileSystem->openFile(filename.str()), rate, channels, normalizedCutoff))
         return nullptr;
+    clip->sampleRate = decoder.getSampleRate();
+    clip->channels = decoder.getNumChannels();
     bool valid = true;
-    std::vector<float> filteredSamples;
-    auto append = [&](const auto *pcm, int frames, auto &samples) {
-        const size_t sampleBytes = sizeof(*pcm);
-        const size_t count = static_cast<size_t>(frames) * channels;
+    auto &samples = clip->samples;
+    decoder.setPcmCallback([&](const short *pcm, int frames) {
+        const size_t sampleBytes = sizeof(short);
+        const size_t count = static_cast<size_t>(frames) * clip->channels;
         if (!valid || count > std::numeric_limits<size_t>::max() / sampleBytes - samples.size()) {
             valid = false;
             return;
@@ -128,25 +123,10 @@ std::shared_ptr<OpenALAudioClip> decodeClip(const AsciiString &filename, int rat
             }
         }
         samples.insert(samples.end(), pcm, pcm + count);
-    };
-    if (normalizedCutoff > 0.0f && normalizedCutoff < 0.999f) {
-        if (!decoder.setFloatPcmCallback([&](const float *pcm, int frames) {
-                append(pcm, frames, filteredSamples);
-            }))
-            return nullptr;
-    } else {
-        decoder.setPcmCallback([&](const short *pcm, int frames) {
-            append(pcm, frames, clip->samples);
-        });
-    }
+    });
     while (valid && decoder.decodePacket()) {}
     if (!valid || decoder.hasError())
         return nullptr;
-    if (!filteredSamples.empty()) {
-        clip->filteredSamples = OpenALCachedFloatPcm::create(std::move(filteredSamples));
-        if (clip->filteredSamples == nullptr)
-            return nullptr;
-    }
     if (clip->frameCount() == 0)
         return nullptr;
     return clip;
@@ -159,11 +139,21 @@ std::shared_ptr<const OpenALAudioClip> OpenALAudioCache::load(const AsciiString 
         return nullptr;
     if (normalizedCutoff <= 0.0f || normalizedCutoff >= 0.999f)
         normalizedCutoff = 1.0f;
-    const auto key = std::make_tuple(std::string(filename.str()), rate, channels, normalizedCutoff);
-    auto found = m_files.find(key);
-    if (found != m_files.end()) {
-        found->second.accessed = ++m_clock;
-        return found->second.clip;
+    const std::string name(filename.str());
+    // The file's own rate and channel count, 0 until a native request has decoded it.
+    auto &format = m_formats[name];
+    const bool nativeRate = rate <= 0;
+    const bool nativeChannels = channels <= 0;
+    if (nativeRate)
+        rate = format.first;
+    if (nativeChannels)
+        channels = format.second;
+    if (rate > 0 && channels > 0) {
+        auto found = m_files.find(std::make_tuple(name, rate, channels, normalizedCutoff));
+        if (found != m_files.end()) {
+            found->second.accessed = ++m_clock;
+            return found->second.clip;
+        }
     }
     if (m_budget == 0)
         return nullptr;
@@ -175,6 +165,16 @@ std::shared_ptr<const OpenALAudioClip> OpenALAudioCache::load(const AsciiString 
         });
     if (clip == nullptr)
         return nullptr;
+    if (nativeRate)
+        format.first = clip->sampleRate;
+    if (nativeChannels)
+        format.second = clip->channels;
+    const auto key = std::make_tuple(name, clip->sampleRate, clip->channels, normalizedCutoff);
+    auto found = m_files.find(key);
+    if (found != m_files.end()) {
+        found->second.accessed = ++m_clock;
+        return found->second.clip;
+    }
     m_bytes += clip->byteSize();
     m_files.emplace(key, Entry{clip, ++m_clock});
     return clip;
