@@ -297,6 +297,10 @@ struct FFmpegVideoStream::State
     FFmpegPcmConverter converter;
     std::vector<short> pending;
     size_t pendingOffset = 0;
+    std::deque<short> history;
+    uint64_t audioBase = 0;
+    uint64_t voiceQueued = 0;
+    bool audioLost = false;
     size_t queuedBytes = 0;
     size_t currentBytes = 0;
     size_t largestFrameBytes = 0;
@@ -359,6 +363,7 @@ struct FFmpegVideoStream::State
         rate = 0;
         pending.clear();
         pendingOffset = 0;
+        history.clear();
         silenceFrames = 0;
     }
     Int64 elapsedUS() const
@@ -378,16 +383,98 @@ struct FFmpegVideoStream::State
             if (audio->failed())
                 return progressUS;
             // Callback progress caps starvation; it is not a presentation clock.
-            if (!audioEnded || !audio->finished()) {
-                if (!audio->connected())
-                    return progressUS;
-                elapsed = std::min(elapsed, static_cast<Int64>(audio->readFrames()) * 1000000 / rate);
-            }
+            if (!audioLost && (!audioEnded || !audio->finished()))
+                elapsed = std::min(elapsed, static_cast<Int64>(audioBase + audio->readFrames()) * 1000000 / rate);
         }
 #endif
         progressUS = elapsed;
         return elapsed;
     }
+#ifdef RTS_AUDIO_BACKEND_OPENAL
+    uint64_t historyFrames() const { return history.size() / 2; }
+    uint64_t audioEndFrames() const { return submitted + silenceFrames + (pending.size() - pendingOffset) / 2; }
+    uint64_t clockFrames() const { return static_cast<uint64_t>(std::max<Int64>(0, elapsedUS())) * rate / 1000000; }
+    void trimHistory(uint64_t position)
+    {
+        const uint64_t first = submitted - historyFrames();
+        if (position > first)
+            history.erase(history.begin(), history.begin() + static_cast<std::ptrdiff_t>(std::min(position - first, historyFrames()) * 2));
+    }
+    // Audio the lost device missed is skipped so it rejoins at the playback position.
+    void skipAudioBefore(uint64_t position)
+    {
+        trimHistory(position);
+        if (submitted < position && silenceFrames > 0) {
+            const uint64_t frames = std::min(silenceFrames, position - submitted);
+            silenceFrames -= frames;
+            submitted += frames;
+        }
+        if (submitted < position && pendingOffset < pending.size()) {
+            const size_t frames = static_cast<size_t>(std::min<uint64_t>((pending.size() - pendingOffset) / 2, position - submitted));
+            pendingOffset += frames * 2;
+            submitted += frames;
+            if (pendingOffset == pending.size()) {
+                pending.clear();
+                pendingOffset = 0;
+            }
+        }
+    }
+    unsigned sinkAvailable() const
+    {
+        if (audioLost)
+            return OpenALMovieVoice::CapacityFrames - static_cast<unsigned>(std::min<uint64_t>(historyFrames(), OpenALMovieVoice::CapacityFrames));
+        return audio->availableFrames();
+    }
+    // History keeps queued audio the device has not read yet.
+    bool sink(const short *pcm, unsigned frames)
+    {
+        if (!audioLost) {
+            if (!audio->queue(pcm, frames))
+                return false;
+            voiceQueued += frames;
+        }
+        history.insert(history.end(), pcm, pcm + static_cast<size_t>(frames) * 2);
+        submitted += frames;
+        return true;
+    }
+    void rejoinAudio()
+    {
+        skipAudioBefore(clockFrames());
+        if (!audio->reset()) {
+            disableAudio();
+            return;
+        }
+        audioBase = submitted - historyFrames();
+        voiceQueued = 0;
+        started = false;
+        audioEnded = false;
+        if (history.empty())
+            return;
+        const std::vector<short> tail(history.begin(), history.end());
+        if (!audio->queue(tail.data(), static_cast<uint32_t>(tail.size() / 2))) {
+            disableAudio();
+            return;
+        }
+        voiceQueued = tail.size() / 2;
+    }
+    // Video keeps playing silently while the device is lost; audio rejoins on recovery.
+    void followDevice()
+    {
+        const bool lost = !audio->connected();
+        const uint64_t epoch = audio->recoveryEpoch();
+        const bool recovered = !lost && (audioLost || epoch != audioRecoveryEpoch);
+        if ((lost || recovered) && !audioLost && clockPrimed) {
+            const auto now = Clock::now();
+            start = now - std::chrono::microseconds(progressUS);
+            pauseStart = now;
+        }
+        audioLost = lost;
+        if (recovered) {
+            audioRecoveryEpoch = epoch;
+            rejoinAudio();
+        }
+    }
+#endif
 };
 
 FFmpegVideoStream::FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMovieVoice> audio, Real volume, size_t queueByteLimit)
@@ -544,32 +631,34 @@ void FFmpegVideoStream::pump()
             if (m_state->audio->failed()) {
                 m_state->disableAudio();
             } else {
-                unsigned available = m_state->audio->availableFrames();
+                if (m_state->audioLost)
+                    m_state->skipAudioBefore(m_state->clockFrames());
+                else
+                    m_state->trimHistory(m_state->audioBase + m_state->audio->readFrames());
+                unsigned available = m_state->sinkAvailable();
                 if (m_state->silenceFrames > 0 && available > 0) {
                     short silence[2048] = {};
                     const unsigned count = static_cast<unsigned>(std::min<uint64_t>(1024,
                         std::min<uint64_t>(available, m_state->silenceFrames)));
-                    if (!m_state->audio->queue(silence, count)) {
+                    if (!m_state->sink(silence, count)) {
                         m_state->disableAudio();
                         continue;
                     }
                     m_state->silenceFrames -= count;
-                    m_state->submitted += count;
                 } else if (m_state->pendingOffset < m_state->pending.size() && available > 0) {
                     const unsigned count = static_cast<unsigned>(std::min<size_t>(available,
                         (m_state->pending.size() - m_state->pendingOffset) / 2));
-                    if (!m_state->audio->queue(m_state->pending.data() + m_state->pendingOffset, count)) {
+                    if (!m_state->sink(m_state->pending.data() + m_state->pendingOffset, count)) {
                         m_state->disableAudio();
                         continue;
                     }
                     m_state->pendingOffset += count * 2;
-                    m_state->submitted += count;
                     if (m_state->pendingOffset == m_state->pending.size()) {
                         m_state->pending.clear();
                         m_state->pendingOffset = 0;
                     }
                 }
-                if (!m_state->paused && !m_state->started && m_state->submitted > 0 &&
+                if (!m_state->audioLost && !m_state->paused && !m_state->started && m_state->voiceQueued > 0 &&
                     (m_state->clockPrimed || m_frame != nullptr || !m_state->frames.empty())) {
                     if (!m_state->audio->setGain(movieAudioGain(m_state->volume)) || !m_state->audio->play()) {
                         m_state->disableAudio();
@@ -580,12 +669,13 @@ void FFmpegVideoStream::pump()
                 // An audio-first packet must not block decoding the initial image.
                 if ((m_state->silenceFrames > 0 || !m_state->pending.empty()) &&
                     (m_state->clockPrimed || m_frame != nullptr || !m_state->frames.empty())) {
-                    if (m_state->audio->availableFrames() == 0)
+                    if (m_state->sinkAvailable() == 0)
                         return;
                     continue;
                 }
-                if (m_state->eof && m_state->silenceFrames == 0 && m_state->pending.empty() && !m_state->audioEnded) {
-                    if (m_state->submitted == 0) {
+                if (!m_state->audioLost && m_state->eof && m_state->silenceFrames == 0 && m_state->pending.empty() &&
+                    !m_state->audioEnded) {
+                    if (m_state->voiceQueued == 0) {
                         m_state->disableAudio();
                         continue;
                     }
@@ -623,13 +713,7 @@ void FFmpegVideoStream::update()
 #ifdef RTS_AUDIO_BACKEND_OPENAL
     if (m_state->audio != nullptr) {
         m_state->audio->update();
-        const uint64_t epoch = m_state->audio->recoveryEpoch();
-        if (epoch != m_state->audioRecoveryEpoch) {
-            m_state->audioRecoveryEpoch = epoch;
-            const auto now = State::Clock::now();
-            m_state->start = now - std::chrono::microseconds(m_state->progressUS);
-            m_state->pauseStart = now;
-        }
+        m_state->followDevice();
     }
 #endif
     pump();
@@ -653,9 +737,12 @@ Bool FFmpegVideoStream::isPlaybackComplete()
         return false;
     const Int64 elapsed = m_state->playbackUS();
 #ifdef RTS_AUDIO_BACKEND_OPENAL
-    if (m_state->audio != nullptr && (!m_state->audioEnded || !m_state->audio->finished() ||
-        elapsed < static_cast<Int64>(m_state->submitted) * 1000000 / m_state->rate))
-        return false;
+    if (m_state->audio != nullptr) {
+        if (elapsed < static_cast<Int64>(m_state->audioEndFrames()) * 1000000 / m_state->rate)
+            return false;
+        if (!m_state->audioLost && (!m_state->audioEnded || !m_state->audio->finished()))
+            return false;
+    }
 #endif
     return m_state->seekUS + elapsed >= m_state->videoEndUS;
 }
@@ -667,6 +754,16 @@ void FFmpegVideoStream::setVolume(Real volume)
     if (m_state->audio != nullptr && !m_state->audio->setGain(movieAudioGain(volume)))
         m_state->disableAudio();
 #endif
+}
+
+Int64 FFmpegVideoStream::audioOffsetUS()
+{
+#ifdef RTS_AUDIO_BACKEND_OPENAL
+    if (m_state->audio != nullptr && m_state->rate > 0 && !m_state->audioLost)
+        return static_cast<Int64>(m_state->audioBase + m_state->audio->readFrames()) * 1000000 / m_state->rate -
+            m_state->elapsedUS();
+#endif
+    return 0;
 }
 
 void FFmpegVideoStream::setPaused(Bool paused)
@@ -816,6 +913,9 @@ void FFmpegVideoStream::frameGoto(Int index)
     m_state->index = index;
     m_state->seekUS = m_ffmpegFile->getVideoFrameTimeUS(index);
     m_state->submitted = 0;
+    m_state->history.clear();
+    m_state->audioBase = 0;
+    m_state->voiceQueued = 0;
     m_state->audioOriginSet = false;
     m_state->audioOrigin = 0;
     m_state->trimFrames = 0;

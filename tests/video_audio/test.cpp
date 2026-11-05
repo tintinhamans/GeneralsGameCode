@@ -618,20 +618,28 @@ static void recoveryMovieTests(const char *filename)
         FixturePlayer player(audio);
         auto *stream = player.openFile(filename);
         CHECK(stream != nullptr);
+        auto *ffmpeg = static_cast<FFmpegVideoStream *>(stream);
         auto voice = player.voices.back().lock();
         CHECK(voice != nullptr);
         WindowVideo window;
         auto *buffer = new MemoryVideo;
         CHECK(buffer->allocate(stream->width(), stream->height()));
         window.init(nullptr, AsciiString("recovery"), WINDOW_PLAY_MOVIE_ONCE, buffer, stream);
+        auto present = [&]() {
+            if (!stream->isFrameReady())
+                return false;
+            stream->frameRender(buffer);
+            stream->frameNext();
+            return true;
+        };
         const auto activeUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(700);
+        unsigned activeShown = 0;
         while (std::chrono::steady_clock::now() < activeUntil) {
-            if (stream->isFrameReady()) {
-                stream->frameRender(buffer);
-                stream->frameNext();
-            }
+            if (present())
+                ++activeShown;
             Sleep(2);
         }
+        const Int64 offsetBefore = ffmpeg->audioOffsetUS();
         if (scenario == 1)
             window.setWindowState(WINDOW_VIDEO_STATE_PAUSE);
         RecoveryTest::failReopen(true);
@@ -639,6 +647,8 @@ static void recoveryMovieTests(const char *filename)
         const auto lostDeadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
         while (voice->connected() && std::chrono::steady_clock::now() < lostDeadline) {
             player.update();
+            if (scenario == 0)
+                present();
             Sleep(5);
         }
         CHECK(!voice->connected());
@@ -651,19 +661,32 @@ static void recoveryMovieTests(const char *filename)
         const auto frozen = stream->frameIndex();
         const auto read = voice->readFrames();
         const auto outageUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(1100);
+        unsigned outageShown = 0;
         while (std::chrono::steady_clock::now() < outageUntil) {
             player.update();
-            CHECK(!stream->isFrameReady() && !stream->isPlaybackComplete());
-            CHECK(stream->frameIndex() == frozen && voice->readFrames() == read);
+            // Video keeps playing silently; a paused panel holds its position.
+            if (scenario == 0) {
+                if (present())
+                    ++outageShown;
+            } else {
+                CHECK(!stream->isFrameReady() && !stream->isPlaybackComplete());
+                CHECK(stream->frameIndex() == frozen);
+            }
+            CHECK(voice->readFrames() == read);
             Sleep(5);
         }
+        if (scenario == 0)
+            CHECK(outageShown * 700 * 4 >= activeShown * 1100 * 3);
         RecoveryTest::failReopen(false);
         const auto recoveryUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(1300);
         while (!voice->connected() && std::chrono::steady_clock::now() < recoveryUntil) {
             player.update();
+            if (scenario == 0)
+                present();
             Sleep(5);
         }
         CHECK(voice->connected() && voice->recoveryEpoch() == 1);
+        const auto rejoined = voice->readFrames();
         if (scenario != 0) {
             const auto pausedRead = voice->readFrames();
             Sleep(80);
@@ -674,29 +697,35 @@ static void recoveryMovieTests(const char *filename)
         const auto resumed = std::chrono::steady_clock::now();
         unsigned shown = 0;
         while (std::chrono::steady_clock::now() - resumed < std::chrono::milliseconds(60)) {
-            if (stream->isFrameReady()) {
-                stream->frameRender(buffer);
-                stream->frameNext();
+            if (present())
                 ++shown;
-            }
             if (scenario == 2 && shown != 0 &&
                 std::chrono::steady_clock::now() - resumed < std::chrono::milliseconds(15))
                 CHECK(!stream->isPlaybackComplete());
             Sleep(1);
         }
-        std::printf("recovery scenario=%u shown=%u frame=%d frozen=%d read=%llu before=%llu connected=%d failed=%d epoch=%llu\n", scenario, shown, stream->frameIndex(), frozen, static_cast<unsigned long long>(voice->readFrames()), static_cast<unsigned long long>(read), voice->connected(), voice->failed(), static_cast<unsigned long long>(voice->recoveryEpoch()));
-        std::fflush(stdout);
         CHECK(shown <= 6);
         const auto liveDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
         while (shown == 0 && std::chrono::steady_clock::now() < liveDeadline) {
-            if (stream->isFrameReady()) {
-                stream->frameRender(buffer);
-                stream->frameNext();
+            if (present())
                 ++shown;
-            }
             Sleep(2);
         }
-        CHECK(shown > 0 && voice->readFrames() > read);
+        CHECK(shown > 0);
+        Int64 offsetAfter = 0;
+        if (scenario != 2) {
+            const auto syncUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
+            while (std::chrono::steady_clock::now() < syncUntil) {
+                present();
+                Sleep(2);
+            }
+            // Audio rejoins at the playback position: no missed audio is replayed or skipped past it.
+            offsetAfter = ffmpeg->audioOffsetUS();
+            CHECK(std::abs(offsetAfter - offsetBefore) <= 60000);
+        }
+        std::printf("recovery scenario=%u active=%u outage=%u shown=%u frame=%d frozen=%d offset=%lld/%lld connected=%d failed=%d epoch=%llu\n", scenario, activeShown, outageShown, shown, stream->frameIndex(), frozen, static_cast<long long>(offsetBefore), static_cast<long long>(offsetAfter), voice->connected(), voice->failed(), static_cast<unsigned long long>(voice->recoveryEpoch()));
+        std::fflush(stdout);
+        CHECK(voice->readFrames() > rejoined);
         if (scenario == 0) {
             auto *fresh = player.openFile(filename);
             CHECK(fresh != nullptr && fresh->isFrameReady());
@@ -711,7 +740,7 @@ static void recoveryMovieTests(const char *filename)
         }
     }
     RecoveryTest::reset();
-    std::puts("movie-only recovery, outage clock freeze, paused overlap, seek/re-prime and finite EOF passed");
+    std::puts("movie-only recovery, silent playback through loss, paused overlap, seek/re-prime, audio rejoin in sync and finite EOF passed");
 }
 
 static void movieTests(FixtureAudio &audio, const char *withAudio, const char *silent)

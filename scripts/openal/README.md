@@ -229,8 +229,10 @@ A recovery epoch restores each source's playing intent once; paused sources stay
 paused and callback-completed sources are not replayed. Health getters and gain
 setters do not reopen devices or query native connection health per voice. The
 manager's update and the movie voice's explicit update service this path, including
-manual movie loops. Pending movie audio freezes logical progress during loss and
-rebases on recovery independently of panel pause.
+manual movie loops. A movie keeps playing silently on the wall clock while its
+device is lost; on recovery its voice restarts at the current playback position, so
+the missed audio is skipped rather than replayed. A paused panel still holds its
+position.
 
 Automatic recovery needs `ALC_EXT_disconnect` and `ALC_SOFT_reopen_device`, available
 in the pinned OpenAL Soft build. There is no new engine background thread. Retry
