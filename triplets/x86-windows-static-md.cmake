@@ -13,6 +13,10 @@ set(VCPKG_CXX_FLAGS "/D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR")
 # cause ABI incompatibilities for this project.
 set(VCPKG_DISABLE_COMPILER_TRACKING ON)
 
+# Build every port with the game's v143 toolset; static libs from a newer MSVC need a newer linker.
+set(VCPKG_PLATFORM_TOOLSET v143)
+set(VCPKG_PLATFORM_TOOLSET_VERSION 14.44)
+
 # The gamenetworkingsockets port does not forward static linkage to its
 # protobuf lookup, so it would otherwise compile with PROTOBUF_USE_DLLS.
 if(PORT STREQUAL "gamenetworkingsockets")
