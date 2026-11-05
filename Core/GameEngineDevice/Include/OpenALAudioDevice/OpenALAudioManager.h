@@ -36,6 +36,7 @@ public:
     void init() override;
     void reset() override;
     void update() override;
+    void setVolume(Real volume, AudioAffect which) override;
     AudioHandle addAudioEvent(const AudioEventRTS *event) override;
     void openDevice() override;
     void closeDevice() override;
