@@ -105,9 +105,16 @@ Bool FFmpegFile::open(File *file)
 		FFmpegStream &stream = m_streams[i];
 		stream.codec = avcodec_find_decoder(input->codecpar->codec_id);
 		if (stream.codec == nullptr) {
-			logError("find decoder", AVERROR_DECODER_NOT_FOUND);
-			close();
-			return false;
+			// Streams that are never selected, like cover art, may lack a decoder.
+			const AVMediaType type = input->codecpar->codec_type;
+			if ((type == AVMEDIA_TYPE_AUDIO || type == AVMEDIA_TYPE_VIDEO) &&
+				(input->disposition & AV_DISPOSITION_ATTACHED_PIC) == 0 && findMatch(type) == nullptr) {
+				logError("find decoder", AVERROR_DECODER_NOT_FOUND);
+				close();
+				return false;
+			}
+			input->discard = AVDISCARD_ALL;
+			continue;
 		}
 		stream.codec_ctx = avcodec_alloc_context3(stream.codec);
 		stream.frame = av_frame_alloc();

@@ -22,7 +22,6 @@
 #include <memory>
 struct AVFrame;
 using FFmpegPcmCallback = std::function<void(const short *, Int)>;
-using FFmpegFloatPcmCallback = std::function<void(const float *, Int)>;
 
 class FFmpegPcmConverter
 {
@@ -35,8 +34,6 @@ public:
     bool convert(AVFrame *frame);
     bool drain();
     void setPcmCallback(FFmpegPcmCallback callback);
-    // Select before the first converted frame; preserves filtered headroom through resampling.
-    bool setFloatPcmCallback(FFmpegFloatPcmCallback callback);
     Int getSampleRate() const;
     Int getNumChannels() const;
     bool hasError() const;

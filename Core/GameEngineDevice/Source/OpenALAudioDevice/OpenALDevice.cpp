@@ -20,6 +20,7 @@
 #include <exception>
 #include <atomic>
 #include <mutex>
+#include <cstring>
 #include <vector>
 
 namespace {
@@ -104,8 +105,10 @@ PlaybackEvents &playbackEvents()
 std::vector<ALCint> outputAttributes(int sampleRate)
 {
     // Basic stereo with HRTF off keeps a headphone endpoint from switching HRTF on behind the measured Miles mix.
-    std::vector<ALCint> attributes = {ALC_FREQUENCY, sampleRate,
-        ALC_OUTPUT_MODE_SOFT, ALC_STEREO_BASIC_SOFT, ALC_HRTF_SOFT, ALC_FALSE};
+    std::vector<ALCint> attributes = {ALC_OUTPUT_MODE_SOFT, ALC_STEREO_BASIC_SOFT, ALC_HRTF_SOFT, ALC_FALSE};
+    // Without a requested rate the device mixes at the rate of the endpoint and skips a whole-mix resample.
+    if (sampleRate > 0)
+        attributes.insert(attributes.end(), {ALC_FREQUENCY, sampleRate});
     attributes.push_back(0);
     return attributes;
 }
@@ -239,7 +242,7 @@ bool OpenALDevice::open(int sampleRate)
 {
     if (!close())
         return false;
-    if (sampleRate <= 0) {
+    if (sampleRate < 0) {
         m_error = ALC_INVALID_VALUE;
         return false;
     }
@@ -278,6 +281,16 @@ bool OpenALDevice::initialize(ALCdevice *device, int sampleRate)
         m_error = ALC_INVALID_CONTEXT;
         return false;
     }
+    if (alIsExtensionPresent("AL_SOFT_source_resampler")) {
+        auto resamplerName = reinterpret_cast<LPALGETSTRINGISOFT>(alGetProcAddress("alGetStringiSOFT"));
+        const ALint resamplers = alGetInteger(AL_NUM_RESAMPLERS_SOFT);
+        for (ALint i = 0; resamplerName != nullptr && i < resamplers; ++i) {
+            const ALchar *name = resamplerName(AL_RESAMPLER_NAME_SOFT, i);
+            if (name != nullptr && std::strcmp(name, "Linear") == 0)
+                candidate->linearResampler = i;
+        }
+        alGetError();
+    }
     m_context = candidate;
     m_context->outputMode = outputMode();
     if (candidate->disconnectSupported && candidate->reopen != nullptr) {
@@ -288,6 +301,15 @@ bool OpenALDevice::initialize(ALCdevice *device, int sampleRate)
     }
     alDopplerFactor(0.0f);
     return true;
+}
+
+int OpenALDevice::getSampleRate() const
+{
+    if (!isOpen())
+        return 0;
+    ALCint value = 0;
+    alcGetIntegerv(m_context->device, ALC_FREQUENCY, 1, &value);
+    return value;
 }
 
 ALCint OpenALDevice::outputMode() const

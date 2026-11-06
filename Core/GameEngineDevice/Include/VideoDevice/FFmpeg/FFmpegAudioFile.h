@@ -31,16 +31,18 @@ public:
     FFmpegAudioFile(const FFmpegAudioFile &) = delete;
     FFmpegAudioFile &operator=(const FFmpegAudioFile &) = delete;
 
+    // A sampleRate or channels of 0 keeps the rate or channel count of the file (at most 2).
     Bool open(File *file, Int sampleRate, Int channels, float normalizedCutoff = 1.0f);
     void close();
     void setErrorLogging(Bool enabled);
     Bool decodePacket();
     Bool hasError() const;
     void setPcmCallback(FFmpegPcmCallback callback);
-    // Select before decoding; callbacks receive normalized, unclipped float PCM.
-    Bool setFloatPcmCallback(FFmpegFloatPcmCallback callback);
     Int getSampleRate() const;
     Int getNumChannels() const;
+    // The rate and channel count of the file (at most 2), whatever was requested.
+    Int getSourceSampleRate() const;
+    Int getSourceNumChannels() const;
 
 private:
     struct State;

@@ -31,7 +31,6 @@ extern "C" {
 struct FFmpegPcmConverter::State
 {
     FFmpegPcmCallback callback;
-    FFmpegFloatPcmCallback floatCallback;
     SwrContext *resampler = nullptr;
     SwrContext *inputConverter = nullptr;
     float normalizedCutoff = 1.0f;
@@ -56,7 +55,6 @@ struct FFmpegPcmConverter::State
     Int64 samples = 0;
     Bool failed = false;
     std::vector<short> pcm;
-    std::vector<float> floatPcm;
 
     void resetConversion()
     {
@@ -70,7 +68,6 @@ struct FFmpegPcmConverter::State
         samples = 0;
         failed = false;
         pcm.clear();
-        floatPcm.clear();
     }
 
     Bool convert(const uint8_t **input, Int count)
@@ -78,24 +75,14 @@ struct FFmpegPcmConverter::State
         const Int capacity = swr_get_out_samples(resampler, count);
         if (capacity < 0 || capacity > 65536 || capacity > std::numeric_limits<Int>::max() / channels)
             return false;
-        uint8_t *output = nullptr;
-        if (floatCallback != nullptr) {
-            floatPcm.resize(static_cast<size_t>(capacity) * channels);
-            output = reinterpret_cast<uint8_t *>(floatPcm.data());
-        } else {
-            pcm.resize(static_cast<size_t>(capacity) * channels);
-            output = reinterpret_cast<uint8_t *>(pcm.data());
-        }
+        pcm.resize(static_cast<size_t>(capacity) * channels);
+        uint8_t *output = reinterpret_cast<uint8_t *>(pcm.data());
         const Int converted = swr_convert(resampler, &output, capacity, input, count);
         if (converted < 0)
             return false;
         samples += converted;
-        if (converted > 0) {
-            if (floatCallback != nullptr)
-                floatCallback(floatPcm.data(), converted);
-            else if (callback != nullptr)
-                callback(pcm.data(), converted);
-        }
+        if (converted > 0 && callback != nullptr)
+            callback(pcm.data(), converted);
         return true;
     }
 
@@ -209,10 +196,7 @@ struct FFmpegPcmConverter::State
             AVSampleFormat resamplerFormat = format;
             if (filterEnabled())
                 resamplerFormat = AV_SAMPLE_FMT_FLT;
-            AVSampleFormat outputFormat = AV_SAMPLE_FMT_S16;
-            if (floatCallback != nullptr)
-                outputFormat = AV_SAMPLE_FMT_FLT;
-            Int result = swr_alloc_set_opts2(&resampler, &outputLayout, outputFormat, outputRate,
+            Int result = swr_alloc_set_opts2(&resampler, &outputLayout, AV_SAMPLE_FMT_S16, outputRate,
                 &frame->ch_layout, resamplerFormat, frame->sample_rate, 0, nullptr);
             av_channel_layout_uninit(&outputLayout);
             if (result >= 0 && resampler != nullptr && monoUpmix == MonoUpmix::Duplicate &&
@@ -272,20 +256,7 @@ bool FFmpegPcmConverter::drain()
 }
 void FFmpegPcmConverter::setPcmCallback(FFmpegPcmCallback callback)
 {
-    if (m_state->resampler != nullptr && m_state->floatCallback != nullptr) {
-        m_state->failed = true;
-        return;
-    }
-    m_state->floatCallback = nullptr;
     m_state->callback = std::move(callback);
-}
-bool FFmpegPcmConverter::setFloatPcmCallback(FFmpegFloatPcmCallback callback)
-{
-    if (m_state->resampler != nullptr)
-        return false;
-    m_state->callback = nullptr;
-    m_state->floatCallback = std::move(callback);
-    return true;
 }
 Int FFmpegPcmConverter::getSampleRate() const { return m_state->outputRate; }
 Int FFmpegPcmConverter::getNumChannels() const { return m_state->channels; }
