@@ -188,7 +188,8 @@ void OpenALAudioManager::openDevice()
         setOn(false, AudioAffect_All);
         return;
     }
-    if (!m_device.open(m_audioSettings->m_outputRate)) {
+    // OutputRate stays the decode rate of streams and movies, while the device mixes at the endpoint's rate.
+    if (!m_device.open(0)) {
         DEBUG_LOG(("OpenAL audio device initialization failed: 0x%x", m_device.getLastError()));
         setOn(false, AudioAffect_All);
         m_provider = PROVIDER_ERROR;
@@ -820,6 +821,9 @@ void OpenALAudioManager::playRequest(AudioRequest &request, bool forced)
     }
     if (kind == AudioAffect_Sound3D && !updateSpatialPosition(*voice))
         return;
+    // Effects resample like Miles did, while music and speech keep the finer default.
+    if (info->m_soundType == AT_SoundEffect && !forced)
+        voice->stream.useLinearResampler();
     Real pitch = event.getPitchShift();
     if (pitch <= 0.0f)
         pitch = 1.0f;
