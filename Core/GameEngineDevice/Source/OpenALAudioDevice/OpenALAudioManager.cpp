@@ -387,7 +387,7 @@ void OpenALAudioManager::updateVoicePause(Voice &voice)
 OpenALAudioManager::Voice *OpenALAudioManager::find(AudioHandle handle)
 {
     for (auto &voice : m_voices) {
-        if (active(*voice) && voice->event->getPlayingHandle() == handle)
+        if (voice->event->getPlayingHandle() == handle && active(*voice))
             return voice.get();
     }
     return nullptr;
