@@ -127,8 +127,9 @@ struct OpenALAudioProducer::State
                 work->inFlight = false;
                 changed.notify_all();
             }
+            // Queues and consumed packets notify. The timeout only covers output draining, which buffers far more than 10 ms.
             if (!progress)
-                changed.wait_for(lock, std::chrono::milliseconds(1));
+                changed.wait_for(lock, std::chrono::milliseconds(10));
         }
     }
 };
