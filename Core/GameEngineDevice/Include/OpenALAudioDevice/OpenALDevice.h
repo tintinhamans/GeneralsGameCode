@@ -37,10 +37,12 @@ public:
     OpenALDevice(const OpenALDevice &) = delete;
     OpenALDevice &operator=(const OpenALDevice &) = delete;
     // Opens the default output and follows the system default when it changes.
+    // A sampleRate of 0 mixes at the output endpoint's own rate.
     bool open(int sampleRate = 48000);
     bool close();
     bool isOpen() const;
     bool isStereoOutput() const;
+    int getSampleRate() const;
     bool isConnected() const;
     // The owner thread services the device once per tick, before it updates the device's streams.
     bool update();
@@ -55,6 +57,7 @@ private:
         ALCcontext *context = nullptr;
         LPALBUFFERCALLBACKSOFT bufferCallback = nullptr;
         int sampleRate = 0;
+        ALint linearResampler = -1;
         bool disconnectSupported = false;
         bool deviceConnected = true;
         bool systemEvents = false;

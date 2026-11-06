@@ -793,6 +793,15 @@ bool OpenALPcmStream::setPitch(float pitch)
     return m_data->error == AL_NO_ERROR;
 }
 
+bool OpenALPcmStream::useLinearResampler()
+{
+    if (m_data == nullptr || m_data->context->linearResampler < 0)
+        return false;
+    alSourcei(m_data->source, AL_SOURCE_RESAMPLER_SOFT, m_data->context->linearResampler);
+    m_data->error = alGetError();
+    return m_data->error == AL_NO_ERROR;
+}
+
 bool OpenALPcmStream::setStereoMix(float leftGain, float rightGain, float frontBack, bool surround)
 {
     if (m_data == nullptr || !m_data->stereoMono ||

@@ -71,6 +71,8 @@ public:
     bool markEnd();
     bool setGain(float gain);
     bool setPitch(float pitch);
+    // Selects linear interpolation, the quality Miles used for sound effects. Returns false when the device has no such resampler.
+    bool useLinearResampler();
     bool setStereoMix(float leftGain, float rightGain, float frontBack, bool surround = false);
     // Publish before the PCM of the new portion. The callback resets its one sample delay there.
     bool schedulePortionBoundary(uint32_t sourceFrame);
