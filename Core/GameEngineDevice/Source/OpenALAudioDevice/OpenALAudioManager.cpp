@@ -1226,8 +1226,11 @@ Real OpenALAudioManager::getFileLengthMS(AsciiString filename) const
 const OpenALAudioManager::Voice *OpenALAudioManager::findMusic(const AsciiString *track) const
 {
     for (const auto &voice : m_voices) {
-        if (matches(*voice, AudioAffect_Music) && !voice->fading &&
-            (track == nullptr || *track == voice->event->getEventName()))
+        if (voice->fading || (category(*voice->event) & AudioAffect_Music) == 0)
+            continue;
+        if (track != nullptr && !(*track == voice->event->getEventName()))
+            continue;
+        if (active(*voice))
             return voice.get();
     }
     return nullptr;
@@ -1253,7 +1256,7 @@ AsciiString OpenALAudioManager::prevMusicTrack() { return selectMusic(-1); }
 Bool OpenALAudioManager::isMusicPlaying() const { return findMusic() != nullptr; }
 Bool OpenALAudioManager::hasMusicTrackCompleted(const AsciiString &track, Int count) const
 {
-    return findMusic(&track) != nullptr && m_lastMusic == track && m_musicCompletions >= count;
+    return m_lastMusic == track && m_musicCompletions >= count && findMusic(&track) != nullptr;
 }
 
 UnsignedInt OpenALAudioManager::getProviderCount() const
