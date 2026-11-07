@@ -413,6 +413,15 @@ static void updateStartupSplash()
 
 	if (!::IsWindowVisible(ApplicationHWnd))
 	{
+		// The game window can still have its creation size at the first frames, so it is shown once it has the requested resolution or after about 10 seconds.
+		static Int s_sizeWaitFrames = 0;
+		RECT client;
+		::GetClientRect(ApplicationHWnd, &client);
+		if (++s_sizeWaitFrames < 600
+			&& (client.right - client.left != (LONG)TheGlobalData->m_xResolution || client.bottom - client.top != (LONG)TheGlobalData->m_yResolution))
+		{
+			return;
+		}
 		::SetWindowPos(ApplicationHWnd, ApplicationSplashHWnd, 0, 0, 0, 0,
 			SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
 		return;
@@ -948,6 +957,13 @@ void W3DDisplay::init()
 #else
 			WW3D::Set_MSAA_Mode(WW3D::MultiSampleModeEnum::MULTISAMPLE_MODE_NONE);
 #endif
+
+			// exclusive fullscreen needs the game window visible and in the foreground when the device is
+			// created, and the mode switch blanks the screen anyway, so hand over from the splash now
+			if (!getWindowed())
+			{
+				finishStartupSplash();
+			}
 
 			// exclusive fullscreen needs the game window visible and in the foreground when the device is
 			// created, and the mode switch blanks the screen anyway, so hand over from the splash now
