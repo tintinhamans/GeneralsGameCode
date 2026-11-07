@@ -211,6 +211,97 @@ void ScoreScreenEnableControls(Bool enable)
 	}
 }
 
+#if defined(GENONLINE)
+// Generals Online: the retail bottom row (buttons at 552-588 of 600) lies on the ruler's bottom band; it moves into the backdrop like on the other ruler screens
+static void moveScoreScreenWindowsUp(GameWindow *window, Int fromY, Int toY, Int shift)
+{
+	for (GameWindow *child = window->winGetChild(); child != nullptr; child = child->winGetNext())
+	{
+		Int x;
+		Int y;
+		child->winGetScreenPosition(&x, &y);
+		if (y >= fromY && y < toY)
+		{
+			child->winGetPosition(&x, &y);
+			child->winSetPosition(x, y - shift);
+		}
+		else if (y < fromY)
+		{
+			moveScoreScreenWindowsUp(child, fromY, toY, shift);
+		}
+	}
+}
+
+static void fitScoreScreenInsideRuler(GameWindow *lists[], Int listCount)
+{
+	if (parent == nullptr || buttonOk == nullptr || listCount <= 0 || lists[0] == nullptr)
+	{
+		return;
+	}
+	Int width;
+	Int height;
+	Int x;
+	Int y;
+	Int buttonWidth;
+	Int buttonHeight;
+	parent->winGetSize(&width, &height);
+	buttonOk->winGetScreenPosition(&x, &y);
+	buttonOk->winGetSize(&buttonWidth, &buttonHeight);
+	const Real scale = (Real)height / 600.0f;
+	const Int rulerTop = (Int)(558.0f * scale + 0.5f);
+	// a layout that already keeps its buttons above the ruler band is left alone
+	if (y + buttonHeight <= rulerTop)
+	{
+		return;
+	}
+	const Int shift = (Int)(54.0f * scale + 0.5f);
+	const Int rowTop = (Int)(510.0f * scale + 0.5f);
+
+	// the chat block keeps its size and moves up into the space under the last shown player row; only what does not fit comes off the lists
+	Int listX;
+	Int listTop;
+	lists[0]->winGetScreenPosition(&listX, &listTop);
+	Int rowsBottom = 0;
+	AsciiString rowName;
+	for (Int i = 0; i < MAX_SLOTS; ++i)
+	{
+		rowName.format("ScoreScreen.wnd:StaticTextPlayer%d", i);
+		GameWindow *row = TheWindowManager->winGetWindowFromId(parent, TheNameKeyGenerator->nameToKey(rowName));
+		if (row != nullptr && !row->winIsHidden())
+		{
+			Int rowX;
+			Int rowY;
+			Int rowWidth;
+			Int rowHeight;
+			row->winGetScreenPosition(&rowX, &rowY);
+			row->winGetSize(&rowWidth, &rowHeight);
+			rowsBottom = max(rowsBottom, rowY + rowHeight);
+		}
+	}
+	const Int blockTop = listTop - (Int)(4.0f * scale + 0.5f);
+	const Int room = blockTop - (rowsBottom + (Int)(4.0f * scale + 0.5f));
+	const Int blockShift = min(max(room, 0), shift);
+	if (blockShift > 0)
+	{
+		moveScoreScreenWindowsUp(parent, blockTop, rowTop, blockShift);
+	}
+	moveScoreScreenWindowsUp(parent, rowTop, rulerTop, shift);
+	if (blockShift < shift)
+	{
+		for (Int i = 0; i < listCount; ++i)
+		{
+			if (lists[i] != nullptr)
+			{
+				Int listWidth;
+				Int listHeight;
+				lists[i]->winGetSize(&listWidth, &listHeight);
+				lists[i]->winSetSize(listWidth, listHeight - (shift - blockShift));
+			}
+		}
+	}
+}
+#endif
+
 extern Bool DontShowMainMenu; //KRIS
 Bool ReplayWasPressed = FALSE;
 /** Initialize the ScoreScreen */
@@ -303,6 +394,11 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 			initSinglePlayer();
 		}
 	}
+
+#if defined(GENONLINE)
+	GameWindow *scoreScreenLists[] = { listboxChatWindowScoreScreen };
+	fitScoreScreenInsideRuler(scoreScreenLists, 1);
+#endif
 
 	// Make Sure the layout is visible
 	layout->hide( FALSE );
