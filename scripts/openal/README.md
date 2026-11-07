@@ -61,9 +61,17 @@ unconditional manifest dependency.
 The public engine header does not expose OpenAL headers: backend construction
 lives in the Win32 implementation file.
 
-With `RTS_BUILD_GENERALS=OFF`, `RTS_BUILD_ZEROHOUR_TOOLS=OFF` and
-`RTS_BUILD_CORE_EXTRAS=OFF`, this configuration does not fetch, compile or link
-Miles/Bink SDK stubs or their engine backends. The isolated audio/movie tests also
+`RTS_BUILD_OPTION_LEGACY_MEDIA` (default `ON`) also builds Miles and Bink into the
+OpenAL configuration, so one exe can play either way. `LegacyMedia = yes` in
+`Options.ini` picks Miles with Bink movies, as retail; `no` or no entry picks OpenAL
+with FFmpeg movies. The game reads it once at startup, so a change needs a restart.
+Miles with FFmpeg movies and Bink with OpenAL are not offered: FFmpeg movie audio
+plays only through OpenAL, and Bink movie audio only through Miles.
+
+With `RTS_BUILD_OPTION_LEGACY_MEDIA=OFF`, `RTS_BUILD_GENERALS=OFF`,
+`RTS_BUILD_ZEROHOUR_TOOLS=OFF` and `RTS_BUILD_CORE_EXTRAS=OFF`, this configuration
+does not fetch, compile or link Miles/Bink SDK stubs or their engine backends. The
+isolated audio/movie tests also
 need neither SDK. Enabling Generals, WorldBuilder/W3DView or core extras retains
 the legacy media dependencies for those consumers. Legacy backend selection and
 VC6 builds retain their existing dependencies; FFmpeg-selected Miles builds remain
