@@ -305,6 +305,44 @@ static void setWinMainActive(Bool active)
 	}
 }
 
+// TheSuperHackers @bugfix arcticdolphin 07/11/2026 A windowed game is a normal window, so the taskbar, which is topmost, covered
+// the part of a window as large as the monitor that lies over it. While the game has focus, such a window is now topmost.
+static void updateWindowedTopmost(HWND hWnd, Bool active)
+{
+	if (TheGlobalData == nullptr || !TheGlobalData->m_windowed)
+	{
+		return;
+	}
+
+	Bool wantTopmost = FALSE;
+	if (active && GetForegroundWindow() == hWnd && !IsIconic(hWnd))
+	{
+		RECT window;
+		GetWindowRect(hWnd, &window);
+		MONITORINFO monitorInfo = { sizeof(MONITORINFO) };
+		GetMonitorInfo(MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST), &monitorInfo);
+		RECT visible;
+		if (IntersectRect(&visible, &window, &monitorInfo.rcMonitor))
+		{
+			// the part on the monitor reaches outside the work area, where the taskbar is
+			wantTopmost = visible.left < monitorInfo.rcWork.left || visible.top < monitorInfo.rcWork.top
+				|| visible.right > monitorInfo.rcWork.right || visible.bottom > monitorInfo.rcWork.bottom;
+		}
+	}
+
+	const Bool isTopmost = (GetWindowLong(hWnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+	if (wantTopmost != isTopmost)
+	{
+		SetWindowPos(hWnd, wantTopmost ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+		// leaving topmost puts the window above all normal windows; it goes back behind the window that took focus
+		HWND foreground = GetForegroundWindow();
+		if (!wantTopmost && foreground != nullptr && foreground != hWnd)
+		{
+			SetWindowPos(hWnd, foreground, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+		}
+	}
+}
+
 // WndProc ====================================================================
 /** Window Procedure */
 //=============================================================================
@@ -524,7 +562,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message,
 
 				setWinMainActive((BOOL)wParam);
 			}
+			updateWindowedTopmost(hWnd, (Bool)wParam);
 			return 0;
+		}
+
+		//-------------------------------------------------------------------------
+		case WM_WINDOWPOSCHANGED:
+		{
+			// a resize or move can bring the focused window over the taskbar
+			if (isWinMainActive)
+			{
+				updateWindowedTopmost(hWnd, TRUE);
+			}
+			break;
 		}
 
 		//-------------------------------------------------------------------------
