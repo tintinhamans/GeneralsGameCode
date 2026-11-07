@@ -387,6 +387,11 @@ void MiniDumper::CreateMiniDump(DumpType dumpType)
 		FALLTHROUGH;
 	case DumpType_Minimal:
 		dumpTypeFlags |= MiniDumpWithIndirectlyReferencedMemory | MiniDumpScanMemory;
+#if defined(GENONLINE)
+		// GenOnline @tweak arcticdolphin 22/11/2026 The minimal dump is often the only one that reaches us, so it also records
+		// unloaded modules, thread start addresses and memory regions, which name the owner of code that runs outside every module.
+		dumpTypeFlags |= MiniDumpWithUnloadedModules | MiniDumpWithThreadInfo | MiniDumpWithFullMemoryInfo;
+#endif
 		break;
 	}
 
