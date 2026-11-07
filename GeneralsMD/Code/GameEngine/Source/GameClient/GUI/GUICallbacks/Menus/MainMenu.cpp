@@ -676,14 +676,6 @@ void MainMenuShutdown( WindowLayout *layout, void *userData )
 		isShuttingDown = TRUE;
 
 	CancelPatchCheckCallback();
-#if defined(GENONLINE)
-	// the Generals Online version label belongs to the main menu only
-	GameWindow *goLabelVersion = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( "MainMenuVersion.wnd:LabelVersion" ) );
-	if (goLabelVersion != nullptr)
-	{
-		goLabelVersion->winHide( TRUE );
-	}
-#endif
 
 	// if we are shutting down for an immediate pop, skip the animations
 	Bool popImmediate = *(Bool *)userData;
