@@ -71,11 +71,12 @@ project/toolchain and selects the optional vcpkg `ffmpeg` feature. The public en
 header does not expose OpenAL headers: backend construction lives in the Win32
 implementation file.
 
-With legacy media off, `RTS_BUILD_GENERALS=OFF`, `RTS_BUILD_ZEROHOUR_TOOLS=OFF` and
-`RTS_BUILD_CORE_EXTRAS=OFF`, the build does not fetch, compile or link the Miles/Bink
-SDK stubs or their engine backends. Generals, WorldBuilder/W3DView and core extras
-still need them, so enabling any of those keeps them in. The isolated audio/movie
-tests need neither SDK.
+Miles and Bink are loaded at runtime (`Dependencies/Miles` and `Dependencies/Bink`), so
+the exe never imports `mss32.dll` or `binkw32.dll`; with both options on, OpenAL mode
+does not load them at all. With legacy media off, `RTS_BUILD_GENERALS=OFF`,
+`RTS_BUILD_ZEROHOUR_TOOLS=OFF` and `RTS_BUILD_CORE_EXTRAS=OFF`, the build leaves out the
+Miles and Bink engine backends. Generals, WorldBuilder/W3DView and core extras still need
+them, so enabling any of those keeps them in.
 
 The manager derives from the real `AudioManager`, retaining INI event generation,
 `SoundManager` admission and `MusicManager` request creation. Device controls,
