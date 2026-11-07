@@ -32,7 +32,7 @@
 #include <windows.h>
 
 #include "Win32Device/Common/Win32GameEngine.h"
-#if defined(RTS_AUDIO_BACKEND_OPENAL)
+#if defined(RTS_HAS_MODERN_MEDIA)
 #include "OpenALAudioDevice/MediaBackend.h"
 #include "OpenALAudioDevice/OpenALAudioManager.h"
 #endif
@@ -53,7 +53,7 @@
 
 AudioManager *Win32GameEngine::createAudioManager(Bool dummy)
 {
-#if defined(RTS_AUDIO_BACKEND_OPENAL)
+#if defined(RTS_HAS_MODERN_MEDIA)
 	if (isOpenALMediaSelected())
 		return NEW OpenALAudioManager(dummy);
 #endif
