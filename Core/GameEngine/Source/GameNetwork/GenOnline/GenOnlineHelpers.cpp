@@ -8,6 +8,7 @@
 #include "../GenOnlineInit.h"
 #include "../GenOnlineAuth.h"
 #include "GameNetwork/GenOnline/NGMP_LogFile.h"
+#include "gitinfo.h"
 
 std::string m_strNetworkLogFileName;
 std::mutex m_logMutex;
@@ -22,6 +23,38 @@ static bool m_bNetworkLogRotateFailed = false;
 static void AppendNetworkLogLine(std::string& strOut, const std::string& strLine)
 {
 	strOut += std::format("[{}] {}\n", GetUtcTimestampNow(), strLine);
+}
+
+static std::string GetBuildDescriptionForLog()
+{
+#if defined(_DEBUG)
+	std::string strBuild = "Debug";
+#elif defined(RTS_DEBUG)
+	std::string strBuild = "Release (RTS_DEBUG)";
+#else
+	std::string strBuild = "Release";
+#endif
+#if defined(USE_TEST_ENV)
+	strBuild += ", test environment";
+#endif
+	if (GitHaveInfo)
+	{
+		strBuild += std::format(", commit {}{} from {}", static_cast<const char*>(GitShortSHA1), GitUncommittedChanges ? " (modified)" : "", static_cast<const char*>(GitCommitDate));
+	}
+	return strBuild;
+}
+
+// written under every session separator, never with secrets, paths or addresses
+static void AppendNetworkLogSessionHeader(std::string& strOut)
+{
+	AppendNetworkLogLine(strOut, std::format("[Session] Client version: {} ({})", GENONLINE_VERSION_STRING, GENONLINE_CLIENT_ID));
+	AppendNetworkLogLine(strOut, std::format("[Session] Sentry release: {}", GenOnlineServicesManager::GetSentryRelease()));
+	AppendNetworkLogLine(strOut, std::format("[Session] Sentry: {}", GenOnlineServicesManager::GetSentryStatus()));
+	AppendNetworkLogLine(strOut, std::format("[Session] Build: {}", GetBuildDescriptionForLog()));
+	for (const std::string& strLine : GetSystemInfoLogLines())
+	{
+		AppendNetworkLogLine(strOut, "[Session] " + strLine);
+	}
 }
 
 // a failed rotation keeps appending to the current file and retries on the next start
@@ -199,10 +232,12 @@ void NetworkLog(ELogVerbosity logVerbosity, const char* fmt, ...)
 			strOutput += "\n";
 		}
 		AppendNetworkLogLine(strOutput, NETWORK_LOG_SESSION_SEPARATOR);
+		AppendNetworkLogSessionHeader(strOutput);
 	}
 	else if (RotateNetworkLogIfNeeded())
 	{
 		AppendNetworkLogLine(strOutput, NETWORK_LOG_CONTINUED_SEPARATOR);
+		AppendNetworkLogSessionHeader(strOutput);
 	}
 
 	char buffer[8192];

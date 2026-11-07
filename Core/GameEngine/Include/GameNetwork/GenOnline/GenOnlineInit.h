@@ -778,6 +778,9 @@ public:
 	static void InitSentry();
 	static void UpdateSentryUser();
 	static void ShutdownSentry();
+	static std::string GetSentryRelease();
+	static std::string GetSentryStatus();
+	static void LogDisplayAdapter();
 private:
 		
 		

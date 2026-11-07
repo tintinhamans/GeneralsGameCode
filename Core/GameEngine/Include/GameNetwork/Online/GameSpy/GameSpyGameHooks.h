@@ -32,6 +32,7 @@ public:
 
 	virtual void onGlobalDataLoaded() override {}
 	virtual void loadSettings() override {}
+	virtual void onDisplayCreated() override {}
 	virtual void onEngineInitialized() override {}
 	virtual void onEngineUpdate() override {}
 	virtual void onEngineShutdown() override {}
