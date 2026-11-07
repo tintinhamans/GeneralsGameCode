@@ -213,28 +213,28 @@ void ScoreScreenEnableControls(Bool enable)
 
 #if defined(GENONLINE)
 // Generals Online: the retail bottom row (buttons at 552-588 of 600) lies on the ruler's bottom band; it moves into the backdrop like on the other ruler screens
-static void moveScoreScreenRowUp(GameWindow *window, Int rowTop, Int rulerTop, Int shift)
+static void moveScoreScreenWindowsUp(GameWindow *window, Int fromY, Int toY, Int shift)
 {
 	for (GameWindow *child = window->winGetChild(); child != nullptr; child = child->winGetNext())
 	{
 		Int x;
 		Int y;
 		child->winGetScreenPosition(&x, &y);
-		if (y >= rowTop && y < rulerTop)
+		if (y >= fromY && y < toY)
 		{
 			child->winGetPosition(&x, &y);
 			child->winSetPosition(x, y - shift);
 		}
-		else if (y < rowTop)
+		else if (y < fromY)
 		{
-			moveScoreScreenRowUp(child, rowTop, rulerTop, shift);
+			moveScoreScreenWindowsUp(child, fromY, toY, shift);
 		}
 	}
 }
 
 static void fitScoreScreenInsideRuler(GameWindow *lists[], Int listCount)
 {
-	if (parent == nullptr || buttonOk == nullptr)
+	if (parent == nullptr || buttonOk == nullptr || listCount <= 0 || lists[0] == nullptr)
 	{
 		return;
 	}
@@ -255,16 +255,48 @@ static void fitScoreScreenInsideRuler(GameWindow *lists[], Int listCount)
 		return;
 	}
 	const Int shift = (Int)(54.0f * scale + 0.5f);
-	moveScoreScreenRowUp(parent, (Int)(510.0f * scale + 0.5f), rulerTop, shift);
-	// the chat and advice lists give up the space the row moves into
-	for (Int i = 0; i < listCount; ++i)
+	const Int rowTop = (Int)(510.0f * scale + 0.5f);
+
+	// the chat block keeps its size and moves up into the space under the last shown player row; only what does not fit comes off the lists
+	Int listX;
+	Int listTop;
+	lists[0]->winGetScreenPosition(&listX, &listTop);
+	Int rowsBottom = 0;
+	AsciiString rowName;
+	for (Int i = 0; i < MAX_SLOTS; ++i)
 	{
-		if (lists[i] != nullptr)
+		rowName.format("ScoreScreen.wnd:StaticTextPlayer%d", i);
+		GameWindow *row = TheWindowManager->winGetWindowFromId(parent, TheNameKeyGenerator->nameToKey(rowName));
+		if (row != nullptr && !row->winIsHidden())
 		{
-			Int listWidth;
-			Int listHeight;
-			lists[i]->winGetSize(&listWidth, &listHeight);
-			lists[i]->winSetSize(listWidth, listHeight - shift);
+			Int rowX;
+			Int rowY;
+			Int rowWidth;
+			Int rowHeight;
+			row->winGetScreenPosition(&rowX, &rowY);
+			row->winGetSize(&rowWidth, &rowHeight);
+			rowsBottom = max(rowsBottom, rowY + rowHeight);
+		}
+	}
+	const Int blockTop = listTop - (Int)(4.0f * scale + 0.5f);
+	const Int room = blockTop - (rowsBottom + (Int)(4.0f * scale + 0.5f));
+	const Int blockShift = min(max(room, 0), shift);
+	if (blockShift > 0)
+	{
+		moveScoreScreenWindowsUp(parent, blockTop, rowTop, blockShift);
+	}
+	moveScoreScreenWindowsUp(parent, rowTop, rulerTop, shift);
+	if (blockShift < shift)
+	{
+		for (Int i = 0; i < listCount; ++i)
+		{
+			if (lists[i] != nullptr)
+			{
+				Int listWidth;
+				Int listHeight;
+				lists[i]->winGetSize(&listWidth, &listHeight);
+				lists[i]->winSetSize(listWidth, listHeight - (shift - blockShift));
+			}
 		}
 	}
 }
@@ -303,10 +335,6 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 	listboxChatWindowScoreScreen = TheWindowManager->winGetWindowFromId( parent, listboxChatWindowScoreScreenID );
 //	buttonRehost = TheWindowManager->winGetWindowFromId( parent, buttonRehostID );
 	chatBoxBorder = TheWindowManager->winGetWindowFromId( parent, chatBoxBorderID );
-#if defined(GENONLINE)
-	GameWindow *scoreScreenLists[] = { listboxChatWindowScoreScreen };
-	fitScoreScreenInsideRuler(scoreScreenLists, 1);
-#endif
 	buttonContinue = TheWindowManager->winGetWindowFromId( parent, buttonContinueID );
 	buttonBuddies = TheWindowManager->winGetWindowFromId( parent, buttonBuddiesID );
 	staticTextGameSaved= TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey("ScoreScreen.wnd:StaticTextGameSaveComplete") );
@@ -366,6 +394,11 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 			initSinglePlayer();
 		}
 	}
+
+#if defined(GENONLINE)
+	GameWindow *scoreScreenLists[] = { listboxChatWindowScoreScreen };
+	fitScoreScreenInsideRuler(scoreScreenLists, 1);
+#endif
 
 	// Make Sure the layout is visible
 	layout->hide( FALSE );
