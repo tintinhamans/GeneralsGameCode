@@ -1294,6 +1294,9 @@ void GenOnlineServicesManager::InitSentry()
 	std::string strVersionStr = std::format("generalsonline-client@{}", GENONLINE_VERSION_STRING);
 	sentry_options_set_release(options, strVersionStr.c_str());
 
+	// keep crashpad_handler alive until the crash report upload completes
+	sentry_options_set_crashpad_wait_for_upload(options, 1);
+
 #if defined(USE_TEST_ENV)
 	sentry_options_set_environment(options, "test");
 #else
