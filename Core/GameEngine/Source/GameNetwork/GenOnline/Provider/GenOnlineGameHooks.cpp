@@ -107,6 +107,11 @@ void GenOnlineGameHooks::loadSettings()
 	TheFileSystem->setExcludedPaths(GenOnlineServicesManager::Settings.DataPacks_UserExcludePaths());
 }
 
+void GenOnlineGameHooks::onDisplayCreated()
+{
+	GenOnlineServicesManager::LogDisplayAdapter();
+}
+
 void GenOnlineGameHooks::onEngineInitialized()
 {
 	m_discordRichPresence = new GenOnlineDiscordRPC();

@@ -18,6 +18,7 @@
 #include "WW3D2/surfaceclass.h"
 #include "WW3D2/dx8wrapper.h"
 #include <algorithm>
+#include <climits>
 #include <mutex>
 #include <utility>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
@@ -1253,6 +1254,9 @@ void GenOnlineServicesManager::Tick()
 	NetworkMeshLibrary::Tick();
 }
 
+// INT_MIN until InitSentry ran, then the sentry_init result
+static int s_sentryInitResult = INT_MIN;
+
 void GenOnlineServicesManager::InitSentry()
 {
 	// Initialize libcurl global state here, before any plugins (e.g. EasyAntiCheat) are loaded.
@@ -1288,34 +1292,17 @@ void GenOnlineServicesManager::InitSentry()
 		sentry_options_set_database_pathw(options, strDumpPath.c_str());
 	}
 
-	std::string strVersionStr = std::format("generalsonline-client@{}", GENONLINE_VERSION_STRING);
+	std::string strVersionStr = GetSentryRelease();
 	sentry_options_set_release(options, strVersionStr.c_str());
+
+	// keep crashpad_handler alive until the crash report upload completes
+	sentry_options_set_crashpad_wait_for_upload(options, 1);
 
 #if defined(USE_TEST_ENV)
 	sentry_options_set_environment(options, "test");
 #else
 	sentry_options_set_environment(options, "production");
 #endif
-
-	// local player info
-	int64_t userID = -1;
-	std::string strDisplayname = "Unknown";
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (pAuthInterface != nullptr)
-	{
-		userID = pAuthInterface->GetUserID();
-		strDisplayname = pAuthInterface->GetDisplayName();
-	}
-	std::string strUserID = std::format("{}", userID);
-
-
-	sentry_value_t userinfoVal = sentry_value_new_object();
-	sentry_value_set_by_key(userinfoVal, "user_id", sentry_value_new_string(strUserID.c_str()));
-	sentry_value_set_by_key(userinfoVal, "user_displayname", sentry_value_new_string(strDisplayname.c_str()));
-	sentry_set_context("user_info", userinfoVal);
-
-	sentry_set_tag("user_id", strUserID.c_str());
-	sentry_set_tag("user_displayname", strDisplayname.c_str());
 
 #if _DEBUG
 	sentry_options_set_debug(options, 1);
@@ -1333,13 +1320,78 @@ void GenOnlineServicesManager::InitSentry()
 	}, nullptr);
 #endif
 
-	sentry_init(options);
+	// fails as a whole when crashpad_handler.exe is missing or older than this client
+	const int sentryInitResult = sentry_init(options);
+	s_sentryInitResult = sentryInitResult;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Sentry] Init %s (%d)", sentryInitResult == 0 ? "succeeded" : "FAILED", sentryInitResult);
+
+	// scope data set before sentry_init is dropped
+	UpdateSentryUser();
 #endif
+}
+
+void GenOnlineServicesManager::UpdateSentryUser()
+{
+	int64_t userID = -1;
+	std::string strDisplayname = "Unknown";
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pAuthInterface != nullptr)
+	{
+		userID = pAuthInterface->GetUserID();
+		strDisplayname = pAuthInterface->GetDisplayName();
+	}
+	std::string strUserID = std::format("{}", userID);
+
+	sentry_value_t userinfoVal = sentry_value_new_object();
+	sentry_value_set_by_key(userinfoVal, "user_id", sentry_value_new_string(strUserID.c_str()));
+	sentry_value_set_by_key(userinfoVal, "user_displayname", sentry_value_new_string(strDisplayname.c_str()));
+	sentry_set_context("user_info", userinfoVal);
+
+	sentry_set_tag("user_id", strUserID.c_str());
+	sentry_set_tag("user_displayname", strDisplayname.c_str());
 }
 
 void GenOnlineServicesManager::ShutdownSentry()
 {
 	sentry_close();
+}
+
+std::string GenOnlineServicesManager::GetSentryRelease()
+{
+	return std::format("generalsonline-client@{}", GENONLINE_VERSION_STRING);
+}
+
+std::string GenOnlineServicesManager::GetSentryStatus()
+{
+#if _DEBUG
+	return "off in debug builds";
+#else
+	if (s_sentryInitResult == INT_MIN)
+	{
+		return "not started yet";
+	}
+	if (s_sentryInitResult != 0)
+	{
+		return std::format("init FAILED ({})", s_sentryInitResult);
+	}
+	return "initialized";
+#endif
+}
+
+void GenOnlineServicesManager::LogDisplayAdapter()
+{
+	const D3DADAPTER_IDENTIFIER8& adapter = DX8Wrapper::Get_Current_Adapter_Identifier();
+	if (adapter.Description[0] == '\0')
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "[Session] GPU: no D3D8 adapter (headless or no device)");
+		return;
+	}
+
+	const DWORD driverHigh = static_cast<DWORD>(adapter.DriverVersion.HighPart);
+	const DWORD driverLow = adapter.DriverVersion.LowPart;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Session] GPU: %.512s (vendor 0x%04lX, device 0x%04lX)", adapter.Description, static_cast<unsigned long>(adapter.VendorId), static_cast<unsigned long>(adapter.DeviceId));
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Session] GPU driver: %.512s version %u.%u.%u.%u", adapter.Driver,
+		static_cast<unsigned int>(HIWORD(driverHigh)), static_cast<unsigned int>(LOWORD(driverHigh)), static_cast<unsigned int>(HIWORD(driverLow)), static_cast<unsigned int>(LOWORD(driverLow)));
 }
 
 

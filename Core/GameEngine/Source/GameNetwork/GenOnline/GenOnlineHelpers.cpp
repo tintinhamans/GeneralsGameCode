@@ -1,4 +1,5 @@
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
+#include <algorithm>
 #include <chrono>
 #include <cwctype>
 #include <ctime>
@@ -6,9 +7,72 @@
 #include <string>
 #include "../GenOnlineInit.h"
 #include "../GenOnlineAuth.h"
+#include "GameNetwork/GenOnline/GenOnlineLogFile.h"
+#include "gitinfo.h"
 
 std::string m_strNetworkLogFileName;
 std::mutex m_logMutex;
+
+// one log across sessions, moved to GeneralsOnline.1.log once it grows past the limit
+static constexpr uint64_t NETWORK_LOG_MAX_BYTES = 10ull * 1024ull * 1024ull;
+static constexpr const char* NETWORK_LOG_SESSION_SEPARATOR = "==================== Generals Online session start ====================";
+static constexpr const char* NETWORK_LOG_CONTINUED_SEPARATOR = "==================== Generals Online session continued after log rotation ====================";
+static uint64_t m_networkLogBytes = 0;
+static bool m_bNetworkLogRotateFailed = false;
+
+static void AppendNetworkLogLine(std::string& strOut, const std::string& strLine)
+{
+	strOut += std::format("[{}] {}\n", GetUtcTimestampNow(), strLine);
+}
+
+static std::string GetBuildDescriptionForLog()
+{
+#if defined(_DEBUG)
+	std::string strBuild = "Debug";
+#elif defined(RTS_DEBUG)
+	std::string strBuild = "Release (RTS_DEBUG)";
+#else
+	std::string strBuild = "Release";
+#endif
+#if defined(USE_TEST_ENV)
+	strBuild += ", test environment";
+#endif
+	if (GitHaveInfo)
+	{
+		strBuild += std::format(", commit {}{} from {}", static_cast<const char*>(GitShortSHA1), GitUncommittedChanges ? " (modified)" : "", static_cast<const char*>(GitCommitDate));
+	}
+	return strBuild;
+}
+
+// written under every session separator, never with secrets, paths or addresses
+static void AppendNetworkLogSessionHeader(std::string& strOut)
+{
+	AppendNetworkLogLine(strOut, std::format("[Session] Client version: {} ({})", GENONLINE_VERSION_STRING, GENONLINE_CLIENT_ID));
+	AppendNetworkLogLine(strOut, std::format("[Session] Sentry release: {}", GenOnlineServicesManager::GetSentryRelease()));
+	AppendNetworkLogLine(strOut, std::format("[Session] Sentry: {}", GenOnlineServicesManager::GetSentryStatus()));
+	AppendNetworkLogLine(strOut, std::format("[Session] Build: {}", GetBuildDescriptionForLog()));
+	for (const std::string& strLine : GetSystemInfoLogLines())
+	{
+		AppendNetworkLogLine(strOut, "[Session] " + strLine);
+	}
+}
+
+// a failed rotation keeps appending to the current file and retries on the next start
+static bool RotateNetworkLogIfNeeded()
+{
+	if (m_bNetworkLogRotateFailed || m_networkLogBytes <= NETWORK_LOG_MAX_BYTES)
+	{
+		return false;
+	}
+
+	if (!RotateLogFile(m_strNetworkLogFileName))
+	{
+		m_bNetworkLogRotateFailed = true;
+		return false;
+	}
+	m_networkLogBytes = GetLogFileSize(m_strNetworkLogFileName);
+	return true;
+}
 
 extern GenOnlineGame* TheGenOnlineGame;
 
@@ -123,11 +187,9 @@ void NetworkLog(ELogVerbosity logVerbosity, const char* fmt, ...)
 
 	std::scoped_lock scopedLock { m_logMutex };
 
+	std::string strOutput;
 	if (m_strNetworkLogFileName.empty())
 	{
-		auto now = std::chrono::system_clock::now();
-		auto in_time_t = std::chrono::system_clock::to_time_t(now);
-
 #if defined(_DEBUG)
 		// for debug, put the user ID in the log name so we can easily track it (NOte that this does mean we dont get very early logging, pre login, but that's OK normally)
 
@@ -161,17 +223,22 @@ void NetworkLog(ELogVerbosity logVerbosity, const char* fmt, ...)
 		ss << "GeneralsOnline.log";
 #endif
 */
-		std::ofstream overwriteFile(m_strNetworkLogFileName);
+		m_networkLogBytes = GetLogFileSize(m_strNetworkLogFileName);
+		RotateNetworkLogIfNeeded();
 
 		// log start msg
-		overwriteFile << std::put_time(std::localtime(&in_time_t), "Log Started at %Y/%m/%d %H:%M") << std::endl;
+		if (m_networkLogBytes > 0)
+		{
+			strOutput += "\n";
+		}
+		AppendNetworkLogLine(strOutput, NETWORK_LOG_SESSION_SEPARATOR);
+		AppendNetworkLogSessionHeader(strOutput);
 	}
-
-	auto const rawNow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-	struct tm localNow = {};
-	localtime_s(&localNow, &rawNow);
-	char timebuf[32];
-	strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", &localNow);
+	else if (RotateNetworkLogIfNeeded())
+	{
+		AppendNetworkLogLine(strOutput, NETWORK_LOG_CONTINUED_SEPARATOR);
+		AppendNetworkLogSessionHeader(strOutput);
+	}
 
 	char buffer[8192];
 	va_list args;
@@ -180,13 +247,19 @@ void NetworkLog(ELogVerbosity logVerbosity, const char* fmt, ...)
 	buffer[8192 - 1] = 0;
 	va_end(args);
 
-	std::string strLogBuffer = std::format("[{}] {}", timebuf, buffer);
+	const std::string strTimestamp = GetUtcTimestampNow();
+	std::string strLogBuffer = std::format("[{}] {}", strTimestamp, buffer);
+	strOutput += strLogBuffer;
+	strOutput += "\n";
 
 	// TODO_GENONLINE: Keep open and flush regularly
 	std::ofstream logFile;
 	logFile.open(m_strNetworkLogFileName, std::ios_base::app);
-	logFile << strLogBuffer.c_str() << std::endl;
+	logFile << strOutput;
 	logFile.close();
+
+	// text mode writes each newline as CRLF
+	m_networkLogBytes += strOutput.size() + std::count(strOutput.begin(), strOutput.end(), '\n');
 
 #if defined(GENONLINE_BRANCH_JMARSHALL)
 	DevConsole.AddLog(strLogBuffer.c_str());
