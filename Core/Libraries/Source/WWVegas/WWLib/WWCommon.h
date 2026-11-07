@@ -27,7 +27,7 @@
 #include <Utility/stdio_adapter.h>
 #include <Utility/utility_adapter.h>
 
-#include "../../GeneralsMD/Code/GameEngine/Include/GameNetwork/GeneralsOnline/NextGenMP_defines.h"
+#include "../../../../GameEngine/Include/GameNetwork/GeneralsOnline/NextGenMP_defines.h"
 
 #ifndef SAFE_RELEASE
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=nullptr; } }
