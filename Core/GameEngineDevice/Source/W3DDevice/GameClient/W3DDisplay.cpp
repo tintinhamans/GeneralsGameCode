@@ -966,6 +966,13 @@ void W3DDisplay::init()
 				finishStartupSplash();
 			}
 
+			// exclusive fullscreen needs the game window visible and in the foreground when the device is
+			// created, and the mode switch blanks the screen anyway, so hand over from the splash now
+			if (!getWindowed())
+			{
+				finishStartupSplash();
+			}
+
 			renderDeviceError = WW3D::Set_Render_Device(
 				0,
 				getWidth(),
