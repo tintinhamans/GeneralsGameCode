@@ -104,10 +104,10 @@ endif()
 if(WIN32)
 	add_custom_command(TARGET z_generals POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"${CMAKE_CURRENT_SOURCE_DIR}/../GameEngine/Source/GameNetwork/GeneralsOnline/Vendor/DiscordRPC/discord-rpc.dll"
+			"${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GeneralsOnline/Vendor/DiscordRPC/discord-rpc.dll"
 			"$<TARGET_FILE_DIR:z_generals>/discord-rpc.dll"
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"${CMAKE_CURRENT_SOURCE_DIR}/../GameEngine/Source/GameNetwork/GeneralsOnline/Vendor/DiscordRPC/LICENSE.txt"
+			"${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GeneralsOnline/Vendor/DiscordRPC/LICENSE.txt"
 			"$<TARGET_FILE_DIR:z_generals>/discord-rpc-LICENSE.txt"
 	)
 
