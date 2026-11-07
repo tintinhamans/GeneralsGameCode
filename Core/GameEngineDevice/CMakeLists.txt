@@ -213,6 +213,7 @@ if(RTS_NEEDS_LEGACY_MEDIA)
         Source/VideoDevice/Bink/BinkVideoPlayer.cpp
     )
     target_link_libraries(corei_gameenginedevice_public INTERFACE deps_bink deps_miles)
+    target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_LEGACY_MEDIA)
 endif()
 
 target_include_directories(corei_gameenginedevice_public INTERFACE
@@ -271,6 +272,7 @@ if(RTS_BUILD_OPTION_OPENAL)
     target_link_libraries(corei_gameenginedevice_private INTERFACE OpenAL::OpenAL)
     if(RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
         target_sources(corei_gameenginedevice_private INTERFACE
+            Include/OpenALAudioDevice/MediaBackend.h
             Include/OpenALAudioDevice/OpenALMovieVoice.h
             Source/OpenALAudioDevice/OpenALMovieVoice.cpp
             Include/OpenALAudioDevice/OpenALAudioManager.h
