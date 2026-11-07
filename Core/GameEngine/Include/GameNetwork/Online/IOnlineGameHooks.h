@@ -39,6 +39,7 @@ public:
 	// Engine lifecycle
 	virtual void onGlobalDataLoaded() = 0;		///< Runs right after the global data loads, before the mods and the command line.
 	virtual void loadSettings() = 0;			///< Loads the provider settings that the engine reads during init.
+	virtual void onDisplayCreated() = 0;		///< Runs once the game client created the display device.
 	virtual void onEngineInitialized() = 0;		///< Runs at the end of the engine init.
 	virtual void onEngineUpdate() = 0;			///< Runs once per engine update after the network update.
 	virtual void onEngineShutdown() = 0;		///< Runs while the engine shuts down its subsystems.
