@@ -33,6 +33,7 @@
 #include "Common/RandomValue.h"
 #include "GameClient/Shell.h"
 #include "GameClient/WindowLayout.h"
+#include "GameClient/Gadget.h"
 #include "Common/version.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/Image.h"
@@ -743,6 +744,99 @@ static void addVersionLabel(WindowLayout *screen)
 }
 
 //-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix arcticdolphin 07/11/2026 Windows of a ruler screen reached into the ruler's bands, by a few pixels
+// in retail and more in some mod layouts. After its init, every window of such a screen is fitted into the open interior of
+// the ruler, x 40-761 and y 40-561 of 800x600 up to the outer edge of its inner line (the same in both games).
+//-------------------------------------------------------------------------------------------------
+static Bool isRulerScreenRoot(GameWindow *window)
+{
+	const Image *image = window->winGetEnabledImage(0);
+	if (image == nullptr)
+	{
+		return FALSE;
+	}
+	// the multiplayer score screen swaps the ruler for a picture with the same frame
+	return image->getName().compareNoCase("MainMenuRuler") == 0 || image->getName().compareNoCase("MutiPlayer_ScoreScreen") == 0;
+}
+
+// scales the windows below a fitted window; gadgets lay out their own parts when they are resized
+static void scaleRulerSubtree(GameWindow *window, Real scaleX, Real scaleY)
+{
+	if (!BitIsSet(window->winGetStyle(), GWS_USER_WINDOW))
+	{
+		return;
+	}
+	for (GameWindow *child = window->winGetChild(); child != nullptr; child = child->winGetNext())
+	{
+		Int x;
+		Int y;
+		Int width;
+		Int height;
+		child->winGetPosition(&x, &y);
+		child->winGetSize(&width, &height);
+		child->winSetPosition((Int)(x * scaleX + 0.5f), (Int)(y * scaleY + 0.5f));
+		child->winSetSize((Int)(width * scaleX + 0.5f), (Int)(height * scaleY + 0.5f));
+		scaleRulerSubtree(child, scaleX, scaleY);
+	}
+}
+
+static void fitRulerScreen(WindowLayout *screen)
+{
+	const NameKeyType versionLabelID = TheNameKeyGenerator->nameToKey("MainMenuVersion.wnd:LabelVersion");
+	for (GameWindow *root = screen->getFirstWindow(); root != nullptr; root = root->winGetNextInLayout())
+	{
+		if (!isRulerScreenRoot(root))
+		{
+			continue;
+		}
+		Int rootX;
+		Int rootY;
+		Int rootWidth;
+		Int rootHeight;
+		root->winGetScreenPosition(&rootX, &rootY);
+		root->winGetSize(&rootWidth, &rootHeight);
+		const Real scaleX = (Real)rootWidth / 800.0f;
+		const Real scaleY = (Real)rootHeight / 600.0f;
+		const Int left = rootX + (Int)(40.0f * scaleX + 0.5f);
+		const Int top = rootY + (Int)(40.0f * scaleY + 0.5f);
+		const Int right = rootX + (Int)(761.0f * scaleX + 0.5f);
+		const Int bottom = rootY + (Int)(561.0f * scaleY + 0.5f);
+
+		for (GameWindow *child = root->winGetChild(); child != nullptr; child = child->winGetNext())
+		{
+			Int x;
+			Int y;
+			Int width;
+			Int height;
+			child->winGetScreenPosition(&x, &y);
+			child->winGetSize(&width, &height);
+			// full screen helpers and the version label, which sits in the band on purpose, stay where they are
+			if ((width * 50 >= rootWidth * 49 && height * 50 >= rootHeight * 49) || child->winGetWindowId() == versionLabelID)
+			{
+				continue;
+			}
+			if (x >= left && y >= top && x + width <= right && y + height <= bottom)
+			{
+				continue;
+			}
+			const Int newWidth = min(width, right - left);
+			const Int newHeight = min(height, bottom - top);
+			const Int newX = max(left, min(x, right - newWidth));
+			const Int newY = max(top, min(y, bottom - newHeight));
+			Int relX;
+			Int relY;
+			child->winGetPosition(&relX, &relY);
+			child->winSetPosition(relX + newX - x, relY + newY - y);
+			if (newWidth != width || newHeight != height)
+			{
+				child->winSetSize(newWidth, newHeight);
+				scaleRulerSubtree(child, (Real)newWidth / (Real)width, (Real)newHeight / (Real)height);
+			}
+		}
+	}
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Actually do the work for a push */
 //-------------------------------------------------------------------------------------------------
 void Shell::doPush( AsciiString layoutFile )
@@ -767,6 +861,7 @@ void Shell::doPush( AsciiString layoutFile )
 
 	// run the init function automatically
 	newScreen->runInit( nullptr );
+	fitRulerScreen(newScreen);
 	newScreen->bringForward();
 	raiseNotificationBox();
 
