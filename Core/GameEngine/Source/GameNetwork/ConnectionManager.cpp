@@ -58,7 +58,7 @@
 
 #include "../NextGenTransport.h"
 #include "../NetworkMesh.h"
-#include "../ngmp_interfaces.h"
+#include "../NGMP_interfaces.h"
 
 static Bool hasValidTransferFileExtension(const AsciiString& filePath)
 {

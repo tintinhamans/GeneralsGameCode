@@ -118,8 +118,8 @@
 
 struct QuitGameException {};
 
-#include "../ngmp_include.h"
-#include "../ngmp_interfaces.h"
+#include "../NGMP_include.h"
+#include "../NGMP_interfaces.h"
 
 #include "../NextGenMP_defines.h"
 
