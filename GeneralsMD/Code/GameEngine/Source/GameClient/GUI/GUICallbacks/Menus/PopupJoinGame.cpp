@@ -62,8 +62,8 @@
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
 #include "GameNetwork/GameSpyOverlay.h"
-#include "../ngmp_include.h"
-#include "../ngmp_interfaces.h"
+#include "../NGMP_include.h"
+#include "../NGMP_interfaces.h"
 
 
 //-----------------------------------------------------------------------------

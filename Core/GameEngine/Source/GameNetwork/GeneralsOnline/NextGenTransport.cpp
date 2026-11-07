@@ -5,8 +5,8 @@
 #include "GameNetwork/GeneralsOnline/NextGenTransport.h"
 #include "GameNetwork/TransportFactory.h"
 
-#include "GameNetwork/GeneralsOnline/ngmp_include.h"
-#include "GameNetwork/GeneralsOnline/ngmp_interfaces.h"
+#include "GameNetwork/GeneralsOnline/NGMP_include.h"
+#include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
 #include <steam/steamnetworkingtypes.h>
 #include "GameNetwork/GeneralsOnline/PluginInterfaces.h"
 
