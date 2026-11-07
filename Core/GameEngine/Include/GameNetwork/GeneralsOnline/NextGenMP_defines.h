@@ -77,7 +77,10 @@ void showNotificationBox(AsciiString nick, UnicodeString message, bool bPlaySoun
 #define GENERALS_ONLINE_MIN_LOBBY_CAMERA_ZOOM 210
 #define GENERALS_ONLINE_MAX_LOBBY_CAMERA_ZOOM 1000
 
+// 60 Hz logic only has its gameplay adaptations in Zero Hour; Generals keeps retail 30 Hz
+#if RTS_ZEROHOUR
 #define GENERALS_ONLINE_HIGH_FPS_SERVER 1
+#endif
 
 #if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
 #define GENERALS_ONLINE_CLIENT_ID "gen_online_60hz"
