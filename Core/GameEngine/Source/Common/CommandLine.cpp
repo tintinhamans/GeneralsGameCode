@@ -1160,12 +1160,15 @@ Int parseMod(char *args[], Int num)
 	return 1;
 }
 
+#if RTS_ZEROHOUR
+// The community data patch is Zero Hour data
 Int parseDisableCommunityDataPatch(char *args[], Int num)
 {
 	TheWritableGlobalData->m_commandLineData.disableCommunityDataPatch();
 
 	return 1;
 }
+#endif
 
 #ifdef DEBUG_LOGGING
 Int parseSetDebugLevel(char *args[], int num)
@@ -1252,7 +1255,9 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-scriptDebug", parseScriptDebug },
 	{ "-playStats", parsePlayStats },
 	{ "-mod", parseMod },
+#if RTS_ZEROHOUR
 	{ "-disableCommunityDataPatch", parseDisableCommunityDataPatch },
+#endif
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },
