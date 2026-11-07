@@ -307,6 +307,29 @@ static void setWinMainActive(Bool active)
 
 // TheSuperHackers @bugfix arcticdolphin 07/11/2026 A windowed game is a normal window, so the taskbar, which is topmost, covered
 // the part of a window as large as the monitor that lies over it. While the game has focus, such a window is now topmost.
+static const UINT_PTR WINDOWED_TOPMOST_TIMER_ID = 0x5450;
+static void updateWindowedTopmost(HWND hWnd, Bool active);
+
+static Bool isTaskbarAbove(HWND hWnd)
+{
+	char className[32];
+	for (HWND above = GetWindow(hWnd, GW_HWNDPREV); above != nullptr; above = GetWindow(above, GW_HWNDPREV))
+	{
+		if (IsWindowVisible(above) && GetClassNameA(above, className, sizeof(className)) > 0
+			&& (strcmp(className, "Shell_TrayWnd") == 0 || strcmp(className, "Shell_SecondaryTrayWnd") == 0))
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+// the taskbar can raise itself again without a message to the game, so a focused topmost window checks a few times a second
+static VOID CALLBACK windowedTopmostTimer(HWND hWnd, UINT, UINT_PTR, DWORD)
+{
+	updateWindowedTopmost(hWnd, isWinMainActive);
+}
+
 static void updateWindowedTopmost(HWND hWnd, Bool active)
 {
 	if (TheGlobalData == nullptr || !TheGlobalData->m_windowed)
@@ -331,14 +354,27 @@ static void updateWindowedTopmost(HWND hWnd, Bool active)
 	}
 
 	const Bool isTopmost = (GetWindowLong(hWnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
-	if (wantTopmost != isTopmost)
+	if (wantTopmost)
 	{
-		SetWindowPos(hWnd, wantTopmost ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-		// leaving topmost puts the window above all normal windows; it goes back behind the window that took focus
-		HWND foreground = GetForegroundWindow();
-		if (!wantTopmost && foreground != nullptr && foreground != hWnd)
+		if (!isTopmost || isTaskbarAbove(hWnd))
 		{
-			SetWindowPos(hWnd, foreground, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+			SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+		}
+		SetTimer(hWnd, WINDOWED_TOPMOST_TIMER_ID, 250, windowedTopmostTimer);
+	}
+	else
+	{
+		KillTimer(hWnd, WINDOWED_TOPMOST_TIMER_ID);
+		if (isTopmost)
+		{
+			SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+			// leaving topmost puts the window above all normal windows; it goes back behind a normal window that took focus
+			// (going behind a topmost one, such as the taskbar, would make it topmost again)
+			HWND foreground = GetForegroundWindow();
+			if (foreground != nullptr && foreground != hWnd && (GetWindowLong(foreground, GWL_EXSTYLE) & WS_EX_TOPMOST) == 0)
+			{
+				SetWindowPos(hWnd, foreground, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+			}
 		}
 	}
 }
