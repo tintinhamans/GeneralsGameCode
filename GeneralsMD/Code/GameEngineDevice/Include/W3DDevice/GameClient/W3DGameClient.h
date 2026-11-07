@@ -51,7 +51,7 @@
 #ifdef RTS_HAS_LEGACY_MEDIA
 #include "VideoDevice/Bink/BinkVideoPlayer.h"
 #endif
-#if defined(RTS_AUDIO_BACKEND_OPENAL) && defined(RTS_HAS_LEGACY_MEDIA)
+#if defined(RTS_HAS_MODERN_MEDIA) && defined(RTS_HAS_LEGACY_MEDIA)
 #include "OpenALAudioDevice/MediaBackend.h"
 #endif
 #include "Win32Device/GameClient/Win32DIKeyboard.h"
@@ -118,7 +118,7 @@ protected:
 	virtual DisplayStringManager *createDisplayStringManager() override { return NEW W3DDisplayStringManager; }
 	virtual VideoPlayerInterface *createVideoPlayer() override
 	{
-#if defined(RTS_AUDIO_BACKEND_OPENAL) && defined(RTS_HAS_LEGACY_MEDIA)
+#if defined(RTS_HAS_MODERN_MEDIA) && defined(RTS_HAS_LEGACY_MEDIA)
 		// Bink movie audio needs Miles
 		if (!isOpenALMediaSelected())
 			return NEW BinkVideoPlayer;

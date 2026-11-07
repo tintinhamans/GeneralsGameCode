@@ -47,7 +47,7 @@ extern "C" {
 }
 
 #include "VideoDevice/FFmpeg/FFmpegPcmConverter.h"
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
 #include "OpenALAudioDevice/OpenALAudioManager.h"
 #include "OpenALAudioDevice/OpenALMovieVoice.h"
 #endif
@@ -105,7 +105,7 @@ extern "C" {
 //         Private Functions
 //----------------------------------------------------------------------------
 
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
 // Bink steps the speech volume to 1 to 81 percent of 32768, and a volume of zero mutes.
 static float movieAudioGain(Real volume)
 {
@@ -189,7 +189,7 @@ void	FFmpegVideoPlayer::update()
 
 std::shared_ptr<OpenALMovieVoice> FFmpegVideoPlayer::createAudioVoice()
 {
-#if defined(RTS_AUDIO_BACKEND_OPENAL) && !RTS_GENERALS
+#if defined(RTS_HAS_MODERN_MEDIA) && !RTS_GENERALS
     if (TheAudio != nullptr)
         return static_cast<OpenALAudioManager *>(TheAudio)->createMovieVoice();
 #endif
@@ -341,7 +341,7 @@ struct FFmpegVideoStream::State
         if (!failed)
             DEBUG_LOG(("FFmpeg movie playback failed: %s", reason));
         failed = true;
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
         if (audio != nullptr)
             audio->close();
 #endif
@@ -355,7 +355,7 @@ struct FFmpegVideoStream::State
             pauseStart = now;
         }
         DEBUG_LOG(("FFmpeg movie audio is unavailable, so the movie continues without audio"));
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
         if (audio != nullptr)
             audio->close();
 #endif
@@ -378,7 +378,7 @@ struct FFmpegVideoStream::State
     Int64 playbackUS()
     {
         Int64 elapsed = elapsedUS();
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
         if (audio != nullptr && rate > 0) {
             if (audio->failed())
                 return progressUS;
@@ -390,7 +390,7 @@ struct FFmpegVideoStream::State
         progressUS = elapsed;
         return elapsed;
     }
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
     uint64_t historyFrames() const { return history.size() / 2; }
     uint64_t audioEndFrames() const { return submitted + silenceFrames + (pending.size() - pendingOffset) / 2; }
     uint64_t clockFrames() const { return static_cast<uint64_t>(std::max<Int64>(0, elapsedUS())) * rate / 1000000; }
@@ -488,7 +488,7 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMov
     m_state->totalFrames = file->getNumFrames();
     m_state->audio = std::move(audio);
     m_state->volume = volume;
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
     if (m_state->audio != nullptr) {
         m_state->audioRecoveryEpoch = m_state->audio->recoveryEpoch();
         m_state->rate = m_state->audio->sampleRate();
@@ -525,7 +525,7 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile *file, std::shared_ptr<OpenALMov
 
 FFmpegVideoStream::~FFmpegVideoStream()
 {
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
     if (m_state->audio != nullptr)
         m_state->audio->close();
 #endif
@@ -630,7 +630,7 @@ void FFmpegVideoStream::pump()
     for (unsigned packets = 0; packets < 32; ++packets) {
         if (m_state->failed)
             return;
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
         if (m_state->audio != nullptr) {
             if (m_state->audio->failed()) {
                 m_state->disableAudio();
@@ -714,7 +714,7 @@ void FFmpegVideoStream::pump()
 
 void FFmpegVideoStream::update()
 {
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
     if (m_state->audio != nullptr) {
         m_state->audio->update();
         m_state->followDevice();
@@ -740,7 +740,7 @@ Bool FFmpegVideoStream::isPlaybackComplete()
     if (m_state->paused || !m_state->eof || m_frame != nullptr || !m_state->frames.empty())
         return false;
     const Int64 elapsed = m_state->playbackUS();
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
     if (m_state->audio != nullptr) {
         if (elapsed < static_cast<Int64>(m_state->audioEndFrames()) * 1000000 / m_state->rate)
             return false;
@@ -754,7 +754,7 @@ Bool FFmpegVideoStream::isPlaybackComplete()
 void FFmpegVideoStream::setVolume(Real volume)
 {
     m_state->volume = volume;
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
     if (m_state->audio != nullptr && !m_state->audio->setGain(movieAudioGain(volume)))
         m_state->disableAudio();
 #endif
@@ -762,7 +762,7 @@ void FFmpegVideoStream::setVolume(Real volume)
 
 Int64 FFmpegVideoStream::audioOffsetUS()
 {
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
     if (m_state->audio != nullptr && m_state->rate > 0 && !m_state->audioLost)
         return static_cast<Int64>(m_state->audioBase + m_state->audio->readFrames()) * 1000000 / m_state->rate -
             m_state->elapsedUS();
@@ -780,7 +780,7 @@ void FFmpegVideoStream::setPaused(Bool paused)
     else
         m_state->start += now - m_state->pauseStart;
     m_state->paused = paused;
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
     if (m_state->audio != nullptr && m_state->started) {
         if (paused) {
             if (!m_state->audio->pause())
@@ -935,7 +935,7 @@ void FFmpegVideoStream::frameGoto(Int index)
     m_state->videoEndUS = m_state->seekUS;
     // Codec overlap and resampler history are rebuilt before trimming.
     m_state->failed = !m_ffmpegFile->rewind();
-#ifdef RTS_AUDIO_BACKEND_OPENAL
+#ifdef RTS_HAS_MODERN_MEDIA
     if (m_state->audio != nullptr) {
         if (!m_state->audio->reset())
             m_state->disableAudio();
