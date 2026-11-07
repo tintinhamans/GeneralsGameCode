@@ -174,8 +174,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = ENTRYFIELD;
-      SCREENRECT = UPPERLEFT: 45 484,
-                   BOTTOMRIGHT: 707 509,
+      SCREENRECT = UPPERLEFT: 47 486,
+                   BOTTOMRIGHT: 711 511,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:TextEntryChat";
       STATUS = ENABLED+IMAGE;
@@ -274,8 +274,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 585 516,
-                   BOTTOMRIGHT: 755 552,
+      SCREENRECT = UPPERLEFT: 581 517,
+                   BOTTOMRIGHT: 753 553,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ButtonBack";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -322,8 +322,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 45 516,
-                   BOTTOMRIGHT: 215 552,
+      SCREENRECT = UPPERLEFT: 47 517,
+                   BOTTOMRIGHT: 219 553,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ButtonHost";
       STATUS = ENABLED+IMAGE;
@@ -370,8 +370,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 405 516,
-                   BOTTOMRIGHT: 575 552,
+      SCREENRECT = UPPERLEFT: 403 517,
+                   BOTTOMRIGHT: 575 553,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ButtonBuddy";
       STATUS = ENABLED+IMAGE;
@@ -418,8 +418,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 719 484,
-                   BOTTOMRIGHT: 755 508,
+      SCREENRECT = UPPERLEFT: 717 486,
+                   BOTTOMRIGHT: 753 511,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ButtonEmote";
       STATUS = ENABLED+IMAGE;
@@ -465,8 +465,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 225 516,
-                   BOTTOMRIGHT: 395 552,
+      SCREENRECT = UPPERLEFT: 225 517,
+                   BOTTOMRIGHT: 397 553,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ButtonJoin";
       STATUS = ENABLED+IMAGE;
@@ -513,8 +513,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
-      SCREENRECT = UPPERLEFT: 538 78,
-                   BOTTOMRIGHT: 755 310,
+      SCREENRECT = UPPERLEFT: 537 77,
+                   BOTTOMRIGHT: 753 309,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ListboxPlayers";
       STATUS = ENABLED;
@@ -678,8 +678,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
-      SCREENRECT = UPPERLEFT: 45 318,
-                   BOTTOMRIGHT: 755 478,
+      SCREENRECT = UPPERLEFT: 47 315,
+                   BOTTOMRIGHT: 753 480,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ListboxChat";
       STATUS = ENABLED+NOFOCUS;
@@ -841,8 +841,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 45 74,
-                   BOTTOMRIGHT: 532 314,
+      SCREENRECT = UPPERLEFT: 47 77,
+                   BOTTOMRIGHT: 531 309,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ParentGameListLarge";
       STATUS = ENABLED+SEE_THRU;
@@ -887,8 +887,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = SCROLLLISTBOX;
-        SCREENRECT = UPPERLEFT: 45 78,
-                     BOTTOMRIGHT: 532 310,
+        SCREENRECT = UPPERLEFT: 47 77,
+                     BOTTOMRIGHT: 531 309,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLCustomLobby.wnd:ListboxGamesLarge";
         STATUS = ENABLED+ONE_LINE;
@@ -1060,8 +1060,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 538 45,
-                   BOTTOMRIGHT: 755 69,
+      SCREENRECT = UPPERLEFT: 537 47,
+                   BOTTOMRIGHT: 753 71,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ComboBoxGroupRooms";
       STATUS = ENABLED+IMAGE;
@@ -1301,8 +1301,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 45 41,
-                   BOTTOMRIGHT: 532 70,
+      SCREENRECT = UPPERLEFT: 77 47,
+                   BOTTOMRIGHT: 531 71,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ParentSortButtons";
       STATUS = ENABLED;
@@ -1347,8 +1347,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 242 45,
-                     BOTTOMRIGHT: 396 69,
+        SCREENRECT = UPPERLEFT: 230 47,
+                     BOTTOMRIGHT: 378 71,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLCustomLobby.wnd:ButtonSortPing";
         STATUS = ENABLED+IMAGE;
@@ -1396,8 +1396,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 248 51,
-                     BOTTOMRIGHT: 264 63,
+        SCREENRECT = UPPERLEFT: 236 53,
+                     BOTTOMRIGHT: 252 65,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLCustomLobby.wnd:WindowSortPing";
         STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -1443,8 +1443,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 400 45,
-                     BOTTOMRIGHT: 530 69,
+        SCREENRECT = UPPERLEFT: 384 47,
+                     BOTTOMRIGHT: 531 71,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLCustomLobby.wnd:ButtonSortBuddies";
         STATUS = ENABLED+IMAGE;
@@ -1492,8 +1492,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 405 51,
-                     BOTTOMRIGHT: 421 63,
+        SCREENRECT = UPPERLEFT: 390 53,
+                     BOTTOMRIGHT: 406 65,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLCustomLobby.wnd:WindowSortBuddies";
         STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -1539,8 +1539,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 90 45,
-                     BOTTOMRIGHT: 238 69,
+        SCREENRECT = UPPERLEFT: 77 47,
+                     BOTTOMRIGHT: 224 71,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLCustomLobby.wnd:ButtonSortAlpha";
         STATUS = ENABLED+IMAGE;
@@ -1588,8 +1588,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 96 51,
-                     BOTTOMRIGHT: 112 63,
+        SCREENRECT = UPPERLEFT: 83 53,
+                     BOTTOMRIGHT: 99 65,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLCustomLobby.wnd:WindowSortAlpha";
         STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -1635,8 +1635,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 50 45,
-                     BOTTOMRIGHT: 74 69,
+        SCREENRECT = UPPERLEFT: 47 47,
+                     BOTTOMRIGHT: 71 71,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLCustomLobby.wnd:ButtonRefresh";
         STATUS = ENABLED+IMAGE;
