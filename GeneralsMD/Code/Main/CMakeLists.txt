@@ -1,6 +1,6 @@
 add_executable(z_generals WIN32)
 
-if(WIN32 AND RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
+if(WIN32 AND RTS_BUILD_OPTION_MODERN_MEDIA)
     find_package(Threads REQUIRED)
     find_package(OpenAL CONFIG REQUIRED)
     get_target_property(_openal_library_type OpenAL::OpenAL TYPE)
@@ -11,7 +11,7 @@ if(WIN32 AND RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
     endif()
 endif()
 
-if(WIN32 AND RTS_BUILD_OPTION_FFMPEG AND FFMPEG_ROOT AND NOT FFMPEG_STATIC)
+if(WIN32 AND RTS_BUILD_OPTION_MODERN_MEDIA AND FFMPEG_ROOT AND NOT FFMPEG_STATIC)
     foreach(_component avformat avcodec avutil swscale swresample)
         file(GLOB _ffmpeg_runtime_dlls "${FFMPEG_ROOT}/bin/${_component}*.dll")
         foreach(_dll IN LISTS _ffmpeg_runtime_dlls)
@@ -23,17 +23,17 @@ endif()
 
 # Ship the licenses of the audio libraries next to the exe
 set(_audio_licenses "${CMAKE_SOURCE_DIR}/Core/GameEngineDevice/Licenses")
-if(WIN32 AND (RTS_BUILD_OPTION_FFMPEG OR RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL"))
+if(WIN32 AND RTS_BUILD_OPTION_MODERN_MEDIA)
     add_custom_command(TARGET z_generals POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${_audio_licenses}/audio-libraries-NOTICE.txt" "$<TARGET_FILE_DIR:z_generals>/audio-libraries-NOTICE.txt")
 endif()
-if(WIN32 AND RTS_BUILD_OPTION_FFMPEG)
+if(WIN32 AND RTS_BUILD_OPTION_MODERN_MEDIA)
     add_custom_command(TARGET z_generals POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${_audio_licenses}/FFmpeg-LGPL-2.1.txt" "$<TARGET_FILE_DIR:z_generals>/ffmpeg-LICENSE.txt")
 endif()
-if(WIN32 AND RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
+if(WIN32 AND RTS_BUILD_OPTION_MODERN_MEDIA)
     add_custom_command(TARGET z_generals POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${_audio_licenses}/OpenAL-Soft-LGPL-2.txt" "$<TARGET_FILE_DIR:z_generals>/openal-soft-LICENSE.txt"
