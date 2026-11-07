@@ -287,6 +287,80 @@ static const char *messageToString(unsigned int message)
 }
 #endif
 
+// GenOnline @bugfix arcticdolphin 07/11/2026 A windowed game is a normal window, so the taskbar, which is topmost, covered
+// the part of a window as large as the monitor that lies over it. While the game has focus, such a window is topmost.
+static const UINT_PTR WINDOWED_TOPMOST_TIMER_ID = 0x5450;
+static void updateWindowedTopmost(HWND hWnd, Bool active);
+
+static Bool isTaskbarAbove(HWND hWnd)
+{
+	char className[32];
+	for (HWND above = GetWindow(hWnd, GW_HWNDPREV); above != nullptr; above = GetWindow(above, GW_HWNDPREV))
+	{
+		if (IsWindowVisible(above) && GetClassNameA(above, className, sizeof(className)) > 0
+			&& (strcmp(className, "Shell_TrayWnd") == 0 || strcmp(className, "Shell_SecondaryTrayWnd") == 0))
+		{
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+// the taskbar can raise itself again without a message to the game, so a focused topmost window checks a few times a second
+static VOID CALLBACK windowedTopmostTimer(HWND hWnd, UINT, UINT_PTR, DWORD)
+{
+	updateWindowedTopmost(hWnd, isWinMainActive);
+}
+
+static void updateWindowedTopmost(HWND hWnd, Bool active)
+{
+	if (TheGlobalData == nullptr || !TheGlobalData->m_windowed)
+	{
+		return;
+	}
+
+	Bool wantTopmost = FALSE;
+	if (active && GetForegroundWindow() == hWnd && !IsIconic(hWnd))
+	{
+		RECT window;
+		GetWindowRect(hWnd, &window);
+		MONITORINFO monitorInfo = { sizeof(MONITORINFO) };
+		GetMonitorInfo(MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST), &monitorInfo);
+		RECT visible;
+		if (IntersectRect(&visible, &window, &monitorInfo.rcMonitor))
+		{
+			// the part on the monitor reaches outside the work area, where the taskbar is
+			wantTopmost = visible.left < monitorInfo.rcWork.left || visible.top < monitorInfo.rcWork.top
+				|| visible.right > monitorInfo.rcWork.right || visible.bottom > monitorInfo.rcWork.bottom;
+		}
+	}
+
+	const Bool isTopmost = (GetWindowLong(hWnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+	if (wantTopmost)
+	{
+		if (!isTopmost || isTaskbarAbove(hWnd))
+		{
+			SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+		}
+		SetTimer(hWnd, WINDOWED_TOPMOST_TIMER_ID, 250, windowedTopmostTimer);
+	}
+	else
+	{
+		KillTimer(hWnd, WINDOWED_TOPMOST_TIMER_ID);
+		if (isTopmost)
+		{
+			SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+			// leaving topmost puts the window above all normal windows, so it goes back behind a normal window that took focus
+			// going behind a topmost window such as the taskbar would make it topmost again
+			HWND foreground = GetForegroundWindow();
+			if (foreground != nullptr && foreground != hWnd && (GetWindowLong(foreground, GWL_EXSTYLE) & WS_EX_TOPMOST) == 0)
+			{
+				SetWindowPos(hWnd, foreground, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+			}
+		}
+	}
+}
+
 // WndProc ====================================================================
 /** Window Procedure */
 //=============================================================================
@@ -516,7 +590,19 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 							TheWin32Mouse->setCursor(TheWin32Mouse->getMouseCursor());
 					}
 				}
+				updateWindowedTopmost(hWnd, (Bool)wParam);
 				return 0;
+			}
+
+			//-------------------------------------------------------------------------
+			case WM_WINDOWPOSCHANGED:
+			{
+				// a resize or move can bring the focused window over the taskbar
+				if (isWinMainActive)
+				{
+					updateWindowedTopmost(hWnd, TRUE);
+				}
+				break;
 			}
 
 			//-------------------------------------------------------------------------
@@ -728,6 +814,82 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 
 }
 
+// SplashWndProc ==============================================================
+/** Paints the load screen bitmap; the bitmap lives exactly as long as this window. */
+//=============================================================================
+static LRESULT CALLBACK SplashWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+		case WM_PAINT:
+		{
+			PAINTSTRUCT paint;
+			HDC dc = ::BeginPaint(hWnd, &paint);
+			if (gLoadScreenBitmap != nullptr)
+			{
+				RECT client;
+				::GetClientRect(hWnd, &client);
+				HDC tmpDC = ::CreateCompatibleDC(dc);
+				HBITMAP savBitmap = (HBITMAP)::SelectObject(tmpDC, gLoadScreenBitmap);
+				::BitBlt(dc, 0, 0, client.right, client.bottom, tmpDC, 0, 0, SRCCOPY);
+				::SelectObject(tmpDC, savBitmap);
+				::DeleteDC(tmpDC);
+			}
+			::EndPaint(hWnd, &paint);
+			return 0;
+		}
+
+		case WM_ERASEBKGND:
+			return TRUE;	// the bitmap covers the whole window
+
+		case WM_NCDESTROY:
+			if (gLoadScreenBitmap != nullptr)
+			{
+				::DeleteObject(gLoadScreenBitmap);
+				gLoadScreenBitmap = nullptr;
+			}
+			break;
+	}
+	return DefWindowProc(hWnd, message, wParam, lParam);
+}
+
+// createSplashWindow =========================================================
+/** Frameless window with the load screen bitmap, centred on the primary monitor. */
+//=============================================================================
+static HWND createSplashWindow(HINSTANCE hInstance, HICON icon)
+{
+	BITMAP bitmap;
+	if (gLoadScreenBitmap == nullptr || ::GetObject(gLoadScreenBitmap, sizeof(bitmap), &bitmap) == 0
+		|| bitmap.bmWidth <= 0 || bitmap.bmHeight <= 0)
+	{
+		return nullptr;
+	}
+
+	WNDCLASS splashClass = { 0, SplashWndProc, 0, 0, hInstance, icon,
+							 LoadCursor(nullptr, IDC_APPSTARTING),
+							 (HBRUSH)GetStockObject(BLACK_BRUSH), nullptr,
+							 TEXT("Game Splash") };
+	if (RegisterClass(&splashClass) == 0)
+	{
+		return nullptr;
+	}
+
+	const POINT origin = { 0, 0 };
+	MONITORINFO monitorInfo = { sizeof(MONITORINFO) };
+	GetMonitorInfo(MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY), &monitorInfo);
+	const Int x = (monitorInfo.rcWork.left + monitorInfo.rcWork.right - bitmap.bmWidth) / 2;
+	const Int y = (monitorInfo.rcWork.top + monitorInfo.rcWork.bottom - bitmap.bmHeight) / 2;
+
+	HWND hWnd = CreateWindow(TEXT("Game Splash"), TEXT("Command and Conquer Generals"), WS_POPUP | WS_VISIBLE,
+		x, y, bitmap.bmWidth, bitmap.bmHeight, nullptr, nullptr, hInstance, nullptr);
+	if (hWnd != nullptr)
+	{
+		SetForegroundWindow(hWnd);
+		UpdateWindow(hWnd);
+	}
+	return hWnd;
+}
+
 // initializeAppWindows =======================================================
 /** Register windows class and create application windows. */
 //=============================================================================
@@ -746,8 +908,14 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
 	                     TEXT("Game Window") };
   RegisterClass( &wndClass );
 
+	// The splash gets its own frameless window; the game window stays hidden until W3DDisplay hands over,
+	// so it never shows stale splash pixels while its frame, size and render device are set up
+	ApplicationSplashHWnd = createSplashWindow(hInstance, wndClass.hIcon);
+
    // Create our main window
-	windowStyle =  WS_POPUP|WS_VISIBLE;
+	windowStyle =  WS_POPUP;
+	if (ApplicationSplashHWnd == nullptr)
+		windowStyle |= WS_VISIBLE;
 	if (runWindowed)
 		windowStyle |= WS_MINIMIZEBOX | WS_SYSMENU | WS_DLGFRAME | WS_CAPTION;
 	else
@@ -791,16 +959,19 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
 	else
 		SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0,SWP_NOSIZE |SWP_NOMOVE);
 
-	SetFocus(hWnd);
+	if (ApplicationSplashHWnd == nullptr)
+	{
+		SetFocus(hWnd);
 
-	SetForegroundWindow(hWnd);
-	ShowWindow( hWnd, nCmdShow );
-	UpdateWindow( hWnd );
+		SetForegroundWindow(hWnd);
+		ShowWindow( hWnd, nCmdShow );
+		UpdateWindow( hWnd );
+	}
 
 	// save our application window handle for future use
 	ApplicationHWnd = hWnd;
 	gInitializing = false;
-	if (!runWindowed) {
+	if (!runWindowed || ApplicationSplashHWnd != nullptr) {
 		gDoPaint = false;
 	}
 
@@ -890,7 +1061,8 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		// save our application instance for future use
 		ApplicationHInstance = hInstance;
 
-		if (gLoadScreenBitmap!=nullptr) {
+		// the splash window owns the bitmap while it exists
+		if (gLoadScreenBitmap!=nullptr && ApplicationSplashHWnd == nullptr) {
 			::DeleteObject(gLoadScreenBitmap);
 			gLoadScreenBitmap = nullptr;
 		}
@@ -929,6 +1101,12 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 		// run the game main loop
 		exitcode = GameMain();
+
+		// startup ended before the first frame was drawn
+		if (ApplicationSplashHWnd != nullptr) {
+			::DestroyWindow(ApplicationSplashHWnd);
+			ApplicationSplashHWnd = nullptr;
+		}
 
 		delete TheVersion;
 		TheVersion = nullptr;

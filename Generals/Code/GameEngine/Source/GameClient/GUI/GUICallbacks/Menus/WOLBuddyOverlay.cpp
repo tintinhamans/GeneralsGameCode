@@ -664,6 +664,17 @@ void showNotificationBox( AsciiString nick, UnicodeString message)
 	if( !noticeLayout )
 		noticeLayout = TheWindowManager->winCreateLayout( "Menus/PopupBuddyListNotification.wnd" );
 	noticeLayout->hide( FALSE );
+	// TheSuperHackers @tweak arcticdolphin 07/11/2026 The notification sits in the top right corner of the screen, the same distance
+	// from the top and the right edge, in menus and in game, whatever position its layout has.
+	GameWindow *noticeParent = noticeLayout->getFirstWindow();
+	if (noticeParent != nullptr && TheDisplay != nullptr)
+	{
+		Int noticeWidth;
+		Int noticeHeight;
+		noticeParent->winGetSize(&noticeWidth, &noticeHeight);
+		const Int margin = (Int)(10.0f * TheDisplay->getHeight() / 600.0f + 0.5f);
+		noticeParent->winSetPosition((Int)TheDisplay->getWidth() - margin - noticeWidth, margin);
+	}
 	if (buttonNotificationID == NAMEKEY_INVALID)
 	{
 		buttonNotificationID = TheNameKeyGenerator->nameToKey("PopupBuddyListNotification.wnd:ButtonNotification");
@@ -705,6 +716,15 @@ void showNotificationBox( AsciiString nick, UnicodeString message)
 		TheAudio->addAudioEvent( &buttonClick );
 	}
 
+}
+
+// GenOnline @bugfix arcticdolphin 07/11/2026 The shell raises the notification again after every screen change so the next screen does not draw over it.
+void raiseNotificationBox()
+{
+	if (noticeLayout != nullptr && !noticeLayout->isHidden())
+	{
+		noticeLayout->bringForward();
+	}
 }
 
 void deleteNotificationBox()
