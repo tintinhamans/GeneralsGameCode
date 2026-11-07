@@ -21,7 +21,7 @@ existing source/build/install directories; use a fresh work directory to rebuild
 Retain the fragment and build information with the corresponding LGPL source
 distribution.
 
-Set `OpenAL_DIR` to `install/lib/cmake/OpenAL`. `RTS_BUILD_OPTION_OPENAL=ON` compiles the new device/PCM primitives but deliberately does not select a game audio backend or activate old movie OpenAL paths. This slice requires `AL_SOFT_callback_buffer`; unsupported implementations fail initialization rather than using a second queue implementation.
+Set `OpenAL_DIR` to `install/lib/cmake/OpenAL`. This slice requires `AL_SOFT_callback_buffer`; unsupported implementations fail initialization rather than using a second queue implementation.
 
 Keep OpenAL Soft's LGPL notices and applicable source/build information with distribution. No DLLs or commercial media are checked in.
 
@@ -29,9 +29,9 @@ Keep OpenAL Soft's LGPL notices and applicable source/build information with dis
 
 ## Static audio build
 
-The `win32-vcpkg-generalsmd-openal` preset builds Zero Hour with the OpenAL audio backend and FFmpeg movies, both linked statically. It selects Zero Hour only, `RTS_BUILD_OPTION_FFMPEG`, `RTS_BUILD_OPTION_OPENAL` and `RTS_BUILD_AUDIO_BACKEND=OPENAL`. The OpenAL backend turns on the `openal-audio` manifest feature, and vcpkg builds its two overlay ports from `cmake/ports`:
+The `win32-vcpkg-generalsmd-openal` preset builds Zero Hour with the OpenAL audio backend and FFmpeg movies, both linked statically. It selects Zero Hour only and leaves both media options on (see below). Modern media turns on the `openal-audio` manifest feature, and vcpkg builds its two overlay ports from `cmake/ports`:
 
-- `ffmpeg`: FFmpeg 9.0.2 with the same trimmed configure as `scripts/ffmpeg/build-minimal.sh --static`, release static libraries against the DLL C runtime. It replaces the stock vcpkg `ffmpeg` port, so the `ffmpeg` feature of FFmpeg video builds uses it too.
+- `ffmpeg`: FFmpeg 9.0.2 with the same trimmed configure as `scripts/ffmpeg/build-minimal.sh --static`, release static libraries against the DLL C runtime. It replaces the stock vcpkg `ffmpeg` port.
 - `openal-soft`: OpenAL Soft 1.25.2 with the float loader as `0001-float-loader.patch` and the same options as `build-soft.ps1 -Static`. The port checks the patched `core/voice.cpp` digest.
 
 The OpenAL Soft port checks the SHA256 pinned by its script; the FFmpeg port fetches the n9.0.2 tag from the GitHub mirror with a pinned SHA512. vcpkg fetches MSYS2 and NASM for the FFmpeg build itself, so the only prerequisite is Visual Studio 18 (or 2022) with the v143 x86 C++ tools, its bundled CMake, Ninja and vcpkg. Run from the repository root in an x86 tools environment, which also sets `VCPKG_ROOT`; `CC`/`CXX` keep CMake on `cl` when another compiler is on `PATH`:
@@ -48,34 +48,34 @@ The executable lands in `build/win32-vcpkg-generalsmd-openal/GeneralsMD/Release`
 
 The scripts remain an optional manual route: build `scripts/ffmpeg/build-minimal.sh --static` and `build-soft.ps1 -Static` as described above, then add `-DFFMPEG_ROOT=<repo>/build/ffmpeg-static/install` and `-DOpenAL_DIR=<repo>/build/openal-soft-static/install/lib/cmake/OpenAL` to the configure. Those take precedence over the vcpkg packages, which vcpkg still installs.
 
-## Opt-in Zero Hour manager
+## Media build options
 
-`RTS_BUILD_AUDIO_BACKEND` defaults to `MILES`. Select `OPENAL` explicitly with both
-`RTS_BUILD_OPTION_OPENAL=ON` and `RTS_BUILD_OPTION_FFMPEG=ON`; vcpkg then provides
-the pinned FFmpeg and OpenAL Soft through the `openal-audio` feature. The alternative is for
-modern Zero Hour only; it does not replace the Generals factory or enable VC6.
-Default builds retain Miles and Bink, with FFmpeg and OpenAL disabled. The FFmpeg
-option is initialized before the CMake project/toolchain and selects the optional
-vcpkg `ffmpeg` feature (plus `openal-audio` with the OpenAL backend); it is not an
-unconditional manifest dependency.
-The public engine header does not expose OpenAL headers: backend construction
-lives in the Win32 implementation file.
+Two options pick what a build contains; both default to `ON`:
 
-`RTS_BUILD_OPTION_LEGACY_MEDIA` (default `ON`) also builds Miles and Bink into the
-OpenAL configuration, so one exe can play either way. `LegacyMedia = yes` in
-`Options.ini` picks Miles with Bink movies, as retail; `no` or no entry picks OpenAL
-with FFmpeg movies. The game reads it once at startup, so a change needs a restart.
-Miles with FFmpeg movies and Bink with OpenAL are not offered: FFmpeg movie audio
-plays only through OpenAL, and Bink movie audio only through Miles.
+| `RTS_BUILD_OPTION_MODERN_MEDIA` | `RTS_BUILD_OPTION_LEGACY_MEDIA` | Build |
+|---|---|---|
+| `ON` | `ON` | Both; `LegacyMedia = yes` in `Options.ini` picks Miles with Bink movies at startup, `no` or no entry picks OpenAL with FFmpeg movies |
+| `ON` | `OFF` | OpenAL with FFmpeg movies only |
+| `OFF` | `ON` | Miles with Bink movies only, as retail |
+| `OFF` | `OFF` | Configuration error |
 
-With `RTS_BUILD_OPTION_LEGACY_MEDIA=OFF`, `RTS_BUILD_GENERALS=OFF`,
-`RTS_BUILD_ZEROHOUR_TOOLS=OFF` and `RTS_BUILD_CORE_EXTRAS=OFF`, this configuration
-does not fetch, compile or link Miles/Bink SDK stubs or their engine backends. The
-isolated audio/movie tests also
-need neither SDK. Enabling Generals, WorldBuilder/W3DView or core extras retains
-the legacy media dependencies for those consumers. Legacy backend selection and
-VC6 builds retain their existing dependencies; FFmpeg-selected Miles builds remain
-video-only, not a supported replacement for Bink movie audio.
+`LegacyMedia` is read once at startup, so a change needs a restart. Miles with FFmpeg
+movies and Bink with OpenAL are not offered: FFmpeg movie audio plays only through
+OpenAL, and Bink movie audio only through Miles.
+
+Modern media needs Zero Hour and Visual Studio 2022 or newer, with `OpenAL_DIR` and
+`FFMPEG_ROOT` pointing at the pinned local installations. VC6, MinGW and
+Generals-only configurations turn it off and build legacy media only; Generals
+always plays through Miles and Bink. The option is read before the CMake
+project/toolchain and selects the optional vcpkg `ffmpeg` feature. The public engine
+header does not expose OpenAL headers: backend construction lives in the Win32
+implementation file.
+
+With legacy media off, `RTS_BUILD_GENERALS=OFF`, `RTS_BUILD_ZEROHOUR_TOOLS=OFF` and
+`RTS_BUILD_CORE_EXTRAS=OFF`, the build does not fetch, compile or link the Miles/Bink
+SDK stubs or their engine backends. Generals, WorldBuilder/W3DView and core extras
+still need them, so enabling any of those keeps them in. The isolated audio/movie
+tests need neither SDK.
 
 The manager derives from the real `AudioManager`, retaining INI event generation,
 `SoundManager` admission and `MusicManager` request creation. Device controls,

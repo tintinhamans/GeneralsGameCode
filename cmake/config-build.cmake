@@ -14,17 +14,15 @@ set(RTS_PGO_FILE "${CMAKE_BINARY_DIR}/genzh.pgd" CACHE FILEPATH "MSVC PGO databa
 option(RTS_BUILD_OPTION_VC6_FULL_DEBUG "Build VC6 with full debug info." OFF)
 cmake_dependent_option(RTS_BUILD_OPTION_TESTS "Build the unit tests." OFF "NOT IS_VS6_BUILD" OFF)
 cmake_dependent_option(RTS_BUILD_OPTION_BENCHMARKS "Build the benchmarks." OFF "NOT IS_VS6_BUILD" OFF)
-option(RTS_BUILD_OPTION_OPENAL "Build modern OpenAL PCM primitives (does not select an audio backend)" OFF)
-set(RTS_BUILD_AUDIO_BACKEND "MILES" CACHE STRING "Zero Hour audio backend (MILES or OPENAL)")
-set_property(CACHE RTS_BUILD_AUDIO_BACKEND PROPERTY STRINGS MILES OPENAL)
-option(RTS_BUILD_OPTION_LEGACY_MEDIA "Also build Miles and Bink into the OpenAL backend, picked at runtime with LegacyMedia = yes in Options.ini" ON)
-if(NOT RTS_BUILD_AUDIO_BACKEND MATCHES "^(MILES|OPENAL)$")
-    message(FATAL_ERROR "RTS_BUILD_AUDIO_BACKEND must be MILES or OPENAL")
+# RTS_BUILD_OPTION_MODERN_MEDIA and RTS_BUILD_OPTION_LEGACY_MEDIA live in config-vcpkg.cmake. With both, LegacyMedia = yes in Options.ini picks Miles and Bink at startup
+if(RTS_BUILD_OPTION_MODERN_MEDIA AND (IS_VS6_BUILD OR NOT MSVC OR MSVC_VERSION LESS 1930 OR NOT RTS_BUILD_ZEROHOUR))
+    message(STATUS "Modern media needs Zero Hour and Visual Studio 2022 or newer; building legacy media only")
+    set(RTS_BUILD_OPTION_MODERN_MEDIA OFF)
 endif()
-if(RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL")
-    if(IS_VS6_BUILD OR NOT RTS_BUILD_ZEROHOUR OR NOT RTS_BUILD_OPTION_OPENAL OR NOT RTS_BUILD_OPTION_FFMPEG)
-        message(FATAL_ERROR "The OpenAL audio backend requires modern Zero Hour with OpenAL and FFmpeg enabled")
-    endif()
+if(NOT RTS_BUILD_OPTION_MODERN_MEDIA AND NOT RTS_BUILD_OPTION_LEGACY_MEDIA)
+    message(FATAL_ERROR "Enable RTS_BUILD_OPTION_MODERN_MEDIA, RTS_BUILD_OPTION_LEGACY_MEDIA or both")
+endif()
+if(RTS_BUILD_OPTION_MODERN_MEDIA)
     target_compile_definitions(core_config INTERFACE RTS_AUDIO_BACKEND_OPENAL)
 endif()
 
@@ -88,7 +86,8 @@ elseif(MSVC AND NOT "${RTS_BUILD_OPTION_PGO}" STREQUAL "OFF" AND NOT IS_VS6_BUIL
     endif()
 endif()
 add_feature_info(Vc6FullDebug RTS_BUILD_OPTION_VC6_FULL_DEBUG "Building VC6 with full debug info")
-add_feature_info(FFmpegSupport RTS_BUILD_OPTION_FFMPEG "Building with FFmpeg support")
+add_feature_info(ModernMedia RTS_BUILD_OPTION_MODERN_MEDIA "Building OpenAL audio and FFmpeg movies")
+add_feature_info(LegacyMedia RTS_BUILD_OPTION_LEGACY_MEDIA "Building Miles audio and Bink movies")
 add_feature_info(Tests RTS_BUILD_OPTION_TESTS "Building the unit tests")
 add_feature_info(Benchmarks RTS_BUILD_OPTION_BENCHMARKS "Building the benchmarks")
 
@@ -147,8 +146,7 @@ if(RTS_BUILD_OPTION_PROFILE)
 endif()
 
 set(RTS_NEEDS_LEGACY_MEDIA TRUE)
-if(NOT IS_VS6_BUILD AND RTS_BUILD_AUDIO_BACKEND STREQUAL "OPENAL" AND NOT RTS_BUILD_OPTION_LEGACY_MEDIA AND
-   RTS_BUILD_OPTION_FFMPEG AND NOT RTS_BUILD_GENERALS AND
+if(RTS_BUILD_OPTION_MODERN_MEDIA AND NOT RTS_BUILD_OPTION_LEGACY_MEDIA AND NOT RTS_BUILD_GENERALS AND
    NOT RTS_BUILD_ZEROHOUR_TOOLS AND NOT RTS_BUILD_CORE_EXTRAS)
     set(RTS_NEEDS_LEGACY_MEDIA FALSE)
 endif()
