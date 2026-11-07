@@ -6,7 +6,10 @@
 
 //#define WORLD_SERIES_CLIENT 1
 
+// Community patch gameplay changes are Zero Hour balance
+#if RTS_ZEROHOUR
 #define GENERALS_ONLINE_COMMUNITY_PATCH_CHANGES 1
+#endif
 
 #define GENERALS_ONLINE_USE_PLUGINS_INTERFACE
 
@@ -35,10 +38,13 @@
 
 #define HTTP_UPLOAD_TIMEOUT 600000
 
-//#define GENERALS_ONLINE_GAMETYPE_GENERALS
+#if RTS_ZEROHOUR
 #define GENERALS_ONLINE_GAMETYPE_ZEROHOUR
-
+// INI CRC of unmodified Zero Hour 1.04 data
 #define VANILLA_INI_CRC 4272612339
+#else
+#define GENERALS_ONLINE_GAMETYPE_GENERALS
+#endif
 
 #if defined(_DEBUG)
 #define RTS_MULTI_INSTANCE 1
