@@ -36,7 +36,7 @@ static constexpr const Int MAX_COMMANDS = 256;
 static constexpr const Int MIN_LOGIC_FRAMES = 5;
 static constexpr const Int MAX_FRAMES_AHEAD = 128;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 static Int MIN_RUNAHEAD = 6;
 #else
 static constexpr const Int MIN_RUNAHEAD = 4;
@@ -68,7 +68,7 @@ struct TransportMessageHeader
 // TheSuperHackers @info As we are not detecting for network fragmentation and adjusting max payload, we set 1200 bytes UDP payload as a safe upper limit for various networks
 // We chose 1200 bytes as when taking mobile networks into account, maximum transmission unit sizes can vary from 1340 - 1500 bytes
 // and when the packet headers for PPPOE, IPV6 and virtual network encapsulation are considered, we need a lower safe UDP payload to prevent fragmentation.
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 static constexpr const Int MAX_UDP_PAYLOAD = 1194 - 96; // 96 for TURN + Valve overhead
 #else
 static constexpr const Int MAX_UDP_PAYLOAD = 1194;
@@ -83,7 +83,7 @@ static constexpr const Int MAX_LANAPI_PACKET_SIZE = RESTRICTED_UDP_PAYLOAD;
 #if RETAIL_COMPATIBLE_NETWORKING
 static constexpr const Int MAX_PACKET_SIZE = RESTRICTED_UDP_PAYLOAD;
 static constexpr const Int MAX_MESSAGE_LEN = 1024;
-#elif defined(GENERALS_ONLINE)
+#elif defined(GENONLINE)
 static constexpr const Int MAX_PACKET_SIZE = MAX_UDP_PAYLOAD;
 static constexpr const Int MAX_MESSAGE_LEN = 1104;
 #else

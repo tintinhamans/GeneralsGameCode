@@ -84,3 +84,14 @@ endif()
 if(MINGW AND COMMAND add_debug_strip_target)
     add_debug_strip_target(g_generals)
 endif()
+
+if(WIN32)
+	add_custom_command(TARGET g_generals POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			"${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GenOnline/Vendor/DiscordRPC/discord-rpc.dll"
+			"$<TARGET_FILE_DIR:g_generals>/discord-rpc.dll"
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			"${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GenOnline/Vendor/DiscordRPC/LICENSE.txt"
+			"$<TARGET_FILE_DIR:g_generals>/discord-rpc-LICENSE.txt"
+	)
+endif()

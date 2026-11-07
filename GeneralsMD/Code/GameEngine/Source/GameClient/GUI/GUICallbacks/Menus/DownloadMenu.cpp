@@ -208,7 +208,7 @@ HRESULT DownloadManagerMunkee::OnProgressUpdate( Int bytesread, Int totalsize, I
 
 	if (progressBarMunkee)
 	{
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 		Int percent = bytesread * 100 / totalsize;
 #else
 		Int percent = 100.f*((float)bytesread/(float)totalsize);
@@ -224,7 +224,7 @@ HRESULT DownloadManagerMunkee::OnProgressUpdate( Int bytesread, Int totalsize, I
 	}
 
 	timeLeft = timeleft;
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 	if (staticTextTime && GadgetStaticTextGetText(staticTextTime).isEmpty()) // only update immediately the first time
 	{
 		lastUpdate = time(nullptr);
@@ -325,7 +325,7 @@ void DownloadMenuUpdate( WindowLayout *layout, void *userData )
 
 		lastUpdate = now;
 
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 		UnicodeString timeString;
 		if (timeLeft)
 		{

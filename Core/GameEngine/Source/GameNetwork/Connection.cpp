@@ -28,9 +28,9 @@
 #include "GameNetwork/Connection.h"
 #include "GameNetwork/networkutil.h"
 #include "GameLogic/GameLogic.h"
-#include "../NGMP_include.h"
+#include "../GenOnlineInclude.h"
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 enum { MaxQuitFlushTime = 5000 }; // wait this many milliseconds at most to retry things before quitting
 #else
 enum { MaxQuitFlushTime = 30000 }; // wait this many milliseconds at most to retry things before quitting

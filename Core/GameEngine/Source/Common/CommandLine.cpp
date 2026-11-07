@@ -437,6 +437,8 @@ Int parseHeadless(char *args[], int num)
 	return 1;
 }
 
+#if RTS_ZEROHOUR
+// Match stats export is only implemented in Zero Hour
 Int parseExportStats(char *args[], int num)
 {
 	TheWritableGlobalData->m_exportStats = TRUE;
@@ -452,6 +454,7 @@ Int parseStatsUrl(char *args[], int num)
 	}
 	return 1;
 }
+#endif
 
 Int parseReplay(char *args[], int num)
 {
@@ -1160,12 +1163,15 @@ Int parseMod(char *args[], Int num)
 	return 1;
 }
 
+#if RTS_ZEROHOUR
+// The community data patch is Zero Hour data
 Int parseDisableCommunityDataPatch(char *args[], Int num)
 {
 	TheWritableGlobalData->m_commandLineData.disableCommunityDataPatch();
 
 	return 1;
 }
+#endif
 
 #ifdef DEBUG_LOGGING
 Int parseSetDebugLevel(char *args[], int num)
@@ -1226,11 +1232,13 @@ static CommandLineParam paramsForStartup[] =
 	// If you do not call this, all replays will be simulated in sequence in the same process.
 	{ "-jobs", parseJobs },
 
+#if RTS_ZEROHOUR
 	// Export game stats as JSON alongside replay file.
 	{ "-exportStats", parseExportStats },
 
 	// URL to POST compressed stats JSON after export.
 	{ "-statsUrl", parseStatsUrl },
+#endif
 
 	// TheSuperHackers @feature CryoTheRenegade 14/08/2026
 	// Use the current working directory as provided by the OS, or an explicit path.
@@ -1252,7 +1260,9 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-scriptDebug", parseScriptDebug },
 	{ "-playStats", parsePlayStats },
 	{ "-mod", parseMod },
+#if RTS_ZEROHOUR
 	{ "-disableCommunityDataPatch", parseDisableCommunityDataPatch },
+#endif
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },

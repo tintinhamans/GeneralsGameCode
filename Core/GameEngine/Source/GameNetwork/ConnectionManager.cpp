@@ -56,9 +56,9 @@
 #include "GameClient/InGameUI.h"
 #include "WWLib/TARGA.h"
 
-#include "../NextGenTransport.h"
+#include "../GenOnlineTransport.h"
 #include "../NetworkMesh.h"
-#include "../ngmp_interfaces.h"
+#include "../GenOnlineInterfaces.h"
 
 static Bool hasValidTransferFileExtension(const AsciiString& filePath)
 {
@@ -715,8 +715,8 @@ void ConnectionManager::processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg
 		m_fpsAverages[playerID] = msg->getAverageFps();
 		//DEBUG_LOG(("ConnectionManager::processRunAheadMetrics - player %d, fps = %d, latency = %f", playerID, msg->getAverageFps(), msg->getAverageLatency()));
 
-		// NGMP_CHANGE: Modern machines render games at much higher framerates, 100 is no longer only achievable when a game is in the background...
-#if defined(GENERALS_ONLINE)
+		// GENONLINE_CHANGE: Modern machines render well above 100 fps even in the foreground.
+#if defined(GENONLINE)
 		if (m_fpsAverages[playerID] > 1000) {
 			m_fpsAverages[playerID] = 1000;
 		}
@@ -783,7 +783,7 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 	{
 		RGBColor rgb;
 		rgb.setFromInt(player->getPlayerColor());
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		TheInGameUI->messageColor(true, &rgb, UnicodeString(L"%ls"), unitext.str());
 #else
 		TheInGameUI->messageColor(&rgb, L"%ls", unitext.str());
@@ -1410,14 +1410,14 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 
 			Real effectiveSlack = configuredSlack;
 
-#if defined(GENERALS_ONLINE)
-			if (TheNGMPGame != nullptr)
+#if defined(GENONLINE)
+			if (TheGenOnlineGame != nullptr)
 			{
-				ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+				ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
 				if (serviceConf.ibra_ra_tweaks)
 				{
                     // dynamic slack based on jitter
-                    NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+                    NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
                     if (pMesh != nullptr)
                     {
                         // 1) Current max latency (RTT)
@@ -1523,10 +1523,10 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 				msg->setExecutionFrame(TheGameLogic->getFrame() + oldRunAhead);
 			}
 
-#if defined(GENERALS_ONLINE) // provide instant responsiveness if there are no remote human players
-			if (TheNGMPGame != nullptr)
+#if defined(GENONLINE) // provide instant responsiveness if there are no remote human players
+			if (TheGenOnlineGame != nullptr)
 			{
-				NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+				NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 				if (pMesh != nullptr)
 				{
 					if (pMesh->GetAllConnections().size() == 0)
@@ -1629,9 +1629,9 @@ Real ConnectionManager::getMaximumLatency()
 {
 	int latencyLogicModel = 0;
 
-	if (TheNGMPGame != nullptr)
+	if (TheGenOnlineGame != nullptr)
 	{
-		ServiceConfig& serviceConf = NGMP_OnlineServicesManager::GetInstance()->GetServiceConfig();
+		ServiceConfig& serviceConf = GenOnlineServicesManager::GetInstance()->GetServiceConfig();
 		latencyLogicModel = serviceConf.network_latency_logic_model;
 		// 0 = original
 		// 1 = pick highest between original and Valve latency (current)
@@ -1655,7 +1655,7 @@ Real ConnectionManager::getMaximumLatency()
 	}
 	else if (latencyLogicModel == 1)
 	{
-		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+		NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 
 		if (pMesh != nullptr)
 		{
@@ -1669,7 +1669,7 @@ Real ConnectionManager::getMaximumLatency()
 	}
 	else if (latencyLogicModel == 2)
 	{
-		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+		NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 		if (pMesh != nullptr)
 		{
 			Real maxGOLatency = (pMesh->getMaximumHistoricalLatency() / 1000.f);
@@ -1682,7 +1682,7 @@ Real ConnectionManager::getMaximumLatency()
 	}
 	else if (latencyLogicModel == 3)
 	{
-		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+		NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 
 		if (pMesh != nullptr)
 		{
@@ -1696,7 +1696,7 @@ Real ConnectionManager::getMaximumLatency()
 	}
 	else if (latencyLogicModel == 4)
 	{
-		NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+		NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 		if (pMesh != nullptr)
 		{
 			Real maxGOLatency = (pMesh->getMaximumHistoricalLatency() / 1000.f);
@@ -2113,26 +2113,10 @@ PlayerLeaveCode ConnectionManager::disconnectPlayer(Int slot) {
 	return retval;
 }
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 PlayerLeaveCode ConnectionManager::disconnectPlayer(int64_t userID)
 {
 	return PLAYERLEAVECODE_UNKNOWN;
-// 	if (TheNGMPGame != nullptr)
-// 	{
-// 		for (int slot = 0; slot < MAX_SLOTS; ++slot)
-// 		{
-// 			NGMPGameSlot* pSlot = (NGMPGameSlot*)TheNGMPGame->getSlot(slot);
-// 			if (pSlot)
-// 			{
-// 				if (pSlot->m_userID == userID)
-// 				{
-// 					return disconnectPlayer(slot);
-// 				}
-// 			}
-// 		}
-// 	}
-// 
-// 	return PLAYERLEAVECODE_UNKNOWN;
 }
 #endif
 

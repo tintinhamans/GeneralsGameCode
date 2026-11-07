@@ -77,7 +77,7 @@
 #include "WW3D2/ww3d.h"
 #include "WW3D2/texturefilter.h"
 
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInit.h"
 
 // This is for non-RC builds only!!!
 #define VERBOSE_VERSION L"Release"
@@ -539,7 +539,7 @@ static void saveOptions()
 		(*pref)["AntiAliasing"] = prefString;
   }
 
-#if !defined(GENERALS_ONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
+#if !defined(GENONLINE_DISABLE_TEXTURE_FILTERING_AND_AA)
 	//-------------------------------------------------------------------------------------------------
 	// texture filter mode
 	val = pref->getTextureFilterMode();
@@ -1418,7 +1418,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	GameWindow *parent = TheWindowManager->winGetWindowFromId( nullptr, parentID );
 	TheWindowManager->winSetFocus( parent );
 
-	if( (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || NGMP_OnlineServicesManager::GetInstance() != nullptr)
+	if( (TheGameLogic->isInGame() && TheGameLogic->getGameMode() != GAME_SHELL) || GenOnlineServicesManager::GetInstance() != nullptr)
 	{
 		// disable controls that you can't change the options for in game
 		comboBoxLANIP->winEnable(FALSE);

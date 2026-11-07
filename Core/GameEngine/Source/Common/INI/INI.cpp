@@ -59,7 +59,7 @@
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/Weapon.h"
 
-#if __cplusplus >= 201611L && !defined(GENERALS_ONLINE_DISABLE_STD_FROM_CHARS_PARSING)
+#if __cplusplus >= 201611L && !defined(GENONLINE_DISABLE_STD_FROM_CHARS_PARSING)
 #define USE_STD_FROM_CHARS_PARSING 1
 #else
 #define USE_STD_FROM_CHARS_PARSING 0

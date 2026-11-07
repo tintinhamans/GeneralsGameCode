@@ -67,7 +67,7 @@
 #include "GameNetwork/GameSpy/ThreadUtils.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
-#include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static Bool isShuttingDown = FALSE;
@@ -232,7 +232,7 @@ static void updateNumPlayersOnline()
 		GadgetStaticTextSetText(playersOnlineWindow, valStr);
 	}
 
-	// TODO_NGMP
+	// TODO_GENONLINE
 	//if (listboxInfo && TheGameSpyInfo)
 	if (listboxInfo)
 	{
@@ -240,8 +240,8 @@ static void updateNumPlayersOnline()
 		AsciiString aLine;
 		UnicodeString line;
 
-#if defined(GENERALS_ONLINE)
-		AsciiString aMotd = NGMP_OnlineServicesManager::GetInstance() == nullptr ? AsciiString() : AsciiString(NGMP_OnlineServicesManager::GetInstance()->GetMOTD().c_str());
+#if defined(GENONLINE)
+		AsciiString aMotd = GenOnlineServicesManager::GetInstance() == nullptr ? AsciiString() : AsciiString(GenOnlineServicesManager::GetInstance()->GetMOTD().c_str());
 #else
 		AsciiString aMotd = TheGameSpyInfo->getMOTD();
 #endif
@@ -383,7 +383,7 @@ void HandleOverallStats( const char* szHTTPStats, unsigned len )
 //called only from WOLWelcomeMenuInit to set %win stats
 static void updateOverallStats()
 {
-	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
 	if (pStatsInterface == nullptr)
 	{
 		return;
@@ -540,7 +540,7 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 
 	GameWindow *staticTextTitle = TheWindowManager->winGetWindowFromId(parentWOLWelcome, NAMEKEY("WOLWelcomeMenu.wnd:StaticTextTitle"));
 
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 	if (staticTextTitle && TheGameSpyInfo)
 	{
 		UnicodeString title;
@@ -552,7 +552,7 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	{
 		UnicodeString title;
 
-		NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 		if (pAuthInterface != nullptr)
 		{
 			title.format(L"Welcome to Generals Online, %s", pAuthInterface->GetDisplayNameW().c_str());
@@ -594,7 +594,7 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	buttonLadderID = TheNameKeyGenerator->nameToKey( "WOLWelcomeMenu.wnd:ButtonLadder" );
 	buttonLadder = TheWindowManager->winGetWindowFromId( parentWOLWelcome, buttonLadderID );
 
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 	if (TheFirewallHelper == nullptr) {
 		TheFirewallHelper = createFirewallHelper();
 	}
@@ -635,7 +635,7 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	TheWindowManager->winSetFocus( parentWOLWelcome );
 
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	enableControls( true );
 #else
 	enableControls(TheGameSpyInfo->gotGroupRoomList());
@@ -647,8 +647,8 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	updateOverallStats();
 	UpdateLocalPlayerStats();
 
-	// NGMP: We removed locales, it was pointless
-#if !defined(GENERALS_ONLINE)
+	// GenOnline: We removed locales, it was pointless
+#if !defined(GENONLINE)
 	GameSpyMiscPreferences cPref;
 	if (cPref.getLocale() < LOC_MIN || cPref.getLocale() > LOC_MAX)
 	{
@@ -659,9 +659,9 @@ void WOLWelcomeMenuInit( WindowLayout *layout, void *userData )
 	raiseMessageBoxes = TRUE;
 	TheTransitionHandler->setGroup("WOLWelcomeMenuFade");
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
     // Update the communicator button anytime we get notifications
-    NGMP_OnlineServices_SocialInterface* pSocialInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_SocialInterface>();
+    GenOnlineSocialInterface* pSocialInterface = GenOnlineServicesManager::GetInterface<GenOnlineSocialInterface>();
     if (pSocialInterface != nullptr)
     {
         // notifiactions callback
@@ -739,21 +739,21 @@ void WOLWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 		raiseMessageBoxes = FALSE;
 	}
 
-	// TODO_NGMP: We do this in multiple UIs, we should actually just do it in one place and send an event to every other screen
-	if (NGMP_OnlineServicesManager::GetInstance() != nullptr && NGMP_OnlineServicesManager::GetInstance()->IsPendingFullTeardown())
+	// TODO_GENONLINE: We do this in multiple UIs, we should actually just do it in one place and send an event to every other screen
+	if (GenOnlineServicesManager::GetInstance() != nullptr && GenOnlineServicesManager::GetInstance()->IsPendingFullTeardown())
 	{
-		NGMP_OnlineServicesManager::GetInstance()->ConsumePendingFullTeardown();
+		GenOnlineServicesManager::GetInstance()->ConsumePendingFullTeardown();
 
 		buttonPushed = TRUE;
 
 		TheShell->pop();
 
-		// NGMP: Don't need to logout here, just kill the WS connection, that triggers a log out
+		// GenOnline: Don't need to logout here, just kill the WS connection, that triggers a log out
 		TearDownGeneralsOnline();
 	}
 
-	// TODO_NGMP: do we still care about FW helper?
-#if !defined(GENERALS_ONLINE)
+	// TODO_GENONLINE: do we still care about FW helper?
+#if !defined(GENONLINE)
 	if (TheFirewallHelper != nullptr)
 	{
 		if (TheFirewallHelper->behaviorDetectionUpdate())
@@ -771,7 +771,7 @@ void WOLWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 	}
 #endif
 
-#if defined(GENERALS_ONLINE) // GO needs to tick this, so notifications disappear etc
+#if defined(GENONLINE) // GO needs to tick this, so notifications disappear etc
 	HandleBuddyResponses();
 #endif
 
@@ -927,7 +927,7 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 
 		case GBM_SELECTED:
 			{
-			// TODO_NGMP: Support exiting online again
+			// TODO_GENONLINE: Support exiting online again
 				if (buttonPushed)
 					break;
 
@@ -939,9 +939,9 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 					//DEBUG_ASSERTCRASH(TheGameSpyChat->getPeer(), ("No GameSpy Peer object!"));
 					//TheGameSpyChat->disconnectFromChat();
 
-#if defined(GENERALS_ONLINE)
-					// NGMP: Don't need to logout here, just kill the WS connection, that triggers a log out
-					NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+#if defined(GENONLINE)
+					// GenOnline: Don't need to logout here, just kill the WS connection, that triggers a log out
+					GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
 
 					DEBUG_LOG(("Tearing down GeneralsOnline from WOLWelcomeMenuSystem(GBM_SELECTED)\n"));
 #else
@@ -998,8 +998,8 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 				}
 				else if (controlID == buttonMyInfoID )
 				{
-					// TODO_NGMP: This needs work for unicode once we support this
-					NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+					// TODO_GENONLINE: This needs work for unicode once we support this
+					GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 					if (pAuthInterface != nullptr)
 					{
 						SetLookAtPlayer(pAuthInterface->GetUserID(), UnicodeString(pAuthInterface->GetDisplayNameW().c_str()));
@@ -1011,7 +1011,7 @@ WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
 					//TheGameSpyChat->clearGroupRoomList();
 					//peerListGroupRooms(TheGameSpyChat->getPeer(), ListGroupRoomsCallback, nullptr, PEERTrue);
 
-					// TODO_NGMP
+					// TODO_GENONLINE
 					//TheGameSpyInfo->joinBestGroupRoom();
 					//enableControls( FALSE );
 					buttonPushed = TRUE;

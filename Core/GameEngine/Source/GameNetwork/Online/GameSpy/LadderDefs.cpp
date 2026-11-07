@@ -250,8 +250,8 @@ static LadderInfo *parseLadder(AsciiString raw)
 
 GameSpyLadder::GameSpyLadder()
 {
-	// TODO_NGMP: Implement ladders again
-#if !defined(GENERALS_ONLINE)
+	// TODO_GENONLINE: Implement ladders again
+#if !defined(GENONLINE)
 	//Int profile = TheGameSpyInfo->getLocalProfileID();
 
 	AsciiString rawMotd = TheGameSpyConfig->getLeftoverConfig();

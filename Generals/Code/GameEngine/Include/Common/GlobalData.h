@@ -374,6 +374,8 @@ public:
 
 	Real m_keyboardScrollFactor;			///< Factor applied to game scrolling speed via keyboard scrolling
 	Real m_keyboardDefaultScrollFactor;			///< Factor applied to game scrolling speed via keyboard scrolling
+	Bool m_drawScrollAnchor;					///< Set that the scroll anchor should be enabled
+	Bool m_moveScrollAnchor;					///< set that the scroll anchor should move
 
 	Bool m_animateWindows;						///< Should we animate window transitions?
 
@@ -430,6 +432,14 @@ public:
 	// TheSuperHackers @feature bobtista 28/06/2026 user-configurable speed multiplier for game window transitions
 	Real m_gameWindowTransitionSpeedMultiplier;
 
+	// Generals Online @feature 11/01/2026 allow the observer stats font size to be set, a size of zero disables it
+	Int m_observerStatsFontSize;
+
+	// Generals Online @feature 16/1/2025 allow the observer notification font size to be set, a size of zero disables it
+	Int m_observerNotificationFontSize;
+	Bool m_observerNotificationSpecialPowerUsage;
+	Bool m_observerNotificationSpecialPowerPurchase;
+	Bool m_observerNotificationMilestone;
 	Real m_shakeSubtleIntensity;			///< Intensity for shaking a camera with SHAKE_SUBTLE
 	Real m_shakeNormalIntensity;			///< Intensity for shaking a camera with SHAKE_NORMAL
 	Real m_shakeStrongIntensity;			///< Intensity for shaking a camera with SHAKE_STRONG
@@ -495,6 +505,7 @@ public:
 	UnsignedInt	m_networkDisconnectScreenNotifyTime; ///< The number of milliseconds between when the disconnect screen comes up and when the other players are notified that we are on the disconnect screen.
 
 	Real				m_keyboardCameraRotateSpeed;    ///< How fast the camera rotates when rotated via keyboard controls.
+	Real				m_cameraPitchSpeedMultiplier;   ///< User scale for keyboard camera pitch speed, from Options.ini.
   Int					m_playStats;									///< Int whether we want to log play stats or not, if <= 0 then we don't log
 
 #if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)

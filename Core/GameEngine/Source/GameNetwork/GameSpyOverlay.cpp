@@ -277,7 +277,7 @@ void GameSpyOpenOverlay( GSOverlayType overlay )
 {
 	if (overlay == GSOVERLAY_BUDDY)
 	{
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 		if (!TheGameSpyBuddyMessageQueue->isConnected())
 		{
 			// not connected - is it because we were disconnected?

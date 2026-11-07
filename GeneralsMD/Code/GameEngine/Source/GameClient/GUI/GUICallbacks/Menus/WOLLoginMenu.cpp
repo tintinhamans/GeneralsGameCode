@@ -32,9 +32,9 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/STLTypedefs.h"
-#include "../NGMP_types.h"
+#include "../GenOnlineTypes.h"
 
-void NGMP_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
+void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
 
 #include "Common/file.h"
 #include "Common/FileSystem.h"
@@ -71,7 +71,7 @@ void NGMP_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
 #include "GameNetwork/GameSpyOverlay.h"
 
 #include "GameNetwork/WOLBrowser/WebBrowser.h"
-#include "GameNetwork/GeneralsOnline/NGMP_interfaces.h"
+#include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 
 
 #ifdef ALLOW_NON_PROFILED_LOGIN
@@ -453,19 +453,19 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 	isShuttingDown = false;
 	loginAttemptTime = 0;
 
-	// NGMP
+	// GenOnline
 	ClearGSMessageBoxes();
 	GSMessageBoxNoButtons(UnicodeString(L"Logging In"), UnicodeString(L"Please wait..."), true);
 
-	// NGMP: Register for login callback
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	// GenOnline: Register for login callback
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	if (pAuthInterface == nullptr)
 	{
 		return;
 	}
 
 	// Now we can begin login
-	pAuthInterface->RegisterForLoginCallback(NGMP_WOLLoginMenu_LoginCallback);
+	pAuthInterface->RegisterForLoginCallback(GenOnline_WOLLoginMenu_LoginCallback);
 	pAuthInterface->BeginLogin();
 
 
@@ -551,7 +551,7 @@ void WOLLoginMenuInit( WindowLayout *layout, void *userData )
 static Bool loggedInOK = false;
 void WOLLoginMenuShutdown( WindowLayout *layout, void *userData )
 {
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	if (pAuthInterface != nullptr)
 	{
 		pAuthInterface->DeregisterForLoginCallback();
@@ -639,11 +639,11 @@ static void checkLogin()
 	*/
 }
 
-void NGMP_WOLLoginMenu_LoginCallback(ELoginResult loginResult)
+void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult)
 {
 	if (!buttonPushed)
 	{
-		// TODO_NGMP: Handle failure properly
+		// TODO_GENONLINE: Handle failure properly
 		if (loginResult == ELoginResult::Success)
 		{
 			ClearGSMessageBoxes();
@@ -772,7 +772,7 @@ void WOLLoginMenuUpdate( WindowLayout * layout, void *userData)
 		SetUpGameSpy( motd.str(), config.str() );
 	}
 	*/
-	// TODO_NGMP: Add login timeout again
+	// TODO_GENONLINE: Add login timeout again
 
 }
 

@@ -126,7 +126,7 @@
 // RETAIL_COMPATIBLE_CRC and RETAIL_COMPATIBLE_DATA are default defined in BaseDefines.h
 
 #ifndef RETAIL_COMPATIBLE_XFER_SAVE
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 #define RETAIL_COMPATIBLE_XFER_SAVE (0)
 #else
 #define RETAIL_COMPATIBLE_XFER_SAVE (1) // Game is expected to be Xfer Save compatible with retail Generals 1.08, Zero Hour 1.04
@@ -135,7 +135,7 @@
 
 // This is here to easily toggle between the retail compatible pathfinding memory allocation and the new static allocated data mode
 #ifndef RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 #define RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION (0)
 #else
 #define RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION (1)
@@ -144,7 +144,7 @@
 
 // Disable non retail fixes in the networking, such as putting more data per UDP packet
 #ifndef RETAIL_COMPATIBLE_NETWORKING
-#if !defined(GENERALS_ONLINE)
+#if !defined(GENONLINE)
 #define RETAIL_COMPATIBLE_NETWORKING (1)
 #endif
 #endif
@@ -158,7 +158,7 @@
 // but put them behind this macro.
 
 #ifndef RETAIL_COMPATIBLE_AIGROUP
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 #define RETAIL_COMPATIBLE_AIGROUP (0)
 #else
 #define RETAIL_COMPATIBLE_AIGROUP (1) // AIGroup logic is expected to be CRC compatible with retail Generals 1.08, Zero Hour 1.04

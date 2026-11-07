@@ -86,7 +86,7 @@
 #include "GameLogic/Object.h"
 #include "GameLogic/ScriptEngine.h"		// For TheScriptEngine - jkmcd
 
-#include "../NextGenMP_defines.h"
+#include "../GenOnlineDefines.h"
 #include <chrono>
 
 
@@ -110,7 +110,7 @@ GameClient::GameClient()
 
 	m_frame = 0;
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE_HIGH_FPS_RENDER)
 	m_legacyFrameMSAccured = 0;
 	m_frameLegacy = 0;
 	m_frameLegacyLast = 0;
@@ -745,7 +745,7 @@ void GameClient::update()
 		TheInGameUI->UPDATE();
 	}
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE_HIGH_FPS_RENDER)
 	int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 
 	if (!freezeTime)
@@ -754,7 +754,7 @@ void GameClient::update()
 	}
 	m_LegacyFrameEndLastFrame = currTime;
 
-	// TODO_NGMP: This should really use partial frame intervals instead of a fixed 60hz update
+	// TODO_GENONLINE: This should really use partial frame intervals instead of a fixed 60hz update
 	if (m_legacyFrameMSAccured >= 33)
 	{
 		m_legacyFrameMSAccured = 0;

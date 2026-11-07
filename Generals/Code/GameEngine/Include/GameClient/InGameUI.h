@@ -365,7 +365,11 @@ public:  // ********************************************************************
 
 	// interface for messages to the user
 	// srj sez: passing as const-ref screws up varargs for some reason. dunno why. just pass by value.
+#if defined(GENONLINE)
+	virtual void messageColor( bool bIsChatMsg, const RGBColor *rgbColor, UnicodeString format, ... );	///< display a colored message to the user
+#else
 	virtual void messageColor( const RGBColor *rgbColor, UnicodeString format, ... );	///< display a colored message to the user
+#endif
 	virtual void messageNoFormat( const UnicodeString& message ); ///< display a message to the user
 	virtual void messageNoFormat( const RGBColor *rgbColor, const UnicodeString& message ); ///< display a colored message to the user
 	virtual void message( UnicodeString format, ... );				  ///< display a message to the user
@@ -540,11 +544,15 @@ public:  // ********************************************************************
 	void setCameraRotateRight( Bool set )		{ m_cameraRotatingRight = set; }
 	void setCameraZoomIn( Bool set )				{ m_cameraZoomingIn = set; }
 	void setCameraZoomOut( Bool set )				{ m_cameraZoomingOut = set; }
+	void setCameraPitchUp( Bool set )				{ m_cameraPitchingUp = set; }
+	void setCameraPitchDown( Bool set )			{ m_cameraPitchingDown = set; }
   void setCameraTrackingDrawable( Bool set ) { m_cameraTrackingDrawable = set; }
 	Bool isCameraRotatingLeft() const { return m_cameraRotatingLeft; }
 	Bool isCameraRotatingRight() const { return m_cameraRotatingRight; }
 	Bool isCameraZoomingIn() const { return m_cameraZoomingIn; }
 	Bool isCameraZoomingOut() const { return m_cameraZoomingOut; }
+	Bool isCameraPitchingUp() const { return m_cameraPitchingUp; }
+	Bool isCameraPitchingDown() const { return m_cameraPitchingDown; }
   Bool isCameraTrackingDrawable() const { return m_cameraTrackingDrawable; }
 	void resetCamera();
 
@@ -952,6 +960,8 @@ protected:
 	Bool 												m_cameraZoomingIn;
 	Bool 												m_cameraTrackingDrawable;
 	Bool 												m_cameraZoomingOut;
+	Bool 												m_cameraPitchingUp;
+	Bool 												m_cameraPitchingDown;
 
 	Bool												m_drawRMBScrollAnchor;
 	Bool												m_moveRMBScrollAnchor;

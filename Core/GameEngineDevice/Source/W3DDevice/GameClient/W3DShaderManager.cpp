@@ -2023,7 +2023,7 @@ Int TerrainShaderPixelShader::init()
 
 Int TerrainShaderPixelShader::set(Int pass)
 {
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	if (W3DShaderManager::getShaderTexture(0) == nullptr || W3DShaderManager::getShaderTexture(1) == nullptr)
 	{
 		return FALSE;

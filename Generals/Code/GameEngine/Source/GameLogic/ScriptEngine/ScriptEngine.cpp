@@ -4992,9 +4992,24 @@ void ScriptEngine::startQuickEndGameTimer()
 //-------------------------------------------------------------------------------------------------
 /** startEndGameTimer */
 //-------------------------------------------------------------------------------------------------
+#if defined(GENONLINE)
+void ScriptEngine::startEndGameTimer(bool bExtendForErrorMsg)
+#else
 void ScriptEngine::startEndGameTimer()
+#endif
 {
+#if defined(GENONLINE)
+	if (bExtendForErrorMsg)
+	{
+		m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE * 5;
+	}
+	else
+	{
+		m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
+	}
+#else
 	m_endGameTimer = FRAMES_TO_SHOW_WIN_LOSE_MESSAGE;
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------

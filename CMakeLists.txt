@@ -94,7 +94,7 @@ add_subdirectory(Dependencies)
 add_subdirectory(resources)
 
 # Generals Online code in Core and its libraries checks this, so every target needs it.
-add_compile_definitions(GENERALS_ONLINE)
+add_compile_definitions(GENONLINE)
 
 add_subdirectory(Core)
 

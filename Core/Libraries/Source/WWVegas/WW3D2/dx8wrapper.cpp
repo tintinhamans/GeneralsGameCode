@@ -314,7 +314,7 @@ bool DX8Wrapper::Init(void* hwnd, bool lite)
 	Invalidate_Cached_Render_States();
 
 	if (!lite) {
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
         LoadLibrary("dxwrapper_go.dll");
         D3D8Lib = LoadLibraryEx("D3D8.DLL", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32); // dont load the local hooked d3d8
 #else
@@ -939,7 +939,7 @@ void DX8Wrapper::Resize_And_Position_Window()
 		// Resize the window to fit this resolution
 		if (!IsWindowed)
 		{
-#if defined(GENERALS_ONLINE_WINDOWED_FULLSCREEN)
+#if defined(GENONLINE_WINDOWED_FULLSCREEN)
             // Assume hwnd is your application?s window handle
             LONG_PTR style = GetWindowLongPtr(_Hwnd, GWL_STYLE);
 
@@ -1049,7 +1049,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	//I changed this to discard all the time (even when full-screen) since that the most efficient. 07-16-03 MW:
 	_PresentParameters.SwapEffect = D3DSWAPEFFECT_DISCARD;//IsWindowed ? D3DSWAPEFFECT_DISCARD : D3DSWAPEFFECT_FLIP;		// Shouldn't this be D3DSWAPEFFECT_FLIP?
 	_PresentParameters.hDeviceWindow = _Hwnd;
-#if defined(GENERALS_ONLINE_WINDOWED_FULLSCREEN)
+#if defined(GENONLINE_WINDOWED_FULLSCREEN)
     _PresentParameters.Windowed = TRUE; // always windowed now
 #else
     _PresentParameters.Windowed = IsWindowed;

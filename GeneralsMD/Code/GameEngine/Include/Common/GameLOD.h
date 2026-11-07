@@ -188,7 +188,7 @@ public:
 	Bool didMemPass();
 	void setReallyLowMHz(Int mhz) { m_reallyLowMHz = mhz; }
 	Bool isReallyLowMHz() const { return m_cpuFreq < m_reallyLowMHz; }
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	void updateGraphicsQualityState(float averageFPS);
 	void restoreQualitySettings();
 	bool isQualityReduced() const { return m_isQualityReduced; }
@@ -231,7 +231,7 @@ protected:
 	Real m_memBenchIndex;
 	Real m_compositeBenchIndex;
 	Int m_reallyLowMHz;
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	bool m_userShadowVolumesEnabled;
 	bool m_userShadowDecalsEnabled;
 	bool m_userHeatEffectsEnabled;

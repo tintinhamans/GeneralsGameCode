@@ -99,9 +99,9 @@ public:
 	virtual Bool isIdle() const override;
 	virtual UpdateSleepTime update() override;
 
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-	UnsignedInt getUnpackTime()					const { return getDeployStyleAIUpdateModuleData()->m_unpackTime/ GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER; }
-	UnsignedInt getPackTime()						const { return getDeployStyleAIUpdateModuleData()->m_packTime/ GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER; }
+#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
+	UnsignedInt getUnpackTime()					const { return getDeployStyleAIUpdateModuleData()->m_unpackTime/ GENONLINE_HIGH_FPS_FRAME_MULTIPLIER; }
+	UnsignedInt getPackTime()						const { return getDeployStyleAIUpdateModuleData()->m_packTime/ GENONLINE_HIGH_FPS_FRAME_MULTIPLIER; }
 #else
 	UnsignedInt getUnpackTime()					const { return getDeployStyleAIUpdateModuleData()->m_unpackTime; }
 	UnsignedInt getPackTime()						const { return getDeployStyleAIUpdateModuleData()->m_packTime; }

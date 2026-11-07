@@ -73,7 +73,7 @@
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
 
 #include "GameClient/InGameUI.h"
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInit.h"
 
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -215,7 +215,7 @@ extern Bool dispChanged;
 void diffReverseSide();
 void HandleCanceledDownload( Bool resetDropDown )
 {
-	NGMP_OnlineServicesManager::GetInstance()->CancelUpdate();
+	GenOnlineServicesManager::GetInstance()->CancelUpdate();
 
 	buttonPushed = FALSE;
 	if (resetDropDown)
