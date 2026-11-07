@@ -92,7 +92,7 @@ static AnimateWindowManager *theAnimateWindowManager = nullptr;
 WindowMsgHandledType BuddyControlSystem( GameWindow *window, UnsignedInt msg,
 														 WindowMsgData mData1, WindowMsgData mData2);
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void updateBuddyInfo(bool bIsAutoRefresh = false, bool bUseCache = false);
 #else
 void updateBuddyInfo( void );
@@ -523,7 +523,7 @@ void PopulateInGameDiplomacyPopup()
 			{
 				staticTextSide[rowNum]->winSetEnabledTextColors( playerColor, backColor );
 
-#if defined(GO_REVEAL_TEAMS)
+#if defined(GENONLINE_REVEAL_TEAMS)
                 const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
                 GadgetStaticTextSetText(staticTextSide[rowNum], pt ? pt->getDisplayName() : slot->getApparentPlayerTemplateDisplayName());
 #else

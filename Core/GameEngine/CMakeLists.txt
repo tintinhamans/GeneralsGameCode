@@ -1196,6 +1196,48 @@ set(GAMEENGINE_SRC
     Source/GameNetwork/udp.cpp
     Source/GameNetwork/User.cpp
     Source/GameNetwork/WOLBrowser/WebBrowser.cpp
+    Include/GameNetwork/GenOnline/json.hpp
+    Include/GameNetwork/GenOnline/DiscordRichPresence.h
+    Include/GameNetwork/GenOnline/Vendor/DiscordRPC/discord_rpc.h
+    Include/GameNetwork/GenOnline/NetworkBitstream.h
+    Include/GameNetwork/GenOnline/NetworkMesh.h
+    Include/GameNetwork/GenOnline/NetworkPacket.h
+    Include/GameNetwork/GenOnline/GenOnlineDefines.h
+    Include/GameNetwork/GenOnline/GenOnlineGame.h
+    Include/GameNetwork/GenOnline/GenOnlineInclude.h
+    Include/GameNetwork/GenOnline/GenOnlineInterfaces.h
+    Include/GameNetwork/GenOnline/GenOnlineTypes.h
+    Include/GameNetwork/GenOnline/GenOnlineAuth.h
+    Include/GameNetwork/GenOnline/GenOnlineInit.h
+    Include/GameNetwork/GenOnline/GenOnlineLobbyInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineModeration.h
+    Include/GameNetwork/GenOnline/GenOnlineRoomsInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineStatsInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineSocialInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineMatchmakingInterface.h
+    Include/GameNetwork/GenOnline/GenOnlineSettings.h
+    Include/GameNetwork/GenOnline/HTTP/HTTPManager.h
+    Include/GameNetwork/GenOnline/HTTP/HTTPRequest.h
+    Include/GameNetwork/GenOnline/GenOnlineTransport.h
+    Include/GameNetwork/GenOnline/PluginInterfaces.h
+    Source/GameNetwork/GenOnline/DiscordRichPresence.cpp
+    Source/GameNetwork/GenOnline/GenOnlineHelpers.cpp
+    Source/GameNetwork/GenOnline/GenOnlineGame.cpp
+    Source/GameNetwork/GenOnline/GenOnlineSettings.cpp
+    Source/GameNetwork/GenOnline/HTTP/HTTPManager.cpp
+    Source/GameNetwork/GenOnline/HTTP/HTTPRequest.cpp
+    Source/GameNetwork/GenOnline/NetworkMesh.cpp
+    Source/GameNetwork/GenOnline/GenOnlineInit.cpp
+    Source/GameNetwork/GenOnline/GenOnlineAuth.cpp
+    Source/GameNetwork/GenOnline/GenOnlineLobbyInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineModeration.cpp
+    Source/GameNetwork/GenOnline/GenOnlineRoomsInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineStatsInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineSocialInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineMatchmakingInterface.cpp
+    Source/GameNetwork/GenOnline/GenOnlineTransport.cpp
+    Source/GameNetwork/GenOnline/NetworkBitstream.cpp
+    Source/GameNetwork/GenOnline/PluginInterfaces.cpp
     Source/Precompiled/PreRTS.cpp
 )
 
@@ -1223,6 +1265,7 @@ target_precompile_headers(corei_gameengine_private INTERFACE
 
 target_include_directories(corei_gameengine_public INTERFACE
     Include
+    Include/GameNetwork/GenOnline/Vendor/
 )
 
 target_link_libraries(corei_gameengine_public INTERFACE
@@ -1239,4 +1282,17 @@ target_link_libraries(corei_gameengine_public INTERFACE
 # ReactOS ATL for MinGW-w64 only (MSVC uses native ATL)
 if(MINGW)
     target_link_libraries(corei_gameengine_public INTERFACE reactos_atl)
+endif()
+
+# Generals Online networking dependencies, provided by vcpkg (see vcpkg.json).
+if(NOT IS_VS6_BUILD)
+    find_package(CURL CONFIG REQUIRED)
+    find_package(GameNetworkingSockets CONFIG REQUIRED)
+    find_package(sentry CONFIG REQUIRED)
+
+    target_link_libraries(corei_gameengine_public INTERFACE
+        CURL::libcurl
+        GameNetworkingSockets::GameNetworkingSockets_s
+        sentry::sentry
+    )
 endif()

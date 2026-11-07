@@ -93,9 +93,9 @@
 
 #include "Common/UnitTimings.h" //Contains the DO_UNIT_TIMINGS define jba.
 
-#if defined(GENERALS_ONLINE)
-#include "../NGMP_interfaces.h"
-#include "../OnlineServices_Init.h"
+#if defined(GENONLINE)
+#include "../GenOnlineInterfaces.h"
+#include "../GenOnlineInit.h"
 #include "../NetworkMesh.h"
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/NetworkInterface.h"
@@ -1137,7 +1137,7 @@ InGameUI::InGameUI()
 		m_uiMessages[i].timestamp = 0;
 		m_uiMessages[i].color = 0;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		m_uiMessages[i].isChat = false;
 #endif
 	}
@@ -1217,7 +1217,7 @@ InGameUI::InGameUI()
 	m_observerNotificationPointSize = TheGlobalData->m_observerNotificationFontSize;
 	m_observerNotificationsHidden = false;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	m_colorGood = GameMakeColor(0, 255, 0, 150);
 	m_colorBad = GameMakeColor(255, 0, 0, 150);
 #endif
@@ -1916,9 +1916,9 @@ void InGameUI::update()
 	UnsignedInt currLogicFrame = TheGameLogic->getFrame();
 
 	// GeneralsOnline NOTE: Increasing this, it's short + we increased framerate which is tied into the calc elsewhere
-#if defined(GENERALS_ONLINE)
-	const int messageTimeoutChat = NGMP_OnlineServicesManager::Settings.GetChatLifeSeconds() * LOGICFRAMES_PER_SECOND;
-	const int messageTimeoutStandard = (m_messageDelayMS / LOGICFRAMES_PER_SECOND / 1000) * GENERALS_ONLINE_HIGH_FPS_FRAME_MULTIPLIER;
+#if defined(GENONLINE)
+	const int messageTimeoutChat = GenOnlineServicesManager::Settings.GetChatLifeSeconds() * LOGICFRAMES_PER_SECOND;
+	const int messageTimeoutStandard = (m_messageDelayMS / LOGICFRAMES_PER_SECOND / 1000) * GENONLINE_HIGH_FPS_FRAME_MULTIPLIER;
 #else
 	// TheSuperHackers @bugfix bobtista 13/08/2026 Convert milliseconds to logic frames
 	const int messageTimeout = REAL_TO_INT_CEIL( ConvertDurationFromMsecsToFrames( (Real)m_messageDelayMS ) );
@@ -1928,7 +1928,7 @@ void InGameUI::update()
 	for (i = MAX_UI_MESSAGES - 1; i >= 0; i--)
 	{
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		// determine which timeout to apply
 		const int messageTimeout = m_uiMessages[i].isChat ? messageTimeoutChat : messageTimeoutStandard;
 #endif
@@ -2441,7 +2441,7 @@ void InGameUI::message(UnicodeString format, ...)
 //-------------------------------------------------------------------------------------------------
 // srj sez: passing as const-ref screws up varargs for some reason. dunno why. just pass by value.
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void InGameUI::messageColor(bool bIsChatMsg, const RGBColor * rgbColor, UnicodeString format, ...)
 #else
 void InGameUI::messageColor(const RGBColor * rgbColor, UnicodeString format, ...)
@@ -2460,7 +2460,7 @@ void InGameUI::messageColor(const RGBColor * rgbColor, UnicodeString format, ...
 	{
 		formattedMessage.set(buf);
 		// add the text to the ui
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 		addMessageText(formattedMessage, rgbColor, bIsChatMsg);
 #else
 		addMessageText(formattedMessage, rgbColor);
@@ -2474,7 +2474,7 @@ void InGameUI::messageColor(const RGBColor * rgbColor, UnicodeString format, ...
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void InGameUI::addMessageText(const UnicodeString & formattedMessage, const RGBColor * rgbColor, bool bIsChatMsg)
 #else
 void InGameUI::addMessageText(const UnicodeString & formattedMessage, const RGBColor * rgbColor)
@@ -2507,7 +2507,7 @@ void InGameUI::addMessageText(const UnicodeString & formattedMessage, const RGBC
 	// "up" an index
 	//
 	m_uiMessages[0].fullText = formattedMessage;
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	m_uiMessages[0].isChat = bIsChatMsg;
 #endif
 	m_uiMessages[0].timestamp = TheGameLogic->getFrame();
@@ -4189,7 +4189,7 @@ void InGameUI::postDraw()
 				if (framesLeft > 0)
 					readyFrame += framesLeft;
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 				Int readySecs = (Int)((Real)(readyFrame - TheGameLogic->getFrame()) / (Real)BaseFps);
 #else
 				Int readySecs = (Int)(SECONDS_PER_LOGICFRAME_REAL * (readyFrame - TheGameLogic->getFrame()));
@@ -4587,13 +4587,13 @@ void InGameUI::militarySubtitle(const AsciiString& label, Int duration)
 
 	// calculate where this screen position should be since the position being passed in is based off 8x6
 	Coord2D multiplier;
-#if !defined(GENERALS_ONLINE_WIDESCREEN)
+#if !defined(GENONLINE_WIDESCREEN)
 	multiplier.x = (float)TheDisplay->getWidth() / 800.0f;
 	multiplier.y = (float)TheDisplay->getHeight() / 600.0f;
 
 #else
-	multiplier.x = (float)TheDisplay->getWidth() / GENERALS_ONLINE_WIDESCREEN_X_SCALE;
-	multiplier.y = (float)TheDisplay->getHeight() / GENERALS_ONLINE_WIDESCREEN_Y_SCALE;
+	multiplier.x = (float)TheDisplay->getWidth() / GENONLINE_WIDESCREEN_X_SCALE;
+	multiplier.y = (float)TheDisplay->getHeight() / GENONLINE_WIDESCREEN_Y_SCALE;
 #endif
 
 	// lets bring out the data structure!
@@ -6725,7 +6725,7 @@ void InGameUI::drawObserverStats(Int & x, Int & y)
 
 
 		// render by team
-		// TODO_NGMP: Using a sort would be quicker, this has poor time complexity
+		// TODO_GENONLINE: Using a sort would be quicker, this has poor time complexity
 		for (int team : setTeams)
 		{
             for (Int slotIndex = 0; slotIndex < MAX_SLOTS; ++slotIndex)
@@ -7079,8 +7079,8 @@ void InGameUI::updateRenderFpsString()
 
 void InGameUI::drawNetworkLatency(Int& x, Int& y)
 {
-#if defined(GENERALS_ONLINE)
-	const UnsignedInt actualLatencyInMS = TheNetwork->getRunAhead() * (1000 / GENERALS_ONLINE_HIGH_FPS_LIMIT);
+#if defined(GENONLINE)
+	const UnsignedInt actualLatencyInMS = TheNetwork->getRunAhead() * (1000 / GENONLINE_HIGH_FPS_LIMIT);
 	const UnsignedInt actualFrames = ConvertMSLatencyToFrames(actualLatencyInMS);
 	const UnsignedInt gentoolFrames = ConvertMSLatencyToGenToolFrames(actualLatencyInMS);
 
@@ -7195,8 +7195,8 @@ void InGameUI::drawSystemTime(Int& x, Int& y)
 
 	UnicodeString TimeString;
 
-#if defined(GENERALS_ONLINE)
-	if (NGMP_OnlineServicesManager::Settings.Graphics_DrawStatsOverlay() && TheNetwork != nullptr)
+#if defined(GENONLINE)
+	if (GenOnlineServicesManager::Settings.Graphics_DrawStatsOverlay() && TheNetwork != nullptr)
 	{
 		int64_t currTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::utc_clock::now().time_since_epoch()).count();
 		if (currTime - lastFPSUpdate >= 1000)
@@ -7234,13 +7234,13 @@ void InGameUI::drawSystemTime(Int& x, Int& y)
 void InGameUI::drawGameTime()
 {
 	// draw connections
-	if (NGMP_OnlineServicesManager::IsAdvancedNetworkStatsEnabled())
+	if (GenOnlineServicesManager::IsAdvancedNetworkStatsEnabled())
 	{
-		if (TheNGMPGame != nullptr)
+		if (TheGenOnlineGame != nullptr)
 		{
-			NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
+			NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
 
-			NGMP_OnlineServices_LobbyInterface* pLobbyInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_LobbyInterface>();
+			GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
 
 			if (pMesh != nullptr && pLobbyInterface != nullptr)
 			{
@@ -7310,7 +7310,7 @@ void InGameUI::drawGameTime()
 					m_gameTimeString->getSize(&w, &h);
 
 					bool bIsHighQuality = true;
-					if (avgFPS < (GENERALS_ONLINE_HIGH_FPS_LIMIT - 1) || status.m_cbSentUnackedReliable >= 1000 || (status.m_flConnectionQualityLocal != -1.f && status.m_flConnectionQualityLocal < 1.f) || (status.m_flConnectionQualityRemote != -1.f && status.m_flConnectionQualityRemote < 1.f))
+					if (avgFPS < (GENONLINE_HIGH_FPS_LIMIT - 1) || status.m_cbSentUnackedReliable >= 1000 || (status.m_flConnectionQualityLocal != -1.f && status.m_flConnectionQualityLocal < 1.f) || (status.m_flConnectionQualityRemote != -1.f && status.m_flConnectionQualityRemote < 1.f))
 					{
 						bIsHighQuality = false;
 					}
@@ -7349,7 +7349,7 @@ void InGameUI::drawGameTime()
 
 void InGameUI::drawPlayerInfoList()
 {
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	return;
 #endif
 	const Int baseX = (Int)(m_playerInfoListPosition.x * TheDisplay->getWidth());

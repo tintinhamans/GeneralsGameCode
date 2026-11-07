@@ -2761,7 +2761,7 @@ GameWindow *GameWindowManager::winCreateFromScript( AsciiString filenameString,
 	else
 		strlcpy(filepath, filename, ARRAY_SIZE(filepath));
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	// check Generals Online first
 	char gofilepath[_MAX_PATH] = "GeneralsOnlineGameData\\";
 	if (strchr(filename, '\\') == NULL)

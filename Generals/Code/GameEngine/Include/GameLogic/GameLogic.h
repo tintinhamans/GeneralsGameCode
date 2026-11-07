@@ -172,6 +172,9 @@ public:
 
 	//Kris: Cut isLoadingGame() and replaced with isLoadingMap() and isLoadingSave() -- reason: nomenclature
 	//Bool isLoadingGame() const { return m_loadingScene; }		// This is the old function that isn't very clear on it's definition.
+#if defined(GENONLINE)
+	bool IsLoadScreenActive() const { return m_loadScreen != nullptr; }
+#endif
 	Bool isLoadingMap() const { return m_loadingMap; }			// Whenever a map is in the process of loading.
 	Bool isLoadingSave() const { return m_loadingSave; }		// Whenever a saved game is in the process of loading.
 	Bool isClearingGameData() const { return m_clearingGameData; }

@@ -375,8 +375,7 @@ void PopulateStartingCashComboBox(GameWindow *comboBox, GameInfo *myGame)
     }
   }
 
-  // NGMP: safety
-  // TODO_NGMP: Why can we get in here with no data during lobby creation? async?
+  // TODO_GENONLINE: Find why lobby creation can get here with no data, maybe async.
   if (myGame->getStartingCash().countMoney() == 0)
   {
 	  currentSelectionIndex = 0;
@@ -490,7 +489,7 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 				if (buttonAccept && buttonAccept[i])
 					buttonAccept[i]->winHide(TRUE);
 
-				// NGMP: Support host migration, names can change for non-human occupied slots during migration
+				// GenOnline: Support host migration, names can change for non-human occupied slots during migration
 				GadgetComboBoxSetText(comboPlayer[i], slot->getName());
 			}
 /*

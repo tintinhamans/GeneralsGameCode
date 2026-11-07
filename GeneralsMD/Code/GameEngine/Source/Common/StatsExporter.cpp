@@ -37,7 +37,7 @@
 #define __MACTYPES__
 #include <zlib.h>
 
-#include "GameNetwork/GeneralsOnline/json.hpp"
+#include "GameNetwork/GenOnline/json.hpp"
 
 using ordered_json = nlohmann::ordered_json;
 

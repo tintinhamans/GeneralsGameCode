@@ -51,8 +51,8 @@
 #include "Common/AsciiString.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/PerfTimer.h"
-#include "../NGMP_include.h"
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInclude.h"
+#include "../GenOnlineInit.h"
 
 
 //----------------------------------------------------------------------------

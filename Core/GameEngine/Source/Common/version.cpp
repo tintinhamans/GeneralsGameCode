@@ -321,7 +321,7 @@ UnicodeString Version::getUnicodeBuildUserOrGitCommitAuthorName() const
 UnicodeString Version::getUnicodeProductTitle() const
 {
 	// @todo Make configurable
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	return L"GeneralsOnline";
 #else
 	return L"Community Patch";
@@ -330,9 +330,9 @@ UnicodeString Version::getUnicodeProductTitle() const
 
 UnicodeString Version::getUnicodeProductVersion() const
 {
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
     UnicodeString str;
-	str.format(L"%hs", GENERALS_ONLINE_VERSION_STRING);
+	str.format(L"%hs", GENONLINE_VERSION_STRING);
 	return str;
 #else
 	return getUnicodeGitVersion();

@@ -178,7 +178,7 @@ public:
 	virtual Bool isTimeFrozen() { return false; }					///< Freezes time during the next camera movement.
 	virtual Int	 getTimeMultiplier() { return 1; };				///< Get the time multiplier.
 	virtual void setTimeMultiplier(Int multiple) {}; ///< Set the time multiplier.
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
     virtual void setDefaultView(Real pitch, Real angle, Real maxHeight, bool bForceDefaultCam = true) {};
 #else
     virtual void setDefaultView(Real pitch, Real angle, Real maxHeight) {};

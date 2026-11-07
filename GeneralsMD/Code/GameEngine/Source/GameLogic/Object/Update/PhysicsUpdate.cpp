@@ -362,7 +362,7 @@ void PhysicsBehavior::applyShock( const Coord3D *force )
 {
 	Coord3D resistedForce = *force;
 	resistedForce.scale( 1.0f - min( 1.0f, max( 0.0f, getPhysicsBehaviorModuleData()->m_shockResistance ) ) );
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
     resistedForce.scale(0.5f);
 #endif
 	// Apply the processed shock force to the object
@@ -384,7 +384,7 @@ void PhysicsBehavior::applyRandomRotation()
 	Real randomModifier;
 
 
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
 	randomModifier = GameLogicRandomValue(-1.0f, 1.0f);
 	m_yawRate += (getPhysicsBehaviorModuleData()->m_shockMaxYaw/2.f) * randomModifier;
 
@@ -666,7 +666,7 @@ UpdateSleepTime PhysicsBehavior::update()
 
 		// when vel gets tiny, just clamp to zero
 		const Real THRESH = 0.001f;
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 		// Info: At 60Hz, motive acceleration can be smaller than THRESH and must accumulate across frames.
 		if (!isMotive())
 		{

@@ -29,7 +29,7 @@
 #pragma once
 
 #include "GameNetwork/udp.h"
-// NGMP NOTE: We have multiple transports now, so UDPTransport is what Transport was. It's the legacy, direct connection transport the original game used. Transport is now a base class.#include "GameNetwork/udp.h"
+// GenOnline NOTE: Transport is now a base class, and UDPTransport is the legacy direct connection transport the original game used.
 #include "GameNetwork/NetworkDefs.h"
 
 // we only ever allocate one of there, and it is quite large, so we really DON'T want

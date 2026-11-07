@@ -91,7 +91,7 @@
 #include "GameNetwork/GameSpy/BuddyThread.h"
 
 #include "WW3D2/ww3d.h"
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInit.h"
 
 #if defined(RTS_DEBUG)
 /*non-static*/ Real TheSkateDistOverride = 0.0f;
@@ -226,8 +226,11 @@ static bool changeObserverNotificationFontSize(ObserverFontSizeChange change)
 
 	TheWritableGlobalData->m_observerNotificationFontSize = fontSize;
 
+#if RTS_ZEROHOUR
+	// The observer overlay is only implemented in the Zero Hour InGameUI
 	if (TheInGameUI)
 		TheInGameUI->refreshObserverNotificationResources();
+#endif
 
 	writeObserverFontSizePref("ObserverNotificationFontSize", fontSize);
 
@@ -243,8 +246,11 @@ static bool changeObserverStatsFontSize(ObserverFontSizeChange change)
 
 	TheWritableGlobalData->m_observerStatsFontSize = fontSize;
 
+#if RTS_ZEROHOUR
+	// The observer overlay is only implemented in the Zero Hour InGameUI
 	if (TheInGameUI)
 		TheInGameUI->initObserverOverlay();
+#endif
 
 	writeObserverFontSizePref("ObserverStatsFontSize", fontSize);
 
@@ -259,10 +265,10 @@ bool changeMaxRenderFps(FpsValueChange change)
 	TheFramePacer->setFramesPerSecondLimit(maxRenderFps);
 	TheWritableGlobalData->m_useFpsLimit = (maxRenderFps != RenderFpsPreset::UncappedFpsValue);
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
     // Save to GO settings, SH does not save it yet
-    // TODO_NGMP: Remove this, SH saves it now
-    NGMP_OnlineServicesManager::Settings.Graphics_SetFPS(maxRenderFps, TheWritableGlobalData->m_useFpsLimit);
+    // TODO_GENONLINE: Remove this, SH saves it now
+    GenOnlineServicesManager::Settings.Graphics_SetFPS(maxRenderFps, TheWritableGlobalData->m_useFpsLimit);
 #endif
 
 	UnicodeString message;
@@ -3573,7 +3579,9 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				}
 
 				ToggleControlBar();
+#if RTS_ZEROHOUR
 				TheInGameUI->toggleObserverStats();
+#endif
 			}
 			disp = DESTROY_MESSAGE;
 			break;
@@ -4016,7 +4024,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			break;
 		}
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
         case GameMessage::MSG_RAW_KEY_UP:
         {
             int key = msg->getArgument(0)->integer;
@@ -4030,7 +4038,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
             }
             else if (key == KEY_F10)
             {
-                NGMP_OnlineServicesManager::ToggleAdvancedNetworkStats();
+                GenOnlineServicesManager::ToggleAdvancedNetworkStats();
 
                 disp = DESTROY_MESSAGE;
             }

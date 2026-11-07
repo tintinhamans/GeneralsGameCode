@@ -211,7 +211,7 @@ void HelicopterSlowDeathBehavior::beginSlowDeath( const DamageInfo *damageInfo )
 	m_forwardAngle = getObject()->getOrientation();
 
 	// set or forward speed in the spiral orbit speed to that specified
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 	m_forwardSpeed = modData->m_spiralOrbitForwardSpeed;
 #else
 	m_forwardSpeed = modData->m_spiralOrbitForwardSpeed;
@@ -276,7 +276,7 @@ void HelicopterSlowDeathBehavior::beginSlowDeath( const DamageInfo *damageInfo )
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime HelicopterSlowDeathBehavior::update()
 {
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 	if (!TheGameLogic->HasLegacyFrameAdvanced())
 	{
 		return UPDATE_SLEEP_NONE;
@@ -317,7 +317,7 @@ UpdateSleepTime HelicopterSlowDeathBehavior::update()
 		// will ping pong back and forth between the MinSelfSpin and MaxSelfSpin defined in INI
 		//
 		if( modData->m_selfSpinUpdateDelay &&
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 				TheGameLogic->getFrameLegacy() - m_lastSelfSpinUpdateFrame > modData->m_selfSpinUpdateDelay )
 #else
 				TheGameLogic->getFrame() - m_lastSelfSpinUpdateFrame > modData->m_selfSpinUpdateDelay )
@@ -355,7 +355,7 @@ UpdateSleepTime HelicopterSlowDeathBehavior::update()
 			}
 
 			// we have made a change to the self spinning
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 			m_lastSelfSpinUpdateFrame = TheGameLogic->getFrameLegacy();
 #else
 			m_lastSelfSpinUpdateFrame = TheGameLogic->getFrame();
@@ -375,7 +375,7 @@ UpdateSleepTime HelicopterSlowDeathBehavior::update()
 		//
 
 		Coord3D force;
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
 		force.x = DOUBLE_TO_REAL( Cos( m_forwardAngle ) ) * m_forwardSpeed/2.f;
 		force.y = DOUBLE_TO_REAL( Sin( m_forwardAngle ) ) * m_forwardSpeed/2.f;
 #else
@@ -467,7 +467,7 @@ UpdateSleepTime HelicopterSlowDeathBehavior::update()
 		{
 
 			// mark the frame we hit the ground on
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 			m_hitGroundFrame = TheGameLogic->getFrameLegacy();
 #else
 			m_hitGroundFrame = TheGameLogic->getFrame();
@@ -493,7 +493,7 @@ UpdateSleepTime HelicopterSlowDeathBehavior::update()
 
 	// if we're on the ground, see if it's time for our final boom
 	if( m_hitGroundFrame &&
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE_HIGH_FPS_SERVER)
 			TheGameLogic->getFrameLegacy() - m_hitGroundFrame > modData->m_delayFromGroundToFinalDeath )
 #else
 			TheGameLogic->getFrame() - m_hitGroundFrame > modData->m_delayFromGroundToFinalDeath )

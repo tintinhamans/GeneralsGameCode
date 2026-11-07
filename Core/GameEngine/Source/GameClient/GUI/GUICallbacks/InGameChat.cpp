@@ -52,8 +52,8 @@ static GameWindow *chatTypeStaticText = nullptr;
 static UnicodeString s_savedChat;
 static InGameChatType inGameChatType;
 
-#include "../NGMPGame.h"
-extern NGMPGame* TheNGMPGame;
+#include "../GenOnlineGame.h"
+extern GenOnlineGame* TheGenOnlineGame;
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
@@ -202,8 +202,8 @@ void ToggleInGameChat( Bool immediate )
 	if (TheGameLogic->isInReplayGame())
 		return;
 
-#if defined(GENERALS_ONLINE)
-	if (TheNGMPGame == nullptr)
+#if defined(GENONLINE)
+	if (TheGenOnlineGame == nullptr)
 #else
 	if (!TheGameInfo->isMultiPlayer() && TheGlobalData->m_netMinPlayers)
 #endif

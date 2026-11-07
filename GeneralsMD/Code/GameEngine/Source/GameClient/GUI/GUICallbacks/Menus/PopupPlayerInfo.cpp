@@ -60,9 +60,9 @@
 
 #include "WWDownload/Registry.h"
 
-#include "../ngmp_interfaces.h"
-#include "../ngmp_include.h"
-#include "../OnlineServices_Init.h"
+#include "../GenOnlineInterfaces.h"
+#include "../GenOnlineInclude.h"
+#include "../GenOnlineInit.h"
 
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -183,7 +183,7 @@ Int GetAdditionalDisconnectsFromUserFile(Int playerID)
 		return 0;
 	}
 
-	// TODO_NGMP_STATS:
+	// TODO_GENONLINE_STATS:
 	/*
 	if (TheGameSpyInfo->getAdditionalDisconnects() > 0 && !retval)
 	{
@@ -247,7 +247,9 @@ void GetAdditionalDisconnectsFromUserFile(PSPlayerStats *stats)
 // default values
 RankPoints::RankPoints()
 {
-	// In GeneralsMD, rank values are set in NGMP_OnlineServices_StatsInterface constructor
+	// In GeneralsMD, rank values are set in GenOnlineStatsInterface constructor
+	// Initialize with default values (these will be overwritten if properly initialized)
+	// In GeneralsMD, rank values are set in GenOnlineStatsInterface constructor
 	// Initialize with default values (these will be overwritten if properly initialized)
 	m_ranks[RANK_PRIVATE] = 0;
 	m_ranks[RANK_CORPORAL] = 5;
@@ -270,7 +272,7 @@ RankPoints::RankPoints()
 
 RankPoints* TheRankPointValues = NULL;
 
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 void SetLookAtPlayer(int64_t id, UnicodeString nick)
 {
 	lookAtPlayerID = id;
@@ -488,12 +490,12 @@ void ResetBattleHonorInsertion()
 }
 void InsertBattleHonor(GameWindow *list, const Image *image, Bool enabled, Int itemData, Int& row, Int& column, UnicodeString text = UnicodeString::TheEmptyString, Int extra = 0)
 {
-#if !defined(GENERALS_ONLINE_WIDESCREEN)
+#if !defined(GENONLINE_WIDESCREEN)
 	Int width = MAX_BATTLE_HONOR_IMAGE_WIDTH * (TheDisplay->getWidth() / 800.0f);
 	Int height = MAX_BATTLE_HONOR_IMAGE_HEIGHT * (TheDisplay->getHeight() / 600.0f);
 #else
-	Int width = MAX_BATTLE_HONOR_IMAGE_WIDTH * (TheDisplay->getWidth() / GENERALS_ONLINE_WIDESCREEN_X_SCALE);
-	Int height = MAX_BATTLE_HONOR_IMAGE_HEIGHT * (TheDisplay->getHeight() / GENERALS_ONLINE_WIDESCREEN_Y_SCALE);
+	Int width = MAX_BATTLE_HONOR_IMAGE_WIDTH * (TheDisplay->getWidth() / GENONLINE_WIDESCREEN_X_SCALE);
+	Int height = MAX_BATTLE_HONOR_IMAGE_HEIGHT * (TheDisplay->getHeight() / GENONLINE_WIDESCREEN_Y_SCALE);
 #endif
 
 	
@@ -743,7 +745,7 @@ static void populateBattleHonors(const PSPlayerStats& stats, Int battleHonors, I
 	}
 	*/
 
-	// TODO_NGMP_STATS
+	// TODO_GENONLINE_STATS
 	bool bPreordered = true;
 	//if (TheGameSpyInfo->didPlayerPreorder(stats.id))
 	if (bPreordered)
@@ -774,7 +776,7 @@ Int GetFavoriteSide( const PSPlayerStats& stats )
 	return favorite;
 }
 
-// TODO_NGMP: We should calculate this and store it on server side too so we can display on website
+// TODO_GENONLINE: We should calculate this and store it on server side too so we can display on website
 Int CalculateRank( const PSPlayerStats& stats )
 {
 	if(stats.id == 0 || !TheRankPointValues)	
@@ -837,8 +839,8 @@ static GameWindow* findWindow(GameWindow *parent, AsciiString baseWindow, AsciiS
 
 void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 {
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
-	NGMP_OnlineServices_StatsInterface* pStatsInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_StatsInterface>();
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	GenOnlineStatsInterface* pStatsInterface = GenOnlineServicesManager::GetInterface<GenOnlineStatsInterface>();
 	if (pAuthInterface == nullptr || pStatsInterface == nullptr)
 	{
 		return;
@@ -923,8 +925,8 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 				if (stats.locale >= LOC_MIN && stats.locale <= LOC_MAX)
 					localeID.format("WOL:Locale%2.2d", stats.locale);
 
-				// NGMP: Dont show the "from <locale> anymore...
-#if defined(GENERALS_ONLINE)
+				// GenOnline: Dont show the "from <locale> anymore...
+#if defined(GENONLINE)
 				uStr.format(L"%s", from_utf8(lookAtPlayerName).c_str());
 #else
 				uStr.format(TheGameText->fetch("GUI:PlayerStatistics"), lookAtPlayerName.c_str(), TheGameText->fetch(localeID).str());
@@ -934,7 +936,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			win = findWindow(parentWindow, parentWindowName, "StaticTextGamesPlayedValue");
 			if (win)
 			{
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 				uStr.format(L"%d (%d QM)", numGames, stats.elo_num_matches);
 #else
 				uStr.format(L"%d", numGames);
@@ -944,7 +946,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			win = findWindow(parentWindow, parentWindowName, "StaticTextWinsValue");
 			if (win)
 			{
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 				uStr.format(L"%d (Elo: %d)", numWins, stats.elo_rating);
 #else
 				uStr.format(L"%d", numWins);
@@ -957,7 +959,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 				uStr.format(L"%d", numLosses);
 				GadgetStaticTextSetText(win, uStr);
 			}
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 			win = findWindow(parentWindow, parentWindowName, "StaticTextDisconnects");
 			if (win)
 			{
@@ -972,7 +974,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 			win = findWindow(parentWindow, parentWindowName, "StaticTextDisconnectsValue");
 			if (win)
 			{
-#if defined(GENERALS_ONLINE)
+#if defined(GENONLINE)
 				uStr.format(L"%d", stats.monthly_elo_rating);
 #else
 				uStr.format(L"%d", numDiscons);
@@ -1350,7 +1352,7 @@ void HandlePersistentStorageResponses()
 //-------------------------------------------------------------------------------------------------
 void GameSpyPlayerInfoOverlayInit( WindowLayout *layout, void *userData )
 {
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	if (pAuthInterface == nullptr)
 	{
 		return;
@@ -1408,8 +1410,8 @@ void GameSpyPlayerInfoOverlayInit( WindowLayout *layout, void *userData )
 		checkBoxNonAsianFont->winHide(TRUE);
 	}
 
-#if defined(GENERALS_ONLINE)
-	// TODO_NGMP: re-enable social
+#if defined(GENONLINE)
+	// TODO_GENONLINE: re-enable social
 	buttonBuddies->winHide(true);
 #endif
 
@@ -1630,14 +1632,14 @@ WindowMsgHandledType GameSpyPlayerInfoOverlaySystem( GameWindow *window, Unsigne
 static void messageBoxYes()
 {
 	// log out of account
-	NGMP_OnlineServices_AuthInterface* pAuthInterface = NGMP_OnlineServicesManager::GetInterface<NGMP_OnlineServices_AuthInterface>();
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
 	if (pAuthInterface != nullptr)
 	{
 		pAuthInterface->LogoutOfMyAccount();
 
-		if (NGMP_OnlineServicesManager::GetInstance() != nullptr)
+		if (GenOnlineServicesManager::GetInstance() != nullptr)
 		{
-			NGMP_OnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_LOGOUT);
+			GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_LOGOUT);
 		}
 	}
 

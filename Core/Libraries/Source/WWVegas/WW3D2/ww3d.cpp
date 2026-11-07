@@ -120,7 +120,7 @@
 #include "shdlib.h"
 #include "framgrab.h"
 
-#include "../../../GameEngine/Include/GameNetwork/GeneralsOnline/NextGenMP_defines.h"
+#include "../../../GameEngine/Include/GameNetwork/GenOnline/GenOnlineDefines.h"
 #include "Lib/BaseType.h"
 
 

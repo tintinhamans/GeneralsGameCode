@@ -1080,3 +1080,7 @@ target_link_libraries(g_gameengine PUBLIC
 target_precompile_headers(g_gameengine PRIVATE
     [["Precompiled/BasePrecomp.h"]] # Must be first
 )
+
+# Generals Online is built into both games, like Zero Hour
+add_compile_definitions(_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
+add_compile_definitions(GENONLINE)

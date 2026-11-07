@@ -295,7 +295,7 @@ void SlowDeathBehavior::beginSlowDeath(const DamageInfo *damageInfo)
 				calcRandomForce(d->m_flingForce, d->m_flingForce + d->m_flingForceVariance,
 												d->m_flingPitch, d->m_flingPitch + d->m_flingPitchVariance, force);
 
-#if defined(GENERALS_ONLINE) && defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
+#if defined(GENONLINE) && defined(GENONLINE_HIGH_FPS_SERVER)
 				force.x /= 2.f;
 				force.y /= 2.f;
 				force.z /= 2.f;

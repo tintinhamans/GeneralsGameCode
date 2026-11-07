@@ -31,9 +31,9 @@
 #include "GameNetwork/FrameMetrics.h"
 #include "GameClient/Display.h"
 #include "GameNetwork/networkutil.h"
-#include "../NGMP_include.h"
+#include "../GenOnlineInclude.h"
 #include "../NetworkMesh.h"
-#include "../NGMP_interfaces.h"
+#include "../GenOnlineInterfaces.h"
 
 FrameMetrics::FrameMetrics()
 {
@@ -84,17 +84,17 @@ FrameMetrics::~FrameMetrics() {
 }
 
 void FrameMetrics::init() {
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-	m_averageFps = GENERALS_ONLINE_HIGH_FPS_LIMIT;
+#if defined(GENONLINE_HIGH_FPS_SERVER)
+	m_averageFps = GENONLINE_HIGH_FPS_LIMIT;
 #else
 	m_averageFps = 30;
 #endif
 
-#if defined(GENERALS_ONLINE)
-	// NGMP_NOTE: Don't start with the assumption that we have latency. Connections are now formed earlier, so we have latency data earlier too.
+#if defined(GENONLINE)
+	// GENONLINE_NOTE: Connections now form earlier, so latency data is available from the start.
 
-	NetworkMesh* pMesh = NGMP_OnlineServicesManager::GetNetworkMesh();
-	if (TheNGMPGame != nullptr && pMesh != nullptr)
+	NetworkMesh* pMesh = GenOnlineServicesManager::GetNetworkMesh();
+	if (TheGenOnlineGame != nullptr && pMesh != nullptr)
 	{
 		int totalLatency = 0;
 		std::map<int64_t, PlayerConnection>& connections = pMesh->GetAllConnections();
@@ -117,8 +117,8 @@ void FrameMetrics::init() {
 
 	UnsignedInt i = 0;
 	for (; i < TheGlobalData->m_networkFPSHistoryLength; ++i) {
-#if defined(GENERALS_ONLINE_HIGH_FPS_SERVER)
-		m_fpsList[i] = GENERALS_ONLINE_HIGH_FPS_LIMIT;
+#if defined(GENONLINE_HIGH_FPS_SERVER)
+		m_fpsList[i] = GENONLINE_HIGH_FPS_LIMIT;
 #else
 		m_fpsList[i] = 30.0;
 #endif
@@ -278,6 +278,6 @@ Int FrameMetrics::getMinimumCushion() {
 }
 void FrameMetrics::SeedLatencyData(int latency)
 {
-	m_averageFps = GENERALS_ONLINE_HIGH_FPS_LIMIT;
+	m_averageFps = GENONLINE_HIGH_FPS_LIMIT;
 	m_averageLatency = latency / 1000.f;
 }

@@ -327,10 +327,10 @@ Particle::Particle( ParticleSystem *system, const ParticleInfo *info )
 	m_lifetime = info->m_lifetime;
 	m_lifetimeLeft = info->m_lifetime;
 	
-#if defined(GENERALS_ONLINE_RUN_FAST)
+#if defined(GENONLINE_RUN_FAST)
 	m_createTimestamp = TheGameLogic->getFrame();
 #else
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE_HIGH_FPS_RENDER)
 	m_createTimestamp = TheGameClient->getFrameLegacy();
 #else
 	m_createTimestamp = TheGameClient->getFrame();
@@ -688,10 +688,10 @@ ParticlePriorityType Particle::getPriority()
 // ------------------------------------------------------------------------------------------------
 UnsignedInt Particle::getElapsedFrames() const
 {
-#if defined(GENERALS_ONLINE_RUN_FAST)
+#if defined(GENONLINE_RUN_FAST)
 	return TheGameLogic->getFrame() - m_createTimestamp;
 #else
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE_HIGH_FPS_RENDER)
 	return TheGameClient->getFrameLegacy() - m_createTimestamp;
 #else
 	return TheGameClient->getFrame() - m_createTimestamp;
@@ -1315,10 +1315,10 @@ ParticleSystem::ParticleSystem( const ParticleSystemTemplate *sysTemplate,
 
 	m_delayLeft = (UnsignedInt)sysTemplate->m_initialDelay.getValue();
 
-#if defined(GENERALS_ONLINE_RUN_FAST)
+#if defined(GENONLINE_RUN_FAST)
 	m_startTimestamp = TheGameLogic->getFrame();
 #else
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE_HIGH_FPS_RENDER)
 	m_startTimestamp = TheGameClient->getFrameLegacy();
 #else
 	m_startTimestamp = TheGameClient->getFrame();
@@ -1587,7 +1587,7 @@ void ParticleSystem::attachToDrawable( const Drawable *draw )
 		m_attachedToDrawableID = draw->getID();
 		m_attachedToObjectID = INVALID_ID;
 
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE_HIGH_FPS_RENDER)
 		// Info: One-frame attached systems can otherwise lose their only burst when the drawable is created and destroyed
 		// between legacy particle updates at 60Hz.
 		if (m_systemLifetimeLeft == 1 && m_delayLeft == 0 && getParticleCount() == 0)
@@ -2119,10 +2119,10 @@ Bool ParticleSystem::update( Int localPlayerIndex  )
 		// system actually "starts" once initial delay is over
 		/// @todo reset start time when system is stopped/started
 		if (m_delayLeft == 0)
-#if defined(GENERALS_ONLINE_RUN_FAST)
+#if defined(GENONLINE_RUN_FAST)
 			m_startTimestamp = TheGameLogic->getFrame();
 #else
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE_HIGH_FPS_RENDER)
 			m_startTimestamp = TheGameClient->getFrameLegacy();
 #else
 			m_startTimestamp = TheGameClient->getFrame();
@@ -3285,7 +3285,7 @@ void ParticleSystemManager::reset()
 //DECLARE_PERF_TIMER(ParticleSystemManager)
 void ParticleSystemManager::update()
 {
-#if defined(GENERALS_ONLINE_HIGH_FPS_RENDER)
+#if defined(GENONLINE_HIGH_FPS_RENDER)
 	if (!TheGameClient->HasLegacyFrameAdvanced()) {
 		return;
 	}

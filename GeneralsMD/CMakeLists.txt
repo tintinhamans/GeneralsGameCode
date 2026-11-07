@@ -47,7 +47,7 @@ if(RTS_INSTALL_PREFIX_ZEROHOUR)
     endif()
     if(WIN32)
         # discord-rpc.dll is copied next to the build output in Main/CMakeLists.txt.
-        set(DISCORD_RPC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Code/GameEngine/Source/GameNetwork/GeneralsOnline/Vendor/DiscordRPC")
+        set(DISCORD_RPC_DIR "${CMAKE_SOURCE_DIR}/Core/GameEngine/Source/GameNetwork/GenOnline/Vendor/DiscordRPC")
         install(FILES "${DISCORD_RPC_DIR}/discord-rpc.dll" DESTINATION "${RTS_INSTALL_PREFIX_ZEROHOUR}")
         install(FILES "${DISCORD_RPC_DIR}/LICENSE.txt" DESTINATION "${RTS_INSTALL_PREFIX_ZEROHOUR}" RENAME discord-rpc-LICENSE.txt)
     endif()
