@@ -1300,26 +1300,6 @@ void GenOnlineServicesManager::InitSentry()
 	sentry_options_set_environment(options, "production");
 #endif
 
-	// local player info
-	int64_t userID = -1;
-	std::string strDisplayname = "Unknown";
-	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
-	if (pAuthInterface != nullptr)
-	{
-		userID = pAuthInterface->GetUserID();
-		strDisplayname = pAuthInterface->GetDisplayName();
-	}
-	std::string strUserID = std::format("{}", userID);
-
-
-	sentry_value_t userinfoVal = sentry_value_new_object();
-	sentry_value_set_by_key(userinfoVal, "user_id", sentry_value_new_string(strUserID.c_str()));
-	sentry_value_set_by_key(userinfoVal, "user_displayname", sentry_value_new_string(strDisplayname.c_str()));
-	sentry_set_context("user_info", userinfoVal);
-
-	sentry_set_tag("user_id", strUserID.c_str());
-	sentry_set_tag("user_displayname", strDisplayname.c_str());
-
 #if _DEBUG
 	sentry_options_set_debug(options, 1);
 	sentry_options_set_logger_level(options, SENTRY_LEVEL_DEBUG);
@@ -1336,8 +1316,34 @@ void GenOnlineServicesManager::InitSentry()
 	}, nullptr);
 #endif
 
-	sentry_init(options);
+	// fails as a whole when crashpad_handler.exe is missing or older than this client
+	const int sentryInitResult = sentry_init(options);
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Sentry] Init %s (%d)", sentryInitResult == 0 ? "succeeded" : "FAILED", sentryInitResult);
+
+	// scope data set before sentry_init is dropped
+	UpdateSentryUser();
 #endif
+}
+
+void GenOnlineServicesManager::UpdateSentryUser()
+{
+	int64_t userID = -1;
+	std::string strDisplayname = "Unknown";
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pAuthInterface != nullptr)
+	{
+		userID = pAuthInterface->GetUserID();
+		strDisplayname = pAuthInterface->GetDisplayName();
+	}
+	std::string strUserID = std::format("{}", userID);
+
+	sentry_value_t userinfoVal = sentry_value_new_object();
+	sentry_value_set_by_key(userinfoVal, "user_id", sentry_value_new_string(strUserID.c_str()));
+	sentry_value_set_by_key(userinfoVal, "user_displayname", sentry_value_new_string(strDisplayname.c_str()));
+	sentry_set_context("user_info", userinfoVal);
+
+	sentry_set_tag("user_id", strUserID.c_str());
+	sentry_set_tag("user_displayname", strDisplayname.c_str());
 }
 
 void GenOnlineServicesManager::ShutdownSentry()

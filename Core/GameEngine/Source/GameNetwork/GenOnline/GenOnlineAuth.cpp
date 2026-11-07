@@ -612,6 +612,8 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 {
 	if (loginResult == ELoginResult::Success)
 	{
+		GenOnlineServicesManager::UpdateSentryUser();
+
 		// TODO_AC: Consider chaining this
 		// login to AC
 		GenOnlinePluginHost::LinkedAccount::SignIn();
