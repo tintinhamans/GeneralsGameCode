@@ -974,17 +974,16 @@ void showNotificationBox(AsciiString nick, UnicodeString message)
 	if( !noticeLayout )
 		noticeLayout = TheWindowManager->winCreateLayout( "Menus/PopupBuddyListNotification.wnd" );
 	noticeLayout->hide( FALSE );
-	// TheSuperHackers @tweak arcticdolphin 07/11/2026 The notification sits at the top right just inside the ruler's frame
-	// (right edge at x 752, top at y 49 of 800x600), the same in menus and in game, whatever position the layout has.
+	// TheSuperHackers @tweak arcticdolphin 07/11/2026 The notification sits in the top right corner of the screen, the same distance
+	// from the top and the right edge, in menus and in game, whatever position its layout has.
 	GameWindow *noticeParent = noticeLayout->getFirstWindow();
 	if (noticeParent != nullptr && TheDisplay != nullptr)
 	{
 		Int noticeWidth;
 		Int noticeHeight;
 		noticeParent->winGetSize(&noticeWidth, &noticeHeight);
-		const Int right = (Int)(752.0f * TheDisplay->getWidth() / 800.0f + 0.5f);
-		const Int top = (Int)(49.0f * TheDisplay->getHeight() / 600.0f + 0.5f);
-		noticeParent->winSetPosition(right - noticeWidth, top);
+		const Int margin = (Int)(10.0f * TheDisplay->getHeight() / 600.0f + 0.5f);
+		noticeParent->winSetPosition((Int)TheDisplay->getWidth() - margin - noticeWidth, margin);
 	}
 	if (buttonNotificationID == NAMEKEY_INVALID)
 	{
