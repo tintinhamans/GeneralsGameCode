@@ -46,7 +46,7 @@ namespace
 	// Latest supported v14 redistributable, covers every 14.x toolset including VS2026
 	const wchar_t kRedistUrl[] = L"https://aka.ms/vc14/vc_redist.x86.exe";
 	const wchar_t kTitle[] = L"Generals Online";
-	const wchar_t kAttemptedEnv[] = L"GO_VCREDIST_ATTEMPTED";
+	const wchar_t kAttemptedEnv[] = L"GENONLINE_VCREDIST_ATTEMPTED";
 
 	struct Version
 	{
@@ -78,15 +78,32 @@ namespace
 		return hNtdll != nullptr && GetProcAddress(hNtdll, "wine_get_version") != nullptr;
 	}
 
-	// Support escape hatch: -skipRuntimeCheck on the command line or GO_SKIP_VCRUNTIME_CHECK set
+	// True when the command line has szArgument as a whole argument, not just as part of a path or value
+	bool HasArgument(const wchar_t* szArgument)
+	{
+		int argc = 0;
+		wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+		if (argv == nullptr)
+		{
+			return false;
+		}
+		bool bFound = false;
+		for (int i = 1; i < argc && !bFound; ++i)
+		{
+			bFound = _wcsicmp(argv[i], szArgument) == 0;
+		}
+		LocalFree(argv);
+		return bFound;
+	}
+
+	// Support escape hatch: -skipRuntimeCheck on the command line or GENONLINE_SKIP_VCRUNTIME_CHECK set
 	bool IsCheckDisabled()
 	{
-		const wchar_t* szCommandLine = GetCommandLineW();
-		if (szCommandLine != nullptr && wcsstr(szCommandLine, L"-skipRuntimeCheck") != nullptr)
+		if (HasArgument(L"-skipRuntimeCheck"))
 		{
 			return true;
 		}
-		return GetEnvironmentVariableW(L"GO_SKIP_VCRUNTIME_CHECK", nullptr, 0) != 0;
+		return GetEnvironmentVariableW(L"GENONLINE_SKIP_VCRUNTIME_CHECK", nullptr, 0) != 0;
 	}
 
 	bool GetModuleVersion(HMODULE hModule, wchar_t* szPath, DWORD pathLen, Version& version)
@@ -172,7 +189,7 @@ namespace
 		{
 			return false;
 		}
-		swprintf_s(g_installer, L"%sGeneralsOnline_vc_redist.x86.exe", szTemp);
+		swprintf_s(g_installer, L"%sGenOnline_vc_redist.x86.exe", szTemp);
 		DeleteFileW(g_installer);
 
 		return SUCCEEDED(URLDownloadToFileW(nullptr, kRedistUrl, g_installer, 0, nullptr))
