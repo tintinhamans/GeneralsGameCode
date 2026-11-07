@@ -257,6 +257,65 @@ extern Bool DontShowMainMenu; //KRIS
 Bool g_playMusic = FALSE;
 Bool ReplayWasPressed = FALSE;
 
+#if defined(GENONLINE)
+// Generals Online: the retail bottom row (buttons at 552-588 of 600) lies on the ruler's bottom band; it moves into the backdrop like on the other ruler screens
+static void moveScoreScreenRowUp(GameWindow *window, Int rowTop, Int rulerTop, Int shift)
+{
+	for (GameWindow *child = window->winGetChild(); child != nullptr; child = child->winGetNext())
+	{
+		Int x;
+		Int y;
+		child->winGetScreenPosition(&x, &y);
+		if (y >= rowTop && y < rulerTop)
+		{
+			child->winGetPosition(&x, &y);
+			child->winSetPosition(x, y - shift);
+		}
+		else if (y < rowTop)
+		{
+			moveScoreScreenRowUp(child, rowTop, rulerTop, shift);
+		}
+	}
+}
+
+static void fitScoreScreenInsideRuler(GameWindow *lists[], Int listCount)
+{
+	if (parent == nullptr || buttonOk == nullptr)
+	{
+		return;
+	}
+	Int width;
+	Int height;
+	Int x;
+	Int y;
+	Int buttonWidth;
+	Int buttonHeight;
+	parent->winGetSize(&width, &height);
+	buttonOk->winGetScreenPosition(&x, &y);
+	buttonOk->winGetSize(&buttonWidth, &buttonHeight);
+	const Real scale = (Real)height / 600.0f;
+	const Int rulerTop = (Int)(558.0f * scale + 0.5f);
+	// a layout that already keeps its buttons above the ruler band is left alone
+	if (y + buttonHeight <= rulerTop)
+	{
+		return;
+	}
+	const Int shift = (Int)(54.0f * scale + 0.5f);
+	moveScoreScreenRowUp(parent, (Int)(510.0f * scale + 0.5f), rulerTop, shift);
+	// the chat and advice lists give up the space the row moves into
+	for (Int i = 0; i < listCount; ++i)
+	{
+		if (lists[i] != nullptr)
+		{
+			Int listWidth;
+			Int listHeight;
+			lists[i]->winGetSize(&listWidth, &listHeight);
+			lists[i]->winSetSize(listWidth, listHeight - shift);
+		}
+	}
+}
+#endif
+
 Bool g_bNeedToTakeDoneEOGScreenshot = FALSE;
 int64_t g_TimeEnterState = -1;
 /** Initialize the ScoreScreen */
@@ -300,6 +359,10 @@ void ScoreScreenInit( WindowLayout *layout, void *userData )
 
 //	buttonRehost = TheWindowManager->winGetWindowFromId( parent, buttonRehostID );
 	chatBoxBorder = TheWindowManager->winGetWindowFromId( parent, chatBoxBorderID );
+#if defined(GENONLINE)
+	GameWindow *scoreScreenLists[] = { listboxChatWindowScoreScreen, listboxAcademyWindowScoreScreen };
+	fitScoreScreenInsideRuler(scoreScreenLists, 2);
+#endif
 	buttonContinue = TheWindowManager->winGetWindowFromId( parent, buttonContinueID );
 	buttonBuddies = TheWindowManager->winGetWindowFromId( parent, buttonBuddiesID );
 	staticTextGameSaved= TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey("ScoreScreen.wnd:StaticTextGameSaveComplete") );
