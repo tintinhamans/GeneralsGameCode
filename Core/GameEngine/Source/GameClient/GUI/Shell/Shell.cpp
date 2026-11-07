@@ -746,7 +746,7 @@ static void addVersionLabel(WindowLayout *screen)
 //-------------------------------------------------------------------------------------------------
 // TheSuperHackers @bugfix arcticdolphin 07/11/2026 Windows of a ruler screen reached into the ruler's bands, by a few pixels
 // in retail and more in some mod layouts. After its init, every window of such a screen is fitted into the open interior of
-// the ruler, x 43-758 and y 43-558 of 800x600 (the same in both games).
+// the ruler, x 40-761 and y 40-561 of 800x600 up to the outer edge of its inner line (the same in both games).
 //-------------------------------------------------------------------------------------------------
 static Bool isRulerScreenRoot(GameWindow *window)
 {
@@ -797,10 +797,10 @@ static void fitRulerScreen(WindowLayout *screen)
 		root->winGetSize(&rootWidth, &rootHeight);
 		const Real scaleX = (Real)rootWidth / 800.0f;
 		const Real scaleY = (Real)rootHeight / 600.0f;
-		const Int left = rootX + (Int)(43.0f * scaleX + 0.5f);
-		const Int top = rootY + (Int)(43.0f * scaleY + 0.5f);
-		const Int right = rootX + (Int)(758.0f * scaleX + 0.5f);
-		const Int bottom = rootY + (Int)(558.0f * scaleY + 0.5f);
+		const Int left = rootX + (Int)(40.0f * scaleX + 0.5f);
+		const Int top = rootY + (Int)(40.0f * scaleY + 0.5f);
+		const Int right = rootX + (Int)(761.0f * scaleX + 0.5f);
+		const Int bottom = rootY + (Int)(561.0f * scaleY + 0.5f);
 
 		for (GameWindow *child = root->winGetChild(); child != nullptr; child = child->winGetNext())
 		{
