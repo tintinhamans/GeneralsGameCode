@@ -413,6 +413,16 @@ static void updateStartupSplash()
 
 	if (!::IsWindowVisible(ApplicationHWnd))
 	{
+		// the game window can still have its creation size when the first frames are drawn; it is shown once it has the
+		// requested resolution, so the splash is not followed by a small window with a title bar (after about 10 seconds it is shown anyway)
+		static Int s_sizeWaitFrames = 0;
+		RECT client;
+		::GetClientRect(ApplicationHWnd, &client);
+		if (++s_sizeWaitFrames < 600
+			&& (client.right - client.left != (LONG)TheGlobalData->m_xResolution || client.bottom - client.top != (LONG)TheGlobalData->m_yResolution))
+		{
+			return;
+		}
 		::SetWindowPos(ApplicationHWnd, ApplicationSplashHWnd, 0, 0, 0, 0,
 			SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
 		return;
