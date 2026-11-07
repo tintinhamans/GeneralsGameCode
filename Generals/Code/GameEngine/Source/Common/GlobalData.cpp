@@ -1013,6 +1013,8 @@ GlobalData::GlobalData()
 	m_loadScreenRender = FALSE;
 
 	m_keyboardDefaultScrollFactor = m_keyboardScrollFactor = 0.5f;
+	m_drawScrollAnchor = FALSE;
+	m_moveScrollAnchor = FALSE;
 	m_scrollAmountCutoff = 10.0f;
 	m_cameraAdjustSpeed = 0.1f;
 	m_enforceMaxCameraHeight = TRUE;
@@ -1202,6 +1204,8 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 	TheWritableGlobalData->m_doubleClickAttackMove = optionPref.getDoubleClickAttackMoveEnabled();
 	TheWritableGlobalData->m_jpegQuality = optionPref.getJpegQuality();
 	TheWritableGlobalData->m_keyboardScrollFactor = optionPref.getScrollFactor();
+	TheWritableGlobalData->m_drawScrollAnchor = optionPref.getDrawScrollAnchor();
+	TheWritableGlobalData->m_moveScrollAnchor = optionPref.getMoveScrollAnchor();
 	TheWritableGlobalData->m_defaultIP = optionPref.getLANIPAddress();
 	TheWritableGlobalData->m_firewallBehavior = optionPref.getFirewallBehavior();
 	TheWritableGlobalData->m_firewallPortAllocationDelta = optionPref.getFirewallPortAllocationDelta();

@@ -45,6 +45,7 @@
 #include "GameClient/ClientInstance.h"
 #include "GameClient/GameClient.h"
 #include "GameClient/InGameUI.h"
+#include "GameClient/LookAtXlat.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GadgetCheckBox.h"
