@@ -365,7 +365,11 @@ public:  // ********************************************************************
 
 	// interface for messages to the user
 	// srj sez: passing as const-ref screws up varargs for some reason. dunno why. just pass by value.
+#if defined(GENERALS_ONLINE)
+	virtual void messageColor( bool bIsChatMsg, const RGBColor *rgbColor, UnicodeString format, ... );	///< display a colored message to the user
+#else
 	virtual void messageColor( const RGBColor *rgbColor, UnicodeString format, ... );	///< display a colored message to the user
+#endif
 	virtual void messageNoFormat( const UnicodeString& message ); ///< display a message to the user
 	virtual void messageNoFormat( const RGBColor *rgbColor, const UnicodeString& message ); ///< display a colored message to the user
 	virtual void message( UnicodeString format, ... );				  ///< display a message to the user
