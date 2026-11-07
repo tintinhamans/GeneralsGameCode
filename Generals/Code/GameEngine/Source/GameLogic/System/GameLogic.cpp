@@ -2372,7 +2372,12 @@ void GameLogic::processCommandList( CommandList *list )
 					player?player->getPlayerDisplayName().str():L"<NONE>", crcIt->second));
 			}
 #endif // DEBUG_LOGGING
+#if defined(GENERALS_ONLINE)
+			UnicodeString strMismatchDetails;
+			TheNetwork->setSawCRCMismatch(strMismatchDetails);
+#else
 			TheNetwork->setSawCRCMismatch();
+#endif
 		}
 	}
 
