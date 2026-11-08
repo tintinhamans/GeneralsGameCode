@@ -270,7 +270,8 @@ class LabelTest(unittest.TestCase):
         )
         out = wl.transform(text, name=MENU)
         self.assertEqual(by_kind(out, "STATICTEXT"), [(100, 103, 180, 117)])
-        self.assertEqual(by_kind(out, "COMBOBOX"), [(190, 98, 300, 122)])
+        # the combo then shrinks to COMBO_HEIGHT about the same centre
+        self.assertEqual(by_kind(out, "COMBOBOX"), [(190, 110 - wl.COMBO_HEIGHT // 2, 300, 110 + wl.COMBO_HEIGHT // 2)])
 
     def test_label_and_value_box_are_centred_on_a_slider(self):
         text = screen(
@@ -426,6 +427,8 @@ class TitleTest(unittest.TestCase):
             self.assertIn("CENTERED: 1", out)
 
 
+# alignment fixtures use 22 unit combos; keep the combo height step out of them
+@mock.patch.object(wl, "COMBO_HEIGHT", 1000)
 class StackGapTest(unittest.TestCase):
     def test_touching_combo_run_opens_a_two_unit_gap_and_keeps_the_pitch(self):
         text = screen(*column("COMBOBOX", 100, 300, 100, 24, 24, 3, indent=2))
@@ -465,6 +468,8 @@ class StackGapTest(unittest.TestCase):
                              [(100, 100, 300, 124), (100, 124, 300, 148), (100, 148, 300, 172)], name)
 
 
+# alignment fixtures use 22 unit combos; keep the combo height step out of them
+@mock.patch.object(wl, "COMBO_HEIGHT", 1000)
 class ColumnGapTest(unittest.TestCase):
     def grid(self):
         cells = []
@@ -644,6 +649,8 @@ class DialogTest(unittest.TestCase):
             self.assertEqual((r["StaticTextMapCount"][1], r["StaticTextMapCount"][3]), (sources[0][1], sources[0][3]), fn)
 
 
+# alignment fixtures use 22 unit combos; keep the combo height step out of them
+@mock.patch.object(wl, "COMBO_HEIGHT", 1000)
 class AlignmentIdempotenceTest(unittest.TestCase):
     def test_title_gaps_and_columns_together_are_idempotent(self):
         cells = []
@@ -735,7 +742,7 @@ class YamlSourceTest(unittest.TestCase):
                   other: layout(window("STATICTEXT", (100, 100, 300, 130))).encode("latin-1")}
         with mock.patch.object(wl, "read_big", return_value=retail):
             results = {name: (text, out, info) for name, text, out, info in wl.build(Path("unused.big"))}
-        expected = wnd_yaml.compile_file(wnd_yaml.sources()[options])
+        expected = wl.compact_combos(wnd_yaml.compile_file(wnd_yaml.sources()[options]), options)
         names = {name.lower(): name for name in results}
         text, out, info = results[names[options.lower()]]
         self.assertEqual(out, expected)
@@ -793,6 +800,81 @@ class MapPreviewBorderTest(unittest.TestCase):
             "MultiplayerLoadScreen", "SkirmishGameOptionsMenu", "SkirmishMapSelectMenu", "WOLMapSelectMenu")])
         for name, borders in found.items():
             self.assertEqual(borders, [["47", "75", "255", "255"]], name)
+
+
+BIG_FONT = 'FONT = NAME: "Arial", SIZE: 14, BOLD: 0;'
+
+
+class ComboHeightTest(unittest.TestCase):
+    TALL = wl.COMBO_HEIGHT + 4
+
+    def row(self, entry_height=None, combo_props=()):
+        """A tall combo, an entry field and a button on one row, far enough apart for no pair or column rule."""
+        h = self.TALL
+        return screen(
+            window("COMBOBOX", (100, 100, 300, 100 + h), indent=2, props=combo_props),
+            window("ENTRYFIELD", (320, 100, 440, 100 + (entry_height or h)), indent=2),
+            window("PUSHBUTTON", (500, 100, 600, 100 + h), indent=2),
+        )
+
+    def test_tall_combo_takes_the_combo_height_and_keeps_its_centre(self):
+        out = wl.transform(self.row(), name=MENU)
+        self.assertEqual(by_kind(out, "COMBOBOX"), [(100, 102, 300, 102 + wl.COMBO_HEIGHT)])
+
+    def test_odd_difference_rounds_the_top_down(self):
+        text = screen(window("COMBOBOX", (100, 100, 300, 100 + wl.COMBO_HEIGHT + 3), indent=2))
+        self.assertEqual(by_kind(wl.transform(text, name=MENU), "COMBOBOX"), [(100, 101, 300, 101 + wl.COMBO_HEIGHT)])
+
+    def test_same_row_entry_follows_and_the_button_stays(self):
+        out = wl.transform(self.row(), name=MENU)
+        self.assertEqual(by_kind(out, "ENTRYFIELD"), [(320, 102, 440, 102 + wl.COMBO_HEIGHT)])
+        self.assertEqual(by_kind(out, "PUSHBUTTON"), [(500, 100, 600, 100 + self.TALL)])
+
+    def test_entry_of_another_height_stays(self):
+        out = wl.transform(self.row(entry_height=self.TALL + 6), name=MENU)
+        self.assertEqual(by_kind(out, "ENTRYFIELD"), [(320, 100, 440, 100 + self.TALL + 6)])
+
+    def test_combo_with_a_larger_font_keeps_its_height(self):
+        out = wl.transform(self.row(combo_props=[BIG_FONT]), name=MENU)
+        self.assertEqual(by_kind(out, "COMBOBOX"), [(100, 100, 300, 100 + self.TALL)])
+        self.assertEqual(by_kind(out, "ENTRYFIELD"), [(320, 100, 440, 100 + self.TALL)])
+
+    def test_combo_at_or_below_the_height_stays(self):
+        text = screen(window("COMBOBOX", (100, 100, 300, 100 + wl.COMBO_HEIGHT), indent=2),
+                      window("COMBOBOX", (100, 200, 300, 198 + wl.COMBO_HEIGHT), indent=2))
+        self.assertEqual(by_kind(wl.transform(text, name=MENU), "COMBOBOX"),
+                         [(100, 100, 300, 100 + wl.COMBO_HEIGHT), (100, 200, 300, 198 + wl.COMBO_HEIGHT)])
+
+    def test_in_game_kept_and_in_match_layouts_keep_their_combos(self):
+        for name in (*OUT_OF_SCOPE, "Window/Menus/QuitMenu.wnd", None):
+            out = wl.transform(self.row(), name=name)
+            self.assertEqual(by_kind(out, "COMBOBOX"), [(100, 100, 300, 100 + self.TALL)], name)
+            self.assertEqual(by_kind(out, "ENTRYFIELD"), [(320, 100, 440, 100 + self.TALL)], name)
+
+    def test_combo_height_is_idempotent_and_build_applies_it(self):
+        once = wl.transform(self.row(), name=MENU)
+        self.assertEqual(wl.compact_combos(once, MENU), once)
+        retail = {MENU: self.row().encode("latin-1")}
+        with mock.patch.object(wl, "read_big", return_value=retail), mock.patch.object(wl, "SOURCES", Path("missing")):
+            results = {name: out for name, text, out, info in wl.build(Path("unused.big"))}
+        self.assertEqual(results[MENU], once)
+        self.assertEqual(by_kind(results[MENU], "COMBOBOX"), [(100, 102, 300, 102 + wl.COMBO_HEIGHT)])
+
+    def test_shipped_menu_combos_have_the_combo_height(self):
+        import go_themes
+        # documented exceptions: the WOL login combos draw a 14 pt font
+        exceptions = {"WOLLoginMenu.wnd:ComboBoxLoginName", "WOLLoginMenu.wnd:ComboBoxServer"}
+        seen = 0
+        for path in sorted((wl.DATA / "Window").rglob("*.wnd")):
+            name = path.relative_to(wl.DATA).as_posix()
+            if not wl.themed(name) or name.lower() in wl.GEOMETRY_KEPT:
+                continue
+            for base in (wl.DATA, go_themes.THEME_DIR):
+                for win in wl.parse_windows((base / name).read_bytes().decode("latin-1")).walk():
+                    if win.kind == "COMBOBOX" and win.name not in exceptions:
+                        seen += 1
+                        self.assertEqual(win.rect[3] - win.rect[1], wl.COMBO_HEIGHT, f"{base / name} {win.name} {win.rect}")
+        self.assertGreater(seen, 200)
 
 
 CLEAR_FRAMED_SLOT = "IMAGE: NoImage, COLOR: 2 2 2 0, BORDERCOLOR: 47 75 255 255"

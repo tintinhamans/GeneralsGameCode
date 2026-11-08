@@ -624,8 +624,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 452 334,
-                   BOTTOMRIGHT: 556 358,
+      SCREENRECT = UPPERLEFT: 452 337,
+                   BOTTOMRIGHT: 556 355,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxStartingCash";
       STATUS = ENABLED+IMAGE;
@@ -1925,8 +1925,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 280,
-                   BOTTOMRIGHT: 568 302,
+      SCREENRECT = UPPERLEFT: 492 282,
+                   BOTTOMRIGHT: 568 300,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam7";
       STATUS = ENABLED+IMAGE;
@@ -2166,8 +2166,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 256,
-                   BOTTOMRIGHT: 568 278,
+      SCREENRECT = UPPERLEFT: 492 258,
+                   BOTTOMRIGHT: 568 276,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam6";
       STATUS = ENABLED+IMAGE;
@@ -2407,8 +2407,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 232,
-                   BOTTOMRIGHT: 568 254,
+      SCREENRECT = UPPERLEFT: 492 234,
+                   BOTTOMRIGHT: 568 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam5";
       STATUS = ENABLED+IMAGE;
@@ -2648,8 +2648,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 208,
-                   BOTTOMRIGHT: 568 230,
+      SCREENRECT = UPPERLEFT: 492 210,
+                   BOTTOMRIGHT: 568 228,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam4";
       STATUS = ENABLED+IMAGE;
@@ -2889,8 +2889,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 184,
-                   BOTTOMRIGHT: 568 206,
+      SCREENRECT = UPPERLEFT: 492 186,
+                   BOTTOMRIGHT: 568 204,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam3";
       STATUS = ENABLED+IMAGE;
@@ -3130,8 +3130,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 160,
-                   BOTTOMRIGHT: 568 182,
+      SCREENRECT = UPPERLEFT: 492 162,
+                   BOTTOMRIGHT: 568 180,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam2";
       STATUS = ENABLED+IMAGE;
@@ -3371,8 +3371,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 136,
-                   BOTTOMRIGHT: 568 158,
+      SCREENRECT = UPPERLEFT: 492 138,
+                   BOTTOMRIGHT: 568 156,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam1";
       STATUS = ENABLED+IMAGE;
@@ -3612,8 +3612,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 492 112,
-                   BOTTOMRIGHT: 568 134,
+      SCREENRECT = UPPERLEFT: 492 114,
+                   BOTTOMRIGHT: 568 132,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxTeam0";
       STATUS = ENABLED+IMAGE;
@@ -3902,8 +3902,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 280,
-                   BOTTOMRIGHT: 489 302,
+      SCREENRECT = UPPERLEFT: 282 282,
+                   BOTTOMRIGHT: 489 300,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate7";
       STATUS = ENABLED+IMAGE;
@@ -4143,8 +4143,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 256,
-                   BOTTOMRIGHT: 489 278,
+      SCREENRECT = UPPERLEFT: 282 258,
+                   BOTTOMRIGHT: 489 276,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate6";
       STATUS = ENABLED+IMAGE;
@@ -4384,8 +4384,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 232,
-                   BOTTOMRIGHT: 489 254,
+      SCREENRECT = UPPERLEFT: 282 234,
+                   BOTTOMRIGHT: 489 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate5";
       STATUS = ENABLED+IMAGE;
@@ -4625,8 +4625,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 208,
-                   BOTTOMRIGHT: 489 230,
+      SCREENRECT = UPPERLEFT: 282 210,
+                   BOTTOMRIGHT: 489 228,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate4";
       STATUS = ENABLED+IMAGE;
@@ -4866,8 +4866,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 184,
-                   BOTTOMRIGHT: 489 206,
+      SCREENRECT = UPPERLEFT: 282 186,
+                   BOTTOMRIGHT: 489 204,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate3";
       STATUS = ENABLED+IMAGE;
@@ -5107,8 +5107,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 160,
-                   BOTTOMRIGHT: 489 182,
+      SCREENRECT = UPPERLEFT: 282 162,
+                   BOTTOMRIGHT: 489 180,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate2";
       STATUS = ENABLED+IMAGE;
@@ -5348,8 +5348,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 136,
-                   BOTTOMRIGHT: 489 158,
+      SCREENRECT = UPPERLEFT: 282 138,
+                   BOTTOMRIGHT: 489 156,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate1";
       STATUS = ENABLED+IMAGE;
@@ -5589,8 +5589,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 282 112,
-                   BOTTOMRIGHT: 489 134,
+      SCREENRECT = UPPERLEFT: 282 114,
+                   BOTTOMRIGHT: 489 132,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayerTemplate0";
       STATUS = ENABLED+IMAGE;
@@ -5879,8 +5879,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 280,
-                   BOTTOMRIGHT: 279 302,
+      SCREENRECT = UPPERLEFT: 195 282,
+                   BOTTOMRIGHT: 279 300,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor7";
       STATUS = ENABLED+IMAGE;
@@ -6120,8 +6120,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 256,
-                   BOTTOMRIGHT: 279 278,
+      SCREENRECT = UPPERLEFT: 195 258,
+                   BOTTOMRIGHT: 279 276,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor6";
       STATUS = ENABLED+IMAGE;
@@ -6361,8 +6361,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 232,
-                   BOTTOMRIGHT: 279 254,
+      SCREENRECT = UPPERLEFT: 195 234,
+                   BOTTOMRIGHT: 279 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor5";
       STATUS = ENABLED+IMAGE;
@@ -6602,8 +6602,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 208,
-                   BOTTOMRIGHT: 279 230,
+      SCREENRECT = UPPERLEFT: 195 210,
+                   BOTTOMRIGHT: 279 228,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor4";
       STATUS = ENABLED+IMAGE;
@@ -6843,8 +6843,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 184,
-                   BOTTOMRIGHT: 279 206,
+      SCREENRECT = UPPERLEFT: 195 186,
+                   BOTTOMRIGHT: 279 204,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor3";
       STATUS = ENABLED+IMAGE;
@@ -7084,8 +7084,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 160,
-                   BOTTOMRIGHT: 279 182,
+      SCREENRECT = UPPERLEFT: 195 162,
+                   BOTTOMRIGHT: 279 180,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor2";
       STATUS = ENABLED+IMAGE;
@@ -7325,8 +7325,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 136,
-                   BOTTOMRIGHT: 279 158,
+      SCREENRECT = UPPERLEFT: 195 138,
+                   BOTTOMRIGHT: 279 156,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor1";
       STATUS = ENABLED+IMAGE;
@@ -7566,8 +7566,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 195 112,
-                   BOTTOMRIGHT: 279 134,
+      SCREENRECT = UPPERLEFT: 195 114,
+                   BOTTOMRIGHT: 279 132,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxColor0";
       STATUS = ENABLED+IMAGE;
@@ -7856,8 +7856,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 280,
-                   BOTTOMRIGHT: 192 302,
+      SCREENRECT = UPPERLEFT: 48 282,
+                   BOTTOMRIGHT: 192 300,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer7";
       STATUS = ENABLED+IMAGE;
@@ -8097,8 +8097,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 256,
-                   BOTTOMRIGHT: 192 278,
+      SCREENRECT = UPPERLEFT: 48 258,
+                   BOTTOMRIGHT: 192 276,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer6";
       STATUS = ENABLED+IMAGE;
@@ -8338,8 +8338,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 232,
-                   BOTTOMRIGHT: 192 254,
+      SCREENRECT = UPPERLEFT: 48 234,
+                   BOTTOMRIGHT: 192 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer5";
       STATUS = ENABLED+IMAGE;
@@ -8579,8 +8579,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 208,
-                   BOTTOMRIGHT: 192 230,
+      SCREENRECT = UPPERLEFT: 48 210,
+                   BOTTOMRIGHT: 192 228,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer4";
       STATUS = ENABLED+IMAGE;
@@ -8820,8 +8820,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 184,
-                   BOTTOMRIGHT: 192 206,
+      SCREENRECT = UPPERLEFT: 48 186,
+                   BOTTOMRIGHT: 192 204,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer3";
       STATUS = ENABLED+IMAGE;
@@ -9061,8 +9061,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 160,
-                   BOTTOMRIGHT: 192 182,
+      SCREENRECT = UPPERLEFT: 48 162,
+                   BOTTOMRIGHT: 192 180,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer2";
       STATUS = ENABLED+IMAGE;
@@ -9302,8 +9302,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 48 136,
-                   BOTTOMRIGHT: 192 158,
+      SCREENRECT = UPPERLEFT: 48 138,
+                   BOTTOMRIGHT: 192 156,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:ComboBoxPlayer1";
       STATUS = ENABLED+IMAGE;
@@ -9543,8 +9543,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = ENTRYFIELD;
-      SCREENRECT = UPPERLEFT: 48 112,
-                   BOTTOMRIGHT: 192 134,
+      SCREENRECT = UPPERLEFT: 48 114,
+                   BOTTOMRIGHT: 192 132,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:TextEntryPlayerName";
       STATUS = ENABLED+IMAGE;

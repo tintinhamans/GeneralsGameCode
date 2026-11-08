@@ -836,8 +836,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = ENTRYFIELD;
-    SCREENRECT = UPPERLEFT: 140 140,
-                 BOTTOMRIGHT: 470 162,
+    SCREENRECT = UPPERLEFT: 140 142,
+                 BOTTOMRIGHT: 470 160,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:TextEntryMapSearch";
     STATUS = ENABLED+IMAGE;
@@ -1176,8 +1176,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = COMBOBOX;
-    SCREENRECT = UPPERLEFT: 480 140,
-                 BOTTOMRIGHT: 565 162,
+    SCREENRECT = UPPERLEFT: 480 142,
+                 BOTTOMRIGHT: 565 160,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:ComboBoxMapPlayers";
     STATUS = ENABLED+IMAGE;
@@ -1417,8 +1417,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = COMBOBOX;
-    SCREENRECT = UPPERLEFT: 575 140,
-                 BOTTOMRIGHT: 660 162,
+    SCREENRECT = UPPERLEFT: 575 142,
+                 BOTTOMRIGHT: 660 160,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:ComboBoxMapSize";
     STATUS = ENABLED+IMAGE;

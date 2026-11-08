@@ -5,7 +5,7 @@ Every retail layout in WindowZH.big is copied to GenOnline/GameData at its archi
 deterministic fixes. A layout GO already edited by hand (scripts/wnd_sources) replaces the retail
 file as input, and the GO-only layouts there get the same fixes. A layout with a YAML source
 (scripts/wnd_yaml, compiled by scripts/wnd_yaml.py) is written as compiled: the source already holds the
-kit colours, GO header templates and hover images, so none of the fixes below apply to it, and its
+kit colours, GO header templates and hover images, so only the combo heights below apply to it, and its
 scripts/wnd_sources copy, if any, is only kept for reference. All rects are in 800x600 units.
 
 - Kit colours: the retail blue line colours in draw data and TEXTCOLOR border entries become the
@@ -43,6 +43,11 @@ scripts/wnd_sources copy, if any, is only kept for reference. All rects are in 8
 - Overrides: scripts/wnd_fixes.py sets absolute rects last; the rules never move those windows.
 - Headings: scripts/wnd_fixes.py HEADINGS names column headings that then take their column window's left
   edge, keeping their width, after the overrides; nothing else moves.
+- Combo heights: after the rules, a menu combo box taller than COMBO_HEIGHT with a font of at most 10 pt shrinks to
+  it about its centre (an odd difference rounds the top down), and so does every combo box or entry field of
+  that font with the same parent, top and bottom, so a row keeps one height. Buttons, lists, sliders and labels stay;
+  the drop-down button, edit box and list derive from the combo rect in the engine, which centres the text in
+  kit entries so 18 units clear the frame. Menus only, YAML-built layouts included.
 - Map previews: a window drawn by W3DDrawMapPreview gets the kit line colour as its first enabled border
   colour, which the engine draws as a kit frame around the preview (menus and load screens alike).
 - Button groups: a colour drawn USER window with a clear fill whose children are push buttons (and NOINPUT
@@ -112,6 +117,10 @@ VERTICAL_INSET = 16        # top and bottom insets only even out when both are t
 BORDERED_KINDS = {"COMBOBOX", "ENTRYFIELD", "PUSHBUTTON", "RADIOBUTTON"}
 MIN_GAP = 2                # stacked or side by side bordered controls keep at least this gap
 MIN_HEIGHT = 18            # a stack gap never shrinks a control below this height
+# closed menu combo box height; the edit box draws its text 5 units below its top (W3DTextEntry), so below 22 the
+# descenders of the 10 pt GO font reach the bottom line up to 1600x900 (18 fits once that text is centred)
+COMBO_HEIGHT = 18
+COMBO_FONT = 10            # combos with a larger font keep their height
 COLUMN_REACH = 8           # neighbouring columns of one row are at most this far apart
 DEFAULT_COLUMN_GAP = 4     # column gap when every gap of a row differs
 
@@ -1269,9 +1278,28 @@ def button_group_borders(text):
     return text
 
 
+def compact_combos(text, name):
+    """Shrink the menu combo boxes taller than COMBO_HEIGHT about their centre, with the entry fields that share their row."""
+    if not _uses_go_templates(name) or _rules(name) != MENU_RULES:
+        return text
+    root = parse_windows(text)
+    edits = []
+    for parent in (root, *root.walk()):
+        small = [w for w in parent.children if w.rect is not None and w.font_size <= COMBO_FONT]
+        rows = {w.rect[1::2] for w in small if w.kind == "COMBOBOX" and w.rect[3] - w.rect[1] > COMBO_HEIGHT}
+        for win in small:
+            if win.kind in ("COMBOBOX", "ENTRYFIELD") and win.rect[1::2] in rows:
+                y0, y1 = win.rect[1::2]
+                top = y0 + (y1 - y0 - COMBO_HEIGHT) // 2
+                edits += [(win.spans[1], top), (win.spans[3], top + COMBO_HEIGHT)]
+    for (start, end), value in sorted(edits, reverse=True):
+        text = text[:start] + str(value) + text[end:]
+    return text
+
+
 def finish(text, name):
-    """The colour and template fixes after alignment: GO header templates, hover images, map preview frames and button groups."""
-    return button_group_borders(map_preview_borders(hilite_images(go_templates(text, name))))
+    """The fixes after alignment: combo heights, GO header templates, hover images, map preview frames and button groups."""
+    return button_group_borders(map_preview_borders(hilite_images(go_templates(compact_combos(text, name), name))))
 
 
 def transform(text, notes=None, name=None):
@@ -1340,7 +1368,8 @@ def build(retail):
         text = inputs[name].decode("latin-1")
         if name in compiled:
             info = {"frame": False, "stats": Counter(), "notes": [], "changes": [], "uncentred": []}
-            results.append((name, text, text, info))
+            # the YAML source is final apart from the combo height, which follows COMBO_HEIGHT like every menu
+            results.append((name, text, compact_combos(text, name), info))
             continue
         out, info = align(remap_colors(text), name)
         results.append((name, text, finish(out, name), info))
