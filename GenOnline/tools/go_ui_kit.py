@@ -33,6 +33,7 @@ SUPERSAMPLE = 2    # samples per texel and axis
 # edge line width in layout pixels; three-piece bars carry it as Border, so the engine keeps it fixed at any bar height
 LINE_LAYOUT = 1.5
 BORDER_PREFIXES = ("Buttons-", "RadioButton", "TextEntry")  # three-piece bars whose INI entry gets Border = LINE_LAYOUT
+BORDER_NAMES = ("GOScrollLine",)  # single images whose Border tells the engine the kit line thickness
 ARROW_LINE = 0.95 * LINE_LAYOUT  # combo arrows are single images: 22 px art, usually about 23 layout px tall
 BOX_LINE = (1.25 * 1.2, 1.45 * 1.2)  # slider blocks: 11x13 art drawn as squares, so the line differs per axis; small, so a thinner line
 
@@ -79,8 +80,9 @@ SLIDER_ON = (rgba("#6A7BFF"), rgba("#3446FF"))
 SLIDER_OFF = (rgba("#24308C"), rgba("#0B1030", 0.92))
 SLIDER_HOVER = rgba("#2F4BFF", 0.22)
 # track slider (drawn only by the GO track slider draw): (edge line, fill)
-SLIDER_TRACK = (rgba("#3A48B0"), rgba("#1A2260", 0.92))
-SLIDER_FILL = (rgba("#6A7BFF"), rgba("#3446FF"))
+# flat, no outline: an outline only shows on the rounded ends once the small art is scaled, as a light rim
+SLIDER_TRACK = (rgba("#283489"), rgba("#283489"))
+SLIDER_FILL = (rgba("#3446FF"), rgba("#3446FF"))
 # the thumb is a slim marker at the value: (colour, width in thumb pixels)
 SLIDER_MARKER = {
     "": (rgba("#C9CEFF"), 1.15),
@@ -122,6 +124,24 @@ SCROLL_THUMBS = {
     "Disabled": rgba("#404159"),
 }
 SCROLL_THUMB_WIDTH = 7.0
+# kit list scroll bar (drawn only by the GO list scroll bar draw): a rounded channel, a pill thumb and arrow cells
+SCROLL_TRACK = SLIDER_TRACK
+SCROLL_PILLS = {
+    "": SLIDER_FILL,
+    "Hilite": (rgba("#6A7BFF"), rgba("#6A7BFF")),
+    "Disabled": (rgba("#3A3C55"), rgba("#3A3C55")),
+}
+# arrow cells in the combo arrow states: state -> (line, fill, glyph); the engine draws the lines with GOScrollLine
+SCROLL_ARROWS = {
+    "": ARROW_STATES["Enabled"],
+    "Hilite": ARROW_STATES["Hilite"],
+    "Pushed": ARROW_STATES["HiliteSelected"],
+    "Disabled": ARROW_STATES["Disabled"],
+}
+# the kit scroll column is 14 layout px wide with a 6 px channel the pill fills (W3DVerticalSlider, GadgetListBox)
+SCROLL_ARROW_SIZE = 14  # the square arrow cell, drawn at its own layout size
+SCROLL_PILL_WIDTH = 6
+SCROLL_LINE = ARROW_STATES["Enabled"][0]  # kit list frames, cell lines and the column separator the engine draws, Border = LINE_LAYOUT
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
     "ListBoxHiliteSelectedItem": rgba("#2B34B8", 0.80),
@@ -342,6 +362,43 @@ def pill_piece(w, h, color, width):
     return paint(w, h, sample)
 
 
+def round_cap(w, h, side, line, fill):
+    """Half of a vertical pill: a semicircle of radius w/2 closing the channel at the top or bottom."""
+    r = w / 2.0
+
+    def sample(x, y):
+        cy = r if side == "top" else h - r
+        if (side == "top" and y >= cy) or (side == "bottom" and y <= cy):
+            d = min(x, w - x)
+        else:
+            d = r - math.hypot(x - r, y - cy)
+        if d < 0.0:
+            return TRANSPARENT
+        return line if d < TRACK_LINE else fill
+
+    return paint(w, h, sample)
+
+
+def channel_piece(w, h, line, fill):
+    """The middle of a vertical pill: open at the top and bottom, a line down both sides."""
+    return paint(w, h, lambda x, y: line if min(x, w - x) < TRACK_LINE else fill)
+
+
+def scroll_arrow_piece(w, h, up, line, fill, glyph):
+    """An arrow cell of the scroll column: the combo arrow triangle scaled to the cell on the state fill.
+    The engine draws the cell lines with GOScrollLine so they match the list frame and the separator."""
+    k = w / 21.0
+    cx, cy = w / 2.0, h / 2.0
+    tri = ((cx - 4.5 * k, cy - 2.2 * k), (cx + 4.5 * k, cy - 2.2 * k), (cx, cy + 2.8 * k))
+
+    def sample(x, y):
+        if up:
+            y = h - y
+        return glyph if triangle_inside(x, y, *tri) else fill
+
+    return paint(w, h, sample)
+
+
 def pieces():
     """(image name, width, height, texels). Sizes are the retail Coords sizes of each name."""
     out = []
@@ -391,6 +448,20 @@ def pieces():
     out.append(("GOSliderFillRight", 4, 8, button_piece(4, 8, "middle", *SLIDER_FILL, TRACK_LINE)))
     for state, (color, width) in SLIDER_MARKER.items():
         out.append((f"GOSliderThumb{state}", 8, 16, marker_piece(8, 16, color, width)))
+    # list scroll bar: a channel the pill fills, like the slider track, then the arrow cells and the separator
+    pw, ph = SCROLL_PILL_WIDTH, SCROLL_PILL_WIDTH // 2
+    out.append(("GOScrollTrackTop", pw, ph, round_cap(pw, ph, "top", *SCROLL_TRACK)))
+    out.append(("GOScrollTrackCenter", pw, ph, channel_piece(pw, ph, *SCROLL_TRACK)))
+    out.append(("GOScrollTrackBottom", pw, ph, round_cap(pw, ph, "bottom", *SCROLL_TRACK)))
+    for state, style in SCROLL_PILLS.items():
+        out.append((f"GOScrollThumb{state}Top", pw, ph, round_cap(pw, ph, "top", *style)))
+        out.append((f"GOScrollThumb{state}Center", pw, ph, channel_piece(pw, ph, *style)))
+        out.append((f"GOScrollThumb{state}Bottom", pw, ph, round_cap(pw, ph, "bottom", *style)))
+    for state, style in SCROLL_ARROWS.items():
+        size = SCROLL_ARROW_SIZE
+        out.append((f"GOScrollUp{state}", size, size, scroll_arrow_piece(size, size, True, *style)))
+        out.append((f"GOScrollDown{state}", size, size, scroll_arrow_piece(size, size, False, *style)))
+    out.append(("GOScrollLine", 4, 4, flat_piece(4, 4, SCROLL_LINE)))
     return out
 
 
@@ -485,7 +556,7 @@ def ini_text(items, placements, height):
             f"  Coords = Left:{left} Top:{top} Right:{left + w} Bottom:{top + h}",
             "  Status = NONE",
         ]
-        if name.startswith(BORDER_PREFIXES):
+        if name.startswith(BORDER_PREFIXES) or name in BORDER_NAMES:
             lines.append(f"  Border = {LINE_LAYOUT}")
         lines += ["End", ""]
     return "\r\n".join(lines)

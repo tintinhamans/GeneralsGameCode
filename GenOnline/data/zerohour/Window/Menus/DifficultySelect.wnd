@@ -98,8 +98,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = RADIOBUTTON;
-      SCREENRECT = UPPERLEFT: 288 220,
-                   BOTTOMRIGHT: 440 252,
+      SCREENRECT = UPPERLEFT: 290 222,
+                   BOTTOMRIGHT: 442 254,
                    CREATIONRESOLUTION: 800 600;
       NAME = "DifficultySelect.wnd:RadioButtonEasy";
       STATUS = ENABLED+IMAGE;
@@ -147,8 +147,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = RADIOBUTTON;
-      SCREENRECT = UPPERLEFT: 288 256,
-                   BOTTOMRIGHT: 440 288,
+      SCREENRECT = UPPERLEFT: 290 258,
+                   BOTTOMRIGHT: 442 290,
                    CREATIONRESOLUTION: 800 600;
       NAME = "DifficultySelect.wnd:RadioButtonMedium";
       STATUS = ENABLED+IMAGE;
@@ -196,8 +196,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = RADIOBUTTON;
-      SCREENRECT = UPPERLEFT: 288 292,
-                   BOTTOMRIGHT: 440 324,
+      SCREENRECT = UPPERLEFT: 290 294,
+                   BOTTOMRIGHT: 442 326,
                    CREATIONRESOLUTION: 800 600;
       NAME = "DifficultySelect.wnd:RadioButtonHard";
       STATUS = ENABLED+IMAGE;
@@ -245,8 +245,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 236 328,
-                   BOTTOMRIGHT: 364 356,
+      SCREENRECT = UPPERLEFT: 238 330,
+                   BOTTOMRIGHT: 366 358,
                    CREATIONRESOLUTION: 800 600;
       NAME = "DifficultySelect.wnd:ButtonOk";
       STATUS = ENABLED+IMAGE;
@@ -293,8 +293,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 372 328,
-                   BOTTOMRIGHT: 500 356,
+      SCREENRECT = UPPERLEFT: 374 330,
+                   BOTTOMRIGHT: 502 358,
                    CREATIONRESOLUTION: 800 600;
       NAME = "DifficultySelect.wnd:ButtonCancel";
       STATUS = ENABLED+IMAGE;
@@ -341,8 +341,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 232 188,
-                   BOTTOMRIGHT: 500 216,
+      SCREENRECT = UPPERLEFT: 234 190,
+                   BOTTOMRIGHT: 502 218,
                    CREATIONRESOLUTION: 800 600;
       NAME = "DifficultySelect.wnd:";
       STATUS = ENABLED+IMAGE;

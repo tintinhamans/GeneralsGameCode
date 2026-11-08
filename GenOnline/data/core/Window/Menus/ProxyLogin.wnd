@@ -635,8 +635,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 364 393,
-                   BOTTOMRIGHT: 436 416,
+      SCREENRECT = UPPERLEFT: 361 393,
+                   BOTTOMRIGHT: 432 416,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ProxyLogin.wnd:ButtonSave";
       STATUS = ENABLED+IMAGE;
@@ -682,8 +682,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 443 393,
-                   BOTTOMRIGHT: 515 416,
+      SCREENRECT = UPPERLEFT: 442 393,
+                   BOTTOMRIGHT: 514 416,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ProxyLogin.wnd:ButtonCancel";
       STATUS = ENABLED+IMAGE;

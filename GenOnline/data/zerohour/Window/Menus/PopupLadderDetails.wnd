@@ -100,8 +100,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = SCROLLLISTBOX;
-    SCREENRECT = UPPERLEFT: 265 133,
-                 BOTTOMRIGHT: 569 391,
+    SCREENRECT = UPPERLEFT: 262 133,
+                 BOTTOMRIGHT: 566 391,
                  CREATIONRESOLUTION: 800 600;
     NAME = "PopupLadderDetails.wnd:ListBoxLadderDetails";
     STATUS = ENABLED;

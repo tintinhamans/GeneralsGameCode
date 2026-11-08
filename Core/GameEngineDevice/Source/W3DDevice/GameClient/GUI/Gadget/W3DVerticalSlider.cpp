@@ -47,6 +47,7 @@
 #include <stdlib.h>
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
+#include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetSlider.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
@@ -64,6 +65,48 @@
 // PRIVATE PROTOTYPES /////////////////////////////////////////////////////////
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
+
+static void drawVerticalThreePieceImage( const Image *top, const Image *center, const Image *bottom,
+																				 Int x, Int y, Int width, Int height )
+{
+	if( top == nullptr || center == nullptr || bottom == nullptr || width <= 0 || height <= 0 )
+		return;
+
+	Int topHeight = width;
+	if( top->getImageWidth() > 0 )
+		topHeight = (top->getImageHeight() * width + top->getImageWidth() / 2) / top->getImageWidth();
+	Int bottomHeight = width;
+	if( bottom->getImageWidth() > 0 )
+		bottomHeight = (bottom->getImageHeight() * width + bottom->getImageWidth() / 2) / bottom->getImageWidth();
+
+	if( topHeight + bottomHeight > height )
+	{
+		topHeight = height / 2;
+		bottomHeight = height - topHeight;
+	}
+
+	TheWindowManager->winDrawImage( top, x, y, x + width, y + topHeight );
+	if( height - topHeight - bottomHeight > 0 )
+		TheWindowManager->winDrawImage( center, x, y + topHeight, x + width, y + height - bottomHeight );
+	TheWindowManager->winDrawImage( bottom, x, y + height - bottomHeight, x + width, y + height );
+}
+
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 The kit pill fills its channel, like the kit slider fill fills its track.
+static const Int KIT_SCROLL_CHANNEL_WIDTH = 6;
+
+static void getKitChannel( Int columnX, Int columnWidth, Int &channelX, Int &channelWidth )
+{
+	Int separator = GadgetListBoxGetKitScrollLineWidth();
+	if( separator > columnWidth / 2 )
+		separator = 0;
+	channelWidth = GameWindowManager::winScaleLayoutSize( KIT_SCROLL_CHANNEL_WIDTH );
+	if( channelWidth > columnWidth - 2 * separator )
+		channelWidth = columnWidth - 2 * separator;
+	if( channelWidth < 2 )
+		channelWidth = 2;
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The list frame on the right is as thick as the separator.
+	channelX = columnX + separator + (columnWidth - 2 * separator - channelWidth) / 2;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
@@ -301,6 +344,71 @@ void W3DGadgetVerticalSliderImageDraw( GameWindow *window,
 	}
 
 
+}
+
+//=============================================================================
+// GenOnline @feature arcticdolphin 08/11/2026 Draw the list scroll track as a rounded channel when the GO kit scroll images exist.
+void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *instData )
+{
+	ICoord2D origin, size;
+	window->winGetScreenPosition( &origin.x, &origin.y );
+	window->winGetSize( &size.x, &size.y );
+
+	Int channelX, channelWidth;
+	getKitChannel( origin.x, size.x, channelX, channelWidth );
+	drawVerticalThreePieceImage( GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_TOP ),
+															 GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_CENTER ),
+															 GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_BOTTOM ),
+															 channelX, origin.y, channelWidth, size.y );
+
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The column separator runs between the arrow cells, which draw their own part.
+	GameWindow *listbox = window->winGetParent();
+	if( listbox == nullptr )
+		return;
+
+	Int top = origin.y;
+	Int bottom = origin.y + size.y;
+	GameWindow *upButton = GadgetListBoxGetUpButton( listbox );
+	GameWindow *downButton = GadgetListBoxGetDownButton( listbox );
+	if( upButton )
+	{
+		ICoord2D upPos, upSize;
+		upButton->winGetScreenPosition( &upPos.x, &upPos.y );
+		upButton->winGetSize( &upSize.x, &upSize.y );
+		top = upPos.y + upSize.y;
+	}
+	if( downButton )
+	{
+		ICoord2D downPos;
+		downButton->winGetScreenPosition( &downPos.x, &downPos.y );
+		bottom = downPos.y;
+	}
+	if( bottom > top )
+		GadgetListBoxDrawKitLines( origin.x, top, size.x, bottom - top, TRUE, FALSE, FALSE, FALSE );
+}
+
+//=============================================================================
+void W3DGadgetVerticalSliderKitThumbDraw( GameWindow *window, WinInstanceData *instData )
+{
+	ICoord2D origin, size;
+	window->winGetScreenPosition( &origin.x, &origin.y );
+	window->winGetSize( &size.x, &size.y );
+
+	GameWindow *slider = window->winGetParent();
+	Bool enabled = BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) &&
+								 ( slider == nullptr || BitIsSet( slider->winGetStatus(), WIN_STATUS_ENABLED ) );
+	KitScrollImage top = KIT_SCROLL_THUMB_TOP;
+	if( enabled == FALSE )
+		top = KIT_SCROLL_THUMB_DISABLED_TOP;
+	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) || BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
+		top = KIT_SCROLL_THUMB_HILITE_TOP;
+
+	Int channelX, channelWidth;
+	getKitChannel( origin.x, size.x, channelX, channelWidth );
+	drawVerticalThreePieceImage( GadgetListBoxGetKitScrollImage( top ),
+															 GadgetListBoxGetKitScrollImage( (KitScrollImage)(top + 1) ),
+															 GadgetListBoxGetKitScrollImage( (KitScrollImage)(top + 2) ),
+															 channelX, origin.y, channelWidth, size.y );
 }
 
 

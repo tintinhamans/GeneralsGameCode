@@ -144,8 +144,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 331 168,
-                     BOTTOMRIGHT: 479 193,
+        SCREENRECT = UPPERLEFT: 332 168,
+                     BOTTOMRIGHT: 480 193,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MapTransferScreen.wnd:StaticTextProgressTitle";
         STATUS = ENABLED;
@@ -193,8 +193,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PROGRESSBAR;
-        SCREENRECT = UPPERLEFT: 331 362,
-                     BOTTOMRIGHT: 479 382,
+        SCREENRECT = UPPERLEFT: 332 362,
+                     BOTTOMRIGHT: 480 382,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MapTransferScreen.wnd:ProgressLoad7";
         STATUS = ENABLED;
@@ -240,8 +240,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PROGRESSBAR;
-        SCREENRECT = UPPERLEFT: 331 338,
-                     BOTTOMRIGHT: 479 358,
+        SCREENRECT = UPPERLEFT: 332 338,
+                     BOTTOMRIGHT: 480 358,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MapTransferScreen.wnd:ProgressLoad6";
         STATUS = ENABLED;
@@ -287,8 +287,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PROGRESSBAR;
-        SCREENRECT = UPPERLEFT: 331 314,
-                     BOTTOMRIGHT: 479 334,
+        SCREENRECT = UPPERLEFT: 332 314,
+                     BOTTOMRIGHT: 480 334,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MapTransferScreen.wnd:ProgressLoad5";
         STATUS = ENABLED;
@@ -334,8 +334,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PROGRESSBAR;
-        SCREENRECT = UPPERLEFT: 331 290,
-                     BOTTOMRIGHT: 479 310,
+        SCREENRECT = UPPERLEFT: 332 290,
+                     BOTTOMRIGHT: 480 310,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MapTransferScreen.wnd:ProgressLoad4";
         STATUS = ENABLED;
@@ -381,8 +381,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PROGRESSBAR;
-        SCREENRECT = UPPERLEFT: 331 266,
-                     BOTTOMRIGHT: 479 286,
+        SCREENRECT = UPPERLEFT: 332 266,
+                     BOTTOMRIGHT: 480 286,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MapTransferScreen.wnd:ProgressLoad3";
         STATUS = ENABLED;
@@ -428,8 +428,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PROGRESSBAR;
-        SCREENRECT = UPPERLEFT: 331 242,
-                     BOTTOMRIGHT: 479 262,
+        SCREENRECT = UPPERLEFT: 332 242,
+                     BOTTOMRIGHT: 480 262,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MapTransferScreen.wnd:ProgressLoad2";
         STATUS = ENABLED;
@@ -475,8 +475,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PROGRESSBAR;
-        SCREENRECT = UPPERLEFT: 331 218,
-                     BOTTOMRIGHT: 479 238,
+        SCREENRECT = UPPERLEFT: 332 218,
+                     BOTTOMRIGHT: 480 238,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MapTransferScreen.wnd:ProgressLoad1";
         STATUS = ENABLED;
@@ -522,8 +522,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PROGRESSBAR;
-        SCREENRECT = UPPERLEFT: 331 194,
-                     BOTTOMRIGHT: 479 214,
+        SCREENRECT = UPPERLEFT: 332 194,
+                     BOTTOMRIGHT: 480 214,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MapTransferScreen.wnd:ProgressLoad0";
         STATUS = ENABLED;

@@ -50,7 +50,6 @@
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GadgetSlider.h"
-#include "GameClient/GameText.h"
 #include "GameClient/Mouse.h"
 #include "W3DDevice/GameClient/W3DGadget.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
@@ -111,21 +110,39 @@ static Bool findKitSliderImages()
 	return TRUE;
 }
 
+// GenOnline @bugfix arcticdolphin 08/11/2026 TRUE while the mouse holds the slider or its thumb.
+static Bool isKitSliderGrabbed( GameWindow *slider )
+{
+	GameWindow *grab = TheWindowManager->winGetGrabWindow();
+	return grab != nullptr && ( grab == slider || grab->winGetParent() == slider );
+}
+
+// GenOnline @bugfix arcticdolphin 08/11/2026 The kit thumb is drawn by the slider, so skip the retail thumb hilite image of the layout.
+static void kitSliderThumbDraw( GameWindow *window, WinInstanceData *instData )
+{
+}
+
 static void kitSliderTooltip( GameWindow *window, WinInstanceData *instData, UnsignedInt mouse )
 {
 	GameWindow *slider = window;
 	if( BitIsSet( window->winGetStyle(), GWS_HORZ_SLIDER ) == FALSE && window->winGetParent() != nullptr )
+	{
 		slider = window->winGetParent();
+	}
 
 	SliderData *s = (SliderData *)slider->winGetUserData();
 	if( s == nullptr )
-		return;
-
-	WinInstanceData *sliderData = slider->winGetInstanceData();
-	UnicodeString text;
-	if( sliderData->m_tooltipString.isNotEmpty() )
 	{
-		UnicodeString label = TheGameText->fetch( sliderData->m_tooltipString );
+		return;
+	}
+
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Only the value while dragging, the label and value on hover, shown at once while dragging.
+	WinInstanceData *sliderData = slider->winGetInstanceData();
+	const Bool grabbed = isKitSliderGrabbed( slider );
+	UnicodeString label = sliderData->getTooltipText();
+	UnicodeString text;
+	if( label.isEmpty() == FALSE && grabbed == FALSE )
+	{
 		text.format( L"%ls: %d", label.str(), s->position );
 	}
 	else
@@ -133,7 +150,13 @@ static void kitSliderTooltip( GameWindow *window, WinInstanceData *instData, Uns
 		text.format( L"%d", s->position );
 	}
 
-	TheMouse->setCursorTooltip( text, sliderData->m_tooltipDelay );
+	Int delay = sliderData->m_tooltipDelay;
+	if( grabbed )
+	{
+		delay = 0;
+	}
+
+	TheMouse->setCursorTooltip( text, delay );
 }
 
 static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
@@ -142,6 +165,12 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 	GameWindow *thumb = window->winGetChild();
 	if( thumb == nullptr || findKitSliderImages() == FALSE )
 		return FALSE;
+
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Stop the thumb child drawing the retail hover arrow over the kit marker.
+	if( thumb->winGetDrawFunc() != kitSliderThumbDraw )
+		thumb->winSetDrawFunc( kitSliderThumbDraw );
+
+	Bool grabbed = isKitSliderGrabbed( window );
 
 	ICoord2D thumbPos, thumbSize;
 	thumb->winGetScreenPosition( &thumbPos.x, &thumbPos.y );
@@ -192,7 +221,8 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 	if( enabled == FALSE )
 		thumbImage = s_kitSliderImages[KIT_SLIDER_THUMB_DISABLED];
 	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) ||
-					 BitIsSet( thumb->winGetInstanceData()->getState(), WIN_STATE_HILITED ) )
+					 BitIsSet( thumb->winGetInstanceData()->getState(), WIN_STATE_HILITED ) ||
+					 grabbed )
 		thumbImage = s_kitSliderImages[KIT_SLIDER_THUMB_HILITE];
 
 	TheWindowManager->winDrawImage( thumbImage, thumbX, thumbY,
@@ -202,6 +232,10 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 		window->winSetTooltipFunc( kitSliderTooltip );
 	if( thumb->winGetTooltipFunc() == nullptr )
 		thumb->winSetTooltipFunc( kitSliderTooltip );
+
+	// GenOnline @bugfix arcticdolphin 08/11/2026 The window manager sets no tooltip while a window is held, so keep the value up while dragging.
+	if( grabbed && window->winGetTooltipFunc() == kitSliderTooltip )
+		kitSliderTooltip( window, instData, 0 );
 
 	return TRUE;
 }
@@ -221,6 +255,10 @@ void W3DGadgetHorizontalSliderDraw( GameWindow *window, WinInstanceData *instDat
 	// get screen position and size
 	window->winGetScreenPosition( &origin.x, &origin.y );
 	window->winGetSize( &size.x, &size.y );
+
+	// GenOnline @bugfix arcticdolphin 08/11/2026 Sliders without image status get the kit track too.
+	if( drawKitSliderTrack( window, instData, origin, size ) )
+		return;
 
 	// get the right colors
 	if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) == FALSE )

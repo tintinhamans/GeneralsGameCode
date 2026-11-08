@@ -53,14 +53,18 @@
 #include "Common/Language.h"
 #include "Common/Debug.h"
 #include "Common/GameAudio.h"
+#include "GameClient/Display.h"
 #include "GameClient/DisplayStringManager.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetSlider.h"
+#include "GameClient/GadgetTextEntry.h"
 #include "GameClient/GameWindowGlobal.h"
+#include "GameClient/Image.h"
 #include "GameClient/Keyboard.h"
 
 
@@ -98,6 +102,70 @@ static GameWindow *s_batchAddListbox = nullptr;
 static inline Bool listboxLayoutDeferred( GameWindow *window )
 {
 	return s_batchAddListbox != nullptr && s_batchAddListbox == window;
+}
+
+// GenOnline @feature arcticdolphin 08/11/2026 Kit list scroll bar art: a flush column with a rounded track, a pill thumb and arrow cells.
+static const char *const s_kitScrollImageNames[KIT_SCROLL_IMAGE_COUNT] =
+{
+	"GOScrollTrackTop",
+	"GOScrollTrackCenter",
+	"GOScrollTrackBottom",
+	"GOScrollThumbTop",
+	"GOScrollThumbCenter",
+	"GOScrollThumbBottom",
+	"GOScrollThumbHiliteTop",
+	"GOScrollThumbHiliteCenter",
+	"GOScrollThumbHiliteBottom",
+	"GOScrollThumbDisabledTop",
+	"GOScrollThumbDisabledCenter",
+	"GOScrollThumbDisabledBottom",
+	"GOScrollUp",
+	"GOScrollUpHilite",
+	"GOScrollUpPushed",
+	"GOScrollUpDisabled",
+	"GOScrollDown",
+	"GOScrollDownHilite",
+	"GOScrollDownPushed",
+	"GOScrollDownDisabled",
+	"GOScrollLine"
+};
+
+static const Image *s_kitScrollImages[KIT_SCROLL_IMAGE_COUNT];
+
+// GenOnline @tweak arcticdolphin 08/11/2026 A slim kit scroll column with square arrow boxes.
+static const Int KIT_SCROLL_COLUMN_WIDTH = 14;
+// shortest kit thumb, the retail GADGET_SIZE thumb scaled from the 21 unit column to the kit column
+static const Int KIT_SCROLL_THUMB_MIN_HEIGHT = 11;
+
+static void getScrollbarGaps( Int &edgeGap, Int &sliderGap )
+{
+	if( GadgetListBoxHasKitScrollBar() )
+	{
+		edgeGap = 0;
+		sliderGap = GameWindowManager::winScaleLayoutSize( 2 );
+	}
+	else
+	{
+		edgeGap = GameWindowManager::winScaleLayoutSize( 2 );
+		sliderGap = GameWindowManager::winScaleLayoutSize( 3 );
+	}
+}
+
+static Int getKitThumbHeight( const ListboxData *list, Int trackHeight )
+{
+	Int visible = list->displayHeight - TOTAL_OUTLINE_HEIGHT;
+	Int thumbHeight = trackHeight;
+	if( list->totalHeight > visible && list->totalHeight > 0 && visible > 0 )
+		thumbHeight = REAL_TO_INT( (Real)trackHeight * (Real)visible / (Real)list->totalHeight + 0.5f );
+
+	Int minHeight = GameWindowManager::winScaleLayoutSize( KIT_SCROLL_THUMB_MIN_HEIGHT );
+	if( thumbHeight < minHeight )
+		thumbHeight = minHeight;
+	if( thumbHeight > trackHeight )
+		thumbHeight = trackHeight;
+	if( thumbHeight < 1 )
+		thumbHeight = 1;
+	return thumbHeight;
 }
 
 static void doAudioFeedback(GameWindow *window)
@@ -296,7 +364,22 @@ static void adjustDisplay( GameWindow *window, Int adjustment,
 			return;
 		}
 		child->winGetSize( &sliderChildSize.x, &sliderChildSize.y );
-		sData->numTicks = (float)((sliderSize.y - sliderChildSize.y) / (float)sData->maxVal);
+		// GenOnline @feature arcticdolphin 08/11/2026 The kit thumb length follows the visible part of the list.
+		Bool kitScrollBar = GadgetListBoxHasKitScrollBar();
+		if( kitScrollBar )
+		{
+			Int thumbHeight = getKitThumbHeight( list, sliderSize.y );
+			if( thumbHeight != sliderChildSize.y )
+			{
+				child->winSetSize( sliderChildSize.x, thumbHeight );
+				sliderChildSize.y = thumbHeight;
+			}
+		}
+		// a kit thumb filling the track has no travel
+		if( kitScrollBar && sliderChildSize.y >= sliderSize.y )
+			sData->numTicks = 0.0f;
+		else
+			sData->numTicks = (float)((sliderSize.y - sliderChildSize.y) / (float)sData->maxVal);
 
 		if( updateSlider )
 			TheWindowManager->winSendSystemMsg( list->slider,
@@ -1860,8 +1943,8 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			ICoord2D sliderSize = {0, 0};
 			GameWindow *child = nullptr;
 			ICoord2D sliderChildSize = {0, 0};
-			const Int edgeGap = GameWindowManager::winScaleLayoutSize( 2 );
-			const Int sliderGap = GameWindowManager::winScaleLayoutSize( 3 );
+			Int edgeGap, sliderGap;
+			getScrollbarGaps( edgeGap, sliderGap );
 
 			// get needed window sizes
 			if (list->downButton)
@@ -1905,6 +1988,10 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			{
 				list->displayHeight -= TheWindowManager->winFontHeight( instData->getFont() );
 			}
+#if defined(GENONLINE)
+			// GenOnline @bugfix arcticdolphin 22/11/2026 The last row stays inside the area the list text is drawn in.
+			list->displayHeight -= GadgetListBoxGetTextInset( window );
+#endif
 
 			//
 			// Setup listbox Columns
@@ -2379,8 +2466,12 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	// GenOnline @tweak arcticdolphin 08/11/2026 The scroll bar parts scale with the screen height and keep their shape.
 	buttonWidth = GameWindowManager::winScaleLayoutSize( buttonWidth );
 	buttonHeight = GameWindowManager::winScaleLayoutSize( buttonHeight );
-	edgeGap = GameWindowManager::winScaleLayoutSize( 2 );
-	sliderGap = GameWindowManager::winScaleLayoutSize( 3 );
+	getScrollbarGaps( edgeGap, sliderGap );
+	if( GadgetListBoxHasKitScrollBar() )
+	{
+		buttonWidth = GameWindowManager::winScaleLayoutSize( KIT_SCROLL_COLUMN_WIDTH );
+		buttonHeight = buttonWidth;
+	}
 
 	// ----------------------------------------------------------------------
 	// Create Top Button
@@ -2453,6 +2544,138 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	// we now have all the scrollbar parts, this better be set :)
 	listData->scrollBar = TRUE;
 
+}
+
+//=============================================================================
+Bool GadgetListBoxHasKitScrollBar( void )
+{
+	if( TheMappedImageCollection == nullptr )
+		return FALSE;
+
+	Int i;
+	for( i = 0; i < KIT_SCROLL_IMAGE_COUNT; ++i )
+	{
+		if( s_kitScrollImages[i] == nullptr )
+			s_kitScrollImages[i] = TheMappedImageCollection->findImageByName( s_kitScrollImageNames[i] );
+
+		if( s_kitScrollImages[i] == nullptr )
+			return FALSE;
+	}
+	return TRUE;
+}
+
+//=============================================================================
+const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which )
+{
+	if( which < 0 || which >= KIT_SCROLL_IMAGE_COUNT || GadgetListBoxHasKitScrollBar() == FALSE )
+		return nullptr;
+
+	return s_kitScrollImages[which];
+}
+
+//=============================================================================
+// GenOnline @tweak arcticdolphin 08/11/2026 Kit lists with a layout border draw it at the kit line weight.
+// Kit frame of a colour drawn list: the combo field border for drop-downs, the kit line for bordered lists, else 0
+Int GadgetListBoxGetKitListFrame( GameWindow *window )
+{
+	if( BitIsSet( window->winGetStatus(), WIN_STATUS_IMAGE ) )
+		return 0;
+
+	Int comboFrame = GadgetListBoxGetKitComboFrame( window );
+	if( comboFrame > 0 )
+		return comboFrame;
+
+	Color border = GadgetListBoxGetEnabledBorderColor( window );
+	if( border == WIN_COLOR_UNDEFINED )
+		return 0;
+
+	UnsignedByte red, green, blue, alpha;
+	GameGetColorComponents( border, &red, &green, &blue, &alpha );
+	if( alpha == 0 )
+		return 0;
+
+	return GadgetListBoxGetKitScrollLineWidth();
+}
+
+// GenOnline @bugfix arcticdolphin 22/11/2026 The list text draws below a 4 unit top inset and above the kit frame, so the display height loses both.
+Int GadgetListBoxGetTextInset( GameWindow *listbox )
+{
+	if( GadgetListBoxGetKitComboFrame( listbox ) > 0 )
+		return 0;
+
+	return 4 + GadgetListBoxGetKitListFrame( listbox );
+}
+
+//=============================================================================
+// GenOnline @tweak arcticdolphin 08/11/2026 The kit scroll column has one separator line like the combo arrow join.
+Int GadgetListBoxGetKitScrollLineWidth( void )
+{
+	const Image *line = GadgetListBoxGetKitScrollImage( KIT_SCROLL_LINE );
+	if( line == nullptr || TheDisplay == nullptr )
+		return 0;
+
+	Real layoutScale = (Real)TheDisplay->getHeight() / 600.0f;
+	Int width = REAL_TO_INT_CEIL( line->getBorder() * layoutScale - 0.01f );
+	if( width < 1 )
+		width = 1;
+	return width;
+}
+
+//=============================================================================
+// GenOnline @tweak arcticdolphin 08/11/2026 Kit list frames, scroll cells and the separator share one line weight.
+void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
+																Bool left, Bool top, Bool right, Bool bottom )
+{
+	const Image *line = GadgetListBoxGetKitScrollImage( KIT_SCROLL_LINE );
+	Int thickness = GadgetListBoxGetKitScrollLineWidth();
+	if( line == nullptr || thickness <= 0 || width <= 0 || height <= 0 )
+		return;
+
+	Int across = thickness;
+	if( across > width )
+		across = width;
+	Int down = thickness;
+	if( down > height )
+		down = height;
+
+	if( top )
+		TheWindowManager->winDrawImage( line, x, y, x + width, y + down );
+	if( bottom )
+		TheWindowManager->winDrawImage( line, x, y + height - down, x + width, y + height );
+	if( left )
+		TheWindowManager->winDrawImage( line, x, y, x + across, y + height );
+	if( right )
+		TheWindowManager->winDrawImage( line, x + width - across, y, x + width, y + height );
+}
+
+//=============================================================================
+Int GadgetListBoxGetKitComboFrame( GameWindow *listbox )
+{
+	if( listbox == nullptr || TheDisplay == nullptr || GadgetListBoxHasKitScrollBar() == FALSE )
+		return 0;
+
+	GameWindow *combo = listbox->winGetParent();
+	if( combo == nullptr || BitIsSet( combo->winGetStyle(), GWS_COMBO_BOX ) == FALSE ||
+			GadgetComboBoxGetListBox( combo ) != listbox )
+		return 0;
+
+	GameWindow *editBox = GadgetComboBoxGetEditBox( combo );
+	if( editBox == nullptr )
+		return 0;
+
+	// the field art must carry border rows, like the bordered three piece draw
+	const Image *left = GadgetTextEntryGetEnabledImageLeft( editBox );
+	const Image *center = GadgetTextEntryGetEnabledImageCenter( editBox );
+	const Image *right = GadgetTextEntryGetEnabledImageRight( editBox );
+	if( left == nullptr || center == nullptr || right == nullptr ||
+			left->getBorder() <= 0.0f || center->getBorder() <= 0.0f || right->getBorder() <= 0.0f )
+		return 0;
+
+	Real layoutScale = (Real)TheDisplay->getHeight() / 600.0f;
+	Int frame = REAL_TO_INT_CEIL( left->getBorder() * layoutScale - 0.01f );
+	if( frame < 1 )
+		frame = 1;
+	return frame;
 }
 
 // GadgetListBoxAddMultiSelect ================================================
@@ -2813,6 +3036,19 @@ void GadgetListBoxSetBottomVisibleEntry( GameWindow *window, Int newPos )
 	ListboxData *listData = (ListboxData *)window->winGetUserData();
 	if (!listData)
 		return;
+
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 22/11/2026 Scrolling to the last entry moves the top by the height of that entry, so a wrapped last entry is not clipped.
+	if( newPos == listData->endPos - 1 && newPos > 0 )
+	{
+		Int top = 0;
+		while( top < newPos && listData->listData[newPos].listHeight > ( top > 0 ? listData->listData[top - 1].listHeight + 1 : 0 ) + listData->displayHeight )
+			++top;
+
+		adjustDisplay( window, top - getListboxTopEntry( listData ), true );
+		return;
+	}
+#endif
 
 	int prevPos = GadgetListBoxGetBottomVisibleEntry( window );
 
