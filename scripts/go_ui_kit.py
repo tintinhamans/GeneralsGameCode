@@ -30,12 +30,13 @@ ATLAS_WIDTH = 256  # in retail pixels
 SCALE = 4          # texels per retail pixel
 EXTRUDE = 2        # retail pixels of padding around each piece
 SUPERSAMPLE = 2    # samples per texel and axis
-# edge line width per piece, in its own pixels: one layout pixel at the height the shell layouts usually draw it
-BUTTON_LINE = 1.25  # 40 px art, usually about 32 layout px tall
-RADIO_LINE = 1.45   # 24 px art, usually about 17 layout px tall
-FIELD_LINE = 0.95   # 22 px art, usually about 23 layout px tall
-THUMB_LINE = 1.8    # 22 px art, drawn at its own size
-BOX_LINE = (1.25, 1.45)  # slider blocks: 11x13 art drawn as squares, so the line differs per axis
+# edge line width per piece, in its own pixels: LINE_LAYOUT layout pixels at the height the shell layouts usually draw it
+LINE_LAYOUT = 1.5
+BUTTON_LINE = 1.25 * LINE_LAYOUT  # 40 px art, usually about 32 layout px tall
+RADIO_LINE = 1.45 * LINE_LAYOUT   # 24 px art, usually about 17 layout px tall
+FIELD_LINE = 0.95 * LINE_LAYOUT   # 22 px art, usually about 23 layout px tall
+THUMB_LINE = 1.8 * LINE_LAYOUT    # 22 px art, drawn at its own size
+BOX_LINE = (1.25 * 1.2, 1.45 * 1.2)  # slider blocks: 11x13 art drawn as squares, so the line differs per axis; small, so a thinner line
 
 
 def rgba(hex_color, alpha=1.0):
