@@ -517,7 +517,7 @@ def pieces():
 # They live in their own atlas, GeneralsOnline_UIKit2.tga, because the first atlas is full.
 # Self-contained: from the kit above this section uses only rgba, TRANSPARENT, SCALE and paint.
 # Kit icon style: a 16 unit design grid scaled to the piece, one 2 unit stroke with round caps and
-# joins, even padding and centres snapped to whole texels.
+# joins, even padding and centres snapped to whole texels. Map icons are bare glyphs with a dark outline.
 # =================================================================================================
 
 TEXTURE2_NAME = "GeneralsOnline_UIKit2.tga"
@@ -526,23 +526,23 @@ INI2_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_Gen
 ATLAS2_WIDTH = 128  # in retail pixels
 
 MAP_GRID = 16.0      # design grid units across a piece
-MAP_STROKE = 2.0     # stroke weight and token ring width, in grid units
-MAP_ICON_SIZE = 15   # SUPPLY_TECH_SIZE draws the preview markers at 15 x 15 layout px
-MAP_TOKEN_RADIUS = 7.5  # token circle radius in grid units, half a unit of padding all round
+MAP_STROKE = 2.0     # stroke weight in grid units
+MAP_OUTLINE = 1.0    # dark contrast outline around each glyph, in grid units
+MAP_GLYPH_SCALE = 1.25  # glyphs are drawn about the grid centre at this scale to fill the icon with even padding
+MAP_ICON_SIZE = 15   # retail px of the art; the engine draws the preview markers at a scaled layout size
 STAR_SIZE = 12
 
-MAP_SLATE = rgba("#1c1f30")
-MAP_TECH_RING = rgba("#C9CEFF")
 MAP_WHITE = rgba("#FFFFFF")
 MAP_GOLD = rgba("#FFD34D")
-# image name -> (glyph, token fill, ring, glyph colour)
+MAP_GLYPH_OUTLINE = rgba("#05070F", 0.85)
+# image name -> (glyph, glyph colour); no token behind the glyph, only the dark outline
 MAP_ICONS = {
-    "GOMapIconSupplyDock": ("dollar", rgba("#0b2a12"), rgba("#5CE65C"), rgba("#7CFC7C")),
-    "GOMapIconSupplyCrates": ("dollar", rgba("#0b1a3a"), rgba("#4FA3FF"), rgba("#8CC4FF")),
-    "GOMapIconRepairBay": ("wrench", MAP_SLATE, MAP_TECH_RING, MAP_WHITE),
-    "GOMapIconArtillery": ("cannon", MAP_SLATE, MAP_TECH_RING, MAP_WHITE),
-    "GOMapIconOilDerrick": ("droplet", MAP_SLATE, MAP_GOLD, MAP_GOLD),
-    "GOMapIconTech": ("gear", MAP_SLATE, MAP_TECH_RING, MAP_WHITE),
+    "GOMapIconSupplyDock": ("dollar", rgba("#7CFC7C")),
+    "GOMapIconSupplyCrates": ("dollar", rgba("#8CC4FF")),
+    "GOMapIconRepairBay": ("wrench", MAP_WHITE),
+    "GOMapIconArtillery": ("cannon", MAP_WHITE),
+    "GOMapIconOilDerrick": ("droplet", MAP_GOLD),
+    "GOMapIconTech": ("gear", MAP_WHITE),
 }
 STAR_ON = (MAP_GOLD, rgba("#B8901A"))  # fill, edge
 STAR_OFF = rgba("#5D6080")
@@ -586,18 +586,28 @@ def map_stroke(size, polylines):
     return lambda x, y: map_polyline_distance(x, y, polylines) < half
 
 
+def map_gp(size, gx, gy):
+    """A glyph grid point scaled about the grid centre by MAP_GLYPH_SCALE, snapped to a whole texel."""
+    return map_point(size, 8.0 + (gx - 8.0) * MAP_GLYPH_SCALE, 8.0 + (gy - 8.0) * MAP_GLYPH_SCALE)
+
+
+def map_garc(size, gcx, gcy, gr, start, end, steps=16):
+    """A glyph arc scaled like map_gp."""
+    return map_arc(size, 8.0 + (gcx - 8.0) * MAP_GLYPH_SCALE, 8.0 + (gcy - 8.0) * MAP_GLYPH_SCALE, gr * MAP_GLYPH_SCALE, start, end, steps)
+
+
 def map_dollar(size):
     """An S of two arcs with short bar ends above and below; a bar through the S would close its gaps."""
-    curve = map_arc(size, 8.0, 6.25, 1.75, -20.0, -270.0) + map_arc(size, 8.0, 9.75, 1.75, -90.0, 160.0)[1:]
-    top = [map_point(size, 8.0, 3.6), map_point(size, 8.0, 4.5)]
-    bottom = [map_point(size, 8.0, 11.5), map_point(size, 8.0, 12.4)]
+    curve = map_garc(size, 8.0, 6.25, 1.75, -20.0, -270.0) + map_garc(size, 8.0, 9.75, 1.75, -90.0, 160.0)[1:]
+    top = [map_gp(size, 8.0, 3.6), map_gp(size, 8.0, 4.5)]
+    bottom = [map_gp(size, 8.0, 11.5), map_gp(size, 8.0, 12.4)]
     return map_stroke(size, [curve, top, bottom])
 
 
 def map_wrench(size):
     """A diagonal handle and an open jaw ring facing the top right."""
-    handle = [map_point(size, 5.2, 10.8), map_point(size, 8.2, 7.8)]
-    jaw = map_arc(size, 9.6, 6.4, 1.9, 5.0, 265.0)
+    handle = [map_gp(size, 5.2, 10.8), map_gp(size, 8.2, 7.8)]
+    jaw = map_garc(size, 9.6, 6.4, 1.9, 5.0, 265.0)
     return map_stroke(size, [handle, jaw])
 
 
@@ -605,8 +615,8 @@ def map_cannon(size):
     """A barrel raised to the top right over a wheel; a knockout gap keeps the wheel apart from the barrel."""
     unit = size / MAP_GRID
     half = MAP_STROKE * unit / 2.0
-    barrel = map_stroke(size, [[map_point(size, 4.6, 8.0), map_point(size, 11.1, 5.0)]])
-    wheel = [map_arc(size, 6.8, 10.2, 1.9, 0.0, 360.0, 24)]
+    barrel = map_stroke(size, [[map_gp(size, 4.6, 8.0), map_gp(size, 11.1, 5.0)]])
+    wheel = [map_garc(size, 6.8, 10.2, 1.9, 0.0, 360.0, 24)]
 
     def hit(x, y):
         d = map_polyline_distance(x, y, wheel)
@@ -621,22 +631,22 @@ def map_cannon(size):
 
 def map_gear(size):
     """A ring with six teeth."""
-    ring = map_arc(size, 8.0, 8.0, 2.4, 0.0, 360.0, 24)
+    ring = map_garc(size, 8.0, 8.0, 2.4, 0.0, 360.0, 24)
     teeth = []
     for i in range(6):
         a = math.radians(30.0 + 60.0 * i)
-        teeth.append([map_point(size, 8.0 + 3.4 * math.cos(a), 8.0 + 3.4 * math.sin(a)),
-                      map_point(size, 8.0 + 3.9 * math.cos(a), 8.0 + 3.9 * math.sin(a))])
+        teeth.append([map_gp(size, 8.0 + 3.4 * math.cos(a), 8.0 + 3.4 * math.sin(a)),
+                      map_gp(size, 8.0 + 3.9 * math.cos(a), 8.0 + 3.9 * math.sin(a))])
     return map_stroke(size, [ring] + teeth)
 
 
 def map_droplet(size):
     """A filled teardrop with a rounded tip."""
     unit = size / MAP_GRID
-    cx, cy = map_point(size, 8.0, 9.3)
-    r = 2.7 * unit
-    tip = map_point(size, 8.0, 4.2)
-    left, right = map_point(size, 5.6, 8.1), map_point(size, 10.4, 8.1)
+    cx, cy = map_gp(size, 8.0, 9.3)
+    r = 2.7 * MAP_GLYPH_SCALE * unit
+    tip = map_gp(size, 8.0, 4.2)
+    left, right = map_gp(size, 5.6, 8.1), map_gp(size, 10.4, 8.1)
     round_tip = 0.35 * unit
 
     def hit(x, y):
@@ -657,23 +667,22 @@ def map_inside(x, y, pts):
 
 
 MAP_GLYPHS = {"dollar": map_dollar, "wrench": map_wrench, "cannon": map_cannon, "gear": map_gear, "droplet": map_droplet}
+# directions for the outline test: the glyph shifted by up to MAP_OUTLINE units in 16 directions and at half reach
+MAP_OUTLINE_STEPS = [(r * math.cos(math.radians(a)), r * math.sin(math.radians(a))) for r in (0.5, 1.0) for a in [22.5 * i for i in range(16)]]
 
 
-def map_icon_piece(size, glyph_name, fill, ring, glyph_color):
-    """A round token: a filled circle with a 2 unit ring and the glyph in the middle."""
+def map_icon_piece(size, glyph_name, glyph_color):
+    """The glyph alone in its category colour over a thin dark outline, for contrast on snow, sand and grass."""
     unit = size / MAP_GRID
-    cx, cy = map_point(size, 8.0, 8.0)
-    radius = MAP_TOKEN_RADIUS * unit
-    ring_width = MAP_STROKE * unit
     glyph = MAP_GLYPHS[glyph_name](size)
+    reach = [(dx * MAP_OUTLINE * unit, dy * MAP_OUTLINE * unit) for dx, dy in MAP_OUTLINE_STEPS]
 
     def sample(x, y):
-        d = radius - math.hypot(x - cx, y - cy)
-        if d < 0.0:
-            return TRANSPARENT
-        if d < ring_width:
-            return ring
-        return glyph_color if glyph(x, y) else fill
+        if glyph(x, y):
+            return glyph_color
+        if any(glyph(x + dx, y + dy) for dx, dy in reach):
+            return MAP_GLYPH_OUTLINE
+        return TRANSPARENT
 
     return paint(size, size, sample)
 
@@ -708,8 +717,8 @@ def map_star_piece(size, fill, edge):
 def pieces2():
     """The second atlas: map preview icons and the favourite stars."""
     out = []
-    for name, (glyph_name, fill, ring, glyph_color) in MAP_ICONS.items():
-        out.append((name, MAP_ICON_SIZE, MAP_ICON_SIZE, map_icon_piece(MAP_ICON_SIZE, glyph_name, fill, ring, glyph_color)))
+    for name, (glyph_name, glyph_color) in MAP_ICONS.items():
+        out.append((name, MAP_ICON_SIZE, MAP_ICON_SIZE, map_icon_piece(MAP_ICON_SIZE, glyph_name, glyph_color)))
     out.append(("GOMapFavouriteOn", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, STAR_ON[0], STAR_ON[1])))
     out.append(("GOMapFavouriteOff", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, None, STAR_OFF)))
     return out
