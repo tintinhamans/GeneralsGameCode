@@ -42,6 +42,7 @@
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameClient/MapUtil.h"
+#include "GameClient/MapSelectList.h"
 #include "GameNetwork/GUIUtil.h"
 
 
@@ -54,8 +55,9 @@ static Bool raiseMessageBoxes = FALSE;
 static GameWindow *winMapPreview = nullptr;
 static NameKeyType winMapPreviewID = NAMEKEY_INVALID;
 
-static NameKeyType radioButtonSystemMapsID = NAMEKEY_INVALID;
-static NameKeyType radioButtonUserMapsID = NAMEKEY_INVALID;
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Search, filters and favourites replace the system and user map tabs.
+static MapSelectList mapSelectList;
+static MapSelectFilter mapSelectFilter;
 
 extern WindowLayout *WOLMapSelectLayout;			///< Map selection overlay
 static GameWindow *mapList = nullptr;
@@ -76,6 +78,7 @@ static void NullifyControls(void)
 {
 	parent = nullptr;
 	mapList = nullptr;
+	mapSelectList.shutdown();
 	if (winMapPreview)
 	{
 		winMapPreview->winSetUserData(nullptr);
@@ -136,46 +139,21 @@ void WOLMapSelectMenuInit( WindowLayout *layout, void *userData )
 
 	TheWindowManager->winSetFocus( parent );
 
-	CustomMatchPreferences pref;
-	Bool usesSystemMapDir = pref.usesSystemMapDir();
 	winMapPreviewID = TheNameKeyGenerator->nameToKey( "WOLMapSelectMenu.wnd:WinMapPreview" );
 	winMapPreview = TheWindowManager->winGetWindowFromId(parent, winMapPreviewID);
 
-	const MapMetaData *mmd = TheMapCache->findMap(TheGenOnlineGame->getMap());
-	if (mmd)
-	{
-		usesSystemMapDir = mmd->m_isOfficial;
-	}
-
+	MapSelectOptions options;
 #if !defined(GENONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
 	bool bUseStats = TheGenOnlineGame->getUseStats();
 	//if stats are enabled, only official maps can be used
 	if(bUseStats)
-		usesSystemMapDir = true;
+		options.m_officialOnly = TRUE;
 #endif
 
 	buttonBack = TheNameKeyGenerator->nameToKey( "WOLMapSelectMenu.wnd:ButtonBack" );
 	buttonOK = TheNameKeyGenerator->nameToKey( "WOLMapSelectMenu.wnd:ButtonOK" );
 	listboxMap = TheNameKeyGenerator->nameToKey( "WOLMapSelectMenu.wnd:ListboxMap" );
-	radioButtonSystemMapsID = TheNameKeyGenerator->nameToKey( "WOLMapSelectMenu.wnd:RadioButtonSystemMaps" );
-	radioButtonUserMapsID = TheNameKeyGenerator->nameToKey( "WOLMapSelectMenu.wnd:RadioButtonUserMaps" );
 	winMapWindow = TheWindowManager->winGetWindowFromId( parent, listboxMap );
-
-#if !defined(GENONLINE_ALLOW_ALL_SETTINGS_FOR_STATS_MATCHES)
-	GameWindow* radioButtonSystemMaps = TheWindowManager->winGetWindowFromId(parent, radioButtonSystemMapsID);
-	GameWindow* radioButtonUserMaps = TheWindowManager->winGetWindowFromId(parent, radioButtonUserMapsID);
-
-	if (bUseStats)
-	{
-		//disable unofficial maps if stats are being recorded
-		GadgetRadioSetSelection( radioButtonSystemMaps, FALSE );
-		radioButtonUserMaps->winEnable( FALSE );
-	}
-	else if (usesSystemMapDir)
-		GadgetRadioSetSelection( radioButtonSystemMaps, FALSE );
-	else
-		GadgetRadioSetSelection( radioButtonUserMaps, FALSE );
-#endif
 	AsciiString tmpString;
 	for (Int i = 0; i < MAX_SLOTS; i++)
 	{
@@ -204,7 +182,7 @@ void WOLMapSelectMenuInit( WindowLayout *layout, void *userData )
 	{
 		if (TheMapCache)
 			TheMapCache->updateCache();
-		populateMapListbox( mapList, usesSystemMapDir, TRUE, TheGenOnlineGame->getMap() );
+		mapSelectList.init( parent, "WOLMapSelectMenu.wnd", options, &mapSelectFilter, TheGenOnlineGame->getMap() );
 	}
 
 }
@@ -299,6 +277,19 @@ void WOLPositionStartSpots();
 WindowMsgHandledType WOLMapSelectMenuSystem( GameWindow *window, UnsignedInt msg,
 																				  WindowMsgData mData1, WindowMsgData mData2 )
 {
+	const MapSelectMsgResult filterResult = mapSelectList.handleSystemMessage( msg, mData1, mData2 );
+	if (filterResult == MAP_SELECT_MSG_SOURCE_CHANGED)
+	{
+		const MapSelectSource source = mapSelectFilter.m_source;
+		if (source == MAP_SOURCE_OFFICIAL || source == MAP_SOURCE_USER)
+		{
+			CustomMatchPreferences pref;
+			pref.setUsesSystemMapDir(source == MAP_SOURCE_OFFICIAL);
+			pref.write();
+		}
+	}
+	if (filterResult != MAP_SELECT_MSG_IGNORED)
+		return MSG_HANDLED;
 
 	switch( msg )
 	{
@@ -365,6 +356,7 @@ WindowMsgHandledType WOLMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 					if( rowSelected < 0 )
 					{
 						positionStartSpots( AsciiString::TheEmptyString, buttonMapStartPosition, winMapPreview);
+						mapSelectList.refreshLegend( AsciiString::TheEmptyString );
 //						winMapPreview->winClearStatus(WIN_STATUS_IMAGE);
 						break;
 					}
@@ -393,6 +385,7 @@ WindowMsgHandledType WOLMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 						winMapPreview->winClearStatus(WIN_STATUS_IMAGE);
 					}
 					positionStartSpots( asciiMap, buttonMapStartPosition, winMapPreview);
+					mapSelectList.refreshLegend( asciiMap );
 				}
 				break;
 			}
@@ -414,24 +407,6 @@ WindowMsgHandledType WOLMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 				}
 
 				WOLPositionStartSpots();
-			}
-			else if ( controlID == radioButtonSystemMapsID )
-			{
-				if (TheMapCache)
-					TheMapCache->updateCache();
-				populateMapListbox( mapList, TRUE, TRUE, TheGenOnlineGame->getMap() );
-				CustomMatchPreferences pref;
-				pref.setUsesSystemMapDir(TRUE);
-				pref.write();
-			}
-			else if ( controlID == radioButtonUserMapsID )
-			{
-				if (TheMapCache)
-					TheMapCache->updateCache();
-				populateMapListbox( mapList, FALSE, TRUE, TheGenOnlineGame->getMap() );
-				CustomMatchPreferences pref;
-				pref.setUsesSystemMapDir(FALSE);
-				pref.write();
 			}
 			else if( controlID == buttonOK )
 			{

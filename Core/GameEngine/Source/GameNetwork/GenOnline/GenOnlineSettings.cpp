@@ -60,6 +60,9 @@
 #define SETTINGS_KEY_DATAPACKS_EXCLUDE_PATHS "exclude_paths"
 #define SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY "use_community_data_patch"	// before the layers, read once and dropped on save
 
+#define SETTINGS_KEY_MAPS "maps"
+#define SETTINGS_KEY_MAPS_FAVOURITES "favourites"
+
 #define SETTINGS_FILENAME_LEGACY "GeneralsOnline_settings.json"
 #define SETTINGS_FILENAME "settings.json"
 
@@ -556,6 +559,26 @@ void GenOnlineSettings::Load(void)
                     m_DataPacks_CommunityPatch.m_enabled = datapackSettings[SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH_LEGACY].get<bool>();
                 }
             }
+
+            if (jsonSettings.contains(SETTINGS_KEY_MAPS))
+            {
+                auto mapSettings = jsonSettings[SETTINGS_KEY_MAPS];
+
+                // TheSuperHackers @feature arcticdolphin 08/11/2026 Map select favourites; entries that are not strings are dropped.
+                if (mapSettings.contains(SETTINGS_KEY_MAPS_FAVOURITES) && mapSettings[SETTINGS_KEY_MAPS_FAVOURITES].is_array())
+                {
+                    m_Maps_Favourites.clear();
+                    for (const auto& favourite : mapSettings[SETTINGS_KEY_MAPS_FAVOURITES])
+                    {
+                        if (favourite.is_string() && !favourite.get<std::string>().empty())
+                        {
+                            AsciiString lowered(favourite.get<std::string>().c_str());
+                            lowered.toLower();
+                            m_Maps_Favourites.insert(std::string(lowered.str()));
+                        }
+                    }
+                }
+            }
 		}
 		catch (...)
 		{
@@ -696,6 +719,13 @@ bool GenOnlineSettings::Save()
                     {SETTINGS_KEY_DATAPACKS_GENONLINE, DataPackLayerToJson(m_DataPacks_GeneralsOnline, nullptr)},
                     {SETTINGS_KEY_DATAPACKS_COMMUNITY_PATCH, DataPackLayerToJson(m_DataPacks_CommunityPatch, nullptr)}
                 }
+        },
+
+        {
+            SETTINGS_KEY_MAPS,
+                {
+                    {SETTINGS_KEY_MAPS_FAVOURITES, m_Maps_Favourites}
+                }
         }
     };
 	
@@ -829,4 +859,29 @@ bool GenOnlineSettings::Network_SaveLastRoute(const std::string& host)
 	}
 	m_LastRoute = previous;
 	return false;
+}
+
+bool GenOnlineSettings::Maps_IsFavourite(const std::string& portableMapPath) const
+{
+	AsciiString lowered(portableMapPath.c_str());
+	lowered.toLower();
+	return m_Maps_Favourites.find(std::string(lowered.str())) != m_Maps_Favourites.end();
+}
+
+void GenOnlineSettings::Maps_SetFavourite(const std::string& portableMapPath, bool bFavourite)
+{
+	if (portableMapPath.empty())
+	{
+		return;
+	}
+
+	AsciiString lowered(portableMapPath.c_str());
+	lowered.toLower();
+	const std::string key(lowered.str());
+
+	const bool bChanged = bFavourite ? m_Maps_Favourites.insert(key).second : (m_Maps_Favourites.erase(key) != 0);
+	if (bChanged)
+	{
+		Save();
+	}
 }

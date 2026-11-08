@@ -1,5 +1,6 @@
 #pragma once
 #include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
@@ -70,6 +71,10 @@ public:
 		Load();
 	}
 
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Map select favourites, keyed by the lowercased portable map path.
+	bool Maps_IsFavourite(const std::string& portableMapPath) const;
+	void Maps_SetFavourite(const std::string& portableMapPath, bool bFavourite);
+
 	const GenOnlineDataPackLayer& DataPacks_User() const { return m_DataPacks_User; }
 	const GenOnlineDataPackLayer& DataPacks_GeneralsOnline() const { return m_DataPacks_GeneralsOnline; }
 	const GenOnlineDataPackLayer& DataPacks_CommunityPatch() const { return m_DataPacks_CommunityPatch; }
@@ -109,6 +114,8 @@ private:
 	bool m_Social_Notification_PlayerAcceptsRequest_Gameplay = true;
 	bool m_Social_Notification_PlayerSendsRequest_Menus = true;
 	bool m_Social_Notification_PlayerSendsRequest_Gameplay = true;
+
+	std::set<std::string> m_Maps_Favourites;
 
 	// BIG archives above the retail ones. The layers load in this order, highest priority first. A missing or invalid field keeps its default.
 	GenOnlineDataPackLayer m_DataPacks_User;

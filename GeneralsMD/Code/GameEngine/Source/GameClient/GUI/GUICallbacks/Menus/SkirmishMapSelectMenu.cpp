@@ -44,6 +44,7 @@
 #include "GameClient/GadgetStaticText.h"
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameClient/MapUtil.h"
+#include "GameClient/MapSelectList.h"
 
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
 static NameKeyType buttonBack = NAMEKEY_INVALID;
@@ -52,8 +53,9 @@ static NameKeyType listboxMap = NAMEKEY_INVALID;
 static GameWindow *parent = nullptr;
 static GameWindow *mapList = nullptr;
 
-static NameKeyType radioButtonSystemMapsID = NAMEKEY_INVALID;
-static NameKeyType radioButtonUserMapsID = NAMEKEY_INVALID;
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Search, filters and favourites replace the system and user map tabs.
+static MapSelectList mapSelectList;
+static MapSelectFilter mapSelectFilter;
 
 static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {0};
 static NameKeyType buttonMapStartPositionID[MAX_SLOTS] = { NAMEKEY_INVALID,NAMEKEY_INVALID,
@@ -68,6 +70,7 @@ static void NullifyControls()
 {
 	parent = nullptr;
 	mapList = nullptr;
+	mapSelectList.shutdown();
 	if (winMapPreview)
 	{
 		winMapPreview->winSetUserData(nullptr);
@@ -255,15 +258,6 @@ void SkirmishMapSelectMenuInit( WindowLayout *layout, void *userData )
 
 	TheWindowManager->winSetFocus( parent );
 
-	LANPreferences pref;
-	Bool usesSystemMapDir = pref.usesSystemMapDir();
-
-	const MapMetaData *mmd = TheMapCache->findMap(TheSkirmishGameInfo->getMap());
-	if (mmd)
-	{
-		usesSystemMapDir = mmd->m_isOfficial;
-	}
-
 	winMapPreviewID = TheNameKeyGenerator->nameToKey( "SkirmishMapSelectMenu.wnd:WinMapPreview" );
 	winMapPreview = TheWindowManager->winGetWindowFromId(parent, winMapPreviewID);
 
@@ -271,15 +265,6 @@ void SkirmishMapSelectMenuInit( WindowLayout *layout, void *userData )
 	buttonBack = TheNameKeyGenerator->nameToKey( "SkirmishMapSelectMenu.wnd:ButtonBack" );
 	buttonOK = TheNameKeyGenerator->nameToKey( "SkirmishMapSelectMenu.wnd:ButtonOK" );
 	listboxMap = TheNameKeyGenerator->nameToKey( "SkirmishMapSelectMenu.wnd:ListboxMap" );
-
-	radioButtonSystemMapsID = TheNameKeyGenerator->nameToKey( "SkirmishMapSelectMenu.wnd:RadioButtonSystemMaps" );
-	radioButtonUserMapsID = TheNameKeyGenerator->nameToKey( "SkirmishMapSelectMenu.wnd:RadioButtonUserMaps" );
-	GameWindow *radioButtonSystemMaps = TheWindowManager->winGetWindowFromId( parent, radioButtonSystemMapsID );
-	GameWindow *radioButtonUserMaps = TheWindowManager->winGetWindowFromId( parent, radioButtonUserMapsID );
-	if (usesSystemMapDir)
-		GadgetRadioSetSelection( radioButtonSystemMaps, FALSE );
-	else
-		GadgetRadioSetSelection( radioButtonUserMaps, FALSE );
 
 	AsciiString tmpString;
 	for (Int i = 0; i < MAX_SLOTS; i++)
@@ -301,15 +286,10 @@ void SkirmishMapSelectMenuInit( WindowLayout *layout, void *userData )
 	{
 		if (TheMapCache)
 			TheMapCache->updateCache();
-		if (usesSystemMapDir)
-		{
-			populateMapListbox( mapList, TRUE, TRUE, TheSkirmishGameInfo->getMap() );
-		}
-		else
-		{
-			populateMapListbox( mapList, FALSE, FALSE, TheSkirmishGameInfo->getMap() );
-			populateMapListboxNoReset( mapList, FALSE, TRUE, TheSkirmishGameInfo->getMap() );
-		}
+		MapSelectOptions options;
+		options.m_includeSoloUserMaps = TRUE;
+		options.m_showMedals = TRUE;
+		mapSelectList.init( parent, "SkirmishMapSelectMenu.wnd", options, &mapSelectFilter, TheSkirmishGameInfo->getMap() );
 		mapList->winSetTooltipFunc(mapListTooltipFunc);
 	}
 
@@ -397,6 +377,8 @@ WindowMsgHandledType SkirmishMapSelectMenuInput( GameWindow *window, UnsignedInt
 WindowMsgHandledType SkirmishMapSelectMenuSystem( GameWindow *window, UnsignedInt msg,
 																				  WindowMsgData mData1, WindowMsgData mData2 )
 {
+	if (mapSelectList.handleSystemMessage( msg, mData1, mData2 ) != MAP_SELECT_MSG_IGNORED)
+		return MSG_HANDLED;
 
 	switch( msg )
 	{
@@ -461,6 +443,7 @@ WindowMsgHandledType SkirmishMapSelectMenuSystem( GameWindow *window, UnsignedIn
 					if( rowSelected < 0 )
 					{
 						positionStartSpots( AsciiString::TheEmptyString, buttonMapStartPosition, winMapPreview);
+						mapSelectList.refreshLegend( AsciiString::TheEmptyString );
 						//winMapPreview->winClearStatus(WIN_STATUS_IMAGE);
 						break;
 					}
@@ -489,6 +472,7 @@ WindowMsgHandledType SkirmishMapSelectMenuSystem( GameWindow *window, UnsignedIn
 						winMapPreview->winClearStatus(WIN_STATUS_IMAGE);
 					}
 					positionStartSpots( asciiMap, buttonMapStartPosition, winMapPreview);
+					mapSelectList.refreshLegend( asciiMap );
 				}
 				break;
 			}
@@ -500,26 +484,7 @@ WindowMsgHandledType SkirmishMapSelectMenuSystem( GameWindow *window, UnsignedIn
 			GameWindow *control = (GameWindow *)mData1;
 			Int controlID = control->winGetWindowId();
 
-			if ( controlID == radioButtonSystemMapsID )
-			{
-				if (TheMapCache)
-					TheMapCache->updateCache();
-				populateMapListbox( mapList, TRUE, TRUE, TheSkirmishGameInfo->getMap() );
-				//LANPreferences pref;
-				//pref["UseSystemMapDir"] = "yes";
-				//pref.write();
-			}
-			else if ( controlID == radioButtonUserMapsID )
-			{
-				if (TheMapCache)
-					TheMapCache->updateCache();
-				populateMapListbox( mapList, FALSE, FALSE, TheSkirmishGameInfo->getMap() );
-				populateMapListboxNoReset( mapList, FALSE, TRUE, TheSkirmishGameInfo->getMap() );
-				//LANPreferences pref;
-				//pref["UseSystemMapDir"] = "no";
-				//pref.write();
-			}
-			else if ( controlID == buttonBack )
+			if ( controlID == buttonBack )
 			{
 				showSkirmishGameOptionsUnderlyingGUIElements(TRUE);
 
