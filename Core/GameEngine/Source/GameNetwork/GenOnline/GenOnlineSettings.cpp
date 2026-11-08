@@ -18,6 +18,8 @@
 #define SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL "fps_limit"
 #define SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY "stats_overlay"
 #define SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY "adaptive_quality"
+#define SETTINGS_KEY_UI "ui"
+#define SETTINGS_KEY_UI_STYLE "style"
 
 #define SETTINGS_KEY_CHAT "chat"
 #define SETTINGS_KEY_CHAT_LIFE_SECONDS "duration_seconds_until_fade_out"
@@ -347,6 +349,17 @@ void GenOnlineSettings::Load(void)
 				}
 			}
 
+			// an unknown style falls back to refit, the save then writes it
+			if (jsonSettings.contains(SETTINGS_KEY_UI) && jsonSettings[SETTINGS_KEY_UI].is_object())
+			{
+				const auto uiSettings = jsonSettings[SETTINGS_KEY_UI];
+				if (uiSettings.contains(SETTINGS_KEY_UI_STYLE) && uiSettings[SETTINGS_KEY_UI_STYLE].is_string())
+				{
+					const std::string style = uiSettings[SETTINGS_KEY_UI_STYLE].get<std::string>();
+					m_UI_Style = (style == "retail" || style == "overhaul") ? style : std::string("refit");
+				}
+			}
+
             if (jsonSettings.contains(SETTINGS_KEY_NETWORK))
             {
                 // Any network value that is unknown, malformed or of the wrong type goes back to its default and is logged, one line per field.
@@ -660,6 +673,13 @@ bool GenOnlineSettings::Save()
 					{SETTINGS_KEY_RENDER_LIMIT_FRAMERATE, m_Render_LimitFramerate},
 					{SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL, m_Render_FramerateLimit_FPSVal},
 					{SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY, m_Render_AdaptiveQuality},
+				}
+		},
+
+		{
+			SETTINGS_KEY_UI,
+				{
+					{SETTINGS_KEY_UI_STYLE, m_UI_Style},
 				}
 		},
 

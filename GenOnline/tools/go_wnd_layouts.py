@@ -3,7 +3,10 @@
 
 Every retail layout in WindowZH.big is copied to GenOnline/data/zerohour at its archive path, with
 deterministic fixes. A layout GO already edited by hand (GenOnline/tools/wnd_sources) replaces the retail
-file as input, and the GO-only layouts there get the same fixes. All rects are in 800x600 units.
+file as input, and the GO-only layouts there get the same fixes. A layout with a YAML source
+(GenOnline/tools/wnd_yaml, compiled by GenOnline/tools/wnd_yaml.py) is written as compiled: the source already holds the
+kit colours, GO header templates and hover images, so none of the fixes below apply to it, and its
+GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects are in 800x600 units.
 
 - Kit colours: the retail blue line colours in draw data and TEXTCOLOR border entries become the
   UI kit line and hilite colours; each value keeps its alpha.
@@ -38,6 +41,9 @@ file as input, and the GO-only layouts there get the same fixes. All rects are i
   header line in the frame) moves to TITLE_LEFT, the most common title edge, is centred vertically
   between the frame top and the line, and draws left aligned. Menus only.
 - Overrides: GenOnline/tools/wnd_fixes.py sets absolute rects last; the rules never move those windows.
+- Theme copies: every menu layout (not the in-game ones, nor the menus shown during a match) also goes to
+  GenOnline/data/Themes/Radar at the same path, its final output with the colours swapped for the
+  Classic (Generals Online) palette (GenOnline/tools/go_themes.py LAYOUT_COLORS). Only colour numbers differ.
 
 A move never creates an overlap with a sibling and never pushes a window or its children further
 out of their parent; such moves are skipped and logged. Children move with their window. The rules
@@ -66,6 +72,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from wnd_fixes import FIXES  # noqa: E402
+import wnd_yaml  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "GenOnline" / "data"
@@ -153,7 +160,7 @@ IN_GAME = re.compile(
     re.I,
 )
 # menus shown during a match; with IN_GAME they keep the retail header templates so in-game mods stay in charge of them
-# (the same list as isEmbeddedShellLayout in Core ArchiveFileSystem.cpp)
+# (the same list as isGenOnlineShellLayout in Core ArchiveFileSystem.cpp)
 IN_MATCH_MENUS = {
     "crcmismatch", "defeat", "disconnectscreen", "localdefeat", "observerquit", "popupsaveload",
     "quitmenu", "quitmessagebox", "quitnosave", "saveload", "victorious",
@@ -200,7 +207,8 @@ TOKEN_RE = re.compile(
     r"|^[ \t]*(?P<prop>\w*DRAWDATA)[ \t]*=(?P<body>[^;]*);"
     r"|^[ \t]*FONT[ \t]*=[ \t]*NAME:[ \t]*\"[^\"]*\"[ \t]*,[ \t]*SIZE:[ \t]*(?P<size>\d+)"
     r"|^[ \t]*HEADERTEMPLATE[ \t]*=[ \t]*\"(?P<header>[^\"]*)\""
-    r"|^[ \t]*STATICTEXTDATA[ \t]*=[ \t]*CENTERED:[ \t]*(?P<centered>\d+)",
+    r"|^[ \t]*STATICTEXTDATA[ \t]*=[ \t]*CENTERED:[ \t]*(?P<centered>\d+)"
+    r"|^[ \t]*STATUS[ \t]*=[ \t]*(?P<status>[^;]*);",
     re.M,
 )
 SLOT_RE = re.compile(
@@ -222,6 +230,7 @@ class Window:
         self.draws = []        # (property, [(image, color, border)])
         self.font_size = 0
         self.header = ""
+        self.status = set()    # STATUS flags, for example {"ENABLED", "HIDDEN"}
         self.centered = None   # (value, text span) of STATICTEXTDATA CENTERED
 
     def walk(self):
@@ -249,6 +258,8 @@ def parse_windows(text):
             top.kind = m.group("kind")
         elif m.group("name") is not None:
             top.name = m.group("name")
+        elif m.group("status") is not None:
+            top.status = {flag.strip() for flag in m.group("status").split("+") if flag.strip()}
         elif m.group("x0") is not None:
             top.rect = top.original = tuple(int(m.group(k)) for k in ("x0", "y0", "x1", "y1"))
             top.spans = [m.span(k) for k in ("x0", "y0", "x1", "y1")]
@@ -271,15 +282,25 @@ def structure_counts(text):
     return dict(Counter(m.group(1) for m in STRUCTURE_RE.finditer(text)))
 
 
-def remap_colors(text):
-    """Swap the retail blue line colours for the kit colours, keeping alpha and spacing."""
+def remap_colors(text, table=COLOR_REMAP, pattern=COLOR_RE):
+    """Swap the retail blue line colours for the kit colours, or the colours in table, keeping alpha and spacing."""
     def swap(m):
         rgb = (int(m["r"]), int(m["g"]), int(m["b"]))
-        if rgb not in COLOR_REMAP:
+        if rgb not in table:
             return m.group(0)
-        r, g, b = COLOR_REMAP[rgb]
+        r, g, b = table[rgb]
         return f"{m['key']}:{m['sp']}{r}{m['s1']}{g}{m['s2']}{b}"
-    return COLOR_RE.sub(swap, text)
+    return pattern.sub(swap, text)
+
+
+def themed(name):
+    """True for the layouts the theme recolours: the menus, not the in-game layouts nor the menus shown in a match."""
+    return _uses_go_templates(name)
+
+
+def theme_layout(text):
+    """The Classic (Generals Online) copy of a final layout: draw data and text colours in the theme palette."""
+    return remap_colors(text, go_themes.LAYOUT_COLORS, THEME_COLOR_RE)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1236,9 +1257,29 @@ def build(retail, game="zerohour"):
     layouts, made from the Generals retail layouts without the Zero Hour hand edits, YAML sources and per layout overrides."""
     inputs = {name: raw for name, raw in read_big(retail).items()}
     by_lower = {name.lower(): name for name in inputs}
+    compiled = {}
+    if game == "generals":
+        wanted = {k.lower() for k in GENONLINE_LAYOUTS} | {v.lower() for v in SHELL_COPIES.values()}
+        inputs = {name: raw for name, raw in inputs.items() if name.lower() in wanted}
+        for rel in GENERALS_SOURCES:
+            inputs[rel] = (SOURCES / rel).read_bytes().replace(b"IMAGE: Alpha,", b"IMAGE: NoImage,")
+        compiled["Window/Menus/OptionsMenu.wnd"] = wnd_yaml.compile_text(generals_options_source(), "OptionsMenu.wnd", "OptionsMenu.yaml for Generals")
+        inputs["Window/Menus/OptionsMenu.wnd"] = compiled["Window/Menus/OptionsMenu.wnd"].encode("latin-1")
+    else:
+        for src in sorted(SOURCES.rglob("*.wnd")):
+            rel = src.relative_to(SOURCES).as_posix()
+            inputs[by_lower.get(rel.lower(), rel)] = src.read_bytes()
+        for rel, src in wnd_yaml.sources().items():
+            name = by_lower.get(rel.lower(), rel)
+            compiled[name] = wnd_yaml.compile_file(src)
+            inputs[name] = compiled[name].encode("latin-1")
     results = []
     for name in sorted(inputs, key=str.lower):
         text = inputs[name].decode("latin-1")
+        if name in compiled:
+            info = {"frame": False, "stats": Counter(), "notes": [], "changes": [], "uncentred": []}
+            results.append((name, text, text, info))
+            continue
         out, info = align(remap_colors(text), name)
         out = hilite_images(go_templates(out, name))
         results.append((name, text, out, info))
@@ -1373,7 +1414,8 @@ def main():
     if args.check:
         expected = {output_root(name, args.game) / name: out.encode("latin-1") for name, text, out, info in results}
         stale = [p for p, data in expected.items() if not p.exists() or p.read_bytes() != data]
-        extra = [p for p in (DATA / "Window").rglob("*.wnd") if p not in expected] if (DATA / "Window").exists() else []
+        folders = [GENERALS_DATA] if args.game == "generals" else [CORE_DATA, ZERO_HOUR_DATA]
+        extra = [p for folder in folders if (folder / "Window").is_dir() for p in (folder / "Window").rglob("*.wnd") if p not in expected]
         for p in stale:
             print(f"out of date: {p.relative_to(ROOT).as_posix()}")
         for p in extra:

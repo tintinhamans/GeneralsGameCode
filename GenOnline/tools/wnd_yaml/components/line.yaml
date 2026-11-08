@@ -1,0 +1,6 @@
+# A one unit high divider line in the kit line colour.
+extends: user
+params:
+  fill: "0 0 0 0"
+  border: "47 75 255 255"
+place: {h: 1}

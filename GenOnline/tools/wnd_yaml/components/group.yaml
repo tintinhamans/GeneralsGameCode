@@ -1,0 +1,10 @@
+# An invisible panel that only groups windows, for example the pages of a tab control.
+extends: panel
+params:
+  fill: "0 0 2 0"
+  border: "47 75 255 0"
+  disabled_fill: "64 64 64 0"
+  disabled_border: "254 254 254 0"
+  hilite_fill: "106 123 255 0"
+  hilite_border: "254 254 254 0"
+status: [ENABLED, NOFOCUS]

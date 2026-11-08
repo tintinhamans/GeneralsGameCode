@@ -45,7 +45,7 @@ public:
 	virtual void closeAllArchiveFiles() override;											///< Close all Archivefiles currently open
 
 	// File operations
-	virtual ArchiveFile * openArchiveFile(const Char *filename) override;
+	virtual ArchiveFile * openArchiveFile(const Char *filename, ArchivePathFilter includePath = nullptr) override;
 	virtual void closeArchiveFile(const Char *filename) override;
 	virtual void closeAllFiles() override;															///< Close all files associated with ArchiveFiles
 

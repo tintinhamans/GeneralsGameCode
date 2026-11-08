@@ -1,0 +1,6 @@
+# A smaller title inside a panel.
+extends: statictext
+params:
+  font: "Arial"
+  font_size: 14
+  header: "GOMinorTitle"

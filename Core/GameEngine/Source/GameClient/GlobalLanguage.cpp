@@ -55,6 +55,7 @@
 #include "Common/AddonCompat.h"
 #include "Common/INI.h"
 #include "Common/Registry.h"
+#include "Common/ArchiveFileSystem.h"
 #include "Common/FileSystem.h"
 #include "Common/OptionPreferences.h"
 
@@ -181,7 +182,11 @@ void GlobalLanguage::init()
 
 #if defined(GENONLINE)
 	// GenOnline @feature arcticdolphin 08/11/2026 Register the GO UI font process private from the file system.
-	registerUIFonts();
+	// The Retail interface style keeps the retail fonts.
+	if (TheArchiveFileSystem == nullptr || !TheArchiveFileSystem->usesRetailInterface())
+	{
+		registerUIFonts();
+	}
 #endif
 
 	// override values with user preferences
