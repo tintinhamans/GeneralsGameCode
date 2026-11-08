@@ -50,7 +50,9 @@
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
+#include "GameClient/GadgetTextEntry.h"
 #include "W3DDevice/GameClient/W3DGadget.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 
@@ -91,6 +93,51 @@ static void assignKitScrollBarDraws( ListboxData *list )
 		list->upButton->winSetDrawFunc( W3DGadgetPushButtonKitScrollArrowDraw );
 	if( list->downButton && list->downButton->winGetDrawFunc() == W3DGadgetPushButtonImageDraw )
 		list->downButton->winSetDrawFunc( W3DGadgetPushButtonKitScrollArrowDraw );
+}
+
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit combo drop-down lists line up with and frame like their combo field.
+// Kit combo drop-down rows start where the combo field text starts; x is already inside the frame
+static Int getListTextOffsetX( GameWindow *window )
+{
+	Int frame = GadgetListBoxGetKitComboFrame( window );
+	if( frame <= 0 )
+		return GameWindowManager::winScaleLayoutSize( TEXT_X_OFFSET );
+
+	// the W3DTextEntry margin, then its start for text drawn from the start or edited text
+	GameWindow *editBox = GadgetComboBoxGetEditBox( window->winGetParent() );
+	EntryData *e = editBox ? (EntryData *)editBox->winGetUserData() : nullptr;
+	Int offset = GameWindowManager::winScaleLayoutSize( 5 );
+	if( e && e->drawTextFromStart )
+		offset += GameWindowManager::winScaleLayoutSize( 5 );
+	else
+		offset += GameWindowManager::winScaleLayoutSize( 2 );
+	return offset - frame;
+}
+
+// Draw the combo field art over a kit combo drop-down list as its frame and background
+static void drawKitComboFrame( GameWindow *window, Int x, Int y, Int width, Int height )
+{
+	GameWindow *editBox = GadgetComboBoxGetEditBox( window->winGetParent() );
+	if( editBox == nullptr )
+		return;
+
+	const Image *left = GadgetTextEntryGetEnabledImageLeft( editBox );
+	const Image *center = GadgetTextEntryGetEnabledImageCenter( editBox );
+	const Image *smallCenter = GadgetTextEntryGetEnabledImageSmallCenter( editBox );
+	const Image *right = GadgetTextEntryGetEnabledImageRight( editBox );
+	if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) == FALSE &&
+			GadgetTextEntryGetDisabledImageLeft( editBox ) && GadgetTextEntryGetDisabledImageCenter( editBox ) &&
+			GadgetTextEntryGetDisabledImageRight( editBox ) )
+	{
+		left = GadgetTextEntryGetDisabledImageLeft( editBox );
+		center = GadgetTextEntryGetDisabledImageCenter( editBox );
+		smallCenter = GadgetTextEntryGetDisabledImageSmallCenter( editBox );
+		right = GadgetTextEntryGetDisabledImageRight( editBox );
+	}
+
+	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 An open drop-down hides the controls under it; the kit field fill is translucent.
+	TheDisplay->drawFillRect( x, y, width, height, GameMakeColor( 5, 7, 15, 255 ) );
+	TheWindowManager->winDrawThreePieceImage( left, center, smallCenter, right, x, y, width, height );
 }
 
 // drawHiliteBar ==============================================================
@@ -331,7 +378,7 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 		Color dropColor = TheWindowManager->winMakeColor( 0, 0, 0, 255 );
 		DisplayString *string;
 		// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
-		const Int textOffsetX = GameWindowManager::winScaleLayoutSize( TEXT_X_OFFSET );
+		const Int textOffsetX = getListTextOffsetX( window );
 
 		ListEntryCell *cells = list->listData[i].cell;
 		Int columnX = x;
@@ -504,6 +551,15 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 
 	}
 
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit combo drop-down lists wear the combo field frame, joined to the field.
+	const Int comboFrame = GadgetListBoxGetKitComboFrame( window );
+	if( comboFrame > 0 )
+	{
+		drawKitComboFrame( window, x, y, width, height );
+		border = WIN_COLOR_UNDEFINED;
+		background = WIN_COLOR_UNDEFINED;
+	}
+
 	// draw the back border
 	if( border != WIN_COLOR_UNDEFINED )
 		TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
@@ -524,6 +580,15 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 		// TheSuperHackers @tweak arcticdolphin 08/11/2026 Keep the text clear of the scaled scroll bar.
 		width -= (sliderSize.x + GameWindowManager::winScaleLayoutSize( 3 ));
 
+	}
+
+	// rows and selection bars stay inside the kit frame
+	if( comboFrame > 0 )
+	{
+		x += comboFrame;
+		width -= comboFrame;
+		if( list->slider == nullptr || list->slider->winIsHidden() )
+			width -= comboFrame;
 	}
 
 	// draw the text
