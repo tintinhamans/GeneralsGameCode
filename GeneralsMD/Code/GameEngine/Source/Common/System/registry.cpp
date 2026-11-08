@@ -189,19 +189,11 @@ AsciiString GetRegistryLanguage()
 		// But its more reliable to just fall back and determine language from disk files instead of continuing and crashing because english (default) .big files don't exist
 
 		// get current process dir
+		// the working directory is the retail folder, also when the client runs from another folder with -setCwd
 		char szProcessDir[MAX_PATH] = { 0 };
-		DWORD length = GetModuleFileNameA(NULL, szProcessDir, MAX_PATH);
-		if (length > 0 && length != MAX_PATH)
+		DWORD length = GetCurrentDirectoryA(MAX_PATH, szProcessDir);
+		if (length > 0 && length < MAX_PATH)
 		{
-			// Remove the executable name to get the directory
-			for (int i = length - 1; i >= 0; --i) {
-				if (szProcessDir[i] == '\\' || szProcessDir[i] == '/')
-				{
-					szProcessDir[i] = '\0';
-					break;
-				}
-			}
-
 			// now check which language exists
 			std::map<std::string, AsciiString> languageFiles = {
 				{"GermanZH", AsciiString("german")},
