@@ -927,6 +927,148 @@ class ButtonGroupBorderTest(unittest.TestCase):
             self.assertEqual(slots["WOLCustomLobby.wnd:ParentSortButtons"][0][2][3], "0", path)
 
 
+SETUP_MENUS = ("SkirmishGameOptionsMenu", "LanGameOptionsMenu", "GameSpyGameOptionsMenu")
+# visible sibling overlaps the game setup layouts ship on purpose
+SETUP_OVERLAPS = {
+    # the host sees the player combo, the other players the static text in its spot; the code hides one
+    ("ComboBoxPlayer", "StaticTextPlayer"),
+    # retail slivers the rows never touch: the info list 7 units above its unnamed frame, 1 unit label and value
+    # overlaps, and the map name reaching a few units into the select map button
+    ("", "ListboxInfo"),
+    ("SliderGameSpeed", "StaticTextBattleHonors1"),
+    ("StaticTextBestStreak", "StaticTextBestStreakValue"),
+    ("StaticTextLosses", "StaticTextLossesValue"),
+    ("StaticTextStreak", "StaticTextStreakValue"),
+    ("StaticTextWins", "StaticTextWinsValue"),
+    ("ButtonSelectMap", "TextEntryMapDisplay"),
+}
+# the retail map name also reaches 3 to 5 units into the team column beside it, on the engine rows only
+MAP_NAME_TEAM_ROWS = range(5, 8)
+
+
+def _short(win):
+    return win.name.split(":")[-1]
+
+
+def _slot(win):
+    m = wl.SLOT_NAME_RE.match(_short(win))
+    return (m["base"], int(m["index"])) if m else None
+
+
+def _hidden(win):
+    while win is not None:
+        if "HIDDEN" in win.status:
+            return True
+        win = win.parent
+    return False
+
+
+class SetupRowsTest(unittest.TestCase):
+    """The game setup screens lay out SLOT_ROWS player rows; the rows past the engine's 8 slots ship disabled."""
+
+    def shipped(self, themes=True):
+        import go_themes
+        for menu in SETUP_MENUS:
+            name = f"Window/Menus/{menu}.wnd"
+            for base in (wl.DATA, go_themes.THEME_DIR) if themes else (wl.DATA,):
+                path = base / name
+                yield path, name, wl.parse_windows(path.read_bytes().decode("latin-1"))
+
+    def slots(self, root):
+        return {_slot(win): win for win in root.walk() if _slot(win)}
+
+    def test_every_slot_control_has_twelve_rows(self):
+        for path, name, root in self.shipped():
+            slots = self.slots(root)
+            bases = {base for base, index in slots if index == wl.ENGINE_SLOTS - 1}
+            self.assertGreaterEqual(len(bases), 5, path)
+            for base in bases:
+                # skirmish row 0 has the local player's name field instead of ComboBoxPlayer0
+                first = 1 if base == "ComboBoxPlayer" and "Skirmish" in name else 0
+                self.assertEqual(sorted(i for b, i in slots if b == base), list(range(first, wl.SLOT_ROWS)), f"{path} {base}")
+
+    def test_rows_past_the_engine_slots_are_disabled_and_the_combos_visible(self):
+        for path, name, root in self.shipped():
+            slots = self.slots(root)
+            for (base, index), win in slots.items():
+                if index < wl.ENGINE_SLOTS:
+                    self.assertIn("ENABLED", win.status, f"{path} {win.name}")
+                    continue
+                self.assertNotIn("ENABLED", win.status, f"{path} {win.name}")
+                self.assertEqual("HIDDEN" in win.status, base not in wl.VISIBLE_SLOT_BASES, f"{path} {win.name}")
+            for base in wl.VISIBLE_SLOT_BASES:
+                for index in range(wl.ENGINE_SLOTS, wl.SLOT_ROWS):
+                    self.assertFalse(_hidden(slots[(base, index)]), f"{path} {base}{index}")
+
+    def test_rows_have_one_pitch_and_centre_on_their_row(self):
+        for path, name, root in self.shipped():
+            slots = self.slots(root)
+            anchors = [slots[("ComboBoxColor", i)] for i in range(wl.SLOT_ROWS)]
+            frame = anchors[0].parent
+            tops = [w.rect[1] for w in anchors]
+            self.assertEqual([b - a for a, b in zip(tops, tops[1:])], [wl.ROW_PITCH] * (wl.SLOT_ROWS - 1), path)
+            row_windows = [(i, w) for (b, i), w in slots.items() if w.parent is frame]
+            row_windows += [(0, w) for w in frame.children if _short(w) in wl.ROW_STAND_INS]
+            for index, win in row_windows:
+                height = win.rect[3] - win.rect[1]
+                self.assertEqual(win.rect[1] - tops[index], (wl.COMBO_HEIGHT - height) // 2, f"{path} {win.name} {win.rect}")
+
+    def test_columns_stay_aligned(self):
+        for path, name, root in self.shipped():
+            columns = {}
+            for (base, index), win in self.slots(root).items():
+                if base != "ButtonMapStartPosition":
+                    columns.setdefault(base, set()).add((win.rect[0], win.rect[2]))
+            for base, edges in columns.items():
+                self.assertEqual(len(edges), 1, f"{path} {base} {edges}")
+
+    def test_lower_sections_start_under_the_last_row(self):
+        for path, name, root in self.shipped():
+            slots = self.slots(root)
+            last = slots[("ComboBoxColor", wl.SLOT_ROWS - 1)]
+            frame = last.parent
+            rows = {id(w) for w in slots.values()} | {id(w) for w in frame.children if _short(w) in wl.ROW_STAND_INS}
+            below = [w for w in frame.children if id(w) not in rows and w.rect[1] > last.rect[1] and not _hidden(w)]
+            self.assertTrue(below, path)
+            self.assertEqual(min(w.rect[1] for w in below), last.rect[3] + wl.SECTION_GAP, path)
+
+    def test_everything_sits_inside_the_ruler_frame(self):
+        x0, y0, x1, y1 = wl.RULER_BOX
+        for path, name, root in self.shipped():
+            frame = self.slots(root)[("ComboBoxColor", 0)].parent
+            for win in frame.walk():
+                r = win.rect
+                self.assertTrue(x0 <= r[0] and y0 <= r[1] and r[2] <= x1 and r[3] <= y1, f"{path} {win.name} {r}")
+
+    def test_visible_siblings_do_not_overlap(self):
+        for path, name, root in self.shipped():
+            for parent in (root, *root.walk()):
+                shown = [w for w in parent.children if w.rect and not _hidden(w)]
+                for i, a in enumerate(shown):
+                    for b in shown[i + 1:]:
+                        if not wl._overlaps(a.rect, b.rect):
+                            continue
+                        sa, sb = _slot(a), _slot(b)
+                        bases = tuple(sorted(s[0] if s else _short(w) for s, w in ((sa, a), (sb, b))))
+                        same_row = sa is None or sb is None or sa[1] == sb[1]
+                        rows = [s[1] for s in (sa, sb) if s]
+                        map_name = bases == ("ComboBoxTeam", "TextEntryMapDisplay") and rows[0] in MAP_NAME_TEAM_ROWS
+                        # start position markers are a stack the game code spreads over the map preview
+                        markers = bases == ("ButtonMapStartPosition",) * 2
+                        self.assertTrue((bases in SETUP_OVERLAPS and same_row) or map_name or markers,
+                                        f"{path} {a.name} {a.rect} overlaps {b.name} {b.rect}")
+
+    def test_setup_rows_is_idempotent_on_the_shipped_layouts(self):
+        for path, name, root in self.shipped(themes=False):
+            text = path.read_bytes().decode("latin-1")
+            self.assertEqual(wl.setup_rows(text, name), text, path)
+
+    def test_other_layouts_are_left_alone(self):
+        text = layout(window("COMBOBOX", (100, 100, 200, 120)))
+        self.assertEqual(wl.setup_rows(text, "Window/Menus/OptionsMenu.wnd"), text)
+        self.assertEqual(wl.setup_rows(text, None), text)
+
+
 class ShippedLayoutTest(unittest.TestCase):
     def test_game_setup_column_headings_start_at_their_column(self):
         cases = [

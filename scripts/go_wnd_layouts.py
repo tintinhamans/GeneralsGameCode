@@ -53,6 +53,13 @@ scripts/wnd_sources copy, if any, is only kept for reference. All rects are in 8
 - Button groups: a colour drawn USER window with a clear fill whose children are push buttons (and NOINPUT
   overlays drawn on them, like the sort arrows) draws no border, so its frame does not show between the buttons
   or double their edges: its first enabled border colour gets alpha 0 (every layout that gets the fixes).
+- Setup rows: last, the Skirmish, LAN and online game setup screens lay out SLOT_ROWS player rows ROW_PITCH apart.
+  Rows past the engine's ENGINE_SLOTS are copies of the last engine row with ENABLED cleared: the combos draw
+  disabled and empty (a combo's TEXT is a title above its box, not its edit box text), the accept marker, ping,
+  non-host player name and start position marker copies are also hidden, like on a closed slot. The menu code only
+  looks up rows below MAX_SLOTS, so it never enables them. The band under the rows (game speed, cash, checkboxes)
+  moves to SECTION_GAP under the last row and the panels under it (chat or info and stats) take the space down to
+  the next band; rows inside a panel spread evenly over it.
 - Theme copies: every menu layout (not the in-game ones, nor the menus shown during a match) also goes to
   GenOnline/GameData/Themes/Radar at the same path, its final output with the colours swapped for the
   Classic (Generals Online) palette (scripts/go_themes.py LAYOUT_COLORS). Only colour numbers differ.
@@ -62,7 +69,8 @@ out of their parent; such moves are skipped and logged. Children move with their
 repeat until nothing changes. In-game layouts get only the edge, label and equal row rules;
 MainMenu and ControlBar keep their geometry apart from the original 1 unit equal rows rule. Only
 values change in place: every other byte, the CRLF line endings and the file layout stay. Names,
-callbacks, images, text, fonts and CREATIONRESOLUTION stay; only a title's CENTERED flag changes.
+callbacks, images, text, fonts and CREATIONRESOLUTION stay; only a title's CENTERED flag changes. The setup
+rows are the one exception: they add the disabled row copies as whole windows.
 
 Usage:
     python scripts/go_wnd_layouts.py           write the layouts into GenOnline/GameData/Window
@@ -122,6 +130,27 @@ MIN_HEIGHT = 18            # a stack gap never shrinks a control below this heig
 COMBO_HEIGHT = 20
 COMBO_FONT = 10            # combos with a larger font keep their height
 COLUMN_REACH = 8           # neighbouring columns of one row are at most this far apart
+
+# game setup screens: player rows past the engine's slots ship as disabled copies, ready for more players
+SETUP_LAYOUTS = {
+    "Window/Menus/SkirmishGameOptionsMenu.wnd",
+    "Window/Menus/LanGameOptionsMenu.wnd",
+    "Window/Menus/GameSpyGameOptionsMenu.wnd",
+}
+ENGINE_SLOTS = 8           # MAX_SLOTS in Core GameNetwork/NetworkDefs.h; the menus only look up rows below it
+SLOT_ROWS = 12             # player rows the setup screens lay out
+ROW_PITCH = 22             # top to top distance of the player rows: the COMBO_HEIGHT combos and a 2 unit gap
+SECTION_GAP = 6            # gap between the player rows, the settings row and the panels under them
+PANEL_INSET = 2            # rows inside a panel under the settings row keep this inset
+MIN_PANEL = 40             # the panels under the settings row keep at least this height
+SLOT_BASES = ("ComboBoxPlayerTemplate", "ComboBoxPlayer", "ComboBoxColor", "ComboBoxTeam", "ButtonAccept",
+              "GenericPing", "StaticTextPlayer", "ButtonMapStartPosition")
+SLOT_NAME_RE = re.compile(r"^(?P<base>%s)(?P<index>\d+)$" % "|".join(SLOT_BASES))
+# the copies of these draw disabled; the others are hidden like on a closed slot (accept marker, ping, the non-host's
+# player name over the combo, start position markers the code places over the map)
+VISIBLE_SLOT_BASES = ("ComboBoxPlayer", "ComboBoxColor", "ComboBoxPlayerTemplate", "ComboBoxTeam")
+ROW_STAND_INS = {"TextEntryPlayerName": 0}  # the skirmish player's name field in place of ComboBoxPlayer0
+STATUS_LINE_RE = re.compile(r"^[ \t]*STATUS[ \t]*=[ \t]*(?P<flags>[^;]*);", re.M)
 DEFAULT_COLUMN_GAP = 4     # column gap when every gap of a row differs
 
 # shared left edge of the ruler menu titles: the most common one (GameSpy game options and WOL welcome
@@ -233,6 +262,7 @@ class Window:
         self.header = ""
         self.status = set()    # STATUS flags, for example {"ENABLED", "HIDDEN"}
         self.centered = None   # (value, text span) of STATICTEXTDATA CENTERED
+        self.block = None      # text span of the WINDOW ... END block, its line break included
 
     def walk(self):
         for child in self.children:
@@ -249,11 +279,14 @@ def parse_windows(text):
         top = stack[-1]
         if m.group("open"):
             win = Window(top)
+            win.block = (m.start(), None)
             top.children.append(win)
             stack.append(win)
         elif m.group("close"):
             if len(stack) == 1:
                 raise ValueError(f"END without WINDOW at offset {m.start()}")
+            end = m.end() + 1 if text.startswith("\n", m.end()) else m.end()
+            top.block = (top.block[0], end)
             stack.pop()
         elif m.group("kind"):
             top.kind = m.group("kind")
@@ -1297,9 +1330,142 @@ def compact_combos(text, name):
     return text
 
 
+def _place(win, rect, edits):
+    edits.extend((span, str(new)) for span, old, new in zip(win.spans, win.rect, rect) if old != new)
+    win.rect = rect
+
+
+def _bands(windows):
+    """Group windows into vertical bands of overlapping spans, top to bottom: [top, bottom, windows]."""
+    bands = []
+    for win in sorted(windows, key=lambda w: (w.rect[1], w.rect[3])):
+        if bands and win.rect[1] <= bands[-1][1]:
+            bands[-1][1] = max(bands[-1][1], win.rect[3])
+            bands[-1][2].append(win)
+        else:
+            bands.append([win.rect[1], win.rect[3], [win]])
+    return bands
+
+
+def _clone_slot(text, win, index, rect, hidden):
+    """The text of a disabled copy of slot window win for slot index at rect, followed by a CHILD line for the next sibling."""
+    start, end = win.block
+    block = text[start:end]
+    for (s, e), value in sorted(zip(win.spans, rect), reverse=True):
+        block = block[:s - start] + str(value) + block[e - start:]
+    base = SLOT_NAME_RE.match(win.name.split(":")[-1])["base"]
+    block = block.replace(f'"{win.name}"', f'"{win.name.rsplit(":", 1)[0]}:{base}{index}"', 1)
+    status = STATUS_LINE_RE.search(block)
+    flags = [f.strip() for f in status["flags"].split("+") if f.strip() and f.strip() != "ENABLED"]
+    if hidden:
+        flags.insert(0, "HIDDEN")
+    if not flags:
+        raise ValueError(f"{win.name}: no status flags left for the disabled copy")
+    block = block[:status.start("flags")] + "+".join(flags) + block[status.end("flags"):]
+    indent = re.match(r"[ \t]*", block).group(0)
+    newline = "\r\n" if block.endswith("\r\n") else "\n"
+    child = text.rfind("\n", 0, start - 1) + 1
+    if text[child:start].strip() != "CHILD":
+        raise ValueError(f"{win.name}: slot window is not a CHILD of its parent")
+    return block + indent + "CHILD" + newline
+
+
+def setup_rows(text, name):
+    """Lay out SLOT_ROWS player rows on a game setup screen and move the sections below them under the last row.
+
+    Rows past ENGINE_SLOTS are disabled copies of the last engine row; the engine never looks them up, so they stay
+    disabled. The band under the rows moves up or down to sit SECTION_GAP under the last row, the next band (the
+    chat or info panels) takes the space down to the band after it, and every later band stays.
+    """
+    if name not in SETUP_LAYOUTS:
+        return text
+    root = parse_windows(text)
+    slots = {}
+    for win in root.walk():
+        m = SLOT_NAME_RE.match(win.name.split(":")[-1])
+        if m:
+            slots[(m["base"], int(m["index"]))] = win
+    anchor = slots[("ComboBoxColor", 0)]
+    frame = anchor.parent
+    height = anchor.rect[3] - anchor.rect[1]
+    tops = [anchor.rect[1] + i * ROW_PITCH for i in range(SLOT_ROWS)]
+    rows = {id(w): i for (base, i), w in slots.items() if w.parent is frame}
+    rows.update({id(w): ROW_STAND_INS[w.name.split(":")[-1]] for w in frame.children
+                 if w.name.split(":")[-1] in ROW_STAND_INS})
+    old_bottom = max(w.rect[3] for w in frame.children if id(w) in rows)
+
+    def row_rect(win, index):
+        x0, y0, x1, y1 = win.rect
+        top = tops[index] + (height - (y1 - y0)) // 2
+        return (x0, top, x1, top + y1 - y0)
+
+    edits = []
+    last = ENGINE_SLOTS - 1
+    for (base, index), win in sorted(slots.items()):
+        if index != last:
+            continue
+        clones = []
+        for k in range(ENGINE_SLOTS, SLOT_ROWS):
+            if (base, k) in slots:
+                continue
+            if win.parent is frame:
+                rect = row_rect(win, k)
+            else:
+                # start position markers continue their stack; the game code places them over the map
+                prev = slots[(base, last - 1)].rect
+                rect = tuple(v + (k - last) * (v - p) for v, p in zip(win.rect, prev))
+            clones.append(_clone_slot(text, win, k, rect, base not in VISIBLE_SLOT_BASES))
+        if clones:
+            edits.append(((win.block[0], win.block[0]), "".join(reversed(clones))))
+    for win in frame.children:
+        if id(win) in rows:
+            _place(win, row_rect(win, rows[id(win)]), edits)
+
+    below = [w for w in frame.children if id(w) not in rows and w.rect[1] > old_bottom]
+    above = [w for w in frame.children if id(w) not in rows and w.rect[1] <= old_bottom]
+    bands = _bands(below)
+    if len(bands) < 3:
+        raise ValueError(f"{name}: expected a settings band, a panel band and a fixed band under the player rows")
+    (top, bottom, settings), (stretch_top, stretch_bottom, stretch), (fixed_top, _, _) = bands[:3]
+    rows_bottom = max([tops[-1] + height] + [w.rect[3] for w in above])
+    shown = [w.rect[1] for w in settings if "HIDDEN" not in w.status] or [top]
+    dy = rows_bottom + SECTION_GAP - min(shown)
+    for win in settings:
+        for w in (win, *win.walk()):
+            _place(w, _moved(w.rect, 0, dy), edits)
+    new_top = bottom + dy + SECTION_GAP
+    new_bottom = fixed_top - SECTION_GAP
+    if new_bottom - new_top < MIN_PANEL:
+        raise ValueError(f"{name}: {new_bottom - new_top} units left for the panels under the player rows")
+    for win in stretch:
+        x0, y0, x1, y1 = win.rect
+        _place(win, (x0, y0 - stretch_top + new_top, x1, new_bottom - (stretch_bottom - y1)), edits)
+        _fit_child_rows(win, edits)
+    for (start, end), value in sorted(edits, reverse=True):
+        text = text[:start] + value + text[end:]
+    return text
+
+
+def _fit_child_rows(win, edits):
+    """Spread the rows of a panel's children evenly over its height, keeping their gap, PANEL_INSET from its edges."""
+    if not win.children:
+        return
+    row_tops = sorted({c.rect[1] for c in win.children})
+    first = [c for c in win.children if c.rect[1] == row_tops[0]]
+    gap = row_tops[1] - row_tops[0] - (first[0].rect[3] - first[0].rect[1]) if len(row_tops) > 1 else 0
+    x0, y0, x1, y1 = win.rect
+    pitch = (y1 - y0 - 2 * PANEL_INSET + gap) // len(row_tops)
+    top = y0 + (y1 - y0 - (len(row_tops) * pitch - gap)) // 2
+    for child in win.children:
+        row = top + row_tops.index(child.rect[1]) * pitch
+        _place(child, (child.rect[0], row, child.rect[2], row + pitch - gap), edits)
+
+
 def finish(text, name):
-    """The fixes after alignment: combo heights, GO header templates, hover images, map preview frames and button groups."""
-    return button_group_borders(map_preview_borders(hilite_images(go_templates(compact_combos(text, name), name))))
+    """The fixes after alignment: combo heights, GO header templates, hover images, map preview frames, button groups
+    and the game setup rows."""
+    text = button_group_borders(map_preview_borders(hilite_images(go_templates(compact_combos(text, name), name))))
+    return setup_rows(text, name)
 
 
 def transform(text, notes=None, name=None):
