@@ -1131,3 +1131,45 @@ Int GadgetComboBoxGetLength( GameWindow *combobox )
 	return 0;
 }
 
+// GadgetComboBoxIsKitField ===================================================
+/** TRUE when the combo draws as one GO kit field box: kit field and arrow art, no divider between them */
+//=============================================================================
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 A kit combo draws its edit box and arrow as one field box.
+Bool GadgetComboBoxIsKitField( GameWindow *comboBox )
+{
+	if( comboBox == nullptr || BitIsSet( comboBox->winGetStyle(), GWS_COMBO_BOX ) == FALSE )
+		return FALSE;
+
+	GameWindow *button = GadgetComboBoxGetDropDownButton( comboBox );
+	if( button == nullptr || GadgetComboBoxGetEditBox( comboBox ) == nullptr )
+		return FALSE;
+
+	// the arrow art must carry border rows like the field art the kit drop-down frame checks
+	const Image *arrow = GadgetButtonGetEnabledImage( button );
+	if( arrow == nullptr || arrow->getBorder() <= 0.0f )
+		return FALSE;
+
+	return GadgetListBoxGetKitComboFrame( GadgetComboBoxGetListBox( comboBox ) ) > 0;
+}
+
+// GadgetComboBoxIsKitFieldLit ================================================
+/** TRUE when a kit combo field shows its hover look: the mouse is over the edit box or the arrow, or the combo has focus */
+//=============================================================================
+Bool GadgetComboBoxIsKitFieldLit( GameWindow *comboBox )
+{
+	if( GadgetComboBoxIsKitField( comboBox ) == FALSE )
+		return FALSE;
+
+	GameWindow *parts[ 3 ];
+	parts[ 0 ] = comboBox;
+	parts[ 1 ] = GadgetComboBoxGetEditBox( comboBox );
+	parts[ 2 ] = GadgetComboBoxGetDropDownButton( comboBox );
+
+	Int i;
+	for( i = 0; i < 3; ++i )
+	{
+		if( BitIsSet( parts[ i ]->winGetInstanceData()->getState(), WIN_STATE_HILITED ) )
+			return TRUE;
+	}
+	return FALSE;
+}

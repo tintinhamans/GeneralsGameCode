@@ -51,6 +51,7 @@
 #include "GameClient/Gadget.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/Display.h"
@@ -325,12 +326,19 @@ void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 	if( listbox && GadgetListBoxGetDownButton( listbox ) == window )
 		arrow = KIT_SCROLL_DOWN;
 
+	const Image *cell = nullptr;
 	if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) == FALSE )
 		arrow = (KitScrollImage)(arrow + 3);
 	else if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
+	{
 		arrow = (KitScrollImage)(arrow + 2);
+		cell = GadgetListBoxGetKitScrollImage( KIT_SCROLL_CELL_PUSHED );
+	}
 	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) )
+	{
 		arrow = (KitScrollImage)(arrow + 1);
+		cell = GadgetListBoxGetKitScrollImage( KIT_SCROLL_CELL_HILITE );
+	}
 
 	const Image *image = GadgetListBoxGetKitScrollImage( arrow );
 	if( image == nullptr )
@@ -342,7 +350,23 @@ void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 	ICoord2D start, size;
 	window->winGetScreenPosition( &start.x, &start.y );
 	window->winGetSize( &size.x, &size.y );
-	TheWindowManager->winDrawImage( image, start.x, start.y, start.x + size.x, start.y + size.y );
+
+	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The highlight and the chevron centre on the column line the scroll thumb shares.
+	Int contentX, contentWidth;
+	GadgetListBoxGetKitScrollSpan( KIT_SCROLL_SPAN_CONTENT, start.x, size.x, &contentX, &contentWidth );
+	if( cell != nullptr )
+		TheWindowManager->winDrawImage( cell, contentX, start.y, contentX + contentWidth, start.y + size.y );
+
+	// the chevron at its own aspect, centred down the cell
+	Int chevronX, chevronWidth;
+	GadgetListBoxGetKitScrollSpan( KIT_SCROLL_SPAN_CHEVRON, start.x, size.x, &chevronX, &chevronWidth );
+	Int chevronHeight = chevronWidth;
+	if( image->getImageWidth() > 0 )
+		chevronHeight = (image->getImageHeight() * chevronWidth + image->getImageWidth() / 2) / image->getImageWidth();
+	if( chevronHeight > size.y )
+		chevronHeight = size.y;
+	Int chevronY = start.y + (size.y - chevronHeight) / 2;
+	TheWindowManager->winDrawImage( image, chevronX, chevronY, chevronX + chevronWidth, chevronY + chevronHeight );
 }
 
 void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
@@ -384,6 +408,17 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 
 			if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
 				image			= GadgetButtonGetHiliteSelectedImage( window );
+		}
+
+		// TheSuperHackers @tweak arcticdolphin 08/11/2026 A kit combo arrow lights with its whole field, never on its own.
+		GameWindow *combo = window->winGetParent();
+		if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) && GadgetComboBoxIsKitField( combo ) &&
+				GadgetComboBoxGetDropDownButton( combo ) == window )
+		{
+			if( GadgetComboBoxIsKitFieldLit( combo ) && GadgetButtonGetHiliteImage( window ) != nullptr )
+				image = GadgetButtonGetHiliteImage( window );
+			else
+				image = GadgetButtonGetEnabledImage( window );
 		}
 	}
 

@@ -69,7 +69,7 @@ KIT_COLORS = {
     "#2B34B8": P["pushed"],    # pushed fill, selected list row
     "#0A0A10": P["ground"],    # disabled fill
     "#05070F": P["ground"],    # entry field and map start fill
-    "#0B1030": P["surface"],   # combo arrow and unlit slider block fill
+    "#0B1030": P["surface"],   # unlit slider block fill
     # slider and scroll bar
     "#3446FF": P["bronze"],    # slider value fill, lit block, scroll pill, chosen map start
     "#283489": P["line"],      # slider and scroll track

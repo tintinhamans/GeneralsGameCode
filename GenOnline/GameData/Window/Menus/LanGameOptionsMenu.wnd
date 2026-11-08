@@ -409,8 +409,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 457 394,
-                   BOTTOMRIGHT: 610 418,
+      SCREENRECT = UPPERLEFT: 457 396,
+                   BOTTOMRIGHT: 610 416,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanGameOptionsMenu.wnd:CheckboxLimitSuperweapons";
       STATUS = ENABLED+IMAGE;
