@@ -540,6 +540,71 @@ class EntryPairTest(unittest.TestCase):
         self.assertEqual(wl.transform(once, name=MENU), once)
 
 
+MAP_SELECT_LAYOUTS = ("SkirmishMapSelectMenu.wnd", "LanMapSelectMenu.wnd", "WOLMapSelectMenu.wnd")
+MAP_SELECT_NAMES = (
+    "ListboxMap", "WinMapPreview", "ButtonOK", "ButtonBack", "WinGadgetBorder", "StaticTextTitle",
+    "TextEntryMapSearch", "ComboBoxMapPlayers", "ComboBoxMapSize", "RadioButtonMapsAll", "RadioButtonMapsOfficial",
+    "RadioButtonMapsUser", "RadioButtonMapsFavourites", "StaticTextMapCount", "StaticTextMapLegend",
+    *(f"ButtonMapStartPosition{i}" for i in range(8)),
+)
+
+
+class DialogTest(unittest.TestCase):
+    def test_content_over_a_dialog_frame_keeps_its_rects(self):
+        # a frame sibling under the content (backdrop, frame, content) keeps every inset, even near misses
+        text = screen(
+            window("USER", (130, 105, 670, 495), indent=2),
+            window("SCROLLLISTBOX", (140, 192, 470, 487), indent=2),
+            window("USER", (482, 192, 660, 432), indent=2),
+            window("PUSHBUTTON", (480, 461, 566, 487), indent=2),
+            window("PUSHBUTTON", (574, 462, 660, 488), indent=2),
+        )
+        self.assertEqual(rects(wl.transform(text, name=MENU)), rects(text))
+
+    def test_map_select_dialogs_pass_the_rules_unchanged(self):
+        for fn in MAP_SELECT_LAYOUTS:
+            name = f"Window/Menus/{fn}"
+            text = (wl.SOURCES / name).read_bytes().decode("latin-1")
+            out, info = wl.align(wl.remap_colors(text), name)
+            self.assertEqual(info["changes"], [], fn)
+            self.assertEqual(wl.structure_counts(out), wl.structure_counts(text), fn)
+
+    def test_map_select_dialogs_keep_the_window_names_the_code_uses(self):
+        for fn in MAP_SELECT_LAYOUTS:
+            root = wl.parse_windows((wl.SOURCES / "Window" / "Menus" / fn).read_bytes().decode("latin-1"))
+            names = {w.name for w in root.walk()}
+            for short in MAP_SELECT_NAMES:
+                self.assertIn(f"{fn}:{short}", names, fn)
+            # the backdrop covers the screen, the dialog frame is centred and holds every other window
+            backdrop = root.children[0]
+            self.assertEqual(backdrop.rect, (0, 0, 800, 600), fn)
+            frame = next(w for w in root.walk() if w.name == f"{fn}:WinGadgetBorder")
+            self.assertEqual((frame.rect[0] + frame.rect[2], frame.rect[1] + frame.rect[3]), (800, 600), fn)
+            for win in backdrop.walk():
+                if win is not frame:
+                    self.assertTrue(frame.rect[0] <= win.rect[0] and win.rect[2] <= frame.rect[2], win.name)
+                    self.assertTrue(frame.rect[1] <= win.rect[1] and win.rect[3] <= frame.rect[3], win.name)
+
+    def test_map_select_filters_sit_on_the_list_and_preview_grid(self):
+        for fn in MAP_SELECT_LAYOUTS:
+            root = wl.parse_windows((wl.SOURCES / "Window" / "Menus" / fn).read_bytes().decode("latin-1"))
+            r = {w.name.split(":", 1)[1]: w.rect for w in root.walk()}
+            lst, preview = r["ListboxMap"], r["WinMapPreview"]
+            gap = preview[0] - lst[2]
+            # search over the list column, the combos over the preview column like Accept and Cancel
+            self.assertEqual((r["TextEntryMapSearch"][0], r["TextEntryMapSearch"][2]), (lst[0], lst[2]), fn)
+            self.assertEqual((r["ComboBoxMapPlayers"][0], r["ComboBoxMapPlayers"][2]), (r["ButtonOK"][0], r["ButtonOK"][2]), fn)
+            self.assertEqual((r["ComboBoxMapSize"][0], r["ComboBoxMapSize"][2]), (r["ButtonBack"][0], r["ButtonBack"][2]), fn)
+            self.assertEqual(r["ComboBoxMapSize"][0] - r["ComboBoxMapPlayers"][2], gap, fn)
+            # four equal source buttons evenly spaced across the list column, the count over the preview column
+            sources = [r[f"RadioButtonMaps{n}"] for n in ("All", "Official", "User", "Favourites")]
+            self.assertEqual(len({s[2] - s[0] for s in sources}), 1, fn)
+            self.assertEqual({b[0] - a[2] for a, b in zip(sources, sources[1:])}, {gap}, fn)
+            self.assertEqual((sources[0][0], sources[-1][2]), (lst[0], lst[2]), fn)
+            self.assertEqual((r["StaticTextMapCount"][0], r["StaticTextMapCount"][2]), (preview[0], preview[2]), fn)
+            self.assertEqual((r["StaticTextMapCount"][1], r["StaticTextMapCount"][3]), (sources[0][1], sources[0][3]), fn)
+
+
 class AlignmentIdempotenceTest(unittest.TestCase):
     def test_title_gaps_and_columns_together_are_idempotent(self):
         cells = []
