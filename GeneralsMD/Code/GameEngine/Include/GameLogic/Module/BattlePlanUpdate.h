@@ -158,6 +158,8 @@ public:
 
 	//Returns the currently active battle plan -- unpacked and ready... returns PLANSTATUS_NONE if in transition!
 	BattlePlanStatus getActiveBattlePlan() const;
+	TransitionStatus getTransitionStatus() const { return m_status; }///< unpacking, active, packing or idle; read-only
+	BattlePlanStatus getDesiredBattlePlan() const { return m_desiredPlan; }
 
 	virtual void onObjectCreated() override;
 	virtual void onDelete() override;

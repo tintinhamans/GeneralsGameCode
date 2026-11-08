@@ -225,6 +225,11 @@ public:
 
 	virtual void notifyViewChanged() {} ///< signals that the camera view has changed
 
+	Real getTerrainAverageZForStats() const { return m_terrainAverageZ; } ///< the height the minimap view box is projected at; read-only
+
+	/// Copies the terrain image of the minimap as RGBA bytes (R first), row-major, into `rgba`. FALSE when there is no image to read. Read-only.
+	virtual Bool getTerrainImageForStats( UnsignedByte *rgba, UnsignedInt capacity, Int *width, Int *height ) { return FALSE; }
+
 protected:
 
 	// snapshot methods

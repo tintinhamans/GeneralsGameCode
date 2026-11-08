@@ -342,6 +342,7 @@ extern void ShowInGameChat( Bool immediate = TRUE );
 void ResetInGameChat();
 void SetInGameChatType( InGameChatType chatType );
 Bool IsInGameChatActive();
+Bool SubmitInGameChatLine( const UnicodeString& text, InGameChatType chatType );
 
 
 // Diplomacy Controls --------------------------------------------------------------------------------

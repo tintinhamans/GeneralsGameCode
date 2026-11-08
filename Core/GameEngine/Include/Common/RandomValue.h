@@ -33,6 +33,18 @@ extern void InitRandom( UnsignedInt seed );
 extern UnsignedInt GetGameLogicRandomSeed();   ///< Get the seed (used for replays)
 extern UnsignedInt GetGameLogicRandomSeedCRC();///< Get the seed (used for CRCs)
 
+/// A private copy of the state of one generator, for computations that must not touch the generators of the game.
+typedef UnsignedInt RandomSeedState[6];
+
+/// Seeds `state` exactly as InitRandom(seed) seeds the logic generator. Touches no global state.
+extern void SeedRandomState(UnsignedInt seed, RandomSeedState& state);
+
+/// The arithmetic of GetGameLogicRandomValue on a private state (same draw count, same result), touching no global state.
+extern Int GetLogicRandomValueFromState(RandomSeedState& state, Int lo, Int hi);
+
+/// The GetGameLogicRandomSeedCRC() value the logic generator has right after InitRandom(seed). Touches no global state.
+extern UnsignedInt ComputeFreshGameLogicRandomSeedCRC(UnsignedInt seed);
+
 struct RandomValueClass
 {
 	virtual Int GetRandomValueInt( Int lo, Int hi, const char *file, Int line ) const = 0;

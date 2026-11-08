@@ -114,6 +114,8 @@
 
 #include "../GenOnlineDefines.h"
 
+#include "Common/StatsExporterPipe.h"
+#include "Common/StatsExporterLive.h"
 #include <chrono>
 #include "WW3D2/ww3d.h"
 
@@ -264,6 +266,9 @@ GameEngine::GameEngine()
 //-------------------------------------------------------------------------------------------------
 GameEngine::~GameEngine()
 {
+	// stop the stats pipe thread before the state it samples is torn down
+	StatsExporterPipeShutdown();
+
 	//extern std::vector<std::string>	preloadTextureNamesGlobalHack;
 	//preloadTextureNamesGlobalHack.clear();
 
@@ -958,6 +963,10 @@ void GameEngine::update()
 {
 	USE_PERF_TIMER(GameEngine_update)
 	{
+		// keeps the stats pipe listener up so a client can connect from the shell
+		StatsExporterPipeStart();
+		StatsExporterLiveTick();
+
 		{
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
 			VERIFY_CRC
@@ -986,6 +995,7 @@ void GameEngine::update()
 				TheGameClient->UPDATE();
 				AdaptiveQuality::get().addOwn(AdaptiveQuality::now() - aqClientStart);
 			}
+			StatsExporterLiveCamera();
 			TheMessageStream->propagateMessages();
 
             if (TheNetwork != nullptr)

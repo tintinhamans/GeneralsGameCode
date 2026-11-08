@@ -123,6 +123,7 @@ struct QuitGameException {};
 #include "../GenOnlineInterfaces.h"
 
 #include "../GenOnlineDefines.h"
+#include "Common/StatsExporterLive.h"
 
 DECLARE_PERF_TIMER(SleepyMaintenance)
 
@@ -608,6 +609,14 @@ static Object* placeObjectAtPosition(Int slotNum, AsciiString objectTemplateName
 	return obj;
 }
 
+// Whether this slot is the local player. The initial camera and the stats exporter use the same test.
+Bool GameLogicIsLocalSlot(GameInfo* game, GameSlot* slot)
+{
+	AsciiString slotNameAscii;
+	slotNameAscii.translate(slot->getName());
+	return slot->isHuman() && game->getSlotNum(slotNameAscii) == game->getLocalSlotNum();
+}
+
 static void placeNetworkBuildingsForPlayer(Int slotNum, const GameSlot* pSlot, Player* pPlayer, const PlayerTemplate* pTemplate)
 {
 	Int startPos = pSlot->getStartPos();
@@ -742,6 +751,7 @@ void handleNameChange(MapObject* mapObj)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
+// Mirrored by predictLobby() in StatsExporterLive.cpp for the lobby prediction, keep them in sync.
 static void checkForDuplicateColors(GameInfo* game)
 {
 	if (!game)
@@ -778,6 +788,7 @@ static void checkForDuplicateColors(GameInfo* game)
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
+// Mirrored line by line by predictLobby() in StatsExporterLive.cpp for the lobby prediction, keep them in sync.
 static void populateRandomSideAndColor(GameInfo* game)
 {
 	if (!game)
@@ -874,6 +885,7 @@ static void populateRandomSideAndColor(GameInfo* game)
 // ------------------------------------------------------------------------------------------------
 static const WaypointMap s_emptyWaypoints = WaypointMap();
 
+// Mirrored line by line by predictLobby() in StatsExporterLive.cpp for the lobby prediction, keep them in sync.
 static void populateRandomStartPosition(GameInfo* game)
 {
 	if (!game)
@@ -1448,8 +1460,14 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 		}
 	}
 
+	// Read-only: the state of the logic generator going into the resolution, for the lobby prediction check of the exporter.
+	const UnsignedInt randomCrcBeforeResolve = GetGameLogicRandomSeedCRC();
+
 	populateRandomSideAndColor(game);
 	populateRandomStartPosition(game);
+
+	// The resolved sides, colors and start positions are in the slots now, the exporter only reads them.
+	StatsExporterLiveMatchLoading(game, randomCrcBeforeResolve, loadingSaveGame);
 
 	//****************************//
 	// Start the LoadScreen Now!	//
@@ -3958,7 +3976,11 @@ void GameLogic::update()
 #endif
 		m_startNewGame = FALSE;
 
+		// players are fully set up now, nothing happens for the shell map
+		StatsExporterLiveMatchStarted();
+
 	#ifdef DUMP_PERF_STATS
+		char Buf[1024];
 		__int64 freq64;
 		GetPrecisionTimerTicksPerSec(&freq64);
 
@@ -4038,6 +4060,9 @@ void GameLogic::update()
 	{
 		TheStatsCollector->update();
 	}
+
+	// live stats pipe sample (state at the end of the previous frame), an early-out while no reader is connected
+	StatsExporterLiveUpdate();
 
 	// Update the Recorder
 	{
@@ -4179,6 +4204,8 @@ void GameLogic::update()
 	{
 		TheGameLogic->exitGame();
 	}
+
+	StatsExporterLiveFrameEnd();
 
 	// increment world time
 	if (!m_startNewGame)

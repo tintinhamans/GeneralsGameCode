@@ -18,6 +18,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/StatsExporter.h"
+#include "Common/StatsExporterLive.h"
 #include "Common/StatsUploader.h"
 #include "Common/Player.h"
 #include "Common/PlayerList.h"
@@ -419,6 +420,16 @@ void StatsExporterBeginRecording()
 
 void StatsExporterRecordKill(const Object *killer, const Object *victim, const DamageInfo *damageInfo)
 {
+	// Live pipe feed with a cheap early-out while no reader is connected
+	if (killer != nullptr && victim != nullptr && killer->getControllingPlayer() != nullptr)
+	{
+		StatsExporterLiveKill(killer->getControllingPlayer()->getPlayerIndex(), killer, victim);
+	}
+
+	if (!TheGlobalData->m_exportStats)
+	{
+		return;
+	}
 	if (!s_state.exportingActive)
 		return;
 	if (killer == nullptr || victim == nullptr || TheGameLogic == nullptr)

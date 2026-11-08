@@ -235,6 +235,8 @@ public:
 
 	void lockUserControlUntilFrame(UnsignedInt frame) { m_userControlLockedUntilFrame = frame; } ///< Locks the user control over camera until the given frame is reached.
 
+	UnsignedInt getUserActionCount() const { return m_userActionCount; } ///< Number of user camera actions so far, scripted camera moves not counted
+	void restoreUserActionCount(UnsignedInt count) { m_userActionCount = count; } ///< Takes back the actions counted since `count` was read, for camera moves the game makes on the user's behalf
 	virtual void setUserControlled(Bool value) { m_isUserControlled = value; }
 	Bool isUserControlLocked() const;
 
@@ -299,6 +301,7 @@ private:
 	{
 		if (isUserControlLocked())
 			return false;
+		++m_userActionCount;
 		stopDoingScriptedCamera();
 		setUserControlled(true);
 		(this->*function)();
@@ -310,6 +313,7 @@ private:
 	{
 		if (isUserControlLocked())
 			return false;
+		++m_userActionCount;
 		stopDoingScriptedCamera();
 		setUserControlled(true);
 		(this->*function)(arg1);
@@ -324,6 +328,7 @@ protected:
 	static UnsignedInt m_idNext;																///< Used for allocating view ID's for all views
 
 	UnsignedInt m_userControlLockedUntilFrame;									///< Locks the user control over camera until the given frame is reached
+	UnsignedInt m_userActionCount;													///< Counts the user camera actions that were accepted, for tools that watch who moves the camera
 	Bool m_isUserControlled;																		///< True if the user moved the camera last, false if the scripted camera moved the camera last
 
 	Coord3D m_pos;																							///< Pivot of the camera, in world coordinates

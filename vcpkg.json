@@ -16,6 +16,7 @@
   "dependencies": [
     "zlib",
     "stb",
+    "protobuf",
     {
       "name": "curl",
       "default-features": false,

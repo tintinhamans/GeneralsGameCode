@@ -58,6 +58,9 @@
 
 #include "../GenOnlineTransport.h"
 #include "../NetworkMesh.h"
+#if defined(GENONLINE) && RTS_ZEROHOUR
+#include "Common/StatsExporterLive.h"
+#endif
 #include "../GenOnlineInterfaces.h"
 
 #include <algorithm>
@@ -368,6 +371,7 @@ void ConnectionManager::init()
 	}
 	for (i = 0; i < MAX_SLOTS; ++i) {
 		m_latencyAverages[i] = 0.0; // using zero since all floating point standards should be able to specify 0.0 accurately.
+		m_runAheadMetricsReceived[i] = FALSE;
 	}
 	m_smallestPacketArrivalCushion = -1;
 #if !RETAIL_COMPATIBLE_NETWORKING
@@ -523,6 +527,9 @@ void ConnectionManager::reset()
 	}
 	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
 		m_latencyAverages[i] = 0.0;
+	}
+	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
+		m_runAheadMetricsReceived[i] = FALSE;
 	}
 
 	for (i = 0; i < (UnsignedInt)MAX_SLOTS; ++i) {
@@ -1694,6 +1701,7 @@ void ConnectionManager::processRunAheadMetrics(NetRunAheadMetricsCommandMsg *msg
 	if (isPlayerConnected(playerID)) {
 		m_latencyAverages[playerID] = msg->getAverageLatency();
 		m_fpsAverages[playerID] = msg->getAverageFps();
+		m_runAheadMetricsReceived[playerID] = TRUE;
 #if defined(GENONLINE)
 		if (timeGetTime() >= m_ctlIgnoreUntil) {
 			for (Int sender = 0; sender < MAX_SLOTS; ++sender) {
@@ -1767,6 +1775,9 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 	if (!player)
 	{
 		TheInGameUI->message(L"%ls", unitext.str());
+#if defined(GENONLINE) && RTS_ZEROHOUR
+		StatsExporterLiveChatInGame((Int)playerID, name, msg->getText(), msg->getPlayerMask(), playerID == m_localSlot);
+#endif
 		return;
 	}
 
@@ -1780,6 +1791,9 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 		rgb.setFromInt(player->getPlayerColor());
 #if defined(GENONLINE)
 		TheInGameUI->messageColor(true, &rgb, UnicodeString(L"%ls"), unitext.str());
+#if RTS_ZEROHOUR
+		StatsExporterLiveChatInGame((Int)playerID, name, msg->getText(), msg->getPlayerMask(), playerID == m_localSlot);
+#endif
 #else
 		TheInGameUI->messageColor(&rgb, L"%ls", unitext.str());
 #endif
@@ -2128,6 +2142,10 @@ void ConnectionManager::processAck(NetCommandMsg *msg) {
  */
 PlayerLeaveCode ConnectionManager::processPlayerLeave(NetPlayerLeaveCommandMsg *msg) {
 	UnsignedByte playerID = msg->getLeavingPlayerID();
+#if defined(GENONLINE) && RTS_ZEROHOUR
+	// the network layer carries quit and disconnect as the same synchronized leave command
+	StatsExporterLivePlayerLeftSlot(playerID, "left");
+#endif
 	if ((playerID != m_localSlot) && (m_connections[playerID] != nullptr)) {
 		DEBUG_LOG(("ConnectionManager::processPlayerLeave() - setQuitting() on player %d on frame %d", playerID, TheGameLogic->getFrame()));
 		m_connections[playerID]->setQuitting();
@@ -4126,6 +4144,28 @@ Bool ConnectionManager::isPacketRouter()
 Int ConnectionManager::getAverageFPS()
 {
 	return m_frameMetrics.getAverageFPS();
+}
+
+Real ConnectionManager::getSlotAverageLatency(Int slot) {
+	if ((slot < 0) || (slot >= MAX_SLOTS)) {
+		return -1.0f;
+	}
+	if (slot == m_localSlot) {
+		return m_frameMetrics.getAverageLatency();
+	}
+	if (m_packetRouterSlot != m_localSlot) {
+		// run ahead metrics are only sent to the packet router, so other clients never learn them
+		return -1.0f;
+	}
+	return m_latencyAverages[slot];
+}
+
+Real ConnectionManager::getLocalAverageLatency() {
+	return m_frameMetrics.getAverageLatency();
+}
+
+Bool ConnectionManager::hasRunAheadMetrics(Int slot) const {
+	return (slot >= 0) && (slot < MAX_SLOTS) && m_runAheadMetricsReceived[slot];
 }
 
 Int ConnectionManager::getSlotAverageFPS(Int slot) {
