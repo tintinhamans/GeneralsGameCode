@@ -42,6 +42,7 @@
 #include "GameClient/Shell.h"
 #include "GameClient/KeyDefs.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/GadgetCheckBox.h"
 #include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GameText.h"
@@ -108,8 +109,40 @@ static GameWindow *windowSortAlpha = nullptr;
 static GameWindow *windowSortPing = nullptr;
 static GameWindow *windowSortBuddies = nullptr;
 
-static GameSortType theGameSortType = GAMESORT_MAP_ASCENDING; // was ping
+// GenOnline @feature arcticdolphin 08/11/2026 The game list starts newest first, the order a third header click returns to.
+static GameSortType theGameSortType = GAMESORT_AGE_ASCENDING;
 static Bool sortBuddies = TRUE;
+
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Header cells over the game list columns; a sorting cell cycles ascending, descending, newest first.
+struct GameListHeader
+{
+	const char *name;
+	Int column; // -1 for the corner cell over the scroll bar
+	Bool sorts;
+	GameSortType ascending;
+	GameSortType descending;
+	const char *label;
+	const WideChar *text;
+};
+
+static const GameListHeader gameListHeaders[] =
+{
+	{ "WOLCustomLobby.wnd:ButtonHeaderGame", COLUMN_NAME, TRUE, GAMESORT_ALPHA_ASCENDING, GAMESORT_ALPHA_DESCENDING, "GUI:GOHeaderGame", L"Game" },
+	{ "WOLCustomLobby.wnd:ButtonHeaderMap", COLUMN_MAP, TRUE, GAMESORT_MAP_ASCENDING, GAMESORT_MAP_DESCENDING, "GUI:GOHeaderMap", L"Map" },
+	{ "WOLCustomLobby.wnd:ButtonHeaderPlayers", COLUMN_NUMPLAYERS, TRUE, GAMESORT_PLAYERS_ASCENDING, GAMESORT_PLAYERS_DESCENDING, "GUI:GOHeaderPlayers", L"Players" },
+	{ "WOLCustomLobby.wnd:ButtonHeaderPassword", COLUMN_PASSWORD, FALSE, GAMESORT_AGE_ASCENDING, GAMESORT_AGE_ASCENDING, nullptr, nullptr },
+	{ "WOLCustomLobby.wnd:ButtonHeaderStats", COLUMN_USE_STATS, FALSE, GAMESORT_AGE_ASCENDING, GAMESORT_AGE_ASCENDING, nullptr, nullptr },
+	{ "WOLCustomLobby.wnd:ButtonHeaderPing", COLUMN_PING, TRUE, GAMESORT_PING_ASCENDING, GAMESORT_PING_DESCENDING, "GUI:GOHeaderPing", L"Ping" },
+	{ "WOLCustomLobby.wnd:ButtonHeaderCorner", -1, FALSE, GAMESORT_AGE_ASCENDING, GAMESORT_AGE_ASCENDING, nullptr, nullptr },
+};
+static const Int GAME_LIST_HEADER_COUNT = ARRAY_SIZE(gameListHeaders);
+static const Int HEADER_ARROW_INSET = 3; // GenOnline/tools/go_wnd_layouts.py places the arrow the same way
+
+static NameKeyType gameListHeaderIDs[ARRAY_SIZE(gameListHeaders)];
+static GameWindow *gameListHeaderWindows[ARRAY_SIZE(gameListHeaders)];
+static GameWindow *windowHeaderArrow = nullptr;
+static NameKeyType checkBoxBuddiesFirstID = NAMEKEY_INVALID;
+static GameWindow *checkBoxBuddiesFirst = nullptr;
 
 // The .wnd supplies the ascending arrow as the enabled image and the descending arrow as the disabled image.
 static void showSortArrow(GameWindow *window, Bool ascending)
@@ -119,6 +152,78 @@ static void showSortArrow(GameWindow *window, Bool ascending)
 
 	window->winHide(FALSE);
 	window->winEnable(ascending);
+}
+
+// GenOnline @feature arcticdolphin 08/11/2026 Move a window to a screen position inside its parent.
+static void setScreenPosition(GameWindow *window, Int x, Int y)
+{
+	Int parentX = 0;
+	Int parentY = 0;
+	GameWindow *parentWindow = window->winGetParent();
+	if (parentWindow != nullptr)
+		parentWindow->winGetScreenPosition(&parentX, &parentY);
+	window->winSetPosition(x - parentX, y - parentY);
+}
+
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Snap the header cells onto the list columns as the engine sized them, the corner cell over the scroll bar.
+static void alignGameListHeaders(GameWindow *list)
+{
+	if (list == nullptr)
+		return;
+
+	Int listX, listY, listWidth, listHeight;
+	list->winGetScreenPosition(&listX, &listY);
+	list->winGetSize(&listWidth, &listHeight);
+	const Int columns = GadgetListBoxGetNumColumns(list);
+	for (Int i = 0; i < GAME_LIST_HEADER_COUNT; ++i)
+	{
+		GameWindow *cell = gameListHeaderWindows[i];
+		if (cell == nullptr)
+			continue;
+
+		const Int column = gameListHeaders[i].column;
+		const Int end = (column < 0 || column > columns) ? columns : column;
+		Int left = 0;
+		for (Int c = 0; c < end; ++c)
+			left += GadgetListBoxGetColumnWidth(list, c);
+		const Int width = (column < 0) ? listWidth - left : GadgetListBoxGetColumnWidth(list, column);
+		if (width <= 0)
+		{
+			cell->winHide(TRUE);
+			continue;
+		}
+
+		Int cellX, cellY, cellWidth, cellHeight;
+		cell->winGetScreenPosition(&cellX, &cellY);
+		cell->winGetSize(&cellWidth, &cellHeight);
+		setScreenPosition(cell, listX + left, cellY);
+		cell->winSetSize(width, cellHeight);
+	}
+}
+
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Show the sort arrow inside the right end of the header cell of the active sort, hide it for newest first.
+static void showHeaderArrow()
+{
+	if (windowHeaderArrow == nullptr)
+		return;
+
+	for (Int i = 0; i < GAME_LIST_HEADER_COUNT; ++i)
+	{
+		const GameListHeader &header = gameListHeaders[i];
+		GameWindow *cell = gameListHeaderWindows[i];
+		if (cell == nullptr || !header.sorts || (theGameSortType != header.ascending && theGameSortType != header.descending))
+			continue;
+
+		Int cellX, cellY, cellWidth, cellHeight, arrowWidth, arrowHeight;
+		cell->winGetScreenPosition(&cellX, &cellY);
+		cell->winGetSize(&cellWidth, &cellHeight);
+		windowHeaderArrow->winGetSize(&arrowWidth, &arrowHeight);
+		const Int inset = GameWindowManager::winScaleLayoutSize(HEADER_ARROW_INSET);
+		setScreenPosition(windowHeaderArrow, cellX + cellWidth - inset - arrowWidth, cellY + (cellHeight - arrowHeight) / 2);
+		showSortArrow(windowHeaderArrow, theGameSortType == header.ascending);
+		return;
+	}
+	windowHeaderArrow->winHide(TRUE);
 }
 
 static void showSortIcons()
@@ -143,6 +248,11 @@ static void showSortIcons()
 			showSortArrow(windowSortPing, FALSE);
 			windowSortAlpha->winHide(TRUE);
 			break;
+		// GenOnline @feature arcticdolphin 08/11/2026 The old sort buttons have no arrow for the header sorts.
+		default:
+			windowSortAlpha->winHide(TRUE);
+			windowSortPing->winHide(TRUE);
+			break;
 		}
 	}
 
@@ -158,6 +268,8 @@ static void showSortIcons()
 			windowSortBuddies->winHide(TRUE);
 		}
 	}
+
+	showHeaderArrow();
 }
 
 LobbyGameModeFilter theLobbyFilter = LOBBY_FILTER_ALL;
@@ -226,6 +338,29 @@ Bool HandleSortButton(NameKeyType sortButton)
 		{
 			setSortMode(GAMESORT_MAP_ASCENDING); // was ping
 		}
+		return TRUE;
+	}
+
+	// GenOnline @feature arcticdolphin 08/11/2026 The buddies first check box and the sorting header cells of the game list.
+	if (checkBoxBuddiesFirst != nullptr && sortButton == checkBoxBuddiesFirstID)
+	{
+		const Bool checked = GadgetCheckBoxIsChecked(checkBoxBuddiesFirst) ? TRUE : FALSE;
+		if (checked != sortBuddies)
+			sortByBuddies(checked);
+		return TRUE;
+	}
+	for (Int i = 0; i < GAME_LIST_HEADER_COUNT; ++i)
+	{
+		const GameListHeader &header = gameListHeaders[i];
+		if (gameListHeaderWindows[i] == nullptr || !header.sorts || sortButton != gameListHeaderIDs[i])
+			continue;
+
+		if (theGameSortType == header.ascending)
+			setSortMode(header.descending);
+		else if (theGameSortType == header.descending)
+			setSortMode(GAMESORT_AGE_ASCENDING);
+		else
+			setSortMode(header.ascending);
 		return TRUE;
 	}
 	return FALSE;
@@ -564,6 +699,26 @@ void GrabWindowInfo()
 	windowSortPing = TheWindowManager->winGetWindowFromId(parent, windowSortPingID);
 	windowSortBuddies = TheWindowManager->winGetWindowFromId(parent, windowSortBuddiesID);
 
+	// GenOnline @feature arcticdolphin 08/11/2026 Look up the header cells and the buddies first check box, a retail or mod layout has the sort buttons instead.
+	for (Int i = 0; i < GAME_LIST_HEADER_COUNT; ++i)
+	{
+		const GameListHeader &header = gameListHeaders[i];
+		gameListHeaderIDs[i] = NAMEKEY(header.name);
+		gameListHeaderWindows[i] = TheWindowManager->winGetWindowFromId(parent, gameListHeaderIDs[i]);
+		if (gameListHeaderWindows[i] != nullptr && header.label != nullptr)
+			gameListHeaderWindows[i]->winSetText(TheGameText->FETCH_OR_SUBSTITUTE(header.label, header.text));
+	}
+	alignGameListHeaders(listboxLobbyGamesLarge);
+	windowHeaderArrow = TheWindowManager->winGetWindowFromId(parent, NAMEKEY("WOLCustomLobby.wnd:WindowHeaderArrow"));
+
+	checkBoxBuddiesFirstID = NAMEKEY("WOLCustomLobby.wnd:CheckBoxBuddiesFirst");
+	checkBoxBuddiesFirst = TheWindowManager->winGetWindowFromId(parent, checkBoxBuddiesFirstID);
+	if (checkBoxBuddiesFirst)
+	{
+		checkBoxBuddiesFirst->winSetText(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOBuddiesFirst", L"Buddies first"));
+		GadgetCheckBoxSetChecked(checkBoxBuddiesFirst, sortBuddies);
+	}
+
 	showSortIcons();
 }
 
@@ -583,6 +738,11 @@ void ReleaseWindowInfo()
 	windowSortAlpha = nullptr;
 	windowSortPing = nullptr;
 	windowSortBuddies = nullptr;
+
+	for (Int i = 0; i < GAME_LIST_HEADER_COUNT; ++i)
+		gameListHeaderWindows[i] = nullptr;
+	windowHeaderArrow = nullptr;
+	checkBoxBuddiesFirst = nullptr;
 }
 
 #if defined(GENONLINE)
@@ -746,6 +906,32 @@ struct GameSortStruct
 			return g1.lobbyID > g2.lobbyID;
 		case GAMESORT_AGE_DESCENDING: // was alpha
 			return g1.lobbyID < g2.lobbyID;
+
+		// TheSuperHackers @feature arcticdolphin 08/11/2026 Name, player count and ping sorts of the column headers; ties fall through to newest first.
+		case GAMESORT_ALPHA_ASCENDING:
+		case GAMESORT_ALPHA_DESCENDING:
+		{
+			const int order = stricmp(g1.name.c_str(), g2.name.c_str());
+			if (order != 0)
+				return (theGameSortType == GAMESORT_ALPHA_ASCENDING) ? (order < 0) : (order > 0);
+			break;
+		}
+		case GAMESORT_PLAYERS_ASCENDING:
+			if (g1.current_players != g2.current_players)
+				return g1.current_players < g2.current_players;
+			break;
+		case GAMESORT_PLAYERS_DESCENDING:
+			if (g1.current_players != g2.current_players)
+				return g1.current_players > g2.current_players;
+			break;
+		case GAMESORT_PING_ASCENDING:
+			if (g1.latency != g2.latency)
+				return g1.latency < g2.latency;
+			break;
+		case GAMESORT_PING_DESCENDING:
+			if (g1.latency != g2.latency)
+				return g1.latency > g2.latency;
+			break;
 		}
 		return g1.lobbyID > g2.lobbyID;
 	}

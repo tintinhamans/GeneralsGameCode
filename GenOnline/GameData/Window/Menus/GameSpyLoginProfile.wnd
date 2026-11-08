@@ -102,7 +102,7 @@ WINDOW
                    BOTTOMRIGHT: 249 556,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyLoginProfile.wnd:ParentESRB";
-      STATUS = ENABLED;
+      STATUS = ENABLED+HIDDEN;
       STYLE = USER;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -294,7 +294,7 @@ WINDOW
                      BOTTOMRIGHT: 303 418,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:ButtonLogin";
-        STATUS = ENABLED+IMAGE;
+        STATUS = ENABLED+HIDDEN+IMAGE;
         STYLE = PUSHBUTTON+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -342,7 +342,7 @@ WINDOW
                      BOTTOMRIGHT: 497 418,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:ButtonCreateAccount";
-        STATUS = ENABLED+IMAGE;
+        STATUS = ENABLED+HIDDEN+IMAGE;
         STYLE = PUSHBUTTON+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -390,7 +390,7 @@ WINDOW
                      BOTTOMRIGHT: 669 378,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:ButtonTOS";
-        STATUS = ENABLED+IMAGE;
+        STATUS = ENABLED+HIDDEN+IMAGE;
         STYLE = PUSHBUTTON+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -438,7 +438,7 @@ WINDOW
                      BOTTOMRIGHT: 669 418,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:ButtonBack";
-        STATUS = ENABLED+IMAGE;
+        STATUS = ENABLED+HIDDEN+IMAGE;
         STYLE = PUSHBUTTON+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -486,7 +486,7 @@ WINDOW
                      BOTTOMRIGHT: 315 367,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:CheckBoxRememberInfo";
-        STATUS = ENABLED+IMAGE;
+        STATUS = ENABLED+HIDDEN+IMAGE;
         STYLE = CHECKBOX+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -535,7 +535,7 @@ WINDOW
                      BOTTOMRIGHT: 393 309,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:StaticTextPassword";
-        STATUS = ENABLED;
+        STATUS = ENABLED+HIDDEN;
         STYLE = STATICTEXT+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -584,7 +584,7 @@ WINDOW
                      BOTTOMRIGHT: 393 336,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:TextEntryPassword";
-        STATUS = ENABLED+IMAGE;
+        STATUS = ENABLED+HIDDEN+IMAGE;
         STYLE = ENTRYFIELD+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -637,7 +637,7 @@ WINDOW
                      BOTTOMRIGHT: 398 252,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:StaticTextLoginName";
-        STATUS = ENABLED;
+        STATUS = ENABLED+HIDDEN;
         STYLE = STATICTEXT+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -686,7 +686,7 @@ WINDOW
                      BOTTOMRIGHT: 393 189,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:StaticTextEmail";
-        STATUS = ENABLED;
+        STATUS = ENABLED+HIDDEN;
         STYLE = STATICTEXT+MOUSETRACK;
         SYSTEMCALLBACK = "[None]";
         INPUTCALLBACK = "[None]";
@@ -782,7 +782,7 @@ WINDOW
                      BOTTOMRIGHT: 667 336,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:WinAge";
-        STATUS = ENABLED;
+        STATUS = ENABLED+HIDDEN;
         STYLE = USER;
         SYSTEMCALLBACK = "PassMessagesToParentSystem";
         INPUTCALLBACK = "[None]";
@@ -1230,11 +1230,11 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 128 254,
-                   BOTTOMRIGHT: 396 282,
+      SCREENRECT = UPPERLEFT: 128 258,
+                   BOTTOMRIGHT: 396 278,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyLoginProfile.wnd:ComboBoxLoginName";
-      STATUS = ENABLED+IMAGE;
+      STATUS = ENABLED+HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";
@@ -1471,11 +1471,11 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 128 191,
-                   BOTTOMRIGHT: 396 219,
+      SCREENRECT = UPPERLEFT: 128 195,
+                   BOTTOMRIGHT: 396 215,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyLoginProfile.wnd:ComboBoxEmail";
-      STATUS = ENABLED+IMAGE;
+      STATUS = ENABLED+HIDDEN+IMAGE;
       STYLE = MOUSETRACK+COMBOBOX;
       SYSTEMCALLBACK = "[None]";
       INPUTCALLBACK = "[None]";

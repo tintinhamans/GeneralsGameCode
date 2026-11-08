@@ -3,11 +3,58 @@
 FIXES maps a layout's archive path to {window NAME: (x0, y0, x1, y1)} in 800x600 units. The rects
 are absolute and applied after every rule; descendants move along, and the rules never move these
 windows. Add an entry only for what the rules cannot decide, after a screenshot review.
+
+HEADINGS maps a layout's archive path to {heading NAME: column NAME}. After every rule and override
+the heading moves sideways, keeping its width, so its left edge is the column window's final left edge.
+
+LIST_HEADERS maps a layout's archive path to {list NAME: {"cells": (header NAME or None per list column), "corner":
+NAME, "arrow": NAME}}. Every pass the cells sit on the list top over their columns, None for a 0% column, the corner cell
+over the scroll bar and the sort arrow inside the first cell; the rules never move them.
 """
 
 FIXES = {
     # the game speed slider rect reached 10 units below its row; centred on the row, its label and value box follow it
     "Window/Menus/SkirmishGameOptionsMenu.wnd": {
         "SkirmishGameOptionsMenu.wnd:SliderGameSpeed": (175, 335, 265, 362),
+    },
+}
+
+# column headings of the game setup screens, left aligned over their player list column or map preview
+HEADINGS = {
+    "Window/Menus/GameSpyGameOptionsMenu.wnd": {
+        "GameSpyGameOptionsMenu.wnd:StaticTextMapPreview": "GameSpyGameOptionsMenu.wnd:MapWindow",
+    },
+    "Window/Menus/LanGameOptionsMenu.wnd": {
+        "LanGameOptionsMenu.wnd:StaticTextFaction": "LanGameOptionsMenu.wnd:ComboBoxPlayerTemplate0",
+    },
+    "Window/Menus/SkirmishGameOptionsMenu.wnd": {
+        "SkirmishGameOptionsMenu.wnd:StaticTextPlayers": "SkirmishGameOptionsMenu.wnd:TextEntryPlayerName",
+        "SkirmishGameOptionsMenu.wnd:StaticTextMapPreview": "SkirmishGameOptionsMenu.wnd:MapWindow",
+    },
+}
+
+# GO signs in behind a message box on the GameSpy login screen; only the backdrop, the frame and the title show there
+BLANK_LAYOUTS = {
+    "Window/Menus/GameSpyLoginProfile.wnd": ("GameSpyLoginProfile.wnd:Line",),
+    "Window/Menus/GameSpyLoginQuick.wnd": ("GameSpyLoginQuick.wnd:MainMenuBackground",),
+}
+
+# sort headers of the online game list; the columns follow the COLUMN_ enum in Core LobbyUtils.cpp
+LIST_HEADERS = {
+    "Window/Menus/WOLCustomLobby.wnd": {
+        "WOLCustomLobby.wnd:ListboxGamesLarge": {
+            "cells": (
+                "WOLCustomLobby.wnd:ButtonHeaderGame",
+                "WOLCustomLobby.wnd:ButtonHeaderMap",
+                None,  # ladder
+                "WOLCustomLobby.wnd:ButtonHeaderPlayers",
+                "WOLCustomLobby.wnd:ButtonHeaderPassword",
+                None,  # observers
+                "WOLCustomLobby.wnd:ButtonHeaderStats",
+                "WOLCustomLobby.wnd:ButtonHeaderPing",
+            ),
+            "corner": "WOLCustomLobby.wnd:ButtonHeaderCorner",
+            "arrow": "WOLCustomLobby.wnd:WindowHeaderArrow",
+        },
     },
 }

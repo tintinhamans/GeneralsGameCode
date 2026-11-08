@@ -49,6 +49,7 @@
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetTextEntry.h"
 #include "GameClient/IMEManager.h"
@@ -345,6 +346,10 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 	xOffset = instData->m_imageOffset.x;
 	yOffset = instData->m_imageOffset.y;
 
+	// GenOnline @tweak arcticdolphin 08/11/2026 The edit box of a kit combo lights with its whole field and draws no line before the arrow.
+	GameWindow *combo = window->winGetParent();
+	const Bool kitField = GadgetComboBoxIsKitField( combo ) && GadgetComboBoxGetEditBox( combo ) == window;
+
 	// get the right colors
 	if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) == FALSE )
 	{
@@ -359,7 +364,7 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 		smallCenterImage	= GadgetTextEntryGetDisabledImageSmallCenter( window );
 
 	}
-	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) )
+	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) || (kitField && GadgetComboBoxIsKitFieldLit( combo )) )
 	{
 
 		textColor					= window->winGetHiliteTextColor();
@@ -385,6 +390,9 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 		smallCenterImage	= GadgetTextEntryGetEnabledImageSmallCenter( window );
 
 	}
+
+	if( kitField )
+		rightImage = smallCenterImage != nullptr ? smallCenterImage : centerImage;
 
 	TheWindowManager->winDrawThreePieceImage( leftImage, centerImage, smallCenterImage, rightImage,
 																						 origin.x + xOffset, origin.y + yOffset, size.x, size.y );

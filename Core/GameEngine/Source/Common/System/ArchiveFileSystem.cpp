@@ -524,6 +524,7 @@ static Bool isNotGenOnlineInterfaceFile(const char* path)
 		"art/textures/generalsonline_uikit.tga",
 		"data/ini/mappedimages/texturesize_512/zz_generalsonline_uikit.ini",
 		"data/ini/mappedimages/texturesize_512/zz_generalsonline_checkboxsliderart.ini",
+		"data/ini/mappedimages/texturesize_512/zz_generalsonline_logo.ini",
 		"data/generalsonline/headertemplate.ini" };
 
 	// paths in a BIG use backslashes, the lists above use slashes

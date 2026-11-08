@@ -296,7 +296,8 @@ static const Image *medalImage( Int medal )
 
 static Int cellImageSize( GameWindow *listbox, Int column, const Image *image )
 {
-	Int size = image ? image->getImageWidth() : 10;
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The art size is in layout units, so it grows with the screen like the map icons.
+	Int size = GameWindowManager::winScaleLayoutSize( image ? image->getImageWidth() : 10 );
 	size = min(size, GadgetListBoxGetColumnWidth(listbox, column));
 	size = min(size, TheWindowManager->winFontHeight(listbox->winGetFont()));
 	return max(size, 1);
