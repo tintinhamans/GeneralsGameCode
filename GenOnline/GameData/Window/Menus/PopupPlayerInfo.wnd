@@ -146,8 +146,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 58 512,
-                   BOTTOMRIGHT: 246 544,
+      SCREENRECT = UPPERLEFT: 57 510,
+                   BOTTOMRIGHT: 245 542,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupPlayerInfo.wnd:ButtonCommunicator";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -304,7 +304,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = CHECKBOX;
       SCREENRECT = UPPERLEFT: 541 345,
-                   BOTTOMRIGHT: 732 370,
+                   BOTTOMRIGHT: 729 370,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupPlayerInfo.wnd:CheckBoxAsianText";
       STATUS = ENABLED+IMAGE;
@@ -352,8 +352,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 540 462,
-                   BOTTOMRIGHT: 728 492,
+      SCREENRECT = UPPERLEFT: 541 462,
+                   BOTTOMRIGHT: 729 494,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupPlayerInfo.wnd:ButtonDeleteAccount";
       STATUS = ENABLED+IMAGE;
@@ -402,7 +402,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = CHECKBOX;
       SCREENRECT = UPPERLEFT: 541 377,
-                   BOTTOMRIGHT: 732 402,
+                   BOTTOMRIGHT: 729 402,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupPlayerInfo.wnd:CheckBoxNonAsianText";
       STATUS = ENABLED+IMAGE;
@@ -688,8 +688,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 398 250,
-                       BOTTOMRIGHT: 588 274,
+          SCREENRECT = UPPERLEFT: 398 251,
+                       BOTTOMRIGHT: 588 275,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextStreak";
           STATUS = ENABLED;
@@ -737,8 +737,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 587 251,
-                       BOTTOMRIGHT: 667 275,
+          SCREENRECT = UPPERLEFT: 587 252,
+                       BOTTOMRIGHT: 667 276,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextStreakValue";
           STATUS = ENABLED;
@@ -786,8 +786,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 398 166,
-                       BOTTOMRIGHT: 588 190,
+          SCREENRECT = UPPERLEFT: 398 167,
+                       BOTTOMRIGHT: 588 191,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextLosses";
           STATUS = ENABLED;
@@ -835,8 +835,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 398 194,
-                       BOTTOMRIGHT: 588 218,
+          SCREENRECT = UPPERLEFT: 398 195,
+                       BOTTOMRIGHT: 588 219,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextDisconnects";
           STATUS = ENABLED;
@@ -884,8 +884,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 398 222,
-                       BOTTOMRIGHT: 588 246,
+          SCREENRECT = UPPERLEFT: 398 223,
+                       BOTTOMRIGHT: 588 247,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextBestStreak";
           STATUS = ENABLED;
@@ -933,8 +933,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 587 223,
-                       BOTTOMRIGHT: 667 247,
+          SCREENRECT = UPPERLEFT: 587 224,
+                       BOTTOMRIGHT: 667 248,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextBestStreakValue";
           STATUS = ENABLED;
@@ -982,8 +982,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 587 111,
-                       BOTTOMRIGHT: 667 137,
+          SCREENRECT = UPPERLEFT: 587 112,
+                       BOTTOMRIGHT: 667 136,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextGamesPlayedValue";
           STATUS = ENABLED;
@@ -1031,8 +1031,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 398 110,
-                       BOTTOMRIGHT: 588 136,
+          SCREENRECT = UPPERLEFT: 398 111,
+                       BOTTOMRIGHT: 588 135,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextGamesPlayed";
           STATUS = ENABLED;
@@ -1080,8 +1080,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 587 139,
-                       BOTTOMRIGHT: 667 163,
+          SCREENRECT = UPPERLEFT: 587 140,
+                       BOTTOMRIGHT: 667 164,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextWinsValue";
           STATUS = ENABLED;
@@ -1129,8 +1129,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 587 195,
-                       BOTTOMRIGHT: 667 219,
+          SCREENRECT = UPPERLEFT: 587 196,
+                       BOTTOMRIGHT: 667 220,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextDisconnectsValue";
           STATUS = ENABLED;
@@ -1179,7 +1179,7 @@ WINDOW
         WINDOW
           WINDOWTYPE = STATICTEXT;
           SCREENRECT = UPPERLEFT: 616 112,
-                       BOTTOMRIGHT: 748 138,
+                       BOTTOMRIGHT: 748 136,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextTotalKills";
           STATUS = ENABLED+HIDDEN;
@@ -1375,7 +1375,7 @@ WINDOW
         WINDOW
           WINDOWTYPE = STATICTEXT;
           SCREENRECT = UPPERLEFT: 748 112,
-                       BOTTOMRIGHT: 808 138,
+                       BOTTOMRIGHT: 808 136,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextTotalKillsValue";
           STATUS = ENABLED+HIDDEN;
@@ -1668,8 +1668,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 587 167,
-                       BOTTOMRIGHT: 667 191,
+          SCREENRECT = UPPERLEFT: 587 168,
+                       BOTTOMRIGHT: 667 192,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextLossesValue";
           STATUS = ENABLED;
@@ -1717,8 +1717,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 398 138,
-                       BOTTOMRIGHT: 588 162,
+          SCREENRECT = UPPERLEFT: 398 139,
+                       BOTTOMRIGHT: 588 163,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextWins";
           STATUS = ENABLED;
@@ -1863,8 +1863,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 398 278,
-                       BOTTOMRIGHT: 588 302,
+          SCREENRECT = UPPERLEFT: 398 279,
+                       BOTTOMRIGHT: 588 303,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextWinPercent";
           STATUS = ENABLED;
@@ -1912,8 +1912,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 586 279,
-                       BOTTOMRIGHT: 666 303,
+          SCREENRECT = UPPERLEFT: 586 280,
+                       BOTTOMRIGHT: 666 304,
                        CREATIONRESOLUTION: 800 600;
           NAME = "PopupPlayerInfo.wnd:StaticTextWinPercentValue";
           STATUS = ENABLED;

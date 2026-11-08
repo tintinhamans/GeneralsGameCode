@@ -57,6 +57,7 @@ class FontCharsClassCharDataStruct
 public:
 	WCHAR				Value;
 	short				Width;
+	short				LeftOffset; // GenOnline @bugfix arcticdolphin 08/11/2026 Columns of left overhang stored before the glyph origin.
 	uint8 *			Buffer;
 };
 
@@ -111,6 +112,8 @@ public:
 	void	Blit_Char( WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, int y );
 
 	void	Free_Glyph_Cache();
+	// GenOnline @feature arcticdolphin 08/11/2026 Retail UI faces resolve to the registered GO UI font while this is on.
+	static void	Set_UI_Font_Substitution( bool enable );
 
 private:
 
@@ -154,6 +157,7 @@ private:
 	uint16								FirstUnicodeChar;
 	uint16								LastUnicodeChar;
 	bool									IsBold;
+	bool									IsUIFont; // GenOnline @bugfix arcticdolphin 08/11/2026 Set when a retail face resolved to the GO UI font.
 };
 
 /*

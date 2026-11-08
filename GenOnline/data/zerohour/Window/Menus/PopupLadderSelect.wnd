@@ -313,7 +313,7 @@ WINDOW
   WINDOW
     WINDOWTYPE = PUSHBUTTON;
     SCREENRECT = UPPERLEFT: 279 375,
-                 BOTTOMRIGHT: 399 405,
+                 BOTTOMRIGHT: 399 404,
                  CREATIONRESOLUTION: 800 600;
     NAME = "PopupLadderSelect.wnd:ButtonOk";
     STATUS = ENABLED+IMAGE;
@@ -664,8 +664,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = ENTRYFIELD;
-      SCREENRECT = UPPERLEFT: 245 220,
-                   BOTTOMRIGHT: 552 245,
+      SCREENRECT = UPPERLEFT: 246 220,
+                   BOTTOMRIGHT: 553 245,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupLadderSelect.wnd:PasswordEntry";
       STATUS = ENABLED+IMAGE;
@@ -717,8 +717,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 245 185,
-                   BOTTOMRIGHT: 552 215,
+      SCREENRECT = UPPERLEFT: 246 185,
+                   BOTTOMRIGHT: 553 215,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupLadderSelect.wnd:StaticTextEnterLadderPassword";
       STATUS = ENABLED+IMAGE;
@@ -766,8 +766,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 268 256,
-                   BOTTOMRIGHT: 388 286,
+      SCREENRECT = UPPERLEFT: 269 256,
+                   BOTTOMRIGHT: 389 285,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupLadderSelect.wnd:ButtonPasswordOk";
       STATUS = ENABLED+IMAGE;
@@ -814,8 +814,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 406 256,
-                   BOTTOMRIGHT: 526 285,
+      SCREENRECT = UPPERLEFT: 407 256,
+                   BOTTOMRIGHT: 527 285,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupLadderSelect.wnd:ButtonPasswordCancel";
       STATUS = ENABLED+IMAGE;
@@ -910,8 +910,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 245 202,
-                   BOTTOMRIGHT: 552 232,
+      SCREENRECT = UPPERLEFT: 246 203,
+                   BOTTOMRIGHT: 553 233,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupLadderSelect.wnd:StaticTextInvalidPassword";
       STATUS = ENABLED+IMAGE;
@@ -959,8 +959,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 346 243,
-                   BOTTOMRIGHT: 466 273,
+      SCREENRECT = UPPERLEFT: 347 244,
+                   BOTTOMRIGHT: 467 274,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupLadderSelect.wnd:ButtonBadPasswordOk";
       STATUS = ENABLED+IMAGE;

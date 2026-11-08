@@ -523,7 +523,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
       SCREENRECT = UPPERLEFT: 16 42,
-                   BOTTOMRIGHT: 588 222,
+                   BOTTOMRIGHT: 587 222,
                    CREATIONRESOLUTION: 800 600;
       NAME = "Diplomacy.wnd:ListboxBuddies";
       STATUS = ENABLED;
@@ -1524,7 +1524,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 180 94,
-                   BOTTOMRIGHT: 408 118,
+                   BOTTOMRIGHT: 410 118,
                    CREATIONRESOLUTION: 800 600;
       NAME = "Diplomacy.wnd:StaticTextSide0";
       STATUS = ENABLED;
@@ -3255,8 +3255,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 412 58,
-                   BOTTOMRIGHT: 460 88,
+      SCREENRECT = UPPERLEFT: 410 58,
+                   BOTTOMRIGHT: 458 88,
                    CREATIONRESOLUTION: 800 600;
       NAME = "Diplomacy.wnd:StaticTextTeamTitle";
       STATUS = ENABLED+IMAGE;
@@ -3304,8 +3304,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 464 58,
-                   BOTTOMRIGHT: 558 88,
+      SCREENRECT = UPPERLEFT: 462 58,
+                   BOTTOMRIGHT: 554 88,
                    CREATIONRESOLUTION: 800 600;
       NAME = "Diplomacy.wnd:StaticTextStatusTitle";
       STATUS = ENABLED+IMAGE;

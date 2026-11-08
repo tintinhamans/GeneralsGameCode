@@ -980,6 +980,19 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 
 			}
 
+			// GenOnline @bugfix arcticdolphin 08/11/2026 Keep a held slider value tooltip up while dragging.
+			// the grab window is gone when the release closed its layout
+			GameWindow *tipWindow = m_grabWindow;
+			if (tipWindow != nullptr && !BitIsSet(tipWindow->winGetStyle(), GWS_HORZ_SLIDER) && tipWindow->winGetParent() != nullptr
+				&& BitIsSet(tipWindow->winGetParent()->winGetStyle(), GWS_HORZ_SLIDER))
+			{
+				tipWindow = tipWindow->winGetParent();
+			}
+			if (tipWindow != nullptr && BitIsSet(tipWindow->winGetStyle(), GWS_HORZ_SLIDER) && tipWindow->winGetTooltipFunc() != nullptr)
+			{
+				tipWindow->winGetTooltipFunc()(tipWindow, tipWindow->winGetInstanceData(), packedMouseCoords);
+			}
+
 			// mark event handled
 			returnCode = WIN_INPUT_USED;
 

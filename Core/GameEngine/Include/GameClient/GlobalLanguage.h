@@ -94,6 +94,9 @@ public:
 
 	void parseCustomDefinition();
 
+	// GenOnline @feature arcticdolphin 08/11/2026 TRUE when the GO UI font is registered and the retail UI faces draw with it.
+	Bool isUIFontRegistered() const { return m_uiFontRegistered; }
+
 	// Get current resolution font size scale for the given method and scaler, based on the base game resolution of 800 x 600.
 	// Defaults to a scaler of 1 for a uniform resolution scale.
 	static Real getResolutionFontSizeScale(ResolutionFontSizeMethod method, Real scaler = 1.0f);
@@ -127,6 +130,14 @@ public:
 	Real			m_userResolutionFontSizeAdjustment;
 	ResolutionFontSizeMethod m_resolutionFontSizeMethod;
 	StringList m_localFonts; // List of the font filenames that are in our local directory
+
+private:
+
+	void registerUIFonts();
+	void unregisterUIFonts();
+
+	std::vector<void *> m_uiFontHandles; // Process private font handles from AddFontMemResourceEx
+	Bool m_uiFontRegistered;
 };
 
 //-----------------------------------------------------------------------------
