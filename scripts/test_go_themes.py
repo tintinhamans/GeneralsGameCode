@@ -4,8 +4,10 @@ Usage:
     python -m unittest scripts/test_go_themes.py
 """
 
+import colorsys
 import struct
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -18,6 +20,8 @@ import wnd_lint as lint  # noqa: E402
 from test_go_wnd_layouts import DRAW_SLOT, layout, window  # noqa: E402
 
 RETAIL_LOGO_INI = "SCSmShellUserInterface512.INI"  # the retail file that defines GeneralsLogo
+RETAIL_RULER_INI = "HandCreatedMappedImages.INI"  # the retail file in MappedImages/HandCreated that defines MainMenuRuler
+HAS_RETAIL = all((themes.RETAIL_DIR / big).is_file() for big in (themes.RETAIL_INI_BIG, themes.RETAIL_TEXTURE_BIG))
 
 
 def read_tga(data):
@@ -197,6 +201,89 @@ class LogoTest(unittest.TestCase):
         # centred: the empty columns on the left and right differ by at most one texel
         columns = [x for x in range(rw) if any(top_down[y][x][3] for y in range(rh))]
         self.assertLessEqual(abs(columns[0] - (rw - 1 - columns[-1])), 1)
+
+
+
+def is_retail_blue(r, g, b):
+    """True for a visibly blue texel: hue between azure and violet with some saturation and brightness."""
+    h, sat, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+    return 210 <= h * 360 <= 270 and sat > 0.2 and v > 0.05
+
+
+def mapped_images(text):
+    """Return {name: [(key, value), ...]} of the MappedImage blocks of an INI text, fields in file order."""
+    out, current = {}, None
+    for line in text.splitlines():
+        line = line.split(";")[0].strip()
+        if line.startswith("MappedImage "):
+            current = out.setdefault(line.split()[1], [])
+        elif line == "End":
+            current = None
+        elif current is not None and "=" in line:
+            key, value = (part.strip() for part in line.split("=", 1))
+            current.append((key, value))
+    return out
+
+
+class RulerRecolourTest(unittest.TestCase):
+    def test_retail_tones_land_on_launcher_tokens_and_alpha_stays(self):
+        P = themes.PALETTE
+        cases = {(0, 0, 0, 0): (P["ground"], 0), (20, 24, 77, 104): (P["line"], 104),
+                 (70, 79, 191, 255): (P["bronze"], 255), (53, 67, 231, 128): (P["tan"], 128),
+                 (177, 183, 255, 255): (P["sand"], 255)}
+        for texel, (hex_color, alpha) in cases.items():
+            self.assertEqual(themes.recolor_ruler([[texel]]), [[themes._rgb(hex_color) + (alpha,)]], texel)
+
+    def test_read_tga_reads_rle_bottom_up_and_raw_top_down(self):
+        atlas = [[(1.0, 0.0, 0.0, 1.0), (0.0, 0.0, 1.0, 0.5)], [(0.0, 1.0, 0.0, 0.0), (1.0, 1.0, 1.0, 1.0)]]
+        expected = [[(255, 0, 0, 255), (0, 0, 255, 128)], [(0, 255, 0, 0), (255, 255, 255, 255)]]
+        self.assertEqual(themes.read_tga(kit.tga_bytes(atlas)), (2, 2, expected))
+        raw = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, 2, 2, 32, 0x28)
+        raw += b"".join(bytes((b, g, r, a)) for row in expected for r, g, b, a in row)
+        self.assertEqual(themes.read_tga(raw), (2, 2, expected))
+
+    def test_check_says_so_when_the_retail_archives_are_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            problems = themes.check(Path(tmp))
+        self.assertTrue(any("retail" in p and "not found" in p for p in problems), problems)
+
+
+@unittest.skipUnless(HAS_RETAIL, "the retail Zero Hour archives are not installed")
+class RulerTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.retail_ini = mapped_images(themes.read_big_entry(themes.RETAIL_DIR / themes.RETAIL_INI_BIG,
+                                                              themes.RULER_RETAIL_INI).decode("latin-1"))
+        retail_texture = dict(cls.retail_ini[themes.RULER_IMAGE])["Texture"]
+        cls.retail = themes.read_tga(themes.read_big_entry(themes.RETAIL_DIR / themes.RETAIL_TEXTURE_BIG,
+                                                           f"Art/Textures/{retail_texture}"))
+        cls.theme = themes.read_tga((themes.THEME_DIR / themes.RULER_TGA).read_bytes())
+
+    def test_ruler_ini_redefines_only_the_ruler_with_retail_fields_after_the_retail_file(self):
+        path = themes.THEME_DIR / themes.RULER_INI
+        self.assertEqual(path.read_bytes(), themes.ruler_ini_text(dict(self.retail_ini[themes.RULER_IMAGE])).encode("ascii"))
+        theme = mapped_images(path.read_bytes().decode("ascii"))
+        self.assertEqual(list(theme), ["MainMenuRuler"])
+        retail = self.retail_ini["MainMenuRuler"]
+        expected = [(k, themes.RULER_TEXTURE if k == "Texture" else v) for k, v in retail]
+        self.assertEqual(theme["MainMenuRuler"], expected)  # same size texture, so coordinates stay 1:1
+        self.assertIn(("Coords", "Left:0 Top:0 Right:800 Bottom:600"), theme["MainMenuRuler"])
+        self.assertEqual((int(dict(retail)["TextureWidth"]), int(dict(retail)["TextureHeight"])), self.theme[:2])
+        # HandCreated loads after TextureSize_512, and INI::loadDirectory sorts a folder case-insensitively
+        self.assertEqual(Path(themes.RULER_INI).parent.as_posix(), "Data/INI/MappedImages/HandCreated")
+        self.assertEqual(Path(themes.RULER_RETAIL_INI).parent.as_posix(), "Data/INI/MappedImages/HandCreated")
+        self.assertGreater(Path(themes.RULER_INI).name.lower(), RETAIL_RULER_INI.lower())
+
+    def test_ruler_texture_keeps_the_retail_size_and_alpha(self):
+        self.assertEqual(self.theme[:2], self.retail[:2])
+        self.assertEqual([[t[3] for t in row] for row in self.theme[2]], [[t[3] for t in row] for row in self.retail[2]])
+        self.assertEqual(struct.unpack("<B", (themes.THEME_DIR / themes.RULER_TGA).read_bytes()[16:17]), (32,))
+
+    def test_no_retail_blue_remains(self):
+        def blue(rows):
+            return sum(1 for row in rows for r, g, b, a in row if a and is_retail_blue(r, g, b))
+        self.assertGreater(blue(self.retail[2]), 50000)  # the detector sees the retail art as blue
+        self.assertEqual(blue(self.theme[2]), 0)
 
 
 if __name__ == "__main__":
