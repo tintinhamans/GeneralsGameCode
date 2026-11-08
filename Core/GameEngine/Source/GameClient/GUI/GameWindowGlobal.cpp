@@ -65,6 +65,20 @@
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 
+static Int scaledImageWidth( const Image *image, Int height )
+{
+	Int imageHeight = image->getImageHeight();
+	Int width = image->getImageWidth();
+
+	if( imageHeight > 0 && height != imageHeight )
+		width = (width * height + imageHeight / 2) / imageHeight;
+
+	if( width < 1 )
+		width = 1;
+
+	return width;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -78,6 +92,74 @@ void GameWindowManager::winDrawImage( const Image *image, Int startX, Int startY
 {
 
 	TheDisplay->drawImage( image, startX, startY, endX, endY, color );
+
+}
+
+//=============================================================================
+// GenOnline @bugfix arcticdolphin 08/11/2026 Stop end caps and tiles stretching when 800x600 layouts scale to wider screens.
+void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *center,
+																								const Image *smallCenter, const Image *right,
+																								Int x, Int y, Int width, Int height,
+																								Color color )
+{
+
+	if( left == nullptr || center == nullptr || right == nullptr )
+		return;
+
+	Int leftWidth = scaledImageWidth( left, height );
+	Int rightWidth = scaledImageWidth( right, height );
+	Int endX = x + width;
+	Int endY = y + height;
+
+	if( leftWidth + rightWidth >= width )
+	{
+		Int midX = x + width / 2;
+		winDrawImage( left, x, y, midX, endY, color );
+		winDrawImage( right, midX, y, endX, endY, color );
+		return;
+	}
+
+	Int gapStart = x + leftWidth;
+	Int gapEnd = endX - rightWidth;
+	Int tileWidth = scaledImageWidth( center, height );
+	Int pieces = (gapEnd - gapStart) / tileWidth;
+	Int tileX = gapStart;
+	Int i;
+
+	for( i = 0; i < pieces; ++i )
+	{
+		winDrawImage( center, tileX, y, tileX + tileWidth, endY, color );
+		tileX += tileWidth;
+	}
+
+	if( tileX < gapEnd )
+	{
+		IRegion2D clip;
+		clip.lo.x = tileX;
+		clip.lo.y = y;
+		clip.hi.x = gapEnd;
+		clip.hi.y = endY;
+		TheDisplay->setClipRegion( &clip );
+
+		if( smallCenter != nullptr )
+		{
+			Int smallWidth = scaledImageWidth( smallCenter, height );
+			while( tileX < gapEnd )
+			{
+				winDrawImage( smallCenter, tileX, y, tileX + smallWidth, endY, color );
+				tileX += smallWidth;
+			}
+		}
+		else
+		{
+			winDrawImage( center, tileX, y, tileX + tileWidth, endY, color );
+		}
+
+		TheDisplay->enableClipping( FALSE );
+	}
+
+	winDrawImage( left, x, y, gapStart, endY, color );
+	winDrawImage( right, gapEnd, y, endX, endY, color );
 
 }
 

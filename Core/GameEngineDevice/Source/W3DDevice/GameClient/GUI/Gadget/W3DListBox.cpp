@@ -78,9 +78,6 @@ static void drawHiliteBar( const Image *left, const Image *right,
 {
 	ICoord2D barWindowSize;  // end point of bar from window origin
 	Int xOffset = 0, yOffset = 0;  // incase we want this functionality later
-	ICoord2D start, end;
-	Int i;
-	IRegion2D clipRegion;
 
 
 
@@ -94,87 +91,8 @@ static void drawHiliteBar( const Image *left, const Image *right,
 	if( barWindowSize.x < left->getImageWidth() + right->getImageWidth() )
 		barWindowSize.x = left->getImageWidth() + right->getImageWidth();
 
-	// get image sizes for the ends
-	ICoord2D leftSize, rightSize;
-	leftSize.x = left->getImageWidth();
-	leftSize.y = left->getImageHeight();
-	rightSize.x = right->getImageWidth();
-	rightSize.y = right->getImageHeight();
-
-	// get two key points used in the end drawing
-	ICoord2D leftEnd, rightStart;
-	leftEnd.x = startX + leftSize.x + xOffset;
-	leftEnd.y = startY + barWindowSize.y + yOffset;
-	rightStart.x = startX + barWindowSize.x - rightSize.x + xOffset;
-	rightStart.y = startY + yOffset;
-
-	// draw the center repeating bar
-	Int centerWidth, pieces;
-
-	// get width we have to draw our repeating center in
-	centerWidth = rightStart.x - leftEnd.x;
-
-	// how many whole repeating pieces will fit in that width
-	pieces = centerWidth / center->getImageWidth();
-
-
-
-	// draw the pieces
-	start.x = leftEnd.x;
-	start.y = startY + yOffset;
-	end.y = start.y + barWindowSize.y;
-	for( i = 0; i < pieces; i++ )
-	{
-
-		end.x = start.x + center->getImageWidth();
-		TheWindowManager->winDrawImage( center,
-																		start.x, start.y,
-																		end.x, end.y );
-		start.x += center->getImageWidth();
-
-	}
-
-	//
-	// how many small repeating pieces will fit in the gap from where the
-	// center repeating bar stopped and the right image, draw them
-	// and overlapping underneath where the right end will go
-	//
-		// set the text clip region to the outline of the listbox
-	clipRegion.lo.x = leftEnd.x;
-	clipRegion.lo.y = startY + yOffset;
-	clipRegion.hi.x = leftEnd.x + centerWidth;
-	clipRegion.hi.y = start.y + barWindowSize.y;
-	TheDisplay->setClipRegion(&clipRegion);
-	centerWidth = rightStart.x - start.x;
-	if( centerWidth )
-	{
-
-		pieces = centerWidth / smallCenter->getImageWidth() + 1;
-		end.y = start.y + barWindowSize.y;
-		for( i = 0; i < pieces; i++ )
-		{
-
-			end.x = start.x + smallCenter->getImageWidth();
-			TheWindowManager->winDrawImage( smallCenter,
-																			start.x, start.y,
-																			end.x, end.y );
-			start.x += smallCenter->getImageWidth();
-
-		}
-
-	}
-	TheDisplay->enableClipping(FALSE);
-	// draw left end
-	start.x = startX + xOffset;
-	start.y = startY + yOffset;
-	end = leftEnd;
-	TheWindowManager->winDrawImage(left, start.x, start.y, end.x, end.y);
-
-	// draw right end
-	start = rightStart;
-	end.x = start.x + rightSize.x;
-	end.y = start.y + barWindowSize.y;
-	TheWindowManager->winDrawImage(right, start.x, start.y, end.x, end.y);
+	TheWindowManager->winDrawThreePieceImage( left, center, smallCenter, right,
+																						 startX + xOffset, startY + yOffset, barWindowSize.x, barWindowSize.y );
 
 }
 

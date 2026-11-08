@@ -312,12 +312,11 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData )
 {
 	EntryData *e = (EntryData *)window->winGetUserData();
-	ICoord2D origin, size, start, end;
+	ICoord2D origin, size, start;
 	Color textColor, textBorder;
 	Color compositeColor, compositeBorder;
 	const Image *leftImage, *rightImage, *centerImage, *smallCenterImage;
 	Int xOffset, yOffset;
-	Int i;
 
 	// cancel unichar flag
 	e->receivedUnichar = FALSE;
@@ -371,74 +370,8 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 
 	}
 
-	// get image sizes for the ends
-	ICoord2D leftSize, rightSize;
-	leftSize.x = leftImage->getImageWidth();
-	leftSize.y = leftImage->getImageHeight();
-	rightSize.x = rightImage->getImageWidth();
-	rightSize.y = rightImage->getImageHeight();
-
-	// get two key points used in the end drawing
-	ICoord2D leftEnd, rightStart;
-	leftEnd.x = origin.x + leftSize.x + xOffset;
-	leftEnd.y = origin.y + size.y + yOffset;
-	rightStart.x = origin.x + size.x - rightSize.x + xOffset;
-	rightStart.y = origin.y + yOffset;
-
-	// draw the center repeating bar
-	Int centerWidth, pieces;
-
-	// get width we have to draw our repeating center in
-	centerWidth = rightStart.x - leftEnd.x;
-
-	// how many whole repeating pieces will fit in that width
-	pieces = centerWidth / centerImage->getImageWidth();
-
-	// draw the pieces
-	start.x = leftEnd.x;
-	start.y = origin.y + yOffset;
-	end.y = start.y + size.y;
-	for( i = 0; i < pieces; i++ )
-	{
-
-		end.x = start.x + centerImage->getImageWidth();
-		TheWindowManager->winDrawImage( centerImage,
-																		start.x, start.y,
-																		end.x, end.y );
-		start.x += centerImage->getImageWidth();
-
-	}
-
-	//
-	// how many small repeating pieces will fit in the gap from where the
-	// center repeating bar stopped and the right image, draw them
-	// and overlapping underneath where the right end will go
-	//
-	centerWidth = rightStart.x - start.x;
-	pieces = centerWidth / smallCenterImage->getImageWidth() + 1;
-	end.y = start.y + size.y;
-	for( i = 0; i < pieces; i++ )
-	{
-
-		end.x = start.x + smallCenterImage->getImageWidth();
-		TheWindowManager->winDrawImage( smallCenterImage,
-																		start.x, start.y,
-																		end.x, end.y );
-		start.x += smallCenterImage->getImageWidth();
-
-	}
-
-	// draw left end
-	start.x = origin.x + xOffset;
-	start.y = origin.y + yOffset;
-	end = leftEnd;
-	TheWindowManager->winDrawImage(leftImage, start.x, start.y, end.x, end.y);
-
-	// draw right end
-	start = rightStart;
-	end.x = start.x + rightSize.x;
-	end.y = start.y + size.y;
-	TheWindowManager->winDrawImage(rightImage, start.x, start.y, end.x, end.y);
+	TheWindowManager->winDrawThreePieceImage( leftImage, centerImage, smallCenterImage, rightImage,
+																						 origin.x + xOffset, origin.y + yOffset, size.x, size.y );
 
 	// draw the text
 	Int fontHeight = TheWindowManager->winFontHeight( instData->getFont() );
