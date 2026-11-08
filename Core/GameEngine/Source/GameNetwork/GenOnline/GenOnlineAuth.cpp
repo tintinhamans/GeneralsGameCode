@@ -201,6 +201,8 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 				if (!bWSConnected)
 				{
 					loginResult = ELoginResult::Failed;
+					// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The stage shows the failure, so Cancel is gone while the error box or dialog step is up.
+					m_loginStage = ELoginStage::Failed;
 				}
 
 				// NOTE: Don't need to get stats here, PopulatePlayerInfoWindows is called as part of going to MP...
@@ -231,6 +233,8 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 				if (!bWSConnected)
 				{
 					loginResult = ELoginResult::Failed;
+					// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The stage shows the failure, so Cancel is gone while the error box or dialog step is up.
+					m_loginStage = ELoginStage::Failed;
 				}
 
 				// NOTE: Don't need to get stats here, PopulatePlayerInfoWindows is called as part of going to MP...
@@ -398,6 +402,23 @@ void GenOnlineAuthInterface::RefreshToken()
     }
 }
 
+bool GenOnlineAuthInterface::ReportLoginFailure(const wchar_t* szTitle, const wchar_t* szText)
+{
+	if (!m_bSignInDialog)
+	{
+		return false;
+	}
+
+	m_loginStage = ELoginStage::Failed;
+	m_strLoginFailureTitle = szTitle;
+	m_strLoginFailureText = szText;
+	if (m_cb_LoginPendingCallback != nullptr)
+	{
+		m_cb_LoginPendingCallback(ELoginResult::Failed);
+	}
+	return true;
+}
+
 void GenOnlineAuthInterface::BeginLogin()
 {
 	auto* manager = GenOnlineServicesManager::GetInstance();
@@ -405,6 +426,8 @@ void GenOnlineAuthInterface::BeginLogin()
 	{
 		return;
 	}
+	m_strLoginFailureTitle.clear();
+	m_strLoginFailureText.clear();
 	manager->EnsureServiceRoute([](bool success)
 	{
 		auto* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -420,6 +443,11 @@ void GenOnlineAuthInterface::BeginLogin()
 		{
 			ClearGSMessageBoxes();
 			const bool proxyAuth = GenOnlineServicesManager::GetInstance() != nullptr && GenOnlineServicesManager::GetInstance()->RouteFailedProxyAuth();
+			const wchar_t* szText = proxyAuth ? L"The proxy did not accept the login. Try again, or check the proxy settings in Options." : L"No trusted service route could be reached. Check Connection settings in Options, then try again.";
+			if (auth->ReportLoginFailure(L"Connection failed", szText))
+			{
+				return;
+			}
 			GSMessageBoxOk(UnicodeString(L"Connection failed"), UnicodeString(proxyAuth ? L"The proxy did not accept the login. Try again, or check the proxy settings in Options." : L"No trusted service route could be reached. Check Connection settings in Options, then try again."), []() { TheShell->pop(); });
 		}
 	});
@@ -552,6 +580,10 @@ void GenOnlineAuthInterface::DoFullLoginFlow()
 
 
 					ClearGSMessageBoxes();
+					if (ReportLoginFailure(L"Login Failed", L"Failed to retrieve login code"))
+					{
+						return;
+					}
 					GSMessageBoxOk(UnicodeString(L"Login Failed"), UnicodeString(L"Failed to retrieve login code"), []()
 						{
 							TheShell->pop();
@@ -822,7 +854,8 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 		}
 
 		// TheSuperHackers @bugfix arcticdolphin 09/11/2026 A failed login leaves the screen through the OK of the login callback's message box, so only a cancel pops here.
-		if (loginResult == ELoginResult::UserCancelled)
+		// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in dialog closes itself on cancel; there is no screen to pop.
+		if (loginResult == ELoginResult::UserCancelled && !m_bSignInDialog)
 		{
 			TheShell->pop();
 		}
