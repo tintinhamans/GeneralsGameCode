@@ -6,12 +6,14 @@ picks the theme, so every theme file sits at the relative path of the base file 
 is today's GO kit look in the colours and with the logo of the Generals Online launcher (ui/theme.slint and
 ui/assets/generals-online-horizontal.svg in the launcher repository). The theme copies of the kit atlas and the menu
 layouts come from scripts/go_ui_kit.py and scripts/go_wnd_layouts.py with the tables below; this script writes the
-theme logo, which redefines the retail GeneralsLogo image.
+theme logo, which redefines the retail GeneralsLogo image, and the theme ruler, a recolour of the retail MainMenuRuler
+frame drawn behind the menus, which redefines that image.
 
 Usage:
-    python scripts/go_themes.py           rasterize the launcher logo with Inkscape and write the logo texture and INI
-    python scripts/go_themes.py --check   exit 1 when the logo INI is stale, the logo texture is malformed or a theme
-                                          file has no base counterpart
+    python scripts/go_themes.py           write the logo (rasterized with Inkscape) and the ruler (from the retail art)
+    python scripts/go_themes.py --ruler   write only the ruler texture and INI
+    python scripts/go_themes.py --check   exit 1 when the logo INI or the ruler is stale, the logo texture is malformed,
+                                          the retail archives are missing or a theme file has no base counterpart
 """
 
 import argparse
@@ -120,7 +122,21 @@ LOGO_INI = "Data/INI/MappedImages/TextureSize_512/ZZ_GeneralsOnline_ThemeLogo.IN
 LOGO_RECT = (370, 120)          # retail GeneralsLogo Coords size, in retail pixels
 LOGO_SCALE = 2                  # texels per retail pixel; MainMenu draws the logo about 1.9 px per pixel at 1440p
 LOGO_TEXTURE_SIZE = (1024, 256)  # power of two holding LOGO_RECT * LOGO_SCALE
-ADDITIONS = (LOGO_TGA, LOGO_INI)  # theme files with no base counterpart
+
+# ruler: the retail MainMenuRuler (the grid frame with tick marks behind the menus) recoloured into its own texture
+RETAIL_DIR = Path("C:/Program Files (x86)/Steam/steamapps/common/Command & Conquer Generals - Zero Hour")
+RETAIL_INI_BIG = "INIZH.big"
+RETAIL_TEXTURE_BIG = "TexturesZH.big"
+RULER_IMAGE = "MainMenuRuler"
+RULER_RETAIL_INI = "Data/INI/MappedImages/HandCreated/HandCreatedMappedImages.INI"
+RULER_TEXTURE = "GeneralsOnline_RadarRuler.tga"
+RULER_TGA = f"Art/Textures/{RULER_TEXTURE}"
+# HandCreated loads after TextureSize_<n>, so the redefinition must sit there and sort after the retail file
+RULER_INI = "Data/INI/MappedImages/HandCreated/ZZ_GeneralsOnline_ThemeRuler.INI"
+# retail brightness (max channel) -> launcher token; each stop is a tone of the retail art: transparent and fill black,
+# fill mid, brightest grid fill, frame line (70 79 191), tick marks (53 67 231) and the inner highlight (177 183 255)
+RULER_RAMP = ((0, P["ground"]), (40, P["panel"]), (77, P["line"]), (191, P["bronze"]), (231, P["tan"]), (255, P["sand"]))
+ADDITIONS = (LOGO_TGA, LOGO_INI, RULER_TGA, RULER_INI)  # theme files with no base counterpart
 
 
 def logo_ini_text():
@@ -205,9 +221,125 @@ def build_logo(svg=LOGO_SVG, inkscape=INKSCAPE):
     return go_ui_kit.tga_bytes(atlas)
 
 
-def check():
+def read_big_entry(path, name):
+    """Return the bytes of one entry of a BIG archive, matched case-insensitively, or None."""
+    data = Path(path).read_bytes()
+    if data[:4] != b"BIGF":
+        raise SystemExit(f"{path} is not a BIG archive")
+    want, pos = name.replace("/", "\\").lower(), 16
+    for _ in range(struct.unpack(">I", data[8:12])[0]):
+        offset, size = struct.unpack(">II", data[pos:pos + 8])
+        end = data.index(b"\0", pos + 8)
+        if data[pos + 8:end].decode("latin-1").lower() == want:
+            return data[offset:offset + size]
+        pos = end + 1
+    return None
+
+
+def read_tga(data):
+    """Return (width, height, rows of (r, g, b, a), top row first) of a 32 bit type 2 or type 10 TGA."""
+    id_len, kind = data[0], data[2]
+    width, height, bits, descriptor = struct.unpack("<HHBB", data[12:18])
+    if kind not in (2, 10) or bits != 32:
+        raise SystemExit("only 32 bit uncompressed or RLE TGAs are supported")
+    texels, pos, total = [], 18 + id_len, width * height
+    while len(texels) < total:
+        if kind == 2:
+            texels.append(data[pos:pos + 4])
+            pos += 4
+            continue
+        head = data[pos]
+        count = (head & 0x7F) + 1
+        if head & 0x80:
+            texels += [data[pos + 1:pos + 5]] * count
+            pos += 5
+        else:
+            texels += [data[pos + 1 + 4 * i:pos + 5 + 4 * i] for i in range(count)]
+            pos += 1 + 4 * count
+    rows = [[(t[2], t[1], t[0], t[3]) for t in texels[y * width:(y + 1) * width]] for y in range(height)]
+    # descriptor bit 5 set means the first stored row is the top one
+    return width, height, rows if descriptor & 0x20 else rows[::-1]
+
+
+def mapped_image(text, name):
+    """Return the fields of one MappedImage block of an INI text as {key: value}, in file order."""
+    fields, inside = {}, False
+    for line in text.splitlines():
+        line = line.split(";")[0].strip()
+        if line.lower() == f"mappedimage {name}".lower():
+            inside = True
+        elif inside and line == "End":
+            return fields
+        elif inside and "=" in line:
+            key, value = (part.strip() for part in line.split("=", 1))
+            fields[key] = value
+    raise SystemExit(f"no MappedImage {name} in the retail INI")
+
+
+def ruler_lut():
+    """Return the theme colour of each retail brightness 0..255 along RULER_RAMP."""
+    lut = []
+    for v in range(256):
+        for (v0, c0), (v1, c1) in zip(RULER_RAMP, RULER_RAMP[1:]):
+            if v <= v1:
+                t = (v - v0) / (v1 - v0)
+                lut.append(tuple(round(a + (b - a) * t) for a, b in zip(_rgb(c0), _rgb(c1))))
+                break
+    return lut
+
+
+def recolor_ruler(rows):
+    """Map each texel's brightness onto RULER_RAMP; the art is a single blue hue, so brightness carries its shape."""
+    lut = ruler_lut()
+    return [[lut[max(r, g, b)] + (a,) for r, g, b, a in row] for row in rows]
+
+
+def ruler_ini_text(retail):
+    lines = [
+        f"; Generals Online theme: the retail {RULER_IMAGE} recoloured to the launcher palette.",
+        "; Generated by scripts/go_themes.py from the retail art; edit the script, not this file.",
+        "",
+        f"MappedImage {RULER_IMAGE}",
+    ]
+    lines += [f"  {key} = {RULER_TEXTURE if key == 'Texture' else value}" for key, value in retail.items()]
+    lines += ["End", ""]
+    return "\r\n".join(lines)
+
+
+def build_ruler(retail_dir=RETAIL_DIR):
+    """Return (texture TGA bytes, INI text) of the theme ruler, read from the retail archives."""
+    import go_ui_kit  # imported here: go_ui_kit imports this module for the kit palette
+
+    ini = read_big_entry(Path(retail_dir) / RETAIL_INI_BIG, RULER_RETAIL_INI)
+    if ini is None:
+        raise SystemExit(f"no {RULER_RETAIL_INI} in {RETAIL_INI_BIG}")
+    retail = mapped_image(ini.decode("latin-1"), RULER_IMAGE)
+    texture = read_big_entry(Path(retail_dir) / RETAIL_TEXTURE_BIG, f"Art/Textures/{retail['Texture']}")
+    if texture is None:
+        raise SystemExit(f"no Art/Textures/{retail['Texture']} in {RETAIL_TEXTURE_BIG}")
+    width, height, rows = read_tga(texture)
+    if (width, height) != (int(retail["TextureWidth"]), int(retail["TextureHeight"])):
+        raise SystemExit(f"the retail {RULER_IMAGE} texture is {width}x{height}, not the size its INI names")
+    atlas = [[(r / 255.0, g / 255.0, b / 255.0, a / 255.0) for r, g, b, a in row] for row in recolor_ruler(rows)]
+    return go_ui_kit.tga_bytes(atlas), ruler_ini_text(retail)
+
+
+def missing_retail(retail_dir):
+    return [big for big in (RETAIL_INI_BIG, RETAIL_TEXTURE_BIG) if not (Path(retail_dir) / big).is_file()]
+
+
+def check(retail_dir=RETAIL_DIR):
     """Return the problems of the committed theme files the other generators do not cover."""
     problems = []
+    missing = missing_retail(retail_dir)
+    if missing:
+        problems.append(f"retail archives not found in {retail_dir}: {', '.join(missing)}; cannot verify the ruler (pass --retail)")
+    else:
+        texture, ini = build_ruler(retail_dir)
+        for rel, data in ((RULER_TGA, texture), (RULER_INI, ini.encode("ascii"))):
+            path = THEME_DIR / rel
+            if not path.exists() or path.read_bytes() != data:
+                problems.append(f"out of date: {path.relative_to(ROOT).as_posix()}")
     ini = THEME_DIR / LOGO_INI
     if not ini.exists() or ini.read_bytes() != logo_ini_text().encode("ascii"):
         problems.append(f"out of date: {ini.relative_to(ROOT).as_posix()}")
@@ -227,14 +359,22 @@ def main():
     parser.add_argument("--check", action="store_true", help="fail when the theme files are out of date")
     parser.add_argument("--svg", type=Path, default=LOGO_SVG, help="the launcher's generals-online-horizontal.svg")
     parser.add_argument("--inkscape", type=Path, default=Path(shutil.which("inkscape") or INKSCAPE), help="inkscape executable")
+    parser.add_argument("--retail", type=Path, default=RETAIL_DIR, help="the Zero Hour folder holding INIZH.big and TexturesZH.big")
+    parser.add_argument("--ruler", action="store_true", help="write only the ruler, without Inkscape")
     args = parser.parse_args()
     if args.check:
-        problems = check()
+        problems = check(args.retail)
         for problem in problems:
             print(problem)
         return 1 if problems else 0
-    texture = build_logo(args.svg, args.inkscape)
-    for rel, data in ((LOGO_TGA, texture), (LOGO_INI, logo_ini_text().encode("ascii"))):
+    missing = missing_retail(args.retail)
+    if missing:
+        raise SystemExit(f"retail archives not found in {args.retail}: {', '.join(missing)} (pass --retail)")
+    ruler, ruler_ini = build_ruler(args.retail)
+    outputs = [(RULER_TGA, ruler), (RULER_INI, ruler_ini.encode("ascii"))]
+    if not args.ruler:
+        outputs = [(LOGO_TGA, build_logo(args.svg, args.inkscape)), (LOGO_INI, logo_ini_text().encode("ascii"))] + outputs
+    for rel, data in outputs:
         path = THEME_DIR / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
