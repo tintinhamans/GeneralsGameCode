@@ -710,51 +710,52 @@ void FadeTransition::draw()
 	if(m_drawState <= FADETRANSITION_START || m_drawState >= FADETRANSITION_END)
 		return;
 	const Image *image = m_win->winGetEnabledImage(0);
+	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Fade the image through the window draw, so it keeps the aspect and look the window draws it with.
 	switch (m_drawState)
 	{
 		case FADETRANSITION_FADE_IN_1:
 		{
-			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 25));
+			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 25));
 		}
 		break;
 		case FADETRANSITION_FADE_IN_2:
 		{
-			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 50));
+			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 50));
 		}
 		break;
 		case FADETRANSITION_FADE_IN_3:
 		{
-			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 75));
+			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 75));
 		}
 		break;
 		case FADETRANSITION_FADE_IN_4:
 		{
-			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 100));
+			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 100));
 		}
 		break;
 		case FADETRANSITION_FADE_IN_5:
 		{
-			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 125));
+			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 125));
 		}
 		break;
 		case FADETRANSITION_FADE_IN_6:
 		{
-			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 150));
+			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 150));
 		}
 		break;
 		case FADETRANSITION_FADE_IN_7:
 		{
-			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 175));
+			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 175));
 		}
 		break;
 		case FADETRANSITION_FADE_IN_8:
 		{
-			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 200));
+			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 200));
 		}
 		break;
 		case FADETRANSITION_FADE_IN_9:
 		{
-			TheDisplay->drawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 225));
+			TheWindowManager->winDrawImage(image, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y, GameMakeColor(255, 255, 255, 225));
 		}
 	}
 }
