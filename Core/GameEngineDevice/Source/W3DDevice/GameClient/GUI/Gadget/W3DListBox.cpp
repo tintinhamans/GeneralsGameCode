@@ -53,6 +53,7 @@
 #include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetTextEntry.h"
+#include "GameClient/Mouse.h"
 #include "W3DDevice/GameClient/W3DGadget.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 
@@ -200,6 +201,20 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 	clipRegion.hi.y = y + height - 1;
 
 	drawY = y - list->displayPos;
+	// GenOnline @tweak arcticdolphin 08/11/2026 Compact kit combo drop-down rows draw their text from above the row by the trimmed blank top.
+	const Int textTrim = GadgetListBoxGetKitComboRowTrim( window );
+
+	// GenOnline @feature arcticdolphin 08/11/2026 An open kit combo drop-down highlights the row a click would pick, else its selection.
+	Int hoverRow = -1;
+	if( TheMouse != nullptr && GadgetListBoxGetKitComboFrame( window ) > 0 )
+	{
+		const MouseIO *mouse = TheMouse->getMouseStatus();
+		if( mouse->pos.x >= x && mouse->pos.x < x + width && mouse->pos.y >= y && mouse->pos.y < y + height )
+		{
+			Int column;
+			GadgetListBoxGetEntryBasedOnXY( window, mouse->pos.x, mouse->pos.y, hoverRow, column );
+		}
+	}
 
 	for( i = 0; ; i++ )
 	{
@@ -239,6 +254,11 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 
 				j++;
 			}
+		}
+		else if( hoverRow >= 0 )
+		{
+			if( i == hoverRow )
+				selected = TRUE;
 		}
 		else
 		{
@@ -390,7 +410,7 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 				// setup the Clip Region size
 
 				columnRegion.lo.x = columnX;
-				columnRegion.lo.y = rowDrawY;
+				columnRegion.lo.y = rowDrawY - textTrim;
 				if(list->columns == 1 && list->slider && list->slider->winIsHidden())
 					columnRegion.hi.x = columnX + width-3;
 				else
@@ -416,7 +436,7 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 						// draw this text after setting the clip region for it
 						string->setClipRegion( &columnRegion );
 						string->draw( columnX + textOffsetX,
-													rowDrawY,
+													rowDrawY - textTrim,
 													textColor,
 													dropColor );
 
@@ -431,7 +451,7 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 						// set clip region and draw
 						string->setClipRegion( &columnRegion );
 						string->draw( columnX + textOffsetX,
-													rowDrawY,
+													rowDrawY - textTrim,
 													textColor,
 													dropColor );
 					}

@@ -1155,8 +1155,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 218 274,
-                   BOTTOMRIGHT: 472 298,
+      SCREENRECT = UPPERLEFT: 218 276,
+                   BOTTOMRIGHT: 472 296,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxLadder";
       STATUS = ENABLED+HIDDEN+IMAGE;
@@ -1397,8 +1397,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 57 274,
-                   BOTTOMRIGHT: 185 298,
+      SCREENRECT = UPPERLEFT: 57 276,
+                   BOTTOMRIGHT: 185 296,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxMaxDisconnects";
       STATUS = ENABLED+HIDDEN+IMAGE;
@@ -1639,8 +1639,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 57 190,
-                   BOTTOMRIGHT: 185 214,
+      SCREENRECT = UPPERLEFT: 57 192,
+                   BOTTOMRIGHT: 185 212,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxMaxPing";
       STATUS = ENABLED+HIDDEN+IMAGE;
@@ -1881,8 +1881,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 57 120,
-                   BOTTOMRIGHT: 185 144,
+      SCREENRECT = UPPERLEFT: 57 122,
+                   BOTTOMRIGHT: 185 142,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxNumPlayers";
       STATUS = ENABLED+HIDDEN+IMAGE;
@@ -2123,8 +2123,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 218 189,
-                   BOTTOMRIGHT: 472 213,
+      SCREENRECT = UPPERLEFT: 218 191,
+                   BOTTOMRIGHT: 472 211,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxSide";
       STATUS = ENABLED+HIDDEN+IMAGE;
@@ -2364,8 +2364,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 218 120,
-                   BOTTOMRIGHT: 346 144,
+      SCREENRECT = UPPERLEFT: 218 122,
+                   BOTTOMRIGHT: 346 142,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxColor";
       STATUS = ENABLED+HIDDEN+IMAGE;

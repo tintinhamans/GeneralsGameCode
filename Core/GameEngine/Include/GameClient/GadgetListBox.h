@@ -90,9 +90,19 @@ enum KitScrollImage
 	KIT_SCROLL_DOWN_HILITE,
 	KIT_SCROLL_DOWN_PUSHED,
 	KIT_SCROLL_DOWN_DISABLED,
+	KIT_SCROLL_CELL_HILITE,
+	KIT_SCROLL_CELL_PUSHED,
 	KIT_SCROLL_LINE,
 
 	KIT_SCROLL_IMAGE_COUNT
+};
+
+// GenOnline @bugfix arcticdolphin 08/11/2026 Spans across a kit scroll column that all centre on one line.
+enum KitScrollSpan
+{
+	KIT_SCROLL_SPAN_CONTENT, ///< the column left of the list frame line
+	KIT_SCROLL_SPAN_PILL, ///< the track channel and the thumb
+	KIT_SCROLL_SPAN_CHEVRON ///< the arrow chevrons
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -105,9 +115,12 @@ extern void GadgetListboxCreateScrollbar( GameWindow *listbox );
 extern Bool GadgetListBoxHasKitScrollBar( void ); ///< TRUE when every kit scroll bar image exists
 extern const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which ); ///< nullptr unless GadgetListBoxHasKitScrollBar
 extern Int GadgetListBoxGetKitComboFrame( GameWindow *listbox ); ///< kit combo drop-down frame thickness, 0 for other lists
+extern Int GadgetListBoxGetKitComboRowTrim( GameWindow *listbox ); ///< blank font rows a kit combo drop-down trims off each text row's top, 0 for other lists
+extern Int GadgetListBoxGetKitComboHeight( GameWindow *listbox, Int rows ); ///< kit combo drop-down height for rows, 0 for other lists
 extern Int GadgetListBoxGetKitListFrame( GameWindow *listbox ); ///< kit frame of a colour drawn list: the combo field border for drop-downs, the kit line for bordered lists, else 0
 extern Int GadgetListBoxGetTextInset( GameWindow *listbox ); ///< height the list text drawing loses to its top inset and frame, 0 for kit combo drop-downs
 extern Int GadgetListBoxGetKitScrollLineWidth( void ); ///< kit scroll column separator thickness, 0 without the kit
+extern void GadgetListBoxGetKitScrollSpan( KitScrollSpan which, Int columnX, Int columnWidth, Int *spanX, Int *spanWidth ); ///< a kit scroll column span, centred on the column line
 extern void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
 																			 Bool left, Bool top, Bool right, Bool bottom ); ///< kit line edges inside a rect
 extern Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor ); ///< TRUE when a layout border draws as a kit frame

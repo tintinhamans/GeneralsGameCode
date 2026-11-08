@@ -349,6 +349,10 @@ protected:
 
 	void dumpWindow( GameWindow *window );  ///< for debugging
 
+	// GenOnline @feature arcticdolphin 08/11/2026 Show the Hand cursor over clickable controls in the shell menus.
+	void updateHandCursor();  ///< set or restore the Hand cursor when the window under the mouse changes
+	Bool isHandCursorWindow(GameWindow* window, Int mouseX, Int mouseY);  ///< is this window a clickable shell control under the mouse
+
 	GameWindow *m_windowList;			// list of all top level windows
 	GameWindow *m_windowTail;			// last in windowList
 
@@ -363,6 +367,8 @@ protected:
 	GameWindowList m_tabList;			// we have to register a tab list to make a tab list.
 	const Image *m_cursorBitmap;
 	UnsignedInt m_captureFlags;
+	Bool m_handCursorShown;  ///< updateHandCursor set the Hand cursor
+	Int m_cursorBeforeHand;  ///< Mouse::MouseCursor to restore when the Hand cursor goes
 
 };
 

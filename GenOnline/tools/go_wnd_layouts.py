@@ -5,7 +5,7 @@ Every retail layout in WindowZH.big is copied to GenOnline/data/zerohour at its 
 deterministic fixes. A layout GO already edited by hand (GenOnline/tools/wnd_sources) replaces the retail
 file as input, and the GO-only layouts there get the same fixes. A layout with a YAML source
 (GenOnline/tools/wnd_yaml, compiled by GenOnline/tools/wnd_yaml.py) is written as compiled: the source already holds the
-kit colours, GO header templates and hover images, so none of the fixes below apply to it, and its
+kit colours, GO header templates and hover images, so only the combo heights below apply to it, and its
 GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects are in 800x600 units.
 
 - Kit colours: the retail blue line colours in draw data and TEXTCOLOR border entries become the
@@ -41,6 +41,34 @@ GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects 
   header line in the frame) moves to TITLE_LEFT, the most common title edge, is centred vertically
   between the frame top and the line, and draws left aligned. Menus only.
 - Overrides: GenOnline/tools/wnd_fixes.py sets absolute rects last; the rules never move those windows.
+- Headings: GenOnline/tools/wnd_fixes.py HEADINGS names column headings that then take their column window's left
+  edge, keeping their width, after the overrides; nothing else moves.
+- List headers: GenOnline/tools/wnd_fixes.py LIST_HEADERS names the header cells of a multi column list, one per column. Like
+  the overrides they are placed every pass and no rule moves them: COMBO_HEIGHT tall on the list top, each over its
+  column as the engine sizes it (COLUMNSWIDTH percent of the list width less LIST_SCROLL_COLUMN, rounded down), a
+  corner cell over the scroll bar to the list's right edge and the sort arrow, keeping its size, HEADER_ARROW_INSET
+  inside the right end of the first cell, centred vertically.
+- Combo heights: after the rules, a menu combo box taller than COMBO_HEIGHT with a font of at most 10 pt shrinks to
+  it about its centre (an odd difference rounds the top down), and so does every combo box, entry field, push button
+  or check box of that font with the same parent, top and bottom, so a row keeps one height; a square push button (an
+  icon like refresh) stays square on its left edge. Lists, sliders and labels stay; the drop-down button, edit box and
+  list derive from the combo rect in the engine, which centres the text in kit entries so short boxes clear the frame.
+  Menus only, YAML-built layouts included.
+- Map previews: a window drawn by W3DDrawMapPreview gets the kit line colour as its first enabled border
+  colour, which the engine draws as a kit frame around the preview (menus and load screens alike).
+- Button groups: a colour drawn USER window with a clear fill whose children are push buttons (and NOINPUT
+  overlays drawn on them, like the sort arrows) draws no border, so its frame does not show between the buttons
+  or double their edges: its first enabled border colour gets alpha 0 (every layout that gets the fixes).
+- Setup rows: last, the Skirmish, LAN and online game setup screens lay out SLOT_ROWS player rows ROW_PITCH apart.
+  Rows past the engine's ENGINE_SLOTS are copies of the last engine row with ENABLED cleared: the combos draw
+  disabled and empty (a combo's TEXT is a title above its box, not its edit box text), the accept marker, ping,
+  non-host player name and start position marker copies are also hidden, like on a closed slot. The menu code only
+  looks up rows below MAX_SLOTS, so it never enables them. The band under the rows (game speed, cash, checkboxes)
+  moves to SECTION_GAP under the last row and the panels under it (chat or info and stats) take the space down to
+  the next band; rows inside a panel spread evenly over it.
+- Blank layouts: a layout in GenOnline/tools/wnd_fixes.py BLANK_LAYOUTS (the GameSpy login form GO shows behind its sign-in
+  box) hides every window but the named ones, their ancestors and the visible screen titles: each other window under a
+  shown one gets HIDDEN, so the backdrop, frame and title stay. Every window stays in the file for the code's lookups.
 - Theme copies: every menu layout (not the in-game ones, nor the menus shown during a match) also goes to
   GenOnline/data/Themes/Radar at the same path, its final output with the colours swapped for the
   Classic (Generals Online) palette (GenOnline/tools/go_themes.py LAYOUT_COLORS). Only colour numbers differ.
@@ -50,7 +78,8 @@ out of their parent; such moves are skipped and logged. Children move with their
 repeat until nothing changes. In-game layouts get only the edge, label and equal row rules;
 MainMenu and ControlBar keep their geometry apart from the original 1 unit equal rows rule. Only
 values change in place: every other byte, the CRLF line endings and the file layout stay. Names,
-callbacks, images, text, fonts and CREATIONRESOLUTION stay; only a title's CENTERED flag changes.
+callbacks, images, text, fonts and CREATIONRESOLUTION stay; only a title's CENTERED flag changes. The setup
+rows are the one exception: they add the disabled row copies as whole windows.
 
 Usage:
     python GenOnline/tools/go_wnd_layouts.py           write the layouts into GenOnline/data/core/Window (GenOnline layouts for both games) and zerohour/Window
@@ -71,7 +100,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from wnd_fixes import FIXES  # noqa: E402
+from wnd_fixes import BLANK_LAYOUTS, FIXES, HEADINGS, LIST_HEADERS  # noqa: E402
 import wnd_yaml  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -145,7 +174,36 @@ VERTICAL_INSET = 16        # top and bottom insets only even out when both are t
 BORDERED_KINDS = {"COMBOBOX", "ENTRYFIELD", "PUSHBUTTON", "RADIOBUTTON"}
 MIN_GAP = 2                # stacked or side by side bordered controls keep at least this gap
 MIN_HEIGHT = 18            # a stack gap never shrinks a control below this height
+# closed menu combo box height; the edit box draws its text 5 units below its top (W3DTextEntry), so below 22 the
+# descenders of the 10 pt GO font reach the bottom line up to 1600x900 (18 fits once that text is centred)
+COMBO_HEIGHT = 20
+COMBO_FONT = 10            # combos with a larger font keep their height
 COLUMN_REACH = 8           # neighbouring columns of one row are at most this far apart
+# list header cells: the engine sizes list columns from the width less the kit scroll bar column
+# (KIT_SCROLL_COLUMN_WIDTH, 14, in GadgetListBox.cpp) and the 2 unit gap GameWindowManager keeps beside it
+LIST_SCROLL_COLUMN = 16
+HEADER_ARROW_INSET = 3     # the sort arrow sits this far inside the right end of its header cell; LobbyUtils.cpp matches
+
+# game setup screens: player rows past the engine's slots ship as disabled copies, ready for more players
+SETUP_LAYOUTS = {
+    "Window/Menus/SkirmishGameOptionsMenu.wnd",
+    "Window/Menus/LanGameOptionsMenu.wnd",
+    "Window/Menus/GameSpyGameOptionsMenu.wnd",
+}
+ENGINE_SLOTS = 8           # MAX_SLOTS in Core GameNetwork/NetworkDefs.h; the menus only look up rows below it
+SLOT_ROWS = ENGINE_SLOTS    # player rows the setup screens lay out, 12 once the engine has 12 slots (arctic/go/feat/12-players)
+ROW_PITCH = 22             # top to top distance of the player rows: the COMBO_HEIGHT combos and a 2 unit gap
+SECTION_GAP = 6            # gap between the player rows, the settings row and the panels under them
+PANEL_INSET = 2            # rows inside a panel under the settings row keep this inset
+MIN_PANEL = 40             # the panels under the settings row keep at least this height
+SLOT_BASES = ("ComboBoxPlayerTemplate", "ComboBoxPlayer", "ComboBoxColor", "ComboBoxTeam", "ButtonAccept",
+              "GenericPing", "StaticTextPlayer", "ButtonMapStartPosition")
+SLOT_NAME_RE = re.compile(r"^(?P<base>%s)(?P<index>\d+)$" % "|".join(SLOT_BASES))
+# the copies of these draw disabled; the others are hidden like on a closed slot (accept marker, ping, the non-host's
+# player name over the combo, start position markers the code places over the map)
+VISIBLE_SLOT_BASES = ("ComboBoxPlayer", "ComboBoxColor", "ComboBoxPlayerTemplate", "ComboBoxTeam")
+ROW_STAND_INS = {"TextEntryPlayerName": 0}  # the skirmish player's name field in place of ComboBoxPlayer0
+STATUS_LINE_RE = re.compile(r"^[ \t]*STATUS[ \t]*=[ \t]*(?P<flags>[^;]*);", re.M)
 DEFAULT_COLUMN_GAP = 4     # column gap when every gap of a row differs
 
 # shared left edge of the ruler menu titles: the most common one (GameSpy game options and WOL welcome
@@ -192,6 +250,26 @@ COLOR_REMAP = {
     (46, 54, 165): (47, 75, 255),
     (128, 128, 255): (106, 123, 255),
 }
+KIT_LINE = (47, 75, 255)
+
+# map preview windows: their first enabled border colour is the frame colour W3DDrawMapPreview draws
+MAP_PREVIEW_CALLBACK = "W3DDrawMapPreview"
+MAP_PREVIEW_BORDER = "%d %d %d 255" % KIT_LINE
+PREVIEW_TOKEN_RE = re.compile(
+    r"^[ \t]*(?P<open>WINDOW)[ \t]*\r?$"
+    r"|^[ \t]*(?P<close>END)[ \t]*\r?$"
+    r"|^[ \t]*DRAWCALLBACK[ \t]*=[ \t]*\"(?P<callback>[^\"]*)\""
+    r"|^[ \t]*ENABLEDDRAWDATA[ \t]*=[ \t]*IMAGE:[^,]*,[ \t]*COLOR:[^,]*,[ \t]*BORDERCOLOR:[ \t]*"
+    r"(?P<border>\d+[ \t]+\d+[ \t]+\d+[ \t]+\d+)",
+    re.M,
+)
+# the first enabled border alpha of every window, for the button group rule
+GROUP_BORDER_RE = re.compile(
+    r"^[ \t]*(?P<open>WINDOW)[ \t]*\r?$"
+    r"|^[ \t]*ENABLEDDRAWDATA[ \t]*=[ \t]*IMAGE:[^,]*,[ \t]*COLOR:[^,]*,[ \t]*BORDERCOLOR:[ \t]*"
+    r"\d+[ \t]+\d+[ \t]+\d+[ \t]+(?P<alpha>\d+)",
+    re.M,
+)
 
 COLOR_RE = re.compile(
     r"(?<![A-Z])(?P<key>COLOR|BORDERCOLOR|ENABLEDBORDER|DISABLEDBORDER|HILITEBORDER):(?P<sp>[ \t]*)"
@@ -208,7 +286,8 @@ TOKEN_RE = re.compile(
     r"|^[ \t]*FONT[ \t]*=[ \t]*NAME:[ \t]*\"[^\"]*\"[ \t]*,[ \t]*SIZE:[ \t]*(?P<size>\d+)"
     r"|^[ \t]*HEADERTEMPLATE[ \t]*=[ \t]*\"(?P<header>[^\"]*)\""
     r"|^[ \t]*STATICTEXTDATA[ \t]*=[ \t]*CENTERED:[ \t]*(?P<centered>\d+)"
-    r"|^[ \t]*STATUS[ \t]*=[ \t]*(?P<status>[^;]*);",
+    r"|^[ \t]*STATUS[ \t]*=[ \t]*(?P<status>[^;]*);"
+    r"|^[ \t]*COLUMNSWIDTH:[ \t]*(?P<colwidth>\d+)",
     re.M,
 )
 SLOT_RE = re.compile(
@@ -232,6 +311,8 @@ class Window:
         self.header = ""
         self.status = set()    # STATUS flags, for example {"ENABLED", "HIDDEN"}
         self.centered = None   # (value, text span) of STATICTEXTDATA CENTERED
+        self.block = None      # text span of the WINDOW ... END block, its line break included
+        self.columns = []      # LISTBOXDATA COLUMNSWIDTH percentages of a multi column list
 
     def walk(self):
         for child in self.children:
@@ -248,11 +329,14 @@ def parse_windows(text):
         top = stack[-1]
         if m.group("open"):
             win = Window(top)
+            win.block = (m.start(), None)
             top.children.append(win)
             stack.append(win)
         elif m.group("close"):
             if len(stack) == 1:
                 raise ValueError(f"END without WINDOW at offset {m.start()}")
+            end = m.end() + 1 if text.startswith("\n", m.end()) else m.end()
+            top.block = (top.block[0], end)
             stack.pop()
         elif m.group("kind"):
             top.kind = m.group("kind")
@@ -272,6 +356,8 @@ def parse_windows(text):
             top.header = m.group("header")
         elif m.group("centered"):
             top.centered = (int(m.group("centered")), m.span("centered"))
+        elif m.group("colwidth") is not None:
+            top.columns.append(int(m.group("colwidth")))
     if len(stack) != 1:
         raise ValueError("WINDOW without END")
     return root
@@ -1072,6 +1158,84 @@ def apply_overrides(ctx, root, fixes):
     return changed
 
 
+def _header_names(headers):
+    """The header cell, corner and arrow names of a LIST_HEADERS entry."""
+    names = set()
+    for spec in headers.values():
+        names.update(n for n in (*spec["cells"], spec.get("corner"), spec.get("arrow")) if n)
+    return names
+
+
+def _list_columns(lst):
+    """[(x0, x1)] of each column of a multi column list, as the engine sizes them."""
+    total = lst.rect[2] - lst.rect[0] - LIST_SCROLL_COLUMN
+    columns, x = [], lst.rect[0]
+    for percent in lst.columns:
+        width = percent * total // 100
+        columns.append((x, x + width))
+        x += width
+    return columns
+
+
+def place_list_headers(ctx, root, headers):
+    """Put each list's header cells on its top over its columns, the corner cell over the scroll bar and the sort arrow
+    in the first cell; fail on a cell count or hidden column mismatch, or a cell leaving its parent or overlapping."""
+    by_name = _named(root, dict.fromkeys(_header_names(headers) | set(headers)))
+    for list_name in sorted(headers):
+        spec, lst = headers[list_name], by_name[list_name]
+        columns = _list_columns(lst)
+        if len(spec["cells"]) != len(columns):
+            raise ValueError(f"{list_name}: {len(spec['cells'])} header cells for {len(columns)} columns")
+        top, bottom = lst.rect[1] - COMBO_HEIGHT, lst.rect[1]
+        placed = []
+        for index, (cell, (x0, x1)) in enumerate(zip(spec["cells"], columns)):
+            if (cell is None) != (x0 == x1):
+                raise ValueError(f"{list_name}: column {index} is {x1 - x0} units wide but has header cell {cell}")
+            if cell:
+                placed.append((by_name[cell], (x0, top, x1, bottom)))
+        if spec.get("corner"):
+            end = columns[-1][1] if columns else lst.rect[0]
+            placed.append((by_name[spec["corner"]], (end, top, lst.rect[2], bottom)))
+        if spec.get("arrow") and placed:
+            first, arrow = placed[0][1], by_name[spec["arrow"]]
+            width, height = arrow.rect[2] - arrow.rect[0], arrow.rect[3] - arrow.rect[1]
+            right, y = first[2] - HEADER_ARROW_INSET, first[1] + (COMBO_HEIGHT - height) // 2
+            placed.append((arrow, (right - width, y, right, y + height)))
+        own = {id(win) for win, _ in placed}
+        for win, rect in placed:
+            if win.parent.rect is not None and not _within(rect, win.parent.rect, 0):
+                raise ValueError(f"header cell {win.name} at {rect} would leave {win.parent.name}")
+            siblings = [w for w in win.parent.children if id(w) not in own and w.rect is not None]
+            if any(_overlaps(rect, w.rect) for w in siblings):
+                raise ValueError(f"header cell {win.name} at {rect} would overlap a sibling")
+            if win.rect != rect:
+                dx, dy = rect[0] - win.rect[0], rect[1] - win.rect[1]
+                win.rect = rect
+                for child in win.walk():
+                    if child.rect is not None:
+                        child.rect = _moved(child.rect, dx, dy)
+                ctx.touch("override", [win])
+
+
+def align_headings(ctx, root, headings):
+    """Move each named heading sideways onto its column's left edge, keeping its width; fail on a new overlap."""
+    by_name = _named(root, {**{h: None for h in headings}, **{c: None for c in headings.values()}})
+    for name in sorted(headings):
+        win, col = by_name[name], by_name[headings[name]]
+        dx = col.rect[0] - win.rect[0]
+        if dx == 0:
+            continue
+        new = _moved(win.rect, dx, 0)
+        siblings = [w for w in win.parent.children if w is not win and w.rect is not None]
+        if any(_overlaps(new, w.rect) and not _overlaps(win.rect, w.rect) for w in siblings):
+            raise ValueError(f"heading {name} would overlap a sibling at {new}")
+        win.rect = new
+        for child in win.walk():
+            if child.rect is not None:
+                child.rect = _moved(child.rect, dx, 0)
+        ctx.touch("override", [win])
+
+
 def _settle(ctx, root, rules, fixes, name, late=True):
     """Repeat the rules until nothing changes; without late, the gap, column and title rules only
     keep their windows (titles, column headers) out of the other rules."""
@@ -1110,6 +1274,7 @@ def _settle(ctx, root, rules, fixes, name, late=True):
         if late and "titles" in rules:
             align_titles(ctx, root)
         apply_overrides(ctx, root, fixes)
+        place_list_headers(ctx, root, LIST_HEADERS.get(name, {}) if name else {})
         if [w.rect for w in root.walk()] == before:
             return
     raise RuntimeError(f"{name or 'layout'}: alignment did not converge")
@@ -1133,7 +1298,8 @@ def align(text, name=None, rules=None):
     root = parse_windows(text)
     rules = _rules(name) if rules is None else rules
     fixes = FIXES.get(name, {}) if name else {}
-    locked = {id(w) for n, w in _named(root, fixes).items() if n in fixes}
+    cells = _header_names(LIST_HEADERS.get(name, {}) if name else {})
+    locked = {id(w) for n, w in _named(root, {**fixes, **dict.fromkeys(cells)}).items() if n in fixes or n in cells}
     ctx = _Context(locked)
     frame_notes = []
     if "frame" in rules and _has_ruler_frame(root):
@@ -1145,6 +1311,7 @@ def align(text, name=None, rules=None):
         frame_notes, ctx.notes = ctx.notes, []
     frame = "frame" in rules and _has_ruler_frame(root)
     _settle(ctx, root, rules, fixes, name)
+    align_headings(ctx, root, HEADINGS.get(name, {}) if name else {})
     edits, changes = [], []
     for win in root.walk():
         if win.rect is None or win.rect == win.original:
@@ -1203,10 +1370,264 @@ def hilite_images(text):
     return HILITE_DRAW_RE.sub(swap, text)
 
 
+def map_preview_borders(text):
+    """Give every W3DDrawMapPreview window the kit line as its first enabled border colour."""
+    stack, spans = [], []
+    for m in PREVIEW_TOKEN_RE.finditer(text):
+        if m.group("open"):
+            stack.append({"preview": False, "border": None})
+        elif m.group("close"):
+            if not stack:
+                raise ValueError(f"END without WINDOW at offset {m.start()}")
+            win = stack.pop()
+            if win["preview"] and win["border"] is not None:
+                spans.append(win["border"])
+        elif stack and m.group("callback") is not None:
+            stack[-1]["preview"] = m.group("callback") == MAP_PREVIEW_CALLBACK
+        elif stack and m.group("border") is not None:
+            stack[-1]["border"] = m.span("border")
+    for start, end in sorted(spans, reverse=True):
+        text = text[:start] + MAP_PREVIEW_BORDER + text[end:]
+    return text
+
+
+def _clear_button_group(win):
+    """True for a colour drawn USER window with a clear fill, a visible border and only push buttons and their overlays inside."""
+    if win.kind != "USER" or "IMAGE" in win.status or not win.children:
+        return False
+    slots = dict(win.draws).get("ENABLEDDRAWDATA")
+    if not slots or slots[0][1][3] != "0" or slots[0][2][3] == "0":
+        return False
+    buttons = [child.rect for child in win.children if child.kind == "PUSHBUTTON"]
+    if not buttons:
+        return False
+    for child in win.children:
+        if child.kind == "PUSHBUTTON":
+            continue
+        overlay = child.kind == "USER" and "NOINPUT" in child.status and not child.children
+        if not overlay or not any(_within(child.rect, button, 0) for button in buttons):
+            return False
+    return True
+
+
+def button_group_borders(text):
+    """Clear the first enabled border colour of every clear button group window."""
+    groups = [_clear_button_group(win) for win in parse_windows(text).walk()]
+    index, spans = -1, []
+    for m in GROUP_BORDER_RE.finditer(text):
+        if m.group("open"):
+            index += 1
+        elif index >= 0 and groups[index]:
+            spans.append(m.span("alpha"))
+    for start, end in sorted(spans, reverse=True):
+        text = text[:start] + "0" + text[end:]
+    return text
+
+
+def compact_combos(text, name):
+    """Shrink the menu combo boxes taller than COMBO_HEIGHT about their centre, with the entry fields, push buttons and
+    check boxes that share their row; a square push button keeps its left edge and stays square."""
+    if not _uses_go_templates(name) or _rules(name) != MENU_RULES:
+        return text
+    root = parse_windows(text)
+    edits = []
+    for parent in (root, *root.walk()):
+        small = [w for w in parent.children if w.rect is not None and w.font_size <= COMBO_FONT]
+        rows = {w.rect[1::2] for w in small if w.kind == "COMBOBOX" and w.rect[3] - w.rect[1] > COMBO_HEIGHT}
+        for win in small:
+            if win.kind in ("COMBOBOX", "ENTRYFIELD", "PUSHBUTTON", "CHECKBOX") and win.rect[1::2] in rows:
+                y0, y1 = win.rect[1::2]
+                top = y0 + (y1 - y0 - COMBO_HEIGHT) // 2
+                edits += [(win.spans[1], top), (win.spans[3], top + COMBO_HEIGHT)]
+                if win.kind == "PUSHBUTTON" and win.rect[2] - win.rect[0] == y1 - y0:
+                    edits.append((win.spans[2], win.rect[0] + COMBO_HEIGHT))
+    for (start, end), value in sorted(edits, reverse=True):
+        text = text[:start] + str(value) + text[end:]
+    return text
+
+
+def _place(win, rect, edits):
+    edits.extend((span, str(new)) for span, old, new in zip(win.spans, win.rect, rect) if old != new)
+    win.rect = rect
+
+
+def _bands(windows):
+    """Group windows into vertical bands of overlapping spans, top to bottom: [top, bottom, windows]."""
+    bands = []
+    for win in sorted(windows, key=lambda w: (w.rect[1], w.rect[3])):
+        if bands and win.rect[1] <= bands[-1][1]:
+            bands[-1][1] = max(bands[-1][1], win.rect[3])
+            bands[-1][2].append(win)
+        else:
+            bands.append([win.rect[1], win.rect[3], [win]])
+    return bands
+
+
+def _clone_slot(text, win, index, rect, hidden):
+    """The text of a disabled copy of slot window win for slot index at rect, followed by a CHILD line for the next sibling."""
+    start, end = win.block
+    block = text[start:end]
+    for (s, e), value in sorted(zip(win.spans, rect), reverse=True):
+        block = block[:s - start] + str(value) + block[e - start:]
+    base = SLOT_NAME_RE.match(win.name.split(":")[-1])["base"]
+    block = block.replace(f'"{win.name}"', f'"{win.name.rsplit(":", 1)[0]}:{base}{index}"', 1)
+    status = STATUS_LINE_RE.search(block)
+    flags = [f.strip() for f in status["flags"].split("+") if f.strip() and f.strip() != "ENABLED"]
+    if hidden:
+        flags.insert(0, "HIDDEN")
+    if not flags:
+        raise ValueError(f"{win.name}: no status flags left for the disabled copy")
+    block = block[:status.start("flags")] + "+".join(flags) + block[status.end("flags"):]
+    indent = re.match(r"[ \t]*", block).group(0)
+    newline = "\r\n" if block.endswith("\r\n") else "\n"
+    child = text.rfind("\n", 0, start - 1) + 1
+    if text[child:start].strip() != "CHILD":
+        raise ValueError(f"{win.name}: slot window is not a CHILD of its parent")
+    return block + indent + "CHILD" + newline
+
+
+def setup_rows(text, name):
+    """Lay out SLOT_ROWS player rows on a game setup screen and move the sections below them under the last row.
+
+    Rows past ENGINE_SLOTS are disabled copies of the last engine row; the engine never looks them up, so they stay
+    disabled. The band under the rows moves up or down to sit SECTION_GAP under the last row, the next band (the
+    chat or info panels) takes the space down to the band after it, and every later band stays.
+    """
+    if name not in SETUP_LAYOUTS:
+        return text
+    root = parse_windows(text)
+    slots = {}
+    for win in root.walk():
+        m = SLOT_NAME_RE.match(win.name.split(":")[-1])
+        if m:
+            slots[(m["base"], int(m["index"]))] = win
+    anchor = slots[("ComboBoxColor", 0)]
+    frame = anchor.parent
+    height = anchor.rect[3] - anchor.rect[1]
+    tops = [anchor.rect[1] + i * ROW_PITCH for i in range(SLOT_ROWS)]
+    rows = {id(w): i for (base, i), w in slots.items() if w.parent is frame}
+    rows.update({id(w): ROW_STAND_INS[w.name.split(":")[-1]] for w in frame.children
+                 if w.name.split(":")[-1] in ROW_STAND_INS})
+    old_bottom = max(w.rect[3] for w in frame.children if id(w) in rows)
+
+    def row_rect(win, index):
+        x0, y0, x1, y1 = win.rect
+        top = tops[index] + (height - (y1 - y0)) // 2
+        return (x0, top, x1, top + y1 - y0)
+
+    edits = []
+    last = ENGINE_SLOTS - 1
+    for (base, index), win in sorted(slots.items()):
+        if index != last:
+            continue
+        clones = []
+        for k in range(ENGINE_SLOTS, SLOT_ROWS):
+            if (base, k) in slots:
+                continue
+            if win.parent is frame:
+                rect = row_rect(win, k)
+            else:
+                # start position markers continue their stack; the game code places them over the map
+                prev = slots[(base, last - 1)].rect
+                rect = tuple(v + (k - last) * (v - p) for v, p in zip(win.rect, prev))
+            clones.append(_clone_slot(text, win, k, rect, base not in VISIBLE_SLOT_BASES))
+        if clones:
+            edits.append(((win.block[0], win.block[0]), "".join(reversed(clones))))
+    for win in frame.children:
+        if id(win) in rows:
+            _place(win, row_rect(win, rows[id(win)]), edits)
+
+    below = [w for w in frame.children if id(w) not in rows and w.rect[1] > old_bottom]
+    above = [w for w in frame.children if id(w) not in rows and w.rect[1] <= old_bottom]
+    bands = _bands(below)
+    if len(bands) < 3:
+        raise ValueError(f"{name}: expected a settings band, a panel band and a fixed band under the player rows")
+    (top, bottom, settings), (stretch_top, stretch_bottom, stretch), (fixed_top, _, _) = bands[:3]
+    rows_bottom = max([tops[-1] + height] + [w.rect[3] for w in above])
+    shown = [w.rect[1] for w in settings if "HIDDEN" not in w.status] or [top]
+    dy = rows_bottom + SECTION_GAP - min(shown)
+    for win in settings:
+        for w in (win, *win.walk()):
+            _place(w, _moved(w.rect, 0, dy), edits)
+    new_top = bottom + dy + SECTION_GAP
+    new_bottom = fixed_top - SECTION_GAP
+    if new_bottom - new_top < MIN_PANEL:
+        raise ValueError(f"{name}: {new_bottom - new_top} units left for the panels under the player rows")
+    for win in stretch:
+        x0, y0, x1, y1 = win.rect
+        _place(win, (x0, y0 - stretch_top + new_top, x1, new_bottom - (stretch_bottom - y1)), edits)
+        _fit_child_rows(win, edits)
+    for (start, end), value in sorted(edits, reverse=True):
+        text = text[:start] + value + text[end:]
+    return text
+
+
+def _fit_child_rows(win, edits):
+    """Spread the rows of a panel's children evenly over its height, keeping their gap, PANEL_INSET from its edges."""
+    if not win.children:
+        return
+    row_tops = sorted({c.rect[1] for c in win.children})
+    first = [c for c in win.children if c.rect[1] == row_tops[0]]
+    gap = row_tops[1] - row_tops[0] - (first[0].rect[3] - first[0].rect[1]) if len(row_tops) > 1 else 0
+    x0, y0, x1, y1 = win.rect
+    pitch = (y1 - y0 - 2 * PANEL_INSET + gap) // len(row_tops)
+    top = y0 + (y1 - y0 - (len(row_tops) * pitch - gap)) // 2
+    for child in win.children:
+        row = top + row_tops.index(child.rect[1]) * pitch
+        _place(child, (child.rect[0], row, child.rect[2], row + pitch - gap), edits)
+
+
+def _hidden_in(win):
+    while win is not None:
+        if "HIDDEN" in win.status:
+            return True
+        win = win.parent
+    return False
+
+
+def blank_layout(text, name):
+    """Hide every window of a BLANK_LAYOUTS layout but the kept names, their ancestors and the visible screen titles."""
+    keep = BLANK_LAYOUTS.get(name) if name else None
+    if not keep:
+        return text
+    root = parse_windows(text)
+    by_name = _named(root, dict.fromkeys(keep))
+    shown = set()
+    for win in [by_name[n] for n in keep] + [w for w in root.walk() if _is_title(w) and not _hidden_in(w)]:
+        while win is not None and win is not root:
+            shown.add(id(win))
+            win = win.parent
+    edits = []
+    for parent in (root, *root.walk()):
+        if parent is not root and id(parent) not in shown:
+            continue
+        for win in parent.children:
+            if id(win) in shown or "HIDDEN" in win.status:
+                continue
+            start, end = win.block
+            first_child = min((c.block[0] for c in win.children), default=end)
+            m = STATUS_LINE_RE.search(text, start, first_child)
+            if m is None:
+                raise ValueError(f"{name}: {win.name} has no STATUS to hide")
+            flags = [f.strip() for f in m["flags"].split("+") if f.strip()]
+            flags.insert(1 if flags[:1] == ["ENABLED"] else 0, "HIDDEN")
+            edits.append((m.span("flags"), "+".join(flags)))
+    for (start, end), value in sorted(edits, reverse=True):
+        text = text[:start] + value + text[end:]
+    return text
+
+
+def finish(text, name):
+    """The fixes after alignment: combo heights, GO header templates, hover images, map preview frames, button groups,
+    the game setup rows and the blank layouts."""
+    text = button_group_borders(map_preview_borders(hilite_images(go_templates(compact_combos(text, name), name))))
+    return blank_layout(setup_rows(text, name), name)
+
+
 def transform(text, notes=None, name=None):
     """Apply the kit colours, the alignment rules and the GO header templates for the layout at archive path name."""
     out, info = align(remap_colors(text), name)
-    out = hilite_images(go_templates(out, name))
+    out = finish(out, name)
     if notes is not None:
         notes.extend(info["notes"])
     return out
@@ -1278,11 +1699,11 @@ def build(retail, game="zerohour"):
         text = inputs[name].decode("latin-1")
         if name in compiled:
             info = {"frame": False, "stats": Counter(), "notes": [], "changes": [], "uncentred": []}
-            results.append((name, text, text, info))
+            # the YAML source is final apart from the combo height, which follows COMBO_HEIGHT like every menu
+            results.append((name, text, compact_combos(text, name), info))
             continue
         out, info = align(remap_colors(text), name)
-        out = hilite_images(go_templates(out, name))
-        results.append((name, text, out, info))
+        results.append((name, text, finish(out, name), info))
     return results
 
 

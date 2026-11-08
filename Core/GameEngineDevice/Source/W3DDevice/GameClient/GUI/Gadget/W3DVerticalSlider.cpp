@@ -91,21 +91,10 @@ static void drawVerticalThreePieceImage( const Image *top, const Image *center, 
 	TheWindowManager->winDrawImage( bottom, x, y + height - bottomHeight, x + width, y + height );
 }
 
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 The kit pill fills its channel, like the kit slider fill fills its track, at 6 of the 14 column units.
-static const Int KIT_SCROLL_CHANNEL_WIDTH = 6;
-
 static void getKitChannel( Int columnX, Int columnWidth, Int &channelX, Int &channelWidth )
 {
-	Int separator = GadgetListBoxGetKitScrollLineWidth();
-	if( separator > columnWidth / 2 )
-		separator = 0;
-	channelWidth = GameWindowManager::winScaleLayoutSize( KIT_SCROLL_CHANNEL_WIDTH );
-	if( channelWidth > columnWidth - 2 * separator )
-		channelWidth = columnWidth - 2 * separator;
-	if( channelWidth < 2 )
-		channelWidth = 2;
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The list frame on the right is as thick as the separator.
-	channelX = columnX + separator + (columnWidth - 2 * separator - channelWidth) / 2;
+	// GenOnline @bugfix arcticdolphin 08/11/2026 The channel takes the column line the arrow chevrons share.
+	GadgetListBoxGetKitScrollSpan( KIT_SCROLL_SPAN_PILL, columnX, columnWidth, &channelX, &channelWidth );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -360,31 +349,6 @@ void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *i
 															 GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_CENTER ),
 															 GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_BOTTOM ),
 															 channelX, origin.y, channelWidth, size.y );
-
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The column separator runs between the arrow cells, which draw their own part.
-	GameWindow *listbox = window->winGetParent();
-	if( listbox == nullptr )
-		return;
-
-	Int top = origin.y;
-	Int bottom = origin.y + size.y;
-	GameWindow *upButton = GadgetListBoxGetUpButton( listbox );
-	GameWindow *downButton = GadgetListBoxGetDownButton( listbox );
-	if( upButton )
-	{
-		ICoord2D upPos, upSize;
-		upButton->winGetScreenPosition( &upPos.x, &upPos.y );
-		upButton->winGetSize( &upSize.x, &upSize.y );
-		top = upPos.y + upSize.y;
-	}
-	if( downButton )
-	{
-		ICoord2D downPos;
-		downButton->winGetScreenPosition( &downPos.x, &downPos.y );
-		bottom = downPos.y;
-	}
-	if( bottom > top )
-		GadgetListBoxDrawKitLines( origin.x, top, size.x, bottom - top, TRUE, FALSE, FALSE, FALSE );
 }
 
 //=============================================================================

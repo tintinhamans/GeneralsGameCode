@@ -574,6 +574,20 @@ void Mouse::parseIni()
 {
 	INI ini;
 	ini.loadFileDirectory( "Data\\INI\\Mouse", INI_LOAD_OVERWRITE, nullptr );
+
+	// GenOnline @feature arcticdolphin 08/11/2026 Hand shows the Normal cursor when no INI defines it, and the model of Normal in W3D mode.
+	CursorInfo *hand = &m_cursorInfo[ HAND ];
+	if( hand->cursorName.isEmpty() )
+	{
+		*hand = m_cursorInfo[ NORMAL ];
+	}
+	else if( hand->W3DModelName.isEmpty() )
+	{
+		hand->W3DModelName = m_cursorInfo[ NORMAL ].W3DModelName;
+		hand->W3DAnimName = m_cursorInfo[ NORMAL ].W3DAnimName;
+		hand->W3DScale = m_cursorInfo[ NORMAL ].W3DScale;
+		hand->loop = m_cursorInfo[ NORMAL ].loop;
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1352,6 +1366,7 @@ Int Mouse::getCursorIndex(const AsciiString& name)
 		"PlaceChargeInvalid",
 		"Hack",
 		"ParticleUplinkCannon",
+		"Hand",
 
 	};
 	static_assert(ARRAY_SIZE(CursorININames) == NUM_MOUSE_CURSORS, "Incorrect array size");
