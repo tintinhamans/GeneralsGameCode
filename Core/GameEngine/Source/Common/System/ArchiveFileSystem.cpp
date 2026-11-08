@@ -404,7 +404,7 @@ Bool ArchiveFileSystem::parseMountEntry(const AsciiString& text, ArchiveMountEnt
 	return TRUE;
 }
 
-void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes, std::vector<AsciiString>* mounted)
+void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes, std::vector<AsciiString>* mounted, ArchivePathFilter includePath)
 {
 	std::string fullPath = entry.m_path.str();
 	if (entry.m_base == ArchiveMountEntry::BASE_USER)
@@ -442,7 +442,7 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s is already mounted", bigPath.c_str());
 			continue;
 		}
-		ArchiveFile* archiveFile = openArchiveFile(bigPath.c_str());
+		ArchiveFile* archiveFile = openArchiveFile(bigPath.c_str(), includePath);
 		if (archiveFile == nullptr)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s could not be opened", bigPath.c_str());
@@ -519,58 +519,123 @@ void ArchiveFileSystem::mountGenOnlineMenus(const std::vector<AsciiString>& genO
 	}
 }
 
-void ArchiveFileSystem::mountGenOnlineTheme(const AsciiString& theme, const std::vector<AsciiString>& genOnlineArchives)
+// The GO interface files of the generals_online archives that the Retail style leaves out: their copies of retail layouts, kit art,
+// fonts and header templates; layouts retail never had (GO popups) stay so their features keep a window
+static Bool isNotGenOnlineInterfaceFile(const char* path)
 {
-	if (theme.isEmpty() || theme.compareNoCase("classic") == 0)
+	static const char* const prefixes[] = { "fonts/" };
+	static const char* const files[] = {
+		"art/textures/generalsonline_uikit.tga",
+		"data/ini/mappedimages/texturesize_512/zz_generalsonline_uikit.ini",
+		"data/ini/mappedimages/texturesize_512/zz_generalsonline_checkboxsliderart.ini",
+		"data/generalsonline/headertemplate.ini" };
+
+	// paths in a BIG use backslashes, the lists above use slashes
+	AsciiString lower;
+	for (const char* c = path; *c != '\0'; ++c)
+	{
+		lower.concat(*c == '\\' ? '/' : static_cast<char>(tolower(static_cast<unsigned char>(*c))));
+	}
+	const char* name = lower.str();
+	if (strncmp(name, "window/", 7) == 0)
+	{
+		return TheArchiveFileSystem == nullptr || !TheArchiveFileSystem->doesFileExist(name);
+	}
+	for (size_t p = 0; p < ARRAY_SIZE(prefixes); ++p)
+	{
+		if (strncmp(name, prefixes[p], strlen(prefixes[p])) == 0)
+		{
+			return FALSE;
+		}
+	}
+	for (size_t f = 0; f < ARRAY_SIZE(files); ++f)
+	{
+		if (strcmp(name, files[f]) == 0)
+		{
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+void ArchiveFileSystem::setInterfaceStyle(const AsciiString& style, const AsciiString& palette)
+{
+	m_retailInterface = style.compareNoCase("retail") == 0;
+	m_interfacePalette.clear();
+	if (style.compareNoCase("overhaul") == 0)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: Overhaul needs RmlUi, which this build does not have, using Refit");
+	}
+	if (m_retailInterface)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: Retail, the GO layouts, kit art and fonts are left out");
+		return;
+	}
+
+	if (palette.compareNoCase("radar") == 0)
+	{
+		m_interfacePalette = "Radar";
+	}
+	else if (palette.compareNoCase("night") == 0)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: the Night palette is Overhaul only, using Signal");
+	}
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: Refit, palette %s", m_interfacePalette.isEmpty() ? "Signal" : m_interfacePalette.str());
+}
+
+void ArchiveFileSystem::mountGenOnlineLayer(Bool enabled, const std::vector<std::string>& includePaths)
+{
+	std::vector<AsciiString> genOnlineArchives;
+	mountDataPackLayer("generals_online", enabled, includePaths, nullptr, ARCHIVE_PRIORITY_GENONLINE, &genOnlineArchives, m_retailInterface ? isNotGenOnlineInterfaceFile : nullptr);
+	if (m_retailInterface)
+	{
+		return;
+	}
+	mountGenOnlineMenus(genOnlineArchives);
+	mountGenOnlineTheme(genOnlineArchives);
+}
+
+void ArchiveFileSystem::mountGenOnlineTheme(const std::vector<AsciiString>& genOnlineArchives)
+{
+	if (m_interfacePalette.isEmpty())
 	{
 		return;
 	}
 
-	// settings name to archive name: generals_online -> Themes\GeneralsOnline_Theme_GeneralsOnline.big
-	AsciiString themeName;
-	if (theme.compareNoCase("generals_online") == 0)
-	{
-		themeName = "GeneralsOnline";
-	}
-	else
-	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "UI theme %s is unknown, using classic", theme.str());
-		return;
-	}
-
+	// a palette's files replace the same paths: Themes\GeneralsOnline_Theme_<palette>.big over the generals_online archives
 	// the theme archive is in a Themes folder next to a generals_online archive, the first one found wins
 	for (const AsciiString& archivePath : genOnlineArchives)
 	{
 		const std::string corePath = archivePath.str();
 		const size_t lastSeparator = corePath.find_last_of("\\/");
 		const std::string themePath = (lastSeparator == std::string::npos ? std::string() : corePath.substr(0, lastSeparator + 1))
-			+ "Themes\\GeneralsOnline_Theme_" + themeName.str() + ".big";
+			+ "Themes\\GeneralsOnline_Theme_" + m_interfacePalette.str() + ".big";
 		if (!TheLocalFileSystem->doesFileExist(themePath.c_str()))
 		{
 			continue;
 		}
 		if (m_archiveFileMap.find(AsciiString(themePath.c_str())) != m_archiveFileMap.end())
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "UI theme archive %s is already mounted", themePath.c_str());
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface palette archive %s is already mounted", themePath.c_str());
 			return;
 		}
 		ArchiveFile* themeArchive = openArchiveFile(themePath.c_str());
 		if (themeArchive == nullptr)
 		{
-			NetworkLog(ELogVerbosity::LOG_RELEASE, "UI theme archive %s could not be opened", themePath.c_str());
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface palette archive %s could not be opened", themePath.c_str());
 			continue;
 		}
 		loadIntoDirectoryTree(themeArchive, ARCHIVE_PRIORITY_GENONLINE_THEME);
 		m_archiveFileMap[AsciiString(themePath.c_str())] = themeArchive;
 		FilenameList themeFiles;
 		themeArchive->getFileListInDirectory("", "", "*", themeFiles, TRUE);
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "UI theme %s from %s at priority %d: %d files", theme.str(), themePath.c_str(), (Int)ARCHIVE_PRIORITY_GENONLINE_THEME, (Int)themeFiles.size());
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface palette %s from %s at priority %d: %d files", m_interfacePalette.str(), themePath.c_str(), (Int)ARCHIVE_PRIORITY_GENONLINE_THEME, (Int)themeFiles.size());
 		return;
 	}
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "UI theme %s has no archive next to the generals_online archives, using classic", theme.str());
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface palette %s has no archive next to the generals_online archives, using Signal", m_interfacePalette.str());
 }
 
-void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority, std::vector<AsciiString>* mounted)
+void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority, std::vector<AsciiString>* mounted, ArchivePathFilter includePath)
 {
 	if (!enabled)
 	{
@@ -588,7 +653,7 @@ void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, cons
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: path ignored (%s): %s", layer, reason.str(), includePaths[i].c_str());
 			continue;
 		}
-		mountListedArchive(entry, priority + static_cast<Int>(i), excludes, mounted);
+		mountListedArchive(entry, priority + static_cast<Int>(i), excludes, mounted, includePath);
 	}
 }
 

@@ -128,7 +128,7 @@ public:
 // Lookup priority of an archive, lower wins. The archive mounted first wins on equal priority.
 enum ArchivePriority
 {
-	ARCHIVE_PRIORITY_GENONLINE_THEME = -1001,	///< the archive of the chosen GO UI theme next to the generals_online archives, over the GO menu layouts
+	ARCHIVE_PRIORITY_GENONLINE_THEME = -1001,	///< the archive of the chosen GO interface palette next to the generals_online archives, over the GO menu layouts
 	ARCHIVE_PRIORITY_GENONLINE_GUI = -1000,	///< the GO menu layouts of the generals_online archives, above every archive; in-game layouts stay in the generals_online tier
 	ARCHIVE_PRIORITY_EXCLUDED = -1,			///< not mounted: a BIG of a game folder that matches user.exclude_paths
 	ARCHIVE_PRIORITY_MOD = 0,						///< -mod and -modDir, 0 to 999, a later one is lower and wins
@@ -210,15 +210,20 @@ protected:
 	Int getNextModPriority() { return m_nextModPriority > ARCHIVE_PRIORITY_MOD ? m_nextModPriority-- : ARCHIVE_PRIORITY_MOD; }	///< -mod and -modDir: a later one wins
 	Int getGameFolderArchivePriority(const AsciiString& path, Bool generalsFolder, Bool zeroHour);	///< retail archives are the bottom, any other BIG of the game folders ranks above the data pack layers unless user.exclude_paths matches it
 
-	void mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes, std::vector<AsciiString>* mounted = nullptr);
-	void mountGenOnlineTheme(const AsciiString& theme, const std::vector<AsciiString>& genOnlineArchives);	///< mounts Themes\GeneralsOnline_Theme_<theme>.big next to the generals_online archives over the paths it replaces, nothing for the classic theme
+	void mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes, std::vector<AsciiString>* mounted = nullptr, ArchivePathFilter includePath = nullptr);
+	void setInterfaceStyle(const AsciiString& style, const AsciiString& palette);	///< the interface style and palette the generals_online archives are mounted for, before mountGenOnlineLayer
+	Bool usesRetailInterface() const { return m_retailInterface; }	///< the Retail style: retail layouts, art and fonts, none of the GO interface files
+	void mountGenOnlineLayer(Bool enabled, const std::vector<std::string>& includePaths);	///< mounts the generals_online layer for the interface style, then its menu layouts and the palette archive
+	void mountGenOnlineTheme(const std::vector<AsciiString>& genOnlineArchives);	///< mounts Themes\GeneralsOnline_Theme_<palette>.big next to the generals_online archives over the paths it replaces, nothing for the Signal palette
 	void mountGenOnlineMenus(const std::vector<AsciiString>& genOnlineArchives);	///< mounts the menu layouts of the generals_online archives again at ARCHIVE_PRIORITY_GENONLINE_GUI
-	void mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority, std::vector<AsciiString>* mounted = nullptr);	///< mounts the include_paths of one layer in list order, the first one wins, minus what excludes matches
+	void mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority, std::vector<AsciiString>* mounted = nullptr, ArchivePathFilter includePath = nullptr);	///< mounts the include_paths of one layer in list order, the first one wins, minus what excludes matches
 
 	ArchiveFileMap m_archiveFileMap;
 	std::vector<AsciiString> m_gameFolderArchives;
 	AsciiString m_generalsBaseSource;	///< where the Generals data came from, for the log
 	Int m_nextModPriority = ARCHIVE_PRIORITY_MOD + 999;
+	Bool m_retailInterface = FALSE;
+	AsciiString m_interfacePalette;	///< the palette whose theme archive is mounted, empty for none
 	ArchivedDirectoryInfo m_rootDirectory;
 };
 
