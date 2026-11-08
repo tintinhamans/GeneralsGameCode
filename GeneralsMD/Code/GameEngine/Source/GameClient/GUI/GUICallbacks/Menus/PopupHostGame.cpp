@@ -397,15 +397,7 @@ void PopupHostGameInit( WindowLayout *layout, void *userData )
 	TheWindowManager->winSetModal( parentPopup );
 
 #if defined(GENONLINE)
-	int xStats = 0;
-	int yStats = 0;
-	checkBoxUseStats->winGetPosition(&xStats, &yStats);
-
-	int xObs = 0;
-	int yObs = 0;
-	checkBoxAllowObservers->winGetPosition(&xObs, &yObs);
-
-	checkBoxAllowObservers->winSetPosition(xStats, yObs);
+	// GO's Menus/PopupHostGame.wnd places the observers box; retail ships it hidden
 	checkBoxAllowObservers->winHide(false);
 
 	// hide password for streams

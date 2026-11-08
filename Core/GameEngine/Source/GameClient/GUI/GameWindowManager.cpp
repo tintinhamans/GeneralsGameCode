@@ -2421,6 +2421,12 @@ GameWindow *GameWindowManager::gogoGadgetComboBox( GameWindow *parent,
 	// size of button
 	buttonWidth = 21;
 	buttonHeight = 22;
+	// GenOnline @bugfix arcticdolphin 08/11/2026 The drop down button keeps the proportions of its art
+	// when the layout scales the combo box taller, instead of stretching it to the scaled height at a fixed width.
+	if (height > buttonHeight)
+	{
+		buttonWidth = (buttonWidth * height + buttonHeight / 2) / buttonHeight;
+	}
 
 	// ----------------------------------------------------------------------
 	// Create Drop Down Button
