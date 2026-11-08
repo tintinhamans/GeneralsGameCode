@@ -555,8 +555,9 @@ def pieces():
 # GO map select: map preview icons (TheSuperHackers issue 1684) and the map list favourite stars.
 # They live in their own atlas, GeneralsOnline_UIKit2.tga, because the first atlas is full.
 # Self-contained: from the kit above this section uses only rgba, TRANSPARENT, SCALE and paint.
-# Kit icon style: a 16 unit design grid scaled to the piece, one 2 unit stroke with round caps and
-# joins, even padding and centres snapped to whole texels. Map icons are bare glyphs with a dark outline.
+# Kit icon style: angular C&C symbols on a 16 unit design grid scaled to the piece, one 2 unit stroke
+# with butt caps and mitred joins, sharp corners, even padding and points snapped to whole texels.
+# Map icons are bare glyphs over a mitred dark outline.
 # =================================================================================================
 
 TEXTURE2_NAME = "GeneralsOnline_UIKit2.tga"
@@ -598,138 +599,161 @@ def map_point(size, gx, gy):
     return (map_snap(gx * unit), map_snap(gy * unit))
 
 
-def map_segment_distance(px, py, a, b):
-    ax, ay = a
-    bx, by = b
-    dx, dy = bx - ax, by - ay
-    length = dx * dx + dy * dy
-    k = 0.0 if length == 0.0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / length))
-    return math.hypot(px - ax - k * dx, py - ay - k * dy)
-
-
-def map_polyline_distance(px, py, polylines):
-    return min(map_segment_distance(px, py, a, b) for line in polylines for a, b in zip(line, line[1:]))
-
-
-def map_arc(size, gcx, gcy, gr, start, end, steps=16):
-    """Grid arc from start to end degrees (y down) as a polyline in retail pixels; the centre is snapped."""
-    unit = size / MAP_GRID
-    cx, cy = map_point(size, gcx, gcy)
-    return [(cx + gr * unit * math.cos(math.radians(start + (end - start) * i / steps)),
-             cy + gr * unit * math.sin(math.radians(start + (end - start) * i / steps))) for i in range(steps + 1)]
-
-
-def map_stroke(size, polylines):
-    """Hit test for polylines drawn with the 2 unit stroke; distance tests give round caps and joins."""
-    half = MAP_STROKE * size / MAP_GRID / 2.0
-    return lambda x, y: map_polyline_distance(x, y, polylines) < half
-
-
 def map_gp(size, gx, gy):
     """A glyph grid point scaled about the grid centre by MAP_GLYPH_SCALE, snapped to a whole texel."""
     return map_point(size, 8.0 + (gx - 8.0) * MAP_GLYPH_SCALE, 8.0 + (gy - 8.0) * MAP_GLYPH_SCALE)
 
 
-def map_garc(size, gcx, gcy, gr, start, end, steps=16):
-    """A glyph arc scaled like map_gp."""
-    return map_arc(size, 8.0 + (gcx - 8.0) * MAP_GLYPH_SCALE, 8.0 + (gcy - 8.0) * MAP_GLYPH_SCALE, gr * MAP_GLYPH_SCALE, start, end, steps)
+def map_inside(x, y, pts):
+    """Nonzero winding point in polygon test, so mitred offsets with small self loops still fill."""
+    winding = 0
+    for (ax, ay), (bx, by) in zip(pts, pts[1:] + pts[:1]):
+        cross = (bx - ax) * (y - ay) - (x - ax) * (by - ay)
+        if ay <= y < by and cross > 0.0:
+            winding += 1
+        elif by <= y < ay and cross < 0.0:
+            winding -= 1
+    return winding != 0
 
+
+def map_normal(a, b):
+    """Unit normal on the right of a -> b in y down coordinates."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    length = math.hypot(dx, dy)
+    return (-dy / length, dx / length)
+
+
+def map_mitre(p, n1, n2, d, limit):
+    """The corner at p of two edges offset by d along their normals, joined with a mitre clamped to limit * d."""
+    mx, my = n1[0] + n2[0], n1[1] + n2[1]
+    length = math.hypot(mx, my)
+    if length < 1e-9:
+        return (p[0] + n1[0] * d, p[1] + n1[1] * d)
+    mx, my = mx / length, my / length
+    reach = d / max(mx * n1[0] + my * n1[1], 1e-9)
+    if abs(reach) > limit * abs(d):
+        reach = math.copysign(limit * abs(d), reach)
+    return (p[0] + mx * reach, p[1] + my * reach)
+
+
+def map_offset(pts, d, limit=2.0):
+    """A closed polygon grown by d (shrunk when d < 0) with mitred corners."""
+    area = sum(ax * by - bx * ay for (ax, ay), (bx, by) in zip(pts, pts[1:] + pts[:1]))
+    sign = -1.0 if area > 0.0 else 1.0  # in y down coordinates the right hand normal points inward on a positive area polygon
+    n = len(pts)
+    normals = [map_normal(pts[i], pts[(i + 1) % n]) for i in range(n)]
+    return [map_mitre(pts[i], normals[i - 1], normals[i], sign * d, limit) for i in range(n)]
+
+
+def map_stroke_poly(points, width, limit=2.0):
+    """An open polyline stroked as one polygon with butt caps and mitred joins."""
+    half = width / 2.0
+    normals = [map_normal(a, b) for a, b in zip(points, points[1:])]
+    left, right = [], []
+    for i, p in enumerate(points):
+        n1 = normals[max(i - 1, 0)]
+        n2 = normals[min(i, len(normals) - 1)]
+        left.append(map_mitre(p, n1, n2, half, limit))
+        right.append(map_mitre(p, n1, n2, -half, limit))
+    return left + right[::-1]
+
+
+def map_frame(size, centre, angle, local):
+    """Grid polygon given in a frame rotated by angle degrees about a grid centre, as glyph points."""
+    c, s = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+    return [map_gp(size, centre[0] + u * c - v * s, centre[1] + u * s + v * c) for u, v in local]
+
+
+def map_regular(size, centre, radius, sides, angle=0.0):
+    """A regular polygon in glyph grid units."""
+    return [map_gp(size, centre[0] + radius * math.cos(math.radians(angle + 360.0 * i / sides)),
+                   centre[1] + radius * math.sin(math.radians(angle + 360.0 * i / sides))) for i in range(sides)]
+
+
+# A glyph is a list of shapes: (outer polygon, hole polygons, cut polygons). Holes are part of the
+# shape and get the outline; cuts only knock the glyph colour out, so the outline shows through them.
 
 def map_dollar(size):
-    """An S of two arcs with short bar ends above and below; a bar through the S would close its gaps."""
-    curve = map_garc(size, 8.0, 6.25, 1.75, -20.0, -270.0) + map_garc(size, 8.0, 9.75, 1.75, -90.0, 160.0)[1:]
-    top = [map_gp(size, 8.0, 3.6), map_gp(size, 8.0, 4.5)]
-    bottom = [map_gp(size, 8.0, 11.5), map_gp(size, 8.0, 12.4)]
-    return map_stroke(size, [curve, top, bottom])
+    """An angular S of straight runs with chamfered corners and square bar ends above and below."""
+    unit = size / MAP_GRID
+    s = [(10.6, 5.9), (9.6, 4.9), (6.4, 4.9), (5.4, 5.9), (5.4, 7.0), (6.4, 8.0),
+         (9.6, 8.0), (10.6, 9.0), (10.6, 10.1), (9.6, 11.1), (6.4, 11.1), (5.4, 10.1)]
+    width = MAP_STROKE * unit
+    shapes = [(map_stroke_poly([map_gp(size, x, y) for x, y in s], width), [], [])]
+    # the bar ends reach past the top and bottom runs
+    shapes.append((map_stroke_poly([map_gp(size, 8.0, 3.2), map_gp(size, 8.0, 5.0)], width), [], []))
+    shapes.append((map_stroke_poly([map_gp(size, 8.0, 11.0), map_gp(size, 8.0, 12.8)], width), [], []))
+    return shapes
 
 
 def map_wrench(size):
-    """A diagonal handle and an open jaw ring facing the top right."""
-    handle = [map_gp(size, 5.2, 10.8), map_gp(size, 8.2, 7.8)]
-    jaw = map_garc(size, 9.6, 6.4, 1.9, 5.0, 265.0)
-    return map_stroke(size, [handle, jaw])
+    """A straight handle and a squared head with a square jaw facing the top right."""
+    unit = size / MAP_GRID
+    handle = map_stroke_poly([map_gp(size, 4.6, 11.4), map_gp(size, 9.2, 6.8)], MAP_STROKE * unit)  # runs into the head, no seam
+    head = map_frame(size, (9.9, 6.1), -45.0, [(-1.6, -1.9), (1.9, -1.9), (1.9, -0.8), (0.3, -0.8),
+                                               (0.3, 0.8), (1.9, 0.8), (1.9, 1.9), (-1.6, 1.9)])
+    return [(handle, [], []), (head, [], [])]
 
 
 def map_cannon(size):
-    """A barrel raised to the top right over a wheel; a knockout gap keeps the wheel apart from the barrel."""
+    """A rectangular barrel raised to the top right over an octagonal wheel, kept apart by a knockout gap."""
     unit = size / MAP_GRID
-    half = MAP_STROKE * unit / 2.0
-    barrel = map_stroke(size, [[map_gp(size, 4.6, 8.0), map_gp(size, 11.1, 5.0)]])
-    wheel = [map_garc(size, 6.8, 10.2, 1.9, 0.0, 360.0, 24)]
-
-    def hit(x, y):
-        d = map_polyline_distance(x, y, wheel)
-        if d < half:
-            return True
-        if d < half + 0.7 * unit:
-            return False
-        return barrel(x, y)
-
-    return hit
+    wheel = map_regular(size, (6.6, 10.4), 2.3, 8, 22.5)
+    hub = map_regular(size, (6.6, 10.4), 0.9, 8, 22.5)
+    barrel = map_stroke_poly([map_gp(size, 5.0, 8.6), map_gp(size, 11.8, 5.0)], MAP_STROKE * unit)
+    return [(barrel, [], [map_offset(wheel, 0.6 * unit)]), (wheel, [hub], [])]
 
 
 def map_gear(size):
-    """A ring with six teeth."""
-    ring = map_garc(size, 8.0, 8.0, 2.4, 0.0, 360.0, 24)
-    teeth = []
+    """A six sided body with six square teeth and a hexagonal hole."""
+    body, tip, half = 3.0, 4.3, 0.75
+    base = math.sqrt(body * body - half * half)
+    pts = []
     for i in range(6):
-        a = math.radians(30.0 + 60.0 * i)
-        teeth.append([map_gp(size, 8.0 + 3.4 * math.cos(a), 8.0 + 3.4 * math.sin(a)),
-                      map_gp(size, 8.0 + 3.9 * math.cos(a), 8.0 + 3.9 * math.sin(a))])
-    return map_stroke(size, [ring] + teeth)
+        a = math.radians(60.0 * i - 90.0)
+        d, p = (math.cos(a), math.sin(a)), (-math.sin(a), math.cos(a))
+        for r, w in ((base, -half), (tip, -half), (tip, half), (base, half)):
+            pts.append(map_gp(size, 8.0 + d[0] * r + p[0] * w, 8.0 + d[1] * r + p[1] * w))
+    return [(pts, [map_regular(size, (8.0, 8.0), 1.5, 6, 0.0)], [])]
 
 
 def map_droplet(size):
-    """A filled teardrop with a rounded tip."""
-    unit = size / MAP_GRID
-    cx, cy = map_gp(size, 8.0, 9.3)
-    r = 2.7 * MAP_GLYPH_SCALE * unit
-    tip = map_gp(size, 8.0, 4.2)
-    left, right = map_gp(size, 5.6, 8.1), map_gp(size, 10.4, 8.1)
-    round_tip = 0.35 * unit
-
-    def hit(x, y):
-        if math.hypot(x - cx, y - cy) < r:
-            return True
-        return map_polyline_distance(x, y, [[tip, left, right, tip]]) < round_tip or map_inside(x, y, [tip, left, right])
-
-    return hit
-
-
-def map_inside(x, y, pts):
-    """Even-odd point in polygon test."""
-    inside = False
-    for (ax, ay), (bx, by) in zip(pts, pts[1:] + pts[:1]):
-        if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay):
-            inside = not inside
-    return inside
+    """A pointed top over a faceted bottom."""
+    right = [(10.6, 7.6), (11.2, 9.6), (10.4, 11.6), (8.0, 12.6)]
+    left = [(16.0 - x, y) for x, y in reversed(right[:-1])]
+    pts = [map_gp(size, 8.0, 3.6)] + [map_gp(size, x, y) for x, y in right + left]
+    return [(pts, [], [])]
 
 
 MAP_GLYPHS = {"dollar": map_dollar, "wrench": map_wrench, "cannon": map_cannon, "gear": map_gear, "droplet": map_droplet}
-# directions for the outline test: the glyph shifted by up to MAP_OUTLINE units in 16 directions and at half reach
-MAP_OUTLINE_STEPS = [(r * math.cos(math.radians(a)), r * math.sin(math.radians(a))) for r in (0.5, 1.0) for a in [22.5 * i for i in range(16)]]
 
 
 def map_icon_piece(size, glyph_name, glyph_color):
-    """The glyph alone in its category colour over a thin dark outline, for contrast on snow, sand and grass."""
+    """The glyph alone in its category colour over a thin mitred dark outline, for contrast on snow, sand and grass."""
     unit = size / MAP_GRID
-    glyph = MAP_GLYPHS[glyph_name](size)
-    reach = [(dx * MAP_OUTLINE * unit, dy * MAP_OUTLINE * unit) for dx, dy in MAP_OUTLINE_STEPS]
+    shapes = MAP_GLYPHS[glyph_name](size)
+    grown = [(map_offset(outer, MAP_OUTLINE * unit), [map_offset(h, -MAP_OUTLINE * unit) for h in holes]) for outer, holes, _ in shapes]
+
+    def in_shape(x, y, outer, holes):
+        return map_inside(x, y, outer) and not any(map_inside(x, y, h) for h in holes)
 
     def sample(x, y):
-        if glyph(x, y):
-            return glyph_color
-        if any(glyph(x + dx, y + dy) for dx, dy in reach):
-            return MAP_GLYPH_OUTLINE
+        for outer, holes, cuts in shapes:
+            if in_shape(x, y, outer, holes) and not any(map_inside(x, y, c) for c in cuts):
+                return glyph_color
+        for outer, holes in grown:
+            if in_shape(x, y, outer, holes):
+                return MAP_GLYPH_OUTLINE
         return TRANSPARENT
 
     return paint(size, size, sample)
 
 
 def map_star_points(size):
+    """A five point star filling the piece with even padding; the points stay sharp."""
     unit = size / MAP_GRID
-    cx, cy = map_point(size, 8.0, 8.4)
-    outer, inner = 6.8 * unit, 2.9 * unit
+    cx, cy = map_point(size, 8.0, 8.6)
+    outer, inner = 7.4 * unit, 3.0 * unit
     pts = []
     for i in range(10):
         a = math.radians(-90.0 + 36.0 * i)
@@ -738,17 +762,30 @@ def map_star_points(size):
     return pts
 
 
-def map_star_piece(size, fill, edge):
-    """A five point star with the 2 unit stroke on its edge; fill None draws the outline only."""
+def map_edge_distance(x, y, pts):
+    """Distance from a point to the nearest edge of a closed polygon."""
+    best = None
+    for (ax, ay), (bx, by) in zip(pts, pts[1:] + pts[:1]):
+        dx, dy = bx - ax, by - ay
+        k = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
+        d = math.hypot(x - ax - k * dx, y - ay - k * dy)
+        best = d if best is None else min(best, d)
+    return best
+
+
+def map_star_piece(size, fill, edge, edge_width):
+    """A five point star with an edge band inside its silhouette; fill None draws the outline only.
+    The silhouette is the star polygon itself, so the points and corners stay sharp and mitred."""
+    unit = size / MAP_GRID
     pts = map_star_points(size)
-    outline = map_stroke(size, [pts + pts[:1]])
+    band = edge_width * unit
 
     def sample(x, y):
-        if outline(x, y):
+        if not map_inside(x, y, pts):
+            return TRANSPARENT
+        if map_edge_distance(x, y, pts) < band:
             return edge
-        if fill is not None and map_inside(x, y, pts):
-            return fill
-        return TRANSPARENT
+        return fill if fill is not None else TRANSPARENT
 
     return paint(size, size, sample)
 
@@ -758,8 +795,9 @@ def pieces2():
     out = []
     for name, (glyph_name, glyph_color) in MAP_ICONS.items():
         out.append((name, MAP_ICON_SIZE, MAP_ICON_SIZE, map_icon_piece(MAP_ICON_SIZE, glyph_name, glyph_color)))
-    out.append(("GOMapFavouriteOn", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, STAR_ON[0], STAR_ON[1])))
-    out.append(("GOMapFavouriteOff", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, None, STAR_OFF)))
+    out.append(("GOMapFavouriteOn", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, STAR_ON[0], STAR_ON[1], 1.0)))
+    # the inside band shows the inner half of a centred 2 unit stroke plus a little, so the outline star stays open
+    out.append(("GOMapFavouriteOff", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, None, STAR_OFF, 1.25)))
     return out
 
 # ============================== end of the GO map select section ==============================
