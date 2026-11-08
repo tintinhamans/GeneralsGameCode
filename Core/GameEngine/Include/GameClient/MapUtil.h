@@ -49,7 +49,7 @@ typedef std::list <ICoord2D> ICoord2DList;
 // TheSuperHackers @feature arcticdolphin 08/11/2026 Preview marker that carries its icon category (TheSuperHackers issue 1684).
 struct MapPreviewMarker
 {
-	ICoord2D m_pos; ///< top left of the SUPPLY_TECH_SIZE marker, relative to the preview window
+	ICoord2D m_pos; ///< top left of the getMapPreviewMarkerSize() marker, relative to the preview window
 	AsciiString m_category; ///< MapPreviewIcons category name, empty when no rule matched
 	AsciiString m_templateName;
 	Bool m_isTech; ///< KINDOF_TECH_BUILDING, else KINDOF_SUPPLY_SOURCE_ON_PREVIEW

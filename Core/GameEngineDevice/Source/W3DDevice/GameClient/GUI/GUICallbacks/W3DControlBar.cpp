@@ -771,12 +771,13 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 
 #if defined(GENONLINE)
 	// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw the typed markers with their category icons, else the retail image.
+	const Int typedSize = getMapPreviewMarkerSize();
 	MapPreviewMarkerList::const_iterator typedIt = TheSupplyAndTechImageLocations.m_typedMarkers.begin();
 	for (; typedIt != TheSupplyAndTechImageLocations.m_typedMarkers.end(); ++typedIt)
 	{
 		const Image *typedImage = getMapPreviewCategoryImage(typedIt->m_category, typedIt->m_isTech);
 		if (typedImage)
-			TheDisplay->drawImage(typedImage, pixelX + typedIt->m_pos.x, pixelY + typedIt->m_pos.y, pixelX + typedIt->m_pos.x + SUPPLY_TECH_SIZE, pixelY + typedIt->m_pos.y + SUPPLY_TECH_SIZE);
+			TheDisplay->drawImage(typedImage, pixelX + typedIt->m_pos.x, pixelY + typedIt->m_pos.y, pixelX + typedIt->m_pos.x + typedSize, pixelY + typedIt->m_pos.y + typedSize);
 	}
 #endif
 	drawSkinnyBorder(pixelX - 1, pixelY - 1, width + 2, height + 2);
