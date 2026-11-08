@@ -1256,6 +1256,8 @@ void GenOnlineServicesManager::Tick()
 
 // INT_MIN until InitSentry ran, then the sentry_init result
 static int s_sentryInitResult = INT_MIN;
+// crashpad's unhandled exception filter, called by the game's filter once the game wrote its own dumps
+static LPTOP_LEVEL_EXCEPTION_FILTER s_sentryCrashFilter = nullptr;
 
 void GenOnlineServicesManager::InitSentry()
 {
@@ -1321,9 +1323,20 @@ void GenOnlineServicesManager::InitSentry()
 #endif
 
 	// fails as a whole when crashpad_handler.exe is missing or older than this client
+	// sentry_init puts crashpad's unhandled exception filter in place of the game's, which writes the game's dumps and crash info
+	const LPTOP_LEVEL_EXCEPTION_FILTER gameCrashFilter = SetUnhandledExceptionFilter(nullptr);
+	SetUnhandledExceptionFilter(gameCrashFilter);
 	const int sentryInitResult = sentry_init(options);
 	s_sentryInitResult = sentryInitResult;
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Sentry] Init %s (%d)", sentryInitResult == 0 ? "succeeded" : "FAILED", sentryInitResult);
+
+	// put the game's filter back on top; it hands each crash on to crashpad after writing its own dumps
+	if (gameCrashFilter != nullptr)
+	{
+		const LPTOP_LEVEL_EXCEPTION_FILTER sentryCrashFilter = SetUnhandledExceptionFilter(gameCrashFilter);
+		s_sentryCrashFilter = sentryCrashFilter != gameCrashFilter ? sentryCrashFilter : nullptr;
+	}
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "[Sentry] Crash handling: %s", s_sentryCrashFilter != nullptr ? "game dumps, then Sentry" : "game dumps only");
 
 	// scope data set before sentry_init is dropped
 	UpdateSentryUser();
@@ -1353,7 +1366,20 @@ void GenOnlineServicesManager::UpdateSentryUser()
 
 void GenOnlineServicesManager::ShutdownSentry()
 {
+	// crashpad's filter must not run once its handler is gone; later crashes only get the game's dumps
+	s_sentryCrashFilter = nullptr;
 	sentry_close();
+}
+
+Bool GenOnlineServicesManager::ForwardCrashToSentry(struct _EXCEPTION_POINTERS* exceptionInfo, LONG* result)
+{
+	const LPTOP_LEVEL_EXCEPTION_FILTER sentryCrashFilter = s_sentryCrashFilter;
+	if (sentryCrashFilter == nullptr)
+	{
+		return FALSE;
+	}
+	*result = sentryCrashFilter(exceptionInfo);
+	return TRUE;
 }
 
 std::string GenOnlineServicesManager::GetSentryRelease()
