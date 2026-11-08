@@ -351,8 +351,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = HORZSLIDER;
-      SCREENRECT = UPPERLEFT: 175 344,
-                   BOTTOMRIGHT: 265 371,
+      SCREENRECT = UPPERLEFT: 175 335,
+                   BOTTOMRIGHT: 265 362,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:SliderGameSpeed";
       STATUS = ENABLED+IMAGE+TABSTOP;
@@ -476,8 +476,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 41 336,
-                   BOTTOMRIGHT: 176 360,
+      SCREENRECT = UPPERLEFT: 41 337,
+                   BOTTOMRIGHT: 176 361,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishGameOptionsMenu.wnd:StaticTextBattleHonors1";
       STATUS = ENABLED+NOINPUT+NOFOCUS;

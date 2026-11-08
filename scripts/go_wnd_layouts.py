@@ -87,9 +87,9 @@ RULER_SLACK = 6                   # a content frame lies within this of RULER_FR
 SIBLING_SLACK = 10                # a frame sibling maps along when it lies within the old box plus this
 
 LABEL_REACH = 40
-# HORZSLIDER is left out: its track and thumb draw from the top of its rect at a fixed pixel size,
-# so the rect centre is not where the slider shows (Skirmish game speed would drop 10 units)
-CONTROL_KINDS = {"COMBOBOX", "ENTRYFIELD", "CHECKBOX", "PUSHBUTTON"}
+# HORZSLIDER counts: the engine centres its track and thumb in the slider rect
+CONTROL_KINDS = {"COMBOBOX", "ENTRYFIELD", "CHECKBOX", "PUSHBUTTON", "HORZSLIDER"}
+VALUE_KINDS = {"STATICTEXT", "ENTRYFIELD"}  # a value box right of a slider centres on the slider
 FIELD_HEIGHT = 40          # a childless USER window up to this height counts as a field
 INSET_SPREAD = 4
 VERTICAL_INSET = 16        # top and bottom insets only even out when both are this tight
@@ -530,9 +530,35 @@ def label_pairs(parent):
     return pairs
 
 
+def slider_values(parent):
+    """Return [(value item, slider item)]: each slider with the nearest value box to its right on its row."""
+    items = _items(parent)
+    sliders = [it for it in items if any(w.kind == "HORZSLIDER" for w in it)]
+    values = [it for it in items if all(w.kind in VALUE_KINDS for w in it)]
+    pairs = []
+    for slider in sliders:
+        sr = slider[0].rect
+        sh = sr[3] - sr[1]
+        best = None
+        for value in values:
+            vr = value[0].rect
+            vh = vr[3] - vr[1]
+            gap = vr[0] - sr[2]
+            if not -SNAP <= gap <= LABEL_REACH or vh <= 0 or sh <= 0 or vh > 2 * sh:
+                continue
+            if 2 * (min(vr[3], sr[3]) - max(vr[1], sr[1])) <= min(vh, sh):
+                continue
+            key = (gap, abs(vr[1] + vr[3] - sr[1] - sr[3]), vr)
+            if best is None or key < best[0]:
+                best = (key, value)
+        if best:
+            pairs.append((best[1], slider))
+    return pairs
+
+
 def centre_labels(ctx, parent):
     changed = 0
-    for label, control in label_pairs(parent):
+    for label, control in label_pairs(parent) + slider_values(parent):
         if id(label[0]) in ctx.titles:
             continue
         lr, cr = label[0].rect, control[0].rect
@@ -977,7 +1003,7 @@ def _settle(ctx, root, rules, fixes, name, late=True):
         if "titles" in rules:
             ctx.titles = {id(w) for frame, title, _, _ in screen_titles(root) if title for w in _title_item(frame, title)}
         if "labels" in rules:
-            ctx.labels = {id(w) for p in parents for label, _ in label_pairs(p) for w in label} - ctx.titles
+            ctx.labels = {id(w) for p in parents for label, _ in label_pairs(p) + slider_values(p) for w in label} - ctx.titles
         if "gaps" in rules or "columns" in rules:
             ctx.headers = {i for p in parents for i in column_headers(ctx, p)}
         for p in parents:

@@ -272,6 +272,16 @@ class LabelTest(unittest.TestCase):
         self.assertEqual(by_kind(out, "STATICTEXT"), [(100, 103, 180, 117)])
         self.assertEqual(by_kind(out, "COMBOBOX"), [(190, 98, 300, 122)])
 
+    def test_label_and_value_box_are_centred_on_a_slider(self):
+        text = screen(
+            window("STATICTEXT", (41, 336, 176, 360), indent=2),
+            window("HORZSLIDER", (175, 344, 265, 371), indent=2),
+            window("STATICTEXT", (282, 338, 314, 359), indent=2),
+        )
+        out = wl.transform(text, name=MENU)
+        self.assertEqual(by_kind(out, "STATICTEXT"), [(41, 346, 176, 370), (282, 347, 314, 368)])
+        self.assertEqual(by_kind(out, "HORZSLIDER"), [(175, 344, 265, 371)])
+
     def test_label_far_from_its_control_is_left_alone(self):
         text = screen(
             window("STATICTEXT", (100, 100, 180, 114), indent=2),
