@@ -1301,7 +1301,7 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 77 47,
+      SCREENRECT = UPPERLEFT: 47 47,
                    BOTTOMRIGHT: 531 71,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLCustomLobby.wnd:ParentSortButtons";
