@@ -66,7 +66,8 @@
 
 // TYPE DEFINES ///////////////////////////////////////////////////////////////
 enum{
-HORIZONTAL_SLIDER_THUMB_POSITION = HORIZONTAL_SLIDER_THUMB_HEIGHT *2/3
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 The thumb sits at the top of the slider, where the slider blocks and the kit track draw.
+HORIZONTAL_SLIDER_THUMB_POSITION = 0
 };
 // INLINING ///////////////////////////////////////////////////////////////////
 
