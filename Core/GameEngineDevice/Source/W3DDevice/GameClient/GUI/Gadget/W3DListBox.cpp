@@ -305,6 +305,8 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 
 		Color dropColor = TheWindowManager->winMakeColor( 0, 0, 0, 255 );
 		DisplayString *string;
+		// GenOnline @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+		const Int textOffsetX = GameWindowManager::winScaleLayoutSize( TEXT_X_OFFSET );
 
 		ListEntryCell *cells = list->listData[i].cell;
 		Int columnX = x;
@@ -342,7 +344,7 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 
 						// draw this text after setting the clip region for it
 						string->setClipRegion( &columnRegion );
-						string->draw( columnX + TEXT_X_OFFSET,
+						string->draw( columnX + textOffsetX,
 													rowDrawY,
 													textColor,
 													dropColor );
@@ -357,7 +359,7 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 
 						// set clip region and draw
 						string->setClipRegion( &columnRegion );
-						string->draw( columnX + TEXT_X_OFFSET,
+						string->draw( columnX + textOffsetX,
 													rowDrawY,
 													textColor,
 													dropColor );
@@ -491,7 +493,8 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 		ICoord2D sliderSize;
 
 		list->slider->winGetSize( &sliderSize.x, &sliderSize.y );
-		width -= (sliderSize.x +3);
+		// GenOnline @tweak arcticdolphin 08/11/2026 Keep the text clear of the scaled scroll bar.
+		width -= (sliderSize.x + GameWindowManager::winScaleLayoutSize( 3 ));
 
 	}
 

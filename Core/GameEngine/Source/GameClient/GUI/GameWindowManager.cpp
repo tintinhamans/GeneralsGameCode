@@ -32,6 +32,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/Debug.h"
+#include "Common/GameDefines.h"
 #include "Common/Language.h"
 #include "GameClient/Display.h"
 #include "GameClient/GameWindowManager.h"
@@ -1164,6 +1165,53 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 
 }
 
+// GenOnline @tweak arcticdolphin 08/11/2026 Layout scaling helpers shared by the window scripts and the gadgets.
+Int GameWindowManager::winScaleRounded(Int value, Int numerator, Int denominator)
+{
+	if (denominator <= 0)
+		return value;
+
+	if (value < 0)
+		return -((-value * numerator + denominator / 2) / denominator);
+
+	return (value * numerator + denominator / 2) / denominator;
+}
+
+Int GameWindowManager::winLayoutScreenHeight()
+{
+	if (TheDisplay == nullptr || TheDisplay->getHeight() <= 0)
+		return DEFAULT_DISPLAY_HEIGHT;
+
+	return TheDisplay->getHeight();
+}
+
+Int GameWindowManager::winScaleLayoutSize(Int size)
+{
+	return winScaleRounded(size, winLayoutScreenHeight(), DEFAULT_DISPLAY_HEIGHT);
+}
+
+Int GameWindowManager::winScaleLayoutFontSize(Int pointSize)
+{
+	// leave invalid sizes for the font library to reject
+	if (pointSize <= 0)
+		return pointSize;
+
+	Int scaled = winScaleLayoutSize(pointSize);
+	if (scaled < 1)
+		scaled = 1;
+	// FontLibrary::getFont rejects sizes over 100
+	if (scaled > 100)
+		scaled = 100;
+
+	return scaled;
+}
+
+Bool GameWindowManager::winUseLegacyLayoutFonts()
+{
+	return TheGlobalLanguageData != nullptr &&
+		TheGlobalLanguageData->m_resolutionFontSizeMethod == GlobalLanguage::ResolutionFontSizeMethod_Classic;
+}
+
 bool GameWindowManager::isMouseWithinWindow(GameWindow* window, const ICoord2D* mousePos, unsigned int requiredStatusMask, unsigned int forbiddenStatusMask)
 {
 	return ((BitIsSet(window->m_status, requiredStatusMask) || requiredStatusMask == 0) &&
@@ -2287,9 +2335,10 @@ GameWindow *GameWindowManager::gogoGadgetSlider( GameWindow *parent,
 	if( BitIsSet( instData->getStyle(), GWS_MOUSE_TRACK ) )
 		BitSet( buttonInstData.m_style, GWS_MOUSE_TRACK );
 
-	if( BitIsSet( instData->getStyle(), GWS_HORZ_SLIDER ) )
-		button = gogoGadgetPushButton( slider, statusFlags, 0, HORIZONTAL_SLIDER_THUMB_POSITION,
-											 						 HORIZONTAL_SLIDER_THUMB_WIDTH, HORIZONTAL_SLIDER_THUMB_HEIGHT, &buttonInstData, nullptr, TRUE );
+	// GenOnline @tweak arcticdolphin 08/11/2026 The horizontal thumb scales with the screen height and keeps its shape.
+	if (BitIsSet(instData->getStyle(), GWS_HORZ_SLIDER))
+		button = gogoGadgetPushButton(slider, statusFlags, 0, HORIZONTAL_SLIDER_THUMB_POSITION,
+			winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_WIDTH), winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_HEIGHT), &buttonInstData, nullptr, TRUE);
 	else
 		button = gogoGadgetPushButton( slider, statusFlags, 0, 0,
 																	 width, width+1, &buttonInstData, nullptr, TRUE );
@@ -2309,12 +2358,13 @@ GameWindow *GameWindowManager::gogoGadgetSlider( GameWindow *parent,
 
 	if( BitIsSet( instData->getStyle(), GWS_HORZ_SLIDER ) )
 	{
-		sliderData->numTicks = (float)(width - HORIZONTAL_SLIDER_THUMB_WIDTH) /
-													 (float)(sliderData->maxVal - sliderData->minVal);
-	} else
+		sliderData->numTicks = (float)(width - winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_WIDTH)) /
+			(float)(sliderData->maxVal - sliderData->minVal);
+	}
+	else
 	{
-		sliderData->numTicks = (float)(height - GADGET_SIZE) /
-													 (float)(sliderData->maxVal - sliderData->minVal);
+		sliderData->numTicks = (float)(height - winScaleLayoutSize(GADGET_SIZE)) /
+			(float)(sliderData->maxVal - sliderData->minVal);
 	}
 
 	data = NEW SliderData;
@@ -2425,10 +2475,9 @@ GameWindow *GameWindowManager::gogoGadgetComboBox( GameWindow *parent,
 	// when the layout scales the combo box taller, instead of stretching it to the scaled height at a fixed width.
 	if (height > buttonHeight)
 	{
-		// rows scale each corner and truncate, so equal rows differ by a pixel; size from the layout height instead
-		const Int screenHeight = TheDisplay != nullptr ? TheDisplay->getHeight() : 600;
-		const Int layoutHeight = (height * 600 + screenHeight / 2) / screenHeight;
-		buttonWidth = (buttonWidth * layoutHeight * screenHeight + buttonHeight * 300) / (buttonHeight * 600);
+		const Int screenHeight = winLayoutScreenHeight();
+		const Int layoutHeight = winScaleRounded(height, DEFAULT_DISPLAY_HEIGHT, screenHeight);
+		buttonWidth = winScaleRounded(buttonWidth * layoutHeight, screenHeight, buttonHeight * DEFAULT_DISPLAY_HEIGHT);
 	}
 
 	// ----------------------------------------------------------------------

@@ -91,7 +91,8 @@ static void drawStaticTextText( GameWindow *window, WinInstanceData *instData,
 	window->winGetSize( &size.x, &size.y );
 
 	// Set the text Wrap width
-	wordWrap = size.x - 10;
+	// GenOnline @tweak arcticdolphin 08/11/2026 The wrap margin scales with the screen height.
+	wordWrap = size.x - GameWindowManager::winScaleLayoutSize( 10 );
 	//if(wordWrap == 89)
 	//	wordWrap = 95;
 	text->setWordWrap(wordWrap);
