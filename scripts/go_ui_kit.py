@@ -30,11 +30,10 @@ ATLAS_WIDTH = 256  # in retail pixels
 SCALE = 4          # texels per retail pixel
 EXTRUDE = 1        # retail pixels of padding around each piece (SCALE texels)
 SUPERSAMPLE = 2    # samples per texel and axis
-# edge line width per piece, in its own pixels: LINE_LAYOUT layout pixels at the height the shell layouts usually draw it
+# edge line width in layout pixels; three-piece bars carry it as Border, so the engine keeps it fixed at any bar height
 LINE_LAYOUT = 1.5
-BUTTON_LINE = 1.25 * LINE_LAYOUT  # 40 px art, usually about 32 layout px tall
-RADIO_LINE = 1.45 * LINE_LAYOUT   # 24 px art, usually about 17 layout px tall
-FIELD_LINE = 0.95 * LINE_LAYOUT   # 22 px art, usually about 23 layout px tall
+BORDER_PREFIXES = ("Buttons-", "RadioButton", "TextEntry")  # three-piece bars whose INI entry gets Border = LINE_LAYOUT
+ARROW_LINE = 0.95 * LINE_LAYOUT  # combo arrows are single images: 22 px art, usually about 23 layout px tall
 BOX_LINE = (1.25 * 1.2, 1.45 * 1.2)  # slider blocks: 11x13 art drawn as squares, so the line differs per axis; small, so a thinner line
 
 
@@ -178,7 +177,7 @@ def entry_piece(w, h, side, line):
     left, right = ends(side)
 
     def sample(x, y):
-        return line if edge(x, y, w, h, left, right) < FIELD_LINE else FIELD
+        return line if edge(x, y, w, h, left, right) < LINE_LAYOUT else FIELD
 
     return paint(w, h, sample)
 
@@ -191,13 +190,13 @@ def triangle_inside(x, y, a, b, c):
 
 
 def arrow_piece(w, h, up, line, fill, glyph):
-    cx, cy = (w - FIELD_LINE) / 2.0, h / 2.0
+    cx, cy = (w - ARROW_LINE) / 2.0, h / 2.0
     tri = ((cx - 4.5, cy - 2.2), (cx + 4.5, cy - 2.2), (cx, cy + 2.8))
 
     def sample(x, y):
         if up:
             y = h - y
-        if edge(x, y, w, h, False, True) < FIELD_LINE:
+        if edge(x, y, w, h, False, True) < ARROW_LINE:
             return line
         return glyph if triangle_inside(x, y, *tri) else fill
 
@@ -347,13 +346,13 @@ def pieces():
     """(image name, width, height, texels). Sizes are the retail Coords sizes of each name."""
     out = []
     for state, (line, fill) in BUTTON_STATES.items():
-        out.append((f"Buttons-{state}Left", 45, 40, button_piece(45, 40, "left", line, fill, BUTTON_LINE)))
-        out.append((f"Buttons-{state}Middle", 10, 40, button_piece(10, 40, "middle", line, fill, BUTTON_LINE)))
-        out.append((f"Buttons-{state}Right", 45, 40, button_piece(45, 40, "right", line, fill, BUTTON_LINE)))
+        out.append((f"Buttons-{state}Left", 45, 40, button_piece(45, 40, "left", line, fill, LINE_LAYOUT)))
+        out.append((f"Buttons-{state}Middle", 10, 40, button_piece(10, 40, "middle", line, fill, LINE_LAYOUT)))
+        out.append((f"Buttons-{state}Right", 45, 40, button_piece(45, 40, "right", line, fill, LINE_LAYOUT)))
     for state, (line, fill) in RADIO_STATES.items():
-        out.append((f"RadioButton{state}Left", 34, 24, button_piece(34, 24, "left", line, fill, RADIO_LINE)))
-        out.append((f"RadioButton{state}Middle", 10, 24, button_piece(10, 24, "middle", line, fill, RADIO_LINE)))
-        out.append((f"RadioButton{state}Right", 34, 24, button_piece(34, 24, "right", line, fill, RADIO_LINE)))
+        out.append((f"RadioButton{state}Left", 34, 24, button_piece(34, 24, "left", line, fill, LINE_LAYOUT)))
+        out.append((f"RadioButton{state}Middle", 10, 24, button_piece(10, 24, "middle", line, fill, LINE_LAYOUT)))
+        out.append((f"RadioButton{state}Right", 34, 24, button_piece(34, 24, "right", line, fill, LINE_LAYOUT)))
     for state, line in ENTRY_STATES.items():
         out.append((f"TextEntry{state}LeftEnd", 10, 22, entry_piece(10, 22, "left", line)))
         out.append((f"TextEntry{state}RightEnd", 10, 22, entry_piece(10, 22, "right", line)))
@@ -485,9 +484,10 @@ def ini_text(items, placements, height):
             f"  TextureHeight = {height}",
             f"  Coords = Left:{left} Top:{top} Right:{left + w} Bottom:{top + h}",
             "  Status = NONE",
-            "End",
-            "",
         ]
+        if name.startswith(BORDER_PREFIXES):
+            lines.append(f"  Border = {LINE_LAYOUT}")
+        lines += ["End", ""]
     return "\r\n".join(lines)
 
 

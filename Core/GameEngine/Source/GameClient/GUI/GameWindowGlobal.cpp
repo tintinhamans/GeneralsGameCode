@@ -80,6 +80,123 @@ static Int scaledImageWidth( const Image *image, Int height )
 	return width;
 }
 
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit images keep their border rows at a fixed thickness at any bar height.
+// Image pixels the interior band starts inside the border, so it never samples the line.
+static const Real BORDER_INTERIOR_INSET = 0.5f;
+
+// Vertical layout shared by every piece of one bar.
+struct BarBands
+{
+	Int y;
+	Int height;
+	Int borderHeight;
+	Real layoutScale;
+	IRegion2D *outer;
+};
+
+// True when an image has border rows and an interior left between them.
+static Bool hasBorderRows( const Image *image )
+{
+	Real border = image->getBorder();
+
+	return border > 0.0f && image->getImageHeight() > 2.0f * (border + BORDER_INTERIOR_INSET);
+}
+
+// Width of an image drawn at the layout scale.
+static Int layoutImageWidth( const Image *image, Real layoutScale )
+{
+	Int width = REAL_TO_INT_FLOOR( image->getImageWidth() * layoutScale + 0.5f );
+
+	if( width < 1 )
+		width = 1;
+
+	return width;
+}
+
+// Intersect a region with an optional outer one, FALSE when nothing is left.
+static Bool intersectRegion( IRegion2D *out, const IRegion2D *region, const IRegion2D *outer )
+{
+	*out = *region;
+
+	if( outer != nullptr )
+	{
+		if( outer->lo.x > out->lo.x )
+			out->lo.x = outer->lo.x;
+		if( outer->lo.y > out->lo.y )
+			out->lo.y = outer->lo.y;
+		if( outer->hi.x < out->hi.x )
+			out->hi.x = outer->hi.x;
+		if( outer->hi.y < out->hi.y )
+			out->hi.y = outer->hi.y;
+	}
+
+	return out->lo.x < out->hi.x && out->lo.y < out->hi.y;
+}
+
+// Draw an image clipped to a region inside the outer clip.
+static void drawImageInRegion( const Image *image, Int startX, Int startY, Int endX, Int endY,
+															 const IRegion2D *region, const IRegion2D *outer, Color color )
+{
+	IRegion2D clip;
+
+	if( !intersectRegion( &clip, region, outer ) )
+		return;
+
+	TheDisplay->setClipRegion( &clip );
+	TheDisplay->drawImage( image, startX, startY, endX, endY, color );
+}
+
+// Put back the clip the caller had, or none.
+static void restoreClip( IRegion2D *outer )
+{
+	if( outer != nullptr )
+		TheDisplay->setClipRegion( outer );
+	else
+		TheDisplay->enableClipping( FALSE );
+}
+
+// Draw one piece across startX..endX, clipped to region when given, in bands when the bar has border rows.
+static void drawBarPiece( const Image *image, Int startX, Int endX, const IRegion2D *region,
+													const BarBands &bands, Color color )
+{
+	Int endY = bands.y + bands.height;
+
+	if( bands.borderHeight == 0 )
+	{
+		if( region != nullptr )
+			drawImageInRegion( image, startX, bands.y, endX, endY, region, bands.outer, color );
+		else
+			TheDisplay->drawImage( image, startX, bands.y, endX, endY, color );
+		return;
+	}
+
+	Int imageHeight = image->getImageHeight();
+	Int scaledHeight = REAL_TO_INT_FLOOR( imageHeight * bands.layoutScale + 0.5f );
+	Real inner = image->getBorder() + BORDER_INTERIOR_INSET;
+	Real interiorScale = (Real)(bands.height - 2 * bands.borderHeight) / (imageHeight - 2.0f * inner);
+	Real interiorTop = bands.y + bands.borderHeight - inner * interiorScale;
+	IRegion2D band;
+
+	band.lo.x = region != nullptr ? region->lo.x : startX;
+	band.hi.x = region != nullptr ? region->hi.x : endX;
+
+	// top border rows at the layout scale
+	band.lo.y = bands.y;
+	band.hi.y = bands.y + bands.borderHeight;
+	drawImageInRegion( image, startX, bands.y, endX, bands.y + scaledHeight, &band, bands.outer, color );
+
+	// interior rows stretched between the borders
+	band.lo.y = bands.y + bands.borderHeight;
+	band.hi.y = endY - bands.borderHeight;
+	drawImageInRegion( image, startX, REAL_TO_INT_FLOOR( interiorTop + 0.5f ), endX,
+										 REAL_TO_INT_FLOOR( interiorTop + imageHeight * interiorScale + 0.5f ), &band, bands.outer, color );
+
+	// bottom border rows at the layout scale
+	band.lo.y = endY - bands.borderHeight;
+	band.hi.y = endY;
+	drawImageInRegion( image, startX, endY - scaledHeight, endX, endY, &band, bands.outer, color );
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -109,8 +226,40 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 	if( left == nullptr || center == nullptr || right == nullptr )
 		return;
 
-	Int leftWidth = scaledImageWidth( left, height );
-	Int rightWidth = scaledImageWidth( right, height );
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Bars whose pieces all have border rows keep them at a fixed thickness.
+	IRegion2D callerClip;
+	BarBands bands;
+	bands.y = y;
+	bands.height = height;
+	bands.borderHeight = 0;
+	bands.layoutScale = (Real)TheDisplay->getHeight() / 600.0f;
+	bands.outer = nullptr;
+
+	// keep the caller clip so clipped pieces stay inside it and it comes back afterwards
+	Bool canRestoreClip = TRUE;
+	if( TheDisplay->isClippingEnabled() )
+	{
+		if( TheDisplay->getClipRegion( &callerClip ) )
+			bands.outer = &callerClip;
+		else
+			canRestoreClip = FALSE;
+	}
+
+	if( canRestoreClip && hasBorderRows( left ) && hasBorderRows( center ) && hasBorderRows( right ) )
+	{
+		// ceil keeps the whole line inside the band, so rows and caps show the same thickness
+		Int borderHeight = REAL_TO_INT_CEIL( left->getBorder() * bands.layoutScale - 0.01f );
+		if( borderHeight < 1 )
+			borderHeight = 1;
+
+		// too short for both borders and an interior row, draw it stretched
+		if( height >= 2 * borderHeight + 1 )
+			bands.borderHeight = borderHeight;
+	}
+
+	Bool bordered = bands.borderHeight > 0;
+	Int leftWidth = bordered ? layoutImageWidth( left, bands.layoutScale ) : scaledImageWidth( left, height );
+	Int rightWidth = bordered ? layoutImageWidth( right, bands.layoutScale ) : scaledImageWidth( right, height );
 	Int endX = x + width;
 	Int endY = y + height;
 
@@ -118,6 +267,21 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 	if( leftWidth + rightWidth >= width )
 	{
 		Int midX = x + width / 2;
+		if( bordered )
+		{
+			// caps keep their width and are cut where they meet
+			IRegion2D half;
+			half.lo.y = y;
+			half.hi.y = endY;
+			half.lo.x = x;
+			half.hi.x = midX;
+			drawBarPiece( left, x, x + leftWidth, &half, bands, color );
+			half.lo.x = midX;
+			half.hi.x = endX;
+			drawBarPiece( right, endX - rightWidth, endX, &half, bands, color );
+			restoreClip( bands.outer );
+			return;
+		}
 		winDrawImage( left, x, y, midX, endY, color );
 		winDrawImage( right, midX, y, endX, endY, color );
 		return;
@@ -125,14 +289,14 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 
 	Int gapStart = x + leftWidth;
 	Int gapEnd = endX - rightWidth;
-	Int tileWidth = scaledImageWidth( center, height );
+	Int tileWidth = bordered ? layoutImageWidth( center, bands.layoutScale ) : scaledImageWidth( center, height );
 	Int pieces = (gapEnd - gapStart) / tileWidth;
 	Int tileX = gapStart;
 	Int i;
 
 	for( i = 0; i < pieces; ++i )
 	{
-		winDrawImage( center, tileX, y, tileX + tileWidth, endY, color );
+		drawBarPiece( center, tileX, tileX + tileWidth, nullptr, bands, color );
 		tileX += tileWidth;
 	}
 
@@ -144,27 +308,33 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 		clip.lo.y = y;
 		clip.hi.x = gapEnd;
 		clip.hi.y = endY;
-		TheDisplay->setClipRegion( &clip );
+
+		// a small tile without border rows would break the bands, so the clipped center tile fills in
+		if( smallCenter != nullptr && bordered && !hasBorderRows( smallCenter ) )
+			smallCenter = nullptr;
 
 		if( smallCenter != nullptr )
 		{
-			Int smallWidth = scaledImageWidth( smallCenter, height );
+			Int smallWidth = bordered ? layoutImageWidth( smallCenter, bands.layoutScale ) : scaledImageWidth( smallCenter, height );
 			while( tileX < gapEnd )
 			{
-				winDrawImage( smallCenter, tileX, y, tileX + smallWidth, endY, color );
+				drawBarPiece( smallCenter, tileX, tileX + smallWidth, &clip, bands, color );
 				tileX += smallWidth;
 			}
 		}
 		else
 		{
-			winDrawImage( center, tileX, y, tileX + tileWidth, endY, color );
+			drawBarPiece( center, tileX, tileX + tileWidth, &clip, bands, color );
 		}
 
-		TheDisplay->enableClipping( FALSE );
+		restoreClip( bands.outer );
 	}
 
-	winDrawImage( left, x, y, gapStart, endY, color );
-	winDrawImage( right, gapEnd, y, endX, endY, color );
+	drawBarPiece( left, x, gapStart, nullptr, bands, color );
+	drawBarPiece( right, gapEnd, endX, nullptr, bands, color );
+
+	if( bordered )
+		restoreClip( bands.outer );
 
 }
 

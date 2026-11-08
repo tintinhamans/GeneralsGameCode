@@ -90,6 +90,8 @@ public:
 	UnsignedInt setStatus( UnsignedInt bit );			///< set status bit
 	UnsignedInt clearStatus( UnsignedInt bit );		///< clear status bit
 	UnsignedInt getStatus() const;								///< get status bits
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Optional border thickness for three-piece bars that keep fixed outlines.
+	Real getBorder() const;												///< border rows in image pixels, 0 for none
 
 
 	// for parsing from INI
@@ -108,6 +110,7 @@ friend class ImageCollection;
 	ICoord2D m_imageSize;			///< dimensions of image
 	void *m_rawTextureData;		///< raw texture data
 	UnsignedInt m_status;			///< status bits from ImageStatus
+	Real m_border;						///< border rows in image pixels from the INI, 0 for none
 
 	static const FieldParse m_imageFieldParseTable[];		///< the parse table for INI definition
 
@@ -168,6 +171,7 @@ inline Int Image::getImageHeight() const { return m_imageSize.y; }
 inline void Image::setRawTextureData( void *data ) { m_rawTextureData = data; }
 inline const void *Image::getRawTextureData() const { return m_rawTextureData; }
 inline UnsignedInt Image::getStatus() const { return m_status; }
+inline Real Image::getBorder() const { return m_border; }
 
 // EXTERNALS //////////////////////////////////////////////////////////////////////////////////////
 extern ImageCollection *TheMappedImageCollection;  ///< mapped images
