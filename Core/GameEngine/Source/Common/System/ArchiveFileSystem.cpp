@@ -522,7 +522,9 @@ static Bool isNotGenOnlineInterfaceFile(const char* path)
 	static const char* const prefixes[] = { "fonts/" };
 	static const char* const files[] = {
 		"art/textures/generalsonline_uikit.tga",
+		"art/textures/generalsonline_loadingbar.tga",
 		"data/ini/mappedimages/texturesize_512/zz_generalsonline_uikit.ini",
+		"data/ini/mappedimages/texturesize_512/zz_generalsonline_loadingbar.ini",
 		"data/ini/mappedimages/texturesize_512/zz_generalsonline_checkboxsliderart.ini",
 		"data/ini/mappedimages/texturesize_512/zz_generalsonline_logo.ini",
 		"data/generalsonline/headertemplate.ini" };

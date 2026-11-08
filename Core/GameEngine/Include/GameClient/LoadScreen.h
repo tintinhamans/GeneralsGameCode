@@ -44,6 +44,8 @@
 class VideoBuffer;
 class VideoStreamInterface;
 class WindowVideoManager;
+class DisplayString;
+class Image;
 
 
 
@@ -62,6 +64,8 @@ public:
 	virtual void update( Int percent ); ///< Update the state of the slider bars
 	virtual void processProgress(Int playerId, Int percentage) = 0;
 	virtual void setProgressRange( Int min, Int max ) = 0;
+	// GenOnline @feature arcticdolphin 09/11/2026 The load screen stays up after the load while this returns TRUE.
+	virtual Bool holdsAfterLoad() { return FALSE; }
 protected:
 	void setLoadScreen( GameWindow *g ) { m_loadScreen = g; }
 	GameWindow *m_loadScreen;		///< The GameWindow that is our loadscreen
@@ -213,9 +217,24 @@ public:
 		DEBUG_CRASH(("We Got to a single player load screen throw the Network..."));
 	}
 	virtual void setProgressRange( Int min, Int max ) override { }
+	virtual Bool holdsAfterLoad() override;
 
 private:
+	void initCredit();
+	void pollCreditSkip();
+	Int creditPercent() const;
+	void drawCredit();
+	static void drawCreditWindow( GameWindow *window, WinInstanceData *instData );
+
 	GameWindow *m_progressBar	;				///< Pointer to the Progress Bar on the window
+
+	// GenOnline @feature arcticdolphin 09/11/2026 The Generals Online credit on the first shell load screen.
+	GameWindow *m_creditWindow;
+	DisplayString *m_creditStrings[3];
+	const Image *m_creditLogo;
+	UnsignedInt m_creditStartMs;
+	Bool m_creditEscArmed;
+	Bool m_creditSkipped;
 
 };
 

@@ -376,6 +376,13 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 		centerImage				= GadgetTextEntryGetHiliteImageCenter( window );
 		smallCenterImage	= GadgetTextEntryGetHiliteImageSmallCenter( window );
 
+		// GenOnline @tweak arcticdolphin 08/11/2026 A lit kit combo field keeps its enabled text colours, only its outline lights.
+		if( kitField )
+		{
+			textColor				= window->winGetEnabledTextColor();
+			textBorder			= window->winGetEnabledTextBorderColor();
+		}
+
 	}
 	else
 	{
