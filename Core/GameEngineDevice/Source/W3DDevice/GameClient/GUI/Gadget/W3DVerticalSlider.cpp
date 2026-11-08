@@ -93,8 +93,8 @@ static void drawVerticalThreePieceImage( const Image *top, const Image *center, 
 	TheWindowManager->winDrawImage( bottom, x, y + height - bottomHeight, x + width, y + height );
 }
 
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 The kit pill fills its channel, like the kit slider fill fills its track, at 4 of the 14 column units.
-static const Int KIT_SCROLL_CHANNEL_WIDTH = 4;
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 The kit pill fills its channel, like the kit slider fill fills its track, at 6 of the 14 column units.
+static const Int KIT_SCROLL_CHANNEL_WIDTH = 6;
 
 // The kit channel, centred between the column separator and the list frame
 static void getKitChannel( Int columnX, Int columnWidth, Int &channelX, Int &channelWidth )
