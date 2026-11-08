@@ -28,14 +28,12 @@ INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_Gene
 
 ATLAS_WIDTH = 256  # in retail pixels
 SCALE = 4          # texels per retail pixel
-EXTRUDE = 2        # retail pixels of padding around each piece
+EXTRUDE = 1        # retail pixels of padding around each piece (SCALE texels)
 SUPERSAMPLE = 2    # samples per texel and axis
-# edge line width per piece, in its own pixels: LINE_LAYOUT layout pixels at the height the shell layouts usually draw it
+# edge line width in layout pixels; three-piece bars carry it as Border, so the engine keeps it fixed at any bar height
 LINE_LAYOUT = 1.5
-BUTTON_LINE = 1.25 * LINE_LAYOUT  # 40 px art, usually about 32 layout px tall
-RADIO_LINE = 1.45 * LINE_LAYOUT   # 24 px art, usually about 17 layout px tall
-FIELD_LINE = 0.95 * LINE_LAYOUT   # 22 px art, usually about 23 layout px tall
-THUMB_LINE = 1.8 * LINE_LAYOUT    # 22 px art, drawn at its own size
+BORDER_PREFIXES = ("Buttons-", "RadioButton", "TextEntry")  # three-piece bars whose INI entry gets Border = LINE_LAYOUT
+ARROW_LINE = 0.95 * LINE_LAYOUT  # combo arrows are single images: 22 px art, usually about 23 layout px tall
 BOX_LINE = (1.25 * 1.2, 1.45 * 1.2)  # slider blocks: 11x13 art drawn as squares, so the line differs per axis; small, so a thinner line
 
 
@@ -76,13 +74,6 @@ ARROW_STATES = {
     "HiliteSelected": (rgba("#2F4BFF"), rgba("#2B34B8", 0.92), GLYPH_ACTIVE),
     "Disabled": (rgba("#404159"), rgba("#0A0A10", 0.70), GLYPH_DISABLED),
 }
-# state -> (edge line, fill)
-THUMB_STATES = {
-    "Enabled": (rgba("#2F4BFF"), rgba("#1B2780")),
-    "Hilite": (rgba("#6A7BFF"), rgba("#2B3BC8")),
-    "HiliteSelected": (rgba("#8C9BFF"), rgba("#3A4CFF")),
-    "Disabled": (rgba("#404159"), rgba("#15161F")),
-}
 # horizontal slider blocks: (edge line, fill)
 SLIDER_ON = (rgba("#6A7BFF"), rgba("#3446FF"))
 SLIDER_OFF = (rgba("#24308C"), rgba("#0B1030", 0.92))
@@ -97,6 +88,40 @@ SLIDER_MARKER = {
     "Disabled": (rgba("#5D6080"), 1.15),
 }
 TRACK_LINE = 0.55  # 8 px art, drawn about 14 px tall at 1080p
+SYMBOL_LINE = LINE_LAYOUT  # check boxes and symbol buttons draw at about their own size
+GLYPH_STROKE = 2.2
+# symbol buttons and check boxes: state -> (edge line, fill, glyph)
+SYMBOL_STATES = {
+    "Enabled": BUTTON_STATES[""] + (GLYPH,),
+    "Hilite": BUTTON_STATES["HiLite-"] + (GLYPH_ACTIVE,),
+    "Pushed": BUTTON_STATES["Pushed-"] + (GLYPH_ACTIVE,),
+    "Disabled": BUTTON_STATES["Disabled-"] + (GLYPH_DISABLED,),
+}
+CHECK_BOXES = {
+    "Active-Unchecked": ("Enabled", False),
+    "Active-HiLighted": ("Hilite", False),
+    "Active-Checked": ("Enabled", True),
+    "Disabled-Unchecked": ("Disabled", False),
+    "Disabled-Checked": ("Disabled", True),
+}
+RETURN_BUTTONS = {"ReturnButton": "Enabled", "ReturnButtonHilite": "Hilite", "ReturnButtonHilitePushed": "Pushed", "ReturnButtonDisabled": "Disabled"}
+CLOSE_BUTTONS = {"XbuttonEnabled": "Enabled", "XbuttonHilite": "Hilite", "XbuttonPushed": "Pushed", "XbuttonDisabled": "Disabled"}
+REFRESH_BUTTONS = {"LobbyRefresh": "Enabled", "LobbyRefreshMouseOver": "Hilite", "LobbyRefreshMouseDown": "Pushed"}
+# map start positions: a ring, the chosen one filled
+PLAYER_STARTS = {
+    "PlayerStart": (rgba("#2F4BFF"), rgba("#05070F", 0.85)),
+    "PlayerStartHilite": (rgba("#8C9BFF"), rgba("#152078", 0.92)),
+    "PlayerStartHilitePushed": (rgba("#C9CEFF"), rgba("#3446FF")),
+    "PlayerStartDisabled": (rgba("#404159"), rgba("#0A0A10", 0.70)),
+}
+# scroll bar thumb: a slim pill in the middle of the thumb rect
+SCROLL_THUMBS = {
+    "Enabled": rgba("#3A4FE0"),
+    "Hilite": rgba("#6A7BFF"),
+    "HiliteSelected": rgba("#8C9BFF"),
+    "Disabled": rgba("#404159"),
+}
+SCROLL_THUMB_WIDTH = 7.0
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
     "ListBoxHiliteSelectedItem": rgba("#2B34B8", 0.80),
@@ -152,7 +177,7 @@ def entry_piece(w, h, side, line):
     left, right = ends(side)
 
     def sample(x, y):
-        return line if edge(x, y, w, h, left, right) < FIELD_LINE else FIELD
+        return line if edge(x, y, w, h, left, right) < LINE_LAYOUT else FIELD
 
     return paint(w, h, sample)
 
@@ -165,22 +190,15 @@ def triangle_inside(x, y, a, b, c):
 
 
 def arrow_piece(w, h, up, line, fill, glyph):
-    cx, cy = (w - FIELD_LINE) / 2.0, h / 2.0
+    cx, cy = (w - ARROW_LINE) / 2.0, h / 2.0
     tri = ((cx - 4.5, cy - 2.2), (cx + 4.5, cy - 2.2), (cx, cy + 2.8))
 
     def sample(x, y):
         if up:
             y = h - y
-        if edge(x, y, w, h, False, True) < FIELD_LINE:
+        if edge(x, y, w, h, False, True) < ARROW_LINE:
             return line
         return glyph if triangle_inside(x, y, *tri) else fill
-
-    return paint(w, h, sample)
-
-
-def thumb_piece(w, h, line, fill):
-    def sample(x, y):
-        return line if edge(x, y, w, h, True, True) < THUMB_LINE else fill
 
     return paint(w, h, sample)
 
@@ -230,17 +248,111 @@ def glyph_arrow(w, h):
     return paint(w, h, sample)
 
 
+def segment_distance(px, py, a, b):
+    ax, ay = a
+    bx, by = b
+    dx, dy = bx - ax, by - ay
+    k = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(px - ax - k * dx, py - ay - k * dy)
+
+
+def on_stroke(x, y, polylines, width):
+    for line in polylines:
+        for a, b in zip(line, line[1:]):
+            if segment_distance(x, y, a, b) < width / 2.0:
+                return True
+    return False
+
+
+def symbol_piece(w, h, state, glyph_hit):
+    """A button box in the button colours with a glyph; glyph_hit(x, y) says where the glyph is."""
+    line, fill, glyph = SYMBOL_STATES[state]
+
+    def sample(x, y):
+        if edge(x, y, w, h, True, True) < SYMBOL_LINE:
+            return line
+        return glyph if glyph_hit(x, y) else fill
+
+    return paint(w, h, sample)
+
+
+def check_glyph(w, h):
+    mark = [((0.27 * w, 0.52 * h), (0.43 * w, 0.69 * h), (0.75 * w, 0.31 * h))]
+    return lambda x, y: on_stroke(x, y, mark, GLYPH_STROKE)
+
+
+def no_glyph(x, y):
+    return False
+
+
+def return_glyph(w, h):
+    """The enter key arrow: down from the top right, then left into an arrow head."""
+    bend = [((0.74 * w, 0.26 * h), (0.74 * w, 0.62 * h), (0.36 * w, 0.62 * h))]
+    head = ((0.24 * w, 0.62 * h), (0.40 * w, 0.40 * h), (0.40 * w, 0.84 * h))
+    return lambda x, y: on_stroke(x, y, bend, GLYPH_STROKE) or triangle_inside(x, y, *head)
+
+
+def close_glyph(w, h):
+    cross = [((0.32 * w, 0.32 * h), (0.68 * w, 0.68 * h)), ((0.68 * w, 0.32 * h), (0.32 * w, 0.68 * h))]
+    return lambda x, y: on_stroke(x, y, cross, GLYPH_STROKE)
+
+
+def refresh_glyph(w, h):
+    """Three quarters of a circle with an arrow head at its open end."""
+    cx, cy, r = w / 2.0, h / 2.0, 0.27 * min(w, h)
+    head_angle = math.radians(-60.0)
+    tip = (cx + r * math.cos(head_angle), cy + r * math.sin(head_angle))
+    out = (math.cos(head_angle), math.sin(head_angle))
+    along = (-math.sin(head_angle), math.cos(head_angle))
+    head = ((tip[0] - 2.8 * along[0], tip[1] - 2.8 * along[1]),
+            (tip[0] + 2.6 * out[0] + 1.6 * along[0], tip[1] + 2.6 * out[1] + 1.6 * along[1]),
+            (tip[0] - 2.6 * out[0] + 1.6 * along[0], tip[1] - 2.6 * out[1] + 1.6 * along[1]))
+
+    def hit(x, y):
+        angle = math.degrees(math.atan2(y - cy, x - cx))
+        if abs(math.hypot(x - cx, y - cy) - r) < GLYPH_STROKE / 2.0 and not -60.0 < angle < 10.0:
+            return True
+        return triangle_inside(x, y, *head)
+
+    return hit
+
+
+def ring_piece(w, h, line, fill):
+    cx, cy, r = w / 2.0, h / 2.0, min(w, h) / 2.0 - 1.0
+
+    def sample(x, y):
+        d = r - math.hypot(x - cx, y - cy)
+        if d < 0.0:
+            return TRANSPARENT
+        return line if d < 2.2 else fill
+
+    return paint(w, h, sample)
+
+
+def pill_piece(w, h, color, width):
+    """A vertical pill of the given width, centred, with a pixel of room above and below."""
+    r = width / 2.0
+    cx = w / 2.0
+
+    def sample(x, y):
+        top, bottom = 1.0 + r, h - 1.0 - r
+        cy = min(max(y, top), bottom)
+        return color if math.hypot(x - cx, y - cy) < r else TRANSPARENT
+
+    return paint(w, h, sample)
+
+
 def pieces():
     """(image name, width, height, texels). Sizes are the retail Coords sizes of each name."""
     out = []
     for state, (line, fill) in BUTTON_STATES.items():
-        out.append((f"Buttons-{state}Left", 45, 40, button_piece(45, 40, "left", line, fill, BUTTON_LINE)))
-        out.append((f"Buttons-{state}Middle", 10, 40, button_piece(10, 40, "middle", line, fill, BUTTON_LINE)))
-        out.append((f"Buttons-{state}Right", 45, 40, button_piece(45, 40, "right", line, fill, BUTTON_LINE)))
+        out.append((f"Buttons-{state}Left", 45, 40, button_piece(45, 40, "left", line, fill, LINE_LAYOUT)))
+        out.append((f"Buttons-{state}Middle", 10, 40, button_piece(10, 40, "middle", line, fill, LINE_LAYOUT)))
+        out.append((f"Buttons-{state}Right", 45, 40, button_piece(45, 40, "right", line, fill, LINE_LAYOUT)))
     for state, (line, fill) in RADIO_STATES.items():
-        out.append((f"RadioButton{state}Left", 34, 24, button_piece(34, 24, "left", line, fill, RADIO_LINE)))
-        out.append((f"RadioButton{state}Middle", 10, 24, button_piece(10, 24, "middle", line, fill, RADIO_LINE)))
-        out.append((f"RadioButton{state}Right", 34, 24, button_piece(34, 24, "right", line, fill, RADIO_LINE)))
+        out.append((f"RadioButton{state}Left", 34, 24, button_piece(34, 24, "left", line, fill, LINE_LAYOUT)))
+        out.append((f"RadioButton{state}Middle", 10, 24, button_piece(10, 24, "middle", line, fill, LINE_LAYOUT)))
+        out.append((f"RadioButton{state}Right", 34, 24, button_piece(34, 24, "right", line, fill, LINE_LAYOUT)))
     for state, line in ENTRY_STATES.items():
         out.append((f"TextEntry{state}LeftEnd", 10, 22, entry_piece(10, 22, "left", line)))
         out.append((f"TextEntry{state}RightEnd", 10, 22, entry_piece(10, 22, "right", line)))
@@ -254,8 +366,18 @@ def pieces():
     for state, style in ARROW_STATES.items():
         out.append((f"VSliderUpButton{state}", 21, 22, arrow_piece(21, 22, True, *style)))
         out.append((f"VSliderDownButton{state}", 21, 22, arrow_piece(21, 22, False, *style)))
-    for state, (line, fill) in THUMB_STATES.items():
-        out.append((f"ScrollBarThumb{state}", 21, 22, thumb_piece(21, 22, line, fill)))
+    for state, color in SCROLL_THUMBS.items():
+        out.append((f"ScrollBarThumb{state}", 21, 22, pill_piece(21, 22, color, SCROLL_THUMB_WIDTH)))
+    for name, (state, checked) in CHECK_BOXES.items():
+        out.append((name, 22, 22, symbol_piece(22, 22, state, check_glyph(22, 22) if checked else no_glyph)))
+    for name, state in RETURN_BUTTONS.items():
+        out.append((name, 32, 22, symbol_piece(32, 22, state, return_glyph(32, 22))))
+    for name, state in CLOSE_BUTTONS.items():
+        out.append((name, 21, 21, symbol_piece(21, 21, state, close_glyph(21, 21))))
+    for name, state in REFRESH_BUTTONS.items():
+        out.append((name, 24, 24, symbol_piece(24, 24, state, refresh_glyph(24, 24))))
+    for name, (line, fill) in PLAYER_STARTS.items():
+        out.append((name, 25, 25, ring_piece(25, 25, line, fill)))
     out.append(("arrow", 13, 16, glyph_arrow(13, 16)))
     out.append(("hilightedbox", 11, 13, box_piece(11, 13, *SLIDER_ON)))
     out.append(("dehilightedbox", 11, 13, box_piece(11, 13, *SLIDER_OFF)))
@@ -362,9 +484,10 @@ def ini_text(items, placements, height):
             f"  TextureHeight = {height}",
             f"  Coords = Left:{left} Top:{top} Right:{left + w} Bottom:{top + h}",
             "  Status = NONE",
-            "End",
-            "",
         ]
+        if name.startswith(BORDER_PREFIXES):
+            lines.append(f"  Border = {LINE_LAYOUT}")
+        lines += ["End", ""]
     return "\r\n".join(lines)
 
 

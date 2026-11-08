@@ -40,7 +40,7 @@ WINDOW
                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-  HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+  HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -114,7 +114,7 @@ WINDOW
       TEXTCOLOR = ENABLED:  255 255 255 0, ENABLEDBORDER:  255 255 255 0,
                   DISABLED: 255 255 255 0, DISABLEDBORDER: 255 255 255 0,
                   HILITE:   255 255 255 0, HILITEBORDER:   255 255 255 0;
-      ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 2 2 2 0, BORDERCOLOR: 47 55 168 255,
+      ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 2 2 2 0, BORDERCOLOR: 47 75 255 255,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -132,7 +132,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -653,7 +653,7 @@ WINDOW
       TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
                   HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
-      ENABLEDDRAWDATA = IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: 49 55 168 255,
+      ENABLEDDRAWDATA = IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: 47 75 255 255,
                         IMAGE: ListBoxHiliteItemLeftEnd, COLOR: 255 255 0 255, BORDERCOLOR: 254 254 254 255,
                         IMAGE: ListBoxHiliteItemRightEnd, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: ListBoxHiliteItemRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -662,7 +662,7 @@ WINDOW
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      DISABLEDDRAWDATA = IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: 49 55 168 255,
+      DISABLEDDRAWDATA = IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: 47 75 255 255,
                          IMAGE: NoImage, COLOR: 192 192 192 255, BORDERCOLOR: 254 254 254 255,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -671,7 +671,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: 49 55 168 255,
+      HILITEDRAWDATA = IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: 47 75 255 255,
                        IMAGE: ListBoxHiliteSelectedItemLeftEnd, COLOR: 254 254 254 255, BORDERCOLOR: 0 128 0 255,
                        IMAGE: ListBoxHiliteSelectedItemRightEnd, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: ListBoxHiliteSelectedItemRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -742,7 +742,7 @@ WINDOW
                                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      LISTBOXENABLEDSLIDERDRAWDATA = IMAGE: NoImage, COLOR: 255 190 0 0, BORDERCOLOR: 47 55 168 255,
+      LISTBOXENABLEDSLIDERDRAWDATA = IMAGE: NoImage, COLOR: 255 190 0 0, BORDERCOLOR: 47 75 255 255,
                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -760,7 +760,7 @@ WINDOW
                                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      LISTBOXHILITESLIDERDRAWDATA = IMAGE: NoImage, COLOR: 0 255 0 0, BORDERCOLOR: 49 55 168 255,
+      LISTBOXHILITESLIDERDRAWDATA = IMAGE: NoImage, COLOR: 0 255 0 0, BORDERCOLOR: 47 75 255 255,
                                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -816,7 +816,7 @@ WINDOW
       TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
                   HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
-      ENABLEDDRAWDATA = IMAGE: WarSchoolWindow, COLOR: 0 0 0 126, BORDERCOLOR: 49 55 168 255,
+      ENABLEDDRAWDATA = IMAGE: WarSchoolWindow, COLOR: 0 0 0 126, BORDERCOLOR: 47 75 255 255,
                         IMAGE: ListBoxHiliteItemLeftEnd, COLOR: 255 255 0 255, BORDERCOLOR: 254 254 254 255,
                         IMAGE: ListBoxHiliteItemRightEnd, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: ListBoxHiliteItemRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -825,7 +825,7 @@ WINDOW
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      DISABLEDDRAWDATA = IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: 49 55 168 255,
+      DISABLEDDRAWDATA = IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: 47 75 255 255,
                          IMAGE: NoImage, COLOR: 192 192 192 255, BORDERCOLOR: 254 254 254 255,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -834,7 +834,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: 49 55 168 255,
+      HILITEDRAWDATA = IMAGE: BlackSquare, COLOR: 0 0 0 126, BORDERCOLOR: 47 75 255 255,
                        IMAGE: ListBoxHiliteSelectedItemLeftEnd, COLOR: 254 254 254 255, BORDERCOLOR: 0 128 0 255,
                        IMAGE: ListBoxHiliteSelectedItemRightEnd, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: ListBoxHiliteSelectedItemRepeatingCenter, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -871,7 +871,7 @@ WINDOW
       TEXTCOLOR = ENABLED:  255 255 255 0, ENABLEDBORDER:  255 255 255 0,
                   DISABLED: 255 255 255 0, DISABLEDBORDER: 255 255 255 0,
                   HILITE:   255 255 255 0, HILITEBORDER:   255 255 255 0;
-      ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 47 55 168 0, BORDERCOLOR: 47 55 168 0,
+      ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 47 75 255 0, BORDERCOLOR: 47 75 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                         IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -889,7 +889,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1300,7 +1300,7 @@ WINDOW
                 DISABLED: 62 64 92 255, DISABLEDBORDER: 31 32 47 255,
                 HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;
     ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
-                      IMAGE: NoImage, COLOR: 47 55 168 255, BORDERCOLOR: 254 254 254 255,
+                      IMAGE: NoImage, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1318,7 +1318,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
     HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 209 253 4 255, BORDERCOLOR: 59 60 52 255,
-                     IMAGE: Buttons-Pushed-Left, COLOR: 47 55 168 255, BORDERCOLOR: 254 254 254 255,
+                     IMAGE: Buttons-Pushed-Left, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: Buttons-Pushed-Middle, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: Buttons-Pushed-Right, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1348,7 +1348,7 @@ WINDOW
                 DISABLED: 62 64 92 255, DISABLEDBORDER: 31 32 47 255,
                 HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;
     ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
-                      IMAGE: NoImage, COLOR: 47 55 168 255, BORDERCOLOR: 254 254 254 255,
+                      IMAGE: NoImage, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1366,7 +1366,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
     HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 209 253 4 255, BORDERCOLOR: 59 60 52 255,
-                     IMAGE: Buttons-Pushed-Left, COLOR: 47 55 168 255, BORDERCOLOR: 254 254 254 255,
+                     IMAGE: Buttons-Pushed-Left, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: Buttons-Pushed-Middle, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: Buttons-Pushed-Right, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1379,7 +1379,7 @@ WINDOW
   WINDOW
     WINDOWTYPE = PUSHBUTTON;
     SCREENRECT = UPPERLEFT: 435 515,
-                 BOTTOMRIGHT: 606 551,
+                 BOTTOMRIGHT: 605 551,
                  CREATIONRESOLUTION: 800 600;
     NAME = "ScoreScreen.wnd:ButtonContinue";
     STATUS = ENABLED+IMAGE;
@@ -1396,7 +1396,7 @@ WINDOW
                 DISABLED: 62 64 92 255, DISABLEDBORDER: 31 32 47 255,
                 HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;
     ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
-                      IMAGE: NoImage, COLOR: 47 55 168 255, BORDERCOLOR: 254 254 254 255,
+                      IMAGE: NoImage, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1414,7 +1414,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
     HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 209 253 4 255, BORDERCOLOR: 59 60 52 255,
-                     IMAGE: Buttons-Pushed-Left, COLOR: 47 55 168 255, BORDERCOLOR: 254 254 254 255,
+                     IMAGE: Buttons-Pushed-Left, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: Buttons-Pushed-Middle, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: Buttons-Pushed-Right, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1444,7 +1444,7 @@ WINDOW
                 DISABLED: 62 64 92 255, DISABLEDBORDER: 31 32 47 255,
                 HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;
     ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
-                      IMAGE: NoImage, COLOR: 47 55 168 255, BORDERCOLOR: 254 254 254 255,
+                      IMAGE: NoImage, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                       IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1462,7 +1462,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
     HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 209 253 4 255, BORDERCOLOR: 59 60 52 255,
-                     IMAGE: Buttons-Pushed-Left, COLOR: 47 55 168 255, BORDERCOLOR: 254 254 254 255,
+                     IMAGE: Buttons-Pushed-Left, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: Buttons-Pushed-Middle, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: Buttons-Pushed-Right, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -1913,7 +1913,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 260 194,
-                   BOTTOMRIGHT: 330 224,
+                   BOTTOMRIGHT: 330 223,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsLost2";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -1962,7 +1962,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 189 194,
-                   BOTTOMRIGHT: 260 224,
+                   BOTTOMRIGHT: 260 223,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsBuilt2";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2011,7 +2011,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 70 194,
-                   BOTTOMRIGHT: 192 224,
+                   BOTTOMRIGHT: 192 223,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextPlayer2";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2060,7 +2060,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 330 194,
-                   BOTTOMRIGHT: 401 224,
+                   BOTTOMRIGHT: 401 223,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsDestroyed2";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2109,7 +2109,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 488 194,
-                   BOTTOMRIGHT: 570 224,
+                   BOTTOMRIGHT: 570 223,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsLost2";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2158,7 +2158,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 570 194,
-                   BOTTOMRIGHT: 653 224,
+                   BOTTOMRIGHT: 653 223,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsDestroyed2";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2207,7 +2207,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 653 194,
-                   BOTTOMRIGHT: 749 224,
+                   BOTTOMRIGHT: 749 223,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextResources2";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2256,7 +2256,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 401 194,
-                   BOTTOMRIGHT: 488 224,
+                   BOTTOMRIGHT: 488 223,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsBuilt2";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2304,8 +2304,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 401 224,
-                   BOTTOMRIGHT: 488 253,
+      SCREENRECT = UPPERLEFT: 401 223,
+                   BOTTOMRIGHT: 488 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsBuilt3";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2353,8 +2353,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 70 224,
-                   BOTTOMRIGHT: 192 253,
+      SCREENRECT = UPPERLEFT: 70 223,
+                   BOTTOMRIGHT: 192 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextPlayer3";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2402,8 +2402,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 189 224,
-                   BOTTOMRIGHT: 260 253,
+      SCREENRECT = UPPERLEFT: 189 223,
+                   BOTTOMRIGHT: 260 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsBuilt3";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2451,8 +2451,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 260 224,
-                   BOTTOMRIGHT: 330 253,
+      SCREENRECT = UPPERLEFT: 260 223,
+                   BOTTOMRIGHT: 330 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsLost3";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2500,8 +2500,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 330 224,
-                   BOTTOMRIGHT: 401 253,
+      SCREENRECT = UPPERLEFT: 330 223,
+                   BOTTOMRIGHT: 401 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsDestroyed3";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2549,8 +2549,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 570 224,
-                   BOTTOMRIGHT: 653 253,
+      SCREENRECT = UPPERLEFT: 570 223,
+                   BOTTOMRIGHT: 653 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsDestroyed3";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2598,8 +2598,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 488 224,
-                   BOTTOMRIGHT: 570 253,
+      SCREENRECT = UPPERLEFT: 488 223,
+                   BOTTOMRIGHT: 570 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsLost3";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2647,8 +2647,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 653 224,
-                   BOTTOMRIGHT: 749 253,
+      SCREENRECT = UPPERLEFT: 653 223,
+                   BOTTOMRIGHT: 749 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextResources3";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2696,8 +2696,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 401 253,
-                   BOTTOMRIGHT: 488 282,
+      SCREENRECT = UPPERLEFT: 401 252,
+                   BOTTOMRIGHT: 488 281,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsBuilt4";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2745,8 +2745,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 70 253,
-                   BOTTOMRIGHT: 192 282,
+      SCREENRECT = UPPERLEFT: 70 252,
+                   BOTTOMRIGHT: 192 281,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextPlayer4";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2794,8 +2794,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 189 253,
-                   BOTTOMRIGHT: 260 282,
+      SCREENRECT = UPPERLEFT: 189 252,
+                   BOTTOMRIGHT: 260 281,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsBuilt4";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2843,8 +2843,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 260 253,
-                   BOTTOMRIGHT: 330 282,
+      SCREENRECT = UPPERLEFT: 260 252,
+                   BOTTOMRIGHT: 330 281,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsLost4";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2892,8 +2892,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 330 253,
-                   BOTTOMRIGHT: 401 282,
+      SCREENRECT = UPPERLEFT: 330 252,
+                   BOTTOMRIGHT: 401 281,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsDestroyed4";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2941,8 +2941,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 570 253,
-                   BOTTOMRIGHT: 653 282,
+      SCREENRECT = UPPERLEFT: 570 252,
+                   BOTTOMRIGHT: 653 281,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsDestroyed4";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -2990,8 +2990,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 488 253,
-                   BOTTOMRIGHT: 570 282,
+      SCREENRECT = UPPERLEFT: 488 252,
+                   BOTTOMRIGHT: 570 281,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsLost4";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3039,8 +3039,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 653 253,
-                   BOTTOMRIGHT: 749 282,
+      SCREENRECT = UPPERLEFT: 653 252,
+                   BOTTOMRIGHT: 749 281,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextResources4";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3088,8 +3088,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 401 282,
-                   BOTTOMRIGHT: 488 311,
+      SCREENRECT = UPPERLEFT: 401 281,
+                   BOTTOMRIGHT: 488 310,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsBuilt5";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3137,8 +3137,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 189 282,
-                   BOTTOMRIGHT: 260 311,
+      SCREENRECT = UPPERLEFT: 189 281,
+                   BOTTOMRIGHT: 260 310,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsBuilt5";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3186,8 +3186,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 70 282,
-                   BOTTOMRIGHT: 192 311,
+      SCREENRECT = UPPERLEFT: 70 281,
+                   BOTTOMRIGHT: 192 310,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextPlayer5";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3235,8 +3235,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 260 282,
-                   BOTTOMRIGHT: 330 311,
+      SCREENRECT = UPPERLEFT: 260 281,
+                   BOTTOMRIGHT: 330 310,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsLost5";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3284,8 +3284,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 330 282,
-                   BOTTOMRIGHT: 401 311,
+      SCREENRECT = UPPERLEFT: 330 281,
+                   BOTTOMRIGHT: 401 310,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsDestroyed5";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3333,8 +3333,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 570 282,
-                   BOTTOMRIGHT: 653 311,
+      SCREENRECT = UPPERLEFT: 570 281,
+                   BOTTOMRIGHT: 653 310,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsDestroyed5";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3382,8 +3382,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 488 282,
-                   BOTTOMRIGHT: 570 311,
+      SCREENRECT = UPPERLEFT: 488 281,
+                   BOTTOMRIGHT: 570 310,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsLost5";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3431,8 +3431,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 653 282,
-                   BOTTOMRIGHT: 749 311,
+      SCREENRECT = UPPERLEFT: 653 281,
+                   BOTTOMRIGHT: 749 310,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextResources5";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3480,8 +3480,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 401 311,
-                   BOTTOMRIGHT: 488 340,
+      SCREENRECT = UPPERLEFT: 401 310,
+                   BOTTOMRIGHT: 488 339,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsBuilt6";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3529,8 +3529,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 70 311,
-                   BOTTOMRIGHT: 192 340,
+      SCREENRECT = UPPERLEFT: 70 310,
+                   BOTTOMRIGHT: 192 339,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextPlayer6";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3578,8 +3578,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 189 311,
-                   BOTTOMRIGHT: 260 340,
+      SCREENRECT = UPPERLEFT: 189 310,
+                   BOTTOMRIGHT: 260 339,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsBuilt6";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3627,8 +3627,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 260 311,
-                   BOTTOMRIGHT: 330 340,
+      SCREENRECT = UPPERLEFT: 260 310,
+                   BOTTOMRIGHT: 330 339,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsLost6";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3676,8 +3676,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 330 311,
-                   BOTTOMRIGHT: 401 340,
+      SCREENRECT = UPPERLEFT: 330 310,
+                   BOTTOMRIGHT: 401 339,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsDestroyed6";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3725,8 +3725,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 570 311,
-                   BOTTOMRIGHT: 653 340,
+      SCREENRECT = UPPERLEFT: 570 310,
+                   BOTTOMRIGHT: 653 339,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsDestroyed6";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3774,8 +3774,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 488 311,
-                   BOTTOMRIGHT: 570 340,
+      SCREENRECT = UPPERLEFT: 488 310,
+                   BOTTOMRIGHT: 570 339,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsLost6";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3823,8 +3823,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 653 311,
-                   BOTTOMRIGHT: 749 340,
+      SCREENRECT = UPPERLEFT: 653 310,
+                   BOTTOMRIGHT: 749 339,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextResources6";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3872,8 +3872,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 401 340,
-                   BOTTOMRIGHT: 488 369,
+      SCREENRECT = UPPERLEFT: 401 339,
+                   BOTTOMRIGHT: 488 368,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsBuilt7";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3921,8 +3921,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 69 340,
-                   BOTTOMRIGHT: 191 369,
+      SCREENRECT = UPPERLEFT: 69 339,
+                   BOTTOMRIGHT: 191 368,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextPlayer7";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -3970,8 +3970,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 190 340,
-                   BOTTOMRIGHT: 261 369,
+      SCREENRECT = UPPERLEFT: 190 339,
+                   BOTTOMRIGHT: 261 368,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsBuilt7";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4019,8 +4019,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 260 340,
-                   BOTTOMRIGHT: 330 369,
+      SCREENRECT = UPPERLEFT: 260 339,
+                   BOTTOMRIGHT: 330 368,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsLost7";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4068,8 +4068,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 330 340,
-                   BOTTOMRIGHT: 401 369,
+      SCREENRECT = UPPERLEFT: 330 339,
+                   BOTTOMRIGHT: 401 368,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextUnitsDestroyed7";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4117,8 +4117,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 570 340,
-                   BOTTOMRIGHT: 653 369,
+      SCREENRECT = UPPERLEFT: 570 339,
+                   BOTTOMRIGHT: 653 368,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsDestroyed7";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4166,8 +4166,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 488 340,
-                   BOTTOMRIGHT: 570 369,
+      SCREENRECT = UPPERLEFT: 488 339,
+                   BOTTOMRIGHT: 570 368,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextBuildingsLost7";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4215,8 +4215,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 653 340,
-                   BOTTOMRIGHT: 749 369,
+      SCREENRECT = UPPERLEFT: 653 339,
+                   BOTTOMRIGHT: 749 368,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextResources7";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4755,7 +4755,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 196 194,
-                   BOTTOMRIGHT: 731 224,
+                   BOTTOMRIGHT: 731 223,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextObserver2";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4803,8 +4803,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 196 224,
-                   BOTTOMRIGHT: 731 253,
+      SCREENRECT = UPPERLEFT: 196 223,
+                   BOTTOMRIGHT: 731 252,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextObserver3";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4852,8 +4852,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 196 253,
-                   BOTTOMRIGHT: 731 282,
+      SCREENRECT = UPPERLEFT: 196 252,
+                   BOTTOMRIGHT: 731 281,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextObserver4";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4901,8 +4901,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 196 282,
-                   BOTTOMRIGHT: 731 311,
+      SCREENRECT = UPPERLEFT: 196 281,
+                   BOTTOMRIGHT: 731 310,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextObserver5";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4950,8 +4950,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 196 311,
-                   BOTTOMRIGHT: 731 340,
+      SCREENRECT = UPPERLEFT: 196 310,
+                   BOTTOMRIGHT: 731 339,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextObserver6";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -4999,8 +4999,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 196 340,
-                   BOTTOMRIGHT: 731 369,
+      SCREENRECT = UPPERLEFT: 196 339,
+                   BOTTOMRIGHT: 731 368,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:StaticTextObserver7";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -5048,8 +5048,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 48 343,
-                   BOTTOMRIGHT: 73 365,
+      SCREENRECT = UPPERLEFT: 48 342,
+                   BOTTOMRIGHT: 73 364,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:GameWindowWinner7";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -5082,7 +5082,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -5095,8 +5095,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 48 314,
-                   BOTTOMRIGHT: 73 336,
+      SCREENRECT = UPPERLEFT: 48 313,
+                   BOTTOMRIGHT: 73 335,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:GameWindowWinner6";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -5129,7 +5129,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -5142,8 +5142,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 48 285,
-                   BOTTOMRIGHT: 73 307,
+      SCREENRECT = UPPERLEFT: 48 284,
+                   BOTTOMRIGHT: 73 306,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:GameWindowWinner5";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -5176,7 +5176,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -5189,8 +5189,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 48 256,
-                   BOTTOMRIGHT: 73 278,
+      SCREENRECT = UPPERLEFT: 48 255,
+                   BOTTOMRIGHT: 73 277,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:GameWindowWinner4";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -5223,7 +5223,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -5236,8 +5236,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 48 227,
-                   BOTTOMRIGHT: 73 249,
+      SCREENRECT = UPPERLEFT: 48 226,
+                   BOTTOMRIGHT: 73 248,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:GameWindowWinner3";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -5270,7 +5270,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -5284,7 +5284,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = USER;
       SCREENRECT = UPPERLEFT: 48 197,
-                   BOTTOMRIGHT: 73 220,
+                   BOTTOMRIGHT: 73 219,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:GameWindowWinner2";
       STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;
@@ -5317,7 +5317,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -5364,7 +5364,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -5411,7 +5411,7 @@ WINDOW
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                          IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+      HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
@@ -5460,7 +5460,7 @@ WINDOW
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                        IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
-    HILITEDRAWDATA = IMAGE: NoImage, COLOR: 128 128 255 255, BORDERCOLOR: 254 254 254 255,
+    HILITEDRAWDATA = IMAGE: NoImage, COLOR: 106 123 255 255, BORDERCOLOR: 254 254 254 255,
                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
                      IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,

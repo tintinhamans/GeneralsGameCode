@@ -312,6 +312,11 @@ public:
 	recreate all Image structs to suit your project */
 	virtual const Image *winFindImage( const char *name );
 	virtual Int winFontHeight( GameFont *font );  ///< get height of font in pixels
+	static Int winScaleRounded(Int value, Int numerator, Int denominator);  ///< value * numerator / denominator, rounded half away from zero
+	static Int winLayoutScreenHeight();  ///< screen height the 600 px layout height scales to
+	static Int winScaleLayoutSize(Int size);  ///< 800x600 layout pixels scaled with the screen height, rounded
+	static Int winScaleLayoutFontSize(Int pointSize);  ///< 800x600 layout font size scaled with the screen height, within the font library limits
+	static Bool winUseLegacyLayoutFonts();  ///< Classic font scaling keeps the unscaled layout fonts of legacy addons
 	virtual Int winIsDigit( Int c );  ///< is character a digit
 	virtual Int winIsAscii( Int c );  ///< is character a digit
 	virtual Int winIsAlNum( Int c );  ///< is character alpha-numeric

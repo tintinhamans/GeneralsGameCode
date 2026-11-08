@@ -48,6 +48,7 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "GameClient/GameWindowGlobal.h"
+#include "GameClient/GameWindowManager.h"
 #include "GameClient/GadgetTextEntry.h"
 #include "GameClient/IMEManager.h"
 #include "W3DDevice/GameClient/W3DGadget.h"
@@ -149,7 +150,8 @@ static void drawTextEntryText( GameWindow *window, WinInstanceData *instData,
 		//if( e->constructList && e->constructText->getTextLength() )
 		//	e->constructList->winSetPosition( (x + textWidth1), (y + fontHeight) );
 
-		x+= 2;
+		// GenOnline @tweak arcticdolphin 08/11/2026 The text margins scale with the screen height.
+		x+= GameWindowManager::winScaleLayoutSize( 2 );
 		// draw the text
 		if(textWidth < width)
 		{
@@ -180,7 +182,7 @@ static void drawTextEntryText( GameWindow *window, WinInstanceData *instData,
 		//if( e->constructList && e->constructText->getTextLength() )
 		//	e->constructList->winSetPosition( (x + textWidth1), (y + fontHeight) );
 
-		x+= 5;
+		x+= GameWindowManager::winScaleLayoutSize( 5 );
 		// draw the text
 		text->draw( x, y, textColor, textDropColor );
 		cursorPos = textWidth + x;
@@ -290,7 +292,8 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 
 	// draw the text
 	Int fontHeight = TheWindowManager->winFontHeight( instData->getFont() );
-	Int startOffset = 5;
+	// GenOnline @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+	Int startOffset = GameWindowManager::winScaleLayoutSize( 5 );
 	Int width;
 
 	width = size.x - (2 * startOffset);
@@ -375,7 +378,8 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 
 	// draw the text
 	Int fontHeight = TheWindowManager->winFontHeight( instData->getFont() );
-	Int startOffset = 5;
+	// GenOnline @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+	Int startOffset = GameWindowManager::winScaleLayoutSize( 5 );
 	Int width;
 
 	width = size.x - (2 * startOffset);

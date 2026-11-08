@@ -49,6 +49,8 @@ const FieldParse Image::m_imageFieldParseTable[] =
 	{ "TextureHeight",	INI::parseInt,											nullptr, 		offsetof( Image, m_textureSize.y ) },
 	{ "Coords",					Image::parseImageCoords,						nullptr, 		offsetof( Image, m_UVCoords ) },
 	{ "Status",					Image::parseImageStatus,						nullptr, 		offsetof( Image, m_status ) },
+	// GenOnline @feature arcticdolphin 08/11/2026 Optional border rows that three-piece bars keep at a fixed thickness.
+	{ "Border",					INI::parseReal,											nullptr, 		offsetof( Image, m_border ) },
 
 	{ nullptr,							nullptr,																nullptr, 		0 }
 
@@ -153,6 +155,7 @@ Image::Image()
 	m_imageSize.y = 0;
 	m_rawTextureData = nullptr;
 	m_status = IMAGE_STATUS_NONE;
+	m_border = 0.0f;
 
 }
 
