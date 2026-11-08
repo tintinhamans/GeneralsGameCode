@@ -22,13 +22,29 @@ file as input, and the GO-only layouts there get the same fixes. All rects are i
   row fixed. Horizontal runs get the same treatment.
 - Insets: inside a USER frame, content whose left and right insets differ by 1-4 units moves
   sideways to make them even; top and bottom too when both are at most 16 units. Menus only.
+- Stack gaps: a vertical run of bordered controls (combo box, entry field, push or radio button)
+  whose gap is 0 or 1 opens to a 2 unit gap; each row keeps its top and pitch and loses the
+  difference in height, down to 18 units. Menus only.
+- Column gaps: a row of three or more bordered controls with the same top and height and gaps of
+  0 to 8 gets one gap, the most common (4 when all differ, at least 2); the widest control absorbs
+  the difference so the row keeps its outer edges. Every row of the grid and the column headers
+  above it move with their columns. Menus only.
+- Entry pairs: an entry field with a push button to its right on its row (nothing between, at most 40
+  units away, like the chat field and its send button) reaches to the button less the grid gap of
+  the parent (its most common column gap, else 4, at least 2). Under a list that spans the pair, the
+  field takes the list's left edge and the button its right edge. The button takes the field's top
+  and height when both are within 3 units. Menus only.
+- Titles: the screen title of a ruler menu (the large or Title template static text above the first
+  header line in the frame) moves to TITLE_LEFT, the most common title edge, is centred vertically
+  between the frame top and the line, and draws left aligned. Menus only.
 - Overrides: GenOnline/tools/wnd_fixes.py sets absolute rects last; the rules never move those windows.
 
 A move never creates an overlap with a sibling and never pushes a window or its children further
 out of their parent; such moves are skipped and logged. Children move with their window. The rules
 repeat until nothing changes. In-game layouts get only the edge, label and equal row rules;
-MainMenu and ControlBar keep their geometry apart from the original 1 unit equal rows rule. Only values change in place: every other byte, the CRLF line endings
-and the file layout stay. Names, callbacks, images, text, fonts and CREATIONRESOLUTION stay.
+MainMenu and ControlBar keep their geometry apart from the original 1 unit equal rows rule. Only
+values change in place: every other byte, the CRLF line endings and the file layout stay. Names,
+callbacks, images, text, fonts and CREATIONRESOLUTION stay; only a title's CENTERED flag changes.
 
 Usage:
     python GenOnline/tools/go_wnd_layouts.py           write the layouts into GenOnline/data/core/Window (GenOnline layouts for both games) and zerohour/Window
@@ -119,6 +135,18 @@ FIELD_HEIGHT = 40          # a childless USER window up to this height counts as
 INSET_SPREAD = 4
 VERTICAL_INSET = 16        # top and bottom insets only even out when both are this tight
 
+BORDERED_KINDS = {"COMBOBOX", "ENTRYFIELD", "PUSHBUTTON", "RADIOBUTTON"}
+MIN_GAP = 2                # stacked or side by side bordered controls keep at least this gap
+MIN_HEIGHT = 18            # a stack gap never shrinks a control below this height
+COLUMN_REACH = 8           # neighbouring columns of one row are at most this far apart
+DEFAULT_COLUMN_GAP = 4     # column gap when every gap of a row differs
+
+# shared left edge of the ruler menu titles: the most common one (GameSpy game options and WOL welcome
+# at 44, LAN game options and quick match at 45; LAN lobby 47, Skirmish 48, SaveLoad 55)
+TITLE_LEFT = 44
+TITLE_FONT = 16            # a static text this large, or with the Title template, can be a title
+TITLE_TEMPLATE = "Title"
+
 IN_GAME = re.compile(
     r"^Window/(ControlBar|ControlBarPopupDescription|Diplomacy|GenPowersShortcutBar\w*|GeneralsExpPoints"
     r"|InGameChat|IME\w*|MOTD|ReplayControl|InGamePopupMessage)\.wnd$",
@@ -128,7 +156,7 @@ GEOMETRY_KEPT = {
     "window/menus/mainmenu.wnd",  # laid out around the logo and side panels by hand
     "window/controlbar.wnd",      # slots sit on the bar art and ControlBarScheme code places windows too
 }
-MENU_RULES = ("frame", "edges", "labels", "spacing", "insets")
+MENU_RULES = ("frame", "edges", "labels", "spacing", "insets", "gaps", "columns", "pairs", "titles")
 IN_GAME_RULES = ("edges", "labels", "spacing")
 KEPT_RULES = ("rows",)     # equal rows within STRICT only
 
@@ -151,7 +179,10 @@ TOKEN_RE = re.compile(
     r"|^[ \t]*NAME[ \t]*=[ \t]*\"(?P<name>[^\"]*)\""
     r"|SCREENRECT[ \t]*=[ \t]*UPPERLEFT:[ \t]*(?P<x0>-?\d+)[ \t]+(?P<y0>-?\d+)[ \t]*,\s*"
     r"BOTTOMRIGHT:[ \t]*(?P<x1>-?\d+)[ \t]+(?P<y1>-?\d+)"
-    r"|^[ \t]*(?P<prop>\w*DRAWDATA)[ \t]*=(?P<body>[^;]*);",
+    r"|^[ \t]*(?P<prop>\w*DRAWDATA)[ \t]*=(?P<body>[^;]*);"
+    r"|^[ \t]*FONT[ \t]*=[ \t]*NAME:[ \t]*\"[^\"]*\"[ \t]*,[ \t]*SIZE:[ \t]*(?P<size>\d+)"
+    r"|^[ \t]*HEADERTEMPLATE[ \t]*=[ \t]*\"(?P<header>[^\"]*)\""
+    r"|^[ \t]*STATICTEXTDATA[ \t]*=[ \t]*CENTERED:[ \t]*(?P<centered>\d+)",
     re.M,
 )
 SLOT_RE = re.compile(
@@ -171,6 +202,9 @@ class Window:
         self.original = None   # rect as parsed
         self.spans = None      # text spans of the four rect numbers
         self.draws = []        # (property, [(image, color, border)])
+        self.font_size = 0
+        self.header = ""
+        self.centered = None   # (value, text span) of STATICTEXTDATA CENTERED
 
     def walk(self):
         for child in self.children:
@@ -203,6 +237,12 @@ def parse_windows(text):
         elif m.group("prop"):
             slots = [(s["image"], s["color"].split(), s["border"].split()) for s in SLOT_RE.finditer(m.group("body"))]
             top.draws.append((m.group("prop"), slots))
+        elif m.group("size"):
+            top.font_size = int(m.group("size"))
+        elif m.group("header") is not None:
+            top.header = m.group("header")
+        elif m.group("centered"):
+            top.centered = (int(m.group("centered")), m.span("centered"))
     if len(stack) != 1:
         raise ValueError("WINDOW without END")
     return root
@@ -274,6 +314,9 @@ class _Context:
     def __init__(self, locked):
         self.locked = locked     # ids of windows the overrides own
         self.labels = set()      # ids of labels the label rule owns vertically
+        self.titles = set()      # ids of screen titles the title rule owns
+        self.headers = set()     # ids of column headers kept out of the equal rows rule
+        self.uncentred = []      # titles that draw left aligned from now on
         self.notes = []
         self.touched = {}        # rule -> ids of the windows it moved or sized
 
@@ -458,7 +501,7 @@ def snap_edges(ctx, parent):
     def free(item, axis):
         # labels own their vertical place; windows flush with a parent edge stay anchored to it
         r = item[0].rect
-        return (id(item[0]) not in stacked and not (axis == 1 and _is_label(ctx, item))
+        return (id(item[0]) not in stacked and id(item[0]) not in ctx.titles and not (axis == 1 and _is_label(ctx, item))
                 and r[axis] != pr[axis] and r[axis + 2] != pr[axis + 2])
 
     for axis in (0, 1):
@@ -531,6 +574,8 @@ def label_pairs(parent):
 def centre_labels(ctx, parent):
     changed = 0
     for label, control in label_pairs(parent):
+        if id(label[0]) in ctx.titles:
+            continue
         lr, cr = label[0].rect, control[0].rect
         h = lr[3] - lr[1]
         y0 = (cr[1] + cr[3] - h + 1) // 2  # centre on the control, halves round up
@@ -615,7 +660,9 @@ def _equalize(ctx, parent, vertical, tolerance=SNAP):
     changed = 0
     rows = {}
     for win in parent.children:
-        if win.rect is None or id(win) in ctx.locked or (vertical and id(win) in ctx.labels):
+        if win.rect is None or id(win) in ctx.locked or id(win) in ctx.titles:
+            continue
+        if vertical and (id(win) in ctx.labels or id(win) in ctx.headers):
             continue
         rows.setdefault(win.rect, []).append(win)  # same-rect windows (e.g. Mute/UnMute) are one row
     # any window type: a column mixing an entry field and combo boxes is still one stack of rows
@@ -678,7 +725,7 @@ def even_insets(ctx, parent):
     changed = 0
     for axis in (0, 1):
         cross = 1 - axis
-        group = [w for w in parent.children if w.rect is not None
+        group = [w for w in parent.children if w.rect is not None and id(w) not in ctx.titles
                  and fr[axis] < w.rect[axis] and w.rect[axis + 2] < fr[axis + 2]
                  and fr[cross] <= w.rect[cross] and w.rect[cross + 2] <= fr[cross + 2]]
         if not group:
@@ -693,6 +740,240 @@ def even_insets(ctx, parent):
         if d:
             moves = [([w], _moved(w.rect, d if axis == 0 else 0, d if axis == 1 else 0)) for w in group]
             changed += _try(ctx, parent, moves, "insets")
+    return changed
+
+
+# ---------------------------------------------------------------------------------------------
+# stack gaps and column gaps
+
+
+def _bordered_items(ctx, parent):
+    """The parent's items holding a bordered control that no override or title owns."""
+    return [it for it in _items(parent) if any(w.kind in BORDERED_KINDS for w in it)
+            and not any(id(w) in ctx.locked or id(w) in ctx.titles for w in it)]
+
+
+def _chains(cluster, vertical, max_gap, min_len):
+    """Split a cluster, sorted along the stack, into chains whose neighbouring gaps lie in 0..max_gap."""
+    rows = sorted(cluster, key=lambda r: _axis(r[0].rect, vertical)[2])
+    chains, current = [], rows[:1]
+    for prev, nxt in zip(rows, rows[1:]):
+        start, size = _axis(prev[0].rect, vertical)[2:]
+        if 0 <= _axis(nxt[0].rect, vertical)[2] - (start + size) <= max_gap:
+            current.append(nxt)
+            continue
+        if len(current) >= min_len:
+            chains.append(current)
+        current = [nxt]
+    if len(current) >= min_len:
+        chains.append(current)
+    return chains
+
+
+def _header_above(items, x0, x1, top):
+    """The static text just above a column at x0-x1 whose first row starts at top, if any."""
+    best = None
+    for item in items:
+        r = item[0].rect
+        if (all(w.kind == "STATICTEXT" for w in item) and top - COLUMN_REACH <= r[3] <= top
+                and 2 * x0 <= r[0] + r[2] <= 2 * x1 and (best is None or r[3] > best[0].rect[3])):
+            best = item
+    return best
+
+
+def column_headers(ctx, parent):
+    """Ids of the static texts heading a stack of bordered controls (kept out of the equal rows rule)."""
+    items = _items(parent)
+    ids = set()
+    for cluster in _clusters(_bordered_items(ctx, parent), True):
+        for chain in _chains(cluster, True, MIN_GAP, 2):
+            r = chain[0][0].rect
+            header = _header_above(items, r[0], r[2], r[1])
+            if header:
+                ids.update(id(w) for w in header)
+    return ids
+
+
+def open_gaps(ctx, parent):
+    """Open vertical runs of touching bordered controls to MIN_GAP; rows keep their top and pitch."""
+    batches = {}
+    for cluster in _clusters(_bordered_items(ctx, parent), True):
+        for chain in _chains(cluster, True, MIN_GAP - 1, 2):
+            rects = [item[0].rect for item in chain]
+            cuts = [MIN_GAP - (b[1] - a[3]) for a, b in zip(rects, rects[1:])]
+            cuts.append(cuts[-1])
+            moves = [(item, (r[0], r[1], r[2], r[3] - cut)) for item, r, cut in zip(chain, rects, cuts)]
+            low = min(new[3] - new[1] for _, new in moves)
+            if low < MIN_HEIGHT:
+                first = chain[0][0]
+                ctx.notes.append(f"gaps: skipped {first.kind} {_short(first)} run of {len(chain)} at {first.rect}: "
+                                 f"height {low} below {MIN_HEIGHT}")
+                continue
+            # columns of one grid share their row tops and change together so the rows stay aligned
+            batches.setdefault(tuple(r[1] for r in rects), []).extend(moves)
+    return sum(_try(ctx, parent, batches[key], "gaps") for key in sorted(batches))
+
+
+def even_columns(ctx, parent):
+    """Give rows of side by side bordered controls one gap, keeping their outer edges; every row of
+    the grid and the headers above its columns move along."""
+    grids = {}
+    for cluster in _clusters(_bordered_items(ctx, parent), False):
+        for chain in _chains(cluster, False, COLUMN_REACH, MIN_RUN):
+            grids.setdefault(tuple((item[0].rect[0], item[0].rect[2]) for item in chain), []).append(chain)
+    items = _items(parent)
+    changed = 0
+    owners = Counter(span for spans in grids for span in spans)
+    for spans in sorted(grids):
+        gaps = [b[0] - a[1] for a, b in zip(spans, spans[1:])]
+        target = DEFAULT_COLUMN_GAP if max(Counter(gaps).values()) == 1 else _snap_target(gaps)
+        target = max(target, MIN_GAP)
+        if all(g == target for g in gaps):
+            continue
+        if any(owners[span] > 1 for span in spans):
+            # another row shares a column but not the others (an extra control at the end of one row)
+            ctx.notes.append(f"columns: skipped row at {spans[0][0]}-{spans[-1][1]}, y {grids[spans][0][0][0].rect[1]}: "
+                             f"its columns differ from another row of the grid")
+            continue
+        widths = [x1 - x0 for x0, x1 in spans]
+        wide = widths.index(max(widths))
+        widths[wide] -= target * len(gaps) - sum(gaps)
+        new, x = [], spans[0][0]
+        for w in widths:
+            new.append((x, x + w))
+            x += w + target
+        moves = [(item, (nx0, item[0].rect[1], nx1, item[0].rect[3]))
+                 for chain in grids[spans] for item, (nx0, nx1) in zip(chain, new)]
+        top = min(chain[0][0].rect[1] for chain in grids[spans])
+        for (x0, x1), (nx0, nx1) in zip(spans, new):
+            header = _header_above(items, x0, x1, top)
+            if header:
+                r = header[0].rect
+                moves.append((header, (r[0] + nx0 - x0, r[1], nx1 if r[2] == x1 else r[2] + nx0 - x0, r[3])))
+        changed += _try(ctx, parent, moves, "columns")
+    return changed
+
+
+# ---------------------------------------------------------------------------------------------
+# entry fields and their buttons
+
+
+def _has_kind(item, kind):
+    return any(w.kind == kind for w in item)
+
+
+def entry_pairs(ctx, parent):
+    """Return [(field item, button item)]: each entry field with the nearest push button to its right on its row."""
+    items = _items(parent)
+    free = [it for it in items if not any(id(w) in ctx.locked or id(w) in ctx.titles for w in it)]
+    pairs = []
+    for field in (it for it in free if _has_kind(it, "ENTRYFIELD")):
+        fr = field[0].rect
+        best = None
+        for button in (it for it in free if _has_kind(it, "PUSHBUTTON") and it is not field):
+            br = button[0].rect
+            gap = br[0] - fr[2]
+            if br[0] <= fr[0] or not -SNAP <= gap <= LABEL_REACH:
+                continue
+            if 2 * (min(fr[3], br[3]) - max(fr[1], br[1])) <= min(fr[3] - fr[1], br[3] - br[1]):
+                continue
+            band = (fr[2], max(fr[1], br[1]), br[0], min(fr[3], br[3]))
+            if gap > 0 and any(o is not field and o is not button and _overlaps(o[0].rect, band) for o in items):
+                continue
+            if best is None or gap < best[0]:
+                best = (gap, button)
+        if best:
+            pairs.append((field, best[1]))
+    return pairs
+
+
+def _list_above(items, fr, br):
+    """The list box ending just above a field and button, spanning them within SNAP, with nothing between."""
+    for item in items:
+        r = item[0].rect
+        if (_has_kind(item, "SCROLLLISTBOX") and fr[1] - COLUMN_REACH <= r[3] <= fr[1]
+                and abs(r[0] - fr[0]) <= SNAP and abs(r[2] - br[2]) <= SNAP):
+            band = (r[0], r[3], r[2], fr[1])
+            if r[3] == fr[1] or not any(o is not item and _overlaps(o[0].rect, band) for o in items):
+                return item
+    return None
+
+
+def _grid_gap(ctx, parent):
+    """The parent's most common column gap among rows of bordered controls, else the default; at least MIN_GAP."""
+    gaps = []
+    for cluster in _clusters(_bordered_items(ctx, parent), False):
+        for chain in _chains(cluster, False, COLUMN_REACH, MIN_RUN):
+            gaps += [b[0].rect[0] - a[0].rect[2] for a, b in zip(chain, chain[1:])]
+    return max(_snap_target(gaps) if gaps else DEFAULT_COLUMN_GAP, MIN_GAP)
+
+
+def fit_entry_fields(ctx, parent):
+    """Stretch each entry field to its button, lining the pair up with a list box right above it."""
+    changed = 0
+    items = _items(parent)
+    for field, button in entry_pairs(ctx, parent):
+        fr, br = field[0].rect, button[0].rect
+        above = _list_above(items, fr, br)
+        x1 = above[0].rect[2] if above else br[2]
+        x0 = above[0].rect[0] if above else fr[0]
+        y0, y1 = br[1], br[3]
+        if abs(br[1] - fr[1]) <= SNAP and abs((br[3] - br[1]) - (fr[3] - fr[1])) <= SNAP:
+            y0, y1 = fr[1], fr[3]
+        new_button = (x1 - (br[2] - br[0]), y0, x1, y1)
+        new_field = (x0, fr[1], new_button[0] - _grid_gap(ctx, parent), fr[3])
+        changed += _try(ctx, parent, [(button, new_button), (field, new_field)], "pairs")
+    return changed
+
+
+# ---------------------------------------------------------------------------------------------
+# screen titles
+
+
+def _is_title(win):
+    return win.kind == "STATICTEXT" and (win.header == TITLE_TEMPLATE or win.font_size >= TITLE_FONT)
+
+
+def screen_titles(root):
+    """Return [(frame, title or None, band top, band bottom)] for each ruler frame with a header line:
+    the title is the largest title text whose centre lies above the frame's first header line."""
+    found = []
+    for _, frame in _ruler_frames(root):
+        fr = frame.rect
+        lines = [c.rect[1] for c in frame.children if c.rect is not None and c.kind == "USER"
+                 and c.rect[3] - c.rect[1] <= MIN_GAP and 2 * (c.rect[2] - c.rect[0]) >= fr[2] - fr[0]
+                 and fr[1] < c.rect[1] <= fr[1] + (fr[3] - fr[1]) // 4]
+        if not lines:
+            found.append((frame, None, fr[1], fr[1]))
+            continue
+        bottom = min(lines)
+        titles = [c for c in frame.children if c.rect is not None and _is_title(c)
+                  and c.rect[1] >= fr[1] - SNAP and c.rect[1] + c.rect[3] < 2 * bottom]
+        title = max(titles, key=lambda c: (c.header == TITLE_TEMPLATE, c.font_size, c.rect[2] - c.rect[0]), default=None)
+        found.append((frame, title, fr[1], bottom))
+    return found
+
+
+def _title_item(frame, title):
+    return [w for w in frame.children if w.rect == title.rect and _is_title(w)]
+
+
+def align_titles(ctx, root):
+    """Move each screen title to TITLE_LEFT, centre it in its header band and draw it left aligned."""
+    changed = 0
+    ctx.uncentred = []
+    for frame, title, top, bottom in screen_titles(root):
+        if title is None:
+            ctx.notes.append("titles: no title found")
+            continue
+        item = _title_item(frame, title)
+        r = title.rect
+        h = min(r[3] - r[1], bottom - top)  # text centres in its rect, so a taller title fills the band
+        y0 = (top + bottom - h + 1) // 2
+        changed += _try(ctx, frame, [(item, (TITLE_LEFT, y0, TITLE_LEFT + r[2] - r[0], y0 + h))], "titles")
+        ctx.notes.append(f"titles: {_short(title)} {title.original} -> {title.rect}")
+        if title.rect[0] == TITLE_LEFT:
+            ctx.uncentred += [w for w in item if w.centered and w.centered[0]]
     return changed
 
 
@@ -726,15 +1007,20 @@ def apply_overrides(ctx, root, fixes):
     return changed
 
 
-def _settle(ctx, root, rules, fixes, name):
-    """Repeat the edge, label, spacing, inset and override rules until nothing changes."""
+def _settle(ctx, root, rules, fixes, name, late=True):
+    """Repeat the rules until nothing changes; without late, the gap, column and title rules only
+    keep their windows (titles, column headers) out of the other rules."""
     parents = [p for p in (root, *root.walk()) if p.rect is not None]
     for _ in range(MAX_PASSES):
         ctx.notes = []
         before = [w.rect for w in root.walk()]
-        ctx.labels = set()
+        ctx.labels, ctx.titles, ctx.headers = set(), set(), set()
+        if "titles" in rules:
+            ctx.titles = {id(w) for frame, title, _, _ in screen_titles(root) if title for w in _title_item(frame, title)}
         if "labels" in rules:
-            ctx.labels = {id(w) for p in parents for label, _ in label_pairs(p) for w in label}
+            ctx.labels = {id(w) for p in parents for label, _ in label_pairs(p) for w in label} - ctx.titles
+        if "gaps" in rules or "columns" in rules:
+            ctx.headers = {i for p in parents for i in column_headers(ctx, p)}
         for p in parents:
             if "edges" in rules:
                 snap_edges(ctx, p)
@@ -749,6 +1035,15 @@ def _settle(ctx, root, rules, fixes, name):
         for p in parents:
             if "insets" in rules:
                 even_insets(ctx, p)
+        for p in parents:
+            if late and "gaps" in rules:
+                open_gaps(ctx, p)
+            if late and "columns" in rules:
+                even_columns(ctx, p)
+            if late and "pairs" in rules:
+                fit_entry_fields(ctx, p)
+        if late and "titles" in rules:
+            align_titles(ctx, root)
         apply_overrides(ctx, root, fixes)
         if [w.rect for w in root.walk()] == before:
             return
@@ -767,7 +1062,8 @@ def align(text, name=None, rules=None):
     """Return (text, info) with the alignment rules applied.
 
     info holds "frame" (a ruler frame was found), "stats" (windows each rule moved), "notes" (skips and
-    remarks from the settled pass) and "changes" ([(window name, input rect, output rect)]).
+    remarks from the settled pass), "changes" ([(window name, input rect, output rect)]) and
+    "uncentred" (names of titles that now draw left aligned).
     """
     root = parse_windows(text)
     rules = _rules(name) if rules is None else rules
@@ -776,8 +1072,9 @@ def align(text, name=None, rules=None):
     ctx = _Context(locked)
     frame_notes = []
     if "frame" in rules and _has_ruler_frame(root):
-        # settle first so runs and columns within the snap distance are exact before scaling stretches them
-        _settle(ctx, root, rules, fixes, name)
+        # settle first so runs and columns within the snap distance are exact before scaling stretches them;
+        # gaps, columns and titles work on the final geometry only
+        _settle(ctx, root, rules, fixes, name, late=False)
         ctx.notes = []
         map_frames(ctx, root)
         frame_notes, ctx.notes = ctx.notes, []
@@ -789,10 +1086,14 @@ def align(text, name=None, rules=None):
             continue
         changes.append((win.name, win.original, win.rect))
         edits.extend(zip(win.spans, win.rect))
+    edits.extend((win.centered[1], 0) for win in ctx.uncentred)
     for (start, end), value in sorted(edits, reverse=True):
         text = text[:start] + str(value) + text[end:]
+    if ctx.uncentred:
+        ctx.touch("titles", ctx.uncentred)
     stats = Counter({rule: len(ids) for rule, ids in ctx.touched.items()})
-    info = {"frame": frame, "stats": stats, "notes": frame_notes + list(dict.fromkeys(ctx.notes)), "changes": changes}
+    info = {"frame": frame, "stats": stats, "notes": frame_notes + list(dict.fromkeys(ctx.notes)), "changes": changes,
+            "uncentred": [win.name for win in ctx.uncentred]}
     return text, info
 
 
@@ -865,7 +1166,7 @@ def build(retail, game="zerohour"):
     return results
 
 
-RULE_NAMES = ("frame", "edges", "labels", "spacing", "insets", "override")
+RULE_NAMES = ("frame", "edges", "labels", "spacing", "insets", "gaps", "columns", "pairs", "titles", "override")
 
 
 def _move_size(change):
@@ -902,6 +1203,12 @@ def write_review(results, path=REVIEW):
         "- Other in-game layouts get only the edge, label and equal row rules.",
         "- Labels skip horizontal sliders: the track draws from the top of the slider rect at a fixed pixel size.",
         "- WOLCustomLobby ButtonRefresh sat 30 units left of its parent in retail; scaling with the frame makes that 31.",
+        f"- Titles: the ruler menu titles (GameSpy and LAN game options, LAN lobby, SaveLoad, Skirmish, WOL quick match and welcome) share left edge {TITLE_LEFT} and centre between the frame top and the first header line; the Skirmish title draws left aligned now (it was centred). No title found in GameSpyLoginProfile, NetworkDirectConnect and ReplayMenu (no header line, the title sits in a panel), ScoreScreen (its header band holds column labels) and WOLCustomLobby.",
+        "- The title no longer counts as frame content for the inset rule, which gives SaveLoad and WOL quick match back their retail insets (content 2 units up and 2 units left).",
+        f"- Stack gaps: the touching player rows of the Skirmish, LAN and GameSpy game options grids and the Options detail radios get a {MIN_GAP} unit gap at the same pitch; each control is 2 units shorter.",
+        f"- Column gaps: LAN game options columns are {MIN_GAP} units apart (were 1, 3, 1), Skirmish 3 (were 3, 3, 2); GameSpy is already even, and its last row, which also holds Select Map, is skipped.",
+        "- Entry pairs: the chat fields of the LAN lobby, LAN and GameSpy game options and the score screen reach their send button less the grid gap (2 next to a player grid, else the button row gap or 4), and line up with the chat list above. WOLCustomLobby already sits at its button row gap of 6. The LAN lobby name field and Clear are no pair: the Games header overlaps the space between them.",
+        "- Map lists: with Open Sans a list row is 36 px at 1080p (font height plus 1), so the 152-153 unit map lists show 7 full rows and part of an 8th. List heights are left alone; the row height is the engine's.",
         "",
         "## Most changed",
         "",

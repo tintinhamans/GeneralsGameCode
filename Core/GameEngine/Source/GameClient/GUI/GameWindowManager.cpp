@@ -1209,7 +1209,13 @@ Int GameWindowManager::winScaleLayoutFontSize(Int pointSize)
 	if (pointSize <= 0)
 		return pointSize;
 
-	Int scaled = winScaleLayoutSize(pointSize);
+	// GenOnline @tweak arcticdolphin 08/11/2026 Text grows by the ResolutionFontAdjustment share of the screen height scale.
+	Real adjustment = 1.0f;
+	if (TheGlobalLanguageData != nullptr)
+		adjustment = TheGlobalLanguageData->getResolutionFontSizeAdjustment();
+	const Real heightScale = (Real)winLayoutScreenHeight() / (Real)DEFAULT_DISPLAY_HEIGHT;
+	const Real fontScale = 1.0f + (heightScale - 1.0f) * adjustment;
+	Int scaled = REAL_TO_INT_FLOOR(pointSize * fontScale + 0.5f);
 	if (scaled < 1)
 		scaled = 1;
 	// FontLibrary::getFont rejects sizes over 100
@@ -2196,6 +2202,11 @@ GameWindow *GameWindowManager::gogoGadgetListBox( GameWindow *parent,
 
 	if( title )
 		listboxData->displayHeight -= winFontHeight( instData->getFont() );
+
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 22/11/2026 The last row stays inside the area the list text is drawn in.
+	listboxData->displayHeight -= GadgetListBoxGetTextInset( listbox );
+#endif
 
   // Set display position to the top of the list
   listboxData->displayPos = 0;

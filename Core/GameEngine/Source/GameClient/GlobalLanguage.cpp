@@ -204,9 +204,9 @@ struct UIFontFile
 
 static const UIFontFile UIFontFiles[] =
 {
-	{ "Fonts\\OpenSans-Regular.ttf", "Open Sans", FW_NORMAL },
-	{ "Fonts\\OpenSans-SemiBold.ttf", "Open Sans SemiBold", FW_SEMIBOLD },
-	{ "Fonts\\OpenSans-Bold.ttf", "Open Sans", FW_BOLD },
+	{ "Fonts\\IBMPlexSans-Regular.ttf", "IBM Plex Sans", FW_NORMAL },
+	{ "Fonts\\IBMPlexSansCondensed-SemiBold.ttf", "IBM Plex Sans Cond SmBld", FW_SEMIBOLD },
+	{ "Fonts\\IBMPlexSans-Bold.ttf", "IBM Plex Sans", FW_BOLD },
 };
 
 // GDI silently substitutes a missing face, so ask the DC which face it really selected.
@@ -275,13 +275,13 @@ void GlobalLanguage::registerUIFonts()
 
 	if (!facesSelected)
 	{
-		NetworkLog(ELogVerbosity::LOG_RELEASE, "UI font: Open Sans is registered but not selectable, the retail fonts stay");
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "UI font: IBM Plex Sans is registered but not selectable, the retail fonts stay");
 		unregisterUIFonts();
 		return;
 	}
 
 	m_uiFontRegistered = TRUE;
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "UI font: Open Sans registered, the retail UI faces draw with it");
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "UI font: IBM Plex Sans registered, the retail UI faces draw with it");
 }
 #endif
 

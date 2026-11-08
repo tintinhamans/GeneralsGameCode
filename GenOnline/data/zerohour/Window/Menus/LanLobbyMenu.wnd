@@ -1077,7 +1077,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = ENTRYFIELD;
       SCREENRECT = UPPERLEFT: 53 468,
-                   BOTTOMRIGHT: 690 492,
+                   BOTTOMRIGHT: 712 492,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:TextEntryChat";
       STATUS = ENABLED+IMAGE;
@@ -1178,8 +1178,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 714 468,
-                   BOTTOMRIGHT: 750 492,
+      SCREENRECT = UPPERLEFT: 716 468,
+                   BOTTOMRIGHT: 752 492,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:ButtonEmote";
       STATUS = ENABLED+IMAGE;
@@ -1225,8 +1225,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 47 43,
-                   BOTTOMRIGHT: 655 76,
+      SCREENRECT = UPPERLEFT: 44 42,
+                   BOTTOMRIGHT: 652 75,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:";
       STATUS = ENABLED;

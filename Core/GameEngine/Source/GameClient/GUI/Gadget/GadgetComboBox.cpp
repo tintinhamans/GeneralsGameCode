@@ -200,8 +200,10 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 						}
 
 						newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
-						window->winSetSize(winSize.x , winSize.y + newSize.y );
-						listBox->winSetPosition(0, winSize.y);
+						// GenOnline @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the bottom line of the field.
+						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
+						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );
+						listBox->winSetPosition(0, winSize.y - frameOverlap);
 
 						listBox->winSetSize(listX , newSize.y);
 					}
@@ -545,7 +547,8 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 						listData->slider->winHide(FALSE);
 				}
 				newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
-				listBox->winSetPosition(0, editBoxSize.y);
+				// GenOnline @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the bottom line of the field.
+				listBox->winSetPosition(0, editBoxSize.y - GadgetListBoxGetKitComboFrame( listBox ));
 				listBox->winSetSize(listX , newSize.y);
 			}
 
@@ -682,8 +685,10 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 						}
 
 						newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
-						window->winSetSize(winSize.x , winSize.y + newSize.y );
-						listBox->winSetPosition(0, winSize.y);
+				// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the bottom line of the field.
+						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
+						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );
+						listBox->winSetPosition(0, winSize.y - frameOverlap);
 
 						listBox->winSetSize(listX , newSize.y);
 					}
