@@ -138,14 +138,19 @@ SCROLL_PILLS = {
 }
 # arrow cells in the combo arrow states: state -> (line, fill, glyph); the engine draws the lines with GOScrollLine
 SCROLL_ARROWS = {
-    "": ARROW_STATES["Enabled"],
-    "Hilite": ARROW_STATES["Hilite"],
-    "Pushed": ARROW_STATES["HiliteSelected"],
-    "Disabled": ARROW_STATES["Disabled"],
+    "": (TRANSPARENT, GLYPH),
+    "Hilite": (SLIDER_HOVER, GLYPH_ACTIVE),
+    "Pushed": (rgba("#2F4BFF", 0.40), GLYPH_ACTIVE),
+    "Disabled": (TRANSPARENT, GLYPH_DISABLED),
 }
-# the kit scroll column is 14 layout px wide with a 4 px channel the pill fills (W3DVerticalSlider, GadgetListBox)
+SCROLL_HIGHLIGHT_INSET = 2.0  # cell units: clear of the separator and the list frame
+SCROLL_HIGHLIGHT_RADIUS = 2.0
+# the kit scroll column is 14 layout px wide with a 6 px channel the pill fills (W3DVerticalSlider, GadgetListBox)
 SCROLL_ARROW_SIZE = 14  # the square arrow cell, drawn at its own layout size
-SCROLL_PILL_WIDTH = 4
+SCROLL_PILL_WIDTH = 6
+# pill and track pieces: twice the pill width so the semicircle ends stay smooth when drawn larger (4K draws them 22 px wide);
+# the engine draws each end as tall as half the drawn width, so they stay true semicircles
+SCROLL_PILL_ART = (12, 6)
 SCROLL_LINE = ARROW_STATES["Enabled"][0]  # kit list frames, cell lines and the column separator the engine draws, Border = LINE_LAYOUT
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
@@ -423,13 +428,18 @@ def channel_piece(w, h, line, fill):
     return paint(w, h, lambda x, y: line if min(x, w - x) < TRACK_LINE else fill)
 
 
-def scroll_arrow_piece(w, h, up, line, fill, glyph):
-    """An arrow cell of the scroll column: the combo arrow chevron on the state fill.
-    The engine draws the cell lines with GOScrollLine so they match the list frame and the separator."""
+def scroll_arrow_piece(w, h, up, highlight, glyph):
+    """An arrow cell of the scroll column: no box, the combo arrow chevron over an optional rounded highlight.
+    The engine draws the column separator with GOScrollLine; the list frame closes the other sides."""
     hit = chevron_glyph(w, h, up)
+    inset, radius = SCROLL_HIGHLIGHT_INSET, SCROLL_HIGHLIGHT_RADIUS
 
     def sample(x, y):
-        return glyph if hit(x, y) else fill
+        if hit(x, y):
+            return glyph
+        dx = max(inset + radius - x, x - (w - inset - radius), 0.0)
+        dy = max(inset + radius - y, y - (h - inset - radius), 0.0)
+        return highlight if math.hypot(dx, dy) < radius else TRANSPARENT
 
     return paint(w, h, sample)
 
@@ -486,7 +496,7 @@ def pieces():
     for state, color in SLIDER_MARKER.items():
         out.append((f"GOSliderThumb{state}", mw, mh, marker_piece(mw, mh, color)))
     # list scroll bar: a channel the pill fills, like the slider track, then the arrow cells and the separator
-    pw, ph = SCROLL_PILL_WIDTH, SCROLL_PILL_WIDTH // 2
+    pw, ph = SCROLL_PILL_ART
     out.append(("GOScrollTrackTop", pw, ph, round_cap(pw, ph, "top", *SCROLL_TRACK)))
     out.append(("GOScrollTrackCenter", pw, ph, channel_piece(pw, ph, *SCROLL_TRACK)))
     out.append(("GOScrollTrackBottom", pw, ph, round_cap(pw, ph, "bottom", *SCROLL_TRACK)))
