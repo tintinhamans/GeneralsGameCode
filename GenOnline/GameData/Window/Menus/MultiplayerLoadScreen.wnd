@@ -98,8 +98,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 596 335,
-                   BOTTOMRIGHT: 744 360,
+      SCREENRECT = UPPERLEFT: 597 335,
+                   BOTTOMRIGHT: 745 359,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextProgressTitle";
       STATUS = ENABLED;
@@ -147,8 +147,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PROGRESSBAR;
-      SCREENRECT = UPPERLEFT: 596 387,
-                   BOTTOMRIGHT: 744 407,
+      SCREENRECT = UPPERLEFT: 597 387,
+                   BOTTOMRIGHT: 745 407,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:ProgressLoad1";
       STATUS = ENABLED+IMAGE;
@@ -194,8 +194,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PROGRESSBAR;
-      SCREENRECT = UPPERLEFT: 596 411,
-                   BOTTOMRIGHT: 744 431,
+      SCREENRECT = UPPERLEFT: 597 411,
+                   BOTTOMRIGHT: 745 431,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:ProgressLoad2";
       STATUS = ENABLED+IMAGE;
@@ -241,8 +241,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PROGRESSBAR;
-      SCREENRECT = UPPERLEFT: 596 363,
-                   BOTTOMRIGHT: 744 383,
+      SCREENRECT = UPPERLEFT: 597 363,
+                   BOTTOMRIGHT: 745 383,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:ProgressLoad0";
       STATUS = ENABLED+IMAGE;
@@ -288,8 +288,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PROGRESSBAR;
-      SCREENRECT = UPPERLEFT: 596 483,
-                   BOTTOMRIGHT: 744 503,
+      SCREENRECT = UPPERLEFT: 597 483,
+                   BOTTOMRIGHT: 745 503,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:ProgressLoad5";
       STATUS = ENABLED+IMAGE;
@@ -335,8 +335,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PROGRESSBAR;
-      SCREENRECT = UPPERLEFT: 596 507,
-                   BOTTOMRIGHT: 744 527,
+      SCREENRECT = UPPERLEFT: 597 507,
+                   BOTTOMRIGHT: 745 527,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:ProgressLoad6";
       STATUS = ENABLED+IMAGE;
@@ -382,8 +382,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PROGRESSBAR;
-      SCREENRECT = UPPERLEFT: 596 459,
-                   BOTTOMRIGHT: 744 479,
+      SCREENRECT = UPPERLEFT: 597 459,
+                   BOTTOMRIGHT: 745 479,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:ProgressLoad4";
       STATUS = ENABLED+IMAGE;
@@ -429,8 +429,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PROGRESSBAR;
-      SCREENRECT = UPPERLEFT: 596 435,
-                   BOTTOMRIGHT: 744 455,
+      SCREENRECT = UPPERLEFT: 597 435,
+                   BOTTOMRIGHT: 745 455,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:ProgressLoad3";
       STATUS = ENABLED+IMAGE;
@@ -476,8 +476,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PROGRESSBAR;
-      SCREENRECT = UPPERLEFT: 596 531,
-                   BOTTOMRIGHT: 744 551,
+      SCREENRECT = UPPERLEFT: 597 531,
+                   BOTTOMRIGHT: 745 551,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:ProgressLoad7";
       STATUS = ENABLED+IMAGE;
@@ -523,8 +523,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 532 363,
-                   BOTTOMRIGHT: 592 383,
+      SCREENRECT = UPPERLEFT: 533 363,
+                   BOTTOMRIGHT: 593 383,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextTeam0";
       STATUS = ENABLED;
@@ -572,8 +572,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 532 387,
-                   BOTTOMRIGHT: 592 407,
+      SCREENRECT = UPPERLEFT: 533 387,
+                   BOTTOMRIGHT: 593 407,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextTeam1";
       STATUS = ENABLED;
@@ -621,8 +621,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 532 411,
-                   BOTTOMRIGHT: 592 431,
+      SCREENRECT = UPPERLEFT: 533 411,
+                   BOTTOMRIGHT: 593 431,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextTeam2";
       STATUS = ENABLED;
@@ -670,8 +670,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 532 435,
-                   BOTTOMRIGHT: 592 455,
+      SCREENRECT = UPPERLEFT: 533 435,
+                   BOTTOMRIGHT: 593 455,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextTeam3";
       STATUS = ENABLED;
@@ -719,8 +719,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 532 459,
-                   BOTTOMRIGHT: 592 479,
+      SCREENRECT = UPPERLEFT: 533 459,
+                   BOTTOMRIGHT: 593 479,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextTeam4";
       STATUS = ENABLED;
@@ -768,8 +768,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 532 483,
-                   BOTTOMRIGHT: 592 503,
+      SCREENRECT = UPPERLEFT: 533 483,
+                   BOTTOMRIGHT: 593 503,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextTeam5";
       STATUS = ENABLED;
@@ -817,8 +817,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 532 507,
-                   BOTTOMRIGHT: 592 527,
+      SCREENRECT = UPPERLEFT: 533 507,
+                   BOTTOMRIGHT: 593 527,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextTeam6";
       STATUS = ENABLED;
@@ -866,8 +866,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 532 531,
-                   BOTTOMRIGHT: 592 551,
+      SCREENRECT = UPPERLEFT: 533 531,
+                   BOTTOMRIGHT: 593 551,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextTeam7";
       STATUS = ENABLED;
@@ -915,8 +915,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 62 363,
-                   BOTTOMRIGHT: 242 383,
+      SCREENRECT = UPPERLEFT: 63 363,
+                   BOTTOMRIGHT: 243 383,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextPlayer0";
       STATUS = ENABLED;
@@ -964,8 +964,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 62 387,
-                   BOTTOMRIGHT: 242 407,
+      SCREENRECT = UPPERLEFT: 63 387,
+                   BOTTOMRIGHT: 243 407,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextPlayer1";
       STATUS = ENABLED;
@@ -1013,8 +1013,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 62 411,
-                   BOTTOMRIGHT: 242 431,
+      SCREENRECT = UPPERLEFT: 63 411,
+                   BOTTOMRIGHT: 243 431,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextPlayer2";
       STATUS = ENABLED;
@@ -1062,8 +1062,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 62 435,
-                   BOTTOMRIGHT: 242 455,
+      SCREENRECT = UPPERLEFT: 63 435,
+                   BOTTOMRIGHT: 243 455,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextPlayer3";
       STATUS = ENABLED;
@@ -1111,8 +1111,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 62 459,
-                   BOTTOMRIGHT: 242 479,
+      SCREENRECT = UPPERLEFT: 63 459,
+                   BOTTOMRIGHT: 243 479,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextPlayer4";
       STATUS = ENABLED;
@@ -1160,8 +1160,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 62 483,
-                   BOTTOMRIGHT: 242 503,
+      SCREENRECT = UPPERLEFT: 63 483,
+                   BOTTOMRIGHT: 243 503,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextPlayer5";
       STATUS = ENABLED;
@@ -1209,8 +1209,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 62 507,
-                   BOTTOMRIGHT: 242 527,
+      SCREENRECT = UPPERLEFT: 63 507,
+                   BOTTOMRIGHT: 243 527,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextPlayer6";
       STATUS = ENABLED;
@@ -1258,8 +1258,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 62 531,
-                   BOTTOMRIGHT: 242 551,
+      SCREENRECT = UPPERLEFT: 63 531,
+                   BOTTOMRIGHT: 243 551,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextPlayer7";
       STATUS = ENABLED;
@@ -1307,8 +1307,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 246 363,
-                   BOTTOMRIGHT: 528 383,
+      SCREENRECT = UPPERLEFT: 247 363,
+                   BOTTOMRIGHT: 529 383,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextSide0";
       STATUS = ENABLED;
@@ -1356,8 +1356,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 246 387,
-                   BOTTOMRIGHT: 528 407,
+      SCREENRECT = UPPERLEFT: 247 387,
+                   BOTTOMRIGHT: 529 407,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextSide1";
       STATUS = ENABLED;
@@ -1405,8 +1405,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 246 411,
-                   BOTTOMRIGHT: 528 431,
+      SCREENRECT = UPPERLEFT: 247 411,
+                   BOTTOMRIGHT: 529 431,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextSide2";
       STATUS = ENABLED;
@@ -1454,8 +1454,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 246 435,
-                   BOTTOMRIGHT: 528 455,
+      SCREENRECT = UPPERLEFT: 247 435,
+                   BOTTOMRIGHT: 529 455,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextSide3";
       STATUS = ENABLED;
@@ -1503,8 +1503,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 246 459,
-                   BOTTOMRIGHT: 528 479,
+      SCREENRECT = UPPERLEFT: 247 459,
+                   BOTTOMRIGHT: 529 479,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextSide4";
       STATUS = ENABLED;
@@ -1552,8 +1552,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 246 483,
-                   BOTTOMRIGHT: 528 503,
+      SCREENRECT = UPPERLEFT: 247 483,
+                   BOTTOMRIGHT: 529 503,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextSide5";
       STATUS = ENABLED;
@@ -1601,8 +1601,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 246 507,
-                   BOTTOMRIGHT: 528 527,
+      SCREENRECT = UPPERLEFT: 247 507,
+                   BOTTOMRIGHT: 529 527,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextSide6";
       STATUS = ENABLED;
@@ -1650,8 +1650,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 246 531,
-                   BOTTOMRIGHT: 528 551,
+      SCREENRECT = UPPERLEFT: 247 531,
+                   BOTTOMRIGHT: 529 551,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextSide7";
       STATUS = ENABLED;
@@ -1699,8 +1699,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 62 335,
-                   BOTTOMRIGHT: 242 363,
+      SCREENRECT = UPPERLEFT: 63 335,
+                   BOTTOMRIGHT: 243 363,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextPlayerTitle";
       STATUS = ENABLED;
@@ -1748,8 +1748,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 246 335,
-                   BOTTOMRIGHT: 528 362,
+      SCREENRECT = UPPERLEFT: 247 335,
+                   BOTTOMRIGHT: 529 359,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextSideTitle";
       STATUS = ENABLED;
@@ -1797,8 +1797,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 535 335,
-                   BOTTOMRIGHT: 595 359,
+      SCREENRECT = UPPERLEFT: 533 335,
+                   BOTTOMRIGHT: 593 359,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:StaticTextTeamTitle";
       STATUS = ENABLED;
@@ -1846,8 +1846,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 529 120,
-                   BOTTOMRIGHT: 743 320,
+      SCREENRECT = UPPERLEFT: 533 120,
+                   BOTTOMRIGHT: 747 319,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:WinMapPreview";
       STATUS = ENABLED;
@@ -1892,8 +1892,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 530 124,
-                     BOTTOMRIGHT: 546 141,
+        SCREENRECT = UPPERLEFT: 534 124,
+                     BOTTOMRIGHT: 550 141,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MultiplayerLoadScreen.wnd:ButtonMapStartPosition0";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -1939,8 +1939,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 529 143,
-                     BOTTOMRIGHT: 545 160,
+        SCREENRECT = UPPERLEFT: 533 143,
+                     BOTTOMRIGHT: 549 160,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MultiplayerLoadScreen.wnd:ButtonMapStartPosition1";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -1986,8 +1986,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 537 151,
-                     BOTTOMRIGHT: 553 168,
+        SCREENRECT = UPPERLEFT: 541 151,
+                     BOTTOMRIGHT: 557 168,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MultiplayerLoadScreen.wnd:ButtonMapStartPosition2";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2033,8 +2033,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 545 159,
-                     BOTTOMRIGHT: 561 176,
+        SCREENRECT = UPPERLEFT: 549 159,
+                     BOTTOMRIGHT: 565 176,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MultiplayerLoadScreen.wnd:ButtonMapStartPosition3";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2080,8 +2080,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 553 167,
-                     BOTTOMRIGHT: 569 184,
+        SCREENRECT = UPPERLEFT: 557 167,
+                     BOTTOMRIGHT: 573 184,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MultiplayerLoadScreen.wnd:ButtonMapStartPosition4";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2127,8 +2127,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 561 175,
-                     BOTTOMRIGHT: 577 192,
+        SCREENRECT = UPPERLEFT: 565 175,
+                     BOTTOMRIGHT: 581 192,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MultiplayerLoadScreen.wnd:ButtonMapStartPosition5";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2174,8 +2174,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 569 183,
-                     BOTTOMRIGHT: 585 200,
+        SCREENRECT = UPPERLEFT: 573 183,
+                     BOTTOMRIGHT: 589 200,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MultiplayerLoadScreen.wnd:ButtonMapStartPosition6";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2221,8 +2221,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 577 191,
-                     BOTTOMRIGHT: 593 208,
+        SCREENRECT = UPPERLEFT: 581 191,
+                     BOTTOMRIGHT: 597 208,
                      CREATIONRESOLUTION: 800 600;
         NAME = "MultiplayerLoadScreen.wnd:ButtonMapStartPosition7";
         STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -2317,8 +2317,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 287 120,
-                   BOTTOMRIGHT: 524 319,
+      SCREENRECT = UPPERLEFT: 288 120,
+                   BOTTOMRIGHT: 525 319,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:LocalGeneralFeatures";
       STATUS = ENABLED+IMAGE;
@@ -2366,8 +2366,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 60 118,
-                   BOTTOMRIGHT: 279 321,
+      SCREENRECT = UPPERLEFT: 63 120,
+                   BOTTOMRIGHT: 282 323,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:LocalGeneralPortrait";
       STATUS = ENABLED+IMAGE;
@@ -2413,8 +2413,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 54 44,
-                   BOTTOMRIGHT: 503 82,
+      SCREENRECT = UPPERLEFT: 55 44,
+                   BOTTOMRIGHT: 504 82,
                    CREATIONRESOLUTION: 800 600;
       NAME = "MultiplayerLoadScreen.wnd:LocalGeneralName";
       STATUS = ENABLED+IMAGE;

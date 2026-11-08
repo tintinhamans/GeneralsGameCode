@@ -435,7 +435,7 @@ WINDOW
   WINDOW
     WINDOWTYPE = USER;
     SCREENRECT = UPPERLEFT: 632 40,
-                 BOTTOMRIGHT: 736 113,
+                 BOTTOMRIGHT: 736 112,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SinglePlayerLoadScreen.wnd:WindowCameo3";
     STATUS = ENABLED+HIDDEN+IMAGE;
@@ -623,7 +623,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 255 393,
-                   BOTTOMRIGHT: 768 420,
+                   BOTTOMRIGHT: 768 418,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SinglePlayerLoadScreen.wnd:StaticTextLine1";
       STATUS = ENABLED;
@@ -767,7 +767,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 255 465,
-                   BOTTOMRIGHT: 768 493,
+                   BOTTOMRIGHT: 768 490,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SinglePlayerLoadScreen.wnd:StaticTextLine4";
       STATUS = ENABLED;

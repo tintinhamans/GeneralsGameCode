@@ -52,8 +52,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = USER;
-    SCREENRECT = UPPERLEFT: 147 460,
-                 BOTTOMRIGHT: 675 513,
+    SCREENRECT = UPPERLEFT: 148 461,
+                 BOTTOMRIGHT: 676 514,
                  CREATIONRESOLUTION: 800 600;
     NAME = "PopupSaveLoad.wnd:MenuButtonFrame";
     STATUS = ENABLED;
@@ -98,8 +98,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 547 476,
-                   BOTTOMRIGHT: 659 508,
+      SCREENRECT = UPPERLEFT: 548 477,
+                   BOTTOMRIGHT: 660 509,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonBack";
       STATUS = ENABLED+IMAGE;
@@ -146,8 +146,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 291 476,
-                   BOTTOMRIGHT: 408 508,
+      SCREENRECT = UPPERLEFT: 292 477,
+                   BOTTOMRIGHT: 409 509,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonLoad";
       STATUS = ENABLED+IMAGE;
@@ -194,8 +194,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 154 476,
-                   BOTTOMRIGHT: 280 508,
+      SCREENRECT = UPPERLEFT: 155 477,
+                   BOTTOMRIGHT: 281 509,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonSave";
       STATUS = ENABLED+IMAGE;
@@ -242,8 +242,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 419 476,
-                   BOTTOMRIGHT: 531 508,
+      SCREENRECT = UPPERLEFT: 420 477,
+                   BOTTOMRIGHT: 532 509,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonDelete";
       STATUS = ENABLED+IMAGE;
@@ -292,8 +292,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = STATICTEXT;
-    SCREENRECT = UPPERLEFT: 142 53,
-                 BOTTOMRIGHT: 494 97,
+    SCREENRECT = UPPERLEFT: 143 54,
+                 BOTTOMRIGHT: 495 98,
                  CREATIONRESOLUTION: 800 600;
     NAME = "PopupSaveLoad.wnd:";
     STATUS = ENABLED;
@@ -341,8 +341,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = SCROLLLISTBOX;
-    SCREENRECT = UPPERLEFT: 148 108,
-                 BOTTOMRIGHT: 676 456,
+    SCREENRECT = UPPERLEFT: 149 109,
+                 BOTTOMRIGHT: 677 457,
                  CREATIONRESOLUTION: 800 600;
     NAME = "PopupSaveLoad.wnd:ListboxGames";
     STATUS = ENABLED;
@@ -507,8 +507,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = USER;
-    SCREENRECT = UPPERLEFT: 220 232,
-                 BOTTOMRIGHT: 608 404,
+    SCREENRECT = UPPERLEFT: 221 233,
+                 BOTTOMRIGHT: 609 405,
                  CREATIONRESOLUTION: 800 600;
     NAME = "PopupSaveLoad.wnd:LoadConfirmParent";
     STATUS = ENABLED+HIDDEN;
@@ -553,8 +553,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 284 336,
-                   BOTTOMRIGHT: 408 368,
+      SCREENRECT = UPPERLEFT: 285 337,
+                   BOTTOMRIGHT: 409 369,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonLoadConfirm";
       STATUS = ENABLED+IMAGE;
@@ -601,8 +601,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 428 336,
-                   BOTTOMRIGHT: 552 368,
+      SCREENRECT = UPPERLEFT: 429 337,
+                   BOTTOMRIGHT: 553 369,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonLoadCancel";
       STATUS = ENABLED+IMAGE;
@@ -649,8 +649,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 220 232,
-                   BOTTOMRIGHT: 608 320,
+      SCREENRECT = UPPERLEFT: 221 233,
+                   BOTTOMRIGHT: 609 321,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:";
       STATUS = ENABLED;
@@ -700,8 +700,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = USER;
-    SCREENRECT = UPPERLEFT: 220 232,
-                 BOTTOMRIGHT: 608 404,
+    SCREENRECT = UPPERLEFT: 221 233,
+                 BOTTOMRIGHT: 609 405,
                  CREATIONRESOLUTION: 800 600;
     NAME = "PopupSaveLoad.wnd:OverwriteConfirmParent";
     STATUS = ENABLED+HIDDEN;
@@ -746,8 +746,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 284 336,
-                   BOTTOMRIGHT: 408 368,
+      SCREENRECT = UPPERLEFT: 285 337,
+                   BOTTOMRIGHT: 409 369,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonOverwriteConfirm";
       STATUS = ENABLED+IMAGE;
@@ -794,8 +794,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 428 336,
-                   BOTTOMRIGHT: 552 368,
+      SCREENRECT = UPPERLEFT: 429 337,
+                   BOTTOMRIGHT: 553 369,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonOverwriteCancel";
       STATUS = ENABLED+IMAGE;
@@ -842,8 +842,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 220 232,
-                   BOTTOMRIGHT: 608 320,
+      SCREENRECT = UPPERLEFT: 221 233,
+                   BOTTOMRIGHT: 609 321,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:";
       STATUS = ENABLED;
@@ -893,8 +893,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = USER;
-    SCREENRECT = UPPERLEFT: 220 232,
-                 BOTTOMRIGHT: 608 404,
+    SCREENRECT = UPPERLEFT: 221 233,
+                 BOTTOMRIGHT: 609 405,
                  CREATIONRESOLUTION: 800 600;
     NAME = "PopupSaveLoad.wnd:SaveDescParent";
     STATUS = ENABLED+HIDDEN;
@@ -939,8 +939,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 284 336,
-                   BOTTOMRIGHT: 408 368,
+      SCREENRECT = UPPERLEFT: 285 337,
+                   BOTTOMRIGHT: 409 369,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonSaveDescConfirm";
       STATUS = ENABLED+IMAGE;
@@ -987,8 +987,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 428 336,
-                   BOTTOMRIGHT: 552 368,
+      SCREENRECT = UPPERLEFT: 429 337,
+                   BOTTOMRIGHT: 553 369,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonSaveDescCancel";
       STATUS = ENABLED+IMAGE;
@@ -1035,8 +1035,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 220 240,
-                   BOTTOMRIGHT: 608 292,
+      SCREENRECT = UPPERLEFT: 221 241,
+                   BOTTOMRIGHT: 609 293,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:";
       STATUS = ENABLED;
@@ -1084,8 +1084,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = ENTRYFIELD;
-      SCREENRECT = UPPERLEFT: 232 292,
-                   BOTTOMRIGHT: 596 324,
+      SCREENRECT = UPPERLEFT: 233 293,
+                   BOTTOMRIGHT: 597 325,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:EntryDesc";
       STATUS = ENABLED+IMAGE;
@@ -1139,8 +1139,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = USER;
-    SCREENRECT = UPPERLEFT: 220 232,
-                 BOTTOMRIGHT: 608 404,
+    SCREENRECT = UPPERLEFT: 221 233,
+                 BOTTOMRIGHT: 609 405,
                  CREATIONRESOLUTION: 800 600;
     NAME = "PopupSaveLoad.wnd:DeleteConfirmParent";
     STATUS = ENABLED+HIDDEN;
@@ -1185,8 +1185,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 284 336,
-                   BOTTOMRIGHT: 408 368,
+      SCREENRECT = UPPERLEFT: 285 337,
+                   BOTTOMRIGHT: 409 369,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonDeleteConfirm";
       STATUS = ENABLED+IMAGE;
@@ -1233,8 +1233,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 428 336,
-                   BOTTOMRIGHT: 552 368,
+      SCREENRECT = UPPERLEFT: 429 337,
+                   BOTTOMRIGHT: 553 369,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:ButtonDeleteCancel";
       STATUS = ENABLED+IMAGE;
@@ -1281,8 +1281,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 220 232,
-                   BOTTOMRIGHT: 608 320,
+      SCREENRECT = UPPERLEFT: 221 233,
+                   BOTTOMRIGHT: 609 321,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupSaveLoad.wnd:";
       STATUS = ENABLED;
@@ -1332,8 +1332,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = USER;
-    SCREENRECT = UPPERLEFT: 128 95,
-                 BOTTOMRIGHT: 692 96,
+    SCREENRECT = UPPERLEFT: 128 96,
+                 BOTTOMRIGHT: 692 97,
                  CREATIONRESOLUTION: 800 600;
     NAME = "PopupSaveLoad.wnd:line";
     STATUS = ENABLED;

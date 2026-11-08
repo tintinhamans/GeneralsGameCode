@@ -575,7 +575,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = ENTRYFIELD;
       SCREENRECT = UPPERLEFT: 461 362,
-                   BOTTOMRIGHT: 768 386,
+                   BOTTOMRIGHT: 769 386,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLBuddyOverlay.wnd:TextEntryChat";
       STATUS = ENABLED+IMAGE;

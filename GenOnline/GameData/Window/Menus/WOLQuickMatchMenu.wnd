@@ -52,8 +52,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = USER;
-    SCREENRECT = UPPERLEFT: 40 41,
-                 BOTTOMRIGHT: 760 560,
+    SCREENRECT = UPPERLEFT: 41 41,
+                 BOTTOMRIGHT: 759 559,
                  CREATIONRESOLUTION: 800 600;
     NAME = "WOLQuickMatchMenu.wnd:SubParent";
     STATUS = ENABLED;
@@ -98,8 +98,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 608 516,
-                   BOTTOMRIGHT: 740 548,
+      SCREENRECT = UPPERLEFT: 606 515,
+                   BOTTOMRIGHT: 738 547,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ButtonBack";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -146,8 +146,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 470 516,
-                   BOTTOMRIGHT: 602 548,
+      SCREENRECT = UPPERLEFT: 469 515,
+                   BOTTOMRIGHT: 601 547,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ButtonOptions";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -194,8 +194,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 332 516,
-                   BOTTOMRIGHT: 464 548,
+      SCREENRECT = UPPERLEFT: 332 515,
+                   BOTTOMRIGHT: 464 547,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ButtonBuddies";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -242,8 +242,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 192 516,
-                   BOTTOMRIGHT: 326 548,
+      SCREENRECT = UPPERLEFT: 195 515,
+                   BOTTOMRIGHT: 327 547,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ButtonWiden";
       STATUS = ENABLED+IMAGE;
@@ -290,8 +290,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 68 516,
-                   BOTTOMRIGHT: 186 548,
+      SCREENRECT = UPPERLEFT: 71 515,
+                   BOTTOMRIGHT: 189 547,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ButtonStop";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -338,8 +338,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 68 516,
-                   BOTTOMRIGHT: 186 548,
+      SCREENRECT = UPPERLEFT: 71 515,
+                   BOTTOMRIGHT: 189 547,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ButtonStart";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -386,8 +386,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
-      SCREENRECT = UPPERLEFT: 68 348,
-                   BOTTOMRIGHT: 740 508,
+      SCREENRECT = UPPERLEFT: 71 347,
+                   BOTTOMRIGHT: 741 507,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ListboxQuickMatch";
       STATUS = ENABLED+NOFOCUS;
@@ -550,8 +550,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 68 322,
-                   BOTTOMRIGHT: 575 346,
+      SCREENRECT = UPPERLEFT: 71 321,
+                   BOTTOMRIGHT: 577 345,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:StaticTextMatchingProgress";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -599,8 +599,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 46 86,
-                   BOTTOMRIGHT: 754 328,
+      SCREENRECT = UPPERLEFT: 49 86,
+                   BOTTOMRIGHT: 755 328,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ParentOptions";
       STATUS = ENABLED+HIDDEN+SEE_THRU;
@@ -645,8 +645,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 212 253,
-                     BOTTOMRIGHT: 340 273,
+        SCREENRECT = UPPERLEFT: 215 253,
+                     BOTTOMRIGHT: 343 273,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:StaticTextLadder";
         STATUS = ENABLED+IMAGE;
@@ -694,8 +694,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 54 237,
-                     BOTTOMRIGHT: 190 273,
+        SCREENRECT = UPPERLEFT: 55 237,
+                     BOTTOMRIGHT: 191 273,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:StaticTextMaxDisconnects";
         STATUS = ENABLED+IMAGE;
@@ -743,8 +743,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 52 166,
-                     BOTTOMRIGHT: 196 190,
+        SCREENRECT = UPPERLEFT: 55 166,
+                     BOTTOMRIGHT: 199 190,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:StaticTextMaxPing";
         STATUS = ENABLED+IMAGE;
@@ -792,8 +792,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 52 94,
-                     BOTTOMRIGHT: 180 118,
+        SCREENRECT = UPPERLEFT: 55 96,
+                     BOTTOMRIGHT: 183 120,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:StaticTextNumPlayers";
         STATUS = ENABLED+IMAGE;
@@ -841,8 +841,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 214 96,
-                     BOTTOMRIGHT: 358 120,
+        SCREENRECT = UPPERLEFT: 215 96,
+                     BOTTOMRIGHT: 359 120,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:StaticTextColor";
         STATUS = ENABLED+IMAGE;
@@ -890,8 +890,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 213 166,
-                     BOTTOMRIGHT: 341 190,
+        SCREENRECT = UPPERLEFT: 215 166,
+                     BOTTOMRIGHT: 343 190,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:StaticTextSide";
         STATUS = ENABLED+IMAGE;
@@ -939,8 +939,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = SCROLLLISTBOX;
-        SCREENRECT = UPPERLEFT: 500 124,
-                     BOTTOMRIGHT: 740 298,
+        SCREENRECT = UPPERLEFT: 502 124,
+                     BOTTOMRIGHT: 741 298,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:ListBoxMapSelect";
         STATUS = ENABLED;
@@ -1104,8 +1104,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 500 96,
-                     BOTTOMRIGHT: 740 124,
+        SCREENRECT = UPPERLEFT: 502 96,
+                     BOTTOMRIGHT: 741 124,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:StaticTextAllowableMaps";
         STATUS = ENABLED+IMAGE;
@@ -1155,8 +1155,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 217 274,
-                   BOTTOMRIGHT: 472 298,
+      SCREENRECT = UPPERLEFT: 220 274,
+                   BOTTOMRIGHT: 474 298,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxLadder";
       STATUS = ENABLED+HIDDEN+IMAGE;
@@ -1397,8 +1397,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 56 274,
-                   BOTTOMRIGHT: 184 298,
+      SCREENRECT = UPPERLEFT: 59 274,
+                   BOTTOMRIGHT: 187 298,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxMaxDisconnects";
       STATUS = ENABLED+HIDDEN+IMAGE;
@@ -1639,8 +1639,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 56 190,
-                   BOTTOMRIGHT: 184 214,
+      SCREENRECT = UPPERLEFT: 59 190,
+                   BOTTOMRIGHT: 187 214,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxMaxPing";
       STATUS = ENABLED+HIDDEN+IMAGE;
@@ -1881,8 +1881,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 56 120,
-                   BOTTOMRIGHT: 184 144,
+      SCREENRECT = UPPERLEFT: 59 120,
+                   BOTTOMRIGHT: 187 144,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxNumPlayers";
       STATUS = ENABLED+HIDDEN+IMAGE;
@@ -2123,8 +2123,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 217 189,
-                   BOTTOMRIGHT: 472 213,
+      SCREENRECT = UPPERLEFT: 220 189,
+                   BOTTOMRIGHT: 474 213,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxSide";
       STATUS = ENABLED+HIDDEN+IMAGE;
@@ -2364,8 +2364,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 217 120,
-                   BOTTOMRIGHT: 345 144,
+      SCREENRECT = UPPERLEFT: 220 120,
+                   BOTTOMRIGHT: 348 144,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ComboBoxColor";
       STATUS = ENABLED+HIDDEN+IMAGE;
@@ -2605,8 +2605,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 40 79,
-                   BOTTOMRIGHT: 759 80,
+      SCREENRECT = UPPERLEFT: 41 79,
+                   BOTTOMRIGHT: 758 80,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:Line";
       STATUS = ENABLED;
@@ -2652,8 +2652,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 80 86,
-                   BOTTOMRIGHT: 726 328,
+      SCREENRECT = UPPERLEFT: 83 86,
+                   BOTTOMRIGHT: 727 328,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:ParentStats";
       STATUS = ENABLED+SEE_THRU;
@@ -2698,8 +2698,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 370 118,
-                     BOTTOMRIGHT: 660 318,
+        SCREENRECT = UPPERLEFT: 372 118,
+                     BOTTOMRIGHT: 661 317,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:";
         STATUS = ENABLED;
@@ -2744,8 +2744,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 374 262,
-                       BOTTOMRIGHT: 574 286,
+          SCREENRECT = UPPERLEFT: 377 262,
+                       BOTTOMRIGHT: 576 286,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextStreak";
           STATUS = ENABLED;
@@ -2793,8 +2793,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 574 262,
-                       BOTTOMRIGHT: 654 286,
+          SCREENRECT = UPPERLEFT: 577 262,
+                       BOTTOMRIGHT: 657 286,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextStreakValue";
           STATUS = ENABLED;
@@ -2842,8 +2842,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 374 178,
-                       BOTTOMRIGHT: 574 202,
+          SCREENRECT = UPPERLEFT: 377 178,
+                       BOTTOMRIGHT: 576 202,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextLosses";
           STATUS = ENABLED;
@@ -2891,8 +2891,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 374 206,
-                       BOTTOMRIGHT: 574 230,
+          SCREENRECT = UPPERLEFT: 377 206,
+                       BOTTOMRIGHT: 576 230,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextDisconnects";
           STATUS = ENABLED;
@@ -2940,8 +2940,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 374 234,
-                       BOTTOMRIGHT: 574 258,
+          SCREENRECT = UPPERLEFT: 377 234,
+                       BOTTOMRIGHT: 576 258,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextBestStreak";
           STATUS = ENABLED;
@@ -2989,8 +2989,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 574 234,
-                       BOTTOMRIGHT: 654 258,
+          SCREENRECT = UPPERLEFT: 577 234,
+                       BOTTOMRIGHT: 657 258,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextBestStreakValue";
           STATUS = ENABLED;
@@ -3038,8 +3038,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 574 122,
-                       BOTTOMRIGHT: 654 148,
+          SCREENRECT = UPPERLEFT: 577 122,
+                       BOTTOMRIGHT: 657 146,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextGamesPlayedValue";
           STATUS = ENABLED;
@@ -3087,8 +3087,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 374 122,
-                       BOTTOMRIGHT: 574 148,
+          SCREENRECT = UPPERLEFT: 377 122,
+                       BOTTOMRIGHT: 576 146,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextGamesPlayed";
           STATUS = ENABLED;
@@ -3136,8 +3136,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 574 150,
-                       BOTTOMRIGHT: 654 174,
+          SCREENRECT = UPPERLEFT: 577 150,
+                       BOTTOMRIGHT: 657 174,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextWinsValue";
           STATUS = ENABLED;
@@ -3185,8 +3185,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 574 206,
-                       BOTTOMRIGHT: 654 230,
+          SCREENRECT = UPPERLEFT: 577 206,
+                       BOTTOMRIGHT: 657 230,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextDisconnectsValue";
           STATUS = ENABLED;
@@ -3234,8 +3234,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 574 178,
-                       BOTTOMRIGHT: 654 202,
+          SCREENRECT = UPPERLEFT: 577 178,
+                       BOTTOMRIGHT: 657 202,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextLossesValue";
           STATUS = ENABLED;
@@ -3283,8 +3283,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 374 150,
-                       BOTTOMRIGHT: 574 174,
+          SCREENRECT = UPPERLEFT: 377 150,
+                       BOTTOMRIGHT: 576 174,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextWins";
           STATUS = ENABLED;
@@ -3332,8 +3332,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 374 290,
-                       BOTTOMRIGHT: 574 314,
+          SCREENRECT = UPPERLEFT: 377 290,
+                       BOTTOMRIGHT: 576 314,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextWinPercent";
           STATUS = ENABLED;
@@ -3381,8 +3381,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 574 290,
-                       BOTTOMRIGHT: 654 314,
+          SCREENRECT = UPPERLEFT: 577 290,
+                       BOTTOMRIGHT: 657 314,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:StaticTextWinPercentValue";
           STATUS = ENABLED;
@@ -3432,8 +3432,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 102 117,
-                     BOTTOMRIGHT: 266 305,
+        SCREENRECT = UPPERLEFT: 105 117,
+                     BOTTOMRIGHT: 268 304,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:WinRankParent";
         STATUS = ENABLED;
@@ -3478,8 +3478,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = USER;
-          SCREENRECT = UPPERLEFT: 104 119,
-                       BOTTOMRIGHT: 264 279,
+          SCREENRECT = UPPERLEFT: 107 119,
+                       BOTTOMRIGHT: 267 279,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:WinRank";
           STATUS = ENABLED+IMAGE;
@@ -3524,8 +3524,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = USER;
-            SCREENRECT = UPPERLEFT: 216 231,
-                         BOTTOMRIGHT: 264 279,
+            SCREENRECT = UPPERLEFT: 219 231,
+                         BOTTOMRIGHT: 266 279,
                          CREATIONRESOLUTION: 800 600;
             NAME = "WOLQuickMatchMenu.wnd:FactionImage";
             STATUS = ENABLED+IMAGE;
@@ -3571,8 +3571,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = STATICTEXT;
-            SCREENRECT = UPPERLEFT: 116 247,
-                         BOTTOMRIGHT: 264 264,
+            SCREENRECT = UPPERLEFT: 119 247,
+                         BOTTOMRIGHT: 266 264,
                          CREATIONRESOLUTION: 800 600;
             NAME = "WOLQuickMatchMenu.wnd:StaticTextRankNotSoMuch";
             STATUS = ENABLED+WRAP_CENTERED;
@@ -3621,8 +3621,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = PROGRESSBAR;
-          SCREENRECT = UPPERLEFT: 104 283,
-                       BOTTOMRIGHT: 264 303,
+          SCREENRECT = UPPERLEFT: 107 283,
+                       BOTTOMRIGHT: 267 302,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:ProgressBarRank";
           STATUS = ENABLED;
@@ -3668,8 +3668,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = USER;
-          SCREENRECT = UPPERLEFT: 102 280,
-                       BOTTOMRIGHT: 266 281,
+          SCREENRECT = UPPERLEFT: 105 280,
+                       BOTTOMRIGHT: 268 281,
                        CREATIONRESOLUTION: 800 600;
           NAME = "WOLQuickMatchMenu.wnd:RankLine";
           STATUS = ENABLED;
@@ -3717,8 +3717,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 370 90,
-                     BOTTOMRIGHT: 526 118,
+        SCREENRECT = UPPERLEFT: 372 90,
+                     BOTTOMRIGHT: 528 118,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:";
         STATUS = ENABLED;
@@ -3766,8 +3766,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 96 90,
-                     BOTTOMRIGHT: 356 118,
+        SCREENRECT = UPPERLEFT: 99 90,
+                     BOTTOMRIGHT: 358 118,
                      CREATIONRESOLUTION: 800 600;
         NAME = "WOLQuickMatchMenu.wnd:StaticTextRank";
         STATUS = ENABLED;
@@ -3817,8 +3817,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 42 41,
-                   BOTTOMRIGHT: 442 82,
+      SCREENRECT = UPPERLEFT: 45 41,
+                   BOTTOMRIGHT: 444 82,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLQuickMatchMenu.wnd:StaticTextTitle";
       STATUS = ENABLED;

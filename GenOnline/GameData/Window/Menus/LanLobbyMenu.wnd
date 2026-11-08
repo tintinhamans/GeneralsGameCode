@@ -7,7 +7,7 @@ ENDLAYOUTBLOCK
 WINDOW
   WINDOWTYPE = USER;
   SCREENRECT = UPPERLEFT: 0 0,
-               BOTTOMRIGHT: 799 600,
+               BOTTOMRIGHT: 800 600,
                CREATIONRESOLUTION: 800 600;
   NAME = "LanLobbyMenu.wnd:LanLobbyMenuParent";
   STATUS = ENABLED+IMAGE;
@@ -53,7 +53,7 @@ WINDOW
   WINDOW
     WINDOWTYPE = USER;
     SCREENRECT = UPPERLEFT: 41 41,
-                 BOTTOMRIGHT: 759 558,
+                 BOTTOMRIGHT: 759 559,
                  CREATIONRESOLUTION: 800 600;
     NAME = "LanLobbyMenu.wnd:GadgetParent";
     STATUS = ENABLED;
@@ -147,8 +147,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 576 507,
-                   BOTTOMRIGHT: 747 543,
+      SCREENRECT = UPPERLEFT: 578 508,
+                   BOTTOMRIGHT: 749 544,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:ButtonBack";
       STATUS = ENABLED+IMAGE;
@@ -195,8 +195,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 54 507,
-                   BOTTOMRIGHT: 225 543,
+      SCREENRECT = UPPERLEFT: 53 508,
+                   BOTTOMRIGHT: 224 544,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:ButtonHost";
       STATUS = ENABLED+IMAGE;
@@ -243,8 +243,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 228 507,
-                   BOTTOMRIGHT: 399 543,
+      SCREENRECT = UPPERLEFT: 228 508,
+                   BOTTOMRIGHT: 399 544,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:ButtonJoin";
       STATUS = ENABLED+IMAGE;
@@ -291,8 +291,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 402 507,
-                   BOTTOMRIGHT: 573 543,
+      SCREENRECT = UPPERLEFT: 403 508,
+                   BOTTOMRIGHT: 574 544,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:ButtonDirectConnect";
       STATUS = ENABLED+IMAGE;
@@ -816,8 +816,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 521 130,
-                   BOTTOMRIGHT: 753 310,
+      SCREENRECT = UPPERLEFT: 521 131,
+                   BOTTOMRIGHT: 753 311,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:StaticTextGameInfo";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -913,8 +913,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
-      SCREENRECT = UPPERLEFT: 52 315,
-                   BOTTOMRIGHT: 751 462,
+      SCREENRECT = UPPERLEFT: 53 316,
+                   BOTTOMRIGHT: 752 463,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:ListboxChatWindowLanLobby";
       STATUS = ENABLED+NOFOCUS;
@@ -1076,8 +1076,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = ENTRYFIELD;
-      SCREENRECT = UPPERLEFT: 53 469,
-                   BOTTOMRIGHT: 690 493,
+      SCREENRECT = UPPERLEFT: 53 468,
+                   BOTTOMRIGHT: 690 492,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:TextEntryChat";
       STATUS = ENABLED+IMAGE;
@@ -1178,8 +1178,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 714 467,
-                   BOTTOMRIGHT: 750 491,
+      SCREENRECT = UPPERLEFT: 714 468,
+                   BOTTOMRIGHT: 750 492,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:ButtonEmote";
       STATUS = ENABLED+IMAGE;

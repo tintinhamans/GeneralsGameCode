@@ -1256,8 +1256,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 218 84,
-                   BOTTOMRIGHT: 585 452,
+      SCREENRECT = UPPERLEFT: 219 84,
+                   BOTTOMRIGHT: 586 452,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ChallengeLoadScreen.wnd:CircleAlphaOuter";
       STATUS = ENABLED+IMAGE;
@@ -1302,8 +1302,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 275 140,
-                     BOTTOMRIGHT: 526 396,
+        SCREENRECT = UPPERLEFT: 277 140,
+                     BOTTOMRIGHT: 528 396,
                      CREATIONRESOLUTION: 800 600;
         NAME = "ChallengeLoadScreen.wnd:CircleAlphaInner";
         STATUS = ENABLED+IMAGE;
@@ -1348,8 +1348,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = USER;
-          SCREENRECT = UPPERLEFT: 315 178,
-                       BOTTOMRIGHT: 486 355,
+          SCREENRECT = UPPERLEFT: 317 178,
+                       BOTTOMRIGHT: 488 355,
                        CREATIONRESOLUTION: 800 600;
           NAME = "ChallengeLoadScreen.wnd:VersusBackdrop";
           STATUS = ENABLED+IMAGE;
@@ -1394,8 +1394,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = USER;
-            SCREENRECT = UPPERLEFT: 351 206,
-                         BOTTOMRIGHT: 455 325,
+            SCREENRECT = UPPERLEFT: 353 206,
+                         BOTTOMRIGHT: 457 325,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeLoadScreen.wnd:OverlayVs";
             STATUS = ENABLED+HIDDEN+IMAGE;
