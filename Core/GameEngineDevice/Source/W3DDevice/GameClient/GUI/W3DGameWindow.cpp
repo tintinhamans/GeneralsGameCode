@@ -48,6 +48,7 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "GameClient/Gadget.h"
+#include "GameClient/GadgetListBox.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "W3DDevice/GameClient/W3DGameWindow.h"
 #include "W3DDevice/GameClient/W3DGameWindowManager.h"
@@ -360,10 +361,14 @@ void W3DGameWinDefaultDraw( GameWindow *window, WinInstanceData *instData )
 
 		}
 
+		// TheSuperHackers @tweak arcticdolphin 08/11/2026 With the GO kit, a kit blue border draws at the kit line weight.
+		Color kitFrameColor;
+		Bool kitFrame = GadgetListBoxGetKitFrameColor( borderColor, &kitFrameColor );
+
 		//
 		// draw the border at the edges
 		//
-		if( borderColor != WIN_COLOR_UNDEFINED )
+		if( borderColor != WIN_COLOR_UNDEFINED && kitFrame == FALSE )
 			TheWindowManager->winOpenRect( borderColor, borderWidth,
 																		 origin.x, origin.y,
 																		 origin.x + size.x, origin.y + size.y );
@@ -392,6 +397,9 @@ void W3DGameWinDefaultDraw( GameWindow *window, WinInstanceData *instData )
 																		 origin.y + fillInset,
 																		 origin.x + size.x - fillInset,
 																		 origin.y + size.y - fillInset );
+
+		if( kitFrame )
+			GadgetListBoxDrawKitFrame( kitFrameColor, origin.x, origin.y, size.x, size.y );
 
 	}
 

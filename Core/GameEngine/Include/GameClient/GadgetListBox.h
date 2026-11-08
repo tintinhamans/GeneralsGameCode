@@ -108,6 +108,8 @@ extern Int GadgetListBoxGetKitComboFrame( GameWindow *listbox ); ///< kit combo 
 extern Int GadgetListBoxGetKitScrollLineWidth( void ); ///< kit scroll column separator thickness, 0 without the kit
 extern void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
 																			 Bool left, Bool top, Bool right, Bool bottom ); ///< kit line edges inside a rect
+extern Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor ); ///< TRUE when a layout border draws as a kit frame
+extern void GadgetListBoxDrawKitFrame( Color color, Int x, Int y, Int width, Int height ); ///< kit weight frame, or a rule for thin windows
 extern void GadgetListBoxAddMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxRemoveMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength );
