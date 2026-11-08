@@ -585,6 +585,25 @@ class DialogTest(unittest.TestCase):
                     self.assertTrue(frame.rect[0] <= win.rect[0] and win.rect[2] <= frame.rect[2], win.name)
                     self.assertTrue(frame.rect[1] <= win.rect[1] and win.rect[3] <= frame.rect[3], win.name)
 
+    def test_map_select_filters_sit_on_the_list_and_preview_grid(self):
+        for fn in MAP_SELECT_LAYOUTS:
+            root = wl.parse_windows((wl.SOURCES / "Window" / "Menus" / fn).read_bytes().decode("latin-1"))
+            r = {w.name.split(":", 1)[1]: w.rect for w in root.walk()}
+            lst, preview = r["ListboxMap"], r["WinMapPreview"]
+            gap = preview[0] - lst[2]
+            # search over the list column, the combos over the preview column like Accept and Cancel
+            self.assertEqual((r["TextEntryMapSearch"][0], r["TextEntryMapSearch"][2]), (lst[0], lst[2]), fn)
+            self.assertEqual((r["ComboBoxMapPlayers"][0], r["ComboBoxMapPlayers"][2]), (r["ButtonOK"][0], r["ButtonOK"][2]), fn)
+            self.assertEqual((r["ComboBoxMapSize"][0], r["ComboBoxMapSize"][2]), (r["ButtonBack"][0], r["ButtonBack"][2]), fn)
+            self.assertEqual(r["ComboBoxMapSize"][0] - r["ComboBoxMapPlayers"][2], gap, fn)
+            # four equal source buttons evenly spaced across the list column, the count over the preview column
+            sources = [r[f"RadioButtonMaps{n}"] for n in ("All", "Official", "User", "Favourites")]
+            self.assertEqual(len({s[2] - s[0] for s in sources}), 1, fn)
+            self.assertEqual({b[0] - a[2] for a, b in zip(sources, sources[1:])}, {gap}, fn)
+            self.assertEqual((sources[0][0], sources[-1][2]), (lst[0], lst[2]), fn)
+            self.assertEqual((r["StaticTextMapCount"][0], r["StaticTextMapCount"][2]), (preview[0], preview[2]), fn)
+            self.assertEqual((r["StaticTextMapCount"][1], r["StaticTextMapCount"][3]), (sources[0][1], sources[0][3]), fn)
+
 
 class AlignmentIdempotenceTest(unittest.TestCase):
     def test_title_gaps_and_columns_together_are_idempotent(self):

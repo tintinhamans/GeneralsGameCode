@@ -69,25 +69,17 @@ static NameKeyType buttonMapStartPositionID[MAX_SLOTS] = { NAMEKEY_INVALID,NAMEK
 void positionStartSpots( AsciiString mapName, GameWindow *buttonMapStartPositions[], GameWindow *mapWindow);
 static const char *layoutFilename = "LanGameOptionsMenu.wnd";
 static const char *parentName = "LanGameOptionsMenuParent";
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 Rows stay visible behind the dialog; only the preview hides, it shares the marker list.
 static const char *gadgetsToHide[] =
 {
 	"MapWindow",
 	//"StaticTextTitle",
-	"StaticTextTeam",
-	"StaticTextFaction",
-	"StaticTextColor",
-	"TextEntryMapDisplay",
-	"ButtonSelectMap",
-	"ButtonStart",
 	"StaticTextMapPreview",
 
 	nullptr
 };
 static const char *perPlayerGadgetsToHide[] =
 {
-	"ComboBoxTeam",
-	"ComboBoxColor",
-	"ComboBoxPlayerTemplate",
 	nullptr
 };
 

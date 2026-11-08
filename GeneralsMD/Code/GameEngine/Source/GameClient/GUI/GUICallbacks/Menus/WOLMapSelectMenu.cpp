@@ -92,25 +92,17 @@ static void NullifyControls(void)
 
 static const char *layoutFilename = "GameSpyGameOptionsMenu.wnd";
 static const char *parentName = "GameSpyGameOptionsMenuParent";
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 Rows stay visible behind the dialog; only the preview hides, it shares the marker list.
 static const char *gadgetsToHide[] =
 {
 	"MapWindow",
 	//"StaticTextGameName",
-	"StaticTextTeam",
-	"StaticTextFaction",
-	"StaticTextColor",
-	"TextEntryMapDisplay",
-	"ButtonSelectMap",
-	"ButtonStart",
 	"StaticTextMapPreview",
 
 	nullptr
 };
 static const char *perPlayerGadgetsToHide[] =
 {
-	"ComboBoxTeam",
-	"ComboBoxColor",
-	"ComboBoxPlayerTemplate",
 	//"ButtonStartPosition",
 	nullptr
 };

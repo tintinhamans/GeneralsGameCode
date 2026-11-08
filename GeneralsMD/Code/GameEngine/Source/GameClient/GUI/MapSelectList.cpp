@@ -68,6 +68,9 @@ struct MapLegendItem
 };
 static std::vector<MapLegendItem> s_legendItems;
 
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Map count drawn right aligned on the dialog's inner right edge.
+static DisplayString *s_countString = nullptr;
+
 // HELPERS ////////////////////////////////////////////////////////////////////////////////////////
 
 MapSelectFilter::MapSelectFilter()
@@ -208,6 +211,30 @@ static void drawMapLegend( GameWindow *window, WinInstanceData *instData )
 		s_legendItems[i].m_count->draw(cursor, y + (height - textHeight) / 2, textColor, dropColor);
 		cursor += textWidth + itemGap;
 	}
+}
+
+static void clearCountString()
+{
+	if (s_countString != nullptr)
+		TheDisplayStringManager->freeDisplayString(s_countString);
+	s_countString = nullptr;
+}
+
+// Static text has no right alignment, so the count draws its own text against the window's right edge.
+static void drawMapCount( GameWindow *window, WinInstanceData *instData )
+{
+	if (s_countString == nullptr)
+		return;
+
+	Int x, y, width, height;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+
+	Int textWidth = 0;
+	Int textHeight = 0;
+	s_countString->getSize(&textWidth, &textHeight);
+	const Int left = textWidth < width ? x + width - textWidth : x;
+	s_countString->draw(left, y + (height - textHeight) / 2, window->winGetEnabledTextColor(), window->winGetEnabledTextBorderColor());
 }
 
 struct MapSelectRowSort
@@ -359,12 +386,13 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 	if (m_players)
 	{
 		GadgetComboBoxReset(m_players);
-		Int index = GadgetComboBoxAddEntry(m_players, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapAny", L"Any"), s_nameColor);
+		// each entry names its filter, so the combo needs no label: "Any players", "4 players"
+		Int index = GadgetComboBoxAddEntry(m_players, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapAnyPlayers", L"Any players"), s_nameColor);
 		GadgetComboBoxSetItemData(m_players, index, (void *)0);
 		for (Int numPlayers = 2; numPlayers <= MAX_SLOTS; ++numPlayers)
 		{
 			UnicodeString text;
-			text.format(L"%d", numPlayers);
+			text.format(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapNumPlayers", L"%d players").str(), numPlayers);
 			index = GadgetComboBoxAddEntry(m_players, text, s_nameColor);
 			GadgetComboBoxSetItemData(m_players, index, (void *)numPlayers);
 		}
@@ -375,7 +403,8 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 		GadgetComboBoxReset(m_size);
 		for (Int size = MAP_SIZE_ANY; size < MAP_SIZE_COUNT; ++size)
 		{
-			const Int index = GadgetComboBoxAddEntry(m_size, sizeClassText((MapSelectSize)size), s_nameColor);
+			const UnicodeString text = (size == MAP_SIZE_ANY) ? TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapAnySize", L"Any size") : sizeClassText((MapSelectSize)size);
+			const Int index = GadgetComboBoxAddEntry(m_size, text, s_nameColor);
 			GadgetComboBoxSetItemData(m_size, index, (void *)size);
 		}
 	}
@@ -408,6 +437,10 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 		GadgetStaticTextSetText(m_legend, UnicodeString::TheEmptyString);
 		m_legend->winSetDrawFunc(drawMapLegend);
 	}
+
+	clearCountString();
+	if (m_count)
+		m_count->winSetDrawFunc(drawMapCount);
 
 	if (m_listbox)
 	{
@@ -442,6 +475,7 @@ void MapSelectList::shutdown()
 	m_count = nullptr;
 	m_legend = nullptr;
 	clearLegendItems();
+	clearCountString();
 	for (Int i = 0; i < MAP_SOURCE_COUNT; ++i)
 	{
 		m_sources[i] = nullptr;
@@ -552,6 +586,14 @@ void MapSelectList::updateCount( Int shown, Int total )
 	UnicodeString text;
 	text.format(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapCount", L"%d of %d maps").str(), shown, total);
 	GadgetStaticTextSetText(m_count, text);
+
+	if (s_countString == nullptr)
+		s_countString = TheDisplayStringManager->newDisplayString();
+	if (s_countString != nullptr)
+	{
+		s_countString->setFont(m_count->winGetFont());
+		s_countString->setText(text);
+	}
 }
 
 void MapSelectList::repopulate( const AsciiString &mapToSelect )

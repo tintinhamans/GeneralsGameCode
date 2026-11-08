@@ -100,7 +100,7 @@ WINDOW
   WINDOW
     WINDOWTYPE = PUSHBUTTON;
     SCREENRECT = UPPERLEFT: 480 461,
-                 BOTTOMRIGHT: 566 487,
+                 BOTTOMRIGHT: 565 487,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:ButtonOK";
     STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -147,7 +147,7 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = SCROLLLISTBOX;
-    SCREENRECT = UPPERLEFT: 140 192,
+    SCREENRECT = UPPERLEFT: 140 194,
                  BOTTOMRIGHT: 470 487,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:ListboxMap";
@@ -315,7 +315,7 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = PUSHBUTTON;
-    SCREENRECT = UPPERLEFT: 574 461,
+    SCREENRECT = UPPERLEFT: 575 461,
                  BOTTOMRIGHT: 660 487,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:ButtonBack";
@@ -363,8 +363,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = USER;
-    SCREENRECT = UPPERLEFT: 480 192,
-                 BOTTOMRIGHT: 660 432,
+    SCREENRECT = UPPERLEFT: 480 194,
+                 BOTTOMRIGHT: 660 434,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:WinMapPreview";
     STATUS = ENABLED;
@@ -409,8 +409,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 481 196,
-                   BOTTOMRIGHT: 497 213,
+      SCREENRECT = UPPERLEFT: 481 198,
+                   BOTTOMRIGHT: 497 215,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishMapSelectMenu.wnd:ButtonMapStartPosition0";
       STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -456,8 +456,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 480 215,
-                   BOTTOMRIGHT: 496 232,
+      SCREENRECT = UPPERLEFT: 480 217,
+                   BOTTOMRIGHT: 496 234,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishMapSelectMenu.wnd:ButtonMapStartPosition1";
       STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -503,8 +503,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 488 223,
-                   BOTTOMRIGHT: 504 240,
+      SCREENRECT = UPPERLEFT: 488 225,
+                   BOTTOMRIGHT: 504 242,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishMapSelectMenu.wnd:ButtonMapStartPosition2";
       STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -550,8 +550,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 496 231,
-                   BOTTOMRIGHT: 512 248,
+      SCREENRECT = UPPERLEFT: 496 233,
+                   BOTTOMRIGHT: 512 250,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishMapSelectMenu.wnd:ButtonMapStartPosition3";
       STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -597,8 +597,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 505 242,
-                   BOTTOMRIGHT: 521 259,
+      SCREENRECT = UPPERLEFT: 505 244,
+                   BOTTOMRIGHT: 521 261,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishMapSelectMenu.wnd:ButtonMapStartPosition4";
       STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -644,8 +644,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 512 247,
-                   BOTTOMRIGHT: 528 264,
+      SCREENRECT = UPPERLEFT: 512 249,
+                   BOTTOMRIGHT: 528 266,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishMapSelectMenu.wnd:ButtonMapStartPosition5";
       STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -691,8 +691,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 520 255,
-                   BOTTOMRIGHT: 536 272,
+      SCREENRECT = UPPERLEFT: 520 257,
+                   BOTTOMRIGHT: 536 274,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishMapSelectMenu.wnd:ButtonMapStartPosition6";
       STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -738,8 +738,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 528 263,
-                   BOTTOMRIGHT: 544 280,
+      SCREENRECT = UPPERLEFT: 528 265,
+                   BOTTOMRIGHT: 544 282,
                    CREATIONRESOLUTION: 800 600;
       NAME = "SkirmishMapSelectMenu.wnd:ButtonMapStartPosition7";
       STATUS = ENABLED+IMAGE+RIGHT_CLICK;
@@ -837,7 +837,7 @@ WINDOW
   WINDOW
     WINDOWTYPE = ENTRYFIELD;
     SCREENRECT = UPPERLEFT: 140 140,
-                 BOTTOMRIGHT: 494 162,
+                 BOTTOMRIGHT: 470 162,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:TextEntryMapSearch";
     STATUS = ENABLED+IMAGE;
@@ -888,8 +888,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = RADIOBUTTON;
-    SCREENRECT = UPPERLEFT: 140 166,
-                 BOTTOMRIGHT: 196 186,
+    SCREENRECT = UPPERLEFT: 140 168,
+                 BOTTOMRIGHT: 215 188,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:RadioButtonMapsAll";
     STATUS = ENABLED+IMAGE;
@@ -936,8 +936,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = RADIOBUTTON;
-    SCREENRECT = UPPERLEFT: 200 166,
-                 BOTTOMRIGHT: 280 186,
+    SCREENRECT = UPPERLEFT: 225 168,
+                 BOTTOMRIGHT: 300 188,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:RadioButtonMapsOfficial";
     STATUS = ENABLED+IMAGE;
@@ -984,8 +984,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = RADIOBUTTON;
-    SCREENRECT = UPPERLEFT: 284 166,
-                 BOTTOMRIGHT: 344 186,
+    SCREENRECT = UPPERLEFT: 310 168,
+                 BOTTOMRIGHT: 385 188,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:RadioButtonMapsUser";
     STATUS = ENABLED+IMAGE;
@@ -1032,8 +1032,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = RADIOBUTTON;
-    SCREENRECT = UPPERLEFT: 348 166,
-                 BOTTOMRIGHT: 448 186,
+    SCREENRECT = UPPERLEFT: 395 168,
+                 BOTTOMRIGHT: 470 188,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:RadioButtonMapsFavourites";
     STATUS = ENABLED+IMAGE;
@@ -1080,8 +1080,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = STATICTEXT;
-    SCREENRECT = UPPERLEFT: 452 166,
-                 BOTTOMRIGHT: 660 186,
+    SCREENRECT = UPPERLEFT: 480 168,
+                 BOTTOMRIGHT: 660 188,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:StaticTextMapCount";
     STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -1128,8 +1128,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = STATICTEXT;
-    SCREENRECT = UPPERLEFT: 480 436,
-                 BOTTOMRIGHT: 660 452,
+    SCREENRECT = UPPERLEFT: 480 439,
+                 BOTTOMRIGHT: 660 455,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:StaticTextMapLegend";
     STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -1176,8 +1176,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = COMBOBOX;
-    SCREENRECT = UPPERLEFT: 498 140,
-                 BOTTOMRIGHT: 577 162,
+    SCREENRECT = UPPERLEFT: 480 140,
+                 BOTTOMRIGHT: 565 162,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:ComboBoxMapPlayers";
     STATUS = ENABLED+IMAGE;
@@ -1417,7 +1417,7 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = COMBOBOX;
-    SCREENRECT = UPPERLEFT: 581 140,
+    SCREENRECT = UPPERLEFT: 575 140,
                  BOTTOMRIGHT: 660 162,
                  CREATIONRESOLUTION: 800 600;
     NAME = "SkirmishMapSelectMenu.wnd:ComboBoxMapSize";
