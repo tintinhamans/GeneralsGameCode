@@ -64,6 +64,7 @@
 #include "GameNetwork/GameSpyOverlay.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameClient/ChallengeGenerals.h"
+#include "GameClient/GUICallbacks.h"
 
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
@@ -215,7 +216,11 @@ extern Bool dispChanged;
 void diffReverseSide();
 void HandleCanceledDownload( Bool resetDropDown )
 {
-	GenOnlineServicesManager::GetInstance()->CancelUpdate();
+	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 An Online attempt can end before the online services exist or after their teardown.
+	if (GenOnlineServicesManager::GetInstance() != nullptr)
+	{
+		GenOnlineServicesManager::GetInstance()->CancelUpdate();
+	}
 
 	buttonPushed = FALSE;
 	if (resetDropDown)
@@ -908,6 +913,8 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 
 	HTTPThinkWrapper();
 	GameSpyUpdateOverlays();
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in dialog sits over this menu, which stays the shell screen and ticks it.
+	GOSignInDialogUpdate();
 //	if(localAnimateWindowManager)
 //		localAnimateWindowManager->update();
 //	if(localAnimateWindowManager && pendingDropDown != DROPDOWN_NONE && localAnimateWindowManager->isFinished())

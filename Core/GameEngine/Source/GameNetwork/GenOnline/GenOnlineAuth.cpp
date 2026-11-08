@@ -11,6 +11,7 @@
 #include <windows.h>
 #include "GameNetwork/GenOnline/CredentialStore.h"
 #include "GameNetwork/GameSpyOverlay.h"
+#include "Common/GameEngine.h"
 #include "../json.hpp"
 
 #pragma comment(lib, "Crypt32.lib")
@@ -19,6 +20,12 @@
 #define CREDENTIALS_FILENAME "credentials_env_test.json"
 #elif !defined(DEBUG) || defined(USE_DEBUG_ON_LIVE_SERVER)
 #define CREDENTIALS_FILENAME "credentials.json"
+#endif
+
+#if defined(USE_TEST_ENV)
+#define LOGIN_ENV "test"
+#else
+#define LOGIN_ENV "prod"
 #endif
 
 #include <curl/curl.h>
@@ -69,6 +76,93 @@ namespace
 
 		return std::string();
 	}
+
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Provider sign-in requests the playgenerals.online login page sends; Keycloak replaces this block with its auth URL plus kc_idp_hint.
+	const char* const LOGIN_PAGE_URI = "https://www.playgenerals.online/login/";
+	const char* const STEAM_RETURN_URI = "https://www.playgenerals.online/login/index.php";
+	const char* const DISCORD_AUTHORIZE_URI = "https://discord.com/oauth2/authorize";
+	const char* const DISCORD_CLIENT_ID = "1354979004507226294";
+	const char* const GAMEREPLAYS_AUTHORIZE_URI = "https://www.gamereplays.org/community/modules/oauth/authorize.php";
+	const char* const GAMEREPLAYS_CLIENT_ID = "GeneralsOnlineAuth";
+	const char* const STEAM_OPENID_URI = "https://steamcommunity.com/openid/login";
+	const char* const OPENID_NS = "http://specs.openid.net/auth/2.0";
+	const char* const OPENID_IDENTIFIER_SELECT = "http://specs.openid.net/auth/2.0/identifier_select";
+	const char* const GAME_LOGIN_TYPE = "0";
+
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 A login code goes into URLs and the state JSON, so only letters, digits and dashes are accepted.
+	bool IsValidLoginCode(const std::string& strCode)
+	{
+		if (strCode.empty())
+		{
+			return false;
+		}
+		for (unsigned char ch : strCode)
+		{
+			if (!((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-'))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	// the state the website parses, in its exact format: type 0 is GameReplays, 1 is Discord
+	std::string ProviderLoginState(int type, const std::string& strCode, const std::string& strEnv)
+	{
+		return std::format("{{\"type\":{}, \"code\": \"{}\", \"env\": \"{}\", \"login_type\": \"{}\"}}", type, strCode, strEnv, GAME_LOGIN_TYPE);
+	}
+}
+
+std::string GenOnlineAuthInterface::PercentEncode(const std::string& strValue)
+{
+	static const char* const hexDigits = "0123456789ABCDEF";
+	std::string strEncoded;
+	for (unsigned char ch : strValue)
+	{
+		if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-' || ch == '_' || ch == '.' || ch == '~')
+		{
+			strEncoded += (char)ch;
+		}
+		else
+		{
+			strEncoded += '%';
+			strEncoded += hexDigits[ch >> 4];
+			strEncoded += hexDigits[ch & 0x0F];
+		}
+	}
+	return strEncoded;
+}
+
+std::string GenOnlineAuthInterface::GetProviderLoginURL(ELoginProvider provider, const std::string& strCode, const std::string& strEnv)
+{
+	switch (provider)
+	{
+	case ELoginProvider::Discord:
+		return std::format("{}?client_id={}&redirect_uri={}&response_type=code&scope=identify&state={}", DISCORD_AUTHORIZE_URI, DISCORD_CLIENT_ID,
+			PercentEncode(LOGIN_PAGE_URI), PercentEncode(ProviderLoginState(1, strCode, strEnv)));
+
+	case ELoginProvider::GameReplays:
+		return std::format("{}?client_id={}&redirect_uri={}&response_type=code&scope=user_profile&state={}", GAMEREPLAYS_AUTHORIZE_URI, GAMEREPLAYS_CLIENT_ID,
+			PercentEncode(LOGIN_PAGE_URI), PercentEncode(ProviderLoginState(0, strCode, strEnv)));
+
+	case ELoginProvider::Steam:
+	{
+		// OpenID 2.0 checkid_setup as a GET request; the website sends no openid.realm
+		std::string strReturnTo = std::format("{}?gamecode={}&auth_type=steam&env={}&login_type={}", STEAM_RETURN_URI, PercentEncode(strCode), strEnv, GAME_LOGIN_TYPE);
+		return std::format("{}?openid.ns={}&openid.mode=checkid_setup&openid.identity={}&openid.claimed_id={}&openid.return_to={}", STEAM_OPENID_URI,
+			PercentEncode(OPENID_NS), PercentEncode(OPENID_IDENTIFIER_SELECT), PercentEncode(OPENID_IDENTIFIER_SELECT), PercentEncode(strReturnTo));
+	}
+
+	default:
+		break;
+	}
+
+	// the website page, which offers every provider itself
+	if (strEnv == "test")
+	{
+		return std::format("{}?gamecode={}&env=test", LOGIN_PAGE_URI, PercentEncode(strCode));
+	}
+	return std::format("{}?gamecode={}", LOGIN_PAGE_URI, PercentEncode(strCode));
 }
 
 struct MOTDResponse
@@ -83,8 +177,15 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 	// GET MOTD
 	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("MOTD");
 	std::map<std::string, std::string> mapHeaders;
+	const int loginAttempt = m_loginAttempt;
 	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
+			// GenOnline @bugfix arcticdolphin 09/11/2026 The player cancelled the sign-in while it was finishing.
+			if (loginAttempt != m_loginAttempt)
+			{
+				return;
+			}
+
 			try
 			{
 				nlohmann::json jsonObject = nlohmann::json::parse(strBody);
@@ -100,6 +201,8 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 				if (!bWSConnected)
 				{
 					loginResult = ELoginResult::Failed;
+					// GenOnline @bugfix arcticdolphin 09/11/2026 The stage shows the failure, so Cancel is gone while the error box or dialog step is up.
+					m_loginStage = ELoginStage::Failed;
 				}
 
 				// NOTE: Don't need to get stats here, PopulatePlayerInfoWindows is called as part of going to MP...
@@ -130,6 +233,8 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 				if (!bWSConnected)
 				{
 					loginResult = ELoginResult::Failed;
+					// GenOnline @bugfix arcticdolphin 09/11/2026 The stage shows the failure, so Cancel is gone while the error box or dialog step is up.
+					m_loginStage = ELoginStage::Failed;
 				}
 
 				// NOTE: Don't need to get stats here, PopulatePlayerInfoWindows is called as part of going to MP...
@@ -297,6 +402,23 @@ void GenOnlineAuthInterface::RefreshToken()
     }
 }
 
+bool GenOnlineAuthInterface::ReportLoginFailure(const wchar_t* szTitle, const wchar_t* szText)
+{
+	if (!m_bSignInDialog)
+	{
+		return false;
+	}
+
+	m_loginStage = ELoginStage::Failed;
+	m_strLoginFailureTitle = szTitle;
+	m_strLoginFailureText = szText;
+	if (m_cb_LoginPendingCallback != nullptr)
+	{
+		m_cb_LoginPendingCallback(ELoginResult::Failed);
+	}
+	return true;
+}
+
 void GenOnlineAuthInterface::BeginLogin()
 {
 	auto* manager = GenOnlineServicesManager::GetInstance();
@@ -304,6 +426,8 @@ void GenOnlineAuthInterface::BeginLogin()
 	{
 		return;
 	}
+	m_strLoginFailureTitle.clear();
+	m_strLoginFailureText.clear();
 	manager->EnsureServiceRoute([](bool success)
 	{
 		auto* auth = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
@@ -319,6 +443,11 @@ void GenOnlineAuthInterface::BeginLogin()
 		{
 			ClearGSMessageBoxes();
 			const bool proxyAuth = GenOnlineServicesManager::GetInstance() != nullptr && GenOnlineServicesManager::GetInstance()->RouteFailedProxyAuth();
+			const wchar_t* szText = proxyAuth ? L"The proxy did not accept the login. Try again, or check the proxy settings in Options." : L"No trusted service route could be reached. Check Connection settings in Options, then try again.";
+			if (auth->ReportLoginFailure(L"Connection failed", szText))
+			{
+				return;
+			}
 			GSMessageBoxOk(UnicodeString(L"Connection failed"), UnicodeString(proxyAuth ? L"The proxy did not accept the login. Try again, or check the proxy settings in Options." : L"No trusted service route could be reached. Check Connection settings in Options, then try again."), []() { TheShell->pop(); });
 		}
 	});
@@ -334,6 +463,9 @@ void GenOnlineAuthInterface::BeginLoginOnSelectedRoute()
 	bool bValidCreds = GetCredentials();
 	if (bValidCreds && !m_strRefreshToken.empty())
 	{
+		const int loginAttempt = ++m_loginAttempt;
+		m_loginStage = ELoginStage::SavedLogin;
+
 		// login
 		std::map<std::string, std::string> mapHeaders;
 
@@ -351,6 +483,13 @@ void GenOnlineAuthInterface::BeginLoginOnSelectedRoute()
 
 		GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strLoginURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 			{
+				// TheSuperHackers @feature arcticdolphin 08/11/2026 The player chose another account while this saved login was on its way.
+				if (loginAttempt != m_loginAttempt)
+				{
+					NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Dropping the saved login reply, the player chose another account");
+					return;
+				}
+
 				// if 4XX, just log in again
 				if (statusCode >= 400 && statusCode < 500)
 				{
@@ -375,7 +514,10 @@ void GenOnlineAuthInterface::BeginLoginOnSelectedRoute()
 						if (authResp.result == EAuthResponseResult::SUCCEEDED)
 						{
 							ClearGSMessageBoxes();
-							GSMessageBoxNoButtons(UnicodeString(L"Logging In"), UnicodeString(L"Logged in!"), true);
+							if (!m_bSignInScreen)
+							{
+								GSMessageBoxNoButtons(UnicodeString(L"Logging In"), UnicodeString(L"Logged in!"), true);
+							}
 
 							NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Logged in");
 							m_bWaitingLogin = false;
@@ -415,20 +557,33 @@ void GenOnlineAuthInterface::DoFullLoginFlow()
 {
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: DoFullLoginFlow");
 
+	const int loginAttempt = m_loginAttempt;
+	m_loginStage = ELoginStage::RequestingCode;
+
     // get a game login code from server
     std::string strGetLoginCodeURI = GenOnlineServicesManager::GetAPIEndpoint("LoginCode");
     std::map<std::string, std::string> mapHeaders;
 	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strGetLoginCodeURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
+			if (loginAttempt != m_loginAttempt)
+			{
+				return;
+			}
+
 			std::function<void(void)> fnGetLoginCodeFailed = [this]()
 				{
 					// stop checking
 					m_bWaitingLogin = false;
 					m_strCode = std::string();
 					m_lastCheckCode = -1;
+					m_loginStage = ELoginStage::Failed;
 
 
 					ClearGSMessageBoxes();
+					if (ReportLoginFailure(L"Login Failed", L"Failed to retrieve login code"))
+					{
+						return;
+					}
 					GSMessageBoxOk(UnicodeString(L"Login Failed"), UnicodeString(L"Failed to retrieve login code"), []()
 						{
 							TheShell->pop();
@@ -446,7 +601,7 @@ void GenOnlineAuthInterface::DoFullLoginFlow()
 					nlohmann::json jsonObject = nlohmann::json::parse(strBody, nullptr, false, true);
 					GetLoginCodeResponse authResp = jsonObject.get<GetLoginCodeResponse>();
 
-					if (authResp.success)
+					if (authResp.success && IsValidLoginCode(authResp.login_code))
 					{
 						m_currentRefreshAttempt = 0;
 
@@ -459,30 +614,29 @@ void GenOnlineAuthInterface::DoFullLoginFlow()
 							NetworkLog(ELogVerbosity::LOG_DEBUG, "Login Code is %s", m_strCode.c_str());
 						}
 
-#if defined(USE_TEST_ENV)
-                        std::string strURI = std::format("https://www.playgenerals.online/login/?gamecode={}&env=test", m_strCode.c_str());
-#else
-                        std::string strURI = std::format("https://www.playgenerals.online/login/?gamecode={}", m_strCode.c_str());
-#endif
-
                         ClearGSMessageBoxes();
+
+                        // TheSuperHackers @feature arcticdolphin 08/11/2026 The sign-in screen shows the code and opens the browser on the provider the player picks.
+                        if (m_bSignInScreen)
+                        {
+                            m_loginStage = ELoginStage::WaitingForProvider;
+                            return;
+                        }
+
                         GSMessageBoxCancel(UnicodeString(L"Logging In"), UnicodeString(L"Please continue in your web browser"), []()
                             {
-                                if (GenOnlineServicesManager::GetInstance() != nullptr)
-                                {
-                                    GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
-                                }
-
                                 GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
                                 if (pAuthInterface != nullptr)
                                 {
-                                    pAuthInterface->OnLoginComplete(ELoginResult::UserCancelled, "");
+                                    pAuthInterface->CancelLogin();
+                                }
+                                else if (GenOnlineServicesManager::GetInstance() != nullptr)
+                                {
+                                    GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
                                 }
                             });
 
-#if !defined(_DEBUG) || defined(USE_TEST_ENV) || defined(USE_DEBUG_ON_LIVE_SERVER)
-                        ShellExecuteA(NULL, "open", strURI.c_str(), NULL, NULL, SW_SHOWNORMAL);
-#endif
+                        OpenProviderLogin(ELoginProvider::Website);
                     }
                     else
                     {
@@ -548,8 +702,15 @@ void GenOnlineAuthInterface::Tick()
             j["ini_crc"] = TheGlobalData->m_iniCRC;
 			std::string strPostData = j.dump();
 
+			const int loginAttempt = m_loginAttempt;
 			GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendPOSTRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, strPostData.c_str(), [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 				{
+					// TheSuperHackers @feature arcticdolphin 08/11/2026 The login was cancelled or restarted after this check was sent.
+					if (loginAttempt != m_loginAttempt)
+					{
+						return;
+					}
+
 					try
 					{
 						if (statusCode == 423)
@@ -608,8 +769,60 @@ void GenOnlineAuthInterface::Tick()
 	}
 }
 
+void GenOnlineAuthInterface::OpenProviderLogin(ELoginProvider provider)
+{
+	if (m_strCode.empty())
+	{
+		return;
+	}
+
+	m_loginStage = ELoginStage::WaitingForBrowser;
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Opening the browser sign-in for provider %d", (int)provider);
+	std::string strURI = GetProviderLoginURL(provider, m_strCode, LOGIN_ENV);
+
+#if !defined(_DEBUG) || defined(USE_TEST_ENV) || defined(USE_DEBUG_ON_LIVE_SERVER)
+	ShellExecuteA(NULL, "open", strURI.c_str(), NULL, NULL, SW_SHOWNORMAL);
+#endif
+}
+
+void GenOnlineAuthInterface::UseAnotherAccount()
+{
+	if (m_loginStage != ELoginStage::SavedLogin)
+	{
+		return;
+	}
+
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "LOGIN: Forgetting the saved login, the player chose another account");
+	++m_loginAttempt;
+	DeleteSavedCredentials();
+	m_strRefreshToken = std::string();
+	DoFullLoginFlow();
+}
+
+void GenOnlineAuthInterface::CancelLogin()
+{
+	// GenOnline @feature arcticdolphin 08/11/2026 Drop the replies still on their way and stop polling, so a cancelled login never completes later.
+	++m_loginAttempt;
+	m_bWaitingLogin = false;
+	m_strCode = std::string();
+	m_lastCheckCode = -1;
+
+	if (GenOnlineServicesManager::GetInstance() != nullptr)
+	{
+		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+
+		// GenOnline @bugfix arcticdolphin 09/11/2026 Nothing on the main menu acts on the pending teardown, so tear down now. This also closes a websocket a finishing login opened.
+		GenOnlineServicesManager::GetInstance()->ConsumePendingFullTeardown();
+		TearDownGeneralsOnline();
+	}
+
+	OnLoginComplete(ELoginResult::UserCancelled, "");
+}
+
 void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const char* szWSAddr)
 {
+	m_loginStage = loginResult == ELoginResult::Success ? ELoginStage::Finishing : (loginResult == ELoginResult::Failed ? ELoginStage::Failed : ELoginStage::None);
+
 	if (loginResult == ELoginResult::Success)
 	{
 		GenOnlineServicesManager::UpdateSentryUser();
@@ -619,8 +832,15 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 		// login to AC
 		GenOnlinePluginHost::LinkedAccount::SignIn();
 
+		const int loginAttempt = m_loginAttempt;
 		GenOnlineServicesManager::GetInstance()->OnLogin(loginResult, szWSAddr, [=]() // wait for WS to connect
 			{
+				// GenOnline @bugfix arcticdolphin 09/11/2026 The player cancelled the sign-in before the websocket connected.
+				if (loginAttempt != m_loginAttempt)
+				{
+					return;
+				}
+
                 // move on to network capabilities section
                 ClearGSMessageBoxes();
                 GoToDetermineNetworkCaps();
@@ -633,7 +853,12 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 			m_cb_LoginPendingCallback(loginResult);
 		}
 
-		TheShell->pop();
+		// GenOnline @bugfix arcticdolphin 09/11/2026 A failed login leaves the screen through the OK of the message box of the login callback, so only a cancel pops here.
+		// GenOnline @feature arcticdolphin 09/11/2026 The sign-in dialog closes itself on cancel, so there is no screen to pop.
+		if (loginResult == ELoginResult::UserCancelled && !m_bSignInDialog)
+		{
+			TheShell->pop();
+		}
 	}
 }
 
@@ -643,6 +868,11 @@ void GenOnlineAuthInterface::LogoutOfMyAccount()
 	std::map<std::string, std::string> mapHeaders;
 	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendDELETERequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, "", nullptr);
 
+	DeleteSavedCredentials();
+}
+
+void GenOnlineAuthInterface::DeleteSavedCredentials()
+{
 	ServiceConnection::DeleteRefreshToken(CredentialServerKey());
 }
 

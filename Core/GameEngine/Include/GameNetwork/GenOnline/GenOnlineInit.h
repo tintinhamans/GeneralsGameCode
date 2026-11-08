@@ -720,8 +720,9 @@ public:
 	HTTPManager* GetHTTPManager() const { return m_pHTTPManager; }
 
 	void CancelUpdate();
-	void LaunchPatcher();
-	void StartDownloadUpdate(std::function<void(void)> cb);
+	// GenOnline @feature arcticdolphin 09/11/2026 A failure callback replaces the Update Failed message box, so the sign-in dialog can show it.
+	void LaunchPatcher(std::function<void(void)> cbFailed = nullptr);
+	void StartDownloadUpdate(std::function<void(void)> cb, std::function<void(void)> cbFailed = nullptr);
 	void ContinueUpdate();
 
 	static void CaptureScreenshot(bool bResizeForTransmit, std::function<void(std::vector<unsigned char>)> cbOnDataAvailable);
@@ -764,6 +765,13 @@ public:
 	bool IsPendingFullTeardown() const { return m_bPendingFullTeardown; }
 	EGOTearDownReason GetTeardownReason() const { return m_teardownReason; }
 	void ConsumePendingFullTeardown() { m_bPendingFullTeardown = false; }
+
+	// GenOnline @bugfix arcticdolphin 09/11/2026 Called when a new online attempt starts, so it never inherits the teardown of an attempt that was abandoned before reaching the online screens.
+	void ClearPendingFullTeardown()
+	{
+		m_bPendingFullTeardown = false;
+		m_teardownReason = EGOTearDownReason::UNKNOWN;
+	}
 
 	void ResetPendingFullTeardownReason() { m_teardownReason = EGOTearDownReason::UNKNOWN; }
 
@@ -872,6 +880,9 @@ private:
 	std::queue<int64_t> m_vecFilesSizes;
 	std::vector<std::string> m_vecFilesDownloaded;
 	std::function<void(void)> m_updateCompleteCallback = nullptr;
+	std::function<void(void)> m_updateFailedCallback = nullptr;
+	// GenOnline @bugfix arcticdolphin 09/11/2026 Bumped by every start and cancel, so replies of a cancelled download are ignored.
+	int m_updateAttempt = 0;
 	mutable std::recursive_mutex m_updateCallbackMutex;
 
 	std::string m_patcher_name;
