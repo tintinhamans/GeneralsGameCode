@@ -120,7 +120,7 @@ IN_GAME = re.compile(
     re.I,
 )
 # menus shown during a match; with IN_GAME they keep the retail header templates so in-game mods stay in charge of them
-# (the same list as isEmbeddedShellLayout in Core ArchiveFileSystem.cpp)
+# (the same list as isGenOnlineShellLayout in Core ArchiveFileSystem.cpp)
 IN_MATCH_MENUS = {
     "crcmismatch", "defeat", "disconnectscreen", "localdefeat", "observerquit", "popupsaveload",
     "quitmenu", "quitmessagebox", "quitnosave", "saveload", "victorious",

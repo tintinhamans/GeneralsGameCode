@@ -404,7 +404,7 @@ Bool ArchiveFileSystem::parseMountEntry(const AsciiString& text, ArchiveMountEnt
 	return TRUE;
 }
 
-void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes)
+void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes, std::vector<AsciiString>* mounted)
 {
 	std::string fullPath = entry.m_path.str();
 	if (entry.m_base == ArchiveMountEntry::BASE_USER)
@@ -427,7 +427,7 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 			bigPaths.push_back(it->str());
 	}
 
-	Int mounted = 0;
+	Int mountedCount = 0;
 	for (const std::string& bigPath : bigPaths)
 	{
 		if (!TheLocalFileSystem->doesFileExist(bigPath.c_str()))
@@ -450,12 +450,71 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 		}
 		loadIntoDirectoryTree(archiveFile, priority);
 		m_archiveFileMap[AsciiString(bigPath.c_str())] = archiveFile;
-		++mounted;
+		if (mounted != nullptr)
+			mounted->push_back(AsciiString(bigPath.c_str()));
+		++mountedCount;
 	}
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s at priority %d: %d archives", fullPath.c_str(), priority, mounted);
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s at priority %d: %d archives", fullPath.c_str(), priority, mountedCount);
 }
 
-void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority)
+// A GO menu layout: Window/Menus without the screens shown during a match
+static Bool isGenOnlineShellLayout(const char* path)
+{
+	static const char* const inGameLayouts[] = {
+		"crcmismatch.wnd", "defeat.wnd", "disconnectscreen.wnd", "localdefeat.wnd", "observerquit.wnd", "popupsaveload.wnd",
+		"quitmenu.wnd", "quitmessagebox.wnd", "quitnosave.wnd", "saveload.wnd", "victorious.wnd" };
+
+	AsciiString lower(path);
+	lower.toLower();
+	const char* name = lower.str();
+	const char* prefixes[] = { "window/menus/", "window\\menus\\" };
+	Bool inMenus = FALSE;
+	for (size_t p = 0; p < ARRAY_SIZE(prefixes); ++p)
+	{
+		const size_t len = strlen(prefixes[p]);
+		if (strncmp(name, prefixes[p], len) == 0)
+		{
+			name += len;
+			inMenus = TRUE;
+			break;
+		}
+	}
+	if (!inMenus || strchr(name, '/') != nullptr || strchr(name, '\\') != nullptr)
+	{
+		return FALSE;
+	}
+	for (size_t i = 0; i < ARRAY_SIZE(inGameLayouts); ++i)
+	{
+		if (strcmp(name, inGameLayouts[i]) == 0)
+		{
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+void ArchiveFileSystem::mountGenOnlineMenus(const std::vector<AsciiString>& genOnlineArchives)
+{
+	// the GO menu layouts also rank above -mod and every BIG, so a mod cannot replace them; loose files still win
+	for (const AsciiString& archivePath : genOnlineArchives)
+	{
+		ArchiveFile* guiArchive = openArchiveFile(archivePath.str(), isGenOnlineShellLayout);
+		if (guiArchive == nullptr)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "GO menu layouts of %s could not be opened", archivePath.str());
+			continue;
+		}
+		loadIntoDirectoryTree(guiArchive, ARCHIVE_PRIORITY_GENONLINE_GUI);
+		AsciiString mapName;
+		mapName.format("%s|menus", archivePath.str());
+		m_archiveFileMap[mapName] = guiArchive;
+		FilenameList guiFiles;
+		guiArchive->getFileListInDirectory("", "", "*", guiFiles, TRUE);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "GO menu layouts of %s at priority %d: %d files", archivePath.str(), (Int)ARCHIVE_PRIORITY_GENONLINE_GUI, (Int)guiFiles.size());
+	}
+}
+
+void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority, std::vector<AsciiString>* mounted)
 {
 	if (!enabled)
 	{
@@ -473,7 +532,7 @@ void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, cons
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: path ignored (%s): %s", layer, reason.str(), includePaths[i].c_str());
 			continue;
 		}
-		mountListedArchive(entry, priority + static_cast<Int>(i), excludes);
+		mountListedArchive(entry, priority + static_cast<Int>(i), excludes, mounted);
 	}
 }
 
