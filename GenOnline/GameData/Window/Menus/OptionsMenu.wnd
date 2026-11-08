@@ -769,8 +769,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = ENTRYFIELD;
-            SCREENRECT = UPPERLEFT: 415 422,
-                         BOTTOMRIGHT: 575 446,
+            SCREENRECT = UPPERLEFT: 415 425,
+                         BOTTOMRIGHT: 575 443,
                          CREATIONRESOLUTION: 800 600;
             NAME = "OptionsMenu.wnd:TextEntryProxyAddress";
             STATUS = ENABLED+IMAGE;
@@ -917,8 +917,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = ENTRYFIELD;
-            SCREENRECT = UPPERLEFT: 415 470,
-                         BOTTOMRIGHT: 575 494,
+            SCREENRECT = UPPERLEFT: 415 473,
+                         BOTTOMRIGHT: 575 491,
                          CREATIONRESOLUTION: 800 600;
             NAME = "OptionsMenu.wnd:TextEntryServerAddress";
             STATUS = ENABLED+IMAGE;
@@ -969,8 +969,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = COMBOBOX;
-            SCREENRECT = UPPERLEFT: 224 470,
-                         BOTTOMRIGHT: 387 494,
+            SCREENRECT = UPPERLEFT: 224 473,
+                         BOTTOMRIGHT: 387 491,
                          CREATIONRESOLUTION: 800 600;
             NAME = "OptionsMenu.wnd:ComboBoxServer";
             STATUS = ENABLED+IMAGE;
@@ -1210,8 +1210,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = COMBOBOX;
-            SCREENRECT = UPPERLEFT: 224 422,
-                         BOTTOMRIGHT: 387 446,
+            SCREENRECT = UPPERLEFT: 224 425,
+                         BOTTOMRIGHT: 387 443,
                          CREATIONRESOLUTION: 800 600;
             NAME = "OptionsMenu.wnd:ComboBoxProxyMode";
             STATUS = ENABLED+IMAGE;
@@ -1547,8 +1547,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = COMBOBOX;
-            SCREENRECT = UPPERLEFT: 224 422,
-                         BOTTOMRIGHT: 387 446,
+            SCREENRECT = UPPERLEFT: 224 425,
+                         BOTTOMRIGHT: 387 443,
                          CREATIONRESOLUTION: 800 600;
             NAME = "OptionsMenu.wnd:ComboBoxIP";
             STATUS = ENABLED+IMAGE;
@@ -2013,8 +2013,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = COMBOBOX;
-          SCREENRECT = UPPERLEFT: 199 230,
-                       BOTTOMRIGHT: 339 258,
+          SCREENRECT = UPPERLEFT: 199 235,
+                       BOTTOMRIGHT: 339 253,
                        CREATIONRESOLUTION: 800 600;
           NAME = "OptionsMenu.wnd:ComboBoxAntiAliasing";
           STATUS = ENABLED+HIDDEN+IMAGE;
@@ -2303,8 +2303,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = COMBOBOX;
-          SCREENRECT = UPPERLEFT: 224 182,
-                       BOTTOMRIGHT: 387 206,
+          SCREENRECT = UPPERLEFT: 224 185,
+                       BOTTOMRIGHT: 387 203,
                        CREATIONRESOLUTION: 800 600;
           NAME = "OptionsMenu.wnd:ComboBoxDetail";
           STATUS = ENABLED+IMAGE;
@@ -2593,8 +2593,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = COMBOBOX;
-          SCREENRECT = UPPERLEFT: 224 134,
-                       BOTTOMRIGHT: 387 158,
+          SCREENRECT = UPPERLEFT: 224 137,
+                       BOTTOMRIGHT: 387 155,
                        CREATIONRESOLUTION: 800 600;
           NAME = "OptionsMenu.wnd:ComboBoxResolution";
           STATUS = ENABLED+IMAGE;
