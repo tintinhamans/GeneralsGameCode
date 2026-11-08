@@ -84,15 +84,19 @@ SLIDER_HOVER = rgba("#2F4BFF", 0.22)
 # flat, no outline: an outline only shows on the rounded ends once the small art is scaled, as a light rim
 SLIDER_TRACK = (rgba("#283489"), rgba("#283489"))
 SLIDER_FILL = (rgba("#3446FF"), rgba("#3446FF"))
-# the thumb is a slim marker at the value: (colour, width in thumb pixels)
+# the thumb is a rounded pill at the value, 4 units wide and 1.75 track heights tall (W3DHorizontalSlider)
 SLIDER_MARKER = {
-    "": (rgba("#C9CEFF"), 1.15),
-    "Hilite": (rgba("#FFFFFF"), 1.6),
-    "Disabled": (rgba("#5D6080"), 1.15),
+    "": GLYPH,
+    "Hilite": GLYPH_ACTIVE,
+    "Disabled": GLYPH_DISABLED,
 }
+SLIDER_TRACK_HEIGHT = 8
+SLIDER_MARKER_SIZE = (4, 14)
 TRACK_LINE = 0.55  # 8 px art, drawn about 14 px tall at 1080p
 SYMBOL_LINE = LINE_LAYOUT  # check boxes and symbol buttons draw at about their own size
-GLYPH_STROKE = 2.2
+# every glyph: a 16 unit design grid fitted to its piece, one 2 unit stroke with round caps and joins, 2 units of padding
+GLYPH_GRID = 16.0
+GLYPH_STROKE_UNITS = 2.0
 # symbol buttons and check boxes: state -> (edge line, fill, glyph)
 SYMBOL_STATES = {
     "Enabled": BUTTON_STATES[""] + (GLYPH,),
@@ -139,9 +143,9 @@ SCROLL_ARROWS = {
     "Pushed": ARROW_STATES["HiliteSelected"],
     "Disabled": ARROW_STATES["Disabled"],
 }
-# the kit scroll column is 14 layout px wide with a 6 px channel the pill fills (W3DVerticalSlider, GadgetListBox)
+# the kit scroll column is 14 layout px wide with a 4 px channel the pill fills (W3DVerticalSlider, GadgetListBox)
 SCROLL_ARROW_SIZE = 14  # the square arrow cell, drawn at its own layout size
-SCROLL_PILL_WIDTH = 6
+SCROLL_PILL_WIDTH = 4
 SCROLL_LINE = ARROW_STATES["Enabled"][0]  # kit list frames, cell lines and the column separator the engine draws, Border = LINE_LAYOUT
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
@@ -211,15 +215,13 @@ def triangle_inside(x, y, a, b, c):
 
 
 def arrow_piece(w, h, up, line, fill, glyph):
-    cx, cy = (w - ARROW_LINE) / 2.0, h / 2.0
-    tri = ((cx - 4.5, cy - 2.2), (cx + 4.5, cy - 2.2), (cx, cy + 2.8))
+    """The combo drop-down arrow: no left edge, the stroke chevron centred in the space left of the right line."""
+    hit = chevron_glyph(w, h, up, (0.0, 0.0, w - ARROW_LINE, h))
 
     def sample(x, y):
-        if up:
-            y = h - y
         if edge(x, y, w, h, False, True) < ARROW_LINE:
             return line
-        return glyph if triangle_inside(x, y, *tri) else fill
+        return glyph if hit(x, y) else fill
 
     return paint(w, h, sample)
 
@@ -250,10 +252,13 @@ def round_end(w, h, side, line, fill):
     return paint(w, h, sample)
 
 
-def marker_piece(w, h, color, width):
-    """A slim vertical line in the middle of the thumb rect, 70% of its height."""
+def marker_piece(w, h, color):
+    """A fully rounded vertical pill filling the piece."""
+    r = w / 2.0
+
     def sample(x, y):
-        return color if abs(x - w / 2.0) < width / 2.0 and 0.15 * h <= y < 0.85 * h else TRANSPARENT
+        cy = min(max(y, r), h - r)
+        return color if math.hypot(x - r, y - cy) < r else TRANSPARENT
 
     return paint(w, h, sample)
 
@@ -277,12 +282,60 @@ def segment_distance(px, py, a, b):
     return math.hypot(px - ax - k * dx, py - ay - k * dy)
 
 
-def on_stroke(x, y, polylines, width):
-    for line in polylines:
-        for a, b in zip(line, line[1:]):
-            if segment_distance(x, y, a, b) < width / 2.0:
-                return True
-    return False
+def snap_stroke(v, half_texels):
+    """Move a stroke centre, in pixels, so the edges of a stroke half_texels wide land on whole texels."""
+    return (round(v * SCALE - half_texels) + half_texels) / SCALE
+
+
+def stroke_glyph(w, h, polylines=(), arcs=(), box=None):
+    """Hit test for a glyph on the 16 unit design grid, fitted to the largest square centred in box (default the piece).
+    polylines: lists of grid points; arcs: (cx, cy, r, start, sweep) in grid units and degrees, y down.
+    One stroke of GLYPH_STROKE_UNITS with round caps and joins; centres snapped to whole texel edges."""
+    bx, by, bw, bh = box if box else (0.0, 0.0, w, h)
+    side = min(bw, bh)
+    unit = side / GLYPH_GRID
+    stroke_texels = max(1, round(GLYPH_STROKE_UNITS * unit * SCALE))
+    half = stroke_texels / 2.0
+    radius = half / SCALE
+    ox = round((bx + (bw - side) / 2.0) * SCALE) / SCALE
+    oy = round((by + (bh - side) / 2.0) * SCALE) / SCALE
+
+    def px(p):
+        return (snap_stroke(ox + p[0] * unit, half), snap_stroke(oy + p[1] * unit, half))
+
+    lines = [[px(p) for p in line] for line in polylines]
+    rings = []
+    for cx, cy, r, start, sweep in arcs:
+        c = px((cx, cy))
+        rr = r * unit
+        a0, a1 = math.radians(start), math.radians(start + sweep)
+        ends = ((c[0] + rr * math.cos(a0), c[1] + rr * math.sin(a0)), (c[0] + rr * math.cos(a1), c[1] + rr * math.sin(a1)))
+        rings.append((c, rr, start % 360.0, sweep, ends))
+
+    def hit(x, y):
+        for line in lines:
+            for a, b in zip(line, line[1:]):
+                if segment_distance(x, y, a, b) < radius:
+                    return True
+        for c, rr, start, sweep, ends in rings:
+            if abs(math.hypot(x - c[0], y - c[1]) - rr) < radius:
+                if (math.degrees(math.atan2(y - c[1], x - c[0])) - start) % 360.0 <= sweep:
+                    return True
+            for e in ends:
+                if math.hypot(x - e[0], y - e[1]) < radius:
+                    return True
+        return False
+
+    return hit
+
+
+def chevron_glyph(w, h, up, box=None):
+    """The shared arrow: a stroke chevron pointing up or down."""
+    if up:
+        points = [(4.5, 9.75), (8.0, 6.25), (11.5, 9.75)]
+    else:
+        points = [(4.5, 6.25), (8.0, 9.75), (11.5, 6.25)]
+    return stroke_glyph(w, h, [points], box=box)
 
 
 def symbol_piece(w, h, state, glyph_hit):
@@ -298,8 +351,8 @@ def symbol_piece(w, h, state, glyph_hit):
 
 
 def check_glyph(w, h):
-    mark = [((0.27 * w, 0.52 * h), (0.43 * w, 0.69 * h), (0.75 * w, 0.31 * h))]
-    return lambda x, y: on_stroke(x, y, mark, GLYPH_STROKE)
+    """A two segment check."""
+    return stroke_glyph(w, h, [[(3.5, 8.5), (6.5, 11.5), (12.5, 5.0)]])
 
 
 def no_glyph(x, y):
@@ -307,45 +360,30 @@ def no_glyph(x, y):
 
 
 def return_glyph(w, h):
-    """The enter key arrow: down from the top right, then left into an arrow head."""
-    bend = [((0.74 * w, 0.26 * h), (0.74 * w, 0.62 * h), (0.36 * w, 0.62 * h))]
-    head = ((0.24 * w, 0.62 * h), (0.40 * w, 0.40 * h), (0.40 * w, 0.84 * h))
-    return lambda x, y: on_stroke(x, y, bend, GLYPH_STROKE) or triangle_inside(x, y, *head)
+    """The enter key arrow: a stem down from the top right, then left, ending in a chevron head."""
+    return stroke_glyph(w, h, [[(12.0, 3.5), (12.0, 10.0), (4.0, 10.0)], [(7.0, 7.0), (4.0, 10.0), (7.0, 13.0)]])
 
 
 def close_glyph(w, h):
-    cross = [((0.32 * w, 0.32 * h), (0.68 * w, 0.68 * h)), ((0.68 * w, 0.32 * h), (0.32 * w, 0.68 * h))]
-    return lambda x, y: on_stroke(x, y, cross, GLYPH_STROKE)
+    """An X with round caps."""
+    return stroke_glyph(w, h, [[(4.5, 4.5), (11.5, 11.5)], [(11.5, 4.5), (4.5, 11.5)]])
 
 
 def refresh_glyph(w, h):
-    """Three quarters of a circle with an arrow head at its open end."""
-    cx, cy, r = w / 2.0, h / 2.0, 0.27 * min(w, h)
-    head_angle = math.radians(-60.0)
-    tip = (cx + r * math.cos(head_angle), cy + r * math.sin(head_angle))
-    out = (math.cos(head_angle), math.sin(head_angle))
-    along = (-math.sin(head_angle), math.cos(head_angle))
-    head = ((tip[0] - 2.8 * along[0], tip[1] - 2.8 * along[1]),
-            (tip[0] + 2.6 * out[0] + 1.6 * along[0], tip[1] + 2.6 * out[1] + 1.6 * along[1]),
-            (tip[0] - 2.6 * out[0] + 1.6 * along[0], tip[1] - 2.6 * out[1] + 1.6 * along[1]))
-
-    def hit(x, y):
-        angle = math.degrees(math.atan2(y - cy, x - cx))
-        if abs(math.hypot(x - cx, y - cy) - r) < GLYPH_STROKE / 2.0 and not -60.0 < angle < 10.0:
-            return True
-        return triangle_inside(x, y, *head)
-
-    return hit
+    """A 270 degree arc, open at the top right, with a chevron head on its tangent at the top end."""
+    return stroke_glyph(w, h, [[(6.0, 3.0), (8.0, 5.0), (6.0, 7.0)]], arcs=[(8.0, 9.0, 4.0, 0.0, 270.0)])
 
 
 def ring_piece(w, h, line, fill):
+    """A map start marker: a ring with the even 2 unit glyph stroke, filled inside."""
     cx, cy, r = w / 2.0, h / 2.0, min(w, h) / 2.0 - 1.0
+    stroke = GLYPH_STROKE_UNITS * min(w, h) / GLYPH_GRID
 
     def sample(x, y):
         d = r - math.hypot(x - cx, y - cy)
         if d < 0.0:
             return TRANSPARENT
-        return line if d < 2.2 else fill
+        return line if d < stroke else fill
 
     return paint(w, h, sample)
 
@@ -386,16 +424,12 @@ def channel_piece(w, h, line, fill):
 
 
 def scroll_arrow_piece(w, h, up, line, fill, glyph):
-    """An arrow cell of the scroll column: the combo arrow triangle scaled to the cell on the state fill.
+    """An arrow cell of the scroll column: the combo arrow chevron on the state fill.
     The engine draws the cell lines with GOScrollLine so they match the list frame and the separator."""
-    k = w / 21.0
-    cx, cy = w / 2.0, h / 2.0
-    tri = ((cx - 4.5 * k, cy - 2.2 * k), (cx + 4.5 * k, cy - 2.2 * k), (cx, cy + 2.8 * k))
+    hit = chevron_glyph(w, h, up)
 
     def sample(x, y):
-        if up:
-            y = h - y
-        return glyph if triangle_inside(x, y, *tri) else fill
+        return glyph if hit(x, y) else fill
 
     return paint(w, h, sample)
 
@@ -440,15 +474,17 @@ def pieces():
     out.append(("hilightedbox", 11, 13, box_piece(11, 13, *SLIDER_ON)))
     out.append(("dehilightedbox", 11, 13, box_piece(11, 13, *SLIDER_OFF)))
     out.append(("linebox", 13, 15, flat_piece(13, 15, SLIDER_HOVER)))
-    # rounded track ends; the fill keeps a square end where it meets the marker
-    out.append(("GOSliderTrackLeft", 4, 8, round_end(4, 8, "left", *SLIDER_TRACK)))
-    out.append(("GOSliderTrackCenter", 4, 8, button_piece(4, 8, "middle", *SLIDER_TRACK, TRACK_LINE)))
-    out.append(("GOSliderTrackRight", 4, 8, round_end(4, 8, "right", *SLIDER_TRACK)))
-    out.append(("GOSliderFillLeft", 4, 8, round_end(4, 8, "left", *SLIDER_FILL)))
-    out.append(("GOSliderFillCenter", 4, 8, button_piece(4, 8, "middle", *SLIDER_FILL, TRACK_LINE)))
-    out.append(("GOSliderFillRight", 4, 8, button_piece(4, 8, "middle", *SLIDER_FILL, TRACK_LINE)))
-    for state, (color, width) in SLIDER_MARKER.items():
-        out.append((f"GOSliderThumb{state}", 8, 16, marker_piece(8, 16, color, width)))
+    # track and fill: one height, flat, ends rounded with radius half the height
+    th = SLIDER_TRACK_HEIGHT
+    out.append(("GOSliderTrackLeft", th // 2, th, round_end(th // 2, th, "left", *SLIDER_TRACK)))
+    out.append(("GOSliderTrackCenter", th // 2, th, button_piece(th // 2, th, "middle", *SLIDER_TRACK, TRACK_LINE)))
+    out.append(("GOSliderTrackRight", th // 2, th, round_end(th // 2, th, "right", *SLIDER_TRACK)))
+    out.append(("GOSliderFillLeft", th // 2, th, round_end(th // 2, th, "left", *SLIDER_FILL)))
+    out.append(("GOSliderFillCenter", th // 2, th, button_piece(th // 2, th, "middle", *SLIDER_FILL, TRACK_LINE)))
+    out.append(("GOSliderFillRight", th // 2, th, round_end(th // 2, th, "right", *SLIDER_FILL)))
+    mw, mh = SLIDER_MARKER_SIZE
+    for state, color in SLIDER_MARKER.items():
+        out.append((f"GOSliderThumb{state}", mw, mh, marker_piece(mw, mh, color)))
     # list scroll bar: a channel the pill fills, like the slider track, then the arrow cells and the separator
     pw, ph = SCROLL_PILL_WIDTH, SCROLL_PILL_WIDTH // 2
     out.append(("GOScrollTrackTop", pw, ph, round_cap(pw, ph, "top", *SCROLL_TRACK)))
