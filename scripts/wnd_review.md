@@ -18,26 +18,25 @@ Check these layouts with screenshots first; fix what the rules got wrong in `scr
 
 | Layout | Kind | Rects changed | Frame | edges | labels | spacing | insets | override | Skips | Largest move |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Window/Menus/ScoreScreen.wnd | menu | 113 | yes | 3 | 0 | 82 | 111 | 0 | 0 | ParentScoreScreen 14 |
-| Window/Menus/GameSpyGameOptionsMenu.wnd | menu | 86 | yes | 26 | 1 | 56 | 0 | 0 | 0 | ButtonBack 13 |
-| Window/Menus/SkirmishGameOptionsMenu.wnd | menu | 72 | yes | 8 | 0 | 36 | 8 | 0 | 0 | StaticTextPlayers 12 |
-| Window/Menus/LanGameOptionsMenu.wnd | menu | 68 | yes | 10 | 1 | 38 | 57 | 0 | 0 | StaticTextTitle 13 |
-| Window/Menus/WOLQuickMatchMenu.wnd | menu | 50 | yes | 4 | 0 | 16 | 31 | 0 | 1 | ListboxQuickMatch 11 |
+| Window/Menus/ScoreScreen.wnd | menu | 99 | yes | 3 | 0 | 63 | 111 | 0 | 0 | ParentScoreScreen 14 |
+| Window/Menus/GameSpyGameOptionsMenu.wnd | menu | 82 | yes | 26 | 1 | 2 | 0 | 0 | 0 | CheckboxLimitSuperweapons 4 |
+| Window/Menus/SkirmishGameOptionsMenu.wnd | menu | 72 | yes | 8 | 0 | 0 | 8 | 0 | 0 | ButtonSelectMap 6 |
+| Window/Menus/WOLQuickMatchMenu.wnd | menu | 50 | yes | 4 | 0 | 6 | 31 | 0 | 1 | ButtonWiden 3 |
 | Window/Menus/MultiplayerLoadScreen.wnd | menu | 48 | no | 5 | 0 | 0 | 40 | 0 | 0 | WinMapPreview 4 |
+| Window/Menus/LanGameOptionsMenu.wnd | menu | 47 | yes | 10 | 1 | 3 | 57 | 0 | 0 | StaticTextTeam 3 |
 | Window/Menus/DisconnectScreen.wnd | menu | 34 | no | 1 | 0 | 0 | 34 | 0 | 0 | ListboxTextDisplay 1 |
-| Window/Menus/GameSpyLoginProfile.wnd | menu | 33 | yes | 7 | 0 | 0 | 16 | 0 | 0 | CheckBoxRememberInfo 13 |
-| Window/Menus/WOLWelcomeMenu.wnd | menu | 32 | yes | 1 | 0 | 6 | 16 | 0 | 1 | GadgetParent 10 |
+| Window/Menus/GameSpyLoginProfile.wnd | menu | 33 | yes | 7 | 0 | 0 | 14 | 0 | 0 | CheckBoxRememberInfo 5 |
 | Window/Menus/OptionsMenu.wnd | menu | 31 | no | 5 | 0 | 4 | 18 | 0 | 0 |  4 |
 | Window/Menus/ChallengeMenu.wnd | menu | 28 | no | 3 | 0 | 0 | 12 | 0 | 0 | GeneralPosition5 5 |
-| Window/Menus/SaveLoad.wnd | menu | 27 | yes | 0 | 0 | 2 | 12 | 0 | 0 | MenuButtonFrame 14 |
+| Window/Menus/SaveLoad.wnd | menu | 27 | yes | 0 | 0 | 1 | 8 | 0 | 0 | MenuButtonFrame 3 |
 | Window/Menus/PopupSaveLoad.wnd | menu | 25 | no | 0 | 0 | 0 | 8 | 0 | 0 | MenuButtonFrame 1 |
-| Window/Menus/WOLCustomLobby.wnd | menu | 22 | yes | 0 | 0 | 3 | 5 | 0 | 0 | GadgetParent 11 |
-| Window/Menus/LanLobbyMenu.wnd | menu | 20 | yes | 4 | 0 | 2 | 0 | 0 | 0 | GadgetParent 12 |
+| Window/Menus/WOLWelcomeMenu.wnd | menu | 25 | yes | 1 | 0 | 6 | 12 | 0 | 0 | PercentUSA 3 |
 | Window/Menus/PopupPlayerInfo.wnd | menu | 20 | no | 4 | 0 | 6 | 14 | 0 | 0 | CheckBoxAsianText 3 |
 | Window/Menus/EstablishConnectionsScreen.wnd | menu | 14 | no | 6 | 0 | 12 | 14 | 0 | 0 | StaticPlayer7Status 5 |
-| Window/Menus/NetworkDirectConnect.wnd | menu | 13 | yes | 1 | 0 | 0 | 0 | 0 | 0 | GadgetParent 10 |
 | Window/Menus/ChallengeLoadScreen.wnd | menu | 10 | no | 0 | 0 | 6 | 2 | 0 | 0 | BioStrategyRight 2 |
-| Window/Menus/ReplayMenu.wnd | menu | 10 | yes | 1 | 0 | 1 | 5 | 0 | 0 | GadgetParent 12 |
+| Window/Menus/LanLobbyMenu.wnd | menu | 10 | yes | 4 | 0 | 2 | 0 | 0 | 0 | ButtonBack 2 |
+| Window/Menus/NetworkDirectConnect.wnd | menu | 10 | yes | 1 | 0 | 0 | 0 | 0 | 0 | StaticLocalIP 3 |
+| Window/Menus/ReplayMenu.wnd | menu | 10 | yes | 1 | 0 | 1 | 5 | 0 | 0 | ListboxReplayFiles 2 |
 | Window/Menus/MapTransferScreen.wnd | menu | 9 | no | 0 | 0 | 0 | 9 | 0 | 0 | StaticTextProgressTitle 1 |
 | Window/Menus/MainMenu.wnd | geometry kept | 7 | no | 0 | 0 | 7 | 0 | 0 | 6 | ButtonDiffBack 1 |
 | Window/Menus/PopupLadderSelect.wnd | menu | 7 | no | 2 | 0 | 0 | 6 | 0 | 0 | ButtonOk 1 |
@@ -47,6 +46,7 @@ Check these layouts with screenshots first; fix what the rules got wrong in `scr
 | Window/Menus/SinglePlayerLoadScreen.wnd | menu | 4 | no | 1 | 0 | 3 | 0 | 0 | 0 | StaticTextLine4 3 |
 | Window/Menus/GameSpyLoginQuick.wnd | menu | 3 | no | 0 | 0 | 3 | 0 | 0 | 0 | ButtonTOS 4 |
 | Window/Menus/PopupLocaleSelect.wnd | menu | 3 | no | 0 | 0 | 0 | 3 | 0 | 0 | ListBoxLocaleSelect 1 |
+| Window/Menus/WOLCustomLobby.wnd | menu | 3 | yes | 0 | 0 | 3 | 0 | 0 | 0 | ButtonSortPing 1 |
 | Window/GenPowersShortcutBarChina.wnd | in-game | 2 | no | 0 | 0 | 1 | 0 | 0 | 0 | ButtonParent8 1 |
 | Window/Menus/PopupGameSpyCreateGame.wnd | menu | 2 | no | 0 | 2 | 0 | 0 | 0 | 0 |  1 |
 | Window/ControlBarPopupDescription.wnd | in-game | 1 | no | 0 | 0 | 1 | 0 | 0 | 0 | StaticTextDescription 1 |
@@ -75,8 +75,4 @@ Skipped moves (overlap, parent or override) per layout.
 
 ### Window/Menus/WOLQuickMatchMenu.wnd
 
-- edges: skipped PROGRESSBAR ProgressBarRank (99, 287, 263, 308) -> (99, 284, 263, 305): would overlap USER RankLine
-
-### Window/Menus/WOLWelcomeMenu.wnd
-
-- edges: skipped USER RankBorder (57, 345, 189, 505) -> (57, 345, 189, 504): child ProgressBarRank would stick out
+- edges: skipped PROGRESSBAR ProgressBarRank (107, 283, 267, 302) -> (107, 280, 267, 299): would overlap USER RankLine

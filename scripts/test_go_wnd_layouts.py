@@ -190,10 +190,10 @@ class FrameOnRulerTest(unittest.TestCase):
         ], draw=RULER_DRAW))
 
     def test_frame_and_descendants_map_onto_the_ruler(self):
-        out = wl.transform(self.ruler_layout(), name=MENU)
-        self.assertEqual(by_kind(out, "USER"), [(0, 0, 800, 600), (31, 40, 769, 570)])
+        out = wl.transform(self.ruler_layout(frame=(45, 45, 755, 555)), name=MENU)
+        self.assertEqual(by_kind(out, "USER"), [(0, 0, 800, 600), (41, 41, 759, 559)])
         # descendant mapped linearly, sibling inside the old frame box mapped too, outside sibling kept
-        self.assertEqual(by_kind(out, "PUSHBUTTON"), [(92, 510, 194, 540), (606, 530, 708, 561), (10, 10, 30, 30)])
+        self.assertEqual(by_kind(out, "PUSHBUTTON"), [(97, 503, 198, 534), (602, 523, 703, 554), (10, 10, 30, 30)])
 
     def test_ruler_parent_is_found_by_its_image_only(self):
         text = self.ruler_layout().replace("MainMenuRuler", "SomeOtherImage")

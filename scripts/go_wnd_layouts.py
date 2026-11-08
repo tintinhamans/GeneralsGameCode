@@ -7,8 +7,8 @@ file as input, and the GO-only layouts there get the same fixes. All rects are i
 
 - Kit colours: the retail blue line colours in draw data and TEXTCOLOR border entries become the
   UI kit line and hilite colours; each value keeps its alpha.
-- Frame on the ruler: a window drawing the MainMenuRuler image becomes full screen and its content
-  frame (about 41,41-759,559) moves onto the ruler's inner box, 31,40-769,570. The frame, its
+- Frame on the ruler art: a window drawing the MainMenuRuler image becomes full screen and its content
+  frame (about 41,41-759,559) snaps onto the box drawn in the ruler art, 41,41-759,559. The frame, its
   descendants and the ruler's other children inside the old frame box map linearly; sizes that
   were equal stay equal. Menus only.
 - Edges: within one parent, left and top edges within 3 units snap to the most common value
@@ -66,7 +66,7 @@ MAX_PASSES = 20
 
 RULER_IMAGE = "MainMenuRuler"
 RULER_FRAME = (41, 41, 759, 559)  # retail content frame inside the ruler
-RULER_BOX = (31, 40, 769, 570)    # inner box of the full-screen ruler, measured at 1920x1080
+RULER_BOX = (41, 41, 759, 559)    # box drawn in the ruler art; frames sit on it (the gap to the ticks is in the art)
 RULER_SLACK = 6                   # a content frame lies within this of RULER_FRAME or RULER_BOX
 SIBLING_SLACK = 10                # a frame sibling maps along when it lies within the old box plus this
 

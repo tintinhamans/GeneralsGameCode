@@ -52,8 +52,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = USER;
-    SCREENRECT = UPPERLEFT: 31 40,
-                 BOTTOMRIGHT: 769 570,
+    SCREENRECT = UPPERLEFT: 41 41,
+                 BOTTOMRIGHT: 759 559,
                  CREATIONRESOLUTION: 800 600;
     NAME = "NetworkDirectConnect.wnd:GadgetParent";
     STATUS = ENABLED;
@@ -98,8 +98,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 132 121,
-                   BOTTOMRIGHT: 678 391,
+      SCREENRECT = UPPERLEFT: 140 120,
+                   BOTTOMRIGHT: 670 384,
                    CREATIONRESOLUTION: 800 600;
       NAME = "NetworkDirectConnect.wnd:";
       STATUS = ENABLED;
@@ -144,8 +144,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 477 201,
-                     BOTTOMRIGHT: 653 242,
+        SCREENRECT = UPPERLEFT: 475 198,
+                     BOTTOMRIGHT: 647 238,
                      CREATIONRESOLUTION: 800 600;
         NAME = "NetworkDirectConnect.wnd:ButtonHost";
         STATUS = ENABLED+IMAGE;
@@ -192,8 +192,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 477 250,
-                     BOTTOMRIGHT: 653 291,
+        SCREENRECT = UPPERLEFT: 475 246,
+                     BOTTOMRIGHT: 647 286,
                      CREATIONRESOLUTION: 800 600;
         NAME = "NetworkDirectConnect.wnd:ButtonJoin";
         STATUS = ENABLED+IMAGE;
@@ -240,8 +240,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 477 336,
-                     BOTTOMRIGHT: 653 377,
+        SCREENRECT = UPPERLEFT: 475 330,
+                     BOTTOMRIGHT: 647 370,
                      CREATIONRESOLUTION: 800 600;
         NAME = "NetworkDirectConnect.wnd:ButtonBack";
         STATUS = ENABLED+IMAGE;
@@ -288,8 +288,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 156 302,
-                     BOTTOMRIGHT: 369 331,
+        SCREENRECT = UPPERLEFT: 163 297,
+                     BOTTOMRIGHT: 370 325,
                      CREATIONRESOLUTION: 800 600;
         NAME = "NetworkDirectConnect.wnd:StaticRemoteIPDescription";
         STATUS = ENABLED;
@@ -337,8 +337,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 156 274,
-                     BOTTOMRIGHT: 386 299,
+        SCREENRECT = UPPERLEFT: 163 270,
+                     BOTTOMRIGHT: 386 294,
                      CREATIONRESOLUTION: 800 600;
         NAME = "NetworkDirectConnect.wnd:StaticLocalIP";
         STATUS = ENABLED;
@@ -385,8 +385,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 156 244,
-                     BOTTOMRIGHT: 369 273,
+        SCREENRECT = UPPERLEFT: 163 240,
+                     BOTTOMRIGHT: 370 268,
                      CREATIONRESOLUTION: 800 600;
         NAME = "NetworkDirectConnect.wnd:StaticLocalIPDescription";
         STATUS = ENABLED;
@@ -434,8 +434,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = ENTRYFIELD;
-        SCREENRECT = UPPERLEFT: 159 204,
-                     BOTTOMRIGHT: 389 230,
+        SCREENRECT = UPPERLEFT: 166 201,
+                     BOTTOMRIGHT: 389 226,
                      CREATIONRESOLUTION: 800 600;
         NAME = "NetworkDirectConnect.wnd:EditPlayerName";
         STATUS = ENABLED+IMAGE;
@@ -487,8 +487,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 156 177,
-                     BOTTOMRIGHT: 361 206,
+        SCREENRECT = UPPERLEFT: 163 174,
+                     BOTTOMRIGHT: 362 202,
                      CREATIONRESOLUTION: 800 600;
         NAME = "NetworkDirectConnect.wnd:StaticPlayerNameDescription";
         STATUS = ENABLED;
@@ -536,8 +536,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 132 165,
-                     BOTTOMRIGHT: 678 166,
+        SCREENRECT = UPPERLEFT: 140 164,
+                     BOTTOMRIGHT: 670 165,
                      CREATIONRESOLUTION: 800 600;
         NAME = "NetworkDirectConnect.wnd:Line";
         STATUS = ENABLED;
@@ -585,8 +585,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 159 333,
-                   BOTTOMRIGHT: 389 357,
+      SCREENRECT = UPPERLEFT: 166 327,
+                   BOTTOMRIGHT: 389 351,
                    CREATIONRESOLUTION: 800 600;
       NAME = "NetworkDirectConnect.wnd:ComboboxRemoteIP";
       STATUS = ENABLED+IMAGE;
@@ -826,8 +826,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 159 124,
-                   BOTTOMRIGHT: 471 166,
+      SCREENRECT = UPPERLEFT: 166 123,
+                   BOTTOMRIGHT: 469 165,
                    CREATIONRESOLUTION: 800 600;
       NAME = "NetworkDirectConnect.wnd:StaticWindowLabel";
       STATUS = ENABLED;

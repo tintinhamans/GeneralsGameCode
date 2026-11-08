@@ -52,8 +52,8 @@ WINDOW
   CHILD
   WINDOW
     WINDOWTYPE = USER;
-    SCREENRECT = UPPERLEFT: 31 40,
-                 BOTTOMRIGHT: 769 570,
+    SCREENRECT = UPPERLEFT: 41 41,
+                 BOTTOMRIGHT: 759 559,
                  CREATIONRESOLUTION: 800 600;
     NAME = "GameSpyLoginProfile.wnd:GadgetParent";
     STATUS = ENABLED;
@@ -98,8 +98,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 35 505,
-                   BOTTOMRIGHT: 245 567,
+      SCREENRECT = UPPERLEFT: 45 496,
+                   BOTTOMRIGHT: 249 556,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyLoginProfile.wnd:ParentESRB";
       STATUS = ENABLED;
@@ -144,8 +144,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 39 510,
-                     BOTTOMRIGHT: 241 528,
+        SCREENRECT = UPPERLEFT: 49 500,
+                     BOTTOMRIGHT: 245 518,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:StaticTextESRBTop";
         STATUS = ENABLED+IMAGE;
@@ -193,8 +193,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 41 526,
-                     BOTTOMRIGHT: 239 563,
+        SCREENRECT = UPPERLEFT: 51 516,
+                     BOTTOMRIGHT: 243 552,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:StaticTextESRBBottom";
         STATUS = ENABLED+IMAGE+WRAP_CENTERED;
@@ -244,8 +244,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 102 114,
-                   BOTTOMRIGHT: 690 438,
+      SCREENRECT = UPPERLEFT: 110 113,
+                   BOTTOMRIGHT: 682 430,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyLoginProfile.wnd:";
       STATUS = ENABLED;
@@ -290,8 +290,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 115 393,
-                     BOTTOMRIGHT: 300 426,
+        SCREENRECT = UPPERLEFT: 123 386,
+                     BOTTOMRIGHT: 303 418,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:ButtonLogin";
         STATUS = ENABLED+IMAGE;
@@ -338,8 +338,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 315 393,
-                     BOTTOMRIGHT: 500 426,
+        SCREENRECT = UPPERLEFT: 317 386,
+                     BOTTOMRIGHT: 497 418,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:ButtonCreateAccount";
         STATUS = ENABLED+IMAGE;
@@ -386,8 +386,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 512 352,
-                     BOTTOMRIGHT: 676 385,
+        SCREENRECT = UPPERLEFT: 509 346,
+                     BOTTOMRIGHT: 669 378,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:ButtonTOS";
         STATUS = ENABLED+IMAGE;
@@ -434,8 +434,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = PUSHBUTTON;
-        SCREENRECT = UPPERLEFT: 512 393,
-                     BOTTOMRIGHT: 676 426,
+        SCREENRECT = UPPERLEFT: 509 386,
+                     BOTTOMRIGHT: 669 418,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:ButtonBack";
         STATUS = ENABLED+IMAGE;
@@ -482,8 +482,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = CHECKBOX;
-        SCREENRECT = UPPERLEFT: 115 348,
-                     BOTTOMRIGHT: 313 373,
+        SCREENRECT = UPPERLEFT: 123 342,
+                     BOTTOMRIGHT: 315 367,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:CheckBoxRememberInfo";
         STATUS = ENABLED+IMAGE;
@@ -531,8 +531,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 115 286,
-                     BOTTOMRIGHT: 393 315,
+        SCREENRECT = UPPERLEFT: 123 281,
+                     BOTTOMRIGHT: 393 309,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:StaticTextPassword";
         STATUS = ENABLED;
@@ -580,8 +580,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = ENTRYFIELD;
-        SCREENRECT = UPPERLEFT: 115 317,
-                     BOTTOMRIGHT: 393 341,
+        SCREENRECT = UPPERLEFT: 123 312,
+                     BOTTOMRIGHT: 393 336,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:TextEntryPassword";
         STATUS = ENABLED+IMAGE;
@@ -633,8 +633,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 115 228,
-                     BOTTOMRIGHT: 398 257,
+        SCREENRECT = UPPERLEFT: 123 224,
+                     BOTTOMRIGHT: 398 252,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:StaticTextLoginName";
         STATUS = ENABLED;
@@ -682,8 +682,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 115 163,
-                     BOTTOMRIGHT: 393 192,
+        SCREENRECT = UPPERLEFT: 123 161,
+                     BOTTOMRIGHT: 393 189,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:StaticTextEmail";
         STATUS = ENABLED;
@@ -731,8 +731,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 102 155,
-                     BOTTOMRIGHT: 690 156,
+        SCREENRECT = UPPERLEFT: 110 153,
+                     BOTTOMRIGHT: 682 154,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:Line";
         STATUS = ENABLED;
@@ -778,8 +778,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 456 169,
-                     BOTTOMRIGHT: 674 341,
+        SCREENRECT = UPPERLEFT: 454 167,
+                     BOTTOMRIGHT: 667 336,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:WinAge";
         STATUS = ENABLED;
@@ -824,8 +824,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 456 172,
-                       BOTTOMRIGHT: 668 201,
+          SCREENRECT = UPPERLEFT: 454 170,
+                       BOTTOMRIGHT: 661 198,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:StaticTextEmail1";
           STATUS = ENABLED;
@@ -873,8 +873,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 463 218,
-                       BOTTOMRIGHT: 611 243,
+          SCREENRECT = UPPERLEFT: 461 215,
+                       BOTTOMRIGHT: 605 239,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:";
           STATUS = ENABLED+IMAGE;
@@ -922,8 +922,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = ENTRYFIELD;
-          SCREENRECT = UPPERLEFT: 614 298,
-                       BOTTOMRIGHT: 662 323,
+          SCREENRECT = UPPERLEFT: 608 293,
+                       BOTTOMRIGHT: 655 317,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:TextEntryYear";
           STATUS = ENABLED+IMAGE;
@@ -975,8 +975,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = ENTRYFIELD;
-          SCREENRECT = UPPERLEFT: 614 255,
-                       BOTTOMRIGHT: 662 280,
+          SCREENRECT = UPPERLEFT: 608 251,
+                       BOTTOMRIGHT: 655 275,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:TextEntryDay";
           STATUS = ENABLED+IMAGE;
@@ -1028,8 +1028,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = ENTRYFIELD;
-          SCREENRECT = UPPERLEFT: 614 218,
-                       BOTTOMRIGHT: 662 243,
+          SCREENRECT = UPPERLEFT: 608 215,
+                       BOTTOMRIGHT: 655 239,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:TextEntryMonth";
           STATUS = ENABLED+IMAGE;
@@ -1081,8 +1081,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 463 255,
-                       BOTTOMRIGHT: 611 280,
+          SCREENRECT = UPPERLEFT: 461 251,
+                       BOTTOMRIGHT: 605 275,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:";
           STATUS = ENABLED+IMAGE;
@@ -1130,8 +1130,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 463 298,
-                       BOTTOMRIGHT: 611 323,
+          SCREENRECT = UPPERLEFT: 461 293,
+                       BOTTOMRIGHT: 605 317,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:";
           STATUS = ENABLED+IMAGE;
@@ -1179,8 +1179,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = USER;
-          SCREENRECT = UPPERLEFT: 456 200,
-                       BOTTOMRIGHT: 674 201,
+          SCREENRECT = UPPERLEFT: 454 197,
+                       BOTTOMRIGHT: 667 198,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:AgeLine";
           STATUS = ENABLED;
@@ -1230,8 +1230,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 120 258,
-                   BOTTOMRIGHT: 395 287,
+      SCREENRECT = UPPERLEFT: 128 254,
+                   BOTTOMRIGHT: 396 282,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyLoginProfile.wnd:ComboBoxLoginName";
       STATUS = ENABLED+IMAGE;
@@ -1471,8 +1471,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = COMBOBOX;
-      SCREENRECT = UPPERLEFT: 120 194,
-                   BOTTOMRIGHT: 395 223,
+      SCREENRECT = UPPERLEFT: 128 191,
+                   BOTTOMRIGHT: 396 219,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyLoginProfile.wnd:ComboBoxEmail";
       STATUS = ENABLED+IMAGE;
@@ -1712,8 +1712,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 104 114,
-                   BOTTOMRIGHT: 515 159,
+      SCREENRECT = UPPERLEFT: 112 113,
+                   BOTTOMRIGHT: 512 157,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyLoginProfile.wnd:StaticTextTitle";
       STATUS = ENABLED;
@@ -1761,8 +1761,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = USER;
-      SCREENRECT = UPPERLEFT: 174 52,
-                   BOTTOMRIGHT: 612 511,
+      SCREENRECT = UPPERLEFT: 180 53,
+                   BOTTOMRIGHT: 606 501,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyLoginProfile.wnd:ParentTOS";
       STATUS = DRAGABLE+ENABLED+HIDDEN;
@@ -1807,8 +1807,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = USER;
-        SCREENRECT = UPPERLEFT: 184 62,
-                     BOTTOMRIGHT: 612 501,
+        SCREENRECT = UPPERLEFT: 190 62,
+                     BOTTOMRIGHT: 606 492,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:";
         STATUS = ENABLED;
@@ -1853,8 +1853,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = PUSHBUTTON;
-          SCREENRECT = UPPERLEFT: 524 467,
-                       BOTTOMRIGHT: 603 496,
+          SCREENRECT = UPPERLEFT: 520 459,
+                       BOTTOMRIGHT: 597 487,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:ButtonTOSOK";
           STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -1901,8 +1901,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = SCROLLLISTBOX;
-          SCREENRECT = UPPERLEFT: 193 119,
-                       BOTTOMRIGHT: 600 463,
+          SCREENRECT = UPPERLEFT: 198 118,
+                       BOTTOMRIGHT: 594 455,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:ListboxTOS";
           STATUS = ENABLED;
@@ -2064,8 +2064,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = USER;
-          SCREENRECT = UPPERLEFT: 184 108,
-                       BOTTOMRIGHT: 612 109,
+          SCREENRECT = UPPERLEFT: 190 107,
+                       BOTTOMRIGHT: 606 108,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:Line1";
           STATUS = ENABLED;
@@ -2113,8 +2113,8 @@ WINDOW
       CHILD
       WINDOW
         WINDOWTYPE = STATICTEXT;
-        SCREENRECT = UPPERLEFT: 188 64,
-                     BOTTOMRIGHT: 604 106,
+        SCREENRECT = UPPERLEFT: 194 64,
+                     BOTTOMRIGHT: 598 105,
                      CREATIONRESOLUTION: 800 600;
         NAME = "GameSpyLoginProfile.wnd:StaticTextTitle1";
         STATUS = ENABLED;
