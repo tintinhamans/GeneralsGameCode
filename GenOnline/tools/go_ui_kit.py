@@ -87,6 +87,16 @@ THUMB_STATES = {
 SLIDER_ON = (rgba("#6A7BFF"), rgba("#3446FF"))
 SLIDER_OFF = (rgba("#24308C"), rgba("#0B1030", 0.92))
 SLIDER_HOVER = rgba("#2F4BFF", 0.22)
+# track slider (drawn only by the GO track slider draw): (edge line, fill)
+SLIDER_TRACK = (rgba("#3A48B0"), rgba("#1A2260", 0.92))
+SLIDER_FILL = (rgba("#6A7BFF"), rgba("#3446FF"))
+# the thumb is a slim marker at the value: (colour, width in thumb pixels)
+SLIDER_MARKER = {
+    "": (rgba("#C9CEFF"), 1.15),
+    "Hilite": (rgba("#FFFFFF"), 1.6),
+    "Disabled": (rgba("#5D6080"), 1.15),
+}
+TRACK_LINE = 0.55  # 8 px art, drawn about 14 px tall at 1080p
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
     "ListBoxHiliteSelectedItem": rgba("#2B34B8", 0.80),
@@ -184,6 +194,31 @@ def box_piece(w, h, line, fill):
     return paint(w, h, sample)
 
 
+def round_end(w, h, side, line, fill):
+    """Half of a pill: a semicircle of radius h/2 closing the bar on one side."""
+    r = h / 2.0
+
+    def sample(x, y):
+        cx = r if side == "left" else w - r
+        if (side == "left" and x >= cx) or (side == "right" and x <= cx):
+            d = min(y, h - y)
+        else:
+            d = r - math.hypot(x - cx, y - r)
+        if d < 0.0:
+            return TRANSPARENT
+        return line if d < TRACK_LINE else fill
+
+    return paint(w, h, sample)
+
+
+def marker_piece(w, h, color, width):
+    """A slim vertical line in the middle of the thumb rect, 70% of its height."""
+    def sample(x, y):
+        return color if abs(x - w / 2.0) < width / 2.0 and 0.15 * h <= y < 0.85 * h else TRANSPARENT
+
+    return paint(w, h, sample)
+
+
 def flat_piece(w, h, color):
     return paint(w, h, lambda x, y: color)
 
@@ -225,6 +260,15 @@ def pieces():
     out.append(("hilightedbox", 11, 13, box_piece(11, 13, *SLIDER_ON)))
     out.append(("dehilightedbox", 11, 13, box_piece(11, 13, *SLIDER_OFF)))
     out.append(("linebox", 13, 15, flat_piece(13, 15, SLIDER_HOVER)))
+    # rounded track ends; the fill keeps a square end where it meets the marker
+    out.append(("GOSliderTrackLeft", 4, 8, round_end(4, 8, "left", *SLIDER_TRACK)))
+    out.append(("GOSliderTrackCenter", 4, 8, button_piece(4, 8, "middle", *SLIDER_TRACK, TRACK_LINE)))
+    out.append(("GOSliderTrackRight", 4, 8, round_end(4, 8, "right", *SLIDER_TRACK)))
+    out.append(("GOSliderFillLeft", 4, 8, round_end(4, 8, "left", *SLIDER_FILL)))
+    out.append(("GOSliderFillCenter", 4, 8, button_piece(4, 8, "middle", *SLIDER_FILL, TRACK_LINE)))
+    out.append(("GOSliderFillRight", 4, 8, button_piece(4, 8, "middle", *SLIDER_FILL, TRACK_LINE)))
+    for state, (color, width) in SLIDER_MARKER.items():
+        out.append((f"GOSliderThumb{state}", 8, 16, marker_piece(8, 16, color, width)))
     return out
 
 
@@ -277,12 +321,29 @@ def build():
 
 
 def tga_bytes(atlas):
+    """32 bit run length encoded TGA (type 10), packets never cross a scanline."""
     height, width = len(atlas), len(atlas[0])
-    header = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, width, height, 32, 0x08)
+    header = struct.pack("<BBBHHBHHHHBB", 0, 0, 10, 0, 0, 0, 0, 0, width, height, 32, 0x08)
     body = bytearray()
     for row in reversed(atlas):
-        for r, g, b, a in row:
-            body += bytes((round(b * 255), round(g * 255), round(r * 255), round(a * 255)))
+        texels = [bytes((round(b * 255), round(g * 255), round(r * 255), round(a * 255))) for r, g, b, a in row]
+        x = 0
+        while x < width:
+            run = 1
+            while x + run < width and run < 128 and texels[x + run] == texels[x]:
+                run += 1
+            if run > 1:
+                body.append(0x80 | (run - 1))
+                body += texels[x]
+                x += run
+                continue
+            raw = 1
+            while x + raw < width and raw < 128 and (x + raw + 1 >= width or texels[x + raw] != texels[x + raw + 1]):
+                raw += 1
+            body.append(raw - 1)
+            for t in texels[x:x + raw]:
+                body += t
+            x += raw
     return header + bytes(body)
 
 

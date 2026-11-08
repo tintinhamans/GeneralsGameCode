@@ -2425,7 +2425,10 @@ GameWindow *GameWindowManager::gogoGadgetComboBox( GameWindow *parent,
 	// when the layout scales the combo box taller, instead of stretching it to the scaled height at a fixed width.
 	if (height > buttonHeight)
 	{
-		buttonWidth = (buttonWidth * height + buttonHeight / 2) / buttonHeight;
+		// rows scale each corner and truncate, so equal rows differ by a pixel; size from the layout height instead
+		const Int screenHeight = TheDisplay != nullptr ? TheDisplay->getHeight() : 600;
+		const Int layoutHeight = (height * 600 + screenHeight / 2) / screenHeight;
+		buttonWidth = (buttonWidth * layoutHeight * screenHeight + buttonHeight * 300) / (buttonHeight * 600);
 	}
 
 	// ----------------------------------------------------------------------
