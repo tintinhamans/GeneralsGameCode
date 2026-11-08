@@ -6,6 +6,10 @@ windows. Add an entry only for what the rules cannot decide, after a screenshot 
 
 HEADINGS maps a layout's archive path to {heading NAME: column NAME}. After every rule and override
 the heading moves sideways, keeping its width, so its left edge is the column window's final left edge.
+
+LIST_HEADERS maps a layout's archive path to {list NAME: {"cells": (header NAME or None per list column), "corner":
+NAME, "arrow": NAME}}. Every pass the cells sit on the list top over their columns, None for a 0% column, the corner cell
+over the scroll bar and the sort arrow inside the first cell; the rules never move them.
 """
 
 FIXES = {
@@ -26,5 +30,31 @@ HEADINGS = {
     "Window/Menus/SkirmishGameOptionsMenu.wnd": {
         "SkirmishGameOptionsMenu.wnd:StaticTextPlayers": "SkirmishGameOptionsMenu.wnd:TextEntryPlayerName",
         "SkirmishGameOptionsMenu.wnd:StaticTextMapPreview": "SkirmishGameOptionsMenu.wnd:MapWindow",
+    },
+}
+
+# GO signs in behind a message box on the GameSpy login screen; only the backdrop, the frame and the title show there
+BLANK_LAYOUTS = {
+    "Window/Menus/GameSpyLoginProfile.wnd": ("GameSpyLoginProfile.wnd:Line",),
+    "Window/Menus/GameSpyLoginQuick.wnd": ("GameSpyLoginQuick.wnd:MainMenuBackground",),
+}
+
+# sort headers of the online game list; the columns follow the COLUMN_ enum in Core LobbyUtils.cpp
+LIST_HEADERS = {
+    "Window/Menus/WOLCustomLobby.wnd": {
+        "WOLCustomLobby.wnd:ListboxGamesLarge": {
+            "cells": (
+                "WOLCustomLobby.wnd:ButtonHeaderGame",
+                "WOLCustomLobby.wnd:ButtonHeaderMap",
+                None,  # ladder
+                "WOLCustomLobby.wnd:ButtonHeaderPlayers",
+                "WOLCustomLobby.wnd:ButtonHeaderPassword",
+                None,  # observers
+                "WOLCustomLobby.wnd:ButtonHeaderStats",
+                "WOLCustomLobby.wnd:ButtonHeaderPing",
+            ),
+            "corner": "WOLCustomLobby.wnd:ButtonHeaderCorner",
+            "arrow": "WOLCustomLobby.wnd:WindowHeaderArrow",
+        },
     },
 }

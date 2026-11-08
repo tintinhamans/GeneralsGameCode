@@ -53,6 +53,13 @@ enum GameSortType CPP_11(: Int)
     GAMESORT_AGE_DESCENDING,	// was alpha
 	GAMESORT_MAP_ASCENDING,		// was ping
 	GAMESORT_MAP_DESCENDING,	// was ping
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Sort the game list by name, player count or ping from its column headers.
+	GAMESORT_ALPHA_ASCENDING,
+	GAMESORT_ALPHA_DESCENDING,
+	GAMESORT_PLAYERS_ASCENDING,
+	GAMESORT_PLAYERS_DESCENDING,
+	GAMESORT_PING_ASCENDING,
+	GAMESORT_PING_DESCENDING,
 };
 
 Bool HandleSortButton( NameKeyType sortButton );

@@ -825,10 +825,27 @@ class ComboHeightTest(unittest.TestCase):
         text = screen(window("COMBOBOX", (100, 100, 300, 100 + wl.COMBO_HEIGHT + 3), indent=2))
         self.assertEqual(by_kind(wl.transform(text, name=MENU), "COMBOBOX"), [(100, 101, 300, 101 + wl.COMBO_HEIGHT)])
 
-    def test_same_row_entry_follows_and_the_button_stays(self):
+    def test_same_row_entry_and_button_follow(self):
         out = wl.transform(self.row(), name=MENU)
         self.assertEqual(by_kind(out, "ENTRYFIELD"), [(320, 102, 440, 102 + wl.COMBO_HEIGHT)])
-        self.assertEqual(by_kind(out, "PUSHBUTTON"), [(500, 100, 600, 100 + self.TALL)])
+        self.assertEqual(by_kind(out, "PUSHBUTTON"), [(500, 102, 600, 102 + wl.COMBO_HEIGHT)])
+
+    def test_square_button_stays_square_on_its_left_edge_and_a_check_box_follows(self):
+        h = self.TALL
+        text = screen(window("COMBOBOX", (100, 100, 300, 100 + h), indent=2),
+                      window("PUSHBUTTON", (400, 100, 400 + h, 100 + h), indent=2),
+                      window("CHECKBOX", (500, 100, 640, 100 + h), indent=2))
+        out = wl.transform(text, name=MENU)
+        self.assertEqual(by_kind(out, "PUSHBUTTON"), [(400, 102, 400 + wl.COMBO_HEIGHT, 102 + wl.COMBO_HEIGHT)])
+        self.assertEqual(by_kind(out, "CHECKBOX"), [(500, 102, 640, 102 + wl.COMBO_HEIGHT)])
+
+    def test_button_of_another_row_or_font_stays(self):
+        h = self.TALL
+        text = screen(window("COMBOBOX", (100, 100, 300, 100 + h), indent=2),
+                      window("PUSHBUTTON", (400, 100, 500, 100 + h + 6), indent=2),
+                      window("PUSHBUTTON", (600, 100, 700, 100 + h), indent=2, props=[BIG_FONT]))
+        out = wl.transform(text, name=MENU)
+        self.assertEqual(by_kind(out, "PUSHBUTTON"), [(400, 100, 500, 100 + h + 6), (600, 100, 700, 100 + h)])
 
     def test_entry_of_another_height_stays(self):
         out = wl.transform(self.row(entry_height=self.TALL + 6), name=MENU)
@@ -919,12 +936,132 @@ class ButtonGroupBorderTest(unittest.TestCase):
         for label, text in cases:
             self.assertEqual(self.group_border(text), ["47", "75", "255", "255"], label)
 
-    def test_shipped_custom_lobby_sort_buttons_have_no_group_frame(self):
+
+
+LIST_DATA = ["LISTBOXDATA = LENGTH: 100,", "COLUMNS: 4,", "COLUMNSWIDTH: 50,", "COLUMNSWIDTH: 0,", "COLUMNSWIDTH: 30,",
+             "COLUMNSWIDTH: 20,", "FORCESELECT: 0;"]
+NOINPUT = ["STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;"]
+
+
+class ListHeaderTest(unittest.TestCase):
+    """Header cells over a four column list (50%, a hidden 0% column, 30%, 20%) in a USER frame."""
+
+    def headers(self, cells=("Test.wnd:PUSHBUTTON110_105", None, "Test.wnd:PUSHBUTTON200_105", "Test.wnd:PUSHBUTTON300_105")):
+        return {MENU: {"Test.wnd:SCROLLLISTBOX100_140": {
+            "cells": cells, "corner": "Test.wnd:PUSHBUTTON400_105", "arrow": "Test.wnd:USER112_108"}}}
+
+    def frame(self, list_rect=(100, 140, 500, 400)):
+        return screen(window("USER", (100, 100, 500, 400), [
+            window("PUSHBUTTON", (110, 105, 190, 130), indent=4),
+            window("USER", (112, 108, 120, 114), indent=4, props=NOINPUT),
+            window("PUSHBUTTON", (200, 105, 290, 130), indent=4),
+            window("PUSHBUTTON", (300, 105, 390, 130), indent=4),
+            window("PUSHBUTTON", (400, 105, 450, 130), indent=4, props=NOINPUT),
+            window("SCROLLLISTBOX", list_rect, indent=4, props=LIST_DATA),
+        ], indent=2))
+
+    def placed(self, text=None, headers=None):
+        with mock.patch.object(wl, "LIST_HEADERS", headers or self.headers()):
+            out = wl.transform(text or self.frame(), name=MENU)
+        return out, {w.name.split(":")[-1]: w.rect for w in wl.parse_windows(out).walk()}
+
+    def test_cells_line_up_with_the_list_columns_on_the_list_top(self):
+        out, rects = self.placed()
+        total = 400 - wl.LIST_SCROLL_COLUMN
+        x1, x3 = 100 + 50 * total // 100, 100 + 50 * total // 100 + 30 * total // 100
+        x4 = x3 + 20 * total // 100
+        top = 140 - wl.COMBO_HEIGHT
+        self.assertEqual(rects["PUSHBUTTON110_105"], (100, top, x1, 140))
+        self.assertEqual(rects["PUSHBUTTON200_105"], (x1, top, x3, 140))
+        self.assertEqual(rects["PUSHBUTTON300_105"], (x3, top, x4, 140))
+        self.assertEqual(rects["PUSHBUTTON400_105"], (x4, top, 500, 140))
+        self.assertEqual(rects["SCROLLLISTBOX100_140"], (100, 140, 500, 400))
+
+    def test_arrow_keeps_its_size_at_the_right_end_of_the_first_cell(self):
+        out, rects = self.placed()
+        cell = rects["PUSHBUTTON110_105"]
+        right = cell[2] - wl.HEADER_ARROW_INSET
+        top = cell[1] + (wl.COMBO_HEIGHT - 6) // 2
+        self.assertEqual(rects["USER112_108"], (right - 8, top, right, top + 6))
+
+    def test_cells_follow_the_list(self):
+        out, rects = self.placed(self.frame((100, 150, 500, 400)).replace("SCROLLLISTBOX100_150", "SCROLLLISTBOX100_140"))
+        self.assertEqual(rects["PUSHBUTTON110_105"][1::2], (150 - wl.COMBO_HEIGHT, 150))
+
+    def test_placement_is_idempotent(self):
+        once, _ = self.placed()
+        again, _ = self.placed(once)
+        self.assertEqual(again, once)
+
+    def test_a_visible_column_without_a_cell_or_a_hidden_column_with_one_fails(self):
+        for cells in (("Test.wnd:PUSHBUTTON110_105", None, None, "Test.wnd:PUSHBUTTON300_105"),
+                      ("Test.wnd:PUSHBUTTON110_105", "Test.wnd:PUSHBUTTON200_105", None, "Test.wnd:PUSHBUTTON300_105"),
+                      ("Test.wnd:PUSHBUTTON110_105", None, "Test.wnd:PUSHBUTTON200_105")):
+            with self.assertRaises(ValueError, msg=cells):
+                self.placed(headers=self.headers(cells))
+
+
+LOBBY = "Window/Menus/WOLCustomLobby.wnd"
+LOBBY_CELLS = ("ButtonHeaderGame", "ButtonHeaderMap", "ButtonHeaderPlayers", "ButtonHeaderPassword", "ButtonHeaderStats",
+               "ButtonHeaderPing", "ButtonHeaderCorner")
+OLD_SORT_ROW = ("ParentSortButtons", "ButtonSortAlpha", "ButtonSortPing", "ButtonSortBuddies", "WindowSortAlpha",
+                "WindowSortPing", "WindowSortBuddies")
+
+
+def lobby_windows(base=wl.DATA):
+    """{short NAME: window} of the shipped custom lobby layout under base (the GO data or a theme folder)."""
+    return {w.name.split(":")[-1]: w for w in wl.parse_windows((base / LOBBY).read_bytes().decode("latin-1")).walk()}
+
+
+class CustomLobbyHeaderTest(unittest.TestCase):
+    def test_header_cells_line_up_with_the_game_list_columns(self):
+        wins = lobby_windows()
+        games = wins["ListboxGamesLarge"]
+        x0, y0, x1, y1 = games.rect
+        total = x1 - x0 - wl.LIST_SCROLL_COLUMN
+        edges, x = [], x0
+        for pct in games.columns:
+            edges.append((x, x + pct * total // 100))
+            x += pct * total // 100
+        visible = [edge for edge, pct in zip(edges, games.columns) if pct]
+        cells = [wins[name].rect for name in LOBBY_CELLS]
+        self.assertEqual([(c[0], c[2]) for c in cells[:-1]], visible)
+        self.assertEqual((cells[-1][0], cells[-1][2]), (x, x1))
+        for cell in cells:
+            self.assertEqual(cell[1::2], (y0 - wl.COMBO_HEIGHT, y0), cell)
+        arrow = wins["WindowHeaderArrow"].rect
+        self.assertTrue(cells[0][0] <= arrow[0] and arrow[2] <= cells[0][2] and cells[0][1] <= arrow[1] and arrow[3] <= cells[0][3])
+
+    def test_sortable_cells_take_input_and_the_icon_and_corner_cells_do_not(self):
+        wins = lobby_windows()
+        for name in LOBBY_CELLS:
+            self.assertEqual("NOINPUT" in wins[name].status, name in ("ButtonHeaderPassword", "ButtonHeaderStats", "ButtonHeaderCorner"), name)
+
+    def test_header_row_refresh_buddies_and_combo_share_the_combo_height(self):
+        wins = lobby_windows()
+        combo = wins["ComboBoxGroupRooms"].rect
+        self.assertEqual(combo[3] - combo[1], wl.COMBO_HEIGHT)
+        for name in ("ButtonRefresh", "CheckBoxBuddiesFirst"):
+            self.assertEqual(wins[name].rect[1::2], combo[1::2], name)
+        for name in LOBBY_CELLS:
+            rect = wins[name].rect
+            self.assertEqual(rect[3] - rect[1], wl.COMBO_HEIGHT, name)
+        refresh = wins["ButtonRefresh"].rect
+        self.assertEqual(refresh[2] - refresh[0], wl.COMBO_HEIGHT)
+        self.assertEqual(refresh[0], wins["ListboxGamesLarge"].rect[0])
+
+    def test_old_sort_row_is_gone_from_the_shipped_layouts(self):
         import go_themes
-        name = "Window/Menus/WOLCustomLobby.wnd"
-        for path in (wl.DATA / name, go_themes.THEME_DIR / name):
-            slots = enabled_slots(path.read_bytes().decode("latin-1"))
-            self.assertEqual(slots["WOLCustomLobby.wnd:ParentSortButtons"][0][2][3], "0", path)
+        for base in (wl.DATA, go_themes.THEME_DIR):
+            wins = lobby_windows(base)
+            for name in OLD_SORT_ROW:
+                self.assertNotIn(name, wins, base)
+            self.assertIn("ButtonRefresh", wins, base)
+
+    def test_radar_copy_has_the_same_windows_and_rects(self):
+        import go_themes
+        main = {name: (w.kind, w.rect) for name, w in lobby_windows().items()}
+        self.assertEqual({name: (w.kind, w.rect) for name, w in lobby_windows(go_themes.THEME_DIR).items()}, main)
 
 
 SETUP_MENUS = ("SkirmishGameOptionsMenu", "LanGameOptionsMenu", "GameSpyGameOptionsMenu")
@@ -1067,6 +1204,88 @@ class SetupRowsTest(unittest.TestCase):
         text = layout(window("COMBOBOX", (100, 100, 200, 120)))
         self.assertEqual(wl.setup_rows(text, "Window/Menus/OptionsMenu.wnd"), text)
         self.assertEqual(wl.setup_rows(text, None), text)
+
+
+def status(flags):
+    return [f"STATUS = {flags};"]
+
+
+def hidden_names(text):
+    """{short NAME: True when the window or an ancestor is hidden}."""
+    return {w.name.split(":")[-1]: _hidden(w) for w in wl.parse_windows(text).walk()}
+
+
+class BlankLayoutTest(unittest.TestCase):
+    def form(self):
+        title = status("ENABLED") + ['FONT = NAME: "Arial", SIZE: 20, BOLD: 0;']
+        return layout(window("USER", (0, 0, 800, 600), [
+            window("USER", (100, 100, 700, 500), [
+                window("STATICTEXT", (110, 110, 400, 150), indent=4, props=title),
+                window("USER", (100, 150, 700, 151), indent=4, props=status("ENABLED")),
+                window("PUSHBUTTON", (120, 400, 220, 430), indent=4, props=status("ENABLED+IMAGE")),
+                window("ENTRYFIELD", (120, 300, 300, 324), indent=4, props=status("ENABLED+IMAGE")),
+            ], indent=2, props=status("ENABLED")),
+            window("USER", (100, 520, 300, 560), [
+                window("STATICTEXT", (110, 525, 290, 545), indent=4, props=status("ENABLED")),
+            ], indent=2, props=status("ENABLED")),
+        ], props=status("ENABLED+IMAGE")))
+
+    def blanked(self, text=None):
+        with mock.patch.object(wl, "BLANK_LAYOUTS", {MENU: ("Test.wnd:USER100_150",)}):
+            return wl.transform(text or self.form(), name=MENU)
+
+    def test_kept_windows_their_ancestors_and_the_title_stay_and_the_rest_hides(self):
+        out = self.blanked()
+        self.assertEqual(hidden_names(out), {
+            "USER0_0": False, "USER100_100": False, "STATICTEXT110_110": False, "USER100_150": False,
+            "PUSHBUTTON120_400": True, "ENTRYFIELD120_300": True, "USER100_520": True, "STATICTEXT110_525": True})
+        statuses = {w.name.split(":")[-1]: w.status for w in wl.parse_windows(out).walk()}
+        self.assertEqual(statuses["PUSHBUTTON120_400"], {"ENABLED", "HIDDEN", "IMAGE"})
+        self.assertEqual(statuses["STATICTEXT110_525"], {"ENABLED"})
+        self.assertEqual(wl.structure_counts(out), wl.structure_counts(self.form()))
+
+    def test_blanking_is_idempotent_and_other_layouts_are_left_alone(self):
+        once = self.blanked()
+        self.assertEqual(self.blanked(once), once)
+        self.assertEqual(wl.blank_layout(self.form(), "Window/Menus/OptionsMenu.wnd"), self.form())
+
+    def test_unknown_kept_name_fails(self):
+        with mock.patch.object(wl, "BLANK_LAYOUTS", {MENU: ("Test.wnd:Missing",)}):
+            with self.assertRaises(ValueError):
+                wl.blank_layout(self.form(), MENU)
+
+
+LOGIN_FORMS = {
+    "GameSpyLoginProfile": ("ButtonLogin", "ButtonCreateAccount", "ButtonTOS", "ButtonBack", "CheckBoxRememberInfo",
+                            "TextEntryPassword", "ComboBoxEmail", "ComboBoxLoginName", "TextEntryMonth", "TextEntryDay",
+                            "TextEntryYear", "StaticTextEmail", "StaticTextLoginName", "StaticTextPassword", "ParentESRB",
+                            "ParentTOS", "ListboxTOS", "ButtonTOSOK"),
+    "GameSpyLoginQuick": ("ButtonLogin", "ButtonCreateAccount", "ButtonUseAccount", "ButtonTOS", "ButtonBack",
+                          "TextEntryLoginName", "ParentTOS", "ListboxTOS", "ButtonTOSOK"),
+}
+LOGIN_SHOWN = {
+    "GameSpyLoginProfile": ("WOLLoginMenuParent", "GadgetParent", "StaticTextTitle", "Line"),
+    "GameSpyLoginQuick": ("WOLLoginMenuParent", "MainMenuBackground"),
+}
+
+
+class ShippedLoginLayoutTest(unittest.TestCase):
+    def test_login_forms_are_hidden_behind_the_sign_in_box_and_the_backdrop_and_title_stay(self):
+        import go_themes
+        for menu in LOGIN_FORMS:
+            for base in (wl.DATA, go_themes.THEME_DIR):
+                path = base / f"Window/Menus/{menu}.wnd"
+                root = wl.parse_windows(path.read_bytes().decode("latin-1"))
+                hidden = {w.name.split(":")[-1]: _hidden(w) for w in root.walk() if w.name.split(":")[-1]}
+                for name in LOGIN_FORMS[menu]:
+                    self.assertTrue(hidden[name], f"{path} {name}")
+                for name in LOGIN_SHOWN[menu]:
+                    self.assertFalse(hidden[name], f"{path} {name}")
+                controls = [w for w in root.walk() if w.kind in ("PUSHBUTTON", "CHECKBOX", "ENTRYFIELD", "COMBOBOX",
+                                                                  "SCROLLLISTBOX", "RADIOBUTTON")]
+                self.assertTrue(controls and all(_hidden(w) for w in controls), path)
+                titles = [w for w in root.walk() if wl._is_title(w) and not _hidden(w)]
+                self.assertEqual(len(titles), 1, path)
 
 
 class ShippedLayoutTest(unittest.TestCase):

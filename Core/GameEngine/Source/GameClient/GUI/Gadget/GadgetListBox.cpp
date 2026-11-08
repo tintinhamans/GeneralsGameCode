@@ -127,6 +127,8 @@ static const char *const s_kitScrollImageNames[KIT_SCROLL_IMAGE_COUNT] =
 	"GOScrollDownHilite",
 	"GOScrollDownPushed",
 	"GOScrollDownDisabled",
+	"GOScrollCellHilite",
+	"GOScrollCellPushed",
 	"GOScrollLine"
 };
 
@@ -136,6 +138,10 @@ static const Image *s_kitScrollImages[KIT_SCROLL_IMAGE_COUNT];
 static const Int KIT_SCROLL_COLUMN_WIDTH = 14;
 // shortest kit thumb, the retail GADGET_SIZE thumb scaled from the 21 unit column to the kit column
 static const Int KIT_SCROLL_THUMB_MIN_HEIGHT = 11;
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 The kit pill fills its channel, like the kit slider fill fills its track, at 6 of the 14 column units.
+static const Int KIT_SCROLL_CHANNEL_WIDTH = 6;
+// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Kit scroll chevrons take the combo arrow chevron's share of its square, at least the pill width.
+static const Real KIT_SCROLL_CHEVRON_SHARE = 0.526f;
 // TheSuperHackers @tweak arcticdolphin 08/11/2026 Compact kit combo drop-down rows: each text row loses an eighth of the font height off its blank top.
 static const Int KIT_COMBO_ROW_TRIM_DIVISOR = 8;
 // rows of a colour drawn list start this far into it (W3DGadgetListBoxDraw)
@@ -2631,6 +2637,48 @@ Int GadgetListBoxGetKitScrollLineWidth( void )
 	if( width < 1 )
 		width = 1;
 	return width;
+}
+
+// GadgetListBoxGetKitScrollSpan ==============================================
+/** A span across a kit scroll column: the column left of the list frame line, or the pill or chevron centred in it */
+//=============================================================================
+// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The kit scroll chevrons, track and thumb share one centre line at every scale.
+void GadgetListBoxGetKitScrollSpan( KitScrollSpan which, Int columnX, Int columnWidth, Int *spanX, Int *spanWidth )
+{
+	Int separator = GadgetListBoxGetKitScrollLineWidth();
+	if( separator > columnWidth / 2 )
+		separator = 0;
+	Int contentWidth = columnWidth - separator;
+	if( contentWidth < 1 )
+		contentWidth = 1;
+
+	Int width = contentWidth;
+	if( which != KIT_SCROLL_SPAN_CONTENT )
+	{
+		width = GameWindowManager::winScaleLayoutSize( KIT_SCROLL_CHANNEL_WIDTH );
+		if( which == KIT_SCROLL_SPAN_CHEVRON )
+		{
+			Int chevronWidth = REAL_TO_INT_FLOOR( contentWidth * KIT_SCROLL_CHEVRON_SHARE + 0.5f );
+			if( chevronWidth > width )
+				width = chevronWidth;
+		}
+
+		// a line clear of each side when the column has room for it
+		Int widest = contentWidth - 2 * separator;
+		if( widest < 1 )
+			widest = contentWidth;
+		if( width > widest )
+			width = widest;
+		if( width < 1 )
+			width = 1;
+		// same parity as the column, so every span centres on the same line without rounding
+		if( (contentWidth - width) % 2 != 0 )
+			width += 1;
+	}
+
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Centred left of the list frame on the right, as thick as the separator, like the arrow chevrons.
+	*spanX = columnX + (contentWidth - width) / 2;
+	*spanWidth = width;
 }
 
 // GadgetListBoxDrawKitLines ==================================================

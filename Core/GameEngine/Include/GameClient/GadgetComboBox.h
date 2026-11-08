@@ -79,6 +79,10 @@ extern void GadgetComboBoxSetMaxChars( GameWindow *comboBox, Int maxChars );
 extern void GadgetComboBoxSetMaxDisplay( GameWindow *comboBox, Int maxDisplay );
 extern void GadgetComboBoxSetIsEditable(GameWindow *comboBox, Bool isEditable  );
 
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 A kit combo draws its edit box and arrow as one field box that lights as a whole.
+extern Bool GadgetComboBoxIsKitField( GameWindow *comboBox ); ///< TRUE when the combo draws as one GO kit field box
+extern Bool GadgetComboBoxIsKitFieldLit( GameWindow *comboBox ); ///< TRUE when that field shows its hover look
+
 //setup all the Font Colors
 extern void GadgetComboBoxSetEnabledTextColors( GameWindow *comboBox,Color color, Color borderColor );
 extern void GadgetComboBoxSetDisabledTextColors( GameWindow *comboBox,Color color, Color borderColor );

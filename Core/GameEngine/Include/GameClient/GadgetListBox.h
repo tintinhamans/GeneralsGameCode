@@ -90,9 +90,19 @@ enum KitScrollImage
 	KIT_SCROLL_DOWN_HILITE,
 	KIT_SCROLL_DOWN_PUSHED,
 	KIT_SCROLL_DOWN_DISABLED,
+	KIT_SCROLL_CELL_HILITE,
+	KIT_SCROLL_CELL_PUSHED,
 	KIT_SCROLL_LINE,
 
 	KIT_SCROLL_IMAGE_COUNT
+};
+
+// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Spans across a kit scroll column that all centre on one line.
+enum KitScrollSpan
+{
+	KIT_SCROLL_SPAN_CONTENT, ///< the column left of the list frame line
+	KIT_SCROLL_SPAN_PILL, ///< the track channel and the thumb
+	KIT_SCROLL_SPAN_CHEVRON ///< the arrow chevrons
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -108,6 +118,7 @@ extern Int GadgetListBoxGetKitComboFrame( GameWindow *listbox ); ///< kit combo 
 extern Int GadgetListBoxGetKitComboRowTrim( GameWindow *listbox ); ///< blank font rows a kit combo drop-down trims off each text row's top, 0 for other lists
 extern Int GadgetListBoxGetKitComboHeight( GameWindow *listbox, Int rows ); ///< kit combo drop-down height for rows, 0 for other lists
 extern Int GadgetListBoxGetKitScrollLineWidth( void ); ///< kit scroll column separator thickness, 0 without the kit
+extern void GadgetListBoxGetKitScrollSpan( KitScrollSpan which, Int columnX, Int columnWidth, Int *spanX, Int *spanWidth ); ///< a kit scroll column span, centred on the column line
 extern void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
 																			 Bool left, Bool top, Bool right, Bool bottom ); ///< kit line edges inside a rect
 extern Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor ); ///< TRUE when a layout border draws as a kit frame

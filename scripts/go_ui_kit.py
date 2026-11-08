@@ -82,22 +82,22 @@ ENTRY_STATES = {
     "Hilite": rgba("#6A7BFF"),
     "Disabled": DISABLED_LINE,
 }
-# arrow buttons join the field they sit beside: no left edge, the field line colour, the state in the fill
+# combo arrows are the right-hand square of one field box: no left edge, the field fill and the field line of each
+# state, so hover lights the whole field (the engine lights field and arrow together) and pushed looks like hover
 ARROW_STATES = {
-    "Enabled": (rgba("#2F4BFF"), rgba("#0B1030", 0.92), GLYPH),
-    "Hilite": (rgba("#2F4BFF"), rgba("#152078", 0.92), GLYPH_ACTIVE),
-    "HiliteSelected": (rgba("#2F4BFF"), rgba("#2B34B8", 0.92), GLYPH_ACTIVE),
-    "Disabled": (DISABLED_LINE, rgba("#0A0A10", 0.70), GLYPH_DISABLED),
+    "Enabled": (ENTRY_STATES["Enabled"], FIELD, GLYPH),
+    "Hilite": (ENTRY_STATES["Hilite"], FIELD, GLYPH_ACTIVE),
+    "HiliteSelected": (ENTRY_STATES["Hilite"], FIELD, GLYPH_ACTIVE),
+    "Disabled": (ENTRY_STATES["Disabled"], FIELD, GLYPH_DISABLED),
 }
 # horizontal slider blocks: (edge line, fill)
 SLIDER_ON = (rgba("#6A7BFF"), rgba("#3446FF"))
 SLIDER_OFF = (rgba("#24308C"), rgba("#0B1030", 0.92))
 SLIDER_HOVER = rgba("#2F4BFF", 0.22)
-# track slider (drawn only by the GO track slider draw): (edge line, fill)
-# flat, no outline: an outline only shows on the rounded ends once the small art is scaled, as a light rim
-SLIDER_TRACK = (rgba("#283489"), rgba("#283489"))
-SLIDER_FILL = (rgba("#3446FF"), rgba("#3446FF"))
-# the thumb is a rounded pill at the value, 4 units wide and 1.75 track heights tall (W3DHorizontalSlider)
+# track slider (drawn only by the GO track slider draw): plain flat bars with square ends, no outline
+SLIDER_TRACK = rgba("#283489")
+SLIDER_FILL = rgba("#3446FF")
+# the thumb is a plain bar at the value, 4 units wide and 1.75 track heights tall (W3DHorizontalSlider)
 SLIDER_MARKER = {
     "": GLYPH,
     "Hilite": GLYPH_ACTIVE,
@@ -105,7 +105,6 @@ SLIDER_MARKER = {
 }
 SLIDER_TRACK_HEIGHT = 8
 SLIDER_MARKER_SIZE = (4, 14)
-TRACK_LINE = 0.55  # 8 px art, drawn about 14 px tall at 1080p
 SYMBOL_LINE = LINE_LAYOUT  # check boxes and symbol buttons draw at about their own size
 # every glyph: a 16 unit design grid fitted to its piece, one 2 unit stroke with round caps and joins, 2 units of padding
 GLYPH_GRID = 16.0
@@ -135,7 +134,7 @@ PLAYER_STARTS = {
     "PlayerStartHilitePushed": (rgba("#C9CEFF"), rgba("#3446FF")),
     "PlayerStartDisabled": (DISABLED_LINE, rgba("#0A0A10", 0.70)),
 }
-# scroll bar thumb: a slim pill in the middle of the thumb rect
+# scroll bar thumb: a slim plain bar in the middle of the thumb rect
 SCROLL_THUMBS = {
     "Enabled": rgba("#3A4FE0"),
     "Hilite": rgba("#6A7BFF"),
@@ -143,14 +142,14 @@ SCROLL_THUMBS = {
     "Disabled": rgba("#404159"),
 }
 SCROLL_THUMB_WIDTH = 7.0
-# kit list scroll bar (drawn only by the GO list scroll bar draw): a rounded channel, a pill thumb and arrow cells
+# kit list scroll bar (drawn only by the GO list scroll bar draw): a flat channel, a flat thumb bar and arrow cells
 SCROLL_TRACK = SLIDER_TRACK
 SCROLL_PILLS = {
     "": SLIDER_FILL,
-    "Hilite": (rgba("#6A7BFF"), rgba("#6A7BFF")),
-    "Disabled": (rgba("#3A3C55"), rgba("#3A3C55")),
+    "Hilite": rgba("#6A7BFF"),
+    "Disabled": rgba("#3A3C55"),
 }
-# arrow cells in the combo arrow states: state -> (line, fill, glyph); the engine draws the lines with GOScrollLine
+# arrow cells in the combo arrow states: state -> (cell highlight, chevron); the engine draws the lines with GOScrollLine
 SCROLL_ARROWS = {
     "": (TRANSPARENT, GLYPH),
     "Hilite": (SLIDER_HOVER, GLYPH_ACTIVE),
@@ -158,13 +157,12 @@ SCROLL_ARROWS = {
     "Disabled": (TRANSPARENT, GLYPH_DISABLED),
 }
 SCROLL_HIGHLIGHT_INSET = 3.0  # cell units: clear of the list frame
-SCROLL_HIGHLIGHT_RADIUS = 3.0
-# the kit scroll column is 14 layout px wide with a 6 px channel the pill fills (W3DVerticalSlider, GadgetListBox)
-SCROLL_ARROW_SIZE = 21  # the square arrow cell on the combo arrow's 21 unit grid, so drawn at the button's width the chevrons match
-SCROLL_PILL_WIDTH = 6
-# pill and track pieces: twice the pill width so the semicircle ends stay smooth when drawn larger (4K draws them 22 px wide);
-# the engine draws each end as tall as half the drawn width, so they stay true semicircles
-SCROLL_PILL_ART = (12, 6)
+# the kit scroll column is 14 layout px wide with a 6 px channel the thumb fills (GadgetListBoxGetKitScrollSpan)
+SCROLL_ARROW_SIZE = 21  # the square highlight cell, drawn over the column left of the list frame line
+# the chevron alone, its ink filling the piece: the engine draws it centred on the column line the thumb shares
+SCROLL_CHEVRON_ART = (12, 8)
+# flat track and thumb pieces with square ends: any size draws the same plain bar
+SCROLL_PILL_ART = (4, 2)
 SCROLL_LINE = ARROW_STATES["Enabled"][0]  # kit list frames, cell lines and the column separator the engine draws, Border = LINE_LAYOUT
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
@@ -269,7 +267,8 @@ def triangle_inside(x, y, a, b, c):
 
 
 def arrow_piece(w, h, up, line, fill, glyph):
-    """The combo drop-down arrow: no left edge, the stroke chevron centred in the space left of the right line."""
+    """The combo drop-down arrow: no left edge, the stroke chevron centred in the space left of the right line.
+    The field box beside it draws no right edge either, so the two read as one box with no divider."""
     hit = chevron_glyph(w, h, up, (0.0, 0.0, w - ARROW_LINE, h))
 
     def sample(x, y):
@@ -285,34 +284,6 @@ def box_piece(w, h, line, fill):
 
     def sample(x, y):
         return line if min(x, w - x) < lx or min(y, h - y) < ly else fill
-
-    return paint(w, h, sample)
-
-
-def round_end(w, h, side, line, fill):
-    """Half of a pill: a semicircle of radius h/2 closing the bar on one side."""
-    r = h / 2.0
-
-    def sample(x, y):
-        cx = r if side == "left" else w - r
-        if (side == "left" and x >= cx) or (side == "right" and x <= cx):
-            d = min(y, h - y)
-        else:
-            d = r - math.hypot(x - cx, y - r)
-        if d < 0.0:
-            return TRANSPARENT
-        return line if d < TRACK_LINE else fill
-
-    return paint(w, h, sample)
-
-
-def marker_piece(w, h, color):
-    """A fully rounded vertical pill filling the piece."""
-    r = w / 2.0
-
-    def sample(x, y):
-        cy = min(max(y, r), h - r)
-        return color if math.hypot(x - r, y - cy) < r else TRANSPARENT
 
     return paint(w, h, sample)
 
@@ -477,55 +448,38 @@ def ring_piece(w, h, line, fill):
     return paint(w, h, sample)
 
 
-def pill_piece(w, h, color, width):
-    """A vertical pill of the given width, centred, with a pixel of room above and below."""
-    r = width / 2.0
-    cx = w / 2.0
-
-    def sample(x, y):
-        top, bottom = 1.0 + r, h - 1.0 - r
-        cy = min(max(y, top), bottom)
-        return color if math.hypot(x - cx, y - cy) < r else TRANSPARENT
-
-    return paint(w, h, sample)
+def bar_piece(w, h, color, width):
+    """A vertical plain bar of the given width, centred, with a pixel of room above and below."""
+    left, right = (w - width) / 2.0, (w + width) / 2.0
+    return paint(w, h, lambda x, y: color if left <= x < right and 1.0 <= y < h - 1.0 else TRANSPARENT)
 
 
-def round_cap(w, h, side, line, fill):
-    """Half of a vertical pill: a semicircle of radius w/2 closing the channel at the top or bottom."""
-    r = w / 2.0
-
-    def sample(x, y):
-        cy = r if side == "top" else h - r
-        if (side == "top" and y >= cy) or (side == "bottom" and y <= cy):
-            d = min(x, w - x)
-        else:
-            d = r - math.hypot(x - r, y - cy)
-        if d < 0.0:
-            return TRANSPARENT
-        return line if d < TRACK_LINE else fill
-
-    return paint(w, h, sample)
+def chevron_ink_glyph(w, h):
+    """The up chevron_glyph stroke chevron, fitted by its ink rather than its design grid to the piece and centred in it."""
+    radius = GLYPH_STROKE_UNITS / 2.0
+    corner = radius * math.sqrt(0.5)  # a butt cap end reaches this far past its point on both axes
+    ink_w = 7.0 + 2.0 * corner
+    ink_h = 3.5 + math.sqrt(2.0) * radius + corner
+    unit = min(w / ink_w, h / ink_h)
+    cx, top = w / 2.0, (h - ink_h * unit) / 2.0
+    apex = top + math.sqrt(2.0) * radius * unit
+    feet = apex + 3.5 * unit
+    points = [(cx - 3.5 * unit, feet), (cx, apex), (cx + 3.5 * unit, feet)]
+    quads = stroke_shapes(points, radius * unit)
+    return lambda x, y: any(quad_inside(x, y, *q) for q in quads)
 
 
-def channel_piece(w, h, line, fill):
-    """The middle of a vertical pill: open at the top and bottom, a line down both sides."""
-    return paint(w, h, lambda x, y: line if min(x, w - x) < TRACK_LINE else fill)
+def scroll_chevron_piece(w, h, up, glyph):
+    """A scroll arrow chevron filling its piece, no cell: the engine sizes it and centres it on the scroll column line."""
+    hit = chevron_ink_glyph(w, h)
+    texels = paint(w, h, lambda x, y: glyph if hit(x, y) else TRANSPARENT)
+    return texels if up else texels[::-1]
 
 
-def scroll_arrow_piece(w, h, up, highlight, glyph):
-    """An arrow cell of the scroll column: no box, the combo arrow chevron over an optional rounded highlight.
-    No separator from the list; the list frame closes the right side, so the chevron centres left of it like the combo arrow."""
-    hit = chevron_glyph(w, h, up, (0.0, 0.0, w - ARROW_LINE, h))
-    inset, radius = SCROLL_HIGHLIGHT_INSET, SCROLL_HIGHLIGHT_RADIUS
-
-    def sample(x, y):
-        if hit(x, y):
-            return glyph
-        dx = max(inset + radius - x, x - (w - inset - radius), 0.0)
-        dy = max(inset + radius - y, y - (h - inset - radius), 0.0)
-        return highlight if math.hypot(dx, dy) < radius else TRANSPARENT
-
-    return paint(w, h, sample)
+def scroll_cell_piece(w, h, highlight):
+    """A hovered or pushed scroll arrow cell: a plain square cornered highlight, inset clear of the list frame."""
+    inset = SCROLL_HIGHLIGHT_INSET
+    return paint(w, h, lambda x, y: highlight if inset <= x < w - inset and inset <= y < h - inset else TRANSPARENT)
 
 
 def pieces():
@@ -553,7 +507,7 @@ def pieces():
         out.append((f"VSliderUpButton{state}", 21, 22, arrow_piece(21, 22, True, *style)))
         out.append((f"VSliderDownButton{state}", 21, 22, arrow_piece(21, 22, False, *style)))
     for state, color in SCROLL_THUMBS.items():
-        out.append((f"ScrollBarThumb{state}", 21, 22, pill_piece(21, 22, color, SCROLL_THUMB_WIDTH)))
+        out.append((f"ScrollBarThumb{state}", 21, 22, bar_piece(21, 22, color, SCROLL_THUMB_WIDTH)))
     for name, (state, checked) in CHECK_BOXES.items():
         out.append((name, 22, 22, symbol_piece(22, 22, state, check_glyph(22, 22) if checked else no_glyph)))
     for name, state in RETURN_BUTTONS.items():
@@ -568,30 +522,27 @@ def pieces():
     out.append(("hilightedbox", 11, 13, box_piece(11, 13, *SLIDER_ON)))
     out.append(("dehilightedbox", 11, 13, box_piece(11, 13, *SLIDER_OFF)))
     out.append(("linebox", 13, 15, flat_piece(13, 15, SLIDER_HOVER)))
-    # track and fill: one height, flat, ends rounded with radius half the height
+    # track and fill: one height, flat, square ends
     th = SLIDER_TRACK_HEIGHT
-    out.append(("GOSliderTrackLeft", th // 2, th, round_end(th // 2, th, "left", *SLIDER_TRACK)))
-    out.append(("GOSliderTrackCenter", th // 2, th, button_piece(th // 2, th, "middle", *SLIDER_TRACK, TRACK_LINE)))
-    out.append(("GOSliderTrackRight", th // 2, th, round_end(th // 2, th, "right", *SLIDER_TRACK)))
-    out.append(("GOSliderFillLeft", th // 2, th, round_end(th // 2, th, "left", *SLIDER_FILL)))
-    out.append(("GOSliderFillCenter", th // 2, th, button_piece(th // 2, th, "middle", *SLIDER_FILL, TRACK_LINE)))
-    out.append(("GOSliderFillRight", th // 2, th, round_end(th // 2, th, "right", *SLIDER_FILL)))
+    for part in ("Left", "Center", "Right"):
+        out.append((f"GOSliderTrack{part}", th // 2, th, flat_piece(th // 2, th, SLIDER_TRACK)))
+        out.append((f"GOSliderFill{part}", th // 2, th, flat_piece(th // 2, th, SLIDER_FILL)))
     mw, mh = SLIDER_MARKER_SIZE
     for state, color in SLIDER_MARKER.items():
-        out.append((f"GOSliderThumb{state}", mw, mh, marker_piece(mw, mh, color)))
-    # list scroll bar: a channel the pill fills, like the slider track, then the arrow cells and the separator
+        out.append((f"GOSliderThumb{state}", mw, mh, flat_piece(mw, mh, color)))
+    # list scroll bar: a channel the thumb fills, like the slider track, then the arrow chevrons and cells and the separator
     pw, ph = SCROLL_PILL_ART
-    out.append(("GOScrollTrackTop", pw, ph, round_cap(pw, ph, "top", *SCROLL_TRACK)))
-    out.append(("GOScrollTrackCenter", pw, ph, channel_piece(pw, ph, *SCROLL_TRACK)))
-    out.append(("GOScrollTrackBottom", pw, ph, round_cap(pw, ph, "bottom", *SCROLL_TRACK)))
-    for state, style in SCROLL_PILLS.items():
-        out.append((f"GOScrollThumb{state}Top", pw, ph, round_cap(pw, ph, "top", *style)))
-        out.append((f"GOScrollThumb{state}Center", pw, ph, channel_piece(pw, ph, *style)))
-        out.append((f"GOScrollThumb{state}Bottom", pw, ph, round_cap(pw, ph, "bottom", *style)))
-    for state, style in SCROLL_ARROWS.items():
-        size = SCROLL_ARROW_SIZE
-        out.append((f"GOScrollUp{state}", size, size, scroll_arrow_piece(size, size, True, *style)))
-        out.append((f"GOScrollDown{state}", size, size, scroll_arrow_piece(size, size, False, *style)))
+    for part in ("Top", "Center", "Bottom"):
+        out.append((f"GOScrollTrack{part}", pw, ph, flat_piece(pw, ph, SCROLL_TRACK)))
+        for state, color in SCROLL_PILLS.items():
+            out.append((f"GOScrollThumb{state}{part}", pw, ph, flat_piece(pw, ph, color)))
+    cw, ch = SCROLL_CHEVRON_ART
+    for state, (highlight, glyph) in SCROLL_ARROWS.items():
+        out.append((f"GOScrollUp{state}", cw, ch, scroll_chevron_piece(cw, ch, True, glyph)))
+        out.append((f"GOScrollDown{state}", cw, ch, scroll_chevron_piece(cw, ch, False, glyph)))
+        if highlight[3] > 0.0:
+            size = SCROLL_ARROW_SIZE
+            out.append((f"GOScrollCell{state}", size, size, scroll_cell_piece(size, size, highlight)))
     out.append(("GOScrollLine", 4, 4, flat_piece(4, 4, SCROLL_LINE)))
     return out
 

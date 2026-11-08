@@ -145,8 +145,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 606 378,
-                   BOTTOMRIGHT: 734 402,
+      SCREENRECT = UPPERLEFT: 606 380,
+                   BOTTOMRIGHT: 734 400,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckBoxLimitArmies";
       STATUS = ENABLED+IMAGE;
@@ -194,8 +194,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 475 378,
-                   BOTTOMRIGHT: 604 402,
+      SCREENRECT = UPPERLEFT: 475 380,
+                   BOTTOMRIGHT: 604 400,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckBoxUseStats";
       STATUS = ENABLED+IMAGE+BORDER;
@@ -293,8 +293,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = CHECKBOX;
-      SCREENRECT = UPPERLEFT: 79 378,
-                   BOTTOMRIGHT: 231 402,
+      SCREENRECT = UPPERLEFT: 79 380,
+                   BOTTOMRIGHT: 231 400,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:CheckboxLimitSuperweapons";
       STATUS = ENABLED+IMAGE;
