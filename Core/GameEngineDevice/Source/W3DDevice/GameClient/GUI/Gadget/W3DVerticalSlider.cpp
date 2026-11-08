@@ -93,10 +93,14 @@ static void drawVerticalThreePieceImage( const Image *top, const Image *center, 
 	TheWindowManager->winDrawImage( bottom, x, y + height - bottomHeight, x + width, y + height );
 }
 
-// Kit channel: the kit horizontal slider track height as a width, centred in the scroll column
-static void getKitChannel( Int columnX, Int columnWidth, Int &channelX, Int &channelWidth )
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 A slim kit channel with a slightly wider pill thumb.
+static const Int KIT_SCROLL_TRACK_WIDTH = 4;
+static const Int KIT_SCROLL_THUMB_WIDTH = 6;
+
+// A kit piece of the given layout width, centred in the scroll column
+static void getKitChannel( Int columnX, Int columnWidth, Int layoutWidth, Int &channelX, Int &channelWidth )
 {
-	channelWidth = GameWindowManager::winScaleLayoutSize( 8 );
+	channelWidth = GameWindowManager::winScaleLayoutSize( layoutWidth );
 	if( channelWidth > columnWidth )
 		channelWidth = columnWidth;
 	if( channelWidth < 2 )
@@ -354,7 +358,7 @@ void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *i
 	window->winGetSize( &size.x, &size.y );
 
 	Int channelX, channelWidth;
-	getKitChannel( origin.x, size.x, channelX, channelWidth );
+	getKitChannel( origin.x, size.x, KIT_SCROLL_TRACK_WIDTH, channelX, channelWidth );
 	drawVerticalThreePieceImage( GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_TOP ),
 															 GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_CENTER ),
 															 GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_BOTTOM ),
@@ -362,7 +366,7 @@ void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *i
 }
 
 // W3DGadgetVerticalSliderKitThumbDraw ========================================
-/** Draw a list box scroll thumb as a kit pill filling the channel */
+/** Draw a list box scroll thumb as a kit pill a little wider than the channel */
 //=============================================================================
 void W3DGadgetVerticalSliderKitThumbDraw( GameWindow *window, WinInstanceData *instData )
 {
@@ -381,7 +385,7 @@ void W3DGadgetVerticalSliderKitThumbDraw( GameWindow *window, WinInstanceData *i
 		top = KIT_SCROLL_THUMB_HILITE_TOP;
 
 	Int channelX, channelWidth;
-	getKitChannel( origin.x, size.x, channelX, channelWidth );
+	getKitChannel( origin.x, size.x, KIT_SCROLL_THUMB_WIDTH, channelX, channelWidth );
 	drawVerticalThreePieceImage( GadgetListBoxGetKitScrollImage( top ),
 															 GadgetListBoxGetKitScrollImage( (KitScrollImage)(top + 1) ),
 															 GadgetListBoxGetKitScrollImage( (KitScrollImage)(top + 2) ),

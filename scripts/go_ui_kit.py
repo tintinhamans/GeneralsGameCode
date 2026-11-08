@@ -136,9 +136,12 @@ SCROLL_ARROWS = {
     "Pushed": SYMBOL_STATES["Pushed"],
     "Disabled": SYMBOL_STATES["Disabled"],
 }
-SCROLL_ARROW_SIZE = 14  # smaller than the 21 px column so the atlas stays 256 px tall; drawn over the whole square button
-SCROLL_ARROW_LINE = LINE_LAYOUT * SCROLL_ARROW_SIZE / 21.0  # one kit line once the art is drawn 21 layout px wide
-CHEVRON_STROKE = 1.2
+# the kit scroll column is 14 layout px wide, a 4 px channel and a 6 px pill thumb (W3DVerticalSlider, GadgetListBox)
+SCROLL_ARROW_SIZE = 14  # the square arrow box, drawn at its own layout size
+SCROLL_ARROW_LINE = LINE_LAYOUT
+SCROLL_TRACK_WIDTH = 4
+SCROLL_THUMB_WIDTH = 6
+CHEVRON_STROKE = 1.1
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
     "ListBoxHiliteSelectedItem": rgba("#2B34B8", 0.80),
@@ -384,8 +387,8 @@ def channel_piece(w, h, line, fill):
 def chevron_piece(w, h, up, line, fill, glyph):
     """A square box closed on all four sides with a chevron inside."""
     cx, cy = w / 2.0, h / 2.0
-    tip = -1.4 if up else 1.4
-    chevron = [((cx - 2.6, cy - tip), (cx, cy + tip), (cx + 2.6, cy - tip))]
+    tip = -1.2 if up else 1.2
+    chevron = [((cx - 2.3, cy - tip), (cx, cy + tip), (cx + 2.3, cy - tip))]
 
     def sample(x, y):
         if edge(x, y, w, h, True, True) < SCROLL_ARROW_LINE:
@@ -444,14 +447,16 @@ def pieces():
     out.append(("GOSliderFillRight", 4, 8, button_piece(4, 8, "middle", *SLIDER_FILL, TRACK_LINE)))
     for state, (color, width) in SLIDER_MARKER.items():
         out.append((f"GOSliderThumb{state}", 8, 16, marker_piece(8, 16, color, width)))
-    # list scroll bar: track and thumb pills of the slider track width, then the chevrons
-    out.append(("GOScrollTrackTop", 8, 4, round_cap(8, 4, "top", *SCROLL_TRACK)))
-    out.append(("GOScrollTrackCenter", 8, 4, channel_piece(8, 4, *SCROLL_TRACK)))
-    out.append(("GOScrollTrackBottom", 8, 4, round_cap(8, 4, "bottom", *SCROLL_TRACK)))
+    # list scroll bar: a slim track, a slightly wider pill thumb, then the arrow boxes
+    tw, th = SCROLL_TRACK_WIDTH, SCROLL_TRACK_WIDTH // 2
+    out.append(("GOScrollTrackTop", tw, th, round_cap(tw, th, "top", *SCROLL_TRACK)))
+    out.append(("GOScrollTrackCenter", tw, th, channel_piece(tw, th, *SCROLL_TRACK)))
+    out.append(("GOScrollTrackBottom", tw, th, round_cap(tw, th, "bottom", *SCROLL_TRACK)))
+    pw, ph = SCROLL_THUMB_WIDTH, SCROLL_THUMB_WIDTH // 2
     for state, style in SCROLL_PILLS.items():
-        out.append((f"GOScrollThumb{state}Top", 8, 4, round_cap(8, 4, "top", *style)))
-        out.append((f"GOScrollThumb{state}Center", 8, 4, channel_piece(8, 4, *style)))
-        out.append((f"GOScrollThumb{state}Bottom", 8, 4, round_cap(8, 4, "bottom", *style)))
+        out.append((f"GOScrollThumb{state}Top", pw, ph, round_cap(pw, ph, "top", *style)))
+        out.append((f"GOScrollThumb{state}Center", pw, ph, channel_piece(pw, ph, *style)))
+        out.append((f"GOScrollThumb{state}Bottom", pw, ph, round_cap(pw, ph, "bottom", *style)))
     for state, style in SCROLL_ARROWS.items():
         size = SCROLL_ARROW_SIZE
         out.append((f"GOScrollUp{state}", size, size, chevron_piece(size, size, True, *style)))
