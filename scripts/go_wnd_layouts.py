@@ -125,6 +125,9 @@ RETAIL_TEMPLATES = {
     "LabelSmall", "LoadScreenCameos", "LoadScreenMissionLocation", "Arial10BoldTemplate", "Arial12BoldTemplate",
     "Arial14Template", "Arial14BoldTemplate",
 }
+# a checked box keeps the enabled image on hover in retail; the kit has a hover version
+HILITE_DRAW_RE = re.compile(r"HILITEDRAWDATA[^;]*;")
+HILITE_IMAGES = {"IMAGE: Active-Checked,": "IMAGE: Active-HiLighted-Checked,"}
 HEADER_RE = re.compile(r'(?m)^(?P<lead>[ \t]*HEADERTEMPLATE[ \t]*=[ \t]*")(?P<header>[^"]*)(?=")')
 GEOMETRY_KEPT = {
     "window/menus/mainmenu.wnd",  # laid out around the logo and side panels by hand
@@ -1126,10 +1129,22 @@ def go_templates(text, name):
     return HEADER_RE.sub(swap, text)
 
 
+def hilite_images(text):
+    """Give hovered kit pieces their hover image where retail reuses the enabled one."""
+
+    def swap(m):
+        block = m.group(0)
+        for old, new in HILITE_IMAGES.items():
+            block = block.replace(old, new)
+        return block
+
+    return HILITE_DRAW_RE.sub(swap, text)
+
+
 def transform(text, notes=None, name=None):
     """Apply the kit colours, the alignment rules and the GO header templates for the layout at archive path name."""
     out, info = align(remap_colors(text), name)
-    out = go_templates(out, name)
+    out = hilite_images(go_templates(out, name))
     if notes is not None:
         notes.extend(info["notes"])
     return out
@@ -1186,7 +1201,7 @@ def build(retail):
     for name in sorted(inputs, key=str.lower):
         text = inputs[name].decode("latin-1")
         out, info = align(remap_colors(text), name)
-        out = go_templates(out, name)
+        out = hilite_images(go_templates(out, name))
         results.append((name, text, out, info))
     return results
 

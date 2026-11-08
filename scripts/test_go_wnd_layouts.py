@@ -684,6 +684,19 @@ class HeaderTemplateTest(unittest.TestCase):
         self.assertEqual(defined, {wl.GO_TEMPLATE_PREFIX + name for name in wl.RETAIL_TEMPLATES})
 
 
+class HiliteImageTest(unittest.TestCase):
+    def test_hovered_checked_box_uses_the_kit_hover_image(self):
+        slot = "COLOR: 255 255 255 0, BORDERCOLOR: 106 123 255 255"
+        draw = [f"IMAGE: NoImage, {slot}", f"IMAGE: Active-Unchecked, {slot}", f"IMAGE: Active-Checked, {slot}"]
+        hilite = [f"IMAGE: NoImage, {slot}", f"IMAGE: Active-HiLighted, {slot}", f"IMAGE: Active-Checked, {slot}"]
+        text = layout(window("CHECKBOX", (100, 100, 300, 124), draw=draw,
+                             props=["HILITEDRAWDATA = " + ", ".join(hilite) + ";"]))
+        out = wl.transform(text, name=MENU)
+        self.assertIn("IMAGE: Active-HiLighted-Checked,", out)
+        self.assertIn(f"IMAGE: Active-Checked, {slot}", out)  # the enabled checked image stays
+        self.assertEqual(wl.transform(out, name=MENU), out)
+
+
 class ShippedLayoutTest(unittest.TestCase):
     def test_custom_lobby_refresh_button_sits_inside_its_parent(self):
         # a child outside its parent draws but never gets clicks
