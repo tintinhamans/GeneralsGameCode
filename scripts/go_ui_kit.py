@@ -35,6 +35,7 @@ BUTTON_LINE = 1.25  # 40 px art, usually about 32 layout px tall
 RADIO_LINE = 1.45   # 24 px art, usually about 17 layout px tall
 FIELD_LINE = 0.95   # 22 px art, usually about 23 layout px tall
 THUMB_LINE = 1.8    # 22 px art, drawn at its own size
+BOX_LINE = (1.25, 1.45)  # slider blocks: 11x13 art drawn as squares, so the line differs per axis
 
 
 def rgba(hex_color, alpha=1.0):
@@ -81,6 +82,10 @@ THUMB_STATES = {
     "HiliteSelected": (rgba("#8C9BFF"), rgba("#3A4CFF")),
     "Disabled": (rgba("#404159"), rgba("#15161F")),
 }
+# horizontal slider blocks: (edge line, fill)
+SLIDER_ON = (rgba("#6A7BFF"), rgba("#3446FF"))
+SLIDER_OFF = (rgba("#24308C"), rgba("#0B1030", 0.92))
+SLIDER_HOVER = rgba("#2F4BFF", 0.22)
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
     "ListBoxHiliteSelectedItem": rgba("#2B34B8", 0.80),
@@ -169,6 +174,15 @@ def thumb_piece(w, h, line, fill):
     return paint(w, h, sample)
 
 
+def box_piece(w, h, line, fill):
+    lx, ly = BOX_LINE
+
+    def sample(x, y):
+        return line if min(x, w - x) < lx or min(y, h - y) < ly else fill
+
+    return paint(w, h, sample)
+
+
 def flat_piece(w, h, color):
     return paint(w, h, lambda x, y: color)
 
@@ -207,6 +221,9 @@ def pieces():
     for state, (line, fill) in THUMB_STATES.items():
         out.append((f"ScrollBarThumb{state}", 21, 22, thumb_piece(21, 22, line, fill)))
     out.append(("arrow", 13, 16, glyph_arrow(13, 16)))
+    out.append(("hilightedbox", 11, 13, box_piece(11, 13, *SLIDER_ON)))
+    out.append(("dehilightedbox", 11, 13, box_piece(11, 13, *SLIDER_OFF)))
+    out.append(("linebox", 13, 15, flat_piece(13, 15, SLIDER_HOVER)))
     return out
 
 
