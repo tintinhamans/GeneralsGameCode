@@ -334,6 +334,35 @@ class OverrideTest(unittest.TestCase):
                 wl.transform(screen(), name=MENU)
 
 
+class HeadingTest(unittest.TestCase):
+    def heading_layout(self):
+        return layout(window("STATICTEXT", (57, 88, 177, 112)), window("ENTRYFIELD", (48, 112, 192, 134)),
+                      window("STATICTEXT", (300, 88, 380, 112)))
+
+    def test_heading_takes_its_column_left_edge_and_keeps_its_width(self):
+        headings = {MENU: {"Test.wnd:STATICTEXT57_88": "Test.wnd:ENTRYFIELD48_112"}}
+        with mock.patch.dict(wl.HEADINGS, headings, clear=True):
+            out, info = wl.align(self.heading_layout(), MENU)
+            self.assertEqual(wl.align(out, MENU)[0], out)
+        self.assertEqual(by_kind(out, "STATICTEXT"), [(48, 88, 168, 112), (300, 88, 380, 112)])
+        self.assertEqual(by_kind(out, "ENTRYFIELD"), [(48, 112, 192, 134)])
+        self.assertIn(("Test.wnd:STATICTEXT57_88", (57, 88, 177, 112), (48, 88, 168, 112)), info["changes"])
+        with mock.patch.dict(wl.HEADINGS, {}, clear=True):
+            self.assertEqual(by_kind(wl.transform(self.heading_layout(), name=MENU), "STATICTEXT")[0], (57, 88, 177, 112))
+
+    def test_heading_that_would_overlap_a_sibling_fails(self):
+        headings = {MENU: {"Test.wnd:STATICTEXT300_88": "Test.wnd:ENTRYFIELD48_112"}}
+        with mock.patch.dict(wl.HEADINGS, headings, clear=True):
+            with self.assertRaises(ValueError):
+                wl.transform(self.heading_layout(), name=MENU)
+
+    def test_unknown_heading_or_column_name_fails(self):
+        for pair in ({"Test.wnd:Missing": "Test.wnd:ENTRYFIELD48_112"}, {"Test.wnd:STATICTEXT57_88": "Test.wnd:Missing"}):
+            with mock.patch.dict(wl.HEADINGS, {MENU: pair}, clear=True):
+                with self.assertRaises(ValueError):
+                    wl.transform(self.heading_layout(), name=MENU)
+
+
 TITLE_PROPS = ('FONT = NAME: "Generals", SIZE: 20, BOLD: 0;', 'HEADERTEMPLATE = "Title";', "STATICTEXTDATA = CENTERED: 1;")
 OUT_OF_SCOPE = ("Window/Diplomacy.wnd", "Window/Menus/MainMenu.wnd", "Window/ControlBar.wnd")
 
@@ -714,7 +743,71 @@ class YamlSourceTest(unittest.TestCase):
         self.assertEqual(results[other][1], wl.transform(retail[other].decode("latin-1"), name=other))
 
 
+PREVIEW_CALLBACK = 'DRAWCALLBACK = "W3DDrawMapPreview";'
+BLACK_SLOT = "IMAGE: NoImage, COLOR: 0 0 0 255, BORDERCOLOR: 0 0 0 255"
+PREVIEW_NAMES = ("MapWindow", "WinMapPreview")
+
+
+def enabled_slots(text):
+    """{window NAME: [(image, colour, border)] of ENABLEDDRAWDATA}."""
+    return {w.name: slots for w in wl.parse_windows(text).walk() for prop, slots in w.draws if prop == "ENABLEDDRAWDATA"}
+
+
+class MapPreviewBorderTest(unittest.TestCase):
+    def preview_layout(self):
+        draw = [BLACK_SLOT] * 9
+        return layout(window("USER", (100, 100, 300, 200), draw=draw, props=[PREVIEW_CALLBACK]),
+                      window("USER", (400, 100, 600, 200), draw=draw, props=['DRAWCALLBACK = "[None]";']))
+
+    def test_map_preview_border_takes_the_kit_line_colour(self):
+        for name in (MENU, "Window/Menus/MultiplayerLoadScreen.wnd", "Window/ControlBar.wnd"):
+            slots = enabled_slots(wl.transform(self.preview_layout(), name=name))
+            preview, other = slots["Test.wnd:USER100_100"], slots["Test.wnd:USER400_100"]
+            self.assertEqual(preview[0], ("NoImage", ["0", "0", "0", "255"], ["47", "75", "255", "255"]), name)
+            self.assertEqual(preview[1:], other[1:], name)  # only slot 0 changes
+            self.assertEqual(other[0], ("NoImage", ["0", "0", "0", "255"], ["0", "0", "0", "255"]), name)
+
+    def test_map_preview_border_is_idempotent_and_build_applies_it(self):
+        once = wl.transform(self.preview_layout(), name=MENU)
+        self.assertEqual(wl.transform(once, name=MENU), once)
+        retail = {MENU: self.preview_layout().encode("latin-1")}
+        with mock.patch.object(wl, "read_big", return_value=retail), mock.patch.object(wl, "SOURCES", Path("missing")):
+            results = {name: out for name, text, out, info in wl.build(Path("unused.big"))}
+        self.assertEqual(results[MENU], once)
+
+    def test_shipped_map_previews_have_the_kit_line_and_the_radar_bronze(self):
+        import go_themes
+        found = {}
+        for path in sorted((wl.DATA / "Window").rglob("*.wnd")):
+            text = path.read_bytes().decode("latin-1")
+            if "W3DDrawMapPreview" not in text:
+                continue
+            name = path.relative_to(wl.DATA).as_posix()
+            found[name] = [slots[0][2] for win, slots in enabled_slots(text).items() if win.endswith(PREVIEW_NAMES)]
+            self.assertEqual(text.count("W3DDrawMapPreview"), len(found[name]), name)
+            theme = (go_themes.THEME_DIR / name).read_bytes().decode("latin-1")
+            theme_borders = [slots[0][2] for win, slots in enabled_slots(theme).items() if win.endswith(PREVIEW_NAMES)]
+            self.assertEqual(theme_borders, [["191", "144", "72", "255"]] * len(found[name]), name)
+        self.assertEqual(sorted(found), [f"Window/Menus/{n}.wnd" for n in (
+            "GameSpyGameOptionsMenu", "GameSpyLoadScreen", "LanGameOptionsMenu", "LanMapSelectMenu",
+            "MultiplayerLoadScreen", "SkirmishGameOptionsMenu", "SkirmishMapSelectMenu", "WOLMapSelectMenu")])
+        for name, borders in found.items():
+            self.assertEqual(borders, [["47", "75", "255", "255"]], name)
+
+
 class ShippedLayoutTest(unittest.TestCase):
+    def test_game_setup_column_headings_start_at_their_column(self):
+        cases = [
+            ("SkirmishGameOptionsMenu", "StaticTextPlayers", "TextEntryPlayerName"),
+            ("SkirmishGameOptionsMenu", "StaticTextMapPreview", "MapWindow"),
+            ("LanGameOptionsMenu", "StaticTextFaction", "ComboBoxPlayerTemplate0"),
+            ("GameSpyGameOptionsMenu", "StaticTextMapPreview", "MapWindow"),
+        ]
+        for menu, heading, column in cases:
+            path = wl.DATA / f"Window/Menus/{menu}.wnd"
+            rects = {w.name.split(":")[-1]: w.rect for w in wl.parse_windows(path.read_bytes().decode("latin-1")).walk()}
+            self.assertEqual(rects[heading][0], rects[column][0], f"{menu} {heading} {rects[heading]} {column} {rects[column]}")
+
     def test_custom_lobby_refresh_button_sits_inside_its_parent(self):
         # a child outside its parent draws but never gets clicks
         path = Path(__file__).resolve().parent.parent / "GenOnline/GameData/Window/Menus/WOLCustomLobby.wnd"

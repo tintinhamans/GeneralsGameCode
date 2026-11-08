@@ -41,6 +41,10 @@ scripts/wnd_sources copy, if any, is only kept for reference. All rects are in 8
   header line in the frame) moves to TITLE_LEFT, the most common title edge, is centred vertically
   between the frame top and the line, and draws left aligned. Menus only.
 - Overrides: scripts/wnd_fixes.py sets absolute rects last; the rules never move those windows.
+- Headings: scripts/wnd_fixes.py HEADINGS names column headings that then take their column window's left
+  edge, keeping their width, after the overrides; nothing else moves.
+- Map previews: a window drawn by W3DDrawMapPreview gets the kit line colour as its first enabled border
+  colour, which the engine draws as a kit frame around the preview (menus and load screens alike).
 - Theme copies: every menu layout (not the in-game ones, nor the menus shown during a match) also goes to
   GenOnline/GameData/Themes/Radar at the same path, its final output with the colours swapped for the
   Classic (Generals Online) palette (scripts/go_themes.py LAYOUT_COLORS). Only colour numbers differ.
@@ -71,7 +75,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from wnd_fixes import FIXES  # noqa: E402
+from wnd_fixes import FIXES, HEADINGS  # noqa: E402
 import go_themes  # noqa: E402
 import wnd_yaml  # noqa: E402
 
@@ -152,6 +156,19 @@ COLOR_REMAP = {
     (46, 54, 165): (47, 75, 255),
     (128, 128, 255): (106, 123, 255),
 }
+KIT_LINE = (47, 75, 255)
+
+# map preview windows: their first enabled border colour is the frame colour W3DDrawMapPreview draws
+MAP_PREVIEW_CALLBACK = "W3DDrawMapPreview"
+MAP_PREVIEW_BORDER = "%d %d %d 255" % KIT_LINE
+PREVIEW_TOKEN_RE = re.compile(
+    r"^[ \t]*(?P<open>WINDOW)[ \t]*\r?$"
+    r"|^[ \t]*(?P<close>END)[ \t]*\r?$"
+    r"|^[ \t]*DRAWCALLBACK[ \t]*=[ \t]*\"(?P<callback>[^\"]*)\""
+    r"|^[ \t]*ENABLEDDRAWDATA[ \t]*=[ \t]*IMAGE:[^,]*,[ \t]*COLOR:[^,]*,[ \t]*BORDERCOLOR:[ \t]*"
+    r"(?P<border>\d+[ \t]+\d+[ \t]+\d+[ \t]+\d+)",
+    re.M,
+)
 
 COLOR_RE = re.compile(
     r"(?<![A-Z])(?P<key>COLOR|BORDERCOLOR|ENABLEDBORDER|DISABLEDBORDER|HILITEBORDER):(?P<sp>[ \t]*)"
@@ -1037,6 +1054,25 @@ def apply_overrides(ctx, root, fixes):
     return changed
 
 
+def align_headings(ctx, root, headings):
+    """Move each named heading sideways onto its column's left edge, keeping its width; fail on a new overlap."""
+    by_name = _named(root, {**{h: None for h in headings}, **{c: None for c in headings.values()}})
+    for name in sorted(headings):
+        win, col = by_name[name], by_name[headings[name]]
+        dx = col.rect[0] - win.rect[0]
+        if dx == 0:
+            continue
+        new = _moved(win.rect, dx, 0)
+        siblings = [w for w in win.parent.children if w is not win and w.rect is not None]
+        if any(_overlaps(new, w.rect) and not _overlaps(win.rect, w.rect) for w in siblings):
+            raise ValueError(f"heading {name} would overlap a sibling at {new}")
+        win.rect = new
+        for child in win.walk():
+            if child.rect is not None:
+                child.rect = _moved(child.rect, dx, 0)
+        ctx.touch("override", [win])
+
+
 def _settle(ctx, root, rules, fixes, name, late=True):
     """Repeat the rules until nothing changes; without late, the gap, column and title rules only
     keep their windows (titles, column headers) out of the other rules."""
@@ -1110,6 +1146,7 @@ def align(text, name=None, rules=None):
         frame_notes, ctx.notes = ctx.notes, []
     frame = "frame" in rules and _has_ruler_frame(root)
     _settle(ctx, root, rules, fixes, name)
+    align_headings(ctx, root, HEADINGS.get(name, {}) if name else {})
     edits, changes = [], []
     for win in root.walk():
         if win.rect is None or win.rect == win.original:
@@ -1168,10 +1205,36 @@ def hilite_images(text):
     return HILITE_DRAW_RE.sub(swap, text)
 
 
+def map_preview_borders(text):
+    """Give every W3DDrawMapPreview window the kit line as its first enabled border colour."""
+    stack, spans = [], []
+    for m in PREVIEW_TOKEN_RE.finditer(text):
+        if m.group("open"):
+            stack.append({"preview": False, "border": None})
+        elif m.group("close"):
+            if not stack:
+                raise ValueError(f"END without WINDOW at offset {m.start()}")
+            win = stack.pop()
+            if win["preview"] and win["border"] is not None:
+                spans.append(win["border"])
+        elif stack and m.group("callback") is not None:
+            stack[-1]["preview"] = m.group("callback") == MAP_PREVIEW_CALLBACK
+        elif stack and m.group("border") is not None:
+            stack[-1]["border"] = m.span("border")
+    for start, end in sorted(spans, reverse=True):
+        text = text[:start] + MAP_PREVIEW_BORDER + text[end:]
+    return text
+
+
+def finish(text, name):
+    """The colour and template fixes after alignment: GO header templates, hover images and map preview frames."""
+    return map_preview_borders(hilite_images(go_templates(text, name)))
+
+
 def transform(text, notes=None, name=None):
     """Apply the kit colours, the alignment rules and the GO header templates for the layout at archive path name."""
     out, info = align(remap_colors(text), name)
-    out = hilite_images(go_templates(out, name))
+    out = finish(out, name)
     if notes is not None:
         notes.extend(info["notes"])
     return out
@@ -1237,8 +1300,7 @@ def build(retail):
             results.append((name, text, text, info))
             continue
         out, info = align(remap_colors(text), name)
-        out = hilite_images(go_templates(out, name))
-        results.append((name, text, out, info))
+        results.append((name, text, finish(out, name), info))
     return results
 
 

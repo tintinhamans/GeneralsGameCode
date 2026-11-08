@@ -80,6 +80,31 @@ static Int scaledImageWidth( const Image *image, Int height )
 	return width;
 }
 
+// Shrink a draw rect to the largest one of the image's own aspect inside it, centred.
+static void fitImageAspect( const Image *image, Int *startX, Int *startY, Int *endX, Int *endY )
+{
+	Int imageWidth = image->getImageWidth();
+	Int imageHeight = image->getImageHeight();
+	Int width = *endX - *startX;
+	Int height = *endY - *startY;
+	if( imageWidth <= 0 || imageHeight <= 0 || width <= 0 || height <= 0 )
+		return;
+
+	// the rect is wider than the image: full height, margins left and right
+	if( width * imageHeight > height * imageWidth )
+	{
+		Int fitWidth = (height * imageWidth + imageHeight / 2) / imageHeight;
+		*startX += (width - fitWidth) / 2;
+		*endX = *startX + fitWidth;
+	}
+	else
+	{
+		Int fitHeight = (width * imageHeight + imageWidth / 2) / imageWidth;
+		*startY += (height - fitHeight) / 2;
+		*endY = *startY + fitHeight;
+	}
+}
+
 // TheSuperHackers @feature arcticdolphin 08/11/2026 Kit images keep their border rows at a fixed thickness at any bar height.
 // Image pixels the interior band starts inside the border, so it never samples the line.
 static const Real BORDER_INTERIOR_INSET = 0.5f;
@@ -292,6 +317,10 @@ static Bool drawBorderedImage( const Image *image, Int startX, Int startY, Int e
 void GameWindowManager::winDrawImage( const Image *image, Int startX, Int startY,
 																			Int endX, Int endY, Color color )
 {
+
+	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Stop KEEP_ASPECT images such as the logo stretching on wide screens.
+	if( image != nullptr && BitIsSet( image->getStatus(), IMAGE_STATUS_KEEP_ASPECT ) )
+		fitImageAspect( image, &startX, &startY, &endX, &endY );
 
 	if( image != nullptr && drawBorderedImage( image, startX, startY, endX, endY, color ) )
 		return;

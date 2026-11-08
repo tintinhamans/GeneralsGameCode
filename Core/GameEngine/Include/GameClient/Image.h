@@ -46,6 +46,8 @@ typedef enum
 	IMAGE_STATUS_NONE									= 0x00000000,
 	IMAGE_STATUS_ROTATED_90_CLOCKWISE	= 0x00000001,  // image should be treated as rotated
 	IMAGE_STATUS_RAW_TEXTURE					= 0x00000002,  // image struct contains raw texture data
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Window images can fit their window without stretching.
+	IMAGE_STATUS_KEEP_ASPECT					= 0x00000004,  // window draws fit the image inside the window at its own aspect
 
 	IMAGE_STATUS_END // keep after the last named flag
 } ImageStatus;
@@ -54,6 +56,7 @@ static const char *const imageStatusNames[] =
 {
 	"ROTATED_90_CLOCKWISE",
 	"RAW_TEXTURE",
+	"KEEP_ASPECT",
 	nullptr
 };
 static_assert(equalsEnumBitFlagsCount(ARRAY_SIZE(imageStatusNames) - 1, IMAGE_STATUS_END), "Incorrect array size");
