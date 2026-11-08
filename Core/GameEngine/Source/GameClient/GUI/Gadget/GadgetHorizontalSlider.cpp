@@ -64,6 +64,14 @@
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 
+// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Refresh the slider tooltip after a drag, the window manager clears it on every mouse event.
+static void refreshDragTooltip( GameWindow *window, WindowMsgData mouse )
+{
+	GameWinTooltipFunc tooltip = window->winGetTooltipFunc();
+	if( tooltip != nullptr )
+		tooltip( window, window->winGetInstanceData(), (UnsignedInt)mouse );
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -331,6 +339,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 																						GSM_SLIDER_TRACK,
 																						(WindowMsgData)window,
 																						s->position );
+				refreshDragTooltip( window, mData2 );
 				break;
 
 			}
@@ -344,6 +353,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 																						GSM_SLIDER_TRACK,
 																						(WindowMsgData)window,
 																						s->position );
+				refreshDragTooltip( window, mData2 );
 				break;
 
 			}
@@ -385,6 +395,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 																					(WindowMsgData)window,
 																					s->position );
 
+			refreshDragTooltip( window, mData2 );
 			break;
 
 		}
