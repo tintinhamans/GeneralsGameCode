@@ -118,7 +118,7 @@ void BIGFileSystem::update() {
 void BIGFileSystem::postProcessLoad() {
 }
 
-ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename) {
+ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename, ArchivePathFilter includePath) {
 	File *fp = TheLocalFileSystem->openFile(filename, File::READ | File::BINARY);
 	AsciiString archiveFileName;
 	archiveFileName = filename;
@@ -178,6 +178,11 @@ ArchiveFile * BIGFileSystem::openArchiveFile(const Char *filename) {
 		if (pathIndex < 0) {
 			corrupt = TRUE;
 			break;
+		}
+
+		// a file the filter leaves out is not part of this archive
+		if (includePath != nullptr && !includePath(buffer)) {
+			continue;
 		}
 
 		char *leafName = getFileName(buffer);
@@ -288,7 +293,7 @@ Bool BIGFileSystem::loadArchiveFilesFromDirectory(AsciiString dir, AsciiString f
 void BIGFileSystem::loadMods()
 {
 #if defined(GENONLINE)
-	// Order, highest first: loose files of the game folder, -mod and -modDir, the BIGs of the game folders that are not retail (user.exclude_paths removes some),
+	// Order, highest first: loose files of the game folder, the GO menu layouts of the generals_online archives, -mod and -modDir, the BIGs of the game folders that are not retail (user.exclude_paths removes some),
 	// the data pack layers of settings.json (user, generals_online, community_patch), the retail archives. The BIGs of the game folders were mounted by init().
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "Generals data: %s", m_generalsBaseSource.isEmpty() ? "none" : m_generalsBaseSource.str());
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "Game folder archives above the data pack layers: %d", static_cast<int>(m_gameFolderArchives.size()));
@@ -297,7 +302,9 @@ void BIGFileSystem::loadMods()
 
 	const GenOnlineSettings& settings = GenOnlineServicesManager::Settings;
 	mountDataPackLayer("user", settings.DataPacks_User().m_enabled, settings.DataPacks_User().m_includePaths, &TheFileSystem->getExcludedPaths(), ARCHIVE_PRIORITY_USER);
-	mountDataPackLayer("generals_online", settings.DataPacks_GeneralsOnline().m_enabled, settings.DataPacks_GeneralsOnline().m_includePaths, nullptr, ARCHIVE_PRIORITY_GENONLINE);
+	std::vector<AsciiString> genOnlineArchives;
+	mountDataPackLayer("generals_online", settings.DataPacks_GeneralsOnline().m_enabled, settings.DataPacks_GeneralsOnline().m_includePaths, nullptr, ARCHIVE_PRIORITY_GENONLINE, &genOnlineArchives);
+	mountGenOnlineMenus(genOnlineArchives);
 
 #if defined(GENONLINE_COMMUNITY_PATCH_CHANGES)
 	// the community_patch layer holds Zero Hour data

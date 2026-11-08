@@ -67,6 +67,9 @@ class ArchiveFile;
 //           Type Defines
 //----------------------------------------------------------------------------
 
+// Picks the files of a BIG to mount by their path inside it, TRUE keeps the file
+typedef Bool (*ArchivePathFilter)(const char* path);
+
 
 //===============================
 // ArchiveFileSystem
@@ -125,6 +128,7 @@ public:
 // Lookup priority of an archive, lower wins. The archive mounted first wins on equal priority.
 enum ArchivePriority
 {
+	ARCHIVE_PRIORITY_GENONLINE_GUI = -1000,	///< the GO menu layouts of the generals_online archives, above every archive; in-game layouts stay in the generals_online tier
 	ARCHIVE_PRIORITY_EXCLUDED = -1,			///< not mounted: a BIG of a game folder that matches user.exclude_paths
 	ARCHIVE_PRIORITY_MOD = 0,						///< -mod and -modDir, 0 to 999, a later one is lower and wins
 	ARCHIVE_PRIORITY_GAME_FOLDER = 1000,	///< BIGs of the Zero Hour folder that are not retail, in name order
@@ -156,7 +160,7 @@ public:
 	virtual void postProcessLoad() override = 0;
 
 	// ArchiveFile operations
-	virtual ArchiveFile*	openArchiveFile( const Char *filename ) = 0;		///< Create new or return existing Archive file from file name
+	virtual ArchiveFile*	openArchiveFile( const Char *filename, ArchivePathFilter includePath = nullptr ) = 0;		///< Create new or return existing Archive file from file name
 	virtual void					closeArchiveFile( const Char *filename ) = 0;		///< Close the one specified big file.
 	virtual void					closeAllArchiveFiles() = 0;								///< Close all Archive files currently open
 
@@ -205,8 +209,9 @@ protected:
 	Int getNextModPriority() { return m_nextModPriority > ARCHIVE_PRIORITY_MOD ? m_nextModPriority-- : ARCHIVE_PRIORITY_MOD; }	///< -mod and -modDir: a later one wins
 	Int getGameFolderArchivePriority(const AsciiString& path, Bool generalsFolder, Bool zeroHour);	///< retail archives are the bottom, any other BIG of the game folders ranks above the data pack layers unless user.exclude_paths matches it
 
-	void mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes);
-	void mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority);	///< mounts the include_paths of one layer in list order, the first one wins, minus what excludes matches
+	void mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes, std::vector<AsciiString>* mounted = nullptr);
+	void mountGenOnlineMenus(const std::vector<AsciiString>& genOnlineArchives);	///< mounts the menu layouts of the generals_online archives again at ARCHIVE_PRIORITY_GENONLINE_GUI
+	void mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority, std::vector<AsciiString>* mounted = nullptr);	///< mounts the include_paths of one layer in list order, the first one wins, minus what excludes matches
 
 	ArchiveFileMap m_archiveFileMap;
 	std::vector<AsciiString> m_gameFolderArchives;
