@@ -1442,6 +1442,12 @@ UnsignedInt GlobalData::generateExeCRC()
 
 	DEBUG_LOG(("EXE+Version(%d.%d)+SCB CRC is 0x%8.8X", version >> 16, version & 0xffff, exeCRC.get()));
 
+	// the exe CRC this build is compatible with, set by RTS_EXE_CRC
+	if (RTS_EXE_CRC != 0)
+	{
+		DEBUG_LOG(("Exe CRC set to 0x%8.8X by RTS_EXE_CRC", (UnsignedInt)RTS_EXE_CRC));
+		return (UnsignedInt)RTS_EXE_CRC;
+	}
 	return exeCRC.get();
 }
 
