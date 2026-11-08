@@ -57,6 +57,7 @@ class FontCharsClassCharDataStruct
 public:
 	WCHAR				Value;
 	short				Width;
+	short				LeftOffset; // TheSuperHackers @bugfix arcticdolphin 08/11/2026 Columns of left overhang stored before the glyph origin.
 	uint8 *			Buffer;
 };
 
@@ -156,6 +157,7 @@ private:
 	uint16								FirstUnicodeChar;
 	uint16								LastUnicodeChar;
 	bool									IsBold;
+	bool									IsUIFont; // TheSuperHackers @bugfix arcticdolphin 08/11/2026 Set when a retail face resolved to the GO UI font.
 };
 
 /*
