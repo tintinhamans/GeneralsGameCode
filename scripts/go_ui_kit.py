@@ -88,7 +88,7 @@ SLIDER_ON = (rgba("#6A7BFF"), rgba("#3446FF"))
 SLIDER_OFF = (rgba("#24308C"), rgba("#0B1030", 0.92))
 SLIDER_HOVER = rgba("#2F4BFF", 0.22)
 # track slider (drawn only by the GO track slider draw): (edge line, fill)
-SLIDER_TRACK = (rgba("#24308C"), rgba("#0B1030", 0.92))
+SLIDER_TRACK = (rgba("#3A48B0"), rgba("#1A2260", 0.92))
 SLIDER_FILL = (rgba("#6A7BFF"), rgba("#3446FF"))
 # the thumb is a slim marker at the value: (colour, width in thumb pixels)
 SLIDER_MARKER = {
