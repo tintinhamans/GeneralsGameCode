@@ -1225,8 +1225,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 47 43,
-                   BOTTOMRIGHT: 655 76,
+      SCREENRECT = UPPERLEFT: 44 42,
+                   BOTTOMRIGHT: 652 75,
                    CREATIONRESOLUTION: 800 600;
       NAME = "LanLobbyMenu.wnd:";
       STATUS = ENABLED;

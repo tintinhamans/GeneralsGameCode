@@ -1697,7 +1697,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
       SCREENRECT = UPPERLEFT: 585 277,
-                   BOTTOMRIGHT: 750 301,
+                   BOTTOMRIGHT: 750 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonSelectMap";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -2317,7 +2317,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 515 277,
-                   BOTTOMRIGHT: 578 301,
+                   BOTTOMRIGHT: 578 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam7";
       STATUS = ENABLED+IMAGE;
@@ -2558,7 +2558,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 515 253,
-                   BOTTOMRIGHT: 578 277,
+                   BOTTOMRIGHT: 578 275,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam6";
       STATUS = ENABLED+IMAGE;
@@ -2799,7 +2799,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 515 229,
-                   BOTTOMRIGHT: 578 253,
+                   BOTTOMRIGHT: 578 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam5";
       STATUS = ENABLED+IMAGE;
@@ -3040,7 +3040,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 515 205,
-                   BOTTOMRIGHT: 578 229,
+                   BOTTOMRIGHT: 578 227,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam4";
       STATUS = ENABLED+IMAGE;
@@ -3281,7 +3281,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 515 181,
-                   BOTTOMRIGHT: 578 205,
+                   BOTTOMRIGHT: 578 203,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam3";
       STATUS = ENABLED+IMAGE;
@@ -3522,7 +3522,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 515 157,
-                   BOTTOMRIGHT: 578 181,
+                   BOTTOMRIGHT: 578 179,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam2";
       STATUS = ENABLED+IMAGE;
@@ -3763,7 +3763,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 515 133,
-                   BOTTOMRIGHT: 578 157,
+                   BOTTOMRIGHT: 578 155,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam1";
       STATUS = ENABLED+IMAGE;
@@ -4004,7 +4004,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 515 109,
-                   BOTTOMRIGHT: 578 133,
+                   BOTTOMRIGHT: 578 131,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxTeam0";
       STATUS = ENABLED+IMAGE;
@@ -4294,7 +4294,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 311 277,
-                   BOTTOMRIGHT: 513 301,
+                   BOTTOMRIGHT: 513 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate7";
       STATUS = ENABLED+IMAGE;
@@ -4535,7 +4535,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 311 253,
-                   BOTTOMRIGHT: 513 277,
+                   BOTTOMRIGHT: 513 275,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate6";
       STATUS = ENABLED+IMAGE;
@@ -4776,7 +4776,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 311 229,
-                   BOTTOMRIGHT: 513 253,
+                   BOTTOMRIGHT: 513 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate5";
       STATUS = ENABLED+IMAGE;
@@ -5017,7 +5017,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 311 205,
-                   BOTTOMRIGHT: 513 229,
+                   BOTTOMRIGHT: 513 227,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate4";
       STATUS = ENABLED+IMAGE;
@@ -5258,7 +5258,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 311 181,
-                   BOTTOMRIGHT: 513 205,
+                   BOTTOMRIGHT: 513 203,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate3";
       STATUS = ENABLED+IMAGE;
@@ -5499,7 +5499,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 311 157,
-                   BOTTOMRIGHT: 513 181,
+                   BOTTOMRIGHT: 513 179,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate2";
       STATUS = ENABLED+IMAGE;
@@ -5740,7 +5740,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 311 133,
-                   BOTTOMRIGHT: 513 157,
+                   BOTTOMRIGHT: 513 155,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate1";
       STATUS = ENABLED+IMAGE;
@@ -5981,7 +5981,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 311 109,
-                   BOTTOMRIGHT: 513 133,
+                   BOTTOMRIGHT: 513 131,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayerTemplate0";
       STATUS = ENABLED+IMAGE;
@@ -6271,7 +6271,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 225 277,
-                   BOTTOMRIGHT: 309 301,
+                   BOTTOMRIGHT: 309 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor7";
       STATUS = ENABLED+IMAGE;
@@ -6512,7 +6512,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 225 253,
-                   BOTTOMRIGHT: 309 277,
+                   BOTTOMRIGHT: 309 275,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor6";
       STATUS = ENABLED+IMAGE;
@@ -6753,7 +6753,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 225 229,
-                   BOTTOMRIGHT: 309 253,
+                   BOTTOMRIGHT: 309 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor5";
       STATUS = ENABLED+IMAGE;
@@ -6994,7 +6994,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 225 205,
-                   BOTTOMRIGHT: 309 229,
+                   BOTTOMRIGHT: 309 227,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor4";
       STATUS = ENABLED+IMAGE;
@@ -7235,7 +7235,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 225 181,
-                   BOTTOMRIGHT: 309 205,
+                   BOTTOMRIGHT: 309 203,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor3";
       STATUS = ENABLED+IMAGE;
@@ -7476,7 +7476,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 225 157,
-                   BOTTOMRIGHT: 309 181,
+                   BOTTOMRIGHT: 309 179,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor2";
       STATUS = ENABLED+IMAGE;
@@ -7717,7 +7717,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 225 133,
-                   BOTTOMRIGHT: 309 157,
+                   BOTTOMRIGHT: 309 155,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor1";
       STATUS = ENABLED+IMAGE;
@@ -7958,7 +7958,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 225 109,
-                   BOTTOMRIGHT: 309 133,
+                   BOTTOMRIGHT: 309 131,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxColor0";
       STATUS = ENABLED+IMAGE;
@@ -8248,7 +8248,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 79 277,
-                   BOTTOMRIGHT: 223 301,
+                   BOTTOMRIGHT: 223 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer7";
       STATUS = ENABLED+IMAGE;
@@ -8489,7 +8489,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 79 253,
-                   BOTTOMRIGHT: 223 277,
+                   BOTTOMRIGHT: 223 275,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer6";
       STATUS = ENABLED+IMAGE;
@@ -8730,7 +8730,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 79 229,
-                   BOTTOMRIGHT: 223 253,
+                   BOTTOMRIGHT: 223 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer5";
       STATUS = ENABLED+IMAGE;
@@ -8971,7 +8971,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 79 205,
-                   BOTTOMRIGHT: 223 229,
+                   BOTTOMRIGHT: 223 227,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer4";
       STATUS = ENABLED+IMAGE;
@@ -9212,7 +9212,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 79 181,
-                   BOTTOMRIGHT: 223 205,
+                   BOTTOMRIGHT: 223 203,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer3";
       STATUS = ENABLED+IMAGE;
@@ -9453,7 +9453,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 79 157,
-                   BOTTOMRIGHT: 223 181,
+                   BOTTOMRIGHT: 223 179,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer2";
       STATUS = ENABLED+IMAGE;
@@ -9694,7 +9694,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 79 133,
-                   BOTTOMRIGHT: 223 157,
+                   BOTTOMRIGHT: 223 155,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer1";
       STATUS = ENABLED+IMAGE;
@@ -9935,7 +9935,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = COMBOBOX;
       SCREENRECT = UPPERLEFT: 79 109,
-                   BOTTOMRIGHT: 223 133,
+                   BOTTOMRIGHT: 223 131,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ComboBoxPlayer0";
       STATUS = ENABLED+IMAGE;
@@ -10176,7 +10176,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 79 277,
-                   BOTTOMRIGHT: 223 301,
+                   BOTTOMRIGHT: 223 299,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer7";
       STATUS = ENABLED+IMAGE;
@@ -10224,7 +10224,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 79 253,
-                   BOTTOMRIGHT: 223 277,
+                   BOTTOMRIGHT: 223 275,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer6";
       STATUS = ENABLED+IMAGE;
@@ -10272,7 +10272,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 79 229,
-                   BOTTOMRIGHT: 223 253,
+                   BOTTOMRIGHT: 223 251,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer5";
       STATUS = ENABLED+IMAGE;
@@ -10320,7 +10320,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 79 205,
-                   BOTTOMRIGHT: 223 229,
+                   BOTTOMRIGHT: 223 227,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer4";
       STATUS = ENABLED+IMAGE;
@@ -10368,7 +10368,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 79 181,
-                   BOTTOMRIGHT: 223 205,
+                   BOTTOMRIGHT: 223 203,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer3";
       STATUS = ENABLED+IMAGE;
@@ -10416,7 +10416,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 79 157,
-                   BOTTOMRIGHT: 223 181,
+                   BOTTOMRIGHT: 223 179,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer2";
       STATUS = ENABLED+IMAGE;
@@ -10464,7 +10464,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 79 133,
-                   BOTTOMRIGHT: 223 157,
+                   BOTTOMRIGHT: 223 155,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer1";
       STATUS = ENABLED+IMAGE;
@@ -10512,7 +10512,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 79 109,
-                   BOTTOMRIGHT: 223 133,
+                   BOTTOMRIGHT: 223 131,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextPlayer0";
       STATUS = ENABLED+IMAGE;
@@ -10606,8 +10606,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 44 43,
-                   BOTTOMRIGHT: 380 79,
+      SCREENRECT = UPPERLEFT: 44 42,
+                   BOTTOMRIGHT: 380 78,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:StaticTextGameName";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
