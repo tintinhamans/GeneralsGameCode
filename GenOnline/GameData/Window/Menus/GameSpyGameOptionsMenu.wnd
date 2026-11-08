@@ -98,8 +98,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 677 476,
-                   BOTTOMRIGHT: 713 500,
+      SCREENRECT = UPPERLEFT: 679 476,
+                   BOTTOMRIGHT: 715 500,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:ButtonEmote";
       STATUS = ENABLED+IMAGE+NOFOCUS;
@@ -391,7 +391,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = ENTRYFIELD;
       SCREENRECT = UPPERLEFT: 79 476,
-                   BOTTOMRIGHT: 667 500,
+                   BOTTOMRIGHT: 677 500,
                    CREATIONRESOLUTION: 800 600;
       NAME = "GameSpyGameOptionsMenu.wnd:TextEntryChat";
       STATUS = ENABLED+IMAGE;

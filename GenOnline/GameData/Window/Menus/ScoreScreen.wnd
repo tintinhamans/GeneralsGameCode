@@ -538,7 +538,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = ENTRYFIELD;
       SCREENRECT = UPPERLEFT: 73 483,
-                   BOTTOMRIGHT: 690 507,
+                   BOTTOMRIGHT: 688 507,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:TextEntryChat";
       STATUS = ENABLED+IMAGE;
@@ -590,8 +590,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 694 483,
-                   BOTTOMRIGHT: 730 507,
+      SCREENRECT = UPPERLEFT: 692 483,
+                   BOTTOMRIGHT: 728 507,
                    CREATIONRESOLUTION: 800 600;
       NAME = "ScoreScreen.wnd:ButtonEmote";
       STATUS = ENABLED+IMAGE+NOFOCUS;

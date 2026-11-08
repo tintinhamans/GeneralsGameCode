@@ -29,6 +29,11 @@ file as input, and the GO-only layouts there get the same fixes. All rects are i
   0 to 8 gets one gap, the most common (4 when all differ, at least 2); the widest control absorbs
   the difference so the row keeps its outer edges. Every row of the grid and the column headers
   above it move with their columns. Menus only.
+- Entry pairs: an entry field with a push button to its right on its row (nothing between, at most 40
+  units away, like the chat field and its send button) reaches to the button less the grid gap of
+  the parent (its most common column gap, else 4, at least 2). Under a list that spans the pair, the
+  field takes the list's left edge and the button its right edge. The button takes the field's top
+  and height when both are within 3 units. Menus only.
 - Titles: the screen title of a ruler menu (the large or Title template static text above the first
   header line in the frame) moves to TITLE_LEFT, the most common title edge, is centred vertically
   between the frame top and the line, and draws left aligned. Menus only.
@@ -110,7 +115,7 @@ GEOMETRY_KEPT = {
     "window/menus/mainmenu.wnd",  # laid out around the logo and side panels by hand
     "window/controlbar.wnd",      # slots sit on the bar art and ControlBarScheme code places windows too
 }
-MENU_RULES = ("frame", "edges", "labels", "spacing", "insets", "gaps", "columns", "titles")
+MENU_RULES = ("frame", "edges", "labels", "spacing", "insets", "gaps", "columns", "pairs", "titles")
 IN_GAME_RULES = ("edges", "labels", "spacing")
 KEPT_RULES = ("rows",)     # equal rows within STRICT only
 
@@ -809,6 +814,78 @@ def even_columns(ctx, parent):
 
 
 # ---------------------------------------------------------------------------------------------
+# entry fields and their buttons
+
+
+def _has_kind(item, kind):
+    return any(w.kind == kind for w in item)
+
+
+def entry_pairs(ctx, parent):
+    """Return [(field item, button item)]: each entry field with the nearest push button to its right on its row."""
+    items = _items(parent)
+    free = [it for it in items if not any(id(w) in ctx.locked or id(w) in ctx.titles for w in it)]
+    pairs = []
+    for field in (it for it in free if _has_kind(it, "ENTRYFIELD")):
+        fr = field[0].rect
+        best = None
+        for button in (it for it in free if _has_kind(it, "PUSHBUTTON") and it is not field):
+            br = button[0].rect
+            gap = br[0] - fr[2]
+            if br[0] <= fr[0] or not -SNAP <= gap <= LABEL_REACH:
+                continue
+            if 2 * (min(fr[3], br[3]) - max(fr[1], br[1])) <= min(fr[3] - fr[1], br[3] - br[1]):
+                continue
+            band = (fr[2], max(fr[1], br[1]), br[0], min(fr[3], br[3]))
+            if gap > 0 and any(o is not field and o is not button and _overlaps(o[0].rect, band) for o in items):
+                continue
+            if best is None or gap < best[0]:
+                best = (gap, button)
+        if best:
+            pairs.append((field, best[1]))
+    return pairs
+
+
+def _list_above(items, fr, br):
+    """The list box ending just above a field and button, spanning them within SNAP, with nothing between."""
+    for item in items:
+        r = item[0].rect
+        if (_has_kind(item, "SCROLLLISTBOX") and fr[1] - COLUMN_REACH <= r[3] <= fr[1]
+                and abs(r[0] - fr[0]) <= SNAP and abs(r[2] - br[2]) <= SNAP):
+            band = (r[0], r[3], r[2], fr[1])
+            if r[3] == fr[1] or not any(o is not item and _overlaps(o[0].rect, band) for o in items):
+                return item
+    return None
+
+
+def _grid_gap(ctx, parent):
+    """The parent's most common column gap among rows of bordered controls, else the default; at least MIN_GAP."""
+    gaps = []
+    for cluster in _clusters(_bordered_items(ctx, parent), False):
+        for chain in _chains(cluster, False, COLUMN_REACH, MIN_RUN):
+            gaps += [b[0].rect[0] - a[0].rect[2] for a, b in zip(chain, chain[1:])]
+    return max(_snap_target(gaps) if gaps else DEFAULT_COLUMN_GAP, MIN_GAP)
+
+
+def fit_entry_fields(ctx, parent):
+    """Stretch each entry field to its button, lining the pair up with a list box right above it."""
+    changed = 0
+    items = _items(parent)
+    for field, button in entry_pairs(ctx, parent):
+        fr, br = field[0].rect, button[0].rect
+        above = _list_above(items, fr, br)
+        x1 = above[0].rect[2] if above else br[2]
+        x0 = above[0].rect[0] if above else fr[0]
+        y0, y1 = br[1], br[3]
+        if abs(br[1] - fr[1]) <= SNAP and abs((br[3] - br[1]) - (fr[3] - fr[1])) <= SNAP:
+            y0, y1 = fr[1], fr[3]
+        new_button = (x1 - (br[2] - br[0]), y0, x1, y1)
+        new_field = (x0, fr[1], new_button[0] - _grid_gap(ctx, parent), fr[3])
+        changed += _try(ctx, parent, [(button, new_button), (field, new_field)], "pairs")
+    return changed
+
+
+# ---------------------------------------------------------------------------------------------
 # screen titles
 
 
@@ -922,6 +999,8 @@ def _settle(ctx, root, rules, fixes, name, late=True):
                 open_gaps(ctx, p)
             if late and "columns" in rules:
                 even_columns(ctx, p)
+            if late and "pairs" in rules:
+                fit_entry_fields(ctx, p)
         if late and "titles" in rules:
             align_titles(ctx, root)
         apply_overrides(ctx, root, fixes)
@@ -1048,7 +1127,7 @@ def build(retail):
     return results
 
 
-RULE_NAMES = ("frame", "edges", "labels", "spacing", "insets", "gaps", "columns", "titles", "override")
+RULE_NAMES = ("frame", "edges", "labels", "spacing", "insets", "gaps", "columns", "pairs", "titles", "override")
 
 
 def _move_size(change):
@@ -1089,6 +1168,7 @@ def write_review(results, path=REVIEW):
         "- The title no longer counts as frame content for the inset rule, which gives SaveLoad and WOL quick match back their retail insets (content 2 units up and 2 units left).",
         f"- Stack gaps: the touching player rows of the Skirmish, LAN and GameSpy game options grids and the Options detail radios get a {MIN_GAP} unit gap at the same pitch; each control is 2 units shorter.",
         f"- Column gaps: LAN game options columns are {MIN_GAP} units apart (were 1, 3, 1), Skirmish 3 (were 3, 3, 2); GameSpy is already even, and its last row, which also holds Select Map, is skipped.",
+        "- Entry pairs: the chat fields of the LAN lobby, LAN and GameSpy game options and the score screen reach their send button less the grid gap (2 next to a player grid, else the button row gap or 4), and line up with the chat list above. WOLCustomLobby already sits at its button row gap of 6. The LAN lobby name field and Clear are no pair: the Games header overlaps the space between them.",
         "- Map lists: with Open Sans a list row is 36 px at 1080p (font height plus 1), so the 152-153 unit map lists show 7 full rows and part of an 8th. List heights are left alone; the row height is the engine's.",
         "",
         "## Most changed",
