@@ -1649,12 +1649,12 @@ struct UIFontSubstituteStruct
 
 static const UIFontSubstituteStruct UIFontSubstitutes[] =
 {
-	{ "Arial", "Open Sans", FW_NORMAL },
-	{ "Times New Roman", "Open Sans", FW_NORMAL },
-	{ "Generals", "Open Sans SemiBold", FW_SEMIBOLD },
+	{ "Arial", "IBM Plex Sans", FW_NORMAL },
+	{ "Times New Roman", "IBM Plex Sans", FW_NORMAL },
+	{ "Generals", "IBM Plex Sans Cond SmBld", FW_SEMIBOLD },
 };
 
-static const char * const UIFontBoldFace = "Open Sans";
+static const char * const UIFontBoldFace = "IBM Plex Sans";
 static bool UIFontSubstitution = false;
 static bool UIFontMismatchReported = false;
 
