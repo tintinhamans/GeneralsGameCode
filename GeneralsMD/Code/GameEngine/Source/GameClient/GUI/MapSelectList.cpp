@@ -35,6 +35,7 @@
 #include "GameClient/GameText.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/Image.h"
+#include "GameClient/MapPreviewIcons.h"
 #include "GameClient/MapSelectList.h"
 #include "GameClient/MapUtil.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
@@ -135,9 +136,14 @@ static UnicodeString sizeClassText( MapSelectSize size )
 }
 
 // The categories present on the map for the line under the preview; empty for no map.
+// the icon types on the map with their counts, empty while no map is selected
 static UnicodeString mapLegendText( const AsciiString &mapPath )
 {
-	return UnicodeString::TheEmptyString;
+	if (mapPath.isEmpty())
+	{
+		return UnicodeString::TheEmptyString;
+	}
+	return getMapPreviewLegendText(mapPath);
 }
 
 struct MapSelectRowSort
