@@ -105,6 +105,8 @@ extern void GadgetListboxCreateScrollbar( GameWindow *listbox );
 extern Bool GadgetListBoxHasKitScrollBar( void ); ///< TRUE when every kit scroll bar image exists
 extern const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which ); ///< nullptr unless GadgetListBoxHasKitScrollBar
 extern Int GadgetListBoxGetKitComboFrame( GameWindow *listbox ); ///< kit combo drop-down frame thickness, 0 for other lists
+extern Int GadgetListBoxGetKitComboRowTrim( GameWindow *listbox ); ///< blank font rows a kit combo drop-down trims off each text row's top, 0 for other lists
+extern Int GadgetListBoxGetKitComboHeight( GameWindow *listbox, Int rows ); ///< kit combo drop-down height for rows, 0 for other lists
 extern Int GadgetListBoxGetKitScrollLineWidth( void ); ///< kit scroll column separator thickness, 0 without the kit
 extern void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
 																			 Bool left, Bool top, Bool right, Bool bottom ); ///< kit line edges inside a rect

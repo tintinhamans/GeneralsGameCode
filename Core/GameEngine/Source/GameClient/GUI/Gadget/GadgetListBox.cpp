@@ -136,6 +136,35 @@ static const Image *s_kitScrollImages[KIT_SCROLL_IMAGE_COUNT];
 static const Int KIT_SCROLL_COLUMN_WIDTH = 14;
 // shortest kit thumb, the retail GADGET_SIZE thumb scaled from the 21 unit column to the kit column
 static const Int KIT_SCROLL_THUMB_MIN_HEIGHT = 11;
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 Compact kit combo drop-down rows: each text row loses an eighth of the font height off its blank top.
+static const Int KIT_COMBO_ROW_TRIM_DIVISOR = 8;
+// rows of a colour drawn list start this far into it (W3DGadgetListBoxDraw)
+static const Int KIT_COMBO_TEXT_TOP = 4;
+
+// TheSuperHackers @feature arcticdolphin 08/11/2026 A kit combo drop-down scroll column is as wide as the combo arrow button above it.
+static void fitKitComboScrollColumn( GameWindow *listbox, ListboxData *list )
+{
+	GameWindow *button = GadgetComboBoxGetDropDownButton( listbox->winGetParent() );
+	if( button == nullptr || list->upButton == nullptr || list->downButton == nullptr || list->slider == nullptr )
+		return;
+
+	ICoord2D buttonSize, upSize, downSize, sliderSize;
+	button->winGetSize( &buttonSize.x, &buttonSize.y );
+	list->upButton->winGetSize( &upSize.x, &upSize.y );
+	list->downButton->winGetSize( &downSize.x, &downSize.y );
+	list->slider->winGetSize( &sliderSize.x, &sliderSize.y );
+	Int width = buttonSize.x;
+	if( width < 1 )
+		return;
+
+	// square arrow cells, like the slim column
+	if( upSize.x != width || upSize.y != width )
+		list->upButton->winSetSize( width, width );
+	if( downSize.x != width || downSize.y != width )
+		list->downButton->winSetSize( width, width );
+	if( sliderSize.x != width )
+		list->slider->winSetSize( width, sliderSize.y );
+}
 
 // Scroll bar gaps: the kit arrow boxes share the list frame line, with a small inset around the track
 static void getScrollbarGaps( Int &edgeGap, Int &sliderGap )
@@ -401,6 +430,7 @@ static void computeTotalHeight( GameWindow *window )
 	Int tempHeight;
 	ListboxData *list = (ListboxData *)window->winGetUserData();
 	WinInstanceData *instData = window->winGetInstanceData();
+	const Int textTrim = GadgetListBoxGetKitComboRowTrim( window );
 
 	for( i=0; i<list->endPos; i++ )
 	{
@@ -424,6 +454,7 @@ static void computeTotalHeight( GameWindow *window )
 					if(displayString)
 						displayString->getSize( nullptr, &cellHeight );
 				}
+				cellHeight -= textTrim;
 			}
 			else if(list->listData[i].cell[j].cellType == LISTBOX_IMAGE)
 			{
@@ -628,6 +659,7 @@ static Int addEntry( UnicodeString *string, Int color, Int row, Int column, Game
 		}
 
 		displayString->getSize( nullptr, &rowHeight );
+		rowHeight -= GadgetListBoxGetKitComboRowTrim( window );
 		if (rowHeight > oldRowHeight)
 		{
 			totalHeight = oldTotalHeight + (rowHeight - oldRowHeight);
@@ -1948,6 +1980,9 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			// gaps match GadgetListboxCreateScrollbar
 			Int edgeGap, sliderGap;
 			getScrollbarGaps( edgeGap, sliderGap );
+			const Int comboFrame = GadgetListBoxGetKitComboFrame( window );
+			if( comboFrame > 0 )
+				fitKitComboScrollColumn( window, list );
 
 			// get needed window sizes
 			if (list->downButton)
@@ -1991,6 +2026,9 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			{
 				list->displayHeight -= TheWindowManager->winFontHeight( instData->getFont() );
 			}
+			// TheSuperHackers @bugfix arcticdolphin 08/11/2026 A kit combo drop-down scrolls its last row fully above the bottom frame line.
+			if( comboFrame > 0 )
+				list->displayHeight -= KIT_COMBO_TEXT_TOP + comboFrame - TOTAL_OUTLINE_HEIGHT;
 
 			//
 			// Setup listbox Columns
@@ -2717,6 +2755,32 @@ Int GadgetListBoxGetKitComboFrame( GameWindow *listbox )
 	if( frame < 1 )
 		frame = 1;
 	return frame;
+}
+
+// GadgetListBoxGetKitComboRowTrim ============================================
+/** Blank font rows a kit combo drop-down trims off the top of each text row; 0 for other lists */
+//=============================================================================
+Int GadgetListBoxGetKitComboRowTrim( GameWindow *listbox )
+{
+	if( GadgetListBoxGetKitComboFrame( listbox ) <= 0 )
+		return 0;
+
+	// the UI fonts leave a quarter of their height blank above the capitals
+	return TheWindowManager->winFontHeight( listbox->winGetFont() ) / KIT_COMBO_ROW_TRIM_DIVISOR;
+}
+
+// GadgetListBoxGetKitComboHeight =============================================
+/** Height of a kit combo drop-down showing rows text rows; 0 for other lists */
+//=============================================================================
+Int GadgetListBoxGetKitComboHeight( GameWindow *listbox, Int rows )
+{
+	Int frame = GadgetListBoxGetKitComboFrame( listbox );
+	if( frame <= 0 )
+		return 0;
+
+	// the rows below the text inset, then the bottom frame line
+	Int pitch = TheWindowManager->winFontHeight( listbox->winGetFont() ) + 1 - GadgetListBoxGetKitComboRowTrim( listbox );
+	return KIT_COMBO_TEXT_TOP + rows * pitch + frame;
 }
 
 // GadgetListBoxAddMultiSelect ================================================

@@ -795,6 +795,56 @@ class MapPreviewBorderTest(unittest.TestCase):
             self.assertEqual(borders, [["47", "75", "255", "255"]], name)
 
 
+CLEAR_FRAMED_SLOT = "IMAGE: NoImage, COLOR: 2 2 2 0, BORDERCOLOR: 47 75 255 255"
+
+
+class ButtonGroupBorderTest(unittest.TestCase):
+    def group_layout(self, children, slot=CLEAR_FRAMED_SLOT, status="ENABLED"):
+        draw = [slot] + [DRAW_SLOT] * 8
+        return layout(window("USER", (100, 100, 400, 124), children, draw=draw, props=[f"STATUS = {status};"]))
+
+    def buttons(self):
+        overlay = ["STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;"]
+        return [window("PUSHBUTTON", (100, 100, 124, 124), indent=2),
+                window("PUSHBUTTON", (130, 100, 250, 124), indent=2),
+                window("USER", (136, 106, 152, 118), indent=2, props=overlay)]
+
+    def group_border(self, text, name=MENU):
+        return enabled_slots(wl.transform(text, name=name))["Test.wnd:USER100_100"][0][2]
+
+    def test_clear_button_group_draws_no_border(self):
+        for name in (MENU, "Window/ControlBar.wnd"):
+            self.assertEqual(self.group_border(self.group_layout(self.buttons()), name), ["47", "75", "255", "0"], name)
+
+    def test_button_group_rule_is_idempotent_and_build_applies_it(self):
+        once = wl.transform(self.group_layout(self.buttons()), name=MENU)
+        self.assertEqual(wl.transform(once, name=MENU), once)
+        retail = {MENU: self.group_layout(self.buttons()).encode("latin-1")}
+        with mock.patch.object(wl, "read_big", return_value=retail), mock.patch.object(wl, "SOURCES", Path("missing")):
+            results = {name: out for name, text, out, info in wl.build(Path("unused.big"))}
+        self.assertEqual(results[MENU], once)
+
+    def test_other_frames_keep_their_border(self):
+        field = [window("ENTRYFIELD", (130, 100, 250, 124), indent=2)]
+        loose = [window("USER", (130, 100, 250, 124), indent=2)]
+        cases = [
+            ("filled", self.group_layout(self.buttons(), slot="IMAGE: NoImage, COLOR: 2 2 2 255, BORDERCOLOR: 47 75 255 255")),
+            ("image", self.group_layout(self.buttons(), status="ENABLED+IMAGE")),
+            ("entry field", self.group_layout(field)),
+            ("input window", self.group_layout(loose)),
+            ("no children", self.group_layout([])),
+        ]
+        for label, text in cases:
+            self.assertEqual(self.group_border(text), ["47", "75", "255", "255"], label)
+
+    def test_shipped_custom_lobby_sort_buttons_have_no_group_frame(self):
+        import go_themes
+        name = "Window/Menus/WOLCustomLobby.wnd"
+        for path in (wl.DATA / name, go_themes.THEME_DIR / name):
+            slots = enabled_slots(path.read_bytes().decode("latin-1"))
+            self.assertEqual(slots["WOLCustomLobby.wnd:ParentSortButtons"][0][2][3], "0", path)
+
+
 class ShippedLayoutTest(unittest.TestCase):
     def test_game_setup_column_headings_start_at_their_column(self):
         cases = [
