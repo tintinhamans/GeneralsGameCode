@@ -263,6 +263,54 @@ WindowMsgHandledType WOLMapSelectMenuInput( GameWindow *window, UnsignedInt msg,
 }
 void WOLPositionStartSpots();
 
+// The OK path's effect on the lobby: the map and its data, the slots adjusting to it, and the lobby service told.
+static void applySelectedMap( AsciiString asciiMap )
+{
+	int newMaxPlayers = -1;
+	UnicodeString strMapName;
+	bool bOfficialMap = false;
+
+	TheGenOnlineGame->setMap(asciiMap);
+	asciiMap.toLower();
+	std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
+	if (it != TheMapCache->end())
+	{
+		TheGenOnlineGame->getGameSpySlot(0)->setMapAvailability(TRUE);
+		TheGenOnlineGame->setMapCRC( it->second.m_CRC );
+		TheGenOnlineGame->setMapSize( it->second.m_filesize );
+
+		newMaxPlayers = it->second.m_numPlayers;
+		strMapName = it->second.m_displayName;
+
+		bOfficialMap = it->second.m_isOfficial;
+	}
+
+	TheGenOnlineGame->adjustSlotsForMap(); // BGC- adjust the slots for the new map.
+	TheGenOnlineGame->resetAccepted();
+	TheGenOnlineGame->resetStartSpots();
+
+	// TODO_GENONLINE:
+	//TheGameSpyInfo->setGameOptions();
+
+	WOLDisplaySlotList();
+	WOLDisplayGameOptions();
+
+	// GenOnline: Update lobby
+	GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
+
+	if (pLobbyInterface != nullptr)
+	{
+		pLobbyInterface->UpdateCurrentLobby_Map(strMapName, TheGenOnlineGame->getMap(), bOfficialMap, newMaxPlayers);
+	}
+}
+
+// The same without the selector window, for the stats pipe.
+void WOLMapSelectMenuApplyMap( const AsciiString& map )
+{
+	applySelectedMap( map );
+	WOLPositionStartSpots();
+}
+
 //-------------------------------------------------------------------------------------------------
 /** MapSelect menu window system callback */
 //-------------------------------------------------------------------------------------------------
@@ -424,43 +472,7 @@ WindowMsgHandledType WOLMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 					else
 						asciiMap.translate( map );
 
-					int newMaxPlayers = -1;
-					UnicodeString strMapName;
-					bool bOfficialMap = false;
-
-					TheGenOnlineGame->setMap(asciiMap);
-					asciiMap.toLower();
-					std::map<AsciiString, MapMetaData>::iterator it = TheMapCache->find(asciiMap);
-					if (it != TheMapCache->end())
-					{
-						TheGenOnlineGame->getGameSpySlot(0)->setMapAvailability(TRUE);
-						TheGenOnlineGame->setMapCRC( it->second.m_CRC );
-						TheGenOnlineGame->setMapSize( it->second.m_filesize );
-
-						newMaxPlayers = it->second.m_numPlayers;
-						strMapName = it->second.m_displayName;
-
-						bOfficialMap = it->second.m_isOfficial;
-					}
-
-					TheGenOnlineGame->adjustSlotsForMap(); // BGC- adjust the slots for the new map.
-					TheGenOnlineGame->resetAccepted();
-					TheGenOnlineGame->resetStartSpots();
-
-					// TODO_GENONLINE:
-					//TheGameSpyInfo->setGameOptions();
-
-					WOLDisplaySlotList();
-					WOLDisplayGameOptions();
-
-					// GenOnline: Update lobby
-					GenOnlineLobbyInterface* pLobbyInterface = GenOnlineServicesManager::GetInterface<GenOnlineLobbyInterface>();
-
-					if (pLobbyInterface != nullptr)
-					{
-						pLobbyInterface->UpdateCurrentLobby_Map(strMapName, TheGenOnlineGame->getMap(), bOfficialMap, newMaxPlayers);
-					}
-					
+					applySelectedMap( asciiMap );
 
 					if (WOLMapSelectLayout)
 					{

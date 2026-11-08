@@ -47,6 +47,9 @@
 #include "GameNetwork/LANAPICallbacks.h"
 #include "GameNetwork/networkutil.h"
 #include "GameNetwork/TransportFactory.h"
+#if defined(GENONLINE) && RTS_ZEROHOUR
+#include "Common/StatsExporterLive.h"
+#endif
 
 LANAPI *TheLAN = nullptr;
 extern Bool LANbuttonPushed;
@@ -696,6 +699,9 @@ void LANAPI::OnChat( UnicodeString player, UnsignedInt ip, UnicodeString message
 	}
 	if (chatWindow == nullptr)
 		return;
+#if defined(GENONLINE) && RTS_ZEROHOUR
+	StatsExporterLiveChatLan(m_inLobby ? STATS_EXPORTER_CHAT_LAN_LOBBY : STATS_EXPORTER_CHAT_LAN_GAME, player, message, format == LANAPIInterface::LANCHAT_EMOTE, format == LANAPIInterface::LANCHAT_SYSTEM, ip == m_localIP);
+#endif
 	Int index = -1;
 	UnicodeString unicodeChat;
 	switch (format)

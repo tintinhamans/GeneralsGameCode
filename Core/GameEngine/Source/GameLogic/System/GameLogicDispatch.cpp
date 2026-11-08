@@ -52,6 +52,9 @@
 
 #include "GameLogic/AIPathfind.h"
 #include "GameLogic/GameLogic.h"
+#if defined(GENONLINE) && RTS_ZEROHOUR
+#include "Common/StatsExporterLive.h"
+#endif
 #include "GameLogic/Locomotor.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/ObjectCreationList.h"
@@ -257,6 +260,11 @@ void GameLogic::clearGameData( Bool showScoreScreen )
 		return;
 	}
 
+#if defined(GENONLINE) && RTS_ZEROHOUR
+	// Every way a match ends (quit, replay left early, disconnect) passes here. A no-op if ENDED already went out.
+	StatsExporterLiveGameDataCleared();
+#endif
+
 	setClearingGameData( TRUE );
 
 //	m_background = TheWindowManager->winCreateLayout("Menus/BlankWindow.wnd");
@@ -401,6 +409,10 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 
 				if(TheStatsCollector)
 					TheStatsCollector->collectMsgStats(msg);
+
+#if defined(GENONLINE) && RTS_ZEROHOUR
+				StatsExporterLiveCommand(msgPlayer->getPlayerIndex(), msg->getType());
+#endif
 			}
 		}
 	}
@@ -2129,6 +2141,9 @@ bool GameLogic::onPlaceBeacon(MAYBE_UNUSED GameMessage *msg)
 		Object *object = TheThingFactory->newObject( thing, msgPlayer->getDefaultTeam() );
 		object->setPosition( &pos );
 		object->setProducer(nullptr);
+#if defined(GENONLINE) && RTS_ZEROHOUR
+		StatsExporterLiveBeacon(msgPlayer->getPlayerIndex(), &pos);
+#endif
 
 		if (msgPlayer->getRelationship( ThePlayerList->getLocalPlayer()->getDefaultTeam() ) == ALLIES || ThePlayerList->getLocalPlayer()->isPlayerObserver())
 		{
@@ -2289,6 +2304,9 @@ bool GameLogic::onSetBeaconText(MAYBE_UNUSED GameMessage *msg, AIGroupPtr &curre
 bool GameLogic::onSelfDestruct(MAYBE_UNUSED GameMessage *msg)
 {
 	Player *msgPlayer = getMessagePlayer(msg);
+#if defined(GENONLINE) && RTS_ZEROHOUR
+	StatsExporterLivePlayerLeft(msgPlayer->getPlayerIndex(), "self_destruct");
+#endif
 
 	if (msg->getArgument(0)->boolean)
 	{
@@ -2343,6 +2361,7 @@ bool GameLogic::onSetReplayCamera(MAYBE_UNUSED GameMessage *msg)
 			const Real zoom = msg->getArgument( 3 )->real;
 			const Mouse::MouseCursor mouseCursor = static_cast<Mouse::MouseCursor>(msg->getArgument( 4 )->integer);
 			const ICoord2D mousePos = msg->getArgument( 5 )->pixel;
+			const UnsignedInt userActionCount = TheTacticalView->getUserActionCount();
 
 			// TheSuperHackers @info Definitely call in user mode to ensure the camera operates with auto-zoom
 			// over terrain elevations, because the Replay Camera does not store the absolute camera location,
@@ -2369,6 +2388,9 @@ bool GameLogic::onSetReplayCamera(MAYBE_UNUSED GameMessage *msg)
 				TheTacticalView->setUserControlled(false);
 				TheTacticalView->set3DCameraLookAt(camPos, camDir, 0.0f);
 			}
+
+			// The recorded camera is not the user at this PC: tools that watch for user camera input do not count it.
+			TheTacticalView->restoreUserActionCount( userActionCount );
 
 			// TheSuperHackers @fix Lock the new location to avoid user input from changing the camera in this frame.
 			TheTacticalView->lockUserControlUntilFrame( getFrame() + 1 );

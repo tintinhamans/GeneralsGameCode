@@ -105,6 +105,7 @@
 #include "../GenOnlineInterfaces.h"
 #include "../GenOnlineInit.h"
 #include "../GenOnlineStatsInterface.h"
+#include "Common/StatsExporterLive.h"
 
 
 //-----------------------------------------------------------------------------
@@ -2345,6 +2346,9 @@ void grabMultiPlayerInfo( void )
 	}
 	
 	DEBUG_ASSERTCRASH(count == playerCount, ("For some reason we added %d players to the scores map, but only read %d", playerCount, count));
+
+	// last point where every Player/ScoreKeeper is still populated
+	StatsExporterLiveMatchSummary();
 	
 }
 

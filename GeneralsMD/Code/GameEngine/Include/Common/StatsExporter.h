@@ -35,6 +35,7 @@ void StatsExporterCollectSnapshot();
 void StatsExporterBeginRecording();
 
 /// Record a kill event with full context (called from Object::scoreTheKill).
+/// Feeds the live stats pipe (StatsExporterLive.h) and, when -exportStats is on, the JSON export.
 void StatsExporterRecordKill(const Object *killer, const Object *victim, const DamageInfo *damageInfo);
 
 /// Record a build event (called from Player::onUnitCreated / onStructureConstructionComplete).

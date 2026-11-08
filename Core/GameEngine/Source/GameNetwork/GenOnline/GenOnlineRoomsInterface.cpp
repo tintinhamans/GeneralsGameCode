@@ -3,6 +3,9 @@
 #include "GameNetwork/GenOnline/ServiceEndpointPolicy.h"
 #include "GameNetwork/GenOnline/GenOnlineInterfaces.h"
 #include "GameNetwork/GenOnline/GenOnlineInclude.h"
+#if RTS_ZEROHOUR
+#include "Common/StatsExporterLive.h"
+#endif
 #include "GameNetwork/GenOnline/NetworkPacket.h"
 #include "GameNetwork/GenOnline/NetworkBitstream.h"
 #include "GameNetwork/GenOnline/GenOnlineModeration.h"
@@ -1283,6 +1286,10 @@ CURLcode WebSocket::ReceiveOneFrame()
 											GenOnlineRoomsInterface* pRoomsInterface = GenOnlineServicesManager::GetInterface<GenOnlineRoomsInterface>();
 											if (pRoomsInterface != nullptr && pRoomsInterface->m_OnChatCallback != nullptr)
 											{
+												// the room line is server-formatted and carries no sender id; a name change notice is a system line
+#if RTS_ZEROHOUR
+												StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_ROOM, 0, "", chatData.message.c_str(), chatData.action, chatData.name_change, FALSE);
+#endif
 												pRoomsInterface->m_OnChatCallback(unicodeStr, color);
 											}
 										}
@@ -1684,12 +1691,14 @@ CURLcode WebSocket::ReceiveOneFrame()
 											if (pLobbyInterface != nullptr)
 											{
 												int lobbySlot = -1;
+												std::string senderName;
 												auto lobbyMembers = pLobbyInterface->GetMembersListForCurrentRoom();
 												for (const auto& lobbyMember : lobbyMembers)
 												{
 													if (lobbyMember.user_id == chatData.user_id)
 													{
 														lobbySlot = lobbyMember.m_SlotIndex;
+														senderName = lobbyMember.display_name;
 														break;
 													}
 												}
@@ -1703,6 +1712,11 @@ CURLcode WebSocket::ReceiveOneFrame()
 
 												if (pLobbyInterface->m_OnChatCallback != nullptr)
 												{
+#if RTS_ZEROHOUR
+													GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+													const bool bIsLocal = pAuthInterface != nullptr && pAuthInterface->GetUserID() == chatData.user_id;
+													StatsExporterLiveChatOnline(STATS_EXPORTER_CHAT_GAME_LOBBY, chatData.user_id, senderName.c_str(), chatData.message.c_str(), chatData.action, chatData.announcement, bIsLocal);
+#endif
 													pLobbyInterface->m_OnChatCallback(unicodeStr, color);
 												}
 											}

@@ -111,6 +111,11 @@ set(GAMEENGINE_SRC
     Include/Common/StateMachine.h
     Include/Common/StatsCollector.h
     Include/Common/StatsExporter.h
+    Include/Common/StatsExporterControl.h
+    Include/Common/StatsExporterLive.h
+    Include/Common/StatsExporterLobby.h
+    Include/Common/StatsExporterPipe.h
+    Include/Common/StatsExporterQuery.h
     Include/Common/StatsUploader.h
 #    Include/Common/STLTypedefs.h
 #    Include/Common/StreamingArchiveFile.h
@@ -630,6 +635,11 @@ set(GAMEENGINE_SRC
     Source/Common/StateMachine.cpp
     Source/Common/StatsCollector.cpp
     Source/Common/StatsExporter.cpp
+    Source/Common/StatsExporterControl.cpp
+    Source/Common/StatsExporterLive.cpp
+    Source/Common/StatsExporterLobby.cpp
+    Source/Common/StatsExporterPipe.cpp
+    Source/Common/StatsExporterQuery.cpp
     Source/Common/StatsUploader.cpp
 #    Source/Common/System/ArchiveFile.cpp
 #    Source/Common/System/ArchiveFileSystem.cpp
@@ -1160,6 +1170,26 @@ target_link_libraries(z_gameengine PUBLIC
     corei_gameengine_public
     z_wwvegas
 )
+
+# The live stats pipe of Generals Online, Zero Hour only.
+if(NOT IS_VS6_BUILD)
+    find_package(Protobuf CONFIG REQUIRED)
+
+    # Wire schema of the live stats pipe. The code is generated at build time with the same protoc and
+    # libprotobuf that GameNetworkingSockets uses, in its own library so it stays out of the engine PCH.
+    add_library(z_statsexporter_proto STATIC)
+    protobuf_generate(
+        TARGET z_statsexporter_proto
+        LANGUAGE cpp
+        PROTOS ${CMAKE_CURRENT_SOURCE_DIR}/Source/Common/StatsExporter.proto
+        IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/Source/Common
+        PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/StatsExporterProto
+    )
+    target_include_directories(z_statsexporter_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/StatsExporterProto)
+    target_link_libraries(z_statsexporter_proto PUBLIC protobuf::libprotobuf)
+
+    target_link_libraries(z_gameengine PUBLIC z_statsexporter_proto)
+endif()
 
 target_precompile_headers(z_gameengine PRIVATE
     [["Precompiled/BasePrecomp.h"]] # Must be first

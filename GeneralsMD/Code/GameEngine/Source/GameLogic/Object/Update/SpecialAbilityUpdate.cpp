@@ -63,6 +63,7 @@
 #include "GameLogic/Module/StickyBombUpdate.h"
 #include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/Module/ContainModule.h"
+#include "Common/StatsExporterLive.h"
 
 
 
@@ -1475,6 +1476,15 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
       }
 
       object->getControllingPlayer()->getAcademyStats()->recordBuildingCapture();
+
+      // success point for building-capture powers, excluded from SpecialPowerModule::triggerSpecialPower()
+      StatsExporterLiveAbilityUse(
+        object->getControllingPlayer()->getPlayerIndex(),
+        spTemplate,
+        object->getTemplate(),
+        target->getTemplate(),
+        nullptr,
+        nullptr );
       break;
     }
     case SPECIAL_BLACKLOTUS_STEAL_CASH_HACK:

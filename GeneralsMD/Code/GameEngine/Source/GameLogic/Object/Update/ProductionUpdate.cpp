@@ -52,6 +52,7 @@
 #include "GameLogic/Module/CreateModule.h"
 #include "GameLogic/Module/ParkingPlaceBehavior.h"
 #include "GameLogic/Module/ProductionUpdate.h"
+#include "Common/StatsExporterLive.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/ScriptEngine.h"
 
@@ -857,6 +858,7 @@ UpdateSleepTime ProductionUpdate::update()
 
 			// we finished an upgrade, lets add that money spent on it to the scorekeeper
 			player->getScoreKeeper()->addMoneySpent(upgrade->calcCostToBuild(player));
+			StatsExporterLiveSpend(player->getPlayerIndex(), STATS_EXPORTER_SPEND_UPGRADES, upgrade->calcCostToBuild(player));
 
 			// notify the script engine
 			TheScriptEngine->notifyOfCompletedUpgrade(
@@ -906,6 +908,7 @@ UpdateSleepTime ProductionUpdate::update()
 			else
 			{
 				us->giveUpgrade( upgrade );
+				StatsExporterLiveUpgradeComplete( player->getPlayerIndex(), upgrade->getUpgradeName().str(), upgrade->calcCostToBuild( player ), TRUE );
 			}
 
 			player->getAcademyStats()->recordUpgrade( upgrade, FALSE );

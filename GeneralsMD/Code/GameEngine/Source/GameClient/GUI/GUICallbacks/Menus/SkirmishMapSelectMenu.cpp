@@ -284,6 +284,36 @@ WindowMsgHandledType SkirmishMapSelectMenuInput( GameWindow *window, UnsignedInt
 
 }
 
+// The effect of the OK path on the lobby: the map, its checksum and size, and the start positions starting over.
+static void applySelectedMap( const AsciiString& asciiMap )
+{
+	TheSkirmishGameInfo->setMap( asciiMap );
+
+	const MapMetaData *md = TheMapCache->findMap(asciiMap);
+	if (!md)
+	{
+		TheSkirmishGameInfo->setMapCRC(0);
+		TheSkirmishGameInfo->setMapSize(0);
+	}
+	else
+	{
+		TheSkirmishGameInfo->setMapCRC(md->m_CRC);
+		TheSkirmishGameInfo->setMapSize(md->m_filesize);
+	}
+
+	// reset the start positions
+	for(Int i = 0; i < MAX_SLOTS; ++i)
+		TheSkirmishGameInfo->getSlot(i)->setStartPos(-1);
+}
+
+// The same without the selector window, for the stats pipe.
+void SkirmishMapSelectMenuApplyMap( const AsciiString& map )
+{
+	applySelectedMap( map );
+	skirmishPositionStartSpots();
+	skirmishUpdateSlotList();
+}
+
 //-------------------------------------------------------------------------------------------------
 /** MapSelect menu window system callback */
 //-------------------------------------------------------------------------------------------------
@@ -434,23 +464,9 @@ WindowMsgHandledType SkirmishMapSelectMenuSystem( GameWindow *window, UnsignedIn
 						asciiMap = mapFname;
 					else
 						asciiMap.translate( map );
-					TheSkirmishGameInfo->setMap( asciiMap );
+					applySelectedMap( asciiMap );
 
 					const MapMetaData *md = TheMapCache->findMap(asciiMap);
-					if (!md)
-					{
-						TheSkirmishGameInfo->setMapCRC(0);
-						TheSkirmishGameInfo->setMapSize(0);
-					}
-					else
-					{
-						TheSkirmishGameInfo->setMapCRC(md->m_CRC);
-						TheSkirmishGameInfo->setMapSize(md->m_filesize);
-					}
-
-					// reset the start positions
-					for(Int i = 0; i < MAX_SLOTS; ++i)
-						TheSkirmishGameInfo->getSlot(i)->setStartPos(-1);
 					GameWindow *win;
 					win	= TheWindowManager->winGetWindowFromId( nullptr, TheNameKeyGenerator->nameToKey("SkirmishGameOptionsMenu.wnd:TextEntryMapDisplay") );
 					if(win)
