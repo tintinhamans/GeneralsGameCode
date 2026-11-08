@@ -111,6 +111,21 @@ IN_GAME = re.compile(
     r"|InGameChat|IME\w*|MOTD|ReplayControl|InGamePopupMessage)\.wnd$",
     re.I,
 )
+# menus shown during a match; with IN_GAME they keep the retail header templates so in-game mods stay in charge of them
+# (the same list as isEmbeddedShellLayout in Core ArchiveFileSystem.cpp)
+IN_MATCH_MENUS = {
+    "crcmismatch", "defeat", "disconnectscreen", "localdefeat", "observerquit", "popupsaveload",
+    "quitmenu", "quitmessagebox", "quitnosave", "saveload", "victorious",
+}
+# retail header templates; the menu layouts use the GO copies in Data/GeneralsOnline/HeaderTemplate.ini instead,
+# so a mod that replaces Data/<language>/HeaderTemplate.ini cannot resize the GO menus
+GO_TEMPLATE_PREFIX = "GO"
+RETAIL_TEMPLATES = {
+    "Title", "MainButton", "Button", "ButtonSmall", "TextEntry", "ComboBoxEntry", "MinorTitle", "LabelRegular",
+    "LabelSmall", "LoadScreenCameos", "LoadScreenMissionLocation", "Arial10BoldTemplate", "Arial12BoldTemplate",
+    "Arial14Template", "Arial14BoldTemplate",
+}
+HEADER_RE = re.compile(r'(?m)^(?P<lead>[ \t]*HEADERTEMPLATE[ \t]*=[ \t]*")(?P<header>[^"]*)(?=")')
 GEOMETRY_KEPT = {
     "window/menus/mainmenu.wnd",  # laid out around the logo and side panels by hand
     "window/controlbar.wnd",      # slots sit on the bar art and ControlBarScheme code places windows too
@@ -1090,9 +1105,31 @@ def equalize_rows(text, notes=None):
     return out, info["changes"]
 
 
+def _uses_go_templates(name):
+    if not name:
+        return False
+    path = name.replace("\\", "/")
+    if not path.lower().startswith("window/menus/"):
+        return False
+    return path.rsplit("/", 1)[-1].rsplit(".", 1)[0].lower() not in IN_MATCH_MENUS
+
+
+def go_templates(text, name):
+    """Point the header templates of a menu layout at their GO copies; in-game layouts are returned unchanged."""
+    if not _uses_go_templates(name):
+        return text
+
+    def swap(m):
+        header = m.group("header")
+        return m.group("lead") + (GO_TEMPLATE_PREFIX + header if header in RETAIL_TEMPLATES else header)
+
+    return HEADER_RE.sub(swap, text)
+
+
 def transform(text, notes=None, name=None):
-    """Apply the kit colours and the alignment rules for the layout at archive path name."""
+    """Apply the kit colours, the alignment rules and the GO header templates for the layout at archive path name."""
     out, info = align(remap_colors(text), name)
+    out = go_templates(out, name)
     if notes is not None:
         notes.extend(info["notes"])
     return out
@@ -1149,6 +1186,7 @@ def build(retail):
     for name in sorted(inputs, key=str.lower):
         text = inputs[name].decode("latin-1")
         out, info = align(remap_colors(text), name)
+        out = go_templates(out, name)
         results.append((name, text, out, info))
     return results
 

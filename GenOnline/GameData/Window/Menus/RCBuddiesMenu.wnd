@@ -63,7 +63,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-    HEADERTEMPLATE = "ButtonSmall";
+    HEADERTEMPLATE = "GOButtonSmall";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:Stats";
     TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -111,7 +111,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-    HEADERTEMPLATE = "ButtonSmall";
+    HEADERTEMPLATE = "GOButtonSmall";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:IgnoreSm";
     TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -159,7 +159,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-    HEADERTEMPLATE = "ButtonSmall";
+    HEADERTEMPLATE = "GOButtonSmall";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:Delete";
     TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,

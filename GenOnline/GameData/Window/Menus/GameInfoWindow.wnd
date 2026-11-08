@@ -63,7 +63,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-    HEADERTEMPLATE = "LabelRegular";
+    HEADERTEMPLATE = "GOLabelRegular";
     TOOLTIPTEXT = "TOOLTIP:ListOfPlayers";
     TOOLTIPDELAY = -1;
     TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
@@ -228,7 +228,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-    HEADERTEMPLATE = "LabelRegular";
+    HEADERTEMPLATE = "GOLabelRegular";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:GameName:";
     TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -277,7 +277,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-    HEADERTEMPLATE = "LabelRegular";
+    HEADERTEMPLATE = "GOLabelRegular";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:Players:";
     TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -326,7 +326,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-    HEADERTEMPLATE = "LabelRegular";
+    HEADERTEMPLATE = "GOLabelRegular";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:MapName:";
     TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -375,7 +375,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-    HEADERTEMPLATE = "LabelRegular";
+    HEADERTEMPLATE = "GOLabelRegular";
     TOOLTIPTEXT = "TOOLTIP:MapName";
     TOOLTIPDELAY = -1;
     TEXT = "<MapName>";
@@ -425,7 +425,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-    HEADERTEMPLATE = "LabelRegular";
+    HEADERTEMPLATE = "GOLabelRegular";
     TOOLTIPTEXT = "TOOLTIP:PlayerCreatedName";
     TOOLTIPDELAY = -1;
     TEXT = "<GameName>";

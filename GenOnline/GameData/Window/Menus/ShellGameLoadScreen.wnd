@@ -111,7 +111,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 8, BOLD: 0;
-    HEADERTEMPLATE = "LabelSmall";
+    HEADERTEMPLATE = "GOLabelSmall";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:EACopyright";
     TEXTCOLOR = ENABLED:  6 43 204 255, ENABLEDBORDER:  0 0 0 255,

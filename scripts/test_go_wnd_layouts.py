@@ -366,7 +366,7 @@ class TitleTest(unittest.TestCase):
         self.assertEqual(by_kind(out, "STATICTEXT"), [(wl.TITLE_LEFT, 44, wl.TITLE_LEFT + 209, 80)])
         self.assertIn("STATICTEXTDATA = CENTERED: 0;", out)
         self.assertNotIn("CENTERED: 1", out)
-        self.assertEqual(len(out), len(text))
+        self.assertEqual(len(out), len(wl.go_templates(text, MENU)))  # only the title rect and its GO template change
         self.assertTrue(any(n.startswith("titles:") and "STATICTEXT48_43" in n for n in notes), notes)
 
     def test_title_taller_than_its_band_fills_the_band(self):
@@ -654,6 +654,34 @@ class AlignmentIdempotenceTest(unittest.TestCase):
         self.assertNotEqual(once, text)
         self.assertEqual(wl.transform(once, name=MENU), once)
         self.assertEqual(wl.structure_counts(once), wl.structure_counts(text))
+
+
+class HeaderTemplateTest(unittest.TestCase):
+    def layout_with(self, header):
+        return layout(window("STATICTEXT", (100, 100, 300, 130), props=[f'HEADERTEMPLATE = "{header}";']))
+
+    def headers(self, text):
+        return [m.group("header") for m in wl.HEADER_RE.finditer(text)]
+
+    def test_menu_layouts_use_the_go_templates(self):
+        self.assertEqual(self.headers(wl.transform(self.layout_with("Title"), name=MENU)), ["GOTitle"])
+
+    def test_in_game_layouts_keep_the_retail_templates(self):
+        for name in ("Window/ControlBar.wnd", "Window/Menus/QuitMenu.wnd", "Window/Menus/Defeat.wnd"):
+            self.assertEqual(self.headers(wl.transform(self.layout_with("LabelRegular"), name=name)), ["LabelRegular"], name)
+
+    def test_unknown_and_empty_templates_stay(self):
+        self.assertEqual(self.headers(wl.transform(self.layout_with("[NONE]"), name=MENU)), ["[NONE]"])
+        self.assertEqual(self.headers(wl.transform(self.layout_with("MyModTemplate"), name=MENU)), ["MyModTemplate"])
+
+    def test_go_templates_apply_once(self):
+        once = wl.transform(self.layout_with("Button"), name=MENU)
+        self.assertEqual(self.headers(wl.transform(once, name=MENU)), ["GOButton"])
+
+    def test_every_go_template_is_defined(self):
+        ini = (Path(__file__).resolve().parent.parent / "GenOnline/GameData/Data/GeneralsOnline/HeaderTemplate.ini").read_text("latin-1")
+        defined = {line.split()[1] for line in ini.splitlines() if line.startswith("HeaderTemplate ")}
+        self.assertEqual(defined, {wl.GO_TEMPLATE_PREFIX + name for name in wl.RETAIL_TEMPLATES})
 
 
 if __name__ == "__main__":
