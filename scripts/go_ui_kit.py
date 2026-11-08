@@ -2,12 +2,12 @@
 """Generate the Generals Online UI kit: one texture atlas and the MappedImage INI that points
 the retail shell gadget image names at it.
 
-The pieces redraw the retail shell gadget art (SCSmShellUserInterface512_001.tga) as vector
-shapes in its colors, at SCALE texels per pixel. Coords and TextureWidth/Height stay in retail
-pixels, the engine takes the image size from Coords and the UVs from Coords / TextureWidth, so
-every piece keeps the size of the retail image it replaces and only gets sharper. Each piece is
-padded and its edge texels are extruded so stretched and tiled pieces do not sample their
-neighbours.
+The pieces draw a clean take on the retail shell gadgets: the retail blues, one even line on every
+edge and flat fills, at SCALE texels per pixel. Coords and
+TextureWidth/Height stay in retail pixels, the engine takes the image size from Coords and the
+UVs from Coords / TextureWidth, so every piece keeps the size of the retail image it replaces
+and only gets sharper. Each piece is padded and its edge texels are extruded so stretched and
+tiled pieces do not sample their neighbours.
 
 Usage:
     python scripts/go_ui_kit.py          write the atlas and the INI into GenOnline/GameData
@@ -30,6 +30,11 @@ ATLAS_WIDTH = 256  # in retail pixels
 SCALE = 4          # texels per retail pixel
 EXTRUDE = 2        # retail pixels of padding around each piece
 SUPERSAMPLE = 2    # samples per texel and axis
+# edge line width per piece, in its own pixels: one layout pixel at the height the shell layouts usually draw it
+BUTTON_LINE = 1.25  # 40 px art, usually about 32 layout px tall
+RADIO_LINE = 1.45   # 24 px art, usually about 17 layout px tall
+FIELD_LINE = 0.95   # 22 px art, usually about 23 layout px tall
+THUMB_LINE = 1.8    # 22 px art, drawn at its own size
 
 
 def rgba(hex_color, alpha=1.0):
@@ -37,72 +42,49 @@ def rgba(hex_color, alpha=1.0):
     return (int(h[0:2], 16) / 255.0, int(h[2:4], 16) / 255.0, int(h[4:6], 16) / 255.0, alpha)
 
 
-def shade(color, factor, alpha):
-    return (color[0] * factor, color[1] * factor, color[2] * factor, alpha)
-
-
-def lerp(a, b, t):
-    return tuple(a[i] + (b[i] - a[i]) * t for i in range(4))
-
-
 TRANSPARENT = (0.0, 0.0, 0.0, 0.0)
-BLACK = rgba("#000000")
-EDGE = rgba("#000000", 144 / 255.0)
-SHADE = rgba("#000000", 128 / 255.0)
+FIELD = rgba("#05070F", 0.92)
+GLYPH = rgba("#C9CEFF")
+GLYPH_ACTIVE = rgba("#FFFFFF")
+GLYPH_DISABLED = rgba("#5D6080")
 
-# retail frame lines, outermost first: (outer, middle, inner)
-BLUE_FRAME = (rgba("#2534FF"), rgba("#00E3FF"), rgba("#2534FF"))
-HOVER_FRAME = (rgba("#626DFA"), rgba("#7BEDFB"), rgba("#626DFA"))
-PUSHED_FRAME = (rgba("#5862EC"), rgba("#D0D4FF"), rgba("#5862EC"))
-GREY_FRAME = (rgba("#404159"), rgba("#8588B9"), rgba("#404159"))
-
-# state suffix -> (frame, gradient fill from the outer end to the centre or None)
+# state -> (edge line, fill)
 BUTTON_STATES = {
-    "": (BLUE_FRAME, None),
-    "HiLite-": (HOVER_FRAME, (rgba("#141853"), rgba("#2B34B8"))),
-    "Pushed-": (PUSHED_FRAME, (rgba("#1D215C"), rgba("#4049CD"))),
-    "Disabled-": (GREY_FRAME, None),
+    "": (rgba("#2F4BFF"), rgba("#070A18", 0.82)),
+    "HiLite-": (rgba("#6A7BFF"), rgba("#152078", 0.88)),
+    "Pushed-": (rgba("#8C9BFF"), rgba("#2B34B8", 0.92)),
+    "Disabled-": (rgba("#404159"), rgba("#0A0A10", 0.70)),
 }
-# state -> (frame, indicator (ring, ring, fill) or None)
 RADIO_STATES = {
-    "Enabled": ((rgba("#2534FE"), rgba("#00E3FF"), rgba("#2534FE")), None),
-    "Hilighted": ((rgba("#626DFA"), rgba("#00E3FF"), rgba("#626DFA")), (rgba("#626DFA"), rgba("#8089FF"), rgba("#B2B7FF"))),
-    "Pushed": ((rgba("#7D86FF"), rgba("#DFE1FF"), rgba("#2534FF")), (rgba("#2534FF"), rgba("#7D86FF"), rgba("#DFE1FF"))),
-    "Disabled": ((rgba("#414360"), rgba("#7F83BD"), rgba("#414360")), None),
+    "Enabled": BUTTON_STATES[""],
+    "Hilighted": BUTTON_STATES["HiLite-"],
+    "Pushed": BUTTON_STATES["Pushed-"],
+    "Disabled": BUTTON_STATES["Disabled-"],
 }
-# state -> (outer line, inner line); the field itself is opaque black
+# state -> edge line; the field fill is the same in every state
 ENTRY_STATES = {
-    "Enabled": (rgba("#00E3FF"), rgba("#626DFA")),
-    "Hilite": (rgba("#FFFFFF"), rgba("#00E3FF")),
-    "Disabled": (rgba("#8589C5"), rgba("#4E5073")),
+    "Enabled": rgba("#2F4BFF"),
+    "Hilite": rgba("#6A7BFF"),
+    "Disabled": rgba("#404159"),
 }
-# state -> (outer line, inner line, bar, glyph, glyph outline or None, band and lower fill or None)
+# arrow buttons join the field they sit beside: no left edge, the field line colour, the state in the fill
 ARROW_STATES = {
-    "Enabled": (rgba("#00E3FF"), rgba("#5862EC"), rgba("#5862EC"), rgba("#B2B7FF"), None, None),
-    "Hilite": (rgba("#00E3FF"), rgba("#5862EC"), rgba("#5862EC"), rgba("#B2B7FF"), rgba("#0A0B23"), rgba("#2F37A8")),
-    "HiliteSelected": (rgba("#FFFFFF"), rgba("#00E3FF"), rgba("#B2B7FF"), rgba("#FFFFFF"), rgba("#060614"), rgba("#2F37A8")),
-    "Disabled": (rgba("#8589C5"), rgba("#4E5073"), rgba("#4E5073"), rgba("#8589C5"), None, None),
+    "Enabled": (rgba("#2F4BFF"), rgba("#0B1030", 0.92), GLYPH),
+    "Hilite": (rgba("#2F4BFF"), rgba("#152078", 0.92), GLYPH_ACTIVE),
+    "HiliteSelected": (rgba("#2F4BFF"), rgba("#2B34B8", 0.92), GLYPH_ACTIVE),
+    "Disabled": (rgba("#404159"), rgba("#0A0A10", 0.70), GLYPH_DISABLED),
 }
-# state -> rings from the outside in, then the fill
+# state -> (edge line, fill)
 THUMB_STATES = {
-    "Enabled": ([rgba("#5862EC"), rgba("#00E3FF"), rgba("#5862EC")], BLACK),
-    "Hilite": ([rgba("#626DFA"), rgba("#00E3FF"), rgba("#5862EC"), BLACK, rgba("#181C55")], rgba("#2F37A8")),
-    "HiliteSelected": ([rgba("#00E3FF"), rgba("#FFFFFF"), rgba("#B2B7FF"), rgba("#030307"), rgba("#0B0C25"), rgba("#2A3196")], rgba("#2F37A8")),
-    "Disabled": ([rgba("#4E5073"), rgba("#8589C5"), rgba("#4E5073")], BLACK),
+    "Enabled": (rgba("#2F4BFF"), rgba("#1B2780")),
+    "Hilite": (rgba("#6A7BFF"), rgba("#2B3BC8")),
+    "HiliteSelected": (rgba("#8C9BFF"), rgba("#3A4CFF")),
+    "Disabled": (rgba("#404159"), rgba("#15161F")),
 }
-LIST_EDGE = rgba("#B2B7FF")
-LIST_LINE = rgba("#5B66FF")
-LIST_FILL = rgba("#545FFF")
-# alpha of the selected row fill by distance from its top or bottom line, retail ramp
-LIST_RAMP = [0.0, 31, 53, 79, 100, 114, 122, 126, 127]
-
-
-def over(top, bottom):
-    ta = top[3]
-    a = ta + bottom[3] * (1.0 - ta)
-    if a <= 0.0:
-        return TRANSPARENT
-    return tuple((top[i] * ta + bottom[i] * bottom[3] * (1.0 - ta)) / a for i in range(3)) + (a,)
+LIST_SELECTION = {
+    "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
+    "ListBoxHiliteSelectedItem": rgba("#2B34B8", 0.80),
+}
 
 
 def paint(w, h, sample):
@@ -127,93 +109,34 @@ def paint(w, h, sample):
     return pixels
 
 
-def ring(x, y, x0, y0, x1, y1, left=True, right=True):
-    """Whole pixels between the point and the closest closed edge of the rect, -1 outside."""
-    if x < x0 or x >= x1 or y < y0 or y >= y1:
-        return -1
-    d = min(y - y0, y1 - y)
+def edge(x, y, w, h, left, right):
+    """Distance to the closest closed edge, top and bottom are always closed."""
+    d = min(y, h - y)
     if left:
-        d = min(d, x - x0)
+        d = min(d, x)
     if right:
-        d = min(d, x1 - x)
-    return int(math.floor(d))
+        d = min(d, w - x)
+    return d
 
 
 def ends(side):
     return side in ("left", "all"), side in ("right", "all")
 
 
-def button_piece(w, h, side, frame, gradient):
+def button_piece(w, h, side, line, fill, width):
     left, right = ends(side)
 
     def sample(x, y):
-        r = ring(x, y, 0.0, 0.0, w, h, left, right)
-        if r < 3:
-            return frame[r]
-        if r == 3:
-            return EDGE
-        if gradient is None or r == 4:
-            return SHADE
-        # darker towards the outer ends, the middle pieces carry the centre colour
-        if side == "left":
-            t = min(max((x - 7.0) / (w - 8.0), 0.0), 1.0)
-        elif side == "right":
-            t = min(max((w - 1.0 - x) / (w - 8.0), 0.0), 1.0)
-        else:
-            t = 1.0
-        body = lerp(gradient[0], gradient[1], t)
-        if r == 5:
-            return shade(body, 0.13, 146 / 255.0)
-        if r == 6:
-            return shade(body, 0.35, 173 / 255.0)
-        return shade(body, 1.0, 192 / 255.0)
+        return line if edge(x, y, w, h, left, right) < width else fill
 
     return paint(w, h, sample)
 
 
-def radio_piece(w, h, side, frame, indicator):
-    box = float(h)
-
-    def sample(x, y):
-        if side == "left" and x < box:
-            r = ring(x, y, 0.0, 0.0, box, h)
-            if r < 3:
-                return frame[r]
-            if indicator is not None and r >= 4:
-                return indicator[min(r - 4, 2)]
-            return TRANSPARENT
-        x0 = box + 1.0 if side == "left" else 0.0
-        if x < x0:
-            return TRANSPARENT
-        r = ring(x, y, x0, 0.0, w, h, side == "left", side == "right")
-        return frame[r] if 0 <= r < 3 else TRANSPARENT
-
-    return paint(w, h, sample)
-
-
-def entry_piece(w, h, side, outer, inner):
+def entry_piece(w, h, side, line):
     left, right = ends(side)
-    lines = (outer, inner)
 
     def sample(x, y):
-        r = ring(x, y, 0.0, 0.0, w, h, left, right)
-        return lines[r] if r < 2 else BLACK
-
-    return paint(w, h, sample)
-
-
-def list_piece(w, h, side, filled):
-    def sample(x, y):
-        if y < 1.0 or y >= h - 1.0:
-            return LIST_LINE
-        if (side == "left" and x < 1.0) or (side == "right" and x >= w - 1.0):
-            return LIST_EDGE
-        if not filled:
-            return TRANSPARENT
-        d = min(y, h - y)
-        i = min(int(d), len(LIST_RAMP) - 2)
-        a = LIST_RAMP[i] + (LIST_RAMP[i + 1] - LIST_RAMP[i]) * (d - i) if d < len(LIST_RAMP) - 1 else LIST_RAMP[-1]
-        return LIST_FILL[:3] + (a / 255.0,)
+        return line if edge(x, y, w, h, left, right) < FIELD_LINE else FIELD
 
     return paint(w, h, sample)
 
@@ -225,56 +148,34 @@ def triangle_inside(x, y, a, b, c):
     return not ((d1 < 0 or d2 < 0 or d3 < 0) and (d1 > 0 or d2 > 0 or d3 > 0))
 
 
-def segment_distance(x, y, ax, ay, bx, by):
-    dx, dy = bx - ax, by - ay
-    t = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
-    return math.hypot(x - (ax + t * dx), y - (ay + t * dy))
-
-
-def arrow_piece(w, h, up, outer, inner, bar, glyph, outline, band):
-    tri = ((3.0, 8.0), (18.0, 8.0), (10.5, 16.5))
+def arrow_piece(w, h, up, line, fill, glyph):
+    cx, cy = (w - FIELD_LINE) / 2.0, h / 2.0
+    tri = ((cx - 4.5, cy - 2.2), (cx + 4.5, cy - 2.2), (cx, cy + 2.8))
 
     def sample(x, y):
         if up:
             y = h - y
-        r = ring(x, y, 0.0, 0.0, w, h)
-        if r == 0:
-            return outer
-        if r == 1:
-            return inner
-        if triangle_inside(x, y, *tri):
-            return glyph
-        if outline is not None:
-            d = min(segment_distance(x, y, *tri[0], *tri[2]), segment_distance(x, y, *tri[1], *tri[2]))
-            if d < 1.0 and y >= 8.0:
-                return outline
-        if 7.0 <= y < 8.0:
-            return bar
-        if band is not None:
-            if 3.0 <= x < 18.0 and 3.0 <= y < 6.0:
-                return band if 4.0 <= y < 5.0 or outline is None else lerp(band, BLACK, 0.5)
-            if 3.0 <= x < 18.0 and 9.0 <= y < 19.0:
-                return band
-        return BLACK
+        if edge(x, y, w, h, False, True) < FIELD_LINE:
+            return line
+        return glyph if triangle_inside(x, y, *tri) else fill
 
     return paint(w, h, sample)
 
 
-def thumb_piece(w, h, rings, fill):
+def thumb_piece(w, h, line, fill):
     def sample(x, y):
-        r = ring(x, y, 0.0, 0.0, w, h)
-        return rings[r] if r < len(rings) else fill
+        return line if edge(x, y, w, h, True, True) < THUMB_LINE else fill
 
     return paint(w, h, sample)
+
+
+def flat_piece(w, h, color):
+    return paint(w, h, lambda x, y: color)
 
 
 def glyph_arrow(w, h):
-    top, bottom = rgba("#D4D7FF"), rgba("#A4AAFF")
-
     def sample(x, y):
-        if triangle_inside(x, y, (0.0, h), (w, h), (w / 2.0, 0.0)):
-            return lerp(top, bottom, min(max(y / h, 0.0), 1.0))
-        return TRANSPARENT
+        return GLYPH if triangle_inside(x, y, (0.0, h), (w, h), (w / 2.0, 0.0)) else TRANSPARENT
 
     return paint(w, h, sample)
 
@@ -282,29 +183,29 @@ def glyph_arrow(w, h):
 def pieces():
     """(image name, width, height, texels). Sizes are the retail Coords sizes of each name."""
     out = []
-    for state, (frame, gradient) in BUTTON_STATES.items():
-        out.append((f"Buttons-{state}Left", 45, 40, button_piece(45, 40, "left", frame, gradient)))
-        out.append((f"Buttons-{state}Middle", 10, 40, button_piece(10, 40, "middle", frame, gradient)))
-        out.append((f"Buttons-{state}Right", 45, 40, button_piece(45, 40, "right", frame, gradient)))
-    for state, (frame, indicator) in RADIO_STATES.items():
-        out.append((f"RadioButton{state}Left", 34, 24, radio_piece(34, 24, "left", frame, indicator)))
-        out.append((f"RadioButton{state}Middle", 10, 24, radio_piece(10, 24, "middle", frame, indicator)))
-        out.append((f"RadioButton{state}Right", 34, 24, radio_piece(34, 24, "right", frame, indicator)))
-    for state, (outer, inner) in ENTRY_STATES.items():
-        out.append((f"TextEntry{state}LeftEnd", 10, 22, entry_piece(10, 22, "left", outer, inner)))
-        out.append((f"TextEntry{state}RightEnd", 10, 22, entry_piece(10, 22, "right", outer, inner)))
-        out.append((f"TextEntry{state}RepeatingCenter", 20, 22, entry_piece(20, 22, "middle", outer, inner)))
-        out.append((f"TextEntry{state}SmallRepeatingCenter", 10, 22, entry_piece(10, 22, "middle", outer, inner)))
-    for prefix, filled in (("ListBoxHiliteItem", False), ("ListBoxHiliteSelectedItem", True)):
-        out.append((f"{prefix}LeftEnd", 10, 20, list_piece(10, 20, "left", filled)))
-        out.append((f"{prefix}RightEnd", 10, 20, list_piece(10, 20, "right", filled)))
-        out.append((f"{prefix}RepeatingCenter", 10, 20, list_piece(10, 20, "middle", filled)))
-        out.append((f"{prefix}SmallRepeatingCenter", 5, 20, list_piece(5, 20, "middle", filled)))
+    for state, (line, fill) in BUTTON_STATES.items():
+        out.append((f"Buttons-{state}Left", 45, 40, button_piece(45, 40, "left", line, fill, BUTTON_LINE)))
+        out.append((f"Buttons-{state}Middle", 10, 40, button_piece(10, 40, "middle", line, fill, BUTTON_LINE)))
+        out.append((f"Buttons-{state}Right", 45, 40, button_piece(45, 40, "right", line, fill, BUTTON_LINE)))
+    for state, (line, fill) in RADIO_STATES.items():
+        out.append((f"RadioButton{state}Left", 34, 24, button_piece(34, 24, "left", line, fill, RADIO_LINE)))
+        out.append((f"RadioButton{state}Middle", 10, 24, button_piece(10, 24, "middle", line, fill, RADIO_LINE)))
+        out.append((f"RadioButton{state}Right", 34, 24, button_piece(34, 24, "right", line, fill, RADIO_LINE)))
+    for state, line in ENTRY_STATES.items():
+        out.append((f"TextEntry{state}LeftEnd", 10, 22, entry_piece(10, 22, "left", line)))
+        out.append((f"TextEntry{state}RightEnd", 10, 22, entry_piece(10, 22, "right", line)))
+        out.append((f"TextEntry{state}RepeatingCenter", 20, 22, entry_piece(20, 22, "middle", line)))
+        out.append((f"TextEntry{state}SmallRepeatingCenter", 10, 22, entry_piece(10, 22, "middle", line)))
+    for prefix, color in LIST_SELECTION.items():
+        out.append((f"{prefix}LeftEnd", 10, 20, flat_piece(10, 20, color)))
+        out.append((f"{prefix}RightEnd", 10, 20, flat_piece(10, 20, color)))
+        out.append((f"{prefix}RepeatingCenter", 10, 20, flat_piece(10, 20, color)))
+        out.append((f"{prefix}SmallRepeatingCenter", 5, 20, flat_piece(5, 20, color)))
     for state, style in ARROW_STATES.items():
         out.append((f"VSliderUpButton{state}", 21, 22, arrow_piece(21, 22, True, *style)))
         out.append((f"VSliderDownButton{state}", 21, 22, arrow_piece(21, 22, False, *style)))
-    for state, (rings, fill) in THUMB_STATES.items():
-        out.append((f"ScrollBarThumb{state}", 21, 22, thumb_piece(21, 22, rings, fill)))
+    for state, (line, fill) in THUMB_STATES.items():
+        out.append((f"ScrollBarThumb{state}", 21, 22, thumb_piece(21, 22, line, fill)))
     out.append(("arrow", 13, 16, glyph_arrow(13, 16)))
     return out
 
