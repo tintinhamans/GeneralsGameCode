@@ -62,6 +62,7 @@
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetSlider.h"
 #include "GameClient/GameWindowGlobal.h"
+#include "GameClient/Mouse.h"
 
 // DEFINES ////////////////////////////////////////////////////////////////////
 
@@ -1171,5 +1172,11 @@ Bool GadgetComboBoxIsKitFieldLit( GameWindow *comboBox )
 		if( BitIsSet( parts[ i ]->winGetInstanceData()->getState(), WIN_STATE_HILITED ) )
 			return TRUE;
 	}
-	return FALSE;
+
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 A read-only edit box takes no mouse input, so also light the field when the mouse is over the combo, its edit box or its arrow.
+	if( TheMouse == nullptr )
+		return FALSE;
+	const MouseIO *mouse = TheMouse->getMouseStatus();
+	GameWindow *under = TheWindowManager->getWindowUnderCursor( mouse->pos.x, mouse->pos.y, TRUE );
+	return under != nullptr && (under == parts[ 0 ] || under == parts[ 1 ] || under == parts[ 2 ]);
 }
