@@ -50,6 +50,8 @@ class Radar;
 class WebBrowser;
 class ParticleSystemManager;
 
+void TearDownGeneralsOnline();
+
 class GameEngine : public SubsystemInterface
 {
 public:
