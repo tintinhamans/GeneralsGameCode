@@ -2383,15 +2383,23 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// set a minimum display time for the load screen on GO to allow players to read ELO, army, stats, etc.
 	const UnsignedInt minLoadScreenDisplayTime = 2000;
 	UnsignedInt minLoadScreenEndTime = isInInternetGame() ? (timeGetTime() + minLoadScreenDisplayTime) : 0;
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The first shell load screen stays up for the GO credit until its time passes or Esc is pressed.
+	Bool loadScreenHolds = m_loadScreen != NULL && m_loadScreen->holdsAfterLoad();
 
-	while (!isProgressComplete() || (minLoadScreenEndTime != 0 && timeGetTime() < minLoadScreenEndTime))
+	while (!isProgressComplete() || (minLoadScreenEndTime != 0 && timeGetTime() < minLoadScreenEndTime) || loadScreenHolds)
 #else
 	while (!isProgressComplete())
 #endif
 	{
 		updateLoadProgress(101); // keep greater then 100
 		testTimeOut();
+#if defined(GENONLINE)
+		// short sleeps while the credit holds keep its bar and Esc check smooth
+		Sleep(loadScreenHolds ? 15 : 100);
+		loadScreenHolds = m_loadScreen != NULL && m_loadScreen->holdsAfterLoad();
+#else
 		Sleep(100);
+#endif
 	}
 
 	Bool syncedStart = FALSE;

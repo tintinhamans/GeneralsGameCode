@@ -13,8 +13,11 @@ tiled pieces do not sample their neighbours.
 The Classic (Generals Online) theme gets the same atlas in its palette (scripts/go_themes.py KIT_COLORS) under
 GenOnline/GameData/Themes/Radar; its INI would be byte-identical, so the theme has no copy of it.
 
+A third atlas redraws the retail load screen progress bar (LoadingBar_*) in the launcher bronze, the same in every
+palette; the Retail interface style leaves its files out and keeps the retail bar.
+
 Usage:
-    python scripts/go_ui_kit.py          write the atlas, the theme atlas and the INI into GenOnline/GameData
+    python scripts/go_ui_kit.py          write the atlases, the theme atlas and the INIs into GenOnline/GameData
     python scripts/go_ui_kit.py --check  exit 1 when the committed files differ from a fresh run
 """
 
@@ -46,7 +49,8 @@ LINE_LAYOUT = 1.5
 # line weight, ceil(1.5 * H / 600) px, whatever size they are drawn at (three-piece bars, single images as a nine-slice)
 BORDER_PREFIXES = ("Buttons-", "RadioButton", "TextEntry", "VSliderUpButton", "VSliderDownButton",
                    "ReturnButton", "Xbutton", "LobbyRefresh", "Active-", "Disabled-")
-BORDER_NAMES = ("GOScrollLine",)  # single images whose Border tells the engine the kit line thickness
+# single images whose Border tells the engine the kit line thickness, and the load screen bar frame (a three-piece bar)
+BORDER_NAMES = ("GOScrollLine", "LoadingBar_L", "LoadingBar_C", "LoadingBar_R")
 ARROW_LINE = LINE_LAYOUT  # combo arrows carry the kit line like every bordered piece
 BOX_LINE = (1.25 * 1.2, 1.45 * 1.2)  # slider blocks: 11x13 art drawn as squares, so the line differs per axis; small, so a thinner line
 
@@ -788,6 +792,37 @@ def pieces2():
 # ============================== end of the GO map select section ==============================
 
 
+# =================================================================================================
+# Load screen progress bar: the retail LoadingBar_* images in the launcher bronze, the same in every palette, so
+# they live in their own atlas with no theme copy. The Retail interface style leaves both files out
+# (ArchiveFileSystem.cpp isNotGenOnlineInterfaceFile). W3DGadgetProgressBarImageDraw draws the frame as a three-piece
+# bar over the whole window and tiles the fill (Progress) and the unfilled track (DePowered) inside it.
+# =================================================================================================
+
+LOAD_BAR_TEXTURE_NAME = "GeneralsOnline_LoadingBar.tga"
+LOAD_BAR_TEXTURE_PATH = DATA / "Art" / "Textures" / LOAD_BAR_TEXTURE_NAME
+LOAD_BAR_INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_LoadingBar.INI"
+LOAD_BAR_ATLAS_WIDTH = 64  # in retail pixels
+LOAD_BAR_TITLE = "the load screen progress bar"
+LOAD_BAR_LINE = rgba(go_themes.PALETTE["line"])
+LOAD_BAR_GROUND = rgba(go_themes.PALETTE["ground"])
+LOAD_BAR_TRACK = rgba(go_themes.PALETTE["panel"])
+LOAD_BAR_FILL = rgba(go_themes.PALETTE["bronze"])
+
+
+def load_bar_pieces():
+    """The load screen bar at the retail Coords sizes: a square framed back, a flat bronze fill and a dark track."""
+    return [
+        ("LoadingBar_L", 20, 20, button_piece(20, 20, "left", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
+        ("LoadingBar_C", 10, 20, button_piece(10, 20, "middle", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
+        ("LoadingBar_R", 20, 20, button_piece(20, 20, "right", LOAD_BAR_LINE, LOAD_BAR_GROUND, LINE_LAYOUT)),
+        ("LoadingBar_Progress", 3, 11, flat_piece(3, 11, LOAD_BAR_FILL)),
+        ("LoadingBar_DePowered", 3, 11, flat_piece(3, 11, LOAD_BAR_TRACK)),
+    ]
+
+# ============================== end of the load screen bar section ==============================
+
+
 def pack(items, atlas_width=ATLAS_WIDTH):
     """Shelf-pack (name, w, h, texels) into the atlas in retail pixels; returns placements and atlas height."""
     order = sorted(items, key=lambda it: (-it[2], -it[1], it[0]))
@@ -894,11 +929,12 @@ def main():
     args = parser.parse_args()
     texture, ini = build()
     texture2, ini2 = build(pieces2(), TEXTURE2_NAME, ATLAS2_WIDTH, "the map preview icons and the favourite stars")
+    texture3, ini3 = build(load_bar_pieces(), LOAD_BAR_TEXTURE_NAME, LOAD_BAR_ATLAS_WIDTH, LOAD_BAR_TITLE)
     theme_texture, theme_ini = build(palette=go_themes.KIT_COLORS)
     if theme_ini != ini:
         raise SystemExit("the theme atlas moved a piece; it needs its own INI")
     outputs = ((TEXTURE_PATH, texture), (INI_PATH, ini.encode("ascii")), (TEXTURE2_PATH, texture2), (INI2_PATH, ini2.encode("ascii")),
-               (THEME_TEXTURE_PATH, theme_texture))
+               (LOAD_BAR_TEXTURE_PATH, texture3), (LOAD_BAR_INI_PATH, ini3.encode("ascii")), (THEME_TEXTURE_PATH, theme_texture))
     if args.check:
         stale = [p for p, data in outputs if not p.exists() or p.read_bytes() != data]
         for p in stale:
