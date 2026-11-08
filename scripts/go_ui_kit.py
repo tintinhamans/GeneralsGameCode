@@ -321,12 +321,29 @@ def build():
 
 
 def tga_bytes(atlas):
+    """32 bit run length encoded TGA (type 10), packets never cross a scanline."""
     height, width = len(atlas), len(atlas[0])
-    header = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, width, height, 32, 0x08)
+    header = struct.pack("<BBBHHBHHHHBB", 0, 0, 10, 0, 0, 0, 0, 0, width, height, 32, 0x08)
     body = bytearray()
     for row in reversed(atlas):
-        for r, g, b, a in row:
-            body += bytes((round(b * 255), round(g * 255), round(r * 255), round(a * 255)))
+        texels = [bytes((round(b * 255), round(g * 255), round(r * 255), round(a * 255))) for r, g, b, a in row]
+        x = 0
+        while x < width:
+            run = 1
+            while x + run < width and run < 128 and texels[x + run] == texels[x]:
+                run += 1
+            if run > 1:
+                body.append(0x80 | (run - 1))
+                body += texels[x]
+                x += run
+                continue
+            raw = 1
+            while x + raw < width and raw < 128 and (x + raw + 1 >= width or texels[x + raw] != texels[x + raw + 1]):
+                raw += 1
+            body.append(raw - 1)
+            for t in texels[x:x + raw]:
+                body += t
+            x += raw
     return header + bytes(body)
 
 
