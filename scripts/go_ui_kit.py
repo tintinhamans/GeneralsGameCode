@@ -10,22 +10,31 @@ UVs from Coords / TextureWidth, so every piece keeps the size of the retail imag
 and only gets sharper. Each piece is padded and its edge texels are extruded so stretched and
 tiled pieces do not sample their neighbours.
 
+The Classic (Generals Online) theme gets the same atlas in its palette (scripts/go_themes.py KIT_COLORS) under
+GenOnline/GameData/Themes/Radar; its INI would be byte-identical, so the theme has no copy of it.
+
 Usage:
-    python scripts/go_ui_kit.py          write the atlas and the INI into GenOnline/GameData
+    python scripts/go_ui_kit.py          write the atlas, the theme atlas and the INI into GenOnline/GameData
     python scripts/go_ui_kit.py --check  exit 1 when the committed files differ from a fresh run
 """
 
 import argparse
+import contextlib
 import math
 import struct
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import go_themes  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "GenOnline" / "GameData"
 TEXTURE_NAME = "GeneralsOnline_UIKit.tga"
 TEXTURE_PATH = DATA / "Art" / "Textures" / TEXTURE_NAME
 INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_UIKit.INI"
+THEME_TEXTURE_PATH = go_themes.THEME_DIR / TEXTURE_PATH.relative_to(DATA)
 
 ATLAS_WIDTH = 256  # in retail pixels
 SCALE = 4          # texels per retail pixel
@@ -161,6 +170,41 @@ LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
     "ListBoxHiliteSelectedItem": rgba("#2B34B8", 0.80),
 }
+
+
+# module colours the pieces read; a theme build swaps them for their theme colours
+COLOR_NAMES = (
+    "FIELD", "GLYPH", "GLYPH_ACTIVE", "GLYPH_DISABLED", "DISABLED_LINE", "BUTTON_STATES", "RADIO_STATES", "ENTRY_STATES",
+    "ARROW_STATES", "SLIDER_ON", "SLIDER_OFF", "SLIDER_HOVER", "SLIDER_TRACK", "SLIDER_FILL", "SLIDER_MARKER",
+    "SYMBOL_STATES", "PLAYER_STARTS", "SCROLL_THUMBS", "SCROLL_TRACK", "SCROLL_PILLS", "SCROLL_ARROWS", "SCROLL_LINE",
+    "LIST_SELECTION",
+)
+
+
+def recolor(color, palette):
+    """Swap a kit colour for its palette colour by RGB, keeping alpha; nested dicts and tuples are swapped through."""
+    if isinstance(color, dict):
+        return {k: recolor(v, palette) for k, v in color.items()}
+    if not all(isinstance(c, float) for c in color):
+        return tuple(recolor(c, palette) for c in color)
+    if color[3] == 0.0:
+        return color
+    key = "#%02X%02X%02X" % tuple(round(c * 255) for c in color[:3])
+    if key not in palette:
+        raise SystemExit(f"kit colour {key} has no theme colour")
+    return rgba(palette[key], color[3])
+
+
+@contextlib.contextmanager
+def recolored(palette):
+    """Draw the pieces in palette while the block runs; None keeps the kit colours."""
+    saved = {name: globals()[name] for name in COLOR_NAMES}
+    if palette is not None:
+        globals().update({name: recolor(value, palette) for name, value in saved.items()})
+    try:
+        yield
+    finally:
+        globals().update(saved)
 
 
 def paint(w, h, sample):
@@ -825,9 +869,11 @@ def pack(items, atlas_width=ATLAS_WIDTH):
     return placements, height
 
 
-def build(items=None, texture_name=TEXTURE_NAME, atlas_width=ATLAS_WIDTH, title="the shell gadget images"):
+def build(items=None, texture_name=TEXTURE_NAME, atlas_width=ATLAS_WIDTH, title="the shell gadget images", palette=None):
+    """Return the atlas TGA and the INI text; palette (go_themes.KIT_COLORS) recolours the shell gadget atlas only."""
     if items is None:
-        items = pieces()
+        with recolored(palette):
+            items = pieces()
     names = [it[0] for it in items]
     if len(names) != len(set(names)):
         raise SystemExit("duplicate image names")
@@ -908,7 +954,11 @@ def main():
     args = parser.parse_args()
     texture, ini = build()
     texture2, ini2 = build(pieces2(), TEXTURE2_NAME, ATLAS2_WIDTH, "the map preview icons and the favourite stars")
-    outputs = ((TEXTURE_PATH, texture), (INI_PATH, ini.encode("ascii")), (TEXTURE2_PATH, texture2), (INI2_PATH, ini2.encode("ascii")))
+    theme_texture, theme_ini = build(palette=go_themes.KIT_COLORS)
+    if theme_ini != ini:
+        raise SystemExit("the theme atlas moved a piece; it needs its own INI")
+    outputs = ((TEXTURE_PATH, texture), (INI_PATH, ini.encode("ascii")), (TEXTURE2_PATH, texture2), (INI2_PATH, ini2.encode("ascii")),
+               (THEME_TEXTURE_PATH, theme_texture))
     if args.check:
         stale = [p for p, data in outputs if not p.exists() or p.read_bytes() != data]
         for p in stale:

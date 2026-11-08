@@ -1,0 +1,62 @@
+# A plain USER window with the retail editor's colours. A USER window draws only draw slot 0 (fill and
+# border) and no text; its text colours and slots 1-8 share `spare`.
+params:
+  font: "Times New Roman"
+  font_size: 14
+  bold: 0
+  header: "[NONE]"
+  fill: "0 0 0 255"
+  border: "0 0 0 255"
+  disabled_fill: "0 0 64 255"
+  disabled_border: "0 0 0 255"
+  hilite_fill: "0 0 255 255"
+  hilite_border: "0 0 0 255"
+  spare: "255 255 255 0"
+status: [ENABLED]
+template: |
+  WINDOWTYPE = USER;
+  SCREENRECT = UPPERLEFT: {x0} {y0},
+               BOTTOMRIGHT: {x1} {y1},
+               CREATIONRESOLUTION: 800 600;
+  NAME = "{name}";
+  STATUS = {status};
+  STYLE = USER;
+  SYSTEMCALLBACK = "{system}";
+  INPUTCALLBACK = "{input}";
+  TOOLTIPCALLBACK = "{tooltip_callback}";
+  DRAWCALLBACK = "{draw}";
+  FONT = NAME: "{font}", SIZE: {font_size}, BOLD: {bold};
+  HEADERTEMPLATE = "{header}";
+  TOOLTIPTEXT = "{tooltip}";
+  TOOLTIPDELAY = -1;
+  TEXT = "{text}";
+  TEXTCOLOR = ENABLED:  {spare}, ENABLEDBORDER:  {spare},
+              DISABLED: {spare}, DISABLEDBORDER: {spare},
+              HILITE:   {spare}, HILITEBORDER:   {spare};
+  ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: {fill}, BORDERCOLOR: {border},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                    IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare};
+  DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: {disabled_fill}, BORDERCOLOR: {disabled_border},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                     IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare};
+  HILITEDRAWDATA = IMAGE: NoImage, COLOR: {hilite_fill}, BORDERCOLOR: {hilite_border},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare},
+                   IMAGE: NoImage, COLOR: {spare}, BORDERCOLOR: {spare};

@@ -1,0 +1,58 @@
+# A kit main menu button; `pushed_*` are the pushed state images of draw slots 1, 3 and 4.
+params:
+  font: "Generals"
+  font_size: 15
+  bold: 0
+  header: "GOMainButton"
+  pushed_left: "NoImage"
+  pushed_middle: "NoImage"
+  pushed_right: "NoImage"
+status: [ENABLED, IMAGE]
+place: {h: button_h}
+template: |
+  WINDOWTYPE = PUSHBUTTON;
+  SCREENRECT = UPPERLEFT: {x0} {y0},
+               BOTTOMRIGHT: {x1} {y1},
+               CREATIONRESOLUTION: 800 600;
+  NAME = "{name}";
+  STATUS = {status};
+  STYLE = PUSHBUTTON+MOUSETRACK;
+  SYSTEMCALLBACK = "{system}";
+  INPUTCALLBACK = "{input}";
+  TOOLTIPCALLBACK = "{tooltip_callback}";
+  DRAWCALLBACK = "{draw}";
+  FONT = NAME: "{font}", SIZE: {font_size}, BOLD: {bold};
+  HEADERTEMPLATE = "{header}";
+  TOOLTIPTEXT = "{tooltip}";
+  TOOLTIPDELAY = -1;
+  TEXT = "{text}";
+  TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
+              DISABLED: 62 64 92 255, DISABLEDBORDER: 31 32 47 255,
+              HILITE:   186 255 12 255, HILITEBORDER:   0 2 0 255;
+  ENABLEDDRAWDATA = IMAGE: Buttons-Left, COLOR: 255 0 0 255, BORDERCOLOR: 255 128 128 255,
+                    IMAGE: {pushed_left}, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
+                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                    IMAGE: {pushed_middle}, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                    IMAGE: {pushed_right}, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                    IMAGE: Buttons-Middle, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                    IMAGE: Buttons-Right, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+  DISABLEDDRAWDATA = IMAGE: Buttons-Disabled-Left, COLOR: 128 128 128 255, BORDERCOLOR: 192 192 192 255,
+                     IMAGE: NoImage, COLOR: 192 192 192 255, BORDERCOLOR: 128 128 128 255,
+                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                     IMAGE: Buttons-Disabled-Middle, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                     IMAGE: Buttons-Disabled-Right, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+  HILITEDRAWDATA = IMAGE: Buttons-HiLite-Left, COLOR: 209 253 4 255, BORDERCOLOR: 59 60 52 255,
+                   IMAGE: Buttons-Pushed-Left, COLOR: 47 75 255 255, BORDERCOLOR: 254 254 254 255,
+                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                   IMAGE: Buttons-Pushed-Middle, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                   IMAGE: Buttons-Pushed-Right, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                   IMAGE: Buttons-HiLite-Middle, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                   IMAGE: Buttons-HiLite-Right, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;

@@ -3,7 +3,10 @@
 
 Every retail layout in WindowZH.big is copied to GenOnline/GameData at its archive path, with
 deterministic fixes. A layout GO already edited by hand (scripts/wnd_sources) replaces the retail
-file as input, and the GO-only layouts there get the same fixes. All rects are in 800x600 units.
+file as input, and the GO-only layouts there get the same fixes. A layout with a YAML source
+(scripts/wnd_yaml, compiled by scripts/wnd_yaml.py) is written as compiled: the source already holds the
+kit colours, GO header templates and hover images, so none of the fixes below apply to it, and its
+scripts/wnd_sources copy, if any, is only kept for reference. All rects are in 800x600 units.
 
 - Kit colours: the retail blue line colours in draw data and TEXTCOLOR border entries become the
   UI kit line and hilite colours; each value keeps its alpha.
@@ -38,6 +41,9 @@ file as input, and the GO-only layouts there get the same fixes. All rects are i
   header line in the frame) moves to TITLE_LEFT, the most common title edge, is centred vertically
   between the frame top and the line, and draws left aligned. Menus only.
 - Overrides: scripts/wnd_fixes.py sets absolute rects last; the rules never move those windows.
+- Theme copies: every menu layout (not the in-game ones, nor the menus shown during a match) also goes to
+  GenOnline/GameData/Themes/Radar at the same path, its final output with the colours swapped for the
+  Classic (Generals Online) palette (scripts/go_themes.py LAYOUT_COLORS). Only colour numbers differ.
 
 A move never creates an overlap with a sibling and never pushes a window or its children further
 out of their parent; such moves are skipped and logged. Children move with their window. The rules
@@ -66,6 +72,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from wnd_fixes import FIXES  # noqa: E402
+import go_themes  # noqa: E402
+import wnd_yaml  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "GenOnline" / "GameData"
@@ -159,12 +167,18 @@ TOKEN_RE = re.compile(
     r"|^[ \t]*(?P<prop>\w*DRAWDATA)[ \t]*=(?P<body>[^;]*);"
     r"|^[ \t]*FONT[ \t]*=[ \t]*NAME:[ \t]*\"[^\"]*\"[ \t]*,[ \t]*SIZE:[ \t]*(?P<size>\d+)"
     r"|^[ \t]*HEADERTEMPLATE[ \t]*=[ \t]*\"(?P<header>[^\"]*)\""
-    r"|^[ \t]*STATICTEXTDATA[ \t]*=[ \t]*CENTERED:[ \t]*(?P<centered>\d+)",
+    r"|^[ \t]*STATICTEXTDATA[ \t]*=[ \t]*CENTERED:[ \t]*(?P<centered>\d+)"
+    r"|^[ \t]*STATUS[ \t]*=[ \t]*(?P<status>[^;]*);",
     re.M,
 )
 SLOT_RE = re.compile(
     r"IMAGE:\s*(?P<image>[^,\s]+)\s*,\s*COLOR:\s*(?P<color>\d+\s+\d+\s+\d+\s+\d+)\s*,\s*"
     r"BORDERCOLOR:\s*(?P<border>\d+\s+\d+\s+\d+\s+\d+)"
+)
+# COLOR_RE plus the TEXTCOLOR text colours, for the theme palette
+THEME_COLOR_RE = re.compile(
+    r"(?<![A-Z])(?P<key>COLOR|BORDERCOLOR|ENABLEDBORDER|DISABLEDBORDER|HILITEBORDER|ENABLED|DISABLED|HILITE):(?P<sp>[ \t]*)"
+    r"(?P<r>\d+)(?P<s1>[ \t]+)(?P<g>\d+)(?P<s2>[ \t]+)(?P<b>\d+)(?=[ \t]+\d+)"
 )
 STRUCTURE_RE = re.compile(r"^[ \t]*(WINDOW|END|CHILD|ENDALLCHILDREN)[ \t]*\r?$", re.M)
 
@@ -181,6 +195,7 @@ class Window:
         self.draws = []        # (property, [(image, color, border)])
         self.font_size = 0
         self.header = ""
+        self.status = set()    # STATUS flags, for example {"ENABLED", "HIDDEN"}
         self.centered = None   # (value, text span) of STATICTEXTDATA CENTERED
 
     def walk(self):
@@ -208,6 +223,8 @@ def parse_windows(text):
             top.kind = m.group("kind")
         elif m.group("name") is not None:
             top.name = m.group("name")
+        elif m.group("status") is not None:
+            top.status = {flag.strip() for flag in m.group("status").split("+") if flag.strip()}
         elif m.group("x0") is not None:
             top.rect = top.original = tuple(int(m.group(k)) for k in ("x0", "y0", "x1", "y1"))
             top.spans = [m.span(k) for k in ("x0", "y0", "x1", "y1")]
@@ -230,15 +247,25 @@ def structure_counts(text):
     return dict(Counter(m.group(1) for m in STRUCTURE_RE.finditer(text)))
 
 
-def remap_colors(text):
-    """Swap the retail blue line colours for the kit colours, keeping alpha and spacing."""
+def remap_colors(text, table=COLOR_REMAP, pattern=COLOR_RE):
+    """Swap the retail blue line colours for the kit colours, or the colours in table, keeping alpha and spacing."""
     def swap(m):
         rgb = (int(m["r"]), int(m["g"]), int(m["b"]))
-        if rgb not in COLOR_REMAP:
+        if rgb not in table:
             return m.group(0)
-        r, g, b = COLOR_REMAP[rgb]
+        r, g, b = table[rgb]
         return f"{m['key']}:{m['sp']}{r}{m['s1']}{g}{m['s2']}{b}"
-    return COLOR_RE.sub(swap, text)
+    return pattern.sub(swap, text)
+
+
+def themed(name):
+    """True for the layouts the theme recolours: the menus, not the in-game layouts nor the menus shown in a match."""
+    return _uses_go_templates(name)
+
+
+def theme_layout(text):
+    """The Classic (Generals Online) copy of a final layout: draw data and text colours in the theme palette."""
+    return remap_colors(text, go_themes.LAYOUT_COLORS, THEME_COLOR_RE)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1197,9 +1224,18 @@ def build(retail):
     for src in sorted(SOURCES.rglob("*.wnd")):
         rel = src.relative_to(SOURCES).as_posix()
         inputs[by_lower.get(rel.lower(), rel)] = src.read_bytes()
+    compiled = {}
+    for rel, src in wnd_yaml.sources().items():
+        name = by_lower.get(rel.lower(), rel)
+        compiled[name] = wnd_yaml.compile_file(src)
+        inputs[name] = compiled[name].encode("latin-1")
     results = []
     for name in sorted(inputs, key=str.lower):
         text = inputs[name].decode("latin-1")
+        if name in compiled:
+            info = {"frame": False, "stats": Counter(), "notes": [], "changes": [], "uncentred": []}
+            results.append((name, text, text, info))
+            continue
         out, info = align(remap_colors(text), name)
         out = hilite_images(go_templates(out, name))
         results.append((name, text, out, info))
@@ -1316,10 +1352,13 @@ def main():
         print(f"wrote {REVIEW.relative_to(ROOT).as_posix()}")
         return 0
 
+    theme = {go_themes.THEME_DIR / name: theme_layout(out).encode("latin-1") for name, text, out, info in results if themed(name)}
     if args.check:
         expected = {DATA / name: out.encode("latin-1") for name, text, out, info in results}
+        expected.update(theme)
         stale = [p for p, data in expected.items() if not p.exists() or p.read_bytes() != data]
-        extra = [p for p in (DATA / "Window").rglob("*.wnd") if p not in expected] if (DATA / "Window").exists() else []
+        extra = [p for folder in (DATA / "Window", go_themes.THEME_DIR / "Window") if folder.exists()
+                 for p in folder.rglob("*.wnd") if p not in expected]
         for p in stale:
             print(f"out of date: {p.relative_to(ROOT).as_posix()}")
         for p in extra:
@@ -1334,7 +1373,11 @@ def main():
         total += len(info["changes"])
         if info["changes"]:
             print(f"{name}: {len(info['changes'])} rects changed")
+    for path, data in theme.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
     print(f"wrote {len(results)} layouts into {(DATA / 'Window').relative_to(ROOT).as_posix()}, {total} rects changed")
+    print(f"wrote {len(theme)} theme layouts into {(go_themes.THEME_DIR / 'Window').relative_to(ROOT).as_posix()}")
     return 0
 
 
