@@ -2648,6 +2648,64 @@ void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
 		TheWindowManager->winDrawImage( line, x + width - across, y, x + width, y + height );
 }
 
+// GadgetListBoxGetKitFrameColor ==============================================
+/** TRUE when the kit is loaded and a layout border colour belongs to the kit blues; frameColor gets the colour to draw */
+//=============================================================================
+// GenOnline @tweak arcticdolphin 08/11/2026 Window frames drawn from the layout border colour use the kit line weight.
+Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor )
+{
+	if( layoutBorder == WIN_COLOR_UNDEFINED || GadgetListBoxGetKitScrollLineWidth() <= 0 )
+		return FALSE;
+
+	UnsignedByte red, green, blue, alpha;
+	GameGetColorComponents( layoutBorder, &red, &green, &blue, &alpha );
+	if( alpha == 0 )
+		return FALSE;
+
+	// the kit line and hilite colours keep their own colour
+	if( (red == 47 && green == 75 && blue == 255) || (red == 106 && green == 123 && blue == 255) )
+	{
+		*frameColor = layoutBorder;
+		return TRUE;
+	}
+
+	// older retail blues left in the layouts take the kit line colour
+	if( red < 64 && green < 64 && blue >= 150 )
+	{
+		*frameColor = GameMakeColor( 47, 75, 255, alpha );
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+//=============================================================================
+void GadgetListBoxDrawKitFrame( Color color, Int x, Int y, Int width, Int height )
+{
+	Int thickness = GadgetListBoxGetKitScrollLineWidth();
+	if( thickness <= 0 )
+		return;
+
+	if( height < 2 * thickness + 1 && width >= height )
+	{
+		Int top = y + height / 2 - thickness / 2;
+		TheWindowManager->winFillRect( color, 1.0f, x, top, x + width, top + thickness );
+		return;
+	}
+
+	if( width < 2 * thickness + 1 )
+	{
+		Int left = x + width / 2 - thickness / 2;
+		TheWindowManager->winFillRect( color, 1.0f, left, y, left + thickness, y + height );
+		return;
+	}
+
+	TheWindowManager->winFillRect( color, 1.0f, x, y, x + width, y + thickness );
+	TheWindowManager->winFillRect( color, 1.0f, x, y + height - thickness, x + width, y + height );
+	TheWindowManager->winFillRect( color, 1.0f, x, y + thickness, x + thickness, y + height - thickness );
+	TheWindowManager->winFillRect( color, 1.0f, x + width - thickness, y + thickness, x + width, y + height - thickness );
+}
+
 //=============================================================================
 Int GadgetListBoxGetKitComboFrame( GameWindow *listbox )
 {
@@ -2781,7 +2839,9 @@ void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength )
     if(listboxData->insertPos > newLength)
 			listboxData->insertPos = newLength;
 
-    listboxData->endPos = newLength;
+    // GenOnline @bugfix arcticdolphin 08/11/2026 Keep the end of a shorter or empty list in place because appends past it read beyond the rows.
+    if( listboxData->endPos > newLength )
+    	listboxData->endPos = newLength;
 		//copy only the data that we'll be needing.
 		memcpy(newData,listboxData->listData,newLength * sizeof( ListEntryRow ) );
 	}

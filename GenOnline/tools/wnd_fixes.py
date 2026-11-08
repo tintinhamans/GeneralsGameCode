@@ -5,4 +5,9 @@ are absolute and applied after every rule; descendants move along, and the rules
 windows. Add an entry only for what the rules cannot decide, after a screenshot review.
 """
 
-FIXES = {}
+FIXES = {
+    # the game speed slider rect reached 10 units below its row; centred on the row, its label and value box follow it
+    "Window/Menus/SkirmishGameOptionsMenu.wnd": {
+        "SkirmishGameOptionsMenu.wnd:SliderGameSpeed": (175, 335, 265, 362),
+    },
+}

@@ -209,6 +209,8 @@ set(GAMEENGINE_SRC
     Include/GameClient/Line2D.h
     Include/GameClient/LoadScreen.h
     Include/GameClient/LookAtXlat.h
+    Include/GameClient/MapCacheJson.h
+    Include/GameClient/MapPreviewIcons.h
     Include/GameClient/MapUtil.h
     Include/GameClient/MessageBox.h
     Include/GameClient/MetaEvent.h
@@ -852,6 +854,8 @@ set(GAMEENGINE_SRC
     Source/GameClient/Intro.cpp
     Source/GameClient/LanguageFilter.cpp
     Source/GameClient/Line2D.cpp
+    Source/GameClient/MapCacheJson.cpp
+    Source/GameClient/MapPreviewIcons.cpp
     Source/GameClient/MapUtil.cpp
     Source/GameClient/MessageStream/CommandXlat.cpp
     Source/GameClient/MessageStream/GUICommandTranslator.cpp

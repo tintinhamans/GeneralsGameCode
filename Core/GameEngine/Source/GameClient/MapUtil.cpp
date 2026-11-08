@@ -64,6 +64,11 @@
 #include "../GenOnlineDefines.h"
 #include "../GenOnlineInterfaces.h"
 
+#if defined(GENONLINE)
+#include "GameClient/MapCacheJson.h"
+#include "GameClient/MapPreviewIcons.h"
+#endif
+
 
 //-------------------------------------------------------------------------------
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -80,6 +85,9 @@ static Dict worldDict = 0;
 static WaypointMap *m_waypoints = nullptr;
 static Coord3DList	m_supplyPositions;
 static Coord3DList	m_techPositions;
+#if defined(GENONLINE)
+static MapTypedObjectVector m_parsedTypedObjects;	///< typed supply and tech objects of the parsed map
+#endif
 
 static Int m_mapDX = 0;
 static Int m_mapDY = 0;
@@ -108,6 +116,19 @@ static UnsignedInt calcCRC( AsciiString fname )
 
 	return theCRC.get();
 }
+
+#if defined(GENONLINE)
+// GenOnline @feature arcticdolphin 08/11/2026 Records a supply or tech object with its icon category for mapcache.json.
+static void addTypedObject(const ThingTemplate *thingTemplate, const Coord3D &loc, Bool isTech)
+{
+	MapTypedObject obj;
+	obj.m_templateName = thingTemplate->getName();
+	obj.m_category = resolveMapPreviewCategory(obj.m_templateName, thingTemplate);
+	obj.m_isTech = isTech;
+	obj.m_pos = loc;
+	m_parsedTypedObjects.push_back(obj);
+}
+#endif
 
 static Bool ParseObjectDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData)
 {
@@ -148,10 +169,16 @@ static Bool ParseObjectDataChunk(DataChunkInput &file, DataChunkInfo *info, void
 	else if (pThisOne->getThingTemplate() && pThisOne->getThingTemplate()->isKindOf(KINDOF_TECH_BUILDING))
 	{
 		m_techPositions.push_back(loc);
+#if defined(GENONLINE)
+		addTypedObject(pThisOne->getThingTemplate(), loc, TRUE);
+#endif
 	}
 	else if (pThisOne->getThingTemplate() && pThisOne->getThingTemplate()->isKindOf(KINDOF_SUPPLY_SOURCE_ON_PREVIEW))
 	{
 		m_supplyPositions.push_back(loc);
+#if defined(GENONLINE)
+		addTypedObject(pThisOne->getThingTemplate(), loc, FALSE);
+#endif
 	}
 
 	deleteInstance(pThisOne);
@@ -256,6 +283,9 @@ static void resetMap()
 
 	m_techPositions.clear();
 	m_supplyPositions.clear();
+#if defined(GENONLINE)
+	m_parsedTypedObjects.clear();
+#endif
 }
 
 static void getExtent( Region3D *extent )
@@ -479,6 +509,11 @@ void MapCache::updateCache()
 		loadMapsFromMapCacheINI(mapDir);
 		m_doLoadStandardMapCacheINI = FALSE;
 	}
+
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 08/11/2026 Restore typed objects the INI loads dropped and save new ones to mapcache.json.
+	syncMapCacheJson(*this);
+#endif
 }
 
 void MapCache::prepareUnseenMaps( const AsciiString &mapDir )
@@ -693,6 +728,10 @@ Bool MapCache::addMap(
 	md.m_timestamp.m_lowTimeStamp = fileInfo.timestampLow;
 	md.m_supplyPositions = m_supplyPositions;
 	md.m_techPositions = m_techPositions;
+#if defined(GENONLINE)
+	md.m_typedObjects.m_objects = m_parsedTypedObjects;
+	md.m_typedObjects.m_isKnown = TRUE;
+#endif
 	md.m_CRC = mapCRC;
 
 	Bool exists = false;
@@ -776,6 +815,28 @@ UnicodeString getMapNameFromPath( const AsciiString& mapPath )
 	result.translate(name);
 	return result;
 }
+#if defined(GENONLINE)
+// GenOnline @feature arcticdolphin 08/11/2026 Parses a map for its typed objects only, for maps cached before mapcache.json had them.
+Bool loadMapTypedObjects( const AsciiString &mapPath, MapTypedObjectVector &outObjects )
+{
+	Bool loaded = FALSE;
+	try
+	{
+		loaded = loadMap(mapPath);
+	}
+	catch (...)
+	{
+		loaded = FALSE;
+	}
+
+	if (loaded)
+	{
+		outObjects = m_parsedTypedObjects;
+	}
+	resetMap();
+	return loaded;
+}
+#endif
 
 Bool WouldMapTransfer( const AsciiString& mapName )
 {

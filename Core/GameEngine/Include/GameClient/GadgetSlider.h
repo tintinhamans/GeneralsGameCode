@@ -65,11 +65,21 @@
 // FORWARD REFERENCES /////////////////////////////////////////////////////////
 
 // TYPE DEFINES ///////////////////////////////////////////////////////////////
-enum{
-// TheSuperHackers @tweak arcticdolphin 08/11/2026 The thumb sits at the top of the slider, where the slider blocks and the kit track draw.
-HORIZONTAL_SLIDER_THUMB_POSITION = 0
-};
 // INLINING ///////////////////////////////////////////////////////////////////
+
+// GenOnline @tweak arcticdolphin 08/11/2026 The horizontal slider thumb sits vertically centred in its slider, where the kit track draws.
+inline Int GadgetHorizontalSliderThumbTop( Int sliderHeight, Int thumbHeight )
+{
+	return (sliderHeight - thumbHeight) / 2;
+}
+
+inline Int GadgetHorizontalSliderThumbTop( GameWindow *slider, GameWindow *thumb )
+{
+	Int sliderWidth, sliderHeight, thumbWidth, thumbHeight;
+	slider->winGetSize( &sliderWidth, &sliderHeight );
+	thumb->winGetSize( &thumbWidth, &thumbHeight );
+	return GadgetHorizontalSliderThumbTop( sliderHeight, thumbHeight );
+}
 
 inline void GadgetSliderGetMinMax( GameWindow *g, Int *min, Int *max )
 {

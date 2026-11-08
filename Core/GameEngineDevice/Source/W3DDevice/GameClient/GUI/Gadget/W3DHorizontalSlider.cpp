@@ -176,7 +176,8 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 	thumb->winGetScreenPosition( &thumbPos.x, &thumbPos.y );
 	thumb->winGetSize( &thumbSize.x, &thumbSize.y );
 	Int thumbCX = thumbPos.x + thumbSize.x / 2;
-	Int thumbCY = thumbPos.y + thumbSize.y / 2;
+	// GenOnline @tweak arcticdolphin 08/11/2026 Track, fill and marker are centred vertically in the slider rect, in line with its label.
+	Int sliderCY = origin.y + size.y / 2;
 
 	Real yScale = INT_TO_REAL( TheDisplay->getHeight() ) / 600.0f;
 	Bool enabled = BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED );
@@ -184,7 +185,7 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 	Int trackHeight = REAL_TO_INT( 8.0f * yScale + 0.5f );
 	if( trackHeight < 6 )
 		trackHeight = 6;
-	Int trackY = thumbCY - trackHeight / 2;
+	Int trackY = sliderCY - trackHeight / 2;
 	Int trackStart = origin.x + thumbSize.x / 2;
 	Int trackEnd = origin.x + size.x - thumbSize.x / 2;
 
@@ -209,13 +210,13 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 																							trackStart, trackY, fillEnd - trackStart, trackHeight );
 	}
 
-	// thumb art centred on the thumb child, at least as wide as it
-	Int thumbWidth = REAL_TO_INT( 8.0f * yScale + 0.5f );
-	if( thumbWidth < thumbSize.x )
-		thumbWidth = thumbSize.x;
-	Int thumbHeight = REAL_TO_INT( 16.0f * yScale + 0.5f );
+	// GenOnline @tweak arcticdolphin 08/11/2026 The marker is a rounded pill 4 units wide and 1.75 track heights tall, centred on the value.
+	Int thumbWidth = REAL_TO_INT( 4.0f * yScale + 0.5f );
+	if( thumbWidth < 3 )
+		thumbWidth = 3;
+	Int thumbHeight = (trackHeight * 7 + 2) / 4;
 	Int thumbX = thumbCX - thumbWidth / 2;
-	Int thumbY = thumbCY - thumbHeight / 2;
+	Int thumbY = sliderCY - thumbHeight / 2;
 
 	const Image *thumbImage = s_kitSliderImages[KIT_SLIDER_THUMB];
 	if( enabled == FALSE )

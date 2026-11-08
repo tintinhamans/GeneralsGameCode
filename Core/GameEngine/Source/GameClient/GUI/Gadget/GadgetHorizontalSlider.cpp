@@ -198,7 +198,7 @@ WindowMsgHandledType GadgetHorizontalSliderInput( GameWindow *window, UnsignedIn
 			if( clickPos < childSize.x / 2 )
 				clickPos = childSize.x / 2;
 
-			child->winSetPosition( clickPos - childSize.x / 2, HORIZONTAL_SLIDER_THUMB_POSITION);
+			child->winSetPosition( clickPos - childSize.x / 2, GadgetHorizontalSliderThumbTop( window, child ));
 			TheWindowManager->winSendSystemMsg( window, GGM_LEFT_DRAG, 0, mData1 );
 			break;
 
@@ -227,7 +227,7 @@ WindowMsgHandledType GadgetHorizontalSliderInput( GameWindow *window, UnsignedIn
 																									s->position );
 
 							// Translate to window coords
-							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks), HORIZONTAL_SLIDER_THUMB_POSITION );
+							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks), GadgetHorizontalSliderThumbTop( window, child ) );
 
 						}
 
@@ -252,7 +252,7 @@ WindowMsgHandledType GadgetHorizontalSliderInput( GameWindow *window, UnsignedIn
 																									s->position );
 
 							// Translate to window coords
-							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks),HORIZONTAL_SLIDER_THUMB_POSITION );
+							child->winSetPosition( (Int)((s->position - s->minVal) * s->numTicks),GadgetHorizontalSliderThumbTop( window, child ) );
 
 						}
 
@@ -360,13 +360,13 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 
 			if( childCenter.x < x + childSize.x / 2 )
 			{
-				child->winSetPosition( 0,HORIZONTAL_SLIDER_THUMB_POSITION );
+				child->winSetPosition( 0,GadgetHorizontalSliderThumbTop( window, child ) );
 				s->position = s->minVal;
 
 			}
 			else if( childCenter.x >= x + size.x - childSize.x / 2 )
 			{
-				child->winSetPosition( (Int)((s->maxVal - s->minVal) * s->numTicks) - childSize.x/2 , HORIZONTAL_SLIDER_THUMB_POSITION );
+				child->winSetPosition( (Int)((s->maxVal - s->minVal) * s->numTicks) - childSize.x/2 , GadgetHorizontalSliderThumbTop( window, child ) );
 				s->position = s->maxVal;
 
 			}
@@ -386,7 +386,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 				if( s->position < s->minVal)
 					s->position = s->minVal;
 
-				child->winSetPosition( childRelativePos.x, HORIZONTAL_SLIDER_THUMB_POSITION );
+				child->winSetPosition( childRelativePos.x, GadgetHorizontalSliderThumbTop( window, child ) );
 			}
 
 			// tell owner i moved
@@ -415,7 +415,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 			newPos = (Int)((newPos - s->minVal) * s->numTicks);
 			newPos = clamp(0, newPos, (Int)((s->maxVal - s->minVal) * s->numTicks));
 
-			child->winSetPosition( newPos , HORIZONTAL_SLIDER_THUMB_POSITION );
+			child->winSetPosition( newPos , GadgetHorizontalSliderThumbTop( window, child ) );
 			break;
 
 		}
@@ -436,7 +436,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 			s->numTicks = (Real)(size.x - thumbSize.x)/(Real)(s->maxVal - s->minVal);
 			s->position = s->minVal;
 
-			child->winSetPosition( 0, HORIZONTAL_SLIDER_THUMB_POSITION );
+			child->winSetPosition( 0, GadgetHorizontalSliderThumbTop( window, child ) );
 			break;
 
 		}
