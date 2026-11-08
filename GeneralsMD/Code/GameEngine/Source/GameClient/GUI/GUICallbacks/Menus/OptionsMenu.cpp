@@ -1339,6 +1339,10 @@ static void DestroyOptionsLayout() {
 static void showAdvancedOptions()
 {
 	WinAdvancedDisplay->winHide(FALSE);
+#if defined(GENONLINE)
+	// GenOnline @bugfix arcticdolphin 22/11/2026 An opened combo box raises its panel, so the dialog raises itself to draw above it.
+	WinAdvancedDisplay->winBringToTop();
+#endif
 }
 
 static void acceptAdvancedOptions()
