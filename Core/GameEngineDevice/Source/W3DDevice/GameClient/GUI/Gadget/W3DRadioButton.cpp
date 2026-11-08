@@ -266,15 +266,12 @@ void W3DGadgetRadioButtonImageDraw( GameWindow *window,
 																	WinInstanceData *instData )
 {
 	const Image *leftImage, *rightImage, *centerImage;
-	ICoord2D origin, size, start, end;
+	ICoord2D origin, size;
 	Int xOffset, yOffset;
-	Int i;
 
 	// get screen position and size
 	window->winGetScreenPosition( &origin.x, &origin.y );
 	window->winGetSize( &size.x, &size.y );
-
-	IRegion2D clipLeft;
 
 	// get image offset
 	xOffset = instData->m_imageOffset.x;
@@ -318,65 +315,8 @@ void W3DGadgetRadioButtonImageDraw( GameWindow *window,
 			rightImage == nullptr )
 		return;
 
-	// get image sizes for the ends
-	ICoord2D leftSize, rightSize;
-	leftSize.x = leftImage->getImageWidth();
-	leftSize.y = leftImage->getImageHeight();
-	rightSize.x = rightImage->getImageWidth();
-	rightSize.y = rightImage->getImageHeight();
-
-	// get two key points used in the end drawing
-	ICoord2D leftEnd, rightStart;
-	leftEnd.x = origin.x + leftSize.x + xOffset;
-	leftEnd.y = origin.y + size.y + yOffset;
-	rightStart.x = origin.x + size.x - rightSize.x + xOffset;
-	rightStart.y = origin.y  + size.y + yOffset;
-
-
-
-	// draw the center repeating bar
-	Int centerWidth, pieces;
-
-	// get width we have to draw our repeating center in
-	centerWidth = rightStart.x - leftEnd.x;
-
-	// how many whole repeating pieces will fit in that width
-	pieces = centerWidth / centerImage->getImageWidth();
-	pieces++;
-	// draw the pieces
-	start.x = leftEnd.x;
-	start.y = origin.y + yOffset;
-	end.y =origin.y + size.y + yOffset;
-
-	clipLeft.lo.x = leftEnd.x;
-	clipLeft.lo.y = origin.y;
-	clipLeft.hi.y = leftEnd.y;
-	clipLeft.hi.x = rightStart.x	;
-
-
-	TheDisplay->setClipRegion(&clipLeft);
-
-	for( i = 0; i < pieces; i++ )
-	{
-		end.x = start.x + centerImage->getImageWidth();
-		TheWindowManager->winDrawImage( centerImage,
-																		start.x, start.y,
-																		end.x, end.y );
-		start.x += centerImage->getImageWidth();
-	}
-
-	TheDisplay->enableClipping(FALSE);
-	// draw left end
-	start.x = origin.x + xOffset;
-	start.y = origin.y + yOffset;
-	end = leftEnd;
-	TheWindowManager->winDrawImage(leftImage, start.x, start.y, end.x, end.y);
-	// draw right end
-	start.x = rightStart.x;
-	start.y = origin.y + yOffset;
-	end.x = origin.x + size.x;
-	end.y = leftEnd.y;
-	TheWindowManager->winDrawImage(rightImage, start.x, start.y, end.x, end.y);
+	TheWindowManager->winDrawThreePieceImage( leftImage, centerImage, nullptr, rightImage,
+																						 origin.x + xOffset, origin.y + yOffset, size.x, size.y );
 
 	// draw the text
 	if( instData->getTextLength() )

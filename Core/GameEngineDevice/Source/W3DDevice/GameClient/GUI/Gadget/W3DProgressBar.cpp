@@ -289,94 +289,8 @@ void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instDat
 			// backSmallCenter == nullptr ||barLeft == nullptr ||barCenter == nullptr || barSmallCenter == nullptr )
 		return;
 
-	// get image sizes for the ends
-	ICoord2D leftSize, rightSize;
-	leftSize.x = backLeft->getImageWidth();
-	leftSize.y = backLeft->getImageHeight();
-	rightSize.x = backRight->getImageWidth();
-	rightSize.y = backRight->getImageHeight();
-
-	// get two key points used in the end drawing
-	ICoord2D leftEnd, rightStart;
-	leftEnd.x = origin.x + leftSize.x + xOffset;
-	leftEnd.y = origin.y + size.y + yOffset;
-	rightStart.x = origin.x + size.x - rightSize.x + xOffset;
-	rightStart.y = origin.y + yOffset;
-
-	// draw the center repeating bar
-	Int centerWidth, pieces;
-
-	// get width we have to draw our repeating center in
-	centerWidth = rightStart.x - leftEnd.x;
-
-	// how many whole repeating pieces will fit in that width
-	pieces = centerWidth / backCenter->getImageWidth();
-
-	// draw the pieces
-	start.x = leftEnd.x;
-	start.y = origin.y + yOffset;
-	end.y = start.y + size.y;
-	for( i = 0; i < pieces; i++ )
-	{
-
-		end.x = start.x + backCenter->getImageWidth();
-		TheWindowManager->winDrawImage( backCenter,
-																		start.x, start.y,
-																		end.x, end.y );
-		start.x += backCenter->getImageWidth();
-
-	}
-
-	//
-	// how many small repeating pieces will fit in the gap from where the
-	// center repeating bar stopped and the right image, draw them
-	// and overlapping underneath where the right end will go
-	//
-//	centerWidth = rightStart.x - start.x;
-//	pieces = centerWidth / backCenter->getImageWidth() + 1;
-//	end.y = start.y + size.y;
-//	IRegion2D clipRegion;
-//
-//	TheDisplay->setClipRegion()
-//	for( i = 0; i < pieces; i++ )
-//	{
-//
-//		end.x = start.x + backCenter->getImageWidth();
-//		TheWindowManager->winDrawImage( backCenter,
-//																		start.x, start.y,
-//																		end.x, end.y );
-//		start.x += backCenter->getImageWidth();
-//
-//	}  // end for i
-//
-	IRegion2D reg;
-	reg.lo.x = start.x;
-	reg.lo.y = start.y;
-	reg.hi.x = rightStart.x;
-	reg.hi.y = end.y;
-	centerWidth = rightStart.x - start.x;
-	if( centerWidth > 0)
-	{
-		TheDisplay->setClipRegion(&reg);
-		end.x = start.x + backCenter->getImageWidth();
-		TheWindowManager->winDrawImage( backCenter,
-																		start.x, start.y,
-																		end.x, end.y );
-		TheDisplay->enableClipping(FALSE);
-	}
-
-
-	// draw left end
-	start.x = origin.x + xOffset;
-	start.y = origin.y + yOffset;
-	end = leftEnd;
-	TheWindowManager->winDrawImage(backLeft, start.x, start.y, end.x, end.y);
-
-	// draw right end
-	start = rightStart;
-	end.x = start.x + rightSize.x;
-	end.y = start.y + size.y;
-	TheWindowManager->winDrawImage(backRight, start.x, start.y, end.x, end.y);
+	TheWindowManager->winDrawThreePieceImage( backLeft, backCenter, nullptr, backRight,
+																						 origin.x + xOffset, origin.y + yOffset, size.x, size.y );
 
 
 	ICoord2D barWindowSize;  // end point of bar from window origin
@@ -384,7 +298,21 @@ void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instDat
 	barWindowSize.x = ((size.x - 20) * progress) / 100;
 	barWindowSize.y = size.y;
 
-	pieces = barWindowSize.x / barCenter->getImageWidth();
+	// keep the bar tiles at their own aspect for the fill height
+	Int pieces;
+	Int fillHeight = size.y - 10;
+	Int barCenterWidth = barCenter->getImageWidth();
+	Int barRightWidth = barRight->getImageWidth();
+	if( fillHeight > 0 && barCenter->getImageHeight() > 0 && fillHeight != barCenter->getImageHeight() )
+		barCenterWidth = (barCenterWidth * fillHeight + barCenter->getImageHeight() / 2) / barCenter->getImageHeight();
+	if( fillHeight > 0 && barRight->getImageHeight() > 0 && fillHeight != barRight->getImageHeight() )
+		barRightWidth = (barRightWidth * fillHeight + barRight->getImageHeight() / 2) / barRight->getImageHeight();
+	if( barCenterWidth < 1 )
+		barCenterWidth = 1;
+	if( barRightWidth < 1 )
+		barRightWidth = 1;
+
+	pieces = barWindowSize.x / barCenterWidth;
  	// draw the pieces
 	start.x = origin.x +10;
 	start.y = origin.y + yOffset +5;
@@ -392,24 +320,24 @@ void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instDat
 	for( i = 0; i < pieces; i++ )
 	{
 
-		end.x = start.x + barCenter->getImageWidth();
+		end.x = start.x + barCenterWidth;
 		TheWindowManager->winDrawImage( barCenter,
 																		start.x, start.y,
 																		end.x, end.y );
-		start.x += barCenter->getImageWidth();
+		start.x += barCenterWidth;
 
 	}
-	start.x = origin.x + 10 + barCenter->getImageWidth() * pieces;
+	start.x = origin.x + 10 + barCenterWidth * pieces;
 	//pieces = (size.x - barWindowSize.x -20) / barRight->getImageWidth();
-	pieces = ((size.x - 20) / barCenter->getImageWidth()) - pieces;
+	pieces = ((size.x - 20) / barCenterWidth) - pieces;
 	for( i = 0; i < pieces; i++ )
 	{
 
-		end.x = start.x + barRight->getImageWidth();
+		end.x = start.x + barRightWidth;
 		TheWindowManager->winDrawImage( barRight,
 																		start.x, start.y,
 																		end.x, end.y );
-		start.x += barRight->getImageWidth();
+		start.x += barRightWidth;
 
 	}
 
