@@ -301,7 +301,7 @@ WINDOW
         TOOLTIPCALLBACK = "[None]";
         DRAWCALLBACK = "[None]";
         FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
-        HEADERTEMPLATE = "MainButton";
+        HEADERTEMPLATE = "GOMainButton";
         TOOLTIPDELAY = -1;
         TEXT = "GUI:Login";
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -349,7 +349,7 @@ WINDOW
         TOOLTIPCALLBACK = "[None]";
         DRAWCALLBACK = "[None]";
         FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
-        HEADERTEMPLATE = "MainButton";
+        HEADERTEMPLATE = "GOMainButton";
         TOOLTIPDELAY = -1;
         TEXT = "GUI:CreateAccount";
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -397,7 +397,7 @@ WINDOW
         TOOLTIPCALLBACK = "[None]";
         DRAWCALLBACK = "[None]";
         FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
-        HEADERTEMPLATE = "MainButton";
+        HEADERTEMPLATE = "GOMainButton";
         TOOLTIPDELAY = -1;
         TEXT = "GUI:TOS";
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -445,7 +445,7 @@ WINDOW
         TOOLTIPCALLBACK = "[None]";
         DRAWCALLBACK = "[None]";
         FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
-        HEADERTEMPLATE = "MainButton";
+        HEADERTEMPLATE = "GOMainButton";
         TOOLTIPDELAY = -1;
         TEXT = "GUI:GotoMainMenu";
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -493,7 +493,7 @@ WINDOW
         TOOLTIPCALLBACK = "[None]";
         DRAWCALLBACK = "[None]";
         FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-        HEADERTEMPLATE = "LabelRegular";
+        HEADERTEMPLATE = "GOLabelRegular";
         TOOLTIPTEXT = "TOOLTIP:RememberInfo";
         TOOLTIPDELAY = -1;
         TEXT = "GUI:RememberInfo";
@@ -542,7 +542,7 @@ WINDOW
         TOOLTIPCALLBACK = "[None]";
         DRAWCALLBACK = "[None]";
         FONT = NAME: "Arial", SIZE: 14, BOLD: 0;
-        HEADERTEMPLATE = "MinorTitle";
+        HEADERTEMPLATE = "GOMinorTitle";
         TOOLTIPDELAY = -1;
         TEXT = "GUI:Password";
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -591,7 +591,7 @@ WINDOW
         TOOLTIPCALLBACK = "[None]";
         DRAWCALLBACK = "[None]";
         FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-        HEADERTEMPLATE = "TextEntry";
+        HEADERTEMPLATE = "GOTextEntry";
         TOOLTIPDELAY = -1;
         TEXT = "Entry";
         TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
@@ -644,7 +644,7 @@ WINDOW
         TOOLTIPCALLBACK = "[None]";
         DRAWCALLBACK = "[None]";
         FONT = NAME: "Arial", SIZE: 14, BOLD: 0;
-        HEADERTEMPLATE = "MinorTitle";
+        HEADERTEMPLATE = "GOMinorTitle";
         TOOLTIPDELAY = -1;
         TEXT = "GUI:Username";
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -693,7 +693,7 @@ WINDOW
         TOOLTIPCALLBACK = "[None]";
         DRAWCALLBACK = "[None]";
         FONT = NAME: "Arial", SIZE: 14, BOLD: 0;
-        HEADERTEMPLATE = "MinorTitle";
+        HEADERTEMPLATE = "GOMinorTitle";
         TOOLTIPDELAY = -1;
         TEXT = "GUI:Email";
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -835,7 +835,7 @@ WINDOW
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
           FONT = NAME: "Arial", SIZE: 14, BOLD: 0;
-          HEADERTEMPLATE = "MinorTitle";
+          HEADERTEMPLATE = "GOMinorTitle";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:Age";
           TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -884,7 +884,7 @@ WINDOW
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
           FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-          HEADERTEMPLATE = "LabelRegular";
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:Month";
           TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -933,7 +933,7 @@ WINDOW
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
           FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-          HEADERTEMPLATE = "TextEntry";
+          HEADERTEMPLATE = "GOTextEntry";
           TOOLTIPDELAY = -1;
           TEXT = "Entry";
           TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
@@ -986,7 +986,7 @@ WINDOW
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
           FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-          HEADERTEMPLATE = "TextEntry";
+          HEADERTEMPLATE = "GOTextEntry";
           TOOLTIPDELAY = -1;
           TEXT = "Entry";
           TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
@@ -1039,7 +1039,7 @@ WINDOW
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
           FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-          HEADERTEMPLATE = "TextEntry";
+          HEADERTEMPLATE = "GOTextEntry";
           TOOLTIPDELAY = -1;
           TEXT = "Entry";
           TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
@@ -1092,7 +1092,7 @@ WINDOW
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
           FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-          HEADERTEMPLATE = "LabelRegular";
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:Day";
           TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -1141,7 +1141,7 @@ WINDOW
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
           FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-          HEADERTEMPLATE = "LabelRegular";
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:Year";
           TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -1241,7 +1241,7 @@ WINDOW
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
       FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "ComboBoxEntry";
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 122 48 1 255, DISABLEDBORDER: 64 64 64 255,
@@ -1482,7 +1482,7 @@ WINDOW
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
       FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "ComboBoxEntry";
+      HEADERTEMPLATE = "GOComboBoxEntry";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  255 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 122 48 1 255, DISABLEDBORDER: 64 64 64 255,
@@ -1723,7 +1723,7 @@ WINDOW
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
       FONT = NAME: "Generals", SIZE: 20, BOLD: 0;
-      HEADERTEMPLATE = "Title";
+      HEADERTEMPLATE = "GOTitle";
       TOOLTIPDELAY = -1;
       TEXT = "GUI:WOLLogin";
       TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -1864,7 +1864,7 @@ WINDOW
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
           FONT = NAME: "Generals", SIZE: 15, BOLD: 0;
-          HEADERTEMPLATE = "MainButton";
+          HEADERTEMPLATE = "GOMainButton";
           TOOLTIPDELAY = -1;
           TEXT = "GUI:OK";
           TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
@@ -1912,7 +1912,7 @@ WINDOW
           TOOLTIPCALLBACK = "[None]";
           DRAWCALLBACK = "[None]";
           FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-          HEADERTEMPLATE = "LabelRegular";
+          HEADERTEMPLATE = "GOLabelRegular";
           TOOLTIPDELAY = -1;
           TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
                       DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
@@ -2124,7 +2124,7 @@ WINDOW
         TOOLTIPCALLBACK = "[None]";
         DRAWCALLBACK = "[None]";
         FONT = NAME: "Generals", SIZE: 20, BOLD: 0;
-        HEADERTEMPLATE = "Title";
+        HEADERTEMPLATE = "GOTitle";
         TOOLTIPDELAY = -1;
         TEXT = "GUI:TOS";
         TEXTCOLOR = ENABLED:  255 255 255 255, ENABLEDBORDER:  0 0 0 255,
