@@ -90,6 +90,7 @@ enum KitScrollImage
 	KIT_SCROLL_DOWN_HILITE,
 	KIT_SCROLL_DOWN_PUSHED,
 	KIT_SCROLL_DOWN_DISABLED,
+	KIT_SCROLL_LINE,
 
 	KIT_SCROLL_IMAGE_COUNT
 };
@@ -104,6 +105,7 @@ extern void GadgetListboxCreateScrollbar( GameWindow *listbox );
 extern Bool GadgetListBoxHasKitScrollBar( void ); ///< TRUE when every kit scroll bar image exists
 extern const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which ); ///< nullptr unless GadgetListBoxHasKitScrollBar
 extern Int GadgetListBoxGetKitComboFrame( GameWindow *listbox ); ///< kit combo drop-down frame thickness, 0 for other lists
+extern Int GadgetListBoxGetKitScrollLineWidth( void ); ///< kit scroll column separator thickness, 0 without the kit
 extern void GadgetListBoxAddMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxRemoveMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength );
