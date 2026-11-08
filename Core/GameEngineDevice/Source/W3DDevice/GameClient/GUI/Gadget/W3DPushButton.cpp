@@ -344,11 +344,8 @@ void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 	window->winGetSize( &size.x, &size.y );
 	TheWindowManager->winDrawImage( image, start.x, start.y, start.x + size.x, start.y + size.y );
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The cell's part of the column separator, joined to the track's part.
-	const Image *line = GadgetListBoxGetKitScrollImage( KIT_SCROLL_LINE );
-	Int lineWidth = GadgetListBoxGetKitScrollLineWidth();
-	if( line && lineWidth > 0 && lineWidth <= size.x / 2 )
-		TheWindowManager->winDrawImage( line, start.x, start.y, start.x + lineWidth, start.y + size.y );
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The cell lines, its part of the separator and its frame edges at the kit line weight.
+	GadgetListBoxDrawKitLines( start.x, start.y, size.x, size.y, TRUE, TRUE, TRUE, TRUE );
 }
 
 void W3DGadgetPushButtonImageDrawOne( GameWindow *window,

@@ -131,7 +131,7 @@ SCROLL_PILLS = {
     "Hilite": (rgba("#6A7BFF"), rgba("#6A7BFF")),
     "Disabled": (rgba("#3A3C55"), rgba("#3A3C55")),
 }
-# arrow cells in the combo arrow states: state -> (divider line, fill, glyph)
+# arrow cells in the combo arrow states: state -> (line, fill, glyph); the engine draws the lines with GOScrollLine
 SCROLL_ARROWS = {
     "": ARROW_STATES["Enabled"],
     "Hilite": ARROW_STATES["Hilite"],
@@ -141,7 +141,7 @@ SCROLL_ARROWS = {
 # the kit scroll column is 14 layout px wide with a 6 px channel the pill fills (W3DVerticalSlider, GadgetListBox)
 SCROLL_ARROW_SIZE = 14  # the square arrow cell, drawn at its own layout size
 SCROLL_PILL_WIDTH = 6
-SCROLL_LINE = ARROW_STATES["Enabled"][0]  # the column separator the engine draws, Border = LINE_LAYOUT
+SCROLL_LINE = ARROW_STATES["Enabled"][0]  # kit list frames, cell lines and the column separator the engine draws, Border = LINE_LAYOUT
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
     "ListBoxHiliteSelectedItem": rgba("#2B34B8", 0.80),
@@ -385,17 +385,15 @@ def channel_piece(w, h, line, fill):
 
 
 def scroll_arrow_piece(w, h, up, line, fill, glyph):
-    """An arrow cell of the scroll column: the combo arrow triangle scaled to the cell, top and bottom divider lines.
-    The engine draws the left separator and the list frame closes the right."""
+    """An arrow cell of the scroll column: the combo arrow triangle scaled to the cell on the state fill.
+    The engine draws the cell lines with GOScrollLine so they match the list frame and the separator."""
     k = w / 21.0
-    cx, cy = (w + LINE_LAYOUT) / 2.0, h / 2.0
+    cx, cy = w / 2.0, h / 2.0
     tri = ((cx - 4.5 * k, cy - 2.2 * k), (cx + 4.5 * k, cy - 2.2 * k), (cx, cy + 2.8 * k))
 
     def sample(x, y):
         if up:
             y = h - y
-        if edge(x, y, w, h, False, False) < LINE_LAYOUT:
-            return line
         return glyph if triangle_inside(x, y, *tri) else fill
 
     return paint(w, h, sample)

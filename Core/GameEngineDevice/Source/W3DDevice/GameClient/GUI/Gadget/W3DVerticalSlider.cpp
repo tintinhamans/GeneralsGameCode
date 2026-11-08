@@ -96,18 +96,19 @@ static void drawVerticalThreePieceImage( const Image *top, const Image *center, 
 // TheSuperHackers @tweak arcticdolphin 08/11/2026 The kit pill fills its channel, like the kit slider fill fills its track.
 static const Int KIT_SCROLL_CHANNEL_WIDTH = 6;
 
-// The kit channel, centred in the scroll column right of its separator line
+// The kit channel, centred between the column separator and the list frame
 static void getKitChannel( Int columnX, Int columnWidth, Int &channelX, Int &channelWidth )
 {
 	Int separator = GadgetListBoxGetKitScrollLineWidth();
 	if( separator > columnWidth / 2 )
 		separator = 0;
 	channelWidth = GameWindowManager::winScaleLayoutSize( KIT_SCROLL_CHANNEL_WIDTH );
-	if( channelWidth > columnWidth - separator )
-		channelWidth = columnWidth - separator;
+	if( channelWidth > columnWidth - 2 * separator )
+		channelWidth = columnWidth - 2 * separator;
 	if( channelWidth < 2 )
 		channelWidth = 2;
-	channelX = columnX + separator + (columnWidth - separator - channelWidth) / 2;
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The list frame on the right is as thick as the separator.
+	channelX = columnX + separator + (columnWidth - 2 * separator - channelWidth) / 2;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -367,10 +368,8 @@ void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *i
 															 channelX, origin.y, channelWidth, size.y );
 
 	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The column separator runs between the arrow cells, which draw their own part.
-	const Image *line = GadgetListBoxGetKitScrollImage( KIT_SCROLL_LINE );
-	Int lineWidth = GadgetListBoxGetKitScrollLineWidth();
 	GameWindow *listbox = window->winGetParent();
-	if( line == nullptr || lineWidth <= 0 || listbox == nullptr )
+	if( listbox == nullptr )
 		return;
 
 	Int top = origin.y;
@@ -391,7 +390,7 @@ void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *i
 		bottom = downPos.y;
 	}
 	if( bottom > top )
-		TheWindowManager->winDrawImage( line, origin.x, top, origin.x + lineWidth, bottom );
+		GadgetListBoxDrawKitLines( origin.x, top, size.x, bottom - top, TRUE, FALSE, FALSE, FALSE );
 }
 
 // W3DGadgetVerticalSliderKitThumbDraw ========================================
