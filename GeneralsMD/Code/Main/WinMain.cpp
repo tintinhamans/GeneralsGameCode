@@ -1002,7 +1002,7 @@ static CriticalSection critSec1, critSec2, critSec3, critSec4;
 // UnHandledExceptionFilter ===================================================
 /** Handler for unhandled win32 exceptions. */
 //=============================================================================
-static LONG WINAPI UnHandledExceptionFilter(struct _EXCEPTION_POINTERS* e_info)
+static void WriteGameCrashData(struct _EXCEPTION_POINTERS* e_info)
 {
 	DumpExceptionInfo(e_info->ExceptionRecord->ExceptionCode, e_info);
 #ifdef RTS_ENABLE_CRASHDUMP
@@ -1014,6 +1014,35 @@ static LONG WINAPI UnHandledExceptionFilter(struct _EXCEPTION_POINTERS* e_info)
 	}
 
 	MiniDumper::shutdownMiniDumper();
+#endif
+}
+
+#if defined(GENONLINE)
+// TheSuperHackers @bugfix arcticdolphin 08/11/2026 A fault while writing the game's crash data must not stop the Sentry report
+static void WriteGameCrashDataGuarded(struct _EXCEPTION_POINTERS* e_info)
+{
+	__try
+	{
+		WriteGameCrashData(e_info);
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+	}
+}
+#endif
+
+static LONG WINAPI UnHandledExceptionFilter(struct _EXCEPTION_POINTERS* e_info)
+{
+#if defined(GENONLINE)
+	// the game's dumps and crash info first, then crashpad uploads its report to Sentry and ends the process
+	WriteGameCrashDataGuarded(e_info);
+	LONG sentryResult = EXCEPTION_EXECUTE_HANDLER;
+	if (GenOnlineServicesManager::ForwardCrashToSentry(e_info, &sentryResult))
+	{
+		return sentryResult;
+	}
+#else
+	WriteGameCrashData(e_info);
 #endif
 	return EXCEPTION_EXECUTE_HANDLER;
 }
