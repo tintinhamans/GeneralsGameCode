@@ -2668,7 +2668,7 @@ void GadgetListBoxDrawKitFrame( Color color, Int x, Int y, Int width, Int height
 	if( height < 2 * thickness + 1 && width >= height )
 	{
 		Int top = y + height / 2 - thickness / 2;
-		TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH, x, top, x + width, top + thickness );
+		TheWindowManager->winFillRect( color, 1.0f, x, top, x + width, top + thickness );
 		return;
 	}
 
@@ -2676,14 +2676,14 @@ void GadgetListBoxDrawKitFrame( Color color, Int x, Int y, Int width, Int height
 	if( width < 2 * thickness + 1 )
 	{
 		Int left = x + width / 2 - thickness / 2;
-		TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH, left, y, left + thickness, y + height );
+		TheWindowManager->winFillRect( color, 1.0f, left, y, left + thickness, y + height );
 		return;
 	}
 
-	TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH, x, y, x + width, y + thickness );
-	TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH, x, y + height - thickness, x + width, y + height );
-	TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH, x, y + thickness, x + thickness, y + height - thickness );
-	TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH, x + width - thickness, y + thickness, x + width, y + height - thickness );
+	TheWindowManager->winFillRect( color, 1.0f, x, y, x + width, y + thickness );
+	TheWindowManager->winFillRect( color, 1.0f, x, y + height - thickness, x + width, y + height );
+	TheWindowManager->winFillRect( color, 1.0f, x, y + thickness, x + thickness, y + height - thickness );
+	TheWindowManager->winFillRect( color, 1.0f, x + width - thickness, y + thickness, x + width, y + height - thickness );
 }
 
 // GadgetListBoxGetKitComboFrame ==============================================
