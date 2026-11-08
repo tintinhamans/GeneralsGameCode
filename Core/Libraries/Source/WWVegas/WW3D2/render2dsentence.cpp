@@ -1040,6 +1040,7 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 		const WCHAR *remaining_text = text;
 		WCHAR ch = *text++;
 		dontBlit = false;
+		bool wrappedOnSpace = false;
 		//
 		//	Determine how much horizontal space this character requires
 		//
@@ -1107,6 +1108,8 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 						Cursor.X = 0;
 						Cursor.Y += char_height;
 						calcHotKeyX = true;
+						// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The space a line wraps at is not drawn at the start of the next line
+						wrappedOnSpace = true;
 					}
 				}
 
@@ -1139,7 +1142,7 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 			}
 		}
 
-		if (ch != L'\n' ) {
+		if (ch != L'\n' && !wrappedOnSpace) {
 
 			//
 			//	Ensure the surface is locked
