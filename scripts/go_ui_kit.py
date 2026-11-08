@@ -111,6 +111,7 @@ SYMBOL_STATES = {
 CHECK_BOXES = {
     "Active-Unchecked": ("Enabled", False),
     "Active-HiLighted": ("Hilite", False),
+    "Active-HiLighted-Checked": ("Hilite", True),  # hover over a checked box; the layouts point HILITEDRAWDATA at it
     "Active-Checked": ("Enabled", True),
     "Disabled-Unchecked": ("Disabled", False),
     "Disabled-Checked": ("Disabled", True),
