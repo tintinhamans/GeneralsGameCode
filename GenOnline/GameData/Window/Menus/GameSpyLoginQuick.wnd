@@ -110,7 +110,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 14, BOLD: 0;
-    HEADERTEMPLATE = "MainButton";
+    HEADERTEMPLATE = "GOMainButton";
     TOOLTIPTEXT = "TOOLTIP:Back";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:Back";
@@ -159,7 +159,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 16, BOLD: 1;
-    HEADERTEMPLATE = "Title";
+    HEADERTEMPLATE = "GOTitle";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:WOLLogin";
     TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
@@ -208,7 +208,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 14, BOLD: 0;
-    HEADERTEMPLATE = "MainButton";
+    HEADERTEMPLATE = "GOMainButton";
     TOOLTIPTEXT = "TOOLTIP:UseAccount";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:UseAccount";
@@ -257,7 +257,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 12, BOLD: 0;
-    HEADERTEMPLATE = "Button";
+    HEADERTEMPLATE = "GOButton";
     TOOLTIPTEXT = "TOOLTIP:Login";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:Login";
@@ -306,7 +306,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-    HEADERTEMPLATE = "TextEntry";
+    HEADERTEMPLATE = "GOTextEntry";
     TOOLTIPTEXT = "STT:LoginName";
     TOOLTIPDELAY = -1;
     TEXT = "Entry";
@@ -360,7 +360,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 12, BOLD: 0;
-    HEADERTEMPLATE = "MinorTitle";
+    HEADERTEMPLATE = "GOMinorTitle";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:Username";
     TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
@@ -409,7 +409,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 14, BOLD: 0;
-    HEADERTEMPLATE = "MainButton";
+    HEADERTEMPLATE = "GOMainButton";
     TOOLTIPTEXT = "TOOLTIP:TOS";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:TOS";
@@ -458,7 +458,7 @@ WINDOW
     TOOLTIPCALLBACK = "[None]";
     DRAWCALLBACK = "[None]";
     FONT = NAME: "Arial", SIZE: 14, BOLD: 0;
-    HEADERTEMPLATE = "MainButton";
+    HEADERTEMPLATE = "GOMainButton";
     TOOLTIPTEXT = "TOOLTIP:CreateAccount";
     TOOLTIPDELAY = -1;
     TEXT = "GUI:CreateAccount";
@@ -553,7 +553,7 @@ WINDOW
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
       FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-      HEADERTEMPLATE = "LabelRegular";
+      HEADERTEMPLATE = "GOLabelRegular";
       TOOLTIPDELAY = -1;
       TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
                   DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
@@ -715,7 +715,7 @@ WINDOW
       TOOLTIPCALLBACK = "[None]";
       DRAWCALLBACK = "[None]";
       FONT = NAME: "Arial", SIZE: 12, BOLD: 0;
-      HEADERTEMPLATE = "Button";
+      HEADERTEMPLATE = "GOButton";
       TOOLTIPDELAY = -1;
       TEXT = "GUI:OK";
       TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
