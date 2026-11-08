@@ -48,6 +48,10 @@
 #define PRESERVE_NO_XP_FROM_OCL_KILLS (1)
 #endif
 
+#ifndef RTS_EXE_CRC
+#define RTS_EXE_CRC (0) // Exe CRC this build reports in lobbies and network games, 0 uses the real one. Set by the cmake option of the same name.
+#endif
+
 #ifndef RTS_REPLAY_EXE_CRC
 #define RTS_REPLAY_EXE_CRC (0) // Exe CRC written to replays, 0 writes the real exe CRC. Set by the cmake option of the same name.
 #endif

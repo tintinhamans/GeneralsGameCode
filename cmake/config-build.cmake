@@ -25,6 +25,7 @@ endif()
 if(RTS_BUILD_OPTION_MODERN_MEDIA)
     target_compile_definitions(core_config INTERFACE RTS_HAS_MODERN_MEDIA)
 endif()
+set(RTS_EXE_CRC "" CACHE STRING "Exe CRC this build reports in lobbies and network games instead of the real one, hex (0xC8FC6170) or decimal. Empty uses the real exe CRC.")
 set(RTS_REPLAY_EXE_CRC "" CACHE STRING "Exe CRC written to replays instead of the real one, hex (0xC8FC6170) or decimal. Empty writes the real exe CRC.")
 set(RTS_REPLAY_COMPATIBLE_EXE_CRCS "" CACHE STRING "Extra exe CRCs that replays treat as this build, hex or decimal separated by ; or ,. The real and written exe CRC always match.")
 
@@ -83,7 +84,14 @@ add_feature_info(AddressSanitizer RTS_BUILD_OPTION_ASAN "Building with address s
 add_feature_info(OptimizedBuild RTS_BUILD_OPTION_OPTIMIZED "Aggressive Release optimization")
 add_feature_info(PGO RTS_BUILD_OPTION_PGO "Profile-guided optimization mode")
 
-# Replay exe CRC options become compile definitions that override the GameDefines.h defaults.
+# The exe CRC options become compile definitions that override the GameDefines.h defaults.
+if(NOT "${RTS_EXE_CRC}" STREQUAL "")
+    string(STRIP "${RTS_EXE_CRC}" RtsExeCrc)
+    rts_replay_normalize_crc(RTS_EXE_CRC "${RtsExeCrc}" RtsExeCrc)
+    target_compile_definitions(core_config INTERFACE RTS_EXE_CRC=${RtsExeCrc}u)
+    message(STATUS "Exe CRC override: ${RtsExeCrc}")
+endif()
+
 if(NOT "${RTS_REPLAY_EXE_CRC}" STREQUAL "")
     string(STRIP "${RTS_REPLAY_EXE_CRC}" RtsReplayExeCrc)
     rts_replay_normalize_crc(RTS_REPLAY_EXE_CRC "${RtsReplayExeCrc}" RtsReplayExeCrc)

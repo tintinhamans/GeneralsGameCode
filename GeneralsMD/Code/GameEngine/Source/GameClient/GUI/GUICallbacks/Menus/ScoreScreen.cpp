@@ -2309,6 +2309,8 @@ void grabMultiPlayerInfo( void )
 	ScoreMap scores;
 	scores.clear();
 
+	// GenOnline @bugfix arcticdolphin 22/11/2026 The retail score art has the ruler lines painted in, so the GO kit ruler panel draws alone.
+#if !defined(GENONLINE)
 	Player *localPlayer = ThePlayerList->getLocalPlayer();
 	if (localPlayer && parent)
 	{
@@ -2319,6 +2321,7 @@ void grabMultiPlayerInfo( void )
 			parent->winSetStatus(parent->winGetStatus() | WIN_STATUS_IMAGE );
 		}
 	}
+#endif
 
 	// Add each player and score to the map. THis allows us to sort the players based on score.
 	for( Int i = 0; i < MAX_SLOTS; ++i)
@@ -2395,12 +2398,15 @@ void grabSinglePlayerInfo( void )
 		PlayerTemplate const *fact = ThePlayerList->getLocalPlayer()->getPlayerTemplate();
 		if(fact != nullptr)
 		{
+			// GenOnline @bugfix arcticdolphin 22/11/2026 The side art has the retail ruler lines painted in, so the GO kit ruler panel draws alone.
+#if !defined(GENONLINE)
 			const Image *image = TheMappedImageCollection->findImageByName(ThePlayerList->getLocalPlayer()->getPlayerTemplate()->getScoreScreen());
 			if(image)
 			{
 				parent->winSetEnabledImage(0, image);
 				parent->winSetStatus(parent->winGetStatus() | WIN_STATUS_IMAGE );
 			}
+#endif
 		}
 	}
 	if(!localPlayer)
