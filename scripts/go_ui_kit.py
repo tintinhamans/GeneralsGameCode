@@ -2,9 +2,12 @@
 """Generate the Generals Online UI kit: one texture atlas and the MappedImage INI that points
 the retail shell gadget image names at it.
 
-The engine draws gadget end caps and tiles at their Coords pixel size and only stretches the
-height, so every piece keeps the size of the retail image it replaces. Each piece is padded and
-its edge pixels are extruded so stretched and tiled pieces do not sample their neighbours.
+The pieces redraw the retail shell gadget art (SCSmShellUserInterface512_001.tga) as vector
+shapes in its colors, at SCALE texels per pixel. Coords and TextureWidth/Height stay in retail
+pixels, the engine takes the image size from Coords and the UVs from Coords / TextureWidth, so
+every piece keeps the size of the retail image it replaces and only gets sharper. Each piece is
+padded and its edge texels are extruded so stretched and tiled pieces do not sample their
+neighbours.
 
 Usage:
     python scripts/go_ui_kit.py          write the atlas and the INI into GenOnline/GameData
@@ -23,9 +26,10 @@ TEXTURE_NAME = "GeneralsOnline_UIKit.tga"
 TEXTURE_PATH = DATA / "Art" / "Textures" / TEXTURE_NAME
 INI_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_UIKit.INI"
 
-ATLAS_WIDTH = 256
-EXTRUDE = 2
-SUPERSAMPLE = 4
+ATLAS_WIDTH = 256  # in retail pixels
+SCALE = 4          # texels per retail pixel
+EXTRUDE = 2        # retail pixels of padding around each piece
+SUPERSAMPLE = 2    # samples per texel and axis
 
 
 def rgba(hex_color, alpha=1.0):
@@ -33,48 +37,64 @@ def rgba(hex_color, alpha=1.0):
     return (int(h[0:2], 16) / 255.0, int(h[2:4], 16) / 255.0, int(h[4:6], 16) / 255.0, alpha)
 
 
-TRANSPARENT = (0.0, 0.0, 0.0, 0.0)
-BORDER = rgba("#2F37A8")
-HOVER = rgba("#5B6CF2")
-PRESSED = rgba("#1D2580")
-DISABLED = rgba("#3A3F55")
-TEXT = rgba("#EEF1F8")
-TITLE = rgba("#E9D65A")
+def shade(color, factor, alpha):
+    return (color[0] * factor, color[1] * factor, color[2] * factor, alpha)
 
-# state suffix -> (border, fill) for framed pieces
+
+def lerp(a, b, t):
+    return tuple(a[i] + (b[i] - a[i]) * t for i in range(4))
+
+
+TRANSPARENT = (0.0, 0.0, 0.0, 0.0)
+BLACK = rgba("#000000")
+EDGE = rgba("#000000", 144 / 255.0)
+SHADE = rgba("#000000", 128 / 255.0)
+
+# retail frame lines, outermost first: (outer, middle, inner)
+BLUE_FRAME = (rgba("#2534FF"), rgba("#00E3FF"), rgba("#2534FF"))
+HOVER_FRAME = (rgba("#626DFA"), rgba("#7BEDFB"), rgba("#626DFA"))
+PUSHED_FRAME = (rgba("#5862EC"), rgba("#D0D4FF"), rgba("#5862EC"))
+GREY_FRAME = (rgba("#404159"), rgba("#8588B9"), rgba("#404159"))
+
+# state suffix -> (frame, gradient fill from the outer end to the centre or None)
 BUTTON_STATES = {
-    "": (BORDER, rgba("#060912", 0.72)),
-    "HiLite-": (HOVER, rgba("#283496", 0.55)),
-    "Pushed-": (HOVER, PRESSED),
-    "Disabled-": (DISABLED, rgba("#060912", 0.60)),
+    "": (BLUE_FRAME, None),
+    "HiLite-": (HOVER_FRAME, (rgba("#141853"), rgba("#2B34B8"))),
+    "Pushed-": (PUSHED_FRAME, (rgba("#1D215C"), rgba("#4049CD"))),
+    "Disabled-": (GREY_FRAME, None),
 }
+# state -> (frame, indicator (ring, ring, fill) or None)
 RADIO_STATES = {
-    "Enabled": BUTTON_STATES[""],
-    "Hilighted": BUTTON_STATES["HiLite-"],
-    "Pushed": BUTTON_STATES["Pushed-"],
-    "Disabled": BUTTON_STATES["Disabled-"],
+    "Enabled": ((rgba("#2534FE"), rgba("#00E3FF"), rgba("#2534FE")), None),
+    "Hilighted": ((rgba("#626DFA"), rgba("#00E3FF"), rgba("#626DFA")), (rgba("#626DFA"), rgba("#8089FF"), rgba("#B2B7FF"))),
+    "Pushed": ((rgba("#7D86FF"), rgba("#DFE1FF"), rgba("#2534FF")), (rgba("#2534FF"), rgba("#7D86FF"), rgba("#DFE1FF"))),
+    "Disabled": ((rgba("#414360"), rgba("#7F83BD"), rgba("#414360")), None),
 }
+# state -> (outer line, inner line); the field itself is opaque black
 ENTRY_STATES = {
-    "Enabled": (BORDER, rgba("#060912", 0.85)),
-    "Hilite": (HOVER, rgba("#060912", 0.85)),
-    "Disabled": (DISABLED, rgba("#060912", 0.60)),
+    "Enabled": (rgba("#00E3FF"), rgba("#626DFA")),
+    "Hilite": (rgba("#FFFFFF"), rgba("#00E3FF")),
+    "Disabled": (rgba("#8589C5"), rgba("#4E5073")),
 }
+# state -> (outer line, inner line, bar, glyph, glyph outline or None, band and lower fill or None)
 ARROW_STATES = {
-    "Enabled": (BORDER, PRESSED, TEXT),
-    "Hilite": (HOVER, rgba("#2A339A"), rgba("#FFFFFF")),
-    "HiliteSelected": (HOVER, rgba("#141A5E"), TITLE),
-    "Disabled": (DISABLED, rgba("#10142A"), rgba("#5D6380")),
+    "Enabled": (rgba("#00E3FF"), rgba("#5862EC"), rgba("#5862EC"), rgba("#B2B7FF"), None, None),
+    "Hilite": (rgba("#00E3FF"), rgba("#5862EC"), rgba("#5862EC"), rgba("#B2B7FF"), rgba("#0A0B23"), rgba("#2F37A8")),
+    "HiliteSelected": (rgba("#FFFFFF"), rgba("#00E3FF"), rgba("#B2B7FF"), rgba("#FFFFFF"), rgba("#060614"), rgba("#2F37A8")),
+    "Disabled": (rgba("#8589C5"), rgba("#4E5073"), rgba("#4E5073"), rgba("#8589C5"), None, None),
 }
+# state -> rings from the outside in, then the fill
 THUMB_STATES = {
-    "Enabled": rgba("#4A5BE6"),
-    "Hilite": rgba("#6B7CFF"),
-    "HiliteSelected": rgba("#8FA0FF"),
-    "Disabled": DISABLED,
+    "Enabled": ([rgba("#5862EC"), rgba("#00E3FF"), rgba("#5862EC")], BLACK),
+    "Hilite": ([rgba("#626DFA"), rgba("#00E3FF"), rgba("#5862EC"), BLACK, rgba("#181C55")], rgba("#2F37A8")),
+    "HiliteSelected": ([rgba("#00E3FF"), rgba("#FFFFFF"), rgba("#B2B7FF"), rgba("#030307"), rgba("#0B0C25"), rgba("#2A3196")], rgba("#2F37A8")),
+    "Disabled": ([rgba("#4E5073"), rgba("#8589C5"), rgba("#4E5073")], BLACK),
 }
-LIST_SELECTION = {
-    "ListBoxHiliteItem": rgba("#2A339A"),
-    "ListBoxHiliteSelectedItem": rgba("#3341B8"),
-}
+LIST_EDGE = rgba("#B2B7FF")
+LIST_LINE = rgba("#5B66FF")
+LIST_FILL = rgba("#545FFF")
+# alpha of the selected row fill by distance from its top or bottom line, retail ramp
+LIST_RAMP = [0.0, 31, 53, 79, 100, 114, 122, 126, 127]
 
 
 def over(top, bottom):
@@ -85,27 +105,18 @@ def over(top, bottom):
     return tuple((top[i] * ta + bottom[i] * bottom[3] * (1.0 - ta)) / a for i in range(3)) + (a,)
 
 
-def in_round_rect(x, y, x0, y0, x1, y1, r):
-    if x < x0 or x > x1 or y < y0 or y > y1:
-        return False
-    if r <= 0.0:
-        return True
-    cx = min(max(x, x0 + r), x1 - r)
-    cy = min(max(y, y0 + r), y1 - r)
-    return (x - cx) ** 2 + (y - cy) ** 2 <= r * r
-
-
 def paint(w, h, sample):
-    """Supersample sample(x, y) -> rgba over a w x h piece."""
+    """Supersample sample(x, y) -> rgba, in retail pixels, over a w x h piece at SCALE texels per pixel."""
     pixels = []
     n = SUPERSAMPLE
-    for py in range(h):
+    step = 1.0 / (SCALE * n)
+    for ty in range(h * SCALE):
         row = []
-        for px in range(w):
+        for tx in range(w * SCALE):
             acc = [0.0, 0.0, 0.0, 0.0]
             for sy in range(n):
                 for sx in range(n):
-                    c = sample(px + (sx + 0.5) / n, py + (sy + 0.5) / n)
+                    c = sample((tx * n + sx + 0.5) * step, (ty * n + sy + 0.5) * step)
                     acc[0] += c[0] * c[3]
                     acc[1] += c[1] * c[3]
                     acc[2] += c[2] * c[3]
@@ -116,23 +127,102 @@ def paint(w, h, sample):
     return pixels
 
 
-OPEN = 1000.0
+def ring(x, y, x0, y0, x1, y1, left=True, right=True):
+    """Whole pixels between the point and the closest closed edge of the rect, -1 outside."""
+    if x < x0 or x >= x1 or y < y0 or y >= y1:
+        return -1
+    d = min(y - y0, y1 - y)
+    if left:
+        d = min(d, x - x0)
+    if right:
+        d = min(d, x1 - x)
+    return int(math.floor(d))
 
 
-def framed(w, h, border, fill, side, side_width, edge_width, radius):
-    """A frame piece. side is 'left', 'right', 'middle' or 'all': which ends are closed."""
-    x0 = 0.0 if side in ("left", "all") else -OPEN
-    x1 = float(w) if side in ("right", "all") else w + OPEN
+def ends(side):
+    return side in ("left", "all"), side in ("right", "all")
+
+
+def button_piece(w, h, side, frame, gradient):
+    left, right = ends(side)
 
     def sample(x, y):
-        if not in_round_rect(x, y, x0, 0.0, x1, float(h), radius):
-            return TRANSPARENT
-        inner_r = max(radius - min(side_width, edge_width), 0.0)
-        if in_round_rect(x, y, x0 + side_width, edge_width, x1 - side_width, h - edge_width, inner_r):
-            return fill
-        return border
+        r = ring(x, y, 0.0, 0.0, w, h, left, right)
+        if r < 3:
+            return frame[r]
+        if r == 3:
+            return EDGE
+        if gradient is None or r == 4:
+            return SHADE
+        # darker towards the outer ends, the middle pieces carry the centre colour
+        if side == "left":
+            t = min(max((x - 7.0) / (w - 8.0), 0.0), 1.0)
+        elif side == "right":
+            t = min(max((w - 1.0 - x) / (w - 8.0), 0.0), 1.0)
+        else:
+            t = 1.0
+        body = lerp(gradient[0], gradient[1], t)
+        if r == 5:
+            return shade(body, 0.13, 146 / 255.0)
+        if r == 6:
+            return shade(body, 0.35, 173 / 255.0)
+        return shade(body, 1.0, 192 / 255.0)
 
     return paint(w, h, sample)
+
+
+def radio_piece(w, h, side, frame, indicator):
+    box = float(h)
+
+    def sample(x, y):
+        if side == "left" and x < box:
+            r = ring(x, y, 0.0, 0.0, box, h)
+            if r < 3:
+                return frame[r]
+            if indicator is not None and r >= 4:
+                return indicator[min(r - 4, 2)]
+            return TRANSPARENT
+        x0 = box + 1.0 if side == "left" else 0.0
+        if x < x0:
+            return TRANSPARENT
+        r = ring(x, y, x0, 0.0, w, h, side == "left", side == "right")
+        return frame[r] if 0 <= r < 3 else TRANSPARENT
+
+    return paint(w, h, sample)
+
+
+def entry_piece(w, h, side, outer, inner):
+    left, right = ends(side)
+    lines = (outer, inner)
+
+    def sample(x, y):
+        r = ring(x, y, 0.0, 0.0, w, h, left, right)
+        return lines[r] if r < 2 else BLACK
+
+    return paint(w, h, sample)
+
+
+def list_piece(w, h, side, filled):
+    def sample(x, y):
+        if y < 1.0 or y >= h - 1.0:
+            return LIST_LINE
+        if (side == "left" and x < 1.0) or (side == "right" and x >= w - 1.0):
+            return LIST_EDGE
+        if not filled:
+            return TRANSPARENT
+        d = min(y, h - y)
+        i = min(int(d), len(LIST_RAMP) - 2)
+        a = LIST_RAMP[i] + (LIST_RAMP[i + 1] - LIST_RAMP[i]) * (d - i) if d < len(LIST_RAMP) - 1 else LIST_RAMP[-1]
+        return LIST_FILL[:3] + (a / 255.0,)
+
+    return paint(w, h, sample)
+
+
+def triangle_inside(x, y, a, b, c):
+    def cross(p, q, r):
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+    d1, d2, d3 = cross(a, b, (x, y)), cross(b, c, (x, y)), cross(c, a, (x, y))
+    return not ((d1 < 0 or d2 < 0 or d3 < 0) and (d1 > 0 or d2 > 0 or d3 > 0))
 
 
 def segment_distance(x, y, ax, ay, bx, by):
@@ -141,66 +231,86 @@ def segment_distance(x, y, ax, ay, bx, by):
     return math.hypot(x - (ax + t * dx), y - (ay + t * dy))
 
 
-def arrow_button(w, h, border, fill, glyph, up):
-    frame = framed(w, h, border, fill, "all", 2.0, 2.0, 2.0)
-    cx, cy = w / 2.0, h / 2.0
-    half, rise = 4.5, 2.5 if up else -2.5
-    points = [(cx - half, cy + rise), (cx, cy - rise), (cx + half, cy + rise)]
+def arrow_piece(w, h, up, outer, inner, bar, glyph, outline, band):
+    tri = ((3.0, 8.0), (18.0, 8.0), (10.5, 16.5))
 
     def sample(x, y):
-        d = min(segment_distance(x, y, *points[0], *points[1]), segment_distance(x, y, *points[1], *points[2]))
-        return glyph if d <= 1.1 else TRANSPARENT
+        if up:
+            y = h - y
+        r = ring(x, y, 0.0, 0.0, w, h)
+        if r == 0:
+            return outer
+        if r == 1:
+            return inner
+        if triangle_inside(x, y, *tri):
+            return glyph
+        if outline is not None:
+            d = min(segment_distance(x, y, *tri[0], *tri[2]), segment_distance(x, y, *tri[1], *tri[2]))
+            if d < 1.0 and y >= 8.0:
+                return outline
+        if 7.0 <= y < 8.0:
+            return bar
+        if band is not None:
+            if 3.0 <= x < 18.0 and 3.0 <= y < 6.0:
+                return band if 4.0 <= y < 5.0 or outline is None else lerp(band, BLACK, 0.5)
+            if 3.0 <= x < 18.0 and 9.0 <= y < 19.0:
+                return band
+        return BLACK
 
-    chevron = paint(w, h, sample)
-    return [[over(chevron[y][x], frame[y][x]) for x in range(w)] for y in range(h)]
+    return paint(w, h, sample)
 
 
-def inset_bar(w, h, fill, inset_x, inset_y, radius, border=None):
+def thumb_piece(w, h, rings, fill):
     def sample(x, y):
-        if not in_round_rect(x, y, inset_x, inset_y, w - inset_x, h - inset_y, radius):
-            return TRANSPARENT
-        if border is not None and not in_round_rect(x, y, inset_x + 1, inset_y + 1, w - inset_x - 1, h - inset_y - 1, max(radius - 1, 0)):
-            return border
-        return fill
+        r = ring(x, y, 0.0, 0.0, w, h)
+        return rings[r] if r < len(rings) else fill
+
+    return paint(w, h, sample)
+
+
+def glyph_arrow(w, h):
+    top, bottom = rgba("#D4D7FF"), rgba("#A4AAFF")
+
+    def sample(x, y):
+        if triangle_inside(x, y, (0.0, h), (w, h), (w / 2.0, 0.0)):
+            return lerp(top, bottom, min(max(y / h, 0.0), 1.0))
+        return TRANSPARENT
 
     return paint(w, h, sample)
 
 
 def pieces():
-    """(image name, width, height, pixels). Sizes are the retail Coords sizes of each name."""
+    """(image name, width, height, texels). Sizes are the retail Coords sizes of each name."""
     out = []
-    for state, (border, fill) in BUTTON_STATES.items():
-        out.append((f"Buttons-{state}Left", 45, 40, framed(45, 40, border, fill, "left", 2.0, 2.0, 2.0)))
-        out.append((f"Buttons-{state}Middle", 10, 40, framed(10, 40, border, fill, "middle", 2.0, 2.0, 2.0)))
-        out.append((f"Buttons-{state}Right", 45, 40, framed(45, 40, border, fill, "right", 2.0, 2.0, 2.0)))
-    for state, (border, fill) in RADIO_STATES.items():
-        out.append((f"RadioButton{state}Left", 34, 24, framed(34, 24, border, fill, "left", 2.0, 1.0, 2.0)))
-        out.append((f"RadioButton{state}Middle", 10, 24, framed(10, 24, border, fill, "middle", 2.0, 1.0, 2.0)))
-        out.append((f"RadioButton{state}Right", 34, 24, framed(34, 24, border, fill, "right", 2.0, 1.0, 2.0)))
-    for state, (border, fill) in ENTRY_STATES.items():
-        out.append((f"TextEntry{state}LeftEnd", 10, 22, framed(10, 22, border, fill, "left", 2.0, 1.0, 2.0)))
-        out.append((f"TextEntry{state}RightEnd", 10, 22, framed(10, 22, border, fill, "right", 2.0, 1.0, 2.0)))
-        out.append((f"TextEntry{state}RepeatingCenter", 20, 22, framed(20, 22, border, fill, "middle", 2.0, 1.0, 2.0)))
-        out.append((f"TextEntry{state}SmallRepeatingCenter", 10, 22, framed(10, 22, border, fill, "middle", 2.0, 1.0, 2.0)))
-    for prefix, fill in LIST_SELECTION.items():
-        out.append((f"{prefix}LeftEnd", 10, 20, framed(10, 20, fill, fill, "left", 0.0, 0.0, 1.0)))
-        out.append((f"{prefix}RightEnd", 10, 20, framed(10, 20, fill, fill, "right", 0.0, 0.0, 1.0)))
-        out.append((f"{prefix}RepeatingCenter", 10, 20, framed(10, 20, fill, fill, "middle", 0.0, 0.0, 1.0)))
-        out.append((f"{prefix}SmallRepeatingCenter", 5, 20, framed(5, 20, fill, fill, "middle", 0.0, 0.0, 1.0)))
-    for state, (border, fill, glyph) in ARROW_STATES.items():
-        out.append((f"VSliderUpButton{state}", 21, 22, arrow_button(21, 22, border, fill, glyph, True)))
-        out.append((f"VSliderDownButton{state}", 21, 22, arrow_button(21, 22, border, fill, glyph, False)))
-    for state, fill in THUMB_STATES.items():
-        out.append((f"ScrollBarThumb{state}", 21, 22, inset_bar(21, 22, fill, 3.0, 1.0, 1.0)))
-    out.append(("hilightedbox", 11, 13, inset_bar(11, 13, rgba("#4A5BE6"), 0.0, 0.0, 1.0)))
-    out.append(("dehilightedbox", 11, 13, inset_bar(11, 13, rgba("#1F2550"), 0.0, 0.0, 1.0, BORDER)))
-    out.append(("linebox", 13, 15, inset_bar(13, 15, rgba("#5B6CF2", 0.25), 0.0, 0.0, 1.0)))
-    out.append(("arrow", 13, 16, inset_bar(13, 16, TEXT, 4.0, 0.0, 1.0, HOVER)))
+    for state, (frame, gradient) in BUTTON_STATES.items():
+        out.append((f"Buttons-{state}Left", 45, 40, button_piece(45, 40, "left", frame, gradient)))
+        out.append((f"Buttons-{state}Middle", 10, 40, button_piece(10, 40, "middle", frame, gradient)))
+        out.append((f"Buttons-{state}Right", 45, 40, button_piece(45, 40, "right", frame, gradient)))
+    for state, (frame, indicator) in RADIO_STATES.items():
+        out.append((f"RadioButton{state}Left", 34, 24, radio_piece(34, 24, "left", frame, indicator)))
+        out.append((f"RadioButton{state}Middle", 10, 24, radio_piece(10, 24, "middle", frame, indicator)))
+        out.append((f"RadioButton{state}Right", 34, 24, radio_piece(34, 24, "right", frame, indicator)))
+    for state, (outer, inner) in ENTRY_STATES.items():
+        out.append((f"TextEntry{state}LeftEnd", 10, 22, entry_piece(10, 22, "left", outer, inner)))
+        out.append((f"TextEntry{state}RightEnd", 10, 22, entry_piece(10, 22, "right", outer, inner)))
+        out.append((f"TextEntry{state}RepeatingCenter", 20, 22, entry_piece(20, 22, "middle", outer, inner)))
+        out.append((f"TextEntry{state}SmallRepeatingCenter", 10, 22, entry_piece(10, 22, "middle", outer, inner)))
+    for prefix, filled in (("ListBoxHiliteItem", False), ("ListBoxHiliteSelectedItem", True)):
+        out.append((f"{prefix}LeftEnd", 10, 20, list_piece(10, 20, "left", filled)))
+        out.append((f"{prefix}RightEnd", 10, 20, list_piece(10, 20, "right", filled)))
+        out.append((f"{prefix}RepeatingCenter", 10, 20, list_piece(10, 20, "middle", filled)))
+        out.append((f"{prefix}SmallRepeatingCenter", 5, 20, list_piece(5, 20, "middle", filled)))
+    for state, style in ARROW_STATES.items():
+        out.append((f"VSliderUpButton{state}", 21, 22, arrow_piece(21, 22, True, *style)))
+        out.append((f"VSliderDownButton{state}", 21, 22, arrow_piece(21, 22, False, *style)))
+    for state, (rings, fill) in THUMB_STATES.items():
+        out.append((f"ScrollBarThumb{state}", 21, 22, thumb_piece(21, 22, rings, fill)))
+    out.append(("arrow", 13, 16, glyph_arrow(13, 16)))
     return out
 
 
 def pack(items):
-    """Shelf-pack (name, w, h, pixels) into the atlas; returns placements and atlas height."""
+    """Shelf-pack (name, w, h, texels) into the atlas in retail pixels; returns placements and atlas height."""
     order = sorted(items, key=lambda it: (-it[2], -it[1], it[0]))
     placements = {}
     x = y = shelf = 0
@@ -226,12 +336,14 @@ def build():
     if len(names) != len(set(names)):
         raise SystemExit("duplicate image names")
     placements, height = pack(items)
-    atlas = [[TRANSPARENT] * ATLAS_WIDTH for _ in range(height)]
-    for name, w, h, pixels in items:
-        left, top = placements[name]
-        for py in range(-EXTRUDE, h + EXTRUDE):
-            for px in range(-EXTRUDE, w + EXTRUDE):
-                atlas[top + py][left + px] = pixels[min(max(py, 0), h - 1)][min(max(px, 0), w - 1)]
+    atlas = [[TRANSPARENT] * (ATLAS_WIDTH * SCALE) for _ in range(height * SCALE)]
+    pad = EXTRUDE * SCALE
+    for name, w, h, texels in items:
+        left, top = placements[name][0] * SCALE, placements[name][1] * SCALE
+        tw, th = w * SCALE, h * SCALE
+        for ty in range(-pad, th + pad):
+            for tx in range(-pad, tw + pad):
+                atlas[top + ty][left + tx] = texels[min(max(ty, 0), th - 1)][min(max(tx, 0), tw - 1)]
 
     for a in items:
         ax, ay = placements[a[0]]
@@ -258,7 +370,7 @@ def tga_bytes(atlas):
 def ini_text(items, placements, height):
     lines = [
         "; Generals Online UI kit: points the shell gadget images at GeneralsOnline_UIKit.tga.",
-        "; Generated by scripts/go_ui_kit.py; edit the script, not this file.",
+        f"; Generated by scripts/go_ui_kit.py; edit the script, not this file. The texture holds {SCALE} texels per pixel.",
         "",
     ]
     for name, w, h, _ in sorted(items, key=lambda it: it[0].lower()):
