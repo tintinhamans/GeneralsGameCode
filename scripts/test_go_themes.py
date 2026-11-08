@@ -238,6 +238,44 @@ class LogoTest(unittest.TestCase):
         self.assertLessEqual(abs(columns[0] - (rw - 1 - columns[-1])), 1)
 
 
+class LoadLogoTest(unittest.TestCase):
+    def test_load_logo_texture_is_the_theme_logo_in_base_data(self):
+        self.assertEqual((wl.DATA / themes.LOAD_LOGO_TGA).read_bytes(), (themes.THEME_DIR / themes.LOGO_TGA).read_bytes())
+        self.assertNotEqual(themes.LOAD_LOGO_TGA, themes.LOGO_TGA)
+        self.assertFalse((themes.THEME_DIR / themes.LOAD_LOGO_TGA).exists())
+        self.assertFalse((themes.THEME_DIR / themes.LOAD_LOGO_INI).exists())
+
+    def test_load_logo_ini_crops_the_image_to_the_logo_ink(self):
+        data = (themes.THEME_DIR / themes.LOGO_TGA).read_bytes()
+        text = themes.load_logo_ini_text(data)
+        self.assertEqual((wl.DATA / themes.LOAD_LOGO_INI).read_bytes(), text.encode("ascii"))
+        fields = dict(mapped_images(text)[themes.LOAD_LOGO_IMAGE])
+        self.assertEqual(themes.LOAD_LOGO_IMAGE, "GOLoadLogo")
+        self.assertEqual(fields["Texture"], themes.LOAD_LOGO_TEXTURE)
+        tw, th = (v // themes.LOGO_SCALE for v in themes.LOGO_TEXTURE_SIZE)
+        self.assertEqual((fields["TextureWidth"], fields["TextureHeight"]), (str(tw), str(th)))
+        width, height, _, rows = read_tga(data)
+        top_down = rows[::-1]
+        xs = [x for x in range(width) if any(row[x][3] for row in top_down)]
+        ys = [y for y in range(height) if any(t[3] for t in top_down[y])]
+        s = themes.LOGO_SCALE
+        coords = "Left:%d Top:%d Right:%d Bottom:%d" % (xs[0] // s, ys[0] // s, -(-(xs[-1] + 1) // s), -(-(ys[-1] + 1) // s))
+        self.assertEqual(fields["Coords"], coords)
+        self.assertNotIn("Border", fields)
+
+    def test_load_logo_mounts_in_every_style(self):
+        # GO core data: neither under Themes nor in the files the Retail style leaves out
+        from test_go_ui_kit import retail_excluded_files
+        excluded = retail_excluded_files()
+        for rel in (themes.LOAD_LOGO_TGA, themes.LOAD_LOGO_INI):
+            self.assertNotIn(rel.lower(), excluded)
+            self.assertFalse(rel.lower().startswith(("themes/", "fonts/", "window/")))
+
+    def test_the_load_screen_draws_the_load_logo_image(self):
+        source = (wl.ROOT / "Core/GameEngine/Source/GameClient/GUI/LoadScreen.cpp").read_text("latin-1")
+        self.assertIn(f'"{themes.LOAD_LOGO_IMAGE}"', source)
+
+
 
 def is_retail_blue(r, g, b):
     """True for a visibly blue texel: hue between azure and violet with some saturation and brightness."""

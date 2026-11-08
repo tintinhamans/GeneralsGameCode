@@ -1,15 +1,17 @@
-"""Tests for the glyph placement of scripts/go_ui_kit.py.
+"""Tests for the glyph placement and the load screen bar of scripts/go_ui_kit.py.
 
 Usage:
     python -m unittest scripts/test_go_ui_kit.py
 """
 
+import re
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import go_themes as themes  # noqa: E402
 import go_ui_kit as kit  # noqa: E402
 
 CHECK_SIZE = 22  # the check box pieces, in retail pixels
@@ -160,6 +162,81 @@ class KitPiecesTest(unittest.TestCase):
         for direction in ("Up", "Down"):
             pushed = self.pieces[f"VSlider{direction}ButtonHiliteSelected"]
             self.assertTrue(pushed == self.pieces[f"VSlider{direction}ButtonHilite"], direction)
+
+
+def retail_excluded_files():
+    """The lower-case data paths the Retail style leaves out by name (ArchiveFileSystem.cpp isNotGenOnlineInterfaceFile)."""
+    source = (kit.ROOT / "Core/GameEngine/Source/Common/System/ArchiveFileSystem.cpp").read_text("latin-1")
+    body = source[source.index("static Bool isNotGenOnlineInterfaceFile"):]
+    start = body.index("files[] = {")
+    return set(re.findall(r'"([^"]+)"', body[start:body.index("};", start)]))
+
+
+class LoadingBarTest(unittest.TestCase):
+    # the retail Coords sizes of the load screen bar images
+    RETAIL_SIZES = {"LoadingBar_L": (20, 20), "LoadingBar_C": (10, 20), "LoadingBar_R": (20, 20),
+                    "LoadingBar_Progress": (3, 11), "LoadingBar_DePowered": (3, 11)}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pieces = {name: (w, h, texels) for name, w, h, texels in kit.load_bar_pieces()}
+
+    def colour(self, token):
+        return kit.rgba(themes.PALETTE[token])
+
+    def build(self):
+        return kit.build(kit.load_bar_pieces(), kit.LOAD_BAR_TEXTURE_NAME, kit.LOAD_BAR_ATLAS_WIDTH, kit.LOAD_BAR_TITLE)
+
+    def test_bar_pieces_replace_the_retail_images_at_their_size(self):
+        self.assertEqual({name: (w, h) for name, (w, h, _) in self.pieces.items()}, self.RETAIL_SIZES)
+
+    def test_fill_is_plain_bronze_and_the_track_dark(self):
+        for name, token in (("LoadingBar_Progress", "bronze"), ("LoadingBar_DePowered", "panel")):
+            _, _, texels = self.pieces[name]
+            self.assertEqual({t for row in texels for t in row}, {self.colour(token)}, name)
+
+    def test_back_is_a_square_frame_in_the_line_colour_on_the_ground(self):
+        line, ground = self.colour("line"), self.colour("ground")
+        for name, left, right in (("LoadingBar_L", True, False), ("LoadingBar_C", False, False), ("LoadingBar_R", False, True)):
+            w, h, texels = self.pieces[name]
+            mid_y, mid_x = h * kit.SCALE // 2, w * kit.SCALE // 2
+            self.assertEqual(texels[0][mid_x], line, name)
+            self.assertEqual(texels[-1][mid_x], line, name)
+            self.assertEqual(texels[mid_y][0], line if left else ground, name)
+            self.assertEqual(texels[mid_y][-1], line if right else ground, name)
+            self.assertEqual(texels[mid_y][mid_x], ground, name)
+            # square ends: the outer corners are drawn, not cut
+            if left:
+                self.assertEqual(texels[0][0], line, name)
+            if right:
+                self.assertEqual(texels[-1][-1], line, name)
+
+    def test_bar_is_the_same_in_every_palette(self):
+        # its own atlas outside the kit the palettes recolour, with no theme copy
+        kit_names = {name for name, _, _, _ in kit.pieces()}
+        self.assertFalse(kit_names & set(self.pieces))
+        self.assertFalse((themes.THEME_DIR / kit.LOAD_BAR_TEXTURE_PATH.relative_to(kit.DATA)).exists())
+        self.assertFalse((themes.THEME_DIR / kit.LOAD_BAR_INI_PATH.relative_to(kit.DATA)).exists())
+
+    def test_ini_gives_the_frame_the_kit_line_border_only(self):
+        _, ini = self.build()
+        blocks = ini.split("MappedImage ")[1:]
+        borders = {block.split("\r\n")[0]: f"  Border = {kit.LINE_LAYOUT}" in block for block in blocks}
+        self.assertEqual(borders, {"LoadingBar_C": True, "LoadingBar_DePowered": False, "LoadingBar_L": True,
+                                   "LoadingBar_Progress": False, "LoadingBar_R": True})
+        # loads after the retail SCSmShellUserInterface512.INI that defines the retail bar
+        self.assertEqual(kit.LOAD_BAR_INI_PATH.parent, kit.INI_PATH.parent)
+        self.assertGreater(kit.LOAD_BAR_INI_PATH.name.lower(), "scsmshelluserinterface512.ini")
+
+    def test_committed_bar_files_are_current(self):
+        texture, ini = self.build()
+        self.assertEqual(kit.LOAD_BAR_TEXTURE_PATH.read_bytes(), texture)
+        self.assertEqual(kit.LOAD_BAR_INI_PATH.read_bytes(), ini.encode("ascii"))
+
+    def test_retail_style_keeps_the_retail_bar(self):
+        excluded = retail_excluded_files()
+        for path in (kit.LOAD_BAR_TEXTURE_PATH, kit.LOAD_BAR_INI_PATH):
+            self.assertIn(path.relative_to(kit.DATA).as_posix().lower(), excluded)
 
 
 if __name__ == "__main__":
