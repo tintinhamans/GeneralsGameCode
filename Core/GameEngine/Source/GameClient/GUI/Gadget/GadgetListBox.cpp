@@ -489,7 +489,8 @@ static Int addEntry( UnicodeString *string, Int color, Int row, Int column, Game
 	if( column == -1 )
 		column = 0;
 
-	width = list->columnWidth[column] - TEXT_WIDTH_OFFSET;
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+	width = list->columnWidth[column] - GameWindowManager::winScaleLayoutSize( TEXT_WIDTH_OFFSET );
 
 	Int rowsAdded = 0;
 
@@ -1859,6 +1860,9 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			ICoord2D sliderSize = {0, 0};
 			GameWindow *child = nullptr;
 			ICoord2D sliderChildSize = {0, 0};
+			// gaps match GadgetListboxCreateScrollbar
+			const Int edgeGap = GameWindowManager::winScaleLayoutSize( 2 );
+			const Int sliderGap = GameWindowManager::winScaleLayoutSize( 3 );
 
 			// get needed window sizes
 			if (list->downButton)
@@ -1876,23 +1880,23 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			if( list->upButton )
 			{
 
-				list->upButton->winSetPosition( width - upSize.x - 2, 2 );
+				list->upButton->winSetPosition( width - upSize.x - edgeGap, edgeGap );
 
 			}
 
 			if( list->downButton )
 			{
 
-				list->downButton->winSetPosition( width - downSize.x - 2,
-																					height - downSize.y - 2 );
+				list->downButton->winSetPosition( width - downSize.x - edgeGap,
+																					height - downSize.y - edgeGap );
 
 			}
 
 			if( list->slider )
 			{
 				list->slider->winSetSize( sliderSize.x,
-																	height - (2 * upSize.y) -6 );
-				list->slider->winSetPosition( width - sliderSize.x -2, upSize.y + 3 );
+																	height - (2 * upSize.y) - (2 * sliderGap) );
+				list->slider->winSetPosition( width - sliderSize.x - edgeGap, upSize.y + sliderGap );
 
 			}
 
@@ -2345,6 +2349,7 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	SliderData sData = { 0 };
 	Int buttonWidth, buttonHeight;
 	Int sliderButtonWidth, sliderButtonHeight;
+	Int edgeGap, sliderGap;
 	Int fontHeight;
 	Int top;
 	Int bottom;
@@ -2372,6 +2377,11 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	// size of button
 	buttonWidth = 21;//GADGET_SIZE;
 	buttonHeight = 22;//GADGET_SIZE;
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The scroll bar parts scale with the screen height and keep their shape.
+	buttonWidth = GameWindowManager::winScaleLayoutSize( buttonWidth );
+	buttonHeight = GameWindowManager::winScaleLayoutSize( buttonHeight );
+	edgeGap = GameWindowManager::winScaleLayoutSize( 2 );
+	sliderGap = GameWindowManager::winScaleLayoutSize( 3 );
 
 	// ----------------------------------------------------------------------
 	// Create Top Button
@@ -2388,7 +2398,7 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	listData->upButton =
 		 TheWindowManager->gogoGadgetPushButton( listbox,
 																						 status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
-																						 width - buttonWidth -2, top+2,
+																						 width - buttonWidth - edgeGap, top + edgeGap,
 																						 buttonWidth, buttonHeight,
 																						 &winInstData, nullptr, TRUE );
 
@@ -2407,8 +2417,8 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	listData->downButton =
 			 TheWindowManager->gogoGadgetPushButton( listbox,
 																							 status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
-																							 width - buttonWidth -2,
-																							 (top + bottom - buttonHeight -2),
+																							 width - buttonWidth - edgeGap,
+																							 (top + bottom - buttonHeight - edgeGap),
 																							 buttonWidth, buttonHeight,
 																							 &winInstData, nullptr, TRUE );
 
@@ -2418,7 +2428,7 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 
 	// size of button
 	sliderButtonWidth = buttonWidth;//GADGET_SIZE;
-	sliderButtonHeight = GADGET_SIZE;
+	sliderButtonHeight = GameWindowManager::winScaleLayoutSize( GADGET_SIZE );
 
 	// initialize instData
 	winInstData.init();
@@ -2436,9 +2446,9 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	listData->slider =
 			TheWindowManager->gogoGadgetSlider( listbox,
 																					status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
-																					width - sliderButtonWidth - 2,
-																					(top + buttonHeight + 3),
-																					sliderButtonWidth, bottom - (2 * buttonHeight) - 6,
+																					width - sliderButtonWidth - edgeGap,
+																					(top + buttonHeight + sliderGap),
+																					sliderButtonWidth, bottom - (2 * buttonHeight) - (2 * sliderGap),
 																					&winInstData, &sData, nullptr, TRUE );
 
 	// we now have all the scrollbar parts, this better be set :)
