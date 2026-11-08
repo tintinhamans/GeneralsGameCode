@@ -87,6 +87,16 @@ THUMB_STATES = {
 SLIDER_ON = (rgba("#6A7BFF"), rgba("#3446FF"))
 SLIDER_OFF = (rgba("#24308C"), rgba("#0B1030", 0.92))
 SLIDER_HOVER = rgba("#2F4BFF", 0.22)
+# track slider (drawn only by the GO track slider draw): (edge line, fill)
+SLIDER_TRACK = (rgba("#24308C"), rgba("#0B1030", 0.92))
+SLIDER_FILL = (rgba("#6A7BFF"), rgba("#3446FF"))
+SLIDER_THUMB = {
+    "": (rgba("#8C9BFF"), rgba("#3446FF")),
+    "Hilite": (rgba("#C9CEFF"), rgba("#6A7BFF")),
+    "Disabled": (rgba("#404159"), rgba("#15161F")),
+}
+TRACK_LINE = 1.0  # 8 px art, drawn about 7 px tall at 1080p
+SLIDER_THUMB_LINE = 1.5  # 8x16 art, drawn about 14x29 px at 1080p
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
     "ListBoxHiliteSelectedItem": rgba("#2B34B8", 0.80),
@@ -225,6 +235,12 @@ def pieces():
     out.append(("hilightedbox", 11, 13, box_piece(11, 13, *SLIDER_ON)))
     out.append(("dehilightedbox", 11, 13, box_piece(11, 13, *SLIDER_OFF)))
     out.append(("linebox", 13, 15, flat_piece(13, 15, SLIDER_HOVER)))
+    for prefix, (line, fill) in (("GOSliderTrack", SLIDER_TRACK), ("GOSliderFill", SLIDER_FILL)):
+        out.append((f"{prefix}Left", 4, 8, button_piece(4, 8, "left", line, fill, TRACK_LINE)))
+        out.append((f"{prefix}Center", 4, 8, button_piece(4, 8, "middle", line, fill, TRACK_LINE)))
+        out.append((f"{prefix}Right", 4, 8, button_piece(4, 8, "right", line, fill, TRACK_LINE)))
+    for state, (line, fill) in SLIDER_THUMB.items():
+        out.append((f"GOSliderThumb{state}", 8, 16, button_piece(8, 16, "all", line, fill, SLIDER_THUMB_LINE)))
     return out
 
 
