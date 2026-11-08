@@ -103,6 +103,7 @@ extern Int GadgetListBoxGetEntryBasedOnXY( GameWindow *listbox, Int x, Int y, In
 extern void GadgetListboxCreateScrollbar( GameWindow *listbox );
 extern Bool GadgetListBoxHasKitScrollBar( void ); ///< TRUE when every kit scroll bar image exists
 extern const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which ); ///< nullptr unless GadgetListBoxHasKitScrollBar
+extern Int GadgetListBoxGetKitComboFrame( GameWindow *listbox ); ///< kit combo drop-down frame thickness, 0 for other lists
 extern void GadgetListBoxAddMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxRemoveMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength );

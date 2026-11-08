@@ -129,14 +129,15 @@ SCROLL_PILLS = {
     "Hilite": (rgba("#A9B4FF"), rgba("#5B6CF2")),
     "Disabled": (rgba("#404159"), rgba("#23253A", 0.92)),
 }
-# state -> (hover fill, chevron colour)
+# square arrow boxes in the kit button states: state -> (edge line, fill, chevron colour)
 SCROLL_ARROWS = {
-    "": (TRANSPARENT, GLYPH),
-    "Hilite": (rgba("#2F4BFF", 0.22), GLYPH_ACTIVE),
-    "Pushed": (rgba("#2F4BFF", 0.40), GLYPH_ACTIVE),
-    "Disabled": (TRANSPARENT, GLYPH_DISABLED),
+    "": SYMBOL_STATES["Enabled"],
+    "Hilite": SYMBOL_STATES["Hilite"],
+    "Pushed": SYMBOL_STATES["Pushed"],
+    "Disabled": SYMBOL_STATES["Disabled"],
 }
-SCROLL_ARROW_SIZE = 14  # smaller than the retail 21x22 arrows so the atlas stays 256 px tall; drawn over the whole button
+SCROLL_ARROW_SIZE = 14  # smaller than the 21 px column so the atlas stays 256 px tall; drawn over the whole square button
+SCROLL_ARROW_LINE = LINE_LAYOUT * SCROLL_ARROW_SIZE / 21.0  # one kit line once the art is drawn 21 layout px wide
 CHEVRON_STROKE = 1.2
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
@@ -380,18 +381,16 @@ def channel_piece(w, h, line, fill):
     return paint(w, h, lambda x, y: line if min(x, w - x) < TRACK_LINE else fill)
 
 
-def chevron_piece(w, h, up, fill, glyph):
-    """A plain chevron with an optional rounded fill behind it."""
+def chevron_piece(w, h, up, line, fill, glyph):
+    """A square box closed on all four sides with a chevron inside."""
     cx, cy = w / 2.0, h / 2.0
-    tip = -1.5 if up else 1.5
-    chevron = [((cx - 2.8, cy - tip), (cx, cy + tip), (cx + 2.8, cy - tip))]
+    tip = -1.4 if up else 1.4
+    chevron = [((cx - 2.6, cy - tip), (cx, cy + tip), (cx + 2.6, cy - tip))]
 
     def sample(x, y):
-        if on_stroke(x, y, chevron, CHEVRON_STROKE):
-            return glyph
-        dx = max(2.4 - x, x - (w - 2.4), 0.0)
-        dy = max(2.4 - y, y - (h - 2.4), 0.0)
-        return fill if math.hypot(dx, dy) < 1.4 else TRANSPARENT
+        if edge(x, y, w, h, True, True) < SCROLL_ARROW_LINE:
+            return line
+        return glyph if on_stroke(x, y, chevron, CHEVRON_STROKE) else fill
 
     return paint(w, h, sample)
 

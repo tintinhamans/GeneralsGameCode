@@ -53,13 +53,16 @@
 #include "Common/Language.h"
 #include "Common/Debug.h"
 #include "Common/GameAudio.h"
+#include "GameClient/Display.h"
 #include "GameClient/DisplayStringManager.h"
 #include "GameClient/GameWindow.h"
 #include "GameClient/Gadget.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetSlider.h"
+#include "GameClient/GadgetTextEntry.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/Image.h"
 #include "GameClient/Keyboard.h"
@@ -128,13 +131,13 @@ static const char *const s_kitScrollImageNames[KIT_SCROLL_IMAGE_COUNT] =
 
 static const Image *s_kitScrollImages[KIT_SCROLL_IMAGE_COUNT];
 
-// Scroll bar gaps: the kit column sits flush inside the one pixel list frame with a small inset around the track
+// Scroll bar gaps: the kit arrow boxes share the list frame line, with a small inset around the track
 static void getScrollbarGaps( Int &edgeGap, Int &sliderGap )
 {
 	if( GadgetListBoxHasKitScrollBar() )
 	{
-		edgeGap = 1;
-		sliderGap = edgeGap + GameWindowManager::winScaleLayoutSize( 2 );
+		edgeGap = 0;
+		sliderGap = GameWindowManager::winScaleLayoutSize( 2 );
 	}
 	else
 	{
@@ -2457,6 +2460,9 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	buttonWidth = GameWindowManager::winScaleLayoutSize( buttonWidth );
 	buttonHeight = GameWindowManager::winScaleLayoutSize( buttonHeight );
 	getScrollbarGaps( edgeGap, sliderGap );
+	// kit arrow boxes are square
+	if( GadgetListBoxHasKitScrollBar() )
+		buttonHeight = buttonWidth;
 
 	// ----------------------------------------------------------------------
 	// Create Top Button
@@ -2560,6 +2566,39 @@ const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which )
 		return nullptr;
 
 	return s_kitScrollImages[which];
+}
+
+// GadgetListBoxGetKitComboFrame ==============================================
+/** Frame thickness of a kit combo drop-down list, the combo field border; 0 for other lists */
+//=============================================================================
+Int GadgetListBoxGetKitComboFrame( GameWindow *listbox )
+{
+	if( listbox == nullptr || TheDisplay == nullptr || GadgetListBoxHasKitScrollBar() == FALSE )
+		return 0;
+
+	GameWindow *combo = listbox->winGetParent();
+	if( combo == nullptr || BitIsSet( combo->winGetStyle(), GWS_COMBO_BOX ) == FALSE ||
+			GadgetComboBoxGetListBox( combo ) != listbox )
+		return 0;
+
+	GameWindow *editBox = GadgetComboBoxGetEditBox( combo );
+	if( editBox == nullptr )
+		return 0;
+
+	// the field art must carry border rows, like the bordered three piece draw
+	const Image *left = GadgetTextEntryGetEnabledImageLeft( editBox );
+	const Image *center = GadgetTextEntryGetEnabledImageCenter( editBox );
+	const Image *right = GadgetTextEntryGetEnabledImageRight( editBox );
+	if( left == nullptr || center == nullptr || right == nullptr ||
+			left->getBorder() <= 0.0f || center->getBorder() <= 0.0f || right->getBorder() <= 0.0f )
+		return 0;
+
+	// same thickness as GameWindowManager::winDrawThreePieceImage gives the field border
+	Real layoutScale = (Real)TheDisplay->getHeight() / 600.0f;
+	Int frame = REAL_TO_INT_CEIL( left->getBorder() * layoutScale - 0.01f );
+	if( frame < 1 )
+		frame = 1;
+	return frame;
 }
 
 // GadgetListBoxAddMultiSelect ================================================
