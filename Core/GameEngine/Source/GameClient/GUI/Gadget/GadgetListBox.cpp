@@ -131,6 +131,11 @@ static const char *const s_kitScrollImageNames[KIT_SCROLL_IMAGE_COUNT] =
 
 static const Image *s_kitScrollImages[KIT_SCROLL_IMAGE_COUNT];
 
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 A slim kit scroll column: square arrow boxes as wide as the column.
+static const Int KIT_SCROLL_COLUMN_WIDTH = 14;
+// shortest kit thumb, the retail GADGET_SIZE thumb scaled from the 21 unit column to the kit column
+static const Int KIT_SCROLL_THUMB_MIN_HEIGHT = 11;
+
 // Scroll bar gaps: the kit arrow boxes share the list frame line, with a small inset around the track
 static void getScrollbarGaps( Int &edgeGap, Int &sliderGap )
 {
@@ -146,7 +151,7 @@ static void getScrollbarGaps( Int &edgeGap, Int &sliderGap )
 	}
 }
 
-// Kit thumb length: the visible share of the list, at least the retail thumb length and at most the track
+// Kit thumb length: the visible share of the list, at least the kit minimum and at most the track
 static Int getKitThumbHeight( const ListboxData *list, Int trackHeight )
 {
 	Int visible = list->displayHeight - TOTAL_OUTLINE_HEIGHT;
@@ -154,7 +159,7 @@ static Int getKitThumbHeight( const ListboxData *list, Int trackHeight )
 	if( list->totalHeight > visible && list->totalHeight > 0 && visible > 0 )
 		thumbHeight = REAL_TO_INT( (Real)trackHeight * (Real)visible / (Real)list->totalHeight + 0.5f );
 
-	Int minHeight = GameWindowManager::winScaleLayoutSize( GADGET_SIZE );
+	Int minHeight = GameWindowManager::winScaleLayoutSize( KIT_SCROLL_THUMB_MIN_HEIGHT );
 	if( thumbHeight < minHeight )
 		thumbHeight = minHeight;
 	if( thumbHeight > trackHeight )
@@ -2460,9 +2465,12 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	buttonWidth = GameWindowManager::winScaleLayoutSize( buttonWidth );
 	buttonHeight = GameWindowManager::winScaleLayoutSize( buttonHeight );
 	getScrollbarGaps( edgeGap, sliderGap );
-	// kit arrow boxes are square
+	// kit arrow boxes are square and the column slim
 	if( GadgetListBoxHasKitScrollBar() )
+	{
+		buttonWidth = GameWindowManager::winScaleLayoutSize( KIT_SCROLL_COLUMN_WIDTH );
 		buttonHeight = buttonWidth;
+	}
 
 	// ----------------------------------------------------------------------
 	// Create Top Button

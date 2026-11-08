@@ -1209,7 +1209,13 @@ Int GameWindowManager::winScaleLayoutFontSize(Int pointSize)
 	if (pointSize <= 0)
 		return pointSize;
 
-	Int scaled = winScaleLayoutSize(pointSize);
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Text grows by the ResolutionFontAdjustment share of the screen height scale.
+	Real adjustment = 1.0f;
+	if (TheGlobalLanguageData != nullptr)
+		adjustment = TheGlobalLanguageData->getResolutionFontSizeAdjustment();
+	const Real heightScale = (Real)winLayoutScreenHeight() / (Real)DEFAULT_DISPLAY_HEIGHT;
+	const Real fontScale = 1.0f + (heightScale - 1.0f) * adjustment;
+	Int scaled = REAL_TO_INT_FLOOR(pointSize * fontScale + 0.5f);
 	if (scaled < 1)
 		scaled = 1;
 	// FontLibrary::getFont rejects sizes over 100
