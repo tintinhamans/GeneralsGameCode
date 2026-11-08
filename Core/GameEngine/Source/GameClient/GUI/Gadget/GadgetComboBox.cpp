@@ -82,6 +82,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 void HideListBox(GameWindow * window);
 
+// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Raise an opening combo box and the windows holding it above their siblings,
+// so its drop down list draws over the panels laid out below it
+static void bringComboBoxToTop(GameWindow *comboBox)
+{
+	for (GameWindow *window = comboBox; window != nullptr && window->winGetParent() != nullptr; window = window->winGetParent())
+	{
+		window->winBringToTop();
+	}
+}
+
+
 // GadgetComboBoxInput =========================================================
 /** Handle input for Combo box */
 //=============================================================================
@@ -167,6 +178,7 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 					// If the Listbox isn't showing, Show it.
 					if(listBox->winIsHidden())
 					{
+						bringComboBoxToTop(window);
 						listBox->winHide(FALSE);
 						window->winGetSize(&winSize.x, &winSize.y);
 						WinInstanceData *listInstData = listBox->winGetInstanceData();
@@ -652,6 +664,7 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 					// If the Listbox isn't showing, Show it.
 					if(listBox->winIsHidden())
 					{
+						bringComboBoxToTop(window);
 						listBox->winHide(FALSE);
 						window->winGetSize(&winSize.x, &winSize.y);
 						WinInstanceData *listInstData = listBox->winGetInstanceData();
