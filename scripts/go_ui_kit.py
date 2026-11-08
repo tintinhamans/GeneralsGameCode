@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate the Generals Online UI kit: one texture atlas and the MappedImage INI that points
-the retail shell gadget image names at it.
+the retail shell gadget image names at it, plus a second atlas and INI for the GO map preview
+icons and the map list favourite stars.
 
 The pieces draw a clean take on the retail shell gadgets: the retail blues, one even line on every
 edge and flat fills, at SCALE texels per pixel. Coords and
@@ -465,16 +466,230 @@ def pieces():
     return out
 
 
-def pack(items):
+# =================================================================================================
+# GO map select: map preview icons and the map list favourite stars.
+# They live in their own atlas, GeneralsOnline_UIKit2.tga, because the first atlas is full.
+# Self-contained: from the kit above this section uses only rgba, TRANSPARENT, SCALE and paint.
+# Kit icon style: a 16 unit design grid scaled to the piece, one 2 unit stroke with round caps and
+# joins, even padding and centres snapped to whole texels. Map icons are bare glyphs with a dark outline.
+# =================================================================================================
+
+TEXTURE2_NAME = "GeneralsOnline_UIKit2.tga"
+TEXTURE2_PATH = DATA / "Art" / "Textures" / TEXTURE2_NAME
+INI2_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_UIKit2.INI"
+ATLAS2_WIDTH = 128  # in retail pixels
+
+MAP_GRID = 16.0      # design grid units across a piece
+MAP_STROKE = 2.0     # stroke weight in grid units
+MAP_OUTLINE = 1.0    # dark contrast outline around each glyph, in grid units
+MAP_GLYPH_SCALE = 1.25  # glyphs are drawn about the grid centre at this scale to fill the icon with even padding
+MAP_ICON_SIZE = 15   # retail px of the art; the engine draws the preview markers at a scaled layout size
+STAR_SIZE = 12
+
+MAP_WHITE = rgba("#FFFFFF")
+MAP_GOLD = rgba("#FFD34D")
+MAP_GLYPH_OUTLINE = rgba("#05070F", 0.85)
+# image name -> (glyph, glyph colour); no token behind the glyph, only the dark outline
+MAP_ICONS = {
+    "GOMapIconSupplyDock": ("dollar", rgba("#7CFC7C")),
+    "GOMapIconSupplyCrates": ("dollar", rgba("#8CC4FF")),
+    "GOMapIconRepairBay": ("wrench", MAP_WHITE),
+    "GOMapIconArtillery": ("cannon", MAP_WHITE),
+    "GOMapIconOilDerrick": ("droplet", MAP_GOLD),
+    "GOMapIconTech": ("gear", MAP_WHITE),
+}
+STAR_ON = (MAP_GOLD, rgba("#B8901A"))  # fill, edge
+STAR_OFF = rgba("#5D6080")
+
+
+def map_snap(px):
+    """Snaps a retail pixel coordinate to a whole texel."""
+    return round(px * SCALE) / SCALE
+
+
+def map_point(size, gx, gy):
+    """A grid point in retail pixels of a size px piece, snapped to a whole texel."""
+    unit = size / MAP_GRID
+    return (map_snap(gx * unit), map_snap(gy * unit))
+
+
+def map_segment_distance(px, py, a, b):
+    ax, ay = a
+    bx, by = b
+    dx, dy = bx - ax, by - ay
+    length = dx * dx + dy * dy
+    k = 0.0 if length == 0.0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / length))
+    return math.hypot(px - ax - k * dx, py - ay - k * dy)
+
+
+def map_polyline_distance(px, py, polylines):
+    return min(map_segment_distance(px, py, a, b) for line in polylines for a, b in zip(line, line[1:]))
+
+
+def map_arc(size, gcx, gcy, gr, start, end, steps=16):
+    """Grid arc from start to end degrees (y down) as a polyline in retail pixels; the centre is snapped."""
+    unit = size / MAP_GRID
+    cx, cy = map_point(size, gcx, gcy)
+    return [(cx + gr * unit * math.cos(math.radians(start + (end - start) * i / steps)),
+             cy + gr * unit * math.sin(math.radians(start + (end - start) * i / steps))) for i in range(steps + 1)]
+
+
+def map_stroke(size, polylines):
+    """Hit test for polylines drawn with the 2 unit stroke; distance tests give round caps and joins."""
+    half = MAP_STROKE * size / MAP_GRID / 2.0
+    return lambda x, y: map_polyline_distance(x, y, polylines) < half
+
+
+def map_gp(size, gx, gy):
+    """A glyph grid point scaled about the grid centre by MAP_GLYPH_SCALE, snapped to a whole texel."""
+    return map_point(size, 8.0 + (gx - 8.0) * MAP_GLYPH_SCALE, 8.0 + (gy - 8.0) * MAP_GLYPH_SCALE)
+
+
+def map_garc(size, gcx, gcy, gr, start, end, steps=16):
+    """A glyph arc scaled like map_gp."""
+    return map_arc(size, 8.0 + (gcx - 8.0) * MAP_GLYPH_SCALE, 8.0 + (gcy - 8.0) * MAP_GLYPH_SCALE, gr * MAP_GLYPH_SCALE, start, end, steps)
+
+
+def map_dollar(size):
+    """An S of two arcs with short bar ends above and below; a bar through the S would close its gaps."""
+    curve = map_garc(size, 8.0, 6.25, 1.75, -20.0, -270.0) + map_garc(size, 8.0, 9.75, 1.75, -90.0, 160.0)[1:]
+    top = [map_gp(size, 8.0, 3.6), map_gp(size, 8.0, 4.5)]
+    bottom = [map_gp(size, 8.0, 11.5), map_gp(size, 8.0, 12.4)]
+    return map_stroke(size, [curve, top, bottom])
+
+
+def map_wrench(size):
+    """A diagonal handle and an open jaw ring facing the top right."""
+    handle = [map_gp(size, 5.2, 10.8), map_gp(size, 8.2, 7.8)]
+    jaw = map_garc(size, 9.6, 6.4, 1.9, 5.0, 265.0)
+    return map_stroke(size, [handle, jaw])
+
+
+def map_cannon(size):
+    """A barrel raised to the top right over a wheel; a knockout gap keeps the wheel apart from the barrel."""
+    unit = size / MAP_GRID
+    half = MAP_STROKE * unit / 2.0
+    barrel = map_stroke(size, [[map_gp(size, 4.6, 8.0), map_gp(size, 11.1, 5.0)]])
+    wheel = [map_garc(size, 6.8, 10.2, 1.9, 0.0, 360.0, 24)]
+
+    def hit(x, y):
+        d = map_polyline_distance(x, y, wheel)
+        if d < half:
+            return True
+        if d < half + 0.7 * unit:
+            return False
+        return barrel(x, y)
+
+    return hit
+
+
+def map_gear(size):
+    """A ring with six teeth."""
+    ring = map_garc(size, 8.0, 8.0, 2.4, 0.0, 360.0, 24)
+    teeth = []
+    for i in range(6):
+        a = math.radians(30.0 + 60.0 * i)
+        teeth.append([map_gp(size, 8.0 + 3.4 * math.cos(a), 8.0 + 3.4 * math.sin(a)),
+                      map_gp(size, 8.0 + 3.9 * math.cos(a), 8.0 + 3.9 * math.sin(a))])
+    return map_stroke(size, [ring] + teeth)
+
+
+def map_droplet(size):
+    """A filled teardrop with a rounded tip."""
+    unit = size / MAP_GRID
+    cx, cy = map_gp(size, 8.0, 9.3)
+    r = 2.7 * MAP_GLYPH_SCALE * unit
+    tip = map_gp(size, 8.0, 4.2)
+    left, right = map_gp(size, 5.6, 8.1), map_gp(size, 10.4, 8.1)
+    round_tip = 0.35 * unit
+
+    def hit(x, y):
+        if math.hypot(x - cx, y - cy) < r:
+            return True
+        return map_polyline_distance(x, y, [[tip, left, right, tip]]) < round_tip or map_inside(x, y, [tip, left, right])
+
+    return hit
+
+
+def map_inside(x, y, pts):
+    """Even-odd point in polygon test."""
+    inside = False
+    for (ax, ay), (bx, by) in zip(pts, pts[1:] + pts[:1]):
+        if (ay > y) != (by > y) and x < ax + (y - ay) * (bx - ax) / (by - ay):
+            inside = not inside
+    return inside
+
+
+MAP_GLYPHS = {"dollar": map_dollar, "wrench": map_wrench, "cannon": map_cannon, "gear": map_gear, "droplet": map_droplet}
+# directions for the outline test: the glyph shifted by up to MAP_OUTLINE units in 16 directions and at half reach
+MAP_OUTLINE_STEPS = [(r * math.cos(math.radians(a)), r * math.sin(math.radians(a))) for r in (0.5, 1.0) for a in [22.5 * i for i in range(16)]]
+
+
+def map_icon_piece(size, glyph_name, glyph_color):
+    """The glyph alone in its category colour over a thin dark outline, for contrast on snow, sand and grass."""
+    unit = size / MAP_GRID
+    glyph = MAP_GLYPHS[glyph_name](size)
+    reach = [(dx * MAP_OUTLINE * unit, dy * MAP_OUTLINE * unit) for dx, dy in MAP_OUTLINE_STEPS]
+
+    def sample(x, y):
+        if glyph(x, y):
+            return glyph_color
+        if any(glyph(x + dx, y + dy) for dx, dy in reach):
+            return MAP_GLYPH_OUTLINE
+        return TRANSPARENT
+
+    return paint(size, size, sample)
+
+
+def map_star_points(size):
+    unit = size / MAP_GRID
+    cx, cy = map_point(size, 8.0, 8.4)
+    outer, inner = 6.8 * unit, 2.9 * unit
+    pts = []
+    for i in range(10):
+        a = math.radians(-90.0 + 36.0 * i)
+        r = outer if i % 2 == 0 else inner
+        pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
+def map_star_piece(size, fill, edge):
+    """A five point star with the 2 unit stroke on its edge; fill None draws the outline only."""
+    pts = map_star_points(size)
+    outline = map_stroke(size, [pts + pts[:1]])
+
+    def sample(x, y):
+        if outline(x, y):
+            return edge
+        if fill is not None and map_inside(x, y, pts):
+            return fill
+        return TRANSPARENT
+
+    return paint(size, size, sample)
+
+
+def pieces2():
+    """The second atlas: map preview icons and the favourite stars."""
+    out = []
+    for name, (glyph_name, glyph_color) in MAP_ICONS.items():
+        out.append((name, MAP_ICON_SIZE, MAP_ICON_SIZE, map_icon_piece(MAP_ICON_SIZE, glyph_name, glyph_color)))
+    out.append(("GOMapFavouriteOn", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, STAR_ON[0], STAR_ON[1])))
+    out.append(("GOMapFavouriteOff", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, None, STAR_OFF)))
+    return out
+
+# ============================== end of the GO map select section ==============================
+
+
+def pack(items, atlas_width=ATLAS_WIDTH):
     """Shelf-pack (name, w, h, texels) into the atlas in retail pixels; returns placements and atlas height."""
     order = sorted(items, key=lambda it: (-it[2], -it[1], it[0]))
     placements = {}
     x = y = shelf = 0
     for name, w, h, _ in order:
         cw, ch = w + 2 * EXTRUDE, h + 2 * EXTRUDE
-        if cw > ATLAS_WIDTH:
+        if cw > atlas_width:
             raise SystemExit(f"{name} is wider than the atlas")
-        if x + cw > ATLAS_WIDTH:
+        if x + cw > atlas_width:
             x, y, shelf = 0, y + shelf, 0
         placements[name] = (x + EXTRUDE, y + EXTRUDE)
         x += cw
@@ -486,13 +701,14 @@ def pack(items):
     return placements, height
 
 
-def build():
-    items = pieces()
+def build(items=None, texture_name=TEXTURE_NAME, atlas_width=ATLAS_WIDTH, title="the shell gadget images"):
+    if items is None:
+        items = pieces()
     names = [it[0] for it in items]
     if len(names) != len(set(names)):
         raise SystemExit("duplicate image names")
-    placements, height = pack(items)
-    atlas = [[TRANSPARENT] * (ATLAS_WIDTH * SCALE) for _ in range(height * SCALE)]
+    placements, height = pack(items, atlas_width)
+    atlas = [[TRANSPARENT] * (atlas_width * SCALE) for _ in range(height * SCALE)]
     pad = EXTRUDE * SCALE
     for name, w, h, texels in items:
         left, top = placements[name][0] * SCALE, placements[name][1] * SCALE
@@ -510,7 +726,7 @@ def build():
             if ax - EXTRUDE < bx + b[1] + EXTRUDE and bx - EXTRUDE < ax + a[1] + EXTRUDE and ay - EXTRUDE < by + b[2] + EXTRUDE and by - EXTRUDE < ay + a[2] + EXTRUDE:
                 raise SystemExit(f"{a[0]} overlaps {b[0]}")
 
-    return tga_bytes(atlas), ini_text(items, placements, height)
+    return tga_bytes(atlas), ini_text(items, placements, height, texture_name, atlas_width, title)
 
 
 def tga_bytes(atlas):
@@ -540,9 +756,9 @@ def tga_bytes(atlas):
     return header + bytes(body)
 
 
-def ini_text(items, placements, height):
+def ini_text(items, placements, height, texture_name=TEXTURE_NAME, atlas_width=ATLAS_WIDTH, title="the shell gadget images"):
     lines = [
-        "; Generals Online UI kit: points the shell gadget images at GeneralsOnline_UIKit.tga.",
+        f"; Generals Online UI kit: points {title} at {texture_name}.",
         f"; Generated by scripts/go_ui_kit.py; edit the script, not this file. The texture holds {SCALE} texels per pixel.",
         "",
     ]
@@ -550,8 +766,8 @@ def ini_text(items, placements, height):
         left, top = placements[name]
         lines += [
             f"MappedImage {name}",
-            f"  Texture = {TEXTURE_NAME}",
-            f"  TextureWidth = {ATLAS_WIDTH}",
+            f"  Texture = {texture_name}",
+            f"  TextureWidth = {atlas_width}",
             f"  TextureHeight = {height}",
             f"  Coords = Left:{left} Top:{top} Right:{left + w} Bottom:{top + h}",
             "  Status = NONE",
@@ -567,17 +783,17 @@ def main():
     parser.add_argument("--check", action="store_true", help="fail when the committed files are out of date")
     args = parser.parse_args()
     texture, ini = build()
-    ini_bytes = ini.encode("ascii")
+    texture2, ini2 = build(pieces2(), TEXTURE2_NAME, ATLAS2_WIDTH, "the map preview icons and the favourite stars")
+    outputs = ((TEXTURE_PATH, texture), (INI_PATH, ini.encode("ascii")), (TEXTURE2_PATH, texture2), (INI2_PATH, ini2.encode("ascii")))
     if args.check:
-        stale = [p for p, data in ((TEXTURE_PATH, texture), (INI_PATH, ini_bytes)) if not p.exists() or p.read_bytes() != data]
+        stale = [p for p, data in outputs if not p.exists() or p.read_bytes() != data]
         for p in stale:
             print(f"out of date: {p.relative_to(ROOT)}")
         return 1 if stale else 0
-    TEXTURE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    INI_PATH.parent.mkdir(parents=True, exist_ok=True)
-    TEXTURE_PATH.write_bytes(texture)
-    INI_PATH.write_bytes(ini_bytes)
-    print(f"wrote {TEXTURE_PATH.relative_to(ROOT)} and {INI_PATH.relative_to(ROOT)}")
+    for p, data in outputs:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+    print("wrote " + ", ".join(str(p.relative_to(ROOT)) for p, _ in outputs))
     return 0
 
 
