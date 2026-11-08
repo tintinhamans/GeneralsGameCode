@@ -467,6 +467,79 @@ class ColumnGapTest(unittest.TestCase):
         self.assertEqual(wl.transform(once, name=MENU), once)
 
 
+class EntryPairTest(unittest.TestCase):
+    def test_field_reaches_the_button_and_the_button_takes_the_field_row(self):
+        text = screen(
+            window("ENTRYFIELD", (100, 500, 300, 524), indent=2),
+            window("PUSHBUTTON", (330, 501, 366, 524), indent=2),
+        )
+        out = wl.transform(text, name=MENU)
+        (button,), (field,) = by_kind(out, "PUSHBUTTON"), by_kind(out, "ENTRYFIELD")
+        self.assertEqual((button[0], button[2]), (330, 366))
+        self.assertEqual((field[0], field[2]), (100, 330 - wl.DEFAULT_COLUMN_GAP))
+        self.assertEqual((button[1], button[3]), (field[1], field[3]))
+
+    def test_pair_under_a_list_takes_the_list_edges(self):
+        text = screen(
+            window("SCROLLLISTBOX", (98, 380, 402, 494), indent=2),
+            window("ENTRYFIELD", (100, 500, 340, 524), indent=2),
+            window("PUSHBUTTON", (364, 500, 400, 524), indent=2),
+        )
+        out = wl.transform(text, name=MENU)
+        self.assertEqual(by_kind(out, "SCROLLLISTBOX"), [(98, 380, 402, 494)])
+        self.assertEqual(by_kind(out, "PUSHBUTTON"), [(366, 500, 402, 524)])
+        self.assertEqual(by_kind(out, "ENTRYFIELD"), [(98, 500, 366 - wl.DEFAULT_COLUMN_GAP, 524)])
+
+    def test_pair_uses_the_grid_gap_of_its_parent(self):
+        text = screen(
+            window("COMBOBOX", (100, 100, 200, 122), indent=2),
+            window("COMBOBOX", (202, 100, 300, 122), indent=2),
+            window("COMBOBOX", (302, 100, 360, 122), indent=2),
+            window("ENTRYFIELD", (100, 500, 300, 524), indent=2),
+            window("PUSHBUTTON", (330, 500, 366, 524), indent=2),
+        )
+        self.assertEqual(by_kind(wl.transform(text, name=MENU), "ENTRYFIELD"), [(100, 500, 328, 524)])
+
+    def test_window_between_field_and_button_breaks_the_pair(self):
+        text = screen(
+            window("ENTRYFIELD", (100, 500, 300, 524), indent=2),
+            window("STATICTEXT", (305, 500, 325, 524), indent=2),
+            window("PUSHBUTTON", (330, 500, 366, 524), indent=2),
+        )
+        self.assertEqual(by_kind(wl.transform(text, name=MENU), "ENTRYFIELD"), [(100, 500, 300, 524)])
+
+    def test_move_that_would_overlap_is_skipped_and_logged(self):
+        text = screen(
+            window("SCROLLLISTBOX", (100, 380, 412, 494), indent=2),
+            window("ENTRYFIELD", (100, 500, 340, 524), indent=2),
+            window("PUSHBUTTON", (370, 500, 410, 524), indent=2),
+            window("USER", (411, 520, 430, 530), indent=2),
+        )
+        notes = []
+        out = wl.transform(text, notes, name=MENU)
+        self.assertEqual(by_kind(out, "ENTRYFIELD"), [(100, 500, 340, 524)])
+        self.assertEqual(by_kind(out, "PUSHBUTTON"), [(370, 500, 410, 524)])
+        self.assertTrue(any(n.startswith("pairs: skipped") for n in notes), notes)
+
+    def test_kept_and_in_game_layouts_keep_their_pairs(self):
+        text = screen(
+            window("ENTRYFIELD", (100, 500, 300, 524), indent=2),
+            window("PUSHBUTTON", (330, 500, 366, 524), indent=2),
+        )
+        for name in (*OUT_OF_SCOPE, "Window/InGameChat.wnd"):
+            self.assertEqual(by_kind(wl.transform(text, name=name), "ENTRYFIELD"), [(100, 500, 300, 524)], name)
+
+    def test_pair_change_is_idempotent(self):
+        text = screen(
+            window("SCROLLLISTBOX", (98, 380, 402, 494), indent=2),
+            window("ENTRYFIELD", (100, 500, 340, 524), indent=2),
+            window("PUSHBUTTON", (364, 501, 400, 523), indent=2),
+        )
+        once = wl.transform(text, name=MENU)
+        self.assertNotEqual(once, text)
+        self.assertEqual(wl.transform(once, name=MENU), once)
+
+
 class AlignmentIdempotenceTest(unittest.TestCase):
     def test_title_gaps_and_columns_together_are_idempotent(self):
         cells = []
