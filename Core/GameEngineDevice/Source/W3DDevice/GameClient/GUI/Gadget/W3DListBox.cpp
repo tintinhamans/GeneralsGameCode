@@ -135,6 +135,8 @@ static void drawKitComboFrame( GameWindow *window, Int x, Int y, Int width, Int 
 		right = GadgetTextEntryGetDisabledImageRight( editBox );
 	}
 
+	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 An open drop-down hides the controls under it; the kit field fill is translucent.
+	TheDisplay->drawFillRect( x, y, width, height, GameMakeColor( 5, 7, 15, 255 ) );
 	TheWindowManager->winDrawThreePieceImage( left, center, smallCenter, right, x, y, width, height );
 }
 
