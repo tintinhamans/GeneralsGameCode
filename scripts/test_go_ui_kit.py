@@ -103,15 +103,20 @@ class KitPiecesTest(unittest.TestCase):
             self.assertEqual(x0, w * kit.SCALE - x1, name)
             self.assertEqual(y0, h * kit.SCALE - y1, name)
 
-    def test_scroll_cell_highlights_are_square_and_centred(self):
-        for name in self.named("GOScrollCell"):
-            w, h, texels = self.pieces[name]
-            x0, y0, x1, y1 = opaque_box(texels)
-            colour = texels[y0][x0]
-            for row in texels[y0:y1]:
-                for t in row[x0:x1]:
-                    self.assertEqual(t, colour, name)
-            self.assertEqual((x0, y0), (w * kit.SCALE - x1, h * kit.SCALE - y1), name)
+    def test_scroll_arrows_draw_no_cell_highlight(self):
+        # hover and pushed light only the chevron, so the kit has no cell pieces behind it
+        self.assertEqual([name for name in self.pieces if name.startswith("GOScrollCell")], [])
+
+    def test_lit_scroll_chevrons_take_the_active_glyph(self):
+        def ink_colour(name):
+            _, _, texels = self.pieces[name]
+            return {tuple(round(c * 255) for c in t[:3]) for row in texels for t in row if t[3] > 0.0}
+
+        active = {tuple(round(c * 255) for c in kit.GLYPH_ACTIVE[:3])}
+        for arrow in ("GOScrollUp", "GOScrollDown"):
+            self.assertNotEqual(ink_colour(arrow), active, arrow)
+            for state in ("Hilite", "Pushed"):
+                self.assertEqual(ink_colour(arrow + state), active, arrow + state)
 
     def test_scroll_chevrons_fill_their_piece_centred(self):
         # the engine centres the chevron piece on the column line the pill shares, so no offset may be baked in

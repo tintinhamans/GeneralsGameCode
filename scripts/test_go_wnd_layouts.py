@@ -944,19 +944,24 @@ NOINPUT = ["STATUS = ENABLED+IMAGE+NOINPUT+NOFOCUS;"]
 
 
 class ListHeaderTest(unittest.TestCase):
-    """Header cells over a four column list (50%, a hidden 0% column, 30%, 20%) in a USER frame."""
+    """Header cells over a four column list (50%, a hidden 0% column, 30%, 20%) in a USER frame: a label, two sorting
+    push buttons and a corner cell."""
 
-    def headers(self, cells=("Test.wnd:PUSHBUTTON110_105", None, "Test.wnd:PUSHBUTTON200_105", "Test.wnd:PUSHBUTTON300_105")):
+    CELLS = ("Test.wnd:STATICTEXT110_105", None, "Test.wnd:PUSHBUTTON200_105", "Test.wnd:PUSHBUTTON300_105")
+
+    def headers(self, cells=CELLS):
         return {MENU: {"Test.wnd:SCROLLLISTBOX100_140": {
             "cells": cells, "corner": "Test.wnd:PUSHBUTTON400_105", "arrow": "Test.wnd:USER112_108"}}}
 
-    def frame(self, list_rect=(100, 140, 500, 400)):
+    def frame(self, list_rect=(100, 140, 500, 400), middle=True):
+        cells = [window("STATICTEXT", (110, 105, 190, 130), indent=4),
+                 window("USER", (112, 108, 120, 114), indent=4, props=NOINPUT)]
+        if middle:
+            cells.append(window("PUSHBUTTON", (200, 105, 290, 130), indent=4))
+        cells += [window("PUSHBUTTON", (300, 105, 390, 130), indent=4),
+                  window("PUSHBUTTON", (400, 105, 450, 130), indent=4, props=NOINPUT)]
         return screen(window("USER", (100, 100, 500, 400), [
-            window("PUSHBUTTON", (110, 105, 190, 130), indent=4),
-            window("USER", (112, 108, 120, 114), indent=4, props=NOINPUT),
-            window("PUSHBUTTON", (200, 105, 290, 130), indent=4),
-            window("PUSHBUTTON", (300, 105, 390, 130), indent=4),
-            window("PUSHBUTTON", (400, 105, 450, 130), indent=4, props=NOINPUT),
+            *cells,
             window("SCROLLLISTBOX", list_rect, indent=4, props=LIST_DATA),
         ], indent=2))
 
@@ -971,71 +976,135 @@ class ListHeaderTest(unittest.TestCase):
         x1, x3 = 100 + 50 * total // 100, 100 + 50 * total // 100 + 30 * total // 100
         x4 = x3 + 20 * total // 100
         top = 140 - wl.COMBO_HEIGHT
-        self.assertEqual(rects["PUSHBUTTON110_105"], (100, top, x1, 140))
+        self.assertEqual(rects["STATICTEXT110_105"], (100, top, x1, 140))
         self.assertEqual(rects["PUSHBUTTON200_105"], (x1, top, x3, 140))
         self.assertEqual(rects["PUSHBUTTON300_105"], (x3, top, x4, 140))
         self.assertEqual(rects["PUSHBUTTON400_105"], (x4, top, 500, 140))
         self.assertEqual(rects["SCROLLLISTBOX100_140"], (100, 140, 500, 400))
 
-    def test_arrow_keeps_its_size_at_the_right_end_of_the_first_cell(self):
+    def test_arrow_keeps_its_size_at_the_right_end_of_the_first_sorting_cell(self):
         out, rects = self.placed()
-        cell = rects["PUSHBUTTON110_105"]
+        cell = rects["PUSHBUTTON200_105"]
         right = cell[2] - wl.HEADER_ARROW_INSET
         top = cell[1] + (wl.COMBO_HEIGHT - 6) // 2
         self.assertEqual(rects["USER112_108"], (right - 8, top, right, top + 6))
 
     def test_cells_follow_the_list(self):
         out, rects = self.placed(self.frame((100, 150, 500, 400)).replace("SCROLLLISTBOX100_150", "SCROLLLISTBOX100_140"))
-        self.assertEqual(rects["PUSHBUTTON110_105"][1::2], (150 - wl.COMBO_HEIGHT, 150))
+        self.assertEqual(rects["STATICTEXT110_105"][1::2], (150 - wl.COMBO_HEIGHT, 150))
 
     def test_placement_is_idempotent(self):
         once, _ = self.placed()
         again, _ = self.placed(once)
         self.assertEqual(again, once)
 
-    def test_a_visible_column_without_a_cell_or_a_hidden_column_with_one_fails(self):
-        for cells in (("Test.wnd:PUSHBUTTON110_105", None, None, "Test.wnd:PUSHBUTTON300_105"),
-                      ("Test.wnd:PUSHBUTTON110_105", "Test.wnd:PUSHBUTTON200_105", None, "Test.wnd:PUSHBUTTON300_105"),
-                      ("Test.wnd:PUSHBUTTON110_105", None, "Test.wnd:PUSHBUTTON200_105")):
+    def test_a_visible_column_may_go_without_a_cell(self):
+        cells = ("Test.wnd:STATICTEXT110_105", None, None, "Test.wnd:PUSHBUTTON300_105")
+        out, rects = self.placed(self.frame(middle=False), self.headers(cells))
+        total = 400 - wl.LIST_SCROLL_COLUMN
+        x3 = 100 + 50 * total // 100 + 30 * total // 100
+        self.assertEqual(rects["PUSHBUTTON300_105"][0::2], (x3, x3 + 20 * total // 100))
+        self.assertEqual(rects["USER112_108"][2], rects["PUSHBUTTON300_105"][2] - wl.HEADER_ARROW_INSET)
+
+    def test_a_hidden_column_with_a_cell_or_a_cell_count_mismatch_fails(self):
+        for cells in (("Test.wnd:STATICTEXT110_105", "Test.wnd:PUSHBUTTON200_105", None, "Test.wnd:PUSHBUTTON300_105"),
+                      ("Test.wnd:STATICTEXT110_105", None, "Test.wnd:PUSHBUTTON200_105")):
             with self.assertRaises(ValueError, msg=cells):
                 self.placed(headers=self.headers(cells))
 
 
 LOBBY = "Window/Menus/WOLCustomLobby.wnd"
-LOBBY_CELLS = ("ButtonHeaderGame", "ButtonHeaderMap", "ButtonHeaderPlayers", "ButtonHeaderPassword", "ButtonHeaderStats",
-               "ButtonHeaderPing", "ButtonHeaderCorner")
+# header window: its game list column; the lock, ranked and scroll bar columns have no header window
+LOBBY_HEADERS = {"StaticTextHeaderGame": 0, "ButtonHeaderMap": 1, "ButtonHeaderPlayers": 3, "ButtonHeaderPing": 7}
+LOBBY_SORTING = ("ButtonHeaderMap", "ButtonHeaderPlayers", "ButtonHeaderPing")
+OLD_HEADER_CELLS = ("ButtonHeaderGame", "ButtonHeaderPassword", "ButtonHeaderStats", "ButtonHeaderCorner")
 OLD_SORT_ROW = ("ParentSortButtons", "ButtonSortAlpha", "ButtonSortPing", "ButtonSortBuddies", "WindowSortAlpha",
                 "WindowSortPing", "WindowSortBuddies")
+DRAW_CALLBACK_RE = wl.re.compile(r'DRAWCALLBACK[ \t]*=[ \t]*"(?P<name>[^"]*)"')
+
+
+def lobby_text(base=wl.DATA):
+    return (base / LOBBY).read_bytes().decode("latin-1")
 
 
 def lobby_windows(base=wl.DATA):
     """{short NAME: window} of the shipped custom lobby layout under base (the GO data or a theme folder)."""
-    return {w.name.split(":")[-1]: w for w in wl.parse_windows((base / LOBBY).read_bytes().decode("latin-1")).walk()}
+    return {w.name.split(":")[-1]: w for w in wl.parse_windows(lobby_text(base)).walk()}
+
+
+def lobby_bases():
+    import go_themes
+    return (wl.DATA, go_themes.THEME_DIR)
+
+
+def game_columns(games):
+    """[(x0, x1)] of the game list columns as the engine sizes them."""
+    x0, _, x1, _ = games.rect
+    total = x1 - x0 - wl.LIST_SCROLL_COLUMN
+    edges, x = [], x0
+    for pct in games.columns:
+        edges.append((x, x + pct * total // 100))
+        x += pct * total // 100
+    return edges
 
 
 class CustomLobbyHeaderTest(unittest.TestCase):
-    def test_header_cells_line_up_with_the_game_list_columns(self):
-        wins = lobby_windows()
-        games = wins["ListboxGamesLarge"]
-        x0, y0, x1, y1 = games.rect
-        total = x1 - x0 - wl.LIST_SCROLL_COLUMN
-        edges, x = [], x0
-        for pct in games.columns:
-            edges.append((x, x + pct * total // 100))
-            x += pct * total // 100
-        visible = [edge for edge, pct in zip(edges, games.columns) if pct]
-        cells = [wins[name].rect for name in LOBBY_CELLS]
-        self.assertEqual([(c[0], c[2]) for c in cells[:-1]], visible)
-        self.assertEqual((cells[-1][0], cells[-1][2]), (x, x1))
-        for cell in cells:
-            self.assertEqual(cell[1::2], (y0 - wl.COMBO_HEIGHT, y0), cell)
-        arrow = wins["WindowHeaderArrow"].rect
-        self.assertTrue(cells[0][0] <= arrow[0] and arrow[2] <= cells[0][2] and cells[0][1] <= arrow[1] and arrow[3] <= cells[0][3])
+    def test_header_labels_line_up_with_their_game_list_columns(self):
+        for base in lobby_bases():
+            wins = lobby_windows(base)
+            games = wins["ListboxGamesLarge"]
+            columns = game_columns(games)
+            for name, column in LOBBY_HEADERS.items():
+                # the cell starts on its column; the engine insets the label like the list rows
+                self.assertEqual(wins[name].rect, (columns[column][0], games.rect[1] - wl.COMBO_HEIGHT,
+                                                   columns[column][1], games.rect[1]), (base, name))
+            self.assertEqual(wins["StaticTextHeaderGame"].centered[0], 0, base)
 
-    def test_sortable_cells_take_input_and_the_icon_and_corner_cells_do_not(self):
-        wins = lobby_windows()
-        for name in LOBBY_CELLS:
-            self.assertEqual("NOINPUT" in wins[name].status, name in ("ButtonHeaderPassword", "ButtonHeaderStats", "ButtonHeaderCorner"), name)
+    def test_only_map_players_and_ping_are_push_buttons(self):
+        for base in lobby_bases():
+            wins = lobby_windows(base)
+            strip = wins["ParentGameListLarge"]
+            buttons = sorted(w.name.split(":")[-1] for w in strip.children if w.kind == "PUSHBUTTON")
+            self.assertEqual(buttons, sorted(LOBBY_SORTING), base)
+            for name in LOBBY_SORTING:
+                self.assertIn("ENABLED", wins[name].status, (base, name))
+                self.assertNotIn("NOINPUT", wins[name].status, (base, name))
+            game = wins["StaticTextHeaderGame"]
+            self.assertEqual(game.kind, "STATICTEXT", base)
+            self.assertIn("NOINPUT", game.status, base)
+            self.assertIn("NOINPUT", wins["WindowHeaderArrow"].status, base)
+            for name in OLD_HEADER_CELLS:
+                self.assertNotIn(name, wins, (base, name))
+
+    def test_header_cells_draw_no_box(self):
+        for base in lobby_bases():
+            wins = lobby_windows(base)
+            for name in LOBBY_HEADERS:
+                win = wins[name]
+                self.assertNotIn("IMAGE", win.status, (base, name))
+                self.assertTrue(win.draws, (base, name))
+                for prop, slots in win.draws:
+                    for image, color, border in slots:
+                        self.assertEqual((image, color[3], border[3]), ("NoImage", "0", "0"), (base, name, prop))
+
+    def test_one_line_between_header_and_list(self):
+        for base in lobby_bases():
+            text = lobby_text(base)
+            wins = lobby_windows(base)
+            games, strip = wins["ListboxGamesLarge"], wins["ParentGameListLarge"]
+            # the list frame draws the only line: its visible enabled border
+            self.assertNotEqual(dict(games.draws)["ENABLEDDRAWDATA"][0][2][3], "0", base)
+            # the parent draws nothing and the header windows sit on the list top without reaching into it
+            parent_block = text[strip.block[0]:strip.block[1]]
+            self.assertEqual(DRAW_CALLBACK_RE.search(parent_block)["name"], "W3DNoDraw", base)
+            top = games.rect[1] - wl.COMBO_HEIGHT
+            self.assertEqual(strip.rect, (games.rect[0], top, games.rect[2], games.rect[3]), base)
+            for win in strip.children:
+                if win is games:
+                    continue
+                self.assertTrue(top <= win.rect[1] and win.rect[3] <= games.rect[1], (base, win.name))
+                short = win.name.split(":")[-1]
+                self.assertTrue(short in LOBBY_HEADERS or short == "WindowHeaderArrow", (base, short))
 
     def test_header_row_refresh_buddies_and_combo_share_the_combo_height(self):
         wins = lobby_windows()
@@ -1043,7 +1112,7 @@ class CustomLobbyHeaderTest(unittest.TestCase):
         self.assertEqual(combo[3] - combo[1], wl.COMBO_HEIGHT)
         for name in ("ButtonRefresh", "CheckBoxBuddiesFirst"):
             self.assertEqual(wins[name].rect[1::2], combo[1::2], name)
-        for name in LOBBY_CELLS:
+        for name in LOBBY_HEADERS:
             rect = wins[name].rect
             self.assertEqual(rect[3] - rect[1], wl.COMBO_HEIGHT, name)
         refresh = wins["ButtonRefresh"].rect
@@ -1051,17 +1120,19 @@ class CustomLobbyHeaderTest(unittest.TestCase):
         self.assertEqual(refresh[0], wins["ListboxGamesLarge"].rect[0])
 
     def test_old_sort_row_is_gone_from_the_shipped_layouts(self):
-        import go_themes
-        for base in (wl.DATA, go_themes.THEME_DIR):
+        for base in lobby_bases():
             wins = lobby_windows(base)
             for name in OLD_SORT_ROW:
                 self.assertNotIn(name, wins, base)
             self.assertIn("ButtonRefresh", wins, base)
 
-    def test_radar_copy_has_the_same_windows_and_rects(self):
-        import go_themes
-        main = {name: (w.kind, w.rect) for name, w in lobby_windows().items()}
-        self.assertEqual({name: (w.kind, w.rect) for name, w in lobby_windows(go_themes.THEME_DIR).items()}, main)
+    def test_radar_copy_has_the_same_windows_rects_status_and_alphas(self):
+        main, radar = (lobby_windows(base) for base in lobby_bases())
+        self.assertEqual({name: (w.kind, w.rect, w.status) for name, w in radar.items()},
+                         {name: (w.kind, w.rect, w.status) for name, w in main.items()})
+        for name in LOBBY_HEADERS:
+            alphas = [[(c[3], b[3]) for _, c, b in slots] for _, slots in main[name].draws]
+            self.assertEqual([[(c[3], b[3]) for _, c, b in slots] for _, slots in radar[name].draws], alphas, name)
 
 
 SETUP_MENUS = ("SkirmishGameOptionsMenu", "LanGameOptionsMenu", "GameSpyGameOptionsMenu")

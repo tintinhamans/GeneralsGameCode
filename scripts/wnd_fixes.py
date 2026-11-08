@@ -8,8 +8,9 @@ HEADINGS maps a layout's archive path to {heading NAME: column NAME}. After ever
 the heading moves sideways, keeping its width, so its left edge is the column window's final left edge.
 
 LIST_HEADERS maps a layout's archive path to {list NAME: {"cells": (header NAME or None per list column), "corner":
-NAME, "arrow": NAME}}. Every pass the cells sit on the list top over their columns, None for a 0% column, the corner cell
-over the scroll bar and the sort arrow inside the first cell; the rules never move them.
+NAME, "arrow": NAME}}, corner optional. Every pass the cells sit on the list top over their columns, None for a column
+without a header (always for a 0% column), the corner cell over the scroll bar and the sort arrow inside the first sorting
+cell; the rules never move them.
 """
 
 FIXES = {
@@ -53,17 +54,17 @@ BLANK_LAYOUTS = {
 LIST_HEADERS = {
     "Window/Menus/WOLCustomLobby.wnd": {
         "WOLCustomLobby.wnd:ListboxGamesLarge": {
+            # one flat strip on the list top: the game name label, the map, players and ping sort buttons
             "cells": (
-                "WOLCustomLobby.wnd:ButtonHeaderGame",
+                "WOLCustomLobby.wnd:StaticTextHeaderGame",
                 "WOLCustomLobby.wnd:ButtonHeaderMap",
                 None,  # ladder
                 "WOLCustomLobby.wnd:ButtonHeaderPlayers",
-                "WOLCustomLobby.wnd:ButtonHeaderPassword",
+                None,  # password lock icon
                 None,  # observers
-                "WOLCustomLobby.wnd:ButtonHeaderStats",
+                None,  # ranked stats icon
                 "WOLCustomLobby.wnd:ButtonHeaderPing",
             ),
-            "corner": "WOLCustomLobby.wnd:ButtonHeaderCorner",
             "arrow": "WOLCustomLobby.wnd:WindowHeaderArrow",
         },
     },

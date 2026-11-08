@@ -1161,8 +1161,10 @@ WinInputReturnCode GameWindowManager::winProcessMouseEvent( GameWindowMessage ms
 					if( m_loneWindow && m_loneWindow == oldLoneWindow &&
 					( msg == GWM_LEFT_UP || msg == GWM_MIDDLE_UP || msg == GWM_RIGHT_UP || tempWin))
 					{
-						if(!m_loneWindow->winIsChild(tempWin))
-							winSetLoneWindow( nullptr );
+						// TheSuperHackers @bugfix arcticdolphin 08/11/2026 A combo that toggled its own list on this click stays open, winIsChild is false for itself.
+						const Bool comboToggled = msg == GWM_LEFT_UP && tempWin == m_loneWindow && BitIsSet(tempWin->winGetStyle(), GWS_COMBO_BOX);
+						if (!comboToggled && !m_loneWindow->winIsChild(tempWin))
+							winSetLoneWindow(nullptr);
 						/*
 								ComboBoxData *cData = (ComboBoxData *)m_comboBoxOpen->winGetUserData();
 															// verify that the window that ate the message wasn't one of our own
