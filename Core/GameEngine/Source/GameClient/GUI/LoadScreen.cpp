@@ -67,12 +67,16 @@
 #include "Common/PlayerTemplate.h"
 #include "GameClient/CampaignManager.h"
 #include "GameClient/Display.h"
+#include "GameClient/DisplayStringManager.h"
 #include "GameClient/GadgetProgressBar.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GameClient.h"
+#include "GameClient/GameFont.h"
 #include "GameClient/GameText.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GameWindowTransitions.h"
+#include "GameClient/GlobalLanguage.h"
+#include "GameClient/Image.h"
 #include "GameClient/Keyboard.h"
 #include "GameClient/LoadScreen.h"
 #include "GameClient/MapUtil.h"
@@ -103,6 +107,16 @@
 //-----------------------------------------------------------------------------
 // PRIVATE DATA ///////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
+extern HWND ApplicationHWnd;
+
+// GenOnline @feature arcticdolphin 09/11/2026 The Generals Online credit stays at least this long unless Esc is pressed.
+static const UnsignedInt CREDIT_MIN_MS = 3000;
+static const Real CREDIT_FADE_IN_MS = 500.0f;
+// credit layout in 800x600 units, between the title art logo and the legal text at 540
+static const Real CREDIT_PRETEXT_TOP = 366.0f;
+static const Real CREDIT_LOGO_TOP = 386.0f;
+static const Real CREDIT_LOGO_HEIGHT = 70.0f;
+static const Real CREDIT_URL_TOP = 464.0f;
 
 //-----------------------------------------------------------------------------
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
@@ -1177,10 +1191,32 @@ void ChallengeLoadScreen::setProgressRange( Int min, Int max )
 ShellGameLoadScreen::ShellGameLoadScreen()
 {
 	m_progressBar = nullptr;
+	m_creditWindow = nullptr;
+	for (size_t i = 0; i < ARRAY_SIZE(m_creditStrings); ++i)
+	{
+		m_creditStrings[i] = nullptr;
+	}
+	m_creditLogo = nullptr;
+	m_creditStartMs = 0;
+	m_creditEscArmed = FALSE;
+	m_creditSkipped = FALSE;
 }
 
 ShellGameLoadScreen::~ShellGameLoadScreen()
 {
+	// GenOnline @feature arcticdolphin 09/11/2026 The credit window goes with the load screen window and must not reach this object.
+	if (m_creditWindow != nullptr)
+	{
+		m_creditWindow->winSetUserData(nullptr);
+		m_creditWindow->winHide(TRUE);
+	}
+	for (size_t i = 0; i < ARRAY_SIZE(m_creditStrings); ++i)
+	{
+		if (m_creditStrings[i] != nullptr)
+		{
+			TheDisplayStringManager->freeDisplayString(m_creditStrings[i]);
+		}
+	}
 }
 
 void ShellGameLoadScreen::init( GameInfo *game )
@@ -1211,6 +1247,141 @@ void ShellGameLoadScreen::init( GameInfo *game )
 		firstLoad = FALSE;
 	}
 	m_progressBar->winHide(FALSE);
+
+	// GenOnline @feature arcticdolphin 09/11/2026 The first shell load after the intro shows the Generals Online credit, -nologo leaves it out.
+	static Bool firstShellLoad = TRUE;
+	if (m_loadScreen && TheGameLogic && TheGameLogic->getGameMode() == GAME_SHELL)
+	{
+		if (firstShellLoad && TheGlobalData->m_playIntro)
+		{
+			initCredit();
+		}
+		firstShellLoad = FALSE;
+	}
+}
+
+void ShellGameLoadScreen::initCredit()
+{
+	// Please be kind and do not remove the custom logo screen when building a client that includes GeneralsOnline.
+	const Real fontScale = GlobalLanguage::getResolutionFontSizeScale(GlobalLanguage::ResolutionFontSizeMethod_Strict);
+	const Int screenWidth = TheDisplay->getWidth();
+	const Int screenHeight = TheDisplay->getHeight();
+
+	// "Consolas" is Windows Vista native, can be installed in 2000, XP
+	static const WideChar* const texts[] = { L"Modernized Multiplayer Experience by", L"GeneralsOnline", L"www.playgenerals.online" };
+	static const Int sizes[] = { 14, 28, 14 };
+	static const Bool bolds[] = { FALSE, TRUE, FALSE };
+	for (size_t i = 0; i < ARRAY_SIZE(m_creditStrings); ++i)
+	{
+		m_creditStrings[i] = TheDisplayStringManager->newDisplayString();
+		m_creditStrings[i]->setText(i == 0 ? TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOCreditPretext", texts[i]) : UnicodeString(texts[i]));
+		m_creditStrings[i]->setFont(TheFontLibrary->getFont("Consolas", Int(sizes[i] * fontScale), bolds[i]));
+		m_creditStrings[i]->setWordWrap(screenWidth);
+	}
+	m_creditLogo = TheMappedImageCollection->findImageByName("GOLoadLogo");
+
+	m_creditWindow = TheWindowManager->winCreate(m_loadScreen, WIN_STATUS_ENABLED | WIN_STATUS_NO_INPUT, 0, 0, screenWidth, screenHeight, nullptr);
+	if (m_creditWindow != nullptr)
+	{
+		m_creditWindow->winSetUserData(this);
+		m_creditWindow->winSetDrawFunc(drawCreditWindow);
+	}
+	m_creditStartMs = timeGetTime();
+	m_creditEscArmed = FALSE;
+	m_creditSkipped = FALSE;
+}
+
+void ShellGameLoadScreen::pollCreditSkip()
+{
+	// A fresh Esc press only because a key still held from skipping the intro must be released first
+	const Bool escDown = GetForegroundWindow() == ApplicationHWnd && (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+	if (!escDown)
+	{
+		m_creditEscArmed = TRUE;
+	}
+	else if (m_creditEscArmed)
+	{
+		m_creditSkipped = TRUE;
+	}
+}
+
+Int ShellGameLoadScreen::creditPercent() const
+{
+	if (m_creditSkipped)
+	{
+		return 100;
+	}
+	const UnsignedInt elapsedMs = timeGetTime() - m_creditStartMs;
+	if (elapsedMs >= CREDIT_MIN_MS)
+	{
+		return 100;
+	}
+	return (Int)(elapsedMs * 100 / CREDIT_MIN_MS);
+}
+
+Bool ShellGameLoadScreen::holdsAfterLoad()
+{
+	if (m_creditWindow == nullptr)
+	{
+		return FALSE;
+	}
+	if (TheGameEngine->getQuitting() || (TheGameLogic && TheGameLogic->isQuitToDesktopRequested()))
+	{
+		return FALSE;
+	}
+	pollCreditSkip();
+	return creditPercent() < 100;
+}
+
+void ShellGameLoadScreen::drawCreditWindow( GameWindow *window, WinInstanceData *instData )
+{
+	ShellGameLoadScreen *screen = static_cast<ShellGameLoadScreen *>(window->winGetUserData());
+	if (screen != nullptr)
+	{
+		screen->drawCredit();
+	}
+}
+
+void ShellGameLoadScreen::drawCredit()
+{
+	const Int screenWidth = TheDisplay->getWidth();
+	const Int screenHeight = TheDisplay->getHeight();
+	const Real unit = screenHeight / 600.0f;
+	const Int centerX = screenWidth / 2;
+
+	Real fade = (timeGetTime() - m_creditStartMs) / CREDIT_FADE_IN_MS;
+	if (fade > 1.0f)
+	{
+		fade = 1.0f;
+	}
+	const Int alpha = REAL_TO_INT(255.0f * fade);
+	// launcher palette: text for the pretext, tan for the name and the website
+	const Color textColor = GameMakeColor(242, 237, 224, alpha);
+	const Color tanColor = GameMakeColor(227, 186, 108, alpha);
+	const Color dropColor = GameMakeColor(0, 0, 0, alpha);
+
+	Int width = 0;
+	Int height = 0;
+	m_creditStrings[0]->getSize(&width, &height);
+	m_creditStrings[0]->draw(centerX - width / 2, REAL_TO_INT(CREDIT_PRETEXT_TOP * unit), textColor, dropColor);
+
+	const Int logoTop = REAL_TO_INT(CREDIT_LOGO_TOP * unit);
+	const Int logoHeight = REAL_TO_INT(CREDIT_LOGO_HEIGHT * unit);
+	if (m_creditLogo != nullptr && m_creditLogo->getImageHeight() > 0)
+	{
+		const Int logoWidth = logoHeight * m_creditLogo->getImageWidth() / m_creditLogo->getImageHeight();
+		const Int logoLeft = centerX - logoWidth / 2;
+		TheDisplay->drawImage(m_creditLogo, logoLeft, logoTop, logoLeft + logoWidth, logoTop + logoHeight, GameMakeColor(255, 255, 255, alpha));
+	}
+	else
+	{
+		// the name stands in for the logo when its image is missing
+		m_creditStrings[1]->getSize(&width, &height);
+		m_creditStrings[1]->draw(centerX - width / 2, logoTop + (logoHeight - height) / 2, tanColor, dropColor);
+	}
+
+	m_creditStrings[2]->getSize(&width, &height);
+	m_creditStrings[2]->draw(centerX - width / 2, REAL_TO_INT(CREDIT_URL_TOP * unit), tanColor, dropColor);
 }
 
 void ShellGameLoadScreen::reset()
@@ -1222,6 +1393,16 @@ void ShellGameLoadScreen::reset()
 void ShellGameLoadScreen::update( Int percent )
 {
 	TheMouse->setCursorTooltip(UnicodeString::TheEmptyString);
+	// GenOnline @feature arcticdolphin 09/11/2026 With the credit up the bar fills by time, so it reaches 100% when the credit ends.
+	if (m_creditWindow != nullptr)
+	{
+		pollCreditSkip();
+		const Int creditProgress = creditPercent();
+		if (percent > creditProgress)
+		{
+			percent = creditProgress;
+		}
+	}
 	GadgetProgressBarSetProgress(m_progressBar, percent);
 
 	// Do this last!

@@ -127,8 +127,6 @@ static const char *const s_kitScrollImageNames[KIT_SCROLL_IMAGE_COUNT] =
 	"GOScrollDownHilite",
 	"GOScrollDownPushed",
 	"GOScrollDownDisabled",
-	"GOScrollCellHilite",
-	"GOScrollCellPushed",
 	"GOScrollLine"
 };
 

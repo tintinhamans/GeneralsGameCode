@@ -43,11 +43,12 @@ GenOnline/tools/wnd_sources copy, if any, is only kept for reference. All rects 
 - Overrides: GenOnline/tools/wnd_fixes.py sets absolute rects last; the rules never move those windows.
 - Headings: GenOnline/tools/wnd_fixes.py HEADINGS names column headings that then take their column window's left
   edge, keeping their width, after the overrides; nothing else moves.
-- List headers: GenOnline/tools/wnd_fixes.py LIST_HEADERS names the header cells of a multi column list, one per column. Like
-  the overrides they are placed every pass and no rule moves them: COMBO_HEIGHT tall on the list top, each over its
-  column as the engine sizes it (COLUMNSWIDTH percent of the list width less LIST_SCROLL_COLUMN, rounded down), a
-  corner cell over the scroll bar to the list's right edge and the sort arrow, keeping its size, HEADER_ARROW_INSET
-  inside the right end of the first cell, centred vertically.
+- List headers: GenOnline/tools/wnd_fixes.py LIST_HEADERS names the header cells of a multi column list, one per column or
+  None for a column without a header (a 0% column never has one). Like the overrides they are placed every pass and no
+  rule moves them: COMBO_HEIGHT tall on the list top, each over its column as the engine sizes it (COLUMNSWIDTH percent
+  of the list width less LIST_SCROLL_COLUMN, rounded down), an optional corner cell over the scroll bar to the list's
+  right edge and the sort arrow, keeping its size, HEADER_ARROW_INSET inside the right end of the first sorting cell
+  (the first push button that takes input, else the first cell), centred vertically.
 - Combo heights: after the rules, a menu combo box taller than COMBO_HEIGHT with a font of at most 10 pt shrinks to
   it about its centre (an odd difference rounds the top down), and so does every combo box, entry field, push button
   or check box of that font with the same parent, top and bottom, so a row keeps one height; a square push button (an
@@ -186,7 +187,7 @@ COLUMN_REACH = 8           # neighbouring columns of one row are at most this fa
 # list header cells: the engine sizes list columns from the width less the kit scroll bar column
 # (KIT_SCROLL_COLUMN_WIDTH, 14, in GadgetListBox.cpp) and the 2 unit gap GameWindowManager keeps beside it
 LIST_SCROLL_COLUMN = 16
-HEADER_ARROW_INSET = 3     # the sort arrow sits this far inside the right end of its header cell; LobbyUtils.cpp matches
+HEADER_ARROW_INSET = 3     # the sort arrow starts this far inside the right end of the first sorting cell; LobbyUtils.cpp clamps the same
 
 # game setup screens: player rows past the engine's slots ship as disabled copies, ready for more players
 SETUP_LAYOUTS = {
@@ -1183,7 +1184,8 @@ def _list_columns(lst):
 
 def place_list_headers(ctx, root, headers):
     """Put each list's header cells on its top over its columns, the corner cell over the scroll bar and the sort arrow
-    in the first cell; fail on a cell count or hidden column mismatch, or a cell leaving its parent or overlapping."""
+    in the first sorting cell; fail on a cell count mismatch, a cell over a hidden column, or a cell leaving its parent
+    or overlapping."""
     by_name = _named(root, dict.fromkeys(_header_names(headers) | set(headers)))
     for list_name in sorted(headers):
         spec, lst = headers[list_name], by_name[list_name]
@@ -1193,15 +1195,16 @@ def place_list_headers(ctx, root, headers):
         top, bottom = lst.rect[1] - COMBO_HEIGHT, lst.rect[1]
         placed = []
         for index, (cell, (x0, x1)) in enumerate(zip(spec["cells"], columns)):
-            if (cell is None) != (x0 == x1):
-                raise ValueError(f"{list_name}: column {index} is {x1 - x0} units wide but has header cell {cell}")
+            if cell and x0 == x1:
+                raise ValueError(f"{list_name}: column {index} is hidden but has header cell {cell}")
             if cell:
                 placed.append((by_name[cell], (x0, top, x1, bottom)))
         if spec.get("corner"):
             end = columns[-1][1] if columns else lst.rect[0]
             placed.append((by_name[spec["corner"]], (end, top, lst.rect[2], bottom)))
         if spec.get("arrow") and placed:
-            first, arrow = placed[0][1], by_name[spec["arrow"]]
+            sorting = [rect for win, rect in placed if win.kind == "PUSHBUTTON" and "NOINPUT" not in win.status]
+            first, arrow = (sorting or [placed[0][1]])[0], by_name[spec["arrow"]]
             width, height = arrow.rect[2] - arrow.rect[0], arrow.rect[3] - arrow.rect[1]
             right, y = first[2] - HEADER_ARROW_INSET, first[1] + (COMBO_HEIGHT - height) // 2
             placed.append((arrow, (right - width, y, right, y + height)))

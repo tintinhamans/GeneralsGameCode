@@ -45,6 +45,8 @@
 #include "GameClient/GadgetCheckBox.h"
 #include "GameClient/GadgetComboBox.h"
 #include "GameClient/GadgetListBox.h"
+#include "GameClient/GadgetStaticText.h"
+#include "GameClient/DisplayString.h"
 #include "GameClient/GameText.h"
 #include "GameClient/MapUtil.h"
 #include "GameClient/MessageBox.h"
@@ -113,11 +115,11 @@ static GameWindow *windowSortBuddies = nullptr;
 static GameSortType theGameSortType = GAMESORT_AGE_ASCENDING;
 static Bool sortBuddies = TRUE;
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Header cells over the game list columns; a sorting cell cycles ascending, descending, newest first.
+// GenOnline @feature arcticdolphin 08/11/2026 Header labels over the game list columns, a sorting push button cycles ascending, descending, newest first.
 struct GameListHeader
 {
 	const char *name;
-	Int column; // -1 for the corner cell over the scroll bar
+	Int column;
 	Bool sorts;
 	GameSortType ascending;
 	GameSortType descending;
@@ -127,16 +129,15 @@ struct GameListHeader
 
 static const GameListHeader gameListHeaders[] =
 {
-	{ "WOLCustomLobby.wnd:ButtonHeaderGame", COLUMN_NAME, TRUE, GAMESORT_ALPHA_ASCENDING, GAMESORT_ALPHA_DESCENDING, "GUI:GOHeaderGame", L"Game" },
+	{ "WOLCustomLobby.wnd:StaticTextHeaderGame", COLUMN_NAME, FALSE, GAMESORT_AGE_ASCENDING, GAMESORT_AGE_ASCENDING, "GUI:GOHeaderGame", L"Game" },
 	{ "WOLCustomLobby.wnd:ButtonHeaderMap", COLUMN_MAP, TRUE, GAMESORT_MAP_ASCENDING, GAMESORT_MAP_DESCENDING, "GUI:GOHeaderMap", L"Map" },
 	{ "WOLCustomLobby.wnd:ButtonHeaderPlayers", COLUMN_NUMPLAYERS, TRUE, GAMESORT_PLAYERS_ASCENDING, GAMESORT_PLAYERS_DESCENDING, "GUI:GOHeaderPlayers", L"Players" },
-	{ "WOLCustomLobby.wnd:ButtonHeaderPassword", COLUMN_PASSWORD, FALSE, GAMESORT_AGE_ASCENDING, GAMESORT_AGE_ASCENDING, nullptr, nullptr },
-	{ "WOLCustomLobby.wnd:ButtonHeaderStats", COLUMN_USE_STATS, FALSE, GAMESORT_AGE_ASCENDING, GAMESORT_AGE_ASCENDING, nullptr, nullptr },
 	{ "WOLCustomLobby.wnd:ButtonHeaderPing", COLUMN_PING, TRUE, GAMESORT_PING_ASCENDING, GAMESORT_PING_DESCENDING, "GUI:GOHeaderPing", L"Ping" },
-	{ "WOLCustomLobby.wnd:ButtonHeaderCorner", -1, FALSE, GAMESORT_AGE_ASCENDING, GAMESORT_AGE_ASCENDING, nullptr, nullptr },
 };
 static const Int GAME_LIST_HEADER_COUNT = ARRAY_SIZE(gameListHeaders);
 static const Int HEADER_ARROW_INSET = 3; // GenOnline/tools/go_wnd_layouts.py places the arrow the same way
+// GenOnline @tweak arcticdolphin 08/11/2026 Space between a header label and its sort arrow.
+static const Int HEADER_ARROW_GAP = 3;
 
 static NameKeyType gameListHeaderIDs[ARRAY_SIZE(gameListHeaders)];
 static GameWindow *gameListHeaderWindows[ARRAY_SIZE(gameListHeaders)];
@@ -165,15 +166,60 @@ static void setScreenPosition(GameWindow *window, Int x, Int y)
 	window->winSetPosition(x - parentX, y - parentY);
 }
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Snap the header cells onto the list columns as the engine sized them, the corner cell over the scroll bar.
+// GenOnline @tweak arcticdolphin 08/11/2026 The label of a sorting header button, in its window font without wrapping.
+static DisplayString *getHeaderButtonLabel(GameWindow *window)
+{
+	DisplayString *text = window->winGetInstanceData()->getTextDisplayString();
+	if (text == nullptr || text->getTextLength() == 0)
+		return nullptr;
+
+	if (text->getFont() != window->winGetFont())
+		text->setFont(window->winGetFont());
+	text->setWordWrap(0);
+	return text;
+}
+
+// GenOnline @tweak arcticdolphin 08/11/2026 Draw a sorting header button as its label alone at the list text inset, in the hilite colour under the mouse.
+static void drawGameListHeaderButton(GameWindow *window, WinInstanceData *instData)
+{
+	DisplayString *text = getHeaderButtonLabel(window);
+	if (text == nullptr)
+		return;
+
+	Color textColor = window->winGetEnabledTextColor();
+	Color dropColor = window->winGetEnabledTextBorderColor();
+	if (!window->winGetEnabled())
+	{
+		textColor = window->winGetDisabledTextColor();
+		dropColor = window->winGetDisabledTextBorderColor();
+	}
+	else if (BitIsSet(instData->getState(), WIN_STATE_HILITED))
+	{
+		textColor = window->winGetHiliteTextColor();
+		dropColor = window->winGetHiliteTextBorderColor();
+	}
+
+	Int x, y, width, height, textWidth, textHeight;
+	window->winGetScreenPosition(&x, &y);
+	window->winGetSize(&width, &height);
+	text->getSize(&textWidth, &textHeight);
+	IRegion2D clipRegion;
+	clipRegion.lo.x = x;
+	clipRegion.lo.y = y;
+	clipRegion.hi.x = x + width;
+	clipRegion.hi.y = y + height;
+	text->setClipRegion(&clipRegion);
+	text->draw(x + GameWindowManager::winScaleLayoutSize(TEXT_X_OFFSET), y + (height - textHeight) / 2, textColor, dropColor);
+}
+
+// GenOnline @feature arcticdolphin 08/11/2026 Snap the header cells onto the list columns as the engine sized them.
 static void alignGameListHeaders(GameWindow *list)
 {
 	if (list == nullptr)
 		return;
 
-	Int listX, listY, listWidth, listHeight;
+	Int listX, listY;
 	list->winGetScreenPosition(&listX, &listY);
-	list->winGetSize(&listWidth, &listHeight);
 	const Int columns = GadgetListBoxGetNumColumns(list);
 	for (Int i = 0; i < GAME_LIST_HEADER_COUNT; ++i)
 	{
@@ -182,26 +228,38 @@ static void alignGameListHeaders(GameWindow *list)
 			continue;
 
 		const Int column = gameListHeaders[i].column;
-		const Int end = (column < 0 || column > columns) ? columns : column;
-		Int left = 0;
-		for (Int c = 0; c < end; ++c)
-			left += GadgetListBoxGetColumnWidth(list, c);
-		const Int width = (column < 0) ? listWidth - left : GadgetListBoxGetColumnWidth(list, column);
+		const Int width = (column < columns) ? GadgetListBoxGetColumnWidth(list, column) : 0;
 		if (width <= 0)
 		{
 			cell->winHide(TRUE);
 			continue;
 		}
 
+		Int left = 0;
+		for (Int c = 0; c < column; ++c)
+			left += GadgetListBoxGetColumnWidth(list, c);
+
 		Int cellX, cellY, cellWidth, cellHeight;
 		cell->winGetScreenPosition(&cellX, &cellY);
 		cell->winGetSize(&cellWidth, &cellHeight);
 		setScreenPosition(cell, listX + left, cellY);
 		cell->winSetSize(width, cellHeight);
+
+		// GenOnline @tweak arcticdolphin 08/11/2026 Labels start at the list text inset, sorting buttons draw no box.
+		if (BitIsSet(cell->winGetStyle(), GWS_STATIC_TEXT))
+		{
+			TextData *textData = (TextData *)cell->winGetUserData();
+			if (textData != nullptr)
+				textData->leftMargin = GameWindowManager::winScaleLayoutSize(TEXT_X_OFFSET);
+		}
+		else if (BitIsSet(cell->winGetStyle(), GWS_PUSH_BUTTON) && gameListHeaders[i].sorts)
+		{
+			cell->winSetDrawFunc(drawGameListHeaderButton);
+		}
 	}
 }
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Show the sort arrow inside the right end of the header cell of the active sort, hide it for newest first.
+// GenOnline @feature arcticdolphin 08/11/2026 Show the sort arrow next to the label of the active sort, hide it for newest first.
 static void showHeaderArrow()
 {
 	if (windowHeaderArrow == nullptr)
@@ -219,7 +277,17 @@ static void showHeaderArrow()
 		cell->winGetSize(&cellWidth, &cellHeight);
 		windowHeaderArrow->winGetSize(&arrowWidth, &arrowHeight);
 		const Int inset = GameWindowManager::winScaleLayoutSize(HEADER_ARROW_INSET);
-		setScreenPosition(windowHeaderArrow, cellX + cellWidth - inset - arrowWidth, cellY + (cellHeight - arrowHeight) / 2);
+		Int arrowX = cellX + cellWidth - inset - arrowWidth;
+		DisplayString *label = (cell->winGetDrawFunc() == drawGameListHeaderButton) ? getHeaderButtonLabel(cell) : nullptr;
+		if (label != nullptr)
+		{
+			Int labelWidth, labelHeight;
+			label->getSize(&labelWidth, &labelHeight);
+			const Int afterLabel = cellX + GameWindowManager::winScaleLayoutSize(TEXT_X_OFFSET) + labelWidth + GameWindowManager::winScaleLayoutSize(HEADER_ARROW_GAP);
+			if (afterLabel < arrowX)
+				arrowX = afterLabel;
+		}
+		setScreenPosition(windowHeaderArrow, arrowX, cellY + (cellHeight - arrowHeight) / 2);
 		showSortArrow(windowHeaderArrow, theGameSortType == header.ascending);
 		return;
 	}
@@ -705,8 +773,15 @@ void GrabWindowInfo()
 		const GameListHeader &header = gameListHeaders[i];
 		gameListHeaderIDs[i] = NAMEKEY(header.name);
 		gameListHeaderWindows[i] = TheWindowManager->winGetWindowFromId(parent, gameListHeaderIDs[i]);
-		if (gameListHeaderWindows[i] != nullptr && header.label != nullptr)
-			gameListHeaderWindows[i]->winSetText(TheGameText->FETCH_OR_SUBSTITUTE(header.label, header.text));
+		if (gameListHeaderWindows[i] == nullptr || header.label == nullptr)
+			continue;
+
+		// GenOnline @tweak arcticdolphin 08/11/2026 A static text label draws its own text, a button its window text.
+		const UnicodeString label = TheGameText->FETCH_OR_SUBSTITUTE(header.label, header.text);
+		if (BitIsSet(gameListHeaderWindows[i]->winGetStyle(), GWS_STATIC_TEXT))
+			GadgetStaticTextSetText(gameListHeaderWindows[i], label);
+		else
+			gameListHeaderWindows[i]->winSetText(label);
 	}
 	alignGameListHeaders(listboxLobbyGamesLarge);
 	windowHeaderArrow = TheWindowManager->winGetWindowFromId(parent, NAMEKEY("WOLCustomLobby.wnd:WindowHeaderArrow"));
@@ -907,15 +982,7 @@ struct GameSortStruct
 		case GAMESORT_AGE_DESCENDING: // was alpha
 			return g1.lobbyID < g2.lobbyID;
 
-		// TheSuperHackers @feature arcticdolphin 08/11/2026 Name, player count and ping sorts of the column headers; ties fall through to newest first.
-		case GAMESORT_ALPHA_ASCENDING:
-		case GAMESORT_ALPHA_DESCENDING:
-		{
-			const int order = stricmp(g1.name.c_str(), g2.name.c_str());
-			if (order != 0)
-				return (theGameSortType == GAMESORT_ALPHA_ASCENDING) ? (order < 0) : (order > 0);
-			break;
-		}
+		// GenOnline @feature arcticdolphin 08/11/2026 Player count and ping sorts of the column headers, ties fall through to newest first.
 		case GAMESORT_PLAYERS_ASCENDING:
 			if (g1.current_players != g2.current_players)
 				return g1.current_players < g2.current_players;

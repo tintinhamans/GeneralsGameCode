@@ -324,19 +324,13 @@ void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 	if( listbox && GadgetListBoxGetDownButton( listbox ) == window )
 		arrow = KIT_SCROLL_DOWN;
 
-	const Image *cell = nullptr;
+	// GenOnline @tweak arcticdolphin 08/11/2026 Hover and pushed light only the chevron, with no cell behind it.
 	if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) == FALSE )
 		arrow = (KitScrollImage)(arrow + 3);
 	else if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
-	{
 		arrow = (KitScrollImage)(arrow + 2);
-		cell = GadgetListBoxGetKitScrollImage( KIT_SCROLL_CELL_PUSHED );
-	}
 	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) )
-	{
 		arrow = (KitScrollImage)(arrow + 1);
-		cell = GadgetListBoxGetKitScrollImage( KIT_SCROLL_CELL_HILITE );
-	}
 
 	const Image *image = GadgetListBoxGetKitScrollImage( arrow );
 	if( image == nullptr )
@@ -349,13 +343,7 @@ void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 	window->winGetScreenPosition( &start.x, &start.y );
 	window->winGetSize( &size.x, &size.y );
 
-	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 The highlight and the chevron centre on the column line the scroll thumb shares.
-	Int contentX, contentWidth;
-	GadgetListBoxGetKitScrollSpan( KIT_SCROLL_SPAN_CONTENT, start.x, size.x, &contentX, &contentWidth );
-	if( cell != nullptr )
-		TheWindowManager->winDrawImage( cell, contentX, start.y, contentX + contentWidth, start.y + size.y );
-
-	// the chevron at its own aspect, centred down the cell
+	// GenOnline @bugfix arcticdolphin 08/11/2026 The chevron centres on the column line the scroll thumb shares.
 	Int chevronX, chevronWidth;
 	GadgetListBoxGetKitScrollSpan( KIT_SCROLL_SPAN_CHEVRON, start.x, size.x, &chevronX, &chevronWidth );
 	Int chevronHeight = chevronWidth;
