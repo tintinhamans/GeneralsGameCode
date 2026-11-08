@@ -1565,6 +1565,82 @@ namespace
 		static std::vector<TemplateCountRef> s_refs;
 		return s_refs;
 	}
+
+	// Per player, indexed by template id: where that template's entry sits in templateCountRefs(). An entry is
+	// valid only when its generation matches the current snapshot's, so nothing is cleared between snapshots.
+	struct TemplateCountSlot
+	{
+		UnsignedInt generation;
+		UnsignedInt index;
+	};
+	UnsignedInt s_templateCountGeneration = 0;
+
+	std::vector<TemplateCountSlot>& templateCountSlots(Int playerIndex)
+	{
+		static std::vector<TemplateCountSlot> s_slots[kMaxCounterPlayers];
+		return s_slots[playerIndex];
+	}
+
+	void beginTemplateCounts()
+	{
+		templateCountRefs().clear();
+		if (++s_templateCountGeneration == 0)
+		{
+			for (Int i = 0; i < kMaxCounterPlayers; ++i)
+			{
+				templateCountSlots(i).clear();
+			}
+			s_templateCountGeneration = 1;
+		}
+	}
+
+	// Find-or-add the live count of (player, template), in O(1).
+	statsexporter::TemplateCount* templateCount(statsexporter::PlayerStats* accumulator, Int playerIndex, const ThingTemplate* tmpl)
+	{
+		std::vector<TemplateCountRef>& refs = templateCountRefs();
+		TemplateCountSlot* slot = NULL;
+		if (playerIndex >= 0 && playerIndex < kMaxCounterPlayers)
+		{
+			std::vector<TemplateCountSlot>& slots = templateCountSlots(playerIndex);
+			const UnsignedShort id = tmpl->getTemplateID();
+			if (id >= slots.size())
+			{
+				TemplateCountSlot unused;
+				unused.generation = 0;
+				unused.index = 0;
+				slots.resize((size_t)id + 1, unused);
+			}
+			slot = &slots[id];
+			if (slot->generation == s_templateCountGeneration)
+			{
+				return refs[slot->index].count;
+			}
+		}
+		else
+		{
+			for (size_t i = 0; i < refs.size(); ++i)
+			{
+				if (refs[i].tmpl == tmpl && refs[i].playerIndex == playerIndex)
+				{
+					return refs[i].count;
+				}
+			}
+		}
+
+		statsexporter::TemplateCount* found = accumulator->add_live_template_counts();
+		found->set_template_name(tmpl->getName().str());
+		TemplateCountRef ref;
+		ref.playerIndex = playerIndex;
+		ref.tmpl = tmpl;
+		ref.count = found;
+		if (slot != NULL)
+		{
+			slot->generation = s_templateCountGeneration;
+			slot->index = (UnsignedInt)refs.size();
+		}
+		refs.push_back(ref);
+		return found;
+	}
 }
 
 google::protobuf::Arena& StatsExporterArena()
@@ -1914,8 +1990,7 @@ namespace
 		snapshot.Clear();
 		snapshot.set_frame(now);
 		snapshot.set_full(full);
-		std::vector<TemplateCountRef>& countRefs = templateCountRefs();
-		countRefs.clear();
+		beginTemplateCounts();
 
 		if (TheRecorder != NULL && TheRecorder->isPlaybackMode())
 		{
@@ -1935,7 +2010,14 @@ namespace
 		const Bool haveGrid = options.grids && gridSize > 0 && gridExtent.width() > 0.0f && gridExtent.height() > 0.0f;
 		const Real gridCellWidth = haveGrid ? gridExtent.width() / (Real)gridSize : 0.0f;
 		const Real gridCellHeight = haveGrid ? gridExtent.height() / (Real)gridSize : 0.0f;
-		memset(s_gridCells, 0, sizeof(s_gridCells));
+		// Only a full snapshot fills the grids, and only gridSize x gridSize of each.
+		if (full && haveGrid)
+		{
+			for (Int i = 0; i < MAX_SLOTS; ++i)
+			{
+				memset(s_gridCells[i], 0, (size_t)(gridSize * gridSize) * sizeof(s_gridCells[i][0]));
+			}
+		}
 		std::vector<SupplyRecord>& supply = supplyRecords();
 		supply.clear();
 		std::vector<TechRecord>& tech = techRecords();
@@ -2235,25 +2317,7 @@ namespace
 
 				// Live per-type count: find-or-add by (player, template).
 				{
-					statsexporter::TemplateCount* found = NULL;
-					for (size_t i = 0; i < countRefs.size(); ++i)
-					{
-						if (countRefs[i].tmpl == tmpl && countRefs[i].playerIndex == controller->getPlayerIndex())
-						{
-							found = countRefs[i].count;
-							break;
-						}
-					}
-					if (found == NULL)
-					{
-						found = accumulator->add_live_template_counts();
-						found->set_template_name(tmpl->getName().str());
-						TemplateCountRef ref;
-						ref.playerIndex = controller->getPlayerIndex();
-						ref.tmpl = tmpl;
-						ref.count = found;
-						countRefs.push_back(ref);
-					}
+					statsexporter::TemplateCount* found = templateCount(accumulator, controller->getPlayerIndex(), tmpl);
 					found->set_count(found->count() + 1);
 				}
 
@@ -3969,6 +4033,12 @@ namespace
 
 		for (Object* obj = s_view.valid ? TheGameLogic->getFirstObject() : NULL; obj != NULL; obj = obj->getNextObject())
 		{
+			// The view test first: most objects are off screen.
+			const Coord3D* position = obj->getPosition();
+			if (!pointInView(position->x, position->y))
+			{
+				continue;
+			}
 			const ThingTemplate* tmpl = obj->getTemplate();
 			const Player* controller = obj->getControllingPlayer();
 			if (tmpl == NULL || controller == NULL || obj->isEffectivelyDead())
@@ -3978,11 +4048,6 @@ namespace
 			const Int index = controller->getPlayerIndex();
 			const Int armyClass = killCategory(tmpl);
 			if (armyClass < 0 || index < 0 || index >= kMaxCounterPlayers || players[index] == NULL)
-			{
-				continue;
-			}
-			const Coord3D* position = obj->getPosition();
-			if (!pointInView(position->x, position->y))
 			{
 				continue;
 			}
