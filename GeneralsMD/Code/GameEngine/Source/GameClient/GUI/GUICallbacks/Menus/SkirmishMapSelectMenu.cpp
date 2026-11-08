@@ -253,7 +253,8 @@ void SkirmishMapSelectMenuInit( WindowLayout *layout, void *userData )
 {
 
 	// set keyboard focus to main parent
-	NameKeyType parentID = TheNameKeyGenerator->nameToKey( "SkirmishMapSelectMenu.wnd:SkrimishMapSelectMenuParent" );
+	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 Find the parent by its layout name so the dialog takes keyboard focus.
+	NameKeyType parentID = TheNameKeyGenerator->nameToKey( "SkirmishMapSelectMenu.wnd:SkirmishMapSelectMenuParent" );
 	parent = TheWindowManager->winGetWindowFromId( nullptr, parentID );
 
 	TheWindowManager->winSetFocus( parent );
@@ -539,7 +540,7 @@ WindowMsgHandledType SkirmishMapSelectMenuSystem( GameWindow *window, UnsignedIn
 					for(Int i = 0; i < MAX_SLOTS; ++i)
 						TheSkirmishGameInfo->getSlot(i)->setStartPos(-1);
 					GameWindow *win;
-					win	= TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey("SkirmishGameOptionsMenu.wnd:TextEntryMapDisplay") );
+					win	= TheWindowManager->winGetWindowFromId( nullptr, TheNameKeyGenerator->nameToKey("SkirmishGameOptionsMenu.wnd:TextEntryMapDisplay") );
 					if(win)
 					{
 				    if (md)

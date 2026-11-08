@@ -392,6 +392,11 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 	if (m_sources[MAP_SOURCE_FAVOURITES])
 		GadgetRadioSetText(m_sources[MAP_SOURCE_FAVOURITES], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOMapsFavourites", L"Favourites"));
 
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 The map select is a dialog with its own title.
+	GameWindow *title = findChild("StaticTextTitle");
+	if (title)
+		GadgetStaticTextSetText(title, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSelectMap", L"Select map"));
+
 	if (m_search)
 		GadgetTextEntrySetText(m_search, m_filter->m_search);
 
@@ -418,6 +423,10 @@ void MapSelectList::init( GameWindow *parent, const char *layoutName, const MapS
 	m_ignoreEvents = FALSE;
 
 	repopulate(mapToSelect);
+
+	// typing searches at once; Esc still reaches the dialog's input callback through the parents
+	if (m_search)
+		TheWindowManager->winSetFocus(m_search);
 }
 
 void MapSelectList::shutdown()

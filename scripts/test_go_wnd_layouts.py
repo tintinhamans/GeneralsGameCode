@@ -540,6 +540,52 @@ class EntryPairTest(unittest.TestCase):
         self.assertEqual(wl.transform(once, name=MENU), once)
 
 
+MAP_SELECT_LAYOUTS = ("SkirmishMapSelectMenu.wnd", "LanMapSelectMenu.wnd", "WOLMapSelectMenu.wnd")
+MAP_SELECT_NAMES = (
+    "ListboxMap", "WinMapPreview", "ButtonOK", "ButtonBack", "WinGadgetBorder", "StaticTextTitle",
+    "TextEntryMapSearch", "ComboBoxMapPlayers", "ComboBoxMapSize", "RadioButtonMapsAll", "RadioButtonMapsOfficial",
+    "RadioButtonMapsUser", "RadioButtonMapsFavourites", "StaticTextMapCount", "StaticTextMapLegend",
+    *(f"ButtonMapStartPosition{i}" for i in range(8)),
+)
+
+
+class DialogTest(unittest.TestCase):
+    def test_content_over_a_dialog_frame_keeps_its_rects(self):
+        # a frame sibling under the content (backdrop, frame, content) keeps every inset, even near misses
+        text = screen(
+            window("USER", (130, 105, 670, 495), indent=2),
+            window("SCROLLLISTBOX", (140, 192, 470, 487), indent=2),
+            window("USER", (482, 192, 660, 432), indent=2),
+            window("PUSHBUTTON", (480, 461, 566, 487), indent=2),
+            window("PUSHBUTTON", (574, 462, 660, 488), indent=2),
+        )
+        self.assertEqual(rects(wl.transform(text, name=MENU)), rects(text))
+
+    def test_map_select_dialogs_pass_the_rules_unchanged(self):
+        for fn in MAP_SELECT_LAYOUTS:
+            name = f"Window/Menus/{fn}"
+            text = (wl.SOURCES / name).read_bytes().decode("latin-1")
+            out, info = wl.align(wl.remap_colors(text), name)
+            self.assertEqual(info["changes"], [], fn)
+            self.assertEqual(wl.structure_counts(out), wl.structure_counts(text), fn)
+
+    def test_map_select_dialogs_keep_the_window_names_the_code_uses(self):
+        for fn in MAP_SELECT_LAYOUTS:
+            root = wl.parse_windows((wl.SOURCES / "Window" / "Menus" / fn).read_bytes().decode("latin-1"))
+            names = {w.name for w in root.walk()}
+            for short in MAP_SELECT_NAMES:
+                self.assertIn(f"{fn}:{short}", names, fn)
+            # the backdrop covers the screen, the dialog frame is centred and holds every other window
+            backdrop = root.children[0]
+            self.assertEqual(backdrop.rect, (0, 0, 800, 600), fn)
+            frame = next(w for w in root.walk() if w.name == f"{fn}:WinGadgetBorder")
+            self.assertEqual((frame.rect[0] + frame.rect[2], frame.rect[1] + frame.rect[3]), (800, 600), fn)
+            for win in backdrop.walk():
+                if win is not frame:
+                    self.assertTrue(frame.rect[0] <= win.rect[0] and win.rect[2] <= frame.rect[2], win.name)
+                    self.assertTrue(frame.rect[1] <= win.rect[1] and win.rect[3] <= frame.rect[3], win.name)
+
+
 class AlignmentIdempotenceTest(unittest.TestCase):
     def test_title_gaps_and_columns_together_are_idempotent(self):
         cells = []
