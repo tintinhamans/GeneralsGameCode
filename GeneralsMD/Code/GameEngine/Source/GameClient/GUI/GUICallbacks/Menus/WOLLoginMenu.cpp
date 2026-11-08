@@ -57,6 +57,8 @@ void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/GadgetTextEntry.h"
+#include "GameClient/Display.h"
+#include "GameClient/Image.h"
 #include "GameClient/MessageBox.h"
 #include "GameClient/ShellHooks.h"
 #include "GameClient/GameWindowTransitions.h"
@@ -423,11 +425,41 @@ static const char *const signInProviderNames[SIGN_IN_PROVIDER_COUNT] = {
 static const ELoginProvider signInProviders[SIGN_IN_PROVIDER_COUNT] = { ELoginProvider::Discord, ELoginProvider::Steam, ELoginProvider::GameReplays };
 static Bool signInScreen = FALSE;
 static GameWindow *staticTextSignInStatus =		NULL;
-static GameWindow *staticTextSignInCode =			NULL;
 static GameWindow *buttonUseAnotherAccount =	NULL;
 static GameWindow *buttonSignInCancel =				NULL;
 static GameWindow *buttonSignInProviders[SIGN_IN_PROVIDER_COUNT] = { NULL, NULL, NULL };
 static ELoginStage shownSignInStage = ELoginStage::None;
+// TheSuperHackers @feature arcticdolphin 09/11/2026 Provider logos (scripts/go_logos.py), drawn by the button itself so no window over it blocks the click or the hover.
+static const char *const signInProviderLogos[SIGN_IN_PROVIDER_COUNT] = { "GOLogoDiscord", "GOLogoSteam", "GOLogoGameReplays" };
+static GameWinDrawFunc signInProviderDraws[SIGN_IN_PROVIDER_COUNT] = { NULL, NULL, NULL };
+
+static void signInProviderDraw( GameWindow *window, WinInstanceData *instData )
+{
+	Int provider = -1;
+	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
+	{
+		if (window == buttonSignInProviders[i])
+			provider = i;
+	}
+	if (provider < 0)
+		return;
+
+	if (signInProviderDraws[provider] != NULL)
+		signInProviderDraws[provider]( window, instData );
+
+	const Image *logo = TheMappedImageCollection ? TheMappedImageCollection->findImageByName( signInProviderLogos[provider] ) : NULL;
+	if (logo == NULL)
+		return;
+
+	// a square of 5/8 of the button height, centred down and twice as far from the left edge
+	Int x, y, width, height;
+	window->winGetScreenPosition( &x, &y );
+	window->winGetSize( &width, &height );
+	const Int size = height * 5 / 8;
+	const Int inset = (height - size) / 2;
+	const Color color = BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) ? GameMakeColor( 255, 255, 255, 255 ) : GameMakeColor( 255, 255, 255, 96 );
+	TheDisplay->drawImage( logo, x + 2 * inset, y + inset, x + 2 * inset + size, y + inset + size, color );
+}
 
 static void showSignInState( ELoginStage stage )
 {
@@ -450,14 +482,6 @@ static void showSignInState( ELoginStage stage )
 
 	const Bool codeKnown = (stage == ELoginStage::WaitingForProvider || stage == ELoginStage::WaitingForBrowser) && !pAuthInterface->GetLoginCode().empty();
 	const Bool choosing = codeKnown || stage == ELoginStage::RequestingCode;
-	if (codeKnown)
-	{
-		std::wstring code = from_utf8(pAuthInterface->GetLoginCode());
-		std::wstring link = from_utf8(pAuthInterface->GetLoginPageURL());
-		GadgetStaticTextSetText(staticTextSignInCode, TheGameText->FETCH_OR_SUBSTITUTE_FORMAT("GUI:GOSignInCode",
-			L"Your sign-in code is %ls\nTo sign in on another device, open %ls", code.c_str(), link.c_str()));
-	}
-	staticTextSignInCode->winHide(!codeKnown);
 
 	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
 	{
@@ -465,7 +489,8 @@ static void showSignInState( ELoginStage stage )
 		buttonSignInProviders[i]->winEnable(codeKnown);
 	}
 	buttonUseAnotherAccount->winHide(stage != ELoginStage::SavedLogin);
-	buttonSignInCancel->winHide(stage == ELoginStage::Finishing || stage == ELoginStage::Failed);
+	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Cancel stays up while the login finishes, so a websocket that never connects is no dead end.
+	buttonSignInCancel->winHide(stage == ELoginStage::Failed);
 }
 
 static void updateSignInScreen( Bool force )
@@ -488,10 +513,9 @@ static void updateSignInScreen( Bool force )
 static Bool findSignInScreen()
 {
 	staticTextSignInStatus = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:StaticTextSignInStatus") );
-	staticTextSignInCode = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:StaticTextSignInCode") );
 	buttonUseAnotherAccount = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:ButtonUseAnotherAccount") );
 	buttonSignInCancel = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:ButtonCancel") );
-	Bool found = staticTextSignInStatus && staticTextSignInCode && buttonUseAnotherAccount && buttonSignInCancel;
+	Bool found = staticTextSignInStatus && buttonUseAnotherAccount && buttonSignInCancel;
 	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
 	{
 		buttonSignInProviders[i] = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY(signInProviderNames[i]) );
@@ -499,6 +523,15 @@ static Bool findSignInScreen()
 	}
 	if (!found)
 		return FALSE;
+
+	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
+	{
+		if (buttonSignInProviders[i]->winGetDrawFunc() != signInProviderDraw)
+		{
+			signInProviderDraws[i] = buttonSignInProviders[i]->winGetDrawFunc();
+			buttonSignInProviders[i]->winSetDrawFunc( signInProviderDraw );
+		}
+	}
 
 	GadgetButtonSetText(buttonSignInProviders[0], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInProviderDiscord", L"Discord"));
 	GadgetButtonSetText(buttonSignInProviders[1], TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInProviderSteam", L"Steam"));

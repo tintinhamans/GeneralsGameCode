@@ -773,6 +773,13 @@ public:
 	EGOTearDownReason GetTeardownReason() const { return m_teardownReason; }
 	void ConsumePendingFullTeardown() { m_bPendingFullTeardown = false; }
 
+	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Called when a new online attempt starts, so it never inherits the teardown of an attempt that was abandoned before reaching the online screens.
+	void ClearPendingFullTeardown()
+	{
+		m_bPendingFullTeardown = false;
+		m_teardownReason = EGOTearDownReason::UNKNOWN;
+	}
+
 	void ResetPendingFullTeardownReason() { m_teardownReason = EGOTearDownReason::UNKNOWN; }
 
 	static void InitSentry();

@@ -32,7 +32,6 @@ public:
 	const std::string& GetLoginCode() const { return m_strCode; }
 	bool HasDisplayName() const { return !m_strDisplayName.empty() && m_strDisplayName != "NO_USER"; }
 
-	std::string GetLoginPageURL() const;
 	void OpenProviderLogin(ELoginProvider provider);
 	void UseAnotherAccount();
 	void CancelLogin();

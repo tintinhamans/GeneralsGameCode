@@ -1326,7 +1326,7 @@ WINDOW
         WINDOW
           WINDOWTYPE = PUSHBUTTON;
           SCREENRECT = UPPERLEFT: 123 215,
-                       BOTTOMRIGHT: 255 247,
+                       BOTTOMRIGHT: 669 247,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:ButtonProviderDiscord";
           STATUS = ENABLED+IMAGE;
@@ -1373,8 +1373,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = PUSHBUTTON;
-          SCREENRECT = UPPERLEFT: 261 215,
-                       BOTTOMRIGHT: 393 247,
+          SCREENRECT = UPPERLEFT: 123 255,
+                       BOTTOMRIGHT: 669 287,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:ButtonProviderSteam";
           STATUS = ENABLED+IMAGE;
@@ -1421,8 +1421,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = PUSHBUTTON;
-          SCREENRECT = UPPERLEFT: 399 215,
-                       BOTTOMRIGHT: 531 247,
+          SCREENRECT = UPPERLEFT: 123 295,
+                       BOTTOMRIGHT: 669 327,
                        CREATIONRESOLUTION: 800 600;
           NAME = "GameSpyLoginProfile.wnd:ButtonProviderGameReplays";
           STATUS = ENABLED+IMAGE;
@@ -1465,55 +1465,6 @@ WINDOW
                            IMAGE: Buttons-HiLite-Right, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
-        END
-        CHILD
-        WINDOW
-          WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 123 261,
-                       BOTTOMRIGHT: 669 318,
-                       CREATIONRESOLUTION: 800 600;
-          NAME = "GameSpyLoginProfile.wnd:StaticTextSignInCode";
-          STATUS = ENABLED+HIDDEN;
-          STYLE = STATICTEXT+MOUSETRACK;
-          SYSTEMCALLBACK = "[None]";
-          INPUTCALLBACK = "[None]";
-          TOOLTIPCALLBACK = "[None]";
-          DRAWCALLBACK = "[None]";
-          FONT = NAME: "Arial", SIZE: 10, BOLD: 0;
-          HEADERTEMPLATE = "GOLabelRegular";
-          TOOLTIPDELAY = -1;
-          TEXT = "GUI:GOSignInCode";
-          TEXTCOLOR = ENABLED:  242 237 224 255, ENABLEDBORDER:  0 0 0 255,
-                      DISABLED: 143 137 124 255, DISABLEDBORDER: 64 64 64 255,
-                      HILITE:   227 186 108 255, HILITEBORDER:   13 21 27 255;
-          ENABLEDDRAWDATA = IMAGE: NoImage, COLOR: 0 0 0 0, BORDERCOLOR: 143 137 124 0,
-                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                            IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
-          DISABLEDDRAWDATA = IMAGE: NoImage, COLOR: 64 64 64 255, BORDERCOLOR: 143 137 124 255,
-                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                             IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
-          HILITEDRAWDATA = IMAGE: NoImage, COLOR: 0 128 0 255, BORDERCOLOR: 128 255 128 255,
-                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0,
-                           IMAGE: NoImage, COLOR: 242 237 224 0, BORDERCOLOR: 242 237 224 0;
-          STATICTEXTDATA = CENTERED: 0;
         END
         CHILD
         WINDOW

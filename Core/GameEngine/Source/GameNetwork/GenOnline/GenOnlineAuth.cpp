@@ -11,6 +11,7 @@
 #include <windows.h>
 #include "GameNetwork/GenOnline/CredentialStore.h"
 #include "GameNetwork/GameSpyOverlay.h"
+#include "Common/GameEngine.h"
 #include "../json.hpp"
 
 #pragma comment(lib, "Crypt32.lib")
@@ -176,8 +177,15 @@ void GenOnlineAuthInterface::GoToDetermineNetworkCaps()
 	// GET MOTD
 	std::string strURI = GenOnlineServicesManager::GetAPIEndpoint("MOTD");
 	std::map<std::string, std::string> mapHeaders;
+	const int loginAttempt = m_loginAttempt;
 	GenOnlineServicesManager::GetInstance()->GetHTTPManager()->SendGETRequest(strURI.c_str(), EIPProtocolVersion::DONT_CARE, mapHeaders, [=](bool bSuccess, int statusCode, std::string strBody, HTTPRequest* pReq)
 		{
+			// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The player cancelled the sign-in while it was finishing.
+			if (loginAttempt != m_loginAttempt)
+			{
+				return;
+			}
+
 			try
 			{
 				nlohmann::json jsonObject = nlohmann::json::parse(strBody);
@@ -729,11 +737,6 @@ void GenOnlineAuthInterface::Tick()
 	}
 }
 
-std::string GenOnlineAuthInterface::GetLoginPageURL() const
-{
-	return GetProviderLoginURL(ELoginProvider::Website, m_strCode, LOGIN_ENV);
-}
-
 void GenOnlineAuthInterface::OpenProviderLogin(ELoginProvider provider)
 {
 	if (m_strCode.empty())
@@ -775,6 +778,10 @@ void GenOnlineAuthInterface::CancelLogin()
 	if (GenOnlineServicesManager::GetInstance() != nullptr)
 	{
 		GenOnlineServicesManager::GetInstance()->SetPendingFullTeardown(EGOTearDownReason::USER_REQUESTED_SILENT);
+
+		// TheSuperHackers @bugfix arcticdolphin 09/11/2026 Nothing on the main menu acts on the pending teardown, so tear down now; this also closes a websocket a finishing login opened.
+		GenOnlineServicesManager::GetInstance()->ConsumePendingFullTeardown();
+		TearDownGeneralsOnline();
 	}
 
 	OnLoginComplete(ELoginResult::UserCancelled, "");
@@ -793,8 +800,15 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 		// login to AC
 		GenOnlinePluginHost::LinkedAccount::SignIn();
 
+		const int loginAttempt = m_loginAttempt;
 		GenOnlineServicesManager::GetInstance()->OnLogin(loginResult, szWSAddr, [=]() // wait for WS to connect
 			{
+				// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The player cancelled the sign-in before the websocket connected.
+				if (loginAttempt != m_loginAttempt)
+				{
+					return;
+				}
+
                 // move on to network capabilities section
                 ClearGSMessageBoxes();
                 GoToDetermineNetworkCaps();
@@ -807,7 +821,11 @@ void GenOnlineAuthInterface::OnLoginComplete(ELoginResult loginResult, const cha
 			m_cb_LoginPendingCallback(loginResult);
 		}
 
-		TheShell->pop();
+		// TheSuperHackers @bugfix arcticdolphin 09/11/2026 A failed login leaves the screen through the OK of the login callback's message box, so only a cancel pops here.
+		if (loginResult == ELoginResult::UserCancelled)
+		{
+			TheShell->pop();
+		}
 	}
 }
 

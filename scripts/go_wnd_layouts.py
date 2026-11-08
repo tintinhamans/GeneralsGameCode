@@ -70,8 +70,8 @@ scripts/wnd_sources copy, if any, is only kept for reference. All rects are in 8
 - Blank layouts: a layout in scripts/wnd_fixes.py BLANK_LAYOUTS (the GameSpy login forms GO replaces with its sign-in
   screen) hides every window but the named ones, their ancestors and the visible screen titles: each other window under a
   shown one gets HIDDEN, so the backdrop, frame and title stay. Every window stays in the file for the code's lookups.
-  The GO sign-in panel of GameSpyLoginProfile (ParentSignIn: status, sign-in code, provider buttons, use another
-  account, cancel) lives in its scripts/wnd_sources copy, over the hidden form with the same rect.
+  The GO sign-in panel of GameSpyLoginProfile (ParentSignIn: status, the provider buttons stacked full width, use
+  another account, cancel) lives in its scripts/wnd_sources copy, over the hidden form with the same rect.
 - Theme copies: every menu layout (not the in-game ones, nor the menus shown during a match) also goes to
   GenOnline/GameData/Themes/Radar at the same path, its final output with the colours swapped for the
   Classic (Generals Online) palette (scripts/go_themes.py LAYOUT_COLORS). Only colour numbers differ.

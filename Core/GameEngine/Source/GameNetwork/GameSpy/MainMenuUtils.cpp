@@ -576,6 +576,8 @@ void CancelPatchCheckCallbackAndReopenDropdown()
 
 void CancelPatchCheckCallback()
 {
+	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 End this attempt so its late replies never start online.
+	timeThroughOnline++;
 	s_asyncDNSLookupInProgress = FALSE;
 	HandleCanceledDownload(FALSE); // don't dropdown
 	checkingForPatchBeforeGameSpy = FALSE;
@@ -870,6 +872,9 @@ void StartPatchCheck()
 	// TODO_NGMP: Uninit this when leaving MP, waste of resources and cycles
 	GenOnlineServicesManager::GetInstance()->Init();
 
+	// TheSuperHackers @bugfix arcticdolphin 09/11/2026 A teardown left by an earlier cancelled or failed attempt must not pop the next login off the welcome screen.
+	GenOnlineServicesManager::GetInstance()->ClearPendingFullTeardown();
+
     // if we have an AC plugin loaded but the AC external process isnt running, show an error message
     if (GenOnlinePluginHost::IsPluginLoaded())
     {
@@ -900,8 +905,15 @@ void StartPatchCheck()
     onlineCancelWindow = MessageBoxCancel(TheGameText->fetch("GUI:CheckingForPatches"),
         TheGameText->fetch("GUI:CheckingForPatches"), CancelPatchCheckCallbackAndReopenDropdown);
 
-	GenOnlineServicesManager::GetInstance()->StartVersionCheck([](bool bSuccess, bool bNeedsUpdate)
+	const Int patchCheckAttempt = timeThroughOnline;
+	GenOnlineServicesManager::GetInstance()->StartVersionCheck([patchCheckAttempt](bool bSuccess, bool bNeedsUpdate)
 		{
+			// TheSuperHackers @bugfix arcticdolphin 09/11/2026 The player cancelled this check or started another one before the reply came.
+			if (patchCheckAttempt != timeThroughOnline)
+			{
+				return;
+			}
+
 #if defined(USE_TEST_ENV) || defined(USE_DEBUG_ON_LIVE_SERVER)
 			bNeedsUpdate = false;
 #endif
