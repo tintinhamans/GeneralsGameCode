@@ -98,8 +98,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = SCROLLLISTBOX;
-      SCREENRECT = UPPERLEFT: 240 150,
-                   BOTTOMRIGHT: 536 402,
+      SCREENRECT = UPPERLEFT: 239 150,
+                   BOTTOMRIGHT: 535 402,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupLocaleSelect.wnd:ListBoxLocaleSelect";
       STATUS = ENABLED;
@@ -261,8 +261,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = PUSHBUTTON;
-      SCREENRECT = UPPERLEFT: 411 408,
-                   BOTTOMRIGHT: 532 439,
+      SCREENRECT = UPPERLEFT: 410 408,
+                   BOTTOMRIGHT: 531 439,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupLocaleSelect.wnd:ButtonOk";
       STATUS = ENABLED+IMAGE;
@@ -309,8 +309,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 234 107,
-                   BOTTOMRIGHT: 522 137,
+      SCREENRECT = UPPERLEFT: 233 107,
+                   BOTTOMRIGHT: 521 137,
                    CREATIONRESOLUTION: 800 600;
       NAME = "PopupLocaleSelect.wnd:";
       STATUS = ENABLED;

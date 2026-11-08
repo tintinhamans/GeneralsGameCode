@@ -587,7 +587,7 @@ WINDOW
   WINDOW
     WINDOWTYPE = ENTRYFIELD;
     SCREENRECT = UPPERLEFT: 392 288,
-                 BOTTOMRIGHT: 560 320,
+                 BOTTOMRIGHT: 560 318,
                  CREATIONRESOLUTION: 800 600;
     NAME = "WOLLoginMenu.wnd:TextEntryPassword";
     STATUS = ENABLED+IMAGE;

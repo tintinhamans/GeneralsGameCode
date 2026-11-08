@@ -190,8 +190,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = USER;
-          SCREENRECT = UPPERLEFT: 42 78,
-                       BOTTOMRIGHT: 759 559,
+          SCREENRECT = UPPERLEFT: 42 76,
+                       BOTTOMRIGHT: 759 557,
                        CREATIONRESOLUTION: 800 600;
           NAME = "ChallengeMenu.wnd:MainBackdrop";
           STATUS = ENABLED+IMAGE;
@@ -236,8 +236,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 576 505,
-                         BOTTOMRIGHT: 748 541,
+            SCREENRECT = UPPERLEFT: 576 503,
+                         BOTTOMRIGHT: 748 539,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:ButtonBack";
             STATUS = ENABLED+IMAGE;
@@ -284,8 +284,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 382 505,
-                         BOTTOMRIGHT: 554 541,
+            SCREENRECT = UPPERLEFT: 382 503,
+                         BOTTOMRIGHT: 554 539,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:ButtonPlay";
             STATUS = ENABLED+IMAGE;
@@ -332,8 +332,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = USER;
-            SCREENRECT = UPPERLEFT: 42 78,
-                         BOTTOMRIGHT: 760 79,
+            SCREENRECT = UPPERLEFT: 42 76,
+                         BOTTOMRIGHT: 760 77,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:Line1";
             STATUS = ENABLED;
@@ -379,8 +379,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 152 198,
-                         BOTTOMRIGHT: 179 225,
+            SCREENRECT = UPPERLEFT: 152 196,
+                         BOTTOMRIGHT: 179 223,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition0";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -426,8 +426,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = USER;
-            SCREENRECT = UPPERLEFT: 199 379,
-                         BOTTOMRIGHT: 747 493,
+            SCREENRECT = UPPERLEFT: 199 377,
+                         BOTTOMRIGHT: 747 491,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralsBioParent";
             STATUS = ENABLED;
@@ -472,8 +472,8 @@ WINDOW
             CHILD
             WINDOW
               WINDOWTYPE = USER;
-              SCREENRECT = UPPERLEFT: 641 386,
-                           BOTTOMRIGHT: 738 486,
+              SCREENRECT = UPPERLEFT: 641 385,
+                           BOTTOMRIGHT: 738 485,
                            CREATIONRESOLUTION: 800 600;
               NAME = "ChallengeMenu.wnd:BioPortrait";
               STATUS = ENABLED+IMAGE;
@@ -519,8 +519,8 @@ WINDOW
             CHILD
             WINDOW
               WINDOWTYPE = STATICTEXT;
-              SCREENRECT = UPPERLEFT: 203 383,
-                           BOTTOMRIGHT: 334 406,
+              SCREENRECT = UPPERLEFT: 203 382,
+                           BOTTOMRIGHT: 334 405,
                            CREATIONRESOLUTION: 800 600;
               NAME = "ChallengeMenu.wnd:";
               STATUS = ENABLED+IMAGE;
@@ -568,8 +568,8 @@ WINDOW
             CHILD
             WINDOW
               WINDOWTYPE = STATICTEXT;
-              SCREENRECT = UPPERLEFT: 204 405,
-                           BOTTOMRIGHT: 305 423,
+              SCREENRECT = UPPERLEFT: 204 404,
+                           BOTTOMRIGHT: 305 422,
                            CREATIONRESOLUTION: 800 600;
               NAME = "ChallengeMenu.wnd:";
               STATUS = ENABLED+IMAGE;
@@ -617,8 +617,8 @@ WINDOW
             CHILD
             WINDOW
               WINDOWTYPE = STATICTEXT;
-              SCREENRECT = UPPERLEFT: 204 421,
-                           BOTTOMRIGHT: 296 440,
+              SCREENRECT = UPPERLEFT: 204 420,
+                           BOTTOMRIGHT: 296 439,
                            CREATIONRESOLUTION: 800 600;
               NAME = "ChallengeMenu.wnd:";
               STATUS = ENABLED+IMAGE;
@@ -666,8 +666,8 @@ WINDOW
             CHILD
             WINDOW
               WINDOWTYPE = STATICTEXT;
-              SCREENRECT = UPPERLEFT: 204 437,
-                           BOTTOMRIGHT: 299 455,
+              SCREENRECT = UPPERLEFT: 204 436,
+                           BOTTOMRIGHT: 299 454,
                            CREATIONRESOLUTION: 800 600;
               NAME = "ChallengeMenu.wnd:";
               STATUS = ENABLED+IMAGE;
@@ -715,8 +715,8 @@ WINDOW
             CHILD
             WINDOW
               WINDOWTYPE = STATICTEXT;
-              SCREENRECT = UPPERLEFT: 203 453,
-                           BOTTOMRIGHT: 326 473,
+              SCREENRECT = UPPERLEFT: 203 452,
+                           BOTTOMRIGHT: 326 472,
                            CREATIONRESOLUTION: 800 600;
               NAME = "ChallengeMenu.wnd:";
               STATUS = ENABLED+IMAGE;
@@ -764,8 +764,8 @@ WINDOW
             CHILD
             WINDOW
               WINDOWTYPE = STATICTEXT;
-              SCREENRECT = UPPERLEFT: 321 455,
-                           BOTTOMRIGHT: 635 473,
+              SCREENRECT = UPPERLEFT: 321 454,
+                           BOTTOMRIGHT: 635 472,
                            CREATIONRESOLUTION: 800 600;
               NAME = "ChallengeMenu.wnd:BioStrategyEntry";
               STATUS = ENABLED+IMAGE;
@@ -813,8 +813,8 @@ WINDOW
             CHILD
             WINDOW
               WINDOWTYPE = STATICTEXT;
-              SCREENRECT = UPPERLEFT: 321 438,
-                           BOTTOMRIGHT: 633 456,
+              SCREENRECT = UPPERLEFT: 321 437,
+                           BOTTOMRIGHT: 633 455,
                            CREATIONRESOLUTION: 800 600;
               NAME = "ChallengeMenu.wnd:BioBirthplaceEntry";
               STATUS = ENABLED+IMAGE;
@@ -862,8 +862,8 @@ WINDOW
             CHILD
             WINDOW
               WINDOWTYPE = STATICTEXT;
-              SCREENRECT = UPPERLEFT: 321 421,
-                           BOTTOMRIGHT: 565 439,
+              SCREENRECT = UPPERLEFT: 321 420,
+                           BOTTOMRIGHT: 565 438,
                            CREATIONRESOLUTION: 800 600;
               NAME = "ChallengeMenu.wnd:BioDOBEntry";
               STATUS = ENABLED+IMAGE;
@@ -911,8 +911,8 @@ WINDOW
             CHILD
             WINDOW
               WINDOWTYPE = STATICTEXT;
-              SCREENRECT = UPPERLEFT: 321 404,
-                           BOTTOMRIGHT: 564 422,
+              SCREENRECT = UPPERLEFT: 321 403,
+                           BOTTOMRIGHT: 564 421,
                            CREATIONRESOLUTION: 800 600;
               NAME = "ChallengeMenu.wnd:BioNameEntry";
               STATUS = ENABLED+IMAGE;
@@ -962,8 +962,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 500 222,
-                         BOTTOMRIGHT: 527 249,
+            SCREENRECT = UPPERLEFT: 500 220,
+                         BOTTOMRIGHT: 527 247,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition1";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -1009,8 +1009,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 624 198,
-                         BOTTOMRIGHT: 651 225,
+            SCREENRECT = UPPERLEFT: 624 196,
+                         BOTTOMRIGHT: 651 223,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition2";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -1056,8 +1056,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 220 159,
-                         BOTTOMRIGHT: 247 186,
+            SCREENRECT = UPPERLEFT: 220 157,
+                         BOTTOMRIGHT: 247 184,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition3";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -1103,8 +1103,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 663 218,
-                         BOTTOMRIGHT: 690 245,
+            SCREENRECT = UPPERLEFT: 663 216,
+                         BOTTOMRIGHT: 690 243,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition4";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -1150,8 +1150,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 102 186,
-                         BOTTOMRIGHT: 129 213,
+            SCREENRECT = UPPERLEFT: 102 181,
+                         BOTTOMRIGHT: 129 208,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition5";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -1197,8 +1197,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 438 206,
-                         BOTTOMRIGHT: 465 233,
+            SCREENRECT = UPPERLEFT: 438 204,
+                         BOTTOMRIGHT: 465 231,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition6";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -1244,8 +1244,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 691 183,
-                         BOTTOMRIGHT: 718 210,
+            SCREENRECT = UPPERLEFT: 691 181,
+                         BOTTOMRIGHT: 718 208,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition7";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -1291,8 +1291,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 535 189,
-                         BOTTOMRIGHT: 562 216,
+            SCREENRECT = UPPERLEFT: 535 187,
+                         BOTTOMRIGHT: 562 214,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition8";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -1338,8 +1338,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 641 176,
-                         BOTTOMRIGHT: 668 203,
+            SCREENRECT = UPPERLEFT: 641 174,
+                         BOTTOMRIGHT: 668 201,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition9";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -1385,8 +1385,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 292 199,
-                         BOTTOMRIGHT: 319 226,
+            SCREENRECT = UPPERLEFT: 292 196,
+                         BOTTOMRIGHT: 319 223,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition10";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -1432,8 +1432,8 @@ WINDOW
           CHILD
           WINDOW
             WINDOWTYPE = PUSHBUTTON;
-            SCREENRECT = UPPERLEFT: 293 228,
-                         BOTTOMRIGHT: 320 255,
+            SCREENRECT = UPPERLEFT: 292 226,
+                         BOTTOMRIGHT: 319 253,
                          CREATIONRESOLUTION: 800 600;
             NAME = "ChallengeMenu.wnd:GeneralPosition11";
             STATUS = ENABLED+IMAGE+RIGHT_CLICK+CHECK_LIKE;
@@ -1481,8 +1481,8 @@ WINDOW
         CHILD
         WINDOW
           WINDOWTYPE = STATICTEXT;
-          SCREENRECT = UPPERLEFT: 46 46,
-                       BOTTOMRIGHT: 496 78,
+          SCREENRECT = UPPERLEFT: 46 44,
+                       BOTTOMRIGHT: 496 76,
                        CREATIONRESOLUTION: 800 600;
           NAME = "ChallengeMenu.wnd:";
           STATUS = ENABLED+IMAGE;

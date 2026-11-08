@@ -195,8 +195,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 356 284,
-                   BOTTOMRIGHT: 604 308,
+      SCREENRECT = UPPERLEFT: 356 289,
+                   BOTTOMRIGHT: 604 313,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer7Status";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -243,8 +243,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 356 252,
-                   BOTTOMRIGHT: 604 276,
+      SCREENRECT = UPPERLEFT: 356 257,
+                   BOTTOMRIGHT: 604 281,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer6Status";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -291,8 +291,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 356 220,
-                   BOTTOMRIGHT: 604 244,
+      SCREENRECT = UPPERLEFT: 356 225,
+                   BOTTOMRIGHT: 604 249,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer5Status";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -339,8 +339,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 356 188,
-                   BOTTOMRIGHT: 604 212,
+      SCREENRECT = UPPERLEFT: 356 193,
+                   BOTTOMRIGHT: 604 217,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer4Status";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -387,8 +387,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 356 156,
-                   BOTTOMRIGHT: 604 180,
+      SCREENRECT = UPPERLEFT: 356 161,
+                   BOTTOMRIGHT: 604 185,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer3Status";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -435,8 +435,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 356 124,
-                   BOTTOMRIGHT: 604 148,
+      SCREENRECT = UPPERLEFT: 356 129,
+                   BOTTOMRIGHT: 604 153,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer2Status";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -483,8 +483,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 356 95,
-                   BOTTOMRIGHT: 604 119,
+      SCREENRECT = UPPERLEFT: 356 97,
+                   BOTTOMRIGHT: 604 121,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer1Status";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -531,8 +531,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 68 285,
-                   BOTTOMRIGHT: 324 309,
+      SCREENRECT = UPPERLEFT: 68 289,
+                   BOTTOMRIGHT: 324 313,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer7Name";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -579,8 +579,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 68 253,
-                   BOTTOMRIGHT: 324 277,
+      SCREENRECT = UPPERLEFT: 68 257,
+                   BOTTOMRIGHT: 324 281,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer6Name";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -627,8 +627,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 68 221,
-                   BOTTOMRIGHT: 324 245,
+      SCREENRECT = UPPERLEFT: 68 225,
+                   BOTTOMRIGHT: 324 249,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer5Name";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -675,8 +675,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 68 189,
-                   BOTTOMRIGHT: 324 213,
+      SCREENRECT = UPPERLEFT: 68 193,
+                   BOTTOMRIGHT: 324 217,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer4Name";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -723,8 +723,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 68 157,
-                   BOTTOMRIGHT: 324 181,
+      SCREENRECT = UPPERLEFT: 68 161,
+                   BOTTOMRIGHT: 324 185,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer3Name";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -771,8 +771,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 68 125,
-                   BOTTOMRIGHT: 324 149,
+      SCREENRECT = UPPERLEFT: 68 129,
+                   BOTTOMRIGHT: 324 153,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer2Name";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
@@ -819,8 +819,8 @@ WINDOW
     CHILD
     WINDOW
       WINDOWTYPE = STATICTEXT;
-      SCREENRECT = UPPERLEFT: 68 95,
-                   BOTTOMRIGHT: 324 119,
+      SCREENRECT = UPPERLEFT: 68 97,
+                   BOTTOMRIGHT: 324 121,
                    CREATIONRESOLUTION: 800 600;
       NAME = "EstablishConnectionsScreen.wnd:StaticPlayer1Name";
       STATUS = ENABLED+NOINPUT+NOFOCUS;
