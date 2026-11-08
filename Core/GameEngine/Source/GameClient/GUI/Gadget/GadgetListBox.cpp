@@ -2760,7 +2760,9 @@ void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength )
     if(listboxData->insertPos > newLength)
 			listboxData->insertPos = newLength;
 
-    listboxData->endPos = newLength;
+    // TheSuperHackers @bugfix arcticdolphin 08/11/2026 Keep the end of a shorter or empty list where it is, appends past it read beyond the rows.
+    if( listboxData->endPos > newLength )
+    	listboxData->endPos = newLength;
 		//copy only the data that we'll be needing.
 		memcpy(newData,listboxData->listData,newLength * sizeof( ListEntryRow ) );
 	}
