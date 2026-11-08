@@ -305,6 +305,7 @@ void BIGFileSystem::loadMods()
 	std::vector<AsciiString> genOnlineArchives;
 	mountDataPackLayer("generals_online", settings.DataPacks_GeneralsOnline().m_enabled, settings.DataPacks_GeneralsOnline().m_includePaths, nullptr, ARCHIVE_PRIORITY_GENONLINE, &genOnlineArchives);
 	mountGenOnlineMenus(genOnlineArchives);
+	mountGenOnlineTheme(AsciiString(settings.Render_UITheme().c_str()), genOnlineArchives);
 
 #if defined(GENONLINE_COMMUNITY_PATCH_CHANGES)
 	// the community_patch layer holds Zero Hour data

@@ -519,6 +519,57 @@ void ArchiveFileSystem::mountGenOnlineMenus(const std::vector<AsciiString>& genO
 	}
 }
 
+void ArchiveFileSystem::mountGenOnlineTheme(const AsciiString& theme, const std::vector<AsciiString>& genOnlineArchives)
+{
+	if (theme.isEmpty() || theme.compareNoCase("classic") == 0)
+	{
+		return;
+	}
+
+	// settings name to archive name: generals_online -> Themes\GeneralsOnline_Theme_GeneralsOnline.big
+	AsciiString themeName;
+	if (theme.compareNoCase("generals_online") == 0)
+	{
+		themeName = "GeneralsOnline";
+	}
+	else
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "UI theme %s is unknown, using classic", theme.str());
+		return;
+	}
+
+	// the theme archive is in a Themes folder next to a generals_online archive, the first one found wins
+	for (const AsciiString& archivePath : genOnlineArchives)
+	{
+		const std::string corePath = archivePath.str();
+		const size_t lastSeparator = corePath.find_last_of("\\/");
+		const std::string themePath = (lastSeparator == std::string::npos ? std::string() : corePath.substr(0, lastSeparator + 1))
+			+ "Themes\\GeneralsOnline_Theme_" + themeName.str() + ".big";
+		if (!TheLocalFileSystem->doesFileExist(themePath.c_str()))
+		{
+			continue;
+		}
+		if (m_archiveFileMap.find(AsciiString(themePath.c_str())) != m_archiveFileMap.end())
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "UI theme archive %s is already mounted", themePath.c_str());
+			return;
+		}
+		ArchiveFile* themeArchive = openArchiveFile(themePath.c_str());
+		if (themeArchive == nullptr)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "UI theme archive %s could not be opened", themePath.c_str());
+			continue;
+		}
+		loadIntoDirectoryTree(themeArchive, ARCHIVE_PRIORITY_GENONLINE_THEME);
+		m_archiveFileMap[AsciiString(themePath.c_str())] = themeArchive;
+		FilenameList themeFiles;
+		themeArchive->getFileListInDirectory("", "", "*", themeFiles, TRUE);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "UI theme %s from %s at priority %d: %d files", theme.str(), themePath.c_str(), (Int)ARCHIVE_PRIORITY_GENONLINE_THEME, (Int)themeFiles.size());
+		return;
+	}
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "UI theme %s has no archive next to the generals_online archives, using classic", theme.str());
+}
+
 void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority, std::vector<AsciiString>* mounted)
 {
 	if (!enabled)

@@ -18,6 +18,7 @@
 #define SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL "fps_limit"
 #define SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY "stats_overlay"
 #define SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY "adaptive_quality"
+#define SETTINGS_KEY_RENDER_UI_THEME "ui_theme"
 
 #define SETTINGS_KEY_CHAT "chat"
 #define SETTINGS_KEY_CHAT_LIFE_SECONDS "duration_seconds_until_fade_out"
@@ -345,6 +346,13 @@ void GenOnlineSettings::Load(void)
 				{
 					m_Render_AdaptiveQuality = renderSettings[SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY];
 				}
+
+				// an unknown theme falls back to classic, the save then writes classic
+				if (renderSettings.contains(SETTINGS_KEY_RENDER_UI_THEME) && renderSettings[SETTINGS_KEY_RENDER_UI_THEME].is_string())
+				{
+					const std::string theme = renderSettings[SETTINGS_KEY_RENDER_UI_THEME].get<std::string>();
+					m_Render_UITheme = (theme == "generals_online") ? theme : std::string("classic");
+				}
 			}
 
             if (jsonSettings.contains(SETTINGS_KEY_NETWORK))
@@ -660,6 +668,7 @@ bool GenOnlineSettings::Save()
 					{SETTINGS_KEY_RENDER_LIMIT_FRAMERATE, m_Render_LimitFramerate},
 					{SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL, m_Render_FramerateLimit_FPSVal},
 					{SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY, m_Render_AdaptiveQuality},
+					{SETTINGS_KEY_RENDER_UI_THEME, m_Render_UITheme},
 				}
 		},
 
