@@ -214,11 +214,11 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 																							trackStart, trackY, fillEnd - trackStart, trackHeight );
 	}
 
-	// thumb art centred on the thumb child, at least as wide as it
-	Int thumbWidth = REAL_TO_INT( 8.0f * yScale + 0.5f );
-	if( thumbWidth < thumbSize.x )
-		thumbWidth = thumbSize.x;
-	Int thumbHeight = REAL_TO_INT( 16.0f * yScale + 0.5f );
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The marker is a rounded pill 4 units wide and 1.75 track heights tall, centred on the value.
+	Int thumbWidth = REAL_TO_INT( 4.0f * yScale + 0.5f );
+	if( thumbWidth < 3 )
+		thumbWidth = 3;
+	Int thumbHeight = (trackHeight * 7 + 2) / 4;
 	Int thumbX = thumbCX - thumbWidth / 2;
 	Int thumbY = thumbCY - thumbHeight / 2;
 
