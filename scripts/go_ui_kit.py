@@ -79,8 +79,9 @@ SLIDER_ON = (rgba("#6A7BFF"), rgba("#3446FF"))
 SLIDER_OFF = (rgba("#24308C"), rgba("#0B1030", 0.92))
 SLIDER_HOVER = rgba("#2F4BFF", 0.22)
 # track slider (drawn only by the GO track slider draw): (edge line, fill)
-SLIDER_TRACK = (rgba("#3A48B0"), rgba("#1A2260", 0.92))
-SLIDER_FILL = (rgba("#6A7BFF"), rgba("#3446FF"))
+# flat, no outline: an outline only shows on the rounded ends once the small art is scaled, as a light rim
+SLIDER_TRACK = (rgba("#283489"), rgba("#283489"))
+SLIDER_FILL = (rgba("#3446FF"), rgba("#3446FF"))
 # the thumb is a slim marker at the value: (colour, width in thumb pixels)
 SLIDER_MARKER = {
     "": (rgba("#C9CEFF"), 1.15),
@@ -126,8 +127,8 @@ SCROLL_THUMB_WIDTH = 7.0
 SCROLL_TRACK = SLIDER_TRACK
 SCROLL_PILLS = {
     "": SLIDER_FILL,
-    "Hilite": (rgba("#A9B4FF"), rgba("#5B6CF2")),
-    "Disabled": (rgba("#404159"), rgba("#23253A", 0.92)),
+    "Hilite": (rgba("#6A7BFF"), rgba("#6A7BFF")),
+    "Disabled": (rgba("#3A3C55"), rgba("#3A3C55")),
 }
 # square arrow boxes in the kit button states: state -> (edge line, fill, chevron colour)
 SCROLL_ARROWS = {
