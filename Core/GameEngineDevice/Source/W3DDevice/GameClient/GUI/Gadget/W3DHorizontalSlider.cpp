@@ -156,9 +156,9 @@ static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
 	Bool enabled = BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED );
 
 	// track spans the travel of the thumb centre
-	Int trackHeight = REAL_TO_INT( 4.0f * yScale + 0.5f );
-	if( trackHeight < 3 )
-		trackHeight = 3;
+	Int trackHeight = REAL_TO_INT( 8.0f * yScale + 0.5f );
+	if( trackHeight < 6 )
+		trackHeight = 6;
 	Int trackY = thumbCY - trackHeight / 2;
 	Int trackStart = origin.x + thumbSize.x / 2;
 	Int trackEnd = origin.x + size.x - thumbSize.x / 2;
