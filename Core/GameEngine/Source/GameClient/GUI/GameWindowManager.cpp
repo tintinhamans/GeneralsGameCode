@@ -2715,7 +2715,14 @@ GameWindow *GameWindowManager::gogoGadgetComboBox( GameWindow *parent,
 	// assign the default images/colors
 	assignDefaultGadgetLook( comboBox, defaultFont, defaultVisual );
 
-  return comboBox;
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 A combo a layout creates disabled also disables its button and edit box and shows no placeholder text, like winEnable( FALSE ).
+	if( !comboBox->winGetEnabled() )
+	{
+		comboBox->winEnable( FALSE );
+		GadgetComboBoxSetText( comboBox, UnicodeString::TheEmptyString );
+	}
+
+	return comboBox;
 
 }
 
