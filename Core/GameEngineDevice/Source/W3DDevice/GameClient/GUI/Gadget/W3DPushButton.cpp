@@ -124,7 +124,8 @@ static void drawButtonText( GameWindow *window, WinInstanceData *instData )
 	if( BitIsSet( window->winGetStatus(), WIN_STATUS_SHORTCUT_BUTTON ) )
 	{
 		// Oh god... this is a total hack for shortcut buttons to handle rendering text top left corner...
-		textPos.x = origin.x + 2;
+		// TheSuperHackers @tweak arcticdolphin 08/11/2026 The text margin scales with the screen height.
+		textPos.x = origin.x + GameWindowManager::winScaleLayoutSize( 2 );
 		textPos.y = origin.y + 0;
 	}
 	else
