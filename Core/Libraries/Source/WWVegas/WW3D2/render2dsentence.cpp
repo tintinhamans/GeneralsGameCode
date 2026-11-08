@@ -1623,6 +1623,48 @@ FontCharsClass::Update_Current_Buffer (int char_width)
 }
 
 
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Retail UI faces and the GO UI faces they resolve to; GlobalLanguage.cpp registers the same faces.
+struct UIFontSubstituteStruct
+{
+	const char *	RetailFace;
+	const char *	Face;
+	int				Weight;
+};
+
+static const UIFontSubstituteStruct UIFontSubstitutes[] =
+{
+	{ "Arial", "Open Sans", FW_NORMAL },
+	{ "Times New Roman", "Open Sans", FW_NORMAL },
+	{ "Generals", "Open Sans SemiBold", FW_SEMIBOLD },
+};
+
+static const char * const UIFontBoldFace = "Open Sans";
+static bool UIFontSubstitution = false;
+static bool UIFontMismatchReported = false;
+
+void
+FontCharsClass::Set_UI_Font_Substitution (bool enable)
+{
+	UIFontSubstitution = enable;
+}
+
+static const UIFontSubstituteStruct *
+Find_UI_Font_Substitute (const char *font_name)
+{
+	if (!UIFontSubstitution) {
+		return nullptr;
+	}
+
+	for (int index = 0; index < (int)ARRAY_SIZE (UIFontSubstitutes); ++index) {
+		if (stricmp (font_name, UIFontSubstitutes[index].RetailFace) == 0) {
+			return &UIFontSubstitutes[index];
+		}
+	}
+
+	return nullptr;
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////////
 //
 //	Create_GDI_Font
@@ -1632,6 +1674,12 @@ bool
 FontCharsClass::Create_GDI_Font (const char *font_name)
 {
 	HDC screen_dc = ::GetDC ((HWND)WW3D::Get_Window());
+
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Retail UI faces draw with the GO UI font, bold with its Bold face, and skip the narrow Generals width.
+	const UIFontSubstituteStruct *ui_font = Find_UI_Font_Substitute (font_name);
+	if (ui_font != nullptr) {
+		font_name = IsBold ? UIFontBoldFace : ui_font->Face;
+	}
 
 	const char *fontToUseForGenerals = "Arial";
 	bool doingGenerals = false;
@@ -1660,6 +1708,9 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 	//	Create the Windows font
 	//
 	DWORD bold		= IsBold ? FW_BOLD : FW_NORMAL;
+	if (ui_font != nullptr && !IsBold) {
+		bold = ui_font->Weight;
+	}
 	DWORD italic	= 0;
 	GDIFont			= ::CreateFont (font_height, fontWidth, 0, 0, bold, italic,
 								FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
@@ -1678,6 +1729,16 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 	//	made from it, and Store_GDI_Char copies as many rows and columns as GDI reports.
 	//
 	OldGDIFont = (HFONT)::SelectObject (MemDC, GDIFont);
+
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 GDI silently substitutes a missing face, so report once when the GO UI face was not selected.
+	if (ui_font != nullptr && !UIFontMismatchReported) {
+		char selected_face[LF_FACESIZE] = { 0 };
+		::GetTextFaceA (MemDC, LF_FACESIZE, selected_face);
+		if (stricmp (selected_face, font_name) != 0) {
+			WWDEBUG_WARNING (("FontCharsClass: GDI selected '%s' instead of the GO UI face '%s'", selected_face, font_name));
+			UIFontMismatchReported = true;
+		}
+	}
 
 	//
 	//	Lookup the pixel height of the font

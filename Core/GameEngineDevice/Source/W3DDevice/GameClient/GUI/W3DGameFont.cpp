@@ -81,6 +81,9 @@ Bool W3DFontLibrary::loadFontData( GameFont *font )
 	const Int size = font->pointSize;
 	const Bool bold = font->bold;
 
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Retail UI faces draw with the GO UI font once GlobalLanguage registered it.
+	FontCharsClass::Set_UI_Font_Substitution( TheGlobalLanguageData != nullptr && TheGlobalLanguageData->isUIFontRegistered() );
+
 	// get the font data from the asset manager
 	FontCharsClass *fontChar = WW3DAssetManager::Get_Instance()->Get_FontChars( name, size, bold );
 
