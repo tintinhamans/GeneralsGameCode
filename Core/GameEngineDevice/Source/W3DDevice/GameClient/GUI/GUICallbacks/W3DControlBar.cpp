@@ -40,6 +40,9 @@
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/ControlBarScheme.h"
 #include "GameClient/MapUtil.h"
+#if defined(GENONLINE)
+#include "GameClient/MapPreviewIcons.h"
+#endif
 #include "GameLogic/GameLogic.h"
 
 //-------------------------------------------------------------------------------------------------
@@ -765,6 +768,17 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 			TheDisplay->drawImage(image, pixelX + it->x, pixelY + it->y, pixelX + it->x + SUPPLY_TECH_SIZE, pixelY + it->y +SUPPLY_TECH_SIZE);
 			it++;
 		}
+
+#if defined(GENONLINE)
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw the typed markers with their category icons, else the retail image.
+	MapPreviewMarkerList::const_iterator typedIt = TheSupplyAndTechImageLocations.m_typedMarkers.begin();
+	for (; typedIt != TheSupplyAndTechImageLocations.m_typedMarkers.end(); ++typedIt)
+	{
+		const Image *typedImage = getMapPreviewCategoryImage(typedIt->m_category, typedIt->m_isTech);
+		if (typedImage)
+			TheDisplay->drawImage(typedImage, pixelX + typedIt->m_pos.x, pixelY + typedIt->m_pos.y, pixelX + typedIt->m_pos.x + SUPPLY_TECH_SIZE, pixelY + typedIt->m_pos.y + SUPPLY_TECH_SIZE);
+	}
+#endif
 	drawSkinnyBorder(pixelX - 1, pixelY - 1, width + 2, height + 2);
 }
 
