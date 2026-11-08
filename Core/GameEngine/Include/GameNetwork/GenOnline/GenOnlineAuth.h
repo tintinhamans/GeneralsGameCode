@@ -32,6 +32,12 @@ public:
 	const std::string& GetLoginCode() const { return m_strCode; }
 	bool HasDisplayName() const { return !m_strDisplayName.empty() && m_strDisplayName != "NO_USER"; }
 
+	// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in dialog shows a failed login in place and closes itself, so failures are reported to its callback instead of popping a screen.
+	void SetSignInDialog(bool bSignInDialog) { m_bSignInDialog = bSignInDialog; }
+	bool ReportLoginFailure(const wchar_t* szTitle, const wchar_t* szText);
+	const std::wstring& GetLoginFailureTitle() const { return m_strLoginFailureTitle; }
+	const std::wstring& GetLoginFailureText() const { return m_strLoginFailureText; }
+
 	void OpenProviderLogin(ELoginProvider provider);
 	void UseAnotherAccount();
 	void CancelLogin();
@@ -102,6 +108,9 @@ private:
 	std::int64_t m_lastCheckCode = -1;
 
 	bool m_bSignInScreen = false;
+	bool m_bSignInDialog = false;
+	std::wstring m_strLoginFailureTitle;
+	std::wstring m_strLoginFailureText;
 	ELoginStage m_loginStage = ELoginStage::None;
 	// TheSuperHackers @feature arcticdolphin 08/11/2026 Bumped by each login start so replies to an abandoned attempt are dropped.
 	int m_loginAttempt = 0;

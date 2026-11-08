@@ -62,8 +62,10 @@ void GenOnline_WOLLoginMenu_LoginCallback(ELoginResult loginResult);
 #include "GameClient/MessageBox.h"
 #include "GameClient/ShellHooks.h"
 #include "GameClient/GameWindowTransitions.h"
+#include "GameClient/GUICallbacks.h"
 
 #include "GameNetwork/GameSpy/GSConfig.h"
+#include "GameNetwork/GameSpy/MainMenuUtils.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
 #include "GameNetwork/GameSpy/PeerThread.h"
 #include "GameNetwork/GameSpy/PingThread.h"
@@ -510,15 +512,16 @@ static void updateSignInScreen( Bool force )
 	}
 }
 
-static Bool findSignInScreen()
+// TheSuperHackers @feature arcticdolphin 09/11/2026 The sign-in screen and the sign-in dialog share these windows; only one of them is up at a time.
+static Bool findSignInWindows( GameWindow *parent, const char *statusName, const char *useAnotherAccountName, const char *cancelName, const char *const providerNames[] )
 {
-	staticTextSignInStatus = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:StaticTextSignInStatus") );
-	buttonUseAnotherAccount = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:ButtonUseAnotherAccount") );
-	buttonSignInCancel = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GameSpyLoginProfile.wnd:ButtonCancel") );
+	staticTextSignInStatus = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(statusName) );
+	buttonUseAnotherAccount = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(useAnotherAccountName) );
+	buttonSignInCancel = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(cancelName) );
 	Bool found = staticTextSignInStatus && buttonUseAnotherAccount && buttonSignInCancel;
 	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
 	{
-		buttonSignInProviders[i] = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY(signInProviderNames[i]) );
+		buttonSignInProviders[i] = TheWindowManager->winGetWindowFromId( parent, NAMEKEY(providerNames[i]) );
 		found = found && buttonSignInProviders[i] != NULL;
 	}
 	if (!found)
@@ -540,6 +543,329 @@ static Bool findSignInScreen()
 	GadgetButtonSetText(buttonSignInCancel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:Cancel", L"Cancel"));
 	GadgetStaticTextSetText(staticTextSignInStatus, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInSigningIn", L"Signing in..."));
 	return TRUE;
+}
+
+static Bool findSignInScreen()
+{
+	return findSignInWindows( NULL, "GameSpyLoginProfile.wnd:StaticTextSignInStatus", "GameSpyLoginProfile.wnd:ButtonUseAnotherAccount",
+		"GameSpyLoginProfile.wnd:ButtonCancel", signInProviderNames );
+}
+
+// TheSuperHackers @feature arcticdolphin 09/11/2026 GO sign-in dialog: one modal card over the main menu for the update check, the update prompt, errors and the sign-in.
+enum SignInDialogStep
+{
+	SIGN_IN_DIALOG_CHECKING,
+	SIGN_IN_DIALOG_UPDATE,
+	SIGN_IN_DIALOG_ERROR,
+	SIGN_IN_DIALOG_SIGN_IN
+};
+
+static const char *const signInDialogProviderNames[SIGN_IN_PROVIDER_COUNT] = {
+	"GOSignInDialog.wnd:ButtonProviderDiscord",
+	"GOSignInDialog.wnd:ButtonProviderSteam",
+	"GOSignInDialog.wnd:ButtonProviderGameReplays",
+};
+static WindowLayout *signInDialogLayout = NULL;
+static GameWindow *signInDialogRoot = NULL;
+static GameWindow *signInDialogMessage = NULL;
+static GameWindow *signInDialogUpdate = NULL;
+static SignInDialogStep signInDialogStep = SIGN_IN_DIALOG_CHECKING;
+static GameWinMsgBoxFunc signInDialogCancelFunc = NULL;
+static GameWinMsgBoxFunc signInDialogUpdateFunc = NULL;
+
+// the step's status line and message; every button but Cancel hides, the sign-in step shows its own through showSignInState
+static void showSignInDialogStep( SignInDialogStep step, const UnicodeString &status, const UnicodeString &message )
+{
+	signInDialogStep = step;
+	GadgetStaticTextSetText(staticTextSignInStatus, status);
+	GadgetStaticTextSetText(signInDialogMessage, message);
+	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
+		buttonSignInProviders[i]->winHide(TRUE);
+	buttonUseAnotherAccount->winHide(TRUE);
+	signInDialogUpdate->winHide(step != SIGN_IN_DIALOG_UPDATE);
+	buttonSignInCancel->winHide(FALSE);
+	if (step == SIGN_IN_DIALOG_ERROR)
+		GadgetButtonSetText(buttonSignInCancel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:Ok", L"OK"));
+	else
+		GadgetButtonSetText(buttonSignInCancel, TheGameText->FETCH_OR_SUBSTITUTE("GUI:Cancel", L"Cancel"));
+}
+
+static void updateSignInDialog( Bool force )
+{
+	if (signInDialogLayout == NULL || signInDialogStep != SIGN_IN_DIALOG_SIGN_IN)
+		return;
+
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pAuthInterface == nullptr)
+		return;
+
+	const ELoginStage stage = pAuthInterface->GetLoginStage();
+	if (force || stage != shownSignInStage)
+	{
+		shownSignInStage = stage;
+		showSignInState(stage);
+	}
+}
+
+// the auth keeps this callback after the dialog closes, until the next login registers its own, so it only acts while the dialog is up
+static void signInDialogLoginCallback( ELoginResult loginResult )
+{
+	if (signInDialogLayout == NULL || signInDialogStep != SIGN_IN_DIALOG_SIGN_IN)
+		return;
+
+	if (loginResult == ELoginResult::Success)
+	{
+		ClearGSMessageBoxes();
+		GOSignInDialogDestroy();
+		SignalUIInteraction(SHELL_SCRIPT_HOOK_GENERALS_ONLINE_LOGIN);
+		TheShell->push("Menus/WOLWelcomeMenu.wnd");
+	}
+	else if (loginResult == ELoginResult::Failed)
+	{
+		GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+		UnicodeString title = TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInFailed", L"Login failed.");
+		UnicodeString text;
+		if (pAuthInterface != nullptr && !pAuthInterface->GetLoginFailureTitle().empty())
+		{
+			title = UnicodeString(pAuthInterface->GetLoginFailureTitle().c_str());
+			text = UnicodeString(pAuthInterface->GetLoginFailureText().c_str());
+		}
+		ClearGSMessageBoxes();
+		GOSignInDialogShowError(title, text, CancelPatchCheckCallbackAndReopenDropdown);
+	}
+	// UserCancelled: the Cancel button that cancelled closes the dialog
+}
+
+static void signInDialogPressed( GameWindow *control )
+{
+	if (control == buttonSignInCancel)
+	{
+		if (signInDialogStep == SIGN_IN_DIALOG_SIGN_IN)
+		{
+			GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+			if (pAuthInterface != nullptr)
+				pAuthInterface->CancelLogin();
+			CancelPatchCheckCallbackAndReopenDropdown();
+			return;
+		}
+		GameWinMsgBoxFunc cancelFunc = signInDialogCancelFunc;
+		if (cancelFunc != NULL)
+			cancelFunc();
+		else
+			CancelPatchCheckCallbackAndReopenDropdown();
+		return;
+	}
+
+	if (control == signInDialogUpdate)
+	{
+		GameWinMsgBoxFunc updateFunc = signInDialogUpdateFunc;
+		GOSignInDialogDestroy();
+		if (updateFunc != NULL)
+			updateFunc();
+		return;
+	}
+
+	if (signInDialogStep != SIGN_IN_DIALOG_SIGN_IN)
+		return;
+
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pAuthInterface == nullptr)
+		return;
+
+	if (control == buttonUseAnotherAccount)
+	{
+		pAuthInterface->UseAnotherAccount();
+		updateSignInDialog(FALSE);
+		return;
+	}
+	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
+	{
+		if (control == buttonSignInProviders[i])
+		{
+			pAuthInterface->OpenProviderLogin(signInProviders[i]);
+			updateSignInDialog(FALSE);
+			return;
+		}
+	}
+}
+
+static WindowMsgHandledType signInDialogSystem( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
+{
+	switch (msg)
+	{
+		case GWM_INPUT_FOCUS:
+		{
+			if (mData1 == TRUE)
+				*(Bool *)mData2 = TRUE;
+			return MSG_HANDLED;
+		}
+		case GBM_SELECTED:
+		{
+			signInDialogPressed( (GameWindow *)mData1 );
+			return MSG_HANDLED;
+		}
+	}
+	return MSG_IGNORED;
+}
+
+// Escape does what the Cancel button does (OK on an error) whenever it is shown
+static WindowMsgHandledType signInDialogInput( GameWindow *window, UnsignedInt msg, WindowMsgData mData1, WindowMsgData mData2 )
+{
+	if (msg != GWM_CHAR || (UnsignedByte)mData1 != KEY_ESC)
+		return MSG_IGNORED;
+
+	if (BitIsSet( (UnsignedByte)mData2, KEY_STATE_UP ) && signInDialogLayout != NULL && !buttonSignInCancel->winIsHidden())
+		signInDialogPressed( buttonSignInCancel );
+	return MSG_HANDLED;
+}
+
+Bool GOSignInDialogOpen( void )
+{
+	if (signInDialogLayout != NULL)
+		return TRUE;
+
+	// a mod or older data without the dialog keeps the message boxes and the sign-in screen
+	if (TheFileSystem == NULL || !TheFileSystem->doesFileExist("Window\\Menus\\GOSignInDialog.wnd"))
+		return FALSE;
+
+	WindowLayout *layout = TheWindowManager->winCreateLayout( "Menus/GOSignInDialog.wnd" );
+	if (layout == NULL)
+		return FALSE;
+
+	GameWindow *root = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("GOSignInDialog.wnd:GOSignInDialogRoot") );
+	GameWindow *title = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:StaticTextTitle") );
+	signInDialogMessage = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:StaticTextMessage") );
+	signInDialogUpdate = TheWindowManager->winGetWindowFromId( root, NAMEKEY("GOSignInDialog.wnd:ButtonUpdate") );
+	if (root == NULL || title == NULL || signInDialogMessage == NULL || signInDialogUpdate == NULL
+		|| !findSignInWindows( root, "GOSignInDialog.wnd:StaticTextSignInStatus", "GOSignInDialog.wnd:ButtonUseAnotherAccount",
+			"GOSignInDialog.wnd:ButtonCancel", signInDialogProviderNames ))
+	{
+		layout->destroyWindows();
+		deleteInstance(layout);
+		signInDialogMessage = NULL;
+		signInDialogUpdate = NULL;
+		staticTextSignInStatus = NULL;
+		buttonUseAnotherAccount = NULL;
+		buttonSignInCancel = NULL;
+		for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
+			buttonSignInProviders[i] = NULL;
+		return FALSE;
+	}
+
+	signInDialogLayout = layout;
+	signInDialogRoot = root;
+	signInDialogCancelFunc = NULL;
+	signInDialogUpdateFunc = NULL;
+	shownSignInStage = ELoginStage::None;
+	GadgetStaticTextSetText(title, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInTitle", L"Generals Online"));
+	GadgetButtonSetText(signInDialogUpdate, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInUpdate", L"Update"));
+	showSignInDialogStep(SIGN_IN_DIALOG_CHECKING, TheGameText->fetch("GUI:CheckingForPatches"), UnicodeString::TheEmptyString);
+
+	root->winSetSystemFunc(signInDialogSystem);
+	root->winSetInputFunc(signInDialogInput);
+	layout->hide(FALSE);
+	layout->bringForward();
+	root->winBringToTop();
+	TheWindowManager->winSetModal(root);
+	TheWindowManager->winSetFocus(root);
+	return TRUE;
+}
+
+Bool GOSignInDialogIsOpen( void )
+{
+	return signInDialogLayout != NULL;
+}
+
+void GOSignInDialogShowChecking( GameWinMsgBoxFunc cancelFunc )
+{
+	if (signInDialogLayout == NULL)
+		return;
+	signInDialogCancelFunc = cancelFunc;
+	signInDialogUpdateFunc = NULL;
+	showSignInDialogStep(SIGN_IN_DIALOG_CHECKING, TheGameText->fetch("GUI:CheckingForPatches"), UnicodeString::TheEmptyString);
+}
+
+void GOSignInDialogShowUpdate( UnicodeString message, GameWinMsgBoxFunc updateFunc, GameWinMsgBoxFunc cancelFunc )
+{
+	if (signInDialogLayout == NULL)
+		return;
+	signInDialogCancelFunc = cancelFunc;
+	signInDialogUpdateFunc = updateFunc;
+	showSignInDialogStep(SIGN_IN_DIALOG_UPDATE, TheGameText->fetch("GUI:PatchAvailable"), message);
+}
+
+void GOSignInDialogShowError( UnicodeString title, UnicodeString message, GameWinMsgBoxFunc closeFunc )
+{
+	if (signInDialogLayout == NULL)
+		return;
+	signInDialogCancelFunc = closeFunc;
+	signInDialogUpdateFunc = NULL;
+	showSignInDialogStep(SIGN_IN_DIALOG_ERROR, title, message);
+}
+
+void GOSignInDialogBeginSignIn( void )
+{
+	if (signInDialogLayout == NULL)
+		return;
+
+	ClearGSMessageBoxes();
+	signInDialogCancelFunc = NULL;
+	signInDialogUpdateFunc = NULL;
+	showSignInDialogStep(SIGN_IN_DIALOG_SIGN_IN, TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInSigningIn", L"Signing in..."), UnicodeString::TheEmptyString);
+
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pAuthInterface == nullptr)
+	{
+		GOSignInDialogShowError(TheGameText->FETCH_OR_SUBSTITUTE("GUI:GOSignInFailed", L"Login failed."), UnicodeString::TheEmptyString,
+			CancelPatchCheckCallbackAndReopenDropdown);
+		return;
+	}
+
+	pAuthInterface->RegisterForLoginCallback(signInDialogLoginCallback);
+	pAuthInterface->SetSignInScreen(true);
+	pAuthInterface->SetSignInDialog(true);
+	pAuthInterface->BeginLogin();
+	updateSignInDialog(TRUE);
+}
+
+void GOSignInDialogUpdate( void )
+{
+	updateSignInDialog(FALSE);
+}
+
+void GOSignInDialogDestroy( void )
+{
+	if (signInDialogLayout == NULL)
+		return;
+
+	GenOnlineAuthInterface* pAuthInterface = GenOnlineServicesManager::GetInterface<GenOnlineAuthInterface>();
+	if (pAuthInterface != nullptr)
+	{
+		pAuthInterface->SetSignInScreen(false);
+		pAuthInterface->SetSignInDialog(false);
+	}
+
+	WindowLayout *layout = signInDialogLayout;
+	signInDialogLayout = NULL;
+	TheWindowManager->winUnsetModal(signInDialogRoot);
+	layout->destroyWindows();
+	deleteInstance(layout);
+
+	signInDialogRoot = NULL;
+	signInDialogMessage = NULL;
+	signInDialogUpdate = NULL;
+	signInDialogCancelFunc = NULL;
+	signInDialogUpdateFunc = NULL;
+	staticTextSignInStatus = NULL;
+	buttonUseAnotherAccount = NULL;
+	buttonSignInCancel = NULL;
+	for (Int i = 0; i < SIGN_IN_PROVIDER_COUNT; ++i)
+		buttonSignInProviders[i] = NULL;
+	shownSignInStage = ELoginStage::None;
+
+	GameWindow *mainWin = TheWindowManager->winGetWindowFromId( NULL, NAMEKEY("MainMenu.wnd:MainMenuParent") );
+	if (mainWin)
+		TheWindowManager->winSetFocus( mainWin );
 }
 
 void EnableLoginControls( Bool state )

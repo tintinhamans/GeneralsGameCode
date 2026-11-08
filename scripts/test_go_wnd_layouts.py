@@ -1547,6 +1547,127 @@ class ShippedSignInScreenTest(unittest.TestCase):
         self.assertEqual([(w.name, w.kind, w.rect, w.status, w.header) for w in theme.walk()], shape)
 
 
+DIALOG = "GOSignInDialog.wnd"
+# GO sign-in dialog windows looked up by WOLLoginMenu.cpp, {short NAME: kind}, in drawing order under the panel
+DIALOG_WINDOWS = {
+    "StaticTextTitle": "STATICTEXT", "StaticTextSignInStatus": "STATICTEXT", "StaticTextMessage": "STATICTEXT",
+    **dict.fromkeys(SIGN_IN_PROVIDERS, "PUSHBUTTON"),
+    "ButtonUseAnotherAccount": "PUSHBUTTON", "ButtonUpdate": "PUSHBUTTON", "ButtonCancel": "PUSHBUTTON", "Header": "USER"}
+DIALOG_ROW = ("ButtonUseAnotherAccount", "ButtonUpdate", "ButtonCancel")
+
+
+def sign_in_dialog(base=wl.DATA):
+    """(root, {short NAME: window}) of the shipped GO sign-in dialog layout under base."""
+    root = wl.parse_windows((base / "Window/Menus" / DIALOG).read_bytes().decode("latin-1"))
+    return root, {_short(w): w for w in root.walk() if w.name}
+
+
+class ShippedSignInDialogTest(unittest.TestCase):
+    def bases(self):
+        import go_themes
+        return (wl.DATA, go_themes.THEME_DIR)
+
+    def test_every_window_exists_under_the_panel_with_its_kind(self):
+        for base in self.bases():
+            root, wins = sign_in_dialog(base)
+            self.assertEqual([_short(w) for w in root.children], ["GOSignInDialogRoot"], base)
+            self.assertEqual([_short(w) for w in wins["GOSignInDialogRoot"].children], ["GOSignInDialogParent"], base)
+            panel = wins["GOSignInDialogParent"]
+            self.assertEqual({_short(w): w.kind for w in panel.children}, DIALOG_WINDOWS, base)
+            self.assertEqual([_short(w) for w in panel.children], list(DIALOG_WINDOWS), base)
+            self.assertFalse(any(_hidden(w) for w in root.walk()), base)
+
+    def test_the_code_looks_up_only_windows_the_layout_has(self):
+        code = (wl.ROOT / "GeneralsMD/Code/GameEngine/Source/GameClient/GUI/GUICallbacks/Menus/WOLLoginMenu.cpp").read_text(
+            encoding="latin-1")
+        names = set(re.findall(r'"GOSignInDialog\.wnd:(\w+)"', code))
+        _, wins = sign_in_dialog()
+        self.assertTrue(names, "WOLLoginMenu.cpp looks up no dialog window")
+        self.assertEqual(names - set(wins), set())
+
+    def test_backdrop_covers_the_screen_and_the_panel_is_centred(self):
+        for base in self.bases():
+            _, wins = sign_in_dialog(base)
+            self.assertEqual(wins["GOSignInDialogRoot"].rect, wl.SCREEN, base)
+            x0, y0, x1, y1 = wins["GOSignInDialogParent"].rect
+            self.assertEqual((x0 + x1, y0 + y1), (800, 600), base)
+
+    def test_the_panel_is_a_narrow_card_and_the_buttons_keep_its_inset(self):
+        # a login card, not the 546 unit wide provider buttons of the full-screen sign-in
+        for base in self.bases():
+            _, wins = sign_in_dialog(base)
+            x0, _, x1, _ = wins["GOSignInDialogParent"].rect
+            self.assertTrue(300 <= x1 - x0 <= 340, f"{base} panel width {x1 - x0}")
+            status = wins["StaticTextSignInStatus"].rect
+            inset = status[0] - x0
+            self.assertEqual(x1 - status[2], inset, base)
+            self.assertTrue(8 <= inset <= 20, f"{base} inset {inset}")
+            for name in (*SIGN_IN_PROVIDERS, "StaticTextMessage"):
+                rect = wins[name].rect
+                self.assertEqual((rect[0], rect[2]), (x0 + inset, x1 - inset), f"{base} {name}")
+                self.assertTrue(260 <= rect[2] - rect[0] <= 300, f"{base} {name} width {rect[2] - rect[0]}")
+            row = [wins[name].rect for name in DIALOG_ROW]
+            self.assertTrue(all(x0 + inset <= r[0] and r[2] <= x1 - inset for r in row), f"{base} {row}")
+            update, cancel = wins["ButtonUpdate"].rect, wins["ButtonCancel"].rect
+            self.assertEqual(update[2] - update[0], cancel[2] - cancel[0], base)
+            self.assertEqual(cancel[2], x1 - inset, base)
+
+    def test_everything_sits_inside_the_panel(self):
+        for base in self.bases():
+            _, wins = sign_in_dialog(base)
+            panel = wins["GOSignInDialogParent"]
+            for win in panel.walk():
+                self.assertTrue(wl._within(win.rect, panel.rect, 0), f"{base} {win.name} {win.rect}")
+
+    def test_no_windows_overlap_but_the_header_frame_over_the_title(self):
+        for base in self.bases():
+            _, wins = sign_in_dialog(base)
+            content = [w for w in wins["GOSignInDialogParent"].children if _short(w) != "Header"]
+            for i, a in enumerate(content):
+                for b in content[i + 1:]:
+                    self.assertFalse(wl._overlaps(a.rect, b.rect), f"{base} {a.name} {b.name}")
+            self.assertTrue(wl._within(wins["StaticTextTitle"].rect, wins["Header"].rect, 0), base)
+
+    def test_rows_stack_status_message_providers_and_the_button_row(self):
+        _, wins = sign_in_dialog()
+        status, message = wins["StaticTextSignInStatus"].rect, wins["StaticTextMessage"].rect
+        column = [wins[name].rect for name in SIGN_IN_PROVIDERS]
+        row = [wins[name].rect for name in DIALOG_ROW]
+        self.assertLessEqual(wins["Header"].rect[3], status[1])
+        self.assertLessEqual(status[3], message[1])
+        self.assertLess(message[3], column[0][1])
+        self.assertLess(column[-1][3], row[0][1])
+        for rect in (message, *column):
+            self.assertEqual((rect[0], rect[2]), (status[0], status[2]), rect)
+        self.assertEqual({r[3] - r[1] for r in column}, {column[0][3] - column[0][1]})
+        gaps = {b[1] - a[3] for a, b in zip(column, column[1:])}
+        self.assertEqual(len(gaps), 1, column)
+        self.assertGreaterEqual(gaps.pop(), wl.MIN_GAP)
+        self.assertEqual({(r[1], r[3]) for r in row}, {(row[0][1], row[0][3])})
+        self.assertEqual((row[0][0], row[-1][2]), (status[0], status[2]))
+        self.assertTrue(all(a[2] < b[0] for a, b in zip(row, row[1:])), row)
+
+    def test_kinds_use_the_kit_templates(self):
+        _, wins = sign_in_dialog()
+        for name in (*SIGN_IN_PROVIDERS, *DIALOG_ROW):
+            self.assertEqual(wins[name].header, "GOMainButton", name)
+        self.assertEqual(wins["StaticTextSignInStatus"].header, "GOMinorTitle")
+
+    def test_the_source_passes_the_rules_unchanged(self):
+        name = f"Window/Menus/{DIALOG}"
+        text = (wl.SOURCES / name).read_bytes().decode("latin-1")
+        out, info = wl.align(wl.remap_colors(text), name)
+        self.assertEqual(info["changes"], [])
+        self.assertEqual(wl.structure_counts(out), wl.structure_counts(text))
+
+    def test_radar_copy_matches_the_geometry_and_visibility(self):
+        import go_themes
+        base, _ = sign_in_dialog()
+        theme, _ = sign_in_dialog(go_themes.THEME_DIR)
+        shape = [(w.name, w.kind, w.rect, w.status, w.header) for w in base.walk()]
+        self.assertEqual([(w.name, w.kind, w.rect, w.status, w.header) for w in theme.walk()], shape)
+
+
 class ShippedLayoutTest(unittest.TestCase):
     def test_game_setup_column_headings_start_at_their_column(self):
         cases = [
