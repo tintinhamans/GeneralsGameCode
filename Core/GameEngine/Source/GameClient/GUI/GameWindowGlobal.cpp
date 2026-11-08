@@ -91,6 +91,7 @@ struct BarBands
 	Int height;
 	Int borderHeight;
 	Real layoutScale;
+	Real borderScale;
 	IRegion2D *outer;
 };
 
@@ -171,7 +172,8 @@ static void drawBarPiece( const Image *image, Int startX, Int endX, const IRegio
 	}
 
 	Int imageHeight = image->getImageHeight();
-	Int scaledHeight = REAL_TO_INT_FLOOR( imageHeight * bands.layoutScale + 0.5f );
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Border rows fill their band exactly, so every kit outline is the same whole pixel width.
+	Int scaledHeight = REAL_TO_INT_FLOOR( imageHeight * bands.borderHeight / image->getBorder() + 0.5f );
 	Real inner = image->getBorder() + BORDER_INTERIOR_INSET;
 	Real interiorScale = (Real)(bands.height - 2 * bands.borderHeight) / (imageHeight - 2.0f * inner);
 	Real interiorTop = bands.y + bands.borderHeight - inner * interiorScale;
@@ -197,6 +199,88 @@ static void drawBarPiece( const Image *image, Int startX, Int endX, const IRegio
 	drawImageInRegion( image, startX, endY - scaledHeight, endX, endY, &band, bands.outer, color );
 }
 
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 Single kit images with a border keep it at the kit line weight on every side.
+// One axis of a nine-slice: where the image is drawn and the screen span it is clipped to, per slice.
+static void nineSliceAxis( Int start, Int end, Int imageSize, Real border, Int lineSize,
+													 Int drawStart[3], Int drawEnd[3], Int spanStart[3], Int spanEnd[3] )
+{
+	Real edgeScale = (Real)lineSize / border;
+	Int edgeSize = REAL_TO_INT_FLOOR( imageSize * edgeScale + 0.5f );
+	Real inner = border + BORDER_INTERIOR_INSET;
+	Real interiorScale = (Real)(end - start - 2 * lineSize) / (imageSize - 2.0f * inner);
+	Real interiorStart = start + lineSize - inner * interiorScale;
+
+	// leading edge at the line scale
+	drawStart[0] = start;
+	drawEnd[0] = start + edgeSize;
+	spanStart[0] = start;
+	spanEnd[0] = start + lineSize;
+
+	// interior stretched between the edges
+	drawStart[1] = REAL_TO_INT_FLOOR( interiorStart + 0.5f );
+	drawEnd[1] = REAL_TO_INT_FLOOR( interiorStart + imageSize * interiorScale + 0.5f );
+	spanStart[1] = start + lineSize;
+	spanEnd[1] = end - lineSize;
+
+	// trailing edge at the line scale
+	drawStart[2] = end - edgeSize;
+	drawEnd[2] = end;
+	spanStart[2] = end - lineSize;
+	spanEnd[2] = end;
+}
+
+// Draw an image with border rows and columns as a nine-slice; FALSE when it has no border or no room for one
+static Bool drawBorderedImage( const Image *image, Int startX, Int startY, Int endX, Int endY, Color color )
+{
+	Real border = image->getBorder();
+	if( border <= 0.0f || TheDisplay == nullptr )
+		return FALSE;
+
+	Int imageWidth = image->getImageWidth();
+	Int imageHeight = image->getImageHeight();
+	if( imageWidth <= 2.0f * (border + BORDER_INTERIOR_INSET) || imageHeight <= 2.0f * (border + BORDER_INTERIOR_INSET) )
+		return FALSE;
+
+	// same thickness as the bordered three piece bars
+	Int lineSize = REAL_TO_INT_CEIL( border * TheDisplay->getHeight() / 600.0f - 0.01f );
+	if( lineSize < 1 )
+		lineSize = 1;
+	if( endX - startX < 2 * lineSize + 1 || endY - startY < 2 * lineSize + 1 )
+		return FALSE;
+
+	// keep the caller clip so the slices stay inside it and it comes back afterwards
+	IRegion2D callerClip;
+	IRegion2D *outer = nullptr;
+	if( TheDisplay->isClippingEnabled() )
+	{
+		if( TheDisplay->getClipRegion( &callerClip ) == FALSE )
+			return FALSE;
+		outer = &callerClip;
+	}
+
+	Int drawX0[3], drawX1[3], spanX0[3], spanX1[3];
+	Int drawY0[3], drawY1[3], spanY0[3], spanY1[3];
+	nineSliceAxis( startX, endX, imageWidth, border, lineSize, drawX0, drawX1, spanX0, spanX1 );
+	nineSliceAxis( startY, endY, imageHeight, border, lineSize, drawY0, drawY1, spanY0, spanY1 );
+
+	Int row, column;
+	for( row = 0; row < 3; ++row )
+	{
+		for( column = 0; column < 3; ++column )
+		{
+			IRegion2D slice;
+			slice.lo.x = spanX0[column];
+			slice.hi.x = spanX1[column];
+			slice.lo.y = spanY0[row];
+			slice.hi.y = spanY1[row];
+			drawImageInRegion( image, drawX0[column], drawY0[row], drawX1[column], drawY1[row], &slice, outer, color );
+		}
+	}
+
+	restoreClip( outer );
+	return TRUE;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -208,6 +292,9 @@ static void drawBarPiece( const Image *image, Int startX, Int endX, const IRegio
 void GameWindowManager::winDrawImage( const Image *image, Int startX, Int startY,
 																			Int endX, Int endY, Color color )
 {
+
+	if( image != nullptr && drawBorderedImage( image, startX, startY, endX, endY, color ) )
+		return;
 
 	TheDisplay->drawImage( image, startX, startY, endX, endY, color );
 
@@ -233,6 +320,7 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 	bands.height = height;
 	bands.borderHeight = 0;
 	bands.layoutScale = (Real)TheDisplay->getHeight() / 600.0f;
+	bands.borderScale = bands.layoutScale;
 	bands.outer = nullptr;
 
 	// keep the caller clip so clipped pieces stay inside it and it comes back afterwards
@@ -254,12 +342,16 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 
 		// too short for both borders and an interior row, draw it stretched
 		if( height >= 2 * borderHeight + 1 )
+		{
 			bands.borderHeight = borderHeight;
+			// caps scale like the border rows, so their side lines match the rows
+			bands.borderScale = (Real)borderHeight / left->getBorder();
+		}
 	}
 
 	Bool bordered = bands.borderHeight > 0;
-	Int leftWidth = bordered ? layoutImageWidth( left, bands.layoutScale ) : scaledImageWidth( left, height );
-	Int rightWidth = bordered ? layoutImageWidth( right, bands.layoutScale ) : scaledImageWidth( right, height );
+	Int leftWidth = bordered ? layoutImageWidth( left, bands.borderScale ) : scaledImageWidth( left, height );
+	Int rightWidth = bordered ? layoutImageWidth( right, bands.borderScale ) : scaledImageWidth( right, height );
 	Int endX = x + width;
 	Int endY = y + height;
 
@@ -289,7 +381,7 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 
 	Int gapStart = x + leftWidth;
 	Int gapEnd = endX - rightWidth;
-	Int tileWidth = bordered ? layoutImageWidth( center, bands.layoutScale ) : scaledImageWidth( center, height );
+	Int tileWidth = bordered ? layoutImageWidth( center, bands.borderScale ) : scaledImageWidth( center, height );
 	Int pieces = (gapEnd - gapStart) / tileWidth;
 	Int tileX = gapStart;
 	Int i;
@@ -315,7 +407,7 @@ void GameWindowManager::winDrawThreePieceImage( const Image *left, const Image *
 
 		if( smallCenter != nullptr )
 		{
-			Int smallWidth = bordered ? layoutImageWidth( smallCenter, bands.layoutScale ) : scaledImageWidth( smallCenter, height );
+			Int smallWidth = bordered ? layoutImageWidth( smallCenter, bands.borderScale ) : scaledImageWidth( smallCenter, height );
 			while( tileX < gapEnd )
 			{
 				drawBarPiece( smallCenter, tileX, tileX + smallWidth, &clip, bands, color );

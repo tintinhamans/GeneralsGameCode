@@ -431,7 +431,11 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 				}
 			}
 		}
-		TheDisplay->drawImage( image, start.x, start.y, end.x, end.y, colorMultiplier, drawMode );
+		// TheSuperHackers @tweak arcticdolphin 08/11/2026 Kit symbol and arrow images keep their border at the kit line weight.
+		if( image->getBorder() > 0.0f && drawMode == Display::DRAW_IMAGE_ALPHA && colorMultiplier == (Int)0xffffffff )
+			TheWindowManager->winDrawImage( image, start.x, start.y, end.x, end.y );
+		else
+			TheDisplay->drawImage( image, start.x, start.y, end.x, end.y, colorMultiplier, drawMode );
 	}
 
 	// draw the button text

@@ -33,9 +33,12 @@ EXTRUDE = 1        # retail pixels of padding around each piece (SCALE texels)
 SUPERSAMPLE = 2    # samples per texel and axis
 # edge line width in layout pixels; three-piece bars carry it as Border, so the engine keeps it fixed at any bar height
 LINE_LAYOUT = 1.5
-BORDER_PREFIXES = ("Buttons-", "RadioButton", "TextEntry")  # three-piece bars whose INI entry gets Border = LINE_LAYOUT
+# images whose INI entry gets Border = LINE_LAYOUT: the engine draws their LINE_LAYOUT edge rows and columns at the kit
+# line weight, ceil(1.5 * H / 600) px, whatever size they are drawn at (three-piece bars, single images as a nine-slice)
+BORDER_PREFIXES = ("Buttons-", "RadioButton", "TextEntry", "VSliderUpButton", "VSliderDownButton",
+                   "ReturnButton", "Xbutton", "LobbyRefresh", "Active-", "Disabled-")
 BORDER_NAMES = ("GOScrollLine",)  # single images whose Border tells the engine the kit line thickness
-ARROW_LINE = 0.95 * LINE_LAYOUT  # combo arrows are single images: 22 px art, usually about 23 layout px tall
+ARROW_LINE = LINE_LAYOUT  # combo arrows carry the kit line like every bordered piece
 BOX_LINE = (1.25 * 1.2, 1.45 * 1.2)  # slider blocks: 11x13 art drawn as squares, so the line differs per axis; small, so a thinner line
 
 
@@ -49,13 +52,14 @@ FIELD = rgba("#05070F", 0.92)
 GLYPH = rgba("#C9CEFF")
 GLYPH_ACTIVE = rgba("#FFFFFF")
 GLYPH_DISABLED = rgba("#5D6080")
+DISABLED_LINE = rgba("#4A4E6E")  # lighter than the old #404159 so a disabled outline keeps the same visible weight
 
 # state -> (edge line, fill)
 BUTTON_STATES = {
     "": (rgba("#2F4BFF"), rgba("#070A18", 0.82)),
     "HiLite-": (rgba("#6A7BFF"), rgba("#152078", 0.88)),
     "Pushed-": (rgba("#8C9BFF"), rgba("#2B34B8", 0.92)),
-    "Disabled-": (rgba("#404159"), rgba("#0A0A10", 0.70)),
+    "Disabled-": (DISABLED_LINE, rgba("#0A0A10", 0.70)),
 }
 RADIO_STATES = {
     "Enabled": BUTTON_STATES[""],
@@ -67,14 +71,14 @@ RADIO_STATES = {
 ENTRY_STATES = {
     "Enabled": rgba("#2F4BFF"),
     "Hilite": rgba("#6A7BFF"),
-    "Disabled": rgba("#404159"),
+    "Disabled": DISABLED_LINE,
 }
 # arrow buttons join the field they sit beside: no left edge, the field line colour, the state in the fill
 ARROW_STATES = {
     "Enabled": (rgba("#2F4BFF"), rgba("#0B1030", 0.92), GLYPH),
     "Hilite": (rgba("#2F4BFF"), rgba("#152078", 0.92), GLYPH_ACTIVE),
     "HiliteSelected": (rgba("#2F4BFF"), rgba("#2B34B8", 0.92), GLYPH_ACTIVE),
-    "Disabled": (rgba("#404159"), rgba("#0A0A10", 0.70), GLYPH_DISABLED),
+    "Disabled": (DISABLED_LINE, rgba("#0A0A10", 0.70), GLYPH_DISABLED),
 }
 # horizontal slider blocks: (edge line, fill)
 SLIDER_ON = (rgba("#6A7BFF"), rgba("#3446FF"))
@@ -119,7 +123,7 @@ PLAYER_STARTS = {
     "PlayerStart": (rgba("#2F4BFF"), rgba("#05070F", 0.85)),
     "PlayerStartHilite": (rgba("#8C9BFF"), rgba("#152078", 0.92)),
     "PlayerStartHilitePushed": (rgba("#C9CEFF"), rgba("#3446FF")),
-    "PlayerStartDisabled": (rgba("#404159"), rgba("#0A0A10", 0.70)),
+    "PlayerStartDisabled": (DISABLED_LINE, rgba("#0A0A10", 0.70)),
 }
 # scroll bar thumb: a slim pill in the middle of the thumb rect
 SCROLL_THUMBS = {
@@ -279,23 +283,57 @@ def glyph_arrow(w, h):
     return paint(w, h, sample)
 
 
-def segment_distance(px, py, a, b):
-    ax, ay = a
-    bx, by = b
-    dx, dy = bx - ax, by - ay
-    k = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
-    return math.hypot(px - ax - k * dx, py - ay - k * dy)
-
-
 def snap_stroke(v, half_texels):
     """Move a stroke centre, in pixels, so the edges of a stroke half_texels wide land on whole texels."""
     return (round(v * SCALE - half_texels) + half_texels) / SCALE
 
 
-def stroke_glyph(w, h, polylines=(), arcs=(), box=None):
+def snap_point(v):
+    """Move a solid shape corner, in pixels, onto a texel edge."""
+    return round(v * SCALE) / SCALE
+
+
+def quad_inside(x, y, a, b, c, d):
+    return triangle_inside(x, y, a, b, c) or triangle_inside(x, y, a, c, d)
+
+
+def line_intersection(p, d, q, e):
+    """Point where p + t*d meets q + u*e, None when they are parallel."""
+    den = d[0] * e[1] - d[1] * e[0]
+    if abs(den) < 1e-9:
+        return None
+    t = ((q[0] - p[0]) * e[1] - (q[1] - p[1]) * e[0]) / den
+    return (p[0] + t * d[0], p[1] + t * d[1])
+
+
+def stroke_shapes(points, radius):
+    """Convex quads covering a polyline stroke with butt caps and mitred joins."""
+    quads = []
+    dirs = []
+    for a, b in zip(points, points[1:]):
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        length = math.hypot(dx, dy)
+        d = (dx / length, dy / length)
+        n = (-d[1] * radius, d[0] * radius)
+        dirs.append(d)
+        quads.append(((a[0] + n[0], a[1] + n[1]), (b[0] + n[0], b[1] + n[1]),
+                      (b[0] - n[0], b[1] - n[1]), (a[0] - n[0], a[1] - n[1])))
+    for i in range(1, len(points) - 1):
+        p, d1, d2 = points[i], dirs[i - 1], dirs[i]
+        for side in (1.0, -1.0):
+            a = (p[0] - d1[1] * radius * side, p[1] + d1[0] * radius * side)
+            b = (p[0] - d2[1] * radius * side, p[1] + d2[0] * radius * side)
+            m = line_intersection(a, d1, b, d2)
+            if m is not None:
+                quads.append((p, a, m, b))
+    return quads
+
+
+def stroke_glyph(w, h, polylines=(), arcs=(), solids=(), box=None):
     """Hit test for a glyph on the 16 unit design grid, fitted to the largest square centred in box (default the piece).
-    polylines: lists of grid points; arcs: (cx, cy, r, start, sweep) in grid units and degrees, y down.
-    One stroke of GLYPH_STROKE_UNITS with round caps and joins; centres snapped to whole texel edges."""
+    polylines: lists of grid points stroked with butt caps and mitred joins; arcs: (cx, cy, r, start, sweep) in grid
+    units and degrees, y down, with flat radial ends; solids: filled triangles of grid points.
+    One stroke of GLYPH_STROKE_UNITS; stroke centres and solid corners snapped to whole texels."""
     bx, by, bw, bh = box if box else (0.0, 0.0, w, h)
     side = min(bw, bh)
     unit = side / GLYPH_GRID
@@ -308,34 +346,33 @@ def stroke_glyph(w, h, polylines=(), arcs=(), box=None):
     def px(p):
         return (snap_stroke(ox + p[0] * unit, half), snap_stroke(oy + p[1] * unit, half))
 
-    lines = [[px(p) for p in line] for line in polylines]
-    rings = []
-    for cx, cy, r, start, sweep in arcs:
-        c = px((cx, cy))
-        rr = r * unit
-        a0, a1 = math.radians(start), math.radians(start + sweep)
-        ends = ((c[0] + rr * math.cos(a0), c[1] + rr * math.sin(a0)), (c[0] + rr * math.cos(a1), c[1] + rr * math.sin(a1)))
-        rings.append((c, rr, start % 360.0, sweep, ends))
+    def corner(p):
+        return (snap_point(ox + p[0] * unit), snap_point(oy + p[1] * unit))
+
+    quads = []
+    for line in polylines:
+        quads += stroke_shapes([px(p) for p in line], radius)
+    rings = [(px((cx, cy)), r * unit, start % 360.0, sweep) for cx, cy, r, start, sweep in arcs]
+    triangles = [tuple(corner(p) for p in tri) for tri in solids]
 
     def hit(x, y):
-        for line in lines:
-            for a, b in zip(line, line[1:]):
-                if segment_distance(x, y, a, b) < radius:
-                    return True
-        for c, rr, start, sweep, ends in rings:
+        for q in quads:
+            if quad_inside(x, y, *q):
+                return True
+        for c, rr, start, sweep in rings:
             if abs(math.hypot(x - c[0], y - c[1]) - rr) < radius:
                 if (math.degrees(math.atan2(y - c[1], x - c[0])) - start) % 360.0 <= sweep:
                     return True
-            for e in ends:
-                if math.hypot(x - e[0], y - e[1]) < radius:
-                    return True
+        for t in triangles:
+            if triangle_inside(x, y, *t):
+                return True
         return False
 
     return hit
 
 
 def chevron_glyph(w, h, up, box=None):
-    """The shared arrow: a stroke chevron pointing up or down."""
+    """The shared arrow: a sharp 90 degree stroke chevron pointing up or down."""
     if up:
         points = [(4.5, 9.75), (8.0, 6.25), (11.5, 9.75)]
     else:
@@ -356,8 +393,8 @@ def symbol_piece(w, h, state, glyph_hit):
 
 
 def check_glyph(w, h):
-    """A two segment check."""
-    return stroke_glyph(w, h, [[(3.5, 8.5), (6.5, 11.5), (12.5, 5.0)]])
+    """A sharp two segment check."""
+    return stroke_glyph(w, h, [[(3.5, 8.5), (6.5, 11.5), (12.5, 5.5)]])
 
 
 def no_glyph(x, y):
@@ -365,18 +402,20 @@ def no_glyph(x, y):
 
 
 def return_glyph(w, h):
-    """The enter key arrow: a stem down from the top right, then left, ending in a chevron head."""
-    return stroke_glyph(w, h, [[(12.0, 3.5), (12.0, 10.0), (4.0, 10.0)], [(7.0, 7.0), (4.0, 10.0), (7.0, 13.0)]])
+    """An angular enter arrow: a stem down from the top right, then left into a solid triangular head."""
+    return stroke_glyph(w, h, [[(12.0, 3.5), (12.0, 10.0), (7.0, 10.0)]],
+                        solids=[((3.0, 10.0), (7.0, 6.5), (7.0, 13.5))])
 
 
 def close_glyph(w, h):
-    """An X with round caps."""
+    """An X with square ends."""
     return stroke_glyph(w, h, [[(4.5, 4.5), (11.5, 11.5)], [(11.5, 4.5), (4.5, 11.5)]])
 
 
 def refresh_glyph(w, h):
-    """A 270 degree arc, open at the top right, with a chevron head on its tangent at the top end."""
-    return stroke_glyph(w, h, [[(6.0, 3.0), (8.0, 5.0), (6.0, 7.0)]], arcs=[(8.0, 9.0, 4.0, 0.0, 270.0)])
+    """A 270 degree arc with flat ends, open at the top right, and a solid triangular head on its top end."""
+    return stroke_glyph(w, h, arcs=[(8.0, 9.0, 4.2, 0.0, 270.0)],
+                        solids=[((11.2, 4.8), (8.0, 2.3), (8.0, 7.3))])
 
 
 def ring_piece(w, h, line, fill):
