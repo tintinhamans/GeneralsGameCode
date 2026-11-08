@@ -303,6 +303,10 @@ Bool GameWindowManager::isHandCursorWindow(GameWindow* window, Int mouseX, Int m
 		if (list == NULL || list->listData == NULL || list->endPos <= 0)
 			return FALSE;
 
+		// chat lists only show text, all of them have Chat in their window name
+		if (strstr(window->winGetInstanceData()->m_decoratedNameString.str(), "Chat") != NULL)
+			return FALSE;
+
 		Int row = -1;
 		Int column = -1;
 		return GadgetListBoxGetEntryBasedOnXY(window, mouseX, mouseY, row, column) >= 0;
