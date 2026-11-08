@@ -2309,6 +2309,8 @@ void grabMultiPlayerInfo( void )
 	ScoreMap scores;
 	scores.clear();
 
+	// TheSuperHackers @bugfix arcticdolphin 08/11/2026 GO keeps the layout's ruler art, its backdrop sits on the ruler frame
+#if !defined(GENONLINE)
 	Player *localPlayer = ThePlayerList->getLocalPlayer();
 	if (localPlayer && parent)
 	{
@@ -2319,6 +2321,7 @@ void grabMultiPlayerInfo( void )
 			parent->winSetStatus(parent->winGetStatus() | WIN_STATUS_IMAGE );
 		}
 	}
+#endif
 
 	// Add each player and score to the map. THis allows us to sort the players based on score.
 	for( Int i = 0; i < MAX_SLOTS; ++i)
