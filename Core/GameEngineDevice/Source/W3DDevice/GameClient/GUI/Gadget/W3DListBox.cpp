@@ -64,9 +64,34 @@
 
 // PRIVATE PROTOTYPES /////////////////////////////////////////////////////////
 
+// kit scroll bar draws, defined with the vertical slider and push button draws
+extern void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *instData );
+extern void W3DGadgetVerticalSliderKitThumbDraw( GameWindow *window, WinInstanceData *instData );
+extern void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window, WinInstanceData *instData );
+
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Give the list scroll bar the kit draws when the GO kit scroll images exist.
+static void assignKitScrollBarDraws( ListboxData *list )
+{
+	// only scroll bars still on their default draws, so custom draws stay
+	if( list == nullptr || list->slider == nullptr || list->slider->winGetDrawFunc() != W3DGadgetVerticalSliderDraw )
+		return;
+	if( GadgetListBoxHasKitScrollBar() == FALSE )
+		return;
+
+	list->slider->winSetDrawFunc( W3DGadgetVerticalSliderKitTrackDraw );
+
+	GameWindow *thumb = list->slider->winGetChild();
+	if( thumb && thumb->winGetDrawFunc() == W3DGadgetPushButtonImageDraw )
+		thumb->winSetDrawFunc( W3DGadgetVerticalSliderKitThumbDraw );
+	if( list->upButton && list->upButton->winGetDrawFunc() == W3DGadgetPushButtonImageDraw )
+		list->upButton->winSetDrawFunc( W3DGadgetPushButtonKitScrollArrowDraw );
+	if( list->downButton && list->downButton->winGetDrawFunc() == W3DGadgetPushButtonImageDraw )
+		list->downButton->winSetDrawFunc( W3DGadgetPushButtonKitScrollArrowDraw );
+}
 
 // drawHiliteBar ==============================================================
 /** Draw image for the hilite bar */
@@ -430,6 +455,9 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 	window->winGetScreenPosition( &x, &y );
 	window->winGetSize( &size.x, &size.y );
 
+	// scroll bar parts draw after the list box
+	assignKitScrollBarDraws( list );
+
 	// get font height
 	fontHeight = TheWindowManager->winFontHeight( instData->getFont() );
 
@@ -524,6 +552,9 @@ void W3DGadgetListBoxImageDraw( GameWindow *window, WinInstanceData *instData )
 	// save off width and height so we can change them
 	width = size.x;
 	height = size.y;
+
+	// scroll bar parts draw after the list box
+	assignKitScrollBarDraws( list );
 
 	// If ScrollBar was requested ... adjust width.
 	if( list->slider )

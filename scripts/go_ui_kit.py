@@ -122,6 +122,22 @@ SCROLL_THUMBS = {
     "Disabled": rgba("#404159"),
 }
 SCROLL_THUMB_WIDTH = 7.0
+# kit list scroll bar (drawn only by the GO list scroll bar draw): a rounded channel, a pill thumb and plain chevrons
+SCROLL_TRACK = SLIDER_TRACK
+SCROLL_PILLS = {
+    "": SLIDER_FILL,
+    "Hilite": (rgba("#A9B4FF"), rgba("#5B6CF2")),
+    "Disabled": (rgba("#404159"), rgba("#23253A", 0.92)),
+}
+# state -> (hover fill, chevron colour)
+SCROLL_ARROWS = {
+    "": (TRANSPARENT, GLYPH),
+    "Hilite": (rgba("#2F4BFF", 0.22), GLYPH_ACTIVE),
+    "Pushed": (rgba("#2F4BFF", 0.40), GLYPH_ACTIVE),
+    "Disabled": (TRANSPARENT, GLYPH_DISABLED),
+}
+SCROLL_ARROW_SIZE = 14  # smaller than the retail 21x22 arrows so the atlas stays 256 px tall; drawn over the whole button
+CHEVRON_STROKE = 1.2
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
     "ListBoxHiliteSelectedItem": rgba("#2B34B8", 0.80),
@@ -342,6 +358,44 @@ def pill_piece(w, h, color, width):
     return paint(w, h, sample)
 
 
+def round_cap(w, h, side, line, fill):
+    """Half of a vertical pill: a semicircle of radius w/2 closing the channel at the top or bottom."""
+    r = w / 2.0
+
+    def sample(x, y):
+        cy = r if side == "top" else h - r
+        if (side == "top" and y >= cy) or (side == "bottom" and y <= cy):
+            d = min(x, w - x)
+        else:
+            d = r - math.hypot(x - r, y - cy)
+        if d < 0.0:
+            return TRANSPARENT
+        return line if d < TRACK_LINE else fill
+
+    return paint(w, h, sample)
+
+
+def channel_piece(w, h, line, fill):
+    """The middle of a vertical pill: open at the top and bottom, a line down both sides."""
+    return paint(w, h, lambda x, y: line if min(x, w - x) < TRACK_LINE else fill)
+
+
+def chevron_piece(w, h, up, fill, glyph):
+    """A plain chevron with an optional rounded fill behind it."""
+    cx, cy = w / 2.0, h / 2.0
+    tip = -1.5 if up else 1.5
+    chevron = [((cx - 2.8, cy - tip), (cx, cy + tip), (cx + 2.8, cy - tip))]
+
+    def sample(x, y):
+        if on_stroke(x, y, chevron, CHEVRON_STROKE):
+            return glyph
+        dx = max(2.4 - x, x - (w - 2.4), 0.0)
+        dy = max(2.4 - y, y - (h - 2.4), 0.0)
+        return fill if math.hypot(dx, dy) < 1.4 else TRANSPARENT
+
+    return paint(w, h, sample)
+
+
 def pieces():
     """(image name, width, height, texels). Sizes are the retail Coords sizes of each name."""
     out = []
@@ -391,6 +445,18 @@ def pieces():
     out.append(("GOSliderFillRight", 4, 8, button_piece(4, 8, "middle", *SLIDER_FILL, TRACK_LINE)))
     for state, (color, width) in SLIDER_MARKER.items():
         out.append((f"GOSliderThumb{state}", 8, 16, marker_piece(8, 16, color, width)))
+    # list scroll bar: track and thumb pills of the slider track width, then the chevrons
+    out.append(("GOScrollTrackTop", 8, 4, round_cap(8, 4, "top", *SCROLL_TRACK)))
+    out.append(("GOScrollTrackCenter", 8, 4, channel_piece(8, 4, *SCROLL_TRACK)))
+    out.append(("GOScrollTrackBottom", 8, 4, round_cap(8, 4, "bottom", *SCROLL_TRACK)))
+    for state, style in SCROLL_PILLS.items():
+        out.append((f"GOScrollThumb{state}Top", 8, 4, round_cap(8, 4, "top", *style)))
+        out.append((f"GOScrollThumb{state}Center", 8, 4, channel_piece(8, 4, *style)))
+        out.append((f"GOScrollThumb{state}Bottom", 8, 4, round_cap(8, 4, "bottom", *style)))
+    for state, style in SCROLL_ARROWS.items():
+        size = SCROLL_ARROW_SIZE
+        out.append((f"GOScrollUp{state}", size, size, chevron_piece(size, size, True, *style)))
+        out.append((f"GOScrollDown{state}", size, size, chevron_piece(size, size, False, *style)))
     return out
 
 

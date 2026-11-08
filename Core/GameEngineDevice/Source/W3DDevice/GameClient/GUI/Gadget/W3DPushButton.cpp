@@ -51,6 +51,7 @@
 #include "GameClient/Gadget.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/Display.h"
 #include "W3DDevice/GameClient/W3DGameWindow.h"
@@ -309,6 +310,39 @@ void W3DGadgetPushButtonImageDraw( GameWindow *window,
 	{
 		W3DGadgetPushButtonImageDrawOne( window, instData );
 	}
+}
+
+// W3DGadgetPushButtonKitScrollArrowDraw ======================================
+/** Draw a list box scroll arrow as a kit chevron */
+//=============================================================================
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw list scroll arrows as plain chevrons when the GO kit scroll images exist.
+void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
+																						WinInstanceData *instData )
+{
+	// the list box owns its up and down buttons
+	GameWindow *listbox = window->winGetParent();
+	KitScrollImage arrow = KIT_SCROLL_UP;
+	if( listbox && GadgetListBoxGetDownButton( listbox ) == window )
+		arrow = KIT_SCROLL_DOWN;
+
+	if( BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED ) == FALSE )
+		arrow = (KitScrollImage)(arrow + 3);
+	else if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
+		arrow = (KitScrollImage)(arrow + 2);
+	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) )
+		arrow = (KitScrollImage)(arrow + 1);
+
+	const Image *image = GadgetListBoxGetKitScrollImage( arrow );
+	if( image == nullptr )
+	{
+		W3DGadgetPushButtonImageDraw( window, instData );
+		return;
+	}
+
+	ICoord2D start, size;
+	window->winGetScreenPosition( &start.x, &start.y );
+	window->winGetSize( &size.x, &size.y );
+	TheWindowManager->winDrawImage( image, start.x, start.y, start.x + size.x, start.y + size.y );
 }
 
 void W3DGadgetPushButtonImageDrawOne( GameWindow *window,

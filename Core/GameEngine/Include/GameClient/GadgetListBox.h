@@ -67,6 +67,33 @@ enum ListRowAnimMode
     LIST_ROW_ANIM_SLOT = 2     // key by slot index, for append-only lists that don't change order
 };
 
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit list scroll bar images, used instead of the retail scroll bar when all exist.
+enum KitScrollImage
+{
+	KIT_SCROLL_TRACK_TOP,
+	KIT_SCROLL_TRACK_CENTER,
+	KIT_SCROLL_TRACK_BOTTOM,
+	KIT_SCROLL_THUMB_TOP,
+	KIT_SCROLL_THUMB_CENTER,
+	KIT_SCROLL_THUMB_BOTTOM,
+	KIT_SCROLL_THUMB_HILITE_TOP,
+	KIT_SCROLL_THUMB_HILITE_CENTER,
+	KIT_SCROLL_THUMB_HILITE_BOTTOM,
+	KIT_SCROLL_THUMB_DISABLED_TOP,
+	KIT_SCROLL_THUMB_DISABLED_CENTER,
+	KIT_SCROLL_THUMB_DISABLED_BOTTOM,
+	KIT_SCROLL_UP,
+	KIT_SCROLL_UP_HILITE,
+	KIT_SCROLL_UP_PUSHED,
+	KIT_SCROLL_UP_DISABLED,
+	KIT_SCROLL_DOWN,
+	KIT_SCROLL_DOWN_HILITE,
+	KIT_SCROLL_DOWN_PUSHED,
+	KIT_SCROLL_DOWN_DISABLED,
+
+	KIT_SCROLL_IMAGE_COUNT
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 // INLINING ///////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -74,6 +101,8 @@ extern void SetListBoxRowAnimMode(GameWindow *window, ListRowAnimMode mode);
 extern void ApplyListBoxRowAnimation(GameWindow *window, Int rowIndex, Int rowHeight, Int &drawY);
 extern Int GadgetListBoxGetEntryBasedOnXY( GameWindow *listbox, Int x, Int y, Int &row, Int &column);
 extern void GadgetListboxCreateScrollbar( GameWindow *listbox );
+extern Bool GadgetListBoxHasKitScrollBar( void ); ///< TRUE when every kit scroll bar image exists
+extern const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which ); ///< nullptr unless GadgetListBoxHasKitScrollBar
 extern void GadgetListBoxAddMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxRemoveMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength );
