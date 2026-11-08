@@ -8,23 +8,8 @@ The folder layout inside core and the game folder is the layout inside the pack 
 A file in both folders is taken from the game folder.
 Entries are sorted by path and carry no timestamps, so packing the same files again gives the same bytes.
 
-The client mounts it through the generals_online layer of data_packs in settings.json. From the top, the lookup is: loose files in the
-game folder, -mod and -modDir, the BIGs in the game folders that are not retail, then the layers user, generals_online and community_patch,
-then the retail archives. Every layer has enabled and include_paths, which are mounted in list order (the first one wins). An entry is
-game:<path>, user:<path> or an absolute path: a BIG, a folder of BIGs or a *.big pattern.
-
-    "data_packs": {
-        "user": { "enabled": true, "include_paths": [], "exclude_paths": [] },
-        "generals_online": { "enabled": true, "include_paths": [ "user:GeneralsOnlineGameData/GeneralsOnline_Core.big" ] },
-        "community_patch": { "enabled": true, "include_paths": [ "user:GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big" ] }
-    }
-
-user.exclude_paths leaves things out: loose files in the game folder (game:Data/INI/*), the BIGs in the game folders that are not retail
-(game:340_ControlBarPro*.big, game:ZH_Generals/*.big) and the include_paths of the user layer itself. * matches any text including folders,
-a trailing slash is a folder. Retail archives are never excluded. user.enabled false only turns off user.include_paths.
-
-The old data_packs.use_community_data_patch switch is read as community_patch.enabled when community_patch is missing.
--disableCommunityDataPatch skips the community_patch layer for one launch.
+The pack ships in the data folder of the client, next to the executable. The client mounts the files listed
+in the data.include list of settings.client.json, first listed wins, or this pack alone when the list is absent.
 """
 import os
 import re
@@ -36,17 +21,38 @@ CORE = os.path.join(DATA, "core")
 GAMES = ("zerohour", "generals")
 
 
-def main():
-    files = []
-    for dirpath, _, names in os.walk(ROOT):
-        for name in names:
-            full = os.path.join(dirpath, name)
-            rel = os.path.relpath(full, ROOT).replace("/", "\\")
-            files.append((rel, full))
-    files.sort(key=lambda f: f[0].lower())
-    if not files:
-        sys.exit("nothing to pack in " + ROOT)
+def collect(roots):
+    """The files under the roots as (path inside the pack, full path), in path order. A later root wins for a path both hold."""
+    found = {}
+    for root in roots:
+        for dirpath, _, names in os.walk(root):
+            for name in names:
+                full = os.path.join(dirpath, name)
+                rel = os.path.relpath(full, root).replace("/", "\\")
+                found[rel.lower()] = (rel, full)
+    return sorted(found.values(), key=lambda f: (f[0].lower(), f[0]))
 
+
+def main():
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        sys.exit(__doc__)
+    game, build = sys.argv[1], sys.argv[2]
+    out_dir = sys.argv[3] if len(sys.argv) > 3 else "."
+    if game not in GAMES:
+        sys.exit("game must be one of: " + ", ".join(GAMES))
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", build):
+        sys.exit("build may only hold letters, digits, dots, underscores and hyphens")
+    game_folder = os.path.join(DATA, game)
+    if not os.path.isdir(game_folder):
+        sys.exit("no data folder for " + game + ": " + game_folder)
+    files = collect([CORE, game_folder])
+    if not files:
+        sys.exit("nothing to pack for " + game)
+    os.makedirs(out_dir, exist_ok=True)
+    pack(files, os.path.join(out_dir, "genonline_%s@%s.gpk" % (game, build)))
+
+
+def pack(files, out):
     names = [rel.encode("ascii") + b"\0" for rel, _ in files]
     header = 16 + sum(8 + len(n) for n in names)
     table = b""
@@ -59,9 +65,9 @@ def main():
         body += data
         offset += len(data)
     # BIGF: magic, total size (little endian), file count and data start (big endian)
-    with open(OUT, "wb") as f:
+    with open(out, "wb") as f:
         f.write(b"BIGF" + struct.pack("<I", header + len(body)) + struct.pack(">II", len(files), header) + table + body)
-    print("packed %d files into %s" % (len(files), OUT))
+    print("packed %d files into %s" % (len(files), out))
 
 
 main()

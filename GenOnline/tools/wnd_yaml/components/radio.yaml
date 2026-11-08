@@ -1,0 +1,55 @@
+# A retail radio button.
+params:
+  font: "Arial"
+  font_size: 10
+  bold: 0
+  header: "GOLabelRegular"
+status: [ENABLED, IMAGE, BORDER]
+template: |
+  WINDOWTYPE = RADIOBUTTON;
+  SCREENRECT = UPPERLEFT: {x0} {y0},
+               BOTTOMRIGHT: {x1} {y1},
+               CREATIONRESOLUTION: 800 600;
+  NAME = "{name}";
+  STATUS = {status};
+  STYLE = RADIOBUTTON+MOUSETRACK;
+  SYSTEMCALLBACK = "{system}";
+  INPUTCALLBACK = "{input}";
+  TOOLTIPCALLBACK = "{tooltip_callback}";
+  DRAWCALLBACK = "{draw}";
+  FONT = NAME: "{font}", SIZE: {font_size}, BOLD: {bold};
+  HEADERTEMPLATE = "{header}";
+  TOOLTIPTEXT = "{tooltip}";
+  TOOLTIPDELAY = -1;
+  TEXT = "{text}";
+  TEXTCOLOR = ENABLED:  254 254 254 255, ENABLEDBORDER:  0 0 0 255,
+              DISABLED: 192 192 192 255, DISABLEDBORDER: 64 64 64 255,
+              HILITE:   128 128 255 255, HILITEBORDER:   0 0 128 255;
+  ENABLEDDRAWDATA = IMAGE: RadioButtonEnabledLeft, COLOR: 1 1 1 160, BORDERCOLOR: 47 75 255 255,
+                    IMAGE: RadioButtonEnabledMiddle, COLOR: 128 0 0 0, BORDERCOLOR: 0 0 0 0,
+                    IMAGE: RadioButtonEnabledRight, COLOR: 117 43 1 200, BORDERCOLOR: 106 123 255 255,
+                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                    IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+  DISABLEDDRAWDATA = IMAGE: RadioButtonDisabledLeft, COLOR: 128 128 128 255, BORDERCOLOR: 192 192 192 255,
+                     IMAGE: RadioButtonDisabledMiddle, COLOR: 128 128 128 255, BORDERCOLOR: 192 192 192 255,
+                     IMAGE: RadioButtonDisabledRight, COLOR: 64 64 64 255, BORDERCOLOR: 254 254 254 255,
+                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                     IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+  HILITEDRAWDATA = IMAGE: RadioButtonEnabledLeft, COLOR: 1 1 1 160, BORDERCOLOR: 47 75 255 255,
+                   IMAGE: RadioButtonEnabledMiddle, COLOR: 128 0 0 0, BORDERCOLOR: 0 0 0 0,
+                   IMAGE: RadioButtonEnabledRight, COLOR: 117 43 1 200, BORDERCOLOR: 106 123 255 255,
+                   IMAGE: RadioButtonHilightedLeft, COLOR: 0 1 0 160, BORDERCOLOR: 47 75 255 255,
+                   IMAGE: RadioButtonHilightedMiddle, COLOR: 0 128 0 0, BORDERCOLOR: 128 255 128 255,
+                   IMAGE: RadioButtonHilightedRight, COLOR: 117 43 0 200, BORDERCOLOR: 254 254 254 0,
+                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0,
+                   IMAGE: NoImage, COLOR: 255 255 255 0, BORDERCOLOR: 255 255 255 0;
+  RADIOBUTTONDATA = GROUP: 2;

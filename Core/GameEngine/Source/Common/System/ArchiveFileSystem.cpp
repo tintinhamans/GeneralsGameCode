@@ -401,7 +401,7 @@ Bool ArchiveFileSystem::parseMountEntry(const AsciiString& text, ArchiveMountEnt
 	return TRUE;
 }
 
-void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes)
+void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes, std::vector<AsciiString>* mounted, ArchivePathFilter includePath)
 {
 	std::string fullPath = entry.m_path.str();
 	if (entry.m_base == ArchiveMountEntry::BASE_USER)
@@ -423,7 +423,7 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 			bigPaths.push_back(it->str());
 	}
 
-	Int mounted = 0;
+	Int mountedCount = 0;
 	for (const std::string& bigPath : bigPaths)
 	{
 		if (!TheLocalFileSystem->doesFileExist(bigPath.c_str()))
@@ -438,7 +438,7 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s is already mounted", bigPath.c_str());
 			continue;
 		}
-		ArchiveFile* archiveFile = openArchiveFile(bigPath.c_str());
+		ArchiveFile* archiveFile = openArchiveFile(bigPath.c_str(), includePath);
 		if (archiveFile == nullptr)
 		{
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s could not be opened", bigPath.c_str());
@@ -446,12 +446,141 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 		}
 		loadIntoDirectoryTree(archiveFile, priority);
 		m_archiveFileMap[AsciiString(bigPath.c_str())] = archiveFile;
-		++mounted;
+		if (mounted != nullptr)
+			mounted->push_back(AsciiString(bigPath.c_str()));
+		++mountedCount;
 	}
-	NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s at priority %d: %d archives", fullPath.c_str(), priority, mounted);
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s at priority %d: %d archives", fullPath.c_str(), priority, mountedCount);
 }
 
-void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority)
+// A GO menu layout: Window/Menus without the screens shown during a match (the list of GenOnline/tools/go_wnd_layouts.py IN_MATCH_MENUS),
+// or the GO header templates those layouts use
+static Bool isGenOnlineShellLayout(const char* path)
+{
+	static const char* const inGameLayouts[] = {
+		"crcmismatch.wnd", "defeat.wnd", "disconnectscreen.wnd", "localdefeat.wnd", "observerquit.wnd", "popupsaveload.wnd",
+		"quitmenu.wnd", "quitmessagebox.wnd", "quitnosave.wnd", "saveload.wnd", "victorious.wnd" };
+
+	AsciiString lower(path);
+	lower.toLower();
+	const char* name = lower.str();
+	if (strcmp(name, "data/generalsonline/headertemplate.ini") == 0 || strcmp(name, "data\\generalsonline\\headertemplate.ini") == 0)
+	{
+		return TRUE;
+	}
+	const char* prefixes[] = { "window/menus/", "window\\menus\\" };
+	Bool inMenus = FALSE;
+	for (size_t p = 0; p < ARRAY_SIZE(prefixes); ++p)
+	{
+		const size_t len = strlen(prefixes[p]);
+		if (strncmp(name, prefixes[p], len) == 0)
+		{
+			name += len;
+			inMenus = TRUE;
+			break;
+		}
+	}
+	if (!inMenus || strchr(name, '/') != nullptr || strchr(name, '\\') != nullptr)
+	{
+		return FALSE;
+	}
+	for (size_t i = 0; i < ARRAY_SIZE(inGameLayouts); ++i)
+	{
+		if (strcmp(name, inGameLayouts[i]) == 0)
+		{
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+void ArchiveFileSystem::mountGenOnlineMenus(const std::vector<AsciiString>& genOnlineArchives)
+{
+	// the GO menu layouts also rank above -mod and every BIG so a mod cannot replace them, loose files still win
+	for (const AsciiString& archivePath : genOnlineArchives)
+	{
+		ArchiveFile* guiArchive = openArchiveFile(archivePath.str(), isGenOnlineShellLayout);
+		if (guiArchive == nullptr)
+		{
+			NetworkLog(ELogVerbosity::LOG_RELEASE, "GO menu layouts of %s could not be opened", archivePath.str());
+			continue;
+		}
+		loadIntoDirectoryTree(guiArchive, ARCHIVE_PRIORITY_GENONLINE_GUI);
+		AsciiString mapName;
+		mapName.format("%s|menus", archivePath.str());
+		m_archiveFileMap[mapName] = guiArchive;
+		FilenameList guiFiles;
+		guiArchive->getFileListInDirectory("", "", "*", guiFiles, TRUE);
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "GO menu layouts of %s at priority %d: %d files", archivePath.str(), (Int)ARCHIVE_PRIORITY_GENONLINE_GUI, (Int)guiFiles.size());
+	}
+}
+
+// The GO interface files of the generals_online archives that the Retail style leaves out: their copies of retail layouts, kit art,
+// fonts and header templates. Layouts retail never had (GO popups) stay so their features keep a window
+static Bool isNotGenOnlineInterfaceFile(const char* path)
+{
+	static const char* const prefixes[] = { "fonts/" };
+	static const char* const files[] = {
+		"art/textures/generalsonline_uikit.tga",
+		"data/ini/mappedimages/texturesize_512/zz_generalsonline_uikit.ini",
+		"data/ini/mappedimages/texturesize_512/zz_generalsonline_checkboxsliderart.ini",
+		"data/generalsonline/headertemplate.ini" };
+
+	// paths in a BIG use backslashes, the lists above use slashes
+	AsciiString lower;
+	for (const char* c = path; *c != '\0'; ++c)
+	{
+		lower.concat(*c == '\\' ? '/' : static_cast<char>(tolower(static_cast<unsigned char>(*c))));
+	}
+	const char* name = lower.str();
+	if (strncmp(name, "window/", 7) == 0)
+	{
+		return TheArchiveFileSystem == nullptr || !TheArchiveFileSystem->doesFileExist(name);
+	}
+	for (size_t p = 0; p < ARRAY_SIZE(prefixes); ++p)
+	{
+		if (strncmp(name, prefixes[p], strlen(prefixes[p])) == 0)
+		{
+			return FALSE;
+		}
+	}
+	for (size_t f = 0; f < ARRAY_SIZE(files); ++f)
+	{
+		if (strcmp(name, files[f]) == 0)
+		{
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+void ArchiveFileSystem::setInterfaceStyle(const AsciiString& style)
+{
+	m_retailInterface = style.compareNoCase("retail") == 0;
+	if (style.compareNoCase("overhaul") == 0)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: Overhaul needs RmlUi, which this build does not have, using Refit");
+	}
+	if (m_retailInterface)
+	{
+		NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: Retail, the GO layouts, kit art and fonts are left out");
+		return;
+	}
+	NetworkLog(ELogVerbosity::LOG_RELEASE, "Interface: Refit");
+}
+
+void ArchiveFileSystem::mountGenOnlineLayer(Bool enabled, const std::vector<std::string>& includePaths)
+{
+	std::vector<AsciiString> genOnlineArchives;
+	mountDataPackLayer("generals_online", enabled, includePaths, nullptr, ARCHIVE_PRIORITY_GENONLINE, &genOnlineArchives, m_retailInterface ? isNotGenOnlineInterfaceFile : nullptr);
+	if (m_retailInterface)
+	{
+		return;
+	}
+	mountGenOnlineMenus(genOnlineArchives);
+}
+
+void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, const std::vector<std::string>& includePaths, const PathExcludeList* excludes, Int priority, std::vector<AsciiString>* mounted, ArchivePathFilter includePath)
 {
 	if (!enabled)
 	{
@@ -469,7 +598,7 @@ void ArchiveFileSystem::mountDataPackLayer(const char* layer, Bool enabled, cons
 			NetworkLog(ELogVerbosity::LOG_RELEASE, "Data pack layer %s: path ignored (%s): %s", layer, reason.str(), includePaths[i].c_str());
 			continue;
 		}
-		mountListedArchive(entry, priority + static_cast<Int>(i), excludes);
+		mountListedArchive(entry, priority + static_cast<Int>(i), excludes, mounted, includePath);
 	}
 }
 

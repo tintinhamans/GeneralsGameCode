@@ -1,0 +1,11 @@
+# The outer frame of a menu: dark see-through fill and the kit line colour.
+extends: user
+params:
+  fill: "2 2 2 175"
+  border: "47 75 255 255"
+  disabled_fill: "64 64 64 255"
+  disabled_border: "254 254 254 255"
+  hilite_fill: "106 123 255 255"
+  hilite_border: "254 254 254 255"
+  spare: "255 255 255 255"
+callbacks: {system: PassMessagesToParentSystem}
