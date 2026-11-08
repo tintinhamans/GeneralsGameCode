@@ -2595,6 +2595,35 @@ Int GadgetListBoxGetKitScrollLineWidth( void )
 	return width;
 }
 
+// GadgetListBoxDrawKitLines ==================================================
+/** Draw the chosen edges of a rect, inside it, with the kit line image and thickness */
+//=============================================================================
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 Kit list frames, scroll cells and the separator share one line weight.
+void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
+																Bool left, Bool top, Bool right, Bool bottom )
+{
+	const Image *line = GadgetListBoxGetKitScrollImage( KIT_SCROLL_LINE );
+	Int thickness = GadgetListBoxGetKitScrollLineWidth();
+	if( line == nullptr || thickness <= 0 || width <= 0 || height <= 0 )
+		return;
+
+	Int across = thickness;
+	if( across > width )
+		across = width;
+	Int down = thickness;
+	if( down > height )
+		down = height;
+
+	if( top )
+		TheWindowManager->winDrawImage( line, x, y, x + width, y + down );
+	if( bottom )
+		TheWindowManager->winDrawImage( line, x, y + height - down, x + width, y + height );
+	if( left )
+		TheWindowManager->winDrawImage( line, x, y, x + across, y + height );
+	if( right )
+		TheWindowManager->winDrawImage( line, x + width - across, y, x + width, y + height );
+}
+
 // GadgetListBoxGetKitComboFrame ==============================================
 /** Frame thickness of a kit combo drop-down list, the combo field border; 0 for other lists */
 //=============================================================================

@@ -106,6 +106,8 @@ extern Bool GadgetListBoxHasKitScrollBar( void ); ///< TRUE when every kit scrol
 extern const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which ); ///< nullptr unless GadgetListBoxHasKitScrollBar
 extern Int GadgetListBoxGetKitComboFrame( GameWindow *listbox ); ///< kit combo drop-down frame thickness, 0 for other lists
 extern Int GadgetListBoxGetKitScrollLineWidth( void ); ///< kit scroll column separator thickness, 0 without the kit
+extern void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
+																			 Bool left, Bool top, Bool right, Bool bottom ); ///< kit line edges inside a rect
 extern void GadgetListBoxAddMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxRemoveMultiSelect( GameWindow *listbox );
 extern void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength );

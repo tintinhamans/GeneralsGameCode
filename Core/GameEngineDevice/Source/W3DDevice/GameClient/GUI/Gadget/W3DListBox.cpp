@@ -95,13 +95,38 @@ static void assignKitScrollBarDraws( ListboxData *list )
 		list->downButton->winSetDrawFunc( W3DGadgetPushButtonKitScrollArrowDraw );
 }
 
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 Kit lists with a layout border draw it at the kit line weight.
+// Kit frame of a colour drawn list: the combo field border for drop-downs, the kit line for bordered lists, else 0
+static Int getKitListFrame( GameWindow *window )
+{
+	if( BitIsSet( window->winGetStatus(), WIN_STATUS_IMAGE ) )
+		return 0;
+
+	Int comboFrame = GadgetListBoxGetKitComboFrame( window );
+	if( comboFrame > 0 )
+		return comboFrame;
+
+	Color border = GadgetListBoxGetEnabledBorderColor( window );
+	if( border == WIN_COLOR_UNDEFINED )
+		return 0;
+
+	UnsignedByte red, green, blue, alpha;
+	GameGetColorComponents( border, &red, &green, &blue, &alpha );
+	if( alpha == 0 )
+		return 0;
+
+	return GadgetListBoxGetKitScrollLineWidth();
+}
+
 // TheSuperHackers @feature arcticdolphin 08/11/2026 Kit combo drop-down lists line up with and frame like their combo field.
-// Kit combo drop-down rows start where the combo field text starts; x is already inside the frame
+// Kit combo drop-down rows start where the combo field text starts, other rows keep their margin; x is already inside the frame
 static Int getListTextOffsetX( GameWindow *window )
 {
-	Int frame = GadgetListBoxGetKitComboFrame( window );
+	Int frame = getKitListFrame( window );
 	if( frame <= 0 )
 		return GameWindowManager::winScaleLayoutSize( TEXT_X_OFFSET );
+	if( GadgetListBoxGetKitComboFrame( window ) <= 0 )
+		return GameWindowManager::winScaleLayoutSize( TEXT_X_OFFSET ) - frame;
 
 	// the W3DTextEntry margin, then its start for text drawn from the start or edited text
 	GameWindow *editBox = GadgetComboBoxGetEditBox( window->winGetParent() );
@@ -560,6 +585,12 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 		background = WIN_COLOR_UNDEFINED;
 	}
 
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 Other kit lists keep their background and draw their border at the kit line weight.
+	const Int listFrame = getKitListFrame( window );
+	const Bool kitBorder = comboFrame <= 0 && listFrame > 0;
+	if( kitBorder )
+		border = WIN_COLOR_UNDEFINED;
+
 	// draw the back border
 	if( border != WIN_COLOR_UNDEFINED )
 		TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
@@ -570,6 +601,9 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 		TheWindowManager->winFillRect( background, WIN_DRAW_LINE_WIDTH,
 																	 x + 1, y + 1,
 																	 x + width - 1, y + height - 1 );
+
+	if( kitBorder )
+		GadgetListBoxDrawKitLines( x, y, width, height, TRUE, TRUE, TRUE, TRUE );
 
 	// If ScrollBar was requested ... adjust width.
 	if( list->slider  && !list->slider->winIsHidden())
@@ -583,16 +617,16 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 	}
 
 	// rows and selection bars stay inside the kit frame
-	if( comboFrame > 0 )
+	if( listFrame > 0 )
 	{
-		x += comboFrame;
-		width -= comboFrame;
+		x += listFrame;
+		width -= listFrame;
 		if( list->slider == nullptr || list->slider->winIsHidden() )
-			width -= comboFrame;
+			width -= listFrame;
 	}
 
 	// draw the text
-	drawListBoxText( window, instData, x, y + 4 , width, height-4, TRUE );
+	drawListBoxText( window, instData, x, y + 4 , width, height-4-listFrame, TRUE );
 
 
 
