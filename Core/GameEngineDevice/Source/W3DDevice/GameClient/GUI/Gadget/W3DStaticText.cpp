@@ -50,6 +50,7 @@
 #include "Common/GlobalData.h"
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetStaticText.h"
 #include "W3DDevice/GameClient/W3DGameWindow.h"
 #include "W3DDevice/GameClient/W3DGadget.h"
@@ -178,8 +179,12 @@ void W3DGadgetStaticTextDraw( GameWindow *window, WinInstanceData *instData )
 
 	}
 
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 With the GO kit, a kit blue border draws at the kit line weight.
+	Color kitFrameColor;
+	Bool kitFrame = GadgetListBoxGetKitFrameColor( backBorder, &kitFrameColor );
+
 	// draw the back border
-	if( backBorder != WIN_COLOR_UNDEFINED )
+	if( backBorder != WIN_COLOR_UNDEFINED && kitFrame == FALSE )
 	{
 
 		start.x = origin.x;
@@ -202,6 +207,9 @@ void W3DGadgetStaticTextDraw( GameWindow *window, WinInstanceData *instData )
 		TheWindowManager->winFillRect( backColor, WIN_DRAW_LINE_WIDTH,
 																	 start.x, start.y, end.x, end.y );
 	}
+
+	if( kitFrame )
+		GadgetListBoxDrawKitFrame( kitFrameColor, origin.x, origin.y, size.x, size.y );
 
 	// draw the text
   if( tData->text && (textColor != WIN_COLOR_UNDEFINED) )

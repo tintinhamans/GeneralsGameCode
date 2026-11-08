@@ -2361,7 +2361,7 @@ GameWindow *GameWindowManager::gogoGadgetSlider( GameWindow *parent,
 
 	// GenOnline @tweak arcticdolphin 08/11/2026 The horizontal thumb scales with the screen height and keeps its shape.
 	if (BitIsSet(instData->getStyle(), GWS_HORZ_SLIDER))
-		button = gogoGadgetPushButton(slider, statusFlags, 0, HORIZONTAL_SLIDER_THUMB_POSITION,
+		button = gogoGadgetPushButton(slider, statusFlags, 0, GadgetHorizontalSliderThumbTop(height, winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_HEIGHT)),
 			winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_WIDTH), winScaleLayoutSize(HORIZONTAL_SLIDER_THUMB_HEIGHT), &buttonInstData, nullptr, TRUE);
 	else
 		button = gogoGadgetPushButton( slider, statusFlags, 0, 0,

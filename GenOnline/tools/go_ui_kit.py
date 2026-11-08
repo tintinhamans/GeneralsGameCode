@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate the Generals Online UI kit: one texture atlas and the MappedImage INI that points
-the retail shell gadget image names at it.
+the retail shell gadget image names at it, plus a second atlas and INI for the GO map preview
+icons and the map list favourite stars.
 
 The pieces draw a clean take on the retail shell gadgets: the retail blues, one even line on every
 edge and flat fills, at SCALE texels per pixel. Coords and
@@ -32,9 +33,12 @@ EXTRUDE = 1        # retail pixels of padding around each piece (SCALE texels)
 SUPERSAMPLE = 2    # samples per texel and axis
 # edge line width in layout pixels; three-piece bars carry it as Border, so the engine keeps it fixed at any bar height
 LINE_LAYOUT = 1.5
-BORDER_PREFIXES = ("Buttons-", "RadioButton", "TextEntry")  # three-piece bars whose INI entry gets Border = LINE_LAYOUT
+# images whose INI entry gets Border = LINE_LAYOUT: the engine draws their LINE_LAYOUT edge rows and columns at the kit
+# line weight, ceil(1.5 * H / 600) px, whatever size they are drawn at (three-piece bars, single images as a nine-slice)
+BORDER_PREFIXES = ("Buttons-", "RadioButton", "TextEntry", "VSliderUpButton", "VSliderDownButton",
+                   "ReturnButton", "Xbutton", "LobbyRefresh", "Active-", "Disabled-")
 BORDER_NAMES = ("GOScrollLine",)  # single images whose Border tells the engine the kit line thickness
-ARROW_LINE = 0.95 * LINE_LAYOUT  # combo arrows are single images: 22 px art, usually about 23 layout px tall
+ARROW_LINE = LINE_LAYOUT  # combo arrows carry the kit line like every bordered piece
 BOX_LINE = (1.25 * 1.2, 1.45 * 1.2)  # slider blocks: 11x13 art drawn as squares, so the line differs per axis; small, so a thinner line
 
 
@@ -48,13 +52,14 @@ FIELD = rgba("#05070F", 0.92)
 GLYPH = rgba("#C9CEFF")
 GLYPH_ACTIVE = rgba("#FFFFFF")
 GLYPH_DISABLED = rgba("#5D6080")
+DISABLED_LINE = rgba("#4A4E6E")  # lighter than the old #404159 so a disabled outline keeps the same visible weight
 
 # state -> (edge line, fill)
 BUTTON_STATES = {
     "": (rgba("#2F4BFF"), rgba("#070A18", 0.82)),
     "HiLite-": (rgba("#6A7BFF"), rgba("#152078", 0.88)),
     "Pushed-": (rgba("#8C9BFF"), rgba("#2B34B8", 0.92)),
-    "Disabled-": (rgba("#404159"), rgba("#0A0A10", 0.70)),
+    "Disabled-": (DISABLED_LINE, rgba("#0A0A10", 0.70)),
 }
 RADIO_STATES = {
     "Enabled": BUTTON_STATES[""],
@@ -66,14 +71,14 @@ RADIO_STATES = {
 ENTRY_STATES = {
     "Enabled": rgba("#2F4BFF"),
     "Hilite": rgba("#6A7BFF"),
-    "Disabled": rgba("#404159"),
+    "Disabled": DISABLED_LINE,
 }
 # arrow buttons join the field they sit beside: no left edge, the field line colour, the state in the fill
 ARROW_STATES = {
     "Enabled": (rgba("#2F4BFF"), rgba("#0B1030", 0.92), GLYPH),
     "Hilite": (rgba("#2F4BFF"), rgba("#152078", 0.92), GLYPH_ACTIVE),
     "HiliteSelected": (rgba("#2F4BFF"), rgba("#2B34B8", 0.92), GLYPH_ACTIVE),
-    "Disabled": (rgba("#404159"), rgba("#0A0A10", 0.70), GLYPH_DISABLED),
+    "Disabled": (DISABLED_LINE, rgba("#0A0A10", 0.70), GLYPH_DISABLED),
 }
 # horizontal slider blocks: (edge line, fill)
 SLIDER_ON = (rgba("#6A7BFF"), rgba("#3446FF"))
@@ -83,15 +88,19 @@ SLIDER_HOVER = rgba("#2F4BFF", 0.22)
 # flat, no outline: an outline only shows on the rounded ends once the small art is scaled, as a light rim
 SLIDER_TRACK = (rgba("#283489"), rgba("#283489"))
 SLIDER_FILL = (rgba("#3446FF"), rgba("#3446FF"))
-# the thumb is a slim marker at the value: (colour, width in thumb pixels)
+# the thumb is a rounded pill at the value, 4 units wide and 1.75 track heights tall (W3DHorizontalSlider)
 SLIDER_MARKER = {
-    "": (rgba("#C9CEFF"), 1.15),
-    "Hilite": (rgba("#FFFFFF"), 1.6),
-    "Disabled": (rgba("#5D6080"), 1.15),
+    "": GLYPH,
+    "Hilite": GLYPH_ACTIVE,
+    "Disabled": GLYPH_DISABLED,
 }
+SLIDER_TRACK_HEIGHT = 8
+SLIDER_MARKER_SIZE = (4, 14)
 TRACK_LINE = 0.55  # 8 px art, drawn about 14 px tall at 1080p
 SYMBOL_LINE = LINE_LAYOUT  # check boxes and symbol buttons draw at about their own size
-GLYPH_STROKE = 2.2
+# every glyph: a 16 unit design grid fitted to its piece, one 2 unit stroke with round caps and joins, 2 units of padding
+GLYPH_GRID = 16.0
+GLYPH_STROKE_UNITS = 2.0
 # symbol buttons and check boxes: state -> (edge line, fill, glyph)
 SYMBOL_STATES = {
     "Enabled": BUTTON_STATES[""] + (GLYPH,),
@@ -114,7 +123,7 @@ PLAYER_STARTS = {
     "PlayerStart": (rgba("#2F4BFF"), rgba("#05070F", 0.85)),
     "PlayerStartHilite": (rgba("#8C9BFF"), rgba("#152078", 0.92)),
     "PlayerStartHilitePushed": (rgba("#C9CEFF"), rgba("#3446FF")),
-    "PlayerStartDisabled": (rgba("#404159"), rgba("#0A0A10", 0.70)),
+    "PlayerStartDisabled": (DISABLED_LINE, rgba("#0A0A10", 0.70)),
 }
 # scroll bar thumb: a slim pill in the middle of the thumb rect
 SCROLL_THUMBS = {
@@ -133,14 +142,19 @@ SCROLL_PILLS = {
 }
 # arrow cells in the combo arrow states: state -> (line, fill, glyph); the engine draws the lines with GOScrollLine
 SCROLL_ARROWS = {
-    "": ARROW_STATES["Enabled"],
-    "Hilite": ARROW_STATES["Hilite"],
-    "Pushed": ARROW_STATES["HiliteSelected"],
-    "Disabled": ARROW_STATES["Disabled"],
+    "": (TRANSPARENT, GLYPH),
+    "Hilite": (SLIDER_HOVER, GLYPH_ACTIVE),
+    "Pushed": (rgba("#2F4BFF", 0.40), GLYPH_ACTIVE),
+    "Disabled": (TRANSPARENT, GLYPH_DISABLED),
 }
+SCROLL_HIGHLIGHT_INSET = 2.0  # cell units: clear of the separator and the list frame
+SCROLL_HIGHLIGHT_RADIUS = 2.0
 # the kit scroll column is 14 layout px wide with a 6 px channel the pill fills (W3DVerticalSlider, GadgetListBox)
 SCROLL_ARROW_SIZE = 14  # the square arrow cell, drawn at its own layout size
 SCROLL_PILL_WIDTH = 6
+# pill and track pieces: twice the pill width so the semicircle ends stay smooth when drawn larger (4K draws them 22 px wide);
+# the engine draws each end as tall as half the drawn width, so they stay true semicircles
+SCROLL_PILL_ART = (12, 6)
 SCROLL_LINE = ARROW_STATES["Enabled"][0]  # kit list frames, cell lines and the column separator the engine draws, Border = LINE_LAYOUT
 LIST_SELECTION = {
     "ListBoxHiliteItem": rgba("#2F4BFF", 0.25),
@@ -210,15 +224,13 @@ def triangle_inside(x, y, a, b, c):
 
 
 def arrow_piece(w, h, up, line, fill, glyph):
-    cx, cy = (w - ARROW_LINE) / 2.0, h / 2.0
-    tri = ((cx - 4.5, cy - 2.2), (cx + 4.5, cy - 2.2), (cx, cy + 2.8))
+    """The combo drop-down arrow: no left edge, the stroke chevron centred in the space left of the right line."""
+    hit = chevron_glyph(w, h, up, (0.0, 0.0, w - ARROW_LINE, h))
 
     def sample(x, y):
-        if up:
-            y = h - y
         if edge(x, y, w, h, False, True) < ARROW_LINE:
             return line
-        return glyph if triangle_inside(x, y, *tri) else fill
+        return glyph if hit(x, y) else fill
 
     return paint(w, h, sample)
 
@@ -249,10 +261,13 @@ def round_end(w, h, side, line, fill):
     return paint(w, h, sample)
 
 
-def marker_piece(w, h, color, width):
-    """A slim vertical line in the middle of the thumb rect, 70% of its height."""
+def marker_piece(w, h, color):
+    """A fully rounded vertical pill filling the piece."""
+    r = w / 2.0
+
     def sample(x, y):
-        return color if abs(x - w / 2.0) < width / 2.0 and 0.15 * h <= y < 0.85 * h else TRANSPARENT
+        cy = min(max(y, r), h - r)
+        return color if math.hypot(x - r, y - cy) < r else TRANSPARENT
 
     return paint(w, h, sample)
 
@@ -268,20 +283,101 @@ def glyph_arrow(w, h):
     return paint(w, h, sample)
 
 
-def segment_distance(px, py, a, b):
-    ax, ay = a
-    bx, by = b
-    dx, dy = bx - ax, by - ay
-    k = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
-    return math.hypot(px - ax - k * dx, py - ay - k * dy)
+def snap_stroke(v, half_texels):
+    """Move a stroke centre, in pixels, so the edges of a stroke half_texels wide land on whole texels."""
+    return (round(v * SCALE - half_texels) + half_texels) / SCALE
 
 
-def on_stroke(x, y, polylines, width):
+def snap_point(v):
+    """Move a solid shape corner, in pixels, onto a texel edge."""
+    return round(v * SCALE) / SCALE
+
+
+def quad_inside(x, y, a, b, c, d):
+    return triangle_inside(x, y, a, b, c) or triangle_inside(x, y, a, c, d)
+
+
+def line_intersection(p, d, q, e):
+    """Point where p + t*d meets q + u*e, None when they are parallel."""
+    den = d[0] * e[1] - d[1] * e[0]
+    if abs(den) < 1e-9:
+        return None
+    t = ((q[0] - p[0]) * e[1] - (q[1] - p[1]) * e[0]) / den
+    return (p[0] + t * d[0], p[1] + t * d[1])
+
+
+def stroke_shapes(points, radius):
+    """Convex quads covering a polyline stroke with butt caps and mitred joins."""
+    quads = []
+    dirs = []
+    for a, b in zip(points, points[1:]):
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        length = math.hypot(dx, dy)
+        d = (dx / length, dy / length)
+        n = (-d[1] * radius, d[0] * radius)
+        dirs.append(d)
+        quads.append(((a[0] + n[0], a[1] + n[1]), (b[0] + n[0], b[1] + n[1]),
+                      (b[0] - n[0], b[1] - n[1]), (a[0] - n[0], a[1] - n[1])))
+    for i in range(1, len(points) - 1):
+        p, d1, d2 = points[i], dirs[i - 1], dirs[i]
+        for side in (1.0, -1.0):
+            a = (p[0] - d1[1] * radius * side, p[1] + d1[0] * radius * side)
+            b = (p[0] - d2[1] * radius * side, p[1] + d2[0] * radius * side)
+            m = line_intersection(a, d1, b, d2)
+            if m is not None:
+                quads.append((p, a, m, b))
+    return quads
+
+
+def stroke_glyph(w, h, polylines=(), arcs=(), solids=(), box=None):
+    """Hit test for a glyph on the 16 unit design grid, fitted to the largest square centred in box (default the piece).
+    polylines: lists of grid points stroked with butt caps and mitred joins; arcs: (cx, cy, r, start, sweep) in grid
+    units and degrees, y down, with flat radial ends; solids: filled triangles of grid points.
+    One stroke of GLYPH_STROKE_UNITS; stroke centres and solid corners snapped to whole texels."""
+    bx, by, bw, bh = box if box else (0.0, 0.0, w, h)
+    side = min(bw, bh)
+    unit = side / GLYPH_GRID
+    stroke_texels = max(1, round(GLYPH_STROKE_UNITS * unit * SCALE))
+    half = stroke_texels / 2.0
+    radius = half / SCALE
+    ox = round((bx + (bw - side) / 2.0) * SCALE) / SCALE
+    oy = round((by + (bh - side) / 2.0) * SCALE) / SCALE
+
+    def px(p):
+        return (snap_stroke(ox + p[0] * unit, half), snap_stroke(oy + p[1] * unit, half))
+
+    def corner(p):
+        return (snap_point(ox + p[0] * unit), snap_point(oy + p[1] * unit))
+
+    quads = []
     for line in polylines:
-        for a, b in zip(line, line[1:]):
-            if segment_distance(x, y, a, b) < width / 2.0:
+        quads += stroke_shapes([px(p) for p in line], radius)
+    rings = [(px((cx, cy)), r * unit, start % 360.0, sweep) for cx, cy, r, start, sweep in arcs]
+    triangles = [tuple(corner(p) for p in tri) for tri in solids]
+
+    def hit(x, y):
+        for q in quads:
+            if quad_inside(x, y, *q):
                 return True
-    return False
+        for c, rr, start, sweep in rings:
+            if abs(math.hypot(x - c[0], y - c[1]) - rr) < radius:
+                if (math.degrees(math.atan2(y - c[1], x - c[0])) - start) % 360.0 <= sweep:
+                    return True
+        for t in triangles:
+            if triangle_inside(x, y, *t):
+                return True
+        return False
+
+    return hit
+
+
+def chevron_glyph(w, h, up, box=None):
+    """The shared arrow: a sharp 90 degree stroke chevron pointing up or down."""
+    if up:
+        points = [(4.5, 9.75), (8.0, 6.25), (11.5, 9.75)]
+    else:
+        points = [(4.5, 6.25), (8.0, 9.75), (11.5, 6.25)]
+    return stroke_glyph(w, h, [points], box=box)
 
 
 def symbol_piece(w, h, state, glyph_hit):
@@ -297,8 +393,8 @@ def symbol_piece(w, h, state, glyph_hit):
 
 
 def check_glyph(w, h):
-    mark = [((0.27 * w, 0.52 * h), (0.43 * w, 0.69 * h), (0.75 * w, 0.31 * h))]
-    return lambda x, y: on_stroke(x, y, mark, GLYPH_STROKE)
+    """A sharp two segment check."""
+    return stroke_glyph(w, h, [[(3.5, 8.5), (6.5, 11.5), (12.5, 5.5)]])
 
 
 def no_glyph(x, y):
@@ -306,45 +402,32 @@ def no_glyph(x, y):
 
 
 def return_glyph(w, h):
-    """The enter key arrow: down from the top right, then left into an arrow head."""
-    bend = [((0.74 * w, 0.26 * h), (0.74 * w, 0.62 * h), (0.36 * w, 0.62 * h))]
-    head = ((0.24 * w, 0.62 * h), (0.40 * w, 0.40 * h), (0.40 * w, 0.84 * h))
-    return lambda x, y: on_stroke(x, y, bend, GLYPH_STROKE) or triangle_inside(x, y, *head)
+    """An angular enter arrow: a stem down from the top right, then left into a solid triangular head."""
+    return stroke_glyph(w, h, [[(12.0, 3.5), (12.0, 10.0), (7.0, 10.0)]],
+                        solids=[((3.0, 10.0), (7.0, 6.5), (7.0, 13.5))])
 
 
 def close_glyph(w, h):
-    cross = [((0.32 * w, 0.32 * h), (0.68 * w, 0.68 * h)), ((0.68 * w, 0.32 * h), (0.32 * w, 0.68 * h))]
-    return lambda x, y: on_stroke(x, y, cross, GLYPH_STROKE)
+    """An X with square ends."""
+    return stroke_glyph(w, h, [[(4.5, 4.5), (11.5, 11.5)], [(11.5, 4.5), (4.5, 11.5)]])
 
 
 def refresh_glyph(w, h):
-    """Three quarters of a circle with an arrow head at its open end."""
-    cx, cy, r = w / 2.0, h / 2.0, 0.27 * min(w, h)
-    head_angle = math.radians(-60.0)
-    tip = (cx + r * math.cos(head_angle), cy + r * math.sin(head_angle))
-    out = (math.cos(head_angle), math.sin(head_angle))
-    along = (-math.sin(head_angle), math.cos(head_angle))
-    head = ((tip[0] - 2.8 * along[0], tip[1] - 2.8 * along[1]),
-            (tip[0] + 2.6 * out[0] + 1.6 * along[0], tip[1] + 2.6 * out[1] + 1.6 * along[1]),
-            (tip[0] - 2.6 * out[0] + 1.6 * along[0], tip[1] - 2.6 * out[1] + 1.6 * along[1]))
-
-    def hit(x, y):
-        angle = math.degrees(math.atan2(y - cy, x - cx))
-        if abs(math.hypot(x - cx, y - cy) - r) < GLYPH_STROKE / 2.0 and not -60.0 < angle < 10.0:
-            return True
-        return triangle_inside(x, y, *head)
-
-    return hit
+    """A 270 degree arc with flat ends, open at the top right, and a solid triangular head on its top end."""
+    return stroke_glyph(w, h, arcs=[(8.0, 9.0, 4.2, 0.0, 270.0)],
+                        solids=[((11.2, 4.8), (8.0, 2.3), (8.0, 7.3))])
 
 
 def ring_piece(w, h, line, fill):
+    """A map start marker: a ring with the even 2 unit glyph stroke, filled inside."""
     cx, cy, r = w / 2.0, h / 2.0, min(w, h) / 2.0 - 1.0
+    stroke = GLYPH_STROKE_UNITS * min(w, h) / GLYPH_GRID
 
     def sample(x, y):
         d = r - math.hypot(x - cx, y - cy)
         if d < 0.0:
             return TRANSPARENT
-        return line if d < 2.2 else fill
+        return line if d < stroke else fill
 
     return paint(w, h, sample)
 
@@ -384,17 +467,18 @@ def channel_piece(w, h, line, fill):
     return paint(w, h, lambda x, y: line if min(x, w - x) < TRACK_LINE else fill)
 
 
-def scroll_arrow_piece(w, h, up, line, fill, glyph):
-    """An arrow cell of the scroll column: the combo arrow triangle scaled to the cell on the state fill.
-    The engine draws the cell lines with GOScrollLine so they match the list frame and the separator."""
-    k = w / 21.0
-    cx, cy = w / 2.0, h / 2.0
-    tri = ((cx - 4.5 * k, cy - 2.2 * k), (cx + 4.5 * k, cy - 2.2 * k), (cx, cy + 2.8 * k))
+def scroll_arrow_piece(w, h, up, highlight, glyph):
+    """An arrow cell of the scroll column: no box, the combo arrow chevron over an optional rounded highlight.
+    The engine draws the column separator with GOScrollLine; the list frame closes the other sides."""
+    hit = chevron_glyph(w, h, up)
+    inset, radius = SCROLL_HIGHLIGHT_INSET, SCROLL_HIGHLIGHT_RADIUS
 
     def sample(x, y):
-        if up:
-            y = h - y
-        return glyph if triangle_inside(x, y, *tri) else fill
+        if hit(x, y):
+            return glyph
+        dx = max(inset + radius - x, x - (w - inset - radius), 0.0)
+        dy = max(inset + radius - y, y - (h - inset - radius), 0.0)
+        return highlight if math.hypot(dx, dy) < radius else TRANSPARENT
 
     return paint(w, h, sample)
 
@@ -439,17 +523,19 @@ def pieces():
     out.append(("hilightedbox", 11, 13, box_piece(11, 13, *SLIDER_ON)))
     out.append(("dehilightedbox", 11, 13, box_piece(11, 13, *SLIDER_OFF)))
     out.append(("linebox", 13, 15, flat_piece(13, 15, SLIDER_HOVER)))
-    # rounded track ends; the fill keeps a square end where it meets the marker
-    out.append(("GOSliderTrackLeft", 4, 8, round_end(4, 8, "left", *SLIDER_TRACK)))
-    out.append(("GOSliderTrackCenter", 4, 8, button_piece(4, 8, "middle", *SLIDER_TRACK, TRACK_LINE)))
-    out.append(("GOSliderTrackRight", 4, 8, round_end(4, 8, "right", *SLIDER_TRACK)))
-    out.append(("GOSliderFillLeft", 4, 8, round_end(4, 8, "left", *SLIDER_FILL)))
-    out.append(("GOSliderFillCenter", 4, 8, button_piece(4, 8, "middle", *SLIDER_FILL, TRACK_LINE)))
-    out.append(("GOSliderFillRight", 4, 8, button_piece(4, 8, "middle", *SLIDER_FILL, TRACK_LINE)))
-    for state, (color, width) in SLIDER_MARKER.items():
-        out.append((f"GOSliderThumb{state}", 8, 16, marker_piece(8, 16, color, width)))
+    # track and fill: one height, flat, ends rounded with radius half the height
+    th = SLIDER_TRACK_HEIGHT
+    out.append(("GOSliderTrackLeft", th // 2, th, round_end(th // 2, th, "left", *SLIDER_TRACK)))
+    out.append(("GOSliderTrackCenter", th // 2, th, button_piece(th // 2, th, "middle", *SLIDER_TRACK, TRACK_LINE)))
+    out.append(("GOSliderTrackRight", th // 2, th, round_end(th // 2, th, "right", *SLIDER_TRACK)))
+    out.append(("GOSliderFillLeft", th // 2, th, round_end(th // 2, th, "left", *SLIDER_FILL)))
+    out.append(("GOSliderFillCenter", th // 2, th, button_piece(th // 2, th, "middle", *SLIDER_FILL, TRACK_LINE)))
+    out.append(("GOSliderFillRight", th // 2, th, round_end(th // 2, th, "right", *SLIDER_FILL)))
+    mw, mh = SLIDER_MARKER_SIZE
+    for state, color in SLIDER_MARKER.items():
+        out.append((f"GOSliderThumb{state}", mw, mh, marker_piece(mw, mh, color)))
     # list scroll bar: a channel the pill fills, like the slider track, then the arrow cells and the separator
-    pw, ph = SCROLL_PILL_WIDTH, SCROLL_PILL_WIDTH // 2
+    pw, ph = SCROLL_PILL_ART
     out.append(("GOScrollTrackTop", pw, ph, round_cap(pw, ph, "top", *SCROLL_TRACK)))
     out.append(("GOScrollTrackCenter", pw, ph, channel_piece(pw, ph, *SCROLL_TRACK)))
     out.append(("GOScrollTrackBottom", pw, ph, round_cap(pw, ph, "bottom", *SCROLL_TRACK)))
@@ -465,16 +551,278 @@ def pieces():
     return out
 
 
-def pack(items):
+# =================================================================================================
+# GO map select: map preview icons and the map list favourite stars.
+# They live in their own atlas, GeneralsOnline_UIKit2.tga, because the first atlas is full.
+# Self-contained: from the kit above this section uses only rgba, TRANSPARENT, SCALE and paint.
+# Kit icon style: angular C&C symbols on a 16 unit design grid scaled to the piece, one 2 unit stroke
+# with butt caps and mitred joins, sharp corners, even padding and points snapped to whole texels.
+# Map icons are lit glyphs: a rounded edge shaded from the top left, a gloss, a thin edge in a dark shade of the icon colour and a soft shadow.
+# =================================================================================================
+
+TEXTURE2_NAME = "GeneralsOnline_UIKit2.tga"
+TEXTURE2_PATH = DATA / "Art" / "Textures" / TEXTURE2_NAME
+INI2_PATH = DATA / "Data" / "INI" / "MappedImages" / "TextureSize_512" / "ZZ_GeneralsOnline_UIKit2.INI"
+ATLAS2_WIDTH = 128  # in retail pixels
+
+MAP_GRID = 16.0      # design grid units across a piece
+MAP_STROKE = 2.0     # stroke weight in grid units
+MAP_OUTLINE = 0.6    # thin dark edge around each glyph, in grid units
+MAP_GLYPH_SCALE = 1.25  # glyphs are drawn about the grid centre at this scale to fill the icon with even padding
+MAP_ICON_SIZE = 15   # retail px of the art; the engine draws the preview markers at a scaled layout size
+STAR_SIZE = 12
+
+MAP_GOLD = rgba("#FFD34D")
+MAP_BEVEL = 1.5      # grid units over which a glyph rounds off towards its edge
+MAP_BEVEL_STRENGTH = 1.8  # how steep the rounded edge reads in the lighting
+MAP_SHADOW = (0.45, 0.65)  # drop shadow offset in grid units, the light comes from the top left
+MAP_SHADOW_ALPHA = 0.32
+MAP_LIGHT = (-0.45, -0.65, 0.62)  # towards the light, z points at the viewer
+MAP_SPECULAR = 0.6
+
+
+def map_ramp(light, mid, dark, edge):
+    """A glyph colour ramp: the light and dark ends of the vertical gradient, the base colour and the thin edge colour."""
+    return (rgba(light), rgba(mid), rgba(dark), rgba(edge, 0.95))
+
+
+# the ramps follow the retail map icons: the glossy green Cash dollar and the bevelled gold TecBuilding star
+MAP_GREEN = map_ramp("#D9F26B", "#5FBF2A", "#0B6E1C", "#052F0F")
+MAP_GOLD_RAMP = map_ramp("#FFF2A8", "#E5BE3A", "#8A6410", "#463105")
+MAP_STEEL = map_ramp("#F6F8FB", "#B2BDCB", "#586677", "#1E252E")
+MAP_AMBER = map_ramp("#FFD978", "#EE8E16", "#823F05", "#3D1E08")
+MAP_WOOD = map_ramp("#EDBE72", "#B97A31", "#5F3611", "#2E1806")
+MAP_WOOD_LIGHT = map_ramp("#F7D69A", "#D4994A", "#7A4A1A", "#2E1806")
+# image name -> the parts drawn over each other from the bottom, each a (glyph pieces, colour ramp)
+MAP_ICONS = {
+    "GOMapIconSupplyDock": (("dollar", MAP_GREEN),),
+    "GOMapIconSupplyCrates": (("crate", MAP_WOOD), ("brace", MAP_WOOD_LIGHT)),
+    "GOMapIconRepairBay": (("wrench", MAP_STEEL),),
+    "GOMapIconArtillery": (("cannon", MAP_STEEL),),
+    "GOMapIconOilDerrick": (("droplet", MAP_AMBER),),
+    "GOMapIconTech": (("star", MAP_GOLD_RAMP),),
+}
+STAR_ON = (MAP_GOLD, rgba("#B8901A"))  # fill, edge
+STAR_OFF = rgba("#5D6080")
+
+
+def map_snap(px):
+    """Snaps a retail pixel coordinate to a whole texel."""
+    return round(px * SCALE) / SCALE
+
+
+def map_point(size, gx, gy):
+    """A grid point in retail pixels of a size px piece, snapped to a whole texel."""
+    unit = size / MAP_GRID
+    return (map_snap(gx * unit), map_snap(gy * unit))
+
+
+def map_gp(size, gx, gy):
+    """A glyph grid point scaled about the grid centre by MAP_GLYPH_SCALE, snapped to a whole texel."""
+    return map_point(size, 8.0 + (gx - 8.0) * MAP_GLYPH_SCALE, 8.0 + (gy - 8.0) * MAP_GLYPH_SCALE)
+
+
+def map_inside(x, y, pts):
+    """Nonzero winding point in polygon test, so mitred offsets with small self loops still fill."""
+    winding = 0
+    for (ax, ay), (bx, by) in zip(pts, pts[1:] + pts[:1]):
+        cross = (bx - ax) * (y - ay) - (x - ax) * (by - ay)
+        if ay <= y < by and cross > 0.0:
+            winding += 1
+        elif by <= y < ay and cross < 0.0:
+            winding -= 1
+    return winding != 0
+
+
+def map_normal(a, b):
+    """Unit normal on the right of a -> b in y down coordinates."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    length = math.hypot(dx, dy)
+    return (-dy / length, dx / length)
+
+
+def map_mitre(p, n1, n2, d, limit):
+    """The corner at p of two edges offset by d along their normals, joined with a mitre clamped to limit * d."""
+    mx, my = n1[0] + n2[0], n1[1] + n2[1]
+    length = math.hypot(mx, my)
+    if length < 1e-9:
+        return (p[0] + n1[0] * d, p[1] + n1[1] * d)
+    mx, my = mx / length, my / length
+    reach = d / max(mx * n1[0] + my * n1[1], 1e-9)
+    if abs(reach) > limit * abs(d):
+        reach = math.copysign(limit * abs(d), reach)
+    return (p[0] + mx * reach, p[1] + my * reach)
+
+
+def map_offset(pts, d, limit=2.0):
+    """A closed polygon grown by d (shrunk when d < 0) with mitred corners."""
+    area = sum(ax * by - bx * ay for (ax, ay), (bx, by) in zip(pts, pts[1:] + pts[:1]))
+    sign = -1.0 if area > 0.0 else 1.0  # in y down coordinates the right hand normal points inward on a positive area polygon
+    n = len(pts)
+    normals = [map_normal(pts[i], pts[(i + 1) % n]) for i in range(n)]
+    return [map_mitre(pts[i], normals[i - 1], normals[i], sign * d, limit) for i in range(n)]
+
+
+def map_stroke_poly(points, width, limit=2.0):
+    """An open polyline stroked as one polygon with butt caps and mitred joins."""
+    half = width / 2.0
+    normals = [map_normal(a, b) for a, b in zip(points, points[1:])]
+    left, right = [], []
+    for i, p in enumerate(points):
+        n1 = normals[max(i - 1, 0)]
+        n2 = normals[min(i, len(normals) - 1)]
+        left.append(map_mitre(p, n1, n2, half, limit))
+        right.append(map_mitre(p, n1, n2, -half, limit))
+    return left + right[::-1]
+
+
+def map_frame(size, centre, angle, local):
+    """Grid polygon given in a frame rotated by angle degrees about a grid centre, as glyph points."""
+    c, s = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+    return [map_gp(size, centre[0] + u * c - v * s, centre[1] + u * s + v * c) for u, v in local]
+
+
+def map_regular(size, centre, radius, sides, angle=0.0):
+    """A regular polygon in glyph grid units."""
+    return [map_gp(size, centre[0] + radius * math.cos(math.radians(angle + 360.0 * i / sides)),
+                   centre[1] + radius * math.sin(math.radians(angle + 360.0 * i / sides))) for i in range(sides)]
+
+
+# A glyph is a list of shapes: (outer polygon, hole polygons, cut polygons). Holes are part of the
+# shape and get the outline; cuts only knock the glyph colour out, so the outline shows through them.
+
+def map_wrench(size):
+    """A straight handle and a squared head with a square jaw facing the top right."""
+    unit = size / MAP_GRID
+    handle = map_stroke_poly([map_gp(size, 4.6, 11.4), map_gp(size, 9.2, 6.8)], MAP_STROKE * unit)  # runs into the head, no seam
+    head = map_frame(size, (9.9, 6.1), -45.0, [(-1.6, -1.9), (1.9, -1.9), (1.9, -0.8), (0.3, -0.8),
+                                               (0.3, 0.8), (1.9, 0.8), (1.9, 1.9), (-1.6, 1.9)])
+    return [(handle, [], []), (head, [], [])]
+
+
+def map_cannon(size):
+    """A rectangular barrel raised to the top right over an octagonal wheel, kept apart by a knockout gap."""
+    unit = size / MAP_GRID
+    wheel = map_regular(size, (6.6, 10.4), 2.3, 8, 22.5)
+    hub = map_regular(size, (6.6, 10.4), 0.9, 8, 22.5)
+    barrel = map_stroke_poly([map_gp(size, 5.0, 8.6), map_gp(size, 11.8, 5.0)], MAP_STROKE * unit)
+    return [(barrel, [], [map_offset(wheel, 0.6 * unit)]), (wheel, [hub], [])]
+
+
+def map_bezier(size, p0, c1, c2, p1, steps=14):
+    """Points of a cubic Bezier curve given in grid units, in retail pixels and not snapped, so a curve stays smooth."""
+    unit = size / MAP_GRID
+    pts = []
+    for i in range(steps + 1):
+        t = i / steps
+        u = 1.0 - t
+        x = u * u * u * p0[0] + 3.0 * u * u * t * c1[0] + 3.0 * u * t * t * c2[0] + t * t * t * p1[0]
+        y = u * u * u * p0[1] + 3.0 * u * u * t * c1[1] + 3.0 * u * t * t * c2[1] + t * t * t * p1[1]
+        pts.append((x * unit, y * unit))
+    return pts
+
+
+def map_dollar(size):
+    """A curved S stroked over a vertical bar that shows above and below it, like the retail Cash dollar."""
+    unit = size / MAP_GRID
+    curve = map_bezier(size, (11.2, 5.0), (10.6, 2.2), (5.0, 2.2), (4.8, 5.4))
+    curve += map_bezier(size, (4.8, 5.4), (4.6, 8.2), (11.4, 7.8), (11.2, 10.6))[1:]
+    curve += map_bezier(size, (11.2, 10.6), (11.0, 13.8), (5.4, 13.8), (4.6, 11.0))[1:]
+    bar = [(8.0 * unit, 1.4 * unit), (8.0 * unit, 14.6 * unit)]
+    return [(map_stroke_poly(curve, 2.4 * unit), [], []), (map_stroke_poly(bar, 1.5 * unit), [], [])]
+
+
+def map_crate(size):
+    """A wooden crate face with two plank gaps cut across it."""
+    unit = size / MAP_GRID
+
+    def p(x, y):
+        return (x * unit, y * unit)
+
+    body = [p(3.4, 4.0), p(12.6, 4.0), p(13.4, 4.8), p(13.4, 13.2), p(12.6, 14.0), p(3.4, 14.0), p(2.6, 13.2), p(2.6, 4.8)]
+    gaps = [[p(2.9, 7.4), p(13.1, 7.4), p(13.1, 7.9), p(2.9, 7.9)], [p(2.9, 10.3), p(13.1, 10.3), p(13.1, 10.8), p(2.9, 10.8)]]
+    return [(body, [], gaps)]
+
+
+def map_brace(size):
+    """The diagonal plank across the crate."""
+    unit = size / MAP_GRID
+    return [(map_stroke_poly([(3.8 * unit, 13.0 * unit), (12.2 * unit, 5.0 * unit)], 1.6 * unit), [], [])]
+
+
+def map_droplet(size):
+    """A smooth teardrop with a pointed top."""
+    unit = size / MAP_GRID
+    right = map_bezier(size, (8.0, 1.8), (9.4, 4.6), (12.8, 6.8), (12.8, 10.0))
+    right += map_bezier(size, (12.8, 10.0), (12.8, 12.8), (10.6, 14.4), (8.0, 14.4))[1:]
+    left = [(16.0 * unit - x, y) for x, y in reversed(right[1:-1])]
+    return [(right + left, [], [])]
+
+
+def map_star_points(size):
+    """A five point star filling the piece with even padding; the points stay sharp."""
+    unit = size / MAP_GRID
+    cx, cy = map_point(size, 8.0, 8.6)
+    outer, inner = 7.4 * unit, 3.0 * unit
+    pts = []
+    for i in range(10):
+        a = math.radians(-90.0 + 36.0 * i)
+        r = outer if i % 2 == 0 else inner
+        pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
+def map_edge_distance(x, y, pts):
+    """Distance from a point to the nearest edge of a closed polygon."""
+    best = None
+    for (ax, ay), (bx, by) in zip(pts, pts[1:] + pts[:1]):
+        dx, dy = bx - ax, by - ay
+        k = max(0.0, min(1.0, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)))
+        d = math.hypot(x - ax - k * dx, y - ay - k * dy)
+        best = d if best is None else min(best, d)
+    return best
+
+
+def map_star_piece(size, fill, edge, edge_width):
+    """A five point star with an edge band inside its silhouette; fill None draws the outline only.
+    The silhouette is the star polygon itself, so the points and corners stay sharp and mitred."""
+    unit = size / MAP_GRID
+    pts = map_star_points(size)
+    band = edge_width * unit
+
+    def sample(x, y):
+        if not map_inside(x, y, pts):
+            return TRANSPARENT
+        if map_edge_distance(x, y, pts) < band:
+            return edge
+        return fill if fill is not None else TRANSPARENT
+
+    return paint(size, size, sample)
+
+
+def pieces2():
+    """The second atlas: map preview icons and the favourite stars."""
+    out = []
+    for name in MAP_ICONS:
+        out.append((name, MAP_ICON_SIZE, MAP_ICON_SIZE, map_icon_piece(MAP_ICON_SIZE, name)))
+    out.append(("GOMapFavouriteOn", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, STAR_ON[0], STAR_ON[1], 1.0)))
+    # the inside band shows the inner half of a centred 2 unit stroke plus a little, so the outline star stays open
+    out.append(("GOMapFavouriteOff", STAR_SIZE, STAR_SIZE, map_star_piece(STAR_SIZE, None, STAR_OFF, 1.25)))
+    return out
+
+# ============================== end of the GO map select section ==============================
+
+
+def pack(items, atlas_width=ATLAS_WIDTH):
     """Shelf-pack (name, w, h, texels) into the atlas in retail pixels; returns placements and atlas height."""
     order = sorted(items, key=lambda it: (-it[2], -it[1], it[0]))
     placements = {}
     x = y = shelf = 0
     for name, w, h, _ in order:
         cw, ch = w + 2 * EXTRUDE, h + 2 * EXTRUDE
-        if cw > ATLAS_WIDTH:
+        if cw > atlas_width:
             raise SystemExit(f"{name} is wider than the atlas")
-        if x + cw > ATLAS_WIDTH:
+        if x + cw > atlas_width:
             x, y, shelf = 0, y + shelf, 0
         placements[name] = (x + EXTRUDE, y + EXTRUDE)
         x += cw
@@ -486,13 +834,14 @@ def pack(items):
     return placements, height
 
 
-def build():
-    items = pieces()
+def build(items=None, texture_name=TEXTURE_NAME, atlas_width=ATLAS_WIDTH, title="the shell gadget images"):
+    if items is None:
+        items = pieces()
     names = [it[0] for it in items]
     if len(names) != len(set(names)):
         raise SystemExit("duplicate image names")
-    placements, height = pack(items)
-    atlas = [[TRANSPARENT] * (ATLAS_WIDTH * SCALE) for _ in range(height * SCALE)]
+    placements, height = pack(items, atlas_width)
+    atlas = [[TRANSPARENT] * (atlas_width * SCALE) for _ in range(height * SCALE)]
     pad = EXTRUDE * SCALE
     for name, w, h, texels in items:
         left, top = placements[name][0] * SCALE, placements[name][1] * SCALE
@@ -510,7 +859,7 @@ def build():
             if ax - EXTRUDE < bx + b[1] + EXTRUDE and bx - EXTRUDE < ax + a[1] + EXTRUDE and ay - EXTRUDE < by + b[2] + EXTRUDE and by - EXTRUDE < ay + a[2] + EXTRUDE:
                 raise SystemExit(f"{a[0]} overlaps {b[0]}")
 
-    return tga_bytes(atlas), ini_text(items, placements, height)
+    return tga_bytes(atlas), ini_text(items, placements, height, texture_name, atlas_width, title)
 
 
 def tga_bytes(atlas):
@@ -540,9 +889,9 @@ def tga_bytes(atlas):
     return header + bytes(body)
 
 
-def ini_text(items, placements, height):
+def ini_text(items, placements, height, texture_name=TEXTURE_NAME, atlas_width=ATLAS_WIDTH, title="the shell gadget images"):
     lines = [
-        "; Generals Online UI kit: points the shell gadget images at GeneralsOnline_UIKit.tga.",
+        f"; Generals Online UI kit: points {title} at {texture_name}.",
         f"; Generated by GenOnline/tools/go_ui_kit.py; edit the script, not this file. The texture holds {SCALE} texels per pixel.",
         "",
     ]
@@ -550,8 +899,8 @@ def ini_text(items, placements, height):
         left, top = placements[name]
         lines += [
             f"MappedImage {name}",
-            f"  Texture = {TEXTURE_NAME}",
-            f"  TextureWidth = {ATLAS_WIDTH}",
+            f"  Texture = {texture_name}",
+            f"  TextureWidth = {atlas_width}",
             f"  TextureHeight = {height}",
             f"  Coords = Left:{left} Top:{top} Right:{left + w} Bottom:{top + h}",
             "  Status = NONE",
@@ -567,17 +916,17 @@ def main():
     parser.add_argument("--check", action="store_true", help="fail when the committed files are out of date")
     args = parser.parse_args()
     texture, ini = build()
-    ini_bytes = ini.encode("ascii")
+    texture2, ini2 = build(pieces2(), TEXTURE2_NAME, ATLAS2_WIDTH, "the map preview icons and the favourite stars")
+    outputs = ((TEXTURE_PATH, texture), (INI_PATH, ini.encode("ascii")), (TEXTURE2_PATH, texture2), (INI2_PATH, ini2.encode("ascii")))
     if args.check:
-        stale = [p for p, data in ((TEXTURE_PATH, texture), (INI_PATH, ini_bytes)) if not p.exists() or p.read_bytes() != data]
+        stale = [p for p, data in outputs if not p.exists() or p.read_bytes() != data]
         for p in stale:
             print(f"out of date: {p.relative_to(ROOT)}")
         return 1 if stale else 0
-    TEXTURE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    INI_PATH.parent.mkdir(parents=True, exist_ok=True)
-    TEXTURE_PATH.write_bytes(texture)
-    INI_PATH.write_bytes(ini_bytes)
-    print(f"wrote {TEXTURE_PATH.relative_to(ROOT)} and {INI_PATH.relative_to(ROOT)}")
+    for p, data in outputs:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+    print("wrote " + ", ".join(str(p.relative_to(ROOT)) for p, _ in outputs))
     return 0
 
 

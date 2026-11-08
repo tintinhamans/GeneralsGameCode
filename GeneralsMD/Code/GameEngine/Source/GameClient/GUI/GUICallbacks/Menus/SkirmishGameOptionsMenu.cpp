@@ -56,6 +56,9 @@
 #include "GameClient/GadgetSlider.h"
 #include "GameClient/GadgetStaticText.h"
 #include "GameClient/MapUtil.h"
+#if defined(GENONLINE)
+#include "GameClient/MapPreviewIcons.h"
+#endif
 #include "GameClient/Mouse.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "GameNetwork/GameSpy/LobbyUtils.h"
@@ -517,6 +520,16 @@ void MapSelectorTooltip(GameWindow *window,
 	Int pixelX, pixelY;
 	window->winGetScreenPosition(&pixelX, &pixelY);
 
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 08/11/2026 Name the type of the typed marker under the mouse.
+	UnicodeString typedTooltip;
+	if (getMapPreviewMarkerTooltip(x - pixelX, y - pixelY, typedTooltip))
+	{
+		TheMouse->setCursorTooltip( typedTooltip, -1, nullptr);
+		return;
+	}
+#endif
+
 	const Image *image = TheMappedImageCollection->findImageByName("TecBuilding");
 	const Image *image2 = TheMappedImageCollection->findImageByName("Cash");
 
@@ -614,6 +627,9 @@ void positionAdditionalImages( MapMetaData *mmd, GameWindow *mapWindow, Bool for
 {
 	TheSupplyAndTechImageLocations.m_supplyPosList.clear();
 	TheSupplyAndTechImageLocations.m_techPosList.clear();
+#if defined(GENONLINE)
+	TheSupplyAndTechImageLocations.m_typedMarkers.clear();
+#endif
 
 	if( !mmd || !mapWindow || mapWindow->winIsHidden())
 		return;
@@ -632,6 +648,12 @@ void positionAdditionalImages( MapMetaData *mmd, GameWindow *mapWindow, Bool for
 	findDrawPositions(0,0, winMapSize.x, winMapSize.y,mmd->m_extent, &ul, &lr);
 	Int smallWidth = lr.x - ul.x;
 	Int smallHeight= lr.y - ul.y;
+
+#if defined(GENONLINE)
+	// GenOnline @feature arcticdolphin 08/11/2026 Use the typed objects so each marker carries its icon category.
+	if (positionTypedPreviewImages(mmd, ul, smallWidth, smallHeight))
+		return;
+#endif
 
 	Coord3DList::iterator it = mmd->m_supplyPositions.begin();
 		// loop through and make sure we're not on top of anyone else

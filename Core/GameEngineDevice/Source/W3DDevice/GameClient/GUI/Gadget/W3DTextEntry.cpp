@@ -49,6 +49,7 @@
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
+#include "GameClient/GadgetListBox.h"
 #include "GameClient/GadgetTextEntry.h"
 #include "GameClient/IMEManager.h"
 #include "W3DDevice/GameClient/W3DGadget.h"
@@ -264,8 +265,17 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 
 	}
 
+	// GenOnline @tweak arcticdolphin 08/11/2026 With the GO kit, a visible border draws at the kit line weight like the kit list frames.
+	Bool kitBorder = FALSE;
+	if( backBorder != WIN_COLOR_UNDEFINED && GadgetListBoxGetKitScrollLineWidth() > 0 )
+	{
+		UnsignedByte red, green, blue, alpha;
+		GameGetColorComponents( backBorder, &red, &green, &blue, &alpha );
+		kitBorder = alpha > 0;
+	}
+
 	// draw the back border
-	if( backBorder != WIN_COLOR_UNDEFINED )
+	if( backBorder != WIN_COLOR_UNDEFINED && kitBorder == FALSE )
 	{
 
 		start.x = origin.x;
@@ -289,6 +299,9 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 																	 start.x, start.y, end.x, end.y );
 
 	}
+
+	if( kitBorder )
+		GadgetListBoxDrawKitLines( origin.x, origin.y, size.x, size.y, TRUE, TRUE, TRUE, TRUE );
 
 	// draw the text
 	Int fontHeight = TheWindowManager->winFontHeight( instData->getFont() );
