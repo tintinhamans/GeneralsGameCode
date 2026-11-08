@@ -149,16 +149,14 @@ SCROLL_PILLS = {
     "Hilite": rgba("#6A7BFF"),
     "Disabled": rgba("#3A3C55"),
 }
-# arrow cells in the combo arrow states: state -> (cell highlight, chevron); the engine draws the lines with GOScrollLine
+# arrow chevrons in the combo arrow states: state -> chevron; hover and pushed light only the chevron, no cell behind it
 SCROLL_ARROWS = {
-    "": (TRANSPARENT, GLYPH),
-    "Hilite": (SLIDER_HOVER, GLYPH_ACTIVE),
-    "Pushed": (rgba("#2F4BFF", 0.40), GLYPH_ACTIVE),
-    "Disabled": (TRANSPARENT, GLYPH_DISABLED),
+    "": GLYPH,
+    "Hilite": GLYPH_ACTIVE,
+    "Pushed": GLYPH_ACTIVE,
+    "Disabled": GLYPH_DISABLED,
 }
-SCROLL_HIGHLIGHT_INSET = 3.0  # cell units: clear of the list frame
 # the kit scroll column is 14 layout px wide with a 6 px channel the thumb fills (GadgetListBoxGetKitScrollSpan)
-SCROLL_ARROW_SIZE = 21  # the square highlight cell, drawn over the column left of the list frame line
 # the chevron alone, its ink filling the piece: the engine draws it centred on the column line the thumb shares
 SCROLL_CHEVRON_ART = (12, 8)
 # flat track and thumb pieces with square ends: any size draws the same plain bar
@@ -476,12 +474,6 @@ def scroll_chevron_piece(w, h, up, glyph):
     return texels if up else texels[::-1]
 
 
-def scroll_cell_piece(w, h, highlight):
-    """A hovered or pushed scroll arrow cell: a plain square cornered highlight, inset clear of the list frame."""
-    inset = SCROLL_HIGHLIGHT_INSET
-    return paint(w, h, lambda x, y: highlight if inset <= x < w - inset and inset <= y < h - inset else TRANSPARENT)
-
-
 def pieces():
     """(image name, width, height, texels). Sizes are the retail Coords sizes of each name."""
     out = []
@@ -530,19 +522,16 @@ def pieces():
     mw, mh = SLIDER_MARKER_SIZE
     for state, color in SLIDER_MARKER.items():
         out.append((f"GOSliderThumb{state}", mw, mh, flat_piece(mw, mh, color)))
-    # list scroll bar: a channel the thumb fills, like the slider track, then the arrow chevrons and cells and the separator
+    # list scroll bar: a channel the thumb fills, like the slider track, then the arrow chevrons and the separator
     pw, ph = SCROLL_PILL_ART
     for part in ("Top", "Center", "Bottom"):
         out.append((f"GOScrollTrack{part}", pw, ph, flat_piece(pw, ph, SCROLL_TRACK)))
         for state, color in SCROLL_PILLS.items():
             out.append((f"GOScrollThumb{state}{part}", pw, ph, flat_piece(pw, ph, color)))
     cw, ch = SCROLL_CHEVRON_ART
-    for state, (highlight, glyph) in SCROLL_ARROWS.items():
+    for state, glyph in SCROLL_ARROWS.items():
         out.append((f"GOScrollUp{state}", cw, ch, scroll_chevron_piece(cw, ch, True, glyph)))
         out.append((f"GOScrollDown{state}", cw, ch, scroll_chevron_piece(cw, ch, False, glyph)))
-        if highlight[3] > 0.0:
-            size = SCROLL_ARROW_SIZE
-            out.append((f"GOScrollCell{state}", size, size, scroll_cell_piece(size, size, highlight)))
     out.append(("GOScrollLine", 4, 4, flat_piece(4, 4, SCROLL_LINE)))
     return out
 
