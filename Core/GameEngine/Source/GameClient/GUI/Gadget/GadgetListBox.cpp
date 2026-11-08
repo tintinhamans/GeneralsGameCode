@@ -61,6 +61,7 @@
 #include "GameClient/GadgetPushButton.h"
 #include "GameClient/GadgetSlider.h"
 #include "GameClient/GameWindowGlobal.h"
+#include "GameClient/Image.h"
 #include "GameClient/Keyboard.h"
 
 
@@ -98,6 +99,66 @@ static GameWindow *s_batchAddListbox = nullptr;
 static inline Bool listboxLayoutDeferred( GameWindow *window )
 {
 	return s_batchAddListbox != nullptr && s_batchAddListbox == window;
+}
+
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit list scroll bar: one flush column with a rounded track, a pill thumb and chevrons.
+static const char *const s_kitScrollImageNames[KIT_SCROLL_IMAGE_COUNT] =
+{
+	"GOScrollTrackTop",
+	"GOScrollTrackCenter",
+	"GOScrollTrackBottom",
+	"GOScrollThumbTop",
+	"GOScrollThumbCenter",
+	"GOScrollThumbBottom",
+	"GOScrollThumbHiliteTop",
+	"GOScrollThumbHiliteCenter",
+	"GOScrollThumbHiliteBottom",
+	"GOScrollThumbDisabledTop",
+	"GOScrollThumbDisabledCenter",
+	"GOScrollThumbDisabledBottom",
+	"GOScrollUp",
+	"GOScrollUpHilite",
+	"GOScrollUpPushed",
+	"GOScrollUpDisabled",
+	"GOScrollDown",
+	"GOScrollDownHilite",
+	"GOScrollDownPushed",
+	"GOScrollDownDisabled"
+};
+
+static const Image *s_kitScrollImages[KIT_SCROLL_IMAGE_COUNT];
+
+// Scroll bar gaps: the kit column sits flush inside the one pixel list frame with a small inset around the track
+static void getScrollbarGaps( Int &edgeGap, Int &sliderGap )
+{
+	if( GadgetListBoxHasKitScrollBar() )
+	{
+		edgeGap = 1;
+		sliderGap = edgeGap + GameWindowManager::winScaleLayoutSize( 2 );
+	}
+	else
+	{
+		edgeGap = GameWindowManager::winScaleLayoutSize( 2 );
+		sliderGap = GameWindowManager::winScaleLayoutSize( 3 );
+	}
+}
+
+// Kit thumb length: the visible share of the list, at least the retail thumb length and at most the track
+static Int getKitThumbHeight( const ListboxData *list, Int trackHeight )
+{
+	Int visible = list->displayHeight - TOTAL_OUTLINE_HEIGHT;
+	Int thumbHeight = trackHeight;
+	if( list->totalHeight > visible && list->totalHeight > 0 && visible > 0 )
+		thumbHeight = REAL_TO_INT( (Real)trackHeight * (Real)visible / (Real)list->totalHeight + 0.5f );
+
+	Int minHeight = GameWindowManager::winScaleLayoutSize( GADGET_SIZE );
+	if( thumbHeight < minHeight )
+		thumbHeight = minHeight;
+	if( thumbHeight > trackHeight )
+		thumbHeight = trackHeight;
+	if( thumbHeight < 1 )
+		thumbHeight = 1;
+	return thumbHeight;
 }
 
 static void doAudioFeedback(GameWindow *window)
@@ -296,7 +357,22 @@ static void adjustDisplay( GameWindow *window, Int adjustment,
 			return;
 		}
 		child->winGetSize( &sliderChildSize.x, &sliderChildSize.y );
-		sData->numTicks = (float)((sliderSize.y - sliderChildSize.y) / (float)sData->maxVal);
+		// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit thumb length follows the visible part of the list.
+		Bool kitScrollBar = GadgetListBoxHasKitScrollBar();
+		if( kitScrollBar )
+		{
+			Int thumbHeight = getKitThumbHeight( list, sliderSize.y );
+			if( thumbHeight != sliderChildSize.y )
+			{
+				child->winSetSize( sliderChildSize.x, thumbHeight );
+				sliderChildSize.y = thumbHeight;
+			}
+		}
+		// a kit thumb filling the track has no travel
+		if( kitScrollBar && sliderChildSize.y >= sliderSize.y )
+			sData->numTicks = 0.0f;
+		else
+			sData->numTicks = (float)((sliderSize.y - sliderChildSize.y) / (float)sData->maxVal);
 
 		if( updateSlider )
 			TheWindowManager->winSendSystemMsg( list->slider,
@@ -1861,8 +1937,8 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			GameWindow *child = nullptr;
 			ICoord2D sliderChildSize = {0, 0};
 			// gaps match GadgetListboxCreateScrollbar
-			const Int edgeGap = GameWindowManager::winScaleLayoutSize( 2 );
-			const Int sliderGap = GameWindowManager::winScaleLayoutSize( 3 );
+			Int edgeGap, sliderGap;
+			getScrollbarGaps( edgeGap, sliderGap );
 
 			// get needed window sizes
 			if (list->downButton)
@@ -2380,8 +2456,7 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The scroll bar parts scale with the screen height and keep their shape.
 	buttonWidth = GameWindowManager::winScaleLayoutSize( buttonWidth );
 	buttonHeight = GameWindowManager::winScaleLayoutSize( buttonHeight );
-	edgeGap = GameWindowManager::winScaleLayoutSize( 2 );
-	sliderGap = GameWindowManager::winScaleLayoutSize( 3 );
+	getScrollbarGaps( edgeGap, sliderGap );
 
 	// ----------------------------------------------------------------------
 	// Create Top Button
@@ -2454,6 +2529,37 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 	// we now have all the scrollbar parts, this better be set :)
 	listData->scrollBar = TRUE;
 
+}
+
+// GadgetListBoxHasKitScrollBar ===============================================
+/** TRUE when every kit scroll bar image exists, caching each one once found */
+//=============================================================================
+Bool GadgetListBoxHasKitScrollBar( void )
+{
+	if( TheMappedImageCollection == nullptr )
+		return FALSE;
+
+	Int i;
+	for( i = 0; i < KIT_SCROLL_IMAGE_COUNT; ++i )
+	{
+		if( s_kitScrollImages[i] == nullptr )
+			s_kitScrollImages[i] = TheMappedImageCollection->findImageByName( s_kitScrollImageNames[i] );
+
+		if( s_kitScrollImages[i] == nullptr )
+			return FALSE;
+	}
+	return TRUE;
+}
+
+// GadgetListBoxGetKitScrollImage =============================================
+/** One kit scroll bar image, nullptr unless the whole kit scroll bar exists */
+//=============================================================================
+const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which )
+{
+	if( which < 0 || which >= KIT_SCROLL_IMAGE_COUNT || GadgetListBoxHasKitScrollBar() == FALSE )
+		return nullptr;
+
+	return s_kitScrollImages[which];
 }
 
 // GadgetListBoxAddMultiSelect ================================================
