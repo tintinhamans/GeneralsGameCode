@@ -54,6 +54,7 @@
 #include "GameClient/GlobalLanguage.h"
 #include "GameClient/GameWindowTransitions.h"
 #include "Common/NameKeyGenerator.h"
+#include "GameLogic/GameLogic.h"
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////////////////////////
 GameWindowManager *TheWindowManager = nullptr;
@@ -182,6 +183,8 @@ GameWindowManager::GameWindowManager()
 
 	m_cursorBitmap = nullptr;
 	m_captureFlags = 0;
+	m_handCursorShown = FALSE;
+	m_cursorBeforeHand = Mouse::ARROW;
 
 }
 
@@ -232,6 +235,104 @@ void GameWindowManager::update()
 	processDestroyList();
 	if(TheTransitionHandler)
 		TheTransitionHandler->update();
+
+	updateHandCursor();
+}
+
+//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Show the Hand cursor over clickable controls while no match is in progress.
+//-------------------------------------------------------------------------------------------------
+void GameWindowManager::updateHandCursor()
+{
+	if (TheMouse == NULL)
+		return;
+
+	// the shell map runs as a shell game; a match, its replays and its in-game menus keep their cursors, tools without game logic too
+	const Bool inShell = TheGameLogic != NULL && (!TheGameLogic->isInGame() || TheGameLogic->isInShellGame());
+	Bool wantHand = FALSE;
+	if (inShell)
+	{
+		const MouseIO* mouse = TheMouse->getMouseStatus();
+		wantHand = isHandCursorWindow(m_currMouseRgn, mouse->pos.x, mouse->pos.y);
+	}
+
+	if (wantHand)
+	{
+		if (!m_handCursorShown)
+			m_cursorBeforeHand = TheMouse->getMouseCursor();
+
+		// set only on a change; a menu that set its own cursor under the hand gets the hand back
+		if (TheMouse->getMouseCursor() != Mouse::HAND)
+			TheMouse->setCursor(Mouse::HAND);
+	}
+	else if (m_handCursorShown && TheMouse->getMouseCursor() == Mouse::HAND)
+	{
+		TheMouse->setCursor((Mouse::MouseCursor)m_cursorBeforeHand);
+	}
+	m_handCursorShown = wantHand;
+}
+
+//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Enabled visible buttons, check boxes, radio buttons, dropdowns, tabs and list rows.
+//-------------------------------------------------------------------------------------------------
+Bool GameWindowManager::isHandCursorWindow(GameWindow* window, Int mouseX, Int mouseY)
+{
+	if (window == NULL || isHidden(window))
+		return FALSE;
+
+	for (GameWindow* win = window; win != NULL; win = win->winGetParent())
+	{
+		if (!win->winGetEnabled())
+			return FALSE;
+	}
+
+	const UnsignedInt style = window->winGetStyle();
+	if (BitIsSet(style, GWS_PUSH_BUTTON))
+	{
+		// a slider thumb is dragged, not clicked
+		GameWindow* parent = window->winGetParent();
+		return parent == NULL || !BitIsSet(parent->winGetStyle(), GWS_HORZ_SLIDER | GWS_VERT_SLIDER);
+	}
+
+	if (BitIsSet(style, GWS_CHECK_BOX | GWS_RADIO_BUTTON | GWS_COMBO_BOX))
+		return TRUE;
+
+	if (BitIsSet(style, GWS_SCROLL_LISTBOX))
+	{
+		const ListboxData* list = (const ListboxData*)window->winGetUserData();
+		if (list == NULL || list->listData == NULL || list->endPos <= 0)
+			return FALSE;
+
+		Int row = -1;
+		Int column = -1;
+		return GadgetListBoxGetEntryBasedOnXY(window, mouseX, mouseY, row, column) >= 0;
+	}
+
+	if (BitIsSet(style, GWS_TAB_CONTROL))
+	{
+		// mirrors the tab hit test of GadgetTabControlInput; the open tab and disabled tabs take no click
+		const TabControlData* tabData = (const TabControlData*)window->winGetUserData();
+		if (tabData == NULL)
+			return FALSE;
+
+		Int tabX;
+		Int tabY;
+		window->winGetScreenPosition(&tabX, &tabY);
+		const Int x = mouseX - tabX;
+		const Int y = mouseY - tabY;
+		if (x < tabData->tabsLeftLimit || x > tabData->tabsRightLimit || y < tabData->tabsTopLimit || y > tabData->tabsBottomLimit)
+			return FALSE;
+
+		const Bool vertical = tabData->tabEdge == TP_RIGHT_SIDE || tabData->tabEdge == TP_LEFT_SIDE;
+		const Int tabSize = vertical ? tabData->tabHeight : tabData->tabWidth;
+		if (tabSize <= 0)
+			return FALSE;
+
+		const Int tab = (vertical ? y - tabData->tabsTopLimit : x - tabData->tabsLeftLimit) / tabSize;
+		return tab >= 0 && tab < tabData->tabCount && tab < NUM_TAB_PANES && !tabData->subPaneDisabled[tab] && tab != tabData->activeTab;
+	}
+
+	return FALSE;
 }
 
 //-------------------------------------------------------------------------------------------------
