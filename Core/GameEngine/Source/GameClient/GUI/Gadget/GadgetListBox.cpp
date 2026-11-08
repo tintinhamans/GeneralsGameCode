@@ -104,7 +104,7 @@ static inline Bool listboxLayoutDeferred( GameWindow *window )
 	return s_batchAddListbox != nullptr && s_batchAddListbox == window;
 }
 
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit list scroll bar: one flush column with a rounded track, a pill thumb and chevrons.
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Kit list scroll bar: one flush column with a rounded track, a pill thumb and arrow cells.
 static const char *const s_kitScrollImageNames[KIT_SCROLL_IMAGE_COUNT] =
 {
 	"GOScrollTrackTop",
@@ -126,7 +126,8 @@ static const char *const s_kitScrollImageNames[KIT_SCROLL_IMAGE_COUNT] =
 	"GOScrollDown",
 	"GOScrollDownHilite",
 	"GOScrollDownPushed",
-	"GOScrollDownDisabled"
+	"GOScrollDownDisabled",
+	"GOScrollLine"
 };
 
 static const Image *s_kitScrollImages[KIT_SCROLL_IMAGE_COUNT];
@@ -2574,6 +2575,24 @@ const Image *GadgetListBoxGetKitScrollImage( KitScrollImage which )
 		return nullptr;
 
 	return s_kitScrollImages[which];
+}
+
+// GadgetListBoxGetKitScrollLineWidth =========================================
+/** Kit scroll column separator thickness, the kit line Border at the layout scale; 0 without the kit */
+//=============================================================================
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 The kit scroll column has one separator line like the combo arrow join.
+Int GadgetListBoxGetKitScrollLineWidth( void )
+{
+	const Image *line = GadgetListBoxGetKitScrollImage( KIT_SCROLL_LINE );
+	if( line == nullptr || TheDisplay == nullptr )
+		return 0;
+
+	// same thickness as the bordered kit pieces
+	Real layoutScale = (Real)TheDisplay->getHeight() / 600.0f;
+	Int width = REAL_TO_INT_CEIL( line->getBorder() * layoutScale - 0.01f );
+	if( width < 1 )
+		width = 1;
+	return width;
 }
 
 // GadgetListBoxGetKitComboFrame ==============================================

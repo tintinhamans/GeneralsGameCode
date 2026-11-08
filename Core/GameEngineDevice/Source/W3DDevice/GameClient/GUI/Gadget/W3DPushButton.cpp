@@ -313,9 +313,9 @@ void W3DGadgetPushButtonImageDraw( GameWindow *window,
 }
 
 // W3DGadgetPushButtonKitScrollArrowDraw ======================================
-/** Draw a list box scroll arrow as a kit chevron */
+/** Draw a list box scroll arrow as a kit arrow cell */
 //=============================================================================
-// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw list scroll arrows as plain chevrons when the GO kit scroll images exist.
+// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw list scroll arrows as kit arrow cells when the GO kit scroll images exist.
 void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 																						WinInstanceData *instData )
 {
@@ -343,6 +343,12 @@ void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 	window->winGetScreenPosition( &start.x, &start.y );
 	window->winGetSize( &size.x, &size.y );
 	TheWindowManager->winDrawImage( image, start.x, start.y, start.x + size.x, start.y + size.y );
+
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The cell's part of the column separator, joined to the track's part.
+	const Image *line = GadgetListBoxGetKitScrollImage( KIT_SCROLL_LINE );
+	Int lineWidth = GadgetListBoxGetKitScrollLineWidth();
+	if( line && lineWidth > 0 && lineWidth <= size.x / 2 )
+		TheWindowManager->winDrawImage( line, start.x, start.y, start.x + lineWidth, start.y + size.y );
 }
 
 void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
