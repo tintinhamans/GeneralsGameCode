@@ -1173,10 +1173,16 @@ Bool GadgetComboBoxIsKitFieldLit( GameWindow *comboBox )
 			return TRUE;
 	}
 
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 A read-only edit box takes no mouse input, so also light the field when the mouse is over the combo, its edit box or its arrow.
-	if( TheMouse == nullptr )
+	// TheSuperHackers @tweak arcticdolphin 08/11/2026 A read-only edit box takes no mouse input, so also light the field when the mouse is inside the edit box and arrow.
+	if( TheMouse == nullptr || comboBox->winIsHidden() )
 		return FALSE;
 	const MouseIO *mouse = TheMouse->getMouseStatus();
-	GameWindow *under = TheWindowManager->getWindowUnderCursor( mouse->pos.x, mouse->pos.y, TRUE );
-	return under != nullptr && (under == parts[ 0 ] || under == parts[ 1 ] || under == parts[ 2 ]);
+	Int left, top, right, bottom;
+	parts[ 1 ]->winGetScreenPosition( &left, &top );
+	parts[ 2 ]->winGetScreenPosition( &right, &bottom );
+	Int buttonWidth, buttonHeight;
+	parts[ 2 ]->winGetSize( &buttonWidth, &buttonHeight );
+	right += buttonWidth;
+	bottom += buttonHeight;
+	return mouse->pos.x >= left && mouse->pos.x < right && mouse->pos.y >= top && mouse->pos.y < bottom;
 }
