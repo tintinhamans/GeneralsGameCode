@@ -111,6 +111,8 @@ public:
 	void	Blit_Char( WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, int y );
 
 	void	Free_Glyph_Cache();
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Retail UI faces resolve to the registered GO UI font while this is on.
+	static void	Set_UI_Font_Substitution( bool enable );
 
 private:
 
