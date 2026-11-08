@@ -684,5 +684,22 @@ class HeaderTemplateTest(unittest.TestCase):
         self.assertEqual(defined, {wl.GO_TEMPLATE_PREFIX + name for name in wl.RETAIL_TEMPLATES})
 
 
+class ShippedLayoutTest(unittest.TestCase):
+    def test_custom_lobby_refresh_button_sits_inside_its_parent(self):
+        # a child outside its parent draws but never gets clicks
+        path = Path(__file__).resolve().parent.parent / "GenOnline/GameData/Window/Menus/WOLCustomLobby.wnd"
+        root = wl.parse_windows(path.read_bytes().decode("latin-1"))
+        parents = {}
+
+        def visit(win):
+            for child in win.children:
+                parents[(child.name or "").split(":")[-1]] = (child.rect, win.rect)
+                visit(child)
+
+        visit(root)
+        (x0, y0, x1, y1), (px0, py0, px1, py1) = parents["ButtonRefresh"]
+        self.assertTrue(px0 <= x0 and py0 <= y0 and x1 <= px1 and y1 <= py1, parents["ButtonRefresh"])
+
+
 if __name__ == "__main__":
     unittest.main()
