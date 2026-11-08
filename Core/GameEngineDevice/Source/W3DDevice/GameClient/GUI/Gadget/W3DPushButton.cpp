@@ -343,9 +343,6 @@ void W3DGadgetPushButtonKitScrollArrowDraw( GameWindow *window,
 	window->winGetScreenPosition( &start.x, &start.y );
 	window->winGetSize( &size.x, &size.y );
 	TheWindowManager->winDrawImage( image, start.x, start.y, start.x + size.x, start.y + size.y );
-
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 No cell box: only the cell's part of the column separator, the list frame closes the rest.
-	GadgetListBoxDrawKitLines( start.x, start.y, size.x, size.y, TRUE, FALSE, FALSE, FALSE );
 }
 
 void W3DGadgetPushButtonImageDrawOne( GameWindow *window,

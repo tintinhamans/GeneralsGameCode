@@ -438,8 +438,8 @@ def symbol_piece(w, h, state, glyph_hit):
 
 
 def check_glyph(w, h):
-    """A sharp two segment check."""
-    return stroke_glyph(w, h, [[(3.5, 8.5), (6.5, 11.5), (12.5, 5.5)]])
+    """A sharp two segment check, centred between its ink box centre and its heavier lower vertex."""
+    return stroke_glyph(w, h, [[(3.5, 7.5), (6.5, 10.5), (12.5, 4.5)]])
 
 
 def no_glyph(x, y):
@@ -514,8 +514,8 @@ def channel_piece(w, h, line, fill):
 
 def scroll_arrow_piece(w, h, up, highlight, glyph):
     """An arrow cell of the scroll column: no box, the combo arrow chevron over an optional rounded highlight.
-    The engine draws the column separator with GOScrollLine; the list frame closes the other sides."""
-    hit = chevron_glyph(w, h, up)
+    No separator from the list; the list frame closes the right side, so the chevron centres left of it like the combo arrow."""
+    hit = chevron_glyph(w, h, up, (0.0, 0.0, w - ARROW_LINE, h))
     inset, radius = SCROLL_HIGHLIGHT_INSET, SCROLL_HIGHLIGHT_RADIUS
 
     def sample(x, y):

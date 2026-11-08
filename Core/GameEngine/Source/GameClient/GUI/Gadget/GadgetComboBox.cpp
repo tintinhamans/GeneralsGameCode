@@ -82,6 +82,17 @@
 ///////////////////////////////////////////////////////////////////////////////
 void HideListBox(GameWindow * window);
 
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 A kit drop-down fits its compact rows and its frame instead of the retail row padding.
+static Int getDropDownHeight( GameWindow *listBox, Int rows )
+{
+	Int kitHeight = GadgetListBoxGetKitComboHeight( listBox, rows );
+	if( kitHeight > 0 )
+		return kitHeight;
+
+	WinInstanceData *listInstData = listBox->winGetInstanceData();
+	return ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * rows) + rows * 2 + 4;
+}
+
 // TheSuperHackers @bugfix arcticdolphin 08/11/2026 Raise an opening combo box and the windows holding it above their siblings,
 // so its drop down list draws over the panels laid out below it
 static void bringComboBoxToTop(GameWindow *comboBox)
@@ -181,7 +192,6 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 						bringComboBoxToTop(window);
 						listBox->winHide(FALSE);
 						window->winGetSize(&winSize.x, &winSize.y);
-						WinInstanceData *listInstData = listBox->winGetInstanceData();
 						ListboxData *listData = (ListboxData *)listBox->winGetUserData();
 						// If we have less entries then our max display is set to, only show
 						// those entries and not additional blank lines.  Also, just so it looks
@@ -211,7 +221,7 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 
 						}
 
-						newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
+						newSize.y = getDropDownHeight( listBox, multiplier );
 						// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the field's bottom line.
 						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
 						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );
@@ -530,7 +540,6 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 				ICoord2D editBoxSize;
 				Int listX;
 				Int multiplier;
-				WinInstanceData *listInstData = listBox->winGetInstanceData();
 				GameWindow *editBox = GadgetComboBoxGetEditBox(window);
 				window->winGetSize(&winSize.x, &winSize.y);
 				editBox->winGetSize(&editBoxSize.x, &editBoxSize.y);
@@ -558,7 +567,7 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 					if(listData->slider)
 						listData->slider->winHide(FALSE);
 				}
-				newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
+				newSize.y = getDropDownHeight( listBox, multiplier );
 				// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the field's bottom line.
 				listBox->winSetPosition(0, editBoxSize.y - GadgetListBoxGetKitComboFrame( listBox ));
 				listBox->winSetSize(listX , newSize.y);
@@ -667,7 +676,6 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 						bringComboBoxToTop(window);
 						listBox->winHide(FALSE);
 						window->winGetSize(&winSize.x, &winSize.y);
-						WinInstanceData *listInstData = listBox->winGetInstanceData();
 						ListboxData *listData = (ListboxData *)listBox->winGetUserData();
 						// If we have less entries then our max display is set to, only show
 						// those entries and not additional blank lines.  Also, just so it looks
@@ -697,7 +705,7 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 
 						}
 
-						newSize.y = ((TheWindowManager->winFontHeight( listInstData->getFont() ) ) * multiplier) + multiplier * 2 + 4;
+						newSize.y = getDropDownHeight( listBox, multiplier );
 						// TheSuperHackers @feature arcticdolphin 08/11/2026 The kit drop-down frame shares the field's bottom line.
 						const Int frameOverlap = GadgetListBoxGetKitComboFrame( listBox );
 						window->winSetSize(winSize.x , winSize.y + newSize.y - frameOverlap );

@@ -366,31 +366,6 @@ void W3DGadgetVerticalSliderKitTrackDraw( GameWindow *window, WinInstanceData *i
 															 GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_CENTER ),
 															 GadgetListBoxGetKitScrollImage( KIT_SCROLL_TRACK_BOTTOM ),
 															 channelX, origin.y, channelWidth, size.y );
-
-	// TheSuperHackers @tweak arcticdolphin 08/11/2026 The column separator runs between the arrow cells, which draw their own part.
-	GameWindow *listbox = window->winGetParent();
-	if( listbox == nullptr )
-		return;
-
-	Int top = origin.y;
-	Int bottom = origin.y + size.y;
-	GameWindow *upButton = GadgetListBoxGetUpButton( listbox );
-	GameWindow *downButton = GadgetListBoxGetDownButton( listbox );
-	if( upButton )
-	{
-		ICoord2D upPos, upSize;
-		upButton->winGetScreenPosition( &upPos.x, &upPos.y );
-		upButton->winGetSize( &upSize.x, &upSize.y );
-		top = upPos.y + upSize.y;
-	}
-	if( downButton )
-	{
-		ICoord2D downPos;
-		downButton->winGetScreenPosition( &downPos.x, &downPos.y );
-		bottom = downPos.y;
-	}
-	if( bottom > top )
-		GadgetListBoxDrawKitLines( origin.x, top, size.x, bottom - top, TRUE, FALSE, FALSE, FALSE );
 }
 
 // W3DGadgetVerticalSliderKitThumbDraw ========================================

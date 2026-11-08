@@ -45,6 +45,9 @@ scripts/wnd_sources copy, if any, is only kept for reference. All rects are in 8
   edge, keeping their width, after the overrides; nothing else moves.
 - Map previews: a window drawn by W3DDrawMapPreview gets the kit line colour as its first enabled border
   colour, which the engine draws as a kit frame around the preview (menus and load screens alike).
+- Button groups: a colour drawn USER window with a clear fill whose children are push buttons (and NOINPUT
+  overlays drawn on them, like the sort arrows) draws no border, so its frame does not show between the buttons
+  or double their edges: its first enabled border colour gets alpha 0 (every layout that gets the fixes).
 - Theme copies: every menu layout (not the in-game ones, nor the menus shown during a match) also goes to
   GenOnline/GameData/Themes/Radar at the same path, its final output with the colours swapped for the
   Classic (Generals Online) palette (scripts/go_themes.py LAYOUT_COLORS). Only colour numbers differ.
@@ -167,6 +170,13 @@ PREVIEW_TOKEN_RE = re.compile(
     r"|^[ \t]*DRAWCALLBACK[ \t]*=[ \t]*\"(?P<callback>[^\"]*)\""
     r"|^[ \t]*ENABLEDDRAWDATA[ \t]*=[ \t]*IMAGE:[^,]*,[ \t]*COLOR:[^,]*,[ \t]*BORDERCOLOR:[ \t]*"
     r"(?P<border>\d+[ \t]+\d+[ \t]+\d+[ \t]+\d+)",
+    re.M,
+)
+# the first enabled border alpha of every window, for the button group rule
+GROUP_BORDER_RE = re.compile(
+    r"^[ \t]*(?P<open>WINDOW)[ \t]*\r?$"
+    r"|^[ \t]*ENABLEDDRAWDATA[ \t]*=[ \t]*IMAGE:[^,]*,[ \t]*COLOR:[^,]*,[ \t]*BORDERCOLOR:[ \t]*"
+    r"\d+[ \t]+\d+[ \t]+\d+[ \t]+(?P<alpha>\d+)",
     re.M,
 )
 
@@ -1226,9 +1236,42 @@ def map_preview_borders(text):
     return text
 
 
+def _clear_button_group(win):
+    """True for a colour drawn USER window with a clear fill, a visible border and only push buttons and their overlays inside."""
+    if win.kind != "USER" or "IMAGE" in win.status or not win.children:
+        return False
+    slots = dict(win.draws).get("ENABLEDDRAWDATA")
+    if not slots or slots[0][1][3] != "0" or slots[0][2][3] == "0":
+        return False
+    buttons = [child.rect for child in win.children if child.kind == "PUSHBUTTON"]
+    if not buttons:
+        return False
+    for child in win.children:
+        if child.kind == "PUSHBUTTON":
+            continue
+        overlay = child.kind == "USER" and "NOINPUT" in child.status and not child.children
+        if not overlay or not any(_within(child.rect, button, 0) for button in buttons):
+            return False
+    return True
+
+
+def button_group_borders(text):
+    """Clear the first enabled border colour of every clear button group window."""
+    groups = [_clear_button_group(win) for win in parse_windows(text).walk()]
+    index, spans = -1, []
+    for m in GROUP_BORDER_RE.finditer(text):
+        if m.group("open"):
+            index += 1
+        elif index >= 0 and groups[index]:
+            spans.append(m.span("alpha"))
+    for start, end in sorted(spans, reverse=True):
+        text = text[:start] + "0" + text[end:]
+    return text
+
+
 def finish(text, name):
-    """The colour and template fixes after alignment: GO header templates, hover images and map preview frames."""
-    return map_preview_borders(hilite_images(go_templates(text, name)))
+    """The colour and template fixes after alignment: GO header templates, hover images, map preview frames and button groups."""
+    return button_group_borders(map_preview_borders(hilite_images(go_templates(text, name))))
 
 
 def transform(text, notes=None, name=None):
