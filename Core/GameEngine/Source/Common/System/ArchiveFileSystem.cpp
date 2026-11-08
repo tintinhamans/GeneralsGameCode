@@ -457,7 +457,8 @@ void ArchiveFileSystem::mountListedArchive(const ArchiveMountEntry& entry, Int p
 	NetworkLog(ELogVerbosity::LOG_RELEASE, "Archive %s at priority %d: %d archives", fullPath.c_str(), priority, mountedCount);
 }
 
-// A GO menu layout: Window/Menus without the screens shown during a match
+// A GO menu layout: Window/Menus without the screens shown during a match (the list of scripts/go_wnd_layouts.py IN_MATCH_MENUS),
+// or the GO header templates those layouts use
 static Bool isGenOnlineShellLayout(const char* path)
 {
 	static const char* const inGameLayouts[] = {
@@ -467,6 +468,10 @@ static Bool isGenOnlineShellLayout(const char* path)
 	AsciiString lower(path);
 	lower.toLower();
 	const char* name = lower.str();
+	if (strcmp(name, "data/generalsonline/headertemplate.ini") == 0 || strcmp(name, "data\\generalsonline\\headertemplate.ini") == 0)
+	{
+		return TRUE;
+	}
 	const char* prefixes[] = { "window/menus/", "window\\menus\\" };
 	Bool inMenus = FALSE;
 	for (size_t p = 0; p < ARRAY_SIZE(prefixes); ++p)
