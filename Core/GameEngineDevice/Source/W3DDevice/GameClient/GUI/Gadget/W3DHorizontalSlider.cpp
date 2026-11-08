@@ -50,6 +50,8 @@
 #include "GameClient/GameWindowGlobal.h"
 #include "GameClient/GameWindowManager.h"
 #include "GameClient/GadgetSlider.h"
+#include "GameClient/GameText.h"
+#include "GameClient/Mouse.h"
 #include "W3DDevice/GameClient/W3DGadget.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 
@@ -57,13 +59,158 @@
 
 // PRIVATE TYPES //////////////////////////////////////////////////////////////
 
+enum KitSliderImage
+{
+	KIT_SLIDER_TRACK_LEFT,
+	KIT_SLIDER_TRACK_CENTER,
+	KIT_SLIDER_TRACK_RIGHT,
+	KIT_SLIDER_FILL_LEFT,
+	KIT_SLIDER_FILL_CENTER,
+	KIT_SLIDER_FILL_RIGHT,
+	KIT_SLIDER_THUMB,
+	KIT_SLIDER_THUMB_HILITE,
+	KIT_SLIDER_THUMB_DISABLED,
+
+	KIT_SLIDER_IMAGE_COUNT
+};
+
 // PRIVATE DATA ///////////////////////////////////////////////////////////////
+
+static const char *const s_kitSliderImageNames[KIT_SLIDER_IMAGE_COUNT] =
+{
+	"GOSliderTrackLeft",
+	"GOSliderTrackCenter",
+	"GOSliderTrackRight",
+	"GOSliderFillLeft",
+	"GOSliderFillCenter",
+	"GOSliderFillRight",
+	"GOSliderThumb",
+	"GOSliderThumbHilite",
+	"GOSliderThumbDisabled"
+};
+
+static const Image *s_kitSliderImages[KIT_SLIDER_IMAGE_COUNT];
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
 
 // PRIVATE PROTOTYPES /////////////////////////////////////////////////////////
 
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////
+
+// Look up the kit slider images, caching each one once found; FALSE if any is missing
+static Bool findKitSliderImages()
+{
+	Int i;
+	for( i = 0; i < KIT_SLIDER_IMAGE_COUNT; ++i )
+	{
+		if( s_kitSliderImages[i] == nullptr )
+			s_kitSliderImages[i] = TheMappedImageCollection->findImageByName( s_kitSliderImageNames[i] );
+
+		if( s_kitSliderImages[i] == nullptr )
+			return FALSE;
+	}
+	return TRUE;
+}
+
+// Show "<label>: <value>" for the slider under the mouse, or for the slider owning the thumb
+static void kitSliderTooltip( GameWindow *window, WinInstanceData *instData, UnsignedInt mouse )
+{
+	GameWindow *slider = window;
+	if( BitIsSet( window->winGetStyle(), GWS_HORZ_SLIDER ) == FALSE && window->winGetParent() != nullptr )
+		slider = window->winGetParent();
+
+	SliderData *s = (SliderData *)slider->winGetUserData();
+	if( s == nullptr )
+		return;
+
+	WinInstanceData *sliderData = slider->winGetInstanceData();
+	UnicodeString text;
+	if( sliderData->m_tooltipString.isNotEmpty() )
+	{
+		UnicodeString label = TheGameText->fetch( sliderData->m_tooltipString );
+		text.format( L"%ls: %d", label.str(), s->position );
+	}
+	else
+	{
+		text.format( L"%d", s->position );
+	}
+
+	TheMouse->setCursorTooltip( text, sliderData->m_tooltipDelay );
+}
+
+// Draw a track, a fill up to the thumb and the thumb from the kit images; FALSE if the kit is absent
+static Bool drawKitSliderTrack( GameWindow *window, WinInstanceData *instData,
+																const ICoord2D &origin, const ICoord2D &size )
+{
+	GameWindow *thumb = window->winGetChild();
+	if( thumb == nullptr || findKitSliderImages() == FALSE )
+		return FALSE;
+
+	ICoord2D thumbPos, thumbSize;
+	thumb->winGetScreenPosition( &thumbPos.x, &thumbPos.y );
+	thumb->winGetSize( &thumbSize.x, &thumbSize.y );
+	Int thumbCX = thumbPos.x + thumbSize.x / 2;
+	Int thumbCY = thumbPos.y + thumbSize.y / 2;
+
+	Real yScale = INT_TO_REAL( TheDisplay->getHeight() ) / 600.0f;
+	Bool enabled = BitIsSet( window->winGetStatus(), WIN_STATUS_ENABLED );
+
+	// track spans the travel of the thumb centre
+	Int trackHeight = REAL_TO_INT( 4.0f * yScale + 0.5f );
+	if( trackHeight < 3 )
+		trackHeight = 3;
+	Int trackY = thumbCY - trackHeight / 2;
+	Int trackStart = origin.x + thumbSize.x / 2;
+	Int trackEnd = origin.x + size.x - thumbSize.x / 2;
+
+	if( trackEnd - trackStart >= 1 )
+	{
+		TheWindowManager->winDrawThreePieceImage( s_kitSliderImages[KIT_SLIDER_TRACK_LEFT],
+																							s_kitSliderImages[KIT_SLIDER_TRACK_CENTER],
+																							nullptr,
+																							s_kitSliderImages[KIT_SLIDER_TRACK_RIGHT],
+																							trackStart, trackY, trackEnd - trackStart, trackHeight );
+	}
+
+	// fill from the track start to the thumb centre
+	Int fillEnd = thumbCX;
+	if( fillEnd > trackEnd )
+		fillEnd = trackEnd;
+	if( enabled && fillEnd - trackStart >= 1 )
+	{
+		TheWindowManager->winDrawThreePieceImage( s_kitSliderImages[KIT_SLIDER_FILL_LEFT],
+																							s_kitSliderImages[KIT_SLIDER_FILL_CENTER],
+																							nullptr,
+																							s_kitSliderImages[KIT_SLIDER_FILL_RIGHT],
+																							trackStart, trackY, fillEnd - trackStart, trackHeight );
+	}
+
+	// thumb art centred on the thumb child, at least as wide as it
+	Int thumbWidth = REAL_TO_INT( 8.0f * yScale + 0.5f );
+	if( thumbWidth < thumbSize.x )
+		thumbWidth = thumbSize.x;
+	Int thumbHeight = REAL_TO_INT( 16.0f * yScale + 0.5f );
+	Int thumbX = thumbCX - thumbWidth / 2;
+	Int thumbY = thumbCY - thumbHeight / 2;
+
+	const Image *thumbImage = s_kitSliderImages[KIT_SLIDER_THUMB];
+	if( enabled == FALSE )
+		thumbImage = s_kitSliderImages[KIT_SLIDER_THUMB_DISABLED];
+	else if( BitIsSet( instData->getState(), WIN_STATE_HILITED ) ||
+					 BitIsSet( thumb->winGetInstanceData()->getState(), WIN_STATE_HILITED ) )
+		thumbImage = s_kitSliderImages[KIT_SLIDER_THUMB_HILITE];
+
+	TheWindowManager->winDrawImage( thumbImage, thumbX, thumbY,
+																	thumbX + thumbWidth, thumbY + thumbHeight );
+
+	// value tooltip, unless a menu already set a tooltip callback
+	if( window->winGetTooltipFunc() == nullptr )
+		window->winSetTooltipFunc( kitSliderTooltip );
+	if( thumb->winGetTooltipFunc() == nullptr )
+		thumb->winSetTooltipFunc( kitSliderTooltip );
+
+	return TRUE;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
@@ -143,6 +290,10 @@ void W3DGadgetHorizontalSliderImageDraw( GameWindow *window,
 	// get screen position and size
 	window->winGetScreenPosition( &origin.x, &origin.y );
 	window->winGetSize( &size.x, &size.y );
+
+	// TheSuperHackers @feature arcticdolphin 08/11/2026 Draw a track and thumb with a value tooltip when the GO kit slider images exist.
+	if( drawKitSliderTrack( window, instData, origin, size ) )
+		return;
 
 	highlightSquare = GadgetSliderGetHiliteImageLeft( window );
 	blankSquare	= GadgetSliderGetDisabledImageRight( window );
