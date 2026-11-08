@@ -192,6 +192,8 @@ public:
 
 	ArchivedDirectoryInfo* friend_getArchivedDirectoryInfo(const Char* directory);
 
+	Bool usesRetailInterface() const { return m_retailInterface; }	///< the Retail style: retail layouts, art and fonts, none of the GO interface files
+
 protected:
 	struct ArchivedDirectoryInfoResult
 	{
@@ -212,7 +214,6 @@ protected:
 
 	void mountListedArchive(const ArchiveMountEntry& entry, Int priority, const PathExcludeList* excludes, std::vector<AsciiString>* mounted = nullptr, ArchivePathFilter includePath = nullptr);
 	void setInterfaceStyle(const AsciiString& style, const AsciiString& palette);	///< the interface style and palette the generals_online archives are mounted for, before mountGenOnlineLayer
-	Bool usesRetailInterface() const { return m_retailInterface; }	///< the Retail style: retail layouts, art and fonts, none of the GO interface files
 	void mountGenOnlineLayer(Bool enabled, const std::vector<std::string>& includePaths);	///< mounts the generals_online layer for the interface style, then its menu layouts and the palette archive
 	void mountGenOnlineTheme(const std::vector<AsciiString>& genOnlineArchives);	///< mounts Themes\GeneralsOnline_Theme_<palette>.big next to the generals_online archives over the paths it replaces, nothing for the Signal palette
 	void mountGenOnlineMenus(const std::vector<AsciiString>& genOnlineArchives);	///< mounts the menu layouts of the generals_online archives again at ARCHIVE_PRIORITY_GENONLINE_GUI
