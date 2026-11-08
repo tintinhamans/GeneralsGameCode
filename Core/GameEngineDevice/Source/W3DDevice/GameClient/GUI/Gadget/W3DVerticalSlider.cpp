@@ -195,16 +195,41 @@ void W3DGadgetVerticalSliderImageDraw( GameWindow *window,
 
 	if(topSize.y + bottomSize.y >= size.y)
 	{
+		Int halfHeight = size.y / 2;
+		ICoord2D topDraw, bottomDraw;
+		topDraw = topSize;
+		bottomDraw = bottomSize;
+		if( topSize.x > 0 && topSize.y > 0 )
+		{
+			topDraw.x = size.x;
+			topDraw.y = (topSize.y * size.x + topSize.x / 2) / topSize.x;
+			if( topDraw.y > halfHeight )
+			{
+				topDraw.y = halfHeight;
+				topDraw.x = (topSize.x * halfHeight + topSize.y / 2) / topSize.y;
+			}
+		}
+		if( bottomSize.x > 0 && bottomSize.y > 0 )
+		{
+			bottomDraw.x = size.x;
+			bottomDraw.y = (bottomSize.y * size.x + bottomSize.x / 2) / bottomSize.x;
+			if( bottomDraw.y > halfHeight )
+			{
+				bottomDraw.y = halfHeight;
+				bottomDraw.x = (bottomSize.x * halfHeight + bottomSize.y / 2) / bottomSize.y;
+			}
+		}
+
 		// draw top end
 		start.x = origin.x + xOffset;
 		start.y = origin.y + yOffset;
-		end.x = origin.x + xOffset + topSize.x;
-		end.y = origin.y + size.y /2;
+		end.x = start.x + topDraw.x;
+		end.y = start.y + topDraw.y;
 		TheWindowManager->winDrawImage(topImage, start.x, start.y, end.x, end.y);
 
 		// draw bottom end
-		start.y = origin.y + size.y /2;
-		end.x = origin.x + xOffset + bottomSize.x;
+		start.y = origin.y + yOffset + size.y - bottomDraw.y;
+		end.x = start.x + bottomDraw.x;
 		end.y = origin.y + yOffset + size.y;
 		TheWindowManager->winDrawImage(bottomImage, start.x, start.y, end.x, end.y);
 	}
