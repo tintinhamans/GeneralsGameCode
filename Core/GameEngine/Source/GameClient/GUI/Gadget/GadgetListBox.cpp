@@ -2624,6 +2624,68 @@ void GadgetListBoxDrawKitLines( Int x, Int y, Int width, Int height,
 		TheWindowManager->winDrawImage( line, x + width - across, y, x + width, y + height );
 }
 
+// GadgetListBoxGetKitFrameColor ==============================================
+/** TRUE when the kit is loaded and a layout border colour belongs to the kit blues; frameColor gets the colour to draw */
+//=============================================================================
+// TheSuperHackers @tweak arcticdolphin 08/11/2026 Window frames drawn from the layout border colour use the kit line weight.
+Bool GadgetListBoxGetKitFrameColor( Color layoutBorder, Color *frameColor )
+{
+	if( layoutBorder == WIN_COLOR_UNDEFINED || GadgetListBoxGetKitScrollLineWidth() <= 0 )
+		return FALSE;
+
+	UnsignedByte red, green, blue, alpha;
+	GameGetColorComponents( layoutBorder, &red, &green, &blue, &alpha );
+	if( alpha == 0 )
+		return FALSE;
+
+	// the kit line and hilite colours keep their own colour
+	if( (red == 47 && green == 75 && blue == 255) || (red == 106 && green == 123 && blue == 255) )
+	{
+		*frameColor = layoutBorder;
+		return TRUE;
+	}
+
+	// older retail blues left in the layouts take the kit line colour
+	if( red < 64 && green < 64 && blue >= 150 )
+	{
+		*frameColor = GameMakeColor( 47, 75, 255, alpha );
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+// GadgetListBoxDrawKitFrame ==================================================
+/** Draw a frame of kit weight lines inside a rect, or one centred rule when the rect is too thin for a frame */
+//=============================================================================
+void GadgetListBoxDrawKitFrame( Color color, Int x, Int y, Int width, Int height )
+{
+	Int thickness = GadgetListBoxGetKitScrollLineWidth();
+	if( thickness <= 0 )
+		return;
+
+	// a horizontal rule window
+	if( height < 2 * thickness + 1 && width >= height )
+	{
+		Int top = y + height / 2 - thickness / 2;
+		TheWindowManager->winFillRect( color, 1.0f, x, top, x + width, top + thickness );
+		return;
+	}
+
+	// a vertical rule window
+	if( width < 2 * thickness + 1 )
+	{
+		Int left = x + width / 2 - thickness / 2;
+		TheWindowManager->winFillRect( color, 1.0f, left, y, left + thickness, y + height );
+		return;
+	}
+
+	TheWindowManager->winFillRect( color, 1.0f, x, y, x + width, y + thickness );
+	TheWindowManager->winFillRect( color, 1.0f, x, y + height - thickness, x + width, y + height );
+	TheWindowManager->winFillRect( color, 1.0f, x, y + thickness, x + thickness, y + height - thickness );
+	TheWindowManager->winFillRect( color, 1.0f, x + width - thickness, y + thickness, x + width, y + height - thickness );
+}
+
 // GadgetListBoxGetKitComboFrame ==============================================
 /** Frame thickness of a kit combo drop-down list, the combo field border; 0 for other lists */
 //=============================================================================
