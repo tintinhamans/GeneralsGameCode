@@ -121,7 +121,7 @@ struct StatsExporterFeedConfig
 	void setDefaults()
 	{
 		lightIntervalMs = 100;
-		fullIntervalMs = 250;
+		fullIntervalMs = 500;
 		events = TRUE;
 		camera = TRUE;
 		chat = TRUE;

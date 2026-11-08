@@ -42,7 +42,7 @@ A protobuf message whose fields all hold their default values encodes to zero by
 |---|---|---|---|
 | 0x09 | game to reader | `Hello` | the first frame of every connection (sequence 0) |
 | 0x01 | game to reader | `MatchInfo` | match phase changes (LOADING, STARTED, ENDED) and on connect for a running match |
-| 0x02 | game to reader | `StatsSnapshot` | light every 100 ms of game time, full every 250 ms by default, during a match (after STARTED) |
+| 0x02 | game to reader | `StatsSnapshot` | light every 100 ms of game time, full every 500 ms by default, during a match (after STARTED) |
 | 0x03 | game to reader | `MatchSummary` | end of match, scores |
 | 0x04 | game to reader | `ChatMessage` | each chat line shown to the local player |
 | 0x05 | game to reader | `UiState` | the screen the game is on; the first frame after the Hello |
@@ -130,7 +130,7 @@ Every reader starts with the defaults below and changes its own feed with a `Fee
 | Setting | Default | Meaning |
 |---|---|---|
 | `light_interval_ms` | 100 | light `StatsSnapshot` cadence in game time; 0 = none, otherwise 1 to 60000; anything up to one logic frame means every logic frame |
-| `full_interval_ms` | 250 | full `StatsSnapshot` cadence; 0 = none (the heavy fields then never arrive), otherwise 100 to 60000 |
+| `full_interval_ms` | 500 | full `StatsSnapshot` cadence; 0 = none (the heavy fields then never arrive), otherwise 100 to 60000 |
 | `events` | true | `Events` frames |
 | `camera` | true | `Camera` frames |
 | `chat` | true | `ChatMessage` frames |
@@ -1378,7 +1378,7 @@ Which frames this reader gets and how often. Defaults apply to every new connect
 | # | Field | Type | Meaning |
 |---|---|---|---|
 | 1 | `light_interval_ms` | uint32 | light StatsSnapshot cadence in game time, 0 = none; default 100, lowest 1; anything up to one logic frame means every logic frame |
-| 2 | `full_interval_ms` | uint32 | full StatsSnapshot cadence, 0 = none (the heavy fields then never arrive); default 250, lowest 100 |
+| 2 | `full_interval_ms` | uint32 | full StatsSnapshot cadence, 0 = none (the heavy fields then never arrive); default 500, lowest 100 |
 | 3 | `events` | bool | default true |
 | 4 | `camera` | bool | default true |
 | 5 | `chat` | bool | ChatMessage frames, default true |

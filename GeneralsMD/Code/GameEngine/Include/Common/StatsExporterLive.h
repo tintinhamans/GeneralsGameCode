@@ -66,7 +66,7 @@ void StatsExporterLiveCommand(Int playerIndex, Int messageType);
 void StatsExporterLiveCamera();
 
 /// Once per GameLogic::update() tick, at its start. Sends the MatchInfo STARTED on (re)connect and the StatsSnapshots
-/// (light every 100 ms of game time, full every 250 ms by default; each reader can change that).
+/// (light every 100 ms of game time, full every 500 ms by default; each reader can change that).
 void StatsExporterLiveUpdate();
 
 /// Once per GameLogic::update() tick, at its end (after the object updates). Sends the Events of that logic frame.
