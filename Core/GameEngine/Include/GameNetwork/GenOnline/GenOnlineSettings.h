@@ -50,8 +50,9 @@ public:
 		return m_Render_FramerateLimit_FPSVal;
 	}
 
-	// "classic" or "generals_online": the .wnd look of the menus, read once at startup
-	const std::string& Render_UITheme() const { return m_Render_UITheme; }
+	// the interface style (retail, refit, overhaul) and palette (signal, radar, night), read once at startup
+	const std::string& UI_Style() const { return m_UI_Style; }
+	const std::string& UI_Palette() const { return m_UI_Palette; }
 	std::string GetAnticheatPlugin() const;
 	bool Social_Notifications_FriendComesOnline_Menus() { return m_Social_Notification_FriendComesOnline_Menus; }
 	bool Social_Notifications_FriendComesOnline_Gameplay() { return m_Social_Notification_FriendComesOnline_Gameplay; }
@@ -106,7 +107,8 @@ private:
 	bool m_Render_LimitFramerate = true;
 	bool m_Render_AdaptiveQuality = true;
 	int m_Render_FramerateLimit_FPSVal = 60;
-	std::string m_Render_UITheme = "classic";
+	std::string m_UI_Style = "refit";
+	std::string m_UI_Palette = "signal";
 	int m_Chat_LifeSeconds = 30;
 
 	bool m_Social_Notification_FriendComesOnline_Menus = true;

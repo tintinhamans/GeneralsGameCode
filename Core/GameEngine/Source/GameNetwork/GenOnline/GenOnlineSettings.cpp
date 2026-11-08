@@ -18,7 +18,9 @@
 #define SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL "fps_limit"
 #define SETTINGS_KEY_RENDER_LEGACY_DRAW_STATS_OVERLAY "stats_overlay"
 #define SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY "adaptive_quality"
-#define SETTINGS_KEY_RENDER_UI_THEME "ui_theme"
+#define SETTINGS_KEY_UI "ui"
+#define SETTINGS_KEY_UI_STYLE "style"
+#define SETTINGS_KEY_UI_PALETTE "palette"
 
 #define SETTINGS_KEY_CHAT "chat"
 #define SETTINGS_KEY_CHAT_LIFE_SECONDS "duration_seconds_until_fade_out"
@@ -346,12 +348,21 @@ void GenOnlineSettings::Load(void)
 				{
 					m_Render_AdaptiveQuality = renderSettings[SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY];
 				}
+			}
 
-				// an unknown theme falls back to classic, the save then writes classic
-				if (renderSettings.contains(SETTINGS_KEY_RENDER_UI_THEME) && renderSettings[SETTINGS_KEY_RENDER_UI_THEME].is_string())
+			// an unknown style or palette falls back to refit and signal, the save then writes those
+			if (jsonSettings.contains(SETTINGS_KEY_UI) && jsonSettings[SETTINGS_KEY_UI].is_object())
+			{
+				const auto uiSettings = jsonSettings[SETTINGS_KEY_UI];
+				if (uiSettings.contains(SETTINGS_KEY_UI_STYLE) && uiSettings[SETTINGS_KEY_UI_STYLE].is_string())
 				{
-					const std::string theme = renderSettings[SETTINGS_KEY_RENDER_UI_THEME].get<std::string>();
-					m_Render_UITheme = (theme == "generals_online") ? theme : std::string("classic");
+					const std::string style = uiSettings[SETTINGS_KEY_UI_STYLE].get<std::string>();
+					m_UI_Style = (style == "retail" || style == "overhaul") ? style : std::string("refit");
+				}
+				if (uiSettings.contains(SETTINGS_KEY_UI_PALETTE) && uiSettings[SETTINGS_KEY_UI_PALETTE].is_string())
+				{
+					const std::string palette = uiSettings[SETTINGS_KEY_UI_PALETTE].get<std::string>();
+					m_UI_Palette = (palette == "radar" || palette == "night") ? palette : std::string("signal");
 				}
 			}
 
@@ -668,7 +679,14 @@ bool GenOnlineSettings::Save()
 					{SETTINGS_KEY_RENDER_LIMIT_FRAMERATE, m_Render_LimitFramerate},
 					{SETTINGS_KEY_RENDER_FRAMERATE_LIMIT_FPS_VAL, m_Render_FramerateLimit_FPSVal},
 					{SETTINGS_KEY_RENDER_ADAPTIVE_QUALITY, m_Render_AdaptiveQuality},
-					{SETTINGS_KEY_RENDER_UI_THEME, m_Render_UITheme},
+				}
+		},
+
+		{
+			SETTINGS_KEY_UI,
+				{
+					{SETTINGS_KEY_UI_STYLE, m_UI_Style},
+					{SETTINGS_KEY_UI_PALETTE, m_UI_Palette},
 				}
 		},
 
