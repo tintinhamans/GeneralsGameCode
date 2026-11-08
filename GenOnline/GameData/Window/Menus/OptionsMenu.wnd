@@ -145,7 +145,7 @@ WINDOW
       WINDOW
         WINDOWTYPE = RADIOBUTTON;
         SCREENRECT = UPPERLEFT: 135 215,
-                     BOTTOMRIGHT: 279 247,
+                     BOTTOMRIGHT: 279 245,
                      CREATIONRESOLUTION: 800 600;
         NAME = "OptionsMenu.wnd:RadioMedium";
         STATUS = ENABLED+HIDDEN+IMAGE+BORDER;
@@ -194,7 +194,7 @@ WINDOW
       WINDOW
         WINDOWTYPE = RADIOBUTTON;
         SCREENRECT = UPPERLEFT: 135 183,
-                     BOTTOMRIGHT: 279 215,
+                     BOTTOMRIGHT: 279 213,
                      CREATIONRESOLUTION: 800 600;
         NAME = "OptionsMenu.wnd:RadioHigh";
         STATUS = ENABLED+HIDDEN+IMAGE+BORDER;
@@ -243,7 +243,7 @@ WINDOW
       WINDOW
         WINDOWTYPE = RADIOBUTTON;
         SCREENRECT = UPPERLEFT: 135 247,
-                     BOTTOMRIGHT: 279 279,
+                     BOTTOMRIGHT: 279 277,
                      CREATIONRESOLUTION: 800 600;
         NAME = "OptionsMenu.wnd:RadioLow";
         STATUS = ENABLED+HIDDEN+IMAGE+BORDER;

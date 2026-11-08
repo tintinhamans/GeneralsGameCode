@@ -1666,7 +1666,7 @@ WINDOW
     WINDOW
       WINDOWTYPE = STATICTEXT;
       SCREENRECT = UPPERLEFT: 44 41,
-                   BOTTOMRIGHT: 752 81,
+                   BOTTOMRIGHT: 752 80,
                    CREATIONRESOLUTION: 800 600;
       NAME = "WOLWelcomeMenu.wnd:StaticTextTitle";
       STATUS = ENABLED;

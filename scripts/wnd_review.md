@@ -13,47 +13,52 @@ Check these layouts with screenshots first; fix what the rules got wrong in `scr
 - Other in-game layouts get only the edge, label and equal row rules.
 - Labels skip horizontal sliders: the track draws from the top of the slider rect at a fixed pixel size.
 - WOLCustomLobby ButtonRefresh sat 30 units left of its parent in retail; scaling with the frame makes that 31.
+- Titles: the ruler menu titles (GameSpy and LAN game options, LAN lobby, SaveLoad, Skirmish, WOL quick match and welcome) share left edge 44 and centre between the frame top and the first header line; the Skirmish title draws left aligned now (it was centred). No title found in GameSpyLoginProfile, NetworkDirectConnect and ReplayMenu (no header line, the title sits in a panel), ScoreScreen (its header band holds column labels) and WOLCustomLobby.
+- The title no longer counts as frame content for the inset rule, which gives SaveLoad and WOL quick match back their retail insets (content 2 units up and 2 units left).
+- Stack gaps: the touching player rows of the Skirmish, LAN and GameSpy game options grids and the Options detail radios get a 2 unit gap at the same pitch; each control is 2 units shorter.
+- Column gaps: LAN game options columns are 2 units apart (were 1, 3, 1), Skirmish 3 (were 3, 3, 2); GameSpy is already even, and its last row, which also holds Select Map, is skipped.
+- Map lists: with Open Sans a list row is 36 px at 1080p (font height plus 1), so the 152-153 unit map lists show 7 full rows and part of an 8th. List heights are left alone; the row height is the engine's.
 
 ## Most changed
 
-| Layout | Kind | Rects changed | Frame | edges | labels | spacing | insets | override | Skips | Largest move |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Window/Menus/ScoreScreen.wnd | menu | 99 | yes | 3 | 0 | 63 | 111 | 0 | 0 | ParentScoreScreen 14 |
-| Window/Menus/GameSpyGameOptionsMenu.wnd | menu | 82 | yes | 26 | 1 | 2 | 0 | 0 | 0 | CheckboxLimitSuperweapons 4 |
-| Window/Menus/SkirmishGameOptionsMenu.wnd | menu | 72 | yes | 8 | 0 | 0 | 8 | 0 | 0 | ButtonSelectMap 6 |
-| Window/Menus/WOLQuickMatchMenu.wnd | menu | 50 | yes | 4 | 0 | 6 | 31 | 0 | 1 | ButtonWiden 3 |
-| Window/Menus/MultiplayerLoadScreen.wnd | menu | 48 | no | 5 | 0 | 0 | 40 | 0 | 0 | WinMapPreview 4 |
-| Window/Menus/LanGameOptionsMenu.wnd | menu | 47 | yes | 10 | 1 | 3 | 57 | 0 | 0 | StaticTextTeam 3 |
-| Window/Menus/DisconnectScreen.wnd | menu | 34 | no | 1 | 0 | 0 | 34 | 0 | 0 | ListboxTextDisplay 1 |
-| Window/Menus/GameSpyLoginProfile.wnd | menu | 33 | yes | 7 | 0 | 0 | 14 | 0 | 0 | CheckBoxRememberInfo 5 |
-| Window/Menus/OptionsMenu.wnd | menu | 31 | no | 5 | 0 | 4 | 18 | 0 | 0 |  4 |
-| Window/Menus/ChallengeMenu.wnd | menu | 28 | no | 3 | 0 | 0 | 12 | 0 | 0 | GeneralPosition5 5 |
-| Window/Menus/SaveLoad.wnd | menu | 27 | yes | 0 | 0 | 1 | 8 | 0 | 0 | MenuButtonFrame 3 |
-| Window/Menus/PopupSaveLoad.wnd | menu | 25 | no | 0 | 0 | 0 | 8 | 0 | 0 | MenuButtonFrame 1 |
-| Window/Menus/WOLWelcomeMenu.wnd | menu | 25 | yes | 1 | 0 | 6 | 12 | 0 | 0 | PercentUSA 3 |
-| Window/Menus/PopupPlayerInfo.wnd | menu | 20 | no | 4 | 0 | 6 | 14 | 0 | 0 | CheckBoxAsianText 3 |
-| Window/Menus/EstablishConnectionsScreen.wnd | menu | 14 | no | 6 | 0 | 12 | 14 | 0 | 0 | StaticPlayer7Status 5 |
-| Window/Menus/ChallengeLoadScreen.wnd | menu | 10 | no | 0 | 0 | 6 | 2 | 0 | 0 | BioStrategyRight 2 |
-| Window/Menus/LanLobbyMenu.wnd | menu | 10 | yes | 4 | 0 | 2 | 0 | 0 | 0 | ButtonBack 2 |
-| Window/Menus/NetworkDirectConnect.wnd | menu | 10 | yes | 1 | 0 | 0 | 0 | 0 | 0 | StaticLocalIP 3 |
-| Window/Menus/ReplayMenu.wnd | menu | 10 | yes | 1 | 0 | 1 | 5 | 0 | 0 | ListboxReplayFiles 2 |
-| Window/Menus/MapTransferScreen.wnd | menu | 9 | no | 0 | 0 | 0 | 9 | 0 | 0 | StaticTextProgressTitle 1 |
-| Window/Menus/MainMenu.wnd | geometry kept | 7 | no | 0 | 0 | 7 | 0 | 0 | 6 | ButtonDiffBack 1 |
-| Window/Menus/PopupLadderSelect.wnd | menu | 7 | no | 2 | 0 | 0 | 6 | 0 | 0 | ButtonOk 1 |
-| Window/Menus/DifficultySelect.wnd | menu | 6 | no | 0 | 0 | 0 | 6 | 0 | 0 | RadioButtonEasy 2 |
-| Window/GeneralsExpPoints.wnd | in-game | 5 | no | 3 | 0 | 3 | 0 | 0 | 0 | ButtonRank3Number11 1 |
-| Window/Diplomacy.wnd | in-game | 4 | no | 4 | 0 | 0 | 0 | 0 | 0 | StaticTextStatusTitle 4 |
-| Window/Menus/SinglePlayerLoadScreen.wnd | menu | 4 | no | 1 | 0 | 3 | 0 | 0 | 0 | StaticTextLine4 3 |
-| Window/Menus/GameSpyLoginQuick.wnd | menu | 3 | no | 0 | 0 | 3 | 0 | 0 | 0 | ButtonTOS 4 |
-| Window/Menus/PopupLocaleSelect.wnd | menu | 3 | no | 0 | 0 | 0 | 3 | 0 | 0 | ListBoxLocaleSelect 1 |
-| Window/Menus/WOLCustomLobby.wnd | menu | 3 | yes | 0 | 0 | 3 | 0 | 0 | 0 | ButtonSortPing 1 |
-| Window/GenPowersShortcutBarChina.wnd | in-game | 2 | no | 0 | 0 | 1 | 0 | 0 | 0 | ButtonParent8 1 |
-| Window/Menus/PopupGameSpyCreateGame.wnd | menu | 2 | no | 0 | 2 | 0 | 0 | 0 | 0 |  1 |
-| Window/ControlBarPopupDescription.wnd | in-game | 1 | no | 0 | 0 | 1 | 0 | 0 | 0 | StaticTextDescription 1 |
-| Window/Menus/PopupLadderDetails.wnd | menu | 1 | no | 1 | 0 | 0 | 0 | 0 | 0 | ListBoxLadderDetails 3 |
-| Window/Menus/ProxyLogin.wnd | menu | 1 | no | 1 | 0 | 0 | 0 | 0 | 0 | ButtonSave 3 |
-| Window/Menus/WOLBuddyOverlay.wnd | menu | 1 | no | 1 | 0 | 0 | 0 | 0 | 0 | TextEntryChat 1 |
-| Window/Menus/WOLLoginMenu.wnd | menu | 1 | no | 0 | 0 | 1 | 0 | 0 | 0 | TextEntryPassword 2 |
+| Layout | Kind | Rects changed | Frame | edges | labels | spacing | insets | gaps | columns | titles | override | Skips | Largest move |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Window/Menus/ScoreScreen.wnd | menu | 99 | yes | 3 | 0 | 63 | 111 | 0 | 0 | 0 | 0 | 0 | ParentScoreScreen 14 |
+| Window/Menus/GameSpyGameOptionsMenu.wnd | menu | 82 | yes | 25 | 1 | 2 | 0 | 40 | 0 | 1 | 0 | 1 | ButtonSelectMap 5 |
+| Window/Menus/SkirmishGameOptionsMenu.wnd | menu | 72 | yes | 7 | 0 | 0 | 8 | 32 | 8 | 1 | 0 | 0 | ButtonSelectMap 6 |
+| Window/Menus/LanGameOptionsMenu.wnd | menu | 63 | yes | 9 | 1 | 3 | 56 | 32 | 17 | 1 | 0 | 0 | StaticTextTitle 4 |
+| Window/Menus/MultiplayerLoadScreen.wnd | menu | 48 | no | 5 | 0 | 0 | 40 | 0 | 0 | 0 | 0 | 0 | WinMapPreview 4 |
+| Window/Menus/WOLQuickMatchMenu.wnd | menu | 48 | yes | 4 | 0 | 6 | 14 | 0 | 1 | 1 | 0 | 1 | ButtonBack 5 |
+| Window/Menus/DisconnectScreen.wnd | menu | 34 | no | 1 | 0 | 0 | 34 | 0 | 0 | 0 | 0 | 0 | ListboxTextDisplay 1 |
+| Window/Menus/OptionsMenu.wnd | menu | 34 | no | 5 | 0 | 4 | 18 | 3 | 0 | 0 | 0 | 0 |  4 |
+| Window/Menus/GameSpyLoginProfile.wnd | menu | 33 | yes | 7 | 0 | 0 | 14 | 0 | 0 | 0 | 0 | 0 | CheckBoxRememberInfo 5 |
+| Window/Menus/ChallengeMenu.wnd | menu | 28 | no | 3 | 0 | 0 | 12 | 0 | 0 | 0 | 0 | 0 | GeneralPosition5 5 |
+| Window/Menus/SaveLoad.wnd | menu | 27 | yes | 0 | 0 | 1 | 0 | 0 | 0 | 1 | 0 | 0 |  10 |
+| Window/Menus/WOLWelcomeMenu.wnd | menu | 26 | yes | 1 | 0 | 6 | 12 | 0 | 0 | 1 | 0 | 0 | PercentUSA 3 |
+| Window/Menus/PopupSaveLoad.wnd | menu | 25 | no | 0 | 0 | 0 | 8 | 0 | 0 | 0 | 0 | 0 | MenuButtonFrame 1 |
+| Window/Menus/PopupPlayerInfo.wnd | menu | 20 | no | 4 | 0 | 6 | 14 | 0 | 0 | 0 | 0 | 0 | CheckBoxAsianText 3 |
+| Window/Menus/EstablishConnectionsScreen.wnd | menu | 14 | no | 6 | 0 | 12 | 14 | 0 | 0 | 0 | 0 | 0 | StaticPlayer7Status 5 |
+| Window/Menus/LanLobbyMenu.wnd | menu | 11 | yes | 4 | 0 | 2 | 0 | 0 | 0 | 1 | 0 | 0 |  3 |
+| Window/Menus/ChallengeLoadScreen.wnd | menu | 10 | no | 0 | 0 | 6 | 2 | 0 | 0 | 0 | 0 | 0 | BioStrategyRight 2 |
+| Window/Menus/NetworkDirectConnect.wnd | menu | 10 | yes | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | StaticLocalIP 3 |
+| Window/Menus/ReplayMenu.wnd | menu | 10 | yes | 1 | 0 | 1 | 5 | 0 | 0 | 0 | 0 | 0 | ListboxReplayFiles 2 |
+| Window/Menus/MapTransferScreen.wnd | menu | 9 | no | 0 | 0 | 0 | 9 | 0 | 0 | 0 | 0 | 0 | StaticTextProgressTitle 1 |
+| Window/Menus/MainMenu.wnd | geometry kept | 7 | no | 0 | 0 | 7 | 0 | 0 | 0 | 0 | 0 | 6 | ButtonDiffBack 1 |
+| Window/Menus/PopupLadderSelect.wnd | menu | 7 | no | 2 | 0 | 0 | 6 | 0 | 0 | 0 | 0 | 0 | ButtonOk 1 |
+| Window/Menus/DifficultySelect.wnd | menu | 6 | no | 0 | 0 | 0 | 6 | 0 | 0 | 0 | 0 | 0 | RadioButtonEasy 2 |
+| Window/GeneralsExpPoints.wnd | in-game | 5 | no | 3 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | ButtonRank3Number11 1 |
+| Window/Diplomacy.wnd | in-game | 4 | no | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | StaticTextStatusTitle 4 |
+| Window/Menus/SinglePlayerLoadScreen.wnd | menu | 4 | no | 1 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | StaticTextLine4 3 |
+| Window/Menus/GameSpyLoginQuick.wnd | menu | 3 | no | 0 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | ButtonTOS 4 |
+| Window/Menus/PopupLocaleSelect.wnd | menu | 3 | no | 0 | 0 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | ListBoxLocaleSelect 1 |
+| Window/Menus/WOLCustomLobby.wnd | menu | 3 | yes | 0 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | ButtonSortPing 1 |
+| Window/GenPowersShortcutBarChina.wnd | in-game | 2 | no | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | ButtonParent8 1 |
+| Window/Menus/PopupGameSpyCreateGame.wnd | menu | 2 | no | 0 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |  1 |
+| Window/ControlBarPopupDescription.wnd | in-game | 1 | no | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | StaticTextDescription 1 |
+| Window/Menus/PopupLadderDetails.wnd | menu | 1 | no | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | ListBoxLadderDetails 3 |
+| Window/Menus/ProxyLogin.wnd | menu | 1 | no | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | ButtonSave 3 |
+| Window/Menus/WOLBuddyOverlay.wnd | menu | 1 | no | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | TextEntryChat 1 |
+| Window/Menus/WOLLoginMenu.wnd | menu | 1 | no | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | TextEntryPassword 2 |
 
 ## Rules could not settle
 
@@ -63,6 +68,10 @@ Skipped moves (overlap, parent or override) per layout.
 
 - spacing: overlapping USER rows skipped: CommandWindow / ObserverPlayerInfoWindow
 - spacing: overlapping USER rows skipped: BeaconWindow / OCLTimerWindow
+
+### Window/Menus/GameSpyGameOptionsMenu.wnd
+
+- columns: skipped row at 79-750, y 277: its columns differ from another row of the grid
 
 ### Window/Menus/MainMenu.wnd
 
@@ -75,4 +84,4 @@ Skipped moves (overlap, parent or override) per layout.
 
 ### Window/Menus/WOLQuickMatchMenu.wnd
 
-- edges: skipped PROGRESSBAR ProgressBarRank (107, 283, 267, 302) -> (107, 280, 267, 299): would overlap USER RankLine
+- edges: skipped PROGRESSBAR ProgressBarRank (105, 283, 265, 302) -> (105, 280, 265, 299): would overlap USER RankLine

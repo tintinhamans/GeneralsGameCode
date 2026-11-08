@@ -16,8 +16,8 @@ import go_wnd_layouts as wl  # noqa: E402
 DRAW_SLOT = "IMAGE: NoImage, COLOR: 255 255 255 255, BORDERCOLOR: 255 255 255 255"
 
 
-def window(kind, rect, children=(), indent=0, draw=None):
-    """Build one WINDOW block in the retail layout, with CRLF line endings."""
+def window(kind, rect, children=(), indent=0, draw=None, props=()):
+    """Build one WINDOW block in the retail layout, with CRLF line endings; props are extra property lines."""
     pad = " " * indent
     x0, y0, x1, y1 = rect
     slots = draw or [DRAW_SLOT] * 9
@@ -32,6 +32,7 @@ def window(kind, rect, children=(), indent=0, draw=None):
         f"{pad}              DISABLED: 255 255 255 255, DISABLEDBORDER: 49 55 168 128,",
         f"{pad}              HILITE:   128 128 255 255, HILITEBORDER:   128 128 255 0;",
     ]
+    lines += [f"{pad}  {prop}" for prop in props]
     lead = f"{pad}  ENABLEDDRAWDATA = "
     for i, slot in enumerate(slots):
         head = lead if i == 0 else " " * len(lead)
@@ -323,7 +324,170 @@ class OverrideTest(unittest.TestCase):
                 wl.transform(screen(), name=MENU)
 
 
+TITLE_PROPS = ('FONT = NAME: "Generals", SIZE: 20, BOLD: 0;', 'HEADERTEMPLATE = "Title";', "STATICTEXTDATA = CENTERED: 1;")
+OUT_OF_SCOPE = ("Window/Diplomacy.wnd", "Window/Menus/MainMenu.wnd", "Window/ControlBar.wnd")
+
+
+def ruler_menu(*children):
+    """A ruler parent around a content frame on the ruler box holding the given children."""
+    return layout(window("USER", (0, 0, 800, 600), [
+        window("USER", (41, 41, 759, 559), [*children], indent=2),
+    ], draw=RULER_DRAW))
+
+
+def header_line(y0, y1):
+    return window("USER", (41, y0, 759, y1), indent=4)
+
+
+def column(kind, x0, x1, top, height, pitch, rows, indent=4):
+    return [window(kind, (x0, top + k * pitch, x1, top + k * pitch + height), indent=indent) for k in range(rows)]
+
+
+class TitleTest(unittest.TestCase):
+    def test_title_moves_to_the_shared_left_edge_and_centres_in_its_band(self):
+        text = ruler_menu(
+            window("STATICTEXT", (48, 43, 257, 79), indent=4, props=TITLE_PROPS),
+            header_line(83, 83),
+            window("PUSHBUTTON", (100, 500, 200, 530), indent=4),
+        )
+        notes = []
+        out = wl.transform(text, notes, name=MENU)
+        # band 41-83 holds the 36 unit title at 44-80; the left edge is the shared title edge
+        self.assertEqual(by_kind(out, "STATICTEXT"), [(wl.TITLE_LEFT, 44, wl.TITLE_LEFT + 209, 80)])
+        self.assertIn("STATICTEXTDATA = CENTERED: 0;", out)
+        self.assertNotIn("CENTERED: 1", out)
+        self.assertEqual(len(out), len(text))
+        self.assertTrue(any(n.startswith("titles:") and "STATICTEXT48_43" in n for n in notes), notes)
+
+    def test_title_taller_than_its_band_fills_the_band(self):
+        text = ruler_menu(
+            window("STATICTEXT", (45, 41, 444, 82), indent=4, props=TITLE_PROPS),
+            header_line(79, 80),
+        )
+        out = wl.transform(text, name=MENU)
+        self.assertEqual(by_kind(out, "STATICTEXT"), [(wl.TITLE_LEFT, 41, wl.TITLE_LEFT + 399, 79)])
+
+    def test_small_text_in_the_band_is_not_a_title(self):
+        text = ruler_menu(
+            window("STATICTEXT", (70, 46, 190, 76), indent=4, props=('FONT = NAME: "Arial", SIZE: 10, BOLD: 0;',)),
+            header_line(81, 82),
+        )
+        notes = []
+        self.assertEqual(by_kind(wl.transform(text, notes, name=MENU), "STATICTEXT"), [(70, 46, 190, 76)])
+        self.assertIn("titles: no title found", notes)
+
+    def test_in_game_and_kept_layouts_get_no_title_rule(self):
+        text = ruler_menu(
+            window("STATICTEXT", (48, 43, 257, 79), indent=4, props=TITLE_PROPS),
+            header_line(83, 83),
+        )
+        for name in OUT_OF_SCOPE:
+            out = wl.transform(text, name=name)
+            self.assertEqual(by_kind(out, "STATICTEXT"), [(48, 43, 257, 79)], name)
+            self.assertIn("CENTERED: 1", out)
+
+
+class StackGapTest(unittest.TestCase):
+    def test_touching_combo_run_opens_a_two_unit_gap_and_keeps_the_pitch(self):
+        text = screen(*column("COMBOBOX", 100, 300, 100, 24, 24, 3, indent=2))
+        self.assertEqual(by_kind(wl.transform(text, name=MENU), "COMBOBOX"),
+                         [(100, 100, 300, 122), (100, 124, 300, 146), (100, 148, 300, 170)])
+
+    def test_one_unit_gap_opens_to_two(self):
+        text = screen(*column("ENTRYFIELD", 100, 300, 100, 24, 25, 2, indent=2))
+        self.assertEqual(by_kind(wl.transform(text, name=MENU), "ENTRYFIELD"),
+                         [(100, 100, 300, 123), (100, 125, 300, 148)])
+
+    def test_run_that_would_drop_below_the_floor_is_left_and_logged(self):
+        text = screen(*column("COMBOBOX", 100, 300, 100, 19, 19, 3, indent=2))
+        notes = []
+        out = wl.transform(text, notes, name=MENU)
+        self.assertEqual(by_kind(out, "COMBOBOX"), [(100, 100, 300, 119), (100, 119, 300, 138), (100, 138, 300, 157)])
+        self.assertTrue(any(n.startswith("gaps:") and "below 18" in n for n in notes), notes)
+
+    def test_grid_rows_stay_aligned_across_columns(self):
+        text = screen(
+            window("ENTRYFIELD", (48, 112, 192, 136), indent=2),
+            *column("COMBOBOX", 48, 192, 136, 24, 24, 2, indent=2),
+            *column("COMBOBOX", 195, 279, 112, 24, 24, 3, indent=2),
+            window("STATICTEXT", (195, 88, 279, 112), indent=2),
+        )
+        out = wl.transform(text, name=MENU)
+        rows = [(48, 112, 192, 134), (48, 136, 192, 158), (48, 160, 192, 182)]
+        self.assertEqual(by_kind(out, "ENTRYFIELD") + by_kind(out, "COMBOBOX")[:2], rows)
+        self.assertEqual(by_kind(out, "COMBOBOX")[2:], [(195, y0, 279, y1) for _, y0, _, y1 in rows])
+        # the column header above keeps its size
+        self.assertEqual(by_kind(out, "STATICTEXT"), [(195, 88, 279, 112)])
+
+    def test_kept_and_in_game_layouts_keep_touching_runs(self):
+        text = screen(*column("COMBOBOX", 100, 300, 100, 24, 24, 3, indent=2))
+        for name in OUT_OF_SCOPE:
+            self.assertEqual(by_kind(wl.transform(text, name=name), "COMBOBOX"),
+                             [(100, 100, 300, 124), (100, 124, 300, 148), (100, 148, 300, 172)], name)
+
+
+class ColumnGapTest(unittest.TestCase):
+    def grid(self):
+        cells = []
+        for x0, x1 in ((100, 250), (254, 300), (302, 360), (364, 400)):
+            cells += column("COMBOBOX", x0, x1, 112, 22, 24, 3, indent=2)
+        return screen(
+            *cells,
+            window("STATICTEXT", (110, 86, 200, 110), indent=2),
+            window("STATICTEXT", (254, 86, 300, 110), indent=2),
+        )
+
+    def test_gaps_even_out_keeping_the_outer_edges_and_headers_follow(self):
+        out = wl.transform(self.grid(), name=MENU)
+        combos = by_kind(out, "COMBOBOX")
+        columns = [(100, 248), (252, 298), (302, 360), (364, 400)]
+        for c, (x0, x1) in enumerate(columns):
+            self.assertEqual([(r[0], r[2]) for r in combos[3 * c:3 * c + 3]], [(x0, x1)] * 3)
+            self.assertEqual([(r[1], r[3]) for r in combos[3 * c:3 * c + 3]], [(112, 134), (136, 158), (160, 182)])
+        self.assertEqual(by_kind(out, "STATICTEXT"), [(110, 86, 200, 110), (252, 86, 298, 110)])
+
+    def test_all_different_gaps_become_four(self):
+        text = screen(
+            window("COMBOBOX", (100, 100, 200, 122), indent=2),
+            window("COMBOBOX", (201, 100, 260, 122), indent=2),
+            window("COMBOBOX", (263, 100, 300, 122), indent=2),
+        )
+        self.assertEqual(by_kind(wl.transform(text, name=MENU), "COMBOBOX"),
+                         [(100, 100, 196, 122), (200, 100, 259, 122), (263, 100, 300, 122)])
+
+    def test_kept_and_in_game_layouts_keep_their_columns(self):
+        for name in OUT_OF_SCOPE:
+            out = wl.transform(self.grid(), name=name)
+            self.assertEqual([(r[0], r[2]) for r in by_kind(out, "COMBOBOX")[::3]],
+                             [(100, 250), (254, 300), (302, 360), (364, 400)], name)
+
+    def test_grid_change_is_idempotent(self):
+        once = wl.transform(self.grid(), name=MENU)
+        self.assertNotEqual(once, self.grid())
+        self.assertEqual(wl.transform(once, name=MENU), once)
+
+
 class AlignmentIdempotenceTest(unittest.TestCase):
+    def test_title_gaps_and_columns_together_are_idempotent(self):
+        cells = []
+        for x0, x1 in ((48, 192), (195, 279), (282, 490), (492, 568)):
+            cells += column("COMBOBOX", x0, x1, 112, 24, 24, 8)
+        text = ruler_menu(
+            window("STATICTEXT", (48, 43, 257, 79), indent=4, props=TITLE_PROPS),
+            header_line(83, 83),
+            window("STATICTEXT", (57, 88, 177, 112), indent=4),
+            window("STATICTEXT", (492, 88, 568, 112), indent=4),
+            *cells,
+        )
+        once = wl.transform(text, name=MENU)
+        self.assertNotEqual(once, text)
+        self.assertEqual(wl.transform(once, name=MENU), once)
+        self.assertEqual(wl.structure_counts(once), wl.structure_counts(text))
+        combos = by_kind(once, "COMBOBOX")
+        self.assertEqual({r[3] - r[1] for r in combos}, {22})
+        self.assertEqual({(r[1], r[3]) for r in combos[::8]}, {(112, 134)})
+        self.assertEqual(by_kind(once, "STATICTEXT")[1:], [(57, 88, 177, 112), (492, 88, 568, 112)])
+
     def test_all_rules_together_are_idempotent(self):
         text = layout(window("USER", (0, 0, 800, 600), [
             window("USER", (41, 41, 759, 559), [
